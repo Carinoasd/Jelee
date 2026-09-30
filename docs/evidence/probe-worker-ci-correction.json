@@ -1,0 +1,116 @@
+{
+  "correctionCommit": "ef115c27a00c1286f482ca7ba0ed39b945123502",
+  "ci": {
+    "repository": "MoYuanCN/Jelee",
+    "runId": 36788523456,
+    "observedUTC": "2026-09-30T23:00:33Z",
+    "jobs": [
+      {
+        "id": 110135602399,
+        "name": "foundation (ubuntu-latest)",
+        "status": "completed",
+        "conclusion": "failure",
+        "failedSteps": [
+          "Linux bootstrap and verification"
+        ]
+      },
+      {
+        "id": 110135602627,
+        "name": "Full branding gate",
+        "status": "completed",
+        "conclusion": "failure",
+        "failedSteps": [
+          "Run make bootstrap tools-verify brand-scan"
+        ]
+      },
+      {
+        "id": 110135602648,
+        "name": "foundation (windows-latest)",
+        "status": "completed",
+        "conclusion": "success",
+        "failedSteps": []
+      },
+      {
+        "id": 110135602785,
+        "name": "PostgreSQL migration and repository integration",
+        "status": "in_progress",
+        "conclusion": null,
+        "failedSteps": []
+      }
+    ],
+    "linuxFailure": {
+      "excerpts": [
+        "2026-09-30T22:58:57.6245867Z --- FAIL: TestProbeWorkerGateAndRuntimeStopAcrossWorkers (0.00s)",
+        "2026-09-30T22:58:57.6247489Z     --- FAIL: TestProbeWorkerGateAndRuntimeStopAcrossWorkers/shutdown (0.00s)",
+        "2026-09-30T22:58:57.6249383Z         probe_test.go:540: parent released before process join",
+        "2026-09-30T22:59:57.0103304Z make: *** [Makefile:47: test-race] Error 1"
+      ],
+      "assessment": "The shutdown test uses one global active counter for two parent jobs. A cancelled gate waiter can legitimately release its own parent while the other parent is still returning from its synchronous prober. The assertion does not distinguish which parent owns the active child. Source review finds a test synchronization/ownership assertion defect; no production edit has been made."
+    },
+    "knownBranding": {
+      "legacyDiagnosticLines": 15278,
+      "assessment": "Known preserved legacy tree gate; not changed."
+    },
+    "redaction": "Only selected fixed test diagnostics retained; no full logs, credentials or connection strings."
+  },
+  "deterministicReproduction": {
+    "mode": "repro",
+    "sourceSHA256": "76731419969e90926706dcefcf99a36ff142b0a61b6aaff1f6cd6b11cce86c53",
+    "logSHA256": "ddfa9c08fa842d38e30dd15baf46748f876f9ce8eba1afa8b16fb32ef6ad0562",
+    "outcomes": [
+      {
+        "command": [
+          "<native-jobs-race-binary>",
+          "-test.run=^TestProbeWorkerGateAndRuntimeStopAcrossWorkers$",
+          "-test.count=1",
+          "-test.timeout=60s",
+          "-test.v"
+        ],
+        "exit": 1
+      }
+    ]
+  },
+  "nativeLinuxCorrection": {
+    "mode": "fixed",
+    "sourceSHA256": "4933ee0a1cedf95ebcf20ae35db126546077c258d854a10f704465cb33a5d832",
+    "logSHA256": "4e118b397ab3fbcbf9289efbd7533479148ae447e39895a9ff3f7b2fbd0bf437",
+    "outcomes": [
+      {
+        "command": [
+          "<native-jobs-race-binary>",
+          "-test.run=^TestProbeWorkerGateAndRuntimeStopAcrossWorkers$",
+          "-test.count=100",
+          "-test.timeout=60s",
+          "-test.v"
+        ],
+        "exit": 0
+      },
+      {
+        "command": [
+          "<native-jobs-race-binary>",
+          "-test.timeout=60s",
+          "-test.v"
+        ],
+        "exit": 0
+      },
+      {
+        "command": [
+          ".bin/go",
+          "vet",
+          "./internal/platform/jobs"
+        ],
+        "exit": 0
+      }
+    ]
+  },
+  "windows": {
+    "result": "PASS",
+    "focusedRuns": 100,
+    "command": "scripts/run-go.ps1 test -count=100 -run ^TestProbeWorkerGateAndRuntimeStopAcrossWorkers$ ./internal/platform/jobs; full jobs test -count=1 -cover; vet ./internal/platform/jobs",
+    "packageCoveragePercent": 87.9,
+    "raceExecuted": false,
+    "repeatLogSHA256": "655ecfcebac70b49b76cafa9ac12a9b3868e18f6251c508644dbf27074a9aebc",
+    "fullLogSHA256": "3db98f2305f6310edd7bc2049973d471f98e1e4b531ebb9f4babeda7ff1ced69"
+  },
+  "productionChanged": false
+}

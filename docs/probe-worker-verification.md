@@ -61,4 +61,10 @@ Windows 使用 `scripts/make.ps1 build`、`scripts/make.ps1 lint` 与 `scripts/r
 
 本段完成 G19.3 快取/重建/清理及 G19.4 损坏媒体容错。G13.4 的监听与去抖、G19.5 进程池、NFO/图片任务、完整catalog导入、MediaInfo/mkv补充、特殊codec、Windows正式隔离、10万/50万/24小时及跨实例实际负载仍未完成。edge 指纹无法发现保持size/mtime/edge的中段修改，文件系统阻塞open/stat也不保证硬取消。
 
-完整品牌门禁仍有遗留失败；增量门禁通过不能替代全仓通过。本段远端 CI 在新 PR 推送后记录，当前报告仅声明以上实际本地执行结果。
+完整品牌门禁仍有遗留失败；增量门禁通过不能替代全仓通过。
+
+## PR #7 的 CI 回归修正
+
+[PR #7](https://github.com/MoYuanCN/Jelee/pull/7) 首次 [CI](https://github.com/MoYuanCN/Jelee/actions/runs/36788523456) 的Windows通过；Linux在双worker停止测试出现偶发失败。原断言使用全局active计数，误把「B只在等gate，取消后释放B」当成「A还没join却释放A」。生产代码按各自parent执行与join，没有要求不同parent同时释放。
+
+测试修正提交 `ef115c27a00c1286f482ca7ba0ed39b945123502` 记录active child所属parent，并用channel强制B在A仍active时释放：保留A自己的join要求，也明确验证B不必等待A。旧断言在这个固定顺序下必然失败；修正后Windows和原生Linux race各100次目标运行、完整worker测试及vet通过。Windows整包87.9%。[原失败与重现/修正证据](evidence/probe-worker-ci-correction.json)保留真实SHA256；只改测试，不改生产流程或降低门槛。补推后CI结果须另行核对。
