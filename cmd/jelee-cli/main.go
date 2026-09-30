@@ -17,10 +17,17 @@ import (
 func main() { os.Exit(run()) }
 func run() int {
 	if len(os.Args) < 2 {
-		fmt.Fprintln(os.Stderr, "usage: jelee-cli doctor|provision|import-video")
+		fmt.Fprintln(os.Stderr, "usage: jelee-cli doctor|provision|import-video|nfo validate")
 		return 2
 	}
 	command := os.Args[1]
+	if command == "nfo" {
+		ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
+		defer stop()
+		ctx, cancel := context.WithTimeout(ctx, 15*time.Second)
+		defer cancel()
+		return runNFOWithOutputCancellation(ctx, os.Args[2:], os.Stdout, os.Stderr)
+	}
 	if command != "doctor" && command != "provision" && command != "import-video" {
 		fmt.Fprintln(os.Stderr, "unsupported command")
 		return 2

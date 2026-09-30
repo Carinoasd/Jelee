@@ -8,5 +8,8 @@ docs/LICENSE-COMPLIANCE.md # Legal attribution.
 docs/branding-rename-map.md # Explicit source-to-target rename mapping.
 docs/upstream-README.md # Preserved upstream attribution and original development guide.
 docs/git-workflow.md # Upstream remote provenance and rollback source identity.
+internal/adapter/nfo/read.go # Legacy XML wrapper names are isolated at the NFO protocol boundary.
+internal/adapter/nfo/read_test.go # Contract fixtures for those exact legacy XML wrappers.
+docs/nfo-compatibility.md # NFO compatibility evidence and upstream parser source references.
 LICENSE # Legal text.
 CONTRIBUTORS.md # Upstream authorship.
