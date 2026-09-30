@@ -1,6 +1,6 @@
 # 持久探测快取契约（3C2A）
 
-本段建立 domain、PostgreSQL repository、schema 4 和不启动程序的 `Inspect`。扫描 worker、配置开关、HTTP/CLI 快取操作及真实 1,000→0→K 探测验收属于下一段，目前默认扫描仍只盘点。实际验收报告将单独保存；本文说明契约，不将设计当作执行证据。
+本段建立 domain、PostgreSQL repository、schema 4 和不启动程序的 `Inspect`。本文保留3C2A数据库层契约。3C2B已将其接入显式开启的worker、配置和HTTP/CLI，见[接线契约](probe-worker.md)。默认扫描仍只盘点；公开工作流与原始数据库接口的区别如下。
 
 ## 有效性键与身份
 
@@ -14,7 +14,7 @@
 
 保留 `inventory_scan` kind，在所有目录 done 后才可由可信 worker 建立 probe phase；未启用时不会自动建立。phase 开始后不再修改 inventory。每次读最多32项；命中结果可连续提交最多16项，miss 一次只取得并提交 cursor 后第一项，每个 parent 最多一个 file lease。
 
-`library_rebuild`/`item_rebuild` 只在首次 Begin 分别递增库/目标 item generation；相同 Begin 重放不再次递增，已有 phase 仍校验当前 scope。下一段将把公开重建请求的失效与入列放在同一交易。
+`library_rebuild`/`item_rebuild` 只在首次 Begin 分别递增库/目标 item generation；相同 Begin 重放不再次递增，已有 phase 仍校验当前 scope。3C2B公开重建改用持久request：enqueue时失效和入列同交易，BeginRequested只使用保存的generation，不再次失效。直接数据库Begin接口保留原契约。
 
 读取/取得/提交 phase 的操作验证 parent 的 owner/generation、DB 时钟下的有效租约和取消旗标；Release 与回收允许取消后的清理。file lease 的 generation 来自 `NO CYCLE` bigint sequence；删除并重新插入 cache row 不重用旧 fence。提交重查 phase cursor、inventory 连续前缀、完整 stamp、当前 generation 和 file fence，最后再核对 parent/child 到期时间。结果、容量差额、计数和 cursor 同交易提交，已推进 cursor 的 Commit 重放返回 conflict；Begin/Finish 的同一 phase 可幂等返回。
 

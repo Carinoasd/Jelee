@@ -1,8 +1,8 @@
 # 探测快取：本段交付与下一段
 
-需求来源：[原文](requirements-source.md) G09.3、G13.4、G19.3–G19.5。用户要求每段完成后验证、推送并提 PR。2026-10-01 又要求本小段完成后停止，方便切换模型；下一段尚未开始。
+需求来源：[原文](requirements-source.md) G09.3、G13.4、G19.3–G19.5。用户要求每段完成后验证、推送并提 PR。3C2A 完成后曾暂停切换模型；2026-10-01 用户明确「继续吧」，现已恢复 3C2B。
 
-## 本次 PR：3C2A 数据库契约
+## 已交付：3C2A 数据库契约（PR #6）
 
 已实现的范围和限制见[契约](probe-cache.md)，实际执行证据见[验证报告](probe-cache-verification.md)：
 
@@ -13,11 +13,11 @@
 - parent/file leases、连续 prefix 检查点、取消/恢复/历史清理与 quota 精确对帐。
 - 最多32项分页、16项 hit 提交、每 parent 一项 miss lease；有界索引淘汰与回收。
 
-当前扫描仍只盘点。配置开关、worker、HTTP/CLI 操作、后台清理排程和真实 1,000→0→K 验收没有交付。数据库契约通过不代表 G19.3 或完整第3阶段已完成。
+3C2A 的验证范围仅限数据库契约。当前 3C2B 的接线和公开操作见[worker契约](probe-worker.md)，其执行证据单独记录；完整第3阶段仍未完成。
 
-## 下一次 PR：3C2B 扫描 worker 与 API
+## 当前：3C2B 扫描 worker 与 API
 
-以下是待实现方案，不是已执行证据。按实际 review 大小还可继续分成 worker 和 API/真实验收两个 PR。
+以下为本段实现约束清单，实际通过与限制以验证报告为准；不能仅凭清单将需求标记完成。
 
 ### 请求与迁移
 
@@ -46,9 +46,9 @@
 - 首版 summary 只回固定进度/计数/错误；不要增加任意 cache row/raw metadata 枚举入口。
 - 路由、OpenAPI、CLI、四语错误和部署文档同步。独立 invalidate 若以后公开，需有界幂等ledger，不能在请求重放时重复 bump。
 
-## 下一段的真实 1,000→0→17 验收
+## 本段的真实 1,000→0→17 验收
 
-尚未执行。须用独立 PG schema、受隔离真实 ffprobe、非 root 只读生产实验容器和自己生成的 MP4 A/B；不碰用户媒体。
+验收目标使用独立 PG schema、受隔离真实 ffprobe、非 root 只读生产实验容器和自己生成的 MP4 A/B；不碰用户媒体。实际结果已入[本段验证报告](probe-worker-verification.md)：181.871秒/12.034秒/14.436秒，实际metadata子程序启动1,000/0/17次。
 
 1. 建1,000个路径的A hardlinks（不支持时副本），首次成功探测1,000、失败0、lease0，核对 metadata/cursor/实际 JSONB quota。
 2. 原档/identity/TTL不变重扫：Inspect1,000，实际metadata runner增量0，hit1,000。

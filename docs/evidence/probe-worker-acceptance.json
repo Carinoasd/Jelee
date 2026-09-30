@@ -1,0 +1,97 @@
+{
+  "sourceDigest": "be09a3cfd52ac5b04301fb44bc795a94ca12c732bdeefe2f1a50b7e1f869fe85",
+  "profile": "production Linux amd64; UID 65532; read-only root and media; no capabilities; no-new-privileges",
+  "rounds": [
+    {
+      "activeChildren": 0,
+      "activeLeases": 0,
+      "cacheBytes": 2784000,
+      "cacheRows": 1000,
+      "elapsedMillis": 181871,
+      "identityDigest": "2cfe75cf5c93831124cb42e7620bd918abe7f90b41eb4cc76ac8279e30a7f833",
+      "metadataChildStarts": 1000,
+      "metadataProberCalls": 1000,
+      "peakChildLifecycles": 1,
+      "round": 1,
+      "summary": {
+        "jobId": "010ef9dc-e8e6-4225-9b85-06c6f59636f9",
+        "libraryId": "3c63b301-1928-4192-a946-b1d62f310d85",
+        "enabled": true,
+        "scope": "incremental",
+        "phase": "done",
+        "processed": 1000,
+        "hits": 0,
+        "negativeHits": 0,
+        "succeeded": 1000,
+        "failed": 0,
+        "changed": 0,
+        "unavailable": 0
+      }
+    },
+    {
+      "activeChildren": 0,
+      "activeLeases": 0,
+      "cacheBytes": 2784000,
+      "cacheRows": 1000,
+      "elapsedMillis": 12034,
+      "identityDigest": "2cfe75cf5c93831124cb42e7620bd918abe7f90b41eb4cc76ac8279e30a7f833",
+      "metadataChildStarts": 0,
+      "metadataProberCalls": 0,
+      "peakChildLifecycles": 1,
+      "round": 2,
+      "summary": {
+        "jobId": "38b2f44a-6948-443f-bbc9-f4bb53f74383",
+        "libraryId": "3c63b301-1928-4192-a946-b1d62f310d85",
+        "enabled": true,
+        "scope": "incremental",
+        "phase": "done",
+        "processed": 1000,
+        "hits": 1000,
+        "negativeHits": 0,
+        "succeeded": 0,
+        "failed": 0,
+        "changed": 0,
+        "unavailable": 0
+      }
+    },
+    {
+      "activeChildren": 0,
+      "activeLeases": 0,
+      "cacheBytes": 2784051,
+      "cacheRows": 1000,
+      "elapsedMillis": 14436,
+      "identityDigest": "2cfe75cf5c93831124cb42e7620bd918abe7f90b41eb4cc76ac8279e30a7f833",
+      "metadataChildStarts": 17,
+      "metadataProberCalls": 17,
+      "peakChildLifecycles": 1,
+      "round": 3,
+      "summary": {
+        "jobId": "343947f2-8edc-40e1-856c-6628466a7ad3",
+        "libraryId": "3c63b301-1928-4192-a946-b1d62f310d85",
+        "enabled": true,
+        "scope": "incremental",
+        "phase": "done",
+        "processed": 1000,
+        "hits": 983,
+        "negativeHits": 0,
+        "succeeded": 17,
+        "failed": 0,
+        "changed": 0,
+        "unavailable": 0
+      }
+    }
+  ],
+  "productionImage": "sha256:35fd061d132f71a75b2b08904c8850ed6a80b2e7d64f0fead23b40ea559da95e",
+  "originalHashesUnchanged": true,
+  "controlledReplacements": 17,
+  "hardlinkedPaths": 1000,
+  "copiedMediaPaths": 0,
+  "initialMediaBytes": 84806000,
+  "seeds": {
+    "a": "9eb634b6a3d18838161944b0f2eb1a0b3cdd810db1be545b42548f935cdc838f",
+    "b": "dd4e09a89022245a36c6b1f6441b3057fbdae05621a16f42bd060a511ccde8a1"
+  },
+  "result": "passed",
+  "testArtifactsCleaned": true,
+  "sourceCommit": "b59be8d389216c3853a0a6d18b1f1af130745a9f"
+}

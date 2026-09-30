@@ -1,0 +1,32 @@
+Source commit: b59be8d389216c3853a0a6d18b1f1af130745a9f
+Date: 2026-10-01 Asia/Taipei
+
+Frozen native source snapshot: all 254 cmd/internal/tools/scripts and relevant configuration files still match recorded SHA256 after final validation.
+Source archive SHA256: 5d8328db6c25384edfe57b5f514ba85c17fc19134a83a72102eb30d68b224fbb
+Source file-map SHA256: 09dfa01c12905f7f20fdf9849e41979b96a070bc48e816faf94d5c175364b0a1
+Native build/vet/required-fixture transcript SHA256: 7339124c4aed583819bd495ac3fcd1ca570216d0d117eaff784d8771d7fc226b
+Earlier failing DrvFS full-test transcript SHA256: cf53bc195d704638646d9f714a7f74b825d5eaed8d6209dffeb2e3836da2be4f
+Interrupted acceptance cleanup transcript SHA256: 887e6ab40cbc421476f02c87ad876e3db45120acb1d0279f15ddbb1b6bc0efbc
+
+Native frozen snapshot: build jelee/jelee-cli/jelee-migrate, vet ./..., race ./... with required PostgreSQL: all EXIT 0.
+Required native real fixture generation/metadata, process fixture registration, pinned ffprobe: all EXIT 0.
+Windows final build/lint/full-test: PASS; platform/PG skips are enumerated in probe-worker-windows.json, no Windows race claim.
+
+scripts/make.ps1 gitignore-check: violations=0.
+scripts/make.ps1 brand-scan-incremental: violations=0, allowed=94.
+git diff --check: PASS.
+git diff --exit-code for published migrations 000001-000004: PASS (unchanged).
+Exact private test DSN search in modified/new public docs: zero matches.
+Numbered requirement matrix: 4 complete + 168 partial + 164 blocked = 336.
+
+Unchanged requirements-source.md SHA256: 755b6b32324efe710c3e1135a0c982c45b82f337e90fcb50ab3718a20cba5d07
+Unchanged LICENSE SHA256: f371b80469fb235bc500ec29e0e85b682d4a6157a158567d828ff0be544d4f1d
+
+Full legacy branding gate remains failing; this stage does not relax its allowlist or threshold.
+Raw logs and source archives remain ignored under .testdata; no binaries, media, credentials or database data are published in this evidence.
+
+After validation, git diff --cached --check found surplus blank lines at the end of scripts/test_probe_worker.py; removed only trailing CR/LF. All executable text is identical after trimming trailing CR/LF.
+Validated script SHA256: 5f02248629359543c1b7818715d57e3f77bc7004c1b8a8bd70a6b7cdcd20c62f
+Post-format working-copy script SHA256: c563a875d08184774ac4ab7a258c6679d98155302522545c14a5dddab0820619
+
+Git source-commit script blob SHA256 (LF): c563a875d08184774ac4ab7a258c6679d98155302522545c14a5dddab0820619

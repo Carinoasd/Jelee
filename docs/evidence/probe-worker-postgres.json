@@ -1,0 +1,179 @@
+{
+  "testCommand": ".bin/go test -race -count=1 -coverprofile=.testdata/probe-worker-postgres.cover -v ./internal/adapter/postgres",
+  "runtime": "Linux amd64 / PostgreSQL isolated schemas / Go 1.27.1 / registered GCC 15",
+  "result": "PASS",
+  "seconds": 47.552,
+  "topLevelPassed": 58,
+  "skipped": 0,
+  "packageCoveragePercent": 78.8,
+  "fileCoverage": {
+    "internal/adapter/postgres/account_acl.go": {
+      "statements": 64,
+      "covered": 51
+    },
+    "internal/adapter/postgres/accounts.go": {
+      "statements": 245,
+      "covered": 182
+    },
+    "internal/adapter/postgres/import.go": {
+      "statements": 22,
+      "covered": 15
+    },
+    "internal/adapter/postgres/jobs.go": {
+      "statements": 155,
+      "covered": 112
+    },
+    "internal/adapter/postgres/jobs_execution.go": {
+      "statements": 259,
+      "covered": 205
+    },
+    "internal/adapter/postgres/migrate.go": {
+      "statements": 53,
+      "covered": 45
+    },
+    "internal/adapter/postgres/probe_cache.go": {
+      "statements": 105,
+      "covered": 92
+    },
+    "internal/adapter/postgres/probe_commit.go": {
+      "statements": 102,
+      "covered": 88
+    },
+    "internal/adapter/postgres/probe_maintenance.go": {
+      "statements": 160,
+      "covered": 131
+    },
+    "internal/adapter/postgres/probe_phase.go": {
+      "statements": 193,
+      "covered": 163
+    },
+    "internal/adapter/postgres/probe_policy.go": {
+      "statements": 104,
+      "covered": 90
+    },
+    "internal/adapter/postgres/probe_requests.go": {
+      "statements": 178,
+      "covered": 143
+    },
+    "internal/adapter/postgres/probe_requests_execution.go": {
+      "statements": 109,
+      "covered": 78
+    },
+    "internal/adapter/postgres/sessions.go": {
+      "statements": 198,
+      "covered": 139
+    },
+    "internal/adapter/postgres/store.go": {
+      "statements": 83,
+      "covered": 66
+    }
+  },
+  "sourceAndTestSHA256": {
+    "internal/adapter/postgres/accounts_integration_test.go": "9775d444788f2b07c4f1baefe57ab88d2d65e82ddb4fcb5e1745f04e9e0efb18",
+    "internal/adapter/postgres/jobs_execution.go": "b25f82fd6a7b74607893fc4f155046deb9e5f85314b5eede3f239408c3bf49fc",
+    "internal/adapter/postgres/jobs_integration_test.go": "d8c9ca0b403d788837031eeb7ff132e5802d5ad64592fd1625d0c1f5afa166c5",
+    "internal/adapter/postgres/jobs.go": "126540dc6a0540877b9fc89f012ec81d9e8131d6d65af517200b5f39581a416a",
+    "internal/adapter/postgres/migrations/000005_probe_requests.down.sql": "9719931eb337931b75ef3707a2a25065a6654c6283f9ba1c24c6c379af4e86c5",
+    "internal/adapter/postgres/migrations/000005_probe_requests.up.sql": "df3c19bea89fafeb906160f8967177599d1b1b8153ea3976539d16dbef0d501a",
+    "internal/adapter/postgres/probe_adversarial_test.go": "0dffff2da2996307ad2478ac158a636e4ac03f37375f1f1b2fb4a293d507c60e",
+    "internal/adapter/postgres/probe_integration_test.go": "2c154c4f4ff158b7539d6b025c9095d68b08f8c8103e80539dfdcd27ce0733fb",
+    "internal/adapter/postgres/probe_maintenance.go": "93f5f59e4fd80a9f434ba1470328452f9279691759ed2227a33c87d2505c3a0b",
+    "internal/adapter/postgres/probe_phase.go": "edc52cfcd0ab70c4e04f42f09ff66ed14fee8bc6ee304aa5d2ae313cb6646e40",
+    "internal/adapter/postgres/probe_policy.go": "207afcc33d3eae5588c4fb0314be6e9587866b85623164f8ef5035d773ec879c",
+    "internal/adapter/postgres/probe_requests_execution.go": "fa8ab5070751bdb70d68797771ded3e52847bff0fa37a6128ee65594ae4fa70c",
+    "internal/adapter/postgres/probe_requests_test.go": "9aa488a1173e0448e2be08be03350608581eb1caa202e30ecdc05584a0f061fd",
+    "internal/adapter/postgres/probe_requests.go": "5b64c03dc6fd47ad3b7f864506bf1de3c1af1c550a6aa0d2820da6031cda18ce",
+    "internal/adapter/postgres/store_integration_test.go": "6e6543b52219749f9f1281ae1083999bdb584a6857248f2661944fe7a9e02a02",
+    "internal/adapter/postgres/store.go": "039aaf07698045626a9c9bbfc3c8f4dcabc5402d5a351922888e1bb58ae024d1"
+  },
+  "immutableMigrations1To4Unchanged": true,
+  "windows": "Focused tests compile with PG unavailable; vet PASS, not Windows PostgreSQL or race evidence",
+  "diffCheck": "PASS",
+  "additionalFocusedTests": {
+    "command": ".bin/go test -race -count=1 -coverprofile=.testdata/probe-requests-postgres.cover -v -run ^TestProbeRequest ./internal/adapter/postgres",
+    "result": "PASS",
+    "finalLines": [
+      "PASS",
+      "coverage: 49.9% of statements",
+      "ok  \tgithub.com/MoYuanCN/Jelee/internal/adapter/postgres\t14.219s\tcoverage: 49.9% of statements"
+    ],
+    "topLevelPassed": 15,
+    "skipped": 0,
+    "productionHashChanges": 0,
+    "newContracts": [
+      "stale and expired parent lease",
+      "persistent cancel before Load/Begin/Abort",
+      "request error and aborted phase cannot restart",
+      "identity drift rejected by Load/Begin/Summary/Finish",
+      "Begin/Abort transaction-end lease expiry rolls back all state",
+      "missing policy and item target produce zero partial result"
+    ]
+  },
+  "mergedCoverage": {
+    "profile": ".testdata/probe-worker-postgres-merged.cover",
+    "method": "Added atomic counts for identical source blocks from full-suite and later focused-test profiles. Production source hashes unchanged; only tests added.",
+    "fileCoverage": {
+      "internal/adapter/postgres/account_acl.go": {
+        "statements": 64,
+        "covered": 51
+      },
+      "internal/adapter/postgres/accounts.go": {
+        "statements": 245,
+        "covered": 182
+      },
+      "internal/adapter/postgres/import.go": {
+        "statements": 22,
+        "covered": 15
+      },
+      "internal/adapter/postgres/jobs_execution.go": {
+        "statements": 259,
+        "covered": 206
+      },
+      "internal/adapter/postgres/jobs.go": {
+        "statements": 155,
+        "covered": 112
+      },
+      "internal/adapter/postgres/migrate.go": {
+        "statements": 53,
+        "covered": 45
+      },
+      "internal/adapter/postgres/probe_cache.go": {
+        "statements": 105,
+        "covered": 92
+      },
+      "internal/adapter/postgres/probe_commit.go": {
+        "statements": 102,
+        "covered": 88
+      },
+      "internal/adapter/postgres/probe_maintenance.go": {
+        "statements": 160,
+        "covered": 131
+      },
+      "internal/adapter/postgres/probe_phase.go": {
+        "statements": 193,
+        "covered": 163
+      },
+      "internal/adapter/postgres/probe_policy.go": {
+        "statements": 104,
+        "covered": 90
+      },
+      "internal/adapter/postgres/probe_requests_execution.go": {
+        "statements": 109,
+        "covered": 92
+      },
+      "internal/adapter/postgres/probe_requests.go": {
+        "statements": 178,
+        "covered": 145
+      },
+      "internal/adapter/postgres/sessions.go": {
+        "statements": 198,
+        "covered": 139
+      },
+      "internal/adapter/postgres/store.go": {
+        "statements": 83,
+        "covered": 66
+      }
+    }
+  },
+  "sourceCommit": "b59be8d389216c3853a0a6d18b1f1af130745a9f"
+}

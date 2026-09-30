@@ -192,7 +192,7 @@ pwsh -NoProfile -File scripts/runtime-tools.ps1 -Command sources -Offline
 | 外部 migrate/Atlas CLI、sqlc | 尚未加入工具清单；当前项目通过 golang-migrate 库提供迁移命令 |
 | OpenAPI 生成器、buf（如采用 protobuf） | 尚未加入工具清单 |
 | Node LTS、包管理器、Playwright 浏览器 | 尚未加入工具清单 |
-| ffmpeg/ffprobe | Windows/Linux amd64 可选本地引导与验证已实现；有界程序runner和身份诊断已提供，生产探测/沙箱串接尚未完成 |
+| ffmpeg/ffprobe | Windows/Linux amd64本地引导与验证已实现；Linux amd64受保护隔离探测、持久worker和默认关闭开关已接通；Windows正式探测仍关闭 |
 | mkvtoolnix、mediainfo | 尚未加入工具清单 |
 | 合成多轨媒体、章节、损坏素材、`make fixtures` | 3B2生成13个小型自建文件及SHA/结构清单；双平台真实工具和FD探测测试通过，见[素材说明](fixtures.md) |
 | Testcontainers / 嵌入式 PostgreSQL 回退 | 尚未实现；当前使用已有隔离测试容器 |
@@ -206,3 +206,9 @@ pwsh -NoProfile -File scripts/runtime-tools.ps1 -Command sources -Offline
 在项目根运行 `jelee-cli doctor tools`，无需数据库配置。诊断按嵌入可执行文件的清单检查ffprobe/许可证SHA256，再从新的私有项目目录运行已验证副本的固定`-version`。输出仅为平台、预期版本、状态和固定原因，媒体能力始终为`disabled_sandbox`。这不认证宿主动态库，也不开放媒体读取。
 
 诊断需要项目`.testdata`写入权限并在完成后删除新副本。Linux需要真正可强制0700的文件系统；WSL共享NTFS/DrvFS可能回`temporary_unavailable`。Windows需要可保护新目录DACL的普通用户token；权限受限时安全拒绝，不修改用户系统权限或放宽目录ACL。
+
+## 持久探测 worker 验收（3C2B）
+
+原生 Linux 使用 `make probe-worker-test`，需要专用 `JELEE_TEST_DATABASE_URL`（数据库名必须为 `jelee_test`）、Docker、项目固定 Go/media/runtime 和已生成素材。脚本只在自己的 UUID schema、镜像、容器和暂存目录执行，结束时核对源文件及原素材 SHA256，并在失败时仍清理自己创建的资源。凭证文件在 Docker build 完成后创建，原始输出留在忽略的 `.testdata`。
+
+这个必需目标已经接入 PostgreSQL CI；另外 `make sandbox-test` 保留原生容器的85%覆盖率门槛。CI保留两者的验收日志/摘要。当前真实结果及跳过、失败记录见[worker验证](probe-worker-verification.md)；完整品牌和发布门禁仍未通过。

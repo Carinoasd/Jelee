@@ -1,0 +1,73 @@
+{
+  "image": "sha256:47a9e83a15729c2218dd67f220b091d21bb64ab5aa207a162af53c6b0b85126c",
+  "checks": [
+    "Production image identity, /jelee entrypoint and UID/GID 65532 verified",
+    "Real migration reached schema 5 clean; stdin-only administrator bootstrap and readonly library registration succeeded",
+    "Real HTTP listener /healthz and /readyz succeeded; system probe capability available under protected non-root container profile",
+    "HTTP opt-in scan finished all 3 files: two successes and one isolated bad-media failure; next scan reported two positive hits and one negative hit without waiting for expiry",
+    "SIGTERM returned exit 0, closed HTTP and left zero parent/child leases and zero active-lease quota; live child observed before signal=true",
+    "Copied media and all original generated fixture SHA256 values unchanged; service logs contain no test credentials, tokens or media root"
+  ],
+  "commands": [
+    "docker run <UID65532 readonly no-caps NNP memory768m pids128 tmpfs64m> --entrypoint /jelee-migrate <owned-image> up",
+    "docker run <same-profile> --entrypoint /jelee-cli <owned-image> account bootstrap --name http-smoke-admin --password-stdin",
+    "docker run <same-profile> --entrypoint /jelee-cli <owned-image> library add --name HTTPProbeSmoke --root /media",
+    "docker run -d --name <owned-UUID> <same-profile; readonly media and credential mounts> <production-image>; entrypoint /jelee",
+    "POST /api/v1/auth/login (private body; token retained only in memory)",
+    "POST /api/v1/libraries/{id}/scan {probe:true}; GET /api/v1/jobs/{id}; GET /api/v1/jobs/{id}/probe; repeat with a fresh idempotency key",
+    "POST /api/v1/libraries/{id}/probe/rebuild {}; privately observe owned-schema child lease; docker stop --time 20 <owned-UUID>; check closed listener and owned-schema leases"
+  ],
+  "rounds": [
+    {
+      "phase": "done",
+      "processed": 3,
+      "succeeded": 2,
+      "failed": 1,
+      "hits": 0,
+      "negativeHits": 0,
+      "changed": 0,
+      "unavailable": 0
+    },
+    {
+      "phase": "done",
+      "processed": 3,
+      "succeeded": 0,
+      "failed": 0,
+      "hits": 2,
+      "negativeHits": 1,
+      "changed": 0,
+      "unavailable": 0
+    }
+  ],
+  "fixtureHashes": {
+    "a.mp4": "9eb634b6a3d18838161944b0f2eb1a0b3cdd810db1be545b42548f935cdc838f",
+    "b.mkv": "7b30d5679835d142dd72cc8900a16d3f46671b547a4ffb6bbade26aeb60bf941",
+    "bad.mkv": "9565ea4c9e0929663986af80853a4e24687b76cd20c41782a471657d7f9f7a8c"
+  },
+  "capability": {
+    "accounts": true,
+    "catalog": false,
+    "dash": false,
+    "directDelivery": false,
+    "downloads": false,
+    "hls": false,
+    "inventoryScan": true,
+    "probe": true,
+    "remux": false,
+    "transcoding": false
+  },
+  "sigterm": {
+    "liveChildLeaseObservedBeforeSignal": true,
+    "exitCode": 0,
+    "oomKilled": false,
+    "parentLeases": 0,
+    "childLeases": 0,
+    "activeLeaseQuota": 0,
+    "httpListenerClosed": true
+  },
+  "ownedArtifactsCleaned": true,
+  "result": "passed",
+  "sourceCommit": "b59be8d389216c3853a0a6d18b1f1af130745a9f",
+  "rawSummarySHA256": "eba4c9fc9b23a3e67c215ee6f55311d271df784c63cb2327008f76d6c90332e2",
+  "reproductionScriptSHA256": "0a8eeb80a57ad230ce8138a187273d5526eddbad192f7facee918e1408538b2b"
+}
