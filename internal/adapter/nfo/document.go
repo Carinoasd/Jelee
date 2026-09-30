@@ -24,6 +24,7 @@ var (
 	ErrRead                = errors.New("nfo_read_failed")
 	ErrWrite               = errors.New("nfo_copy_failed")
 	ErrNotFound            = errors.New("nfo_not_found")
+	ErrChanged             = errors.New("nfo_changed")
 )
 
 type Issue struct {
@@ -134,12 +135,17 @@ func (d *Document) WriteOriginal(ctx context.Context, writer io.Writer) error {
 	if d == nil || ctx == nil || writer == nil {
 		return ErrInvalidInput
 	}
+	// Never lend the retained source bytes to a caller-owned writer. The small
+	// scratch buffer also protects shared Source data from a misbehaving writer.
+	buffer := make([]byte, min(32<<10, len(d.original)))
 	for offset := 0; offset < len(d.original); {
 		if err := ctx.Err(); err != nil {
 			return err
 		}
 		end := min(offset+(32<<10), len(d.original))
-		n, err := writer.Write(d.original[offset:end])
+		chunk := buffer[:end-offset]
+		copy(chunk, d.original[offset:end])
+		n, err := writer.Write(chunk)
 		if ctx.Err() != nil {
 			return ctx.Err()
 		}

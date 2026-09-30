@@ -78,7 +78,7 @@ func TestReadFileResistsSymlinkReplacement(t *testing.T) {
 	}
 	for i := 0; i < 100; i++ {
 		document, err := ReadFile(context.Background(), root, "current.nfo", DefaultMaxBytes)
-		if err != nil && !errors.Is(err, ErrNotFound) {
+		if err != nil && !errors.Is(err, ErrNotFound) && !errors.Is(err, ErrChanged) {
 			t.Fatalf("unexpected error: %v", err)
 		}
 		if err == nil && document.Metadata.Title != "Inside" {

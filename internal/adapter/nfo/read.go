@@ -47,7 +47,18 @@ func Read(ctx context.Context, reader io.Reader, maxBytes int64) (*Document, err
 	if int64(len(original)) > maxBytes {
 		return nil, ErrTooLarge
 	}
+	return parseOriginal(ctx, original)
+}
+
+// original belongs to Read or an immutable Source and is never modified here.
+func parseOriginal(ctx context.Context, original []byte) (*Document, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	decoded, encoding, guessed, err := decodeEncoding(original)
+	if ctx.Err() != nil {
+		return nil, ctx.Err()
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -115,6 +126,9 @@ func Read(ctx context.Context, reader io.Reader, maxBytes int64) (*Document, err
 		document.Issues = append(document.Issues, validateMetadata(metadata, i)...)
 	}
 	document.Metadata = document.Entries[0]
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	return document, nil
 }
 

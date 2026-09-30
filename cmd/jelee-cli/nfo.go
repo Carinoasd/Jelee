@@ -104,7 +104,7 @@ func nfoFailure(err error) (string, int) {
 	if errors.Is(err, context.DeadlineExceeded) {
 		return "nfo_timeout", 124
 	}
-	for _, expected := range []error{nfo.ErrInvalidInput, nfo.ErrTooLarge, nfo.ErrTooComplex, nfo.ErrInvalidXML, nfo.ErrUnsafeXML, nfo.ErrInvalidEncoding, nfo.ErrUnsupportedEncoding, nfo.ErrRead, nfo.ErrNotFound} {
+	for _, expected := range []error{nfo.ErrInvalidInput, nfo.ErrTooLarge, nfo.ErrTooComplex, nfo.ErrInvalidXML, nfo.ErrUnsafeXML, nfo.ErrInvalidEncoding, nfo.ErrUnsupportedEncoding, nfo.ErrRead, nfo.ErrNotFound, nfo.ErrChanged} {
 		if errors.Is(err, expected) {
 			return expected.Error(), 1
 		}
