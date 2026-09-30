@@ -1,0 +1,131 @@
+Sanitized summary of an actual frozen-source full-suite run.
+Routine individual PASS/RUN lines omitted; every command/package result and SKIP retained.
+Original ignored log SHA256: be3f2831c46041b46f78a9effaa85e42bbc81b38873aa5260f2f63a2a084ee2c
+Skip instances: 66
+
+Frozen stage 3C2A Windows complete acceptance; Git tree 019dd65c85dc205ba0483855e53c4de58d61fc15
+Archive SHA256: 5e652cef925c8493359c9d9beac49c2442a4598afa61107dfd0ae764b7bf766e
+Pinned Go 1.27.1; normal Windows user token; protected owned snapshot DACL; project-local toolchain/cache.
+PostgreSQL integration unset; actual pinned media tools required. Windows -race NOT executed.
+Archive includes frozen 3C2A domain, Inspect, cache repository and schema 4.
+Pinned ffprobe/developer ffmpeg/licenses SHA256 verified against archived manifest; hardlink reuse without source chmod/ACL/write.
+Command: go version
+Command exit: 0
+Command: go build -trimpath -o .testdata/build/jelee.exe ./cmd/jelee
+Command exit: 0
+Command: go build -trimpath -o .testdata/build/jelee-cli.exe ./cmd/jelee-cli
+Command exit: 0
+Command: go build -trimpath -o .testdata/build/jelee-migrate.exe ./cmd/jelee-migrate
+Command exit: 0
+Command: go vet ./...
+Command exit: 0
+BEGIN FULL SUITE
+Command: go test -count=1 -cover -v ./...
+ok  	github.com/MoYuanCN/Jelee/cmd/jelee-cli	0.964s	coverage: 73.9% of statements
+ok  	github.com/MoYuanCN/Jelee/internal/access	0.369s	coverage: 100.0% of statements
+ok  	github.com/MoYuanCN/Jelee/internal/adapter/http	2.954s	coverage: 88.4% of statements
+    --- SKIP: TestPathBoundariesAndNoDisclosure/symlink_escape (0.00s)
+    --- SKIP: TestPathBoundariesAndNoDisclosure/directory_symlink_escape (0.00s)
+ok  	github.com/MoYuanCN/Jelee/internal/adapter/media	0.858s	coverage: 86.5% of statements
+    --- SKIP: TestReadFileBoundaryAndOriginalProtection/symlink_escape (0.00s)
+ok  	github.com/MoYuanCN/Jelee/internal/adapter/nfo	0.919s	coverage: 89.8% of statements
+--- SKIP: TestAccountIntegration (0.00s)
+--- SKIP: TestAccountMigrationRejectsCaseCollisionWithoutRenaming (0.00s)
+--- SKIP: TestAccountMigrationRollbackKeepsDeletedAccountsDisabled (0.00s)
+--- SKIP: TestJobsSubmissionIdempotencyAndLiveAdministration (0.00s)
+--- SKIP: TestJobsCapacityAndPriorityAcrossCompetingWorkers (0.00s)
+--- SKIP: TestJobsCancellationRecoveryAndFencing (0.00s)
+--- SKIP: TestJobsPartialDirectoryRestartAndInventoryPagination (0.00s)
+    --- SKIP: TestJobsBatchLimitsRollbackAndSafeMissingBaseline/entry_directory_and_overflow_limits (0.00s)
+    --- SKIP: TestJobsBatchLimitsRollbackAndSafeMissingBaseline/history_retention_baseline_and_partial_fail_closed (0.00s)
+    --- SKIP: TestJobsBatchLimitsRollbackAndSafeMissingBaseline/complete_scan_below_missing_threshold_replaces_baseline (0.00s)
+--- SKIP: TestJobsLeaseExpiryDuringWritesRollsBackProvisionalData (0.00s)
+--- SKIP: TestJobsThousandEntriesRemainBoundedAndCountsUseCurrentSizes (0.00s)
+--- SKIP: TestJobsMigrationRollbackPreservesAccountsAndLibraryConfiguration (0.00s)
+--- SKIP: TestProbeAdversarialLastLeaseSlotAcrossParents (0.00s)
+--- SKIP: TestProbeAdversarialIdentityAndScopeCapacity (0.00s)
+--- SKIP: TestProbeAdversarialHeartbeatDoesNotReviveExpiredChild (0.00s)
+--- SKIP: TestProbeAdversarialForeignAndSkippedPrefix (0.00s)
+--- SKIP: TestProbeAdversarialCancelledLockWaitDoesNotReserve (0.00s)
+--- SKIP: TestProbeAdversarialHistoryTrimPreservesActiveSibling (0.00s)
+--- SKIP: TestProbeAdversarialTerminalHistoryDoesNotPinEmptyScope (0.00s)
+--- SKIP: TestProbeAdversarialInvalidationRequiresLiveAdminAndRecordsActor (0.00s)
+    --- SKIP: TestProbeAdversarialBoundedEvictionAtQuotaBoundary/global_rows (0.00s)
+    --- SKIP: TestProbeAdversarialBoundedEvictionAtQuotaBoundary/library_rows (0.00s)
+    --- SKIP: TestProbeAdversarialBoundedEvictionAtQuotaBoundary/global_bytes (0.00s)
+    --- SKIP: TestProbeAdversarialBoundedEvictionAtQuotaBoundary/library_bytes (0.00s)
+--- SKIP: TestProbeRebuildScopesAndReplayPreserveGenerations (0.00s)
+    --- SKIP: TestProbeScopeMutationFencesInflightResults/root (0.00s)
+    --- SKIP: TestProbeScopeMutationFencesInflightResults/item (0.00s)
+    --- SKIP: TestProbeScopeMutationFencesInflightResults/mapping (0.00s)
+--- SKIP: TestProbeCurrentKeyAndTTLRecheckedAtCommit (0.01s)
+--- SKIP: TestProbeMetadataJSONBExpansionBecomesBoundedFailure (0.00s)
+--- SKIP: TestProbeAdminExpiryDuringWriteRollsBackGenerationAndAudit (0.00s)
+--- SKIP: TestProbeNegativeTTLRetryAndNewToolIdentity (0.00s)
+--- SKIP: TestProbeBeginMissingIdentityAndItemHaveNoAdmissionEffects (0.00s)
+--- SKIP: TestProbeMalformedTokensAndMetadataCannotTouchLease (0.00s)
+--- SKIP: TestProbePolicyRequiredBeforeAdmission (0.00s)
+    --- SKIP: TestProbeFaultCheckpointAndCommitDeniedRollBackWholeOutcome/checkpoint_success (0.00s)
+    --- SKIP: TestProbeFaultCheckpointAndCommitDeniedRollBackWholeOutcome/checkpoint_negative (0.00s)
+    --- SKIP: TestProbeFaultCheckpointAndCommitDeniedRollBackWholeOutcome/deferred_commit (0.00s)
+--- SKIP: TestProbeFaultReservationWriteFailureReleasesProvisionalQuota (0.00s)
+--- SKIP: TestProbeFaultCancellationAfterCacheWriteRollsBack (0.00s)
+--- SKIP: TestProbeFaultUnavailablePoolAndCancelledCallsAreAtomic (0.00s)
+--- SKIP: TestProbeFaultPersistedIdentityMismatchCannotBeReused (0.00s)
+    --- SKIP: TestProbeFaultDeleteDenialRestoresQuotaAndLease/sweep_expired (0.00s)
+    --- SKIP: TestProbeFaultDeleteDenialRestoresQuotaAndLease/release_child (0.00s)
+    --- SKIP: TestProbeFaultDeleteDenialRestoresQuotaAndLease/capacity_eviction (0.00s)
+--- SKIP: TestProbeEvictionUsesBoundedIndexPagesAndExactDeltas (0.00s)
+--- SKIP: TestProbePolicyIdentityAndPhaseContract (0.00s)
+--- SKIP: TestProbePersistAndHitPrefixCheckpoint (0.00s)
+--- SKIP: TestProbeNegativeChangedAndUnavailableOutcomes (0.00s)
+--- SKIP: TestProbeLeaseABAConcurrencyCancellationAndExpiry (0.00s)
+--- SKIP: TestProbeTransactionExpiryRollsBackMetadataQuotaAndCursor (0.00s)
+--- SKIP: TestProbeReleaseRecoveryInvalidationAndMigration (0.00s)
+--- SKIP: TestPostgresIntegration (0.00s)
+ok  	github.com/MoYuanCN/Jelee/internal/adapter/postgres	0.166s	coverage: 5.3% of statements
+    --- SKIP: TestAdapterRejectsChangedSource/replace_symlink (0.01s)
+--- SKIP: TestVisibleSymlinksRefusedAndExternalPathsCannotEscape (0.02s)
+--- SKIP: TestInspectDetectsSymlinkReplacement (0.01s)
+ok  	github.com/MoYuanCN/Jelee/internal/adapter/probe	2.192s	coverage: 93.2% of statements
+--- SKIP: TestVisibleSymlinksSkippedAndExplicitTraversalRejected (0.00s)
+ok  	github.com/MoYuanCN/Jelee/internal/adapter/scan	2.740s	coverage: 88.6% of statements
+ok  	github.com/MoYuanCN/Jelee/internal/app	0.373s	coverage: 89.1% of statements
+ok  	github.com/MoYuanCN/Jelee/internal/architecture	0.378s	coverage: [no statements]
+ok  	github.com/MoYuanCN/Jelee/internal/domain	0.329s	coverage: 98.8% of statements
+ok  	github.com/MoYuanCN/Jelee/internal/platform/config	0.597s	coverage: 95.7% of statements
+ok  	github.com/MoYuanCN/Jelee/internal/platform/i18n	0.384s	coverage: 97.6% of statements
+ok  	github.com/MoYuanCN/Jelee/internal/platform/jobs	0.516s	coverage: 93.0% of statements
+ok  	github.com/MoYuanCN/Jelee/internal/platform/logging	0.487s	coverage: 100.0% of statements
+ok  	github.com/MoYuanCN/Jelee/internal/platform/password	0.878s	coverage: 95.9% of statements
+ok  	github.com/MoYuanCN/Jelee/internal/platform/proberuntime	0.521s	coverage: 67.2% of statements
+ok  	github.com/MoYuanCN/Jelee/internal/platform/process	2.653s	coverage: 86.0% of statements
+ok  	github.com/MoYuanCN/Jelee/internal/platform/runtime	0.812s	coverage: 52.5% of statements
+ok  	github.com/MoYuanCN/Jelee/internal/platform/sandbox	0.380s	coverage: 32.5% of statements
+    --- SKIP: TestIdentityCancellationAndFilesystemBoundaries/project (0.00s)
+    --- SKIP: TestIdentityCancellationAndFilesystemBoundaries/ancestor (0.01s)
+    --- SKIP: TestIdentityCancellationAndFilesystemBoundaries/leaf (0.01s)
+    --- SKIP: TestIdentityCancellationAndFilesystemBoundaries/temporary (0.00s)
+ok  	github.com/MoYuanCN/Jelee/internal/platform/toolidentity	1.211s	coverage: 89.8% of statements
+ok  	github.com/MoYuanCN/Jelee/tools	0.395s	coverage: 96.7% of statements
+--- SKIP: TestImageRejectsSymlinkAndDifferentOpenedIdentity (0.01s)
+ok  	github.com/MoYuanCN/Jelee/tools/runtime-image	0.572s	coverage: 90.8% of statements
+Command exit: 0
+END FULL SUITE
+BEGIN REQUIRED TAG SUITE
+Command: go test -tags jelee_fixture_tools -count=1 -v ./tools/gen-fixtures
+ok  	github.com/MoYuanCN/Jelee/tools/gen-fixtures	1.703s
+Command exit: 0
+Command: go test -tags jelee_fixture_tools -count=1 -run TestFixtureBuild -v ./internal/platform/process
+ok  	github.com/MoYuanCN/Jelee/internal/platform/process	0.206s
+Command exit: 0
+Command: go test -tags jelee_fixture_tools -count=1 -run TestPinnedInstalledFFprobe -v ./internal/platform/toolidentity
+ok  	github.com/MoYuanCN/Jelee/internal/platform/toolidentity	0.720s
+Command exit: 0
+END REQUIRED TAG SUITE
+CLI doctor tools invalid DB: exit 0
+{"tool":"ffprobe","platform":"windows-amd64","expectedVersion":"9.0.2-essentials_build-www.gyan.dev","state":"verified","reason":"verified","capability":"disabled_sandbox"}
+CLI doctor probe invalid DB: exit 1, unsupported platform, no DB access
+{"platform":"windows-amd64","state":"unavailable","reason":"platform_unsupported","capability":"disabled"}
+PASS: all three builds, complete vet/test suite, required actual fixture+parser tests, fixture-only registration, pinned identity and actual CLI diagnostics. Media source hashes unchanged. Windows -race not executed.
+Owned snapshot removed; primary source, index, shared PostgreSQL untouched.

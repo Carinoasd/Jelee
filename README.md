@@ -1,6 +1,6 @@
 # Jelee
 
-Jelee 正在以独立 Go 服务逐步接管视频目录与原文件直投。本仓库已交付 Go 基础服务、账户 API、持久只读盘点、固定工具与素材，以及 Linux 隔离探测／媒体资讯规范化基础；尚未达到完整媒体服务器替代版本的验收条件。
+Jelee 正在以独立 Go 服务逐步接管视频目录与原文件直投。本仓库已交付 Go 基础服务、账户 API、持久只读盘点、固定工具与素材、Linux 隔离探测，以及持久快取的数据库契约；尚未达到完整媒体服务器替代版本的验收条件。
 
 ## 当前实现
 
@@ -13,6 +13,7 @@ Jelee 正在以独立 Go 服务逐步接管视频目录与原文件直投。本�
 - 只读 NFO adapter 与无需数据库的 `nfo validate` CLI；原文保留、字段提取和安全校验已通过 Windows/Linux 测试。
 - 持久盘点任务、两级队列、管理员 API/CLI、取消、租约恢复和分批检查点；盘点只观察路径、大小和 mtime，不修改原文件或自动删除目录数据。
 - Linux amd64 固定 ffprobe／8 个动态库、Landlock／seccomp helper、唯读 FD 输入与有界 JSON 解析；`jelee-cli doctor probe` 实测隔离能力。探测尚未接入扫描或目录快取，Windows 明确停用。
+- schema 4 的快取、不可变工具身份、库/item失效、parent/file租约、批次检查点、TTL/容量及有界回收；安全Inspect只读文件，不启动工具。worker与HTTP/CLI操作仍待下一段。
 
 尚未交付完整管理前端、第三方协议兼容、媒体探测/增量导入、持续监看/排程、图片资产处理、用户权限管理界面、完整诊断、完整工具与素材链。NFO 尚缺修改后的 XML 序列化、按库批量处理、`--fix`、任务接入及真实客户端往返验收。现有旧服务端源码仍保留，尚未完成所有功能裁剪与内部重命名。完整品牌门禁目前会失败；增量检查通过不能代替最终验收。
 
@@ -45,6 +46,7 @@ make bootstrap tools-verify build test
 - [只读盘点 API 与配置](docs/jobs-api.md)
 - [第 3A 段验证](docs/jobs-verification.md)
 - [第 3C1 段隔离探测验证](docs/probe-verification.md)
+- [探测快取数据库契约与验证](docs/probe-cache-verification.md)
 - [工具链与未完成项](docs/toolchain.md)
 - [NFO 只读兼容范围](docs/nfo-compatibility.md)
 - [安全模型](docs/security-model.md)

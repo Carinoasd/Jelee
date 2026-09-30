@@ -1,4 +1,4 @@
-> 2026-10-01 用户恢复工作。第3A、3B1、3B2、3C1已交付，验证见 jobs-verification.md、media-tools-verification.md、process-verification.md。3C1见probe-verification.md；接着3C2A持久cache、3C2B扫描/API整合，再继续3D。以下保留最初规划，历史描述不代表当前状态。
+> 2026-10-01 第3A、3B1、3B2、3C1与3C2A持久cache数据库契约已交付；本段见[快取验证](probe-cache-verification.md)。用户最新要求本小段推送/提PR后停止切模型，3C2B扫描/API尚未开始。下一段可再按worker/API/真实验收拆PR，见[分段计划](probe-cache-plan.md)。以下保留最初规划，历史描述不代表当前状态。
 # 第 3 階段工作範圍：任務、唯讀掃描與媒體探測
 
 規劃日期：2026-10-01，Asia/Taipei。

@@ -2,7 +2,9 @@
 
 ## 当前状态
 
-2026-10-01 用户已恢复工作，要求“每做完一阶段就提PR，然后继续下一阶段”。第3A [PR #2](https://github.com/MoYuanCN/Jelee/pull/2)、3B1 [PR #3](https://github.com/MoYuanCN/Jelee/pull/3)、3B2 [PR #4](https://github.com/MoYuanCN/Jelee/pull/4)已推送。第3C1源码已提交 `27f66b1eb36c4d6aed0471b58371bbd6c83aaac0`，当前分支 `feat/jelee-isolated-probe` 基于3B2；验证见[隔离探测报告](probe-verification.md)。接着3C2A持久cache契约，再3C2B扫描/API整合，采用[已选方案](probe-cache-plan.md)。
+2026-10-01 最新用户指示：“小阶段做完停一下，我要切模型了”。本次停止点为3C2A持久cache数据库契约：源码 `3d8842be1ebdc990d81f6b98d091b360120740d5`，分支 `feat/jelee-probe-cache`，PR base `feat/jelee-isolated-probe`；本段验证、推送、提PR完成后停止，**未开始3C2B**。PR可从当前聊天附件或 GitHub该head查询；后续须等用户恢复，不能沿用更早的“立即继续下一阶段”指示。
+
+第3A [PR #2](https://github.com/MoYuanCN/Jelee/pull/2)、3B1 [PR #3](https://github.com/MoYuanCN/Jelee/pull/3)、3B2 [PR #4](https://github.com/MoYuanCN/Jelee/pull/4)、3C1 [PR #5](https://github.com/MoYuanCN/Jelee/pull/5)均已推送。PR5最新 `b572b6dd7c9f51386d651ee159237a125ba806da` 修复runtime冷下载，远端三个功能job通过、完整品牌job失败。本段基于该提交，见[快取验证](probe-cache-verification.md)及[下一段方案](probe-cache-plan.md)。
 
 - 第1/2阶段历史分支 `feat/jelee-go-foundation`，目标 `master`；[草稿 PR #1](https://github.com/MoYuanCN/Jelee/pull/1)。后续阶段采用相邻阶段分支作为 PR base，当前分支见页首。
 - 第 2 阶段最终提交 `fdbd1173b53e2999ab6cb99ec1d525fef91ff0b6` 已推送；本记录与第 3 阶段接口草案另作接手提交。
@@ -18,11 +20,13 @@
 
 ## 恢复后的起点
 
-1. 确认阶段PR/当前分支后继续3C2，沿用每段验证/推送/提PR/继续的授权，不需要再次询问。
-2. schema3 已发布；后续只增加迁移，不改写000001/000002/000003。
+1. 用户明确恢复后，从本段head建立下一段分支；每段验证/推送/提PR的授权仍有效。当前切模型暂停期间不要开始下一段。
+2. 本段新binary要求clean schema4；000001–000003原文不变，004新增cache/identity/phase/quota。down4丢快取、保留既有catalog/jobs/inventory/baseline；先停/释放worker，保护失败会留下dirty，不能自动force。后续只能新增005。
 3. 已实现契约：Heartbeat bool=cancelRequested，Claim/Next无工作ErrNotFound；kind video/nfo/image/other；目录含根`.`。任何skipped/大量缺失均保留基准待review，尚无确认API，完全不自动删除。
 4. root path 仅来自数据库中经本地 CLI 注册的媒体根，不允许 HTTP 任意传路径。批次最多 128 项，路径最多 1024 UTF-8 字节，队列/历史/目录/文件记录与并发都有硬上限。所有公共任务操作在事务内重验管理员和有效会话。
 5. ffprobe/ffmpeg 已固定在 manifest，并安装至两平台项目 `.tools`；见[3B1验证](media-tools-verification.md)。3C1 已注册 Linux amd64 固定只读隔离 metadata operation，`doctor probe` 和正式实验镜像已验证；扫描尚未调用此 operation，Windows 停用。不得使用 ffmpeg 生产回退。
+6. 3C2A新增app ports、安全Inspect、可信identity、PG leases/keys/quota/TTL/rebuild/cleanup；默认扫描未启用任何probe。最终Windows完整suite、Linux完整race+真PG通过；独立PG48顶层/32probe/0skip，新增probe实现85.015%，整包78.8%，不声称完整覆盖率门槛达标。
+7. 下一段需持久opt-in请求、重建失效/入列/audit同交易、完整幂等比较、generation只bump一次、capability过滤claim、worker/finalInspect/heartbeat/4语API和真实1000→0→17。详细[分段计划](probe-cache-plan.md)已入库；本机workspace `work/probe-cache/3c2b-wiring.md`另有接口草案，仍须按实际源码核对，不能当已实现功能。
 
 ## 本地运行注意
 

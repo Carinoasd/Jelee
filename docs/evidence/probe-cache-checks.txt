@@ -1,0 +1,8 @@
+Actual frozen-source checks; source commit 3d8842be1ebdc990d81f6b98d091b360120740d5
+gofmt: 31 changed/new Go files, no output
+git diff --check: pass
+old migrations 000001-000003: git diff HEAD before commit returned no changes
+requirements-source.md SHA256: 755b6b32324efe710c3e1135a0c982c45b82f337e90fcb50ab3718a20cba5d07
+LICENSE SHA256: f371b80469fb235bc500ec29e0e85b682d4a6157a158567d828ff0be544d4f1d
+brand scan: mode=new:true violations=0 allowed=94
+gitignore check: violations=0; upstream binary inventory remains separate (see docs/binary-allowlist.md)

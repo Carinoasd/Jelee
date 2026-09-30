@@ -1,0 +1,93 @@
+{
+  "generatedAtUTC": "2026-09-30T21:55:56.859054Z",
+  "command": "./.bin/go test -race -count=1 -coverprofile=.testdata/probe-cache-postgres.cover -v ./internal/adapter/postgres",
+  "environment": {
+    "JELEE_REQUIRE_INTEGRATION": "true",
+    "CC": "/usr/bin/x86_64-linux-gnu-gcc-15",
+    "database": "dedicated test database; private credential file; isolated schema per fixture",
+    "CGO_ENABLED": "1"
+  },
+  "result": "ok  \tgithub.com/MoYuanCN/Jelee/internal/adapter/postgres\t37.660s\tcoverage: 78.8% of statements",
+  "passedTopLevel": 48,
+  "passedProbeTopLevel": 32,
+  "skipped": 0,
+  "probeModule": {
+    "files": [
+      {
+        "path": "internal/adapter/postgres/probe_cache.go",
+        "covered": 92,
+        "statements": 105,
+        "percent": 87.619
+      },
+      {
+        "path": "internal/adapter/postgres/probe_commit.go",
+        "covered": 88,
+        "statements": 102,
+        "percent": 86.275
+      },
+      {
+        "path": "internal/adapter/postgres/probe_maintenance.go",
+        "covered": 132,
+        "statements": 161,
+        "percent": 81.988
+      },
+      {
+        "path": "internal/adapter/postgres/probe_phase.go",
+        "covered": 159,
+        "statements": 188,
+        "percent": 84.574
+      },
+      {
+        "path": "internal/adapter/postgres/probe_policy.go",
+        "covered": 85,
+        "statements": 98,
+        "percent": 86.735
+      }
+    ],
+    "covered": 556.0,
+    "statements": 654.0,
+    "percent": 85.015
+  },
+  "profileSHA256": "2699aa3b6c16fa23fedc1a36dc2b1fc8fc4ba9afc64e93312a84f7e97f1efc42",
+  "logSHA256": "9d7ccd8802216667f2d701f41f18fe78abc871d14bef622a5065de816086d71b",
+  "sourceHashes": {
+    "internal/adapter/postgres/account_acl.go": "1266c7ed995746b988bd55cb67aa2bff41f15fc1febf24f1b3156108ceb51dc8",
+    "internal/adapter/postgres/accounts_integration_test.go": "e3a343d043bccbb28d429049acff9b6430734fe06b072627db28bc32cb33edab",
+    "internal/adapter/postgres/accounts_test.go": "8d0287deeec8e161b9d53c0667e936d5ba1f8d70b811e88d9222186709cc637d",
+    "internal/adapter/postgres/accounts.go": "81da2a788e9af1cee0220d04e03eab61c9d66a99c757d12cf02d1b5b704b018f",
+    "internal/adapter/postgres/import.go": "e733c10c740d2ca183f4d50cea53bb80f4e22a07d747561f12e5080c6b6ab15c",
+    "internal/adapter/postgres/jobs_execution.go": "5d391ded9df0602badf95e0bc5a7a901f730643cdac85de1f8f9f9bfc017af0f",
+    "internal/adapter/postgres/jobs_integration_test.go": "57222071fb4cbcd8981ddba605b767445a76870880271903a8a2612508e26d37",
+    "internal/adapter/postgres/jobs_test.go": "c159971c2cf4318e6c2a0424e1633035b9d8a47e71cc8ea571597ed8f9e36e8a",
+    "internal/adapter/postgres/jobs.go": "69c171548758dfe3bbacd49d05d481927f8e251b493e7e93b4f2cfdcc02ac794",
+    "internal/adapter/postgres/migrate.go": "e94ba45b02649113eda6772a028471d50b8fe05b44a11588b33e070c1b9b5fe5",
+    "internal/adapter/postgres/migrations/000001_catalog.down.sql": "96a6884a093f04ab95b9e87a8dbd4b9cb4b349497ba48263fcc4496b1ccc34e0",
+    "internal/adapter/postgres/migrations/000001_catalog.up.sql": "92dfc26eb06eb3ea23cc89f20c9a714b80a4addd415056f15b5351eee6e87519",
+    "internal/adapter/postgres/migrations/000002_accounts.down.sql": "390a958490416332deb36fcce5230962462e83859811c52a98bca9927220fb7a",
+    "internal/adapter/postgres/migrations/000002_accounts.up.sql": "7ec6c68d65c34e6846e30fba52061e1c8e08a44c6571a7b84b525a5298350004",
+    "internal/adapter/postgres/migrations/000003_jobs.down.sql": "e7f1156e665093834b086de2cee1dd35a35e2d8d97807e519616cf37d54cc1a2",
+    "internal/adapter/postgres/migrations/000003_jobs.up.sql": "4d239642b82621bf66101cd2926848749311465541496fdb73dda99b75b40862",
+    "internal/adapter/postgres/migrations/000004_probe_cache.down.sql": "a2279a350f6fc2f9c63ada6838e1e86d0aedadfbbdf4a2328570ea80e4022384",
+    "internal/adapter/postgres/migrations/000004_probe_cache.up.sql": "e31b1bd2ee96d38fec157424d17f38c6b52079fbf47aed1c9f466cc26ef87976",
+    "internal/adapter/postgres/probe_adversarial_test.go": "2345b0d72faab28f718d00a7ed0483b5b804b86c8abb40fc007e1c6a71edb55e",
+    "internal/adapter/postgres/probe_boundaries_test.go": "e82edde19456abdc33f5329a935542bdbad681825cf9c5fcfd9127870329b4d7",
+    "internal/adapter/postgres/probe_cache.go": "89498f11c15ffee13f44b604e62133a51af714711f9b8b01cf7ae409fef362c4",
+    "internal/adapter/postgres/probe_commit.go": "f6891a27e008526e06824eff789ca97f8a19b32314ab22842ee11801701e6df4",
+    "internal/adapter/postgres/probe_fault_test.go": "27a5bd6c8eb10dd4391ac8a7d4b4ef9865f5d62fc17985b2ffd676bab3094bda",
+    "internal/adapter/postgres/probe_integration_test.go": "76094b2e4a67db92db829f0f20cf44c30085f5f7d52834edc861f5b5fc1d0cc6",
+    "internal/adapter/postgres/probe_maintenance.go": "5c473fc599176d46eb1aade955c84987fbf30133c02189de8b1d96d9d8dde60a",
+    "internal/adapter/postgres/probe_phase.go": "8c72b5ee34758720c4039414f0887441fbf5e6ffc6688cc84f4cb78df1349695",
+    "internal/adapter/postgres/probe_policy.go": "47cd27d337eda5664fe44db0f07c10eb3dd459dde192ee078feaea941ec4a6c9",
+    "internal/adapter/postgres/sessions.go": "2e71250ae1073418b65207d8be1f669119b7ed5a5e6a28ec3c2522c4ed112083",
+    "internal/adapter/postgres/store_integration_test.go": "304d97548c8cbbffc2448553b02f08035bd45f314a5ddd6b735e1421721d5f5c",
+    "internal/adapter/postgres/store.go": "3d5610e3cf302a04355a2ec27b1b68b5fbcb1a6b22cc0e89c921c6f7c2722e84"
+  },
+  "limits": [
+    "Repository and migration contracts only; scan worker and HTTP/CLI integration are not enabled.",
+    "This is not the future real-media 1000-to-0-to-K probe-call acceptance.",
+    "Whole PostgreSQL package coverage remains below 85 percent.",
+    "Windows checks compile and vet; actual PostgreSQL race execution was on Linux."
+  ],
+  "sourceCommit": "3d8842be1ebdc990d81f6b98d091b360120740d5",
+  "frozenSourceTree": "019dd65c85dc205ba0483855e53c4de58d61fc15"
+}
