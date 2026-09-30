@@ -32,6 +32,12 @@ func (s *Server) jobRoutes(router chi.Router) {
 		r.Use(s.jobBudget, s.authenticate)
 		r.Get("/api/v1/libraries", s.accountEndpoint(true, true, s.listJobLibraries))
 		r.Post("/api/v1/libraries/{id}/scan", s.accountEndpoint(true, false, s.submitScan))
+		r.Post("/api/v1/libraries/{id}/probe/rebuild", s.accountEndpoint(true, false, s.rebuildLibraryProbe))
+		r.Post("/api/v1/items/{id}/probe/rebuild", s.accountEndpoint(true, false, s.rebuildItemProbe))
+		r.Get("/api/v1/jobs/{id}/probe", s.accountEndpoint(true, false, func(w http.ResponseWriter, r *http.Request, a domain.Actor) (any, int, error) {
+			summary, err := s.jobs.ProbeSummary(r.Context(), a, chi.URLParam(r, "id"))
+			return summary, 200, err
+		}))
 		r.Get("/api/v1/jobs", s.accountEndpoint(true, true, s.listJobs))
 		r.Get("/api/v1/jobs/{id}", s.accountEndpoint(true, false, func(w http.ResponseWriter, r *http.Request, a domain.Actor) (any, int, error) {
 			j, err := s.jobs.Get(r.Context(), a, chi.URLParam(r, "id"))
@@ -70,6 +76,7 @@ func acceptedJob(w http.ResponseWriter, j domain.Job, replayed bool, err error) 
 func (s *Server) submitScan(w http.ResponseWriter, r *http.Request, a domain.Actor) (any, int, error) {
 	var input struct {
 		Priority string `json:"priority"`
+		Probe    bool   `json:"probe"`
 	}
 	if err := DecodeJSON(w, r, &input, accountBodyLimit); err != nil {
 		return nil, 0, err
@@ -81,8 +88,32 @@ func (s *Server) submitScan(w http.ResponseWriter, r *http.Request, a domain.Act
 	if input.Priority == "" {
 		input.Priority = domain.JobPriorityManual
 	}
-	j, replayed, err := s.jobs.Submit(r.Context(), a, chi.URLParam(r, "id"), key, input.Priority)
+	j, replayed, err := s.jobs.SubmitScan(r.Context(), a, chi.URLParam(r, "id"), key, input.Priority, input.Probe)
 	return acceptedJob(w, j, replayed, err)
+}
+
+func (s *Server) rebuildLibraryProbe(w http.ResponseWriter, r *http.Request, a domain.Actor) (any, int, error) {
+	return s.rebuildProbe(w, r, a, false)
+}
+func (s *Server) rebuildItemProbe(w http.ResponseWriter, r *http.Request, a domain.Actor) (any, int, error) {
+	return s.rebuildProbe(w, r, a, true)
+}
+func (s *Server) rebuildProbe(w http.ResponseWriter, r *http.Request, a domain.Actor, item bool) (any, int, error) {
+	var input struct {
+		Priority string `json:"priority"`
+	}
+	if err := DecodeJSON(w, r, &input, accountBodyLimit); err != nil {
+		return nil, 0, err
+	}
+	key, err := jobKey(r)
+	if err != nil {
+		return nil, 0, err
+	}
+	if input.Priority == "" {
+		input.Priority = domain.JobPriorityManual
+	}
+	job, replayed, err := s.jobs.RebuildProbe(r.Context(), a, chi.URLParam(r, "id"), key, input.Priority, item)
+	return acceptedJob(w, job, replayed, err)
 }
 func (s *Server) retryJob(w http.ResponseWriter, r *http.Request, a domain.Actor) (any, int, error) {
 	if err := emptyAccountInput(w, r); err != nil {

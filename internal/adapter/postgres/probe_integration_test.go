@@ -485,6 +485,9 @@ func TestProbeReleaseRecoveryInvalidationAndMigration(t *testing.T) {
 		t.Fatal(err)
 	}
 	dsn := f.s.Pool.Config().ConnString()
+	if version, dirty, err := Migrate(f.ctx, dsn, "down"); err != nil || dirty || version != 4 {
+		t.Fatal("down 5", err)
+	}
 	if version, dirty, err := Migrate(f.ctx, dsn, "down"); err != nil || dirty || version != 3 {
 		t.Fatal("down 4", err)
 	}
@@ -492,8 +495,8 @@ func TestProbeReleaseRecoveryInvalidationAndMigration(t *testing.T) {
 	if err := f.s.Pool.QueryRow(f.ctx, preservedQuery).Scan(&after); err != nil || before != after {
 		t.Fatal("down4 changed existing catalog, inventory, jobs or baseline")
 	}
-	if version, dirty, err := Migrate(f.ctx, dsn, "up"); err != nil || dirty || version != 4 {
-		t.Fatal("up 4", err)
+	if version, dirty, err := Migrate(f.ctx, dsn, "up"); err != nil || dirty || version != 5 {
+		t.Fatal("up 5", err)
 	}
 }
 

@@ -7,8 +7,11 @@ import (
 )
 
 type Jobs struct {
-	repository JobRepository
-	policy     domain.JobPolicy
+	repository      JobRepository
+	policy          domain.JobPolicy
+	probeRepository ProbeJobRepository
+	probeIdentity   *domain.ProbeIdentity
+	probeCapability func() domain.ProbeCapability
 }
 
 func NewJobs(repository JobRepository, policy domain.JobPolicy) (*Jobs, error) {
@@ -30,13 +33,7 @@ func validJobPage(actor domain.Actor, cursor string, limit int) bool {
 }
 
 func (j *Jobs) Submit(ctx context.Context, actor domain.Actor, library, key, priority string) (domain.Job, bool, error) {
-	if !validTarget(actor, library) || !validKey(key) || priority != domain.JobPriorityManual && priority != domain.JobPriorityBackground {
-		return domain.Job{}, false, domain.ErrInvalid
-	}
-	if err := ctx.Err(); err != nil {
-		return domain.Job{}, false, err
-	}
-	return j.repository.SubmitJob(ctx, actor, library, key, priority, j.policy)
+	return j.SubmitScan(ctx, actor, library, key, priority, false)
 }
 
 func (j *Jobs) Retry(ctx context.Context, actor domain.Actor, id, key string) (domain.Job, bool, error) {
@@ -45,6 +42,14 @@ func (j *Jobs) Retry(ctx context.Context, actor domain.Actor, id, key string) (d
 	}
 	if err := ctx.Err(); err != nil {
 		return domain.Job{}, false, err
+	}
+	if j.probeRepository != nil {
+		identity, capabilityError := j.currentProbeIdentity()
+		job, replayed, err := j.probeRepository.RetryScanJob(ctx, actor, id, key, j.policy, identity)
+		if err == domain.ErrProbeDisabled && capabilityError != nil {
+			err = capabilityError
+		}
+		return job, replayed, err
 	}
 	return j.repository.RetryJob(ctx, actor, id, key, j.policy)
 }

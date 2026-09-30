@@ -114,7 +114,7 @@ func readJobsToken(ctx context.Context, input io.Reader) (string, error) {
 
 func runJobsCLI(ctx context.Context, argv []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	usage := func() int {
-		fmt.Fprintln(stderr, "usage: jelee-cli jobs scan|list|libraries|get|entries|cancel|retry --token-stdin [--url http://127.0.0.1:8097] [--id UUID] [--key ASCII] [--priority manual|background] [--cursor UUID] [--limit 50] [--state STATE]")
+		fmt.Fprintln(stderr, "usage: jelee-cli jobs scan|probe|probe-rebuild-library|probe-rebuild-item|list|libraries|get|entries|cancel|retry --token-stdin [--url http://127.0.0.1:8097] [--id UUID] [--key ASCII] [--priority manual|background] [--probe] [--cursor UUID] [--limit 50] [--state STATE]")
 		return 2
 	}
 	if len(argv) == 0 {
@@ -126,15 +126,19 @@ func runJobsCLI(ctx context.Context, argv []string, stdin io.Reader, stdout, std
 	base := flags.String("url", "http://127.0.0.1:8097", "service origin")
 	fromStdin := flags.Bool("token-stdin", false, "read bearer token from stdin")
 	var id, key, priority, cursor, state string
+	var enableProbe bool
 	limit := 50
 	switch command {
 	case "scan":
+		flags.BoolVar(&enableProbe, "probe", false, "probe metadata after inventory")
+		fallthrough
+	case "probe-rebuild-library", "probe-rebuild-item":
 		flags.StringVar(&priority, "priority", "manual", "queue priority")
 		fallthrough
 	case "retry":
 		flags.StringVar(&key, "key", "", "idempotency key")
 		fallthrough
-	case "get", "cancel":
+	case "get", "cancel", "probe":
 		flags.StringVar(&id, "id", "", "library or job UUID")
 	case "entries":
 		flags.StringVar(&id, "id", "", "job UUID")
@@ -155,10 +159,11 @@ func runJobsCLI(ctx context.Context, argv []string, stdin io.Reader, stdout, std
 	if err != nil {
 		return usage()
 	}
-	if id != "" && !domain.ValidID(id) || (command == "scan" || command == "retry" || command == "get" || command == "entries" || command == "cancel") && !domain.ValidID(id) || cursor != "" && !domain.ValidID(cursor) || limit < 1 || limit > 100 {
+	enqueue := command == "scan" || command == "probe-rebuild-library" || command == "probe-rebuild-item"
+	if id != "" && !domain.ValidID(id) || (enqueue || command == "retry" || command == "get" || command == "entries" || command == "cancel" || command == "probe") && !domain.ValidID(id) || cursor != "" && !domain.ValidID(cursor) || limit < 1 || limit > 100 {
 		return usage()
 	}
-	if command == "scan" || command == "retry" {
+	if enqueue || command == "retry" {
 		if len(key) < 1 || len(key) > 128 {
 			return usage()
 		}
@@ -168,7 +173,7 @@ func runJobsCLI(ctx context.Context, argv []string, stdin io.Reader, stdout, std
 			}
 		}
 	}
-	if command == "scan" && priority != "manual" && priority != "background" {
+	if enqueue && priority != "manual" && priority != "background" {
 		return usage()
 	}
 	if state != "" && state != "queued" && state != "running" && state != "succeeded" && state != "failed" && state != "cancelled" {
@@ -184,8 +189,23 @@ func runJobsCLI(ctx context.Context, argv []string, stdin io.Reader, stdout, std
 	case "scan":
 		u.Path = "/api/v1/libraries/" + id + "/scan"
 		method = http.MethodPost
+		input := map[string]any{"priority": priority}
+		if enableProbe {
+			input["probe"] = true
+		}
+		data, _ := json.Marshal(input)
+		body = string(data)
+	case "probe-rebuild-library", "probe-rebuild-item":
+		target := "libraries"
+		if command == "probe-rebuild-item" {
+			target = "items"
+		}
+		u.Path = "/api/v1/" + target + "/" + id + "/probe/rebuild"
+		method = http.MethodPost
 		data, _ := json.Marshal(map[string]string{"priority": priority})
 		body = string(data)
+	case "probe":
+		u.Path = "/api/v1/jobs/" + id + "/probe"
 	case "list":
 		u.Path = "/api/v1/jobs"
 	case "libraries":
@@ -333,6 +353,8 @@ func decodeJobsCLIResponse(raw []byte, command string, limit int) (any, bool) {
 	}
 	var data any
 	switch command {
+	case "probe":
+		data, ok = decodeCLIProbeSummary(envelope["data"])
 	case "list":
 		data, ok = decodeJobsCLIPage(envelope["data"], "jobs", limit, decodeCLIJob)
 	case "entries":

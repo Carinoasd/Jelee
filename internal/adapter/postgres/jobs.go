@@ -2,7 +2,6 @@ package postgres
 
 import (
 	"context"
-	"errors"
 	"path/filepath"
 	"strings"
 
@@ -77,87 +76,10 @@ func trimJobs(ctx context.Context, tx pgx.Tx, limit int) error {
 }
 
 func (s *Store) SubmitJob(ctx context.Context, a domain.Actor, libraryID, key, priority string, p domain.JobPolicy) (domain.Job, bool, error) {
-	return s.submitJob(ctx, a, libraryID, "", key, priority, p)
+	return s.SubmitScanJob(ctx, a, libraryID, key, priority, domain.ProbeIntent{}, p, nil)
 }
 func (s *Store) RetryJob(ctx context.Context, a domain.Actor, id, key string, p domain.JobPolicy) (domain.Job, bool, error) {
-	if !domain.ValidID(id) {
-		return domain.Job{}, false, domain.ErrNotFound
-	}
-	return s.submitJob(ctx, a, "", id, key, "", p)
-}
-func (s *Store) submitJob(ctx context.Context, a domain.Actor, libraryID, parent, key, priority string, p domain.JobPolicy) (domain.Job, bool, error) {
-	if !validJobPolicy(p) || !validJobKey(key) || (parent == "" && (!domain.ValidID(libraryID) || (priority != domain.JobPriorityManual && priority != domain.JobPriorityBackground))) {
-		return domain.Job{}, false, domain.ErrInvalid
-	}
-	tx, err := s.authorizedJobs(ctx, a)
-	if err != nil {
-		return domain.Job{}, false, err
-	}
-	defer tx.Rollback(ctx)
-	if err = trimJobs(ctx, tx, p.HistoryLimit); err != nil {
-		return domain.Job{}, false, err
-	}
-	old, err := scanJob(tx.QueryRow(ctx, `SELECT `+jobColumns+` FROM jobs WHERE actor_id=$1::uuid AND idempotency_key=$2`, a.UserID, key))
-	if err == nil {
-		var originalParent string
-		if err = tx.QueryRow(ctx, `SELECT COALESCE(parent_id::text,'') FROM jobs WHERE id=$1::uuid`, old.ID).Scan(&originalParent); err != nil {
-			return domain.Job{}, false, storageError(err)
-		}
-		if originalParent != parent || parent == "" && (old.LibraryID != libraryID || old.Priority != priority) {
-			return domain.Job{}, false, domain.ErrConflict
-		}
-		return old, true, storageError(tx.Commit(ctx))
-	}
-	if !errors.Is(err, domain.ErrNotFound) {
-		return domain.Job{}, false, err
-	}
-	if parent != "" {
-		old, err = scanJob(tx.QueryRow(ctx, `SELECT `+jobColumns+` FROM jobs WHERE id=$1::uuid`, parent))
-		if err != nil {
-			return domain.Job{}, false, err
-		}
-		if old.State != domain.JobFailed && old.State != domain.JobCancelled {
-			return domain.Job{}, false, domain.ErrConflict
-		}
-		libraryID, priority = old.LibraryID, old.Priority
-	}
-	var exists, busy bool
-	if err = tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM libraries WHERE id=$1::uuid),EXISTS(SELECT 1 FROM jobs WHERE library_id=$1::uuid AND state IN ('queued','running'))`, libraryID).Scan(&exists, &busy); err != nil {
-		return domain.Job{}, false, storageError(err)
-	}
-	if !exists {
-		return domain.Job{}, false, domain.ErrNotFound
-	}
-	if busy {
-		return domain.Job{}, false, domain.ErrJobBusy
-	}
-	var active, roots int
-	if err = tx.QueryRow(ctx, `SELECT count(*) FROM jobs WHERE state IN ('queued','running')`).Scan(&active); err != nil {
-		return domain.Job{}, false, storageError(err)
-	}
-	if active >= p.QueueLimit {
-		return domain.Job{}, false, domain.ErrJobQueueFull
-	}
-	if err = tx.QueryRow(ctx, `SELECT count(*) FROM library_roots WHERE library_id=$1::uuid`, libraryID).Scan(&roots); err != nil {
-		return domain.Job{}, false, storageError(err)
-	}
-	if roots == 0 {
-		return domain.Job{}, false, domain.ErrScanUnavailable
-	}
-	if roots > p.MaxDirectories {
-		return domain.Job{}, false, domain.ErrScanLimit
-	}
-	j, err := scanJob(tx.QueryRow(ctx, `INSERT INTO jobs(library_id,actor_id,idempotency_key,parent_id,priority,directory_total,queue_limit,history_limit,max_entries,max_directories,max_attempts,missing_count_limit,missing_percent_limit) VALUES($1::uuid,$2::uuid,$3,NULLIF($4,'')::uuid,$5,$6,$7,$8,$9,$10,$11,$12,$13) RETURNING `+jobColumns, libraryID, a.UserID, key, parent, priority, roots, p.QueueLimit, p.HistoryLimit, p.MaxEntries, p.MaxDirectories, p.MaxAttempts, p.MissingCountLimit, p.MissingPercentLimit))
-	if err != nil {
-		return domain.Job{}, false, err
-	}
-	if _, err = tx.Exec(ctx, `INSERT INTO job_directories(job_id,root_id,path) SELECT $1::uuid,id,'.' FROM library_roots WHERE library_id=$2::uuid`, j.ID, libraryID); err != nil {
-		return domain.Job{}, false, storageError(err)
-	}
-	if err = auditAccount(ctx, tx, a, "job.submitted", j.ID, nil, j); err != nil {
-		return domain.Job{}, false, err
-	}
-	return j, false, storageError(tx.Commit(ctx))
+	return s.RetryScanJob(ctx, a, id, key, p, nil)
 }
 func (s *Store) GetJob(ctx context.Context, a domain.Actor, id string) (domain.Job, error) {
 	if !domain.ValidID(id) {

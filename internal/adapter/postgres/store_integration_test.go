@@ -71,7 +71,7 @@ func TestPostgresIntegration(t *testing.T) {
 	for _, step := range []struct {
 		action  string
 		version uint
-	}{{"up", 4}, {"status", 4}, {"down", 3}, {"down", 2}, {"down", 1}, {"down", 0}, {"up", 4}, {"up", 4}} {
+	}{{"up", 5}, {"status", 5}, {"down", 4}, {"down", 3}, {"down", 2}, {"down", 1}, {"down", 0}, {"up", 5}, {"up", 5}} {
 		version, dirty, err := Migrate(ctx, isolatedDSN, step.action)
 		if err != nil || dirty || version != step.version {
 			t.Fatalf("migration %s: version=%d dirty=%t failed=%t", step.action, version, dirty, err != nil)

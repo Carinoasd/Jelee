@@ -13,6 +13,7 @@ import (
 	"github.com/MoYuanCN/Jelee/internal/adapter/postgres"
 	"github.com/MoYuanCN/Jelee/internal/adapter/scan"
 	"github.com/MoYuanCN/Jelee/internal/app"
+	"github.com/MoYuanCN/Jelee/internal/domain"
 	"github.com/MoYuanCN/Jelee/internal/platform/config"
 	jobworker "github.com/MoYuanCN/Jelee/internal/platform/jobs"
 	"github.com/MoYuanCN/Jelee/internal/platform/password"
@@ -40,16 +41,28 @@ func New(cfg config.Config, logger *slog.Logger) *fx.App {
 			if err := c.Validate(); err != nil {
 				return nil, err
 			}
-			service, err := app.NewJobs(store, c.Jobs.Policy())
+			startup, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			probing, err := newProbeService(startup, c.EnableProbe, store, prepareProductionProbe)
+			cancel()
+			if err != nil {
+				return nil, err
+			}
+			lifetime.closeProbe = probing.Close
+			probing.logger = l
+			service, err := app.NewJobsWithProbe(store, c.Jobs.Policy(), store, probing.identity, probing.Capability)
 			if err != nil {
 				return nil, err
 			}
 			p := c.Jobs
-			runner, err := jobworker.New(store, scan.New(), jobworker.Options{Workers: p.Workers, PollInterval: time.Duration(p.PollMilliseconds) * time.Millisecond, LeaseDuration: time.Duration(p.LeaseSeconds) * time.Second, DBOperationTimeout: time.Duration(p.DatabaseTimeoutSeconds) * time.Second, MaxJobRuntime: time.Duration(p.MaxRuntimeSeconds) * time.Second}, l)
+			opts := jobworker.Options{Workers: p.Workers, PollInterval: time.Duration(p.PollMilliseconds) * time.Millisecond, LeaseDuration: time.Duration(p.LeaseSeconds) * time.Second, DBOperationTimeout: time.Duration(p.DatabaseTimeoutSeconds) * time.Second, MaxJobRuntime: time.Duration(p.MaxRuntimeSeconds) * time.Second}
+			if probing.Available() {
+				opts.Probe = &jobworker.ProbeOptions{Repository: store, Prober: probing, LeaseDuration: domain.DefaultProbeCachePolicy().LeaseDuration, MaxConcurrent: 2, Available: probing.Available, OnRuntimeUnavailable: probing.Disable}
+			}
+			runner, err := jobworker.New(store, scan.New(), opts, l)
 			if err != nil {
 				return nil, err
 			}
-			lifetime.worker = runner
+			lifetime.worker = &probeWorker{worker: runner, probe: probing}
 			return service, nil
 		},
 		func(c config.Config, store *postgres.Store, catalog *app.Catalog, jobs *app.Jobs, l *slog.Logger) (http.Handler, error) {
@@ -93,6 +106,7 @@ type lifetime struct {
 	listen          func(context.Context, string, string) (net.Listener, error)
 	requestShutdown func() error
 	closeStore      func()
+	closeProbe      func() error
 	closeOnce       sync.Once
 	stopOnce        sync.Once
 	exited          chan struct{}
@@ -117,6 +131,12 @@ func build(l *lifetime, options ...fx.Option) *fx.App {
 
 func (l *lifetime) closePool() {
 	l.closeOnce.Do(func() {
+		if l.closeProbe != nil {
+			if err := l.closeProbe(); err != nil {
+				l.stopErr = errors.Join(l.stopErr, errors.New("probe temporary cleanup failed"))
+				l.logger.Error("probe temporary cleanup failed", "component", "probe", "code", "probe_runtime_unavailable")
+			}
+		}
 		if l.closeStore != nil {
 			l.closeStore()
 		}

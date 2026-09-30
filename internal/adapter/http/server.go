@@ -102,7 +102,8 @@ func NewWithJobs(cfg config.Config, backend Backend, catalog *app.Catalog, resol
 		writeJSON(w, 200, map[string]any{"data": map[string]string{"status": "ready"}})
 	})
 	r.Get("/api/v1/system", func(w http.ResponseWriter, r *http.Request) {
-		writeJSON(w, 200, map[string]any{"data": map[string]any{"name": "Jelee", "devMode": false, "capabilities": map[string]any{"transcoding": false, "hls": false, "dash": false, "remux": false, "downloads": false, "directDelivery": cfg.EnableDirect, "catalog": cfg.EnableCatalog, "accounts": cfg.EnableAccounts, "inventoryScan": cfg.EnableJobs, "probe": false}}})
+		probe := s.jobs.ProbeCapability()
+		writeJSON(w, 200, map[string]any{"data": map[string]any{"name": "Jelee", "devMode": false, "probe": probe, "capabilities": map[string]any{"transcoding": false, "hls": false, "dash": false, "remux": false, "downloads": false, "directDelivery": cfg.EnableDirect, "catalog": cfg.EnableCatalog, "accounts": cfg.EnableAccounts, "inventoryScan": cfg.EnableJobs, "probe": probe.Available}}})
 	})
 	r.Get("/api-docs", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
@@ -308,6 +309,16 @@ func WriteError(w http.ResponseWriter, r *http.Request, err error) {
 		status, code, message = 503, "scan_unavailable", "Scan root is unavailable."
 	case errors.Is(err, domain.ErrScanLimit):
 		status, code, message = 409, "scan_limit", "Scan resource limit reached."
+	case errors.Is(err, domain.ErrProbeDisabled):
+		status, code, message = 409, "probe_disabled", "Media probing is disabled."
+	case errors.Is(err, domain.ErrProbeRuntimeUnavailable):
+		status, code, message = 503, "probe_runtime_unavailable", "Media probing is unavailable. Check the isolated runtime."
+	case errors.Is(err, domain.ErrProbeCacheCapacity):
+		status, code, message = 409, "probe_cache_capacity", "Probe cache capacity reached."
+	case errors.Is(err, domain.ErrProbeIdentityMismatch):
+		status, code, message = 409, "probe_identity_mismatch", "Probe tool identity changed. Retry the job."
+	case errors.Is(err, domain.ErrProbeInvalidated):
+		status, code, message = 409, "probe_invalidated", "Probe scope changed. Retry the job."
 	case errors.Is(err, domain.ErrLastAdmin):
 		status, code, message = 409, "last_admin", "An active administrator must remain."
 	case errors.Is(err, domain.ErrSessionLimit):

@@ -62,7 +62,7 @@ func accountTestStore(t *testing.T) (context.Context, *Store, string) {
 	query := u.Query()
 	query.Set("search_path", schema)
 	u.RawQuery = query.Encode()
-	if version, dirty, e := Migrate(ctx, u.String(), "up"); e != nil || dirty || version != 4 {
+	if version, dirty, e := Migrate(ctx, u.String(), "up"); e != nil || dirty || version != 5 {
 		t.Fatal("migrate account schema to version 4")
 	}
 	store, err := Open(ctx, u.String(), 16)
@@ -579,6 +579,9 @@ func TestAccountIntegration(t *testing.T) {
 
 func TestAccountMigrationRejectsCaseCollisionWithoutRenaming(t *testing.T) {
 	ctx, s, dsn := accountTestStore(t)
+	if version, dirty, e := Migrate(ctx, dsn, "down"); e != nil || dirty || version != 4 {
+		t.Fatal("downgrade probe requests schema")
+	}
 	if version, dirty, e := Migrate(ctx, dsn, "down"); e != nil || dirty || version != 3 {
 		t.Fatal("downgrade probe cache schema")
 	}
@@ -589,7 +592,7 @@ func TestAccountMigrationRejectsCaseCollisionWithoutRenaming(t *testing.T) {
 		t.Fatal("downgrade to legacy schema")
 	}
 	if e := s.Ready(ctx); e == nil {
-		t.Fatal("schema 1 must fail schema 4 readiness")
+		t.Fatal("schema 1 must fail schema 5 readiness")
 	}
 	if _, e := s.Pool.Exec(ctx, `INSERT INTO users(name) VALUES('ExistingName'),('existingname')`); e != nil {
 		t.Fatal("prepare legacy case collision")
@@ -616,6 +619,9 @@ func TestAccountMigrationRollbackKeepsDeletedAccountsDisabled(t *testing.T) {
 	if _, err = s.Pool.Exec(ctx, `UPDATE users SET deleted_at=now() WHERE name='DeletedBeforeRollback'`); err != nil {
 		t.Fatal("prepare deleted account")
 	}
+	if version, dirty, e := Migrate(ctx, dsn, "down"); e != nil || dirty || version != 4 {
+		t.Fatal("downgrade probe requests schema")
+	}
 	if version, dirty, e := Migrate(ctx, dsn, "down"); e != nil || dirty || version != 3 {
 		t.Fatal("downgrade probe cache schema")
 	}
@@ -632,7 +638,7 @@ func TestAccountMigrationRollbackKeepsDeletedAccountsDisabled(t *testing.T) {
 	if err = s.Pool.QueryRow(ctx, `SELECT disabled FROM users WHERE name='ActiveBeforeRollback'`).Scan(&activeDisabled); err != nil || activeDisabled {
 		t.Fatal("downgrade unexpectedly disabled active account")
 	}
-	if version, dirty, e := Migrate(ctx, dsn, "up"); e != nil || dirty || version != 4 {
+	if version, dirty, e := Migrate(ctx, dsn, "up"); e != nil || dirty || version != 5 {
 		t.Fatal("upgrade after fail-closed rollback")
 	}
 	if _, err = s.Authenticate(ctx, deletedToken); !errors.Is(err, domain.ErrUnauthenticated) {

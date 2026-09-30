@@ -75,7 +75,7 @@ func TestProbeAdversarialLastLeaseSlotAcrossParents(t *testing.T) {
 				t.Fatal("two parents acquired the last global lease slot")
 			}
 			winner, held = r.i, r.lease
-		} else if errors.Is(r.err, domain.ErrProbeCacheCapacity) {
+		} else if errors.Is(r.err, domain.ErrProbeBusy) {
 			loser = r.i
 		} else {
 			t.Fatal("unexpected acquisition result", r.err)

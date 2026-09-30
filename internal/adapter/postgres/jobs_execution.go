@@ -51,6 +51,9 @@ func guardedJobUpdate(ctx context.Context, tx pgx.Tx, l domain.JobLease, query s
 	return nil
 }
 func (s *Store) ClaimJob(ctx context.Context, owner string, preferBackground bool, ttl time.Duration) (domain.JobLease, error) {
+	return s.ClaimJobWithProbe(ctx, owner, preferBackground, ttl, false)
+}
+func (s *Store) ClaimJobWithProbe(ctx context.Context, owner string, preferBackground bool, ttl time.Duration, probeCapable bool) (domain.JobLease, error) {
 	if !validText(owner, 128, false) || !validLeaseDuration(ttl) {
 		return domain.JobLease{}, domain.ErrInvalid
 	}
@@ -79,7 +82,7 @@ func (s *Store) ClaimJob(ctx context.Context, owner string, preferBackground boo
 	if preferBackground {
 		priority = domain.JobPriorityBackground
 	}
-	l, err := scanLease(tx.QueryRow(ctx, `UPDATE jobs SET state='running',owner=$1,generation=generation+1,attempts=attempts+1,lease_until=clock_timestamp()+$2*interval '1 microsecond',started_at=COALESCE(started_at,clock_timestamp()) WHERE id=(SELECT id FROM jobs WHERE state='queued' ORDER BY CASE WHEN priority=$3 THEN 0 ELSE 1 END,created_at,id LIMIT 1 FOR UPDATE) RETURNING `+leaseColumns, owner, ttl.Microseconds(), priority))
+	l, err := scanLease(tx.QueryRow(ctx, `UPDATE jobs SET state='running',owner=$1,generation=generation+1,attempts=attempts+1,lease_until=clock_timestamp()+$2*interval '1 microsecond',started_at=COALESCE(started_at,clock_timestamp()) WHERE id=(SELECT id FROM jobs WHERE state='queued' AND ($4 OR NOT EXISTS(SELECT 1 FROM probe_requests r WHERE r.job_id=jobs.id)) ORDER BY CASE WHEN priority=$3 THEN 0 ELSE 1 END,created_at,id LIMIT 1 FOR UPDATE) RETURNING `+leaseColumns, owner, ttl.Microseconds(), priority, probeCapable))
 	if errors.Is(err, domain.ErrNotFound) {
 		if e := tx.Commit(ctx); e != nil {
 			return l, storageError(e)
@@ -339,6 +342,18 @@ func (s *Store) FinishJob(ctx context.Context, l domain.JobLease, state, code st
 			return domain.ErrConflict
 		}
 		phase, phaseErr := loadProbePhase(ctx, tx, l.Job.ID)
+		request, requestErr := loadProbeRequest(ctx, tx, l.Job.ID)
+		if requestErr != nil {
+			return requestErr
+		}
+		if request != nil {
+			if request.ErrorCode != "" || errors.Is(phaseErr, domain.ErrNotFound) {
+				return domain.ErrConflict
+			}
+			if phaseErr == nil && !requestMatchesPhase(request, phase) {
+				return domain.ErrProbeIdentityMismatch
+			}
+		}
 		if phaseErr == nil {
 			if phase.State != domain.ProbePhaseDone {
 				return domain.ErrConflict

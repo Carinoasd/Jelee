@@ -626,6 +626,9 @@ func TestJobsMigrationRollbackPreservesAccountsAndLibraryConfiguration(t *testin
 	f := newJobFixture(t)
 	f.complete(t, "rollback", []string{"observed.mkv"}, 0)
 	dsn := f.s.Pool.Config().ConnString()
+	if v, dirty, err := Migrate(f.ctx, dsn, "down"); err != nil || dirty || v != 4 {
+		t.Fatal("rollback probe requests")
+	}
 	if v, dirty, err := Migrate(f.ctx, dsn, "down"); err != nil || dirty || v != 3 {
 		t.Fatal("rollback probe cache migration before jobs migration")
 	}
@@ -633,13 +636,13 @@ func TestJobsMigrationRollbackPreservesAccountsAndLibraryConfiguration(t *testin
 		t.Fatal("rollback jobs migration")
 	}
 	if err := f.s.Ready(f.ctx); err == nil {
-		t.Fatal("schema 2 passed schema 4 readiness")
+		t.Fatal("schema 2 passed schema 5 readiness")
 	}
 	var accounts, roots int
 	if err := f.s.Pool.QueryRow(f.ctx, `SELECT (SELECT count(*) FROM users),(SELECT count(*) FROM library_roots)`).Scan(&accounts, &roots); err != nil || accounts != 1 || roots != 1 {
 		t.Fatal("jobs rollback changed account or library configuration")
 	}
-	if v, dirty, err := Migrate(f.ctx, dsn, "up"); err != nil || dirty || v != 4 {
+	if v, dirty, err := Migrate(f.ctx, dsn, "up"); err != nil || dirty || v != 5 {
 		t.Fatal("reapply jobs migration")
 	}
 	if err := f.s.Ready(f.ctx); err != nil {

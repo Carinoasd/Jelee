@@ -127,7 +127,7 @@ func TestAdapterProcessErrorsDiscardEvenValidOutput(t *testing.T) {
 		{"invalid descriptor", process.ErrSandboxInvalid, ErrToolUnavailable},
 		{"invalid runner", process.ErrInvalid, ErrToolUnavailable},
 		{"unexpected exit or signal", process.ErrUnexpectedExit, ErrToolUnavailable},
-		{"unknown private error", errors.New("/private/library/movie token=secret"), ErrFailed},
+		{"unknown private error", errors.New("/private/library/movie token=secret"), ErrToolUnavailable},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

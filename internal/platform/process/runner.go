@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 	"unicode/utf8"
 )
@@ -65,9 +66,30 @@ func (Result) String() string   { return "process result (output redacted)" }
 func (Result) GoString() string { return "process result (output redacted)" }
 
 type Runner struct {
-	config Config
-	tools  map[string]Tool
-	slots  chan struct{}
+	config  Config
+	tools   map[string]Tool
+	slots   chan struct{}
+	started atomic.Uint64
+	active  atomic.Int64
+	peak    atomic.Int64
+}
+
+// Stats contains aggregate process lifecycle counts without paths or output.
+// Started counts successful OS child creation, including helpers that later
+// reject their input. Active counts admitted operations, including preparation,
+// failed starts, joining and cleanup. Peak bounds simultaneous live children;
+// it does not measure OS process overlap. Values are individually atomic.
+type Stats struct {
+	Started uint64
+	Active  int64
+	Peak    int64
+}
+
+func (r *Runner) Stats() Stats {
+	if r == nil {
+		return Stats{}
+	}
+	return Stats{Started: r.started.Load(), Active: r.active.Load(), Peak: r.peak.Load()}
 }
 
 func validName(value string) bool {
@@ -216,6 +238,13 @@ func (r *Runner) run(ctx context.Context, request Request, exitError func(int) e
 		return Result{}, ErrBusy
 	}
 	defer func() { <-r.slots }()
+	active := r.active.Add(1)
+	for peak := r.peak.Load(); active > peak; peak = r.peak.Load() {
+		if r.peak.CompareAndSwap(peak, active) {
+			break
+		}
+	}
+	defer r.active.Add(-1)
 	ctx, cancel := context.WithTimeout(ctx, r.config.Timeout)
 	defer cancel()
 	dir, err := os.MkdirTemp(r.config.TempRoot, "run-")
@@ -257,6 +286,7 @@ func (r *Runner) run(ctx context.Context, request Request, exitError func(int) e
 		}
 		return Result{}, ErrStart
 	}
+	r.started.Add(1)
 	defer func() {
 		if err := process.close(); err != nil && resultErr == nil {
 			result, resultErr = Result{}, ErrCleanup

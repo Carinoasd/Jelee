@@ -38,6 +38,15 @@ func (r httpJobRepo) CancelJob(ctx context.Context, a domain.Actor, id string) (
 
 func newJobsHTTP(t *testing.T, repo httpJobRepo, enabled bool) http.Handler {
 	t.Helper()
+	jobs, err := app.NewJobs(repo, config.DefaultJobsConfig().Policy())
+	if err != nil {
+		t.Fatal(err)
+	}
+	return newJobsHTTPService(t, jobs, enabled)
+}
+
+func newJobsHTTPService(t *testing.T, jobs *app.Jobs, enabled bool) http.Handler {
+	t.Helper()
 	cfg := validConfig()
 	cfg.EnableAccounts = true
 	cfg.Accounts = config.DefaultAccountsConfig()
@@ -45,10 +54,6 @@ func newJobsHTTP(t *testing.T, repo httpJobRepo, enabled bool) http.Handler {
 	cfg.Jobs = config.DefaultJobsConfig()
 	cfg.MaxConnections = 8
 	accounts, err := app.NewAccounts(httpAccountRepository{}, &httpAccountPasswords{}, app.AccountOptions{SessionTTL: time.Hour, MaxSessions: 8, LockAfter: 5, LockFor: 15 * time.Minute})
-	if err != nil {
-		t.Fatal(err)
-	}
-	jobs, err := app.NewJobs(repo, cfg.Jobs.Policy())
 	if err != nil {
 		t.Fatal(err)
 	}

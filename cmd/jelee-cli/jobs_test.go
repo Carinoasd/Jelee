@@ -50,10 +50,10 @@ func jobsCLIReply(t *testing.T, command string, payload []byte, status int) (int
 	}))
 	defer server.Close()
 	args := []string{command, "--url", server.URL, "--token-stdin"}
-	if command == "get" || command == "scan" || command == "cancel" || command == "retry" || command == "entries" {
+	if command == "get" || command == "scan" || command == "cancel" || command == "retry" || command == "entries" || command == "probe" || command == "probe-rebuild-library" || command == "probe-rebuild-item" {
 		args = append(args, "--id", jobsTestID)
 	}
-	if command == "scan" || command == "retry" {
+	if command == "scan" || command == "retry" || command == "probe-rebuild-library" || command == "probe-rebuild-item" {
 		args = append(args, "--key", "response-test")
 	}
 	if command == "list" || command == "entries" || command == "libraries" {

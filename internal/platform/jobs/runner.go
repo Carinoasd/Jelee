@@ -38,6 +38,7 @@ type Options struct {
 	MaxJobRuntime      time.Duration
 	Owner              string
 	Clock              Clock
+	Probe              *ProbeOptions
 }
 
 func DefaultOptions() Options {
@@ -50,14 +51,18 @@ var (
 )
 
 type Runner struct {
-	repository app.JobExecutionRepository
-	scanner    app.InventoryScanner
-	options    Options
-	logger     *slog.Logger
-	mu         sync.Mutex
-	started    bool
-	cancel     context.CancelFunc
-	done       chan struct{}
+	repository       app.JobExecutionRepository
+	scanner          app.InventoryScanner
+	options          Options
+	logger           *slog.Logger
+	mu               sync.Mutex
+	started          bool
+	cancel           context.CancelFunc
+	done             chan struct{}
+	probeRepository  app.ProbeExecutionRepository
+	probeGate        chan struct{}
+	probeIdentity    string
+	probeUnavailable atomic.Bool
 }
 
 func New(repository app.JobExecutionRepository, scanner app.InventoryScanner, opts Options, logger *slog.Logger) (*Runner, error) {
@@ -81,7 +86,11 @@ func New(repository app.JobExecutionRepository, scanner app.InventoryScanner, op
 	if opts.Clock == nil {
 		opts.Clock = realClock{}
 	}
-	return &Runner{repository: repository, scanner: scanner, options: opts, logger: logger}, nil
+	r := &Runner{repository: repository, scanner: scanner, options: opts, logger: logger}
+	if err := r.configureProbe(); err != nil {
+		return nil, err
+	}
+	return r, nil
 }
 
 // Start must receive a service-lifetime context, not an HTTP request or fx's
@@ -148,7 +157,15 @@ func (r *Runner) work(ctx context.Context) {
 	turn := 0
 	for ctx.Err() == nil {
 		dbCtx, cancel := context.WithTimeout(ctx, r.options.DBOperationTimeout)
-		lease, err := r.repository.ClaimJob(dbCtx, r.options.Owner, turn%4 == 3, r.options.LeaseDuration)
+		var lease domain.JobLease
+		var err error
+		if r.probeRepository != nil {
+			lease, err = r.probeRepository.ClaimJobWithProbe(dbCtx, r.options.Owner, turn%4 == 3, r.options.LeaseDuration, r.probeAvailable())
+		} else if capable, ok := r.repository.(probeClaimer); ok {
+			lease, err = capable.ClaimJobWithProbe(dbCtx, r.options.Owner, turn%4 == 3, r.options.LeaseDuration, false)
+		} else {
+			lease, err = r.repository.ClaimJob(dbCtx, r.options.Owner, turn%4 == 3, r.options.LeaseDuration)
+		}
 		cancel()
 		if err != nil {
 			if ctx.Err() != nil {
@@ -181,7 +198,7 @@ func (r *Runner) wait(ctx context.Context, d time.Duration) bool {
 // monitor is the sole per-job helper goroutine. Its timers are stopped and it
 // is joined before any terminal/release transaction is attempted.
 func (r *Runner) monitor(ctx context.Context, lease domain.JobLease, cancelJob context.CancelCauseFunc, started, done chan struct{}) {
-	heartbeat := r.options.Clock.NewTimer(r.options.LeaseDuration / 3)
+	heartbeat := r.options.Clock.NewTimer(r.heartbeatInterval())
 	runtime := r.options.Clock.NewTimer(r.options.MaxJobRuntime)
 	close(started)
 	defer close(done)
@@ -213,7 +230,7 @@ func (r *Runner) monitor(ctx context.Context, lease domain.JobLease, cancelJob c
 				return
 			}
 			heartbeat.Stop()
-			heartbeat = r.options.Clock.NewTimer(r.options.LeaseDuration / 3)
+			heartbeat = r.options.Clock.NewTimer(r.heartbeatInterval())
 		}
 	}
 }
@@ -229,20 +246,32 @@ func (r *Runner) run(serviceCtx context.Context, lease domain.JobLease) {
 	stopHeartbeat()
 	<-monitored
 	cause := context.Cause(ctx)
-	if errors.Is(err, domain.ErrJobLeaseLost) || errors.Is(cause, domain.ErrJobLeaseLost) || errors.Is(cause, errHeartbeatFailed) {
+	if errors.Is(err, domain.ErrJobLeaseLost) || errors.Is(err, domain.ErrProbeLeaseLost) || errors.Is(cause, domain.ErrJobLeaseLost) || errors.Is(cause, errHeartbeatFailed) {
 		r.logger.Warn("job ownership could not be retained", "component", "jobs", "taskId", lease.Job.ID, "code", "job_lease_lost")
 		return
 	}
 	// Cleanup survives service cancellation but always has its own short bound.
-	dbCtx, cancelDB := context.WithTimeout(context.WithoutCancel(serviceCtx), r.options.DBOperationTimeout)
-	defer cancelDB()
 	if serviceCtx.Err() != nil && !errors.Is(cause, errCancelRequested) {
+		dbCtx, cancelDB := context.WithTimeout(context.WithoutCancel(serviceCtx), r.options.DBOperationTimeout)
+		defer cancelDB()
 		if err := r.repository.ReleaseJob(dbCtx, lease); err != nil {
 			r.logPersistenceFailure(lease)
 		}
 		return
 	}
 	state, code := domain.JobSucceeded, ""
+	var aborted *probeAbort
+	if errors.As(err, &aborted) && cause == nil && aborted.persist {
+		abortCtx, cancelAbort := context.WithTimeout(context.WithoutCancel(serviceCtx), r.options.DBOperationTimeout)
+		abortErr := r.probeRepository.AbortProbeRequest(abortCtx, lease, aborted.code)
+		cancelAbort()
+		if errors.Is(abortErr, context.Canceled) {
+			cause = errCancelRequested
+		} else if abortErr != nil {
+			r.logPersistenceFailure(lease)
+			return
+		}
+	}
 	switch {
 	case errors.Is(cause, errCancelRequested):
 		state = domain.JobCancelled
@@ -259,12 +288,16 @@ func (r *Runner) run(serviceCtx context.Context, lease domain.JobLease) {
 			code = "scan_unavailable"
 		case errors.Is(err, domain.ErrScanIO):
 			code = "scan_io"
+		case aborted != nil:
+			code = "scan_unavailable"
 		case repositoryError:
 			code = "scan_unavailable"
 		default:
 			code = "scan_io"
 		}
 	}
+	dbCtx, cancelDB := context.WithTimeout(context.WithoutCancel(serviceCtx), r.options.DBOperationTimeout)
+	defer cancelDB()
 	finishErr := r.repository.FinishJob(dbCtx, lease, state, code)
 	if state == domain.JobSucceeded && errors.Is(finishErr, domain.ErrConflict) {
 		// Cancellation can commit after the last heartbeat but before Finish.
@@ -294,7 +327,7 @@ func (r *Runner) logPersistenceFailure(lease domain.JobLease) {
 	r.logger.Warn("job state could not be persisted", "component", "jobs", "taskId", lease.Job.ID, "code", "scan_unavailable")
 }
 
-func (r *Runner) execute(ctx context.Context, lease domain.JobLease) (result error, repositoryError bool) {
+func (r *Runner) executeInventory(ctx context.Context, lease domain.JobLease) (result error, repositoryError bool) {
 	// Scanner bugs cannot strand the monitor or expose panic payloads in logs.
 	defer func() {
 		if recover() != nil {

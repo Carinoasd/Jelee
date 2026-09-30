@@ -18,6 +18,13 @@ var (
 // constructed from an arbitrary executable, operation registry, or argv.
 type IsolatedRunner struct{ runner *Runner }
 
+func (r *IsolatedRunner) Stats() Stats {
+	if r == nil {
+		return Stats{}
+	}
+	return r.runner.Stats()
+}
+
 func NewIsolatedFFprobe(config Config, launcher *sandbox.Launcher) (*IsolatedRunner, error) {
 	if launcher == nil {
 		return nil, ErrInvalid

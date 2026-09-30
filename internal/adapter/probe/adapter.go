@@ -144,8 +144,12 @@ func classifyProcessError(err error) error {
 		return process.ErrBusy
 	case errors.Is(err, process.ErrOutputLimit):
 		return process.ErrOutputLimit
-	default:
+	case errors.Is(err, process.ErrExit):
 		return ErrFailed
+	default:
+		// Only the isolated helper's verified media failure is cacheable. An
+		// unfamiliar executor failure must not mark healthy media as corrupt.
+		return ErrToolUnavailable
 	}
 }
 

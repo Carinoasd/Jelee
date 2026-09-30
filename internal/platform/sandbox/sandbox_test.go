@@ -57,3 +57,25 @@ func TestPolicyRequiresIndependentDigests(t *testing.T) {
 		t.Fatal("descriptor can define its own trust policy")
 	}
 }
+
+func TestPolicyMetadataArgumentsIdentityIsStableAndCannotBeMutated(t *testing.T) {
+	// Cache identity is a compatibility contract: the domain separator, argument
+	// boundaries, order and every option (including fd-only input) must contribute.
+	// This golden value was independently calculated from the reviewed argv using
+	// SHA-256 and unsigned 64-bit big-endian byte lengths. A deliberate argv change
+	// must update this value after reviewing its effect on existing cache entries.
+	const expected = "12ba44f191ea78bd2adf7e282522e563552b6ccd32d5ffb4a926a601f7e3927e"
+	if got := MetadataArgumentsDigest(); got != expected {
+		t.Fatalf("metadata argument identity changed: got %s", got)
+	}
+
+	// A caller retaining and modifying an argv slice must not change a future
+	// helper invocation or the digest used to decide whether cached data is valid.
+	arguments := metadataArguments()
+	for i := range arguments {
+		arguments[i] = "untrusted-option"
+	}
+	if got := MetadataArgumentsDigest(); got != expected {
+		t.Fatalf("caller mutation changed metadata argument identity: got %s", got)
+	}
+}

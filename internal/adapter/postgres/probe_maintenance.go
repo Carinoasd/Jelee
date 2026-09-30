@@ -82,7 +82,7 @@ func makeProbeCapacity(ctx context.Context, tx pgx.Tx, library string, rows, byt
 		return err
 	}
 	if !slot {
-		return domain.ErrProbeCacheCapacity
+		return domain.ErrProbeBusy
 	}
 	if fits {
 		return nil
@@ -118,7 +118,10 @@ func makeProbeCapacity(ctx context.Context, tx pgx.Tx, library string, rows, byt
 	if err != nil {
 		return err
 	}
-	if !fits || !slot {
+	if !slot {
+		return domain.ErrProbeBusy
+	}
+	if !fits {
 		return domain.ErrProbeCacheCapacity
 	}
 	return nil
@@ -188,14 +191,14 @@ func (s *Store) SweepProbeCache(parent context.Context, limit int) (domain.Probe
 	}
 	// Identity/scope cardinalities have small independent hard bounds. Only
 	// unreferenced rows can be removed; a retained phase preserves its identity.
-	tag, err := tx.Exec(ctx, `DELETE FROM tool_versions t WHERE NOT EXISTS(SELECT 1 FROM probe_cache c WHERE c.tool_version_id=t.id) AND NOT EXISTS(SELECT 1 FROM probe_job_state p WHERE p.tool_version_id=t.id)`)
+	tag, err := tx.Exec(ctx, `DELETE FROM tool_versions t WHERE NOT EXISTS(SELECT 1 FROM probe_cache c WHERE c.tool_version_id=t.id) AND NOT EXISTS(SELECT 1 FROM probe_job_state p WHERE p.tool_version_id=t.id) AND NOT EXISTS(SELECT 1 FROM probe_requests r WHERE r.tool_version_id=t.id)`)
 	if err != nil {
 		return domain.ProbeSweepResult{}, storageError(err)
 	}
 	if _, err = tx.Exec(ctx, `UPDATE probe_cache_quota SET tools_used=tools_used-$1 WHERE singleton`, tag.RowsAffected()); err != nil {
 		return domain.ProbeSweepResult{}, storageError(err)
 	}
-	tag, err = tx.Exec(ctx, `DELETE FROM probe_library_quota q WHERE q.rows_used=0 AND NOT EXISTS(SELECT 1 FROM probe_job_state p JOIN jobs j ON j.id=p.job_id WHERE p.library_id=q.library_id AND p.phase='running' AND j.state IN ('queued','running'))`)
+	tag, err = tx.Exec(ctx, `DELETE FROM probe_library_quota q WHERE q.rows_used=0 AND NOT EXISTS(SELECT 1 FROM probe_job_state p JOIN jobs j ON j.id=p.job_id WHERE p.library_id=q.library_id AND p.phase='running' AND j.state IN ('queued','running')) AND NOT EXISTS(SELECT 1 FROM probe_requests r JOIN jobs j ON j.id=r.job_id WHERE r.library_id=q.library_id AND j.state IN ('queued','running'))`)
 	if err != nil {
 		return domain.ProbeSweepResult{}, storageError(err)
 	}
@@ -250,12 +253,8 @@ func (s *Store) invalidateProbe(parent context.Context, a domain.Actor, id strin
 	}
 	// The authorization rows stay locked, but wall-clock expiry can still pass
 	// while this transaction waits or writes. Reject that case before commit.
-	var live bool
-	if err = tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM users u JOIN sessions s ON s.user_id=u.id WHERE u.id=$1::uuid AND s.id=$2::uuid AND u.is_admin AND NOT u.disabled AND u.deleted_at IS NULL AND s.revoked_at IS NULL AND s.expires_at>clock_timestamp())`, a.UserID, a.SessionID).Scan(&live); err != nil {
-		return storageError(err)
-	}
-	if !live {
-		return domain.ErrUnauthenticated
+	if err = probeAdminStillLive(ctx, tx, a); err != nil {
+		return err
 	}
 	return storageError(tx.Commit(ctx))
 }

@@ -82,8 +82,7 @@ func scanProbeIdentity(row pgx.Row) (domain.ProbeIdentity, error) {
 	return in, storageError(err)
 }
 func (s *Store) RegisterProbeIdentity(parent context.Context, in domain.ProbeIdentity) (domain.ProbeIdentityRef, error) {
-	digest, err := domain.ProbeIdentityDigest(in)
-	if err != nil {
+	if err := domain.ValidateProbeIdentity(in); err != nil {
 		return domain.ProbeIdentityRef{}, err
 	}
 	ctx, cancel, tx, err := s.probeTransaction(parent)
@@ -92,6 +91,23 @@ func (s *Store) RegisterProbeIdentity(parent context.Context, in domain.ProbeIde
 	}
 	defer cancel()
 	defer tx.Rollback(ctx)
+	ref, err := registerProbeIdentity(ctx, tx, in)
+	if err != nil {
+		return domain.ProbeIdentityRef{}, err
+	}
+	if err = tx.Commit(ctx); err != nil {
+		return domain.ProbeIdentityRef{}, storageError(err)
+	}
+	return ref, nil
+}
+
+// Registration and request insertion share a transaction so a concurrent sweep
+// can never remove a trusted identity between the two operations.
+func registerProbeIdentity(ctx context.Context, tx pgx.Tx, in domain.ProbeIdentity) (domain.ProbeIdentityRef, error) {
+	digest, err := domain.ProbeIdentityDigest(in)
+	if err != nil {
+		return domain.ProbeIdentityRef{}, err
+	}
 	if _, err = readProbePolicy(ctx, tx); err != nil {
 		return domain.ProbeIdentityRef{}, err
 	}
@@ -118,9 +134,6 @@ func (s *Store) RegisterProbeIdentity(parent context.Context, in domain.ProbeIde
 			return domain.ProbeIdentityRef{}, storageError(err)
 		}
 	} else {
-		return domain.ProbeIdentityRef{}, storageError(err)
-	}
-	if err = tx.Commit(ctx); err != nil {
 		return domain.ProbeIdentityRef{}, storageError(err)
 	}
 	return ref, nil
