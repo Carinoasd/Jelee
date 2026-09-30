@@ -1,0 +1,9 @@
+#!/bin/sh
+set -eu
+[ "$#" -eq 0 ] || { echo 'gen-fixtures accepts no arguments' >&2; exit 2; }
+root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+cd "$root"
+python3 -B -c 'import sys; sys.path.insert(0, "scripts"); import toolchain; p=toolchain.local_path(toolchain.ROOT, toolchain.ROOT/".tools/cache/fixture-bin"); p.mkdir(parents=True, exist_ok=True); toolchain.local_path(toolchain.ROOT,p/"gen-fixtures")'
+"$root/.bin/go" build -trimpath -tags jelee_fixture_tools -o "$root/.tools/cache/fixture-bin/gen-fixtures" ./tools/gen-fixtures
+# Execute the generator itself so SIGTERM reaches its cancellation handler.
+exec "$root/.tools/cache/fixture-bin/gen-fixtures"

@@ -23,12 +23,12 @@ jobs:
           key: jelee-${{ runner.os }}-${{ runner.arch }}-go1.27.1-${{ hashFiles('tools/manifest.json', 'go.sum') }}
       - name: Linux bootstrap and verification
         if: runner.os == 'Linux'
-        run: make bootstrap tools-verify bootstrap-media media-tools-verify toolchain-test media-toolchain-test lint build test-race gitignore-check brand-scan-incremental
+        run: make bootstrap tools-verify bootstrap-media media-tools-verify fixtures fixtures-test toolchain-test media-toolchain-test lint build test-race gitignore-check brand-scan-incremental
       - name: Windows bootstrap and verification
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          foreach ($target in @('bootstrap','tools-verify','bootstrap-media','media-tools-verify','toolchain-test','media-toolchain-test','lint','build','test','gitignore-check','brand-scan-incremental')) {
+          foreach ($target in @('bootstrap','tools-verify','bootstrap-media','media-tools-verify','fixtures','fixtures-test','toolchain-test','media-toolchain-test','lint','build','test','gitignore-check','brand-scan-incremental')) {
             & ./scripts/make.ps1 $target
           }
 

@@ -50,7 +50,9 @@ python3 scripts/toolchain.py verify
 .bin/go test -count=1 ./...
 ```
 
-`test-race` 还需要现有 C 编译器。引导脚本不会安装编译器。macOS 当前没有清单映射，脚本明确报错；尚未宣称支持。
+`test-race` 还需要现有 C 编译器。引导脚本不会安装编译器。本机 WSL Ubuntu 26.04 的 GCC `15.2.0-16ubuntu1`、其 cc1/collect2 和 binutils `2.46-3ubuntu2` 的 ld.bfd/as 已按实际 ELF 哈希、包来源和许可记录在清单的 `existingHostDependencies`。这是既有宿主的精确盘点，不是引导脚本可安装的跨机器工具包。其他宿主需要单独盘点自身编译器。macOS 当前没有清单映射，脚本明确报错；尚未宣称支持。
+
+2026-10-01 的编译器登记晚于此前已执行的 Linux race 测试；历史结果不改写为 manifest-first。最终 Linux race 复验应在本次登记之后执行，结果另见阶段验收证据。Windows race 编译器仍不可用，普通测试不能计为 race 通过。详见 `docs/evidence/host-compiler.txt`。
 
 ## Go 下载、缓存与完整性
 
@@ -153,11 +155,17 @@ Go、gofmt、vet、coverage 是构建测试工具，不随服务端产物分发�
 | 外部 migrate/Atlas CLI、sqlc | 尚未加入工具清单；当前项目通过 golang-migrate 库提供迁移命令 |
 | OpenAPI 生成器、buf（如采用 protobuf） | 尚未加入工具清单 |
 | Node LTS、包管理器、Playwright 浏览器 | 尚未加入工具清单 |
-| ffmpeg/ffprobe | Windows/Linux amd64 可选本地引导与验证已实现；生产 probe runner 尚未实现 |
+| ffmpeg/ffprobe | Windows/Linux amd64 可选本地引导与验证已实现；有界程序runner和身份诊断已提供，生产探测/沙箱串接尚未完成 |
 | mkvtoolnix、mediainfo | 尚未加入工具清单 |
-| 合成多轨媒体、章节、损坏素材、`make fixtures` | 尚未实现，不提供假成功入口 |
+| 合成多轨媒体、章节、损坏素材、`make fixtures` | 3B2生成13个小型自建文件及SHA/结构清单；双平台真实工具和FD探测测试通过，见[素材说明](fixtures.md) |
 | Testcontainers / 嵌入式 PostgreSQL 回退 | 尚未实现；当前使用已有隔离测试容器 |
 | 链接检查、shellcheck、actionlint | 尚未加入工具清单 |
 | 完整工具链 CI 与 G51.15 全新克隆验收 | 未完成 |
 
-`.github/workflows/jelee.yml` 运行 Windows/Linux 基础编译测试，并使用清单与 go.sum 哈希缓存工具链。独立 PostgreSQL job 使用清单中的固定镜像摘要，设置 `JELEE_REQUIRE_INTEGRATION=true`，运行数据库集成和 race 测试；固定 `ci-only` 密码仅用于该临时隔离服务。完整品牌门禁单独保留且会阻断残留命名，当前不能宣称 CI 全绿。该 CI 尚未满足 G51.14 的 fixtures 与完整工具链要求。
+`.github/workflows/jelee.yml` 运行 Windows/Linux 基础编译测试，并使用清单与 go.sum 哈希缓存工具链。独立 PostgreSQL job 使用清单中的固定镜像摘要，设置 `JELEE_REQUIRE_INTEGRATION=true`，运行数据库集成和 race 测试；固定 `ci-only` 密码仅用于该临时隔离服务。完整品牌门禁单独保留且会阻断残留命名，当前不能宣称 CI 全绿。CI已加入fixtures/fixtures-test，远端实际结果待回填；其他尚未固定的工具仍使完整G51.14验收未完成。
+
+## 工具身份诊断（3B2）
+
+在项目根运行 `jelee-cli doctor tools`，无需数据库配置。诊断按嵌入可执行文件的清单检查ffprobe/许可证SHA256，再从新的私有项目目录运行已验证副本的固定`-version`。输出仅为平台、预期版本、状态和固定原因，媒体能力始终为`disabled_sandbox`。这不认证宿主动态库，也不开放媒体读取。
+
+诊断需要项目`.testdata`写入权限并在完成后删除新副本。Linux需要真正可强制0700的文件系统；WSL共享NTFS/DrvFS可能回`temporary_unavailable`。Windows需要可保护新目录DACL的普通用户token；权限受限时安全拒绝，不修改用户系统权限或放宽目录ACL。

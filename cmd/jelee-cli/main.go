@@ -21,6 +21,13 @@ func run() int {
 		return 2
 	}
 	command := os.Args[1]
+	if command == "doctor" && len(os.Args) >= 3 && os.Args[2] == "tools" {
+		ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
+		defer stop()
+		ctx, cancel := context.WithTimeout(ctx, 15*time.Second)
+		defer cancel()
+		return runMediaToolsWithOutputCancellation(ctx, os.Args[3:], os.Stdout, os.Stderr)
+	}
 	if command == "library" || command == "jobs" {
 		ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 		defer stop()

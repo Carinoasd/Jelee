@@ -1,6 +1,6 @@
 #requires -Version 7.2
 [CmdletBinding()]
-param([ValidateSet('init','bootstrap','bootstrap-media','tools-verify','media-tools-verify','media-toolchain-test','tools-clean','build','test','test-race','test-integration','coverage','fmt','fmt-check','lint','toolchain-test','brand-scan','brand-scan-incremental','gitignore-check','migrate','doctor')][string]$Target = 'test')
+param([ValidateSet('init','bootstrap','bootstrap-media','tools-verify','media-tools-verify','media-toolchain-test','tools-clean','fixtures','fixtures-test','build','test','test-race','test-integration','coverage','fmt','fmt-check','lint','toolchain-test','brand-scan','brand-scan-incremental','gitignore-check','migrate','doctor')][string]$Target = 'test')
 . "$PSScriptRoot/toolchain-lib.ps1"
 $root = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 Push-Location $root
@@ -10,6 +10,20 @@ try {
         'bootstrap-media' { & "$PSScriptRoot/bootstrap-media-tools.ps1" }
         'media-tools-verify' { & "$PSScriptRoot/media-tools-verify.ps1" }
         'media-toolchain-test' { & "$PSScriptRoot/test-media-tools.ps1" }
+        'fixtures' {
+            & "$PSScriptRoot/bootstrap-media-tools.ps1"
+            & "$PSScriptRoot/media-tools-verify.ps1"
+            & "$PSScriptRoot/gen-fixtures.ps1"
+        }
+        'fixtures-test' {
+            $previousRequiredMedia = $env:JELEE_REQUIRE_MEDIA_TOOL_TESTS
+            try {
+                $env:JELEE_REQUIRE_MEDIA_TOOL_TESTS = 'true'
+                & "$PSScriptRoot/run-go.ps1" test -tags jelee_fixture_tools -count=1 -v ./tools/gen-fixtures
+                & "$PSScriptRoot/run-go.ps1" test -tags jelee_fixture_tools -run TestFixtureBuild -count=1 -v ./internal/platform/process
+                & "$PSScriptRoot/run-go.ps1" test -run TestPinnedInstalledFFprobe -count=1 -v ./internal/platform/toolidentity
+            } finally { $env:JELEE_REQUIRE_MEDIA_TOOL_TESTS = $previousRequiredMedia }
+        }
         'tools-verify' { & "$PSScriptRoot/tools-verify.ps1" }
         'tools-clean' {
             foreach ($name in @('.tools','.bin','.testfixtures','.testdata')) { Remove-LocalTree $root (Join-Path $root $name) }

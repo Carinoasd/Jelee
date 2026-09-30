@@ -10,10 +10,14 @@
 | 官方 Go 容器构建镜像 | 1.27.1-alpine3.24 | Go 为 BSD-3-Clause；Alpine 各包保留各自许可证 | Docker 多阶段构建 | 构建阶段使用，最终 scratch 镜像不含该工具链 |
 | Docker Engine | 29.7.2（已存在的宿主工具） | Apache-2.0，[Moby 项目](https://github.com/moby/moby) | 启动隔离测试数据库 | 引导不安装、不分发 |
 | PostgreSQL 测试镜像 | 16.15 | [PostgreSQL License](https://www.postgresql.org/about/licence/)，PostgreSQL Global Development Group；基础镜像各包保留各自许可证 | 临时集成测试 | 已存在镜像，引导不拉取、不分发 |
+| WSL GCC / cc1 / collect2 | Ubuntu `15.2.0-16ubuntu1` | GPL-3.0-or-later；运行库组件另含 GCC Runtime Library Exception 3.1，完整组件条款见宿主 `gcc-15-base/copyright` | Go race/cgo 的 SDK 外部编译与链接 | 既有 Ubuntu 26.04 amd64 工具，只盘点，不安装、不分发 |
+| WSL GNU binutils ld.bfd / as | Ubuntu `2.46-3ubuntu2` | GPL-3.0-or-later，Free Software Foundation；文档适用 GFDL-1.3-or-later | 上述 GCC 调用的链接器与汇编器 | 同上 |
 
 测试镜像固定为 `postgres@sha256:cf78e76683b9ca8c5733cbbdce6c9262b45b6767934dd0a95e671f9a0fc20685`，来源为 [Docker Official Image](https://hub.docker.com/_/postgres)。此摘要记录本次测试依赖，不构成生产数据库部署版本建议。
 
-宿主 PowerShell、Python、curl、GNU Make 与 C 编译器作为已有引导前提使用，没有由 Jelee 安装到系统目录。它们的宿主版本不会冒充项目已固定的下载工具。GitHub Actions 使用固定提交的 checkout 与 cache 动作。
+宿主 PowerShell、Python、curl 与 GNU Make 作为已有引导前提使用，没有由 Jelee 安装到系统目录。WSL GCC 与 binutils 的实际 ELF 路径、SHA256、Ubuntu 二进制/源码包版本和本机版权文件哈希已登记在 `existingHostDependencies`；这是宿主盘点，不是可移植引导包。GitHub Actions 使用固定提交的 checkout 与 cache 动作。
+
+此前 Linux race 测试的实际结果保留，但当时宿主 C 编译器尚未登记；2026-10-01 补登记后，再进行最终 Linux race 复验。不得将历史测试描述为已满足 manifest-first。Windows 未找到可用 race 编译器的结果仍为不可用，没有安装新编译器。盘点证据见 `docs/evidence/host-compiler.txt`。
 
 浏览器驱动、Node、mkvtoolnix、mediainfo 与其余扫描工具尚未加入清单；不可据此表宣称 G51 工具集合已完整。完整状态见 `docs/toolchain.md`。将来新增工具须先记录来源、精确版本、平台、SHA256、许可证与归属，再允许下载。
 

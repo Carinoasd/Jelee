@@ -5,6 +5,7 @@ COPY go.mod go.sum ./
 RUN go mod download
 COPY cmd ./cmd
 COPY internal ./internal
+COPY tools/media.go tools/manifest.json ./tools/
 RUN go build -trimpath -o /out/jelee ./cmd/jelee && \
     go build -trimpath -o /out/jelee-cli ./cmd/jelee-cli && \
     go build -trimpath -o /out/jelee-migrate ./cmd/jelee-migrate

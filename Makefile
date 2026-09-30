@@ -3,7 +3,7 @@ export PATH := $(CURDIR)/.bin:$(PATH)
 GO := $(CURDIR)/.bin/go
 PYTHON := python3
 
-.PHONY: init bootstrap bootstrap-media tools-verify media-tools-verify tools-clean build test test-race test-integration coverage fmt fmt-check lint toolchain-test media-toolchain-test brand-scan brand-scan-incremental gitignore-check migrate doctor
+.PHONY: init bootstrap bootstrap-media tools-verify media-tools-verify tools-clean fixtures fixtures-test build test test-race test-integration coverage fmt fmt-check lint toolchain-test media-toolchain-test brand-scan brand-scan-incremental gitignore-check migrate doctor
 init: bootstrap
 bootstrap:
 	sh scripts/bootstrap-tools
@@ -13,6 +13,13 @@ media-tools-verify:
 	$(PYTHON) scripts/media-tools.py verify
 media-toolchain-test:
 	$(PYTHON) -B scripts/test_media_tools.py
+fixtures: bootstrap-media media-tools-verify
+	sh scripts/gen-fixtures
+fixtures-test:
+	$(PYTHON) -B scripts/test_fixtures.py
+	JELEE_REQUIRE_MEDIA_TOOL_TESTS=true "$(GO)" test -tags jelee_fixture_tools -count=1 -v ./tools/gen-fixtures
+	"$(GO)" test -tags jelee_fixture_tools -run TestFixtureBuild -count=1 -v ./internal/platform/process
+	JELEE_REQUIRE_MEDIA_TOOL_TESTS=true "$(GO)" test -run TestPinnedInstalledFFprobe -count=1 -v ./internal/platform/toolidentity
 tools-verify:
 	$(PYTHON) scripts/toolchain.py verify
 tools-clean:
