@@ -51,6 +51,8 @@ export JELEE_REQUIRE_INTEGRATION=true
 
 日常 CI 保留 Windows/Linux、真实 PostgreSQL 和完整品牌门禁。原树的品牌残留仍会使完整品牌门禁失败，本阶段不将其豁免。
 
+第 2 阶段推送后的[远端 CI](https://github.com/MoYuanCN/Jelee/actions/runs/36747240343)已确认：Windows、Linux、PostgreSQL 三项通过，完整品牌门禁失败，结果与本地记录一致。
+
 ## 提交记录
 
 首阶段已经推送的 HEAD 为 `1f9426db96d90a7eb55ca571faf1d0f80523ac4a`，GitHub 首次 CI 的 Windows、Linux 与 PostgreSQL job 已通过；完整品牌 job 仍失败。相关[首阶段 CI](https://github.com/MoYuanCN/Jelee/actions/runs/36742894214)与[历史验证快照](verification-report.md)保留，不把旧镜像或旧测试结果冒充本阶段验证。
