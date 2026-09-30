@@ -1,0 +1,26 @@
+Windows race availability verification
+Go: go1.27.1 windows/amd64 (project-local pinned SDK)
+Default CGO_ENABLED: 0; default CC: gcc; default CXX: g++
+PATH: gcc/clang/cc/cl/zig not found
+Existing compiler search: Visual Studio Build Tools 2022 MSVC 14.44.35207 cl.exe found; gcc/clang not found in checked standard compiler and WinGet installation roots.
+Probe A: process-local CGO_ENABLED=1 CC=gcc; go test -race -run ^$ ./internal/platform/jobs
+# runtime/cgo
+cgo: C compiler "gcc" not found: exec: "gcc": executable file not found in %PATH%
+FAIL	github.com/MoYuanCN/Jelee/internal/platform/jobs [build failed]
+FAIL
+Probe A failed: go exited with code 1
+Probe B: process-local CGO_ENABLED=1 CC=existing MSVC cl.exe; same go test -race compile probe
+# runtime/cgo
+Microsoft (R) C/C++ Optimizing Compiler Version 19.44.35228 for x64
+Copyright (C) Microsoft Corporation.  著作權所有，並保留一切權利。
+
+cl : 命令列 error D8021 : 無效的數字引數 '/Werror'
+FAIL	github.com/MoYuanCN/Jelee/internal/platform/jobs [build failed]
+FAIL
+Probe B failed: go exited with code 1
+Result: BLOCKED before test execution. Native Windows race runtime cannot compile with the currently available compiler setup.
+No native Windows race tests passed or ran; ordinary Windows test results are separate.
+No compiler/tool was installed; production sources were not changed; CC and CGO_ENABLED process values were restored; global environment was not changed.
+Restored Go environment (CGO_ENABLED then CC):
+0
+gcc

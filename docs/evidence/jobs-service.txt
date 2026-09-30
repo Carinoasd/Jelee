@@ -1,0 +1,13 @@
+Stage 3A real executable smoke, isolated PostgreSQL 16.15.
+PASS built real service, CLI and migration binaries with pinned Go
+PASS isolated schema migrated to version 3 clean
+PASS trusted CLI registered a real readonly inventory root with 1000 fixtures in 10 subdirectories
+PASS real worker completed 1000 files / 11 directories with exact bytes, classifications and bounded 100-row cursor pages; actor/key replay returned the same run
+PASS unchanged rescan observed the same inventory and no missing paths; probe capability stayed disabled
+PASS two consecutive complete scans of 500 missing paths retained the baseline and reviewRequired; no catalog or original file deletion
+PASS unavailable root failed safely without converting an incomplete scan into missing-path results
+PASS CLI retry created a fresh durable run after restoring the root
+PASS explicit HTTP cancellation reached terminal cancelled state
+PASS all 1000 original fixture content hashes remained identical
+PASS real service stopped normally; logs and CLI outputs contained no test credentials or absolute root
+PASS real CLI migration down 3→2→1→0 and up→3 completed

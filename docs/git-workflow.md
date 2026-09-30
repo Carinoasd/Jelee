@@ -5,8 +5,8 @@
 - origin：`https://github.com/MoYuanCN/Jelee.git`。
 - upstream：`https://github.com/jellyfin/jellyfin.git`，用于追踪来源。
 - 基线：`52a680c578f1af888ebb74cefcb89b736f9c5738`，保留 30090 个可达提交。
-- 工作分支：`feat/jelee-go-foundation`。
-- 用户授权作者 `Carinoasd <46304809+Carinoasd@users.noreply.github.com>`；第一阶段 8 个提交已推送至工作分支，并建立[草稿 PR #1](https://github.com/MoYuanCN/Jelee/pull/1)；后续每阶段验证后推送同一分支。未创建发布标签。
+- 阶段1/2工作分支：`feat/jelee-go-foundation`；第3A分支：`feat/jelee-jobs-scan`，以后者对前者建立独立PR。
+- 用户授权作者 `Carinoasd <46304809+Carinoasd@users.noreply.github.com>`，命令级指定；阶段1/2保留[草稿 PR #1](https://github.com/MoYuanCN/Jelee/pull/1)。2026-10-01用户要求每个完成分段都推送并建立PR，再继续；后续PR以已推送前阶段分支为base，保持逐段diff。未创建发布标签或重写已推送历史。
 
 已核对的本地顺序为 `a512674643`（审计）→ `721102c8d0`（工具链）→ `c77863e445`（媒体/核心）→ `632005d430`（PostgreSQL）→ `403cc21b27`（API/CLI）→ `0bbd5939bb`（部署）→ `f21d156684`（只读 NFO）。媒体/核心使用修订后的 `c77863e445`。完整哈希与文件范围见[验证报告](verification-report.md#本地提交记录)。
 

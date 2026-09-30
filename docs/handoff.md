@@ -2,7 +2,7 @@
 
 ## 当前状态
 
-用户已要求“推上去后停止”。第 3 阶段实现已停止，三个协作代理均已中断。只有用户恢复工作后才继续。
+2026-10-01 用户已恢复工作，要求“每做完一阶段就提PR，然后继续下一阶段”。第3A段已实现并验证，源码提交 `45d3fbfcb82f4e555aac30b013dec77a3eda88f9`。当前工作分支为 `feat/jelee-jobs-scan`，PR以阶段1/2分支为基底；完成后继续3B固定工具与安全子进程。
 
 - 仓库 `MoYuanCN/Jelee`，分支 `feat/jelee-go-foundation`，目标 `master`；[草稿 PR #1](https://github.com/MoYuanCN/Jelee/pull/1)。
 - 第 2 阶段最终提交 `fdbd1173b53e2999ab6cb99ec1d525fef91ff0b6` 已推送；本记录与第 3 阶段接口草案另作接手提交。
@@ -14,13 +14,13 @@
 
 第 1 阶段基础服务和只读 NFO；第 2 阶段密码账户/会话/库 ACL、schema 2、HTTP/CLI、四语与测试均已提交。最终本地镜像 `jelee/jelee:codex-accounts-test` 为 `sha256:197a2e8cc68564a77d500ae57e5deaad507e4ab4a852a472fbb6e2509799cd0a`，容器验证通过。完整功能替代、媒体扫描/探测、前端和多数原需求尚未完成。
 
-第 3 阶段仅建立两个可编译草案：`internal/domain/jobs.go` 和 `internal/app/jobs_ports.go`；domain/app/architecture 测试与全仓 fmt/vet 已通过。它们没有实际任务行为，不计为需求交付。详细规划见[第 3 阶段计划](jobs-stage3-plan.md)。
+第3A段已交付：schema3、持久盘点队列、真实只读scanner、取消/恢复/fencing、HTTP/CLI/config和协调停止。Windows全套、Linux全套race+真PG、原生Linuxscanner、真服务1000files及生产只读容器实测均通过；Windowsrace因缺兼容C编译器受阻。详细证据见[第3A验证](jobs-verification.md)，后续3B/3C/3D规划见[第3阶段计划](jobs-stage3-plan.md)。
 
 ## 恢复后的起点
 
-1. 先确认分支/工作区与本次接手提交。沿用“每个阶段验证、提交、推送，再进入下一阶段”的用户授权。
-2. 第 3A 段交付一次性持久任务、真正只读目录盘点、显式取消、过期租约恢复与结果 fencing。新迁移应从 000003 开始；000001/000002 已发布不可改。
-3. 先敲定草案契约：HeartbeatJob 的 bool 表示 cancelRequested；Claim/Next 无工作用 ErrNotFound。Inventory.Kind 建议 video/nfo/image/other，尚无实现，需让扫描器与存储共用同一集合。目录计数包含根 `.`；任何跳过或不完整盘点都不能当作可自动删除的缺失数据。
+1. 确认阶段PR/当前分支后继续3B，沿用每段验证/推送/提PR/继续的授权，不需要再次询问。
+2. schema3 已发布；后续只增加迁移，不改写000001/000002/000003。
+3. 已实现契约：Heartbeat bool=cancelRequested，Claim/Next无工作ErrNotFound；kind video/nfo/image/other；目录含根`.`。任何skipped/大量缺失均保留基准待review，尚无确认API，完全不自动删除。
 4. root path 仅来自数据库中经本地 CLI 注册的媒体根，不允许 HTTP 任意传路径。批次最多 128 项，路径最多 1024 UTF-8 字节，队列/历史/目录/文件记录与并发都有硬上限。所有公共任务操作在事务内重验管理员和有效会话。
 5. ffprobe 尚未安装/固定在 manifest，probe 保持关闭。先交付 3A，再按 manifest-first 规则加入工具、安全子进程与真实增量探测；不能使用 ffmpeg 生产回退。
 

@@ -1,0 +1,26 @@
+Stage 3A production container acceptance
+UTC: 2026-09-30T17:49:02Z
+Image tag: jelee/jelee:codex-jobs-test
+Image ID: sha256:e0d0c9267a67c1eff580c0ba3465b9159b900089132ddc2c950c3a5c625d1f00
+Build source: working tree based on 45d3fbfcb82f4e555aac30b013dec77a3eda88f9
+Build inputs SHA256: a103c542df14058011568333f2bad7fcb6452ae066d695fae25d4ea6d75ccb8c
+Database: dedicated local PostgreSQL 16.15, unique disposable schema
+Build: docker build --network host --tag jelee/jelee:codex-jobs-test .
+Secrets: mounted credential file; bootstrap password and jobs bearer token on stdin; no secret argv/env values
+jelee SHA256: 94a137257781550e9276e2ec63eb056c9a61b39cc57dfd3f7841f8704127ada7
+jelee-cli SHA256: 2d17384d1fd831133780010c875c53c5ce1cec1a605414002c0eea72bd133d7e
+jelee-migrate SHA256: a38ca971cc0c277c5ba0c4b53f588b33ef327898cd63e3c8e19b56252c2f85d8
+PASS created a fresh isolated schema in dedicated jelee_test; credentials mounted from a private temporary file
+PASS production Dockerfile build completed with exit 0
+PASS production image USER=65532:65532, linux/amd64 and /jelee entrypoint verified
+PASS exported root filesystem: exactly three static ELF64 binaries, no PT_INTERP/PT_DYNAMIC, no shell/ffmpeg/ffprobe/Go SDK; original LICENSE and required Go licenses/CA present
+PASS production migration binary reached schema 3 clean
+PASS real non-root CLI bootstrapped an administrator using password stdin and registered the readonly fixture root
+PASS service became healthy with UID/GID 65532, readonly root/media, cap-drop ALL, no-new-privileges; healthz/readyz and inventory capability verified
+PASS real CLI token stdin submitted and polled the durable scan; exact 256 files / 5 directories / 10130 bytes, 192 video/32 NFO/16 image/16 other; stable bounded UUID cursor pages
+PASS all 256 original fixture SHA256 values unchanged; fixtures are transport/inventory test bytes, not playable media
+PASS SIGTERM stop completed: Running=false ExitCode=0 OOMKilled=false; service/CLI logs contained no test credentials or absolute roots
+PASS production migration binary completed schema 3→2→1→0 without touching another schema
+PASS production build input digest remained unchanged during acceptance
+PASS removed this run’s service/inspection containers, isolated schema, generated credentials and temporary fixtures; shared test PostgreSQL remains available
+RESULT PASS
