@@ -1,0 +1,4 @@
+all modules verified
+brand scan: mode=new:true violations=0 allowed=94
+gitignore check: violations=0; upstream binary inventory remains separate (see docs/binary-allowlist.md)
+F371B80469FB235BC500EC29E0E85B682D4A6157A158567D828FF0BE544D4F1D

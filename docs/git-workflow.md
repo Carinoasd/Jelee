@@ -6,7 +6,7 @@
 - upstream：`https://github.com/jellyfin/jellyfin.git`，用于追踪来源。
 - 基线：`52a680c578f1af888ebb74cefcb89b736f9c5738`，保留 30090 个可达提交。
 - 工作分支：`feat/jelee-go-foundation`。
-- 用户授权作者 `Carinoasd <46304809+Carinoasd@users.noreply.github.com>`；提交仅在本地创建，未创建发布标签或推送。
+- 用户授权作者 `Carinoasd <46304809+Carinoasd@users.noreply.github.com>`；第一阶段 8 个提交已推送至工作分支，并建立[草稿 PR #1](https://github.com/MoYuanCN/Jelee/pull/1)；后续每阶段验证后推送同一分支。未创建发布标签。
 
 已核对的本地顺序为 `a512674643`（审计）→ `721102c8d0`（工具链）→ `c77863e445`（媒体/核心）→ `632005d430`（PostgreSQL）→ `403cc21b27`（API/CLI）→ `0bbd5939bb`（部署）→ `f21d156684`（只读 NFO）。媒体/核心使用修订后的 `c77863e445`。完整哈希与文件范围见[验证报告](verification-report.md#本地提交记录)。
 
@@ -20,7 +20,7 @@
 
 ## 回滚层级
 
-1. 关闭 `JELEE_ENABLE_DIRECT` 与 `JELEE_ENABLE_CATALOG` 后重启，停止已接管的功能；不删除数据。
+1. 关闭对应的 `JELEE_ENABLE_ACCOUNTS`、`JELEE_ENABLE_DIRECT` 与 `JELEE_ENABLE_CATALOG` 后重启，停止已接管的功能；不删除数据。
 2. 已提交版本通过审阅后的 revert 或切回已验证发行版本回滚应用。保留数据库备份与迁移兼容性检查。
 3. `jelee-migrate down --i-understand` 是破坏性 schema 回退，不能代替应用开关，也不会把数据迁回原 SQLite。仅在可丢弃测试库或已完成备份/恢复评审后使用。
 
@@ -28,4 +28,4 @@
 
 ## 发布
 
-当前版本为 Unreleased。未来使用 SemVer 标签，发布产物来自明确 tag；禁止把工作区快照当成正式版本。发行前须满足追溯矩阵、完整品牌门禁、兼容/媒体回归、许可证与性能验收。此次没有创建 release 或推送远程。
+当前版本为 Unreleased。未来使用 SemVer 标签，发布产物来自明确 tag；禁止把工作区快照当成正式版本。发行前须满足追溯矩阵、完整品牌门禁、兼容/媒体回归、许可证与性能验收。目前持续推送工作分支，尚未创建 release。

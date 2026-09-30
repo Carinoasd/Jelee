@@ -1,0 +1,1862 @@
+	github.com/MoYuanCN/Jelee/cmd/jelee		coverage: 0.0% of statements
+=== RUN   TestAccountCLICommandRoutingAndPrivateSummary
+=== RUN   TestAccountCLICommandRoutingAndPrivateSummary/bootstrap
+=== RUN   TestAccountCLICommandRoutingAndPrivateSummary/set-password
+--- PASS: TestAccountCLICommandRoutingAndPrivateSummary (0.01s)
+    --- PASS: TestAccountCLICommandRoutingAndPrivateSummary/bootstrap (0.01s)
+    --- PASS: TestAccountCLICommandRoutingAndPrivateSummary/set-password (0.00s)
+=== RUN   TestAccountCLIUsesRealHashAndDefaultLocale
+--- PASS: TestAccountCLIUsesRealHashAndDefaultLocale (0.20s)
+=== RUN   TestAccountCLIUsageNeverEchoesSecretArguments
+--- PASS: TestAccountCLIUsageNeverEchoesSecretArguments (0.00s)
+=== RUN   TestAccountPasswordInputBoundariesAndLineEnding
+--- PASS: TestAccountPasswordInputBoundariesAndLineEnding (0.00s)
+=== RUN   TestAccountPasswordConfigurationRejectsNarrowingAndDisabledAccountBypass
+--- PASS: TestAccountPasswordConfigurationRejectsNarrowingAndDisabledAccountBypass (0.00s)
+=== RUN   TestAccountCLIErrorsAreFixedAndStoreAlwaysClosed
+=== RUN   TestAccountCLIErrorsAreFixedAndStoreAlwaysClosed/config
+=== RUN   TestAccountCLIErrorsAreFixedAndStoreAlwaysClosed/new_hasher
+=== RUN   TestAccountCLIErrorsAreFixedAndStoreAlwaysClosed/hash
+=== RUN   TestAccountCLIErrorsAreFixedAndStoreAlwaysClosed/open
+=== RUN   TestAccountCLIErrorsAreFixedAndStoreAlwaysClosed/store
+=== RUN   TestAccountCLIErrorsAreFixedAndStoreAlwaysClosed/conflict
+=== RUN   TestAccountCLIErrorsAreFixedAndStoreAlwaysClosed/not_found
+=== RUN   TestAccountCLIErrorsAreFixedAndStoreAlwaysClosed/forbidden
+=== RUN   TestAccountCLIErrorsAreFixedAndStoreAlwaysClosed/database
+--- PASS: TestAccountCLIErrorsAreFixedAndStoreAlwaysClosed (0.00s)
+    --- PASS: TestAccountCLIErrorsAreFixedAndStoreAlwaysClosed/config (0.00s)
+    --- PASS: TestAccountCLIErrorsAreFixedAndStoreAlwaysClosed/new_hasher (0.00s)
+    --- PASS: TestAccountCLIErrorsAreFixedAndStoreAlwaysClosed/hash (0.00s)
+    --- PASS: TestAccountCLIErrorsAreFixedAndStoreAlwaysClosed/open (0.00s)
+    --- PASS: TestAccountCLIErrorsAreFixedAndStoreAlwaysClosed/store (0.00s)
+    --- PASS: TestAccountCLIErrorsAreFixedAndStoreAlwaysClosed/conflict (0.00s)
+    --- PASS: TestAccountCLIErrorsAreFixedAndStoreAlwaysClosed/not_found (0.00s)
+    --- PASS: TestAccountCLIErrorsAreFixedAndStoreAlwaysClosed/forbidden (0.00s)
+    --- PASS: TestAccountCLIErrorsAreFixedAndStoreAlwaysClosed/database (0.00s)
+=== RUN   TestAccountCLICancellationReleasesBlockedInput
+--- PASS: TestAccountCLICancellationReleasesBlockedInput (0.00s)
+=== RUN   TestAccountCLICancellationReleasesBlockedOutputAfterCommit
+--- PASS: TestAccountCLICancellationReleasesBlockedOutputAfterCommit (0.00s)
+=== RUN   TestAccountCLICancelledAndExpiredContextsDoNotLoadConfig
+--- PASS: TestAccountCLICancelledAndExpiredContextsDoNotLoadConfig (0.00s)
+=== RUN   TestAccountCLICancellationAfterHashDoesNotOpenStore
+--- PASS: TestAccountCLICancellationAfterHashDoesNotOpenStore (0.00s)
+=== RUN   TestAccountCLIRealConfigFailureDoesNotExposePath
+--- PASS: TestAccountCLIRealConfigFailureDoesNotExposePath (0.00s)
+=== RUN   TestNFOValidateOriginalUnchangedAndSummaryPrivate
+--- PASS: TestNFOValidateOriginalUnchangedAndSummaryPrivate (0.08s)
+=== RUN   TestNFOValidateErrorsAndFindings
+=== RUN   TestNFOValidateErrorsAndFindings/invalid-value
+=== RUN   TestNFOValidateErrorsAndFindings/malformed
+=== RUN   TestNFOValidateErrorsAndFindings/external-entity
+--- PASS: TestNFOValidateErrorsAndFindings (0.11s)
+    --- PASS: TestNFOValidateErrorsAndFindings/invalid-value (0.02s)
+    --- PASS: TestNFOValidateErrorsAndFindings/malformed (0.02s)
+    --- PASS: TestNFOValidateErrorsAndFindings/external-entity (0.02s)
+=== RUN   TestNFOValidateUnknownRootPrivacy
+--- PASS: TestNFOValidateUnknownRootPrivacy (0.06s)
+=== RUN   TestNFOValidateUsageBoundsAndCancellation
+=== RUN   TestNFOValidateUsageBoundsAndCancellation/empty
+=== RUN   TestNFOValidateUsageBoundsAndCancellation/unknown-command
+=== RUN   TestNFOValidateUsageBoundsAndCancellation/missing-path
+=== RUN   TestNFOValidateUsageBoundsAndCancellation/unknown-flag
+=== RUN   TestNFOValidateUsageBoundsAndCancellation/extra-arg
+=== RUN   TestNFOValidateUsageBoundsAndCancellation/negative-limit
+=== RUN   TestNFOValidateUsageBoundsAndCancellation/excess-limit
+=== RUN   TestNFOValidateUsageBoundsAndCancellation/size-limit
+=== RUN   TestNFOValidateUsageBoundsAndCancellation/escape
+=== RUN   TestNFOValidateUsageBoundsAndCancellation/absent
+--- PASS: TestNFOValidateUsageBoundsAndCancellation (0.06s)
+    --- PASS: TestNFOValidateUsageBoundsAndCancellation/empty (0.00s)
+    --- PASS: TestNFOValidateUsageBoundsAndCancellation/unknown-command (0.00s)
+    --- PASS: TestNFOValidateUsageBoundsAndCancellation/missing-path (0.00s)
+    --- PASS: TestNFOValidateUsageBoundsAndCancellation/unknown-flag (0.00s)
+    --- PASS: TestNFOValidateUsageBoundsAndCancellation/extra-arg (0.00s)
+    --- PASS: TestNFOValidateUsageBoundsAndCancellation/negative-limit (0.00s)
+    --- PASS: TestNFOValidateUsageBoundsAndCancellation/excess-limit (0.00s)
+    --- PASS: TestNFOValidateUsageBoundsAndCancellation/size-limit (0.01s)
+    --- PASS: TestNFOValidateUsageBoundsAndCancellation/escape (0.00s)
+    --- PASS: TestNFOValidateUsageBoundsAndCancellation/absent (0.01s)
+=== RUN   TestNFOValidateOutputFailure
+--- PASS: TestNFOValidateOutputFailure (0.05s)
+=== RUN   TestNFOValidateCancelsUnreadOutputPipe
+--- PASS: TestNFOValidateCancelsUnreadOutputPipe (0.06s)
+PASS
+coverage: 65.7% of statements
+ok  	github.com/MoYuanCN/Jelee/cmd/jelee-cli	1.861s	coverage: 65.7% of statements
+	github.com/MoYuanCN/Jelee/cmd/jelee-migrate		coverage: 0.0% of statements
+=== RUN   TestPrincipalMustBeCompleteAndServerAssigned
+--- PASS: TestPrincipalMustBeCompleteAndServerAssigned (0.00s)
+PASS
+coverage: 100.0% of statements
+ok  	github.com/MoYuanCN/Jelee/internal/access	1.098s	coverage: 100.0% of statements
+=== RUN   TestAccountHTTPWriteDeadlineReleasesAdmissionSlots
+--- PASS: TestAccountHTTPWriteDeadlineReleasesAdmissionSlots (2.04s)
+=== RUN   TestAccountHTTPLoginPublicUsesPeerAndCannotSelectNativeKind
+--- PASS: TestAccountHTTPLoginPublicUsesPeerAndCannotSelectNativeKind (0.01s)
+=== RUN   TestAccountHTTPRateLimitRejectsBeforeKDFWithRetryAfter
+--- PASS: TestAccountHTTPRateLimitRejectsBeforeKDFWithRetryAfter (0.00s)
+=== RUN   TestAccountHTTPAdminAndAuthenticationCheckedBeforeBodyOrKDF
+--- PASS: TestAccountHTTPAdminAndAuthenticationCheckedBeforeBodyOrKDF (0.01s)
+=== RUN   TestAccountHTTPStrictBodiesAndIdempotencyBeforeKDF
+--- PASS: TestAccountHTTPStrictBodiesAndIdempotencyBeforeKDF (0.00s)
+=== RUN   TestAccountHTTPCRUDActorPaginationAndIdempotentReplay
+--- PASS: TestAccountHTTPCRUDActorPaginationAndIdempotentReplay (0.00s)
+=== RUN   TestAccountHTTPEmptyActionsAndACLReplacementAreExplicit
+--- PASS: TestAccountHTTPEmptyActionsAndACLReplacementAreExplicit (0.01s)
+=== RUN   TestAccountHTTPRepositoryFailuresMapWithoutSuccessOrLeaks
+=== RUN   TestAccountHTTPRepositoryFailuresMapWithoutSuccessOrLeaks/forbidden
+=== RUN   TestAccountHTTPRepositoryFailuresMapWithoutSuccessOrLeaks/authentication_required
+=== RUN   TestAccountHTTPRepositoryFailuresMapWithoutSuccessOrLeaks/conflict
+=== RUN   TestAccountHTTPRepositoryFailuresMapWithoutSuccessOrLeaks/last_admin
+=== RUN   TestAccountHTTPRepositoryFailuresMapWithoutSuccessOrLeaks/session_limit
+=== RUN   TestAccountHTTPRepositoryFailuresMapWithoutSuccessOrLeaks/not_ready
+=== RUN   TestAccountHTTPRepositoryFailuresMapWithoutSuccessOrLeaks/not_found
+=== RUN   TestAccountHTTPRepositoryFailuresMapWithoutSuccessOrLeaks/request_timeout
+=== RUN   TestAccountHTTPRepositoryFailuresMapWithoutSuccessOrLeaks/request_timeout#01
+=== RUN   TestAccountHTTPRepositoryFailuresMapWithoutSuccessOrLeaks/internal_error
+--- PASS: TestAccountHTTPRepositoryFailuresMapWithoutSuccessOrLeaks (0.01s)
+    --- PASS: TestAccountHTTPRepositoryFailuresMapWithoutSuccessOrLeaks/forbidden (0.00s)
+    --- PASS: TestAccountHTTPRepositoryFailuresMapWithoutSuccessOrLeaks/authentication_required (0.00s)
+    --- PASS: TestAccountHTTPRepositoryFailuresMapWithoutSuccessOrLeaks/conflict (0.00s)
+    --- PASS: TestAccountHTTPRepositoryFailuresMapWithoutSuccessOrLeaks/last_admin (0.00s)
+    --- PASS: TestAccountHTTPRepositoryFailuresMapWithoutSuccessOrLeaks/session_limit (0.00s)
+    --- PASS: TestAccountHTTPRepositoryFailuresMapWithoutSuccessOrLeaks/not_ready (0.00s)
+    --- PASS: TestAccountHTTPRepositoryFailuresMapWithoutSuccessOrLeaks/not_found (0.00s)
+    --- PASS: TestAccountHTTPRepositoryFailuresMapWithoutSuccessOrLeaks/request_timeout (0.00s)
+    --- PASS: TestAccountHTTPRepositoryFailuresMapWithoutSuccessOrLeaks/request_timeout#01 (0.00s)
+    --- PASS: TestAccountHTTPRepositoryFailuresMapWithoutSuccessOrLeaks/internal_error (0.00s)
+=== RUN   TestAccountHTTPFeatureDisabledAndServiceRequired
+--- PASS: TestAccountHTTPFeatureDisabledAndServiceRequired (0.00s)
+=== RUN   TestAccountHTTPInvalidQueryAndInputIdentityCannotReachRepository
+--- PASS: TestAccountHTTPInvalidQueryAndInputIdentityCannotReachRepository (0.00s)
+=== RUN   TestAccountHTTPStoredLocaleOverridesRequestErrorLanguage
+--- PASS: TestAccountHTTPStoredLocaleOverridesRequestErrorLanguage (0.00s)
+=== RUN   TestAccountHTTPRequestCancellationStopsLoginBeforeToken
+--- PASS: TestAccountHTTPRequestCancellationStopsLoginBeforeToken (0.00s)
+=== RUN   TestAccountHTTPMissingOrNullPasswordIsRejectedBeforeWork
+--- PASS: TestAccountHTTPMissingOrNullPasswordIsRejectedBeforeWork (0.00s)
+=== RUN   TestAccountHTTPAdmissionBoundAndCancellationRelease
+--- PASS: TestAccountHTTPAdmissionBoundAndCancellationRelease (0.00s)
+=== RUN   TestAccountHTTPOpenAPIMatchesRoutesAndHasValidRequiredArrays
+--- PASS: TestAccountHTTPOpenAPIMatchesRoutesAndHasValidRequiredArrays (0.03s)
+=== RUN   TestPublicHTTPErrorCodesHaveTranslations
+--- PASS: TestPublicHTTPErrorCodesHaveTranslations (0.01s)
+=== RUN   TestLoginLimiterOptions
+--- PASS: TestLoginLimiterOptions (0.00s)
+=== RUN   TestLoginLimiterBothBudgetsAndFixedExpiry
+--- PASS: TestLoginLimiterBothBudgetsAndFixedExpiry (0.00s)
+=== RUN   TestLoginLimiterRetryIncludesNewlyExhaustedBucket
+--- PASS: TestLoginLimiterRetryIncludesNewlyExhaustedBucket (0.00s)
+=== RUN   TestLoginLimiterCapacityFloodAndRecovery
+=== RUN   TestLoginLimiterCapacityFloodAndRecovery/both
+=== RUN   TestLoginLimiterCapacityFloodAndRecovery/users
+=== RUN   TestLoginLimiterCapacityFloodAndRecovery/ips
+--- PASS: TestLoginLimiterCapacityFloodAndRecovery (0.26s)
+    --- PASS: TestLoginLimiterCapacityFloodAndRecovery/both (0.10s)
+    --- PASS: TestLoginLimiterCapacityFloodAndRecovery/users (0.08s)
+    --- PASS: TestLoginLimiterCapacityFloodAndRecovery/ips (0.08s)
+=== RUN   TestLoginLimiterNoPartialAllocationOrEviction
+--- PASS: TestLoginLimiterNoPartialAllocationOrEviction (0.00s)
+=== RUN   TestLoginLimiterConcurrentAdmissionIsAtomic
+--- PASS: TestLoginLimiterConcurrentAdmissionIsAtomic (0.01s)
+=== RUN   TestClientIPIgnoresHeadersAndCanonicalizesPeer
+--- PASS: TestClientIPIgnoresHeadersAndCanonicalizesPeer (0.00s)
+=== RUN   TestPasswordChangeIsThrottledByAuthenticatedUserAndPeerBeforeKDF
+=== RUN   TestPasswordChangeIsThrottledByAuthenticatedUserAndPeerBeforeKDF/user
+=== RUN   TestPasswordChangeIsThrottledByAuthenticatedUserAndPeerBeforeKDF/peer
+--- PASS: TestPasswordChangeIsThrottledByAuthenticatedUserAndPeerBeforeKDF (0.00s)
+    --- PASS: TestPasswordChangeIsThrottledByAuthenticatedUserAndPeerBeforeKDF/user (0.00s)
+    --- PASS: TestPasswordChangeIsThrottledByAuthenticatedUserAndPeerBeforeKDF/peer (0.00s)
+=== RUN   TestConstructorRejectsInvalidConfigurationAndMissingDependencies
+=== RUN   TestConstructorRejectsInvalidConfigurationAndMissingDependencies/direct-without-catalog
+=== RUN   TestConstructorRejectsInvalidConfigurationAndMissingDependencies/missing-database
+=== RUN   TestConstructorRejectsInvalidConfigurationAndMissingDependencies/sqlite-database
+=== RUN   TestConstructorRejectsInvalidConfigurationAndMissingDependencies/unbounded-streams
+=== RUN   TestConstructorRejectsInvalidConfigurationAndMissingDependencies/unbounded-timeout
+=== RUN   TestConstructorRejectsInvalidConfigurationAndMissingDependencies/backend
+=== RUN   TestConstructorRejectsInvalidConfigurationAndMissingDependencies/catalog
+=== RUN   TestConstructorRejectsInvalidConfigurationAndMissingDependencies/resolver
+=== RUN   TestConstructorRejectsInvalidConfigurationAndMissingDependencies/logger
+--- PASS: TestConstructorRejectsInvalidConfigurationAndMissingDependencies (0.00s)
+    --- PASS: TestConstructorRejectsInvalidConfigurationAndMissingDependencies/direct-without-catalog (0.00s)
+    --- PASS: TestConstructorRejectsInvalidConfigurationAndMissingDependencies/missing-database (0.00s)
+    --- PASS: TestConstructorRejectsInvalidConfigurationAndMissingDependencies/sqlite-database (0.00s)
+    --- PASS: TestConstructorRejectsInvalidConfigurationAndMissingDependencies/unbounded-streams (0.00s)
+    --- PASS: TestConstructorRejectsInvalidConfigurationAndMissingDependencies/unbounded-timeout (0.00s)
+    --- PASS: TestConstructorRejectsInvalidConfigurationAndMissingDependencies/backend (0.00s)
+    --- PASS: TestConstructorRejectsInvalidConfigurationAndMissingDependencies/catalog (0.00s)
+    --- PASS: TestConstructorRejectsInvalidConfigurationAndMissingDependencies/resolver (0.00s)
+    --- PASS: TestConstructorRejectsInvalidConfigurationAndMissingDependencies/logger (0.00s)
+=== RUN   TestPublicHealthAndHostBoundary
+=== RUN   TestPublicHealthAndHostBoundary/localhost
+=== RUN   TestPublicHealthAndHostBoundary/LOCALHOST:8097
+=== RUN   TestPublicHealthAndHostBoundary/127.0.0.1:8097
+=== RUN   TestPublicHealthAndHostBoundary/[::1]:8097
+=== RUN   TestPublicHealthAndHostBoundary/reject/attacker.invalid
+=== RUN   TestPublicHealthAndHostBoundary/reject/localhost.attacker.invalid
+=== RUN   TestPublicHealthAndHostBoundary/reject/localhost@attacker.invalid
+=== RUN   TestPublicHealthAndHostBoundary/reject/localhost:notaport
+=== RUN   TestPublicHealthAndHostBoundary/reject/localhost:0
+=== RUN   TestPublicHealthAndHostBoundary/reject/localhost:65536
+=== RUN   TestPublicHealthAndHostBoundary/reject/[::1
+=== RUN   TestPublicHealthAndHostBoundary/reject/::1]
+=== RUN   TestPublicHealthAndHostBoundary/reject/localhost[
+=== RUN   TestPublicHealthAndHostBoundary/reject/[localhost]:8097
+=== RUN   TestPublicHealthAndHostBoundary/reject/localhost:+80
+=== RUN   TestPublicHealthAndHostBoundary/reject/[::1]:+80
+--- PASS: TestPublicHealthAndHostBoundary (0.01s)
+    --- PASS: TestPublicHealthAndHostBoundary/localhost (0.00s)
+    --- PASS: TestPublicHealthAndHostBoundary/LOCALHOST:8097 (0.00s)
+    --- PASS: TestPublicHealthAndHostBoundary/127.0.0.1:8097 (0.00s)
+    --- PASS: TestPublicHealthAndHostBoundary/[::1]:8097 (0.00s)
+    --- PASS: TestPublicHealthAndHostBoundary/reject/attacker.invalid (0.00s)
+    --- PASS: TestPublicHealthAndHostBoundary/reject/localhost.attacker.invalid (0.00s)
+    --- PASS: TestPublicHealthAndHostBoundary/reject/localhost@attacker.invalid (0.00s)
+    --- PASS: TestPublicHealthAndHostBoundary/reject/localhost:notaport (0.00s)
+    --- PASS: TestPublicHealthAndHostBoundary/reject/localhost:0 (0.00s)
+    --- PASS: TestPublicHealthAndHostBoundary/reject/localhost:65536 (0.00s)
+    --- PASS: TestPublicHealthAndHostBoundary/reject/[::1 (0.00s)
+    --- PASS: TestPublicHealthAndHostBoundary/reject/::1] (0.00s)
+    --- PASS: TestPublicHealthAndHostBoundary/reject/localhost[ (0.00s)
+    --- PASS: TestPublicHealthAndHostBoundary/reject/[localhost]:8097 (0.00s)
+    --- PASS: TestPublicHealthAndHostBoundary/reject/localhost:+80 (0.00s)
+    --- PASS: TestPublicHealthAndHostBoundary/reject/[::1]:+80 (0.00s)
+=== RUN   TestRolloutFlagsAndCapabilities
+=== RUN   TestRolloutFlagsAndCapabilities/catalog=false/direct=false
+=== RUN   TestRolloutFlagsAndCapabilities/catalog=true/direct=false
+=== RUN   TestRolloutFlagsAndCapabilities/catalog=true/direct=true
+--- PASS: TestRolloutFlagsAndCapabilities (0.00s)
+    --- PASS: TestRolloutFlagsAndCapabilities/catalog=false/direct=false (0.00s)
+    --- PASS: TestRolloutFlagsAndCapabilities/catalog=true/direct=false (0.00s)
+    --- PASS: TestRolloutFlagsAndCapabilities/catalog=true/direct=true (0.00s)
+=== RUN   TestAuthenticationAndStrictCatalogQueries
+=== RUN   TestAuthenticationAndStrictCatalogQueries/limit=0
+=== RUN   TestAuthenticationAndStrictCatalogQueries/limit=101
+=== RUN   TestAuthenticationAndStrictCatalogQueries/limit=-1
+=== RUN   TestAuthenticationAndStrictCatalogQueries/limit=abc
+=== RUN   TestAuthenticationAndStrictCatalogQueries/limit=1&limit=2
+=== RUN   TestAuthenticationAndStrictCatalogQueries/cursor=bad
+=== RUN   TestAuthenticationAndStrictCatalogQueries/cursor=AAAAAAAA-AAAA-4AAA-8AAA-AAAAAAAAAAAA
+=== RUN   TestAuthenticationAndStrictCatalogQueries/sort=title
+=== RUN   TestAuthenticationAndStrictCatalogQueries/filter%ZZ=one
+=== RUN   TestAuthenticationAndStrictCatalogQueries/limit=1;cursor=x
+--- PASS: TestAuthenticationAndStrictCatalogQueries (0.01s)
+    --- PASS: TestAuthenticationAndStrictCatalogQueries/limit=0 (0.00s)
+    --- PASS: TestAuthenticationAndStrictCatalogQueries/limit=101 (0.00s)
+    --- PASS: TestAuthenticationAndStrictCatalogQueries/limit=-1 (0.00s)
+    --- PASS: TestAuthenticationAndStrictCatalogQueries/limit=abc (0.00s)
+    --- PASS: TestAuthenticationAndStrictCatalogQueries/limit=1&limit=2 (0.00s)
+    --- PASS: TestAuthenticationAndStrictCatalogQueries/cursor=bad (0.00s)
+    --- PASS: TestAuthenticationAndStrictCatalogQueries/cursor=AAAAAAAA-AAAA-4AAA-8AAA-AAAAAAAAAAAA (0.00s)
+    --- PASS: TestAuthenticationAndStrictCatalogQueries/sort=title (0.00s)
+    --- PASS: TestAuthenticationAndStrictCatalogQueries/filter%ZZ=one (0.00s)
+    --- PASS: TestAuthenticationAndStrictCatalogQueries/limit=1;cursor=x (0.00s)
+=== RUN   TestErrorLanguageNegotiationAtHTTPBoundary
+=== RUN   TestErrorLanguageNegotiationAtHTTPBoundary/#00
+=== RUN   TestErrorLanguageNegotiationAtHTTPBoundary/zh-TW
+=== RUN   TestErrorLanguageNegotiationAtHTTPBoundary/ja-JP
+=== RUN   TestErrorLanguageNegotiationAtHTTPBoundary/en-US
+=== RUN   TestErrorLanguageNegotiationAtHTTPBoundary/fr-FR
+--- PASS: TestErrorLanguageNegotiationAtHTTPBoundary (0.00s)
+    --- PASS: TestErrorLanguageNegotiationAtHTTPBoundary/#00 (0.00s)
+    --- PASS: TestErrorLanguageNegotiationAtHTTPBoundary/zh-TW (0.00s)
+    --- PASS: TestErrorLanguageNegotiationAtHTTPBoundary/ja-JP (0.00s)
+    --- PASS: TestErrorLanguageNegotiationAtHTTPBoundary/en-US (0.00s)
+    --- PASS: TestErrorLanguageNegotiationAtHTTPBoundary/fr-FR (0.00s)
+=== RUN   TestItemVisibilityAndOpaqueFailures
+--- PASS: TestItemVisibilityAndOpaqueFailures (0.00s)
+=== RUN   TestReadinessDoesNotLeakDependencyErrors
+--- PASS: TestReadinessDoesNotLeakDependencyErrors (0.00s)
+=== RUN   TestTransformationRoutesAndParametersAreRejected
+--- PASS: TestTransformationRoutesAndParametersAreRejected (0.00s)
+=== RUN   TestWebCannotSpoofNativePlaybackAndNativeRangePreservesBytes
+--- PASS: TestWebCannotSpoofNativePlaybackAndNativeRangePreservesBytes (0.10s)
+=== RUN   TestCentralErrorMapping
+=== RUN   TestCentralErrorMapping/resource_not_found
+=== RUN   TestCentralErrorMapping/media_not_found
+=== RUN   TestCentralErrorMapping/authentication_required
+=== RUN   TestCentralErrorMapping/authentication_required#01
+=== RUN   TestCentralErrorMapping/invalid_input
+=== RUN   TestCentralErrorMapping/invalid_media_request
+=== RUN   TestCentralErrorMapping/web_playback_disabled
+=== RUN   TestCentralErrorMapping/transcode_disabled
+=== RUN   TestCentralErrorMapping/stream_limit_reached
+=== RUN   TestCentralErrorMapping/method_not_allowed
+=== RUN   TestCentralErrorMapping/media_lookup_timeout
+=== RUN   TestCentralErrorMapping/invalid_range
+=== RUN   TestCentralErrorMapping/precondition_failed
+=== RUN   TestCentralErrorMapping/request_too_large
+=== RUN   TestCentralErrorMapping/unsupported_media_type
+=== RUN   TestCentralErrorMapping/sensitive_internal_details
+--- PASS: TestCentralErrorMapping (0.00s)
+    --- PASS: TestCentralErrorMapping/resource_not_found (0.00s)
+    --- PASS: TestCentralErrorMapping/media_not_found (0.00s)
+    --- PASS: TestCentralErrorMapping/authentication_required (0.00s)
+    --- PASS: TestCentralErrorMapping/authentication_required#01 (0.00s)
+    --- PASS: TestCentralErrorMapping/invalid_input (0.00s)
+    --- PASS: TestCentralErrorMapping/invalid_media_request (0.00s)
+    --- PASS: TestCentralErrorMapping/web_playback_disabled (0.00s)
+    --- PASS: TestCentralErrorMapping/transcode_disabled (0.00s)
+    --- PASS: TestCentralErrorMapping/stream_limit_reached (0.00s)
+    --- PASS: TestCentralErrorMapping/method_not_allowed (0.00s)
+    --- PASS: TestCentralErrorMapping/media_lookup_timeout (0.00s)
+    --- PASS: TestCentralErrorMapping/invalid_range (0.00s)
+    --- PASS: TestCentralErrorMapping/precondition_failed (0.00s)
+    --- PASS: TestCentralErrorMapping/request_too_large (0.00s)
+    --- PASS: TestCentralErrorMapping/unsupported_media_type (0.00s)
+    --- PASS: TestCentralErrorMapping/sensitive_internal_details (0.00s)
+=== RUN   TestDecodeJSONValidObjects
+--- PASS: TestDecodeJSONValidObjects (0.00s)
+=== RUN   TestDecodeJSONRejectsAmbiguousOrMalformedBodies
+=== RUN   TestDecodeJSONRejectsAmbiguousOrMalformedBodies/#00
+=== RUN   TestDecodeJSONRejectsAmbiguousOrMalformedBodies/_
+=== RUN   TestDecodeJSONRejectsAmbiguousOrMalformedBodies/null
+=== RUN   TestDecodeJSONRejectsAmbiguousOrMalformedBodies/[]
+=== RUN   TestDecodeJSONRejectsAmbiguousOrMalformedBodies/[{}]
+=== RUN   TestDecodeJSONRejectsAmbiguousOrMalformedBodies/true
+=== RUN   TestDecodeJSONRejectsAmbiguousOrMalformedBodies/"string"
+=== RUN   TestDecodeJSONRejectsAmbiguousOrMalformedBodies/123
+=== RUN   TestDecodeJSONRejectsAmbiguousOrMalformedBodies/{}_{}
+=== RUN   TestDecodeJSONRejectsAmbiguousOrMalformedBodies/{}null
+=== RUN   TestDecodeJSONRejectsAmbiguousOrMalformedBodies/{}x
+=== RUN   TestDecodeJSONRejectsAmbiguousOrMalformedBodies/{}_/*_comment_*/
+=== RUN   TestDecodeJSONRejectsAmbiguousOrMalformedBodies/{"username":}
+=== RUN   TestDecodeJSONRejectsAmbiguousOrMalformedBodies/{"username":"x",}
+=== RUN   TestDecodeJSONRejectsAmbiguousOrMalformedBodies/{"unknown":"private-value"}
+=== RUN   TestDecodeJSONRejectsAmbiguousOrMalformedBodies/{"nested":{"unknown":true}}
+=== RUN   TestDecodeJSONRejectsAmbiguousOrMalformedBodies/{"username":"first","username":"second"}
+=== RUN   TestDecodeJSONRejectsAmbiguousOrMalformedBodies/{"username":"first","\u0075sername":"second"}
+=== RUN   TestDecodeJSONRejectsAmbiguousOrMalformedBodies/{"username":"first","USERNAME":"second"}
+=== RUN   TestDecodeJSONRejectsAmbiguousOrMalformedBodies/{"password":"first","paſſword":"second"}
+=== RUN   TestDecodeJSONRejectsAmbiguousOrMalformedBodies/{"nested":{"enabled":true,"enabled":false}}
+=== RUN   TestDecodeJSONRejectsAmbiguousOrMalformedBodies/{"list":[{"name":"one","name":"two"}]}
+=== RUN   TestDecodeJSONRejectsAmbiguousOrMalformedBodies/{"list":[{"name":"one","NAME":"two"}]}
+=== RUN   TestDecodeJSONRejectsAmbiguousOrMalformedBodies/{"username":false}
+=== RUN   TestDecodeJSONRejectsAmbiguousOrMalformedBodies/{"password":1e10000000}
+=== RUN   TestDecodeJSONRejectsAmbiguousOrMalformedBodies/{"username":"�"}
+=== RUN   TestDecodeJSONRejectsAmbiguousOrMalformedBodies/{"list":[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[0]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]}
+--- PASS: TestDecodeJSONRejectsAmbiguousOrMalformedBodies (0.01s)
+    --- PASS: TestDecodeJSONRejectsAmbiguousOrMalformedBodies/#00 (0.00s)
+    --- PASS: TestDecodeJSONRejectsAmbiguousOrMalformedBodies/_ (0.00s)
+    --- PASS: TestDecodeJSONRejectsAmbiguousOrMalformedBodies/null (0.00s)
+    --- PASS: TestDecodeJSONRejectsAmbiguousOrMalformedBodies/[] (0.00s)
+    --- PASS: TestDecodeJSONRejectsAmbiguousOrMalformedBodies/[{}] (0.00s)
+    --- PASS: TestDecodeJSONRejectsAmbiguousOrMalformedBodies/true (0.00s)
+    --- PASS: TestDecodeJSONRejectsAmbiguousOrMalformedBodies/"string" (0.00s)
+    --- PASS: TestDecodeJSONRejectsAmbiguousOrMalformedBodies/123 (0.00s)
+    --- PASS: TestDecodeJSONRejectsAmbiguousOrMalformedBodies/{}_{} (0.00s)
+    --- PASS: TestDecodeJSONRejectsAmbiguousOrMalformedBodies/{}null (0.00s)
+    --- PASS: TestDecodeJSONRejectsAmbiguousOrMalformedBodies/{}x (0.00s)
+    --- PASS: TestDecodeJSONRejectsAmbiguousOrMalformedBodies/{}_/*_comment_*/ (0.00s)
+    --- PASS: TestDecodeJSONRejectsAmbiguousOrMalformedBodies/{"username":} (0.00s)
+    --- PASS: TestDecodeJSONRejectsAmbiguousOrMalformedBodies/{"username":"x",} (0.00s)
+    --- PASS: TestDecodeJSONRejectsAmbiguousOrMalformedBodies/{"unknown":"private-value"} (0.00s)
+    --- PASS: TestDecodeJSONRejectsAmbiguousOrMalformedBodies/{"nested":{"unknown":true}} (0.00s)
+    --- PASS: TestDecodeJSONRejectsAmbiguousOrMalformedBodies/{"username":"first","username":"second"} (0.00s)
+    --- PASS: TestDecodeJSONRejectsAmbiguousOrMalformedBodies/{"username":"first","\u0075sername":"second"} (0.00s)
+    --- PASS: TestDecodeJSONRejectsAmbiguousOrMalformedBodies/{"username":"first","USERNAME":"second"} (0.00s)
+    --- PASS: TestDecodeJSONRejectsAmbiguousOrMalformedBodies/{"password":"first","paſſword":"second"} (0.00s)
+    --- PASS: TestDecodeJSONRejectsAmbiguousOrMalformedBodies/{"nested":{"enabled":true,"enabled":false}} (0.00s)
+    --- PASS: TestDecodeJSONRejectsAmbiguousOrMalformedBodies/{"list":[{"name":"one","name":"two"}]} (0.00s)
+    --- PASS: TestDecodeJSONRejectsAmbiguousOrMalformedBodies/{"list":[{"name":"one","NAME":"two"}]} (0.00s)
+    --- PASS: TestDecodeJSONRejectsAmbiguousOrMalformedBodies/{"username":false} (0.00s)
+    --- PASS: TestDecodeJSONRejectsAmbiguousOrMalformedBodies/{"password":1e10000000} (0.00s)
+    --- PASS: TestDecodeJSONRejectsAmbiguousOrMalformedBodies/{"username":"�"} (0.00s)
+    --- PASS: TestDecodeJSONRejectsAmbiguousOrMalformedBodies/{"list":[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[0]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]} (0.00s)
+=== RUN   TestDecodeJSONContentType
+--- PASS: TestDecodeJSONContentType (0.00s)
+=== RUN   TestDecodeJSONBodyBoundIncludesWhitespaceAndUnknownLength
+--- PASS: TestDecodeJSONBodyBoundIncludesWhitespaceAndUnknownLength (0.00s)
+=== RUN   TestDecodeJSONCancellationAndReadFailure
+--- PASS: TestDecodeJSONCancellationAndReadFailure (0.00s)
+=== RUN   FuzzDecodeJSON
+=== RUN   FuzzDecodeJSON/seed#0
+=== RUN   FuzzDecodeJSON/seed#1
+=== RUN   FuzzDecodeJSON/seed#2
+=== RUN   FuzzDecodeJSON/seed#3
+=== RUN   FuzzDecodeJSON/seed#4
+=== RUN   FuzzDecodeJSON/seed#5
+--- PASS: FuzzDecodeJSON (0.01s)
+    --- PASS: FuzzDecodeJSON/seed#0 (0.00s)
+    --- PASS: FuzzDecodeJSON/seed#1 (0.00s)
+    --- PASS: FuzzDecodeJSON/seed#2 (0.00s)
+    --- PASS: FuzzDecodeJSON/seed#3 (0.00s)
+    --- PASS: FuzzDecodeJSON/seed#4 (0.00s)
+    --- PASS: FuzzDecodeJSON/seed#5 (0.00s)
+PASS
+coverage: 89.6% of statements
+ok  	github.com/MoYuanCN/Jelee/internal/adapter/http	4.368s	coverage: 89.6% of statements
+=== RUN   TestFIFOIsRejectedWithoutBlocking
+    direct_linux_test.go:24: test filesystem does not support named pipes; run on a native Linux filesystem to verify FIFO rejection
+--- SKIP: TestFIFOIsRejectedWithoutBlocking (0.05s)
+=== RUN   TestConcurrentSymlinkReplacementCannotEscapeRoot
+--- PASS: TestConcurrentSymlinkReplacementCannotEscapeRoot (1.88s)
+=== RUN   TestDirectDeliveryRangeAndSourceUnchanged
+=== RUN   TestDirectDeliveryRangeAndSourceUnchanged/complete
+=== RUN   TestDirectDeliveryRangeAndSourceUnchanged/head
+=== RUN   TestDirectDeliveryRangeAndSourceUnchanged/first
+=== RUN   TestDirectDeliveryRangeAndSourceUnchanged/suffix
+=== RUN   TestDirectDeliveryRangeAndSourceUnchanged/open_end
+=== RUN   TestDirectDeliveryRangeAndSourceUnchanged/etag_match
+=== RUN   TestDirectDeliveryRangeAndSourceUnchanged/etag_mismatch
+=== RUN   TestDirectDeliveryRangeAndSourceUnchanged/weak_etag
+=== RUN   TestDirectDeliveryRangeAndSourceUnchanged/date_match
+=== RUN   TestDirectDeliveryRangeAndSourceUnchanged/date_mismatch
+--- PASS: TestDirectDeliveryRangeAndSourceUnchanged (0.24s)
+    --- PASS: TestDirectDeliveryRangeAndSourceUnchanged/complete (0.03s)
+    --- PASS: TestDirectDeliveryRangeAndSourceUnchanged/head (0.03s)
+    --- PASS: TestDirectDeliveryRangeAndSourceUnchanged/first (0.01s)
+    --- PASS: TestDirectDeliveryRangeAndSourceUnchanged/suffix (0.01s)
+    --- PASS: TestDirectDeliveryRangeAndSourceUnchanged/open_end (0.01s)
+    --- PASS: TestDirectDeliveryRangeAndSourceUnchanged/etag_match (0.01s)
+    --- PASS: TestDirectDeliveryRangeAndSourceUnchanged/etag_mismatch (0.03s)
+    --- PASS: TestDirectDeliveryRangeAndSourceUnchanged/weak_etag (0.02s)
+    --- PASS: TestDirectDeliveryRangeAndSourceUnchanged/date_match (0.01s)
+    --- PASS: TestDirectDeliveryRangeAndSourceUnchanged/date_mismatch (0.02s)
+=== RUN   TestMultipartRange
+--- PASS: TestMultipartRange (0.05s)
+=== RUN   TestAuthorizationBeforeResolution
+=== RUN   TestAuthorizationBeforeResolution/anonymous
+=== RUN   TestAuthorizationBeforeResolution/web
+=== RUN   TestAuthorizationBeforeResolution/web_admin
+=== RUN   TestAuthorizationBeforeResolution/unknown
+--- PASS: TestAuthorizationBeforeResolution (0.00s)
+    --- PASS: TestAuthorizationBeforeResolution/anonymous (0.00s)
+    --- PASS: TestAuthorizationBeforeResolution/web (0.00s)
+    --- PASS: TestAuthorizationBeforeResolution/web_admin (0.00s)
+    --- PASS: TestAuthorizationBeforeResolution/unknown (0.00s)
+=== RUN   TestPathBoundariesAndNoDisclosure
+=== RUN   TestPathBoundariesAndNoDisclosure/#00
+=== RUN   TestPathBoundariesAndNoDisclosure/.
+=== RUN   TestPathBoundariesAndNoDisclosure/..
+=== RUN   TestPathBoundariesAndNoDisclosure/../secret
+=== RUN   TestPathBoundariesAndNoDisclosure/folder/../../secret
+=== RUN   TestPathBoundariesAndNoDisclosure//etc/passwd
+=== RUN   TestPathBoundariesAndNoDisclosure/C:\private
+=== RUN   TestPathBoundariesAndNoDisclosure/folder\file
+=== RUN   TestPathBoundariesAndNoDisclosure/original.mkv:alternate
+=== RUN   TestPathBoundariesAndNoDisclosure/original.mkv\x00
+=== RUN   TestPathBoundariesAndNoDisclosure/missing
+=== RUN   TestPathBoundariesAndNoDisclosure/folder/../original.mkv
+=== RUN   TestPathBoundariesAndNoDisclosure/directory
+=== RUN   TestPathBoundariesAndNoDisclosure/symlink_escape
+=== RUN   TestPathBoundariesAndNoDisclosure/directory_symlink_escape
+--- PASS: TestPathBoundariesAndNoDisclosure (0.17s)
+    --- PASS: TestPathBoundariesAndNoDisclosure/#00 (0.00s)
+    --- PASS: TestPathBoundariesAndNoDisclosure/. (0.00s)
+    --- PASS: TestPathBoundariesAndNoDisclosure/.. (0.00s)
+    --- PASS: TestPathBoundariesAndNoDisclosure/../secret (0.00s)
+    --- PASS: TestPathBoundariesAndNoDisclosure/folder/../../secret (0.00s)
+    --- PASS: TestPathBoundariesAndNoDisclosure//etc/passwd (0.00s)
+    --- PASS: TestPathBoundariesAndNoDisclosure/C:\private (0.00s)
+    --- PASS: TestPathBoundariesAndNoDisclosure/folder\file (0.00s)
+    --- PASS: TestPathBoundariesAndNoDisclosure/original.mkv:alternate (0.00s)
+    --- PASS: TestPathBoundariesAndNoDisclosure/original.mkv\x00 (0.00s)
+    --- PASS: TestPathBoundariesAndNoDisclosure/missing (0.00s)
+    --- PASS: TestPathBoundariesAndNoDisclosure/folder/../original.mkv (0.00s)
+    --- PASS: TestPathBoundariesAndNoDisclosure/directory (0.01s)
+    --- PASS: TestPathBoundariesAndNoDisclosure/symlink_escape (0.01s)
+    --- PASS: TestPathBoundariesAndNoDisclosure/directory_symlink_escape (0.02s)
+=== RUN   TestErrorsUseInjectedWriter
+--- PASS: TestErrorsUseInjectedWriter (0.12s)
+=== RUN   TestConcurrencyBudgetAndCancellation
+--- PASS: TestConcurrencyBudgetAndCancellation (0.09s)
+=== RUN   TestCancellationStopsStreamAndReleasesSlot
+--- PASS: TestCancellationStopsStreamAndReleasesSlot (0.09s)
+=== RUN   TestNewHandlerRejectsIncompleteConfiguration
+--- PASS: TestNewHandlerRejectsIncompleteConfiguration (0.00s)
+=== RUN   TestCancellationInterruptsBlockedNetworkWrite
+--- PASS: TestCancellationInterruptsBlockedNetworkWrite (0.17s)
+=== RUN   TestRangeBudgetRejectsAbuseBeforeLookup
+--- PASS: TestRangeBudgetRejectsAbuseBeforeLookup (0.00s)
+=== RUN   TestSourceLookupHasIndependentDeadline
+--- PASS: TestSourceLookupHasIndependentDeadline (0.00s)
+=== RUN   TestCancellationBetweenDeadlineRefreshAndWrite
+--- PASS: TestCancellationBetweenDeadlineRefreshAndWrite (0.10s)
+=== RUN   TestProductionGuardRejectsTransformations
+=== RUN   TestProductionGuardRejectsTransformations//Videos/id/master.m3u8
+=== RUN   TestProductionGuardRejectsTransformations//VIDEOS/id/STREAM.MPD
+=== RUN   TestProductionGuardRejectsTransformations//Videos/id/HLS/0.ts
+=== RUN   TestProductionGuardRejectsTransformations//Videos/id/HLS1/main/0.ts
+=== RUN   TestProductionGuardRejectsTransformations//Videos/id/dash/0
+=== RUN   TestProductionGuardRejectsTransformations//transcode/id
+=== RUN   TestProductionGuardRejectsTransformations//Videos/id/segments/1
+=== RUN   TestProductionGuardRejectsTransformations//Videos/id/%68%6Cs/0
+=== RUN   TestProductionGuardRejectsTransformations//Videos/id/%2568ls/0
+=== RUN   TestProductionGuardRejectsTransformations//Videos/id/hls%5C0.ts
+=== RUN   TestProductionGuardRejectsTransformations//Videos/id/chunk.m4s
+=== RUN   TestProductionGuardRejectsTransformations//stream?videoCodec=h264
+=== RUN   TestProductionGuardRejectsTransformations//stream?%76ideoCodec=copy
+=== RUN   TestProductionGuardRejectsTransformations//stream?AUDIOCODEC=copy
+=== RUN   TestProductionGuardRejectsTransformations//stream?maxVideoBitrate=0
+=== RUN   TestProductionGuardRejectsTransformations//stream?video_codec=copy
+=== RUN   TestProductionGuardRejectsTransformations//stream?SegmentLength=6
+=== RUN   TestProductionGuardRejectsTransformations//stream?HlsSegmentLength=5
+=== RUN   TestProductionGuardRejectsTransformations//stream?TranscodeReasons=codec
+=== RUN   TestProductionGuardRejectsTransformations//stream?protocol=HLS
+=== RUN   TestProductionGuardRejectsTransformations//stream?container=mpd
+=== RUN   TestProductionGuardRejectsTransformations//stream?Static=false
+=== RUN   TestProductionGuardRejectsTransformations//stream?EnableTranscoding=true
+=== RUN   TestProductionGuardRejectsTransformations//stream?AllowVideoStreamCopy=false
+=== RUN   TestProductionGuardRejectsTransformations//stream?SubtitleMethod=Encode
+=== RUN   TestProductionGuardRejectsTransformations//stream?width=1920
+=== RUN   TestProductionGuardRejectsTransformations//stream?DeviceProfile=%7B%22TranscodingProfiles%22%3A%5B%7B%22Type%22%3A%22Video%22%7D%5D%7D
+--- PASS: TestProductionGuardRejectsTransformations (0.02s)
+    --- PASS: TestProductionGuardRejectsTransformations//Videos/id/master.m3u8 (0.00s)
+    --- PASS: TestProductionGuardRejectsTransformations//VIDEOS/id/STREAM.MPD (0.00s)
+    --- PASS: TestProductionGuardRejectsTransformations//Videos/id/HLS/0.ts (0.00s)
+    --- PASS: TestProductionGuardRejectsTransformations//Videos/id/HLS1/main/0.ts (0.00s)
+    --- PASS: TestProductionGuardRejectsTransformations//Videos/id/dash/0 (0.00s)
+    --- PASS: TestProductionGuardRejectsTransformations//transcode/id (0.00s)
+    --- PASS: TestProductionGuardRejectsTransformations//Videos/id/segments/1 (0.00s)
+    --- PASS: TestProductionGuardRejectsTransformations//Videos/id/%68%6Cs/0 (0.00s)
+    --- PASS: TestProductionGuardRejectsTransformations//Videos/id/%2568ls/0 (0.00s)
+    --- PASS: TestProductionGuardRejectsTransformations//Videos/id/hls%5C0.ts (0.00s)
+    --- PASS: TestProductionGuardRejectsTransformations//Videos/id/chunk.m4s (0.00s)
+    --- PASS: TestProductionGuardRejectsTransformations//stream?videoCodec=h264 (0.00s)
+    --- PASS: TestProductionGuardRejectsTransformations//stream?%76ideoCodec=copy (0.00s)
+    --- PASS: TestProductionGuardRejectsTransformations//stream?AUDIOCODEC=copy (0.00s)
+    --- PASS: TestProductionGuardRejectsTransformations//stream?maxVideoBitrate=0 (0.00s)
+    --- PASS: TestProductionGuardRejectsTransformations//stream?video_codec=copy (0.00s)
+    --- PASS: TestProductionGuardRejectsTransformations//stream?SegmentLength=6 (0.00s)
+    --- PASS: TestProductionGuardRejectsTransformations//stream?HlsSegmentLength=5 (0.00s)
+    --- PASS: TestProductionGuardRejectsTransformations//stream?TranscodeReasons=codec (0.00s)
+    --- PASS: TestProductionGuardRejectsTransformations//stream?protocol=HLS (0.00s)
+    --- PASS: TestProductionGuardRejectsTransformations//stream?container=mpd (0.00s)
+    --- PASS: TestProductionGuardRejectsTransformations//stream?Static=false (0.00s)
+    --- PASS: TestProductionGuardRejectsTransformations//stream?EnableTranscoding=true (0.00s)
+    --- PASS: TestProductionGuardRejectsTransformations//stream?AllowVideoStreamCopy=false (0.00s)
+    --- PASS: TestProductionGuardRejectsTransformations//stream?SubtitleMethod=Encode (0.00s)
+    --- PASS: TestProductionGuardRejectsTransformations//stream?width=1920 (0.00s)
+    --- PASS: TestProductionGuardRejectsTransformations//stream?DeviceProfile=%7B%22TranscodingProfiles%22%3A%5B%7B%22Type%22%3A%22Video%22%7D%5D%7D (0.01s)
+=== RUN   TestProductionGuardInspectsFormAndJSON
+=== RUN   TestProductionGuardInspectsFormAndJSON/form
+=== RUN   TestProductionGuardInspectsFormAndJSON/encoded_form
+=== RUN   TestProductionGuardInspectsFormAndJSON/json
+=== RUN   TestProductionGuardInspectsFormAndJSON/nested
+=== RUN   TestProductionGuardInspectsFormAndJSON/nested_codec
+=== RUN   TestProductionGuardInspectsFormAndJSON/escaped_key
+=== RUN   TestProductionGuardInspectsFormAndJSON/duplicate_key
+=== RUN   TestProductionGuardInspectsFormAndJSON/duplicate_toggle
+=== RUN   TestProductionGuardInspectsFormAndJSON/burnin
+--- PASS: TestProductionGuardInspectsFormAndJSON (0.00s)
+    --- PASS: TestProductionGuardInspectsFormAndJSON/form (0.00s)
+    --- PASS: TestProductionGuardInspectsFormAndJSON/encoded_form (0.00s)
+    --- PASS: TestProductionGuardInspectsFormAndJSON/json (0.00s)
+    --- PASS: TestProductionGuardInspectsFormAndJSON/nested (0.00s)
+    --- PASS: TestProductionGuardInspectsFormAndJSON/nested_codec (0.00s)
+    --- PASS: TestProductionGuardInspectsFormAndJSON/escaped_key (0.00s)
+    --- PASS: TestProductionGuardInspectsFormAndJSON/duplicate_key (0.00s)
+    --- PASS: TestProductionGuardInspectsFormAndJSON/duplicate_toggle (0.00s)
+    --- PASS: TestProductionGuardInspectsFormAndJSON/burnin (0.00s)
+=== RUN   TestProductionGuardPreservesDirectRequests
+--- PASS: TestProductionGuardPreservesDirectRequests (0.00s)
+=== RUN   TestGuardRejectsInvalidOrUnboundedBodies
+=== RUN   TestGuardRejectsInvalidOrUnboundedBodies/malformed
+=== RUN   TestGuardRejectsInvalidOrUnboundedBodies/extra_document
+=== RUN   TestGuardRejectsInvalidOrUnboundedBodies/depth
+=== RUN   TestGuardRejectsInvalidOrUnboundedBodies/size
+=== RUN   TestGuardRejectsInvalidOrUnboundedBodies/untyped
+=== RUN   TestGuardRejectsInvalidOrUnboundedBodies/multipart
+--- PASS: TestGuardRejectsInvalidOrUnboundedBodies (0.00s)
+    --- PASS: TestGuardRejectsInvalidOrUnboundedBodies/malformed (0.00s)
+    --- PASS: TestGuardRejectsInvalidOrUnboundedBodies/extra_document (0.00s)
+    --- PASS: TestGuardRejectsInvalidOrUnboundedBodies/depth (0.00s)
+    --- PASS: TestGuardRejectsInvalidOrUnboundedBodies/size (0.00s)
+    --- PASS: TestGuardRejectsInvalidOrUnboundedBodies/untyped (0.00s)
+    --- PASS: TestGuardRejectsInvalidOrUnboundedBodies/multipart (0.00s)
+=== RUN   TestRouteGuardDoesNotTreatMetadataValuesAsTranscode
+--- PASS: TestRouteGuardDoesNotTreatMetadataValuesAsTranscode (0.00s)
+=== RUN   FuzzProductionGuard
+=== RUN   FuzzProductionGuard/seed#0
+=== RUN   FuzzProductionGuard/seed#1
+=== RUN   FuzzProductionGuard/seed#2
+=== RUN   FuzzProductionGuard/seed#3
+--- PASS: FuzzProductionGuard (0.01s)
+    --- PASS: FuzzProductionGuard/seed#0 (0.00s)
+    --- PASS: FuzzProductionGuard/seed#1 (0.00s)
+    --- PASS: FuzzProductionGuard/seed#2 (0.00s)
+    --- PASS: FuzzProductionGuard/seed#3 (0.00s)
+PASS
+coverage: 86.5% of statements
+ok  	github.com/MoYuanCN/Jelee/internal/adapter/media	4.426s	coverage: 86.5% of statements
+=== RUN   TestReadFileRejectsFIFOWithoutBlocking
+    file_linux_test.go:20: test filesystem does not support named pipes; native Linux filesystem verification required
+--- SKIP: TestReadFileRejectsFIFOWithoutBlocking (0.06s)
+=== RUN   TestReadFileResistsSymlinkReplacement
+--- PASS: TestReadFileResistsSymlinkReplacement (1.81s)
+=== RUN   TestGoldenMovieMapsFieldsAndRetainsOriginalBytes
+--- PASS: TestGoldenMovieMapsFieldsAndRetainsOriginalBytes (0.01s)
+=== RUN   TestSeriesSeasonEpisodeAndWrappers
+=== RUN   TestSeriesSeasonEpisodeAndWrappers/series
+=== RUN   TestSeriesSeasonEpisodeAndWrappers/season
+=== RUN   TestSeriesSeasonEpisodeAndWrappers/episode
+=== RUN   TestSeriesSeasonEpisodeAndWrappers/episode_details
+=== RUN   TestSeriesSeasonEpisodeAndWrappers/multi_episode
+=== RUN   TestSeriesSeasonEpisodeAndWrappers/root_wrapper
+=== RUN   TestSeriesSeasonEpisodeAndWrappers/item_wrapper
+=== RUN   TestSeriesSeasonEpisodeAndWrappers/nested_wrapper
+--- PASS: TestSeriesSeasonEpisodeAndWrappers (0.00s)
+    --- PASS: TestSeriesSeasonEpisodeAndWrappers/series (0.00s)
+    --- PASS: TestSeriesSeasonEpisodeAndWrappers/season (0.00s)
+    --- PASS: TestSeriesSeasonEpisodeAndWrappers/episode (0.00s)
+    --- PASS: TestSeriesSeasonEpisodeAndWrappers/episode_details (0.00s)
+    --- PASS: TestSeriesSeasonEpisodeAndWrappers/multi_episode (0.00s)
+    --- PASS: TestSeriesSeasonEpisodeAndWrappers/root_wrapper (0.00s)
+    --- PASS: TestSeriesSeasonEpisodeAndWrappers/item_wrapper (0.00s)
+    --- PASS: TestSeriesSeasonEpisodeAndWrappers/nested_wrapper (0.00s)
+=== RUN   TestUnknownAndAmbiguousRootsProduceWarnings
+--- PASS: TestUnknownAndAmbiguousRootsProduceWarnings (0.00s)
+=== RUN   TestEncodingsPreserveBytesAndText
+=== RUN   TestEncodingsPreserveBytesAndText/utf16le
+=== RUN   TestEncodingsPreserveBytesAndText/utf16be
+=== RUN   TestEncodingsPreserveBytesAndText/utf16_no_bom
+=== RUN   TestEncodingsPreserveBytesAndText/gbk
+=== RUN   TestEncodingsPreserveBytesAndText/gbk_guessed
+--- PASS: TestEncodingsPreserveBytesAndText (0.00s)
+    --- PASS: TestEncodingsPreserveBytesAndText/utf16le (0.00s)
+    --- PASS: TestEncodingsPreserveBytesAndText/utf16be (0.00s)
+    --- PASS: TestEncodingsPreserveBytesAndText/utf16_no_bom (0.00s)
+    --- PASS: TestEncodingsPreserveBytesAndText/gbk (0.00s)
+    --- PASS: TestEncodingsPreserveBytesAndText/gbk_guessed (0.00s)
+=== RUN   TestInvalidAndUnsafeXMLIsRejected
+=== RUN   TestInvalidAndUnsafeXMLIsRejected/empty
+=== RUN   TestInvalidAndUnsafeXMLIsRejected/unclosed
+=== RUN   TestInvalidAndUnsafeXMLIsRejected/unknown_entity
+=== RUN   TestInvalidAndUnsafeXMLIsRejected/external_entity
+=== RUN   TestInvalidAndUnsafeXMLIsRejected/entity_bomb
+=== RUN   TestInvalidAndUnsafeXMLIsRejected/stylesheet
+=== RUN   TestInvalidAndUnsafeXMLIsRejected/duplicate_attribute
+=== RUN   TestInvalidAndUnsafeXMLIsRejected/trailing_text
+=== RUN   TestInvalidAndUnsafeXMLIsRejected/multiple_movies
+=== RUN   TestInvalidAndUnsafeXMLIsRejected/invalid_utf8_declared
+=== RUN   TestInvalidAndUnsafeXMLIsRejected/unsupported_encoding
+=== RUN   TestInvalidAndUnsafeXMLIsRejected/invalid_gbk
+=== RUN   TestInvalidAndUnsafeXMLIsRejected/utf16_odd
+=== RUN   TestInvalidAndUnsafeXMLIsRejected/utf16_unpaired
+=== RUN   TestInvalidAndUnsafeXMLIsRejected/encoding_mismatch
+=== RUN   TestInvalidAndUnsafeXMLIsRejected/long_utf16_mismatch
+=== RUN   TestInvalidAndUnsafeXMLIsRejected/bom_long_gbk_mismatch
+=== RUN   TestInvalidAndUnsafeXMLIsRejected/bom_short_gbk_mismatch
+=== RUN   TestInvalidAndUnsafeXMLIsRejected/duplicate_declaration
+=== RUN   TestInvalidAndUnsafeXMLIsRejected/malformed_declaration
+=== RUN   TestInvalidAndUnsafeXMLIsRejected/depth
+=== RUN   TestInvalidAndUnsafeXMLIsRejected/elements
+=== RUN   TestInvalidAndUnsafeXMLIsRejected/entries
+--- PASS: TestInvalidAndUnsafeXMLIsRejected (0.51s)
+    --- PASS: TestInvalidAndUnsafeXMLIsRejected/empty (0.00s)
+    --- PASS: TestInvalidAndUnsafeXMLIsRejected/unclosed (0.00s)
+    --- PASS: TestInvalidAndUnsafeXMLIsRejected/unknown_entity (0.00s)
+    --- PASS: TestInvalidAndUnsafeXMLIsRejected/external_entity (0.00s)
+    --- PASS: TestInvalidAndUnsafeXMLIsRejected/entity_bomb (0.00s)
+    --- PASS: TestInvalidAndUnsafeXMLIsRejected/stylesheet (0.00s)
+    --- PASS: TestInvalidAndUnsafeXMLIsRejected/duplicate_attribute (0.00s)
+    --- PASS: TestInvalidAndUnsafeXMLIsRejected/trailing_text (0.00s)
+    --- PASS: TestInvalidAndUnsafeXMLIsRejected/multiple_movies (0.00s)
+    --- PASS: TestInvalidAndUnsafeXMLIsRejected/invalid_utf8_declared (0.00s)
+    --- PASS: TestInvalidAndUnsafeXMLIsRejected/unsupported_encoding (0.00s)
+    --- PASS: TestInvalidAndUnsafeXMLIsRejected/invalid_gbk (0.00s)
+    --- PASS: TestInvalidAndUnsafeXMLIsRejected/utf16_odd (0.00s)
+    --- PASS: TestInvalidAndUnsafeXMLIsRejected/utf16_unpaired (0.00s)
+    --- PASS: TestInvalidAndUnsafeXMLIsRejected/encoding_mismatch (0.00s)
+    --- PASS: TestInvalidAndUnsafeXMLIsRejected/long_utf16_mismatch (0.00s)
+    --- PASS: TestInvalidAndUnsafeXMLIsRejected/bom_long_gbk_mismatch (0.00s)
+    --- PASS: TestInvalidAndUnsafeXMLIsRejected/bom_short_gbk_mismatch (0.00s)
+    --- PASS: TestInvalidAndUnsafeXMLIsRejected/duplicate_declaration (0.00s)
+    --- PASS: TestInvalidAndUnsafeXMLIsRejected/malformed_declaration (0.00s)
+    --- PASS: TestInvalidAndUnsafeXMLIsRejected/depth (0.00s)
+    --- PASS: TestInvalidAndUnsafeXMLIsRejected/elements (0.49s)
+    --- PASS: TestInvalidAndUnsafeXMLIsRejected/entries (0.00s)
+=== RUN   TestSemanticValidationReportsInvalidFieldsWithoutRewriting
+--- PASS: TestSemanticValidationReportsInvalidFieldsWithoutRewriting (0.00s)
+=== RUN   TestReaderSizeAndCancellationBounds
+--- PASS: TestReaderSizeAndCancellationBounds (0.00s)
+=== RUN   TestOriginalCopyReportsFailuresAndCancellation
+--- PASS: TestOriginalCopyReportsFailuresAndCancellation (0.00s)
+=== RUN   TestArtworkReferencesNeverTriggerNetworkRequests
+--- PASS: TestArtworkReferencesNeverTriggerNetworkRequests (0.03s)
+=== RUN   TestReadFileBoundaryAndOriginalProtection
+=== RUN   TestReadFileBoundaryAndOriginalProtection/symlink_escape
+--- PASS: TestReadFileBoundaryAndOriginalProtection (0.21s)
+    --- PASS: TestReadFileBoundaryAndOriginalProtection/symlink_escape (0.08s)
+=== RUN   TestNFOFilenameRecognitionAndMixedText
+--- PASS: TestNFOFilenameRecognitionAndMixedText (0.00s)
+=== RUN   FuzzReadRetainsAcceptedOriginal
+=== RUN   FuzzReadRetainsAcceptedOriginal/seed#0
+=== RUN   FuzzReadRetainsAcceptedOriginal/seed#1
+=== RUN   FuzzReadRetainsAcceptedOriginal/seed#2
+=== RUN   FuzzReadRetainsAcceptedOriginal/seed#3
+=== RUN   FuzzReadRetainsAcceptedOriginal/seed#4
+--- PASS: FuzzReadRetainsAcceptedOriginal (0.01s)
+    --- PASS: FuzzReadRetainsAcceptedOriginal/seed#0 (0.00s)
+    --- PASS: FuzzReadRetainsAcceptedOriginal/seed#1 (0.00s)
+    --- PASS: FuzzReadRetainsAcceptedOriginal/seed#2 (0.00s)
+    --- PASS: FuzzReadRetainsAcceptedOriginal/seed#3 (0.00s)
+    --- PASS: FuzzReadRetainsAcceptedOriginal/seed#4 (0.00s)
+PASS
+coverage: 89.8% of statements
+ok  	github.com/MoYuanCN/Jelee/internal/adapter/nfo	4.407s	coverage: 89.8% of statements
+=== RUN   TestAccountIntegration
+=== RUN   TestAccountIntegration/casefold_idempotency_and_live_admin_rechecks
+=== RUN   TestAccountIntegration/self_only_profile_credentials_and_sessions
+=== RUN   TestAccountIntegration/trusted_local_password_reset_revokes_legacy_credentials
+=== RUN   TestAccountIntegration/oversized_session_and_ACL_results_fail_explicitly
+=== RUN   TestAccountIntegration/login_failure_counter_lock_and_credential_CAS
+=== RUN   TestAccountIntegration/session_limit_rotation_and_revoke_are_atomic
+=== RUN   TestAccountIntegration/ACL_replace_and_soft_delete_close_all_catalog_paths
+=== RUN   TestAccountIntegration/audit_never_contains_credentials
+=== RUN   TestAccountIntegration/last_active_admin_survives_concurrent_self_demotion
+--- PASS: TestAccountIntegration (0.95s)
+    --- PASS: TestAccountIntegration/casefold_idempotency_and_live_admin_rechecks (0.18s)
+    --- PASS: TestAccountIntegration/self_only_profile_credentials_and_sessions (0.03s)
+    --- PASS: TestAccountIntegration/trusted_local_password_reset_revokes_legacy_credentials (0.02s)
+    --- PASS: TestAccountIntegration/oversized_session_and_ACL_results_fail_explicitly (0.17s)
+    --- PASS: TestAccountIntegration/login_failure_counter_lock_and_credential_CAS (0.07s)
+    --- PASS: TestAccountIntegration/session_limit_rotation_and_revoke_are_atomic (0.07s)
+    --- PASS: TestAccountIntegration/ACL_replace_and_soft_delete_close_all_catalog_paths (0.06s)
+    --- PASS: TestAccountIntegration/audit_never_contains_credentials (0.00s)
+    --- PASS: TestAccountIntegration/last_active_admin_survives_concurrent_self_demotion (0.03s)
+=== RUN   TestAccountMigrationRejectsCaseCollisionWithoutRenaming
+--- PASS: TestAccountMigrationRejectsCaseCollisionWithoutRenaming (0.28s)
+=== RUN   TestAccountMigrationRollbackKeepsDeletedAccountsDisabled
+--- PASS: TestAccountMigrationRollbackKeepsDeletedAccountsDisabled (0.29s)
+=== RUN   TestAccountStorageErrorsPreserveClassificationWithoutLeakingDetails
+--- PASS: TestAccountStorageErrorsPreserveClassificationWithoutLeakingDetails (0.00s)
+=== RUN   TestCredentialStructsCannotAccidentallySerializePasswordHashes
+--- PASS: TestCredentialStructsCannotAccidentallySerializePasswordHashes (0.00s)
+=== RUN   TestAccountValidationRejectsUnsafeAndUnboundedInputsBeforeDatabaseUse
+--- PASS: TestAccountValidationRejectsUnsafeAndUnboundedInputsBeforeDatabaseUse (0.00s)
+=== RUN   TestPostgresIntegration
+    store_integration_test.go:69: PostgreSQL integration RUNNING: dedicated jelee_test database, isolated schema jelee_it_abcb6fbedf4f7e14f3d9
+=== RUN   TestPostgresIntegration/migration_lock_contention_is_bounded
+    store_integration_test.go:125: contended migration returned after 5.027238313s; server-side timeout bounds the driver's non-cancelable setup
+=== RUN   TestPostgresIntegration/credentials_are_hashed_and_lifecycle_enforced
+=== RUN   TestPostgresIntegration/ACL_filters_lists_details_and_streams_in_SQL
+=== RUN   TestPostgresIntegration/constraints_and_failed_imports_are_atomic
+=== RUN   TestPostgresIntegration/ten_thousand_items_plan_and_bounded_visible_page
+    store_integration_test.go:298: restricted-user execution visited 1 item rows; hidden-library scan regression baseline was 10,002
+    store_integration_test.go:299: 10,002-row ACL query plan (single sample; no P95 or performance acceptance claimed): [
+          {
+            "Plan": {
+              "Node Type": "Limit",
+              "Parallel Aware": false,
+              "Async Capable": false,
+              "Startup Cost": 88.91,
+              "Total Cost": 89.03,
+              "Plan Rows": 50,
+              "Plan Width": 84,
+              "Actual Startup Time": 0.030,
+              "Actual Total Time": 0.031,
+              "Actual Rows": 1,
+              "Actual Loops": 1,
+              "Shared Hit Blocks": 7,
+              "Shared Read Blocks": 0,
+              "Shared Dirtied Blocks": 0,
+              "Shared Written Blocks": 0,
+              "Local Hit Blocks": 0,
+              "Local Read Blocks": 0,
+              "Local Dirtied Blocks": 0,
+              "Local Written Blocks": 0,
+              "Temp Read Blocks": 0,
+              "Temp Written Blocks": 0,
+              "Plans": [
+                {
+                  "Node Type": "Index Scan",
+                  "Parent Relationship": "InitPlan",
+                  "Subplan Name": "CTE principal",
+                  "Parallel Aware": false,
+                  "Async Capable": false,
+                  "Scan Direction": "Forward",
+                  "Index Name": "users_pkey",
+                  "Relation Name": "users",
+                  "Alias": "users",
+                  "Startup Cost": 0.15,
+                  "Total Cost": 8.17,
+                  "Plan Rows": 1,
+                  "Plan Width": 17,
+                  "Actual Startup Time": 0.010,
+                  "Actual Total Time": 0.010,
+                  "Actual Rows": 1,
+                  "Actual Loops": 1,
+                  "Index Cond": "(id = '8e6ef06b-5f18-4404-865c-c2f0795ba862'::uuid)",
+                  "Rows Removed by Index Recheck": 0,
+                  "Filter": "((NOT disabled) AND (deleted_at IS NULL))",
+                  "Rows Removed by Filter": 0,
+                  "Shared Hit Blocks": 2,
+                  "Shared Read Blocks": 0,
+                  "Shared Dirtied Blocks": 0,
+                  "Shared Written Blocks": 0,
+                  "Local Hit Blocks": 0,
+                  "Local Read Blocks": 0,
+                  "Local Dirtied Blocks": 0,
+                  "Local Written Blocks": 0,
+                  "Temp Read Blocks": 0,
+                  "Temp Written Blocks": 0
+                },
+                {
+                  "Node Type": "Sort",
+                  "Parent Relationship": "Outer",
+                  "Parallel Aware": false,
+                  "Async Capable": false,
+                  "Startup Cost": 80.74,
+                  "Total Cost": 81.74,
+                  "Plan Rows": 400,
+                  "Plan Width": 84,
+                  "Actual Startup Time": 0.030,
+                  "Actual Total Time": 0.031,
+                  "Actual Rows": 1,
+                  "Actual Loops": 1,
+                  "Sort Key": ["((items.id)::text)"],
+                  "Sort Method": "quicksort",
+                  "Sort Space Used": 25,
+                  "Sort Space Type": "Memory",
+                  "Shared Hit Blocks": 7,
+                  "Shared Read Blocks": 0,
+                  "Shared Dirtied Blocks": 0,
+                  "Shared Written Blocks": 0,
+                  "Local Hit Blocks": 0,
+                  "Local Read Blocks": 0,
+                  "Local Dirtied Blocks": 0,
+                  "Local Written Blocks": 0,
+                  "Temp Read Blocks": 0,
+                  "Temp Written Blocks": 0,
+                  "Plans": [
+                    {
+                      "Node Type": "Result",
+                      "Parent Relationship": "Outer",
+                      "Parallel Aware": false,
+                      "Async Capable": false,
+                      "Startup Cost": 4.49,
+                      "Total Cost": 67.46,
+                      "Plan Rows": 400,
+                      "Plan Width": 84,
+                      "Actual Startup Time": 0.023,
+                      "Actual Total Time": 0.026,
+                      "Actual Rows": 1,
+                      "Actual Loops": 1,
+                      "Shared Hit Blocks": 7,
+                      "Shared Read Blocks": 0,
+                      "Shared Dirtied Blocks": 0,
+                      "Shared Written Blocks": 0,
+                      "Local Hit Blocks": 0,
+                      "Local Read Blocks": 0,
+                      "Local Dirtied Blocks": 0,
+                      "Local Written Blocks": 0,
+                      "Temp Read Blocks": 0,
+                      "Temp Written Blocks": 0,
+                      "Plans": [
+                        {
+                          "Node Type": "Append",
+                          "Parent Relationship": "Outer",
+                          "Parallel Aware": false,
+                          "Async Capable": false,
+                          "Startup Cost": 4.49,
+                          "Total Cost": 59.46,
+                          "Plan Rows": 400,
+                          "Plan Width": 52,
+                          "Actual Startup Time": 0.022,
+                          "Actual Total Time": 0.024,
+                          "Actual Rows": 1,
+                          "Actual Loops": 1,
+                          "Shared Hit Blocks": 7,
+                          "Shared Read Blocks": 0,
+                          "Shared Dirtied Blocks": 0,
+                          "Shared Written Blocks": 0,
+                          "Local Hit Blocks": 0,
+                          "Local Read Blocks": 0,
+                          "Local Dirtied Blocks": 0,
+                          "Local Written Blocks": 0,
+                          "Temp Read Blocks": 0,
+                          "Temp Written Blocks": 0,
+                          "Subplans Removed": 0,
+                          "Plans": [
+                            {
+                              "Node Type": "Nested Loop",
+                              "Parent Relationship": "Member",
+                              "Parallel Aware": false,
+                              "Async Capable": false,
+                              "Join Type": "Inner",
+                              "Startup Cost": 4.49,
+                              "Total Cost": 52.76,
+                              "Plan Rows": 350,
+                              "Plan Width": 52,
+                              "Actual Startup Time": 0.022,
+                              "Actual Total Time": 0.023,
+                              "Actual Rows": 1,
+                              "Actual Loops": 1,
+                              "Inner Unique": false,
+                              "Shared Hit Blocks": 7,
+                              "Shared Read Blocks": 0,
+                              "Shared Dirtied Blocks": 0,
+                              "Shared Written Blocks": 0,
+                              "Local Hit Blocks": 0,
+                              "Local Read Blocks": 0,
+                              "Local Dirtied Blocks": 0,
+                              "Local Written Blocks": 0,
+                              "Temp Read Blocks": 0,
+                              "Temp Written Blocks": 0,
+                              "Plans": [
+                                {
+                                  "Node Type": "Nested Loop",
+                                  "Parent Relationship": "Outer",
+                                  "Parallel Aware": false,
+                                  "Async Capable": false,
+                                  "Join Type": "Inner",
+                                  "Startup Cost": 4.21,
+                                  "Total Cost": 14.44,
+                                  "Plan Rows": 7,
+                                  "Plan Width": 16,
+                                  "Actual Startup Time": 0.014,
+                                  "Actual Total Time": 0.015,
+                                  "Actual Rows": 1,
+                                  "Actual Loops": 1,
+                                  "Inner Unique": false,
+                                  "Shared Hit Blocks": 4,
+                                  "Shared Read Blocks": 0,
+                                  "Shared Dirtied Blocks": 0,
+                                  "Shared Written Blocks": 0,
+                                  "Local Hit Blocks": 0,
+                                  "Local Read Blocks": 0,
+                                  "Local Dirtied Blocks": 0,
+                                  "Local Written Blocks": 0,
+                                  "Temp Read Blocks": 0,
+                                  "Temp Written Blocks": 0,
+                                  "Plans": [
+                                    {
+                                      "Node Type": "CTE Scan",
+                                      "Parent Relationship": "Outer",
+                                      "Parallel Aware": false,
+                                      "Async Capable": false,
+                                      "CTE Name": "principal",
+                                      "Alias": "u",
+                                      "Startup Cost": 0.00,
+                                      "Total Cost": 0.02,
+                                      "Plan Rows": 1,
+                                      "Plan Width": 16,
+                                      "Actual Startup Time": 0.011,
+                                      "Actual Total Time": 0.011,
+                                      "Actual Rows": 1,
+                                      "Actual Loops": 1,
+                                      "Filter": "(NOT is_admin)",
+                                      "Rows Removed by Filter": 0,
+                                      "Shared Hit Blocks": 2,
+                                      "Shared Read Blocks": 0,
+                                      "Shared Dirtied Blocks": 0,
+                                      "Shared Written Blocks": 0,
+                                      "Local Hit Blocks": 0,
+                                      "Local Read Blocks": 0,
+                                      "Local Dirtied Blocks": 0,
+                                      "Local Written Blocks": 0,
+                                      "Temp Read Blocks": 0,
+                                      "Temp Written Blocks": 0
+                                    },
+                                    {
+                                      "Node Type": "Bitmap Heap Scan",
+                                      "Parent Relationship": "Inner",
+                                      "Parallel Aware": false,
+                                      "Async Capable": false,
+                                      "Relation Name": "library_acl",
+                                      "Alias": "a",
+                                      "Startup Cost": 4.21,
+                                      "Total Cost": 14.35,
+                                      "Plan Rows": 7,
+                                      "Plan Width": 32,
+                                      "Actual Startup Time": 0.002,
+                                      "Actual Total Time": 0.002,
+                                      "Actual Rows": 1,
+                                      "Actual Loops": 1,
+                                      "Recheck Cond": "(user_id = u.id)",
+                                      "Rows Removed by Index Recheck": 0,
+                                      "Exact Heap Blocks": 1,
+                                      "Lossy Heap Blocks": 0,
+                                      "Shared Hit Blocks": 2,
+                                      "Shared Read Blocks": 0,
+                                      "Shared Dirtied Blocks": 0,
+                                      "Shared Written Blocks": 0,
+                                      "Local Hit Blocks": 0,
+                                      "Local Read Blocks": 0,
+                                      "Local Dirtied Blocks": 0,
+                                      "Local Written Blocks": 0,
+                                      "Temp Read Blocks": 0,
+                                      "Temp Written Blocks": 0,
+                                      "Plans": [
+                                        {
+                                          "Node Type": "Bitmap Index Scan",
+                                          "Parent Relationship": "Outer",
+                                          "Parallel Aware": false,
+                                          "Async Capable": false,
+                                          "Index Name": "library_acl_pkey",
+                                          "Startup Cost": 0.00,
+                                          "Total Cost": 4.21,
+                                          "Plan Rows": 7,
+                                          "Plan Width": 0,
+                                          "Actual Startup Time": 0.001,
+                                          "Actual Total Time": 0.001,
+                                          "Actual Rows": 1,
+                                          "Actual Loops": 1,
+                                          "Index Cond": "(user_id = u.id)",
+                                          "Shared Hit Blocks": 1,
+                                          "Shared Read Blocks": 0,
+                                          "Shared Dirtied Blocks": 0,
+                                          "Shared Written Blocks": 0,
+                                          "Local Hit Blocks": 0,
+                                          "Local Read Blocks": 0,
+                                          "Local Dirtied Blocks": 0,
+                                          "Local Written Blocks": 0,
+                                          "Temp Read Blocks": 0,
+                                          "Temp Written Blocks": 0
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                },
+                                {
+                                  "Node Type": "Limit",
+                                  "Parent Relationship": "Inner",
+                                  "Parallel Aware": false,
+                                  "Async Capable": false,
+                                  "Startup Cost": 0.29,
+                                  "Total Cost": 4.97,
+                                  "Plan Rows": 50,
+                                  "Plan Width": 52,
+                                  "Actual Startup Time": 0.007,
+                                  "Actual Total Time": 0.008,
+                                  "Actual Rows": 1,
+                                  "Actual Loops": 1,
+                                  "Shared Hit Blocks": 3,
+                                  "Shared Read Blocks": 0,
+                                  "Shared Dirtied Blocks": 0,
+                                  "Shared Written Blocks": 0,
+                                  "Local Hit Blocks": 0,
+                                  "Local Read Blocks": 0,
+                                  "Local Dirtied Blocks": 0,
+                                  "Local Written Blocks": 0,
+                                  "Temp Read Blocks": 0,
+                                  "Temp Written Blocks": 0,
+                                  "Plans": [
+                                    {
+                                      "Node Type": "Index Scan",
+                                      "Parent Relationship": "Outer",
+                                      "Parallel Aware": false,
+                                      "Async Capable": false,
+                                      "Scan Direction": "Forward",
+                                      "Index Name": "items_library_id_idx",
+                                      "Relation Name": "items",
+                                      "Alias": "items",
+                                      "Startup Cost": 0.29,
+                                      "Total Cost": 469.24,
+                                      "Plan Rows": 5001,
+                                      "Plan Width": 52,
+                                      "Actual Startup Time": 0.007,
+                                      "Actual Total Time": 0.007,
+                                      "Actual Rows": 1,
+                                      "Actual Loops": 1,
+                                      "Index Cond": "((library_id = a.library_id) AND (id > '00000000-0000-0000-0000-000000000000'::uuid))",
+                                      "Rows Removed by Index Recheck": 0,
+                                      "Shared Hit Blocks": 3,
+                                      "Shared Read Blocks": 0,
+                                      "Shared Dirtied Blocks": 0,
+                                      "Shared Written Blocks": 0,
+                                      "Local Hit Blocks": 0,
+                                      "Local Read Blocks": 0,
+                                      "Local Dirtied Blocks": 0,
+                                      "Local Written Blocks": 0,
+                                      "Temp Read Blocks": 0,
+                                      "Temp Written Blocks": 0
+                                    }
+                                  ]
+                                }
+                              ]
+                            },
+                            {
+                              "Node Type": "Nested Loop",
+                              "Parent Relationship": "Member",
+                              "Parallel Aware": false,
+                              "Async Capable": false,
+                              "Join Type": "Inner",
+                              "Startup Cost": 0.29,
+                              "Total Cost": 4.70,
+                              "Plan Rows": 50,
+                              "Plan Width": 52,
+                              "Actual Startup Time": 0.001,
+                              "Actual Total Time": 0.001,
+                              "Actual Rows": 0,
+                              "Actual Loops": 1,
+                              "Inner Unique": false,
+                              "Shared Hit Blocks": 0,
+                              "Shared Read Blocks": 0,
+                              "Shared Dirtied Blocks": 0,
+                              "Shared Written Blocks": 0,
+                              "Local Hit Blocks": 0,
+                              "Local Read Blocks": 0,
+                              "Local Dirtied Blocks": 0,
+                              "Local Written Blocks": 0,
+                              "Temp Read Blocks": 0,
+                              "Temp Written Blocks": 0,
+                              "Plans": [
+                                {
+                                  "Node Type": "CTE Scan",
+                                  "Parent Relationship": "Outer",
+                                  "Parallel Aware": false,
+                                  "Async Capable": false,
+                                  "CTE Name": "principal",
+                                  "Alias": "u_1",
+                                  "Startup Cost": 0.00,
+                                  "Total Cost": 0.02,
+                                  "Plan Rows": 1,
+                                  "Plan Width": 0,
+                                  "Actual Startup Time": 0.001,
+                                  "Actual Total Time": 0.001,
+                                  "Actual Rows": 0,
+                                  "Actual Loops": 1,
+                                  "Filter": "is_admin",
+                                  "Rows Removed by Filter": 1,
+                                  "Shared Hit Blocks": 0,
+                                  "Shared Read Blocks": 0,
+                                  "Shared Dirtied Blocks": 0,
+                                  "Shared Written Blocks": 0,
+                                  "Local Hit Blocks": 0,
+                                  "Local Read Blocks": 0,
+                                  "Local Dirtied Blocks": 0,
+                                  "Local Written Blocks": 0,
+                                  "Temp Read Blocks": 0,
+                                  "Temp Written Blocks": 0
+                                },
+                                {
+                                  "Node Type": "Limit",
+                                  "Parent Relationship": "Inner",
+                                  "Parallel Aware": false,
+                                  "Async Capable": false,
+                                  "Startup Cost": 0.29,
+                                  "Total Cost": 4.18,
+                                  "Plan Rows": 50,
+                                  "Plan Width": 52,
+                                  "Actual Startup Time": 0.000,
+                                  "Actual Total Time": 0.000,
+                                  "Actual Rows": 0,
+                                  "Actual Loops": 0,
+                                  "Shared Hit Blocks": 0,
+                                  "Shared Read Blocks": 0,
+                                  "Shared Dirtied Blocks": 0,
+                                  "Shared Written Blocks": 0,
+                                  "Local Hit Blocks": 0,
+                                  "Local Read Blocks": 0,
+                                  "Local Dirtied Blocks": 0,
+                                  "Local Written Blocks": 0,
+                                  "Temp Read Blocks": 0,
+                                  "Temp Written Blocks": 0,
+                                  "Plans": [
+                                    {
+                                      "Node Type": "Index Scan",
+                                      "Parent Relationship": "Outer",
+                                      "Parallel Aware": false,
+                                      "Async Capable": false,
+                                      "Scan Direction": "Forward",
+                                      "Index Name": "items_pkey",
+                                      "Relation Name": "items",
+                                      "Alias": "items_1",
+                                      "Startup Cost": 0.29,
+                                      "Total Cost": 779.28,
+                                      "Plan Rows": 10002,
+                                      "Plan Width": 52,
+                                      "Actual Startup Time": 0.000,
+                                      "Actual Total Time": 0.000,
+                                      "Actual Rows": 0,
+                                      "Actual Loops": 0,
+                                      "Index Cond": "(id > '00000000-0000-0000-0000-000000000000'::uuid)",
+                                      "Rows Removed by Index Recheck": 0,
+                                      "Shared Hit Blocks": 0,
+                                      "Shared Read Blocks": 0,
+                                      "Shared Dirtied Blocks": 0,
+                                      "Shared Written Blocks": 0,
+                                      "Local Hit Blocks": 0,
+                                      "Local Read Blocks": 0,
+                                      "Local Dirtied Blocks": 0,
+                                      "Local Written Blocks": 0,
+                                      "Temp Read Blocks": 0,
+                                      "Temp Written Blocks": 0
+                                    }
+                                  ]
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            "Planning": {
+              "Shared Hit Blocks": 6,
+              "Shared Read Blocks": 0,
+              "Shared Dirtied Blocks": 0,
+              "Shared Written Blocks": 0,
+              "Local Hit Blocks": 0,
+              "Local Read Blocks": 0,
+              "Local Dirtied Blocks": 0,
+              "Local Written Blocks": 0,
+              "Temp Read Blocks": 0,
+              "Temp Written Blocks": 0
+            },
+            "Planning Time": 0.234,
+            "Triggers": [
+            ],
+            "Execution Time": 0.096
+          }
+        ]
+=== RUN   TestPostgresIntegration/revocation_and_cancellation_apply_before_media_lookup
+--- PASS: TestPostgresIntegration (5.77s)
+    --- PASS: TestPostgresIntegration/migration_lock_contention_is_bounded (5.03s)
+    --- PASS: TestPostgresIntegration/credentials_are_hashed_and_lifecycle_enforced (0.01s)
+    --- PASS: TestPostgresIntegration/ACL_filters_lists_details_and_streams_in_SQL (0.01s)
+    --- PASS: TestPostgresIntegration/constraints_and_failed_imports_are_atomic (0.01s)
+    --- PASS: TestPostgresIntegration/ten_thousand_items_plan_and_bounded_visible_page (0.21s)
+    --- PASS: TestPostgresIntegration/revocation_and_cancellation_apply_before_media_lookup (0.00s)
+PASS
+coverage: 74.5% of statements
+ok  	github.com/MoYuanCN/Jelee/internal/adapter/postgres	8.704s	coverage: 74.5% of statements
+=== RUN   TestAccountsConstructorRejectsInvalidSecurityPolicy
+--- PASS: TestAccountsConstructorRejectsInvalidSecurityPolicy (0.00s)
+=== RUN   TestAccountsLoginCostAndFailureAccounting
+=== RUN   TestAccountsLoginCostAndFailureAccounting/unknown
+=== RUN   TestAccountsLoginCostAndFailureAccounting/legacy-without-hash
+=== RUN   TestAccountsLoginCostAndFailureAccounting/wrong-password
+=== RUN   TestAccountsLoginCostAndFailureAccounting/corrupt-hash
+=== RUN   TestAccountsLoginCostAndFailureAccounting/disabled-user-still-pays-KDF
+=== RUN   TestAccountsLoginCostAndFailureAccounting/successful-password
+--- PASS: TestAccountsLoginCostAndFailureAccounting (0.00s)
+    --- PASS: TestAccountsLoginCostAndFailureAccounting/unknown (0.00s)
+    --- PASS: TestAccountsLoginCostAndFailureAccounting/legacy-without-hash (0.00s)
+    --- PASS: TestAccountsLoginCostAndFailureAccounting/wrong-password (0.00s)
+    --- PASS: TestAccountsLoginCostAndFailureAccounting/corrupt-hash (0.00s)
+    --- PASS: TestAccountsLoginCostAndFailureAccounting/disabled-user-still-pays-KDF (0.00s)
+    --- PASS: TestAccountsLoginCostAndFailureAccounting/successful-password (0.00s)
+=== RUN   TestAccountsLoginCancellationCannotIssueToken
+--- PASS: TestAccountsLoginCancellationCannotIssueToken (0.00s)
+=== RUN   TestAccountsCreateHashesPasswordAndUpdateCannotInjectHash
+--- PASS: TestAccountsCreateHashesPasswordAndUpdateCannotInjectHash (0.00s)
+=== RUN   TestAccountsPasswordChangeVerifiesOldAndPreservesCASSnapshot
+=== RUN   TestAccountsPasswordChangeVerifiesOldAndPreservesCASSnapshot/wrong-old
+=== RUN   TestAccountsPasswordChangeVerifiesOldAndPreservesCASSnapshot/legacy
+=== RUN   TestAccountsPasswordChangeVerifiesOldAndPreservesCASSnapshot/invalid-old-hash
+--- PASS: TestAccountsPasswordChangeVerifiesOldAndPreservesCASSnapshot (0.00s)
+    --- PASS: TestAccountsPasswordChangeVerifiesOldAndPreservesCASSnapshot/wrong-old (0.00s)
+    --- PASS: TestAccountsPasswordChangeVerifiesOldAndPreservesCASSnapshot/legacy (0.00s)
+    --- PASS: TestAccountsPasswordChangeVerifiesOldAndPreservesCASSnapshot/invalid-old-hash (0.00s)
+=== RUN   TestAccountsRejectInvalidActorAcrossOperationsBeforeWork
+=== RUN   TestAccountsRejectInvalidActorAcrossOperationsBeforeWork/get
+=== RUN   TestAccountsRejectInvalidActorAcrossOperationsBeforeWork/delete
+=== RUN   TestAccountsRejectInvalidActorAcrossOperationsBeforeWork/revoke-all
+=== RUN   TestAccountsRejectInvalidActorAcrossOperationsBeforeWork/rotate
+=== RUN   TestAccountsRejectInvalidActorAcrossOperationsBeforeWork/profile
+=== RUN   TestAccountsRejectInvalidActorAcrossOperationsBeforeWork/restore
+=== RUN   TestAccountsRejectInvalidActorAcrossOperationsBeforeWork/change-password
+=== RUN   TestAccountsRejectInvalidActorAcrossOperationsBeforeWork/revoke
+=== RUN   TestAccountsRejectInvalidActorAcrossOperationsBeforeWork/create
+=== RUN   TestAccountsRejectInvalidActorAcrossOperationsBeforeWork/list
+=== RUN   TestAccountsRejectInvalidActorAcrossOperationsBeforeWork/update
+=== RUN   TestAccountsRejectInvalidActorAcrossOperationsBeforeWork/unlock
+=== RUN   TestAccountsRejectInvalidActorAcrossOperationsBeforeWork/libraries
+=== RUN   TestAccountsRejectInvalidActorAcrossOperationsBeforeWork/sessions
+=== RUN   TestAccountsRejectInvalidActorAcrossOperationsBeforeWork/set-libraries
+=== RUN   TestAccountsRejectInvalidActorAcrossOperationsBeforeWork/profile#01
+=== RUN   TestAccountsRejectInvalidActorAcrossOperationsBeforeWork/restore#01
+=== RUN   TestAccountsRejectInvalidActorAcrossOperationsBeforeWork/change-password#01
+=== RUN   TestAccountsRejectInvalidActorAcrossOperationsBeforeWork/revoke#01
+=== RUN   TestAccountsRejectInvalidActorAcrossOperationsBeforeWork/create#01
+=== RUN   TestAccountsRejectInvalidActorAcrossOperationsBeforeWork/list#01
+=== RUN   TestAccountsRejectInvalidActorAcrossOperationsBeforeWork/update#01
+=== RUN   TestAccountsRejectInvalidActorAcrossOperationsBeforeWork/unlock#01
+=== RUN   TestAccountsRejectInvalidActorAcrossOperationsBeforeWork/libraries#01
+=== RUN   TestAccountsRejectInvalidActorAcrossOperationsBeforeWork/sessions#01
+=== RUN   TestAccountsRejectInvalidActorAcrossOperationsBeforeWork/set-libraries#01
+=== RUN   TestAccountsRejectInvalidActorAcrossOperationsBeforeWork/get#01
+=== RUN   TestAccountsRejectInvalidActorAcrossOperationsBeforeWork/delete#01
+=== RUN   TestAccountsRejectInvalidActorAcrossOperationsBeforeWork/revoke-all#01
+=== RUN   TestAccountsRejectInvalidActorAcrossOperationsBeforeWork/rotate#01
+=== RUN   TestAccountsRejectInvalidActorAcrossOperationsBeforeWork/profile#02
+=== RUN   TestAccountsRejectInvalidActorAcrossOperationsBeforeWork/restore#02
+=== RUN   TestAccountsRejectInvalidActorAcrossOperationsBeforeWork/change-password#02
+=== RUN   TestAccountsRejectInvalidActorAcrossOperationsBeforeWork/revoke#02
+=== RUN   TestAccountsRejectInvalidActorAcrossOperationsBeforeWork/create#02
+=== RUN   TestAccountsRejectInvalidActorAcrossOperationsBeforeWork/list#02
+=== RUN   TestAccountsRejectInvalidActorAcrossOperationsBeforeWork/update#02
+=== RUN   TestAccountsRejectInvalidActorAcrossOperationsBeforeWork/unlock#02
+=== RUN   TestAccountsRejectInvalidActorAcrossOperationsBeforeWork/libraries#02
+=== RUN   TestAccountsRejectInvalidActorAcrossOperationsBeforeWork/sessions#02
+=== RUN   TestAccountsRejectInvalidActorAcrossOperationsBeforeWork/set-libraries#02
+=== RUN   TestAccountsRejectInvalidActorAcrossOperationsBeforeWork/get#02
+=== RUN   TestAccountsRejectInvalidActorAcrossOperationsBeforeWork/delete#02
+=== RUN   TestAccountsRejectInvalidActorAcrossOperationsBeforeWork/revoke-all#02
+=== RUN   TestAccountsRejectInvalidActorAcrossOperationsBeforeWork/rotate#02
+=== RUN   TestAccountsRejectInvalidActorAcrossOperationsBeforeWork/sessions#03
+=== RUN   TestAccountsRejectInvalidActorAcrossOperationsBeforeWork/set-libraries#03
+=== RUN   TestAccountsRejectInvalidActorAcrossOperationsBeforeWork/get#03
+=== RUN   TestAccountsRejectInvalidActorAcrossOperationsBeforeWork/delete#03
+=== RUN   TestAccountsRejectInvalidActorAcrossOperationsBeforeWork/revoke-all#03
+=== RUN   TestAccountsRejectInvalidActorAcrossOperationsBeforeWork/rotate#03
+=== RUN   TestAccountsRejectInvalidActorAcrossOperationsBeforeWork/profile#03
+=== RUN   TestAccountsRejectInvalidActorAcrossOperationsBeforeWork/restore#03
+=== RUN   TestAccountsRejectInvalidActorAcrossOperationsBeforeWork/change-password#03
+=== RUN   TestAccountsRejectInvalidActorAcrossOperationsBeforeWork/revoke#03
+=== RUN   TestAccountsRejectInvalidActorAcrossOperationsBeforeWork/create#03
+=== RUN   TestAccountsRejectInvalidActorAcrossOperationsBeforeWork/list#03
+=== RUN   TestAccountsRejectInvalidActorAcrossOperationsBeforeWork/update#03
+=== RUN   TestAccountsRejectInvalidActorAcrossOperationsBeforeWork/unlock#03
+=== RUN   TestAccountsRejectInvalidActorAcrossOperationsBeforeWork/libraries#03
+=== RUN   TestAccountsRejectInvalidActorAcrossOperationsBeforeWork/profile#04
+=== RUN   TestAccountsRejectInvalidActorAcrossOperationsBeforeWork/restore#04
+=== RUN   TestAccountsRejectInvalidActorAcrossOperationsBeforeWork/change-password#04
+=== RUN   TestAccountsRejectInvalidActorAcrossOperationsBeforeWork/revoke#04
+=== RUN   TestAccountsRejectInvalidActorAcrossOperationsBeforeWork/create#04
+=== RUN   TestAccountsRejectInvalidActorAcrossOperationsBeforeWork/list#04
+=== RUN   TestAccountsRejectInvalidActorAcrossOperationsBeforeWork/update#04
+=== RUN   TestAccountsRejectInvalidActorAcrossOperationsBeforeWork/unlock#04
+=== RUN   TestAccountsRejectInvalidActorAcrossOperationsBeforeWork/libraries#04
+=== RUN   TestAccountsRejectInvalidActorAcrossOperationsBeforeWork/sessions#04
+=== RUN   TestAccountsRejectInvalidActorAcrossOperationsBeforeWork/set-libraries#04
+=== RUN   TestAccountsRejectInvalidActorAcrossOperationsBeforeWork/get#04
+=== RUN   TestAccountsRejectInvalidActorAcrossOperationsBeforeWork/delete#04
+=== RUN   TestAccountsRejectInvalidActorAcrossOperationsBeforeWork/revoke-all#04
+=== RUN   TestAccountsRejectInvalidActorAcrossOperationsBeforeWork/rotate#04
+--- PASS: TestAccountsRejectInvalidActorAcrossOperationsBeforeWork (0.01s)
+    --- PASS: TestAccountsRejectInvalidActorAcrossOperationsBeforeWork/get (0.00s)
+    --- PASS: TestAccountsRejectInvalidActorAcrossOperationsBeforeWork/delete (0.00s)
+    --- PASS: TestAccountsRejectInvalidActorAcrossOperationsBeforeWork/revoke-all (0.00s)
+    --- PASS: TestAccountsRejectInvalidActorAcrossOperationsBeforeWork/rotate (0.00s)
+    --- PASS: TestAccountsRejectInvalidActorAcrossOperationsBeforeWork/profile (0.00s)
+    --- PASS: TestAccountsRejectInvalidActorAcrossOperationsBeforeWork/restore (0.00s)
+    --- PASS: TestAccountsRejectInvalidActorAcrossOperationsBeforeWork/change-password (0.00s)
+    --- PASS: TestAccountsRejectInvalidActorAcrossOperationsBeforeWork/revoke (0.00s)
+    --- PASS: TestAccountsRejectInvalidActorAcrossOperationsBeforeWork/create (0.00s)
+    --- PASS: TestAccountsRejectInvalidActorAcrossOperationsBeforeWork/list (0.00s)
+    --- PASS: TestAccountsRejectInvalidActorAcrossOperationsBeforeWork/update (0.00s)
+    --- PASS: TestAccountsRejectInvalidActorAcrossOperationsBeforeWork/unlock (0.00s)
+    --- PASS: TestAccountsRejectInvalidActorAcrossOperationsBeforeWork/libraries (0.00s)
+    --- PASS: TestAccountsRejectInvalidActorAcrossOperationsBeforeWork/sessions (0.00s)
+    --- PASS: TestAccountsRejectInvalidActorAcrossOperationsBeforeWork/set-libraries (0.00s)
+    --- PASS: TestAccountsRejectInvalidActorAcrossOperationsBeforeWork/profile#01 (0.00s)
+    --- PASS: TestAccountsRejectInvalidActorAcrossOperationsBeforeWork/restore#01 (0.00s)
+    --- PASS: TestAccountsRejectInvalidActorAcrossOperationsBeforeWork/change-password#01 (0.00s)
+    --- PASS: TestAccountsRejectInvalidActorAcrossOperationsBeforeWork/revoke#01 (0.00s)
+    --- PASS: TestAccountsRejectInvalidActorAcrossOperationsBeforeWork/create#01 (0.00s)
+    --- PASS: TestAccountsRejectInvalidActorAcrossOperationsBeforeWork/list#01 (0.00s)
+    --- PASS: TestAccountsRejectInvalidActorAcrossOperationsBeforeWork/update#01 (0.00s)
+    --- PASS: TestAccountsRejectInvalidActorAcrossOperationsBeforeWork/unlock#01 (0.00s)
+    --- PASS: TestAccountsRejectInvalidActorAcrossOperationsBeforeWork/libraries#01 (0.00s)
+    --- PASS: TestAccountsRejectInvalidActorAcrossOperationsBeforeWork/sessions#01 (0.00s)
+    --- PASS: TestAccountsRejectInvalidActorAcrossOperationsBeforeWork/set-libraries#01 (0.00s)
+    --- PASS: TestAccountsRejectInvalidActorAcrossOperationsBeforeWork/get#01 (0.00s)
+    --- PASS: TestAccountsRejectInvalidActorAcrossOperationsBeforeWork/delete#01 (0.00s)
+    --- PASS: TestAccountsRejectInvalidActorAcrossOperationsBeforeWork/revoke-all#01 (0.00s)
+    --- PASS: TestAccountsRejectInvalidActorAcrossOperationsBeforeWork/rotate#01 (0.00s)
+    --- PASS: TestAccountsRejectInvalidActorAcrossOperationsBeforeWork/profile#02 (0.00s)
+    --- PASS: TestAccountsRejectInvalidActorAcrossOperationsBeforeWork/restore#02 (0.00s)
+    --- PASS: TestAccountsRejectInvalidActorAcrossOperationsBeforeWork/change-password#02 (0.00s)
+    --- PASS: TestAccountsRejectInvalidActorAcrossOperationsBeforeWork/revoke#02 (0.00s)
+    --- PASS: TestAccountsRejectInvalidActorAcrossOperationsBeforeWork/create#02 (0.00s)
+    --- PASS: TestAccountsRejectInvalidActorAcrossOperationsBeforeWork/list#02 (0.00s)
+    --- PASS: TestAccountsRejectInvalidActorAcrossOperationsBeforeWork/update#02 (0.00s)
+    --- PASS: TestAccountsRejectInvalidActorAcrossOperationsBeforeWork/unlock#02 (0.00s)
+    --- PASS: TestAccountsRejectInvalidActorAcrossOperationsBeforeWork/libraries#02 (0.00s)
+    --- PASS: TestAccountsRejectInvalidActorAcrossOperationsBeforeWork/sessions#02 (0.00s)
+    --- PASS: TestAccountsRejectInvalidActorAcrossOperationsBeforeWork/set-libraries#02 (0.00s)
+    --- PASS: TestAccountsRejectInvalidActorAcrossOperationsBeforeWork/get#02 (0.00s)
+    --- PASS: TestAccountsRejectInvalidActorAcrossOperationsBeforeWork/delete#02 (0.00s)
+    --- PASS: TestAccountsRejectInvalidActorAcrossOperationsBeforeWork/revoke-all#02 (0.00s)
+    --- PASS: TestAccountsRejectInvalidActorAcrossOperationsBeforeWork/rotate#02 (0.00s)
+    --- PASS: TestAccountsRejectInvalidActorAcrossOperationsBeforeWork/sessions#03 (0.00s)
+    --- PASS: TestAccountsRejectInvalidActorAcrossOperationsBeforeWork/set-libraries#03 (0.00s)
+    --- PASS: TestAccountsRejectInvalidActorAcrossOperationsBeforeWork/get#03 (0.00s)
+    --- PASS: TestAccountsRejectInvalidActorAcrossOperationsBeforeWork/delete#03 (0.00s)
+    --- PASS: TestAccountsRejectInvalidActorAcrossOperationsBeforeWork/revoke-all#03 (0.00s)
+    --- PASS: TestAccountsRejectInvalidActorAcrossOperationsBeforeWork/rotate#03 (0.00s)
+    --- PASS: TestAccountsRejectInvalidActorAcrossOperationsBeforeWork/profile#03 (0.00s)
+    --- PASS: TestAccountsRejectInvalidActorAcrossOperationsBeforeWork/restore#03 (0.00s)
+    --- PASS: TestAccountsRejectInvalidActorAcrossOperationsBeforeWork/change-password#03 (0.00s)
+    --- PASS: TestAccountsRejectInvalidActorAcrossOperationsBeforeWork/revoke#03 (0.00s)
+    --- PASS: TestAccountsRejectInvalidActorAcrossOperationsBeforeWork/create#03 (0.00s)
+    --- PASS: TestAccountsRejectInvalidActorAcrossOperationsBeforeWork/list#03 (0.00s)
+    --- PASS: TestAccountsRejectInvalidActorAcrossOperationsBeforeWork/update#03 (0.00s)
+    --- PASS: TestAccountsRejectInvalidActorAcrossOperationsBeforeWork/unlock#03 (0.00s)
+    --- PASS: TestAccountsRejectInvalidActorAcrossOperationsBeforeWork/libraries#03 (0.00s)
+    --- PASS: TestAccountsRejectInvalidActorAcrossOperationsBeforeWork/profile#04 (0.00s)
+    --- PASS: TestAccountsRejectInvalidActorAcrossOperationsBeforeWork/restore#04 (0.00s)
+    --- PASS: TestAccountsRejectInvalidActorAcrossOperationsBeforeWork/change-password#04 (0.00s)
+    --- PASS: TestAccountsRejectInvalidActorAcrossOperationsBeforeWork/revoke#04 (0.00s)
+    --- PASS: TestAccountsRejectInvalidActorAcrossOperationsBeforeWork/create#04 (0.00s)
+    --- PASS: TestAccountsRejectInvalidActorAcrossOperationsBeforeWork/list#04 (0.00s)
+    --- PASS: TestAccountsRejectInvalidActorAcrossOperationsBeforeWork/update#04 (0.00s)
+    --- PASS: TestAccountsRejectInvalidActorAcrossOperationsBeforeWork/unlock#04 (0.00s)
+    --- PASS: TestAccountsRejectInvalidActorAcrossOperationsBeforeWork/libraries#04 (0.00s)
+    --- PASS: TestAccountsRejectInvalidActorAcrossOperationsBeforeWork/sessions#04 (0.00s)
+    --- PASS: TestAccountsRejectInvalidActorAcrossOperationsBeforeWork/set-libraries#04 (0.00s)
+    --- PASS: TestAccountsRejectInvalidActorAcrossOperationsBeforeWork/get#04 (0.00s)
+    --- PASS: TestAccountsRejectInvalidActorAcrossOperationsBeforeWork/delete#04 (0.00s)
+    --- PASS: TestAccountsRejectInvalidActorAcrossOperationsBeforeWork/revoke-all#04 (0.00s)
+    --- PASS: TestAccountsRejectInvalidActorAcrossOperationsBeforeWork/rotate#04 (0.00s)
+=== RUN   TestAccountsRejectInvalidTargetsPagesKeysLocaleAndACLBeforeWork
+=== RUN   TestAccountsRejectInvalidTargetsPagesKeysLocaleAndACLBeforeWork/sessions
+=== RUN   TestAccountsRejectInvalidTargetsPagesKeysLocaleAndACLBeforeWork/revoke-user
+=== RUN   TestAccountsRejectInvalidTargetsPagesKeysLocaleAndACLBeforeWork/revoke-session
+=== RUN   TestAccountsRejectInvalidTargetsPagesKeysLocaleAndACLBeforeWork/revoke-all
+=== RUN   TestAccountsRejectInvalidTargetsPagesKeysLocaleAndACLBeforeWork/set-libraries
+=== RUN   TestAccountsRejectInvalidTargetsPagesKeysLocaleAndACLBeforeWork/get
+=== RUN   TestAccountsRejectInvalidTargetsPagesKeysLocaleAndACLBeforeWork/update
+=== RUN   TestAccountsRejectInvalidTargetsPagesKeysLocaleAndACLBeforeWork/delete
+=== RUN   TestAccountsRejectInvalidTargetsPagesKeysLocaleAndACLBeforeWork/restore
+=== RUN   TestAccountsRejectInvalidTargetsPagesKeysLocaleAndACLBeforeWork/unlock
+=== RUN   TestAccountsRejectInvalidTargetsPagesKeysLocaleAndACLBeforeWork/libraries
+=== RUN   TestAccountsRejectInvalidTargetsPagesKeysLocaleAndACLBeforeWork/get#01
+=== RUN   TestAccountsRejectInvalidTargetsPagesKeysLocaleAndACLBeforeWork/update#01
+=== RUN   TestAccountsRejectInvalidTargetsPagesKeysLocaleAndACLBeforeWork/delete#01
+=== RUN   TestAccountsRejectInvalidTargetsPagesKeysLocaleAndACLBeforeWork/restore#01
+=== RUN   TestAccountsRejectInvalidTargetsPagesKeysLocaleAndACLBeforeWork/sessions#01
+=== RUN   TestAccountsRejectInvalidTargetsPagesKeysLocaleAndACLBeforeWork/revoke-all#01
+=== RUN   TestAccountsRejectInvalidTargetsPagesKeysLocaleAndACLBeforeWork/libraries#01
+=== RUN   TestAccountsRejectInvalidTargetsPagesKeysLocaleAndACLBeforeWork/set-libraries#01
+=== RUN   TestAccountsRejectInvalidTargetsPagesKeysLocaleAndACLBeforeWork/unlock#01
+=== RUN   TestAccountsRejectInvalidTargetsPagesKeysLocaleAndACLBeforeWork/revoke-user#01
+=== RUN   TestAccountsRejectInvalidTargetsPagesKeysLocaleAndACLBeforeWork/revoke-session#01
+=== RUN   TestAccountsRejectInvalidTargetsPagesKeysLocaleAndACLBeforeWork/get#02
+=== RUN   TestAccountsRejectInvalidTargetsPagesKeysLocaleAndACLBeforeWork/update#02
+=== RUN   TestAccountsRejectInvalidTargetsPagesKeysLocaleAndACLBeforeWork/delete#02
+=== RUN   TestAccountsRejectInvalidTargetsPagesKeysLocaleAndACLBeforeWork/revoke-all#02
+=== RUN   TestAccountsRejectInvalidTargetsPagesKeysLocaleAndACLBeforeWork/libraries#02
+=== RUN   TestAccountsRejectInvalidTargetsPagesKeysLocaleAndACLBeforeWork/restore#02
+=== RUN   TestAccountsRejectInvalidTargetsPagesKeysLocaleAndACLBeforeWork/unlock#02
+=== RUN   TestAccountsRejectInvalidTargetsPagesKeysLocaleAndACLBeforeWork/sessions#02
+=== RUN   TestAccountsRejectInvalidTargetsPagesKeysLocaleAndACLBeforeWork/revoke-user#02
+=== RUN   TestAccountsRejectInvalidTargetsPagesKeysLocaleAndACLBeforeWork/revoke-session#02
+=== RUN   TestAccountsRejectInvalidTargetsPagesKeysLocaleAndACLBeforeWork/set-libraries#02
+--- PASS: TestAccountsRejectInvalidTargetsPagesKeysLocaleAndACLBeforeWork (0.01s)
+    --- PASS: TestAccountsRejectInvalidTargetsPagesKeysLocaleAndACLBeforeWork/sessions (0.00s)
+    --- PASS: TestAccountsRejectInvalidTargetsPagesKeysLocaleAndACLBeforeWork/revoke-user (0.00s)
+    --- PASS: TestAccountsRejectInvalidTargetsPagesKeysLocaleAndACLBeforeWork/revoke-session (0.00s)
+    --- PASS: TestAccountsRejectInvalidTargetsPagesKeysLocaleAndACLBeforeWork/revoke-all (0.00s)
+    --- PASS: TestAccountsRejectInvalidTargetsPagesKeysLocaleAndACLBeforeWork/set-libraries (0.00s)
+    --- PASS: TestAccountsRejectInvalidTargetsPagesKeysLocaleAndACLBeforeWork/get (0.00s)
+    --- PASS: TestAccountsRejectInvalidTargetsPagesKeysLocaleAndACLBeforeWork/update (0.00s)
+    --- PASS: TestAccountsRejectInvalidTargetsPagesKeysLocaleAndACLBeforeWork/delete (0.00s)
+    --- PASS: TestAccountsRejectInvalidTargetsPagesKeysLocaleAndACLBeforeWork/restore (0.00s)
+    --- PASS: TestAccountsRejectInvalidTargetsPagesKeysLocaleAndACLBeforeWork/unlock (0.00s)
+    --- PASS: TestAccountsRejectInvalidTargetsPagesKeysLocaleAndACLBeforeWork/libraries (0.00s)
+    --- PASS: TestAccountsRejectInvalidTargetsPagesKeysLocaleAndACLBeforeWork/get#01 (0.00s)
+    --- PASS: TestAccountsRejectInvalidTargetsPagesKeysLocaleAndACLBeforeWork/update#01 (0.00s)
+    --- PASS: TestAccountsRejectInvalidTargetsPagesKeysLocaleAndACLBeforeWork/delete#01 (0.00s)
+    --- PASS: TestAccountsRejectInvalidTargetsPagesKeysLocaleAndACLBeforeWork/restore#01 (0.00s)
+    --- PASS: TestAccountsRejectInvalidTargetsPagesKeysLocaleAndACLBeforeWork/sessions#01 (0.00s)
+    --- PASS: TestAccountsRejectInvalidTargetsPagesKeysLocaleAndACLBeforeWork/revoke-all#01 (0.00s)
+    --- PASS: TestAccountsRejectInvalidTargetsPagesKeysLocaleAndACLBeforeWork/libraries#01 (0.00s)
+    --- PASS: TestAccountsRejectInvalidTargetsPagesKeysLocaleAndACLBeforeWork/set-libraries#01 (0.00s)
+    --- PASS: TestAccountsRejectInvalidTargetsPagesKeysLocaleAndACLBeforeWork/unlock#01 (0.00s)
+    --- PASS: TestAccountsRejectInvalidTargetsPagesKeysLocaleAndACLBeforeWork/revoke-user#01 (0.00s)
+    --- PASS: TestAccountsRejectInvalidTargetsPagesKeysLocaleAndACLBeforeWork/revoke-session#01 (0.00s)
+    --- PASS: TestAccountsRejectInvalidTargetsPagesKeysLocaleAndACLBeforeWork/get#02 (0.00s)
+    --- PASS: TestAccountsRejectInvalidTargetsPagesKeysLocaleAndACLBeforeWork/update#02 (0.00s)
+    --- PASS: TestAccountsRejectInvalidTargetsPagesKeysLocaleAndACLBeforeWork/delete#02 (0.00s)
+    --- PASS: TestAccountsRejectInvalidTargetsPagesKeysLocaleAndACLBeforeWork/revoke-all#02 (0.00s)
+    --- PASS: TestAccountsRejectInvalidTargetsPagesKeysLocaleAndACLBeforeWork/libraries#02 (0.00s)
+    --- PASS: TestAccountsRejectInvalidTargetsPagesKeysLocaleAndACLBeforeWork/restore#02 (0.00s)
+    --- PASS: TestAccountsRejectInvalidTargetsPagesKeysLocaleAndACLBeforeWork/unlock#02 (0.00s)
+    --- PASS: TestAccountsRejectInvalidTargetsPagesKeysLocaleAndACLBeforeWork/sessions#02 (0.00s)
+    --- PASS: TestAccountsRejectInvalidTargetsPagesKeysLocaleAndACLBeforeWork/revoke-user#02 (0.00s)
+    --- PASS: TestAccountsRejectInvalidTargetsPagesKeysLocaleAndACLBeforeWork/revoke-session#02 (0.00s)
+    --- PASS: TestAccountsRejectInvalidTargetsPagesKeysLocaleAndACLBeforeWork/set-libraries#02 (0.00s)
+=== RUN   TestAccountsRejectInvalidCredentialTextBeforeWork
+--- PASS: TestAccountsRejectInvalidCredentialTextBeforeWork (0.00s)
+=== RUN   TestListRejectsInvalidBoundsBeforeStorage
+=== RUN   TestListRejectsInvalidBoundsBeforeStorage/missing_user
+=== RUN   TestListRejectsInvalidBoundsBeforeStorage/untrusted_user
+=== RUN   TestListRejectsInvalidBoundsBeforeStorage/invalid_cursor
+=== RUN   TestListRejectsInvalidBoundsBeforeStorage/negative_limit
+=== RUN   TestListRejectsInvalidBoundsBeforeStorage/zero_limit
+=== RUN   TestListRejectsInvalidBoundsBeforeStorage/over_maximum
+--- PASS: TestListRejectsInvalidBoundsBeforeStorage (0.00s)
+    --- PASS: TestListRejectsInvalidBoundsBeforeStorage/missing_user (0.00s)
+    --- PASS: TestListRejectsInvalidBoundsBeforeStorage/untrusted_user (0.00s)
+    --- PASS: TestListRejectsInvalidBoundsBeforeStorage/invalid_cursor (0.00s)
+    --- PASS: TestListRejectsInvalidBoundsBeforeStorage/negative_limit (0.00s)
+    --- PASS: TestListRejectsInvalidBoundsBeforeStorage/zero_limit (0.00s)
+    --- PASS: TestListRejectsInvalidBoundsBeforeStorage/over_maximum (0.00s)
+=== RUN   TestListPreservesAuthorizedQueryAndContext
+--- PASS: TestListPreservesAuthorizedQueryAndContext (0.00s)
+=== RUN   TestGetMalformedIdentifiersAreHiddenWithoutLookup
+--- PASS: TestGetMalformedIdentifiersAreHiddenWithoutLookup (0.00s)
+=== RUN   TestGetKeepsUserScopeAndHiddenContract
+--- PASS: TestGetKeepsUserScopeAndHiddenContract (0.00s)
+=== RUN   TestRepositoryFailureIsNotReportedAsEmptySuccess
+--- PASS: TestRepositoryFailureIsNotReportedAsEmptySuccess (0.00s)
+=== RUN   TestCancellationReachesRepository
+--- PASS: TestCancellationReachesRepository (0.00s)
+PASS
+coverage: 85.4% of statements
+ok  	github.com/MoYuanCN/Jelee/internal/app	1.398s	coverage: 85.4% of statements
+=== RUN   TestDomainAndApplicationDependencyDirection
+--- PASS: TestDomainAndApplicationDependencyDirection (0.06s)
+PASS
+coverage: [no statements]
+ok  	github.com/MoYuanCN/Jelee/internal/architecture	1.223s	coverage: [no statements]
+=== RUN   TestValidIDCanonicalBoundary
+=== RUN   TestValidIDCanonicalBoundary/empty
+=== RUN   TestValidIDCanonicalBoundary/truncated
+=== RUN   TestValidIDCanonicalBoundary/extended
+=== RUN   TestValidIDCanonicalBoundary/uppercase
+=== RUN   TestValidIDCanonicalBoundary/no_separators
+=== RUN   TestValidIDCanonicalBoundary/wrong_separator
+=== RUN   TestValidIDCanonicalBoundary/misplaced_separator
+=== RUN   TestValidIDCanonicalBoundary/non_hex
+=== RUN   TestValidIDCanonicalBoundary/unicode_lookalike_same_bytes
+=== RUN   TestValidIDCanonicalBoundary/nul
+=== RUN   TestValidIDCanonicalBoundary/leading_space
+=== RUN   TestValidIDCanonicalBoundary/trailing_newline
+=== RUN   TestValidIDCanonicalBoundary/quoted
+=== RUN   TestValidIDCanonicalBoundary/braces
+=== RUN   TestValidIDCanonicalBoundary/urn
+=== RUN   TestValidIDCanonicalBoundary/encoded
+=== RUN   TestValidIDCanonicalBoundary/path
+--- PASS: TestValidIDCanonicalBoundary (0.01s)
+    --- PASS: TestValidIDCanonicalBoundary/empty (0.00s)
+    --- PASS: TestValidIDCanonicalBoundary/truncated (0.00s)
+    --- PASS: TestValidIDCanonicalBoundary/extended (0.00s)
+    --- PASS: TestValidIDCanonicalBoundary/uppercase (0.00s)
+    --- PASS: TestValidIDCanonicalBoundary/no_separators (0.00s)
+    --- PASS: TestValidIDCanonicalBoundary/wrong_separator (0.00s)
+    --- PASS: TestValidIDCanonicalBoundary/misplaced_separator (0.00s)
+    --- PASS: TestValidIDCanonicalBoundary/non_hex (0.00s)
+    --- PASS: TestValidIDCanonicalBoundary/unicode_lookalike_same_bytes (0.00s)
+    --- PASS: TestValidIDCanonicalBoundary/nul (0.00s)
+    --- PASS: TestValidIDCanonicalBoundary/leading_space (0.00s)
+    --- PASS: TestValidIDCanonicalBoundary/trailing_newline (0.00s)
+    --- PASS: TestValidIDCanonicalBoundary/quoted (0.00s)
+    --- PASS: TestValidIDCanonicalBoundary/braces (0.00s)
+    --- PASS: TestValidIDCanonicalBoundary/urn (0.00s)
+    --- PASS: TestValidIDCanonicalBoundary/encoded (0.00s)
+    --- PASS: TestValidIDCanonicalBoundary/path (0.00s)
+PASS
+coverage: 100.0% of statements
+ok  	github.com/MoYuanCN/Jelee/internal/domain	1.258s	coverage: 100.0% of statements
+=== RUN   TestAccountsConfigurationEnvironmentOverridesJSONAndPreservesDefaults
+--- PASS: TestAccountsConfigurationEnvironmentOverridesJSONAndPreservesDefaults (0.17s)
+=== RUN   TestAccountsConfigurationSecurityBoundaries
+=== RUN   TestAccountsConfigurationSecurityBoundaries/JELEE_PASSWORD_MEMORY_KIB
+=== RUN   TestAccountsConfigurationSecurityBoundaries/JELEE_PASSWORD_ITERATIONS
+=== RUN   TestAccountsConfigurationSecurityBoundaries/JELEE_PASSWORD_PARALLELISM
+=== RUN   TestAccountsConfigurationSecurityBoundaries/JELEE_PASSWORD_CONCURRENCY
+=== RUN   TestAccountsConfigurationSecurityBoundaries/JELEE_LOGIN_IP_LIMIT
+=== RUN   TestAccountsConfigurationSecurityBoundaries/JELEE_LOGIN_USER_LIMIT
+=== RUN   TestAccountsConfigurationSecurityBoundaries/JELEE_LOGIN_WINDOW_SECONDS
+=== RUN   TestAccountsConfigurationSecurityBoundaries/JELEE_LOGIN_MAX_ENTRIES
+=== RUN   TestAccountsConfigurationSecurityBoundaries/JELEE_LOGIN_LOCK_AFTER
+=== RUN   TestAccountsConfigurationSecurityBoundaries/JELEE_LOGIN_LOCK_SECONDS
+=== RUN   TestAccountsConfigurationSecurityBoundaries/JELEE_MAX_SESSIONS
+=== RUN   TestAccountsConfigurationSecurityBoundaries/JELEE_SESSION_HOURS
+--- PASS: TestAccountsConfigurationSecurityBoundaries (0.00s)
+    --- PASS: TestAccountsConfigurationSecurityBoundaries/JELEE_PASSWORD_MEMORY_KIB (0.00s)
+    --- PASS: TestAccountsConfigurationSecurityBoundaries/JELEE_PASSWORD_ITERATIONS (0.00s)
+    --- PASS: TestAccountsConfigurationSecurityBoundaries/JELEE_PASSWORD_PARALLELISM (0.00s)
+    --- PASS: TestAccountsConfigurationSecurityBoundaries/JELEE_PASSWORD_CONCURRENCY (0.00s)
+    --- PASS: TestAccountsConfigurationSecurityBoundaries/JELEE_LOGIN_IP_LIMIT (0.00s)
+    --- PASS: TestAccountsConfigurationSecurityBoundaries/JELEE_LOGIN_USER_LIMIT (0.00s)
+    --- PASS: TestAccountsConfigurationSecurityBoundaries/JELEE_LOGIN_WINDOW_SECONDS (0.00s)
+    --- PASS: TestAccountsConfigurationSecurityBoundaries/JELEE_LOGIN_MAX_ENTRIES (0.00s)
+    --- PASS: TestAccountsConfigurationSecurityBoundaries/JELEE_LOGIN_LOCK_AFTER (0.00s)
+    --- PASS: TestAccountsConfigurationSecurityBoundaries/JELEE_LOGIN_LOCK_SECONDS (0.00s)
+    --- PASS: TestAccountsConfigurationSecurityBoundaries/JELEE_MAX_SESSIONS (0.00s)
+    --- PASS: TestAccountsConfigurationSecurityBoundaries/JELEE_SESSION_HOURS (0.00s)
+=== RUN   TestAccountsConfigurationMalformedEnvironmentDoesNotLeakValues
+--- PASS: TestAccountsConfigurationMalformedEnvironmentDoesNotLeakValues (0.00s)
+=== RUN   TestAccountsConfigurationDisabledRolloutCompatibility
+--- PASS: TestAccountsConfigurationDisabledRolloutCompatibility (0.05s)
+=== RUN   TestAccountsConfigurationRejectsUnknownNestedJSON
+--- PASS: TestAccountsConfigurationRejectsUnknownNestedJSON (0.08s)
+=== RUN   TestConfigurationFailsClosed
+=== RUN   TestConfigurationFailsClosed/missing
+=== RUN   TestConfigurationFailsClosed/sqlite
+=== RUN   TestConfigurationFailsClosed/malformed
+=== RUN   TestConfigurationFailsClosed/dev
+=== RUN   TestConfigurationFailsClosed/wild_host
+=== RUN   TestConfigurationFailsClosed/direct_rollout
+--- PASS: TestConfigurationFailsClosed (0.00s)
+    --- PASS: TestConfigurationFailsClosed/missing (0.00s)
+    --- PASS: TestConfigurationFailsClosed/sqlite (0.00s)
+    --- PASS: TestConfigurationFailsClosed/malformed (0.00s)
+    --- PASS: TestConfigurationFailsClosed/dev (0.00s)
+    --- PASS: TestConfigurationFailsClosed/wild_host (0.00s)
+    --- PASS: TestConfigurationFailsClosed/direct_rollout (0.00s)
+=== RUN   TestEnvironmentOverridesFileAndSecretsStayOutOfJSON
+--- PASS: TestEnvironmentOverridesFileAndSecretsStayOutOfJSON (0.15s)
+=== RUN   TestConfigurationSizeAndCredentialBoundaries
+--- PASS: TestConfigurationSizeAndCredentialBoundaries (0.36s)
+=== RUN   TestNumericAndRolloutEnvironmentValidation
+=== RUN   TestNumericAndRolloutEnvironmentValidation/JELEE_MAX_CONNECTIONS0
+=== RUN   TestNumericAndRolloutEnvironmentValidation/JELEE_MAX_CONNECTIONS129
+=== RUN   TestNumericAndRolloutEnvironmentValidation/JELEE_MAX_CONNECTIONSinvalid
+=== RUN   TestNumericAndRolloutEnvironmentValidation/JELEE_MAX_STREAMS0
+=== RUN   TestNumericAndRolloutEnvironmentValidation/JELEE_MAX_STREAMS129
+=== RUN   TestNumericAndRolloutEnvironmentValidation/JELEE_MAX_STREAMSinvalid
+=== RUN   TestNumericAndRolloutEnvironmentValidation/JELEE_ENABLE_CATALOGinvalid
+=== RUN   TestNumericAndRolloutEnvironmentValidation/JELEE_LISTENlocalhost:8097
+=== RUN   TestNumericAndRolloutEnvironmentValidation/JELEE_LISTEN127.0.0.1:0
+=== RUN   TestNumericAndRolloutEnvironmentValidation/JELEE_LISTEN127.0.0.1:65536
+=== RUN   TestNumericAndRolloutEnvironmentValidation/JELEE_ALLOWED_HOSTSlocalhost,evil/host
+--- PASS: TestNumericAndRolloutEnvironmentValidation (0.00s)
+    --- PASS: TestNumericAndRolloutEnvironmentValidation/JELEE_MAX_CONNECTIONS0 (0.00s)
+    --- PASS: TestNumericAndRolloutEnvironmentValidation/JELEE_MAX_CONNECTIONS129 (0.00s)
+    --- PASS: TestNumericAndRolloutEnvironmentValidation/JELEE_MAX_CONNECTIONSinvalid (0.00s)
+    --- PASS: TestNumericAndRolloutEnvironmentValidation/JELEE_MAX_STREAMS0 (0.00s)
+    --- PASS: TestNumericAndRolloutEnvironmentValidation/JELEE_MAX_STREAMS129 (0.00s)
+    --- PASS: TestNumericAndRolloutEnvironmentValidation/JELEE_MAX_STREAMSinvalid (0.00s)
+    --- PASS: TestNumericAndRolloutEnvironmentValidation/JELEE_ENABLE_CATALOGinvalid (0.00s)
+    --- PASS: TestNumericAndRolloutEnvironmentValidation/JELEE_LISTENlocalhost:8097 (0.00s)
+    --- PASS: TestNumericAndRolloutEnvironmentValidation/JELEE_LISTEN127.0.0.1:0 (0.00s)
+    --- PASS: TestNumericAndRolloutEnvironmentValidation/JELEE_LISTEN127.0.0.1:65536 (0.00s)
+    --- PASS: TestNumericAndRolloutEnvironmentValidation/JELEE_ALLOWED_HOSTSlocalhost,evil/host (0.00s)
+PASS
+coverage: 95.7% of statements
+ok  	github.com/MoYuanCN/Jelee/internal/platform/config	2.240s	coverage: 95.7% of statements
+=== RUN   TestLocaleNegotiation
+=== RUN   TestLocaleNegotiation/#00
+=== RUN   TestLocaleNegotiation/__
+=== RUN   TestLocaleNegotiation/fr-FR
+=== RUN   TestLocaleNegotiation/zh-CN
+=== RUN   TestLocaleNegotiation/zh-TW
+=== RUN   TestLocaleNegotiation/ja-JP
+=== RUN   TestLocaleNegotiation/en-US
+=== RUN   TestLocaleNegotiation/zh-Hant
+=== RUN   TestLocaleNegotiation/zh-HK
+=== RUN   TestLocaleNegotiation/zh-Hans-SG
+=== RUN   TestLocaleNegotiation/zh
+=== RUN   TestLocaleNegotiation/ja
+=== RUN   TestLocaleNegotiation/en-GB
+=== RUN   TestLocaleNegotiation/ZH-tW
+=== RUN   TestLocaleNegotiation/en-US;q=0.4,ja-JP;q=0.9
+=== RUN   TestLocaleNegotiation/fr-FR;q=1,zh-TW;q=0.8
+=== RUN   TestLocaleNegotiation/ja;q=0.8,en;q=0.8
+=== RUN   TestLocaleNegotiation/en;q=0.8,ja;q=0.8
+=== RUN   TestLocaleNegotiation/ja;q=0,en;q=0.5
+=== RUN   TestLocaleNegotiation/*
+=== RUN   TestLocaleNegotiation/zh-CN;q=0,*;q=0.5
+=== RUN   TestLocaleNegotiation/*;q=0,ja-JP;q=0.5
+=== RUN   TestLocaleNegotiation/en-US;q=0,en;q=1,ja;q=0.4
+=== RUN   TestLocaleNegotiation/en;q=NaN,ja;q=0.5
+=== RUN   TestLocaleNegotiation/en;q=1.1,ja;q=0.5
+=== RUN   TestLocaleNegotiation/en;q=-1,ja;q=0.5
+=== RUN   TestLocaleNegotiation/en;q=0.0001,ja;q=0.5
+=== RUN   TestLocaleNegotiation/en;q=.9,ja;q=0.5
+=== RUN   TestLocaleNegotiation/invalid_@;q=1
+=== RUN   TestLocaleNegotiation/ja;q=0
+=== RUN   TestLocaleNegotiation/en;q=0.3;q=1,ja;q=0.5
+=== RUN   TestLocaleNegotiation/ja_;_Q_=_0.500,_en;q=0.4
+=== RUN   TestLocaleNegotiation/oversized_header
+--- PASS: TestLocaleNegotiation (0.01s)
+    --- PASS: TestLocaleNegotiation/#00 (0.00s)
+    --- PASS: TestLocaleNegotiation/__ (0.00s)
+    --- PASS: TestLocaleNegotiation/fr-FR (0.00s)
+    --- PASS: TestLocaleNegotiation/zh-CN (0.00s)
+    --- PASS: TestLocaleNegotiation/zh-TW (0.00s)
+    --- PASS: TestLocaleNegotiation/ja-JP (0.00s)
+    --- PASS: TestLocaleNegotiation/en-US (0.00s)
+    --- PASS: TestLocaleNegotiation/zh-Hant (0.00s)
+    --- PASS: TestLocaleNegotiation/zh-HK (0.00s)
+    --- PASS: TestLocaleNegotiation/zh-Hans-SG (0.00s)
+    --- PASS: TestLocaleNegotiation/zh (0.00s)
+    --- PASS: TestLocaleNegotiation/ja (0.00s)
+    --- PASS: TestLocaleNegotiation/en-GB (0.00s)
+    --- PASS: TestLocaleNegotiation/ZH-tW (0.00s)
+    --- PASS: TestLocaleNegotiation/en-US;q=0.4,ja-JP;q=0.9 (0.00s)
+    --- PASS: TestLocaleNegotiation/fr-FR;q=1,zh-TW;q=0.8 (0.00s)
+    --- PASS: TestLocaleNegotiation/ja;q=0.8,en;q=0.8 (0.00s)
+    --- PASS: TestLocaleNegotiation/en;q=0.8,ja;q=0.8 (0.00s)
+    --- PASS: TestLocaleNegotiation/ja;q=0,en;q=0.5 (0.00s)
+    --- PASS: TestLocaleNegotiation/* (0.00s)
+    --- PASS: TestLocaleNegotiation/zh-CN;q=0,*;q=0.5 (0.00s)
+    --- PASS: TestLocaleNegotiation/*;q=0,ja-JP;q=0.5 (0.00s)
+    --- PASS: TestLocaleNegotiation/en-US;q=0,en;q=1,ja;q=0.4 (0.00s)
+    --- PASS: TestLocaleNegotiation/en;q=NaN,ja;q=0.5 (0.00s)
+    --- PASS: TestLocaleNegotiation/en;q=1.1,ja;q=0.5 (0.00s)
+    --- PASS: TestLocaleNegotiation/en;q=-1,ja;q=0.5 (0.00s)
+    --- PASS: TestLocaleNegotiation/en;q=0.0001,ja;q=0.5 (0.00s)
+    --- PASS: TestLocaleNegotiation/en;q=.9,ja;q=0.5 (0.00s)
+    --- PASS: TestLocaleNegotiation/invalid_@;q=1 (0.00s)
+    --- PASS: TestLocaleNegotiation/ja;q=0 (0.00s)
+    --- PASS: TestLocaleNegotiation/en;q=0.3;q=1,ja;q=0.5 (0.00s)
+    --- PASS: TestLocaleNegotiation/ja_;_Q_=_0.500,_en;q=0.4 (0.00s)
+    --- PASS: TestLocaleNegotiation/oversized_header (0.00s)
+=== RUN   TestTranslationAndSafeFallback
+--- PASS: TestTranslationAndSafeFallback (0.00s)
+=== RUN   TestCatalogKeyAndPlaceholderParity
+--- PASS: TestCatalogKeyAndPlaceholderParity (0.01s)
+=== RUN   FuzzLocale
+=== RUN   FuzzLocale/seed#0
+=== RUN   FuzzLocale/seed#1
+=== RUN   FuzzLocale/seed#2
+=== RUN   FuzzLocale/seed#3
+--- PASS: FuzzLocale (0.01s)
+    --- PASS: FuzzLocale/seed#0 (0.00s)
+    --- PASS: FuzzLocale/seed#1 (0.00s)
+    --- PASS: FuzzLocale/seed#2 (0.00s)
+    --- PASS: FuzzLocale/seed#3 (0.00s)
+PASS
+coverage: 97.6% of statements
+ok  	github.com/MoYuanCN/Jelee/internal/platform/i18n	1.352s	coverage: 97.6% of statements
+=== RUN   TestRedaction
+--- PASS: TestRedaction (0.01s)
+=== RUN   TestSafeMethodAllowsOnlyKnownVerbs
+--- PASS: TestSafeMethodAllowsOnlyKnownVerbs (0.00s)
+=== RUN   TestOperationalContextSurvivesRedaction
+--- PASS: TestOperationalContextSurvivesRedaction (0.01s)
+=== RUN   TestGroupedAttributesCannotExposeSensitiveValues
+--- PASS: TestGroupedAttributesCannotExposeSensitiveValues (0.00s)
+PASS
+coverage: 100.0% of statements
+ok  	github.com/MoYuanCN/Jelee/internal/platform/logging	1.298s	coverage: 100.0% of statements
+=== RUN   TestCreationPolicyPreservesUserInput
+--- PASS: TestCreationPolicyPreservesUserInput (0.00s)
+=== RUN   TestConfigurationBoundsAndDefault
+=== RUN   TestConfigurationBoundsAndDefault/memory_low
+=== RUN   TestConfigurationBoundsAndDefault/memory_high
+=== RUN   TestConfigurationBoundsAndDefault/iterations_low
+=== RUN   TestConfigurationBoundsAndDefault/iterations_high
+=== RUN   TestConfigurationBoundsAndDefault/parallelism_zero
+=== RUN   TestConfigurationBoundsAndDefault/parallelism_high
+=== RUN   TestConfigurationBoundsAndDefault/concurrency_zero
+=== RUN   TestConfigurationBoundsAndDefault/concurrency_high
+=== RUN   TestConfigurationBoundsAndDefault/concurrency_negative
+--- PASS: TestConfigurationBoundsAndDefault (0.00s)
+    --- PASS: TestConfigurationBoundsAndDefault/memory_low (0.00s)
+    --- PASS: TestConfigurationBoundsAndDefault/memory_high (0.00s)
+    --- PASS: TestConfigurationBoundsAndDefault/iterations_low (0.00s)
+    --- PASS: TestConfigurationBoundsAndDefault/iterations_high (0.00s)
+    --- PASS: TestConfigurationBoundsAndDefault/parallelism_zero (0.00s)
+    --- PASS: TestConfigurationBoundsAndDefault/parallelism_high (0.00s)
+    --- PASS: TestConfigurationBoundsAndDefault/concurrency_zero (0.00s)
+    --- PASS: TestConfigurationBoundsAndDefault/concurrency_high (0.00s)
+    --- PASS: TestConfigurationBoundsAndDefault/concurrency_negative (0.00s)
+=== RUN   TestHashUsesRandomSaltAndInteroperablePHC
+--- PASS: TestHashUsesRandomSaltAndInteroperablePHC (0.77s)
+=== RUN   TestPasswordsAreNotTrimmedNormalizedOrTruncated
+=== RUN   TestPasswordsAreNotTrimmedNormalizedOrTruncated/spaces
+=== RUN   TestPasswordsAreNotTrimmedNormalizedOrTruncated/unicode
+=== RUN   TestPasswordsAreNotTrimmedNormalizedOrTruncated/nul
+=== RUN   TestPasswordsAreNotTrimmedNormalizedOrTruncated/maximum
+--- PASS: TestPasswordsAreNotTrimmedNormalizedOrTruncated (0.85s)
+    --- PASS: TestPasswordsAreNotTrimmedNormalizedOrTruncated/spaces (0.22s)
+    --- PASS: TestPasswordsAreNotTrimmedNormalizedOrTruncated/unicode (0.23s)
+    --- PASS: TestPasswordsAreNotTrimmedNormalizedOrTruncated/nul (0.20s)
+    --- PASS: TestPasswordsAreNotTrimmedNormalizedOrTruncated/maximum (0.20s)
+=== RUN   TestMalformedPHCNeverStartsKDF
+=== RUN   TestMalformedPHCNeverStartsKDF/m=+19456,t=2,p=1
+=== RUN   TestMalformedPHCNeverStartsKDF/m=19456,t=1,p=1
+=== RUN   TestMalformedPHCNeverStartsKDF/m=19456,t=2,p=5
+=== RUN   TestMalformedPHCNeverStartsKDF/t=2,m=19456,p=1
+=== RUN   TestMalformedPHCNeverStartsKDF/m=１９４５６,t=2,p=1
+=== RUN   TestMalformedPHCNeverStartsKDF/algorithm
+=== RUN   TestMalformedPHCNeverStartsKDF/missing_salt
+=== RUN   TestMalformedPHCNeverStartsKDF/salt_padding
+=== RUN   TestMalformedPHCNeverStartsKDF/hash_newline
+=== RUN   TestMalformedPHCNeverStartsKDF/m=131073,t=2,p=1
+=== RUN   TestMalformedPHCNeverStartsKDF/m=19456,t=7,p=1
+=== RUN   TestMalformedPHCNeverStartsKDF/m=19456,t=2,p=4294967296
+=== RUN   TestMalformedPHCNeverStartsKDF/algorithm_case
+=== RUN   TestMalformedPHCNeverStartsKDF/salt_noncanonical_bits
+=== RUN   TestMalformedPHCNeverStartsKDF/m=999999999999999,t=2,p=1
+=== RUN   TestMalformedPHCNeverStartsKDF/empty
+=== RUN   TestMalformedPHCNeverStartsKDF/nul
+=== RUN   TestMalformedPHCNeverStartsKDF/m=19456,t=2,p=1,p=2
+=== RUN   TestMalformedPHCNeverStartsKDF/trailing
+=== RUN   TestMalformedPHCNeverStartsKDF/hash_bad_alphabet
+=== RUN   TestMalformedPHCNeverStartsKDF/m=-19456,t=2,p=1
+=== RUN   TestMalformedPHCNeverStartsKDF/hash_noncanonical_bits
+=== RUN   TestMalformedPHCNeverStartsKDF/m=4294967296,t=2,p=1
+=== RUN   TestMalformedPHCNeverStartsKDF/m=19456,t=0,p=1
+=== RUN   TestMalformedPHCNeverStartsKDF/m=19456,t=2,p=0
+=== RUN   TestMalformedPHCNeverStartsKDF/huge
+=== RUN   TestMalformedPHCNeverStartsKDF/prefix
+=== RUN   TestMalformedPHCNeverStartsKDF/m=19456,t=2,p=256
+=== RUN   TestMalformedPHCNeverStartsKDF/m=19456,t=2
+=== RUN   TestMalformedPHCNeverStartsKDF/m=19456,_t=2,p=1
+=== RUN   TestMalformedPHCNeverStartsKDF/version_leading_zero
+=== RUN   TestMalformedPHCNeverStartsKDF/hash_short
+=== RUN   TestMalformedPHCNeverStartsKDF/m=0,t=2,p=1
+=== RUN   TestMalformedPHCNeverStartsKDF/m=019456,t=2,p=1
+=== RUN   TestMalformedPHCNeverStartsKDF/version
+=== RUN   TestMalformedPHCNeverStartsKDF/m=19455,t=2,p=1
+--- PASS: TestMalformedPHCNeverStartsKDF (0.01s)
+    --- PASS: TestMalformedPHCNeverStartsKDF/m=+19456,t=2,p=1 (0.00s)
+    --- PASS: TestMalformedPHCNeverStartsKDF/m=19456,t=1,p=1 (0.00s)
+    --- PASS: TestMalformedPHCNeverStartsKDF/m=19456,t=2,p=5 (0.00s)
+    --- PASS: TestMalformedPHCNeverStartsKDF/t=2,m=19456,p=1 (0.00s)
+    --- PASS: TestMalformedPHCNeverStartsKDF/m=１９４５６,t=2,p=1 (0.00s)
+    --- PASS: TestMalformedPHCNeverStartsKDF/algorithm (0.00s)
+    --- PASS: TestMalformedPHCNeverStartsKDF/missing_salt (0.00s)
+    --- PASS: TestMalformedPHCNeverStartsKDF/salt_padding (0.00s)
+    --- PASS: TestMalformedPHCNeverStartsKDF/hash_newline (0.00s)
+    --- PASS: TestMalformedPHCNeverStartsKDF/m=131073,t=2,p=1 (0.00s)
+    --- PASS: TestMalformedPHCNeverStartsKDF/m=19456,t=7,p=1 (0.00s)
+    --- PASS: TestMalformedPHCNeverStartsKDF/m=19456,t=2,p=4294967296 (0.00s)
+    --- PASS: TestMalformedPHCNeverStartsKDF/algorithm_case (0.00s)
+    --- PASS: TestMalformedPHCNeverStartsKDF/salt_noncanonical_bits (0.00s)
+    --- PASS: TestMalformedPHCNeverStartsKDF/m=999999999999999,t=2,p=1 (0.00s)
+    --- PASS: TestMalformedPHCNeverStartsKDF/empty (0.00s)
+    --- PASS: TestMalformedPHCNeverStartsKDF/nul (0.00s)
+    --- PASS: TestMalformedPHCNeverStartsKDF/m=19456,t=2,p=1,p=2 (0.00s)
+    --- PASS: TestMalformedPHCNeverStartsKDF/trailing (0.00s)
+    --- PASS: TestMalformedPHCNeverStartsKDF/hash_bad_alphabet (0.00s)
+    --- PASS: TestMalformedPHCNeverStartsKDF/m=-19456,t=2,p=1 (0.00s)
+    --- PASS: TestMalformedPHCNeverStartsKDF/hash_noncanonical_bits (0.00s)
+    --- PASS: TestMalformedPHCNeverStartsKDF/m=4294967296,t=2,p=1 (0.00s)
+    --- PASS: TestMalformedPHCNeverStartsKDF/m=19456,t=0,p=1 (0.00s)
+    --- PASS: TestMalformedPHCNeverStartsKDF/m=19456,t=2,p=0 (0.00s)
+    --- PASS: TestMalformedPHCNeverStartsKDF/huge (0.00s)
+    --- PASS: TestMalformedPHCNeverStartsKDF/prefix (0.00s)
+    --- PASS: TestMalformedPHCNeverStartsKDF/m=19456,t=2,p=256 (0.00s)
+    --- PASS: TestMalformedPHCNeverStartsKDF/m=19456,t=2 (0.00s)
+    --- PASS: TestMalformedPHCNeverStartsKDF/m=19456,_t=2,p=1 (0.00s)
+    --- PASS: TestMalformedPHCNeverStartsKDF/version_leading_zero (0.00s)
+    --- PASS: TestMalformedPHCNeverStartsKDF/hash_short (0.00s)
+    --- PASS: TestMalformedPHCNeverStartsKDF/m=0,t=2,p=1 (0.00s)
+    --- PASS: TestMalformedPHCNeverStartsKDF/m=019456,t=2,p=1 (0.00s)
+    --- PASS: TestMalformedPHCNeverStartsKDF/version (0.00s)
+    --- PASS: TestMalformedPHCNeverStartsKDF/m=19455,t=2,p=1 (0.00s)
+=== RUN   TestVerificationAcceptsBoundedStoredParameters
+--- PASS: TestVerificationAcceptsBoundedStoredParameters (0.00s)
+=== RUN   TestInvalidInputIsRejectedBeforeKDF
+--- PASS: TestInvalidInputIsRejectedBeforeKDF (0.00s)
+=== RUN   TestDummyUsesCurrentCostsAndNeverAuthenticates
+--- PASS: TestDummyUsesCurrentCostsAndNeverAuthenticates (0.00s)
+=== RUN   TestWaitingOperationsCancelAndReleaseQuota
+=== RUN   TestWaitingOperationsCancelAndReleaseQuota/hash
+=== RUN   TestWaitingOperationsCancelAndReleaseQuota/verify
+=== RUN   TestWaitingOperationsCancelAndReleaseQuota/dummy
+--- PASS: TestWaitingOperationsCancelAndReleaseQuota (0.00s)
+    --- PASS: TestWaitingOperationsCancelAndReleaseQuota/hash (0.00s)
+    --- PASS: TestWaitingOperationsCancelAndReleaseQuota/verify (0.00s)
+    --- PASS: TestWaitingOperationsCancelAndReleaseQuota/dummy (0.00s)
+=== RUN   TestActiveKDFRetainsQuotaUntilSynchronousCompletion
+--- PASS: TestActiveKDFRetainsQuotaUntilSynchronousCompletion (0.00s)
+=== RUN   TestConcurrentOperationsShareOneBudget
+--- PASS: TestConcurrentOperationsShareOneBudget (0.01s)
+=== RUN   TestEntropyFailureIsSafeAndDoesNotConsumeQuota
+--- PASS: TestEntropyFailureIsSafeAndDoesNotConsumeQuota (0.00s)
+=== RUN   TestRehashNeverRecommendsLoweringEitherCost
+--- PASS: TestRehashNeverRecommendsLoweringEitherCost (0.00s)
+=== RUN   FuzzPHCParserBounds
+=== RUN   FuzzPHCParserBounds/seed#0
+=== RUN   FuzzPHCParserBounds/seed#1
+=== RUN   FuzzPHCParserBounds/seed#2
+=== RUN   FuzzPHCParserBounds/seed#3
+--- PASS: FuzzPHCParserBounds (0.01s)
+    --- PASS: FuzzPHCParserBounds/seed#0 (0.00s)
+    --- PASS: FuzzPHCParserBounds/seed#1 (0.00s)
+    --- PASS: FuzzPHCParserBounds/seed#2 (0.00s)
+    --- PASS: FuzzPHCParserBounds/seed#3 (0.00s)
+PASS
+coverage: 95.9% of statements
+ok  	github.com/MoYuanCN/Jelee/internal/platform/password	3.103s	coverage: 95.9% of statements
+	github.com/MoYuanCN/Jelee/internal/platform/runtime		coverage: 0.0% of statements
+	github.com/MoYuanCN/Jelee/tools/brand-scan		coverage: 0.0% of statements
+	github.com/MoYuanCN/Jelee/tools/gitignore-check		coverage: 0.0% of statements

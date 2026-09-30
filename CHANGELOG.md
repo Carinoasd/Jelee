@@ -2,6 +2,8 @@
 
 ## Unreleased — Go foundation
 
+- 第 2 阶段新增 Argon2id 密码登录、首次管理员初始化、用户生命周期和库 ACL 管理 API；支持限速、失败锁定、会话轮换与撤销、最后管理员保护，以及安全事务审计。
+- 新增 schema 2 迁移、账户 API 开关、四语错误与用户语言偏好、严格 JSON 请求校验及账户 OpenAPI schema；详细范围见 `docs/accounts-api.md`。
 - 新增独立 Jelee Go 服务、PostgreSQL schema 与迁移命令。
 - 新增受会话和库权限限制的目录接口与原文件直投；生产请求拒绝转码相关能力。
 - 新增本地用户/令牌创建、单文件注册和基础 doctor 命令。

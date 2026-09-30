@@ -16,6 +16,8 @@
 
 ## 实际交付证据
 
+第 2 阶段新增[账户验证报告](accounts-verification.md)，当前编号项统计为 **1 项已完成、147 项部分完成、188 项阻塞**。首阶段 8 个提交已推送，并建立[草稿 PR #1](https://github.com/MoYuanCN/Jelee/pull/1)。阶段结束后持续推送同一分支；下面首阶段证据保留原验证范围。
+
 | 证据 | 结果 | 范围 |
 | --- | --- | --- |
 | [审计基线](00-audit-baseline.md) | 已完成文件审计；基线构建/测试未执行 | 原始版本、目录、数据库、插件、忽略语义、构建、CI、许可证 |
@@ -36,7 +38,7 @@
 | 关联子项 | 实际实现 / 测试 | 已验证内容与限制 |
 | --- | --- | --- |
 | G07.4/G08/G10/G11.3/G27.3/G49.1 | [HTTP 合同](../internal/adapter/http/server_test.go)：TestConstructorRejectsInvalidConfigurationAndMissingDependencies、TestPublicHealthAndHostBoundary、TestAuthenticationAndStrictCatalogQueries、TestWebCannotSpoofNativePlaybackAndNativeRangePreservesBytes、TestCentralErrorMapping | 当前路由、Host、参数、错误、会话类型与原字节；完整兼容和全部业务 API 未实现 |
-| G03 | [语言测试](../internal/platform/i18n/messages_test.go)：TestLocaleNegotiation、TestCatalogKeyAndPlaceholderParity；HTTP TestErrorLanguageNegotiationAtHTTPBoundary | 服务端四语、请求头及回退；用户偏好和 UI 未实现 |
+| G03 | [语言测试](../internal/platform/i18n/messages_test.go)：TestLocaleNegotiation、TestCatalogKeyAndPlaceholderParity；HTTP TestErrorLanguageNegotiationAtHTTPBoundary | 服务端四语、请求头及回退；第 2 阶段已加入保存语言优先回归，UI 未实现 |
 | G04/G07.2/G25.4/G36/G48 | [PG 集成](../internal/adapter/postgres/store_integration_test.go)：TestPostgresIntegration 及具名子测试；[生产 SQL](../internal/adapter/postgres/store.go) | 专用数据库中 up/down/up、哈希/禁用/撤销、SQL ACL、失败事务无残留、约束、取消、迁移锁上限；旧库导入未实现 |
 | G10/G29/G42.1 | [传输测试](../internal/adapter/media/direct_test.go)：TestDirectDeliveryRangeAndSourceUnchanged、TestMultipartRange、TestSourceLookupHasIndependentDeadline、TestCancellationInterruptsBlockedNetworkWrite | Range/条件请求/取消/额度/只读 hash；真实播放器 Seek 和端到端延迟目标未验收 |
 | G09.5/G10.3 | [媒体护栏](../internal/adapter/media/guard_test.go)、[Linux 文件安全](../internal/adapter/media/direct_linux_test.go) | query/form/JSON 转换拒绝、路径与符号链接竞态；FIFO 在当前 DrvFS 明确跳过 |
@@ -97,7 +99,7 @@
 | --- | --- | --- | --- | --- | --- |
 | **G03.1** 仅保留 `zh-CN`（默认）、`zh-TW`、`ja-JP`、`en-US`（回退）；删除其他自有语言资源。 | internal/platform/i18n/; web/src/i18n/; tools/i18n-check/ | 用户语言设置 | Plan-G03.1：四语资源键与占位符检查；fr-FR 回退 en-US；用户偏好覆盖请求头；须单独覆盖本行全部约束 | 部分完成：服务端错误仅提供四语并默认 zh-CN；前端及保留旧树的其他资源未清理；[实际证据](verification-report.md) | `c77863e445` / `403cc21b27`（仅已实现子集） |
 | **G03.2** 资源结构：`web/src/i18n/<locale>/*.json`，服务端错误消息同样四语（`internal/platform/i18n`）。 | internal/platform/i18n/; web/src/i18n/; tools/i18n-check/ | 用户语言设置 | Plan-G03.2：四语资源键与占位符检查；fr-FR 回退 en-US；用户偏好覆盖请求头；须单独覆盖本行全部约束 | 部分完成：internal/platform/i18n 已实现；web/src/i18n 尚未实现；[实际证据](verification-report.md) | `c77863e445` / `403cc21b27`（仅已实现子集） |
-| **G03.3** 回退与协商：`Accept-Language` 解析，未知语言静默回退 `en-US`；用户级语言偏好覆盖请求头。 | internal/platform/i18n/; web/src/i18n/; tools/i18n-check/ | 用户语言设置 | Plan-G03.3：四语资源键与占位符检查；fr-FR 回退 en-US；用户偏好覆盖请求头；须单独覆盖本行全部约束 | 部分完成：TestLocaleNegotiation 与 HTTP 合同通过，未知语言回退 en-US；用户语言偏好覆盖尚未实现；[实际证据](verification-report.md) | `c77863e445` / `403cc21b27`（仅已实现子集） |
+| **G03.3** 回退与协商：`Accept-Language` 解析，未知语言静默回退 `en-US`；用户级语言偏好覆盖请求头。 | internal/platform/i18n/; web/src/i18n/; tools/i18n-check/ | 用户语言设置 | Plan-G03.3：四语资源键与占位符检查；fr-FR 回退 en-US；用户偏好覆盖请求头；须单独覆盖本行全部约束 | 部分完成：服务端协商与保存语言优先已实现并有 HTTP 回归；前端语言切换尚未交付；[账户验证](accounts-verification.md) | `d906f9183e` / `0beb2f17dc` |
 | **G03.4** 门禁：i18n 检查脚本校验缺失键、冗余键、未使用键、JSON 合法性、占位符一致性；禁止组件内硬编码用户可见文本。 | internal/platform/i18n/; web/src/i18n/; tools/i18n-check/ | 用户语言设置 | Plan-G03.4：四语资源键与占位符检查；fr-FR 回退 en-US；用户偏好覆盖请求头；须单独覆盖本行全部约束 | 部分完成：服务端翻译键/占位符及 HTTP 错误码覆盖测试通过；前端未使用键/硬编码文案/JSON 门禁未实现；[实际证据](verification-report.md) | `c77863e445` / `403cc21b27`（仅已实现子集） |
 | **G03.5** 文本质量：简繁不混用；日文敬体统一；日期/数字/单位按 locale 格式化。 | internal/platform/i18n/; web/src/i18n/; tools/i18n-check/ | 用户语言设置 | Plan-G03.5：四语资源键与占位符检查；fr-FR 回退 en-US；用户偏好覆盖请求头；须单独覆盖本行全部约束 | 部分完成：四语错误文本已有回归；完整 UI 日语文风及日期/数字/单位本地化未验收；[实际证据](verification-report.md) | `c77863e445` / `403cc21b27`（仅已实现子集） |
 
@@ -144,12 +146,12 @@
 
 | 子项 / 约束与工作 | 计划落盘文件 | 迁移 / 数据 | 测试计划与验收 | 状态 / 证据 | 实现提交 |
 | --- | --- | --- | --- | --- | --- |
-| **G07.1** 生命周期：创建、启用/禁用、软删除、恢复、重命名、头像、资料字段。 | internal/app/; internal/access/; internal/adapter/http/; internal/adapter/postgres/; web/src/features/users/ | users/sessions/devices/user_data/audit_logs | Plan-G07.1：角色×操作授权矩阵；密码/令牌/锁定/撤销/并发集成；直接 API 绕过 UI 仍被拒；须单独覆盖本行全部约束 | 部分完成：本地 CLI 可创建账号；完整创建/禁用/删除/恢复/资料/头像 API 未实现；[实际证据](verification-report.md) | `632005d430` / `403cc21b27`（仅已实现子集） |
-| **G07.2** 认证：密码哈希（Argon2id 或 bcrypt，参数可配置）、密码策略、改密需验证旧密码、令牌轮换与撤销。 | internal/app/; internal/access/; internal/adapter/http/; internal/adapter/postgres/; web/src/features/users/ | users/sessions/devices/user_data/audit_logs | Plan-G07.2：角色×操作授权矩阵；密码/令牌/锁定/撤销/并发集成；直接 API 绕过 UI 仍被拒；须单独覆盖本行全部约束 | 部分完成：随机 24h 令牌仅存 SHA256 摘要并验证撤销；密码哈希/策略/改密/轮换尚未实现；[实际证据](verification-report.md) | `632005d430` / `403cc21b27`（仅已实现子集） |
-| **G07.3** 防护：登录限速（IP + 用户维度）、失败锁定与解锁、可疑登录记录与通知。 | internal/app/; internal/access/; internal/adapter/http/; internal/adapter/postgres/; web/src/features/users/ | users/sessions/devices/user_data/audit_logs | Plan-G07.3：角色×操作授权矩阵；密码/令牌/锁定/撤销/并发集成；直接 API 绕过 UI 仍被拒；须单独覆盖本行全部约束 | 阻塞：尚无本项完整实现及执行证据 | 未实现或未验证；无实现提交 |
-| **G07.4** 会话与设备：会话列表、设备识别、强制下线、并发播放上限、带宽上限（按用户/设备）。 | internal/app/; internal/access/; internal/adapter/http/; internal/adapter/postgres/; web/src/features/users/ | users/sessions/devices/user_data/audit_logs | Plan-G07.4：角色×操作授权矩阵；密码/令牌/锁定/撤销/并发集成；直接 API 绕过 UI 仍被拒；须单独覆盖本行全部约束 | 部分完成：持久化 web/native 会话和全局流并发额度已实现；设备管理、按用户/设备带宽与并发额度未完成；[实际证据](verification-report.md) | `632005d430` / `403cc21b27`（仅已实现子集） |
-| **G07.5** 授权：媒体库可见性、内容分级、管理操作最小权限、隐藏用户。 | internal/app/; internal/access/; internal/adapter/http/; internal/adapter/postgres/; web/src/features/users/ | users/sessions/devices/user_data/audit_logs | Plan-G07.5：角色×操作授权矩阵；密码/令牌/锁定/撤销/并发集成；直接 API 绕过 UI 仍被拒；须单独覆盖本行全部约束 | 部分完成：基础管理员与用户×库 ACL 在 SQL 强制；分级、隐藏用户与细分管理权限未完成；[实际证据](verification-report.md) | `632005d430` / `403cc21b27`（仅已实现子集） |
-| **G07.6** 审计：用户相关管理操作写审计日志（操作者、目标、前后值、IP、时间）。 | internal/app/; internal/access/; internal/adapter/http/; internal/adapter/postgres/; web/src/features/users/ | users/sessions/devices/user_data/audit_logs | Plan-G07.6：角色×操作授权矩阵；密码/令牌/锁定/撤销/并发集成；直接 API 绕过 UI 仍被拒；须单独覆盖本行全部约束 | 部分完成：本地用户创建写事务审计；操作者/IP/前后值及完整用户管理审计尚未完成；[实际证据](verification-report.md) | `632005d430` / `403cc21b27`（仅已实现子集） |
+| **G07.1** 生命周期：创建、启用/禁用、软删除、恢复、重命名、头像、资料字段。 | internal/app/; internal/access/; internal/adapter/http/; internal/adapter/postgres/; web/src/features/users/ | users/sessions/devices/user_data/audit_logs | Plan-G07.1：角色×操作授权矩阵；密码/令牌/锁定/撤销/并发集成；直接 API 绕过 UI 仍被拒；须单独覆盖本行全部约束 | 部分完成：创建/启停/软删除/恢复/重命名/资料 API 与 CLI 已验证；头像与管理 UI 未交付；[账户验证](accounts-verification.md) | `d906f9183e` / `0beb2f17dc` |
+| **G07.2** 认证：密码哈希（Argon2id 或 bcrypt，参数可配置）、密码策略、改密需验证旧密码、令牌轮换与撤销。 | internal/app/; internal/access/; internal/adapter/http/; internal/adapter/postgres/; web/src/features/users/ | users/sessions/devices/user_data/audit_logs | Plan-G07.2：角色×操作授权矩阵；密码/令牌/锁定/撤销/并发集成；直接 API 绕过 UI 仍被拒；须单独覆盖本行全部约束 | 已完成：可配置 Argon2id、密码策略、验证旧密码改密、轮换及撤销均有单元/真实数据库/HTTP/执行档证据；[账户验证](accounts-verification.md) | `d906f9183e` / `0beb2f17dc` |
+| **G07.3** 防护：登录限速（IP + 用户维度）、失败锁定与解锁、可疑登录记录与通知。 | internal/app/; internal/access/; internal/adapter/http/; internal/adapter/postgres/; web/src/features/users/ | users/sessions/devices/user_data/audit_logs | Plan-G07.3：角色×操作授权矩阵；密码/令牌/锁定/撤销/并发集成；直接 API 绕过 UI 仍被拒；须单独覆盖本行全部约束 | 部分完成：有界 IP/名称限速、持久锁定/解锁与已知账户失败审计已验证；可疑登录通知与分布式防护尚未实现；[账户验证](accounts-verification.md) | `d906f9183e` / `0beb2f17dc` |
+| **G07.4** 会话与设备：会话列表、设备识别、强制下线、并发播放上限、带宽上限（按用户/设备）。 | internal/app/; internal/access/; internal/adapter/http/; internal/adapter/postgres/; web/src/features/users/ | users/sessions/devices/user_data/audit_logs | Plan-G07.4：角色×操作授权矩阵；密码/令牌/锁定/撤销/并发集成；直接 API 绕过 UI 仍被拒；须单独覆盖本行全部约束 | 部分完成：有效会话列表、设备标签、强制下线及有效会话数上限已验证；可信设备识别和按用户/设备播放/带宽上限未完成；[账户验证](accounts-verification.md) | `d906f9183e` / `0beb2f17dc` |
+| **G07.5** 授权：媒体库可见性、内容分级、管理操作最小权限、隐藏用户。 | internal/app/; internal/access/; internal/adapter/http/; internal/adapter/postgres/; web/src/features/users/ | users/sessions/devices/user_data/audit_logs | Plan-G07.5：角色×操作授权矩阵；密码/令牌/锁定/撤销/并发集成；直接 API 绕过 UI 仍被拒；须单独覆盖本行全部约束 | 部分完成：库 ACL 管理、事务内角色/会话重验与隐藏字段已验证，普通用户无用户发现接口；内容分级及细分管理权限未完成；[账户验证](accounts-verification.md) | `d906f9183e` / `0beb2f17dc` |
+| **G07.6** 审计：用户相关管理操作写审计日志（操作者、目标、前后值、IP、时间）。 | internal/app/; internal/access/; internal/adapter/http/; internal/adapter/postgres/; web/src/features/users/ | users/sessions/devices/user_data/audit_logs | Plan-G07.6：角色×操作授权矩阵；密码/令牌/锁定/撤销/并发集成；直接 API 绕过 UI 仍被拒；须单独覆盖本行全部约束 | 部分完成：账户操作有目标、可用操作者/IP、时间与安全前后值的事务审计；本地运维操作者身份及完整审计查询/保留策略未完成；[账户验证](accounts-verification.md) | `d906f9183e` / `0beb2f17dc` |
 | **G07.7** 数据权利：导出与删除用户数据（含播放记录），删除后不可恢复且级联处理。 | internal/app/; internal/access/; internal/adapter/http/; internal/adapter/postgres/; web/src/features/users/ | users/sessions/devices/user_data/audit_logs | Plan-G07.7：角色×操作授权矩阵；密码/令牌/锁定/撤销/并发集成；直接 API 绕过 UI 仍被拒；须单独覆盖本行全部约束 | 阻塞：尚无本项完整实现及执行证据 | 未实现或未验证；无实现提交 |
 | **G07.8** 可选：TOTP 双因素（不得破坏第三方客户端登录路径，需提供无 2FA 设备令牌流程说明）。 | internal/app/; internal/access/; internal/adapter/http/; internal/adapter/postgres/; web/src/features/users/ | users/sessions/devices/user_data/audit_logs | Plan-G07.8：角色×操作授权矩阵；密码/令牌/锁定/撤销/并发集成；直接 API 绕过 UI 仍被拒；须单独覆盖本行全部约束 | 阻塞：尚无本项完整实现及执行证据 | 未实现或未验证；无实现提交 |
 
@@ -763,5 +765,5 @@
 | PERF.12 | perf-baseline.md / perf-report.md | INFO/DEBUG 日志 P95 对比、无显著劣化；需预定“显著”阈值 | 阻塞：尚无实测及阈值 |
 | PERF.cpu | perf-baseline.md / perf-report.md | 典型无转码负载 CPU 不高于基线，目标降低≥20% | 阻塞：尚无实测 |
 | PERF.memory | perf-baseline.md / perf-report.md | 1万/10万/50万扫描、10万图片与≥24h 稳态曲线；明确部署内存预算 | 阻塞：尚无实测及预算 |
-| DELIVERY.history | git-workflow.md / CHANGELOG.md | 单目标 Conventional Commits，可二分；不重写上游历史；作者 Carinoasd 已由用户确认 | 部分完成：保留完整基线历史；已记录分阶段本地提交，尚无发布标签/推送与完整二分验收 |
+| DELIVERY.history | git-workflow.md / CHANGELOG.md | 单目标 Conventional Commits，可二分；不重写上游历史；作者 Carinoasd 已由用户确认 | 部分完成：保留完整基线历史；已记录分阶段提交并推送至草稿 PR；尚无发布标签与完整二分验收 |
 | DELIVERY.release | requirements-traceability.md / 验证报告 | 原文完成判定全部满足，三类客户端记录、完整 CI、发行演练与精确提交 | 阻塞：当前不是完整产品交付 |
