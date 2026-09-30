@@ -1,12 +1,15 @@
 #requires -Version 7.2
 [CmdletBinding()]
-param([ValidateSet('init','bootstrap','tools-verify','tools-clean','build','test','test-race','test-integration','coverage','fmt','fmt-check','lint','toolchain-test','brand-scan','brand-scan-incremental','gitignore-check','migrate','doctor')][string]$Target = 'test')
+param([ValidateSet('init','bootstrap','bootstrap-media','tools-verify','media-tools-verify','media-toolchain-test','tools-clean','build','test','test-race','test-integration','coverage','fmt','fmt-check','lint','toolchain-test','brand-scan','brand-scan-incremental','gitignore-check','migrate','doctor')][string]$Target = 'test')
 . "$PSScriptRoot/toolchain-lib.ps1"
 $root = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 Push-Location $root
 try {
     switch ($Target) {
         { $_ -in 'init','bootstrap' } { & "$PSScriptRoot/bootstrap-tools.ps1" }
+        'bootstrap-media' { & "$PSScriptRoot/bootstrap-media-tools.ps1" }
+        'media-tools-verify' { & "$PSScriptRoot/media-tools-verify.ps1" }
+        'media-toolchain-test' { & "$PSScriptRoot/test-media-tools.ps1" }
         'tools-verify' { & "$PSScriptRoot/tools-verify.ps1" }
         'tools-clean' {
             foreach ($name in @('.tools','.bin','.testfixtures','.testdata')) { Remove-LocalTree $root (Join-Path $root $name) }

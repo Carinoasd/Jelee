@@ -1,0 +1,63 @@
+Stage 3B1 optional media toolchain verification
+Date: 2026-10-01
+Scope: project-local Windows amd64 and WSL Ubuntu Linux amd64 development tools.
+No production media runner or production image integration is claimed here.
+
+Before archive download:
+  Fixed HTTPS release metadata and supplier SHA256 checked against GitHub asset digests.
+  Manifest was written and parsed before downloading either binary archive.
+  After each archive matched its pin, executable/license hashes were read without executing
+  the contents and recorded in the manifest before first execution.
+
+Windows archive SHA256:
+  60f467265b1e312373dbcd92200c2618a74850f98d3d078e94296bb3fa2047ba
+Linux archive SHA256:
+  68ee646831adaae2495618346f3bba94ff207ff83bbd34d643e7004730d66269
+
+pwsh -NoProfile -File scripts/bootstrap-media-tools.ps1 -Offline
+PASS: fresh safe extraction, pinned file hashes, bounded version check and installed record.
+Observed Windows vendor version: 9.0.2-essentials_build-www.gyan.dev
+
+python3 -B scripts/media-tools.py bootstrap --offline
+PASS: fresh safe extraction, pinned file hashes, bounded version check and installed record.
+Observed Linux vendor version: n9.0.2-17-g2a571b6068-20260930
+
+pwsh -NoProfile -File scripts/test-media-tools.ps1
+PASS: 29 cases; exit 0.
+Manifest validation; offline missing/corrupt archives; lock conflict and reuse;
+forged installation record; modified binary hash; missing license; wrong version;
+live stdout/stderr floods; live timeout; missing executable; LD_*/FFREPORT removal;
+native -v/-f/argument forwarding against the pinned ffprobe.
+
+pwsh -NoProfile -File scripts/test-toolchain.ps1
+PASS: 12 existing ZIP/bootstrap security cases; exit 0.
+
+python3 -B -m unittest discover -s scripts -p 'test*tool*.py' -v
+PASS: 18 tests in 7.349 seconds; exit 0.
+Includes existing Go gzip bootstrap tests and media xz tests:
+offline install/verify; exact argument forwarding; unsafe manifests; missing/corrupt
+cache; forged record/modified executable; missing license; wrong version and cleanup;
+live stdout/stderr floods, timeout, missing executable and environment filtering;
+traversal/symlink/hardlink/FIFO/duplicate archive rejection; linked parent rejection;
+concurrent install rejection and lock reuse.
+
+G51.4 regression: both platform bootstraps remove the known project-local cached
+archive after SHA256 or size mismatch. Download partials are also cleaned. Installed
+binary or license mismatches still fail without modifying or repairing those files.
+
+pwsh -NoProfile -File scripts/media-tools-verify.ps1
+Verified media tools windows-amd64 9.0.2-essentials_build-www.gyan.dev;
+archive, executable and license SHA256 match.
+
+python3 -B scripts/media-tools.py verify
+Verified media tools linux-amd64 n9.0.2-17-g2a571b6068-20260930;
+archive, executable and license SHA256 match.
+
+Both verified ffprobe builds list the fd input protocol. This inventory does not
+establish safe handle inheritance, input isolation or production probing support.
+Default Go bootstrap does not invoke media bootstrap. No system tool installation,
+global PATH change, binary commit, production ffmpeg or Dockerfile change is involved.
+
+Limits: media binaries are GPL supplier builds. Linux requires glibc >= 2.28 and
+Linux >= 4.18. The developer wrappers do not sandbox user-requested media commands.
+Version diagnostics are restricted to 10 seconds and 64 KiB per output stream.

@@ -44,6 +44,69 @@
       "installedByJelee": false
     }
   ],
+  "mediaTools": {
+    "schemaVersion": 1,
+    "optional": true,
+    "verifiedOn": "2026-10-01",
+    "upstreamStableVersion": "9.0.2",
+    "upstreamSource": "https://www.ffmpeg.org/download.html",
+    "productionIntegration": "Not enabled in stage 3B1; production probe remains false and Docker contains no media tools",
+    "platforms": {
+      "windows-amd64": {
+        "vendor": "Gyan Doshi",
+        "vendorVersion": "9.0.2-essentials_build-www.gyan.dev",
+        "upstreamVersion": "9.0.2",
+        "releaseTag": "9.0.2",
+        "releaseURL": "https://github.com/GyanD/codexffmpeg/releases/tag/9.0.2",
+        "sourceRevision": "946fcce07b6dcd0331c8cc609192aeff5e1924f8",
+        "sourceURL": "https://github.com/FFmpeg/FFmpeg/commit/946fcce07b6dcd0331c8cc609192aeff5e1924f8",
+        "url": "https://github.com/GyanD/codexffmpeg/releases/download/9.0.2/ffmpeg-9.0.2-essentials_build.zip",
+        "sha256": "60f467265b1e312373dbcd92200c2618a74850f98d3d078e94296bb3fa2047ba",
+        "sizeBytes": 114768076,
+        "checksumURL": "https://www.gyan.dev/ffmpeg/builds/packages/ffmpeg-9.0.2-essentials_build.zip.sha256",
+        "metadataURL": "https://api.github.com/repos/GyanD/codexffmpeg/releases/tags/9.0.2",
+        "archive": "zip",
+        "installPath": "media/windows-amd64/gyan-9.0.2",
+        "archiveRoot": "ffmpeg-9.0.2-essentials_build",
+        "license": "GPL-3.0-or-later; linked dependencies retain their applicable licenses",
+        "licenseSource": "https://www.gyan.dev/ffmpeg/builds/",
+        "licenseFiles": [{"path": "ffmpeg-9.0.2-essentials_build/LICENSE", "sha256": "8ceb4b9ee5adedde47b31e975c1d90c73ad27b6b165a1dcd80c7c545eb65b903"}],
+        "runtimeRequirements": "Windows 10 or later; vendor static build",
+        "executables": {
+          "ffprobe": {"path": "ffmpeg-9.0.2-essentials_build/bin/ffprobe.exe", "sha256": "f0d36ecbbdd3bcfac3efa078c96c7271c2e68b3810595552ac3b7f17e9a65c52", "productionAllowed": true},
+          "ffmpeg": {"path": "ffmpeg-9.0.2-essentials_build/bin/ffmpeg.exe", "sha256": "3256173f3f8bffd7df12227c68adf68025edb1832273a9530688a7bb1ed8edec", "productionAllowed": false}
+        }
+      },
+      "linux-amd64": {
+        "vendor": "BtbN FFmpeg-Builds",
+        "vendorVersion": "n9.0.2-17-g2a571b6068-20260930",
+        "upstreamVersion": "9.0.2 plus 17 release/9.0 branch commits",
+        "releaseTag": "autobuild-2026-09-30-13-08",
+        "releaseURL": "https://github.com/BtbN/FFmpeg-Builds/releases/tag/autobuild-2026-09-30-13-08",
+        "sourceRevision": "2a571b606854520cf89804d8030c8b328e621689",
+        "sourceURL": "https://github.com/FFmpeg/FFmpeg/commit/2a571b606854520cf89804d8030c8b328e621689",
+        "buildRevision": "6c9aec5fc9a72ec3abedd1fa84db141fa18cf52b",
+        "buildSourceURL": "https://github.com/BtbN/FFmpeg-Builds/tree/6c9aec5fc9a72ec3abedd1fa84db141fa18cf52b",
+        "url": "https://github.com/BtbN/FFmpeg-Builds/releases/download/autobuild-2026-09-30-13-08/ffmpeg-n9.0.2-17-g2a571b6068-linux64-gpl-9.0.tar.xz",
+        "sha256": "68ee646831adaae2495618346f3bba94ff207ff83bbd34d643e7004730d66269",
+        "sizeBytes": 151017172,
+        "checksumURL": "https://github.com/BtbN/FFmpeg-Builds/releases/download/autobuild-2026-09-30-13-08/checksums.sha256",
+        "metadataURL": "https://api.github.com/repos/BtbN/FFmpeg-Builds/releases/tags/autobuild-2026-09-30-13-08",
+        "archive": "tar.xz",
+        "installPath": "media/linux-amd64/btbn-20260930-9.0",
+        "archiveRoot": "ffmpeg-n9.0.2-17-g2a571b6068-linux64-gpl-9.0",
+        "license": "GPL-3.0-or-later; linked dependencies retain their applicable licenses",
+        "licenseSource": "https://github.com/BtbN/FFmpeg-Builds/blob/6c9aec5fc9a72ec3abedd1fa84db141fa18cf52b/variants/defaults-gpl.sh",
+        "licenseFiles": [{"path": "ffmpeg-n9.0.2-17-g2a571b6068-linux64-gpl-9.0/LICENSE.txt", "sha256": "8ceb4b9ee5adedde47b31e975c1d90c73ad27b6b165a1dcd80c7c545eb65b903"}],
+        "runtimeRequirements": "glibc >= 2.28 and Linux >= 4.18; static libav build is not a fully static scratch-compatible executable",
+        "retention": "Vendor retains the final monthly build for two years; archive bytes remain bound by this SHA256 and can be supplied by an HTTPS mirror or offline cache",
+        "executables": {
+          "ffprobe": {"path": "ffmpeg-n9.0.2-17-g2a571b6068-linux64-gpl-9.0/bin/ffprobe", "sha256": "a5bd5e9f8d74ab2c6d7d9e2e2738ff6d67bf9613e7143e143ba8ebe9b06385fb", "productionAllowed": true},
+          "ffmpeg": {"path": "ffmpeg-n9.0.2-17-g2a571b6068-linux64-gpl-9.0/bin/ffmpeg", "sha256": "0d709a0bed1a43f24cd2c420878c63afea4580671b6949ad19ed124572f3bc3d", "productionAllowed": false}
+        }
+      }
+    }
+  },
   "tools": [
     {
       "name": "go",

@@ -3,10 +3,16 @@ export PATH := $(CURDIR)/.bin:$(PATH)
 GO := $(CURDIR)/.bin/go
 PYTHON := python3
 
-.PHONY: init bootstrap tools-verify tools-clean build test test-race test-integration coverage fmt fmt-check lint toolchain-test brand-scan brand-scan-incremental gitignore-check migrate doctor
+.PHONY: init bootstrap bootstrap-media tools-verify media-tools-verify tools-clean build test test-race test-integration coverage fmt fmt-check lint toolchain-test media-toolchain-test brand-scan brand-scan-incremental gitignore-check migrate doctor
 init: bootstrap
 bootstrap:
 	sh scripts/bootstrap-tools
+bootstrap-media:
+	sh scripts/bootstrap-media-tools
+media-tools-verify:
+	$(PYTHON) scripts/media-tools.py verify
+media-toolchain-test:
+	$(PYTHON) -B scripts/test_media_tools.py
 tools-verify:
 	$(PYTHON) scripts/toolchain.py verify
 tools-clean:

@@ -62,7 +62,7 @@ def assert_hash(path, expected):
         raise ValueError("SHA256 mismatch for " + Path(path).name)
 
 
-def safe_extract(archive, destination):
+def safe_extract(archive, destination, mode="r:gz"):
     destination = local_path(ROOT, destination)
     if any(destination.iterdir()):
         raise ValueError("extraction staging directory must be empty")
@@ -83,7 +83,7 @@ def safe_extract(archive, destination):
         checked_dirs.add(directory)
 
     total = 0
-    with tarfile.open(archive, "r:gz") as tar:
+    with tarfile.open(archive, mode) as tar:
         for count, member in enumerate(tar):
             name = member.name
             if (name.startswith("/") or "\\" in name or ":" in name

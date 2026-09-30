@@ -5,6 +5,8 @@
 | 名称 | 版本 | 许可证与归属 | 用途 | 分发范围 |
 | --- | --- | --- | --- | --- |
 | Go（包含 gofmt、vet、coverage） | 1.27.1 | BSD-3-Clause，The Go Authors；发行包内 `go/LICENSE` 与 `go/PATENTS` 保留 | 构建、检查、测试 | 仅项目本地工具；工具链不随应用二进制分发 |
+| Gyan Windows amd64 ffmpeg / ffprobe | `9.0.2-essentials_build-www.gyan.dev` | GPL-3.0-or-later，FFmpeg developers、Gyan Doshi 与所链接依赖作者；保留发行包 `LICENSE`、README 与文档 | 可选开发工具；ffmpeg 仅用于合成测试素材/调试，ffprobe 用于开发验证 | 本地被忽略目录，不进入本阶段生产镜像 |
+| BtbN Linux amd64 ffmpeg / ffprobe | `n9.0.2-17-g2a571b6068-20260930` | GPL-3.0-or-later，FFmpeg developers、BtbN 与所链接依赖作者；保留发行包 `LICENSE.txt` 及文档 | 同上；glibc 2.28+、Linux 4.18+ | 本地被忽略目录，不进入本阶段生产镜像 |
 | 官方 Go 容器构建镜像 | 1.27.1-alpine3.24 | Go 为 BSD-3-Clause；Alpine 各包保留各自许可证 | Docker 多阶段构建 | 构建阶段使用，最终 scratch 镜像不含该工具链 |
 | Docker Engine | 29.7.2（已存在的宿主工具） | Apache-2.0，[Moby 项目](https://github.com/moby/moby) | 启动隔离测试数据库 | 引导不安装、不分发 |
 | PostgreSQL 测试镜像 | 16.15 | [PostgreSQL License](https://www.postgresql.org/about/licence/)，PostgreSQL Global Development Group；基础镜像各包保留各自许可证 | 临时集成测试 | 已存在镜像，引导不拉取、不分发 |
@@ -13,4 +15,15 @@
 
 宿主 PowerShell、Python、curl、GNU Make 与 C 编译器作为已有引导前提使用，没有由 Jelee 安装到系统目录。它们的宿主版本不会冒充项目已固定的下载工具。GitHub Actions 使用固定提交的 checkout 与 cache 动作。
 
-媒体工具、浏览器驱动、Node 与其余扫描工具尚未被加入清单；不可据此表宣称 G51 工具集合已完整。完整状态见 `docs/toolchain.md`。将来新增工具须先记录来源、精确版本、平台、SHA256、许可证与归属，再允许下载。开发工具不随生产产物分发；任何实际再分发仍须带齐其对应许可证和声明。
+浏览器驱动、Node、mkvtoolnix、mediainfo 与其余扫描工具尚未加入清单；不可据此表宣称 G51 工具集合已完整。完整状态见 `docs/toolchain.md`。将来新增工具须先记录来源、精确版本、平台、SHA256、许可证与归属，再允许下载。
+
+## 媒体构建来源与许可
+
+2026-10-01 对照 [FFmpeg 官方下载页](https://www.ffmpeg.org/download.html) 核验当时的稳定源代码版本为 9.0.2（2026-09-18）。FFmpeg 项目自身发布源代码，页面链接 Gyan 和 BtbN 提供的构建；这些下载是供应商二进制。
+
+- Windows：[Gyan 9.0.2 release](https://github.com/GyanD/codexffmpeg/releases/tag/9.0.2)，核心 FFmpeg 源码修订为 [`946fcce07b6dcd0331c8cc609192aeff5e1924f8`](https://github.com/FFmpeg/FFmpeg/commit/946fcce07b6dcd0331c8cc609192aeff5e1924f8)。使用 essentials ZIP，SHA256 `60f467265b1e312373dbcd92200c2618a74850f98d3d078e94296bb3fa2047ba`；与 [Gyan 校验文件](https://www.gyan.dev/ffmpeg/builds/packages/ffmpeg-9.0.2-essentials_build.zip.sha256) 及 release asset digest 一致。[供应商说明](https://www.gyan.dev/ffmpeg/builds/) 标明其静态构建为 GPLv3。
+- Linux：[BtbN 固定月末 release](https://github.com/BtbN/FFmpeg-Builds/releases/tag/autobuild-2026-09-30-13-08)，核心 FFmpeg 源码修订为 [`2a571b606854520cf89804d8030c8b328e621689`](https://github.com/FFmpeg/FFmpeg/commit/2a571b606854520cf89804d8030c8b328e621689)。使用 `linux64-gpl-9.0.tar.xz`，SHA256 `68ee646831adaae2495618346f3bba94ff207ff83bbd34d643e7004730d66269`；与该 release 的 `checksums.sha256` 及 asset digest 一致。构建脚本固定于 [`6c9aec5fc9a72ec3abedd1fa84db141fa18cf52b`](https://github.com/BtbN/FFmpeg-Builds/tree/6c9aec5fc9a72ec3abedd1fa84db141fa18cf52b)，[GPL 构建选项](https://github.com/BtbN/FFmpeg-Builds/blob/6c9aec5fc9a72ec3abedd1fa84db141fa18cf52b/variants/defaults-gpl.sh) 为 `--enable-gpl --enable-version3`。构建脚本仓库的 MIT 许可不替代生成二进制的 GPL 许可。
+
+两个平台安装包均保留完整 GPLv3 文本，哈希 `8ceb4b9ee5adedde47b31e975c1d90c73ad27b6b165a1dcd80c7c545eb65b903`。所有完整下载 URL、独立 ffmpeg/ffprobe 哈希、许可文件路径及实际验证版本均记录在 manifest；不会下载浮动 `latest`。
+
+[FFmpeg 许可说明](https://www.ffmpeg.org/legal.html) 解释了启用 GPL 组件对构建许可的影响。此阶段只提供本地下载工具，没有再分发供应商二进制，也未声称仅链接 FFmpeg 核心源码便覆盖所有依赖的对应源代码义务。未来若分发 ffprobe，仍须核对完整构建配置、全部对应源代码、依赖许可证和声明，提供符合适用许可的材料；ffmpeg 不得进入生产分发。
