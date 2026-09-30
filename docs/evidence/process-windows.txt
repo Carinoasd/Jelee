@@ -1,0 +1,142 @@
+Frozen stage 3B2 Windows delta acceptance; Git tree 4ff6b4c6e49219179389c4a1dd7394759b534aa1
+Prior complete build/vet/test archive tree: 934cf6f22221c3e2611e05c6a25e2b3309ca2b65 (process-snapshot-windows-full-934cf.txt).
+Git comparison confirmed changes only in tests and make targets; production Go, go.mod/go.sum and embedded manifest bytes unchanged.
+Embedded manifest blob: 9da79ef8314e303515438d1438b1d7ecc2e458b8.
+Pinned Go 1.27.1; normal Windows user token; database integration unset; actual pinned media tools required.
+Confirmed archive has no stage 3C JSON parser, probe domain, or sandbox source.
+Pinned Windows ffprobe, developer ffmpeg and license hashes match frozen manifest; hardlinks only, no symlinks or manifest replacement.
+
+Command: go version
+go version go1.27.1 windows/amd64
+Command exit: 0
+
+Command: go build -trimpath -o .testdata/build/jelee-cli.exe ./cmd/jelee-cli
+Command exit: 0
+
+Command: go vet ./...
+Command exit: 0
+
+Command: go test -count=1 -cover -v ./internal/platform/toolidentity
+=== RUN   TestOversizedSparseFilesRefusedBeforeHashOrExecution
+=== RUN   TestOversizedSparseFilesRefusedBeforeHashOrExecution/binary
+=== RUN   TestOversizedSparseFilesRefusedBeforeHashOrExecution/license
+--- PASS: TestOversizedSparseFilesRefusedBeforeHashOrExecution (0.01s)
+    --- PASS: TestOversizedSparseFilesRefusedBeforeHashOrExecution/binary (0.01s)
+    --- PASS: TestOversizedSparseFilesRefusedBeforeHashOrExecution/license (0.01s)
+=== RUN   TestInvalidProjectAndTemporaryParentAreSafeFailures
+--- PASS: TestInvalidProjectAndTemporaryParentAreSafeFailures (0.01s)
+=== RUN   TestHashCopyRealIOFailuresAndDeadline
+--- PASS: TestHashCopyRealIOFailuresAndDeadline (0.02s)
+=== RUN   TestCleanupFailureOverridesVerifiedResult
+--- PASS: TestCleanupFailureOverridesVerifiedResult (0.01s)
+=== RUN   TestWindowsJunctionsRefused
+=== RUN   TestWindowsJunctionsRefused/project
+=== RUN   TestWindowsJunctionsRefused/ancestor
+=== RUN   TestWindowsJunctionsRefused/temporary
+--- PASS: TestWindowsJunctionsRefused (0.01s)
+    --- PASS: TestWindowsJunctionsRefused/project (0.00s)
+    --- PASS: TestWindowsJunctionsRefused/ancestor (0.00s)
+    --- PASS: TestWindowsJunctionsRefused/temporary (0.00s)
+=== RUN   TestVerifiedSnapshotAndNoMutableManifestTrust
+--- PASS: TestVerifiedSnapshotAndNoMutableManifestTrust (0.01s)
+=== RUN   TestIdentityFailuresNeverExecuteUnverifiedBytes
+=== RUN   TestIdentityFailuresNeverExecuteUnverifiedBytes/missing_tool
+=== RUN   TestIdentityFailuresNeverExecuteUnverifiedBytes/missing_license
+=== RUN   TestIdentityFailuresNeverExecuteUnverifiedBytes/tampered_binary
+=== RUN   TestIdentityFailuresNeverExecuteUnverifiedBytes/tampered_license
+=== RUN   TestIdentityFailuresNeverExecuteUnverifiedBytes/unsafe_relative
+=== RUN   TestIdentityFailuresNeverExecuteUnverifiedBytes/directory_tool
+=== RUN   TestIdentityFailuresNeverExecuteUnverifiedBytes/empty_tool
+--- PASS: TestIdentityFailuresNeverExecuteUnverifiedBytes (0.02s)
+    --- PASS: TestIdentityFailuresNeverExecuteUnverifiedBytes/missing_tool (0.00s)
+    --- PASS: TestIdentityFailuresNeverExecuteUnverifiedBytes/missing_license (0.00s)
+    --- PASS: TestIdentityFailuresNeverExecuteUnverifiedBytes/tampered_binary (0.00s)
+    --- PASS: TestIdentityFailuresNeverExecuteUnverifiedBytes/tampered_license (0.00s)
+    --- PASS: TestIdentityFailuresNeverExecuteUnverifiedBytes/unsafe_relative (0.00s)
+    --- PASS: TestIdentityFailuresNeverExecuteUnverifiedBytes/directory_tool (0.00s)
+    --- PASS: TestIdentityFailuresNeverExecuteUnverifiedBytes/empty_tool (0.00s)
+=== RUN   TestSafeVersionAndProcessFailureClassifications
+=== RUN   TestSafeVersionAndProcessFailureClassifications/wrong
+=== RUN   TestSafeVersionAndProcessFailureClassifications/empty
+=== RUN   TestSafeVersionAndProcessFailureClassifications/wrong_tool
+=== RUN   TestSafeVersionAndProcessFailureClassifications/flood
+=== RUN   TestSafeVersionAndProcessFailureClassifications/deadline
+=== RUN   TestSafeVersionAndProcessFailureClassifications/cancel
+=== RUN   TestSafeVersionAndProcessFailureClassifications/raw_error
+--- PASS: TestSafeVersionAndProcessFailureClassifications (0.03s)
+    --- PASS: TestSafeVersionAndProcessFailureClassifications/wrong (0.00s)
+    --- PASS: TestSafeVersionAndProcessFailureClassifications/empty (0.00s)
+    --- PASS: TestSafeVersionAndProcessFailureClassifications/wrong_tool (0.00s)
+    --- PASS: TestSafeVersionAndProcessFailureClassifications/flood (0.00s)
+    --- PASS: TestSafeVersionAndProcessFailureClassifications/deadline (0.00s)
+    --- PASS: TestSafeVersionAndProcessFailureClassifications/cancel (0.01s)
+    --- PASS: TestSafeVersionAndProcessFailureClassifications/raw_error (0.00s)
+=== RUN   TestIdentityCancellationAndFilesystemBoundaries
+=== RUN   TestIdentityCancellationAndFilesystemBoundaries/project
+    identity_test.go:226: host does not permit test symlink
+=== RUN   TestIdentityCancellationAndFilesystemBoundaries/ancestor
+    identity_test.go:226: host does not permit test symlink
+=== RUN   TestIdentityCancellationAndFilesystemBoundaries/leaf
+    identity_test.go:226: host does not permit test symlink
+=== RUN   TestIdentityCancellationAndFilesystemBoundaries/temporary
+    identity_test.go:226: host does not permit test symlink
+--- PASS: TestIdentityCancellationAndFilesystemBoundaries (0.01s)
+    --- SKIP: TestIdentityCancellationAndFilesystemBoundaries/project (0.00s)
+    --- SKIP: TestIdentityCancellationAndFilesystemBoundaries/ancestor (0.00s)
+    --- SKIP: TestIdentityCancellationAndFilesystemBoundaries/leaf (0.00s)
+    --- SKIP: TestIdentityCancellationAndFilesystemBoundaries/temporary (0.00s)
+=== RUN   TestHashCopyIsBoundedAndCancellationAware
+--- PASS: TestHashCopyIsBoundedAndCancellationAware (0.00s)
+=== RUN   TestPinnedInstalledFFprobe
+    identity_test.go:278: verified tool=ffprobe platform=windows-amd64 version=9.0.2-essentials_build-www.gyan.dev capability=disabled_sandbox
+--- PASS: TestPinnedInstalledFFprobe (0.48s)
+PASS
+coverage: 89.8% of statements
+ok  	github.com/MoYuanCN/Jelee/internal/platform/toolidentity	0.796s	coverage: 89.8% of statements
+Command exit: 0
+
+Command: go test -tags jelee_fixture_tools -count=1 -v ./tools/gen-fixtures
+=== RUN   TestFixturePathAndChecksumBoundary
+--- PASS: TestFixturePathAndChecksumBoundary (0.00s)
+=== RUN   TestFixtureWriteNeverOverwrites
+--- PASS: TestFixtureWriteNeverOverwrites (0.00s)
+=== RUN   TestFixtureManifestFailureIsExplicit
+--- PASS: TestFixtureManifestFailureIsExplicit (0.00s)
+=== RUN   TestGenerateRealFixturesAndCancellation
+    main_test.go:157: PASS: 13 small original fixtures, fixed arguments, checksums, source preservation and cancelled cleanup (windows-amd64)
+--- PASS: TestGenerateRealFixturesAndCancellation (0.42s)
+=== RUN   TestRealFixtureProbeMetadataAndSourcePreservation
+=== RUN   TestRealFixtureProbeMetadataAndSourcePreservation/corrupt.mkv
+=== RUN   TestRealFixtureProbeMetadataAndSourcePreservation/multi.mkv
+=== RUN   TestRealFixtureProbeMetadataAndSourcePreservation/video-180p.mp4
+=== RUN   TestRealFixtureProbeMetadataAndSourcePreservation/video-360p.mp4
+--- PASS: TestRealFixtureProbeMetadataAndSourcePreservation (0.64s)
+    --- PASS: TestRealFixtureProbeMetadataAndSourcePreservation/corrupt.mkv (0.04s)
+    --- PASS: TestRealFixtureProbeMetadataAndSourcePreservation/multi.mkv (0.03s)
+    --- PASS: TestRealFixtureProbeMetadataAndSourcePreservation/video-180p.mp4 (0.03s)
+    --- PASS: TestRealFixtureProbeMetadataAndSourcePreservation/video-360p.mp4 (0.03s)
+PASS
+ok  	github.com/MoYuanCN/Jelee/tools/gen-fixtures	1.244s
+Command exit: 0
+
+Command: go test -tags jelee_fixture_tools -count=1 -run TestFixtureBuild -v ./internal/platform/process
+=== RUN   TestFixtureBuildRegistrationRemainsConstrained
+--- PASS: TestFixtureBuildRegistrationRemainsConstrained (0.00s)
+PASS
+ok  	github.com/MoYuanCN/Jelee/internal/platform/process	0.205s
+Command exit: 0
+
+Command: go test -tags jelee_fixture_tools -count=1 -run TestPinnedInstalledFFprobe -v ./internal/platform/toolidentity
+=== RUN   TestPinnedInstalledFFprobe
+    identity_test.go:278: verified tool=ffprobe platform=windows-amd64 version=9.0.2-essentials_build-www.gyan.dev capability=disabled_sandbox
+--- PASS: TestPinnedInstalledFFprobe (0.49s)
+PASS
+ok  	github.com/MoYuanCN/Jelee/internal/platform/toolidentity	0.666s
+Command exit: 0
+
+Frozen CLI doctor tools with invalid DB config: exit 0
+{"tool":"ffprobe","platform":"windows-amd64","expectedVersion":"9.0.2-essentials_build-www.gyan.dev","state":"verified","reason":"verified","capability":"disabled_sandbox"}
+
+
+PASS: changed identity tests, all vet, required developer fixture/runner/identity targets and rebuilt CLI tool diagnosis; pinned sources unchanged. Prior complete-suite evidence applies to identical production source.
+Owned Windows snapshot cleaned; primary source, stage and shared PostgreSQL untouched.

@@ -1,4 +1,4 @@
-> 2026-10-01 用户恢复工作。第3A已交付，验证见 jobs-verification.md。第3B1固定开发媒体工具已验证，见 media-tools-verification.md；3B2执行器/唯读输入/素材正在实现，3C隔离/探测与3D仍待依次交付。以下保留最初规划，历史描述不代表当前状态。
+> 2026-10-01 用户恢复工作。第3A、3B1、3B2已交付，验证见 jobs-verification.md、media-tools-verification.md、process-verification.md。接着3C隔离/媒体规范化/缓存，再继续3D。以下保留最初规划，历史描述不代表当前状态。
 # 第 3 階段工作範圍：任務、唯讀掃描與媒體探測
 
 規劃日期：2026-10-01，Asia/Taipei。

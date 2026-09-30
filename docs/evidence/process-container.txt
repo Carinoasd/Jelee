@@ -1,0 +1,27 @@
+Stage 3B2 production container acceptance
+UTC: 2026-09-30T19:30:54Z
+Image tag: jelee/jelee:codex-process-test
+Image ID: sha256:b2c7c3b60ab6627ba0d80f7f3bcb1f19c1d9dfcbd7721ad4b9b32562ce25b637
+Build source: frozen Git index tree ff04a8c1fedf66639f1d1aaaff56a6fed649406f
+Build inputs SHA256: b089a679b006e0e06b3c2c207ee15555d06b286976c53f06c9ef731261a3b62c
+Database: dedicated local PostgreSQL 16.15, unique disposable schema
+Build: docker build --network host --tag jelee/jelee:codex-process-test .
+Secrets: mounted credential file; bootstrap password and jobs bearer token on stdin; no secret argv/env values
+jelee SHA256: 94a137257781550e9276e2ec63eb056c9a61b39cc57dfd3f7841f8704127ada7
+jelee-cli SHA256: 77486025b0d84564cefd5fb72185d23a6103cfe3631896a259ff16869a9c6a5f
+jelee-migrate SHA256: a38ca971cc0c277c5ba0c4b53f588b33ef327898cd63e3c8e19b56252c2f85d8
+PASS created a fresh isolated schema in dedicated jelee_test; credentials mounted from a private temporary file
+PASS production Dockerfile build completed with exit 0
+PASS production image USER=65532:65532, linux/amd64 and /jelee entrypoint verified
+PASS production doctor tools independently reports missing_tool/disabled_sandbox without DB, fallback or mutation
+PASS exported root filesystem: exactly three static ELF64 binaries, no PT_INTERP/PT_DYNAMIC, no shell/ffmpeg/ffprobe/Go SDK; original LICENSE and required Go licenses/CA present
+PASS production migration binary reached schema 3 clean
+PASS real non-root CLI bootstrapped an administrator using password stdin and registered the readonly fixture root
+PASS service became healthy with UID/GID 65532, readonly root/media, cap-drop ALL, no-new-privileges; healthz/readyz and inventory capability verified
+PASS real CLI token stdin submitted and polled the durable scan; exact 256 files / 5 directories / 10130 bytes, 192 video/32 NFO/16 image/16 other; stable bounded UUID cursor pages
+PASS all 256 original fixture SHA256 values unchanged; fixtures are transport/inventory test bytes, not playable media
+PASS SIGTERM stop completed: Running=false ExitCode=0 OOMKilled=false; service/CLI logs contained no test credentials or absolute roots
+PASS production migration binary completed schema 3→2→1→0 without touching another schema
+PASS production build input digest remained unchanged during acceptance
+PASS removed this run’s service/inspection containers, isolated schema, generated credentials and temporary fixtures; shared test PostgreSQL remains available
+RESULT PASS

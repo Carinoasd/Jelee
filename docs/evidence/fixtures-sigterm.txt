@@ -1,0 +1,7 @@
+Fixture generator SIGTERM acceptance: pinned Go build with jelee_fixture_tools; real pinned Linux ffmpeg; no media from users.
+Observed real ffmpeg encoding a fixed lavfi video operation (not the version operation).
+Sent SIGSTOP only to that owned child through pidfd, then SIGTERM only to its generator parent.
+Generator exited 1 with fixed process_cancelled diagnostic in 0.022s.
+Owned ffmpeg pidfd reported exit; /proc child entry absent (reaped); no child process remains.
+Fresh generator output directory absent after cancellation; pre-existing sentinel unchanged.
+PASS: signal cancellation propagated, child cleanup completed, partial fixture directory removed.

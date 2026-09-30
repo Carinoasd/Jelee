@@ -2,7 +2,7 @@
 
 ## 当前状态
 
-2026-10-01 用户已恢复工作，要求“每做完一阶段就提PR，然后继续下一阶段”。第3A段已提交至 [PR #2](https://github.com/MoYuanCN/Jelee/pull/2)。第3B1固定媒体工具已验证，源码提交 `3b9be6922cac045070fe435349a835b878de93cc`，当前分支 `feat/jelee-media-tools` 以3A分支为基底；接着交付3B2执行器/素材，再继续3C隔离/探测。
+2026-10-01 用户已恢复工作，要求“每做完一阶段就提PR，然后继续下一阶段”。第3A见[PR #2](https://github.com/MoYuanCN/Jelee/pull/2)，第3B1见[PR #3](https://github.com/MoYuanCN/Jelee/pull/3)。第3B2执行器/输入/诊断/素材源码已提交 `03a559524c0b42abe888e0199b20a8a404853842`，当前分支 `feat/jelee-process-fixtures` 以3B1为基底；验证见[3B2报告](process-verification.md)。接着3C隔离/规范化/缓存。
 
 - 仓库 `MoYuanCN/Jelee`，分支 `feat/jelee-go-foundation`，目标 `master`；[草稿 PR #1](https://github.com/MoYuanCN/Jelee/pull/1)。
 - 第 2 阶段最终提交 `fdbd1173b53e2999ab6cb99ec1d525fef91ff0b6` 已推送；本记录与第 3 阶段接口草案另作接手提交。
@@ -18,11 +18,11 @@
 
 ## 恢复后的起点
 
-1. 确认阶段PR/当前分支后继续3B，沿用每段验证/推送/提PR/继续的授权，不需要再次询问。
+1. 确认阶段PR/当前分支后继续3C，沿用每段验证/推送/提PR/继续的授权，不需要再次询问。
 2. schema3 已发布；后续只增加迁移，不改写000001/000002/000003。
 3. 已实现契约：Heartbeat bool=cancelRequested，Claim/Next无工作ErrNotFound；kind video/nfo/image/other；目录含根`.`。任何skipped/大量缺失均保留基准待review，尚无确认API，完全不自动删除。
 4. root path 仅来自数据库中经本地 CLI 注册的媒体根，不允许 HTTP 任意传路径。批次最多 128 项，路径最多 1024 UTF-8 字节，队列/历史/目录/文件记录与并发都有硬上限。所有公共任务操作在事务内重验管理员和有效会话。
-5. ffprobe/ffmpeg 已固定在 manifest，并安装至两平台项目 `.tools`；见[3B1验证](media-tools-verification.md)。生产 probe 保持关闭，执行器/唯读输入/素材继续3B2；实际OS隔离完成前不注册媒体operation，不能使用ffmpeg生产回退。
+5. ffprobe/ffmpeg 已固定在 manifest，并安装至两平台项目 `.tools`；见[3B1验证](media-tools-verification.md)。执行器/唯读输入/诊断/原创素材已完成3B2；生产 probe 保持关闭，实际OS隔离完成前不注册媒体operation，不能使用ffmpeg生产回退。
 
 ## 本地运行注意
 
