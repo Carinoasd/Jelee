@@ -15,21 +15,23 @@ import (
 )
 
 type Config struct {
-	Listen                string   `json:"listen"`
-	AllowedHosts          []string `json:"allowedHosts"`
-	DatabaseURL           string   `json:"-"`
-	MaxConnections        int32    `json:"maxConnections"`
-	MaxStreams            int      `json:"maxStreams"`
-	RequestTimeoutSeconds int      `json:"requestTimeoutSeconds"`
-	EnableCatalog         bool     `json:"enableCatalog"`
-	EnableDirect          bool     `json:"enableDirect"`
+	Listen                string         `json:"listen"`
+	AllowedHosts          []string       `json:"allowedHosts"`
+	DatabaseURL           string         `json:"-"`
+	MaxConnections        int32          `json:"maxConnections"`
+	MaxStreams            int            `json:"maxStreams"`
+	RequestTimeoutSeconds int            `json:"requestTimeoutSeconds"`
+	EnableCatalog         bool           `json:"enableCatalog"`
+	EnableDirect          bool           `json:"enableDirect"`
+	EnableAccounts        bool           `json:"enableAccounts"`
+	Accounts              AccountsConfig `json:"accounts"`
 }
 
 func Load() (Config, error) { return LoadWith(os.LookupEnv) }
 
 // LoadWith keeps environment lookup injectable and never includes values in errors.
 func LoadWith(lookup func(string) (string, bool)) (Config, error) {
-	c := Config{Listen: "127.0.0.1:8097", AllowedHosts: []string{"localhost", "127.0.0.1", "::1"}, MaxConnections: 8, MaxStreams: 8, RequestTimeoutSeconds: 15}
+	c := Config{Listen: "127.0.0.1:8097", AllowedHosts: []string{"localhost", "127.0.0.1", "::1"}, MaxConnections: 8, MaxStreams: 8, RequestTimeoutSeconds: 15, Accounts: DefaultAccountsConfig()}
 	if path, ok := lookup("JELEE_CONFIG"); ok && path != "" {
 		f, err := os.Open(path)
 		if err != nil {
@@ -74,7 +76,7 @@ func LoadWith(lookup func(string) (string, bool)) (Config, error) {
 	if value, ok := lookup("JELEE_ALLOWED_HOSTS"); ok {
 		c.AllowedHosts = strings.Split(value, ",")
 	}
-	for name, target := range map[string]*bool{"JELEE_ENABLE_CATALOG": &c.EnableCatalog, "JELEE_ENABLE_DIRECT": &c.EnableDirect} {
+	for name, target := range map[string]*bool{"JELEE_ENABLE_CATALOG": &c.EnableCatalog, "JELEE_ENABLE_DIRECT": &c.EnableDirect, "JELEE_ENABLE_ACCOUNTS": &c.EnableAccounts} {
 		if value, ok := lookup(name); ok {
 			b, err := strconv.ParseBool(value)
 			if err != nil {
@@ -99,6 +101,9 @@ func LoadWith(lookup func(string) (string, bool)) (Config, error) {
 			return c, errors.New("invalid JELEE_MAX_STREAMS")
 		}
 		c.MaxStreams = n
+	}
+	if err := c.Accounts.loadEnvironment(lookup); err != nil {
+		return c, err
 	}
 	return c, c.Validate()
 }
@@ -129,6 +134,9 @@ func (c Config) Validate() error {
 	}
 	if c.EnableDirect && !c.EnableCatalog {
 		return errors.New("direct delivery requires catalog rollout")
+	}
+	if c.EnableAccounts {
+		return c.Accounts.Validate()
 	}
 	return nil
 }

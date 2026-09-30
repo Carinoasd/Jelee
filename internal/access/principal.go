@@ -18,6 +18,7 @@ type Principal struct {
 	SessionID string
 	Kind      ClientKind
 	Admin     bool
+	Locale    string
 }
 
 type principalKey struct{}
