@@ -1,0 +1,105 @@
+package app
+
+import (
+	"context"
+
+	"github.com/MoYuanCN/Jelee/internal/domain"
+)
+
+type Jobs struct {
+	repository JobRepository
+	policy     domain.JobPolicy
+}
+
+func NewJobs(repository JobRepository, policy domain.JobPolicy) (*Jobs, error) {
+	if repository == nil || !validJobPolicy(policy) {
+		return nil, domain.ErrInvalid
+	}
+	return &Jobs{repository: repository, policy: policy}, nil
+}
+
+func validJobPolicy(p domain.JobPolicy) bool {
+	return p.QueueLimit >= 1 && p.QueueLimit <= 1000 && p.HistoryLimit >= 1 && p.HistoryLimit <= 100 &&
+		p.MaxEntries >= 100 && p.MaxEntries <= 500000 && p.MaxDirectories >= 1 && p.MaxDirectories <= 100000 &&
+		p.MaxAttempts >= 1 && p.MaxAttempts <= 10 && p.MissingCountLimit >= 1 && p.MissingCountLimit <= 500000 &&
+		p.MissingPercentLimit >= 1 && p.MissingPercentLimit <= 100
+}
+
+func validJobPage(actor domain.Actor, cursor string, limit int) bool {
+	return validActor(actor) && (cursor == "" || domain.ValidID(cursor)) && limit >= 1 && limit <= 100
+}
+
+func (j *Jobs) Submit(ctx context.Context, actor domain.Actor, library, key, priority string) (domain.Job, bool, error) {
+	if !validTarget(actor, library) || !validKey(key) || priority != domain.JobPriorityManual && priority != domain.JobPriorityBackground {
+		return domain.Job{}, false, domain.ErrInvalid
+	}
+	if err := ctx.Err(); err != nil {
+		return domain.Job{}, false, err
+	}
+	return j.repository.SubmitJob(ctx, actor, library, key, priority, j.policy)
+}
+
+func (j *Jobs) Retry(ctx context.Context, actor domain.Actor, id, key string) (domain.Job, bool, error) {
+	if !validTarget(actor, id) || !validKey(key) {
+		return domain.Job{}, false, domain.ErrInvalid
+	}
+	if err := ctx.Err(); err != nil {
+		return domain.Job{}, false, err
+	}
+	return j.repository.RetryJob(ctx, actor, id, key, j.policy)
+}
+
+func (j *Jobs) Cancel(ctx context.Context, actor domain.Actor, id string) (domain.Job, error) {
+	if !validTarget(actor, id) {
+		return domain.Job{}, domain.ErrInvalid
+	}
+	if err := ctx.Err(); err != nil {
+		return domain.Job{}, err
+	}
+	return j.repository.CancelJob(ctx, actor, id)
+}
+
+func (j *Jobs) Get(ctx context.Context, actor domain.Actor, id string) (domain.Job, error) {
+	if !validTarget(actor, id) {
+		return domain.Job{}, domain.ErrInvalid
+	}
+	if err := ctx.Err(); err != nil {
+		return domain.Job{}, err
+	}
+	return j.repository.GetJob(ctx, actor, id)
+}
+
+func (j *Jobs) List(ctx context.Context, actor domain.Actor, cursor string, limit int, state string) ([]domain.Job, error) {
+	if !validJobPage(actor, cursor, limit) {
+		return nil, domain.ErrInvalid
+	}
+	switch state {
+	case "", domain.JobQueued, domain.JobRunning, domain.JobSucceeded, domain.JobFailed, domain.JobCancelled:
+	default:
+		return nil, domain.ErrInvalid
+	}
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	return j.repository.ListJobs(ctx, actor, cursor, limit, state)
+}
+
+func (j *Jobs) Entries(ctx context.Context, actor domain.Actor, id, cursor string, limit int) ([]domain.InventoryEntry, error) {
+	if !domain.ValidID(id) || !validJobPage(actor, cursor, limit) {
+		return nil, domain.ErrInvalid
+	}
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	return j.repository.ListInventory(ctx, actor, id, cursor, limit)
+}
+
+func (j *Jobs) Libraries(ctx context.Context, actor domain.Actor, cursor string, limit int) ([]domain.LibrarySummary, error) {
+	if !validJobPage(actor, cursor, limit) {
+		return nil, domain.ErrInvalid
+	}
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	return j.repository.ListLibraries(ctx, actor, cursor, limit)
+}

@@ -17,6 +17,11 @@ func Message(code, acceptLanguage, fallback string) string {
 // Keep complete phrases together so their grammar is not assembled at runtime.
 var messages = map[string]map[string]string{
 	"en-US": {
+		"scan_unavailable":        "Scan root is unavailable.",
+		"scan_limit":              "Scan resource limit reached.",
+		"job_queue_full":          "Job queue capacity reached. Try again later.",
+		"job_busy":                "This library already has an active job.",
+		"jobs_busy":               "Job service is busy. Try again later.",
 		"account_busy":            "Account service is busy. Try again later.",
 		"forbidden":               "Operation is not permitted.",
 		"conflict":                "Resource conflicts with existing state.",
@@ -41,6 +46,11 @@ var messages = map[string]map[string]string{
 		"unsupported_media_type":  "Request content type is not supported.",
 	},
 	"zh-CN": {
+		"scan_unavailable":        "无法访问扫描根目录。",
+		"scan_limit":              "扫描资源数量已达上限。",
+		"job_queue_full":          "任务队列已满，请稍后重试。",
+		"job_busy":                "此媒体库已有正在等待或执行的任务。",
+		"jobs_busy":               "任务服务繁忙，请稍后重试。",
 		"account_busy":            "账户服务繁忙，请稍后重试。",
 		"forbidden":               "不允许执行此操作。",
 		"conflict":                "资源与现有状态冲突。",
@@ -65,6 +75,11 @@ var messages = map[string]map[string]string{
 		"unsupported_media_type":  "不支持此请求内容类型。",
 	},
 	"zh-TW": {
+		"scan_unavailable":        "無法存取掃描根目錄。",
+		"scan_limit":              "掃描資源數量已達上限。",
+		"job_queue_full":          "任務佇列已滿，請稍後再試。",
+		"job_busy":                "此媒體庫已有正在等待或執行的任務。",
+		"jobs_busy":               "任務服務忙碌，請稍後再試。",
 		"account_busy":            "帳戶服務忙碌，請稍後再試。",
 		"forbidden":               "不允許執行此操作。",
 		"conflict":                "資源與現有狀態衝突。",
@@ -89,6 +104,11 @@ var messages = map[string]map[string]string{
 		"unsupported_media_type":  "不支援此請求內容類型。",
 	},
 	"ja-JP": {
+		"scan_unavailable":        "スキャンのルートディレクトリにアクセスできません。",
+		"scan_limit":              "スキャンのリソース数が上限に達しました。",
+		"job_queue_full":          "ジョブキューが上限に達しました。しばらくしてから再試行してください。",
+		"job_busy":                "このライブラリには待機中または実行中のジョブがあります。",
+		"jobs_busy":               "ジョブサービスが混雑しています。しばらくしてから再試行してください。",
 		"account_busy":            "アカウントサービスが混雑しています。しばらくしてから再試行してください。",
 		"forbidden":               "この操作は許可されていません。",
 		"conflict":                "リソースが現在の状態と競合しています。",

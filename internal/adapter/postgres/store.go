@@ -43,7 +43,7 @@ func (s *Store) Ready(ctx context.Context) error {
 	}
 	var version int
 	var dirty bool
-	if err := s.Pool.QueryRow(ctx, "SELECT version,dirty FROM schema_migrations").Scan(&version, &dirty); err != nil || version != 2 || dirty {
+	if err := s.Pool.QueryRow(ctx, "SELECT version,dirty FROM schema_migrations").Scan(&version, &dirty); err != nil || version != 3 || dirty {
 		return errors.New("database migration required or dirty")
 	}
 	return nil

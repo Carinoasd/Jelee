@@ -17,10 +17,20 @@ import (
 func main() { os.Exit(run()) }
 func run() int {
 	if len(os.Args) < 2 {
-		fmt.Fprintln(os.Stderr, "usage: jelee-cli doctor|provision|import-video|nfo validate|account bootstrap|account set-password")
+		fmt.Fprintln(os.Stderr, "usage: jelee-cli doctor|provision|import-video|nfo|account|library|jobs")
 		return 2
 	}
 	command := os.Args[1]
+	if command == "library" || command == "jobs" {
+		ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
+		defer stop()
+		ctx, cancel := context.WithTimeout(ctx, 15*time.Second)
+		defer cancel()
+		if command == "library" {
+			return runLibraryCLI(ctx, os.Args[2:], os.Stdout, os.Stderr)
+		}
+		return runJobsCLI(ctx, os.Args[2:], os.Stdin, os.Stdout, os.Stderr)
+	}
 	if command == "account" {
 		ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 		defer stop()
@@ -67,7 +77,7 @@ func run() int {
 	defer store.Pool.Close()
 	switch command {
 	case "doctor":
-		fmt.Println("configuration: valid\nPostgreSQL: connected\nschema: 2 clean\nproduction restrictions: enabled\ndeveloper mode: unavailable\nRemaining diagnostics: see docs/requirements-traceability.md")
+		fmt.Println("configuration: valid\nPostgreSQL: connected\nschema: 3 clean\nproduction restrictions: enabled\ndeveloper mode: unavailable\nRemaining diagnostics: see docs/requirements-traceability.md")
 		return 0
 	case "provision":
 		kind := access.ClientWeb

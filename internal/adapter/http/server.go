@@ -39,9 +39,21 @@ type Server struct {
 	loginLimiter    *LoginLimiter
 	passwordLimiter *LoginLimiter
 	accountSlots    chan struct{}
+	jobs            *app.Jobs
+	jobSlots        chan struct{}
 }
 
 func New(cfg config.Config, backend Backend, catalog *app.Catalog, resolver media.Resolver, logger *slog.Logger, accounts ...*app.Accounts) (http.Handler, error) {
+	var account *app.Accounts
+	if len(accounts) == 1 {
+		account = accounts[0]
+	} else if len(accounts) > 1 {
+		return nil, errors.New("only one account service may be provided")
+	}
+	return NewWithJobs(cfg, backend, catalog, resolver, logger, account, nil)
+}
+
+func NewWithJobs(cfg config.Config, backend Backend, catalog *app.Catalog, resolver media.Resolver, logger *slog.Logger, account *app.Accounts, jobs *app.Jobs) (http.Handler, error) {
 	if err := cfg.Validate(); err != nil {
 		return nil, err
 	}
@@ -54,10 +66,10 @@ func New(cfg config.Config, backend Backend, catalog *app.Catalog, resolver medi
 	}
 	s := &Server{cfg: cfg, backend: backend, catalog: catalog, delivery: delivery, logger: logger}
 	if cfg.EnableAccounts {
-		if len(accounts) != 1 || accounts[0] == nil {
+		if account == nil {
 			return nil, errors.New("account service must be provided")
 		}
-		s.accounts = accounts[0]
+		s.accounts = account
 		s.accountSlots = make(chan struct{}, cfg.Accounts.PasswordConcurrency*4)
 		s.loginLimiter, err = NewLoginLimiter(LoginLimiterOptions{Window: time.Duration(cfg.Accounts.LoginWindowSeconds) * time.Second, IPLimit: cfg.Accounts.LoginIPLimit, UserLimit: cfg.Accounts.LoginUserLimit, MaxEntries: cfg.Accounts.LoginMaxEntries})
 		if err != nil {
@@ -67,6 +79,13 @@ func New(cfg config.Config, backend Backend, catalog *app.Catalog, resolver medi
 		if err != nil {
 			return nil, err
 		}
+	}
+	if cfg.EnableJobs {
+		if jobs == nil {
+			return nil, errors.New("job service must be provided")
+		}
+		s.jobs = jobs
+		s.jobSlots = make(chan struct{}, cfg.Jobs.Workers*2+2)
 	}
 	r := chi.NewRouter()
 	r.Use(s.boundary)
@@ -83,7 +102,7 @@ func New(cfg config.Config, backend Backend, catalog *app.Catalog, resolver medi
 		writeJSON(w, 200, map[string]any{"data": map[string]string{"status": "ready"}})
 	})
 	r.Get("/api/v1/system", func(w http.ResponseWriter, r *http.Request) {
-		writeJSON(w, 200, map[string]any{"data": map[string]any{"name": "Jelee", "devMode": false, "capabilities": map[string]any{"transcoding": false, "hls": false, "dash": false, "remux": false, "downloads": false, "directDelivery": cfg.EnableDirect, "catalog": cfg.EnableCatalog, "accounts": cfg.EnableAccounts}}})
+		writeJSON(w, 200, map[string]any{"data": map[string]any{"name": "Jelee", "devMode": false, "capabilities": map[string]any{"transcoding": false, "hls": false, "dash": false, "remux": false, "downloads": false, "directDelivery": cfg.EnableDirect, "catalog": cfg.EnableCatalog, "accounts": cfg.EnableAccounts, "inventoryScan": cfg.EnableJobs, "probe": false}}})
 	})
 	r.Get("/api-docs", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
@@ -92,6 +111,9 @@ func New(cfg config.Config, backend Backend, catalog *app.Catalog, resolver medi
 	r.Get("/api/v1/openapi.json", func(w http.ResponseWriter, r *http.Request) { writeJSON(w, 200, Specification(cfg)) })
 	if cfg.EnableAccounts {
 		s.accountRoutes(r)
+	}
+	if cfg.EnableJobs {
+		s.jobRoutes(r)
 	}
 	if cfg.EnableCatalog {
 		r.Group(func(r chi.Router) {
@@ -277,6 +299,15 @@ func WriteError(w http.ResponseWriter, r *http.Request, err error) {
 		status, code, message = 403, "forbidden", "Operation is not permitted."
 	case errors.Is(err, domain.ErrConflict):
 		status, code, message = 409, "conflict", "Resource conflicts with existing state."
+	case errors.Is(err, domain.ErrJobQueueFull):
+		status, code, message = 429, "job_queue_full", "Job queue capacity reached. Try again later."
+		w.Header().Set("Retry-After", "1")
+	case errors.Is(err, domain.ErrJobBusy):
+		status, code, message = 409, "job_busy", "This library already has an active job."
+	case errors.Is(err, domain.ErrScanUnavailable):
+		status, code, message = 503, "scan_unavailable", "Scan root is unavailable."
+	case errors.Is(err, domain.ErrScanLimit):
+		status, code, message = 409, "scan_limit", "Scan resource limit reached."
 	case errors.Is(err, domain.ErrLastAdmin):
 		status, code, message = 409, "last_admin", "An active administrator must remain."
 	case errors.Is(err, domain.ErrSessionLimit):

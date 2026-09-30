@@ -75,6 +75,10 @@ func TestAccountHTTPWriteDeadlineReleasesAdmissionSlots(t *testing.T) {
 		users[i] = domain.User{ID: userID, Name: strings.Repeat("<", 128), DisplayName: strings.Repeat("<", 128), Locale: "en-US"}
 	}
 	allAdmitted := make(chan struct{})
+	releaseResponses := make(chan struct{})
+	var releaseOnce sync.Once
+	release := func() { releaseOnce.Do(func() { close(releaseResponses) }) }
+	defer release()
 	var admitted atomic.Int32
 	repo := httpAccountRepository{
 		list: func(ctx context.Context, _ domain.Actor, _ string, limit int, _ bool) ([]domain.User, error) {
@@ -85,7 +89,7 @@ func TestAccountHTTPWriteDeadlineReleasesAdmissionSlots(t *testing.T) {
 				close(allAdmitted)
 			}
 			select {
-			case <-allAdmitted:
+			case <-releaseResponses:
 				return users, nil
 			case <-ctx.Done():
 				return nil, ctx.Err()
@@ -165,6 +169,7 @@ func TestAccountHTTPWriteDeadlineReleasesAdmissionSlots(t *testing.T) {
 	if status := request(); status != http.StatusServiceUnavailable {
 		t.Fatalf("full admission budget returned %d, want 503", status)
 	}
+	release()
 	// No socket or request is cancelled here. The server's write deadlines alone
 	// must terminate every stalled response and release its admission slot.
 	timer := time.NewTimer(5 * time.Second)
