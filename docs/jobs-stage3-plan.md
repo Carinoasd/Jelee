@@ -1,4 +1,4 @@
-> 2026-10-01 用户恢复工作。第3A、3B1、3B2已交付，验证见 jobs-verification.md、media-tools-verification.md、process-verification.md。接着3C隔离/媒体规范化/缓存，再继续3D。以下保留最初规划，历史描述不代表当前状态。
+> 2026-10-01 用户恢复工作。第3A、3B1、3B2、3C1已交付，验证见 jobs-verification.md、media-tools-verification.md、process-verification.md。3C1见probe-verification.md；接着3C2A持久cache、3C2B扫描/API整合，再继续3D。以下保留最初规划，历史描述不代表当前状态。
 # 第 3 階段工作範圍：任務、唯讀掃描與媒體探測
 
 規劃日期：2026-10-01，Asia/Taipei。

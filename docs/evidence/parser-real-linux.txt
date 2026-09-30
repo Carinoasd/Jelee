@@ -1,0 +1,17 @@
+=== RUN   TestParseActualPinnedFFprobeFixtures
+=== RUN   TestParseActualPinnedFFprobeFixtures/video-180p.mp4
+    parser_real_test.go:188: actual video-180p.mp4: h264 320x180; audio=1 subtitles=0 chapters=0; size=84806 durationMicros=1000000; sourceSHA256=9eb634b6a3d18838161944b0f2eb1a0b3cdd810db1be545b42548f935cdc838f unchanged
+=== RUN   TestParseActualPinnedFFprobeFixtures/video-360p.mp4
+    parser_real_test.go:188: actual video-360p.mp4: h264 640x360; audio=1 subtitles=0 chapters=0; size=220631 durationMicros=1000000; sourceSHA256=dd4e09a89022245a36c6b1f6441b3057fbdae05621a16f42bd060a511ccde8a1 unchanged
+=== RUN   TestParseActualPinnedFFprobeFixtures/multi.mkv
+    parser_real_test.go:188: actual multi.mkv: h264 320x180; audio=2 subtitles=2 chapters=2; size=93527 durationMicros=1021000; sourceSHA256=48beb5cb5a2506150e5ba1985c2670fe39e395c37c7b968f2fcef1f2c2326b37 unchanged
+=== RUN   TestParseActualPinnedFFprobeFixtures/corrupt_refused
+=== NAME  TestParseActualPinnedFFprobeFixtures
+    parser_real_test.go:214: Pinned ffprobe n9.0.2-17-g2a571b6068-20260930 (linux-amd64); this test covers self-generated h264/aac/subrip media only, not HDR/DV/Atmos or arbitrary-media sandboxing.
+--- PASS: TestParseActualPinnedFFprobeFixtures (5.64s)
+    --- PASS: TestParseActualPinnedFFprobeFixtures/video-180p.mp4 (0.20s)
+    --- PASS: TestParseActualPinnedFFprobeFixtures/video-360p.mp4 (0.19s)
+    --- PASS: TestParseActualPinnedFFprobeFixtures/multi.mkv (0.20s)
+    --- PASS: TestParseActualPinnedFFprobeFixtures/corrupt_refused (0.18s)
+PASS
+ok  	github.com/MoYuanCN/Jelee/tools/gen-fixtures	6.689s

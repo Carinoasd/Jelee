@@ -1,0 +1,61 @@
+Read-only source reproduction of Windows process current-directory boundary; frozen tree ed3d3b3ca4c2c5b85832a8e8c5499ae6dae7a2fe
+Directory lengths below are observed FileSystemWatcher Created events, not estimates. Source/t.TempDir logic unchanged. No global environment/registry changes.
+
+Variant: long; scratch path length=171
+=== RUN   TestIsolatedExitClassificationDiscardsEveryFailureOutput
+=== RUN   TestIsolatedExitClassificationDiscardsEveryFailureOutput/1
+=== RUN   TestIsolatedExitClassificationDiscardsEveryFailureOutput/2
+=== RUN   TestIsolatedExitClassificationDiscardsEveryFailureOutput/127
+    isolated_test.go:83: failed output or wrong classification: process_start_failed
+=== RUN   TestIsolatedExitClassificationDiscardsEveryFailureOutput/255
+    isolated_test.go:83: failed output or wrong classification: process_start_failed
+=== RUN   TestIsolatedExitClassificationDiscardsEveryFailureOutput/64
+=== RUN   TestIsolatedExitClassificationDiscardsEveryFailureOutput/78
+    isolated_test.go:83: failed output or wrong classification: process_start_failed
+--- FAIL: TestIsolatedExitClassificationDiscardsEveryFailureOutput (0.15s)
+    --- PASS: TestIsolatedExitClassificationDiscardsEveryFailureOutput/1 (0.10s)
+    --- PASS: TestIsolatedExitClassificationDiscardsEveryFailureOutput/2 (0.02s)
+    --- FAIL: TestIsolatedExitClassificationDiscardsEveryFailureOutput/127 (0.00s)
+    --- FAIL: TestIsolatedExitClassificationDiscardsEveryFailureOutput/255 (0.00s)
+    --- PASS: TestIsolatedExitClassificationDiscardsEveryFailureOutput/64 (0.02s)
+    --- FAIL: TestIsolatedExitClassificationDiscardsEveryFailureOutput/78 (0.00s)
+FAIL
+coverage: 71.0% of statements
+FAIL	github.com/MoYuanCN/Jelee/internal/platform/process	0.335s
+FAIL
+Target test exit: 1
+Observed case=1 current_directory_utf16_chars=258
+Observed case=127 current_directory_utf16_chars=260
+Observed case=2 current_directory_utf16_chars=255
+Observed case=255 current_directory_utf16_chars=260
+Observed case=64 current_directory_utf16_chars=257
+Observed case=78 current_directory_utf16_chars=259
+Owned snapshot removed.
+
+
+Variant: short; scratch path length=138
+=== RUN   TestIsolatedExitClassificationDiscardsEveryFailureOutput
+=== RUN   TestIsolatedExitClassificationDiscardsEveryFailureOutput/2
+=== RUN   TestIsolatedExitClassificationDiscardsEveryFailureOutput/127
+=== RUN   TestIsolatedExitClassificationDiscardsEveryFailureOutput/255
+=== RUN   TestIsolatedExitClassificationDiscardsEveryFailureOutput/64
+=== RUN   TestIsolatedExitClassificationDiscardsEveryFailureOutput/78
+=== RUN   TestIsolatedExitClassificationDiscardsEveryFailureOutput/1
+--- PASS: TestIsolatedExitClassificationDiscardsEveryFailureOutput (0.19s)
+    --- PASS: TestIsolatedExitClassificationDiscardsEveryFailureOutput/2 (0.10s)
+    --- PASS: TestIsolatedExitClassificationDiscardsEveryFailureOutput/127 (0.02s)
+    --- PASS: TestIsolatedExitClassificationDiscardsEveryFailureOutput/255 (0.02s)
+    --- PASS: TestIsolatedExitClassificationDiscardsEveryFailureOutput/64 (0.02s)
+    --- PASS: TestIsolatedExitClassificationDiscardsEveryFailureOutput/78 (0.02s)
+    --- PASS: TestIsolatedExitClassificationDiscardsEveryFailureOutput/1 (0.02s)
+PASS
+coverage: 69.9% of statements
+ok  	github.com/MoYuanCN/Jelee/internal/platform/process	0.368s	coverage: 69.9% of statements
+Target test exit: 0
+Observed case=1 current_directory_utf16_chars=225
+Observed case=127 current_directory_utf16_chars=227
+Observed case=2 current_directory_utf16_chars=225
+Observed case=255 current_directory_utf16_chars=227
+Observed case=64 current_directory_utf16_chars=225
+Observed case=78 current_directory_utf16_chars=226
+Owned snapshot removed.

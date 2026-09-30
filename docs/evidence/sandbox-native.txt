@@ -1,0 +1,429 @@
+Jelee native Linux sandbox proof: CGO_ENABLED=0; no race-detector claim.
+Actual child counter bytes are retained unchanged and merged by the pinned Go SDK.
+SOURCE SHA256 {"go.mod": "0c1171a9aea0c0717bcea52719d1e2cb579918c36eb7b2c50222131d513d55e5", "go.sum": "774034b85a77eba95b6b74e435864d8e31ca1d06a19862a7210d072f9ba9cfd3", "internal/platform/process/child_linux.go": "eab08eb432c6633b052a6e56bdb06fecbb1c367d4073dcde64aa4b0951781b12", "internal/platform/process/child_other.go": "71f6a2c528b8730b37ffc413dc1442030ad97837697f2f434985dcbe9fb0b366", "internal/platform/process/child_windows.go": "203e45ab1442883abf45c9183d126947e2421c98fd6bd6fdd821444c7f829594", "internal/platform/process/fixtures_dev.go": "c2c3c9d5479b729a321f6808a830e74635796b747377e43fe53611906b5a304c", "internal/platform/process/fixtures_dev_test.go": "09c7886b9607ca0efc7925fab2e9d5e531fd5cd9c7dcd0f66bcfccab444be354", "internal/platform/process/isolated.go": "c24349f930a067cb62362a28eb089739b0cf0917d7055cb735e4a9cf4e0d6a08", "internal/platform/process/isolated_linux_amd64_test.go": "62bfff15ac526f56f006d21221bb94aa91c53527ed98c57e69a3fde7361e5320", "internal/platform/process/isolated_test.go": "de812098c1812fc4c173da860a37f1bfdc3e39b0298621eeb2d1e69021e75d3b", "internal/platform/process/resource_linux_test.go": "8604984de51704a2358fbb44954f4ad13b5ff0bb45773e143dc0a68f71cd224f", "internal/platform/process/resource_windows_test.go": "dcdbef1fe80b6d4496798ad042063952bab6a3717e09534f08e63f778d6412ab", "internal/platform/process/runner.go": "6cd8874fc7dedbc899026fea786279343377924c38d15d6d7c60a4448d2a7a30", "internal/platform/process/runner_test.go": "01ff2a1dc806abaabc182db323ca7e727a96e6974a9a3a729afe6c9050711ada", "internal/platform/sandbox/coverage_linux_amd64_test.go": "1a088e2b0b0ecb0baf468d45a40463cc074fd751ce5c6f54e7a9934697e18b29", "internal/platform/sandbox/files_linux_amd64.go": "baf6e6a32a75fbf83418bf7d64a6bb079ce72b9fbf88c77eef1cedbd5c5516d0", "internal/platform/sandbox/files_linux_amd64_test.go": "c9255cea432e0a374a6f328c2f2becc4e5ddc00f1bc9c2df5b16ceee6cc563fd", "internal/platform/sandbox/helper_linux_amd64.go": "eff041507fb6c3d3aee9cd52f8bf8d6efd6c615d806b0e63cab227f01c9e595d", "internal/platform/sandbox/integration_linux_amd64_test.go": "2b4b445fec758c39c1d02cd54d893e63e5b106a03dbc08ebfc9bd6105093a538", "internal/platform/sandbox/protected_linux_amd64.go": "1ee1ed789bcf2b6597ec933059ad8741ca7d2799373b3bb86152becb3f16a3b9", "internal/platform/sandbox/protected_linux_amd64_test.go": "c02386fffc1e1489dc5af44f53b6a1cb43a05cecac3a8ef4344f89210ec0a40e", "internal/platform/sandbox/real_linux_amd64_test.go": "59a448eeaebbec2c62fcb491ca75b0e613afffd1b0d1091ddfc55f0d9a328a62", "internal/platform/sandbox/sandbox.go": "5f99a7161892503ee1ed7641128f0ed54d7862f96553825673eb21ff1c46584b", "internal/platform/sandbox/sandbox_test.go": "91f6d8455c0dc7ceac5ac830b81ad905ec02b51a6a60fcbe0ceaa7d3731a5bc9", "internal/platform/sandbox/seccomp_linux_amd64.go": "b1bb218c161f65fb6908036510c3bac9a569806cc37fc6477a446d71e0d33935", "internal/platform/sandbox/seccomp_linux_amd64_test.go": "05a702080224f6cde2bc34d6198c96ff565e1ae08b57c0cfd8ca80c78c96a466", "internal/platform/sandbox/testdata/helper/main_linux_amd64.go": "f7fb55c76f481378e7646d9c1bec5c511bc2b5c15e09e1f5e17c65ae06cf0490", "internal/platform/sandbox/testdata/threadlimit/clone_linux_amd64.s": "89c7011df489226ee65428f2980a91a9f93c2a50ee60aa1ebfb62f48291f4274", "internal/platform/sandbox/testdata/threadlimit/main_linux_amd64.go": "2bc09d2ccbc0ba8cb86f761d5a663384b19ab0093c5359d535a6d66801b93200", "internal/platform/sandbox/threadlimit_linux_amd64_test.go": "e3a625ae485b63af0fc47a96116ec54210c2792a6e5735cd357ab41a81915469", "internal/platform/sandbox/unsupported.go": "f6239ffd4dab87a91adb33d3a2a458288ac05a032bedfe2ee24084ad9b06af3e", "scripts/test_sandbox_native.py": "f84df8da915d5eddb1b0d16418ece3b99e72b4d3249f52cb8eb94c36d46e01e2", "scripts/toolchain.py": "b49a12d84ed6091d2298968e853379224a977a378e2de333e1b0f461dea7534a", "tools/manifest.json": "2dd3a80d5e99cbfd79f97762dfa371638e96ffbf258d54eae1ff8a406abe6e4c"}
+FIXTURES .testfixtures/media-linux-amd64-4198603015
+FIXTURE SHA256 {"audio.flac": "e15f2c19059fc8116d48a658d2b74c122c9f3048e4b0aaa37308e3dda9ba615c", "chapters.ffmetadata": "2e4409a83f39201e4ffd72a6a03f75c3e301e42acc72c5baab820d45c9a2b61b", "chinese.srt": "7fc8c239f7ec67df0dce1ee83fdecef5b29c82942c07c6c9711280633b1ae899", "corrupt.mkv": "9565ea4c9e0929663986af80853a4e24687b76cd20c41782a471657d7f9f7a8c", "english.srt": "d37decd582f055e7273d909576cb851ce0f388e81d4193492c55fe706123a02c", "episode.nfo": "db94e387ccca8c6710273204fa6e3b5d2a08832da8f72f01b8221bf50f1a32a3", "fixtures.json": "8d0bce1b6df1fa09b7797ebf5c8415eab321ad448e1e51a56d166d37d11bbb79", "invalid.nfo": "8ad0a2d935c3cdecaf3d511e8ee8eb17e9b5d3d981adc3a81438dfde0c356b59", "movie.nfo": "16434740901b51930ae14ebadf252f63d881bc79495ab892275baf32624f3dc9", "multi.mkv": "7b30d5679835d142dd72cc8900a16d3f46671b547a4ffb6bbade26aeb60bf941", "poster.png": "0a8a3efe1079aeece41a6279a5b852ecf4661d8618df6a36174bf2f05a92e895", "tvshow.nfo": "1695102f484a6661fd73bdc08b2b7719c9e79d874c2c67451db35bb56414e3ea", "video-180p.mp4": "9eb634b6a3d18838161944b0f2eb1a0b3cdd810db1be545b42548f935cdc838f", "video-360p.mp4": "dd4e09a89022245a36c6b1f6441b3057fbdae05621a16f42bd060a511ccde8a1"}
+COMMAND ["/usr/bin/python3", "-B", "scripts/toolchain.py", "verify"]
+Verified go version go1.27.1 linux/amd64; archive SHA256 and installed binary match
+
+EXIT 0
+COMMAND ["$PROJECT/.tools/go/1.27.1/linux-amd64/go/bin/go", "build", "-trimpath", "-o", "$PROJECT/.testdata/sandbox-native-tu7knboz/image/helper", "./internal/platform/sandbox/testdata/helper"]
+
+EXIT 0
+BUILT SHA256 helper 3997e472da4bd579e199f8f405963155648b2389a17e68440b4f0b34ab0fedea
+COMMAND ["$PROJECT/.tools/go/1.27.1/linux-amd64/go/bin/go", "build", "-trimpath", "-o", "$PROJECT/.testdata/sandbox-native-tu7knboz/image/thread", "./internal/platform/sandbox/testdata/threadlimit"]
+
+EXIT 0
+BUILT SHA256 thread f66388fd8cfb0d52cded134b69483b9ac7ba75d563e8c04863d1718c9ca2c9a1
+COMMAND ["$PROJECT/.tools/go/1.27.1/linux-amd64/go/bin/go", "build", "-cover", "-covermode=atomic", "-coverpkg=github.com/MoYuanCN/Jelee/internal/platform/sandbox,github.com/MoYuanCN/Jelee/internal/platform/sandbox/testdata/helper", "-o", "$PROJECT/.testdata/sandbox-native-tu7knboz/image/coverage-helper", "./internal/platform/sandbox/testdata/helper"]
+
+EXIT 0
+BUILT SHA256 coverage-helper 83a79cbe1f77c5b4135cf1d46aaf4f40e092e2470ca29066374f5c6c257d22e6
+COMMAND ["$PROJECT/.tools/go/1.27.1/linux-amd64/go/bin/go", "test", "-cover", "-covermode=atomic", "-c", "-o", "$PROJECT/.testdata/sandbox-native-tu7knboz/image/sandbox.test", "./internal/platform/sandbox"]
+
+EXIT 0
+BUILT SHA256 sandbox.test 00492907ab8490f0a56503b257b2d33828c6145fa9a21298664a09b7e601f387
+COMMAND ["$PROJECT/.tools/go/1.27.1/linux-amd64/go/bin/go", "test", "-cover", "-covermode=atomic", "-c", "-o", "$PROJECT/.testdata/sandbox-native-tu7knboz/image/process.test", "./internal/platform/process"]
+
+EXIT 0
+BUILT SHA256 process.test a695fe3465a94186b8bcb8bfe66bd80d0dee2bfa79ab68ba77957525ed1af0ec
+COMMAND ["$PROJECT/.tools/go/1.27.1/linux-amd64/go/bin/go", "build", "-o", "$PROJECT/.testdata/sandbox-native-tu7knboz/image/covdata", "cmd/covdata"]
+
+EXIT 0
+BUILT SHA256 covdata 554bc3a9d082b831b956b40da155d27d792b7c04f13c2c9c50b3bc2fb706fec0
+VERIFIED PROFILE {"Inputs": ["/project/fixtures/multi.mkv", "/project/fixtures/video-180p.mp4"], "Policy": {"FFprobeSHA256": "a5bd5e9f8d74ab2c6d7d9e2e2738ff6d67bf9613e7143e143ba8ebe9b06385fb", "Libraries": [{"Path": "/lib64/ld-linux-x86-64.so.2", "SHA256": "c8438e4fde1934e61c88311633f00949ff645d5c04cdb8671fa3d78164d2f307"}, {"Path": "/lib/x86_64-linux-gnu/libc.so.6", "SHA256": "9792e3cbb541c8f44c7acf5f14f4022ea62998ecc787d326bed4d8b6547dfd92"}, {"Path": "/lib/x86_64-linux-gnu/libm.so.6", "SHA256": "6d567d53e895273ca14a1f9dc164fc6c8d39aed2f60aa46a733c2784228915f3"}, {"Path": "/lib/x86_64-linux-gnu/libmvec.so.1", "SHA256": "cd2f99df70ed0fa44f79bd6322396180d19eaa1fb527b1b6e2aec9cdfc034d9d"}, {"Path": "/lib/x86_64-linux-gnu/libdl.so.2", "SHA256": "295fa521a03cd2faa99974f378c9e23dd622021ec7d32bcad4f8ea61aec8a872"}, {"Path": "/lib/x86_64-linux-gnu/libpthread.so.0", "SHA256": "85e21f7dba0394411d00959176fd18b470e575b0b05f1f4f41e5636802ce0500"}, {"Path": "/lib/x86_64-linux-gnu/librt.so.1", "SHA256": "7b7b84d1aedda0e0b2bdfc68844362782132180b8f02be1300e21e77572e514b"}, {"Path": "/lib/x86_64-linux-gnu/libgcc_s.so.1", "SHA256": "30c61ab012a4241bed033725a09b61f5fdd3bb7df95ee852d0b096520524c7af"}], "RequireProtectedFiles": true}, "Profile": {"FFprobePath": "/project/real-tool/ffprobe"}}
+TEST IMAGE RECIPE
+FROM golang:1.27.1-alpine@sha256:8a5910f31396cd4d89662f56c68b3ae31d374308270a1c3bd96672ee5ed43414
+COPY --chmod=0555 sandbox.test /project/sandbox.test
+COPY --chmod=0555 process.test /project/process.test
+COPY --chmod=0555 covdata /project/covdata
+COPY --chmod=0555 helper /project/ffprobe
+COPY --chmod=0555 thread /project/thread-fixture/ffprobe
+COPY --chmod=0555 coverage-helper /project/coverage-helper/ffprobe
+COPY --chmod=0555 helper /project/protected/ffprobe
+COPY --chmod=0555 thread /project/protected/other
+COPY --chmod=0555 helper /project/unsafe-parent/ffprobe
+COPY --chmod=0555 runtime/ /
+COPY --chmod=0555 real-ffprobe /project/real-tool/ffprobe
+COPY --chmod=0555 fixtures/ /project/fixtures/
+COPY --chmod=0444 real-profile.json /project/real-profile.json
+RUN chmod 0777 /project/unsafe-parent
+
+COMMAND ["docker", "build", "--pull=false", "--network", "none", "--tag", "jelee/sandbox-native-test:96b4ea4851b044f9aab64767afd50620", "--file", "-", "$PROJECT/.testdata/sandbox-native-tu7knboz/image"]
+#0 building with "default" instance using docker driver
+
+#1 [internal] load build definition from Dockerfile
+#1 transferring dockerfile: 845B done
+#1 DONE 0.0s
+
+#2 [internal] load metadata for docker.io/library/golang:1.27.1-alpine@sha256:8a5910f31396cd4d89662f56c68b3ae31d374308270a1c3bd96672ee5ed43414
+#2 DONE 0.0s
+
+#3 [internal] load .dockerignore
+#3 transferring context: 2B 0.0s done
+#3 DONE 0.0s
+
+#4 [ 1/15] FROM docker.io/library/golang:1.27.1-alpine@sha256:8a5910f31396cd4d89662f56c68b3ae31d374308270a1c3bd96672ee5ed43414
+#4 resolve docker.io/library/golang:1.27.1-alpine@sha256:8a5910f31396cd4d89662f56c68b3ae31d374308270a1c3bd96672ee5ed43414 0.0s done
+#4 DONE 0.0s
+
+#5 [internal] load build context
+#5 transferring context: 215.42MB 1.5s done
+#5 DONE 1.5s
+
+#6 [13/15] COPY --chmod=0555 fixtures/ /project/fixtures/
+#6 CACHED
+
+#7 [ 4/15] COPY --chmod=0555 covdata /project/covdata
+#7 CACHED
+
+#8 [10/15] COPY --chmod=0555 helper /project/unsafe-parent/ffprobe
+#8 CACHED
+
+#9 [ 9/15] COPY --chmod=0555 thread /project/protected/other
+#9 CACHED
+
+#10 [14/15] COPY --chmod=0444 real-profile.json /project/real-profile.json
+#10 CACHED
+
+#11 [ 5/15] COPY --chmod=0555 helper /project/ffprobe
+#11 CACHED
+
+#12 [11/15] COPY --chmod=0555 runtime/ /
+#12 CACHED
+
+#13 [ 7/15] COPY --chmod=0555 coverage-helper /project/coverage-helper/ffprobe
+#13 CACHED
+
+#14 [ 2/15] COPY --chmod=0555 sandbox.test /project/sandbox.test
+#14 CACHED
+
+#15 [ 8/15] COPY --chmod=0555 helper /project/protected/ffprobe
+#15 CACHED
+
+#16 [ 3/15] COPY --chmod=0555 process.test /project/process.test
+#16 CACHED
+
+#17 [ 6/15] COPY --chmod=0555 thread /project/thread-fixture/ffprobe
+#17 CACHED
+
+#18 [12/15] COPY --chmod=0555 real-ffprobe /project/real-tool/ffprobe
+#18 CACHED
+
+#19 [15/15] RUN chmod 0777 /project/unsafe-parent
+#19 CACHED
+
+#20 exporting to image
+#20 exporting layers done
+#20 exporting manifest sha256:3cd8751dc9a702eb79608b2406e8f6fdd6f3414cb9646ba47aa9337fabe52156 done
+#20 exporting config sha256:731dc41097bce9ccd8229e5917f66d6404896cf6260899299050cd2018bb7b7d done
+#20 exporting attestation manifest sha256:2408ea60cc7b3d5ac30d6a40d6ac0bb7748fda4073a7f138867696000c53af92 0.0s done
+#20 exporting manifest list sha256:93d88aecd74116f30f112fd7dac18a98979fe076c1c9c175531046fcc67b3c9c 0.0s done
+#20 naming to docker.io/jelee/sandbox-native-test:96b4ea4851b044f9aab64767afd50620 done
+#20 unpacking to docker.io/jelee/sandbox-native-test:96b4ea4851b044f9aab64767afd50620 0.1s done
+#20 DONE 0.1s
+
+EXIT 0
+COMMAND ["docker", "run", "--rm", "--name", "jelee-sandbox-native-96b4ea4851b044f9aab64767afd50620", "--network", "none", "--user", "65532:65532", "--read-only", "--cap-drop", "ALL", "--security-opt", "no-new-privileges:true", "--security-opt", "seccomp=unconfined", "--pids-limit", "256", "--memory", "768m", "--cpus", "2", "--tmpfs", "/project/.testdata:rw,nosuid,nodev,noexec,size=268435456,mode=0700,uid=65532,gid=65532", "--workdir", "/project", "--env", "TMPDIR=/project/.testdata", "--env", "JELEE_REQUIRE_SANDBOX_TEST=true", "--env", "JELEE_SANDBOX_TEST_HELPER=/project/ffprobe", "--env", "JELEE_SANDBOX_THREAD_FIXTURE=/project/thread-fixture/ffprobe", "--env", "JELEE_SANDBOX_PROTECTED_TEST_DIR=/project/protected", "--env", "JELEE_SANDBOX_COVERAGE_HELPER=/project/coverage-helper/ffprobe", "--env", "JELEE_SANDBOX_COVERAGE_DIR=/project/.testdata/child", "--env", "JELEE_SANDBOX_REAL_PROFILE=/project/real-profile.json", "--env", "GOCACHE=/project/.testdata/gocache", "--env", "GOMODCACHE=/project/.testdata/gomodcache", "--env", "GOTOOLCHAIN=local", "--env", "GOENV=off", "--entrypoint", "/bin/sh", "jelee/sandbox-native-test:96b4ea4851b044f9aab64767afd50620", "-c", "set -eu\nmkdir -p /project/.testdata/parent /project/.testdata/child /project/.testdata/merged\n/project/sandbox.test -test.v -test.timeout=3m '-test.run=Test(Native|Real|Pinned|Protected|New|Descriptor|Launcher|Policy|Syscall)' -test.gocoverdir=/project/.testdata/parent\necho COVERAGE_PARENT\n/project/covdata percent -i=/project/.testdata/parent\necho COVERAGE_CHILD\n/project/covdata percent -i=/project/.testdata/child\n/project/covdata merge -i=/project/.testdata/parent,/project/.testdata/child -o=/project/.testdata/merged\necho COVERAGE_MERGED\n/project/covdata percent -i=/project/.testdata/merged\n/project/covdata func -i=/project/.testdata/merged\n/project/process.test -test.v -test.timeout=3m\n"]
+=== RUN   TestNativeLateExecFailureExportsActualChildCoverage
+    coverage_linux_amd64_test.go:43: captured original atomic runtime counters after kernel exec refusal; no successful exec is inferred
+    coverage_linux_amd64_test.go:95: captured original atomic runtime counters after kernel exec refusal; no successful exec is inferred
+--- PASS: TestNativeLateExecFailureExportsActualChildCoverage (0.44s)
+=== RUN   TestPinnedFileRefusesNonRegularUnverifiedAndWrongArchitecture
+=== RUN   TestPinnedFileRefusesNonRegularUnverifiedAndWrongArchitecture/wrong_architecture
+=== RUN   TestPinnedFileRefusesNonRegularUnverifiedAndWrongArchitecture/relocatable_object
+=== RUN   TestPinnedFileRefusesNonRegularUnverifiedAndWrongArchitecture/invalid_magic
+=== RUN   TestPinnedFileRefusesNonRegularUnverifiedAndWrongArchitecture/missing
+=== RUN   TestPinnedFileRefusesNonRegularUnverifiedAndWrongArchitecture/directory
+=== RUN   TestPinnedFileRefusesNonRegularUnverifiedAndWrongArchitecture/symlink
+=== RUN   TestPinnedFileRefusesNonRegularUnverifiedAndWrongArchitecture/digest_mismatch
+=== RUN   TestPinnedFileRefusesNonRegularUnverifiedAndWrongArchitecture/empty
+=== RUN   TestPinnedFileRefusesNonRegularUnverifiedAndWrongArchitecture/oversized_sparse
+=== RUN   TestPinnedFileRefusesNonRegularUnverifiedAndWrongArchitecture/fifo
+=== RUN   TestPinnedFileRefusesNonRegularUnverifiedAndWrongArchitecture/cancelled
+--- PASS: TestPinnedFileRefusesNonRegularUnverifiedAndWrongArchitecture (0.00s)
+    --- PASS: TestPinnedFileRefusesNonRegularUnverifiedAndWrongArchitecture/wrong_architecture (0.00s)
+    --- PASS: TestPinnedFileRefusesNonRegularUnverifiedAndWrongArchitecture/relocatable_object (0.00s)
+    --- PASS: TestPinnedFileRefusesNonRegularUnverifiedAndWrongArchitecture/invalid_magic (0.00s)
+    --- PASS: TestPinnedFileRefusesNonRegularUnverifiedAndWrongArchitecture/missing (0.00s)
+    --- PASS: TestPinnedFileRefusesNonRegularUnverifiedAndWrongArchitecture/directory (0.00s)
+    --- PASS: TestPinnedFileRefusesNonRegularUnverifiedAndWrongArchitecture/symlink (0.00s)
+    --- PASS: TestPinnedFileRefusesNonRegularUnverifiedAndWrongArchitecture/digest_mismatch (0.00s)
+    --- PASS: TestPinnedFileRefusesNonRegularUnverifiedAndWrongArchitecture/empty (0.00s)
+    --- PASS: TestPinnedFileRefusesNonRegularUnverifiedAndWrongArchitecture/oversized_sparse (0.00s)
+    --- PASS: TestPinnedFileRefusesNonRegularUnverifiedAndWrongArchitecture/fifo (0.00s)
+    --- PASS: TestPinnedFileRefusesNonRegularUnverifiedAndWrongArchitecture/cancelled (0.00s)
+=== RUN   TestNewRefusesUntrustedPathsAndDependencyPolicy
+--- PASS: TestNewRefusesUntrustedPathsAndDependencyPolicy (0.00s)
+=== RUN   TestNativeSandboxDeniesAmbientAccessAndPreservesFDInput
+    integration_linux_amd64_test.go:115: verified 25 actual file/network/FD/syscall/environment/resource checks
+=== RUN   TestNativeSandboxDeniesAmbientAccessAndPreservesFDInput/wrong_digest
+=== RUN   TestNativeSandboxDeniesAmbientAccessAndPreservesFDInput/extra_dependency
+=== RUN   TestNativeSandboxDeniesAmbientAccessAndPreservesFDInput/cancelled_verification
+=== RUN   TestNativeSandboxDeniesAmbientAccessAndPreservesFDInput/writable_input
+=== RUN   TestNativeSandboxDeniesAmbientAccessAndPreservesFDInput/pipe_input
+=== RUN   TestNativeSandboxDeniesAmbientAccessAndPreservesFDInput/regular_output
+=== RUN   TestNativeSandboxDeniesAmbientAccessAndPreservesFDInput/tool_replaced_after_registration
+--- PASS: TestNativeSandboxDeniesAmbientAccessAndPreservesFDInput (0.15s)
+    --- PASS: TestNativeSandboxDeniesAmbientAccessAndPreservesFDInput/wrong_digest (0.00s)
+    --- PASS: TestNativeSandboxDeniesAmbientAccessAndPreservesFDInput/extra_dependency (0.00s)
+    --- PASS: TestNativeSandboxDeniesAmbientAccessAndPreservesFDInput/cancelled_verification (0.00s)
+    --- PASS: TestNativeSandboxDeniesAmbientAccessAndPreservesFDInput/writable_input (0.00s)
+    --- PASS: TestNativeSandboxDeniesAmbientAccessAndPreservesFDInput/pipe_input (0.00s)
+    --- PASS: TestNativeSandboxDeniesAmbientAccessAndPreservesFDInput/regular_output (0.00s)
+    --- PASS: TestNativeSandboxDeniesAmbientAccessAndPreservesFDInput/tool_replaced_after_registration (0.01s)
+=== RUN   TestProtectedModeRequiresRootAndUnwritableGroupOther
+=== RUN   TestProtectedModeRequiresRootAndUnwritableGroupOther/root_directory
+=== RUN   TestProtectedModeRequiresRootAndUnwritableGroupOther/sticky_shared
+=== RUN   TestProtectedModeRequiresRootAndUnwritableGroupOther/wrong_kind
+=== RUN   TestProtectedModeRequiresRootAndUnwritableGroupOther/service_owner
+=== RUN   TestProtectedModeRequiresRootAndUnwritableGroupOther/group_writable
+=== RUN   TestProtectedModeRequiresRootAndUnwritableGroupOther/other_writable
+=== RUN   TestProtectedModeRequiresRootAndUnwritableGroupOther/symlink
+=== RUN   TestProtectedModeRequiresRootAndUnwritableGroupOther/root_file
+=== RUN   TestProtectedModeRequiresRootAndUnwritableGroupOther/readonly_file
+--- PASS: TestProtectedModeRequiresRootAndUnwritableGroupOther (0.00s)
+    --- PASS: TestProtectedModeRequiresRootAndUnwritableGroupOther/root_directory (0.00s)
+    --- PASS: TestProtectedModeRequiresRootAndUnwritableGroupOther/sticky_shared (0.00s)
+    --- PASS: TestProtectedModeRequiresRootAndUnwritableGroupOther/wrong_kind (0.00s)
+    --- PASS: TestProtectedModeRequiresRootAndUnwritableGroupOther/service_owner (0.00s)
+    --- PASS: TestProtectedModeRequiresRootAndUnwritableGroupOther/group_writable (0.00s)
+    --- PASS: TestProtectedModeRequiresRootAndUnwritableGroupOther/other_writable (0.00s)
+    --- PASS: TestProtectedModeRequiresRootAndUnwritableGroupOther/symlink (0.00s)
+    --- PASS: TestProtectedModeRequiresRootAndUnwritableGroupOther/root_file (0.00s)
+    --- PASS: TestProtectedModeRequiresRootAndUnwritableGroupOther/readonly_file (0.00s)
+=== RUN   TestNativeProtectedFilesCheckInodeAncestorsAndCaller
+=== RUN   TestNativeProtectedFilesCheckInodeAncestorsAndCaller/different_helper_object
+=== RUN   TestNativeProtectedFilesCheckInodeAncestorsAndCaller/relative_helper
+=== RUN   TestNativeProtectedFilesCheckInodeAncestorsAndCaller/changed_leaf_identity
+=== RUN   TestNativeProtectedFilesCheckInodeAncestorsAndCaller/writable_ancestor
+=== RUN   TestNativeProtectedFilesCheckInodeAncestorsAndCaller/service_owned_file
+=== RUN   TestNativeProtectedFilesCheckInodeAncestorsAndCaller/writable_inode
+--- PASS: TestNativeProtectedFilesCheckInodeAncestorsAndCaller (0.02s)
+    --- PASS: TestNativeProtectedFilesCheckInodeAncestorsAndCaller/different_helper_object (0.00s)
+    --- PASS: TestNativeProtectedFilesCheckInodeAncestorsAndCaller/relative_helper (0.00s)
+    --- PASS: TestNativeProtectedFilesCheckInodeAncestorsAndCaller/changed_leaf_identity (0.00s)
+    --- PASS: TestNativeProtectedFilesCheckInodeAncestorsAndCaller/writable_ancestor (0.00s)
+    --- PASS: TestNativeProtectedFilesCheckInodeAncestorsAndCaller/service_owned_file (0.01s)
+    --- PASS: TestNativeProtectedFilesCheckInodeAncestorsAndCaller/writable_inode (0.00s)
+=== RUN   TestRealFFprobeInSandboxWithExplicitDeveloperProfile
+=== RUN   TestRealFFprobeInSandboxWithExplicitDeveloperProfile/missing_ld-linux-x86-64.so.2
+=== RUN   TestRealFFprobeInSandboxWithExplicitDeveloperProfile/missing_libm.so.6
+=== RUN   TestRealFFprobeInSandboxWithExplicitDeveloperProfile/duplicate_soname
+=== RUN   TestRealFFprobeInSandboxWithExplicitDeveloperProfile/multi.mkv
+=== RUN   TestRealFFprobeInSandboxWithExplicitDeveloperProfile/video-180p.mp4
+=== RUN   TestRealFFprobeInSandboxWithExplicitDeveloperProfile/nested.concat
+=== RUN   TestRealFFprobeInSandboxWithExplicitDeveloperProfile/remote.m3u8
+=== RUN   TestRealFFprobeInSandboxWithExplicitDeveloperProfile/local.concat
+--- PASS: TestRealFFprobeInSandboxWithExplicitDeveloperProfile (0.85s)
+    --- PASS: TestRealFFprobeInSandboxWithExplicitDeveloperProfile/missing_ld-linux-x86-64.so.2 (0.08s)
+    --- PASS: TestRealFFprobeInSandboxWithExplicitDeveloperProfile/missing_libm.so.6 (0.08s)
+    --- PASS: TestRealFFprobeInSandboxWithExplicitDeveloperProfile/duplicate_soname (0.08s)
+    --- PASS: TestRealFFprobeInSandboxWithExplicitDeveloperProfile/multi.mkv (0.11s)
+    --- PASS: TestRealFFprobeInSandboxWithExplicitDeveloperProfile/video-180p.mp4 (0.10s)
+    --- PASS: TestRealFFprobeInSandboxWithExplicitDeveloperProfile/nested.concat (0.10s)
+    --- PASS: TestRealFFprobeInSandboxWithExplicitDeveloperProfile/remote.m3u8 (0.11s)
+    --- PASS: TestRealFFprobeInSandboxWithExplicitDeveloperProfile/local.concat (0.11s)
+=== RUN   TestDescriptorRejectsOptionsHashesDuplicatesAndUnboundedData
+=== RUN   TestDescriptorRejectsOptionsHashesDuplicatesAndUnboundedData/unknown
+=== RUN   TestDescriptorRejectsOptionsHashesDuplicatesAndUnboundedData/mode
+=== RUN   TestDescriptorRejectsOptionsHashesDuplicatesAndUnboundedData/version
+=== RUN   TestDescriptorRejectsOptionsHashesDuplicatesAndUnboundedData/duplicate
+=== RUN   TestDescriptorRejectsOptionsHashesDuplicatesAndUnboundedData/trailing
+=== RUN   TestDescriptorRejectsOptionsHashesDuplicatesAndUnboundedData/digest
+=== RUN   TestDescriptorRejectsOptionsHashesDuplicatesAndUnboundedData/huge
+--- PASS: TestDescriptorRejectsOptionsHashesDuplicatesAndUnboundedData (0.00s)
+    --- PASS: TestDescriptorRejectsOptionsHashesDuplicatesAndUnboundedData/unknown (0.00s)
+    --- PASS: TestDescriptorRejectsOptionsHashesDuplicatesAndUnboundedData/mode (0.00s)
+    --- PASS: TestDescriptorRejectsOptionsHashesDuplicatesAndUnboundedData/version (0.00s)
+    --- PASS: TestDescriptorRejectsOptionsHashesDuplicatesAndUnboundedData/duplicate (0.00s)
+    --- PASS: TestDescriptorRejectsOptionsHashesDuplicatesAndUnboundedData/trailing (0.00s)
+    --- PASS: TestDescriptorRejectsOptionsHashesDuplicatesAndUnboundedData/digest (0.00s)
+    --- PASS: TestDescriptorRejectsOptionsHashesDuplicatesAndUnboundedData/huge (0.00s)
+=== RUN   TestLauncherArgumentsCannotBeMutated
+--- PASS: TestLauncherArgumentsCannotBeMutated (0.00s)
+=== RUN   TestPolicyRequiresIndependentDigests
+--- PASS: TestPolicyRequiresIndependentDigests (0.00s)
+=== RUN   TestSyscallPolicyRejectsArchitectureAndEscapeRoutes
+=== RUN   TestSyscallPolicyRejectsArchitectureAndEscapeRoutes/initial_exec
+=== RUN   TestSyscallPolicyRejectsArchitectureAndEscapeRoutes/thread
+=== RUN   TestSyscallPolicyRejectsArchitectureAndEscapeRoutes/descriptor_duplicate
+=== RUN   TestSyscallPolicyRejectsArchitectureAndEscapeRoutes/async_signal_enable
+=== RUN   TestSyscallPolicyRejectsArchitectureAndEscapeRoutes/process_clone
+=== RUN   TestSyscallPolicyRejectsArchitectureAndEscapeRoutes/clone_high_bits
+=== RUN   TestSyscallPolicyRejectsArchitectureAndEscapeRoutes/clone3
+=== RUN   TestSyscallPolicyRejectsArchitectureAndEscapeRoutes/other_signal
+=== RUN   TestSyscallPolicyRejectsArchitectureAndEscapeRoutes/descriptor_bad_flags
+=== RUN   TestSyscallPolicyRejectsArchitectureAndEscapeRoutes/exec_fd_high_bits
+=== RUN   TestSyscallPolicyRejectsArchitectureAndEscapeRoutes/exec_path_flags
+=== RUN   TestSyscallPolicyRejectsArchitectureAndEscapeRoutes/query_limits
+=== RUN   TestSyscallPolicyRejectsArchitectureAndEscapeRoutes/exec_flags_high_bits
+=== RUN   TestSyscallPolicyRejectsArchitectureAndEscapeRoutes/thread_name
+=== RUN   TestSyscallPolicyRejectsArchitectureAndEscapeRoutes/descriptor_command_high
+=== RUN   TestSyscallPolicyRejectsArchitectureAndEscapeRoutes/change_limits
+=== RUN   TestSyscallPolicyRejectsArchitectureAndEscapeRoutes/read
+=== RUN   TestSyscallPolicyRejectsArchitectureAndEscapeRoutes/namespace_clone
+=== RUN   TestSyscallPolicyRejectsArchitectureAndEscapeRoutes/own_signal
+=== RUN   TestSyscallPolicyRejectsArchitectureAndEscapeRoutes/signal_high_bits
+=== RUN   TestSyscallPolicyRejectsArchitectureAndEscapeRoutes/change_limits_high_bits
+=== RUN   TestSyscallPolicyRejectsArchitectureAndEscapeRoutes/disable_filter
+=== RUN   TestSyscallPolicyRejectsArchitectureAndEscapeRoutes/descriptor_flags
+=== RUN   TestSyscallPolicyRejectsArchitectureAndEscapeRoutes/descriptor_flags_high
+=== RUN   TestSyscallPolicyRejectsArchitectureAndEscapeRoutes/alternate_exec_fd
+=== RUN   TestSyscallPolicyRejectsArchitectureAndEscapeRoutes/descriptor_cloexec
+=== RUN   TestSyscallPolicyRejectsArchitectureAndEscapeRoutes/async_signal_owner
+=== RUN   TestSyscallPolicyRejectsArchitectureAndEscapeRoutes/async_signal_owner_ex
+=== RUN   TestSyscallPolicyRejectsArchitectureAndEscapeRoutes/async_signal_number
+--- PASS: TestSyscallPolicyRejectsArchitectureAndEscapeRoutes (0.00s)
+    --- PASS: TestSyscallPolicyRejectsArchitectureAndEscapeRoutes/initial_exec (0.00s)
+    --- PASS: TestSyscallPolicyRejectsArchitectureAndEscapeRoutes/thread (0.00s)
+    --- PASS: TestSyscallPolicyRejectsArchitectureAndEscapeRoutes/descriptor_duplicate (0.00s)
+    --- PASS: TestSyscallPolicyRejectsArchitectureAndEscapeRoutes/async_signal_enable (0.00s)
+    --- PASS: TestSyscallPolicyRejectsArchitectureAndEscapeRoutes/process_clone (0.00s)
+    --- PASS: TestSyscallPolicyRejectsArchitectureAndEscapeRoutes/clone_high_bits (0.00s)
+    --- PASS: TestSyscallPolicyRejectsArchitectureAndEscapeRoutes/clone3 (0.00s)
+    --- PASS: TestSyscallPolicyRejectsArchitectureAndEscapeRoutes/other_signal (0.00s)
+    --- PASS: TestSyscallPolicyRejectsArchitectureAndEscapeRoutes/descriptor_bad_flags (0.00s)
+    --- PASS: TestSyscallPolicyRejectsArchitectureAndEscapeRoutes/exec_fd_high_bits (0.00s)
+    --- PASS: TestSyscallPolicyRejectsArchitectureAndEscapeRoutes/exec_path_flags (0.00s)
+    --- PASS: TestSyscallPolicyRejectsArchitectureAndEscapeRoutes/query_limits (0.00s)
+    --- PASS: TestSyscallPolicyRejectsArchitectureAndEscapeRoutes/exec_flags_high_bits (0.00s)
+    --- PASS: TestSyscallPolicyRejectsArchitectureAndEscapeRoutes/thread_name (0.00s)
+    --- PASS: TestSyscallPolicyRejectsArchitectureAndEscapeRoutes/descriptor_command_high (0.00s)
+    --- PASS: TestSyscallPolicyRejectsArchitectureAndEscapeRoutes/change_limits (0.00s)
+    --- PASS: TestSyscallPolicyRejectsArchitectureAndEscapeRoutes/read (0.00s)
+    --- PASS: TestSyscallPolicyRejectsArchitectureAndEscapeRoutes/namespace_clone (0.00s)
+    --- PASS: TestSyscallPolicyRejectsArchitectureAndEscapeRoutes/own_signal (0.00s)
+    --- PASS: TestSyscallPolicyRejectsArchitectureAndEscapeRoutes/signal_high_bits (0.00s)
+    --- PASS: TestSyscallPolicyRejectsArchitectureAndEscapeRoutes/change_limits_high_bits (0.00s)
+    --- PASS: TestSyscallPolicyRejectsArchitectureAndEscapeRoutes/disable_filter (0.00s)
+    --- PASS: TestSyscallPolicyRejectsArchitectureAndEscapeRoutes/descriptor_flags (0.00s)
+    --- PASS: TestSyscallPolicyRejectsArchitectureAndEscapeRoutes/descriptor_flags_high (0.00s)
+    --- PASS: TestSyscallPolicyRejectsArchitectureAndEscapeRoutes/alternate_exec_fd (0.00s)
+    --- PASS: TestSyscallPolicyRejectsArchitectureAndEscapeRoutes/descriptor_cloexec (0.00s)
+    --- PASS: TestSyscallPolicyRejectsArchitectureAndEscapeRoutes/async_signal_owner (0.00s)
+    --- PASS: TestSyscallPolicyRejectsArchitectureAndEscapeRoutes/async_signal_owner_ex (0.00s)
+    --- PASS: TestSyscallPolicyRejectsArchitectureAndEscapeRoutes/async_signal_number (0.00s)
+=== RUN   TestNativeThreadCreationIsBoundedByKernel
+    threadlimit_linux_amd64_test.go:58: kernel returned EAGAIN after 116 live fixture threads; all joined
+--- PASS: TestNativeThreadCreationIsBoundedByKernel (0.06s)
+PASS
+coverage: 64.2% of statements
+COVERAGE_PARENT
+	github.com/MoYuanCN/Jelee/internal/platform/sandbox		coverage: 64.2% of statements
+COVERAGE_CHILD
+	github.com/MoYuanCN/Jelee/internal/platform/sandbox		coverage: 62.1% of statements
+	github.com/MoYuanCN/Jelee/internal/platform/sandbox/testdata/helper		coverage: 8.3% of statements
+COVERAGE_MERGED
+	github.com/MoYuanCN/Jelee/internal/platform/sandbox		coverage: 86.5% of statements
+	github.com/MoYuanCN/Jelee/internal/platform/sandbox/testdata/helper		coverage: 8.3% of statements
+github.com/MoYuanCN/Jelee/internal/platform/sandbox/files_linux_amd64.go:33:			*prepared.close				100.0%
+github.com/MoYuanCN/Jelee/internal/platform/sandbox/files_linux_amd64.go:42:			verifyProfile				100.0%
+github.com/MoYuanCN/Jelee/internal/platform/sandbox/files_linux_amd64.go:50:			prepare					90.7%
+github.com/MoYuanCN/Jelee/internal/platform/sandbox/files_linux_amd64.go:127:			openPinnedELF				83.6%
+github.com/MoYuanCN/Jelee/internal/platform/sandbox/helper_linux_amd64.go:24:			executeHelper				76.1%
+github.com/MoYuanCN/Jelee/internal/platform/sandbox/helper_linux_amd64.go:127:			restrictFilesystem			81.5%
+github.com/MoYuanCN/Jelee/internal/platform/sandbox/protected_linux_amd64.go:13:		verifyHelperExecutable			83.3%
+github.com/MoYuanCN/Jelee/internal/platform/sandbox/protected_linux_amd64.go:42:		verifyProtectedFile			92.3%
+github.com/MoYuanCN/Jelee/internal/platform/sandbox/protected_linux_amd64.go:80:		protectedMode				100.0%
+github.com/MoYuanCN/Jelee/internal/platform/sandbox/protected_linux_amd64.go:91:		writeDenied				100.0%
+github.com/MoYuanCN/Jelee/internal/platform/sandbox/sandbox.go:71:				New					78.9%
+github.com/MoYuanCN/Jelee/internal/platform/sandbox/sandbox.go:100:				*Launcher.ProtectedFilesRequired	100.0%
+github.com/MoYuanCN/Jelee/internal/platform/sandbox/sandbox.go:103:				*Launcher.Executable			100.0%
+github.com/MoYuanCN/Jelee/internal/platform/sandbox/sandbox.go:110:				*Launcher.HelperArguments		100.0%
+github.com/MoYuanCN/Jelee/internal/platform/sandbox/sandbox.go:121:				RunHelper				58.3%
+github.com/MoYuanCN/Jelee/internal/platform/sandbox/sandbox.go:139:				decodeDescriptor			94.7%
+github.com/MoYuanCN/Jelee/internal/platform/sandbox/sandbox.go:168:				validPath				100.0%
+github.com/MoYuanCN/Jelee/internal/platform/sandbox/sandbox.go:173:				validDigest				100.0%
+github.com/MoYuanCN/Jelee/internal/platform/sandbox/sandbox.go:181:				validProfile				100.0%
+github.com/MoYuanCN/Jelee/internal/platform/sandbox/sandbox.go:185:				validPolicy				100.0%
+github.com/MoYuanCN/Jelee/internal/platform/sandbox/sandbox.go:199:				metadataArguments			100.0%
+github.com/MoYuanCN/Jelee/internal/platform/sandbox/seccomp_linux_amd64.go:6:			load					100.0%
+github.com/MoYuanCN/Jelee/internal/platform/sandbox/seccomp_linux_amd64.go:9:			compare					100.0%
+github.com/MoYuanCN/Jelee/internal/platform/sandbox/seccomp_linux_amd64.go:12:			verdict					100.0%
+github.com/MoYuanCN/Jelee/internal/platform/sandbox/seccomp_linux_amd64.go:16:			syscallPolicy				100.0%
+github.com/MoYuanCN/Jelee/internal/platform/sandbox/testdata/helper/main_linux_amd64.go:23:	main					8.4%
+github.com/MoYuanCN/Jelee/internal/platform/sandbox/testdata/helper/main_linux_amd64.go:132:	permission				0.0%
+total												(statements)				67.6%
+=== RUN   TestIsolatedFactoryAcceptsOnlyTheSealedLauncherRegistration
+--- PASS: TestIsolatedFactoryAcceptsOnlyTheSealedLauncherRegistration (0.01s)
+=== RUN   TestIsolatedProcessHelper
+--- PASS: TestIsolatedProcessHelper (0.00s)
+=== RUN   TestIsolatedExitClassificationDiscardsEveryFailureOutput
+=== RUN   TestIsolatedExitClassificationDiscardsEveryFailureOutput/78
+=== RUN   TestIsolatedExitClassificationDiscardsEveryFailureOutput/1
+=== RUN   TestIsolatedExitClassificationDiscardsEveryFailureOutput/2
+=== RUN   TestIsolatedExitClassificationDiscardsEveryFailureOutput/127
+=== RUN   TestIsolatedExitClassificationDiscardsEveryFailureOutput/255
+=== RUN   TestIsolatedExitClassificationDiscardsEveryFailureOutput/64
+--- PASS: TestIsolatedExitClassificationDiscardsEveryFailureOutput (0.01s)
+    --- PASS: TestIsolatedExitClassificationDiscardsEveryFailureOutput/78 (0.00s)
+    --- PASS: TestIsolatedExitClassificationDiscardsEveryFailureOutput/1 (0.00s)
+    --- PASS: TestIsolatedExitClassificationDiscardsEveryFailureOutput/2 (0.00s)
+    --- PASS: TestIsolatedExitClassificationDiscardsEveryFailureOutput/127 (0.00s)
+    --- PASS: TestIsolatedExitClassificationDiscardsEveryFailureOutput/255 (0.00s)
+    --- PASS: TestIsolatedExitClassificationDiscardsEveryFailureOutput/64 (0.00s)
+=== RUN   TestIsolatedRequestsRequireSourceAndExactOperation
+--- PASS: TestIsolatedRequestsRequireSourceAndExactOperation (0.00s)
+=== RUN   TestIsolatedBoundsCancellationAndQuotaRelease
+=== RUN   TestIsolatedBoundsCancellationAndQuotaRelease/stdout
+=== RUN   TestIsolatedBoundsCancellationAndQuotaRelease/stderr
+--- PASS: TestIsolatedBoundsCancellationAndQuotaRelease (0.11s)
+    --- PASS: TestIsolatedBoundsCancellationAndQuotaRelease/stdout (0.00s)
+    --- PASS: TestIsolatedBoundsCancellationAndQuotaRelease/stderr (0.00s)
+=== RUN   TestIsolatedFactoryCannotRegisterAnArbitraryProgram
+--- PASS: TestIsolatedFactoryCannotRegisterAnArbitraryProgram (0.00s)
+=== RUN   TestProcessHelper
+--- PASS: TestProcessHelper (0.00s)
+=== RUN   TestFixedArgumentsAreLiteralAndRegistryIsCopied
+--- PASS: TestFixedArgumentsAreLiteralAndRegistryIsCopied (0.00s)
+=== RUN   TestEnvironmentDoesNotInheritCredentials
+--- PASS: TestEnvironmentDoesNotInheritCredentials (0.00s)
+=== RUN   TestOpenedStdinRemainsSeekableAndBorrowed
+--- PASS: TestOpenedStdinRemainsSeekableAndBorrowed (0.00s)
+=== RUN   TestOutputFloodsAreBoundedAndReaped
+=== RUN   TestOutputFloodsAreBoundedAndReaped/flood
+=== RUN   TestOutputFloodsAreBoundedAndReaped/stderr-flood
+=== RUN   TestOutputFloodsAreBoundedAndReaped/dual-flood
+--- PASS: TestOutputFloodsAreBoundedAndReaped (0.01s)
+    --- PASS: TestOutputFloodsAreBoundedAndReaped/flood (0.00s)
+    --- PASS: TestOutputFloodsAreBoundedAndReaped/stderr-flood (0.00s)
+    --- PASS: TestOutputFloodsAreBoundedAndReaped/dual-flood (0.00s)
+=== RUN   TestSilentTimeoutCancellationBusyAndSafeExit
+--- PASS: TestSilentTimeoutCancellationBusyAndSafeExit (0.30s)
+=== RUN   TestDescendantsDieOnCancelAndNormalParentExit
+=== RUN   TestDescendantsDieOnCancelAndNormalParentExit/tree
+=== RUN   TestDescendantsDieOnCancelAndNormalParentExit/tree-exit
+--- PASS: TestDescendantsDieOnCancelAndNormalParentExit (0.02s)
+    --- PASS: TestDescendantsDieOnCancelAndNormalParentExit/tree (0.01s)
+    --- PASS: TestDescendantsDieOnCancelAndNormalParentExit/tree-exit (0.01s)
+=== RUN   TestRepeatedRunsDoNotLeakHandlesOrGoroutines
+    runner_test.go:313: resources before=7 after=7; goroutines before=2 after=2
+--- PASS: TestRepeatedRunsDoNotLeakHandlesOrGoroutines (0.10s)
+=== RUN   TestInvalidConfigurationAndRequestsFailClosed
+--- PASS: TestInvalidConfigurationAndRequestsFailClosed (0.00s)
+=== RUN   TestOrdinaryGoOpenedFileIsNotInherited
+--- PASS: TestOrdinaryGoOpenedFileIsNotInherited (0.00s)
+=== RUN   TestMissingExecutableHasSafeErrorAndReleasesResources
+--- PASS: TestMissingExecutableHasSafeErrorAndReleasesResources (0.00s)
+=== RUN   TestRegistrationBoundsAndDuplicateIdentity
+--- PASS: TestRegistrationBoundsAndDuplicateIdentity (0.00s)
+PASS
+coverage: 89.6% of statements
+
+EXIT 0
+PASS: zero skips; original fixtures unchanged; sandbox merged coverage 86.5%
+COMMAND ["docker", "container", "inspect", "--format", "{{.Id}}", "jelee-sandbox-native-96b4ea4851b044f9aab64767afd50620"]
+
+Error response from daemon: No such container: jelee-sandbox-native-96b4ea4851b044f9aab64767afd50620
+
+EXIT 1
+COMMAND ["docker", "image", "inspect", "--format", "{{.Id}}", "jelee/sandbox-native-test:96b4ea4851b044f9aab64767afd50620"]
+sha256:93d88aecd74116f30f112fd7dac18a98979fe076c1c9c175531046fcc67b3c9c
+
+EXIT 0
+COMMAND ["docker", "image", "rm", "--force", "jelee/sandbox-native-test:96b4ea4851b044f9aab64767afd50620"]
+Untagged: jelee/sandbox-native-test:96b4ea4851b044f9aab64767afd50620
+Deleted: sha256:93d88aecd74116f30f112fd7dac18a98979fe076c1c9c175531046fcc67b3c9c
+
+EXIT 0

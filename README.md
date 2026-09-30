@@ -44,6 +44,7 @@ make bootstrap tools-verify build test
 - [第 2 阶段验证](docs/accounts-verification.md)
 - [只读盘点 API 与配置](docs/jobs-api.md)
 - [第 3A 段验证](docs/jobs-verification.md)
+- [第 3C1 段隔离探测验证](docs/probe-verification.md)
 - [工具链与未完成项](docs/toolchain.md)
 - [NFO 只读兼容范围](docs/nfo-compatibility.md)
 - [安全模型](docs/security-model.md)
