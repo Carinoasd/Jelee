@@ -97,6 +97,225 @@
       "installedByJelee": false
     }
   ],
+  "mediaRuntime": {
+    "schemaVersion": 1,
+    "status": "verified-files-experimental",
+    "platform": "linux-amd64",
+    "optional": true,
+    "experimentalOnly": true,
+    "readyToExecute": true,
+    "verifiedOn": "2026-10-01",
+    "installPath": "media-runtime/linux-amd64/debian13-glibc2.41-12deb13u4-gcc14.2.0-19",
+    "fileHashStatus": "Selected ELF and package copyright SHA256 calculated from archive-verified Debian packages and recorded before any runtime execution.",
+    "packages": [
+      {
+        "name": "libc6",
+        "version": "2.41-12+deb13u4",
+        "architecture": "amd64",
+        "sourcePackage": "glibc",
+        "sourceVersion": "2.41-12+deb13u4",
+        "url": "https://deb.debian.org/debian/pool/main/g/glibc/libc6_2.41-12+deb13u4_amd64.deb",
+        "sha256": "967aa62605721081c3eb2a17650611a792aa802d76a6511d1840242623d204c9",
+        "sizeBytes": 2846580,
+        "metadataURL": "https://packages.debian.org/trixie/amd64/libc6/download",
+        "fileListURL": "https://packages.debian.org/trixie/amd64/libc6/filelist",
+        "archive": "deb-ar",
+        "license": "LGPL-2.1-or-later and file-specific terms; preserve package copyright",
+        "attribution": "Free Software Foundation, glibc contributors and Debian GNU Libc Maintainers",
+        "files": [
+          {
+            "source": "usr/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2",
+            "destination": "lib64/ld-linux-x86-64.so.2",
+            "kind": "elf",
+            "sha256": "c8438e4fde1934e61c88311633f00949ff645d5c04cdb8671fa3d78164d2f307",
+            "sizeBytes": 225672
+          },
+          {
+            "source": "usr/lib/x86_64-linux-gnu/libc.so.6",
+            "destination": "lib/x86_64-linux-gnu/libc.so.6",
+            "kind": "elf",
+            "sha256": "9792e3cbb541c8f44c7acf5f14f4022ea62998ecc787d326bed4d8b6547dfd92",
+            "sizeBytes": 1995216
+          },
+          {
+            "source": "usr/lib/x86_64-linux-gnu/libm.so.6",
+            "destination": "lib/x86_64-linux-gnu/libm.so.6",
+            "kind": "elf",
+            "sha256": "6d567d53e895273ca14a1f9dc164fc6c8d39aed2f60aa46a733c2784228915f3",
+            "sizeBytes": 977112
+          },
+          {
+            "source": "usr/lib/x86_64-linux-gnu/libmvec.so.1",
+            "destination": "lib/x86_64-linux-gnu/libmvec.so.1",
+            "kind": "elf",
+            "sha256": "cd2f99df70ed0fa44f79bd6322396180d19eaa1fb527b1b6e2aec9cdfc034d9d",
+            "sizeBytes": 1018072
+          },
+          {
+            "source": "usr/lib/x86_64-linux-gnu/libdl.so.2",
+            "destination": "lib/x86_64-linux-gnu/libdl.so.2",
+            "kind": "elf",
+            "sha256": "295fa521a03cd2faa99974f378c9e23dd622021ec7d32bcad4f8ea61aec8a872",
+            "sizeBytes": 14408
+          },
+          {
+            "source": "usr/lib/x86_64-linux-gnu/libpthread.so.0",
+            "destination": "lib/x86_64-linux-gnu/libpthread.so.0",
+            "kind": "elf",
+            "sha256": "85e21f7dba0394411d00959176fd18b470e575b0b05f1f4f41e5636802ce0500",
+            "sizeBytes": 14408
+          },
+          {
+            "source": "usr/lib/x86_64-linux-gnu/librt.so.1",
+            "destination": "lib/x86_64-linux-gnu/librt.so.1",
+            "kind": "elf",
+            "sha256": "7b7b84d1aedda0e0b2bdfc68844362782132180b8f02be1300e21e77572e514b",
+            "sizeBytes": 14552
+          },
+          {
+            "source": "usr/share/doc/libc6/copyright",
+            "destination": "licenses/runtime/libc6/copyright",
+            "kind": "notice",
+            "sha256": "f5788886720a2605a946e81d571e6c8162b09f58d2e2ceb8d36e5768fccd850d",
+            "sizeBytes": 51200
+          }
+        ]
+      },
+      {
+        "name": "libgcc-s1",
+        "version": "14.2.0-19",
+        "architecture": "amd64",
+        "sourcePackage": "gcc-14",
+        "sourceVersion": "14.2.0-19",
+        "url": "https://deb.debian.org/debian/pool/main/g/gcc-14/libgcc-s1_14.2.0-19_amd64.deb",
+        "sha256": "3c71917b490d1a17aed43196a2787a256ecf060526cdb20216a74bedc061b150",
+        "sizeBytes": 72772,
+        "metadataURL": "https://packages.debian.org/trixie/amd64/libgcc-s1/download",
+        "fileListURL": "https://packages.debian.org/trixie/amd64/libgcc-s1/filelist",
+        "archive": "deb-ar",
+        "license": "GPL-3.0-or-later WITH GCC-exception-3.1",
+        "attribution": "Free Software Foundation, GCC contributors and Debian GCC Maintainers",
+        "noticePackage": "gcc-14-base",
+        "files": [
+          {
+            "source": "usr/lib/x86_64-linux-gnu/libgcc_s.so.1",
+            "destination": "lib/x86_64-linux-gnu/libgcc_s.so.1",
+            "kind": "elf",
+            "sha256": "30c61ab012a4241bed033725a09b61f5fdd3bb7df95ee852d0b096520524c7af",
+            "sizeBytes": 182856
+          }
+        ]
+      },
+      {
+        "name": "gcc-14-base",
+        "version": "14.2.0-19",
+        "architecture": "amd64",
+        "sourcePackage": "gcc-14",
+        "sourceVersion": "14.2.0-19",
+        "url": "https://deb.debian.org/debian/pool/main/g/gcc-14/gcc-14-base_14.2.0-19_amd64.deb",
+        "sha256": "5b6825de4263824b78c4c51f6476414f3b4e89c2ab63e81dc8b9b5501e867cf6",
+        "sizeBytes": 49432,
+        "metadataURL": "https://packages.debian.org/trixie/amd64/gcc-14-base/download",
+        "fileListURL": "https://packages.debian.org/trixie/amd64/gcc-14-base/filelist",
+        "archive": "deb-ar",
+        "purpose": "Attribution/notice package only; no compiler is extracted or executed",
+        "license": "Package copyright enumerates GCC component licenses and Runtime Library Exception",
+        "attribution": "Free Software Foundation, GCC contributors and Debian GCC Maintainers",
+        "files": [
+          {
+            "source": "usr/share/doc/gcc-14-base/copyright",
+            "destination": "licenses/runtime/gcc-14-base/copyright",
+            "kind": "notice",
+            "sha256": "20390f8a6f3b1e4d7cb45dd8652dabb259bbef688cbad839bcdb0b9ba7252f79",
+            "sizeBytes": 69004
+          }
+        ]
+      }
+    ],
+    "licenseTexts": [
+      {
+        "name": "LGPL-2.1",
+        "url": "https://www.gnu.org/licenses/old-licenses/lgpl-2.1.txt",
+        "sha256": "20e50fe7aae3e56378ebf0417d9de904f55a0e61e4df315333e632a4d3555d95",
+        "sizeBytes": 26419,
+        "destination": "licenses/runtime/LGPL-2.1.txt"
+      },
+      {
+        "name": "GPL-2.0",
+        "url": "https://www.gnu.org/licenses/old-licenses/gpl-2.0.txt",
+        "sha256": "edaef632cbb643e4e7a221717a6c441a4c1a7c918e6e4d56debc3d8739b233f6",
+        "sizeBytes": 17984,
+        "destination": "licenses/runtime/GPL-2.0.txt"
+      },
+      {
+        "name": "GPL-3.0",
+        "url": "https://www.gnu.org/licenses/gpl-3.0.txt",
+        "sha256": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986",
+        "sizeBytes": 35149,
+        "destination": "licenses/runtime/GPL-3.0.txt"
+      },
+      {
+        "name": "GCC-exception-3.1",
+        "url": "https://raw.githubusercontent.com/gcc-mirror/gcc/releases/gcc-14.2.0/COPYING.RUNTIME",
+        "sha256": "9d6b43ce4d8de0c878bf16b54d8e7a10d9bd42b75178153e3af6a815bdc90f74",
+        "sizeBytes": 3324,
+        "destination": "licenses/runtime/GCC-exception-3.1.txt"
+      }
+    ],
+    "sourceArtifacts": [
+      {
+        "sourcePackage": "glibc",
+        "sourceVersion": "2.41-12+deb13u4",
+        "url": "https://deb.debian.org/debian/pool/main/g/glibc/glibc_2.41-12+deb13u4.dsc",
+        "sha256": "0915324aa646bb99abfaa9aa6ecb734b30babd28454a3e51f3152912370fbd3e",
+        "sizeBytes": 7576,
+        "kind": "signed-source-metadata",
+        "signatureVerified": false
+      },
+      {
+        "sourcePackage": "glibc",
+        "sourceVersion": "2.41-12+deb13u4",
+        "url": "https://deb.debian.org/debian/pool/main/g/glibc/glibc_2.41.orig.tar.xz",
+        "sha256": "f24aa441021121a79266f0d75242706cab8843a47901fefe74527491807f1998",
+        "sizeBytes": 20323540,
+        "kind": "upstream-source"
+      },
+      {
+        "sourcePackage": "glibc",
+        "sourceVersion": "2.41-12+deb13u4",
+        "url": "https://deb.debian.org/debian/pool/main/g/glibc/glibc_2.41-12+deb13u4.debian.tar.xz",
+        "sha256": "dda4153511bfd543502d18e5bc9323110996fe9c531f14ae3fad6eb17f027c7d",
+        "sizeBytes": 499524,
+        "kind": "packaging-patches-and-rules"
+      },
+      {
+        "sourcePackage": "gcc-14",
+        "sourceVersion": "14.2.0-19",
+        "url": "https://deb.debian.org/debian/pool/main/g/gcc-14/gcc-14_14.2.0-19.dsc",
+        "sha256": "7db1e202cce66617e9134a662c877a3a773de5b612fd52179815877e0ecfb847",
+        "sizeBytes": 47347,
+        "kind": "signed-source-metadata",
+        "signatureVerified": false
+      },
+      {
+        "sourcePackage": "gcc-14",
+        "sourceVersion": "14.2.0-19",
+        "url": "https://deb.debian.org/debian/pool/main/g/gcc-14/gcc-14_14.2.0.orig.tar.gz",
+        "sha256": "e162a5ef3f0077ecae598c6556908d2ab80841532df3398072a96a6df6e6aa29",
+        "sizeBytes": 94299633,
+        "kind": "upstream-source"
+      },
+      {
+        "sourcePackage": "gcc-14",
+        "sourceVersion": "14.2.0-19",
+        "url": "https://deb.debian.org/debian/pool/main/g/gcc-14/gcc-14_14.2.0-19.debian.tar.xz",
+        "sha256": "31cbab4bafa48aa1c540497bd8098cbcf98e673778f927651ed944709f687781",
+        "sizeBytes": 2577016,
+        "kind": "packaging-patches-and-rules"
+      }
+    ],
+    "sourceCompleteness": "Debian runtime source package identities are pinned separately. Complete corresponding sources for BtbN FFprobe statically linked third-party dependencies have not been collected; experimental local container only, no public image publication."
+  },
   "mediaTools": {
     "schemaVersion": 1,
     "optional": true,

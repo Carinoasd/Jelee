@@ -12,6 +12,25 @@ ci/
 
 # Only the Go service build context belongs in its production image.
 .tools/
+!.tools/
+.tools/*
+!.tools/media/
+.tools/media/*
+!.tools/media/linux-amd64/
+.tools/media/linux-amd64/*
+!.tools/media/linux-amd64/btbn-20260930-9.0/
+.tools/media/linux-amd64/btbn-20260930-9.0/*
+!.tools/media/linux-amd64/btbn-20260930-9.0/ffmpeg-n9.0.2-17-g2a571b6068-linux64-gpl-9.0/
+.tools/media/linux-amd64/btbn-20260930-9.0/ffmpeg-n9.0.2-17-g2a571b6068-linux64-gpl-9.0/*
+!.tools/media/linux-amd64/btbn-20260930-9.0/ffmpeg-n9.0.2-17-g2a571b6068-linux64-gpl-9.0/bin/
+.tools/media/linux-amd64/btbn-20260930-9.0/ffmpeg-n9.0.2-17-g2a571b6068-linux64-gpl-9.0/bin/*
+!.tools/media/linux-amd64/btbn-20260930-9.0/ffmpeg-n9.0.2-17-g2a571b6068-linux64-gpl-9.0/bin/ffprobe
+!.tools/media/linux-amd64/btbn-20260930-9.0/ffmpeg-n9.0.2-17-g2a571b6068-linux64-gpl-9.0/LICENSE.txt
+!.tools/media-runtime/
+.tools/media-runtime/*
+!.tools/media-runtime/linux-amd64/
+.tools/media-runtime/linux-amd64/*
+!.tools/media-runtime/linux-amd64/debian13-glibc2.41-12deb13u4-gcc14.2.0-19/
 .bin/
 .testdata/
 .testfixtures/

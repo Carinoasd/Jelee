@@ -4,7 +4,7 @@
 
 本阶段实现 Go 1.27.1 的 Windows/Linux amd64、arm64 引导、校验、离线缓存与清理。版本与 SHA256 来自 [Go 官方下载元数据](https://go.dev/dl/?mode=json)，2026-09-30 核对；清单位于 `tools/manifest.json`。
 
-3B1 另提供显式选择的 Windows/Linux amd64 媒体开发工具。普通 `bootstrap-tools` 仍只引导 Go；媒体压缩包约为 Windows 115 MB、Linux 151 MB，必须另行运行下面的 `bootstrap-media-tools`。服务端 `probe=false`、生产镜像不含媒体工具，这一交付不代表生产探测器已完成。
+3B1 另提供显式选择的 Windows/Linux amd64 媒体开发工具。普通 `bootstrap-tools` 仍只引导 Go；媒体压缩包约为 Windows 115 MB、Linux 151 MB，必须另行运行下面的 `bootstrap-media-tools`。3C1 另有显式选择的 Linux amd64 实验运行库入口，见下文；默认 `probe=false`，工具安装本身不启用探测。
 
 显式执行 Docker 构建时，固定的 Go 构建镜像由已有 Docker daemon 管理缓存，独立记录在清单的 `containerBuildDependencies`；它不向宿主系统安装 Go，也不进入最终 scratch 运行镜像。构建证据见 `docs/deployment.md`。
 
@@ -103,7 +103,7 @@ Go 包装器将 `GOCACHE`、`GOPATH`、`GOMODCACHE`、`GOTMPDIR`、临时目录�
 
 ## 可选媒体开发工具（3B1）
 
-平台仅支持 amd64。Windows 需要 PowerShell 7.2+、curl 和 Windows 10+；Linux 需要已有 Python 3.9+、glibc 2.28+ 与 Linux 4.18+。Linux 发行包静态链接 libav 等依赖，但仍依赖 glibc；不能直接放进当前 scratch 生产镜像。供应商与完整版本分别固定，不能把两套构建统称为同一二进制版本：
+平台仅支持 amd64。Windows 需要 PowerShell 7.2+、curl 和 Windows 10+；Linux 需要已有 Python 3.9+、glibc 2.28+ 与 Linux 4.18+。Linux 发行包静态链接 libav 等依赖，但仍依赖 glibc；放入 scratch 镜像时须另提供完整、已验证的动态库。供应商与完整版本分别固定，不能把两套构建统称为同一二进制版本：
 
 | 平台 | 供应商版本 | 上游来源 |
 | --- | --- | --- |
@@ -145,6 +145,39 @@ Windows 的 `.bin/ffmpeg.cmd` 和 `.bin/ffprobe.cmd` 也可调用；含复杂引
 ## 构建测试依赖与运行依赖
 
 Go、gofmt、vet、coverage 是构建测试工具，不随服务端产物分发。ffmpeg 仅用于合成测试素材和开发调试，不得进入生产镜像或生产执行路径。清单中的 `productionAllowed` 是后续分发策略声明，只有 ffprobe 为 true；3B1 尚未接入任何生产媒体子进程。允许的其他媒体运行依赖仅为按需启用的 mkvtoolnix、mediainfo，目前尚未固定或引导这两项。供应商二进制归属与许可证说明见 [第三方工具表](THIRD-PARTY-TOOLS.md)。
+
+## Linux amd64 实验运行库（3C1）
+
+`tools/manifest.json` 的 `mediaRuntime` 固定 Debian 13 的 libc6 `2.41-12+deb13u4`、libgcc-s1 `14.2.0-19` 和只用于归属文件的 gcc-14-base `14.2.0-19`。此入口不安装编译器、不调用 apt/dpkg/ar/tar，也不执行下载包中的任何程序或脚本。默认 Go/media bootstrap 不会自动下载这组运行库。
+
+```sh
+sh scripts/runtime-tools bootstrap
+sh scripts/runtime-tools verify --offline
+sh scripts/runtime-tools sources
+sh scripts/runtime-tools sources --offline
+python3 -B scripts/test_runtime_tools.py
+```
+
+Windows 使用现有 WSL Ubuntu 和其中的 Python 3.9+；这是 Linux runtime 的入口，不提供 Windows 原生运行库回退，不安装 WSL 或 Python：
+
+```powershell
+pwsh -NoProfile -File scripts/runtime-tools.ps1 -Command bootstrap
+pwsh -NoProfile -File scripts/runtime-tools.ps1 -Command verify -Offline
+pwsh -NoProfile -File scripts/runtime-tools.ps1 -Command sources -Offline
+```
+
+其他现有 WSL 发行版可以显式传 `-Distribution`，运行端仍要求 Linux amd64。`JELEE_TOOLS_MIRROR` 的 HTTPS 镜像、HTTPS 代理与预填离线缓存可用于下载源不可达的环境；不改变原始文件名、大小或 SHA256。本机 GNU 许可文本源在 WSL 返回网络不可达，本次复用了此前已核验的相同文本字节；Debian 套件与源码压缩包经正常 HTTPS 下载后校验。
+
+- 先在正式 manifest 记录包/来源/许可 URL、SHA256 与大小，才能下载。首次 `inspect` 仅报告从已校验包里抽取的候选文件哈希，不安装、不修改 manifest、不执行文件。维护者将八个 ELF 与两个包版权文件的哈希写入 manifest 后，`bootstrap` 才允许安装；未就绪或缺少文件哈希时拒绝。
+- 二进制包不超过 16 MiB；ar 恰含 `debian-binary`、一个 control 和一个 data 成员，Debian 格式为 2.0。完全忽略 control 内容，不执行 maintainer scripts。data 只接受 gzip/xz，展开不超过 64 MiB，xz decoder 内存上限 64 MiB，tar 最多 10000 条目。
+- 仅抽取清单允许的真实普通文件，拒绝路径越界、重复条目、特殊设备、FIFO、稀疏/扩展 tar 格式和被选中的硬/符号链接。未选中的链接从不跟随或落盘。单 ELF 最大 8 MiB、单许可 1 MiB、所有选定文件合计 32 MiB。只检查和写入明确的八个 amd64 ELF 与六份许可/归属文件。
+- 下载在读取时受清单大小限制；只允许无凭证的 HTTPS，重定向同样检查。HTTP 状态列、标头和内容的每次 socket 读取检查同一 300 秒绝对期限，避免持续少量字节延长读取；平台 DNS 解析仍不保证可硬中断。partial 总会清理，已确认项目内的坏缓存按 G51.4 删除。已安装文件被修改时失败并保留现场，不自动替换或重新认可。
+- 安装在项目 `.tools` 内的全新 staging 中，设置明确权限后发布。OS 文件锁拒绝并行操作，退出时释放；锁文件保留不代表仍被占用。`installed.json` 绑定 runtime 子清单摘要和每个文件哈希。`verify` 完全离线，对照归档、个别文件、安装记录和实际文件集合；额外文件、缺失文件和链接均拒绝。
+- 安装过程请求 ELF 0555、许可 0444；WSL DrvFS 可能把只读许可报告为 0555。容器构建仍须明确设置最终 root 所有权及 ELF 0555/许可 0444。安装器不执行许可文本或 ELF，也不把本地权限当作生产不可变性证明。
+
+固定安装根为 `.tools/media-runtime/linux-amd64/debian13-glibc2.41-12deb13u4-gcc14.2.0-19/`。相对映射：`lib64/ld-linux-x86-64.so.2` → `/lib64/ld-linux-x86-64.so.2`；其余七个 `.so` 在 `lib/x86_64-linux-gnu/` → `/lib/x86_64-linux-gnu/`；完整 `licenses/runtime/` → `/licenses/runtime/`。`tools.RuntimeSpec("linux-amd64")` 从嵌入清单返回固定映射与哈希，不读取系统 PATH 或动态认可宿主库。ffprobe 本身的供应商许可文件另外保留。
+
+`sources` 在 `.tools/downloads/` 缓存并核验六份 Debian `.dsc`、上游源码和 Debian 补丁/构建规则压缩包，约 118 MB，不解压或执行。当前未验证 `.dsc` 的 OpenPGP 签名，也未收集 BtbN 全部静态依赖的对应源代码；这是本地实验容器的材料，尚不足以宣称公共镜像分发准备完成。具体范围见 [第三方工具表](THIRD-PARTY-TOOLS.md) 与 `docs/evidence/runtime-tools.txt`。
 
 ## 尚未交付的 G51 子项
 

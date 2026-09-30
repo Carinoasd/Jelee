@@ -1,6 +1,6 @@
 # Jelee
 
-Jelee 正在以独立 Go 服务逐步接管视频目录与原文件直投。本仓库当前交付 Go 基础服务、账户 API 与第 3A 段持久任务及只读盘点，尚未达到完整媒体服务器替代版本的验收条件。
+Jelee 正在以独立 Go 服务逐步接管视频目录与原文件直投。本仓库已交付 Go 基础服务、账户 API、持久只读盘点、固定工具与素材，以及 Linux 隔离探测／媒体资讯规范化基础；尚未达到完整媒体服务器替代版本的验收条件。
 
 ## 当前实现
 
@@ -12,6 +12,7 @@ Jelee 正在以独立 Go 服务逐步接管视频目录与原文件直投。本�
 - Windows/Linux 本地 Go 引导、哈希验证、安全解压与测试入口。
 - 只读 NFO adapter 与无需数据库的 `nfo validate` CLI；原文保留、字段提取和安全校验已通过 Windows/Linux 测试。
 - 持久盘点任务、两级队列、管理员 API/CLI、取消、租约恢复和分批检查点；盘点只观察路径、大小和 mtime，不修改原文件或自动删除目录数据。
+- Linux amd64 固定 ffprobe／8 个动态库、Landlock／seccomp helper、唯读 FD 输入与有界 JSON 解析；`jelee-cli doctor probe` 实测隔离能力。探测尚未接入扫描或目录快取，Windows 明确停用。
 
 尚未交付完整管理前端、第三方协议兼容、媒体探测/增量导入、持续监看/排程、图片资产处理、用户权限管理界面、完整诊断、完整工具与素材链。NFO 尚缺修改后的 XML 序列化、按库批量处理、`--fix`、任务接入及真实客户端往返验收。现有旧服务端源码仍保留，尚未完成所有功能裁剪与内部重命名。完整品牌门禁目前会失败；增量检查通过不能代替最终验收。
 
@@ -51,4 +52,13 @@ make bootstrap tools-verify build test
 - [许可证与来源](docs/LICENSE-COMPLIANCE.md)
 - [保留的上游说明](docs/upstream-README.md)
 
-当前工作位于 `feat/jelee-go-foundation`，每阶段验证后提交和推送至[草稿 PR #1](https://github.com/MoYuanCN/Jelee/pull/1)。第一阶段[验证记录](docs/verification-report.md)保留为历史快照；账户功能范围见[账户 API](docs/accounts-api.md)。尚未创建发布标签或正式版本。上游历史、许可证与归属资料保留，不能把该基础版本标记为 G00–G51 已完成。
+各段验证后分别推送并提 PR：[基础与账户 #1](https://github.com/MoYuanCN/Jelee/pull/1)、[持久盘点 #2](https://github.com/MoYuanCN/Jelee/pull/2)、[固定媒体工具 #3](https://github.com/MoYuanCN/Jelee/pull/3)、[执行器与素材 #4](https://github.com/MoYuanCN/Jelee/pull/4)。第一阶段[验证记录](docs/verification-report.md)保留为历史快照。尚未创建发布标签或正式版本。上游历史、许可证与归属资料保留，不能把当前版本标记为 G00–G51 已完成。
+
+### Linux 实验运行时验证
+
+```sh
+make bootstrap tools-verify bootstrap-media media-tools-verify bootstrap-runtime runtime-tools-verify
+make fixtures fixtures-test runtime-toolchain-test sandbox-test probe-runtime-test
+```
+
+后两个测试需要已有 Docker 与支持 Landlock ABI≥3 的 Linux 内核；缺工具或隔离时必须失败，不以 skip 通过。Dockerfile 需要上述固定本地工具包，建置时校验全部 16 个文件哈希，仅纳入 ffprobe／动态库／许可，不纳入 ffmpeg。对应源码材料和公开分发准备仍未完成；详细范围见 [Linux 隔离](docs/media-sandbox.md)与[规范化](docs/media-metadata.md)。

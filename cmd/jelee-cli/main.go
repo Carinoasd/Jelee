@@ -7,6 +7,8 @@ import (
 	"github.com/MoYuanCN/Jelee/internal/access"
 	"github.com/MoYuanCN/Jelee/internal/adapter/postgres"
 	"github.com/MoYuanCN/Jelee/internal/platform/config"
+	"github.com/MoYuanCN/Jelee/internal/platform/proberuntime"
+	"github.com/MoYuanCN/Jelee/internal/platform/sandbox"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -16,11 +18,21 @@ import (
 
 func main() { os.Exit(run()) }
 func run() int {
+	if len(os.Args) > 1 && os.Args[1] == sandbox.HelperCommand {
+		return proberuntime.Helper(os.Args[2:])
+	}
 	if len(os.Args) < 2 {
 		fmt.Fprintln(os.Stderr, "usage: jelee-cli doctor|provision|import-video|nfo|account|library|jobs")
 		return 2
 	}
 	command := os.Args[1]
+	if command == "doctor" && len(os.Args) >= 3 && os.Args[2] == "probe" {
+		ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
+		defer stop()
+		ctx, cancel := context.WithTimeout(ctx, 15*time.Second)
+		defer cancel()
+		return runProbeDiagnosticWithOutputCancellation(ctx, os.Args[3:], os.Stdout, os.Stderr)
+	}
 	if command == "doctor" && len(os.Args) >= 3 && os.Args[2] == "tools" {
 		ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 		defer stop()

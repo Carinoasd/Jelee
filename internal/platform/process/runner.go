@@ -86,9 +86,13 @@ func New(config Config, tools []Tool) (*Runner, error) {
 	return newRunner(config, tools, false)
 }
 
-// allowTestProgram is reachable only by package tests; production registration
-// accepts ffprobe alone. Its version/checksum identity is the registrar's duty.
+// The private alternate-program path is used by package tests and the sealed
+// isolated-ffprobe factory only. Ordinary New still accepts ffprobe alone.
 func newRunner(config Config, tools []Tool, allowTestProgram bool) (*Runner, error) {
+	return newRunnerWithArgumentLimits(config, tools, allowTestProgram, 4096, 24<<10)
+}
+
+func newRunnerWithArgumentLimits(config Config, tools []Tool, allowInternalProgram bool, maxArgument, maxArguments int) (*Runner, error) {
 	if config.MaxConcurrent < 1 || config.MaxConcurrent > 8 || config.Timeout < time.Millisecond || config.Timeout > 10*time.Minute || config.MaxStdoutBytes < 1 || config.MaxStdoutBytes > 16<<20 || config.MaxStderrBytes < 1 || config.MaxStderrBytes > 1<<20 || !filepath.IsAbs(config.TempRoot) || len(tools) < 1 || len(tools) > 8 {
 		return nil, ErrInvalid
 	}
@@ -98,7 +102,7 @@ func newRunner(config Config, tools []Tool, allowTestProgram bool) (*Runner, err
 	}
 	r := &Runner{config: config, tools: make(map[string]Tool), slots: make(chan struct{}, config.MaxConcurrent)}
 	for _, tool := range tools {
-		if !allowTestProgram && (tool.ID != "ffprobe" || !allowedProductionName(tool.Path)) {
+		if !allowInternalProgram && (tool.ID != "ffprobe" || !allowedProductionName(tool.Path)) {
 			return nil, ErrInvalid
 		}
 		if !validName(tool.ID) || !filepath.IsAbs(tool.Path) || strings.ContainsRune(tool.Path, 0) || len(tool.Operations) < 1 || len(tool.Operations) > 16 {
@@ -118,12 +122,12 @@ func newRunner(config Config, tools []Tool, allowTestProgram bool) (*Runner, err
 			}
 			size := 0
 			for _, argument := range args {
-				if !utf8.ValidString(argument) || strings.ContainsRune(argument, 0) || len(argument) > 4096 {
+				if !utf8.ValidString(argument) || strings.ContainsRune(argument, 0) || len(argument) > maxArgument {
 					return nil, ErrInvalid
 				}
 				size += len(argument) + 1
 			}
-			if size > 24<<10 {
+			if size > maxArguments {
 				return nil, ErrInvalid
 			}
 			copyTool.Operations[operation] = append([]string(nil), args...)
@@ -185,6 +189,10 @@ func contextError(ctx context.Context) error {
 }
 
 func (r *Runner) Run(ctx context.Context, request Request) (result Result, resultErr error) {
+	return r.run(ctx, request, nil)
+}
+
+func (r *Runner) run(ctx context.Context, request Request, exitError func(int) error) (result Result, resultErr error) {
 	if ctx == nil {
 		return Result{}, ErrInvalid
 	}
@@ -309,6 +317,9 @@ func (r *Runner) Run(ctx context.Context, request Request) (result Result, resul
 	}
 	if resultErr == nil && code != 0 {
 		resultErr = ErrExit
+		if exitError != nil {
+			resultErr = exitError(code)
+		}
 	}
 	if resultErr != nil {
 		return Result{}, resultErr

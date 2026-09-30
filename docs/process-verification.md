@@ -26,7 +26,7 @@
 
 新增[现有host编译器登记](evidence/host-compiler.txt)。此前Linuxrace实际结果保留，但当时host compiler未列manifest；本段登记后先核对5个ELF/2份copyright哈希，再执行最终Linuxrace。没有安装新全局compiler或修改全局Git身份。
 
-第3B1[远端CI](https://github.com/MoYuanCN/Jelee/actions/runs/36759687205)：Windows/Linux foundation和PostgreSQL通过，完整品牌门禁仍失败。3B2远端CI待实际完成后回填。增量品牌、忽略与diff检查通过，完整品牌政策未放宽。
+第3B1[远端CI](https://github.com/MoYuanCN/Jelee/actions/runs/36759687205)与第3B2 [PR4远端CI](https://github.com/MoYuanCN/Jelee/actions/runs/36769288418)：Windows/Linux foundation和PostgreSQL均通过，完整品牌门禁仍失败。增量品牌、忽略与diff检查通过，完整品牌政策未放宽。
 
 ## 后续工作
 
