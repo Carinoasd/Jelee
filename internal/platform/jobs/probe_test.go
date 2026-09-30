@@ -530,14 +530,23 @@ func TestProbeWorkerGateAndRuntimeStopAcrossWorkers(t *testing.T) {
 		t.Run(mode, func(t *testing.T) {
 			clock := newTestClock()
 			var claims, acquires, probes, active, callbacks atomic.Int32
+			var activeParent atomic.Value
+			activeParent.Store("")
 			inspected := make(chan struct{}, 2)
 			entered := make(chan struct{}, 1)
 			allow := make(chan struct{})
+			waiterReleased := make(chan struct{})
 			released := make(chan struct{}, 2)
 			finished := make(chan struct{}, 2)
-			base := &executionFake{heartbeat: func(context.Context, domain.JobLease, time.Duration) (bool, error) { return false, nil }, release: func(context.Context, domain.JobLease) error {
-				if active.Load() != 0 {
+			base := &executionFake{heartbeat: func(context.Context, domain.JobLease, time.Duration) (bool, error) { return false, nil }, release: func(_ context.Context, l domain.JobLease) error {
+				if l.Job.ID == activeParent.Load().(string) && active.Load() != 0 {
 					t.Error("parent released before process join")
+				}
+				if l.Job.ID != activeParent.Load().(string) && mode == "shutdown" {
+					if active.Load() != 1 {
+						t.Error("gate waiter did not release while the other parent was active")
+					}
+					close(waiterReleased)
 				}
 				released <- struct{}{}
 				return nil
@@ -559,7 +568,9 @@ func TestProbeWorkerGateAndRuntimeStopAcrossWorkers(t *testing.T) {
 				return domain.ProbeWork{Request: &q, Phase: &p}, nil
 			}
 			repo.page = func(_ context.Context, l domain.JobLease, _ int) (domain.ProbePage, error) {
-				return domain.ProbePage{Token: workerPhase(workerRequest(l)).Token, Entries: []domain.ProbeEntry{workerEntry(0)}}, nil
+				entry := workerEntry(0)
+				entry.Source.RootPath = l.Job.ID // Test-only owner correlation for the fake prober.
+				return domain.ProbePage{Token: workerPhase(workerRequest(l)).Token, Entries: []domain.ProbeEntry{entry}}, nil
 			}
 			repo.lookup = func(_ context.Context, _ domain.JobLease, _ domain.ProbePageToken, v []domain.ProbeCandidate) ([]domain.ProbeLookup, error) {
 				return []domain.ProbeLookup{{InventoryID: v[0].InventoryID, Kind: domain.ProbeLookupMiss}}, nil
@@ -572,13 +583,19 @@ func TestProbeWorkerGateAndRuntimeStopAcrossWorkers(t *testing.T) {
 			prober := &metadataProberFake{digest: probeDigest, inspect: func(context.Context, domain.ProbeSource) (domain.ProbeStamp, error) {
 				inspected <- struct{}{}
 				return workerStamp(), nil
-			}, probe: func(c context.Context, _ domain.ProbeSource) (domain.ProbeObservation, error) {
+			}, probe: func(c context.Context, source domain.ProbeSource) (domain.ProbeObservation, error) {
 				probes.Add(1)
+				activeParent.Store(source.RootPath)
 				active.Add(1)
 				defer active.Add(-1)
 				entered <- struct{}{}
 				select {
 				case <-c.Done():
+					if mode == "shutdown" {
+						// Keep A active until cancelled gate waiter B releases its own
+						// parent. Cross-parent release order is intentionally unconstrained.
+						<-waiterReleased
+					}
 					return domain.ProbeObservation{}, c.Err()
 				case <-allow:
 					return domain.ProbeObservation{}, domain.ErrProbeRuntimeUnavailable
