@@ -40,6 +40,8 @@
 
 安装后的 `licenses/runtime/` 保留 libc6 与 gcc-14-base 包内完整 `copyright`，另有完整 LGPL-2.1、GPL-2.0、GPL-3.0 和 GCC Runtime Library Exception 3.1 文本。不能仅用表格概括替代这些文件；ffprobe 的 GPL 文本及供应商归属也须另随实验镜像保留。
 
+LGPL-2.1、GPL-2.0 和 GPL-3.0 的传输来源改为官方 [GNU FTP HTTPS 目录](https://ftp.gnu.org/gnu/Licenses/)；manifest 的 `originalURL` 保留原网页来源。三个既有大小与 SHA256 均不变，实际冷下载已逐字节核对，未修改许可正文。
+
 对应 Debian 源码材料已实际下载到项目缓存并校验：glibc `2.41-12+deb13u4` 的 `.dsc`、`glibc_2.41.orig.tar.xz`、Debian 补丁/规则压缩包；gcc-14 `14.2.0-19` 的 `.dsc`、上游源包及 Debian 补丁/规则压缩包。固定下载与校验项来自官方 `.dsc`，当前没有完成 OpenPGP 签名验证。`scripts/runtime-tools sources --offline` 可以复核该材料集合，不会执行构建脚本。
 
 这只覆盖选定 Debian 运行库的来源材料。BtbN ffprobe 静态链接的所有第三方组件版本、补丁、构建配置及完整对应源码仍未收集，不可据此宣称整个 ffprobe 分发材料完整。公共镜像发布仍在范围外；现阶段只验证本地实验镜像。

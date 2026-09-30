@@ -166,7 +166,11 @@ pwsh -NoProfile -File scripts/runtime-tools.ps1 -Command verify -Offline
 pwsh -NoProfile -File scripts/runtime-tools.ps1 -Command sources -Offline
 ```
 
-其他现有 WSL 发行版可以显式传 `-Distribution`，运行端仍要求 Linux amd64。`JELEE_TOOLS_MIRROR` 的 HTTPS 镜像、HTTPS 代理与预填离线缓存可用于下载源不可达的环境；不改变原始文件名、大小或 SHA256。本机 GNU 许可文本源在 WSL 返回网络不可达，本次复用了此前已核验的相同文本字节；Debian 套件与源码压缩包经正常 HTTPS 下载后校验。
+其他现有 WSL 发行版可以显式传 `-Distribution`，运行端仍要求 Linux amd64。`JELEE_TOOLS_MIRROR` 的 HTTPS 镜像、HTTPS 代理与预填离线缓存可用于下载源不可达的环境；不改变原始文件名、大小或 SHA256。
+
+三份 GNU 许可文本现在从官方 [GNU FTP 的 HTTPS 目录](https://ftp.gnu.org/gnu/Licenses/) 下载。原 `www.gnu.org` 端点在独立冷下载中约 30 秒后网络不可达；此前的预填缓存验收不能证明它可冷启动。替代端点保持相同文件名、大小及 SHA256，未更改许可内容、下载期限或验证门槛。独立空缓存 bootstrap、离线 verify 和 36 项安装器测试已经通过，详见[冷启动证据](evidence/runtime-bootstrap-cold.txt)；远端 CI 是否恢复须以后续实际结果为准。
+
+`installed.json` 绑定完整 runtime 子清单，来源 URL 改动也会让旧安装记录失效。旧安装因此会安全拒绝，不会自动改写或重新信任旧记录。更新时先停止使用该本地 runtime，确认绝对路径确实位于本项目 `.tools/media-runtime/linux-amd64/debian13-glibc2.41-12deb13u4-gcc14.2.0-19/`，再移除或移走**仅这个生成的安装目录**，重新运行 `bootstrap` 和 `verify --offline`。保留 `.tools/downloads`、Go SDK、media 工具及其他项目内容；原有相同 SHA 的下载缓存可复用。
 
 - 先在正式 manifest 记录包/来源/许可 URL、SHA256 与大小，才能下载。首次 `inspect` 仅报告从已校验包里抽取的候选文件哈希，不安装、不修改 manifest、不执行文件。维护者将八个 ELF 与两个包版权文件的哈希写入 manifest 后，`bootstrap` 才允许安装；未就绪或缺少文件哈希时拒绝。
 - 二进制包不超过 16 MiB；ar 恰含 `debian-binary`、一个 control 和一个 data 成员，Debian 格式为 2.0。完全忽略 control 内容，不执行 maintainer scripts。data 只接受 gzip/xz，展开不超过 64 MiB，xz decoder 内存上限 64 MiB，tar 最多 10000 条目。

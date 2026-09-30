@@ -292,6 +292,33 @@ class InstallTests(unittest.TestCase):
             m.verify_install(self.project, self.manifest, files)
         self.assertEqual(installed.read_bytes(), b"tampered")
 
+    def test_changed_https_origin_reuses_only_identical_verified_cache(self):
+        item = copy.deepcopy(self.manifest["mediaRuntime"]["packages"][0])
+        expected = (self.cache / "example.deb").read_bytes()
+        item["url"] = "https://replacement.example.test/archives/example.deb"
+        with mock.patch.object(m.urllib.request, "build_opener", side_effect=AssertionError("offline cache used network")):
+            actual = m.fetch(self.project, item, offline=True)
+        self.assertEqual(actual.read_bytes(), expected)
+        item["sha256"] = "0" * 64
+        with self.assertRaisesRegex(m.Rejected, "cached_identity"):
+            m.fetch(self.project, item, offline=True)
+        self.assertFalse(actual.exists())
+
+    def test_url_only_manifest_change_refuses_old_install_record_without_repair(self):
+        self.ready()
+        files, _ = m.prepare(self.manifest, self.cache, True)
+        target = m.install_files(self.project, self.manifest, files)
+        record = (target / "installed.json").read_bytes()
+        changed = copy.deepcopy(self.manifest)
+        changed["mediaRuntime"]["packages"][0]["url"] = "https://replacement.example.test/example.deb"
+        same_files, _ = m.prepare(changed, self.cache, True)
+        self.assertEqual(files, same_files)
+        with self.assertRaisesRegex(m.Rejected, "installed_record"):
+            m.verify_install(self.project, changed, same_files)
+        self.assertEqual((target / "installed.json").read_bytes(), record)
+        self.assertEqual((target / "lib/x.so").read_bytes(), ELF)
+        m.verify_install(self.project, self.manifest, files)
+
     def test_verification_rejects_changed_record_extra_files_and_links(self):
         self.ready()
         files, _ = m.prepare(self.manifest, self.cache, True)

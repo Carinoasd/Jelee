@@ -32,7 +32,9 @@ Landlock对预先打开的FD保留读权限，内容访问授权尽量缩到单�
 
 原生sandbox父计数64.2%、真实晚期kernel exec失败child62.1%，实际atomic计数合并86.5%；成功exec行为有实测，没有假造替换后helper计数。proberuntime普通Linuxrace71.8%，与[9个实际镜像场景](evidence/proberuntime-image-coverage.txt)合并87.1%（74/85）；逐块验证真实counter加和，CLI不入分母，成功exec child不作计数主张。证据[JSON](evidence/proberuntime-image-coverage.json)保存当时源码SHA；其parentHEADAtMeasurement不是实现提交，实际实现归属本报告顶部提交。
 
-重现：`make bootstrap tools-verify bootstrap-media media-tools-verify bootstrap-runtime runtime-tools-verify fixtures fixtures-test runtime-toolchain-test sandbox-test probe-runtime-test`。需要已有Linux amd64 Docker/内核能力，后两项fail closed、不允许skip通过。增量品牌/忽略/diff检查通过；[PR4远端功能CI](https://github.com/MoYuanCN/Jelee/actions/runs/36769288418)通过，完整遗留品牌门禁仍失败。3C1远端CI待真实完成后回填。
+重现：`make bootstrap tools-verify bootstrap-media media-tools-verify bootstrap-runtime runtime-tools-verify fixtures fixtures-test runtime-toolchain-test sandbox-test probe-runtime-test`。需要已有Linux amd64 Docker/内核能力，后两项fail closed、不允许skip通过。增量品牌/忽略/diff检查通过；[PR4远端功能CI](https://github.com/MoYuanCN/Jelee/actions/runs/36769288418)通过，完整遗留品牌门禁仍失败。
+
+[PR #5](https://github.com/MoYuanCN/Jelee/pull/5) 的首轮 [Linux CI](https://github.com/MoYuanCN/Jelee/actions/runs/36777560060/job/110099199532) 在 runtime 冷下载阶段失败，尚未执行后续测试。独立空缓存复现实验确认三个旧 GNU 网页端点不可达；已改用官方 GNU FTP HTTPS 来源，全部大小、SHA256 和许可内容不变，真实冷安装、离线验证与36项安装器测试通过，见[修复证据](evidence/runtime-bootstrap-cold.txt)。原 CI 通用日志没有标识具体失败资源，因此独立复现不当作原日志中的细节；新远端运行结果仍须实际回填。此修复没有改变上述 Go 快照或生产工具/库字节。
 
 ## 尚未完成的要求
 
