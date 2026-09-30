@@ -1,0 +1,12 @@
+# Exact files only. Full original source tree is deliberately NOT exempted.
+tools/brand-scan/main.go # The scanner must name the forbidden patterns.
+docs/00-audit-baseline.md # Immutable upstream provenance and source references.
+docs/requirements-source.md # User-provided source contract, including compatibility naming.
+docs/requirements-traceability.md # Traceability of original contract, including compatibility naming.
+docs/requirements-clarifications.md # Source contract compatibility interpretation.
+docs/LICENSE-COMPLIANCE.md # Legal attribution.
+docs/branding-rename-map.md # Explicit source-to-target rename mapping.
+docs/upstream-README.md # Preserved upstream attribution and original development guide.
+docs/git-workflow.md # Upstream remote provenance and rollback source identity.
+LICENSE # Legal text.
+CONTRIBUTORS.md # Upstream authorship.

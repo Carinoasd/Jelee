@@ -272,7 +272,8 @@ dist
 BenchmarkDotNet.Artifacts
 
 # Ignore web artifacts from native builds
-web/
+# The Jelee web source will be tracked; only compiled web output is ignored.
+web/dist/
 web-src.*
 apiclient/generated
 
@@ -282,3 +283,43 @@ mono_crash.*.json
 # Devcontainer temp files
 .devcontainer/devcontainer-lock.json
 dotnet/
+
+# Jelee build, dependency and local toolchain artifacts (G01/G51).
+.tools/
+.bin/
+.venv/
+.cache/
+tools/vendor-downloads/
+node_modules/
+*.tsbuildinfo
+.vite/
+
+# Generated test fixtures, coverage and browser reports.
+.testfixtures/
+.testdata/
+coverage.*
+*.out
+reports/
+test-results/
+playwright-report/
+*.test.db
+
+# Runtime data, derived assets and database volumes/backups.
+/data/
+/logs/
+*.sqlite*
+*.dump
+/postgres-data/
+
+# Local configuration and credentials; keep the documented example.
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+credentials.json
+
+# Temporary work and local NFO backups.
+.tmp/
+*.nfo.jelee.bak*
