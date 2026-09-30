@@ -11,9 +11,13 @@ import (
 // The adapter owns this cross-layer contract, so the translation package can
 // build independently of the HTTP implementation.
 func TestPublicHTTPErrorCodesHaveTranslations(t *testing.T) {
-	source, err := os.ReadFile("server.go")
-	if err != nil {
-		t.Fatal(err)
+	var source []byte
+	for _, path := range []string{"server.go", "accounts.go"} {
+		part, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		source = append(source, part...)
 	}
 	patterns := []*regexp.Regexp{
 		regexp.MustCompile(`status, code, message\s*(?::=|=)\s*\d+,\s*"([a-z_]+)"`),
@@ -31,7 +35,7 @@ func TestPublicHTTPErrorCodesHaveTranslations(t *testing.T) {
 			}
 		}
 	}
-	if len(seen) < 15 {
+	if len(seen) < 22 {
 		t.Fatalf("error-code scan found only %d codes; review extraction after mapper change", len(seen))
 	}
 }

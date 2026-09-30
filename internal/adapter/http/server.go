@@ -20,6 +20,7 @@ import (
 	"github.com/MoYuanCN/Jelee/internal/platform/config"
 	"github.com/MoYuanCN/Jelee/internal/platform/i18n"
 	"github.com/MoYuanCN/Jelee/internal/platform/logging"
+	"github.com/MoYuanCN/Jelee/internal/platform/password"
 	"github.com/go-chi/chi/v5"
 )
 
@@ -29,14 +30,18 @@ type Backend interface {
 }
 
 type Server struct {
-	cfg      config.Config
-	backend  Backend
-	catalog  *app.Catalog
-	delivery *media.Handler
-	logger   *slog.Logger
+	cfg             config.Config
+	backend         Backend
+	catalog         *app.Catalog
+	delivery        *media.Handler
+	logger          *slog.Logger
+	accounts        *app.Accounts
+	loginLimiter    *LoginLimiter
+	passwordLimiter *LoginLimiter
+	accountSlots    chan struct{}
 }
 
-func New(cfg config.Config, backend Backend, catalog *app.Catalog, resolver media.Resolver, logger *slog.Logger) (http.Handler, error) {
+func New(cfg config.Config, backend Backend, catalog *app.Catalog, resolver media.Resolver, logger *slog.Logger, accounts ...*app.Accounts) (http.Handler, error) {
 	if err := cfg.Validate(); err != nil {
 		return nil, err
 	}
@@ -48,6 +53,21 @@ func New(cfg config.Config, backend Backend, catalog *app.Catalog, resolver medi
 		return nil, err
 	}
 	s := &Server{cfg: cfg, backend: backend, catalog: catalog, delivery: delivery, logger: logger}
+	if cfg.EnableAccounts {
+		if len(accounts) != 1 || accounts[0] == nil {
+			return nil, errors.New("account service must be provided")
+		}
+		s.accounts = accounts[0]
+		s.accountSlots = make(chan struct{}, cfg.Accounts.PasswordConcurrency*4)
+		s.loginLimiter, err = NewLoginLimiter(LoginLimiterOptions{Window: time.Duration(cfg.Accounts.LoginWindowSeconds) * time.Second, IPLimit: cfg.Accounts.LoginIPLimit, UserLimit: cfg.Accounts.LoginUserLimit, MaxEntries: cfg.Accounts.LoginMaxEntries})
+		if err != nil {
+			return nil, err
+		}
+		s.passwordLimiter, err = NewLoginLimiter(LoginLimiterOptions{Window: time.Duration(cfg.Accounts.LoginWindowSeconds) * time.Second, IPLimit: cfg.Accounts.LoginIPLimit, UserLimit: cfg.Accounts.LoginUserLimit, MaxEntries: cfg.Accounts.LoginMaxEntries})
+		if err != nil {
+			return nil, err
+		}
+	}
 	r := chi.NewRouter()
 	r.Use(s.boundary)
 	r.Get("/healthz", func(w http.ResponseWriter, r *http.Request) {
@@ -63,13 +83,16 @@ func New(cfg config.Config, backend Backend, catalog *app.Catalog, resolver medi
 		writeJSON(w, 200, map[string]any{"data": map[string]string{"status": "ready"}})
 	})
 	r.Get("/api/v1/system", func(w http.ResponseWriter, r *http.Request) {
-		writeJSON(w, 200, map[string]any{"data": map[string]any{"name": "Jelee", "devMode": false, "capabilities": map[string]any{"transcoding": false, "hls": false, "dash": false, "remux": false, "downloads": false, "directDelivery": cfg.EnableDirect, "catalog": cfg.EnableCatalog}}})
+		writeJSON(w, 200, map[string]any{"data": map[string]any{"name": "Jelee", "devMode": false, "capabilities": map[string]any{"transcoding": false, "hls": false, "dash": false, "remux": false, "downloads": false, "directDelivery": cfg.EnableDirect, "catalog": cfg.EnableCatalog, "accounts": cfg.EnableAccounts}}})
 	})
 	r.Get("/api-docs", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		_, _ = w.Write([]byte(`<!doctype html><html lang="en"><meta charset="utf-8"><title>Jelee API</title><h1>Jelee API</h1><p>Experimental catalog and direct delivery API.</p><a href="/api/v1/openapi.json">OpenAPI 3.1 specification</a></html>`))
 	})
 	r.Get("/api/v1/openapi.json", func(w http.ResponseWriter, r *http.Request) { writeJSON(w, 200, Specification(cfg)) })
+	if cfg.EnableAccounts {
+		s.accountRoutes(r)
+	}
 	if cfg.EnableCatalog {
 		r.Group(func(r chi.Router) {
 			r.Use(s.authenticate)
@@ -148,6 +171,10 @@ func (s *Server) authenticate(next http.Handler) http.Handler {
 		if err != nil {
 			WriteError(w, r, err)
 			return
+		}
+		if app.ValidLocale(p.Locale) {
+			r = r.Clone(r.Context())
+			r.Header.Set("Accept-Language", p.Locale)
 		}
 		next.ServeHTTP(w, r.WithContext(access.WithPrincipal(r.Context(), p)))
 	})
@@ -244,8 +271,22 @@ func WriteError(w http.ResponseWriter, r *http.Request, err error) {
 		status, code, message = 404, "not_found", "Resource was not found."
 	case errors.Is(err, domain.ErrUnauthenticated), errors.Is(err, media.ErrUnauthenticated):
 		status, code, message = 401, "authentication_required", "Authentication is required."
-	case errors.Is(err, domain.ErrInvalid), errors.Is(err, media.ErrInvalidRequest):
+	case errors.Is(err, domain.ErrInvalid), errors.Is(err, media.ErrInvalidRequest), errors.Is(err, password.ErrInvalidPassword):
 		status, code, message = 400, "invalid_request", "Request is invalid."
+	case errors.Is(err, domain.ErrForbidden):
+		status, code, message = 403, "forbidden", "Operation is not permitted."
+	case errors.Is(err, domain.ErrConflict):
+		status, code, message = 409, "conflict", "Resource conflicts with existing state."
+	case errors.Is(err, domain.ErrLastAdmin):
+		status, code, message = 409, "last_admin", "An active administrator must remain."
+	case errors.Is(err, domain.ErrSessionLimit):
+		status, code, message = 429, "session_limit", "Active session limit reached."
+	case errors.Is(err, errAuthRateLimited):
+		status, code, message = 429, "auth_rate_limited", "Too many authentication attempts. Try again later."
+	case errors.Is(err, domain.ErrDatabase):
+		status, code, message = 503, "not_ready", "Service is not ready."
+	case errors.Is(err, context.DeadlineExceeded), errors.Is(err, context.Canceled):
+		status, code, message = 408, "request_timeout", "Request was cancelled or timed out."
 	case errors.Is(err, media.ErrPlaybackDenied):
 		status, code, message = 403, "web_playback_disabled", "This session cannot play media."
 	case errors.Is(err, media.ErrTranscodeDisabled):

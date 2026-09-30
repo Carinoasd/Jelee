@@ -12,6 +12,7 @@ import (
 	"github.com/MoYuanCN/Jelee/internal/adapter/postgres"
 	"github.com/MoYuanCN/Jelee/internal/app"
 	"github.com/MoYuanCN/Jelee/internal/platform/config"
+	"github.com/MoYuanCN/Jelee/internal/platform/password"
 	"go.uber.org/fx"
 )
 
@@ -29,7 +30,22 @@ func New(cfg config.Config, logger *slog.Logger) *fx.App {
 		},
 		func(store *postgres.Store) *app.Catalog { return app.NewCatalog(store) },
 		func(c config.Config, store *postgres.Store, catalog *app.Catalog, l *slog.Logger) (http.Handler, error) {
-			return httpapi.New(c, store, catalog, store, l)
+			if !c.EnableAccounts {
+				return httpapi.New(c, store, catalog, store, l)
+			}
+			if err := c.Accounts.Validate(); err != nil {
+				return nil, err
+			}
+			p := c.Accounts
+			hasher, err := password.New(password.Config{MemoryKiB: uint32(p.PasswordMemoryKiB), Iterations: uint32(p.PasswordIterations), Parallelism: uint8(p.PasswordParallelism), MaxConcurrent: p.PasswordConcurrency})
+			if err != nil {
+				return nil, err
+			}
+			accounts, err := app.NewAccounts(store, hasher, app.AccountOptions{SessionTTL: time.Duration(p.SessionHours) * time.Hour, MaxSessions: p.MaxSessions, LockAfter: p.LockAfter, LockFor: time.Duration(p.LockSeconds) * time.Second})
+			if err != nil {
+				return nil, err
+			}
+			return httpapi.New(c, store, catalog, store, l, accounts)
 		},
 	), fx.Invoke(serve))
 }
