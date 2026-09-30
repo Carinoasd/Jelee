@@ -44,3 +44,5 @@ export JELEE_REQUIRE_INTEGRATION=true
 ```
 
 原矩阵共336项，当前为1已完成/159部分/176阻塞；本段仅将有实证的子集回填，剩余部分不冒充完成。提交后独立 PR 以阶段1/2分支为基底，避免重复包含前阶段 diff；后续 PR 依次堆叠，合并策略由仓库维护者决定。
+
+[PR #2](https://github.com/MoYuanCN/Jelee/pull/2) 已建立。[第3A远端CI](https://github.com/MoYuanCN/Jelee/actions/runs/36754826399)确认 Windows、Linux、PostgreSQL三项通过，完整品牌门禁仍失败；没有降低门禁或合并PR。
