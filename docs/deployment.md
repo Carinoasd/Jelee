@@ -2,7 +2,7 @@
 
 `Dockerfile` 构建三个静态 Go 可执行文件，运行镜像使用 scratch 和 UID/GID 65532，不包含 shell、转码工具或旧服务。构建阶段使用 Go 1.27.1-alpine3.24，固定镜像索引摘要 `sha256:8a5910f31396cd4d89662f56c68b3ae31d374308270a1c3bd96672ee5ed43414`，已记录于 `tools/manifest.json`。最终镜像包含项目 LICENSE、Go LICENSE/PATENTS 与 CA 证书。
 
-当前只支持登记后读取原媒体；ffprobe、mkvtoolnix、mediainfo、字幕/NFO/图片处理尚未接入，因此 G37 的完整镜像要求仍未完成。
+当前支持登记后读取原媒体，以及离线 NFO 只读校验。ffprobe、mkvtoolnix、mediainfo、字幕/图片处理、NFO 编辑写回与批量任务尚未接入，因此 G37 的完整镜像要求仍未完成。
 
 Compose 使用 PostgreSQL 16.15 精确镜像摘要、健康检查及先迁移再启服务。数据库卷在项目 `data/postgres`；媒体以只读卷挂载到 `/media`，宿主机必须给予 UID 65532 读取与父目录遍历权限。
 
@@ -16,12 +16,15 @@ Compose 内部网络使用 sslmode=disable，仅用于此隔离网络；远程�
 
 ## 本次验证
 
-2026-09-30 在现有 WSL Docker 29.7.2 上构建了本地 `jelee/jelee:codex-foundation-test`，没有推送。首轮使用默认构建网络时，`proxy.golang.org` TLS 握手超时；使用 `docker build --network host --progress plain --tag jelee/jelee:codex-foundation-test .` 重试成功。该参数是本机网络问题的验证方式；部署运行仍按 Compose 的隔离网络配置。
+2026-09-30 至 2026-10-01 在现有 WSL Docker 29.7.2 上构建并验证本地 `jelee/jelee:codex-current-test`，源码提交为 `f21d15668477bd5806e7e525149bfb373d9a68bd`，没有推送。构建使用 `docker build --network host`；这仅用于处理本机下载网络问题，不能据此改变部署网络边界。
 
-- 镜像 ID：`sha256:d7f2da18e5590ecf616c46f04a6d3804a2f6ee64c6282f3747658fde855a7003`，Linux amd64，Docker 报告大小 24458613 字节。
+- 镜像 ID：`sha256:17c550a0d89547b8d33f22d74bb205a2653d07017d1b1152b3600faddfe60c16`，Linux amd64。
 - 配置确认 UID/GID 为 `65532:65532`，入口 `/jelee`，健康检查为 `/jelee-cli doctor`。
-- 导出文件系统检查：三个程序均为 ELF64 且没有 PT_INTERP 动态解释器；没有 ffmpeg、ffprobe、shell、busybox 或 Go 工具链可执行文件。
+- 导出文件系统检查：三个程序均为静态 ELF64，没有 PT_INTERP 或 PT_DYNAMIC；没有 ffmpeg、ffprobe、shell、busybox 或 Go 工具链可执行文件。
 - 项目 LICENSE 与源码逐字节一致，Go LICENSE/PATENTS 和 CA 证书存在。
-- 无网络、只读根文件系统、移除全部 capabilities 并启用 no-new-privileges 时，CLI 用法检查返回预期退出码 2；缺少数据库配置时服务返回预期退出码 1。
+- 使用非 root、只读根文件系统与移除全部 capabilities 运行，连接专用 PostgreSQL 完成 up、doctor、会话创建和测试资源登记。
+- NFO 校验成功且原文 SHA256 不变；native 原字节/Range、伪装 UA 的 web 403、转码 409、目录和 healthy 均通过。停止后为 `Running=false ExitCode=0 OOMKilled=false`，迁移 down 成功。
 
-原始构建与检查输出见 [container.txt](evidence/container.txt)。测试创建的检查容器已经移除；本地测试镜像保留。未启动 Compose、未创建部署数据库卷、未使用用户媒体目录；未执行该镜像连接数据库后的健康状态或流式端到端测试。反向代理、更新/回滚、多架构镜像与完整部署验收仍待完成。正式发布前须补齐媒体探测工具、完整工具清单、完整依赖许可清单、部署测试和安全加固。
+当前证据见[构建与运行日志](evidence/container-current.txt)和[静态镜像检查](evidence/container-current-inspection.txt)。[旧容器日志](evidence/container.txt)保留首轮下载超时、重试和早期镜像的历史记录。静态检查容器已移除；本地测试镜像保留。
+
+未启动 Compose、未创建部署数据库卷、未使用用户媒体目录。HTTP 样本仅为 36 字节传输 fixture，不能证明真实影片可播放或第三方客户端兼容。反向代理、更新/回滚、多架构镜像与完整部署验收仍待完成。正式发布前须补齐媒体探测工具、完整工具清单、完整依赖许可清单及其余部署验证。

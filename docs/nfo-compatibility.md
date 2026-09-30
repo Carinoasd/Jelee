@@ -92,4 +92,6 @@
 
 2026-09-30 Windows / Go 1.27.1 验证：单元测试通过，包语句覆盖率 89.8%，`go vet` 通过；5 秒 fuzz 完成 265,385 次执行并通过。Windows 创建符号链接权限不足时相关子测试明确跳过，不能作为该能力通过的证据。Linux 的 FIFO 测试在不支持命名管道的 DrvFS 上也明确跳过，需原生 Linux 文件系统复验。
 
+最终提交为 `f21d15668477bd5806e7e525149bfb373d9a68bd`。包含 CLI 的完整 [Windows 测试](evidence/windows-tests.txt)与 [Linux race 测试](evidence/linux-race.txt)均通过；Linux 实际执行 NFO 符号链接逃逸与替换测试，NFO 覆盖率 89.8%。日志中列出的跳过仍保留上述限制。
+
 同日 WSL Ubuntu / Go 1.27.1 的 `-race -count=1` 专项通过，文件符号链接逃逸和并发替换用例均实际执行通过。完整输出保存在被忽略的 `.testdata/nfo-linux-race.txt`；其中 FIFO 一项按上述文件系统限制明确跳过。

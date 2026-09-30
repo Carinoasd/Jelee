@@ -6,7 +6,11 @@
 
 首个增量采用 chi 路由、fx 生命周期、pgx/v5 连接池、golang-migrate 嵌入式迁移。配置启动校验、数据库连通及 schema 版本检查先于监听。数据库不使用 SQLite 回退。Go 版本统一为官方发布的 1.27.1。
 
-目录责任：`internal/domain` 存放无 I/O 的模型；`internal/app` 定义用例端口；`internal/adapter` 实现 HTTP、数据库与媒体读取；`internal/platform` 管理配置与日志；`cmd` 负责装配。领域不得依赖适配器，适配器之间仅在入口处装配。后续增加 NFO、图片、扫描、任务与前端时复用这些边界。
+目录责任：`internal/domain` 存放无 I/O 的模型；`internal/app` 定义目录用例与仓储端口；`internal/adapter` 实现 HTTP、数据库、媒体读取及 NFO 解析；`internal/platform` 管理配置、日志和服务生命周期；`cmd` 提供程序入口。
+
+领域与应用层不得依赖适配器，架构测试检查这条依赖方向。当前 HTTP 与 PostgreSQL 适配器都直接依赖 `internal/adapter/media` 中的资源、解析器及错误契约；HTTP 还使用其传输实现。因此，适配器尚未完全解耦。`internal/platform/runtime` 通过 fx 装配服务，CLI 入口装配各自使用的适配器。
+
+只读 NFO adapter 与离线校验 CLI 已提交并通过 Windows/Linux 测试。它们保留原文并提取字段，尚不支持修改后的 XML 序列化、按库批量处理、`--fix`、任务接入或真实客户端往返验收。图片、扫描、任务与前端仍待增加。
 
 ## 数据与权限
 
