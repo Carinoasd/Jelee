@@ -84,7 +84,7 @@ func (s *Store) accountTransaction(ctx context.Context) (pgx.Tx, error) {
 	if err != nil {
 		return nil, storageError(err)
 	}
-	if _, err = tx.Exec(ctx, `SELECT pg_advisory_xact_lock(hashtext(current_schema()),17481203)`); err != nil {
+	if _, err = tx.Exec(ctx, `SET LOCAL lock_timeout='1500ms'; SET LOCAL statement_timeout='2000ms'; SELECT pg_advisory_xact_lock(hashtext(current_schema()),17481203)`); err != nil {
 		_ = tx.Rollback(ctx)
 		return nil, storageError(err)
 	}

@@ -47,6 +47,10 @@ func (s *Store) jobTransaction(ctx context.Context) (pgx.Tx, error) {
 	if err != nil {
 		return nil, storageError(err)
 	}
+	if _, err = tx.Exec(ctx, `SET LOCAL lock_timeout='1500ms'; SET LOCAL statement_timeout='2000ms'`); err != nil {
+		_ = tx.Rollback(ctx)
+		return nil, storageError(err)
+	}
 	if err = lockJobs(ctx, tx); err != nil {
 		_ = tx.Rollback(ctx)
 		return nil, err
@@ -65,6 +69,9 @@ func (s *Store) authorizedJobs(ctx context.Context, a domain.Actor) (pgx.Tx, err
 	return tx, nil
 }
 func trimJobs(ctx context.Context, tx pgx.Tx, limit int) error {
+	if _, err := releaseExpiredProbeLeases(ctx, tx, domain.ProbeSweepMax); err != nil {
+		return err
+	}
 	_, err := tx.Exec(ctx, `DELETE FROM jobs WHERE id IN (SELECT id FROM jobs WHERE state IN ('succeeded','failed','cancelled') ORDER BY finished_at DESC,id DESC OFFSET $1)`, limit)
 	return storageError(err)
 }
@@ -304,6 +311,9 @@ func (s *Store) RegisterLibrary(ctx context.Context, name, rootPath string) (dom
 		return domain.LibraryRegistration{}, err
 	}
 	defer tx.Rollback(ctx)
+	if err = lockJobs(ctx, tx); err != nil {
+		return domain.LibraryRegistration{}, err
+	}
 	var r domain.LibraryRegistration
 	err = tx.QueryRow(ctx, `INSERT INTO libraries(name) VALUES($1) ON CONFLICT(name) DO UPDATE SET name=EXCLUDED.name RETURNING id::text,name`, name).Scan(&r.Library.ID, &r.Library.Name)
 	if err != nil {

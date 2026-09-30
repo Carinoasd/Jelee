@@ -2,7 +2,7 @@
 
 这两个命令面向持有 Jelee 数据库凭据的受信任运维人员。它们直接连接数据库，不需要现有 HTTP 会话，也不创建登录令牌。日常用户改密走需要认证的 HTTP 流程。
 
-先按[快速开始](quickstart.md)完成构建与数据库配置，再运行 `jelee-migrate up`。命令要求 schema 2 且迁移状态 clean；不会自动创建数据库或执行迁移。数据库 URL 通过 `JELEE_DATABASE_URL_FILE` 或 `JELEE_DATABASE_URL` 配置，二者只选其一。
+先按[快速开始](quickstart.md)完成构建与数据库配置，再运行 `jelee-migrate up`。当前命令要求 schema 4 且迁移状态 clean；不会自动创建数据库或执行迁移。数据库 URL 通过 `JELEE_DATABASE_URL_FILE` 或 `JELEE_DATABASE_URL` 配置，二者只选其一。
 
 ## 创建首个管理员
 

@@ -14,6 +14,8 @@ import (
 	"time"
 	"unicode"
 	"unicode/utf8"
+
+	"github.com/MoYuanCN/Jelee/internal/domain"
 )
 
 const (
@@ -29,10 +31,7 @@ var (
 // Source is supplied by the authorized catalog resolver, not by HTTP input.
 // RootPath is an operator-owned absolute directory. RelativePath is canonical
 // slash-separated text beneath that directory.
-type Source struct {
-	RootPath     string
-	RelativePath string
-}
+type Source = domain.ProbeSource
 
 // Metadata describes the opened object before any subprocess uses it. It is
 // not an immutable snapshot: another process can still modify the same inode.

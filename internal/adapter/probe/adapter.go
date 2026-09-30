@@ -22,7 +22,7 @@ var (
 	ErrToolUnavailable = errors.New("probe_tool_unavailable")
 )
 
-const FingerprintVersion = "edge-sha256-v1"
+const FingerprintVersion = domain.ProbeFingerprintVersion
 
 type executor interface {
 	Run(context.Context, process.Request) (process.Result, error)

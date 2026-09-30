@@ -96,7 +96,7 @@ func run() int {
 	defer store.Pool.Close()
 	switch command {
 	case "doctor":
-		fmt.Println("configuration: valid\nPostgreSQL: connected\nschema: 3 clean\nproduction restrictions: enabled\ndeveloper mode: unavailable\nRemaining diagnostics: see docs/requirements-traceability.md")
+		fmt.Printf("configuration: valid\nPostgreSQL: connected\nschema: %d clean\nproduction restrictions: enabled\ndeveloper mode: unavailable\nRemaining diagnostics: see docs/requirements-traceability.md\n", postgres.SchemaVersion)
 		return 0
 	case "provision":
 		kind := access.ClientWeb

@@ -17,6 +17,9 @@ func (s *Store) ImportVideo(ctx context.Context, library, root, relative, title,
 		return "", storageError(err)
 	}
 	defer tx.Rollback(ctx)
+	if err = lockJobs(ctx, tx); err != nil {
+		return "", err
+	}
 	var libraryID, rootID, itemID, sourceID string
 	if err = tx.QueryRow(ctx, `INSERT INTO libraries(name) VALUES($1) ON CONFLICT(name) DO UPDATE SET name=EXCLUDED.name RETURNING id::text`, library).Scan(&libraryID); err != nil {
 		return "", storageError(err)

@@ -59,6 +59,6 @@ CLI 仅输出重新编码的公开 JSON 字段，丢弃未知字段。HTTP 200/2
 
 ## 迁移与回滚
 
-仅新增 migration 000003；启动要求 schema 3 clean。部署先备份，再 `jelee-migrate up`。关闭任务开关是首选回滚方式。`down --i-understand` 会删除任务/盘点/基准表，只能在独立测试库完成往返验收；生产数据回退须单独规划。000001/000002 保持不变。
+任务表由 migration 000003 引入；当前 binary 启动要求 schema 4 clean。部署先备份，再 `jelee-migrate up`。关闭任务开关是首选回滚方式。`down --i-understand` 每次只回退一版：004 down 丢失 probe cache/phase，保留任务/盘点/基准；再回退003才删除任务/盘点/基准表。必须停止相应 worker 并配合接受该 schema 的 binary，生产数据回退须单独规划。000001–000003 保持不变，详见[快取回滚](probe-cache.md#升级与回滚)。
 
 本段未实现 ffprobe、快取、增量指纹、忽略规则、cron/fsnotify、人工基准确认、图片/NFO解析或目录级并发，不能视为完整 G13/G19/G41/G42 验收。

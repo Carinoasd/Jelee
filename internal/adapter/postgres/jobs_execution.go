@@ -61,6 +61,9 @@ func (s *Store) ClaimJob(ctx context.Context, owner string, preferBackground boo
 	defer tx.Rollback(ctx)
 	// Recovery is transactional with claiming. An expired worker can never save
 	// after another owner reclaims the run, even if it still holds the old lease.
+	if _, err = releaseExpiredProbeLeases(ctx, tx, domain.ProbeSweepMax); err != nil {
+		return domain.JobLease{}, err
+	}
 	_, err = tx.Exec(ctx, `UPDATE jobs SET state=CASE WHEN cancel_requested THEN 'cancelled' WHEN attempts>=max_attempts THEN 'failed' ELSE 'queued' END,error_code=CASE WHEN NOT cancel_requested AND attempts>=max_attempts THEN 'job_attempts_exhausted' ELSE '' END,finished_at=CASE WHEN cancel_requested OR attempts>=max_attempts THEN clock_timestamp() ELSE NULL END,owner=NULL,lease_until=NULL WHERE state='running' AND lease_until<=clock_timestamp()`)
 	if err != nil {
 		return domain.JobLease{}, storageError(err)
@@ -107,6 +110,18 @@ func (s *Store) HeartbeatJob(ctx context.Context, l domain.JobLease, ttl time.Du
 	if err = guardedJobUpdate(ctx, tx, l, `UPDATE jobs SET lease_until=clock_timestamp()+$2*interval '1 microsecond' WHERE id=$1::uuid`, l.Job.ID, ttl.Microseconds()); err != nil {
 		return false, err
 	}
+	if _, err = releaseExpiredProbeLeases(ctx, tx, domain.ProbeSweepMax); err != nil {
+		return false, err
+	}
+	if !current.Job.CancelRequested {
+		_, err = tx.Exec(ctx, `UPDATE probe_cache c SET lease_until=LEAST(j.lease_until,clock_timestamp()+q.lease_seconds*interval '1 second') FROM jobs j,probe_cache_quota q WHERE q.singleton AND j.id=$1::uuid AND c.lease_job_id=j.id AND c.lease_job_generation=j.generation AND c.lease_owner=j.owner AND c.lease_until>clock_timestamp()`, l.Job.ID)
+		if err != nil {
+			return false, storageError(err)
+		}
+	}
+	if err = guardedJobUpdate(ctx, tx, l, `UPDATE jobs SET generation=generation WHERE id=$1::uuid`, l.Job.ID); err != nil {
+		return false, err
+	}
 	return current.Job.CancelRequested, storageError(tx.Commit(ctx))
 }
 func (s *Store) ReleaseJob(ctx context.Context, l domain.JobLease) error {
@@ -117,6 +132,9 @@ func (s *Store) ReleaseJob(ctx context.Context, l domain.JobLease) error {
 	defer tx.Rollback(ctx)
 	current, err := fencedJob(ctx, tx, l)
 	if err != nil {
+		return err
+	}
+	if err = releaseParentProbeLeases(ctx, tx, l.Job.ID); err != nil {
 		return err
 	}
 	err = guardedJobUpdate(ctx, tx, l, `UPDATE jobs SET state=CASE WHEN cancel_requested THEN 'cancelled' WHEN attempts>=max_attempts THEN 'failed' ELSE 'queued' END,error_code=CASE WHEN NOT cancel_requested AND attempts>=max_attempts THEN 'job_attempts_exhausted' ELSE '' END,finished_at=CASE WHEN cancel_requested OR attempts>=max_attempts THEN clock_timestamp() ELSE NULL END,owner=NULL,lease_until=NULL WHERE id=$1::uuid`, l.Job.ID)
@@ -140,6 +158,9 @@ func (s *Store) NextScanDirectory(ctx context.Context, l domain.JobLease) (domai
 	}
 	if current.Job.CancelRequested {
 		return domain.ScanDirectory{}, context.Canceled
+	}
+	if err = requireInventoryPhase(ctx, tx, l.Job.ID); err != nil {
+		return domain.ScanDirectory{}, err
 	}
 	var d domain.ScanDirectory
 	err = tx.QueryRow(ctx, `SELECT d.root_id::text,r.path,d.path FROM job_directories d JOIN library_roots r ON r.id=d.root_id WHERE d.job_id=$1::uuid AND NOT d.done AND (d.parent_path IS NULL OR EXISTS(SELECT 1 FROM job_directories p WHERE p.job_id=d.job_id AND p.root_id=d.root_id AND p.path=d.parent_path AND p.done)) ORDER BY d.root_id,d.path LIMIT 1 FOR UPDATE OF d`, l.Job.ID).Scan(&d.RootID, &d.RootPath, &d.Path)
@@ -212,6 +233,9 @@ func (s *Store) SaveScanBatch(ctx context.Context, l domain.JobLease, d domain.S
 	}
 	if current.Job.CancelRequested {
 		return context.Canceled
+	}
+	if err = requireInventoryPhase(ctx, tx, l.Job.ID); err != nil {
+		return err
 	}
 	var done bool
 	var rootPath string
@@ -314,6 +338,17 @@ func (s *Store) FinishJob(ctx context.Context, l domain.JobLease, state, code st
 		if current.Job.CancelRequested {
 			return domain.ErrConflict
 		}
+		phase, phaseErr := loadProbePhase(ctx, tx, l.Job.ID)
+		if phaseErr == nil {
+			if phase.State != domain.ProbePhaseDone {
+				return domain.ErrConflict
+			}
+			if err = checkProbePhaseScope(ctx, tx, phase); err != nil {
+				return err
+			}
+		} else if !errors.Is(phaseErr, domain.ErrNotFound) {
+			return phaseErr
+		}
 		var pending bool
 		if err = tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM job_directories WHERE job_id=$1::uuid AND NOT done)`, l.Job.ID).Scan(&pending); err != nil {
 			return storageError(err)
@@ -339,6 +374,9 @@ func (s *Store) FinishJob(ctx context.Context, l domain.JobLease, state, code st
 				}
 			}
 		}
+	}
+	if err = releaseParentProbeLeases(ctx, tx, l.Job.ID); err != nil {
+		return err
 	}
 	err = guardedJobUpdate(ctx, tx, l, `UPDATE jobs SET state=$2,error_code=$3,missing=$4,review_required=$5,finished_at=clock_timestamp(),owner=NULL,lease_until=NULL WHERE id=$1::uuid`, l.Job.ID, state, code, missing, review)
 	if err != nil {
