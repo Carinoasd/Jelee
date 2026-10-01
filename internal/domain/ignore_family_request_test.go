@@ -31,3 +31,36 @@ func TestFamilyIgnoreRequestContract(t *testing.T) {
 		}
 	}
 }
+
+func TestFamilyScanIntentContract(t *testing.T) {
+	for _, mode := range []string{"", IgnoreModeJeleeignore, IgnoreModeFamily} {
+		for _, caseMode := range []string{IgnoreCaseSensitive, IgnoreCaseASCIIInsensitive} {
+			intent := ScanIntent{NFO: true, Probe: ProbeIntent{Scope: ProbeScopeIncremental}}
+			if mode != "" {
+				intent.Ignore = IgnoreIntent{Mode: mode, CaseMode: caseMode}
+			}
+			if ValidateScanIntentWithFamilyIgnore(intent) != nil {
+				t.Fatal("supported combination rejected")
+			}
+			if mode == IgnoreModeFamily && ValidateScanIntent(intent) != ErrInvalid {
+				t.Fatal("old contract widened")
+			}
+		}
+	}
+	for _, intent := range []ScanIntent{
+		{Ignore: IgnoreIntent{Mode: IgnoreModeFamily}},
+		{Ignore: IgnoreIntent{Mode: IgnoreModeFamily, CaseMode: "unicode-insensitive"}},
+		{Ignore: IgnoreIntent{Mode: "unknown", CaseMode: IgnoreCaseSensitive}},
+		{Ignore: IgnoreIntent{Mode: IgnoreModeFamily, CaseMode: IgnoreCaseSensitive}, Probe: ProbeIntent{Scope: ProbeScopeLibraryRebuild}},
+	} {
+		if ValidateScanIntentWithFamilyIgnore(intent) != ErrInvalid {
+			t.Fatal("invalid combination accepted")
+		}
+	}
+	r := ignoreTestRequest()
+	r.Intent.Mode = IgnoreModeFamily
+	r.Identity = DefaultFamilyIgnoreIdentity()
+	if ValidateFamilyIgnoreRequest(r) != nil {
+		t.Fatal("compiled identity disagrees with contract")
+	}
+}

@@ -10,18 +10,24 @@ import (
 // ScanServices binds trusted local readers and repositories. Public submission
 // methods accept only intent; callers cannot choose parser or tool identities.
 type ScanServices struct {
-	IgnoreAvailable func() bool
-	Probes          ProbeJobRepository
-	ProbeIdentity   *domain.ProbeIdentity
-	ProbeCapability func() domain.ProbeCapability
-	NFOAdmin        NFOAdminRepository
-	NFOQueries      NFOQueryRepository
-	Images          ImageQueryRepository
-	NFOIdentity     *domain.NFOIdentity
-	NFOAvailable    func() bool
+	IgnoreAvailable       func() bool
+	FamilyIgnoreAvailable func() bool
+	Probes                ProbeJobRepository
+	ProbeIdentity         *domain.ProbeIdentity
+	ProbeCapability       func() domain.ProbeCapability
+	NFOAdmin              NFOAdminRepository
+	NFOQueries            NFOQueryRepository
+	Images                ImageQueryRepository
+	NFOIdentity           *domain.NFOIdentity
+	NFOAvailable          func() bool
 }
 
 func NewJobsWithScanStages(repository JobRepository, policy domain.JobPolicy, stages ScanJobRepository, services ScanServices) (*Jobs, error) {
+	if services.FamilyIgnoreAvailable != nil {
+		if _, ok := stages.(FamilyIgnoreAdmissionRepository); !ok {
+			return nil, domain.ErrInvalid
+		}
+	}
 	if stages == nil || services.NFOAdmin == nil || services.NFOQueries == nil || services.Images == nil || services.NFOAvailable == nil {
 		return nil, domain.ErrInvalid
 	}
@@ -51,6 +57,7 @@ func NewJobsWithScanStages(repository JobRepository, policy domain.JobPolicy, st
 	j.scanRepository, j.nfoAdmin, j.nfoQueries, j.imageQueries = stages, services.NFOAdmin, services.NFOQueries, services.Images
 	j.nfoAvailable = services.NFOAvailable
 	j.ignoreAvailable = services.IgnoreAvailable
+	j.familyIgnoreAvailable = services.FamilyIgnoreAvailable
 	return j, nil
 }
 
@@ -78,7 +85,7 @@ func (j *Jobs) SubmitScanStages(ctx context.Context, actor domain.Actor, library
 	return j.SubmitScanOptions(ctx, actor, library, key, priority, probe, nfo, domain.IgnoreIntent{})
 }
 func (j *Jobs) SubmitScanOptions(ctx context.Context, actor domain.Actor, library, key, priority string, probe, nfo bool, ignore domain.IgnoreIntent) (domain.Job, bool, error) {
-	if domain.ValidateIgnoreIntent(ignore) != nil {
+	if domain.ValidateIgnoreIntent(ignore) != nil && domain.ValidateFamilyIgnoreIntent(ignore) != nil {
 		return domain.Job{}, false, domain.ErrInvalid
 	}
 	if ctx == nil || !validTarget(actor, library) || !validKey(key) || priority != domain.JobPriorityManual && priority != domain.JobPriorityBackground {
@@ -112,7 +119,12 @@ func (j *Jobs) SubmitScanOptions(ctx context.Context, actor domain.Actor, librar
 	var job domain.Job
 	var replay bool
 	var err error
-	if capable, ok := j.scanRepository.(IgnoreAdmissionRepository); ok {
+	if capable, ok := j.scanRepository.(FamilyIgnoreAdmissionRepository); ok {
+		job, replay, err = capable.SubmitScanWithIgnoreFamilies(ctx, actor, library, key, priority, intent, j.policy, probeIdentity, nfoIdentity, j.currentIgnoreCapabilities())
+	} else if capable, ok := j.scanRepository.(IgnoreAdmissionRepository); ok {
+		if ignore.Mode == domain.IgnoreModeFamily {
+			return domain.Job{}, false, domain.ErrIgnoreUnavailable
+		}
 		job, replay, err = capable.SubmitScanWithIgnoreCapability(ctx, actor, library, key, priority, intent, j.policy, probeIdentity, nfoIdentity, j.ignoreAvailable != nil && j.ignoreAvailable())
 	} else {
 		if ignore.Mode != "" {
@@ -201,4 +213,8 @@ func (j *Jobs) Images(ctx context.Context, actor domain.Actor, job string) (doma
 		return domain.ImageJobSummary{}, domain.ErrNFOReaderUnavailable
 	}
 	return j.imageQueries.GetImageJobSummary(ctx, actor, job)
+}
+
+func (j *Jobs) currentIgnoreCapabilities() IgnoreAdmissionCapabilities {
+	return IgnoreAdmissionCapabilities{Custom: j.ignoreAvailable != nil && j.ignoreAvailable(), Family: j.familyIgnoreAvailable != nil && j.familyIgnoreAvailable()}
 }

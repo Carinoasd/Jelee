@@ -612,3 +612,15 @@ GetIgnoreReport 改用私有完整 request 辨識，依已验证 mode 選取兩�
 首輪 family-report-first 5pass/1fail24.533秒，深頁 fixture INSERT 漏兩個新欄位的值；第二輪 family-report-fixed 5pass/1fail24.430秒，baseline fixture 漏必填 family 空字串。兩者均為測試資料建置問題，未修改資料庫約束或正式查詢掩蓋失敗。補齊後 family-report-plan-complete 6pass0fail0skip25.679秒。最後新增歷史baseline排除專項並含既有HTTP完整鏈，family-report-regression 8頂層pass0fail0skip28.684秒、sourceUnchanged=true；證據 docs/evidence/ignore-family-report.json。Linux domain/HTTP/CLI/architecture race 1.067/3.259/1.847/1.114秒通過；Windows五包/全vet/三build通過。LICENSE 與需求原文 SHA256 符合既有值。所有本機 handle 結束。
 
 PR46 f9a48d94cf 的兩 PostgreSQL、三平台 run-tests、foundation、format、ABI、CodeQL 都已通過，僅完整品牌檢查失敗。此次報告尚待推送後確認新的遠端 CI。接續公開准入：ScanServices 必須獨立 family availability；新明確 admission port 保留舊入口封閉合同。submitScanJobWithIgnore 需 mode-aware validation/retained request read/identity insert；授權重送先於現時可用性，retry保留父模式與身份，只有新任務需要正確家族能力。公開准入完成後仍需正式 runtime helper readiness/lifetime/feature flag，不可以僅 OS 判斷宣稱可用。公開入口與 G22 目前仍未完成。
+
+### 合併模式准入交易進行中
+
+報告已提交 e9f019f3f2 並推至既有繁中 PR46。後續新增 DefaultFamilyIgnoreIdentity、獨立 family intent/scan intent validator；原 validator 保持拒 family。app.FamilyIgnoreAdmissionRepository 与 IgnoreAdmissionCapabilities{Custom,Family} 明確區分兩家族可用性。Store 新 SubmitScanWithIgnoreFamilies/RetryScanWithIgnoreFamilies，共用 private submitScanJobWithIgnoreFamilies；旧入口 familyAllowed=false。授權重送先於可用性，retry讀取保留mode/identity，固定 server identity insert，NFO/probe、quota、忙碌、世代、歷史清理及最後 live authorization 合同保持。
+
+ScanServices.FamilyIgnoreAvailable 与 Jobs 獨立回呼，新 port優先分派，family 設定缺少完整 port 則 startup ErrInvalid；舊 repo不能普通掃描 fallback。HTTP／CLI掃描提交仍拒 family；正式runtime仍未配置helper和family回呼。
+
+真PG family-admission-first 16頂層pass0fail0skip36.203秒sourceUnchanged=true。原生worker五測試改由正式app准入建立family任務，移除SQL DELETE/INSERT request替換；成功後再讀正式報告保留兩家族來源。family-admission-native 五pass0fail0skip20.817秒sourceUnchanged=true。Windows相關包/全vet/三build通過，Linuxdomain/app/HTTP/runtime/architecture race全pass1.068/1.031/3.224/1.084/1.118秒。
+
+完整PG race family-admission-full 已啟動，exec76433，同一handle仍在執行，來源不得修改；Linuxexec80845已結束。接續poll同一handle，不可因觀察超時重跑。当前约141顶层通过零失败。下一步正式runtime可參考probe service工廠及lifetime.closePool：固定health batch驗證helper確實可執行、預設關閉featureflag、workerjoin後暫存清理。process.IgnoreRunner沒有Close，Evaluate各自join後清理，service負責頂層MkdirTemp目錄。cmd/jelee/main.go已有legacyhelper入口，runtime的TestMain目前只接probehelper，原生runtime測試需補legacyhelper dispatch。source_unavailable不應誤關閉整服務，adapter目前將helper多種錯誤映成同一domain錯誤，需明確保留runtime失敗辨識或在helper邊界追蹤。
+
+完整PG race family-admission-full已結束：252頂層pass、0fail0skip349.781秒、sourceUnchanged=true。exec76433已結束，沒有本機測試handle。證據docs/evidence/ignore-family-admission.json。此段准入交易與app合同已驗證，接續正式runtime與HTTP/CLI；不得再重啟同mode覆寫證據。

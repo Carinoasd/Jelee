@@ -39,8 +39,11 @@ func loadExecutionIgnoreRequest(ctx context.Context, tx pgx.Tx, id string, famil
 }
 
 func insertIgnoreRequest(ctx context.Context, tx pgx.Tx, r domain.IgnoreRequest) error {
-	if err := domain.ValidateIgnoreRequest(r); err != nil {
-		return err
+	return insertAdmissionIgnoreRequest(ctx, tx, r, false)
+}
+func insertAdmissionIgnoreRequest(ctx context.Context, tx pgx.Tx, r domain.IgnoreRequest, familyAllowed bool) error {
+	if domain.ValidateIgnoreRequest(r) != nil && !(familyAllowed && domain.ValidateFamilyIgnoreRequest(r) == nil) {
+		return domain.ErrInvalid
 	}
 	_, err := tx.Exec(ctx, `INSERT INTO job_ignore_requests(job_id,library_id,mode,case_mode,program_version,proof_version) VALUES($1::uuid,$2::uuid,$3,$4,$5,$6)`, r.JobID, r.LibraryID, r.Intent.Mode, r.Intent.CaseMode, r.Identity.ProgramVersion, r.Identity.ProofVersion)
 	return storageError(err)

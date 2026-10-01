@@ -52,30 +52,22 @@ func runFamilyRunnerNative(t *testing.T, withNFO, resume bool, mode string) {
 			t.Fatal(err)
 		}
 	}
-	var job domain.Job
-	if withNFO {
-		var err error
-		job, _, err = f.s.SubmitScanWithStages(f.ctx, f.a, f.registration.Library.ID, "family-native", domain.JobPriorityManual, domain.ScanIntent{Ignore: ignoreTestIntent(), NFO: true}, f.policy, nil, &nf.identity)
-		if err != nil {
-			t.Fatal(err)
-		}
-	} else {
-		job = ignoreSubmit(t, f, "family-native")
-	}
-	if _, err := f.s.Pool.Exec(f.ctx, `DELETE FROM job_ignore_requests WHERE job_id=$1::uuid`, job.ID); err != nil {
+	helper, err := process.NewIgnoreRunner(t.TempDir(), 2, 5*time.Second)
+	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := f.s.Pool.Exec(f.ctx, `INSERT INTO job_ignore_requests(job_id,library_id,mode,case_mode,program_version,proof_version)VALUES($1::uuid,$2::uuid,'jeleeignore-legacy-v1','sensitive','jeleeignore-legacy-v1','jeleeignore-legacy-proof-v1')`, job.ID, job.LibraryID); err != nil {
+	service, err := app.NewJobsWithScanStages(f.s, f.policy, f.s, app.ScanServices{NFOAdmin: f.s, NFOQueries: f.s, Images: f.s, NFOIdentity: &nf.identity, NFOAvailable: func() bool { return true }, FamilyIgnoreAvailable: func() bool { return true }})
+	if err != nil {
 		t.Fatal(err)
+	}
+	job, replay, err := service.SubmitScanOptions(f.ctx, f.a, f.registration.Library.ID, "family-native", domain.JobPriorityManual, false, withNFO, domain.IgnoreIntent{Mode: domain.IgnoreModeFamily, CaseMode: domain.IgnoreCaseSensitive})
+	if err != nil || replay {
+		t.Fatal("formal family admission", err)
 	}
 	for _, capability := range []domain.ScanCapabilities{{}, {Ignore: true}, {Probe: true, NFO: true, Ignore: true}} {
 		if _, err := f.s.ClaimJobWithCapabilities(f.ctx, "incapable", false, time.Minute, capability); err != domain.ErrNotFound {
 			t.Fatal("old capability claimed family", err)
 		}
-	}
-	helper, err := process.NewIgnoreRunner(t.TempDir(), 2, 5*time.Second)
-	if err != nil {
-		t.Fatal(err)
 	}
 	scanner := scan.NewFamilyIgnoreScanner(helper)
 	if resume {
@@ -155,6 +147,26 @@ func runFamilyRunnerNative(t *testing.T, withNFO, resume bool, mode string) {
 			}
 			if mode == "changed" {
 				t.Fatal("changed source succeeded")
+			}
+			report, e := service.IgnoreReport(f.ctx, f.a, job.ID, 100, "")
+			if e != nil || !report.Enabled || report.ReviewRequired != current.ReviewRequired {
+				t.Fatal("formal worker report", e)
+			}
+			custom, legacy := 0, 0
+			for _, entry := range report.Entries {
+				if entry.Source == "scan" {
+					switch entry.Family {
+					case domain.IgnoreFamilyCustom:
+						custom++
+					case domain.IgnoreFamilyLegacy:
+						legacy++
+					default:
+						t.Fatal("worker exclusion lost family")
+					}
+				}
+			}
+			if custom != 1 || legacy != 2 {
+				t.Fatal("worker report missing source families", custom, legacy)
 			}
 			if mode == "unknown" {
 				if !current.ReviewRequired || current.Missing != 0 {

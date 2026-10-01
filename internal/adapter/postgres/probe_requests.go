@@ -53,11 +53,21 @@ func (s *Store) submitScanJob(parentContext context.Context, a domain.Actor, lib
 	return s.submitScanJobWithIgnore(parentContext, a, libraryID, parent, key, priority, scanIntent, p, identity, nfoIdentity, true)
 }
 func (s *Store) submitScanJobWithIgnore(parentContext context.Context, a domain.Actor, libraryID, parent, key, priority string, scanIntent domain.ScanIntent, p domain.JobPolicy, identity *domain.ProbeIdentity, nfoIdentity *domain.NFOIdentity, ignoreAvailable bool) (domain.Job, bool, error) {
-	if parentContext == nil || !validJobPolicy(p) || !validJobKey(key) || domain.ValidateScanIntent(scanIntent) != nil {
+	return s.submitScanJobWithIgnoreFamilies(parentContext, a, libraryID, parent, key, priority, scanIntent, p, identity, nfoIdentity, app.IgnoreAdmissionCapabilities{Custom: ignoreAvailable}, false)
+}
+func (s *Store) submitScanJobWithIgnoreFamilies(parentContext context.Context, a domain.Actor, libraryID, parent, key, priority string, scanIntent domain.ScanIntent, p domain.JobPolicy, identity *domain.ProbeIdentity, nfoIdentity *domain.NFOIdentity, capabilities app.IgnoreAdmissionCapabilities, familyAllowed bool) (domain.Job, bool, error) {
+	validateIntent := domain.ValidateScanIntent
+	if familyAllowed {
+		validateIntent = domain.ValidateScanIntentWithFamilyIgnore
+	}
+	if parentContext == nil || !validJobPolicy(p) || !validJobKey(key) || validateIntent(scanIntent) != nil {
 		return domain.Job{}, false, domain.ErrInvalid
 	}
 	intent, nfoRequested, ignoreIntent := scanIntent.Probe, scanIntent.NFO, scanIntent.Ignore
 	ignoreIdentity := domain.DefaultIgnoreIdentity()
+	if ignoreIntent.Mode == domain.IgnoreModeFamily {
+		ignoreIdentity = domain.DefaultFamilyIgnoreIdentity()
+	}
 	if parent == "" && ((priority != domain.JobPriorityManual && priority != domain.JobPriorityBackground) || (libraryID == "" && intent.Scope != domain.ProbeScopeItemRebuild) || (libraryID != "" && !domain.ValidID(libraryID))) {
 		return domain.Job{}, false, domain.ErrInvalid
 	}
@@ -106,7 +116,7 @@ func (s *Store) submitScanJobWithIgnore(parentContext context.Context, a domain.
 			}
 		}
 		previousNFO := oldNFO != nil && oldNFO.Requested
-		oldIgnore, e := loadIgnoreRequest(ctx, tx, old.ID)
+		oldIgnore, e := loadExecutionIgnoreRequest(ctx, tx, old.ID, familyAllowed)
 		if e != nil {
 			return domain.Job{}, false, e
 		}
@@ -159,16 +169,20 @@ func (s *Store) submitScanJobWithIgnore(parentContext context.Context, a domain.
 				return domain.Job{}, false, domain.ErrConflict
 			}
 		}
-		oldIgnore, e := loadIgnoreRequest(ctx, tx, parent)
+		oldIgnore, e := loadExecutionIgnoreRequest(ctx, tx, parent, familyAllowed)
 		if e != nil {
 			return domain.Job{}, false, e
 		}
 		if oldIgnore != nil {
 			ignoreIntent, ignoreIdentity = oldIgnore.Intent, oldIgnore.Identity
 		}
-		if domain.ValidateScanIntent(domain.ScanIntent{Probe: intent, NFO: nfoRequested, Ignore: ignoreIntent}) != nil {
+		if validateIntent(domain.ScanIntent{Probe: intent, NFO: nfoRequested, Ignore: ignoreIntent}) != nil {
 			return domain.Job{}, false, domain.ErrConflict
 		}
+	}
+	ignoreAvailable := capabilities.Custom
+	if ignoreIntent.Mode == domain.IgnoreModeFamily {
+		ignoreAvailable = capabilities.Family
 	}
 	if ignoreIntent.Mode != "" && !ignoreAvailable {
 		return domain.Job{}, false, domain.ErrIgnoreUnavailable
@@ -259,7 +273,7 @@ func (s *Store) submitScanJobWithIgnore(parentContext context.Context, a domain.
 		return domain.Job{}, false, err
 	}
 	if ignoreIntent.Mode != "" {
-		if err = insertIgnoreRequest(ctx, tx, domain.IgnoreRequest{JobID: j.ID, LibraryID: libraryID, Intent: ignoreIntent, Identity: ignoreIdentity}); err != nil {
+		if err = insertAdmissionIgnoreRequest(ctx, tx, domain.IgnoreRequest{JobID: j.ID, LibraryID: libraryID, Intent: ignoreIntent, Identity: ignoreIdentity}, familyAllowed); err != nil {
 			return domain.Job{}, false, err
 		}
 	}

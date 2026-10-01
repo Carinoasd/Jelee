@@ -12,3 +12,16 @@ func ValidateFamilyIgnoreRequest(v IgnoreRequest) error {
 	}
 	return nil
 }
+
+func DefaultFamilyIgnoreIdentity() IgnoreIdentity {
+	return IgnoreIdentity{ProgramVersion: IgnoreModeFamily, ProofVersion: IgnoreFamilyProofVersion}
+}
+
+// ValidateFamilyIgnoreIntent accepts only the composed contract. Callers
+// explicitly choose which contracts their admission path supports.
+func ValidateFamilyIgnoreIntent(v IgnoreIntent) error {
+	if v.Mode != IgnoreModeFamily || (v.CaseMode != IgnoreCaseSensitive && v.CaseMode != IgnoreCaseASCIIInsensitive) {
+		return ErrInvalid
+	}
+	return nil
+}

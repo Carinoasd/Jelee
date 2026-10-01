@@ -17,7 +17,17 @@ type ScanCapabilities struct {
 }
 
 func ValidateScanIntent(v ScanIntent) error {
-	if ValidateProbeIntent(v.Probe) != nil || ValidateIgnoreIntent(v.Ignore) != nil {
+	return validateScanIntent(v, false)
+}
+
+// ValidateScanIntentWithFamilyIgnore requires an admission path that separately
+// checks availability for each family and freezes a server-owned identity.
+func ValidateScanIntentWithFamilyIgnore(v ScanIntent) error {
+	return validateScanIntent(v, true)
+}
+
+func validateScanIntent(v ScanIntent, familyAllowed bool) error {
+	if ValidateProbeIntent(v.Probe) != nil || (ValidateIgnoreIntent(v.Ignore) != nil && !(familyAllowed && ValidateFamilyIgnoreIntent(v.Ignore) == nil)) {
 		return ErrInvalid
 	}
 	if (v.NFO || v.Ignore.Mode != "") && v.Probe.Scope != "" && v.Probe.Scope != ProbeScopeIncremental {

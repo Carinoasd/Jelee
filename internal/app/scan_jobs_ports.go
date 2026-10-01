@@ -25,3 +25,17 @@ type IgnoreAdmissionRepository interface {
 	SubmitScanWithIgnoreCapability(context.Context, domain.Actor, string, string, string, domain.ScanIntent, domain.JobPolicy, *domain.ProbeIdentity, *domain.NFOIdentity, bool) (domain.Job, bool, error)
 	RetryScanWithIgnoreCapability(context.Context, domain.Actor, string, string, domain.JobPolicy, *domain.ProbeIdentity, *domain.NFOIdentity, bool) (domain.Job, bool, error)
 }
+
+// IgnoreAdmissionCapabilities describes current server readiness. It never
+// supplies rule data, filesystem authority, or a caller-selected identity.
+type IgnoreAdmissionCapabilities struct {
+	Custom bool
+	Family bool
+}
+
+// FamilyIgnoreAdmissionRepository is explicit opt-in to the composed contract.
+// Retained replay precedes readiness checks; retry retains the parent contract.
+type FamilyIgnoreAdmissionRepository interface {
+	SubmitScanWithIgnoreFamilies(context.Context, domain.Actor, string, string, string, domain.ScanIntent, domain.JobPolicy, *domain.ProbeIdentity, *domain.NFOIdentity, IgnoreAdmissionCapabilities) (domain.Job, bool, error)
+	RetryScanWithIgnoreFamilies(context.Context, domain.Actor, string, string, domain.JobPolicy, *domain.ProbeIdentity, *domain.NFOIdentity, IgnoreAdmissionCapabilities) (domain.Job, bool, error)
+}
