@@ -101,6 +101,9 @@ func TestLegacyIgnoreManifestLeaseCancelAndEpoch(t *testing.T) {
 			if page, err := f.s.ReadLegacyIgnoreProofPage(f.ctx, l, domain.IgnoreProofCursor{}); err != want || len(page) != 0 {
 				t.Fatal("read fence", err)
 			}
+			if page, err := f.s.ReadLegacyIgnoreObservationPage(f.ctx, l, domain.IgnoreProofCursor{}); err != want || len(page) != 0 {
+				t.Fatal("query restore fence", err)
+			}
 		})
 	}
 }

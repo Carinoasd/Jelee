@@ -82,3 +82,47 @@ func LegacyIgnoreProofsCompatible(a, b LegacyIgnoreDirectoryProof) bool {
 	}
 	return true
 }
+
+// RestoreLegacyIgnoreObservation projects a merged ledger chain back to its
+// retained query boundary. A source checked for another query stays shadowed
+// here. The supplied chain must be complete, ordered and bounded; restoration
+// neither fills missing evidence nor revalidates the live filesystem.
+func RestoreLegacyIgnoreObservation(directory string, selected *string, proofs []LegacyIgnoreDirectoryProof) (LegacyIgnoreObservation, error) {
+	if len(proofs) < 1 || len(proofs) > 129 {
+		return LegacyIgnoreObservation{}, ErrInvalid
+	}
+	start := 0
+	if selected != nil {
+		start = -1
+		for i, p := range proofs {
+			if p.Directory == *selected {
+				start = i
+				break
+			}
+		}
+		if start < 0 || !proofs[start].Checked || !proofs[start].RulePresent {
+			return LegacyIgnoreObservation{}, ErrInvalid
+		}
+	}
+	result := LegacyIgnoreObservation{Version: LegacyIgnoreProofVersion, Directory: directory, Proofs: make([]LegacyIgnoreDirectoryProof, len(proofs))}
+	for i, p := range proofs {
+		if !LegacyIgnoreProofsCompatible(p, p) {
+			return LegacyIgnoreObservation{}, ErrInvalid
+		}
+		if i < start {
+			p.Checked = false
+			p.RulePresent = false
+			p.RuleIdentity = [32]byte{}
+			p.RuleSize = 0
+			p.RuleModifiedNano = 0
+			p.RuleSHA256 = [32]byte{}
+		} else if !p.Checked || p.RulePresent != (selected != nil && i == start) {
+			return LegacyIgnoreObservation{}, ErrInvalid
+		}
+		result.Proofs[i] = p
+	}
+	if err := ValidateLegacyIgnoreObservation(result); err != nil {
+		return LegacyIgnoreObservation{}, err
+	}
+	return result, nil
+}

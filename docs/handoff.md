@@ -356,3 +356,13 @@ Windows全來源test1.074秒與vet通過。Linux固定Go1.27.1 direct binary、G
 Linux 真實 PostgreSQL 全套 race：193 項頂層測試通過、0 失敗、0 跳過，耗時 240.316 秒，測試前後來源雜湊一致（本機證據 `.testdata/inventory-legacy-storage-fixed-postgres-summary.json`）。首輪曾有 6 個舊降版測試漏掉 13→12 步驟，補齊後全套通過。Linux 領域／架構 race 通過（1.102／1.130 秒）；Windows 全套測試除 toolidentity 的環境 ACL 限制外通過，該套件在允許 ACL 的環境重跑通過（0.296 秒）。Windows 全模組 vet、三個命令建置、增量品牌掃描（0 違規／100 合法命中）、gitignore-check 通過。
 
 PR31 功能 CI 全部通過，完整品牌 gate 仍失敗。PR31 已由外部合併至其基底，但 HEAD 尚非 origin/master 祖先；本 PR 延續 feat/jelee-ignore-family 為 base，不自行 merge。後續仍需查詢觀察還原與來源最終復核、消失目錄、組合／解碼／批次 matcher／worker／API 接線。所有測試 handle 已結束。
+
+### PR32 已推送；接續觀察還原
+
+來源保存提交 60cab5c3b5，普通繁中 PR32：https://github.com/MoYuanCN/Jelee/pull/32，已附聊天，CI 尚未檢查。當前 feat/jelee-ignore-family-recheck 接續，新增 RestoreLegacyIgnoreObservation 與測試：依保留的選定來源還原 query 邊界，遮蔽在其他 query 補查的祖先，拒絕未查／缺父鏈／不符選定來源，不修改 ledger。Windows domain/architecture test 與 domain vet 通過。此還原變更尚未提交；下一步接 PG 查詢分頁／還原及最終來源復核，不能把單純保存或還原當作真正來源驗證。無活躍命令。
+
+### 查詢分頁還原與單次原生復查已驗證
+
+新增 PG ReadLegacyIgnoreObservationPage，每頁16次查詢，合併讀取最多2064祖先證據，按保留的選定來源還原 Checked 邊界。新增 scan.ObserveLegacyIgnore／ReobserveLegacyIgnore，重新兩輪觀察並比對全鏈。相同metadata改文、近層空檔、來源刪除會失效；影子祖先不影響query；目錄缺失不偽造absence。
+
+Windows domain/scan/postgres/architecture、全vet、三命令build通過。Linux原生/tmp domain/scan/architecture race 1.050/1.169/1.086秒通過。PG TestLegacyIgnore* race 8頂層零skip，23.422秒；證據 .testdata/inventory-legacy-query-native-postgres-summary.json，sourceUnchanged true。schema13不變，未啟用API/worker。準備本還原/復查小階段PR，base feat/jelee-ignore-family-storage。下一步持久verification checkpoint，需防取消/租約generation改變後重用舊復查，並在正式發布前復核；不能沿用自有模式舊proof版本。PR32僅品牌fail，兩PG尚pending，其餘功能pass。無活躍handle。
