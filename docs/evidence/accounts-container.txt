@@ -1,0 +1,84 @@
+#0 building with "default" instance using docker driver
+
+#1 [internal] load build definition from Dockerfile
+#1 transferring dockerfile: 945B 0.1s done
+#1 DONE 0.1s
+
+#2 [internal] load metadata for docker.io/library/golang:1.27.1-alpine@sha256:8a5910f31396cd4d89662f56c68b3ae31d374308270a1c3bd96672ee5ed43414
+#2 DONE 0.0s
+
+#3 [internal] load .dockerignore
+#3 transferring context: 366B 0.1s done
+#3 DONE 0.1s
+
+#4 [internal] load build context
+#4 ...
+
+#5 [build 1/7] FROM docker.io/library/golang:1.27.1-alpine@sha256:8a5910f31396cd4d89662f56c68b3ae31d374308270a1c3bd96672ee5ed43414
+#5 resolve docker.io/library/golang:1.27.1-alpine@sha256:8a5910f31396cd4d89662f56c68b3ae31d374308270a1c3bd96672ee5ed43414 0.0s done
+#5 DONE 0.0s
+
+#4 [internal] load build context
+#4 transferring context: 18.27kB 0.6s done
+#4 DONE 0.6s
+
+#6 [build 2/7] WORKDIR /src
+#6 CACHED
+
+#7 [build 3/7] COPY go.mod go.sum ./
+#7 CACHED
+
+#8 [build 4/7] RUN go mod download
+#8 CACHED
+
+#9 [build 5/7] COPY cmd ./cmd
+#9 CACHED
+
+#10 [build 6/7] COPY internal ./internal
+#10 DONE 0.0s
+
+#11 [build 7/7] RUN go build -trimpath -o /out/jelee ./cmd/jelee &&     go build -trimpath -o /out/jelee-cli ./cmd/jelee-cli &&     go build -trimpath -o /out/jelee-migrate ./cmd/jelee-migrate
+#11 DONE 6.1s
+
+#12 [stage-1 1/6] COPY --from=build /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
+#12 CACHED
+
+#13 [stage-1 2/6] COPY --from=build /out/ /
+#13 DONE 0.0s
+
+#14 [stage-1 3/6] COPY --from=build /usr/local/go/LICENSE /licenses/go/LICENSE
+#14 DONE 0.0s
+
+#15 [stage-1 4/6] COPY --from=build /usr/local/go/PATENTS /licenses/go/PATENTS
+#15 DONE 0.0s
+
+#16 [stage-1 5/6] COPY LICENSE /LICENSE
+#16 DONE 0.0s
+
+#17 [stage-1 6/6] COPY docs/LICENSE-COMPLIANCE.md /licenses/README.md
+#17 DONE 0.0s
+
+#18 exporting to image
+#18 exporting layers
+#18 exporting layers 1.0s done
+#18 exporting manifest sha256:f905b53daf23f4e43e4e3f04fcae19b56bfd24ed647695740a6c19395521be17 0.0s done
+#18 exporting config sha256:3c12422a20402fb50c0dc2347df85299345e2d843bc1247f33b850336af73a63 0.0s done
+#18 exporting attestation manifest sha256:24ff808f570076b51faa18dd169b3ac3cb6ada8178ee77a093e72d714eb9b6a1 0.0s done
+#18 exporting manifest list sha256:197a2e8cc68564a77d500ae57e5deaad507e4ab4a852a472fbb6e2509799cd0a 0.0s done
+#18 naming to docker.io/jelee/jelee:codex-accounts-test done
+#18 unpacking to docker.io/jelee/jelee:codex-accounts-test
+#18 unpacking to docker.io/jelee/jelee:codex-accounts-test 0.3s done
+#18 DONE 1.4s
+Image=sha256:197a2e8cc68564a77d500ae57e5deaad507e4ab4a852a472fbb6e2509799cd0a User=65532:65532
+Jelee schema version=2 dirty=false
+configuration: valid
+PostgreSQL: connected
+schema: 2 clean
+production restrictions: enabled
+developer mode: unavailable
+Remaining diagnostics: see docs/requirements-traceability.md
+{"valid":true,"root":"movie","encoding":"UTF-8","originalBytes":125,"entries":1,"issues":[]}
+Stopped Running=false ExitCode=0 OOMKilled=false
+Jelee schema version=1 dirty=false
+Jelee schema version=0 dirty=false
+PASS: accounts image; stdin bootstrap; password login web; safe me; logout revocation; schema2 down-to-zero; nonroot/read-only/cap-drop; PostgreSQL migration/doctor; NFO validation unchanged SHA256; native full/range bytes; forged-UA web 403; transcode 409; catalog; healthy; graceful stop; migration down

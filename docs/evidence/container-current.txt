@@ -1,0 +1,86 @@
+Source commit: f21d15668477bd5806e7e525149bfb373d9a68bd
+Command: docker build --network host and isolated runtime smoke; exit 0.
+Verified stopped state: Running=false ExitCode=0 OOMKilled=false.
+
+#0 building with "default" instance using docker driver
+
+#1 [internal] load build definition from Dockerfile
+#1 transferring dockerfile: 945B 0.1s done
+#1 DONE 0.1s
+
+#2 [internal] load metadata for docker.io/library/golang:1.27.1-alpine@sha256:8a5910f31396cd4d89662f56c68b3ae31d374308270a1c3bd96672ee5ed43414
+#2 DONE 0.0s
+
+#3 [internal] load .dockerignore
+#3 transferring context: 366B 0.1s done
+#3 DONE 0.1s
+
+#4 [internal] load build context
+#4 ...
+
+#5 [build 1/7] FROM docker.io/library/golang:1.27.1-alpine@sha256:8a5910f31396cd4d89662f56c68b3ae31d374308270a1c3bd96672ee5ed43414
+#5 resolve docker.io/library/golang:1.27.1-alpine@sha256:8a5910f31396cd4d89662f56c68b3ae31d374308270a1c3bd96672ee5ed43414 0.0s done
+#5 DONE 0.0s
+
+#4 [internal] load build context
+#4 transferring context: 3.41kB 0.4s done
+#4 DONE 0.4s
+
+#6 [stage-1 3/6] COPY --from=build /usr/local/go/LICENSE /licenses/go/LICENSE
+#6 CACHED
+
+#7 [stage-1 1/6] COPY --from=build /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
+#7 CACHED
+
+#8 [build 6/7] COPY internal ./internal
+#8 CACHED
+
+#9 [build 3/7] COPY go.mod go.sum ./
+#9 CACHED
+
+#10 [stage-1 4/6] COPY --from=build /usr/local/go/PATENTS /licenses/go/PATENTS
+#10 CACHED
+
+#11 [build 7/7] RUN go build -trimpath -o /out/jelee ./cmd/jelee &&     go build -trimpath -o /out/jelee-cli ./cmd/jelee-cli &&     go build -trimpath -o /out/jelee-migrate ./cmd/jelee-migrate
+#11 CACHED
+
+#12 [stage-1 2/6] COPY --from=build /out/ /
+#12 CACHED
+
+#13 [build 2/7] WORKDIR /src
+#13 CACHED
+
+#14 [build 4/7] RUN go mod download
+#14 CACHED
+
+#15 [build 5/7] COPY cmd ./cmd
+#15 CACHED
+
+#16 [stage-1 5/6] COPY LICENSE /LICENSE
+#16 CACHED
+
+#17 [stage-1 6/6] COPY docs/LICENSE-COMPLIANCE.md /licenses/README.md
+#17 CACHED
+
+#18 exporting to image
+#18 exporting layers done
+#18 exporting manifest sha256:eeff1953666f3828808c20b8cf7d484a400cb7a6949d416143a8688267a26239 done
+#18 exporting config sha256:faaa7b966a325d326625738c043c82983138a0ea6a3982d5f5ea75c5fdb72e06 done
+#18 exporting attestation manifest sha256:f247c438d9722cd136a035bef6774998bddd9a37bc8596c170dadc8a75789e8d 0.0s done
+#18 exporting manifest list sha256:17c550a0d89547b8d33f22d74bb205a2653d07017d1b1152b3600faddfe60c16 0.0s done
+#18 naming to docker.io/jelee/jelee:codex-current-test
+#18 naming to docker.io/jelee/jelee:codex-current-test 0.0s done
+#18 unpacking to docker.io/jelee/jelee:codex-current-test done
+#18 DONE 0.1s
+Image=sha256:17c550a0d89547b8d33f22d74bb205a2653d07017d1b1152b3600faddfe60c16 User=65532:65532
+Jelee schema version=1 dirty=false
+configuration: valid
+PostgreSQL: connected
+schema: 1 clean
+production restrictions: enabled
+developer mode: unavailable
+Remaining diagnostics: see docs/requirements-traceability.md
+{"valid":true,"root":"movie","encoding":"UTF-8","originalBytes":125,"entries":1,"issues":[]}
+Stopped Running=false ExitCode=0 OOMKilled=false
+Jelee schema version=0 dirty=false
+PASS: current image nonroot/read-only/cap-drop; PostgreSQL migration/doctor; NFO validation unchanged SHA256; native full/range bytes; forged-UA web 403; transcode 409; catalog; healthy; graceful stop; migration down

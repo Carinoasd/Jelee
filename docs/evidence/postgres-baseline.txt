@@ -1,0 +1,206 @@
+=== RUN   TestPostgresIntegration
+    store_integration_test.go:69: PostgreSQL integration RUNNING: dedicated jelee_test database, isolated schema jelee_it_0377edc63fbacf4e3a9b
+=== RUN   TestPostgresIntegration/migration_lock_contention_is_bounded
+    store_integration_test.go:125: contended migration returned after 5.006669107s; server-side timeout bounds the driver's non-cancelable setup
+=== RUN   TestPostgresIntegration/credentials_are_hashed_and_lifecycle_enforced
+=== RUN   TestPostgresIntegration/ACL_filters_lists_details_and_streams_in_SQL
+=== RUN   TestPostgresIntegration/constraints_and_failed_imports_are_atomic
+=== RUN   TestPostgresIntegration/ten_thousand_items_plan_and_bounded_visible_page
+    store_integration_test.go:294: 10,002-row ACL query plan (single sample; no P95 or performance acceptance claimed): [
+          {
+            "Plan": {
+              "Node Type": "Limit",
+              "Parallel Aware": false,
+              "Async Capable": false,
+              "Startup Cost": 0.44,
+              "Total Cost": 551.67,
+              "Plan Rows": 50,
+              "Plan Width": 100,
+              "Actual Startup Time": 2.322,
+              "Actual Total Time": 2.641,
+              "Actual Rows": 1,
+              "Actual Loops": 1,
+              "Shared Hit Blocks": 9940,
+              "Shared Read Blocks": 0,
+              "Shared Dirtied Blocks": 0,
+              "Shared Written Blocks": 0,
+              "Local Hit Blocks": 0,
+              "Local Read Blocks": 0,
+              "Local Dirtied Blocks": 0,
+              "Local Written Blocks": 0,
+              "Temp Read Blocks": 0,
+              "Temp Written Blocks": 0,
+              "Plans": [
+                {
+                  "Node Type": "Nested Loop",
+                  "Parent Relationship": "Outer",
+                  "Parallel Aware": false,
+                  "Async Capable": false,
+                  "Join Type": "Inner",
+                  "Startup Cost": 0.44,
+                  "Total Cost": 82707.86,
+                  "Plan Rows": 7502,
+                  "Plan Width": 100,
+                  "Actual Startup Time": 2.322,
+                  "Actual Total Time": 2.641,
+                  "Actual Rows": 1,
+                  "Actual Loops": 1,
+                  "Inner Unique": true,
+                  "Join Filter": "(u.is_admin OR (hashed SubPlan 2))",
+                  "Rows Removed by Join Filter": 10001,
+                  "Shared Hit Blocks": 9940,
+                  "Shared Read Blocks": 0,
+                  "Shared Dirtied Blocks": 0,
+                  "Shared Written Blocks": 0,
+                  "Local Hit Blocks": 0,
+                  "Local Read Blocks": 0,
+                  "Local Dirtied Blocks": 0,
+                  "Local Written Blocks": 0,
+                  "Temp Read Blocks": 0,
+                  "Temp Written Blocks": 0,
+                  "Plans": [
+                    {
+                      "Node Type": "Index Scan",
+                      "Parent Relationship": "Outer",
+                      "Parallel Aware": false,
+                      "Async Capable": false,
+                      "Scan Direction": "Forward",
+                      "Index Name": "items_pkey",
+                      "Relation Name": "items",
+                      "Alias": "i",
+                      "Startup Cost": 0.29,
+                      "Total Cost": 758.30,
+                      "Plan Rows": 10002,
+                      "Plan Width": 52,
+                      "Actual Startup Time": 0.009,
+                      "Actual Total Time": 1.062,
+                      "Actual Rows": 10002,
+                      "Actual Loops": 1,
+                      "Shared Hit Blocks": 9937,
+                      "Shared Read Blocks": 0,
+                      "Shared Dirtied Blocks": 0,
+                      "Shared Written Blocks": 0,
+                      "Local Hit Blocks": 0,
+                      "Local Read Blocks": 0,
+                      "Local Dirtied Blocks": 0,
+                      "Local Written Blocks": 0,
+                      "Temp Read Blocks": 0,
+                      "Temp Written Blocks": 0
+                    },
+                    {
+                      "Node Type": "Materialize",
+                      "Parent Relationship": "Inner",
+                      "Parallel Aware": false,
+                      "Async Capable": false,
+                      "Startup Cost": 0.15,
+                      "Total Cost": 8.17,
+                      "Plan Rows": 1,
+                      "Plan Width": 17,
+                      "Actual Startup Time": 0.000,
+                      "Actual Total Time": 0.000,
+                      "Actual Rows": 1,
+                      "Actual Loops": 10002,
+                      "Shared Hit Blocks": 2,
+                      "Shared Read Blocks": 0,
+                      "Shared Dirtied Blocks": 0,
+                      "Shared Written Blocks": 0,
+                      "Local Hit Blocks": 0,
+                      "Local Read Blocks": 0,
+                      "Local Dirtied Blocks": 0,
+                      "Local Written Blocks": 0,
+                      "Temp Read Blocks": 0,
+                      "Temp Written Blocks": 0,
+                      "Plans": [
+                        {
+                          "Node Type": "Index Scan",
+                          "Parent Relationship": "Outer",
+                          "Parallel Aware": false,
+                          "Async Capable": false,
+                          "Scan Direction": "Forward",
+                          "Index Name": "users_pkey",
+                          "Relation Name": "users",
+                          "Alias": "u",
+                          "Startup Cost": 0.15,
+                          "Total Cost": 8.17,
+                          "Plan Rows": 1,
+                          "Plan Width": 17,
+                          "Actual Startup Time": 0.007,
+                          "Actual Total Time": 0.008,
+                          "Actual Rows": 1,
+                          "Actual Loops": 1,
+                          "Index Cond": "(id = '7c4656e6-6f47-4e65-ab76-d93e7d845738'::uuid)",
+                          "Rows Removed by Index Recheck": 0,
+                          "Filter": "(NOT disabled)",
+                          "Rows Removed by Filter": 0,
+                          "Shared Hit Blocks": 2,
+                          "Shared Read Blocks": 0,
+                          "Shared Dirtied Blocks": 0,
+                          "Shared Written Blocks": 0,
+                          "Local Hit Blocks": 0,
+                          "Local Read Blocks": 0,
+                          "Local Dirtied Blocks": 0,
+                          "Local Written Blocks": 0,
+                          "Temp Read Blocks": 0,
+                          "Temp Written Blocks": 0
+                        }
+                      ]
+                    },
+                    {
+                      "Node Type": "Seq Scan",
+                      "Parent Relationship": "SubPlan",
+                      "Subplan Name": "SubPlan 2",
+                      "Parallel Aware": false,
+                      "Async Capable": false,
+                      "Relation Name": "library_acl",
+                      "Alias": "a",
+                      "Startup Cost": 0.00,
+                      "Total Cost": 23.60,
+                      "Plan Rows": 1360,
+                      "Plan Width": 32,
+                      "Actual Startup Time": 0.002,
+                      "Actual Total Time": 0.002,
+                      "Actual Rows": 3,
+                      "Actual Loops": 1,
+                      "Shared Hit Blocks": 1,
+                      "Shared Read Blocks": 0,
+                      "Shared Dirtied Blocks": 0,
+                      "Shared Written Blocks": 0,
+                      "Local Hit Blocks": 0,
+                      "Local Read Blocks": 0,
+                      "Local Dirtied Blocks": 0,
+                      "Local Written Blocks": 0,
+                      "Temp Read Blocks": 0,
+                      "Temp Written Blocks": 0
+                    }
+                  ]
+                }
+              ]
+            },
+            "Planning": {
+              "Shared Hit Blocks": 0,
+              "Shared Read Blocks": 0,
+              "Shared Dirtied Blocks": 0,
+              "Shared Written Blocks": 0,
+              "Local Hit Blocks": 0,
+              "Local Read Blocks": 0,
+              "Local Dirtied Blocks": 0,
+              "Local Written Blocks": 0,
+              "Temp Read Blocks": 0,
+              "Temp Written Blocks": 0
+            },
+            "Planning Time": 0.140,
+            "Triggers": [
+            ],
+            "Execution Time": 2.683
+          }
+        ]
+=== RUN   TestPostgresIntegration/revocation_and_cancellation_apply_before_media_lookup
+--- PASS: TestPostgresIntegration (5.46s)
+    --- PASS: TestPostgresIntegration/migration_lock_contention_is_bounded (5.01s)
+    --- PASS: TestPostgresIntegration/credentials_are_hashed_and_lifecycle_enforced (0.01s)
+    --- PASS: TestPostgresIntegration/ACL_filters_lists_details_and_streams_in_SQL (0.01s)
+    --- PASS: TestPostgresIntegration/constraints_and_failed_imports_are_atomic (0.01s)
+    --- PASS: TestPostgresIntegration/ten_thousand_items_plan_and_bounded_visible_page (0.19s)
+    --- PASS: TestPostgresIntegration/revocation_and_cancellation_apply_before_media_lookup (0.00s)
+PASS
+ok  	github.com/MoYuanCN/Jelee/internal/adapter/postgres	5.530s

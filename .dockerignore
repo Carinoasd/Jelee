@@ -9,3 +9,17 @@ deployment/*/dist
 deployment/*/pkg-dist
 deployment/collect-dist/
 ci/
+
+# Only the Go service build context belongs in its production image.
+.tools/
+.bin/
+.testdata/
+.testfixtures/
+.cache/
+bin/
+data/
+node_modules/
+.env
+.env.*
+*.key
+*.pem

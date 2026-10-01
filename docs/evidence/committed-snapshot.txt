@@ -1,0 +1,574 @@
+Committed service source isolation check
+Commit: 0bbd5939bb590a5448f9ec2833559da236064a6b
+Subject: build(deploy): add nonroot image and PostgreSQL integration workflow
+Source: git archive commit -- go.mod go.sum cmd internal tools
+Platform: Windows amd64, project-local Go 1.27.1
+Destination: ignored .testdata/committed-service
+No in-progress NFO files copied. Tests and build use only committed source.
+PostgreSQL integration explicitly disabled for this source-isolation check.
+Linux-specific tests and race detector are outside this Windows check.
+
+Command: scripts/run-go.ps1 -C .testdata/committed-service test -count=1 -v ./...
+?   	github.com/MoYuanCN/Jelee/cmd/jelee	[no test files]
+?   	github.com/MoYuanCN/Jelee/cmd/jelee-cli	[no test files]
+?   	github.com/MoYuanCN/Jelee/cmd/jelee-migrate	[no test files]
+=== RUN   TestPrincipalMustBeCompleteAndServerAssigned
+--- PASS: TestPrincipalMustBeCompleteAndServerAssigned (0.00s)
+PASS
+ok  	github.com/MoYuanCN/Jelee/internal/access	0.179s
+=== RUN   TestPublicHTTPErrorCodesHaveTranslations
+--- PASS: TestPublicHTTPErrorCodesHaveTranslations (0.00s)
+=== RUN   TestConstructorRejectsInvalidConfigurationAndMissingDependencies
+=== RUN   TestConstructorRejectsInvalidConfigurationAndMissingDependencies/direct-without-catalog
+=== RUN   TestConstructorRejectsInvalidConfigurationAndMissingDependencies/missing-database
+=== RUN   TestConstructorRejectsInvalidConfigurationAndMissingDependencies/sqlite-database
+=== RUN   TestConstructorRejectsInvalidConfigurationAndMissingDependencies/unbounded-streams
+=== RUN   TestConstructorRejectsInvalidConfigurationAndMissingDependencies/unbounded-timeout
+=== RUN   TestConstructorRejectsInvalidConfigurationAndMissingDependencies/backend
+=== RUN   TestConstructorRejectsInvalidConfigurationAndMissingDependencies/catalog
+=== RUN   TestConstructorRejectsInvalidConfigurationAndMissingDependencies/resolver
+=== RUN   TestConstructorRejectsInvalidConfigurationAndMissingDependencies/logger
+--- PASS: TestConstructorRejectsInvalidConfigurationAndMissingDependencies (0.00s)
+    --- PASS: TestConstructorRejectsInvalidConfigurationAndMissingDependencies/direct-without-catalog (0.00s)
+    --- PASS: TestConstructorRejectsInvalidConfigurationAndMissingDependencies/missing-database (0.00s)
+    --- PASS: TestConstructorRejectsInvalidConfigurationAndMissingDependencies/sqlite-database (0.00s)
+    --- PASS: TestConstructorRejectsInvalidConfigurationAndMissingDependencies/unbounded-streams (0.00s)
+    --- PASS: TestConstructorRejectsInvalidConfigurationAndMissingDependencies/unbounded-timeout (0.00s)
+    --- PASS: TestConstructorRejectsInvalidConfigurationAndMissingDependencies/backend (0.00s)
+    --- PASS: TestConstructorRejectsInvalidConfigurationAndMissingDependencies/catalog (0.00s)
+    --- PASS: TestConstructorRejectsInvalidConfigurationAndMissingDependencies/resolver (0.00s)
+    --- PASS: TestConstructorRejectsInvalidConfigurationAndMissingDependencies/logger (0.00s)
+=== RUN   TestPublicHealthAndHostBoundary
+=== RUN   TestPublicHealthAndHostBoundary/localhost
+=== RUN   TestPublicHealthAndHostBoundary/LOCALHOST:8097
+=== RUN   TestPublicHealthAndHostBoundary/127.0.0.1:8097
+=== RUN   TestPublicHealthAndHostBoundary/[::1]:8097
+=== RUN   TestPublicHealthAndHostBoundary/reject/attacker.invalid
+=== RUN   TestPublicHealthAndHostBoundary/reject/localhost.attacker.invalid
+=== RUN   TestPublicHealthAndHostBoundary/reject/localhost@attacker.invalid
+=== RUN   TestPublicHealthAndHostBoundary/reject/localhost:notaport
+=== RUN   TestPublicHealthAndHostBoundary/reject/localhost:0
+=== RUN   TestPublicHealthAndHostBoundary/reject/localhost:65536
+=== RUN   TestPublicHealthAndHostBoundary/reject/[::1
+=== RUN   TestPublicHealthAndHostBoundary/reject/::1]
+=== RUN   TestPublicHealthAndHostBoundary/reject/localhost[
+=== RUN   TestPublicHealthAndHostBoundary/reject/[localhost]:8097
+=== RUN   TestPublicHealthAndHostBoundary/reject/localhost:+80
+=== RUN   TestPublicHealthAndHostBoundary/reject/[::1]:+80
+--- PASS: TestPublicHealthAndHostBoundary (0.10s)
+    --- PASS: TestPublicHealthAndHostBoundary/localhost (0.10s)
+    --- PASS: TestPublicHealthAndHostBoundary/LOCALHOST:8097 (0.00s)
+    --- PASS: TestPublicHealthAndHostBoundary/127.0.0.1:8097 (0.00s)
+    --- PASS: TestPublicHealthAndHostBoundary/[::1]:8097 (0.00s)
+    --- PASS: TestPublicHealthAndHostBoundary/reject/attacker.invalid (0.00s)
+    --- PASS: TestPublicHealthAndHostBoundary/reject/localhost.attacker.invalid (0.00s)
+    --- PASS: TestPublicHealthAndHostBoundary/reject/localhost@attacker.invalid (0.00s)
+    --- PASS: TestPublicHealthAndHostBoundary/reject/localhost:notaport (0.00s)
+    --- PASS: TestPublicHealthAndHostBoundary/reject/localhost:0 (0.00s)
+    --- PASS: TestPublicHealthAndHostBoundary/reject/localhost:65536 (0.00s)
+    --- PASS: TestPublicHealthAndHostBoundary/reject/[::1 (0.00s)
+    --- PASS: TestPublicHealthAndHostBoundary/reject/::1] (0.00s)
+    --- PASS: TestPublicHealthAndHostBoundary/reject/localhost[ (0.00s)
+    --- PASS: TestPublicHealthAndHostBoundary/reject/[localhost]:8097 (0.00s)
+    --- PASS: TestPublicHealthAndHostBoundary/reject/localhost:+80 (0.00s)
+    --- PASS: TestPublicHealthAndHostBoundary/reject/[::1]:+80 (0.00s)
+=== RUN   TestRolloutFlagsAndCapabilities
+=== RUN   TestRolloutFlagsAndCapabilities/catalog=false/direct=false
+=== RUN   TestRolloutFlagsAndCapabilities/catalog=true/direct=false
+=== RUN   TestRolloutFlagsAndCapabilities/catalog=true/direct=true
+--- PASS: TestRolloutFlagsAndCapabilities (0.00s)
+    --- PASS: TestRolloutFlagsAndCapabilities/catalog=false/direct=false (0.00s)
+    --- PASS: TestRolloutFlagsAndCapabilities/catalog=true/direct=false (0.00s)
+    --- PASS: TestRolloutFlagsAndCapabilities/catalog=true/direct=true (0.00s)
+=== RUN   TestAuthenticationAndStrictCatalogQueries
+=== RUN   TestAuthenticationAndStrictCatalogQueries/limit=0
+=== RUN   TestAuthenticationAndStrictCatalogQueries/limit=101
+=== RUN   TestAuthenticationAndStrictCatalogQueries/limit=-1
+=== RUN   TestAuthenticationAndStrictCatalogQueries/limit=abc
+=== RUN   TestAuthenticationAndStrictCatalogQueries/limit=1&limit=2
+=== RUN   TestAuthenticationAndStrictCatalogQueries/cursor=bad
+=== RUN   TestAuthenticationAndStrictCatalogQueries/cursor=AAAAAAAA-AAAA-4AAA-8AAA-AAAAAAAAAAAA
+=== RUN   TestAuthenticationAndStrictCatalogQueries/sort=title
+=== RUN   TestAuthenticationAndStrictCatalogQueries/filter%ZZ=one
+=== RUN   TestAuthenticationAndStrictCatalogQueries/limit=1;cursor=x
+--- PASS: TestAuthenticationAndStrictCatalogQueries (0.00s)
+    --- PASS: TestAuthenticationAndStrictCatalogQueries/limit=0 (0.00s)
+    --- PASS: TestAuthenticationAndStrictCatalogQueries/limit=101 (0.00s)
+    --- PASS: TestAuthenticationAndStrictCatalogQueries/limit=-1 (0.00s)
+    --- PASS: TestAuthenticationAndStrictCatalogQueries/limit=abc (0.00s)
+    --- PASS: TestAuthenticationAndStrictCatalogQueries/limit=1&limit=2 (0.00s)
+    --- PASS: TestAuthenticationAndStrictCatalogQueries/cursor=bad (0.00s)
+    --- PASS: TestAuthenticationAndStrictCatalogQueries/cursor=AAAAAAAA-AAAA-4AAA-8AAA-AAAAAAAAAAAA (0.00s)
+    --- PASS: TestAuthenticationAndStrictCatalogQueries/sort=title (0.00s)
+    --- PASS: TestAuthenticationAndStrictCatalogQueries/filter%ZZ=one (0.00s)
+    --- PASS: TestAuthenticationAndStrictCatalogQueries/limit=1;cursor=x (0.00s)
+=== RUN   TestErrorLanguageNegotiationAtHTTPBoundary
+=== RUN   TestErrorLanguageNegotiationAtHTTPBoundary/#00
+=== RUN   TestErrorLanguageNegotiationAtHTTPBoundary/zh-TW
+=== RUN   TestErrorLanguageNegotiationAtHTTPBoundary/ja-JP
+=== RUN   TestErrorLanguageNegotiationAtHTTPBoundary/en-US
+=== RUN   TestErrorLanguageNegotiationAtHTTPBoundary/fr-FR
+--- PASS: TestErrorLanguageNegotiationAtHTTPBoundary (0.00s)
+    --- PASS: TestErrorLanguageNegotiationAtHTTPBoundary/#00 (0.00s)
+    --- PASS: TestErrorLanguageNegotiationAtHTTPBoundary/zh-TW (0.00s)
+    --- PASS: TestErrorLanguageNegotiationAtHTTPBoundary/ja-JP (0.00s)
+    --- PASS: TestErrorLanguageNegotiationAtHTTPBoundary/en-US (0.00s)
+    --- PASS: TestErrorLanguageNegotiationAtHTTPBoundary/fr-FR (0.00s)
+=== RUN   TestItemVisibilityAndOpaqueFailures
+--- PASS: TestItemVisibilityAndOpaqueFailures (0.00s)
+=== RUN   TestReadinessDoesNotLeakDependencyErrors
+--- PASS: TestReadinessDoesNotLeakDependencyErrors (0.00s)
+=== RUN   TestTransformationRoutesAndParametersAreRejected
+--- PASS: TestTransformationRoutesAndParametersAreRejected (0.00s)
+=== RUN   TestWebCannotSpoofNativePlaybackAndNativeRangePreservesBytes
+--- PASS: TestWebCannotSpoofNativePlaybackAndNativeRangePreservesBytes (0.01s)
+=== RUN   TestCentralErrorMapping
+=== RUN   TestCentralErrorMapping/resource_not_found
+=== RUN   TestCentralErrorMapping/media_not_found
+=== RUN   TestCentralErrorMapping/authentication_required
+=== RUN   TestCentralErrorMapping/authentication_required#01
+=== RUN   TestCentralErrorMapping/invalid_input
+=== RUN   TestCentralErrorMapping/invalid_media_request
+=== RUN   TestCentralErrorMapping/web_playback_disabled
+=== RUN   TestCentralErrorMapping/transcode_disabled
+=== RUN   TestCentralErrorMapping/stream_limit_reached
+=== RUN   TestCentralErrorMapping/method_not_allowed
+=== RUN   TestCentralErrorMapping/media_lookup_timeout
+=== RUN   TestCentralErrorMapping/invalid_range
+=== RUN   TestCentralErrorMapping/precondition_failed
+=== RUN   TestCentralErrorMapping/request_too_large
+=== RUN   TestCentralErrorMapping/unsupported_media_type
+=== RUN   TestCentralErrorMapping/sensitive_internal_details
+--- PASS: TestCentralErrorMapping (0.00s)
+    --- PASS: TestCentralErrorMapping/resource_not_found (0.00s)
+    --- PASS: TestCentralErrorMapping/media_not_found (0.00s)
+    --- PASS: TestCentralErrorMapping/authentication_required (0.00s)
+    --- PASS: TestCentralErrorMapping/authentication_required#01 (0.00s)
+    --- PASS: TestCentralErrorMapping/invalid_input (0.00s)
+    --- PASS: TestCentralErrorMapping/invalid_media_request (0.00s)
+    --- PASS: TestCentralErrorMapping/web_playback_disabled (0.00s)
+    --- PASS: TestCentralErrorMapping/transcode_disabled (0.00s)
+    --- PASS: TestCentralErrorMapping/stream_limit_reached (0.00s)
+    --- PASS: TestCentralErrorMapping/method_not_allowed (0.00s)
+    --- PASS: TestCentralErrorMapping/media_lookup_timeout (0.00s)
+    --- PASS: TestCentralErrorMapping/invalid_range (0.00s)
+    --- PASS: TestCentralErrorMapping/precondition_failed (0.00s)
+    --- PASS: TestCentralErrorMapping/request_too_large (0.00s)
+    --- PASS: TestCentralErrorMapping/unsupported_media_type (0.00s)
+    --- PASS: TestCentralErrorMapping/sensitive_internal_details (0.00s)
+PASS
+ok  	github.com/MoYuanCN/Jelee/internal/adapter/http	0.506s
+=== RUN   TestDirectDeliveryRangeAndSourceUnchanged
+=== RUN   TestDirectDeliveryRangeAndSourceUnchanged/complete
+=== RUN   TestDirectDeliveryRangeAndSourceUnchanged/head
+=== RUN   TestDirectDeliveryRangeAndSourceUnchanged/first
+=== RUN   TestDirectDeliveryRangeAndSourceUnchanged/suffix
+=== RUN   TestDirectDeliveryRangeAndSourceUnchanged/open_end
+=== RUN   TestDirectDeliveryRangeAndSourceUnchanged/etag_match
+=== RUN   TestDirectDeliveryRangeAndSourceUnchanged/etag_mismatch
+=== RUN   TestDirectDeliveryRangeAndSourceUnchanged/weak_etag
+=== RUN   TestDirectDeliveryRangeAndSourceUnchanged/date_match
+=== RUN   TestDirectDeliveryRangeAndSourceUnchanged/date_mismatch
+--- PASS: TestDirectDeliveryRangeAndSourceUnchanged (0.01s)
+    --- PASS: TestDirectDeliveryRangeAndSourceUnchanged/complete (0.01s)
+    --- PASS: TestDirectDeliveryRangeAndSourceUnchanged/head (0.00s)
+    --- PASS: TestDirectDeliveryRangeAndSourceUnchanged/first (0.00s)
+    --- PASS: TestDirectDeliveryRangeAndSourceUnchanged/suffix (0.00s)
+    --- PASS: TestDirectDeliveryRangeAndSourceUnchanged/open_end (0.00s)
+    --- PASS: TestDirectDeliveryRangeAndSourceUnchanged/etag_match (0.00s)
+    --- PASS: TestDirectDeliveryRangeAndSourceUnchanged/etag_mismatch (0.00s)
+    --- PASS: TestDirectDeliveryRangeAndSourceUnchanged/weak_etag (0.00s)
+    --- PASS: TestDirectDeliveryRangeAndSourceUnchanged/date_match (0.00s)
+    --- PASS: TestDirectDeliveryRangeAndSourceUnchanged/date_mismatch (0.00s)
+=== RUN   TestMultipartRange
+--- PASS: TestMultipartRange (0.01s)
+=== RUN   TestAuthorizationBeforeResolution
+=== RUN   TestAuthorizationBeforeResolution/anonymous
+=== RUN   TestAuthorizationBeforeResolution/web
+=== RUN   TestAuthorizationBeforeResolution/web_admin
+=== RUN   TestAuthorizationBeforeResolution/unknown
+--- PASS: TestAuthorizationBeforeResolution (0.00s)
+    --- PASS: TestAuthorizationBeforeResolution/anonymous (0.00s)
+    --- PASS: TestAuthorizationBeforeResolution/web (0.00s)
+    --- PASS: TestAuthorizationBeforeResolution/web_admin (0.00s)
+    --- PASS: TestAuthorizationBeforeResolution/unknown (0.00s)
+=== RUN   TestPathBoundariesAndNoDisclosure
+=== RUN   TestPathBoundariesAndNoDisclosure/#00
+=== RUN   TestPathBoundariesAndNoDisclosure/.
+=== RUN   TestPathBoundariesAndNoDisclosure/..
+=== RUN   TestPathBoundariesAndNoDisclosure/../secret
+=== RUN   TestPathBoundariesAndNoDisclosure/folder/../../secret
+=== RUN   TestPathBoundariesAndNoDisclosure//etc/passwd
+=== RUN   TestPathBoundariesAndNoDisclosure/C:\private
+=== RUN   TestPathBoundariesAndNoDisclosure/folder\file
+=== RUN   TestPathBoundariesAndNoDisclosure/original.mkv:alternate
+=== RUN   TestPathBoundariesAndNoDisclosure/original.mkv\x00
+=== RUN   TestPathBoundariesAndNoDisclosure/missing
+=== RUN   TestPathBoundariesAndNoDisclosure/folder/../original.mkv
+=== RUN   TestPathBoundariesAndNoDisclosure/directory
+=== RUN   TestPathBoundariesAndNoDisclosure/symlink_escape
+    direct_test.go:208: symlink creation unavailable: symlink <workspace>\.tools\cache\tmp\TestPathBoundariesAndNoDisclosure422185201\002\secret <workspace>\.tools\cache\tmp\TestPathBoundariesAndNoDisclosure422185201\001\escape: A required privilege is not held by the client.
+=== RUN   TestPathBoundariesAndNoDisclosure/directory_symlink_escape
+    direct_test.go:216: symlink creation unavailable: symlink <workspace>\.tools\cache\tmp\TestPathBoundariesAndNoDisclosure422185201\002 <workspace>\.tools\cache\tmp\TestPathBoundariesAndNoDisclosure422185201\001\escape-dir: A required privilege is not held by the client.
+--- PASS: TestPathBoundariesAndNoDisclosure (0.00s)
+    --- PASS: TestPathBoundariesAndNoDisclosure/#00 (0.00s)
+    --- PASS: TestPathBoundariesAndNoDisclosure/. (0.00s)
+    --- PASS: TestPathBoundariesAndNoDisclosure/.. (0.00s)
+    --- PASS: TestPathBoundariesAndNoDisclosure/../secret (0.00s)
+    --- PASS: TestPathBoundariesAndNoDisclosure/folder/../../secret (0.00s)
+    --- PASS: TestPathBoundariesAndNoDisclosure//etc/passwd (0.00s)
+    --- PASS: TestPathBoundariesAndNoDisclosure/C:\private (0.00s)
+    --- PASS: TestPathBoundariesAndNoDisclosure/folder\file (0.00s)
+    --- PASS: TestPathBoundariesAndNoDisclosure/original.mkv:alternate (0.00s)
+    --- PASS: TestPathBoundariesAndNoDisclosure/original.mkv\x00 (0.00s)
+    --- PASS: TestPathBoundariesAndNoDisclosure/missing (0.00s)
+    --- PASS: TestPathBoundariesAndNoDisclosure/folder/../original.mkv (0.00s)
+    --- PASS: TestPathBoundariesAndNoDisclosure/directory (0.00s)
+    --- SKIP: TestPathBoundariesAndNoDisclosure/symlink_escape (0.00s)
+    --- SKIP: TestPathBoundariesAndNoDisclosure/directory_symlink_escape (0.00s)
+=== RUN   TestErrorsUseInjectedWriter
+--- PASS: TestErrorsUseInjectedWriter (0.01s)
+=== RUN   TestConcurrencyBudgetAndCancellation
+--- PASS: TestConcurrencyBudgetAndCancellation (0.01s)
+=== RUN   TestCancellationStopsStreamAndReleasesSlot
+--- PASS: TestCancellationStopsStreamAndReleasesSlot (0.01s)
+=== RUN   TestNewHandlerRejectsIncompleteConfiguration
+--- PASS: TestNewHandlerRejectsIncompleteConfiguration (0.00s)
+=== RUN   TestCancellationInterruptsBlockedNetworkWrite
+--- PASS: TestCancellationInterruptsBlockedNetworkWrite (0.01s)
+=== RUN   TestRangeBudgetRejectsAbuseBeforeLookup
+--- PASS: TestRangeBudgetRejectsAbuseBeforeLookup (0.00s)
+=== RUN   TestSourceLookupHasIndependentDeadline
+--- PASS: TestSourceLookupHasIndependentDeadline (0.00s)
+=== RUN   TestCancellationBetweenDeadlineRefreshAndWrite
+--- PASS: TestCancellationBetweenDeadlineRefreshAndWrite (0.01s)
+=== RUN   TestProductionGuardRejectsTransformations
+=== RUN   TestProductionGuardRejectsTransformations//Videos/id/master.m3u8
+=== RUN   TestProductionGuardRejectsTransformations//VIDEOS/id/STREAM.MPD
+=== RUN   TestProductionGuardRejectsTransformations//Videos/id/HLS/0.ts
+=== RUN   TestProductionGuardRejectsTransformations//Videos/id/HLS1/main/0.ts
+=== RUN   TestProductionGuardRejectsTransformations//Videos/id/dash/0
+=== RUN   TestProductionGuardRejectsTransformations//transcode/id
+=== RUN   TestProductionGuardRejectsTransformations//Videos/id/segments/1
+=== RUN   TestProductionGuardRejectsTransformations//Videos/id/%68%6Cs/0
+=== RUN   TestProductionGuardRejectsTransformations//Videos/id/%2568ls/0
+=== RUN   TestProductionGuardRejectsTransformations//Videos/id/hls%5C0.ts
+=== RUN   TestProductionGuardRejectsTransformations//Videos/id/chunk.m4s
+=== RUN   TestProductionGuardRejectsTransformations//stream?videoCodec=h264
+=== RUN   TestProductionGuardRejectsTransformations//stream?%76ideoCodec=copy
+=== RUN   TestProductionGuardRejectsTransformations//stream?AUDIOCODEC=copy
+=== RUN   TestProductionGuardRejectsTransformations//stream?maxVideoBitrate=0
+=== RUN   TestProductionGuardRejectsTransformations//stream?video_codec=copy
+=== RUN   TestProductionGuardRejectsTransformations//stream?SegmentLength=6
+=== RUN   TestProductionGuardRejectsTransformations//stream?HlsSegmentLength=5
+=== RUN   TestProductionGuardRejectsTransformations//stream?TranscodeReasons=codec
+=== RUN   TestProductionGuardRejectsTransformations//stream?protocol=HLS
+=== RUN   TestProductionGuardRejectsTransformations//stream?container=mpd
+=== RUN   TestProductionGuardRejectsTransformations//stream?Static=false
+=== RUN   TestProductionGuardRejectsTransformations//stream?EnableTranscoding=true
+=== RUN   TestProductionGuardRejectsTransformations//stream?AllowVideoStreamCopy=false
+=== RUN   TestProductionGuardRejectsTransformations//stream?SubtitleMethod=Encode
+=== RUN   TestProductionGuardRejectsTransformations//stream?width=1920
+=== RUN   TestProductionGuardRejectsTransformations//stream?DeviceProfile=%7B%22TranscodingProfiles%22%3A%5B%7B%22Type%22%3A%22Video%22%7D%5D%7D
+--- PASS: TestProductionGuardRejectsTransformations (0.00s)
+    --- PASS: TestProductionGuardRejectsTransformations//Videos/id/master.m3u8 (0.00s)
+    --- PASS: TestProductionGuardRejectsTransformations//VIDEOS/id/STREAM.MPD (0.00s)
+    --- PASS: TestProductionGuardRejectsTransformations//Videos/id/HLS/0.ts (0.00s)
+    --- PASS: TestProductionGuardRejectsTransformations//Videos/id/HLS1/main/0.ts (0.00s)
+    --- PASS: TestProductionGuardRejectsTransformations//Videos/id/dash/0 (0.00s)
+    --- PASS: TestProductionGuardRejectsTransformations//transcode/id (0.00s)
+    --- PASS: TestProductionGuardRejectsTransformations//Videos/id/segments/1 (0.00s)
+    --- PASS: TestProductionGuardRejectsTransformations//Videos/id/%68%6Cs/0 (0.00s)
+    --- PASS: TestProductionGuardRejectsTransformations//Videos/id/%2568ls/0 (0.00s)
+    --- PASS: TestProductionGuardRejectsTransformations//Videos/id/hls%5C0.ts (0.00s)
+    --- PASS: TestProductionGuardRejectsTransformations//Videos/id/chunk.m4s (0.00s)
+    --- PASS: TestProductionGuardRejectsTransformations//stream?videoCodec=h264 (0.00s)
+    --- PASS: TestProductionGuardRejectsTransformations//stream?%76ideoCodec=copy (0.00s)
+    --- PASS: TestProductionGuardRejectsTransformations//stream?AUDIOCODEC=copy (0.00s)
+    --- PASS: TestProductionGuardRejectsTransformations//stream?maxVideoBitrate=0 (0.00s)
+    --- PASS: TestProductionGuardRejectsTransformations//stream?video_codec=copy (0.00s)
+    --- PASS: TestProductionGuardRejectsTransformations//stream?SegmentLength=6 (0.00s)
+    --- PASS: TestProductionGuardRejectsTransformations//stream?HlsSegmentLength=5 (0.00s)
+    --- PASS: TestProductionGuardRejectsTransformations//stream?TranscodeReasons=codec (0.00s)
+    --- PASS: TestProductionGuardRejectsTransformations//stream?protocol=HLS (0.00s)
+    --- PASS: TestProductionGuardRejectsTransformations//stream?container=mpd (0.00s)
+    --- PASS: TestProductionGuardRejectsTransformations//stream?Static=false (0.00s)
+    --- PASS: TestProductionGuardRejectsTransformations//stream?EnableTranscoding=true (0.00s)
+    --- PASS: TestProductionGuardRejectsTransformations//stream?AllowVideoStreamCopy=false (0.00s)
+    --- PASS: TestProductionGuardRejectsTransformations//stream?SubtitleMethod=Encode (0.00s)
+    --- PASS: TestProductionGuardRejectsTransformations//stream?width=1920 (0.00s)
+    --- PASS: TestProductionGuardRejectsTransformations//stream?DeviceProfile=%7B%22TranscodingProfiles%22%3A%5B%7B%22Type%22%3A%22Video%22%7D%5D%7D (0.00s)
+=== RUN   TestProductionGuardInspectsFormAndJSON
+=== RUN   TestProductionGuardInspectsFormAndJSON/form
+=== RUN   TestProductionGuardInspectsFormAndJSON/encoded_form
+=== RUN   TestProductionGuardInspectsFormAndJSON/json
+=== RUN   TestProductionGuardInspectsFormAndJSON/nested
+=== RUN   TestProductionGuardInspectsFormAndJSON/nested_codec
+=== RUN   TestProductionGuardInspectsFormAndJSON/escaped_key
+=== RUN   TestProductionGuardInspectsFormAndJSON/duplicate_key
+=== RUN   TestProductionGuardInspectsFormAndJSON/duplicate_toggle
+=== RUN   TestProductionGuardInspectsFormAndJSON/burnin
+--- PASS: TestProductionGuardInspectsFormAndJSON (0.00s)
+    --- PASS: TestProductionGuardInspectsFormAndJSON/form (0.00s)
+    --- PASS: TestProductionGuardInspectsFormAndJSON/encoded_form (0.00s)
+    --- PASS: TestProductionGuardInspectsFormAndJSON/json (0.00s)
+    --- PASS: TestProductionGuardInspectsFormAndJSON/nested (0.00s)
+    --- PASS: TestProductionGuardInspectsFormAndJSON/nested_codec (0.00s)
+    --- PASS: TestProductionGuardInspectsFormAndJSON/escaped_key (0.00s)
+    --- PASS: TestProductionGuardInspectsFormAndJSON/duplicate_key (0.00s)
+    --- PASS: TestProductionGuardInspectsFormAndJSON/duplicate_toggle (0.00s)
+    --- PASS: TestProductionGuardInspectsFormAndJSON/burnin (0.00s)
+=== RUN   TestProductionGuardPreservesDirectRequests
+--- PASS: TestProductionGuardPreservesDirectRequests (0.00s)
+=== RUN   TestGuardRejectsInvalidOrUnboundedBodies
+=== RUN   TestGuardRejectsInvalidOrUnboundedBodies/malformed
+=== RUN   TestGuardRejectsInvalidOrUnboundedBodies/extra_document
+=== RUN   TestGuardRejectsInvalidOrUnboundedBodies/depth
+=== RUN   TestGuardRejectsInvalidOrUnboundedBodies/size
+=== RUN   TestGuardRejectsInvalidOrUnboundedBodies/untyped
+=== RUN   TestGuardRejectsInvalidOrUnboundedBodies/multipart
+--- PASS: TestGuardRejectsInvalidOrUnboundedBodies (0.00s)
+    --- PASS: TestGuardRejectsInvalidOrUnboundedBodies/malformed (0.00s)
+    --- PASS: TestGuardRejectsInvalidOrUnboundedBodies/extra_document (0.00s)
+    --- PASS: TestGuardRejectsInvalidOrUnboundedBodies/depth (0.00s)
+    --- PASS: TestGuardRejectsInvalidOrUnboundedBodies/size (0.00s)
+    --- PASS: TestGuardRejectsInvalidOrUnboundedBodies/untyped (0.00s)
+    --- PASS: TestGuardRejectsInvalidOrUnboundedBodies/multipart (0.00s)
+=== RUN   TestRouteGuardDoesNotTreatMetadataValuesAsTranscode
+--- PASS: TestRouteGuardDoesNotTreatMetadataValuesAsTranscode (0.00s)
+=== RUN   FuzzProductionGuard
+=== RUN   FuzzProductionGuard/seed#0
+=== RUN   FuzzProductionGuard/seed#1
+=== RUN   FuzzProductionGuard/seed#2
+=== RUN   FuzzProductionGuard/seed#3
+--- PASS: FuzzProductionGuard (0.00s)
+    --- PASS: FuzzProductionGuard/seed#0 (0.00s)
+    --- PASS: FuzzProductionGuard/seed#1 (0.00s)
+    --- PASS: FuzzProductionGuard/seed#2 (0.00s)
+    --- PASS: FuzzProductionGuard/seed#3 (0.00s)
+PASS
+ok  	github.com/MoYuanCN/Jelee/internal/adapter/media	0.467s
+=== RUN   TestPostgresIntegration
+    store_integration_test.go:36: PostgreSQL integration NOT RUN: JELEE_TEST_DATABASE_URL is unset; this skip is not database validation
+--- SKIP: TestPostgresIntegration (0.00s)
+PASS
+ok  	github.com/MoYuanCN/Jelee/internal/adapter/postgres	0.100s
+=== RUN   TestListRejectsInvalidBoundsBeforeStorage
+=== RUN   TestListRejectsInvalidBoundsBeforeStorage/missing_user
+=== RUN   TestListRejectsInvalidBoundsBeforeStorage/untrusted_user
+=== RUN   TestListRejectsInvalidBoundsBeforeStorage/invalid_cursor
+=== RUN   TestListRejectsInvalidBoundsBeforeStorage/negative_limit
+=== RUN   TestListRejectsInvalidBoundsBeforeStorage/zero_limit
+=== RUN   TestListRejectsInvalidBoundsBeforeStorage/over_maximum
+--- PASS: TestListRejectsInvalidBoundsBeforeStorage (0.00s)
+    --- PASS: TestListRejectsInvalidBoundsBeforeStorage/missing_user (0.00s)
+    --- PASS: TestListRejectsInvalidBoundsBeforeStorage/untrusted_user (0.00s)
+    --- PASS: TestListRejectsInvalidBoundsBeforeStorage/invalid_cursor (0.00s)
+    --- PASS: TestListRejectsInvalidBoundsBeforeStorage/negative_limit (0.00s)
+    --- PASS: TestListRejectsInvalidBoundsBeforeStorage/zero_limit (0.00s)
+    --- PASS: TestListRejectsInvalidBoundsBeforeStorage/over_maximum (0.00s)
+=== RUN   TestListPreservesAuthorizedQueryAndContext
+--- PASS: TestListPreservesAuthorizedQueryAndContext (0.00s)
+=== RUN   TestGetMalformedIdentifiersAreHiddenWithoutLookup
+--- PASS: TestGetMalformedIdentifiersAreHiddenWithoutLookup (0.00s)
+=== RUN   TestGetKeepsUserScopeAndHiddenContract
+--- PASS: TestGetKeepsUserScopeAndHiddenContract (0.00s)
+=== RUN   TestRepositoryFailureIsNotReportedAsEmptySuccess
+--- PASS: TestRepositoryFailureIsNotReportedAsEmptySuccess (0.00s)
+=== RUN   TestCancellationReachesRepository
+--- PASS: TestCancellationReachesRepository (0.00s)
+PASS
+ok  	github.com/MoYuanCN/Jelee/internal/app	0.230s
+=== RUN   TestDomainAndApplicationDependencyDirection
+--- PASS: TestDomainAndApplicationDependencyDirection (0.00s)
+PASS
+ok  	github.com/MoYuanCN/Jelee/internal/architecture	0.239s
+=== RUN   TestValidIDCanonicalBoundary
+=== RUN   TestValidIDCanonicalBoundary/empty
+=== RUN   TestValidIDCanonicalBoundary/truncated
+=== RUN   TestValidIDCanonicalBoundary/extended
+=== RUN   TestValidIDCanonicalBoundary/uppercase
+=== RUN   TestValidIDCanonicalBoundary/no_separators
+=== RUN   TestValidIDCanonicalBoundary/wrong_separator
+=== RUN   TestValidIDCanonicalBoundary/misplaced_separator
+=== RUN   TestValidIDCanonicalBoundary/non_hex
+=== RUN   TestValidIDCanonicalBoundary/unicode_lookalike_same_bytes
+=== RUN   TestValidIDCanonicalBoundary/nul
+=== RUN   TestValidIDCanonicalBoundary/leading_space
+=== RUN   TestValidIDCanonicalBoundary/trailing_newline
+=== RUN   TestValidIDCanonicalBoundary/quoted
+=== RUN   TestValidIDCanonicalBoundary/braces
+=== RUN   TestValidIDCanonicalBoundary/urn
+=== RUN   TestValidIDCanonicalBoundary/encoded
+=== RUN   TestValidIDCanonicalBoundary/path
+--- PASS: TestValidIDCanonicalBoundary (0.00s)
+    --- PASS: TestValidIDCanonicalBoundary/empty (0.00s)
+    --- PASS: TestValidIDCanonicalBoundary/truncated (0.00s)
+    --- PASS: TestValidIDCanonicalBoundary/extended (0.00s)
+    --- PASS: TestValidIDCanonicalBoundary/uppercase (0.00s)
+    --- PASS: TestValidIDCanonicalBoundary/no_separators (0.00s)
+    --- PASS: TestValidIDCanonicalBoundary/wrong_separator (0.00s)
+    --- PASS: TestValidIDCanonicalBoundary/misplaced_separator (0.00s)
+    --- PASS: TestValidIDCanonicalBoundary/non_hex (0.00s)
+    --- PASS: TestValidIDCanonicalBoundary/unicode_lookalike_same_bytes (0.00s)
+    --- PASS: TestValidIDCanonicalBoundary/nul (0.00s)
+    --- PASS: TestValidIDCanonicalBoundary/leading_space (0.00s)
+    --- PASS: TestValidIDCanonicalBoundary/trailing_newline (0.00s)
+    --- PASS: TestValidIDCanonicalBoundary/quoted (0.00s)
+    --- PASS: TestValidIDCanonicalBoundary/braces (0.00s)
+    --- PASS: TestValidIDCanonicalBoundary/urn (0.00s)
+    --- PASS: TestValidIDCanonicalBoundary/encoded (0.00s)
+    --- PASS: TestValidIDCanonicalBoundary/path (0.00s)
+PASS
+ok  	github.com/MoYuanCN/Jelee/internal/domain	0.218s
+=== RUN   TestConfigurationFailsClosed
+=== RUN   TestConfigurationFailsClosed/missing
+=== RUN   TestConfigurationFailsClosed/sqlite
+=== RUN   TestConfigurationFailsClosed/malformed
+=== RUN   TestConfigurationFailsClosed/dev
+=== RUN   TestConfigurationFailsClosed/wild_host
+=== RUN   TestConfigurationFailsClosed/direct_rollout
+--- PASS: TestConfigurationFailsClosed (0.00s)
+    --- PASS: TestConfigurationFailsClosed/missing (0.00s)
+    --- PASS: TestConfigurationFailsClosed/sqlite (0.00s)
+    --- PASS: TestConfigurationFailsClosed/malformed (0.00s)
+    --- PASS: TestConfigurationFailsClosed/dev (0.00s)
+    --- PASS: TestConfigurationFailsClosed/wild_host (0.00s)
+    --- PASS: TestConfigurationFailsClosed/direct_rollout (0.00s)
+=== RUN   TestEnvironmentOverridesFileAndSecretsStayOutOfJSON
+--- PASS: TestEnvironmentOverridesFileAndSecretsStayOutOfJSON (0.00s)
+=== RUN   TestConfigurationSizeAndCredentialBoundaries
+--- PASS: TestConfigurationSizeAndCredentialBoundaries (0.02s)
+=== RUN   TestNumericAndRolloutEnvironmentValidation
+=== RUN   TestNumericAndRolloutEnvironmentValidation/JELEE_MAX_CONNECTIONS0
+=== RUN   TestNumericAndRolloutEnvironmentValidation/JELEE_MAX_CONNECTIONS129
+=== RUN   TestNumericAndRolloutEnvironmentValidation/JELEE_MAX_CONNECTIONSinvalid
+=== RUN   TestNumericAndRolloutEnvironmentValidation/JELEE_MAX_STREAMS0
+=== RUN   TestNumericAndRolloutEnvironmentValidation/JELEE_MAX_STREAMS129
+=== RUN   TestNumericAndRolloutEnvironmentValidation/JELEE_MAX_STREAMSinvalid
+=== RUN   TestNumericAndRolloutEnvironmentValidation/JELEE_ENABLE_CATALOGinvalid
+=== RUN   TestNumericAndRolloutEnvironmentValidation/JELEE_LISTENlocalhost:8097
+=== RUN   TestNumericAndRolloutEnvironmentValidation/JELEE_LISTEN127.0.0.1:0
+=== RUN   TestNumericAndRolloutEnvironmentValidation/JELEE_LISTEN127.0.0.1:65536
+=== RUN   TestNumericAndRolloutEnvironmentValidation/JELEE_ALLOWED_HOSTSlocalhost,evil/host
+--- PASS: TestNumericAndRolloutEnvironmentValidation (0.00s)
+    --- PASS: TestNumericAndRolloutEnvironmentValidation/JELEE_MAX_CONNECTIONS0 (0.00s)
+    --- PASS: TestNumericAndRolloutEnvironmentValidation/JELEE_MAX_CONNECTIONS129 (0.00s)
+    --- PASS: TestNumericAndRolloutEnvironmentValidation/JELEE_MAX_CONNECTIONSinvalid (0.00s)
+    --- PASS: TestNumericAndRolloutEnvironmentValidation/JELEE_MAX_STREAMS0 (0.00s)
+    --- PASS: TestNumericAndRolloutEnvironmentValidation/JELEE_MAX_STREAMS129 (0.00s)
+    --- PASS: TestNumericAndRolloutEnvironmentValidation/JELEE_MAX_STREAMSinvalid (0.00s)
+    --- PASS: TestNumericAndRolloutEnvironmentValidation/JELEE_ENABLE_CATALOGinvalid (0.00s)
+    --- PASS: TestNumericAndRolloutEnvironmentValidation/JELEE_LISTENlocalhost:8097 (0.00s)
+    --- PASS: TestNumericAndRolloutEnvironmentValidation/JELEE_LISTEN127.0.0.1:0 (0.00s)
+    --- PASS: TestNumericAndRolloutEnvironmentValidation/JELEE_LISTEN127.0.0.1:65536 (0.00s)
+    --- PASS: TestNumericAndRolloutEnvironmentValidation/JELEE_ALLOWED_HOSTSlocalhost,evil/host (0.00s)
+PASS
+ok  	github.com/MoYuanCN/Jelee/internal/platform/config	0.271s
+=== RUN   TestLocaleNegotiation
+=== RUN   TestLocaleNegotiation/#00
+=== RUN   TestLocaleNegotiation/__
+=== RUN   TestLocaleNegotiation/fr-FR
+=== RUN   TestLocaleNegotiation/zh-CN
+=== RUN   TestLocaleNegotiation/zh-TW
+=== RUN   TestLocaleNegotiation/ja-JP
+=== RUN   TestLocaleNegotiation/en-US
+=== RUN   TestLocaleNegotiation/zh-Hant
+=== RUN   TestLocaleNegotiation/zh-HK
+=== RUN   TestLocaleNegotiation/zh-Hans-SG
+=== RUN   TestLocaleNegotiation/zh
+=== RUN   TestLocaleNegotiation/ja
+=== RUN   TestLocaleNegotiation/en-GB
+=== RUN   TestLocaleNegotiation/ZH-tW
+=== RUN   TestLocaleNegotiation/en-US;q=0.4,ja-JP;q=0.9
+=== RUN   TestLocaleNegotiation/fr-FR;q=1,zh-TW;q=0.8
+=== RUN   TestLocaleNegotiation/ja;q=0.8,en;q=0.8
+=== RUN   TestLocaleNegotiation/en;q=0.8,ja;q=0.8
+=== RUN   TestLocaleNegotiation/ja;q=0,en;q=0.5
+=== RUN   TestLocaleNegotiation/*
+=== RUN   TestLocaleNegotiation/zh-CN;q=0,*;q=0.5
+=== RUN   TestLocaleNegotiation/*;q=0,ja-JP;q=0.5
+=== RUN   TestLocaleNegotiation/en-US;q=0,en;q=1,ja;q=0.4
+=== RUN   TestLocaleNegotiation/en;q=NaN,ja;q=0.5
+=== RUN   TestLocaleNegotiation/en;q=1.1,ja;q=0.5
+=== RUN   TestLocaleNegotiation/en;q=-1,ja;q=0.5
+=== RUN   TestLocaleNegotiation/en;q=0.0001,ja;q=0.5
+=== RUN   TestLocaleNegotiation/en;q=.9,ja;q=0.5
+=== RUN   TestLocaleNegotiation/invalid_@;q=1
+=== RUN   TestLocaleNegotiation/ja;q=0
+=== RUN   TestLocaleNegotiation/en;q=0.3;q=1,ja;q=0.5
+=== RUN   TestLocaleNegotiation/ja_;_Q_=_0.500,_en;q=0.4
+=== RUN   TestLocaleNegotiation/oversized_header
+--- PASS: TestLocaleNegotiation (0.00s)
+    --- PASS: TestLocaleNegotiation/#00 (0.00s)
+    --- PASS: TestLocaleNegotiation/__ (0.00s)
+    --- PASS: TestLocaleNegotiation/fr-FR (0.00s)
+    --- PASS: TestLocaleNegotiation/zh-CN (0.00s)
+    --- PASS: TestLocaleNegotiation/zh-TW (0.00s)
+    --- PASS: TestLocaleNegotiation/ja-JP (0.00s)
+    --- PASS: TestLocaleNegotiation/en-US (0.00s)
+    --- PASS: TestLocaleNegotiation/zh-Hant (0.00s)
+    --- PASS: TestLocaleNegotiation/zh-HK (0.00s)
+    --- PASS: TestLocaleNegotiation/zh-Hans-SG (0.00s)
+    --- PASS: TestLocaleNegotiation/zh (0.00s)
+    --- PASS: TestLocaleNegotiation/ja (0.00s)
+    --- PASS: TestLocaleNegotiation/en-GB (0.00s)
+    --- PASS: TestLocaleNegotiation/ZH-tW (0.00s)
+    --- PASS: TestLocaleNegotiation/en-US;q=0.4,ja-JP;q=0.9 (0.00s)
+    --- PASS: TestLocaleNegotiation/fr-FR;q=1,zh-TW;q=0.8 (0.00s)
+    --- PASS: TestLocaleNegotiation/ja;q=0.8,en;q=0.8 (0.00s)
+    --- PASS: TestLocaleNegotiation/en;q=0.8,ja;q=0.8 (0.00s)
+    --- PASS: TestLocaleNegotiation/ja;q=0,en;q=0.5 (0.00s)
+    --- PASS: TestLocaleNegotiation/* (0.00s)
+    --- PASS: TestLocaleNegotiation/zh-CN;q=0,*;q=0.5 (0.00s)
+    --- PASS: TestLocaleNegotiation/*;q=0,ja-JP;q=0.5 (0.00s)
+    --- PASS: TestLocaleNegotiation/en-US;q=0,en;q=1,ja;q=0.4 (0.00s)
+    --- PASS: TestLocaleNegotiation/en;q=NaN,ja;q=0.5 (0.00s)
+    --- PASS: TestLocaleNegotiation/en;q=1.1,ja;q=0.5 (0.00s)
+    --- PASS: TestLocaleNegotiation/en;q=-1,ja;q=0.5 (0.00s)
+    --- PASS: TestLocaleNegotiation/en;q=0.0001,ja;q=0.5 (0.00s)
+    --- PASS: TestLocaleNegotiation/en;q=.9,ja;q=0.5 (0.00s)
+    --- PASS: TestLocaleNegotiation/invalid_@;q=1 (0.00s)
+    --- PASS: TestLocaleNegotiation/ja;q=0 (0.00s)
+    --- PASS: TestLocaleNegotiation/en;q=0.3;q=1,ja;q=0.5 (0.00s)
+    --- PASS: TestLocaleNegotiation/ja_;_Q_=_0.500,_en;q=0.4 (0.00s)
+    --- PASS: TestLocaleNegotiation/oversized_header (0.00s)
+=== RUN   TestTranslationAndSafeFallback
+--- PASS: TestTranslationAndSafeFallback (0.00s)
+=== RUN   TestCatalogKeyAndPlaceholderParity
+--- PASS: TestCatalogKeyAndPlaceholderParity (0.00s)
+=== RUN   FuzzLocale
+=== RUN   FuzzLocale/seed#0
+=== RUN   FuzzLocale/seed#1
+=== RUN   FuzzLocale/seed#2
+=== RUN   FuzzLocale/seed#3
+--- PASS: FuzzLocale (0.00s)
+    --- PASS: FuzzLocale/seed#0 (0.00s)
+    --- PASS: FuzzLocale/seed#1 (0.00s)
+    --- PASS: FuzzLocale/seed#2 (0.00s)
+    --- PASS: FuzzLocale/seed#3 (0.00s)
+PASS
+ok  	github.com/MoYuanCN/Jelee/internal/platform/i18n	0.279s
+=== RUN   TestRedaction
+--- PASS: TestRedaction (0.10s)
+=== RUN   TestSafeMethodAllowsOnlyKnownVerbs
+--- PASS: TestSafeMethodAllowsOnlyKnownVerbs (0.00s)
+=== RUN   TestOperationalContextSurvivesRedaction
+--- PASS: TestOperationalContextSurvivesRedaction (0.00s)
+=== RUN   TestGroupedAttributesCannotExposeSensitiveValues
+--- PASS: TestGroupedAttributesCannotExposeSensitiveValues (0.00s)
+PASS
+ok  	github.com/MoYuanCN/Jelee/internal/platform/logging	0.356s
+?   	github.com/MoYuanCN/Jelee/internal/platform/runtime	[no test files]
+?   	github.com/MoYuanCN/Jelee/tools/brand-scan	[no test files]
+?   	github.com/MoYuanCN/Jelee/tools/gitignore-check	[no test files]
+
+TEST EXIT: 0
+
+Command: scripts/run-go.ps1 -C .testdata/committed-service build ./...
+BUILD EXIT: 0
+
+Summary: test PASS (exit 0), build PASS (exit 0).
+Explicit skips: two Windows symlink cases (missing privilege), PostgreSQL integration (unset by this check).
+Source archive SHA256: 72bf942730578e54025dfbeed6773dea219785483c614ab6b7115fd077886bb6
+Evidence privacy: host workspace prefix replaced with <workspace>; original skip reason preserved.

@@ -1,0 +1,1210 @@
+Source commit: f21d15668477bd5806e7e525149bfb373d9a68bd
+Full Go test suite; see explicit platform skips below.
+
+	github.com/MoYuanCN/Jelee/cmd/jelee		coverage: 0.0% of statements
+=== RUN   TestNFOValidateOriginalUnchangedAndSummaryPrivate
+--- PASS: TestNFOValidateOriginalUnchangedAndSummaryPrivate (0.04s)
+=== RUN   TestNFOValidateErrorsAndFindings
+=== RUN   TestNFOValidateErrorsAndFindings/invalid-value
+=== RUN   TestNFOValidateErrorsAndFindings/malformed
+=== RUN   TestNFOValidateErrorsAndFindings/external-entity
+--- PASS: TestNFOValidateErrorsAndFindings (0.07s)
+    --- PASS: TestNFOValidateErrorsAndFindings/invalid-value (0.01s)
+    --- PASS: TestNFOValidateErrorsAndFindings/malformed (0.01s)
+    --- PASS: TestNFOValidateErrorsAndFindings/external-entity (0.01s)
+=== RUN   TestNFOValidateUnknownRootPrivacy
+--- PASS: TestNFOValidateUnknownRootPrivacy (0.04s)
+=== RUN   TestNFOValidateUsageBoundsAndCancellation
+=== RUN   TestNFOValidateUsageBoundsAndCancellation/empty
+=== RUN   TestNFOValidateUsageBoundsAndCancellation/unknown-command
+=== RUN   TestNFOValidateUsageBoundsAndCancellation/missing-path
+=== RUN   TestNFOValidateUsageBoundsAndCancellation/unknown-flag
+=== RUN   TestNFOValidateUsageBoundsAndCancellation/extra-arg
+=== RUN   TestNFOValidateUsageBoundsAndCancellation/negative-limit
+=== RUN   TestNFOValidateUsageBoundsAndCancellation/excess-limit
+=== RUN   TestNFOValidateUsageBoundsAndCancellation/size-limit
+=== RUN   TestNFOValidateUsageBoundsAndCancellation/escape
+=== RUN   TestNFOValidateUsageBoundsAndCancellation/absent
+--- PASS: TestNFOValidateUsageBoundsAndCancellation (0.04s)
+    --- PASS: TestNFOValidateUsageBoundsAndCancellation/empty (0.00s)
+    --- PASS: TestNFOValidateUsageBoundsAndCancellation/unknown-command (0.00s)
+    --- PASS: TestNFOValidateUsageBoundsAndCancellation/missing-path (0.00s)
+    --- PASS: TestNFOValidateUsageBoundsAndCancellation/unknown-flag (0.00s)
+    --- PASS: TestNFOValidateUsageBoundsAndCancellation/extra-arg (0.00s)
+    --- PASS: TestNFOValidateUsageBoundsAndCancellation/negative-limit (0.00s)
+    --- PASS: TestNFOValidateUsageBoundsAndCancellation/excess-limit (0.00s)
+    --- PASS: TestNFOValidateUsageBoundsAndCancellation/size-limit (0.01s)
+    --- PASS: TestNFOValidateUsageBoundsAndCancellation/escape (0.00s)
+    --- PASS: TestNFOValidateUsageBoundsAndCancellation/absent (0.00s)
+=== RUN   TestNFOValidateOutputFailure
+--- PASS: TestNFOValidateOutputFailure (0.05s)
+=== RUN   TestNFOValidateCancelsUnreadOutputPipe
+--- PASS: TestNFOValidateCancelsUnreadOutputPipe (0.12s)
+PASS
+coverage: 40.5% of statements
+ok  	github.com/MoYuanCN/Jelee/cmd/jelee-cli	1.642s	coverage: 40.5% of statements
+	github.com/MoYuanCN/Jelee/cmd/jelee-migrate		coverage: 0.0% of statements
+=== RUN   TestPrincipalMustBeCompleteAndServerAssigned
+--- PASS: TestPrincipalMustBeCompleteAndServerAssigned (0.00s)
+PASS
+coverage: 100.0% of statements
+ok  	github.com/MoYuanCN/Jelee/internal/access	1.114s	coverage: 100.0% of statements
+=== RUN   TestPublicHTTPErrorCodesHaveTranslations
+--- PASS: TestPublicHTTPErrorCodesHaveTranslations (0.01s)
+=== RUN   TestConstructorRejectsInvalidConfigurationAndMissingDependencies
+=== RUN   TestConstructorRejectsInvalidConfigurationAndMissingDependencies/direct-without-catalog
+=== RUN   TestConstructorRejectsInvalidConfigurationAndMissingDependencies/missing-database
+=== RUN   TestConstructorRejectsInvalidConfigurationAndMissingDependencies/sqlite-database
+=== RUN   TestConstructorRejectsInvalidConfigurationAndMissingDependencies/unbounded-streams
+=== RUN   TestConstructorRejectsInvalidConfigurationAndMissingDependencies/unbounded-timeout
+=== RUN   TestConstructorRejectsInvalidConfigurationAndMissingDependencies/backend
+=== RUN   TestConstructorRejectsInvalidConfigurationAndMissingDependencies/catalog
+=== RUN   TestConstructorRejectsInvalidConfigurationAndMissingDependencies/resolver
+=== RUN   TestConstructorRejectsInvalidConfigurationAndMissingDependencies/logger
+--- PASS: TestConstructorRejectsInvalidConfigurationAndMissingDependencies (0.01s)
+    --- PASS: TestConstructorRejectsInvalidConfigurationAndMissingDependencies/direct-without-catalog (0.00s)
+    --- PASS: TestConstructorRejectsInvalidConfigurationAndMissingDependencies/missing-database (0.00s)
+    --- PASS: TestConstructorRejectsInvalidConfigurationAndMissingDependencies/sqlite-database (0.00s)
+    --- PASS: TestConstructorRejectsInvalidConfigurationAndMissingDependencies/unbounded-streams (0.00s)
+    --- PASS: TestConstructorRejectsInvalidConfigurationAndMissingDependencies/unbounded-timeout (0.00s)
+    --- PASS: TestConstructorRejectsInvalidConfigurationAndMissingDependencies/backend (0.00s)
+    --- PASS: TestConstructorRejectsInvalidConfigurationAndMissingDependencies/catalog (0.00s)
+    --- PASS: TestConstructorRejectsInvalidConfigurationAndMissingDependencies/resolver (0.00s)
+    --- PASS: TestConstructorRejectsInvalidConfigurationAndMissingDependencies/logger (0.00s)
+=== RUN   TestPublicHealthAndHostBoundary
+=== RUN   TestPublicHealthAndHostBoundary/localhost
+=== RUN   TestPublicHealthAndHostBoundary/LOCALHOST:8097
+=== RUN   TestPublicHealthAndHostBoundary/127.0.0.1:8097
+=== RUN   TestPublicHealthAndHostBoundary/[::1]:8097
+=== RUN   TestPublicHealthAndHostBoundary/reject/attacker.invalid
+=== RUN   TestPublicHealthAndHostBoundary/reject/localhost.attacker.invalid
+=== RUN   TestPublicHealthAndHostBoundary/reject/localhost@attacker.invalid
+=== RUN   TestPublicHealthAndHostBoundary/reject/localhost:notaport
+=== RUN   TestPublicHealthAndHostBoundary/reject/localhost:0
+=== RUN   TestPublicHealthAndHostBoundary/reject/localhost:65536
+=== RUN   TestPublicHealthAndHostBoundary/reject/[::1
+=== RUN   TestPublicHealthAndHostBoundary/reject/::1]
+=== RUN   TestPublicHealthAndHostBoundary/reject/localhost[
+=== RUN   TestPublicHealthAndHostBoundary/reject/[localhost]:8097
+=== RUN   TestPublicHealthAndHostBoundary/reject/localhost:+80
+=== RUN   TestPublicHealthAndHostBoundary/reject/[::1]:+80
+--- PASS: TestPublicHealthAndHostBoundary (0.02s)
+    --- PASS: TestPublicHealthAndHostBoundary/localhost (0.01s)
+    --- PASS: TestPublicHealthAndHostBoundary/LOCALHOST:8097 (0.00s)
+    --- PASS: TestPublicHealthAndHostBoundary/127.0.0.1:8097 (0.00s)
+    --- PASS: TestPublicHealthAndHostBoundary/[::1]:8097 (0.00s)
+    --- PASS: TestPublicHealthAndHostBoundary/reject/attacker.invalid (0.00s)
+    --- PASS: TestPublicHealthAndHostBoundary/reject/localhost.attacker.invalid (0.00s)
+    --- PASS: TestPublicHealthAndHostBoundary/reject/localhost@attacker.invalid (0.00s)
+    --- PASS: TestPublicHealthAndHostBoundary/reject/localhost:notaport (0.00s)
+    --- PASS: TestPublicHealthAndHostBoundary/reject/localhost:0 (0.00s)
+    --- PASS: TestPublicHealthAndHostBoundary/reject/localhost:65536 (0.00s)
+    --- PASS: TestPublicHealthAndHostBoundary/reject/[::1 (0.00s)
+    --- PASS: TestPublicHealthAndHostBoundary/reject/::1] (0.00s)
+    --- PASS: TestPublicHealthAndHostBoundary/reject/localhost[ (0.00s)
+    --- PASS: TestPublicHealthAndHostBoundary/reject/[localhost]:8097 (0.00s)
+    --- PASS: TestPublicHealthAndHostBoundary/reject/localhost:+80 (0.00s)
+    --- PASS: TestPublicHealthAndHostBoundary/reject/[::1]:+80 (0.00s)
+=== RUN   TestRolloutFlagsAndCapabilities
+=== RUN   TestRolloutFlagsAndCapabilities/catalog=false/direct=false
+=== RUN   TestRolloutFlagsAndCapabilities/catalog=true/direct=false
+=== RUN   TestRolloutFlagsAndCapabilities/catalog=true/direct=true
+--- PASS: TestRolloutFlagsAndCapabilities (0.00s)
+    --- PASS: TestRolloutFlagsAndCapabilities/catalog=false/direct=false (0.00s)
+    --- PASS: TestRolloutFlagsAndCapabilities/catalog=true/direct=false (0.00s)
+    --- PASS: TestRolloutFlagsAndCapabilities/catalog=true/direct=true (0.00s)
+=== RUN   TestAuthenticationAndStrictCatalogQueries
+=== RUN   TestAuthenticationAndStrictCatalogQueries/limit=0
+=== RUN   TestAuthenticationAndStrictCatalogQueries/limit=101
+=== RUN   TestAuthenticationAndStrictCatalogQueries/limit=-1
+=== RUN   TestAuthenticationAndStrictCatalogQueries/limit=abc
+=== RUN   TestAuthenticationAndStrictCatalogQueries/limit=1&limit=2
+=== RUN   TestAuthenticationAndStrictCatalogQueries/cursor=bad
+=== RUN   TestAuthenticationAndStrictCatalogQueries/cursor=AAAAAAAA-AAAA-4AAA-8AAA-AAAAAAAAAAAA
+=== RUN   TestAuthenticationAndStrictCatalogQueries/sort=title
+=== RUN   TestAuthenticationAndStrictCatalogQueries/filter%ZZ=one
+=== RUN   TestAuthenticationAndStrictCatalogQueries/limit=1;cursor=x
+--- PASS: TestAuthenticationAndStrictCatalogQueries (0.00s)
+    --- PASS: TestAuthenticationAndStrictCatalogQueries/limit=0 (0.00s)
+    --- PASS: TestAuthenticationAndStrictCatalogQueries/limit=101 (0.00s)
+    --- PASS: TestAuthenticationAndStrictCatalogQueries/limit=-1 (0.00s)
+    --- PASS: TestAuthenticationAndStrictCatalogQueries/limit=abc (0.00s)
+    --- PASS: TestAuthenticationAndStrictCatalogQueries/limit=1&limit=2 (0.00s)
+    --- PASS: TestAuthenticationAndStrictCatalogQueries/cursor=bad (0.00s)
+    --- PASS: TestAuthenticationAndStrictCatalogQueries/cursor=AAAAAAAA-AAAA-4AAA-8AAA-AAAAAAAAAAAA (0.00s)
+    --- PASS: TestAuthenticationAndStrictCatalogQueries/sort=title (0.00s)
+    --- PASS: TestAuthenticationAndStrictCatalogQueries/filter%ZZ=one (0.00s)
+    --- PASS: TestAuthenticationAndStrictCatalogQueries/limit=1;cursor=x (0.00s)
+=== RUN   TestErrorLanguageNegotiationAtHTTPBoundary
+=== RUN   TestErrorLanguageNegotiationAtHTTPBoundary/#00
+=== RUN   TestErrorLanguageNegotiationAtHTTPBoundary/zh-TW
+=== RUN   TestErrorLanguageNegotiationAtHTTPBoundary/ja-JP
+=== RUN   TestErrorLanguageNegotiationAtHTTPBoundary/en-US
+=== RUN   TestErrorLanguageNegotiationAtHTTPBoundary/fr-FR
+--- PASS: TestErrorLanguageNegotiationAtHTTPBoundary (0.00s)
+    --- PASS: TestErrorLanguageNegotiationAtHTTPBoundary/#00 (0.00s)
+    --- PASS: TestErrorLanguageNegotiationAtHTTPBoundary/zh-TW (0.00s)
+    --- PASS: TestErrorLanguageNegotiationAtHTTPBoundary/ja-JP (0.00s)
+    --- PASS: TestErrorLanguageNegotiationAtHTTPBoundary/en-US (0.00s)
+    --- PASS: TestErrorLanguageNegotiationAtHTTPBoundary/fr-FR (0.00s)
+=== RUN   TestItemVisibilityAndOpaqueFailures
+--- PASS: TestItemVisibilityAndOpaqueFailures (0.00s)
+=== RUN   TestReadinessDoesNotLeakDependencyErrors
+--- PASS: TestReadinessDoesNotLeakDependencyErrors (0.00s)
+=== RUN   TestTransformationRoutesAndParametersAreRejected
+--- PASS: TestTransformationRoutesAndParametersAreRejected (0.01s)
+=== RUN   TestWebCannotSpoofNativePlaybackAndNativeRangePreservesBytes
+--- PASS: TestWebCannotSpoofNativePlaybackAndNativeRangePreservesBytes (0.15s)
+=== RUN   TestCentralErrorMapping
+=== RUN   TestCentralErrorMapping/resource_not_found
+=== RUN   TestCentralErrorMapping/media_not_found
+=== RUN   TestCentralErrorMapping/authentication_required
+=== RUN   TestCentralErrorMapping/authentication_required#01
+=== RUN   TestCentralErrorMapping/invalid_input
+=== RUN   TestCentralErrorMapping/invalid_media_request
+=== RUN   TestCentralErrorMapping/web_playback_disabled
+=== RUN   TestCentralErrorMapping/transcode_disabled
+=== RUN   TestCentralErrorMapping/stream_limit_reached
+=== RUN   TestCentralErrorMapping/method_not_allowed
+=== RUN   TestCentralErrorMapping/media_lookup_timeout
+=== RUN   TestCentralErrorMapping/invalid_range
+=== RUN   TestCentralErrorMapping/precondition_failed
+=== RUN   TestCentralErrorMapping/request_too_large
+=== RUN   TestCentralErrorMapping/unsupported_media_type
+=== RUN   TestCentralErrorMapping/sensitive_internal_details
+--- PASS: TestCentralErrorMapping (0.00s)
+    --- PASS: TestCentralErrorMapping/resource_not_found (0.00s)
+    --- PASS: TestCentralErrorMapping/media_not_found (0.00s)
+    --- PASS: TestCentralErrorMapping/authentication_required (0.00s)
+    --- PASS: TestCentralErrorMapping/authentication_required#01 (0.00s)
+    --- PASS: TestCentralErrorMapping/invalid_input (0.00s)
+    --- PASS: TestCentralErrorMapping/invalid_media_request (0.00s)
+    --- PASS: TestCentralErrorMapping/web_playback_disabled (0.00s)
+    --- PASS: TestCentralErrorMapping/transcode_disabled (0.00s)
+    --- PASS: TestCentralErrorMapping/stream_limit_reached (0.00s)
+    --- PASS: TestCentralErrorMapping/method_not_allowed (0.00s)
+    --- PASS: TestCentralErrorMapping/media_lookup_timeout (0.00s)
+    --- PASS: TestCentralErrorMapping/invalid_range (0.00s)
+    --- PASS: TestCentralErrorMapping/precondition_failed (0.00s)
+    --- PASS: TestCentralErrorMapping/request_too_large (0.00s)
+    --- PASS: TestCentralErrorMapping/unsupported_media_type (0.00s)
+    --- PASS: TestCentralErrorMapping/sensitive_internal_details (0.00s)
+PASS
+coverage: 81.0% of statements
+ok  	github.com/MoYuanCN/Jelee/internal/adapter/http	1.662s	coverage: 81.0% of statements
+=== RUN   TestFIFOIsRejectedWithoutBlocking
+    direct_linux_test.go:24: test filesystem does not support named pipes; run on a native Linux filesystem to verify FIFO rejection
+--- SKIP: TestFIFOIsRejectedWithoutBlocking (0.06s)
+=== RUN   TestConcurrentSymlinkReplacementCannotEscapeRoot
+--- PASS: TestConcurrentSymlinkReplacementCannotEscapeRoot (1.03s)
+=== RUN   TestDirectDeliveryRangeAndSourceUnchanged
+=== RUN   TestDirectDeliveryRangeAndSourceUnchanged/complete
+=== RUN   TestDirectDeliveryRangeAndSourceUnchanged/head
+=== RUN   TestDirectDeliveryRangeAndSourceUnchanged/first
+=== RUN   TestDirectDeliveryRangeAndSourceUnchanged/suffix
+=== RUN   TestDirectDeliveryRangeAndSourceUnchanged/open_end
+=== RUN   TestDirectDeliveryRangeAndSourceUnchanged/etag_match
+=== RUN   TestDirectDeliveryRangeAndSourceUnchanged/etag_mismatch
+=== RUN   TestDirectDeliveryRangeAndSourceUnchanged/weak_etag
+=== RUN   TestDirectDeliveryRangeAndSourceUnchanged/date_match
+=== RUN   TestDirectDeliveryRangeAndSourceUnchanged/date_mismatch
+--- PASS: TestDirectDeliveryRangeAndSourceUnchanged (0.11s)
+    --- PASS: TestDirectDeliveryRangeAndSourceUnchanged/complete (0.01s)
+    --- PASS: TestDirectDeliveryRangeAndSourceUnchanged/head (0.00s)
+    --- PASS: TestDirectDeliveryRangeAndSourceUnchanged/first (0.00s)
+    --- PASS: TestDirectDeliveryRangeAndSourceUnchanged/suffix (0.00s)
+    --- PASS: TestDirectDeliveryRangeAndSourceUnchanged/open_end (0.00s)
+    --- PASS: TestDirectDeliveryRangeAndSourceUnchanged/etag_match (0.00s)
+    --- PASS: TestDirectDeliveryRangeAndSourceUnchanged/etag_mismatch (0.01s)
+    --- PASS: TestDirectDeliveryRangeAndSourceUnchanged/weak_etag (0.01s)
+    --- PASS: TestDirectDeliveryRangeAndSourceUnchanged/date_match (0.00s)
+    --- PASS: TestDirectDeliveryRangeAndSourceUnchanged/date_mismatch (0.01s)
+=== RUN   TestMultipartRange
+--- PASS: TestMultipartRange (0.03s)
+=== RUN   TestAuthorizationBeforeResolution
+=== RUN   TestAuthorizationBeforeResolution/anonymous
+=== RUN   TestAuthorizationBeforeResolution/web
+=== RUN   TestAuthorizationBeforeResolution/web_admin
+=== RUN   TestAuthorizationBeforeResolution/unknown
+--- PASS: TestAuthorizationBeforeResolution (0.00s)
+    --- PASS: TestAuthorizationBeforeResolution/anonymous (0.00s)
+    --- PASS: TestAuthorizationBeforeResolution/web (0.00s)
+    --- PASS: TestAuthorizationBeforeResolution/web_admin (0.00s)
+    --- PASS: TestAuthorizationBeforeResolution/unknown (0.00s)
+=== RUN   TestPathBoundariesAndNoDisclosure
+=== RUN   TestPathBoundariesAndNoDisclosure/#00
+=== RUN   TestPathBoundariesAndNoDisclosure/.
+=== RUN   TestPathBoundariesAndNoDisclosure/..
+=== RUN   TestPathBoundariesAndNoDisclosure/../secret
+=== RUN   TestPathBoundariesAndNoDisclosure/folder/../../secret
+=== RUN   TestPathBoundariesAndNoDisclosure//etc/passwd
+=== RUN   TestPathBoundariesAndNoDisclosure/C:\private
+=== RUN   TestPathBoundariesAndNoDisclosure/folder\file
+=== RUN   TestPathBoundariesAndNoDisclosure/original.mkv:alternate
+=== RUN   TestPathBoundariesAndNoDisclosure/original.mkv\x00
+=== RUN   TestPathBoundariesAndNoDisclosure/missing
+=== RUN   TestPathBoundariesAndNoDisclosure/folder/../original.mkv
+=== RUN   TestPathBoundariesAndNoDisclosure/directory
+=== RUN   TestPathBoundariesAndNoDisclosure/symlink_escape
+=== RUN   TestPathBoundariesAndNoDisclosure/directory_symlink_escape
+--- PASS: TestPathBoundariesAndNoDisclosure (0.07s)
+    --- PASS: TestPathBoundariesAndNoDisclosure/#00 (0.00s)
+    --- PASS: TestPathBoundariesAndNoDisclosure/. (0.00s)
+    --- PASS: TestPathBoundariesAndNoDisclosure/.. (0.00s)
+    --- PASS: TestPathBoundariesAndNoDisclosure/../secret (0.00s)
+    --- PASS: TestPathBoundariesAndNoDisclosure/folder/../../secret (0.00s)
+    --- PASS: TestPathBoundariesAndNoDisclosure//etc/passwd (0.00s)
+    --- PASS: TestPathBoundariesAndNoDisclosure/C:\private (0.00s)
+    --- PASS: TestPathBoundariesAndNoDisclosure/folder\file (0.00s)
+    --- PASS: TestPathBoundariesAndNoDisclosure/original.mkv:alternate (0.00s)
+    --- PASS: TestPathBoundariesAndNoDisclosure/original.mkv\x00 (0.00s)
+    --- PASS: TestPathBoundariesAndNoDisclosure/missing (0.00s)
+    --- PASS: TestPathBoundariesAndNoDisclosure/folder/../original.mkv (0.00s)
+    --- PASS: TestPathBoundariesAndNoDisclosure/directory (0.01s)
+    --- PASS: TestPathBoundariesAndNoDisclosure/symlink_escape (0.01s)
+    --- PASS: TestPathBoundariesAndNoDisclosure/directory_symlink_escape (0.01s)
+=== RUN   TestErrorsUseInjectedWriter
+--- PASS: TestErrorsUseInjectedWriter (0.05s)
+=== RUN   TestConcurrencyBudgetAndCancellation
+--- PASS: TestConcurrencyBudgetAndCancellation (0.04s)
+=== RUN   TestCancellationStopsStreamAndReleasesSlot
+--- PASS: TestCancellationStopsStreamAndReleasesSlot (0.04s)
+=== RUN   TestNewHandlerRejectsIncompleteConfiguration
+--- PASS: TestNewHandlerRejectsIncompleteConfiguration (0.00s)
+=== RUN   TestCancellationInterruptsBlockedNetworkWrite
+--- PASS: TestCancellationInterruptsBlockedNetworkWrite (0.04s)
+=== RUN   TestRangeBudgetRejectsAbuseBeforeLookup
+--- PASS: TestRangeBudgetRejectsAbuseBeforeLookup (0.00s)
+=== RUN   TestSourceLookupHasIndependentDeadline
+--- PASS: TestSourceLookupHasIndependentDeadline (0.00s)
+=== RUN   TestCancellationBetweenDeadlineRefreshAndWrite
+--- PASS: TestCancellationBetweenDeadlineRefreshAndWrite (0.03s)
+=== RUN   TestProductionGuardRejectsTransformations
+=== RUN   TestProductionGuardRejectsTransformations//Videos/id/master.m3u8
+=== RUN   TestProductionGuardRejectsTransformations//VIDEOS/id/STREAM.MPD
+=== RUN   TestProductionGuardRejectsTransformations//Videos/id/HLS/0.ts
+=== RUN   TestProductionGuardRejectsTransformations//Videos/id/HLS1/main/0.ts
+=== RUN   TestProductionGuardRejectsTransformations//Videos/id/dash/0
+=== RUN   TestProductionGuardRejectsTransformations//transcode/id
+=== RUN   TestProductionGuardRejectsTransformations//Videos/id/segments/1
+=== RUN   TestProductionGuardRejectsTransformations//Videos/id/%68%6Cs/0
+=== RUN   TestProductionGuardRejectsTransformations//Videos/id/%2568ls/0
+=== RUN   TestProductionGuardRejectsTransformations//Videos/id/hls%5C0.ts
+=== RUN   TestProductionGuardRejectsTransformations//Videos/id/chunk.m4s
+=== RUN   TestProductionGuardRejectsTransformations//stream?videoCodec=h264
+=== RUN   TestProductionGuardRejectsTransformations//stream?%76ideoCodec=copy
+=== RUN   TestProductionGuardRejectsTransformations//stream?AUDIOCODEC=copy
+=== RUN   TestProductionGuardRejectsTransformations//stream?maxVideoBitrate=0
+=== RUN   TestProductionGuardRejectsTransformations//stream?video_codec=copy
+=== RUN   TestProductionGuardRejectsTransformations//stream?SegmentLength=6
+=== RUN   TestProductionGuardRejectsTransformations//stream?HlsSegmentLength=5
+=== RUN   TestProductionGuardRejectsTransformations//stream?TranscodeReasons=codec
+=== RUN   TestProductionGuardRejectsTransformations//stream?protocol=HLS
+=== RUN   TestProductionGuardRejectsTransformations//stream?container=mpd
+=== RUN   TestProductionGuardRejectsTransformations//stream?Static=false
+=== RUN   TestProductionGuardRejectsTransformations//stream?EnableTranscoding=true
+=== RUN   TestProductionGuardRejectsTransformations//stream?AllowVideoStreamCopy=false
+=== RUN   TestProductionGuardRejectsTransformations//stream?SubtitleMethod=Encode
+=== RUN   TestProductionGuardRejectsTransformations//stream?width=1920
+=== RUN   TestProductionGuardRejectsTransformations//stream?DeviceProfile=%7B%22TranscodingProfiles%22%3A%5B%7B%22Type%22%3A%22Video%22%7D%5D%7D
+--- PASS: TestProductionGuardRejectsTransformations (0.01s)
+    --- PASS: TestProductionGuardRejectsTransformations//Videos/id/master.m3u8 (0.00s)
+    --- PASS: TestProductionGuardRejectsTransformations//VIDEOS/id/STREAM.MPD (0.00s)
+    --- PASS: TestProductionGuardRejectsTransformations//Videos/id/HLS/0.ts (0.00s)
+    --- PASS: TestProductionGuardRejectsTransformations//Videos/id/HLS1/main/0.ts (0.00s)
+    --- PASS: TestProductionGuardRejectsTransformations//Videos/id/dash/0 (0.00s)
+    --- PASS: TestProductionGuardRejectsTransformations//transcode/id (0.00s)
+    --- PASS: TestProductionGuardRejectsTransformations//Videos/id/segments/1 (0.00s)
+    --- PASS: TestProductionGuardRejectsTransformations//Videos/id/%68%6Cs/0 (0.00s)
+    --- PASS: TestProductionGuardRejectsTransformations//Videos/id/%2568ls/0 (0.00s)
+    --- PASS: TestProductionGuardRejectsTransformations//Videos/id/hls%5C0.ts (0.00s)
+    --- PASS: TestProductionGuardRejectsTransformations//Videos/id/chunk.m4s (0.00s)
+    --- PASS: TestProductionGuardRejectsTransformations//stream?videoCodec=h264 (0.00s)
+    --- PASS: TestProductionGuardRejectsTransformations//stream?%76ideoCodec=copy (0.00s)
+    --- PASS: TestProductionGuardRejectsTransformations//stream?AUDIOCODEC=copy (0.00s)
+    --- PASS: TestProductionGuardRejectsTransformations//stream?maxVideoBitrate=0 (0.00s)
+    --- PASS: TestProductionGuardRejectsTransformations//stream?video_codec=copy (0.00s)
+    --- PASS: TestProductionGuardRejectsTransformations//stream?SegmentLength=6 (0.00s)
+    --- PASS: TestProductionGuardRejectsTransformations//stream?HlsSegmentLength=5 (0.00s)
+    --- PASS: TestProductionGuardRejectsTransformations//stream?TranscodeReasons=codec (0.00s)
+    --- PASS: TestProductionGuardRejectsTransformations//stream?protocol=HLS (0.00s)
+    --- PASS: TestProductionGuardRejectsTransformations//stream?container=mpd (0.00s)
+    --- PASS: TestProductionGuardRejectsTransformations//stream?Static=false (0.00s)
+    --- PASS: TestProductionGuardRejectsTransformations//stream?EnableTranscoding=true (0.00s)
+    --- PASS: TestProductionGuardRejectsTransformations//stream?AllowVideoStreamCopy=false (0.00s)
+    --- PASS: TestProductionGuardRejectsTransformations//stream?SubtitleMethod=Encode (0.00s)
+    --- PASS: TestProductionGuardRejectsTransformations//stream?width=1920 (0.00s)
+    --- PASS: TestProductionGuardRejectsTransformations//stream?DeviceProfile=%7B%22TranscodingProfiles%22%3A%5B%7B%22Type%22%3A%22Video%22%7D%5D%7D (0.00s)
+=== RUN   TestProductionGuardInspectsFormAndJSON
+=== RUN   TestProductionGuardInspectsFormAndJSON/form
+=== RUN   TestProductionGuardInspectsFormAndJSON/encoded_form
+=== RUN   TestProductionGuardInspectsFormAndJSON/json
+=== RUN   TestProductionGuardInspectsFormAndJSON/nested
+=== RUN   TestProductionGuardInspectsFormAndJSON/nested_codec
+=== RUN   TestProductionGuardInspectsFormAndJSON/escaped_key
+=== RUN   TestProductionGuardInspectsFormAndJSON/duplicate_key
+=== RUN   TestProductionGuardInspectsFormAndJSON/duplicate_toggle
+=== RUN   TestProductionGuardInspectsFormAndJSON/burnin
+--- PASS: TestProductionGuardInspectsFormAndJSON (0.00s)
+    --- PASS: TestProductionGuardInspectsFormAndJSON/form (0.00s)
+    --- PASS: TestProductionGuardInspectsFormAndJSON/encoded_form (0.00s)
+    --- PASS: TestProductionGuardInspectsFormAndJSON/json (0.00s)
+    --- PASS: TestProductionGuardInspectsFormAndJSON/nested (0.00s)
+    --- PASS: TestProductionGuardInspectsFormAndJSON/nested_codec (0.00s)
+    --- PASS: TestProductionGuardInspectsFormAndJSON/escaped_key (0.00s)
+    --- PASS: TestProductionGuardInspectsFormAndJSON/duplicate_key (0.00s)
+    --- PASS: TestProductionGuardInspectsFormAndJSON/duplicate_toggle (0.00s)
+    --- PASS: TestProductionGuardInspectsFormAndJSON/burnin (0.00s)
+=== RUN   TestProductionGuardPreservesDirectRequests
+--- PASS: TestProductionGuardPreservesDirectRequests (0.00s)
+=== RUN   TestGuardRejectsInvalidOrUnboundedBodies
+=== RUN   TestGuardRejectsInvalidOrUnboundedBodies/malformed
+=== RUN   TestGuardRejectsInvalidOrUnboundedBodies/extra_document
+=== RUN   TestGuardRejectsInvalidOrUnboundedBodies/depth
+=== RUN   TestGuardRejectsInvalidOrUnboundedBodies/size
+=== RUN   TestGuardRejectsInvalidOrUnboundedBodies/untyped
+=== RUN   TestGuardRejectsInvalidOrUnboundedBodies/multipart
+--- PASS: TestGuardRejectsInvalidOrUnboundedBodies (0.00s)
+    --- PASS: TestGuardRejectsInvalidOrUnboundedBodies/malformed (0.00s)
+    --- PASS: TestGuardRejectsInvalidOrUnboundedBodies/extra_document (0.00s)
+    --- PASS: TestGuardRejectsInvalidOrUnboundedBodies/depth (0.00s)
+    --- PASS: TestGuardRejectsInvalidOrUnboundedBodies/size (0.00s)
+    --- PASS: TestGuardRejectsInvalidOrUnboundedBodies/untyped (0.00s)
+    --- PASS: TestGuardRejectsInvalidOrUnboundedBodies/multipart (0.00s)
+=== RUN   TestRouteGuardDoesNotTreatMetadataValuesAsTranscode
+--- PASS: TestRouteGuardDoesNotTreatMetadataValuesAsTranscode (0.00s)
+=== RUN   FuzzProductionGuard
+=== RUN   FuzzProductionGuard/seed#0
+=== RUN   FuzzProductionGuard/seed#1
+=== RUN   FuzzProductionGuard/seed#2
+=== RUN   FuzzProductionGuard/seed#3
+--- PASS: FuzzProductionGuard (0.01s)
+    --- PASS: FuzzProductionGuard/seed#0 (0.00s)
+    --- PASS: FuzzProductionGuard/seed#1 (0.00s)
+    --- PASS: FuzzProductionGuard/seed#2 (0.00s)
+    --- PASS: FuzzProductionGuard/seed#3 (0.00s)
+PASS
+coverage: 86.5% of statements
+ok  	github.com/MoYuanCN/Jelee/internal/adapter/media	2.755s	coverage: 86.5% of statements
+=== RUN   TestReadFileRejectsFIFOWithoutBlocking
+    file_linux_test.go:20: test filesystem does not support named pipes; native Linux filesystem verification required
+--- SKIP: TestReadFileRejectsFIFOWithoutBlocking (0.03s)
+=== RUN   TestReadFileResistsSymlinkReplacement
+--- PASS: TestReadFileResistsSymlinkReplacement (1.03s)
+=== RUN   TestGoldenMovieMapsFieldsAndRetainsOriginalBytes
+--- PASS: TestGoldenMovieMapsFieldsAndRetainsOriginalBytes (0.00s)
+=== RUN   TestSeriesSeasonEpisodeAndWrappers
+=== RUN   TestSeriesSeasonEpisodeAndWrappers/series
+=== RUN   TestSeriesSeasonEpisodeAndWrappers/season
+=== RUN   TestSeriesSeasonEpisodeAndWrappers/episode
+=== RUN   TestSeriesSeasonEpisodeAndWrappers/episode_details
+=== RUN   TestSeriesSeasonEpisodeAndWrappers/multi_episode
+=== RUN   TestSeriesSeasonEpisodeAndWrappers/root_wrapper
+=== RUN   TestSeriesSeasonEpisodeAndWrappers/item_wrapper
+=== RUN   TestSeriesSeasonEpisodeAndWrappers/nested_wrapper
+--- PASS: TestSeriesSeasonEpisodeAndWrappers (0.00s)
+    --- PASS: TestSeriesSeasonEpisodeAndWrappers/series (0.00s)
+    --- PASS: TestSeriesSeasonEpisodeAndWrappers/season (0.00s)
+    --- PASS: TestSeriesSeasonEpisodeAndWrappers/episode (0.00s)
+    --- PASS: TestSeriesSeasonEpisodeAndWrappers/episode_details (0.00s)
+    --- PASS: TestSeriesSeasonEpisodeAndWrappers/multi_episode (0.00s)
+    --- PASS: TestSeriesSeasonEpisodeAndWrappers/root_wrapper (0.00s)
+    --- PASS: TestSeriesSeasonEpisodeAndWrappers/item_wrapper (0.00s)
+    --- PASS: TestSeriesSeasonEpisodeAndWrappers/nested_wrapper (0.00s)
+=== RUN   TestUnknownAndAmbiguousRootsProduceWarnings
+--- PASS: TestUnknownAndAmbiguousRootsProduceWarnings (0.00s)
+=== RUN   TestEncodingsPreserveBytesAndText
+=== RUN   TestEncodingsPreserveBytesAndText/utf16le
+=== RUN   TestEncodingsPreserveBytesAndText/utf16be
+=== RUN   TestEncodingsPreserveBytesAndText/utf16_no_bom
+=== RUN   TestEncodingsPreserveBytesAndText/gbk
+=== RUN   TestEncodingsPreserveBytesAndText/gbk_guessed
+--- PASS: TestEncodingsPreserveBytesAndText (0.00s)
+    --- PASS: TestEncodingsPreserveBytesAndText/utf16le (0.00s)
+    --- PASS: TestEncodingsPreserveBytesAndText/utf16be (0.00s)
+    --- PASS: TestEncodingsPreserveBytesAndText/utf16_no_bom (0.00s)
+    --- PASS: TestEncodingsPreserveBytesAndText/gbk (0.00s)
+    --- PASS: TestEncodingsPreserveBytesAndText/gbk_guessed (0.00s)
+=== RUN   TestInvalidAndUnsafeXMLIsRejected
+=== RUN   TestInvalidAndUnsafeXMLIsRejected/empty
+=== RUN   TestInvalidAndUnsafeXMLIsRejected/unclosed
+=== RUN   TestInvalidAndUnsafeXMLIsRejected/unknown_entity
+=== RUN   TestInvalidAndUnsafeXMLIsRejected/external_entity
+=== RUN   TestInvalidAndUnsafeXMLIsRejected/entity_bomb
+=== RUN   TestInvalidAndUnsafeXMLIsRejected/stylesheet
+=== RUN   TestInvalidAndUnsafeXMLIsRejected/duplicate_attribute
+=== RUN   TestInvalidAndUnsafeXMLIsRejected/trailing_text
+=== RUN   TestInvalidAndUnsafeXMLIsRejected/multiple_movies
+=== RUN   TestInvalidAndUnsafeXMLIsRejected/invalid_utf8_declared
+=== RUN   TestInvalidAndUnsafeXMLIsRejected/unsupported_encoding
+=== RUN   TestInvalidAndUnsafeXMLIsRejected/invalid_gbk
+=== RUN   TestInvalidAndUnsafeXMLIsRejected/utf16_odd
+=== RUN   TestInvalidAndUnsafeXMLIsRejected/utf16_unpaired
+=== RUN   TestInvalidAndUnsafeXMLIsRejected/encoding_mismatch
+=== RUN   TestInvalidAndUnsafeXMLIsRejected/long_utf16_mismatch
+=== RUN   TestInvalidAndUnsafeXMLIsRejected/bom_long_gbk_mismatch
+=== RUN   TestInvalidAndUnsafeXMLIsRejected/bom_short_gbk_mismatch
+=== RUN   TestInvalidAndUnsafeXMLIsRejected/duplicate_declaration
+=== RUN   TestInvalidAndUnsafeXMLIsRejected/malformed_declaration
+=== RUN   TestInvalidAndUnsafeXMLIsRejected/depth
+=== RUN   TestInvalidAndUnsafeXMLIsRejected/elements
+=== RUN   TestInvalidAndUnsafeXMLIsRejected/entries
+--- PASS: TestInvalidAndUnsafeXMLIsRejected (0.25s)
+    --- PASS: TestInvalidAndUnsafeXMLIsRejected/empty (0.00s)
+    --- PASS: TestInvalidAndUnsafeXMLIsRejected/unclosed (0.00s)
+    --- PASS: TestInvalidAndUnsafeXMLIsRejected/unknown_entity (0.00s)
+    --- PASS: TestInvalidAndUnsafeXMLIsRejected/external_entity (0.00s)
+    --- PASS: TestInvalidAndUnsafeXMLIsRejected/entity_bomb (0.00s)
+    --- PASS: TestInvalidAndUnsafeXMLIsRejected/stylesheet (0.00s)
+    --- PASS: TestInvalidAndUnsafeXMLIsRejected/duplicate_attribute (0.00s)
+    --- PASS: TestInvalidAndUnsafeXMLIsRejected/trailing_text (0.00s)
+    --- PASS: TestInvalidAndUnsafeXMLIsRejected/multiple_movies (0.00s)
+    --- PASS: TestInvalidAndUnsafeXMLIsRejected/invalid_utf8_declared (0.00s)
+    --- PASS: TestInvalidAndUnsafeXMLIsRejected/unsupported_encoding (0.00s)
+    --- PASS: TestInvalidAndUnsafeXMLIsRejected/invalid_gbk (0.00s)
+    --- PASS: TestInvalidAndUnsafeXMLIsRejected/utf16_odd (0.00s)
+    --- PASS: TestInvalidAndUnsafeXMLIsRejected/utf16_unpaired (0.00s)
+    --- PASS: TestInvalidAndUnsafeXMLIsRejected/encoding_mismatch (0.00s)
+    --- PASS: TestInvalidAndUnsafeXMLIsRejected/long_utf16_mismatch (0.00s)
+    --- PASS: TestInvalidAndUnsafeXMLIsRejected/bom_long_gbk_mismatch (0.00s)
+    --- PASS: TestInvalidAndUnsafeXMLIsRejected/bom_short_gbk_mismatch (0.00s)
+    --- PASS: TestInvalidAndUnsafeXMLIsRejected/duplicate_declaration (0.00s)
+    --- PASS: TestInvalidAndUnsafeXMLIsRejected/malformed_declaration (0.00s)
+    --- PASS: TestInvalidAndUnsafeXMLIsRejected/depth (0.00s)
+    --- PASS: TestInvalidAndUnsafeXMLIsRejected/elements (0.24s)
+    --- PASS: TestInvalidAndUnsafeXMLIsRejected/entries (0.00s)
+=== RUN   TestSemanticValidationReportsInvalidFieldsWithoutRewriting
+--- PASS: TestSemanticValidationReportsInvalidFieldsWithoutRewriting (0.00s)
+=== RUN   TestReaderSizeAndCancellationBounds
+--- PASS: TestReaderSizeAndCancellationBounds (0.00s)
+=== RUN   TestOriginalCopyReportsFailuresAndCancellation
+--- PASS: TestOriginalCopyReportsFailuresAndCancellation (0.00s)
+=== RUN   TestArtworkReferencesNeverTriggerNetworkRequests
+--- PASS: TestArtworkReferencesNeverTriggerNetworkRequests (0.02s)
+=== RUN   TestReadFileBoundaryAndOriginalProtection
+=== RUN   TestReadFileBoundaryAndOriginalProtection/symlink_escape
+--- PASS: TestReadFileBoundaryAndOriginalProtection (0.06s)
+    --- PASS: TestReadFileBoundaryAndOriginalProtection/symlink_escape (0.02s)
+=== RUN   TestNFOFilenameRecognitionAndMixedText
+--- PASS: TestNFOFilenameRecognitionAndMixedText (0.00s)
+=== RUN   FuzzReadRetainsAcceptedOriginal
+=== RUN   FuzzReadRetainsAcceptedOriginal/seed#0
+=== RUN   FuzzReadRetainsAcceptedOriginal/seed#1
+=== RUN   FuzzReadRetainsAcceptedOriginal/seed#2
+=== RUN   FuzzReadRetainsAcceptedOriginal/seed#3
+=== RUN   FuzzReadRetainsAcceptedOriginal/seed#4
+--- PASS: FuzzReadRetainsAcceptedOriginal (0.00s)
+    --- PASS: FuzzReadRetainsAcceptedOriginal/seed#0 (0.00s)
+    --- PASS: FuzzReadRetainsAcceptedOriginal/seed#1 (0.00s)
+    --- PASS: FuzzReadRetainsAcceptedOriginal/seed#2 (0.00s)
+    --- PASS: FuzzReadRetainsAcceptedOriginal/seed#3 (0.00s)
+    --- PASS: FuzzReadRetainsAcceptedOriginal/seed#4 (0.00s)
+PASS
+coverage: 89.8% of statements
+ok  	github.com/MoYuanCN/Jelee/internal/adapter/nfo	2.974s	coverage: 89.8% of statements
+=== RUN   TestPostgresIntegration
+    store_integration_test.go:69: PostgreSQL integration RUNNING: dedicated jelee_test database, isolated schema jelee_it_b81f60c6c5b68c6e4080
+=== RUN   TestPostgresIntegration/migration_lock_contention_is_bounded
+    store_integration_test.go:125: contended migration returned after 5.012179097s; server-side timeout bounds the driver's non-cancelable setup
+=== RUN   TestPostgresIntegration/credentials_are_hashed_and_lifecycle_enforced
+=== RUN   TestPostgresIntegration/ACL_filters_lists_details_and_streams_in_SQL
+=== RUN   TestPostgresIntegration/constraints_and_failed_imports_are_atomic
+=== RUN   TestPostgresIntegration/ten_thousand_items_plan_and_bounded_visible_page
+    store_integration_test.go:298: restricted-user execution visited 1 item rows; hidden-library scan regression baseline was 10,002
+    store_integration_test.go:299: 10,002-row ACL query plan (single sample; no P95 or performance acceptance claimed): [
+          {
+            "Plan": {
+              "Node Type": "Limit",
+              "Parallel Aware": false,
+              "Async Capable": false,
+              "Startup Cost": 88.79,
+              "Total Cost": 88.91,
+              "Plan Rows": 50,
+              "Plan Width": 84,
+              "Actual Startup Time": 0.030,
+              "Actual Total Time": 0.031,
+              "Actual Rows": 1,
+              "Actual Loops": 1,
+              "Shared Hit Blocks": 7,
+              "Shared Read Blocks": 0,
+              "Shared Dirtied Blocks": 0,
+              "Shared Written Blocks": 0,
+              "Local Hit Blocks": 0,
+              "Local Read Blocks": 0,
+              "Local Dirtied Blocks": 0,
+              "Local Written Blocks": 0,
+              "Temp Read Blocks": 0,
+              "Temp Written Blocks": 0,
+              "Plans": [
+                {
+                  "Node Type": "Index Scan",
+                  "Parent Relationship": "InitPlan",
+                  "Subplan Name": "CTE principal",
+                  "Parallel Aware": false,
+                  "Async Capable": false,
+                  "Scan Direction": "Forward",
+                  "Index Name": "users_pkey",
+                  "Relation Name": "users",
+                  "Alias": "users",
+                  "Startup Cost": 0.15,
+                  "Total Cost": 8.17,
+                  "Plan Rows": 1,
+                  "Plan Width": 17,
+                  "Actual Startup Time": 0.007,
+                  "Actual Total Time": 0.007,
+                  "Actual Rows": 1,
+                  "Actual Loops": 1,
+                  "Index Cond": "(id = '38ca2f1c-d531-41c2-9ad4-9b5f4cf7d069'::uuid)",
+                  "Rows Removed by Index Recheck": 0,
+                  "Filter": "(NOT disabled)",
+                  "Rows Removed by Filter": 0,
+                  "Shared Hit Blocks": 2,
+                  "Shared Read Blocks": 0,
+                  "Shared Dirtied Blocks": 0,
+                  "Shared Written Blocks": 0,
+                  "Local Hit Blocks": 0,
+                  "Local Read Blocks": 0,
+                  "Local Dirtied Blocks": 0,
+                  "Local Written Blocks": 0,
+                  "Temp Read Blocks": 0,
+                  "Temp Written Blocks": 0
+                },
+                {
+                  "Node Type": "Sort",
+                  "Parent Relationship": "Outer",
+                  "Parallel Aware": false,
+                  "Async Capable": false,
+                  "Startup Cost": 80.62,
+                  "Total Cost": 81.62,
+                  "Plan Rows": 400,
+                  "Plan Width": 84,
+                  "Actual Startup Time": 0.029,
+                  "Actual Total Time": 0.030,
+                  "Actual Rows": 1,
+                  "Actual Loops": 1,
+                  "Sort Key": ["((items.id)::text)"],
+                  "Sort Method": "quicksort",
+                  "Sort Space Used": 25,
+                  "Sort Space Type": "Memory",
+                  "Shared Hit Blocks": 7,
+                  "Shared Read Blocks": 0,
+                  "Shared Dirtied Blocks": 0,
+                  "Shared Written Blocks": 0,
+                  "Local Hit Blocks": 0,
+                  "Local Read Blocks": 0,
+                  "Local Dirtied Blocks": 0,
+                  "Local Written Blocks": 0,
+                  "Temp Read Blocks": 0,
+                  "Temp Written Blocks": 0,
+                  "Plans": [
+                    {
+                      "Node Type": "Result",
+                      "Parent Relationship": "Outer",
+                      "Parallel Aware": false,
+                      "Async Capable": false,
+                      "Startup Cost": 4.49,
+                      "Total Cost": 67.33,
+                      "Plan Rows": 400,
+                      "Plan Width": 84,
+                      "Actual Startup Time": 0.022,
+                      "Actual Total Time": 0.025,
+                      "Actual Rows": 1,
+                      "Actual Loops": 1,
+                      "Shared Hit Blocks": 7,
+                      "Shared Read Blocks": 0,
+                      "Shared Dirtied Blocks": 0,
+                      "Shared Written Blocks": 0,
+                      "Local Hit Blocks": 0,
+                      "Local Read Blocks": 0,
+                      "Local Dirtied Blocks": 0,
+                      "Local Written Blocks": 0,
+                      "Temp Read Blocks": 0,
+                      "Temp Written Blocks": 0,
+                      "Plans": [
+                        {
+                          "Node Type": "Append",
+                          "Parent Relationship": "Outer",
+                          "Parallel Aware": false,
+                          "Async Capable": false,
+                          "Startup Cost": 4.49,
+                          "Total Cost": 59.33,
+                          "Plan Rows": 400,
+                          "Plan Width": 52,
+                          "Actual Startup Time": 0.021,
+                          "Actual Total Time": 0.024,
+                          "Actual Rows": 1,
+                          "Actual Loops": 1,
+                          "Shared Hit Blocks": 7,
+                          "Shared Read Blocks": 0,
+                          "Shared Dirtied Blocks": 0,
+                          "Shared Written Blocks": 0,
+                          "Local Hit Blocks": 0,
+                          "Local Read Blocks": 0,
+                          "Local Dirtied Blocks": 0,
+                          "Local Written Blocks": 0,
+                          "Temp Read Blocks": 0,
+                          "Temp Written Blocks": 0,
+                          "Subplans Removed": 0,
+                          "Plans": [
+                            {
+                              "Node Type": "Nested Loop",
+                              "Parent Relationship": "Member",
+                              "Parallel Aware": false,
+                              "Async Capable": false,
+                              "Join Type": "Inner",
+                              "Startup Cost": 4.49,
+                              "Total Cost": 52.49,
+                              "Plan Rows": 350,
+                              "Plan Width": 52,
+                              "Actual Startup Time": 0.021,
+                              "Actual Total Time": 0.023,
+                              "Actual Rows": 1,
+                              "Actual Loops": 1,
+                              "Inner Unique": false,
+                              "Shared Hit Blocks": 7,
+                              "Shared Read Blocks": 0,
+                              "Shared Dirtied Blocks": 0,
+                              "Shared Written Blocks": 0,
+                              "Local Hit Blocks": 0,
+                              "Local Read Blocks": 0,
+                              "Local Dirtied Blocks": 0,
+                              "Local Written Blocks": 0,
+                              "Temp Read Blocks": 0,
+                              "Temp Written Blocks": 0,
+                              "Plans": [
+                                {
+                                  "Node Type": "Nested Loop",
+                                  "Parent Relationship": "Outer",
+                                  "Parallel Aware": false,
+                                  "Async Capable": false,
+                                  "Join Type": "Inner",
+                                  "Startup Cost": 4.21,
+                                  "Total Cost": 14.44,
+                                  "Plan Rows": 7,
+                                  "Plan Width": 16,
+                                  "Actual Startup Time": 0.011,
+                                  "Actual Total Time": 0.011,
+                                  "Actual Rows": 1,
+                                  "Actual Loops": 1,
+                                  "Inner Unique": false,
+                                  "Shared Hit Blocks": 4,
+                                  "Shared Read Blocks": 0,
+                                  "Shared Dirtied Blocks": 0,
+                                  "Shared Written Blocks": 0,
+                                  "Local Hit Blocks": 0,
+                                  "Local Read Blocks": 0,
+                                  "Local Dirtied Blocks": 0,
+                                  "Local Written Blocks": 0,
+                                  "Temp Read Blocks": 0,
+                                  "Temp Written Blocks": 0,
+                                  "Plans": [
+                                    {
+                                      "Node Type": "CTE Scan",
+                                      "Parent Relationship": "Outer",
+                                      "Parallel Aware": false,
+                                      "Async Capable": false,
+                                      "CTE Name": "principal",
+                                      "Alias": "u",
+                                      "Startup Cost": 0.00,
+                                      "Total Cost": 0.02,
+                                      "Plan Rows": 1,
+                                      "Plan Width": 16,
+                                      "Actual Startup Time": 0.008,
+                                      "Actual Total Time": 0.008,
+                                      "Actual Rows": 1,
+                                      "Actual Loops": 1,
+                                      "Filter": "(NOT is_admin)",
+                                      "Rows Removed by Filter": 0,
+                                      "Shared Hit Blocks": 2,
+                                      "Shared Read Blocks": 0,
+                                      "Shared Dirtied Blocks": 0,
+                                      "Shared Written Blocks": 0,
+                                      "Local Hit Blocks": 0,
+                                      "Local Read Blocks": 0,
+                                      "Local Dirtied Blocks": 0,
+                                      "Local Written Blocks": 0,
+                                      "Temp Read Blocks": 0,
+                                      "Temp Written Blocks": 0
+                                    },
+                                    {
+                                      "Node Type": "Bitmap Heap Scan",
+                                      "Parent Relationship": "Inner",
+                                      "Parallel Aware": false,
+                                      "Async Capable": false,
+                                      "Relation Name": "library_acl",
+                                      "Alias": "a",
+                                      "Startup Cost": 4.21,
+                                      "Total Cost": 14.35,
+                                      "Plan Rows": 7,
+                                      "Plan Width": 32,
+                                      "Actual Startup Time": 0.002,
+                                      "Actual Total Time": 0.002,
+                                      "Actual Rows": 1,
+                                      "Actual Loops": 1,
+                                      "Recheck Cond": "(user_id = u.id)",
+                                      "Rows Removed by Index Recheck": 0,
+                                      "Exact Heap Blocks": 1,
+                                      "Lossy Heap Blocks": 0,
+                                      "Shared Hit Blocks": 2,
+                                      "Shared Read Blocks": 0,
+                                      "Shared Dirtied Blocks": 0,
+                                      "Shared Written Blocks": 0,
+                                      "Local Hit Blocks": 0,
+                                      "Local Read Blocks": 0,
+                                      "Local Dirtied Blocks": 0,
+                                      "Local Written Blocks": 0,
+                                      "Temp Read Blocks": 0,
+                                      "Temp Written Blocks": 0,
+                                      "Plans": [
+                                        {
+                                          "Node Type": "Bitmap Index Scan",
+                                          "Parent Relationship": "Outer",
+                                          "Parallel Aware": false,
+                                          "Async Capable": false,
+                                          "Index Name": "library_acl_pkey",
+                                          "Startup Cost": 0.00,
+                                          "Total Cost": 4.21,
+                                          "Plan Rows": 7,
+                                          "Plan Width": 0,
+                                          "Actual Startup Time": 0.001,
+                                          "Actual Total Time": 0.001,
+                                          "Actual Rows": 1,
+                                          "Actual Loops": 1,
+                                          "Index Cond": "(user_id = u.id)",
+                                          "Shared Hit Blocks": 1,
+                                          "Shared Read Blocks": 0,
+                                          "Shared Dirtied Blocks": 0,
+                                          "Shared Written Blocks": 0,
+                                          "Local Hit Blocks": 0,
+                                          "Local Read Blocks": 0,
+                                          "Local Dirtied Blocks": 0,
+                                          "Local Written Blocks": 0,
+                                          "Temp Read Blocks": 0,
+                                          "Temp Written Blocks": 0
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                },
+                                {
+                                  "Node Type": "Limit",
+                                  "Parent Relationship": "Inner",
+                                  "Parallel Aware": false,
+                                  "Async Capable": false,
+                                  "Startup Cost": 0.29,
+                                  "Total Cost": 4.94,
+                                  "Plan Rows": 50,
+                                  "Plan Width": 52,
+                                  "Actual Startup Time": 0.010,
+                                  "Actual Total Time": 0.010,
+                                  "Actual Rows": 1,
+                                  "Actual Loops": 1,
+                                  "Shared Hit Blocks": 3,
+                                  "Shared Read Blocks": 0,
+                                  "Shared Dirtied Blocks": 0,
+                                  "Shared Written Blocks": 0,
+                                  "Local Hit Blocks": 0,
+                                  "Local Read Blocks": 0,
+                                  "Local Dirtied Blocks": 0,
+                                  "Local Written Blocks": 0,
+                                  "Temp Read Blocks": 0,
+                                  "Temp Written Blocks": 0,
+                                  "Plans": [
+                                    {
+                                      "Node Type": "Index Scan",
+                                      "Parent Relationship": "Outer",
+                                      "Parallel Aware": false,
+                                      "Async Capable": false,
+                                      "Scan Direction": "Forward",
+                                      "Index Name": "items_library_id_idx",
+                                      "Relation Name": "items",
+                                      "Alias": "items",
+                                      "Startup Cost": 0.29,
+                                      "Total Cost": 465.49,
+                                      "Plan Rows": 5001,
+                                      "Plan Width": 52,
+                                      "Actual Startup Time": 0.010,
+                                      "Actual Total Time": 0.010,
+                                      "Actual Rows": 1,
+                                      "Actual Loops": 1,
+                                      "Index Cond": "((library_id = a.library_id) AND (id > '00000000-0000-0000-0000-000000000000'::uuid))",
+                                      "Rows Removed by Index Recheck": 0,
+                                      "Shared Hit Blocks": 3,
+                                      "Shared Read Blocks": 0,
+                                      "Shared Dirtied Blocks": 0,
+                                      "Shared Written Blocks": 0,
+                                      "Local Hit Blocks": 0,
+                                      "Local Read Blocks": 0,
+                                      "Local Dirtied Blocks": 0,
+                                      "Local Written Blocks": 0,
+                                      "Temp Read Blocks": 0,
+                                      "Temp Written Blocks": 0
+                                    }
+                                  ]
+                                }
+                              ]
+                            },
+                            {
+                              "Node Type": "Nested Loop",
+                              "Parent Relationship": "Member",
+                              "Parallel Aware": false,
+                              "Async Capable": false,
+                              "Join Type": "Inner",
+                              "Startup Cost": 0.29,
+                              "Total Cost": 4.84,
+                              "Plan Rows": 50,
+                              "Plan Width": 52,
+                              "Actual Startup Time": 0.001,
+                              "Actual Total Time": 0.001,
+                              "Actual Rows": 0,
+                              "Actual Loops": 1,
+                              "Inner Unique": false,
+                              "Shared Hit Blocks": 0,
+                              "Shared Read Blocks": 0,
+                              "Shared Dirtied Blocks": 0,
+                              "Shared Written Blocks": 0,
+                              "Local Hit Blocks": 0,
+                              "Local Read Blocks": 0,
+                              "Local Dirtied Blocks": 0,
+                              "Local Written Blocks": 0,
+                              "Temp Read Blocks": 0,
+                              "Temp Written Blocks": 0,
+                              "Plans": [
+                                {
+                                  "Node Type": "CTE Scan",
+                                  "Parent Relationship": "Outer",
+                                  "Parallel Aware": false,
+                                  "Async Capable": false,
+                                  "CTE Name": "principal",
+                                  "Alias": "u_1",
+                                  "Startup Cost": 0.00,
+                                  "Total Cost": 0.02,
+                                  "Plan Rows": 1,
+                                  "Plan Width": 0,
+                                  "Actual Startup Time": 0.001,
+                                  "Actual Total Time": 0.001,
+                                  "Actual Rows": 0,
+                                  "Actual Loops": 1,
+                                  "Filter": "is_admin",
+                                  "Rows Removed by Filter": 1,
+                                  "Shared Hit Blocks": 0,
+                                  "Shared Read Blocks": 0,
+                                  "Shared Dirtied Blocks": 0,
+                                  "Shared Written Blocks": 0,
+                                  "Local Hit Blocks": 0,
+                                  "Local Read Blocks": 0,
+                                  "Local Dirtied Blocks": 0,
+                                  "Local Written Blocks": 0,
+                                  "Temp Read Blocks": 0,
+                                  "Temp Written Blocks": 0
+                                },
+                                {
+                                  "Node Type": "Limit",
+                                  "Parent Relationship": "Inner",
+                                  "Parallel Aware": false,
+                                  "Async Capable": false,
+                                  "Startup Cost": 0.29,
+                                  "Total Cost": 4.32,
+                                  "Plan Rows": 50,
+                                  "Plan Width": 52,
+                                  "Actual Startup Time": 0.000,
+                                  "Actual Total Time": 0.000,
+                                  "Actual Rows": 0,
+                                  "Actual Loops": 0,
+                                  "Shared Hit Blocks": 0,
+                                  "Shared Read Blocks": 0,
+                                  "Shared Dirtied Blocks": 0,
+                                  "Shared Written Blocks": 0,
+                                  "Local Hit Blocks": 0,
+                                  "Local Read Blocks": 0,
+                                  "Local Dirtied Blocks": 0,
+                                  "Local Written Blocks": 0,
+                                  "Temp Read Blocks": 0,
+                                  "Temp Written Blocks": 0,
+                                  "Plans": [
+                                    {
+                                      "Node Type": "Index Scan",
+                                      "Parent Relationship": "Outer",
+                                      "Parallel Aware": false,
+                                      "Async Capable": false,
+                                      "Scan Direction": "Forward",
+                                      "Index Name": "items_pkey",
+                                      "Relation Name": "items",
+                                      "Alias": "items_1",
+                                      "Startup Cost": 0.29,
+                                      "Total Cost": 807.32,
+                                      "Plan Rows": 10002,
+                                      "Plan Width": 52,
+                                      "Actual Startup Time": 0.000,
+                                      "Actual Total Time": 0.000,
+                                      "Actual Rows": 0,
+                                      "Actual Loops": 0,
+                                      "Index Cond": "(id > '00000000-0000-0000-0000-000000000000'::uuid)",
+                                      "Rows Removed by Index Recheck": 0,
+                                      "Shared Hit Blocks": 0,
+                                      "Shared Read Blocks": 0,
+                                      "Shared Dirtied Blocks": 0,
+                                      "Shared Written Blocks": 0,
+                                      "Local Hit Blocks": 0,
+                                      "Local Read Blocks": 0,
+                                      "Local Dirtied Blocks": 0,
+                                      "Local Written Blocks": 0,
+                                      "Temp Read Blocks": 0,
+                                      "Temp Written Blocks": 0
+                                    }
+                                  ]
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            "Planning": {
+              "Shared Hit Blocks": 6,
+              "Shared Read Blocks": 0,
+              "Shared Dirtied Blocks": 0,
+              "Shared Written Blocks": 0,
+              "Local Hit Blocks": 0,
+              "Local Read Blocks": 0,
+              "Local Dirtied Blocks": 0,
+              "Local Written Blocks": 0,
+              "Temp Read Blocks": 0,
+              "Temp Written Blocks": 0
+            },
+            "Planning Time": 0.234,
+            "Triggers": [
+            ],
+            "Execution Time": 0.093
+          }
+        ]
+=== RUN   TestPostgresIntegration/revocation_and_cancellation_apply_before_media_lookup
+--- PASS: TestPostgresIntegration (5.57s)
+    --- PASS: TestPostgresIntegration/migration_lock_contention_is_bounded (5.01s)
+    --- PASS: TestPostgresIntegration/credentials_are_hashed_and_lifecycle_enforced (0.01s)
+    --- PASS: TestPostgresIntegration/ACL_filters_lists_details_and_streams_in_SQL (0.01s)
+    --- PASS: TestPostgresIntegration/constraints_and_failed_imports_are_atomic (0.01s)
+    --- PASS: TestPostgresIntegration/ten_thousand_items_plan_and_bounded_visible_page (0.19s)
+    --- PASS: TestPostgresIntegration/revocation_and_cancellation_apply_before_media_lookup (0.00s)
+PASS
+coverage: 78.8% of statements
+ok  	github.com/MoYuanCN/Jelee/internal/adapter/postgres	6.812s	coverage: 78.8% of statements
+=== RUN   TestListRejectsInvalidBoundsBeforeStorage
+=== RUN   TestListRejectsInvalidBoundsBeforeStorage/missing_user
+=== RUN   TestListRejectsInvalidBoundsBeforeStorage/untrusted_user
+=== RUN   TestListRejectsInvalidBoundsBeforeStorage/invalid_cursor
+=== RUN   TestListRejectsInvalidBoundsBeforeStorage/negative_limit
+=== RUN   TestListRejectsInvalidBoundsBeforeStorage/zero_limit
+=== RUN   TestListRejectsInvalidBoundsBeforeStorage/over_maximum
+--- PASS: TestListRejectsInvalidBoundsBeforeStorage (0.00s)
+    --- PASS: TestListRejectsInvalidBoundsBeforeStorage/missing_user (0.00s)
+    --- PASS: TestListRejectsInvalidBoundsBeforeStorage/untrusted_user (0.00s)
+    --- PASS: TestListRejectsInvalidBoundsBeforeStorage/invalid_cursor (0.00s)
+    --- PASS: TestListRejectsInvalidBoundsBeforeStorage/negative_limit (0.00s)
+    --- PASS: TestListRejectsInvalidBoundsBeforeStorage/zero_limit (0.00s)
+    --- PASS: TestListRejectsInvalidBoundsBeforeStorage/over_maximum (0.00s)
+=== RUN   TestListPreservesAuthorizedQueryAndContext
+--- PASS: TestListPreservesAuthorizedQueryAndContext (0.00s)
+=== RUN   TestGetMalformedIdentifiersAreHiddenWithoutLookup
+--- PASS: TestGetMalformedIdentifiersAreHiddenWithoutLookup (0.00s)
+=== RUN   TestGetKeepsUserScopeAndHiddenContract
+--- PASS: TestGetKeepsUserScopeAndHiddenContract (0.00s)
+=== RUN   TestRepositoryFailureIsNotReportedAsEmptySuccess
+--- PASS: TestRepositoryFailureIsNotReportedAsEmptySuccess (0.00s)
+=== RUN   TestCancellationReachesRepository
+--- PASS: TestCancellationReachesRepository (0.00s)
+PASS
+coverage: 100.0% of statements
+ok  	github.com/MoYuanCN/Jelee/internal/app	1.185s	coverage: 100.0% of statements
+=== RUN   TestDomainAndApplicationDependencyDirection
+--- PASS: TestDomainAndApplicationDependencyDirection (0.03s)
+PASS
+coverage: [no statements]
+ok  	github.com/MoYuanCN/Jelee/internal/architecture	1.141s	coverage: [no statements]
+=== RUN   TestValidIDCanonicalBoundary
+=== RUN   TestValidIDCanonicalBoundary/empty
+=== RUN   TestValidIDCanonicalBoundary/truncated
+=== RUN   TestValidIDCanonicalBoundary/extended
+=== RUN   TestValidIDCanonicalBoundary/uppercase
+=== RUN   TestValidIDCanonicalBoundary/no_separators
+=== RUN   TestValidIDCanonicalBoundary/wrong_separator
+=== RUN   TestValidIDCanonicalBoundary/misplaced_separator
+=== RUN   TestValidIDCanonicalBoundary/non_hex
+=== RUN   TestValidIDCanonicalBoundary/unicode_lookalike_same_bytes
+=== RUN   TestValidIDCanonicalBoundary/nul
+=== RUN   TestValidIDCanonicalBoundary/leading_space
+=== RUN   TestValidIDCanonicalBoundary/trailing_newline
+=== RUN   TestValidIDCanonicalBoundary/quoted
+=== RUN   TestValidIDCanonicalBoundary/braces
+=== RUN   TestValidIDCanonicalBoundary/urn
+=== RUN   TestValidIDCanonicalBoundary/encoded
+=== RUN   TestValidIDCanonicalBoundary/path
+--- PASS: TestValidIDCanonicalBoundary (0.00s)
+    --- PASS: TestValidIDCanonicalBoundary/empty (0.00s)
+    --- PASS: TestValidIDCanonicalBoundary/truncated (0.00s)
+    --- PASS: TestValidIDCanonicalBoundary/extended (0.00s)
+    --- PASS: TestValidIDCanonicalBoundary/uppercase (0.00s)
+    --- PASS: TestValidIDCanonicalBoundary/no_separators (0.00s)
+    --- PASS: TestValidIDCanonicalBoundary/wrong_separator (0.00s)
+    --- PASS: TestValidIDCanonicalBoundary/misplaced_separator (0.00s)
+    --- PASS: TestValidIDCanonicalBoundary/non_hex (0.00s)
+    --- PASS: TestValidIDCanonicalBoundary/unicode_lookalike_same_bytes (0.00s)
+    --- PASS: TestValidIDCanonicalBoundary/nul (0.00s)
+    --- PASS: TestValidIDCanonicalBoundary/leading_space (0.00s)
+    --- PASS: TestValidIDCanonicalBoundary/trailing_newline (0.00s)
+    --- PASS: TestValidIDCanonicalBoundary/quoted (0.00s)
+    --- PASS: TestValidIDCanonicalBoundary/braces (0.00s)
+    --- PASS: TestValidIDCanonicalBoundary/urn (0.00s)
+    --- PASS: TestValidIDCanonicalBoundary/encoded (0.00s)
+    --- PASS: TestValidIDCanonicalBoundary/path (0.00s)
+PASS
+coverage: 100.0% of statements
+ok  	github.com/MoYuanCN/Jelee/internal/domain	1.183s	coverage: 100.0% of statements
+=== RUN   TestConfigurationFailsClosed
+=== RUN   TestConfigurationFailsClosed/missing
+=== RUN   TestConfigurationFailsClosed/sqlite
+=== RUN   TestConfigurationFailsClosed/malformed
+=== RUN   TestConfigurationFailsClosed/dev
+=== RUN   TestConfigurationFailsClosed/wild_host
+=== RUN   TestConfigurationFailsClosed/direct_rollout
+--- PASS: TestConfigurationFailsClosed (0.00s)
+    --- PASS: TestConfigurationFailsClosed/missing (0.00s)
+    --- PASS: TestConfigurationFailsClosed/sqlite (0.00s)
+    --- PASS: TestConfigurationFailsClosed/malformed (0.00s)
+    --- PASS: TestConfigurationFailsClosed/dev (0.00s)
+    --- PASS: TestConfigurationFailsClosed/wild_host (0.00s)
+    --- PASS: TestConfigurationFailsClosed/direct_rollout (0.00s)
+=== RUN   TestEnvironmentOverridesFileAndSecretsStayOutOfJSON
+--- PASS: TestEnvironmentOverridesFileAndSecretsStayOutOfJSON (0.07s)
+=== RUN   TestConfigurationSizeAndCredentialBoundaries
+--- PASS: TestConfigurationSizeAndCredentialBoundaries (0.07s)
+=== RUN   TestNumericAndRolloutEnvironmentValidation
+=== RUN   TestNumericAndRolloutEnvironmentValidation/JELEE_MAX_CONNECTIONS0
+=== RUN   TestNumericAndRolloutEnvironmentValidation/JELEE_MAX_CONNECTIONS129
+=== RUN   TestNumericAndRolloutEnvironmentValidation/JELEE_MAX_CONNECTIONSinvalid
+=== RUN   TestNumericAndRolloutEnvironmentValidation/JELEE_MAX_STREAMS0
+=== RUN   TestNumericAndRolloutEnvironmentValidation/JELEE_MAX_STREAMS129
+=== RUN   TestNumericAndRolloutEnvironmentValidation/JELEE_MAX_STREAMSinvalid
+=== RUN   TestNumericAndRolloutEnvironmentValidation/JELEE_ENABLE_CATALOGinvalid
+=== RUN   TestNumericAndRolloutEnvironmentValidation/JELEE_LISTENlocalhost:8097
+=== RUN   TestNumericAndRolloutEnvironmentValidation/JELEE_LISTEN127.0.0.1:0
+=== RUN   TestNumericAndRolloutEnvironmentValidation/JELEE_LISTEN127.0.0.1:65536
+=== RUN   TestNumericAndRolloutEnvironmentValidation/JELEE_ALLOWED_HOSTSlocalhost,evil/host
+--- PASS: TestNumericAndRolloutEnvironmentValidation (0.00s)
+    --- PASS: TestNumericAndRolloutEnvironmentValidation/JELEE_MAX_CONNECTIONS0 (0.00s)
+    --- PASS: TestNumericAndRolloutEnvironmentValidation/JELEE_MAX_CONNECTIONS129 (0.00s)
+    --- PASS: TestNumericAndRolloutEnvironmentValidation/JELEE_MAX_CONNECTIONSinvalid (0.00s)
+    --- PASS: TestNumericAndRolloutEnvironmentValidation/JELEE_MAX_STREAMS0 (0.00s)
+    --- PASS: TestNumericAndRolloutEnvironmentValidation/JELEE_MAX_STREAMS129 (0.00s)
+    --- PASS: TestNumericAndRolloutEnvironmentValidation/JELEE_MAX_STREAMSinvalid (0.00s)
+    --- PASS: TestNumericAndRolloutEnvironmentValidation/JELEE_ENABLE_CATALOGinvalid (0.00s)
+    --- PASS: TestNumericAndRolloutEnvironmentValidation/JELEE_LISTENlocalhost:8097 (0.00s)
+    --- PASS: TestNumericAndRolloutEnvironmentValidation/JELEE_LISTEN127.0.0.1:0 (0.00s)
+    --- PASS: TestNumericAndRolloutEnvironmentValidation/JELEE_LISTEN127.0.0.1:65536 (0.00s)
+    --- PASS: TestNumericAndRolloutEnvironmentValidation/JELEE_ALLOWED_HOSTSlocalhost,evil/host (0.00s)
+PASS
+coverage: 94.5% of statements
+ok  	github.com/MoYuanCN/Jelee/internal/platform/config	1.327s	coverage: 94.5% of statements
+=== RUN   TestLocaleNegotiation
+=== RUN   TestLocaleNegotiation/#00
+=== RUN   TestLocaleNegotiation/__
+=== RUN   TestLocaleNegotiation/fr-FR
+=== RUN   TestLocaleNegotiation/zh-CN
+=== RUN   TestLocaleNegotiation/zh-TW
+=== RUN   TestLocaleNegotiation/ja-JP
+=== RUN   TestLocaleNegotiation/en-US
+=== RUN   TestLocaleNegotiation/zh-Hant
+=== RUN   TestLocaleNegotiation/zh-HK
+=== RUN   TestLocaleNegotiation/zh-Hans-SG
+=== RUN   TestLocaleNegotiation/zh
+=== RUN   TestLocaleNegotiation/ja
+=== RUN   TestLocaleNegotiation/en-GB
+=== RUN   TestLocaleNegotiation/ZH-tW
+=== RUN   TestLocaleNegotiation/en-US;q=0.4,ja-JP;q=0.9
+=== RUN   TestLocaleNegotiation/fr-FR;q=1,zh-TW;q=0.8
+=== RUN   TestLocaleNegotiation/ja;q=0.8,en;q=0.8
+=== RUN   TestLocaleNegotiation/en;q=0.8,ja;q=0.8
+=== RUN   TestLocaleNegotiation/ja;q=0,en;q=0.5
+=== RUN   TestLocaleNegotiation/*
+=== RUN   TestLocaleNegotiation/zh-CN;q=0,*;q=0.5
+=== RUN   TestLocaleNegotiation/*;q=0,ja-JP;q=0.5
+=== RUN   TestLocaleNegotiation/en-US;q=0,en;q=1,ja;q=0.4
+=== RUN   TestLocaleNegotiation/en;q=NaN,ja;q=0.5
+=== RUN   TestLocaleNegotiation/en;q=1.1,ja;q=0.5
+=== RUN   TestLocaleNegotiation/en;q=-1,ja;q=0.5
+=== RUN   TestLocaleNegotiation/en;q=0.0001,ja;q=0.5
+=== RUN   TestLocaleNegotiation/en;q=.9,ja;q=0.5
+=== RUN   TestLocaleNegotiation/invalid_@;q=1
+=== RUN   TestLocaleNegotiation/ja;q=0
+=== RUN   TestLocaleNegotiation/en;q=0.3;q=1,ja;q=0.5
+=== RUN   TestLocaleNegotiation/ja_;_Q_=_0.500,_en;q=0.4
+=== RUN   TestLocaleNegotiation/oversized_header
+--- PASS: TestLocaleNegotiation (0.01s)
+    --- PASS: TestLocaleNegotiation/#00 (0.00s)
+    --- PASS: TestLocaleNegotiation/__ (0.00s)
+    --- PASS: TestLocaleNegotiation/fr-FR (0.00s)
+    --- PASS: TestLocaleNegotiation/zh-CN (0.00s)
+    --- PASS: TestLocaleNegotiation/zh-TW (0.00s)
+    --- PASS: TestLocaleNegotiation/ja-JP (0.00s)
+    --- PASS: TestLocaleNegotiation/en-US (0.00s)
+    --- PASS: TestLocaleNegotiation/zh-Hant (0.00s)
+    --- PASS: TestLocaleNegotiation/zh-HK (0.00s)
+    --- PASS: TestLocaleNegotiation/zh-Hans-SG (0.00s)
+    --- PASS: TestLocaleNegotiation/zh (0.00s)
+    --- PASS: TestLocaleNegotiation/ja (0.00s)
+    --- PASS: TestLocaleNegotiation/en-GB (0.00s)
+    --- PASS: TestLocaleNegotiation/ZH-tW (0.00s)
+    --- PASS: TestLocaleNegotiation/en-US;q=0.4,ja-JP;q=0.9 (0.00s)
+    --- PASS: TestLocaleNegotiation/fr-FR;q=1,zh-TW;q=0.8 (0.00s)
+    --- PASS: TestLocaleNegotiation/ja;q=0.8,en;q=0.8 (0.00s)
+    --- PASS: TestLocaleNegotiation/en;q=0.8,ja;q=0.8 (0.00s)
+    --- PASS: TestLocaleNegotiation/ja;q=0,en;q=0.5 (0.00s)
+    --- PASS: TestLocaleNegotiation/* (0.00s)
+    --- PASS: TestLocaleNegotiation/zh-CN;q=0,*;q=0.5 (0.00s)
+    --- PASS: TestLocaleNegotiation/*;q=0,ja-JP;q=0.5 (0.00s)
+    --- PASS: TestLocaleNegotiation/en-US;q=0,en;q=1,ja;q=0.4 (0.00s)
+    --- PASS: TestLocaleNegotiation/en;q=NaN,ja;q=0.5 (0.00s)
+    --- PASS: TestLocaleNegotiation/en;q=1.1,ja;q=0.5 (0.00s)
+    --- PASS: TestLocaleNegotiation/en;q=-1,ja;q=0.5 (0.00s)
+    --- PASS: TestLocaleNegotiation/en;q=0.0001,ja;q=0.5 (0.00s)
+    --- PASS: TestLocaleNegotiation/en;q=.9,ja;q=0.5 (0.00s)
+    --- PASS: TestLocaleNegotiation/invalid_@;q=1 (0.00s)
+    --- PASS: TestLocaleNegotiation/ja;q=0 (0.00s)
+    --- PASS: TestLocaleNegotiation/en;q=0.3;q=1,ja;q=0.5 (0.00s)
+    --- PASS: TestLocaleNegotiation/ja_;_Q_=_0.500,_en;q=0.4 (0.00s)
+    --- PASS: TestLocaleNegotiation/oversized_header (0.00s)
+=== RUN   TestTranslationAndSafeFallback
+--- PASS: TestTranslationAndSafeFallback (0.00s)
+=== RUN   TestCatalogKeyAndPlaceholderParity
+--- PASS: TestCatalogKeyAndPlaceholderParity (0.01s)
+=== RUN   FuzzLocale
+=== RUN   FuzzLocale/seed#0
+=== RUN   FuzzLocale/seed#1
+=== RUN   FuzzLocale/seed#2
+=== RUN   FuzzLocale/seed#3
+--- PASS: FuzzLocale (0.01s)
+    --- PASS: FuzzLocale/seed#0 (0.00s)
+    --- PASS: FuzzLocale/seed#1 (0.00s)
+    --- PASS: FuzzLocale/seed#2 (0.00s)
+    --- PASS: FuzzLocale/seed#3 (0.00s)
+PASS
+coverage: 97.6% of statements
+ok  	github.com/MoYuanCN/Jelee/internal/platform/i18n	1.219s	coverage: 97.6% of statements
+=== RUN   TestRedaction
+--- PASS: TestRedaction (0.01s)
+=== RUN   TestSafeMethodAllowsOnlyKnownVerbs
+--- PASS: TestSafeMethodAllowsOnlyKnownVerbs (0.00s)
+=== RUN   TestOperationalContextSurvivesRedaction
+--- PASS: TestOperationalContextSurvivesRedaction (0.01s)
+=== RUN   TestGroupedAttributesCannotExposeSensitiveValues
+--- PASS: TestGroupedAttributesCannotExposeSensitiveValues (0.00s)
+PASS
+coverage: 100.0% of statements
+ok  	github.com/MoYuanCN/Jelee/internal/platform/logging	1.204s	coverage: 100.0% of statements
+	github.com/MoYuanCN/Jelee/internal/platform/runtime		coverage: 0.0% of statements
+	github.com/MoYuanCN/Jelee/tools/brand-scan		coverage: 0.0% of statements
+	github.com/MoYuanCN/Jelee/tools/gitignore-check		coverage: 0.0% of statements

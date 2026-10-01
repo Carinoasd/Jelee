@@ -1,0 +1,21 @@
+Jelee account service end-to-end verification
+UTC date: 2026-09-30
+Environment: WSL Linux amd64; repository-local Go 1.27.1; isolated PostgreSQL 16 schema; real binaries; curl HTTP requests
+Scope: current working source; account rollout enabled; temporary credentials passed through stdin/files only
+
+PASS built real service, account CLI and migration binaries with local pinned Go
+PASS real migration up reached schema 2 clean in independent temporary schema
+PASS CLI bootstrap accepted random UTF-8 password with preserved spaces via stdin and emitted only user JSON
+PASS second bootstrap rejected with account_conflict while an active administrator exists
+PASS real service ready with accounts, catalog and direct delivery enabled
+PASS anonymous and wrong-password requests returned 401; valid login and me returned 200; spoofed native User-Agent still issued web session
+PASS admin creation 201 and idempotent replay 200 returned one user; replay did not change password; ordinary user admin route 403
+PASS profile changed; wrong old password rejected; valid password change 204 revoked old session and old password; new password login 200
+PASS rotation returned fresh web token and invalidated old token; logout 204 invalidated rotated token
+PASS CLI set-password matched account case-insensitively; revoked previous session and password; replacement password login 200
+PASS authenticated web session original stream 403; production HLS route 409 transcode-disabled
+PASS audit events persisted including one idempotent create and safe local-reset booleans; no credentials in audit; stored hashes use default Argon2id parameters
+PASS service log excluded all generated passwords, tokens, DSN and encoded hashes
+PASS isolated schema removed; PostgreSQL container left running for owner cleanup
+RESULT PASS
+No passwords, password hashes, tokens, database URLs, or raw request/response bodies are included in this evidence.

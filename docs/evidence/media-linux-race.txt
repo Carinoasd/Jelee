@@ -1,0 +1,283 @@
+=== RUN   TestFIFOIsRejectedWithoutBlocking
+    direct_linux_test.go:24: test filesystem does not support named pipes; run on a native Linux filesystem to verify FIFO rejection
+--- SKIP: TestFIFOIsRejectedWithoutBlocking (0.01s)
+=== RUN   TestConcurrentSymlinkReplacementCannotEscapeRoot
+--- PASS: TestConcurrentSymlinkReplacementCannotEscapeRoot (0.33s)
+=== RUN   TestDirectDeliveryRangeAndSourceUnchanged
+=== RUN   TestDirectDeliveryRangeAndSourceUnchanged/complete
+=== RUN   TestDirectDeliveryRangeAndSourceUnchanged/head
+=== RUN   TestDirectDeliveryRangeAndSourceUnchanged/first
+=== RUN   TestDirectDeliveryRangeAndSourceUnchanged/suffix
+=== RUN   TestDirectDeliveryRangeAndSourceUnchanged/open_end
+=== RUN   TestDirectDeliveryRangeAndSourceUnchanged/etag_match
+=== RUN   TestDirectDeliveryRangeAndSourceUnchanged/etag_mismatch
+=== RUN   TestDirectDeliveryRangeAndSourceUnchanged/weak_etag
+=== RUN   TestDirectDeliveryRangeAndSourceUnchanged/date_match
+=== RUN   TestDirectDeliveryRangeAndSourceUnchanged/date_mismatch
+--- PASS: TestDirectDeliveryRangeAndSourceUnchanged (0.09s)
+    --- PASS: TestDirectDeliveryRangeAndSourceUnchanged/complete (0.01s)
+    --- PASS: TestDirectDeliveryRangeAndSourceUnchanged/head (0.00s)
+    --- PASS: TestDirectDeliveryRangeAndSourceUnchanged/first (0.00s)
+    --- PASS: TestDirectDeliveryRangeAndSourceUnchanged/suffix (0.00s)
+    --- PASS: TestDirectDeliveryRangeAndSourceUnchanged/open_end (0.00s)
+    --- PASS: TestDirectDeliveryRangeAndSourceUnchanged/etag_match (0.00s)
+    --- PASS: TestDirectDeliveryRangeAndSourceUnchanged/etag_mismatch (0.01s)
+    --- PASS: TestDirectDeliveryRangeAndSourceUnchanged/weak_etag (0.01s)
+    --- PASS: TestDirectDeliveryRangeAndSourceUnchanged/date_match (0.00s)
+    --- PASS: TestDirectDeliveryRangeAndSourceUnchanged/date_mismatch (0.01s)
+=== RUN   TestMultipartRange
+--- PASS: TestMultipartRange (0.02s)
+=== RUN   TestAuthorizationBeforeResolution
+=== RUN   TestAuthorizationBeforeResolution/anonymous
+=== RUN   TestAuthorizationBeforeResolution/web
+=== RUN   TestAuthorizationBeforeResolution/web_admin
+=== RUN   TestAuthorizationBeforeResolution/unknown
+--- PASS: TestAuthorizationBeforeResolution (0.00s)
+    --- PASS: TestAuthorizationBeforeResolution/anonymous (0.00s)
+    --- PASS: TestAuthorizationBeforeResolution/web (0.00s)
+    --- PASS: TestAuthorizationBeforeResolution/web_admin (0.00s)
+    --- PASS: TestAuthorizationBeforeResolution/unknown (0.00s)
+=== RUN   TestPathBoundariesAndNoDisclosure
+=== RUN   TestPathBoundariesAndNoDisclosure/#00
+=== RUN   TestPathBoundariesAndNoDisclosure/.
+=== RUN   TestPathBoundariesAndNoDisclosure/..
+=== RUN   TestPathBoundariesAndNoDisclosure/../secret
+=== RUN   TestPathBoundariesAndNoDisclosure/folder/../../secret
+=== RUN   TestPathBoundariesAndNoDisclosure//etc/passwd
+=== RUN   TestPathBoundariesAndNoDisclosure/C:\private
+=== RUN   TestPathBoundariesAndNoDisclosure/folder\file
+=== RUN   TestPathBoundariesAndNoDisclosure/original.mkv:alternate
+=== RUN   TestPathBoundariesAndNoDisclosure/original.mkv\x00
+=== RUN   TestPathBoundariesAndNoDisclosure/missing
+=== RUN   TestPathBoundariesAndNoDisclosure/folder/../original.mkv
+=== RUN   TestPathBoundariesAndNoDisclosure/directory
+=== RUN   TestPathBoundariesAndNoDisclosure/symlink_escape
+=== RUN   TestPathBoundariesAndNoDisclosure/directory_symlink_escape
+--- PASS: TestPathBoundariesAndNoDisclosure (0.05s)
+    --- PASS: TestPathBoundariesAndNoDisclosure/#00 (0.00s)
+    --- PASS: TestPathBoundariesAndNoDisclosure/. (0.00s)
+    --- PASS: TestPathBoundariesAndNoDisclosure/.. (0.00s)
+    --- PASS: TestPathBoundariesAndNoDisclosure/../secret (0.00s)
+    --- PASS: TestPathBoundariesAndNoDisclosure/folder/../../secret (0.00s)
+    --- PASS: TestPathBoundariesAndNoDisclosure//etc/passwd (0.00s)
+    --- PASS: TestPathBoundariesAndNoDisclosure/C:\private (0.00s)
+    --- PASS: TestPathBoundariesAndNoDisclosure/folder\file (0.00s)
+    --- PASS: TestPathBoundariesAndNoDisclosure/original.mkv:alternate (0.00s)
+    --- PASS: TestPathBoundariesAndNoDisclosure/original.mkv\x00 (0.00s)
+    --- PASS: TestPathBoundariesAndNoDisclosure/missing (0.00s)
+    --- PASS: TestPathBoundariesAndNoDisclosure/folder/../original.mkv (0.00s)
+    --- PASS: TestPathBoundariesAndNoDisclosure/directory (0.00s)
+    --- PASS: TestPathBoundariesAndNoDisclosure/symlink_escape (0.00s)
+    --- PASS: TestPathBoundariesAndNoDisclosure/directory_symlink_escape (0.00s)
+=== RUN   TestErrorsUseInjectedWriter
+--- PASS: TestErrorsUseInjectedWriter (0.03s)
+=== RUN   TestConcurrencyBudgetAndCancellation
+--- PASS: TestConcurrencyBudgetAndCancellation (0.02s)
+=== RUN   TestCancellationStopsStreamAndReleasesSlot
+--- PASS: TestCancellationStopsStreamAndReleasesSlot (0.03s)
+=== RUN   TestNewHandlerRejectsIncompleteConfiguration
+--- PASS: TestNewHandlerRejectsIncompleteConfiguration (0.00s)
+=== RUN   TestCancellationInterruptsBlockedNetworkWrite
+--- PASS: TestCancellationInterruptsBlockedNetworkWrite (0.03s)
+=== RUN   TestRangeBudgetRejectsAbuseBeforeLookup
+--- PASS: TestRangeBudgetRejectsAbuseBeforeLookup (0.00s)
+=== RUN   TestSourceLookupHasIndependentDeadline
+--- PASS: TestSourceLookupHasIndependentDeadline (0.00s)
+=== RUN   TestCancellationBetweenDeadlineRefreshAndWrite
+--- PASS: TestCancellationBetweenDeadlineRefreshAndWrite (0.02s)
+=== RUN   TestProductionGuardRejectsTransformations
+=== RUN   TestProductionGuardRejectsTransformations//Videos/id/master.m3u8
+=== RUN   TestProductionGuardRejectsTransformations//VIDEOS/id/STREAM.MPD
+=== RUN   TestProductionGuardRejectsTransformations//Videos/id/HLS/0.ts
+=== RUN   TestProductionGuardRejectsTransformations//Videos/id/HLS1/main/0.ts
+=== RUN   TestProductionGuardRejectsTransformations//Videos/id/dash/0
+=== RUN   TestProductionGuardRejectsTransformations//transcode/id
+=== RUN   TestProductionGuardRejectsTransformations//Videos/id/segments/1
+=== RUN   TestProductionGuardRejectsTransformations//Videos/id/%68%6Cs/0
+=== RUN   TestProductionGuardRejectsTransformations//Videos/id/%2568ls/0
+=== RUN   TestProductionGuardRejectsTransformations//Videos/id/hls%5C0.ts
+=== RUN   TestProductionGuardRejectsTransformations//Videos/id/chunk.m4s
+=== RUN   TestProductionGuardRejectsTransformations//stream?videoCodec=h264
+=== RUN   TestProductionGuardRejectsTransformations//stream?%76ideoCodec=copy
+=== RUN   TestProductionGuardRejectsTransformations//stream?AUDIOCODEC=copy
+=== RUN   TestProductionGuardRejectsTransformations//stream?maxVideoBitrate=0
+=== RUN   TestProductionGuardRejectsTransformations//stream?video_codec=copy
+=== RUN   TestProductionGuardRejectsTransformations//stream?SegmentLength=6
+=== RUN   TestProductionGuardRejectsTransformations//stream?HlsSegmentLength=5
+=== RUN   TestProductionGuardRejectsTransformations//stream?TranscodeReasons=codec
+=== RUN   TestProductionGuardRejectsTransformations//stream?protocol=HLS
+=== RUN   TestProductionGuardRejectsTransformations//stream?container=mpd
+=== RUN   TestProductionGuardRejectsTransformations//stream?Static=false
+=== RUN   TestProductionGuardRejectsTransformations//stream?EnableTranscoding=true
+=== RUN   TestProductionGuardRejectsTransformations//stream?AllowVideoStreamCopy=false
+=== RUN   TestProductionGuardRejectsTransformations//stream?SubtitleMethod=Encode
+=== RUN   TestProductionGuardRejectsTransformations//stream?width=1920
+=== RUN   TestProductionGuardRejectsTransformations//stream?DeviceProfile=%7B%22TranscodingProfiles%22%3A%5B%7B%22Type%22%3A%22Video%22%7D%5D%7D
+--- PASS: TestProductionGuardRejectsTransformations (0.01s)
+    --- PASS: TestProductionGuardRejectsTransformations//Videos/id/master.m3u8 (0.00s)
+    --- PASS: TestProductionGuardRejectsTransformations//VIDEOS/id/STREAM.MPD (0.00s)
+    --- PASS: TestProductionGuardRejectsTransformations//Videos/id/HLS/0.ts (0.00s)
+    --- PASS: TestProductionGuardRejectsTransformations//Videos/id/HLS1/main/0.ts (0.00s)
+    --- PASS: TestProductionGuardRejectsTransformations//Videos/id/dash/0 (0.00s)
+    --- PASS: TestProductionGuardRejectsTransformations//transcode/id (0.00s)
+    --- PASS: TestProductionGuardRejectsTransformations//Videos/id/segments/1 (0.00s)
+    --- PASS: TestProductionGuardRejectsTransformations//Videos/id/%68%6Cs/0 (0.00s)
+    --- PASS: TestProductionGuardRejectsTransformations//Videos/id/%2568ls/0 (0.00s)
+    --- PASS: TestProductionGuardRejectsTransformations//Videos/id/hls%5C0.ts (0.00s)
+    --- PASS: TestProductionGuardRejectsTransformations//Videos/id/chunk.m4s (0.00s)
+    --- PASS: TestProductionGuardRejectsTransformations//stream?videoCodec=h264 (0.00s)
+    --- PASS: TestProductionGuardRejectsTransformations//stream?%76ideoCodec=copy (0.00s)
+    --- PASS: TestProductionGuardRejectsTransformations//stream?AUDIOCODEC=copy (0.00s)
+    --- PASS: TestProductionGuardRejectsTransformations//stream?maxVideoBitrate=0 (0.00s)
+    --- PASS: TestProductionGuardRejectsTransformations//stream?video_codec=copy (0.00s)
+    --- PASS: TestProductionGuardRejectsTransformations//stream?SegmentLength=6 (0.00s)
+    --- PASS: TestProductionGuardRejectsTransformations//stream?HlsSegmentLength=5 (0.00s)
+    --- PASS: TestProductionGuardRejectsTransformations//stream?TranscodeReasons=codec (0.00s)
+    --- PASS: TestProductionGuardRejectsTransformations//stream?protocol=HLS (0.00s)
+    --- PASS: TestProductionGuardRejectsTransformations//stream?container=mpd (0.00s)
+    --- PASS: TestProductionGuardRejectsTransformations//stream?Static=false (0.00s)
+    --- PASS: TestProductionGuardRejectsTransformations//stream?EnableTranscoding=true (0.00s)
+    --- PASS: TestProductionGuardRejectsTransformations//stream?AllowVideoStreamCopy=false (0.00s)
+    --- PASS: TestProductionGuardRejectsTransformations//stream?SubtitleMethod=Encode (0.00s)
+    --- PASS: TestProductionGuardRejectsTransformations//stream?width=1920 (0.00s)
+    --- PASS: TestProductionGuardRejectsTransformations//stream?DeviceProfile=%7B%22TranscodingProfiles%22%3A%5B%7B%22Type%22%3A%22Video%22%7D%5D%7D (0.00s)
+=== RUN   TestProductionGuardInspectsFormAndJSON
+=== RUN   TestProductionGuardInspectsFormAndJSON/form
+=== RUN   TestProductionGuardInspectsFormAndJSON/encoded_form
+=== RUN   TestProductionGuardInspectsFormAndJSON/json
+=== RUN   TestProductionGuardInspectsFormAndJSON/nested
+=== RUN   TestProductionGuardInspectsFormAndJSON/nested_codec
+=== RUN   TestProductionGuardInspectsFormAndJSON/escaped_key
+=== RUN   TestProductionGuardInspectsFormAndJSON/duplicate_key
+=== RUN   TestProductionGuardInspectsFormAndJSON/duplicate_toggle
+=== RUN   TestProductionGuardInspectsFormAndJSON/burnin
+--- PASS: TestProductionGuardInspectsFormAndJSON (0.00s)
+    --- PASS: TestProductionGuardInspectsFormAndJSON/form (0.00s)
+    --- PASS: TestProductionGuardInspectsFormAndJSON/encoded_form (0.00s)
+    --- PASS: TestProductionGuardInspectsFormAndJSON/json (0.00s)
+    --- PASS: TestProductionGuardInspectsFormAndJSON/nested (0.00s)
+    --- PASS: TestProductionGuardInspectsFormAndJSON/nested_codec (0.00s)
+    --- PASS: TestProductionGuardInspectsFormAndJSON/escaped_key (0.00s)
+    --- PASS: TestProductionGuardInspectsFormAndJSON/duplicate_key (0.00s)
+    --- PASS: TestProductionGuardInspectsFormAndJSON/duplicate_toggle (0.00s)
+    --- PASS: TestProductionGuardInspectsFormAndJSON/burnin (0.00s)
+=== RUN   TestProductionGuardPreservesDirectRequests
+--- PASS: TestProductionGuardPreservesDirectRequests (0.00s)
+=== RUN   TestGuardRejectsInvalidOrUnboundedBodies
+=== RUN   TestGuardRejectsInvalidOrUnboundedBodies/malformed
+=== RUN   TestGuardRejectsInvalidOrUnboundedBodies/extra_document
+=== RUN   TestGuardRejectsInvalidOrUnboundedBodies/depth
+=== RUN   TestGuardRejectsInvalidOrUnboundedBodies/size
+=== RUN   TestGuardRejectsInvalidOrUnboundedBodies/untyped
+=== RUN   TestGuardRejectsInvalidOrUnboundedBodies/multipart
+--- PASS: TestGuardRejectsInvalidOrUnboundedBodies (0.00s)
+    --- PASS: TestGuardRejectsInvalidOrUnboundedBodies/malformed (0.00s)
+    --- PASS: TestGuardRejectsInvalidOrUnboundedBodies/extra_document (0.00s)
+    --- PASS: TestGuardRejectsInvalidOrUnboundedBodies/depth (0.00s)
+    --- PASS: TestGuardRejectsInvalidOrUnboundedBodies/size (0.00s)
+    --- PASS: TestGuardRejectsInvalidOrUnboundedBodies/untyped (0.00s)
+    --- PASS: TestGuardRejectsInvalidOrUnboundedBodies/multipart (0.00s)
+=== RUN   TestRouteGuardDoesNotTreatMetadataValuesAsTranscode
+--- PASS: TestRouteGuardDoesNotTreatMetadataValuesAsTranscode (0.00s)
+=== RUN   FuzzProductionGuard
+=== RUN   FuzzProductionGuard/seed#0
+=== RUN   FuzzProductionGuard/seed#1
+=== RUN   FuzzProductionGuard/seed#2
+=== RUN   FuzzProductionGuard/seed#3
+--- PASS: FuzzProductionGuard (0.00s)
+    --- PASS: FuzzProductionGuard/seed#0 (0.00s)
+    --- PASS: FuzzProductionGuard/seed#1 (0.00s)
+    --- PASS: FuzzProductionGuard/seed#2 (0.00s)
+    --- PASS: FuzzProductionGuard/seed#3 (0.00s)
+PASS
+ok  	github.com/MoYuanCN/Jelee/internal/adapter/media	1.742s
+=== RUN   TestPrincipalMustBeCompleteAndServerAssigned
+--- PASS: TestPrincipalMustBeCompleteAndServerAssigned (0.00s)
+PASS
+ok  	github.com/MoYuanCN/Jelee/internal/access	1.044s
+=== RUN   TestLocaleNegotiation
+=== RUN   TestLocaleNegotiation/#00
+=== RUN   TestLocaleNegotiation/__
+=== RUN   TestLocaleNegotiation/fr-FR
+=== RUN   TestLocaleNegotiation/zh-CN
+=== RUN   TestLocaleNegotiation/zh-TW
+=== RUN   TestLocaleNegotiation/ja-JP
+=== RUN   TestLocaleNegotiation/en-US
+=== RUN   TestLocaleNegotiation/zh-Hant
+=== RUN   TestLocaleNegotiation/zh-HK
+=== RUN   TestLocaleNegotiation/zh-Hans-SG
+=== RUN   TestLocaleNegotiation/zh
+=== RUN   TestLocaleNegotiation/ja
+=== RUN   TestLocaleNegotiation/en-GB
+=== RUN   TestLocaleNegotiation/ZH-tW
+=== RUN   TestLocaleNegotiation/en-US;q=0.4,ja-JP;q=0.9
+=== RUN   TestLocaleNegotiation/fr-FR;q=1,zh-TW;q=0.8
+=== RUN   TestLocaleNegotiation/ja;q=0.8,en;q=0.8
+=== RUN   TestLocaleNegotiation/en;q=0.8,ja;q=0.8
+=== RUN   TestLocaleNegotiation/ja;q=0,en;q=0.5
+=== RUN   TestLocaleNegotiation/*
+=== RUN   TestLocaleNegotiation/zh-CN;q=0,*;q=0.5
+=== RUN   TestLocaleNegotiation/*;q=0,ja-JP;q=0.5
+=== RUN   TestLocaleNegotiation/en-US;q=0,en;q=1,ja;q=0.4
+=== RUN   TestLocaleNegotiation/en;q=NaN,ja;q=0.5
+=== RUN   TestLocaleNegotiation/en;q=1.1,ja;q=0.5
+=== RUN   TestLocaleNegotiation/en;q=-1,ja;q=0.5
+=== RUN   TestLocaleNegotiation/en;q=0.0001,ja;q=0.5
+=== RUN   TestLocaleNegotiation/en;q=.9,ja;q=0.5
+=== RUN   TestLocaleNegotiation/invalid_@;q=1
+=== RUN   TestLocaleNegotiation/ja;q=0
+=== RUN   TestLocaleNegotiation/en;q=0.3;q=1,ja;q=0.5
+=== RUN   TestLocaleNegotiation/ja_;_Q_=_0.500,_en;q=0.4
+=== RUN   TestLocaleNegotiation/oversized_header
+--- PASS: TestLocaleNegotiation (0.01s)
+    --- PASS: TestLocaleNegotiation/#00 (0.00s)
+    --- PASS: TestLocaleNegotiation/__ (0.00s)
+    --- PASS: TestLocaleNegotiation/fr-FR (0.00s)
+    --- PASS: TestLocaleNegotiation/zh-CN (0.00s)
+    --- PASS: TestLocaleNegotiation/zh-TW (0.00s)
+    --- PASS: TestLocaleNegotiation/ja-JP (0.00s)
+    --- PASS: TestLocaleNegotiation/en-US (0.00s)
+    --- PASS: TestLocaleNegotiation/zh-Hant (0.00s)
+    --- PASS: TestLocaleNegotiation/zh-HK (0.00s)
+    --- PASS: TestLocaleNegotiation/zh-Hans-SG (0.00s)
+    --- PASS: TestLocaleNegotiation/zh (0.00s)
+    --- PASS: TestLocaleNegotiation/ja (0.00s)
+    --- PASS: TestLocaleNegotiation/en-GB (0.00s)
+    --- PASS: TestLocaleNegotiation/ZH-tW (0.00s)
+    --- PASS: TestLocaleNegotiation/en-US;q=0.4,ja-JP;q=0.9 (0.00s)
+    --- PASS: TestLocaleNegotiation/fr-FR;q=1,zh-TW;q=0.8 (0.00s)
+    --- PASS: TestLocaleNegotiation/ja;q=0.8,en;q=0.8 (0.00s)
+    --- PASS: TestLocaleNegotiation/en;q=0.8,ja;q=0.8 (0.00s)
+    --- PASS: TestLocaleNegotiation/ja;q=0,en;q=0.5 (0.00s)
+    --- PASS: TestLocaleNegotiation/* (0.00s)
+    --- PASS: TestLocaleNegotiation/zh-CN;q=0,*;q=0.5 (0.00s)
+    --- PASS: TestLocaleNegotiation/*;q=0,ja-JP;q=0.5 (0.00s)
+    --- PASS: TestLocaleNegotiation/en-US;q=0,en;q=1,ja;q=0.4 (0.00s)
+    --- PASS: TestLocaleNegotiation/en;q=NaN,ja;q=0.5 (0.00s)
+    --- PASS: TestLocaleNegotiation/en;q=1.1,ja;q=0.5 (0.00s)
+    --- PASS: TestLocaleNegotiation/en;q=-1,ja;q=0.5 (0.00s)
+    --- PASS: TestLocaleNegotiation/en;q=0.0001,ja;q=0.5 (0.00s)
+    --- PASS: TestLocaleNegotiation/en;q=.9,ja;q=0.5 (0.00s)
+    --- PASS: TestLocaleNegotiation/invalid_@;q=1 (0.00s)
+    --- PASS: TestLocaleNegotiation/ja;q=0 (0.00s)
+    --- PASS: TestLocaleNegotiation/en;q=0.3;q=1,ja;q=0.5 (0.00s)
+    --- PASS: TestLocaleNegotiation/ja_;_Q_=_0.500,_en;q=0.4 (0.00s)
+    --- PASS: TestLocaleNegotiation/oversized_header (0.00s)
+=== RUN   TestTranslationAndSafeFallback
+--- PASS: TestTranslationAndSafeFallback (0.00s)
+=== RUN   TestCatalogKeyAndPlaceholderParity
+--- PASS: TestCatalogKeyAndPlaceholderParity (0.00s)
+=== RUN   TestPublicHTTPErrorCodesHaveTranslations
+--- PASS: TestPublicHTTPErrorCodesHaveTranslations (0.00s)
+=== RUN   FuzzLocale
+=== RUN   FuzzLocale/seed#0
+=== RUN   FuzzLocale/seed#1
+=== RUN   FuzzLocale/seed#2
+=== RUN   FuzzLocale/seed#3
+--- PASS: FuzzLocale (0.00s)
+    --- PASS: FuzzLocale/seed#0 (0.00s)
+    --- PASS: FuzzLocale/seed#1 (0.00s)
+    --- PASS: FuzzLocale/seed#2 (0.00s)
+    --- PASS: FuzzLocale/seed#3 (0.00s)
+PASS
+ok  	github.com/MoYuanCN/Jelee/internal/platform/i18n	1.068s

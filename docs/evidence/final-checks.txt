@@ -1,0 +1,26 @@
+Verification completed: 2026-10-01 Asia/Taipei
+Source commit: f21d15668477bd5806e7e525149bfb373d9a68bd
+
+PASS: Windows scripts/make.ps1 build; all three executables built.
+PASS: Windows test -count=1 -cover -v ./...; explicit platform/DB skips recorded in windows-tests.txt.
+PASS: Windows scripts/make.ps1 lint (gofmt and go vet).
+PASS: Linux test -race -count=1 -cover -v ./... with JELEE_REQUIRE_INTEGRATION=true and isolated PostgreSQL 16.15; explicit FIFO skips recorded in linux-race.txt.
+PASS: Linux go vet ./....
+PASS: compiled Windows jelee-cli nfo validate works with an invalid JELEE_DATABASE_URL, emits only the validation summary, and preserves the source SHA256.
+PASS: current container runtime smoke and static inspection; see container-current.txt and container-current-inspection.txt.
+PASS: current container stopped with Running=false ExitCode=0 OOMKilled=false.
+
+PASS: new-scope brand scan, 0 violations. Exact-file exemptions cover legal/provenance information and isolated NFO protocol tags.
+FAIL (known remaining work): complete repository brand scan, 15,278 non-exempt occurrences in the preserved original implementation. This remains a blocking full-brand CI gate.
+PASS: gitignore-check for new files and generated/tool directories. Historical binary inventory remains incomplete.
+PASS: git diff --check.
+
+PASS: docs/upstream-README.md has the exact Git blob of baseline README.md.
+PASS: baseline C# source/project/solution files have no modifications.
+PASS: LICENSE unchanged; SHA256 f371b80469fb235bc500ec29e0e85b682d4a6157a158567d828ff0be544d4f1d.
+PASS: original requirement bytes unchanged; SHA256 755b6b32324efe710c3e1135a0c982c45b82f337e90fcb50ab3718a20cba5d07.
+PASS: saved evidence checked against this task's actual test database URL/password and host user path; no matches.
+
+Cleanup: task-created runtime and inspection containers removed. The verified dedicated PostgreSQL container was stopped after testing; its --rm tmpfs database was discarded. No existing user database was used. Local SDK/cache/binaries and test images remain available for reproduction.
+
+These checks cover the committed incremental Go service and NFO reader. They do not establish completion of all 336 numbered requirements, real-player compatibility, full performance targets, Compose rollout, remote CI, or release readiness.

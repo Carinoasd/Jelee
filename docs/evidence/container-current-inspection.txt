@@ -1,0 +1,26 @@
+Static inspection of the current NFO-enabled container build
+Source snapshot: f21d15668477bd5806e7e525149bfb373d9a68bd (as identified by the parent build task)
+Image tag: jelee/jelee:codex-current-test
+Image ID: sha256:17c550a0d89547b8d33f22d74bb205a2653d07017d1b1152b3600faddfe60c16
+Platform: linux/amd64
+Image USER: 65532:65532
+Entrypoint: ["/jelee"]
+Healthcheck: {"Interval": 30000000000, "Retries": 3, "Test": ["CMD", "/jelee-cli", "doctor"], "Timeout": 20000000000}
+jelee: PASS ELF64 static; no PT_INTERP or PT_DYNAMIC; bytes=17577921
+jelee SHA256: 18c80cf4b7c618229d850de7ae4e35449549c831176fef28d8f7ddadd403e889
+jelee-cli: PASS ELF64 static; no PT_INTERP or PT_DYNAMIC; bytes=15551938
+jelee-cli SHA256: 503a0e14d26d0496173420b283cebda167527bc1717fcc50d7820ffdd3227076
+jelee-migrate: PASS ELF64 static; no PT_INTERP or PT_DYNAMIC; bytes=15421809
+jelee-migrate SHA256: 3ce909bb22bb7964da69bcfc7a010d7b9e1f68e87ae917b98f40ef1f97b876ea
+PASS: exactly three ELF programs; all other regular files match the documented data-file inventory and have no script shebang
+Executable permission bits on text/data or Docker placeholders: .dockerenv, LICENSE, dev/console, etc/hostname, etc/hosts, etc/resolv.conf, licenses/README.md
+PASS: no ffmpeg, ffprobe, shell, busybox, go/gofmt or Go SDK paths
+PASS: /LICENSE is byte-identical to repository LICENSE
+Project LICENSE SHA256: f371b80469fb235bc500ec29e0e85b682d4a6157a158567d828ff0be544d4f1d
+PASS: present and nonempty /licenses/go/LICENSE
+PASS: present and nonempty /licenses/go/PATENTS
+PASS: present and nonempty /licenses/README.md
+PASS: present and nonempty /etc/ssl/certs/ca-certificates.crt
+Regular files: .dockerenv, LICENSE, dev/console, etc/hostname, etc/hosts, etc/resolv.conf, etc/ssl/certs/ca-certificates.crt, jelee, jelee-cli, jelee-migrate, licenses/README.md, licenses/go/LICENSE, licenses/go/PATENTS
+PASS: static image inspection complete; no image process was started
+PASS: inspection-only container was never started and was removed (docker export script exit 0)

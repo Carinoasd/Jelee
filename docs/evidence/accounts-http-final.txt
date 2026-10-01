@@ -1,0 +1,1 @@
+ok  	github.com/MoYuanCN/Jelee/internal/adapter/http	3.408s	coverage: 90.5% of statements

@@ -19,6 +19,10 @@ max_line_length = off
 [*.{yml,yaml}]
 indent_size = 2
 
+[*.go]
+indent_style = tab
+indent_size = 4
+
 # XML indentation
 [*.{csproj,xml}]
 indent_size = 2
