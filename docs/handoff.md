@@ -604,3 +604,11 @@ PR46 兩 PostgreSQL、foundation 與三平台 run-tests 全部通過；完整品
 family-metadata-first 17頂層 pass45.982秒；新增claim/初始讀取後family-worker-fences 19pass48.282秒。完整PG race family-worker-execution-full 245頂層pass、0fail0skip339.075秒sourceUnchanged=true。Windows相關包/全vet/三build通過；Linuxjobs/domain/app/scan/architecture race全pass。完整PG後僅收緊New啟動guard，新增專項jobs測試通過；正在跑最後原生storage+worker驗收family-worker-execution-native，exec71759。CI原生regex擴為 TestFamily(IgnoreNativeStorage|RunnerNative.*)。公開提交/服務設定尚未開放，不可宣稱G22完成。CodeQL此前修復已遠端成功。
 
 最後 family-worker-execution-native 原生 storage+worker 六項通過、0fail0skip24.631秒sourceUnchanged=true；exec71759已結束。最終全vet/三build/diff檢查通過。來源與授權原文保持；接續以既有PR46推送，保留單一工作分支。所有本機測試handle已結束。friend 重複遠端已移除，origin指向Carinoasd/Jelee，upstream仍指向原始上游。
+
+### 合併模式結果報告已驗證
+
+GetIgnoreReport 改用私有完整 request 辨識，依已验证 mode 選取兩個固定 SQL 常數。合併模式讀 family decisions/exclusions，增加公開 family 與 reason；原模式省略 family 並維持 JSON 合同。摘要 invalidated 同時讀取 custom/legacy manifests。游標仍以 source/root/path 排序和綁定工作，兩來源各 limit+1，終態與 live admin/session/最後授權 guard 維持。family scan 目錄來源可等於自己的路徑；baseline 檔案仍要求祖先來源。unknown 不宣稱規則家族。OpenAPI 與 CLI 解碼已同步，空白/無效來源無行號，報告不包含來源內容/雜湊/絕對根路徑。
+
+首輪 family-report-first 5pass/1fail24.533秒，深頁 fixture INSERT 漏兩個新欄位的值；第二輪 family-report-fixed 5pass/1fail24.430秒，baseline fixture 漏必填 family 空字串。兩者均為測試資料建置問題，未修改資料庫約束或正式查詢掩蓋失敗。補齊後 family-report-plan-complete 6pass0fail0skip25.679秒。最後新增歷史baseline排除專項並含既有HTTP完整鏈，family-report-regression 8頂層pass0fail0skip28.684秒、sourceUnchanged=true；證據 docs/evidence/ignore-family-report.json。Linux domain/HTTP/CLI/architecture race 1.067/3.259/1.847/1.114秒通過；Windows五包/全vet/三build通過。LICENSE 與需求原文 SHA256 符合既有值。所有本機 handle 結束。
+
+PR46 f9a48d94cf 的兩 PostgreSQL、三平台 run-tests、foundation、format、ABI、CodeQL 都已通過，僅完整品牌檢查失敗。此次報告尚待推送後確認新的遠端 CI。接續公開准入：ScanServices 必須獨立 family availability；新明確 admission port 保留舊入口封閉合同。submitScanJobWithIgnore 需 mode-aware validation/retained request read/identity insert；授權重送先於現時可用性，retry保留父模式與身份，只有新任務需要正確家族能力。公開准入完成後仍需正式 runtime helper readiness/lifetime/feature flag，不可以僅 OS 判斷宣稱可用。公開入口與 G22 目前仍未完成。

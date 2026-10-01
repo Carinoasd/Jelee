@@ -10,12 +10,13 @@ func ignoreReportSpecification(paths, schemas map[string]any) {
 		"rootId": uuid, "path": stringSchema(1024),
 		"kind":          map[string]any{"type": "string", "enum": []string{"directory", "video", "nfo", "image", "other"}},
 		"outcome":       map[string]any{"type": "string", "enum": []string{"excluded", "included_missing", "unknown"}},
+		"family":        map[string]any{"type": "string", "enum": []string{"jeleeignore", "legacy-ignore-021"}},
 		"ruleDirectory": stringSchema(1024),
 		"ruleLine":      map[string]any{"type": "integer", "minimum": 1, "maximum": 4096},
 		"matchedPath":   stringSchema(1024),
-		"reason":        map[string]any{"type": "string", "enum": []string{"source_unavailable", "source_changed", "coverage_unknown"}},
+		"reason":        map[string]any{"type": "string", "enum": []string{"source_unavailable", "source_changed", "coverage_unknown", "rule", "blank-source", "invalid-source"}},
 	}, "source", "rootId", "path", "outcome")
-	schemas["IgnoreReportEntry"].(map[string]any)["description"] = "Paths are relative to rootId. Excluded entries include ruleDirectory, one-based ruleLine in .jeleeignore, and matchedPath; unknown entries include reason. Scan entries have kind and outcome excluded. Baseline entries classify retained old paths and omit kind."
+	schemas["IgnoreReportEntry"].(map[string]any)["description"] = "Paths are relative to rootId. Excluded entries include ruleDirectory and matchedPath. Family mode adds family and reason; blank-source and invalid-source omit ruleLine because no individual line matched. Rule matches use one-based ruleLine. Unknown entries include reason and omit family. Scan entries have kind and outcome excluded. Baseline entries classify retained old paths and omit kind."
 	schemas["IgnoreReport"] = objectSchema(map[string]any{
 		"jobId":   uuid,
 		"state":   map[string]any{"type": "string", "enum": []string{"succeeded", "failed", "cancelled"}},

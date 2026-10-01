@@ -46,3 +46,17 @@ CLI 僅輸出已知公開欄位，並拒絕非法相對路徑、無效規則來�
 整合測試串起真實登入 token、HTTP 提交、正式 worker、原生來源讀取、PostgreSQL 分頁報告與登入撤銷。兩萬筆合成報告資料的 custom/generic 查詢計畫皆限制於兩來源各 `limit+1` 筆索引讀取。此結果僅證明報告分頁，不能當作完整媒體庫規模效能驗收。
 
 本段未修改既有遷移，schema仍為12。舊格式忽略兼容、規則修改後完整重掃、混合外部probe真媒體及worker取消/unknown完整情境仍待驗收；3D1與全案尚未完成。
+
+## 合併模式報告
+
+保留的合併模式工作也可使用同一報告 API 與 CLI。公開掃描提交目前仍只接受原模式；服務啟動與合併模式准入尚待接線。
+
+合併模式排除結果增加 `family` 與 `reason`：
+
+- `family=jeleeignore`、`reason=rule`：自有規則命中，保留從 1 開始的行號。
+- `family=legacy-ignore-021`：由已固定版本的 `.ignore` 語意排除。`reason=rule` 帶行號；`blank-source` 或 `invalid-source` 表示整份來源造成排除，沒有個別行號，故省略 `ruleLine`。
+- `unknown` 不歸屬任何規則家族，保留來源不可用等原因；不能當作確定缺失。
+
+目錄自己的 `.ignore` 可以是該目錄的排除來源；歷史基線檔案的來源仍須符合祖先關係。兩份来源任一失效，`invalidated` 都為 true。報告不包含規則內容、來源雜湊、檔案系統身分或絕對根路徑。
+
+[合併模式報告證據](evidence/ignore-family-report.json)：真實 PostgreSQL race 專項 8 項頂層通過，零失敗、零略過，28.684 秒，來源未變；涵蓋歷史基線排除、133 筆結果分頁、權限撤銷、舊格式清單失效、兩萬筆 generic/custom 分頁計畫，以及既有 HTTP 到正式 worker 的報告回歸。Windows 相關模組測試與 Linux domain／HTTP／CLI／architecture race 通過；全 vet、三命令 build 通過。這些是報告驗收，完整 G22 仍未完成。

@@ -41,13 +41,22 @@ func decodeIgnoreReportCursor(raw, id string) (ignoreReportCursor, error) {
 // between source and cursor predicates degenerates to filtering old rows when
 // PostgreSQL chooses a generic prepared plan.
 const ignoreReportPageSQL = `WITH b AS (
- SELECT 'baseline'::text source,root_id,path,''::text kind,outcome,rule_directory,rule_line,matched_path,reason FROM job_ignore_decisions
+ SELECT 'baseline'::text source,root_id,path,''::text kind,outcome,rule_directory,rule_line,matched_path,reason,''::text family FROM job_ignore_decisions
  WHERE job_id=$1::uuid AND $2<='baseline' AND (root_id,path COLLATE "C")>(CASE WHEN $2='baseline' THEN NULLIF($3,'')::uuid ELSE '00000000-0000-0000-0000-000000000000'::uuid END,CASE WHEN $2='baseline' THEN $4 ELSE '' END COLLATE "C") ORDER BY root_id,path COLLATE "C" LIMIT $5
 ),s AS (
- SELECT 'scan'::text source,root_id,path,kind,'excluded'::text outcome,rule_directory,rule_line,matched_path,''::text reason FROM job_ignore_exclusions
+ SELECT 'scan'::text source,root_id,path,kind,'excluded'::text outcome,rule_directory,rule_line,matched_path,''::text reason,''::text family FROM job_ignore_exclusions
  WHERE job_id=$1::uuid AND (root_id,path COLLATE "C")>(CASE WHEN $2='scan' THEN NULLIF($3,'')::uuid ELSE '00000000-0000-0000-0000-000000000000'::uuid END,CASE WHEN $2='scan' THEN $4 ELSE '' END COLLATE "C") ORDER BY root_id,path COLLATE "C" LIMIT $5
 )
- SELECT source,root_id::text,path,kind,outcome,rule_directory,rule_line,matched_path,reason FROM (SELECT * FROM b UNION ALL SELECT * FROM s) all_rows ORDER BY source COLLATE "C",root_id,path COLLATE "C" LIMIT $5`
+ SELECT source,root_id::text,path,kind,outcome,rule_directory,rule_line,matched_path,reason,family FROM (SELECT * FROM b UNION ALL SELECT * FROM s) all_rows ORDER BY source COLLATE "C",root_id,path COLLATE "C" LIMIT $5`
+
+const familyIgnoreReportPageSQL = `WITH b AS (
+ SELECT 'baseline'::text source,root_id,path,''::text kind,outcome,rule_directory,rule_line,matched_path,reason,family FROM job_ignore_family_decisions
+ WHERE job_id=$1::uuid AND $2<='baseline' AND (root_id,path COLLATE "C")>(CASE WHEN $2='baseline' THEN NULLIF($3,'')::uuid ELSE '00000000-0000-0000-0000-000000000000'::uuid END,CASE WHEN $2='baseline' THEN $4 ELSE '' END COLLATE "C") ORDER BY root_id,path COLLATE "C" LIMIT $5
+),s AS (
+ SELECT 'scan'::text source,root_id,path,kind,'excluded'::text outcome,rule_directory,rule_line,matched_path,reason,family FROM job_ignore_family_exclusions
+ WHERE job_id=$1::uuid AND (root_id,path COLLATE "C")>(CASE WHEN $2='scan' THEN NULLIF($3,'')::uuid ELSE '00000000-0000-0000-0000-000000000000'::uuid END,CASE WHEN $2='scan' THEN $4 ELSE '' END COLLATE "C") ORDER BY root_id,path COLLATE "C" LIMIT $5
+)
+ SELECT source,root_id::text,path,kind,outcome,rule_directory,rule_line,matched_path,reason,family FROM (SELECT * FROM b UNION ALL SELECT * FROM s) all_rows ORDER BY source COLLATE "C",root_id,path COLLATE "C" LIMIT $5`
 
 func (s *Store) GetIgnoreReport(parent context.Context, a domain.Actor, id string, limit int, cursor string) (domain.IgnoreReport, error) {
 	empty := domain.IgnoreReport{}
@@ -69,27 +78,31 @@ func (s *Store) GetIgnoreReport(parent context.Context, a domain.Actor, id strin
 	}
 	defer tx.Rollback(ctx)
 	out := domain.IgnoreReport{Entries: []domain.IgnoreReportEntry{}}
-	err = tx.QueryRow(ctx, `SELECT j.id::text,j.state,j.ignore_requested,j.review_required,COALESCE(m.invalidated,false),COALESCE(s.excluded_files,0),COALESCE(s.excluded_directories,0),COALESCE(c.unknown,0) FROM jobs j LEFT JOIN job_ignore_manifests m ON m.job_id=j.id LEFT JOIN job_ignore_scan_state s ON s.job_id=j.id LEFT JOIN job_ignore_comparisons c ON c.job_id=j.id WHERE j.id=$1::uuid`, id).Scan(&out.JobID, &out.State, &out.Enabled, &out.ReviewRequired, &out.Invalidated, &out.ExcludedFiles, &out.ExcludedDirectories, &out.Unknown)
+	err = tx.QueryRow(ctx, `SELECT j.id::text,j.state,j.ignore_requested,j.review_required,(COALESCE(m.invalidated,false) OR COALESCE(lm.invalidated,false)),COALESCE(s.excluded_files,0),COALESCE(s.excluded_directories,0),COALESCE(c.unknown,0) FROM jobs j LEFT JOIN job_ignore_manifests m ON m.job_id=j.id LEFT JOIN job_ignore_legacy_manifests lm ON lm.job_id=j.id LEFT JOIN job_ignore_scan_state s ON s.job_id=j.id LEFT JOIN job_ignore_comparisons c ON c.job_id=j.id WHERE j.id=$1::uuid`, id).Scan(&out.JobID, &out.State, &out.Enabled, &out.ReviewRequired, &out.Invalidated, &out.ExcludedFiles, &out.ExcludedDirectories, &out.Unknown)
 	if err != nil {
 		return empty, storageError(err)
 	}
 	if out.State == domain.JobQueued || out.State == domain.JobRunning {
 		return empty, domain.ErrConflict
 	}
-	request, err := loadIgnoreRequest(ctx, tx, id)
+	request, err := loadExecutionIgnoreRequest(ctx, tx, id, true)
 	if err != nil {
 		return empty, err
 	}
 	if out.Enabled != (request != nil) {
 		return empty, domain.ErrConflict
 	}
-	rows, err := tx.Query(ctx, ignoreReportPageSQL, id, after.Source, after.Root, after.Path, limit+1)
+	pageSQL := ignoreReportPageSQL
+	if request != nil && request.Intent.Mode == domain.IgnoreModeFamily {
+		pageSQL = familyIgnoreReportPageSQL
+	}
+	rows, err := tx.Query(ctx, pageSQL, id, after.Source, after.Root, after.Path, limit+1)
 	if err != nil {
 		return empty, storageError(err)
 	}
 	for rows.Next() {
 		var entry domain.IgnoreReportEntry
-		if err = rows.Scan(&entry.Source, &entry.RootID, &entry.Path, &entry.Kind, &entry.Outcome, &entry.RuleDirectory, &entry.RuleLine, &entry.MatchedPath, &entry.Reason); err != nil {
+		if err = rows.Scan(&entry.Source, &entry.RootID, &entry.Path, &entry.Kind, &entry.Outcome, &entry.RuleDirectory, &entry.RuleLine, &entry.MatchedPath, &entry.Reason, &entry.Family); err != nil {
 			rows.Close()
 			return empty, storageError(err)
 		}
