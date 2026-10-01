@@ -220,3 +220,13 @@ PG報告測試補真實users降權與sessions撤銷：已取得的nextCursor不�
 最終api-full完整PG race：185頂層/零skip/224.669秒/sourceUnchanged=true。Linux全vet與jelee/jelee-cli/jelee-migrate建置通過且sourceUnchanged。Windows CLI/HTTP/app/runtime/i18n/architecture測試通過；PG/architecture編譯與vet通過，Windows無DSN並非整合證據。LICENSE/requirements-source/go.mod/go.sum雜湊保持，migration未改。證據 docs/evidence/ignore-api.json；使用說明 docs/ignore-api.md。全部測試handle結束。
 
 需求矩陣更新G22已交付部分，G22.5由阻塞改部分完成，統計4完成/174部分/158阻塞。未宣稱整段G22完成。準備以此狀態提交普通繁中PR，base feat/jelee-ignore-runner，head feat/jelee-ignore-api。接續規則修改後重掃驗收、混合外部probe真媒體、worker取消/unknown端到端，以及既有上游審計基礎上的legacy忽略格式兼容；不得提前關閉全案goal。
+
+已提交698c7d91f0，推送普通繁中PR26（https://github.com/MoYuanCN/Jelee/pull/26），已附聊天。目前分支feat/jelee-ignore-rescan，自PR26提交接續；僅本handoff更新未提交。PR26 CI尚未查看最終結果。下一小段優先同一正式worker/同一來源快取修改規則後重掃：先排除→解除排除→重新排除，確認報告與baseline保留/更新語義，包含相同size/mtime內容變更。可沿用ignore_http_test.go的真HTTP/PG/worker fixture或抽共享helper，保留production guards，不改已發布migration。所有測試handle均已結束。
+
+### 規則修改與移除重掃驗收完成
+
+新增 ignore_rescan_test.go：同一正式runner/scanner/cache四次執行，a排除→b排除→a排除→刪除規則。前三次固定相同6 bytes與mtime，均讀到新內容；報告scan/baseline來源與規則行正確。排除的舊媒體基線保留size/revision，重新納入則更新revision。刪除規則後排除歸零，missing=1只對應規則檔，不誤報媒體消失。
+
+rescan-first三次Linux PG race通過；最終rescan-removal四次Linux PG race通過，1頂層/零skip/18.761秒/sourceUnchanged=true。Windows PG編譯test與vet通過（無DSN非整合證據）；diff --check通過。僅測試與文件改動，不需重跑前階段完整185項；無production或migration改動。證據docs/evidence/ignore-rescan.json，說明docs/ignore-rescan.md。全部handle結束。PR26目前品牌fail，部分功能CI已過、其餘仍pending，未看到功能失敗。
+
+本小段準備普通繁中PR，base feat/jelee-ignore-api。下一段繼續mixed external probe真媒體與worker取消/unknown端到端；legacy兼容需沿既有來源審計，不得猜測語義。
