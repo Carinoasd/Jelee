@@ -46,16 +46,23 @@ func (s *Server) metadataApplyRoutes(r chi.Router) {
 func metadataOriginSpecification(schemas map[string]any) {
 	schemas["MetadataProviderOrigin"] = objectSchema(map[string]any{"resource": map[string]any{"type": "string", "enum": []string{"movie", "series"}}, "providerId": map[string]any{"type": "integer", "format": "int32", "minimum": 1}, "sourceUrl": map[string]any{"type": "string", "format": "uri"}, "requestedLanguage": map[string]any{"type": "string", "enum": []string{"zh-CN", "zh-TW", "ja-JP", "en-US"}}, "fetchedAt": map[string]any{"type": "string", "format": "date-time"}}, "resource", "providerId", "sourceUrl", "requestedLanguage", "fetchedAt")
 	field := schemas["ItemMetadataField"].(map[string]any)
-	field["properties"].(map[string]any)["source"] = map[string]any{"type": "string", "enum": []string{"existing", "manual", "tmdb"}}
+	field["properties"].(map[string]any)["source"] = map[string]any{"type": "string", "enum": []string{"existing", "manual", "tmdb", "nfo"}}
 	field["properties"].(map[string]any)["providerOrigin"] = map[string]any{"oneOf": []any{map[string]any{"$ref": "#/components/schemas/MetadataProviderOrigin"}, map[string]any{"type": "null"}}}
 	field["required"] = append(field["required"].([]string), "providerOrigin")
+	schemas["NFOItemOrigin"] = objectSchema(map[string]any{"sourceId": map[string]any{"type": "string", "format": "uuid"}, "rootId": map[string]any{"type": "string", "format": "uuid"}, "generation": map[string]any{"type": "integer", "minimum": 1}, "sha256": map[string]any{"type": "string", "pattern": "^[0-9a-f]{64}$"}, "identityDigest": map[string]any{"type": "string", "pattern": "^[0-9a-f]{64}$"}, "projection": map[string]any{"type": "string", "const": domain.NFOItemFieldsVersion}, "readAt": map[string]any{"type": "string", "format": "date-time"}, "locked": map[string]any{"type": "boolean"}}, "sourceId", "rootId", "generation", "sha256", "identityDigest", "projection", "readAt", "locked")
+	field["properties"].(map[string]any)["nfoOrigin"] = map[string]any{"oneOf": []any{map[string]any{"$ref": "#/components/schemas/NFOItemOrigin"}, map[string]any{"type": "null"}}}
+	field["required"] = append(field["required"].([]string), "nfoOrigin")
 	item := schemas["ItemMetadata"].(map[string]any)
 	item["properties"].(map[string]any)["kind"] = map[string]any{"type": "string", "enum": []string{"Movie", "Series", "Season", "Episode", "HomeVideo"}}
 	item["required"] = append(item["required"].([]string), "kind")
 }
 
-func metadataApplySpecification(paths, schemas map[string]any) {
+func metadataApplyResultSpecification(schemas map[string]any) {
 	schemas["MetadataApplyResult"] = objectSchema(map[string]any{"metadata": map[string]any{"$ref": "#/components/schemas/ItemMetadata"}, "applied": map[string]any{"type": "array", "maxItems": 4, "items": map[string]any{"type": "string"}}, "skipped": map[string]any{"type": "array", "maxItems": 4, "items": objectSchema(map[string]any{"field": map[string]any{"type": "string"}, "reason": map[string]any{"type": "string", "enum": []string{"locked", "manual", "nfo", "existing"}}}, "field", "reason")}}, "metadata", "applied", "skipped")
+}
+
+func metadataApplySpecification(paths, schemas map[string]any) {
+	metadataApplyResultSpecification(schemas)
 	op := operation("Apply explicitly confirmed TMDB details while preserving local fields and locks (administrator)", "200", "400", "401", "403", "404", "408", "409", "503")
 	op["security"] = []any{map[string]any{"bearer": []string{}}}
 	op["parameters"] = []any{idParameter()}

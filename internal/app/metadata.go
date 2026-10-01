@@ -60,6 +60,7 @@ type Metadata struct {
 	provider    MetadataProvider
 	preferences MetadataPreferencesRepository
 	items       ItemMetadataRepository
+	nfoFields   NFOItemFieldsReader
 }
 
 func NewMetadata(provider MetadataProvider) (*Metadata, error) {

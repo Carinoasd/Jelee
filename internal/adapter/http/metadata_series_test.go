@@ -74,7 +74,7 @@ func TestSeriesHTTPFailuresRolloutAndSchemaIsolation(t *testing.T) {
 	}
 	cfg.TMDBAPIKey = ""
 	for path := range Specification(cfg)["paths"].(map[string]any) {
-		if strings.Contains(path, "/metadata/") {
+		if strings.HasPrefix(path, "/api/v1/metadata/tmdb/") || strings.HasSuffix(path, "/metadata/tmdb") {
 			t.Fatal("disabled metadata advertised")
 		}
 	}

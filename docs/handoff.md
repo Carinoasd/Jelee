@@ -1040,3 +1040,19 @@ Windows完整Go 29pkg／3129pass事件含父／448skip；原435身份一致，�
 增量brand0／181，全量14735／186仍失敗，gitignore0；來源hash／LICENSE／requirements／五核心逐位元／21版舊遷移Git正規化／local links／336列／無C#diff核對通過。全案4done／184partial／148blocked，G14.6及G14.7仍部分完成。見tmdb-metadata-apply.md及evidence/tmdb-metadata-apply.json。上一HEAD所有CI已結束，foundation Windows／Linux／PG成功，只有fullbrand／ABI仍失敗。
 
 下一段按.testdata/nfo-fields-next.md做可信唯讀NFO欄位抽取與實際接線、manual>NFO>TMDB及鎖；不留在preview／只寫計畫。原五核心3271行未刪，具體授权提問待答，不另問、不繞審查。禁止merge／新branch／release／forcepush／改舊遷移。所有本輪handles結束後提交／push繁中並更新同PR46，新HEADCI需自身結果。
+
+### G14／G39 唯讀 NFO 四欄與可信來源套用（schema23）
+
+接續99ccac11177675e7c28ba8ad652e573a31a843dd，同PR46／同branch。SummaryReader沿原安全ReadSource讀完整不可變bytes，compiled identity／四欄projection版本，拒namespace／wrapper／多項目／重複singleton／非法日期與XML／oversized／無文字；UTF16／取消／caller ownership及原檔bytes保持經測。NFOItemScope由authorizedJobs短交易從永久item→唯一media_sources→library_roots，LIMIT2拒歧義，來源相鄰同名.nfo、canonical相對path、不接受HTTP path。actor／revision／NFO mode/gen／kind先查；交易外兩次full讀比對SHA／stamp／identity／fields／鎖，最後ApplyItemNFO重驗完整scope／session／generation／revision，fields／catalog／revision／audit同txn。沒有原檔／媒體／圖片寫入。
+
+NFOItemOrigin保存source/root UUID、generation、SHA256、identityDigest、projection、readAt、NFO locked；不含path。NFOOrigin.locked與人工Locked獨立，manual／兩類鎖保護（含manual空值）；NFO可取代existing／tmdb，missing不清空，manual value接管清NFO／provider來源，只改lock保留。接受全略過亦推版本，HomeVideo至少一欄movie才改Movie。即使NFO讀取off，保存NFO來源仍比TMDB優先。schema23 JSON有完整鍵／唯一允許鍵／UUID／有限generation／digest／projection／boolean／finite-time SQL約束，非NFO不能帶來源；保留NFO拒down，全部manual接管可23→22→23保持值／revision。原001–022保持；旧down链加23→22。
+
+管理員POST items/{id}/metadata/nfo只有expectedRevision／confirmed=true，8KiB嚴格body、帳號認證／budget、safe errors；不依賴TMDB key或EnableJobs，库NFO設定仍原流程。OpenAPI／來源read schema在無key亦有，live job/provider feature tests更新成實際受旗標控制的路徑，另新增本地NFO flags合同。runtime bindMetadata有／無provider都綁正式安全reader，實際prod closure同函式，兩種狀態用真檔案測到正式讀者。
+
+真檔案＋HTTP TCP＋app＋PG驗401／非法確認／不能偽造path、NFO四欄與origin、人工接管／空值／兩類鎖、原檔bytes、過期409、非法XML503、兩次讀間變檔409、讀後gen改變409、失敗無更新或audit；repo再驗SQL中途失敗全回滾、來源替換、撤session、migration保留／clean。刻意停用NFO來源優先序（含unknown fallback）的實際repo TMDB寫入负例1leaf fail，逐位元恢復SHA 98f808121876bcc8654b5dbc027a7ea7758ab88f695955425873b688610fa630；復原五PG專項0fail／0skip通過。首fixture把帶參數多SQL一呼叫造成42601，已拆開，非產品失敗。
+
+最終完整PG race 726pass事件含父／0fail／0skip／364.466秒；Windows完整29pkg／3155pass含父／453skip，原435身份一致，额外17PG＋1outbound各自在实测通過。Linux原生tmp五包race 1015pass含父／0fail／0skip；schema23下原100電影／20劇集真TLS／HTTP／PG合成矩陣1pass／0skip／64.553s，120confirm writes／0fail。完整Windows／native／120矩陣在最後補SQL-only非法origin组件case前通過，產品來源未變；最終PG／vet含这些新增case。vet／產品build PASS。
+
+brand new0／181、full14735／186仍FAIL、gitignore0；22版舊migrations的Git正規化內容、LICENSE／requirements、待核准五核心逐位元、来源hash／local links／336列／無C#diff核對。G14.6／G39.6仍partial，全案4done／184partial／148blocked。見nfo-item-metadata.md與evidence/nfo-item-metadata.json。
+
+唯讀NFO库與TMDB同次fusion仍有503guard，本段不是完整G14／G39。下一段按.testdata/nfo-tmdb-fusion-next.md以same txn融合，不先提交NFO后再套TMDB来规避原子性；再实际inventory/worker/hierarchy、其他NFO字段/来源选择、read-write无损回写、清外部来源、frontend/full perf。所有原檔保持。五核心3271行授权问题待答不改、不绕。禁止merge/release/newbranch/forcepush/oldmigration/identity config；当前stage完成后繁中push同PR46。新HEADCI需自有结果，之前HEADfoundation当时live，ABI失败。

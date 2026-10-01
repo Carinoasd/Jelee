@@ -2,6 +2,7 @@ package postgres
 
 import (
 	"context"
+	"encoding/json"
 	"time"
 
 	"github.com/MoYuanCN/Jelee/internal/domain"
@@ -21,7 +22,7 @@ func readItemMetadata(ctx context.Context, tx pgx.Tx, item string, lock bool) (d
 	if err := tx.QueryRow(ctx, `SELECT COALESCE((SELECT revision FROM item_metadata_state WHERE item_id=$1::uuid),1)`, item).Scan(&value.Revision); err != nil {
 		return value, storageError(err)
 	}
-	rows, err := tx.Query(ctx, `SELECT field,value,source,locked,updated_at,provider_resource,provider_id,provider_source_url,provider_language,provider_fetched_at FROM item_metadata_fields WHERE item_id=$1::uuid ORDER BY CASE field WHEN 'title' THEN 0 WHEN 'originalTitle' THEN 1 WHEN 'overview' THEN 2 ELSE 3 END`, item)
+	rows, err := tx.Query(ctx, `SELECT field,value,source,locked,updated_at,provider_resource,provider_id,provider_source_url,provider_language,provider_fetched_at,nfo_origin FROM item_metadata_fields WHERE item_id=$1::uuid ORDER BY CASE field WHEN 'title' THEN 0 WHEN 'originalTitle' THEN 1 WHEN 'overview' THEN 2 ELSE 3 END`, item)
 	if err != nil {
 		return value, storageError(err)
 	}
@@ -31,11 +32,19 @@ func readItemMetadata(ctx context.Context, tx pgx.Tx, item string, lock bool) (d
 		var resource, sourceURL, language *string
 		var id *int32
 		var fetched *time.Time
-		if err := rows.Scan(&field.Field, &field.Value, &field.Source, &field.Locked, &field.UpdatedAt, &resource, &id, &sourceURL, &language, &fetched); err != nil {
+		var nfoOrigin []byte
+		if err := rows.Scan(&field.Field, &field.Value, &field.Source, &field.Locked, &field.UpdatedAt, &resource, &id, &sourceURL, &language, &fetched, &nfoOrigin); err != nil {
 			return value, storageError(err)
 		}
 		if resource != nil {
 			field.ProviderOrigin = &domain.MetadataProviderOrigin{Resource: *resource, ProviderID: *id, SourceURL: *sourceURL, RequestedLanguage: *language, FetchedAt: fetched.UTC()}
+		}
+		if len(nfoOrigin) > 0 {
+			var origin domain.NFOItemOrigin
+			if json.Unmarshal(nfoOrigin, &origin) != nil || !domain.ValidNFOItemOrigin(origin) {
+				return value, domain.ErrMetadataUnavailable
+			}
+			field.NFOOrigin = &origin
 		}
 		value.Fields = append(value.Fields, field)
 	}
@@ -96,6 +105,7 @@ func (s *Store) UpdateItemMetadata(ctx context.Context, actor domain.Actor, item
 			field.Value = *patch.Value
 			field.Source = "manual"
 			field.ProviderOrigin = nil
+			field.NFOOrigin = nil
 		}
 		if patch.Locked != nil {
 			field.Locked = *patch.Locked
@@ -122,7 +132,15 @@ func writeItemMetadataField(ctx context.Context, tx pgx.Tx, item string, field d
 		resource, sourceURL, language = &origin.Resource, &origin.SourceURL, &origin.RequestedLanguage
 		id, fetched = &origin.ProviderID, &origin.FetchedAt
 	}
-	if _, err := tx.Exec(ctx, `INSERT INTO item_metadata_fields(item_id,field,value,source,locked,updated_at,provider_resource,provider_id,provider_source_url,provider_language,provider_fetched_at) VALUES($1::uuid,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) ON CONFLICT(item_id,field) DO UPDATE SET value=EXCLUDED.value,source=EXCLUDED.source,locked=EXCLUDED.locked,updated_at=EXCLUDED.updated_at,provider_resource=EXCLUDED.provider_resource,provider_id=EXCLUDED.provider_id,provider_source_url=EXCLUDED.provider_source_url,provider_language=EXCLUDED.provider_language,provider_fetched_at=EXCLUDED.provider_fetched_at`, item, field.Field, field.Value, field.Source, field.Locked, now, resource, id, sourceURL, language, fetched); err != nil {
+	var nfoOrigin []byte
+	if field.NFOOrigin != nil {
+		var err error
+		nfoOrigin, err = json.Marshal(field.NFOOrigin)
+		if err != nil {
+			return domain.ErrInvalid
+		}
+	}
+	if _, err := tx.Exec(ctx, `INSERT INTO item_metadata_fields(item_id,field,value,source,locked,updated_at,provider_resource,provider_id,provider_source_url,provider_language,provider_fetched_at,nfo_origin) VALUES($1::uuid,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12::jsonb) ON CONFLICT(item_id,field) DO UPDATE SET value=EXCLUDED.value,source=EXCLUDED.source,locked=EXCLUDED.locked,updated_at=EXCLUDED.updated_at,provider_resource=EXCLUDED.provider_resource,provider_id=EXCLUDED.provider_id,provider_source_url=EXCLUDED.provider_source_url,provider_language=EXCLUDED.provider_language,provider_fetched_at=EXCLUDED.provider_fetched_at,nfo_origin=EXCLUDED.nfo_origin`, item, field.Field, field.Value, field.Source, field.Locked, now, resource, id, sourceURL, language, fetched, nfoOrigin); err != nil {
 		return storageError(err)
 	}
 	if field.Field == "title" {

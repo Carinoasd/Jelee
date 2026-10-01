@@ -15,6 +15,7 @@ type ItemMetadataField struct {
 	Locked         bool                    `json:"locked"`
 	UpdatedAt      *time.Time              `json:"updatedAt"`
 	ProviderOrigin *MetadataProviderOrigin `json:"providerOrigin"`
+	NFOOrigin      *NFOItemOrigin          `json:"nfoOrigin"`
 }
 
 type ItemMetadata struct {
@@ -86,6 +87,10 @@ func CloneItemMetadata(value ItemMetadata) ItemMetadata {
 		if value.Fields[i].ProviderOrigin != nil {
 			origin := *value.Fields[i].ProviderOrigin
 			value.Fields[i].ProviderOrigin = &origin
+		}
+		if value.Fields[i].NFOOrigin != nil {
+			origin := *value.Fields[i].NFOOrigin
+			value.Fields[i].NFOOrigin = &origin
 		}
 	}
 	return value

@@ -64,6 +64,7 @@ func TestTMDBMetadataPersistencePriorityAndManualTakeover(t *testing.T) {
 func TestTMDBMetadataMigrationConstraintsAndAtomicFailure(t *testing.T) {
 	f := newJobFixture(t)
 	item := metadataItem(t, f)
+	nfoMigrateVersion(t, f, "down", 22)
 	nfoMigrateVersion(t, f, "down", 21)
 	nfoMigrateVersion(t, f, "up", SchemaVersion)
 	if _, err := f.s.Pool.Exec(f.ctx, `UPDATE items SET kind='HomeVideo' WHERE id=$1::uuid`, item); err != nil {
@@ -101,6 +102,7 @@ func TestTMDBMetadataMigrationConstraintsAndAtomicFailure(t *testing.T) {
 	if _, err = f.s.UpdateItemMetadata(f.ctx, f.a, item, 2, patches); err != nil {
 		t.Fatal(err)
 	}
+	nfoMigrateVersion(t, f, "down", 22)
 	nfoMigrateVersion(t, f, "down", 21)
 	nfoMigrateVersion(t, f, "up", SchemaVersion)
 	value, err = f.s.ItemMetadata(f.ctx, f.a, item)

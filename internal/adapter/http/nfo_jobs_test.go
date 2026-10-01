@@ -339,7 +339,7 @@ func TestNFOFeatureFlagAndOpenAPIContract(t *testing.T) {
 	}
 	cfg.EnableJobs = false
 	for path := range Specification(cfg)["paths"].(map[string]any) {
-		if strings.Contains(path, "/nfo") || strings.HasSuffix(path, "/images") {
+		if strings.Contains(path, "/nfo") && !strings.HasPrefix(path, "/api/v1/items/") || strings.HasSuffix(path, "/images") {
 			t.Fatal("disabled docs exposed")
 		}
 	}
