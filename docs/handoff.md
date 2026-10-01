@@ -312,3 +312,29 @@ Linux race session94982已exit0：process67.610s/helper1.364s/legacyignore1.148s
 Windows服務build已過；Linux全vet/build當前session48936仍需輪詢。新增docs/ignore-executor.md記錄已完成合同、測試及未接scanner限制。此階段準備提交，base feat/jelee-ignore-legacy；主go.mod/go.sum新增v1.12.0，不再使用先前原mod雜湊結論。
 
 Linux全模組vet與正式服務build session48936 exit0。所有handle結束。保留regexp2 MIT全文於helper/LICENSE.regexp2並更新授權索引，原LICENSE與需求原文不變。執行層本小階段驗證已完成，準備普通繁中PR；正式legacy來源/worker/API仍未接。下段應直接接family合同，並持續確認相容regex語法，不再將純executor完成當整段G22完成。
+
+本小階段已提交4e418c6a7c，推送普通繁中PR30（https://github.com/MoYuanCN/Jelee/pull/30），已附聊天。当前feat/jelee-ignore-family从PR30接續；本handoff更新未提交。PR30尚待CI；PR29歷史foundation紅由本PR修正新文件brand命中。下一步先讀domain.IgnoreIntent與source Resolver/cache/PG持久版本，加入明確legacy family能力及来源证明；不可改已發布migration，不可把自有模式原intent解釋成新regex語義。需要控制每檔起child的效能，優先批次/規則缓存合同。沒有活躍handle。
+
+### legacy固定來源入口（未提交）
+
+feat/jelee-ignore-family新增nativeFile.OpenLegacyRule固定.ignore，不開放任意檔名；共用現有native open的readonly/no-follow/absence分類。readLegacyRule透過窄ruleReader重用held file Stat/size budget/cancel/close/hash流程，缺乏legacy capability的reader回Unavailable而不是代讀自有檔案或假absence。未改現有job intent/proof/migration/worker，因此仍未啟用legacy掃描。
+
+新增native來源測試：同目录兩family分離、不同fileidentity、readonly、missing、directory、closed/cancel/budget；同size/mtime改文hash變。Windows全來源package及vet通過，新增3項無skip；實際junction拒絕。Linux新增3項race無skip1.140秒，實際正常/dangling symlink拒絕。首輪Linux在WSL DrvFS上因mtime精度前提失敗；改為寫入前後皆固定Unix1700000000整秒，保留metadata完全相等/hash不同斷言後通過；不能把本次DrvFS測試稱原生/tmp snapshot。
+
+PR30最近check仍running，只有Full branding gate已fail；尚未看到功能失敗。所有命令結束。下一步沿此fixed legacy reader建立nearest來源鏈與內容proof，再新family identity/persistence/API/worker；兩family組合需明確合同，既有自有模式不可默默改語義。此處尚未提交/新PR。
+
+### 最近來源雙觀察（未提交）
+
+新增Resolver.ObserveLegacy(root,relativeDirectory)及私有openRoot測試port。先只開完整目錄鏈/身份，再從最深目錄向root讀固定.ignore，遇第一份present即停止，不讀被遮蔽祖先；空檔仍是present。整條native鏈重新開一次，逐項比對directoryidentity、checked/absent及來源stamp/hash；更近來源在第二次出現回ErrChanged且無部分結果。root以外不搜尋。token含legacy專用version、trusted root/full relative context、所有身份及checked/presence/hash；Bytes getter複製資料。兩slot/30秒與所有句柄close錯誤失效沿用；這還不是持久family proof或worker capability。
+
+Windows全來源package1.047秒及vet通過，Linux WSL DrvFS6項legacy race零skip1.288秒。覆蓋近層空檔覆蓋、影子祖先不讀、庫外忽略、兩次間新近層、getter副本、穿越拒絕。首輪兩Windows測試把未Clean的t.TempDir傳入嚴格canonical-root API而被拒；依既有合同清理測試root後通過，未放寬production驗證。
+
+下一步LegacyObservation的proof公開投影與持久family version、解碼/批次matcher、native scanner/report接線。要支援baseline祖先確定缺失另需明確合同，當前ObserveLegacy只處理存在目錄。所有handle結束。本分支仍只有native reader/observer及handoff未提交，沒有新PR。
+
+### legacy來源proof投影與原生Linux全套已驗證
+
+新增LegacyDirectoryProof（版本legacy-nearest-source-v1）及DirectoryProofs getter，明確Checked=false影子祖先、Checked=true+absent近層缺失、Checked=true+present最近來源。保留directory identity/parent chain與rule identity/size/mtime/hash，不含rawbytes或absolute root；獨立type防混淆原自有proof。Projection副本/JSON String脱敏測試通過。LegacyObservation持有privatechain，公開fields也加json:"-"。
+
+Windows全來源test1.074秒與vet通過。Linux固定Go1.27.1 direct binary、GOENVoff、TMPDIR=/tmp原生來源全套race10.496秒，architecture1.097秒；session36450 exit0。新brand scan0/100allowed，沒有改allowlist。docs/ignore-legacy-source.md保存合同。PR30最近檢查只有完整brand fail，兩PG仍pending，其餘功能完成成功。
+
+本來源觀察小階段準備提交PR，base feat/jelee-ignore-executor；未改domain/PG/migration/API。後續priority為持久family（checked與absent不同，不可塞入舊proof）及解碼/matcher/scanner接線，baseline missing另補明確合同。所有handle結束。

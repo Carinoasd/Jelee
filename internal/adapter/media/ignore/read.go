@@ -33,7 +33,7 @@ func (r contextReader) Read(p []byte) (int, error) {
 	return r.reader.Read(p)
 }
 
-func readRule(ctx context.Context, parent directory, remaining *int) (stamp sourceStamp, original []byte, resultErr error) {
+func readRule(ctx context.Context, parent ruleReader, remaining *int) (stamp sourceStamp, original []byte, resultErr error) {
 	if err := ctx.Err(); err != nil {
 		return sourceStamp{}, nil, err
 	}
