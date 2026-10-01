@@ -1,0 +1,15 @@
+{
+  "baseCommit": "780eee710d88ab025eb620bf7be3665996574c00",
+  "sha256": {
+    "internal/platform/process/runner_test.go": "1fff916d27a3597aaab633edafc528b0b2b1dfba92594cf04bcdf4fe7e3f1265",
+    "internal/platform/process/resource_linux_test.go": "c4b32b9cdc184d6760e3d3df765f3bb81711945dc0855fc5e048ecbf333a79f4",
+    ".testdata/process-exit-linux-repeat.txt": "1c6fa47b86631d48fceeae644abd5169705703f4bc3e9697f573a672a2980f5c",
+    ".testdata/process-exit-linux-package.txt": "7bc6df3a7fb0dc746fc74281a869c050d4ed4eda818bb7522dd541c8dae5e06b",
+    ".testdata/process-exit-windows.txt": "104d5ef1de0984394e21c1be022cf1a3ba4d6de6bbb159052a05878f352f620c"
+  },
+  "linuxTargetedRaceRepetitions": 10,
+  "linuxPackageRace": "passed",
+  "windowsPackage": "passed",
+  "windowsRace": false,
+  "productionCodeChanged": false
+}

@@ -4,7 +4,9 @@
 
 用户已切换思考强度并明确继续。死锁修正已完成本地验证并推送 PR #13：`6fdfaaa2c69cc8bbb0c21f8180ddc36cad5825ef`。PG race132项零skip，Windows build/lint/test，Linux vet/三build，真实1000视频以及1000／100 NFO混合库全部通过；原自动审批拒绝已由root核对限定范围后解决。所有验证命令结束，报告见 jobs-lock-order-verification.md。
 
-当前 `feat/jelee-ignore-comparison` 已快进到该修正，已完成 schema8 库存scope比较前置修正，本地验证通过待推送。新增8项先RED后GREEN，完整PG race140顶层零skip、Windows build/lint/test、Linux vet/三build与1000/100真NFO混合验收通过；证据见inventory-scope.md。完整ignore三态/manifest仍未实现；不新增schema009。依用户原授权每个验证完成的小段push并普通PR。后续先处理PR13 run36808879373的process tree-exit偶发失败：runner_test.go对processAlive重复读取，第一次已退出后第二次又返回true；失败elapsed1.04s小于3s等待上限，需固定观察语义并验证，不放宽清理要求。
+库存scope前置修正已提交 `780eee710d88ab025eb620bf7be3665996574c00`，推送普通 [PR #14](https://github.com/MoYuanCN/Jelee/pull/14)，base `feat/jelee-ignore-inventory`，head `feat/jelee-ignore-comparison`。新增8项RED/GREEN、完整PG race140顶层零skip、Windows build/lint/test、Linux vet/三build与1000/100真NFO混合验收通过；证据见inventory-scope.md。完整ignore三态/manifest仍未实现；没有schema009。
+
+当前 `fix/jelee-process-exit-observation` 从上述提交开始，只修正process测试观察：等待退出后复用结束等待的状态，不再二次读取；Linux读取失败仅ENOENT算退出，其他错误不能静默通过。生产清理逻辑和3秒期限不变。Linux目标race重复10轮、完整process race、Windows process包通过，见process-exit-verification.md。本修正待提交/push普通PR，然后继续C2 manifest持久比较。PR13 run36808879373的1.04s失败支持两次观察不一致，但具体OS原因未被日志证明；同源push run36808875521功能门禁含真媒体全部成功，不能抵消失败轮。完整品牌仍失败。
 ## 2026-10-01 切换思考强度历史接续点
 
 用户说明当前 ultra，并问「现在我可以降低吗」。已告知可改 medium，修改已保存，切换后说「继续」接着验证和推送。此前按小段验证／push／普通 PR 的授权仍保留。

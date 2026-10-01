@@ -277,10 +277,14 @@ func TestDescendantsDieOnCancelAndNormalParentExit(t *testing.T) {
 			for _, raw := range pids {
 				pid, _ := strconv.Atoi(raw)
 				deadline := time.Now().Add(3 * time.Second)
-				for processAlive(pid) && time.Now().Before(deadline) {
+				alive := processAlive(pid)
+				for alive && time.Now().Before(deadline) {
 					time.Sleep(10 * time.Millisecond)
+					alive = processAlive(pid)
 				}
-				if processAlive(pid) {
+				// Preserve the exit observation: a later lookup can describe a
+				// different process after the OS reuses the PID.
+				if alive {
 					t.Fatalf("descendant still running: %d", pid)
 				}
 			}
