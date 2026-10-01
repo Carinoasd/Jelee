@@ -32,3 +32,7 @@ openapi-merge 保留 master／版本 push 的 OpenAPI reusable workflow 與產�
 ## 媒體檔名解析模組
 
 Emby.Naming（含原套件 Jellyfin.Naming）→ Jelee.Naming；tests/Jellyfin.Naming.Tests → tests/Jelee.Naming.Tests。完整模組／引用／solution／版本腳本與 ABI base/head 路徑一起更新。原 Authors 與 AssemblyCopyright 分離到精確法律歸屬檔，內容保留；不豁免整個解析模組。命名701測試／完整17套件4098pass、21NotExecuted、0fail，源碼等價核對／Debug build／變更檔格式通過。[證據與尚未完成邊界](naming-brand-rename.md)。
+
+## 網路模組
+
+src/Jellyfin.Networking 與 tests/Jellyfin.Networking.Tests → src/Jelee.Networking／tests/Jelee.Networking.Tests，namespace／程序集／solution 與 consumer 引用同步；一般 log 與示例命名一併調整。舊探索 request 與舊配置 key 在精確 Compatibility/LegacyNetworkNames.cs 隔離；原 MIT 標頭保持。147 模組測試／完整4098pass、21NotExecuted通過，格式／source對應核對通過。[驗證及未完成 G05 邊界](networking-brand-rename.md)。

@@ -4,7 +4,7 @@ using FsCheck.Xunit;
 using MediaBrowser.Common.Net;
 using Xunit;
 
-namespace Jellyfin.Networking.Tests
+namespace Jelee.Networking.Tests
 {
     public static class NetworkExtensionsTests
     {

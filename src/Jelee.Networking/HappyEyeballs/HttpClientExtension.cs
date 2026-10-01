@@ -30,7 +30,7 @@ using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Jellyfin.Networking.HappyEyeballs;
+namespace Jelee.Networking.HappyEyeballs;
 
 /// <summary>
 /// Defines the <see cref="HttpClientExtension"/> class.

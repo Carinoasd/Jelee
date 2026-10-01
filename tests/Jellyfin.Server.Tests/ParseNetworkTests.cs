@@ -1,7 +1,7 @@
 using System;
 using System.Linq;
 using System.Net;
-using Jellyfin.Networking.Manager;
+using Jelee.Networking.Manager;
 using Jellyfin.Server.Extensions;
 using MediaBrowser.Common.Configuration;
 using MediaBrowser.Common.Net;

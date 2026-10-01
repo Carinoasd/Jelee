@@ -15,3 +15,4 @@ LICENSE # Legal text.
 CONTRIBUTORS.md # Upstream authorship.
 Jelee.Naming/Attribution.props # Original package authors and license only; preserved legal attribution.
 Jelee.Naming/Properties/Copyright.cs # Original assembly copyright statement only; preserved verbatim.
+src/Jelee.Networking/Compatibility/LegacyNetworkNames.cs # Exact legacy client discovery and configuration constants only.

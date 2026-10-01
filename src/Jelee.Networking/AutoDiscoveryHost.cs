@@ -5,6 +5,7 @@ using System.Text;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using Jelee.Networking.Compatibility;
 using MediaBrowser.Common.Configuration;
 using MediaBrowser.Common.Net;
 using MediaBrowser.Controller;
@@ -12,7 +13,7 @@ using MediaBrowser.Model.ApiClient;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
-namespace Jellyfin.Networking;
+namespace Jelee.Networking;
 
 /// <summary>
 /// <see cref="BackgroundService"/> responsible for responding to auto-discovery messages.
@@ -73,7 +74,7 @@ public sealed class AutoDiscoveryHost : BackgroundService
                 {
                     var result = await udpClient.ReceiveAsync(cancellationToken).ConfigureAwait(false);
                     var text = Encoding.UTF8.GetString(result.Buffer);
-                    if (text.Contains("who is JellyfinServer?", StringComparison.OrdinalIgnoreCase))
+                    if (text.Contains(LegacyNetworkNames.DiscoveryRequest, StringComparison.OrdinalIgnoreCase))
                     {
                         await RespondToV2Message(result.RemoteEndPoint, udpClient, cancellationToken).ConfigureAwait(false);
                     }

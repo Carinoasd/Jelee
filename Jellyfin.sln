@@ -56,13 +56,13 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Jellyfin.Data", "Jellyfin.D
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Jellyfin.Server.Implementations", "Jellyfin.Server.Implementations\Jellyfin.Server.Implementations.csproj", "{DAE48069-6D86-4BA6-B148-D1D49B6DDA52}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Jellyfin.Networking", "src\Jellyfin.Networking\Jellyfin.Networking.csproj", "{0A3FCC4D-C714-4072-B90F-E374A15F9FF9}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Jelee.Networking", "src\Jelee.Networking\Jelee.Networking.csproj", "{0A3FCC4D-C714-4072-B90F-E374A15F9FF9}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Jellyfin.XbmcMetadata.Tests", "tests\Jellyfin.XbmcMetadata.Tests\Jellyfin.XbmcMetadata.Tests.csproj", "{30922383-D513-4F4D-B890-A940B57FA353}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Jellyfin.Model.Tests", "tests\Jellyfin.Model.Tests\Jellyfin.Model.Tests.csproj", "{FC1BC0CE-E8D2-4AE9-A6AB-8A02143B335D}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Jellyfin.Networking.Tests", "tests\Jellyfin.Networking.Tests\Jellyfin.Networking.Tests.csproj", "{42816EA8-4511-4CBF-A9C7-7791D5DDDAE6}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Jelee.Networking.Tests", "tests\Jelee.Networking.Tests\Jelee.Networking.Tests.csproj", "{42816EA8-4511-4CBF-A9C7-7791D5DDDAE6}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Jellyfin.Server.Tests", "tests\Jellyfin.Server.Tests\Jellyfin.Server.Tests.csproj", "{3ADBCD8C-C0F2-4956-8FDC-35D686B74CF9}"
 EndProject

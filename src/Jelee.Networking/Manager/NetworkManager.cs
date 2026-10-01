@@ -8,6 +8,7 @@ using System.Net.NetworkInformation;
 using System.Net.Sockets;
 using System.Threading;
 using J2N.Collections.Generic.Extensions;
+using Jelee.Networking.Compatibility;
 using MediaBrowser.Common.Configuration;
 using MediaBrowser.Common.Net;
 using MediaBrowser.Model.Net;
@@ -17,7 +18,7 @@ using Microsoft.Extensions.Logging;
 using static MediaBrowser.Controller.Extensions.ConfigurationExtensions;
 using IConfigurationManager = MediaBrowser.Common.Configuration.IConfigurationManager;
 
-namespace Jellyfin.Networking.Manager;
+namespace Jelee.Networking.Manager;
 
 /// <summary>
 /// Class to take care of network interface management.
@@ -588,7 +589,7 @@ public class NetworkManager : INetworkManager, IDisposable
 
     /// <summary>
     /// Warns when a full-URL published server override uses a public path that differs from the configured base
-    /// URL. Jellyfin appends the base URL to generated Live TV client URLs in this case, which can conflict with
+    /// URL. Jelee appends the base URL to generated Live TV client URLs in this case, which can conflict with
     /// reverse proxies that translate public request paths. Bare host/IP overrides are exempt because the base URL
     /// is appended when the API URL is built from them.
     /// </summary>
@@ -622,9 +623,10 @@ public class NetworkManager : INetworkManager, IDisposable
 
             var publishedServerHost = uri.GetComponents(UriComponents.HostAndPort, UriFormat.Unescaped);
             _logger.LogWarning(
-                "The published server URL for host '{PublishedServerHost}' does not end with the configured base URL '{BaseUrl}'. Jellyfin will append this base URL when generating Live TV client URLs. If your reverse proxy translates public paths, this may cause Live TV playback to fail. Update the Published Server URIs setting on the Networking page of the admin dashboard, the JELLYFIN_PublishedServerUrl environment variable / --published-server-url option, or the reverse proxy path mapping accordingly.",
+                "The published server URL for host '{PublishedServerHost}' does not end with the configured base URL '{BaseUrl}'. Jelee will append this base URL when generating Live TV client URLs. If your reverse proxy translates public paths, this may cause Live TV playback to fail. Update the Published Server URIs setting on the Networking page of the admin dashboard, the {PublishedServerUrlEnvironment} environment variable / --published-server-url option, or the reverse proxy path mapping accordingly.",
                 publishedServerHost,
-                baseUrl);
+                baseUrl,
+                LegacyNetworkNames.PublishedServerUrlEnvironment);
         }
     }
 
@@ -795,7 +797,7 @@ public class NetworkManager : INetworkManager, IDisposable
     }
 
     /// <summary>
-    /// Reads the jellyfin configuration of the configuration manager and produces a list of interfaces that should be bound.
+    /// Reads the Jelee configuration of the configuration manager and produces a list of interfaces that should be bound.
     /// </summary>
     /// <param name="logger">Logger to use for messages.</param>
     /// <param name="individualInterfaces">Defines that only known interfaces should be used.</param>
@@ -803,7 +805,7 @@ public class NetworkManager : INetworkManager, IDisposable
     /// <param name="knownInterfaces">The known interfaces that gets returned if possible or instructed.</param>
     /// <param name="readIpv4">Include IPV4 type interfaces.</param>
     /// <param name="readIpv6">Include IPV6 type interfaces.</param>
-    /// <returns>A list of ip address of which jellyfin should bind to.</returns>
+    /// <returns>A list of ip address of which Jelee should bind to.</returns>
     public static IReadOnlyList<IPData> GetAllBindInterfaces(
         ILogger<NetworkManager> logger,
         bool individualInterfaces,
@@ -884,12 +886,12 @@ public class NetworkManager : INetworkManager, IDisposable
         {
             if (IsIPv4Enabled && !IsIPv6Enabled && source.AddressFamily == AddressFamily.InterNetworkV6)
             {
-                _logger.LogWarning("IPv6 is disabled in Jellyfin, but enabled in the OS. This may affect how the interface is selected.");
+                _logger.LogWarning("IPv6 is disabled in Jelee, but enabled in the OS. This may affect how the interface is selected.");
             }
 
             if (!IsIPv4Enabled && IsIPv6Enabled && source.AddressFamily == AddressFamily.InterNetwork)
             {
-                _logger.LogWarning("IPv4 is disabled in Jellyfin, but enabled in the OS. This may affect how the interface is selected.");
+                _logger.LogWarning("IPv4 is disabled in Jelee, but enabled in the OS. This may affect how the interface is selected.");
             }
 
             bool isExternal = !IsInLocalNetwork(source);

@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
-using Jellyfin.Networking.Manager;
+using Jelee.Networking.Manager;
 using MediaBrowser.Common.Configuration;
 using MediaBrowser.Common.Net;
 using MediaBrowser.Model.Net;
@@ -14,7 +14,7 @@ using Moq;
 using Xunit;
 using IConfigurationManager = MediaBrowser.Common.Configuration.IConfigurationManager;
 
-namespace Jellyfin.Networking.Tests
+namespace Jelee.Networking.Tests
 {
     public class NetworkParseTests
     {
@@ -274,9 +274,9 @@ namespace Jellyfin.Networking.Tests
         // User on internal network, no binding specified - so result is the 1st internal.
         [InlineData("192.168.1.1", "", false, "eth16")]
         // User on external network, internal binding only - so result is the 1st internal.
-        [InlineData("jellyfin.org", "eth16", false, "eth16")]
+        [InlineData("example.org", "eth16", false, "eth16")]
         // User on external network, no binding - so result is the 1st external.
-        [InlineData("jellyfin.org", "", false, "eth11")]
+        [InlineData("example.org", "", false, "eth11")]
         // Dns failure - should skip the test.
         // https://en.wikipedia.org/wiki/.test
         [InlineData("invalid.domain.test", "", false, "eth11")]
@@ -325,7 +325,7 @@ namespace Jellyfin.Networking.Tests
         // This test is to replicate how subnet bound ServerPublisherUri work throughout the system.
 
         // User on internal network, we're bound internal and external - so result is internal override.
-        [InlineData("192.168.1.1", "192.168.1.0/24", "eth16,eth11", false, "192.168.1.0/24=internal.jellyfin", "internal.jellyfin")]
+        [InlineData("192.168.1.1", "192.168.1.0/24", "eth16,eth11", false, "192.168.1.0/24=internal.example", "internal.example")]
 
         // User on external network, we're bound internal and external - so result is override.
         [InlineData("8.8.8.8", "192.168.1.0/24", "eth16,eth11", false, "all=http://helloworld.com", "http://helloworld.com")]
@@ -337,10 +337,10 @@ namespace Jellyfin.Networking.Tests
         [InlineData("192.168.1.1", "192.168.1.0/24", "", false, "external=http://helloworld.com", "eth16")]
 
         // User on external network, internal binding only - so assumption is a proxy forward, return external override.
-        [InlineData("jellyfin.org", "192.168.1.0/24", "eth16", false, "external=http://helloworld.com", "http://helloworld.com")]
+        [InlineData("example.org", "192.168.1.0/24", "eth16", false, "external=http://helloworld.com", "http://helloworld.com")]
 
         // User on external network, no binding - so result is the 1st external which is overridden.
-        [InlineData("jellyfin.org", "192.168.1.0/24", "", false, "external=http://helloworld.com", "http://helloworld.com")]
+        [InlineData("example.org", "192.168.1.0/24", "", false, "external=http://helloworld.com", "http://helloworld.com")]
 
         // User assumed to be internal, no binding - so result is the 1st matching interface.
         [InlineData("", "192.168.1.0/24", "", false, "all=http://helloworld.com", "eth16")]
@@ -497,15 +497,15 @@ namespace Jellyfin.Networking.Tests
 
         [Theory]
         // Internal override with an explicit port.
-        [InlineData("192.168.1.1", "192.168.1.0/24=internal.jellyfin:8097", "internal.jellyfin", 8097)]
+        [InlineData("192.168.1.1", "192.168.1.0/24=internal.example:8097", "internal.example", 8097)]
         // External/all override with an explicit port.
-        [InlineData("8.8.8.8", "all=external.jellyfin:8097", "external.jellyfin", 8097)]
+        [InlineData("8.8.8.8", "all=external.example:8097", "external.example", 8097)]
         // Bracketed IPv6 override with an explicit port.
         [InlineData("8.8.8.8", "all=[fd00:1234::1]:8097", "fd00:1234::1", 8097)]
         // Bare IPv6 override without a port - must remain whole, not mangled by the extra colons.
         [InlineData("8.8.8.8", "all=fd00:1234::1", "fd00:1234::1", null)]
         // Full HTTPS URL override with an explicit port - the URL stays whole, port stays embedded.
-        [InlineData("8.8.8.8", "all=https://secure.jellyfin.org:8920", "https://secure.jellyfin.org:8920", null)]
+        [InlineData("8.8.8.8", "all=https://secure.example.org:8920", "https://secure.example.org:8920", null)]
         // Hostname beginning with "http" is a hostname, not a URL scheme.
         [InlineData("8.8.8.8", "all=http-proxy.lan:8097", "http-proxy.lan", 8097)]
         // Literal "internal" keyword override (applies to every LAN subnet) with an explicit port.
@@ -564,22 +564,22 @@ namespace Jellyfin.Networking.Tests
 
         [Theory]
         // Full-URL override with a different public path: warn about the Live TV fallback.
-        [InlineData("all=https://media.example.com", "/jellyfin", true)]
+        [InlineData("all=https://media.example.com", "/jelee", true)]
         // Full-URL override that ends with the base URL (with and without a trailing slash): no warning.
-        [InlineData("all=https://media.example.com/jellyfin", "/jellyfin", false)]
-        [InlineData("all=https://media.example.com/jellyfin/", "/jellyfin", false)]
-        [InlineData("all=https://media.example.com/media/jellyfin", "/jellyfin", false)]
+        [InlineData("all=https://media.example.com/jelee", "/jelee", false)]
+        [InlineData("all=https://media.example.com/jelee/", "/jelee", false)]
+        [InlineData("all=https://media.example.com/media/jelee", "/jelee", false)]
         [InlineData("all=https://media.example.com/cool%20server", "/cool server", false)]
         // A similar segment or a path following the base URL is a different public API base.
-        [InlineData("all=https://media.example.com/jellyfinx", "/jellyfin", true)]
-        [InlineData("all=https://media.example.com/jellyfin/media", "/jellyfin", true)]
+        [InlineData("all=https://media.example.com/jeleex", "/jelee", true)]
+        [InlineData("all=https://media.example.com/jelee/media", "/jelee", true)]
         // No base URL configured: there is no path to compare.
         [InlineData("all=https://media.example.com", "", false)]
         // Bare host overrides get the base URL appended when the API URL is built: no warning.
-        [InlineData("all=media.example.com", "/jellyfin", false)]
-        [InlineData("internal=http-proxy.lan:8097", "/jellyfin", false)]
+        [InlineData("all=media.example.com", "/jelee", false)]
+        [InlineData("internal=http-proxy.lan:8097", "/jelee", false)]
         // Keyword overrides go through the same check as "all".
-        [InlineData("internal=http://10.0.0.5:8096", "/jellyfin", true)]
+        [InlineData("internal=http://10.0.0.5:8096", "/jelee", true)]
         public void InitializeOverrides_FullUrlPublicPathDiffersFromBaseUrl_LogsWarning(string publishedServers, string baseUrl, bool expectWarning)
         {
             var conf = new NetworkConfiguration
@@ -601,7 +601,7 @@ namespace Jellyfin.Networking.Tests
         }
 
         /// <summary>
-        /// The JELLYFIN_PublishedServerUrl environment variable / --published-server-url option takes the
+        /// The legacy published-server URL environment variable / --published-server-url option takes the
         /// startup-configuration branch of <c>InitializeOverrides</c> and must funnel through the same
         /// base URL check as the dashboard overrides.
         /// </summary>
@@ -613,7 +613,7 @@ namespace Jellyfin.Networking.Tests
                 LocalNetworkSubnets = new[] { "192.168.1.0/24" },
                 LocalNetworkAddresses = new[] { "eth16" },
                 EnableIPv4 = true,
-                BaseUrl = "/jellyfin"
+                BaseUrl = "/jelee"
             };
 
             var logger = new Mock<ILogger<NetworkManager>>();
@@ -645,7 +645,7 @@ namespace Jellyfin.Networking.Tests
                 l => l.Log(
                     LogLevel.Warning,
                     It.IsAny<EventId>(),
-                    It.Is<It.IsAnyType>((state, _) => state.ToString()!.Contains("Jellyfin will append this base URL when generating Live TV client URLs", StringComparison.Ordinal)),
+                    It.Is<It.IsAnyType>((state, _) => state.ToString()!.Contains("Jelee will append this base URL when generating Live TV client URLs", StringComparison.Ordinal)),
                     It.IsAny<Exception?>(),
                     It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
                 times);

@@ -756,3 +756,11 @@ exec29349 terminal exit0：1,000／100 檔全部 passed，負載303.903／300.39
 module exec99242 pass701/0fail/0skip。首次fullbuild exec99789失敗7errors（3相對namespace／4排序），formatter exec47075完成；修復fullbuild5.89秒6warnings/0errors。首次fulltest exec18494兩個localization因本機繁中currentUICulture，而期待英文；保留正式邏輯，在原test明確en-US並finally恢復。最終fulltest exec49480 terminal exit0：17套件total4119／passed4098／NotExecuted21／failed0。finalformat exec2535 terminal exit0，變更C#檔檢查，有workspace-load warning；初format exec17087 CRLF失敗保留，LF修正只改換行、不改語意。所有本機handles terminal。metadata作者與license原值、compiledtitle/product新名及copyright原字串核對，LICENSE／source hash保持、migration無改。證據docs/evidence/naming-brand-rename.json。
 
 fullbrand15233→15007減226，仍fail；新增法律檔只隔離歸屬字串，不隱藏其他殘留。此模組仍舊核心dependencies、Audio/Book等domain待G02裁剪，G00／G22／全部G00–G51未完成。本批同PR46繁中commit/push／更新附，不merge/release/tag/forcepush或新branch。CI需以新head核對，不能把pending當green。
+
+### 網路模組品牌重命名
+
+上一檔名解析202b813a95已推／繁中更新附PR46。盤點15檔，改src/Jelee.Networking／tests/Jelee.Networking.Tests及namespace、程序集、project/solution引用；公開log新品牌與中性sample hosts/path。兩個舊client discovery／config值隔離純constants檔，精確allowlist，沒有整模組豁免；discovery port／網路控制邏輯保持。12 C#source按明確mapping／using排序／訊息／fixtures核對，MITheader逐位元相同，LICENSE/sourcehash保持、migration無改。此階段不實作G05裁剪，仍舊核心dependencies。
+
+first exec10275 terminal failure：142pass/5fail同一舊log斷言，原紀錄保留。修斷言／fixture品牌後exec19655 terminal exit0，module147/0fail/0skip，完整Debug17suites 4098Passed／21NotExecuted／0fail。format exec81480 terminal exit0 verify-no-changes，有workspace-load warning。全部本機handles terminal；證據docs/evidence/networking-brand-rename.json／contract docs/networking-brand-rename.md。fullbrand15007→14960減47，仍fail；增量／ignore／diff等末gate須通過再提交。本批同PR46提交推送繁中update／attach，不merge/release/tag/forcepush、不新branch。最新觀察功能CI尚未見failure，但不把pending當pass。G00／G05／G22及全G00–G51未完成。
+
+網路本批末gate已通過：增量品牌0／allowed103、gitignore0、diff/cached-diff通過；另外明確dotnet build全solution Debug --no-restore 4.87秒0warnings/0errors，證據追加build日誌hash。沒有待本機test或gate handle。
