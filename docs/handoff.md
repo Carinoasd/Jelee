@@ -640,3 +640,11 @@ Windows native健康/清理與全部Go套件編譯和可執行測試通過；沒
 新增 TestFamilyRunnerNativeRescanSameSizeAndMtime，正式 app 准入、PG、同一原生 scanner 與 worker 六輪重掃，固定 mtime、含同長內容變更、自有優先、舊規則變更、歷史排除保留、包含刷新、來源家族報告、媒體保持與 child Active=0。首輪 family-rescan-native 1pass/1fail21.521秒：最後移除兩個規則檔，2/4基線缺失達既有50%覆核門檻，測試預期錯誤；正式實作未修改。補50%覆核保留全部基線及100%正常移除兩個控制檔記錄兩條路徑。
 
 family-rescan-review 2頂層pass0fail0skip25.784秒（含既有單一模式重掃）；family-rescan-regression 7頂層pass0fail0skip26.833秒（原生儲存與所有正式family worker），均sourceUnchanged=true。所有本機 handles98476/44859已結束。WindowsPG套件測試／vet通過，無Windows真PG聲明。證據docs/evidence/ignore-family-rescan.json，合同docs/ignore-family-rescan.md。本次只有驗收與文件變更，遷移／正式門檻未改。接續取消與租約失效恢復、完整混合NFO/probe/images及其他舊格式；G22保持部分完成，沿用PR46分支，整合後清理階段分支。
+
+### 合併模式取消與租約過期驗收
+
+新增原生 TestFamilyRunnerNativeExpiredLease／CancelVerification。expired先原生掃描保存，再過期fixture租約；舊owner progress／合法batch保存／發布全部ErrJobLeaseLost，新正式worker接同job，attempts2成功。取消在實際來源觀察後的verification屏障透過app.Cancel與heartbeat傳播；終態Cancelled、Missing0、baseline0、全部fixture内容保持、helperActive0。屏障沒有活躍child，不把本段稱活躍child中途取消證據。
+
+初次編譯誤用FinishFamilyIgnoreJob参数已修正。family-recovery-native 1pass1fail26.585秒，空batch先被合法輸入驗證拒絕；改用已由原生scanner保存的合法batch，family-recovery-valid-batch 2pass0fail0skip27.588秒。最後family-recovery-regression 9頂層pass0fail0skip38.811秒sourceUnchanged=true，證據docs/evidence/ignore-family-recovery.json；WindowsPG包test/vet、incrementalbrand0/100、gitignore0、diffcheck通過。所有handles24602/69315/58581已結束。正式程式與遷移未改。
+
+同步原始來源審計的後續進度，明確最初排除並集建議已被實作的自有明确決定優先合同取代；歷史只讀審計不冒稱已執行後來測試。接續完整混合NFO/probe/images、活躍helper取消的正式服務完整鏈、規模及其他舊格式精確來源。G22維持部分完成，沿用PR46。767988527f重掃階段已推送。

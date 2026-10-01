@@ -4,6 +4,7 @@ package postgres
 
 import (
 	"context"
+	"errors"
 	"github.com/MoYuanCN/Jelee/internal/adapter/nfo"
 	"github.com/MoYuanCN/Jelee/internal/adapter/scan"
 	"github.com/MoYuanCN/Jelee/internal/app"
@@ -27,6 +28,12 @@ func TestFamilyRunnerNativeChangedSource(t *testing.T) {
 	runFamilyRunnerNative(t, false, false, "changed")
 }
 func TestFamilyRunnerNativeUnknown(t *testing.T) { runFamilyRunnerNative(t, false, false, "unknown") }
+func TestFamilyRunnerNativeExpiredLease(t *testing.T) {
+	runFamilyRunnerNative(t, false, true, "expired")
+}
+func TestFamilyRunnerNativeCancelVerification(t *testing.T) {
+	runFamilyRunnerNative(t, false, false, "cancel")
+}
 
 func runFamilyRunnerNative(t *testing.T, withNFO, resume bool, mode string) {
 	if runtime.GOOS == "linux" {
@@ -79,18 +86,36 @@ func runFamilyRunnerNative(t *testing.T, withNFO, resume bool, mode string) {
 		if e != nil {
 			t.Fatal(e)
 		}
-		if e = scanner.ScanFamilyIgnoreDirectory(f.ctx, d, domain.IgnoreIntent{Mode: domain.IgnoreModeFamily, CaseMode: domain.IgnoreCaseSensitive}, func(b domain.FamilyIgnoreScanBatch) error { return f.s.SaveFamilyIgnoreScanBatch(f.ctx, lease, d, b) }); e != nil {
+		var savedBatch domain.FamilyIgnoreScanBatch
+		if e = scanner.ScanFamilyIgnoreDirectory(f.ctx, d, domain.IgnoreIntent{Mode: domain.IgnoreModeFamily, CaseMode: domain.IgnoreCaseSensitive}, func(b domain.FamilyIgnoreScanBatch) error {
+			savedBatch = b
+			return f.s.SaveFamilyIgnoreScanBatch(f.ctx, lease, d, b)
+		}); e != nil {
 			t.Fatal(e)
 		}
-		if e = f.s.ReleaseJob(f.ctx, lease); e != nil {
+		if mode == "expired" {
+			if _, e = f.s.Pool.Exec(f.ctx, `UPDATE jobs SET lease_until=clock_timestamp()-interval '1 second' WHERE id=$1::uuid`, lease.Job.ID); e != nil {
+				t.Fatal(e)
+			}
+			for name, call := range map[string]func() error{
+				"progress": func() error { _, e := f.s.ReadFamilyIgnoreProgress(f.ctx, lease); return e },
+				"save":     func() error { return f.s.SaveFamilyIgnoreScanBatch(f.ctx, lease, d, savedBatch) },
+				"finish":   func() error { return f.s.FinishFamilyIgnoreJob(f.ctx, lease) },
+			} {
+				if err := call(); !errors.Is(err, domain.ErrJobLeaseLost) {
+					t.Fatal("expired family owner retained authority", name, err)
+				}
+			}
+		} else if e = f.s.ReleaseJob(f.ctx, lease); e != nil {
 			t.Fatal(e)
 		}
 	}
 	opts := jobs.DefaultOptions()
 	opts.Workers = 1
 	opts.FamilyIgnore = &jobs.FamilyIgnoreOptions{Repository: f.s, Scanner: scanner}
+	entered := make(chan struct{}, 1)
 	if mode != "" {
-		opts.FamilyIgnore.Scanner = &familyFaultScanner{FamilyIgnoreScanner: scanner, root: root, mode: mode}
+		opts.FamilyIgnore.Scanner = &familyFaultScanner{FamilyIgnoreScanner: scanner, root: root, mode: mode, entered: entered}
 	}
 	if mode == "unknown" {
 		if _, e := f.s.Pool.Exec(f.ctx, `INSERT INTO library_inventory_baseline(library_id,root_id,path,attributes_known,kind,size,modified_unix_nano,inventory_generation,observed_revision)SELECT id,$2::uuid,'gone/plain.txt',true,'video',7,1,inventory_generation,inventory_baseline_revision FROM libraries WHERE id=$1::uuid`, job.LibraryID, f.registration.RootID); e != nil {
@@ -122,6 +147,16 @@ func runFamilyRunnerNative(t *testing.T, withNFO, resume bool, mode string) {
 			t.Error(e)
 		}
 	}()
+	if mode == "cancel" {
+		select {
+		case <-entered:
+		case <-time.After(15 * time.Second):
+			t.Fatal("family verification did not reach cancellation barrier")
+		}
+		if _, err := service.Cancel(f.ctx, f.a, job.ID); err != nil {
+			t.Fatal(err)
+		}
+	}
 	deadline := time.NewTimer(20 * time.Second)
 	defer deadline.Stop()
 	ticker := time.NewTicker(20 * time.Millisecond)
@@ -133,6 +168,19 @@ func runFamilyRunnerNative(t *testing.T, withNFO, resume bool, mode string) {
 		case <-ticker.C:
 			current := f.get(t, job.ID)
 			if current.State == domain.JobFailed || current.State == domain.JobCancelled {
+				if mode == "cancel" && current.State == domain.JobCancelled {
+					var count int
+					if err := f.s.Pool.QueryRow(f.ctx, `SELECT count(*) FROM library_inventory_baseline WHERE library_id=$1::uuid`, job.LibraryID).Scan(&count); err != nil || count != 0 || current.Missing != 0 || helper.Stats().Active != 0 {
+						t.Fatal("cancelled verification published baseline or retained helper", err)
+					}
+					for name, data := range files {
+						actual, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(name)))
+						if err != nil || string(actual) != data {
+							t.Fatal("cancellation modified original files")
+						}
+					}
+					return
+				}
 				if mode == "changed" && current.State == domain.JobFailed {
 					var count int
 					if e := f.s.Pool.QueryRow(f.ctx, `SELECT count(*)FROM library_inventory_baseline WHERE library_id=$1::uuid`, job.LibraryID).Scan(&count); e != nil || count != 0 {
@@ -205,6 +253,7 @@ func runFamilyRunnerNative(t *testing.T, withNFO, resume bool, mode string) {
 type familyFaultScanner struct {
 	app.FamilyIgnoreScanner
 	root, mode string
+	entered    chan struct{}
 }
 
 func (s *familyFaultScanner) EvaluateFamilyIgnoreBaseline(ctx context.Context, root string, c domain.IgnoreBaselineCandidate, i domain.IgnoreIntent) (domain.FamilyBaselineEvaluation, error) {
@@ -214,6 +263,17 @@ func (s *familyFaultScanner) EvaluateFamilyIgnoreBaseline(ctx context.Context, r
 	return s.FamilyIgnoreScanner.EvaluateFamilyIgnoreBaseline(ctx, root, c, i)
 }
 func (s *familyFaultScanner) ReobserveLegacyIgnore(ctx context.Context, root string, p domain.LegacyIgnoreObservation) (domain.LegacyIgnoreObservation, error) {
+	if s.mode == "cancel" {
+		if _, err := s.FamilyIgnoreScanner.ReobserveLegacyIgnore(ctx, root, p); err != nil {
+			return domain.LegacyIgnoreObservation{}, err
+		}
+		select {
+		case s.entered <- struct{}{}:
+		default:
+		}
+		<-ctx.Done()
+		return domain.LegacyIgnoreObservation{}, ctx.Err()
+	}
 	if s.mode == "changed" {
 		if err := os.WriteFile(filepath.Join(s.root, ".ignore"), []byte("changed\n"), 0600); err != nil {
 			return domain.LegacyIgnoreObservation{}, err
