@@ -822,3 +822,13 @@ d7ac92e850最新CI兩平台foundation與Ubuntu C#／Format／OpenAPI均pass；PG
 109d25337e CI雙平台foundation／三平台C#／format／OpenAPI已pass；PG與CodeQL仍pending於檢查時，ABI difference／full branding仍fail。未合併。最後全部文檔寫完再跑品牌/gitignore/hash/diff後同PR46推送。
 
 舊HTTP階段最後完整品牌14807→14761，仍fail；增量0違規／136既有允許、gitignore0、protected hashes／migration diff／staged diff pass。沒有放寬豁免；所有本輪測試handles terminal。
+
+### G05 EPG／Channel自動工作裁剪驗收完成
+
+刪6實作：guide/channel排程、channelpostscan資料cleanup、live/channel動態來源、channel image provider。刪5queuecalls、兩constructor ITaskManager依賴；ITunerHostManager與實作刪只用於排程的dataSourceChanged可選旗標。修正既有ListingsManagerTest依賴參數。刪3排程专用key（TaskRefreshChannels/Description、TasksChannelsCategory），四Core catalog121keys Win/Linux gate pass。沒有改legacy migrate、timerdata、原媒体/授權。
+
+初次工具漏2個無空行結尾queuecalls，compile抓出，刪後SA1508抓出兩處空行，已修；API驗收先假設camelcase而Key查不到，改正式TaskInfo反序列化，再補現有JsonDefaults.Options以支援字串enum；正式產品API協定沒改。positive10pass，negative恢復6實作同8型別/host/API情境全fail，finally6檔回absent逐bit核對；不恢復新constructor。完整Debug17套件4808Passed／21NotExecuted／0fail，format pass（workspace warning）；所有handles terminal。沒有弱化analyzer或刪測試取綠。
+
+合同docs/live-feature-actors-removal.md，證據docs/evidence/live-feature-actors-removal.json；G05.4由blocked改partial，來源角色hash見既有brandmap；矩陣逐行重算336條為4done／175partial／157blocked。G05核心manager/entity/library依賴、設定及存量資料／其他翻譯／圖示與真client/LAN仍未完成。下一段查核心直播依賴，不能用空服務代替功能刪除。fb994a86ac CI Go雙平台／Ubuntu C#／Format／OpenAPI pass，其他C#、CodeQL、PG當時pending，ABI/full品牌fail；未合併。最後所有文檔寫完再跑門禁同PR46推送。
+
+自動工作階段最後完整品牌14761→14728，仍fail；增量0違規／151既有允許、gitignore0、保護檔hash／migration diff／staged diff pass。沒有增加豁免；所有本輪handles terminal。矩陣計數保留G01.4b/c並正確跳過欄內escaped pipe，已核对336條。

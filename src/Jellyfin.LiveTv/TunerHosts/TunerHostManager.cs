@@ -7,13 +7,11 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using Jellyfin.LiveTv.Configuration;
-using Jellyfin.LiveTv.Guide;
 using MediaBrowser.Common.Configuration;
 using MediaBrowser.Common.Extensions;
 using MediaBrowser.Controller.LiveTv;
 using MediaBrowser.Model.Dto;
 using MediaBrowser.Model.LiveTv;
-using MediaBrowser.Model.Tasks;
 using Microsoft.Extensions.Logging;
 
 namespace Jellyfin.LiveTv.TunerHosts;
@@ -25,7 +23,6 @@ public class TunerHostManager : ITunerHostManager
 
     private readonly ILogger<TunerHostManager> _logger;
     private readonly IConfigurationManager _config;
-    private readonly ITaskManager _taskManager;
     private readonly ITunerHost[] _tunerHosts;
 
     /// <summary>
@@ -33,17 +30,14 @@ public class TunerHostManager : ITunerHostManager
     /// </summary>
     /// <param name="logger">The <see cref="ILogger{T}"/>.</param>
     /// <param name="config">The <see cref="IConfigurationManager"/>.</param>
-    /// <param name="taskManager">The <see cref="ITaskManager"/>.</param>
     /// <param name="tunerHosts">The <see cref="IEnumerable{T}"/>.</param>
     public TunerHostManager(
         ILogger<TunerHostManager> logger,
         IConfigurationManager config,
-        ITaskManager taskManager,
         IEnumerable<ITunerHost> tunerHosts)
     {
         _logger = logger;
         _config = config;
-        _taskManager = taskManager;
         _tunerHosts = tunerHosts.Where(t => t.IsSupported).ToArray();
     }
 
@@ -59,7 +53,7 @@ public class TunerHostManager : ITunerHostManager
         });
 
     /// <inheritdoc />
-    public async Task<TunerHostInfo> SaveTunerHost(TunerHostInfo info, bool dataSourceChanged = true)
+    public async Task<TunerHostInfo> SaveTunerHost(TunerHostInfo info)
     {
         info = JsonSerializer.Deserialize<TunerHostInfo>(JsonSerializer.SerializeToUtf8Bytes(info))!;
 
@@ -92,11 +86,6 @@ public class TunerHostManager : ITunerHostManager
 
         _config.SaveConfiguration("livetv", config);
 
-        if (dataSourceChanged)
-        {
-            _taskManager.CancelIfRunningAndQueue<RefreshGuideScheduledTask>();
-        }
-
         return info;
     }
 
@@ -123,8 +112,6 @@ public class TunerHostManager : ITunerHostManager
                 _logger.LogWarning(ex, "Error deleting channel cache file for tuner {TunerId}", safeId);
             }
         }
-
-        _taskManager.CancelIfRunningAndQueue<RefreshGuideScheduledTask>();
     }
 
     /// <inheritdoc />

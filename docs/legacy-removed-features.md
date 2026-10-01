@@ -9,3 +9,5 @@
 G05保持部分完成：核心服務、EPG／Channel 排程、調諧器、動態媒體來源、設定工廠與存量資料仍待裁剪；沒有宣稱全功能退役或真客戶端／LAN封包驗收完成。公開型別與路由的刪除會形成真實 ABI／OpenAPI 差異，檢查保留。
 
 [實際證據](evidence/legacy-removed-features.json)。
+
+後續[自動工作裁剪](live-feature-actors-removal.md)刪除三個專用翻譯鍵，目前四份資源各121鍵；先前階段的124鍵與驗證證據保留為當時結果。

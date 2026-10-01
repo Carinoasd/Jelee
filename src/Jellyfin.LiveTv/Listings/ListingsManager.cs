@@ -7,13 +7,11 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Jellyfin.LiveTv.Configuration;
-using Jellyfin.LiveTv.Guide;
 using MediaBrowser.Common.Configuration;
 using MediaBrowser.Common.Extensions;
 using MediaBrowser.Controller.LiveTv;
 using MediaBrowser.Model.Dto;
 using MediaBrowser.Model.LiveTv;
-using MediaBrowser.Model.Tasks;
 using Microsoft.Extensions.Logging;
 
 namespace Jellyfin.LiveTv.Listings;
@@ -23,7 +21,6 @@ public class ListingsManager : IListingsManager
 {
     private readonly ILogger<ListingsManager> _logger;
     private readonly IConfigurationManager _config;
-    private readonly ITaskManager _taskManager;
     private readonly ITunerHostManager _tunerHostManager;
     private readonly IListingsProvider[] _listingsProviders;
 
@@ -34,19 +31,16 @@ public class ListingsManager : IListingsManager
     /// </summary>
     /// <param name="logger">The <see cref="ILogger{TCategoryName}"/>.</param>
     /// <param name="config">The <see cref="IConfigurationManager"/>.</param>
-    /// <param name="taskManager">The <see cref="ITaskManager"/>.</param>
     /// <param name="tunerHostManager">The <see cref="ITunerHostManager"/>.</param>
     /// <param name="listingsProviders">The <see cref="IListingsProvider"/>.</param>
     public ListingsManager(
         ILogger<ListingsManager> logger,
         IConfigurationManager config,
-        ITaskManager taskManager,
         ITunerHostManager tunerHostManager,
         IEnumerable<IListingsProvider> listingsProviders)
     {
         _logger = logger;
         _config = config;
-        _taskManager = taskManager;
         _tunerHostManager = tunerHostManager;
         _listingsProviders = listingsProviders.ToArray();
     }
@@ -78,8 +72,6 @@ public class ListingsManager : IListingsManager
 
         InvalidateListingsProviderCache(info.Id);
 
-        _taskManager.CancelIfRunningAndQueue<RefreshGuideScheduledTask>();
-
         return info;
     }
 
@@ -96,8 +88,6 @@ public class ListingsManager : IListingsManager
         {
             InvalidateListingsProviderCache(id);
         }
-
-        _taskManager.CancelIfRunningAndQueue<RefreshGuideScheduledTask>();
     }
 
     /// <inheritdoc />
@@ -268,8 +258,6 @@ public class ListingsManager : IListingsManager
 
         var tunerChannelMappings = tunerChannels
             .Select(i => GetTunerChannelMapping(i, listingsProviderInfo.ChannelMappings, providerChannels)).ToList();
-
-        _taskManager.CancelIfRunningAndQueue<RefreshGuideScheduledTask>();
 
         return tunerChannelMappings.First(i => string.Equals(i.Id, tunerChannelNumber, StringComparison.OrdinalIgnoreCase));
     }

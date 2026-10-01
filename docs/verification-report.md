@@ -108,3 +108,7 @@ Jelee schema version=0 dirty=false
 ## G05 舊 HTTP 直播與頻道入口裁剪
 
 刪兩個控制器及兩個專用DTO，明確501／feature_removed並保留設定授權／IP限制。643專項pass，舊程序集與OpenAPI反驗證2fail並逐位元恢復，完整Debug17套件4798Passed／21NotExecuted／0fail，格式／Win/Linux四語124鍵門禁通過。[合同與證據](legacy-removed-features.md)。內部服務、排程、設定及資料仍待裁剪，G05部分完成，ABI與完整品牌門禁保留。
+
+## G05 自動工作與提供者裁剪
+
+刪六個實作、五個queue呼叫、兩個排程constructor相依及三個專用四語翻譯鍵。positive10pass，舊實作negative8fail並逐位元恢復，完整Debug17套件4808Passed／21NotExecuted／0fail；格式與Win/Linux四語121鍵門禁通過。[合同與證據](live-feature-actors-removal.md)。G05.4有部分交付，核心服務、設定、資料與其他資源仍待清理。

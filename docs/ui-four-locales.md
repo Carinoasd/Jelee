@@ -9,3 +9,5 @@ LocalizationManager 回歸 148 項通過。完整 Debug solution 的 17 套件�
 這批完成既有 UI 資源裁剪與 manager 回退；G03 仍部分完成。尚無 web 前端，未使用鍵／硬編碼文案門禁與完整文風／日期數字格式未驗收。這些單元測試也不能證明舊 C# HTTP 中介層的未知 Accept-Language 或使用者偏好流程；Go 既有 HTTP 協商證據保持獨立。
 
 [驗證證據](evidence/ui-four-locales.json)。
+
+後續[自動工作裁剪](live-feature-actors-removal.md)刪除三個專用翻譯鍵，目前四份資源各121鍵；先前階段的124鍵與驗證證據保留為當時結果。

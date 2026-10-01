@@ -101,3 +101,24 @@ src/Jellyfin.Networking 與 tests/Jellyfin.Networking.Tests → src/Jelee.Networ
 | programsDto | `Jellyfin.Api/Models/LiveTvDtos/GetProgramsDto.cs` |
 | channelMappingDto | `Jellyfin.Api/Models/LiveTvDtos/SetChannelMappingDto.cs` |
 | oldEnablingTests | `tests/Jellyfin.Server.Integration.Tests/Controllers/LiveTvControllerTests.cs` |
+
+
+### 直播與頻道自動工作裁剪來源索引
+
+| 證據角色 | 來源路徑 |
+| --- | --- |
+| tunerHostManager | `src/Jellyfin.LiveTv/TunerHosts/TunerHostManager.cs` |
+| listingsManager | `src/Jellyfin.LiveTv/Listings/ListingsManager.cs` |
+| tunerInterface | `MediaBrowser.Controller/LiveTv/ITunerHostManager.cs` |
+| existingListingsTests | `tests/Jellyfin.LiveTv.Tests/Listings/ListingsManagerTests.cs` |
+| actorRemovalTests | `tests/Jellyfin.Server.Integration.Tests/LiveFeatureActorsRemovalTests.cs` |
+| englishCatalog | `Emby.Server.Implementations/Localization/Core/en-US.json` |
+| japaneseCatalog | `Emby.Server.Implementations/Localization/Core/ja-JP.json` |
+| simplifiedChineseCatalog | `Emby.Server.Implementations/Localization/Core/zh-CN.json` |
+| traditionalChineseCatalog | `Emby.Server.Implementations/Localization/Core/zh-TW.json` |
+| guideTask | `src/Jellyfin.LiveTv/Guide/RefreshGuideScheduledTask.cs` |
+| channelTask | `src/Jellyfin.LiveTv/Channels/RefreshChannelsScheduledTask.cs` |
+| channelCleanup | `src/Jellyfin.LiveTv/Channels/ChannelPostScanTask.cs` |
+| liveMediaProvider | `src/Jellyfin.LiveTv/LiveTvMediaSourceProvider.cs` |
+| channelMediaProvider | `src/Jellyfin.LiveTv/Channels/ChannelDynamicMediaSourceProvider.cs` |
+| channelImageProvider | `src/Jellyfin.LiveTv/Channels/ChannelImageProvider.cs` |

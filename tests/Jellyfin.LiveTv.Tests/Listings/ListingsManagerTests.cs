@@ -4,7 +4,6 @@ using Jellyfin.LiveTv.Listings;
 using MediaBrowser.Common.Configuration;
 using MediaBrowser.Controller.LiveTv;
 using MediaBrowser.Model.LiveTv;
-using MediaBrowser.Model.Tasks;
 using Microsoft.Extensions.Logging;
 using Moq;
 using Xunit;
@@ -16,14 +15,12 @@ public class ListingsManagerTests
     private readonly IConfigurationManager _config;
     private readonly IListingsProvider[] _listingsProviders;
     private readonly ILogger<ListingsManager> _logger;
-    private readonly ITaskManager _taskManager;
     private readonly ITunerHostManager _tunerHostManager;
 
     public ListingsManagerTests()
     {
         _logger = Mock.Of<ILogger<ListingsManager>>();
         _config = Mock.Of<IConfigurationManager>();
-        _taskManager = Mock.Of<ITaskManager>();
         _tunerHostManager = Mock.Of<ITunerHostManager>();
         _listingsProviders = new[] { Mock.Of<IListingsProvider>() };
     }
@@ -33,7 +30,7 @@ public class ListingsManagerTests
     {
         // Arrange
         var id = "MockId";
-        var manager = new ListingsManager(_logger, _config, _taskManager, _tunerHostManager, _listingsProviders);
+        var manager = new ListingsManager(_logger, _config, _tunerHostManager, _listingsProviders);
 
         Mock.Get(_config)
             .Setup(x => x.GetConfiguration(It.IsAny<string>()))

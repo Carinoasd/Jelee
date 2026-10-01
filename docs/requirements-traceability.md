@@ -16,7 +16,7 @@
 
 ## 实际交付证据
 
-第3D1C1见[持久意图与执行守卫验证](ignore-inventory-verification.md)，源码 `b07ad3a6f20508c43b17458cd6847451ff6d68ab`；本段未启用实际过滤，G22状态不变。第3D1B见[安全来源与缓存验证](ignore-source-verification.md)，第3D1A见[忽略匹配验证](ignore-matcher-verification.md)，第3C3C见[NFO工作流程验证](nfo-worker-verification.md)，第3C3B见[NFO快取验证](nfo-cache-verification.md)，第3C3A见[NFO来源验证](nfo-source-verification.md)，第3C2B见[worker验证](probe-worker-verification.md)，第3C2A见[快取契约验证](probe-cache-verification.md)，第3C1见[隔离探测验证](probe-verification.md)；第3A、3B1、3B2分别见[任务验证](jobs-verification.md)、[工具验证](media-tools-verification.md)、[程序/素材验证](process-verification.md)，当前编号项统计为 **4 项已完成、174 项部分完成、158 项阻塞**。第1/2阶段保留在[草稿 PR #1](https://github.com/MoYuanCN/Jelee/pull/1)，后续按用户授权每个已验证分段建立独立 PR。下面首阶段证据保留原验证范围。
+第3D1C1见[持久意图与执行守卫验证](ignore-inventory-verification.md)，源码 `b07ad3a6f20508c43b17458cd6847451ff6d68ab`；本段未启用实际过滤，G22状态不变。第3D1B见[安全来源与缓存验证](ignore-source-verification.md)，第3D1A见[忽略匹配验证](ignore-matcher-verification.md)，第3C3C见[NFO工作流程验证](nfo-worker-verification.md)，第3C3B见[NFO快取验证](nfo-cache-verification.md)，第3C3A见[NFO来源验证](nfo-source-verification.md)，第3C2B见[worker验证](probe-worker-verification.md)，第3C2A见[快取契约验证](probe-cache-verification.md)，第3C1见[隔离探测验证](probe-verification.md)；第3A、3B1、3B2分别见[任务验证](jobs-verification.md)、[工具验证](media-tools-verification.md)、[程序/素材验证](process-verification.md)，当前编号项统计为 **4 项已完成、175 项部分完成、157 项阻塞**。第1/2阶段保留在[草稿 PR #1](https://github.com/MoYuanCN/Jelee/pull/1)，后续按用户授权每个已验证分段建立独立 PR。下面首阶段证据保留原验证范围。
 
 | 证据 | 结果 | 范围 |
 | --- | --- | --- |
@@ -124,10 +124,10 @@
 
 | 子项 / 约束与工作 | 计划落盘文件 | 迁移 / 数据 | 测试计划与验收 | 状态 / 证据 | 实现提交 |
 | --- | --- | --- | --- | --- | --- |
-| **G05.1** 删除：DLNA/SSDP/UPnP 与发现、Live TV、EPG、Tuner、Recording、Channel 及控制器、任务、配置、依赖、前端 UI。 | internal/adapter/http/; internal/adapter/compat/; deploy/; web/src/ | 删除发现/直播相关表列并提供恢复策略 | Plan-G05.1：SSDP 无响应；直播探测明确不支持；无相关端口与监听器注册；须单独覆盖本行全部约束 | 部分完成：新入口不注册发现/直播/录制；旧 C# 伺服器UDP7359探索host／payload／schema已删并有正反回归；錄製啟動／通知host與設定更新建立媒體庫回呼已刪並有正反回歸；舊直播／Channel控制器與專用DTO也已刪並有正式HTTP501回歸；其餘調諧器／排程等相依仍保留；[舊HTTP裁剪](legacy-removed-features.md)；[錄製啟動證據](recording-startup-removal.md)；[探索裁剪证据](server-discovery-removal.md)；[实际证据](verification-report.md) | `403cc21b27`（仅已实现子集） |
+| **G05.1** 删除：DLNA/SSDP/UPnP 与发现、Live TV、EPG、Tuner、Recording、Channel 及控制器、任务、配置、依赖、前端 UI。 | internal/adapter/http/; internal/adapter/compat/; deploy/; web/src/ | 删除发现/直播相关表列并提供恢复策略 | Plan-G05.1：SSDP 无响应；直播探测明确不支持；无相关端口与监听器注册；须单独覆盖本行全部约束 | 部分完成：新入口不注册发现/直播/录制；旧 C# 伺服器UDP7359探索host／payload／schema已删并有正反回归；錄製啟動／通知host與設定更新建立媒體庫回呼已刪並有正反回歸；舊直播／Channel控制器與專用DTO也已刪並有正式HTTP501回歸；EPG／Channel排程、掃描後清理及三個提供者也已刪，移除五個queue呼叫；其餘調諧器／核心服務等相依仍保留；[自動工作裁剪](live-feature-actors-removal.md)；[舊HTTP裁剪](legacy-removed-features.md)；[錄製啟動證據](recording-startup-removal.md)；[探索裁剪证据](server-discovery-removal.md)；[实际证据](verification-report.md) | `403cc21b27`（仅已实现子集） |
 | **G05.2** 兼容声明：客户端探测返回空能力或明确不支持（`501`/空数组），不得 500，不得静默启用。 | internal/adapter/http/; internal/adapter/compat/; deploy/; web/src/ | 删除发现/直播相关表列并提供恢复策略 | Plan-G05.2：SSDP 无响应；直播探测明确不支持；无相关端口与监听器注册；须单独覆盖本行全部约束 | 部分完成：新 Go 三类探测根路径明确501/feature_removed，系统相关能力全false，四语／HEAD／守卫优先／无后端操作回归通过；舊C#直播／Channel控制器與專用DTO已刪，正式host回501並保留設定授權／IP限制、設定不變／OpenAPI／四語回歸；其餘內部服務與真實第三方握手仍未完成；[舊HTTP合同](legacy-removed-features.md)；[探测合同与证据](compat-matrix.md)；[实际证据](verification-report.md) | `403cc21b27`（仅已实现子集） |
 | **G05.3** 端口与依赖：关闭相关监听端口；移除 SSDP 多播与 NAT 依赖；防火墙文档同步。 | internal/adapter/http/; internal/adapter/compat/; deploy/; web/src/ | 删除发现/直播相关表列并提供恢复策略 | Plan-G05.3：SSDP 无响应；直播探测明确不支持；无相关端口与监听器注册；须单独覆盖本行全部约束 | 部分完成：Go 运行时只开配置 HTTP 监听；旧 C# 伺服器探索监听已删，HTTP及探索埠防火墙文档已补；其余调谐器UDP／依赖清理与SSDP实测未完成；[探索裁剪证据](server-discovery-removal.md)；[实际证据](verification-report.md) | `403cc21b27`（仅已实现子集） |
-| **G05.4** 清理：数据库表/列、配置项、翻译键、图标一并清理。 | internal/adapter/http/; internal/adapter/compat/; deploy/; web/src/ | 删除发现/直播相关表列并提供恢复策略 | Plan-G05.4：SSDP 无响应；直播探测明确不支持；无相关端口与监听器注册；须单独覆盖本行全部约束 | 阻塞：尚无本项完整实现及执行证据 | 未实现或未验证；无实现提交 |
+| **G05.4** 清理：数据库表/列、配置项、翻译键、图标一并清理。 | internal/adapter/http/; internal/adapter/compat/; deploy/; web/src/ | 删除发现/直播相关表列并提供恢复策略 | Plan-G05.4：SSDP 无响应；直播探测明确不支持；无相关端口与监听器注册；须单独覆盖本行全部约束 | 部分完成：刪除已退休Channel排程專用的三個四語翻譯鍵，四資源121鍵門禁與完整回歸通過；資料表／欄位、設定、其他翻譯與圖示仍待清理；[清理證據](live-feature-actors-removal.md) | 本批來源摘要見[證據](evidence/live-feature-actors-removal.json) |
 
 ## G06 去除下载能力
 
