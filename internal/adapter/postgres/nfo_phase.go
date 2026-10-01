@@ -374,6 +374,11 @@ func requireNFOFinished(ctx context.Context, tx pgx.Tx, id string) error {
 	if err := requireIgnoreOff(ctx, tx, id); err != nil {
 		return err
 	}
+	return requireNFOPhaseFinished(ctx, tx, id)
+}
+
+// The filtered publication path validates its own ignore seal first.
+func requireNFOPhaseFinished(ctx context.Context, tx pgx.Tx, id string) error {
 	r, e := loadNFORequest(ctx, tx, id)
 	if e != nil {
 		return e
