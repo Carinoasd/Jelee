@@ -866,3 +866,9 @@ DI／DTO／View先分層完成後，工具審查允許本次只刪兩個指南�
 指南裁剪最後完整品牌14756→14735（減21），仍fail；gitignore0、保護檔hash／遷移diff／staged diff pass。04a80ad9f9 CI當時格式與雙Windows Go已pass，其他主要功能仍pending，品牌fail；新head仍需另外檢查CI。下一步需先處理直播DTO對管理器的兩個轉換方法相依，不能直接刪管理器造成編譯失敗。
 
 指南階段增量品牌0違規／175既有允許；沒有增加豁免。所有來源與文檔寫完再驗證通過後同PR46提交推送。
+
+### G03 Go HTTP 靜態翻譯鍵門禁
+
+五檔核心3271行刪除仍遭auto-review拒絕要求明確授權，已只製作.testdata/g05-live-core-proposal.md與patch、發出async問題，產品核心未改也未繞過。等待期間處理獨立G03門禁：既有regex僅固定三檔改為所有HTTP正式Go來源AST，排除test，對照資源鍵捕捉missing/unused。八fixture加keydiff負例通過，Windows HTTP/i18n完整回歸與vet通過；Linux HTTP/i18n race亦通過（3.598s／1.069s），全部handles terminal。沒有改catalog、產品行為或直播核心。G03仍partial，前端及舊UI完整文案使用尚未驗收。
+
+G03靜態鍵驗收最後增量品牌0違規／175允許，gitignore0，完整品牌14735／180允許仍fail；staged diff及五個待核准核心／保護檔逐位元比對通過。無來源測試handles仍執行，沒有核心刪除。
