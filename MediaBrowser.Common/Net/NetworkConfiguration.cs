@@ -103,7 +103,8 @@ public class NetworkConfiguration
     public int PublicHttpsPort { get; set; } = DefaultHttpsPort;
 
     /// <summary>
-    /// Gets or sets a value indicating whether Autodiscovery is enabled.
+    /// Gets or sets a value indicating whether discovery was requested in the legacy configuration.
+    /// This value does not enable a listener.
     /// </summary>
     public bool AutoDiscovery { get; set; } = true;
 

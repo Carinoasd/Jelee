@@ -10,7 +10,6 @@ using MediaBrowser.Common.Plugins;
 using MediaBrowser.Controller.Configuration;
 using MediaBrowser.Controller.Net;
 using MediaBrowser.Controller.Net.WebSocketMessages;
-using MediaBrowser.Model.ApiClient;
 using MediaBrowser.Model.Session;
 using MediaBrowser.Model.SyncPlay;
 using Microsoft.OpenApi;
@@ -200,8 +199,6 @@ namespace Jellyfin.Server.Filters
             };
 
             context.SchemaRepository.Schemas[nameof(GroupUpdate<object>)] = groupUpdateSchema;
-
-            context.SchemaGenerator.GenerateSchema(typeof(ServerDiscoveryInfo), context.SchemaRepository);
 
             foreach (var configuration in _serverConfigurationManager.GetConfigurationStores())
             {

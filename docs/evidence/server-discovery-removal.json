@@ -1,0 +1,58 @@
+{
+  "scope": "G05 server UDP discovery removal; Live TV/tuner/recording and full SSDP acceptance remain incomplete",
+  "removed": [
+    "UDP 7359 server listener and startup registration",
+    "legacy discovery request constant",
+    "discovery response model and OpenAPI schema registration"
+  ],
+  "legacyFlag": "retained solely for existing immutable configuration migration; true cannot register removed host",
+  "tests": {
+    "positive": {
+      "Passed": 3,
+      "Failed": 0,
+      "Skipped": 0
+    },
+    "negativeOriginalImplementation": {
+      "Failed": 3,
+      "Passed": 0,
+      "Skipped": 0
+    },
+    "restoredSources": "all five restored byte-for-byte after negative run",
+    "fullSolution": {
+      "suites": 17,
+      "outcomes": {
+        "Passed": 4156,
+        "NotExecuted": 21
+      }
+    },
+    "format": "verify-no-changes PASS; workspace-load warning"
+  },
+  "sourceIndex": "../branding-rename-map.md",
+  "sourceHashes": {
+    "startup": "70164f4a1e62f7d799744807d1dd34153bbf501237f7f650deb80cb9a9383f23",
+    "schemaFilter": "18342e781e91faba0b0fa8c74a68165d532ac52140c4d344cd055fe62fe20de2",
+    "retiredConfiguration": "dd6f3d5614a3ef92aadf9fdfd0fe7d0e29e5aaf7f79b217a47bb616b55889cb0",
+    "legacyEnvironmentBoundary": "9b423646e578230980b2c4b26e0c1d627db8b60b88bd63dd5b683ac62b87f4e7",
+    "discoveryRemovalTests": "cb3f2e3550cefdfb40e9c85e6d899dd97ba10d66289fc84a6ffde42819bc8be1"
+  },
+  "removedSourceHashesAtBase": {
+    "autoDiscoveryHost": "aaa559c5c59b83d5f7dca3ec781a2961761e2ebd66b65e4cb9fa1ea13bf10922",
+    "discoveryResponseModel": "e3c5c2a03765fd601195e82847abda7fb714bbb1d112c94b62010942baf2b665"
+  },
+  "baseCommit": "3d9c5298c77666c59681a941d23733932939c986",
+  "existingMigrationsChanged": false,
+  "protectedHashesUnchanged": true,
+  "limitations": [
+    "No LAN packet capture or isolated SSDP probe acceptance yet",
+    "Generic UDP socket factory remains registered and used by existing tuner discovery",
+    "Live TV, EPG, tuner, recording, channel controllers/services/configuration/storage/resources still require removal",
+    "Legacy discovery preference not removed from immutable migration contract",
+    "Deleting public discovery model is an intentional ABI/OpenAPI change; ABI gate is preserved"
+  ],
+  "gates": {
+    "incrementalBrandViolations": 0,
+    "fullBrandViolations": 14805,
+    "fullBrandGate": "FAIL retained",
+    "gitignoreViolations": 0
+  }
+}

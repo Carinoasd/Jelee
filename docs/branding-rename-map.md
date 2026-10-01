@@ -62,3 +62,15 @@ src/Jellyfin.Networking 與 tests/Jellyfin.Networking.Tests → src/Jelee.Networ
 | startup | `Jellyfin.Server/Startup.cs` |
 | headerProvider | `Jellyfin.Server/Localization/FourLocaleRequestCultureProvider.cs` |
 | httpTests | `tests/Jellyfin.Server.Integration.Tests/Middleware/FourLocaleRequestCultureTests.cs` |
+
+### 伺服器 UDP 探索裁剪來源索引
+
+| 證據角色 | 來源路徑 |
+| --- | --- |
+| startup | `Jellyfin.Server/Startup.cs` |
+| schemaFilter | `Jellyfin.Server/Filters/AdditionalModelFilter.cs` |
+| retiredConfiguration | `MediaBrowser.Common/Net/NetworkConfiguration.cs` |
+| legacyEnvironmentBoundary | `src/Jelee.Networking/Compatibility/LegacyNetworkNames.cs` |
+| discoveryRemovalTests | `tests/Jellyfin.Server.Integration.Tests/DiscoveryRemovalTests.cs` |
+| autoDiscoveryHost | `src/Jelee.Networking/AutoDiscoveryHost.cs` |
+| discoveryResponseModel | `MediaBrowser.Model/ApiClient/ServerDiscoveryInfo.cs` |

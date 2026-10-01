@@ -786,3 +786,11 @@ d0ef9b2195 兩平台 foundation 新失敗已取 job110468731814/110468731720 原
 已下載d0ef9b2195的真CI ABI report（artifact11176927400）：8組比較7個exit0，Naming改名exit1／CP0001+CP0004保持；artifact成功保存，JF_BOT_TOKEN問題已修。仍未merge、full品牌仍blocking。c18a5f273c新headfoundation待CI，不用舊head通過宣稱。
 
 格式exec46989已terminal exit0（workspace warning），所有本輪handles已terminal，沒有待poll測試。LICENSE／需求檔與HTTP證據source hash逐項相符。
+
+### G05 伺服器探索裁剪验收完成
+
+删除网络探索host／Startup注册／DiscoveryRequest常数／响应model／OpenAPI schema registration；移除空namespace using及多余空行。旧配置AutoDiscovery保留既有迁移契约，注释标明不启listener，不改变已发布迁移。前三个编译阻碍是bool文档SA1623、空namespace using、双空行SA1507，另test namespace修为实际Manager；均已解决，没有弱化分析器。positive三项pass（旧flagtrue／程序集／真OpenAPI）；negative exec74249先恢复HEAD五源，同样3fail0pass，finally逐bit恢复；随后全Debug17套件4156Passed/21NotExecuted/0fail。format exec23191 terminal0，有workspace warning；本轮全部handle已terminal。source hash/protected hash/migration diff已核对，最后文档写完再跑门禁后同PR46推送。
+
+证据docs/evidence/server-discovery-removal.json／合同docs/server-discovery-removal.md；防火墙文档补不开放UDP1900/7359。G05明确partial：UDP SocketFactory还在ApplicationHost注册且HdHomerun tuner使用；LiveTV82源文件及controller／recording／channel服务仍保留，下一步裁剪与明确不支持合同，不能声称LAN SSDP已验收。3d9c5298c7真CI基础两平台pass，C#/Format/CodeQL/OpenAPI pass；PG仍live，ABI真差异与full品牌仍fail。不能把前headpass当新head全绿。
+
+G05最後完整品牌14805（新增回歸仍引用舊測試host，未增加豁免）；增量0違規／119既有允許、gitignore0。完整門禁保持失敗。
