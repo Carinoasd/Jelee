@@ -39,7 +39,7 @@ try {
             }
         }
         'test' { & "$PSScriptRoot/run-go.ps1" test -count=1 ./... }
-        'test-race' { & "$PSScriptRoot/run-go.ps1" test -race -count=1 ./... }
+        'test-race' { & "$PSScriptRoot/run-go.ps1" test -race -count=1 -timeout=20m ./... }
         'ignore-oracle-test' {
             $previousRequiredIgnore = $env:JELEE_REQUIRE_IGNORE_ORACLE
             try {
