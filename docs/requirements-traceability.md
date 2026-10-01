@@ -767,4 +767,3 @@
 | PERF.memory | perf-baseline.md / perf-report.md | 1万/10万/50万扫描、10万图片与≥24h 稳态曲线；明确部署内存预算 | 阻塞：尚无实测及预算 |
 | DELIVERY.history | git-workflow.md / CHANGELOG.md | 单目标 Conventional Commits，可二分；不重写上游历史；作者 Carinoasd 已由用户确认 | 部分完成：保留完整基线历史；已记录分阶段提交并推送至草稿 PR；尚无发布标签与完整二分验收 |
 | DELIVERY.release | requirements-traceability.md / 验证报告 | 原文完成判定全部满足，三类客户端记录、完整 CI、发行演练与精确提交 | 阻塞：当前不是完整产品交付 |
-
