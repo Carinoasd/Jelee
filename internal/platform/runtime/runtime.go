@@ -33,10 +33,7 @@ func newWithLifetime(cfg config.Config, logger *slog.Logger, lifetime *lifetime)
 	}
 	return build(lifetime, fx.NopLogger, fx.Supply(cfg, logger), fx.Provide(
 		func(store *postgres.Store) (*app.Metadata, error) {
-			if metadataService == nil {
-				return nil, nil
-			}
-			return metadataService.WithLibraryPreferences(store)
+			return bindMetadata(metadataService, store)
 		},
 		func(c config.Config) (*postgres.Store, error) {
 			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)

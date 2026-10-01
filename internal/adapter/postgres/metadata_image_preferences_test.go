@@ -42,11 +42,12 @@ func TestMetadataImagePreferencePersistenceAndLegacyUpdates(t *testing.T) {
 func TestMetadataImagePreferenceMigrationAndConstraints(t *testing.T) {
 	f := newJobFixture(t)
 	id := f.registration.Library.ID
+	nfoMigrateVersion(t, f, "down", 20)
 	nfoMigrateVersion(t, f, "down", 19)
 	if _, err := f.s.Pool.Exec(f.ctx, `UPDATE libraries SET metadata_language='ja-JP',metadata_preferences_revision=2 WHERE id=$1::uuid`, id); err != nil {
 		t.Fatal(err)
 	}
-	nfoMigrateVersion(t, f, "up", 20)
+	nfoMigrateVersion(t, f, "up", SchemaVersion)
 	v, err := f.s.MetadataPreferences(f.ctx, f.a, id)
 	if err != nil || v.Language != "ja-JP" || v.Revision != 2 || !reflect.DeepEqual(v.ImageLanguages, domain.DefaultMetadataImageLanguages("zh-CN")) {
 		t.Fatal("upgrade changed old preferences", err)

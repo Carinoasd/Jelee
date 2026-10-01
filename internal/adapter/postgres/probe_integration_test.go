@@ -485,6 +485,9 @@ func TestProbeReleaseRecoveryInvalidationAndMigration(t *testing.T) {
 		t.Fatal(err)
 	}
 	dsn := f.s.Pool.Config().ConnString()
+	if version, dirty, e := Migrate(f.ctx, dsn, "down"); e != nil || dirty || version != 20 {
+		t.Fatalf("down21 version=%d dirty=%v error=%v", version, dirty, e)
+	}
 	if version, dirty, e := Migrate(f.ctx, dsn, "down"); e != nil || dirty || version != 19 {
 		t.Fatal("image preference downgrade failed", version, dirty, e)
 	}

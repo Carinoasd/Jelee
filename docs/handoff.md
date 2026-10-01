@@ -1012,3 +1012,17 @@ G14.5仍partial，336計數4done／183partial／149blocked。增量品牌0／181
 增量品牌0／181、完整14735／186仍失敗、gitignore0；來源hash、LICENSE／requirements、五核心逐位元、19份既有升級與降版遷移的Git正規化內容、local links／無C#diff／336列核對通過。G14.5保持部分完成，全案4done／183partial／149blocked。詳細契約與證據見tmdb-image-preferences.md及evidence。前HEAD Tests／CodeQL／Format／OpenAPI成功，ABI仍失敗，foundation當時執行中；新HEAD須自己的CI，沒有合併。所有本輪測試handles已結束，同PR46／同分支續推。
 
 下一段接G14.6資料持久化、欄位鎖、人工與NFO優先順序及正式API；季／集圖片、logo、前端、完整100電影／20劇集與清除外部資料仍未完成。待核准五核心3271行保持，原具體批次問題未重問；不把此圖片候選階段當完整刮削。
+
+### G14 人工元資料與欄位鎖持久化
+
+接續a6b5621f66，新增schema21永久item狀態與四個文字欄位，原001–020保持。讀取從items原標題投影existing／版本1，不建立row；人工value更新標manual，optional明確清空仍留來源；只改鎖保留value與來源。既有來源標題沿原1–1024字元限制，包含較長UTF-8／空白，兩類實際PG鎖定及catalog保持，不能用同值當新人工輸入繞過非空白／1024byte規則。
+
+正式管理員GET／PUT items/{id}/metadata不需TMDB金鑰，runtime有／無供應商均不可變綁定item repository，有provider維持库偏好；router與OpenAPI按帳號設定一致。短交易重驗session/admin，item列鎖、expectedRevision、四欄有界唯一patch、版本加一、實際items.title與前後audit原子提交；無出站／原檔操作。JSON null／未知屬性／非法日期／多餘query拒400，明確人工編輯可修改已鎖欄位及解除鎖。
+
+真HTTP／app／PG驗目錄標題變更、人工清空、鎖／明確解除、409、無效JSON與撤銷session；並行同版本一成功一衝突；SQL约束、乾淨升降版、保留狀態拒降、取消／非admin／缺項與注入SQL失敗回滾已驗證。停用實際repo版本判斷負例1leaf fail，finally逐位元復原；最後四項PG專項含兩個legacy子項共6pass事件，0skip通過。
+
+初次完整PG717pass事件含父／0fail／0skip已通過，隨後補既有標題限制相容性，最終完整PG719通過事件含父／0fail／0skip，352.444秒。Windows全Go29pkg／3127pass事件含父／445skip、vet／build PASS，原435skip身份一致，新增10PG專項均在完整真PG通過。Linuxdomain／app／HTTP／runtime race PASS（摘要未列skip）；此四包產品來源與驗收後未變，最後SQL／PG測試相容性修改另由完整PG race覆蓋。增量brand0／181、full14735／186仍失敗、gitignore0；來源hash／LICENSE／requirements／五核心逐位元、20版既有遷移Git正規化內容、local links／336列及無C#diff已核對。
+
+G14.6 blocked→partial，全案4done／184partial／148blocked。實際自動TMDB／NFO寫入、人工與NFO優先序及鎖不覆蓋、provider來源／時間保存／清除、worker、前端與120項完整矩陣尚缺，不能把保存鎖當自動刮削鎖已生效。詳細見item-metadata.md與evidence/item-metadata.json。
+
+前HEAD的Windows／Linux foundation、Tests／Format／OpenAPI／CodeQL成功，ABI仍失敗、fullbranding失敗、PG當時live；新HEAD要自身CI，不合併、不新開branch，同PR46續推。五核心3271行仍未改刪，原具體授權提問待答。下一段依.testdata/tmdb-write-next.md接明確確認候選後的實際寫入、鎖與人工優先，以及可信NFO抽取接線，不停留在候選預覽。

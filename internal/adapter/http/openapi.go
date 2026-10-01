@@ -29,10 +29,11 @@ func Specification(cfg config.Config) map[string]any {
 		op["parameters"] = []any{idParameter(), map[string]any{"name": "Range", "in": "header", "schema": map[string]any{"type": "string"}}, map[string]any{"name": "If-Range", "in": "header", "schema": map[string]any{"type": "string"}}}
 		paths["/api/v1/sources/{id}/stream"] = map[string]any{"get": op, "head": op}
 	}
+	schemas := accountSchemas()
 	if cfg.EnableAccounts {
+		itemMetadataSpecification(paths, schemas)
 		accountSpecification(paths)
 	}
-	schemas := accountSchemas()
 	if cfg.EnableAccounts && cfg.TMDBAPIKey != "" {
 		metadataSpecification(paths, schemas)
 	}

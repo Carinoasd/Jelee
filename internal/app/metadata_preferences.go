@@ -18,7 +18,9 @@ func (m *Metadata) WithLibraryPreferences(repository MetadataPreferencesReposito
 	if m == nil || repository == nil {
 		return nil, domain.ErrInvalid
 	}
-	return &Metadata{provider: m.provider, preferences: repository}, nil
+	copy := *m
+	copy.preferences = repository
+	return &copy, nil
 }
 
 func (m *Metadata) LibraryPreferences(ctx context.Context, actor domain.Actor, library string) (domain.MetadataPreferences, error) {

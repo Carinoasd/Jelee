@@ -76,8 +76,11 @@ func NewWithJobs(cfg config.Config, backend Backend, catalog *app.Catalog, resol
 	if len(metadataServices) > 1 {
 		return nil, errors.New("only one metadata service may be provided")
 	}
+	if cfg.EnableAccounts && len(metadataServices) == 1 {
+		s.metadata = metadataServices[0]
+	}
 	if cfg.EnableAccounts && cfg.TMDBAPIKey != "" {
-		if len(metadataServices) != 1 || metadataServices[0] == nil {
+		if len(metadataServices) != 1 || !metadataServices[0].HasProvider() {
 			return nil, errors.New("metadata service must be provided")
 		}
 		s.metadata = metadataServices[0]
@@ -135,8 +138,11 @@ func NewWithJobs(cfg config.Config, backend Backend, catalog *app.Catalog, resol
 	if cfg.EnableAccounts {
 		s.accountRoutes(r)
 	}
-	if s.metadata != nil {
+	if s.metadata != nil && cfg.TMDBAPIKey != "" {
 		s.metadataRoutes(r)
+	}
+	if cfg.EnableAccounts {
+		s.itemMetadataRoutes(r)
 	}
 	if cfg.EnableJobs {
 		s.jobRoutes(r)
