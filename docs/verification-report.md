@@ -136,3 +136,7 @@ DTO單層解耦及兩份既有測試建構參數更新，14項回歸與完整Deb
 ## G11.8 網路隱私文件與邊界核對
 
 [公開入口與位址隱私](network-privacy.md)已補齊，來源與三項既有回歸核對通過。可信代理／SSRF／完整部署矩陣仍未完成，G11.8維持部分完成。[證據](evidence/network-privacy-documentation.json)。
+
+## G11.2 可信代理設計規格
+
+[設計與後續驗收](specs/2026-10-02-trusted-proxies-design.md)已核對，尚未產生產品行為或測試證據，G11.2保持部分完成。
