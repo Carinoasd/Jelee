@@ -116,3 +116,7 @@ Jelee schema version=0 dirty=false
 ## G05 一般DTO移除直播／錄製增補相依
 
 DTO單層解耦及兩份既有測試建構參數更新，14項回歸與完整Debug17套件4808Passed／21NotExecuted／0fail、格式通過。[合同與證據](dto-live-decoupling.md)。原七檔跨層批次操作遭自動審查拒絕且未執行，已採獲准的DTO單層替代；其他核心／視圖／DI保持，G05仍部分完成。
+
+## G05 使用者視圖移除直播／頻道增補相依
+
+移除使用者視圖的兩個manager相依與外抓分支。四單元及兩HTTP／六請求pass，完整Debug17套件4814Passed／21NotExecuted／0fail，最後測試行尾修正後HTTP與格式再pass。[合同與證據](user-view-live-decoupling.md)。核心、DI、存量資料與實體相依仍待處理，G05保持部分完成。

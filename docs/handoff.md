@@ -842,3 +842,13 @@ d7ac92e850最新CI兩平台foundation與Ubuntu C#／Format／OpenAPI均pass；PG
 下一步先單獨解耦UserViewManager的LiveTV folder增補及constructor，再以降低影響的可編譯範圍刪core／DI。不要直接重跑被拒絕的七檔大批操作或間接繞過；需要新證據證明風險降低或另取得授權。G05partial、336矩陣4done/175partial/157blocked保持。2cc622d355 CI雙平台Go／Ubuntu C#／Format／OpenAPI pass，其他C#/CodeQL/PG當時pending；ABI/full brand fail，未合併。
 
 DTO階段最後完整品牌14728仍fail，增量0違規／158既有允許、gitignore0、保護檔與未改核心來源hash／migration diff／staged diff pass；未擴大豁免，所有handles terminal。
+
+### G05 使用者視圖單層解耦驗收完成
+
+UserViewManager刪IChannelManager/ILiveTvManager ctor/fields、externalTV/Channelfolder增補、GetLatestChannelItemsInternal外抓分支；既存Channel父項現在走一般library query，存量資料未刪。UserViewsController只改兩參數XMLdoc說明legacyflag不增補退休內容，route／auth保持。unit4pass（true/false本機folder保留、普通/Channel父項一般query），HTTP2pass6requests（新舊route及false/true/default）freshhost，未seed退休庫故不宣稱migrationdata驗收。
+
+新unit初compile漏兩enum namespace／mock把List父项簽名誤寫IReadOnlyList，按實際介面修正；所有產品碼沒有因此改動。完整Debug17套件4814Passed／21NotExecuted／0fail，format先抓新HTTPtestCRLF，終止full後統一LF只改test，再finalHTTP2pass／formatpass（workspacewarning）。全部handles terminal。7core及3DI/assembly索引與base逐bit同，license/requirements hash不變，無migration／media改動；證據docs/evidence/user-view-live-decoupling.json／合同docs/user-view-live-decoupling.md。最後所有文檔写完再跑門禁並同PR46推送。
+
+接續已無一般DTO/UserView的ILiveTvManager引用，一般伺服器實作只餘ApplicationHost Lazy註冊；CoreAppHost還用LiveTvManager作程序集marker，registry還注入4個core。下一步先移除這些DI/marker相依並驗證，再刪實作/介面。勿直接重跑之前被auto-review拒絕的跨層七檔batch；此階段是獲准的單層替代。G05仍partial，336矩陣4done/175partial/157blocked不變。3b95ddafc6兩平台Go／三平台C#／Format／OpenAPI pass，PG／CodeQL當時pending，ABI/full brandingfail；未合併。
+
+視圖階段最後完整品牌14749，仍fail；增量0違規／165既有允許、gitignore0、staged diff pass。未增加豁免；全部測試已結束，使用者授權G03四語裁剪已完成，G03其餘驗收仍待完成。

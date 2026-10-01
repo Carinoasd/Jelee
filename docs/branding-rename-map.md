@@ -134,3 +134,15 @@ src/Jellyfin.Networking 與 tests/Jellyfin.Networking.Tests → src/Jelee.Networ
 | dependencyRegistration | `Emby.Server.Implementations/ApplicationHost.cs` |
 | partsAssembly | `Jellyfin.Server/CoreAppHost.cs` |
 | featureRegistry | `src/Jellyfin.LiveTv/Extensions/LiveTvServiceCollectionExtensions.cs` |
+
+### 使用者視圖直播相依解耦來源索引
+
+| 證據角色 | 來源路徑 |
+| --- | --- |
+| viewManager | `Emby.Server.Implementations/Library/UserViewManager.cs` |
+| viewApi | `Jellyfin.Api/Controllers/UserViewsController.cs` |
+| localViewTests | `tests/Jellyfin.Server.Implementations.Tests/Library/UserViewManagerRetirementTests.cs` |
+| httpViewTests | `tests/Jellyfin.Server.Integration.Tests/Controllers/UserViewRetirementTests.cs` |
+| dependencyRegistration | `Emby.Server.Implementations/ApplicationHost.cs` |
+| partsAssembly | `Jellyfin.Server/CoreAppHost.cs` |
+| featureRegistry | `src/Jellyfin.LiveTv/Extensions/LiveTvServiceCollectionExtensions.cs` |

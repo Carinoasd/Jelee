@@ -57,7 +57,7 @@ public class UserViewsController : BaseJellyfinApiController
     /// Get user views.
     /// </summary>
     /// <param name="userId">User id.</param>
-    /// <param name="includeExternalContent">Whether or not to include external views such as channels or live tv.</param>
+    /// <param name="includeExternalContent">Legacy compatibility flag; retired channel and live TV views are not added.</param>
     /// <param name="presetViews">Preset views.</param>
     /// <param name="includeHidden">Whether or not to include hidden content.</param>
     /// <response code="200">User views returned.</response>
@@ -99,7 +99,7 @@ public class UserViewsController : BaseJellyfinApiController
     /// Get user views.
     /// </summary>
     /// <param name="userId">User id.</param>
-    /// <param name="includeExternalContent">Whether or not to include external views such as channels or live tv.</param>
+    /// <param name="includeExternalContent">Legacy compatibility flag; retired channel and live TV views are not added.</param>
     /// <param name="presetViews">Preset views.</param>
     /// <param name="includeHidden">Whether or not to include hidden content.</param>
     /// <response code="200">User views returned.</response>

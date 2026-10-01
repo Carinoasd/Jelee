@@ -1,0 +1,75 @@
+{
+  "scope": "G05 incremental user view decoupling; core/DI deletion not yet performed",
+  "baseCommit": "3b95ddafc627e75e058bc6b39c0307c6df8ae01d",
+  "removed": [
+    "user view constructor/field dependencies on live TV and channel managers",
+    "external live TV/channel folder augmentation",
+    "channel manager latest-item external fetch branch"
+  ],
+  "compatibility": "Existing modern/legacy user view routes and external flag accepted; flag no longer adds retired views",
+  "latestItems": "Persisted Channel parent uses generic local-library query; no external channel manager call, cached rows not deleted",
+  "tests": {
+    "localViewsAndLatestItems": {
+      "Passed": 4,
+      "Failed": 0,
+      "Skipped": 0
+    },
+    "httpModernAndLegacy": {
+      "Passed": 2,
+      "Failed": 0,
+      "Skipped": 0,
+      "requests": 6,
+      "flags": [
+        "false",
+        "true",
+        "default"
+      ],
+      "library": "fresh test host; no seeded retired tuner/library proof claimed"
+    },
+    "fullSolution": {
+      "suites": 17,
+      "Passed": 4814,
+      "NotExecuted": 21,
+      "Failed": 0
+    },
+    "format": "verify-no-changes PASS with workspace warning; HTTP test line endings normalized after full regression, final HTTP two tests rerun PASS; production source unchanged"
+  },
+  "sourceIndex": "../branding-rename-map.md",
+  "sourceHashes": {
+    "viewManager": "85cb3c655d31de6ce419d90d22ba82ec7046ae7f7dc597fa964aea4f38dd8167",
+    "viewApi": "115b9ab3af2e269c54f1186fcc473a27f03a5f940b3aa2ee42b59ef21fcfa73c",
+    "localViewTests": "894f0082d5970d4e8d0841c3e28fa67b261a29a004eb392bb3d245f775e0b259",
+    "httpViewTests": "2a5adaf158dc91f48d43893afabb72d4b7952ddc2232d227c18908f46450fc01"
+  },
+  "auditedUnchangedSourceHashes": {
+    "dependencyRegistration": "bc3428f28672d532a045e46fc8248c01c57f6b4ab6dd67c846dbcafc0f7590a3",
+    "partsAssembly": "4bfe4b08ba183d83b02b887c50e011ee27ab2b15a7364c20fb1dc57b64766c4d",
+    "featureRegistry": "0282400c9a4687fd1919e66e3b84e6d6525cf292e84ca458fd9e1b715ee8e1ad"
+  },
+  "retainedCoreFilesUnchanged": 7,
+  "existingMigrationsChanged": false,
+  "protectedHashesUnchanged": true,
+  "limitations": [
+    "Core services/interfaces and DI/part registrations retained for next decoupling step",
+    "Persisted retired folder/item rows and compatibility query properties remain; not full storage/resource cleanup",
+    "Recording/channel entity and media-library dependencies remain",
+    "Real client/LAN acceptance incomplete; public constructor change intentionally changes ABI"
+  ],
+  "gates": {
+    "fullBrandGate": {
+      "violations": 14749,
+      "allowed": 170,
+      "status": "FAIL retained"
+    },
+    "incrementalBrandGate": {
+      "violations": 0,
+      "allowed": 165,
+      "status": "PASS"
+    },
+    "gitignoreGate": {
+      "violations": 0,
+      "status": "PASS"
+    },
+    "stagedDiffCheck": "PASS"
+  }
+}

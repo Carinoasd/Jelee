@@ -5,19 +5,15 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Threading;
 using Jellyfin.Data;
 using Jellyfin.Data.Enums;
 using Jellyfin.Database.Implementations.Entities;
 using Jellyfin.Database.Implementations.Enums;
 using Jellyfin.Extensions;
-using MediaBrowser.Controller.Channels;
 using MediaBrowser.Controller.Configuration;
 using MediaBrowser.Controller.Dto;
 using MediaBrowser.Controller.Entities;
 using MediaBrowser.Controller.Library;
-using MediaBrowser.Controller.LiveTv;
-using MediaBrowser.Model.Channels;
 using MediaBrowser.Model.Globalization;
 using MediaBrowser.Model.Library;
 using MediaBrowser.Model.Querying;
@@ -29,16 +25,12 @@ namespace Emby.Server.Implementations.Library
         private readonly ILibraryManager _libraryManager;
         private readonly ILocalizationManager _localizationManager;
 
-        private readonly IChannelManager _channelManager;
-        private readonly ILiveTvManager _liveTvManager;
         private readonly IServerConfigurationManager _config;
 
-        public UserViewManager(ILibraryManager libraryManager, ILocalizationManager localizationManager, IChannelManager channelManager, ILiveTvManager liveTvManager, IServerConfigurationManager config)
+        public UserViewManager(ILibraryManager libraryManager, ILocalizationManager localizationManager, IServerConfigurationManager config)
         {
             _libraryManager = libraryManager;
             _localizationManager = localizationManager;
-            _channelManager = channelManager;
-            _liveTvManager = liveTvManager;
             _config = config;
         }
 
@@ -113,23 +105,6 @@ namespace Emby.Server.Implementations.Library
             {
                 var name = _localizationManager.GetServerLocalizedString("Folders");
                 list.Add(_libraryManager.GetNamedView(name, CollectionType.folders, string.Empty));
-            }
-
-            if (query.IncludeExternalContent)
-            {
-                var channelResult = _channelManager.GetChannelsInternalAsync(new ChannelQuery
-                {
-                    UserId = user.Id
-                }).GetAwaiter().GetResult();
-
-                var channels = channelResult.Items;
-
-                list.AddRange(channels);
-
-                if (_liveTvManager.IsEnabledForUser(user))
-                {
-                    list.Add(_liveTvManager.GetInternalLiveTvFolder(CancellationToken.None));
-                }
             }
 
             if (!query.IncludeHidden)
@@ -271,21 +246,6 @@ namespace Emby.Server.Implementations.Library
             if (!parentId.IsEmpty())
             {
                 var parentItem = _libraryManager.GetItemById(parentId);
-                if (parentItem is Channel)
-                {
-                    return _channelManager.GetLatestChannelItemsInternal(
-                        new InternalItemsQuery(user)
-                        {
-                            ChannelIds = [parentId],
-                            IsPlayed = request.IsPlayed,
-                            StartIndex = request.StartIndex,
-                            Limit = request.Limit,
-                            IncludeItemTypes = request.IncludeItemTypes,
-                            EnableTotalRecordCount = false
-                        },
-                        CancellationToken.None).GetAwaiter().GetResult().Items;
-                }
-
                 if (parentItem is Folder parent)
                 {
                     parents.Add(parent);
