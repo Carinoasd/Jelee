@@ -87,6 +87,79 @@ func TestFamilyIgnoreNativeStorage(t *testing.T) {
 	if !complete || counts != (domain.IgnoreComparisonCounts{Observed: 1, Missing: 1, Excluded: 4}) {
 		t.Fatal("native classification counts", counts)
 	}
+	if err = f.s.BeginFamilyIgnoreVerification(f.ctx, l); err != nil {
+		t.Fatal(err)
+	}
+	observer := scan.NewIgnoreScanner()
+	for {
+		page, e := f.s.NextFamilyIgnoreVerificationPage(f.ctx, l)
+		if e != nil {
+			t.Fatal(e)
+		}
+		if page.Complete {
+			break
+		}
+		var observed []domain.IgnoreDirectoryProof
+		for _, proof := range page.Proofs {
+			p, e := observer.ReobserveIgnoreProof(f.ctx, d.RootPath, proof)
+			if e != nil {
+				t.Fatal(e)
+			}
+			observed = append(observed, p)
+		}
+		if err = f.s.CommitFamilyIgnoreVerificationPage(f.ctx, l, page.Token, observed); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err = f.s.SealFamilyIgnoreVerification(f.ctx, l); err != domain.ErrConflict {
+		t.Fatal("custom-only seal", err)
+	}
+	for {
+		page, e := f.s.NextLegacyIgnoreVerificationPage(f.ctx, l)
+		if e != nil {
+			t.Fatal(e)
+		}
+		if page.Complete {
+			break
+		}
+		var observed []domain.LegacyIgnoreObservation
+		for _, source := range page.Observations {
+			o, e := observer.ReobserveLegacyIgnore(f.ctx, d.RootPath, source)
+			if e != nil {
+				t.Fatal(e)
+			}
+			observed = append(observed, o)
+		}
+		if err = f.s.CommitLegacyIgnoreVerificationPage(f.ctx, l, page.Token, observed); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err = f.s.SealFamilyIgnoreVerification(f.ctx, l); err != domain.ErrConflict {
+		t.Fatal("missing-boundary verification omitted", err)
+	}
+	for {
+		page, e := f.s.NextLegacyIgnoreBaselineVerificationPage(f.ctx, l)
+		if e != nil {
+			t.Fatal(e)
+		}
+		if page.Complete {
+			break
+		}
+		var observed []domain.LegacyIgnoreBaselineObservation
+		for _, source := range page.Observations {
+			o, e := observer.ReobserveLegacyIgnoreBaseline(f.ctx, d.RootPath, source)
+			if e != nil {
+				t.Fatal(e)
+			}
+			observed = append(observed, o)
+		}
+		if err = f.s.CommitLegacyIgnoreBaselineVerificationPage(f.ctx, l, page.Token, observed); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err = f.s.SealFamilyIgnoreVerification(f.ctx, l); err != nil {
+		t.Fatal("joint native seal", err)
+	}
 	if runner.Stats().Active != 0 {
 		t.Fatal("helper still active")
 	}

@@ -130,12 +130,16 @@ func verificationProofs(ctx context.Context, tx pgx.Tx, id string, after domain.
 }
 
 func (s *Store) NextIgnoreVerificationPage(ctx context.Context, l domain.JobLease) (domain.IgnoreVerificationPage, error) {
+	return s.nextIgnoreVerificationPage(ctx, l, false)
+}
+
+func (s *Store) nextIgnoreVerificationPage(ctx context.Context, l domain.JobLease, family bool) (domain.IgnoreVerificationPage, error) {
 	tx, err := s.jobTransaction(ctx)
 	if err != nil {
 		return domain.IgnoreVerificationPage{}, err
 	}
 	defer tx.Rollback(ctx)
-	current, epoch, err := verificationComparison(ctx, tx, l)
+	current, epoch, err := verificationModeComparison(ctx, tx, l, family)
 	if err != nil {
 		return domain.IgnoreVerificationPage{}, err
 	}
@@ -150,7 +154,7 @@ func (s *Store) NextIgnoreVerificationPage(ctx context.Context, l domain.JobLeas
 			return domain.IgnoreVerificationPage{}, err
 		}
 	}
-	if err = commitIgnoreVerification(ctx, tx, current, epoch); err != nil {
+	if err = commitVerificationMode(ctx, tx, current, epoch, family); err != nil {
 		return domain.IgnoreVerificationPage{}, err
 	}
 	return page, nil
@@ -182,6 +186,10 @@ func extendIgnoreVerification(prior [32]byte, p domain.IgnoreDirectoryProof) [32
 // Observations must be freshly obtained by the native source adapter. The
 // database proves equality to the exact pending prefix, not filesystem truth.
 func (s *Store) CommitIgnoreVerificationPage(ctx context.Context, l domain.JobLease, token domain.IgnoreVerificationToken, observed []domain.IgnoreDirectoryProof) error {
+	return s.commitIgnoreVerificationPage(ctx, l, token, observed, false)
+}
+
+func (s *Store) commitIgnoreVerificationPage(ctx context.Context, l domain.JobLease, token domain.IgnoreVerificationToken, observed []domain.IgnoreDirectoryProof, family bool) error {
 	if token.JobID != l.Job.ID || token.Generation != l.Generation || len(observed) > domain.IgnoreProofPageSize {
 		return domain.ErrInvalid
 	}
@@ -195,7 +203,7 @@ func (s *Store) CommitIgnoreVerificationPage(ctx context.Context, l domain.JobLe
 		return err
 	}
 	defer tx.Rollback(ctx)
-	current, epoch, err := verificationComparison(ctx, tx, l)
+	current, epoch, err := verificationModeComparison(ctx, tx, l, family)
 	if err != nil {
 		return err
 	}
@@ -221,7 +229,7 @@ func (s *Store) CommitIgnoreVerificationPage(ctx context.Context, l domain.JobLe
 			if _, err = tx.Exec(ctx, `UPDATE job_ignore_manifests SET invalidated=true WHERE job_id=$1::uuid`, l.Job.ID); err != nil {
 				return storageError(err)
 			}
-			if err = commitIgnoreVerification(ctx, tx, current, epoch); err != nil {
+			if err = commitVerificationMode(ctx, tx, current, epoch, family); err != nil {
 				return err
 			}
 			return domain.ErrInventoryInvalidated
@@ -244,7 +252,7 @@ func (s *Store) CommitIgnoreVerificationPage(ctx context.Context, l domain.JobLe
 	if err != nil {
 		return storageError(err)
 	}
-	return commitIgnoreVerification(ctx, tx, current, epoch)
+	return commitVerificationMode(ctx, tx, current, epoch, family)
 }
 
 // Seal lifetime is capped by the original verification deadline and is never

@@ -518,3 +518,31 @@ PR42功能CI已全pass（兩PG14m47s/13m44s、三平台tests及foundation），�
 專項PG race8頂層通過26.680秒；非race native1通過17.318秒。全PG race227頂層pass、0fail0skip299.821秒、sourceUnchanged=true（.testdata/inventory-family-baseline-full-postgres-summary.json）。外層harness改600秒，因上一輪288秒已接近300；fixture/SQL/lease期限未改。Windowsdomain/scan/architecture .176/2.224/.157秒，全vet/三build通過；Linux原生race scan/domain/architecture1.181/1.053/1.096秒。LICENSE與requirements原文雜湊保持不變。所有handle已結束。schema001–017未改，僅新增18，歷史降版步驟补18→17。
 
 下一段：合併模式最終復核/封存/發布。已讀ignore_publication.go、ignore_verification.go；舊verificationComparison及FinishIgnoreJob走ignoreComparisonFence，仍拒絕family。應接family自有proof復核、schema14來源query復核、schema17baseline缺失邊界復核，再共同檢查generation/deadline/total/manifest frozen/noninvalid/seal後發布；不能只沿用custom seal。saveIgnoreImageProgress舊SQL讀job_ignore_decisions，family要對應新表；NFO/probe/coverage/threshold/late expiry與unknown review-only語義要保留。runner在internal/platform/jobs/ignore.go，ports在internal/app/ignore_jobs_ports.go，尚未修改。公開模式仍關閉，G22與第3階段未完成。
+
+schema18合併基線保存已提交5d67083251，普通繁中PR43：https://github.com/MoYuanCN/Jelee/pull/43，已附聊天。現為feat/jelee-ignore-family-final-verification，接續兩種來源與缺失邊界的共同最終復核/封存。名稱feat/jelee-ignore-family-verification已存在於43bed278d1（舊PR34），故保留該分支並採新名稱。PR43尚未查CI，所有本機handle已結束。下一步先讀既有Begin/Next/Commit/SealIgnoreVerification和legacy兩種verification，設計共同generation/固定期限及封存守衛；不能放寬舊模式或只重用custom seal。
+
+### 共同最終復核啟動進行中（未提交）
+
+新增ignore_family_verification.go：familyVerificationComparison以family comparison fence查兩manifest/epoch/revision與completed/unknown0；BeginFamilyIgnoreVerification同交易凍結兩manifest、建立custom/source-query/baseline-query三checkpoint，custom checkpoint作協調anchor。期限三者完全相同，取min(lease,now+120s,本generation既有兩legacy期限)，防止獨立legacy復核加入協調後被續期。同generation已有anchor時只驗證共同lifetime、不重置；新generation三者sequence/cursor/count/digest/completed重設且清customseal。commitFamilyVerification最後guardedJobUpdate、inventory epoch、三代數/期限相等/未過期/既有seal有效後commit。lifetime刻意不查invalidated，供未來來源錯誤保留失效標記；正常流程入口另查兩manifest。
+
+新增三個真PG race測試：同代已完成一頁legacy後重試不續期/不清進度、generation重啟且舊lease拒絕；先獨立legacy再共同啟動保持既有20秒期限、共同expired拒絕續期；未完成comparison無checkpoint。family-verification-begin 3頂層pass、0fail0skip19.764秒、sourceUnchanged=true。Windowspostgres編譯/純測試.064秒、相關vet/diff通過。沒有修改schema18或既有verification實作。
+
+下一步新增family custom Next/Commit與三路完整seal：既有custom verificationComparison仍走舊模式，需private mode-aware重用核心但保留舊入口拒絕family；family路徑commit須驗共同lifetime。legacy兩路現有方法可操作由共同Begin建立的checkpoint，但seal需再次共同檢查兩manifest frozen/noninvalid、所有completed/counts正確、同generation、相同固定deadline與短seal期限，最終發布仍待接線。補unknown comparison、共同啟動晚leaseexpiry/部分checkpoint/已過期獨立legacy、全三路原生復查與seal測試，再完整回歸/文件/PR。當前只有共同Begin已驗證，不可稱共同復核完成。所有handle結束。
+
+PR43最新：一套foundation Linux/Windows及另一套Windows pass，另一Linux與三平台run-tests、兩PG仍pending（110331537726、110331379398），完整品牌fail。目前feat/jelee-ignore-family-final-verification，兩個新Go檔與handoff未提交。
+
+### 三路復核分頁與共同封存已接線（未提交）
+
+新增NextFamilyIgnoreVerificationPage/CommitFamilyIgnoreVerificationPage，舊custom Next/Commit共用private mode-aware核心；舊入口仍拒絕family。family verificationModeComparison檢查比較完整/known、兩manifest有效與frozen、三checkpoint共同lifetime，提交使用commitFamilyVerification最後重驗共同期限。custom changed proof只提交custom invalidated，下一步共同入口即因任一manifest失效拒絕。
+
+新增SealFamilyIgnoreVerification：三路completed、custom verified_rows==manifest.rows、legacy verified_queries==queries、baseline verified_queries==baseline_queries、兩manifestfrozen/noninvalid、共同generation/deadline全部成立才設定custom sealed_until=min(deadline,now+30s)，COALESCE不續期；最後再次共同lifetime確認。仍未接發布。現有legacy兩路分頁可使用共同Begin建立的checkpoint，最終共同seal不接受僅custom或漏baseline邊界的復核。
+
+專項第一次family-verification-pages：10頂層pass但新changed測試失敗，原因預期ErrConflict後未清err就做檢查，正式碼未改。測試修正後family-verification-pages-fixed：11頂層pass、0fail0skip31.388秒、sourceUnchanged=true，含所有原IgnoreVerification回歸。新case覆蓋changed marker可提交、期限不一致、缺checkpoint、legacyinvalid、截斷拒絕、舊入口隔離。原生非racefamily-verification-native：1pass、0skip15.655秒；擴充TestFamilyIgnoreNativeStorage完成native custom/legacy/sourcebaseline逐頁Reobserve→Commit→EOF，只有三路全完才seal，兩次提早seal均拒絕。沒有存活helper。Windowspostgres編譯/純測試.068秒、相關vet/diff通過。
+
+尚需共同seal不續期/到期/錯計數/晚DB寫入、unknown比較拒絕、獨立legacy過期導致Begin整批回滾/缺checkpoint等充分邊界驗證，再全PG回歸與其他完整門禁/文件/PR；目前schema18未變。所有本機handle已結束，當前feat/jelee-ignore-family-final-verification。PR43兩PG仍pending110331537726/110331379398，其餘功能已全pass，完整品牌fail。
+
+### 共同最終復核與封存完整驗證
+
+新增ignore_family_seal_test.go實際走三路Next/Commit到EOF，驗證Seal重試不續期/過期拒絕、三路各自計數錯誤拒絕、DB最後jobs寫入延遲300ms與共同deadline150ms後封存整筆回滾且測試確認進入延遲；既有獨立legacy過期時共同Begin不保留custom/baseline checkpoint也不凍結custom；unknown比較完成仍拒絕復核。family-seal-boundaries真PG8頂層pass、0fail0skip28.234秒。全PG race family-verification-full 235頂層pass、0fail0skip309.436秒、sourceUnchanged=true。原生三路Reobserve/EOF/Seal於上輪已pass15.655秒，正式碼此輪未變；Windowspostgres.067秒、domain/scan/architecture .192/1.798/.163秒，全vet/三build通過。schema18保持，沒有遷移改動。
+
+PR43功能CI已全pass（兩PG15m6s/13m37s），完整品牌fail。所有本機handle結束。接續發布：FinishIgnoreJob可抽private mode-aware；family comparison用comparisonModeFence true，發布前後共同complete/count/lifetime/frozen/noninvalid + custom sealed_until有效。saveIgnoreImageProgress的missing SQL與保留excluded baseline SQL都要改成可信常數選表job_ignore_family_decisions，不能遺漏其中一處。保留NFO/probephase、coverage/skipped、missing thresholds、review-only unknown、MaxEntries含歷史excluded、guarded finish/audit/historytrim/late guards語義；舊FinishIgnoreJob與ordinaryFinishJob仍拒絕family成功發布。ports/runner/public admission後續獨立驗證。
