@@ -41,3 +41,13 @@ Linux 真實 PostgreSQL 全套 race：193 項頂層測試通過、0 失敗、0 �
 本段驗證：Windows domain／scan／postgres／architecture 測試、全模組 vet 與三個命令建置通過。Linux 原生 `/tmp` domain／scan／architecture race 分別 1.050／1.169／1.086 秒。真實 PostgreSQL `TestLegacyIgnore*` race 8 項頂層測試通過、0 跳過，23.422 秒；來源前後雜湊一致，包含保存→凍結→還原→原生復查，以及新增更近來源的拒絕（本機證據 `.testdata/inventory-legacy-query-native-postgres-summary.json`）。
 
 以上只證明歷史觀察還原與單次來源復查；尚未建立整個任務的持久驗證進度或允許發布基線。schema 保持 13，預留模式的公開入口仍未啟用。
+
+## 同根目錄的批次保存
+
+`RecordLegacyIgnoreObservations` 每批接受 1–129 次同根查詢，覆蓋一批掃描的目前目錄與最多 128 個子目錄。單筆入口委派同一實作。先驗證並合併共享祖先，保留每次查詢的選定來源；checked 補查不會讓其他查詢失去原本的遮蔽邊界。
+
+既有證據及查詢各用一次集合查詢讀取，再統一核對衝突、計算新增資料預算並管線寫入。重複證據與查詢不重複計費，父證據先於子證據寫入。批次內或與已保存證據的衝突只提交失效標記；超出預算則回滾整批。凍結後允許相同證據重播，拒絕追加或補查。
+
+schema 仍為 14；此為合併掃描所需的保存基礎。包含 inventory、兩種來源證據及排除原因的完整原子交易仍待接線。
+
+本批次保存階段：Linux 真實 PostgreSQL 全套 race 203 項頂層測試通過、0 失敗、0 跳過，249.770 秒，測試前後來源雜湊一致（`.testdata/inventory-legacy-batch-full-postgres-summary.json`）。覆蓋 129 次查詢、逆序凍結重播、批次內／既有證據衝突不留前綴、共享祖先補查與查詢還原、預算失敗整批回滾。Windows postgres／architecture 測試、全模組 vet、三命令建置通過；增量品牌掃描 0 違規／100 合法命中，gitignore-check 通過。

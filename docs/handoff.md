@@ -400,3 +400,13 @@ Windows scan/legacyignore/helper/process/architecture與全vet/build通過。Lin
 Windows scan/media-ignore/domain/architecture 通過（scan1.613秒、source1.080秒），相關 vet 通過。Linux 原生 /tmp race：source10.297、scan1.190、domain1.059、architecture1.092秒；真實非race helper0.012秒。增量品牌0違規/100合法命中，gitignore-check與diff-check通過。CI新增真實FamilyIgnoreNativeHelper項目。
 
 PR35兩PG及其餘功能CI已全部通過，僅Full branding gate失敗；20分鐘套件時限修改已有遠端通過證據。schema14未變；新掃描adapter尚未公開/worker啟用。下一步組合批次的原子保存與排除表（需新增遷移，不能改既有），再接基線/發布/worker/API。保存需批次合併legacy觀察避免DB N+1，保留失效標記且回滾不完整批次。詳見 docs/ignore-family-scan.md。無活躍測試handle。
+
+合併掃描已提交 d7974d5e2b，普通繁中 PR36：https://github.com/MoYuanCN/Jelee/pull/36，已附聊天。現為 feat/jelee-ignore-family-batches，接續組合批次保存。已檢查 ignore_legacy_manifest.go 與 ignore_scan.go：recordLegacyObservation 每個 query 都鎖 manifest、讀 ownership／proof／query，不能在128個child上直接迴圈呼叫。下一步先把同root多個觀察去重合併（checked升級、selected query保持），一次讀取既有proof/query，再管線寫入；單觀察入口應共用此實作避免兩套語義。組合保存需額外驗證排除family/reason與對應query/來源，並用交易savepoint保證來源衝突只保留失效標記，不能留下先寫入的自有proof。尚未新增schema或修改DB實作。PR36 CI尚未查；無活躍測試handle。
+
+### 舊來源批次保存已驗證
+
+RecordLegacyIgnoreObservations 接受1–129次同根query，原單筆入口共用批次實作。prepareLegacyObservations先合併共享祖先、保留每query選定來源；資料庫兩次集合讀取取得舊proof/query，再統一比較並管線寫入。批次內或既有衝突只提交invalidated，無accepted prefix；checked升級／影子query還原與凍結逆序重播驗證，預算錯誤回滾全部。
+
+Linux真PG全套race 203項頂層通過、零失敗零skip、249.770秒、sourceUnchanged=true（.testdata/inventory-legacy-batch-full-postgres-summary.json）。首輪14項舊格式測試30.237秒通過；之後新增升級/預算測試已含全套。Windows postgres/architecture測試、全vet、三命令build、增量brand0違規/100合法、gitignore-check通過。schema14保持；下一步schema15與SaveFamilyIgnoreScanBatch/NextFamilyIgnoreScanDirectory，兩family證據需要共同savepoint回滾，排除family/reason與query須驗證。已讀schema12排除表與舊保存邏輯，舊表RuleLine>=1無法承接legacy空/allinvalid。
+
+PR36目前兩PG工作pending（110298262595、110298246488），其他功能全pass，品牌fail。所有本機測試handle結束。

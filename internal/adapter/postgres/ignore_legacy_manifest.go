@@ -141,7 +141,13 @@ func (s *Store) ReadLegacyIgnoreProofPage(ctx context.Context, l domain.JobLease
 // query. It reads existing chain rows together and pipelines mutations. No
 // accepted prefix survives a conflict; only the invalidation marker commits.
 func (s *Store) RecordLegacyIgnoreObservation(ctx context.Context, l domain.JobLease, o domain.LegacyIgnoreObservation) error {
-	if err := domain.ValidateLegacyIgnoreObservation(o); err != nil {
+	return s.RecordLegacyIgnoreObservations(ctx, l, []domain.LegacyIgnoreObservation{o})
+}
+
+// RecordLegacyIgnoreObservations retains up to 129 same-root queries atomically.
+// Shared ancestors and query boundaries are read in two bulk queries.
+func (s *Store) RecordLegacyIgnoreObservations(ctx context.Context, l domain.JobLease, observations []domain.LegacyIgnoreObservation) error {
+	if _, err := prepareLegacyObservations(observations); err != nil {
 		return err
 	}
 	tx, err := s.jobTransaction(ctx)
@@ -153,7 +159,7 @@ func (s *Store) RecordLegacyIgnoreObservation(ctx context.Context, l domain.JobL
 	if err != nil {
 		return err
 	}
-	err = recordLegacyObservation(ctx, tx, current, epoch, o)
+	err = recordLegacyObservations(ctx, tx, current, epoch, observations)
 	if err != nil && !errors.Is(err, domain.ErrInventoryInvalidated) {
 		return err
 	}
@@ -163,8 +169,12 @@ func (s *Store) RecordLegacyIgnoreObservation(ctx context.Context, l domain.JobL
 	return err
 }
 
-func recordLegacyObservation(ctx context.Context, tx pgx.Tx, l domain.JobLease, epoch int64, o domain.LegacyIgnoreObservation) error {
-	_, err := tx.Exec(ctx, `INSERT INTO job_ignore_legacy_manifests(job_id,inventory_generation) VALUES($1::uuid,$2) ON CONFLICT DO NOTHING`, l.Job.ID, epoch)
+func recordLegacyObservations(ctx context.Context, tx pgx.Tx, l domain.JobLease, epoch int64, observations []domain.LegacyIgnoreObservation) error {
+	prepared, err := prepareLegacyObservations(observations)
+	if err != nil {
+		return err
+	}
+	_, err = tx.Exec(ctx, `INSERT INTO job_ignore_legacy_manifests(job_id,inventory_generation) VALUES($1::uuid,$2) ON CONFLICT DO NOTHING`, l.Job.ID, epoch)
 	if err != nil {
 		return storageError(err)
 	}
@@ -177,7 +187,7 @@ func recordLegacyObservation(ctx context.Context, tx pgx.Tx, l domain.JobLease, 
 	if invalid || generation != epoch {
 		return domain.ErrInventoryInvalidated
 	}
-	root := o.Proofs[0].RootID
+	root := prepared.root
 	var owned bool
 	err = tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM library_roots WHERE id=$1::uuid AND library_id=$2::uuid)`, root, l.Job.LibraryID).Scan(&owned)
 	if err != nil {
@@ -186,20 +196,11 @@ func recordLegacyObservation(ctx context.Context, tx pgx.Tx, l domain.JobLease, 
 	if !owned {
 		return domain.ErrConflict
 	}
-	names := make([]string, len(o.Proofs))
-	var selected *string
-	for i, p := range o.Proofs {
-		names[i] = p.Directory
-		if p.Checked && p.RulePresent {
-			name := p.Directory
-			selected = &name
-		}
-	}
-	rows, err := tx.Query(ctx, `SELECT `+legacyProofColumns+` FROM job_ignore_legacy_proofs WHERE job_id=$1::uuid AND root_id=$2::uuid AND directory=ANY($3::text[])`, l.Job.ID, root, names)
+	rows, err := tx.Query(ctx, `SELECT `+legacyProofColumns+` FROM job_ignore_legacy_proofs WHERE job_id=$1::uuid AND root_id=$2::uuid AND directory=ANY($3::text[])`, l.Job.ID, root, prepared.names)
 	if err != nil {
 		return storageError(err)
 	}
-	previous := make(map[string]domain.LegacyIgnoreDirectoryProof, len(o.Proofs))
+	previous := make(map[string]domain.LegacyIgnoreDirectoryProof, len(prepared.proofs))
 	for rows.Next() {
 		p, e := scanLegacyProof(rows)
 		if e != nil {
@@ -213,18 +214,33 @@ func recordLegacyObservation(ctx context.Context, tx pgx.Tx, l domain.JobLease, 
 	if err != nil {
 		return storageError(err)
 	}
-	var priorSelected *string
-	err = tx.QueryRow(ctx, `SELECT selected_directory FROM job_ignore_legacy_queries WHERE job_id=$1::uuid AND root_id=$2::uuid AND directory=$3`, l.Job.ID, root, o.Directory).Scan(&priorSelected)
-	exists := err == nil
-	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+	priorQueries := make(map[string]*string, len(prepared.queries))
+	rows, err = tx.Query(ctx, `SELECT directory,selected_directory FROM job_ignore_legacy_queries WHERE job_id=$1::uuid AND root_id=$2::uuid AND directory=ANY($3::text[])`, l.Job.ID, root, prepared.queryNames)
+	if err != nil {
 		return storageError(err)
 	}
-	conflict := exists && (selected == nil) != (priorSelected == nil)
-	if exists && selected != nil && priorSelected != nil && *selected != *priorSelected {
-		conflict = true
+	for rows.Next() {
+		var directory string
+		var selected *string
+		if err = rows.Scan(&directory, &selected); err != nil {
+			rows.Close()
+			return storageError(err)
+		}
+		priorQueries[directory] = selected
 	}
-	for _, p := range o.Proofs {
-		if old, ok := previous[p.Directory]; ok && !domain.LegacyIgnoreProofsCompatible(old, p) {
+	err = rows.Err()
+	rows.Close()
+	if err != nil {
+		return storageError(err)
+	}
+	conflict := prepared.conflict
+	for name, selected := range prepared.queries {
+		if old, exists := priorQueries[name]; exists && !sameLegacySelection(old, selected) {
+			conflict = true
+		}
+	}
+	for name, p := range prepared.proofs {
+		if old, exists := previous[name]; exists && !domain.LegacyIgnoreProofsCompatible(old, p) {
 			conflict = true
 		}
 	}
@@ -236,7 +252,8 @@ func recordLegacyObservation(ctx context.Context, tx pgx.Tx, l domain.JobLease, 
 		return domain.ErrInventoryInvalidated
 	}
 	batch := &pgx.Batch{}
-	for _, p := range o.Proofs {
+	for _, name := range prepared.names {
+		p := prepared.proofs[name]
 		old, ok := previous[p.Directory]
 		if ok && (old.Checked || !p.Checked) {
 			continue
@@ -256,16 +273,20 @@ func recordLegacyObservation(ctx context.Context, tx pgx.Tx, l domain.JobLease, 
 		}
 		batch.Queue(`INSERT INTO job_ignore_legacy_proofs(job_id,root_id,directory,parent_path,parent_identity,identity,checked,rule_present,rule_identity,rule_size,rule_modified_nano,rule_sha256) VALUES($1::uuid,$2::uuid,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) ON CONFLICT(job_id,root_id,directory) DO UPDATE SET checked=EXCLUDED.checked,rule_present=EXCLUDED.rule_present,rule_identity=EXCLUDED.rule_identity,rule_size=EXCLUDED.rule_size,rule_modified_nano=EXCLUDED.rule_modified_nano,rule_sha256=EXCLUDED.rule_sha256`, l.Job.ID, root, p.Directory, parent, p.ParentIdentity[:], p.Identity[:], p.Checked, p.RulePresent, p.RuleIdentity[:], p.RuleSize, p.RuleModifiedNano, p.RuleSHA256[:])
 	}
-	if !exists {
+	for _, directory := range prepared.queryNames {
+		selected := prepared.queries[directory]
+		if _, exists := priorQueries[directory]; exists {
+			continue
+		}
 		if frozen {
 			return domain.ErrConflict
 		}
 		queries++
-		charge += int64(128 + len(o.Directory))
+		charge += int64(128 + len(directory))
 		if selected != nil {
 			charge += int64(len(*selected))
 		}
-		batch.Queue(`INSERT INTO job_ignore_legacy_queries(job_id,root_id,directory,selected_directory,proof_version) VALUES($1::uuid,$2::uuid,$3,$4,$5)`, l.Job.ID, root, o.Directory, selected, o.Version)
+		batch.Queue(`INSERT INTO job_ignore_legacy_queries(job_id,root_id,directory,selected_directory,proof_version) VALUES($1::uuid,$2::uuid,$3,$4,$5)`, l.Job.ID, root, directory, selected, domain.LegacyIgnoreProofVersion)
 	}
 	if count > domain.IgnoreManifestMaxRows || count > int64(l.Policy.MaxDirectories) || queries > domain.IgnoreManifestMaxRows || source > domain.IgnoreManifestMaxBytes || charge > domain.IgnoreManifestMaxBytes {
 		return domain.ErrScanLimit
