@@ -634,3 +634,9 @@ Windows native健康/清理與全部Go套件編譯和可執行測試通過；沒
 真實PG＋正式Fx runtime native family-runtime-first 5頂層pass0fail0skip16.311秒；補服務重啟關閉後保留重送與new key拒絕，family-runtime-restart 5頂層pass0fail0skip14.906秒sourceUnchanged=true，證據docs/evidence/ignore-family-runtime.json。實際監聽、KDF真登入、HTTP提交、familyworker發布/報告，含disabled不留下job、匿名拒絕、重送、兩家族來源、原fixture媒体/NFO内容不變及temp清空。所有本機handles86779/20162/79282/72312已結束。CI增加PG環境下nonrace ^TestFamilyIgnore runtime步驟與證據；foundation race不啟動有2GiB限制的native child。
 
 本次未改PG來源/遷移；准入版本753dd43d4c已驗證252真PG全回歸，服務版本用上述正式原生完整鏈及相關race驗證。接續規則修改後多輪重掃/基線保留、取消與lease恢復、完整混合NFO/probe/images；另外兩種舊格式的精確來源仍待核對，G22不可標完成。仍沿用PR46工作分支，不新增分支。
+
+### 合併模式多輪重掃驗收
+
+新增 TestFamilyRunnerNativeRescanSameSizeAndMtime，正式 app 准入、PG、同一原生 scanner 與 worker 六輪重掃，固定 mtime、含同長內容變更、自有優先、舊規則變更、歷史排除保留、包含刷新、來源家族報告、媒體保持與 child Active=0。首輪 family-rescan-native 1pass/1fail21.521秒：最後移除兩個規則檔，2/4基線缺失達既有50%覆核門檻，測試預期錯誤；正式實作未修改。補50%覆核保留全部基線及100%正常移除兩個控制檔記錄兩條路徑。
+
+family-rescan-review 2頂層pass0fail0skip25.784秒（含既有單一模式重掃）；family-rescan-regression 7頂層pass0fail0skip26.833秒（原生儲存與所有正式family worker），均sourceUnchanged=true。所有本機 handles98476/44859已結束。WindowsPG套件測試／vet通過，無Windows真PG聲明。證據docs/evidence/ignore-family-rescan.json，合同docs/ignore-family-rescan.md。本次只有驗收與文件變更，遷移／正式門檻未改。接續取消與租約失效恢復、完整混合NFO/probe/images及其他舊格式；G22保持部分完成，沿用PR46分支，整合後清理階段分支。
