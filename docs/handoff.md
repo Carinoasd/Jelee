@@ -764,3 +764,7 @@ fullbrand15233→15007減226，仍fail；新增法律檔只隔離歸屬字串，
 first exec10275 terminal failure：142pass/5fail同一舊log斷言，原紀錄保留。修斷言／fixture品牌後exec19655 terminal exit0，module147/0fail/0skip，完整Debug17suites 4098Passed／21NotExecuted／0fail。format exec81480 terminal exit0 verify-no-changes，有workspace-load warning。全部本機handles terminal；證據docs/evidence/networking-brand-rename.json／contract docs/networking-brand-rename.md。fullbrand15007→14960減47，仍fail；增量／ignore／diff等末gate須通過再提交。本批同PR46提交推送繁中update／attach，不merge/release/tag/forcepush、不新branch。最新觀察功能CI尚未見failure，但不把pending當pass。G00／G05／G22及全G00–G51未完成。
 
 網路本批末gate已通過：增量品牌0／allowed103、gitignore0、diff/cached-diff通過；另外明確dotnet build全solution Debug --no-restore 4.87秒0warnings/0errors，證據追加build日誌hash。沒有待本機test或gate handle。
+
+### ABI 報告失敗原因與修正
+
+使用者已授權自行判斷可合併並清理分支；舊「禁止 merge」指示已被取代，其餘發布／tag／force-push限制維持。c728e71bc9 PR46 ABI-Difference 的留言缺 JF_BOT_TOKEN；實際報告另有 Naming 改名的 CP0001/CP0004。改保存 artifact／summary，移除留言寫入權限，缺 DLL／工具非零均失敗，不抑制差異。四種隔離模擬 PASS，實際比較待 CI。詳 docs/abi-report-check.md。全品牌門禁仍 blocking，尚未合併。G03 刪除101份語言／預設簡中／未知英文已取得明確使用者授權，接續實作。
