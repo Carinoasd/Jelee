@@ -427,10 +427,12 @@ PR36功能CI已全pass，品牌fail；PR37一PGpass（110301421298）、一PGpen
 
 ### 缺失父目錄的舊格式基線來源已驗證
 
-核對固定wrapper blob023c1e891532e5baa022ef0e48b7179e991f59e3 FindIgnoreFileCached冷查找，DirectoryInfo.Parent不要求起始存在；不要採用.testdata/ignore-upstream/jellyfin-10.11.0.cs（不同版本）。新增ObserveLegacyBaseline與獨立LegacyIgnoreBaselineObservation版本legacy-baseline-source-v1，將existing來源鏈與首個missing child分開，無虛構更深身份；兩輪native核對chain/source/缺失邊界。原ObserveLegacy仍拒絕missing目錄。
+核對固定wrapper blob023c1e891532e5baa022ef0e48b7179e991f59e3 FindIgnoreFileCached冷查找，DirectoryInfo.Parent不要求起始存在；不要採用暫存區的10.11.0版本包裝器（不同版本）。新增ObserveLegacyBaseline與獨立LegacyIgnoreBaselineObservation版本legacy-baseline-source-v1，將existing來源鏈與首個missing child分開，無虛構更深身份；兩輪native核對chain/source/缺失邊界。原ObserveLegacy仍拒絕missing目錄。
 
 MatchLegacyIgnoreBaseline最多128共lookup候選，用共用evaluateLegacySource與legacyCandidatePaths避免改變原解碼/完整路徑/helper語義。匹配前後核對缺失邊界，父目錄重現即失效；領域合同驗證邊界緊鄰來源鏈尾且lookup位於其下。基線decision/missing分類尚未啟用；schema15保持，新的missing證據需持久保存與最終復查。
 
 Windows source/scan/domain/architecture 1.132/1.656/.188/.170秒通過；全vet/三build通過。Linux原生/tmp race10.205/1.185/1.055/1.092秒，真實helper非race .007秒通過，CI加入LegacyBaselineNativeHelper。brand-new0/allowed100、gitignore/diff通過。所有handle結束。PR38兩PG pending（110307015980、110306834346），其他功能pass、品牌fail。
 
 下一步基線觀察保存：existing Source可沿用schema13表，missing邊界要獨立保存（不能把identity0塞既有legacyproof），lookup→existingquery+boundary也需保留且freeze/verification覆盖；新schema而非改已發布15。再接自有明確include/exclude優先的基線分類、批次提交及最終發布。原庫baseline只有自有rule行號>=1的格式，需獨立family/reason合同。
+
+缺失父目錄來源與基線匹配已提交6bfdd688f6，普通繁中PR39：https://github.com/MoYuanCN/Jelee/pull/39，已附聊天。現為feat/jelee-ignore-baseline-evidence；schema15不變，接續missing邊界/query持久化與復核。PR39尚未查CI；所有測試handle結束。
