@@ -242,3 +242,35 @@ scripts/test_nfo_worker.py增加JELEE_NFO_IGNORE_ACCEPTANCE=true模式，使用�
 ignore_runner_test.go新增unknown模式：先建立旧基線，正式native掃描後在observer port刻意回ErrIgnoreUnavailable，驗證review、missing0、舊基線json逐欄不變與unknown報告。明確只是介面故障注入，不冒充blocked filesystem I/O。worker-unknown-first Linux PG race 1頂層/零skip/17.608秒。Tagged runtime vet與Windows runtime/PG/architecture測試通過。證據docs/evidence/ignore-worker-acceptance.json，說明docs/ignore-worker-acceptance.md。所有handle結束，未改production/migration。
 
 準備普通繁中PR接PR27；下一步讀docs/ignore-source-audit.md與requirements-source的G22.2，接legacy格式精確語義實作。PR26最後檢查無功能失敗，但PG CI仍pending；品牌fail。PR27未查。全案仍active。
+
+本段已提交8761c76791，推送普通繁中PR28（https://github.com/MoYuanCN/Jelee/pull/28），已附聊天。目前feat/jelee-ignore-legacy基於PR28，只有本handoff更新未提交。已讀docs/ignore-source-audit.md：固定基底僅找到.ignore入口；Ignore依賴0.2.1庫源码尚未核對，不能直接把自有git matcher套為兼容。需要查明.jellyfinignore/.embyignore對應上游版本或不存在的證據，保留no-follow與庫根邊界差異。接續先讀原始G22.2及固定C# blobs/依賴來源，再寫精確相容合同與測試，不凭名稱假設語義。無活躍handle。
+
+### legacy來源與依賴實測進度（未提交）
+
+已從NuGet 0.2.1 nuspec確認Ignore來源f7c6f07d66d0e1043d901a2ab2f58daca1862066（不是猜tag），下載四個C#檔與MIT LICENSE至.testdata/ignore-upstream；Add-Type以未修改source且無NET8 define編譯，13固定案例實測.NET10.0.11/zh-TW。發現完整/相對路徑锚定不同、ASCII ignorecase、regex group/alternation可匹配、invalid [拋例外。不可直接重用自有matcher宣稱兼容。scripts/test_ignore_upstream.ps1執行前驗四個git blob，輸出docs/evidence/ignore-upstream-semantics.json現已保存；尚未做Go移植。
+
+核對Jellyfin v10.11.0固定877251bcaec3780d44b7657c54684dc28646b1c3的DotIgnore包裝器與本基底不同（目錄只看空白全文、無Trim/逐行異常略過）。目前code search無.jellyfinignore不是所有歷史不存在證明。Emby官方文件4.8 .ignore和4.9 .embyignore不同；公開Emby HEAD仍2018 3.5.3，缺4.9對應source，不能猜。詳docs/ignore-legacy-audit.md與來源連結。
+
+下一步可先完成已知本基底.ignore精確合同/差分/獨立matcher，其他兩格式保持未驗證；不要因其來源不足停全案或把需求刪掉。四個固定C#檔已讀，可用本地oracle，不須重下載。無活躍handle，本輪新增audit/evidence/script與handoff皆未提交。
+
+### legacy純轉換器與205組差分（未提交）
+
+scripts/test_ignore_upstream.ps1新增以反射取得IgnoreRule私有parsedRegex/Negate，並增24模式×8路徑，加原13共205組。固定來源先驗blob，C#執行結果已更新docs/evidence/ignore-upstream-semantics.json及internal/platform/legacyignore/testdata/ignore-021.json。
+
+新增legacyignore/translate.go，依固定Ignore0.2.1順序轉換regex文字，特別保留QuestionMark負向lookahead實際會替換escaped ?、NoSlash插prefix先於single-star、lookbehind middle **/的原始位置語義。只做轉換，未提供production matcher，未接scanner。4096bytes/UTF8/NUL限制，package內附原MIT LICENSE.ignore。translate_test逐組比較原始regex/否定/註解與205樣本匹配結果，Windows test/vet、Linux race 1.104秒、architecture通過。全部handle結束。
+
+尚需擴大.NET regex不相容處理（lookaround/backreference/文化Unicode/regex錯誤不能錯誤降級）、包裝器最近來源及Trim/空白/例外政策，再持久來源family/API/scanner接線。不得把Go regexp compile error都視為上游RegexParseException；目前測試只限定205已知案例，Translate註解已明示此限制。本分支所有audit/script/新package未提交，尚未新PR。下一步應先把不支援語法分類與合理錯誤合同定清楚，保留完整G22要求。
+
+### 241組引擎邊界與CI最終狀態（未提交）
+
+2026-10-01本輪重新核對PR26/27/28：功能CI全部完成成功，僅Full branding gate失敗；GitHub顯示26/27已MERGED、28 OPEN（本agent未執行merge）。無pending功能工作。
+
+Oracle增加36 engineCases，總241；fixture/evidence同步。Go新增TestEngineOracleTranslation，核對上游成功編譯的engineCases轉換文字；Windows package test/vet通過。v2.8.1差异確認為SimpleFold/PCRE額外語法/UTF16，不宜直接採用。隔離.testdata/legacy-eval-v1使用v1.12.0：原始輸入2差異，pattern非BMP改surrogate escapes + MatchRunes UTF16輸入後241零差異。結果保存docs/evidence/ignore-engine-evaluation.json，包含oracle SHA。正式go.mod/go.sum未變。v1並無v2的OptionMaxBacktrackingStackSize，不可因例子通過忽略資源上限。
+
+下一步擴展跳脫非BMP與regex語法位置的差分；驗證compile/回溯/取消/timeout生命週期與文化版本合同，再決定受限執行方式。尚未正式matcher或wrapper來源讀取、持久family/API/scanner。所有命令結束，無待輪詢handle。本分支全部legacy內容仍未提交，最新公開PR28。
+
+### legacy來源與轉換器小階段驗證完成
+
+Oracle253組（205+48）；新增UTF16Pattern處理奇數backslash與非BMP，修正跳脫emoji差分。獨立scripts/ignore-engine-eval工具模組可重現兩候選（主go.mod/go.sum不變）：v1原始8差異、UTF16零；v2原始20、UTF16仍13。docs/evidence/ignore-engine-evaluation.json更新來源雜湊及結果。Windows legacyignore/architecture test、legacyignore vet通過；Linux race同兩包1.118/1.132秒。未接正式matcher或scanner。
+
+v1 runner無回溯stack硬上限、compile無取消、MatchTimeout無context且error洩露輸入，背景clock有延後清理。下一小階段必須補真正有界的執行層（可評估現有process/sandbox或受維護的受限engine改造）；不要只goroutine提前返回。此來源審計與轉換器小階段可獨立PR，base feat/jelee-ignore-worker-acceptance，明示G22.2仍部分未完成。沒有活躍handle。

@@ -1,0 +1,84 @@
+{
+  "oracleSha256": "64152cb562251db510fd593a024563c683287ec54383db24865967710a50532e",
+  "scope": "253 fixed examples only; not production compatibility or resource safety acceptance",
+  "command": "./scripts/run-go.ps1 -C scripts/ignore-engine-eval run .",
+  "results": [
+    {
+      "cases": 253,
+      "mismatches": [
+        "supplementary-double-question",
+        "supplementary-class",
+        "supplementary-escaped-class",
+        "supplementary-range",
+        "supplementary-negated-class",
+        "supplementary-quantifier",
+        "supplementary-surrogate-escapes",
+        "supplementary-deseret-fold"
+      ],
+      "utf16PatternAndInput": false,
+      "version": "v1.12.0"
+    },
+    {
+      "cases": 253,
+      "mismatches": [],
+      "utf16PatternAndInput": true,
+      "version": "v1.12.0"
+    },
+    {
+      "cases": 253,
+      "mismatches": [
+        "unicode-sigma",
+        "supplementary-double-question",
+        "fold-literal-σ-ς",
+        "fold-class-σ-ς",
+        "fold-negated-class-σ-ς",
+        "fold-literal-s-ſ",
+        "fold-class-s-ſ",
+        "fold-negated-class-s-ſ",
+        "fold-literal-i-İ",
+        "fold-class-i-İ",
+        "fold-negated-class-i-İ",
+        "pcre-quote",
+        "pcre-linebreak",
+        "pcre-grapheme",
+        "supplementary-class",
+        "supplementary-escaped-class",
+        "supplementary-range",
+        "supplementary-quantifier",
+        "supplementary-surrogate-escapes",
+        "supplementary-deseret-fold"
+      ],
+      "utf16PatternAndInput": false,
+      "version": "v2.8.1"
+    },
+    {
+      "cases": 253,
+      "mismatches": [
+        "unicode-sigma",
+        "fold-literal-σ-ς",
+        "fold-class-σ-ς",
+        "fold-negated-class-σ-ς",
+        "fold-literal-s-ſ",
+        "fold-class-s-ſ",
+        "fold-negated-class-s-ſ",
+        "fold-literal-i-İ",
+        "fold-class-i-İ",
+        "fold-negated-class-i-İ",
+        "pcre-quote",
+        "pcre-linebreak",
+        "pcre-grapheme"
+      ],
+      "utf16PatternAndInput": true,
+      "version": "v2.8.1"
+    }
+  ],
+  "adaptation": "UTF16Pattern converts supplementary pattern literals, including an odd escaping backslash, to surrogate unicode escapes; input encoded as UTF-16 units for MatchRunes.",
+  "productionDependencyChanged": false,
+  "remaining": [
+    "Culture and Unicode version contract",
+    "Complete regex grammar equivalence",
+    "Compile and backtracking resource limits",
+    "Request cancellation and timeout lifetime",
+    "Wrapper and persistent source family integration"
+  ]
+}

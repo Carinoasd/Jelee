@@ -1,0 +1,3760 @@
+{
+  "repository": "goelhardik/ignore",
+  "commit": "f7c6f07d66d0e1043d901a2ab2f58daca1862066",
+  "package": "Ignore 0.2.1",
+  "runtime": ".NET 10.0.11",
+  "culture": "zh-TW",
+  "compilation": "Unmodified sources, NET8_0_OR_GREATER undefined; runtime Regex branch",
+  "cases": [
+    {
+      "name": "empty-library",
+      "rules": [],
+      "path": "/media/a.mkv",
+      "errors": [],
+      "compiled": [],
+      "ignored": false
+    },
+    {
+      "name": "comment-only",
+      "rules": [
+        "# comment"
+      ],
+      "path": "/media/a.mkv",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": null
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "case-fold",
+      "rules": [
+        "*.MKV"
+      ],
+      "path": "/media/a.mkv",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "(^|/)[^/]*\\.MKV(/.*)?$"
+        }
+      ],
+      "ignored": true
+    },
+    {
+      "name": "anchored-full-path",
+      "rules": [
+        "/a.mkv"
+      ],
+      "path": "/media/a.mkv",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "^a\\.mkv(/.*)?$"
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "anchored-relative-path",
+      "rules": [
+        "/a.mkv"
+      ],
+      "path": "a.mkv",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "^a\\.mkv(/.*)?$"
+        }
+      ],
+      "ignored": true
+    },
+    {
+      "name": "middle-slash-full-path",
+      "rules": [
+        "folder/a.mkv"
+      ],
+      "path": "/media/folder/a.mkv",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "^folder/a\\.mkv(/.*)?$"
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "middle-slash-relative-path",
+      "rules": [
+        "folder/a.mkv"
+      ],
+      "path": "folder/a.mkv",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "^folder/a\\.mkv(/.*)?$"
+        }
+      ],
+      "ignored": true
+    },
+    {
+      "name": "directory-child",
+      "rules": [
+        "folder/"
+      ],
+      "path": "/media/folder/a.mkv",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "(/|^)folder/"
+        }
+      ],
+      "ignored": true
+    },
+    {
+      "name": "negate-child-direct",
+      "rules": [
+        "folder/",
+        "!**/folder/a.mkv"
+      ],
+      "path": "/media/folder/a.mkv",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "(/|^)folder/"
+        },
+        {
+          "negative": true,
+          "regex": "^.*folder/a\\.mkv(/.*)?$"
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "group-metacharacters",
+      "rules": [
+        "(foo|bar).mkv"
+      ],
+      "path": "/media/foo.mkv",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "(^|/)(foo|bar)\\.mkv(/.*)?$"
+        }
+      ],
+      "ignored": true
+    },
+    {
+      "name": "invalid-regex",
+      "rules": [
+        "["
+      ],
+      "path": "/media/a.mkv",
+      "errors": [
+        "System.Text.RegularExpressions.RegexParseException"
+      ],
+      "compiled": [],
+      "ignored": false
+    },
+    {
+      "name": "escaped-hash",
+      "rules": [
+        "\\#a.mkv"
+      ],
+      "path": "/media/#a.mkv",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "(^|/)#a\\.mkv(/.*)?$"
+        }
+      ],
+      "ignored": true
+    },
+    {
+      "name": "leading-star-directory",
+      "rules": [
+        "*a.mkv"
+      ],
+      "path": "/media/sub/a.mkv",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "(^|/)[^/]*a\\.mkv(/.*)?$"
+        }
+      ],
+      "ignored": true
+    },
+    {
+      "name": "generated-1",
+      "rules": [
+        "a/**/b"
+      ],
+      "path": "a/b",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "^a/(.*/)?b(/.*)?$"
+        }
+      ],
+      "ignored": true
+    },
+    {
+      "name": "generated-2",
+      "rules": [
+        "a/**/b"
+      ],
+      "path": "a/x/b",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "^a/(.*/)?b(/.*)?$"
+        }
+      ],
+      "ignored": true
+    },
+    {
+      "name": "generated-3",
+      "rules": [
+        "a/**/b"
+      ],
+      "path": "foo/",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "^a/(.*/)?b(/.*)?$"
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "generated-4",
+      "rules": [
+        "a/**/b"
+      ],
+      "path": "/media/a.mkv",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "^a/(.*/)?b(/.*)?$"
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "generated-5",
+      "rules": [
+        "a/**/b"
+      ],
+      "path": "/media/sub/a.mkv",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "^a/(.*/)?b(/.*)?$"
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "generated-6",
+      "rules": [
+        "a/**/b"
+      ],
+      "path": "/media/foo.mkv",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "^a/(.*/)?b(/.*)?$"
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "generated-7",
+      "rules": [
+        "a/**/b"
+      ],
+      "path": "a b",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "^a/(.*/)?b(/.*)?$"
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "generated-8",
+      "rules": [
+        "a/**/b"
+      ],
+      "path": "foo ",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "^a/(.*/)?b(/.*)?$"
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "generated-9",
+      "rules": [
+        "**/a"
+      ],
+      "path": "a/b",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": ".*a(/.*)?$"
+        }
+      ],
+      "ignored": true
+    },
+    {
+      "name": "generated-10",
+      "rules": [
+        "**/a"
+      ],
+      "path": "a/x/b",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": ".*a(/.*)?$"
+        }
+      ],
+      "ignored": true
+    },
+    {
+      "name": "generated-11",
+      "rules": [
+        "**/a"
+      ],
+      "path": "foo/",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": ".*a(/.*)?$"
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "generated-12",
+      "rules": [
+        "**/a"
+      ],
+      "path": "/media/a.mkv",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": ".*a(/.*)?$"
+        }
+      ],
+      "ignored": true
+    },
+    {
+      "name": "generated-13",
+      "rules": [
+        "**/a"
+      ],
+      "path": "/media/sub/a.mkv",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": ".*a(/.*)?$"
+        }
+      ],
+      "ignored": true
+    },
+    {
+      "name": "generated-14",
+      "rules": [
+        "**/a"
+      ],
+      "path": "/media/foo.mkv",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": ".*a(/.*)?$"
+        }
+      ],
+      "ignored": true
+    },
+    {
+      "name": "generated-15",
+      "rules": [
+        "**/a"
+      ],
+      "path": "a b",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": ".*a(/.*)?$"
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "generated-16",
+      "rules": [
+        "**/a"
+      ],
+      "path": "foo ",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": ".*a(/.*)?$"
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "generated-17",
+      "rules": [
+        "a/**"
+      ],
+      "path": "a/b",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "^a/.*$"
+        }
+      ],
+      "ignored": true
+    },
+    {
+      "name": "generated-18",
+      "rules": [
+        "a/**"
+      ],
+      "path": "a/x/b",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "^a/.*$"
+        }
+      ],
+      "ignored": true
+    },
+    {
+      "name": "generated-19",
+      "rules": [
+        "a/**"
+      ],
+      "path": "foo/",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "^a/.*$"
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "generated-20",
+      "rules": [
+        "a/**"
+      ],
+      "path": "/media/a.mkv",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "^a/.*$"
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "generated-21",
+      "rules": [
+        "a/**"
+      ],
+      "path": "/media/sub/a.mkv",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "^a/.*$"
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "generated-22",
+      "rules": [
+        "a/**"
+      ],
+      "path": "/media/foo.mkv",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "^a/.*$"
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "generated-23",
+      "rules": [
+        "a/**"
+      ],
+      "path": "a b",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "^a/.*$"
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "generated-24",
+      "rules": [
+        "a/**"
+      ],
+      "path": "foo ",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "^a/.*$"
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "generated-25",
+      "rules": [
+        "a/**/**/b"
+      ],
+      "path": "a/b",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "^a/(.*/)?(.*/)?b(/.*)?$"
+        }
+      ],
+      "ignored": true
+    },
+    {
+      "name": "generated-26",
+      "rules": [
+        "a/**/**/b"
+      ],
+      "path": "a/x/b",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "^a/(.*/)?(.*/)?b(/.*)?$"
+        }
+      ],
+      "ignored": true
+    },
+    {
+      "name": "generated-27",
+      "rules": [
+        "a/**/**/b"
+      ],
+      "path": "foo/",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "^a/(.*/)?(.*/)?b(/.*)?$"
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "generated-28",
+      "rules": [
+        "a/**/**/b"
+      ],
+      "path": "/media/a.mkv",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "^a/(.*/)?(.*/)?b(/.*)?$"
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "generated-29",
+      "rules": [
+        "a/**/**/b"
+      ],
+      "path": "/media/sub/a.mkv",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "^a/(.*/)?(.*/)?b(/.*)?$"
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "generated-30",
+      "rules": [
+        "a/**/**/b"
+      ],
+      "path": "/media/foo.mkv",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "^a/(.*/)?(.*/)?b(/.*)?$"
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "generated-31",
+      "rules": [
+        "a/**/**/b"
+      ],
+      "path": "a b",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "^a/(.*/)?(.*/)?b(/.*)?$"
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "generated-32",
+      "rules": [
+        "a/**/**/b"
+      ],
+      "path": "foo ",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "^a/(.*/)?(.*/)?b(/.*)?$"
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "generated-33",
+      "rules": [
+        "foo***bar"
+      ],
+      "path": "a/b",
+      "errors": [
+        "System.Text.RegularExpressions.RegexParseException"
+      ],
+      "compiled": [],
+      "ignored": false
+    },
+    {
+      "name": "generated-34",
+      "rules": [
+        "foo***bar"
+      ],
+      "path": "a/x/b",
+      "errors": [
+        "System.Text.RegularExpressions.RegexParseException"
+      ],
+      "compiled": [],
+      "ignored": false
+    },
+    {
+      "name": "generated-35",
+      "rules": [
+        "foo***bar"
+      ],
+      "path": "foo/",
+      "errors": [
+        "System.Text.RegularExpressions.RegexParseException"
+      ],
+      "compiled": [],
+      "ignored": false
+    },
+    {
+      "name": "generated-36",
+      "rules": [
+        "foo***bar"
+      ],
+      "path": "/media/a.mkv",
+      "errors": [
+        "System.Text.RegularExpressions.RegexParseException"
+      ],
+      "compiled": [],
+      "ignored": false
+    },
+    {
+      "name": "generated-37",
+      "rules": [
+        "foo***bar"
+      ],
+      "path": "/media/sub/a.mkv",
+      "errors": [
+        "System.Text.RegularExpressions.RegexParseException"
+      ],
+      "compiled": [],
+      "ignored": false
+    },
+    {
+      "name": "generated-38",
+      "rules": [
+        "foo***bar"
+      ],
+      "path": "/media/foo.mkv",
+      "errors": [
+        "System.Text.RegularExpressions.RegexParseException"
+      ],
+      "compiled": [],
+      "ignored": false
+    },
+    {
+      "name": "generated-39",
+      "rules": [
+        "foo***bar"
+      ],
+      "path": "a b",
+      "errors": [
+        "System.Text.RegularExpressions.RegexParseException"
+      ],
+      "compiled": [],
+      "ignored": false
+    },
+    {
+      "name": "generated-40",
+      "rules": [
+        "foo***bar"
+      ],
+      "path": "foo ",
+      "errors": [
+        "System.Text.RegularExpressions.RegexParseException"
+      ],
+      "compiled": [],
+      "ignored": false
+    },
+    {
+      "name": "generated-41",
+      "rules": [
+        "foo/"
+      ],
+      "path": "a/b",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "(/|^)foo/"
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "generated-42",
+      "rules": [
+        "foo/"
+      ],
+      "path": "a/x/b",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "(/|^)foo/"
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "generated-43",
+      "rules": [
+        "foo/"
+      ],
+      "path": "foo/",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "(/|^)foo/"
+        }
+      ],
+      "ignored": true
+    },
+    {
+      "name": "generated-44",
+      "rules": [
+        "foo/"
+      ],
+      "path": "/media/a.mkv",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "(/|^)foo/"
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "generated-45",
+      "rules": [
+        "foo/"
+      ],
+      "path": "/media/sub/a.mkv",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "(/|^)foo/"
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "generated-46",
+      "rules": [
+        "foo/"
+      ],
+      "path": "/media/foo.mkv",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "(/|^)foo/"
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "generated-47",
+      "rules": [
+        "foo/"
+      ],
+      "path": "a b",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "(/|^)foo/"
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "generated-48",
+      "rules": [
+        "foo/"
+      ],
+      "path": "foo ",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "(/|^)foo/"
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "generated-49",
+      "rules": [
+        "/foo/"
+      ],
+      "path": "a/b",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "(/|^)^foo/"
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "generated-50",
+      "rules": [
+        "/foo/"
+      ],
+      "path": "a/x/b",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "(/|^)^foo/"
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "generated-51",
+      "rules": [
+        "/foo/"
+      ],
+      "path": "foo/",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "(/|^)^foo/"
+        }
+      ],
+      "ignored": true
+    },
+    {
+      "name": "generated-52",
+      "rules": [
+        "/foo/"
+      ],
+      "path": "/media/a.mkv",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "(/|^)^foo/"
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "generated-53",
+      "rules": [
+        "/foo/"
+      ],
+      "path": "/media/sub/a.mkv",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "(/|^)^foo/"
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "generated-54",
+      "rules": [
+        "/foo/"
+      ],
+      "path": "/media/foo.mkv",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "(/|^)^foo/"
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "generated-55",
+      "rules": [
+        "/foo/"
+      ],
+      "path": "a b",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "(/|^)^foo/"
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "generated-56",
+      "rules": [
+        "/foo/"
+      ],
+      "path": "foo ",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "(/|^)^foo/"
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "generated-57",
+      "rules": [
+        "a?b"
+      ],
+      "path": "a/b",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "a[^/]b(/.*)?$"
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "generated-58",
+      "rules": [
+        "a?b"
+      ],
+      "path": "a/x/b",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "a[^/]b(/.*)?$"
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "generated-59",
+      "rules": [
+        "a?b"
+      ],
+      "path": "foo/",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "a[^/]b(/.*)?$"
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "generated-60",
+      "rules": [
+        "a?b"
+      ],
+      "path": "/media/a.mkv",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "a[^/]b(/.*)?$"
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "generated-61",
+      "rules": [
+        "a?b"
+      ],
+      "path": "/media/sub/a.mkv",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "a[^/]b(/.*)?$"
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "generated-62",
+      "rules": [
+        "a?b"
+      ],
+      "path": "/media/foo.mkv",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "a[^/]b(/.*)?$"
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "generated-63",
+      "rules": [
+        "a?b"
+      ],
+      "path": "a b",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "a[^/]b(/.*)?$"
+        }
+      ],
+      "ignored": true
+    },
+    {
+      "name": "generated-64",
+      "rules": [
+        "a?b"
+      ],
+      "path": "foo ",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "a[^/]b(/.*)?$"
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "generated-65",
+      "rules": [
+        "a\\?b"
+      ],
+      "path": "a/b",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "a\\[^/]b(/.*)?$"
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "generated-66",
+      "rules": [
+        "a\\?b"
+      ],
+      "path": "a/x/b",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "a\\[^/]b(/.*)?$"
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "generated-67",
+      "rules": [
+        "a\\?b"
+      ],
+      "path": "foo/",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "a\\[^/]b(/.*)?$"
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "generated-68",
+      "rules": [
+        "a\\?b"
+      ],
+      "path": "/media/a.mkv",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "a\\[^/]b(/.*)?$"
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "generated-69",
+      "rules": [
+        "a\\?b"
+      ],
+      "path": "/media/sub/a.mkv",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "a\\[^/]b(/.*)?$"
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "generated-70",
+      "rules": [
+        "a\\?b"
+      ],
+      "path": "/media/foo.mkv",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "a\\[^/]b(/.*)?$"
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "generated-71",
+      "rules": [
+        "a\\?b"
+      ],
+      "path": "a b",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "a\\[^/]b(/.*)?$"
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "generated-72",
+      "rules": [
+        "a\\?b"
+      ],
+      "path": "foo ",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "a\\[^/]b(/.*)?$"
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "generated-73",
+      "rules": [
+        "foo\\ "
+      ],
+      "path": "a/b",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "(^|/)foo (/.*)?$"
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "generated-74",
+      "rules": [
+        "foo\\ "
+      ],
+      "path": "a/x/b",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "(^|/)foo (/.*)?$"
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "generated-75",
+      "rules": [
+        "foo\\ "
+      ],
+      "path": "foo/",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "(^|/)foo (/.*)?$"
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "generated-76",
+      "rules": [
+        "foo\\ "
+      ],
+      "path": "/media/a.mkv",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "(^|/)foo (/.*)?$"
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "generated-77",
+      "rules": [
+        "foo\\ "
+      ],
+      "path": "/media/sub/a.mkv",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "(^|/)foo (/.*)?$"
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "generated-78",
+      "rules": [
+        "foo\\ "
+      ],
+      "path": "/media/foo.mkv",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "(^|/)foo (/.*)?$"
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "generated-79",
+      "rules": [
+        "foo\\ "
+      ],
+      "path": "a b",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "(^|/)foo (/.*)?$"
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "generated-80",
+      "rules": [
+        "foo\\ "
+      ],
+      "path": "foo ",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "(^|/)foo (/.*)?$"
+        }
+      ],
+      "ignored": true
+    },
+    {
+      "name": "generated-81",
+      "rules": [
+        "foo   "
+      ],
+      "path": "a/b",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "(^|/)foo(/.*)?$"
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "generated-82",
+      "rules": [
+        "foo   "
+      ],
+      "path": "a/x/b",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "(^|/)foo(/.*)?$"
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "generated-83",
+      "rules": [
+        "foo   "
+      ],
+      "path": "foo/",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "(^|/)foo(/.*)?$"
+        }
+      ],
+      "ignored": true
+    },
+    {
+      "name": "generated-84",
+      "rules": [
+        "foo   "
+      ],
+      "path": "/media/a.mkv",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "(^|/)foo(/.*)?$"
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "generated-85",
+      "rules": [
+        "foo   "
+      ],
+      "path": "/media/sub/a.mkv",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "(^|/)foo(/.*)?$"
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "generated-86",
+      "rules": [
+        "foo   "
+      ],
+      "path": "/media/foo.mkv",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "(^|/)foo(/.*)?$"
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "generated-87",
+      "rules": [
+        "foo   "
+      ],
+      "path": "a b",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "(^|/)foo(/.*)?$"
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "generated-88",
+      "rules": [
+        "foo   "
+      ],
+      "path": "foo ",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "(^|/)foo(/.*)?$"
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "generated-89",
+      "rules": [
+        "a\\ b"
+      ],
+      "path": "a/b",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "(^|/)a b(/.*)?$"
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "generated-90",
+      "rules": [
+        "a\\ b"
+      ],
+      "path": "a/x/b",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "(^|/)a b(/.*)?$"
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "generated-91",
+      "rules": [
+        "a\\ b"
+      ],
+      "path": "foo/",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "(^|/)a b(/.*)?$"
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "generated-92",
+      "rules": [
+        "a\\ b"
+      ],
+      "path": "/media/a.mkv",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "(^|/)a b(/.*)?$"
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "generated-93",
+      "rules": [
+        "a\\ b"
+      ],
+      "path": "/media/sub/a.mkv",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "(^|/)a b(/.*)?$"
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "generated-94",
+      "rules": [
+        "a\\ b"
+      ],
+      "path": "/media/foo.mkv",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "(^|/)a b(/.*)?$"
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "generated-95",
+      "rules": [
+        "a\\ b"
+      ],
+      "path": "a b",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "(^|/)a b(/.*)?$"
+        }
+      ],
+      "ignored": true
+    },
+    {
+      "name": "generated-96",
+      "rules": [
+        "a\\ b"
+      ],
+      "path": "foo ",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "(^|/)a b(/.*)?$"
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "generated-97",
+      "rules": [
+        "[a-z].mkv"
+      ],
+      "path": "a/b",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "(^|/)[a-z]\\.mkv(/.*)?$"
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "generated-98",
+      "rules": [
+        "[a-z].mkv"
+      ],
+      "path": "a/x/b",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "(^|/)[a-z]\\.mkv(/.*)?$"
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "generated-99",
+      "rules": [
+        "[a-z].mkv"
+      ],
+      "path": "foo/",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "(^|/)[a-z]\\.mkv(/.*)?$"
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "generated-100",
+      "rules": [
+        "[a-z].mkv"
+      ],
+      "path": "/media/a.mkv",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "(^|/)[a-z]\\.mkv(/.*)?$"
+        }
+      ],
+      "ignored": true
+    },
+    {
+      "name": "generated-101",
+      "rules": [
+        "[a-z].mkv"
+      ],
+      "path": "/media/sub/a.mkv",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "(^|/)[a-z]\\.mkv(/.*)?$"
+        }
+      ],
+      "ignored": true
+    },
+    {
+      "name": "generated-102",
+      "rules": [
+        "[a-z].mkv"
+      ],
+      "path": "/media/foo.mkv",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "(^|/)[a-z]\\.mkv(/.*)?$"
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "generated-103",
+      "rules": [
+        "[a-z].mkv"
+      ],
+      "path": "a b",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "(^|/)[a-z]\\.mkv(/.*)?$"
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "generated-104",
+      "rules": [
+        "[a-z].mkv"
+      ],
+      "path": "foo ",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "(^|/)[a-z]\\.mkv(/.*)?$"
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "generated-105",
+      "rules": [
+        "[!a].mkv"
+      ],
+      "path": "a/b",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "(^|/)[!a]\\.mkv(/.*)?$"
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "generated-106",
+      "rules": [
+        "[!a].mkv"
+      ],
+      "path": "a/x/b",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "(^|/)[!a]\\.mkv(/.*)?$"
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "generated-107",
+      "rules": [
+        "[!a].mkv"
+      ],
+      "path": "foo/",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "(^|/)[!a]\\.mkv(/.*)?$"
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "generated-108",
+      "rules": [
+        "[!a].mkv"
+      ],
+      "path": "/media/a.mkv",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "(^|/)[!a]\\.mkv(/.*)?$"
+        }
+      ],
+      "ignored": true
+    },
+    {
+      "name": "generated-109",
+      "rules": [
+        "[!a].mkv"
+      ],
+      "path": "/media/sub/a.mkv",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "(^|/)[!a]\\.mkv(/.*)?$"
+        }
+      ],
+      "ignored": true
+    },
+    {
+      "name": "generated-110",
+      "rules": [
+        "[!a].mkv"
+      ],
+      "path": "/media/foo.mkv",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "(^|/)[!a]\\.mkv(/.*)?$"
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "generated-111",
+      "rules": [
+        "[!a].mkv"
+      ],
+      "path": "a b",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "(^|/)[!a]\\.mkv(/.*)?$"
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "generated-112",
+      "rules": [
+        "[!a].mkv"
+      ],
+      "path": "foo ",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "(^|/)[!a]\\.mkv(/.*)?$"
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "generated-113",
+      "rules": [
+        "**/*.mkv"
+      ],
+      "path": "a/b",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": ".*[^/]*\\.mkv(/.*)?$"
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "generated-114",
+      "rules": [
+        "**/*.mkv"
+      ],
+      "path": "a/x/b",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": ".*[^/]*\\.mkv(/.*)?$"
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "generated-115",
+      "rules": [
+        "**/*.mkv"
+      ],
+      "path": "foo/",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": ".*[^/]*\\.mkv(/.*)?$"
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "generated-116",
+      "rules": [
+        "**/*.mkv"
+      ],
+      "path": "/media/a.mkv",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": ".*[^/]*\\.mkv(/.*)?$"
+        }
+      ],
+      "ignored": true
+    },
+    {
+      "name": "generated-117",
+      "rules": [
+        "**/*.mkv"
+      ],
+      "path": "/media/sub/a.mkv",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": ".*[^/]*\\.mkv(/.*)?$"
+        }
+      ],
+      "ignored": true
+    },
+    {
+      "name": "generated-118",
+      "rules": [
+        "**/*.mkv"
+      ],
+      "path": "/media/foo.mkv",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": ".*[^/]*\\.mkv(/.*)?$"
+        }
+      ],
+      "ignored": true
+    },
+    {
+      "name": "generated-119",
+      "rules": [
+        "**/*.mkv"
+      ],
+      "path": "a b",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": ".*[^/]*\\.mkv(/.*)?$"
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "generated-120",
+      "rules": [
+        "**/*.mkv"
+      ],
+      "path": "foo ",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": ".*[^/]*\\.mkv(/.*)?$"
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "generated-121",
+      "rules": [
+        "/media/**/a.mkv"
+      ],
+      "path": "a/b",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "^media/(.*/)?a\\.mkv(/.*)?$"
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "generated-122",
+      "rules": [
+        "/media/**/a.mkv"
+      ],
+      "path": "a/x/b",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "^media/(.*/)?a\\.mkv(/.*)?$"
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "generated-123",
+      "rules": [
+        "/media/**/a.mkv"
+      ],
+      "path": "foo/",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "^media/(.*/)?a\\.mkv(/.*)?$"
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "generated-124",
+      "rules": [
+        "/media/**/a.mkv"
+      ],
+      "path": "/media/a.mkv",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "^media/(.*/)?a\\.mkv(/.*)?$"
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "generated-125",
+      "rules": [
+        "/media/**/a.mkv"
+      ],
+      "path": "/media/sub/a.mkv",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "^media/(.*/)?a\\.mkv(/.*)?$"
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "generated-126",
+      "rules": [
+        "/media/**/a.mkv"
+      ],
+      "path": "/media/foo.mkv",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "^media/(.*/)?a\\.mkv(/.*)?$"
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "generated-127",
+      "rules": [
+        "/media/**/a.mkv"
+      ],
+      "path": "a b",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "^media/(.*/)?a\\.mkv(/.*)?$"
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "generated-128",
+      "rules": [
+        "/media/**/a.mkv"
+      ],
+      "path": "foo ",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "^media/(.*/)?a\\.mkv(/.*)?$"
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "generated-129",
+      "rules": [
+        "!a.mkv"
+      ],
+      "path": "a/b",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": true,
+          "regex": "(^|/)a\\.mkv(/.*)?$"
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "generated-130",
+      "rules": [
+        "!a.mkv"
+      ],
+      "path": "a/x/b",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": true,
+          "regex": "(^|/)a\\.mkv(/.*)?$"
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "generated-131",
+      "rules": [
+        "!a.mkv"
+      ],
+      "path": "foo/",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": true,
+          "regex": "(^|/)a\\.mkv(/.*)?$"
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "generated-132",
+      "rules": [
+        "!a.mkv"
+      ],
+      "path": "/media/a.mkv",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": true,
+          "regex": "(^|/)a\\.mkv(/.*)?$"
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "generated-133",
+      "rules": [
+        "!a.mkv"
+      ],
+      "path": "/media/sub/a.mkv",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": true,
+          "regex": "(^|/)a\\.mkv(/.*)?$"
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "generated-134",
+      "rules": [
+        "!a.mkv"
+      ],
+      "path": "/media/foo.mkv",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": true,
+          "regex": "(^|/)a\\.mkv(/.*)?$"
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "generated-135",
+      "rules": [
+        "!a.mkv"
+      ],
+      "path": "a b",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": true,
+          "regex": "(^|/)a\\.mkv(/.*)?$"
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "generated-136",
+      "rules": [
+        "!a.mkv"
+      ],
+      "path": "foo ",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": true,
+          "regex": "(^|/)a\\.mkv(/.*)?$"
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "generated-137",
+      "rules": [
+        "\\!a.mkv"
+      ],
+      "path": "a/b",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "(^|/)!a\\.mkv(/.*)?$"
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "generated-138",
+      "rules": [
+        "\\!a.mkv"
+      ],
+      "path": "a/x/b",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "(^|/)!a\\.mkv(/.*)?$"
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "generated-139",
+      "rules": [
+        "\\!a.mkv"
+      ],
+      "path": "foo/",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "(^|/)!a\\.mkv(/.*)?$"
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "generated-140",
+      "rules": [
+        "\\!a.mkv"
+      ],
+      "path": "/media/a.mkv",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "(^|/)!a\\.mkv(/.*)?$"
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "generated-141",
+      "rules": [
+        "\\!a.mkv"
+      ],
+      "path": "/media/sub/a.mkv",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "(^|/)!a\\.mkv(/.*)?$"
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "generated-142",
+      "rules": [
+        "\\!a.mkv"
+      ],
+      "path": "/media/foo.mkv",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "(^|/)!a\\.mkv(/.*)?$"
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "generated-143",
+      "rules": [
+        "\\!a.mkv"
+      ],
+      "path": "a b",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "(^|/)!a\\.mkv(/.*)?$"
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "generated-144",
+      "rules": [
+        "\\!a.mkv"
+      ],
+      "path": "foo ",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "(^|/)!a\\.mkv(/.*)?$"
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "generated-145",
+      "rules": [
+        "."
+      ],
+      "path": "a/b",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "(^|/)\\.(/.*)?$"
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "generated-146",
+      "rules": [
+        "."
+      ],
+      "path": "a/x/b",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "(^|/)\\.(/.*)?$"
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "generated-147",
+      "rules": [
+        "."
+      ],
+      "path": "foo/",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "(^|/)\\.(/.*)?$"
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "generated-148",
+      "rules": [
+        "."
+      ],
+      "path": "/media/a.mkv",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "(^|/)\\.(/.*)?$"
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "generated-149",
+      "rules": [
+        "."
+      ],
+      "path": "/media/sub/a.mkv",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "(^|/)\\.(/.*)?$"
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "generated-150",
+      "rules": [
+        "."
+      ],
+      "path": "/media/foo.mkv",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "(^|/)\\.(/.*)?$"
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "generated-151",
+      "rules": [
+        "."
+      ],
+      "path": "a b",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "(^|/)\\.(/.*)?$"
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "generated-152",
+      "rules": [
+        "."
+      ],
+      "path": "foo ",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "(^|/)\\.(/.*)?$"
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "generated-153",
+      "rules": [
+        "a+b"
+      ],
+      "path": "a/b",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "(^|/)a\\+b(/.*)?$"
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "generated-154",
+      "rules": [
+        "a+b"
+      ],
+      "path": "a/x/b",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "(^|/)a\\+b(/.*)?$"
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "generated-155",
+      "rules": [
+        "a+b"
+      ],
+      "path": "foo/",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "(^|/)a\\+b(/.*)?$"
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "generated-156",
+      "rules": [
+        "a+b"
+      ],
+      "path": "/media/a.mkv",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "(^|/)a\\+b(/.*)?$"
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "generated-157",
+      "rules": [
+        "a+b"
+      ],
+      "path": "/media/sub/a.mkv",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "(^|/)a\\+b(/.*)?$"
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "generated-158",
+      "rules": [
+        "a+b"
+      ],
+      "path": "/media/foo.mkv",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "(^|/)a\\+b(/.*)?$"
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "generated-159",
+      "rules": [
+        "a+b"
+      ],
+      "path": "a b",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "(^|/)a\\+b(/.*)?$"
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "generated-160",
+      "rules": [
+        "a+b"
+      ],
+      "path": "foo ",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "(^|/)a\\+b(/.*)?$"
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "generated-161",
+      "rules": [
+        "a{2}"
+      ],
+      "path": "a/b",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "(^|/)a{2}(/.*)?$"
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "generated-162",
+      "rules": [
+        "a{2}"
+      ],
+      "path": "a/x/b",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "(^|/)a{2}(/.*)?$"
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "generated-163",
+      "rules": [
+        "a{2}"
+      ],
+      "path": "foo/",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "(^|/)a{2}(/.*)?$"
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "generated-164",
+      "rules": [
+        "a{2}"
+      ],
+      "path": "/media/a.mkv",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "(^|/)a{2}(/.*)?$"
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "generated-165",
+      "rules": [
+        "a{2}"
+      ],
+      "path": "/media/sub/a.mkv",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "(^|/)a{2}(/.*)?$"
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "generated-166",
+      "rules": [
+        "a{2}"
+      ],
+      "path": "/media/foo.mkv",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "(^|/)a{2}(/.*)?$"
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "generated-167",
+      "rules": [
+        "a{2}"
+      ],
+      "path": "a b",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "(^|/)a{2}(/.*)?$"
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "generated-168",
+      "rules": [
+        "a{2}"
+      ],
+      "path": "foo ",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "(^|/)a{2}(/.*)?$"
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "generated-169",
+      "rules": [
+        "(foo|bar)"
+      ],
+      "path": "a/b",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "(^|/)(foo|bar)(/.*)?$"
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "generated-170",
+      "rules": [
+        "(foo|bar)"
+      ],
+      "path": "a/x/b",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "(^|/)(foo|bar)(/.*)?$"
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "generated-171",
+      "rules": [
+        "(foo|bar)"
+      ],
+      "path": "foo/",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "(^|/)(foo|bar)(/.*)?$"
+        }
+      ],
+      "ignored": true
+    },
+    {
+      "name": "generated-172",
+      "rules": [
+        "(foo|bar)"
+      ],
+      "path": "/media/a.mkv",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "(^|/)(foo|bar)(/.*)?$"
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "generated-173",
+      "rules": [
+        "(foo|bar)"
+      ],
+      "path": "/media/sub/a.mkv",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "(^|/)(foo|bar)(/.*)?$"
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "generated-174",
+      "rules": [
+        "(foo|bar)"
+      ],
+      "path": "/media/foo.mkv",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "(^|/)(foo|bar)(/.*)?$"
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "generated-175",
+      "rules": [
+        "(foo|bar)"
+      ],
+      "path": "a b",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "(^|/)(foo|bar)(/.*)?$"
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "generated-176",
+      "rules": [
+        "(foo|bar)"
+      ],
+      "path": "foo ",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "(^|/)(foo|bar)(/.*)?$"
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "generated-177",
+      "rules": [
+        "foo/**.mkv"
+      ],
+      "path": "a/b",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "^foo/[^/]*\\.mkv(/.*)?$"
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "generated-178",
+      "rules": [
+        "foo/**.mkv"
+      ],
+      "path": "a/x/b",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "^foo/[^/]*\\.mkv(/.*)?$"
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "generated-179",
+      "rules": [
+        "foo/**.mkv"
+      ],
+      "path": "foo/",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "^foo/[^/]*\\.mkv(/.*)?$"
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "generated-180",
+      "rules": [
+        "foo/**.mkv"
+      ],
+      "path": "/media/a.mkv",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "^foo/[^/]*\\.mkv(/.*)?$"
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "generated-181",
+      "rules": [
+        "foo/**.mkv"
+      ],
+      "path": "/media/sub/a.mkv",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "^foo/[^/]*\\.mkv(/.*)?$"
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "generated-182",
+      "rules": [
+        "foo/**.mkv"
+      ],
+      "path": "/media/foo.mkv",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "^foo/[^/]*\\.mkv(/.*)?$"
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "generated-183",
+      "rules": [
+        "foo/**.mkv"
+      ],
+      "path": "a b",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "^foo/[^/]*\\.mkv(/.*)?$"
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "generated-184",
+      "rules": [
+        "foo/**.mkv"
+      ],
+      "path": "foo ",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "^foo/[^/]*\\.mkv(/.*)?$"
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "generated-185",
+      "rules": [
+        "***"
+      ],
+      "path": "a/b",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "(^|/)*.*$"
+        }
+      ],
+      "ignored": true
+    },
+    {
+      "name": "generated-186",
+      "rules": [
+        "***"
+      ],
+      "path": "a/x/b",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "(^|/)*.*$"
+        }
+      ],
+      "ignored": true
+    },
+    {
+      "name": "generated-187",
+      "rules": [
+        "***"
+      ],
+      "path": "foo/",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "(^|/)*.*$"
+        }
+      ],
+      "ignored": true
+    },
+    {
+      "name": "generated-188",
+      "rules": [
+        "***"
+      ],
+      "path": "/media/a.mkv",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "(^|/)*.*$"
+        }
+      ],
+      "ignored": true
+    },
+    {
+      "name": "generated-189",
+      "rules": [
+        "***"
+      ],
+      "path": "/media/sub/a.mkv",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "(^|/)*.*$"
+        }
+      ],
+      "ignored": true
+    },
+    {
+      "name": "generated-190",
+      "rules": [
+        "***"
+      ],
+      "path": "/media/foo.mkv",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "(^|/)*.*$"
+        }
+      ],
+      "ignored": true
+    },
+    {
+      "name": "generated-191",
+      "rules": [
+        "***"
+      ],
+      "path": "a b",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "(^|/)*.*$"
+        }
+      ],
+      "ignored": true
+    },
+    {
+      "name": "generated-192",
+      "rules": [
+        "***"
+      ],
+      "path": "foo ",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "(^|/)*.*$"
+        }
+      ],
+      "ignored": true
+    }
+  ],
+  "engineCases": [
+    {
+      "name": "numeric-backreference",
+      "rules": [
+        "(a)\\2"
+      ],
+      "path": "/media/aa",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "(^|/)(a)\\2(/.*)?$"
+        }
+      ],
+      "ignored": true
+    },
+    {
+      "name": "unicode-digit",
+      "rules": [
+        "\\d.mkv"
+      ],
+      "path": "/media/٣.mkv",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "(^|/)\\d\\.mkv(/.*)?$"
+        }
+      ],
+      "ignored": true
+    },
+    {
+      "name": "unicode-word",
+      "rules": [
+        "\\w.mkv"
+      ],
+      "path": "/media/片.mkv",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "(^|/)\\w\\.mkv(/.*)?$"
+        }
+      ],
+      "ignored": true
+    },
+    {
+      "name": "unicode-space",
+      "rules": [
+        "a\\sb"
+      ],
+      "path": "/media/a　b",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "(^|/)a\\sb(/.*)?$"
+        }
+      ],
+      "ignored": true
+    },
+    {
+      "name": "unicode-escape",
+      "rules": [
+        "\\u0061.mkv"
+      ],
+      "path": "/media/a.mkv",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "(^|/)\\u0061\\.mkv(/.*)?$"
+        }
+      ],
+      "ignored": true
+    },
+    {
+      "name": "unicode-sigma",
+      "rules": [
+        "σ.mkv"
+      ],
+      "path": "/media/ς.mkv",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "(^|/)σ\\.mkv(/.*)?$"
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "supplementary-question",
+      "rules": [
+        "?.mkv"
+      ],
+      "path": "/media/😀.mkv",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "[^/]\\.mkv(/.*)?$"
+        }
+      ],
+      "ignored": true
+    },
+    {
+      "name": "supplementary-double-question",
+      "rules": [
+        "??.mkv"
+      ],
+      "path": "/media/😀.mkv",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "[^/][^/]\\.mkv(/.*)?$"
+        }
+      ],
+      "ignored": true
+    },
+    {
+      "name": "unicode-property",
+      "rules": [
+        "\\p{L}.mkv"
+      ],
+      "path": "/media/片.mkv",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "(^|/)\\p{L}\\.mkv(/.*)?$"
+        }
+      ],
+      "ignored": true
+    },
+    {
+      "name": "unknown-escape",
+      "rules": [
+        "\\q.mkv"
+      ],
+      "path": "/media/q.mkv",
+      "errors": [
+        "System.Text.RegularExpressions.RegexParseException"
+      ],
+      "compiled": [],
+      "ignored": false
+    },
+    {
+      "name": "fold-literal-σ-ς",
+      "rules": [
+        "σ.mkv"
+      ],
+      "path": "/media/ς.mkv",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "(^|/)σ\\.mkv(/.*)?$"
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "fold-class-σ-ς",
+      "rules": [
+        "[σ].mkv"
+      ],
+      "path": "/media/ς.mkv",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "(^|/)[σ]\\.mkv(/.*)?$"
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "fold-negated-class-σ-ς",
+      "rules": [
+        "[^σ].mkv"
+      ],
+      "path": "/media/ς.mkv",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "(^|/)[^σ]\\.mkv(/.*)?$"
+        }
+      ],
+      "ignored": true
+    },
+    {
+      "name": "fold-literal-Σ-σ",
+      "rules": [
+        "Σ.mkv"
+      ],
+      "path": "/media/σ.mkv",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "(^|/)Σ\\.mkv(/.*)?$"
+        }
+      ],
+      "ignored": true
+    },
+    {
+      "name": "fold-class-Σ-σ",
+      "rules": [
+        "[Σ].mkv"
+      ],
+      "path": "/media/σ.mkv",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "(^|/)[Σ]\\.mkv(/.*)?$"
+        }
+      ],
+      "ignored": true
+    },
+    {
+      "name": "fold-negated-class-Σ-σ",
+      "rules": [
+        "[^Σ].mkv"
+      ],
+      "path": "/media/σ.mkv",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "(^|/)[^Σ]\\.mkv(/.*)?$"
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "fold-literal-s-ſ",
+      "rules": [
+        "s.mkv"
+      ],
+      "path": "/media/ſ.mkv",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "(^|/)s\\.mkv(/.*)?$"
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "fold-class-s-ſ",
+      "rules": [
+        "[s].mkv"
+      ],
+      "path": "/media/ſ.mkv",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "(^|/)[s]\\.mkv(/.*)?$"
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "fold-negated-class-s-ſ",
+      "rules": [
+        "[^s].mkv"
+      ],
+      "path": "/media/ſ.mkv",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "(^|/)[^s]\\.mkv(/.*)?$"
+        }
+      ],
+      "ignored": true
+    },
+    {
+      "name": "fold-literal-k-K",
+      "rules": [
+        "k.mkv"
+      ],
+      "path": "/media/K.mkv",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "(^|/)k\\.mkv(/.*)?$"
+        }
+      ],
+      "ignored": true
+    },
+    {
+      "name": "fold-class-k-K",
+      "rules": [
+        "[k].mkv"
+      ],
+      "path": "/media/K.mkv",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "(^|/)[k]\\.mkv(/.*)?$"
+        }
+      ],
+      "ignored": true
+    },
+    {
+      "name": "fold-negated-class-k-K",
+      "rules": [
+        "[^k].mkv"
+      ],
+      "path": "/media/K.mkv",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "(^|/)[^k]\\.mkv(/.*)?$"
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "fold-literal-i-İ",
+      "rules": [
+        "i.mkv"
+      ],
+      "path": "/media/İ.mkv",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "(^|/)i\\.mkv(/.*)?$"
+        }
+      ],
+      "ignored": true
+    },
+    {
+      "name": "fold-class-i-İ",
+      "rules": [
+        "[i].mkv"
+      ],
+      "path": "/media/İ.mkv",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "(^|/)[i]\\.mkv(/.*)?$"
+        }
+      ],
+      "ignored": true
+    },
+    {
+      "name": "fold-negated-class-i-İ",
+      "rules": [
+        "[^i].mkv"
+      ],
+      "path": "/media/İ.mkv",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "(^|/)[^i]\\.mkv(/.*)?$"
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "fold-literal-i-ı",
+      "rules": [
+        "i.mkv"
+      ],
+      "path": "/media/ı.mkv",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "(^|/)i\\.mkv(/.*)?$"
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "fold-class-i-ı",
+      "rules": [
+        "[i].mkv"
+      ],
+      "path": "/media/ı.mkv",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "(^|/)[i]\\.mkv(/.*)?$"
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "fold-negated-class-i-ı",
+      "rules": [
+        "[^i].mkv"
+      ],
+      "path": "/media/ı.mkv",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "(^|/)[^i]\\.mkv(/.*)?$"
+        }
+      ],
+      "ignored": true
+    },
+    {
+      "name": "fold-literal-ß-ẞ",
+      "rules": [
+        "ß.mkv"
+      ],
+      "path": "/media/ẞ.mkv",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "(^|/)ß\\.mkv(/.*)?$"
+        }
+      ],
+      "ignored": true
+    },
+    {
+      "name": "fold-class-ß-ẞ",
+      "rules": [
+        "[ß].mkv"
+      ],
+      "path": "/media/ẞ.mkv",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "(^|/)[ß]\\.mkv(/.*)?$"
+        }
+      ],
+      "ignored": true
+    },
+    {
+      "name": "fold-negated-class-ß-ẞ",
+      "rules": [
+        "[^ß].mkv"
+      ],
+      "path": "/media/ẞ.mkv",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "(^|/)[^ß]\\.mkv(/.*)?$"
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "pcre-quote",
+      "rules": [
+        "\\Qa\\E.mkv"
+      ],
+      "path": "/media/a.mkv",
+      "errors": [
+        "System.Text.RegularExpressions.RegexParseException"
+      ],
+      "compiled": [],
+      "ignored": false
+    },
+    {
+      "name": "pcre-linebreak",
+      "rules": [
+        "a\\Rb"
+      ],
+      "path": "/media/a\nb",
+      "errors": [
+        "System.Text.RegularExpressions.RegexParseException"
+      ],
+      "compiled": [],
+      "ignored": false
+    },
+    {
+      "name": "pcre-grapheme",
+      "rules": [
+        "\\X.mkv"
+      ],
+      "path": "/media/a.mkv",
+      "errors": [
+        "System.Text.RegularExpressions.RegexParseException"
+      ],
+      "compiled": [],
+      "ignored": false
+    },
+    {
+      "name": "supplementary-literal",
+      "rules": [
+        "😀.mkv"
+      ],
+      "path": "/media/😀.mkv",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "(^|/)😀\\.mkv(/.*)?$"
+        }
+      ],
+      "ignored": true
+    },
+    {
+      "name": "supplementary-class",
+      "rules": [
+        "[😀].mkv"
+      ],
+      "path": "/media/😀.mkv",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "(^|/)[😀]\\.mkv(/.*)?$"
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "supplementary-escaped",
+      "rules": [
+        "\\😀.mkv"
+      ],
+      "path": "/media/😀.mkv",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "(^|/)\\😀\\.mkv(/.*)?$"
+        }
+      ],
+      "ignored": true
+    },
+    {
+      "name": "supplementary-escaped-class",
+      "rules": [
+        "[\\😀].mkv"
+      ],
+      "path": "/media/😀.mkv",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "(^|/)[\\😀]\\.mkv(/.*)?$"
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "supplementary-double-escaped",
+      "rules": [
+        "\\\\😀.mkv"
+      ],
+      "path": "/media/\\😀.mkv",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "(^|/)\\\\😀\\.mkv(/.*)?$"
+        }
+      ],
+      "ignored": true
+    },
+    {
+      "name": "supplementary-range",
+      "rules": [
+        "[😀-😁].mkv"
+      ],
+      "path": "/media/😀.mkv",
+      "errors": [
+        "System.Text.RegularExpressions.RegexParseException"
+      ],
+      "compiled": [],
+      "ignored": false
+    },
+    {
+      "name": "supplementary-negated-class",
+      "rules": [
+        "[^😀].mkv"
+      ],
+      "path": "/media/😁.mkv",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "(^|/)[^😀]\\.mkv(/.*)?$"
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "supplementary-quantifier",
+      "rules": [
+        "😀{2}.mkv"
+      ],
+      "path": "/media/😀😀.mkv",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "(^|/)😀{2}\\.mkv(/.*)?$"
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "supplementary-group",
+      "rules": [
+        "(😀){2}.mkv"
+      ],
+      "path": "/media/😀😀.mkv",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "(^|/)(😀){2}\\.mkv(/.*)?$"
+        }
+      ],
+      "ignored": true
+    },
+    {
+      "name": "supplementary-surrogate-escapes",
+      "rules": [
+        "\\uD83D\\uDE00.mkv"
+      ],
+      "path": "/media/😀.mkv",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "(^|/)\\uD83D\\uDE00\\.mkv(/.*)?$"
+        }
+      ],
+      "ignored": true
+    },
+    {
+      "name": "supplementary-group-name",
+      "rules": [
+        "(?<😀>a).mkv"
+      ],
+      "path": "/media/a.mkv",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "([^/]<😀>a)\\.mkv(/.*)?$"
+        }
+      ],
+      "ignored": false
+    },
+    {
+      "name": "supplementary-category",
+      "rules": [
+        "\\p{😀}.mkv"
+      ],
+      "path": "/media/😀.mkv",
+      "errors": [
+        "System.Text.RegularExpressions.RegexParseException"
+      ],
+      "compiled": [],
+      "ignored": false
+    },
+    {
+      "name": "supplementary-backreference",
+      "rules": [
+        "(😀)\\2.mkv"
+      ],
+      "path": "/media/😀😀.mkv",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "(^|/)(😀)\\2\\.mkv(/.*)?$"
+        }
+      ],
+      "ignored": true
+    },
+    {
+      "name": "supplementary-deseret-fold",
+      "rules": [
+        "𐐀.mkv"
+      ],
+      "path": "/media/𐐨.mkv",
+      "errors": [],
+      "compiled": [
+        {
+          "negative": false,
+          "regex": "(^|/)𐐀\\.mkv(/.*)?$"
+        }
+      ],
+      "ignored": false
+    }
+  ]
+}
