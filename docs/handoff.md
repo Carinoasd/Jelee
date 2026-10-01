@@ -366,3 +366,13 @@ PR31 功能 CI 全部通過，完整品牌 gate 仍失敗。PR31 已由外部合
 新增 PG ReadLegacyIgnoreObservationPage，每頁16次查詢，合併讀取最多2064祖先證據，按保留的選定來源還原 Checked 邊界。新增 scan.ObserveLegacyIgnore／ReobserveLegacyIgnore，重新兩輪觀察並比對全鏈。相同metadata改文、近層空檔、來源刪除會失效；影子祖先不影響query；目錄缺失不偽造absence。
 
 Windows domain/scan/postgres/architecture、全vet、三命令build通過。Linux原生/tmp domain/scan/architecture race 1.050/1.169/1.086秒通過。PG TestLegacyIgnore* race 8頂層零skip，23.422秒；證據 .testdata/inventory-legacy-query-native-postgres-summary.json，sourceUnchanged true。schema13不變，未啟用API/worker。準備本還原/復查小階段PR，base feat/jelee-ignore-family-storage。下一步持久verification checkpoint，需防取消/租約generation改變後重用舊復查，並在正式發布前復核；不能沿用自有模式舊proof版本。PR32僅品牌fail，兩PG尚pending，其餘功能pass。無活躍handle。
+
+還原/單次復查已提交 49722eda70，普通繁中 PR33：https://github.com/MoYuanCN/Jelee/pull/33，已附聊天。現為 feat/jelee-ignore-family-verification；僅此 handoff 未提交。已讀既有 domain/ignore_verification.go、schema11、postgres/ignore_verification.go：既有驗證依賴自有比較表與舊proof，不能直接重用。下一步新增獨立 legacy query 復核進度（generation、固定deadline、sequence、cursor、query count、digest、complete），分頁還原helper需抽為共交易函式；同代Begin不可續期，新代由首query開始。須新增schema14而非改已發布13，更新各歷史降版測試；發布仍待真正組合掃描與baseline接線。PR33 CI尚未查；PR32最近僅Full branding fail、兩PG pending、其餘功能pass。無活躍handle。
+
+### schema14 舊格式任務復核進度已驗證
+
+新增獨立 LegacyIgnoreVerificationToken/Page、schema14 job_ignore_legacy_verifications、Begin/Next/CommitLegacyIgnoreVerificationPage。來源清單需已凍結且有效；同代Begin不續期、新代從首query重來，期限min(lease,120秒)。提交比較全query證據，來源差異提交失效標記，截斷或舊token拒絕；EOF與總query計數一致才complete。commit前重查期限與epoch/lease，pg_sleep注入延遲驗證逾時完全回滾。未加入publication seal或正式worker，不可宣稱完整G22。
+
+Linux 真實 PostgreSQL 全套 race：198 項頂層測試通過、0 失敗、0 跳過，247.412 秒；測試前後來源雜湊一致（本機證據 `.testdata/inventory-legacy-verification-full-postgres-summary.json`）。Windows domain／postgres／architecture 測試、全模組 vet 與三個命令建置通過；Linux domain／architecture race 1.101／1.122 秒。增量品牌掃描 0 違規／100 合法命中，gitignore-check 通過。
+
+既有001–013遷移未變；各歷史降版測試新增14→13。新的ReadLegacyIgnoreObservationPage內部讀取抽成同交易helper legacyObservationPage。PR32功能CI全部通過、僅Full branding fail；PR33最近兩PG pending、其餘功能通過。準備本階段PR，base feat/jelee-ignore-family-recheck。下一步組合模式的matcher/scanner與baseline接口整合，以及發布交易與復核期限守衛接線；missing目錄和另兩格式仍未做。所有handle結束。

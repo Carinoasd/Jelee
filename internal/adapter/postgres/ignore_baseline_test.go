@@ -315,6 +315,7 @@ func TestIgnoreBaselineRevisionAndMigrationGuards(t *testing.T) {
 	if err := f.s.Pool.QueryRow(f.ctx, `SELECT l.inventory_baseline_revision,b.observed_revision FROM libraries l JOIN library_inventory_baseline b ON b.library_id=l.id WHERE l.id=$1::uuid`, f.registration.Library.ID).Scan(&revision, &observed); err != nil || revision <= 1 || observed != revision {
 		t.Fatal("ordinary publication did not bind observed revision", err)
 	}
+	nfoMigrateVersion(t, f, "down", 13)
 	nfoMigrateVersion(t, f, "down", 12)
 	nfoMigrateVersion(t, f, "down", 11)
 	nfoMigrateVersion(t, f, "down", 10)

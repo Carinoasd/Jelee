@@ -6,6 +6,7 @@ import (
 	"slices"
 
 	"github.com/MoYuanCN/Jelee/internal/domain"
+	"github.com/jackc/pgx/v5"
 )
 
 // A page has at most 16 queries and 16*129 ancestor proofs. Ancestors are
@@ -41,7 +42,18 @@ func (s *Store) ReadLegacyIgnoreObservationPage(ctx context.Context, l domain.Jo
 	if !ready {
 		return nil, domain.ErrConflict
 	}
-	rows, err := tx.Query(ctx, `SELECT root_id::text,directory,selected_directory,proof_version FROM job_ignore_legacy_queries WHERE job_id=$1::uuid AND (root_id,directory)>(COALESCE(NULLIF($2,'')::uuid,'00000000-0000-0000-0000-000000000000'::uuid),$3 COLLATE "C") ORDER BY job_ignore_legacy_queries.root_id,directory LIMIT $4`, l.Job.ID, after.RootID, after.Directory, legacyObservationPageSize)
+	result, err := legacyObservationPage(ctx, tx, l.Job.ID, after)
+	if err != nil {
+		return nil, err
+	}
+	if err = commitIgnoreManifest(ctx, tx, current, epoch); err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
+func legacyObservationPage(ctx context.Context, tx pgx.Tx, id string, after domain.IgnoreProofCursor) ([]domain.LegacyIgnoreObservation, error) {
+	rows, err := tx.Query(ctx, `SELECT root_id::text,directory,selected_directory,proof_version FROM job_ignore_legacy_queries WHERE job_id=$1::uuid AND (root_id,directory)>(COALESCE(NULLIF($2,'')::uuid,'00000000-0000-0000-0000-000000000000'::uuid),$3 COLLATE "C") ORDER BY job_ignore_legacy_queries.root_id,directory LIMIT $4`, id, after.RootID, after.Directory, legacyObservationPageSize)
 	if err != nil {
 		return nil, storageError(err)
 	}
@@ -89,7 +101,7 @@ func (s *Store) ReadLegacyIgnoreObservationPage(ctx context.Context, l domain.Jo
 	}
 	proofs := make(map[domain.IgnoreProofCursor]domain.LegacyIgnoreDirectoryProof, len(unique))
 	if len(names) > 0 {
-		rows, err = tx.Query(ctx, `SELECT p.root_id::text,p.directory,p.parent_identity,p.identity,p.checked,p.rule_present,p.rule_identity,p.rule_size,p.rule_modified_nano,p.rule_sha256 FROM unnest($2::uuid[],$3::text[]) AS wanted(root_id,directory) JOIN job_ignore_legacy_proofs p ON p.job_id=$1::uuid AND p.root_id=wanted.root_id AND p.directory=wanted.directory`, l.Job.ID, roots, names)
+		rows, err = tx.Query(ctx, `SELECT p.root_id::text,p.directory,p.parent_identity,p.identity,p.checked,p.rule_present,p.rule_identity,p.rule_size,p.rule_modified_nano,p.rule_sha256 FROM unnest($2::uuid[],$3::text[]) AS wanted(root_id,directory) JOIN job_ignore_legacy_proofs p ON p.job_id=$1::uuid AND p.root_id=wanted.root_id AND p.directory=wanted.directory`, id, roots, names)
 		if err != nil {
 			return nil, storageError(err)
 		}
@@ -122,9 +134,6 @@ func (s *Store) ReadLegacyIgnoreObservationPage(ctx context.Context, l domain.Jo
 			return nil, domain.ErrDatabase
 		}
 		result = append(result, o)
-	}
-	if err = commitIgnoreManifest(ctx, tx, current, epoch); err != nil {
-		return nil, err
 	}
 	return result, nil
 }

@@ -83,6 +83,7 @@ func TestIgnoreMigrationLegacySevenRoundTripAndReadiness(t *testing.T) {
 	l, _ := f.start(t, "existing-cache", "retained.nfo")
 	f.parseHead(t, l, nfoValidSummary())
 	f.finish(t, l)
+	nfoMigrateVersion(t, f.jobFixture, "down", 13)
 	nfoMigrateVersion(t, f.jobFixture, "down", 12)
 	nfoMigrateVersion(t, f.jobFixture, "down", 11)
 	nfoMigrateVersion(t, f.jobFixture, "down", 10)
@@ -134,6 +135,7 @@ func TestIgnoreMigrationLegacySevenRoundTripAndReadiness(t *testing.T) {
 	if _, err = f.s.Pool.Exec(f.ctx, `UPDATE schema_migrations SET version=$1,dirty=false`, SchemaVersion); err != nil {
 		t.Fatal("restore private readiness fixture")
 	}
+	nfoMigrateVersion(t, f.jobFixture, "down", 13)
 	nfoMigrateVersion(t, f.jobFixture, "down", 12)
 	nfoMigrateVersion(t, f.jobFixture, "down", 11)
 	nfoMigrateVersion(t, f.jobFixture, "down", 10)
@@ -229,6 +231,7 @@ func TestIgnoreMigrationHistoryTrimAllowsDowngrade(t *testing.T) {
 		t.Fatal("ordinary terminal history trim did not remove request with parent")
 	}
 	before := ignoreLegacySnapshot(t, f)
+	nfoMigrateVersion(t, f, "down", 13)
 	nfoMigrateVersion(t, f, "down", 12)
 	nfoMigrateVersion(t, f, "down", 11)
 	nfoMigrateVersion(t, f, "down", 10)
