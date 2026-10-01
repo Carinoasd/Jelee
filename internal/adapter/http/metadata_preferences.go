@@ -1,6 +1,7 @@
 package httpapi
 
 import (
+	"encoding/json"
 	"net/http"
 	"strings"
 
@@ -16,13 +17,22 @@ func (s *Server) metadataPreferenceRoutes(r chi.Router) {
 	}))
 	r.Put(path, s.accountEndpoint(true, false, func(w http.ResponseWriter, r *http.Request, a domain.Actor) (any, int, error) {
 		var input struct {
-			Language         string `json:"language"`
-			ExpectedRevision int64  `json:"expectedRevision"`
+			Language         string          `json:"language"`
+			ExpectedRevision int64           `json:"expectedRevision"`
+			ImageLanguages   json.RawMessage `json:"imageLanguages"`
 		}
 		if err := DecodeJSON(w, r, &input, accountBodyLimit); err != nil {
 			return nil, 0, err
 		}
-		value, err := s.metadata.UpdateLibraryPreferences(r.Context(), a, chi.URLParam(r, "id"), input.Language, input.ExpectedRevision)
+		var images [][]string
+		if input.ImageLanguages != nil {
+			var languages []string
+			if json.Unmarshal(input.ImageLanguages, &languages) != nil || !domain.ValidMetadataImageLanguages(languages) {
+				return nil, 0, domain.ErrInvalid
+			}
+			images = [][]string{languages}
+		}
+		value, err := s.metadata.UpdateLibraryPreferences(r.Context(), a, chi.URLParam(r, "id"), input.Language, input.ExpectedRevision, images...)
 		return value, 200, err
 	}))
 }
@@ -38,6 +48,10 @@ func metadataPreferencesSpecification(paths, schemas map[string]any) {
 	}
 	put["requestBody"] = map[string]any{"required": true, "content": map[string]any{"application/json": map[string]any{"schema": objectSchema(map[string]any{"language": map[string]any{"type": "string", "enum": []string{"zh-CN", "zh-TW", "ja-JP", "en-US"}}, "expectedRevision": map[string]any{"type": "integer", "minimum": 1, "maximum": 2147483646}}, "language", "expectedRevision")}}}
 	paths["/api/v1/libraries/{id}/metadata-preferences"] = map[string]any{"get": get, "put": put}
+	preferenceSchema := schemas["MetadataPreferences"].(map[string]any)
+	preferenceSchema["properties"].(map[string]any)["imageLanguages"] = metadataImageLanguageSchema()
+	preferenceSchema["required"] = append(preferenceSchema["required"].([]string), "imageLanguages")
+	put["requestBody"].(map[string]any)["content"].(map[string]any)["application/json"].(map[string]any)["schema"].(map[string]any)["properties"].(map[string]any)["imageLanguages"] = metadataImageLanguageSchema()
 	for path, methods := range paths {
 		if !strings.HasPrefix(path, "/api/v1/metadata/tmdb/") {
 			continue
@@ -58,4 +72,8 @@ func metadataPreferencesSpecification(paths, schemas map[string]any) {
 			}
 		}
 	}
+}
+
+func metadataImageLanguageSchema() map[string]any {
+	return map[string]any{"type": "array", "minItems": 1, "maxItems": 4, "uniqueItems": true, "items": map[string]any{"type": "string", "enum": []string{"zh", "ja", "en", "null"}}, "description": "Ordered image language preference; string null means untagged images. Omitted update field preserves current preferences; JSON null is invalid. Regional Chinese variants share zh."}
 }

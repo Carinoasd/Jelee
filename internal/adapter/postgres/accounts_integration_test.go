@@ -579,6 +579,9 @@ func TestAccountIntegration(t *testing.T) {
 
 func TestAccountMigrationRejectsCaseCollisionWithoutRenaming(t *testing.T) {
 	ctx, s, dsn := accountTestStore(t)
+	if version, dirty, e := Migrate(ctx, dsn, "down"); e != nil || dirty || version != 19 {
+		t.Fatal("image preference downgrade failed", version, dirty, e)
+	}
 	if version, dirty, e := Migrate(ctx, dsn, "down"); e != nil || dirty || version != 18 {
 		t.Fatal("metadata preference downgrade failed", version, dirty, e)
 	}
@@ -660,6 +663,9 @@ func TestAccountMigrationRollbackKeepsDeletedAccountsDisabled(t *testing.T) {
 	}
 	if _, err = s.Pool.Exec(ctx, `UPDATE users SET deleted_at=now() WHERE name='DeletedBeforeRollback'`); err != nil {
 		t.Fatal("prepare deleted account")
+	}
+	if version, dirty, e := Migrate(ctx, dsn, "down"); e != nil || dirty || version != 19 {
+		t.Fatal("image preference downgrade failed", version, dirty, e)
 	}
 	if version, dirty, e := Migrate(ctx, dsn, "down"); e != nil || dirty || version != 18 {
 		t.Fatal("metadata preference downgrade failed", version, dirty, e)

@@ -1002,3 +1002,13 @@ G14.1／3／4仍partial，336計數4done／182partial／150blocked不變。檔�
 HTTP六路由／偏好授權／strict body／409及真HTTP＋app＋PG接線、競爭更新、audits、約束、升降版／保存設定驗收通過。停用正式repo revision比較的負例1leaf fail，finally逐位元復原，四項PG race專項0skip PASS。初輪完整PG兩項舊schema7/current整列快照因新欄位失敗；只排除新增兩欄，所有原欄位維持比對，新欄位另有專項遷移測試；測試fixture另補配置所需DB URL與既有支援密碼預設，產品驗證不放寬。最終完整PG race711pass事件含父／0fail／0skip，346.150秒。Windows全Go29pkg／3071pass事件含父／439skip；原435身份逐項相同，另4新PG專項已在真PG完整執行通過。vet／產品build及Linux六包race通過。
 
 G14.5仍partial，336計數4done／183partial／149blocked。增量品牌0／181、full14735／186仍fail、gitignore0；來源hash／LICENSE／requirements／五核心逐位元與001–018 Git正規化內容、local links／無C#diff已核對。五核心3271行仍待原具體授權，沒有改刪。圖像語言／前端、其他文字、NFO／人工值／鎖、library／worker寫入等仍缺；下一段圖片語言偏好與候選。前HEAD Tests／CodeQL／Format／OpenAPI success，ABI failure，foundation當時live；本HEAD要自身CI，同branch同PR46繁中續推，不合併。詳見tmdb-library-language与evidence；下一段細案在忽略的 .testdata/metadata-image-language-next.md。
+
+### G14 圖片語言偏好與電影／劇集圖片候選
+
+接續8d746b015b，schema20新增有序圖片語言清單，原001–019保持；省略新欄位保留現值，明確null／空／重複／未知值拒絕，文字與圖片共用版本及稽核。DB另限制維度與下標，升級保留文字與版本；降版在表鎖下只允許預設清單及版本1，文字更新過亦保守拒降。電影／劇集圖片管理員API實際讀庫圖片偏好，無庫按可信user預設；沿受控出站／共享治理，15s／1MiB，逐筆總1000候選，固定官方URL及安全檔名／尺寸／語言／分數驗證。偏好語言排序優先於票數，全部待確認，沒有下載或原圖寫入。
+
+圖片LRU共16筆／24h，鍵含資源／ID／完整有序清單；adapter插入與命中、app篩選排序均複製陣列。正式TLS＋app驗證query、來源、排序、確認與跨資源快取；真HTTP／app／PG驗庫設定與撤銷session。刻意忽略HTTP庫圖片偏好的負例1leaf fail，逐位元復原後六項PG race專項0skip通過。最終Windows全Go29pkg／3123pass事件含父／441skip；原435身份一致，新增六PG專項均已在完整真PG race執行。完整PG713pass事件含父／0fail／0skip，344.947秒；vet／產品build及Linux六pkg race PASS。
+
+增量品牌0／181、完整14735／186仍失敗、gitignore0；來源hash、LICENSE／requirements、五核心逐位元、19份既有升級與降版遷移的Git正規化內容、local links／無C#diff／336列核對通過。G14.5保持部分完成，全案4done／183partial／149blocked。詳細契約與證據見tmdb-image-preferences.md及evidence。前HEAD Tests／CodeQL／Format／OpenAPI成功，ABI仍失敗，foundation當時執行中；新HEAD須自己的CI，沒有合併。所有本輪測試handles已結束，同PR46／同分支續推。
+
+下一段接G14.6資料持久化、欄位鎖、人工與NFO優先順序及正式API；季／集圖片、logo、前端、完整100電影／20劇集與清除外部資料仍未完成。待核准五核心3271行保持，原具體批次問題未重問；不把此圖片候選階段當完整刮削。

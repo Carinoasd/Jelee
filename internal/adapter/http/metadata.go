@@ -12,6 +12,7 @@ func (s *Server) metadataRoutes(r chi.Router) {
 	r.Group(func(r chi.Router) {
 		r.Use(s.accountBudget, s.authenticate)
 		s.metadataPreferenceRoutes(r)
+		s.metadataImageRoutes(r)
 		s.seriesRoutes(r)
 		s.episodeRoutes(r)
 		r.Get("/api/v1/metadata/tmdb/movies", s.accountEndpoint(true, true, func(w http.ResponseWriter, r *http.Request, a domain.Actor) (any, int, error) {
@@ -95,5 +96,6 @@ func metadataSpecification(paths, schemas map[string]any) {
 	schemas["MovieCandidate"].(map[string]any)["required"] = append(schemas["MovieCandidate"].(map[string]any)["required"].([]string), "overviewSource")
 	seriesSpecification(paths, schemas)
 	episodeSpecification(paths, schemas)
+	metadataImageSpecification(paths, schemas)
 	metadataPreferencesSpecification(paths, schemas)
 }

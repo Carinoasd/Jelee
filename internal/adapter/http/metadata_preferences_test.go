@@ -27,9 +27,12 @@ func (p *httpMetadataPreferences) MetadataPreferences(_ context.Context, a domai
 	if id != libraryID {
 		return domain.MetadataPreferences{}, domain.ErrNotFound
 	}
+	if p.value.ImageLanguages == nil {
+		p.value.ImageLanguages = domain.DefaultMetadataImageLanguages("zh-CN")
+	}
 	return p.value, nil
 }
-func (p *httpMetadataPreferences) UpdateMetadataPreferences(ctx context.Context, a domain.Actor, id, language string, expected int64) (domain.MetadataPreferences, error) {
+func (p *httpMetadataPreferences) UpdateMetadataPreferences(ctx context.Context, a domain.Actor, id, language string, expected int64, images ...[]string) (domain.MetadataPreferences, error) {
 	v, err := p.MetadataPreferences(ctx, a, id)
 	if err != nil {
 		return v, err
@@ -37,8 +40,14 @@ func (p *httpMetadataPreferences) UpdateMetadataPreferences(ctx context.Context,
 	if v.Revision != expected {
 		return domain.MetadataPreferences{}, domain.ErrConflict
 	}
+	if len(images) == 1 {
+		p.value.ImageLanguages = append([]string(nil), images[0]...)
+	}
 	p.value.Language = language
 	p.value.Revision++
+	if p.value.ImageLanguages == nil {
+		p.value.ImageLanguages = domain.DefaultMetadataImageLanguages("zh-CN")
+	}
 	return p.value, nil
 }
 

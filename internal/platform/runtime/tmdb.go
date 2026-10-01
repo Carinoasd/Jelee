@@ -5,6 +5,8 @@ import (
 	"github.com/MoYuanCN/Jelee/internal/app"
 )
 
+var _ app.MetadataImageProvider = (*metadata.TMDB)(nil)
+
 func prepareMetadata(key string, l *lifetime) (*app.Metadata, error) {
 	if key == "" {
 		return nil, nil

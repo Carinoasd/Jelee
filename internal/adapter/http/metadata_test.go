@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -19,10 +20,24 @@ import (
 )
 
 type httpMovieProvider struct {
-	preferences app.MetadataPreferencesRepository
-	calls       int
-	fail        error
-	language    string
+	preferences    app.MetadataPreferencesRepository
+	calls          int
+	fail           error
+	language       string
+	imageLanguages []string
+}
+
+func (p *httpMovieProvider) Images(ctx context.Context, resource string, id int32, languages []string) (domain.MetadataImages, error) {
+	p.calls++
+	p.imageLanguages = append([]string(nil), languages...)
+	if err := ctx.Err(); err != nil {
+		return domain.MetadataImages{}, err
+	}
+	path := "movie"
+	if resource == "series" {
+		path = "tv"
+	}
+	return domain.MetadataImages{Resource: resource, ProviderID: id, Source: "TMDB", SourceURL: "https://www.themoviedb.org/" + path + "/" + strconv.Itoa(int(id)), FetchedAt: time.Now(), ImageLanguages: append([]string(nil), languages...), Candidates: []domain.MetadataImageCandidate{{Kind: "poster", Language: languages[0], FilePath: "/poster.jpg", URL: "https://image.tmdb.org/t/p/original/poster.jpg", Width: 500, Height: 750}}}, p.fail
 }
 
 func (p *httpMovieProvider) Season(ctx context.Context, series, season int32, language string) (domain.SeasonCandidate, error) {

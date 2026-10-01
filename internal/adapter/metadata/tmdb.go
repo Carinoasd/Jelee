@@ -29,6 +29,7 @@ type TMDB struct {
 	series   seriesCache
 	seasons  seasonCache
 	episodes episodeCache
+	images   imageCache
 }
 
 func NewTMDB(key string) (*TMDB, error) {
@@ -48,7 +49,7 @@ func NewTMDBWithClient(key string, client *outbound.Client) (*TMDB, error) {
 	if !ValidTMDBKey(key) || client == nil {
 		return nil, ErrCredentials
 	}
-	return &TMDB{key: key, client: client, fetch: client.Fetch, wait: waitRetry, now: time.Now, governor: newRequestGovernor(), seasons: seasonCache{capacity: 16}}, nil
+	return &TMDB{key: key, client: client, fetch: client.Fetch, wait: waitRetry, now: time.Now, governor: newRequestGovernor(), seasons: seasonCache{capacity: 16}, images: imageCache{capacity: 16}}, nil
 }
 
 func ValidTMDBKey(key string) bool {

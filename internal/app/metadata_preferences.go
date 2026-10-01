@@ -9,7 +9,7 @@ import (
 // Both operations recheck the live administrator session in the transaction.
 type MetadataPreferencesRepository interface {
 	MetadataPreferences(context.Context, domain.Actor, string) (domain.MetadataPreferences, error)
-	UpdateMetadataPreferences(context.Context, domain.Actor, string, string, int64) (domain.MetadataPreferences, error)
+	UpdateMetadataPreferences(context.Context, domain.Actor, string, string, int64, ...[]string) (domain.MetadataPreferences, error)
 }
 
 // WithLibraryPreferences returns a new service sharing the owned provider.
@@ -34,21 +34,31 @@ func (m *Metadata) LibraryPreferences(ctx context.Context, actor domain.Actor, l
 	if m.preferences == nil {
 		return domain.MetadataPreferences{}, domain.ErrMetadataUnavailable
 	}
-	return m.preferences.MetadataPreferences(ctx, actor, library)
+	value, err := m.preferences.MetadataPreferences(ctx, actor, library)
+	return cloneMetadataPreferences(value), err
 }
 
-func (m *Metadata) UpdateLibraryPreferences(ctx context.Context, actor domain.Actor, library, language string, expected int64) (domain.MetadataPreferences, error) {
+func (m *Metadata) UpdateLibraryPreferences(ctx context.Context, actor domain.Actor, library, language string, expected int64, images ...[]string) (domain.MetadataPreferences, error) {
 	if err := ctx.Err(); err != nil {
 		return domain.MetadataPreferences{}, err
 	}
 	if !domain.ValidID(actor.UserID) || !domain.ValidID(actor.SessionID) {
 		return domain.MetadataPreferences{}, domain.ErrUnauthenticated
 	}
-	if !domain.ValidMetadataPreferenceUpdate(library, language, expected) {
+	if !domain.ValidMetadataPreferenceUpdate(library, language, expected) || !domain.ValidMetadataImagePreferenceUpdate(images) {
 		return domain.MetadataPreferences{}, domain.ErrInvalid
 	}
 	if m.preferences == nil {
 		return domain.MetadataPreferences{}, domain.ErrMetadataUnavailable
 	}
-	return m.preferences.UpdateMetadataPreferences(ctx, actor, library, language, expected)
+	if len(images) == 1 {
+		images = [][]string{append([]string(nil), images[0]...)}
+	}
+	value, err := m.preferences.UpdateMetadataPreferences(ctx, actor, library, language, expected, images...)
+	return cloneMetadataPreferences(value), err
+}
+
+func cloneMetadataPreferences(value domain.MetadataPreferences) domain.MetadataPreferences {
+	value.ImageLanguages = append([]string(nil), value.ImageLanguages...)
+	return value
 }

@@ -3,6 +3,7 @@ package postgres
 import (
 	"context"
 	"errors"
+	"reflect"
 	"sync"
 	"testing"
 
@@ -54,7 +55,7 @@ func TestMetadataPreferencesPersistenceConflictAndAudit(t *testing.T) {
 	}
 	nfoMigrationDenied(t, f, "000019_metadata_language.down.sql")
 	again, err := f.s.MetadataPreferences(f.ctx, f.a, id)
-	if err != nil || again != v {
+	if err != nil || !reflect.DeepEqual(again, v) {
 		t.Fatal("denied downgrade changed preferences")
 	}
 }
@@ -107,8 +108,9 @@ func TestMetadataPreferencesAuthorizationAndValidation(t *testing.T) {
 
 func TestMetadataPreferencesMigrationDefaultAndCleanRollback(t *testing.T) {
 	f := newJobFixture(t)
+	nfoMigrateVersion(t, f, "down", 19)
 	nfoMigrateVersion(t, f, "down", 18)
-	nfoMigrateVersion(t, f, "up", 19)
+	nfoMigrateVersion(t, f, "up", SchemaVersion)
 	v, err := f.s.MetadataPreferences(f.ctx, f.a, f.registration.Library.ID)
 	if err != nil || v.Revision != 1 || v.Language != "zh-CN" {
 		t.Fatal("existing library default missing", err)
@@ -118,6 +120,7 @@ func TestMetadataPreferencesMigrationDefaultAndCleanRollback(t *testing.T) {
 			t.Fatal("database preference constraint missing")
 		}
 	}
+	nfoMigrateVersion(t, f, "down", 19)
 	nfoMigrateVersion(t, f, "down", 18)
-	nfoMigrateVersion(t, f, "up", 19)
+	nfoMigrateVersion(t, f, "up", SchemaVersion)
 }

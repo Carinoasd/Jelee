@@ -470,6 +470,9 @@ func TestProbeRequestMigrationGuardAndRollbackPreserveCache(t *testing.T) {
 	}
 	preserved := probeFaultSnapshot(t, f)
 	dsn := f.s.Pool.Config().ConnString()
+	if version, dirty, e := Migrate(f.ctx, dsn, "down"); e != nil || dirty || version != 19 {
+		t.Fatal("image preference downgrade failed", version, dirty, e)
+	}
 	if version, dirty, e := Migrate(f.ctx, dsn, "down"); e != nil || dirty || version != 18 {
 		t.Fatal("metadata preference downgrade failed", version, dirty, e)
 	}
