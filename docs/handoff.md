@@ -858,3 +858,11 @@ UserViewManager刪IChannelManager/ILiveTvManager ctor/fields、externalTV/Channe
 移除四個核心DI與一般主機Lazy註冊，程序集marker改用保留的錄製管理器，未刪核心檔案。六项實際啟動／服務集合驗收通過，必要頻道／錄製／節目來源／調諧器服務可解析。七個核心檔與LICENSE／原始需求逐位元不變。沒有重跑先前遭auto-review拒絕的跨層刪除；完成較小分層後再評估無引用核心刪除。完整Debug17套件4820Passed／21NotExecuted／0fail，format pass（workspace warning），所有handles terminal。最後只移除失效的循環相依TODO註解，產品行為沒有額外變更。G05及全案仍部分完成，336需求4done／175partial／157blocked不變。
 
 核心註冊階段完整品牌14756，仍fail；相較前階段增加7項來自新測試對既有命名的實際引用，沒有增加豁免或隱藏引用。gitignore0，增量0違規／169既有允許，staged diff pass；核心正式來源引用已限於七個待裁剪檔案，接續先從沒有其他依赖的指南實作檢查。
+
+### G05 指南核心裁剪
+
+DI／DTO／View先分層完成後，工具審查允許本次只刪兩個指南檔案。新rg發現節目來源仍引用指南MaxCacheDays，已移為來源本地2天常數；修正前階段「核心引用全限於七檔」的不完整判斷。兩舊etag註解更新為持久化內容編碼語意，斷言不變。七項整合验收通過，只恢復兩舊核心的compiled-type negative兩項全部失敗，finally兩檔回absent；沒有啟動舊服務。完整Debug17套件4821Passed／21NotExecuted／0fail，format pass（workspace warning），所有handles terminal。G05與全案仍部分完成。
+
+指南裁剪最後完整品牌14756→14735（減21），仍fail；gitignore0、保護檔hash／遷移diff／staged diff pass。04a80ad9f9 CI當時格式與雙Windows Go已pass，其他主要功能仍pending，品牌fail；新head仍需另外檢查CI。下一步需先處理直播DTO對管理器的兩個轉換方法相依，不能直接刪管理器造成編譯失敗。
+
+指南階段增量品牌0違規／175既有允許；沒有增加豁免。所有來源與文檔寫完再驗證通過後同PR46提交推送。

@@ -61,7 +61,7 @@ namespace Jellyfin.LiveTv.Listings
 
             var builder = new StringBuilder(1024);
 
-            // Keep this list aligned with the ProgramInfo fields consumed by GuideManager.
+            // Preserve the persisted program-info encoding when changing this field list.
             AppendValue(builder, "schema", "xmltv-programinfo-v1");
             AppendValue(builder, nameof(programInfo.Id), programInfo.Id);
             AppendValue(builder, nameof(programInfo.ChannelId), programInfo.ChannelId);

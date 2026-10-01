@@ -20,7 +20,6 @@ public sealed class LiveCoreRegistrationRemovalTests : IClassFixture<JellyfinApp
     [Theory]
     [InlineData(typeof(ILiveTvManager))]
     [InlineData(typeof(Lazy<ILiveTvManager>))]
-    [InlineData(typeof(IGuideManager))]
     [InlineData(typeof(ILiveTvService))]
     [InlineData(typeof(LiveTvDtoService))]
     public void RetiredCore_IsNotRegisteredOrResolvable(Type serviceType)
@@ -32,6 +31,14 @@ public sealed class LiveCoreRegistrationRemovalTests : IClassFixture<JellyfinApp
         using var client = _factory.CreateClient();
         Assert.Null(_factory.Services.GetService(serviceType));
         Assert.False(_factory.Services.GetRequiredService<IServiceProviderIsService>().IsService(serviceType));
+    }
+
+    [Theory]
+    [InlineData(typeof(IRecordingsManager), "IGuideManager")]
+    [InlineData(typeof(LiveTvDtoService), "GuideManager")]
+    public void CompiledAssembly_DoesNotContainGuideCore(Type assemblyMarker, string name)
+    {
+        Assert.DoesNotContain(assemblyMarker.Assembly.GetTypes(), type => type.Name == name);
     }
 
     [Fact]

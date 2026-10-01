@@ -10,8 +10,8 @@ public class XmlTvProgramEtagTests
     [Fact]
     public void TryCreate_GenreOrderIsSignificant()
     {
-        // GuideManager assigns item.Genres = info.Genres.ToArray() preserving order,
-        // so the same genres in a different order is a real mapped-content change.
+        // The persisted program-info encoding preserves genre order,
+        // so changing that order must produce a different etag.
         var first = NewProgram();
         first.Genres = new() { "Drama", "Action" };
 

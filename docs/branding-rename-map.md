@@ -153,3 +153,12 @@ src/Jellyfin.Networking 與 tests/Jellyfin.Networking.Tests → src/Jelee.Networ
 - partsAssembly: `Jellyfin.Server/CoreAppHost.cs`
 - featureRegistry: `src/Jellyfin.LiveTv/Extensions/LiveTvServiceCollectionExtensions.cs`
 - startupTests: `tests/Jellyfin.Server.Integration.Tests/LiveCoreRegistrationRemovalTests.cs`
+
+## G05 指南核心裁剪來源索引
+
+- guideImplementation: `src/Jellyfin.LiveTv/Guide/GuideManager.cs`
+- guideInterface: `MediaBrowser.Controller/LiveTv/IGuideManager.cs`
+- retainedListingSource: `src/Jellyfin.LiveTv/Listings/SchedulesDirect.cs`
+- etagEncodingComment: `src/Jellyfin.LiveTv/Listings/XmlTvProgramEtag.cs`
+- etagRegressionComment: `tests/Jellyfin.LiveTv.Tests/Listings/XmlTvProgramEtagTests.cs`
+- compiledCoreAndStartupTests: `tests/Jellyfin.Server.Integration.Tests/LiveCoreRegistrationRemovalTests.cs`

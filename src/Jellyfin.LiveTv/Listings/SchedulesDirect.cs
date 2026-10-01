@@ -20,7 +20,6 @@ using System.Threading.Tasks;
 using AsyncKeyedLock;
 using Jellyfin.Extensions;
 using Jellyfin.Extensions.Json;
-using Jellyfin.LiveTv.Guide;
 using Jellyfin.LiveTv.Listings.SchedulesDirectDtos;
 using MediaBrowser.Common.Configuration;
 using MediaBrowser.Common.Net;
@@ -37,6 +36,7 @@ namespace Jellyfin.LiveTv.Listings
     {
         private const string ApiUrl = "https://json.schedulesdirect.org/20141201";
         private const int CountryCacheDays = 7;
+        private const int MaxImageCacheDays = 2;
 
         private readonly ILogger<SchedulesDirect> _logger;
         private readonly IHttpClientFactory _httpClientFactory;
@@ -168,7 +168,7 @@ namespace Jellyfin.LiveTv.Listings
 
                 // Only add images which will be pre-cached until we can implement dynamic token fetching
                 var endDate = schedule.AirDateTime?.AddSeconds(schedule.Duration);
-                var willBeCached = endDate.HasValue && endDate.Value < DateTime.UtcNow.AddDays(GuideManager.MaxCacheDays);
+                var willBeCached = endDate.HasValue && endDate.Value < DateTime.UtcNow.AddDays(MaxImageCacheDays);
                 if (willBeCached && images is not null)
                 {
                     var imageIndex = images.FindIndex(i =>
