@@ -1,8 +1,8 @@
 using System;
 using System.IO;
 using System.Linq;
-using Emby.Naming.Common;
-using Emby.Naming.Video;
+using Jelee.Naming.Common;
+using Jelee.Naming.Video;
 using Jellyfin.Data.Enums;
 using Jellyfin.Extensions;
 using MediaBrowser.Controller.Drawing;

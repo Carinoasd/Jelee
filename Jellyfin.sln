@@ -23,7 +23,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Emby.Photos", "Emby.Photos\
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Emby.Server.Implementations", "Emby.Server.Implementations\Emby.Server.Implementations.csproj", "{E383961B-9356-4D5D-8233-9A1079D03055}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Emby.Naming", "Emby.Naming\Emby.Naming.csproj", "{E5AF7B26-2239-4CE0-B477-0AA2018EDAA2}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Jelee.Naming", "Jelee.Naming\Jelee.Naming.csproj", "{E5AF7B26-2239-4CE0-B477-0AA2018EDAA2}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "MediaBrowser.MediaEncoding", "MediaBrowser.MediaEncoding\MediaBrowser.MediaEncoding.csproj", "{960295EE-4AF4-4440-A525-B4C295B01A61}"
 EndProject
@@ -44,7 +44,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Jellyfin.Common.Tests", "te
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Jellyfin.MediaEncoding.Tests", "tests\Jellyfin.MediaEncoding.Tests\Jellyfin.MediaEncoding.Tests.csproj", "{28464062-0939-4AA7-9F7B-24DDDA61A7C0}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Jellyfin.Naming.Tests", "tests\Jellyfin.Naming.Tests\Jellyfin.Naming.Tests.csproj", "{3998657B-1CCC-49DD-A19F-275DC8495F57}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Jelee.Naming.Tests", "tests\Jelee.Naming.Tests\Jelee.Naming.Tests.csproj", "{3998657B-1CCC-49DD-A19F-275DC8495F57}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Jellyfin.Api.Tests", "tests\Jellyfin.Api.Tests\Jellyfin.Api.Tests.csproj", "{A2FD0A10-8F62-4F9D-B171-FFDF9F0AFA9D}"
 EndProject

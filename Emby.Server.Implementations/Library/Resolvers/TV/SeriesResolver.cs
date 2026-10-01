@@ -5,9 +5,9 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using Emby.Naming.Common;
-using Emby.Naming.TV;
-using Emby.Naming.Video;
+using Jelee.Naming.Common;
+using Jelee.Naming.TV;
+using Jelee.Naming.Video;
 using Jellyfin.Data.Enums;
 using MediaBrowser.Controller.Entities.TV;
 using MediaBrowser.Controller.Library;
@@ -62,7 +62,7 @@ namespace Emby.Server.Implementations.Library.Resolvers.TV
                     return null;
                 }
 
-                var seriesInfo = Naming.TV.SeriesResolver.Resolve(_namingOptions, args.Path);
+                var seriesInfo = Jelee.Naming.TV.SeriesResolver.Resolve(_namingOptions, args.Path);
 
                 var collectionType = args.GetCollectionType();
                 if (collectionType == CollectionType.tvshows)
@@ -142,7 +142,7 @@ namespace Emby.Server.Implementations.Library.Resolvers.TV
 
                         var namingOptions = _namingOptions;
 
-                        var episodeResolver = new Naming.TV.EpisodeResolver(namingOptions);
+                        var episodeResolver = new Jelee.Naming.TV.EpisodeResolver(namingOptions);
 
                         var episodeInfo = episodeResolver.Resolve(fullName, false, true, false, fillExtendedInfo: false);
                         if (episodeInfo is not null && episodeInfo.EpisodeNumber.HasValue)

@@ -3,8 +3,8 @@
 using System;
 using System.Linq;
 using System.Threading.Tasks;
-using Emby.Naming.Audio;
-using Emby.Naming.Common;
+using Jelee.Naming.Audio;
+using Jelee.Naming.Common;
 using Jellyfin.Data.Enums;
 using MediaBrowser.Controller.Entities.Audio;
 using MediaBrowser.Controller.Library;

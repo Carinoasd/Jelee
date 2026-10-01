@@ -493,9 +493,18 @@ namespace Jellyfin.Server.Implementations.Tests.Localization
                 UICulture = "en-US"
             });
 
-            var translated = localizationManager.GetLocalizedString(key);
-            Assert.NotNull(translated);
-            Assert.Equal(expected, translated);
+            var previousCulture = CultureInfo.CurrentUICulture;
+            try
+            {
+                CultureInfo.CurrentUICulture = CultureInfo.GetCultureInfo("en-US");
+                var translated = localizationManager.GetLocalizedString(key);
+                Assert.NotNull(translated);
+                Assert.Equal(expected, translated);
+            }
+            finally
+            {
+                CultureInfo.CurrentUICulture = previousCulture;
+            }
         }
 
         [Fact]

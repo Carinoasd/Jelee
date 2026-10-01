@@ -748,3 +748,11 @@ exec29349 terminal exit0：1,000／100 檔全部 passed，負載303.903／300.39
 上一工作流程階段26c465e270已推／繁中更新附PR46。現在完整移動src/Jelee.CodeAnalysis與csproj，namespace／程序集改名；Directory.Build.props載入與自引用排除、solution條目同步。正式邏輯只有namespace修改，發布紀錄／csproj逐位元保持。實際compiler bad同步using→JF0001 exit1、good await using→exit0；module Debug build0warnings/errors、module format通過。完整solution Debug exec43733 terminal exit0，34.50秒、215warnings／0errors，未放寬分析設定。fullbrand15237→15233減4，protected hashes保持；證據docs/evidence/analyzer-brand-rename.json／合同docs/analyzer-brand-rename.md。
 
 本批同PR46提交推，不加分支、不merge／release／tag／forcepush。最新已推26c CI目前僅完整品牌失敗，其餘觀察時仍部分running；需以新head核對功能結果。其他C#模組／G00／G22／G00–G51仍部分完成，公開New長穩與其餘ignore來源未完成。所有本機test handles均terminal。
+
+### 檔名解析模組與引用改名
+
+上一分析器ad908efff5已推／附PR46。事前124檔，49module／29test／46consumer/build；改Jelee.Naming／Jelee.Naming.Tests，project/namespace/package/assembly與引用一起遷移。原Authors／GPL與AssemblyCopyright分離兩個純法律檔、精確whitelist；沒有全模組豁免。116個C#檔正規化namespace／using順序後source逐檔一致，三個相對Naming.TV引用改完整Jelee.Naming.TV。bump_version只改路徑、bash-n通過，未執行；APICompat base old/head renamed映射，保留差異報告，shell syntax通過、未本機跑實際ABI。
+
+module exec99242 pass701/0fail/0skip。首次fullbuild exec99789失敗7errors（3相對namespace／4排序），formatter exec47075完成；修復fullbuild5.89秒6warnings/0errors。首次fulltest exec18494兩個localization因本機繁中currentUICulture，而期待英文；保留正式邏輯，在原test明確en-US並finally恢復。最終fulltest exec49480 terminal exit0：17套件total4119／passed4098／NotExecuted21／failed0。finalformat exec2535 terminal exit0，變更C#檔檢查，有workspace-load warning；初format exec17087 CRLF失敗保留，LF修正只改換行、不改語意。所有本機handles terminal。metadata作者與license原值、compiledtitle/product新名及copyright原字串核對，LICENSE／source hash保持、migration無改。證據docs/evidence/naming-brand-rename.json。
+
+fullbrand15233→15007減226，仍fail；新增法律檔只隔離歸屬字串，不隱藏其他殘留。此模組仍舊核心dependencies、Audio/Book等domain待G02裁剪，G00／G22／全部G00–G51未完成。本批同PR46繁中commit/push／更新附，不merge/release/tag/forcepush或新branch。CI需以新head核對，不能把pending當green。

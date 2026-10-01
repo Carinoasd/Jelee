@@ -13,3 +13,5 @@ internal/adapter/nfo/read_test.go # Contract fixtures for those exact legacy XML
 docs/nfo-compatibility.md # NFO compatibility evidence and upstream parser source references.
 LICENSE # Legal text.
 CONTRIBUTORS.md # Upstream authorship.
+Jelee.Naming/Attribution.props # Original package authors and license only; preserved legal attribution.
+Jelee.Naming/Properties/Copyright.cs # Original assembly copyright statement only; preserved verbatim.

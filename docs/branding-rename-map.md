@@ -28,3 +28,7 @@ openapi-merge 保留 master／版本 push 的 OpenAPI reusable workflow 與產�
 ## 程式碼分析器模組
 
 `src/Jellyfin.CodeAnalysis`、同名 csproj／程序集／namespace → `src/Jelee.CodeAnalysis` 與 `Jelee.CodeAnalysis`。根建置屬性的分析器載入／自引用排除、solution 專案名稱／路徑同步更新。診斷 JF0001 與原發布紀錄保持；編譯器正反例、完整 Debug 建置與模組格式檢查通過。[證據](analyzer-brand-rename.md)。
+
+## 媒體檔名解析模組
+
+Emby.Naming（含原套件 Jellyfin.Naming）→ Jelee.Naming；tests/Jellyfin.Naming.Tests → tests/Jelee.Naming.Tests。完整模組／引用／solution／版本腳本與 ABI base/head 路徑一起更新。原 Authors 與 AssemblyCopyright 分離到精確法律歸屬檔，內容保留；不豁免整個解析模組。命名701測試／完整17套件4098pass、21NotExecuted、0fail，源碼等價核對／Debug build／變更檔格式通過。[證據與尚未完成邊界](naming-brand-rename.md)。

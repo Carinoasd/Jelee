@@ -1,7 +1,7 @@
 using System;
 using System.IO;
-using Emby.Naming.Audio;
-using Emby.Naming.Common;
+using Jelee.Naming.Audio;
+using Jelee.Naming.Common;
 using MediaBrowser.Controller;
 using MediaBrowser.Controller.Entities;
 using MediaBrowser.Controller.Resolvers;
