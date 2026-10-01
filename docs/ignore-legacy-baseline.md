@@ -24,3 +24,15 @@
 - 真實 helper 對已消失父目錄下的候選匹配，保留來源及規則行號並確認程序結束；CI 另跑非 race 驗證。
 
 本段 Windows source／scan／domain／architecture 測試通過（1.132／1.656／0.188／0.170 秒），全模組 vet 及三命令建置通過。Linux 原生 `/tmp` race 分別為10.205／1.185／1.055／1.092秒；真實 helper 非 race 匹配0.007秒通過。增量品牌掃描0違規／100合法命中、gitignore-check與diff-check通過。
+
+## schema16 保存與還原
+
+`RecordLegacyIgnoreBaselineObservations` 每批接受最多128筆同根來源查詢。既有來源鏈仍存入舊格式來源清單，原始 lookup、最深既有目錄及第一缺失邊界存入新表 `job_ignore_legacy_baseline_queries`。缺失邊界不會寫成 identity=0 的既有目錄證據。
+
+來源與新查詢共用回滾點。批次內部、與已保存查詢、或「曾確認不存在的目錄又被觀察為存在」發生衝突時，撤回本批新增來源與查詢，只保存失效標記。相同查詢重播不重複計費，凍結後拒絕追加；新查詢最多16384筆，計費與來源清單共用64MiB上限。
+
+`ReadLegacyIgnoreBaselinePage` 從凍結且有效的清單按 root／lookup 游標每頁還原最多16筆，集合讀取並還原共享祖先。`ReobserveLegacyIgnoreBaseline` 重新原生觀察完整來源与缺失邊界；父目錄重現、來源改變或身份改變都會拒絕。這是單次復查，整個任務的持久復核進度與發布守衛仍待接線。
+
+新增遷移16，既有001–015保持。存在基線查詢時拒絕降版，刪除任務可連帶清理後再降版。原始查詢與邊界不可更新，讀取時重新驗證領域合同。
+
+schema16 本段 Linux 真實 PostgreSQL 全套 race：213 項頂層測試通過，0 失敗、0 跳過，278.475 秒；受測 PG 來源前後雜湊一致（`.testdata/inventory-legacy-baseline-full-postgres-summary.json`）。第一輪舊來源／新基線20項整合測試亦通過（36.099秒）。包含18次查詢跨頁還原、凍結重播、兩種寫入順序及同批存在／缺失矛盾、預算、租約／取消／世代、升降版與原生復查。Windows postgres／scan／architecture 測試、全模組 vet、三命令建置、增量品牌掃描及gitignore-check通過。

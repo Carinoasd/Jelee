@@ -76,6 +76,12 @@ func legacyObservationPage(ctx context.Context, tx pgx.Tx, id string, after doma
 	if err != nil {
 		return nil, storageError(err)
 	}
+	return restoreLegacyQueries(ctx, tx, id, queries)
+}
+
+func restoreLegacyQueries(ctx context.Context, tx pgx.Tx, id string, queries []legacyQuery) ([]domain.LegacyIgnoreObservation, error) {
+	var rows pgx.Rows
+	var err error
 	var roots, names []string
 	chains := make([][]domain.IgnoreProofCursor, len(queries))
 	unique := make(map[domain.IgnoreProofCursor]bool)

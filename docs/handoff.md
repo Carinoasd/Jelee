@@ -436,3 +436,13 @@ Windows source/scan/domain/architecture 1.132/1.656/.188/.170秒通過；全vet/
 下一步基線觀察保存：existing Source可沿用schema13表，missing邊界要獨立保存（不能把identity0塞既有legacyproof），lookup→existingquery+boundary也需保留且freeze/verification覆盖；新schema而非改已發布15。再接自有明確include/exclude優先的基線分類、批次提交及最終發布。原庫baseline只有自有rule行號>=1的格式，需獨立family/reason合同。
 
 缺失父目錄來源與基線匹配已提交6bfdd688f6，普通繁中PR39：https://github.com/MoYuanCN/Jelee/pull/39，已附聊天。現為feat/jelee-ignore-baseline-evidence；schema15不變，接續missing邊界/query持久化與復核。PR39尚未查CI；所有測試handle結束。
+
+### schema16 基線來源查詢保存與還原已驗證
+
+新增job_ignore_legacy_baseline_queries及manifest.baseline_queries計數，existing來源仍存schema13鏈；lookup/source-directory/missing-boundary分開保留，最多128批次、16384筆，共用64MiB charge。來源和boundary共savepoint，任何衝突只保留invalidated而無來源prefix。recordLegacyObservations也檢查新增present目錄是否撞到既有missing邊界；相反順序和同批都測試。來源restore抽共交易restoreLegacyQueries集合讀取，baseline page16筆；adapter Observe/ReobserveLegacyIgnoreBaseline比對完整source與邊界。
+
+全真PG race213頂層通過、0失敗0skip、278.475秒、sourceUnchanged=true（.testdata/inventory-legacy-baseline-full-postgres-summary.json）。首輪20項36.099秒pass；Windows postgres/scan/architecture、全vet、三build、brand-new0/allowed100、gitignore/diff pass。001–015未改，所有舊降版序列已加入16→15。
+
+PR39先出現foundation增量brand失敗，原因是最後追加handoff含非必要舊品牌檔名；已文件commit a8f59b2809並快轉推回feat/jelee-ignore-family-baseline，沒有放寬allowlist。新run36844948666的Windows/Linux foundation已pass，另一runWindowspass/Linux仍pending，兩PG待結果，完整品牌fail。不能把舊run改稱pass。查過PR39仍OPEN，base feat/jelee-ignore-family-inventory。
+
+下一步缺失邊界的任務級持久復核。現有schema14 legacyverification只覆蓋existing query/source，不能涵蓋baseline缺失boundary；需要獨立token/cursor/count/digest/固定deadline/lease generation及EOF計數覆蓋新查詢。ReadLegacyIgnoreBaselinePage目前只是凍結讀取，Reobserve只是單次原生驗證。正式family baseline分類、publication/worker仍未開放，不宣稱完成G22。所有handle已結束。

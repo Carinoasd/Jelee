@@ -297,6 +297,7 @@ func TestIgnoreVerificationFreezeHeartbeatAndMigration(t *testing.T) {
 	if _, err := f.s.Pool.Exec(f.ctx, `DELETE FROM jobs WHERE id=$1::uuid`, l.Job.ID); err != nil {
 		t.Fatal(err)
 	}
+	nfoMigrateVersion(t, f, "down", 15)
 	nfoMigrateVersion(t, f, "down", 14)
 	nfoMigrateVersion(t, f, "down", 13)
 	nfoMigrateVersion(t, f, "down", 12)

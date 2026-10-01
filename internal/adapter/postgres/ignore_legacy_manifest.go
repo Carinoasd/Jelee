@@ -233,7 +233,12 @@ func recordLegacyObservations(ctx context.Context, tx pgx.Tx, l domain.JobLease,
 	if err != nil {
 		return storageError(err)
 	}
-	conflict := prepared.conflict
+	var crossesMissing bool
+	err = tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM job_ignore_legacy_baseline_queries WHERE job_id=$1::uuid AND root_id=$2::uuid AND missing_directory=ANY($3::text[]))`, l.Job.ID, root, prepared.names).Scan(&crossesMissing)
+	if err != nil {
+		return storageError(err)
+	}
+	conflict := prepared.conflict || crossesMissing
 	for name, selected := range prepared.queries {
 		if old, exists := priorQueries[name]; exists && !sameLegacySelection(old, selected) {
 			conflict = true
