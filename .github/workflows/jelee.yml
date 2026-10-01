@@ -110,6 +110,8 @@ jobs:
           path: .tools
           key: jelee-${{ runner.os }}-${{ runner.arch }}-go1.27.1-${{ hashFiles('tools/manifest.json', 'go.sum') }}
       - run: make bootstrap tools-verify test-integration test-race
+      - name: Native family ignore storage acceptance
+        run: .bin/go test -count=1 -timeout=90s -run '^TestFamilyIgnoreNativeStorage$' ./internal/adapter/postgres
       - name: Real media scan and probe cache acceptance
         run: make bootstrap-media media-tools-verify bootstrap-runtime runtime-tools-verify fixtures probe-worker-test
       - name: Real mixed NFO, video and image incremental acceptance

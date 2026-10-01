@@ -579,6 +579,9 @@ func TestAccountIntegration(t *testing.T) {
 
 func TestAccountMigrationRejectsCaseCollisionWithoutRenaming(t *testing.T) {
 	ctx, s, dsn := accountTestStore(t)
+	if version, dirty, e := Migrate(ctx, dsn, "down"); e != nil || dirty || version != 14 {
+		t.Fatal("family scan downgrade failed", version, dirty, e)
+	}
 	if v, dirty, err := Migrate(ctx, dsn, "down"); err != nil || dirty || v != 13 {
 		t.Fatal("legacy verification downgrade failed", v, dirty, err)
 	}
@@ -645,6 +648,9 @@ func TestAccountMigrationRollbackKeepsDeletedAccountsDisabled(t *testing.T) {
 	}
 	if _, err = s.Pool.Exec(ctx, `UPDATE users SET deleted_at=now() WHERE name='DeletedBeforeRollback'`); err != nil {
 		t.Fatal("prepare deleted account")
+	}
+	if version, dirty, e := Migrate(ctx, dsn, "down"); e != nil || dirty || version != 14 {
+		t.Fatal("family scan downgrade failed", version, dirty, e)
 	}
 	if v, dirty, err := Migrate(ctx, dsn, "down"); err != nil || dirty || v != 13 {
 		t.Fatal("legacy verification downgrade failed", v, dirty, err)

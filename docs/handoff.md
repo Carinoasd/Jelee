@@ -410,3 +410,15 @@ RecordLegacyIgnoreObservations 接受1–129次同根query，原單筆入口共�
 Linux真PG全套race 203項頂層通過、零失敗零skip、249.770秒、sourceUnchanged=true（.testdata/inventory-legacy-batch-full-postgres-summary.json）。首輪14項舊格式測試30.237秒通過；之後新增升級/預算測試已含全套。Windows postgres/architecture測試、全vet、三命令build、增量brand0違規/100合法、gitignore-check通過。schema14保持；下一步schema15與SaveFamilyIgnoreScanBatch/NextFamilyIgnoreScanDirectory，兩family證據需要共同savepoint回滾，排除family/reason與query須驗證。已讀schema12排除表與舊保存邏輯，舊表RuleLine>=1無法承接legacy空/allinvalid。
 
 PR36目前兩PG工作pending（110298262595、110298246488），其他功能全pass，品牌fail。所有本機測試handle結束。
+
+批次來源保存已提交 a891c03e77，普通繁中 PR37：https://github.com/MoYuanCN/Jelee/pull/37，已附聊天。現為 feat/jelee-ignore-family-inventory，下一步新增 schema15 組合排除資料與兩family原子掃描保存。不可修改已發布001–014；舊資料表只允許行號>=1，應新增保存family/reason的表，保留kind/parent索引、刪除cascade與凍結守衛。先建立validFamilyIgnoreScanBatch驗證：自有fullchain與held identity，legacy同root且query僅目前目錄/候選子目錄、兩family身份鏈一致，排除來源需對應family及query選定來源，blank/invalid行號0，rule行號1–4096，禁止overlap。保存兩family證據時用共同savepoint；任何来源衝突回滾本批兩family新增證據後標記兩manifest失效，再commit lease/epoch guard。新模式維持公開關閉直到baseline/verification/publication/worker完成。
+
+### schema15 合併掃描原子保存已驗證
+
+新增 family 排除表（family/reason、rule行號1–4096、blank/invalid行號0）、DB凍結守衛、NextFamilyIgnoreScanDirectory/SaveFamilyIgnoreScanBatch及完整批次驗證。共同savepoint使兩family來源衝突回滾兩邊新增證據，只保留失效標記。排除批次集合讀取、管線寫入，重播/重啟/預算/取消/舊模式隔離均驗證。正式worker/public mode仍未開放。
+
+真PG首輪找到多query選同ancestor造成job刪除cascade被selected FK阻擋；在新schema15將該FK改DEFERRABLE INITIALLY DEFERRED，down還原，001–014不改。首輪budget測試把max_entries設1觸發既有DB下限，改為合法max_directories=2並驗證inventory+excluded合計超限回滾。修正後4項核心PG測試23.823秒通過。新增真實native→受限helper→PG驗收，16.710秒1項零skip通過，CI新增非race步驟。
+
+全套PG race：207頂層通過、零skip，260.134秒，唯一失敗TestPostgresIntegration舊測試漏15→14；補測試步驟後該項單獨重跑23.825秒通過，正式碼未再修改。不要聲稱單次全套208通過；原失敗記錄與修正證據均保留（family-scan-full / family-scan-migration-fixed）。sourceUnchanged皆true。Windows postgres/architecture、全vet、三命令build、brand-new0/allowed100、gitignore-check、diff-check通過，LICENSE/requirements原文雜湊不變。
+
+PR36功能CI已全pass，品牌fail；PR37一PGpass（110301421298）、一PGpending（110301590550），其餘功能pass，品牌fail。下一步基線分類/來源最終復核/發布與worker接線，尤其消失父目錄的legacy來源觀察尚不支援，不能以讀不到規則偽造absence。無活躍handle。
