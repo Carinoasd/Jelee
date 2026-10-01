@@ -787,3 +787,7 @@
 ### G22 合併模式混合掃描
 
 1,000與100媒體受保護容器、正式HTTP/app/PG/worker、真實原生probe與忽略helper混合NFO/影片/圖片已驗證。包含六輪cold/warm/受控替換、兩家族優先與来源報告、惡意排除無cache/baseline、取消恢復及SIGTERM join；原素材保持與自有測試資源清理。[合同與實測](ignore-family-mixed.md)。暖掃描仍完整兩次讀/hash納入NFO，零重新解析。其他歷史格式、活躍helper服務取消及壓力穩定性仍待驗收，G22維持部分完成。
+
+### G22／G08.7／G09.4／G29 活躍忽略 helper 取消與停止
+
+固定原生helper Active1時服务context取消後join且可重用；Close撤回可用性後等待active Evaluate，再清理。正式HTTP提交→真PG→正式worker觀察活躍child後Fx.Stop，無child/temp/owner/baseline發布殘留，jobqueued與原fixture保持。真PG/runtime7頂層通過、零略過，另Windows原生與相關Linux race通過。[合同與證據](ignore-family-active-child.md)。這是各需求的已驗證子集；HTTP工作取消旗標的活躍helper完整鏈、其他子程序／並發壓力及所有格式仍待驗收。

@@ -23,6 +23,7 @@ import (
 	"github.com/MoYuanCN/Jelee/internal/domain"
 	"github.com/MoYuanCN/Jelee/internal/platform/config"
 	"github.com/MoYuanCN/Jelee/internal/platform/password"
+	"github.com/MoYuanCN/Jelee/internal/platform/process"
 	"github.com/jackc/pgx/v5"
 )
 
@@ -31,7 +32,11 @@ func TestFamilyIgnoreProductionRuntimeHTTP(t *testing.T) {
 		t.Run(fmt.Sprint(enabled), func(t *testing.T) { runFamilyProductionRuntime(t, enabled) })
 	}
 }
-func runFamilyProductionRuntime(t *testing.T, enabled bool) {
+func TestFamilyIgnoreProductionRuntimeActiveChildStop(t *testing.T) {
+	runFamilyProductionRuntime(t, true, true)
+}
+func runFamilyProductionRuntime(t *testing.T, enabled bool, activeStop ...bool) {
+	stopActive := len(activeStop) == 1 && activeStop[0]
 	dsn := os.Getenv("JELEE_TEST_DATABASE_URL")
 	if dsn == "" {
 		if os.Getenv("JELEE_REQUIRE_INTEGRATION") == "true" {
@@ -82,6 +87,9 @@ func runFamilyProductionRuntime(t *testing.T, enabled bool) {
 	t.Setenv("TMP", scratch)
 	t.Setenv("TEMP", scratch)
 	files := map[string]string{".jeleeignore": "!keep.mkv\ncustom.tmp", ".ignore": "*.mkv", "keep.mkv": "retained", "drop.mkv": "excluded", "custom.tmp": "custom", "hidden/.ignore": "", "hidden/movie.nfo": "excluded malformed NFO"}
+	if stopActive {
+		files[".ignore"] = strings.Repeat("(a|aa){1,100}b\n", 4000)
+	}
 	for name, data := range files {
 		p := filepath.Join(mediaRoot, filepath.FromSlash(name))
 		if err := os.MkdirAll(filepath.Dir(p), 0700); err != nil {
@@ -120,7 +128,9 @@ func runFamilyProductionRuntime(t *testing.T, enabled bool) {
 	if err != nil {
 		t.Fatal("valid runtime config")
 	}
-	application := New(cfg, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	ownedLifetime := newLifetime(logger)
+	application := newWithLifetime(cfg, logger, ownedLifetime)
 	if application.Err() != nil {
 		t.Fatal("runtime graph construction")
 	}
@@ -193,6 +203,49 @@ func runFamilyProductionRuntime(t *testing.T, enabled bool) {
 		}
 		if status != 202 || json.Unmarshal(raw, &job) != nil || !domain.ValidID(job.Data.ID) {
 			t.Fatal("family HTTP admission", status)
+		}
+		if stopActive {
+			if ownedLifetime.ignoreService == nil {
+				t.Fatal("formal ignore service missing")
+			}
+			helper, ok := ownedLifetime.ignoreService.backend.(*process.IgnoreRunner)
+			if !ok {
+				t.Fatal("formal native helper missing")
+			}
+			deadline := time.Now().Add(5 * time.Second)
+			for helper.Stats().Started < 2 || helper.Stats().Active != 1 {
+				if time.Now().After(deadline) {
+					t.Fatal("scan child was not observed active")
+				}
+				time.Sleep(time.Millisecond)
+			}
+			stopCtx, cancelStop := context.WithTimeout(context.Background(), 5*time.Second)
+			err := application.Stop(stopCtx)
+			cancelStop()
+			stopped = true
+			if err != nil || helper.Stats().Active != 0 || ownedLifetime.ignoreService.Available() || ownedLifetime.ignoreService.Close() != nil {
+				t.Fatal("active helper runtime stop did not join and close", err)
+			}
+			var baseline, owners int64
+			var state string
+			if err := store.Pool.QueryRow(ctx, `SELECT (SELECT count(*) FROM library_inventory_baseline),(SELECT count(*) FROM jobs WHERE owner IS NOT NULL),state FROM jobs WHERE id=$1::uuid`, job.Data.ID).Scan(&baseline, &owners, &state); err != nil || baseline != 0 || owners != 0 || state != domain.JobQueued {
+				t.Fatal("stopped scan published or retained owner", err, state)
+			}
+			if entries, err := os.ReadDir(scratch); err != nil || len(entries) != 0 {
+				t.Fatal("active helper stop left temporary input")
+			}
+			for name, data := range files {
+				actual, err := os.ReadFile(filepath.Join(mediaRoot, filepath.FromSlash(name)))
+				if err != nil || string(actual) != data {
+					t.Fatal("active helper stop modified original files")
+				}
+			}
+			response, err := client.Get("http://" + address + "/readyz")
+			if err == nil {
+				response.Body.Close()
+				t.Fatal("stopped HTTP listener remained open")
+			}
+			return
 		}
 		if status, _ := request("POST", path, body, "family-runtime", grant.Data.Token); status != 200 {
 			t.Fatal("family HTTP replay", status)

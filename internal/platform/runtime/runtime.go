@@ -23,7 +23,10 @@ import (
 )
 
 func New(cfg config.Config, logger *slog.Logger) *fx.App {
-	lifetime := newLifetime(logger)
+	return newWithLifetime(cfg, logger, newLifetime(logger))
+}
+
+func newWithLifetime(cfg config.Config, logger *slog.Logger, lifetime *lifetime) *fx.App {
 	return build(lifetime, fx.NopLogger, fx.Supply(cfg, logger), fx.Provide(
 		func(c config.Config) (*postgres.Store, error) {
 			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -49,6 +52,7 @@ func New(cfg config.Config, logger *slog.Logger) *fx.App {
 			if err != nil {
 				return nil, err
 			}
+			lifetime.ignoreService = ignoring
 			lifetime.closeIgnore = ignoring.Close
 			probing, err := newProbeService(startup, c.EnableProbe, store, prepareProductionProbe)
 			if err != nil {
@@ -129,6 +133,7 @@ type serviceWorker interface {
 // One Fx hook owns all resources. Separate hooks would allow an HTTP drain
 // deadline to make Fx skip worker cancellation and pool cleanup entirely.
 type lifetime struct {
+	ignoreService   *familyIgnoreService
 	ctx             context.Context
 	cancel          context.CancelFunc
 	worker          serviceWorker

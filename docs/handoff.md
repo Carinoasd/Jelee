@@ -656,3 +656,11 @@ test_nfo_worker.py新增JELEE_FAMILY_IGNORE_ACCEPTANCE模式，沿用1,000與100
 兩規模全部passed/sourceUnchanged/testArtifactsCleaned。1,000三輪parse400/0/17、probe child100/0/0、圖片最後23changed/477unchanged，時間36.664/18.389/19.442秒；100三輪parse40/0/3、probe10/0/0、圖片4changed/46unchanged，4.434/2.778/3.682秒。每輪仍兩次完整讀/hash全部納入NFO（800/80次），不能稱只讀變更文件。兩規模取消恢復與SIGTERM都通過，API屏障在完成實際NFO讀取後，沒有活躍helper中途取消聲明。原合成素材/影片hash保持，僅指定fixture受控替換，UUID容器/映像/schema清理。證據docs/evidence/ignore-family-mixed.json及合同docs/ignore-family-mixed.md。
 
 本機混合exec77877與Windows全Go/vet/build/YAMLexec94698已結束；Linux runtime/jobs/architecture race已通過1.105/1.356/1.215秒，exec73628已結束，所有本機測試handles均結束。Windows probe tag與Python語法檢查通過，無Windows真PG聲明。前一正式服務版本8a28 PG/foundation/CodeQL已遠端通過，完整brand仍失敗；目前de807 CI還有PG/CodeQL在跑。接續活躍helper取消服務完整鏈、壓力穩定性與其他舊格式精確來源，G22保持部分完成。另已核對其他舊格式的公開來源，尚未找到可證明其解析語意的固定實作；目前搜尋的缺失不足以證明所有歷史版本不存在，仍不可猜實作。
+
+### 活躍忽略 child 的服務取消與正式 runtime 停止
+
+公開New原簽名委派private newWithLifetime，lifetime保留其已有ignoreService私有引用，讓正式圖的native Stats能被验收觀察，無假backend/repository/result。TestFamilyIgnoreProductionRuntimeActiveChildStop由真登入／HTTP提交／PG／正式worker啟動heavy4,000條來源，觀察health之後Started>=2且Active1，再Fx.Stop限5秒；child0、temp空、HTTP關閉、baseline0、owner0、jobqueued，所有fixture保持。初次字串插入誤加到重啟區域造成job作用域編譯錯誤，移除多餘測試塊，正式guard未改。
+
+增加TestFamilyIgnoreServiceNativeActiveChildCancellation兩情境：真helper Active1時ctx取消無partial結果且可重用健康服務；Close先Availablefalse但等待讀鎖/child join，不提前移除temp，cancel後才清理。Windows native兩情境0.652秒pass，probe tag服務native0.501秒pass。Linux真PG/runtime active-child-stop 6頂層pass38.184秒；final active-child-cancel-close 7頂層pass0fail0skip31.625秒sourceUnchanged=true，證據docs/evidence/ignore-family-active-child.json，合同docs/ignore-family-active-child.md。兩native模態不使用race子程序（正式2GiB AS與race reservation不相容），Linux runtime/jobs/architecture race通過1.097/1.357/1.405秒。
+
+所有native handles82569/57795與vet/build76268、Linux72410已結束。Windows全Go final通過，exec18841已結束，沒有本機測試handle。formal HTTP cancel flag→活躍helper、壓力長穩與其他舊格式仍需驗收，G22保持部分完成。前一混合版本fd85384f5c已推PR46，沒有新分支。
