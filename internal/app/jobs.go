@@ -7,6 +7,7 @@ import (
 )
 
 type Jobs struct {
+	cancellationNotifier  JobCancellationNotifier
 	ignoreAvailable       func() bool
 	familyIgnoreAvailable func() bool
 	repository            JobRepository
@@ -84,7 +85,11 @@ func (j *Jobs) Cancel(ctx context.Context, actor domain.Actor, id string) (domai
 	if err := ctx.Err(); err != nil {
 		return domain.Job{}, err
 	}
-	return j.repository.CancelJob(ctx, actor, id)
+	job, err := j.repository.CancelJob(ctx, actor, id)
+	if err == nil && job.ID == id && job.CancelRequested && job.State == domain.JobRunning && j.cancellationNotifier != nil {
+		j.cancellationNotifier.NotifyJobCancellation(id)
+	}
+	return job, err
 }
 
 func (j *Jobs) Get(ctx context.Context, actor domain.Actor, id string) (domain.Job, error) {

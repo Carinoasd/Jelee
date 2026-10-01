@@ -664,3 +664,25 @@ test_nfo_worker.py新增JELEE_FAMILY_IGNORE_ACCEPTANCE模式，沿用1,000與100
 增加TestFamilyIgnoreServiceNativeActiveChildCancellation兩情境：真helper Active1時ctx取消無partial結果且可重用健康服務；Close先Availablefalse但等待讀鎖/child join，不提前移除temp，cancel後才清理。Windows native兩情境0.652秒pass，probe tag服務native0.501秒pass。Linux真PG/runtime active-child-stop 6頂層pass38.184秒；final active-child-cancel-close 7頂層pass0fail0skip31.625秒sourceUnchanged=true，證據docs/evidence/ignore-family-active-child.json，合同docs/ignore-family-active-child.md。兩native模態不使用race子程序（正式2GiB AS與race reservation不相容），Linux runtime/jobs/architecture race通過1.097/1.357/1.405秒。
 
 所有native handles82569/57795與vet/build76268、Linux72410已結束。Windows全Go final通過，exec18841已結束，沒有本機測試handle。formal HTTP cancel flag→活躍helper、壓力長穩與其他舊格式仍需驗收，G22保持部分完成。前一混合版本fd85384f5c已推PR46，沒有新分支。
+
+### HTTP 取消與本機即時通知修復（待完整PG回歸）
+
+首次HTTP active cancel測試415（fixture請求未帶JSON），修正{}後仍fail：工作Cancelled但Stats Started3/Cancelled0/TimedOut0，兩次掃描helper自行完成，沒有中斷。增加process.Stats Cancelled/TimedOut，只記OS child已開始後select先觀察ctx取消/逾時的控制分支，不計prestart或先正常退出；不是OS終止原因獨立量測。native ProcessRunner生命周期新增cancel1/timeout1斷言，Windows0.923秒pass；Linuxprocess race152.824秒pass。
+
+app.JobCancellationNotifier選用port接ScanServices，只有CancelJob授權提交成功、同ID Running/CancelRequestedtrue才通知。runtime lifetime／probeWorker轉送runner。runner執行前註冊cancelCause，map/mutex有界於執行workers；defer清理按lease.Generation防舊owner刪新註冊。無新goroutine，DB旗標/lease/publish fence不變，其他instance/未註冊仍fallback heartbeat。app取消auth/txn/queued/terminal專項；worker無heartbeat進展的取消、無關ID與世代cleanup專項pass。
+
+Native真PG/runtime http-child-cancel-notifier 8頂層pass39.313秒，取消55ms、cancelStops1/timeout0/started2。以預設30秒lease補final專項與process來源hash，http-child-cancel-final 8頂層pass0fail0skip76.058秒sourceUnchanged=true，取消69ms、cancel1/timeout0/started2，Availabletrue、child0、baseline0/owner0，最後stop/temp/HTTP/fixture保持通過。證據docs/evidence/ignore-family-http-cancel.json、合同docs/ignore-family-http-cancel.md。
+
+所有先前native/race handles35628/94204/28692/5620/81574/2880/42357已結束。Linux app/runtime/jobs/architecture race final1.042/1.109/1.372/1.366秒pass；全vet/三buildpass。Windows全Go與probe tag final仍exec96770待末輸出。完整PG race local-cancel-full正在exec59172，必須poll同handle，不可重啟/改PG來源；目前48頂層pass0fail。來源碼凍結直到本輪驗證結束；文件可更新。29e70a0b89前一版本的PG/CodeQL/功能CI已通過，完整brand仍fail。本次尚未提交，接續完整回歸完成後同PR46推送，再壓力長穩與其他舊格式。
+
+### 本輪完整 PG 回歸觀察更新
+
+Windows 全 Go 與 probe tag exec96770 已完成，exit0；probe tag runtime0.692秒。完整 PG race local-cancel-full exec59172 已 terminal：外層600.067秒逾時exit124，229頂層pass、0測試fail、0skip、sourceUnchanged=true，不能當作完整通過。確認沒有殘留 go/postgres.test 程序後重跑。local-cancel-full-extended exec55028 因發現 Go 自身仍預設10分鐘期限，明確停止當次test PID2581314；exit1/48.515秒/15頂層pass，屬人工中止而非測試斷言失敗，證據保留。
+
+目前唯一完整PG handle是exec72180，mode local-cancel-full-final：Go -timeout=20m，外層1500秒。來源及斷言不變；需poll同handle，尚未完成不可提交本階段或宣稱全PG通過。測試內容包含全部^Test；延長期限不省略測試。下一步取得末輸出後保存摘要、更新本段與取消合同、核對保護檔與門禁，再以命令級作者提交／推送同PR46。
+
+### 本機取消修復完整回歸完成
+
+exec72180已結束exit0：252頂層pass、0fail／skip、344.936秒、sourceUnchanged=true。摘要已保存docs/evidence/ignore-local-cancellation-postgres.json。所有本輪測試handles均terminal，無需重啟或poll舊handle。上述待完成記錄為當時觀察；本段為最新結果。Windows全Go／probe tag、Linux相關race／vet／三build、增量品牌0新增違規／100allowed與gitignore0違規已通過，LICENSE與requirements-source SHA256保持。已修正G22.4／G22.5表格中的過期重掃待驗收文字，需求仍部分完成。
+
+本段準備以命令級Carinoasd身份提交並推送現有分支、更新並附PR46，禁止merge/tag/release/force-push。下一段先驗證原生合併服務實際併發飽和、busy後健康及多輪取消重用／清理，再補跨實例旗標取消及其他舊格式來源；不要把短測试當長穩證據。

@@ -10,6 +10,7 @@ import (
 // ScanServices binds trusted local readers and repositories. Public submission
 // methods accept only intent; callers cannot choose parser or tool identities.
 type ScanServices struct {
+	CancellationNotifier  JobCancellationNotifier
 	IgnoreAvailable       func() bool
 	FamilyIgnoreAvailable func() bool
 	Probes                ProbeJobRepository
@@ -54,6 +55,7 @@ func NewJobsWithScanStages(repository JobRepository, policy domain.JobPolicy, st
 	if services.NFOAvailable() && j.nfoIdentity == nil {
 		return nil, domain.ErrInvalid
 	}
+	j.cancellationNotifier = services.CancellationNotifier
 	j.scanRepository, j.nfoAdmin, j.nfoQueries, j.imageQueries = stages, services.NFOAdmin, services.NFOQueries, services.Images
 	j.nfoAvailable = services.NFOAvailable
 	j.ignoreAvailable = services.IgnoreAvailable

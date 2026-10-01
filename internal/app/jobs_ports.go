@@ -34,3 +34,10 @@ type JobExecutionRepository interface {
 type InventoryScanner interface {
 	ScanDirectory(context.Context, domain.ScanDirectory, func(domain.ScanBatch) error) error
 }
+
+// JobCancellationNotifier promptly signals local work after the repository has
+// committed an authorized cancellation. Durable flags and lease fences remain
+// authoritative when the owner is elsewhere or no local execution exists.
+type JobCancellationNotifier interface {
+	NotifyJobCancellation(string)
+}

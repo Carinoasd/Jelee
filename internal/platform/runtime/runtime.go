@@ -70,6 +70,7 @@ func newWithLifetime(cfg config.Config, logger *slog.Logger, lifetime *lifetime)
 			}
 			validation.logger = l
 			service, err := app.NewJobsWithScanStages(store, c.Jobs.Policy(), store, app.ScanServices{
+				CancellationNotifier:  lifetime,
 				FamilyIgnoreAvailable: ignoring.Available,
 				IgnoreAvailable:       func() bool { return goruntime.GOOS == "linux" || goruntime.GOOS == "windows" },
 				Probes:                store, ProbeIdentity: probing.identity, ProbeCapability: probing.Capability,
@@ -267,4 +268,10 @@ func (l *lifetime) shutdown(ctx context.Context) {
 		return // Do not close a store that workers may still be using.
 	}
 	l.closePool()
+}
+
+func (l *lifetime) NotifyJobCancellation(id string) {
+	if notifier, ok := l.worker.(app.JobCancellationNotifier); ok {
+		notifier.NotifyJobCancellation(id)
+	}
 }

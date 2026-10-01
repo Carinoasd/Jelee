@@ -33,10 +33,14 @@ func TestFamilyIgnoreProductionRuntimeHTTP(t *testing.T) {
 	}
 }
 func TestFamilyIgnoreProductionRuntimeActiveChildStop(t *testing.T) {
-	runFamilyProductionRuntime(t, true, true)
+	runFamilyProductionRuntime(t, true, "stop")
 }
-func runFamilyProductionRuntime(t *testing.T, enabled bool, activeStop ...bool) {
-	stopActive := len(activeStop) == 1 && activeStop[0]
+func TestFamilyIgnoreProductionRuntimeActiveChildHTTPCancel(t *testing.T) {
+	runFamilyProductionRuntime(t, true, "cancel")
+}
+func runFamilyProductionRuntime(t *testing.T, enabled bool, activeStop ...string) {
+	stopActive := len(activeStop) == 1
+	cancelActive := stopActive && activeStop[0] == "cancel"
 	dsn := os.Getenv("JELEE_TEST_DATABASE_URL")
 	if dsn == "" {
 		if os.Getenv("JELEE_REQUIRE_INTEGRATION") == "true" {
@@ -89,6 +93,9 @@ func runFamilyProductionRuntime(t *testing.T, enabled bool, activeStop ...bool) 
 	files := map[string]string{".jeleeignore": "!keep.mkv\ncustom.tmp", ".ignore": "*.mkv", "keep.mkv": "retained", "drop.mkv": "excluded", "custom.tmp": "custom", "hidden/.ignore": "", "hidden/movie.nfo": "excluded malformed NFO"}
 	if stopActive {
 		files[".ignore"] = strings.Repeat("(a|aa){1,100}b\n", 4000)
+		if cancelActive {
+			files[".ignore"] = strings.Repeat(strings.Repeat("(a|aa){1,100}", 4)+"b\n", 4000)
+		}
 	}
 	for name, data := range files {
 		p := filepath.Join(mediaRoot, filepath.FromSlash(name))
@@ -219,6 +226,38 @@ func runFamilyProductionRuntime(t *testing.T, enabled bool, activeStop ...bool) 
 				}
 				time.Sleep(time.Millisecond)
 			}
+			if cancelActive {
+				started := time.Now()
+				if status, _ := request("POST", "/api/v1/jobs/"+job.Data.ID+"/cancel", "{}", "", grant.Data.Token); status != 200 {
+					t.Fatal("active scan HTTP cancellation", status)
+				}
+				deadline := time.Now().Add(15 * time.Second)
+				for {
+					var current domain.Job
+					if err := store.Pool.QueryRow(ctx, `SELECT state,missing FROM jobs WHERE id=$1::uuid`, job.Data.ID).Scan(&current.State, &current.Missing); err != nil {
+						t.Fatal("cancelled job query")
+					}
+					if current.State == domain.JobCancelled {
+						if current.Missing != 0 {
+							t.Fatal("cancelled scan reported missing")
+						}
+						break
+					}
+					if current.State == domain.JobFailed || current.State == domain.JobSucceeded || time.Now().After(deadline) {
+						t.Fatal("HTTP cancellation did not finish safely", current.State)
+					}
+					time.Sleep(10 * time.Millisecond)
+				}
+				stats := helper.Stats()
+				if stats.Active != 0 || stats.Cancelled != 1 || stats.TimedOut != 0 || !ownedLifetime.ignoreService.Available() {
+					t.Fatal("HTTP user cancellation did not interrupt child while preserving service", stats)
+				}
+				var baseline, owners int64
+				if err := store.Pool.QueryRow(ctx, `SELECT (SELECT count(*) FROM library_inventory_baseline),(SELECT count(*) FROM jobs WHERE owner IS NOT NULL)`).Scan(&baseline, &owners); err != nil || baseline != 0 || owners != 0 {
+					t.Fatal("HTTP cancellation published baseline or retained lease")
+				}
+				fmt.Printf("{\"httpCancellation\":true,\"milliseconds\":%d,\"cancelStops\":%d,\"timeoutStops\":%d,\"childStarts\":%d}\n", time.Since(started).Milliseconds(), stats.Cancelled, stats.TimedOut, stats.Started)
+			}
 			stopCtx, cancelStop := context.WithTimeout(context.Background(), 5*time.Second)
 			err := application.Stop(stopCtx)
 			cancelStop()
@@ -228,7 +267,7 @@ func runFamilyProductionRuntime(t *testing.T, enabled bool, activeStop ...bool) 
 			}
 			var baseline, owners int64
 			var state string
-			if err := store.Pool.QueryRow(ctx, `SELECT (SELECT count(*) FROM library_inventory_baseline),(SELECT count(*) FROM jobs WHERE owner IS NOT NULL),state FROM jobs WHERE id=$1::uuid`, job.Data.ID).Scan(&baseline, &owners, &state); err != nil || baseline != 0 || owners != 0 || state != domain.JobQueued {
+			if err := store.Pool.QueryRow(ctx, `SELECT (SELECT count(*) FROM library_inventory_baseline),(SELECT count(*) FROM jobs WHERE owner IS NOT NULL),state FROM jobs WHERE id=$1::uuid`, job.Data.ID).Scan(&baseline, &owners, &state); err != nil || baseline != 0 || owners != 0 || state != domain.JobQueued && (!cancelActive || state != domain.JobCancelled) {
 				t.Fatal("stopped scan published or retained owner", err, state)
 			}
 			if entries, err := os.ReadDir(scratch); err != nil || len(entries) != 0 {

@@ -54,22 +54,24 @@ var (
 )
 
 type Runner struct {
-	repository       app.JobExecutionRepository
-	scanner          app.InventoryScanner
-	options          Options
-	logger           *slog.Logger
-	mu               sync.Mutex
-	started          bool
-	cancel           context.CancelFunc
-	done             chan struct{}
-	probeRepository  app.ProbeExecutionRepository
-	probeGate        chan struct{}
-	probeIdentity    string
-	probeUnavailable atomic.Bool
-	nfoRepository    app.NFOExecutionRepository
-	nfoGate          chan struct{}
-	nfoIdentity      domain.NFOIdentity
-	nfoUnavailable   atomic.Bool
+	cancellationMu       sync.Mutex
+	runningCancellations map[string]runningCancellation
+	repository           app.JobExecutionRepository
+	scanner              app.InventoryScanner
+	options              Options
+	logger               *slog.Logger
+	mu                   sync.Mutex
+	started              bool
+	cancel               context.CancelFunc
+	done                 chan struct{}
+	probeRepository      app.ProbeExecutionRepository
+	probeGate            chan struct{}
+	probeIdentity        string
+	probeUnavailable     atomic.Bool
+	nfoRepository        app.NFOExecutionRepository
+	nfoGate              chan struct{}
+	nfoIdentity          domain.NFOIdentity
+	nfoUnavailable       atomic.Bool
 }
 
 func New(repository app.JobExecutionRepository, scanner app.InventoryScanner, opts Options, logger *slog.Logger) (*Runner, error) {
@@ -275,6 +277,7 @@ func (r *Runner) monitor(ctx context.Context, lease domain.JobLease, cancelJob c
 func (r *Runner) run(serviceCtx context.Context, lease domain.JobLease) {
 	ctx, cancelJob := context.WithCancelCause(serviceCtx)
 	defer cancelJob(nil)
+	defer r.registerCancellation(lease, cancelJob)()
 	hbCtx, stopHeartbeat := context.WithCancel(ctx)
 	started, monitored := make(chan struct{}), make(chan struct{})
 	go r.monitor(hbCtx, lease, cancelJob, started, monitored)
