@@ -994,3 +994,11 @@ G14.1／3／4仍partial，336計數4done／182partial／150blocked不變。檔�
 真TLS正式adapter＋app、六路由profile矩陣與應用回退／身份／slice隔離驗收通過；限制首語言的接線負例1leaf fail，finally逐位元恢復與四包回歸通過。Windowsfull29pkg／3058pass事件含父／435略過逐項與原清單相同；vet／build、Linux六pkg race通過（摘要未列skip）。增量brand0／181、full14735／186仍fail、gitignore0。G14.5 blocked→partial，336計數4done／183partial／149blocked。詳見tmdb-language-fallback及evidence。
 
 媒體庫語言設定／優先序、圖片偏好、其他文字、NFO／人工值／鎖、library／worker寫入與完整前端／矩陣仍缺。五核心3271行保持未修改，原具體批次授權仍待答覆。前HEAD Tests／CodeQL／Format／OpenAPI success，ABI failure，兩foundation當時live；新HEAD要自身CI，不合併、不新開branch，同PR46續推。下一段接媒體庫偏好與寫入保護。
+
+### G14 媒體庫語言持久化與查詢接線
+
+接續24931eb3ee，新增schema19庫語言／revision，原001–018不改。GET／PUT metadata-preferences管理員API驗證四語／UUID／嚴格JSON／expectedRevision，短交易重核session與admin，列鎖及版本比較防覆蓋，成功更新同交易前後稽核。降版表鎖且任何更新過的設定均拒回復，含改回CN。runtime以不可變新app服務綁Store，供應商沿用原生命週期。六個TMDB路由增加libraryId，明確語言→指定库→可信user→CN；即使明確語言也驗庫與session，失敗不外呼，DB交易不等網路。
+
+HTTP六路由／偏好授權／strict body／409及真HTTP＋app＋PG接線、競爭更新、audits、約束、升降版／保存設定驗收通過。停用正式repo revision比較的負例1leaf fail，finally逐位元復原，四項PG race專項0skip PASS。初輪完整PG兩項舊schema7/current整列快照因新欄位失敗；只排除新增兩欄，所有原欄位維持比對，新欄位另有專項遷移測試；測試fixture另補配置所需DB URL與既有支援密碼預設，產品驗證不放寬。最終完整PG race711pass事件含父／0fail／0skip，346.150秒。Windows全Go29pkg／3071pass事件含父／439skip；原435身份逐項相同，另4新PG專項已在真PG完整執行通過。vet／產品build及Linux六包race通過。
+
+G14.5仍partial，336計數4done／183partial／149blocked。增量品牌0／181、full14735／186仍fail、gitignore0；來源hash／LICENSE／requirements／五核心逐位元與001–018 Git正規化內容、local links／無C#diff已核對。五核心3271行仍待原具體授權，沒有改刪。圖像語言／前端、其他文字、NFO／人工值／鎖、library／worker寫入等仍缺；下一段圖片語言偏好與候選。前HEAD Tests／CodeQL／Format／OpenAPI success，ABI failure，foundation當時live；本HEAD要自身CI，同branch同PR46繁中續推，不合併。詳見tmdb-library-language与evidence；下一段細案在忽略的 .testdata/metadata-image-language-next.md。

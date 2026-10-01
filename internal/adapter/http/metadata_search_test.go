@@ -58,7 +58,7 @@ func TestMovieSearchHTTPErrorAndSpecification(t *testing.T) {
 	}
 	path := "/api/v1/metadata/tmdb/movies"
 	op := Specification(cfg)["paths"].(map[string]any)[path].(map[string]any)["get"].(map[string]any)
-	if len(op["security"].([]any)) != 1 || len(op["parameters"].([]any)) != 3 {
+	if len(op["security"].([]any)) != 1 || len(op["parameters"].([]any)) != 4 {
 		t.Fatal("search specification missing authority/inputs")
 	}
 	cfg.TMDBAPIKey = ""

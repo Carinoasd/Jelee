@@ -9,16 +9,16 @@ import (
 )
 
 func (s *Server) episodeRoutes(r chi.Router) {
-	r.Get("/api/v1/metadata/tmdb/series/{id}/seasons/{season}", s.accountEndpoint(true, true, func(w http.ResponseWriter, r *http.Request, _ domain.Actor) (any, int, error) {
-		series, season, _, language, err := metadataEpisodeInput(r, false)
+	r.Get("/api/v1/metadata/tmdb/series/{id}/seasons/{season}", s.accountEndpoint(true, true, func(w http.ResponseWriter, r *http.Request, a domain.Actor) (any, int, error) {
+		series, season, _, language, err := s.metadataEpisodeInput(r, a, false)
 		if err != nil {
 			return nil, 0, err
 		}
 		value, err := s.metadata.Season(r.Context(), series, season, language)
 		return value, http.StatusOK, err
 	}))
-	r.Get("/api/v1/metadata/tmdb/series/{id}/seasons/{season}/episodes/{episode}", s.accountEndpoint(true, true, func(w http.ResponseWriter, r *http.Request, _ domain.Actor) (any, int, error) {
-		series, season, episode, language, err := metadataEpisodeInput(r, true)
+	r.Get("/api/v1/metadata/tmdb/series/{id}/seasons/{season}/episodes/{episode}", s.accountEndpoint(true, true, func(w http.ResponseWriter, r *http.Request, a domain.Actor) (any, int, error) {
+		series, season, episode, language, err := s.metadataEpisodeInput(r, a, true)
 		if err != nil {
 			return nil, 0, err
 		}
@@ -27,12 +27,15 @@ func (s *Server) episodeRoutes(r chi.Router) {
 	}))
 }
 
-func metadataEpisodeInput(r *http.Request, episode bool) (int32, int32, int32, string, error) {
-	query, err := strictQuery(r, "language")
+func (s *Server) metadataEpisodeInput(r *http.Request, a domain.Actor, episode bool) (int32, int32, int32, string, error) {
+	query, err := strictQuery(r, "language", "libraryId")
 	if err != nil {
 		return 0, 0, 0, "", err
 	}
-	language := metadataRequestLanguage(r, query)
+	language, err := s.metadataLibraryLanguage(r, query, a)
+	if err != nil {
+		return 0, 0, 0, "", err
+	}
 	var numbers [3]int32
 	for i, name := range []string{"id", "season", "episode"} {
 		if i == 2 && !episode {

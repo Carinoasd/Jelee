@@ -11,14 +11,18 @@ import (
 func (s *Server) metadataRoutes(r chi.Router) {
 	r.Group(func(r chi.Router) {
 		r.Use(s.accountBudget, s.authenticate)
+		s.metadataPreferenceRoutes(r)
 		s.seriesRoutes(r)
 		s.episodeRoutes(r)
-		r.Get("/api/v1/metadata/tmdb/movies", s.accountEndpoint(true, true, func(w http.ResponseWriter, r *http.Request, _ domain.Actor) (any, int, error) {
-			query, err := strictQuery(r, "query", "year", "language")
+		r.Get("/api/v1/metadata/tmdb/movies", s.accountEndpoint(true, true, func(w http.ResponseWriter, r *http.Request, a domain.Actor) (any, int, error) {
+			query, err := strictQuery(r, "query", "year", "language", "libraryId")
 			if err != nil {
 				return nil, 0, err
 			}
-			language := metadataRequestLanguage(r, query)
+			language, err := s.metadataLibraryLanguage(r, query, a)
+			if err != nil {
+				return nil, 0, err
+			}
 			year := 0
 			if raw, exists := query["year"]; exists {
 				parsed, err := strconv.ParseInt(raw, 10, 32)
@@ -30,12 +34,15 @@ func (s *Server) metadataRoutes(r chi.Router) {
 			matches, err := s.metadata.SearchMovies(r.Context(), domain.MovieSearchInput{Query: query["query"], Year: year, Language: language})
 			return matches, http.StatusOK, err
 		}))
-		r.Get("/api/v1/metadata/tmdb/movies/{id}", s.accountEndpoint(true, true, func(w http.ResponseWriter, r *http.Request, _ domain.Actor) (any, int, error) {
-			query, err := strictQuery(r, "language")
+		r.Get("/api/v1/metadata/tmdb/movies/{id}", s.accountEndpoint(true, true, func(w http.ResponseWriter, r *http.Request, a domain.Actor) (any, int, error) {
+			query, err := strictQuery(r, "language", "libraryId")
 			if err != nil {
 				return nil, 0, err
 			}
-			language := metadataRequestLanguage(r, query)
+			language, err := s.metadataLibraryLanguage(r, query, a)
+			if err != nil {
+				return nil, 0, err
+			}
 			raw := chi.URLParam(r, "id")
 			id, err := strconv.ParseInt(raw, 10, 32)
 			if err != nil || id <= 0 || raw != strconv.FormatInt(id, 10) || !domain.ValidMetadataLanguage(language) {
@@ -88,4 +95,5 @@ func metadataSpecification(paths, schemas map[string]any) {
 	schemas["MovieCandidate"].(map[string]any)["required"] = append(schemas["MovieCandidate"].(map[string]any)["required"].([]string), "overviewSource")
 	seriesSpecification(paths, schemas)
 	episodeSpecification(paths, schemas)
+	metadataPreferencesSpecification(paths, schemas)
 }

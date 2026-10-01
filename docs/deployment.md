@@ -14,7 +14,11 @@ docker compose -f deploy/docker-compose.yml up --build -d
 
 Compose 内部网络使用 sslmode=disable，仅用于此隔离网络；远程数据库应使用证书验证。HTTP 默认只向宿主环回发布。启用直投还需要 `JELEE_ENABLE_DIRECT=true` 与有效 native 会话，不能匿名访问媒体。令牌与媒体登记操作使用容器内 `/jelee-cli`。
 
-## 本次验证
+## 媒體庫語言設定的升級
+
+接續版本要求乾淨schema19。先執行資料庫遷移，再啟動新的服務；001–018保持原樣。第19版新增媒體庫語言及更新版本，任何設定更新過的媒體庫都會阻止降版，以保留使用者設定及版本。介面與回復限制見[媒體庫語言](tmdb-library-language.md)。以下仍是首階段容器的歷史驗證。
+
+## 首階段容器验证
 
 2026-09-30 至 2026-10-01 在现有 WSL Docker 29.7.2 上构建并验证本地 `jelee/jelee:codex-current-test`，源码提交为 `f21d15668477bd5806e7e525149bfb373d9a68bd`，没有推送。构建使用 `docker build --network host`；这仅用于处理本机下载网络问题，不能据此改变部署网络边界。
 

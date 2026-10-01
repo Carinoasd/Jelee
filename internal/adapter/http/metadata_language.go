@@ -17,3 +17,20 @@ func metadataRequestLanguage(r *http.Request, query map[string]string) string {
 	}
 	return "zh-CN"
 }
+
+func (s *Server) metadataLibraryLanguage(r *http.Request, query map[string]string, actor domain.Actor) (string, error) {
+	language := metadataRequestLanguage(r, query)
+	if !domain.ValidMetadataLanguage(language) {
+		return "", domain.ErrInvalid
+	}
+	if library, exists := query["libraryId"]; exists {
+		preferences, err := s.metadata.LibraryPreferences(r.Context(), actor, library)
+		if err != nil {
+			return "", err
+		}
+		if _, overridden := query["language"]; !overridden {
+			language = preferences.Language
+		}
+	}
+	return language, nil
+}

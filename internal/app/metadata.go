@@ -56,7 +56,10 @@ func (m *Metadata) SearchMovies(ctx context.Context, input domain.MovieSearchInp
 	return result, nil
 }
 
-type Metadata struct{ provider MetadataProvider }
+type Metadata struct {
+	provider    MetadataProvider
+	preferences MetadataPreferencesRepository
+}
 
 func NewMetadata(provider MetadataProvider) (*Metadata, error) {
 	if provider == nil {

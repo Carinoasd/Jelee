@@ -10,12 +10,15 @@ import (
 
 // Called inside the same admission/authentication group as movie previews.
 func (s *Server) seriesRoutes(r chi.Router) {
-	r.Get("/api/v1/metadata/tmdb/series", s.accountEndpoint(true, true, func(w http.ResponseWriter, r *http.Request, _ domain.Actor) (any, int, error) {
-		query, err := strictQuery(r, "query", "year", "language")
+	r.Get("/api/v1/metadata/tmdb/series", s.accountEndpoint(true, true, func(w http.ResponseWriter, r *http.Request, a domain.Actor) (any, int, error) {
+		query, err := strictQuery(r, "query", "year", "language", "libraryId")
 		if err != nil {
 			return nil, 0, err
 		}
-		language := metadataRequestLanguage(r, query)
+		language, err := s.metadataLibraryLanguage(r, query, a)
+		if err != nil {
+			return nil, 0, err
+		}
 		year := 0
 		if raw, exists := query["year"]; exists {
 			parsed, err := strconv.ParseInt(raw, 10, 32)
@@ -27,12 +30,15 @@ func (s *Server) seriesRoutes(r chi.Router) {
 		result, err := s.metadata.SearchSeries(r.Context(), domain.SeriesSearchInput{Query: query["query"], Year: year, Language: language})
 		return result, http.StatusOK, err
 	}))
-	r.Get("/api/v1/metadata/tmdb/series/{id}", s.accountEndpoint(true, true, func(w http.ResponseWriter, r *http.Request, _ domain.Actor) (any, int, error) {
-		query, err := strictQuery(r, "language")
+	r.Get("/api/v1/metadata/tmdb/series/{id}", s.accountEndpoint(true, true, func(w http.ResponseWriter, r *http.Request, a domain.Actor) (any, int, error) {
+		query, err := strictQuery(r, "language", "libraryId")
 		if err != nil {
 			return nil, 0, err
 		}
-		language := metadataRequestLanguage(r, query)
+		language, err := s.metadataLibraryLanguage(r, query, a)
+		if err != nil {
+			return nil, 0, err
+		}
 		raw := chi.URLParam(r, "id")
 		id, err := strconv.ParseInt(raw, 10, 32)
 		if err != nil || id <= 0 || raw != strconv.FormatInt(id, 10) || !domain.ValidMetadataLanguage(language) {

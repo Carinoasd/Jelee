@@ -19,9 +19,10 @@ import (
 )
 
 type httpMovieProvider struct {
-	calls    int
-	fail     error
-	language string
+	preferences app.MetadataPreferencesRepository
+	calls       int
+	fail        error
+	language    string
 }
 
 func (p *httpMovieProvider) Season(ctx context.Context, series, season int32, language string) (domain.SeasonCandidate, error) {
@@ -99,6 +100,12 @@ func metadataFixture(t *testing.T, p *httpMovieProvider, locales ...string) (htt
 	service, err := app.NewMetadata(p)
 	if err != nil {
 		t.Fatal(err)
+	}
+	if p.preferences != nil {
+		service, err = service.WithLibraryPreferences(p.preferences)
+		if err != nil {
+			t.Fatal(err)
+		}
 	}
 	handler, err := NewWithJobs(cfg, backend, app.NewCatalog(&fakeRepository{}), &fakeResolver{}, slog.New(slog.NewTextHandler(io.Discard, nil)), accounts, nil, service)
 	if err != nil {
