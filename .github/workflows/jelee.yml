@@ -31,6 +31,19 @@ jobs:
           foreach ($target in @('bootstrap','tools-verify','bootstrap-media','media-tools-verify','fixtures','fixtures-test','toolchain-test','media-toolchain-test','lint','build','test','gitignore-check','brand-scan-incremental')) {
             & ./scripts/make.ps1 $target
           }
+      - name: Required native legacy helper lifecycle on Linux
+        if: runner.os == 'Linux'
+        run: |
+          set -o pipefail
+          .bin/go test -count=1 -timeout=60s -run '^Test(IgnoreRunnerLifecycle|HelperProcess)$' ./internal/platform/process ./internal/platform/legacyignorehelper 2>&1 | tee .testdata/ignore-helper.txt
+      - name: Retain legacy helper evidence
+        if: always() && runner.os == 'Linux'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ignore-helper-${{ runner.os }}
+          path: .testdata/ignore-helper.txt
+          if-no-files-found: error
+          retention-days: 7
       - name: Required Git ignore semantics on Linux
         if: runner.os == 'Linux'
         run: |

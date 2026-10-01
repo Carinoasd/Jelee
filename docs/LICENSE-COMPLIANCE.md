@@ -20,3 +20,7 @@ Jelee 本仓库派生自 [Jellyfin](https://github.com/jellyfin/jellyfin)。审�
 本阶段尚未发布二进制发行包或容器镜像，也没有完成全部旧依赖、Web 资产和新 Go 依赖的分发许可证审计。发行前还需生成完整依赖与许可清单，核对各文件适用授权、源码包可重建性及 Notice。当前文件只记录已确认的来源、保留措施和待完成工作，不代表发布合规审查已结束。
 
 开发工具单独记录在 `docs/THIRD-PARTY-TOOLS.md`；本地 Go 工具链不随应用二进制分发。新增品牌图标或其他二进制须先进入 `docs/binary-allowlist.md`。
+
+## 舊格式 regex 執行依賴
+
+`github.com/dlclark/regexp2 v1.12.0` 為 MIT，Copyright (c) Doug Clark；完整授權保留於 `internal/platform/legacyignorehelper/LICENSE.regexp2`，版本及內容校驗由 go.mod/go.sum 固定。此項不代表其他依賴的整體發行審計已完成。

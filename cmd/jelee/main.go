@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"github.com/MoYuanCN/Jelee/internal/platform/config"
+	"github.com/MoYuanCN/Jelee/internal/platform/legacyignorehelper"
 	"github.com/MoYuanCN/Jelee/internal/platform/logging"
 	"github.com/MoYuanCN/Jelee/internal/platform/proberuntime"
 	"github.com/MoYuanCN/Jelee/internal/platform/runtime"
@@ -11,6 +12,9 @@ import (
 )
 
 func main() {
+	if len(os.Args) > 1 && os.Args[1] == legacyignorehelper.Command {
+		os.Exit(legacyignorehelper.Main())
+	}
 	if len(os.Args) > 1 && os.Args[1] == sandbox.HelperCommand {
 		os.Exit(proberuntime.Helper(os.Args[2:]))
 	}

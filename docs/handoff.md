@@ -243,13 +243,13 @@ ignore_runner_test.go新增unknown模式：先建立旧基線，正式native掃�
 
 準備普通繁中PR接PR27；下一步讀docs/ignore-source-audit.md與requirements-source的G22.2，接legacy格式精確語義實作。PR26最後檢查無功能失敗，但PG CI仍pending；品牌fail。PR27未查。全案仍active。
 
-本段已提交8761c76791，推送普通繁中PR28（https://github.com/MoYuanCN/Jelee/pull/28），已附聊天。目前feat/jelee-ignore-legacy基於PR28，只有本handoff更新未提交。已讀docs/ignore-source-audit.md：固定基底僅找到.ignore入口；Ignore依賴0.2.1庫源码尚未核對，不能直接把自有git matcher套為兼容。需要查明.jellyfinignore/.embyignore對應上游版本或不存在的證據，保留no-follow與庫根邊界差異。接續先讀原始G22.2及固定C# blobs/依賴來源，再寫精確相容合同與測試，不凭名稱假設語義。無活躍handle。
+本段已提交8761c76791，推送普通繁中PR28（https://github.com/MoYuanCN/Jelee/pull/28），已附聊天。目前feat/jelee-ignore-legacy基於PR28，只有本handoff更新未提交。已讀docs/ignore-source-audit.md：固定基底僅找到.ignore入口；Ignore依賴0.2.1庫源码尚未核對，不能直接把自有git matcher套為兼容。需要查明G22.2專用格式A/G22.2專用格式B對應上游版本或不存在的證據，保留no-follow與庫根邊界差異。接續先讀原始G22.2及固定C# blobs/依賴來源，再寫精確相容合同與測試，不凭名稱假設語義。無活躍handle。
 
 ### legacy來源與依賴實測進度（未提交）
 
 已從NuGet 0.2.1 nuspec確認Ignore來源f7c6f07d66d0e1043d901a2ab2f58daca1862066（不是猜tag），下載四個C#檔與MIT LICENSE至.testdata/ignore-upstream；Add-Type以未修改source且無NET8 define編譯，13固定案例實測.NET10.0.11/zh-TW。發現完整/相對路徑锚定不同、ASCII ignorecase、regex group/alternation可匹配、invalid [拋例外。不可直接重用自有matcher宣稱兼容。scripts/test_ignore_upstream.ps1執行前驗四個git blob，輸出docs/evidence/ignore-upstream-semantics.json現已保存；尚未做Go移植。
 
-核對Jellyfin v10.11.0固定877251bcaec3780d44b7657c54684dc28646b1c3的DotIgnore包裝器與本基底不同（目錄只看空白全文、無Trim/逐行異常略過）。目前code search無.jellyfinignore不是所有歷史不存在證明。Emby官方文件4.8 .ignore和4.9 .embyignore不同；公開Emby HEAD仍2018 3.5.3，缺4.9對應source，不能猜。詳docs/ignore-legacy-audit.md與來源連結。
+核對上游A v10.11.0固定877251bcaec3780d44b7657c54684dc28646b1c3的DotIgnore包裝器與本基底不同（目錄只看空白全文、無Trim/逐行異常略過）。目前code search無G22.2專用格式A不是所有歷史不存在證明。上游B官方文件4.8 .ignore和4.9 G22.2專用格式B不同；公開上游B HEAD仍2018 3.5.3，缺4.9對應source，不能猜。詳docs/ignore-legacy-audit.md與來源連結。
 
 下一步可先完成已知本基底.ignore精確合同/差分/獨立matcher，其他兩格式保持未驗證；不要因其來源不足停全案或把需求刪掉。四個固定C#檔已讀，可用本地oracle，不須重下載。無活躍handle，本輪新增audit/evidence/script與handoff皆未提交。
 
@@ -274,3 +274,41 @@ Oracle增加36 engineCases，總241；fixture/evidence同步。Go新增TestEngin
 Oracle253組（205+48）；新增UTF16Pattern處理奇數backslash與非BMP，修正跳脫emoji差分。獨立scripts/ignore-engine-eval工具模組可重現兩候選（主go.mod/go.sum不變）：v1原始8差異、UTF16零；v2原始20、UTF16仍13。docs/evidence/ignore-engine-evaluation.json更新來源雜湊及結果。Windows legacyignore/architecture test、legacyignore vet通過；Linux race同兩包1.118/1.132秒。未接正式matcher或scanner。
 
 v1 runner無回溯stack硬上限、compile無取消、MatchTimeout無context且error洩露輸入，背景clock有延後清理。下一小階段必須補真正有界的執行層（可評估現有process/sandbox或受維護的受限engine改造）；不要只goroutine提前返回。此來源審計與轉換器小階段可獨立PR，base feat/jelee-ignore-worker-acceptance，明示G22.2仍部分未完成。沒有活躍handle。
+
+已提交63eb3c101d並推送普通繁中PR29（https://github.com/MoYuanCN/Jelee/pull/29），已附聊天。現在feat/jelee-ignore-executor自PR29接續；本段handoff與G22.2矩陣更新未提交，保持部分完成。
+
+下一段執行層已檢查現有process/sandbox：process.New正式僅接受ffprobe，NewIsolatedFFprobe由私有Launcher封閉建構；不可解除allowlist去啟動任意程式。Windows Job目前只KILL_ON_JOB_CLOSE，並非memory cap；sandbox限定Linux amd64且在exec ffprobe前套政策，不能直接把.NET/Go matcher塞進後宣稱跨平台資源隔離。需要新增獨立固定helper合同與兩平台資源限制，或維護有取消/分配限額的engine實作；須考量batch/cache效能。不得降低已存在ffprobe邊界。PR29 CI尚未查看，無活躍命令handle。
+
+### executor批次輸入與包裝器前處理（未提交）
+
+新增legacyignore/batch.go：固定JIG1二進位frame，decoded source≤384KiB、1..128 paths各≤4096bytes、總frame≤1MiB；UTF8/NUL/長度/尾資料嚴格拒絕，讀長度先驗再配置，解碼複製字串防原buffer修改，String/GoString不洩內容。純值context驗證不冒充I/O/regex取消；尚無helper接線。沒有argv/env/executable/資源覆寫欄位。
+
+新增source.go：依固定基底包裝器Split換行、TrimEntries、RemoveEmptyEntries，保留原始1-based行號與註解（註解Add成功影響全invalid政策）；Blank獨立表示全空白排除。最多4096來源行、規則4096bytes。未判定regex有效性，未猜all-invalid。
+
+Windows legacyignore/architecture test與vet通過；batch版本Linux race 1.127秒與5秒fuzz 208771次通過（session65869已exit0）。source.go在該Linux驗證後新增，需後續重跑Linux。PR29最近CI功能仍running，branding已fail，尚未見功能失敗。当前分支feat/jelee-ignore-executor；batch/source四檔及矩陣/handoff未提交，尚未新增PR。
+
+下一步固定helper與batch結果合同、編譯/匹配兩平台真正資源限制；可沿process私有runner新增專屬self helper構造，不能開放任意exe、不能解除ffprobe guards。Linux RLIMIT_AS與Windows Job memory cap需實際驗證（尚未實作），Go記憶體softlimit不能冒充hard cap。注意worker逐檔呼叫的批次/cache效能；規則錯誤不等於執行timeout，後者必須unknown而非exclude/include。
+
+### helper本體與OS配置上限進度（未提交）
+
+新增legacyignore/result.go及測試：JIR1結果codec，必須回覆每條path；invalid line唯一遞增且不得是註解；matched行存在、非invalid且include/exclude對應negation。空白全排除與all-invalid全排除分開；執行error不可包成成功decision，錯誤返回時無partial results。context逐規則检查。
+
+新增legacyignorehelper：主依賴正式新增regexp2 v1.12.0（go.mod/go.sum已變，不能再宣稱原雜湊不變）；cmd/jelee在config之前接固定--internal-ignore-helper，不接受額外args。讀input前設定OS limits，再限長ReadAll；以既有Translate/UTF16Pattern + MatchRunes批次執行。50ms regex MatchTimeout僅次級保護，整體walltimeout仍需parent。Go GC target128MiB是soft；Linux RLIMIT_AS2GiB為virtual address cap、CORE0；Windows Job PROCESS_MEMORY2GiB為commit cap，handle由子程序持有到exit。不是完整filesystem/network sandbox。
+
+Windows helper實際子程序/超額VirtualAlloc拒絕/否定provenance/惡意回溯timeout不回partial測試通過；Linux helper實際子程序及超額PROT_NONE mmap拒絕通過（最終0.335s）。pure legacyignore Linux race1.149s，FuzzResultDecoder5秒203502次通過，session60537 exit0。helper subprocess測試在race build明確skip，因race預留虛擬位址超過production cap；必須保留無race兩平台驗收。其他純helper測試仍可race。Windows最新三包test及vet通過。尚未接parent runner、worker或API，不能聲稱正式啟用。
+
+下一步新增process專屬固定self helper構造及輸入臨時檔所有權/取消/timeout/reap測試，不得開放任意exe或鬆ffprobe限制；批次source/cache成本需驗證。source wrapper的compile error分類仍要持續和.NET差分，不可把任意引擎unsupported當上游invalid；現有253只是固定已知語料。此分支所有helper/protocol及主mod改動仍未提交。無活躍handle。
+
+### 父程序取消、逾時與清理已接線（未提交）
+
+新增process.IgnoreRunner：os.Executable固定self helper，不接受程式路徑/argv；1..2 slots且≤10秒，slots涵蓋輸入暫存建立；0600 request檔close後readonly重開，持有到process.join+result驗證後關閉/刪除。獨立錯誤分類；任何錯誤不回partial decisions。原New/ffprobe限制未改。
+
+Windows process/legacyignorehelper/legacyignore/architecture全部測試與vet通過。Linux process無race全套26.113秒、helper0.334秒通過，含真正helper啟動後取消、100ms父deadline、busy、slot重用、目錄清空與Active0。當前Linux race同四套件仍執行：session94982，需輪詢不可重跑。race test裡兩項需production address space的子程序驗收明確skip；新增CI Linux獨立無race步驟及輸出artifact，Windows原本全套無race涵蓋。workflow尚未遠端驗證。
+
+用戶詢問第3階段多久；已重新讀docs/jobs-stage3-plan.md 3D：除ignore還有fsnotify事件/overflow、cron/interval持久時區及leader/missed-run、1萬/10萬/50萬規模和24h穩態。已明確回報24h是驗收時間、不含开发，不能承諾幾小時全階段完成。沒有縮減原階段。
+
+Linux race session94982已exit0：process67.610s/helper1.364s/legacyignore1.148s/architecture1.149s（特定child資源測試race skip原因見docs/ignore-executor.md，已有無race真實驗證）。PR29 CI已結束，foundation Linux/Windows失敗均是新增來源文件9處legacy名稱；程式測試成功。已將精確來源段移入既有00-audit-baseline來源索引，其他文件引用；沒有改allowlist/scanner。new brand scan0 violations/100 allowed。將隨本階段PR修正，PR29歷史run本身仍紅。
+
+Windows服務build已過；Linux全vet/build當前session48936仍需輪詢。新增docs/ignore-executor.md記錄已完成合同、測試及未接scanner限制。此階段準備提交，base feat/jelee-ignore-legacy；主go.mod/go.sum新增v1.12.0，不再使用先前原mod雜湊結論。
+
+Linux全模組vet與正式服務build session48936 exit0。所有handle結束。保留regexp2 MIT全文於helper/LICENSE.regexp2並更新授權索引，原LICENSE與需求原文不變。執行層本小階段驗證已完成，準備普通繁中PR；正式legacy來源/worker/API仍未接。下段應直接接family合同，並持續確認相容regex語法，不再將純executor完成當整段G22完成。

@@ -25,23 +25,16 @@
 
 205組差分比較C#反射取得的實際regex文字與否定標記；所列案例亦比較Go regexp的匹配結果。Windows test/vet、Linux race、架構測試均通過。這些案例不涵蓋所有.NET regex或文化相關Unicode折疊，尚不能把此轉換器當作完整相容matcher；unsupported語法不能靜默當成上游無效規則或未匹配。包裝器最近来源/Trim/例外政策、來源家族持久合同及scanner接線仍待完成。
 
-## Jellyfin的版本差異
+## 其他上游版本與格式
 
-固定 [v10.11.0](https://github.com/jellyfin/jellyfin/tree/877251bcaec3780d44b7657c54684dc28646b1c3) 的 [DotIgnoreIgnoreRule.cs](https://github.com/jellyfin/jellyfin/blob/877251bcaec3780d44b7657c54684dc28646b1c3/Emby.Server.Implementations/Library/DotIgnoreIgnoreRule.cs)，blob `bafe3ad43600a4c4181b33327043459d819793dd`，與本專案固定基底的新版包裝器不同：目錄只依最近.ignore是否空白決定排除，非空規則留給檔案求值；分行只RemoveEmptyEntries，沒有新版TrimEntries與逐行regex例外略過。
+精確的專案名稱、固定提交、檔案連結與官方文件集中於[来源索引補充](00-audit-baseline.md#8-忽略格式來源補充2026-10-01)。v10.11.0的包裝器與本基底不同：目錄只看最近.ignore全文是否空白；非空規則只對檔案求值，沒有新版TrimEntries與逐行regex例外略過。
 
-已讀的兩份包裝器入口均為`.ignore`。GitHub目前預設分支的`.jellyfinignore`程式碼搜尋為0筆，但這不是所有歷史版本不存在的證明。尚無足以實作`.jellyfinignore`精確語義的來源，不能自行假定為別名。
-
-## Emby的來源限制
-
-[Emby官方文件](https://emby.media/support/articles/Excluding-Files-Folders.html)將4.8的`.ignore`目錄排除與4.9起的`.embyignore`文字規則分開說明；後者描述註解、空行、萬用字元與相對規則目錄。但文件不能代替G22.2要求的對應版本程式碼。
-
-核對公開 `MediaBrowser/Emby` 主線HEAD為 [`1d7c2ab4bfebdae31f89fdaabd3b68782ccf495a`](https://github.com/MediaBrowser/Emby/tree/1d7c2ab4bfebdae31f89fdaabd3b68782ccf495a)，提交日期2018-09-20、訊息3.5.3，不能當作4.9實作。尚未取得4.9對應來源，不移植論壇猜測或把官方範例視為完整語法證明。
-
+另一上游的4.8目錄標記與4.9文字規則也不能混為同一格式。其公開主線仍是2018年的3.5.3，不能当成4.9來源。G22.2另外兩個專用檔名目前均缺足以實作精確語義的對應來源，不能自行假定別名或把目前code search零筆視為所有歷史不存在。
 ## 下一步
 
 先為本專案已固定的.ignore包裝器建立獨立相容合同與差分案例，包含最近來源、空白、Trim、regex例外、完整路徑及大小寫。來源讀取仍遵守庫根邊界與no-follow，不複製宿主祖先搜尋或連結穿越。來源家族必須進入持久意圖、證據與報告；不能讓舊worker誤認新語義，也不能修改已發布遷移。
 
-`.embyignore`與`.jellyfinignore`的對應版本來源不足仍是獨立未完成項，不能使整個G22提前變成已完成。
+G22.2另外兩個專用檔名的對應版本來源不足仍是獨立未完成項，不能使整個G22提前變成已完成。
 
 ## 相容引擎邊界評估（尚未選定正式依賴）
 
