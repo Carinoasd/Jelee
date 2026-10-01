@@ -50,26 +50,17 @@ func (t *TMDB) Movie(ctx context.Context, id int32, language string) (domain.Mov
 	default:
 		return domain.MovieCandidate{}, ErrUnavailable
 	}
-	var data struct {
-		ID            int32  `json:"id"`
-		Title         string `json:"title"`
-		OriginalTitle string `json:"original_title"`
-		Overview      string `json:"overview"`
-		ReleaseDate   string `json:"release_date"`
-	}
-	if json.Unmarshal(r.Body, &data) != nil || data.ID != id || strings.TrimSpace(data.Title) == "" ||
-		!t.safeText(data.Title, 1024) || !t.safeText(data.OriginalTitle, 1024) || !t.safeText(data.Overview, 16<<10) {
+	var data providerMovie
+	if json.Unmarshal(r.Body, &data) != nil || data.ID != id {
 		return domain.MovieCandidate{}, ErrResponse
 	}
-	if data.ReleaseDate != "" {
-		if _, err := time.Parse("2006-01-02", data.ReleaseDate); err != nil {
-			return domain.MovieCandidate{}, ErrResponse
-		}
+	movie, err := t.movieCandidate(data, language, t.now().UTC())
+	if err != nil {
+		return domain.MovieCandidate{}, err
 	}
 	if err := budget.Err(); err != nil {
 		return domain.MovieCandidate{}, err
 	}
-	movie := domain.MovieCandidate{ProviderID: id, Source: "TMDB", SourceURL: "https://www.themoviedb.org/movie/" + strconv.FormatInt(int64(id), 10), Language: language, FetchedAt: t.now().UTC(), Title: data.Title, OriginalTitle: data.OriginalTitle, Overview: data.Overview, ReleaseDate: data.ReleaseDate}
 	t.movies.put(key, movie)
 	return movie, nil
 }

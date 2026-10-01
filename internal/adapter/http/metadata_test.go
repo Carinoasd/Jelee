@@ -24,6 +24,15 @@ type httpMovieProvider struct {
 	language string
 }
 
+func (p *httpMovieProvider) SearchMovies(ctx context.Context, input domain.MovieSearchInput) ([]domain.MovieCandidate, error) {
+	p.calls++
+	p.language = input.Language
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	return []domain.MovieCandidate{{ProviderID: 12, Title: input.Query, Language: input.Language, Source: "TMDB", ReleaseDate: "2024-02-29", FetchedAt: time.Now().UTC()}}, p.fail
+}
+
 func (p *httpMovieProvider) Movie(ctx context.Context, id int32, language string) (domain.MovieCandidate, error) {
 	p.calls++
 	p.language = language

@@ -11,6 +11,26 @@ import (
 func (s *Server) metadataRoutes(r chi.Router) {
 	r.Group(func(r chi.Router) {
 		r.Use(s.accountBudget, s.authenticate)
+		r.Get("/api/v1/metadata/tmdb/movies", s.accountEndpoint(true, true, func(w http.ResponseWriter, r *http.Request, _ domain.Actor) (any, int, error) {
+			query, err := strictQuery(r, "query", "year", "language")
+			if err != nil {
+				return nil, 0, err
+			}
+			language, specified := query["language"]
+			if !specified {
+				language = "zh-CN"
+			}
+			year := 0
+			if raw, exists := query["year"]; exists {
+				parsed, err := strconv.ParseInt(raw, 10, 32)
+				if err != nil || len(raw) != 4 || raw != strconv.FormatInt(parsed, 10) {
+					return nil, 0, domain.ErrInvalid
+				}
+				year = int(parsed)
+			}
+			matches, err := s.metadata.SearchMovies(r.Context(), domain.MovieSearchInput{Query: query["query"], Year: year, Language: language})
+			return matches, http.StatusOK, err
+		}))
 		r.Get("/api/v1/metadata/tmdb/movies/{id}", s.accountEndpoint(true, true, func(w http.ResponseWriter, r *http.Request, _ domain.Actor) (any, int, error) {
 			query, err := strictQuery(r, "language")
 			if err != nil {
@@ -32,6 +52,21 @@ func (s *Server) metadataRoutes(r chi.Router) {
 }
 
 func metadataSpecification(paths, schemas map[string]any) {
+	search := operation("Search TMDB movie candidates for administrator confirmation", "200", "400", "401", "403", "408", "503")
+	search["security"] = []any{map[string]any{"bearer": []string{}}}
+	search["parameters"] = []any{
+		map[string]any{"name": "query", "in": "query", "required": true, "schema": map[string]any{"type": "string", "minLength": 1, "maxLength": 256}},
+		map[string]any{"name": "year", "in": "query", "schema": map[string]any{"type": "integer", "minimum": 1000, "maximum": 9999}},
+		map[string]any{"name": "language", "in": "query", "schema": map[string]any{"type": "string", "enum": []string{"zh-CN", "zh-TW", "ja-JP", "en-US"}, "default": "zh-CN"}},
+	}
+	search["responses"].(map[string]any)["200"] = map[string]any{"description": "Candidates and title/year comparisons; every candidate requires confirmation.", "content": map[string]any{"application/json": map[string]any{"schema": map[string]any{"type": "object", "required": []string{"data"}, "properties": map[string]any{"data": map[string]any{"$ref": "#/components/schemas/MovieMatches"}}}}}}
+	paths["/api/v1/metadata/tmdb/movies"] = map[string]any{"get": search}
+	schemas["MovieMatches"] = map[string]any{"type": "object", "additionalProperties": false, "required": []string{"query", "year", "language", "candidates"}, "properties": map[string]any{
+		"query": map[string]any{"type": "string", "maxLength": 256}, "year": map[string]any{"type": "integer"}, "language": map[string]any{"type": "string"}, "candidates": map[string]any{"type": "array", "maxItems": 20, "items": map[string]any{"$ref": "#/components/schemas/MovieMatch"}},
+	}}
+	schemas["MovieMatch"] = map[string]any{"type": "object", "additionalProperties": false, "required": []string{"movie", "exactTitle", "exactYear", "needsConfirmation"}, "properties": map[string]any{
+		"movie": map[string]any{"$ref": "#/components/schemas/MovieCandidate"}, "exactTitle": map[string]any{"type": "boolean"}, "exactYear": map[string]any{"type": "boolean"}, "needsConfirmation": map[string]any{"type": "boolean", "const": true},
+	}}
 	op := operation("Preview a TMDB movie candidate (administrator)", "200", "400", "401", "403", "404", "408", "503")
 	op["security"] = []any{map[string]any{"bearer": []string{}}}
 	op["parameters"] = []any{

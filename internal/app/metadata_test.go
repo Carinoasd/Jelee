@@ -10,6 +10,10 @@ import (
 
 type movieProviderFunc func(context.Context, int32, string) (domain.MovieCandidate, error)
 
+func (f movieProviderFunc) SearchMovies(context.Context, domain.MovieSearchInput) ([]domain.MovieCandidate, error) {
+	return nil, domain.ErrMetadataUnavailable
+}
+
 func (f movieProviderFunc) Movie(ctx context.Context, id int32, language string) (domain.MovieCandidate, error) {
 	return f(ctx, id, language)
 }

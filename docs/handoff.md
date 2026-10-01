@@ -956,3 +956,13 @@ Windows完整Go29套件／2906pass事件含父／435略過，略過與前次完�
 G14.1 blocked→partial、G14.3仍partial，336統計4done／180partial／152blocked。名稱／年份匹配、劇集、NFO優先與欄位鎖、工作佇列與持久化、圖片及完整前端仍缺；五核心3271行仍待原具體授權，沒有改／刪。舊HEAD f6e CI Tests／CodeQL／Format／OpenAPI已success；ABI base/head success，Difference仍fail在ApiCompat；foundation當時仍live。全案未完成，不合併。
 
 電影候選階段最終增量品牌0／181、完整14735／186仍fail、gitignore0；來源17hash、保護檔、待核准五核心逐位元、無C#／遷移diff、文件links與336統計核對通過。全部本輪測試handles已結束，同PR46推送；下一段從本階段接電影匹配／刮削，不重新建立branch。
+
+### G14 電影名稱／年份候選查詢
+
+接續2b20e9493c，正式管理員API增加名稱＋選填年份、四語查詢，固定第一頁／非成人／最多20候選，url.Values轉義；整批唯一ID與共用movie欄位驗證。app比較標題／原名與年份，全部needsConfirmation=true，不自動選首筆或寫入；搜尋結果未cache，選定ID後走既有detail cache。真TLS確認兩候選比較／待確認與search不抓detail、後續明確ID才抓detail。100合成名稱只是app契約，不是100電影／20劇集全矩陣。
+
+完整Windows Go29包／2961pass事件含父／435略過，skip身份與前次完整清單逐項相同；vet、產品build與Linux六包race通過（摘要不列skip未宣稱0）。移除app待確認標記負例1leaf fail，finally逐位元恢復後metadata／app／HTTP／outbound四包完整回歸通過。來源／執行證據docs/tmdb-movie-search.md及evidence。G14.4 blocked→partial；回填前段與本段來源／時間／Credits證據，G14.7 blocked→partial，沒有宣稱全合規，336計數4done／182partial／150blocked。
+
+劇集／季集、IMDB／TVDB、模糊置信度、library／worker寫入、語言回退、NFO優先／field locks、移除外部元資料與完整合規仍缺。五核心3271行仍待具體核准，沒有改刪。前段HEAD的Format／OpenAPI success，ABI failure，其餘當時仍live，新HEAD要自身CI；品牌與ABI門禁維持，不合併，仍第3階段。
+
+搜尋階段最後增量品牌0／181、完整14735／186仍fail、gitignore0；11來源hash、保護hash與五核心逐位元、C#／遷移無diff、links與336統計核對通過。補Movie欄位驗證後／cache發布前context檢查及確定取消測試，最終完整Go／vet／build及Linux race皆重驗，pass事件2961（含父），略過435逐項相同。所有handles terminal，同PR46續推，下一步仍需劇集／季／集与元資料寫入保護。
