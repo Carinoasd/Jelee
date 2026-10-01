@@ -40,6 +40,7 @@ func TestNFOWorkerUpgradeRejectsAllActiveLegacyReadOnlyPhases(t *testing.T) {
 			if err := f.s.FinishJob(f.ctx, l, domain.JobFailed, "scan_io"); err != nil {
 				t.Fatal(err)
 			}
+			nfoMigrateVersion(t, f.jobFixture, "down", 11)
 			nfoMigrateVersion(t, f.jobFixture, "down", 10)
 			nfoMigrateVersion(t, f.jobFixture, "down", 9)
 			nfoMigrateVersion(t, f.jobFixture, "down", 8)
@@ -87,6 +88,7 @@ func TestNFOWorkerLegacyOffCanReplayButNeverAcquireReadOnlyIntent(t *testing.T) 
 	if err := f.s.FinishJob(f.ctx, l, domain.JobFailed, "scan_io"); err != nil {
 		t.Fatal(err)
 	}
+	nfoMigrateVersion(t, f.jobFixture, "down", 11)
 	nfoMigrateVersion(t, f.jobFixture, "down", 10)
 	nfoMigrateVersion(t, f.jobFixture, "down", 9)
 	nfoMigrateVersion(t, f.jobFixture, "down", 8)
@@ -140,6 +142,7 @@ func TestNFOWorkerDownGuardIncludesFrozenOffAndPreservesBCache(t *testing.T) {
 	if err := f.s.Pool.QueryRow(f.ctx, retainedSQL).Scan(&retained); err != nil {
 		t.Fatal(err)
 	}
+	nfoMigrateVersion(t, f.jobFixture, "down", 11)
 	nfoMigrateVersion(t, f.jobFixture, "down", 10)
 	nfoMigrateVersion(t, f.jobFixture, "down", 9)
 	nfoMigrateVersion(t, f.jobFixture, "down", 8)

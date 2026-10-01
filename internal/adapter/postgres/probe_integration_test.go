@@ -485,6 +485,9 @@ func TestProbeReleaseRecoveryInvalidationAndMigration(t *testing.T) {
 		t.Fatal(err)
 	}
 	dsn := f.s.Pool.Config().ConnString()
+	if v, dirty, err := Migrate(f.ctx, dsn, "down"); err != nil || dirty || v != 11 {
+		t.Fatal("ignore scan downgrade failed", v, dirty, err)
+	}
 	if v, dirty, err := Migrate(f.ctx, dsn, "down"); err != nil || dirty || v != 10 {
 		t.Fatal("verification downgrade failed", v, dirty, err)
 	}

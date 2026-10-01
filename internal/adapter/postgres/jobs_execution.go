@@ -171,6 +171,16 @@ func (s *Store) NextScanDirectory(ctx context.Context, l domain.JobLease) (domai
 	if err = requireInventoryPhase(ctx, tx, l.Job.ID); err != nil {
 		return domain.ScanDirectory{}, err
 	}
+	d, err := nextScanDirectory(ctx, tx, current)
+	if err != nil {
+		return d, err
+	}
+	return d, storageError(tx.Commit(ctx))
+}
+
+func nextScanDirectory(ctx context.Context, tx pgx.Tx, current domain.JobLease) (domain.ScanDirectory, error) {
+	l := current
+	var err error
 	var d domain.ScanDirectory
 	err = tx.QueryRow(ctx, `SELECT d.root_id::text,r.path,d.path FROM job_directories d JOIN library_roots r ON r.id=d.root_id WHERE d.job_id=$1::uuid AND NOT d.done AND (d.parent_path IS NULL OR EXISTS(SELECT 1 FROM job_directories p WHERE p.job_id=d.job_id AND p.root_id=d.root_id AND p.path=d.parent_path AND p.done)) ORDER BY d.root_id,d.path LIMIT 1 FOR UPDATE OF d`, l.Job.ID).Scan(&d.RootID, &d.RootPath, &d.Path)
 	if err != nil {
@@ -194,7 +204,7 @@ func (s *Store) NextScanDirectory(ctx context.Context, l domain.JobLease) (domai
 	if err = guardedJobUpdate(ctx, tx, l, `UPDATE jobs SET files=files-$2,bytes=bytes-$3,directory_total=directory_total-$4 WHERE id=$1::uuid`, l.Job.ID, files, bytes, tag.RowsAffected()); err != nil {
 		return d, err
 	}
-	return d, storageError(tx.Commit(ctx))
+	return d, nil
 }
 func validScanPath(value string, root bool) bool {
 	if value == "." {
@@ -246,6 +256,15 @@ func (s *Store) SaveScanBatch(ctx context.Context, l domain.JobLease, d domain.S
 	if err = requireInventoryPhase(ctx, tx, l.Job.ID); err != nil {
 		return err
 	}
+	if err = saveScanBatch(ctx, tx, current, d, b); err != nil {
+		return err
+	}
+	return storageError(tx.Commit(ctx))
+}
+
+func saveScanBatch(ctx context.Context, tx pgx.Tx, current domain.JobLease, d domain.ScanDirectory, b domain.ScanBatch) error {
+	l := current
+	var err error
 	var done bool
 	var rootPath string
 	var totalDirs int64
@@ -257,7 +276,7 @@ func (s *Store) SaveScanBatch(ctx context.Context, l domain.JobLease, d domain.S
 		return domain.ErrInvalid
 	}
 	if done {
-		return storageError(tx.Commit(ctx))
+		return nil
 	}
 	if err = tx.QueryRow(ctx, `SELECT directory_total FROM jobs WHERE id=$1::uuid`, l.Job.ID).Scan(&totalDirs); err != nil {
 		return storageError(err)
@@ -317,7 +336,7 @@ func (s *Store) SaveScanBatch(ctx context.Context, l domain.JobLease, d domain.S
 	if err = guardedJobUpdate(ctx, tx, l, `UPDATE jobs SET files=$2,bytes=$3,directory_total=$4,directories=$5,skipped=$6 WHERE id=$1::uuid`, l.Job.ID, files, bytes, totalDirs, dirs, skipped); err != nil {
 		return err
 	}
-	return storageError(tx.Commit(ctx))
+	return nil
 }
 func validJobError(state, code string) bool {
 	if state == domain.JobSucceeded || state == domain.JobCancelled {

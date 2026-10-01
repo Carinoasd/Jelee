@@ -94,7 +94,21 @@ func (s *Store) RecordIgnoreProofs(ctx context.Context, l domain.JobLease, proof
 	if err != nil {
 		return err
 	}
-	_, err = tx.Exec(ctx, `INSERT INTO job_ignore_manifests(job_id,inventory_generation) VALUES($1::uuid,$2) ON CONFLICT DO NOTHING`, l.Job.ID, epoch)
+	err = recordIgnoreProofs(ctx, tx, current, epoch, proofs)
+	if err != nil && !errors.Is(err, domain.ErrInventoryInvalidated) {
+		return err
+	}
+	if commitErr := commitIgnoreManifest(ctx, tx, current, epoch); commitErr != nil {
+		return commitErr
+	}
+	return err
+}
+
+// The caller owns the transaction and commits an invalidation marker even when
+// this helper returns ErrInventoryInvalidated. Other errors require rollback.
+func recordIgnoreProofs(ctx context.Context, tx pgx.Tx, current domain.JobLease, epoch int64, proofs []domain.IgnoreDirectoryProof) error {
+	l := current
+	_, err := tx.Exec(ctx, `INSERT INTO job_ignore_manifests(job_id,inventory_generation) VALUES($1::uuid,$2) ON CONFLICT DO NOTHING`, l.Job.ID, epoch)
 	if err != nil {
 		return storageError(err)
 	}
@@ -123,9 +137,6 @@ func (s *Store) RecordIgnoreProofs(ctx context.Context, l domain.JobLease, proof
 			}
 			if _, err = tx.Exec(ctx, `UPDATE job_ignore_manifests SET invalidated=true WHERE job_id=$1::uuid`, l.Job.ID); err != nil {
 				return storageError(err)
-			}
-			if err = commitIgnoreManifest(ctx, tx, current, epoch); err != nil {
-				return err
 			}
 			return domain.ErrInventoryInvalidated
 		}
@@ -169,7 +180,7 @@ func (s *Store) RecordIgnoreProofs(ctx context.Context, l domain.JobLease, proof
 	if err != nil {
 		return storageError(err)
 	}
-	return commitIgnoreManifest(ctx, tx, current, epoch)
+	return nil
 }
 
 // FreezeIgnoreManifest freezes only the source ledger. It does not declare
