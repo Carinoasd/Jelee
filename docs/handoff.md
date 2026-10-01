@@ -794,3 +794,11 @@ d0ef9b2195 兩平台 foundation 新失敗已取 job110468731814/110468731720 原
 证据docs/evidence/server-discovery-removal.json／合同docs/server-discovery-removal.md；防火墙文档补不开放UDP1900/7359。G05明确partial：UDP SocketFactory还在ApplicationHost注册且HdHomerun tuner使用；LiveTV82源文件及controller／recording／channel服务仍保留，下一步裁剪与明确不支持合同，不能声称LAN SSDP已验收。3d9c5298c7真CI基础两平台pass，C#/Format/CodeQL/OpenAPI pass；PG仍live，ABI真差异与full品牌仍fail。不能把前headpass当新head全绿。
 
 G05最後完整品牌14805（新增回歸仍引用舊測試host，未增加豁免）；增量0違規／119既有允許、gitignore0。完整門禁保持失敗。
+
+### G05 Go 公開探測合同完成
+
+新的internal/adapter/compat/removed.go只識別完整第一段LiveTv／Channels／Dlna，HTTP boundary在Host／轉碼／debug守衛後明確501 feature_removed；不初始化功能、不查驗帳號／查資料庫／媒體／建立工作。system七個相關能力固定false；OpenAPI x-jelee-removed-features擴充欄位描述根路徑／501／code並有一致性測試。四語錯誤catalog各39鍵，新code由既有HTTP跨層translation gate覆蓋。HTTP合同驗收：17路徑*6方法*4語系*2catalog/direct開關=816 HTTP router requests通過，HEAD、Host400、HLS409、debug404、相似prefix404與OpenAPI另pass。Windows全Go/vet/三build先pass；最後只移feature拒絕到既有debug後並補測，finalHTTP2.480/i18n0.181/vet/builds pass。finalLinuxrace exec89601已terminal HTTP3.275/i18n1.024pass，Windows／Linux所有handles已terminal。四UI123keys gate保持pass。Go source hash／protected hash／沒有SQL或C#或migration修改已核對。
+
+證據docs/evidence/removed-feature-http.json／合同docs/compat-matrix.md；G05仍partial，公開探測不取使用者偏好，正式已驗證API驗證流程的持久偏好保持。舊C#直播／EPG／tuner／recording／channel與資料配置等未清完，真客戶端握手及LANSSDP未驗收。下一步切除舊服務controller/host/dependencies，勿將Go501當成整個G05刪除完成。所有文檔落盤後再跑品牌/gitignore/diff再同PR46提交。
+
+補真正 loopback TCP/HTTP HEAD 驗收，501／無正文／fr-FR→en-US且無後端呼叫；只加測試，正式源碼沒有改。final Windows HTTP2.092/i18n0.177，final Linuxrace exec51465 HTTP3.279/i18n1.022 terminal pass。所有handles terminal；證據已刷新最終測試source hash，最後所有文檔納入品牌與gitignore門禁。

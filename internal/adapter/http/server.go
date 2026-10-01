@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/MoYuanCN/Jelee/internal/access"
+	"github.com/MoYuanCN/Jelee/internal/adapter/compat"
 	"github.com/MoYuanCN/Jelee/internal/adapter/media"
 	"github.com/MoYuanCN/Jelee/internal/app"
 	"github.com/MoYuanCN/Jelee/internal/domain"
@@ -103,7 +104,7 @@ func NewWithJobs(cfg config.Config, backend Backend, catalog *app.Catalog, resol
 	})
 	r.Get("/api/v1/system", func(w http.ResponseWriter, r *http.Request) {
 		probe := s.jobs.ProbeCapability()
-		writeJSON(w, 200, map[string]any{"data": map[string]any{"name": "Jelee", "devMode": false, "probe": probe, "capabilities": map[string]any{"transcoding": false, "hls": false, "dash": false, "remux": false, "downloads": false, "directDelivery": cfg.EnableDirect, "catalog": cfg.EnableCatalog, "accounts": cfg.EnableAccounts, "inventoryScan": cfg.EnableJobs, "probe": probe.Available}}})
+		writeJSON(w, 200, map[string]any{"data": map[string]any{"name": "Jelee", "devMode": false, "probe": probe, "capabilities": map[string]any{"transcoding": false, "hls": false, "dash": false, "remux": false, "downloads": false, "dlna": false, "discovery": false, "liveTv": false, "epg": false, "tuners": false, "recordings": false, "channels": false, "directDelivery": cfg.EnableDirect, "catalog": cfg.EnableCatalog, "accounts": cfg.EnableAccounts, "inventoryScan": cfg.EnableJobs, "probe": probe.Available}}})
 	})
 	r.Get("/api-docs", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
@@ -175,6 +176,10 @@ func (s *Server) boundary(next http.Handler) http.Handler {
 		}
 		if strings.Contains(strings.ToLower(r.URL.Path), "/debug/") {
 			WriteError(w, r, domain.ErrNotFound)
+			return
+		}
+		if compat.RemovedFeaturePath(r.URL.Path) {
+			writeProblem(w, r, 501, "feature_removed", "Discovery, live TV, recordings and channels are not supported.")
 			return
 		}
 		next.ServeHTTP(w, r)
