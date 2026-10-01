@@ -1,0 +1,146 @@
+{
+  "baselineCommit": "89362b5a4569197c5d728dfbd4d4d85442dd0c08",
+  "sourceSHA256": {
+    "internal/adapter/postgres/accounts.go": "bb32113fd73ded370a9a7e5f3e0c2224888d4057aebb053e971d6651f780db18",
+    "internal/adapter/postgres/jobs.go": "4440b3b06b68fdd3a132debba61a39f0c5c4a13db92f5869253fe568df54d859",
+    "internal/adapter/postgres/jobs_lock_order_test.go": "cecdcbdaea02d54af2efbc28d5831a5dfa9bd52b30a6ee53699fcceb72525b82"
+  },
+  "regression": {
+    "redExit": 1,
+    "redLogSHA256": "9a3281d31edeed6634f6a8ff2a0a2549898e3c787dd6d66c4d85db18c96b2644",
+    "greenExit": 0,
+    "greenLogSHA256": "2c29807f96aa5b706429c0cc81eb1d3d84651f5c336382d3585c8cbca17ad802"
+  },
+  "postgres": {
+    "exit": 0,
+    "topLevelPassed": 132,
+    "skipped": [],
+    "seconds": 151.118,
+    "logSHA256": "77e8524e5874e9f9857c416e72c8635e5d68117ecc8cabf22bc2162356369d9b",
+    "sourceUnchanged": true
+  },
+  "linux": {
+    "passed": true,
+    "sourceUnchanged": true,
+    "commands": [
+      {
+        "argv": [
+          "project-pinned-go",
+          "vet",
+          "./..."
+        ],
+        "exit": 0,
+        "seconds": 27.534
+      },
+      {
+        "argv": [
+          "project-pinned-go",
+          "build",
+          "-o",
+          "<repository>/.testdata/jobs-lock-build/jelee",
+          "./cmd/jelee"
+        ],
+        "exit": 0,
+        "seconds": 40.299
+      },
+      {
+        "argv": [
+          "project-pinned-go",
+          "build",
+          "-o",
+          "<repository>/.testdata/jobs-lock-build/jelee-cli",
+          "./cmd/jelee-cli"
+        ],
+        "exit": 0,
+        "seconds": 12.691
+      },
+      {
+        "argv": [
+          "project-pinned-go",
+          "build",
+          "-o",
+          "<repository>/.testdata/jobs-lock-build/jelee-migrate",
+          "./cmd/jelee-migrate"
+        ],
+        "exit": 0,
+        "seconds": 11.487
+      }
+    ]
+  },
+  "windows": {
+    "build": "PASS",
+    "lint": "PASS",
+    "testPackages": 25,
+    "packagesWithoutTests": 4,
+    "topLevelPassed": 510,
+    "postgresTestSkips": 189,
+    "otherTestSkips": 14,
+    "race": false
+  },
+  "realMedia": {
+    "probe": {
+      "result": "passed",
+      "calls": [
+        1000,
+        0,
+        17
+      ],
+      "sourceDigest": "0894b5fd2bf68811d4fad6bb6651e4a6d6bb25ce4233e0826413e500b9054a3c",
+      "originalHashesUnchanged": true,
+      "testArtifactsCleaned": true,
+      "summarySHA256": "11cc3b8694ac8fef8b383b43a3469a4ebc05a9144df1e3a2ff867c79ed48b26b"
+    },
+    "nfo": {
+      "result": "passed",
+      "cases": [
+        {
+          "fixtureFiles": 1000,
+          "testArtifactsCleaned": true,
+          "sourceDigest": "9ab796e742f75f1ef4f3318f27681bb6dcdd953ba5239dde69e741856260f2e7",
+          "shutdown": {
+            "shutdown": "passed",
+            "signal": "SIGTERM",
+            "httpClosed": true,
+            "activeNFOCalls": 0,
+            "activeChildLifecycles": 0,
+            "activeLeases": 0,
+            "readBarrier": "after a real read; cancelled API joined"
+          },
+          "cancellationRecovery": {
+            "cancellationRecovery": "passed",
+            "cancelledMissing": 0,
+            "cancelledComparisonComplete": false,
+            "baselineUnchanged": true,
+            "recoveredComparisonComplete": true,
+            "recoveryParses": 0,
+            "recoveryChildStarts": 0
+          }
+        },
+        {
+          "fixtureFiles": 100,
+          "testArtifactsCleaned": true,
+          "sourceDigest": "9ab796e742f75f1ef4f3318f27681bb6dcdd953ba5239dde69e741856260f2e7",
+          "shutdown": {
+            "shutdown": "passed",
+            "signal": "SIGTERM",
+            "httpClosed": true,
+            "activeNFOCalls": 0,
+            "activeChildLifecycles": 0,
+            "activeLeases": 0,
+            "readBarrier": "after a real read; cancelled API joined"
+          },
+          "cancellationRecovery": {
+            "cancellationRecovery": "passed",
+            "cancelledMissing": 0,
+            "cancelledComparisonComplete": false,
+            "baselineUnchanged": true,
+            "recoveredComparisonComplete": true,
+            "recoveryParses": 0,
+            "recoveryChildStarts": 0
+          }
+        }
+      ],
+      "summarySHA256": "34bca0b68bd5be832d9c42568cbc248f4859b19e2a1d1d90545ae1f58591854d"
+    }
+  }
+}

@@ -99,19 +99,30 @@ func (s *Store) authorizedTransaction(ctx context.Context, actor domain.Actor, a
 	if err != nil {
 		return nil, false, err
 	}
-	var admin bool
-	err = tx.QueryRow(ctx, `SELECT u.is_admin FROM users u JOIN sessions s ON s.user_id=u.id WHERE u.id=$1::uuid AND s.id=$2::uuid AND NOT u.disabled AND u.deleted_at IS NULL AND s.revoked_at IS NULL AND s.expires_at>now() FOR UPDATE OF u,s`, actor.UserID, actor.SessionID).Scan(&admin)
-	if err != nil || adminOnly && !admin {
+	admin, err := authorizeActorInTransaction(ctx, tx, actor, adminOnly)
+	if err != nil {
 		_ = tx.Rollback(ctx)
-		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, false, domain.ErrUnauthenticated
-		}
-		if err != nil {
-			return nil, false, storageError(err)
-		}
-		return nil, false, domain.ErrForbidden
+		return nil, false, err
 	}
 	return tx, admin, nil
+}
+
+// Callers acquire their advisory locks before locking the live actor rows.
+// Keeping the same validation inside the transaction preserves revocation and
+// administrator checks while allowing jobs to establish a consistent order.
+func authorizeActorInTransaction(ctx context.Context, tx pgx.Tx, actor domain.Actor, adminOnly bool) (bool, error) {
+	var admin bool
+	err := tx.QueryRow(ctx, `SELECT u.is_admin FROM users u JOIN sessions s ON s.user_id=u.id WHERE u.id=$1::uuid AND s.id=$2::uuid AND NOT u.disabled AND u.deleted_at IS NULL AND s.revoked_at IS NULL AND s.expires_at>now() FOR UPDATE OF u,s`, actor.UserID, actor.SessionID).Scan(&admin)
+	if err != nil || adminOnly && !admin {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return false, domain.ErrUnauthenticated
+		}
+		if err != nil {
+			return false, storageError(err)
+		}
+		return false, domain.ErrForbidden
+	}
+	return admin, nil
 }
 
 func auditAccount(ctx context.Context, tx pgx.Tx, actor domain.Actor, event, target string, before, after any) error {

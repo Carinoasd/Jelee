@@ -57,11 +57,21 @@ func (s *Store) jobTransaction(ctx context.Context) (pgx.Tx, error) {
 	return tx, nil
 }
 func (s *Store) authorizedJobs(ctx context.Context, a domain.Actor) (pgx.Tx, error) {
-	tx, _, err := s.authorizedTransaction(ctx, a, true)
+	if !domain.ValidID(a.UserID) || !domain.ValidID(a.SessionID) {
+		return nil, domain.ErrUnauthenticated
+	}
+	tx, err := s.accountTransaction(ctx)
 	if err != nil {
 		return nil, err
 	}
+	// Order: account advisory, jobs advisory, then actor rows. A worker holding
+	// the jobs lock can still need a users key-share lock for jobs.actor_id;
+	// waiting for jobs while holding users FOR UPDATE creates a deadlock.
 	if err = lockJobs(ctx, tx); err != nil {
+		_ = tx.Rollback(ctx)
+		return nil, err
+	}
+	if _, err = authorizeActorInTransaction(ctx, tx, a, true); err != nil {
 		_ = tx.Rollback(ctx)
 		return nil, err
 	}
