@@ -936,3 +936,13 @@ TMDB接線最後產品build PASS，go list確認正式outbound只編client.go、
 下一步仍要完整TMDB治理與資料庫／工作pool接線，不能把認證retry當作完整刮削。五檔3271行core仍待原具體核准，新goal自動繼續不是授權；品牌／ABI門禁維持，未合併。
 
 重試階段最後增量品牌0／181、完整14735／186仍fail、gitignore0、產品build PASS；來源／保護hash／原435略過清單hash／待核准五核心逐位元／C#與遷移無diff／link／336統計皆核對。沒有增加allowlist；所有本輪測試已結束，同PR46推送。
+
+### G14.3 正式請求限流／共享冷卻
+
+前段7341a42d25已推同PR46，接續真实governedFetch：每適配器250ms啟動間隔與4容量，所有authentication嘗試共享；槽含rate/cooldown等待及fetch，不創背景goroutine。取消等待釋放容量且不預约下一時段，wake重新檢查mutex狀態；429／503共享Retry-After／backoff，先publish再release且terminal回應也更新，invalid header保守15秒。跨程序／不同adapter coordination、可配置provider預算、資料cache與完整movie/series仍未實作，G14.3partial與336統計4done／179partial／153blocked不變。
+
+八併發峰值4／queued取消釋放、間隔／取消無多預約、cooldown延長／長等待通過；真TLS第一call150ms遇1秒header拒retry，第二600ms仍cooldown取消且upstream只有1request，第三等滿至少1秒success。移除正式governedFetch接線負例1fail（第二call错误nil），finally retry.go逐位元恢復，相關兩pkg完整回歸再pass。Windowsfull29pkg／2863pass events含父／435skip，skip名稱集合與前段435清單逐項一致；vet／產品build PASS，Linux4pkg race PASS（summary未列skip未宣稱0）。所有handles terminal，來源7檔hash與詳細證據tmdb-governor.md／evidence。
+
+五核心3271行依舊等原async具體核准，沒有改／刪；本輪無C#／migration／media變更。下一步需正式metadata資料取得與cache／library／worker接線，不能把預檢治理當完整刮削。品牌門禁／ABI差異保留，不合併。
+
+治理最後冷卻延長測試改私有確定時鐘／wait，驗證60ms後再40ms，避免依賴CI排程；正式constructor固定time.Now／waitRetry，沒有公開替換設定。最終全Go／vet／build和Linux race重驗通過，來源hash已更新。增量品牌0／181、完整14735／186仍fail、gitignore0；保護hash／五核心逐位元／skip集合／無C#或遷移diff／links／336統計驗證通過。全部本輪handles結束，同PR46推送，未合併。

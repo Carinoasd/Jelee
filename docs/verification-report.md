@@ -160,3 +160,7 @@ DTO單層解耦及兩份既有測試建構參數更新，14項回歸與完整Deb
 ## TMDB預檢HTTP重試
 
 [當前重試驗收](tmdb-retry.md)已包含真TLS Retry-After最低等待與拿掉標頭後的負例；來源恢復後相關完整回歸、全Go與vet／Linux race通過。完整G14.3限流與cache尚未實作；略過保持列出。
+
+## TMDB請求限流與共享冷卻
+
+[當前治理驗收](tmdb-governor.md)包含容量／取消／冷卻延長及真TLS跨呼叫等待；移除正式入口的負例可偵測繞過。恢復後相關完整回歸、全Go／vet／產品build與Linux四包race通過，435略過名稱集合另逐項驗證。資料cache與完整刮削未完成，需求狀態不提升為完成。

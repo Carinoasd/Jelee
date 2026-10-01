@@ -1,0 +1,213 @@
+{
+  "baseCommit": "7341a42d25fa6bd8d9a4bda0966a63a23561db74",
+  "scope": "Per-adapter request spacing, capacity and shared cooldown consumed by actual TMDB startup preflight",
+  "sources": {
+    "internal/adapter/metadata/governor.go": "7d63ff459214874e81d63dff052aa0e8eb45776bb6812abaf37c34fc966ca24b",
+    "internal/adapter/metadata/governor_test.go": "855425dacf9973452c1851ad8cb716fc2ffc4cd1ac2ad482d21fc2b414975fba",
+    "internal/adapter/metadata/retry.go": "9f5c26367d0d12cdd35e17191ada268a37434c4d85e32fb28e7308f5a1407fad",
+    "internal/adapter/metadata/tmdb.go": "6fae1a4d6ca04c92fa602254e3303085c3b6162067eddb49b321c7eba779372d",
+    "internal/adapter/metadata/tmdb_test.go": "46fb2a290b5130ca3794d584ba2ac48c43b42b909bc4a42b43ecd2175bd6057c",
+    "internal/adapter/metadata/retry_test.go": "4c5a74362eede44af523299a7cc6386156ee6e136fbd65b45c5f70c39a1f0761",
+    "internal/platform/outbound/tmdb_integration_test.go": "74ad6b7fca9298c782e4f2f862e1730c319d7155c39980cb444202a920f89765"
+  },
+  "windowsFullGo": {
+    "packages": [
+      {
+        "package": "internal/access",
+        "elapsed": 0.29
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "elapsed": 0.203
+      },
+      {
+        "package": "internal/architecture",
+        "elapsed": 0.308
+      },
+      {
+        "package": "internal/app",
+        "elapsed": 0.328
+      },
+      {
+        "package": "internal/domain",
+        "elapsed": 0.375
+      },
+      {
+        "package": "internal/adapter/media",
+        "elapsed": 0.723
+      },
+      {
+        "package": "internal/platform/i18n",
+        "elapsed": 0.357
+      },
+      {
+        "package": "internal/platform/config",
+        "elapsed": 0.43
+      },
+      {
+        "package": "internal/platform/legacyignore",
+        "elapsed": 0.395
+      },
+      {
+        "package": "internal/platform/logging",
+        "elapsed": 0.415
+      },
+      {
+        "package": "internal/adapter/metadata",
+        "elapsed": 0.919
+      },
+      {
+        "package": "cmd/jelee-cli",
+        "elapsed": 1.19
+      },
+      {
+        "package": "internal/platform/jobs",
+        "elapsed": 0.768
+      },
+      {
+        "package": "internal/platform/proberuntime",
+        "elapsed": 0.394
+      },
+      {
+        "package": "internal/adapter/nfo",
+        "elapsed": 1.158
+      },
+      {
+        "package": "internal/platform/legacyignorehelper",
+        "elapsed": 0.825
+      },
+      {
+        "package": "internal/platform/password",
+        "elapsed": 0.862
+      },
+      {
+        "package": "internal/platform/sandbox",
+        "elapsed": 0.347
+      },
+      {
+        "package": "tools",
+        "elapsed": 0.37
+      },
+      {
+        "package": "tools/runtime-image",
+        "elapsed": 0.598
+      },
+      {
+        "package": "internal/platform/toolidentity",
+        "elapsed": 0.686
+      },
+      {
+        "package": "internal/adapter/http",
+        "elapsed": 2.292
+      },
+      {
+        "package": "internal/platform/runtime",
+        "elapsed": 1.058
+      },
+      {
+        "package": "internal/adapter/probe",
+        "elapsed": 2.572
+      },
+      {
+        "package": "internal/adapter/media/ignore",
+        "elapsed": 2.771
+      },
+      {
+        "package": "internal/adapter/scan",
+        "elapsed": 3.513
+      },
+      {
+        "package": "internal/platform/process",
+        "elapsed": 2.817
+      },
+      {
+        "package": "internal/platform/outbound",
+        "elapsed": 4.079
+      },
+      {
+        "package": "internal/platform/ignore",
+        "elapsed": 10.532
+      }
+    ],
+    "passEventsIncludingParents": 2863,
+    "passedLeaves": 2686,
+    "skippedTestEvents": 435
+  },
+  "restoredRegression": {
+    "packages": [
+      {
+        "package": "internal/adapter/metadata",
+        "elapsed": 0.675
+      },
+      {
+        "package": "internal/platform/outbound",
+        "elapsed": 3.623
+      }
+    ],
+    "passEventsIncludingParents": 126,
+    "passedLeaves": 118,
+    "skippedTestEvents": 0
+  },
+  "skippedNames": "sorted package/test identity set matches previous complete list",
+  "skippedListSource": {
+    "path": "docs/evidence/outbound-tmdb-preflight.json",
+    "sha256": "d9dc00f78f14d500c79b1be8c2490a172ce84e7257034f0cd6ba72c240431882",
+    "jsonField": "windowsFullGo.skippedTests"
+  },
+  "linuxRace": {
+    "status": "PASS four packages",
+    "output": "ok  \tgithub.com/MoYuanCN/Jelee/internal/adapter/metadata\t1.241s\nok  \tgithub.com/MoYuanCN/Jelee/internal/platform/outbound\t4.389s\nok  \tgithub.com/MoYuanCN/Jelee/internal/platform/runtime\t1.212s\nok  \tgithub.com/MoYuanCN/Jelee/internal/platform/config\t1.324s",
+    "skips": "not emitted by summary command; not claimed zero"
+  },
+  "fullVet": "PASS",
+  "productionBuild": "PASS cmd/jelee",
+  "negative": {
+    "exitCode": 1,
+    "leafFailures": 1,
+    "restoredSha256": "9f5c26367d0d12cdd35e17191ada268a37434c4d85e32fb28e7308f5a1407fad"
+  },
+  "policy": {
+    "startSpacingMilliseconds": 250,
+    "capacity": 4,
+    "scope": "one adapter instance, not distributed",
+    "capacityIncludes": "network fetch and rate/cooldown admission wait",
+    "backgroundWorkers": 0,
+    "sharedCooldownStatuses": [
+      429,
+      503
+    ],
+    "publish": "before releasing request capacity, including terminal responses",
+    "invalidRetryAfterFallbackSeconds": 15,
+    "cancellation": "waiters release capacity and do not reserve future starts"
+  },
+  "missing": [
+    "TMDB movie/series fetching integration and metadata cache",
+    "configurable provider budgets",
+    "distributed per-credential coordination",
+    "real external credential/quota regression"
+  ],
+  "gates": {
+    "incrementalBrand": {
+      "violations": 0,
+      "allowed": 181
+    },
+    "fullBrand": {
+      "violations": 14735,
+      "allowed": 186,
+      "status": "FAIL retained"
+    },
+    "gitignoreViolations": 0,
+    "sourcesAndSkippedList": "verified",
+    "protectedHashes": "PASS",
+    "fiveCoreFiles": "byte-identical to base",
+    "csOrMigrationsChanged": false,
+    "localLinks": "PASS",
+    "traceability": {
+      "done": 4,
+      "partial": 179,
+      "blocked": 153
+    },
+    "allowlistChanged": false
+  },
+  "deterministicCooldownExtensionTest": "private now/wait seams, initialized to time.Now/waitRetry in production; 60ms original wait plus 40ms extension asserted without scheduler timing"
+}

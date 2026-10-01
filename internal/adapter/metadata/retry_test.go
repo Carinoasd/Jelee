@@ -69,6 +69,7 @@ func TestAuthenticationRetriesAndCancellation(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			c, _ := NewTMDB(testKey)
 			defer c.Close()
+			c.governor = nil
 			calls := 0
 			waits := 0
 			c.fetch = func(context.Context, string, int64) (outbound.Response, error) {

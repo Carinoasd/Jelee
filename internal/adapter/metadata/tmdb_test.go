@@ -34,6 +34,7 @@ func TestTMDBCredentialResponseContract(t *testing.T) {
 			}
 			defer client.Close()
 			client.wait = func(context.Context, time.Duration) error { return nil }
+			client.governor = nil
 			calls := 0
 			client.fetch = func(ctx context.Context, raw string, maxBytes int64) (outbound.Response, error) {
 				calls++

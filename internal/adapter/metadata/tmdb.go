@@ -19,11 +19,12 @@ var (
 )
 
 type TMDB struct {
-	key    string
-	client *outbound.Client
-	fetch  func(context.Context, string, int64) (outbound.Response, error)
-	wait   func(context.Context, time.Duration) error
-	now    func() time.Time
+	key      string
+	client   *outbound.Client
+	fetch    func(context.Context, string, int64) (outbound.Response, error)
+	wait     func(context.Context, time.Duration) error
+	now      func() time.Time
+	governor *requestGovernor
 }
 
 func NewTMDB(key string) (*TMDB, error) {
@@ -43,7 +44,7 @@ func NewTMDBWithClient(key string, client *outbound.Client) (*TMDB, error) {
 	if !ValidTMDBKey(key) || client == nil {
 		return nil, ErrCredentials
 	}
-	return &TMDB{key: key, client: client, fetch: client.Fetch, wait: waitRetry, now: time.Now}, nil
+	return &TMDB{key: key, client: client, fetch: client.Fetch, wait: waitRetry, now: time.Now, governor: newRequestGovernor()}, nil
 }
 
 func ValidTMDBKey(key string) bool {

@@ -134,3 +134,56 @@ func TestTMDBActualAdapterThroughGuardedTLS(t *testing.T) {
 		})
 	}
 }
+
+func TestTMDBSharedCooldownThroughActualTLS(t *testing.T) {
+	cert, roots := providerCertificate(t)
+	requests := new(atomic.Int32)
+	srv := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if requests.Add(1) == 1 {
+			w.Header().Set("Retry-After", "1")
+			w.WriteHeader(429)
+			return
+		}
+		_, _ = w.Write([]byte(`{"success":true,"status_code":1}`))
+	}))
+	srv.TLS = &tls.Config{Certificates: []tls.Certificate{cert}, MinVersion: tls.VersionTLS12}
+	srv.StartTLS()
+	defer srv.Close()
+	c, err := outbound.NewMappedTestClient(func(context.Context, string, string) ([]netip.Addr, error) {
+		return []netip.Addr{netip.MustParseAddr("93.184.216.34")}, nil
+	}, func(ctx context.Context, _ string, address string) (net.Conn, error) {
+		if address != "93.184.216.34:443" {
+			t.Error("unvalidated dial target")
+		}
+		return (&net.Dialer{}).DialContext(ctx, "tcp", srv.Listener.Addr().String())
+	}, roots)
+	if err != nil {
+		t.Fatal(err)
+	}
+	adapter, err := metadata.NewTMDBWithClient(strings.Repeat("a", 32), c)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer adapter.Close()
+	first, cancel := context.WithTimeout(context.Background(), 150*time.Millisecond)
+	defer cancel()
+	start := time.Now()
+	if err := adapter.ValidateCredentials(first); err != metadata.ErrRateLimited {
+		t.Fatalf("first response=%v", err)
+	}
+	// Longer than the ordinary 250ms rate interval, shorter than Retry-After.
+	second, stop := context.WithTimeout(context.Background(), 600*time.Millisecond)
+	defer stop()
+	if err := adapter.ValidateCredentials(second); !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("shared cooldown bypassed: %v", err)
+	}
+	if requests.Load() != 1 {
+		t.Fatal("cancelled second call reached upstream")
+	}
+	if err := adapter.ValidateCredentials(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if requests.Load() != 2 || time.Since(start) < time.Second {
+		t.Fatal("shared server minimum not respected")
+	}
+}

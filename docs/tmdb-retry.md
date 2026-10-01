@@ -17,3 +17,5 @@ TMDB 官方要求尊重 429，服務限制可能調整，本實作沒有把歷�
 - Windows 完整 Go 29 包，2,858 pass events（含父測試）、435 skip events；skip名稱集合逐項等於前段完整清單。完整vet通過；Linux四包race通過，摘要未列skip，沒有零略過宣稱。
 
 [證據](evidence/tmdb-retry.json)記錄實際來源、恢復hash與執行範圍。這段是預檢的有界重試，尚無完整TMDB請求限流器、共享冷卻、資料cache、電影／劇集匹配與真外部憑據／配額驗收。原[受控出站驗收](outbound-tmdb-preflight.md)保留前段歷史測試範圍，這份證據代表目前重試子集。
+
+後續已接每適配器限流與共享冷卻，現況見[治理驗收](tmdb-governor.md)。本文件原測試／來源保留7341a42d25階段；資料cache與完整刮削仍待完成。

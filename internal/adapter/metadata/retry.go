@@ -16,16 +16,19 @@ func (t *TMDB) authenticationRequest(ctx context.Context, target string) (outbou
 		if err := ctx.Err(); err != nil {
 			return outbound.Response{}, err
 		}
-		r, err := t.fetch(ctx, target, 4096)
+		r, err := t.governedFetch(ctx, target, 4096, attempt)
 		// Transport/security/size failures are not blindly retried. Only
 		// provider responses can authorize a retry in this startup phase.
 		if err != nil {
 			return outbound.Response{}, err
 		}
-		if r.Status != 429 && (r.Status < 500 || r.Status > 599) || attempt == 2 {
+		if r.Status != 429 && (r.Status < 500 || r.Status > 599) {
 			return r, nil
 		}
 		delay, ok := retryDelay(r.RetryAfter, t.now(), attempt)
+		if attempt == 2 {
+			return r, nil
+		}
 		if !ok {
 			return r, nil
 		}
