@@ -1,6 +1,6 @@
 # 合併忽略模式的准入交易
 
-應用層與儲存層提供明確的合併模式准入合同。HTTP／CLI 掃描提交與正式服務啟動仍待接線，這份文件不代表已完成公開功能切換。
+應用層與儲存層提供明確的合併模式准入合同。HTTP／CLI 掃描與正式服務已接線，功能開關及 helper 健康檢查詳見 [正式服務說明](ignore-family-runtime.md)。
 
 ## 固定合同
 
@@ -18,13 +18,13 @@ NFO／probe 的固定身份、功能政策、庫世代、佇列限制、忙碌�
 
 正式 worker 測試現在透過應用層及准入交易建立合併請求，移除先建立原模式再以 SQL 替換請求的做法。原生驗收涵蓋發布、NFO 排除、中斷恢復、來源變更及未知來源；成功工作再讀正式報告，確認自有與舊格式排除來源都保留。
 
-公開入口與正式 helper 健康檢查、服務停止後清理、功能開關仍待完成；G22 與第 3 階段未完成。
+公開入口、helper 健康檢查、服務停止後清理及功能開關已另段驗證；G22 與第 3 階段未完成。
 
 ## 專項證據
 
 - 真實 PostgreSQL race 准入與既有請求合同：16 項頂層通過，零失敗／略過，36.203 秒。
-- 正式准入到原生 worker 及報告：5 項通過，零失敗／略過，20.817 秒；公開 HTTP／CLI 掃描入口尚未切換。
+- 正式准入到原生 worker 及報告：5 項通過，零失敗／略過，20.817 秒；公開 HTTP／CLI 掃描入口已另段切換並驗證。
 - Windows domain／app／HTTP／runtime／PostgreSQL 模組测试、全 vet、三命令 build 通過。
 - Linux domain／app／HTTP／runtime／architecture race 通過，分別為 1.068／1.031／3.224／1.084／1.118 秒。
 
-[完整 PostgreSQL race 回歸證據](evidence/ignore-family-admission.json)：252 項頂層通過，零失敗、零略過，349.781 秒，受驗來源未變。完整 G22 與服務接線仍未完成。
+[完整 PostgreSQL race 回歸證據](evidence/ignore-family-admission.json)：252 項頂層通過，零失敗、零略過，349.781 秒，受驗來源未變。完整 G22 仍未完成；服務接線已有獨立驗收。

@@ -114,7 +114,7 @@ func readJobsToken(ctx context.Context, input io.Reader) (string, error) {
 
 func runJobsCLI(ctx context.Context, argv []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	usage := func() int {
-		fmt.Fprintln(stderr, "usage: jelee-cli jobs scan|ignore|probe|probe-rebuild-library|probe-rebuild-item|list|libraries|get|entries|cancel|retry --token-stdin [--url http://127.0.0.1:8097] [--id UUID] [--key ASCII] [--priority manual|background] [--probe] [--nfo] [--ignore jeleeignore --ignore-case sensitive|ascii-insensitive] [--cursor CURSOR] [--limit 50] [--state STATE]")
+		fmt.Fprintln(stderr, "usage: jelee-cli jobs scan|ignore|probe|probe-rebuild-library|probe-rebuild-item|list|libraries|get|entries|cancel|retry --token-stdin [--url http://127.0.0.1:8097] [--id UUID] [--key ASCII] [--priority manual|background] [--probe] [--nfo] [--ignore jeleeignore|jeleeignore-legacy-v1 --ignore-case sensitive|ascii-insensitive] [--cursor CURSOR] [--limit 50] [--state STATE]")
 		return 2
 	}
 	if len(argv) == 0 {
@@ -163,7 +163,8 @@ func runJobsCLI(ctx context.Context, argv []string, stdin io.Reader, stdout, std
 	if flags.Parse(argv[1:]) != nil || flags.NArg() != 0 || !*fromStdin {
 		return usage()
 	}
-	if domain.ValidateIgnoreIntent(domain.IgnoreIntent{Mode: ignoreMode, CaseMode: ignoreCase}) != nil {
+	ignoreIntent := domain.IgnoreIntent{Mode: ignoreMode, CaseMode: ignoreCase}
+	if domain.ValidateIgnoreIntent(ignoreIntent) != nil && domain.ValidateFamilyIgnoreIntent(ignoreIntent) != nil {
 		return usage()
 	}
 	u, err := jobsBaseURL(*base)

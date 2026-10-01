@@ -45,6 +45,11 @@ func New(cfg config.Config, logger *slog.Logger) *fx.App {
 			}
 			startup, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 			defer cancel()
+			ignoring, err := newFamilyIgnoreService(startup, c.EnableFamilyIgnore, prepareProductionFamilyIgnore)
+			if err != nil {
+				return nil, err
+			}
+			lifetime.closeIgnore = ignoring.Close
 			probing, err := newProbeService(startup, c.EnableProbe, store, prepareProductionProbe)
 			if err != nil {
 				return nil, err
@@ -61,8 +66,9 @@ func New(cfg config.Config, logger *slog.Logger) *fx.App {
 			}
 			validation.logger = l
 			service, err := app.NewJobsWithScanStages(store, c.Jobs.Policy(), store, app.ScanServices{
-				IgnoreAvailable: func() bool { return goruntime.GOOS == "linux" || goruntime.GOOS == "windows" },
-				Probes:          store, ProbeIdentity: probing.identity, ProbeCapability: probing.Capability,
+				FamilyIgnoreAvailable: ignoring.Available,
+				IgnoreAvailable:       func() bool { return goruntime.GOOS == "linux" || goruntime.GOOS == "windows" },
+				Probes:                store, ProbeIdentity: probing.identity, ProbeCapability: probing.Capability,
 				NFOAdmin: store, NFOQueries: store, Images: store, NFOIdentity: validation.identity, NFOAvailable: validation.Available,
 			})
 			if err != nil {
@@ -73,6 +79,9 @@ func New(cfg config.Config, logger *slog.Logger) *fx.App {
 			if goruntime.GOOS == "linux" || goruntime.GOOS == "windows" {
 				ignoreScanner := scan.NewIgnoreScanner()
 				opts.Ignore = &jobworker.IgnoreOptions{Repository: store, Scanner: ignoreScanner, Observer: ignoreScanner}
+			}
+			if ignoring.Available() {
+				opts.FamilyIgnore = &jobworker.FamilyIgnoreOptions{Repository: store, Scanner: scan.NewFamilyIgnoreScanner(ignoring), Available: ignoring.Available}
 			}
 			if validation.Available() {
 				opts.NFO = &jobworker.NFOOptions{Repository: store, Reader: validation, MaxConcurrent: 2, Available: validation.Available, OnRuntimeUnavailable: validation.Disable}
@@ -129,6 +138,7 @@ type lifetime struct {
 	requestShutdown func() error
 	closeStore      func()
 	closeProbe      func() error
+	closeIgnore     func() error
 	closeOnce       sync.Once
 	stopOnce        sync.Once
 	exited          chan struct{}
@@ -153,6 +163,12 @@ func build(l *lifetime, options ...fx.Option) *fx.App {
 
 func (l *lifetime) closePool() {
 	l.closeOnce.Do(func() {
+		if l.closeIgnore != nil {
+			if err := l.closeIgnore(); err != nil {
+				l.stopErr = errors.Join(l.stopErr, errors.New("ignore helper temporary cleanup failed"))
+				l.logger.Error("ignore helper temporary cleanup failed", "component", "ignore", "code", "ignore_unavailable")
+			}
+		}
 		if l.closeProbe != nil {
 			if err := l.closeProbe(); err != nil {
 				l.stopErr = errors.Join(l.stopErr, errors.New("probe temporary cleanup failed"))

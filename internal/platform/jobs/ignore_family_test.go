@@ -81,3 +81,46 @@ func TestFamilyRunnerRequiresDispatchRepository(t *testing.T) {
 		t.Fatal("family option could fall back to ordinary inventory", err)
 	}
 }
+
+func TestFamilyRunnerRechecksReadinessAtClaims(t *testing.T) {
+	for _, withNFO := range []bool{false, true} {
+		t.Run(map[bool]string{false: "plain", true: "nfo"}[withNFO], func(t *testing.T) {
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			ready, calls := true, 0
+			claim := func(_ context.Context, c domain.ScanCapabilities) (domain.JobLease, error) {
+				calls++
+				if c.FamilyIgnore != ready {
+					t.Error("claim used stale helper readiness")
+				}
+				ready = false
+				cancel()
+				return domain.JobLease{}, domain.ErrNotFound
+			}
+			r := &Runner{repository: claimStagesFake{claim: claim}, options: DefaultOptions(), logger: slog.New(slog.NewTextHandler(io.Discard, nil))}
+			r.options.FamilyIgnore = &FamilyIgnoreOptions{Repository: &familyRunFake{}, Scanner: &familyScannerStub{}, Available: func() bool { return ready }}
+			if withNFO {
+				r.nfoRepository = familyNFOClaimFake{claimStagesFake: claimStagesFake{claim: claim}}
+			}
+			r.work(ctx)
+			if calls != 1 {
+				t.Fatal("claim not invoked")
+			}
+			ctx, cancel = context.WithCancel(context.Background())
+			defer cancel()
+			r.work(ctx)
+			if calls != 2 {
+				t.Fatal("disabled capability was not passed to storage")
+			}
+		})
+	}
+}
+
+type familyNFOClaimFake struct {
+	app.NFOExecutionRepository
+	claimStagesFake
+}
+
+func (f familyNFOClaimFake) ClaimJobWithCapabilities(c context.Context, o string, b bool, d time.Duration, v domain.ScanCapabilities) (domain.JobLease, error) {
+	return f.claimStagesFake.ClaimJobWithCapabilities(c, o, b, d, v)
+}

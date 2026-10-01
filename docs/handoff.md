@@ -624,3 +624,13 @@ ScanServices.FamilyIgnoreAvailable 与 Jobs 獨立回呼，新 port優先分派�
 完整PG race family-admission-full 已啟動，exec76433，同一handle仍在執行，來源不得修改；Linuxexec80845已結束。接續poll同一handle，不可因觀察超時重跑。当前约141顶层通过零失败。下一步正式runtime可參考probe service工廠及lifetime.closePool：固定health batch驗證helper確實可執行、預設關閉featureflag、workerjoin後暫存清理。process.IgnoreRunner沒有Close，Evaluate各自join後清理，service負責頂層MkdirTemp目錄。cmd/jelee/main.go已有legacyhelper入口，runtime的TestMain目前只接probehelper，原生runtime測試需補legacyhelper dispatch。source_unavailable不應誤關閉整服務，adapter目前將helper多種錯誤映成同一domain錯誤，需明確保留runtime失敗辨識或在helper邊界追蹤。
 
 完整PG race family-admission-full已結束：252頂層pass、0fail0skip349.781秒、sourceUnchanged=true。exec76433已結束，沒有本機測試handle。證據docs/evidence/ignore-family-admission.json。此段准入交易與app合同已驗證，接續正式runtime與HTTP/CLI；不得再重啟同mode覆寫證據。
+
+### 合併模式正式 runtime 與公開入口驗證
+
+新增 EnableFamilyIgnore/JELEE_ENABLE_FAMILY_IGNORE，預設false、jobs/accounts依賴校驗，環境覆蓋及Compose傳遞。HTTP/CLI接受已知family意圖，server身份及可用性仍由准入判斷；OpenAPI实际定义在nfo_openapi.go，已更新枚舉。runtime新familyIgnoreService以固定helper真正執行規則健康檢查，再提供app回呼及worker scanner。helper邊界偵測啟動/逾時/錯誤/非法結果後停用，不將來源讀取錯誤誤判全服務失效；cancel/busy保留健康。FamilyIgnoreOptions.Available使兩條認領路径每次重讀並在dispatch前重驗。Close先停用再等待Evaluate讀鎖join，lifetime在workerjoin後清理helper顶层MkdirTemp，Fx建構失敗也沿用closePool。
+
+Windows native健康/清理與全部Go套件編譯和可執行測試通過；沒有Windows真PG聲明。新unit的NFO claim fake第一次編譯缺AbortNFOPhase，補完整介面後通過；未修改正式介面掩蓋錯誤。Linux runtime/jobs/config/HTTP/CLI/architecture/scan race全pass1.093/1.343/1.024/3.245/1.893/1.128/1.264秒。全vet/三build/jelee_probe_tests入口相容通過。
+
+真實PG＋正式Fx runtime native family-runtime-first 5頂層pass0fail0skip16.311秒；補服務重啟關閉後保留重送與new key拒絕，family-runtime-restart 5頂層pass0fail0skip14.906秒sourceUnchanged=true，證據docs/evidence/ignore-family-runtime.json。實際監聽、KDF真登入、HTTP提交、familyworker發布/報告，含disabled不留下job、匿名拒絕、重送、兩家族來源、原fixture媒体/NFO内容不變及temp清空。所有本機handles86779/20162/79282/72312已結束。CI增加PG環境下nonrace ^TestFamilyIgnore runtime步驟與證據；foundation race不啟動有2GiB限制的native child。
+
+本次未改PG來源/遷移；准入版本753dd43d4c已驗證252真PG全回歸，服務版本用上述正式原生完整鏈及相關race驗證。接續規則修改後多輪重掃/基線保留、取消與lease恢復、完整混合NFO/probe/images；另外兩種舊格式的精確來源仍待核對，G22不可標完成。仍沿用PR46工作分支，不新增分支。

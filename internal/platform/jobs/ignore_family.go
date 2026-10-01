@@ -10,9 +10,13 @@ import (
 type FamilyIgnoreOptions struct {
 	Repository app.FamilyIgnoreExecutionRepository
 	Scanner    app.FamilyIgnoreScanner
+	Available  func() bool
 }
 
 func (r *Runner) executeFamilyIgnore(ctx context.Context, l domain.JobLease, request domain.IgnoreRequest) (error, bool) {
+	if !r.familyIgnoreAvailable() {
+		return domain.ErrIgnoreUnavailable, false
+	}
 	repo := r.options.FamilyIgnore.Repository
 	scanner := r.options.FamilyIgnore.Scanner
 	var progress domain.IgnoreExecutionProgress
@@ -203,6 +207,9 @@ func verifyFamilyStream[T any, P any](ctx context.Context, r *Runner, l domain.J
 }
 
 func (r *Runner) executeFamilyInventory(ctx context.Context, l domain.JobLease, intent domain.IgnoreIntent) (error, bool) {
+	if !r.familyIgnoreAvailable() {
+		return domain.ErrIgnoreUnavailable, false
+	}
 	repo := r.options.FamilyIgnore.Repository
 	for {
 		if err := ctx.Err(); err != nil {
@@ -245,4 +252,9 @@ func (r *Runner) executeFamilyInventory(ctx context.Context, l domain.JobLease, 
 			return domain.ErrScanIO, false
 		}
 	}
+}
+
+func (r *Runner) familyIgnoreAvailable() bool {
+	o := r.options.FamilyIgnore
+	return o != nil && (o.Available == nil || o.Available())
 }

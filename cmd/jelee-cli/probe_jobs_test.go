@@ -27,7 +27,8 @@ func TestProbeCLIUsesFixedAuthenticatedRoutesAndOptInBody(t *testing.T) {
 		{"scan", "POST", "/api/v1/libraries/" + jobsTestID + "/scan", []string{"--probe"}, map[string]any{"priority": "manual", "probe": true}},
 		{"scan", "POST", "/api/v1/libraries/" + jobsTestID + "/scan", nil, map[string]any{"priority": "manual"}},
 		{"scan", "POST", "/api/v1/libraries/" + jobsTestID + "/scan", []string{"--ignore", "jeleeignore", "--ignore-case", "sensitive"}, map[string]any{"priority": "manual", "ignore": map[string]any{"mode": "jeleeignore", "caseMode": "sensitive"}}},
-		{"probe-rebuild-library", "POST", "/api/v1/libraries/" + jobsTestID + "/probe/rebuild", []string{"--priority", "background"}, map[string]any{"priority": "background"}},
+		{"scan", "POST", "/api/v1/libraries/" + jobsTestID + "/scan", []string{"--ignore", "jeleeignore-legacy-v1", "--ignore-case", "sensitive"}, map[string]any{"priority": "manual", "ignore": map[string]any{"mode": "jeleeignore-legacy-v1", "caseMode": "sensitive"}}},
+		{"scan", "POST", "/api/v1/libraries/" + jobsTestID + "/scan", []string{"--nfo", "--probe", "--ignore", "jeleeignore-legacy-v1", "--ignore-case", "ascii-insensitive"}, map[string]any{"priority": "manual", "nfo": true, "probe": true, "ignore": map[string]any{"mode": "jeleeignore-legacy-v1", "caseMode": "ascii-insensitive"}}}, {"probe-rebuild-library", "POST", "/api/v1/libraries/" + jobsTestID + "/probe/rebuild", []string{"--priority", "background"}, map[string]any{"priority": "background"}},
 		{"probe-rebuild-item", "POST", "/api/v1/items/" + jobsTestID + "/probe/rebuild", nil, map[string]any{"priority": "manual"}},
 		{"probe", "GET", "/api/v1/jobs/" + jobsTestID + "/probe", nil, nil},
 	} {

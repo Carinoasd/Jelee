@@ -112,6 +112,18 @@ jobs:
       - run: make bootstrap tools-verify test-integration test-race
       - name: Native family ignore storage acceptance
         run: .bin/go test -count=1 -timeout=90s -run '^TestFamily(IgnoreNativeStorage|RunnerNative.*)$' ./internal/adapter/postgres
+      - name: Native family ignore production runtime acceptance
+        run: |
+          set -o pipefail
+          .bin/go test -count=1 -timeout=90s -run '^TestFamilyIgnore' ./internal/platform/runtime 2>&1 | tee .testdata/ignore-family-runtime.txt
+      - name: Retain family ignore runtime evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ignore-family-runtime
+          path: .testdata/ignore-family-runtime.txt
+          if-no-files-found: error
+          retention-days: 7
       - name: Real media scan and probe cache acceptance
         run: make bootstrap-media media-tools-verify bootstrap-runtime runtime-tools-verify fixtures probe-worker-test
       - name: Real mixed NFO, video and image incremental acceptance

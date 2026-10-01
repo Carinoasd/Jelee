@@ -28,6 +28,7 @@ type Config struct {
 	EnableJobs            bool           `json:"enableJobs"`
 	Jobs                  JobsConfig     `json:"jobs"`
 	EnableProbe           bool           `json:"enableProbe"`
+	EnableFamilyIgnore    bool           `json:"enableFamilyIgnore"`
 }
 
 func Load() (Config, error) { return LoadWith(os.LookupEnv) }
@@ -79,7 +80,7 @@ func LoadWith(lookup func(string) (string, bool)) (Config, error) {
 	if value, ok := lookup("JELEE_ALLOWED_HOSTS"); ok {
 		c.AllowedHosts = strings.Split(value, ",")
 	}
-	for name, target := range map[string]*bool{"JELEE_ENABLE_CATALOG": &c.EnableCatalog, "JELEE_ENABLE_DIRECT": &c.EnableDirect, "JELEE_ENABLE_ACCOUNTS": &c.EnableAccounts, "JELEE_ENABLE_JOBS": &c.EnableJobs, "JELEE_ENABLE_PROBE": &c.EnableProbe} {
+	for name, target := range map[string]*bool{"JELEE_ENABLE_CATALOG": &c.EnableCatalog, "JELEE_ENABLE_DIRECT": &c.EnableDirect, "JELEE_ENABLE_ACCOUNTS": &c.EnableAccounts, "JELEE_ENABLE_JOBS": &c.EnableJobs, "JELEE_ENABLE_PROBE": &c.EnableProbe, "JELEE_ENABLE_FAMILY_IGNORE": &c.EnableFamilyIgnore} {
 		if value, ok := lookup(name); ok {
 			b, err := strconv.ParseBool(value)
 			if err != nil {
@@ -156,6 +157,9 @@ func (c Config) Validate() error {
 		if int(c.MaxConnections) < c.Jobs.Workers+2 {
 			return errors.New("jobs require at least workers plus two database connections")
 		}
+	}
+	if c.EnableFamilyIgnore && !c.EnableJobs {
+		return errors.New("family ignore requires job rollout")
 	}
 	if c.EnableProbe {
 		if !c.EnableJobs {

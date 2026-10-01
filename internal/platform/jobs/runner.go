@@ -193,9 +193,9 @@ func (r *Runner) work(ctx context.Context) {
 		var lease domain.JobLease
 		var err error
 		if r.nfoRepository != nil {
-			lease, err = r.nfoRepository.ClaimJobWithCapabilities(dbCtx, r.options.Owner, turn%4 == 3, r.options.LeaseDuration, domain.ScanCapabilities{Probe: r.probeAvailable(), NFO: r.nfoAvailable(), Ignore: r.options.Ignore != nil, FamilyIgnore: r.options.FamilyIgnore != nil})
+			lease, err = r.nfoRepository.ClaimJobWithCapabilities(dbCtx, r.options.Owner, turn%4 == 3, r.options.LeaseDuration, domain.ScanCapabilities{Probe: r.probeAvailable(), NFO: r.nfoAvailable(), Ignore: r.options.Ignore != nil, FamilyIgnore: r.familyIgnoreAvailable()})
 		} else if capable, ok := r.repository.(stagesClaimer); ok {
-			lease, err = capable.ClaimJobWithCapabilities(dbCtx, r.options.Owner, turn%4 == 3, r.options.LeaseDuration, domain.ScanCapabilities{Probe: r.probeAvailable(), Ignore: r.options.Ignore != nil, FamilyIgnore: r.options.FamilyIgnore != nil})
+			lease, err = capable.ClaimJobWithCapabilities(dbCtx, r.options.Owner, turn%4 == 3, r.options.LeaseDuration, domain.ScanCapabilities{Probe: r.probeAvailable(), Ignore: r.options.Ignore != nil, FamilyIgnore: r.familyIgnoreAvailable()})
 		} else if r.probeRepository != nil {
 			lease, err = r.probeRepository.ClaimJobWithProbe(dbCtx, r.options.Owner, turn%4 == 3, r.options.LeaseDuration, r.probeAvailable())
 		} else if capable, ok := r.repository.(probeClaimer); ok {

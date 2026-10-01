@@ -90,7 +90,7 @@ func (s *Server) submitScan(w http.ResponseWriter, r *http.Request, a domain.Act
 	ignore := domain.IgnoreIntent{}
 	if input.Ignore != nil {
 		ignore = domain.IgnoreIntent{Mode: input.Ignore.Mode, CaseMode: input.Ignore.CaseMode}
-		if ignore.Mode == "" || domain.ValidateIgnoreIntent(ignore) != nil {
+		if ignore.Mode == "" || (domain.ValidateIgnoreIntent(ignore) != nil && domain.ValidateFamilyIgnoreIntent(ignore) != nil) {
 			return nil, 0, domain.ErrInvalid
 		}
 	}
