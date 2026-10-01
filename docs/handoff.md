@@ -562,3 +562,15 @@ Windows postgres編譯/純測試.067秒、相關vet/diff通過。尚需完整PG�
 ### 合併模式發布完整回歸通過
 
 family-publication-full 真實 PostgreSQL race 239 頂層通過、0 fail、0 skip，327.366 秒，sourceUnchanged=true，證據 .testdata/inventory-family-publication-full-postgres-summary.json。Windows domain/scan/architecture、全 vet 與三命令 build 已通過；LICENSE 與需求原文雜湊未變。當前發布實作尚未提交，接續增量品牌、gitignore、diff 門禁後提交繁中 PR；正式 worker 與公開入口仍未完成。PR44 最新三平台 run-tests 與 foundation 通過，兩 PostgreSQL CI 仍執行中，完整品牌失敗。
+
+### 主分支整合與 worker 讀取接續
+
+使用者明確要求直接合入主分支，已透過普通繁中 PR45 合入 master，合併提交 1021996de3927413b0be664c7f861a11c6829ca3。主分支合併未改變 b7e7ee0165 已驗證的檔案樹。新分支 feat/jelee-ignore-family-worker 從 origin/master 接續。使用者正在討論倉庫歸屬與 token 成本，尚未同意搬移；目前只做本機工作，未新增遠端寫入。
+
+新增 ReadFamilyIgnoreRoot / ReadFamilyIgnoreProgress，與舊入口共用私有讀取實作。family 路徑使用 comparisonModeFence 檢查模式、租約、取消、epoch 與兩份 manifest 有效性，最後仍以 commitIgnoreManifest 重驗。舊入口保持拒絕 family。真實 PostgreSQL race family-execution-reads：3 頂層通過，0 fail / 0 skip，23.075 秒，sourceUnchanged=true；包含初始/比較進度、外庫 root 不可讀、舊入口隔離、stale generation、取消、epoch、兩 manifest invalidation。Windows postgres 編譯與純測試通過。尚未做全套回歸，尚未提交。
+
+下一步：request 讀取仍由 loadIgnoreRequest 限制為原模式，應設計明確的 worker 模式辨識及完整保留 request 身份驗證，不可盲目放寬公開入口。接續 family app ports、runner dispatch/claim capability、三路 observer 復核、NFO/probe 階段守衛與正式 worker 原生驗收。
+
+### 開發倉庫搬移
+
+使用者要求改由自己的帳號管理開發，已建立公開倉庫 https://github.com/Carinoasd/Jelee 。本機 origin 改指向該倉庫；原朋友倉庫保留為 friend，上游保留為 upstream。後續 PR 與推送使用 Carinoasd/Jelee。保留完整主分支歷史、LICENSE 與原有歸屬；搬移不轉移既有著作權。朋友倉庫不刪除、不撤回、不改寫。此提交包含已通過真實 PG 專項與 vet 的 worker 私有讀取進度，完整 worker 尚未完成。

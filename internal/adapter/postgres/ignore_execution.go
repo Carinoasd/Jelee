@@ -5,6 +5,7 @@ import (
 
 	"github.com/MoYuanCN/Jelee/internal/app"
 	"github.com/MoYuanCN/Jelee/internal/domain"
+	"github.com/jackc/pgx/v5"
 )
 
 var _ app.IgnoreExecutionRepository = (*Store)(nil)
@@ -36,6 +37,22 @@ func (s *Store) ReadIgnoreRequest(ctx context.Context, l domain.JobLease) (*doma
 }
 
 func (s *Store) ReadIgnoreRoot(ctx context.Context, l domain.JobLease, rootID string) (string, error) {
+	return s.readIgnoreRoot(ctx, l, rootID, false)
+}
+
+func (s *Store) ReadFamilyIgnoreRoot(ctx context.Context, l domain.JobLease, rootID string) (string, error) {
+	return s.readIgnoreRoot(ctx, l, rootID, true)
+}
+
+func executionModeFence(ctx context.Context, tx pgx.Tx, l domain.JobLease, family bool) (domain.JobLease, int64, error) {
+	if !family {
+		return ignoreManifestFence(ctx, tx, l)
+	}
+	current, epoch, _, err := comparisonModeFence(ctx, tx, l, true)
+	return current, epoch, err
+}
+
+func (s *Store) readIgnoreRoot(ctx context.Context, l domain.JobLease, rootID string, family bool) (string, error) {
 	if !domain.ValidID(rootID) {
 		return "", domain.ErrInvalid
 	}
@@ -44,7 +61,7 @@ func (s *Store) ReadIgnoreRoot(ctx context.Context, l domain.JobLease, rootID st
 		return "", err
 	}
 	defer tx.Rollback(ctx)
-	current, epoch, err := ignoreManifestFence(ctx, tx, l)
+	current, epoch, err := executionModeFence(ctx, tx, l, family)
 	if err != nil {
 		return "", err
 	}
@@ -60,12 +77,20 @@ func (s *Store) ReadIgnoreRoot(ctx context.Context, l domain.JobLease, rootID st
 }
 
 func (s *Store) ReadIgnoreProgress(ctx context.Context, l domain.JobLease) (domain.IgnoreExecutionProgress, error) {
+	return s.readIgnoreProgress(ctx, l, false)
+}
+
+func (s *Store) ReadFamilyIgnoreProgress(ctx context.Context, l domain.JobLease) (domain.IgnoreExecutionProgress, error) {
+	return s.readIgnoreProgress(ctx, l, true)
+}
+
+func (s *Store) readIgnoreProgress(ctx context.Context, l domain.JobLease, family bool) (domain.IgnoreExecutionProgress, error) {
 	tx, err := s.jobTransaction(ctx)
 	if err != nil {
 		return domain.IgnoreExecutionProgress{}, err
 	}
 	defer tx.Rollback(ctx)
-	current, epoch, err := ignoreManifestFence(ctx, tx, l)
+	current, epoch, err := executionModeFence(ctx, tx, l, family)
 	if err != nil {
 		return domain.IgnoreExecutionProgress{}, err
 	}
