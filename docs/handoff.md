@@ -686,3 +686,9 @@ Windows 全 Go 與 probe tag exec96770 已完成，exit0；probe tag runtime0.69
 exec72180已結束exit0：252頂層pass、0fail／skip、344.936秒、sourceUnchanged=true。摘要已保存docs/evidence/ignore-local-cancellation-postgres.json。所有本輪測試handles均terminal，無需重啟或poll舊handle。上述待完成記錄為當時觀察；本段為最新結果。Windows全Go／probe tag、Linux相關race／vet／三build、增量品牌0新增違規／100allowed與gitignore0違規已通過，LICENSE與requirements-source SHA256保持。已修正G22.4／G22.5表格中的過期重掃待驗收文字，需求仍部分完成。
 
 本段準備以命令級Carinoasd身份提交並推送現有分支、更新並附PR46，禁止merge/tag/release/force-push。下一段先驗證原生合併服務實際併發飽和、busy後健康及多輪取消重用／清理，再補跨實例旗標取消及其他舊格式來源；不要把短測试當長穩證據。
+
+### 原生併發飽和小階段
+
+取消修復1e9383dc6c已提交推送、繁中更新並附普通PR46。接續只新增ignore_family_saturation_test.go：正式兩個slots、8輪Active2、256次busy拒絕、16個child取消、8次正常重用；Started25／Peak2／Cancelled16／TimedOut0／Active0，每輪輸入清空、最終Close暫存空。沒有新fake/helper放寬。Windows專項0.402秒／probe tag服務0.466秒及runtime vet pass；Linux真PG/正式runtime完整9頂層pass0fail0skip18.263秒sourceUnchanged=true，exec59763已terminal。證據docs/evidence/ignore-family-saturation.json。只新增test，不重跑未改正式實作的完整PG252；前段證據保留。
+
+本小階段以同分支提交推送／更新PR46。下一步跨實例持久取消旗標傳播與長時間穩定性，其他兩個歷史格式的固定源碼語意仍未確認，G22維持部分完成。最新取消修復遠端CI仍待完整結果；完整品牌門禁已fail，禁止稱全綠。已合併無用分支已清45，PR46未合併所以保留現有分支。

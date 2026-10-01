@@ -797,3 +797,7 @@
 真實HTTP取消在active原生helper期間，原有DB旗標會擋發布但未中斷helper。新增授權提交後的選用本機通知port與runner有界世代註冊，保持DB/lease/finalpublish權威與跨實例原有fallback。預設設定下69ms完成，取消控制分支1／逾時0，服務健康、child/baseline/owner無殘留；8項真PG/runtime專項通過。[合同與證據](ignore-family-http-cancel.md)。完整PG回歸仍執行；跨實例即時通知、其他格式、壓力長穩與各需求全範圍未完成。
 
 HTTP 本機取消修復完整回歸已完成：[完整 PG race 證據](evidence/ignore-local-cancellation-postgres.json) 252 頂層 pass、0 fail／skip、344.936 秒、來源保持。Windows 全 Go／probe tag、Linux 相關 race／vet／build亦通過；首次600秒逾時與期限校正時的人工中止證據保留，未省略測試。僅證明本次修復回歸，不代表 G22 或全案完成。
+
+### G22 原生併發飽和驗收
+
+正式兩額度服務8輪滿載，256次額外請求全部busy且未啟動子程序；16個活躍child取消、每輪重用結果保持、Peak2／TimedOut0、最後Active0與暫存清空。Windows／probe tag及Linux全部原生runtime9頂層pass。[合同與證據](ignore-family-saturation.md)。只證明短週期有界飽和，長穩與其他格式尚未完成。
