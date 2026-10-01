@@ -894,3 +894,7 @@ G11.8 blocked→partial（指定文檔完成，共用網路Plan的SSRF／WS／�
 依前段規格已實作JSON／env可信CIDR、64前綴、XFF8KiB／32hop、由右向左可信鏈、context有效地址、固定reason告警無原值。一般ClientIP保持transport-only；帳號入口改requestClientIP，登入與稽核／密碼限流接線完整。初期受影響回歸通過；設定／鏈／限流／稽核／角色／Host／真HTTP代理專項通過，真HTTP已從手工context示例強化到實際帳號Handler與repository，地址不回顯。完整Win Go+vet與Linux config/HTTP/i18n race通過，全部handles terminal。
 
 移除boundary單行注入時稽核與真HTTP兩項負例均失敗，finally逐位元復原，Windows config/HTTP/i18n再次完整通過。所有來源角色hash與負例前相同，補證據更新G11.2後同PR46提交。五個直播核心仍待async授權，不得刪除；產品組件之外的原媒體／既有遷移／LICENSE保護。全案仍部分完成。
+
+可信代理階段Win完整Go27個通過套件／2724個pass事件、435個環境skip（逐項見evidence），vet通過；Linux config／HTTP／i18n race1.368／3.616／1.074s。專項48個pass事件無skip，負例兩fail已復原。增量品牌0／175允許、gitignore0／diff通過；完整品牌14735／180允許仍fail，沒有增加豁免。來源hash與負例前相同，待核准直播五檔及保護檔逐位元未變。G11.2維持partial，下一段PUBLIC_URL／完整公網代理驗收仍待實作。
+
+613005e0b0已推送產品與回歸；最後補寫證據的Python字串語法錯誤使該補寫未執行，而後续提交命令仍執行。此次只補齊實測門禁／略過摘要，產品與測試來源不變。後續inline Python一律檢查exit code後才提交。

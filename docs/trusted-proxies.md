@@ -31,3 +31,5 @@ export JELEE_TRUSTED_PROXIES='127.0.0.1/32,::1/128'
 設定來源與預算、CIDR映射／正規化、鏈邊界、重複標頭、超限與非法值均有回歸。實際HTTP Handler驗證不同客戶端限流分離、未可信與非法鏈回退、稽核地址、角色與Host不被提升、告警不洩漏值；真loopback反向代理請求經實際帳號Handler進入repository，地址不出現在回應或請求日誌。
 
 這些驗收不代替公網／來源防火牆或完整WS／SSRF矩陣。G11與全案仍未完成。[證據](evidence/trusted-proxies.json)。
+
+Windows完整Go回歸27套件通過，435項依環境略過並逐項列於證據；vet通過。Linux受影響三套件race通過。移除boundary地址注入時兩項接線驗收失敗，finally來源逐位元還原後正式回歸再通過。

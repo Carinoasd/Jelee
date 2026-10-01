@@ -2112,7 +2112,23 @@
     "SSRF and WebSocket acceptance incomplete",
     "Legacy live core batch deletion remains pending user approval"
   ],
-  "gates": "pending final scan",
+  "gates": {
+    "incrementalBrandGate": {
+      "violations": 0,
+      "allowed": 175,
+      "status": "PASS"
+    },
+    "fullBrandGate": {
+      "violations": 14735,
+      "allowed": 180,
+      "status": "FAIL retained"
+    },
+    "gitignoreGate": {
+      "violations": 0,
+      "status": "PASS"
+    },
+    "stagedDiffCheck": "PASS"
+  },
   "windowsVet": "PASS",
   "postNegativeWindows": {
     "packages": {
