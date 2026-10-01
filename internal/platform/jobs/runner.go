@@ -239,9 +239,22 @@ func (r *Runner) wait(ctx context.Context, d time.Duration) bool {
 func (r *Runner) monitor(ctx context.Context, lease domain.JobLease, cancelJob context.CancelCauseFunc, started, done chan struct{}) {
 	heartbeat := r.options.Clock.NewTimer(r.heartbeatInterval())
 	runtime := r.options.Clock.NewTimer(r.options.MaxJobRuntime)
+	reader, _ := r.repository.(app.JobCancellationReader)
+	var cancellation Timer
+	var cancellationReady <-chan time.Time
+	if reader != nil {
+		cancellation = r.options.Clock.NewTimer(time.Second)
+		cancellationReady = cancellation.C()
+	}
 	close(started)
 	defer close(done)
-	defer func() { heartbeat.Stop(); runtime.Stop() }()
+	defer func() {
+		heartbeat.Stop()
+		runtime.Stop()
+		if cancellation != nil {
+			cancellation.Stop()
+		}
+	}()
 	for {
 		select {
 		case <-ctx.Done():
@@ -249,6 +262,30 @@ func (r *Runner) monitor(ctx context.Context, lease domain.JobLease, cancelJob c
 		case <-runtime.C():
 			cancelJob(context.DeadlineExceeded)
 			return
+		case <-cancellationReady:
+			// Poll committed flags without increasing heartbeat writes. The
+			// existing monitor owns this timer; no extra goroutine is started.
+			dbCtx, cancel := context.WithTimeout(ctx, r.options.DBOperationTimeout)
+			requested, err := reader.ReadJobCancellation(dbCtx, lease)
+			cancel()
+			if ctx.Err() != nil {
+				return
+			}
+			if err != nil {
+				if errors.Is(err, domain.ErrJobLeaseLost) {
+					cancelJob(domain.ErrJobLeaseLost)
+				} else {
+					cancelJob(errHeartbeatFailed)
+				}
+				return
+			}
+			if requested {
+				cancelJob(errCancelRequested)
+				return
+			}
+			cancellation.Stop()
+			cancellation = r.options.Clock.NewTimer(time.Second)
+			cancellationReady = cancellation.C()
 		case <-heartbeat.C():
 			dbCtx, cancel := context.WithTimeout(ctx, r.options.DBOperationTimeout)
 			requested, err := r.repository.HeartbeatJob(dbCtx, lease, r.options.LeaseDuration)

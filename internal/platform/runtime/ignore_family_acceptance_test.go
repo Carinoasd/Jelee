@@ -38,9 +38,13 @@ func TestFamilyIgnoreProductionRuntimeActiveChildStop(t *testing.T) {
 func TestFamilyIgnoreProductionRuntimeActiveChildHTTPCancel(t *testing.T) {
 	runFamilyProductionRuntime(t, true, "cancel")
 }
+func TestFamilyIgnoreProductionRuntimeRemoteActiveChildHTTPCancel(t *testing.T) {
+	runFamilyProductionRuntime(t, true, "remote-cancel")
+}
 func runFamilyProductionRuntime(t *testing.T, enabled bool, activeStop ...string) {
 	stopActive := len(activeStop) == 1
-	cancelActive := stopActive && activeStop[0] == "cancel"
+	remoteCancel := stopActive && activeStop[0] == "remote-cancel"
+	cancelActive := stopActive && (activeStop[0] == "cancel" || remoteCancel)
 	dsn := os.Getenv("JELEE_TEST_DATABASE_URL")
 	if dsn == "" {
 		if os.Getenv("JELEE_REQUIRE_INTEGRATION") == "true" {
@@ -91,6 +95,9 @@ func runFamilyProductionRuntime(t *testing.T, enabled bool, activeStop ...string
 	t.Setenv("TMP", scratch)
 	t.Setenv("TEMP", scratch)
 	files := map[string]string{".jeleeignore": "!keep.mkv\ncustom.tmp", ".ignore": "*.mkv", "keep.mkv": "retained", "drop.mkv": "excluded", "custom.tmp": "custom", "hidden/.ignore": "", "hidden/movie.nfo": "excluded malformed NFO"}
+	if remoteCancel {
+		files[strings.Repeat("a", 10)+"cb.mkv"] = "remote cancellation fixture"
+	}
 	if stopActive {
 		files[".ignore"] = strings.Repeat("(a|aa){1,100}b\n", 4000)
 		if cancelActive {
@@ -154,11 +161,46 @@ func runFamilyProductionRuntime(t *testing.T, enabled bool, activeStop ...string
 			}
 		}
 	}()
+	remoteAddress := ""
+	if remoteCancel {
+		// The second formal runtime has an independent pool and worker registry.
+		// Family admission is disabled there so it cannot own this family's job.
+		listener, err := net.Listen("tcp", "127.0.0.1:0")
+		if err != nil {
+			t.Fatal(err)
+		}
+		remoteAddress = listener.Addr().String()
+		if err := listener.Close(); err != nil {
+			t.Fatal(err)
+		}
+		remoteConfig := cfg
+		remoteConfig.Listen = remoteAddress
+		remoteConfig.EnableFamilyIgnore = false
+		remoteLifetime := newLifetime(logger)
+		remoteApp := newWithLifetime(remoteConfig, logger, remoteLifetime)
+		if remoteApp.Err() != nil || remoteApp.Start(ctx) != nil {
+			t.Fatal("second formal runtime startup")
+		}
+		defer func() {
+			stopCtx, stop := context.WithTimeout(context.Background(), 5*time.Second)
+			defer stop()
+			if err := remoteApp.Stop(stopCtx); err != nil {
+				t.Error("second runtime stop", err)
+			}
+		}()
+		if remoteLifetime.worker == ownedLifetime.worker || remoteLifetime.ignoreService.Available() {
+			t.Fatal("remote cancellation reused owner worker or family capability")
+		}
+	}
 	client := &http.Client{Timeout: 5 * time.Second}
 	defer client.CloseIdleConnections()
 	request := func(method, path, body, key, token string) (int, []byte) {
 		t.Helper()
-		r, err := http.NewRequestWithContext(ctx, method, "http://"+address+path, strings.NewReader(body))
+		requestAddress := address
+		if remoteCancel && strings.HasSuffix(path, "/cancel") {
+			requestAddress = remoteAddress
+		}
+		r, err := http.NewRequestWithContext(ctx, method, "http://"+requestAddress+path, strings.NewReader(body))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -256,7 +298,7 @@ func runFamilyProductionRuntime(t *testing.T, enabled bool, activeStop ...string
 				if err := store.Pool.QueryRow(ctx, `SELECT (SELECT count(*) FROM library_inventory_baseline),(SELECT count(*) FROM jobs WHERE owner IS NOT NULL)`).Scan(&baseline, &owners); err != nil || baseline != 0 || owners != 0 {
 					t.Fatal("HTTP cancellation published baseline or retained lease")
 				}
-				fmt.Printf("{\"httpCancellation\":true,\"milliseconds\":%d,\"cancelStops\":%d,\"timeoutStops\":%d,\"childStarts\":%d}\n", time.Since(started).Milliseconds(), stats.Cancelled, stats.TimedOut, stats.Started)
+				fmt.Printf("{\"httpCancellation\":true,\"remoteInstance\":%t,\"milliseconds\":%d,\"cancelStops\":%d,\"timeoutStops\":%d,\"childStarts\":%d}\n", remoteCancel, time.Since(started).Milliseconds(), stats.Cancelled, stats.TimedOut, stats.Started)
 			}
 			stopCtx, cancelStop := context.WithTimeout(context.Background(), 5*time.Second)
 			err := application.Stop(stopCtx)

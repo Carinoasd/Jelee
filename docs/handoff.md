@@ -692,3 +692,19 @@ exec72180已結束exit0：252頂層pass、0fail／skip、344.936秒、sourceUnch
 取消修復1e9383dc6c已提交推送、繁中更新並附普通PR46。接續只新增ignore_family_saturation_test.go：正式兩個slots、8輪Active2、256次busy拒絕、16個child取消、8次正常重用；Started25／Peak2／Cancelled16／TimedOut0／Active0，每輪輸入清空、最終Close暫存空。沒有新fake/helper放寬。Windows專項0.402秒／probe tag服務0.466秒及runtime vet pass；Linux真PG/正式runtime完整9頂層pass0fail0skip18.263秒sourceUnchanged=true，exec59763已terminal。證據docs/evidence/ignore-family-saturation.json。只新增test，不重跑未改正式實作的完整PG252；前段證據保留。
 
 本小階段以同分支提交推送／更新PR46。下一步跨實例持久取消旗標傳播與長時間穩定性，其他兩個歷史格式的固定源碼語意仍未確認，G22維持部分完成。最新取消修復遠端CI仍待完整結果；完整品牌門禁已fail，禁止稱全綠。已合併無用分支已清45，PR46未合併所以保留現有分支。
+
+### 跨實例取消旗標讀取（未提交，測試中）
+
+上一個飽和階段b7a8e33823已推PR46，無新分支。現在新增app.JobCancellationReader選用port、PG Store.ReadJobCancellation（主鍵／running／owner／generation／有效租約、2s context、只讀），worker原monitor一秒timer，不加goroutine或心跳寫入。PG新增2專項：5次讀取xmin／lease_until不變、owner/gen/invalid/expired/terminal拒絕、context取消、未提交旗標不可見／提交後可見。worker新時鐘專項核對read／heartbeat分離與error失效。
+
+正式runtime acceptance新增兩個獨立graph，同schema但不同worker/pool；第二個關閉family不可claim，取消只POST第二個HTTP，第一個helper被取消。三失敗模態remote-cancel-first／read-poll（原計算過短，Cancelled0）／real-work（100前綴先單條規則timeout，工作failed）保留；最終十字元前綴remote-cancel-bounded-prefix 10頂層pass0fail0skip18.360秒sourceUnchanged=true，remote973ms／Cancelled1／TimedOut0／Started2，baseline0／owner0、文件不變／temp清空。證據docs/evidence/ignore-family-remote-cancel.json。exec6118／4004／58929／95945均terminal。
+
+Linux app/jobs/runtime/architecture race exec56618已pass1.033／1.325／1.082／1.119秒。Windows相關四包pass；全Go/vet/三build exec12596待末輸出。完整真PG race remote-cancel-full-final exec75821仍live，Go20m／外層1500s，必須poll同handle；勿改PG或正式源碼直到末輸出。最後同素材反向驗證計畫：PG／Windows handles結束後暫存現runner，暫時使用上一提交runner驗證remote情境會fail，再恢復並final完整原生驗收；不得把還在執行的test來源改動。未提交，不宣稱全G22。
+
+### 跨實例取消最終驗證完成
+
+完整PG exec75821已terminal exit0，254顶層pass0fail0skip357.980秒sourceUnchanged=true，PG新增讀取專項全通過。Windows全Go/vet/三build exec12596完成。相同十前綴fixture反向驗證exec62996：暫用b7a8e33823 runner，僅remote情境fail／其他9pass，20.566秒；runner逐位元恢復。final exec35554 10pass17.913秒；後檢查修正monitor defer順序，使全部timers在done/join前Stop，沒有PG來源改動。最新joined-timers exec75892 10pass19.069秒sourceUnchanged=true，remote897ms／Cancel1／Timeout0／Started2，baseline／owner／temp與來源保持。Linux四包race exec40258 1.329／1.028／1.082／1.108秒pass，vet／三build通過。Windows最新全Go exec68614待末輸出；probe tag0.514秒pass。
+
+證據docs/evidence/ignore-family-remote-cancel.json／remote-negative.json／remote-postgres.json；合同docs/ignore-family-remote-cancel.md。本階段以同分支提交推PR46，禁止merge/tag/release/force-push，無需新分支。下一步正式長穩及剩餘歷史格式固定語意，G22／全案保持部分完成。完整品牌CI仍fail，功能CI需核對最新head，不宣稱全綠。
+
+Windows最新全Go exec68614已terminal exit0；本輪所有測試handles均terminal，沒有待poll或重啟項目。最終各證據中的sourceHashes逐檔重新比對相符，LICENSE／requirements-source hash保持，增量品牌0新增／100allowed、gitignore0及diff檢查通過。

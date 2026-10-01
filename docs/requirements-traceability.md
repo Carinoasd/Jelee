@@ -801,3 +801,7 @@ HTTP 本機取消修復完整回歸已完成：[完整 PG race 證據](evidence/
 ### G22 原生併發飽和驗收
 
 正式兩額度服務8輪滿載，256次額外請求全部busy且未啟動子程序；16個活躍child取消、每輪重用結果保持、Peak2／TimedOut0、最後Active0與暫存清空。Windows／probe tag及Linux全部原生runtime9頂層pass。[合同與證據](ignore-family-saturation.md)。只證明短週期有界飽和，長穩與其他格式尚未完成。
+
+### G08.7／G09.4／G13.3 跨實例工作取消
+
+新增租約受保護的只讀旗標port，既有monitor一秒讀取、不增加心跳寫入／goroutine。兩個獨立正式runtime／HTTP／PG／native helper驗收，取消897ms、Cancelled1／TimedOut0、baseline0／owner0、來源與暫存保持；10原生頂層pass。完整PG race254頂層pass；相同素材上一runner反向失敗、恢復後全通過。[合同與證據](ignore-family-remote-cancel.md)。僅完成本子集，其他需求與G22長穩／歷史格式尚未完成。

@@ -41,3 +41,9 @@ type InventoryScanner interface {
 type JobCancellationNotifier interface {
 	NotifyJobCancellation(string)
 }
+
+// JobCancellationReader provides a bounded, read-only check of the committed
+// flag for the exact live owner/generation. It never renews a lease.
+type JobCancellationReader interface {
+	ReadJobCancellation(context.Context, domain.JobLease) (bool, error)
+}
