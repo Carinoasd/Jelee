@@ -1,24 +1,19 @@
 package runtime
 
 import (
-	"context"
-	"time"
-
 	"github.com/MoYuanCN/Jelee/internal/adapter/metadata"
+	"github.com/MoYuanCN/Jelee/internal/app"
 )
 
-func tmdbPreflight(key string) func(context.Context) error {
+func prepareMetadata(key string, l *lifetime) (*app.Metadata, error) {
 	if key == "" {
-		return nil
+		return nil, nil
 	}
-	return func(ctx context.Context) error {
-		client, err := metadata.NewTMDB(key)
-		if err != nil {
-			return err
-		}
-		defer client.Close()
-		budget, cancel := context.WithTimeout(ctx, 15*time.Second)
-		defer cancel()
-		return client.ValidateCredentials(budget)
+	client, err := metadata.NewTMDB(key)
+	if err != nil {
+		return nil, err
 	}
+	l.prepareTMDB = client.ValidateCredentials
+	l.closeTMDB = client.Close
+	return app.NewMetadata(client)
 }

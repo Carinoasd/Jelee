@@ -12,13 +12,17 @@ import (
 )
 
 func (t *TMDB) authenticationRequest(ctx context.Context, target string) (outbound.Response, error) {
+	return t.providerRequest(ctx, target, 4096)
+}
+
+func (t *TMDB) providerRequest(ctx context.Context, target string, maxBytes int64) (outbound.Response, error) {
 	for attempt := 0; attempt < 3; attempt++ {
 		if err := ctx.Err(); err != nil {
 			return outbound.Response{}, err
 		}
-		r, err := t.governedFetch(ctx, target, 4096, attempt)
+		r, err := t.governedFetch(ctx, target, maxBytes, attempt)
 		// Transport/security/size failures are not blindly retried. Only
-		// provider responses can authorize a retry in this startup phase.
+		// provider responses can authorize a retry.
 		if err != nil {
 			return outbound.Response{}, err
 		}

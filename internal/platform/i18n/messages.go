@@ -17,6 +17,7 @@ func Message(code, acceptLanguage, fallback string) string {
 // Keep complete phrases together so their grammar is not assembled at runtime.
 var messages = map[string]map[string]string{
 	"en-US": {
+		"metadata_unavailable":      "Metadata provider is unavailable. Try again later.",
 		"feature_removed":           "Discovery, live TV, recordings and channels are not supported.",
 		"nfo_disabled":              "NFO validation is disabled for this library.",
 		"ignore_unavailable":        "Ignore scanning is unavailable.",
@@ -58,6 +59,7 @@ var messages = map[string]map[string]string{
 		"unsupported_media_type":    "Request content type is not supported.",
 	},
 	"zh-CN": {
+		"metadata_unavailable":      "元数据来源暂时不可用，请稍后重试。",
 		"feature_removed":           "不支持设备发现、直播电视、录制和频道。",
 		"nfo_disabled":              "此媒体库尚未启用NFO校验。",
 		"ignore_unavailable":        "忽略规则扫描暂时不可用。",
@@ -99,6 +101,7 @@ var messages = map[string]map[string]string{
 		"unsupported_media_type":    "不支持此请求内容类型。",
 	},
 	"zh-TW": {
+		"metadata_unavailable":      "中繼資料來源暫時無法使用，請稍後重試。",
 		"feature_removed":           "不支援裝置探索、直播電視、錄製與頻道。",
 		"nfo_disabled":              "此媒體庫尚未啟用NFO驗證。",
 		"ignore_unavailable":        "忽略規則掃描暫時無法使用。",
@@ -140,6 +143,7 @@ var messages = map[string]map[string]string{
 		"unsupported_media_type":    "不支援此請求內容類型。",
 	},
 	"ja-JP": {
+		"metadata_unavailable":      "メタデータの提供元を利用できません。後でもう一度お試しください。",
 		"feature_removed":           "デバイス検出、ライブテレビ、録画、チャンネルには対応していません。",
 		"nfo_disabled":              "このライブラリではNFO検証が無効です。",
 		"ignore_unavailable":        "除外ルールを使ったスキャンを利用できません。",

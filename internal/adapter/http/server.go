@@ -44,6 +44,7 @@ type Server struct {
 	accountSlots    chan struct{}
 	jobs            *app.Jobs
 	jobSlots        chan struct{}
+	metadata        *app.Metadata
 }
 
 func New(cfg config.Config, backend Backend, catalog *app.Catalog, resolver media.Resolver, logger *slog.Logger, accounts ...*app.Accounts) (http.Handler, error) {
@@ -56,7 +57,7 @@ func New(cfg config.Config, backend Backend, catalog *app.Catalog, resolver medi
 	return NewWithJobs(cfg, backend, catalog, resolver, logger, account, nil)
 }
 
-func NewWithJobs(cfg config.Config, backend Backend, catalog *app.Catalog, resolver media.Resolver, logger *slog.Logger, account *app.Accounts, jobs *app.Jobs) (http.Handler, error) {
+func NewWithJobs(cfg config.Config, backend Backend, catalog *app.Catalog, resolver media.Resolver, logger *slog.Logger, account *app.Accounts, jobs *app.Jobs, metadataServices ...*app.Metadata) (http.Handler, error) {
 	if err := cfg.Validate(); err != nil {
 		return nil, err
 	}
@@ -72,6 +73,15 @@ func NewWithJobs(cfg config.Config, backend Backend, catalog *app.Catalog, resol
 		return nil, err
 	}
 	s := &Server{cfg: cfg, backend: backend, catalog: catalog, delivery: delivery, logger: logger, trustedProxies: prefixes}
+	if len(metadataServices) > 1 {
+		return nil, errors.New("only one metadata service may be provided")
+	}
+	if cfg.EnableAccounts && cfg.TMDBAPIKey != "" {
+		if len(metadataServices) != 1 || metadataServices[0] == nil {
+			return nil, errors.New("metadata service must be provided")
+		}
+		s.metadata = metadataServices[0]
+	}
 	if cfg.EnableAccounts {
 		if account == nil {
 			return nil, errors.New("account service must be provided")
@@ -114,11 +124,19 @@ func NewWithJobs(cfg config.Config, backend Backend, catalog *app.Catalog, resol
 	})
 	r.Get("/api-docs", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		_, _ = w.Write([]byte(`<!doctype html><html lang="en"><meta charset="utf-8"><title>Jelee API</title><h1>Jelee API</h1><p>Experimental catalog and direct delivery API.</p><a href="/api/v1/openapi.json">OpenAPI 3.1 specification</a></html>`))
+		page := `<!doctype html><html lang="en"><meta charset="utf-8"><title>Jelee API</title><h1>Jelee API</h1><p>Experimental catalog and direct delivery API.</p><a href="/api/v1/openapi.json">OpenAPI 3.1 specification</a>`
+		if cfg.TMDBAPIKey != "" {
+			w.Header().Set("Content-Security-Policy", "default-src 'none'; img-src https://www.themoviedb.org; frame-ancestors 'none'; base-uri 'none'")
+			page += `<section aria-label="Credits"><h2>Credits</h2><a href="https://www.themoviedb.org"><img width="64" alt="TMDB" src="https://www.themoviedb.org/assets/v4/logos/v2/blue_short-8e7b30f73a4020692ccca9c88bafe5dcb6f8a62a4c6bc55cd9ba82bb2cd95f6c.svg"></a><p>This product uses the TMDB API but is not endorsed or certified by TMDB.</p></section>`
+		}
+		_, _ = w.Write([]byte(page + "</html>"))
 	})
 	r.Get("/api/v1/openapi.json", func(w http.ResponseWriter, r *http.Request) { writeJSON(w, 200, Specification(cfg)) })
 	if cfg.EnableAccounts {
 		s.accountRoutes(r)
+	}
+	if s.metadata != nil {
+		s.metadataRoutes(r)
 	}
 	if cfg.EnableJobs {
 		s.jobRoutes(r)
@@ -351,6 +369,8 @@ func WriteError(w http.ResponseWriter, r *http.Request, err error) {
 		status, code, message = 429, "auth_rate_limited", "Too many authentication attempts. Try again later."
 	case errors.Is(err, domain.ErrDatabase):
 		status, code, message = 503, "not_ready", "Service is not ready."
+	case errors.Is(err, domain.ErrMetadataUnavailable):
+		status, code, message = 503, "metadata_unavailable", "Metadata provider is unavailable. Try again later."
 	case errors.Is(err, context.DeadlineExceeded), errors.Is(err, context.Canceled):
 		status, code, message = 408, "request_timeout", "Request was cancelled or timed out."
 	case errors.Is(err, media.ErrPlaybackDenied):

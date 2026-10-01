@@ -33,6 +33,9 @@ func Specification(cfg config.Config) map[string]any {
 		accountSpecification(paths)
 	}
 	schemas := accountSchemas()
+	if cfg.EnableAccounts && cfg.TMDBAPIKey != "" {
+		metadataSpecification(paths, schemas)
+	}
 	if cfg.EnableJobs {
 		jobSpecification(paths, schemas)
 		nfoSpecification(paths, schemas)

@@ -946,3 +946,13 @@ TMDB接線最後產品build PASS，go list確認正式outbound只編client.go、
 五核心3271行依舊等原async具體核准，沒有改／刪；本輪無C#／migration／media變更。下一步需正式metadata資料取得與cache／library／worker接線，不能把預檢治理當完整刮削。品牌門禁／ABI差異保留，不合併。
 
 治理最後冷卻延長測試改私有確定時鐘／wait，驗證60ms後再40ms，避免依賴CI排程；正式constructor固定time.Now／waitRetry，沒有公開替換設定。最終全Go／vet／build和Linux race重驗通過，來源hash已更新。增量品牌0／181、完整14735／186仍fail、gitignore0；保護hash／五核心逐位元／skip集合／無C#或遷移diff／links／336統計驗證通過。全部本輪handles結束，同PR46推送，未合併。
+
+### G14 電影候選預覽與快取
+
+管理員只讀API已正式接runtime擁有的TMDB client與應用層，使用受控出站／共享治理；256筆LRU、ID+四語、24h從取得時間到期，來源與UTC時間保留，認證及錯誤不cache，無新增背景goroutine。重啟清空，並行miss仍可重複查詢；未修改library／field locks／NFO／圖片／遷移。API docs Credits含官方未修改標誌與必要聲明，沒有將此當完整前端／商業授權驗收。
+
+Windows完整Go29套件／2906pass事件含父／435略過，略過與前次完整清單逐項一致；vet與產品build通過，Linux六套件race通過（summary不列skip，未宣稱零略過）。真TLS連接實際adapter＋app驗證電影兩call一upstream、認證兩call兩upstream。移除實際快取命中接線負例1leaf fail，finally逐位元恢復再完整相關回歸通過。初始TLS工廠參數不符造成編譯失敗，修正後才完成最終回歸。詳細docs/tmdb-movie-preview.md與evidence/tmdb-movie-preview.json。
+
+G14.1 blocked→partial、G14.3仍partial，336統計4done／180partial／152blocked。名稱／年份匹配、劇集、NFO優先與欄位鎖、工作佇列與持久化、圖片及完整前端仍缺；五核心3271行仍待原具體授權，沒有改／刪。舊HEAD f6e CI Tests／CodeQL／Format／OpenAPI已success；ABI base/head success，Difference仍fail在ApiCompat；foundation當時仍live。全案未完成，不合併。
+
+電影候選階段最終增量品牌0／181、完整14735／186仍fail、gitignore0；來源17hash、保護檔、待核准五核心逐位元、無C#／遷移diff、文件links與336統計核對通過。全部本輪測試handles已結束，同PR46推送；下一段從本階段接電影匹配／刮削，不重新建立branch。

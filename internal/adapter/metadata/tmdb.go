@@ -25,6 +25,7 @@ type TMDB struct {
 	wait     func(context.Context, time.Duration) error
 	now      func() time.Time
 	governor *requestGovernor
+	movies   movieCache
 }
 
 func NewTMDB(key string) (*TMDB, error) {

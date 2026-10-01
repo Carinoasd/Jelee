@@ -27,8 +27,12 @@ func New(cfg config.Config, logger *slog.Logger) *fx.App {
 }
 
 func newWithLifetime(cfg config.Config, logger *slog.Logger, lifetime *lifetime) *fx.App {
-	lifetime.prepareTMDB = tmdbPreflight(cfg.TMDBAPIKey)
+	metadataService, err := prepareMetadata(cfg.TMDBAPIKey, lifetime)
+	if err != nil {
+		return build(lifetime, fx.NopLogger, fx.Error(err))
+	}
 	return build(lifetime, fx.NopLogger, fx.Supply(cfg, logger), fx.Provide(
+		func() *app.Metadata { return metadataService },
 		func(c config.Config) (*postgres.Store, error) {
 			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 			defer cancel()
@@ -102,7 +106,7 @@ func newWithLifetime(cfg config.Config, logger *slog.Logger, lifetime *lifetime)
 			lifetime.worker = &probeWorker{worker: runner, probe: probing, nfo: validation}
 			return service, nil
 		},
-		func(c config.Config, store *postgres.Store, catalog *app.Catalog, jobs *app.Jobs, l *slog.Logger) (http.Handler, error) {
+		func(c config.Config, store *postgres.Store, catalog *app.Catalog, jobs *app.Jobs, metadata *app.Metadata, l *slog.Logger) (http.Handler, error) {
 			if !c.EnableAccounts {
 				return httpapi.New(c, store, catalog, store, l)
 			}
@@ -118,7 +122,7 @@ func newWithLifetime(cfg config.Config, logger *slog.Logger, lifetime *lifetime)
 			if err != nil {
 				return nil, err
 			}
-			return httpapi.NewWithJobs(c, store, catalog, store, l, accounts, jobs)
+			return httpapi.NewWithJobs(c, store, catalog, store, l, accounts, jobs, metadata)
 		},
 	), fx.Invoke(func(lc fx.Lifecycle, cfg config.Config, handler http.Handler, shutdown fx.Shutdowner) {
 		lifetime.server = &http.Server{Addr: cfg.Listen, Handler: handler, ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 15 * time.Second, IdleTimeout: 60 * time.Second, MaxHeaderBytes: 16 << 10}
@@ -136,6 +140,7 @@ type serviceWorker interface {
 // deadline to make Fx skip worker cancellation and pool cleanup entirely.
 type lifetime struct {
 	prepareTMDB     func(context.Context) error
+	closeTMDB       func()
 	ignoreService   *familyIgnoreService
 	ctx             context.Context
 	cancel          context.CancelFunc
@@ -171,6 +176,9 @@ func build(l *lifetime, options ...fx.Option) *fx.App {
 
 func (l *lifetime) closePool() {
 	l.closeOnce.Do(func() {
+		if l.closeTMDB != nil {
+			l.closeTMDB()
+		}
 		if l.closeIgnore != nil {
 			if err := l.closeIgnore(); err != nil {
 				l.stopErr = errors.Join(l.stopErr, errors.New("ignore helper temporary cleanup failed"))
