@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/url"
+	"time"
 
 	"github.com/MoYuanCN/Jelee/internal/platform/outbound"
 )
@@ -21,6 +22,8 @@ type TMDB struct {
 	key    string
 	client *outbound.Client
 	fetch  func(context.Context, string, int64) (outbound.Response, error)
+	wait   func(context.Context, time.Duration) error
+	now    func() time.Time
 }
 
 func NewTMDB(key string) (*TMDB, error) {
@@ -40,7 +43,7 @@ func NewTMDBWithClient(key string, client *outbound.Client) (*TMDB, error) {
 	if !ValidTMDBKey(key) || client == nil {
 		return nil, ErrCredentials
 	}
-	return &TMDB{key: key, client: client, fetch: client.Fetch}, nil
+	return &TMDB{key: key, client: client, fetch: client.Fetch, wait: waitRetry, now: time.Now}, nil
 }
 
 func ValidTMDBKey(key string) bool {
@@ -58,8 +61,10 @@ func ValidTMDBKey(key string) bool {
 // ValidateCredentials calls the documented key validation endpoint. A 429
 // blocks startup; it is not evidence of the account's remaining quota.
 func (t *TMDB) ValidateCredentials(ctx context.Context) error {
+	budget, cancel := context.WithTimeout(ctx, 15*time.Second)
+	defer cancel()
 	q := url.Values{"api_key": []string{t.key}}
-	r, err := t.fetch(ctx, "https://api.themoviedb.org/3/authentication?"+q.Encode(), 4096)
+	r, err := t.authenticationRequest(budget, "https://api.themoviedb.org/3/authentication?"+q.Encode())
 	if err != nil {
 		if errors.Is(err, context.Canceled) {
 			return context.Canceled

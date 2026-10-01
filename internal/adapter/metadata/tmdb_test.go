@@ -6,6 +6,7 @@ import (
 	"net/url"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/MoYuanCN/Jelee/internal/platform/outbound"
 )
@@ -32,6 +33,7 @@ func TestTMDBCredentialResponseContract(t *testing.T) {
 				t.Fatal(err)
 			}
 			defer client.Close()
+			client.wait = func(context.Context, time.Duration) error { return nil }
 			calls := 0
 			client.fetch = func(ctx context.Context, raw string, maxBytes int64) (outbound.Response, error) {
 				calls++
@@ -42,7 +44,11 @@ func TestTMDBCredentialResponseContract(t *testing.T) {
 				return outbound.Response{Status: tc.status, Body: []byte(tc.body)}, nil
 			}
 			err = client.ValidateCredentials(context.Background())
-			if !errors.Is(err, tc.want) || calls != 1 {
+			wantCalls := 1
+			if tc.status == 429 || tc.status >= 500 {
+				wantCalls = 3
+			}
+			if !errors.Is(err, tc.want) || calls != wantCalls {
 				t.Fatalf("error=%v calls=%d", err, calls)
 			}
 			if err != nil && (strings.Contains(err.Error(), testKey) || strings.Contains(err.Error(), "secret")) {

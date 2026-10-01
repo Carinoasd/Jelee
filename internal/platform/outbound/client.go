@@ -34,8 +34,9 @@ type Client struct {
 }
 
 type Response struct {
-	Status int
-	Body   []byte
+	Status     int
+	Body       []byte
+	RetryAfter string
 }
 
 // New accepts exact host names. An empty list allows any public target;
@@ -140,7 +141,7 @@ func (c *Client) Fetch(ctx context.Context, rawURL string, maxBytes int64) (Resp
 	if int64(len(data)) > maxBytes {
 		return Response{}, ErrTooLarge
 	}
-	return Response{Status: response.StatusCode, Body: data}, nil
+	return Response{Status: response.StatusCode, Body: data, RetryAfter: response.Header.Get("Retry-After")}, nil
 }
 
 func safeError(ctx context.Context, err error) error {

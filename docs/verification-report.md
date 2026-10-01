@@ -156,3 +156,7 @@ DTO單層解耦及兩份既有測試建構參數更新，14項回歸與完整Deb
 ## 受控出站与TMDB啟動預檢
 
 [實作與驗收](outbound-tmdb-preflight.md)已接正式產品路徑；完整Go29包／vet與Linux四包race通過，Windows435略過清單保留，正反恢復證據可覆核。僅G11.4／G14.2子集，完整抓取與配額尚未完成；[證據](evidence/outbound-tmdb-preflight.json)。
+
+## TMDB預檢HTTP重試
+
+[當前重試驗收](tmdb-retry.md)已包含真TLS Retry-After最低等待與拿掉標頭後的負例；來源恢復後相關完整回歸、全Go與vet／Linux race通過。完整G14.3限流與cache尚未實作；略過保持列出。

@@ -58,20 +58,29 @@ func TestTMDBActualAdapterThroughGuardedTLS(t *testing.T) {
 		{"bad_response", 200, "secret", false, metadata.ErrResponse},
 		{"private_dns", 200, `{"success":true,"status_code":1}`, true, metadata.ErrUnavailable},
 		{"redirect", 302, "", false, metadata.ErrUnavailable},
+		{"retry_after", 429, `{"success":true,"status_code":1}`, false, nil},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			requests := new(atomic.Int32)
 			dials := new(atomic.Int32)
 			key := strings.Repeat("a", 32)
 			srv := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				requests.Add(1)
+				n := requests.Add(1)
 				if r.Host != "api.themoviedb.org" || r.URL.Path != "/3/authentication" || r.URL.Query().Get("api_key") != key || r.TLS == nil {
 					t.Error("real provider request contract differs")
 				}
 				if tc.status == 302 {
 					w.Header().Set("Location", "https://127.0.0.1/?secret="+key)
 				}
-				w.WriteHeader(tc.status)
+				status := tc.status
+				if tc.name == "retry_after" {
+					if n == 1 {
+						w.Header().Set("Retry-After", "1")
+					} else {
+						status = 200
+					}
+				}
+				w.WriteHeader(status)
 				_, _ = w.Write([]byte(tc.body))
 			}))
 			srv.TLS = &tls.Config{Certificates: []tls.Certificate{cert}, MinVersion: tls.VersionTLS12}
@@ -97,6 +106,7 @@ func TestTMDBActualAdapterThroughGuardedTLS(t *testing.T) {
 				t.Fatal(err)
 			}
 			defer adapter.Close()
+			started := time.Now()
 			err = adapter.ValidateCredentials(context.Background())
 			if !errors.Is(err, tc.want) {
 				t.Fatalf("adapter error=%v", err)
@@ -105,7 +115,17 @@ func TestTMDBActualAdapterThroughGuardedTLS(t *testing.T) {
 			if tc.dnsPrivate {
 				want = 0
 			}
-			if requests.Load() != want || dials.Load() != want {
+			wantRequests := want
+			if tc.status == 429 {
+				wantRequests = 3
+			}
+			if tc.name == "retry_after" {
+				wantRequests = 2
+				if time.Since(started) < time.Second {
+					t.Fatal("real HTTP Retry-After minimum was bypassed")
+				}
+			}
+			if requests.Load() != wantRequests || dials.Load() != want {
 				t.Fatalf("requests=%d dials=%d", requests.Load(), dials.Load())
 			}
 			if err != nil && (strings.Contains(err.Error(), key) || strings.Contains(err.Error(), "127.0.0.1")) {

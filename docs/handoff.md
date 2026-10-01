@@ -926,3 +926,13 @@ CI階段增量品牌0／175允許、gitignore0、staged diff通過；完整品�
 3271行五檔核心依舊等原async具體授權，沒有修改。下一段接TMDB資料取得與429治理／cache，或依授權續裁核心；不能用認證預檢代替電影／劇集匹配、圖片抓取、Webhook／NFO外鏈與全域SSRF。111859 CI C#／Format／OpenAPI已pass，ABI Difference fail，foundation／CodeQL當時仍live；新HEAD仍需自己的CI，未合併。
 
 TMDB接線最後產品build PASS，go list確認正式outbound只編client.go、測試替身只在TestGoFiles；增量品牌0／181、完整14735／186仍fail、gitignore0、來源13角色hash／保護hash／待核准核心五檔／遷移與C#無diff／文件link與336統計核對通過。没有更改allowlist；所有本輪handles已結束，推送同PR46後立即續作。
+
+### G14.3 預檢 HTTP 重試
+
+上一段9137aaeffa已推同PR46；接續真實ValidateCredentials預檢而非未使用helper：429／5xx最多三attempt含第一次、250／500ms加0–25%抖動、Retry-After十進位秒／HTTPdate最小等待，不縮短大值；格式錯／overflow／超过總15秒剩餘預算停止，不提早重試。Transport／SSRF／TLS／body／401／403／成功JSON錯不重試，ctx取消停止timer。正式Response僅多帶RetryAfter，沒有回傳全部headers；authentication不cache，完整request limiter／cache／movie/series及真quota仍缺。
+
+真TLS429→200最低1秒實測；只移除client標頭傳遞負例1leaf fail（0.27s），finally逐位元恢復再完整adapter/outbound PASS。Windows full29pkg／2858pass events含父／435skip，逐項名稱集合比對前段435完整清單一致；fullvet PASS，Linux4pkg race PASS（summary不列skip未宣稱0），所有handles terminal。G14.3 blocked→partial，336統計4done／179partial／153blocked。詳見tmdb-retry.md/evidence，沒有C#／migration／媒體／待核准核心修改。
+
+下一步仍要完整TMDB治理與資料庫／工作pool接線，不能把認證retry當作完整刮削。五檔3271行core仍待原具體核准，新goal自動繼續不是授權；品牌／ABI門禁維持，未合併。
+
+重試階段最後增量品牌0／181、完整14735／186仍fail、gitignore0、產品build PASS；來源／保護hash／原435略過清單hash／待核准五核心逐位元／C#與遷移無diff／link／336統計皆核對。沒有增加allowlist；所有本輪測試已結束，同PR46推送。
