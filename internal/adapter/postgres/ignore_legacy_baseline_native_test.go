@@ -50,3 +50,51 @@ func TestLegacyBaselineNativeRetainRestoreRecheck(t *testing.T) {
 		t.Fatal("boundary reappeared", err)
 	}
 }
+
+func TestLegacyBaselineNativeVerificationCheckpoint(t *testing.T) {
+	if runtime.GOOS == "linux" {
+		t.Setenv("TMPDIR", "/tmp")
+	}
+	f, l, _ := legacyManifestFixture(t)
+	var root string
+	if err := f.s.Pool.QueryRow(f.ctx, `SELECT path FROM library_roots WHERE id=$1::uuid`, f.registration.RootID).Scan(&root); err != nil {
+		t.Fatal(err)
+	}
+	root = filepath.Clean(root)
+	scanner := scan.NewIgnoreScanner()
+	retained, err := scanner.ObserveLegacyIgnoreBaseline(f.ctx, domain.ScanDirectory{RootID: f.registration.RootID, RootPath: root, Path: "gone/deep"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = f.s.RecordLegacyIgnoreBaselineObservations(f.ctx, l, []domain.LegacyIgnoreBaselineObservation{retained}); err != nil {
+		t.Fatal(err)
+	}
+	if err = f.s.FreezeLegacyIgnoreManifest(f.ctx, l); err != nil {
+		t.Fatal(err)
+	}
+	if err = f.s.BeginLegacyIgnoreBaselineVerification(f.ctx, l); err != nil {
+		t.Fatal(err)
+	}
+	page, err := f.s.NextLegacyIgnoreBaselineVerificationPage(f.ctx, l)
+	if err != nil || len(page.Observations) != 1 {
+		t.Fatal("native verification page", err)
+	}
+	observed, err := scanner.ReobserveLegacyIgnoreBaseline(f.ctx, root, page.Observations[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = f.s.CommitLegacyIgnoreBaselineVerificationPage(f.ctx, l, page.Token, []domain.LegacyIgnoreBaselineObservation{observed}); err != nil {
+		t.Fatal(err)
+	}
+	end, err := f.s.NextLegacyIgnoreBaselineVerificationPage(f.ctx, l)
+	if err != nil || len(end.Observations) != 0 || end.Complete {
+		t.Fatal("native EOF", err)
+	}
+	if err = f.s.CommitLegacyIgnoreBaselineVerificationPage(f.ctx, l, end.Token, nil); err != nil {
+		t.Fatal(err)
+	}
+	done, err := f.s.NextLegacyIgnoreBaselineVerificationPage(f.ctx, l)
+	if err != nil || !done.Complete {
+		t.Fatal("native verification completion", err)
+	}
+}

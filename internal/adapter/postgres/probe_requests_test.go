@@ -470,6 +470,9 @@ func TestProbeRequestMigrationGuardAndRollbackPreserveCache(t *testing.T) {
 	}
 	preserved := probeFaultSnapshot(t, f)
 	dsn := f.s.Pool.Config().ConnString()
+	if version, dirty, e := Migrate(f.ctx, dsn, "down"); e != nil || dirty || version != 16 {
+		t.Fatal("baseline verification downgrade failed", version, dirty, e)
+	}
 	if version, dirty, e := Migrate(f.ctx, dsn, "down"); e != nil || dirty || version != 15 {
 		t.Fatal("legacy baseline downgrade failed", version, dirty, e)
 	}

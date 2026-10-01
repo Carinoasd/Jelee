@@ -446,3 +446,15 @@ Windows source/scan/domain/architecture 1.132/1.656/.188/.170秒通過；全vet/
 PR39先出現foundation增量brand失敗，原因是最後追加handoff含非必要舊品牌檔名；已文件commit a8f59b2809並快轉推回feat/jelee-ignore-family-baseline，沒有放寬allowlist。新run36844948666的Windows/Linux foundation已pass，另一runWindowspass/Linux仍pending，兩PG待結果，完整品牌fail。不能把舊run改稱pass。查過PR39仍OPEN，base feat/jelee-ignore-family-inventory。
 
 下一步缺失邊界的任務級持久復核。現有schema14 legacyverification只覆蓋existing query/source，不能涵蓋baseline缺失boundary；需要獨立token/cursor/count/digest/固定deadline/lease generation及EOF計數覆蓋新查詢。ReadLegacyIgnoreBaselinePage目前只是凍結讀取，Reobserve只是單次原生驗證。正式family baseline分類、publication/worker仍未開放，不宣稱完成G22。所有handle已結束。
+
+schema16基線證據已提交7b1f6b57d3，普通繁中PR40：https://github.com/MoYuanCN/Jelee/pull/40，已附聊天。現為feat/jelee-ignore-baseline-verification，接續任務級缺失邊界復核。PR40尚未查CI；所有本機handle結束。
+
+### schema17 基線來源與缺失邊界任務級復核已驗證
+
+新增獨立LegacyIgnoreBaselineVerificationToken/Page、job_ignore_legacy_baseline_verifications以及Begin/Next/CommitLegacyIgnoreBaselineVerificationPage。共用legacyVerificationFence但不共用source查詢游標；按原始LookupDirectory分頁，摘要包含lookup/source全鏈/missing boundary。固定min(lease,120秒)期限，同代不續期、新代重啟、EOF總數對baseline_queries。提交前再查deadline/lease/epoch；來源或缺失邊界改變只標invalidated且無進度。
+
+全真PG race219頂層通過、0失敗0skip、288.142秒、sourceUnchanged=true（.testdata/inventory-baseline-verification-full-postgres-summary.json）。首輪5项23.725秒pass。18次同source不同lookup跨頁、截斷/舊token、換代/取消/過期、邊界移動、PG延遲300ms對deadline150ms整批回滾，以及原生observe→保存→freeze→reobserve→commit→EOF皆通過。Windows postgres/domain/architecture、全vet、三build；Linux domain/architecture race1.056/1.092秒通過。001–016不改，歷史降版序列加入17→16。brand-new0/allowed100、gitignore/diff通過。
+
+PR40最新兩PGpending（110314880445、110315039488），其他功能全pass，完整品牌fail。所有本機handle結束。本機全PG harness外層目前300秒，本輪288秒已接近，後續新增測試若增加整套時長須合理調整外層觀察期限，不縮減fixture/SQL/lease期限或移除測試。
+
+下一步合併基線分類：新FamilyIgnoreBaselineDecision需family/reason、ancestor MatchedPath和可選legacybaseline觀察，不能冒用僅自有行號>=1合同。必須保留父目錄剪枝語義；不可只查最終檔案的nearest來源，因掃描可能已被祖先legacy空檔/規則排除。自有明确Include/Exclude優先，每個仍需判定的祖先目錄與最終檔案應按相同組合政策，缺失目錄觀察用已實作的邊界。兩family身份链需一致，資料庫完整基線分類/兩來源復核/發布/worker仍未接線，不代表G22或階段3完成。
