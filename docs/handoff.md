@@ -546,3 +546,19 @@ PR43最新：一套foundation Linux/Windows及另一套Windows pass，另一Linu
 新增ignore_family_seal_test.go實際走三路Next/Commit到EOF，驗證Seal重試不續期/過期拒絕、三路各自計數錯誤拒絕、DB最後jobs寫入延遲300ms與共同deadline150ms後封存整筆回滾且測試確認進入延遲；既有獨立legacy過期時共同Begin不保留custom/baseline checkpoint也不凍結custom；unknown比較完成仍拒絕復核。family-seal-boundaries真PG8頂層pass、0fail0skip28.234秒。全PG race family-verification-full 235頂層pass、0fail0skip309.436秒、sourceUnchanged=true。原生三路Reobserve/EOF/Seal於上輪已pass15.655秒，正式碼此輪未變；Windowspostgres.067秒、domain/scan/architecture .192/1.798/.163秒，全vet/三build通過。schema18保持，沒有遷移改動。
 
 PR43功能CI已全pass（兩PG15m6s/13m37s），完整品牌fail。所有本機handle結束。接續發布：FinishIgnoreJob可抽private mode-aware；family comparison用comparisonModeFence true，發布前後共同complete/count/lifetime/frozen/noninvalid + custom sealed_until有效。saveIgnoreImageProgress的missing SQL與保留excluded baseline SQL都要改成可信常數選表job_ignore_family_decisions，不能遺漏其中一處。保留NFO/probephase、coverage/skipped、missing thresholds、review-only unknown、MaxEntries含歷史excluded、guarded finish/audit/historytrim/late guards語義；舊FinishIgnoreJob與ordinaryFinishJob仍拒絕family成功發布。ports/runner/public admission後續獨立驗證。
+
+三路共同復核與封存已提交f092c9e97f，普通繁中PR44：https://github.com/MoYuanCN/Jelee/pull/44，已附聊天。現為feat/jelee-ignore-family-publication，接續最終發布；PR44尚未查CI，所有本機handle結束。按照上段出版守衛/兩個decision SQL選表與既有phase/閾值/rollback合同繼續，schema18不變。
+
+### 合併模式最終發布進行中（未提交）
+
+ignore_publication.go新增FinishFamilyIgnoreJob，兩入口共用private finishIgnoreJob(family bool)。comparisonModeFence選正確mode；guardIgnorePublicationSeal在family同時驗共同三路complete/count/lifetime/frozen/noninvalid及custom seal，發布前後各一次。ignoreDecisionTable只回傳兩個可信常數，圖片missing SQL與保留historical excluded SQL皆選family表；原NFO/probephase、coverage/skipped、unknown review-only、missing門檻、MaxEntries合計excluded、audit/history/epoch/late guard流程保留。舊FinishIgnoreJob仍拒family，public admission/worker尚未開放。
+
+新增ignore_family_publication_test.go，classifyFamilyForPublication與familyExcluded helpers；從舊familySealFixture抽finishFamilyVerification，復核測試行為保持。新測試涵蓋observed/missing/excluded混合發布、被排除image歷史屬性/observed_revision保持、family圖片missing=1、舊入口拒絕、unknown不發布/不宣稱缺失、未seal/sourcecount錯/baseline deadline過期/終態寫入延遲300ms跨seal150ms整筆rollback。另驗大量excluded不稀釋missing分母、incomparable scope reset、合併歷史excluded計入MaxEntries。
+
+真PG family-publication-first 7頂層pass、0fail0skip29.884秒；補邊界後family-publication-boundaries 8頂層pass、0fail0skip32.794秒，包含全部舊IgnorePublication回歸，sourceUnchanged皆true。原生非race family-publication-native 1pass、0skip15.658秒：TestFamilyIgnoreNativeStorage在原三路封存後設測試policy missing_percent_limit100並真FinishFamilyIgnoreJob，Missing1/noReview/succeeded，4筆被排除基線保持歷史revision，總數=新inventory+4。公開worker仍未串接，不能把repository原生鏈稱正式worker完整驗收。
+
+Windows postgres編譯/純測試.067秒、相關vet/diff通過。尚需完整PG回歸、完整vet/build/其他相關門禁、文件/traceability才提交PR；schema18未改。本機所有handle結束。PR44兩PGpending110337371605/110337549493、macOS/Windowsrun-tests仍pending，其餘功能pass，完整品牌fail。當前feat/jelee-ignore-family-publication。
+
+### 合併模式發布完整回歸通過
+
+family-publication-full 真實 PostgreSQL race 239 頂層通過、0 fail、0 skip，327.366 秒，sourceUnchanged=true，證據 .testdata/inventory-family-publication-full-postgres-summary.json。Windows domain/scan/architecture、全 vet 與三命令 build 已通過；LICENSE 與需求原文雜湊未變。當前發布實作尚未提交，接續增量品牌、gitignore、diff 門禁後提交繁中 PR；正式 worker 與公開入口仍未完成。PR44 最新三平台 run-tests 與 foundation 通過，兩 PostgreSQL CI 仍執行中，完整品牌失敗。

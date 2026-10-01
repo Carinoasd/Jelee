@@ -160,6 +160,20 @@ func TestFamilyIgnoreNativeStorage(t *testing.T) {
 	if err = f.s.SealFamilyIgnoreVerification(f.ctx, l); err != nil {
 		t.Fatal("joint native seal", err)
 	}
+	if _, err = f.s.Pool.Exec(f.ctx, `UPDATE jobs SET missing_percent_limit=100 WHERE id=$1::uuid`, l.Job.ID); err != nil {
+		t.Fatal(err)
+	}
+	if err = f.s.FinishFamilyIgnoreJob(f.ctx, l); err != nil {
+		t.Fatal("native publication", err)
+	}
+	job := f.get(t, l.Job.ID)
+	if job.State != domain.JobSucceeded || job.ReviewRequired || job.Missing != 1 {
+		t.Fatal("native publication outcome", job)
+	}
+	var total, historical, inventory int
+	if err = f.s.Pool.QueryRow(f.ctx, `SELECT count(*),count(*) FILTER(WHERE observed_revision=1),(SELECT count(*) FROM job_inventory WHERE job_id=$2::uuid) FROM library_inventory_baseline WHERE library_id=$1::uuid`, f.registration.Library.ID, l.Job.ID).Scan(&total, &historical, &inventory); err != nil || historical != 4 || total != inventory+4 {
+		t.Fatal("native protected merge", total, historical, inventory, err)
+	}
 	if runner.Stats().Active != 0 {
 		t.Fatal("helper still active")
 	}

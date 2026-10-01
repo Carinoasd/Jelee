@@ -10,6 +10,12 @@ import (
 func familySealFixture(t *testing.T) (jobFixture, domain.JobLease) {
 	t.Helper()
 	f, l := familyVerificationFixture(t)
+	finishFamilyVerification(t, f, l)
+	return f, l
+}
+
+func finishFamilyVerification(t *testing.T, f jobFixture, l domain.JobLease) {
+	t.Helper()
 	if err := f.s.BeginFamilyIgnoreVerification(f.ctx, l); err != nil {
 		t.Fatal(err)
 	}
@@ -49,7 +55,6 @@ func familySealFixture(t *testing.T) (jobFixture, domain.JobLease) {
 			t.Fatal(err)
 		}
 	}
-	return f, l
 }
 
 func TestFamilySealRetryAndExpiry(t *testing.T) {

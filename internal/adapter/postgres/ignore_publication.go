@@ -20,13 +20,29 @@ func guardIgnoreSeal(ctx context.Context, tx pgx.Tx, l domain.JobLease) error {
 	return nil
 }
 
-func saveIgnoreImageProgress(ctx context.Context, tx pgx.Tx, l domain.JobLease, epoch int64, comparable bool) error {
+func ignoreDecisionTable(family bool) string {
+	if family {
+		return "job_ignore_family_decisions"
+	}
+	return "job_ignore_decisions"
+}
+
+func guardIgnorePublicationSeal(ctx context.Context, tx pgx.Tx, l domain.JobLease, family bool) error {
+	if family {
+		if err := guardFamilyVerificationComplete(ctx, tx, l); err != nil {
+			return err
+		}
+	}
+	return guardIgnoreSeal(ctx, tx, l)
+}
+
+func saveIgnoreImageProgress(ctx context.Context, tx pgx.Tx, l domain.JobLease, epoch int64, comparable, family bool) error {
 	var p domain.ImageProgress
 	if comparable {
 		if err := tx.QueryRow(ctx, imageCurrentCountsSQL, l.Job.LibraryID, l.Job.ID, epoch).Scan(&p.Added, &p.Changed, &p.Unchanged, &p.Uncompared); err != nil {
 			return storageError(err)
 		}
-		err := tx.QueryRow(ctx, `SELECT count(*) FROM library_inventory_baseline b LEFT JOIN job_inventory i ON i.job_id=$2::uuid AND i.root_id=b.root_id AND i.path=b.path LEFT JOIN job_ignore_decisions d ON d.job_id=$2::uuid AND d.root_id=b.root_id AND d.path=b.path WHERE b.library_id=$1::uuid AND b.kind='image' AND ((i.id IS NOT NULL AND i.kind<>'image') OR (i.id IS NULL AND d.outcome='included_missing'))`, l.Job.LibraryID, l.Job.ID).Scan(&p.Missing)
+		err := tx.QueryRow(ctx, `SELECT count(*) FROM library_inventory_baseline b LEFT JOIN job_inventory i ON i.job_id=$2::uuid AND i.root_id=b.root_id AND i.path=b.path LEFT JOIN `+ignoreDecisionTable(family)+` d ON d.job_id=$2::uuid AND d.root_id=b.root_id AND d.path=b.path WHERE b.library_id=$1::uuid AND b.kind='image' AND ((i.id IS NOT NULL AND i.kind<>'image') OR (i.id IS NULL AND d.outcome='included_missing'))`, l.Job.LibraryID, l.Job.ID).Scan(&p.Missing)
 		if err != nil {
 			return storageError(err)
 		}
@@ -47,12 +63,20 @@ func saveIgnoreImageProgress(ctx context.Context, tx pgx.Tx, l domain.JobLease, 
 // inventory. Ordinary FinishJob remains guarded, as do enabled job claims.
 // Failure/cancellation continues to use FinishJob without replacing baseline.
 func (s *Store) FinishIgnoreJob(ctx context.Context, l domain.JobLease) error {
+	return s.finishIgnoreJob(ctx, l, false)
+}
+
+func (s *Store) FinishFamilyIgnoreJob(ctx context.Context, l domain.JobLease) error {
+	return s.finishIgnoreJob(ctx, l, true)
+}
+
+func (s *Store) finishIgnoreJob(ctx context.Context, l domain.JobLease, family bool) error {
 	tx, err := s.jobTransaction(ctx)
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback(ctx)
-	current, epoch, revision, err := ignoreComparisonFence(ctx, tx, l)
+	current, epoch, revision, err := comparisonModeFence(ctx, tx, l, family)
 	if err != nil {
 		return err
 	}
@@ -70,7 +94,7 @@ func (s *Store) FinishIgnoreJob(ctx context.Context, l domain.JobLease) error {
 	// a baseline or report confirmed missing files without verification.
 	sealed := c.counts.Unknown == 0
 	if sealed {
-		if err = guardIgnoreSeal(ctx, tx, current); err != nil {
+		if err = guardIgnorePublicationSeal(ctx, tx, current, family); err != nil {
 			return err
 		}
 	}
@@ -111,7 +135,7 @@ func (s *Store) FinishIgnoreJob(ctx context.Context, l domain.JobLease) error {
 	if err != nil {
 		return err
 	}
-	if err = saveIgnoreImageProgress(ctx, tx, current, epoch, c.comparable && sealed); err != nil {
+	if err = saveIgnoreImageProgress(ctx, tx, current, epoch, c.comparable && sealed, family); err != nil {
 		return err
 	}
 	if !result.ReviewRequired {
@@ -127,7 +151,7 @@ func (s *Store) FinishIgnoreJob(ctx context.Context, l domain.JobLease) error {
 		}
 		// Keep only classified excluded rows from this same scope, untouched:
 		// attributes, source epoch and observed revision remain historical.
-		_, err = tx.Exec(ctx, `DELETE FROM library_inventory_baseline b WHERE b.library_id=$1::uuid AND (NOT $3::boolean OR NOT EXISTS(SELECT 1 FROM job_ignore_decisions d WHERE d.job_id=$2::uuid AND d.root_id=b.root_id AND d.path=b.path AND d.outcome='excluded'))`, current.Job.LibraryID, l.Job.ID, c.comparable)
+		_, err = tx.Exec(ctx, `DELETE FROM library_inventory_baseline b WHERE b.library_id=$1::uuid AND (NOT $3::boolean OR NOT EXISTS(SELECT 1 FROM `+ignoreDecisionTable(family)+` d WHERE d.job_id=$2::uuid AND d.root_id=b.root_id AND d.path=b.path AND d.outcome='excluded'))`, current.Job.LibraryID, l.Job.ID, c.comparable)
 		if err != nil {
 			return storageError(err)
 		}
@@ -152,7 +176,7 @@ func (s *Store) FinishIgnoreJob(ctx context.Context, l domain.JobLease) error {
 		return err
 	}
 	if sealed {
-		if err = guardIgnoreSeal(ctx, tx, current); err != nil {
+		if err = guardIgnorePublicationSeal(ctx, tx, current, family); err != nil {
 			return err
 		}
 	}
