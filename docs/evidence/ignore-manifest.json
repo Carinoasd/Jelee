@@ -1,0 +1,162 @@
+{
+  "baseCommit": "d77fb0ecfbdc59226787eba62dab63ac7ee2f251",
+  "schemaVersion": 9,
+  "sourceSHA256": {
+    "internal/adapter/postgres/accounts_integration_test.go": "61bd69d89bf57fa40e561dfb6a09d54d45956748479be98a8927a0d7bcf94075",
+    "internal/adapter/postgres/ignore_manifest_test.go": "62f872a331f531d12360a9281f93bead0ee4c8af6ebc404e5a3f7ed106f09735",
+    "internal/adapter/postgres/ignore_manifest.go": "7f36f517d57c32358a4697c4d8b233d01149d03b2fb0591c1bca12627ae65a20",
+    "internal/adapter/postgres/ignore_migration_test.go": "1ba56527fd628ca378eea499ad19e12378308c1fe9b923cb052119ae9b07df11",
+    "internal/adapter/postgres/jobs_integration_test.go": "630f0dee7bd2e93658343bbde464904435a3f03b87215a76cd613a65ee45561a",
+    "internal/adapter/postgres/migrations/000009_ignore_manifest.down.sql": "ddec68452b550c967ac61f52d679589ebddb6606303a1da2cb79f9f731d783a3",
+    "internal/adapter/postgres/migrations/000009_ignore_manifest.up.sql": "e0494b2f555ac42c82e1d07a9011ea17dc5617a54a1d821fd849417141ebf7a0",
+    "internal/adapter/postgres/nfo_integration_test.go": "6a1f801e41bf3fcd4175db98159e88bd4aa7107ca654214d5a10a0843d11d663",
+    "internal/adapter/postgres/nfo_worker_migration_test.go": "8f8469e6eaa445cea464c2f1a488276d3388561ff6c28f2318bd8e5dbefd4c1c",
+    "internal/adapter/postgres/probe_integration_test.go": "609aa79614a0974d9e4d4bd4153dd0a4207ed06ca8afdebe51c94a99234fd58c",
+    "internal/adapter/postgres/probe_requests_test.go": "f87607acdfdc2288e9eaba2f8a2c8f67d6b9d5274425a3b911aaa868ef360d17",
+    "internal/adapter/postgres/store_integration_test.go": "794045bd867abde8bf79f5709f87c88455906222d204d0c093ba6ae2847e97de",
+    "internal/adapter/postgres/store.go": "a78da2e57c7de1b44bee7a7026a0a98aadfcf80d005f117f3f4539e0f4f43851",
+    "internal/domain/ignore_manifest_test.go": "9b113106f57df78b55be06462036024af81b80d27ece1120cbfdc100b099371a",
+    "internal/domain/ignore_manifest.go": "81af78c27e3d20de3584218b2ab57c95d3d2030d6c711884a2298ac22796697f"
+  },
+  "postgres": {
+    "exit": 0,
+    "command": [
+      "project-pinned-go",
+      "test",
+      "-race",
+      "-count=1",
+      "-json",
+      "-run",
+      "^Test",
+      "./internal/adapter/postgres"
+    ],
+    "seconds": 172.876,
+    "topLevelPassed": 150,
+    "skipped": [],
+    "failed": [],
+    "sourceUnchanged": true,
+    "logSHA256": "06815c6d20f15c8000cb21a3f4633a7eaba2882b0ccb54f82978a2375783ebe7"
+  },
+  "linux": {
+    "commands": [
+      {
+        "argv": [
+          "project-pinned-go",
+          "vet",
+          "./..."
+        ],
+        "exit": 0,
+        "seconds": 24.161
+      },
+      {
+        "argv": [
+          "project-pinned-go",
+          "build",
+          "-o",
+          "<repository>/.testdata/manifest-final-build/jelee",
+          "./cmd/jelee"
+        ],
+        "exit": 0,
+        "seconds": 26.868
+      },
+      {
+        "argv": [
+          "project-pinned-go",
+          "build",
+          "-o",
+          "<repository>/.testdata/manifest-final-build/jelee-cli",
+          "./cmd/jelee-cli"
+        ],
+        "exit": 0,
+        "seconds": 12.19
+      },
+      {
+        "argv": [
+          "project-pinned-go",
+          "build",
+          "-o",
+          "<repository>/.testdata/manifest-final-build/jelee-migrate",
+          "./cmd/jelee-migrate"
+        ],
+        "exit": 0,
+        "seconds": 11.236
+      }
+    ],
+    "passed": true,
+    "sourceUnchanged": true,
+    "logSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "windows": {
+    "logSHA256": "094b4a22671fb560229d37733940357dd3a49fef1c8b123ffdda27b4c1c8985c",
+    "postgresSkips": 223,
+    "vet": "passed",
+    "build": "passed",
+    "packages": 25,
+    "race": false,
+    "topLevelPassed": 521,
+    "otherSkips": 14
+  },
+  "nfo": {
+    "result": "passed",
+    "scope": "Schema9 before the manifest-only cursor query optimization and its plan test. Inventory/media execution code is identical; this does not exercise enabled ignore.",
+    "cases": [
+      {
+        "fixtureFiles": 1000,
+        "sourceDigest": "8daf393f32714073d60b5ed9ec0a32083c462db191e9691d92118c251b243325",
+        "sourceUnchanged": true,
+        "originalFixtureHashesUnchanged": true,
+        "testArtifactsCleaned": true,
+        "cancellationRecovery": {
+          "cancellationRecovery": "passed",
+          "cancelledMissing": 0,
+          "cancelledComparisonComplete": false,
+          "baselineUnchanged": true,
+          "recoveredComparisonComplete": true,
+          "recoveryParses": 0,
+          "recoveryChildStarts": 0
+        },
+        "shutdown": {
+          "shutdown": "passed",
+          "signal": "SIGTERM",
+          "httpClosed": true,
+          "activeNFOCalls": 0,
+          "activeChildLifecycles": 0,
+          "activeLeases": 0,
+          "readBarrier": "after a real read; cancelled API joined"
+        }
+      },
+      {
+        "fixtureFiles": 100,
+        "sourceDigest": "8daf393f32714073d60b5ed9ec0a32083c462db191e9691d92118c251b243325",
+        "sourceUnchanged": true,
+        "originalFixtureHashesUnchanged": true,
+        "testArtifactsCleaned": true,
+        "cancellationRecovery": {
+          "cancellationRecovery": "passed",
+          "cancelledMissing": 0,
+          "cancelledComparisonComplete": false,
+          "baselineUnchanged": true,
+          "recoveredComparisonComplete": true,
+          "recoveryParses": 0,
+          "recoveryChildStarts": 0
+        },
+        "shutdown": {
+          "shutdown": "passed",
+          "signal": "SIGTERM",
+          "httpClosed": true,
+          "activeNFOCalls": 0,
+          "activeChildLifecycles": 0,
+          "activeLeases": 0,
+          "readBarrier": "after a real read; cancelled API joined"
+        }
+      }
+    ],
+    "logSHA256": "83a555c00fb175e7a415705c149ef41c9a650fc50ccea49b2f611f8b7f218bba"
+  },
+  "queryPlan": {
+    "visited": 128,
+    "index": "job_ignore_proofs_pkey",
+    "rows": 10001,
+    "pageSize": 128
+  }
+}

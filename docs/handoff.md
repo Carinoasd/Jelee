@@ -2,11 +2,13 @@
 
 ## 当前接续（优先于以下历史记录）
 
-用户已切换思考强度并明确继续。死锁修正已完成本地验证并推送 PR #13：`6fdfaaa2c69cc8bbb0c21f8180ddc36cad5825ef`。PG race132项零skip，Windows build/lint/test，Linux vet/三build，真实1000视频以及1000／100 NFO混合库全部通过；原自动审批拒绝已由root核对限定范围后解决。所有验证命令结束，报告见 jobs-lock-order-verification.md。
+用户再次明确每阶段验证后提交/push普通PR，持续下一阶段直到全部完成，不需阶段间确认。作者仍仅命令级Carinoasd，禁止merge/release/force push和改写旧迁移。
 
-库存scope前置修正已提交 `780eee710d88ab025eb620bf7be3665996574c00`，推送普通 [PR #14](https://github.com/MoYuanCN/Jelee/pull/14)，base `feat/jelee-ignore-inventory`，head `feat/jelee-ignore-comparison`。新增8项RED/GREEN、完整PG race140顶层零skip、Windows build/lint/test、Linux vet/三build与1000/100真NFO混合验收通过；证据见inventory-scope.md。完整ignore三态/manifest仍未实现；没有schema009。
+已发布库存scope PR #14（780eee710d）、process观察修正PR #15（37eab90bdd）、来源逐项证明PR #16（d77fb0ecfb）。PR15最终Go CI run36810183721及所有其他PR检查均结束，只有Full branding gate失败：15,278违规/96合法保留；Windows/Linux、PG/race、真probe与NFO全部成功。PR16的全部检查也仅品牌失败。此结论已经向用户说明，不关闭门禁。
 
-当前 `fix/jelee-process-exit-observation` 从上述提交开始，只修正process测试观察：等待退出后复用结束等待的状态，不再二次读取；Linux读取失败仅ENOENT算退出，其他错误不能静默通过。生产清理逻辑和3秒期限不变。Linux目标race重复10轮、完整process race、Windows process包通过，见process-exit-verification.md。本修正已提交 `20d1a87eb8` 并推送普通 [PR #15](https://github.com/MoYuanCN/Jelee/pull/15)，base为 `feat/jelee-ignore-comparison`；后续继续C2 manifest持久比较。PR13 run36808879373的1.04s失败支持两次观察不一致，但具体OS原因未被日志证明；同源push run36808875521功能门禁含真媒体全部成功，不能抵消失败轮。完整品牌仍失败。
+当前分支 `feat/jelee-ignore-manifest` 从PR16源码开始实现schema009来源清单，尚未提交。已实现domain proof shape、父链/缺失目录、原子128批次、16,384行和64MiB预算、冲突持久失效且回滚新增前缀、freeze全根验证、冻结128项keyset分页；enabled执行仍关闭。原迁移001–008不改写，009有保留manifest就拒绝down。当前binary schema9，旧测试补充9→8步骤。
+
+本段最终PG race150顶层零skip、Windows25包/521顶层、Linux vet/三build通过；manifest分页10,001行只访问128行/128页。1000/100真NFO混合验收通过，执行在最后仅manifest分页索引优化前，详细边界见docs/evidence/ignore-manifest.json。全部验证命令已结束。待提交/push普通PR（base feat/jelee-ignore-observations），随后继续基线三态分类/合并、来源复核seal和实际枚举接线。需求状态不提前提高。
 ## 2026-10-01 切换思考强度历史接续点
 
 用户说明当前 ultra，并问「现在我可以降低吗」。已告知可改 medium，修改已保存，切换后说「继续」接着验证和推送。此前按小段验证／push／普通 PR 的授权仍保留。
@@ -50,7 +52,7 @@
 
 3C3C 已交付的源码包含schema007、NFO入队/worker/API/CLI、当前观察与图片属性比较。[实际验证](nfo-worker-verification.md)：Windows三build/lint/test 27包通过；原生Linux三build/vet/race 27包544顶层测试，PG零skip，另6个专用环境skip。1,000与100混合库、真实取消/图片基线保护/恢复、SIGTERM清理以及同版1,000影片回归全部通过。矩阵仍4已完成/170部分/162阻塞；完整品牌和全项目覆盖率尚未达标。
 
-1. 当前3D1C1 binary只接受clean schema8；3C3C为schema7，3C3B为schema6。迁移000001–000007原文不变；008 down拒绝任何仍保留的enabled ignore intent（包括terminal），先停所有旧worker，不支持schema7/8进程混跑。007 up拒绝活动的无请求B read-only phase，down拒绝所有活动C request。006/005另有NFO/probe回退保护，须先结束/取消并停worker。失败迁移可能dirty，不能自动force。
+1. 当前binary只接受clean schema9；C1历史版接受schema8；3C3C为schema7，3C3B为schema6。迁移000001–000007原文不变；008 down拒绝任何仍保留的enabled ignore intent（包括terminal），先停所有旧worker，不支持schema7/8进程混跑。007 up拒绝活动的无请求B read-only phase，down拒绝所有活动C request。006/005另有NFO/probe回退保护，须先结束/取消并停worker。失败迁移可能dirty，不能自动force。
 2. root path只来自本地CLI登记的数据库媒体根；HTTP只接收登记ID。用户原媒体/NFO/图片不写入；不启用ffmpeg生产回退或转码。
 3. 默认probe关闭，disabled节点不领probe任务；缺工具仅停用相关能力。健康状态在启动时验证，readiness不每次执行工具。
 4. 持久request保存可信identity和enqueue generation；重放不失效、不repin，disabled/runtime故障仍可重放保留请求。运行恢复先读phase，从连续检查点继续。

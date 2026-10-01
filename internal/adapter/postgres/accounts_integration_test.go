@@ -579,6 +579,9 @@ func TestAccountIntegration(t *testing.T) {
 
 func TestAccountMigrationRejectsCaseCollisionWithoutRenaming(t *testing.T) {
 	ctx, s, dsn := accountTestStore(t)
+	if v, dirty, err := Migrate(ctx, dsn, "down"); err != nil || dirty || v != 8 {
+		t.Fatal("manifest downgrade failed", v, dirty, err)
+	}
 	if v, dirty, err := Migrate(ctx, dsn, "down"); err != nil || dirty || v != 7 {
 		t.Fatal("rollback ignore intent schema", err)
 	}
@@ -627,6 +630,9 @@ func TestAccountMigrationRollbackKeepsDeletedAccountsDisabled(t *testing.T) {
 	}
 	if _, err = s.Pool.Exec(ctx, `UPDATE users SET deleted_at=now() WHERE name='DeletedBeforeRollback'`); err != nil {
 		t.Fatal("prepare deleted account")
+	}
+	if v, dirty, err := Migrate(ctx, dsn, "down"); err != nil || dirty || v != 8 {
+		t.Fatal("manifest downgrade failed", v, dirty, err)
 	}
 	if v, dirty, err := Migrate(ctx, dsn, "down"); err != nil || dirty || v != 7 {
 		t.Fatal("rollback ignore intent schema", err)

@@ -626,6 +626,9 @@ func TestJobsMigrationRollbackPreservesAccountsAndLibraryConfiguration(t *testin
 	f := newJobFixture(t)
 	f.complete(t, "rollback", []string{"observed.mkv"}, 0)
 	dsn := f.s.Pool.Config().ConnString()
+	if v, dirty, err := Migrate(f.ctx, dsn, "down"); err != nil || dirty || v != 8 {
+		t.Fatal("rollback ignore manifest schema", err)
+	}
 	if v, dirty, err := Migrate(f.ctx, dsn, "down"); err != nil || dirty || v != 7 {
 		t.Fatal("rollback ignore intent schema", err)
 	}

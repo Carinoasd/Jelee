@@ -83,6 +83,7 @@ func TestIgnoreMigrationLegacySevenRoundTripAndReadiness(t *testing.T) {
 	l, _ := f.start(t, "existing-cache", "retained.nfo")
 	f.parseHead(t, l, nfoValidSummary())
 	f.finish(t, l)
+	nfoMigrateVersion(t, f.jobFixture, "down", 8)
 	nfoMigrateVersion(t, f.jobFixture, "down", 7)
 	// Construct a genuine pre-008 queued job while the marker column does not
 	// exist. Current repository admission intentionally requires schema 8.
@@ -118,7 +119,7 @@ func TestIgnoreMigrationLegacySevenRoundTripAndReadiness(t *testing.T) {
 	for _, state := range []struct {
 		version int
 		dirty   bool
-	}{{8, true}, {9, false}} {
+	}{{SchemaVersion, true}, {SchemaVersion + 1, false}} {
 		if _, err = f.s.Pool.Exec(f.ctx, `UPDATE schema_migrations SET version=$1,dirty=$2`, state.version, state.dirty); err != nil {
 			t.Fatal("set private readiness fixture")
 		}
@@ -129,6 +130,7 @@ func TestIgnoreMigrationLegacySevenRoundTripAndReadiness(t *testing.T) {
 	if _, err = f.s.Pool.Exec(f.ctx, `UPDATE schema_migrations SET version=$1,dirty=false`, SchemaVersion); err != nil {
 		t.Fatal("restore private readiness fixture")
 	}
+	nfoMigrateVersion(t, f.jobFixture, "down", 8)
 	nfoMigrateVersion(t, f.jobFixture, "down", 7)
 	if before != ignoreLegacySnapshot(t, f.jobFixture) {
 		t.Fatal("008 off-only downgrade changed legacy data")
@@ -219,6 +221,7 @@ func TestIgnoreMigrationHistoryTrimAllowsDowngrade(t *testing.T) {
 		t.Fatal("ordinary terminal history trim did not remove request with parent")
 	}
 	before := ignoreLegacySnapshot(t, f)
+	nfoMigrateVersion(t, f, "down", 8)
 	nfoMigrateVersion(t, f, "down", 7)
 	if before != ignoreLegacySnapshot(t, f) {
 		t.Fatal("downgrade after trim changed off job baseline")

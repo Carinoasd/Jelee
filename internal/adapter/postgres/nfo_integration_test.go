@@ -451,6 +451,9 @@ func TestNFOCacheMigrationGuardAndRoundTrip(t *testing.T) {
 		t.Fatal(err)
 	}
 	dsn := f.s.Pool.Config().ConnString()
+	if v, dirty, err := Migrate(f.ctx, dsn, "down"); err != nil || dirty || v != 8 {
+		t.Fatal("manifest downgrade failed", v, dirty, err)
+	}
 	if v, dirty, err := Migrate(f.ctx, dsn, "down"); err != nil || dirty || v != 7 {
 		t.Fatal("rollback ignore intent schema", err)
 	}
