@@ -114,7 +114,7 @@ func readJobsToken(ctx context.Context, input io.Reader) (string, error) {
 
 func runJobsCLI(ctx context.Context, argv []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	usage := func() int {
-		fmt.Fprintln(stderr, "usage: jelee-cli jobs scan|probe|probe-rebuild-library|probe-rebuild-item|list|libraries|get|entries|cancel|retry --token-stdin [--url http://127.0.0.1:8097] [--id UUID] [--key ASCII] [--priority manual|background] [--probe] [--nfo] [--cursor UUID] [--limit 50] [--state STATE]")
+		fmt.Fprintln(stderr, "usage: jelee-cli jobs scan|ignore|probe|probe-rebuild-library|probe-rebuild-item|list|libraries|get|entries|cancel|retry --token-stdin [--url http://127.0.0.1:8097] [--id UUID] [--key ASCII] [--priority manual|background] [--probe] [--nfo] [--ignore jeleeignore --ignore-case sensitive|ascii-insensitive] [--cursor CURSOR] [--limit 50] [--state STATE]")
 		return 2
 	}
 	if len(argv) == 0 {
@@ -127,9 +127,12 @@ func runJobsCLI(ctx context.Context, argv []string, stdin io.Reader, stdout, std
 	fromStdin := flags.Bool("token-stdin", false, "read bearer token from stdin")
 	var id, key, priority, cursor, state string
 	var enableProbe, enableNFO bool
+	var ignoreMode, ignoreCase string
 	limit := 50
 	switch command {
 	case "scan":
+		flags.StringVar(&ignoreMode, "ignore", "", "ignore rule mode")
+		flags.StringVar(&ignoreCase, "ignore-case", "", "ignore case behavior")
 		flags.BoolVar(&enableProbe, "probe", false, "probe metadata after inventory")
 		flags.BoolVar(&enableNFO, "nfo", false, "validate NFO after inventory")
 		fallthrough
@@ -141,6 +144,10 @@ func runJobsCLI(ctx context.Context, argv []string, stdin io.Reader, stdout, std
 		fallthrough
 	case "get", "cancel", "probe":
 		flags.StringVar(&id, "id", "", "library or job UUID")
+	case "ignore":
+		flags.StringVar(&id, "id", "", "job UUID")
+		flags.StringVar(&cursor, "cursor", "", "opaque report cursor")
+		flags.IntVar(&limit, "limit", 50, "page size")
 	case "entries":
 		flags.StringVar(&id, "id", "", "job UUID")
 		fallthrough
@@ -156,12 +163,15 @@ func runJobsCLI(ctx context.Context, argv []string, stdin io.Reader, stdout, std
 	if flags.Parse(argv[1:]) != nil || flags.NArg() != 0 || !*fromStdin {
 		return usage()
 	}
+	if domain.ValidateIgnoreIntent(domain.IgnoreIntent{Mode: ignoreMode, CaseMode: ignoreCase}) != nil {
+		return usage()
+	}
 	u, err := jobsBaseURL(*base)
 	if err != nil {
 		return usage()
 	}
 	enqueue := command == "scan" || command == "probe-rebuild-library" || command == "probe-rebuild-item"
-	if id != "" && !domain.ValidID(id) || (enqueue || command == "retry" || command == "get" || command == "entries" || command == "cancel" || command == "probe") && !domain.ValidID(id) || cursor != "" && !domain.ValidID(cursor) || limit < 1 || limit > 100 {
+	if id != "" && !domain.ValidID(id) || (enqueue || command == "retry" || command == "get" || command == "entries" || command == "cancel" || command == "probe" || command == "ignore") && !domain.ValidID(id) || command != "ignore" && cursor != "" && !domain.ValidID(cursor) || command == "ignore" && !validCLIIgnoreCursor(cursor) || limit < 1 || limit > 100 {
 		return usage()
 	}
 	if enqueue || command == "retry" {
@@ -191,6 +201,9 @@ func runJobsCLI(ctx context.Context, argv []string, stdin io.Reader, stdout, std
 		u.Path = "/api/v1/libraries/" + id + "/scan"
 		method = http.MethodPost
 		input := map[string]any{"priority": priority}
+		if ignoreMode != "" {
+			input["ignore"] = map[string]string{"mode": ignoreMode, "caseMode": ignoreCase}
+		}
 		if enableProbe {
 			input["probe"] = true
 		}
@@ -210,6 +223,8 @@ func runJobsCLI(ctx context.Context, argv []string, stdin io.Reader, stdout, std
 		body = string(data)
 	case "probe":
 		u.Path = "/api/v1/jobs/" + id + "/probe"
+	case "ignore":
+		u.Path = "/api/v1/jobs/" + id + "/ignore"
 	case "list":
 		u.Path = "/api/v1/jobs"
 	case "libraries":
@@ -223,7 +238,7 @@ func runJobsCLI(ctx context.Context, argv []string, stdin io.Reader, stdout, std
 			body = "{}"
 		}
 	}
-	if command == "list" || command == "entries" || command == "libraries" {
+	if command == "list" || command == "entries" || command == "libraries" || command == "ignore" {
 		q := url.Values{"limit": []string{strconv.Itoa(limit)}}
 		if cursor != "" {
 			q.Set("cursor", cursor)
@@ -357,6 +372,8 @@ func decodeJobsCLIResponse(raw []byte, command string, limit int) (any, bool) {
 	}
 	var data any
 	switch command {
+	case "ignore":
+		data, ok = decodeCLIIgnoreReport(envelope["data"], limit)
 	case "probe":
 		data, ok = decodeCLIProbeSummary(envelope["data"])
 	case "list":

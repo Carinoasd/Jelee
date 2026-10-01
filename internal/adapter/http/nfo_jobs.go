@@ -8,10 +8,15 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
+type IgnoreRequestBody struct {
+	Mode     string `json:"mode"`
+	CaseMode string `json:"caseMode"`
+}
 type ScanRequestBody struct {
-	Priority string `json:"priority"`
-	Probe    bool   `json:"probe"`
-	NFO      bool   `json:"nfo"`
+	Ignore   *IgnoreRequestBody `json:"ignore,omitempty"`
+	Priority string             `json:"priority"`
+	Probe    bool               `json:"probe"`
+	NFO      bool               `json:"nfo"`
 }
 
 func (s *Server) nfoRoutes(r chi.Router) {

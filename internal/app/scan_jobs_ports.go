@@ -18,3 +18,10 @@ type ScanJobRepository interface {
 	SubmitScanWithStages(context.Context, domain.Actor, string, string, string, domain.ScanIntent, domain.JobPolicy, *domain.ProbeIdentity, *domain.NFOIdentity) (domain.Job, bool, error)
 	RetryScanWithStages(context.Context, domain.Actor, string, string, domain.JobPolicy, *domain.ProbeIdentity, *domain.NFOIdentity) (domain.Job, bool, error)
 }
+
+// IgnoreAdmissionRepository checks availability only after authorized retained
+// replay, and after retry has loaded the parent's immutable ignore intent.
+type IgnoreAdmissionRepository interface {
+	SubmitScanWithIgnoreCapability(context.Context, domain.Actor, string, string, string, domain.ScanIntent, domain.JobPolicy, *domain.ProbeIdentity, *domain.NFOIdentity, bool) (domain.Job, bool, error)
+	RetryScanWithIgnoreCapability(context.Context, domain.Actor, string, string, domain.JobPolicy, *domain.ProbeIdentity, *domain.NFOIdentity, bool) (domain.Job, bool, error)
+}

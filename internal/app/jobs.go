@@ -7,6 +7,7 @@ import (
 )
 
 type Jobs struct {
+	ignoreAvailable func() bool
 	repository      JobRepository
 	policy          domain.JobPolicy
 	probeRepository ProbeJobRepository
@@ -52,7 +53,14 @@ func (j *Jobs) Retry(ctx context.Context, actor domain.Actor, id, key string) (d
 	if j.scanRepository != nil {
 		probe, probeErr := j.currentProbeIdentity()
 		nfo, nfoErr := j.currentNFOIdentity()
-		job, replay, err := j.scanRepository.RetryScanWithStages(ctx, actor, id, key, j.policy, probe, nfo)
+		var job domain.Job
+		var replay bool
+		var err error
+		if capable, ok := j.scanRepository.(IgnoreAdmissionRepository); ok {
+			job, replay, err = capable.RetryScanWithIgnoreCapability(ctx, actor, id, key, j.policy, probe, nfo, j.ignoreAvailable != nil && j.ignoreAvailable())
+		} else {
+			job, replay, err = j.scanRepository.RetryScanWithStages(ctx, actor, id, key, j.policy, probe, nfo)
+		}
 		return scanAdmissionResult(job, replay, err, probeErr, nfoErr)
 	}
 	if j.probeRepository != nil {

@@ -321,6 +321,8 @@ func WriteError(w http.ResponseWriter, r *http.Request, err error) {
 		status, code, message = 409, "probe_invalidated", "Probe scope changed. Retry the job."
 	case errors.Is(err, domain.ErrNFODisabled):
 		status, code, message = 409, "nfo_disabled", "NFO validation is disabled for this library."
+	case errors.Is(err, domain.ErrIgnoreUnavailable):
+		status, code, message = 503, "ignore_unavailable", "Ignore scanning is unavailable."
 	case errors.Is(err, domain.ErrNFOReaderUnavailable):
 		status, code, message = 503, "nfo_reader_unavailable", "NFO validation is unavailable."
 	case errors.Is(err, domain.ErrNFOCacheCapacity):

@@ -26,6 +26,7 @@ func TestProbeCLIUsesFixedAuthenticatedRoutesAndOptInBody(t *testing.T) {
 	}{
 		{"scan", "POST", "/api/v1/libraries/" + jobsTestID + "/scan", []string{"--probe"}, map[string]any{"priority": "manual", "probe": true}},
 		{"scan", "POST", "/api/v1/libraries/" + jobsTestID + "/scan", nil, map[string]any{"priority": "manual"}},
+		{"scan", "POST", "/api/v1/libraries/" + jobsTestID + "/scan", []string{"--ignore", "jeleeignore", "--ignore-case", "sensitive"}, map[string]any{"priority": "manual", "ignore": map[string]any{"mode": "jeleeignore", "caseMode": "sensitive"}}},
 		{"probe-rebuild-library", "POST", "/api/v1/libraries/" + jobsTestID + "/probe/rebuild", []string{"--priority", "background"}, map[string]any{"priority": "background"}},
 		{"probe-rebuild-item", "POST", "/api/v1/items/" + jobsTestID + "/probe/rebuild", nil, map[string]any{"priority": "manual"}},
 		{"probe", "GET", "/api/v1/jobs/" + jobsTestID + "/probe", nil, nil},
@@ -200,6 +201,16 @@ func TestProbeCLIServiceErrorsNeverExposeRawResponse(t *testing.T) {
 			if exit != 1 || out != "" || !strings.HasPrefix(errs, "jobs_request_rejected (HTTP ") || strings.Contains(errs, "secret") {
 				t.Fatal("service failure leaked content")
 			}
+		}
+	}
+}
+
+func TestIgnoreCLIRejectsIncompleteIntentBeforeCredentials(t *testing.T) {
+	for _, extra := range [][]string{{"--ignore", "jeleeignore"}, {"--ignore-case", "sensitive"}, {"--ignore", "legacy", "--ignore-case", "sensitive"}, {"--ignore", "jeleeignore", "--ignore-case", "fold"}} {
+		args := append([]string{"scan", "--id", jobsTestID, "--key", "one", "--token-stdin"}, extra...)
+		var out, errs bytes.Buffer
+		if status := runJobsCLI(context.Background(), args, unreadProbeToken{t}, &out, &errs); status != 2 || out.Len() != 0 {
+			t.Fatal("invalid ignore intent accepted", status)
 		}
 	}
 }

@@ -162,3 +162,61 @@ Windows/Linux runtime 已配置 IgnoreOptions。新增真worker測試涵蓋正�
 最終完整PG race 180頂層/零skip/220.613秒/sourceUnchanged=true；Linux jobs race通過，全模組vet/三build通過且來源不變。Windows runtime/jobs/PG/architecture test與相關vet通過，Windows PG無DSN非整合證據。原LICENSE/需求/go.mod/go.sum雜湊保持。證據docs/evidence/ignore-runner.json，合同docs/ignore-runner.md。全部命令結束，無待輪詢handle。
 
 本段準備提交普通繁中PR，後續仍須API/CLI忽略intent與排除報告、混合外部probe真媒體驗收、正式取消與unknown review端到端情境。不能把worker階段當3D1或全案完成。PR24目前所有功能CI通過，僅品牌gate失敗，門禁保留。
+
+正式worker已提交73df751081，推送繁中普通PR #25（https://github.com/MoYuanCN/Jelee/pull/25），base feat/jelee-ignore-worker-bridge，已附聊天。接續分支feat/jelee-ignore-api。先檢視 app.Jobs.SubmitScanStages（internal/app/jobs_nfo.go）與 HTTP scan request，再加明確 IgnoreIntent，保留off預設/嚴格JSON/重試凍結。API開放前需處理執行能力不可用時新請求與舊重送的差別；不要使用使用者輸入的解析器身份。後續CLI/OpenAPI/排除報告與真probe驗收仍待做。
+
+### API/CLI 忽略請求進行中（未提交）
+
+新增 app.IgnoreAdmissionRepository 與 PG SubmitScanWithIgnoreCapability/RetryScanWithIgnoreCapability；原 submitScanJob 保留wrapper，轉新submitScanJobWithIgnore(...available)。能力檢查位於授權既有replay與parent intent載入之後，新請求不可用拒絕、同key重送仍允許、重試沿用父ignore且新run需能力。TestIgnoreAdmissionAvailabilityReplayAndRetry Linux PG race 1頂層/零skip/16.86秒通過（api-admission-first），無活躍程序。
+
+app.ScanServices/Jobs 增IgnoreAvailable，SubmitScanOptions接IgnoreIntent，原SubmitScanStages包裝off。支援新port時submit/retry使用capability方法；不支援時enabled拒絕。runtime依Windows/Linux提供能力函式。HTTP ScanRequestBody新增可選ignore物件(mode/caseMode)，非空物件須jeleeignore及明確case；未知欄位仍嚴格JSON拒絕。OpenAPI IgnoreIntent兩欄required。ErrIgnoreUnavailable映射503 ignore_unavailable，補en-US/zh-CN/zh-TW/ja-JP翻譯（首輪HTTP測試抓缺翻譯，補後全過）。新增HTTPtest檢查意圖、能力下降仍送repo做replay、invalid/unknown欄位不進repo。
+
+CLI jobs scan新增 --ignore jeleeignore --ignore-case sensitive|ascii-insensitive，必須兩者都有效，off預設仍不帶欄位。既有authenticated body測試新增ignore案例。最終Windows CLI/HTTP/app test通過，前一輪runtime/i18n也通過，相關vet通過。未跑此階段Linux完整回歸/全PG/三build；CLI invalid flags/no-network與HTTP授權/503/大小寫/空值邊界仍可補強。JSON ignore:null現等同omit，OpenAPI尚未明確此行為，需決定並對齊。
+
+還需API實際PG串接驗證、排除報告（授權/分頁/來源行/未知結果/限制），及混合外部probe真素材验收。全案需求不提高。本分支feat/jelee-ignore-api未提交；最新已發PR25，還未查最終CI。全部測試程序已結束。
+
+### API/報告補強進度（未提交）
+
+本輪確認 strict_json.go 會統一拒null；先前handoff所述ignore:null等同omit不正確（只看Go pointer推論），現已加HTTP測試證實400，OpenAPI仍ref不可null。省略ignore才off。HTTP補無token401/非admin403不進repo、ASCII case傳遞、不可用503；CLI補不完整/錯誤ignore flags在讀token前拒絕。Windows HTTP/CLI/app/runtime全部通過。
+
+新增 domain.IgnoreReport/Entry 與 GetIgnoreReport(parent,actor,id,limit,cursor)。僅terminal jobs可查（queued/running ErrConflict），authorizedJobs及結尾probeAdminStillLive。scan exclusions與baseline decisions分別標source，各取limit+1、union排序有界；opaque cursor canonical base64url JSON綁job/source/root/path，limit1..100。報告含狀態、enabled/review/invalidated、排除file/dir計數、unknown與來源行/匹配路徑。無絕對根路徑。取出entry再ValidateIgnoreReportEntry以拒絕損壞/非法相對路徑。
+
+report-first Linux PG race 2頂層/0skip/18.061秒通過：terminal分頁/來源、跨job cursor、匿名actor/limit拒絕、unknown review原因保留。該次通過在最後新增entry validator之前，需針對最終版本再跑。新增app.IgnoreReportRepository/Jobs.IgnoreReport與GET /api/v1/jobs/{id}/ignore，沿用admin與jobPageQuery。新HTTP報告route尚未加專用測試/OpenAPI/schema/CLI輸出校验，也未做大資料query plan與撤銷session測試。全部程序結束。
+
+接續優先完成報告HTTP/OpenAPI/CLI與實際PG串接，再Linux/fullPG回歸、證據與繁中PR；目前整批feat/jelee-ignore-api未提交，最新PR仍25。
+
+### 排除報告 HTTP 與 OpenAPI 驗證（仍未提交）
+
+新增 ignore_openapi.go，由 nfoSpecification 在 jobs 啟用時接入：IgnoreReport/IgnoreReportEntry、terminal-only GET /api/v1/jobs/{id}/ignore、admin 授權、opaque cursor 4096 字元、limit 1..100、預設50、來源行與相對路徑、失敗/取消可能僅部分觀察、各 source 計數含義與歷史清理限制。
+
+新增 TestIgnoreHTTPReportAuthorizationAndPaging 與 TestIgnoreReportOpenAPIRolloutAndContract。首次HTTP測試查到 route 使用 accountEndpoint(true,false) 會拒絕分頁query；改成(true,true)，仍由 strictQuery 拒絕未知或重複欄位。涵蓋無登入/非admin不進repo、預設/opaque分頁、limit邊界、repo撤銷授權錯誤映射、queued conflict、能力不可用及關閉jobs時404。
+
+Windows HTTP/app/CLI test 通過，相關 vet 與 diff --check 通過。最後 entry validator 的 Linux PostgreSQL race 已補跑：report-validated，2頂層/零skip/18.113秒/sourceUnchanged=true，證據 .testdata/inventory-report-validated-postgres-summary.json。全部程序已結束。
+
+已查 PR25：所有功能CI通過，Full branding gate仍失敗，未取消門禁。CLI報告命令仍未實作；大資料query plan、真PG撤銷session測試、API實际PG串接、全PG回歸與本階段證據/PR仍待做。下一步讀 cmd/jelee-cli/jobs.go 加 jobs ignore --id --cursor --limit 與白名單回應校驗；勿把目前HTTP完成視為整階段完成。
+
+### CLI 排除報告與真實授權撤銷已驗證（仍未提交）
+
+新增 cmd/jelee-cli/ignore_jobs.go：jobs ignore --id --limit --cursor 經管理員 HTTP 讀報告；cursor為opaque，只檢查長度4096及base64url傳輸字元，不依賴PG私有編碼格式。回應先白名單投影header，再逐entry投影並ValidateIgnoreReportEntry；拒非terminal、負數、null、超頁大小、非法路徑/規則來源/理由、重複欄位；輸出不帶未知欄位或大小寫別名。下一頁cursor非空時要求滿頁。
+
+新增 ignore_jobs_test.go 覆蓋固定GET路由、bearer、query、公開輸出、惡意回應與錯誤flags在讀token前拒絕。Windows CLI/HTTP/app test與vet通過；Linux同三包 race -count=1 通過（2.121/3.332/1.069秒）。diff --check通過。新增 docs/ignore-api.md 提供請求與報告使用說明。
+
+PG報告測試補真實users降權與sessions撤銷：已取得的nextCursor不得繼續讀。report-live-auth Linux PG race 2頂層/零skip/17.008秒/sourceUnchanged=true，證據 .testdata/inventory-report-live-auth-postgres-summary.json。全部程序結束，無待輪詢handle。
+
+接續需大資料query plan、API到真PG整合（現HTTPfake與PG測試分開）、完整PG回歸、Linux全vet/三build與證據整理，再提交此階段繁中PR。所有API/CLI/報告改動仍未提交於feat/jelee-ignore-api；最新公開PR25。後續混合外部probe真媒體與worker取消/unknown端到端仍待做，整體3D1未完成。
+
+### 報告深頁預備計畫效能修正（仍未提交）
+
+新增 ignore_report_plan_test.go：隔離schema合成baseline與scan各10,000筆，EXPLAIN ANALYZE驗證首頁/兩種來源深頁的資料讀取量，並以force_generic_plan+PREPARE驗證重用計畫。首次一般計畫通過，但generic測試證實原OR條件掃描9,102/9,052筆才能回傳51筆。
+
+已修正 ignoreReportPageSQL：以CASE選擇各來源的(root_id,path)索引下界，取代source OR cursor，無新增或修改migration。最終report-plan-fixed Linux PG race涵蓋全部報告測試：3頂層/零skip/18.663秒/sourceUnchanged=true。generic與custom計畫均最多兩來源各51筆，返回51筆；授權撤銷/未知分類/頁面內容回歸也通過。Windows PG vet、diff --check通過。保留失敗與修正證據於.testdata/inventory-report-plan-{generic,fixed}-postgres*；最後僅加SQL原因註解，無執行邏輯改動。所有程序結束。
+
+下一步優先API到真PG整合與完整回歸/證據/普通繁中PR。目前repo的PG測試還未引入httpapi；可檢查包依賴，若引入造成循環應在適合的整合測試包接線，不能移除架構門禁。不要把計畫效能測試說成完整大規模掃描验收。
+
+### API/報告階段最終回歸完成
+
+新增 ignore_http_test.go（Windows/Linux）：真Store登入token→HTTP提交→正式worker原生掃描臨時檔→PG→HTTP規則行/分頁報告→撤銷session拒絕。另驗證queued報告409、能力下降同key重送200、新key503。api-http-first Linux race通過。
+
+最終api-full完整PG race：185頂層/零skip/224.669秒/sourceUnchanged=true。Linux全vet與jelee/jelee-cli/jelee-migrate建置通過且sourceUnchanged。Windows CLI/HTTP/app/runtime/i18n/architecture測試通過；PG/architecture編譯與vet通過，Windows無DSN並非整合證據。LICENSE/requirements-source/go.mod/go.sum雜湊保持，migration未改。證據 docs/evidence/ignore-api.json；使用說明 docs/ignore-api.md。全部測試handle結束。
+
+需求矩陣更新G22已交付部分，G22.5由阻塞改部分完成，統計4完成/174部分/158阻塞。未宣稱整段G22完成。準備以此狀態提交普通繁中PR，base feat/jelee-ignore-runner，head feat/jelee-ignore-api。接續規則修改後重掃驗收、混合外部probe真媒體、worker取消/unknown端到端，以及既有上游審計基礎上的legacy忽略格式兼容；不得提前關閉全案goal。

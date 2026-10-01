@@ -31,6 +31,7 @@ func (s *Server) jobRoutes(router chi.Router) {
 	router.Group(func(r chi.Router) {
 		r.Use(s.jobBudget, s.authenticate)
 		s.nfoRoutes(r)
+		r.Get("/api/v1/jobs/{id}/ignore", s.accountEndpoint(true, true, s.ignoreReport))
 		r.Get("/api/v1/libraries", s.accountEndpoint(true, true, s.listJobLibraries))
 		r.Post("/api/v1/libraries/{id}/scan", s.accountEndpoint(true, false, s.submitScan))
 		r.Post("/api/v1/libraries/{id}/probe/rebuild", s.accountEndpoint(true, false, s.rebuildLibraryProbe))
@@ -86,7 +87,14 @@ func (s *Server) submitScan(w http.ResponseWriter, r *http.Request, a domain.Act
 	if input.Priority == "" {
 		input.Priority = domain.JobPriorityManual
 	}
-	j, replayed, err := s.jobs.SubmitScanStages(r.Context(), a, chi.URLParam(r, "id"), key, input.Priority, input.Probe, input.NFO)
+	ignore := domain.IgnoreIntent{}
+	if input.Ignore != nil {
+		ignore = domain.IgnoreIntent{Mode: input.Ignore.Mode, CaseMode: input.Ignore.CaseMode}
+		if ignore.Mode == "" || domain.ValidateIgnoreIntent(ignore) != nil {
+			return nil, 0, domain.ErrInvalid
+		}
+	}
+	j, replayed, err := s.jobs.SubmitScanOptions(r.Context(), a, chi.URLParam(r, "id"), key, input.Priority, input.Probe, input.NFO, ignore)
 	return acceptedJob(w, j, replayed, err)
 }
 
@@ -190,4 +198,13 @@ func (s *Server) listJobLibraries(w http.ResponseWriter, r *http.Request, a doma
 		last = rows[len(rows)-1].ID
 	}
 	return pageResult("libraries", rows, last, len(rows), limit), 200, nil
+}
+
+func (s *Server) ignoreReport(w http.ResponseWriter, r *http.Request, a domain.Actor) (any, int, error) {
+	q, limit, err := jobPageQuery(r)
+	if err != nil {
+		return nil, 0, err
+	}
+	report, err := s.jobs.IgnoreReport(r.Context(), a, chi.URLParam(r, "id"), limit, q["cursor"])
+	return report, http.StatusOK, err
 }

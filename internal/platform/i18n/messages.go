@@ -18,6 +18,7 @@ func Message(code, acceptLanguage, fallback string) string {
 var messages = map[string]map[string]string{
 	"en-US": {
 		"nfo_disabled":              "NFO validation is disabled for this library.",
+		"ignore_unavailable":        "Ignore scanning is unavailable.",
 		"nfo_reader_unavailable":    "NFO validation is unavailable.",
 		"nfo_cache_capacity":        "NFO cache capacity reached.",
 		"nfo_identity_mismatch":     "NFO validation version changed. Retry the job.",
@@ -57,6 +58,7 @@ var messages = map[string]map[string]string{
 	},
 	"zh-CN": {
 		"nfo_disabled":              "此媒体库尚未启用NFO校验。",
+		"ignore_unavailable":        "忽略规则扫描暂时不可用。",
 		"nfo_reader_unavailable":    "NFO校验暂时不可用。",
 		"nfo_cache_capacity":        "NFO缓存容量已达上限。",
 		"nfo_identity_mismatch":     "NFO校验版本已改变，请重试任务。",
@@ -96,6 +98,7 @@ var messages = map[string]map[string]string{
 	},
 	"zh-TW": {
 		"nfo_disabled":              "此媒體庫尚未啟用NFO驗證。",
+		"ignore_unavailable":        "忽略規則掃描暫時無法使用。",
 		"nfo_reader_unavailable":    "NFO驗證暫時無法使用。",
 		"nfo_cache_capacity":        "NFO快取容量已達上限。",
 		"nfo_identity_mismatch":     "NFO驗證版本已改變，請重試工作。",
@@ -135,6 +138,7 @@ var messages = map[string]map[string]string{
 	},
 	"ja-JP": {
 		"nfo_disabled":              "このライブラリではNFO検証が無効です。",
+		"ignore_unavailable":        "除外ルールを使ったスキャンを利用できません。",
 		"nfo_reader_unavailable":    "NFO検証を利用できません。",
 		"nfo_cache_capacity":        "NFOキャッシュの容量上限に達しました。",
 		"nfo_identity_mismatch":     "NFO検証のバージョンが変更されました。ジョブを再試行してください。",

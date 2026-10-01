@@ -10,6 +10,7 @@ import (
 // ScanServices binds trusted local readers and repositories. Public submission
 // methods accept only intent; callers cannot choose parser or tool identities.
 type ScanServices struct {
+	IgnoreAvailable func() bool
 	Probes          ProbeJobRepository
 	ProbeIdentity   *domain.ProbeIdentity
 	ProbeCapability func() domain.ProbeCapability
@@ -49,6 +50,7 @@ func NewJobsWithScanStages(repository JobRepository, policy domain.JobPolicy, st
 	}
 	j.scanRepository, j.nfoAdmin, j.nfoQueries, j.imageQueries = stages, services.NFOAdmin, services.NFOQueries, services.Images
 	j.nfoAvailable = services.NFOAvailable
+	j.ignoreAvailable = services.IgnoreAvailable
 	return j, nil
 }
 
@@ -73,6 +75,12 @@ func scanAdmissionResult(job domain.Job, replay bool, err, probeErr, nfoErr erro
 }
 
 func (j *Jobs) SubmitScanStages(ctx context.Context, actor domain.Actor, library, key, priority string, probe, nfo bool) (domain.Job, bool, error) {
+	return j.SubmitScanOptions(ctx, actor, library, key, priority, probe, nfo, domain.IgnoreIntent{})
+}
+func (j *Jobs) SubmitScanOptions(ctx context.Context, actor domain.Actor, library, key, priority string, probe, nfo bool, ignore domain.IgnoreIntent) (domain.Job, bool, error) {
+	if domain.ValidateIgnoreIntent(ignore) != nil {
+		return domain.Job{}, false, domain.ErrInvalid
+	}
 	if ctx == nil || !validTarget(actor, library) || !validKey(key) || priority != domain.JobPriorityManual && priority != domain.JobPriorityBackground {
 		return domain.Job{}, false, domain.ErrInvalid
 	}
@@ -80,12 +88,15 @@ func (j *Jobs) SubmitScanStages(ctx context.Context, actor domain.Actor, library
 		return domain.Job{}, false, err
 	}
 	if j.scanRepository == nil {
+		if ignore.Mode != "" {
+			return domain.Job{}, false, domain.ErrIgnoreUnavailable
+		}
 		if nfo {
 			return domain.Job{}, false, domain.ErrNFOReaderUnavailable
 		}
 		return j.SubmitScan(ctx, actor, library, key, priority, probe)
 	}
-	intent := domain.ScanIntent{NFO: nfo}
+	intent := domain.ScanIntent{NFO: nfo, Ignore: ignore}
 	var probeIdentity *domain.ProbeIdentity
 	var nfoIdentity *domain.NFOIdentity
 	var probeErr, nfoErr error
@@ -98,7 +109,17 @@ func (j *Jobs) SubmitScanStages(ctx context.Context, actor domain.Actor, library
 	}
 	// Even an unavailable reader reaches the repository with nil authority so
 	// an authorized retained replay can return its original frozen request.
-	job, replay, err := j.scanRepository.SubmitScanWithStages(ctx, actor, library, key, priority, intent, j.policy, probeIdentity, nfoIdentity)
+	var job domain.Job
+	var replay bool
+	var err error
+	if capable, ok := j.scanRepository.(IgnoreAdmissionRepository); ok {
+		job, replay, err = capable.SubmitScanWithIgnoreCapability(ctx, actor, library, key, priority, intent, j.policy, probeIdentity, nfoIdentity, j.ignoreAvailable != nil && j.ignoreAvailable())
+	} else {
+		if ignore.Mode != "" {
+			return domain.Job{}, false, domain.ErrIgnoreUnavailable
+		}
+		job, replay, err = j.scanRepository.SubmitScanWithStages(ctx, actor, library, key, priority, intent, j.policy, probeIdentity, nfoIdentity)
+	}
 	return scanAdmissionResult(job, replay, err, probeErr, nfoErr)
 }
 

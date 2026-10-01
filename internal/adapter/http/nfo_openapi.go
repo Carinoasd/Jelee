@@ -3,6 +3,7 @@ package httpapi
 import "strings"
 
 func nfoSpecification(paths, schemas map[string]any) {
+	ignoreReportSpecification(paths, schemas)
 	uuid := map[string]any{"type": "string", "format": "uuid"}
 	count := map[string]any{"type": "integer", "format": "int64", "minimum": 0, "maximum": 500000}
 	issueCount := map[string]any{"type": "integer", "format": "int64", "minimum": 0, "maximum": 1000000}
@@ -12,6 +13,8 @@ func nfoSpecification(paths, schemas map[string]any) {
 	entries := map[string]any{"type": "integer", "minimum": 0, "maximum": 128}
 	parseFailure := map[string]any{"type": "string", "enum": []string{"", "nfo_invalid_xml", "nfo_unsafe_xml", "nfo_invalid_encoding", "nfo_unsupported_encoding", "nfo_too_complex"}}
 	properties := schemas["ScanRequest"].(map[string]any)["properties"].(map[string]any)
+	schemas["IgnoreIntent"] = objectSchema(map[string]any{"mode": map[string]any{"type": "string", "enum": []string{"jeleeignore"}}, "caseMode": map[string]any{"type": "string", "enum": []string{"sensitive", "ascii-insensitive"}}}, "mode", "caseMode")
+	properties["ignore"] = schemaRef("IgnoreIntent")
 	properties["nfo"] = map[string]any{"type": "boolean", "default": false, "description": "Validate NFO after inventory. A new opted-in job requires library mode read-only and an available NFO reader, independently of ffprobe. Omitted or false stays off for this job. Retained replay preserves original intent."}
 	schemas["NFOLibraryPolicy"] = objectSchema(map[string]any{"libraryId": uuid, "mode": mode, "generation": generation}, "libraryId", "mode", "generation")
 	schemas["NFOPolicyUpdate"] = objectSchema(map[string]any{"mode": mode, "expectedGeneration": generation}, "mode", "expectedGeneration")

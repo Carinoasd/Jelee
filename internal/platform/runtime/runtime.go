@@ -61,7 +61,8 @@ func New(cfg config.Config, logger *slog.Logger) *fx.App {
 			}
 			validation.logger = l
 			service, err := app.NewJobsWithScanStages(store, c.Jobs.Policy(), store, app.ScanServices{
-				Probes: store, ProbeIdentity: probing.identity, ProbeCapability: probing.Capability,
+				IgnoreAvailable: func() bool { return goruntime.GOOS == "linux" || goruntime.GOOS == "windows" },
+				Probes:          store, ProbeIdentity: probing.identity, ProbeCapability: probing.Capability,
 				NFOAdmin: store, NFOQueries: store, Images: store, NFOIdentity: validation.identity, NFOAvailable: validation.Available,
 			})
 			if err != nil {

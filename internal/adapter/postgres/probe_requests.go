@@ -50,6 +50,9 @@ func (s *Store) RetryScanJob(ctx context.Context, a domain.Actor, id, key string
 	return s.submitScanJob(ctx, a, "", id, key, "", domain.ScanIntent{}, p, identity, nil)
 }
 func (s *Store) submitScanJob(parentContext context.Context, a domain.Actor, libraryID, parent, key, priority string, scanIntent domain.ScanIntent, p domain.JobPolicy, identity *domain.ProbeIdentity, nfoIdentity *domain.NFOIdentity) (domain.Job, bool, error) {
+	return s.submitScanJobWithIgnore(parentContext, a, libraryID, parent, key, priority, scanIntent, p, identity, nfoIdentity, true)
+}
+func (s *Store) submitScanJobWithIgnore(parentContext context.Context, a domain.Actor, libraryID, parent, key, priority string, scanIntent domain.ScanIntent, p domain.JobPolicy, identity *domain.ProbeIdentity, nfoIdentity *domain.NFOIdentity, ignoreAvailable bool) (domain.Job, bool, error) {
 	if parentContext == nil || !validJobPolicy(p) || !validJobKey(key) || domain.ValidateScanIntent(scanIntent) != nil {
 		return domain.Job{}, false, domain.ErrInvalid
 	}
@@ -166,6 +169,9 @@ func (s *Store) submitScanJob(parentContext context.Context, a domain.Actor, lib
 		if domain.ValidateScanIntent(domain.ScanIntent{Probe: intent, NFO: nfoRequested, Ignore: ignoreIntent}) != nil {
 			return domain.Job{}, false, domain.ErrConflict
 		}
+	}
+	if ignoreIntent.Mode != "" && !ignoreAvailable {
+		return domain.Job{}, false, domain.ErrIgnoreUnavailable
 	}
 	if intent.Scope != "" {
 		if identity == nil {
