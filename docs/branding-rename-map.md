@@ -74,3 +74,13 @@ src/Jellyfin.Networking 與 tests/Jellyfin.Networking.Tests → src/Jelee.Networ
 | discoveryRemovalTests | `tests/Jellyfin.Server.Integration.Tests/DiscoveryRemovalTests.cs` |
 | autoDiscoveryHost | `src/Jelee.Networking/AutoDiscoveryHost.cs` |
 | discoveryResponseModel | `MediaBrowser.Model/ApiClient/ServerDiscoveryInfo.cs` |
+
+### 錄製啟動裁剪來源索引
+
+| 證據角色 | 來源路徑 |
+| --- | --- |
+| startup | `Jellyfin.Server/Startup.cs` |
+| recordingsManager | `src/Jellyfin.LiveTv/Recordings/RecordingsManager.cs` |
+| regressionTests | `tests/Jellyfin.Server.Integration.Tests/RecordingStartupRemovalTests.cs` |
+| recordingsHost | `src/Jellyfin.LiveTv/Recordings/RecordingsHost.cs` |
+| recordingNotifier | `src/Jellyfin.LiveTv/Recordings/RecordingNotifier.cs` |

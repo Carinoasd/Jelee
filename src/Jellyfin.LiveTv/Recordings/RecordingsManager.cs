@@ -14,7 +14,6 @@ using Jellyfin.Database.Implementations.Enums;
 using Jellyfin.LiveTv.Configuration;
 using Jellyfin.LiveTv.IO;
 using Jellyfin.LiveTv.Timers;
-using MediaBrowser.Common.Configuration;
 using MediaBrowser.Controller.Configuration;
 using MediaBrowser.Controller.Dto;
 using MediaBrowser.Controller.Entities;
@@ -99,8 +98,6 @@ public sealed class RecordingsManager : IRecordingsManager, IDisposable
         _timerManager = timerManager;
         _seriesTimerManager = seriesTimerManager;
         _recordingsMetadataManager = recordingsMetadataManager;
-
-        _config.NamedConfigurationUpdated += OnNamedConfigurationUpdated;
     }
 
     private string DefaultRecordingPath
@@ -440,14 +437,6 @@ public sealed class RecordingsManager : IRecordingsManager, IDisposable
         }
 
         _disposed = true;
-    }
-
-    private async void OnNamedConfigurationUpdated(object? sender, ConfigurationUpdateEventArgs e)
-    {
-        if (string.Equals(e.Key, "livetv", StringComparison.OrdinalIgnoreCase))
-        {
-            await CreateRecordingFolders().ConfigureAwait(false);
-        }
     }
 
     private async Task<RemoteSearchResult?> FetchInternetMetadata(TimerInfo timer, CancellationToken cancellationToken)

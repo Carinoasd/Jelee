@@ -14,7 +14,6 @@ using Jelee.Server.Localization;
 using Jellyfin.Api.Middleware;
 using Jellyfin.Database.Implementations;
 using Jellyfin.LiveTv.Extensions;
-using Jellyfin.LiveTv.Recordings;
 using Jellyfin.MediaEncoding.Hls.Extensions;
 using Jellyfin.Server.Extensions;
 using Jellyfin.Server.HealthChecks;
@@ -154,11 +153,9 @@ namespace Jellyfin.Server
                 }
             });
 
-            services.AddHostedService<RecordingsHost>();
             services.AddHostedService<NfoUserDataSaver>();
             services.AddHostedService<LibraryChangedNotifier>();
             services.AddHostedService<UserDataChangeNotifier>();
-            services.AddHostedService<RecordingNotifier>();
             services.AddHostedService<DeviceAccessHost>();
         }
 

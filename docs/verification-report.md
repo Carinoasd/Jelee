@@ -100,3 +100,7 @@ Jelee schema version=0 dirty=false
 ## 复验
 
 使用 README / quickstart 的本地工具命令。独立 PostgreSQL 测试需库名 `jelee_test`，设置 `JELEE_TEST_DATABASE_URL` 与 `JELEE_REQUIRE_INTEGRATION=true`，执行 `make test-integration test-race`。生产数据不能用于这些测试。证据日志不含令牌、数据库密码或媒体根路径。
+
+## G05 錄製自動啟動來源裁剪
+
+刪除兩個錄製host及註冊，移除設定更新建立錄製媒體庫回呼。focused 3pass，舊實作反驗證3fail並逐位元恢復，完整Debug17套件4159Passed／21NotExecuted／0fail；格式通過（workspace warning）。[合同與證據](recording-startup-removal.md)。直播控制器／排程／調諧器與資料仍待裁剪，G05維持部分完成，ABI與完整品牌失敗保留。

@@ -802,3 +802,13 @@ G05最後完整品牌14805（新增回歸仍引用舊測試host，未增加豁�
 證據docs/evidence/removed-feature-http.json／合同docs/compat-matrix.md；G05仍partial，公開探測不取使用者偏好，正式已驗證API驗證流程的持久偏好保持。舊C#直播／EPG／tuner／recording／channel與資料配置等未清完，真客戶端握手及LANSSDP未驗收。下一步切除舊服務controller/host/dependencies，勿將Go501當成整個G05刪除完成。所有文檔落盤後再跑品牌/gitignore/diff再同PR46提交。
 
 補真正 loopback TCP/HTTP HEAD 驗收，501／無正文／fr-FR→en-US且無後端呼叫；只加測試，正式源碼沒有改。final Windows HTTP2.092/i18n0.177，final Linuxrace exec51465 HTTP3.279/i18n1.022 terminal pass。所有handles terminal；證據已刷新最終測試source hash，最後所有文檔納入品牌與gitignore門禁。
+
+### G05 錄製自動啟動來源裁剪驗收完成
+
+刪除錄製啟動與通知兩個host及Startup註冊；錄製管理器移除NamedConfigurationUpdated訂閱與async void回呼。沒有空host替代或隱藏型別，其他核心服務仍可解析。三項focused回歸pass；反向恢復HEAD四個來源同樣三項全部fail，finally逐位元恢復包含deleted狀態。初次測試1fail原因是Moq遞迴VerifyNoOtherCalls連帶計入constructor讀paths，清除constructor mock紀錄後3pass；正式碼沒有因此變動。完整Debug17套件4159Passed／21NotExecuted／0fail；格式verify-no-changes pass（workspace warning），所有測試handles已terminal。
+
+合同docs/recording-startup-removal.md、證據docs/evidence/recording-startup-removal.json，角色來源索引放既有brandmap，沒有增加豁免。保護檔hash與基底相同，沒有改migration、原媒體、計時器資料或授權檔。G05維持partial：controller、explicit recording calls、guide/channel scheduled tasks與tuner依賴仍可運行，下階段須裁剪控制器／501合同及排程來源。不要把刪host當成完整G05完成；TimerManager的明確Add／Update仍存在。
+
+d7ac92e850最新CI兩平台foundation與Ubuntu C#／Format／OpenAPI均pass；PG、CodeQL、其他C#尚pending於檢查時，ABI與完整品牌仍fail，未merge。最後所有文檔寫完才跑品牌／gitignore門禁並同PR46推送。
+
+錄製啟動階段最後完整品牌14807仍fail（新回歸也引用舊主機名稱）；增量0違規、gitignore0、diff與保護hash檢查pass，沒有擴大豁免。全部handles terminal。
