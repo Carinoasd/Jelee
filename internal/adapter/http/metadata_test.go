@@ -24,6 +24,23 @@ type httpMovieProvider struct {
 	language string
 }
 
+func (p *httpMovieProvider) Season(ctx context.Context, series, season int32, language string) (domain.SeasonCandidate, error) {
+	p.calls++
+	p.language = language
+	if err := ctx.Err(); err != nil {
+		return domain.SeasonCandidate{}, err
+	}
+	return domain.SeasonCandidate{ProviderID: 500, SeriesID: series, SeasonNumber: season, Language: language, Episodes: []domain.EpisodeCandidate{}}, p.fail
+}
+func (p *httpMovieProvider) Episode(ctx context.Context, series, season, episode int32, language string) (domain.EpisodeCandidate, error) {
+	p.calls++
+	p.language = language
+	if err := ctx.Err(); err != nil {
+		return domain.EpisodeCandidate{}, err
+	}
+	return domain.EpisodeCandidate{ProviderID: 900, SeriesID: series, SeasonNumber: season, EpisodeNumber: episode, Language: language}, p.fail
+}
+
 func (p *httpMovieProvider) Series(ctx context.Context, id int32, language string) (domain.SeriesCandidate, error) {
 	p.calls++
 	p.language = language

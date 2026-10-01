@@ -18,6 +18,8 @@ type MetadataProvider interface {
 	MovieProvider
 	Series(context.Context, int32, string) (domain.SeriesCandidate, error)
 	SearchSeries(context.Context, domain.SeriesSearchInput) ([]domain.SeriesCandidate, error)
+	Season(context.Context, int32, int32, string) (domain.SeasonCandidate, error)
+	Episode(context.Context, int32, int32, int32, string) (domain.EpisodeCandidate, error)
 }
 
 // SearchMovies reports simple title/year comparisons for review. It never

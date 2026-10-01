@@ -976,3 +976,13 @@ G14.1 blocked→partial、G14.3仍partial，336統計4done／180partial／152blo
 G14.1／3／4保持partial，336統計4done／182partial／150blocked不變。季／集、IMDB／TVDB、置信度、語言回退、NFO優先／鎖、library／worker寫入與清除元資料、圖片／前端／完整TMDB條款仍缺。五核心3271行仍待原具體核准，沒有改／刪；原媒體／NFO／圖片／遷移／LICENSE保護。前HEAD Format／OpenAPI success，ABI仍fail，其他當時live；本HEAD要自身CI，不合併。詳見tmdb-series-preview與evidence。
 
 劇集階段最後增量品牌0／181、完整14735／186仍fail、gitignore0；17來源hash與負例恢復、保護hash／五核心逐位元、C#／遷移無diff、local links／336統計核對通過。全部本輪handles terminal，無新branch，同PR46推送；下一段季與單集metadata，不把preview當完整library刮削。
+
+### G14 季與單集候選資料
+
+接續408eaca0eb，正式管理員API增加season及episode；第0季specials允許，季／集與正int32系列ID只接受標準十進位，四語／auth／admin／admission／rollout維持。官方GET受控transport／governor／retry／15s／1MiB，回應必須明確季號／集號與請求一致，show_id若有亦核對；沒有父ID時按已驗證路由歸屬。季清單最多1000，缺／null／重复ID或集號／超上限拒整批。來源／UTC／系列季集身份保留；不寫庫。
+
+型別化LRU拓展完整鍵（series／season／episode／language），季16與單集256、TTL24h；季含陣列，insert及每次hit都clone，電影／劇集原256政策保留，season不預填episode cache，不建背景goroutine。真TLS正式adapter＋app驗證specials／tuple／source/time、三season讀一次upstream、兩episode讀一次upstream與兩種修改隔離；移除hit clone負例1leaf fail，finally逐位元恢復，四相關pkg完整回歸通過。Windowsfull29pkg／3019pass事件含父／435略過，skip與原完整清單逐項相同；vet／build及Linux六pkg race PASS（摘要不列skip，未宣稱0）。
+
+G14.1／3／4仍partial，336計數4done／182partial／150blocked不變。檔名解析／自動配對、IMDB／TVDB、模糊置信度、庫／user語言回退、NFO優先／人工值／field locks、worker／library寫入與清除、圖片／完整前端／條款仍缺。五核心3271行待原具體授權，沒有改／刪；媒體／NFO／圖片／遷移／LICENSE保持。前HEAD Tests／CodeQL／Format／OpenAPI success、ABI仍failure，foundation當時live，新HEAD須自身CI；不合併。詳見tmdb-season-episode-preview及evidence。
+
+季／集最後補單集anonymous與非admin兩個獨立拒絕案例，最终全Go／vet与Linux六包race已重驗，3019pass事件含父／435skip逐項一致。增量品牌0／181、完整14735／186仍fail、gitignore0；15來源hash與負例復原、保護hash／五核心逐位元、C#／遷移無diff、links與336計數核對通過。所有本輪handles terminal，推同PR46；下一段語言回退／NFO與人工值優先、欄位鎖及元資料寫入保護，不能只延續preview就宣稱全刮削。

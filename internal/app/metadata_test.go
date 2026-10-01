@@ -10,6 +10,13 @@ import (
 
 type movieProviderFunc func(context.Context, int32, string) (domain.MovieCandidate, error)
 
+func (f movieProviderFunc) Season(context.Context, int32, int32, string) (domain.SeasonCandidate, error) {
+	return domain.SeasonCandidate{}, domain.ErrNotFound
+}
+func (f movieProviderFunc) Episode(context.Context, int32, int32, int32, string) (domain.EpisodeCandidate, error) {
+	return domain.EpisodeCandidate{}, domain.ErrNotFound
+}
+
 func (f movieProviderFunc) Series(context.Context, int32, string) (domain.SeriesCandidate, error) {
 	return domain.SeriesCandidate{}, domain.ErrNotFound
 }

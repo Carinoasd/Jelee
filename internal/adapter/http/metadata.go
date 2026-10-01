@@ -12,6 +12,7 @@ func (s *Server) metadataRoutes(r chi.Router) {
 	r.Group(func(r chi.Router) {
 		r.Use(s.accountBudget, s.authenticate)
 		s.seriesRoutes(r)
+		s.episodeRoutes(r)
 		r.Get("/api/v1/metadata/tmdb/movies", s.accountEndpoint(true, true, func(w http.ResponseWriter, r *http.Request, _ domain.Actor) (any, int, error) {
 			query, err := strictQuery(r, "query", "year", "language")
 			if err != nil {
@@ -89,4 +90,5 @@ func metadataSpecification(paths, schemas map[string]any) {
 		"releaseDate":   map[string]any{"type": "string", "pattern": "^([0-9]{4}-[0-9]{2}-[0-9]{2})?$"},
 	}}
 	seriesSpecification(paths, schemas)
+	episodeSpecification(paths, schemas)
 }

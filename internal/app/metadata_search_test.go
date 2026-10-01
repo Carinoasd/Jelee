@@ -11,6 +11,13 @@ import (
 
 type searchProviderFunc func(context.Context, domain.MovieSearchInput) ([]domain.MovieCandidate, error)
 
+func (f searchProviderFunc) Season(context.Context, int32, int32, string) (domain.SeasonCandidate, error) {
+	return domain.SeasonCandidate{}, domain.ErrNotFound
+}
+func (f searchProviderFunc) Episode(context.Context, int32, int32, int32, string) (domain.EpisodeCandidate, error) {
+	return domain.EpisodeCandidate{}, domain.ErrNotFound
+}
+
 func (f searchProviderFunc) Series(context.Context, int32, string) (domain.SeriesCandidate, error) {
 	return domain.SeriesCandidate{}, domain.ErrNotFound
 }
