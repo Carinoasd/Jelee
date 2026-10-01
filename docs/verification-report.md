@@ -152,3 +152,7 @@ DTO單層解耦及兩份既有測試建構參數更新，14項回歸與完整Deb
 ## G11.4 出站來源盤點
 
 [盘点與設計](outbound-request-audit.md)已核對正式來源接線與10角色來源hash，範圍為文字稽核；沒有產品改動或runtime安全驗收。G11.4尚未實作，狀態與總計不提升。最終文件門禁見[證據](evidence/outbound-request-audit.json)。
+
+## 受控出站与TMDB啟動預檢
+
+[實作與驗收](outbound-tmdb-preflight.md)已接正式產品路徑；完整Go29包／vet與Linux四包race通過，Windows435略過清單保留，正反恢復證據可覆核。僅G11.4／G14.2子集，完整抓取與配額尚未完成；[證據](evidence/outbound-tmdb-preflight.json)。

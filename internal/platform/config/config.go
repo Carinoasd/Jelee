@@ -19,6 +19,7 @@ type Config struct {
 	AllowedHosts          []string       `json:"allowedHosts"`
 	TrustedProxies        []string       `json:"trustedProxies"`
 	DatabaseURL           string         `json:"-"`
+	TMDBAPIKey            string         `json:"-"`
 	MaxConnections        int32          `json:"maxConnections"`
 	MaxStreams            int            `json:"maxStreams"`
 	RequestTimeoutSeconds int            `json:"requestTimeoutSeconds"`
@@ -59,6 +60,11 @@ func LoadWith(lookup func(string) (string, bool)) (Config, error) {
 	}
 	if value, ok := lookup("JELEE_DATABASE_URL"); ok {
 		c.DatabaseURL = value
+	}
+	var tmdbErr error
+	c.TMDBAPIKey, tmdbErr = loadTMDBKey(lookup)
+	if tmdbErr != nil {
+		return c, tmdbErr
 	}
 	if value, ok := lookup("JELEE_DATABASE_URL_FILE"); ok && value != "" {
 		if c.DatabaseURL != "" {
@@ -137,6 +143,9 @@ func (c Config) Validate() error {
 	}
 	if _, err := c.TrustedProxyPrefixes(); err != nil {
 		return err
+	}
+	if c.TMDBAPIKey != "" && !validTMDBKey(c.TMDBAPIKey) {
+		return errors.New("invalid TMDB_API_KEY")
 	}
 	if len(c.AllowedHosts) == 0 {
 		return errors.New("allowedHosts cannot be empty")

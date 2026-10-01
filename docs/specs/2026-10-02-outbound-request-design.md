@@ -1,6 +1,6 @@
 # G11.4 服務端出站防護設計
 
-狀態：設計；尚未實作。原始 G11.4／G12.5 授權的例行設計選擇依使用者自主接續要求執行。現況與 SDK 缺口見[盤點](../outbound-request-audit.md)。
+狀態：受控 GET client 與 TMDB 憑據啟動預檢已實作，見[驗收](../outbound-tmdb-preflight.md)。其他抓取與完整 G11.4 未完成。原始 G11.4／G12.5 授權的例行設計選擇依使用者自主接續要求執行。現況與 SDK 缺口見[盤點](../outbound-request-audit.md)。
 
 ## 方案
 
@@ -29,7 +29,7 @@ Go 的 Transport 接管連線與代理，Client 接管重定向與總期限；�
 
 ## 重定向與錯誤
 
-每個 Location 解析後再驗證 URL 與目標，實際連線仍走受控解析；最多 5 次重定向，拒絕 HTTPS 降級 HTTP。跨 origin 的認證、cookie 與自訂敏感標頭不轉送。Webhook 初期直接拒絕重定向，避免重送簽章／秘密；未來如需要跳轉，另驗證簽章與端點身份。
+本階段預檢拒絕全部重定向（URL先驗證且不送第二次請求）。未來需要跟隨的能力，按以下設計接線：每個 Location 解析後再驗證 URL 與目標，實際連線仍走受控解析；最多 5 次重定向，拒絕 HTTPS 降級 HTTP。跨 origin 的認證、cookie 與自訂敏感標頭不轉送。Webhook 初期直接拒絕重定向，避免重送簽章／秘密；未來如需要跳轉，另驗證簽章與端點身份。
 
 對外只返回固定分類錯誤；保留取消／超時的 errors.Is 語意，但不把原始 url.Error、DNS／socket 錯誤或 URL query 輸出到公開回應與日誌。安全事件記固定 reason、taskId／requestId；避免記地址、密鑰、完整 URL 或原始 Location。
 

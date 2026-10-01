@@ -27,6 +27,7 @@ func New(cfg config.Config, logger *slog.Logger) *fx.App {
 }
 
 func newWithLifetime(cfg config.Config, logger *slog.Logger, lifetime *lifetime) *fx.App {
+	lifetime.prepareTMDB = tmdbPreflight(cfg.TMDBAPIKey)
 	return build(lifetime, fx.NopLogger, fx.Supply(cfg, logger), fx.Provide(
 		func(c config.Config) (*postgres.Store, error) {
 			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -134,6 +135,7 @@ type serviceWorker interface {
 // One Fx hook owns all resources. Separate hooks would allow an HTTP drain
 // deadline to make Fx skip worker cancellation and pool cleanup entirely.
 type lifetime struct {
+	prepareTMDB     func(context.Context) error
 	ignoreService   *familyIgnoreService
 	ctx             context.Context
 	cancel          context.CancelFunc
@@ -188,6 +190,13 @@ func (l *lifetime) closePool() {
 }
 
 func (l *lifetime) start(ctx context.Context) error {
+	if l.prepareTMDB != nil {
+		if err := l.prepareTMDB(ctx); err != nil {
+			l.cancel()
+			l.closePool()
+			return err
+		}
+	}
 	listener, err := l.listen(ctx, "tcp", l.server.Addr)
 	if err != nil {
 		l.cancel()

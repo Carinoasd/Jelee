@@ -916,3 +916,13 @@ CI階段增量品牌0／175允許、gitignore0、staged diff通過；完整品�
 本輪僅文件；沒有runtime／SSRF通過宣稱。後續須把受控Go client與正式抓取適配器一起接線，逐能力驗證；舊SDK不能從factory推定保護。五檔3271行直播核心仍待原async具體核准，沒有改動。e4e8 CI格式／OpenAPI通過，ABI base/head build與報告保留通過，實際Difference失敗；其他尚在執行，沒有合併。
 
 出站盤點最終增量品牌0／181既有允許，完整14735／186仍fail，gitignore0；來源索引新增10角色令既有允許匹配增加6，沒有修改掃描allowlist。2152正式來源與待核准核心五檔Git blob核對不變、保護hash、文件連結與336統計核對通過；初始逐檔git show受Windows長revision:path限制失敗，改用一次ls-tree與本機blob hash完成，沒有更改Git設定。本輪沒有runtime source變更或test。
+
+### G11.4／G14.2 受控出站與 TMDB 啟動接線
+
+受控GET client已被正式TMDB authentication適配器使用，來源僅TMDB_API_KEY／FILE（互斥、32hex、4KiB檔案、JSON隱藏），存在時單一lifetime.start在listener／worker前預檢；無憑據的逐步遷移模式不連TMDB。失敗取消並清理已建資源，client關閉idle。handler／SDK舊來源未改，管理CLI環回維持，不宣稱完整刮削。DNS全部答案先拒私網／特殊地址、64上限、5秒預算、具體IP dial無重解析；GET15秒、每host4、idle16／header32KiB，預檢body4KiB；拒全部redirect、環境proxy關閉、TLS保留hostname驗證、安全固定錯誤及context取消。保守特殊地址策略已讀IANA兩registry；真外部憑據／剩餘quota與專用SSRF安全日誌尚未驗收／接線。
+
+正式adapter透過自有TLS服務及測試專用CA／DNS／dial驗證6case，private seam僅test binary；另有地址／URL／DNS混合／rebinding／proxy／TLS／body與取消矩陣。Windowsfull29package、2830pass events含父／435skip（完整清單入證據），vetPASS；焦點4pkg207pass events／6既有環境skip；Linux4pkg racePASS（摘要不列skip，未宣稱0）。移除實際DNSguard負例1leaf fail、移除start接線2fail，finally來源逐位元恢復，transport/adapter與lifetime相關完整回歸再pass。全部handles terminal。詳見outbound-tmdb-preflight.md／evidence，來源hash13角色。G11.4與G14.2 blocked→partial，336矩陣4done／178partial／154blocked；其他仍按實際範圍不提高狀態。
+
+3271行五檔核心依舊等原async具體授權，沒有修改。下一段接TMDB資料取得與429治理／cache，或依授權續裁核心；不能用認證預檢代替電影／劇集匹配、圖片抓取、Webhook／NFO外鏈與全域SSRF。111859 CI C#／Format／OpenAPI已pass，ABI Difference fail，foundation／CodeQL當時仍live；新HEAD仍需自己的CI，未合併。
+
+TMDB接線最後產品build PASS，go list確認正式outbound只編client.go、測試替身只在TestGoFiles；增量品牌0／181、完整14735／186仍fail、gitignore0、來源13角色hash／保護hash／待核准核心五檔／遷移與C#無diff／文件link與336統計核對通過。没有更改allowlist；所有本輪handles已結束，推送同PR46後立即續作。
