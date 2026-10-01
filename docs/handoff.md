@@ -774,3 +774,7 @@ first exec10275 terminal failure：142pass/5fail同一舊log斷言，原紀錄�
 G03 明確人類授權後刪101個 Core UI catalog，ja→ja-JP，四份123鍵，server default zh-CN，manager unknown en-US且不記缺資源錯誤；Startup／configuration update先Resolve避免invalid CultureInfo。保留rating/country/ISO媒體語言。新UI catalog gate已入Makefile／兩平台CI，八種正反fixture通過；補日文一筆既有缺占位符。模組148pass，完整Debug17套件4116Passed/21NotExecuted/0fail，Goi18n0.256pass，格式pass有workspacewarning。full brand14960→14800仍fail，增量0/gitignore0/hash/diff通過。證據docs/evidence/ui-four-locales.json；合同docs/ui-four-locales.md。G03保留partial，下一步舊HTTP fallback/user優先或前端等未完項目。所有本輪測試handle已terminal。
 
 遠端閒置28枝無開放PR、沒有master之外Carinoasd作者commit，逐ref SHA保存.testdata/idle-branches-audit.json；git bundle create/verify/list-heads逐項核對後刪除。遠端僅master與PR46工作枝，開啟delete_branch_on_merge。這些舊枝可能有未整合的上游差異，備份可恢復，不把刪枝當成合併。之前47枝加此次28枝累計75。PR46仍未merge，full品牌gate仍blocking；ABI保留實際breaking failures，不誤稱全綠。
+
+### 四語階段 CI 證據路徑修正
+
+d0ef9b2195 兩平台 foundation 新失敗已取 job110468731814/110468731720 原始log查明：新增證據JSON的8個歷史來源路徑命中增量品牌。上輪本地掃描在寫證據前，沒有覆蓋最後文檔，不能當最終0新增。來源路徑移入既有精確改名映射docs/branding-rename-map.md，JSON仍保留角色hash和sourceIndex；沒有新增allowlist或藏匿／編碼舊名。catalog gate腳本統一LF並重核hash。須最後文檔全部寫完才跑門禁，避免再犯。HTTP provider工作仍未提交；34項真HTTP回歸pass，格式pass。
