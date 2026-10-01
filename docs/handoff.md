@@ -1026,3 +1026,17 @@ G14.5仍partial，336計數4done／183partial／149blocked。增量品牌0／181
 G14.6 blocked→partial，全案4done／184partial／148blocked。實際自動TMDB／NFO寫入、人工與NFO優先序及鎖不覆蓋、provider來源／時間保存／清除、worker、前端與120項完整矩陣尚缺，不能把保存鎖當自動刮削鎖已生效。詳細見item-metadata.md與evidence/item-metadata.json。
 
 前HEAD的Windows／Linux foundation、Tests／Format／OpenAPI／CodeQL成功，ABI仍失敗、fullbranding失敗、PG當時live；新HEAD要自身CI，不合併、不新開branch，同PR46續推。五核心3271行仍未改刪，原具體授權提問待答。下一段依.testdata/tmdb-write-next.md接明確確認候選後的實際寫入、鎖與人工優先，以及可信NFO抽取接線，不停留在候選預覽。
+
+### G14 明確確認 TMDB 候選後實際寫入（schema22）
+
+接續1d92628f70，同PR46與feat/jelee-ignore-family-worker。管理員POST items/{id}/metadata/tmdb明確confirmed=true，驗resource/ID/revision、先短交易讀權限／種類／庫偏好，受控TLS查詢在交易外，最終重驗session／revision／kind／NFO mode。四文字欄來源含固定官方URL／ID／要求語言／取得時間，overview回退保存自身來源；鎖與人工（包括空值）保護，existing標題明確flag才取代，缺值不清空。catalog title／欄位／revision／前後audit原子；HomeVideo只有套用至少一電影欄才改Movie；全部略過亦推版本及audit。
+
+schema22保留原001–021，來源SQL約束／有限時間／canonical URL，保留provider來源拒降；全部人工接管後降21／升22保持值及版本。真SQL trigger中途失敗驗之前欄位、title、kind、revision回滾。唯讀NFO庫仍503，抽取／優先序尚未實作，此guard不是完整NFO支援。
+
+真HTTP／app／受控TLS／PG120項合成矩陣：100電影／20劇集逐筆名稱／年份搜尋（movie primary_release_year／TV first_air_date_year），確認ID後四欄／來源／catalog核對，120精確匹配／120寫入／0寫入失敗；不含原檔inventory／worker／階層匯入。鎖＋manual空值、overview回退、429／非法回應／取消與網路等待中的人工PUT、終態409亦通過。停用domain鎖判斷的實際完整路徑负例1leaf fail，逐位元復原SHA e987dc21e93a709733cd0343f147452a12e90a25b715abf94c70b80731ebebb6；最終矩陣1pass／0skip／64.484秒。
+
+Windows完整Go 29pkg／3129pass事件含父／448skip；原435身份一致，新增12PG與1outbound整合均在各自真整合跑過。完整PG race 721pass含父／0fail／0skip／356.806秒；vet／build PASS，Linuxdomain/app/HTTP/outbound/runtime race PASS，摘要不列skips。首次Windows舊CLI取消測試超2秒，未改來源／測試後完整重跑通過；初次年份斷言用錯movie參數，修正fixture後完整矩陣通過。初次Linuxruntime錯路徑已修正單包成功，其他四包原跑成功。
+
+增量brand0／181，全量14735／186仍失敗，gitignore0；來源hash／LICENSE／requirements／五核心逐位元／21版舊遷移Git正規化／local links／336列／無C#diff核對通過。全案4done／184partial／148blocked，G14.6及G14.7仍部分完成。見tmdb-metadata-apply.md及evidence/tmdb-metadata-apply.json。上一HEAD所有CI已結束，foundation Windows／Linux／PG成功，只有fullbrand／ABI仍失敗。
+
+下一段按.testdata/nfo-fields-next.md做可信唯讀NFO欄位抽取與實際接線、manual>NFO>TMDB及鎖；不留在preview／只寫計畫。原五核心3271行未刪，具體授权提問待答，不另問、不繞審查。禁止merge／新branch／release／forcepush／改舊遷移。所有本輪handles結束後提交／push繁中並更新同PR46，新HEADCI需自身結果。

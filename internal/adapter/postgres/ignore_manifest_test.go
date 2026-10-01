@@ -319,6 +319,7 @@ func TestIgnoreManifestMigrationPreservesLedgerOnRefusedDown(t *testing.T) {
 	if err = f.s.Pool.QueryRow(f.ctx, `SELECT count(*) FROM job_ignore_proofs`).Scan(&rows); err != nil || rows != 0 {
 		t.Fatal("history cleanup orphaned proofs", err)
 	}
+	nfoMigrateVersion(t, f, "down", 21)
 	nfoMigrateVersion(t, f, "down", 20)
 	nfoMigrateVersion(t, f, "down", 19)
 	nfoMigrateVersion(t, f, "down", 18)

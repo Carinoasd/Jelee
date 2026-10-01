@@ -11,6 +11,9 @@ import (
 func (s *Server) itemMetadataRoutes(r chi.Router) {
 	r.Group(func(r chi.Router) {
 		r.Use(s.accountBudget, s.authenticate)
+		if s.cfg.TMDBAPIKey != "" {
+			s.metadataApplyRoutes(r)
+		}
 		path := "/api/v1/items/{id}/metadata"
 		r.Get(path, s.accountEndpoint(true, false, func(_ http.ResponseWriter, r *http.Request, a domain.Actor) (any, int, error) {
 			value, err := s.metadata.ItemFields(r.Context(), a, chi.URLParam(r, "id"))

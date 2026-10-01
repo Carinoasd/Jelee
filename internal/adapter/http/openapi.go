@@ -32,6 +32,10 @@ func Specification(cfg config.Config) map[string]any {
 	schemas := accountSchemas()
 	if cfg.EnableAccounts {
 		itemMetadataSpecification(paths, schemas)
+		metadataOriginSpecification(schemas)
+		if cfg.TMDBAPIKey != "" {
+			metadataApplySpecification(paths, schemas)
+		}
 		accountSpecification(paths)
 	}
 	if cfg.EnableAccounts && cfg.TMDBAPIKey != "" {

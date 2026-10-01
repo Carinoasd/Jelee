@@ -61,6 +61,7 @@ func TestFamilyIgnoreScanReplayRestartAndMigration(t *testing.T) {
 	if _, err = f.s.Pool.Exec(f.ctx, `DELETE FROM jobs WHERE id=$1::uuid`, l.Job.ID); err != nil {
 		t.Fatal("cascade", err)
 	}
+	nfoMigrateVersion(t, f, "down", 21)
 	nfoMigrateVersion(t, f, "down", 20)
 	nfoMigrateVersion(t, f, "down", 19)
 	nfoMigrateVersion(t, f, "down", 18)

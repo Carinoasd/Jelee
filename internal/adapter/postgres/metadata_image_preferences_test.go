@@ -42,6 +42,7 @@ func TestMetadataImagePreferencePersistenceAndLegacyUpdates(t *testing.T) {
 func TestMetadataImagePreferenceMigrationAndConstraints(t *testing.T) {
 	f := newJobFixture(t)
 	id := f.registration.Library.ID
+	nfoMigrateVersion(t, f, "down", 21)
 	nfoMigrateVersion(t, f, "down", 20)
 	nfoMigrateVersion(t, f, "down", 19)
 	if _, err := f.s.Pool.Exec(f.ctx, `UPDATE libraries SET metadata_language='ja-JP',metadata_preferences_revision=2 WHERE id=$1::uuid`, id); err != nil {

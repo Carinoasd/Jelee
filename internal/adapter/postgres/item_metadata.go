@@ -11,25 +11,31 @@ import (
 func readItemMetadata(ctx context.Context, tx pgx.Tx, item string, lock bool) (domain.ItemMetadata, error) {
 	value := domain.ItemMetadata{ItemID: item, Fields: []domain.ItemMetadataField{}}
 	var title string
-	query := `SELECT library_id::text,title FROM items WHERE id=$1::uuid`
+	query := `SELECT i.library_id::text,i.title,i.kind,l.nfo_mode FROM items i JOIN libraries l ON l.id=i.library_id WHERE i.id=$1::uuid`
 	if lock {
-		query += ` FOR UPDATE`
+		query += ` FOR UPDATE OF i`
 	}
-	if err := tx.QueryRow(ctx, query, item).Scan(&value.LibraryID, &title); err != nil {
+	if err := tx.QueryRow(ctx, query, item).Scan(&value.LibraryID, &title, &value.Kind, &value.NFOMode); err != nil {
 		return value, storageError(err)
 	}
 	if err := tx.QueryRow(ctx, `SELECT COALESCE((SELECT revision FROM item_metadata_state WHERE item_id=$1::uuid),1)`, item).Scan(&value.Revision); err != nil {
 		return value, storageError(err)
 	}
-	rows, err := tx.Query(ctx, `SELECT field,value,source,locked,updated_at FROM item_metadata_fields WHERE item_id=$1::uuid ORDER BY CASE field WHEN 'title' THEN 0 WHEN 'originalTitle' THEN 1 WHEN 'overview' THEN 2 ELSE 3 END`, item)
+	rows, err := tx.Query(ctx, `SELECT field,value,source,locked,updated_at,provider_resource,provider_id,provider_source_url,provider_language,provider_fetched_at FROM item_metadata_fields WHERE item_id=$1::uuid ORDER BY CASE field WHEN 'title' THEN 0 WHEN 'originalTitle' THEN 1 WHEN 'overview' THEN 2 ELSE 3 END`, item)
 	if err != nil {
 		return value, storageError(err)
 	}
 	defer rows.Close()
 	for rows.Next() {
 		var field domain.ItemMetadataField
-		if err := rows.Scan(&field.Field, &field.Value, &field.Source, &field.Locked, &field.UpdatedAt); err != nil {
+		var resource, sourceURL, language *string
+		var id *int32
+		var fetched *time.Time
+		if err := rows.Scan(&field.Field, &field.Value, &field.Source, &field.Locked, &field.UpdatedAt, &resource, &id, &sourceURL, &language, &fetched); err != nil {
 			return value, storageError(err)
+		}
+		if resource != nil {
+			field.ProviderOrigin = &domain.MetadataProviderOrigin{Resource: *resource, ProviderID: *id, SourceURL: *sourceURL, RequestedLanguage: *language, FetchedAt: fetched.UTC()}
 		}
 		value.Fields = append(value.Fields, field)
 	}
@@ -89,17 +95,13 @@ func (s *Store) UpdateItemMetadata(ctx context.Context, actor domain.Actor, item
 		if patch.Value != nil {
 			field.Value = *patch.Value
 			field.Source = "manual"
+			field.ProviderOrigin = nil
 		}
 		if patch.Locked != nil {
 			field.Locked = *patch.Locked
 		}
-		if _, err = tx.Exec(ctx, `INSERT INTO item_metadata_fields(item_id,field,value,source,locked,updated_at) VALUES($1::uuid,$2,$3,$4,$5,$6) ON CONFLICT(item_id,field) DO UPDATE SET value=EXCLUDED.value,source=EXCLUDED.source,locked=EXCLUDED.locked,updated_at=EXCLUDED.updated_at`, item, field.Field, field.Value, field.Source, field.Locked, now); err != nil {
-			return domain.ItemMetadata{}, storageError(err)
-		}
-		if field.Field == "title" {
-			if _, err = tx.Exec(ctx, `UPDATE items SET title=$2 WHERE id=$1::uuid`, item, field.Value); err != nil {
-				return domain.ItemMetadata{}, storageError(err)
-			}
+		if err = writeItemMetadataField(ctx, tx, item, field, now); err != nil {
+			return domain.ItemMetadata{}, err
 		}
 	}
 	after, err := readItemMetadata(ctx, tx, item, false)
@@ -110,4 +112,22 @@ func (s *Store) UpdateItemMetadata(ctx context.Context, actor domain.Actor, item
 		return domain.ItemMetadata{}, err
 	}
 	return after, storageError(tx.Commit(ctx))
+}
+
+func writeItemMetadataField(ctx context.Context, tx pgx.Tx, item string, field domain.ItemMetadataField, now time.Time) error {
+	var resource, sourceURL, language *string
+	var id *int32
+	var fetched *time.Time
+	if origin := field.ProviderOrigin; origin != nil {
+		resource, sourceURL, language = &origin.Resource, &origin.SourceURL, &origin.RequestedLanguage
+		id, fetched = &origin.ProviderID, &origin.FetchedAt
+	}
+	if _, err := tx.Exec(ctx, `INSERT INTO item_metadata_fields(item_id,field,value,source,locked,updated_at,provider_resource,provider_id,provider_source_url,provider_language,provider_fetched_at) VALUES($1::uuid,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) ON CONFLICT(item_id,field) DO UPDATE SET value=EXCLUDED.value,source=EXCLUDED.source,locked=EXCLUDED.locked,updated_at=EXCLUDED.updated_at,provider_resource=EXCLUDED.provider_resource,provider_id=EXCLUDED.provider_id,provider_source_url=EXCLUDED.provider_source_url,provider_language=EXCLUDED.provider_language,provider_fetched_at=EXCLUDED.provider_fetched_at`, item, field.Field, field.Value, field.Source, field.Locked, now, resource, id, sourceURL, language, fetched); err != nil {
+		return storageError(err)
+	}
+	if field.Field == "title" {
+		_, err := tx.Exec(ctx, `UPDATE items SET title=$2 WHERE id=$1::uuid`, item, field.Value)
+		return storageError(err)
+	}
+	return nil
 }

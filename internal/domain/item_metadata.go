@@ -9,16 +9,19 @@ import (
 const ItemMetadataRevisionMax int64 = 2147483647
 
 type ItemMetadataField struct {
-	Field     string     `json:"field"`
-	Value     string     `json:"value"`
-	Source    string     `json:"source"`
-	Locked    bool       `json:"locked"`
-	UpdatedAt *time.Time `json:"updatedAt"`
+	Field          string                  `json:"field"`
+	Value          string                  `json:"value"`
+	Source         string                  `json:"source"`
+	Locked         bool                    `json:"locked"`
+	UpdatedAt      *time.Time              `json:"updatedAt"`
+	ProviderOrigin *MetadataProviderOrigin `json:"providerOrigin"`
 }
 
 type ItemMetadata struct {
 	ItemID    string              `json:"itemId"`
 	LibraryID string              `json:"libraryId"`
+	Kind      string              `json:"kind"`
+	NFOMode   string              `json:"-"`
 	Revision  int64               `json:"revision"`
 	Fields    []ItemMetadataField `json:"fields"`
 }
@@ -79,6 +82,10 @@ func CloneItemMetadata(value ItemMetadata) ItemMetadata {
 		if value.Fields[i].UpdatedAt != nil {
 			stamp := *value.Fields[i].UpdatedAt
 			value.Fields[i].UpdatedAt = &stamp
+		}
+		if value.Fields[i].ProviderOrigin != nil {
+			origin := *value.Fields[i].ProviderOrigin
+			value.Fields[i].ProviderOrigin = &origin
 		}
 	}
 	return value
