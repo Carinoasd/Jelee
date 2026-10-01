@@ -41,4 +41,8 @@
 
 Windows首次来源测试尝试rename仍持有句柄的根，OS拒绝；测试修正为明确验证OS保护，Linux保留实际rename。Windows整体脚本最初把坏XML案例预期exit1误当成整批失败；个别案例与包测试都已通过，最终核对依据改为明确的案例结果，原日志保留。
 
-G13.5/G39相关项继续部分完成：尚无按库NfoMode、持久解析快取、nfo_invalid数据库状态、worker/API、Catalog来源优先级/字段锁合并、写回或图片处理。完整品牌及项目整体覆盖率门禁仍未达成。本段远端CI在新PR推送后核对，以上仅记录实际执行的本地结果。
+G13.5/G39相关项继续部分完成：3C3A范围内尚无按库NfoMode、持久解析快取、nfo_invalid数据库状态、worker/API、Catalog来源优先级/字段锁合并、写回或图片处理。完整品牌及项目整体覆盖率门禁仍未达成。
+
+## 推送后远端核对
+
+[PR #8](https://github.com/MoYuanCN/Jelee/pull/8) HEAD `082a51dc2b1206e9687a70c2292d33991e068d30` 的[Go CI](https://github.com/MoYuanCN/Jelee/actions/runs/36790288784) Linux、Windows、PostgreSQL与真实媒体验收全部通过，完整品牌门禁仍失败。[结果摘要](evidence/nfo-source-ci.json)保留各项结论。较早一次run `36790260752` 在runtime工具bootstrap失败，未完成真实媒体验收；该失败不计为通过，也未通过降低检查标准处理。

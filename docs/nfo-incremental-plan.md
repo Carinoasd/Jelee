@@ -13,8 +13,8 @@
 | 阶段 | 最小可用结果 | 当前状态 |
 | --- | --- | --- |
 | 3C3A | 稳定性核对后的 NFO 来源、完整内容指纹；现有单文件 CLI 经 `ReadFile` 直接使用 | 本小段已验证，见[实际报告](nfo-source-verification.md)；完整G39仍未完成 |
-| 3C3B | 持久 read-only/off policy、有界 NFO cache、SQL fencing 与配额契约 | 计划，未实现或验收 |
-| 3C3C | 既有 scan worker、按库验证 API/CLI、NFO/图片增量统计与真实规模验收 | 计划，未实现或验收 |
+| 3C3B | 持久 read-only/off policy、有界 NFO cache、SQL fencing 与配额契约 | 本小段已验证，见[实际报告](nfo-cache-verification.md)；worker/API尚未接入 |
+| 3C3C | 既有 scan worker、按库验证 API/CLI、NFO/图片增量统计与真实规模验收 | [接线计划](nfo-worker-plan.md)已审查；未实现或验收 |
 
 暂不加入 fsnotify、去抖、cron、持续监看、NFO 写回、图片下载/处理、自动 Catalog 合并。图片在 3C 的范围仍是存在、size、mtime 的识别与增量统计。
 
@@ -74,7 +74,7 @@ Stamp 至少需要 size、纳秒 mtime、完整原始字节 SHA-256，以及明�
 
 ## 3C3B：按库模式与持久快取
 
-以下是后续实现方向，字段和接口需在该段开始时与当前 schema 再核对。
+本段已经实现并验证，实际接口见[快取契约](nfo-cache.md)，执行证据见[验证报告](nfo-cache-verification.md)。下文保留设计约束。
 
 ### 策略与缓存身份
 
@@ -93,7 +93,7 @@ Stamp 至少需要 size、纳秒 mtime、完整原始字节 SHA-256，以及明�
 - XML 无效可成为短 TTL 的 `nfo_invalid`；来源 changed、unavailable、取消、租约丢失以及存储故障不能污染负缓存。语义校验 error 与 warning 另有明确状态，避免把有 warning 的有效文档判为损坏。
 - `off` 之后不再解析或公开旧观察为当前结果。缓存保留/清理可按容量与 TTL 执行，不以关闭功能为删除用户资料的授权。
 
-### 3C3B 验收（待执行）
+### 3C3B 验收（实际结果见验证报告）
 
 真实 PG migration up/down/up、同库竞争、租约过期/ABA、取消最后提交、policy 变更、事务失败回滚、连续 checkpoint、配额精确对账、TTL/淘汰/sweep 上限；错误全部脱敏。回滚策略须说明活动阶段处理及丢失哪些生成数据，不能改旧 migration 或默默 force dirty 状态。
 

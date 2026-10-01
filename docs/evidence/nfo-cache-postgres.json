@@ -1,0 +1,77 @@
+{
+  "kind": "focused PostgreSQL integration contract verification",
+  "status": "PASS",
+  "command": ".bin/go test -count=1 -coverprofile=.testdata/nfo-cache-postgres.cover -v ./internal/adapter/postgres -run TestNFO",
+  "platform": "linux-amd64 via WSL Ubuntu",
+  "race": false,
+  "CGO_ENABLED": "1",
+  "compiler": "/usr/bin/x86_64-linux-gnu-gcc-15",
+  "requiredIntegration": true,
+  "dsn": "private file; omitted",
+  "topLevelPass": 30,
+  "subtestPass": 141,
+  "skips": [],
+  "failures": [],
+  "elapsedSeconds": 31.52,
+  "newNFOStatements": 607,
+  "newNFOCovered": 507,
+  "newNFOCoveragePercent": 83.53,
+  "postgresFocusedCoveragePercent": 46.4,
+  "coverageByFile": {
+    "nfo_phase.go": {
+      "covered": 187,
+      "statements": 223
+    },
+    "nfo_cache.go": {
+      "covered": 74,
+      "statements": 79
+    },
+    "nfo_maintenance.go": {
+      "covered": 70,
+      "statements": 87
+    },
+    "nfo_commit.go": {
+      "covered": 79,
+      "statements": 96
+    },
+    "nfo_policy.go": {
+      "covered": 97,
+      "statements": 122
+    }
+  },
+  "log": "nfo-cache-postgres.txt",
+  "logSHA256": "b1c1c5a278026f5cba933a1e065bdda74e376b61a330ccc3c4b7559817c6bebb",
+  "profile": "nfo-cache-postgres.cover",
+  "profileSHA256": "3721e9444f126adb74fefa6a7da9e7b0826fa39e0f5db1052c188ccfec589176",
+  "notes": [
+    "This focused run includes all TestNFO tests; it is not whole-module verification.",
+    "Production and tests were uncommitted workspace source at verification; hashes identify the snapshot.",
+    "001-005 migrations are unchanged.",
+    "Known SQL fault branches and bounded current summaries above 16 KiB are not claimed covered.",
+    "Windows focused TestNFO compiled/pure tests passed and postgres vet passed; PG integration ran on Linux only.",
+    "The final full native race run separately validates the final domain/reader root normalization."
+  ],
+  "sourceHashes": {
+    "internal/adapter/postgres/nfo_commit.go": "311eb5eb10632c3be9614608e84e48ecce0487adfa7bd106aa85449c8bbf1673",
+    "internal/adapter/postgres/nfo_decode_test.go": "85b71f889e448519bababf4ce3c6d43416d02b4b1cc82604bcd4ac257d56a599",
+    "internal/adapter/postgres/probe_requests_test.go": "723172db87f13c8fe6b5fc6926d03fd659ce69848e78bd0bcd81d23c7b4bb58c",
+    "internal/adapter/postgres/nfo_maintenance.go": "81cbfa72139e3bebe7f0a30f7e3dd374d7e6b8a5a28fc43682002feb810c6ac1",
+    "internal/adapter/postgres/nfo_cache.go": "3f2cb31e65f3ee8c786f38b621bb037a81a9a6e18cac5abd583d1d7bd0606766",
+    "internal/adapter/postgres/nfo_query_plan_test.go": "d7433ff7e1e50f7563f7a07fe344a90920db76c1586713da569882baba22a0fb",
+    "internal/adapter/postgres/probe_integration_test.go": "d0c8fecb25ac26525980090d47c754f9e0e7d25c3e6a57a09d9c47c719da11cd",
+    "internal/adapter/postgres/nfo_integration_test.go": "83b43cde2ed556c1ff2f0e75b087eb795117d341e4485581a574890349a314e7",
+    "internal/adapter/postgres/nfo_phase.go": "cda49bc43446f1a4ad13943fded45426746c5038977e84d0ec4a9b87c0ceaddd",
+    "internal/adapter/postgres/migrations/000006_nfo_cache.up.sql": "aa0b864b655e1d5a1c37fe470fa5a9f859a3991a8b7c707944c563ca53e6cbcd",
+    "internal/adapter/postgres/probe_phase.go": "c45e77a224849defaff52686328e4b2a6a4ad946a8145179753ec1a76f4a3409",
+    "internal/adapter/postgres/jobs_execution.go": "fe3a2a527950f6ff3590849e8e75c7bfca43d37ab67d68c1185b18637fef5aca",
+    "internal/adapter/postgres/nfo_policy_integration_test.go": "323cc6def523e8ab6942a2b1f5a02d5d7c2478a7dc60c7a85b88660f24b39065",
+    "internal/adapter/postgres/store_integration_test.go": "f70295f8849cea11b275d1d087b29bdda9bb1e46e2793a5165a71cf929cadfd6",
+    "internal/adapter/postgres/store.go": "0fe486ebc3d311ef21aa99fe68da1a6f88c9448962180b1ca16f162b1b9eb761",
+    "internal/adapter/postgres/accounts_integration_test.go": "f700d41d79ff38e89da0dae289b93ffcb3fd6a30ae2f527d5842aff92a1094ec",
+    "internal/adapter/postgres/nfo_boundaries_test.go": "a603560c04a096ba144ba160f55eb3aec3559701b1d4a5542af533ce4e910466",
+    "internal/adapter/postgres/nfo_policy.go": "eb93bc644180ab5a03792e3863f1c31477e49caba45c7bf1419f33f45c5688ca",
+    "internal/adapter/postgres/migrations/000006_nfo_cache.down.sql": "f5625b1d14030747aaf2f4abdfe2729affeac345d60e4734986b82c784fd2032",
+    "internal/adapter/postgres/jobs_integration_test.go": "573b6571147aad1a0cca02ff6fe82727fc071774e3f26c023ee2847bbb7c4401"
+  },
+  "sourceCommit": "f26888aa27f6ca9a80ad406cfac1e1f8e6ff0c02"
+}

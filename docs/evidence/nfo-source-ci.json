@@ -1,0 +1,33 @@
+{
+  "phase": "3C3A",
+  "head": "082a51dc2b1206e9687a70c2292d33991e068d30",
+  "run": "https://github.com/MoYuanCN/Jelee/actions/runs/36790288784",
+  "checkedAt": "2026-09-30T23:24:34.7157420Z",
+  "checks": [
+    {
+      "name": "Full branding gate",
+      "status": "completed",
+      "conclusion": "failure"
+    },
+    {
+      "name": "PostgreSQL migration and repository integration",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "name": "foundation (windows-latest)",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "name": "foundation (ubuntu-latest)",
+      "status": "completed",
+      "conclusion": "success"
+    }
+  ],
+  "initialRun": {
+    "run": "https://github.com/MoYuanCN/Jelee/actions/runs/36790260752",
+    "failure": "runtime-tools bootstrap failed before real media acceptance; preserved failure is not counted as a pass"
+  },
+  "limitation": "Full branding gate still fails on preserved legacy names. No gate was weakened."
+}
