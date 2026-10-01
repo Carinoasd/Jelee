@@ -778,3 +778,11 @@ G03 明確人類授權後刪101個 Core UI catalog，ja→ja-JP，四份123鍵�
 ### 四語階段 CI 證據路徑修正
 
 d0ef9b2195 兩平台 foundation 新失敗已取 job110468731814/110468731720 原始log查明：新增證據JSON的8個歷史來源路徑命中增量品牌。上輪本地掃描在寫證據前，沒有覆蓋最後文檔，不能當最終0新增。來源路徑移入既有精確改名映射docs/branding-rename-map.md，JSON仍保留角色hash和sourceIndex；沒有新增allowlist或藏匿／編碼舊名。catalog gate腳本統一LF並重核hash。須最後文檔全部寫完才跑門禁，避免再犯。HTTP provider工作仍未提交；34項真HTTP回歸pass，格式pass。
+
+### 四語 HTTP 協商完成
+
+只替換舊ASP.NET header provider，四語／alias／q／specificity／order／q0／wildcard／8192字元限制；無header沿server配置，有但未知／畸形／全部排除→en-US。query/cookie原順序保持，沒有新增舊user語系schema，Go既有持久化優先回歸另驗。首build一次CS1061 IList不支援FindIndex，改原IList迴圈替換，正式邏輯後續沒有再改。真host HTTP34pass，real middleware從host取正式options，3silentlogger情境pass，finalfocused37pass0fail/skip。完整Debug exec40056已terminal17套件4150Passed/21NotExecuted/0fail；後只加3個logtests，runtime source沒變；Go i18n0.200/HTTP2.531pass。format final handle46989尚待取末結果；無其他live。證據docs/evidence/ui-http-locales.json，來源角色索引放既有brandmap，不擴大allowlist。最後所有文檔寫完再跑品牌／gitignore／diff／hash，之後同PR46推送。G03保持partial，下一步G05發現／直播裁剪；探索host仍在network模組並有Startup注册，不能只關default旗標宣稱刪能力。
+
+已下載d0ef9b2195的真CI ABI report（artifact11176927400）：8組比較7個exit0，Naming改名exit1／CP0001+CP0004保持；artifact成功保存，JF_BOT_TOKEN問題已修。仍未merge、full品牌仍blocking。c18a5f273c新headfoundation待CI，不用舊head通過宣稱。
+
+格式exec46989已terminal exit0（workspace warning），所有本輪handles已terminal，沒有待poll測試。LICENSE／需求檔與HTTP證據source hash逐項相符。

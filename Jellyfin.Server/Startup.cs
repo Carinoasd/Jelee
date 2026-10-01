@@ -10,6 +10,7 @@ using Emby.Server.Implementations.EntryPoints;
 using Emby.Server.Implementations.Localization;
 using Jelee.Networking;
 using Jelee.Networking.HappyEyeballs;
+using Jelee.Server.Localization;
 using Jellyfin.Api.Middleware;
 using Jellyfin.Database.Implementations;
 using Jellyfin.LiveTv.Extensions;
@@ -144,6 +145,13 @@ namespace Jellyfin.Server
                 options.ApplyCurrentCultureToResponseHeaders = true;
                 options.FallBackToParentCultures = true;
                 options.FallBackToParentUICultures = true;
+                for (var i = 0; i < options.RequestCultureProviders.Count; i++)
+                {
+                    if (options.RequestCultureProviders[i] is AcceptLanguageHeaderRequestCultureProvider)
+                    {
+                        options.RequestCultureProviders[i] = new FourLocaleRequestCultureProvider();
+                    }
+                }
             });
 
             services.AddHostedService<RecordingsHost>();

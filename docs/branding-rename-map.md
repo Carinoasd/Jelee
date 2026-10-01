@@ -54,3 +54,11 @@ src/Jellyfin.Networking 與 tests/Jellyfin.Networking.Tests → src/Jelee.Networ
 | japaneseCatalog | `Emby.Server.Implementations/Localization/Core/ja-JP.json` |
 | simplifiedChineseCatalog | `Emby.Server.Implementations/Localization/Core/zh-CN.json` |
 | traditionalChineseCatalog | `Emby.Server.Implementations/Localization/Core/zh-TW.json` |
+
+### 四語 HTTP 來源索引
+
+| 證據角色 | 來源路徑 |
+| --- | --- |
+| startup | `Jellyfin.Server/Startup.cs` |
+| headerProvider | `Jellyfin.Server/Localization/FourLocaleRequestCultureProvider.cs` |
+| httpTests | `tests/Jellyfin.Server.Integration.Tests/Middleware/FourLocaleRequestCultureTests.cs` |
