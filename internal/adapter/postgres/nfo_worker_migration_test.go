@@ -40,6 +40,7 @@ func TestNFOWorkerUpgradeRejectsAllActiveLegacyReadOnlyPhases(t *testing.T) {
 			if err := f.s.FinishJob(f.ctx, l, domain.JobFailed, "scan_io"); err != nil {
 				t.Fatal(err)
 			}
+			nfoMigrateVersion(t, f.jobFixture, "down", 7)
 			nfoMigrateVersion(t, f.jobFixture, "down", 6)
 			code := ""
 			if state == domain.NFOPhaseAborted {
@@ -59,7 +60,7 @@ func TestNFOWorkerUpgradeRejectsAllActiveLegacyReadOnlyPhases(t *testing.T) {
 			if _, err := f.s.Pool.Exec(f.ctx, `UPDATE jobs SET state='failed',finished_at=clock_timestamp(),error_code='scan_io' WHERE id=$1::uuid`, j.ID); err != nil {
 				t.Fatal(err)
 			}
-			nfoMigrateVersion(t, f.jobFixture, "up", 7)
+			nfoMigrateVersion(t, f.jobFixture, "up", SchemaVersion)
 			for _, optIn := range []bool{false, true} {
 				got, replay, err := f.s.SubmitScanWithStages(f.ctx, f.a, j.LibraryID, "historical", domain.JobPriorityManual, domain.ScanIntent{NFO: optIn}, f.policy, nil, &f.identity)
 				if !errors.Is(err, domain.ErrConflict) || got != (domain.Job{}) || replay {
@@ -83,6 +84,7 @@ func TestNFOWorkerLegacyOffCanReplayButNeverAcquireReadOnlyIntent(t *testing.T) 
 	if err := f.s.FinishJob(f.ctx, l, domain.JobFailed, "scan_io"); err != nil {
 		t.Fatal(err)
 	}
+	nfoMigrateVersion(t, f.jobFixture, "down", 7)
 	nfoMigrateVersion(t, f.jobFixture, "down", 6)
 	if _, err := f.s.Pool.Exec(f.ctx, `DELETE FROM nfo_job_state WHERE job_id=$1::uuid`, j.ID); err != nil {
 		t.Fatal(err)
@@ -90,7 +92,7 @@ func TestNFOWorkerLegacyOffCanReplayButNeverAcquireReadOnlyIntent(t *testing.T) 
 	if _, err := f.s.Pool.Exec(f.ctx, `UPDATE jobs SET state='queued',finished_at=NULL,error_code='' WHERE id=$1::uuid`, j.ID); err != nil {
 		t.Fatal(err)
 	}
-	nfoMigrateVersion(t, f.jobFixture, "up", 7)
+	nfoMigrateVersion(t, f.jobFixture, "up", SchemaVersion)
 	if replay, wasReplay, err := f.s.SubmitJob(f.ctx, f.a, j.LibraryID, "legacy-off", domain.JobPriorityManual, f.policy); err != nil || !wasReplay || replay.ID != j.ID {
 		t.Fatal("legacy off replay", err)
 	}
@@ -132,11 +134,12 @@ func TestNFOWorkerDownGuardIncludesFrozenOffAndPreservesBCache(t *testing.T) {
 	if err := f.s.Pool.QueryRow(f.ctx, retainedSQL).Scan(&retained); err != nil {
 		t.Fatal(err)
 	}
+	nfoMigrateVersion(t, f.jobFixture, "down", 7)
 	nfoMigrateVersion(t, f.jobFixture, "down", 6)
 	if err := f.s.Pool.QueryRow(f.ctx, retainedSQL).Scan(&after); err != nil || after != retained {
 		t.Fatal("007 downgrade changed B cache/policy/baseline", err)
 	}
-	nfoMigrateVersion(t, f.jobFixture, "up", 7)
+	nfoMigrateVersion(t, f.jobFixture, "up", SchemaVersion)
 	if err := f.s.Pool.QueryRow(f.ctx, retainedSQL).Scan(&after); err != nil || after != retained {
 		t.Fatal("007 upgrade changed retained B data", err)
 	}

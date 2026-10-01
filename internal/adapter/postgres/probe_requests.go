@@ -41,18 +41,20 @@ func probeAdminStillLive(ctx context.Context, tx pgx.Tx, a domain.Actor) error {
 	return nil
 }
 func (s *Store) SubmitScanJob(ctx context.Context, a domain.Actor, libraryID, key, priority string, intent domain.ProbeIntent, p domain.JobPolicy, identity *domain.ProbeIdentity) (domain.Job, bool, error) {
-	return s.submitScanJob(ctx, a, libraryID, "", key, priority, intent, p, identity, false, nil)
+	return s.submitScanJob(ctx, a, libraryID, "", key, priority, domain.ScanIntent{Probe: intent}, p, identity, nil)
 }
 func (s *Store) RetryScanJob(ctx context.Context, a domain.Actor, id, key string, p domain.JobPolicy, identity *domain.ProbeIdentity) (domain.Job, bool, error) {
 	if !domain.ValidID(id) {
 		return domain.Job{}, false, domain.ErrNotFound
 	}
-	return s.submitScanJob(ctx, a, "", id, key, "", domain.ProbeIntent{}, p, identity, false, nil)
+	return s.submitScanJob(ctx, a, "", id, key, "", domain.ScanIntent{}, p, identity, nil)
 }
-func (s *Store) submitScanJob(parentContext context.Context, a domain.Actor, libraryID, parent, key, priority string, intent domain.ProbeIntent, p domain.JobPolicy, identity *domain.ProbeIdentity, nfoRequested bool, nfoIdentity *domain.NFOIdentity) (domain.Job, bool, error) {
-	if parentContext == nil || !validJobPolicy(p) || !validJobKey(key) || domain.ValidateScanIntent(domain.ScanIntent{Probe: intent, NFO: nfoRequested}) != nil {
+func (s *Store) submitScanJob(parentContext context.Context, a domain.Actor, libraryID, parent, key, priority string, scanIntent domain.ScanIntent, p domain.JobPolicy, identity *domain.ProbeIdentity, nfoIdentity *domain.NFOIdentity) (domain.Job, bool, error) {
+	if parentContext == nil || !validJobPolicy(p) || !validJobKey(key) || domain.ValidateScanIntent(scanIntent) != nil {
 		return domain.Job{}, false, domain.ErrInvalid
 	}
+	intent, nfoRequested, ignoreIntent := scanIntent.Probe, scanIntent.NFO, scanIntent.Ignore
+	ignoreIdentity := domain.DefaultIgnoreIdentity()
 	if parent == "" && ((priority != domain.JobPriorityManual && priority != domain.JobPriorityBackground) || (libraryID == "" && intent.Scope != domain.ProbeScopeItemRebuild) || (libraryID != "" && !domain.ValidID(libraryID))) {
 		return domain.Job{}, false, domain.ErrInvalid
 	}
@@ -101,7 +103,15 @@ func (s *Store) submitScanJob(parentContext context.Context, a domain.Actor, lib
 			}
 		}
 		previousNFO := oldNFO != nil && oldNFO.Requested
-		if originalParent != parent || parent == "" && (old.LibraryID != libraryID || old.Priority != priority || previousIntent != intent || previousNFO != nfoRequested) {
+		oldIgnore, e := loadIgnoreRequest(ctx, tx, old.ID)
+		if e != nil {
+			return domain.Job{}, false, e
+		}
+		previousIgnore := domain.IgnoreIntent{}
+		if oldIgnore != nil {
+			previousIgnore = oldIgnore.Intent
+		}
+		if originalParent != parent || parent == "" && (old.LibraryID != libraryID || old.Priority != priority || previousIntent != intent || previousNFO != nfoRequested || previousIgnore != ignoreIntent) {
 			return domain.Job{}, false, domain.ErrConflict
 		}
 		if err = probeAdminStillLive(ctx, tx, a); err != nil {
@@ -145,6 +155,16 @@ func (s *Store) submitScanJob(parentContext context.Context, a domain.Actor, lib
 			if e == nil && oldPhase.Mode == domain.NFOModeReadOnly {
 				return domain.Job{}, false, domain.ErrConflict
 			}
+		}
+		oldIgnore, e := loadIgnoreRequest(ctx, tx, parent)
+		if e != nil {
+			return domain.Job{}, false, e
+		}
+		if oldIgnore != nil {
+			ignoreIntent, ignoreIdentity = oldIgnore.Intent, oldIgnore.Identity
+		}
+		if domain.ValidateScanIntent(domain.ScanIntent{Probe: intent, NFO: nfoRequested, Ignore: ignoreIntent}) != nil {
+			return domain.Job{}, false, domain.ErrConflict
 		}
 	}
 	if intent.Scope != "" {
@@ -216,7 +236,7 @@ func (s *Store) submitScanJob(parentContext context.Context, a domain.Actor, lib
 			}
 		}
 	}
-	j, err := scanJob(tx.QueryRow(ctx, `INSERT INTO jobs(library_id,actor_id,idempotency_key,parent_id,priority,directory_total,queue_limit,history_limit,max_entries,max_directories,max_attempts,missing_count_limit,missing_percent_limit,inventory_generation) VALUES($1::uuid,$2::uuid,$3,NULLIF($4,'')::uuid,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14) RETURNING `+jobColumns, libraryID, a.UserID, key, parent, priority, roots, p.QueueLimit, p.HistoryLimit, p.MaxEntries, p.MaxDirectories, p.MaxAttempts, p.MissingCountLimit, p.MissingPercentLimit, inventoryGeneration))
+	j, err := scanJob(tx.QueryRow(ctx, `INSERT INTO jobs(library_id,actor_id,idempotency_key,parent_id,priority,directory_total,queue_limit,history_limit,max_entries,max_directories,max_attempts,missing_count_limit,missing_percent_limit,inventory_generation,ignore_requested) VALUES($1::uuid,$2::uuid,$3,NULLIF($4,'')::uuid,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15) RETURNING `+jobColumns, libraryID, a.UserID, key, parent, priority, roots, p.QueueLimit, p.HistoryLimit, p.MaxEntries, p.MaxDirectories, p.MaxAttempts, p.MissingCountLimit, p.MissingPercentLimit, inventoryGeneration, ignoreIntent.Mode != ""))
 	if err != nil {
 		return domain.Job{}, false, err
 	}
@@ -232,7 +252,12 @@ func (s *Store) submitScanJob(parentContext context.Context, a domain.Actor, lib
 	if err = insertNFORequest(ctx, tx, nfoRequest); err != nil {
 		return domain.Job{}, false, err
 	}
-	if err = auditAccount(ctx, tx, a, "job.submitted", j.ID, nil, map[string]any{"job": j, "probeScope": intent.Scope, "probeTargetItemId": intent.TargetItemID, "nfo": nfoRequested}); err != nil {
+	if ignoreIntent.Mode != "" {
+		if err = insertIgnoreRequest(ctx, tx, domain.IgnoreRequest{JobID: j.ID, LibraryID: libraryID, Intent: ignoreIntent, Identity: ignoreIdentity}); err != nil {
+			return domain.Job{}, false, err
+		}
+	}
+	if err = auditAccount(ctx, tx, a, "job.submitted", j.ID, nil, map[string]any{"job": j, "probeScope": intent.Scope, "probeTargetItemId": intent.TargetItemID, "nfo": nfoRequested, "ignoreMode": ignoreIntent.Mode, "ignoreCaseMode": ignoreIntent.CaseMode}); err != nil {
 		return domain.Job{}, false, err
 	}
 	if err = probeAdminStillLive(ctx, tx, a); err != nil {

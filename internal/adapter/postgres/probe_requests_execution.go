@@ -24,6 +24,9 @@ func (s *Store) LoadProbeWork(parent context.Context, l domain.JobLease) (domain
 	if current.Job.CancelRequested {
 		return domain.ProbeWork{}, context.Canceled
 	}
+	if err = requireIgnoreOff(ctx, tx, l.Job.ID); err != nil {
+		return domain.ProbeWork{}, err
+	}
 	r, err := loadProbeRequest(ctx, tx, l.Job.ID)
 	if err != nil {
 		return domain.ProbeWork{}, err

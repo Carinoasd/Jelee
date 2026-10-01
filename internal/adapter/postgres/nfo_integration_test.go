@@ -445,12 +445,15 @@ func TestNFOCacheMigrationGuardAndRoundTrip(t *testing.T) {
 	}
 	f.parseHead(t, l, nfoValidSummary())
 	f.finish(t, l)
-	const query = `SELECT jsonb_build_object('jobs',(SELECT jsonb_agg(to_jsonb(j)-'inventory_generation' ORDER BY id) FROM jobs j),'inventory',(SELECT jsonb_agg(to_jsonb(i) ORDER BY id) FROM job_inventory i),'baseline',(SELECT jsonb_agg(to_jsonb(b)-'attributes_known'-'kind'-'size'-'modified_unix_nano'-'inventory_generation' ORDER BY library_id,root_id,path) FROM library_inventory_baseline b))::text`
+	const query = `SELECT jsonb_build_object('jobs',(SELECT jsonb_agg(to_jsonb(j)-'inventory_generation'-'ignore_requested' ORDER BY id) FROM jobs j),'inventory',(SELECT jsonb_agg(to_jsonb(i) ORDER BY id) FROM job_inventory i),'baseline',(SELECT jsonb_agg(to_jsonb(b)-'attributes_known'-'kind'-'size'-'modified_unix_nano'-'inventory_generation' ORDER BY library_id,root_id,path) FROM library_inventory_baseline b))::text`
 	var preserved, after string
 	if err = f.s.Pool.QueryRow(f.ctx, query).Scan(&preserved); err != nil {
 		t.Fatal(err)
 	}
 	dsn := f.s.Pool.Config().ConnString()
+	if v, dirty, err := Migrate(f.ctx, dsn, "down"); err != nil || dirty || v != 7 {
+		t.Fatal("rollback ignore intent schema", err)
+	}
 	if v, dirty, err := Migrate(f.ctx, dsn, "down"); err != nil || dirty || v != 6 {
 		t.Fatal("rollback NFO worker schema", err)
 	}
@@ -461,7 +464,7 @@ func TestNFOCacheMigrationGuardAndRoundTrip(t *testing.T) {
 		t.Fatal("down006 changed parent inventory/baseline")
 	}
 	if f.s.Ready(f.ctx) == nil {
-		t.Fatal("schema5 accepted by schema6 binary")
+		t.Fatal("schema5 accepted by current binary")
 	}
 	if version, dirty, e := Migrate(f.ctx, dsn, "up"); e != nil || dirty || version != SchemaVersion {
 		t.Fatal("up006", e)

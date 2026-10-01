@@ -13,13 +13,13 @@ var _ app.ScanJobRepository = (*Store)(nil)
 var _ app.NFOExecutionRepository = (*Store)(nil)
 
 func (s *Store) SubmitScanWithStages(ctx context.Context, a domain.Actor, library, key, priority string, intent domain.ScanIntent, p domain.JobPolicy, probe *domain.ProbeIdentity, nfo *domain.NFOIdentity) (domain.Job, bool, error) {
-	return s.submitScanJob(ctx, a, library, "", key, priority, intent.Probe, p, probe, intent.NFO, nfo)
+	return s.submitScanJob(ctx, a, library, "", key, priority, intent, p, probe, nfo)
 }
 func (s *Store) RetryScanWithStages(ctx context.Context, a domain.Actor, parent, key string, p domain.JobPolicy, probe *domain.ProbeIdentity, nfo *domain.NFOIdentity) (domain.Job, bool, error) {
 	if !domain.ValidID(parent) {
 		return domain.Job{}, false, domain.ErrNotFound
 	}
-	return s.submitScanJob(ctx, a, "", parent, key, "", domain.ProbeIntent{}, p, probe, false, nfo)
+	return s.submitScanJob(ctx, a, "", parent, key, "", domain.ScanIntent{}, p, probe, nfo)
 }
 func loadNFORequest(ctx context.Context, tx pgx.Tx, id string) (*domain.NFORequest, error) {
 	var r domain.NFORequest
@@ -90,6 +90,9 @@ func (s *Store) LoadNFOWork(parent context.Context, l domain.JobLease) (domain.N
 	}
 	if current.Job.CancelRequested {
 		return domain.NFOWork{}, context.Canceled
+	}
+	if err = requireIgnoreOff(ctx, tx, l.Job.ID); err != nil {
+		return domain.NFOWork{}, err
 	}
 	r, err := loadNFORequest(ctx, tx, l.Job.ID)
 	if err != nil {

@@ -44,6 +44,9 @@ func lockedNFOPhase(ctx context.Context, tx pgx.Tx, l domain.JobLease, execute b
 		return domain.NFOPhase{}, context.Canceled
 	}
 	if execute {
+		if err = requireIgnoreOff(ctx, tx, l.Job.ID); err != nil {
+			return domain.NFOPhase{}, err
+		}
 		if _, err = readNFOCachePolicy(ctx, tx); err != nil {
 			return domain.NFOPhase{}, err
 		}
@@ -114,6 +117,9 @@ func (s *Store) PrepareNFOPhase(parent context.Context, l domain.JobLease, ident
 	}
 	if current.Job.CancelRequested {
 		return domain.NFOPhase{}, context.Canceled
+	}
+	if err = requireIgnoreOff(ctx, tx, l.Job.ID); err != nil {
+		return domain.NFOPhase{}, err
 	}
 	old, err := loadNFOPhase(ctx, tx, l.Job.ID)
 	if err == nil {
@@ -365,6 +371,9 @@ func requireNFOInventoryPhase(ctx context.Context, tx pgx.Tx, id string) error {
 	return nil
 }
 func requireNFOFinished(ctx context.Context, tx pgx.Tx, id string) error {
+	if err := requireIgnoreOff(ctx, tx, id); err != nil {
+		return err
+	}
 	r, e := loadNFORequest(ctx, tx, id)
 	if e != nil {
 		return e

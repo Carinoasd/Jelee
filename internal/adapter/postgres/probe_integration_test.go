@@ -479,12 +479,15 @@ func TestProbeReleaseRecoveryInvalidationAndMigration(t *testing.T) {
 	if err := f.s.FinishJob(f.ctx, next, domain.JobFailed, "scan_unavailable"); err != nil {
 		t.Fatal(err)
 	}
-	const preservedQuery = `SELECT jsonb_build_object('inventory',(SELECT jsonb_agg(to_jsonb(i) ORDER BY id) FROM job_inventory i),'jobs',(SELECT jsonb_agg(to_jsonb(j)-'inventory_generation' ORDER BY id) FROM jobs j),'baseline',(SELECT jsonb_agg(to_jsonb(b)-'attributes_known'-'kind'-'size'-'modified_unix_nano'-'inventory_generation' ORDER BY library_id,root_id,path) FROM library_inventory_baseline b),'items',(SELECT jsonb_agg(to_jsonb(i)-'probe_generation' ORDER BY id) FROM items i),'sources',(SELECT jsonb_agg(to_jsonb(m) ORDER BY id) FROM media_sources m))::text`
+	const preservedQuery = `SELECT jsonb_build_object('inventory',(SELECT jsonb_agg(to_jsonb(i) ORDER BY id) FROM job_inventory i),'jobs',(SELECT jsonb_agg(to_jsonb(j)-'inventory_generation'-'ignore_requested' ORDER BY id) FROM jobs j),'baseline',(SELECT jsonb_agg(to_jsonb(b)-'attributes_known'-'kind'-'size'-'modified_unix_nano'-'inventory_generation' ORDER BY library_id,root_id,path) FROM library_inventory_baseline b),'items',(SELECT jsonb_agg(to_jsonb(i)-'probe_generation' ORDER BY id) FROM items i),'sources',(SELECT jsonb_agg(to_jsonb(m) ORDER BY id) FROM media_sources m))::text`
 	var before string
 	if err := f.s.Pool.QueryRow(f.ctx, preservedQuery).Scan(&before); err != nil {
 		t.Fatal(err)
 	}
 	dsn := f.s.Pool.Config().ConnString()
+	if v, dirty, err := Migrate(f.ctx, dsn, "down"); err != nil || dirty || v != 7 {
+		t.Fatal("rollback ignore intent schema", err)
+	}
 	if v, dirty, err := Migrate(f.ctx, dsn, "down"); err != nil || dirty || v != 6 {
 		t.Fatal("rollback NFO worker schema", err)
 	}

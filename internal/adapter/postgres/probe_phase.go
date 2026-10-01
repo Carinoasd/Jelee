@@ -159,6 +159,9 @@ type probeEntry struct {
 }
 
 func requireInventoryPhase(ctx context.Context, tx pgx.Tx, id string) error {
+	if err := requireIgnoreOff(ctx, tx, id); err != nil {
+		return err
+	}
 	var begun bool
 	if err := tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM probe_job_state WHERE job_id=$1::uuid) OR EXISTS(SELECT 1 FROM probe_requests WHERE job_id=$1::uuid AND error_code<>'')`, id).Scan(&begun); err != nil {
 		return storageError(err)

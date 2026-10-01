@@ -20,7 +20,7 @@ func probeFaultSnapshot(t *testing.T, f probeFixture) string {
 	 'quota',(SELECT COALESCE(jsonb_agg(to_jsonb(q)),'[]') FROM probe_cache_quota q),
 	 'libraries',(SELECT COALESCE(jsonb_agg(to_jsonb(q) ORDER BY library_id),'[]') FROM probe_library_quota q),
 	 'phases',(SELECT COALESCE(jsonb_agg(to_jsonb(p) ORDER BY job_id),'[]') FROM probe_job_state p),
-	 'jobs',(SELECT COALESCE(jsonb_agg(to_jsonb(j)-'inventory_generation' ORDER BY id),'[]') FROM jobs j),
+	 'jobs',(SELECT COALESCE(jsonb_agg(to_jsonb(j)-'inventory_generation'-'ignore_requested' ORDER BY id),'[]') FROM jobs j),
 	 'identities',(SELECT COALESCE(jsonb_agg(to_jsonb(t) ORDER BY id),'[]') FROM tool_versions t),
 	 'library_generations',(SELECT COALESCE(jsonb_agg(jsonb_build_array(id,probe_generation) ORDER BY id),'[]') FROM libraries),
 	 'item_generations',(SELECT COALESCE(jsonb_agg(jsonb_build_array(id,probe_generation) ORDER BY id),'[]') FROM items),
