@@ -1,0 +1,111 @@
+{
+  "baselineCommit": "6fdfaaa2c69cc8bbb0c21f8180ddc36cad5825ef",
+  "sourceSHA256": {
+    "internal/adapter/postgres/inventory_comparison.go": "99b8385f035721f00814ae9d563a3301f36391b1c87f3cc53788da27a35639c8",
+    "internal/adapter/postgres/inventory_scope_test.go": "ab9df7742f1579dd3991002840f1965e7b0efea30e8d64ef217a4e7402fea758",
+    "internal/adapter/postgres/jobs_execution.go": "515dd44c9fea405106a5b3d313c51d6e03f5074b53a8023921e4811dee538952",
+    "internal/adapter/postgres/image_inventory.go": "71d2c9469dbdd2f2cb5f8e5ebf79ec5480e829a8c4441632c98461c545179693",
+    "internal/adapter/postgres/image_inventory_test.go": "128f82e23e3a324951645d30f83057029cbe5d3c8f15c88c9a6db9488393ffc0",
+    "internal/adapter/postgres/nfo_worker_query_plan_test.go": "2ca33e71975104a39138f788b3a05d3b85bb7870c61966c68a7d540f6759a7ae"
+  },
+  "postgres": {
+    "exit": 0,
+    "tests": 140,
+    "skipped": [],
+    "sourceUnchanged": true,
+    "logSHA256": "fd8a1b557f9c4c02b4a43fdb2882cca4cb12a7be36037e079261c315a5f7de73"
+  },
+  "windows": {
+    "build": "PASS",
+    "lint": "PASS",
+    "packagesPassed": 25,
+    "topLevelPassed": 513,
+    "postgresSkips": 205,
+    "otherTestSkips": 14,
+    "race": false
+  },
+  "linux": {
+    "passed": true,
+    "sourceUnchanged": true,
+    "commands": [
+      {
+        "argv": [
+          "project-pinned-go",
+          "vet",
+          "./..."
+        ],
+        "exit": 0,
+        "seconds": 27.721
+      },
+      {
+        "argv": [
+          "project-pinned-go",
+          "build",
+          "-o",
+          "<repository>/.testdata/inventory-scope-build/jelee",
+          "./cmd/jelee"
+        ],
+        "exit": 0,
+        "seconds": 33.43
+      },
+      {
+        "argv": [
+          "project-pinned-go",
+          "build",
+          "-o",
+          "<repository>/.testdata/inventory-scope-build/jelee-cli",
+          "./cmd/jelee-cli"
+        ],
+        "exit": 0,
+        "seconds": 13.34
+      },
+      {
+        "argv": [
+          "project-pinned-go",
+          "build",
+          "-o",
+          "<repository>/.testdata/inventory-scope-build/jelee-migrate",
+          "./cmd/jelee-migrate"
+        ],
+        "exit": 0,
+        "seconds": 12.34
+      }
+    ]
+  },
+  "nfo": {
+    "result": "passed",
+    "summarySHA256": "82ed6ed69ea6186bee36963c65d1690ebd392f98e7b8266394123af00d9e366d",
+    "cases": [
+      {
+        "fixtureFiles": 1000,
+        "sourceDigest": "9fd6b45ab2793e2ae736b57022e9f42a710d94880641bb35a6bc768da4601208",
+        "sourceUnchanged": true,
+        "testArtifactsCleaned": true,
+        "shutdown": {
+          "shutdown": "passed",
+          "signal": "SIGTERM",
+          "httpClosed": true,
+          "activeNFOCalls": 0,
+          "activeChildLifecycles": 0,
+          "activeLeases": 0,
+          "readBarrier": "after a real read; cancelled API joined"
+        }
+      },
+      {
+        "fixtureFiles": 100,
+        "sourceDigest": "9fd6b45ab2793e2ae736b57022e9f42a710d94880641bb35a6bc768da4601208",
+        "sourceUnchanged": true,
+        "testArtifactsCleaned": true,
+        "shutdown": {
+          "shutdown": "passed",
+          "signal": "SIGTERM",
+          "httpClosed": true,
+          "activeNFOCalls": 0,
+          "activeChildLifecycles": 0,
+          "activeLeases": 0,
+          "readBarrier": "after a real read; cancelled API joined"
+        }
+      }
+    ]
+  }
+}

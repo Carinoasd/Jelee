@@ -42,6 +42,8 @@ make bootstrap tools-verify build test
 
 ## 文档与状态
 
+- [库存比较范围修正](docs/inventory-scope.md)；[忽略规则持久比较后续设计](docs/ignore-comparison-design.md)。
+
 - [仓库审计基线](docs/00-audit-baseline.md)
 - [需求追溯](docs/requirements-traceability.md)
 - [账户初始化与恢复](docs/account-bootstrap.md)
@@ -65,7 +67,7 @@ make bootstrap tools-verify build test
 - [许可证与来源](docs/LICENSE-COMPLIANCE.md)
 - [保留的上游说明](docs/upstream-README.md)
 
-各段验证后分别推送并提 PR：[基础与账户 #1](https://github.com/MoYuanCN/Jelee/pull/1)、[持久盘点 #2](https://github.com/MoYuanCN/Jelee/pull/2)、[固定媒体工具 #3](https://github.com/MoYuanCN/Jelee/pull/3)、[执行器与素材 #4](https://github.com/MoYuanCN/Jelee/pull/4)、[Linux 隔离探测 #5](https://github.com/MoYuanCN/Jelee/pull/5)、[探测快取 #6](https://github.com/MoYuanCN/Jelee/pull/6)、[探测 worker #7](https://github.com/MoYuanCN/Jelee/pull/7)、[NFO 来源 #8](https://github.com/MoYuanCN/Jelee/pull/8)、[NFO 快取 #9](https://github.com/MoYuanCN/Jelee/pull/9)、[NFO worker与图片比较 #10](https://github.com/MoYuanCN/Jelee/pull/10)、[忽略规则匹配 #11](https://github.com/MoYuanCN/Jelee/pull/11)、[忽略来源与缓存 #12](https://github.com/MoYuanCN/Jelee/pull/12)。第一阶段[验证记录](docs/verification-report.md)保留为历史快照。尚未创建发布标签或正式版本。上游历史、许可证与归属资料保留，不能把当前版本标记为 G00–G51 已完成。
+各段验证后分别推送并提 PR：[基础与账户 #1](https://github.com/MoYuanCN/Jelee/pull/1)、[持久盘点 #2](https://github.com/MoYuanCN/Jelee/pull/2)、[固定媒体工具 #3](https://github.com/MoYuanCN/Jelee/pull/3)、[执行器与素材 #4](https://github.com/MoYuanCN/Jelee/pull/4)、[Linux 隔离探测 #5](https://github.com/MoYuanCN/Jelee/pull/5)、[探测快取 #6](https://github.com/MoYuanCN/Jelee/pull/6)、[探测 worker #7](https://github.com/MoYuanCN/Jelee/pull/7)、[NFO 来源 #8](https://github.com/MoYuanCN/Jelee/pull/8)、[NFO 快取 #9](https://github.com/MoYuanCN/Jelee/pull/9)、[NFO worker与图片比较 #10](https://github.com/MoYuanCN/Jelee/pull/10)、[忽略规则匹配 #11](https://github.com/MoYuanCN/Jelee/pull/11)、[忽略来源与缓存 #12](https://github.com/MoYuanCN/Jelee/pull/12)、[持久忽略意图 #13](https://github.com/MoYuanCN/Jelee/pull/13)。第一阶段[验证记录](docs/verification-report.md)保留为历史快照。尚未创建发布标签或正式版本。上游历史、许可证与归属资料保留，不能把当前版本标记为 G00–G51 已完成。
 
 ### Linux 实验运行时验证
 

@@ -24,7 +24,7 @@ const imageCurrentCountsSQL = `SELECT
  count(*) FILTER(WHERE $3::bigint IS NOT NULL AND b.attributes_known AND b.inventory_generation=$3 AND b.kind='image' AND b.size=i.size AND b.modified_unix_nano=i.modified_unix_nano),
  count(*) FILTER(WHERE $3::bigint IS NULL OR b.root_id IS NOT NULL AND (NOT b.attributes_known OR b.inventory_generation IS DISTINCT FROM $3))
  FROM job_inventory i LEFT JOIN library_inventory_baseline b ON b.library_id=$1::uuid AND b.root_id=i.root_id AND b.path=i.path WHERE i.job_id=$2::uuid AND i.kind='image'`
-const imageMissingCountsSQL = `SELECT count(*),count(*) FILTER(WHERE NOT b.attributes_known OR b.inventory_generation IS DISTINCT FROM $3),count(*) FILTER(WHERE b.attributes_known AND b.inventory_generation=$3 AND b.kind='image' AND (i.id IS NULL OR i.kind<>'image')) FROM library_inventory_baseline b LEFT JOIN job_inventory i ON i.job_id=$2::uuid AND i.root_id=b.root_id AND i.path=b.path WHERE b.library_id=$1::uuid`
+const imageMissingCountsSQL = `SELECT count(*),count(*) FILTER(WHERE ` + baselineUnknownScopeSQL + `),count(*) FILTER(WHERE b.attributes_known AND b.inventory_generation=$3 AND b.kind='image' AND (i.id IS NULL OR i.kind<>'image')) FROM library_inventory_baseline b LEFT JOIN job_inventory i ON i.job_id=$2::uuid AND i.root_id=b.root_id AND i.path=b.path WHERE b.library_id=$1::uuid`
 
 func saveImageProgress(ctx context.Context, tx pgx.Tx, l domain.JobLease, epoch *int64, complete bool) error {
 	var p domain.ImageProgress

@@ -113,7 +113,10 @@ func TestImageComparisonQueriesAggregateBoundedInventories(t *testing.T) {
 	if err = f.s.Pool.QueryRow(f.ctx, imageMissingCountsSQL, f.registration.Library.ID, j.ID, epoch).Scan(&total, &unknown, &missing); err != nil || total != 10000 || unknown != 0 || missing != 500 {
 		t.Fatalf("missing counts %d/%d/%d %v", total, unknown, missing, err)
 	}
-	for name, query := range map[string]string{"current": imageCurrentCountsSQL, "missing": imageMissingCountsSQL} {
+	if err = f.s.Pool.QueryRow(f.ctx, inventoryMissingCountsSQL, f.registration.Library.ID, j.ID, epoch).Scan(&total, &unknown, &missing); err != nil || total != 10000 || unknown != 0 || missing != 500 {
+		t.Fatalf("general missing counts %d/%d/%d %v", total, unknown, missing, err)
+	}
+	for name, query := range map[string]string{"current": imageCurrentCountsSQL, "missing": imageMissingCountsSQL, "general-missing": inventoryMissingCountsSQL} {
 		plan := nfoWorkerPlan(t, f, query, f.registration.Library.ID, j.ID, epoch)
 		if plan.Type != "Aggregate" || plan.Rows != 1 {
 			t.Fatal("comparison did not aggregate in SQL")

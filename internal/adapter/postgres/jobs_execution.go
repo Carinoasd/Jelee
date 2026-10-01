@@ -385,19 +385,28 @@ func (s *Store) FinishJob(ctx context.Context, l domain.JobLease, state, code st
 		} else if !errors.Is(phaseErr, domain.ErrNotFound) {
 			return phaseErr
 		}
-		var pending bool
-		if err = tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM job_directories WHERE job_id=$1::uuid AND NOT done)`, l.Job.ID).Scan(&pending); err != nil {
-			return storageError(err)
+		covered, skipped, coverageErr := inventoryCoverage(ctx, tx, current)
+		if coverageErr != nil {
+			return coverageErr
 		}
-		if pending {
+		if !covered {
 			return domain.ErrConflict
 		}
-		inventoryComplete = true
-		review = current.Job.Skipped > 0
+		inventoryComplete = !skipped && current.Job.Skipped == 0
+		review = !inventoryComplete || epoch == nil
 		if !review {
-			var baseline int64
-			if err = tx.QueryRow(ctx, `SELECT count(*),count(*) FILTER (WHERE NOT EXISTS(SELECT 1 FROM job_inventory i WHERE i.job_id=$2::uuid AND i.root_id=b.root_id AND i.path=b.path)) FROM library_inventory_baseline b WHERE b.library_id=$1::uuid`, current.Job.LibraryID, l.Job.ID).Scan(&baseline, &missing); err != nil {
+			var baseline, unknown int64
+			if err = tx.QueryRow(ctx, inventoryMissingCountsSQL, current.Job.LibraryID, l.Job.ID, epoch).Scan(&baseline, &unknown, &missing); err != nil {
 				return storageError(err)
+			}
+			if baseline > 500000 {
+				return domain.ErrScanLimit
+			}
+			// Old scope uncertainty cannot declare files missing. A complete
+			// current observation may still establish a fresh baseline, allowing
+			// the next scan to compare without a permanent review loop.
+			if unknown > 0 {
+				missing = 0
 			}
 			review = missing > 0 && (missing >= int64(current.Policy.MissingCountLimit) || missing*100 >= baseline*int64(current.Policy.MissingPercentLimit))
 			// Keep unresolved missing files visible on later scans. A review
@@ -418,7 +427,7 @@ func (s *Store) FinishJob(ctx context.Context, l domain.JobLease, state, code st
 		}
 	}
 	if state != domain.JobSucceeded || review || epoch == nil {
-		if err = saveImageProgress(ctx, tx, current, imageEpoch, state == domain.JobSucceeded && inventoryComplete && current.Job.Skipped == 0); err != nil {
+		if err = saveImageProgress(ctx, tx, current, imageEpoch, state == domain.JobSucceeded && inventoryComplete); err != nil {
 			return err
 		}
 	}

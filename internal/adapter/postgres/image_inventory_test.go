@@ -119,8 +119,8 @@ func TestImageUnknownBaselineAndRootEpochRecovery(t *testing.T) {
 		t.Fatal("unknown old attributes produced missing images", partial)
 	}
 	p := finishImageInventory(t, f, startImageInventory(t, f, "old-baseline", all, true, 0), domain.JobSucceeded, "")
-	if p != (domain.ImageProgress{Uncompared: 2}) {
-		t.Fatal("unknown historical attributes treated as same", p)
+	if p != (domain.ImageProgress{Unchanged: 1, Added: 1, ComparisonComplete: true}) {
+		t.Fatal("complete previous observation did not replace unknown historical attributes", p)
 	}
 	p = finishImageInventory(t, f, startImageInventory(t, f, "upgraded-baseline", all, true, 0), domain.JobSucceeded, "")
 	if p != (domain.ImageProgress{Unchanged: 2, ComparisonComplete: true}) {
