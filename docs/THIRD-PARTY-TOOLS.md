@@ -14,6 +14,7 @@
 | PostgreSQL 测试镜像 | 16.15 | [PostgreSQL License](https://www.postgresql.org/about/licence/)，PostgreSQL Global Development Group；基础镜像各包保留各自许可证 | 临时集成测试 | 已存在镜像，引导不拉取、不分发 |
 | WSL GCC / cc1 / collect2 | Ubuntu `15.2.0-16ubuntu1` | GPL-3.0-or-later；运行库组件另含 GCC Runtime Library Exception 3.1，完整组件条款见宿主 `gcc-15-base/copyright` | Go race/cgo 的 SDK 外部编译与链接 | 既有 Ubuntu 26.04 amd64 工具，只盘点，不安装、不分发 |
 | WSL GNU binutils ld.bfd / as | Ubuntu `2.46-3ubuntu2` | GPL-3.0-or-later，Free Software Foundation；文档适用 GFDL-1.3-or-later | 上述 GCC 调用的链接器与汇编器 | 同上 |
+| Git for Windows / Ubuntu Git | `2.55.0.windows.3` / `2.53.0`（Ubuntu package `1:2.53.0-1ubuntu1`） | Git主要为GPL-2.0-only，文件级例外与发行组件保留各自条款；Linus Torvalds、Git贡献者及平台维护者，宿主许可证路径/hash见manifest | 仅在隔离临时repo用已有Git作忽略规则差分测试；生产matcher无外部程序依赖 | 已存在工具，未下载/安装/分发；两平台版本分别记录 |
 
 测试镜像固定为 `postgres@sha256:cf78e76683b9ca8c5733cbbdce6c9262b45b6767934dd0a95e671f9a0fc20685`，来源为 [Docker Official Image](https://hub.docker.com/_/postgres)。此摘要记录本次测试依赖，不构成生产数据库部署版本建议。
 

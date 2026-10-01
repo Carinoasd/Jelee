@@ -31,6 +31,23 @@ jobs:
           foreach ($target in @('bootstrap','tools-verify','bootstrap-media','media-tools-verify','fixtures','fixtures-test','toolchain-test','media-toolchain-test','lint','build','test','gitignore-check','brand-scan-incremental')) {
             & ./scripts/make.ps1 $target
           }
+      - name: Required Git ignore semantics on Linux
+        if: runner.os == 'Linux'
+        run: |
+          set -o pipefail
+          make ignore-oracle-test 2>&1 | tee .testdata/ignore-oracle.txt
+      - name: Required Git ignore semantics on Windows
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: ./scripts/make.ps1 ignore-oracle-test 2>&1 | Tee-Object -FilePath .testdata/ignore-oracle.txt
+      - name: Retain Git ignore oracle evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ignore-oracle-${{ runner.os }}
+          path: .testdata/ignore-oracle.txt
+          if-no-files-found: ignore
+          retention-days: 7
       - name: Retain native sandbox diagnostics
         if: always() && runner.os == 'Linux'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1

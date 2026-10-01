@@ -218,3 +218,11 @@ pwsh -NoProfile -File scripts/runtime-tools.ps1 -Command sources -Offline
 `make nfo-worker-test` 使用相同固定工具和私有测试连接，分别运行 1,000 与 100 文件混合库的冷扫、暖扫、局部修改、取消恢复和 SIGTERM 验收。两组均使用独立 UUID schema、容器、镜像和只读素材；清理只针对本次创建的资源。该目标接在 PostgreSQL CI 的 probe 验收之后，保留 `.testdata/nfo-worker-acceptance.txt` 和结构化摘要 7 天。实际范围与限制见[NFO工作流程验证](nfo-worker-verification.md)。
 
 Windows `fmt-check` 让固定 gofmt 递归检查 cmd/internal/tools，避免长工作目录中逐文件绝对路径参数超过系统上限；退出失败或存在未格式化源码时仍拒绝通过。
+
+## 忽略规则 Git 对照（3D1A）
+
+`make ignore-oracle-test` 或 Windows `scripts/make.ps1 ignore-oracle-test` 运行必需的真实 Git 差分。缺少 Git、启动失败、超时或结果不同均失败；普通 `go test` 在没有 Git 时明确跳过这项对照，不将其当作兼容证据。生产 matcher 只执行纯 Go 计算，不依赖 Git。
+
+测试默认查找宿主已有 Git；可用 `JELEE_IGNORE_ORACLE_GIT` 指定绝对可执行文件路径。本地验证使用清单中登记的现有二进制；CI 使用 runner 自带版本并在 `IGNORE_ORACLE_REPORT` 记录实际完整路径、版本、SHA256、语料 hash 与平台差异。此记录是来源盘点，不是跨机器固定 Git 分发包，也不会安装工具或修改全局 Git 配置。
+
+测试使用项目 `.testdata` 下新建的私有目录，隔离 system/global config、templates、excludes、HOME 和环境变量，固定参数仅执行 --version、init/check-ignore。候选经 NUL 分隔 stdin 传入，输入/输出有上限；Git 单程序最多5秒，命令与 matcher 共用60秒 context。普通文件 I/O、二进制 hash 与清理不保证可被硬中断，不能把该 context 称为整个测试的硬期限。结束清理本次创建的目录。Windows 无法真实创建的语料单列，仍执行纯值黄金测试；原生 Linux 另行对照。CI 保存两平台 `.testdata/ignore-oracle.txt` 7天。
