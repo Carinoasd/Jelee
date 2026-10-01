@@ -1,0 +1,39 @@
+{
+  "url": "https://github.com/MoYuanCN/Jelee/actions/runs/36801016335",
+  "status": "completed",
+  "conclusion": "failure",
+  "jobs": [
+    {
+      "name": "Full branding gate",
+      "status": "completed",
+      "conclusion": "failure",
+      "url": "https://github.com/MoYuanCN/Jelee/actions/runs/36801016335/job/110175142558",
+      "startedAt": "2026-10-01T01:25:27Z",
+      "completedAt": "2026-10-01T01:25:46Z"
+    },
+    {
+      "name": "PostgreSQL migration and repository integration",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/MoYuanCN/Jelee/actions/runs/36801016335/job/110175142725",
+      "startedAt": "2026-10-01T01:25:28Z",
+      "completedAt": "2026-10-01T01:35:28Z"
+    },
+    {
+      "name": "foundation (windows-latest)",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/MoYuanCN/Jelee/actions/runs/36801016335/job/110175142763",
+      "startedAt": "2026-10-01T01:25:26Z",
+      "completedAt": "2026-10-01T01:27:29Z"
+    },
+    {
+      "name": "foundation (ubuntu-latest)",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/MoYuanCN/Jelee/actions/runs/36801016335/job/110175142787",
+      "startedAt": "2026-10-01T01:25:26Z",
+      "completedAt": "2026-10-01T01:29:35Z"
+    }
+  ]
+}

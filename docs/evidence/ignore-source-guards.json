@@ -1,0 +1,33 @@
+{
+  "sourceCommit": "760e02f299ad11d04219fd19fd83b7c457622f94",
+  "baseCommit": "32e3c85ca3a010641858007d11382557cb2fe7ac",
+  "result": "PASS",
+  "verifiedCommittedBlobs": 342,
+  "preservedHashes": {
+    "go.mod": "0c1171a9aea0c0717bcea52719d1e2cb579918c36eb7b2c50222131d513d55e5",
+    "go.sum": "774034b85a77eba95b6b74e435864d8e31ca1d06a19862a7210d072f9ba9cfd3",
+    "LICENSE": "f371b80469fb235bc500ec29e0e85b682d4a6157a158567d828ff0be544d4f1d",
+    "docs/requirements-source.md": "755b6b32324efe710c3e1135a0c982c45b82f337e90fcb50ab3718a20cba5d07",
+    "internal/adapter/postgres/migrations/000001_catalog.down.sql": "96a6884a093f04ab95b9e87a8dbd4b9cb4b349497ba48263fcc4496b1ccc34e0",
+    "internal/adapter/postgres/migrations/000001_catalog.up.sql": "92dfc26eb06eb3ea23cc89f20c9a714b80a4addd415056f15b5351eee6e87519",
+    "internal/adapter/postgres/migrations/000002_accounts.down.sql": "390a958490416332deb36fcce5230962462e83859811c52a98bca9927220fb7a",
+    "internal/adapter/postgres/migrations/000002_accounts.up.sql": "7ec6c68d65c34e6846e30fba52061e1c8e08a44c6571a7b84b525a5298350004",
+    "internal/adapter/postgres/migrations/000003_jobs.down.sql": "e7f1156e665093834b086de2cee1dd35a35e2d8d97807e519616cf37d54cc1a2",
+    "internal/adapter/postgres/migrations/000003_jobs.up.sql": "4d239642b82621bf66101cd2926848749311465541496fdb73dda99b75b40862",
+    "internal/adapter/postgres/migrations/000004_probe_cache.down.sql": "a2279a350f6fc2f9c63ada6838e1e86d0aedadfbbdf4a2328570ea80e4022384",
+    "internal/adapter/postgres/migrations/000004_probe_cache.up.sql": "e31b1bd2ee96d38fec157424d17f38c6b52079fbf47aed1c9f466cc26ef87976",
+    "internal/adapter/postgres/migrations/000005_probe_requests.down.sql": "9719931eb337931b75ef3707a2a25065a6654c6283f9ba1c24c6c379af4e86c5",
+    "internal/adapter/postgres/migrations/000005_probe_requests.up.sql": "df3c19bea89fafeb906160f8967177599d1b1b8153ea3976539d16dbef0d501a",
+    "internal/adapter/postgres/migrations/000006_nfo_cache.down.sql": "f5625b1d14030747aaf2f4abdfe2729affeac345d60e4734986b82c784fd2032",
+    "internal/adapter/postgres/migrations/000006_nfo_cache.up.sql": "aa0b864b655e1d5a1c37fe470fa5a9f859a3991a8b7c707944c563ca53e6cbcd",
+    "internal/adapter/postgres/migrations/000007_nfo_worker.down.sql": "1e9a3fcf12b19777b4af04bd50a010167ac142cb84d142e77d894b268a691417",
+    "internal/adapter/postgres/migrations/000007_nfo_worker.up.sql": "5d21d0ac682809471633f39c58041fecfe33350c08af907018eca128782a8078"
+  },
+  "incrementalBranding": "brand scan: mode=new:true violations=0 allowed=94",
+  "artifactGuard": "gitignore check: violations=0; upstream binary inventory remains separate (see docs/binary-allowlist.md)",
+  "fullBranding": "Not satisfied: retained legacy source names remain; no allowlist expansion.",
+  "windowsGoIdentity": {
+    "output": "Verified go version go1.27.1 windows/amd64; archive SHA256 and installed binary match",
+    "logSHA256": "748c7e74947ea2ec267877e64565828b59aec63a0763489d8085a7d76166ff4b"
+  }
+}

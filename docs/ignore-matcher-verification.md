@@ -72,3 +72,7 @@ Git在真实私有小仓库里读取映射为 `.gitignore` 的UTF-8文本；测�
 最初Git测试辅助器对目录追加尾slash，造成四个差异；这会向Git询问不同的词法路径并可能激活目录内部规则。改为规范路径加实际目录kind后，两平台全部最终对照通过；没有因此放宽matcher断言。Windows非法落盘名称显式列为遗漏并由Linux核对。没有修改已发布迁移、Go依赖、许可证或原需求文本。
 
 G22.1与G22.3推进为部分完成，G22.2仍仅审计；G22.4缓存、G22.5扫描报告尚未接线。矩阵共336项：4已完成、172部分、160阻塞。完整品牌清理和全项目要求仍未完成，本段通过不能替代整项目验收。
+
+## 远端 CI
+
+[PR #11](https://github.com/MoYuanCN/Jelee/pull/11) 的[Go CI](https://github.com/MoYuanCN/Jelee/actions/runs/36801016335)已结束：Windows、Linux基础检查（含必需Git oracle）及PostgreSQL/race/真实媒体probe与NFO验收均通过。[结构化结果](evidence/ignore-matcher-ci.json)保存每项job状态。全量品牌门禁仍失败：15,278处旧名称、96处白名单命中；没有放宽门禁或将整体CI记为通过。

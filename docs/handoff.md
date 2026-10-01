@@ -4,7 +4,9 @@
 
 2026-10-01 用户明确「继续吧」，此前切模型暂停已结束；「回报进度」及「项目中最大的是3阶段吗」是状态查询，未撤销继续授权。用户授权每小段验证、提交、推送、建立普通PR并附到聊天，然后继续下一段；没有授权合并、发布、tag或改写历史。
 
-3D1A当前分支 `feat/jelee-ignore-matcher`，源码 `9afc8f15c6ca3b190bc6eafdb7e24356ad1cd33c` 已本地提交；本地验证与证据完整，普通PR发布接在本证据提交之后。来源是PR #10 HEAD `bf5af35003bae0b7916797eddc1f7f9b6184099f`。本段实现纯忽略matcher，未接扫描；Windows28包/三build/lint通过，原生Linux28包567顶层race测试通过，PG零skip，matcher两平台90.6188%；真实Git对照3,768/3,784候选通过，326个已提交blob与验证SHA逐一一致。详见[实际验证](ignore-matcher-verification.md)。矩阵现在4已完成/172部分/160阻塞；下一小段3D1B安全读取来源及编译缓存。
+3D1B代码与最终本地验收完成，源码 `760e02f299ad11d04219fd19fd83b7c457622f94`，发布分支 `feat/jelee-ignore-source`，基于PR #11的 `32e3c85ca3a010641858007d11382557cb2fe7ac`。Windows29包通过，新来源包89.1509%；原生Linux29包604顶层race通过、PG零skip，新包91.4948%；342个已提交blob与两平台验证SHA一致。详见[来源与缓存验证](ignore-source-verification.md)。矩阵4已完成/173部分/159阻塞；仍未接扫描，下一段3D1C先做持久合同，再接worker/report。新PR远端CI另行核对。
+
+3D1A已推送普通[PR #11](https://github.com/MoYuanCN/Jelee/pull/11)并附聊天；[Go CI](https://github.com/MoYuanCN/Jelee/actions/runs/36801016335)的Windows/Linux/PG、真实媒体验收均成功，完整品牌门禁仍失败。纯matcher源码 `9afc8f15c6ca3b190bc6eafdb7e24356ad1cd33c`，匹配合同和Git差分见[报告](ignore-matcher-verification.md)。
 
 3C3C已发布普通[PR #10](https://github.com/MoYuanCN/Jelee/pull/10)并附聊天；源码 `47da27b5ff090a71e6f55aae0b2e6c00871f825b`。[Go CI](https://github.com/MoYuanCN/Jelee/actions/runs/36798696038)的Windows/Linux、PG集成与真实媒体/NFO混合库均通过，完整品牌检查仍失败；[CI证据](evidence/nfo-worker-ci.json)已保存。
 
