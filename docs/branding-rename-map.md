@@ -24,3 +24,7 @@
 移除原專用 commands、issue-stale、project-automation、pull-request-conflict 工作流程：它們使用上游專用 bot／token、看板 action、聯絡網站或限定來源倉庫條件，沒有本倉庫可驗證的管理服務。這些不是服務端功能契約或 CI 測試門禁。原始檔仍可由 Git 歷史恢復。
 
 openapi-merge 保留 master／版本 push 的 OpenAPI reusable workflow 與產物生成，移除綁定上游伺服器的 SCP／SSH 發布 job。Jelee 部署與正式發布需另行驗收；未發布至其他系統。ci-tests、ci-format、ci-compat、ci-codeql-analysis、jelee 完整工作流程及 OpenAPI 生成器保持。
+
+## 程式碼分析器模組
+
+`src/Jellyfin.CodeAnalysis`、同名 csproj／程序集／namespace → `src/Jelee.CodeAnalysis` 與 `Jelee.CodeAnalysis`。根建置屬性的分析器載入／自引用排除、solution 專案名稱／路徑同步更新。診斷 JF0001 與原發布紀錄保持；編譯器正反例、完整 Debug 建置與模組格式檢查通過。[證據](analyzer-brand-rename.md)。

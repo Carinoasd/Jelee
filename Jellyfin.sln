@@ -97,7 +97,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Jellyfin.Database.Providers
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Jellyfin.Database.Implementations", "src\Jellyfin.Database\Jellyfin.Database.Implementations\Jellyfin.Database.Implementations.csproj", "{8C9F9221-8415-496C-B1F5-E7756F03FA59}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Jellyfin.CodeAnalysis", "src\Jellyfin.CodeAnalysis\Jellyfin.CodeAnalysis.csproj", "{11643D0F-6761-4EF7-AB71-6F9F8DE00714}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Jelee.CodeAnalysis", "src\Jelee.CodeAnalysis\Jelee.CodeAnalysis.csproj", "{11643D0F-6761-4EF7-AB71-6F9F8DE00714}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Jellyfin.Drawing.Skia.Tests", "tests\Jellyfin.Drawing.Skia.Tests\Jellyfin.Drawing.Skia.Tests.csproj", "{E24A279C-9A37-419A-8F9C-853C11FBE753}"
 EndProject

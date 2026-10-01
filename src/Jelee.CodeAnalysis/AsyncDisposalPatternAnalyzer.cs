@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Diagnostics;
 
-namespace Jellyfin.CodeAnalysis;
+namespace Jelee.CodeAnalysis;
 
 /// <summary>
 /// Analyzer to detect sync disposal of async-created IAsyncDisposable objects.

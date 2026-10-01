@@ -742,3 +742,9 @@ exec29349 terminal exit0：1,000／100 檔全部 passed，負載303.903／300.39
 混合媒體階段91c558dc86已推並繁中更新／附PR46，exec29349 terminal。接著移除commands／issue-stale／project-automation／pull-request-conflict四個上游專用管理workflow；openapi-merge保留原push triggers／reusable generator／openapi-head artifact，移除綁定外部伺服器的SCP／SSH發布jobs。沒有改application／migration／LICENSE或scanner allowlist。12剩餘workflow YAML合法、全部local uses可解析、8個核心CI／generator逐位元相同；protected hashes、incremental brand0／gitignore0與diff通過。full brand15278→15237，減少41，完整門禁仍fail。證據docs/evidence/workflow-brand-cleanup.json；映射docs/branding-rename-map.md。本批同PR46提交推送，不合併／不發布／不建新分支。
 
 下一步仍需清理舊品牌模組與補未完成G00–G51功能，不能把刪除不適用管理整合當應用功能完成。公開New完整graph持續負載與其他歷史ignore格式仍未完成；最新PR head CI須核對，不把pending當success。
+
+### 程式碼分析器模組重命名
+
+上一工作流程階段26c465e270已推／繁中更新附PR46。現在完整移動src/Jelee.CodeAnalysis與csproj，namespace／程序集改名；Directory.Build.props載入與自引用排除、solution條目同步。正式邏輯只有namespace修改，發布紀錄／csproj逐位元保持。實際compiler bad同步using→JF0001 exit1、good await using→exit0；module Debug build0warnings/errors、module format通過。完整solution Debug exec43733 terminal exit0，34.50秒、215warnings／0errors，未放寬分析設定。fullbrand15237→15233減4，protected hashes保持；證據docs/evidence/analyzer-brand-rename.json／合同docs/analyzer-brand-rename.md。
+
+本批同PR46提交推，不加分支、不merge／release／tag／forcepush。最新已推26c CI目前僅完整品牌失敗，其餘觀察時仍部分running；需以新head核對功能結果。其他C#模組／G00／G22／G00–G51仍部分完成，公開New長穩與其餘ignore來源未完成。所有本機test handles均terminal。
