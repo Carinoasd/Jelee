@@ -12,6 +12,10 @@ type MetadataApplyRepository interface {
 	ApplyTMDBMetadata(context.Context, domain.Actor, string, int64, domain.TMDBMetadataUpdate) (domain.MetadataApplyResult, error)
 }
 
+type MetadataNFOFusionRepository interface {
+	ApplyTMDBWithNFO(context.Context, domain.Actor, domain.NFOItemScope, domain.NFOItemFields, domain.TMDBMetadataUpdate) (domain.MetadataApplyResult, error)
+}
+
 func (m *Metadata) ApplyTMDB(ctx context.Context, actor domain.Actor, item string, input domain.TMDBMetadataApplyInput) (domain.MetadataApplyResult, error) {
 	if err := ctx.Err(); err != nil {
 		return domain.MetadataApplyResult{}, err
@@ -36,7 +40,7 @@ func (m *Metadata) ApplyTMDB(ctx context.Context, actor domain.Actor, item strin
 	if before.ItemID != item || !domain.ValidID(before.LibraryID) {
 		return domain.MetadataApplyResult{}, domain.ErrMetadataUnavailable
 	}
-	if before.NFOMode != domain.NFOModeOff {
+	if before.NFOMode != domain.NFOModeOff && before.NFOMode != domain.NFOModeReadOnly {
 		return domain.MetadataApplyResult{}, domain.ErrMetadataUnavailable
 	}
 	if before.Revision != input.ExpectedRevision {
@@ -44,6 +48,23 @@ func (m *Metadata) ApplyTMDB(ctx context.Context, actor domain.Actor, item strin
 	}
 	if !domain.MetadataResourceMatchesKind(input.Resource, before.Kind) {
 		return domain.MetadataApplyResult{}, domain.ErrInvalid
+	}
+	var nfoScope domain.NFOItemScope
+	var nfoFields domain.NFOItemFields
+	var fusion MetadataNFOFusionRepository
+	if before.NFOMode == domain.NFOModeReadOnly {
+		var ok bool
+		fusion, ok = m.items.(MetadataNFOFusionRepository)
+		if !ok || m.nfoFields == nil {
+			return domain.MetadataApplyResult{}, domain.ErrMetadataUnavailable
+		}
+		nfoScope, nfoFields, err = m.readItemNFO(ctx, actor, item, input.ExpectedRevision)
+		if err != nil {
+			return domain.MetadataApplyResult{}, err
+		}
+		if nfoScope.LibraryID != before.LibraryID || nfoScope.Kind != before.Kind {
+			return domain.MetadataApplyResult{}, domain.ErrConflict
+		}
 	}
 	language := input.Language
 	if language == "" {
@@ -96,9 +117,16 @@ func (m *Metadata) ApplyTMDB(ctx context.Context, actor domain.Actor, item strin
 	if err := ctx.Err(); err != nil {
 		return domain.MetadataApplyResult{}, err
 	}
-	result, err := repository.ApplyTMDBMetadata(ctx, actor, item, input.ExpectedRevision, update)
-	result.Metadata = domain.CloneItemMetadata(result.Metadata)
-	result.Applied = append([]string{}, result.Applied...)
-	result.Skipped = append([]domain.MetadataFieldSkip{}, result.Skipped...)
-	return result, err
+	var result domain.MetadataApplyResult
+	if fusion != nil {
+		var last domain.NFOItemFields
+		last, err = m.rereadItemNFO(ctx, nfoScope, nfoFields)
+		if err != nil {
+			return domain.MetadataApplyResult{}, err
+		}
+		result, err = fusion.ApplyTMDBWithNFO(ctx, actor, nfoScope, last, update)
+	} else {
+		result, err = repository.ApplyTMDBMetadata(ctx, actor, item, input.ExpectedRevision, update)
+	}
+	return domain.CloneMetadataApplyResult(result), err
 }

@@ -1056,3 +1056,13 @@ NFOItemOrigin保存source/root UUID、generation、SHA256、identityDigest、pro
 brand new0／181、full14735／186仍FAIL、gitignore0；22版舊migrations的Git正規化內容、LICENSE／requirements、待核准五核心逐位元、来源hash／local links／336列／無C#diff核對。G14.6／G39.6仍partial，全案4done／184partial／148blocked。見nfo-item-metadata.md與evidence/nfo-item-metadata.json。
 
 唯讀NFO库與TMDB同次fusion仍有503guard，本段不是完整G14／G39。下一段按.testdata/nfo-tmdb-fusion-next.md以same txn融合，不先提交NFO后再套TMDB来规避原子性；再实际inventory/worker/hierarchy、其他NFO字段/来源选择、read-write无损回写、清外部来源、frontend/full perf。所有原檔保持。五核心3271行授权问题待答不改、不绕。禁止merge/release/newbranch/forcepush/oldmigration/identity config；当前stage完成后繁中push同PR46。新HEADCI需自有结果，之前HEADfoundation当时live，ABI失败。
+
+### G14／G39 唯讀 NFO 與 TMDB 同交易融合
+
+接續819cc5914591068c195de1504838e65f06012273，同PR46／同branch，schema23與原001–023遷移保持。正式TMDB確認入口在唯讀庫先解析可信來源／完整讀NFO，交易外取得受控供應商資料，再完整重讀比對；最終短交易重验session／revision／kind／世代／source／root／path，先NFO後TMDB。人工空值與兩類鎖保持，NFO來源優先；來源報告分開、頂層欄位去重，應用複製回應資料。一次版本與一次TMDB audit，欄位／catalog／kind／來源全原子，任何供應商field或最後audit SQL失敗皆全回滾。
+
+正式TCP HTTP／安全NFO／受控TLS／PG驗混合來源、一次版本稽核、HomeVideo分類、變檔、等待期間實際HTTP人工修改、世代／root改變、429重試／取消／非法供應商。120合成搜尋／確認／寫入矩陣仍通過。停用正式NFO優先序（含unknown fallback）時完整路徑1leaf fail，finally byte復原SHA 8b59ebe4df03b270dc1ff025837060025a2535a1b4a41ff761cd9e2c0d6553e9；完整復原路徑66.837秒／1pass／0fail／0skip。
+
+Windows全Go 29pkg／3160pass事件含父／457測試skip；原435身份一致，額外21PG身份（含新rollback子項）＋1outbound均實測通過。完整PG race 731pass事件含父／0fail／0skip／366.899秒。Linux原生tmp五包race 1019pass事件含父／0fail／0skip；vet／產品build PASS。增量brand0／181、full14735／186仍FAIL、gitignore0。來源hash／原文件／五待授權核心／23版遷移／local links／336列／無C#diff核對通過。見nfo-tmdb-fusion.md與evidence/nfo-tmdb-fusion.json。
+
+全案仍第三階段、4done／184partial／148blocked，G14.6／G39.6保持partial。唯一同名相鄰NFO／單一movie-tvshow／四欄仍子集；缺NFO／invalid回退、其他檔名與來源、實際inventory／worker／影集階層、其他欄位、read-write／清除來源／前端／效能均未完成。兩次讀取非檔案系統原子快照。原NFO／媒體／圖片保持。下一段接安全NFO來源名稱選擇与缺失／損壞回退，需區分權限／unsafe／IO問題，不能把所有503都當缺檔。五核心3271行具體批次授權仍待答、沒有改刪。禁止merge／release／tag／forcepush／新branch／Git身分config，繁中push更新同PR46後接續。

@@ -38,38 +38,55 @@ func (m *Metadata) ApplyNFO(ctx context.Context, actor domain.Actor, item string
 	if !ok {
 		return domain.MetadataApplyResult{}, domain.ErrMetadataUnavailable
 	}
-	scope, err := repository.ResolveItemNFO(ctx, actor, item, expected)
+	scope, first, err := m.readItemNFO(ctx, actor, item, expected)
 	if err != nil {
 		return domain.MetadataApplyResult{}, err
 	}
-	if !domain.ValidNFOItemScope(scope) || scope.ItemID != item || scope.Revision != expected {
-		return domain.MetadataApplyResult{}, domain.ErrMetadataUnavailable
-	}
-	first, err := m.nfoFields.ReadItemFields(ctx, scope.Source, scope.Kind)
+	last, err := m.rereadItemNFO(ctx, scope, first)
 	if err != nil {
-		return domain.MetadataApplyResult{}, nfoItemError(ctx, err)
+		return domain.MetadataApplyResult{}, err
 	}
-	if !validNFOForScope(scope, first) {
-		return domain.MetadataApplyResult{}, domain.ErrMetadataUnavailable
+	result, err := repository.ApplyItemNFO(ctx, actor, scope, last)
+	return domain.CloneMetadataApplyResult(result), err
+}
+
+func (m *Metadata) readItemNFO(ctx context.Context, actor domain.Actor, item string, expected int64) (domain.NFOItemScope, domain.NFOItemFields, error) {
+	repository, ok := m.items.(NFOItemScopeRepository)
+	if !ok || m.nfoFields == nil {
+		return domain.NFOItemScope{}, domain.NFOItemFields{}, domain.ErrMetadataUnavailable
 	}
+	scope, err := repository.ResolveItemNFO(ctx, actor, item, expected)
+	if err != nil {
+		return domain.NFOItemScope{}, domain.NFOItemFields{}, err
+	}
+	if !domain.ValidNFOItemScope(scope) || scope.ItemID != item || scope.Revision != expected {
+		return domain.NFOItemScope{}, domain.NFOItemFields{}, domain.ErrMetadataUnavailable
+	}
+	fields, err := m.nfoFields.ReadItemFields(ctx, scope.Source, scope.Kind)
+	if err != nil {
+		return domain.NFOItemScope{}, domain.NFOItemFields{}, nfoItemError(ctx, err)
+	}
+	if !validNFOForScope(scope, fields) {
+		return domain.NFOItemScope{}, domain.NFOItemFields{}, domain.ErrMetadataUnavailable
+	}
+	return scope, fields, nil
+}
+
+func (m *Metadata) rereadItemNFO(ctx context.Context, scope domain.NFOItemScope, first domain.NFOItemFields) (domain.NFOItemFields, error) {
 	// A full-byte reread catches content replacement since the first parse even
 	// when size and mtime are restored. These checkpoints are not a filesystem
 	// snapshot; changes after the final observation remain possible.
 	last, err := m.nfoFields.ReadItemFields(ctx, scope.Source, scope.Kind)
 	if err != nil {
-		return domain.MetadataApplyResult{}, nfoItemError(ctx, err)
+		return domain.NFOItemFields{}, nfoItemError(ctx, err)
 	}
 	if !validNFOForScope(scope, last) || first.Stamp != last.Stamp || first.Identity != last.Identity || first.LockData != last.LockData || !slices.Equal(first.Fields, last.Fields) || !slices.Equal(first.LockedFields, last.LockedFields) {
-		return domain.MetadataApplyResult{}, domain.ErrConflict
+		return domain.NFOItemFields{}, domain.ErrConflict
 	}
 	if err := ctx.Err(); err != nil {
-		return domain.MetadataApplyResult{}, err
+		return domain.NFOItemFields{}, err
 	}
-	result, err := repository.ApplyItemNFO(ctx, actor, scope, last)
-	result.Metadata = domain.CloneItemMetadata(result.Metadata)
-	result.Applied = slices.Clone(result.Applied)
-	result.Skipped = slices.Clone(result.Skipped)
-	return result, err
+	return last, nil
 }
 
 func validNFOForScope(scope domain.NFOItemScope, fields domain.NFOItemFields) bool {

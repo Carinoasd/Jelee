@@ -42,9 +42,31 @@ type MetadataFieldSkip struct {
 }
 
 type MetadataApplyResult struct {
-	Metadata ItemMetadata        `json:"metadata"`
-	Applied  []string            `json:"applied"`
-	Skipped  []MetadataFieldSkip `json:"skipped"`
+	Metadata ItemMetadata              `json:"metadata"`
+	Applied  []string                  `json:"applied"`
+	Skipped  []MetadataFieldSkip       `json:"skipped"`
+	NFO      *MetadataFieldApplyReport `json:"nfo,omitempty"`
+	TMDB     *MetadataFieldApplyReport `json:"tmdb,omitempty"`
+}
+
+type MetadataFieldApplyReport struct {
+	Applied []string            `json:"applied"`
+	Skipped []MetadataFieldSkip `json:"skipped"`
+}
+
+func CloneMetadataApplyResult(value MetadataApplyResult) MetadataApplyResult {
+	value.Metadata = CloneItemMetadata(value.Metadata)
+	value.Applied = append([]string{}, value.Applied...)
+	value.Skipped = append([]MetadataFieldSkip{}, value.Skipped...)
+	for _, report := range []**MetadataFieldApplyReport{&value.NFO, &value.TMDB} {
+		if *report != nil {
+			copy := **report
+			copy.Applied = append([]string{}, copy.Applied...)
+			copy.Skipped = append([]MetadataFieldSkip{}, copy.Skipped...)
+			*report = &copy
+		}
+	}
+	return value
 }
 
 func TMDBSourceURL(resource string, id int32) string {

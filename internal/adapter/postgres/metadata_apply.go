@@ -32,25 +32,9 @@ func (s *Store) ApplyTMDBMetadata(ctx context.Context, actor domain.Actor, item 
 	if _, err = tx.Exec(ctx, `INSERT INTO item_metadata_state(item_id,revision) VALUES($1::uuid,$2) ON CONFLICT(item_id) DO UPDATE SET revision=EXCLUDED.revision`, item, expected+1); err != nil {
 		return result, storageError(err)
 	}
-	now := time.Now().UTC()
-	for _, incoming := range update.Fields {
-		old := domain.ItemMetadataField{Field: incoming.Field}
-		for _, existing := range before.Fields {
-			if existing.Field == incoming.Field {
-				old = existing
-				break
-			}
-		}
-		if reason := domain.TMDBMetadataSkip(old, update.ReplaceExistingTitle); reason != "" {
-			result.Skipped = append(result.Skipped, domain.MetadataFieldSkip{Field: incoming.Field, Reason: reason})
-			continue
-		}
-		origin := incoming.Origin
-		field := domain.ItemMetadataField{Field: incoming.Field, Value: incoming.Value, Source: "tmdb", ProviderOrigin: &origin}
-		if err = writeItemMetadataField(ctx, tx, item, field, now); err != nil {
-			return domain.MetadataApplyResult{}, err
-		}
-		result.Applied = append(result.Applied, incoming.Field)
+	result, err = applyTMDBFields(ctx, tx, before, item, update, time.Now().UTC())
+	if err != nil {
+		return domain.MetadataApplyResult{}, err
 	}
 	if len(result.Applied) > 0 && before.Kind == "HomeVideo" && update.Resource == "movie" {
 		if _, err = tx.Exec(ctx, `UPDATE items SET kind='Movie' WHERE id=$1::uuid`, item); err != nil {

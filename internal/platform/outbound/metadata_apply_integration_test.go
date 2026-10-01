@@ -16,6 +16,7 @@ import (
 	"net/netip"
 	"net/url"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
@@ -25,6 +26,7 @@ import (
 
 	httpapi "github.com/MoYuanCN/Jelee/internal/adapter/http"
 	"github.com/MoYuanCN/Jelee/internal/adapter/metadata"
+	"github.com/MoYuanCN/Jelee/internal/adapter/nfo"
 	"github.com/MoYuanCN/Jelee/internal/adapter/postgres"
 	"github.com/MoYuanCN/Jelee/internal/app"
 	"github.com/MoYuanCN/Jelee/internal/domain"
@@ -112,7 +114,10 @@ func TestTMDBMetadataThroughTLSHTTPAndPostgres(t *testing.T) {
 	key := strings.Repeat("a", 32)
 	cert, roots := providerCertificate(t)
 	var movieSearch, seriesSearch, movieDetails, seriesDetails, allCalls, retries atomic.Int32
+	var fusionRetries atomic.Int32
+	var providerActions sync.Map
 	cancelStarted, cancelFinished := make(chan struct{}), make(chan struct{})
+	fusionCancelStarted, fusionCancelFinished := make(chan struct{}), make(chan struct{})
 	blocked, release := make(chan struct{}), make(chan struct{})
 	var releaseOnce sync.Once
 	defer releaseOnce.Do(func() { close(release) })
@@ -143,6 +148,9 @@ func TestTMDBMetadataThroughTLSHTTPAndPostgres(t *testing.T) {
 			w.WriteHeader(404)
 			return
 		}
+		if action, ok := providerActions.Load(id); ok {
+			action.(func())()
+		}
 		if id < 1000 {
 			if search {
 				if resource == "movie" {
@@ -158,10 +166,14 @@ func TestTMDBMetadataThroughTLSHTTPAndPostgres(t *testing.T) {
 				}
 			}
 		}
-		if id == 4006 {
-			close(cancelStarted)
+		if id == 4006 || id == 4751 {
+			started, finished := cancelStarted, cancelFinished
+			if id == 4751 {
+				started, finished = fusionCancelStarted, fusionCancelFinished
+			}
+			close(started)
 			<-r.Context().Done()
-			close(cancelFinished)
+			close(finished)
 			return
 		}
 		if id == 4007 {
@@ -173,6 +185,11 @@ func TestTMDBMetadataThroughTLSHTTPAndPostgres(t *testing.T) {
 			}
 		}
 		if id == 4005 && retries.Add(1) == 1 {
+			w.Header().Set("Retry-After", "0")
+			w.WriteHeader(429)
+			return
+		}
+		if id == 4750 && fusionRetries.Add(1) == 1 {
 			w.Header().Set("Retry-After", "0")
 			w.WriteHeader(429)
 			return
@@ -234,6 +251,14 @@ func TestTMDBMetadataThroughTLSHTTPAndPostgres(t *testing.T) {
 		t.Fatal(err)
 	}
 	service, err = service.WithItemMetadata(store)
+	if err != nil {
+		t.Fatal(err)
+	}
+	reader, err := nfo.NewSummaryReader(domain.NFODefaultSourceBytes)
+	if err != nil {
+		t.Fatal(err)
+	}
+	service, err = service.WithNFOItemFields(reader)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -337,6 +362,150 @@ func TestTMDBMetadataThroughTLSHTTPAndPostgres(t *testing.T) {
 	if allCalls.Load() != 0 {
 		t.Fatal("denied provider intent reached network")
 	}
+
+	// Exercise actual NFO fusion before the large matrix so source-priority
+	// mutations fail in this full HTTP/TLS/files/database path immediately.
+	var rootID, rootPath string
+	if err := store.Pool.QueryRow(ctx, `SELECT id::text,path FROM library_roots WHERE library_id=$1::uuid`, library.Library.ID).Scan(&rootID, &rootPath); err != nil {
+		t.Fatal(err)
+	}
+	newNFOItem := func(name, kind, document string) (string, string) {
+		t.Helper()
+		item := newItem(kind)
+		file := filepath.Join(rootPath, name+".nfo")
+		if err := os.WriteFile(file, []byte(document), 0600); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(rootPath, name+".mkv"), []byte("original media fixture"), 0600); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := store.Pool.Exec(ctx, `INSERT INTO media_sources(item_id,library_id,root_id,relative_path,content_type) VALUES($1::uuid,$2::uuid,$3::uuid,$4,'video/x-matroska')`, item, library.Library.ID, rootID, name+".mkv"); err != nil {
+			t.Fatal(err)
+		}
+		return item, file
+	}
+	if _, err := store.Pool.Exec(ctx, `UPDATE libraries SET nfo_mode='read-only',nfo_generation=nfo_generation+1 WHERE id=$1::uuid`, library.Library.ID); err != nil {
+		t.Fatal(err)
+	}
+	document := `<movie><title>Local NFO title</title><premiered>2024-01-01</premiered><lockedfields>Name</lockedfields></movie>`
+	fused, fusedFile := newNFOItem("fusion", "HomeVideo", document)
+	if response := request("PUT", "/api/v1/items/"+fused+"/metadata", `{"expectedRevision":1,"fields":[{"field":"overview","value":""}]}`); response.status != 200 {
+		t.Fatal("fusion manual clear", response.status)
+	}
+	fusion := decode(apply(fused, "movie", 4700, 2))
+	if fusion.Metadata.Revision != 3 || fusion.Metadata.Kind != "Movie" || fusion.NFO == nil || fusion.TMDB == nil || len(fusion.Applied) != 3 || len(fusion.Skipped) != 1 || len(fusion.NFO.Applied) != 2 || len(fusion.TMDB.Applied) != 1 || fusion.Metadata.Fields[0].Value != "Local NFO title" || fusion.Metadata.Fields[0].Source != "nfo" || !fusion.Metadata.Fields[0].NFOOrigin.Locked || fusion.Metadata.Fields[1].Source != "tmdb" || fusion.Metadata.Fields[2].Value != "" || fusion.Metadata.Fields[2].Source != "manual" || fusion.Metadata.Fields[3].Source != "nfo" {
+		t.Fatal("HTTP TMDB fusion overwrote NFO or manual fields")
+	}
+	if original, err := os.ReadFile(fusedFile); err != nil || string(original) != document {
+		t.Fatal("fusion modified original NFO")
+	}
+	if original, err := os.ReadFile(filepath.Join(rootPath, "fusion.mkv")); err != nil || string(original) != "original media fixture" {
+		t.Fatal("fusion modified original media")
+	}
+	var totalAudits, localAudits int
+	if err := store.Pool.QueryRow(ctx, `SELECT count(*),count(*) FILTER(WHERE event='item.nfo_metadata_applied') FROM audit_logs WHERE target_id=$1::uuid AND event IN ('item.nfo_metadata_applied','item.tmdb_metadata_applied')`, fused).Scan(&totalAudits, &localAudits); err != nil || totalAudits != 1 || localAudits != 0 {
+		t.Fatal("HTTP fusion committed separately", err, totalAudits, localAudits)
+	}
+	if response := apply(fused, "movie", 4700, 2); response.status != 409 {
+		t.Fatal("stale fusion accepted", response.status)
+	}
+
+	changed, changedFile := newNFOItem("fusion-changed", "Movie", document)
+	providerActions.Store(4701, func() {
+		if err := os.WriteFile(changedFile, []byte(strings.Replace(document, "Local NFO title", "Changed NFO title", 1)), 0600); err != nil {
+			t.Error(err)
+		}
+	})
+	if response := apply(changed, "movie", 4701, 1); response.status != 409 {
+		t.Fatal("NFO changed during provider lookup committed", response.status)
+	}
+	if value, err := store.ItemMetadata(ctx, actor, changed); err != nil || value.Revision != 1 || value.Fields[0].Value != "Initial fixture" {
+		t.Fatal("changed fusion left NFO writes", err)
+	}
+
+	concurrentFusion, _ := newNFOItem("fusion-manual", "Movie", document)
+	providerActions.Store(4702, func() {
+		manualCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
+		defer cancel()
+		response := do(manualCtx, "PUT", "/api/v1/items/"+concurrentFusion+"/metadata", `{"expectedRevision":1,"fields":[{"field":"title","value":"Manual during fusion"}]}`, grant.Token)
+		if response.err != nil || response.status != 200 {
+			t.Errorf("fusion held DB locks during network: status=%d error=%v", response.status, response.err)
+		}
+	})
+	if response := apply(concurrentFusion, "movie", 4702, 1); response.status != 409 {
+		t.Fatal("fusion overwrote concurrent manual edit", response.status)
+	}
+	if value, err := store.ItemMetadata(ctx, actor, concurrentFusion); err != nil || value.Revision != 2 || value.Fields[0].Value != "Manual during fusion" || value.Fields[0].NFOOrigin != nil {
+		t.Fatal("concurrent fusion manual value lost", err)
+	}
+
+	generationFusion, _ := newNFOItem("fusion-generation", "Movie", document)
+	providerActions.Store(4703, func() {
+		if _, err := store.Pool.Exec(ctx, `UPDATE libraries SET nfo_generation=nfo_generation+1 WHERE id=$1::uuid`, library.Library.ID); err != nil {
+			t.Error(err)
+		}
+	})
+	if response := apply(generationFusion, "movie", 4703, 1); response.status != 409 {
+		t.Fatal("fusion ignored NFO generation change", response.status)
+	}
+	if value, err := store.ItemMetadata(ctx, actor, generationFusion); err != nil || value.Revision != 1 {
+		t.Fatal("generation conflict left fused write", err)
+	}
+	invalidFusion, _ := newNFOItem("fusion-invalid", "Movie", document)
+	if response := apply(invalidFusion, "movie", 4004, 1); response.status != 503 {
+		t.Fatal("invalid upstream committed local NFO", response.status)
+	}
+	if value, err := store.ItemMetadata(ctx, actor, invalidFusion); err != nil || value.Revision != 1 || value.Fields[0].Source != "existing" {
+		t.Fatal("upstream failure left NFO half-write", err)
+	}
+	rootFusion, _ := newNFOItem("fusion-root", "Movie", document)
+	replacedRoot := t.TempDir()
+	providerActions.Store(4704, func() {
+		if _, err := store.Pool.Exec(ctx, `UPDATE library_roots SET path=$2 WHERE id=$1::uuid`, rootID, replacedRoot); err != nil {
+			t.Error(err)
+		}
+	})
+	if response := apply(rootFusion, "movie", 4704, 1); response.status != 409 {
+		t.Fatal("fusion ignored trusted root change", response.status)
+	}
+	if _, err := store.Pool.Exec(ctx, `UPDATE library_roots SET path=$2 WHERE id=$1::uuid`, rootID, rootPath); err != nil {
+		t.Fatal(err)
+	}
+	if value, err := store.ItemMetadata(ctx, actor, rootFusion); err != nil || value.Revision != 1 {
+		t.Fatal("root conflict left fused write", err)
+	}
+	retryFusion, _ := newNFOItem("fusion-retry", "Movie", document)
+	if result := decode(apply(retryFusion, "movie", 4750, 1)); result.Metadata.Revision != 2 || result.NFO == nil || fusionRetries.Load() != 2 {
+		t.Fatal("429 fusion did not commit once")
+	}
+	cancelFusion, _ := newNFOItem("fusion-cancel", "Movie", document)
+	fusionCtx, cancelFusionRequest := context.WithCancel(ctx)
+	fusionDone := make(chan metadataHTTPResult, 1)
+	go func() {
+		fusionDone <- do(fusionCtx, "POST", "/api/v1/items/"+cancelFusion+"/metadata/tmdb", `{"resource":"movie","providerId":4751,"expectedRevision":1,"confirmed":true}`, grant.Token)
+	}()
+	select {
+	case <-fusionCancelStarted:
+	case <-time.After(3 * time.Second):
+		cancelFusionRequest()
+		t.Fatal("fusion cancellation fixture not reached")
+	}
+	cancelFusionRequest()
+	if result := <-fusionDone; !errors.Is(result.err, context.Canceled) {
+		t.Fatal("fusion incoming cancellation lost", result.err)
+	}
+	select {
+	case <-fusionCancelFinished:
+	case <-time.After(3 * time.Second):
+		t.Fatal("fusion cancellation did not reach provider")
+	}
+	if value, err := store.ItemMetadata(ctx, actor, cancelFusion); err != nil || value.Revision != 1 || value.Fields[0].Source != "existing" {
+		t.Fatal("cancelled provider left NFO half-write", err)
+	}
+	if _, err := store.Pool.Exec(ctx, `UPDATE libraries SET nfo_mode='off',nfo_generation=nfo_generation+1 WHERE id=$1::uuid`, library.Library.ID); err != nil {
+		t.Fatal(err)
+	}
+	t.Log("actual HTTP/TLS/NFO/PostgreSQL fusion: mixed sources, manual clear, NFO lock, one revision/audit, changed file, concurrent manual, generation/root conflict, 429, cancellation and provider failure PASS")
 	// Run the lock case first so the production-guard negative test fails before
 	// spending a minute on the full governed fixture matrix.
 	protected := newItem("Movie")
@@ -479,8 +648,8 @@ func TestTMDBMetadataThroughTLSHTTPAndPostgres(t *testing.T) {
 		t.Fatal("concurrent manual value lost", err)
 	}
 
-	// NFO extraction is the next integration step. Until it is available, this
-	// route must not treat a configured read-only library as having no local data.
+	// A read-only library without a unique trusted item NFO source must still
+	// reject the write before fetching a provider candidate.
 	if _, err = store.Pool.Exec(ctx, `UPDATE libraries SET nfo_mode='read-only' WHERE id=$1::uuid`, library.Library.ID); err != nil {
 		t.Fatal(err)
 	}
