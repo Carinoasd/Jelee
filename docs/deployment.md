@@ -2,7 +2,7 @@
 
 `Dockerfile` 构建三个静态 Go 可执行文件，运行镜像使用 scratch 和 UID/GID 65532，不包含 shell、转码工具或旧服务。构建阶段使用 Go 1.27.1-alpine3.24，固定镜像索引摘要 `sha256:8a5910f31396cd4d89662f56c68b3ae31d374308270a1c3bd96672ee5ed43414`，已记录于 `tools/manifest.json`。最终镜像包含项目 LICENSE、Go LICENSE/PATENTS 与 CA 证书。
 
-当前支持登记后读取原媒体，以及离线 NFO 只读校验。ffprobe、mkvtoolnix、mediainfo、字幕/图片处理、NFO 编辑写回与批量任务尚未接入，因此 G37 的完整镜像要求仍未完成。
+当前支持登记后读取原媒体、离线 NFO 只读校验，以及可配置的持久只读盘点任务。ffprobe、mkvtoolnix、mediainfo、字幕/图片处理、NFO 编辑写回与其批量任务尚未接入，因此 G37 的完整镜像要求仍未完成。第3A镜像与只读扫描实测见[任务验证](jobs-verification.md)，以下保留首阶段镜像历史。
 
 Compose 使用 PostgreSQL 16.15 精确镜像摘要、健康检查及先迁移再启服务。数据库卷在项目 `data/postgres`；媒体以只读卷挂载到 `/media`，宿主机必须给予 UID 65532 读取与父目录遍历权限。
 

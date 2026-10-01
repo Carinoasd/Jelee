@@ -1,0 +1,90 @@
+Actual proberuntime image coverage — Linux amd64
+
+RESULT
+  Linux race unit coverage: 71.8%
+  Real image coverage:      71.8%
+  Merged package coverage:  87.1% (74 of 85 statements)
+  Nine actual container cases passed and each emitted a counter file.
+  Image/unit/merged profiles contain identical statement blocks, without
+  duplicates. Every merged count equals the actual image plus unit count.
+  No counters or coverage-profile lines were manually added or removed.
+
+SOURCE IDENTITY
+  Parent HEAD at measurement: ba2fe7f8933050a5eada4ea43b6b59d21d1da227
+  The 3C1 implementation was still uncommitted in the frozen working tree.
+  That parent commit does NOT contain the measured implementation.
+  proberuntime-image-coverage.json records productionSourceHashes and the
+  test-source hash that identify the actual measured files. Those recorded
+  hashes were unchanged during this run. The implementation's later commit
+  must be identified separately by the source/PR history.
+
+IMAGE AND ISOLATION
+  Base: sha256:62f4b6608b5c6cf8d1bdbcce3a21ab7165e596aace370923e925d591eeffb129
+  Temporary instrumented image:
+    sha256:299bc24dddcf4c6b6de8112aefbb2222b93027159cc028bb2a059e355ccc7659
+  The test image replaced only /jelee-cli. Fixed protected runtime libraries
+  and ffprobe remained unchanged. USER remained 65532:65532.
+  Containers retained read-only root, network none, cap-drop ALL,
+  no-new-privileges, bounded memory/PIDs and disposable private tmpfs.
+  GOCOVERDIR=/coverage mapped only a project-owned writable counter directory.
+  No production source, Dockerfile, manifest, database or global tool changed.
+
+CASES
+  healthy          exit 0   available / isolated_helper_verified
+  missing-tool     exit 1   disabled / runtime_unavailable
+  bad-library      exit 1   disabled / runtime_unavailable
+  landlock-denied  exit 1   disabled / runtime_unavailable
+  temp-unavailable exit 1   disabled / temporary_unavailable
+  temp-inodes      exit 1   disabled / temporary_unavailable
+  cleanup-denied   exit 1   disabled / cleanup_failed
+  helper-invalid   exit 64  malformed descriptor rejected
+  helper-no-input  exit 78  canonical descriptor, nonregular stdin rejected
+  The inode case used actual tmpfs nr_inodes=2. The cleanup case only added
+  outer unlink/unlinkat/rmdir denials; it did not relax the helper policy.
+  Its remaining temporary files disappeared with the disposable container.
+  The no-input case does not claim to reach runtime-library validation.
+
+COMMANDS AND COUNTER MERGE
+  Exact command arguments, with host workspace replaced by ${PROJECT}, are
+  in proberuntime-image-coverage.json. Environment overrides are recorded
+  separately. Go was the project-local pinned go1.27.1 distribution.
+
+  Instrumented CLI:
+    CGO_ENABLED=0 .bin/go build -trimpath -cover -covermode=atomic \
+      -coverpkg=github.com/MoYuanCN/Jelee/internal/platform/proberuntime,github.com/MoYuanCN/Jelee/cmd/jelee-cli \
+      -o ${SNAPSHOT}/context/jelee-cli ./cmd/jelee-cli
+
+  Unit binary:
+    CGO_ENABLED=1 .bin/go test -c -race -trimpath -cover -covermode=atomic \
+      -coverpkg=github.com/MoYuanCN/Jelee/internal/platform/proberuntime \
+      -o ${SNAPSHOT}/proberuntime-unit.test ./internal/platform/proberuntime
+    ${SNAPSHOT}/proberuntime-unit.test -test.v \
+      -test.gocoverdir=${SNAPSHOT}/unit-counters
+
+  Merge and report:
+    .bin/go tool covdata merge \
+      -pkg=github.com/MoYuanCN/Jelee/internal/platform/proberuntime \
+      -i=${SNAPSHOT}/image-counters,${SNAPSHOT}/unit-counters \
+      -o=${SNAPSHOT}/merged-counters
+    .bin/go tool covdata percent \
+      -pkg=github.com/MoYuanCN/Jelee/internal/platform/proberuntime \
+      -i=${SNAPSHOT}/merged-counters
+
+  The initial dependency-only coverpkg attempt emitted zero counters and
+  failed validation. In this installed SDK, main must also be selected to
+  register its coverage exit hook. Adding cmd/jelee-cli enables that hook;
+  every merge/report uses exact -pkg filtering, so CLI statements are not
+  part of this denominator. The failed attempt was not counted as a pass.
+
+LIMITS AND RETENTION
+  Successful helper exec counters are not claimed. Its child environment
+  omits GOCOVERDIR, and successful exec replaces Go before an exit flush.
+  Separate real-image acceptance verifies that execution path's behavior.
+  This evidence does not claim complete branch coverage or Windows race.
+  Local original counter/profile files and their hashes are retained under
+  .testdata/proberuntime-coverage-725741975953/ and listed in the JSON record.
+  The local repeat script is .testdata/proberuntime-coverage.py; it requires
+  the already validated local jelee/jelee:probe-runtime-test image and never
+  pulls or publishes an image. Original runtime-image acceptance is separate.
+  Temporary image tags were removed. A separate docker ps check found no
+  remaining container with this run's UUID prefix. The original base remains.

@@ -18,6 +18,10 @@ import (
 
 type Store struct{ Pool *pgxpool.Pool }
 
+// SchemaVersion is the only clean schema accepted by this binary. Adjacent
+// releases cannot serve against different cache and job lifecycle contracts.
+const SchemaVersion = 18
+
 func Open(ctx context.Context, dsn string, maxConnections int32) (*Store, error) {
 	cfg, err := pgxpool.ParseConfig(dsn)
 	if err != nil {
@@ -43,7 +47,7 @@ func (s *Store) Ready(ctx context.Context) error {
 	}
 	var version int
 	var dirty bool
-	if err := s.Pool.QueryRow(ctx, "SELECT version,dirty FROM schema_migrations").Scan(&version, &dirty); err != nil || version != 2 || dirty {
+	if err := s.Pool.QueryRow(ctx, "SELECT version,dirty FROM schema_migrations").Scan(&version, &dirty); err != nil || version != SchemaVersion || dirty {
 		return errors.New("database migration required or dirty")
 	}
 	return nil

@@ -1,0 +1,406 @@
+{
+  "conclusion": "failure",
+  "createdAt": "2026-10-01T02:05:28Z",
+  "headSha": "e9aea71540ea4add86b2ebeabfb81f7e764ba1b1",
+  "jobs": [
+    {
+      "completedAt": "2026-10-01T02:12:40Z",
+      "conclusion": "success",
+      "databaseId": 110184773931,
+      "name": "PostgreSQL migration and repository integration",
+      "startedAt": "2026-10-01T02:05:31Z",
+      "status": "completed",
+      "steps": [
+        {
+          "completedAt": "2026-10-01T02:05:33Z",
+          "conclusion": "success",
+          "name": "Set up job",
+          "number": 1,
+          "startedAt": "2026-10-01T02:05:32Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-01T02:05:47Z",
+          "conclusion": "success",
+          "name": "Initialize containers",
+          "number": 2,
+          "startedAt": "2026-10-01T02:05:33Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-01T02:05:48Z",
+          "conclusion": "success",
+          "name": "Run actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683",
+          "number": 3,
+          "startedAt": "2026-10-01T02:05:47Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-01T02:05:54Z",
+          "conclusion": "success",
+          "name": "Run actions/cache@5a3ec84eff668545956fd18022155c47e93e2684",
+          "number": 4,
+          "startedAt": "2026-10-01T02:05:48Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-01T02:08:14Z",
+          "conclusion": "success",
+          "name": "Run make bootstrap tools-verify test-integration test-race",
+          "number": 5,
+          "startedAt": "2026-10-01T02:05:54Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-01T02:11:33Z",
+          "conclusion": "success",
+          "name": "Real media scan and probe cache acceptance",
+          "number": 6,
+          "startedAt": "2026-10-01T02:08:14Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-01T02:12:36Z",
+          "conclusion": "success",
+          "name": "Real mixed NFO, video and image incremental acceptance",
+          "number": 7,
+          "startedAt": "2026-10-01T02:11:33Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-01T02:12:37Z",
+          "conclusion": "success",
+          "name": "Retain probe worker acceptance evidence",
+          "number": 8,
+          "startedAt": "2026-10-01T02:12:36Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-01T02:12:38Z",
+          "conclusion": "success",
+          "name": "Retain NFO worker acceptance evidence",
+          "number": 9,
+          "startedAt": "2026-10-01T02:12:37Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-01T02:12:38Z",
+          "conclusion": "success",
+          "name": "Post Run actions/cache@5a3ec84eff668545956fd18022155c47e93e2684",
+          "number": 16,
+          "startedAt": "2026-10-01T02:12:38Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-01T02:12:38Z",
+          "conclusion": "success",
+          "name": "Post Run actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683",
+          "number": 17,
+          "startedAt": "2026-10-01T02:12:38Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-01T02:12:38Z",
+          "conclusion": "success",
+          "name": "Stop containers",
+          "number": 18,
+          "startedAt": "2026-10-01T02:12:38Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-01T02:12:38Z",
+          "conclusion": "success",
+          "name": "Complete job",
+          "number": 19,
+          "startedAt": "2026-10-01T02:12:38Z",
+          "status": "completed"
+        }
+      ],
+      "url": "https://github.com/MoYuanCN/Jelee/actions/runs/36804175667/job/110184773931"
+    },
+    {
+      "completedAt": "2026-10-01T02:08:09Z",
+      "conclusion": "success",
+      "databaseId": 110184774027,
+      "name": "foundation (ubuntu-latest)",
+      "startedAt": "2026-10-01T02:05:32Z",
+      "status": "completed",
+      "steps": [
+        {
+          "completedAt": "2026-10-01T02:05:34Z",
+          "conclusion": "success",
+          "name": "Set up job",
+          "number": 1,
+          "startedAt": "2026-10-01T02:05:33Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-01T02:05:36Z",
+          "conclusion": "success",
+          "name": "Run actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683",
+          "number": 2,
+          "startedAt": "2026-10-01T02:05:34Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-01T02:05:44Z",
+          "conclusion": "success",
+          "name": "Run actions/cache@5a3ec84eff668545956fd18022155c47e93e2684",
+          "number": 3,
+          "startedAt": "2026-10-01T02:05:36Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-01T02:08:02Z",
+          "conclusion": "success",
+          "name": "Linux bootstrap and verification",
+          "number": 4,
+          "startedAt": "2026-10-01T02:05:44Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-01T02:08:02Z",
+          "conclusion": "skipped",
+          "name": "Windows bootstrap and verification",
+          "number": 5,
+          "startedAt": "2026-10-01T02:08:02Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-01T02:08:03Z",
+          "conclusion": "success",
+          "name": "Required Git ignore semantics on Linux",
+          "number": 6,
+          "startedAt": "2026-10-01T02:08:02Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-01T02:08:03Z",
+          "conclusion": "skipped",
+          "name": "Required Git ignore semantics on Windows",
+          "number": 7,
+          "startedAt": "2026-10-01T02:08:03Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-01T02:08:04Z",
+          "conclusion": "success",
+          "name": "Retain Git ignore oracle evidence",
+          "number": 8,
+          "startedAt": "2026-10-01T02:08:03Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-01T02:08:05Z",
+          "conclusion": "success",
+          "name": "Retain native sandbox diagnostics",
+          "number": 9,
+          "startedAt": "2026-10-01T02:08:04Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-01T02:08:06Z",
+          "conclusion": "success",
+          "name": "Post Run actions/cache@5a3ec84eff668545956fd18022155c47e93e2684",
+          "number": 17,
+          "startedAt": "2026-10-01T02:08:05Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-01T02:08:06Z",
+          "conclusion": "success",
+          "name": "Post Run actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683",
+          "number": 18,
+          "startedAt": "2026-10-01T02:08:06Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-01T02:08:06Z",
+          "conclusion": "success",
+          "name": "Complete job",
+          "number": 19,
+          "startedAt": "2026-10-01T02:08:06Z",
+          "status": "completed"
+        }
+      ],
+      "url": "https://github.com/MoYuanCN/Jelee/actions/runs/36804175667/job/110184774027"
+    },
+    {
+      "completedAt": "2026-10-01T02:06:49Z",
+      "conclusion": "success",
+      "databaseId": 110184774063,
+      "name": "foundation (windows-latest)",
+      "startedAt": "2026-10-01T02:05:31Z",
+      "status": "completed",
+      "steps": [
+        {
+          "completedAt": "2026-10-01T02:05:32Z",
+          "conclusion": "success",
+          "name": "Set up job",
+          "number": 1,
+          "startedAt": "2026-10-01T02:05:32Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-01T02:05:44Z",
+          "conclusion": "success",
+          "name": "Run actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683",
+          "number": 2,
+          "startedAt": "2026-10-01T02:05:32Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-01T02:05:56Z",
+          "conclusion": "success",
+          "name": "Run actions/cache@5a3ec84eff668545956fd18022155c47e93e2684",
+          "number": 3,
+          "startedAt": "2026-10-01T02:05:44Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-01T02:05:56Z",
+          "conclusion": "skipped",
+          "name": "Linux bootstrap and verification",
+          "number": 4,
+          "startedAt": "2026-10-01T02:05:56Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-01T02:06:38Z",
+          "conclusion": "success",
+          "name": "Windows bootstrap and verification",
+          "number": 5,
+          "startedAt": "2026-10-01T02:05:56Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-01T02:06:38Z",
+          "conclusion": "skipped",
+          "name": "Required Git ignore semantics on Linux",
+          "number": 6,
+          "startedAt": "2026-10-01T02:06:38Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-01T02:06:45Z",
+          "conclusion": "success",
+          "name": "Required Git ignore semantics on Windows",
+          "number": 7,
+          "startedAt": "2026-10-01T02:06:38Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-01T02:06:46Z",
+          "conclusion": "success",
+          "name": "Retain Git ignore oracle evidence",
+          "number": 8,
+          "startedAt": "2026-10-01T02:06:45Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-01T02:06:46Z",
+          "conclusion": "skipped",
+          "name": "Retain native sandbox diagnostics",
+          "number": 9,
+          "startedAt": "2026-10-01T02:06:46Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-01T02:06:46Z",
+          "conclusion": "success",
+          "name": "Post Run actions/cache@5a3ec84eff668545956fd18022155c47e93e2684",
+          "number": 17,
+          "startedAt": "2026-10-01T02:06:46Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-01T02:06:48Z",
+          "conclusion": "success",
+          "name": "Post Run actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683",
+          "number": 18,
+          "startedAt": "2026-10-01T02:06:46Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-01T02:06:48Z",
+          "conclusion": "success",
+          "name": "Complete job",
+          "number": 19,
+          "startedAt": "2026-10-01T02:06:48Z",
+          "status": "completed"
+        }
+      ],
+      "url": "https://github.com/MoYuanCN/Jelee/actions/runs/36804175667/job/110184774063"
+    },
+    {
+      "completedAt": "2026-10-01T02:05:51Z",
+      "conclusion": "failure",
+      "databaseId": 110184774118,
+      "name": "Full branding gate",
+      "startedAt": "2026-10-01T02:05:31Z",
+      "status": "completed",
+      "steps": [
+        {
+          "completedAt": "2026-10-01T02:05:33Z",
+          "conclusion": "success",
+          "name": "Set up job",
+          "number": 1,
+          "startedAt": "2026-10-01T02:05:32Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-01T02:05:35Z",
+          "conclusion": "success",
+          "name": "Run actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683",
+          "number": 2,
+          "startedAt": "2026-10-01T02:05:33Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-01T02:05:42Z",
+          "conclusion": "success",
+          "name": "Run actions/cache@5a3ec84eff668545956fd18022155c47e93e2684",
+          "number": 3,
+          "startedAt": "2026-10-01T02:05:35Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-01T02:05:49Z",
+          "conclusion": "failure",
+          "name": "Run make bootstrap tools-verify brand-scan",
+          "number": 4,
+          "startedAt": "2026-10-01T02:05:42Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-01T02:05:49Z",
+          "conclusion": "skipped",
+          "name": "Post Run actions/cache@5a3ec84eff668545956fd18022155c47e93e2684",
+          "number": 7,
+          "startedAt": "2026-10-01T02:05:49Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-01T02:05:49Z",
+          "conclusion": "success",
+          "name": "Post Run actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683",
+          "number": 8,
+          "startedAt": "2026-10-01T02:05:49Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-01T02:05:49Z",
+          "conclusion": "success",
+          "name": "Complete job",
+          "number": 9,
+          "startedAt": "2026-10-01T02:05:49Z",
+          "status": "completed"
+        }
+      ],
+      "url": "https://github.com/MoYuanCN/Jelee/actions/runs/36804175667/job/110184774118"
+    }
+  ],
+  "status": "completed",
+  "updatedAt": "2026-10-01T02:12:41Z",
+  "url": "https://github.com/MoYuanCN/Jelee/actions/runs/36804175667"
+}

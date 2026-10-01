@@ -23,14 +23,52 @@ jobs:
           key: jelee-${{ runner.os }}-${{ runner.arch }}-go1.27.1-${{ hashFiles('tools/manifest.json', 'go.sum') }}
       - name: Linux bootstrap and verification
         if: runner.os == 'Linux'
-        run: make bootstrap tools-verify toolchain-test lint build test-race gitignore-check brand-scan-incremental
+        run: make bootstrap tools-verify bootstrap-media media-tools-verify bootstrap-runtime runtime-tools-verify runtime-toolchain-test fixtures fixtures-test toolchain-test media-toolchain-test lint build test-race sandbox-test probe-runtime-test gitignore-check brand-scan-incremental
       - name: Windows bootstrap and verification
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          foreach ($target in @('bootstrap','tools-verify','toolchain-test','lint','build','test','gitignore-check','brand-scan-incremental')) {
+          foreach ($target in @('bootstrap','tools-verify','bootstrap-media','media-tools-verify','fixtures','fixtures-test','toolchain-test','media-toolchain-test','lint','build','test','gitignore-check','brand-scan-incremental')) {
             & ./scripts/make.ps1 $target
           }
+      - name: Required native legacy helper lifecycle on Linux
+        if: runner.os == 'Linux'
+        run: |
+          set -o pipefail
+          .bin/go test -count=1 -timeout=60s -run '^Test(IgnoreRunnerLifecycle|HelperProcess|LegacyMatchNativeHelper|FamilyIgnoreNativeHelper|LegacyBaselineNativeHelper|FamilyBaselineNativeHelper)$' ./internal/platform/process ./internal/platform/legacyignorehelper ./internal/adapter/scan 2>&1 | tee .testdata/ignore-helper.txt
+      - name: Retain legacy helper evidence
+        if: always() && runner.os == 'Linux'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ignore-helper-${{ runner.os }}
+          path: .testdata/ignore-helper.txt
+          if-no-files-found: error
+          retention-days: 7
+      - name: Required Git ignore semantics on Linux
+        if: runner.os == 'Linux'
+        run: |
+          set -o pipefail
+          make ignore-oracle-test 2>&1 | tee .testdata/ignore-oracle.txt
+      - name: Required Git ignore semantics on Windows
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: ./scripts/make.ps1 ignore-oracle-test 2>&1 | Tee-Object -FilePath .testdata/ignore-oracle.txt
+      - name: Retain Git ignore oracle evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ignore-oracle-${{ runner.os }}
+          path: .testdata/ignore-oracle.txt
+          if-no-files-found: ignore
+          retention-days: 7
+      - name: Retain native sandbox diagnostics
+        if: always() && runner.os == 'Linux'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: native-sandbox-${{ runner.os }}
+          path: .testdata/sandbox-native.txt
+          if-no-files-found: ignore
+          retention-days: 7
 
   full-branding:
     name: Full branding gate
@@ -72,3 +110,29 @@ jobs:
           path: .tools
           key: jelee-${{ runner.os }}-${{ runner.arch }}-go1.27.1-${{ hashFiles('tools/manifest.json', 'go.sum') }}
       - run: make bootstrap tools-verify test-integration test-race
+      - name: Native family ignore storage acceptance
+        run: .bin/go test -count=1 -timeout=90s -run '^TestFamilyIgnoreNativeStorage$' ./internal/adapter/postgres
+      - name: Real media scan and probe cache acceptance
+        run: make bootstrap-media media-tools-verify bootstrap-runtime runtime-tools-verify fixtures probe-worker-test
+      - name: Real mixed NFO, video and image incremental acceptance
+        run: make nfo-worker-test
+      - name: Retain probe worker acceptance evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: probe-worker-acceptance
+          path: |
+            .testdata/probe-worker-acceptance.txt
+            .testdata/probe-worker-summary.json
+          if-no-files-found: ignore
+          retention-days: 7
+      - name: Retain NFO worker acceptance evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: nfo-worker-acceptance
+          path: |
+            .testdata/nfo-worker-acceptance.txt
+            .testdata/nfo-worker-summary.json
+          if-no-files-found: ignore
+          retention-days: 7

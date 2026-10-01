@@ -1,0 +1,69 @@
+{
+  "headSha": "37eab90bdd442b37cbb2aa534ed927933aae7cc5",
+  "jobs": [
+    {
+      "conclusion": "success",
+      "name": "foundation (ubuntu-latest)",
+      "steps": [
+        {
+          "conclusion": "success",
+          "name": "Linux bootstrap and verification"
+        },
+        {
+          "conclusion": "skipped",
+          "name": "Windows bootstrap and verification"
+        }
+      ]
+    },
+    {
+      "conclusion": "success",
+      "name": "PostgreSQL migration and repository integration",
+      "steps": [
+        {
+          "conclusion": "success",
+          "name": "Run make bootstrap tools-verify test-integration test-race"
+        },
+        {
+          "conclusion": "success",
+          "name": "Real media scan and probe cache acceptance"
+        },
+        {
+          "conclusion": "success",
+          "name": "Real mixed NFO, video and image incremental acceptance"
+        },
+        {
+          "conclusion": "success",
+          "name": "Retain probe worker acceptance evidence"
+        },
+        {
+          "conclusion": "success",
+          "name": "Retain NFO worker acceptance evidence"
+        }
+      ]
+    },
+    {
+      "conclusion": "success",
+      "name": "foundation (windows-latest)",
+      "steps": [
+        {
+          "conclusion": "skipped",
+          "name": "Linux bootstrap and verification"
+        },
+        {
+          "conclusion": "success",
+          "name": "Windows bootstrap and verification"
+        }
+      ]
+    },
+    {
+      "conclusion": "failure",
+      "name": "Full branding gate",
+      "steps": []
+    }
+  ],
+  "url": "https://github.com/MoYuanCN/Jelee/actions/runs/36810183721",
+  "branding": {
+    "violations": 15278,
+    "allowed": 96
+  }
+}

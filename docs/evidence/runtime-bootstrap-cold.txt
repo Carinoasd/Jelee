@@ -1,0 +1,81 @@
+Runtime bootstrap cold-download investigation, 2026-10-01
+
+Baseline: PR #5 head 874d6abf47579fdb1f2a6ec482ca7ea8c9af0732.
+GitHub run 36777560060 / job 110099199532 failed at bootstrap-runtime,
+after Go and media bootstrap/verify passed. The runtime command lasted
+approximately 31 seconds and emitted a fixed unavailable-dependency error.
+It did not reach the later Go/race/native/image tests. This was a functional
+CI failure, separate from the full branding gate. The original generic log
+does not identify the exact failed asset; the endpoint diagnosis below is
+an independent reproduction, not an invented detail from the CI log.
+
+Method:
+- Used a separate checkout of that exact baseline, with no existing runtime
+  install or download cache. No primary checkout source or global tools changed.
+- Downloaded only previously manifest-pinned packages and license texts into
+  exclusive temporary projects under the isolated checkout's .tools directory.
+- Used the existing runtime downloader, unchanged 30-second socket timeout,
+  300-second HTTP-read deadline, exact size and SHA256 validation.
+- Registered official ftp.gnu.org HTTPS URLs in the checkout manifest before
+  testing them. No checksum, byte count, version, ELF pin or license changed.
+- No proxy/mirror override, cache prefill, package script or executable ran.
+- Removed each diagnostic invocation's temporary caches when it finished.
+
+Side-by-side cold results (Linux amd64 in existing WSL):
+libc6 Debian package:       0.904s, 2,846,580 bytes, exact pinned SHA256.
+libgcc-s1 Debian package:   0.540s,    72,772 bytes, exact pinned SHA256.
+gcc-14-base Debian package: 0.529s,    49,432 bytes, exact pinned SHA256.
+GCC COPYING.RUNTIME:       0.351s,     3,324 bytes, exact pinned SHA256.
+
+Old GNU web URLs:
+https://www.gnu.org/licenses/old-licenses/lgpl-2.1.txt
+  failed after 30.132s: URLError / OSError errno 101 (network unreachable).
+https://www.gnu.org/licenses/old-licenses/gpl-2.0.txt
+  failed after 30.111s: URLError / OSError errno 101.
+https://www.gnu.org/licenses/gpl-3.0.txt
+  failed after 30.111s: URLError / OSError errno 101.
+
+Official replacement URLs, accepted against unchanged identities:
+https://ftp.gnu.org/gnu/Licenses/lgpl-2.1.txt
+  1.286s; 26,419 bytes
+  20e50fe7aae3e56378ebf0417d9de904f55a0e61e4df315333e632a4d3555d95
+https://ftp.gnu.org/gnu/Licenses/gpl-2.0.txt
+  1.283s; 17,984 bytes
+  edaef632cbb643e4e7a221717a6c441a4c1a7c918e6e4d56debc3d8739b233f6
+https://ftp.gnu.org/gnu/Licenses/gpl-3.0.txt
+  1.341s; 35,149 bytes
+  3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986
+
+Actual commands from the isolated checkout:
+python3 -B scripts/runtime-tools.py bootstrap
+  Started without .tools/downloads or an installed runtime.
+  PASS, 6.8s observed command wall time.
+  Verified Linux amd64 runtime: 8 ELF files, package notices and licenses;
+  no executable run.
+python3 -B scripts/runtime-tools.py verify --offline
+  PASS; identical fixed archives, files, notices and installation inventory.
+python3 -B scripts/test_runtime_tools.py
+  Ran 36 tests in 4.657s; OK, zero skips.
+  Includes the original 34 safety tests and two new regressions:
+  - A source-origin change reuses only a cache entry with the same size/hash;
+    a wrong hash still rejects and removes only the known bad cache entry.
+  - A URL-only manifest change rejects the prior installed.json record,
+    preserves it and the ELF bytes, and does not silently repair/retrust it.
+Project-pinned Go 1.27.1 linux/amd64: go test -count=1 ./tools
+  PASS, 0.045s. Used the existing project-local SDK/cache; no SDK was installed.
+Read-only comparison with baseline manifest:
+  PASS: executable, package, runtime file, license and source archive identity
+  pins are unchanged. Only three download URLs and their originalURL provenance
+  fields changed in the manifest. git diff --check passed.
+
+Upgrade boundary:
+The complete runtime manifest is part of installed.json identity. An earlier
+installation fails verification after this source URL change. Rebuild only
+the explicitly checked project-local runtime installation directory; retain
+the project SDK, media tools and verified download cache. There is no automatic
+record rewrite or relaxed old-record acceptance.
+
+This evidence establishes the local cold bootstrap and unchanged byte identity.
+It does not claim that a later GitHub run has passed, or that all remote endpoints
+will always be reachable. No retry/deadline expansion or validation bypass was
+added. The downloader's DNS cancellation limitation remains documented.

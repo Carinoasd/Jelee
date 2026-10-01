@@ -1,0 +1,8 @@
+Source commit: b59be8d389216c3853a0a6d18b1f1af130745a9f
+Command: python3 -B scripts/test_sandbox_native.py
+Required native Linux nonroot readonly container: PASS, zero skips.
+Sandbox parent coverage65.2%, actual child60.8%, merged86.8%; process89.7%.
+MetadataArgumentsDigest100%; threshold85% unchanged.
+Original generated fixture hashes unchanged; owned container/image/temp removed.
+Complete ignored transcript SHA256: 09325d3a3eeea26ed10a1bbdc5def442e655eaa67464c693ef388c2661eb25e9
+Prior PR6 Linux CI/local failure84.7% came from missing metadata-arguments identity contract coverage. Added fixed digest/mutation test, without changing production sandbox.

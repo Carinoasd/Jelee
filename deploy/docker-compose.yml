@@ -31,6 +31,9 @@ services:
       JELEE_ALLOWED_HOSTS: ${JELEE_ALLOWED_HOSTS:-localhost,127.0.0.1,::1}
       JELEE_ENABLE_CATALOG: 'true'
       JELEE_ENABLE_DIRECT: ${JELEE_ENABLE_DIRECT:-false}
+      JELEE_ENABLE_ACCOUNTS: ${JELEE_ENABLE_ACCOUNTS:-false}
+      JELEE_ENABLE_JOBS: ${JELEE_ENABLE_JOBS:-false}
+      JELEE_ENABLE_PROBE: ${JELEE_ENABLE_PROBE:-false}
     ports:
       - 127.0.0.1:8097:8097
     volumes:
@@ -41,4 +44,6 @@ services:
     read_only: true
     cap_drop: [ALL]
     security_opt: [no-new-privileges:true]
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=67108864,mode=1777
     stop_grace_period: 20s

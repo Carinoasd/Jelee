@@ -1,0 +1,12 @@
+goos: linux
+goarch: amd64
+pkg: github.com/MoYuanCN/Jelee/internal/adapter/media/ignore
+cpu: AMD Ryzen 7 9850X3D 8-Core Processor
+BenchmarkResolver/cold-16         	     100	     48109 ns/op	    8784 B/op	     159 allocs/op
+BenchmarkResolver/cold-16         	     100	     45419 ns/op	    8784 B/op	     159 allocs/op
+BenchmarkResolver/cold-16         	     100	     47206 ns/op	    8784 B/op	     159 allocs/op
+BenchmarkResolver/warm-16         	     100	     42168 ns/op	    5648 B/op	     117 allocs/op
+BenchmarkResolver/warm-16         	     100	     41417 ns/op	    5648 B/op	     117 allocs/op
+BenchmarkResolver/warm-16         	     100	     45519 ns/op	    5648 B/op	     117 allocs/op
+PASS
+ok  	github.com/MoYuanCN/Jelee/internal/adapter/media/ignore	0.036s

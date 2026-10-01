@@ -1,0 +1,70 @@
+{
+  "sourceCommit": "feeee03da801bb4730eca86b39d55eb5b1521783",
+  "result": "PASS",
+  "raceExecuted": false,
+  "build": "jelee, jelee-cli, jelee-migrate PASS",
+  "lint": "full gofmt and vet PASS",
+  "testCommand": "scripts/run-go.ps1 test -json -count=1 -coverprofile=<ignored> ./internal/adapter/nfo ./cmd/jelee-cli ./internal/architecture",
+  "packages": [
+    {
+      "package": "github.com/MoYuanCN/Jelee/internal/architecture",
+      "elapsed": 0.208,
+      "action": "pass"
+    },
+    {
+      "package": "github.com/MoYuanCN/Jelee/cmd/jelee-cli",
+      "elapsed": 0.4,
+      "action": "pass"
+    },
+    {
+      "package": "github.com/MoYuanCN/Jelee/internal/adapter/nfo",
+      "elapsed": 0.591,
+      "action": "pass"
+    }
+  ],
+  "coverage": [
+    "ok  \tgithub.com/MoYuanCN/Jelee/internal/architecture\t0.205s\tcoverage: [no statements]",
+    "ok  \tgithub.com/MoYuanCN/Jelee/cmd/jelee-cli\t0.398s\tcoverage: 76.4% of statements",
+    "ok  \tgithub.com/MoYuanCN/Jelee/internal/adapter/nfo\t0.587s\tcoverage: 90.5% of statements"
+  ],
+  "skipped": [
+    {
+      "package": "github.com/MoYuanCN/Jelee/internal/adapter/nfo",
+      "test": "TestReadFileBoundaryAndOriginalProtection/symlink_escape",
+      "messages": [
+        "read_test.go:379: symlink creation unavailable: symlink C:\\Users\\賴明義\\Documents\\Codex\\2026-09-30\\https-github-com-moyuancn-jelee-https\\outputs\\Jelee\\.tools\\cache\\tmp\\TestReadFileBoundaryAndOriginalProtectionsymlink_escape3373322594\\001\\outside.nfo C:\\Users\\賴明義\\Documents\\Codex\\2026-09-30\\https-github-com-moyuancn-jelee-https\\outputs\\Jelee\\.tools\\cache\\tmp\\TestReadFileBoundaryAndOriginalProtection1468617139\\001\\escape.nfo: A required privilege is not held by the client."
+      ]
+    }
+  ],
+  "cli": {
+    "cases": [
+      {
+        "fixture": "movie.nfo",
+        "expectedEncoding": "UTF-8",
+        "exitCode": 0,
+        "privateSummary": true
+      },
+      {
+        "fixture": "wide.nfo",
+        "expectedEncoding": "UTF-16LE",
+        "exitCode": 0,
+        "privateSummary": true
+      },
+      {
+        "fixture": "invalid.nfo",
+        "expectedEncoding": "",
+        "exitCode": 1,
+        "privateSummary": true
+      }
+    ],
+    "originalFilesUnchanged": true,
+    "result": "PASS",
+    "cleaned": true
+  },
+  "rawTestSHA256": "c5740a23274c802b5e2a93e6217fd21e5da3fa634c1be2d18ba530ebd7a3e7d1",
+  "coverageSHA256": "d3fa6c6fe916f68078413d0247bd610d524668006e120a18c831d13bb913f11c",
+  "notes": [
+    "The first outer verification wrapper treated the expected bad-XML exit 1 as a final batch failure. All case results were already PASS. The final verification checks the explicit per-case result and cleanup summary; the unchanged package logs remain preserved.",
+    "Windows symlink privilege limitation is recorded as SKIP; corresponding native Linux test passed."
+  ]
+}

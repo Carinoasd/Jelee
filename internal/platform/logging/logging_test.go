@@ -96,3 +96,20 @@ func TestGroupedAttributesCannotExposeSensitiveValues(t *testing.T) {
 		}
 	}
 }
+
+func TestJobCorrelationOnlyAcceptsValidatedFields(t *testing.T) {
+	var out bytes.Buffer
+	logger := New(&out)
+	id := "11111111-1111-4111-8111-111111111111"
+	logger.Info("inventory job completed", "taskId", id, "state", "succeeded", "code", "scan_io")
+	if !strings.Contains(out.String(), id) || !strings.Contains(out.String(), "succeeded") {
+		t.Fatal("valid correlation removed")
+	}
+	out.Reset()
+	logger.Info("job state could not be persisted", "taskId", "secret-token", "state", "/private/path", "code", "password=secret")
+	for _, secret := range []string{"secret-token", "/private/path", "password=secret"} {
+		if strings.Contains(out.String(), secret) {
+			t.Fatal("unvalidated job log field leaked")
+		}
+	}
+}

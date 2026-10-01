@@ -1,0 +1,33 @@
+goos: linux
+goarch: amd64
+pkg: github.com/MoYuanCN/Jelee/internal/platform/ignore
+cpu: AMD Ryzen 7 9850X3D 8-Core Processor
+BenchmarkCompile/rules-1-16         	     100	      1121 ns/op	   5.35 MB/s	     688 B/op	      11 allocs/op
+BenchmarkCompile/rules-1-16         	     100	       632.8 ns/op	   9.48 MB/s	     688 B/op	      11 allocs/op
+BenchmarkCompile/rules-1-16         	     100	       772.5 ns/op	   7.77 MB/s	     688 B/op	      11 allocs/op
+BenchmarkCompile/rules-100-16       	     100	     49486 ns/op	  40.13 MB/s	   37648 B/op	      36 allocs/op
+BenchmarkCompile/rules-100-16       	     100	     48268 ns/op	  41.15 MB/s	   37648 B/op	      36 allocs/op
+BenchmarkCompile/rules-100-16       	     100	     60149 ns/op	  33.02 MB/s	   37648 B/op	      36 allocs/op
+BenchmarkCompile/rules-1000-16      	     100	    374432 ns/op	  53.38 MB/s	  441747 B/op	      54 allocs/op
+BenchmarkCompile/rules-1000-16      	     100	    338585 ns/op	  59.03 MB/s	  441748 B/op	      54 allocs/op
+BenchmarkCompile/rules-1000-16      	     100	    358235 ns/op	  55.79 MB/s	  441799 B/op	      54 allocs/op
+BenchmarkEvaluate/rules-1-16        	     100	       359.2 ns/op	       0 B/op	       0 allocs/op
+BenchmarkEvaluate/rules-1-16        	     100	       505.0 ns/op	       0 B/op	       0 allocs/op
+BenchmarkEvaluate/rules-1-16        	     100	       265.6 ns/op	       0 B/op	       0 allocs/op
+BenchmarkEvaluate/rules-100-16      	     100	     66398 ns/op	       0 B/op	       0 allocs/op
+BenchmarkEvaluate/rules-100-16      	     100	     68800 ns/op	       0 B/op	       0 allocs/op
+BenchmarkEvaluate/rules-100-16      	     100	     63793 ns/op	       0 B/op	       0 allocs/op
+BenchmarkEvaluate/rules-1000-16     	     100	    625265 ns/op	       0 B/op	       0 allocs/op
+BenchmarkEvaluate/rules-1000-16     	     100	    632466 ns/op	       0 B/op	       0 allocs/op
+BenchmarkEvaluate/rules-1000-16     	     100	    799616 ns/op	       0 B/op	       0 allocs/op
+BenchmarkEvaluate/maximum-path-bytes-16         	     100	     27506 ns/op	       0 B/op	       0 allocs/op
+BenchmarkEvaluate/maximum-path-bytes-16         	     100	     25029 ns/op	       0 B/op	       0 allocs/op
+BenchmarkEvaluate/maximum-path-bytes-16         	     100	     25995 ns/op	       0 B/op	       0 allocs/op
+BenchmarkEvaluate/128-sources-one-active-16     	     100	       302.6 ns/op	       0 B/op	       0 allocs/op
+BenchmarkEvaluate/128-sources-one-active-16     	     100	       319.7 ns/op	       0 B/op	       0 allocs/op
+BenchmarkEvaluate/128-sources-one-active-16     	     100	       313.1 ns/op	       0 B/op	       0 allocs/op
+BenchmarkEvaluate/maximum-depth-16              	     100	    462366 ns/op	       0 B/op	       0 allocs/op
+BenchmarkEvaluate/maximum-depth-16              	     100	    473987 ns/op	       0 B/op	       0 allocs/op
+BenchmarkEvaluate/maximum-depth-16              	     100	    481770 ns/op	       0 B/op	       0 allocs/op
+PASS
+ok  	github.com/MoYuanCN/Jelee/internal/platform/ignore	0.522s

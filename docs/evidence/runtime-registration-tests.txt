@@ -1,0 +1,36 @@
+Runtime image checker / production registration / CLI diagnostic review, 2026-10-01
+
+Scope: tools/runtime-image, internal/platform/proberuntime, cmd/jelee-cli probe diagnostic and early dispatch. No Docker, sandbox, process or media adapter edits by this reviewer. The process owner separately changed isolated exit classification so only exit 1 maps to ErrExit; other unexpected nonzero/signal exits map to ErrUnexpectedExit.
+
+Concrete changes:
+- Runtime image checker rejects unknown directories as well as unknown files, empty/invalid pin maps, missing/oversized/empty files, bad content hashes, links, and mismatched opened file identity. After hashing, it verifies that the path still refers to the same regular file. All public failure output remains runtime_image_invalid.
+- Production Helper accepts only the exact canonical descriptor for /usr/lib/jelee/ffprobe before calling the sandbox's independent strict canonical decoder and protected-file policy. No relaxed JSON decoder or alternate path/environment registration was added.
+- CLI output cancellation/timeout returns 130/124 even when cancellation happens during an otherwise successful output write. Blocking output is closed and the callback joined; write errors expose only probe_output_failed.
+- A private diagnostic test seam exercises health classification without exposing a public alternate factory/platform or changing the shipped policy. Only expected ErrExit reports available. Sandbox invalid/unavailable, unexpected exit, cleanup/start/timeout/output-limit errors, nil success for deliberately invalid bytes, cancellation and input-close failure remain disabled. Child output and raw errors are discarded.
+
+Meaningful test boundaries:
+- Checker source map is a fresh copy of the embedded 16-file identity; no ffmpeg entry.
+- Unknown/missing/same-content different inode/replaced/oversized/bad-hash files and unrecognized directories fail. Actual child process invocation with an alternate root argument exits 1 with a fixed error and no reflected path.
+- Production policy uses eight exact container paths/hashes and RequireProtectedFiles=true; mutation of one returned slice cannot affect future calls. Unsupported platforms stay unavailable.
+- Malformed helper descriptors and otherwise canonical descriptors with an alternate root-owned path cannot enter media execution.
+- Health uses a fixed read-only regular file, tool=ffprobe, operation=metadata. Scratch directories are removed on successful classification, factory failure, cancellation and close failure.
+- CLI doctor probe and internal helper dispatch occur before configuration and DB loading. Tests set deliberately invalid DB values and missing config-file paths; output contains only the fixed diagnostic schema, with no supplied values or paths.
+- All extra doctor probe arguments are rejected with static usage; stdout write failures and cancellation use documented exit codes.
+
+Latest Windows normal tests:
+pwsh -NoProfile -File scripts/run-go.ps1 test -count=1 -cover ./tools/runtime-image ./internal/platform/proberuntime ./cmd/jelee-cli
+PASS runtime-image 0.298s, coverage 90.8%
+PASS proberuntime 0.208s, coverage 58.8%
+PASS jelee-cli 0.359s, coverage 73.9%
+Windows host lacked symlink-creation privilege, so the link-specific branch of that test was skipped there; Linux exercised it below. These are normal Windows tests, not race tests.
+
+Latest Linux race tests (using previously registered existing WSL GCC/binutils):
+.bin/go test -race -count=1 -cover ./tools/runtime-image ./internal/platform/proberuntime ./cmd/jelee-cli
+PASS runtime-image 1.531s, coverage 92.3%
+PASS proberuntime 1.282s, coverage 71.8%
+PASS jelee-cli 1.836s, coverage 73.9%
+
+Coverage limits:
+proberuntime's actual protected production-file registration and successful helper execution need the dedicated root-owned runtime image; these host tests do not create or alter global /usr/lib files. The reported package coverage is partial and is not an 85% claim. The parent separately validates the actual image profile. Whole-project CI, complete service integration, and G37 completion are outside this evidence.
+
+Separate runtime downloader follow-up: 34 Python tests pass after bounding HTTP status/header/body socket reads with an absolute deadline. See runtime-tools.txt for scope, real slow-stream tests and DNS limitation. The older media-tools.py download loop still uses read(n) with a per-socket timeout; its fixed -version diagnostic has separate bounded-output/timeout behavior. No claim of a hard total download deadline is made for that older path.

@@ -1,0 +1,12 @@
+goos: linux
+goarch: amd64
+pkg: github.com/MoYuanCN/Jelee/internal/adapter/nfo
+cpu: AMD Ryzen 7 9850X3D 8-Core Processor
+BenchmarkSourceHashAndParse/ReadSource-16         	   33651	     38131 ns/op	 431.04 MB/s	   43004 B/op	      56 allocs/op
+BenchmarkSourceHashAndParse/ReadSource-16         	   33164	     37110 ns/op	 442.90 MB/s	   43004 B/op	      56 allocs/op
+BenchmarkSourceHashAndParse/ReadSource-16         	   33211	     36315 ns/op	 452.60 MB/s	   43004 B/op	      56 allocs/op
+BenchmarkSourceHashAndParse/ReadFile-16           	    9248	    149343 ns/op	 110.06 MB/s	  115761 B/op	     104 allocs/op
+BenchmarkSourceHashAndParse/ReadFile-16           	    8332	    148079 ns/op	 110.99 MB/s	  115761 B/op	     104 allocs/op
+BenchmarkSourceHashAndParse/ReadFile-16           	    8704	    143338 ns/op	 114.67 MB/s	  115761 B/op	     104 allocs/op
+PASS
+ok  	github.com/MoYuanCN/Jelee/internal/adapter/nfo	7.592s

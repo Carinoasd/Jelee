@@ -12,7 +12,7 @@ import (
 // build independently of the HTTP implementation.
 func TestPublicHTTPErrorCodesHaveTranslations(t *testing.T) {
 	var source []byte
-	for _, path := range []string{"server.go", "accounts.go"} {
+	for _, path := range []string{"server.go", "accounts.go", "jobs.go"} {
 		part, err := os.ReadFile(path)
 		if err != nil {
 			t.Fatal(err)

@@ -1,0 +1,56 @@
+Jelee native Linux filesystem scanner verification
+Toolchain: pinned Go 1.27.1 linux/amd64; race detector enabled; static test binary.
+Build: .bin/go test -race -c -o .testdata/scan-linux-native.test '-ldflags=-linkmode external -extldflags -static' ./internal/adapter/scan
+Base image: golang:1.27.1-alpine@sha256:8a5910f31396cd4d89662f56c68b3ae31d374308270a1c3bd96672ee5ed43414
+Isolation: UID/GID 65532:65532; read-only root; all capabilities dropped; no-new-privileges; network none; 128 PIDs; 512 MiB memory; 2 CPUs.
+Fixture storage: native Linux tmpfs at /project/.testdata; TMPDIR=/project/.testdata; 256 MiB; nosuid,nodev,noexec; UID/GID 65532; mode 0700.
+Only host mount: compiled scanner test binary read-only at /project/scan.test. No host fixture directory is mounted or written.
+Run: /project/scan.test -test.v -test.timeout=3m
+Exit code: 0; no skipped tests.
+Binary SHA256: a383e9e9edac654cf6f3ce081a41c6991b26fdbd1df41deee557ff6451df22c2
+
+Scanner source SHA256:
+5f0d9b2d52faa8c477cdb7149e01bf6c8c2b74e802f4e5e63b732f1b6b4f9ec3  internal/adapter/scan/open.go
+23c16dcc57e33e76a542157ca3b9a4be80d1a5bacdb65b02a3fb84fa7f5b8164  internal/adapter/scan/open_linux.go
+d9faba1757f4f8808f89292af7ba69d81b69bbe52cca281962411a090ece00c0  internal/adapter/scan/open_other.go
+1541ca3670ded30c7083b71d24a04861f51369a3666b946a686690d0c0139f22  internal/adapter/scan/open_windows.go
+45d945fa277d8d35527510ae58f7ae6ca57c5fd97d6064278052363667a1d599  internal/adapter/scan/scan.go
+8a7abdcd23683b8c0f5816e6d97a1878a59f439598f1c78fa2317629b5ac3207  internal/adapter/scan/scan_linux_test.go
+d7ab7470b37a96062ab3cdfeaa775a08027714aa1031940cfdbebcef15c524b1  internal/adapter/scan/scan_test.go
+
+=== RUN   TestLinuxInvalidNamesAreCountedWithoutNormalization
+=== RUN   TestLinuxInvalidNamesAreCountedWithoutNormalization/invalid-utf8
+=== RUN   TestLinuxInvalidNamesAreCountedWithoutNormalization/backslash
+=== RUN   TestLinuxInvalidNamesAreCountedWithoutNormalization/colon
+--- PASS: TestLinuxInvalidNamesAreCountedWithoutNormalization (0.00s)
+    --- PASS: TestLinuxInvalidNamesAreCountedWithoutNormalization/invalid-utf8 (0.00s)
+    --- PASS: TestLinuxInvalidNamesAreCountedWithoutNormalization/backslash (0.00s)
+    --- PASS: TestLinuxInvalidNamesAreCountedWithoutNormalization/colon (0.00s)
+=== RUN   TestLinuxFIFOIsSkippedWithoutOpeningIt
+--- PASS: TestLinuxFIFOIsSkippedWithoutOpeningIt (0.00s)
+=== RUN   TestLinuxExternalSymlinkAncestorReplacementCannotEscape
+    scan_linux_test.go:117: completed 351 directory/symlink replacement cycles
+--- PASS: TestLinuxExternalSymlinkAncestorReplacementCannotEscape (0.01s)
+=== RUN   TestLinuxUnreadableRegularContentStillProvidesMetadata
+--- PASS: TestLinuxUnreadableRegularContentStillProvidesMetadata (0.00s)
+=== RUN   TestThousandFilesRemainBoundedAndOriginalBytesUnchanged
+--- PASS: TestThousandFilesRemainBoundedAndOriginalBytesUnchanged (0.06s)
+=== RUN   TestUnicodeSpacesMetadataKindsAndImmediateChildren
+--- PASS: TestUnicodeSpacesMetadataKindsAndImmediateChildren (0.00s)
+=== RUN   TestValidateRootAndInvalidPathErrorsContainNoPaths
+--- PASS: TestValidateRootAndInvalidPathErrorsContainNoPaths (0.00s)
+=== RUN   TestPathByteAndDepthLimitsOnRealDirectories
+--- PASS: TestPathByteAndDepthLimitsOnRealDirectories (0.10s)
+=== RUN   TestVisibleSymlinksSkippedAndExplicitTraversalRejected
+--- PASS: TestVisibleSymlinksSkippedAndExplicitTraversalRejected (0.00s)
+=== RUN   TestHardLinkMetadataIsReadOnlyAndIsNotClaimedAsExcluded
+--- PASS: TestHardLinkMetadataIsReadOnlyAndIsNotClaimedAsExcluded (0.00s)
+=== RUN   TestReadDirBoundAndCallbackErrorPropagation
+--- PASS: TestReadDirBoundAndCallbackErrorPropagation (0.00s)
+=== RUN   TestSkippedCountsOnlyFinalBatchAndMetadataLimits
+--- PASS: TestSkippedCountsOnlyFinalBatchAndMetadataLimits (0.00s)
+=== RUN   TestCancellationClosesBlockedDirectoryWithoutDetachedReader
+--- PASS: TestCancellationClosesBlockedDirectoryWithoutDetachedReader (0.00s)
+=== RUN   TestCancellationAtCallbacksAndReadFailuresDoNotEmitDone
+--- PASS: TestCancellationAtCallbacksAndReadFailuresDoNotEmitDone (0.00s)
+PASS

@@ -1,0 +1,1 @@
+ok  	github.com/MoYuanCN/Jelee/tools	1.216s	coverage: 96.7% of statements

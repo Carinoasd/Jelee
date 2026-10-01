@@ -1,0 +1,8 @@
+fuzz: elapsed: 1s, gathering baseline coverage: 0/88 completed
+fuzz: elapsed: 2s, gathering baseline coverage: 88/88 completed, now fuzzing with 2 workers
+fuzz: elapsed: 4s, execs: 53326 (17774/sec), new interesting: 24 (total: 112)
+fuzz: elapsed: 7s, execs: 53326 (0/sec), new interesting: 24 (total: 112)
+fuzz: elapsed: 10s, execs: 53326 (0/sec), new interesting: 24 (total: 112)
+fuzz: elapsed: 12s, execs: 53326 (0/sec), new interesting: 24 (total: 112)
+PASS
+ok  	github.com/MoYuanCN/Jelee/internal/adapter/probe	12.323s

@@ -1,0 +1,1225 @@
+{
+  "result": "PASS",
+  "platform": "windows-amd64",
+  "race": false,
+  "postgresIntegration": false,
+  "commands": [
+    {
+      "command": "scripts/make.ps1 build",
+      "result": "PASS",
+      "seconds": 1.4949076
+    },
+    {
+      "command": "scripts/make.ps1 lint",
+      "result": "PASS",
+      "seconds": 1.3183302
+    },
+    {
+      "command": "scripts/run-go.ps1 test -json -count=1 -coverprofile=<ignored-cover> ./...",
+      "result": "PASS",
+      "seconds": 6.549113
+    }
+  ],
+  "packagesPassed": [
+    "github.com/MoYuanCN/Jelee/cmd/jelee",
+    "github.com/MoYuanCN/Jelee/internal/access",
+    "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+    "github.com/MoYuanCN/Jelee/internal/app",
+    "github.com/MoYuanCN/Jelee/internal/architecture",
+    "github.com/MoYuanCN/Jelee/internal/domain",
+    "github.com/MoYuanCN/Jelee/internal/platform/i18n",
+    "github.com/MoYuanCN/Jelee/internal/platform/config",
+    "github.com/MoYuanCN/Jelee/internal/platform/proberuntime",
+    "github.com/MoYuanCN/Jelee/internal/platform/logging",
+    "github.com/MoYuanCN/Jelee/internal/adapter/media",
+    "github.com/MoYuanCN/Jelee/internal/platform/runtime",
+    "github.com/MoYuanCN/Jelee/internal/platform/sandbox",
+    "github.com/MoYuanCN/Jelee/tools",
+    "github.com/MoYuanCN/Jelee/cmd/jelee-cli",
+    "github.com/MoYuanCN/Jelee/internal/platform/jobs",
+    "github.com/MoYuanCN/Jelee/cmd/jelee-migrate",
+    "github.com/MoYuanCN/Jelee/internal/platform/password",
+    "github.com/MoYuanCN/Jelee/internal/adapter/nfo",
+    "github.com/MoYuanCN/Jelee/internal/platform/toolidentity",
+    "github.com/MoYuanCN/Jelee/tools/runtime-image",
+    "github.com/MoYuanCN/Jelee/tools/gitignore-check",
+    "github.com/MoYuanCN/Jelee/tools/brand-scan",
+    "github.com/MoYuanCN/Jelee/internal/adapter/http",
+    "github.com/MoYuanCN/Jelee/internal/adapter/probe",
+    "github.com/MoYuanCN/Jelee/internal/adapter/scan",
+    "github.com/MoYuanCN/Jelee/internal/platform/process"
+  ],
+  "skipped": [
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestAccountIntegration"
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestAccountMigrationRejectsCaseCollisionWithoutRenaming"
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestAccountMigrationRollbackKeepsDeletedAccountsDisabled"
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestImageComparisonColdWarmChangesAndKindTransitions"
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestImageIncompleteAndReviewNeverAcknowledgeMissing/skipped"
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestImageIncompleteAndReviewNeverAcknowledgeMissing/failed"
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestImageIncompleteAndReviewNeverAcknowledgeMissing/cancelled"
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestImageIncompleteAndReviewNeverAcknowledgeMissing/review"
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestImageUnknownBaselineAndRootEpochRecovery"
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestImageLateTerminalLeaseExpiryRollsBackPublication"
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestImageUnfinishedTerminalPathsRetainStableUncomparedCounts/queued-cancel"
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestImageUnfinishedTerminalPathsRetainStableUncomparedCounts/release-cancel"
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestImageUnfinishedTerminalPathsRetainStableUncomparedCounts/release-exhausted"
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestImageUnfinishedTerminalPathsRetainStableUncomparedCounts/expiry-exhausted"
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestImageUnfinishedTerminalPathsRetainStableUncomparedCounts/expiry-cancel"
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestInventoryEpochIsIndependentOfNFOAndProbePolicy"
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestJobsSubmissionIdempotencyAndLiveAdministration"
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestJobsCapacityAndPriorityAcrossCompetingWorkers"
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestJobsCancellationRecoveryAndFencing"
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestJobsPartialDirectoryRestartAndInventoryPagination"
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestJobsBatchLimitsRollbackAndSafeMissingBaseline/entry_directory_and_overflow_limits"
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestJobsBatchLimitsRollbackAndSafeMissingBaseline/history_retention_baseline_and_partial_fail_closed"
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestJobsBatchLimitsRollbackAndSafeMissingBaseline/complete_scan_below_missing_threshold_replaces_baseline"
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestJobsLeaseExpiryDuringWritesRollsBackProvisionalData"
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestJobsThousandEntriesRemainBoundedAndCountsUseCurrentSizes"
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestJobsMigrationRollbackPreservesAccountsAndLibraryConfiguration"
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestNFOCacheSummaryVersionUpgradeAndCorruption/old-digest"
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestNFOCacheSummaryVersionUpgradeAndCorruption/expired"
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestNFOCacheSummaryVersionUpgradeAndCorruption/matching-corrupt"
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestNFOSummaryJSONBChargeAndSQLBounds"
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestNFOFinalFenceAfterJobUpdateWait/prepare"
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestNFOFinalFenceAfterJobUpdateWait/load"
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestNFOFinalFenceAfterJobUpdateWait/begin"
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestNFOFinalFenceAfterJobUpdateWait/next"
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestNFOFinalFenceAfterJobUpdateWait/lookup"
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestNFOFinalFenceAfterJobUpdateWait/commit"
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestNFOFinalFenceAfterJobUpdateWait/finish"
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestNFOFinalFenceAfterJobUpdateWait/abort"
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestNFOQuotaCapacityEvictsBoundedRowsAndCharges/global-rows"
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestNFOQuotaCapacityEvictsBoundedRowsAndCharges/library-rows"
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestNFOQuotaCapacityEvictsBoundedRowsAndCharges/global-bytes"
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestNFOQuotaCapacityEvictsBoundedRowsAndCharges/library-bytes"
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestNFOScopesRetainedRecoveryAndBoundedCleanup"
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestNFOCacheClosedAndCancelledReturnZero"
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestNFOCacheMatchingSummaryHasNoArbitraryData"
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestNFOAdmissionRequiresEstablishedPolicyAndAvailableScope"
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestNFODeferredCommitFailureReturnsZeroAndRollsBack"
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestNFOSweepFailureRollsBackAndRetries"
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestNFOCacheRoundTripHitsNegativeAndHashIdentity"
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestNFOPhaseFreezeInventoryAndFinishBarriers/off_cannot_silently_opt_in"
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestNFOPhaseFreezeInventoryAndFinishBarriers/waiting_running_aborted_done"
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestNFOPhaseFreezeInventoryAndFinishBarriers/prepare_too_late"
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestNFOPhaseRootInvalidationRecoveryAndOldIdentity/root"
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestNFOPhaseRootInvalidationRecoveryAndOldIdentity/policy"
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestNFOPhaseRootInvalidationRecoveryAndOldIdentity/old-identity"
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestNFOCacheChangedUnavailableRejectedDoNotPoison"
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestNFOCachePrefixAndCancelledFencing"
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestNFOCacheLeaseExpiryAndHitTTLAtCheckpoint/lease"
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestNFOCacheLeaseExpiryAndHitTTLAtCheckpoint/hit-ttl"
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestNFOCacheMigrationGuardAndRoundTrip"
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestNFOCacheFreshFailureRollsBackAndRetries"
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestNFOPolicySwitchReplayCASAndVideoIsolation"
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestNFOPolicyConcurrentCASAndExactReplay/same_key_false"
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestNFOPolicyConcurrentCASAndExactReplay/same_key_true"
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestNFOPolicyRequiresLiveAdministrationIncludingReplay/revoked"
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestNFOPolicyRequiresLiveAdministrationIncludingReplay/demoted"
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestNFOPolicyRequiresLiveAdministrationIncludingReplay/disabled"
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestNFOPolicyRequiresLiveAdministrationIncludingReplay/forged-session"
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestNFOPolicyLedgerQuotaSerializesLastSlot/actor"
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestNFOPolicyLedgerQuotaSerializesLastSlot/global"
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestNFOPolicyExpiredExactKeyAndBoundedAtomicCleanup"
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestNFOPolicyLateSessionExpiryRollsBackMutation"
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestNFOPolicyCancellationAfterWriteRollsBackAndJoins"
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestNFOInventoryPageSkipsLargeNonNFOInventory"
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestNFOCacheIndexedMaintenanceAndExactQuota"
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestNFORequestedIntentIsAtomicFrozenAndReplayable"
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestNFOClaimFiltersBothCapabilities"
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestNFOEnqueueRollbackAndUnavailableReader"
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestNFOCurrentObservationIdentityAndIssuePagination"
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestNFOCurrentQueriesRejectRevokedActorAndReturnZero"
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestNFORequestedPhaseMustFinishBeforeProbeAndPublication"
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestNFOCurrentObservationsScopeExpiryAndCorruption"
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestNFOQueriesRecheckLiveActorAfterLockWait/history"
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestNFOQueriesRecheckLiveActorAfterLockWait/observations"
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestNFOQueriesRecheckLiveActorAfterLockWait/issues"
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestNFOQueriesRecheckLiveActorAfterLockWait/images"
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestNFOWorkerUpgradeRejectsAllActiveLegacyReadOnlyPhases/waiting"
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestNFOWorkerUpgradeRejectsAllActiveLegacyReadOnlyPhases/running"
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestNFOWorkerUpgradeRejectsAllActiveLegacyReadOnlyPhases/done"
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestNFOWorkerUpgradeRejectsAllActiveLegacyReadOnlyPhases/aborted"
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestNFOWorkerLegacyOffCanReplayButNeverAcquireReadOnlyIntent"
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestNFOWorkerDownGuardIncludesFrozenOffAndPreservesBCache"
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestNFOFrozenOffRejectsCorruptProgress"
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestNFOCurrentObservationPlanUsesScopedCursorIndex"
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestImageComparisonQueriesAggregateBoundedInventories"
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestProbeAdversarialLastLeaseSlotAcrossParents"
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestProbeAdversarialIdentityAndScopeCapacity"
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestProbeAdversarialHeartbeatDoesNotReviveExpiredChild"
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestProbeAdversarialForeignAndSkippedPrefix"
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestProbeAdversarialCancelledLockWaitDoesNotReserve"
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestProbeAdversarialHistoryTrimPreservesActiveSibling"
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestProbeAdversarialTerminalHistoryDoesNotPinEmptyScope"
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestProbeAdversarialInvalidationRequiresLiveAdminAndRecordsActor"
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestProbeAdversarialBoundedEvictionAtQuotaBoundary/global_rows"
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestProbeAdversarialBoundedEvictionAtQuotaBoundary/library_rows"
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestProbeAdversarialBoundedEvictionAtQuotaBoundary/global_bytes"
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestProbeAdversarialBoundedEvictionAtQuotaBoundary/library_bytes"
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestProbeRebuildScopesAndReplayPreserveGenerations"
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestProbeScopeMutationFencesInflightResults/root"
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestProbeScopeMutationFencesInflightResults/item"
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestProbeScopeMutationFencesInflightResults/mapping"
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestProbeCurrentKeyAndTTLRecheckedAtCommit"
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestProbeMetadataJSONBExpansionBecomesBoundedFailure"
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestProbeAdminExpiryDuringWriteRollsBackGenerationAndAudit"
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestProbeNegativeTTLRetryAndNewToolIdentity"
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestProbeBeginMissingIdentityAndItemHaveNoAdmissionEffects"
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestProbeMalformedTokensAndMetadataCannotTouchLease"
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestProbePolicyRequiredBeforeAdmission"
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestProbeFaultCheckpointAndCommitDeniedRollBackWholeOutcome/checkpoint_success"
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestProbeFaultCheckpointAndCommitDeniedRollBackWholeOutcome/checkpoint_negative"
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestProbeFaultCheckpointAndCommitDeniedRollBackWholeOutcome/deferred_commit"
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestProbeFaultReservationWriteFailureReleasesProvisionalQuota"
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestProbeFaultCancellationAfterCacheWriteRollsBack"
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestProbeFaultUnavailablePoolAndCancelledCallsAreAtomic"
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestProbeFaultPersistedIdentityMismatchCannotBeReused"
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestProbeFaultDeleteDenialRestoresQuotaAndLease/sweep_expired"
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestProbeFaultDeleteDenialRestoresQuotaAndLease/release_child"
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestProbeFaultDeleteDenialRestoresQuotaAndLease/capacity_eviction"
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestProbeEvictionUsesBoundedIndexPagesAndExactDeltas"
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestProbePolicyIdentityAndPhaseContract"
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestProbePersistAndHitPrefixCheckpoint"
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestProbeNegativeChangedAndUnavailableOutcomes"
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestProbeLeaseABAConcurrencyCancellationAndExpiry"
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestProbeTransactionExpiryRollsBackMetadataQuotaAndCursor"
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestProbeReleaseRecoveryInvalidationAndMigration"
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestProbeRequestConcurrentReplayAndCapabilityClaim"
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestProbeRequestItemResolutionAndQueuedInvalidation/stable"
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestProbeRequestItemResolutionAndQueuedInvalidation/root"
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestProbeRequestItemResolutionAndQueuedInvalidation/item"
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestProbeRequestRetryPreservesIntentAndPinsNewIdentity"
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestProbeRequestCheckpointAndDoneRecovery"
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestProbeRequestEnqueueFaultsAreAtomic/insert"
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestProbeRequestEnqueueFaultsAreAtomic/commit"
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestProbeRequestEnqueueFaultsAreAtomic/admin_expiry"
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestProbeRequestSweepReferencesAndDisabledFairness"
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestProbeRequestMigrationGuardAndRollbackPreserveCache"
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestProbeRequestInvalidInputsAndCancelledCalls"
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestProbeRequestAbortReleasesChildAndPreservesProgress"
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestProbeRequestEnqueueSerializesWithSweep"
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestProbeRequestParentFenceAndPersistentCancellation/stale"
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestProbeRequestParentFenceAndPersistentCancellation/expired"
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestProbeRequestParentFenceAndPersistentCancellation/cancelled"
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestProbeRequestRejectsMissingOrTerminalWork"
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestProbeRequestRejectsPhaseIdentityDrift"
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestProbeRequestFinalFenceRollsBackBeginAndAbort/begin"
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestProbeRequestFinalFenceRollsBackBeginAndAbort/abort"
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestProbeRequestRequiresExistingPolicyAndTarget"
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestPostgresIntegration"
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/media",
+      "Test": "TestPathBoundariesAndNoDisclosure/symlink_escape"
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/media",
+      "Test": "TestPathBoundariesAndNoDisclosure/directory_symlink_escape"
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/nfo",
+      "Test": "TestReadFileBoundaryAndOriginalProtection/symlink_escape"
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/probe",
+      "Test": "TestAdapterRejectsChangedSource/replace_symlink"
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/tools/runtime-image",
+      "Test": "TestImageRejectsSymlinkAndDifferentOpenedIdentity"
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/platform/toolidentity",
+      "Test": "TestIdentityCancellationAndFilesystemBoundaries/project"
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/platform/toolidentity",
+      "Test": "TestIdentityCancellationAndFilesystemBoundaries/ancestor"
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/platform/toolidentity",
+      "Test": "TestIdentityCancellationAndFilesystemBoundaries/leaf"
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/platform/toolidentity",
+      "Test": "TestIdentityCancellationAndFilesystemBoundaries/temporary"
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/platform/toolidentity",
+      "Test": "TestPinnedInstalledFFprobe"
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/probe",
+      "Test": "TestVisibleSymlinksRefusedAndExternalPathsCannotEscape"
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/probe",
+      "Test": "TestInspectDetectsSymlinkReplacement"
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/scan",
+      "Test": "TestVisibleSymlinksSkippedAndExplicitTraversalRejected"
+    }
+  ],
+  "logs": {
+    "nfo-worker-windows-build.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "nfo-worker-windows-lint.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "nfo-worker-windows.jsonl": "ac1b8219afbd480266819516964a649f72285430bdad797c01b82b127cb37b1f",
+    "nfo-worker-windows.cover": "efc12e93338d03ad8c341604bc5de36d65ff2d22ff0eb961f6ab0050949ff483"
+  },
+  "notes": [
+    "PostgreSQL integration is required separately on native Linux. Skipped integration and platform tests are not counted as passes.",
+    "Pinned project Go and build wrappers used; no global tools were installed."
+  ],
+  "sourceCommit": "47da27b5ff090a71e6f55aae0b2e6c00871f825b",
+  "sourceFileCount": 314,
+  "coverageByFile": {
+    "github.com/MoYuanCN/Jelee/internal/platform/runtime/runtime.go": {
+      "statements": 124,
+      "covered": 54
+    },
+    "github.com/MoYuanCN/Jelee/internal/domain/nfo_queries_values.go": {
+      "statements": 44,
+      "covered": 44
+    },
+    "github.com/MoYuanCN/Jelee/internal/domain/catalog.go": {
+      "statements": 10,
+      "covered": 10
+    },
+    "github.com/MoYuanCN/Jelee/internal/adapter/probe/adapter.go": {
+      "statements": 85,
+      "covered": 75
+    },
+    "github.com/MoYuanCN/Jelee/internal/platform/toolidentity/identity.go": {
+      "statements": 157,
+      "covered": 136
+    },
+    "github.com/MoYuanCN/Jelee/internal/adapter/postgres/probe_requests_execution.go": {
+      "statements": 111,
+      "covered": 2
+    },
+    "github.com/MoYuanCN/Jelee/internal/platform/jobs/probe_work.go": {
+      "statements": 178,
+      "covered": 148
+    },
+    "github.com/MoYuanCN/Jelee/internal/adapter/postgres/store.go": {
+      "statements": 83,
+      "covered": 0
+    },
+    "github.com/MoYuanCN/Jelee/tools/media.go": {
+      "statements": 15,
+      "covered": 13
+    },
+    "github.com/MoYuanCN/Jelee/internal/adapter/nfo/document.go": {
+      "statements": 21,
+      "covered": 18
+    },
+    "github.com/MoYuanCN/Jelee/internal/platform/proberuntime/diagnostic.go": {
+      "statements": 54,
+      "covered": 41
+    },
+    "github.com/MoYuanCN/Jelee/internal/app/jobs_probe.go": {
+      "statements": 74,
+      "covered": 66
+    },
+    "github.com/MoYuanCN/Jelee/internal/adapter/postgres/accounts.go": {
+      "statements": 245,
+      "covered": 32
+    },
+    "github.com/MoYuanCN/Jelee/internal/platform/jobs/runner.go": {
+      "statements": 229,
+      "covered": 216
+    },
+    "github.com/MoYuanCN/Jelee/internal/domain/nfo_summary.go": {
+      "statements": 68,
+      "covered": 66
+    },
+    "github.com/MoYuanCN/Jelee/internal/adapter/probe/open_windows.go": {
+      "statements": 2,
+      "covered": 2
+    },
+    "github.com/MoYuanCN/Jelee/internal/adapter/postgres/jobs_execution.go": {
+      "statements": 279,
+      "covered": 23
+    },
+    "github.com/MoYuanCN/Jelee/internal/adapter/postgres/probe_policy.go": {
+      "statements": 104,
+      "covered": 4
+    },
+    "github.com/MoYuanCN/Jelee/internal/adapter/probe/json.go": {
+      "statements": 129,
+      "covered": 126
+    },
+    "github.com/MoYuanCN/Jelee/internal/domain/probe_cache_metadata.go": {
+      "statements": 68,
+      "covered": 67
+    },
+    "github.com/MoYuanCN/Jelee/internal/adapter/postgres/nfo_commit.go": {
+      "statements": 96,
+      "covered": 2
+    },
+    "github.com/MoYuanCN/Jelee/internal/domain/image_progress.go": {
+      "statements": 9,
+      "covered": 9
+    },
+    "github.com/MoYuanCN/Jelee/internal/adapter/http/accounts_openapi.go": {
+      "statements": 61,
+      "covered": 61
+    },
+    "github.com/MoYuanCN/Jelee/internal/adapter/http/jobs_openapi.go": {
+      "statements": 37,
+      "covered": 37
+    },
+    "github.com/MoYuanCN/Jelee/internal/adapter/probe/inspect.go": {
+      "statements": 38,
+      "covered": 32
+    },
+    "github.com/MoYuanCN/Jelee/internal/adapter/probe/arguments.go": {
+      "statements": 1,
+      "covered": 1
+    },
+    "github.com/MoYuanCN/Jelee/cmd/jelee-cli/nfo_response.go": {
+      "statements": 62,
+      "covered": 61
+    },
+    "github.com/MoYuanCN/Jelee/cmd/jelee/main.go": {
+      "statements": 11,
+      "covered": 0
+    },
+    "github.com/MoYuanCN/Jelee/cmd/jelee-cli/nfo.go": {
+      "statements": 48,
+      "covered": 44
+    },
+    "github.com/MoYuanCN/Jelee/internal/access/principal.go": {
+      "statements": 3,
+      "covered": 3
+    },
+    "github.com/MoYuanCN/Jelee/internal/platform/jobs/probe.go": {
+      "statements": 111,
+      "covered": 94
+    },
+    "github.com/MoYuanCN/Jelee/internal/adapter/nfo/source.go": {
+      "statements": 107,
+      "covered": 98
+    },
+    "github.com/MoYuanCN/Jelee/internal/adapter/nfo/read.go": {
+      "statements": 186,
+      "covered": 166
+    },
+    "github.com/MoYuanCN/Jelee/internal/adapter/http/accounts.go": {
+      "statements": 210,
+      "covered": 185
+    },
+    "github.com/MoYuanCN/Jelee/internal/adapter/nfo/open_other.go": {
+      "statements": 1,
+      "covered": 1
+    },
+    "github.com/MoYuanCN/Jelee/internal/adapter/nfo/summary.go": {
+      "statements": 100,
+      "covered": 90
+    },
+    "github.com/MoYuanCN/Jelee/internal/domain/nfo_jobs_values.go": {
+      "statements": 28,
+      "covered": 28
+    },
+    "github.com/MoYuanCN/Jelee/tools/runtime.go": {
+      "statements": 45,
+      "covered": 45
+    },
+    "github.com/MoYuanCN/Jelee/internal/adapter/postgres/migrate.go": {
+      "statements": 53,
+      "covered": 0
+    },
+    "github.com/MoYuanCN/Jelee/tools/gitignore-check/main.go": {
+      "statements": 61,
+      "covered": 0
+    },
+    "github.com/MoYuanCN/Jelee/internal/platform/config/config.go": {
+      "statements": 92,
+      "covered": 88
+    },
+    "github.com/MoYuanCN/Jelee/internal/adapter/nfo/file.go": {
+      "statements": 5,
+      "covered": 5
+    },
+    "github.com/MoYuanCN/Jelee/internal/adapter/scan/open_windows.go": {
+      "statements": 2,
+      "covered": 2
+    },
+    "github.com/MoYuanCN/Jelee/cmd/jelee-cli/main.go": {
+      "statements": 101,
+      "covered": 16
+    },
+    "github.com/MoYuanCN/Jelee/internal/adapter/http/nfo_openapi.go": {
+      "statements": 59,
+      "covered": 59
+    },
+    "github.com/MoYuanCN/Jelee/internal/platform/process/runner.go": {
+      "statements": 174,
+      "covered": 154
+    },
+    "github.com/MoYuanCN/Jelee/internal/platform/config/accounts.go": {
+      "statements": 15,
+      "covered": 15
+    },
+    "github.com/MoYuanCN/Jelee/tools/runtime-image/main.go": {
+      "statements": 65,
+      "covered": 59
+    },
+    "github.com/MoYuanCN/Jelee/internal/platform/config/jobs.go": {
+      "statements": 14,
+      "covered": 13
+    },
+    "github.com/MoYuanCN/Jelee/internal/domain/probe_cache_values.go": {
+      "statements": 86,
+      "covered": 85
+    },
+    "github.com/MoYuanCN/Jelee/cmd/jelee-cli/accounts.go": {
+      "statements": 131,
+      "covered": 123
+    },
+    "github.com/MoYuanCN/Jelee/internal/app/jobs.go": {
+      "statements": 49,
+      "covered": 49
+    },
+    "github.com/MoYuanCN/Jelee/internal/platform/runtime/probe.go": {
+      "statements": 116,
+      "covered": 81
+    },
+    "github.com/MoYuanCN/Jelee/internal/adapter/postgres/nfo_requests.go": {
+      "statements": 103,
+      "covered": 1
+    },
+    "github.com/MoYuanCN/Jelee/internal/platform/toolidentity/files_windows.go": {
+      "statements": 19,
+      "covered": 16
+    },
+    "github.com/MoYuanCN/Jelee/internal/domain/nfo_values.go": {
+      "statements": 90,
+      "covered": 87
+    },
+    "github.com/MoYuanCN/Jelee/tools/brand-scan/main.go": {
+      "statements": 57,
+      "covered": 0
+    },
+    "github.com/MoYuanCN/Jelee/internal/platform/password/phc.go": {
+      "statements": 41,
+      "covered": 41
+    },
+    "github.com/MoYuanCN/Jelee/internal/adapter/probe/json_reader.go": {
+      "statements": 68,
+      "covered": 63
+    },
+    "github.com/MoYuanCN/Jelee/internal/platform/jobs/nfo.go": {
+      "statements": 138,
+      "covered": 109
+    },
+    "github.com/MoYuanCN/Jelee/internal/platform/process/isolated.go": {
+      "statements": 21,
+      "covered": 16
+    },
+    "github.com/MoYuanCN/Jelee/internal/platform/sandbox/unsupported.go": {
+      "statements": 3,
+      "covered": 0
+    },
+    "github.com/MoYuanCN/Jelee/internal/adapter/postgres/probe_phase.go": {
+      "statements": 198,
+      "covered": 6
+    },
+    "github.com/MoYuanCN/Jelee/internal/adapter/postgres/jobs.go": {
+      "statements": 155,
+      "covered": 7
+    },
+    "github.com/MoYuanCN/Jelee/internal/adapter/postgres/probe_maintenance.go": {
+      "statements": 160,
+      "covered": 7
+    },
+    "github.com/MoYuanCN/Jelee/internal/adapter/probe/input.go": {
+      "statements": 96,
+      "covered": 82
+    },
+    "github.com/MoYuanCN/Jelee/internal/app/jobs_nfo.go": {
+      "statements": 95,
+      "covered": 82
+    },
+    "github.com/MoYuanCN/Jelee/internal/platform/jobs/nfo_work.go": {
+      "statements": 156,
+      "covered": 123
+    },
+    "github.com/MoYuanCN/Jelee/internal/adapter/nfo/observed.go": {
+      "statements": 58,
+      "covered": 55
+    },
+    "github.com/MoYuanCN/Jelee/internal/adapter/scan/scan.go": {
+      "statements": 86,
+      "covered": 80
+    },
+    "github.com/MoYuanCN/Jelee/cmd/jelee-cli/nfo_jobs.go": {
+      "statements": 121,
+      "covered": 117
+    },
+    "github.com/MoYuanCN/Jelee/internal/adapter/postgres/nfo_policy.go": {
+      "statements": 122,
+      "covered": 2
+    },
+    "github.com/MoYuanCN/Jelee/internal/app/accounts.go": {
+      "statements": 116,
+      "covered": 98
+    },
+    "github.com/MoYuanCN/Jelee/internal/adapter/media/direct.go": {
+      "statements": 137,
+      "covered": 117
+    },
+    "github.com/MoYuanCN/Jelee/internal/adapter/nfo/metadata.go": {
+      "statements": 177,
+      "covered": 164
+    },
+    "github.com/MoYuanCN/Jelee/internal/adapter/postgres/nfo_queries.go": {
+      "statements": 161,
+      "covered": 4
+    },
+    "github.com/MoYuanCN/Jelee/internal/domain/probe_jobs.go": {
+      "statements": 7,
+      "covered": 7
+    },
+    "github.com/MoYuanCN/Jelee/internal/platform/logging/logging.go": {
+      "statements": 16,
+      "covered": 16
+    },
+    "github.com/MoYuanCN/Jelee/cmd/jelee-cli/probe_diagnostic.go": {
+      "statements": 28,
+      "covered": 27
+    },
+    "github.com/MoYuanCN/Jelee/internal/adapter/scan/open.go": {
+      "statements": 61,
+      "covered": 50
+    },
+    "github.com/MoYuanCN/Jelee/internal/domain/probe_cache.go": {
+      "statements": 3,
+      "covered": 3
+    },
+    "github.com/MoYuanCN/Jelee/internal/platform/sandbox/sandbox.go": {
+      "statements": 72,
+      "covered": 28
+    },
+    "github.com/MoYuanCN/Jelee/internal/platform/process/child_windows.go": {
+      "statements": 96,
+      "covered": 81
+    },
+    "github.com/MoYuanCN/Jelee/internal/adapter/http/login_limiter.go": {
+      "statements": 71,
+      "covered": 71
+    },
+    "github.com/MoYuanCN/Jelee/internal/domain/nfo_jobs.go": {
+      "statements": 4,
+      "covered": 4
+    },
+    "github.com/MoYuanCN/Jelee/internal/adapter/probe/worker_bridge.go": {
+      "statements": 59,
+      "covered": 56
+    },
+    "github.com/MoYuanCN/Jelee/internal/adapter/http/strict_json.go": {
+      "statements": 74,
+      "covered": 70
+    },
+    "github.com/MoYuanCN/Jelee/internal/adapter/http/openapi.go": {
+      "statements": 30,
+      "covered": 18
+    },
+    "github.com/MoYuanCN/Jelee/cmd/jelee-cli/media_tools.go": {
+      "statements": 28,
+      "covered": 26
+    },
+    "github.com/MoYuanCN/Jelee/internal/platform/i18n/messages.go": {
+      "statements": 83,
+      "covered": 81
+    },
+    "github.com/MoYuanCN/Jelee/internal/adapter/postgres/nfo_cache.go": {
+      "statements": 79,
+      "covered": 27
+    },
+    "github.com/MoYuanCN/Jelee/internal/domain/scan_intent.go": {
+      "statements": 3,
+      "covered": 3
+    },
+    "github.com/MoYuanCN/Jelee/internal/adapter/media/guard.go": {
+      "statements": 122,
+      "covered": 107
+    },
+    "github.com/MoYuanCN/Jelee/internal/adapter/media/open_other.go": {
+      "statements": 1,
+      "covered": 1
+    },
+    "github.com/MoYuanCN/Jelee/internal/adapter/postgres/probe_cache.go": {
+      "statements": 105,
+      "covered": 4
+    },
+    "github.com/MoYuanCN/Jelee/internal/adapter/http/jobs.go": {
+      "statements": 118,
+      "covered": 86
+    },
+    "github.com/MoYuanCN/Jelee/internal/adapter/postgres/account_acl.go": {
+      "statements": 64,
+      "covered": 6
+    },
+    "github.com/MoYuanCN/Jelee/internal/adapter/postgres/probe_requests.go": {
+      "statements": 207,
+      "covered": 10
+    },
+    "github.com/MoYuanCN/Jelee/internal/platform/proberuntime/identity.go": {
+      "statements": 37,
+      "covered": 32
+    },
+    "github.com/MoYuanCN/Jelee/internal/platform/sandbox/identity.go": {
+      "statements": 8,
+      "covered": 8
+    },
+    "github.com/MoYuanCN/Jelee/internal/adapter/postgres/sessions.go": {
+      "statements": 198,
+      "covered": 3
+    },
+    "github.com/MoYuanCN/Jelee/internal/adapter/postgres/image_inventory.go": {
+      "statements": 55,
+      "covered": 0
+    },
+    "github.com/MoYuanCN/Jelee/cmd/jelee-cli/probe_jobs.go": {
+      "statements": 23,
+      "covered": 23
+    },
+    "github.com/MoYuanCN/Jelee/internal/adapter/http/server.go": {
+      "statements": 239,
+      "covered": 218
+    },
+    "github.com/MoYuanCN/Jelee/internal/platform/password/password.go": {
+      "statements": 81,
+      "covered": 76
+    },
+    "github.com/MoYuanCN/Jelee/internal/adapter/probe/json_values.go": {
+      "statements": 137,
+      "covered": 137
+    },
+    "github.com/MoYuanCN/Jelee/internal/adapter/http/nfo_jobs.go": {
+      "statements": 61,
+      "covered": 59
+    },
+    "github.com/MoYuanCN/Jelee/cmd/jelee-cli/jobs.go": {
+      "statements": 275,
+      "covered": 225
+    },
+    "github.com/MoYuanCN/Jelee/internal/adapter/postgres/import.go": {
+      "statements": 22,
+      "covered": 0
+    },
+    "github.com/MoYuanCN/Jelee/internal/domain/nfo_cache.go": {
+      "statements": 6,
+      "covered": 6
+    },
+    "github.com/MoYuanCN/Jelee/internal/app/catalog.go": {
+      "statements": 7,
+      "covered": 7
+    },
+    "github.com/MoYuanCN/Jelee/internal/platform/runtime/nfo.go": {
+      "statements": 71,
+      "covered": 67
+    },
+    "github.com/MoYuanCN/Jelee/internal/platform/proberuntime/runtime.go": {
+      "statements": 31,
+      "covered": 9
+    },
+    "github.com/MoYuanCN/Jelee/internal/adapter/postgres/nfo_phase.go": {
+      "statements": 251,
+      "covered": 7
+    },
+    "github.com/MoYuanCN/Jelee/cmd/jelee-migrate/main.go": {
+      "statements": 24,
+      "covered": 0
+    },
+    "github.com/MoYuanCN/Jelee/internal/adapter/postgres/nfo_maintenance.go": {
+      "statements": 87,
+      "covered": 2
+    },
+    "github.com/MoYuanCN/Jelee/internal/adapter/nfo/encoding.go": {
+      "statements": 93,
+      "covered": 82
+    },
+    "github.com/MoYuanCN/Jelee/internal/adapter/postgres/probe_commit.go": {
+      "statements": 102,
+      "covered": 2
+    }
+  },
+  "sourceHashReference": "nfo-worker-native.json; identical source bytes verified"
+}

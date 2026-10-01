@@ -1,0 +1,98 @@
+{
+  "sourceDigest": "9fa07214498d2add2a09b915465504971332dcd746a16f37018454deb61f401a",
+  "profile": "production Linux amd64; UID 65532; read-only root and media; no capabilities; no-new-privileges",
+  "rounds": [
+    {
+      "activeChildren": 0,
+      "activeLeases": 0,
+      "cacheBytes": 2784000,
+      "cacheRows": 1000,
+      "elapsedMillis": 187518,
+      "identityDigest": "2cfe75cf5c93831124cb42e7620bd918abe7f90b41eb4cc76ac8279e30a7f833",
+      "metadataChildStarts": 1000,
+      "metadataProberCalls": 1000,
+      "peakChildLifecycles": 1,
+      "round": 1,
+      "summary": {
+        "jobId": "196ee98c-6044-43c3-b848-fe222478cd7e",
+        "libraryId": "5429b325-1f3b-4b19-a25c-d3d3deef733f",
+        "enabled": true,
+        "scope": "incremental",
+        "phase": "done",
+        "processed": 1000,
+        "hits": 0,
+        "negativeHits": 0,
+        "succeeded": 1000,
+        "failed": 0,
+        "changed": 0,
+        "unavailable": 0
+      }
+    },
+    {
+      "activeChildren": 0,
+      "activeLeases": 0,
+      "cacheBytes": 2784000,
+      "cacheRows": 1000,
+      "elapsedMillis": 12031,
+      "identityDigest": "2cfe75cf5c93831124cb42e7620bd918abe7f90b41eb4cc76ac8279e30a7f833",
+      "metadataChildStarts": 0,
+      "metadataProberCalls": 0,
+      "peakChildLifecycles": 1,
+      "round": 2,
+      "summary": {
+        "jobId": "6ac60836-f9ba-4d1a-b87c-df8f464b3b9e",
+        "libraryId": "5429b325-1f3b-4b19-a25c-d3d3deef733f",
+        "enabled": true,
+        "scope": "incremental",
+        "phase": "done",
+        "processed": 1000,
+        "hits": 1000,
+        "negativeHits": 0,
+        "succeeded": 0,
+        "failed": 0,
+        "changed": 0,
+        "unavailable": 0
+      }
+    },
+    {
+      "activeChildren": 0,
+      "activeLeases": 0,
+      "cacheBytes": 2784051,
+      "cacheRows": 1000,
+      "elapsedMillis": 14626,
+      "identityDigest": "2cfe75cf5c93831124cb42e7620bd918abe7f90b41eb4cc76ac8279e30a7f833",
+      "metadataChildStarts": 17,
+      "metadataProberCalls": 17,
+      "peakChildLifecycles": 1,
+      "round": 3,
+      "summary": {
+        "jobId": "64ece03a-7f55-46fb-98fb-762e0b7db4a5",
+        "libraryId": "5429b325-1f3b-4b19-a25c-d3d3deef733f",
+        "enabled": true,
+        "scope": "incremental",
+        "phase": "done",
+        "processed": 1000,
+        "hits": 983,
+        "negativeHits": 0,
+        "succeeded": 17,
+        "failed": 0,
+        "changed": 0,
+        "unavailable": 0
+      }
+    }
+  ],
+  "productionImage": "sha256:2abf870783a3d7dd77f05539a6c870dff45761ce873d00eaa4b6ae92be7bb091",
+  "originalHashesUnchanged": true,
+  "controlledReplacements": 17,
+  "hardlinkedPaths": 1000,
+  "copiedMediaPaths": 0,
+  "initialMediaBytes": 84806000,
+  "seeds": {
+    "a": "9eb634b6a3d18838161944b0f2eb1a0b3cdd810db1be545b42548f935cdc838f",
+    "b": "dd4e09a89022245a36c6b1f6441b3057fbdae05621a16f42bd060a511ccde8a1"
+  },
+  "result": "passed",
+  "testArtifactsCleaned": true,
+  "sourceCommit": "47da27b5ff090a71e6f55aae0b2e6c00871f825b",
+  "controllerLogSHA256": "23246ea35761fa4325911a89e299bbc84c4a4ac76642a8fddae1dbb847d4c7ae"
+}

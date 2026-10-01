@@ -1,0 +1,43 @@
+{
+  "result": "dedicated test database restored",
+  "firstFailedTest": "TestProbeNegativeTTLRetryAndNewToolIdentity",
+  "firstFailure": "accountTestStore migration failed; fixture schema cleanup also failed",
+  "subsequentFailures": "accountTestStore pgx.Connect failed before test logic",
+  "testFailureAt": "2026-10-01T07:52:56.714+08:00",
+  "originalContainer": "b946e673f63977992cb57b5d7fb3f8971aadb326e988c7c1e49284f2d3de2acf",
+  "events": [
+    {
+      "exitCode": 1,
+      "action": "die",
+      "timeUTC": "2026-09-30T23:52:57.360848213Z"
+    },
+    {
+      "action": "destroy",
+      "timeUTC": "2026-09-30T23:52:57.460793441Z"
+    }
+  ],
+  "observedOOMKillStopEvents": [],
+  "eventWindow": "2026-09-30T23:51:00Z through inspection at approximately 23:54Z",
+  "originalSettings": {
+    "PGDATATmpfsBytes": 536870912,
+    "autoRemove": true
+  },
+  "cause": "undetermined: original PostgreSQL logs were lost after AutoRemove; tmpfs/WAL capacity pressure is a hypothesis, not a confirmed cause",
+  "restoredContainer": "4cbfcab86e0374340c0623bee288c0c8de36e998e258430560420cfd2ab85728",
+  "restoredSettings": {
+    "publish": "127.0.0.1:55437:5432",
+    "pull": "never",
+    "image": "postgres@sha256:cf78e76683b9ca8c5733cbbdce6c9262b45b6767934dd0a95e671f9a0fc20685",
+    "PGDATATmpfsBytes": 2147483648,
+    "autoRemove": false,
+    "database": "jelee_test",
+    "credentials": "private ignored files; omitted"
+  },
+  "readiness": "pg_isready PASS",
+  "initialDiskUsage": "45.6 MiB of 2 GiB (2%)",
+  "sourceMutations": [],
+  "otherContainersModified": [],
+  "failedRunLog": "nfo-cache-native-race-first-failure.jsonl",
+  "failedRunLogSHA256": "fc99f0cd650f6f4b8228d9306bce75e0d2425c4cbdfdf00a860a87f0747c6cb0",
+  "failedTestEvents": 50
+}

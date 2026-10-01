@@ -23,6 +23,98 @@
   ],
   "existingHostDependencies": [
     {
+      "name": "git-ignore-oracle-windows",
+      "version": "2.55.0.windows.3",
+      "versionOutput": "git version 2.55.0.windows.3",
+      "platform": "windows-amd64",
+      "observedOn": "2026-10-01",
+      "purpose": "Existing Git builtin check-ignore for isolated test-only semantic comparison; never invoked by the production ignore matcher",
+      "path": "C:/Program Files/Git/mingw64/bin/git.exe",
+      "sha256": "1a0043555d254618f2d56c936c3d9a1fbfb878bc878416a133c346bc7835eda9",
+      "metadataSource": "Installed executable --version and local LICENSE.txt; no tool downloaded",
+      "license": "GPL-2.0-only for Git, with file-specific exceptions; bundled components retain their own terms",
+      "attribution": "Linus Torvalds, Git contributors and Git for Windows maintainers",
+      "licensePath": "C:/Program Files/Git/LICENSE.txt",
+      "licenseSha256": "5b2198d1645f767585e8a88ac0499b04472164c0d2da22e75ecf97ef443ab32e",
+      "required": false,
+      "installedByJelee": false,
+      "registration": "Host inventory only, not a portable bootstrap or distribution pin. Oracle evidence records the actually executed version and binary hash."
+    },
+    {
+      "name": "git-ignore-oracle-linux",
+      "version": "2.53.0",
+      "versionOutput": "git version 2.53.0",
+      "platform": "linux-amd64",
+      "host": "WSL Ubuntu 26.04 LTS",
+      "observedOn": "2026-10-01",
+      "purpose": "Existing Git builtin check-ignore for isolated test-only semantic comparison; not distributed with Jelee",
+      "path": "/usr/bin/git",
+      "sha256": "5516c9f362c29376ab9a499a33082f9f611941d8c75930c880e30ad109e39c9a",
+      "package": "git",
+      "packageVersion": "1:2.53.0-1ubuntu1",
+      "metadataSource": "Installed executable --version, dpkg-query and package copyright; no package downloaded",
+      "license": "GPL-2.0-only for Git, with file-specific exceptions recorded in the package copyright",
+      "attribution": "Linus Torvalds and Git contributors; Debian and Ubuntu package maintainers",
+      "licensePath": "/usr/share/doc/git/copyright",
+      "licenseSha256": "c60bb8fe022a5f6030d7cc8b98afdd2e2fe84d021e8a2f58e49ab32e176c906d",
+      "required": false,
+      "installedByJelee": false,
+      "registration": "Host inventory only. Windows and Linux oracle binaries have different versions and are reported separately."
+    },
+    {
+      "name": "wsl-gcc-external-linker-driver",
+      "version": "15.2.0-16ubuntu1",
+      "versionOutput": "x86_64-linux-gnu-gcc-15 (Ubuntu 15.2.0-16ubuntu1) 15.2.0",
+      "platform": "linux-amd64",
+      "host": "WSL Ubuntu 26.04 LTS",
+      "observedOn": "2026-10-01",
+      "purpose": "Existing host C compiler and driver for Go race/cgo SDK external linking; not a production media dependency",
+      "invokedPaths": ["/usr/bin/cc", "/usr/bin/gcc"],
+      "path": "/usr/bin/x86_64-linux-gnu-gcc-15",
+      "sha256": "b5f1b773a7c733738352000c92a077dc5852a1a2fc6d836b1e411be1e9ec5f88",
+      "package": "gcc-15-x86-64-linux-gnu",
+      "sourcePackage": "gcc-15",
+      "sourceVersion": "15.2.0-16ubuntu1",
+      "metadataSource": "Installed Ubuntu dpkg-query package and source records; no package downloaded",
+      "license": "GPL-3.0-or-later; runtime components include GCC-exception-3.1 and component-specific terms",
+      "attribution": "Free Software Foundation, Inc. and GCC contributors; Ubuntu package maintainers",
+      "licensePath": "/usr/share/doc/gcc-15-base/copyright",
+      "licenseSha256": "41a2d69df964174fb042b6513e99b72177318e94ca0c29a813e6f3155a9c5048",
+      "components": [
+        {"name": "cc1", "path": "/usr/libexec/gcc/x86_64-linux-gnu/15/cc1", "sha256": "30510b346885152c4fce41d2b501751c95d3690b1c34eaa04ebb970e70eae620", "package": "cpp-15-x86-64-linux-gnu", "version": "15.2.0-16ubuntu1"},
+        {"name": "collect2", "path": "/usr/libexec/gcc/x86_64-linux-gnu/15/collect2", "sha256": "8ab5d946ba2c948e5ea5c91e25a104439302e0599a521785770d10690c565437", "package": "gcc-15-x86-64-linux-gnu", "version": "15.2.0-16ubuntu1"}
+      ],
+      "required": false,
+      "installedByJelee": false,
+      "registration": "Retrospective host inventory; earlier Linux race runs predate this registration. Final race verification must run after registration. Not a portable bootstrap pin or distributed tool."
+    },
+    {
+      "name": "wsl-binutils-external-linker",
+      "version": "2.46-3ubuntu2",
+      "versionOutput": "GNU ld (GNU Binutils for Ubuntu) 2.46",
+      "platform": "linux-amd64",
+      "host": "WSL Ubuntu 26.04 LTS",
+      "observedOn": "2026-10-01",
+      "purpose": "Existing assembler and linker selected by GCC for Go race/cgo SDK external linking; not included in application artifacts",
+      "invokedPaths": ["/usr/bin/ld", "/usr/bin/x86_64-linux-gnu-ld"],
+      "path": "/usr/bin/x86_64-linux-gnu-ld.bfd",
+      "sha256": "97f48d93b8b076a92d2809ec29dcb17f0f37c8827358f832255e2ed22fef6075",
+      "package": "binutils-x86-64-linux-gnu",
+      "sourcePackage": "binutils",
+      "sourceVersion": "2.46-3ubuntu2",
+      "metadataSource": "Installed Ubuntu dpkg-query package and source records; no package downloaded",
+      "license": "GPL-3.0-or-later; documentation has GFDL-1.3-or-later terms",
+      "attribution": "Free Software Foundation, Inc.; Debian and Ubuntu package maintainers",
+      "licensePath": "/usr/share/doc/binutils-common/copyright",
+      "licenseSha256": "20a9818b14f941467bcc0f459a1b1951e3bfecc1cc259e5004f8b9a80d7dc804",
+      "components": [
+        {"name": "as", "path": "/usr/bin/x86_64-linux-gnu-as", "sha256": "4e5fcaa3cdc160173cb5cfe7aa35dc39d7aa1f06ba8d75b8d923bbae5473991b", "package": "binutils-x86-64-linux-gnu", "version": "2.46-3ubuntu2"}
+      ],
+      "required": false,
+      "installedByJelee": false,
+      "registration": "Retrospective host inventory paired with the GCC entry; no compiler or linker installation by Jelee."
+    },
+    {
       "name": "docker-engine",
       "version": "29.7.2",
       "purpose": "Existing host container runtime for integration tests; bootstrap does not install it",
@@ -44,6 +136,291 @@
       "installedByJelee": false
     }
   ],
+  "mediaRuntime": {
+    "schemaVersion": 1,
+    "status": "verified-files-experimental",
+    "platform": "linux-amd64",
+    "optional": true,
+    "experimentalOnly": true,
+    "readyToExecute": true,
+    "verifiedOn": "2026-10-01",
+    "installPath": "media-runtime/linux-amd64/debian13-glibc2.41-12deb13u4-gcc14.2.0-19",
+    "fileHashStatus": "Selected ELF and package copyright SHA256 calculated from archive-verified Debian packages and recorded before any runtime execution.",
+    "packages": [
+      {
+        "name": "libc6",
+        "version": "2.41-12+deb13u4",
+        "architecture": "amd64",
+        "sourcePackage": "glibc",
+        "sourceVersion": "2.41-12+deb13u4",
+        "url": "https://deb.debian.org/debian/pool/main/g/glibc/libc6_2.41-12+deb13u4_amd64.deb",
+        "sha256": "967aa62605721081c3eb2a17650611a792aa802d76a6511d1840242623d204c9",
+        "sizeBytes": 2846580,
+        "metadataURL": "https://packages.debian.org/trixie/amd64/libc6/download",
+        "fileListURL": "https://packages.debian.org/trixie/amd64/libc6/filelist",
+        "archive": "deb-ar",
+        "license": "LGPL-2.1-or-later and file-specific terms; preserve package copyright",
+        "attribution": "Free Software Foundation, glibc contributors and Debian GNU Libc Maintainers",
+        "files": [
+          {
+            "source": "usr/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2",
+            "destination": "lib64/ld-linux-x86-64.so.2",
+            "kind": "elf",
+            "sha256": "c8438e4fde1934e61c88311633f00949ff645d5c04cdb8671fa3d78164d2f307",
+            "sizeBytes": 225672
+          },
+          {
+            "source": "usr/lib/x86_64-linux-gnu/libc.so.6",
+            "destination": "lib/x86_64-linux-gnu/libc.so.6",
+            "kind": "elf",
+            "sha256": "9792e3cbb541c8f44c7acf5f14f4022ea62998ecc787d326bed4d8b6547dfd92",
+            "sizeBytes": 1995216
+          },
+          {
+            "source": "usr/lib/x86_64-linux-gnu/libm.so.6",
+            "destination": "lib/x86_64-linux-gnu/libm.so.6",
+            "kind": "elf",
+            "sha256": "6d567d53e895273ca14a1f9dc164fc6c8d39aed2f60aa46a733c2784228915f3",
+            "sizeBytes": 977112
+          },
+          {
+            "source": "usr/lib/x86_64-linux-gnu/libmvec.so.1",
+            "destination": "lib/x86_64-linux-gnu/libmvec.so.1",
+            "kind": "elf",
+            "sha256": "cd2f99df70ed0fa44f79bd6322396180d19eaa1fb527b1b6e2aec9cdfc034d9d",
+            "sizeBytes": 1018072
+          },
+          {
+            "source": "usr/lib/x86_64-linux-gnu/libdl.so.2",
+            "destination": "lib/x86_64-linux-gnu/libdl.so.2",
+            "kind": "elf",
+            "sha256": "295fa521a03cd2faa99974f378c9e23dd622021ec7d32bcad4f8ea61aec8a872",
+            "sizeBytes": 14408
+          },
+          {
+            "source": "usr/lib/x86_64-linux-gnu/libpthread.so.0",
+            "destination": "lib/x86_64-linux-gnu/libpthread.so.0",
+            "kind": "elf",
+            "sha256": "85e21f7dba0394411d00959176fd18b470e575b0b05f1f4f41e5636802ce0500",
+            "sizeBytes": 14408
+          },
+          {
+            "source": "usr/lib/x86_64-linux-gnu/librt.so.1",
+            "destination": "lib/x86_64-linux-gnu/librt.so.1",
+            "kind": "elf",
+            "sha256": "7b7b84d1aedda0e0b2bdfc68844362782132180b8f02be1300e21e77572e514b",
+            "sizeBytes": 14552
+          },
+          {
+            "source": "usr/share/doc/libc6/copyright",
+            "destination": "licenses/runtime/libc6/copyright",
+            "kind": "notice",
+            "sha256": "f5788886720a2605a946e81d571e6c8162b09f58d2e2ceb8d36e5768fccd850d",
+            "sizeBytes": 51200
+          }
+        ]
+      },
+      {
+        "name": "libgcc-s1",
+        "version": "14.2.0-19",
+        "architecture": "amd64",
+        "sourcePackage": "gcc-14",
+        "sourceVersion": "14.2.0-19",
+        "url": "https://deb.debian.org/debian/pool/main/g/gcc-14/libgcc-s1_14.2.0-19_amd64.deb",
+        "sha256": "3c71917b490d1a17aed43196a2787a256ecf060526cdb20216a74bedc061b150",
+        "sizeBytes": 72772,
+        "metadataURL": "https://packages.debian.org/trixie/amd64/libgcc-s1/download",
+        "fileListURL": "https://packages.debian.org/trixie/amd64/libgcc-s1/filelist",
+        "archive": "deb-ar",
+        "license": "GPL-3.0-or-later WITH GCC-exception-3.1",
+        "attribution": "Free Software Foundation, GCC contributors and Debian GCC Maintainers",
+        "noticePackage": "gcc-14-base",
+        "files": [
+          {
+            "source": "usr/lib/x86_64-linux-gnu/libgcc_s.so.1",
+            "destination": "lib/x86_64-linux-gnu/libgcc_s.so.1",
+            "kind": "elf",
+            "sha256": "30c61ab012a4241bed033725a09b61f5fdd3bb7df95ee852d0b096520524c7af",
+            "sizeBytes": 182856
+          }
+        ]
+      },
+      {
+        "name": "gcc-14-base",
+        "version": "14.2.0-19",
+        "architecture": "amd64",
+        "sourcePackage": "gcc-14",
+        "sourceVersion": "14.2.0-19",
+        "url": "https://deb.debian.org/debian/pool/main/g/gcc-14/gcc-14-base_14.2.0-19_amd64.deb",
+        "sha256": "5b6825de4263824b78c4c51f6476414f3b4e89c2ab63e81dc8b9b5501e867cf6",
+        "sizeBytes": 49432,
+        "metadataURL": "https://packages.debian.org/trixie/amd64/gcc-14-base/download",
+        "fileListURL": "https://packages.debian.org/trixie/amd64/gcc-14-base/filelist",
+        "archive": "deb-ar",
+        "purpose": "Attribution/notice package only; no compiler is extracted or executed",
+        "license": "Package copyright enumerates GCC component licenses and Runtime Library Exception",
+        "attribution": "Free Software Foundation, GCC contributors and Debian GCC Maintainers",
+        "files": [
+          {
+            "source": "usr/share/doc/gcc-14-base/copyright",
+            "destination": "licenses/runtime/gcc-14-base/copyright",
+            "kind": "notice",
+            "sha256": "20390f8a6f3b1e4d7cb45dd8652dabb259bbef688cbad839bcdb0b9ba7252f79",
+            "sizeBytes": 69004
+          }
+        ]
+      }
+    ],
+    "licenseTexts": [
+      {
+        "name": "LGPL-2.1",
+        "url": "https://ftp.gnu.org/gnu/Licenses/lgpl-2.1.txt",
+        "originalURL": "https://www.gnu.org/licenses/old-licenses/lgpl-2.1.txt",
+        "sha256": "20e50fe7aae3e56378ebf0417d9de904f55a0e61e4df315333e632a4d3555d95",
+        "sizeBytes": 26419,
+        "destination": "licenses/runtime/LGPL-2.1.txt"
+      },
+      {
+        "name": "GPL-2.0",
+        "url": "https://ftp.gnu.org/gnu/Licenses/gpl-2.0.txt",
+        "originalURL": "https://www.gnu.org/licenses/old-licenses/gpl-2.0.txt",
+        "sha256": "edaef632cbb643e4e7a221717a6c441a4c1a7c918e6e4d56debc3d8739b233f6",
+        "sizeBytes": 17984,
+        "destination": "licenses/runtime/GPL-2.0.txt"
+      },
+      {
+        "name": "GPL-3.0",
+        "url": "https://ftp.gnu.org/gnu/Licenses/gpl-3.0.txt",
+        "originalURL": "https://www.gnu.org/licenses/gpl-3.0.txt",
+        "sha256": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986",
+        "sizeBytes": 35149,
+        "destination": "licenses/runtime/GPL-3.0.txt"
+      },
+      {
+        "name": "GCC-exception-3.1",
+        "url": "https://raw.githubusercontent.com/gcc-mirror/gcc/releases/gcc-14.2.0/COPYING.RUNTIME",
+        "sha256": "9d6b43ce4d8de0c878bf16b54d8e7a10d9bd42b75178153e3af6a815bdc90f74",
+        "sizeBytes": 3324,
+        "destination": "licenses/runtime/GCC-exception-3.1.txt"
+      }
+    ],
+    "sourceArtifacts": [
+      {
+        "sourcePackage": "glibc",
+        "sourceVersion": "2.41-12+deb13u4",
+        "url": "https://deb.debian.org/debian/pool/main/g/glibc/glibc_2.41-12+deb13u4.dsc",
+        "sha256": "0915324aa646bb99abfaa9aa6ecb734b30babd28454a3e51f3152912370fbd3e",
+        "sizeBytes": 7576,
+        "kind": "signed-source-metadata",
+        "signatureVerified": false
+      },
+      {
+        "sourcePackage": "glibc",
+        "sourceVersion": "2.41-12+deb13u4",
+        "url": "https://deb.debian.org/debian/pool/main/g/glibc/glibc_2.41.orig.tar.xz",
+        "sha256": "f24aa441021121a79266f0d75242706cab8843a47901fefe74527491807f1998",
+        "sizeBytes": 20323540,
+        "kind": "upstream-source"
+      },
+      {
+        "sourcePackage": "glibc",
+        "sourceVersion": "2.41-12+deb13u4",
+        "url": "https://deb.debian.org/debian/pool/main/g/glibc/glibc_2.41-12+deb13u4.debian.tar.xz",
+        "sha256": "dda4153511bfd543502d18e5bc9323110996fe9c531f14ae3fad6eb17f027c7d",
+        "sizeBytes": 499524,
+        "kind": "packaging-patches-and-rules"
+      },
+      {
+        "sourcePackage": "gcc-14",
+        "sourceVersion": "14.2.0-19",
+        "url": "https://deb.debian.org/debian/pool/main/g/gcc-14/gcc-14_14.2.0-19.dsc",
+        "sha256": "7db1e202cce66617e9134a662c877a3a773de5b612fd52179815877e0ecfb847",
+        "sizeBytes": 47347,
+        "kind": "signed-source-metadata",
+        "signatureVerified": false
+      },
+      {
+        "sourcePackage": "gcc-14",
+        "sourceVersion": "14.2.0-19",
+        "url": "https://deb.debian.org/debian/pool/main/g/gcc-14/gcc-14_14.2.0.orig.tar.gz",
+        "sha256": "e162a5ef3f0077ecae598c6556908d2ab80841532df3398072a96a6df6e6aa29",
+        "sizeBytes": 94299633,
+        "kind": "upstream-source"
+      },
+      {
+        "sourcePackage": "gcc-14",
+        "sourceVersion": "14.2.0-19",
+        "url": "https://deb.debian.org/debian/pool/main/g/gcc-14/gcc-14_14.2.0-19.debian.tar.xz",
+        "sha256": "31cbab4bafa48aa1c540497bd8098cbcf98e673778f927651ed944709f687781",
+        "sizeBytes": 2577016,
+        "kind": "packaging-patches-and-rules"
+      }
+    ],
+    "sourceCompleteness": "Debian runtime source package identities are pinned separately. Complete corresponding sources for BtbN FFprobe statically linked third-party dependencies have not been collected; experimental local container only, no public image publication."
+  },
+  "mediaTools": {
+    "schemaVersion": 1,
+    "optional": true,
+    "verifiedOn": "2026-10-01",
+    "upstreamStableVersion": "9.0.2",
+    "upstreamSource": "https://www.ffmpeg.org/download.html",
+    "productionIntegration": "Not enabled in stage 3B1; production probe remains false and Docker contains no media tools",
+    "platforms": {
+      "windows-amd64": {
+        "vendor": "Gyan Doshi",
+        "vendorVersion": "9.0.2-essentials_build-www.gyan.dev",
+        "upstreamVersion": "9.0.2",
+        "releaseTag": "9.0.2",
+        "releaseURL": "https://github.com/GyanD/codexffmpeg/releases/tag/9.0.2",
+        "sourceRevision": "946fcce07b6dcd0331c8cc609192aeff5e1924f8",
+        "sourceURL": "https://github.com/FFmpeg/FFmpeg/commit/946fcce07b6dcd0331c8cc609192aeff5e1924f8",
+        "url": "https://github.com/GyanD/codexffmpeg/releases/download/9.0.2/ffmpeg-9.0.2-essentials_build.zip",
+        "sha256": "60f467265b1e312373dbcd92200c2618a74850f98d3d078e94296bb3fa2047ba",
+        "sizeBytes": 114768076,
+        "checksumURL": "https://www.gyan.dev/ffmpeg/builds/packages/ffmpeg-9.0.2-essentials_build.zip.sha256",
+        "metadataURL": "https://api.github.com/repos/GyanD/codexffmpeg/releases/tags/9.0.2",
+        "archive": "zip",
+        "installPath": "media/windows-amd64/gyan-9.0.2",
+        "archiveRoot": "ffmpeg-9.0.2-essentials_build",
+        "license": "GPL-3.0-or-later; linked dependencies retain their applicable licenses",
+        "licenseSource": "https://www.gyan.dev/ffmpeg/builds/",
+        "licenseFiles": [{"path": "ffmpeg-9.0.2-essentials_build/LICENSE", "sha256": "8ceb4b9ee5adedde47b31e975c1d90c73ad27b6b165a1dcd80c7c545eb65b903"}],
+        "runtimeRequirements": "Windows 10 or later; vendor static build",
+        "executables": {
+          "ffprobe": {"path": "ffmpeg-9.0.2-essentials_build/bin/ffprobe.exe", "sha256": "f0d36ecbbdd3bcfac3efa078c96c7271c2e68b3810595552ac3b7f17e9a65c52", "productionAllowed": true},
+          "ffmpeg": {"path": "ffmpeg-9.0.2-essentials_build/bin/ffmpeg.exe", "sha256": "3256173f3f8bffd7df12227c68adf68025edb1832273a9530688a7bb1ed8edec", "productionAllowed": false}
+        }
+      },
+      "linux-amd64": {
+        "vendor": "BtbN FFmpeg-Builds",
+        "vendorVersion": "n9.0.2-17-g2a571b6068-20260930",
+        "upstreamVersion": "9.0.2 plus 17 release/9.0 branch commits",
+        "releaseTag": "autobuild-2026-09-30-13-08",
+        "releaseURL": "https://github.com/BtbN/FFmpeg-Builds/releases/tag/autobuild-2026-09-30-13-08",
+        "sourceRevision": "2a571b606854520cf89804d8030c8b328e621689",
+        "sourceURL": "https://github.com/FFmpeg/FFmpeg/commit/2a571b606854520cf89804d8030c8b328e621689",
+        "buildRevision": "6c9aec5fc9a72ec3abedd1fa84db141fa18cf52b",
+        "buildSourceURL": "https://github.com/BtbN/FFmpeg-Builds/tree/6c9aec5fc9a72ec3abedd1fa84db141fa18cf52b",
+        "url": "https://github.com/BtbN/FFmpeg-Builds/releases/download/autobuild-2026-09-30-13-08/ffmpeg-n9.0.2-17-g2a571b6068-linux64-gpl-9.0.tar.xz",
+        "sha256": "68ee646831adaae2495618346f3bba94ff207ff83bbd34d643e7004730d66269",
+        "sizeBytes": 151017172,
+        "checksumURL": "https://github.com/BtbN/FFmpeg-Builds/releases/download/autobuild-2026-09-30-13-08/checksums.sha256",
+        "metadataURL": "https://api.github.com/repos/BtbN/FFmpeg-Builds/releases/tags/autobuild-2026-09-30-13-08",
+        "archive": "tar.xz",
+        "installPath": "media/linux-amd64/btbn-20260930-9.0",
+        "archiveRoot": "ffmpeg-n9.0.2-17-g2a571b6068-linux64-gpl-9.0",
+        "license": "GPL-3.0-or-later; linked dependencies retain their applicable licenses",
+        "licenseSource": "https://github.com/BtbN/FFmpeg-Builds/blob/6c9aec5fc9a72ec3abedd1fa84db141fa18cf52b/variants/defaults-gpl.sh",
+        "licenseFiles": [{"path": "ffmpeg-n9.0.2-17-g2a571b6068-linux64-gpl-9.0/LICENSE.txt", "sha256": "8ceb4b9ee5adedde47b31e975c1d90c73ad27b6b165a1dcd80c7c545eb65b903"}],
+        "runtimeRequirements": "glibc >= 2.28 and Linux >= 4.18; static libav build is not a fully static scratch-compatible executable",
+        "retention": "Vendor retains the final monthly build for two years; archive bytes remain bound by this SHA256 and can be supplied by an HTTPS mirror or offline cache",
+        "executables": {
+          "ffprobe": {"path": "ffmpeg-n9.0.2-17-g2a571b6068-linux64-gpl-9.0/bin/ffprobe", "sha256": "a5bd5e9f8d74ab2c6d7d9e2e2738ff6d67bf9613e7143e143ba8ebe9b06385fb", "productionAllowed": true},
+          "ffmpeg": {"path": "ffmpeg-n9.0.2-17-g2a571b6068-linux64-gpl-9.0/bin/ffmpeg", "sha256": "0d709a0bed1a43f24cd2c420878c63afea4580671b6949ad19ed124572f3bc3d", "productionAllowed": false}
+        }
+      }
+    }
+  },
   "tools": [
     {
       "name": "go",

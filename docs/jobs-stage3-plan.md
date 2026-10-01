@@ -1,4 +1,4 @@
-> 接手状态：第 2 阶段已推送至 `fdbd1173b5`。第 3 阶段仅保存设计草案及 `internal/domain/jobs.go`、`internal/app/jobs_ports.go` 类型/端口；没有 worker、扫描器、数据库迁移或新路由实现，也没有启用新能力。以下规划保留起草时信息，继续前应先核对这些草案并明确实现契约。
+> 2026-10-01 用户恢复工作。3C3C已发布PR #10；3D1A已完成纯忽略规则编译/匹配与真实两平台Git对照，见[实际报告](ignore-matcher-verification.md)。3D1B安全来源与编译缓存已发布PR #12，功能CI通过，完整品牌仍失败，见[报告](ignore-source-verification.md)。3D1C细分为C1持久意图与执行守卫、C2基线比较、C3文件系统/worker/报告接线，见[计划](ignore-inventory-plan.md)。每段验证后推送并提PR，然后继续下一段。以下保留最初规划，历史描述不代表当前状态。
 # 第 3 階段工作範圍：任務、唯讀掃描與媒體探測
 
 規劃日期：2026-10-01，Asia/Taipei。
@@ -142,7 +142,7 @@ Windows 需要可終止子孫進程的策略（例如經查證的 Job Object 使
 1. phase2 最終 commit、migration schema version、live session/admin/ACL API 介面，確定階段3的開始基線。
 2. ffprobe/FFmpeg、MediaInfo、MKVToolNix 所選精確版本的官方 CLI/JSON schema、Windows/Linux分發來源、SHA256、build flags、授權與動態依賴。現在沒有新工具版本/hash，不能填猜測值。
 3. Windows Job Object/handle與Linux process group/fd的官方API與當前Go/xsys支持；安全傳遞被root約束的檔案給ffprobe之方案與效能成本。
-4. `.ignore` 精確來源已在本地 [DotIgnoreIgnoreRule.cs](../Emby.Server.Implementations/Library/DotIgnoreIgnoreRule.cs) 看見：最近祖先、空檔/沒有有效規則即全忽略、Windows斜線規範化等；仍需固定至上游審計commit `52a680c578f1af888ebb74cefcb89b736f9c5738` 的程式與測試建立契約。`.jellyfinignore`/`.embyignore` 尚無已確認入口，沿用 [requirements-clarifications](../docs/requirements-clarifications.md) 的保守界線。
+4. `.ignore` 精確來源已在本地 `DotIgnoreIgnoreRule.cs`（精确来源见 requirements-clarifications.md） 看見：最近祖先、空檔/沒有有效規則即全忽略、Windows斜線規範化等；仍需固定至上游審計commit `52a680c578f1af888ebb74cefcb89b736f9c5738` 的程式與測試建立契約。其他舊專屬忽略檔名尚無已確認入口，沿用 [requirements-clarifications](../docs/requirements-clarifications.md) 的保守界線。
 5. 本地/網路FS檔案身分、mtime精度、rename和symlink行為；Windows/WSL DrvFS與原生Linux測試分开。網路FS掛起的open/stat不保證硬取消，需部署說明和故障注入，不能宣稱無條件即刻取消。
 6. queue/worker/global/CPU/I/O/DB保留/輸出/暫存/快取/重試/刪除保護的具體預設；先寫配置矩陣再寫worker，避免跨limiter鎖次序死鎖。
 7. 合成fixture能覆蓋的格式與特殊codec能力。DV/Atmos等不能用普通短片代替；沒有合法可用來源就標為缺口。

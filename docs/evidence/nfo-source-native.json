@@ -1,0 +1,211 @@
+{
+  "sourceCommit": "feeee03da801bb4730eca86b39d55eb5b1521783",
+  "result": "PASS",
+  "goVersion": "1.27.1",
+  "goExecutableSHA256": "30969f97169d7f43fe6a085873d75613adc21e30818a8c61d95bd27275df4624",
+  "sourceFilesRecorded": 224,
+  "sourceMapSHA256": "e15ee4b18c4311108687b3704e36584a9e1cf4a8e34009d46dd3dad81c07737a",
+  "changedModuleSourceHashes": {
+    "cmd/jelee-cli/nfo_source_test.go": "87764741c369ec576e79a6a2afe276e744f8250914c5e75244ed17c7dd8db4ec",
+    "cmd/jelee-cli/nfo_test.go": "bd7f6d3ed342cd5f5c8f0b382b9b526f4dca029c38fd367d0d0eaa6f91744918",
+    "cmd/jelee-cli/nfo.go": "e470f32c8204be888a50b4b04a709b79ba238ced21615c0de19d4a521e34b71a",
+    "internal/adapter/nfo/document.go": "e1f3f22d4448935a3d0a9328fec3681f9c3848c44e0d6d78c17a59f4e03db1aa",
+    "internal/adapter/nfo/encoding.go": "ee5ceb128120fd303d305e39d4c1723dde7e3eb14f7fe289df7b908489a61a28",
+    "internal/adapter/nfo/file_linux_test.go": "1ebef646efe660ee69cc83ec4c795674931abf03910302c651fabc85f102bbfd",
+    "internal/adapter/nfo/file.go": "f02088ac620e5917ee03935bf00c582cbd43fec59824f6b0865af70625ed7b0b",
+    "internal/adapter/nfo/metadata.go": "e72704c26bb77885914e4beb2e9d682962d1e4eb615f90d9627ce98e178e8e1e",
+    "internal/adapter/nfo/open_linux.go": "f17fe1ae1573403502324d785c4a74fef324b6750d7b4e1da53c57dc4ae6cf55",
+    "internal/adapter/nfo/open_other.go": "ffbfbcad4ccea80f302c71edcd0d69738644d653fa3fb7f8b36e1103398819a9",
+    "internal/adapter/nfo/read_test.go": "c94934633928c06a6386afb906a82c6a6f9d45eb82f91d7872eb2aa98a21144b",
+    "internal/adapter/nfo/read.go": "868370520d9bc34fdf1c2edcc9694787dc59e9167735e6bb83bd15b8b7ac74e6",
+    "internal/adapter/nfo/source_test.go": "a1232b5d38ca5a4a95bd5231a01f1e56d84655b669c2f4f9ba37f94896ea80c3",
+    "internal/adapter/nfo/source.go": "1bca760009d6f884717980364d63013ccd9550c400cbe2ccd038e3be2c99e79a"
+  },
+  "commands": [
+    {
+      "command": [
+        "<pinned-go>",
+        "build",
+        "-trimpath",
+        "-o",
+        "bin/jelee",
+        "./cmd/jelee"
+      ],
+      "exit": 0,
+      "log": "nfo-source-build-jelee.txt",
+      "seconds": 11.191
+    },
+    {
+      "command": [
+        "<pinned-go>",
+        "build",
+        "-trimpath",
+        "-o",
+        "bin/jelee-cli",
+        "./cmd/jelee-cli"
+      ],
+      "exit": 0,
+      "log": "nfo-source-build-jelee-cli.txt",
+      "seconds": 8.029
+    },
+    {
+      "command": [
+        "<pinned-go>",
+        "build",
+        "-trimpath",
+        "-o",
+        "bin/jelee-migrate",
+        "./cmd/jelee-migrate"
+      ],
+      "exit": 0,
+      "log": "nfo-source-build-jelee-migrate.txt",
+      "seconds": 7.561
+    },
+    {
+      "command": [
+        "<pinned-go>",
+        "vet",
+        "./internal/adapter/nfo",
+        "./cmd/jelee-cli",
+        "./internal/architecture",
+        "./cmd/jelee",
+        "./cmd/jelee-migrate"
+      ],
+      "exit": 0,
+      "log": "nfo-source-native-vet.txt",
+      "seconds": 9.155
+    },
+    {
+      "command": [
+        "<pinned-go>",
+        "test",
+        "-race",
+        "-json",
+        "-count=1",
+        "-coverprofile=<repository>/.testdata/nfo-source-native.cover",
+        "./internal/adapter/nfo",
+        "./cmd/jelee-cli",
+        "./internal/architecture"
+      ],
+      "exit": 0,
+      "log": "nfo-source-native-race.jsonl",
+      "seconds": 13.618
+    },
+    {
+      "command": [
+        "<pinned-go>",
+        "test",
+        "-run",
+        "^$",
+        "-bench",
+        "^BenchmarkSourceHashAndParse$",
+        "-benchmem",
+        "-benchtime=1s",
+        "-count=3",
+        "./internal/adapter/nfo"
+      ],
+      "exit": 0,
+      "log": "nfo-source-native-bench.txt",
+      "seconds": 15.55
+    },
+    {
+      "command": [
+        "<pinned-go>",
+        "tool",
+        "cover",
+        "-func=<repository>/.testdata/nfo-source-native.cover"
+      ],
+      "exit": 0,
+      "log": "nfo-source-native-coverage.txt",
+      "seconds": 5.83
+    }
+  ],
+  "cli": [
+    {
+      "case": "utf8.nfo",
+      "exit": 0,
+      "mtimeUnchanged": true,
+      "originalSHA256": "7167244cf222cfd80c1865f8c3b73c2511ed608cea6adcf9c5a856ecc6e4f07e",
+      "originalUnchanged": true,
+      "stderr": "",
+      "stdout": "{\"valid\":true,\"root\":\"movie\",\"encoding\":\"UTF-8\",\"originalBytes\":68,\"entries\":1,\"issues\":[]}"
+    },
+    {
+      "case": "utf16le.nfo",
+      "exit": 0,
+      "mtimeUnchanged": true,
+      "originalSHA256": "484b6a2d4bd78ec798762ba77e679ca38035b131ef83d8aabd712c056649660e",
+      "originalUnchanged": true,
+      "stderr": "",
+      "stdout": "{\"valid\":true,\"root\":\"movie\",\"encoding\":\"UTF-16LE\",\"originalBytes\":138,\"entries\":1,\"issues\":[]}"
+    },
+    {
+      "case": "utf16be.nfo",
+      "exit": 0,
+      "mtimeUnchanged": true,
+      "originalSHA256": "2639f3babc5c8fbe724ab8f6ae32ef23d6f7d42a1b6e366e2700715c35f82917",
+      "originalUnchanged": true,
+      "stderr": "",
+      "stdout": "{\"valid\":true,\"root\":\"movie\",\"encoding\":\"UTF-16BE\",\"originalBytes\":138,\"entries\":1,\"issues\":[]}"
+    },
+    {
+      "case": "invalid.nfo",
+      "exit": 1,
+      "mtimeUnchanged": true,
+      "originalSHA256": "0ee4a68566f4e512ce5acf476b9b8f27ad10a7491820eadb3fe07b9f30c169db",
+      "originalUnchanged": true,
+      "stderr": "nfo_invalid_xml",
+      "stdout": ""
+    }
+  ],
+  "skipped": [],
+  "logs": {
+    "nfo-source-build-jelee-cli.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "nfo-source-build-jelee-migrate.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "nfo-source-build-jelee.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "nfo-source-native-bench.txt": "5f47ab39d63eb4eb5a987d71ebc7de8ee6c074cf79ff37dfe4737ded04400203",
+    "nfo-source-native-coverage.txt": "8f9f8405e48b8d2acdbb4ccc43dc1bc0d0c22f3d8422dc58250da9acd2c58978",
+    "nfo-source-native-race.jsonl": "1c0c80589436e84d281dae88471507492b9225616c139de1162a079f02452421",
+    "nfo-source-native-vet.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "snapshotCleaned": true,
+  "notes": [
+    "Native temporary Linux source snapshot; no database calls or integration regressions requested.",
+    "Benchmarks run without race and use the existing 16 KiB synthetic fixture; three one-second samples per API.",
+    "Installed fixed Go and registered GCC/binutils hashes verified before execution. No tools were downloaded or installed."
+  ],
+  "tests": {
+    "passedTopLevel": 66,
+    "skipCount": 0,
+    "packageCoveragePercent": {
+      "nfo": 90.5,
+      "cli": 76.4
+    },
+    "sourceCoverage": {
+      "covered": 98,
+      "total": 107
+    },
+    "architecture": "PASS; no production statements"
+  },
+  "benchmarkSamples": {
+    "fixtureBytes": 16436,
+    "ReadSource": {
+      "nsPerOp": [
+        38131,
+        37110,
+        36315
+      ],
+      "bytesPerOp": 43004,
+      "allocsPerOp": 56
+    },
+    "ReadFile": {
+      "nsPerOp": [
+        149343,
+        148079,
+        143338
+      ],
+      "bytesPerOp": 115761,
+      "allocsPerOp": 104
+    }
+  }
+}

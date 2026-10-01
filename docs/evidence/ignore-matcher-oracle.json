@@ -1,0 +1,62 @@
+{
+  "sourceCommit": "9afc8f15c6ca3b190bc6eafdb7e24356ad1cd33c",
+  "result": "PASS",
+  "platforms": [
+    {
+      "SchemaVersion": 1,
+      "GitPath": "C:\\Program Files\\Git\\mingw64\\bin\\git.exe",
+      "GitVersion": "git version 2.55.0.windows.3",
+      "GitSHA256": "1a0043555d254618f2d56c936c3d9a1fbfb878bc878416a133c346bc7835eda9",
+      "Platform": "windows-amd64",
+      "CorpusSHA256": "d8f06c60a0594120130f5cbfe1522905726f534e6521244eac798539c6e3e52a",
+      "Groups": 132,
+      "Candidates": 3768,
+      "GoldenGroups": 72,
+      "GeneratedGroups": 60,
+      "PlatformOmissions": [
+        "no-regex-expansion",
+        "posix-blank",
+        "posix-graph",
+        "posix-print",
+        "posix-space",
+        "escaped-tail-space",
+        "even-slashes-tail-space",
+        "odd-slashes-tail-space"
+      ],
+      "SourceLookupAliasesCase": true,
+      "SourceContract": "exact canonical source paths; filesystem case aliasing is not part of matcher values",
+      "ProcessTimeoutSeconds": 5,
+      "SuiteTimeoutSeconds": 60,
+      "StdoutLimit": 1048576,
+      "StderrLimit": 65536,
+      "Passed": true,
+      "logSHA256": "aa3bf75140424e9037d7aba6c4ca4c471525850631f31caa97fdf6b7e86ca56b"
+    },
+    {
+      "SchemaVersion": 1,
+      "GitPath": "/usr/bin/git",
+      "GitVersion": "git version 2.53.0",
+      "GitSHA256": "5516c9f362c29376ab9a499a33082f9f611941d8c75930c880e30ad109e39c9a",
+      "Platform": "linux-amd64",
+      "CorpusSHA256": "d8f06c60a0594120130f5cbfe1522905726f534e6521244eac798539c6e3e52a",
+      "Groups": 140,
+      "Candidates": 3784,
+      "GoldenGroups": 80,
+      "GeneratedGroups": 60,
+      "PlatformOmissions": [],
+      "SourceLookupAliasesCase": false,
+      "SourceContract": "exact canonical source paths; filesystem case aliasing is not part of matcher values",
+      "ProcessTimeoutSeconds": 5,
+      "SuiteTimeoutSeconds": 60,
+      "StdoutLimit": 1048576,
+      "StderrLimit": 65536,
+      "Passed": true,
+      "logSHA256": "8920fecd8cf274932482e7cdc7d01c774dfd2a2fe28c5f09e26458ef4837d658"
+    }
+  ],
+  "scope": "80 handwritten golden groups and 60 deterministic Cartesian groups; byte semantics and provenance, not filesystem source discovery",
+  "notes": [
+    "Windows omits eight groups with names that cannot be represented normally on that filesystem; all pure golden cases still run.",
+    "The 60 second shared context bounds Git commands and matcher calls; ordinary filesystem calls, binary hashing and cleanup are not hard-interruptible."
+  ]
+}

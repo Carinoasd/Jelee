@@ -1,0 +1,779 @@
+=== RUN   TestAccountIntegration
+=== RUN   TestAccountIntegration/casefold_idempotency_and_live_admin_rechecks
+=== RUN   TestAccountIntegration/self_only_profile_credentials_and_sessions
+=== RUN   TestAccountIntegration/trusted_local_password_reset_revokes_legacy_credentials
+=== RUN   TestAccountIntegration/oversized_session_and_ACL_results_fail_explicitly
+=== RUN   TestAccountIntegration/login_failure_counter_lock_and_credential_CAS
+=== RUN   TestAccountIntegration/session_limit_rotation_and_revoke_are_atomic
+=== RUN   TestAccountIntegration/ACL_replace_and_soft_delete_close_all_catalog_paths
+=== RUN   TestAccountIntegration/audit_never_contains_credentials
+=== RUN   TestAccountIntegration/last_active_admin_survives_concurrent_self_demotion
+--- PASS: TestAccountIntegration (0.71s)
+    --- PASS: TestAccountIntegration/casefold_idempotency_and_live_admin_rechecks (0.11s)
+    --- PASS: TestAccountIntegration/self_only_profile_credentials_and_sessions (0.02s)
+    --- PASS: TestAccountIntegration/trusted_local_password_reset_revokes_legacy_credentials (0.01s)
+    --- PASS: TestAccountIntegration/oversized_session_and_ACL_results_fail_explicitly (0.09s)
+    --- PASS: TestAccountIntegration/login_failure_counter_lock_and_credential_CAS (0.05s)
+    --- PASS: TestAccountIntegration/session_limit_rotation_and_revoke_are_atomic (0.05s)
+    --- PASS: TestAccountIntegration/ACL_replace_and_soft_delete_close_all_catalog_paths (0.05s)
+    --- PASS: TestAccountIntegration/audit_never_contains_credentials (0.00s)
+    --- PASS: TestAccountIntegration/last_active_admin_survives_concurrent_self_demotion (0.02s)
+=== RUN   TestAccountMigrationRejectsCaseCollisionWithoutRenaming
+--- PASS: TestAccountMigrationRejectsCaseCollisionWithoutRenaming (0.32s)
+=== RUN   TestAccountMigrationRollbackKeepsDeletedAccountsDisabled
+--- PASS: TestAccountMigrationRollbackKeepsDeletedAccountsDisabled (0.45s)
+=== RUN   TestAccountStorageErrorsPreserveClassificationWithoutLeakingDetails
+--- PASS: TestAccountStorageErrorsPreserveClassificationWithoutLeakingDetails (0.00s)
+=== RUN   TestCredentialStructsCannotAccidentallySerializePasswordHashes
+--- PASS: TestCredentialStructsCannotAccidentallySerializePasswordHashes (0.00s)
+=== RUN   TestAccountValidationRejectsUnsafeAndUnboundedInputsBeforeDatabaseUse
+--- PASS: TestAccountValidationRejectsUnsafeAndUnboundedInputsBeforeDatabaseUse (0.00s)
+=== RUN   TestJobsSubmissionIdempotencyAndLiveAdministration
+--- PASS: TestJobsSubmissionIdempotencyAndLiveAdministration (0.49s)
+=== RUN   TestJobsCapacityAndPriorityAcrossCompetingWorkers
+--- PASS: TestJobsCapacityAndPriorityAcrossCompetingWorkers (0.47s)
+=== RUN   TestJobsCancellationRecoveryAndFencing
+--- PASS: TestJobsCancellationRecoveryAndFencing (0.40s)
+=== RUN   TestJobsPartialDirectoryRestartAndInventoryPagination
+--- PASS: TestJobsPartialDirectoryRestartAndInventoryPagination (0.40s)
+=== RUN   TestJobsBatchLimitsRollbackAndSafeMissingBaseline
+=== RUN   TestJobsBatchLimitsRollbackAndSafeMissingBaseline/entry_directory_and_overflow_limits
+=== RUN   TestJobsBatchLimitsRollbackAndSafeMissingBaseline/history_retention_baseline_and_partial_fail_closed
+=== RUN   TestJobsBatchLimitsRollbackAndSafeMissingBaseline/complete_scan_below_missing_threshold_replaces_baseline
+--- PASS: TestJobsBatchLimitsRollbackAndSafeMissingBaseline (1.23s)
+    --- PASS: TestJobsBatchLimitsRollbackAndSafeMissingBaseline/entry_directory_and_overflow_limits (0.44s)
+    --- PASS: TestJobsBatchLimitsRollbackAndSafeMissingBaseline/history_retention_baseline_and_partial_fail_closed (0.42s)
+    --- PASS: TestJobsBatchLimitsRollbackAndSafeMissingBaseline/complete_scan_below_missing_threshold_replaces_baseline (0.37s)
+=== RUN   TestJobsLeaseExpiryDuringWritesRollsBackProvisionalData
+--- PASS: TestJobsLeaseExpiryDuringWritesRollsBackProvisionalData (2.54s)
+=== RUN   TestJobsThousandEntriesRemainBoundedAndCountsUseCurrentSizes
+    jobs_integration_test.go:622: 1000-row inventory EXPLAIN: Limit -> job_inventory_page_idx; 100 index rows visited for page size 100 (single fixture, not scale acceptance)
+--- PASS: TestJobsThousandEntriesRemainBoundedAndCountsUseCurrentSizes (1.52s)
+=== RUN   TestJobsMigrationRollbackPreservesAccountsAndLibraryConfiguration
+--- PASS: TestJobsMigrationRollbackPreservesAccountsAndLibraryConfiguration (0.49s)
+=== RUN   TestJobValidationRejectsUnboundedPoliciesAndUnsafeBatchPaths
+--- PASS: TestJobValidationRejectsUnboundedPoliciesAndUnsafeBatchPaths (0.00s)
+=== RUN   TestProbeAdversarialLastLeaseSlotAcrossParents
+--- PASS: TestProbeAdversarialLastLeaseSlotAcrossParents (0.41s)
+=== RUN   TestProbeAdversarialIdentityAndScopeCapacity
+--- PASS: TestProbeAdversarialIdentityAndScopeCapacity (0.39s)
+=== RUN   TestProbeAdversarialHeartbeatDoesNotReviveExpiredChild
+--- PASS: TestProbeAdversarialHeartbeatDoesNotReviveExpiredChild (0.37s)
+=== RUN   TestProbeAdversarialForeignAndSkippedPrefix
+=== RUN   TestProbeAdversarialForeignAndSkippedPrefix/unordered
+=== RUN   TestProbeAdversarialForeignAndSkippedPrefix/duplicate
+=== RUN   TestProbeAdversarialForeignAndSkippedPrefix/skipped
+=== RUN   TestProbeAdversarialForeignAndSkippedPrefix/foreign
+--- PASS: TestProbeAdversarialForeignAndSkippedPrefix (0.38s)
+    --- PASS: TestProbeAdversarialForeignAndSkippedPrefix/unordered (0.00s)
+    --- PASS: TestProbeAdversarialForeignAndSkippedPrefix/duplicate (0.00s)
+    --- PASS: TestProbeAdversarialForeignAndSkippedPrefix/skipped (0.01s)
+    --- PASS: TestProbeAdversarialForeignAndSkippedPrefix/foreign (0.01s)
+=== RUN   TestProbeAdversarialCancelledLockWaitDoesNotReserve
+--- PASS: TestProbeAdversarialCancelledLockWaitDoesNotReserve (0.41s)
+=== RUN   TestProbeAdversarialHistoryTrimPreservesActiveSibling
+--- PASS: TestProbeAdversarialHistoryTrimPreservesActiveSibling (0.46s)
+=== RUN   TestProbeAdversarialTerminalHistoryDoesNotPinEmptyScope
+--- PASS: TestProbeAdversarialTerminalHistoryDoesNotPinEmptyScope (0.39s)
+=== RUN   TestProbeAdversarialInvalidationRequiresLiveAdminAndRecordsActor
+=== RUN   TestProbeAdversarialInvalidationRequiresLiveAdminAndRecordsActor/regular
+=== RUN   TestProbeAdversarialInvalidationRequiresLiveAdminAndRecordsActor/revoked
+=== RUN   TestProbeAdversarialInvalidationRequiresLiveAdminAndRecordsActor/disabled
+=== RUN   TestProbeAdversarialInvalidationRequiresLiveAdminAndRecordsActor/demoted
+--- PASS: TestProbeAdversarialInvalidationRequiresLiveAdminAndRecordsActor (0.32s)
+    --- PASS: TestProbeAdversarialInvalidationRequiresLiveAdminAndRecordsActor/regular (0.01s)
+    --- PASS: TestProbeAdversarialInvalidationRequiresLiveAdminAndRecordsActor/revoked (0.01s)
+    --- PASS: TestProbeAdversarialInvalidationRequiresLiveAdminAndRecordsActor/disabled (0.01s)
+    --- PASS: TestProbeAdversarialInvalidationRequiresLiveAdminAndRecordsActor/demoted (0.01s)
+=== RUN   TestProbeAdversarialBoundedEvictionAtQuotaBoundary
+=== RUN   TestProbeAdversarialBoundedEvictionAtQuotaBoundary/global_rows
+    probe_adversarial_test.go:498: retained=1000 deleted=128; exact counters and JSONB charge verified
+=== RUN   TestProbeAdversarialBoundedEvictionAtQuotaBoundary/library_rows
+    probe_adversarial_test.go:498: retained=1001 deleted=128; exact counters and JSONB charge verified
+=== RUN   TestProbeAdversarialBoundedEvictionAtQuotaBoundary/global_bytes
+    probe_adversarial_test.go:498: retained=8192 deleted=128; exact counters and JSONB charge verified
+=== RUN   TestProbeAdversarialBoundedEvictionAtQuotaBoundary/library_bytes
+    probe_adversarial_test.go:498: retained=8193 deleted=128; exact counters and JSONB charge verified
+--- PASS: TestProbeAdversarialBoundedEvictionAtQuotaBoundary (3.51s)
+    --- PASS: TestProbeAdversarialBoundedEvictionAtQuotaBoundary/global_rows (0.67s)
+    --- PASS: TestProbeAdversarialBoundedEvictionAtQuotaBoundary/library_rows (0.63s)
+    --- PASS: TestProbeAdversarialBoundedEvictionAtQuotaBoundary/global_bytes (1.20s)
+    --- PASS: TestProbeAdversarialBoundedEvictionAtQuotaBoundary/library_bytes (1.01s)
+=== RUN   TestProbeRebuildScopesAndReplayPreserveGenerations
+--- PASS: TestProbeRebuildScopesAndReplayPreserveGenerations (0.60s)
+=== RUN   TestProbeScopeMutationFencesInflightResults
+=== RUN   TestProbeScopeMutationFencesInflightResults/root
+=== RUN   TestProbeScopeMutationFencesInflightResults/item
+=== RUN   TestProbeScopeMutationFencesInflightResults/mapping
+--- PASS: TestProbeScopeMutationFencesInflightResults (1.10s)
+    --- PASS: TestProbeScopeMutationFencesInflightResults/root (0.38s)
+    --- PASS: TestProbeScopeMutationFencesInflightResults/item (0.36s)
+    --- PASS: TestProbeScopeMutationFencesInflightResults/mapping (0.37s)
+=== RUN   TestProbeCurrentKeyAndTTLRecheckedAtCommit
+--- PASS: TestProbeCurrentKeyAndTTLRecheckedAtCommit (0.52s)
+=== RUN   TestProbeMetadataJSONBExpansionBecomesBoundedFailure
+    probe_boundaries_test.go:268: normalized compact bytes=122504; PostgreSQL JSONB text bytes=131344
+--- PASS: TestProbeMetadataJSONBExpansionBecomesBoundedFailure (0.69s)
+=== RUN   TestProbeAdminExpiryDuringWriteRollsBackGenerationAndAudit
+--- PASS: TestProbeAdminExpiryDuringWriteRollsBackGenerationAndAudit (1.38s)
+=== RUN   TestProbeNegativeTTLRetryAndNewToolIdentity
+--- PASS: TestProbeNegativeTTLRetryAndNewToolIdentity (0.55s)
+=== RUN   TestProbeBeginMissingIdentityAndItemHaveNoAdmissionEffects
+--- PASS: TestProbeBeginMissingIdentityAndItemHaveNoAdmissionEffects (0.32s)
+=== RUN   TestProbeMalformedTokensAndMetadataCannotTouchLease
+=== RUN   TestProbeMalformedTokensAndMetadataCannotTouchLease/stamp
+=== RUN   TestProbeMalformedTokensAndMetadataCannotTouchLease/metadata
+=== RUN   TestProbeMalformedTokensAndMetadataCannotTouchLease/missing_context
+=== RUN   TestProbeMalformedTokensAndMetadataCannotTouchLease/missing_admin_context
+=== RUN   TestProbeMalformedTokensAndMetadataCannotTouchLease/lookup_token
+=== RUN   TestProbeMalformedTokensAndMetadataCannotTouchLease/acquire_token
+=== RUN   TestProbeMalformedTokensAndMetadataCannotTouchLease/commit_token
+--- PASS: TestProbeMalformedTokensAndMetadataCannotTouchLease (0.33s)
+    --- PASS: TestProbeMalformedTokensAndMetadataCannotTouchLease/stamp (0.00s)
+    --- PASS: TestProbeMalformedTokensAndMetadataCannotTouchLease/metadata (0.00s)
+    --- PASS: TestProbeMalformedTokensAndMetadataCannotTouchLease/missing_context (0.00s)
+    --- PASS: TestProbeMalformedTokensAndMetadataCannotTouchLease/missing_admin_context (0.00s)
+    --- PASS: TestProbeMalformedTokensAndMetadataCannotTouchLease/lookup_token (0.00s)
+    --- PASS: TestProbeMalformedTokensAndMetadataCannotTouchLease/acquire_token (0.00s)
+    --- PASS: TestProbeMalformedTokensAndMetadataCannotTouchLease/commit_token (0.00s)
+=== RUN   TestProbePolicyRequiredBeforeAdmission
+=== RUN   TestProbePolicyRequiredBeforeAdmission/identity
+=== RUN   TestProbePolicyRequiredBeforeAdmission/begin
+=== RUN   TestProbePolicyRequiredBeforeAdmission/page
+=== RUN   TestProbePolicyRequiredBeforeAdmission/finish
+=== RUN   TestProbePolicyRequiredBeforeAdmission/abort
+=== RUN   TestProbePolicyRequiredBeforeAdmission/sweep
+--- PASS: TestProbePolicyRequiredBeforeAdmission (0.29s)
+    --- PASS: TestProbePolicyRequiredBeforeAdmission/identity (0.00s)
+    --- PASS: TestProbePolicyRequiredBeforeAdmission/begin (0.00s)
+    --- PASS: TestProbePolicyRequiredBeforeAdmission/page (0.00s)
+    --- PASS: TestProbePolicyRequiredBeforeAdmission/finish (0.00s)
+    --- PASS: TestProbePolicyRequiredBeforeAdmission/abort (0.00s)
+    --- PASS: TestProbePolicyRequiredBeforeAdmission/sweep (0.00s)
+=== RUN   TestProbeFaultCheckpointAndCommitDeniedRollBackWholeOutcome
+=== RUN   TestProbeFaultCheckpointAndCommitDeniedRollBackWholeOutcome/checkpoint_success
+=== RUN   TestProbeFaultCheckpointAndCommitDeniedRollBackWholeOutcome/checkpoint_negative
+=== RUN   TestProbeFaultCheckpointAndCommitDeniedRollBackWholeOutcome/deferred_commit
+--- PASS: TestProbeFaultCheckpointAndCommitDeniedRollBackWholeOutcome (1.03s)
+    --- PASS: TestProbeFaultCheckpointAndCommitDeniedRollBackWholeOutcome/checkpoint_success (0.34s)
+    --- PASS: TestProbeFaultCheckpointAndCommitDeniedRollBackWholeOutcome/checkpoint_negative (0.35s)
+    --- PASS: TestProbeFaultCheckpointAndCommitDeniedRollBackWholeOutcome/deferred_commit (0.34s)
+=== RUN   TestProbeFaultReservationWriteFailureReleasesProvisionalQuota
+--- PASS: TestProbeFaultReservationWriteFailureReleasesProvisionalQuota (0.33s)
+=== RUN   TestProbeFaultCancellationAfterCacheWriteRollsBack
+--- PASS: TestProbeFaultCancellationAfterCacheWriteRollsBack (0.41s)
+=== RUN   TestProbeFaultUnavailablePoolAndCancelledCallsAreAtomic
+=== RUN   TestProbeFaultUnavailablePoolAndCancelledCallsAreAtomic/cancelled
+=== RUN   TestProbeFaultUnavailablePoolAndCancelledCallsAreAtomic/cancelled/policy
+=== RUN   TestProbeFaultUnavailablePoolAndCancelledCallsAreAtomic/cancelled/register
+=== RUN   TestProbeFaultUnavailablePoolAndCancelledCallsAreAtomic/cancelled/begin
+=== RUN   TestProbeFaultUnavailablePoolAndCancelledCallsAreAtomic/cancelled/page
+=== RUN   TestProbeFaultUnavailablePoolAndCancelledCallsAreAtomic/cancelled/lookup
+=== RUN   TestProbeFaultUnavailablePoolAndCancelledCallsAreAtomic/cancelled/reserve
+=== RUN   TestProbeFaultUnavailablePoolAndCancelledCallsAreAtomic/cancelled/commit
+=== RUN   TestProbeFaultUnavailablePoolAndCancelledCallsAreAtomic/cancelled/release
+=== RUN   TestProbeFaultUnavailablePoolAndCancelledCallsAreAtomic/cancelled/finish
+=== RUN   TestProbeFaultUnavailablePoolAndCancelledCallsAreAtomic/cancelled/abort
+=== RUN   TestProbeFaultUnavailablePoolAndCancelledCallsAreAtomic/cancelled/sweep
+=== RUN   TestProbeFaultUnavailablePoolAndCancelledCallsAreAtomic/cancelled/invalidate_library
+=== RUN   TestProbeFaultUnavailablePoolAndCancelledCallsAreAtomic/cancelled/invalidate_item
+=== RUN   TestProbeFaultUnavailablePoolAndCancelledCallsAreAtomic/pool_closed
+=== RUN   TestProbeFaultUnavailablePoolAndCancelledCallsAreAtomic/pool_closed/policy
+=== RUN   TestProbeFaultUnavailablePoolAndCancelledCallsAreAtomic/pool_closed/register
+=== RUN   TestProbeFaultUnavailablePoolAndCancelledCallsAreAtomic/pool_closed/begin
+=== RUN   TestProbeFaultUnavailablePoolAndCancelledCallsAreAtomic/pool_closed/page
+=== RUN   TestProbeFaultUnavailablePoolAndCancelledCallsAreAtomic/pool_closed/lookup
+=== RUN   TestProbeFaultUnavailablePoolAndCancelledCallsAreAtomic/pool_closed/reserve
+=== RUN   TestProbeFaultUnavailablePoolAndCancelledCallsAreAtomic/pool_closed/commit
+=== RUN   TestProbeFaultUnavailablePoolAndCancelledCallsAreAtomic/pool_closed/release
+=== RUN   TestProbeFaultUnavailablePoolAndCancelledCallsAreAtomic/pool_closed/finish
+=== RUN   TestProbeFaultUnavailablePoolAndCancelledCallsAreAtomic/pool_closed/abort
+=== RUN   TestProbeFaultUnavailablePoolAndCancelledCallsAreAtomic/pool_closed/sweep
+=== RUN   TestProbeFaultUnavailablePoolAndCancelledCallsAreAtomic/pool_closed/invalidate_library
+=== RUN   TestProbeFaultUnavailablePoolAndCancelledCallsAreAtomic/pool_closed/invalidate_item
+--- PASS: TestProbeFaultUnavailablePoolAndCancelledCallsAreAtomic (0.34s)
+    --- PASS: TestProbeFaultUnavailablePoolAndCancelledCallsAreAtomic/cancelled (0.01s)
+        --- PASS: TestProbeFaultUnavailablePoolAndCancelledCallsAreAtomic/cancelled/policy (0.00s)
+        --- PASS: TestProbeFaultUnavailablePoolAndCancelledCallsAreAtomic/cancelled/register (0.00s)
+        --- PASS: TestProbeFaultUnavailablePoolAndCancelledCallsAreAtomic/cancelled/begin (0.00s)
+        --- PASS: TestProbeFaultUnavailablePoolAndCancelledCallsAreAtomic/cancelled/page (0.00s)
+        --- PASS: TestProbeFaultUnavailablePoolAndCancelledCallsAreAtomic/cancelled/lookup (0.00s)
+        --- PASS: TestProbeFaultUnavailablePoolAndCancelledCallsAreAtomic/cancelled/reserve (0.00s)
+        --- PASS: TestProbeFaultUnavailablePoolAndCancelledCallsAreAtomic/cancelled/commit (0.00s)
+        --- PASS: TestProbeFaultUnavailablePoolAndCancelledCallsAreAtomic/cancelled/release (0.00s)
+        --- PASS: TestProbeFaultUnavailablePoolAndCancelledCallsAreAtomic/cancelled/finish (0.00s)
+        --- PASS: TestProbeFaultUnavailablePoolAndCancelledCallsAreAtomic/cancelled/abort (0.00s)
+        --- PASS: TestProbeFaultUnavailablePoolAndCancelledCallsAreAtomic/cancelled/sweep (0.00s)
+        --- PASS: TestProbeFaultUnavailablePoolAndCancelledCallsAreAtomic/cancelled/invalidate_library (0.00s)
+        --- PASS: TestProbeFaultUnavailablePoolAndCancelledCallsAreAtomic/cancelled/invalidate_item (0.00s)
+    --- PASS: TestProbeFaultUnavailablePoolAndCancelledCallsAreAtomic/pool_closed (0.00s)
+        --- PASS: TestProbeFaultUnavailablePoolAndCancelledCallsAreAtomic/pool_closed/policy (0.00s)
+        --- PASS: TestProbeFaultUnavailablePoolAndCancelledCallsAreAtomic/pool_closed/register (0.00s)
+        --- PASS: TestProbeFaultUnavailablePoolAndCancelledCallsAreAtomic/pool_closed/begin (0.00s)
+        --- PASS: TestProbeFaultUnavailablePoolAndCancelledCallsAreAtomic/pool_closed/page (0.00s)
+        --- PASS: TestProbeFaultUnavailablePoolAndCancelledCallsAreAtomic/pool_closed/lookup (0.00s)
+        --- PASS: TestProbeFaultUnavailablePoolAndCancelledCallsAreAtomic/pool_closed/reserve (0.00s)
+        --- PASS: TestProbeFaultUnavailablePoolAndCancelledCallsAreAtomic/pool_closed/commit (0.00s)
+        --- PASS: TestProbeFaultUnavailablePoolAndCancelledCallsAreAtomic/pool_closed/release (0.00s)
+        --- PASS: TestProbeFaultUnavailablePoolAndCancelledCallsAreAtomic/pool_closed/finish (0.00s)
+        --- PASS: TestProbeFaultUnavailablePoolAndCancelledCallsAreAtomic/pool_closed/abort (0.00s)
+        --- PASS: TestProbeFaultUnavailablePoolAndCancelledCallsAreAtomic/pool_closed/sweep (0.00s)
+        --- PASS: TestProbeFaultUnavailablePoolAndCancelledCallsAreAtomic/pool_closed/invalidate_library (0.00s)
+        --- PASS: TestProbeFaultUnavailablePoolAndCancelledCallsAreAtomic/pool_closed/invalidate_item (0.00s)
+=== RUN   TestProbeFaultPersistedIdentityMismatchCannotBeReused
+--- PASS: TestProbeFaultPersistedIdentityMismatchCannotBeReused (0.31s)
+=== RUN   TestProbeFaultDeleteDenialRestoresQuotaAndLease
+=== RUN   TestProbeFaultDeleteDenialRestoresQuotaAndLease/sweep_expired
+=== RUN   TestProbeFaultDeleteDenialRestoresQuotaAndLease/release_child
+=== RUN   TestProbeFaultDeleteDenialRestoresQuotaAndLease/capacity_eviction
+--- PASS: TestProbeFaultDeleteDenialRestoresQuotaAndLease (1.37s)
+    --- PASS: TestProbeFaultDeleteDenialRestoresQuotaAndLease/sweep_expired (0.35s)
+    --- PASS: TestProbeFaultDeleteDenialRestoresQuotaAndLease/release_child (0.33s)
+    --- PASS: TestProbeFaultDeleteDenialRestoresQuotaAndLease/capacity_eviction (0.68s)
+=== RUN   TestProbeEvictionUsesBoundedIndexPagesAndExactDeltas
+=== RUN   TestProbeEvictionUsesBoundedIndexPagesAndExactDeltas/library_expired
+    probe_integration_test.go:117: library_expired: Index Only Scan probe_cache_library_expiry_idx visited 128 rows
+=== RUN   TestProbeEvictionUsesBoundedIndexPagesAndExactDeltas/library_lru
+    probe_integration_test.go:117: library_lru: Index Only Scan probe_cache_library_lru_idx visited 128 rows
+=== RUN   TestProbeEvictionUsesBoundedIndexPagesAndExactDeltas/sweep_pending
+    probe_integration_test.go:117: sweep_pending: Index Only Scan probe_cache_expiry_idx visited 0 rows
+=== RUN   TestProbeEvictionUsesBoundedIndexPagesAndExactDeltas/sweep_expired
+    probe_integration_test.go:117: sweep_expired: Index Only Scan probe_cache_expiry_idx visited 128 rows
+=== RUN   TestProbeEvictionUsesBoundedIndexPagesAndExactDeltas/global_expired
+    probe_integration_test.go:117: global_expired: Index Only Scan probe_cache_expiry_idx visited 128 rows
+=== RUN   TestProbeEvictionUsesBoundedIndexPagesAndExactDeltas/global_lru
+    probe_integration_test.go:117: global_lru: Index Only Scan probe_cache_lru_idx visited 128 rows
+--- PASS: TestProbeEvictionUsesBoundedIndexPagesAndExactDeltas (1.09s)
+    --- PASS: TestProbeEvictionUsesBoundedIndexPagesAndExactDeltas/library_expired (0.00s)
+    --- PASS: TestProbeEvictionUsesBoundedIndexPagesAndExactDeltas/library_lru (0.00s)
+    --- PASS: TestProbeEvictionUsesBoundedIndexPagesAndExactDeltas/sweep_pending (0.00s)
+    --- PASS: TestProbeEvictionUsesBoundedIndexPagesAndExactDeltas/sweep_expired (0.00s)
+    --- PASS: TestProbeEvictionUsesBoundedIndexPagesAndExactDeltas/global_expired (0.00s)
+    --- PASS: TestProbeEvictionUsesBoundedIndexPagesAndExactDeltas/global_lru (0.00s)
+=== RUN   TestProbePolicyIdentityAndPhaseContract
+--- PASS: TestProbePolicyIdentityAndPhaseContract (0.34s)
+=== RUN   TestProbePersistAndHitPrefixCheckpoint
+--- PASS: TestProbePersistAndHitPrefixCheckpoint (0.46s)
+=== RUN   TestProbeNegativeChangedAndUnavailableOutcomes
+--- PASS: TestProbeNegativeChangedAndUnavailableOutcomes (0.41s)
+=== RUN   TestProbeLeaseABAConcurrencyCancellationAndExpiry
+--- PASS: TestProbeLeaseABAConcurrencyCancellationAndExpiry (0.39s)
+=== RUN   TestProbeTransactionExpiryRollsBackMetadataQuotaAndCursor
+--- PASS: TestProbeTransactionExpiryRollsBackMetadataQuotaAndCursor (1.45s)
+=== RUN   TestProbeReleaseRecoveryInvalidationAndMigration
+--- PASS: TestProbeReleaseRecoveryInvalidationAndMigration (0.53s)
+=== RUN   TestProbeInvalidInputsDoNotNeedDatabase
+=== RUN   TestProbeInvalidInputsDoNotNeedDatabase/0
+=== RUN   TestProbeInvalidInputsDoNotNeedDatabase/1
+=== RUN   TestProbeInvalidInputsDoNotNeedDatabase/2
+=== RUN   TestProbeInvalidInputsDoNotNeedDatabase/3
+=== RUN   TestProbeInvalidInputsDoNotNeedDatabase/4
+=== RUN   TestProbeInvalidInputsDoNotNeedDatabase/5
+=== RUN   TestProbeInvalidInputsDoNotNeedDatabase/6
+=== RUN   TestProbeInvalidInputsDoNotNeedDatabase/7
+=== RUN   TestProbeInvalidInputsDoNotNeedDatabase/8
+=== RUN   TestProbeInvalidInputsDoNotNeedDatabase/9
+=== RUN   TestProbeInvalidInputsDoNotNeedDatabase/10
+--- PASS: TestProbeInvalidInputsDoNotNeedDatabase (0.00s)
+    --- PASS: TestProbeInvalidInputsDoNotNeedDatabase/0 (0.00s)
+    --- PASS: TestProbeInvalidInputsDoNotNeedDatabase/1 (0.00s)
+    --- PASS: TestProbeInvalidInputsDoNotNeedDatabase/2 (0.00s)
+    --- PASS: TestProbeInvalidInputsDoNotNeedDatabase/3 (0.00s)
+    --- PASS: TestProbeInvalidInputsDoNotNeedDatabase/4 (0.00s)
+    --- PASS: TestProbeInvalidInputsDoNotNeedDatabase/5 (0.00s)
+    --- PASS: TestProbeInvalidInputsDoNotNeedDatabase/6 (0.00s)
+    --- PASS: TestProbeInvalidInputsDoNotNeedDatabase/7 (0.00s)
+    --- PASS: TestProbeInvalidInputsDoNotNeedDatabase/8 (0.00s)
+    --- PASS: TestProbeInvalidInputsDoNotNeedDatabase/9 (0.00s)
+    --- PASS: TestProbeInvalidInputsDoNotNeedDatabase/10 (0.00s)
+=== RUN   TestPostgresIntegration
+    store_integration_test.go:69: PostgreSQL integration RUNNING: dedicated jelee_test database, isolated schema jelee_it_7fc4c39fced622f0d431
+=== RUN   TestPostgresIntegration/migration_lock_contention_is_bounded
+    store_integration_test.go:125: contended migration returned after 5.010529851s; server-side timeout bounds the driver's non-cancelable setup
+=== RUN   TestPostgresIntegration/credentials_are_hashed_and_lifecycle_enforced
+=== RUN   TestPostgresIntegration/ACL_filters_lists_details_and_streams_in_SQL
+=== RUN   TestPostgresIntegration/constraints_and_failed_imports_are_atomic
+=== RUN   TestPostgresIntegration/ten_thousand_items_plan_and_bounded_visible_page
+    store_integration_test.go:298: restricted-user execution visited 1 item rows; hidden-library scan regression baseline was 10,002
+    store_integration_test.go:299: 10,002-row ACL query plan (single sample; no P95 or performance acceptance claimed): [
+          {
+            "Plan": {
+              "Node Type": "Limit",
+              "Parallel Aware": false,
+              "Async Capable": false,
+              "Startup Cost": 90.69,
+              "Total Cost": 90.82,
+              "Plan Rows": 50,
+              "Plan Width": 84,
+              "Actual Startup Time": 0.028,
+              "Actual Total Time": 0.029,
+              "Actual Rows": 1,
+              "Actual Loops": 1,
+              "Shared Hit Blocks": 7,
+              "Shared Read Blocks": 0,
+              "Shared Dirtied Blocks": 0,
+              "Shared Written Blocks": 0,
+              "Local Hit Blocks": 0,
+              "Local Read Blocks": 0,
+              "Local Dirtied Blocks": 0,
+              "Local Written Blocks": 0,
+              "Temp Read Blocks": 0,
+              "Temp Written Blocks": 0,
+              "Plans": [
+                {
+                  "Node Type": "Index Scan",
+                  "Parent Relationship": "InitPlan",
+                  "Subplan Name": "CTE principal",
+                  "Parallel Aware": false,
+                  "Async Capable": false,
+                  "Scan Direction": "Forward",
+                  "Index Name": "users_pkey",
+                  "Relation Name": "users",
+                  "Alias": "users",
+                  "Startup Cost": 0.15,
+                  "Total Cost": 8.17,
+                  "Plan Rows": 1,
+                  "Plan Width": 17,
+                  "Actual Startup Time": 0.007,
+                  "Actual Total Time": 0.007,
+                  "Actual Rows": 1,
+                  "Actual Loops": 1,
+                  "Index Cond": "(id = '33abf1ae-8eb0-459c-863e-313191b48e6a'::uuid)",
+                  "Rows Removed by Index Recheck": 0,
+                  "Filter": "((NOT disabled) AND (deleted_at IS NULL))",
+                  "Rows Removed by Filter": 0,
+                  "Shared Hit Blocks": 2,
+                  "Shared Read Blocks": 0,
+                  "Shared Dirtied Blocks": 0,
+                  "Shared Written Blocks": 0,
+                  "Local Hit Blocks": 0,
+                  "Local Read Blocks": 0,
+                  "Local Dirtied Blocks": 0,
+                  "Local Written Blocks": 0,
+                  "Temp Read Blocks": 0,
+                  "Temp Written Blocks": 0
+                },
+                {
+                  "Node Type": "Sort",
+                  "Parent Relationship": "Outer",
+                  "Parallel Aware": false,
+                  "Async Capable": false,
+                  "Startup Cost": 82.53,
+                  "Total Cost": 83.53,
+                  "Plan Rows": 400,
+                  "Plan Width": 84,
+                  "Actual Startup Time": 0.028,
+                  "Actual Total Time": 0.028,
+                  "Actual Rows": 1,
+                  "Actual Loops": 1,
+                  "Sort Key": ["((items.id)::text)"],
+                  "Sort Method": "quicksort",
+                  "Sort Space Used": 25,
+                  "Sort Space Type": "Memory",
+                  "Shared Hit Blocks": 7,
+                  "Shared Read Blocks": 0,
+                  "Shared Dirtied Blocks": 0,
+                  "Shared Written Blocks": 0,
+                  "Local Hit Blocks": 0,
+                  "Local Read Blocks": 0,
+                  "Local Dirtied Blocks": 0,
+                  "Local Written Blocks": 0,
+                  "Temp Read Blocks": 0,
+                  "Temp Written Blocks": 0,
+                  "Plans": [
+                    {
+                      "Node Type": "Result",
+                      "Parent Relationship": "Outer",
+                      "Parallel Aware": false,
+                      "Async Capable": false,
+                      "Startup Cost": 4.49,
+                      "Total Cost": 69.24,
+                      "Plan Rows": 400,
+                      "Plan Width": 84,
+                      "Actual Startup Time": 0.021,
+                      "Actual Total Time": 0.023,
+                      "Actual Rows": 1,
+                      "Actual Loops": 1,
+                      "Shared Hit Blocks": 7,
+                      "Shared Read Blocks": 0,
+                      "Shared Dirtied Blocks": 0,
+                      "Shared Written Blocks": 0,
+                      "Local Hit Blocks": 0,
+                      "Local Read Blocks": 0,
+                      "Local Dirtied Blocks": 0,
+                      "Local Written Blocks": 0,
+                      "Temp Read Blocks": 0,
+                      "Temp Written Blocks": 0,
+                      "Plans": [
+                        {
+                          "Node Type": "Append",
+                          "Parent Relationship": "Outer",
+                          "Parallel Aware": false,
+                          "Async Capable": false,
+                          "Startup Cost": 4.49,
+                          "Total Cost": 61.24,
+                          "Plan Rows": 400,
+                          "Plan Width": 52,
+                          "Actual Startup Time": 0.020,
+                          "Actual Total Time": 0.022,
+                          "Actual Rows": 1,
+                          "Actual Loops": 1,
+                          "Shared Hit Blocks": 7,
+                          "Shared Read Blocks": 0,
+                          "Shared Dirtied Blocks": 0,
+                          "Shared Written Blocks": 0,
+                          "Local Hit Blocks": 0,
+                          "Local Read Blocks": 0,
+                          "Local Dirtied Blocks": 0,
+                          "Local Written Blocks": 0,
+                          "Temp Read Blocks": 0,
+                          "Temp Written Blocks": 0,
+                          "Subplans Removed": 0,
+                          "Plans": [
+                            {
+                              "Node Type": "Nested Loop",
+                              "Parent Relationship": "Member",
+                              "Parallel Aware": false,
+                              "Async Capable": false,
+                              "Join Type": "Inner",
+                              "Startup Cost": 4.49,
+                              "Total Cost": 54.18,
+                              "Plan Rows": 350,
+                              "Plan Width": 52,
+                              "Actual Startup Time": 0.020,
+                              "Actual Total Time": 0.021,
+                              "Actual Rows": 1,
+                              "Actual Loops": 1,
+                              "Inner Unique": false,
+                              "Shared Hit Blocks": 7,
+                              "Shared Read Blocks": 0,
+                              "Shared Dirtied Blocks": 0,
+                              "Shared Written Blocks": 0,
+                              "Local Hit Blocks": 0,
+                              "Local Read Blocks": 0,
+                              "Local Dirtied Blocks": 0,
+                              "Local Written Blocks": 0,
+                              "Temp Read Blocks": 0,
+                              "Temp Written Blocks": 0,
+                              "Plans": [
+                                {
+                                  "Node Type": "Nested Loop",
+                                  "Parent Relationship": "Outer",
+                                  "Parallel Aware": false,
+                                  "Async Capable": false,
+                                  "Join Type": "Inner",
+                                  "Startup Cost": 4.21,
+                                  "Total Cost": 14.44,
+                                  "Plan Rows": 7,
+                                  "Plan Width": 16,
+                                  "Actual Startup Time": 0.011,
+                                  "Actual Total Time": 0.012,
+                                  "Actual Rows": 1,
+                                  "Actual Loops": 1,
+                                  "Inner Unique": false,
+                                  "Shared Hit Blocks": 4,
+                                  "Shared Read Blocks": 0,
+                                  "Shared Dirtied Blocks": 0,
+                                  "Shared Written Blocks": 0,
+                                  "Local Hit Blocks": 0,
+                                  "Local Read Blocks": 0,
+                                  "Local Dirtied Blocks": 0,
+                                  "Local Written Blocks": 0,
+                                  "Temp Read Blocks": 0,
+                                  "Temp Written Blocks": 0,
+                                  "Plans": [
+                                    {
+                                      "Node Type": "CTE Scan",
+                                      "Parent Relationship": "Outer",
+                                      "Parallel Aware": false,
+                                      "Async Capable": false,
+                                      "CTE Name": "principal",
+                                      "Alias": "u",
+                                      "Startup Cost": 0.00,
+                                      "Total Cost": 0.02,
+                                      "Plan Rows": 1,
+                                      "Plan Width": 16,
+                                      "Actual Startup Time": 0.008,
+                                      "Actual Total Time": 0.008,
+                                      "Actual Rows": 1,
+                                      "Actual Loops": 1,
+                                      "Filter": "(NOT is_admin)",
+                                      "Rows Removed by Filter": 0,
+                                      "Shared Hit Blocks": 2,
+                                      "Shared Read Blocks": 0,
+                                      "Shared Dirtied Blocks": 0,
+                                      "Shared Written Blocks": 0,
+                                      "Local Hit Blocks": 0,
+                                      "Local Read Blocks": 0,
+                                      "Local Dirtied Blocks": 0,
+                                      "Local Written Blocks": 0,
+                                      "Temp Read Blocks": 0,
+                                      "Temp Written Blocks": 0
+                                    },
+                                    {
+                                      "Node Type": "Bitmap Heap Scan",
+                                      "Parent Relationship": "Inner",
+                                      "Parallel Aware": false,
+                                      "Async Capable": false,
+                                      "Relation Name": "library_acl",
+                                      "Alias": "a",
+                                      "Startup Cost": 4.21,
+                                      "Total Cost": 14.35,
+                                      "Plan Rows": 7,
+                                      "Plan Width": 32,
+                                      "Actual Startup Time": 0.003,
+                                      "Actual Total Time": 0.003,
+                                      "Actual Rows": 1,
+                                      "Actual Loops": 1,
+                                      "Recheck Cond": "(user_id = u.id)",
+                                      "Rows Removed by Index Recheck": 0,
+                                      "Exact Heap Blocks": 1,
+                                      "Lossy Heap Blocks": 0,
+                                      "Shared Hit Blocks": 2,
+                                      "Shared Read Blocks": 0,
+                                      "Shared Dirtied Blocks": 0,
+                                      "Shared Written Blocks": 0,
+                                      "Local Hit Blocks": 0,
+                                      "Local Read Blocks": 0,
+                                      "Local Dirtied Blocks": 0,
+                                      "Local Written Blocks": 0,
+                                      "Temp Read Blocks": 0,
+                                      "Temp Written Blocks": 0,
+                                      "Plans": [
+                                        {
+                                          "Node Type": "Bitmap Index Scan",
+                                          "Parent Relationship": "Outer",
+                                          "Parallel Aware": false,
+                                          "Async Capable": false,
+                                          "Index Name": "library_acl_pkey",
+                                          "Startup Cost": 0.00,
+                                          "Total Cost": 4.21,
+                                          "Plan Rows": 7,
+                                          "Plan Width": 0,
+                                          "Actual Startup Time": 0.001,
+                                          "Actual Total Time": 0.001,
+                                          "Actual Rows": 1,
+                                          "Actual Loops": 1,
+                                          "Index Cond": "(user_id = u.id)",
+                                          "Shared Hit Blocks": 1,
+                                          "Shared Read Blocks": 0,
+                                          "Shared Dirtied Blocks": 0,
+                                          "Shared Written Blocks": 0,
+                                          "Local Hit Blocks": 0,
+                                          "Local Read Blocks": 0,
+                                          "Local Dirtied Blocks": 0,
+                                          "Local Written Blocks": 0,
+                                          "Temp Read Blocks": 0,
+                                          "Temp Written Blocks": 0
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                },
+                                {
+                                  "Node Type": "Limit",
+                                  "Parent Relationship": "Inner",
+                                  "Parallel Aware": false,
+                                  "Async Capable": false,
+                                  "Startup Cost": 0.29,
+                                  "Total Cost": 5.18,
+                                  "Plan Rows": 50,
+                                  "Plan Width": 52,
+                                  "Actual Startup Time": 0.008,
+                                  "Actual Total Time": 0.008,
+                                  "Actual Rows": 1,
+                                  "Actual Loops": 1,
+                                  "Shared Hit Blocks": 3,
+                                  "Shared Read Blocks": 0,
+                                  "Shared Dirtied Blocks": 0,
+                                  "Shared Written Blocks": 0,
+                                  "Local Hit Blocks": 0,
+                                  "Local Read Blocks": 0,
+                                  "Local Dirtied Blocks": 0,
+                                  "Local Written Blocks": 0,
+                                  "Temp Read Blocks": 0,
+                                  "Temp Written Blocks": 0,
+                                  "Plans": [
+                                    {
+                                      "Node Type": "Index Scan",
+                                      "Parent Relationship": "Outer",
+                                      "Parallel Aware": false,
+                                      "Async Capable": false,
+                                      "Scan Direction": "Forward",
+                                      "Index Name": "items_library_id_idx",
+                                      "Relation Name": "items",
+                                      "Alias": "items",
+                                      "Startup Cost": 0.29,
+                                      "Total Cost": 489.56,
+                                      "Plan Rows": 5001,
+                                      "Plan Width": 52,
+                                      "Actual Startup Time": 0.007,
+                                      "Actual Total Time": 0.008,
+                                      "Actual Rows": 1,
+                                      "Actual Loops": 1,
+                                      "Index Cond": "((library_id = a.library_id) AND (id > '00000000-0000-0000-0000-000000000000'::uuid))",
+                                      "Rows Removed by Index Recheck": 0,
+                                      "Shared Hit Blocks": 3,
+                                      "Shared Read Blocks": 0,
+                                      "Shared Dirtied Blocks": 0,
+                                      "Shared Written Blocks": 0,
+                                      "Local Hit Blocks": 0,
+                                      "Local Read Blocks": 0,
+                                      "Local Dirtied Blocks": 0,
+                                      "Local Written Blocks": 0,
+                                      "Temp Read Blocks": 0,
+                                      "Temp Written Blocks": 0
+                                    }
+                                  ]
+                                }
+                              ]
+                            },
+                            {
+                              "Node Type": "Nested Loop",
+                              "Parent Relationship": "Member",
+                              "Parallel Aware": false,
+                              "Async Capable": false,
+                              "Join Type": "Inner",
+                              "Startup Cost": 0.29,
+                              "Total Cost": 5.06,
+                              "Plan Rows": 50,
+                              "Plan Width": 52,
+                              "Actual Startup Time": 0.001,
+                              "Actual Total Time": 0.001,
+                              "Actual Rows": 0,
+                              "Actual Loops": 1,
+                              "Inner Unique": false,
+                              "Shared Hit Blocks": 0,
+                              "Shared Read Blocks": 0,
+                              "Shared Dirtied Blocks": 0,
+                              "Shared Written Blocks": 0,
+                              "Local Hit Blocks": 0,
+                              "Local Read Blocks": 0,
+                              "Local Dirtied Blocks": 0,
+                              "Local Written Blocks": 0,
+                              "Temp Read Blocks": 0,
+                              "Temp Written Blocks": 0,
+                              "Plans": [
+                                {
+                                  "Node Type": "CTE Scan",
+                                  "Parent Relationship": "Outer",
+                                  "Parallel Aware": false,
+                                  "Async Capable": false,
+                                  "CTE Name": "principal",
+                                  "Alias": "u_1",
+                                  "Startup Cost": 0.00,
+                                  "Total Cost": 0.02,
+                                  "Plan Rows": 1,
+                                  "Plan Width": 0,
+                                  "Actual Startup Time": 0.000,
+                                  "Actual Total Time": 0.001,
+                                  "Actual Rows": 0,
+                                  "Actual Loops": 1,
+                                  "Filter": "is_admin",
+                                  "Rows Removed by Filter": 1,
+                                  "Shared Hit Blocks": 0,
+                                  "Shared Read Blocks": 0,
+                                  "Shared Dirtied Blocks": 0,
+                                  "Shared Written Blocks": 0,
+                                  "Local Hit Blocks": 0,
+                                  "Local Read Blocks": 0,
+                                  "Local Dirtied Blocks": 0,
+                                  "Local Written Blocks": 0,
+                                  "Temp Read Blocks": 0,
+                                  "Temp Written Blocks": 0
+                                },
+                                {
+                                  "Node Type": "Limit",
+                                  "Parent Relationship": "Inner",
+                                  "Parallel Aware": false,
+                                  "Async Capable": false,
+                                  "Startup Cost": 0.29,
+                                  "Total Cost": 4.54,
+                                  "Plan Rows": 50,
+                                  "Plan Width": 52,
+                                  "Actual Startup Time": 0.000,
+                                  "Actual Total Time": 0.000,
+                                  "Actual Rows": 0,
+                                  "Actual Loops": 0,
+                                  "Shared Hit Blocks": 0,
+                                  "Shared Read Blocks": 0,
+                                  "Shared Dirtied Blocks": 0,
+                                  "Shared Written Blocks": 0,
+                                  "Local Hit Blocks": 0,
+                                  "Local Read Blocks": 0,
+                                  "Local Dirtied Blocks": 0,
+                                  "Local Written Blocks": 0,
+                                  "Temp Read Blocks": 0,
+                                  "Temp Written Blocks": 0,
+                                  "Plans": [
+                                    {
+                                      "Node Type": "Index Scan",
+                                      "Parent Relationship": "Outer",
+                                      "Parallel Aware": false,
+                                      "Async Capable": false,
+                                      "Scan Direction": "Forward",
+                                      "Index Name": "items_pkey",
+                                      "Relation Name": "items",
+                                      "Alias": "items_1",
+                                      "Startup Cost": 0.29,
+                                      "Total Cost": 851.32,
+                                      "Plan Rows": 10002,
+                                      "Plan Width": 52,
+                                      "Actual Startup Time": 0.000,
+                                      "Actual Total Time": 0.000,
+                                      "Actual Rows": 0,
+                                      "Actual Loops": 0,
+                                      "Index Cond": "(id > '00000000-0000-0000-0000-000000000000'::uuid)",
+                                      "Rows Removed by Index Recheck": 0,
+                                      "Shared Hit Blocks": 0,
+                                      "Shared Read Blocks": 0,
+                                      "Shared Dirtied Blocks": 0,
+                                      "Shared Written Blocks": 0,
+                                      "Local Hit Blocks": 0,
+                                      "Local Read Blocks": 0,
+                                      "Local Dirtied Blocks": 0,
+                                      "Local Written Blocks": 0,
+                                      "Temp Read Blocks": 0,
+                                      "Temp Written Blocks": 0
+                                    }
+                                  ]
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            "Planning": {
+              "Shared Hit Blocks": 6,
+              "Shared Read Blocks": 0,
+              "Shared Dirtied Blocks": 0,
+              "Shared Written Blocks": 0,
+              "Local Hit Blocks": 0,
+              "Local Read Blocks": 0,
+              "Local Dirtied Blocks": 0,
+              "Local Written Blocks": 0,
+              "Temp Read Blocks": 0,
+              "Temp Written Blocks": 0
+            },
+            "Planning Time": 0.227,
+            "Triggers": [
+            ],
+            "Execution Time": 0.092
+          }
+        ]
+=== RUN   TestPostgresIntegration/revocation_and_cancellation_apply_before_media_lookup
+--- PASS: TestPostgresIntegration (5.82s)
+    --- PASS: TestPostgresIntegration/migration_lock_contention_is_bounded (5.01s)
+    --- PASS: TestPostgresIntegration/credentials_are_hashed_and_lifecycle_enforced (0.01s)
+    --- PASS: TestPostgresIntegration/ACL_filters_lists_details_and_streams_in_SQL (0.01s)
+    --- PASS: TestPostgresIntegration/constraints_and_failed_imports_are_atomic (0.01s)
+    --- PASS: TestPostgresIntegration/ten_thousand_items_plan_and_bounded_visible_page (0.18s)
+    --- PASS: TestPostgresIntegration/revocation_and_cancellation_apply_before_media_lookup (0.00s)
+PASS
+coverage: 78.8% of statements
+ok  	github.com/MoYuanCN/Jelee/internal/adapter/postgres	37.660s	coverage: 78.8% of statements

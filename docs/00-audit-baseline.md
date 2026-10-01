@@ -72,3 +72,19 @@
 3. 本地项目工具必须固定版本、HTTPS、SHA256、被 Git 忽略；现有系统 SDK 只读使用不等于项目工具链已可复现。
 4. 原需求缺少 G17、G43、G44，编号保留为阻塞，不擅自补写；完整原文和解释见 requirements-source.md、requirements-clarifications.md。
 5. 旧服务完整能力、真实第三方客户端互操作、旧 SQLite 数据迁移、长时间压力测试和发行证据在验证前均不标记完成。
+
+## 8. 忽略格式來源補充（2026-10-01）
+
+此節追加後續版本核對，不改動上方原始基線結論。執行證據見[相容實測](ignore-legacy-audit.md)。
+
+## Jellyfin的版本差異
+
+固定 [v10.11.0](https://github.com/jellyfin/jellyfin/tree/877251bcaec3780d44b7657c54684dc28646b1c3) 的 [DotIgnoreIgnoreRule.cs](https://github.com/jellyfin/jellyfin/blob/877251bcaec3780d44b7657c54684dc28646b1c3/Emby.Server.Implementations/Library/DotIgnoreIgnoreRule.cs)，blob `bafe3ad43600a4c4181b33327043459d819793dd`，與本專案固定基底的新版包裝器不同：目錄只依最近.ignore是否空白決定排除，非空規則留給檔案求值；分行只RemoveEmptyEntries，沒有新版TrimEntries與逐行regex例外略過。
+
+已讀的兩份包裝器入口均為`.ignore`。GitHub目前預設分支的`.jellyfinignore`程式碼搜尋為0筆，但這不是所有歷史版本不存在的證明。尚無足以實作`.jellyfinignore`精確語義的來源，不能自行假定為別名。
+
+## Emby的來源限制
+
+[Emby官方文件](https://emby.media/support/articles/Excluding-Files-Folders.html)將4.8的`.ignore`目錄排除與4.9起的`.embyignore`文字規則分開說明；後者描述註解、空行、萬用字元與相對規則目錄。但文件不能代替G22.2要求的對應版本程式碼。
+
+核對公開 `MediaBrowser/Emby` 主線HEAD為 [`1d7c2ab4bfebdae31f89fdaabd3b68782ccf495a`](https://github.com/MediaBrowser/Emby/tree/1d7c2ab4bfebdae31f89fdaabd3b68782ccf495a)，提交日期2018-09-20、訊息3.5.3，不能當作4.9實作。尚未取得4.9對應來源，不移植論壇猜測或把官方範例視為完整語法證明。

@@ -1,0 +1,53 @@
+Sanitized summary of an actual frozen-source full-suite run.
+Routine individual PASS/RUN lines omitted; every command/package result and SKIP retained.
+Original ignored log SHA256: dd3cedff932658c90f9b7ae1226fe22b2e4e7aa34837a2e325159276845f77b2
+Skip instances: 6
+
+Stage 3C2A frozen source verification
+Git index tree: 019dd65c85dc205ba0483855e53c4de58d61fc15
+Native Linux temporary project snapshot; installed SDK reused from primary project.
+GCC/binutils and license SHA256 matched registered inventory before testing.
+COMMAND: build -trimpath -o bin/jelee ./cmd/jelee
+COMMAND: build -trimpath -o bin/jelee-cli ./cmd/jelee-cli
+COMMAND: build -trimpath -o bin/jelee-migrate ./cmd/jelee-migrate
+COMMAND: vet ./...
+COMMAND: test -race -count=1 -cover -v ./...
+ok  	github.com/MoYuanCN/Jelee/cmd/jelee-cli	1.742s	coverage: 73.9% of statements
+ok  	github.com/MoYuanCN/Jelee/internal/access	1.014s	coverage: 100.0% of statements
+ok  	github.com/MoYuanCN/Jelee/internal/adapter/http	3.593s	coverage: 88.4% of statements
+ok  	github.com/MoYuanCN/Jelee/internal/adapter/media	1.127s	coverage: 86.5% of statements
+ok  	github.com/MoYuanCN/Jelee/internal/adapter/nfo	1.475s	coverage: 89.8% of statements
+ok  	github.com/MoYuanCN/Jelee/internal/adapter/postgres	39.186s	coverage: 78.8% of statements
+ok  	github.com/MoYuanCN/Jelee/internal/adapter/probe	2.765s	coverage: 93.7% of statements
+ok  	github.com/MoYuanCN/Jelee/internal/adapter/scan	1.284s	coverage: 90.6% of statements
+ok  	github.com/MoYuanCN/Jelee/internal/app	1.053s	coverage: 89.1% of statements
+ok  	github.com/MoYuanCN/Jelee/internal/architecture	1.016s	coverage: [no statements]
+ok  	github.com/MoYuanCN/Jelee/internal/domain	1.060s	coverage: 98.8% of statements
+ok  	github.com/MoYuanCN/Jelee/internal/platform/config	1.051s	coverage: 95.7% of statements
+ok  	github.com/MoYuanCN/Jelee/internal/platform/i18n	1.031s	coverage: 97.6% of statements
+ok  	github.com/MoYuanCN/Jelee/internal/platform/jobs	1.046s	coverage: 93.0% of statements
+ok  	github.com/MoYuanCN/Jelee/internal/platform/logging	1.029s	coverage: 100.0% of statements
+ok  	github.com/MoYuanCN/Jelee/internal/platform/password	2.918s	coverage: 95.9% of statements
+ok  	github.com/MoYuanCN/Jelee/internal/platform/proberuntime	1.096s	coverage: 76.2% of statements
+ok  	github.com/MoYuanCN/Jelee/internal/platform/process	63.857s	coverage: 89.6% of statements
+ok  	github.com/MoYuanCN/Jelee/internal/platform/runtime	1.092s	coverage: 52.5% of statements
+--- SKIP: TestNativeLateExecFailureExportsActualChildCoverage (0.00s)
+--- SKIP: TestNativeSandboxDeniesAmbientAccessAndPreservesFDInput (5.34s)
+--- SKIP: TestNativeProtectedFilesCheckInodeAncestorsAndCaller (0.00s)
+--- SKIP: TestRealFFprobeInSandboxWithExplicitDeveloperProfile (0.00s)
+--- SKIP: TestNativeThreadCreationIsBoundedByKernel (6.17s)
+ok  	github.com/MoYuanCN/Jelee/internal/platform/sandbox	12.539s	coverage: 41.6% of statements
+--- SKIP: TestPinnedInstalledFFprobe (0.00s)
+ok  	github.com/MoYuanCN/Jelee/internal/platform/toolidentity	1.085s	coverage: 86.0% of statements
+ok  	github.com/MoYuanCN/Jelee/tools	1.320s	coverage: 96.7% of statements
+ok  	github.com/MoYuanCN/Jelee/tools/runtime-image	1.078s	coverage: 92.3% of statements
+COMMAND: test -race -tags jelee_fixture_tools -count=1 -v ./tools/gen-fixtures
+ok  	github.com/MoYuanCN/Jelee/tools/gen-fixtures	2.455s
+COMMAND: test -race -tags jelee_fixture_tools -run TestFixtureBuild -count=1 -v ./internal/platform/process
+ok  	github.com/MoYuanCN/Jelee/internal/platform/process	1.013s
+COMMAND: test -race -run TestPinnedInstalledFFprobe -count=1 -v ./internal/platform/toolidentity
+ok  	github.com/MoYuanCN/Jelee/internal/platform/toolidentity	1.321s
+Ran 1 test in 0.082s
+OK
+{"tool":"ffprobe","platform":"linux-amd64","expectedVersion":"n9.0.2-17-g2a571b6068-20260930","state":"verified","reason":"verified","capability":"disabled_sandbox"}
+PASS: builds, vet, full Linux race+real PG, tag fixtures, pinned tool and DB-independent CLI.

@@ -12,6 +12,7 @@ require (
 )
 
 require (
+	github.com/dlclark/regexp2 v1.12.0
 	github.com/hashicorp/errwrap v1.1.0 // indirect
 	github.com/hashicorp/go-multierror v1.1.1 // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect

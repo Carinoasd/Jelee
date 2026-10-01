@@ -77,6 +77,8 @@ export JELEE_ALLOWED_HOSTS=localhost,127.0.0.1,::1
 
 Linux 使用 `./bin/jelee-migrate` 和 `./bin/jelee-cli`。doctor 当前检查配置、PostgreSQL 与 schema 状态，不代表全部 G50 磁盘、媒体、网络与自愈检查已实现。
 
+本段 binary 要求 clean schema 4；快取数据库契约已加入，扫描仍只盘点。升级与降版限制见[快取说明](probe-cache.md#升级与回滚)。
+
 迁移锁等待上限 5 秒，数据库语句上限 30 秒；取消在迁移安全边界处理，不保证正在执行的语句立即终止。遇到 dirty 状态先检查数据库和备份，不要自动重试或手工清除标记。
 
 ## 4. 创建评估会话与登记视频
@@ -138,4 +140,4 @@ pwsh -NoProfile -File scripts/make.ps1 test-integration
 
 Linux 使用 `make test-integration test-race`；race 需要已有 C 编译器。缺失测试数据库不能当作数据库测试通过。
 
-回退功能时，关闭 `JELEE_ENABLE_DIRECT` 与 `JELEE_ENABLE_CATALOG` 后重启，保留数据库与原媒体。`jelee-migrate down --i-understand` 会删除最新 schema 及其数据，只应用于可丢弃的测试数据库，或经过备份与明确回退评审的数据库。该命令不会把新数据转换回旧服务端数据库。
+回退功能时，关闭 `JELEE_ENABLE_DIRECT` 与 `JELEE_ENABLE_CATALOG` 后重启，保留数据库与原媒体。`jelee-migrate down --i-understand` 每次降一个版本；004 down 丢失派生快取/phase/身份/配额，保留既有账户/catalog/jobs/inventory/baseline。先停止/释放 probe workers；若保护拒绝 down，迁移会保持 dirty，须检查实际状态再处理，不可自动 force。继续降003会丢失jobs/inventory/baseline。降版仅用于可丢弃的测试库，或经过备份与明确回退评审的数据库；运行binary必须匹配目标schema。该命令不会把新数据转换回旧服务端数据库。

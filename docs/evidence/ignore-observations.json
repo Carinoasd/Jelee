@@ -1,0 +1,98 @@
+{
+  "baseCommit": "37eab90bdd442b37cbb2aa534ed927933aae7cc5",
+  "linux": {
+    "goVersion": "1.27.1",
+    "registeredCompiler": [
+      {
+        "name": "wsl-gcc-external-linker-driver",
+        "version": "15.2.0-16ubuntu1",
+        "sha256": "b5f1b773a7c733738352000c92a077dc5852a1a2fc6d836b1e411be1e9ec5f88"
+      },
+      {
+        "name": "wsl-binutils-external-linker",
+        "version": "2.46-3ubuntu2",
+        "sha256": "97f48d93b8b076a92d2809ec29dcb17f0f37c8827358f832255e2ed22fef6075"
+      }
+    ],
+    "sourceFiles": {
+      "go.mod": "0c1171a9aea0c0717bcea52719d1e2cb579918c36eb7b2c50222131d513d55e5",
+      "go.sum": "774034b85a77eba95b6b74e435864d8e31ca1d06a19862a7210d072f9ba9cfd3",
+      "internal/platform/ignore/bench_test.go": "40dde74cfefb26259d6ff9295dff9f1a0f962e0e47b73314c2cac7d3325d4aec",
+      "internal/platform/ignore/compile.go": "9871185747a55169d0e8e44d2541adc467c411871a10da6552f3b4229c2d0a9e",
+      "internal/platform/ignore/contract_test.go": "141a4ca9d54d0d847a6ea6b80962759fd742fc69265129ffecbc5d8602bf4d16",
+      "internal/platform/ignore/decode.go": "295ab4fdd884f3b2ba506088791fa4766d05c68d10252efeb25506da6614f244",
+      "internal/platform/ignore/decode_test.go": "aa8ca2305141951d34280c8849eeb2923ab6a9af93786db6ed951b1c9afc646d",
+      "internal/platform/ignore/evaluate.go": "181663cd227297207364d4756e8e68ad0d8c16e6271c5da3bedecbcc6db3cf1b",
+      "internal/platform/ignore/fuzz_test.go": "a042799e61d66ec104a1256e8d01f5a783e1f774842857de38d88688736837c0",
+      "internal/platform/ignore/ignore.go": "9722a3afc517a7a36eb4ac3e5809c8d38e2d0a4478123badfbbb98fb5d1dde95",
+      "internal/platform/ignore/limits_test.go": "173d528976253922ed28aff5bfbf1e8fc7d4f5185e20171611ba73612167ba06",
+      "internal/platform/ignore/match.go": "99c170f69456da7b571f0d70d1ee824d5ebe5c503aa3e7d01353b1705e4a36fb",
+      "internal/platform/ignore/oracle_test.go": "5398c1142297db63515e837ca684b63af92e5b1d5ca5e422b5ca2dd2820e41f7",
+      "internal/platform/ignore/semantics_test.go": "5df5c9a2cdc5bea570fd73c0d965bdf0b41af9de64a5ca5d6a4bd7aa4f331ecd",
+      "internal/adapter/media/ignore/benchmark_test.go": "f5075d95aa147cea37804b50ee182409acee73f340ba0d563cd91e3bcfe0e970",
+      "internal/adapter/media/ignore/cache.go": "d859469cf1622ec2f222c31ce6d5a27714f7b3b8c9cb2f6853e1066bfb3e0e2f",
+      "internal/adapter/media/ignore/cache_test.go": "f21c63fb173c03f374216eb179ef5e97c71f1b58e8a85519fc95288e93a8281a",
+      "internal/adapter/media/ignore/files_linux.go": "9ad01b4a0a535d802dfeef455d709a3468e4afbe6db3e03683299680f4f750fe",
+      "internal/adapter/media/ignore/files_native_linux_test.go": "5697128266527c6f7196661e470396242fb546c1fd897f4f2855d0b87394a4dc",
+      "internal/adapter/media/ignore/files_native_test.go": "4801b2b04d311807e04fc15855e18988e2ade9abfa5135ca0970f91feb6f0da3",
+      "internal/adapter/media/ignore/files_native_windows_test.go": "76d1e4d153b184316d5dd08ba3cfb6458636c9a2a96064e3b61c9cb51f610c4b",
+      "internal/adapter/media/ignore/files_other.go": "0a63f1c86910e68e7907e2a3e10b828203b212a30c6a2ae44c04b7b5bee3c19e",
+      "internal/adapter/media/ignore/files_windows.go": "38ce5823abf8c6e9fa7ac860b55e8565ce2300960db2c6791f90c4e34a5d6a08",
+      "internal/adapter/media/ignore/observations.go": "31512202dda5b267ce7ca7588671fa2f927c1bd07950b36237053d55c7e6839d",
+      "internal/adapter/media/ignore/observations_test.go": "690c8e86cc1b20a44e06ac58784be88fa94d7c4118fa6e8ad8c1b289e80d0894",
+      "internal/adapter/media/ignore/read.go": "850ce2254f24a50fc70158e066373e81cd613de96c2e56c362b5501bfefc6703",
+      "internal/adapter/media/ignore/resolver.go": "f7d0bbb67572f19bee74bb6befc68596dbfc8df640f8aafda18d0633a66ddaa5",
+      "internal/adapter/media/ignore/resolver_test.go": "c5eb116caf491435cfa4d6a93ed6d20d77db6affa8b90f1d0e91fff26e8afc11",
+      "internal/adapter/media/ignore/source_linux_test.go": "68c686038771f38e1dc1549d2756188aea2b933b44dfe948d9cadacb56f96e67",
+      "internal/adapter/media/ignore/source_test.go": "d77b286ecc1ca421ac6e49adb1e05b8ea5b2d9247846a4a0104504be404449a6",
+      "internal/adapter/media/ignore/source_windows_test.go": "9c1f3d28406bb7defca0784bacb92c15db63ee5e726ff06d11ec137779b047c9",
+      "internal/adapter/media/ignore/types.go": "f6652621d768d1553656c8486ae8b3af4a8698416e92d1d8f494564efbba8459"
+    },
+    "commands": [
+      {
+        "argv": [
+          "pinned-go",
+          "test",
+          "-race",
+          "-count=1",
+          "-timeout=90s",
+          "-json",
+          "-coverprofile=<repository>/.testdata/ignore-observations-final-linux.cover",
+          "-run",
+          "^Test",
+          "./internal/adapter/media/ignore"
+        ],
+        "exit": 0,
+        "log": "ignore-observations-final-linux.jsonl",
+        "sha256": "01b492ec3ace526125cb49896ed9f30c103e4e88127258c216c1c84c7e22cb88"
+      },
+      {
+        "argv": [
+          "pinned-go",
+          "vet",
+          "./internal/adapter/media/ignore"
+        ],
+        "exit": 0,
+        "log": "ignore-observations-final-linux-vet.txt",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    ],
+    "skipped": [],
+    "counters": [
+      "source_test.go:218: source_io state=cold compiles=2 fullReads=4 readBytes=4146 activeDirs=0 activeFiles=0",
+      "source_test.go:218: source_io state=warm compiles=0 fullReads=4 readBytes=4146 activeDirs=0 activeFiles=0",
+      "source_test.go:218: source_io state=middle-change compiles=1 fullReads=4 readBytes=4146 activeDirs=0 activeFiles=0"
+    ],
+    "sourceUnchanged": true,
+    "exit": 0
+  },
+  "windows": {
+    "topLevelPassed": 40,
+    "skips": [
+      "TestSourceWindowsSymlinkIsNotAbsence"
+    ],
+    "race": false,
+    "vetExit": 0,
+    "logSHA256": "0f26935bbe79d807f5c076be2b0a856ecc4e2dd1fd76d2a8e987fb77bc4111e1"
+  }
+}

@@ -15,6 +15,8 @@ import (
 	"sync/atomic"
 	"testing"
 	"unicode/utf16"
+
+	"github.com/MoYuanCN/Jelee/internal/domain"
 )
 
 const goldenMovie = `<?xml version="1.0" encoding="UTF-8"?>
@@ -123,6 +125,14 @@ func TestSeriesSeasonEpisodeAndWrappers(t *testing.T) {
 			}
 			if tc.entries == 2 && (*document.Entries[0].Episode != 2 || *document.Entries[1].Episode != 1) {
 				t.Fatal("multi-episode source order was changed")
+			}
+			summary, err := projectSummary(context.Background(), document)
+			wantRoot := tc.root
+			if strings.HasSuffix(tc.name, "_wrapper") {
+				wantRoot = "wrapper"
+			}
+			if err != nil || summary.Root != wantRoot || summary.Entries != tc.entries || summary.Status != domain.NFOStatusValid {
+				t.Fatalf("normalized summary: %+v, %v", summary, err)
 			}
 		})
 	}

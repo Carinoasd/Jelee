@@ -1,0 +1,218 @@
+{
+  "sourceCommit": "b59be8d389216c3853a0a6d18b1f1af130745a9f",
+  "result": "PASS",
+  "environment": "Native Linux amd64 snapshot, -race, required real PostgreSQL; fixed Go1.27.1 and registered GCC",
+  "command": "test -race -count=1 -json -coverprofile=<ignored> ./...",
+  "rawLogSHA256": "d3c322a658f9d490ad2933f3e35b1a5fbd652745c13fca9c6da74ea0dacee71e",
+  "coverageProfileSHA256": "6482860d0305c793fc354d5c916d21ea77a66a318d516252cd8707d32f9b8266",
+  "packages": [
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/access",
+      "Action": "pass",
+      "Elapsed": 1.023
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/architecture",
+      "Action": "pass",
+      "Elapsed": 1.035
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/scan",
+      "Action": "pass",
+      "Elapsed": 1.405
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/platform/i18n",
+      "Action": "pass",
+      "Elapsed": 1.498
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/platform/config",
+      "Action": "pass",
+      "Elapsed": 1.795
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/nfo",
+      "Action": "pass",
+      "Elapsed": 1.847
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/platform/logging",
+      "Action": "pass",
+      "Elapsed": 1.05
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/platform/proberuntime",
+      "Action": "pass",
+      "Elapsed": 1.124
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/platform/runtime",
+      "Action": "pass",
+      "Elapsed": 1.1320000000000001
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/domain",
+      "Action": "pass",
+      "Elapsed": 4.644
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/platform/toolidentity",
+      "Action": "pass",
+      "Elapsed": 2.567
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/media",
+      "Action": "pass",
+      "Elapsed": 4.773
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/tools",
+      "Action": "pass",
+      "Elapsed": 2.6630000000000003
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/tools/runtime-image",
+      "Action": "pass",
+      "Elapsed": 1.062
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/platform/password",
+      "Action": "pass",
+      "Elapsed": 5.106
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/platform/jobs",
+      "Action": "pass",
+      "Elapsed": 5.552
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/cmd/jelee-cli",
+      "Action": "pass",
+      "Elapsed": 6.553
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/app",
+      "Action": "pass",
+      "Elapsed": 6.671
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/http",
+      "Action": "pass",
+      "Elapsed": 7.35
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/probe",
+      "Action": "pass",
+      "Elapsed": 7.35
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/cmd/jelee",
+      "Action": "pass",
+      "Elapsed": 14.219
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/cmd/jelee-migrate",
+      "Action": "pass",
+      "Elapsed": 13.021
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/tools/brand-scan",
+      "Action": "pass",
+      "Elapsed": 10.93
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/tools/gitignore-check",
+      "Action": "pass",
+      "Elapsed": 10.271
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/platform/sandbox",
+      "Action": "pass",
+      "Elapsed": 18.737
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Action": "pass",
+      "Elapsed": 52.859
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/platform/process",
+      "Action": "pass",
+      "Elapsed": 67.555
+    }
+  ],
+  "coverage": [
+    "ok  \tgithub.com/MoYuanCN/Jelee/internal/access\t1.013s\tcoverage: 100.0% of statements",
+    "ok  \tgithub.com/MoYuanCN/Jelee/internal/architecture\t1.025s\tcoverage: [no statements]",
+    "ok  \tgithub.com/MoYuanCN/Jelee/internal/adapter/scan\t1.394s\tcoverage: 90.6% of statements",
+    "ok  \tgithub.com/MoYuanCN/Jelee/internal/platform/i18n\t1.485s\tcoverage: 97.6% of statements",
+    "ok  \tgithub.com/MoYuanCN/Jelee/internal/platform/config\t1.779s\tcoverage: 95.9% of statements",
+    "ok  \tgithub.com/MoYuanCN/Jelee/internal/adapter/nfo\t1.828s\tcoverage: 89.8% of statements",
+    "ok  \tgithub.com/MoYuanCN/Jelee/internal/platform/logging\t1.015s\tcoverage: 100.0% of statements",
+    "ok  \tgithub.com/MoYuanCN/Jelee/internal/platform/proberuntime\t1.094s\tcoverage: 76.2% of statements",
+    "ok  \tgithub.com/MoYuanCN/Jelee/internal/platform/runtime\t1.092s\tcoverage: 55.5% of statements",
+    "github.com/MoYuanCN/Jelee/cmd/jelee\t\tcoverage: 0.0% of statements",
+    "ok  \tgithub.com/MoYuanCN/Jelee/internal/domain\t4.636s\tcoverage: 98.9% of statements",
+    "ok  \tgithub.com/MoYuanCN/Jelee/internal/platform/toolidentity\t2.538s\tcoverage: 86.0% of statements",
+    "ok  \tgithub.com/MoYuanCN/Jelee/internal/adapter/media\t4.767s\tcoverage: 86.5% of statements",
+    "ok  \tgithub.com/MoYuanCN/Jelee/tools\t2.625s\tcoverage: 96.7% of statements",
+    "ok  \tgithub.com/MoYuanCN/Jelee/tools/runtime-image\t1.040s\tcoverage: 92.3% of statements",
+    "ok  \tgithub.com/MoYuanCN/Jelee/internal/platform/password\t5.084s\tcoverage: 95.9% of statements",
+    "ok  \tgithub.com/MoYuanCN/Jelee/internal/platform/jobs\t5.539s\tcoverage: 87.9% of statements",
+    "ok  \tgithub.com/MoYuanCN/Jelee/cmd/jelee-cli\t6.545s\tcoverage: 76.3% of statements",
+    "ok  \tgithub.com/MoYuanCN/Jelee/internal/app\t6.661s\tcoverage: 89.0% of statements",
+    "github.com/MoYuanCN/Jelee/cmd/jelee-migrate\t\tcoverage: 0.0% of statements",
+    "ok  \tgithub.com/MoYuanCN/Jelee/internal/adapter/http\t7.343s\tcoverage: 88.7% of statements",
+    "ok  \tgithub.com/MoYuanCN/Jelee/internal/adapter/probe\t7.341s\tcoverage: 94.0% of statements",
+    "github.com/MoYuanCN/Jelee/tools/brand-scan\t\tcoverage: 0.0% of statements",
+    "github.com/MoYuanCN/Jelee/tools/gitignore-check\t\tcoverage: 0.0% of statements",
+    "ok  \tgithub.com/MoYuanCN/Jelee/internal/platform/sandbox\t18.722s\tcoverage: 43.9% of statements",
+    "ok  \tgithub.com/MoYuanCN/Jelee/internal/adapter/postgres\t52.856s\tcoverage: 79.7% of statements",
+    "ok  \tgithub.com/MoYuanCN/Jelee/internal/platform/process\t67.548s\tcoverage: 89.7% of statements"
+  ],
+  "skippedTests": [
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/platform/sandbox",
+      "Test": "TestNativeLateExecFailureExportsActualChildCoverage",
+      "messages": [
+        "coverage_linux_amd64_test.go:24: child coverage requires the explicit instrumented native test fixture"
+      ]
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/platform/toolidentity",
+      "Test": "TestPinnedInstalledFFprobe",
+      "messages": [
+        "identity_test.go:264: set JELEE_REQUIRE_MEDIA_TOOL_TESTS=true to require the real pinned optional tool"
+      ]
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/platform/sandbox",
+      "Test": "TestNativeSandboxDeniesAmbientAccessAndPreservesFDInput",
+      "messages": [
+        "integration_linux_amd64_test.go:27: shared test UID has insufficient thread budget; isolated native container proof required"
+      ]
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/platform/sandbox",
+      "Test": "TestNativeProtectedFilesCheckInodeAncestorsAndCaller",
+      "messages": [
+        "protected_linux_amd64_test.go:46: protected path checks require explicit root-owned container fixtures"
+      ]
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/platform/sandbox",
+      "Test": "TestRealFFprobeInSandboxWithExplicitDeveloperProfile",
+      "messages": [
+        "real_linux_amd64_test.go:19: real ffprobe requires an explicit developer test profile; no host libraries are automatically trusted"
+      ]
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/platform/sandbox",
+      "Test": "TestNativeThreadCreationIsBoundedByKernel",
+      "messages": [
+        "threadlimit_linux_amd64_test.go:31: shared test UID has insufficient thread budget; isolated native container proof required"
+      ]
+    }
+  ]
+}

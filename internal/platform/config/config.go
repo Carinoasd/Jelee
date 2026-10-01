@@ -25,13 +25,16 @@ type Config struct {
 	EnableDirect          bool           `json:"enableDirect"`
 	EnableAccounts        bool           `json:"enableAccounts"`
 	Accounts              AccountsConfig `json:"accounts"`
+	EnableJobs            bool           `json:"enableJobs"`
+	Jobs                  JobsConfig     `json:"jobs"`
+	EnableProbe           bool           `json:"enableProbe"`
 }
 
 func Load() (Config, error) { return LoadWith(os.LookupEnv) }
 
 // LoadWith keeps environment lookup injectable and never includes values in errors.
 func LoadWith(lookup func(string) (string, bool)) (Config, error) {
-	c := Config{Listen: "127.0.0.1:8097", AllowedHosts: []string{"localhost", "127.0.0.1", "::1"}, MaxConnections: 8, MaxStreams: 8, RequestTimeoutSeconds: 15, Accounts: DefaultAccountsConfig()}
+	c := Config{Listen: "127.0.0.1:8097", AllowedHosts: []string{"localhost", "127.0.0.1", "::1"}, MaxConnections: 8, MaxStreams: 8, RequestTimeoutSeconds: 15, Accounts: DefaultAccountsConfig(), Jobs: DefaultJobsConfig()}
 	if path, ok := lookup("JELEE_CONFIG"); ok && path != "" {
 		f, err := os.Open(path)
 		if err != nil {
@@ -76,7 +79,7 @@ func LoadWith(lookup func(string) (string, bool)) (Config, error) {
 	if value, ok := lookup("JELEE_ALLOWED_HOSTS"); ok {
 		c.AllowedHosts = strings.Split(value, ",")
 	}
-	for name, target := range map[string]*bool{"JELEE_ENABLE_CATALOG": &c.EnableCatalog, "JELEE_ENABLE_DIRECT": &c.EnableDirect, "JELEE_ENABLE_ACCOUNTS": &c.EnableAccounts} {
+	for name, target := range map[string]*bool{"JELEE_ENABLE_CATALOG": &c.EnableCatalog, "JELEE_ENABLE_DIRECT": &c.EnableDirect, "JELEE_ENABLE_ACCOUNTS": &c.EnableAccounts, "JELEE_ENABLE_JOBS": &c.EnableJobs, "JELEE_ENABLE_PROBE": &c.EnableProbe} {
 		if value, ok := lookup(name); ok {
 			b, err := strconv.ParseBool(value)
 			if err != nil {
@@ -103,6 +106,9 @@ func LoadWith(lookup func(string) (string, bool)) (Config, error) {
 		c.MaxStreams = n
 	}
 	if err := c.Accounts.loadEnvironment(lookup); err != nil {
+		return c, err
+	}
+	if err := c.Jobs.loadEnvironment(lookup); err != nil {
 		return c, err
 	}
 	return c, c.Validate()
@@ -136,7 +142,28 @@ func (c Config) Validate() error {
 		return errors.New("direct delivery requires catalog rollout")
 	}
 	if c.EnableAccounts {
-		return c.Accounts.Validate()
+		if err := c.Accounts.Validate(); err != nil {
+			return err
+		}
+	}
+	if c.EnableJobs {
+		if !c.EnableAccounts {
+			return errors.New("jobs require account rollout")
+		}
+		if err := c.Jobs.Validate(); err != nil {
+			return err
+		}
+		if int(c.MaxConnections) < c.Jobs.Workers+2 {
+			return errors.New("jobs require at least workers plus two database connections")
+		}
+	}
+	if c.EnableProbe {
+		if !c.EnableJobs {
+			return errors.New("probe requires job rollout")
+		}
+		if c.Jobs.DatabaseTimeoutSeconds >= 10 {
+			return errors.New("probe database timeout must be shorter than its heartbeat interval")
+		}
 	}
 	return nil
 }

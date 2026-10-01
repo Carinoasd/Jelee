@@ -1,0 +1,799 @@
+{
+  "sourceCommit": "b59be8d389216c3853a0a6d18b1f1af130745a9f",
+  "result": "PASS",
+  "environment": "Windows amd64, normal token, no race, PostgreSQL not configured",
+  "command": "test -count=1 -json -coverprofile=<ignored> ./...",
+  "rawLogSHA256": "c3b039fe8ce002763962927f4fa66e7044012566575711474c97e41c81e6113a",
+  "coverageProfileSHA256": "fade3b05f3714b8725973c4df36846f18bac071cd61554d356b4b053aa42af0c",
+  "packages": [
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/access",
+      "Action": "pass",
+      "Elapsed": 0.369
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/cmd/jelee",
+      "Action": "pass",
+      "Elapsed": 1.419
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Action": "pass",
+      "Elapsed": 0.165
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/cmd/jelee-cli",
+      "Action": "pass",
+      "Elapsed": 0.879
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/architecture",
+      "Action": "pass",
+      "Elapsed": 0.342
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/domain",
+      "Action": "pass",
+      "Elapsed": 0.37
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/platform/i18n",
+      "Action": "pass",
+      "Elapsed": 0.39
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/app",
+      "Action": "pass",
+      "Elapsed": 0.399
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/platform/config",
+      "Action": "pass",
+      "Elapsed": 0.42
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/media",
+      "Action": "pass",
+      "Elapsed": 0.761
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/platform/logging",
+      "Action": "pass",
+      "Elapsed": 0.447
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/platform/jobs",
+      "Action": "pass",
+      "Elapsed": 0.493
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/cmd/jelee-migrate",
+      "Action": "pass",
+      "Elapsed": 1.17
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/nfo",
+      "Action": "pass",
+      "Elapsed": 0.885
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/platform/proberuntime",
+      "Action": "pass",
+      "Elapsed": 0.401
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/platform/sandbox",
+      "Action": "pass",
+      "Elapsed": 0.333
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/tools",
+      "Action": "pass",
+      "Elapsed": 0.353
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/platform/password",
+      "Action": "pass",
+      "Elapsed": 0.81
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/tools/runtime-image",
+      "Action": "pass",
+      "Elapsed": 0.582
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/platform/toolidentity",
+      "Action": "pass",
+      "Elapsed": 0.698
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/tools/brand-scan",
+      "Action": "pass",
+      "Elapsed": 0.814
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/tools/gitignore-check",
+      "Action": "pass",
+      "Elapsed": 0.816
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/platform/runtime",
+      "Action": "pass",
+      "Elapsed": 0.99
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/probe",
+      "Action": "pass",
+      "Elapsed": 1.95
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/scan",
+      "Action": "pass",
+      "Elapsed": 2.3689999999999998
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/http",
+      "Action": "pass",
+      "Elapsed": 2.903
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/platform/process",
+      "Action": "pass",
+      "Elapsed": 2.498
+    }
+  ],
+  "coverage": [
+    "github.com/MoYuanCN/Jelee/cmd/jelee\t\tcoverage: 0.0% of statements",
+    "ok  \tgithub.com/MoYuanCN/Jelee/internal/access\t0.366s\tcoverage: 100.0% of statements",
+    "github.com/MoYuanCN/Jelee/cmd/jelee-migrate\t\tcoverage: 0.0% of statements",
+    "ok  \tgithub.com/MoYuanCN/Jelee/internal/adapter/postgres\t0.157s\tcoverage: 5.2% of statements",
+    "ok  \tgithub.com/MoYuanCN/Jelee/cmd/jelee-cli\t0.878s\tcoverage: 76.3% of statements",
+    "ok  \tgithub.com/MoYuanCN/Jelee/internal/architecture\t0.341s\tcoverage: [no statements]",
+    "ok  \tgithub.com/MoYuanCN/Jelee/internal/domain\t0.356s\tcoverage: 98.9% of statements",
+    "ok  \tgithub.com/MoYuanCN/Jelee/internal/platform/i18n\t0.386s\tcoverage: 97.6% of statements",
+    "ok  \tgithub.com/MoYuanCN/Jelee/internal/app\t0.392s\tcoverage: 89.0% of statements",
+    "ok  \tgithub.com/MoYuanCN/Jelee/internal/platform/config\t0.419s\tcoverage: 95.9% of statements",
+    "ok  \tgithub.com/MoYuanCN/Jelee/internal/adapter/media\t0.760s\tcoverage: 86.5% of statements",
+    "ok  \tgithub.com/MoYuanCN/Jelee/internal/platform/logging\t0.445s\tcoverage: 100.0% of statements",
+    "ok  \tgithub.com/MoYuanCN/Jelee/internal/platform/jobs\t0.476s\tcoverage: 87.9% of statements",
+    "ok  \tgithub.com/MoYuanCN/Jelee/internal/adapter/nfo\t0.877s\tcoverage: 89.8% of statements",
+    "ok  \tgithub.com/MoYuanCN/Jelee/internal/platform/proberuntime\t0.395s\tcoverage: 67.2% of statements",
+    "ok  \tgithub.com/MoYuanCN/Jelee/internal/platform/sandbox\t0.331s\tcoverage: 43.4% of statements",
+    "ok  \tgithub.com/MoYuanCN/Jelee/tools\t0.349s\tcoverage: 96.7% of statements",
+    "github.com/MoYuanCN/Jelee/tools/brand-scan\t\tcoverage: 0.0% of statements",
+    "github.com/MoYuanCN/Jelee/tools/gitignore-check\t\tcoverage: 0.0% of statements",
+    "ok  \tgithub.com/MoYuanCN/Jelee/internal/platform/password\t0.807s\tcoverage: 95.9% of statements",
+    "ok  \tgithub.com/MoYuanCN/Jelee/tools/runtime-image\t0.579s\tcoverage: 90.8% of statements",
+    "ok  \tgithub.com/MoYuanCN/Jelee/internal/platform/toolidentity\t0.690s\tcoverage: 86.4% of statements",
+    "ok  \tgithub.com/MoYuanCN/Jelee/internal/platform/runtime\t0.985s\tcoverage: 55.5% of statements",
+    "ok  \tgithub.com/MoYuanCN/Jelee/internal/adapter/probe\t1.945s\tcoverage: 93.2% of statements",
+    "ok  \tgithub.com/MoYuanCN/Jelee/internal/adapter/scan\t2.365s\tcoverage: 88.6% of statements",
+    "ok  \tgithub.com/MoYuanCN/Jelee/internal/adapter/http\t2.896s\tcoverage: 88.7% of statements",
+    "ok  \tgithub.com/MoYuanCN/Jelee/internal/platform/process\t2.496s\tcoverage: 86.3% of statements"
+  ],
+  "skippedTests": [
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestAccountIntegration",
+      "messages": [
+        "accounts_integration_test.go:107: account PostgreSQL integration NOT RUN: JELEE_TEST_DATABASE_URL unset"
+      ]
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestAccountMigrationRejectsCaseCollisionWithoutRenaming",
+      "messages": [
+        "accounts_integration_test.go:581: account PostgreSQL integration NOT RUN: JELEE_TEST_DATABASE_URL unset"
+      ]
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestAccountMigrationRollbackKeepsDeletedAccountsDisabled",
+      "messages": [
+        "accounts_integration_test.go:610: account PostgreSQL integration NOT RUN: JELEE_TEST_DATABASE_URL unset"
+      ]
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestJobsSubmissionIdempotencyAndLiveAdministration",
+      "messages": [
+        "jobs_integration_test.go:98: account PostgreSQL integration NOT RUN: JELEE_TEST_DATABASE_URL unset"
+      ]
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestJobsCapacityAndPriorityAcrossCompetingWorkers",
+      "messages": [
+        "jobs_integration_test.go:187: account PostgreSQL integration NOT RUN: JELEE_TEST_DATABASE_URL unset"
+      ]
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestJobsCancellationRecoveryAndFencing",
+      "messages": [
+        "jobs_integration_test.go:278: account PostgreSQL integration NOT RUN: JELEE_TEST_DATABASE_URL unset"
+      ]
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestJobsPartialDirectoryRestartAndInventoryPagination",
+      "messages": [
+        "jobs_integration_test.go:348: account PostgreSQL integration NOT RUN: JELEE_TEST_DATABASE_URL unset"
+      ]
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestJobsBatchLimitsRollbackAndSafeMissingBaseline/entry_directory_and_overflow_limits",
+      "messages": [
+        "jobs_integration_test.go:418: account PostgreSQL integration NOT RUN: JELEE_TEST_DATABASE_URL unset"
+      ]
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestJobsBatchLimitsRollbackAndSafeMissingBaseline/history_retention_baseline_and_partial_fail_closed",
+      "messages": [
+        "jobs_integration_test.go:453: account PostgreSQL integration NOT RUN: JELEE_TEST_DATABASE_URL unset"
+      ]
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestJobsBatchLimitsRollbackAndSafeMissingBaseline/complete_scan_below_missing_threshold_replaces_baseline",
+      "messages": [
+        "jobs_integration_test.go:494: account PostgreSQL integration NOT RUN: JELEE_TEST_DATABASE_URL unset"
+      ]
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestJobsLeaseExpiryDuringWritesRollsBackProvisionalData",
+      "messages": [
+        "jobs_integration_test.go:514: account PostgreSQL integration NOT RUN: JELEE_TEST_DATABASE_URL unset"
+      ]
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestJobsThousandEntriesRemainBoundedAndCountsUseCurrentSizes",
+      "messages": [
+        "jobs_integration_test.go:562: account PostgreSQL integration NOT RUN: JELEE_TEST_DATABASE_URL unset"
+      ]
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestJobsMigrationRollbackPreservesAccountsAndLibraryConfiguration",
+      "messages": [
+        "jobs_integration_test.go:626: account PostgreSQL integration NOT RUN: JELEE_TEST_DATABASE_URL unset"
+      ]
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestProbeAdversarialLastLeaseSlotAcrossParents",
+      "messages": [
+        "probe_adversarial_test.go:41: account PostgreSQL integration NOT RUN: JELEE_TEST_DATABASE_URL unset"
+      ]
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestProbeAdversarialIdentityAndScopeCapacity",
+      "messages": [
+        "probe_adversarial_test.go:103: account PostgreSQL integration NOT RUN: JELEE_TEST_DATABASE_URL unset"
+      ]
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestProbeAdversarialHeartbeatDoesNotReviveExpiredChild",
+      "messages": [
+        "probe_adversarial_test.go:150: account PostgreSQL integration NOT RUN: JELEE_TEST_DATABASE_URL unset"
+      ]
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestProbeAdversarialForeignAndSkippedPrefix",
+      "messages": [
+        "probe_adversarial_test.go:193: account PostgreSQL integration NOT RUN: JELEE_TEST_DATABASE_URL unset"
+      ]
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestProbeAdversarialCancelledLockWaitDoesNotReserve",
+      "messages": [
+        "probe_adversarial_test.go:235: account PostgreSQL integration NOT RUN: JELEE_TEST_DATABASE_URL unset"
+      ]
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestProbeAdversarialHistoryTrimPreservesActiveSibling",
+      "messages": [
+        "probe_adversarial_test.go:294: account PostgreSQL integration NOT RUN: JELEE_TEST_DATABASE_URL unset"
+      ]
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestProbeAdversarialTerminalHistoryDoesNotPinEmptyScope",
+      "messages": [
+        "probe_adversarial_test.go:334: account PostgreSQL integration NOT RUN: JELEE_TEST_DATABASE_URL unset"
+      ]
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestProbeAdversarialInvalidationRequiresLiveAdminAndRecordsActor",
+      "messages": [
+        "probe_adversarial_test.go:357: account PostgreSQL integration NOT RUN: JELEE_TEST_DATABASE_URL unset"
+      ]
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestProbeAdversarialBoundedEvictionAtQuotaBoundary/global_rows",
+      "messages": [
+        "probe_adversarial_test.go:467: account PostgreSQL integration NOT RUN: JELEE_TEST_DATABASE_URL unset"
+      ]
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestProbeAdversarialBoundedEvictionAtQuotaBoundary/library_rows",
+      "messages": [
+        "probe_adversarial_test.go:467: account PostgreSQL integration NOT RUN: JELEE_TEST_DATABASE_URL unset"
+      ]
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestProbeAdversarialBoundedEvictionAtQuotaBoundary/global_bytes",
+      "messages": [
+        "probe_adversarial_test.go:467: account PostgreSQL integration NOT RUN: JELEE_TEST_DATABASE_URL unset"
+      ]
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestProbeAdversarialBoundedEvictionAtQuotaBoundary/library_bytes",
+      "messages": [
+        "probe_adversarial_test.go:467: account PostgreSQL integration NOT RUN: JELEE_TEST_DATABASE_URL unset"
+      ]
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestProbeRebuildScopesAndReplayPreserveGenerations",
+      "messages": [
+        "probe_boundaries_test.go:55: account PostgreSQL integration NOT RUN: JELEE_TEST_DATABASE_URL unset"
+      ]
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestProbeScopeMutationFencesInflightResults/root",
+      "messages": [
+        "probe_boundaries_test.go:126: account PostgreSQL integration NOT RUN: JELEE_TEST_DATABASE_URL unset"
+      ]
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestProbeScopeMutationFencesInflightResults/item",
+      "messages": [
+        "probe_boundaries_test.go:126: account PostgreSQL integration NOT RUN: JELEE_TEST_DATABASE_URL unset"
+      ]
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestProbeScopeMutationFencesInflightResults/mapping",
+      "messages": [
+        "probe_boundaries_test.go:126: account PostgreSQL integration NOT RUN: JELEE_TEST_DATABASE_URL unset"
+      ]
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestProbeCurrentKeyAndTTLRecheckedAtCommit",
+      "messages": [
+        "probe_boundaries_test.go:181: account PostgreSQL integration NOT RUN: JELEE_TEST_DATABASE_URL unset"
+      ]
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestProbeMetadataJSONBExpansionBecomesBoundedFailure",
+      "messages": [
+        "probe_boundaries_test.go:241: account PostgreSQL integration NOT RUN: JELEE_TEST_DATABASE_URL unset"
+      ]
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestProbeAdminExpiryDuringWriteRollsBackGenerationAndAudit",
+      "messages": [
+        "probe_boundaries_test.go:288: account PostgreSQL integration NOT RUN: JELEE_TEST_DATABASE_URL unset"
+      ]
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestProbeNegativeTTLRetryAndNewToolIdentity",
+      "messages": [
+        "probe_boundaries_test.go:310: account PostgreSQL integration NOT RUN: JELEE_TEST_DATABASE_URL unset"
+      ]
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestProbeBeginMissingIdentityAndItemHaveNoAdmissionEffects",
+      "messages": [
+        "probe_boundaries_test.go:368: account PostgreSQL integration NOT RUN: JELEE_TEST_DATABASE_URL unset"
+      ]
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestProbeMalformedTokensAndMetadataCannotTouchLease",
+      "messages": [
+        "probe_boundaries_test.go:402: account PostgreSQL integration NOT RUN: JELEE_TEST_DATABASE_URL unset"
+      ]
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestProbePolicyRequiredBeforeAdmission",
+      "messages": [
+        "probe_boundaries_test.go:449: account PostgreSQL integration NOT RUN: JELEE_TEST_DATABASE_URL unset"
+      ]
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestProbeFaultCheckpointAndCommitDeniedRollBackWholeOutcome/checkpoint_success",
+      "messages": [
+        "probe_fault_test.go:57: account PostgreSQL integration NOT RUN: JELEE_TEST_DATABASE_URL unset"
+      ]
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestProbeFaultCheckpointAndCommitDeniedRollBackWholeOutcome/checkpoint_negative",
+      "messages": [
+        "probe_fault_test.go:57: account PostgreSQL integration NOT RUN: JELEE_TEST_DATABASE_URL unset"
+      ]
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestProbeFaultCheckpointAndCommitDeniedRollBackWholeOutcome/deferred_commit",
+      "messages": [
+        "probe_fault_test.go:57: account PostgreSQL integration NOT RUN: JELEE_TEST_DATABASE_URL unset"
+      ]
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestProbeFaultReservationWriteFailureReleasesProvisionalQuota",
+      "messages": [
+        "probe_fault_test.go:99: account PostgreSQL integration NOT RUN: JELEE_TEST_DATABASE_URL unset"
+      ]
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestProbeFaultCancellationAfterCacheWriteRollsBack",
+      "messages": [
+        "probe_fault_test.go:122: account PostgreSQL integration NOT RUN: JELEE_TEST_DATABASE_URL unset"
+      ]
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestProbeFaultUnavailablePoolAndCancelledCallsAreAtomic",
+      "messages": [
+        "probe_fault_test.go:206: account PostgreSQL integration NOT RUN: JELEE_TEST_DATABASE_URL unset"
+      ]
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestProbeFaultPersistedIdentityMismatchCannotBeReused",
+      "messages": [
+        "probe_fault_test.go:265: account PostgreSQL integration NOT RUN: JELEE_TEST_DATABASE_URL unset"
+      ]
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestProbeFaultDeleteDenialRestoresQuotaAndLease/sweep_expired",
+      "messages": [
+        "probe_fault_test.go:291: account PostgreSQL integration NOT RUN: JELEE_TEST_DATABASE_URL unset"
+      ]
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestProbeFaultDeleteDenialRestoresQuotaAndLease/release_child",
+      "messages": [
+        "probe_fault_test.go:291: account PostgreSQL integration NOT RUN: JELEE_TEST_DATABASE_URL unset"
+      ]
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestProbeFaultDeleteDenialRestoresQuotaAndLease/capacity_eviction",
+      "messages": [
+        "probe_fault_test.go:291: account PostgreSQL integration NOT RUN: JELEE_TEST_DATABASE_URL unset"
+      ]
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestProbeEvictionUsesBoundedIndexPagesAndExactDeltas",
+      "messages": [
+        "probe_integration_test.go:54: account PostgreSQL integration NOT RUN: JELEE_TEST_DATABASE_URL unset"
+      ]
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestProbePolicyIdentityAndPhaseContract",
+      "messages": [
+        "probe_integration_test.go:192: account PostgreSQL integration NOT RUN: JELEE_TEST_DATABASE_URL unset"
+      ]
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestProbePersistAndHitPrefixCheckpoint",
+      "messages": [
+        "probe_integration_test.go:248: account PostgreSQL integration NOT RUN: JELEE_TEST_DATABASE_URL unset"
+      ]
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestProbeNegativeChangedAndUnavailableOutcomes",
+      "messages": [
+        "probe_integration_test.go:299: account PostgreSQL integration NOT RUN: JELEE_TEST_DATABASE_URL unset"
+      ]
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestProbeLeaseABAConcurrencyCancellationAndExpiry",
+      "messages": [
+        "probe_integration_test.go:346: account PostgreSQL integration NOT RUN: JELEE_TEST_DATABASE_URL unset"
+      ]
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestProbeTransactionExpiryRollsBackMetadataQuotaAndCursor",
+      "messages": [
+        "probe_integration_test.go:405: account PostgreSQL integration NOT RUN: JELEE_TEST_DATABASE_URL unset"
+      ]
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestProbeReleaseRecoveryInvalidationAndMigration",
+      "messages": [
+        "probe_integration_test.go:432: account PostgreSQL integration NOT RUN: JELEE_TEST_DATABASE_URL unset"
+      ]
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestProbeRequestConcurrentReplayAndCapabilityClaim",
+      "messages": [
+        "probe_requests_test.go:57: account PostgreSQL integration NOT RUN: JELEE_TEST_DATABASE_URL unset"
+      ]
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestProbeRequestItemResolutionAndQueuedInvalidation/stable",
+      "messages": [
+        "probe_requests_test.go:173: account PostgreSQL integration NOT RUN: JELEE_TEST_DATABASE_URL unset"
+      ]
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestProbeRequestItemResolutionAndQueuedInvalidation/root",
+      "messages": [
+        "probe_requests_test.go:173: account PostgreSQL integration NOT RUN: JELEE_TEST_DATABASE_URL unset"
+      ]
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestProbeRequestItemResolutionAndQueuedInvalidation/item",
+      "messages": [
+        "probe_requests_test.go:173: account PostgreSQL integration NOT RUN: JELEE_TEST_DATABASE_URL unset"
+      ]
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestProbeRequestRetryPreservesIntentAndPinsNewIdentity",
+      "messages": [
+        "probe_requests_test.go:239: account PostgreSQL integration NOT RUN: JELEE_TEST_DATABASE_URL unset"
+      ]
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestProbeRequestCheckpointAndDoneRecovery",
+      "messages": [
+        "probe_requests_test.go:304: account PostgreSQL integration NOT RUN: JELEE_TEST_DATABASE_URL unset"
+      ]
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestProbeRequestEnqueueFaultsAreAtomic/insert",
+      "messages": [
+        "probe_requests_test.go:357: account PostgreSQL integration NOT RUN: JELEE_TEST_DATABASE_URL unset"
+      ]
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestProbeRequestEnqueueFaultsAreAtomic/commit",
+      "messages": [
+        "probe_requests_test.go:357: account PostgreSQL integration NOT RUN: JELEE_TEST_DATABASE_URL unset"
+      ]
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestProbeRequestEnqueueFaultsAreAtomic/admin_expiry",
+      "messages": [
+        "probe_requests_test.go:357: account PostgreSQL integration NOT RUN: JELEE_TEST_DATABASE_URL unset"
+      ]
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestProbeRequestSweepReferencesAndDisabledFairness",
+      "messages": [
+        "probe_requests_test.go:400: account PostgreSQL integration NOT RUN: JELEE_TEST_DATABASE_URL unset"
+      ]
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestProbeRequestMigrationGuardAndRollbackPreserveCache",
+      "messages": [
+        "probe_requests_test.go:448: account PostgreSQL integration NOT RUN: JELEE_TEST_DATABASE_URL unset"
+      ]
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestProbeRequestInvalidInputsAndCancelledCalls",
+      "messages": [
+        "probe_requests_test.go:513: account PostgreSQL integration NOT RUN: JELEE_TEST_DATABASE_URL unset"
+      ]
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestProbeRequestAbortReleasesChildAndPreservesProgress",
+      "messages": [
+        "probe_requests_test.go:539: account PostgreSQL integration NOT RUN: JELEE_TEST_DATABASE_URL unset"
+      ]
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestProbeRequestEnqueueSerializesWithSweep",
+      "messages": [
+        "probe_requests_test.go:592: account PostgreSQL integration NOT RUN: JELEE_TEST_DATABASE_URL unset"
+      ]
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestProbeRequestParentFenceAndPersistentCancellation/stale",
+      "messages": [
+        "probe_requests_test.go:679: account PostgreSQL integration NOT RUN: JELEE_TEST_DATABASE_URL unset"
+      ]
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestProbeRequestParentFenceAndPersistentCancellation/expired",
+      "messages": [
+        "probe_requests_test.go:679: account PostgreSQL integration NOT RUN: JELEE_TEST_DATABASE_URL unset"
+      ]
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestProbeRequestParentFenceAndPersistentCancellation/cancelled",
+      "messages": [
+        "probe_requests_test.go:679: account PostgreSQL integration NOT RUN: JELEE_TEST_DATABASE_URL unset"
+      ]
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestProbeRequestRejectsMissingOrTerminalWork",
+      "messages": [
+        "probe_requests_test.go:711: account PostgreSQL integration NOT RUN: JELEE_TEST_DATABASE_URL unset"
+      ]
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestProbeRequestRejectsPhaseIdentityDrift",
+      "messages": [
+        "probe_requests_test.go:753: account PostgreSQL integration NOT RUN: JELEE_TEST_DATABASE_URL unset"
+      ]
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestProbeRequestFinalFenceRollsBackBeginAndAbort/begin",
+      "messages": [
+        "probe_requests_test.go:793: account PostgreSQL integration NOT RUN: JELEE_TEST_DATABASE_URL unset"
+      ]
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestProbeRequestFinalFenceRollsBackBeginAndAbort/abort",
+      "messages": [
+        "probe_requests_test.go:793: account PostgreSQL integration NOT RUN: JELEE_TEST_DATABASE_URL unset"
+      ]
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestProbeRequestRequiresExistingPolicyAndTarget",
+      "messages": [
+        "probe_requests_test.go:829: account PostgreSQL integration NOT RUN: JELEE_TEST_DATABASE_URL unset"
+      ]
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Test": "TestPostgresIntegration",
+      "messages": [
+        "store_integration_test.go:36: PostgreSQL integration NOT RUN: JELEE_TEST_DATABASE_URL is unset; this skip is not database validation"
+      ]
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/media",
+      "Test": "TestPathBoundariesAndNoDisclosure/symlink_escape",
+      "messages": [
+        "direct_test.go:208: symlink creation unavailable: symlink C:\\Users\\賴明義\\Documents\\Codex\\2026-09-30\\https-github-com-moyuancn-jelee-https\\outputs\\Jelee\\.tools\\cache\\tmp\\TestPathBoundariesAndNoDisclosure1836122536\\002\\secret C:\\Users\\賴明義\\Documents\\Codex\\2026-09-30\\https-github-com-moyuancn-jelee-https\\outputs\\Jelee\\.tools\\cache\\tmp\\TestPathBoundariesAndNoDisclosure1836122536\\001\\escape: A required privilege is not held by the client."
+      ]
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/media",
+      "Test": "TestPathBoundariesAndNoDisclosure/directory_symlink_escape",
+      "messages": [
+        "direct_test.go:216: symlink creation unavailable: symlink C:\\Users\\賴明義\\Documents\\Codex\\2026-09-30\\https-github-com-moyuancn-jelee-https\\outputs\\Jelee\\.tools\\cache\\tmp\\TestPathBoundariesAndNoDisclosure1836122536\\002 C:\\Users\\賴明義\\Documents\\Codex\\2026-09-30\\https-github-com-moyuancn-jelee-https\\outputs\\Jelee\\.tools\\cache\\tmp\\TestPathBoundariesAndNoDisclosure1836122536\\001\\escape-dir: A required privilege is not held by the client."
+      ]
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/nfo",
+      "Test": "TestReadFileBoundaryAndOriginalProtection/symlink_escape",
+      "messages": [
+        "read_test.go:379: symlink creation unavailable: symlink C:\\Users\\賴明義\\Documents\\Codex\\2026-09-30\\https-github-com-moyuancn-jelee-https\\outputs\\Jelee\\.tools\\cache\\tmp\\TestReadFileBoundaryAndOriginalProtectionsymlink_escape758150307\\001\\outside.nfo C:\\Users\\賴明義\\Documents\\Codex\\2026-09-30\\https-github-com-moyuancn-jelee-https\\outputs\\Jelee\\.tools\\cache\\tmp\\TestReadFileBoundaryAndOriginalProtection1947997720\\001\\escape.nfo: A required privilege is not held by the client."
+      ]
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/tools/runtime-image",
+      "Test": "TestImageRejectsSymlinkAndDifferentOpenedIdentity",
+      "messages": [
+        "main_test.go:113: host lacks symlink creation privilege"
+      ]
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/platform/toolidentity",
+      "Test": "TestIdentityCancellationAndFilesystemBoundaries/project",
+      "messages": [
+        "identity_test.go:226: host does not permit test symlink"
+      ]
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/platform/toolidentity",
+      "Test": "TestIdentityCancellationAndFilesystemBoundaries/ancestor",
+      "messages": [
+        "identity_test.go:226: host does not permit test symlink"
+      ]
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/platform/toolidentity",
+      "Test": "TestIdentityCancellationAndFilesystemBoundaries/leaf",
+      "messages": [
+        "identity_test.go:226: host does not permit test symlink"
+      ]
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/probe",
+      "Test": "TestAdapterRejectsChangedSource/replace_symlink",
+      "messages": [
+        "adapter_test.go:354: host cannot create symlinks"
+      ]
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/platform/toolidentity",
+      "Test": "TestIdentityCancellationAndFilesystemBoundaries/temporary",
+      "messages": [
+        "identity_test.go:226: host does not permit test symlink"
+      ]
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/platform/toolidentity",
+      "Test": "TestPinnedInstalledFFprobe",
+      "messages": [
+        "identity_test.go:264: set JELEE_REQUIRE_MEDIA_TOOL_TESTS=true to require the real pinned optional tool"
+      ]
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/probe",
+      "Test": "TestVisibleSymlinksRefusedAndExternalPathsCannotEscape",
+      "messages": [
+        "input_test.go:198: symlink creation unavailable on this filesystem: symlink C:\\Users\\賴明義\\Documents\\Codex\\2026-09-30\\https-github-com-moyuancn-jelee-https\\outputs\\Jelee\\.tools\\cache\\tmp\\TestVisibleSymlinksRefusedAndExternalPathsCannotEscape4207855173\\001\\inside C:\\Users\\賴明義\\Documents\\Codex\\2026-09-30\\https-github-com-moyuancn-jelee-https\\outputs\\Jelee\\.tools\\cache\\tmp\\TestVisibleSymlinksRefusedAndExternalPathsCannotEscape4207855173\\001\\inside-dir: A required privilege is not held by the client."
+      ]
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/probe",
+      "Test": "TestInspectDetectsSymlinkReplacement",
+      "messages": [
+        "inspect_test.go:175: platform does not permit symlink creation"
+      ]
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/scan",
+      "Test": "TestVisibleSymlinksSkippedAndExplicitTraversalRejected",
+      "messages": [
+        "scan_test.go:206: filesystem cannot create symlinks: symlink C:\\Users\\賴明義\\Documents\\Codex\\2026-09-30\\https-github-com-moyuancn-jelee-https\\outputs\\Jelee\\.tools\\cache\\tmp\\TestVisibleSymlinksSkippedAndExplicitTraversalRejected611771191\\002\\secret.mp4 C:\\Users\\賴明義\\Documents\\Codex\\2026-09-30\\https-github-com-moyuancn-jelee-https\\outputs\\Jelee\\.tools\\cache\\tmp\\TestVisibleSymlinksSkippedAndExplicitTraversalRejected611771191\\001\\external-file: A required privilege is not held by the client."
+      ]
+    }
+  ]
+}

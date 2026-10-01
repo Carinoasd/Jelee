@@ -1,0 +1,76 @@
+Experimental Debian runtime toolchain, 2026-10-01
+
+Ordering:
+1. Added mediaRuntime with three exact Debian binary package identities, six source artifact identities and four license-text identities to tracked tools/manifest.json.
+2. Downloaded the three .deb archives into project .tools/downloads and verified their declared SHA256 and byte counts. No apt/global installation, package script execution, or binary execution.
+3. Parsed ar and data.tar with bounded Python standard-library decoding. Selected only eight actual amd64 ELF files and two package copyright files.
+4. Wrote individual file SHA256 and size into tracked manifest before bootstrap or any execution; readyToExecute identifies available experimental identity, not an enabled service feature.
+5. Bootstrapped project-local files and verified archives, file bytes, permissions, installation record and exact file inventory. No target executable was run.
+
+Archive identities:
+libc6_2.41-12+deb13u4_amd64.deb
+2846580 bytes; 967aa62605721081c3eb2a17650611a792aa802d76a6511d1840242623d204c9
+libgcc-s1_14.2.0-19_amd64.deb
+72772 bytes; 3c71917b490d1a17aed43196a2787a256ecf060526cdb20216a74bedc061b150
+gcc-14-base_14.2.0-19_amd64.deb
+49432 bytes; 5b6825de4263824b78c4c51f6476414f3b4e89c2ab63e81dc8b9b5501e867cf6
+
+Installed root (project-relative):
+.tools/media-runtime/linux-amd64/debian13-glibc2.41-12deb13u4-gcc14.2.0-19/
+
+Selected file SHA256:
+lib64/ld-linux-x86-64.so.2 c8438e4fde1934e61c88311633f00949ff645d5c04cdb8671fa3d78164d2f307
+lib/x86_64-linux-gnu/libc.so.6 9792e3cbb541c8f44c7acf5f14f4022ea62998ecc787d326bed4d8b6547dfd92
+lib/x86_64-linux-gnu/libm.so.6 6d567d53e895273ca14a1f9dc164fc6c8d39aed2f60aa46a733c2784228915f3
+lib/x86_64-linux-gnu/libmvec.so.1 cd2f99df70ed0fa44f79bd6322396180d19eaa1fb527b1b6e2aec9cdfc034d9d
+lib/x86_64-linux-gnu/libdl.so.2 295fa521a03cd2faa99974f378c9e23dd622021ec7d32bcad4f8ea61aec8a872
+lib/x86_64-linux-gnu/libpthread.so.0 85e21f7dba0394411d00959176fd18b470e575b0b05f1f4f41e5636802ce0500
+lib/x86_64-linux-gnu/librt.so.1 7b7b84d1aedda0e0b2bdfc68844362782132180b8f02be1300e21e77572e514b
+lib/x86_64-linux-gnu/libgcc_s.so.1 30c61ab012a4241bed033725a09b61f5fdd3bb7df95ee852d0b096520524c7af
+licenses/runtime/libc6/copyright f5788886720a2605a946e81d571e6c8162b09f58d2e2ceb8d36e5768fccd850d
+licenses/runtime/gcc-14-base/copyright 20390f8a6f3b1e4d7cb45dd8652dabb259bbef688cbad839bcdb0b9ba7252f79
+
+License texts:
+LGPL-2.1.txt, GPL-2.0.txt, GPL-3.0.txt, GCC-exception-3.1.txt match individual manifest pins.
+Direct GNU license HTTPS from this WSL session failed with URLError / Network is unreachable. Reused previously read official text with identical pinned SHA256, copying it to project cache before offline bootstrap. No weakened checksum or network fallback. Offline cache and explicit HTTPS mirrors remain supported.
+
+Acceptance commands/results:
+python3 -B scripts/test_runtime_tools.py
+Ran 32 tests in 4.313s; OK.
+Includes archive bounds, expansion limits, malformed/truncated/reordered ar, unsafe paths, selected links, devices/FIFOs/sparse/extensions, duplicate/missing entries, ELF architecture, cache corruption cleanup, bounded download/hash/partial cleanup, HTTPS downgrade, unknown/missing manifest closure, offline missing, null/wrong file hashes, symlink cache/destination, OS lock contention/release, staging cleanup, record/inventory tampering and installed-file failure without repair.
+
+pwsh -NoProfile -File scripts/run-go.ps1 test -count=1 ./tools
+PASS: github.com/MoYuanCN/Jelee/tools (0.158s), including embedded RuntimeSpec identity and fresh copies.
+
+python3 -B scripts/runtime-tools.py bootstrap --offline
+PASS: Verified Linux amd64 runtime: 8 ELF files, package notices and licenses; no executable run.
+
+pwsh -NoProfile -File scripts/runtime-tools.ps1 -Command verify -Offline
+PASS: existing WSL delegation and full offline installed-file/archive verification.
+pwsh -NoProfile -File scripts/runtime-tools.ps1 -Command sources -Offline
+PASS: six cached Debian source artifacts match exact manifest size/SHA256.
+
+ELF closure checked with pinned Go SDK debug/elf (no ldd and no target execution):
+ffprobe: ELFCLASS64 EM_X86_64; interpreter=/lib64/ld-linux-x86-64.so.2;
+  NEEDED=libm.so.6,libdl.so.2,librt.so.1,libpthread.so.0,libmvec.so.1,libc.so.6,ld-linux-x86-64.so.2,libgcc_s.so.1
+ld-linux-x86-64.so.2: NEEDED=none
+libc.so.6: interpreter=/lib64/ld-linux-x86-64.so.2; NEEDED=ld-linux-x86-64.so.2
+libm.so.6: NEEDED=libc.so.6,ld-linux-x86-64.so.2
+libmvec.so.1: NEEDED=libm.so.6,ld-linux-x86-64.so.2,libc.so.6
+libdl.so.2: NEEDED=libc.so.6
+libpthread.so.0: NEEDED=libc.so.6
+librt.so.1: NEEDED=libc.so.6
+libgcc_s.so.1: NEEDED=libc.so.6,ld-linux-x86-64.so.2
+PASS: fixed eight-file set covers all declared transitive dependencies and interpreters.
+
+Source coverage:
+Downloaded and hash-verified glibc_2.41-12+deb13u4.dsc, glibc_2.41.orig.tar.xz, glibc_2.41-12+deb13u4.debian.tar.xz, gcc-14_14.2.0-19.dsc, gcc-14_14.2.0.orig.tar.gz, gcc-14_14.2.0-19.debian.tar.xz. These remain ignored local cache files and were not extracted/executed. OpenPGP signatures were not verified. This records Debian runtime sources only; BtbN statically linked third-party corresponding-source collection remains incomplete. No public image was published as part of this acceptance.
+
+This evidence covers packaging and static identity only. Runtime registration, protected image ownership/modes, actual kernel isolation and media execution are validated separately by the parent/container and sandbox acceptance.
+
+Follow-up download hardening after independent review:
+HTTPResponse.read(n) could previously wait indefinitely for n bytes under a slow trickle, preventing the outer elapsed-time check. Replaced body reads with read1 and added a raw socket reader that checks the shared absolute deadline before every receive and updates the socket timeout to the remaining time. This also covers HTTP status/header parsing and retains the same deadline across HTTPS redirects. No manifest pin or installed byte changed.
+python3 -B scripts/test_runtime_tools.py: 34 tests PASS (5.268s).
+New real socketpair regressions trickle one byte every 10ms through status, header and body phases: each stops at a 100ms absolute deadline, completes within 1s and joins its sender thread. Expired deadline refuses connection/read before starting it.
+The new HTTPS handler also reread the already-pinned official Debian glibc DSC successfully and matched exact size/SHA256 without changing cache/manifest.
+This establishes bounded HTTP socket I/O, not a promise to hard-interrupt platform getaddrinfo/DNS resolution before a socket exists.

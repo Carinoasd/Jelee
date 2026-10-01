@@ -1,0 +1,1 @@
+{"image": "sha256:1a95e60d62bff36eddba5126f57c67f8bebdd788c57a942386017ac0b23f5b8d", "pinnedFiles": 16, "cases": 6, "healthyHelper": true, "missingToolDisabled": true, "alteredLibraryDisabled": true, "landlockDeniedDisabled": true, "originalHashesUnchanged": true, "testArtifactsCleaned": true}

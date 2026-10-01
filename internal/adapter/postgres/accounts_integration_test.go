@@ -62,8 +62,8 @@ func accountTestStore(t *testing.T) (context.Context, *Store, string) {
 	query := u.Query()
 	query.Set("search_path", schema)
 	u.RawQuery = query.Encode()
-	if version, dirty, e := Migrate(ctx, u.String(), "up"); e != nil || dirty || version != 2 {
-		t.Fatal("migrate account schema to version 2")
+	if version, dirty, e := Migrate(ctx, u.String(), "up"); e != nil || dirty || version != SchemaVersion {
+		t.Fatal("migrate account fixture to current schema")
 	}
 	store, err := Open(ctx, u.String(), 16)
 	if err != nil {
@@ -579,11 +579,59 @@ func TestAccountIntegration(t *testing.T) {
 
 func TestAccountMigrationRejectsCaseCollisionWithoutRenaming(t *testing.T) {
 	ctx, s, dsn := accountTestStore(t)
+	if version, dirty, e := Migrate(ctx, dsn, "down"); e != nil || dirty || version != 17 {
+		t.Fatal("baseline verification downgrade failed", version, dirty, e)
+	}
+	if version, dirty, e := Migrate(ctx, dsn, "down"); e != nil || dirty || version != 16 {
+		t.Fatal("baseline verification downgrade failed", version, dirty, e)
+	}
+	if version, dirty, e := Migrate(ctx, dsn, "down"); e != nil || dirty || version != 15 {
+		t.Fatal("legacy baseline downgrade failed", version, dirty, e)
+	}
+	if version, dirty, e := Migrate(ctx, dsn, "down"); e != nil || dirty || version != 14 {
+		t.Fatal("family scan downgrade failed", version, dirty, e)
+	}
+	if v, dirty, err := Migrate(ctx, dsn, "down"); err != nil || dirty || v != 13 {
+		t.Fatal("legacy verification downgrade failed", v, dirty, err)
+	}
+	if v, dirty, err := Migrate(ctx, dsn, "down"); err != nil || dirty || v != 12 {
+		t.Fatal("legacy ignore downgrade failed", v, dirty, err)
+	}
+	if v, dirty, err := Migrate(ctx, dsn, "down"); err != nil || dirty || v != 11 {
+		t.Fatal("ignore scan downgrade failed", v, dirty, err)
+	}
+	if v, dirty, err := Migrate(ctx, dsn, "down"); err != nil || dirty || v != 10 {
+		t.Fatal("verification downgrade failed", v, dirty, err)
+	}
+	if v, dirty, err := Migrate(ctx, dsn, "down"); err != nil || dirty || v != 9 {
+		t.Fatal("baseline comparison downgrade failed", v, dirty, err)
+	}
+	if v, dirty, err := Migrate(ctx, dsn, "down"); err != nil || dirty || v != 8 {
+		t.Fatal("manifest downgrade failed", v, dirty, err)
+	}
+	if v, dirty, err := Migrate(ctx, dsn, "down"); err != nil || dirty || v != 7 {
+		t.Fatal("rollback ignore intent schema", err)
+	}
+	if v, dirty, err := Migrate(ctx, dsn, "down"); err != nil || dirty || v != 6 {
+		t.Fatal("rollback NFO worker schema", err)
+	}
+	if v, dirty, err := Migrate(ctx, dsn, "down"); err != nil || dirty || v != 5 {
+		t.Fatal("rollback NFO cache schema", err)
+	}
+	if version, dirty, e := Migrate(ctx, dsn, "down"); e != nil || dirty || version != 4 {
+		t.Fatal("downgrade probe requests schema")
+	}
+	if version, dirty, e := Migrate(ctx, dsn, "down"); e != nil || dirty || version != 3 {
+		t.Fatal("downgrade probe cache schema")
+	}
+	if version, dirty, e := Migrate(ctx, dsn, "down"); e != nil || dirty || version != 2 {
+		t.Fatal("downgrade jobs schema")
+	}
 	if version, dirty, e := Migrate(ctx, dsn, "down"); e != nil || dirty || version != 1 {
 		t.Fatal("downgrade to legacy schema")
 	}
 	if e := s.Ready(ctx); e == nil {
-		t.Fatal("schema 1 must fail schema 2 readiness")
+		t.Fatal("legacy schema must fail current readiness")
 	}
 	if _, e := s.Pool.Exec(ctx, `INSERT INTO users(name) VALUES('ExistingName'),('existingname')`); e != nil {
 		t.Fatal("prepare legacy case collision")
@@ -610,6 +658,54 @@ func TestAccountMigrationRollbackKeepsDeletedAccountsDisabled(t *testing.T) {
 	if _, err = s.Pool.Exec(ctx, `UPDATE users SET deleted_at=now() WHERE name='DeletedBeforeRollback'`); err != nil {
 		t.Fatal("prepare deleted account")
 	}
+	if version, dirty, e := Migrate(ctx, dsn, "down"); e != nil || dirty || version != 17 {
+		t.Fatal("baseline verification downgrade failed", version, dirty, e)
+	}
+	if version, dirty, e := Migrate(ctx, dsn, "down"); e != nil || dirty || version != 16 {
+		t.Fatal("baseline verification downgrade failed", version, dirty, e)
+	}
+	if version, dirty, e := Migrate(ctx, dsn, "down"); e != nil || dirty || version != 15 {
+		t.Fatal("legacy baseline downgrade failed", version, dirty, e)
+	}
+	if version, dirty, e := Migrate(ctx, dsn, "down"); e != nil || dirty || version != 14 {
+		t.Fatal("family scan downgrade failed", version, dirty, e)
+	}
+	if v, dirty, err := Migrate(ctx, dsn, "down"); err != nil || dirty || v != 13 {
+		t.Fatal("legacy verification downgrade failed", v, dirty, err)
+	}
+	if v, dirty, err := Migrate(ctx, dsn, "down"); err != nil || dirty || v != 12 {
+		t.Fatal("legacy ignore downgrade failed", v, dirty, err)
+	}
+	if v, dirty, err := Migrate(ctx, dsn, "down"); err != nil || dirty || v != 11 {
+		t.Fatal("ignore scan downgrade failed", v, dirty, err)
+	}
+	if v, dirty, err := Migrate(ctx, dsn, "down"); err != nil || dirty || v != 10 {
+		t.Fatal("verification downgrade failed", v, dirty, err)
+	}
+	if v, dirty, err := Migrate(ctx, dsn, "down"); err != nil || dirty || v != 9 {
+		t.Fatal("baseline comparison downgrade failed", v, dirty, err)
+	}
+	if v, dirty, err := Migrate(ctx, dsn, "down"); err != nil || dirty || v != 8 {
+		t.Fatal("manifest downgrade failed", v, dirty, err)
+	}
+	if v, dirty, err := Migrate(ctx, dsn, "down"); err != nil || dirty || v != 7 {
+		t.Fatal("rollback ignore intent schema", err)
+	}
+	if v, dirty, err := Migrate(ctx, dsn, "down"); err != nil || dirty || v != 6 {
+		t.Fatal("rollback NFO worker schema", err)
+	}
+	if v, dirty, err := Migrate(ctx, dsn, "down"); err != nil || dirty || v != 5 {
+		t.Fatal("rollback NFO cache schema", err)
+	}
+	if version, dirty, e := Migrate(ctx, dsn, "down"); e != nil || dirty || version != 4 {
+		t.Fatal("downgrade probe requests schema")
+	}
+	if version, dirty, e := Migrate(ctx, dsn, "down"); e != nil || dirty || version != 3 {
+		t.Fatal("downgrade probe cache schema")
+	}
+	if version, dirty, e := Migrate(ctx, dsn, "down"); e != nil || dirty || version != 2 {
+		t.Fatal("downgrade jobs schema")
+	}
 	if version, dirty, e := Migrate(ctx, dsn, "down"); e != nil || dirty || version != 1 {
 		t.Fatal("downgrade account migration")
 	}
@@ -620,7 +716,7 @@ func TestAccountMigrationRollbackKeepsDeletedAccountsDisabled(t *testing.T) {
 	if err = s.Pool.QueryRow(ctx, `SELECT disabled FROM users WHERE name='ActiveBeforeRollback'`).Scan(&activeDisabled); err != nil || activeDisabled {
 		t.Fatal("downgrade unexpectedly disabled active account")
 	}
-	if version, dirty, e := Migrate(ctx, dsn, "up"); e != nil || dirty || version != 2 {
+	if version, dirty, e := Migrate(ctx, dsn, "up"); e != nil || dirty || version != SchemaVersion {
 		t.Fatal("upgrade after fail-closed rollback")
 	}
 	if _, err = s.Authenticate(ctx, deletedToken); !errors.Is(err, domain.ErrUnauthenticated) {
