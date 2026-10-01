@@ -1,0 +1,230 @@
+{
+  "headSha": "bf5af35003bae0b7916797eddc1f7f9b6184099f",
+  "status": "completed",
+  "conclusion": "failure",
+  "url": "https://github.com/MoYuanCN/Jelee/actions/runs/36798696038",
+  "jobs": [
+    {
+      "name": "foundation (windows-latest)",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/MoYuanCN/Jelee/actions/runs/36798696038/job/110167931355",
+      "steps": [
+        {
+          "name": "Set up job",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Run actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Run actions/cache@5a3ec84eff668545956fd18022155c47e93e2684",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Linux bootstrap and verification",
+          "status": "completed",
+          "conclusion": "skipped"
+        },
+        {
+          "name": "Windows bootstrap and verification",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Retain native sandbox diagnostics",
+          "status": "completed",
+          "conclusion": "skipped"
+        },
+        {
+          "name": "Post Run actions/cache@5a3ec84eff668545956fd18022155c47e93e2684",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Post Run actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Complete job",
+          "status": "completed",
+          "conclusion": "success"
+        }
+      ]
+    },
+    {
+      "name": "PostgreSQL migration and repository integration",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/MoYuanCN/Jelee/actions/runs/36798696038/job/110167931535",
+      "steps": [
+        {
+          "name": "Set up job",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Initialize containers",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Run actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Run actions/cache@5a3ec84eff668545956fd18022155c47e93e2684",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Run make bootstrap tools-verify test-integration test-race",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Real media scan and probe cache acceptance",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Real mixed NFO, video and image incremental acceptance",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Retain probe worker acceptance evidence",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Retain NFO worker acceptance evidence",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Post Run actions/cache@5a3ec84eff668545956fd18022155c47e93e2684",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Post Run actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Stop containers",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Complete job",
+          "status": "completed",
+          "conclusion": "success"
+        }
+      ]
+    },
+    {
+      "name": "Full branding gate",
+      "status": "completed",
+      "conclusion": "failure",
+      "url": "https://github.com/MoYuanCN/Jelee/actions/runs/36798696038/job/110167931640",
+      "steps": [
+        {
+          "name": "Set up job",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Run actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Run actions/cache@5a3ec84eff668545956fd18022155c47e93e2684",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Run make bootstrap tools-verify brand-scan",
+          "status": "completed",
+          "conclusion": "failure"
+        },
+        {
+          "name": "Post Run actions/cache@5a3ec84eff668545956fd18022155c47e93e2684",
+          "status": "completed",
+          "conclusion": "skipped"
+        },
+        {
+          "name": "Post Run actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Complete job",
+          "status": "completed",
+          "conclusion": "success"
+        }
+      ]
+    },
+    {
+      "name": "foundation (ubuntu-latest)",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/MoYuanCN/Jelee/actions/runs/36798696038/job/110167931698",
+      "steps": [
+        {
+          "name": "Set up job",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Run actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Run actions/cache@5a3ec84eff668545956fd18022155c47e93e2684",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Linux bootstrap and verification",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Windows bootstrap and verification",
+          "status": "completed",
+          "conclusion": "skipped"
+        },
+        {
+          "name": "Retain native sandbox diagnostics",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Post Run actions/cache@5a3ec84eff668545956fd18022155c47e93e2684",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Post Run actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Complete job",
+          "status": "completed",
+          "conclusion": "success"
+        }
+      ]
+    }
+  ]
+}

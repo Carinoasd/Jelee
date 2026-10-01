@@ -1,0 +1,44 @@
+{
+  "sourceCommit": "9afc8f15c6ca3b190bc6eafdb7e24356ad1cd33c",
+  "platform": "linux-amd64",
+  "result": "PASS",
+  "fuzz": [
+    {
+      "name": "FuzzCompileBoundedText",
+      "configuredSeconds": 15,
+      "parallel": 2,
+      "output": [
+        "fuzz: elapsed: 1s, gathering baseline coverage: 0/84 completed",
+        "fuzz: elapsed: 1s, gathering baseline coverage: 84/84 completed, now fuzzing with 2 workers",
+        "fuzz: elapsed: 4s, execs: 50490 (16827/sec), new interesting: 46 (total: 130)",
+        "fuzz: elapsed: 7s, execs: 86661 (12056/sec), new interesting: 62 (total: 146)",
+        "fuzz: elapsed: 10s, execs: 86661 (0/sec), new interesting: 62 (total: 146)",
+        "fuzz: elapsed: 13s, execs: 86661 (0/sec), new interesting: 62 (total: 146)",
+        "fuzz: elapsed: 16s, execs: 86661 (0/sec), new interesting: 62 (total: 146)",
+        "fuzz: elapsed: 17s, execs: 86661 (0/sec), new interesting: 62 (total: 146)",
+        "PASS",
+        "ok  \tgithub.com/MoYuanCN/Jelee/internal/platform/ignore\t16.941s"
+      ],
+      "logSHA256": "6ca16c17185e5ae5bdbd3521fe127410d5971ae67439c977bdb07c72b3dd510e"
+    },
+    {
+      "name": "FuzzEvaluateCanonicalPath",
+      "configuredSeconds": 15,
+      "parallel": 2,
+      "output": [
+        "fuzz: elapsed: 0s, gathering baseline coverage: 0/33 completed",
+        "fuzz: elapsed: 0s, gathering baseline coverage: 33/33 completed, now fuzzing with 2 workers",
+        "fuzz: elapsed: 3s, execs: 22545 (7512/sec), new interesting: 12 (total: 45)",
+        "fuzz: elapsed: 6s, execs: 22545 (0/sec), new interesting: 12 (total: 45)",
+        "fuzz: elapsed: 9s, execs: 22545 (0/sec), new interesting: 12 (total: 45)",
+        "fuzz: elapsed: 12s, execs: 22545 (0/sec), new interesting: 12 (total: 45)",
+        "fuzz: elapsed: 15s, execs: 22545 (0/sec), new interesting: 12 (total: 45)",
+        "fuzz: elapsed: 16s, execs: 22545 (0/sec), new interesting: 12 (total: 45)",
+        "PASS",
+        "ok  \tgithub.com/MoYuanCN/Jelee/internal/platform/ignore\t16.280s"
+      ],
+      "logSHA256": "22dff4c9b0a5225dfcc86528fd3d105051631e8c2e3c6e9c7fa1efc819953fef"
+    }
+  ],
+  "scope": "Bounded parser/path properties; no exhaustive input claim and no Git subprocess per random input."
+}

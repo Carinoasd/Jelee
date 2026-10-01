@@ -15,6 +15,7 @@ Jelee 正在以独立 Go 服务逐步接管视频目录与原文件直投。本�
 - Linux amd64 固定 ffprobe／8 个动态库、Landlock／seccomp helper、唯读 FD 输入与有界 JSON 解析；`jelee-cli doctor probe` 实测隔离能力。扫描可显式启用探测，Windows 正式 probe 仍停用。
 - 持久 probe 意图、不可变工具身份、库/item失效、parent/file租约、批次检查点、TTL/容量及有界回收；已接 worker、管理员 API/CLI 和关闭回收，见[探测工作流程](docs/probe-worker.md)。
 - schema 7 的独立 NFO off/read-only 策略、有界缓存、入队意图和 parent 检查点；管理员显式提交后按 inventory → NFO → probe 执行，提供历史计数、当前验证结果与图片 kind/size/mtime 比较，见[NFO 工作流程](docs/nfo-worker.md)和[验证报告](docs/nfo-worker-verification.md)。
+- 纯 `.jeleeignore` 编译/匹配组件：来源行号、目录继承、父目录剪枝、固定预算及真实 Windows/Linux Git 对照；尚未接入生产扫描，见[合同](docs/ignore-matcher.md)与[验证](docs/ignore-matcher-verification.md)。
 
 尚未交付完整管理前端、第三方协议兼容、完整 metadata 增量导入、持续监看/排程、图片资产处理、用户权限管理界面、完整诊断、完整工具与素材链。NFO 尚缺修改后的 XML 序列化、Catalog 来源优先级/锁合并、`--fix` 及真实客户端往返验收。现有旧服务端源码仍保留，尚未完成所有功能裁剪与内部重命名。完整品牌门禁目前会失败；增量检查通过不能代替最终验收。
 
@@ -53,6 +54,7 @@ make bootstrap tools-verify build test
 - [NFO 快取验证](docs/nfo-cache-verification.md)
 - [NFO 工作流程、API/CLI 与图片比较](docs/nfo-worker.md)
 - [NFO 工作流程实际验证](docs/nfo-worker-verification.md)
+- [忽略规则匹配实际验证](docs/ignore-matcher-verification.md)
 - [工具链与未完成项](docs/toolchain.md)
 - [NFO 只读兼容范围](docs/nfo-compatibility.md)
 - [安全模型](docs/security-model.md)
@@ -61,7 +63,7 @@ make bootstrap tools-verify build test
 - [许可证与来源](docs/LICENSE-COMPLIANCE.md)
 - [保留的上游说明](docs/upstream-README.md)
 
-各段验证后分别推送并提 PR：[基础与账户 #1](https://github.com/MoYuanCN/Jelee/pull/1)、[持久盘点 #2](https://github.com/MoYuanCN/Jelee/pull/2)、[固定媒体工具 #3](https://github.com/MoYuanCN/Jelee/pull/3)、[执行器与素材 #4](https://github.com/MoYuanCN/Jelee/pull/4)、[Linux 隔离探测 #5](https://github.com/MoYuanCN/Jelee/pull/5)、[探测快取 #6](https://github.com/MoYuanCN/Jelee/pull/6)、[探测 worker #7](https://github.com/MoYuanCN/Jelee/pull/7)、[NFO 来源 #8](https://github.com/MoYuanCN/Jelee/pull/8)、[NFO 快取 #9](https://github.com/MoYuanCN/Jelee/pull/9)。第一阶段[验证记录](docs/verification-report.md)保留为历史快照。尚未创建发布标签或正式版本。上游历史、许可证与归属资料保留，不能把当前版本标记为 G00–G51 已完成。
+各段验证后分别推送并提 PR：[基础与账户 #1](https://github.com/MoYuanCN/Jelee/pull/1)、[持久盘点 #2](https://github.com/MoYuanCN/Jelee/pull/2)、[固定媒体工具 #3](https://github.com/MoYuanCN/Jelee/pull/3)、[执行器与素材 #4](https://github.com/MoYuanCN/Jelee/pull/4)、[Linux 隔离探测 #5](https://github.com/MoYuanCN/Jelee/pull/5)、[探测快取 #6](https://github.com/MoYuanCN/Jelee/pull/6)、[探测 worker #7](https://github.com/MoYuanCN/Jelee/pull/7)、[NFO 来源 #8](https://github.com/MoYuanCN/Jelee/pull/8)、[NFO 快取 #9](https://github.com/MoYuanCN/Jelee/pull/9)、[NFO worker与图片比较 #10](https://github.com/MoYuanCN/Jelee/pull/10)。第一阶段[验证记录](docs/verification-report.md)保留为历史快照。尚未创建发布标签或正式版本。上游历史、许可证与归属资料保留，不能把当前版本标记为 G00–G51 已完成。
 
 ### Linux 实验运行时验证
 

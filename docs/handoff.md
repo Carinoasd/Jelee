@@ -2,7 +2,11 @@
 
 ## 当前工作与授权
 
-2026-10-01 用户明确「继续吧」，此前切模型暂停已结束；最新「回报进度」是状态查询，未撤销继续授权。3C3B已推送为普通[PR #9](https://github.com/MoYuanCN/Jelee/pull/9)，HEAD `676c8edcdb0b15b34455af4c1439eee265587e49`；其[Go CI](https://github.com/MoYuanCN/Jelee/actions/runs/36794292127)的Windows、Linux和PG/真实媒体均通过，完整品牌检查仍失败。3C3C源码已提交为 `47da27b5ff090a71e6f55aae0b2e6c00871f825b`，分支 `feat/jelee-nfo-worker`，本地验收完成，待连同本报告推送并建立普通PR。用户授权每小段验证、提交、推送、建立普通PR并附到聊天，然后继续下一段；没有授权合并、发布、tag或改写历史。
+2026-10-01 用户明确「继续吧」，此前切模型暂停已结束；「回报进度」及「项目中最大的是3阶段吗」是状态查询，未撤销继续授权。用户授权每小段验证、提交、推送、建立普通PR并附到聊天，然后继续下一段；没有授权合并、发布、tag或改写历史。
+
+3D1A当前分支 `feat/jelee-ignore-matcher`，源码 `9afc8f15c6ca3b190bc6eafdb7e24356ad1cd33c` 已本地提交；本地验证与证据完整，普通PR发布接在本证据提交之后。来源是PR #10 HEAD `bf5af35003bae0b7916797eddc1f7f9b6184099f`。本段实现纯忽略matcher，未接扫描；Windows28包/三build/lint通过，原生Linux28包567顶层race测试通过，PG零skip，matcher两平台90.6188%；真实Git对照3,768/3,784候选通过，326个已提交blob与验证SHA逐一一致。详见[实际验证](ignore-matcher-verification.md)。矩阵现在4已完成/172部分/160阻塞；下一小段3D1B安全读取来源及编译缓存。
+
+3C3C已发布普通[PR #10](https://github.com/MoYuanCN/Jelee/pull/10)并附聊天；源码 `47da27b5ff090a71e6f55aae0b2e6c00871f825b`。[Go CI](https://github.com/MoYuanCN/Jelee/actions/runs/36798696038)的Windows/Linux、PG集成与真实媒体/NFO混合库均通过，完整品牌检查仍失败；[CI证据](evidence/nfo-worker-ci.json)已保存。
 
 作者仅用命令级 `Carinoasd <46304809+Carinoasd@users.noreply.github.com>`，不设置全局身份。原需求逐字保存在 `requirements-source.md`，SHA256 `755b6b32324efe710c3e1135a0c982c45b82f337e90fcb50ab3718a20cba5d07`。
 
@@ -33,6 +37,6 @@
 
 Go1.27.1与媒体工具都在项目 `.tools`；Windows通过 `scripts/run-go.ps1`/`scripts/make.ps1`，Linux通过 `.bin/go`。不安装全局工具。独立PostgreSQL只用 `jelee_test` 的自建schema；凭证只读 `.testdata/database-url`，不得回显或提交。
 
-3C3C契约见[NFO工作流程](nfo-worker.md)。NFO policy generation独立于视频probe generation；inventory epoch核对根映射，迁移前图片属性保持未知。来源SHA只描述保留字节，不能保证敌对原地写入下的原子快照。下一小段为3D1A：有界忽略规则纯解析/匹配；先固定自有规则契约，安全来源/cache及持久扫描再分别接线，不能把过滤掉的旧路径误计为缺失。完整NFO优先级/锁合并、写回、监看、排程、图片处理和完整规模验收尚待后续交付。
+3C3C契约见[NFO工作流程](nfo-worker.md)。NFO policy generation独立于视频probe generation；inventory epoch核对根映射，迁移前图片属性保持未知。来源SHA只描述保留字节，不能保证敌对原地写入下的原子快照。3D1A的[纯matcher](ignore-matcher.md)已经验证；[旧规则来源审计](ignore-source-audit.md)与自有语法分开。3D1B接安全来源/cache，3D1C接持久扫描，不能把过滤掉的旧路径误计为缺失。完整NFO优先级/锁合并、写回、监看、排程、图片处理和完整规模验收尚待后续交付。
 
 3C3B曾发生Windows沙箱ACL失败与Linux专用PG退出后自动移除，原因和恢复记录在旧报告。3C3C的Windows fmt-check超过长命令行上限，改为目录递归后通过；第一次native全套因验证期间这项脚本变化而拒当最终快照，冻结后全量重跑通过。PG容器保持2GiB tmpfs且退出不自动删除；凭证仍仅在忽略文件中。

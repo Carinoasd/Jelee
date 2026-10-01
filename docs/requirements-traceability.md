@@ -16,7 +16,7 @@
 
 ## 实际交付证据
 
-第3C3C见[NFO工作流程验证](nfo-worker-verification.md)，第3C3B见[NFO快取验证](nfo-cache-verification.md)，第3C3A见[NFO来源验证](nfo-source-verification.md)，第3C2B见[worker验证](probe-worker-verification.md)，第3C2A见[快取契约验证](probe-cache-verification.md)，第3C1见[隔离探测验证](probe-verification.md)；第3A、3B1、3B2分别见[任务验证](jobs-verification.md)、[工具验证](media-tools-verification.md)、[程序/素材验证](process-verification.md)，当前编号项统计为 **4 项已完成、170 项部分完成、162 项阻塞**。第1/2阶段保留在[草稿 PR #1](https://github.com/MoYuanCN/Jelee/pull/1)，后续按用户授权每个已验证分段建立独立 PR。下面首阶段证据保留原验证范围。
+第3D1A见[忽略匹配验证](ignore-matcher-verification.md)，第3C3C见[NFO工作流程验证](nfo-worker-verification.md)，第3C3B见[NFO快取验证](nfo-cache-verification.md)，第3C3A见[NFO来源验证](nfo-source-verification.md)，第3C2B见[worker验证](probe-worker-verification.md)，第3C2A见[快取契约验证](probe-cache-verification.md)，第3C1见[隔离探测验证](probe-verification.md)；第3A、3B1、3B2分别见[任务验证](jobs-verification.md)、[工具验证](media-tools-verification.md)、[程序/素材验证](process-verification.md)，当前编号项统计为 **4 项已完成、172 项部分完成、160 项阻塞**。第1/2阶段保留在[草稿 PR #1](https://github.com/MoYuanCN/Jelee/pull/1)，后续按用户授权每个已验证分段建立独立 PR。下面首阶段证据保留原验证范围。
 
 | 证据 | 结果 | 范围 |
 | --- | --- | --- |
@@ -335,9 +335,9 @@
 
 | 子项 / 约束与工作 | 计划落盘文件 | 迁移 / 数据 | 测试计划与验收 | 状态 / 证据 | 实现提交 |
 | --- | --- | --- | --- | --- | --- |
-| **G22.1** 自有：`.jeleeignore`，语法与 `.gitignore` 兼容（通配、`**`、否定 `!`、锚定 `/`、注释、转义）。 | internal/adapter/media/ignore/; internal/adapter/compat/ignore/; docs/00-audit-baseline.md | 无；扫描规则缓存可重建 | Plan-G22.1：此审计提交的 .ignore 黄金行为；.jeleeignore 通配/否定/BOM/大小写；命中来源；mtime 后重新扫描；须单独覆盖本行全部约束 | 阻塞：尚无本项完整实现及执行证据 | 未实现或未验证；无实现提交 |
-| **G22.2** 兼容：先从对应上游版本源码确认 `.jellyfinignore`/`.embyignore`/`.ignore` 的确切语义（记录来源与版本），再实现；不得凭印象。 | internal/adapter/media/ignore/; internal/adapter/compat/ignore/; docs/00-audit-baseline.md | 无；扫描规则缓存可重建 | Plan-G22.2：此审计提交的 .ignore 黄金行为；.jeleeignore 通配/否定/BOM/大小写；命中来源；mtime 后重新扫描；须单独覆盖本行全部约束 | 部分完成：[基线](00-audit-baseline.md)已确认 .ignore；兼容解析合同尚未执行 | `a512674643`（仅来源审计，兼容解析未实现） |
-| **G22.3** 行为：目录级继承与就近优先、大小写敏感策略可配、UTF-8/UTF-16 BOM 处理、路径穿越防护、符号链接不穿越。 | internal/adapter/media/ignore/; internal/adapter/compat/ignore/; docs/00-audit-baseline.md | 无；扫描规则缓存可重建 | Plan-G22.3：此审计提交的 .ignore 黄金行为；.jeleeignore 通配/否定/BOM/大小写；命中来源；mtime 后重新扫描；须单独覆盖本行全部约束 | 阻塞：尚无本项完整实现及执行证据 | 未实现或未验证；无实现提交 |
+| **G22.1** 自有：`.jeleeignore`，语法与 `.gitignore` 兼容（通配、`**`、否定 `!`、锚定 `/`、注释、转义）。 | internal/platform/ignore/; internal/adapter/media/ignore/（后续）; internal/adapter/compat/ignore/（后续）; docs/ignore-source-audit.md | 无；扫描规则缓存可重建 | Plan-G22.1：纯matcher契约/语义/边界/编码/取消/并发/fuzz及真实Git差分已执行；来源读取、mtime缓存、兼容解析和重扫/报告后续单验 | 部分完成：纯 .jeleeignore 有界编译/匹配、通配/锚定/否定/注释/转义、80组黄金及60组组合语料的真实Windows/Linux Git对照已通过；尚未接来源发现和生产扫描。[3D1A证据](ignore-matcher-verification.md) | `9afc8f15c6ca3b190bc6eafdb7e24356ad1cd33c`（第3D1A子集；G22.2仅来源审计） |
+| **G22.2** 兼容：先从对应上游版本源码确认 `.jellyfinignore`/`.embyignore`/`.ignore` 的确切语义（记录来源与版本），再实现；不得凭印象。 | internal/platform/ignore/; internal/adapter/media/ignore/（后续）; internal/adapter/compat/ignore/（后续）; docs/ignore-source-audit.md | 无；扫描规则缓存可重建 | Plan-G22.2：纯matcher契约/语义/边界/编码/取消/并发/fuzz及真实Git差分已执行；来源读取、mtime缓存、兼容解析和重扫/报告后续单验 | 部分完成：固定上游提交与三个源码blob已核对，记录最近单源、空文件、Trim、完整路径及缓存行为；未执行旧C#测试或实现旧格式兼容。[固定来源审计](ignore-source-audit.md) | `9afc8f15c6ca3b190bc6eafdb7e24356ad1cd33c`（第3D1A子集；G22.2仅来源审计） |
+| **G22.3** 行为：目录级继承与就近优先、大小写敏感策略可配、UTF-8/UTF-16 BOM 处理、路径穿越防护、符号链接不穿越。 | internal/platform/ignore/; internal/adapter/media/ignore/（后续）; internal/adapter/compat/ignore/（后续）; docs/ignore-source-audit.md | 无；扫描规则缓存可重建 | Plan-G22.3：纯matcher契约/语义/边界/编码/取消/并发/fuzz及真实Git差分已执行；来源读取、mtime缓存、兼容解析和重扫/报告后续单验 | 部分完成：纯值层继承/就近优先、父目录剪枝、显式ASCII大小写、UTF-8/UTF-16 BOM与规范路径拒绝已通过；来源目录精确激活的跨平台合同已注明。真实根内读取、符号链接及持久规则快照仍待接线。[3D1A证据](ignore-matcher-verification.md) | `9afc8f15c6ca3b190bc6eafdb7e24356ad1cd33c`（第3D1A子集；G22.2仅来源审计） |
 | **G22.4** 性能：规则编译缓存（按目录 + 文件 mtime 失效）。 | internal/adapter/media/ignore/; internal/adapter/compat/ignore/; docs/00-audit-baseline.md | 无；扫描规则缓存可重建 | Plan-G22.4：此审计提交的 .ignore 黄金行为；.jeleeignore 通配/否定/BOM/大小写；命中来源；mtime 后重新扫描；须单独覆盖本行全部约束 | 阻塞：尚无本项完整实现及执行证据 | 未实现或未验证；无实现提交 |
 | **G22.5** 可观测：扫描报告列出被忽略条目与命中规则来源。 | internal/adapter/media/ignore/; internal/adapter/compat/ignore/; docs/00-audit-baseline.md | 无；扫描规则缓存可重建 | Plan-G22.5：此审计提交的 .ignore 黄金行为；.jeleeignore 通配/否定/BOM/大小写；命中来源；mtime 后重新扫描；须单独覆盖本行全部约束 | 阻塞：尚无本项完整实现及执行证据 | 未实现或未验证；无实现提交 |
 

@@ -82,3 +82,7 @@ Windows 最终 lint 首轮未能启动 gofmt：263 个绝对文件路径的参�
 第一轮原生 Linux build/vet/race 测试通过后，源码一致性校验发现上述 Windows 脚本在测试期间修改，拒绝将该轮标为最终证据；[原日志哈希与原因](evidence/nfo-worker-reverification.json)保留，最终冻结后重跑通过。测试 fixture 曾尝试写入非法 frozen-off progress，被既有 CHECK 正确拒绝；修正测试为先断言约束，再仅在私有 schema 移除该 CHECK 验证读取防守，未更改已发布迁移。
 
 完整品牌门禁仍受保留的旧服务端命名阻挡。新增服务的增量扫描不替代完整门禁，覆盖率与未执行平台/专用场景按最终记录单列。全项目 336 项需求尚未全部完成。
+
+## 远端 CI
+
+[PR #10](https://github.com/MoYuanCN/Jelee/pull/10) 的 HEAD `bf5af35003bae0b7916797eddc1f7f9b6184099f` 在[Go CI](https://github.com/MoYuanCN/Jelee/actions/runs/36798696038)完成 Windows/Linux foundation、PG migration/repository integration、race、真实影片 probe 和真实 NFO/视频/图片混合验收，以上均通过。完整品牌检查失败，故整个 workflow 的结论仍为 failure；没有放宽门禁。[逐项公开结果](evidence/nfo-worker-ci.json)随下一小段保存。
