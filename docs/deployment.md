@@ -34,3 +34,7 @@ Compose 内部网络使用 sslmode=disable，仅用于此隔离网络；远程�
 現有 Go 容器僅需發布設定的 HTTP 埠，PostgreSQL 保持內部網路；不發布 UDP 1900／7359，不需 SSDP 多播或路由器自動開埠。反向代理連至設定的 HTTP listener，客戶端自行輸入服務網址。防火牆僅允許實際使用的 HTTP／HTTPS 入口；不要為服務新增探索埠規則。
 
 舊 C# 入口的伺服器 UDP 7359 探索 host 已從實作、啟動圖與探索回應模型移除，[驗證](server-discovery-removal.md)包含舊設定true時的正式host／OpenAPI驗收。其餘直播／調諧器 UDP socket factory仍在參考樹，尚未完成全部G05依賴移除或LAN SSDP封包驗收，不應將此階段當成所有舊網路能力都已刪除。
+
+## 網路隱私與公開入口
+
+公開位址、代理、Host、登入限流與HSTS的現況見[網路隱私](network-privacy.md)。客戶端直接連線所使用的公網IP無法對該客戶端隱藏；完整可信代理與公網部署驗收仍待完成。

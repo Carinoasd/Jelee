@@ -1,0 +1,75 @@
+{
+  "scope": "G11.8 network privacy documentation and existing boundary revalidation; full network acceptance incomplete",
+  "baseCommit": "0023d53361e6fb3df1253c79818f4c7ee84534c3",
+  "document": "docs/network-privacy.md",
+  "documentSha256": "b940322d9b87e7978e69c1388bdbf62afb542a02a5043b96634ba146cc6b4c8d",
+  "sourceHashes": {
+    "configuration": "85c6bad6208d2d8fb796297fb2ada2dd028723b78521d855bb6db380c448a45e",
+    "httpBoundary": "3970b9b02708fc48bfc633822111c81f9f568de502013ebae0d0c83cd46d1a5c",
+    "clientAddress": "896cfc65dd42dbdac810e30d4f1213bc9ef356c54f270c3e171b1c49ede084b7",
+    "containerImage": "781aa93c45dbb3de0fec9ec490e6f69dd5088cc6f858ec49457914edab7b8f7b",
+    "composePublication": "c8c162b68e705bebe8b973b361e13bf1b819a2557e879bcc689553ffa32afa5f"
+  },
+  "sources": {
+    "configuration": "internal/platform/config/config.go",
+    "httpBoundary": "internal/adapter/http/server.go",
+    "clientAddress": "internal/adapter/http/login_limiter.go",
+    "containerImage": "Dockerfile",
+    "composePublication": "deploy/docker-compose.yml"
+  },
+  "existingTestsPassed": [
+    "TestAccountHTTPRateLimitRejectsBeforeKDFWithRetryAfter",
+    "TestClientIPIgnoresHeadersAndCanonicalizesPeer",
+    "TestPublicHealthAndHostBoundary/localhost",
+    "TestPublicHealthAndHostBoundary/LOCALHOST:8097",
+    "TestPublicHealthAndHostBoundary/127.0.0.1:8097",
+    "TestPublicHealthAndHostBoundary/[::1]:8097",
+    "TestPublicHealthAndHostBoundary/reject/attacker.invalid",
+    "TestPublicHealthAndHostBoundary/reject/localhost.attacker.invalid",
+    "TestPublicHealthAndHostBoundary/reject/localhost@attacker.invalid",
+    "TestPublicHealthAndHostBoundary/reject/localhost:notaport",
+    "TestPublicHealthAndHostBoundary/reject/localhost:0",
+    "TestPublicHealthAndHostBoundary/reject/localhost:65536",
+    "TestPublicHealthAndHostBoundary/reject/[::1",
+    "TestPublicHealthAndHostBoundary/reject/::1]",
+    "TestPublicHealthAndHostBoundary/reject/localhost[",
+    "TestPublicHealthAndHostBoundary/reject/[localhost]:8097",
+    "TestPublicHealthAndHostBoundary/reject/localhost:+80",
+    "TestPublicHealthAndHostBoundary/reject/[::1]:+80",
+    "TestPublicHealthAndHostBoundary"
+  ],
+  "productBehaviorChanged": false,
+  "liveCoreDeletionApplied": false,
+  "references": [
+    "https://www.rfc-editor.org/rfc/rfc9110.html#section-4.3.2",
+    "https://datatracker.ietf.org/doc/html/rfc7239#section-8.1"
+  ],
+  "limitations": [
+    "No public endpoint or firewall test performed",
+    "Trusted proxies, SSRF and full WebSocket/deployment leakage acceptance incomplete",
+    "No new implementation claimed"
+  ],
+  "gates": {
+    "incrementalBrandGate": {
+      "violations": 0,
+      "allowed": 175,
+      "status": "PASS"
+    },
+    "fullBrandGate": {
+      "violations": 14735,
+      "allowed": 180,
+      "status": "FAIL retained"
+    },
+    "gitignoreGate": {
+      "violations": 0,
+      "status": "PASS"
+    },
+    "stagedDiffCheck": "PASS"
+  },
+  "requirementCounts": {
+    "partial": 176,
+    "blocked": 156,
+    "done": 4
+  },
+  "pendingCoreAndProtectedSourcesByteIdenticalToBase": true
+}

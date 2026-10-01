@@ -872,3 +872,11 @@ DI／DTO／View先分層完成後，工具審查允許本次只刪兩個指南�
 五檔核心3271行刪除仍遭auto-review拒絕要求明確授權，已只製作.testdata/g05-live-core-proposal.md與patch、發出async問題，產品核心未改也未繞過。等待期間處理獨立G03門禁：既有regex僅固定三檔改為所有HTTP正式Go來源AST，排除test，對照資源鍵捕捉missing/unused。八fixture加keydiff負例通過，Windows HTTP/i18n完整回歸與vet通過；Linux HTTP/i18n race亦通過（3.598s／1.069s），全部handles terminal。沒有改catalog、產品行為或直播核心。G03仍partial，前端及舊UI完整文案使用尚未驗收。
 
 G03靜態鍵驗收最後增量品牌0違規／175允許，gitignore0，完整品牌14735／180允許仍fail；staged diff及五個待核准核心／保護檔逐位元比對通過。無來源測試handles仍執行，沒有核心刪除。
+
+### G11.8 網路隱私文件
+
+五檔核心仍待使用者明確授權，未刪也未改。獨立補齊docs/network-privacy.md：直連公網IP不可能對該客戶端隱藏、域名與代理的可見位址邊界、直接Go環回／容器全址／宿主環回差異、Host驗證、傳輸peer共用限流與代理TLS/HSTS限制。RFC9110與RFC7239原始規範已讀並連結，產品來源逐項核對；重驗現有Host、ClientIP與登入限流三項通過。沒有新產品功能、公網／firewall實測或宣稱完整安全驗收。
+
+G11.8 blocked→partial（指定文檔完成，共用網路Plan的SSRF／WS／部署矩陣仍未完成）；336矩陣逐行重算為4done／176partial／156blocked。G05仍等async核准3271行五檔刪除，不能把goal自動繼續當成該授權。
+
+網路文件階段增量品牌0違規／175允許、gitignore0、staged diff pass；完整品牌14735／180允許仍fail。待核准核心五檔與LICENSE／原始需求逐位元不變，產品無變更。

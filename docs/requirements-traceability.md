@@ -16,7 +16,7 @@
 
 ## 实际交付证据
 
-第3D1C1见[持久意图与执行守卫验证](ignore-inventory-verification.md)，源码 `b07ad3a6f20508c43b17458cd6847451ff6d68ab`；本段未启用实际过滤，G22状态不变。第3D1B见[安全来源与缓存验证](ignore-source-verification.md)，第3D1A见[忽略匹配验证](ignore-matcher-verification.md)，第3C3C见[NFO工作流程验证](nfo-worker-verification.md)，第3C3B见[NFO快取验证](nfo-cache-verification.md)，第3C3A见[NFO来源验证](nfo-source-verification.md)，第3C2B见[worker验证](probe-worker-verification.md)，第3C2A见[快取契约验证](probe-cache-verification.md)，第3C1见[隔离探测验证](probe-verification.md)；第3A、3B1、3B2分别见[任务验证](jobs-verification.md)、[工具验证](media-tools-verification.md)、[程序/素材验证](process-verification.md)，当前编号项统计为 **4 项已完成、175 项部分完成、157 项阻塞**。第1/2阶段保留在[草稿 PR #1](https://github.com/MoYuanCN/Jelee/pull/1)，后续按用户授权每个已验证分段建立独立 PR。下面首阶段证据保留原验证范围。
+第3D1C1见[持久意图与执行守卫验证](ignore-inventory-verification.md)，源码 `b07ad3a6f20508c43b17458cd6847451ff6d68ab`；本段未启用实际过滤，G22状态不变。第3D1B见[安全来源与缓存验证](ignore-source-verification.md)，第3D1A见[忽略匹配验证](ignore-matcher-verification.md)，第3C3C见[NFO工作流程验证](nfo-worker-verification.md)，第3C3B见[NFO快取验证](nfo-cache-verification.md)，第3C3A见[NFO来源验证](nfo-source-verification.md)，第3C2B见[worker验证](probe-worker-verification.md)，第3C2A见[快取契约验证](probe-cache-verification.md)，第3C1见[隔离探测验证](probe-verification.md)；第3A、3B1、3B2分别见[任务验证](jobs-verification.md)、[工具验证](media-tools-verification.md)、[程序/素材验证](process-verification.md)，当前编号项统计为 **4 项已完成、176 项部分完成、156 项阻塞**。第1/2阶段保留在[草稿 PR #1](https://github.com/MoYuanCN/Jelee/pull/1)，后续按用户授权每个已验证分段建立独立 PR。下面首阶段证据保留原验证范围。
 
 | 证据 | 结果 | 范围 |
 | --- | --- | --- |
@@ -213,7 +213,7 @@
 | **G11.5** 隐私开关：禁用发现/UPnP/STUN/自动 NAT；默认仅监听 `127.0.0.1` 经反向代理发布；局域网监听需显式开启。 | internal/platform/network/; internal/adapter/http/; docs/network-privacy.md; deploy/ | 网络设置 | Plan-G11.5：Host/代理注入、SSRF 私网/重定向/DNS 重绑定回归；响应/日志/WS 地址泄漏扫描；须单独覆盖本行全部约束 | 部分完成：默认 127.0.0.1 且新服务无发现/NAT/STUN；全部部署模式隐私验证未完成；[实际证据](verification-report.md) | `c77863e445` / `403cc21b27`（仅已实现子集） |
 | **G11.6** 响应头：CSP、HSTS、X-Content-Type-Options、Referrer-Policy；不泄露版本指纹与内网 IP；错误页/重定向/WebSocket 不得回显公网 IP。 | internal/platform/network/; internal/adapter/http/; docs/network-privacy.md; deploy/ | 网络设置 | Plan-G11.6：Host/代理注入、SSRF 私网/重定向/DNS 重绑定回归；响应/日志/WS 地址泄漏扫描；须单独覆盖本行全部约束 | 部分完成：CSP/nosniff/no-referrer/no-store、TLS 场景 HSTS 与安全错误已实现；全部兼容/WS/日志地址面未实现；[实际证据](verification-report.md) | `c77863e445` / `403cc21b27`（仅已实现子集） |
 | **G11.7** 协议优化：HTTP/2（TLS 场景）、Keep-Alive、压缩仅用于非媒体响应、WebSocket 心跳与背压。 | internal/platform/network/; internal/adapter/http/; docs/network-privacy.md; deploy/ | 网络设置 | Plan-G11.7：Host/代理注入、SSRF 私网/重定向/DNS 重绑定回归；响应/日志/WS 地址泄漏扫描；须单独覆盖本行全部约束 | 阻塞：尚无本项完整实现及执行证据 | 未实现或未验证；无实现提交 |
-| **G11.8** 文档：`docs/network-privacy.md` 明确“客户端直连公网 IP 时该 IP 不可能对该客户端隐藏”。 | internal/platform/network/; internal/adapter/http/; docs/network-privacy.md; deploy/ | 网络设置 | Plan-G11.8：Host/代理注入、SSRF 私网/重定向/DNS 重绑定回归；响应/日志/WS 地址泄漏扫描；须单独覆盖本行全部约束 | 阻塞：尚无本项完整实现及执行证据 | 未实现或未验证；无实现提交 |
+| **G11.8** 文档：`docs/network-privacy.md` 明确“客户端直连公网 IP 时该 IP 不可能对该客户端隐藏”。 | internal/platform/network/; internal/adapter/http/; docs/network-privacy.md; deploy/ | 网络设置 | Plan-G11.8：Host/代理注入、SSRF 私网/重定向/DNS 重绑定回归；响应/日志/WS 地址泄漏扫描；须单独覆盖本行全部约束 | 部分完成：[網路隱私文件](network-privacy.md)已明確說明直連公網IP不可能隱藏，三項既有边界回歸通過；共用網路驗收中的SSRF、WS與完整部署矩陣尚未完成 | [文件與來源證據](evidence/network-privacy-documentation.json)；本階段無產品變更 |
 
 ## G12 Webhook
 
