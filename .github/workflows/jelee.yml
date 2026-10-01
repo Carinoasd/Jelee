@@ -82,6 +82,8 @@ jobs:
       - run: make bootstrap tools-verify test-integration test-race
       - name: Real media scan and probe cache acceptance
         run: make bootstrap-media media-tools-verify bootstrap-runtime runtime-tools-verify fixtures probe-worker-test
+      - name: Real mixed NFO, video and image incremental acceptance
+        run: make nfo-worker-test
       - name: Retain probe worker acceptance evidence
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -90,5 +92,15 @@ jobs:
           path: |
             .testdata/probe-worker-acceptance.txt
             .testdata/probe-worker-summary.json
+          if-no-files-found: ignore
+          retention-days: 7
+      - name: Retain NFO worker acceptance evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: nfo-worker-acceptance
+          path: |
+            .testdata/nfo-worker-acceptance.txt
+            .testdata/nfo-worker-summary.json
           if-no-files-found: ignore
           retention-days: 7

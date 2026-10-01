@@ -19,7 +19,7 @@ func loadNFOPhase(ctx context.Context, tx pgx.Tx, id string) (domain.NFOPhase, e
 	return p, storageError(err)
 }
 func frozenNFOOff(p domain.NFOPhase) bool {
-	return p.Mode == domain.NFOModeOff && p.State == domain.NFOPhaseAborted && p.ErrorCode == domain.NFOPhaseDisabled
+	return p.Mode == domain.NFOModeOff && p.State == domain.NFOPhaseAborted && p.ErrorCode == domain.NFOPhaseDisabled && p.Progress == (domain.NFOProgress{}) && p.Token.AfterID == ""
 }
 func checkNFOPhaseScope(ctx context.Context, tx pgx.Tx, p domain.NFOPhase) error {
 	digest, err := domain.NFOIdentityDigest(p.Identity)
@@ -53,6 +53,20 @@ func lockedNFOPhase(ctx context.Context, tx pgx.Tx, l domain.JobLease, execute b
 		return domain.NFOPhase{}, err
 	}
 	if execute {
+		r, e := loadNFORequest(ctx, tx, l.Job.ID)
+		if e != nil {
+			return domain.NFOPhase{}, e
+		}
+		if r != nil {
+			if !nfoRequestMatchesPhase(r, p) {
+				return domain.NFOPhase{}, domain.ErrNFOIdentityMismatch
+			}
+			if r.ErrorCode != "" {
+				return domain.NFOPhase{}, domain.ErrConflict
+			}
+		} else if p.Mode == domain.NFOModeReadOnly {
+			return domain.NFOPhase{}, domain.ErrConflict
+		}
 		if err = checkNFOPhaseScope(ctx, tx, p); err != nil {
 			return domain.NFOPhase{}, err
 		}
@@ -103,6 +117,13 @@ func (s *Store) PrepareNFOPhase(parent context.Context, l domain.JobLease, ident
 	}
 	old, err := loadNFOPhase(ctx, tx, l.Job.ID)
 	if err == nil {
+		r, e := loadNFORequest(ctx, tx, l.Job.ID)
+		if e != nil {
+			return domain.NFOPhase{}, e
+		}
+		if r != nil && !nfoRequestMatchesPhase(r, old) {
+			return domain.NFOPhase{}, domain.ErrNFOIdentityMismatch
+		}
 		if old.Identity != identity || old.IdentityDigest != digest {
 			return domain.NFOPhase{}, domain.ErrNFOIdentityMismatch
 		}
@@ -110,6 +131,11 @@ func (s *Store) PrepareNFOPhase(parent context.Context, l domain.JobLease, ident
 	}
 	if !errors.Is(err, domain.ErrNotFound) {
 		return domain.NFOPhase{}, err
+	}
+	if r, e := loadNFORequest(ctx, tx, l.Job.ID); e != nil {
+		return domain.NFOPhase{}, e
+	} else if r != nil {
+		return domain.NFOPhase{}, domain.ErrConflict
 	}
 	var started bool
 	if err = tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM job_inventory WHERE job_id=$1::uuid) OR EXISTS(SELECT 1 FROM job_directories WHERE job_id=$1::uuid AND (done OR parent_path IS NOT NULL))`, l.Job.ID).Scan(&started); err != nil {
@@ -122,17 +148,10 @@ func (s *Store) PrepareNFOPhase(parent context.Context, l domain.JobLease, ident
 	if err != nil {
 		return domain.NFOPhase{}, err
 	}
-	state, code := domain.NFOPhaseWaiting, ""
-	if policy.Mode == domain.NFOModeOff {
-		state, code = domain.NFOPhaseAborted, string(domain.NFOPhaseDisabled)
-	} else {
-		if _, err = readNFOCachePolicy(ctx, tx); err != nil {
-			return domain.NFOPhase{}, err
-		}
-		if err = ensureNFOLibrary(ctx, tx, policy.LibraryID); err != nil {
-			return domain.NFOPhase{}, err
-		}
-	}
+	// A pre-C job has no retained opt-in. The compatibility entry point may
+	// freeze off, but cannot infer new read-only work from today's library mode.
+	policy.Mode = domain.NFOModeOff
+	state, code := domain.NFOPhaseAborted, string(domain.NFOPhaseDisabled)
 	_, err = tx.Exec(ctx, `INSERT INTO nfo_job_state(job_id,library_id,mode,phase,parser_version,summary_schema_version,fingerprint_version,max_source_bytes,identity_digest,library_generation,error_code) VALUES($1::uuid,$2::uuid,$3,$4,$5,$6,$7,$8,$9,$10,$11)`, l.Job.ID, policy.LibraryID, policy.Mode, state, identity.ParserVersion, identity.SummarySchemaVersion, identity.FingerprintVersion, identity.MaxSourceBytes, probeBytes(digest), policy.Generation, code)
 	if err != nil {
 		return domain.NFOPhase{}, storageError(err)
@@ -333,22 +352,42 @@ func (s *Store) AbortNFOPhase(parent context.Context, l domain.JobLease, code do
 	return err
 }
 func requireNFOInventoryPhase(ctx context.Context, tx pgx.Tx, id string) error {
-	var blocked bool
-	if err := tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM nfo_job_state WHERE job_id=$1::uuid AND phase<>'waiting' AND NOT(mode='off' AND phase='aborted' AND error_code='nfo_disabled'))`, id).Scan(&blocked); err != nil {
-		return storageError(err)
-	}
-	if blocked {
-		return domain.ErrConflict
-	}
-	return nil
-}
-func requireNFOFinished(ctx context.Context, tx pgx.Tx, id string) error {
 	p, err := loadNFOPhase(ctx, tx, id)
 	if errors.Is(err, domain.ErrNotFound) {
 		return nil
 	}
 	if err != nil {
 		return err
+	}
+	if p.State != domain.NFOPhaseWaiting && !frozenNFOOff(p) {
+		return domain.ErrConflict
+	}
+	return nil
+}
+func requireNFOFinished(ctx context.Context, tx pgx.Tx, id string) error {
+	r, e := loadNFORequest(ctx, tx, id)
+	if e != nil {
+		return e
+	}
+	p, err := loadNFOPhase(ctx, tx, id)
+	if errors.Is(err, domain.ErrNotFound) {
+		if r != nil {
+			return domain.ErrConflict
+		}
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	if r != nil {
+		if !nfoRequestMatchesPhase(r, p) {
+			return domain.ErrNFOIdentityMismatch
+		}
+		if r.ErrorCode != "" {
+			return domain.ErrConflict
+		}
+	} else if p.Mode == domain.NFOModeReadOnly {
+		return domain.ErrConflict
 	}
 	if frozenNFOOff(p) {
 		return nil

@@ -319,6 +319,16 @@ func WriteError(w http.ResponseWriter, r *http.Request, err error) {
 		status, code, message = 409, "probe_identity_mismatch", "Probe tool identity changed. Retry the job."
 	case errors.Is(err, domain.ErrProbeInvalidated):
 		status, code, message = 409, "probe_invalidated", "Probe scope changed. Retry the job."
+	case errors.Is(err, domain.ErrNFODisabled):
+		status, code, message = 409, "nfo_disabled", "NFO validation is disabled for this library."
+	case errors.Is(err, domain.ErrNFOReaderUnavailable):
+		status, code, message = 503, "nfo_reader_unavailable", "NFO validation is unavailable."
+	case errors.Is(err, domain.ErrNFOCacheCapacity):
+		status, code, message = 409, "nfo_cache_capacity", "NFO cache capacity reached."
+	case errors.Is(err, domain.ErrNFOIdentityMismatch):
+		status, code, message = 409, "nfo_identity_mismatch", "NFO validation version changed. Retry the job."
+	case errors.Is(err, domain.ErrNFOInvalidated):
+		status, code, message = 409, "nfo_invalidated", "NFO validation scope changed. Retry the job."
 	case errors.Is(err, domain.ErrLastAdmin):
 		status, code, message = 409, "last_admin", "An active administrator must remain."
 	case errors.Is(err, domain.ErrSessionLimit):

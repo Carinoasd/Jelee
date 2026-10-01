@@ -54,6 +54,9 @@ func (s *Store) ClaimJob(ctx context.Context, owner string, preferBackground boo
 	return s.ClaimJobWithProbe(ctx, owner, preferBackground, ttl, false)
 }
 func (s *Store) ClaimJobWithProbe(ctx context.Context, owner string, preferBackground bool, ttl time.Duration, probeCapable bool) (domain.JobLease, error) {
+	return s.ClaimJobWithCapabilities(ctx, owner, preferBackground, ttl, domain.ScanCapabilities{Probe: probeCapable})
+}
+func (s *Store) ClaimJobWithCapabilities(ctx context.Context, owner string, preferBackground bool, ttl time.Duration, capabilities domain.ScanCapabilities) (domain.JobLease, error) {
 	if !validText(owner, 128, false) || !validLeaseDuration(ttl) {
 		return domain.JobLease{}, domain.ErrInvalid
 	}
@@ -82,7 +85,7 @@ func (s *Store) ClaimJobWithProbe(ctx context.Context, owner string, preferBackg
 	if preferBackground {
 		priority = domain.JobPriorityBackground
 	}
-	l, err := scanLease(tx.QueryRow(ctx, `UPDATE jobs SET state='running',owner=$1,generation=generation+1,attempts=attempts+1,lease_until=clock_timestamp()+$2*interval '1 microsecond',started_at=COALESCE(started_at,clock_timestamp()) WHERE id=(SELECT id FROM jobs WHERE state='queued' AND ($4 OR NOT EXISTS(SELECT 1 FROM probe_requests r WHERE r.job_id=jobs.id)) ORDER BY CASE WHEN priority=$3 THEN 0 ELSE 1 END,created_at,id LIMIT 1 FOR UPDATE) RETURNING `+leaseColumns, owner, ttl.Microseconds(), priority, probeCapable))
+	l, err := scanLease(tx.QueryRow(ctx, `UPDATE jobs SET state='running',owner=$1,generation=generation+1,attempts=attempts+1,lease_until=clock_timestamp()+$2*interval '1 microsecond',started_at=COALESCE(started_at,clock_timestamp()) WHERE id=(SELECT id FROM jobs WHERE state='queued' AND ($4 OR NOT EXISTS(SELECT 1 FROM probe_requests r WHERE r.job_id=jobs.id)) AND ($5 OR NOT EXISTS(SELECT 1 FROM nfo_job_requests n WHERE n.job_id=jobs.id AND n.requested)) AND NOT EXISTS(SELECT 1 FROM nfo_job_state n WHERE n.job_id=jobs.id AND n.mode='read-only' AND NOT EXISTS(SELECT 1 FROM nfo_job_requests r WHERE r.job_id=jobs.id)) ORDER BY CASE WHEN priority=$3 THEN 0 ELSE 1 END,created_at,id LIMIT 1 FOR UPDATE) RETURNING `+leaseColumns, owner, ttl.Microseconds(), priority, capabilities.Probe, capabilities.NFO))
 	if errors.Is(err, domain.ErrNotFound) {
 		if e := tx.Commit(ctx); e != nil {
 			return l, storageError(e)
@@ -335,8 +338,20 @@ func (s *Store) FinishJob(ctx context.Context, l domain.JobLease, state, code st
 	if err != nil {
 		return err
 	}
+	epoch, currentEpoch, err := inventoryEpoch(ctx, tx, current)
+	if err != nil {
+		return err
+	}
+	if state == domain.JobSucceeded && epoch != nil && *epoch != currentEpoch {
+		return domain.ErrInventoryInvalidated
+	}
+	imageEpoch := epoch
+	if epoch != nil && *epoch != currentEpoch {
+		imageEpoch = nil
+	}
 	var missing int64
 	review := false
+	inventoryComplete := false
 	if state == domain.JobSucceeded {
 		if current.Job.CancelRequested {
 			return domain.ErrConflict
@@ -374,6 +389,7 @@ func (s *Store) FinishJob(ctx context.Context, l domain.JobLease, state, code st
 		if pending {
 			return domain.ErrConflict
 		}
+		inventoryComplete = true
 		review = current.Job.Skipped > 0
 		if !review {
 			var baseline int64
@@ -383,14 +399,24 @@ func (s *Store) FinishJob(ctx context.Context, l domain.JobLease, state, code st
 			review = missing > 0 && (missing >= int64(current.Policy.MissingCountLimit) || missing*100 >= baseline*int64(current.Policy.MissingPercentLimit))
 			// Keep unresolved missing files visible on later scans. A review
 			// result cannot acknowledge or replace the accepted baseline.
-			if !review {
+			if !review && epoch != nil {
+				if err = saveImageProgress(ctx, tx, current, imageEpoch, true); err != nil {
+					return err
+				}
 				if _, err = tx.Exec(ctx, `DELETE FROM library_inventory_baseline WHERE library_id=$1::uuid`, current.Job.LibraryID); err != nil {
 					return storageError(err)
 				}
-				if _, err = tx.Exec(ctx, `INSERT INTO library_inventory_baseline(library_id,root_id,path) SELECT $1::uuid,root_id,path FROM job_inventory WHERE job_id=$2::uuid`, current.Job.LibraryID, l.Job.ID); err != nil {
+				// Image comparison must observe the previous baseline before it is
+				// atomically replaced by this complete inventory.
+				if _, err = tx.Exec(ctx, `INSERT INTO library_inventory_baseline(library_id,root_id,path,attributes_known,kind,size,modified_unix_nano,inventory_generation) SELECT $1::uuid,root_id,path,true,kind,size,modified_unix_nano,$3 FROM job_inventory WHERE job_id=$2::uuid`, current.Job.LibraryID, l.Job.ID, *epoch); err != nil {
 					return storageError(err)
 				}
 			}
+		}
+	}
+	if state != domain.JobSucceeded || review || epoch == nil {
+		if err = saveImageProgress(ctx, tx, current, imageEpoch, state == domain.JobSucceeded && inventoryComplete && current.Job.Skipped == 0); err != nil {
+			return err
 		}
 	}
 	if err = releaseParentProbeLeases(ctx, tx, l.Job.ID); err != nil {
@@ -404,6 +430,9 @@ func (s *Store) FinishJob(ctx context.Context, l domain.JobLease, state, code st
 		return err
 	}
 	if err = trimJobs(ctx, tx, current.Policy.HistoryLimit); err != nil {
+		return err
+	}
+	if err = guardInventoryFinish(ctx, tx, current, epoch, state == domain.JobSucceeded); err != nil {
 		return err
 	}
 	return storageError(tx.Commit(ctx))

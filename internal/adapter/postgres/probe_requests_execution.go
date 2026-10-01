@@ -64,6 +64,9 @@ func (s *Store) BeginRequestedProbePhase(parent context.Context, l domain.JobLea
 	if current.Job.CancelRequested {
 		return domain.ProbePhase{}, context.Canceled
 	}
+	if err = requireNFOFinished(ctx, tx, l.Job.ID); err != nil {
+		return domain.ProbePhase{}, err
+	}
 	r, err := loadProbeRequest(ctx, tx, l.Job.ID)
 	if err != nil {
 		return domain.ProbePhase{}, err

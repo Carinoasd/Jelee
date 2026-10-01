@@ -263,7 +263,7 @@ func TestNFOScopesRetainedRecoveryAndBoundedCleanup(t *testing.T) {
 	if err = f.s.Pool.QueryRow(f.ctx, `SELECT library_scopes FROM nfo_cache_quota`).Scan(&scopes); err != nil || scopes != 0 {
 		t.Fatal("terminal history pinned empty scope")
 	}
-	if _, _, err = f.s.SubmitJob(f.ctx, f.a, other.Library.ID, "other", domain.JobPriorityManual, f.policy); err != nil {
+	if _, _, err = f.s.SubmitScanWithStages(f.ctx, f.a, other.Library.ID, "other", domain.JobPriorityManual, domain.ScanIntent{NFO: true}, f.policy, nil, &f.identity); err != nil {
 		t.Fatal(err)
 	}
 	next = f.claim(t, "other")
@@ -378,10 +378,9 @@ func TestNFOAdmissionRequiresEstablishedPolicyAndAvailableScope(t *testing.T) {
 	if _, _, err = f.s.SetNFOLibraryPolicy(f.ctx, f.a, current.LibraryID, "enable", current.Generation, domain.NFOModeReadOnly); err != nil {
 		t.Fatal(err)
 	}
-	f.submit(t, "missing-policy")
-	l := f.claim(t, "nfo-policy")
-	if p, e := f.s.PrepareNFOPhase(f.ctx, l, domain.DefaultNFOIdentity()); !errors.Is(e, domain.ErrNotFound) || p != (domain.NFOPhase{}) {
-		t.Fatal("Prepare silently established quota policy", e)
+	identity := domain.DefaultNFOIdentity()
+	if j, replay, e := f.s.SubmitScanWithStages(f.ctx, f.a, f.registration.Library.ID, "missing-policy", domain.JobPriorityManual, domain.ScanIntent{NFO: true}, f.policy, nil, &identity); !errors.Is(e, domain.ErrNotFound) || j != (domain.Job{}) || replay {
+		t.Fatal("enqueue silently established quota policy", e)
 	}
 	policy := domain.DefaultNFOCachePolicy()
 	policy.MaxLibraries = 1
@@ -396,7 +395,11 @@ func TestNFOAdmissionRequiresEstablishedPolicyAndAvailableScope(t *testing.T) {
 	if err = f.s.EnsureNFOCachePolicy(f.ctx, changed); !errors.Is(err, domain.ErrConflict) {
 		t.Fatal("policy silently enlarged capacity")
 	}
-	if _, err = f.s.PrepareNFOPhase(f.ctx, l, domain.DefaultNFOIdentity()); err != nil {
+	if _, _, err = f.s.SubmitScanWithStages(f.ctx, f.a, f.registration.Library.ID, "with-policy", domain.JobPriorityManual, domain.ScanIntent{NFO: true}, f.policy, nil, &identity); err != nil {
+		t.Fatal(err)
+	}
+	l, err := f.s.ClaimJobWithCapabilities(f.ctx, "nfo-policy", false, time.Minute, domain.ScanCapabilities{NFO: true})
+	if err != nil {
 		t.Fatal(err)
 	}
 	other, err := f.s.RegisterLibrary(f.ctx, "other", t.TempDir())
@@ -410,12 +413,8 @@ func TestNFOAdmissionRequiresEstablishedPolicyAndAvailableScope(t *testing.T) {
 	if _, _, err = f.s.SetNFOLibraryPolicy(f.ctx, f.a, current.LibraryID, "other-enable", current.Generation, domain.NFOModeReadOnly); err != nil {
 		t.Fatal(err)
 	}
-	if _, _, err = f.s.SubmitJob(f.ctx, f.a, other.Library.ID, "other-job", domain.JobPriorityManual, f.policy); err != nil {
-		t.Fatal(err)
-	}
-	second := f.claim(t, "second-worker")
 	before := nfoSnapshot(t, nfoFixture{f, domain.DefaultNFOIdentity()})
-	if p, e := f.s.PrepareNFOPhase(f.ctx, second, domain.DefaultNFOIdentity()); !errors.Is(e, domain.ErrNFOCacheCapacity) || p != (domain.NFOPhase{}) {
+	if j, replay, e := f.s.SubmitScanWithStages(f.ctx, f.a, other.Library.ID, "other-job", domain.JobPriorityManual, domain.ScanIntent{NFO: true}, f.policy, nil, &identity); !errors.Is(e, domain.ErrNFOCacheCapacity) || j != (domain.Job{}) || replay {
 		t.Fatal("scope capacity admitted another library", e)
 	}
 	if nfoSnapshot(t, nfoFixture{f, domain.DefaultNFOIdentity()}) != before {
@@ -427,7 +426,7 @@ func TestNFOAdmissionRequiresEstablishedPolicyAndAvailableScope(t *testing.T) {
 	if _, err = f.s.SweepNFOCache(f.ctx, 1); err != nil {
 		t.Fatal(err)
 	}
-	if _, err = f.s.PrepareNFOPhase(f.ctx, second, domain.DefaultNFOIdentity()); err != nil {
+	if _, _, err = f.s.SubmitScanWithStages(f.ctx, f.a, other.Library.ID, "other-job", domain.JobPriorityManual, domain.ScanIntent{NFO: true}, f.policy, nil, &identity); err != nil {
 		t.Fatal("reclaimed terminal scope unavailable", err)
 	}
 }

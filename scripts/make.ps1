@@ -49,13 +49,13 @@ try {
         'fmt-check' {
             $selected = Get-GoSpec $root
             $gofmt = Join-Path $root ".tools/$($selected.Spec.installPath)/go/bin/gofmt.exe"
-            $files = Get-ChildItem -LiteralPath cmd,internal,tools -Filter '*.go' -Recurse -File | Select-Object -ExpandProperty FullName
             # gofmt collects Go telemetry too; reuse the project config boundary.
             $previousAppData = $env:APPDATA
             try {
                 $env:APPDATA = Assert-LocalPath $root (Join-Path $root '.tools/cache/config')
                 [IO.Directory]::CreateDirectory($env:APPDATA) | Out-Null
-                $unformatted = @(& $gofmt -l $files)
+                # Let gofmt walk directories; absolute per-file arguments exceed Windows' command-line limit in long checkouts.
+                $unformatted = @(& $gofmt -l cmd internal tools)
                 if ($LASTEXITCODE -ne 0) { throw 'gofmt failed' }
             } finally { $env:APPDATA = $previousAppData }
             if ($unformatted.Count) { throw "Run scripts/make.ps1 fmt. Unformatted files: $($unformatted -join ', ')" }

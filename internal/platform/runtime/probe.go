@@ -217,6 +217,7 @@ func (p *probeService) Close() error {
 type probeWorker struct {
 	worker serviceWorker
 	probe  *probeService
+	nfo    *nfoService
 }
 
 func (w *probeWorker) Start(ctx context.Context) error {
@@ -224,6 +225,7 @@ func (w *probeWorker) Start(ctx context.Context) error {
 		return err
 	}
 	w.probe.startMaintenance(ctx)
+	w.nfo.startMaintenance(ctx)
 	return nil
 }
 func (w *probeWorker) Stop(ctx context.Context) error {
@@ -234,8 +236,9 @@ func (w *probeWorker) Stop(ctx context.Context) error {
 	if cancel != nil {
 		cancel()
 	}
+	w.nfo.cancelMaintenance()
 	if err := w.worker.Stop(ctx); err != nil {
 		return err
 	}
-	return w.probe.stopMaintenance(ctx)
+	return errors.Join(w.probe.stopMaintenance(ctx), w.nfo.stopMaintenance(ctx))
 }

@@ -17,6 +17,11 @@ func Message(code, acceptLanguage, fallback string) string {
 // Keep complete phrases together so their grammar is not assembled at runtime.
 var messages = map[string]map[string]string{
 	"en-US": {
+		"nfo_disabled":              "NFO validation is disabled for this library.",
+		"nfo_reader_unavailable":    "NFO validation is unavailable.",
+		"nfo_cache_capacity":        "NFO cache capacity reached.",
+		"nfo_identity_mismatch":     "NFO validation version changed. Retry the job.",
+		"nfo_invalidated":           "NFO validation scope changed. Retry the job.",
 		"probe_disabled":            "Media probing is disabled.",
 		"probe_runtime_unavailable": "Media probing is unavailable. Check the isolated runtime.",
 		"probe_cache_capacity":      "Probe cache capacity reached.",
@@ -51,6 +56,11 @@ var messages = map[string]map[string]string{
 		"unsupported_media_type":    "Request content type is not supported.",
 	},
 	"zh-CN": {
+		"nfo_disabled":              "此媒体库尚未启用NFO校验。",
+		"nfo_reader_unavailable":    "NFO校验暂时不可用。",
+		"nfo_cache_capacity":        "NFO缓存容量已达上限。",
+		"nfo_identity_mismatch":     "NFO校验版本已改变，请重试任务。",
+		"nfo_invalidated":           "NFO校验范围已改变，请重试任务。",
 		"probe_disabled":            "媒体探测尚未启用。",
 		"probe_runtime_unavailable": "媒体探测不可用，请检查隔离运行环境。",
 		"probe_cache_capacity":      "探测缓存容量已达上限。",
@@ -85,6 +95,11 @@ var messages = map[string]map[string]string{
 		"unsupported_media_type":    "不支持此请求内容类型。",
 	},
 	"zh-TW": {
+		"nfo_disabled":              "此媒體庫尚未啟用NFO驗證。",
+		"nfo_reader_unavailable":    "NFO驗證暫時無法使用。",
+		"nfo_cache_capacity":        "NFO快取容量已達上限。",
+		"nfo_identity_mismatch":     "NFO驗證版本已改變，請重試工作。",
+		"nfo_invalidated":           "NFO驗證範圍已改變，請重試工作。",
 		"probe_disabled":            "媒體探測尚未啟用。",
 		"probe_runtime_unavailable": "媒體探測無法使用，請檢查隔離執行環境。",
 		"probe_cache_capacity":      "探測快取容量已達上限。",
@@ -119,6 +134,11 @@ var messages = map[string]map[string]string{
 		"unsupported_media_type":    "不支援此請求內容類型。",
 	},
 	"ja-JP": {
+		"nfo_disabled":              "このライブラリではNFO検証が無効です。",
+		"nfo_reader_unavailable":    "NFO検証を利用できません。",
+		"nfo_cache_capacity":        "NFOキャッシュの容量上限に達しました。",
+		"nfo_identity_mismatch":     "NFO検証のバージョンが変更されました。ジョブを再試行してください。",
+		"nfo_invalidated":           "NFO検証の範囲が変更されました。ジョブを再試行してください。",
 		"probe_disabled":            "メディア解析は無効です。",
 		"probe_runtime_unavailable": "メディア解析を利用できません。隔離実行環境を確認してください。",
 		"probe_cache_capacity":      "解析キャッシュの容量が上限に達しました。",

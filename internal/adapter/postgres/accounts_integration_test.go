@@ -579,6 +579,9 @@ func TestAccountIntegration(t *testing.T) {
 
 func TestAccountMigrationRejectsCaseCollisionWithoutRenaming(t *testing.T) {
 	ctx, s, dsn := accountTestStore(t)
+	if v, dirty, err := Migrate(ctx, dsn, "down"); err != nil || dirty || v != 6 {
+		t.Fatal("rollback NFO worker schema", err)
+	}
 	if v, dirty, err := Migrate(ctx, dsn, "down"); err != nil || dirty || v != 5 {
 		t.Fatal("rollback NFO cache schema", err)
 	}
@@ -621,6 +624,9 @@ func TestAccountMigrationRollbackKeepsDeletedAccountsDisabled(t *testing.T) {
 	}
 	if _, err = s.Pool.Exec(ctx, `UPDATE users SET deleted_at=now() WHERE name='DeletedBeforeRollback'`); err != nil {
 		t.Fatal("prepare deleted account")
+	}
+	if v, dirty, err := Migrate(ctx, dsn, "down"); err != nil || dirty || v != 6 {
+		t.Fatal("rollback NFO worker schema", err)
 	}
 	if v, dirty, err := Migrate(ctx, dsn, "down"); err != nil || dirty || v != 5 {
 		t.Fatal("rollback NFO cache schema", err)

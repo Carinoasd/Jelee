@@ -41,16 +41,16 @@ func probeAdminStillLive(ctx context.Context, tx pgx.Tx, a domain.Actor) error {
 	return nil
 }
 func (s *Store) SubmitScanJob(ctx context.Context, a domain.Actor, libraryID, key, priority string, intent domain.ProbeIntent, p domain.JobPolicy, identity *domain.ProbeIdentity) (domain.Job, bool, error) {
-	return s.submitScanJob(ctx, a, libraryID, "", key, priority, intent, p, identity)
+	return s.submitScanJob(ctx, a, libraryID, "", key, priority, intent, p, identity, false, nil)
 }
 func (s *Store) RetryScanJob(ctx context.Context, a domain.Actor, id, key string, p domain.JobPolicy, identity *domain.ProbeIdentity) (domain.Job, bool, error) {
 	if !domain.ValidID(id) {
 		return domain.Job{}, false, domain.ErrNotFound
 	}
-	return s.submitScanJob(ctx, a, "", id, key, "", domain.ProbeIntent{}, p, identity)
+	return s.submitScanJob(ctx, a, "", id, key, "", domain.ProbeIntent{}, p, identity, false, nil)
 }
-func (s *Store) submitScanJob(parentContext context.Context, a domain.Actor, libraryID, parent, key, priority string, intent domain.ProbeIntent, p domain.JobPolicy, identity *domain.ProbeIdentity) (domain.Job, bool, error) {
-	if parentContext == nil || !validJobPolicy(p) || !validJobKey(key) || domain.ValidateProbeIntent(intent) != nil {
+func (s *Store) submitScanJob(parentContext context.Context, a domain.Actor, libraryID, parent, key, priority string, intent domain.ProbeIntent, p domain.JobPolicy, identity *domain.ProbeIdentity, nfoRequested bool, nfoIdentity *domain.NFOIdentity) (domain.Job, bool, error) {
+	if parentContext == nil || !validJobPolicy(p) || !validJobKey(key) || domain.ValidateScanIntent(domain.ScanIntent{Probe: intent, NFO: nfoRequested}) != nil {
 		return domain.Job{}, false, domain.ErrInvalid
 	}
 	if parent == "" && ((priority != domain.JobPriorityManual && priority != domain.JobPriorityBackground) || (libraryID == "" && intent.Scope != domain.ProbeScopeItemRebuild) || (libraryID != "" && !domain.ValidID(libraryID))) {
@@ -87,7 +87,21 @@ func (s *Store) submitScanJob(parentContext context.Context, a domain.Actor, lib
 		if request != nil {
 			previousIntent = request.Intent
 		}
-		if originalParent != parent || parent == "" && (old.LibraryID != libraryID || old.Priority != priority || previousIntent != intent) {
+		oldNFO, e := loadNFORequest(ctx, tx, old.ID)
+		if e != nil {
+			return domain.Job{}, false, e
+		}
+		if oldNFO == nil {
+			phase, phaseErr := loadNFOPhase(ctx, tx, old.ID)
+			if phaseErr != nil && !errors.Is(phaseErr, domain.ErrNotFound) {
+				return domain.Job{}, false, phaseErr
+			}
+			if phaseErr == nil && phase.Mode == domain.NFOModeReadOnly {
+				return domain.Job{}, false, domain.ErrConflict
+			}
+		}
+		previousNFO := oldNFO != nil && oldNFO.Requested
+		if originalParent != parent || parent == "" && (old.LibraryID != libraryID || old.Priority != priority || previousIntent != intent || previousNFO != nfoRequested) {
 			return domain.Job{}, false, domain.ErrConflict
 		}
 		if err = probeAdminStillLive(ctx, tx, a); err != nil {
@@ -117,6 +131,21 @@ func (s *Store) submitScanJob(parentContext context.Context, a domain.Actor, lib
 		if request != nil {
 			intent = request.Intent
 		}
+		oldNFO, e := loadNFORequest(ctx, tx, parent)
+		if e != nil {
+			return domain.Job{}, false, e
+		}
+		if oldNFO != nil {
+			nfoRequested = oldNFO.Requested
+		} else {
+			oldPhase, e := loadNFOPhase(ctx, tx, parent)
+			if e != nil && !errors.Is(e, domain.ErrNotFound) {
+				return domain.Job{}, false, e
+			}
+			if e == nil && oldPhase.Mode == domain.NFOModeReadOnly {
+				return domain.Job{}, false, domain.ErrConflict
+			}
+		}
 	}
 	if intent.Scope != "" {
 		if identity == nil {
@@ -136,6 +165,10 @@ func (s *Store) submitScanJob(parentContext context.Context, a domain.Actor, lib
 	if !exists {
 		return domain.Job{}, false, domain.ErrNotFound
 	}
+	var inventoryGeneration int64
+	if err = tx.QueryRow(ctx, `SELECT inventory_generation FROM libraries WHERE id=$1::uuid FOR UPDATE`, libraryID).Scan(&inventoryGeneration); err != nil {
+		return domain.Job{}, false, storageError(err)
+	}
 	if busy {
 		return domain.Job{}, false, domain.ErrJobBusy
 	}
@@ -154,6 +187,10 @@ func (s *Store) submitScanJob(parentContext context.Context, a domain.Actor, lib
 	}
 	if roots > p.MaxDirectories {
 		return domain.Job{}, false, domain.ErrScanLimit
+	}
+	nfoRequest, err := prepareNFORequest(ctx, tx, libraryID, nfoRequested, nfoIdentity)
+	if err != nil {
+		return domain.Job{}, false, err
 	}
 	var request *domain.ProbeRequest
 	if intent.Scope != "" {
@@ -179,7 +216,7 @@ func (s *Store) submitScanJob(parentContext context.Context, a domain.Actor, lib
 			}
 		}
 	}
-	j, err := scanJob(tx.QueryRow(ctx, `INSERT INTO jobs(library_id,actor_id,idempotency_key,parent_id,priority,directory_total,queue_limit,history_limit,max_entries,max_directories,max_attempts,missing_count_limit,missing_percent_limit) VALUES($1::uuid,$2::uuid,$3,NULLIF($4,'')::uuid,$5,$6,$7,$8,$9,$10,$11,$12,$13) RETURNING `+jobColumns, libraryID, a.UserID, key, parent, priority, roots, p.QueueLimit, p.HistoryLimit, p.MaxEntries, p.MaxDirectories, p.MaxAttempts, p.MissingCountLimit, p.MissingPercentLimit))
+	j, err := scanJob(tx.QueryRow(ctx, `INSERT INTO jobs(library_id,actor_id,idempotency_key,parent_id,priority,directory_total,queue_limit,history_limit,max_entries,max_directories,max_attempts,missing_count_limit,missing_percent_limit,inventory_generation) VALUES($1::uuid,$2::uuid,$3,NULLIF($4,'')::uuid,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14) RETURNING `+jobColumns, libraryID, a.UserID, key, parent, priority, roots, p.QueueLimit, p.HistoryLimit, p.MaxEntries, p.MaxDirectories, p.MaxAttempts, p.MissingCountLimit, p.MissingPercentLimit, inventoryGeneration))
 	if err != nil {
 		return domain.Job{}, false, err
 	}
@@ -191,7 +228,11 @@ func (s *Store) submitScanJob(parentContext context.Context, a domain.Actor, lib
 			return domain.Job{}, false, storageError(err)
 		}
 	}
-	if err = auditAccount(ctx, tx, a, "job.submitted", j.ID, nil, map[string]any{"job": j, "probeScope": intent.Scope, "probeTargetItemId": intent.TargetItemID}); err != nil {
+	nfoRequest.JobID = j.ID
+	if err = insertNFORequest(ctx, tx, nfoRequest); err != nil {
+		return domain.Job{}, false, err
+	}
+	if err = auditAccount(ctx, tx, a, "job.submitted", j.ID, nil, map[string]any{"job": j, "probeScope": intent.Scope, "probeTargetItemId": intent.TargetItemID, "nfo": nfoRequested}); err != nil {
 		return domain.Job{}, false, err
 	}
 	if err = probeAdminStillLive(ctx, tx, a); err != nil {

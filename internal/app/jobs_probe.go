@@ -51,6 +51,9 @@ func (j *Jobs) currentProbeIdentity() (*domain.ProbeIdentity, error) {
 }
 
 func (j *Jobs) SubmitScan(ctx context.Context, actor domain.Actor, library, key, priority string, probe bool) (domain.Job, bool, error) {
+	if j.scanRepository != nil {
+		return j.SubmitScanStages(ctx, actor, library, key, priority, probe, false)
+	}
 	if !validTarget(actor, library) || !validKey(key) || priority != domain.JobPriorityManual && priority != domain.JobPriorityBackground {
 		return domain.Job{}, false, domain.ErrInvalid
 	}
@@ -85,7 +88,7 @@ func (j *Jobs) RebuildProbe(ctx context.Context, actor domain.Actor, target, key
 		return domain.Job{}, false, err
 	}
 	identity, capabilityErr := j.currentProbeIdentity()
-	if j.probeRepository == nil {
+	if j.probeRepository == nil && j.scanRepository == nil {
 		return domain.Job{}, false, domain.ErrProbeDisabled
 	}
 	library := target
@@ -93,6 +96,10 @@ func (j *Jobs) RebuildProbe(ctx context.Context, actor domain.Actor, target, key
 	if item {
 		library = ""
 		intent = domain.ProbeIntent{Scope: domain.ProbeScopeItemRebuild, TargetItemID: target}
+	}
+	if j.scanRepository != nil {
+		job, replay, err := j.scanRepository.SubmitScanWithStages(ctx, actor, library, key, priority, domain.ScanIntent{Probe: intent}, j.policy, identity, nil)
+		return scanAdmissionResult(job, replay, err, capabilityErr, nil)
 	}
 	job, replay, err := j.probeRepository.SubmitScanJob(ctx, actor, library, key, priority, intent, j.policy, identity)
 	if err == domain.ErrProbeDisabled && capabilityErr != nil {

@@ -12,6 +12,12 @@ type Jobs struct {
 	probeRepository ProbeJobRepository
 	probeIdentity   *domain.ProbeIdentity
 	probeCapability func() domain.ProbeCapability
+	scanRepository  ScanJobRepository
+	nfoAdmin        NFOAdminRepository
+	nfoQueries      NFOQueryRepository
+	imageQueries    ImageQueryRepository
+	nfoIdentity     *domain.NFOIdentity
+	nfoAvailable    func() bool
 }
 
 func NewJobs(repository JobRepository, policy domain.JobPolicy) (*Jobs, error) {
@@ -37,11 +43,17 @@ func (j *Jobs) Submit(ctx context.Context, actor domain.Actor, library, key, pri
 }
 
 func (j *Jobs) Retry(ctx context.Context, actor domain.Actor, id, key string) (domain.Job, bool, error) {
-	if !validTarget(actor, id) || !validKey(key) {
+	if ctx == nil || !validTarget(actor, id) || !validKey(key) {
 		return domain.Job{}, false, domain.ErrInvalid
 	}
 	if err := ctx.Err(); err != nil {
 		return domain.Job{}, false, err
+	}
+	if j.scanRepository != nil {
+		probe, probeErr := j.currentProbeIdentity()
+		nfo, nfoErr := j.currentNFOIdentity()
+		job, replay, err := j.scanRepository.RetryScanWithStages(ctx, actor, id, key, j.policy, probe, nfo)
+		return scanAdmissionResult(job, replay, err, probeErr, nfoErr)
 	}
 	if j.probeRepository != nil {
 		identity, capabilityError := j.currentProbeIdentity()

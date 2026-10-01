@@ -22,9 +22,10 @@ type NFOReadSource interface {
 	Parse(context.Context) (domain.NFOValidationSummary, error)
 }
 
-// NFORepository is an unwired DB contract in stage 3C3B. Prepare captures the
-// library's NFO generation before any inventory is saved. Begin requires a
-// complete inventory and never repins generation or identity. Every operation
+// NFORepository stores bounded validation summaries and phase checkpoints.
+// C requests freeze generation and identity at enqueue; Prepare only matches
+// that snapshot and cannot enable an off job. Begin requires a complete
+// inventory and never repins generation or identity. Every operation
 // rechecks the current parent owner/generation/lease and cancellation in the DB.
 // Filesystem reading, hashing and parsing take place outside transactions.
 //
@@ -33,8 +34,8 @@ type NFOReadSource interface {
 // or one fresh result, atomically updating quota, cache and checkpoint. Cache
 // eviction cannot revive an old parent lease or stale phase revision.
 // Stale commit tokens conflict; Load recovers the committed cursor without
-// repeating effects. Prepare under off records an aborted/disabled phase with
-// immutable Mode=off; this specific phase does not block ordinary inventory.
+// repeating effects. Frozen off has an aborted/disabled phase with immutable
+// Mode=off; this specific phase does not block ordinary inventory.
 type NFORepository interface {
 	EnsureNFOCachePolicy(context.Context, domain.NFOCachePolicy) error
 	PrepareNFOPhase(context.Context, domain.JobLease, domain.NFOIdentity) (domain.NFOPhase, error)
@@ -53,7 +54,7 @@ type NFORepository interface {
 // the NFO generation. Set compares library/mode/expected generation for actor/key
 // replay; a different body conflicts. An identical current mode does not bump.
 // Requests have fixed bounded retention; an expired replay still cannot bypass
-// expected-generation CAS. No HTTP/CLI wiring is added in stage 3C3B.
+// expected-generation CAS. HTTP and CLI never provide reader identities.
 type NFOAdminRepository interface {
 	GetNFOLibraryPolicy(context.Context, domain.Actor, string) (domain.NFOLibraryPolicy, error)
 	SetNFOLibraryPolicy(context.Context, domain.Actor, string, string, int64, string) (domain.NFOLibraryPolicy, bool, error)

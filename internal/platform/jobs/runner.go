@@ -39,6 +39,7 @@ type Options struct {
 	Owner              string
 	Clock              Clock
 	Probe              *ProbeOptions
+	NFO                *NFOOptions
 }
 
 func DefaultOptions() Options {
@@ -63,6 +64,10 @@ type Runner struct {
 	probeGate        chan struct{}
 	probeIdentity    string
 	probeUnavailable atomic.Bool
+	nfoRepository    app.NFOExecutionRepository
+	nfoGate          chan struct{}
+	nfoIdentity      domain.NFOIdentity
+	nfoUnavailable   atomic.Bool
 }
 
 func New(repository app.JobExecutionRepository, scanner app.InventoryScanner, opts Options, logger *slog.Logger) (*Runner, error) {
@@ -88,6 +93,9 @@ func New(repository app.JobExecutionRepository, scanner app.InventoryScanner, op
 	}
 	r := &Runner{repository: repository, scanner: scanner, options: opts, logger: logger}
 	if err := r.configureProbe(); err != nil {
+		return nil, err
+	}
+	if err := r.configureNFO(); err != nil {
 		return nil, err
 	}
 	return r, nil
@@ -159,7 +167,11 @@ func (r *Runner) work(ctx context.Context) {
 		dbCtx, cancel := context.WithTimeout(ctx, r.options.DBOperationTimeout)
 		var lease domain.JobLease
 		var err error
-		if r.probeRepository != nil {
+		if r.nfoRepository != nil {
+			lease, err = r.nfoRepository.ClaimJobWithCapabilities(dbCtx, r.options.Owner, turn%4 == 3, r.options.LeaseDuration, domain.ScanCapabilities{Probe: r.probeAvailable(), NFO: r.nfoAvailable()})
+		} else if capable, ok := r.repository.(stagesClaimer); ok {
+			lease, err = capable.ClaimJobWithCapabilities(dbCtx, r.options.Owner, turn%4 == 3, r.options.LeaseDuration, domain.ScanCapabilities{Probe: r.probeAvailable()})
+		} else if r.probeRepository != nil {
 			lease, err = r.probeRepository.ClaimJobWithProbe(dbCtx, r.options.Owner, turn%4 == 3, r.options.LeaseDuration, r.probeAvailable())
 		} else if capable, ok := r.repository.(probeClaimer); ok {
 			lease, err = capable.ClaimJobWithProbe(dbCtx, r.options.Owner, turn%4 == 3, r.options.LeaseDuration, false)
@@ -261,9 +273,21 @@ func (r *Runner) run(serviceCtx context.Context, lease domain.JobLease) {
 	}
 	state, code := domain.JobSucceeded, ""
 	var aborted *probeAbort
+	var nfoAborted *nfoAbort
 	if errors.As(err, &aborted) && cause == nil && aborted.persist {
 		abortCtx, cancelAbort := context.WithTimeout(context.WithoutCancel(serviceCtx), r.options.DBOperationTimeout)
 		abortErr := r.probeRepository.AbortProbeRequest(abortCtx, lease, aborted.code)
+		cancelAbort()
+		if errors.Is(abortErr, context.Canceled) {
+			cause = errCancelRequested
+		} else if abortErr != nil {
+			r.logPersistenceFailure(lease)
+			return
+		}
+	}
+	if errors.As(err, &nfoAborted) && cause == nil && nfoAborted.persist {
+		abortCtx, cancelAbort := context.WithTimeout(context.WithoutCancel(serviceCtx), r.options.DBOperationTimeout)
+		abortErr := r.nfoRepository.AbortNFORequest(abortCtx, lease, nfoAborted.code)
 		cancelAbort()
 		if errors.Is(abortErr, context.Canceled) {
 			cause = errCancelRequested
@@ -288,7 +312,7 @@ func (r *Runner) run(serviceCtx context.Context, lease domain.JobLease) {
 			code = "scan_unavailable"
 		case errors.Is(err, domain.ErrScanIO):
 			code = "scan_io"
-		case aborted != nil:
+		case aborted != nil || nfoAborted != nil:
 			code = "scan_unavailable"
 		case repositoryError:
 			code = "scan_unavailable"
@@ -299,6 +323,15 @@ func (r *Runner) run(serviceCtx context.Context, lease domain.JobLease) {
 	dbCtx, cancelDB := context.WithTimeout(context.WithoutCancel(serviceCtx), r.options.DBOperationTimeout)
 	defer cancelDB()
 	finishErr := r.repository.FinishJob(dbCtx, lease, state, code)
+	if state == domain.JobSucceeded && (errors.Is(finishErr, domain.ErrInventoryInvalidated) || errors.Is(finishErr, domain.ErrNFOInvalidated) || errors.Is(finishErr, domain.ErrNFOIdentityMismatch)) {
+		// The success transaction was rolled back. Persist the terminal safe
+		// failure without replacing the accepted inventory/image baseline.
+		cancelDB()
+		finishCtx, cancelFinish := context.WithTimeout(context.WithoutCancel(serviceCtx), r.options.DBOperationTimeout)
+		state, code = domain.JobFailed, "scan_unavailable"
+		finishErr = r.repository.FinishJob(finishCtx, lease, state, code)
+		cancelFinish()
+	}
 	if state == domain.JobSucceeded && errors.Is(finishErr, domain.ErrConflict) {
 		// Cancellation can commit after the last heartbeat but before Finish.
 		// Confirm the persistent flag under the same fence before changing the

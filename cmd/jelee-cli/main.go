@@ -62,7 +62,7 @@ func run() int {
 		defer stop()
 		ctx, cancel := context.WithTimeout(ctx, 15*time.Second)
 		defer cancel()
-		return runNFOWithOutputCancellation(ctx, os.Args[2:], os.Stdout, os.Stderr)
+		return runNFOCLIWithOutputCancellation(ctx, os.Args[2:], os.Stdin, os.Stdout, os.Stderr)
 	}
 	if command != "doctor" && command != "provision" && command != "import-video" {
 		fmt.Fprintln(os.Stderr, "unsupported command")

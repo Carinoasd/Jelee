@@ -10,6 +10,7 @@ import (
 	"time"
 
 	httpapi "github.com/MoYuanCN/Jelee/internal/adapter/http"
+	"github.com/MoYuanCN/Jelee/internal/adapter/nfo"
 	"github.com/MoYuanCN/Jelee/internal/adapter/postgres"
 	"github.com/MoYuanCN/Jelee/internal/adapter/scan"
 	"github.com/MoYuanCN/Jelee/internal/app"
@@ -42,19 +43,34 @@ func New(cfg config.Config, logger *slog.Logger) *fx.App {
 				return nil, err
 			}
 			startup, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			defer cancel()
 			probing, err := newProbeService(startup, c.EnableProbe, store, prepareProductionProbe)
-			cancel()
 			if err != nil {
 				return nil, err
 			}
 			lifetime.closeProbe = probing.Close
 			probing.logger = l
-			service, err := app.NewJobsWithProbe(store, c.Jobs.Policy(), store, probing.identity, probing.Capability)
+			reader, err := nfo.NewSummaryReader(domain.NFODefaultSourceBytes)
+			if err != nil {
+				return nil, err
+			}
+			validation, err := newNFOService(startup, store, reader)
+			if err != nil {
+				return nil, err
+			}
+			validation.logger = l
+			service, err := app.NewJobsWithScanStages(store, c.Jobs.Policy(), store, app.ScanServices{
+				Probes: store, ProbeIdentity: probing.identity, ProbeCapability: probing.Capability,
+				NFOAdmin: store, NFOQueries: store, Images: store, NFOIdentity: validation.identity, NFOAvailable: validation.Available,
+			})
 			if err != nil {
 				return nil, err
 			}
 			p := c.Jobs
 			opts := jobworker.Options{Workers: p.Workers, PollInterval: time.Duration(p.PollMilliseconds) * time.Millisecond, LeaseDuration: time.Duration(p.LeaseSeconds) * time.Second, DBOperationTimeout: time.Duration(p.DatabaseTimeoutSeconds) * time.Second, MaxJobRuntime: time.Duration(p.MaxRuntimeSeconds) * time.Second}
+			if validation.Available() {
+				opts.NFO = &jobworker.NFOOptions{Repository: store, Reader: validation, MaxConcurrent: 2, Available: validation.Available, OnRuntimeUnavailable: validation.Disable}
+			}
 			if probing.Available() {
 				opts.Probe = &jobworker.ProbeOptions{Repository: store, Prober: probing, LeaseDuration: domain.DefaultProbeCachePolicy().LeaseDuration, MaxConcurrent: 2, Available: probing.Available, OnRuntimeUnavailable: probing.Disable}
 			}
@@ -62,7 +78,7 @@ func New(cfg config.Config, logger *slog.Logger) *fx.App {
 			if err != nil {
 				return nil, err
 			}
-			lifetime.worker = &probeWorker{worker: runner, probe: probing}
+			lifetime.worker = &probeWorker{worker: runner, probe: probing, nfo: validation}
 			return service, nil
 		},
 		func(c config.Config, store *postgres.Store, catalog *app.Catalog, jobs *app.Jobs, l *slog.Logger) (http.Handler, error) {

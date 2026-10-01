@@ -30,6 +30,7 @@ func (s *Server) jobBudget(next http.Handler) http.Handler {
 func (s *Server) jobRoutes(router chi.Router) {
 	router.Group(func(r chi.Router) {
 		r.Use(s.jobBudget, s.authenticate)
+		s.nfoRoutes(r)
 		r.Get("/api/v1/libraries", s.accountEndpoint(true, true, s.listJobLibraries))
 		r.Post("/api/v1/libraries/{id}/scan", s.accountEndpoint(true, false, s.submitScan))
 		r.Post("/api/v1/libraries/{id}/probe/rebuild", s.accountEndpoint(true, false, s.rebuildLibraryProbe))
@@ -74,10 +75,7 @@ func acceptedJob(w http.ResponseWriter, j domain.Job, replayed bool, err error) 
 	return j, status, err
 }
 func (s *Server) submitScan(w http.ResponseWriter, r *http.Request, a domain.Actor) (any, int, error) {
-	var input struct {
-		Priority string `json:"priority"`
-		Probe    bool   `json:"probe"`
-	}
+	var input ScanRequestBody
 	if err := DecodeJSON(w, r, &input, accountBodyLimit); err != nil {
 		return nil, 0, err
 	}
@@ -88,7 +86,7 @@ func (s *Server) submitScan(w http.ResponseWriter, r *http.Request, a domain.Act
 	if input.Priority == "" {
 		input.Priority = domain.JobPriorityManual
 	}
-	j, replayed, err := s.jobs.SubmitScan(r.Context(), a, chi.URLParam(r, "id"), key, input.Priority, input.Probe)
+	j, replayed, err := s.jobs.SubmitScanStages(r.Context(), a, chi.URLParam(r, "id"), key, input.Priority, input.Probe, input.NFO)
 	return acceptedJob(w, j, replayed, err)
 }
 

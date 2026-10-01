@@ -15,6 +15,23 @@ type nfoFixture struct {
 	identity domain.NFOIdentity
 }
 
+func (f nfoFixture) submit(t *testing.T, key string) domain.Job {
+	t.Helper()
+	j, replay, err := f.s.SubmitScanWithStages(f.ctx, f.a, f.registration.Library.ID, key, domain.JobPriorityManual, domain.ScanIntent{NFO: true}, f.policy, nil, &f.identity)
+	if err != nil || replay {
+		t.Fatal("NFO opt-in enqueue", err)
+	}
+	return j
+}
+func (f nfoFixture) claim(t *testing.T, owner string) domain.JobLease {
+	t.Helper()
+	l, err := f.s.ClaimJobWithCapabilities(f.ctx, owner, false, time.Minute, domain.ScanCapabilities{NFO: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return l
+}
+
 func newNFOFixture(t *testing.T) nfoFixture {
 	t.Helper()
 	f := nfoFixture{newJobFixture(t), domain.DefaultNFOIdentity()}
@@ -93,7 +110,7 @@ func (f nfoFixture) finish(t *testing.T, l domain.JobLease) {
 func nfoSnapshot(t *testing.T, f nfoFixture) string {
 	t.Helper()
 	var value string
-	err := f.s.Pool.QueryRow(f.ctx, `SELECT jsonb_build_object('cache',(SELECT jsonb_agg(to_jsonb(c) ORDER BY root_id,relative_path) FROM nfo_cache c),'quota',(SELECT to_jsonb(q) FROM nfo_cache_quota q),'libraries',(SELECT jsonb_agg(to_jsonb(q) ORDER BY library_id) FROM nfo_library_quota q),'phase',(SELECT jsonb_agg(to_jsonb(p) ORDER BY job_id) FROM nfo_job_state p),'jobs',(SELECT jsonb_agg(to_jsonb(j) ORDER BY id) FROM jobs j))::text`).Scan(&value)
+	err := f.s.Pool.QueryRow(f.ctx, `SELECT jsonb_build_object('cache',(SELECT jsonb_agg(to_jsonb(c) ORDER BY root_id,relative_path) FROM nfo_cache c),'quota',(SELECT to_jsonb(q) FROM nfo_cache_quota q),'libraries',(SELECT jsonb_agg(to_jsonb(q) ORDER BY library_id) FROM nfo_library_quota q),'phase',(SELECT jsonb_agg(to_jsonb(p) ORDER BY job_id) FROM nfo_job_state p),'jobs',(SELECT jsonb_agg(to_jsonb(j) ORDER BY id) FROM jobs j),'requests',(SELECT jsonb_agg(to_jsonb(r) ORDER BY job_id) FROM nfo_job_requests r),'images',(SELECT jsonb_agg(to_jsonb(i) ORDER BY job_id) FROM image_job_state i),'baseline',(SELECT jsonb_agg(to_jsonb(b) ORDER BY library_id,root_id,path) FROM library_inventory_baseline b),'directories',(SELECT jsonb_agg(to_jsonb(d) ORDER BY job_id,root_id,path) FROM job_directories d),'audit',(SELECT jsonb_agg(to_jsonb(a) ORDER BY id) FROM audit_logs a))::text`).Scan(&value)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -239,8 +256,8 @@ func TestNFOPhaseFreezeInventoryAndFinishBarriers(t *testing.T) {
 		if err := f.s.SaveScanBatch(f.ctx, l, d, domain.ScanBatch{Done: true}); err != nil {
 			t.Fatal(err)
 		}
-		if _, err := f.s.PrepareNFOPhase(f.ctx, l, f.identity); !errors.Is(err, domain.ErrConflict) {
-			t.Fatal("late Prepare repins completed inventory")
+		if p, err := f.s.PrepareNFOPhase(f.ctx, l, f.identity); err != nil || p.State != domain.NFOPhaseWaiting {
+			t.Fatal("C Prepare must replay enqueue snapshot after inventory", err)
 		}
 	})
 }
@@ -428,12 +445,15 @@ func TestNFOCacheMigrationGuardAndRoundTrip(t *testing.T) {
 	}
 	f.parseHead(t, l, nfoValidSummary())
 	f.finish(t, l)
-	const query = `SELECT jsonb_build_object('jobs',(SELECT jsonb_agg(to_jsonb(j) ORDER BY id) FROM jobs j),'inventory',(SELECT jsonb_agg(to_jsonb(i) ORDER BY id) FROM job_inventory i),'baseline',(SELECT jsonb_agg(to_jsonb(b) ORDER BY library_id,root_id,path) FROM library_inventory_baseline b))::text`
+	const query = `SELECT jsonb_build_object('jobs',(SELECT jsonb_agg(to_jsonb(j)-'inventory_generation' ORDER BY id) FROM jobs j),'inventory',(SELECT jsonb_agg(to_jsonb(i) ORDER BY id) FROM job_inventory i),'baseline',(SELECT jsonb_agg(to_jsonb(b)-'attributes_known'-'kind'-'size'-'modified_unix_nano'-'inventory_generation' ORDER BY library_id,root_id,path) FROM library_inventory_baseline b))::text`
 	var preserved, after string
 	if err = f.s.Pool.QueryRow(f.ctx, query).Scan(&preserved); err != nil {
 		t.Fatal(err)
 	}
 	dsn := f.s.Pool.Config().ConnString()
+	if v, dirty, err := Migrate(f.ctx, dsn, "down"); err != nil || dirty || v != 6 {
+		t.Fatal("rollback NFO worker schema", err)
+	}
 	if version, dirty, e := Migrate(f.ctx, dsn, "down"); e != nil || dirty || version != 5 {
 		t.Fatal("down006", e)
 	}

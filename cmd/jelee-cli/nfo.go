@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"flag"
 	"fmt"
 	"io"
 
@@ -24,6 +23,10 @@ type nfoValidation struct {
 // write when the receiving command stops reading. Library callers of runNFO
 // retain ownership of their writer and must provide their own write deadlines.
 func runNFOWithOutputCancellation(ctx context.Context, argv []string, stdout io.WriteCloser, stderr io.Writer) int {
+	return runNFOCLIWithOutputCancellation(ctx, argv, nil, stdout, stderr)
+}
+
+func runNFOCLIWithOutputCancellation(ctx context.Context, argv []string, stdin io.Reader, stdout io.WriteCloser, stderr io.Writer) int {
 	closed := make(chan struct{})
 	stop := context.AfterFunc(ctx, func() {
 		defer close(closed)
@@ -34,28 +37,18 @@ func runNFOWithOutputCancellation(ctx context.Context, argv []string, stdout io.
 			<-closed
 		}
 	}()
-	return runNFO(ctx, argv, stdout, stderr)
+	return runNFOCLI(ctx, argv, stdin, stdout, stderr)
 }
 
-// runNFO does not load service configuration or open a database. Only the
-// validation summary is emitted; metadata text and local/remote paths stay out.
+// Retain the original no-stdin entry point for local validation callers. The
+// unified dispatcher still rejects remote commands without a token on stdin.
 func runNFO(ctx context.Context, argv []string, stdout, stderr io.Writer) int {
-	usage := func() int {
-		fmt.Fprintln(stderr, "usage: jelee-cli nfo validate --root ABSOLUTE_PATH --file RELATIVE/FILE.nfo [--max-bytes 8388608]")
-		return 2
-	}
-	if len(argv) < 1 || argv[0] != "validate" {
-		return usage()
-	}
-	args := flag.NewFlagSet("nfo validate", flag.ContinueOnError)
-	args.SetOutput(io.Discard)
-	root := args.String("root", "", "absolute metadata root")
-	file := args.String("file", "", "root-relative NFO path using slash separators")
-	maxBytes := args.Int64("max-bytes", nfo.DefaultMaxBytes, "maximum source bytes, at most 33554432")
-	if err := args.Parse(argv[1:]); err != nil || args.NArg() != 0 || *root == "" || *file == "" || *maxBytes < 1 || *maxBytes > nfo.MaxAllowedBytes {
-		return usage()
-	}
-	document, err := nfo.ReadFile(ctx, *root, *file, *maxBytes)
+	return runNFOCLI(ctx, argv, nil, stdout, stderr)
+}
+
+// Local validation never loads service configuration or opens a database.
+func runNFOLocal(ctx context.Context, root, file string, maxBytes int64, stdout, stderr io.Writer) int {
+	document, err := nfo.ReadFile(ctx, root, file, maxBytes)
 	if err != nil {
 		code, exit := nfoFailure(err)
 		fmt.Fprintln(stderr, code)

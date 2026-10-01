@@ -114,7 +114,7 @@ func readJobsToken(ctx context.Context, input io.Reader) (string, error) {
 
 func runJobsCLI(ctx context.Context, argv []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	usage := func() int {
-		fmt.Fprintln(stderr, "usage: jelee-cli jobs scan|probe|probe-rebuild-library|probe-rebuild-item|list|libraries|get|entries|cancel|retry --token-stdin [--url http://127.0.0.1:8097] [--id UUID] [--key ASCII] [--priority manual|background] [--probe] [--cursor UUID] [--limit 50] [--state STATE]")
+		fmt.Fprintln(stderr, "usage: jelee-cli jobs scan|probe|probe-rebuild-library|probe-rebuild-item|list|libraries|get|entries|cancel|retry --token-stdin [--url http://127.0.0.1:8097] [--id UUID] [--key ASCII] [--priority manual|background] [--probe] [--nfo] [--cursor UUID] [--limit 50] [--state STATE]")
 		return 2
 	}
 	if len(argv) == 0 {
@@ -126,11 +126,12 @@ func runJobsCLI(ctx context.Context, argv []string, stdin io.Reader, stdout, std
 	base := flags.String("url", "http://127.0.0.1:8097", "service origin")
 	fromStdin := flags.Bool("token-stdin", false, "read bearer token from stdin")
 	var id, key, priority, cursor, state string
-	var enableProbe bool
+	var enableProbe, enableNFO bool
 	limit := 50
 	switch command {
 	case "scan":
 		flags.BoolVar(&enableProbe, "probe", false, "probe metadata after inventory")
+		flags.BoolVar(&enableNFO, "nfo", false, "validate NFO after inventory")
 		fallthrough
 	case "probe-rebuild-library", "probe-rebuild-item":
 		flags.StringVar(&priority, "priority", "manual", "queue priority")
@@ -192,6 +193,9 @@ func runJobsCLI(ctx context.Context, argv []string, stdin io.Reader, stdout, std
 		input := map[string]any{"priority": priority}
 		if enableProbe {
 			input["probe"] = true
+		}
+		if enableNFO {
+			input["nfo"] = true
 		}
 		data, _ := json.Marshal(input)
 		body = string(data)

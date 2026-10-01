@@ -99,7 +99,7 @@ func probeRepositoryError(err error) (error, bool) {
 	}
 }
 
-func (r *Runner) execute(ctx context.Context, lease domain.JobLease) (result error, repositoryError bool) {
+func (r *Runner) executeProbeOnly(ctx context.Context, lease domain.JobLease) (result error, repositoryError bool) {
 	defer func() {
 		if recover() != nil {
 			result, repositoryError = domain.ErrScanIO, false
