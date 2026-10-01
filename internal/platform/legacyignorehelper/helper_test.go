@@ -37,6 +37,7 @@ func TestEvaluateWrapperAndProvenance(t *testing.T) {
 		want   []legacyignore.Decision
 	}{
 		{"", []string{"/a"}, []legacyignore.Decision{{Kind: legacyignore.BlankExclude}}},
+		{"(\x00|a).mkv", []string{"/media/a.mkv", "/media/b.mkv"}, []legacyignore.Decision{{Kind: legacyignore.RuleExclude, Line: 1}, {Kind: legacyignore.NoMatch}}},
 		{"[", []string{"/a"}, []legacyignore.Decision{{Kind: legacyignore.InvalidSourceExclude}}},
 		{"# comment\n[", []string{"/a"}, []legacyignore.Decision{{Kind: legacyignore.NoMatch}}},
 		{"*.mkv\n!a.mkv\n*.mkv", []string{"/a.mkv", "/b.mkv"}, []legacyignore.Decision{{Kind: legacyignore.RuleExclude, Line: 3}, {Kind: legacyignore.RuleExclude, Line: 1}}},

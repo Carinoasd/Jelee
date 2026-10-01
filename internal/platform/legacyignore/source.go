@@ -37,7 +37,7 @@ func PrepareSource(ctx context.Context, text string) (PreparedSource, error) {
 	if err := ctx.Err(); err != nil {
 		return PreparedSource{}, err
 	}
-	if !batchStringValid(text, MaxBatchSourceBytes, true) {
+	if !batchSourceValid(text) {
 		return PreparedSource{}, ErrBatch
 	}
 	result := PreparedSource{Blank: strings.TrimSpace(text) == ""}

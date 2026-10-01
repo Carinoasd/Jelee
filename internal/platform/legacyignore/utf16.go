@@ -11,7 +11,7 @@ import (
 // It bridges the fixed upstream's UTF-16 character model to a rune-based regex
 // parser. It does not validate .NET syntax or authorize a regex engine.
 func UTF16Pattern(pattern string) (string, error) {
-	if !utf8.ValidString(pattern) || len(pattern) > 16*MaxPatternBytes || strings.IndexByte(pattern, 0) >= 0 {
+	if !utf8.ValidString(pattern) || len(pattern) > 16*MaxPatternBytes {
 		return "", ErrInvalid
 	}
 	var out strings.Builder

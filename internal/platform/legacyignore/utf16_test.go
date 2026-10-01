@@ -23,7 +23,7 @@ func TestUTF16Pattern(t *testing.T) {
 			t.Fatalf("%q: got %q, %v; want %q", tc.in, got, err, tc.want)
 		}
 	}
-	for _, in := range []string{string([]byte{0xff}), "a\x00b", strings.Repeat("x", 16*MaxPatternBytes+1)} {
+	for _, in := range []string{string([]byte{0xff}), strings.Repeat("x", 16*MaxPatternBytes+1)} {
 		if _, err := UTF16Pattern(in); err != ErrInvalid {
 			t.Fatal("invalid expression accepted")
 		}

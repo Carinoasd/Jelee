@@ -66,7 +66,7 @@ func TestFixedUpstreamTranslation(t *testing.T) {
 }
 
 func TestTranslationBounds(t *testing.T) {
-	for _, input := range []string{strings.Repeat("x", MaxPatternBytes+1), "bad\x00pattern", string([]byte{0xff})} {
+	for _, input := range []string{strings.Repeat("x", MaxPatternBytes+1), string([]byte{0xff})} {
 		if _, err := Translate(input); err != ErrInvalid {
 			t.Fatal("unbounded or invalid input accepted")
 		}

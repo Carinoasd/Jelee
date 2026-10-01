@@ -1,0 +1,240 @@
+{
+  "runtime": "10.0.11",
+  "cases": [
+    {
+      "name": "utf8",
+      "rawHex": "2A2EE789870D0A21F09F98802E6D6B760A",
+      "utf8Hex": "2A2EE789870D0A21F09F98802E6D6B760A"
+    },
+    {
+      "name": "utf8-bom",
+      "rawHex": "EFBBBF2A2EE789870D0A21F09F98802E6D6B760A",
+      "utf8Hex": "2A2EE789870D0A21F09F98802E6D6B760A"
+    },
+    {
+      "name": "utf16le",
+      "rawHex": "FFFE2A002E0047720D000A0021003DD800DE2E006D006B0076000A00",
+      "utf8Hex": "2A2EE789870D0A21F09F98802E6D6B760A"
+    },
+    {
+      "name": "utf16be",
+      "rawHex": "FEFF002A002E7247000D000A0021D83DDE00002E006D006B0076000A",
+      "utf8Hex": "2A2EE789870D0A21F09F98802E6D6B760A"
+    },
+    {
+      "name": "utf32le",
+      "rawHex": "FFFE00002A0000002E000000477200000D0000000A0000002100000000F601002E0000006D0000006B000000760000000A000000",
+      "utf8Hex": "2A2EE789870D0A21F09F98802E6D6B760A"
+    },
+    {
+      "name": "utf32be",
+      "rawHex": "0000FEFF0000002A0000002E000072470000000D0000000A000000210001F6000000002E0000006D0000006B000000760000000A",
+      "utf8Hex": "2A2EE789870D0A21F09F98802E6D6B760A"
+    },
+    {
+      "name": "bytes-",
+      "rawHex": "",
+      "utf8Hex": ""
+    },
+    {
+      "name": "bytes-00",
+      "rawHex": "00",
+      "utf8Hex": "00"
+    },
+    {
+      "name": "bytes-EFBBBF",
+      "rawHex": "EFBBBF",
+      "utf8Hex": ""
+    },
+    {
+      "name": "bytes-FFFE",
+      "rawHex": "FFFE",
+      "utf8Hex": ""
+    },
+    {
+      "name": "bytes-FEFF",
+      "rawHex": "FEFF",
+      "utf8Hex": ""
+    },
+    {
+      "name": "bytes-FFFE0000",
+      "rawHex": "FFFE0000",
+      "utf8Hex": ""
+    },
+    {
+      "name": "bytes-0000FEFF",
+      "rawHex": "0000FEFF",
+      "utf8Hex": ""
+    },
+    {
+      "name": "bytes-EFBB",
+      "rawHex": "EFBB",
+      "utf8Hex": "EFBFBD"
+    },
+    {
+      "name": "bytes-FF",
+      "rawHex": "FF",
+      "utf8Hex": "EFBFBD"
+    },
+    {
+      "name": "bytes-80",
+      "rawHex": "80",
+      "utf8Hex": "EFBFBD"
+    },
+    {
+      "name": "bytes-C0AF",
+      "rawHex": "C0AF",
+      "utf8Hex": "EFBFBDEFBFBD"
+    },
+    {
+      "name": "bytes-C280",
+      "rawHex": "C280",
+      "utf8Hex": "C280"
+    },
+    {
+      "name": "bytes-C2",
+      "rawHex": "C2",
+      "utf8Hex": "EFBFBD"
+    },
+    {
+      "name": "bytes-C241",
+      "rawHex": "C241",
+      "utf8Hex": "EFBFBD41"
+    },
+    {
+      "name": "bytes-E0A0",
+      "rawHex": "E0A0",
+      "utf8Hex": "EFBFBD"
+    },
+    {
+      "name": "bytes-E08080",
+      "rawHex": "E08080",
+      "utf8Hex": "EFBFBDEFBFBDEFBFBD"
+    },
+    {
+      "name": "bytes-EDA080",
+      "rawHex": "EDA080",
+      "utf8Hex": "EFBFBDEFBFBDEFBFBD"
+    },
+    {
+      "name": "bytes-ED9FBF",
+      "rawHex": "ED9FBF",
+      "utf8Hex": "ED9FBF"
+    },
+    {
+      "name": "bytes-E1A041",
+      "rawHex": "E1A041",
+      "utf8Hex": "EFBFBD41"
+    },
+    {
+      "name": "bytes-F09080",
+      "rawHex": "F09080",
+      "utf8Hex": "EFBFBD"
+    },
+    {
+      "name": "bytes-F0808080",
+      "rawHex": "F0808080",
+      "utf8Hex": "EFBFBDEFBFBDEFBFBDEFBFBD"
+    },
+    {
+      "name": "bytes-F4908080",
+      "rawHex": "F4908080",
+      "utf8Hex": "EFBFBDEFBFBDEFBFBDEFBFBD"
+    },
+    {
+      "name": "bytes-F48FBFBF",
+      "rawHex": "F48FBFBF",
+      "utf8Hex": "F48FBFBF"
+    },
+    {
+      "name": "bytes-F5808080",
+      "rawHex": "F5808080",
+      "utf8Hex": "EFBFBDEFBFBDEFBFBDEFBFBD"
+    },
+    {
+      "name": "bytes-F09F9880",
+      "rawHex": "F09F9880",
+      "utf8Hex": "F09F9880"
+    },
+    {
+      "name": "bytes-FFFE00D8",
+      "rawHex": "FFFE00D8",
+      "utf8Hex": "EFBFBD"
+    },
+    {
+      "name": "bytes-FFFE00DC",
+      "rawHex": "FFFE00DC",
+      "utf8Hex": "EFBFBD"
+    },
+    {
+      "name": "bytes-FFFE00D84100",
+      "rawHex": "FFFE00D84100",
+      "utf8Hex": "EFBFBD41"
+    },
+    {
+      "name": "bytes-FFFE00D800D8",
+      "rawHex": "FFFE00D800D8",
+      "utf8Hex": "EFBFBDEFBFBD"
+    },
+    {
+      "name": "bytes-FFFE00D800DC",
+      "rawHex": "FFFE00D800DC",
+      "utf8Hex": "F0908080"
+    },
+    {
+      "name": "bytes-FFFE41",
+      "rawHex": "FFFE41",
+      "utf8Hex": "EFBFBD"
+    },
+    {
+      "name": "bytes-FEFFD8000041",
+      "rawHex": "FEFFD8000041",
+      "utf8Hex": "EFBFBD41"
+    },
+    {
+      "name": "bytes-FEFFDC00",
+      "rawHex": "FEFFDC00",
+      "utf8Hex": "EFBFBD"
+    },
+    {
+      "name": "bytes-FFFE000000D80000",
+      "rawHex": "FFFE000000D80000",
+      "utf8Hex": "EFBFBD"
+    },
+    {
+      "name": "bytes-FFFE000000001100",
+      "rawHex": "FFFE000000001100",
+      "utf8Hex": "EFBFBD"
+    },
+    {
+      "name": "bytes-FFFE0000410000",
+      "rawHex": "FFFE0000410000",
+      "utf8Hex": "EFBFBD"
+    },
+    {
+      "name": "bytes-0000FEFF00110000",
+      "rawHex": "0000FEFF00110000",
+      "utf8Hex": "EFBFBD"
+    },
+    {
+      "name": "bytes-0000FEFF0000D800",
+      "rawHex": "0000FEFF0000D800",
+      "utf8Hex": "EFBFBD"
+    },
+    {
+      "name": "bytes-0000FEFF000041",
+      "rawHex": "0000FEFF000041",
+      "utf8Hex": "EFBFBD"
+    },
+    {
+      "name": "bytes-EFBBBF00",
+      "rawHex": "EFBBBF00",
+      "utf8Hex": "00"
+    },
+    {
+      "name": "bytes-FFFE0000EFBBBF00",
+      "rawHex": "FFFE0000EFBBBF00",
+      "utf8Hex": "EFBFBD"
+    }
+  ]
+}

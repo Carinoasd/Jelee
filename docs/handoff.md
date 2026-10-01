@@ -376,3 +376,17 @@ Windows domain/scan/postgres/architecture、全vet、三命令build通過。Linu
 Linux 真實 PostgreSQL 全套 race：198 項頂層測試通過、0 失敗、0 跳過，247.412 秒；測試前後來源雜湊一致（本機證據 `.testdata/inventory-legacy-verification-full-postgres-summary.json`）。Windows domain／postgres／architecture 測試、全模組 vet 與三個命令建置通過；Linux domain／architecture race 1.101／1.122 秒。增量品牌掃描 0 違規／100 合法命中，gitignore-check 通過。
 
 既有001–013遷移未變；各歷史降版測試新增14→13。新的ReadLegacyIgnoreObservationPage內部讀取抽成同交易helper legacyObservationPage。PR32功能CI全部通過、僅Full branding fail；PR33最近兩PG pending、其餘功能通過。準備本階段PR，base feat/jelee-ignore-family-recheck。下一步組合模式的matcher/scanner與baseline接口整合，以及發布交易與復核期限守衛接線；missing目錄和另兩格式仍未做。所有handle結束。
+
+任務級復核已提交43bed278d1，普通繁中PR34：https://github.com/MoYuanCN/Jelee/pull/34，已附聊天。現在feat/jelee-ignore-family-matching，僅此handoff未提交。下一步來源解碼與批次匹配及兩family組合；已讀legacyignore/source.go與process/ignore.go，helper只接受UTF8 Batch（source≤384KiB），native來源raw≤256KiB，需BOM解碼但必須核對固定wrapper讀檔行為，不能直接借自有模式並宣稱完整相容。自有internal/platform/ignore/decode.go已有嚴格UTF8/UTF16實作可評估共用；尚未修改。PR34 CI尚未查，PR33最後兩PG pending、其餘功能pass，PR32功能全pass，品牌仍fail。無活躍handle。
+
+### PR34 遠端 race 套件總逾時
+
+PR34 run36836943917/job110286518071 的 PG 工作在 go test 預設10分鐘到期，當下 TestProbeFaultReservationWriteFailureReleasesProvisionalQuota 僅執行1秒；無此前斷言失敗。另一個PG工作110286536026已pass（12m4s工作總時間）。本機日誌.testdata/pr34-pg-failure.log。Makefile及PowerShell test-race同步明確指定20分鐘套件總期限，各fixture90秒及SQL/租約/資源期限保持。此修正隨本匹配PR帶上，遠端新run通過前不能稱該歷史run已綠。
+
+### 解碼與匹配接線已驗證，準備提交
+
+新增legacyignore.DecodeSource，依固定wrapper File.ReadAllText 的47組.NET10.0.11對照，支援UTF8/UTF16/UTF32 BOM与replacement fallback，raw256KiB/decoded384KiB。scripts/test_ignore_decode.ps1可產生fixture，testdata/decode.json入庫純文字。實測固定Ignore0.2.1接受NUL規則：(NUL|a).mkv只匹配a，故來源/轉換允許NUL、路徑仍拒絕；request升JIG2拒絕JIG1。
+
+新增scan.MatchLegacyIgnore，最多128同query候選、完整路徑、目錄自己查規則、缺來源NoMatch與空來源BlankExclude分開；匹配後再Observe比較token，來源變動整批失效。使用實際IgnoreRunner驗證UTF16LE/NUL來源、2候選1child、Active0、暫存清空。scan TestMain新增helper dispatch，native test用!race buildtag；CI Linux無racehelper步驟新增測試/scanpackage。正式worker/兩family組合/基線接線仍未完成。
+
+Windows scan/legacyignore/helper/process/architecture與全vet/build通過。Linux原生/tmp race legacyignore1.114/helper1.375/scan1.260/arch1.222；無race原生 process.113/helper.062/scan.007秒；JIG2 fuzz 5秒231768次通過。brand new0/100、gitignore-check過。未改schema14或go.mod。CI修正Makefile/scripts make明確20m套件deadline另做一個commit，歷史PR34紅run本身不假稱綠。所有handle結束。

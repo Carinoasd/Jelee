@@ -46,7 +46,7 @@ func TestBatchRejectsMalformedFrames(t *testing.T) {
 		cases = append(cases, data)
 	}
 	wrongVersion := bytes.Clone(valid)
-	wrongVersion[3] = '2'
+	wrongVersion[3] = '1'
 	cases = append(cases, wrongVersion)
 	for _, data := range cases {
 		if _, err := DecodeBatch(context.Background(), data); err != ErrBatch {
@@ -93,10 +93,30 @@ func TestBatchCancellationAndBounds(t *testing.T) {
 	}
 }
 
+func TestBatchV2PreservesNULRulesButRejectsNULPaths(t *testing.T) {
+	b := Batch{Source: "(\x00|a).mkv", Paths: []string{"/media/a.mkv"}}
+	frame, err := EncodeBatch(context.Background(), b)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := DecodeBatch(context.Background(), frame)
+	if err != nil || got.Source != b.Source {
+		t.Fatal("NUL source lost", err)
+	}
+	frame[3] = '1'
+	if _, err = DecodeBatch(context.Background(), frame); err != ErrBatch {
+		t.Fatal("old contract accepted")
+	}
+	b.Paths[0] = "/media/a\x00.mkv"
+	if _, err = EncodeBatch(context.Background(), b); err != ErrBatch {
+		t.Fatal("NUL path accepted")
+	}
+}
+
 func FuzzBatchDecoder(f *testing.F) {
 	seed, _ := EncodeBatch(context.Background(), Batch{Source: "*.mkv", Paths: []string{"/a.mkv"}})
 	f.Add(seed)
-	f.Add([]byte("JIG1"))
+	f.Add([]byte(BatchVersion))
 	f.Fuzz(func(t *testing.T, data []byte) {
 		batch, err := DecodeBatch(context.Background(), data)
 		if err != nil {

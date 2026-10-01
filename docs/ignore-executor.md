@@ -1,12 +1,12 @@
 # 舊格式匹配子程序
 
-此階段提供固定 helper 與父程序執行器，尚未接入掃描、持久意圖或公開 API。相容來源及253組引擎案例見[來源核對](ignore-legacy-audit.md)。
+此階段提供固定 helper 與父程序執行器；後續來源解碼與批次匹配見[匹配接線](ignore-legacy-matching.md)，正式掃描 worker 與公開舊格式 API 尚未啟用。相容來源及253組引擎案例見[來源核對](ignore-legacy-audit.md)。
 
 ## 執行合同
 
 - `process.NewIgnoreRunner`只使用目前執行檔及固定`--internal-ignore-helper`。呼叫者不能提供程式路徑、參數、環境或資源覆寫；既有ffprobe入口限制保持。
 - 每個runner最多2個批次，包含建立輸入檔的期間；忙碌立即回錯。整批最長10秒。取消／逾時經既有程序組或Job管理終止、join、reap後才返回。
-- JIG1輸入最多1MiB，已解碼来源384KiB、128條路徑各4096 bytes。每個請求建立私有目錄與0600檔案，關閉writer後readonly重開；持有至child回收與結果驗證，然後關閉及刪除。磁碟I/O本身不保證阻塞核心呼叫可立即中断。
+- JIG2輸入最多1MiB，已解碼来源384KiB、128條路徑各4096 bytes。每個請求建立私有目錄與0600檔案，關閉writer後readonly重開；持有至child回收與結果驗證，然後關閉及刪除。磁碟I/O本身不保證阻塞核心呼叫可立即中断。
 - JIR1結果只能是未匹配、正規則排除、否定納入、空白全文排除、全無效規則排除；必须逐path回覆。父程序核對原始行號、否定方向、無效行與註解政策。執行錯誤沒有partial result，未來worker必須記unknown，不能視為未匹配。
 
 ## 子程序限制

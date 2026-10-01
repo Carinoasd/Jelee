@@ -26,7 +26,7 @@ func TestPinnedWrapperSourcePreparation(t *testing.T) {
 	}
 }
 func TestSourcePreparationBoundsAndCancel(t *testing.T) {
-	for _, text := range []string{"\x00", string([]byte{0xff}), strings.Repeat("x", MaxPatternBytes+1), strings.Repeat("\n", MaxSourceLines) + "x", strings.Repeat(" ", MaxBatchSourceBytes+1)} {
+	for _, text := range []string{string([]byte{0xff}), strings.Repeat("x", MaxPatternBytes+1), strings.Repeat("\n", MaxSourceLines) + "x", strings.Repeat(" ", MaxBatchSourceBytes+1)} {
 		if _, err := PrepareSource(context.Background(), text); err != ErrBatch {
 			t.Fatal("invalid source accepted")
 		}

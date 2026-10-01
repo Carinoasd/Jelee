@@ -37,7 +37,7 @@ var (
 // Wrapper-level trimming, nearest-file lookup, empty-file policy, case/culture
 // behavior and regex execution are separate contracts.
 func Translate(pattern string) (Expression, error) {
-	if !utf8.ValidString(pattern) || len(pattern) > MaxPatternBytes || strings.IndexByte(pattern, 0) >= 0 {
+	if !utf8.ValidString(pattern) || len(pattern) > MaxPatternBytes {
 		return Expression{}, ErrInvalid
 	}
 	if strings.TrimSpace(pattern) == "" || strings.HasPrefix(pattern, "#") {

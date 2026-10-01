@@ -10,7 +10,7 @@ import (
 )
 
 // BatchVersion pins the private helper wire format, not the source syntax.
-const BatchVersion = "JIG1"
+const BatchVersion = "JIG2"
 const (
 	MaxBatchSourceBytes = 384 << 10
 	MaxBatchPaths       = 128
@@ -37,6 +37,10 @@ func batchStringValid(s string, max int, empty bool) bool {
 	return (empty || len(s) > 0) && len(s) <= max && utf8.ValidString(s) && !strings.ContainsRune(s, 0)
 }
 
+// Rule text may contain literal NUL, as accepted by the pinned text reader and
+// regex library. Paths remain NUL-free; source is never used as a path or argv.
+func batchSourceValid(s string) bool { return len(s) <= MaxBatchSourceBytes && utf8.ValidString(s) }
+
 // EncodeBatch creates one bounded frame. No executable, argv, environment,
 // resource-limit override or filename-to-open can be supplied by this frame.
 func EncodeBatch(ctx context.Context, batch Batch) ([]byte, error) {
@@ -46,7 +50,7 @@ func EncodeBatch(ctx context.Context, batch Batch) ([]byte, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
-	if !batchStringValid(batch.Source, MaxBatchSourceBytes, true) || len(batch.Paths) < 1 || len(batch.Paths) > MaxBatchPaths {
+	if !batchSourceValid(batch.Source) || len(batch.Paths) < 1 || len(batch.Paths) > MaxBatchPaths {
 		return nil, ErrBatch
 	}
 	size := len(BatchVersion) + 4 + len(batch.Source) + 4
@@ -91,7 +95,7 @@ func DecodeBatch(ctx context.Context, data []byte) (Batch, error) {
 		return Batch{}, ErrBatch
 	}
 	remaining := data[4:]
-	readString := func(max int, empty bool) (string, bool) {
+	readString := func(max int, source bool) (string, bool) {
 		if len(remaining) < 4 {
 			return "", false
 		}
@@ -102,7 +106,10 @@ func DecodeBatch(ctx context.Context, data []byte) (Batch, error) {
 		}
 		s := string(remaining[:int(count)])
 		remaining = remaining[int(count):]
-		return s, batchStringValid(s, max, empty)
+		if source {
+			return s, batchSourceValid(s)
+		}
+		return s, batchStringValid(s, max, false)
 	}
 	source, ok := readString(MaxBatchSourceBytes, true)
 	if !ok || len(remaining) < 4 {
