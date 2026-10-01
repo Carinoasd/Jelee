@@ -140,3 +140,7 @@ DTO單層解耦及兩份既有測試建構參數更新，14項回歸與完整Deb
 ## G11.2 可信代理設計規格
 
 [設計與後續驗收](specs/2026-10-02-trusted-proxies-design.md)已核對，尚未產生產品行為或測試證據，G11.2保持部分完成。
+
+## G11.2 可信代理CIDR／XFF與帳號入口
+
+[實作與驗收範圍](trusted-proxies.md)包含真HTTP代理經帳號Handler抵達稽核repository。Windows完整Go與vet、Linux受影響race通過；移除boundary注入時兩項負例失敗，finally來源逐位元復原後正式回歸再通過；公網／來源防火牆／URL重建／SSRF／WS仍未完成。

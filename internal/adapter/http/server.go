@@ -9,6 +9,7 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	"net/netip"
 	"strconv"
 	"strings"
 	"time"
@@ -31,6 +32,7 @@ type Backend interface {
 }
 
 type Server struct {
+	trustedProxies  []netip.Prefix
 	cfg             config.Config
 	backend         Backend
 	catalog         *app.Catalog
@@ -65,7 +67,11 @@ func NewWithJobs(cfg config.Config, backend Backend, catalog *app.Catalog, resol
 	if err != nil {
 		return nil, err
 	}
-	s := &Server{cfg: cfg, backend: backend, catalog: catalog, delivery: delivery, logger: logger}
+	prefixes, err := cfg.TrustedProxyPrefixes()
+	if err != nil {
+		return nil, err
+	}
+	s := &Server{cfg: cfg, backend: backend, catalog: catalog, delivery: delivery, logger: logger, trustedProxies: prefixes}
 	if cfg.EnableAccounts {
 		if account == nil {
 			return nil, errors.New("account service must be provided")
@@ -157,6 +163,7 @@ func (s *Server) boundary(next http.Handler) http.Handler {
 			}
 			s.logger.Info("request completed", "component", "http", "requestId", w.Header().Get("X-Request-ID"), "method", logging.SafeMethod(r.Method), "durationMs", time.Since(start).Milliseconds())
 		}()
+		r = s.withClientAddress(r, w.Header().Get("X-Request-ID"))
 		host, valid := requestHost(r.Host)
 		allowed := false
 		for _, h := range s.cfg.AllowedHosts {

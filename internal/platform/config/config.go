@@ -17,6 +17,7 @@ import (
 type Config struct {
 	Listen                string         `json:"listen"`
 	AllowedHosts          []string       `json:"allowedHosts"`
+	TrustedProxies        []string       `json:"trustedProxies"`
 	DatabaseURL           string         `json:"-"`
 	MaxConnections        int32          `json:"maxConnections"`
 	MaxStreams            int            `json:"maxStreams"`
@@ -80,6 +81,12 @@ func LoadWith(lookup func(string) (string, bool)) (Config, error) {
 	if value, ok := lookup("JELEE_ALLOWED_HOSTS"); ok {
 		c.AllowedHosts = strings.Split(value, ",")
 	}
+	if value, ok := lookup("JELEE_TRUSTED_PROXIES"); ok {
+		c.TrustedProxies = nil
+		if strings.TrimSpace(value) != "" {
+			c.TrustedProxies = strings.Split(value, ",")
+		}
+	}
 	for name, target := range map[string]*bool{"JELEE_ENABLE_CATALOG": &c.EnableCatalog, "JELEE_ENABLE_DIRECT": &c.EnableDirect, "JELEE_ENABLE_ACCOUNTS": &c.EnableAccounts, "JELEE_ENABLE_JOBS": &c.EnableJobs, "JELEE_ENABLE_PROBE": &c.EnableProbe, "JELEE_ENABLE_FAMILY_IGNORE": &c.EnableFamilyIgnore} {
 		if value, ok := lookup(name); ok {
 			b, err := strconv.ParseBool(value)
@@ -127,6 +134,9 @@ func (c Config) Validate() error {
 	n, err := strconv.Atoi(port)
 	if err != nil || n < 1 || n > 65535 {
 		return errors.New("invalid listen port")
+	}
+	if _, err := c.TrustedProxyPrefixes(); err != nil {
+		return err
 	}
 	if len(c.AllowedHosts) == 0 {
 		return errors.New("allowedHosts cannot be empty")

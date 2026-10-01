@@ -888,3 +888,9 @@ G11.8 blocked→partial（指定文檔完成，共用網路Plan的SSRF／WS／�
 五檔核心仍待async明確授權，原提案與patch在.testdata，禁止把此獨立設計當作核心刪除授權；核心產品保持不變。先前6829b14c01是文件階段提交。
 
 可信代理設計階段來源逐位元未變，增量品牌0／175允許、staged diff通過；此輪沒有runtime test，也不宣稱代理功能完成。
+
+### G11.2 可信代理產品接線
+
+依前段規格已實作JSON／env可信CIDR、64前綴、XFF8KiB／32hop、由右向左可信鏈、context有效地址、固定reason告警無原值。一般ClientIP保持transport-only；帳號入口改requestClientIP，登入與稽核／密碼限流接線完整。初期受影響回歸通過；設定／鏈／限流／稽核／角色／Host／真HTTP代理專項通過，真HTTP已從手工context示例強化到實際帳號Handler與repository，地址不回顯。完整Win Go+vet與Linux config/HTTP/i18n race通過，全部handles terminal。
+
+移除boundary單行注入時稽核與真HTTP兩項負例均失敗，finally逐位元復原，Windows config/HTTP/i18n再次完整通過。所有來源角色hash與負例前相同，補證據更新G11.2後同PR46提交。五個直播核心仍待async授權，不得刪除；產品組件之外的原媒體／既有遷移／LICENSE保護。全案仍部分完成。
