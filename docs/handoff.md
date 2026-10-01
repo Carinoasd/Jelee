@@ -338,3 +338,21 @@ Windows全來源package1.047秒及vet通過，Linux WSL DrvFS6項legacy race零s
 Windows全來源test1.074秒與vet通過。Linux固定Go1.27.1 direct binary、GOENVoff、TMPDIR=/tmp原生來源全套race10.496秒，architecture1.097秒；session36450 exit0。新brand scan0/100allowed，沒有改allowlist。docs/ignore-legacy-source.md保存合同。PR30最近檢查只有完整brand fail，兩PG仍pending，其餘功能完成成功。
 
 本來源觀察小階段準備提交PR，base feat/jelee-ignore-executor；未改domain/PG/migration/API。後續priority為持久family（checked與absent不同，不可塞入舊proof）及解碼/matcher/scanner接線，baseline missing另補明確合同。所有handle結束。
+
+來源觀察已提交7df70da（程式）/7d7e891119（文件尾空行），推送普通繁中PR31（https://github.com/MoYuanCN/Jelee/pull/31），已附聊天。当前feat/jelee-ignore-family-storage自PR31接續，本handoff未提交。下一步family持久合同，檢查schema12的source manifest主鍵與mode/version守衛，再新增schema13（如需要）；不能改001–012，不能提前開API/worker capability。PR31 CI未查，PR30最後兩PG仍pending。沒有活躍handle。
+
+### 持久family領域合同（未提交）
+
+新增domain.LegacyIgnoreObservation及LegacyIgnoreDirectoryProof，版本legacy-nearest-source-v1，validator要求完整root→query目錄父鏈、同root、身份、最多129項，明確unchecked祖先前綴／最近present／已查absence後綴。沒有來源時必须查到root，拒缺失目錄（後續baseline缺失另做）。不改ValidateIgnoreIntent/Identity或既有模式能力，尚未新增schema13。
+
+新增LegacyIgnoreProofsCompatible：同一目錄跨query的unchecked→checked可相容，但directoryidentity/parent/root必須一致；兩次已查的absence/presence/bytes/meta必須全相同。這避免把某query影子祖先視為absence而誤判另一query來源，亦不能容忍真正source變更。Windows domain/architecture test及vet通過。
+
+下一步資料模型需要同時保留query目標／選定來源與可合併的目錄來源觀察，不可只在原job_ignore_proofs(rule_present)上塞checked=false。原schema9表不支援新狀態；所有既有遷移保持。當前新增兩個domain檔及handoff未提交。無活躍handle。
+
+### schema13 舊格式來源保存已驗證，準備提交
+
+新增完整最近來源觀察領域合同、schema13 三表與不可逆證據守衛、RecordLegacyIgnoreObservation、FreezeLegacyIgnoreManifest、ReadLegacyIgnoreProofPage。保留 query 選定來源與合併目錄證據，未查可補查；來源衝突只保存失效標記。預算、重播、凍結、分頁、租約／取消／世代均驗證。舊模式與公開 claim/API 未啟用新模式。
+
+Linux 真實 PostgreSQL 全套 race：193 項頂層測試通過、0 失敗、0 跳過，耗時 240.316 秒，測試前後來源雜湊一致（本機證據 `.testdata/inventory-legacy-storage-fixed-postgres-summary.json`）。首輪曾有 6 個舊降版測試漏掉 13→12 步驟，補齊後全套通過。Linux 領域／架構 race 通過（1.102／1.130 秒）；Windows 全套測試除 toolidentity 的環境 ACL 限制外通過，該套件在允許 ACL 的環境重跑通過（0.296 秒）。Windows 全模組 vet、三個命令建置、增量品牌掃描（0 違規／100 合法命中）、gitignore-check 通過。
+
+PR31 功能 CI 全部通過，完整品牌 gate 仍失敗。PR31 已由外部合併至其基底，但 HEAD 尚非 origin/master 祖先；本 PR 延續 feat/jelee-ignore-family 為 base，不自行 merge。後續仍需查詢觀察還原與來源最終復核、消失目錄、組合／解碼／批次 matcher／worker／API 接線。所有測試 handle 已結束。

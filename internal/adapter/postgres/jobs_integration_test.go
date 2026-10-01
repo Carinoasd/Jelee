@@ -626,6 +626,9 @@ func TestJobsMigrationRollbackPreservesAccountsAndLibraryConfiguration(t *testin
 	f := newJobFixture(t)
 	f.complete(t, "rollback", []string{"observed.mkv"}, 0)
 	dsn := f.s.Pool.Config().ConnString()
+	if v, dirty, err := Migrate(f.ctx, dsn, "down"); err != nil || dirty || v != 12 {
+		t.Fatal("legacy ignore downgrade failed", v, dirty, err)
+	}
 	if v, dirty, err := Migrate(f.ctx, dsn, "down"); err != nil || dirty || v != 11 {
 		t.Fatal("ignore scan downgrade failed", v, dirty, err)
 	}
