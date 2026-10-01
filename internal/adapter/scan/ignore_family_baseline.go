@@ -11,16 +11,7 @@ import (
 	"github.com/MoYuanCN/Jelee/internal/platform/legacyignore"
 )
 
-type FamilyBaselineEvaluation struct {
-	Decision           domain.FamilyIgnoreBaselineDecision      `json:"-"`
-	CustomProofs       []domain.IgnoreDirectoryProof            `json:"-"`
-	LegacyObservations []domain.LegacyIgnoreBaselineObservation `json:"-"`
-}
-
-func (FamilyBaselineEvaluation) String() string { return "family baseline evaluation (data redacted)" }
-func (FamilyBaselineEvaluation) GoString() string {
-	return "family baseline evaluation (data redacted)"
-}
+type FamilyBaselineEvaluation = domain.FamilyBaselineEvaluation
 
 // EvaluateFamilyIgnoreBaseline follows the same reachable ancestors as a scan.
 // A repository must establish that the candidate is unseen under complete
@@ -144,7 +135,7 @@ func (s *FamilyIgnoreScanner) EvaluateFamilyIgnoreBaseline(ctx context.Context, 
 	if err := ctx.Err(); err != nil {
 		return empty, err
 	}
-	if len(result.CustomProofs) == 0 || domain.ValidateFamilyIgnoreBaselineDecision(result.Decision) != nil {
+	if domain.ValidateFamilyBaselineEvaluation(result) != nil {
 		return empty, domain.ErrInventoryInvalidated
 	}
 	return result, nil

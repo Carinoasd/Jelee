@@ -55,12 +55,16 @@ func ignoreComparisonFence(ctx context.Context, tx pgx.Tx, l domain.JobLease) (d
 // does not freeze the source manifest: classifying unseen paths can discover
 // additional ancestor proofs. No caller completion flag is accepted.
 func (s *Store) BeginIgnoreBaselineComparison(ctx context.Context, l domain.JobLease) error {
+	return s.beginIgnoreBaselineComparison(ctx, l, false)
+}
+
+func (s *Store) beginIgnoreBaselineComparison(ctx context.Context, l domain.JobLease, family bool) error {
 	tx, err := s.jobTransaction(ctx)
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback(ctx)
-	current, epoch, revision, err := ignoreComparisonFence(ctx, tx, l)
+	current, epoch, revision, err := comparisonModeFence(ctx, tx, l, family)
 	if err != nil {
 		return err
 	}
@@ -88,6 +92,11 @@ func (s *Store) BeginIgnoreBaselineComparison(ctx context.Context, l domain.JobL
 	}
 	if !rootsCovered {
 		return domain.ErrConflict
+	}
+	if family {
+		if err = familyBaselineRootCoverage(ctx, tx, current); err != nil {
+			return err
+		}
 	}
 	var total, unknown int64
 	err = tx.QueryRow(ctx, `SELECT count(*),count(*) FILTER(WHERE NOT attributes_known OR inventory_generation IS DISTINCT FROM $2::bigint) FROM library_inventory_baseline WHERE library_id=$1::uuid`, current.Job.LibraryID, epoch).Scan(&total, &unknown)
@@ -127,12 +136,16 @@ func ignoreBaselinePrefix(ctx context.Context, tx pgx.Tx, library string, c igno
 }
 
 func (s *Store) NextIgnoreBaselinePage(ctx context.Context, l domain.JobLease) (domain.IgnoreBaselinePage, error) {
+	return s.nextIgnoreBaselinePage(ctx, l, false)
+}
+
+func (s *Store) nextIgnoreBaselinePage(ctx context.Context, l domain.JobLease, family bool) (domain.IgnoreBaselinePage, error) {
 	tx, err := s.jobTransaction(ctx)
 	if err != nil {
 		return domain.IgnoreBaselinePage{}, err
 	}
 	defer tx.Rollback(ctx)
-	current, epoch, revision, err := ignoreComparisonFence(ctx, tx, l)
+	current, epoch, revision, err := comparisonModeFence(ctx, tx, l, family)
 	if err != nil {
 		return domain.IgnoreBaselinePage{}, err
 	}

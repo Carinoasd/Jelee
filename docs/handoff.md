@@ -476,3 +476,45 @@ PR41最新查詢：兩套foundation Windows/Linux皆pass，兩PG與既有平台r
 Windows scan/domain/architecture全套1.688/.174/.159秒，全vet/三build通過；Linux原生/tmp race1.176/1.051/1.095秒；真實helper非race .022秒通過，Windows同項在scan全套。補足真實空/allinvalid/缺失祖先/自有優先、祖先禁止復活、兩名額/第三拒絕/取消釋放/共享deadline與兩family來源變更測試。CI非race步驟新增FamilyBaselineNativeHelper。詳見ignore-family-baseline.md；schema17未改。尚未串接DB分類保存、最終發布及worker，不代表G22完成。
 
 PR41最新三平台run-tests全pass，foundation兩平台兩套皆pass，兩PG仍pending（110318639596、110318814009），完整品牌fail。下一步合併基線保存：原基線表只容自有rule_line>=1，需新family/reason來源關聯合同，綁定exact pending page與兩family共同原子保存；先讀既有ignore_baseline與ignore_family_scan保存流程，不能把adapter分類直接作發布權限。所有本機handle已結束。
+
+合併基線分類已提交1304bd82d5，普通繁中PR42：https://github.com/MoYuanCN/Jelee/pull/42，已附聊天。現為feat/jelee-ignore-family-baseline-storage。已讀ignore_baseline.go前175行及ignore_family_scan.go前100行：舊Begin先用ignoreComparisonFence、inventoryCoverage與root proof覆蓋檢查，凍結inventory但不凍結source；Next頁128筆raw baseline含seen標誌、exact token。後續需讀CommitIgnoreBaselinePage與來源綁定、既有migration10–12及schema15守衛，判斷可共用comparison游標但新family決策需獨立表與digest版本，不能漏legacy fence。遷移實際目錄internal/adapter/postgres/migrations，根目錄migrations不存在。PR42尚未查CI；無活躍handle。
+
+### 合併基線保存進行中：共用證據合同（未提交）
+
+新增domain.FamilyBaselineEvaluation及ValidateFamilyBaselineEvaluation，scan使用alias並在返回前驗證。非unknown要求完整custom祖先鏈或首個missing邊界；legacy查詢只准可達祖先/最終父目錄/命中祖先自身，重複查詢必須相同，checked來源相容，兩family目錄身份/缺失狀態一致。custom排除必須有source proof；legacy排除必須有對應lookup選中的現存來源。unknown只能無證據，來源錯誤仍由呼叫端決定unknown。Windowsdomain/scan/architecture .176/1.719/.165秒通過，相關vet/diff通過。新反例涵蓋漏鏈、不同身份、未選來源、跨family矛盾absence、進入已排除祖先；未做Linux或DB驗證。
+
+重要：舊BeginIgnoreBaselineComparison不能直接給family模式使用。ignoreComparisonFence→ignoreManifestFence→loadIgnoreRequest→ValidateIgnoreRequest拒絕reserved family模式；需以legacyManifestFence建立新的family comparison fence（查custom/legacy invalidation和epoch/revision），不得放寬公開ValidateIgnoreIntent。既有comparison cursor/count/raw128分頁和inventory凍結表可評估共用，decision表不行。舊Commit逐筆ignoreDecisionProofs查自有來源+最後既存parent已枚舉，family需保留此覆蓋檢查並另核對legacy selected lookup。原Begin先inventoryCoverage/rootsCovered/unknown attributes與epoch，unknown舊scope直接completed的語義需保留。
+
+仍需新schema18family決策表/receipt digest版本、family Begin/Next/Commit、兩family共同savepoint（參照recordFamilyScanEvidence及recordLegacyBaselineObservations，後者不可傳空slice），綁定exact pending page、最後lease/epoch/revision fence、真PG測試。沒有新增DB方法或迁移，未提交；目前保留已測試的共用domain合同和scan接線，不能宣稱保存完成。沒有活躍本機handle。
+
+### schema18 與合併基線 Begin/Next 已驗證（整段未提交）
+
+新增 BeginFamilyIgnoreBaselineComparison/NextFamilyIgnoreBaselinePage；舊入口共用private begin/next，comparisonModeFence在family使用legacyManifestFence並查兩manifest invalidated/epoch和baseline revision。Begin額外驗證每root有獨立legacy query、checked rootproof且identity與custom一致，保持原inventoryCoverage、roots、unknown旧scope與raw128分頁。舊Begin/Next/Commit仍拒絕family模式；未放寬公開模式。
+
+新增未發布schema18：job_ignore_family_decisions保留family/reason/祖先matched_path、非空rule來源、blank/invalid line0與rule1..4096、legacy可自身目錄命中但file不可。intent guard、immutable update、兩manifest凍結/invalid guard；family scan exclusions新增comparison凍結trigger（原schema15沒有comparison模式的凍結，現在Begin可啟用故需補）。down遇保留family comparison拒絕，jobs history cascade允許。SchemaVersion18，所有已找到的降版序列補18→17；001–017未改。
+
+真PG race首輪family-comparison-first 10頂層pass、0fail0skip、33.043秒；schema新增後family-comparison-schema 12頂層pass、0fail0skip、39.957秒；兩者sourceUnchanged=true。後者包括新Begin/Next/isolation、revision、兩manifest invalidation、未完成掃描拒絕、SQL形狀/immutable、comparison凍結排除表、阻止有資料降版、cascade及全schema上下往返；同時跑原IgnoreBaseline全部。Windowspostgres/domain/scan/architecture .070/.183/1.718/.165秒，全vet/diff通過。尚未跑全PG回歸與Linux新增domain合同race。
+
+下一步仍必須實作CommitFamilyIgnoreBaselinePage：新的family digest需涵蓋decision和保留證據（exact replay不能冒用舊摘要），exact pending raw頁；共同savepoint保存custom與legacybaseline、任何衝突回滾本頁兩邊證據並只保留兩manifest invalidated；完整custom/legacy proof與已完成coverage綁定、未知分類不攜證據。receipt/count/EOF整批提交，最終lease/epoch/revision guard。目前新決策表僅測試直接插入，沒有正式提交方法，不能宣稱基線保存完成或建立完成PR。
+
+PR42最新：兩套Windows/Linux foundation與三平台run-tests全部pass，兩PG仍pending（110323096556、110323257387），完整品牌fail。PR41功能CI已全部pass，完整品牌fail。所有本機handle結束，未提交變更保留於feat/jelee-ignore-family-baseline-storage。
+
+### 合併基線整頁提交已實作、局部真PG通過（未提交）
+
+新增ignore_family_commit.go：CommitFamilyIgnoreBaselinePage驗證token+每筆domain證據、exact next raw128 unseen順序與總數。familyBaselineDigest以新domain seed綁定token、decision全部欄位/family、每筆custom/legacy數量、完整proof和legacybaseline lookup/source/missing；exact replay查receipt，不重複計數。新表存三態/出處，coverage沿用ignoreDecisionProofs最後既存parent已done/skipped0，legacy排除轉為MatchedPath parent覆蓋檢查（不錯查custom rule）；來源出處由domain合同與同交易保存綁定。EOF必須已處理baseline_count，固定revision最後查FOR SHARE，再commitIgnoreManifest重驗lease/epoch。
+
+recordFamilyBaselineEvidence使用整頁共同savepoint，任一source conflict回滾兩family本頁所有新增，僅標兩manifestinvalidated。先按root去重custom directory与legacy lookup，重複必須完全一致；custom依canonical path親先子後一次record，legacy每128query批次。全部保存後集合比對當前root custom/legacy identity及legacymissing/custompresent矛盾，涵蓋前頁證據。舊record helpers的预算仍生效，不把重複祖先份數當manifest唯一行數而拒絕合法深頁。
+
+真PG race family-commit-first：6頂層pass、0fail0skip24.574秒；去重後family-commit-dedup：6頂層pass、0fail0skip22.571秒；sourceUnchanged皆true。包含130筆跨頁、排除/未知/missing計數、截斷拒絕、exact replay與改證據replay拒絕、EOF、來源衝突無分類/基線來源query/計數prefix、兩manifest失效。Windowspostgres/domain/scan/architecture .069/.172/1.679/.157秒，全vet/diff通過。
+
+還需做：來源衝突已存在於DB時回滾之前成功寫入的另一family證據（目前新增case在去重階段即可偵測，不足以單獨證明寫入後rollback）、跨頁兩familyidentity/absence矛盾、lease reclaim/cancel/epoch/不足coverage、真實native adapter→helper→PG分類驗收；Linuxdomain合同race與全PG回歸（harness外層300秒已接近，可合理加到600秒，不改fixture/SQL/lease期限）。三命令build、完整增量門禁、文件/traceability後才能提交繁中PR。schema18和全部變更仍未提交。所有本機handle結束。
+
+PR42功能CI已全pass（兩PG14m47s/13m44s、三平台tests及foundation），完整品牌仍fail。PR41功能也全pass。沒有新增PR，當前feat/jelee-ignore-family-baseline-storage。
+
+### schema18 合併基線保存完整驗證
+
+補足真實寫入後rollback：先寫custom missing proof，再遇DB既有legacy source變更或legacy已存在同目錄，整頁回滾且兩manifest失效；新proof不保留。新增epoch/cancel/generation與receipt插入延遲300ms、lease150ms晚失效，確認實際進入延遲且分類/legacybaselinequery全回滾。擴充既有TestFamilyIgnoreNativeStorage，真native scan→helper→Save→Begin→Evaluate→Commit→EOF，6筆基線Observed1/Missing1/Excluded4，無存活helper。CI原有非race同名步驟已涵蓋。
+
+專項PG race8頂層通過26.680秒；非race native1通過17.318秒。全PG race227頂層pass、0fail0skip299.821秒、sourceUnchanged=true（.testdata/inventory-family-baseline-full-postgres-summary.json）。外層harness改600秒，因上一輪288秒已接近300；fixture/SQL/lease期限未改。Windowsdomain/scan/architecture .176/2.224/.157秒，全vet/三build通過；Linux原生race scan/domain/architecture1.181/1.053/1.096秒。LICENSE與requirements原文雜湊保持不變。所有handle已結束。schema001–017未改，僅新增18，歷史降版步驟补18→17。
+
+下一段：合併模式最終復核/封存/發布。已讀ignore_publication.go、ignore_verification.go；舊verificationComparison及FinishIgnoreJob走ignoreComparisonFence，仍拒絕family。應接family自有proof復核、schema14來源query復核、schema17baseline缺失邊界復核，再共同檢查generation/deadline/total/manifest frozen/noninvalid/seal後發布；不能只沿用custom seal。saveIgnoreImageProgress舊SQL讀job_ignore_decisions，family要對應新表；NFO/probe/coverage/threshold/late expiry與unknown review-only語義要保留。runner在internal/platform/jobs/ignore.go，ports在internal/app/ignore_jobs_ports.go，尚未修改。公開模式仍關閉，G22與第3階段未完成。

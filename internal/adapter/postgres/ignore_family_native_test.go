@@ -54,6 +54,39 @@ func TestFamilyIgnoreNativeStorage(t *testing.T) {
 	if _, err = f.s.NextFamilyIgnoreScanDirectory(f.ctx, l); err != domain.ErrNotFound {
 		t.Fatal("excluded directory queued", err)
 	}
+	for _, name := range []string{"keep.mkv", "custom.tmp", "gone/plain.txt", "gone/movie.mkv", "hidden/movie.mkv", "invalid/movie.mkv"} {
+		_, err = f.s.Pool.Exec(f.ctx, `INSERT INTO library_inventory_baseline(library_id,root_id,path,attributes_known,kind,size,modified_unix_nano,inventory_generation,observed_revision) SELECT id,$2::uuid,$3,true,'video',7,1,inventory_generation,inventory_baseline_revision FROM libraries WHERE id=$1::uuid`, f.registration.Library.ID, d.RootID, name)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err = f.s.BeginFamilyIgnoreBaselineComparison(f.ctx, l); err != nil {
+		t.Fatal(err)
+	}
+	for {
+		page, e := f.s.NextFamilyIgnoreBaselinePage(f.ctx, l)
+		if e != nil {
+			t.Fatal(e)
+		}
+		if page.Complete {
+			break
+		}
+		var evaluations []domain.FamilyBaselineEvaluation
+		for _, candidate := range page.Unseen {
+			evaluated, e := scanner.EvaluateFamilyIgnoreBaseline(f.ctx, d.RootPath, candidate, domain.IgnoreIntent{Mode: domain.IgnoreModeFamily, CaseMode: domain.IgnoreCaseSensitive})
+			if e != nil {
+				t.Fatal(e)
+			}
+			evaluations = append(evaluations, evaluated)
+		}
+		if err = f.s.CommitFamilyIgnoreBaselinePage(f.ctx, l, page.Token, evaluations); err != nil {
+			t.Fatal("native classification storage", err)
+		}
+	}
+	counts, _, complete := comparisonCounts(t, f, l.Job.ID)
+	if !complete || counts != (domain.IgnoreComparisonCounts{Observed: 1, Missing: 1, Excluded: 4}) {
+		t.Fatal("native classification counts", counts)
+	}
 	if runner.Stats().Active != 0 {
 		t.Fatal("helper still active")
 	}
