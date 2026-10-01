@@ -530,8 +530,8 @@ namespace Jellyfin.Server.Implementations.Tests.Localization
                 UICulture = "en-US"
             });
 
-            var translated = localizationManager.GetLocalizedString("Artists", "de");
-            Assert.Equal("Künstler", translated);
+            var translated = localizationManager.GetLocalizedString("Artists", "ja");
+            Assert.Equal("アーティスト", translated);
         }
 
         [Fact]
@@ -555,8 +555,8 @@ namespace Jellyfin.Server.Implementations.Tests.Localization
                 UICulture = "en-US"
             });
 
-            // es-419 is stored as es_419 in Jellyfin
-            var translated = localizationManager.GetLocalizedString("Default", "es-419");
+            // A neutral Japanese culture resolves to the canonical ja-JP resource.
+            var translated = localizationManager.GetLocalizedString("Default", "ja");
             Assert.NotEqual("Default", translated);
         }
 
@@ -568,10 +568,9 @@ namespace Jellyfin.Server.Implementations.Tests.Localization
                 UICulture = "en-US"
             });
 
-            // he-IL normalizes to the underscore resource he_IL. The resource lookup is case-sensitive,
-            // so the region casing has to be preserved or the file is not found and we fall back to en-US.
-            var translated = localizationManager.GetLocalizedString("Books", "he-IL");
-            Assert.Equal("ספרים", translated);
+            // Canonical resource lookup must preserve the uppercase region on case-sensitive filesystems.
+            var translated = localizationManager.GetLocalizedString("Books", "ZH-tw");
+            Assert.Equal("書籍", translated);
         }
 
         [Fact]
@@ -579,16 +578,16 @@ namespace Jellyfin.Server.Implementations.Tests.Localization
         {
             var localizationManager = Setup(new ServerConfiguration
             {
-                UICulture = "de"
+                UICulture = "ja"
             });
 
-            // Even if CurrentUICulture is fr, GetServerLocalizedString should use the server's "de"
+            // The configured Japanese culture takes precedence over the current French culture.
             var previousCulture = CultureInfo.CurrentUICulture;
             try
             {
                 CultureInfo.CurrentUICulture = CultureInfo.GetCultureInfo("fr");
                 var translated = localizationManager.GetServerLocalizedString("Artists");
-                Assert.Equal("Künstler", translated);
+                Assert.Equal("アーティスト", translated);
             }
             finally
             {
@@ -607,9 +606,9 @@ namespace Jellyfin.Server.Implementations.Tests.Localization
             var previousCulture = CultureInfo.CurrentUICulture;
             try
             {
-                CultureInfo.CurrentUICulture = CultureInfo.GetCultureInfo("de");
+                CultureInfo.CurrentUICulture = CultureInfo.GetCultureInfo("ja");
                 var translated = localizationManager.GetLocalizedString("Artists");
-                Assert.Equal("Künstler", translated);
+                Assert.Equal("アーティスト", translated);
             }
             finally
             {
@@ -621,11 +620,59 @@ namespace Jellyfin.Server.Implementations.Tests.Localization
         public void GetSupportedUICultures_IncludesCommonCultures()
         {
             var supported = LocalizationManager.GetSupportedUICultures();
-            Assert.Contains(supported, c => c.Name.Equals("de", StringComparison.OrdinalIgnoreCase));
-            Assert.Contains(supported, c => c.Name.Equals("en-US", StringComparison.OrdinalIgnoreCase));
-            Assert.Contains(supported, c => c.Name.Equals("fr", StringComparison.OrdinalIgnoreCase));
-            // Underscore variants get normalized to BCP-47 hyphen form for CultureInfo compatibility.
-            Assert.Contains(supported, c => c.Name.Equals("es-419", StringComparison.OrdinalIgnoreCase));
+            Assert.Equal(new[] { "en-US", "ja-JP", "zh-CN", "zh-TW" }, supported.Select(c => c.Name).OrderBy(c => c, StringComparer.Ordinal));
+        }
+
+        [Theory]
+        [InlineData(null, "zh-CN")]
+        [InlineData("", "zh-CN")]
+        [InlineData("  ", "zh-CN")]
+        [InlineData("zh", "zh-CN")]
+        [InlineData("ZH-tw", "zh-TW")]
+        [InlineData("ja", "ja-JP")]
+        [InlineData("ja-JP", "ja-JP")]
+        [InlineData("en", "en-US")]
+        [InlineData("fr-FR", "en-US")]
+        [InlineData("not_a_valid_culture", "en-US")]
+        public void ResolveUICulture_DefaultAliasesAndFallback(string? requested, string expected)
+        {
+            Assert.Equal(expected, LocalizationManager.ResolveUICulture(requested));
+        }
+
+        [Theory]
+        [InlineData("zh-CN", "艺术家")]
+        [InlineData("zh-TW", "藝人")]
+        [InlineData("ja-JP", "アーティスト")]
+        [InlineData("en-US", "Artists")]
+        public void GetLocalizedString_FourCatalogs(string culture, string expected)
+        {
+            Assert.Equal(expected, Setup(new ServerConfiguration()).GetLocalizedString("Artists", culture));
+        }
+
+        [Fact]
+        public void GetServerLocalizedString_DefaultIsSimplifiedChinese()
+        {
+            var config = new ServerConfiguration();
+            Assert.Equal("zh-CN", config.UICulture);
+            Assert.Equal("艺术家", Setup(config).GetServerLocalizedString("Artists"));
+        }
+
+        [Theory]
+        [InlineData("fr-FR")]
+        [InlineData("zz")]
+        [InlineData("not_a_valid_culture")]
+        public void GetLocalizedString_UnknownCultureFallsBackSilently(string culture)
+        {
+            var logger = new Mock<ILogger<LocalizationManager>>();
+            Assert.Equal("Artists", Setup(new ServerConfiguration(), logger.Object).GetLocalizedString("Artists", culture));
+            logger.Verify(
+                x => x.Log(
+                    It.IsAny<LogLevel>(),
+                    It.IsAny<EventId>(),
+                    It.IsAny<It.IsAnyType>(),
+                    It.IsAny<Exception?>(),
+                    It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
+                Times.Never);
         }
 
         private LocalizationManager Setup(ServerConfiguration config, ILogger<LocalizationManager>? logger = null)

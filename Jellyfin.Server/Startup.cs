@@ -131,11 +131,7 @@ namespace Jellyfin.Server
             services.AddHlsPlaylistGenerator();
             services.AddLiveTvServices();
 
-            var serverUICulture = _serverConfigurationManager.Configuration.UICulture;
-            if (string.IsNullOrEmpty(serverUICulture))
-            {
-                serverUICulture = "en-US";
-            }
+            var serverUICulture = LocalizationManager.ResolveUICulture(_serverConfigurationManager.Configuration.UICulture);
 
             CultureInfo.DefaultThreadCurrentUICulture = new CultureInfo(serverUICulture);
 

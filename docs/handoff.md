@@ -768,3 +768,9 @@ first exec10275 terminal failure：142pass/5fail同一舊log斷言，原紀錄�
 ### ABI 報告失敗原因與修正
 
 使用者已授權自行判斷可合併並清理分支；舊「禁止 merge」指示已被取代，其餘發布／tag／force-push限制維持。c728e71bc9 PR46 ABI-Difference 的留言缺 JF_BOT_TOKEN；實際報告另有 Naming 改名的 CP0001/CP0004。改保存 artifact／summary，移除留言寫入權限，缺 DLL／工具非零均失敗，不抑制差異。四種隔離模擬 PASS，實際比較待 CI。詳 docs/abi-report-check.md。全品牌門禁仍 blocking，尚未合併。G03 刪除101份語言／預設簡中／未知英文已取得明確使用者授權，接續實作。
+
+### 四語 UI 與分支清理完成
+
+G03 明確人類授權後刪101個 Core UI catalog，ja→ja-JP，四份123鍵，server default zh-CN，manager unknown en-US且不記缺資源錯誤；Startup／configuration update先Resolve避免invalid CultureInfo。保留rating/country/ISO媒體語言。新UI catalog gate已入Makefile／兩平台CI，八種正反fixture通過；補日文一筆既有缺占位符。模組148pass，完整Debug17套件4116Passed/21NotExecuted/0fail，Goi18n0.256pass，格式pass有workspacewarning。full brand14960→14800仍fail，增量0/gitignore0/hash/diff通過。證據docs/evidence/ui-four-locales.json；合同docs/ui-four-locales.md。G03保留partial，下一步舊HTTP fallback/user優先或前端等未完項目。所有本輪測試handle已terminal。
+
+遠端閒置28枝無開放PR、沒有master之外Carinoasd作者commit，逐ref SHA保存.testdata/idle-branches-audit.json；git bundle create/verify/list-heads逐項核對後刪除。遠端僅master與PR46工作枝，開啟delete_branch_on_merge。這些舊枝可能有未整合的上游差異，備份可恢復，不把刪枝當成合併。之前47枝加此次28枝累計75。PR46仍未merge，full品牌gate仍blocking；ABI保留實際breaking failures，不誤稱全綠。

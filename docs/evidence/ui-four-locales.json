@@ -1,0 +1,64 @@
+{
+  "scope": "G03 legacy embedded UI catalog restriction; not complete G03",
+  "userAuthorization": "同意，依 G03 繼續",
+  "removedCatalogs": 101,
+  "catalogs": {
+    "en-US": 123,
+    "ja-JP": 123,
+    "zh-CN": 123,
+    "zh-TW": 123
+  },
+  "default": "zh-CN",
+  "unknownManagerCulture": "en-US",
+  "japanesePlaceholderFix": "LyricDownloadFailureFromForItem restores {0} and {1}",
+  "tests": {
+    "localizationPassed": 148,
+    "fullSolutionSuites": 17,
+    "fullSolutionOutcomes": {
+      "Passed": 4116,
+      "NotExecuted": 21
+    },
+    "goI18n": "PASS 0.256s",
+    "catalogGatePlatforms": [
+      "Windows",
+      "Linux"
+    ],
+    "catalogGateCases": [
+      "valid",
+      "extra-locale",
+      "missing-key",
+      "extra-key",
+      "duplicate-key",
+      "bad-json",
+      "placeholder",
+      "non-string"
+    ],
+    "format": "verify-no-changes PASS; workspace-load warning"
+  },
+  "branding": {
+    "before": 14960,
+    "after": 14800,
+    "incrementalViolations": 0,
+    "fullGate": "FAIL retained"
+  },
+  "gitignoreViolations": 0,
+  "sourceHashes": {
+    "Emby.Server.Implementations/Localization/LocalizationManager.cs": "7cf81d173c31344038048c07dc7e534bc69f184c620de5138285aba8621ebe99",
+    "Jellyfin.Server/Startup.cs": "00d2a4d1cc68e96dc672dfbe413fa7ea34bb0ce8f4d8ad22bb298c01732eebac",
+    "MediaBrowser.Model/Configuration/ServerConfiguration.cs": "f53291a3de4c6bd08d5f9709c66ffb3e0350913826c59a46de7566b387777631",
+    "tests/Jellyfin.Server.Implementations.Tests/Localization/LocalizationManagerTests.cs": "110e876ffb0cf52be124df0f0dd778b4b3e37e7159777145078e622c2eeb3ce3",
+    "scripts/check-ui-locales.py": "9904317c5a61ee8b75fe68a1007b136592b86f7e4f4d57d4751d9d4b895578bb",
+    ".github/workflows/jelee.yml": "e76900580da966838e662f36fed9c7621838df4a35b0c2ac25d7212f1cb8f167",
+    "Makefile": "ba594c74a5314d82719b8cd27d4aae84a9b14e40bcb5f6d5b2cb1897bd4e39b5",
+    "Emby.Server.Implementations/Localization/Core/en-US.json": "a18528c69b57601d9aac0c97d8bdab83952381067a10fccd09a6bcf1a5996c3c",
+    "Emby.Server.Implementations/Localization/Core/ja-JP.json": "cf29f2f198395c556359f717109ded1de93d68fa03ebc8ae0bbf91de8befece4",
+    "Emby.Server.Implementations/Localization/Core/zh-CN.json": "e9d2dc04020d61883d826372848bcd733237c71fffcce34ddc3c9e6a9eb3dc86",
+    "Emby.Server.Implementations/Localization/Core/zh-TW.json": "fbbe7586c8a93a4ea5f234a87bfdd80811cabaec9d062aec5aaf36ed16cf99ef"
+  },
+  "limitations": [
+    "No frontend web tree exists yet",
+    "Legacy HTTP unsupported Accept-Language fallback and per-user precedence not proven by manager unit tests",
+    "Gate checks catalog schema/key/placeholder parity, not code usage or hardcoded frontend text",
+    "Media language, country and parental rating resources preserved"
+  ]
+}

@@ -194,7 +194,7 @@ public class ServerConfiguration : BaseApplicationConfiguration
 
     public string ServerName { get; set; } = string.Empty;
 
-    public string UICulture { get; set; } = "en-US";
+    public string UICulture { get; set; } = "zh-CN";
 
     public bool SaveMetadataHidden { get; set; } = false;
 

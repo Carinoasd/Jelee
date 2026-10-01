@@ -107,7 +107,7 @@
     "TaskExtractMediaSegmentsDescription": "MediaSegment 対応プラグインからメディア セグメントを抽出または取得します。",
     "CleanupUserDataTask": "ユーザーデータのクリーンアップタスク",
     "CleanupUserDataTaskDescription": "90日以上存在しないメディアに対して、視聴状態やお気に入り状態などのユーザーデータをすべて削除します。",
-    "LyricDownloadFailureFromForItem": "歌詞",
+    "LyricDownloadFailureFromForItem": "{0} から {1} の歌詞をダウンロードできませんでした",
     "Original": "オリジナル",
     "NameExtraThemeVideo": "テーマビデオ",
     "NameExtraBehindTheScenes": "舞台裏",

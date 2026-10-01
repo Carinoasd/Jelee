@@ -21,6 +21,8 @@ jobs:
         with:
           path: .tools
           key: jelee-${{ runner.os }}-${{ runner.arch }}-go1.27.1-${{ hashFiles('tools/manifest.json', 'go.sum') }}
+      - name: Validate four UI catalogs
+        run: python scripts/check-ui-locales.py
       - name: Linux bootstrap and verification
         if: runner.os == 'Linux'
         run: make bootstrap tools-verify bootstrap-media media-tools-verify bootstrap-runtime runtime-tools-verify runtime-toolchain-test fixtures fixtures-test toolchain-test media-toolchain-test lint build test-race sandbox-test probe-runtime-test gitignore-check brand-scan-incremental
