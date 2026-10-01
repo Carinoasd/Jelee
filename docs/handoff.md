@@ -812,3 +812,13 @@ G05最後完整品牌14805（新增回歸仍引用舊測試host，未增加豁�
 d7ac92e850最新CI兩平台foundation與Ubuntu C#／Format／OpenAPI均pass；PG、CodeQL、其他C#尚pending於檢查時，ABI與完整品牌仍fail，未merge。最後所有文檔寫完才跑品牌／gitignore門禁並同PR46推送。
 
 錄製啟動階段最後完整品牌14807仍fail（新回歸也引用舊主機名稱）；增量0違規、gitignore0、diff與保護hash檢查pass，沒有擴大豁免。全部handles terminal。
+
+### G05 舊 HTTP 直播與頻道入口裁剪驗收完成
+
+刪除LiveTV與Channel兩個controller及兩個專用DTO；新增Jelee.Api.Compatibility的RemovedFeaturesMiddleware（四根匹配包含System/Configuration/livetv），位於既有authorization與IP validation後。三類功能根所有方法501／feature_removed，HEAD無正文，四Core catalog新增FeatureRemoved各124鍵。保留原設定授權，unauth GET/POST先401，authorized設定501；IP受限先503；相似prefix／query不匹配。初測24fail為設定未登入401，沒有移動安全邊界去符合錯誤假設，改正式登入設定矩陣，另加401與3種IP拒絕回歸。630矩陣+13附加共643pass，直播設定逐request未變。正反編譯型別／真OpenAPI negative 2fail，finally五源逐bit還原，四檔保持absent；沒有執行舊功能write矩陣。
+
+完整Debug17套件4798Passed／21NotExecuted／0fail，格式verify-no-changes pass（workspace warning），Win/Linux UI124 gate pass。全部測試handles terminal；來源角色hash／基底刪除hash見docs/evidence/legacy-removed-features.json，sourceIndex既有brandmap，不加豁免。合同docs/legacy-removed-features.md與compat-matrix已更新。G05 partial：LiveTV core服务、Guide/Channel排程、tuner、動態media provider、設定factory／存量資料與真client/LAN仍待清；下一段刪排程與queue references，避免只刪task型別讓調諧器保存編譯失敗。一般auth可能查帳號，不宣稱舊API完全無後端呼叫。
+
+109d25337e CI雙平台foundation／三平台C#／format／OpenAPI已pass；PG與CodeQL仍pending於檢查時，ABI difference／full branding仍fail。未合併。最後全部文檔寫完再跑品牌/gitignore/hash/diff後同PR46推送。
+
+舊HTTP階段最後完整品牌14807→14761，仍fail；增量0違規／136既有允許、gitignore0、protected hashes／migration diff／staged diff pass。沒有放寬豁免；所有本輪測試handles terminal。

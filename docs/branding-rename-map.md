@@ -84,3 +84,20 @@ src/Jellyfin.Networking 與 tests/Jellyfin.Networking.Tests → src/Jelee.Networ
 | regressionTests | `tests/Jellyfin.Server.Integration.Tests/RecordingStartupRemovalTests.cs` |
 | recordingsHost | `src/Jellyfin.LiveTv/Recordings/RecordingsHost.cs` |
 | recordingNotifier | `src/Jellyfin.LiveTv/Recordings/RecordingNotifier.cs` |
+
+### 舊 HTTP 直播與頻道入口裁剪來源索引
+
+| 證據角色 | 來源路徑 |
+| --- | --- |
+| startup | `Jellyfin.Server/Startup.cs` |
+| compatibilityMiddleware | `Jellyfin.Api/Compatibility/RemovedFeaturesMiddleware.cs` |
+| httpTests | `tests/Jellyfin.Server.Integration.Tests/Controllers/RemovedFeaturesTests.cs` |
+| englishCatalog | `Emby.Server.Implementations/Localization/Core/en-US.json` |
+| japaneseCatalog | `Emby.Server.Implementations/Localization/Core/ja-JP.json` |
+| simplifiedChineseCatalog | `Emby.Server.Implementations/Localization/Core/zh-CN.json` |
+| traditionalChineseCatalog | `Emby.Server.Implementations/Localization/Core/zh-TW.json` |
+| liveTvController | `Jellyfin.Api/Controllers/LiveTvController.cs` |
+| channelsController | `Jellyfin.Api/Controllers/ChannelsController.cs` |
+| programsDto | `Jellyfin.Api/Models/LiveTvDtos/GetProgramsDto.cs` |
+| channelMappingDto | `Jellyfin.Api/Models/LiveTvDtos/SetChannelMappingDto.cs` |
+| oldEnablingTests | `tests/Jellyfin.Server.Integration.Tests/Controllers/LiveTvControllerTests.cs` |

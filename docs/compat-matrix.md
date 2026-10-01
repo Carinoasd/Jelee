@@ -16,6 +16,10 @@
 
 OpenAPI 的 `x-jelee-removed-features` 擴充欄位列出三個根路徑、狀態與錯誤碼；其值另有HTTP一致性回歸。17條路徑×6方法×4語系×2開關狀態，共816請求通過，沒有後端／媒體呼叫。另驗證Host／轉碼／debug優先、相似與不同根路徑404、HEAD與OpenAPI；證據見[探測驗證](evidence/removed-feature-http.json)。
 
-G05仍部分完成：舊C#的其餘直播、調諧器、EPG、錄製、Channel控制器與服務仍待移除，相關資料、設定、翻譯鍵與圖示也未全部清理。沒有將舊C#執行入口的這些功能宣稱為已關閉。防火牆與探索裁剪詳[部署](deployment.md)、[探索裁剪](server-discovery-removal.md)。
+G05仍部分完成：舊C#的直播與Channel控制器已刪除並提供[明確拒絕入口](legacy-removed-features.md)；其餘調諧器、EPG、錄製、Channel服務與排程仍待移除，相關資料、設定、翻譯鍵與圖示也未全部清理。沒有將舊C#內部全部功能與排程宣稱為已關閉。防火牆與探索裁剪詳[部署](deployment.md)、[探索裁剪](server-discovery-removal.md)。
 
 另外以真正loopback TCP/HTTP驗證HEAD：501、正文長度0、未知語系回en-US，沒有後端／媒體呼叫；Windows與Linux race回歸通過。
+
+## 舊 C# HTTP 入口
+
+直播／頻道控制器與專用 DTO 已刪除，三類根路徑回501／feature_removed，四語／HEAD／設定不變／OpenAPI已驗證。直播設定仍先驗證授權，受限IP先回既有503；[完整合同與證據](legacy-removed-features.md)。內部服務與排程仍待移除。

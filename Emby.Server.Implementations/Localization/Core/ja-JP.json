@@ -121,5 +121,6 @@
     "NameExtraShort": "ショート",
     "NameExtraThemeSong": "テーマ曲",
     "NameExtraTrailer": "予告編",
-    "NameExtraUnknown": "特典"
+    "NameExtraUnknown": "特典",
+    "FeatureRemoved": "デバイス検出、ライブテレビ、録画、チャンネルには対応していません。"
 }

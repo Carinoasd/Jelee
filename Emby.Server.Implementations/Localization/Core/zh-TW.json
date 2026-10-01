@@ -121,5 +121,6 @@
     "NameExtraThemeSong": "主題曲",
     "NameExtraThemeVideo": "主題影片",
     "NameExtraTrailer": "預告片",
-    "NameExtraUnknown": "額外內容"
+    "NameExtraUnknown": "額外內容",
+    "FeatureRemoved": "不支援裝置探索、直播電視、錄製與頻道。"
 }

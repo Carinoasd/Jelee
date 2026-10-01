@@ -8,6 +8,7 @@ using System.Net.Mime;
 using System.Text;
 using Emby.Server.Implementations.EntryPoints;
 using Emby.Server.Implementations.Localization;
+using Jelee.Api.Compatibility;
 using Jelee.Networking;
 using Jelee.Networking.HappyEyeballs;
 using Jelee.Server.Localization;
@@ -236,6 +237,7 @@ namespace Jellyfin.Server
                 mainApp.UseAuthorization();
 
                 mainApp.UseIPBasedAccessValidation();
+                mainApp.UseMiddleware<RemovedFeaturesMiddleware>();
                 mainApp.UseWebSocketHandler();
                 mainApp.UseServerStartupMessage();
 

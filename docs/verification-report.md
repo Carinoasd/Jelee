@@ -104,3 +104,7 @@ Jelee schema version=0 dirty=false
 ## G05 錄製自動啟動來源裁剪
 
 刪除兩個錄製host及註冊，移除設定更新建立錄製媒體庫回呼。focused 3pass，舊實作反驗證3fail並逐位元恢復，完整Debug17套件4159Passed／21NotExecuted／0fail；格式通過（workspace warning）。[合同與證據](recording-startup-removal.md)。直播控制器／排程／調諧器與資料仍待裁剪，G05維持部分完成，ABI與完整品牌失敗保留。
+
+## G05 舊 HTTP 直播與頻道入口裁剪
+
+刪兩個控制器及兩個專用DTO，明確501／feature_removed並保留設定授權／IP限制。643專項pass，舊程序集與OpenAPI反驗證2fail並逐位元恢復，完整Debug17套件4798Passed／21NotExecuted／0fail，格式／Win/Linux四語124鍵門禁通過。[合同與證據](legacy-removed-features.md)。內部服務、排程、設定及資料仍待裁剪，G05部分完成，ABI與完整品牌門禁保留。
