@@ -122,3 +122,15 @@ src/Jellyfin.Networking 與 tests/Jellyfin.Networking.Tests → src/Jelee.Networ
 | liveMediaProvider | `src/Jellyfin.LiveTv/LiveTvMediaSourceProvider.cs` |
 | channelMediaProvider | `src/Jellyfin.LiveTv/Channels/ChannelDynamicMediaSourceProvider.cs` |
 | channelImageProvider | `src/Jellyfin.LiveTv/Channels/ChannelImageProvider.cs` |
+
+### DTO直播相依解耦來源索引
+
+| 證據角色 | 來源路徑 |
+| --- | --- |
+| generalDto | `Emby.Server.Implementations/Dto/DtoService.cs` |
+| dtoTests | `tests/Jellyfin.Server.Implementations.Tests/Dto/DtoServiceTests.cs` |
+| imageInheritanceTests | `tests/Jellyfin.Server.Implementations.Tests/Dto/DtoServiceImageInheritanceTests.cs` |
+| viewManager | `Emby.Server.Implementations/Library/UserViewManager.cs` |
+| dependencyRegistration | `Emby.Server.Implementations/ApplicationHost.cs` |
+| partsAssembly | `Jellyfin.Server/CoreAppHost.cs` |
+| featureRegistry | `src/Jellyfin.LiveTv/Extensions/LiveTvServiceCollectionExtensions.cs` |

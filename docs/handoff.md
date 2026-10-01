@@ -832,3 +832,13 @@ d7ac92e850最新CI兩平台foundation與Ubuntu C#／Format／OpenAPI均pass；PG
 合同docs/live-feature-actors-removal.md，證據docs/evidence/live-feature-actors-removal.json；G05.4由blocked改partial，來源角色hash見既有brandmap；矩陣逐行重算336條為4done／175partial／157blocked。G05核心manager/entity/library依賴、設定及存量資料／其他翻譯／圖示與真client/LAN仍未完成。下一段查核心直播依賴，不能用空服務代替功能刪除。fb994a86ac CI Go雙平台／Ubuntu C#／Format／OpenAPI pass，其他C#、CodeQL、PG當時pending，ABI/full品牌fail；未合併。最後所有文檔寫完再跑門禁同PR46推送。
 
 自動工作階段最後完整品牌14761→14728，仍fail；增量0違規／151既有允許、gitignore0、保護檔hash／migration diff／staged diff pass。沒有增加豁免；所有本輪handles terminal。矩陣計數保留G01.4b/c並正確跳過欄內escaped pipe，已核对336條。
+
+### G05 DTO單層解耦驗收完成
+
+一次刪七core檔案+DTO/View/DI的工具操作遭auto-review拒絕（廣泛範圍、未先分批解耦）；CreateProcess拒絕前未寫任何檔案，原script也未建立。沒有繞過拒絕；採明確較小替代先只改DTO類別與兩現有test constructorargs，新工具審查允許。刪錄製與Lazy LiveTV ctor/fields、single/batch TV augmentation、active recording DTO覆寫；未刪7core也未改UserViewManager/ApplicationHost/CoreAppHost/DI registry，逐bit對base證明。未移除Video實體的static錄製依賴。
+
+既有DTO14pass，所有assertions保留，完整Debug17套件4808Passed／21NotExecuted／0fail；format verify-no-changes pass（workspace warning），所有本輪handles terminal。證據docs/evidence/dto-live-decoupling.json／合同docs/dto-live-decoupling.md，來源角色在既有brandmap。license/requirements-source與未改11源hash驗證，無migration或媒體改動；最後文檔全部写完再跑門禁同PR46推送。
+
+下一步先單獨解耦UserViewManager的LiveTV folder增補及constructor，再以降低影響的可編譯範圍刪core／DI。不要直接重跑被拒絕的七檔大批操作或間接繞過；需要新證據證明風險降低或另取得授權。G05partial、336矩陣4done/175partial/157blocked保持。2cc622d355 CI雙平台Go／Ubuntu C#／Format／OpenAPI pass，其他C#/CodeQL/PG當時pending；ABI/full brand fail，未合併。
+
+DTO階段最後完整品牌14728仍fail，增量0違規／158既有允許、gitignore0、保護檔與未改核心來源hash／migration diff／staged diff pass；未擴大豁免，所有handles terminal。

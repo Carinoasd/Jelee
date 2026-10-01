@@ -1,0 +1,56 @@
+{
+  "scope": "G05 incremental DTO decoupling; view/DI/core retirement not yet performed",
+  "baseCommit": "2cc622d35562722fdd47d6b4a79e4d692e5029c0",
+  "removed": [
+    "general DTO constructor fields/parameters for recording and lazy live TV managers",
+    "single/batch live program and channel DTO augmentation",
+    "active recording DTO type/title augmentation"
+  ],
+  "existingTests": "Only constructor mock arguments adjusted; all existing assertions retained; entity recording dependencies remain",
+  "tests": {
+    "focused": {
+      "Passed": 14,
+      "Failed": 0,
+      "Skipped": 0
+    },
+    "fullSolution": {
+      "suites": 17,
+      "Passed": 4808,
+      "NotExecuted": 21,
+      "Failed": 0
+    },
+    "format": "verify-no-changes PASS with workspace-load warning"
+  },
+  "sourceIndex": "../branding-rename-map.md",
+  "sourceHashes": {
+    "generalDto": "94be32bbc38098e609f2fafc3ce6a70cd9d22c8b47f33f076f7cc46632c12fa1",
+    "dtoTests": "c0fc460e461f01297d60f5114dec28ae1d6843a8af2603d44da4f4299ddd010d",
+    "imageInheritanceTests": "8c146aa67d2dc1b07ff81bf18ed4567a6b9d689b0756cf9e660f4f1da02aeb4c"
+  },
+  "auditedUnchangedSourceHashes": {
+    "viewManager": "dbf8d93043432f108748f1e9772777caafeaa72c2ef84464b57bf531afe5d01c",
+    "dependencyRegistration": "bc3428f28672d532a045e46fc8248c01c57f6b4ab6dd67c846dbcafc0f7590a3",
+    "partsAssembly": "4bfe4b08ba183d83b02b887c50e011ee27ab2b15a7364c20fb1dc57b64766c4d",
+    "featureRegistry": "0282400c9a4687fd1919e66e3b84e6d6525cf292e84ca458fd9e1b715ee8e1ad"
+  },
+  "approvalReview": {
+    "rejectedBatch": "seven core implementation/interface deletions together with DTO/view/DI changes",
+    "reason": "broad scope across DTO, views and DI before incremental decoupling",
+    "rejectedBatchExecuted": false,
+    "executedAlternative": "DTO-only decoupling approved by subsequent tool review; seven core files/view/DI byte-identical to base"
+  },
+  "existingMigrationsChanged": false,
+  "protectedHashesUnchanged": true,
+  "limitations": [
+    "Live TV services, view folder path, DI registration and seven core implementation/interface files remain",
+    "Generic entities still have recording/service dependencies; no claim of all DTO call chains backend-free",
+    "Core/data/configuration/resource removal and real client/LAN acceptance incomplete",
+    "Public constructor change intentionally changes ABI; gate retained"
+  ],
+  "gates": {
+    "fullBrandGate": "FAIL retained",
+    "fullBrandViolations": 14728,
+    "incrementalBrandViolations": 0,
+    "gitignoreViolations": 0
+  }
+}

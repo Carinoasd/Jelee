@@ -112,3 +112,7 @@ Jelee schema version=0 dirty=false
 ## G05 自動工作與提供者裁剪
 
 刪六個實作、五個queue呼叫、兩個排程constructor相依及三個專用四語翻譯鍵。positive10pass，舊實作negative8fail並逐位元恢復，完整Debug17套件4808Passed／21NotExecuted／0fail；格式與Win/Linux四語121鍵門禁通過。[合同與證據](live-feature-actors-removal.md)。G05.4有部分交付，核心服務、設定、資料與其他資源仍待清理。
+
+## G05 一般DTO移除直播／錄製增補相依
+
+DTO單層解耦及兩份既有測試建構參數更新，14項回歸與完整Debug17套件4808Passed／21NotExecuted／0fail、格式通過。[合同與證據](dto-live-decoupling.md)。原七檔跨層批次操作遭自動審查拒絕且未執行，已採獲准的DTO單層替代；其他核心／視圖／DI保持，G05仍部分完成。

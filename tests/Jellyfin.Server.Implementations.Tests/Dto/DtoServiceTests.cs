@@ -53,10 +53,8 @@ public class DtoServiceTests
             _userDataManagerMock.Object,
             imageProcessor.Object,
             new Mock<IProviderManager>().Object,
-            new Mock<IRecordingsManager>().Object,
             appHost.Object,
             new Mock<IMediaSourceManager>().Object,
-            new Lazy<ILiveTvManager>(() => new Mock<ILiveTvManager>().Object),
             new Mock<ITrickplayManager>().Object,
             new Mock<IChapterManager>().Object);
 
