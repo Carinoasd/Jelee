@@ -120,3 +120,7 @@ DTO單層解耦及兩份既有測試建構參數更新，14項回歸與完整Deb
 ## G05 使用者視圖移除直播／頻道增補相依
 
 移除使用者視圖的兩個manager相依與外抓分支。四單元及兩HTTP／六請求pass，完整Debug17套件4814Passed／21NotExecuted／0fail，最後測試行尾修正後HTTP與格式再pass。[合同與證據](user-view-live-decoupling.md)。核心、DI、存量資料與實體相依仍待處理，G05保持部分完成。
+
+## G05 直播核心註冊分層解耦
+
+五項核心／延遲服務註冊移除，程序集探索保留必要媒體庫元件。六項啟動與解析驗收通過；[範圍與證據](live-core-registration-removal.md)。核心程式與存量資料仍待清理。

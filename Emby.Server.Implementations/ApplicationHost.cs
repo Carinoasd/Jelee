@@ -601,8 +601,6 @@ namespace Emby.Server.Implementations
 
             serviceCollection.AddSingleton<IProviderManager, ProviderManager>();
 
-            // TODO: Refactor to eliminate the circular dependency here so that Lazy<T> isn't required
-            serviceCollection.AddTransient(provider => new Lazy<ILiveTvManager>(provider.GetRequiredService<ILiveTvManager>));
             serviceCollection.AddSingleton<IDtoService, DtoService>();
 
             serviceCollection.AddSingleton<ISessionManager, SessionManager>();

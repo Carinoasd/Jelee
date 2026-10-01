@@ -7,7 +7,7 @@ using Jellyfin.Api.WebSocketListeners;
 using Jellyfin.Database.Implementations;
 using Jellyfin.Drawing;
 using Jellyfin.Drawing.Skia;
-using Jellyfin.LiveTv;
+using Jellyfin.LiveTv.Recordings;
 using Jellyfin.Server.Implementations.Activity;
 using Jellyfin.Server.Implementations.Devices;
 using Jellyfin.Server.Implementations.Events;
@@ -124,7 +124,7 @@ namespace Jellyfin.Server
             yield return typeof(ServiceCollectionExtensions).Assembly;
 
             // Jellyfin.LiveTv
-            yield return typeof(LiveTvManager).Assembly;
+            yield return typeof(RecordingsManager).Assembly;
         }
     }
 }

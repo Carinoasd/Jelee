@@ -1,0 +1,56 @@
+{
+  "scope": "G05 core registration/assembly decoupling; core implementation deletion remains pending",
+  "baseCommit": "b3f2693a263977ba98ab3b07a851d096d3dfad88",
+  "changes": [
+    "four core service registrations removed",
+    "generic lazy live manager registration removed",
+    "assembly discovery anchored to retained recordings manager"
+  ],
+  "tests": {
+    "startupAndRegistration": {
+      "Passed": 6,
+      "Failed": 0,
+      "Skipped": 0
+    },
+    "fullSolution": {
+      "suites": 17,
+      "Passed": 4820,
+      "NotExecuted": 21,
+      "Failed": 0
+    },
+    "format": "verify-no-changes PASS with workspace warning; after full regression only obsolete TODO comment removed"
+  },
+  "sourceIndex": "../branding-rename-map.md",
+  "sourceHashes": {
+    "dependencyRegistration": "4bf2004e11d199300307e90bb3d26af4c4a07acdcebdccf426d258d5ccb3c459",
+    "partsAssembly": "a5b1020bd6ac1c2b1744c58becc7da456376ad5eb0fcf2d9df734fcba7a43585",
+    "featureRegistry": "ec1d90a3823294e2c11dd76f3b2520241ad8ffaf38e92b437c3d82c5e1677ede",
+    "startupTests": "e3762e815c5c6e3775e11f48432c5cffba8b1e74f439b1d401d42a8344d26fdc"
+  },
+  "retainedCoreFilesUnchanged": 7,
+  "protectedHashesUnchanged": true,
+  "existingMigrationsChanged": false,
+  "limitations": [
+    "Core implementations/interfaces remain compiled",
+    "Channel/recording/tuner/library dependencies and persisted retired rows remain",
+    "Real client and LAN acceptance incomplete",
+    "Full branding/ABI failures retained"
+  ],
+  "gates": {
+    "fullBrandGate": {
+      "violations": 14756,
+      "allowed": 174,
+      "status": "FAIL retained"
+    },
+    "gitignoreGate": {
+      "violations": 0,
+      "status": "PASS"
+    },
+    "incrementalBrandGate": {
+      "violations": 0,
+      "allowed": 169,
+      "status": "PASS"
+    },
+    "stagedDiffCheck": "PASS"
+  }
+}

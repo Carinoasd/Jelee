@@ -146,3 +146,10 @@ src/Jellyfin.Networking 與 tests/Jellyfin.Networking.Tests → src/Jelee.Networ
 | dependencyRegistration | `Emby.Server.Implementations/ApplicationHost.cs` |
 | partsAssembly | `Jellyfin.Server/CoreAppHost.cs` |
 | featureRegistry | `src/Jellyfin.LiveTv/Extensions/LiveTvServiceCollectionExtensions.cs` |
+
+## G05 核心註冊解耦來源索引
+
+- dependencyRegistration: `Emby.Server.Implementations/ApplicationHost.cs`
+- partsAssembly: `Jellyfin.Server/CoreAppHost.cs`
+- featureRegistry: `src/Jellyfin.LiveTv/Extensions/LiveTvServiceCollectionExtensions.cs`
+- startupTests: `tests/Jellyfin.Server.Integration.Tests/LiveCoreRegistrationRemovalTests.cs`
