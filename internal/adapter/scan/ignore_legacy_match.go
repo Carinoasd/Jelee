@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	ignoresource "github.com/MoYuanCN/Jelee/internal/adapter/media/ignore"
 	"github.com/MoYuanCN/Jelee/internal/domain"
 	"github.com/MoYuanCN/Jelee/internal/platform/legacyignore"
 )
@@ -43,51 +44,17 @@ func (s *IgnoreScanner) MatchLegacyIgnore(ctx context.Context, d domain.ScanDire
 	if err := ctx.Err(); err != nil {
 		return empty, err
 	}
-	paths := make([]string, len(candidates))
-	for i, c := range candidates {
-		if !(c.Directory && c.Path == ".") && !domain.ValidNFOObservationPath(c.Path) {
-			return empty, domain.ErrInvalid
-		}
-		lookup := path.Dir(c.Path)
-		if c.Directory {
-			lookup = c.Path
-		}
-		if lookup != d.Path {
-			return empty, domain.ErrInvalid
-		}
-		full := filepath.ToSlash(filepath.Join(d.RootPath, filepath.FromSlash(c.Path)))
-		if c.Directory {
-			full = strings.TrimRight(full, "/") + "/"
-		}
-		paths[i] = full
+	paths, err := legacyCandidatePaths(d, candidates)
+	if err != nil {
+		return empty, err
 	}
 	first, err := s.resolver.ObserveLegacy(ctx, d.RootPath, d.Path)
 	if err != nil {
 		return empty, ignoreWorkerError(ctx, err)
 	}
-	result := legacyignore.BatchResult{Decisions: make([]legacyignore.Decision, len(candidates))}
-	if first.Present {
-		text, e := legacyignore.DecodeSource(ctx, first.Bytes())
-		if e != nil {
-			if ctx.Err() != nil {
-				return empty, ctx.Err()
-			}
-			return empty, domain.ErrScanLimit
-		}
-		batch := legacyignore.Batch{Source: text, Paths: paths}
-		if _, e = legacyignore.EncodeBatch(ctx, batch); e != nil {
-			return empty, domain.ErrInvalid
-		}
-		result, e = evaluator.Evaluate(ctx, batch)
-		if e != nil {
-			if ctx.Err() != nil {
-				return empty, ctx.Err()
-			}
-			return empty, domain.ErrIgnoreUnavailable
-		}
-		if e = legacyignore.ValidateResult(ctx, batch, result); e != nil {
-			return empty, domain.ErrIgnoreUnavailable
-		}
+	result, err := evaluateLegacySource(ctx, first, paths, evaluator)
+	if err != nil {
+		return empty, err
 	}
 	last, err := s.resolver.ObserveLegacy(ctx, d.RootPath, d.Path)
 	if err != nil {
@@ -107,4 +74,54 @@ func (s *IgnoreScanner) MatchLegacyIgnore(ctx context.Context, d domain.ScanDire
 		return empty, domain.ErrInventoryInvalidated
 	}
 	return LegacyMatchBatch{Observation: o, SourceDirectory: last.SourceDirectory, Result: result}, nil
+}
+
+func evaluateLegacySource(ctx context.Context, first ignoresource.LegacyObservation, paths []string, evaluator legacyBatchEvaluator) (legacyignore.BatchResult, error) {
+	result := legacyignore.BatchResult{Decisions: make([]legacyignore.Decision, len(paths))}
+	if first.Present {
+		text, e := legacyignore.DecodeSource(ctx, first.Bytes())
+		if e != nil {
+			if ctx.Err() != nil {
+				return legacyignore.BatchResult{}, ctx.Err()
+			}
+			return legacyignore.BatchResult{}, domain.ErrScanLimit
+		}
+		batch := legacyignore.Batch{Source: text, Paths: paths}
+		if _, e = legacyignore.EncodeBatch(ctx, batch); e != nil {
+			return legacyignore.BatchResult{}, domain.ErrInvalid
+		}
+		result, e = evaluator.Evaluate(ctx, batch)
+		if e != nil {
+			if ctx.Err() != nil {
+				return legacyignore.BatchResult{}, ctx.Err()
+			}
+			return legacyignore.BatchResult{}, domain.ErrIgnoreUnavailable
+		}
+		if e = legacyignore.ValidateResult(ctx, batch, result); e != nil {
+			return legacyignore.BatchResult{}, domain.ErrIgnoreUnavailable
+		}
+	}
+	return result, nil
+}
+
+func legacyCandidatePaths(d domain.ScanDirectory, candidates []LegacyCandidate) ([]string, error) {
+	paths := make([]string, len(candidates))
+	for i, c := range candidates {
+		if !(c.Directory && c.Path == ".") && !domain.ValidNFOObservationPath(c.Path) {
+			return nil, domain.ErrInvalid
+		}
+		lookup := path.Dir(c.Path)
+		if c.Directory {
+			lookup = c.Path
+		}
+		if lookup != d.Path {
+			return nil, domain.ErrInvalid
+		}
+		full := filepath.ToSlash(filepath.Join(d.RootPath, filepath.FromSlash(c.Path)))
+		if c.Directory {
+			full = strings.TrimRight(full, "/") + "/"
+		}
+		paths[i] = full
+	}
+	return paths, nil
 }

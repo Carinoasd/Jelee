@@ -116,6 +116,10 @@ func (r *Resolver) observeLegacy(ctx context.Context, root, relative string, ope
 }
 
 func readLegacyChain(ctx context.Context, root, relative string, openRoot func(string) (directory, error), owned *[]directory) ([]legacyDirectoryObservation, []byte, error) {
+	return readLegacyChainWithBoundary(ctx, root, relative, openRoot, owned, nil)
+}
+
+func readLegacyChainWithBoundary(ctx context.Context, root, relative string, openRoot func(string) (directory, error), owned *[]directory, missing *DirectoryProof) ([]legacyDirectoryObservation, []byte, error) {
 	current, err := openRoot(root)
 	if err != nil {
 		return nil, nil, err
@@ -123,22 +127,41 @@ func readLegacyChain(ctx context.Context, root, relative string, openRoot func(s
 	*owned = append(*owned, current)
 	dirs := []directory{current}
 	paths := []string{"."}
+	missingPath := ""
 	if relative != "." {
 		path := ""
 		for _, component := range strings.Split(relative, "/") {
 			if err := ctx.Err(); err != nil {
 				return nil, nil, err
 			}
-			current, err = current.OpenDirectory(component)
-			if err != nil {
-				return nil, nil, err
-			}
-			*owned = append(*owned, current)
-			dirs = append(dirs, current)
 			if path != "" {
 				path += "/"
 			}
 			path += component
+			var child directory
+			if missing == nil {
+				child, err = current.OpenDirectory(component)
+			} else {
+				reader, ok := current.(scanDirectory)
+				if !ok {
+					return nil, nil, ErrUnavailable
+				}
+				var absent bool
+				child, absent, err = reader.OpenDirectoryOrAbsent(component)
+				if err != nil {
+					return nil, nil, err
+				}
+				if absent {
+					missingPath = path
+					break
+				}
+			}
+			if err != nil {
+				return nil, nil, err
+			}
+			current = child
+			*owned = append(*owned, current)
+			dirs = append(dirs, current)
 			paths = append(paths, path)
 		}
 	}
@@ -152,6 +175,9 @@ func readLegacyChain(ctx context.Context, root, relative string, openRoot func(s
 			return nil, nil, ErrUnsafe
 		}
 		chain[i] = legacyDirectoryObservation{path: paths[i], identity: state.identity}
+	}
+	if missingPath != "" {
+		*missing = DirectoryProof{Directory: missingPath, ParentIdentity: chain[len(chain)-1].identity, MissingDirectory: true}
 	}
 	remaining := MaxCompileInputBytes
 	for i := len(dirs) - 1; i >= 0; i-- {

@@ -422,3 +422,15 @@ PR36目前兩PG工作pending（110298262595、110298246488），其他功能全p
 全套PG race：207頂層通過、零skip，260.134秒，唯一失敗TestPostgresIntegration舊測試漏15→14；補測試步驟後該項單獨重跑23.825秒通過，正式碼未再修改。不要聲稱單次全套208通過；原失敗記錄與修正證據均保留（family-scan-full / family-scan-migration-fixed）。sourceUnchanged皆true。Windows postgres/architecture、全vet、三命令build、brand-new0/allowed100、gitignore-check、diff-check通過，LICENSE/requirements原文雜湊不變。
 
 PR36功能CI已全pass，品牌fail；PR37一PGpass（110301421298）、一PGpending（110301590550），其餘功能pass，品牌fail。下一步基線分類/來源最終復核/發布與worker接線，尤其消失父目錄的legacy來源觀察尚不支援，不能以讀不到規則偽造absence。無活躍handle。
+
+合併掃描保存已提交 7f35116d24，普通繁中 PR38：https://github.com/MoYuanCN/Jelee/pull/38，已附聊天。現為 feat/jelee-ignore-family-baseline，準備基線分類。PR38尚未檢查CI。需要先讀 scan/ignore.go 的 ClassifyIgnoreCandidate 與 media/ignore 的 missing-directory 原生實作，對照 legacy ObserveLegacy；目前LegacyObservation禁止MissingDirectory且schema13 identity非零，不能直接把舊absence合同塞入舊格式。應先确定查不到父目錄時對固定nearest-source語義的正確觀察/證據，再接分類与保存，不以unknown全面替代應可證明的missing/excluded。既有ignore baseline表與domain決策只容自有rule_line>=1，合併版本需保留family/reason與來源查詢，不能冒用旧合同。整個任務的自有/legacy復核都必須通過後才發布。所有本機handle已結束。
+
+### 缺失父目錄的舊格式基線來源已驗證
+
+核對固定wrapper blob023c1e891532e5baa022ef0e48b7179e991f59e3 FindIgnoreFileCached冷查找，DirectoryInfo.Parent不要求起始存在；不要採用.testdata/ignore-upstream/jellyfin-10.11.0.cs（不同版本）。新增ObserveLegacyBaseline與獨立LegacyIgnoreBaselineObservation版本legacy-baseline-source-v1，將existing來源鏈與首個missing child分開，無虛構更深身份；兩輪native核對chain/source/缺失邊界。原ObserveLegacy仍拒絕missing目錄。
+
+MatchLegacyIgnoreBaseline最多128共lookup候選，用共用evaluateLegacySource與legacyCandidatePaths避免改變原解碼/完整路徑/helper語義。匹配前後核對缺失邊界，父目錄重現即失效；領域合同驗證邊界緊鄰來源鏈尾且lookup位於其下。基線decision/missing分類尚未啟用；schema15保持，新的missing證據需持久保存與最終復查。
+
+Windows source/scan/domain/architecture 1.132/1.656/.188/.170秒通過；全vet/三build通過。Linux原生/tmp race10.205/1.185/1.055/1.092秒，真實helper非race .007秒通過，CI加入LegacyBaselineNativeHelper。brand-new0/allowed100、gitignore/diff通過。所有handle結束。PR38兩PG pending（110307015980、110306834346），其他功能pass、品牌fail。
+
+下一步基線觀察保存：existing Source可沿用schema13表，missing邊界要獨立保存（不能把identity0塞既有legacyproof），lookup→existingquery+boundary也需保留且freeze/verification覆盖；新schema而非改已發布15。再接自有明確include/exclude優先的基線分類、批次提交及最終發布。原庫baseline只有自有rule行號>=1的格式，需獨立family/reason合同。
