@@ -59,8 +59,24 @@ func executionModeFence(ctx context.Context, tx pgx.Tx, l domain.JobLease, famil
 	if !family {
 		return ignoreManifestFence(ctx, tx, l)
 	}
-	current, epoch, _, err := comparisonModeFence(ctx, tx, l, true)
-	return current, epoch, err
+	current, epoch, err := legacyManifestFence(ctx, tx, l)
+	if err != nil {
+		return current, 0, err
+	}
+	var valid bool
+	err = tx.QueryRow(ctx, `SELECT
+ NOT EXISTS(SELECT 1 FROM job_ignore_manifests WHERE job_id=$1::uuid AND (invalidated OR inventory_generation<>$2))
+ AND NOT EXISTS(SELECT 1 FROM job_ignore_legacy_manifests WHERE job_id=$1::uuid AND (invalidated OR inventory_generation<>$2))
+ AND NOT EXISTS(SELECT 1 FROM job_ignore_comparisons c JOIN jobs j ON j.id=c.job_id JOIN libraries b ON b.id=j.library_id WHERE c.job_id=$1::uuid AND (c.inventory_generation<>$2 OR c.baseline_revision<>b.inventory_baseline_revision))
+ AND (NOT EXISTS(SELECT 1 FROM job_ignore_comparisons WHERE job_id=$1::uuid) OR
+ (EXISTS(SELECT 1 FROM job_ignore_manifests WHERE job_id=$1::uuid) AND EXISTS(SELECT 1 FROM job_ignore_legacy_manifests WHERE job_id=$1::uuid)))`, l.Job.ID, epoch).Scan(&valid)
+	if err != nil {
+		return current, 0, storageError(err)
+	}
+	if !valid {
+		return current, 0, domain.ErrInventoryInvalidated
+	}
+	return current, epoch, nil
 }
 
 func (s *Store) readIgnoreRoot(ctx context.Context, l domain.JobLease, rootID string, family bool) (string, error) {

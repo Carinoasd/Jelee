@@ -31,14 +31,32 @@ func (r *Runner) execute(ctx context.Context, l domain.JobLease) (result error, 
 		return r.executeStages(ctx, l, false)
 	}
 	var request *domain.IgnoreRequest
-	err := r.ignoreDB(ctx, func(c context.Context) error { var e error; request, e = repository.ReadIgnoreRequest(c, l); return e })
+	err := r.ignoreDB(ctx, func(c context.Context) error {
+		var e error
+		request, e = func() (*domain.IgnoreRequest, error) {
+			if reader, ok := r.repository.(app.ExecutionIgnoreRequestReader); ok {
+				return reader.ReadExecutionIgnoreRequest(c, l)
+			}
+			return repository.ReadIgnoreRequest(c, l)
+		}()
+		return e
+	})
 	if err != nil {
 		return err, true
 	}
 	if request == nil {
 		return r.executeStages(ctx, l, false)
 	}
-	if r.options.Ignore == nil || domain.ValidateIgnoreRequest(*request) != nil || request.JobID != l.Job.ID || request.LibraryID != l.Job.LibraryID {
+	if request.JobID != l.Job.ID || request.LibraryID != l.Job.LibraryID {
+		return domain.ErrIgnoreUnavailable, false
+	}
+	if request.Intent.Mode == domain.IgnoreModeFamily {
+		if r.options.FamilyIgnore == nil || domain.ValidateFamilyIgnoreRequest(*request) != nil {
+			return domain.ErrIgnoreUnavailable, false
+		}
+		return r.executeFamilyIgnore(ctx, l, *request)
+	}
+	if r.options.Ignore == nil || domain.ValidateIgnoreRequest(*request) != nil {
 		return domain.ErrIgnoreUnavailable, false
 	}
 	return r.executeIgnore(ctx, l, *request)
@@ -218,11 +236,22 @@ func (r *Runner) executeIgnoreInventory(ctx context.Context, l domain.JobLease, 
 func (r *Runner) finishJob(ctx context.Context, l domain.JobLease, state, code string) error {
 	if state == domain.JobSucceeded {
 		if repo, ok := r.repository.(app.IgnoreExecutionRepository); ok {
-			request, err := repo.ReadIgnoreRequest(ctx, l)
+			request, err := func() (*domain.IgnoreRequest, error) {
+				if reader, ok := r.repository.(app.ExecutionIgnoreRequestReader); ok {
+					return reader.ReadExecutionIgnoreRequest(ctx, l)
+				}
+				return repo.ReadIgnoreRequest(ctx, l)
+			}()
 			if err != nil {
 				return err
 			}
 			if request != nil {
+				if request.Intent.Mode == domain.IgnoreModeFamily {
+					if r.options.FamilyIgnore == nil || domain.ValidateFamilyIgnoreRequest(*request) != nil {
+						return domain.ErrIgnoreUnavailable
+					}
+					return r.options.FamilyIgnore.Repository.FinishFamilyIgnoreJob(ctx, l)
+				}
 				if r.options.Ignore == nil {
 					return domain.ErrIgnoreUnavailable
 				}

@@ -590,3 +590,17 @@ PR46 兩 PostgreSQL、foundation 與三平台 run-tests 全部通過；完整品
 真實 PG race family-execution-dispatch 16 頂層 pass、0fail0skip，43.674 秒，sourceUnchanged=true；Windows 相關五包、全 vet、三 build 通過；Linux原生 race domain/app/scan/architecture 全 pass。完整 PG race 已啟動，exec session66532，mode family-worker-contract-full，請持續 poll 同一 handle，不可因觀察超時重跑。來源在完整回歸結束前不可修改。CodeQL 修復提交24e0128ce9已推PR46，run36860057857仍進行中。
 
 完整 PG race family-worker-contract-full 已結束：242 頂層 pass、0 fail、0 skip，351.415 秒，sourceUnchanged=true。exec66532及Linux90722都已結束，沒有本機測試 handle。下一步 requireMetadataInventory 仍以 loadIgnoreRequest 拒絕 family，需改明確模式讀取並檢查完成 comparison/epoch/revision 與兩manifest有效；runner需 family 選項、啟動依賴檢查、明確 capability及dispatch，保持舊 fake repository/test相容與閉鎖。尚未接 worker，不能稱正式整合完成。
+
+### 舊階段分支清理
+
+使用者要求清除多餘分支。已逐一核對45個 feat/jelee-* 與 fix/jelee-* 舊階段分支（排除目前 worker）：相對 origin/master 沒有獨有非merge提交，git merge-tree 的合併結果與主線 tree 完全相同。已保留完整 .testdata/jelee-branches-before-cleanup.bundle 及 .testdata/branch-cleanup-audit.json，再 atomic push 刪除45個遠端分支，同名本機舊分支以 git branch -d 清理。驗證 origin 已無這45個分支。保留 master、目前 PR46 worker 與其他尚未整合的上游/功能分支；遠端剩32個。沒有刪除任何提交歷史或 tag。
+
+### 合併模式正式 runner 已接線（未提交）
+
+新增 jobs.FamilyIgnoreOptions/executeFamilyIgnore/executeFamilyInventory/verifyFamilyStream，dispatch 以 ReadExecutionIgnoreRequest 明確辨識，成功終態走 FinishFamilyIgnoreJob。三路分頁使用不同 token，128/16/16 限制，unknown 保留 review-only。New 要求 root repository 同時支援舊模式及 family 完整合同，拒絕普通 inventory fallback。domain.ScanCapabilities 新增 FamilyIgnore，ClaimJobWithCapabilities SQL 以獨立能力檢查精確tuple，原模式不能互相認領。requireMetadataInventory 以私有模式讀取，family 要兩manifest有效、generation/完成分類/revision全部成立。
+
+原生首輪 family-runner-native：1pass、2fail（新任務 ReadFamilyProgress 先要求 manifest 存在）；第二輪字串替換未匹配換行，來源未改，仍1pass2fail。修正 executionModeFence 初始狀態後 family-runner-native-start 三項 pass18.316秒。family-runner-native-faults 五項 pass20.121秒：新任務、NFO排除、resume attempts2、改.ignore後失败且baseline0、unknown保留原baseline並Review/Missing0。comparison開始後讀取仍要求兩manifest齊全與revision一致。所有第一次失败证据保留，正式代码未掩盖失敗。
+
+family-metadata-first 17頂層 pass45.982秒；新增claim/初始讀取後family-worker-fences 19pass48.282秒。完整PG race family-worker-execution-full 245頂層pass、0fail0skip339.075秒sourceUnchanged=true。Windows相關包/全vet/三build通過；Linuxjobs/domain/app/scan/architecture race全pass。完整PG後僅收緊New啟動guard，新增專項jobs測試通過；正在跑最後原生storage+worker驗收family-worker-execution-native，exec71759。CI原生regex擴為 TestFamily(IgnoreNativeStorage|RunnerNative.*)。公開提交/服務設定尚未開放，不可宣稱G22完成。CodeQL此前修復已遠端成功。
+
+最後 family-worker-execution-native 原生 storage+worker 六項通過、0fail0skip24.631秒sourceUnchanged=true；exec71759已結束。最終全vet/三build/diff檢查通過。來源與授權原文保持；接續以既有PR46推送，保留單一工作分支。所有本機測試handle已結束。friend 重複遠端已移除，origin指向Carinoasd/Jelee，upstream仍指向原始上游。

@@ -10,9 +10,10 @@ type ScanIntent struct {
 
 // Capabilities only filter claims; they do not authorize an identity or source.
 type ScanCapabilities struct {
-	Probe  bool
-	NFO    bool
-	Ignore bool
+	Probe        bool
+	NFO          bool
+	Ignore       bool
+	FamilyIgnore bool
 }
 
 func ValidateScanIntent(v ScanIntent) error {

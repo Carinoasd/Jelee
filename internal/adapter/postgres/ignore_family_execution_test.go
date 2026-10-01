@@ -4,6 +4,7 @@ import (
 	"context"
 	"github.com/MoYuanCN/Jelee/internal/domain"
 	"testing"
+	"time"
 )
 
 func TestFamilyExecutionPrivateReads(t *testing.T) {
@@ -97,5 +98,38 @@ func TestFamilyExecutionRequestDispatchRead(t *testing.T) {
 	}
 	if v, e := f2.s.ReadExecutionIgnoreRequest(f2.ctx, l2); e != context.Canceled || v != nil {
 		t.Fatal("cancelled request exposed", e)
+	}
+}
+
+func TestFamilyExecutionBeforeSources(t *testing.T) {
+	f, l, _ := legacyManifestFixture(t)
+	if p, e := f.s.ReadFamilyIgnoreProgress(f.ctx, l); e != nil || p != (domain.IgnoreExecutionProgress{}) {
+		t.Fatal("unstarted progress unavailable", e)
+	}
+	if root, e := f.s.ReadFamilyIgnoreRoot(f.ctx, l, f.registration.RootID); e != nil || root == "" {
+		t.Fatal("unstarted root unavailable", e)
+	}
+}
+
+func TestFamilyClaimCapabilities(t *testing.T) {
+	f, l, _ := legacyManifestFixture(t)
+	if err := f.s.ReleaseJob(f.ctx, l); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.s.ClaimJobWithCapabilities(f.ctx, "old-mode", false, time.Minute, domain.ScanCapabilities{Ignore: true}); err != domain.ErrNotFound {
+		t.Fatal("old mode claimed family", err)
+	}
+	if claimed, err := f.s.ClaimJobWithCapabilities(f.ctx, "family-mode", false, time.Minute, domain.ScanCapabilities{FamilyIgnore: true}); err != nil || claimed.Job.ID != l.Job.ID {
+		t.Fatal("family capability did not claim", err)
+	}
+	f2, l2, _ := manifestFixture(t)
+	if err := f2.s.ReleaseJob(f2.ctx, l2); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f2.s.ClaimJobWithCapabilities(f2.ctx, "family-mode", false, time.Minute, domain.ScanCapabilities{FamilyIgnore: true}); err != domain.ErrNotFound {
+		t.Fatal("family capability claimed old mode", err)
+	}
+	if claimed, err := f2.s.ClaimJobWithCapabilities(f2.ctx, "old-mode", false, time.Minute, domain.ScanCapabilities{Ignore: true}); err != nil || claimed.Job.ID != l2.Job.ID {
+		t.Fatal("old capability did not claim", err)
 	}
 }
