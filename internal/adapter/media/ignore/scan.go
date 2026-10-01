@@ -10,6 +10,7 @@ import (
 )
 
 type ScanEntry struct {
+	Identity         [32]byte     `json:"-"`
 	Path             string       `json:"-"`
 	Directory        bool         `json:"-"`
 	Size             int64        `json:"-"`
@@ -35,7 +36,17 @@ func (ScanBatch) GoString() string { return "ignore scan batch (data redacted)" 
 // Intermediate batches are provisional. Done is emitted only after sources
 // have been re-opened/re-hashed and all owned handles successfully closed.
 // The repository must still compare retained proofs and verify the whole scan.
-func (r *Resolver) ScanDirectory(ctx context.Context, root, relative string, options ignore.Options, emit func(ScanBatch) error) (resultErr error) {
+func (r *Resolver) ScanDirectory(ctx context.Context, root, relative string, options ignore.Options, emit func(ScanBatch) error) error {
+	return r.scanDirectory(ctx, root, relative, options, emit, false)
+}
+
+// ScanDirectoryWithChildIdentities additionally binds directory candidates for
+// another rule family's child-local lookup. The original scanner stays unchanged.
+func (r *Resolver) ScanDirectoryWithChildIdentities(ctx context.Context, root, relative string, options ignore.Options, emit func(ScanBatch) error) error {
+	return r.scanDirectory(ctx, root, relative, options, emit, true)
+}
+
+func (r *Resolver) scanDirectory(ctx context.Context, root, relative string, options ignore.Options, emit func(ScanBatch) error, childIdentities bool) (resultErr error) {
 	if ctx == nil || r == nil || r.slots == nil || emit == nil || options.Case > ignore.CaseASCIIInsensitive {
 		return ErrInvalid
 	}
@@ -204,7 +215,27 @@ func (r *Resolver) ScanDirectory(ctx context.Context, root, relative string, opt
 			if err != nil {
 				return err
 			}
-			batch.Entries = append(batch.Entries, ScanEntry{Path: name, Directory: kind == ignore.Directory, Size: entry.state.size, ModifiedUnixNano: entry.state.modifiedUnixNano, Match: match})
+			if childIdentities && kind == ignore.Directory && match.Outcome == ignore.Unmatched && entry.state.identity == (fileIdentity{}) {
+				// Windows ReadDir omits the stable file ID. Only a candidate
+				// requiring child-local legacy lookup needs this extra binding.
+				child, openErr := current.OpenDirectory(entry.name)
+				if openErr != nil {
+					return openErr
+				}
+				state, statErr := child.Stat()
+				closeErr := child.Close()
+				if statErr != nil {
+					return statErr
+				}
+				if closeErr != nil {
+					return ErrRead
+				}
+				if state.kind != nodeDirectory {
+					return ErrChanged
+				}
+				entry.state = state
+			}
+			batch.Entries = append(batch.Entries, ScanEntry{Identity: entry.state.identity, Path: name, Directory: kind == ignore.Directory, Size: entry.state.size, ModifiedUnixNano: entry.state.modifiedUnixNano, Match: match})
 		}
 		if len(batch.Entries) > 0 {
 			if err = emit(batch); err != nil {

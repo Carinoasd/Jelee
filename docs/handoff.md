@@ -390,3 +390,13 @@ PR34 run36836943917/job110286518071 的 PG 工作在 go test 預設10分鐘到�
 新增scan.MatchLegacyIgnore，最多128同query候選、完整路徑、目錄自己查規則、缺來源NoMatch與空來源BlankExclude分開；匹配後再Observe比較token，來源變動整批失效。使用實際IgnoreRunner驗證UTF16LE/NUL來源、2候選1child、Active0、暫存清空。scan TestMain新增helper dispatch，native test用!race buildtag；CI Linux無racehelper步驟新增測試/scanpackage。正式worker/兩family組合/基線接線仍未完成。
 
 Windows scan/legacyignore/helper/process/architecture與全vet/build通過。Linux原生/tmp race legacyignore1.114/helper1.375/scan1.260/arch1.222；無race原生 process.113/helper.062/scan.007秒；JIG2 fuzz 5秒231768次通過。brand new0/100、gitignore-check過。未改schema14或go.mod。CI修正Makefile/scripts make明確20m套件deadline另做一個commit，歷史PR34紅run本身不假稱綠。所有handle結束。
+
+匹配接線已提交c92ef01c5f（CI期限）與b2408e9a60（解碼/匹配），普通繁中PR35：https://github.com/MoYuanCN/Jelee/pull/35，已附聊天。現為feat/jelee-ignore-family-scan，僅此handoff未提交。已讀media/ignore/scan.go和domain/ignore_scan.go：現有ScanBatch只保存自有規則proof與RuleLine≥1類型的命中來源，legacy空檔/all-invalid的行號0、來源family、nearest query證據需明確接線；不能直接冒用舊IgnoreScanExclusion/版本。需要保留held directory identity與最終Done前重新觀察來源的合同。正式組合優先順序先核對G22原文與固定上游，不猜。native匹配已可供掃描內部调用但尚未正式啟用mode。PR35 CI尚未查；PR34其中一PG race套件10m超時，另一PGpass，本PR修正尚待遠端驗證。無活躍handle。
+
+### 合併掃描 adapter 已驗證
+
+新增 FamilyIgnoreScanner 與獨立領域批次合同。自有明確 Include/Exclude 優先，Unmatched 查最近 .ignore；此為明確記錄的新組合政策。保留兩來源目錄身份鏈、子目錄候選身份、來源證據與排除 family/reason，空/all-invalid 行號0。兩個整次掃描名額及分離 resolver 防止巢狀耗盡；共享30秒期限傳到helper。callback錯誤保留，來源變更及候選替換拒絕，取消不發批次並釋放名額。
+
+Windows scan/media-ignore/domain/architecture 通過（scan1.613秒、source1.080秒），相關 vet 通過。Linux 原生 /tmp race：source10.297、scan1.190、domain1.059、architecture1.092秒；真實非race helper0.012秒。增量品牌0違規/100合法命中，gitignore-check與diff-check通過。CI新增真實FamilyIgnoreNativeHelper項目。
+
+PR35兩PG及其餘功能CI已全部通過，僅Full branding gate失敗；20分鐘套件時限修改已有遠端通過證據。schema14未變；新掃描adapter尚未公開/worker啟用。下一步組合批次的原子保存與排除表（需新增遷移，不能改既有），再接基線/發布/worker/API。保存需批次合併legacy觀察避免DB N+1，保留失效標記且回滾不完整批次。詳見 docs/ignore-family-scan.md。無活躍測試handle。
