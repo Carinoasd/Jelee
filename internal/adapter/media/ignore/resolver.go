@@ -20,6 +20,17 @@ func (r *Resolver) Evaluate(ctx context.Context, trustedRoot, candidate string, 
 }
 
 func (r *Resolver) evaluate(ctx context.Context, root, candidate string, kind ignore.Kind, options ignore.Options, access sourceAccess) (result Observation, resultErr error) {
+	return r.evaluateSources(ctx, root, candidate, kind, options, access, false)
+}
+
+// EvaluateBaseline also permits a confirmed missing ancestor directory. It
+// reads every reachable rule before that absence and checks the absence again
+// under a freshly opened parent. It never treats an unreadable parent as absent.
+func (r *Resolver) EvaluateBaseline(ctx context.Context, root, candidate string, kind ignore.Kind, options ignore.Options) (Observation, error) {
+	return r.evaluateSources(ctx, root, candidate, kind, options, sourceAccess{openRoot: openNativeRoot, compile: ignore.Compile}, true)
+}
+
+func (r *Resolver) evaluateSources(ctx context.Context, root, candidate string, kind ignore.Kind, options ignore.Options, access sourceAccess, allowMissing bool) (result Observation, resultErr error) {
 	if ctx == nil {
 		return Observation{}, ErrInvalid
 	}
@@ -96,6 +107,7 @@ func (r *Resolver) evaluate(ctx context.Context, root, candidate string, kind ig
 	compileBytes, compileCalls, evaluateCalls := 0, 0, 0
 	parentPath := ""
 	var matched ignore.Match
+	var missing *DirectoryProof
 	for i, component := range components {
 		if err := ctx.Err(); err != nil {
 			return Observation{}, err
@@ -177,7 +189,24 @@ func (r *Resolver) evaluate(ctx context.Context, root, candidate string, kind ig
 			}
 			break
 		}
-		current, err = current.OpenDirectory(component)
+		if allowMissing {
+			parent, ok := current.(scanDirectory)
+			if !ok {
+				return Observation{}, ErrUnavailable
+			}
+			var absent bool
+			current, absent, err = parent.OpenDirectoryOrAbsent(component)
+			if err == nil && absent {
+				missing = &DirectoryProof{Directory: prefix, ParentIdentity: state.identity, MissingDirectory: true}
+				matched, err = program.Evaluate(ctx, candidate, kind)
+				if err != nil {
+					return Observation{}, err
+				}
+				break
+			}
+		} else {
+			current, err = current.OpenDirectory(component)
+		}
 		if err != nil {
 			return Observation{}, err
 		}
@@ -222,7 +251,24 @@ func (r *Resolver) evaluate(ctx context.Context, root, candidate string, kind ig
 			return Observation{}, ErrChanged
 		}
 	}
-	result = Observation{Match: matched, Diagnostics: program.Diagnostics(), token: observationToken(chain, options.Case), chain: chain}
+	if missing != nil {
+		parent, ok := current.(scanDirectory)
+		if !ok {
+			return Observation{}, ErrUnavailable
+		}
+		opened, absent, err := parent.OpenDirectoryOrAbsent(components[len(chain)-1])
+		if err != nil {
+			return Observation{}, err
+		}
+		if !absent {
+			resources = append(resources, opened)
+			return Observation{}, ErrChanged
+		}
+	}
+	result = Observation{Match: matched, Diagnostics: program.Diagnostics(), token: observationToken(chain, options.Case), chain: chain, missing: missing}
+	if missing != nil {
+		result.token = missingObservationToken(result.token, *missing)
+	}
 	if err := closeResources(); err != nil {
 		return Observation{}, err
 	}

@@ -18,6 +18,7 @@ Jelee 正在以独立 Go 服务逐步接管视频目录与原文件直投。本�
 - 纯 `.jeleeignore` 编译/匹配组件：来源行号、目录继承、父目录剪枝、固定预算及真实 Windows/Linux Git 对照；尚未接入生产扫描，见[合同](docs/ignore-matcher.md)与[验证](docs/ignore-matcher-verification.md)。
 - 忽略来源观察与编译缓存：Windows/Linux严格拒绝链接，重新读/hash与核对身份后才发布有界缓存；见[合同](docs/ignore-source.md)和[验证](docs/ignore-source-verification.md)。生产扫描、持久规则快照和忽略报告待后续接线。
 - schema 8 保存忽略模式、大小写与固定版本的扫描意图；重放/重试保持原设定。当前执行入口会拒绝启用忽略的任务，等待过滤扫描与基线比较完成后接入 worker，见[持久合同](docs/ignore-inventory.md)与[验证](docs/ignore-inventory-verification.md)。
+- 已提供舊基準缺失祖先觀察及指定來源重新觀察，工作程序待接線，見[來源重新觀察](docs/ignore-reobserve.md)。
 - 原生忽略規則列舉已使用同一目錄句柄提供身份與子項屬性，持久工作程序待接線，見[原生列舉](docs/ignore-native-scan.md)。
 - 忽略掃描已具備受有效 seal 保護的基準合併與圖片統計，實際掃描仍待接線，見[保護合併](docs/ignore-publication.md)。
 - schema 11 加入來源最終復核、固定驗證期限與租約 seal；實際過濾掃描仍待接線，見[來源復核](docs/ignore-verification.md)。

@@ -1,0 +1,109 @@
+{
+  "baseCommit": "4eb2d539953588700d254b4533c9008987c0ea72",
+  "native": {
+    "goVersion": "1.27.1",
+    "registeredCompiler": [
+      {
+        "name": "wsl-gcc-external-linker-driver",
+        "version": "15.2.0-16ubuntu1",
+        "sha256": "b5f1b773a7c733738352000c92a077dc5852a1a2fc6d836b1e411be1e9ec5f88"
+      },
+      {
+        "name": "wsl-binutils-external-linker",
+        "version": "2.46-3ubuntu2",
+        "sha256": "97f48d93b8b076a92d2809ec29dcb17f0f37c8827358f832255e2ed22fef6075"
+      }
+    ],
+    "sourceFiles": {
+      "go.mod": "0c1171a9aea0c0717bcea52719d1e2cb579918c36eb7b2c50222131d513d55e5",
+      "go.sum": "774034b85a77eba95b6b74e435864d8e31ca1d06a19862a7210d072f9ba9cfd3",
+      "internal/platform/ignore/bench_test.go": "40dde74cfefb26259d6ff9295dff9f1a0f962e0e47b73314c2cac7d3325d4aec",
+      "internal/platform/ignore/compile.go": "9871185747a55169d0e8e44d2541adc467c411871a10da6552f3b4229c2d0a9e",
+      "internal/platform/ignore/contract_test.go": "141a4ca9d54d0d847a6ea6b80962759fd742fc69265129ffecbc5d8602bf4d16",
+      "internal/platform/ignore/decode.go": "295ab4fdd884f3b2ba506088791fa4766d05c68d10252efeb25506da6614f244",
+      "internal/platform/ignore/decode_test.go": "aa8ca2305141951d34280c8849eeb2923ab6a9af93786db6ed951b1c9afc646d",
+      "internal/platform/ignore/evaluate.go": "181663cd227297207364d4756e8e68ad0d8c16e6271c5da3bedecbcc6db3cf1b",
+      "internal/platform/ignore/fuzz_test.go": "a042799e61d66ec104a1256e8d01f5a783e1f774842857de38d88688736837c0",
+      "internal/platform/ignore/ignore.go": "9722a3afc517a7a36eb4ac3e5809c8d38e2d0a4478123badfbbb98fb5d1dde95",
+      "internal/platform/ignore/limits_test.go": "173d528976253922ed28aff5bfbf1e8fc7d4f5185e20171611ba73612167ba06",
+      "internal/platform/ignore/match.go": "99c170f69456da7b571f0d70d1ee824d5ebe5c503aa3e7d01353b1705e4a36fb",
+      "internal/platform/ignore/oracle_test.go": "5398c1142297db63515e837ca684b63af92e5b1d5ca5e422b5ca2dd2820e41f7",
+      "internal/platform/ignore/semantics_test.go": "5df5c9a2cdc5bea570fd73c0d965bdf0b41af9de64a5ca5d6a4bd7aa4f331ecd",
+      "internal/adapter/media/ignore/benchmark_test.go": "f5075d95aa147cea37804b50ee182409acee73f340ba0d563cd91e3bcfe0e970",
+      "internal/adapter/media/ignore/cache.go": "d859469cf1622ec2f222c31ce6d5a27714f7b3b8c9cb2f6853e1066bfb3e0e2f",
+      "internal/adapter/media/ignore/cache_test.go": "f21c63fb173c03f374216eb179ef5e97c71f1b58e8a85519fc95288e93a8281a",
+      "internal/adapter/media/ignore/directory.go": "63193d841827189b188276c52e31a0151745cc365f0781fa4b03e598708d2f62",
+      "internal/adapter/media/ignore/directory_linux.go": "5739d2a6c67e914f5d6d1012b8bccdd9f0d3d33886c4c7236c775619c0191187",
+      "internal/adapter/media/ignore/directory_windows.go": "6fdaeff64c127b786ca560a0a29dd93fbb4cf022c993feac6482cdd0072eabce",
+      "internal/adapter/media/ignore/files_linux.go": "5ebc5b782d6f110b1e46b1f963ca8d21e8012a9f498e586898775913c928e192",
+      "internal/adapter/media/ignore/files_native_linux_test.go": "5697128266527c6f7196661e470396242fb546c1fd897f4f2855d0b87394a4dc",
+      "internal/adapter/media/ignore/files_native_test.go": "4801b2b04d311807e04fc15855e18988e2ade9abfa5135ca0970f91feb6f0da3",
+      "internal/adapter/media/ignore/files_native_windows_test.go": "76d1e4d153b184316d5dd08ba3cfb6458636c9a2a96064e3b61c9cb51f610c4b",
+      "internal/adapter/media/ignore/files_other.go": "0a63f1c86910e68e7907e2a3e10b828203b212a30c6a2ae44c04b7b5bee3c19e",
+      "internal/adapter/media/ignore/files_windows.go": "38ce5823abf8c6e9fa7ac860b55e8565ce2300960db2c6791f90c4e34a5d6a08",
+      "internal/adapter/media/ignore/observations.go": "ca319235c344dda56ca46df5323739367c54578709214b090af346cfcb748d11",
+      "internal/adapter/media/ignore/observations_test.go": "690c8e86cc1b20a44e06ac58784be88fa94d7c4118fa6e8ad8c1b289e80d0894",
+      "internal/adapter/media/ignore/read.go": "850ce2254f24a50fc70158e066373e81cd613de96c2e56c362b5501bfefc6703",
+      "internal/adapter/media/ignore/reobserve.go": "7d6485c94420af257a404191c7b3e3cb86f37bd728ef216199fdb065bdb624ef",
+      "internal/adapter/media/ignore/reobserve_native_test.go": "7eb8f4372862edfbc82167d23b1ce90b6942e670502d94bf231dc0231629dfdd",
+      "internal/adapter/media/ignore/resolver.go": "4323f7566a1213561367dfd1db6e3cc3c7cb6c353c498f772b1853f9591730fd",
+      "internal/adapter/media/ignore/resolver_test.go": "c5eb116caf491435cfa4d6a93ed6d20d77db6affa8b90f1d0e91fff26e8afc11",
+      "internal/adapter/media/ignore/scan.go": "b6b683fdea244fbcbdb53f9694a0081fc9c6e9b7bebc5890ecb1cc828a28da41",
+      "internal/adapter/media/ignore/scan_linux_test.go": "25f915df27529eb4ab9628a29a0166a9b55cd83cdb5bb9c1317b7c9dc95f2b31",
+      "internal/adapter/media/ignore/scan_native_test.go": "c619a3033cb3fa0b8ffbe54e3832283452c15e981f08feefe5ce7f5620ade949",
+      "internal/adapter/media/ignore/source_linux_test.go": "68c686038771f38e1dc1549d2756188aea2b933b44dfe948d9cadacb56f96e67",
+      "internal/adapter/media/ignore/source_test.go": "d77b286ecc1ca421ac6e49adb1e05b8ea5b2d9247846a4a0104504be404449a6",
+      "internal/adapter/media/ignore/source_windows_test.go": "9c1f3d28406bb7defca0784bacb92c15db63ee5e726ff06d11ec137779b047c9",
+      "internal/adapter/media/ignore/types.go": "81d232de1d5df2f54b7cd0e4ae612bb39a5249bf1f9dff60616248cbad0175bb"
+    },
+    "commands": [
+      {
+        "argv": [
+          "pinned-go",
+          "test",
+          "-race",
+          "-count=1",
+          "-timeout=90s",
+          "-json",
+          "-coverprofile=<repository>/.testdata/ignore-reobserve-first-linux.cover",
+          "-run",
+          "^Test",
+          "./internal/adapter/media/ignore"
+        ],
+        "exit": 0,
+        "log": "ignore-reobserve-first-linux.jsonl",
+        "sha256": "8513fd2b0c291a315815fee63008c989f0c727e0084accccda0498c0cb1cfcf6"
+      },
+      {
+        "argv": [
+          "pinned-go",
+          "vet",
+          "./internal/adapter/media/ignore"
+        ],
+        "exit": 0,
+        "log": "ignore-reobserve-first-linux-vet.txt",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    ],
+    "skipped": [],
+    "counters": [
+      "source_test.go:218: source_io state=cold compiles=2 fullReads=4 readBytes=4146 activeDirs=0 activeFiles=0",
+      "source_test.go:218: source_io state=warm compiles=0 fullReads=4 readBytes=4146 activeDirs=0 activeFiles=0",
+      "source_test.go:218: source_io state=middle-change compiles=1 fullReads=4 readBytes=4146 activeDirs=0 activeFiles=0"
+    ],
+    "sourceUnchanged": true,
+    "exit": 0
+  },
+  "linuxTopLevelPassed": 53,
+  "linuxCoverage": "86.8%",
+  "windows": {
+    "test": "scripts/run-go.ps1 test -count=1 ./internal/adapter/media/ignore ./internal/architecture",
+    "vet": "scripts/run-go.ps1 vet ./internal/adapter/media/ignore",
+    "exit": 0,
+    "race": false
+  },
+  "limitations": [
+    "Worker/database/API integration remains pending",
+    "No real-media acceptance in this stage"
+  ]
+}

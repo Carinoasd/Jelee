@@ -1,8 +1,13 @@
 package ignoresource
 
-// DirectoryProof describes a successfully opened directory and its fixed
-// .jeleeignore leaf. Absence means only that leaf was absent in this directory;
-// it never means that the directory or candidate file was absent.
+import (
+	"crypto/sha256"
+	"encoding/binary"
+)
+
+// DirectoryProof describes an opened directory and its fixed .jeleeignore
+// leaf, or a confirmed missing child directory under the preceding opened
+// parent. MissingDirectory carries no identity or rule fields of its own.
 //
 // These are private worker values, not public API DTOs or filesystem authority.
 // The root is named "."; all other paths are root-relative. ParentIdentity is
@@ -11,6 +16,7 @@ type DirectoryProof struct {
 	Directory        string   `json:"-"`
 	ParentIdentity   [32]byte `json:"-"`
 	Identity         [32]byte `json:"-"`
+	MissingDirectory bool     `json:"-"`
 	RulePresent      bool     `json:"-"`
 	RuleIdentity     [32]byte `json:"-"`
 	RuleSize         int64    `json:"-"`
@@ -25,6 +31,7 @@ func (DirectoryProof) GoString() string { return "ignore directory proof (data r
 // ordered root first. The resolver has re-opened and verified every element
 // before publication, even on a cache hit. It does not observe excluded
 // descendants, prove a later ReadDir uses the same handle, or seal a whole scan.
+// EvaluateBaseline can append one confirmed missing ancestor after the chain.
 // A failed or zero observation returns nil. The chain is bounded by the same
 // path-component limit as Evaluate; calling this method performs no I/O.
 func (o Observation) DirectoryProofs() []DirectoryProof {
@@ -46,5 +53,16 @@ func (o Observation) DirectoryProofs() []DirectoryProof {
 		}
 		proofs[i] = p
 	}
+	if o.missing != nil {
+		proofs = append(proofs, *o.missing)
+	}
 	return proofs
+}
+
+func missingObservationToken(prior [32]byte, p DirectoryProof) [32]byte {
+	b := append([]byte("jelee-ignore-missing-directory-v1"), prior[:]...)
+	b = binary.BigEndian.AppendUint64(b, uint64(len(p.Directory)))
+	b = append(b, p.Directory...)
+	b = append(b, p.ParentIdentity[:]...)
+	return sha256.Sum256(b)
 }

@@ -41,6 +41,7 @@ type Observation struct {
 	Diagnostics ignore.Diagnostics
 	token       [32]byte
 	chain       []directoryObservation
+	missing     *DirectoryProof
 }
 
 func (o Observation) Token() [32]byte { return o.token }
