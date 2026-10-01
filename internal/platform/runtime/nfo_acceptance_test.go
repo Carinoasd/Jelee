@@ -55,7 +55,8 @@ func (r *acceptanceNFOReader) Read(ctx context.Context, s domain.NFOSource) (app
 // Uses the production protected helper, real PostgreSQL and the production Fx
 // lifetime hook/listener. No result or operation count comes from a fake repo.
 func TestProductionNFOWorkerAcceptance(t *testing.T) {
-	withIgnore := os.Getenv("JELEE_NFO_IGNORE_ACCEPTANCE") == "true"
+	withFamily := os.Getenv("JELEE_FAMILY_IGNORE_ACCEPTANCE") == "true"
+	withIgnore := withFamily || os.Getenv("JELEE_NFO_IGNORE_ACCEPTANCE") == "true"
 	if os.Getenv("JELEE_REQUIRE_NFO_WORKER") != "true" {
 		t.Skip("NFO worker acceptance requires controlled production container")
 	}
@@ -160,7 +161,18 @@ func TestProductionNFOWorkerAcceptance(t *testing.T) {
 	if err != nil {
 		t.Fatal("stage use cases")
 	}
-	if withIgnore {
+	var ignoring *familyIgnoreService
+	if withFamily {
+		ignoring, err = newFamilyIgnoreService(ctx, true, prepareProductionFamilyIgnore)
+		if err != nil || !ignoring.Available() {
+			t.Fatal("family helper health unavailable")
+		}
+		defer ignoring.Close()
+		jobs, err = app.NewJobsWithScanStages(store, cfg.Jobs.Policy(), store, app.ScanServices{FamilyIgnoreAvailable: ignoring.Available, Probes: store, ProbeIdentity: probing.identity, ProbeCapability: probing.Capability, NFOAdmin: store, NFOQueries: store, Images: store, NFOIdentity: validation.identity, NFOAvailable: validation.Available})
+		if err != nil {
+			t.Fatal("family stage use cases")
+		}
+	} else if withIgnore {
 		jobs, err = app.NewJobsWithScanStages(store, cfg.Jobs.Policy(), store, app.ScanServices{IgnoreAvailable: func() bool { return true }, Probes: store, ProbeIdentity: probing.identity, ProbeCapability: probing.Capability, NFOAdmin: store, NFOQueries: store, Images: store, NFOIdentity: validation.identity, NFOAvailable: validation.Available})
 		if err != nil {
 			t.Fatal("ignore stage use cases")
@@ -174,7 +186,9 @@ func TestProductionNFOWorkerAcceptance(t *testing.T) {
 	options.PollInterval = 100 * time.Millisecond
 	options.Probe = &jobworker.ProbeOptions{Repository: store, Prober: probing, LeaseDuration: 30 * time.Second, MaxConcurrent: 2, Available: probing.Available, OnRuntimeUnavailable: probing.Disable}
 	options.NFO = &jobworker.NFOOptions{Repository: store, Reader: validation, MaxConcurrent: 2, Available: validation.Available, OnRuntimeUnavailable: validation.Disable}
-	if withIgnore {
+	if withFamily {
+		options.FamilyIgnore = &jobworker.FamilyIgnoreOptions{Repository: store, Scanner: scan.NewFamilyIgnoreScanner(ignoring), Available: ignoring.Available}
+	} else if withIgnore {
 		scanner := scan.NewIgnoreScanner()
 		options.Ignore = &jobworker.IgnoreOptions{Repository: store, Scanner: scanner, Observer: scanner}
 	}
@@ -183,7 +197,10 @@ func TestProductionNFOWorkerAcceptance(t *testing.T) {
 		t.Fatal("worker")
 	}
 	worker := &probeWorker{worker: runner, probe: probing, nfo: validation}
-	_, application, closed, address := testLifetime(t, worker, handler)
+	lifetime, application, closed, address := testLifetime(t, worker, handler)
+	if withFamily {
+		lifetime.closeIgnore = ignoring.Close
+	}
 	signals := application.Wait()
 	if err = application.Start(ctx); err != nil {
 		t.Fatal("Fx start")
@@ -249,6 +266,9 @@ func TestProductionNFOWorkerAcceptance(t *testing.T) {
 		body := `{"nfo":true,"probe":true}`
 		if withIgnore {
 			body = `{"nfo":true,"probe":true,"ignore":{"mode":"jeleeignore","caseMode":"sensitive"}}`
+			if withFamily {
+				body = `{"nfo":true,"probe":true,"ignore":{"mode":"jeleeignore-legacy-v1","caseMode":"sensitive"}}`
+			}
 		}
 		if json.Unmarshal(request("POST", path+"/scan", body, fmt.Sprintf("mixed-%d", round)), &job) != nil || !domain.ValidID(job.ID) {
 			t.Fatal("job admission")
@@ -276,6 +296,15 @@ func TestProductionNFOWorkerAcceptance(t *testing.T) {
 				t.Fatal("mixed ignore report differs")
 			}
 			for _, entry := range report.Entries {
+				if withFamily {
+					wantFamily := domain.IgnoreFamilyLegacy
+					if entry.Path == "ignored-video.mp4" {
+						wantFamily = domain.IgnoreFamilyCustom
+					}
+					if entry.Family != wantFamily || entry.Reason != domain.IgnoreReasonRule {
+						t.Fatal("mixed family provenance differs")
+					}
+				}
 				if entry.Source != "scan" || !strings.HasPrefix(entry.Path, "ignored-") || entry.RuleDirectory != "." || entry.RuleLine != 1 || entry.MatchedPath != entry.Path {
 					t.Fatal("mixed ignore provenance differs")
 				}
@@ -386,6 +415,9 @@ func TestProductionNFOWorkerAcceptance(t *testing.T) {
 	nfoPath, nfoBody := path+"/nfo/validate", `{}`
 	if withIgnore {
 		nfoPath, nfoBody = path+"/scan", `{"nfo":true,"ignore":{"mode":"jeleeignore","caseMode":"sensitive"}}`
+		if withFamily {
+			nfoBody = `{"nfo":true,"ignore":{"mode":"jeleeignore-legacy-v1","caseMode":"sensitive"}}`
+		}
 	}
 	var cancelled domain.Job
 	if json.Unmarshal(request("POST", nfoPath, nfoBody, "cancel-nfo"), &cancelled) != nil {

@@ -648,3 +648,11 @@ family-rescan-review 2頂層pass0fail0skip25.784秒（含既有單一模式重�
 初次編譯誤用FinishFamilyIgnoreJob参数已修正。family-recovery-native 1pass1fail26.585秒，空batch先被合法輸入驗證拒絕；改用已由原生scanner保存的合法batch，family-recovery-valid-batch 2pass0fail0skip27.588秒。最後family-recovery-regression 9頂層pass0fail0skip38.811秒sourceUnchanged=true，證據docs/evidence/ignore-family-recovery.json；WindowsPG包test/vet、incrementalbrand0/100、gitignore0、diffcheck通過。所有handles24602/69315/58581已結束。正式程式與遷移未改。
 
 同步原始來源審計的後續進度，明確最初排除並集建議已被實作的自有明确決定優先合同取代；歷史只讀審計不冒稱已執行後來測試。接續完整混合NFO/probe/images、活躍helper取消的正式服務完整鏈、規模及其他舊格式精確來源。G22維持部分完成，沿用PR46。767988527f重掃階段已推送。
+
+### 合併模式受保護混合媒體驗收
+
+test_nfo_worker.py新增JELEE_FAMILY_IGNORE_ACCEPTANCE模式，沿用1,000與100媒體、真PG／HTTP／app／Fx生命周期／正式worker／固定原生probe與ignorehelper。自有ignored-video排除與!video-*包含，舊ignored-*及video-*排除；正常影片由自有include覆蓋，三個惡意排除檔未進入cache/baseline，report精確family/reason/line/path。新Makefile target與CI必跑步驟保留family日誌摘要；原驗收不省略。
+
+兩規模全部passed/sourceUnchanged/testArtifactsCleaned。1,000三輪parse400/0/17、probe child100/0/0、圖片最後23changed/477unchanged，時間36.664/18.389/19.442秒；100三輪parse40/0/3、probe10/0/0、圖片4changed/46unchanged，4.434/2.778/3.682秒。每輪仍兩次完整讀/hash全部納入NFO（800/80次），不能稱只讀變更文件。兩規模取消恢復與SIGTERM都通過，API屏障在完成實際NFO讀取後，沒有活躍helper中途取消聲明。原合成素材/影片hash保持，僅指定fixture受控替換，UUID容器/映像/schema清理。證據docs/evidence/ignore-family-mixed.json及合同docs/ignore-family-mixed.md。
+
+本機混合exec77877與Windows全Go/vet/build/YAMLexec94698已結束；Linux runtime/jobs/architecture race已通過1.105/1.356/1.215秒，exec73628已結束，所有本機測試handles均結束。Windows probe tag與Python語法檢查通過，無Windows真PG聲明。前一正式服務版本8a28 PG/foundation/CodeQL已遠端通過，完整brand仍失敗；目前de807 CI還有PG/CodeQL在跑。接續活躍helper取消服務完整鏈、壓力穩定性與其他舊格式精確來源，G22保持部分完成。另已核對其他舊格式的公開來源，尚未找到可證明其解析語意的固定實作；目前搜尋的缺失不足以證明所有歷史版本不存在，仍不可猜實作。

@@ -783,3 +783,7 @@
 ### G22 合併模式取消與租約過期
 
 正式准入→PG→原生scanner→worker驗證復核途中取消及舊租約失效後同任務接續。舊owner不能讀取進度、保存合法批次或發布；新owner attempts2成功，取消不更新基線，原fixture保持與childActive0。原生回歸9項頂層通過、零略過。[合同與證據](ignore-family-recovery.md)。活躍helper取消的正式服務完整鏈、混合負載與規模仍待驗收。
+
+### G22 合併模式混合掃描
+
+1,000與100媒體受保護容器、正式HTTP/app/PG/worker、真實原生probe與忽略helper混合NFO/影片/圖片已驗證。包含六輪cold/warm/受控替換、兩家族優先與来源報告、惡意排除無cache/baseline、取消恢復及SIGTERM join；原素材保持與自有測試資源清理。[合同與實測](ignore-family-mixed.md)。暖掃描仍完整兩次讀/hash納入NFO，零重新解析。其他歷史格式、活躍helper服務取消及壓力穩定性仍待驗收，G22維持部分完成。

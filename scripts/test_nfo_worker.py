@@ -21,8 +21,9 @@ from test_probe_worker import source_digest as probe_source_digest
 from test_sandbox_native import select_fixtures
 
 ROOT = Path(__file__).resolve().parent.parent
-WITH_IGNORE = os.environ.get("JELEE_NFO_IGNORE_ACCEPTANCE") == "true"
-EVIDENCE_PREFIX = "ignore-worker" if WITH_IGNORE else "nfo-worker"
+WITH_FAMILY = os.environ.get("JELEE_FAMILY_IGNORE_ACCEPTANCE") == "true"
+WITH_IGNORE = WITH_FAMILY or os.environ.get("JELEE_NFO_IGNORE_ACCEPTANCE") == "true"
+EVIDENCE_PREFIX = "family-ignore-worker" if WITH_FAMILY else ("ignore-worker" if WITH_IGNORE else "nfo-worker")
 
 
 def source_digest():
@@ -79,6 +80,7 @@ def run_case(total):
     changed_nfo, changed_images = (17, 23) if total == 1000 else (3, 4)
     report = {"sourceDigest": before_source, "profile": "Linux amd64 UID65532; readonly root/media; no capabilities; no-new-privileges; 2 CPUs/768MiB/128 PIDs", "fixtureFiles": total, "fixtures": {"nfo": nfo_count, "video": video_count, "image": image_count, "invalidXML": total // 100, "semanticInvalid": total // 100, "warningFiles": total // 100, "multiEpisodeFiles": total // 100}, "rounds": []}
     report["ignoreEnabled"] = WITH_IGNORE
+    report["familyIgnoreEnabled"] = WITH_FAMILY
     transcript = ROOT / (".testdata/" + EVIDENCE_PREFIX + "-acceptance.txt")
     with transcript.open("a", encoding="utf-8") as log, tempfile.TemporaryDirectory(prefix="nfo-worker-", dir=ROOT / ".testdata") as temp:
         log.write("\nFIXTURE FILE COUNT %d\n" % total)
@@ -108,6 +110,8 @@ def run_case(total):
             if WITH_IGNORE:
                 with secret_file.open("a") as env_file:
                     env_file.write("JELEE_NFO_IGNORE_ACCEPTANCE=true\n")
+                    if WITH_FAMILY:
+                        env_file.write("JELEE_FAMILY_IGNORE_ACCEPTANCE=true\n")
             secret_file.chmod(0o600); cleanup_ready = True
             inputs = temp / "media"; inputs.mkdir()
             control = temp / "control"; control.mkdir()
@@ -123,6 +127,9 @@ def run_case(total):
                 (inputs / "ignored-video.mp4").write_bytes(b"invalid excluded video")
                 (inputs / "ignored-metadata.nfo").write_bytes(b"<movie><broken>")
                 (inputs / "ignored-image.png").write_bytes(b"invalid excluded image")
+            if WITH_FAMILY:
+                (inputs / ".jeleeignore").write_bytes(b"ignored-video.mp4\n!video-*\n")
+                (inputs / ".ignore").write_bytes(b"ignored-*\nvideo-*\n")
             before_inputs = snapshot(inputs)
             run(["docker", "run", "-d", "--name", container, "--read-only", "--network", "host", "--cap-drop", "ALL", "--security-opt", "no-new-privileges", "--memory", "768m", "--pids-limit", "128", "--cpus", "2", "--tmpfs", "/tmp:rw,noexec,nosuid,nodev,size=64m,mode=1777", "--env-file", str(secret_file), "--volume", str(inputs) + ":/media:ro", "--volume", str(control) + ":/control:ro", "--entrypoint", "/worker.test", image, "-test.v", "-test.run", "^TestProductionNFOWorkerAcceptance$", "-test.timeout", "16m"])
             deadline = time.monotonic() + 17 * 60
@@ -168,7 +175,7 @@ def run_case(total):
                 raise RuntimeError("mixed acceptance timeout")
             changed = sorted(name for name, value in before_inputs.items() if snapshot_value(inputs / name) != value)
             expected = sorted(["metadata-%04d.nfo" % n for n in range(changed_nfo)] + ["image-%04d.png" % n for n in range(changed_images)])
-            if changed != expected or len(list(inputs.iterdir())) != total + (4 if WITH_IGNORE else 0):
+            if changed != expected or len(list(inputs.iterdir())) != total + (5 if WITH_FAMILY else (4 if WITH_IGNORE else 0)):
                 raise RuntimeError("unexpected fixture mutation")
             if original_hashes != {name: digest(fixtures / name) for name in original_hashes} or before_source != source_digest():
                 raise RuntimeError("original fixtures or source changed")
