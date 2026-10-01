@@ -124,6 +124,19 @@ jobs:
           path: .testdata/ignore-family-runtime.txt
           if-no-files-found: error
           retention-days: 7
+      - name: Five-minute native ignore service sustained acceptance
+        id: ignore-sustained
+        run: make ignore-sustained-test
+      - name: Retain sustained ignore service evidence
+        if: always() && steps.ignore-sustained.outcome != 'skipped'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ignore-sustained-acceptance
+          path: |
+            .testdata/ignore-sustained-acceptance.jsonl
+            .testdata/ignore-sustained-summary.json
+          if-no-files-found: error
+          retention-days: 7
       - name: Real media scan and probe cache acceptance
         run: make bootstrap-media media-tools-verify bootstrap-runtime runtime-tools-verify fixtures probe-worker-test
       - name: Real mixed NFO, video and image incremental acceptance

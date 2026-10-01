@@ -805,3 +805,7 @@ HTTP 本機取消修復完整回歸已完成：[完整 PG race 證據](evidence/
 ### G08.7／G09.4／G13.3 跨實例工作取消
 
 新增租約受保護的只讀旗標port，既有monitor一秒讀取、不增加心跳寫入／goroutine。兩個獨立正式runtime／HTTP／PG／native helper驗收，取消897ms、Cancelled1／TimedOut0、baseline0／owner0、來源與暫存保持；10原生頂層pass。完整PG race254頂層pass；相同素材上一runner反向失敗、恢復後全通過。[合同與證據](ignore-family-remote-cancel.md)。僅完成本子集，其他需求與G22長穩／歷史格式尚未完成。
+
+### G09.4／G22.4 原生服務五分鐘穩定性
+
+同一服務固定五分鐘連續兩額度飽和／busy／活躍child取消／正常重用／temp清理，Linux5043輪、Windows9399輪，0fail／skip／timeout／active，來源保持，goroutine2→2。父Go heap抽樣3.3MiB以下，非RSS。新增必要CI步驟與證據artifact，不能縮短時長或只跑空等待。[合同與證據](ignore-family-sustained.md)。正式全伺服器／混合媒體長時間與其他歷史格式仍待驗收，G22部分完成。

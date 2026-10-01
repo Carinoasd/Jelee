@@ -708,3 +708,17 @@ Linux app/jobs/runtime/architecture race exec56618已pass1.033／1.325／1.082�
 證據docs/evidence/ignore-family-remote-cancel.json／remote-negative.json／remote-postgres.json；合同docs/ignore-family-remote-cancel.md。本階段以同分支提交推PR46，禁止merge/tag/release/force-push，無需新分支。下一步正式長穩及剩餘歷史格式固定語意，G22／全案保持部分完成。完整品牌CI仍fail，功能CI需核對最新head，不宣稱全綠。
 
 Windows最新全Go exec68614已terminal exit0；本輪所有測試handles均terminal，沒有待poll或重啟項目。最終各證據中的sourceHashes逐檔重新比對相符，LICENSE／requirements-source hash保持，增量品牌0新增／100allowed、gitignore0及diff檢查通過。
+
+### 五分鐘原生服務穩定性（尚未提交）
+
+上階段ac0a44b7b1已推PR46。改ignore_family_saturation_test.go共用短／長驗收，長驗收名字TestIgnoreServiceNativeSustainedSaturation，以明確JELEE_IGNORE_SUSTAINED_ACCEPTANCE=true執行固定5分鐘，至少100輪。每輪兩活躍child／32busy／cancel join／正常重用／temp清空，同一service不重建。每輪defer cancel，避免t.Cleanup逐輪累積；heap每64輪sample64MiB、結束GC增量16MiB／goroutine增量4，明確非RSS。Python腳本保存不覆寫證據、核對時長／全部計數／no fail/skip／sourcehash；新增Makefile PHONY target與必要CI步驟／always evidence upload。
+
+首輪Linux exec98303已terminal passed／validatedtrue，313.484秒總時間，300.023秒負載5146輪／164672busy／Started15439／Cancelled10292／Peak2／Active0／TimedOut0，heap870856→990000、peak sample3295272、goroutine2→2。首次Windows入口不支援POSIX，在0.203秒測試前失敗，紀錄保留。現在脚本Windows改接run-go.ps1／POSIX go args保持；兩平台final並行：Linux exec7897、Windows exec65111，都已確認live，必須poll相同handles，不改snapshot源碼或重啟。來源腳本連同launcher／manifest／LICENSE／需求檔有hash。Windows短native0.342秒、probe tag0.474秒及全Go exec74520已完成exit0；runtime vet／Python AST與YAML／make dry-run／diff通過。
+
+另實際找到某舊格式的官方4.8／4.9版本說明（正向文件證據，之前僅公開source缺失），線索保存.testdata/ignore-vendor-doc-discovery.json；尚無固定解析source，encoding／case／escape／否定／來源衝突仍未證明，不得用現有regex或自有語法猜實作。此線索不當作G22.2完成。下一步先取兩平台五分鐘末結果、保存final證據、更新合同／trace，核對gate後同PR46提交；再固定源碼語意或其他未完成需求。
+
+### 五分鐘兩平台最終驗收完成
+
+Linux exec7897 terminal exit0／validatedtrue，總312.061秒／負載300.022秒：5043輪／161376busy／Started15130／Cancelled10086／Peak2／Active0／TimedOut0、heap908296→970688、peak sample3339848、goroutine2→2。Windows exec65111 terminal exit0／validatedtrue，總301.406秒／負載300.025秒：9399輪／300768busy／Started28198／Cancelled18798／Peak2／Active0／TimedOut0、heap975912→1244784、peak sample3381040、goroutine2→2。全部0fail/skip/sourceUnchanged，兩份源碼hash逐檔重核相符；docs/evidence/ignore-family-sustained.json合併保存。原素材未接入測試，僅fixture字符串与owned helper temp；不能當整個server RSS／長穩。
+
+所有本輪handles均terminal。Windows short／probe tag／全Go／runtime vet、format／AST／YAML／make dry-run、增量brand0新增／100allowed、gitignore0、protected hash與diff已通過；正式worker／PG／遷移不變，不重跑既有完整PG254。本階段同分支提交推PR46，沒有新分支，禁止merge。下一步正式runtime／混合媒體長穩及歷史格式source證明；另已核對官方release最新4.10.1.0（2026-09-29），只是發布版本metadata，不是解析源碼證明，线索在.testdata/ignore-vendor-doc-discovery.json。G22與全案部分完成。

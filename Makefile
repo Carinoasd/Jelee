@@ -3,7 +3,7 @@ export PATH := $(CURDIR)/.bin:$(PATH)
 GO := $(CURDIR)/.bin/go
 PYTHON := python3
 
-.PHONY: init bootstrap bootstrap-media bootstrap-runtime runtime-tools-verify runtime-toolchain-test probe-runtime-test probe-worker-test nfo-worker-test family-ignore-worker-test ignore-oracle-test sandbox-test tools-verify media-tools-verify tools-clean fixtures fixtures-test build test test-race test-integration coverage fmt fmt-check lint toolchain-test media-toolchain-test brand-scan brand-scan-incremental gitignore-check migrate doctor
+.PHONY: ignore-sustained-test init bootstrap bootstrap-media bootstrap-runtime runtime-tools-verify runtime-toolchain-test probe-runtime-test probe-worker-test nfo-worker-test family-ignore-worker-test ignore-oracle-test sandbox-test tools-verify media-tools-verify tools-clean fixtures fixtures-test build test test-race test-integration coverage fmt fmt-check lint toolchain-test media-toolchain-test brand-scan brand-scan-incremental gitignore-check migrate doctor
 init: bootstrap
 bootstrap:
 	sh scripts/bootstrap-tools
@@ -49,6 +49,8 @@ build:
 	"$(GO)" build -trimpath -o bin/jelee-cli ./cmd/jelee-cli
 test:
 	"$(GO)" test -count=1 ./...
+ignore-sustained-test:
+	$(PYTHON) scripts/test_ignore_sustained.py
 test-race:
 	"$(GO)" test -race -count=1 -timeout=20m ./...
 test-integration:
