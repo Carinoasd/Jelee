@@ -18,3 +18,9 @@
 `make brand-scan` 扫描受跟踪与新增未忽略文本，白名单以精确文件路径配置。许可证/来源文档和扫描器规则本身有明确例外；没有给整个旧项目目录豁免。
 
 `make brand-scan-incremental` 使用 `--new`，只检查新服务目录及其文档，适合作为增量修改的检查。**完整扫描目前仍会失败，G00 的全仓库纯净性未完成。** 后续每个模块需单独替换、编译和回归后再更新该映射。
+
+## 倉庫管理與 OpenAPI 產物工作流程
+
+移除原專用 commands、issue-stale、project-automation、pull-request-conflict 工作流程：它們使用上游專用 bot／token、看板 action、聯絡網站或限定來源倉庫條件，沒有本倉庫可驗證的管理服務。這些不是服務端功能契約或 CI 測試門禁。原始檔仍可由 Git 歷史恢復。
+
+openapi-merge 保留 master／版本 push 的 OpenAPI reusable workflow 與產物生成，移除綁定上游伺服器的 SCP／SSH 發布 job。Jelee 部署與正式發布需另行驗收；未發布至其他系統。ci-tests、ci-format、ci-compat、ci-codeql-analysis、jelee 完整工作流程及 OpenAPI 生成器保持。

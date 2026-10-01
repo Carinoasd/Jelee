@@ -736,3 +736,9 @@ Windows probe tag compile／服務測試0.441秒pass，tagged runtime vet、Go�
 exec29349 terminal exit0：1,000／100 檔全部 passed，負載303.903／300.392秒、額外warm20／170輪；每輪Parse0／ProbeStarts0、read/hash800／80、images500／50 unchanged。parent heap peak3260656／3580976 bytes，goroutine13→13；cancel recovery baseline保持、SIGTERM HTTP關閉與active NFO／child／leases0。sourceDigest逐案與目前來源重核一致，原素材／影片hash保持、owned schema／container／image清理成功。證據docs/evidence/ignore-family-mixed-sustained.json。Windows全Go exec98725已terminal exit0，tag服務0.441秒／vet／三build／格式／AST／YAML通過。正式worker／PG／migration不變。
 
 本階段提交推現有PR46；公開New完整graph五分鐘與其他歷史忽略格式仍未完成，G22部分完成。分支已清47個，保留active PR46，無新分支。最新e095功能CI僅一個PG job仍running，完整品牌gate兩次fail，其餘非skipped全部success；新head須重新觀察。禁止merge／release／tag／force-push／身份設定。
+
+### 倉庫工作流程品牌清理
+
+混合媒體階段91c558dc86已推並繁中更新／附PR46，exec29349 terminal。接著移除commands／issue-stale／project-automation／pull-request-conflict四個上游專用管理workflow；openapi-merge保留原push triggers／reusable generator／openapi-head artifact，移除綁定外部伺服器的SCP／SSH發布jobs。沒有改application／migration／LICENSE或scanner allowlist。12剩餘workflow YAML合法、全部local uses可解析、8個核心CI／generator逐位元相同；protected hashes、incremental brand0／gitignore0與diff通過。full brand15278→15237，減少41，完整門禁仍fail。證據docs/evidence/workflow-brand-cleanup.json；映射docs/branding-rename-map.md。本批同PR46提交推送，不合併／不發布／不建新分支。
+
+下一步仍需清理舊品牌模組與補未完成G00–G51功能，不能把刪除不適用管理整合當應用功能完成。公開New完整graph持續負載與其他歷史ignore格式仍未完成；最新PR head CI須核對，不把pending當success。
