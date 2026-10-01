@@ -341,6 +341,9 @@ func (s *Store) FinishJob(ctx context.Context, l domain.JobLease, state, code st
 		if current.Job.CancelRequested {
 			return domain.ErrConflict
 		}
+		if err = requireNFOFinished(ctx, tx, l.Job.ID); err != nil {
+			return err
+		}
 		phase, phaseErr := loadProbePhase(ctx, tx, l.Job.ID)
 		request, requestErr := loadProbeRequest(ctx, tx, l.Job.ID)
 		if requestErr != nil {

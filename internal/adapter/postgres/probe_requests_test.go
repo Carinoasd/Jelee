@@ -470,16 +470,19 @@ func TestProbeRequestMigrationGuardAndRollbackPreserveCache(t *testing.T) {
 	}
 	preserved := probeFaultSnapshot(t, f)
 	dsn := f.s.Pool.Config().ConnString()
+	if v, dirty, err := Migrate(f.ctx, dsn, "down"); err != nil || dirty || v != 5 {
+		t.Fatal("rollback NFO cache schema", err)
+	}
 	if v, dirty, e := Migrate(f.ctx, dsn, "down"); e != nil || dirty || v != 4 {
 		t.Fatal("down005 failed")
 	}
 	if f.s.Ready(f.ctx) == nil {
-		t.Fatal("schema4 passed schema5 readiness")
+		t.Fatal("schema4 passed current readiness")
 	}
 	if preserved != probeFaultSnapshot(t, f) {
 		t.Fatal("down005 changed cache/phase/quota/catalog/jobs")
 	}
-	if v, dirty, e := Migrate(f.ctx, dsn, "up"); e != nil || dirty || v != 5 {
+	if v, dirty, e := Migrate(f.ctx, dsn, "up"); e != nil || dirty || v != SchemaVersion {
 		t.Fatal("up005 failed")
 	}
 	f.quota(t, 1, 0)

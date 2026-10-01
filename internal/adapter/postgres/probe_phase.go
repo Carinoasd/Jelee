@@ -158,7 +158,7 @@ func requireInventoryPhase(ctx context.Context, tx pgx.Tx, id string) error {
 	if begun {
 		return domain.ErrConflict
 	}
-	return nil
+	return requireNFOInventoryPhase(ctx, tx, id)
 }
 func probePrefix(ctx context.Context, tx pgx.Tx, p domain.ProbePhase, limit int) ([]probeEntry, error) {
 	rows, err := tx.Query(ctx, `SELECT i.id::text,i.root_id::text,i.path,i.kind,i.size,i.modified_unix_nano,r.path,r.probe_generation,COALESCE(m.item_id::text,''),COALESCE(it.probe_generation,0) FROM job_inventory i JOIN library_roots r ON r.id=i.root_id AND r.library_id=$2::uuid LEFT JOIN media_sources m ON m.root_id=i.root_id AND m.relative_path=i.path LEFT JOIN items it ON it.id=m.item_id WHERE i.job_id=$1::uuid AND i.kind='video' AND i.id>COALESCE(NULLIF($3,'')::uuid,'00000000-0000-0000-0000-000000000000'::uuid) AND ($4='' OR m.item_id=NULLIF($4,'')::uuid) ORDER BY i.id LIMIT $5`, p.JobID, p.LibraryID, p.Token.AfterID, p.Start.TargetItemID, limit)
