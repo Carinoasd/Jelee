@@ -16,7 +16,7 @@
 
 ## 实际交付证据
 
-第3D1B见[安全来源与缓存验证](ignore-source-verification.md)，第3D1A见[忽略匹配验证](ignore-matcher-verification.md)，第3C3C见[NFO工作流程验证](nfo-worker-verification.md)，第3C3B见[NFO快取验证](nfo-cache-verification.md)，第3C3A见[NFO来源验证](nfo-source-verification.md)，第3C2B见[worker验证](probe-worker-verification.md)，第3C2A见[快取契约验证](probe-cache-verification.md)，第3C1见[隔离探测验证](probe-verification.md)；第3A、3B1、3B2分别见[任务验证](jobs-verification.md)、[工具验证](media-tools-verification.md)、[程序/素材验证](process-verification.md)，当前编号项统计为 **4 项已完成、173 项部分完成、159 项阻塞**。第1/2阶段保留在[草稿 PR #1](https://github.com/MoYuanCN/Jelee/pull/1)，后续按用户授权每个已验证分段建立独立 PR。下面首阶段证据保留原验证范围。
+第3D1C1见[持久意图与执行守卫验证](ignore-inventory-verification.md)，源码 `b07ad3a6f20508c43b17458cd6847451ff6d68ab`；本段未启用实际过滤，G22状态不变。第3D1B见[安全来源与缓存验证](ignore-source-verification.md)，第3D1A见[忽略匹配验证](ignore-matcher-verification.md)，第3C3C见[NFO工作流程验证](nfo-worker-verification.md)，第3C3B见[NFO快取验证](nfo-cache-verification.md)，第3C3A见[NFO来源验证](nfo-source-verification.md)，第3C2B见[worker验证](probe-worker-verification.md)，第3C2A见[快取契约验证](probe-cache-verification.md)，第3C1见[隔离探测验证](probe-verification.md)；第3A、3B1、3B2分别见[任务验证](jobs-verification.md)、[工具验证](media-tools-verification.md)、[程序/素材验证](process-verification.md)，当前编号项统计为 **4 项已完成、173 项部分完成、159 项阻塞**。第1/2阶段保留在[草稿 PR #1](https://github.com/MoYuanCN/Jelee/pull/1)，后续按用户授权每个已验证分段建立独立 PR。下面首阶段证据保留原验证范围。
 
 | 证据 | 结果 | 范围 |
 | --- | --- | --- |

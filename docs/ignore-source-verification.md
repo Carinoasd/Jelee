@@ -60,3 +60,7 @@ Linux原生文件系统在非root UID下验证7种root/祖先/内外/悬空symli
 [Windows原始输出](evidence/ignore-source-windows-benchmark.txt)、[Linux原始输出](evidence/ignore-source-native-benchmark.txt)。这是小来源组件微基准；没有推算跨平台磁盘性能、完整扫描吞吐、P95、OS原生分配或进程RSS。
 
 G22.4推进为部分完成；其生产扫描失效接线仍未完成。矩阵现4已完成、173部分、159阻塞，共336项。G22.5扫描报告及安全库存比较仍待交付，本段通过不代表完整第3阶段完成。
+
+## 远端补充（2026-10-01）
+
+[PR #12 Go CI](https://github.com/MoYuanCN/Jelee/actions/runs/36804175667) 已完成：Windows/Linux foundation（包括必需 Git oracle）、PostgreSQL migration/repository/race、真实媒体 probe 与 NFO/图片混合增量验收均成功。完整品牌门禁失败，仍为 15,278 项残留、96 项允许；整体 CI 结论为 failure，不能表述为全绿。原始任务及步骤状态保存在 [CI 证据](evidence/ignore-source-ci.json)，未降低门槛或修改旧来源。
