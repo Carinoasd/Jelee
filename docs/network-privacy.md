@@ -31,3 +31,5 @@
 4. 以實際部署的客戶端核對 DNS、TLS、代理與來源連線位址；不要用 localhost 單元測試代替公網驗收。
 
 本階段完成 G11.8 指定文件與隱私聲明，並重新執行現有 Host、傳輸對端與登入限流三項回歸。可信代理已有CIDR／XFF接線；SSRF、WebSocket／完整部署漏洩矩陣尚未實現或驗收，G11整體未完成。[驗證證據](evidence/network-privacy-documentation.json)。
+
+服務端出站抓取的接線與尚未覆蓋的 SDK，見[SSRF 來源盤點](outbound-request-audit.md)。管理 CLI 的本機控制面不能套用禁止環回的抓取政策。

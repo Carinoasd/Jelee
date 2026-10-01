@@ -162,3 +162,16 @@ src/Jellyfin.Networking 與 tests/Jellyfin.Networking.Tests → src/Jelee.Networ
 - etagEncodingComment: `src/Jellyfin.LiveTv/Listings/XmlTvProgramEtag.cs`
 - etagRegressionComment: `tests/Jellyfin.LiveTv.Tests/Listings/XmlTvProgramEtagTests.cs`
 - compiledCoreAndStartupTests: `tests/Jellyfin.Server.Integration.Tests/LiveCoreRegistrationRemovalTests.cs`
+
+## G11 出站請求來源索引
+
+- namedHttpRegistration: `Jellyfin.Server/Startup.cs`
+- hostnameSocketConnect: `src/Jelee.Networking/HappyEyeballs/HttpClientExtension.cs`
+- sdkMetadataClient: `MediaBrowser.Providers/Plugins/Tmdb/TmdbClientManager.cs`
+- imageDownloader: `MediaBrowser.Providers/Manager/ProviderManager.cs`
+- packageDownloader: `Emby.Server.Implementations/Updates/InstallationManager.cs`
+- localTunerClient: `src/Jellyfin.LiveTv/TunerHosts/HdHomerun/HdHomerunHost.cs`
+- playlistClient: `src/Jellyfin.LiveTv/TunerHosts/M3uParser.cs`
+- jobsControlClient: `cmd/jelee-cli/jobs.go`
+- nfoControlClient: `cmd/jelee-cli/nfo_jobs.go`
+- dependencyVersions: `Directory.Packages.props`

@@ -1,0 +1,70 @@
+{
+  "baseCommit": "e4e8bb8529fd9c40313fd3e87bf01fadc3b9255a",
+  "status": "source-audit-only; G11.4 remains unimplemented",
+  "method": "Tracked production .go/.cs textual inventory, excluding tests/, tools/, _test.go and /testdata/. Not AST, call graph, dependency-source or runtime coverage. Matched lines are not request counts.",
+  "scannedGoFiles": 233,
+  "scannedCsFiles": 1919,
+  "summary": {
+    "goOutbound": {
+      "matchedLines": 6,
+      "matchedFiles": 2
+    },
+    "factoryClient": {
+      "matchedLines": 43,
+      "matchedFiles": 34
+    },
+    "directHandler": {
+      "matchedLines": 2,
+      "matchedFiles": 1
+    },
+    "tmdbSdk": {
+      "matchedLines": 1,
+      "matchedFiles": 1
+    }
+  },
+  "internalGoMatchedLines": 0,
+  "cliGoMatchedLines": 6,
+  "sourceIndex": "docs/branding-rename-map.md#G11 出站請求來源索引",
+  "sources": {
+    "namedHttpRegistration": "c1765623982a9f5de9bbea16aef48d72ec0b4d7777fcf6e80daf8787ca83ef72",
+    "hostnameSocketConnect": "cadf948f5c052e0e01f205ea282f591653e7416a6566430a07f5d000f959be07",
+    "sdkMetadataClient": "88b4e19a6aa2534b98d9fda699cd1fc59afbb720225d32d4c65ba988da1e4d8c",
+    "imageDownloader": "ce45e7c317afeddb32166eea4387b187fc9a6d0f3e9f59c33cdf949c220d6c55",
+    "packageDownloader": "043173537a4a75f0cbfe676571f5e96140790eae00e83c58964d1cc6a19aee31",
+    "localTunerClient": "9d358fe7c01fb27b5b946f639403e797262a67c4d31321506c05fb025bd12e4d",
+    "playlistClient": "42f683bee054331d840c10a09cc3378ef8025d9d04b2ff5f88248cdd4efd9cb2",
+    "jobsControlClient": "1db7a852c3934f9c03fc90d6935ca42e490a9ec14a89181448bee07c1d86bf5d",
+    "nfoControlClient": "ea1c1332df505fb99ee384a3b09304c3fd8912c065d2b043e485c21f3032fb92",
+    "dependencyVersions": "c7d55b81db4f822ef152e6a939764322c1fdafbc966d5db42e05c50103653282"
+  },
+  "protected": {
+    "LICENSE": "f371b80469fb235bc500ec29e0e85b682d4a6157a158567d828ff0be544d4f1d",
+    "docs/requirements-source.md": "755b6b32324efe710c3e1135a0c982c45b82f337e90fcb50ab3718a20cba5d07"
+  },
+  "productionModified": false,
+  "runtimeTestsRun": false,
+  "gates": {
+    "incrementalBrand": {
+      "violations": 0,
+      "allowed": 181
+    },
+    "fullBrand": {
+      "violations": 14735,
+      "allowed": 186,
+      "status": "FAIL retained"
+    },
+    "gitignoreViolations": 0,
+    "trackedProductionSourcesByteIdentical": 2152,
+    "comparison": "git ls-tree object identities compared to local Git blob hashes; avoids Windows long revision:path limitation",
+    "pendingCoreFilesByteIdentical": 5,
+    "protectedHashes": "pass",
+    "localDocumentLinks": "pass",
+    "traceability": {
+      "done": 4,
+      "partial": 176,
+      "blocked": 156
+    },
+    "allowlistChanged": false,
+    "sourceIndexAdded": "10 source roles in existing audited source mapping; allowed occurrences increase by 6"
+  }
+}

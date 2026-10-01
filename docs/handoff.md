@@ -908,3 +908,11 @@ G11.8 blocked→partial（指定文檔完成，共用網路Plan的SSRF／WS／�
 另重讀G11.1原文是「相對地址或顯式PublicBaseUrl」，前幾段把PUBLIC_URL描述成必须後續功能屬過度解讀，現文檔及追溯已修正，保留相對路徑方案；G11.1仍partial因共用網路Plan的SSRF/WS/部署矩陣不全，336計數不變。五核心3271行刪除仍等async明確授權。
 
 CI階段增量品牌0／175允許、gitignore0、staged diff通過；完整品牌14735／180允許仍fail。六workflow保留原BOM，移除新增block後與base逐位元相同，記錄原始before／after SHA256。沒有runtime來源變更，未重跑本地產品全套測試；新head需自身CI。
+
+### G11.4 出站接線盤點與設計
+
+掃描233 Go／1919 C#正式來源，文字匹配factory43行／34檔、直接handler2行／1檔、SDK1行／1檔；internal Go出站模式0、管理CLI6行／2檔。已讀正式註冊、hostname socket、圖片／套件／tuner與SDK建構來源，发现共用factory未涵蓋SDK；CLI環回控制面必須保持。原始SDK與第三方依賴完整程式、alias／reflection／動態外掛尚未稽核；文字匹配不是完整call graph。未實作未使用client來冒充覆蓋。設計與來源證據見outbound-request-audit與specs，G11.4保持blocked，336統計4done／176partial／156blocked不變。
+
+本輪僅文件；沒有runtime／SSRF通過宣稱。後續須把受控Go client與正式抓取適配器一起接線，逐能力驗證；舊SDK不能從factory推定保護。五檔3271行直播核心仍待原async具體核准，沒有改動。e4e8 CI格式／OpenAPI通過，ABI base/head build與報告保留通過，實際Difference失敗；其他尚在執行，沒有合併。
+
+出站盤點最終增量品牌0／181既有允許，完整14735／186仍fail，gitignore0；來源索引新增10角色令既有允許匹配增加6，沒有修改掃描allowlist。2152正式來源與待核准核心五檔Git blob核對不變、保護hash、文件連結與336統計核對通過；初始逐檔git show受Windows長revision:path限制失敗，改用一次ls-tree與本機blob hash完成，沒有更改Git設定。本輪沒有runtime source變更或test。

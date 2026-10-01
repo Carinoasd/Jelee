@@ -148,3 +148,7 @@ DTO單層解耦及兩份既有測試建構參數更新，14項回歸與完整Deb
 ## CI並行控制與舊執行清理
 
 [CI來源與實際清理](ci-concurrency.md)：六份YAML欄位保留、17個舊run取消確認、兩個自然終止，最新head保護。排程改善不表示門禁通過，新head須另驗CI。
+
+## G11.4 出站來源盤點
+
+[盘点與設計](outbound-request-audit.md)已核對正式來源接線與10角色來源hash，範圍為文字稽核；沒有產品改動或runtime安全驗收。G11.4尚未實作，狀態與總計不提升。最終文件門禁見[證據](evidence/outbound-request-audit.json)。
