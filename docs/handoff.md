@@ -578,3 +578,7 @@ family-publication-full 真實 PostgreSQL race 239 頂層通過、0 fail、0 ski
 ### 原倉庫所有權轉移完成（取代上段搬移安排）
 
 使用者刪除剛建立的獨立倉庫後，原 MoYuanCN/Jelee 已正式轉移為 Carinoasd/Jelee。已查證 Carinoasd 為 ADMIN、MoYuanCN 為 WRITE。origin 現在指向轉入的原倉庫，原 PR/歷史保留；先前獨立倉庫的 PR1 已不存在，不可當作本次工作連結。主分支仍為 1021996de3，最新私有讀取提交 c7b8e21e5b 比主分支多一個提交，完整備份保留於 .testdata/jelee-before-repository-delete.bundle。接續將該分支補回轉入的倉庫。
+
+### PR46 CI 安全分析修復
+
+PR46 兩 PostgreSQL、foundation 與三平台 run-tests 全部通過；完整品牌仍失敗。CodeQL run 36855765109 的 C# Debug autobuild 因兩處測試 XML 反序列化觸發 CA5369 失敗。已將兩處改為 XmlReader，明確 DTD Prohibit 與 XmlResolver=null，未改安全分析設定或正式遷移。初次本機驗證因新增多餘 EOF 換行觸發 SA1518，修正檔尾後 .NET 10.0.400 Debug 相關測試 4 pass、0 fail、0 skip（529ms），編譯含安全分析通過。下一步推至既有 PR46，等待遠端 CodeQL 結果；worker request/dispatch/claim 仍待整合。
