@@ -9,8 +9,19 @@ import (
 )
 
 var _ app.IgnoreExecutionRepository = (*Store)(nil)
+var _ app.FamilyIgnoreExecutionRepository = (*Store)(nil)
 
 func (s *Store) ReadIgnoreRequest(ctx context.Context, l domain.JobLease) (*domain.IgnoreRequest, error) {
+	return s.readExecutionIgnoreRequest(ctx, l, false)
+}
+
+// ReadExecutionIgnoreRequest identifies retained modes for explicit dispatch.
+// Reading a request does not grant claim or public admission capability.
+func (s *Store) ReadExecutionIgnoreRequest(ctx context.Context, l domain.JobLease) (*domain.IgnoreRequest, error) {
+	return s.readExecutionIgnoreRequest(ctx, l, true)
+}
+
+func (s *Store) readExecutionIgnoreRequest(ctx context.Context, l domain.JobLease, familyAllowed bool) (*domain.IgnoreRequest, error) {
 	tx, err := s.jobTransaction(ctx)
 	if err != nil {
 		return nil, err
@@ -23,7 +34,7 @@ func (s *Store) ReadIgnoreRequest(ctx context.Context, l domain.JobLease) (*doma
 	if current.Job.CancelRequested {
 		return nil, context.Canceled
 	}
-	request, err := loadIgnoreRequest(ctx, tx, l.Job.ID)
+	request, err := loadExecutionIgnoreRequest(ctx, tx, l.Job.ID, familyAllowed)
 	if err != nil {
 		return nil, err
 	}

@@ -74,3 +74,28 @@ func TestFamilyExecutionPrivateReadFences(t *testing.T) {
 		})
 	}
 }
+
+func TestFamilyExecutionRequestDispatchRead(t *testing.T) {
+	f, l, _ := legacyManifestFixture(t)
+	r, err := f.s.ReadExecutionIgnoreRequest(f.ctx, l)
+	if err != nil || r == nil || domain.ValidateFamilyIgnoreRequest(*r) != nil || r.JobID != l.Job.ID || r.LibraryID != l.Job.LibraryID {
+		t.Fatal("retained request unavailable", err)
+	}
+	if v, e := f.s.ReadIgnoreRequest(f.ctx, l); e != domain.ErrConflict || v != nil {
+		t.Fatal("old reader accepted family", e)
+	}
+	l.Generation++
+	if v, e := f.s.ReadExecutionIgnoreRequest(f.ctx, l); e != domain.ErrJobLeaseLost || v != nil {
+		t.Fatal("stale request exposed", e)
+	}
+	f2, l2, _ := manifestFixture(t)
+	if v, e := f2.s.ReadExecutionIgnoreRequest(f2.ctx, l2); e != nil || v == nil || domain.ValidateIgnoreRequest(*v) != nil {
+		t.Fatal("old request unavailable", e)
+	}
+	if _, e := f2.s.Pool.Exec(f2.ctx, `UPDATE jobs SET cancel_requested=true WHERE id=$1::uuid`, l2.Job.ID); e != nil {
+		t.Fatal(e)
+	}
+	if v, e := f2.s.ReadExecutionIgnoreRequest(f2.ctx, l2); e != context.Canceled || v != nil {
+		t.Fatal("cancelled request exposed", e)
+	}
+}

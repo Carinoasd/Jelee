@@ -582,3 +582,11 @@ family-publication-full 真實 PostgreSQL race 239 頂層通過、0 fail、0 ski
 ### PR46 CI 安全分析修復
 
 PR46 兩 PostgreSQL、foundation 與三平台 run-tests 全部通過；完整品牌仍失敗。CodeQL run 36855765109 的 C# Debug autobuild 因兩處測試 XML 反序列化觸發 CA5369 失敗。已將兩處改為 XmlReader，明確 DTD Prohibit 與 XmlResolver=null，未改安全分析設定或正式遷移。初次本機驗證因新增多餘 EOF 換行觸發 SA1518，修正檔尾後 .NET 10.0.400 Debug 相關測試 4 pass、0 fail、0 skip（529ms），編譯含安全分析通過。下一步推至既有 PR46，等待遠端 CodeQL 結果；worker request/dispatch/claim 仍待整合。
+
+### worker 請求辨識與完整依賴合同（未提交）
+
+新增 domain.ValidateFamilyIgnoreRequest 與 IgnoreFamilyProofVersion，明確檢查 ID/case/mode/版本配對；原 ValidateIgnoreIntent/Request 不放寬。loadIgnoreRequest 委派私有 loadExecutionIgnoreRequest(familyAllowed=false)，新 ReadExecutionIgnoreRequest 才接受兩種已知保留合同，沿用 fencedJob/cancel/最後 guardedJobUpdate。新增 FamilyIgnoreExecutionRepository 與 FamilyIgnoreScanner app ports，Store 與原生適配器都有編譯斷言；三路重新觀察委派既有 bounded observer，尚未修改 runner/claim/public admission。
+
+真實 PG race family-execution-dispatch 16 頂層 pass、0fail0skip，43.674 秒，sourceUnchanged=true；Windows 相關五包、全 vet、三 build 通過；Linux原生 race domain/app/scan/architecture 全 pass。完整 PG race 已啟動，exec session66532，mode family-worker-contract-full，請持續 poll 同一 handle，不可因觀察超時重跑。來源在完整回歸結束前不可修改。CodeQL 修復提交24e0128ce9已推PR46，run36860057857仍進行中。
+
+完整 PG race family-worker-contract-full 已結束：242 頂層 pass、0 fail、0 skip，351.415 秒，sourceUnchanged=true。exec66532及Linux90722都已結束，沒有本機測試 handle。下一步 requireMetadataInventory 仍以 loadIgnoreRequest 拒絕 family，需改明確模式讀取並檢查完成 comparison/epoch/revision 與兩manifest有效；runner需 family 選項、啟動依賴檢查、明確 capability及dispatch，保持舊 fake repository/test相容與閉鎖。尚未接 worker，不能稱正式整合完成。

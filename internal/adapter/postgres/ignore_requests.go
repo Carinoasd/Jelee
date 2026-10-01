@@ -11,6 +11,10 @@ import (
 // The jobs bit survives a missing request. Neither half may turn an enabled
 // job into an unfiltered scan when the retained state is inconsistent.
 func loadIgnoreRequest(ctx context.Context, tx pgx.Tx, id string) (*domain.IgnoreRequest, error) {
+	return loadExecutionIgnoreRequest(ctx, tx, id, false)
+}
+
+func loadExecutionIgnoreRequest(ctx context.Context, tx pgx.Tx, id string, familyAllowed bool) (*domain.IgnoreRequest, error) {
 	var requested bool
 	var library string
 	if err := tx.QueryRow(ctx, `SELECT ignore_requested,library_id::text FROM jobs WHERE id=$1::uuid`, id).Scan(&requested, &library); err != nil {
@@ -27,7 +31,8 @@ func loadIgnoreRequest(ctx context.Context, tx pgx.Tx, id string) (*domain.Ignor
 	if err != nil {
 		return nil, storageError(err)
 	}
-	if !requested || r.LibraryID != library || domain.ValidateIgnoreRequest(r) != nil {
+	valid := domain.ValidateIgnoreRequest(r) == nil || familyAllowed && domain.ValidateFamilyIgnoreRequest(r) == nil
+	if !requested || r.LibraryID != library || !valid {
 		return nil, domain.ErrConflict
 	}
 	return &r, nil
