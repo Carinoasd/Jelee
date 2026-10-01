@@ -21,6 +21,8 @@ from test_probe_worker import source_digest as probe_source_digest
 from test_sandbox_native import select_fixtures
 
 ROOT = Path(__file__).resolve().parent.parent
+WITH_IGNORE = os.environ.get("JELEE_NFO_IGNORE_ACCEPTANCE") == "true"
+EVIDENCE_PREFIX = "ignore-worker" if WITH_IGNORE else "nfo-worker"
 
 
 def source_digest():
@@ -76,7 +78,8 @@ def run_case(total):
     nfo_count, video_count, image_count = total * 4 // 10, total // 10, total // 2
     changed_nfo, changed_images = (17, 23) if total == 1000 else (3, 4)
     report = {"sourceDigest": before_source, "profile": "Linux amd64 UID65532; readonly root/media; no capabilities; no-new-privileges; 2 CPUs/768MiB/128 PIDs", "fixtureFiles": total, "fixtures": {"nfo": nfo_count, "video": video_count, "image": image_count, "invalidXML": total // 100, "semanticInvalid": total // 100, "warningFiles": total // 100, "multiEpisodeFiles": total // 100}, "rounds": []}
-    transcript = ROOT / ".testdata/nfo-worker-acceptance.txt"
+    report["ignoreEnabled"] = WITH_IGNORE
+    transcript = ROOT / (".testdata/" + EVIDENCE_PREFIX + "-acceptance.txt")
     with transcript.open("a", encoding="utf-8") as log, tempfile.TemporaryDirectory(prefix="nfo-worker-", dir=ROOT / ".testdata") as temp:
         log.write("\nFIXTURE FILE COUNT %d\n" % total)
         temp = Path(temp)
@@ -102,6 +105,9 @@ def run_case(total):
             run(["docker", "build", "--network", "none", "-t", image, str(temp)])
             # No secrets or media were present in the derived build context.
             secret_file.write_text("JELEE_TEST_DATABASE_URL=" + dsn + "\nJELEE_REQUIRE_NFO_WORKER=true\nJELEE_PROBE_TEST_SCHEMA=" + schema + "\nJELEE_NFO_FIXTURE_FILES=" + str(total) + "\n")
+            if WITH_IGNORE:
+                with secret_file.open("a") as env_file:
+                    env_file.write("JELEE_NFO_IGNORE_ACCEPTANCE=true\n")
             secret_file.chmod(0o600); cleanup_ready = True
             inputs = temp / "media"; inputs.mkdir()
             control = temp / "control"; control.mkdir()
@@ -112,6 +118,11 @@ def run_case(total):
                 (inputs / ("metadata-%04d.nfo" % n)).write_bytes(nfo_bytes(n, nfo_count))
             for n in range(image_count):
                 (inputs / ("image-%04d.png" % n)).write_bytes(png(1))
+            if WITH_IGNORE:
+                (inputs / ".jeleeignore").write_bytes(b"ignored-*\n")
+                (inputs / "ignored-video.mp4").write_bytes(b"invalid excluded video")
+                (inputs / "ignored-metadata.nfo").write_bytes(b"<movie><broken>")
+                (inputs / "ignored-image.png").write_bytes(b"invalid excluded image")
             before_inputs = snapshot(inputs)
             run(["docker", "run", "-d", "--name", container, "--read-only", "--network", "host", "--cap-drop", "ALL", "--security-opt", "no-new-privileges", "--memory", "768m", "--pids-limit", "128", "--cpus", "2", "--tmpfs", "/tmp:rw,noexec,nosuid,nodev,size=64m,mode=1777", "--env-file", str(secret_file), "--volume", str(inputs) + ":/media:ro", "--volume", str(control) + ":/control:ro", "--entrypoint", "/worker.test", image, "-test.v", "-test.run", "^TestProductionNFOWorkerAcceptance$", "-test.timeout", "16m"])
             deadline = time.monotonic() + 17 * 60
@@ -157,7 +168,7 @@ def run_case(total):
                 raise RuntimeError("mixed acceptance timeout")
             changed = sorted(name for name, value in before_inputs.items() if snapshot_value(inputs / name) != value)
             expected = sorted(["metadata-%04d.nfo" % n for n in range(changed_nfo)] + ["image-%04d.png" % n for n in range(changed_images)])
-            if changed != expected or len(list(inputs.iterdir())) != total:
+            if changed != expected or len(list(inputs.iterdir())) != total + (4 if WITH_IGNORE else 0):
                 raise RuntimeError("unexpected fixture mutation")
             if original_hashes != {name: digest(fixtures / name) for name in original_hashes} or before_source != source_digest():
                 raise RuntimeError("original fixtures or source changed")
@@ -189,9 +200,9 @@ def run_case(total):
 
 def main():
     (ROOT / ".testdata").mkdir(exist_ok=True)
-    (ROOT / ".testdata/nfo-worker-acceptance.txt").write_text("")
+    (ROOT / (".testdata/" + EVIDENCE_PREFIX + "-acceptance.txt")).write_text("")
     report = {"cases": [run_case(1000), run_case(100)], "result": "passed"}
-    (ROOT / ".testdata/nfo-worker-summary.json").write_text(json.dumps(report, indent=2) + "\n")
+    (ROOT / (".testdata/" + EVIDENCE_PREFIX + "-summary.json")).write_text(json.dumps(report, indent=2) + "\n")
     print(json.dumps({"result": "passed", "fixtureFiles": [1000, 100], "SIGTERMJoined": True, "testArtifactsCleaned": True}), flush=True)
 
 

@@ -23,6 +23,7 @@ func TestIgnoreRunnerNativeClaimAndPublish(t *testing.T) { runIgnoreRunnerNative
 func TestIgnoreRunnerNativeNFO(t *testing.T)             { runIgnoreRunnerNative(t, true, "") }
 func TestIgnoreRunnerNativeResume(t *testing.T)          { runIgnoreRunnerNative(t, false, "resume") }
 func TestIgnoreRunnerNativeChangedSource(t *testing.T)   { runIgnoreRunnerNative(t, false, "changed") }
+func TestIgnoreRunnerUnknownReview(t *testing.T)         { runIgnoreRunnerNative(t, false, "unknown") }
 func runIgnoreRunnerNative(t *testing.T, withNFO bool, mode string) {
 	if runtime.GOOS == "linux" {
 		t.Setenv("TMPDIR", "/tmp")
@@ -39,6 +40,13 @@ func runIgnoreRunnerNative(t *testing.T, withNFO bool, mode string) {
 		}
 	}
 	var job domain.Job
+	var beforeUnknown string
+	if mode == "unknown" {
+		f.complete(t, "old-baseline", []string{"skip.tmp"}, 0)
+		if err := f.s.Pool.QueryRow(f.ctx, `SELECT jsonb_agg(to_jsonb(b) ORDER BY root_id,path)::text FROM library_inventory_baseline b WHERE library_id=$1::uuid`, f.registration.Library.ID).Scan(&beforeUnknown); err != nil {
+			t.Fatal(err)
+		}
+	}
 	if withNFO {
 		for name, data := range map[string]string{"keep.nfo": "<movie><title>kept</title></movie>", "excluded.nfo": "<movie><broken>"} {
 			if err := os.WriteFile(filepath.Join(root, name), []byte(data), 0600); err != nil {
@@ -94,6 +102,9 @@ func runIgnoreRunnerNative(t *testing.T, withNFO bool, mode string) {
 	if mode == "changed" {
 		opts.Ignore.Observer = &changingIgnoreObserver{IgnoreBaselineObserver: scanner, root: root}
 	}
+	if mode == "unknown" {
+		opts.Ignore.Observer = unavailableIgnoreObserver{IgnoreBaselineObserver: scanner}
+	}
 	runner, err := jobs.New(f.s, scan.New(), opts, slog.New(slog.NewTextHandler(io.Discard, nil)))
 	if err != nil {
 		t.Fatal(err)
@@ -134,6 +145,29 @@ func runIgnoreRunnerNative(t *testing.T, withNFO bool, mode string) {
 			if mode == "changed" {
 				t.Fatal("changed source succeeded")
 			}
+			if mode == "unknown" {
+				if !current.ReviewRequired || current.Missing != 0 {
+					t.Fatal("unknown source became confirmed absence")
+				}
+				var after string
+				if err = f.s.Pool.QueryRow(f.ctx, `SELECT jsonb_agg(to_jsonb(b) ORDER BY root_id,path)::text FROM library_inventory_baseline b WHERE library_id=$1::uuid`, f.registration.Library.ID).Scan(&after); err != nil || after != beforeUnknown {
+					t.Fatal("unknown review changed accepted baseline", err)
+				}
+				report, err := f.s.GetIgnoreReport(f.ctx, f.a, job.ID, 100, "")
+				if err != nil || !report.ReviewRequired || report.Unknown != 1 {
+					t.Fatal("unknown report lost persisted result", err)
+				}
+				found := false
+				for _, e := range report.Entries {
+					if e.Source == "baseline" && e.Path == "skip.tmp" && e.Outcome == domain.IgnoreBaselineUnknown && e.Reason == domain.IgnoreUnknownSource {
+						found = true
+					}
+				}
+				if !found {
+					t.Fatal("unknown provenance missing")
+				}
+				return
+			}
 			if mode == "resume" && current.Attempts != 2 {
 				t.Fatal("job was not reclaimed")
 			}
@@ -163,6 +197,14 @@ type changingIgnoreObserver struct {
 	app.IgnoreBaselineObserver
 	root    string
 	changed bool
+}
+
+// Inject a source failure at the observer port after real native inventory.
+// This checks worker/DB/publication behavior, not blocked OS I/O semantics.
+type unavailableIgnoreObserver struct{ app.IgnoreBaselineObserver }
+
+func (unavailableIgnoreObserver) EvaluateIgnoreBaseline(context.Context, string, domain.IgnoreBaselineCandidate, domain.IgnoreIntent) (domain.IgnoreBaselineDecision, []domain.IgnoreDirectoryProof, error) {
+	return domain.IgnoreBaselineDecision{}, nil, domain.ErrIgnoreUnavailable
 }
 
 func (o *changingIgnoreObserver) ReobserveIgnoreProof(ctx context.Context, root string, p domain.IgnoreDirectoryProof) (domain.IgnoreDirectoryProof, error) {

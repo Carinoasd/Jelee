@@ -230,3 +230,15 @@ PG報告測試補真實users降權與sessions撤銷：已取得的nextCursor不�
 rescan-first三次Linux PG race通過；最終rescan-removal四次Linux PG race通過，1頂層/零skip/18.761秒/sourceUnchanged=true。Windows PG編譯test與vet通過（無DSN非整合證據）；diff --check通過。僅測試與文件改動，不需重跑前階段完整185項；無production或migration改動。證據docs/evidence/ignore-rescan.json，說明docs/ignore-rescan.md。全部handle結束。PR26目前品牌fail，部分功能CI已過、其餘仍pending，未看到功能失敗。
 
 本小段準備普通繁中PR，base feat/jelee-ignore-api。下一段繼續mixed external probe真媒體與worker取消/unknown端到端；legacy兼容需沿既有來源審計，不得猜測語義。
+
+重掃驗收已提交68a1c8f627，推送普通繁中PR27（https://github.com/MoYuanCN/Jelee/pull/27），已附聊天。當前feat/jelee-ignore-worker-acceptance基於PR27；只有本handoff更新未提交。下一步查既有probe真媒體測試工具與runner options，完成ignore+NFO+外部probe同一工作與排除素材不進解析器；也需正式取消與unknown review測試。PR26功能CI仍需待最終結果，PR27尚未查。無活躍命令handle。
+
+### 混合正式探測與取消/unknown驗收完成
+
+scripts/test_nfo_worker.py增加JELEE_NFO_IGNORE_ACCEPTANCE=true模式，使用獨立ignore-worker證據檔，保留原NFO模式。每組1000/100素材加規則與三個排除錯誤素材。runtime/nfo_acceptance_test.go在該模式配正式IgnoreOptions與HTTP意圖，驗證三輪報告/來源與排除素材不進cache/baseline；取消/恢復/關閉也走ignore+nfo scan。
+
+受保護Docker實際兩組均通過：NFO解析400/0/17與40/0/3；外部probe100/0/0與10/0/0；圖片變更23/4；取消恢復、SIGTERM與active calls/children/leases清理通過。原素材/程式來源雜湊不變，只有控制器授權副本替換。schema/container/image均清理。可用.testdata/run-ignore-worker.py重現（會拒覆蓋既有證據）。外部case非race；PG unknown另race。
+
+ignore_runner_test.go新增unknown模式：先建立旧基線，正式native掃描後在observer port刻意回ErrIgnoreUnavailable，驗證review、missing0、舊基線json逐欄不變與unknown報告。明確只是介面故障注入，不冒充blocked filesystem I/O。worker-unknown-first Linux PG race 1頂層/零skip/17.608秒。Tagged runtime vet與Windows runtime/PG/architecture測試通過。證據docs/evidence/ignore-worker-acceptance.json，說明docs/ignore-worker-acceptance.md。所有handle結束，未改production/migration。
+
+準備普通繁中PR接PR27；下一步讀docs/ignore-source-audit.md與requirements-source的G22.2，接legacy格式精確語義實作。PR26最後檢查無功能失敗，但PG CI仍pending；品牌fail。PR27未查。全案仍active。

@@ -55,6 +55,7 @@ func (r *acceptanceNFOReader) Read(ctx context.Context, s domain.NFOSource) (app
 // Uses the production protected helper, real PostgreSQL and the production Fx
 // lifetime hook/listener. No result or operation count comes from a fake repo.
 func TestProductionNFOWorkerAcceptance(t *testing.T) {
+	withIgnore := os.Getenv("JELEE_NFO_IGNORE_ACCEPTANCE") == "true"
 	if os.Getenv("JELEE_REQUIRE_NFO_WORKER") != "true" {
 		t.Skip("NFO worker acceptance requires controlled production container")
 	}
@@ -159,6 +160,12 @@ func TestProductionNFOWorkerAcceptance(t *testing.T) {
 	if err != nil {
 		t.Fatal("stage use cases")
 	}
+	if withIgnore {
+		jobs, err = app.NewJobsWithScanStages(store, cfg.Jobs.Policy(), store, app.ScanServices{IgnoreAvailable: func() bool { return true }, Probes: store, ProbeIdentity: probing.identity, ProbeCapability: probing.Capability, NFOAdmin: store, NFOQueries: store, Images: store, NFOIdentity: validation.identity, NFOAvailable: validation.Available})
+		if err != nil {
+			t.Fatal("ignore stage use cases")
+		}
+	}
 	handler, err := httpapi.NewWithJobs(cfg, store, app.NewCatalog(store), store, logger, accounts, jobs)
 	if err != nil {
 		t.Fatal("HTTP handler")
@@ -167,6 +174,10 @@ func TestProductionNFOWorkerAcceptance(t *testing.T) {
 	options.PollInterval = 100 * time.Millisecond
 	options.Probe = &jobworker.ProbeOptions{Repository: store, Prober: probing, LeaseDuration: 30 * time.Second, MaxConcurrent: 2, Available: probing.Available, OnRuntimeUnavailable: probing.Disable}
 	options.NFO = &jobworker.NFOOptions{Repository: store, Reader: validation, MaxConcurrent: 2, Available: validation.Available, OnRuntimeUnavailable: validation.Disable}
+	if withIgnore {
+		scanner := scan.NewIgnoreScanner()
+		options.Ignore = &jobworker.IgnoreOptions{Repository: store, Scanner: scanner, Observer: scanner}
+	}
 	runner, err := jobworker.New(store, scan.New(), options, logger)
 	if err != nil {
 		t.Fatal("worker")
@@ -235,7 +246,11 @@ func TestProductionNFOWorkerAcceptance(t *testing.T) {
 		beforeProcess := probing.processStats()
 		started := time.Now()
 		var job domain.Job
-		if json.Unmarshal(request("POST", path+"/scan", `{"nfo":true,"probe":true}`, fmt.Sprintf("mixed-%d", round)), &job) != nil || !domain.ValidID(job.ID) {
+		body := `{"nfo":true,"probe":true}`
+		if withIgnore {
+			body = `{"nfo":true,"probe":true,"ignore":{"mode":"jeleeignore","caseMode":"sensitive"}}`
+		}
+		if json.Unmarshal(request("POST", path+"/scan", body, fmt.Sprintf("mixed-%d", round)), &job) != nil || !domain.ValidID(job.ID) {
 			t.Fatal("job admission")
 		}
 		for {
@@ -255,6 +270,21 @@ func TestProductionNFOWorkerAcceptance(t *testing.T) {
 			}
 		}
 		var summary domain.NFOJobSummary
+		if withIgnore {
+			var report domain.IgnoreReport
+			if json.Unmarshal(request("GET", "/api/v1/jobs/"+job.ID+"/ignore", "", ""), &report) != nil || report.ExcludedFiles != 3 || len(report.Entries) != 3 || report.ReviewRequired || report.Invalidated {
+				t.Fatal("mixed ignore report differs")
+			}
+			for _, entry := range report.Entries {
+				if entry.Source != "scan" || !strings.HasPrefix(entry.Path, "ignored-") || entry.RuleDirectory != "." || entry.RuleLine != 1 || entry.MatchedPath != entry.Path {
+					t.Fatal("mixed ignore provenance differs")
+				}
+			}
+			var leaked int
+			if store.Pool.QueryRow(ctx, `SELECT (SELECT count(*) FROM nfo_cache WHERE relative_path LIKE 'ignored-%')+(SELECT count(*) FROM probe_cache WHERE relative_path LIKE 'ignored-%')+(SELECT count(*) FROM library_inventory_baseline WHERE path LIKE 'ignored-%')`).Scan(&leaked) != nil || leaked != 0 {
+				t.Fatal("excluded media reached metadata or baseline")
+			}
+		}
 		var probe domain.ProbeJobSummary
 		var images domain.ImageJobSummary
 		if json.Unmarshal(request("GET", "/api/v1/jobs/"+job.ID+"/nfo", "", ""), &summary) != nil || json.Unmarshal(request("GET", "/api/v1/jobs/"+job.ID+"/probe", "", ""), &probe) != nil || json.Unmarshal(request("GET", "/api/v1/jobs/"+job.ID+"/images", "", ""), &images) != nil {
@@ -353,8 +383,12 @@ func TestProductionNFOWorkerAcceptance(t *testing.T) {
 		return value
 	}
 	acceptedBaseline := baseline()
+	nfoPath, nfoBody := path+"/nfo/validate", `{}`
+	if withIgnore {
+		nfoPath, nfoBody = path+"/scan", `{"nfo":true,"ignore":{"mode":"jeleeignore","caseMode":"sensitive"}}`
+	}
 	var cancelled domain.Job
-	if json.Unmarshal(request("POST", path+"/nfo/validate", `{}`, "cancel-nfo"), &cancelled) != nil {
+	if json.Unmarshal(request("POST", nfoPath, nfoBody, "cancel-nfo"), &cancelled) != nil {
 		t.Fatal("cancel-round admission")
 	}
 	select {
@@ -387,7 +421,7 @@ func TestProductionNFOWorkerAcceptance(t *testing.T) {
 	beforeRecovery := validation.Stats()
 	beforeRecoveryProcess := probing.processStats()
 	var recovered domain.Job
-	if json.Unmarshal(request("POST", path+"/nfo/validate", `{}`, "recover-nfo"), &recovered) != nil {
+	if json.Unmarshal(request("POST", nfoPath, nfoBody, "recover-nfo"), &recovered) != nil {
 		t.Fatal("recovery admission")
 	}
 	for {
@@ -421,7 +455,7 @@ func TestProductionNFOWorkerAcceptance(t *testing.T) {
 	controlled.block.Store(true)
 	// A final NFO-only request proves capability independence and lifecycle join.
 	var inFlight domain.Job
-	if json.Unmarshal(request("POST", path+"/nfo/validate", `{}`, "shutdown-nfo"), &inFlight) != nil {
+	if json.Unmarshal(request("POST", nfoPath, nfoBody, "shutdown-nfo"), &inFlight) != nil {
 		t.Fatal("NFO-only admission while probe disabled")
 	}
 	select {
