@@ -140,6 +140,10 @@ func (f *nativeFile) Stat() (fileState, error) {
 	if err != nil || statErr != nil {
 		return fileState{}, ErrRead
 	}
+	return linuxFileState(stat)
+}
+
+func linuxFileState(stat unix.Stat_t) (fileState, error) {
 	if stat.Size < 0 || stat.Mtim.Nsec < 0 || stat.Mtim.Nsec >= 1_000_000_000 {
 		return fileState{}, ErrLimit
 	}
