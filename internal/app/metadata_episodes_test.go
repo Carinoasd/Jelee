@@ -27,12 +27,12 @@ func TestSeasonEpisodeApplicationValidationAndSafeErrors(t *testing.T) {
 			if id != 12 || season != 0 || language != "zh-TW" {
 				t.Fatal("season arguments lost")
 			}
-			return domain.SeasonCandidate{ProviderID: 500}, tc.source
+			return domain.SeasonCandidate{ProviderID: 500, Overview: "Summary"}, tc.source
 		}, episode: func(_ context.Context, id, season, episode int32, language string) (domain.EpisodeCandidate, error) {
 			if id != 12 || season != 0 || episode != 1 || language != "zh-TW" {
 				t.Fatal("episode arguments lost")
 			}
-			return domain.EpisodeCandidate{ProviderID: 900}, tc.source
+			return domain.EpisodeCandidate{ProviderID: 900, Overview: "Summary"}, tc.source
 		}})
 		season, err := service.Season(context.Background(), 12, 0, "zh-TW")
 		if !errors.Is(err, tc.want) || (err != nil && season.ProviderID != 0) {

@@ -3,15 +3,16 @@ package domain
 import "time"
 
 type SeriesCandidate struct {
-	ProviderID    int32     `json:"providerId"`
-	Source        string    `json:"source"`
-	SourceURL     string    `json:"sourceUrl"`
-	Language      string    `json:"language"`
-	FetchedAt     time.Time `json:"fetchedAt"`
-	Title         string    `json:"title"`
-	OriginalTitle string    `json:"originalTitle"`
-	Overview      string    `json:"overview"`
-	FirstAirDate  string    `json:"firstAirDate"`
+	ProviderID     int32               `json:"providerId"`
+	Source         string              `json:"source"`
+	SourceURL      string              `json:"sourceUrl"`
+	Language       string              `json:"language"`
+	FetchedAt      time.Time           `json:"fetchedAt"`
+	Title          string              `json:"title"`
+	OriginalTitle  string              `json:"originalTitle"`
+	Overview       string              `json:"overview"`
+	OverviewSource MetadataFieldSource `json:"overviewSource"`
+	FirstAirDate   string              `json:"firstAirDate"`
 }
 
 func (c MovieCandidate) FetchedTime() time.Time  { return c.FetchedAt }

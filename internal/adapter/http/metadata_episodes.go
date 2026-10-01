@@ -32,10 +32,7 @@ func metadataEpisodeInput(r *http.Request, episode bool) (int32, int32, int32, s
 	if err != nil {
 		return 0, 0, 0, "", err
 	}
-	language, specified := query["language"]
-	if !specified {
-		language = "zh-CN"
-	}
+	language := metadataRequestLanguage(r, query)
 	var numbers [3]int32
 	for i, name := range []string{"id", "season", "episode"} {
 		if i == 2 && !episode {
@@ -69,7 +66,7 @@ func episodeSpecification(paths, schemas map[string]any) {
 		delete(properties, "originalTitle")
 		properties["seriesId"] = map[string]any{"type": "integer", "format": "int32", "minimum": 1}
 		properties["seasonNumber"] = map[string]any{"type": "integer", "format": "int32", "minimum": 0}
-		required := []string{"providerId", "seriesId", "seasonNumber", "source", "sourceUrl", "language", "fetchedAt", "title", "overview", "airDate"}
+		required := []string{"providerId", "seriesId", "seasonNumber", "source", "sourceUrl", "language", "fetchedAt", "title", "overview", "overviewSource", "airDate"}
 		if item.episode {
 			properties["episodeNumber"] = map[string]any{"type": "integer", "format": "int32", "minimum": 1}
 			required = append(required, "episodeNumber")
@@ -86,7 +83,7 @@ func episodeSpecification(paths, schemas map[string]any) {
 		if item.episode {
 			params = append(params, map[string]any{"name": "episode", "in": "path", "required": true, "schema": map[string]any{"type": "integer", "format": "int32", "minimum": 1, "maximum": 2147483647}})
 		}
-		params = append(params, map[string]any{"name": "language", "in": "query", "schema": map[string]any{"type": "string", "enum": []string{"zh-CN", "zh-TW", "ja-JP", "en-US"}, "default": "zh-CN"}})
+		params = append(params, map[string]any{"name": "language", "in": "query", "description": "Explicit administrator override; omitted uses authenticated user locale, then zh-CN.", "schema": map[string]any{"type": "string", "enum": []string{"zh-CN", "zh-TW", "ja-JP", "en-US"}}})
 		op["parameters"] = params
 		op["responses"].(map[string]any)["200"] = map[string]any{"description": "Selected candidate data; no automatic library write.", "content": map[string]any{"application/json": map[string]any{"schema": map[string]any{"type": "object", "required": []string{"data"}, "properties": map[string]any{"data": map[string]any{"$ref": "#/components/schemas/" + item.name}}}}}}
 		paths[item.path] = map[string]any{"get": op}

@@ -15,10 +15,7 @@ func (s *Server) seriesRoutes(r chi.Router) {
 		if err != nil {
 			return nil, 0, err
 		}
-		language, specified := query["language"]
-		if !specified {
-			language = "zh-CN"
-		}
+		language := metadataRequestLanguage(r, query)
 		year := 0
 		if raw, exists := query["year"]; exists {
 			parsed, err := strconv.ParseInt(raw, 10, 32)
@@ -35,10 +32,7 @@ func (s *Server) seriesRoutes(r chi.Router) {
 		if err != nil {
 			return nil, 0, err
 		}
-		language, specified := query["language"]
-		if !specified {
-			language = "zh-CN"
-		}
+		language := metadataRequestLanguage(r, query)
 		raw := chi.URLParam(r, "id")
 		id, err := strconv.ParseInt(raw, 10, 32)
 		if err != nil || id <= 0 || raw != strconv.FormatInt(id, 10) || !domain.ValidMetadataLanguage(language) {

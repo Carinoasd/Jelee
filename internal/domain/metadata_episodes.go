@@ -5,31 +5,33 @@ import "time"
 const MaxMetadataSeasonEpisodes = 1000
 
 type EpisodeCandidate struct {
-	ProviderID    int32     `json:"providerId"`
-	SeriesID      int32     `json:"seriesId"`
-	SeasonNumber  int32     `json:"seasonNumber"`
-	EpisodeNumber int32     `json:"episodeNumber"`
-	Source        string    `json:"source"`
-	SourceURL     string    `json:"sourceUrl"`
-	Language      string    `json:"language"`
-	FetchedAt     time.Time `json:"fetchedAt"`
-	Title         string    `json:"title"`
-	Overview      string    `json:"overview"`
-	AirDate       string    `json:"airDate"`
+	ProviderID     int32               `json:"providerId"`
+	SeriesID       int32               `json:"seriesId"`
+	SeasonNumber   int32               `json:"seasonNumber"`
+	EpisodeNumber  int32               `json:"episodeNumber"`
+	Source         string              `json:"source"`
+	SourceURL      string              `json:"sourceUrl"`
+	Language       string              `json:"language"`
+	FetchedAt      time.Time           `json:"fetchedAt"`
+	Title          string              `json:"title"`
+	Overview       string              `json:"overview"`
+	OverviewSource MetadataFieldSource `json:"overviewSource"`
+	AirDate        string              `json:"airDate"`
 }
 
 type SeasonCandidate struct {
-	ProviderID   int32              `json:"providerId"`
-	SeriesID     int32              `json:"seriesId"`
-	SeasonNumber int32              `json:"seasonNumber"`
-	Source       string             `json:"source"`
-	SourceURL    string             `json:"sourceUrl"`
-	Language     string             `json:"language"`
-	FetchedAt    time.Time          `json:"fetchedAt"`
-	Title        string             `json:"title"`
-	Overview     string             `json:"overview"`
-	AirDate      string             `json:"airDate"`
-	Episodes     []EpisodeCandidate `json:"episodes"`
+	ProviderID     int32               `json:"providerId"`
+	SeriesID       int32               `json:"seriesId"`
+	SeasonNumber   int32               `json:"seasonNumber"`
+	Source         string              `json:"source"`
+	SourceURL      string              `json:"sourceUrl"`
+	Language       string              `json:"language"`
+	FetchedAt      time.Time           `json:"fetchedAt"`
+	Title          string              `json:"title"`
+	Overview       string              `json:"overview"`
+	OverviewSource MetadataFieldSource `json:"overviewSource"`
+	AirDate        string              `json:"airDate"`
+	Episodes       []EpisodeCandidate  `json:"episodes"`
 }
 
 func (c EpisodeCandidate) FetchedTime() time.Time { return c.FetchedAt }

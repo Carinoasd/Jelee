@@ -14,7 +14,13 @@ func (m *Metadata) Season(ctx context.Context, seriesID, seasonNumber int32, lan
 	if !domain.ValidSeasonRequest(seriesID, seasonNumber, language) {
 		return domain.SeasonCandidate{}, domain.ErrInvalid
 	}
-	value, err := m.provider.Season(ctx, seriesID, seasonNumber, language)
+	value, err := metadataFallback(ctx, language, func(c context.Context, l string) (domain.SeasonCandidate, error) {
+		value, err := m.provider.Season(c, seriesID, seasonNumber, l)
+		copyValue := make([]domain.EpisodeCandidate, len(value.Episodes))
+		copy(copyValue, value.Episodes)
+		value.Episodes = copyValue
+		return value, err
+	}, mergeSeasonOverview, seasonOverviewComplete)
 	if err != nil {
 		return domain.SeasonCandidate{}, safeEpisodeError(err)
 	}
@@ -27,7 +33,9 @@ func (m *Metadata) Episode(ctx context.Context, seriesID, seasonNumber, episodeN
 	if !domain.ValidEpisodeRequest(seriesID, seasonNumber, episodeNumber, language) {
 		return domain.EpisodeCandidate{}, domain.ErrInvalid
 	}
-	value, err := m.provider.Episode(ctx, seriesID, seasonNumber, episodeNumber, language)
+	value, err := metadataFallback(ctx, language, func(c context.Context, l string) (domain.EpisodeCandidate, error) {
+		return m.provider.Episode(c, seriesID, seasonNumber, episodeNumber, l)
+	}, mergeEpisodeOverview, func(v domain.EpisodeCandidate) bool { return hasMetadataOverview(v.Overview) })
 	if err != nil {
 		return domain.EpisodeCandidate{}, safeEpisodeError(err)
 	}

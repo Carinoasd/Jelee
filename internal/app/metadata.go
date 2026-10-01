@@ -32,7 +32,7 @@ func (m *Metadata) SearchMovies(ctx context.Context, input domain.MovieSearchInp
 	if err != nil {
 		return domain.MovieMatches{}, err
 	}
-	candidates, err := m.provider.SearchMovies(ctx, input)
+	candidates, actualLanguage, err := metadataSearchFallback(ctx, input, m.provider.SearchMovies)
 	if err != nil {
 		for _, safe := range []error{context.Canceled, context.DeadlineExceeded} {
 			if errors.Is(err, safe) {
@@ -46,6 +46,7 @@ func (m *Metadata) SearchMovies(ctx context.Context, input domain.MovieSearchInp
 	}
 	result := domain.MovieMatches{MovieSearchInput: input, Candidates: make([]domain.MovieMatch, 0, len(candidates))}
 	for _, movie := range candidates {
+		fillMetadataOverview(&movie.Overview, &movie.OverviewSource, movie.Overview, actualLanguage, movie.FetchedAt)
 		match := domain.MovieMatch{Movie: movie, NeedsConfirmation: true, ExactTitle: strings.EqualFold(strings.TrimSpace(movie.Title), input.Query) || strings.EqualFold(strings.TrimSpace(movie.OriginalTitle), input.Query)}
 		if input.Year != 0 && len(movie.ReleaseDate) == 10 {
 			match.ExactYear = movie.ReleaseDate[:4] == strconv.Itoa(input.Year)
@@ -71,7 +72,7 @@ func (m *Metadata) Movie(ctx context.Context, id int32, language string) (domain
 	if id <= 0 || !domain.ValidMetadataLanguage(language) {
 		return domain.MovieCandidate{}, domain.ErrInvalid
 	}
-	result, err := m.provider.Movie(ctx, id, language)
+	result, err := metadataFallback(ctx, language, func(c context.Context, l string) (domain.MovieCandidate, error) { return m.provider.Movie(c, id, l) }, mergeMovieOverview, func(v domain.MovieCandidate) bool { return hasMetadataOverview(v.Overview) })
 	if err == nil {
 		return result, nil
 	}

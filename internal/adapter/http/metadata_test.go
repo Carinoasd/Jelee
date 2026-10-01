@@ -30,7 +30,7 @@ func (p *httpMovieProvider) Season(ctx context.Context, series, season int32, la
 	if err := ctx.Err(); err != nil {
 		return domain.SeasonCandidate{}, err
 	}
-	return domain.SeasonCandidate{ProviderID: 500, SeriesID: series, SeasonNumber: season, Language: language, Episodes: []domain.EpisodeCandidate{}}, p.fail
+	return domain.SeasonCandidate{ProviderID: 500, SeriesID: series, SeasonNumber: season, Language: language, Overview: "Summary", Episodes: []domain.EpisodeCandidate{}}, p.fail
 }
 func (p *httpMovieProvider) Episode(ctx context.Context, series, season, episode int32, language string) (domain.EpisodeCandidate, error) {
 	p.calls++
@@ -38,7 +38,7 @@ func (p *httpMovieProvider) Episode(ctx context.Context, series, season, episode
 	if err := ctx.Err(); err != nil {
 		return domain.EpisodeCandidate{}, err
 	}
-	return domain.EpisodeCandidate{ProviderID: 900, SeriesID: series, SeasonNumber: season, EpisodeNumber: episode, Language: language}, p.fail
+	return domain.EpisodeCandidate{ProviderID: 900, SeriesID: series, SeasonNumber: season, EpisodeNumber: episode, Language: language, Overview: "Summary"}, p.fail
 }
 
 func (p *httpMovieProvider) Series(ctx context.Context, id int32, language string) (domain.SeriesCandidate, error) {
@@ -47,7 +47,7 @@ func (p *httpMovieProvider) Series(ctx context.Context, id int32, language strin
 	if err := ctx.Err(); err != nil {
 		return domain.SeriesCandidate{}, err
 	}
-	return domain.SeriesCandidate{ProviderID: id, Title: "劇集", Language: language, FirstAirDate: "2024-01-01"}, p.fail
+	return domain.SeriesCandidate{ProviderID: id, Title: "劇集", Overview: "Summary", Language: language, FirstAirDate: "2024-01-01"}, p.fail
 }
 func (p *httpMovieProvider) SearchSeries(ctx context.Context, input domain.SeriesSearchInput) ([]domain.SeriesCandidate, error) {
 	p.calls++
@@ -73,20 +73,24 @@ func (p *httpMovieProvider) Movie(ctx context.Context, id int32, language string
 	if err := ctx.Err(); err != nil {
 		return domain.MovieCandidate{}, err
 	}
-	return domain.MovieCandidate{ProviderID: id, Title: "電影", Language: language, Source: "TMDB", SourceURL: "https://www.themoviedb.org/movie/12", FetchedAt: time.Now().UTC()}, p.fail
+	return domain.MovieCandidate{ProviderID: id, Title: "電影", Overview: "Summary", Language: language, Source: "TMDB", SourceURL: "https://www.themoviedb.org/movie/12", FetchedAt: time.Now().UTC()}, p.fail
 }
 
-func metadataFixture(t *testing.T, p *httpMovieProvider) (http.Handler, config.Config) {
+func metadataFixture(t *testing.T, p *httpMovieProvider, locales ...string) (http.Handler, config.Config) {
 	t.Helper()
 	cfg := validConfig()
 	cfg.EnableAccounts = true
 	cfg.Accounts = config.DefaultAccountsConfig()
 	cfg.TMDBAPIKey = strings.Repeat("a", 32)
+	locale := ""
+	if len(locales) > 0 {
+		locale = locales[0]
+	}
 	backend := &fakeBackend{auth: func(_ context.Context, token string) (access.Principal, error) {
 		if token != strings.Repeat("a", 43) && token != strings.Repeat("u", 43) {
 			return access.Principal{}, domain.ErrUnauthenticated
 		}
-		return access.Principal{UserID: userID, SessionID: sessionID, Kind: access.ClientWeb, Admin: token == strings.Repeat("a", 43)}, nil
+		return access.Principal{UserID: userID, SessionID: sessionID, Kind: access.ClientWeb, Admin: token == strings.Repeat("a", 43), Locale: locale}, nil
 	}}
 	accounts, err := app.NewAccounts(httpAccountRepository{}, &httpAccountPasswords{}, app.AccountOptions{SessionTTL: 24 * time.Hour, MaxSessions: 8, LockAfter: 5, LockFor: 15 * time.Minute})
 	if err != nil {

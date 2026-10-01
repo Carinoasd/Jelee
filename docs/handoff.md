@@ -986,3 +986,11 @@ G14.1／3／4保持partial，336統計4done／182partial／150blocked不變。�
 G14.1／3／4仍partial，336計數4done／182partial／150blocked不變。檔名解析／自動配對、IMDB／TVDB、模糊置信度、庫／user語言回退、NFO優先／人工值／field locks、worker／library寫入與清除、圖片／完整前端／條款仍缺。五核心3271行待原具體授權，沒有改／刪；媒體／NFO／圖片／遷移／LICENSE保持。前HEAD Tests／CodeQL／Format／OpenAPI success、ABI仍failure，foundation當時live，新HEAD須自身CI；不合併。詳見tmdb-season-episode-preview及evidence。
 
 季／集最後補單集anonymous與非admin兩個獨立拒絕案例，最终全Go／vet与Linux六包race已重驗，3019pass事件含父／435skip逐項一致。增量品牌0／181、完整14735／186仍fail、gitignore0；15來源hash與負例復原、保護hash／五核心逐位元、C#／遷移無diff、links與336計數核對通過。所有本輪handles terminal，推同PR46；下一段語言回退／NFO與人工值優先、欄位鎖及元資料寫入保護，不能只延續preview就宣稱全刮削。
+
+### G14 使用者語言與簡介回退
+
+接續029036a252，六個管理員查詢採已認證user.locale，明確language可覆蓋；空／未知參數仍拒絕，客戶端標頭不能改可信偏好。詳細简介與空候選頁沿CN→TW→JA→EN從偏好位置回退，整段共用15秒期限，錯誤與取消立即終止。保留原標題／日期／身份／取得時間，每段overviewSource記實際請求語言與取得時間；不偵測文字語言。季只填身份相符現有集且複製陣列，原始語言cache不存合併結果。
+
+真TLS正式adapter＋app、六路由profile矩陣與應用回退／身份／slice隔離驗收通過；限制首語言的接線負例1leaf fail，finally逐位元恢復與四包回歸通過。Windowsfull29pkg／3058pass事件含父／435略過逐項與原清單相同；vet／build、Linux六pkg race通過（摘要未列skip）。增量brand0／181、full14735／186仍fail、gitignore0。G14.5 blocked→partial，336計數4done／183partial／149blocked。詳見tmdb-language-fallback及evidence。
+
+媒體庫語言設定／優先序、圖片偏好、其他文字、NFO／人工值／鎖、library／worker寫入與完整前端／矩陣仍缺。五核心3271行保持未修改，原具體批次授權仍待答覆。前HEAD Tests／CodeQL／Format／OpenAPI success，ABI failure，兩foundation當時live；新HEAD要自身CI，不合併、不新開branch，同PR46續推。下一段接媒體庫偏好與寫入保護。

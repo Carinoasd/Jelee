@@ -32,3 +32,7 @@
 完整Windows Go29包、3,019 pass事件含父／435略過，skip身份與前次完整清單逐項一致；完整vet／產品build、Linux六包race通過（摘要不列skip，未宣稱零略過）。見[機器證據](evidence/tmdb-season-episode-preview.json)。
 
 目前是明確ID及季／集號的候選取得，不包含媒體檔名解析或自動配對。名稱模糊置信度、IMDB／TVDB、使用者／庫語言回退、NFO／人工值優先、欄位鎖、worker／庫寫入及清除外部元資料、圖片與完整前端／TMDB條款验收仍待完成。原媒體／NFO／圖片／已發布遷移未修改，G14.4仍部分完成，品牌與ABI門禁保持。
+
+## 後續語言行為
+
+目前省略 language 時採已認證使用者偏好，缺失簡介與空候選頁已加入四語回退；完整規則與尚缺範圍見 [語言回退](tmdb-language-fallback.md)。以上原階段驗收記錄保留其當時範圍。

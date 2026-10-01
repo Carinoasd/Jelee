@@ -16,7 +16,7 @@ func (m *Metadata) Series(ctx context.Context, id int32, language string) (domai
 	if id <= 0 || !domain.ValidMetadataLanguage(language) {
 		return domain.SeriesCandidate{}, domain.ErrInvalid
 	}
-	result, err := m.provider.Series(ctx, id, language)
+	result, err := metadataFallback(ctx, language, func(c context.Context, l string) (domain.SeriesCandidate, error) { return m.provider.Series(c, id, l) }, mergeSeriesOverview, func(v domain.SeriesCandidate) bool { return hasMetadataOverview(v.Overview) })
 	if err == nil {
 		return result, nil
 	}
@@ -36,7 +36,7 @@ func (m *Metadata) SearchSeries(ctx context.Context, input domain.SeriesSearchIn
 	if err != nil {
 		return domain.SeriesMatches{}, err
 	}
-	candidates, err := m.provider.SearchSeries(ctx, input)
+	candidates, actualLanguage, err := metadataSearchFallback(ctx, input, m.provider.SearchSeries)
 	if err != nil {
 		for _, safe := range []error{context.Canceled, context.DeadlineExceeded} {
 			if errors.Is(err, safe) {
@@ -50,6 +50,7 @@ func (m *Metadata) SearchSeries(ctx context.Context, input domain.SeriesSearchIn
 	}
 	result := domain.SeriesMatches{SeriesSearchInput: input, Candidates: make([]domain.SeriesMatch, 0, len(candidates))}
 	for _, series := range candidates {
+		fillMetadataOverview(&series.Overview, &series.OverviewSource, series.Overview, actualLanguage, series.FetchedAt)
 		match := domain.SeriesMatch{Series: series, NeedsConfirmation: true, ExactTitle: strings.EqualFold(strings.TrimSpace(series.Title), input.Query) || strings.EqualFold(strings.TrimSpace(series.OriginalTitle), input.Query)}
 		if input.Year != 0 && len(series.FirstAirDate) == 10 {
 			match.ExactYear = series.FirstAirDate[:4] == strconv.Itoa(input.Year)

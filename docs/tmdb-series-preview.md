@@ -27,3 +27,7 @@
 完整Go／vet／產品build、Linux六包race与來源hash／負例恢復／略過清單見[機器證據](evidence/tmdb-series-preview.json)。完整品牌與ABI門禁仍保持，沒有增加豁免或合併PR。
 
 下一步仍需季／集號與資料、IMDB／TVDB、模糊匹配置信度、使用者／庫語言回退、NFO／人工值優先與欄位鎖、worker及媒體庫持久化／清除元資料、圖片與完整前端／TMDB條款驗收。不得把候選API當作全刮削完成。
+
+## 後續語言行為
+
+目前省略 language 時採已認證使用者偏好，缺失簡介與空候選頁已加入四語回退；完整規則與尚缺範圍見 [語言回退](tmdb-language-fallback.md)。以上原階段驗收記錄保留其當時範圍。

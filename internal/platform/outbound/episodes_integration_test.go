@@ -29,10 +29,10 @@ func TestSeasonEpisodeThroughActualTLSCloneAndTupleValidation(t *testing.T) {
 		switch r.URL.Path {
 		case "/3/tv/12/season/0":
 			seasonCalls.Add(1)
-			fmt.Fprint(w, `{"id":500,"season_number":0,"name":"Specials","episodes":[{"id":900,"season_number":0,"episode_number":1,"name":"Special","air_date":"2024-01-01"}]}`)
+			fmt.Fprint(w, `{"id":500,"season_number":0,"name":"Specials","overview":"Summary","episodes":[{"id":900,"season_number":0,"episode_number":1,"name":"Special","overview":"Summary","air_date":"2024-01-01"}]}`)
 		case "/3/tv/12/season/0/episode/1":
 			episodeCalls.Add(1)
-			fmt.Fprint(w, `{"id":900,"show_id":12,"season_number":0,"episode_number":1,"name":"Special","air_date":"2024-01-01"}`)
+			fmt.Fprint(w, `{"id":900,"show_id":12,"season_number":0,"episode_number":1,"name":"Special","overview":"Summary","air_date":"2024-01-01"}`)
 		case "/3/tv/12/season/0/episode/2":
 			episodeCalls.Add(1)
 			fmt.Fprint(w, `{"id":901,"season_number":0,"episode_number":3,"name":"Wrong tuple"}`)

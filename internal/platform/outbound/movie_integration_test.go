@@ -32,7 +32,7 @@ func TestMovieCandidateThroughActualTLSAndApplicationCache(t *testing.T) {
 			if r.URL.Query().Get("language") != "zh-TW" {
 				t.Error("locale lost")
 			}
-			fmt.Fprint(w, `{"id":12,"title":"電影","release_date":"2024-02-29","homepage":"http://127.0.0.1/secret"}`)
+			fmt.Fprint(w, `{"id":12,"title":"電影","overview":"Summary","release_date":"2024-02-29","homepage":"http://127.0.0.1/secret"}`)
 		case "/3/authentication":
 			authCalls.Add(1)
 			fmt.Fprint(w, `{"success":true,"status_code":1}`)

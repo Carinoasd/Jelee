@@ -18,10 +18,7 @@ func (s *Server) metadataRoutes(r chi.Router) {
 			if err != nil {
 				return nil, 0, err
 			}
-			language, specified := query["language"]
-			if !specified {
-				language = "zh-CN"
-			}
+			language := metadataRequestLanguage(r, query)
 			year := 0
 			if raw, exists := query["year"]; exists {
 				parsed, err := strconv.ParseInt(raw, 10, 32)
@@ -38,10 +35,7 @@ func (s *Server) metadataRoutes(r chi.Router) {
 			if err != nil {
 				return nil, 0, err
 			}
-			language, specified := query["language"]
-			if !specified {
-				language = "zh-CN"
-			}
+			language := metadataRequestLanguage(r, query)
 			raw := chi.URLParam(r, "id")
 			id, err := strconv.ParseInt(raw, 10, 32)
 			if err != nil || id <= 0 || raw != strconv.FormatInt(id, 10) || !domain.ValidMetadataLanguage(language) {
@@ -59,7 +53,7 @@ func metadataSpecification(paths, schemas map[string]any) {
 	search["parameters"] = []any{
 		map[string]any{"name": "query", "in": "query", "required": true, "schema": map[string]any{"type": "string", "minLength": 1, "maxLength": 256}},
 		map[string]any{"name": "year", "in": "query", "schema": map[string]any{"type": "integer", "minimum": 1000, "maximum": 9999}},
-		map[string]any{"name": "language", "in": "query", "schema": map[string]any{"type": "string", "enum": []string{"zh-CN", "zh-TW", "ja-JP", "en-US"}, "default": "zh-CN"}},
+		map[string]any{"name": "language", "in": "query", "description": "Explicit administrator override; omitted uses authenticated user locale, then zh-CN.", "schema": map[string]any{"type": "string", "enum": []string{"zh-CN", "zh-TW", "ja-JP", "en-US"}}},
 	}
 	search["responses"].(map[string]any)["200"] = map[string]any{"description": "Candidates and title/year comparisons; every candidate requires confirmation.", "content": map[string]any{"application/json": map[string]any{"schema": map[string]any{"type": "object", "required": []string{"data"}, "properties": map[string]any{"data": map[string]any{"$ref": "#/components/schemas/MovieMatches"}}}}}}
 	paths["/api/v1/metadata/tmdb/movies"] = map[string]any{"get": search}
@@ -73,22 +67,25 @@ func metadataSpecification(paths, schemas map[string]any) {
 	op["security"] = []any{map[string]any{"bearer": []string{}}}
 	op["parameters"] = []any{
 		map[string]any{"name": "id", "in": "path", "required": true, "schema": map[string]any{"type": "integer", "format": "int32", "minimum": 1, "maximum": 2147483647}},
-		map[string]any{"name": "language", "in": "query", "schema": map[string]any{"type": "string", "enum": []string{"zh-CN", "zh-TW", "ja-JP", "en-US"}, "default": "zh-CN"}},
+		map[string]any{"name": "language", "in": "query", "description": "Explicit administrator override; omitted uses authenticated user locale, then zh-CN.", "schema": map[string]any{"type": "string", "enum": []string{"zh-CN", "zh-TW", "ja-JP", "en-US"}}},
 	}
 	responses := op["responses"].(map[string]any)
 	responses["200"] = map[string]any{"description": "Provider data for review; no library or original asset changes.", "content": map[string]any{"application/json": map[string]any{"schema": map[string]any{"type": "object", "required": []string{"data"}, "properties": map[string]any{"data": map[string]any{"$ref": "#/components/schemas/MovieCandidate"}}}}}}
 	paths["/api/v1/metadata/tmdb/movies/{id}"] = map[string]any{"get": op}
 	schemas["MovieCandidate"] = map[string]any{"type": "object", "additionalProperties": false, "required": []string{"providerId", "source", "sourceUrl", "language", "fetchedAt", "title", "originalTitle", "overview", "releaseDate"}, "properties": map[string]any{
-		"providerId":    map[string]any{"type": "integer", "format": "int32", "minimum": 1},
-		"source":        map[string]any{"type": "string", "const": "TMDB"},
-		"sourceUrl":     map[string]any{"type": "string", "format": "uri"},
-		"language":      map[string]any{"type": "string", "enum": []string{"zh-CN", "zh-TW", "ja-JP", "en-US"}},
-		"fetchedAt":     map[string]any{"type": "string", "format": "date-time"},
-		"title":         map[string]any{"type": "string", "maxLength": 1024},
-		"originalTitle": map[string]any{"type": "string", "maxLength": 1024},
-		"overview":      map[string]any{"type": "string", "maxLength": 16384},
-		"releaseDate":   map[string]any{"type": "string", "pattern": "^([0-9]{4}-[0-9]{2}-[0-9]{2})?$"},
+		"providerId":     map[string]any{"type": "integer", "format": "int32", "minimum": 1},
+		"source":         map[string]any{"type": "string", "const": "TMDB"},
+		"sourceUrl":      map[string]any{"type": "string", "format": "uri"},
+		"language":       map[string]any{"type": "string", "enum": []string{"zh-CN", "zh-TW", "ja-JP", "en-US"}},
+		"fetchedAt":      map[string]any{"type": "string", "format": "date-time"},
+		"title":          map[string]any{"type": "string", "maxLength": 1024},
+		"originalTitle":  map[string]any{"type": "string", "maxLength": 1024},
+		"overview":       map[string]any{"type": "string", "maxLength": 16384},
+		"overviewSource": map[string]any{"$ref": "#/components/schemas/MetadataFieldSource"},
+		"releaseDate":    map[string]any{"type": "string", "pattern": "^([0-9]{4}-[0-9]{2}-[0-9]{2})?$"},
 	}}
+	schemas["MetadataFieldSource"] = map[string]any{"type": "object", "additionalProperties": false, "required": []string{"requestedLanguage", "fetchedAt"}, "properties": map[string]any{"requestedLanguage": map[string]any{"type": "string", "enum": []string{"", "zh-CN", "zh-TW", "ja-JP", "en-US"}}, "fetchedAt": map[string]any{"type": "string", "format": "date-time"}}, "description": "Provider request language and retrieval time for the overview. Empty language and zero timestamp indicate missing text; this is not a detected content language."}
+	schemas["MovieCandidate"].(map[string]any)["required"] = append(schemas["MovieCandidate"].(map[string]any)["required"].([]string), "overviewSource")
 	seriesSpecification(paths, schemas)
 	episodeSpecification(paths, schemas)
 }
