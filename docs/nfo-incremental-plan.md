@@ -1,8 +1,10 @@
 # NFO 只读增量整合：3C3 分段计划
 
-本文记录后续范围、实现约束和待执行验收，不是完成报告。依据为[原始需求](requirements-source.md)、[第 3 阶段计划](jobs-stage3-plan.md)、现有 [NFO 解析器](nfo-compatibility.md)、[扫描任务](jobs-worker.md)与[媒体探测 worker](probe-worker.md)。所有相关完整需求仍为部分完成。
+本文保留3C3的分段设计与验收约束，具体执行结果由下表报告记录。依据为[原始需求](requirements-source.md)、[第3阶段计划](jobs-stage3-plan.md)、[NFO解析器](nfo-compatibility.md)、[扫描任务](jobs-worker.md)与[媒体探测worker](probe-worker.md)。所有相关完整需求仍为部分完成。
 
 ## 当前边界与推荐顺序
+
+以下两段保留3C3A开始时的缺口盘点；当前实现状态以下表和各段实际报告为准。
 
 现有扫描器已经按扩展名识别 video、nfo、image、other；schema003 的 inventory 保存 root、相对路径、size 和纳秒 mtime，并有独立的已接受 baseline。baseline仅保存library/root/path，尚无kind/size/mtime，不能直接据它计算图片内容属性的增量差异。NFO 解析器已支持多种编码、媒体根、字段、锁和图片引用；它不访问 URL，也不修改原文件。现有 CLI 可独立于数据库校验单个 NFO。
 
@@ -13,8 +15,8 @@
 | 阶段 | 最小可用结果 | 当前状态 |
 | --- | --- | --- |
 | 3C3A | 稳定性核对后的 NFO 来源、完整内容指纹；现有单文件 CLI 经 `ReadFile` 直接使用 | 本小段已验证，见[实际报告](nfo-source-verification.md)；完整G39仍未完成 |
-| 3C3B | 持久 read-only/off policy、有界 NFO cache、SQL fencing 与配额契约 | 本小段已验证，见[实际报告](nfo-cache-verification.md)；worker/API尚未接入 |
-| 3C3C | 既有 scan worker、按库验证 API/CLI、NFO/图片增量统计与真实规模验收 | [接线计划](nfo-worker-plan.md)已审查；未实现或验收 |
+| 3C3B | 持久 read-only/off policy、有界 NFO cache、SQL fencing 与配额契约 | 本小段已验证，见[实际报告](nfo-cache-verification.md)；接线由C交付 |
+| 3C3C | 既有 scan worker、按库验证 API/CLI、NFO/图片增量统计与真实规模验收 | 已实现并验证，见[接口](nfo-worker.md)和[实际报告](nfo-worker-verification.md)；完整G39仍未完成 |
 
 暂不加入 fsnotify、去抖、cron、持续监看、NFO 写回、图片下载/处理、自动 Catalog 合并。图片在 3C 的范围仍是存在、size、mtime 的识别与增量统计。
 

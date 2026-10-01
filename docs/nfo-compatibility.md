@@ -76,7 +76,7 @@
 
 `ReadSource(ctx, rootAbs, relativeSlash, maxBytes)` 返回只读 `Source`。它通过安全文件描述符读取有界原文，核对读取前后文件大小、mtime与身份，再从配置根重新打开当前路径，核对根与文件仍是同一个对象。观察到改动、替换或删除时返回固定 `nfo_changed` 和空结果；取消优先返回context错误。
 
-`Source.Stamp()` 返回值拷贝，包含大小、纳秒mtime、完整原文字节SHA256和 `sha256-full-v1` 指纹版本；不含路径或原文。`Source.Parse(ctx)` 才进行XML解析。未来快取可在读完/hash后先比较stamp，再决定是否调用解析；本段尚未接入持久快取，暖扫不能声称零I/O。未解析的来源不保证XML有效。
+`Source.Stamp()` 返回值拷贝，包含大小、纳秒mtime、完整原文字节SHA256和 `sha256-full-v1` 指纹版本；不含路径或原文。`Source.Parse(ctx)` 才进行XML解析。3C3C worker 在读完/hash后先查询持久快取，再决定是否解析；命中仍执行末次读取/hash，暖扫不能声称零I/O。未解析的来源不保证XML有效。
 
 现有 `ReadFile` 使用这条路径后立即解析，所以单档CLI也具备来源一致性核对。CLI遇到读取中改动输出 `nfo_changed`、退出1，不把这类变化误称为坏XML。`Source` 保留独立于后续磁盘改动的原文字节；多次解析和修改提取视图不会改写这些字节，复制原文时也不把内部缓冲直接交给调用者的writer。
 
@@ -88,7 +88,7 @@
 
 `NewSummaryReader` 使用固定解析/指纹/摘要版本，将来源读取和摘要解析分开。摘要只含固定编码、根类别、条目数和最多64个固定问题码；完整warning/error计数不因截断而丢失。包装根映射为中性 `wrapper`，未知及命名空间根保持固定告警；不将第三方根名或任意XML内容传入核心摘要。
 
-五类固定XML/编码/复杂度错误可形成invalid摘要，语义error同样无效，warning本身不使文档无效。来源变化、超大输入、取消、未知问题码和读写故障不能形成负缓存。schema006提供独立NFO库策略、正负TTL、配额及连续检查点，详见[快取契约](nfo-cache.md)。本段尚未接上scan worker、按库CLI/API或Catalog合并；读取/hash次数与暖扫解析次数在3C3C真实验收。
+五类固定XML/编码/复杂度错误可形成invalid摘要，语义error同样无效，warning本身不使文档无效。来源变化、超大输入、取消、未知问题码和读写故障不能形成负缓存。schema006提供独立NFO库策略、正负TTL、配额及连续检查点，详见[快取契约](nfo-cache.md)。3C3C/schema007 接入scan worker与按库CLI/API，见[工作流程](nfo-worker.md)与[实际验证](nfo-worker-verification.md)；Catalog来源合并仍未实现。
 
 `Validate()` 返回读取时问题列表的副本；它不重新校验调用者事后修改的 `Metadata`。每项包含固定 `Code`、`Severity`（`warning` 或 `error`）、字段名和零起算 `Entry`（文档级为 -1）。无标题、未知根、编码猜测、ID 冲突为警告；非法数值、日期、布尔值、路径引用等为错误问题项。语法/编码/安全/大小限制失败会直接返回错误，且不提供部分成功的文档。
 

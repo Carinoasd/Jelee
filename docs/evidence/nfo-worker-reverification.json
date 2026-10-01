@@ -1,0 +1,24 @@
+{
+  "result": "REJECTED_AS_FINAL",
+  "reason": "Source changed during verification",
+  "changedFiles": [
+    "scripts/make.ps1"
+  ],
+  "testsPassed": 27,
+  "failedTestEvents": 0,
+  "logs": [
+    {
+      "file": "nfo-worker-native-race.jsonl",
+      "sha256": "c4c902f34f515fdc33d8c0228fbcde96d8b2aeae0c1ba9639d152743f431b86f"
+    },
+    {
+      "file": "nfo-worker-native.cover",
+      "sha256": "bb5895e09cd409ff8e78062844a66284b13524ff37115debfe01ddfc4baec0a9"
+    },
+    {
+      "file": "nfo-worker-native-source-files.json",
+      "sha256": "53454c96045408e486e9e8283c0f8f17213bdbc183f41923a565effea63417e9"
+    }
+  ],
+  "sourceCommit": "47da27b5ff090a71e6f55aae0b2e6c00871f825b"
+}

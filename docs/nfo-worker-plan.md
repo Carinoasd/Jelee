@@ -1,6 +1,6 @@
 # 3C3C：NFO worker、当前验证结果与图片增量接线计划
 
-**状态：未实现，未验收。** 本文以 3C3B 工作树中的 domain、摘要 reader、schema006 与 PostgreSQL 契约为基础；须在 B 的 PR 完成后另开实现阶段。这里只读核对代码，不表示已经接上服务、HTTP、CLI 或 worker。总范围与保留项见 [NFO 增量计划](nfo-incremental-plan.md)。
+**状态：3C3C 已完成本地实际验证。** 源码 `47da27b5ff090a71e6f55aae0b2e6c00871f825b`，分支 `feat/jelee-nfo-worker`；执行证据见[验证报告](nfo-worker-verification.md)，接口见[NFO工作流程](nfo-worker.md)。基于已发布的[PR #9](https://github.com/MoYuanCN/Jelee/pull/9)。以下保留设计时的缺口与约束，不代表当前仍缺全部接口；总范围与未交付项见[NFO增量计划](nfo-incremental-plan.md)。
 
 ## 1. 最小交付与现有缺口
 
@@ -45,7 +45,7 @@
 | runtime | `EnableJobs` 下独立构造固定 8 MiB 的 `SummaryReader`、确保 B 的 cache policy；不依赖 `EnableProbe`、tool identity 或 Linux sandbox。库 default off 加请求 opt-in 是两道执行开关；不新增 HTTP 可调解析预算。 |
 | 查询 | 新增 live-admin `NFOQueryRepository`：工作 summary、当前库观察列表、单观察的固定 issues；不把内部 `NFOEntry/NFOSource` 作为公开 DTO。 |
 
-`PrepareNFOPhase` 的 B 契约及测试仍保留；C 的生产入口使用上述提交时绑定路径。B 的 committed progress 不足以当作实际 CPU/IO 次数；另在 reader 边界提供进程内只读统计：实际 Read 调用、成功读字节/hash 数、Parse 调用、当前和峰值活动数，用于真实验收，包含被取消/重试的实际调用。不能从缓存行数推算 Parse 次数。
+`PrepareNFOPhase` 保留原签名；C 的生产入口在提交时绑定。对于 C 已冻结的 off 请求，Prepare 不能再隐式启用 NFO；有 C 请求时只核对并返回原 phase，历史没有请求也不能新增 read-only 意图。B 的 committed progress 不足以当作实际 CPU/IO 次数；另在 reader 边界提供进程内只读统计：实际 Read 调用、成功读字节/hash 数、Parse 调用、当前和峰值活动数，用于真实验收，包含被取消/重试的实际调用。不能从缓存行数推算 Parse 次数。
 
 ## 4. 阶段顺序与资源生命周期
 

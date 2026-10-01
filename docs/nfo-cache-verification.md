@@ -39,3 +39,7 @@ Windows首轮因执行沙箱拒绝自建暂存目录的私有DACL而失败；保
 Linux首轮中，专用PG容器退出码1后被原`--rm`设置自动删除，后续fixture无法连接。Docker事件未观察到OOM/kill/stop；服务日志随容器丢失，确切原因未知。恢复仅此自建测试容器，暂存上限512MiB改为2GiB并保留退出日志后，全量重跑通过。容量压力只是可能原因，不能声称已证实。[恢复记录](evidence/nfo-cache-pg-recovery.json)及[原失败日志哈希](evidence/nfo-cache-guards.json)保留失败事实。
 
 完整品牌门禁仍受保留的旧服务端命名阻挡，未降低门槛。G39的来源优先级/字段锁合并、read-write、原子写回、客户端互操作与完整图片处理仍未交付。
+
+## 推送后远端核对
+
+[PR #9](https://github.com/MoYuanCN/Jelee/pull/9) HEAD `676c8edcdb0b15b34455af4c1439eee265587e49` 的[Go CI](https://github.com/MoYuanCN/Jelee/actions/runs/36794292127)已完成：Linux、Windows、PostgreSQL及真实媒体验收通过；仅完整品牌门禁失败。[公开步骤结果](evidence/nfo-cache-ci.json)记录各项结论，不能将整个workflow标为成功。

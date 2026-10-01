@@ -1,0 +1,262 @@
+{
+  "schemaVersion": 1,
+  "result": "PASS",
+  "platform": "linux-amd64",
+  "command": ".bin/go test -count=1 -coverprofile=.testdata/nfo-worker-postgres.cover -v ./internal/adapter/postgres",
+  "race": false,
+  "requiredIntegration": true,
+  "durationSeconds": 114.58,
+  "topLevelPassed": 114,
+  "subtestsPassed": 268,
+  "skipped": [],
+  "wholePackagePercent": 79.8,
+  "parentCommit": "676c8edcdb0b15b34455af4c1439eee265587e49",
+  "sourceNote": "Production and tests were uncommitted when tested; sourceFiles SHA256 values identify the tested working-tree snapshot, not the parent commit.",
+  "sourceFiles": [
+    {
+      "path": "internal/adapter/postgres/accounts_integration_test.go",
+      "sha256": "ceed31a74fc356ad11c2d45355cc613e7248255bccc88392ddb93fe4a35ca714"
+    },
+    {
+      "path": "internal/adapter/postgres/image_inventory_test.go",
+      "sha256": "75965d7d50a1bc1192e9a4c5808c2613d5afa91771515fbc31fd3d7f862b48cb"
+    },
+    {
+      "path": "internal/adapter/postgres/image_inventory.go",
+      "sha256": "2d2c670463f1e31e68d6ffd807e15c01641ed14398922077d6b688b74ad5ae81"
+    },
+    {
+      "path": "internal/adapter/postgres/jobs_execution.go",
+      "sha256": "0a0525dcd2a6eadb30177840417302d334518614784bb897539dfe1f963f825f"
+    },
+    {
+      "path": "internal/adapter/postgres/jobs_integration_test.go",
+      "sha256": "ae6615f0fa2fd229703000632ae5f7fdc55cf172d692fcb5f9865b923746198e"
+    },
+    {
+      "path": "internal/adapter/postgres/migrations/000007_nfo_worker.down.sql",
+      "sha256": "1e9a3fcf12b19777b4af04bd50a010167ac142cb84d142e77d894b268a691417"
+    },
+    {
+      "path": "internal/adapter/postgres/migrations/000007_nfo_worker.up.sql",
+      "sha256": "5d21d0ac682809471633f39c58041fecfe33350c08af907018eca128782a8078"
+    },
+    {
+      "path": "internal/adapter/postgres/nfo_boundaries_test.go",
+      "sha256": "7bca9bf0d48c6bf290fbc428bc1f1dfa16e1d17b8db217fbada95203c1f8aca6"
+    },
+    {
+      "path": "internal/adapter/postgres/nfo_commit.go",
+      "sha256": "ec5487789db9600d8f8a67ee1ad89fe575930d0b65785310219578f7592e430f"
+    },
+    {
+      "path": "internal/adapter/postgres/nfo_integration_test.go",
+      "sha256": "637db864bfcb3f294a44457f5ca19326e64442428af95d4af455f1c3de148554"
+    },
+    {
+      "path": "internal/adapter/postgres/nfo_phase.go",
+      "sha256": "15cdec32df6457c09e6e03d9dfc289285ce554594ba699034c2063a01e788134"
+    },
+    {
+      "path": "internal/adapter/postgres/nfo_queries.go",
+      "sha256": "e01be793e9beefcc9ada2f9aa48e480fbb07409d5be75ea6ba4e866e356ccb7d"
+    },
+    {
+      "path": "internal/adapter/postgres/nfo_requests_test.go",
+      "sha256": "cec0258f747f000dc9b24a5db86ee125335f7ae066c4129a6daddc7206f16f55"
+    },
+    {
+      "path": "internal/adapter/postgres/nfo_requests.go",
+      "sha256": "9445e04365b4de49300b38fad2a7a65a6f44434b595d22776eaa5e620a44f0d0"
+    },
+    {
+      "path": "internal/adapter/postgres/nfo_worker_migration_test.go",
+      "sha256": "c53dca4ad34635ab95557be34ac4b296256b6bc6895f6b8c7be6f8f0f53d5316"
+    },
+    {
+      "path": "internal/adapter/postgres/nfo_worker_query_plan_test.go",
+      "sha256": "9488912fe34a0c542a4ae4aed49839b1b708a9d6a931bbad23e38edc4ddd72e8"
+    },
+    {
+      "path": "internal/adapter/postgres/probe_fault_test.go",
+      "sha256": "435f68108cf88809a9b5330b08ef1e32bf3db897ab9c1c3222da73258b822866"
+    },
+    {
+      "path": "internal/adapter/postgres/probe_integration_test.go",
+      "sha256": "1013f7f51deeaff0d6dcd765f20a9194bf24954e4ca03df57bcc6af14e11ae34"
+    },
+    {
+      "path": "internal/adapter/postgres/probe_phase.go",
+      "sha256": "4d5b1116331c14b5fad618219cf44d426636611ae56cae77dc06ef4234072725"
+    },
+    {
+      "path": "internal/adapter/postgres/probe_requests_execution.go",
+      "sha256": "3d483699107d082f5b5be41d7dac7177eac684ce049367ade58b6c08526a6c01"
+    },
+    {
+      "path": "internal/adapter/postgres/probe_requests_test.go",
+      "sha256": "cb6dc73f14593626e5413f04a9ac6724726fb9d6e73a3a8d6a54e17b4c47d509"
+    },
+    {
+      "path": "internal/adapter/postgres/probe_requests.go",
+      "sha256": "e11507cda0fb761c536fd00c2f71c11d694cc75f04f873df8e58d62e1958aeca"
+    },
+    {
+      "path": "internal/adapter/postgres/store_integration_test.go",
+      "sha256": "05c37bff06f43c456686bf721379070c301fa84a807809e22ec1db9fb065f8ce"
+    },
+    {
+      "path": "internal/adapter/postgres/store.go",
+      "sha256": "e788696a7e93b324145c53aedc53a407248a8409b63ca6f2a490eb5da9e3cbce"
+    }
+  ],
+  "log": {
+    "path": ".testdata/nfo-worker-postgres.txt",
+    "sha256": "347b2d6ab4f3162cf5dbe12b7d15edd6714bebc9a54877ea99636a4849edfded"
+  },
+  "coverage": {
+    "path": ".testdata/nfo-worker-postgres.cover",
+    "sha256": "2477fac01710705246a5f350919b93fc89f63e10cd3dbe71f612c4a1c4c92136",
+    "files": [
+      {
+        "file": "account_acl.go",
+        "covered": 51,
+        "statements": 64,
+        "percent": 79.69
+      },
+      {
+        "file": "accounts.go",
+        "covered": 182,
+        "statements": 245,
+        "percent": 74.29
+      },
+      {
+        "file": "image_inventory.go",
+        "covered": 42,
+        "statements": 55,
+        "percent": 76.36
+      },
+      {
+        "file": "import.go",
+        "covered": 15,
+        "statements": 22,
+        "percent": 68.18
+      },
+      {
+        "file": "jobs_execution.go",
+        "covered": 223,
+        "statements": 279,
+        "percent": 79.93
+      },
+      {
+        "file": "jobs.go",
+        "covered": 112,
+        "statements": 155,
+        "percent": 72.26
+      },
+      {
+        "file": "migrate.go",
+        "covered": 45,
+        "statements": 53,
+        "percent": 84.91
+      },
+      {
+        "file": "nfo_cache.go",
+        "covered": 74,
+        "statements": 79,
+        "percent": 93.67
+      },
+      {
+        "file": "nfo_commit.go",
+        "covered": 79,
+        "statements": 96,
+        "percent": 82.29
+      },
+      {
+        "file": "nfo_maintenance.go",
+        "covered": 70,
+        "statements": 87,
+        "percent": 80.46
+      },
+      {
+        "file": "nfo_phase.go",
+        "covered": 197,
+        "statements": 251,
+        "percent": 78.49
+      },
+      {
+        "file": "nfo_policy.go",
+        "covered": 97,
+        "statements": 122,
+        "percent": 79.51
+      },
+      {
+        "file": "nfo_queries.go",
+        "covered": 128,
+        "statements": 161,
+        "percent": 79.5
+      },
+      {
+        "file": "nfo_requests.go",
+        "covered": 75,
+        "statements": 103,
+        "percent": 72.82
+      },
+      {
+        "file": "probe_cache.go",
+        "covered": 92,
+        "statements": 105,
+        "percent": 87.62
+      },
+      {
+        "file": "probe_commit.go",
+        "covered": 88,
+        "statements": 102,
+        "percent": 86.27
+      },
+      {
+        "file": "probe_maintenance.go",
+        "covered": 131,
+        "statements": 160,
+        "percent": 81.88
+      },
+      {
+        "file": "probe_phase.go",
+        "covered": 166,
+        "statements": 198,
+        "percent": 83.84
+      },
+      {
+        "file": "probe_policy.go",
+        "covered": 90,
+        "statements": 104,
+        "percent": 86.54
+      },
+      {
+        "file": "probe_requests_execution.go",
+        "covered": 94,
+        "statements": 111,
+        "percent": 84.68
+      },
+      {
+        "file": "probe_requests.go",
+        "covered": 169,
+        "statements": 207,
+        "percent": 81.64
+      },
+      {
+        "file": "sessions.go",
+        "covered": 139,
+        "statements": 198,
+        "percent": 70.2
+      },
+      {
+        "file": "store.go",
+        "covered": 66,
+        "statements": 83,
+        "percent": 79.52
+      }
+    ]
+  },
+  "sourceCommit": "47da27b5ff090a71e6f55aae0b2e6c00871f825b"
+}

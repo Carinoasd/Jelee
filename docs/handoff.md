@@ -2,7 +2,7 @@
 
 ## 当前工作与授权
 
-2026-10-01 用户明确「继续吧」，此前切模型暂停已结束。当前分支 `feat/jelee-nfo-cache`，从3C3A的 `082a51dc2b1206e9687a70c2292d33991e068d30` 继续3C3B。用户授权每小段完成后验证、提交、推送、建立普通PR并附到聊天，然后继续下一段；没有授权合并、发布、tag或改写历史。
+2026-10-01 用户明确「继续吧」，此前切模型暂停已结束；最新「回报进度」是状态查询，未撤销继续授权。3C3B已推送为普通[PR #9](https://github.com/MoYuanCN/Jelee/pull/9)，HEAD `676c8edcdb0b15b34455af4c1439eee265587e49`；其[Go CI](https://github.com/MoYuanCN/Jelee/actions/runs/36794292127)的Windows、Linux和PG/真实媒体均通过，完整品牌检查仍失败。3C3C源码已提交为 `47da27b5ff090a71e6f55aae0b2e6c00871f825b`，分支 `feat/jelee-nfo-worker`，本地验收完成，待连同本报告推送并建立普通PR。用户授权每小段验证、提交、推送、建立普通PR并附到聊天，然后继续下一段；没有授权合并、发布、tag或改写历史。
 
 作者仅用命令级 `Carinoasd <46304809+Carinoasd@users.noreply.github.com>`，不设置全局身份。原需求逐字保存在 `requirements-source.md`，SHA256 `755b6b32324efe710c3e1135a0c982c45b82f337e90fcb50ab3718a20cba5d07`。
 
@@ -19,7 +19,9 @@
 
 ## 不变量
 
-1. 新binary只接受clean schema6。迁移000001–000005原文不变；006 down拒绝仍有queued/running parent的read-only NFO phase，005 down另拒绝活动probe请求，须先结束/取消并停worker。失败迁移可能dirty，不能自动force。
+3C3C 已交付的源码包含schema007、NFO入队/worker/API/CLI、当前观察与图片属性比较。[实际验证](nfo-worker-verification.md)：Windows三build/lint/test 27包通过；原生Linux三build/vet/race 27包544顶层测试，PG零skip，另6个专用环境skip。1,000与100混合库、真实取消/图片基线保护/恢复、SIGTERM清理以及同版1,000影片回归全部通过。矩阵仍4已完成/170部分/162阻塞；完整品牌和全项目覆盖率尚未达标。
+
+1. 3C3C工作树的新binary只接受clean schema7，已发布3C3B为schema6。迁移000001–000006原文不变；007 up拒绝活动的无请求B read-only phase，down拒绝所有活动C request。006/005另有NFO/probe回退保护，须先结束/取消并停worker。失败迁移可能dirty，不能自动force。
 2. root path只来自本地CLI登记的数据库媒体根；HTTP只接收登记ID。用户原媒体/NFO/图片不写入；不启用ffmpeg生产回退或转码。
 3. 默认probe关闭，disabled节点不领probe任务；缺工具仅停用相关能力。健康状态在启动时验证，readiness不每次执行工具。
 4. 持久request保存可信identity和enqueue generation；重放不失效、不repin，disabled/runtime故障仍可重放保留请求。运行恢复先读phase，从连续检查点继续。
@@ -31,6 +33,6 @@
 
 Go1.27.1与媒体工具都在项目 `.tools`；Windows通过 `scripts/run-go.ps1`/`scripts/make.ps1`，Linux通过 `.bin/go`。不安装全局工具。独立PostgreSQL只用 `jelee_test` 的自建schema；凭证只读 `.testdata/database-url`，不得回显或提交。
 
-完成本段PR后按[3C3C接线计划](nfo-worker-plan.md)继续worker/API、图片属性统计及真实增量验收；本段无NFO运行时接线。NFO policy generation须独立于视频probe generation；现有inventory baseline仅保存路径，图片属性差异需补持久观察。来源读取的SHA描述保留字节，不能保证敌对原地写入下的原子快照。完整NFO优先级/锁合并、写回、ignore、监看、排程、图片和规模验收尚待后续交付。
+3C3C契约见[NFO工作流程](nfo-worker.md)。NFO policy generation独立于视频probe generation；inventory epoch核对根映射，迁移前图片属性保持未知。来源SHA只描述保留字节，不能保证敌对原地写入下的原子快照。下一小段为3D1A：有界忽略规则纯解析/匹配；先固定自有规则契约，安全来源/cache及持久扫描再分别接线，不能把过滤掉的旧路径误计为缺失。完整NFO优先级/锁合并、写回、监看、排程、图片处理和完整规模验收尚待后续交付。
 
-本段Windows首次沙箱ACL失败经正常host token重跑通过。Linux首次专用PG退出后自动移除，确切原因未知；已恢复同名专用PG、2GiB tmpfs且保留退出日志，最终全量通过。凭证仍仅在忽略文件中。
+3C3B曾发生Windows沙箱ACL失败与Linux专用PG退出后自动移除，原因和恢复记录在旧报告。3C3C的Windows fmt-check超过长命令行上限，改为目录递归后通过；第一次native全套因验证期间这项脚本变化而拒当最终快照，冻结后全量重跑通过。PG容器保持2GiB tmpfs且退出不自动删除；凭证仍仅在忽略文件中。

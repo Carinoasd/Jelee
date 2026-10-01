@@ -212,3 +212,9 @@ pwsh -NoProfile -File scripts/runtime-tools.ps1 -Command sources -Offline
 原生 Linux 使用 `make probe-worker-test`，需要专用 `JELEE_TEST_DATABASE_URL`（数据库名必须为 `jelee_test`）、Docker、项目固定 Go/media/runtime 和已生成素材。脚本只在自己的 UUID schema、镜像、容器和暂存目录执行，结束时核对源文件及原素材 SHA256，并在失败时仍清理自己创建的资源。凭证文件在 Docker build 完成后创建，原始输出留在忽略的 `.testdata`。
 
 这个必需目标已经接入 PostgreSQL CI；另外 `make sandbox-test` 保留原生容器的85%覆盖率门槛。CI保留两者的验收日志/摘要。当前真实结果及跳过、失败记录见[worker验证](probe-worker-verification.md)；完整品牌和发布门禁仍未通过。
+
+## NFO 混合库验收（3C3C）
+
+`make nfo-worker-test` 使用相同固定工具和私有测试连接，分别运行 1,000 与 100 文件混合库的冷扫、暖扫、局部修改、取消恢复和 SIGTERM 验收。两组均使用独立 UUID schema、容器、镜像和只读素材；清理只针对本次创建的资源。该目标接在 PostgreSQL CI 的 probe 验收之后，保留 `.testdata/nfo-worker-acceptance.txt` 和结构化摘要 7 天。实际范围与限制见[NFO工作流程验证](nfo-worker-verification.md)。
+
+Windows `fmt-check` 让固定 gofmt 递归检查 cmd/internal/tools，避免长工作目录中逐文件绝对路径参数超过系统上限；退出失败或存在未格式化源码时仍拒绝通过。
