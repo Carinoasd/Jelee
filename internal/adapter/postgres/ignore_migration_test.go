@@ -17,11 +17,11 @@ func ignoreLegacySnapshot(t *testing.T, f jobFixture) string {
 	var result string
 	err := f.s.Pool.QueryRow(f.ctx, `SELECT jsonb_build_object(
  'jobs',(SELECT jsonb_agg(to_jsonb(j)-'ignore_requested' ORDER BY id) FROM jobs j),
- 'libraries',(SELECT jsonb_agg(to_jsonb(l) ORDER BY id) FROM libraries l),
+ 'libraries',(SELECT jsonb_agg(to_jsonb(l)-'inventory_baseline_revision' ORDER BY id) FROM libraries l),
  'roots',(SELECT jsonb_agg(to_jsonb(r) ORDER BY id) FROM library_roots r),
  'inventory',(SELECT jsonb_agg(to_jsonb(i) ORDER BY id) FROM job_inventory i),
  'directories',(SELECT jsonb_agg(to_jsonb(d) ORDER BY job_id,root_id,path) FROM job_directories d),
- 'baseline',(SELECT jsonb_agg(to_jsonb(b) ORDER BY library_id,root_id,path) FROM library_inventory_baseline b),
+ 'baseline',(SELECT jsonb_agg(to_jsonb(b)-'observed_revision' ORDER BY library_id,root_id,path) FROM library_inventory_baseline b),
  'nfo_cache',(SELECT jsonb_agg(to_jsonb(c) ORDER BY root_id,relative_path) FROM nfo_cache c),
  'nfo_phases',(SELECT jsonb_agg(to_jsonb(p) ORDER BY job_id) FROM nfo_job_state p),
  'nfo_requests',(SELECT jsonb_agg(to_jsonb(r) ORDER BY job_id) FROM nfo_job_requests r),
@@ -83,6 +83,7 @@ func TestIgnoreMigrationLegacySevenRoundTripAndReadiness(t *testing.T) {
 	l, _ := f.start(t, "existing-cache", "retained.nfo")
 	f.parseHead(t, l, nfoValidSummary())
 	f.finish(t, l)
+	nfoMigrateVersion(t, f.jobFixture, "down", 9)
 	nfoMigrateVersion(t, f.jobFixture, "down", 8)
 	nfoMigrateVersion(t, f.jobFixture, "down", 7)
 	// Construct a genuine pre-008 queued job while the marker column does not
@@ -130,6 +131,7 @@ func TestIgnoreMigrationLegacySevenRoundTripAndReadiness(t *testing.T) {
 	if _, err = f.s.Pool.Exec(f.ctx, `UPDATE schema_migrations SET version=$1,dirty=false`, SchemaVersion); err != nil {
 		t.Fatal("restore private readiness fixture")
 	}
+	nfoMigrateVersion(t, f.jobFixture, "down", 9)
 	nfoMigrateVersion(t, f.jobFixture, "down", 8)
 	nfoMigrateVersion(t, f.jobFixture, "down", 7)
 	if before != ignoreLegacySnapshot(t, f.jobFixture) {
@@ -221,6 +223,7 @@ func TestIgnoreMigrationHistoryTrimAllowsDowngrade(t *testing.T) {
 		t.Fatal("ordinary terminal history trim did not remove request with parent")
 	}
 	before := ignoreLegacySnapshot(t, f)
+	nfoMigrateVersion(t, f, "down", 9)
 	nfoMigrateVersion(t, f, "down", 8)
 	nfoMigrateVersion(t, f, "down", 7)
 	if before != ignoreLegacySnapshot(t, f) {

@@ -1,6 +1,6 @@
 # 忽略规则的持久比较：C2/C3 设计
 
-**状态：分段实现中。** scope一致性修正已交付PR #14，逐项目录来源证明已交付PR #16。schema9实现有界来源清单、父链、冲突失效、冻结及只读分页，见[清单合同](ignore-manifest.md)。下述基线三态、合并、完整复核/seal及原生枚举接线仍未实现；当前enabled执行继续关闭。已发布迁移不改写。
+**状态：分段实现中。** scope一致性修正已交付PR #14，逐项目录来源证明已交付PR #16。schema9实现有界来源清单、父链、冲突失效、冻结及只读分页，见[清单合同](ignore-manifest.md)。schema10已实现[持久基线分类](ignore-baseline.md)；保护合并、完整复核/seal及原生枚举接线仍未实现，当前enabled执行继续关闭。已发布迁移不改写。
 ## 1. 先区分旧 scope 与本轮观察
 
 scope 指配置根集合及其映射 epoch；原生根身份另由本轮来源证明绑定。不能只检查 job epoch 等于当前 library epoch，就对任意旧基线计 missing。

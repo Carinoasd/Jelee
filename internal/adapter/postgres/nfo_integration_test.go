@@ -445,12 +445,15 @@ func TestNFOCacheMigrationGuardAndRoundTrip(t *testing.T) {
 	}
 	f.parseHead(t, l, nfoValidSummary())
 	f.finish(t, l)
-	const query = `SELECT jsonb_build_object('jobs',(SELECT jsonb_agg(to_jsonb(j)-'inventory_generation'-'ignore_requested' ORDER BY id) FROM jobs j),'inventory',(SELECT jsonb_agg(to_jsonb(i) ORDER BY id) FROM job_inventory i),'baseline',(SELECT jsonb_agg(to_jsonb(b)-'attributes_known'-'kind'-'size'-'modified_unix_nano'-'inventory_generation' ORDER BY library_id,root_id,path) FROM library_inventory_baseline b))::text`
+	const query = `SELECT jsonb_build_object('jobs',(SELECT jsonb_agg(to_jsonb(j)-'inventory_generation'-'ignore_requested' ORDER BY id) FROM jobs j),'inventory',(SELECT jsonb_agg(to_jsonb(i) ORDER BY id) FROM job_inventory i),'baseline',(SELECT jsonb_agg(to_jsonb(b)-'observed_revision'-'attributes_known'-'kind'-'size'-'modified_unix_nano'-'inventory_generation' ORDER BY library_id,root_id,path) FROM library_inventory_baseline b))::text`
 	var preserved, after string
 	if err = f.s.Pool.QueryRow(f.ctx, query).Scan(&preserved); err != nil {
 		t.Fatal(err)
 	}
 	dsn := f.s.Pool.Config().ConnString()
+	if v, dirty, err := Migrate(f.ctx, dsn, "down"); err != nil || dirty || v != 9 {
+		t.Fatal("baseline comparison downgrade failed", v, dirty, err)
+	}
 	if v, dirty, err := Migrate(f.ctx, dsn, "down"); err != nil || dirty || v != 8 {
 		t.Fatal("manifest downgrade failed", v, dirty, err)
 	}

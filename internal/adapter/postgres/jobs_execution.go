@@ -420,7 +420,7 @@ func (s *Store) FinishJob(ctx context.Context, l domain.JobLease, state, code st
 				}
 				// Image comparison must observe the previous baseline before it is
 				// atomically replaced by this complete inventory.
-				if _, err = tx.Exec(ctx, `INSERT INTO library_inventory_baseline(library_id,root_id,path,attributes_known,kind,size,modified_unix_nano,inventory_generation) SELECT $1::uuid,root_id,path,true,kind,size,modified_unix_nano,$3 FROM job_inventory WHERE job_id=$2::uuid`, current.Job.LibraryID, l.Job.ID, *epoch); err != nil {
+				if _, err = tx.Exec(ctx, `WITH revision AS (UPDATE libraries SET inventory_baseline_revision=inventory_baseline_revision+1 WHERE id=$1::uuid RETURNING inventory_baseline_revision) INSERT INTO library_inventory_baseline(library_id,root_id,path,attributes_known,kind,size,modified_unix_nano,inventory_generation,observed_revision) SELECT $1::uuid,root_id,path,true,kind,size,modified_unix_nano,$3,revision.inventory_baseline_revision FROM job_inventory CROSS JOIN revision WHERE job_id=$2::uuid`, current.Job.LibraryID, l.Job.ID, *epoch); err != nil {
 					return storageError(err)
 				}
 			}

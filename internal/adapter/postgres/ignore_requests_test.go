@@ -407,8 +407,20 @@ func TestIgnoreRequestFailureCancellationAndOffRecoveryPreserveBaseline(t *testi
 				t.Fatal("unexecuted enabled job claimed image comparison", err)
 			}
 			// A terminated enabled request creates no permanent library gate.
+			var revision int64
+			if err := f.s.Pool.QueryRow(f.ctx, `SELECT inventory_baseline_revision FROM libraries WHERE id=$1::uuid`, f.registration.Library.ID).Scan(&revision); err != nil {
+				t.Fatal(err)
+			}
 			completed := f.complete(t, "off-after", []string{"one.mkv", "two.mkv"}, 0)
-			if completed.State != domain.JobSucceeded || completed.Missing != 0 || imageBaseline(t, f) != baseline {
+			var sameMetadata, advanced bool
+			if err := f.s.Pool.QueryRow(f.ctx, `SELECT
+ (SELECT COALESCE(jsonb_agg(to_jsonb(b)-'observed_revision' ORDER BY root_id,path),'[]'::jsonb) FROM library_inventory_baseline b WHERE library_id=$1::uuid)=
+ (SELECT COALESCE(jsonb_agg(v-'observed_revision' ORDER BY v->>'root_id',v->>'path'),'[]'::jsonb) FROM jsonb_array_elements($2::jsonb) v),
+ inventory_baseline_revision=$3+1 AND NOT EXISTS(SELECT 1 FROM library_inventory_baseline b WHERE b.library_id=l.id AND b.observed_revision<>l.inventory_baseline_revision)
+ FROM libraries l WHERE id=$1::uuid`, f.registration.Library.ID, baseline, revision).Scan(&sameMetadata, &advanced); err != nil {
+				t.Fatal(err)
+			}
+			if completed.State != domain.JobSucceeded || completed.Missing != 0 || !sameMetadata || !advanced {
 				t.Fatal("ordinary off inventory did not remain functional")
 			}
 		})
