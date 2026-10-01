@@ -14,7 +14,7 @@
 | CIDR白名單＋嚴格X-Forwarded-For鏈 | 採用；處理常見代理地址鏈，來源與資源預算清楚 |
 | 同時解析RFC Forwarded及多種供應商標頭 | 需處理格式、優先順序與衝突；待有實際客戶端需求再擴充 |
 
-地址來源只採X-Forwarded-For。Forwarded、X-Real-IP、轉發Host／Proto不參與身份、權限或URL重建。這是本階段的明確協定範圍；PUBLIC_URL及公開URL重建仍屬G11.1後續工作。
+地址來源只採X-Forwarded-For。Forwarded、X-Real-IP、轉發Host／Proto不參與身份、權限或URL重建。這是本階段的明確協定範圍；G11.1允許目前的相對URL，PublicBaseUrl屬可選替代，沒有將其擴張為必須新增的功能。
 
 ## 設定與生命週期
 

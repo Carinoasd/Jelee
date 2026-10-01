@@ -24,7 +24,7 @@ export JELEE_TRUSTED_PROXIES='127.0.0.1/32,::1/128'
 
 未可信的對端帶Forwarded、X-Forwarded-*或X-Real-IP時，忽略地址並記 `untrusted_peer`。每請求最多一筆，包含component、requestId與reason，不包含原始地址鏈或其他敏感值。Forwarded、X-Real-IP、轉發Host／Proto均不參與地址、權限或公開URL重建。
 
-代理須正確清理／追加XFF；來源防火牆由部署限制。沒有可信CIDR時，同一代理後的使用者仍共用傳輸IP限流額度。只有XFF協定接入，完整公開URL與可信代理的公網部署矩陣仍待後續驗收。[網路隱私](network-privacy.md)。
+代理須正確清理／追加XFF；來源防火牆由部署限制。沒有可信CIDR時，同一代理後的使用者仍共用傳輸IP限流額度。目前公開URL採原需求允許的相對位址；可信代理的公網部署與完整網路矩陣仍待後續驗收。[網路隱私](network-privacy.md)。
 
 ## 驗證範圍
 

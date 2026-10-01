@@ -144,3 +144,7 @@ DTO單層解耦及兩份既有測試建構參數更新，14項回歸與完整Deb
 ## G11.2 可信代理CIDR／XFF與帳號入口
 
 [實作與驗收範圍](trusted-proxies.md)包含真HTTP代理經帳號Handler抵達稽核repository。Windows完整Go與vet、Linux受影響race通過；移除boundary注入時兩項負例失敗，finally來源逐位元復原後正式回歸再通過；公網／來源防火牆／URL重建／SSRF／WS仍未完成。
+
+## CI並行控制與舊執行清理
+
+[CI來源與實際清理](ci-concurrency.md)：六份YAML欄位保留、17個舊run取消確認、兩個自然終止，最新head保護。排程改善不表示門禁通過，新head須另驗CI。

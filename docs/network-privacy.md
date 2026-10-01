@@ -21,7 +21,7 @@
 - 請求完成日誌目前只記 requestId、方法與耗時；錯誤回應使用安全固定訊息。這不表示帳號稽核、資料庫或代理日誌從不保存地址。
 - HTTPS 在代理終止時，Go 服務收到的請求通常沒有直接 TLS 狀態；目前服務只在直接 TLS 請求加入 HSTS。代理端的 HTTPS、憑證及回應標頭需由部署另外配置。
 
-目前已實作 `JELEE_TRUSTED_PROXIES`／JSON `trustedProxies` 的CIDR與告警，但沒有 `PUBLIC_URL` 設定。完整公開URL重建與公網代理部署驗收仍待G11.1／G11.2後續工作。`Forwarded` 可以由客戶端或中間節點修改；應根據已驗證的代理信任邊界使用，並避免把整條鏈複製到回應。[RFC 7239 §8.1–8.2](https://datatracker.ietf.org/doc/html/rfc7239#section-8.1)
+目前已實作 `JELEE_TRUSTED_PROXIES`／JSON `trustedProxies` 的CIDR與告警，但沒有 `PUBLIC_URL` 設定。G11.1允許相對URL，目前Go服務採此路徑；PublicBaseUrl是可選替代。公網代理部署及完整網路矩陣仍待驗收。`Forwarded` 可以由客戶端或中間節點修改；應根據已驗證的代理信任邊界使用，並避免把整條鏈複製到回應。[RFC 7239 §8.1–8.2](https://datatracker.ietf.org/doc/html/rfc7239#section-8.1)
 
 ## 部署核對
 

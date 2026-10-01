@@ -898,3 +898,13 @@ G11.8 blocked→partial（指定文檔完成，共用網路Plan的SSRF／WS／�
 可信代理階段Win完整Go27個通過套件／2724個pass事件、435個環境skip（逐項見evidence），vet通過；Linux config／HTTP／i18n race1.368／3.616／1.074s。專項48個pass事件無skip，負例兩fail已復原。增量品牌0／175允許、gitignore0／diff通過；完整品牌14735／180允許仍fail，沒有增加豁免。來源hash與負例前相同，待核准直播五檔及保護檔逐位元未變。G11.2維持partial，下一段PUBLIC_URL／完整公網代理驗收仍待實作。
 
 613005e0b0已推送產品與回歸；最後補寫證據的Python字串語法錯誤使該補寫未執行，而後续提交命令仍執行。此次只補齊實測門禁／略過摘要，產品與測試來源不變。後續inline Python一律檢查exit code後才提交。
+
+### CI 最新執行控制與舊run清理
+
+查得最新b92b79a0d4排隊、同分支19個舊head仍active。六CI父workflow只加workflow/event/ref根層concurrency；PyYAML解析與去欄位前後語意相同，所有jobs/steps/權限/trigger/gates不變。清理前逐run再次核對head/branch/event/status與遠端head保護，17一般取消均已確認cancelled，兩個已自然terminal。曾有36905726685未退出，保持同handle觀測直到completed/cancelled；没有restart/force cancel。第一次WSL inline表達式遇shell展開bad substitution，改寫檔案後驗證完成，沒有跳過檢查。
+
+04a80ad9f9的Go兩平台／PG皆success，foundation全workflowfailure為Full branding；其他功能不是同一失敗來源。新head仍需自身CI，取消不計為成功。沒有改產品、待核准五核心、原媒体或既有遷移。
+
+另重讀G11.1原文是「相對地址或顯式PublicBaseUrl」，前幾段把PUBLIC_URL描述成必须後續功能屬過度解讀，現文檔及追溯已修正，保留相對路徑方案；G11.1仍partial因共用網路Plan的SSRF/WS/部署矩陣不全，336計數不變。五核心3271行刪除仍等async明確授權。
+
+CI階段增量品牌0／175允許、gitignore0、staged diff通過；完整品牌14735／180允許仍fail。六workflow保留原BOM，移除新增block後與base逐位元相同，記錄原始before／after SHA256。沒有runtime來源變更，未重跑本地產品全套測試；新head需自身CI。
