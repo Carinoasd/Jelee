@@ -11,7 +11,7 @@ observation, err := resolver.Evaluate(ctx, trustedRoot, "movies/example.mkv", ig
 
 ## 结果与错误
 
-Observation只包括本候选Match、diagnostics副本和 `Token() [32]byte`。没有原文、可共享文件句柄或可误用于其他候选的部分Program。返回错误时Observation全部清零。日志格式化Observation只显示静态脱敏文字；Match的来源为根相对规则文件与行号。
+Observation包括本候选Match、diagnostics副本、`Token() [32]byte` 和 `DirectoryProofs()` 返回的独立目录证明副本。没有原文、可共享文件句柄或可误用于其他候选的部分Program。返回错误时Observation全部清零。日志格式化Observation只显示静态脱敏文字；Match的来源为根相对规则文件与行号。
 
 Token覆盖版本、模式大小写选项、观察到的目录身份和顺序、规则存在状态、文件身份、size/mtime与完整原文SHA256。它用于区分本次规则观察，不是持久规则版本、租约、扫描generation或磁盘原子快照；不能单凭相同token提交库存删除。
 
@@ -38,3 +38,11 @@ Token覆盖版本、模式大小写选项、观察到的目录身份和顺序、
 Windows从held handle读取完整身份并拒绝所有reparse；Linux使用openat2拒绝链接。Windows文件系统可能接受不同大小写拼写，但规则匹配的Case选项独立，来源标签仍使用调用方规范相对路径。非Linux/Windows平台安全返回unavailable。
 
 检查不构成多文件原子快照，也不阻止hardlink或bind mount。最后检查后的磁盘变化仍需扫描提交层处理。取消会关闭正在读的owned file并等待callback结束；普通open/stat或受阻网络文件系统调用不能保证立即被中断。
+
+## 逐项来源证明
+
+`DirectoryProofs()` 按根到叶顺序返回本候选真正观察并复核过的目录。根路径为 `.`，非根保存直接父目录身份；每项含目录身份和 `.jeleeignore` 的存在标记、文件身份、大小、纳秒mtime及完整原文SHA256。空规则仍为present，其SHA是空字节SHA；缺少规则的字段全零。没有目录缺失证明，也不会为排除子树制造记录。
+
+返回slice和数组由调用方独占，修改不影响Observation或缓存。证明不含原文和绝对路径，JSON与常规格式化均脱敏。观察最多128层，返回证明使用相同边界。失败、取消、复核变化或关闭失败不会发布证明。该接口没有执行额外I/O，也没有改变cache和Token算法。
+
+这些记录用于后续持久化适配，当前尚未写数据库。它们只证明本次来源观察，不能证明另一次ReadDir的目录句柄相同，也不代表整库规则已冻结。验证见[来源证明输出](ignore-observations-verification.md)。

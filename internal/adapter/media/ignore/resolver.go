@@ -222,7 +222,7 @@ func (r *Resolver) evaluate(ctx context.Context, root, candidate string, kind ig
 			return Observation{}, ErrChanged
 		}
 	}
-	result = Observation{Match: matched, Diagnostics: program.Diagnostics(), token: observationToken(chain, options.Case)}
+	result = Observation{Match: matched, Diagnostics: program.Diagnostics(), token: observationToken(chain, options.Case), chain: chain}
 	if err := closeResources(); err != nil {
 		return Observation{}, err
 	}

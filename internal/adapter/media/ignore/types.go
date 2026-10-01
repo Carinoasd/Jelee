@@ -40,6 +40,7 @@ type Observation struct {
 	Match       ignore.Match
 	Diagnostics ignore.Diagnostics
 	token       [32]byte
+	chain       []directoryObservation
 }
 
 func (o Observation) Token() [32]byte { return o.token }
