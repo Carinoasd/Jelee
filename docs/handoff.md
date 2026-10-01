@@ -458,3 +458,21 @@ schema16基線證據已提交7b1f6b57d3，普通繁中PR40：https://github.com/
 PR40最新兩PGpending（110314880445、110315039488），其他功能全pass，完整品牌fail。所有本機handle結束。本機全PG harness外層目前300秒，本輪288秒已接近，後續新增測試若增加整套時長須合理調整外層觀察期限，不縮減fixture/SQL/lease期限或移除測試。
 
 下一步合併基線分類：新FamilyIgnoreBaselineDecision需family/reason、ancestor MatchedPath和可選legacybaseline觀察，不能冒用僅自有行號>=1合同。必須保留父目錄剪枝語義；不可只查最終檔案的nearest來源，因掃描可能已被祖先legacy空檔/規則排除。自有明确Include/Exclude優先，每個仍需判定的祖先目錄與最終檔案應按相同組合政策，缺失目錄觀察用已實作的邊界。兩family身份链需一致，資料庫完整基線分類/兩來源復核/發布/worker仍未接線，不代表G22或階段3完成。
+
+schema17任務級基線復核已提交7b280acece，普通繁中PR41：https://github.com/MoYuanCN/Jelee/pull/41，已附聊天。現為feat/jelee-ignore-family-classification，接續遵守祖先剪枝的合併基線分類。PR41尚未查CI，所有本機handle結束。
+
+### 合併基線分類進行中（未提交）
+
+新增 FamilyIgnoreBaselineDecision 與驗證：保留 family/reason、祖先 MatchedPath；legacy 可由該目錄自己的來源排除目錄，但最終檔案不能冒充來源目錄；custom 僅容嚴格祖先來源。blank/invalid 行號0，rule行號1–4096；missing/unknown不攜帶family或規則出處，未知原因限既有固定值，序列化與格式化遮蔽私有資料。
+
+新增 FamilyIgnoreScanner.EvaluateFamilyIgnoreBaseline：逐層祖先再最終檔案，自有明確Include/Exclude優先，Unmatched才查legacybaseline；祖先排除即停止。共用兩slot與30秒ctx；合併custom完整proof、legacy checked相容proof及兩family身份/缺失邊界，衝突返回空結果+invalidated。返回仍是暫定分類，不能證明清單absence或發布；尚未串接DB與worker。
+
+Windows scan/domain全套測試1.560/.191秒通過，兩package vet與diff-check通過。新增針對祖先空來源禁止後代復活、明確include繞過legacy、缺失父目錄僅保留首個absence、不接受祖先之間custom來源變更的測試。尚待Linux race與真實helper驗收、更多跨family身份與邊界變更/取消/資源限額測試、架構和完整門禁；不可宣稱此小階段完成，四個新Go檔未提交。下一步先完成上述驗證和必要修正，再文件/traceability、繁中PR；schema17維持不變。
+
+PR41最新查詢：兩套foundation Windows/Linux皆pass，兩PG與既有平台run-tests仍pending，完整品牌fail。查詢成功需require_escalated網路；預設sandbox代理127.0.0.1:9失敗。無活躍本機測試handle。
+
+### 合併基線分類 adapter 已驗證
+
+Windows scan/domain/architecture全套1.688/.174/.159秒，全vet/三build通過；Linux原生/tmp race1.176/1.051/1.095秒；真實helper非race .022秒通過，Windows同項在scan全套。補足真實空/allinvalid/缺失祖先/自有優先、祖先禁止復活、兩名額/第三拒絕/取消釋放/共享deadline與兩family來源變更測試。CI非race步驟新增FamilyBaselineNativeHelper。詳見ignore-family-baseline.md；schema17未改。尚未串接DB分類保存、最終發布及worker，不代表G22完成。
+
+PR41最新三平台run-tests全pass，foundation兩平台兩套皆pass，兩PG仍pending（110318639596、110318814009），完整品牌fail。下一步合併基線保存：原基線表只容自有rule_line>=1，需新family/reason來源關聯合同，綁定exact pending page與兩family共同原子保存；先讀既有ignore_baseline與ignore_family_scan保存流程，不能把adapter分類直接作發布權限。所有本機handle已結束。
