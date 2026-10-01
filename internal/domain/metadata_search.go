@@ -6,11 +6,13 @@ import (
 	"unicode/utf8"
 )
 
-type MovieSearchInput struct {
+type MetadataSearchInput struct {
 	Query    string `json:"query"`
 	Year     int    `json:"year"`
 	Language string `json:"language"`
 }
+
+type MovieSearchInput = MetadataSearchInput
 
 type MovieMatch struct {
 	Movie             MovieCandidate `json:"movie"`
@@ -24,7 +26,7 @@ type MovieMatches struct {
 	Candidates []MovieMatch `json:"candidates"`
 }
 
-func NormalizeMovieSearch(input MovieSearchInput) (MovieSearchInput, error) {
+func NormalizeMetadataSearch(input MetadataSearchInput) (MetadataSearchInput, error) {
 	input.Query = strings.TrimSpace(input.Query)
 	if input.Query == "" || len(input.Query) > 256 || !utf8.ValidString(input.Query) || strings.ContainsFunc(input.Query, unicode.IsControl) || !ValidMetadataLanguage(input.Language) || (input.Year != 0 && (input.Year < 1000 || input.Year > 9999)) {
 		return MovieSearchInput{}, ErrInvalid

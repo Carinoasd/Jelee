@@ -24,6 +24,23 @@ type httpMovieProvider struct {
 	language string
 }
 
+func (p *httpMovieProvider) Series(ctx context.Context, id int32, language string) (domain.SeriesCandidate, error) {
+	p.calls++
+	p.language = language
+	if err := ctx.Err(); err != nil {
+		return domain.SeriesCandidate{}, err
+	}
+	return domain.SeriesCandidate{ProviderID: id, Title: "劇集", Language: language, FirstAirDate: "2024-01-01"}, p.fail
+}
+func (p *httpMovieProvider) SearchSeries(ctx context.Context, input domain.SeriesSearchInput) ([]domain.SeriesCandidate, error) {
+	p.calls++
+	p.language = input.Language
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	return []domain.SeriesCandidate{{ProviderID: 12, Title: input.Query, Language: input.Language, FirstAirDate: "2024-01-01"}}, p.fail
+}
+
 func (p *httpMovieProvider) SearchMovies(ctx context.Context, input domain.MovieSearchInput) ([]domain.MovieCandidate, error) {
 	p.calls++
 	p.language = input.Language

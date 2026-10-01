@@ -26,6 +26,7 @@ type TMDB struct {
 	now      func() time.Time
 	governor *requestGovernor
 	movies   movieCache
+	series   seriesCache
 }
 
 func NewTMDB(key string) (*TMDB, error) {

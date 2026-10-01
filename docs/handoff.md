@@ -966,3 +966,13 @@ G14.1 blocked→partial、G14.3仍partial，336統計4done／180partial／152blo
 劇集／季集、IMDB／TVDB、模糊置信度、library／worker寫入、語言回退、NFO優先／field locks、移除外部元資料與完整合規仍缺。五核心3271行仍待具體核准，沒有改刪。前段HEAD的Format／OpenAPI success，ABI failure，其餘當時仍live，新HEAD要自身CI；品牌與ABI門禁維持，不合併，仍第3階段。
 
 搜尋階段最後增量品牌0／181、完整14735／186仍fail、gitignore0；11來源hash、保護hash與五核心逐位元、C#／遷移無diff、links與336統計核對通過。補Movie欄位驗證後／cache發布前context檢查及確定取消測試，最終完整Go／vet／build及Linux race皆重驗，pass事件2961（含父），略過435逐項相同。所有handles terminal，同PR46續推，下一步仍需劇集／季／集与元資料寫入保護。
+
+### G14 劇集搜尋與詳細候選資料
+
+接續e5e12cfe94，正式管理員API加入TV名稱／選填首播年份與ID詳細；使用first_air_date_year，不用涵蓋所有集播出年的year。共享transport／governor／重試，正文1MiB／15秒，整批最多20唯一ID與共用欄位驗證，全部待確認，不選首筆／不寫入。SeriesCandidate保留firstAirDate／TMDB劇集來源／UTC時間；電影與劇集各256筆24h，獨立typed cache共用LRU實作，Movie schema及語意不變。搜尋輸入改共用MetadataSearchInput，runtime provider編譯期涵蓋兩類。
+
+真TLS正式adapter＋app查出20劇集、兩次detail一次上游、同ID電影自有endpoint，搜尋不抓detail；繞過Series快取命中負例1leaf fail（search=1／series=2／movie=1），finally逐位元復原後metadata／app／HTTP／outbound四包完整回歸通過。Windows全Go29pkg／2994pass事件含父／435略過，與原完整skip清單逐項一致；vet與產品build PASS，Linux六包race PASS（摘要不列skip未宣稱0）。21候選拒絕／schema隔離、權限／query／ID／安全錯誤與取消、cache TTL／語言／跨類型／容量及既有並行回歸通過。20只是候選契約，不是原100電影／20劇集與鎖定寫入完整驗收。
+
+G14.1／3／4保持partial，336統計4done／182partial／150blocked不變。季／集、IMDB／TVDB、置信度、語言回退、NFO優先／鎖、library／worker寫入與清除元資料、圖片／前端／完整TMDB條款仍缺。五核心3271行仍待原具體核准，沒有改／刪；原媒體／NFO／圖片／遷移／LICENSE保護。前HEAD Format／OpenAPI success，ABI仍fail，其他當時live；本HEAD要自身CI，不合併。詳見tmdb-series-preview與evidence。
+
+劇集階段最後增量品牌0／181、完整14735／186仍fail、gitignore0；17來源hash與負例恢復、保護hash／五核心逐位元、C#／遷移無diff、local links／336統計核對通過。全部本輪handles terminal，無新branch，同PR46推送；下一段季與單集metadata，不把preview當完整library刮削。

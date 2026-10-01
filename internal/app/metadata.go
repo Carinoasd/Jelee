@@ -14,13 +14,19 @@ type MovieProvider interface {
 	SearchMovies(context.Context, domain.MovieSearchInput) ([]domain.MovieCandidate, error)
 }
 
+type MetadataProvider interface {
+	MovieProvider
+	Series(context.Context, int32, string) (domain.SeriesCandidate, error)
+	SearchSeries(context.Context, domain.SeriesSearchInput) ([]domain.SeriesCandidate, error)
+}
+
 // SearchMovies reports simple title/year comparisons for review. It never
 // selects a result or authorizes an automatic metadata write.
 func (m *Metadata) SearchMovies(ctx context.Context, input domain.MovieSearchInput) (domain.MovieMatches, error) {
 	if err := ctx.Err(); err != nil {
 		return domain.MovieMatches{}, err
 	}
-	input, err := domain.NormalizeMovieSearch(input)
+	input, err := domain.NormalizeMetadataSearch(input)
 	if err != nil {
 		return domain.MovieMatches{}, err
 	}
@@ -47,9 +53,9 @@ func (m *Metadata) SearchMovies(ctx context.Context, input domain.MovieSearchInp
 	return result, nil
 }
 
-type Metadata struct{ provider MovieProvider }
+type Metadata struct{ provider MetadataProvider }
 
-func NewMetadata(provider MovieProvider) (*Metadata, error) {
+func NewMetadata(provider MetadataProvider) (*Metadata, error) {
 	if provider == nil {
 		return nil, domain.ErrInvalid
 	}

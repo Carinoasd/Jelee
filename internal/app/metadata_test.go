@@ -10,6 +10,13 @@ import (
 
 type movieProviderFunc func(context.Context, int32, string) (domain.MovieCandidate, error)
 
+func (f movieProviderFunc) Series(context.Context, int32, string) (domain.SeriesCandidate, error) {
+	return domain.SeriesCandidate{}, domain.ErrNotFound
+}
+func (f movieProviderFunc) SearchSeries(context.Context, domain.SeriesSearchInput) ([]domain.SeriesCandidate, error) {
+	return nil, domain.ErrMetadataUnavailable
+}
+
 func (f movieProviderFunc) SearchMovies(context.Context, domain.MovieSearchInput) ([]domain.MovieCandidate, error) {
 	return nil, domain.ErrMetadataUnavailable
 }

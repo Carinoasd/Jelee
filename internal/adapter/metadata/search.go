@@ -24,7 +24,7 @@ func (t *TMDB) SearchMovies(ctx context.Context, input domain.MovieSearchInput) 
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
-	input, err := domain.NormalizeMovieSearch(input)
+	input, err := domain.NormalizeMetadataSearch(input)
 	if err != nil || strings.Contains(input.Query, t.key) {
 		return nil, domain.ErrInvalid
 	}

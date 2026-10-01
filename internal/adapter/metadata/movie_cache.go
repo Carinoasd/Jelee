@@ -11,55 +11,60 @@ import (
 const movieCacheCapacity = 256
 const movieCacheTTL = 24 * time.Hour
 
-type movieKey struct {
+type candidateKey struct {
 	id       int32
 	language string
 }
-type movieEntry struct {
-	key   movieKey
-	movie domain.MovieCandidate
+type movieKey = candidateKey
+type movieCache = candidateCache[domain.MovieCandidate]
+type seriesCache = candidateCache[domain.SeriesCandidate]
+type timedCandidate interface{ FetchedTime() time.Time }
+type candidateEntry[V timedCandidate] struct {
+	key   candidateKey
+	value V
 }
-type movieCache struct {
+type candidateCache[V timedCandidate] struct {
 	mu      sync.Mutex
-	entries map[movieKey]*list.Element
+	entries map[candidateKey]*list.Element
 	lru     list.List
 }
 
-func (c *movieCache) get(key movieKey, now time.Time) (domain.MovieCandidate, bool) {
+func (c *candidateCache[V]) get(key candidateKey, now time.Time) (V, bool) {
+	var zero V
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	e := c.entries[key]
 	if e == nil {
-		return domain.MovieCandidate{}, false
+		return zero, false
 	}
-	entry := e.Value.(movieEntry)
-	if !now.Before(entry.movie.FetchedAt.Add(movieCacheTTL)) {
+	entry := e.Value.(candidateEntry[V])
+	if !now.Before(entry.value.FetchedTime().Add(movieCacheTTL)) {
 		delete(c.entries, key)
 		c.lru.Remove(e)
-		return domain.MovieCandidate{}, false
+		return zero, false
 	}
 	c.lru.MoveToFront(e)
-	return entry.movie, true
+	return entry.value, true
 }
 
-func (c *movieCache) put(key movieKey, movie domain.MovieCandidate) {
+func (c *candidateCache[V]) put(key candidateKey, value V) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if c.entries == nil {
-		c.entries = make(map[movieKey]*list.Element)
+		c.entries = make(map[candidateKey]*list.Element)
 	}
 	if e := c.entries[key]; e != nil {
 		// Concurrent misses may finish out of order. Keep the newer data.
-		if movie.FetchedAt.After(e.Value.(movieEntry).movie.FetchedAt) {
-			e.Value = movieEntry{key, movie}
+		if value.FetchedTime().After(e.Value.(candidateEntry[V]).value.FetchedTime()) {
+			e.Value = candidateEntry[V]{key, value}
 		}
 		c.lru.MoveToFront(e)
 		return
 	}
-	c.entries[key] = c.lru.PushFront(movieEntry{key, movie})
+	c.entries[key] = c.lru.PushFront(candidateEntry[V]{key, value})
 	if len(c.entries) > movieCacheCapacity {
 		e := c.lru.Back()
-		delete(c.entries, e.Value.(movieEntry).key)
+		delete(c.entries, e.Value.(candidateEntry[V]).key)
 		c.lru.Remove(e)
 	}
 }
