@@ -126,3 +126,39 @@ PR22 最新遠端功能檢查全數通過，僅兩輪 Full branding gate 失敗�
 Windows 四相關套件 test 與 scan/app vet 通過；Linux 原生 scan race 16 頂層、0 skip、86.3% coverage、vet 通過。新增 TestIgnoreNativeBridgePublication 真目錄→PG保存→原生重新觀察→seal→發布的 stable/source-change 兩子案例，race 通過，1頂層、0skip、17.359秒。來源變動拒絕發布。測試使用 manufactured lease，正式 claim/runner/API 未完成；不可當正式排程端到端驗收。全部程序已結束。證據 docs/evidence/ignore-worker-bridge.json。
 
 下一階段串接 runner 的 ignore inventory/baseline/verification/publication；需補租約核對的 request/root lookup，以及 NFO/probe 對已完成過濾庫存的安全准入。普通 off 路徑與能力不足 worker 不得誤領 enabled。完成後再開放 API/CLI，持續全案 G00–G51。
+
+工作介面橋接已提交 592c98f5c7 並推送繁中普通 PR #24（https://github.com/MoYuanCN/Jelee/pull/24），base feat/jelee-ignore-scan-batches，已附聊天。接續分支 feat/jelee-ignore-runner，正式 runner 接線尚未修改。
+
+runner 接續已新增未提交的 app.IgnoreExecutionRepository，以及 Store.ReadIgnoreRequest/ReadIgnoreRoot。所有讀取使用 jobTransaction/fencedJob，取消拒絕，回傳前 guardedJobUpdate；root 額外 ignoreManifestFence/epoch 與 library_id 限定。TestIgnoreExecutionPrivateReadsFenced 最終使用同一 DB schema 第二媒體庫，驗證正常讀取、跨庫與舊 generation 拒絕；Linux PG race 1頂層/零skip/16.208秒通過（execution-read-isolation 日誌），sourceUnchanged=true。先前 execution-read-first 測試通過但跨库用另 schema，已補強，不以舊證據取代最終。全部測試程序已結束。
+
+正式 runner 尚未修改。入口 internal/platform/jobs/runner.go：loop 在171附近 capability claim，run 在251附近啟動heartbeat再 execute，終止時 FinishJob；executeInventory 在365附近。NFO/probe admission requireIgnoreOff 仍封鎖 enabled，需精確改成驗證已完成的 filtered inventory，而非直接刪守衛。ReadIgnoreRequest 可支援 off nil，但缺失或不一致 enabled request 必須 error，不能 fallback。
+
+PR23最新功能CI：Windows/Linux與C#/ABI通過，一輪PG通過、另一輪pending；只有branding已確認失敗。PR24剛發布，尚未確認最終CI。
+
+### 正式 runner 接線進行中（尚未提交）
+
+本輪新增 jobs.IgnoreOptions 與 ignore.go：execute 先從具 IgnoreExecutionRepository 的主 repository 讀取請求，off 維持原流程；enabled 驗證請求/選項後，依 ReadIgnoreProgress 決定是否重掃，再分類原始頁、保存新來源證明、執行 metadata stages、重新讀持久 unknown、復核各頁及 seal。讀取錯誤僅 ErrIgnoreUnavailable 分類為 unknown；來源變動/超限等中止。新增 IgnoreExecutionProgress/ReadIgnoreProgress 供恢復使用。
+
+nfo.go 原 execute 改 executeStages(...inventoryDone)，probe.go 增 executeProbeStages(...inventoryDone) 保留原 wrapper；filtered inventory 完成後不走普通掃描。runner.run 首次成功終止改 r.finishJob，會依 ReadIgnoreRequest 分流 FinishIgnoreJob；失敗/取消仍原 FinishJob。Options.Ignore 做基本 nil 驗證/值複製。
+
+Windows jobs 全包測試、相關PG/architecture編譯測試、jobs/PG vet通過。新增三頂層 worker 測試：持久unknown恢復/不重掃、保存錯誤即使scanner吞掉仍回傳、missing/duplicate Done、成功/失敗終止分流。尚未跑 Linux runner race 或完整PG，不能聲稱此段可正式啟用。
+
+下一步：NFO/probe 存取目前仍 requireIgnoreOff，需新增只允許 complete comparison+valid manifest+current epoch 的 metadata 准入；普通 FinishJob 成功必須繼續拒enabled。完成此檢查及測試後再開 capability claim，cmd 初始化 IgnoreOptions、公開intent與API/CLI。另需補真正 runner+PG+native E2E，包括重新領取、取消、來源變動、unknown review、混合 NFO/probe。正式 claim 仍關閉，所有上述修改未提交，沒有活躍測試程序。不要提早發 PR 或提高全案需求完成狀態。
+
+### metadata 准入與正式領取已接線（仍未提交）
+
+新增 requireMetadataInventory/requireMetadataNFOFinished：enabled 必須 comparison completed、manifest未invalidated、inventory epoch與baseline revision吻合才允許 NFO/probe；off 原樣，損壞ignore request拒絕。替换 NFO read/execute 與 probe read/execute 的 guard；普通 FinishJob 仍使用 requireNFOFinished→requireIgnoreOff，不允許繞seal發布。
+
+ClaimJobWithCapabilities 現在按 Ignore bool 開放合法 enabled request：jobs marker與row須同時存在、library吻合、mode/case合法、program/proof版本吻合。無能力 wrapper仍不領取；缺失marker/row仍不領取。舊C1測試中原本advertise true仍期待永久不執行的案例改成ignore=false，保留無能力/重試/恢復測試；損壞row測試仍使用true。runner claim宣告options.Ignore是否存在；New在Ignore配置時要求主repo實作IgnoreExecutionRepository。
+
+新增 TestIgnoreRunnerNativeClaimAndPublish：真正 Start→capability claim→native臨時根掃描→PG→復核→seal→發布，檢查排除項不進基線，無manufactured lease；Linux race通過。TestIgnoreMetadataAdmission驗證未完成拒絕/valid允許/invalidated/epoch/revision拒絕/ordinary success禁止。第一次唯一失敗是epoch案例預期錯誤順序錯（既有FinishJob更早回ErrInventoryInvalidated），修正預期保留guard。最終runner-admission-first：14頂層通過/0skip/30.637秒。Windows jobs/PG/architecture測試通過。所有程序結束。
+
+仍待：mixed NFO/probe真worker整合、租約重新領取/取消/unknown/source-change等worker整合、完整PG regression、Linux jobs race、全模組vet/build。runtime.New 尚未配置IgnoreOptions，因此正式程式尚未啟用；公開API/CLI與報告也待做。上述修改保留在feat/jelee-ignore-runner未提交，不要提早宣稱此段完成或新建PR。
+
+### 正式 worker 階段驗證完成（最新）
+
+Windows/Linux runtime 已配置 IgnoreOptions。新增真worker測試涵蓋正式能力領取與發布、真NFO讀取且排除錯誤NFO、Release後重新領取已開始比對、重新觀察前規則變動拒絕發布。未新增migration，schema仍12。
+
+最終完整PG race 180頂層/零skip/220.613秒/sourceUnchanged=true；Linux jobs race通過，全模組vet/三build通過且來源不變。Windows runtime/jobs/PG/architecture test與相關vet通過，Windows PG無DSN非整合證據。原LICENSE/需求/go.mod/go.sum雜湊保持。證據docs/evidence/ignore-runner.json，合同docs/ignore-runner.md。全部命令結束，無待輪詢handle。
+
+本段準備提交普通繁中PR，後續仍須API/CLI忽略intent與排除報告、混合外部probe真媒體驗收、正式取消與unknown review端到端情境。不能把worker階段當3D1或全案完成。PR24目前所有功能CI通過，僅品牌gate失敗，門禁保留。

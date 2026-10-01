@@ -31,6 +31,7 @@ func (realClock) NewTimer(d time.Duration) Timer { return realTimer{time.NewTime
 func (t realTimer) C() <-chan time.Time          { return t.Timer.C }
 
 type Options struct {
+	Ignore             *IgnoreOptions
 	Workers            int
 	PollInterval       time.Duration
 	LeaseDuration      time.Duration
@@ -90,6 +91,16 @@ func New(repository app.JobExecutionRepository, scanner app.InventoryScanner, op
 	}
 	if opts.Clock == nil {
 		opts.Clock = realClock{}
+	}
+	if opts.Ignore != nil {
+		if _, ok := repository.(app.IgnoreExecutionRepository); !ok {
+			return nil, domain.ErrInvalid
+		}
+		i := *opts.Ignore
+		if i.Repository == nil || i.Scanner == nil || i.Observer == nil {
+			return nil, domain.ErrInvalid
+		}
+		opts.Ignore = &i
 	}
 	r := &Runner{repository: repository, scanner: scanner, options: opts, logger: logger}
 	if err := r.configureProbe(); err != nil {
@@ -168,9 +179,9 @@ func (r *Runner) work(ctx context.Context) {
 		var lease domain.JobLease
 		var err error
 		if r.nfoRepository != nil {
-			lease, err = r.nfoRepository.ClaimJobWithCapabilities(dbCtx, r.options.Owner, turn%4 == 3, r.options.LeaseDuration, domain.ScanCapabilities{Probe: r.probeAvailable(), NFO: r.nfoAvailable()})
+			lease, err = r.nfoRepository.ClaimJobWithCapabilities(dbCtx, r.options.Owner, turn%4 == 3, r.options.LeaseDuration, domain.ScanCapabilities{Probe: r.probeAvailable(), NFO: r.nfoAvailable(), Ignore: r.options.Ignore != nil})
 		} else if capable, ok := r.repository.(stagesClaimer); ok {
-			lease, err = capable.ClaimJobWithCapabilities(dbCtx, r.options.Owner, turn%4 == 3, r.options.LeaseDuration, domain.ScanCapabilities{Probe: r.probeAvailable()})
+			lease, err = capable.ClaimJobWithCapabilities(dbCtx, r.options.Owner, turn%4 == 3, r.options.LeaseDuration, domain.ScanCapabilities{Probe: r.probeAvailable(), Ignore: r.options.Ignore != nil})
 		} else if r.probeRepository != nil {
 			lease, err = r.probeRepository.ClaimJobWithProbe(dbCtx, r.options.Owner, turn%4 == 3, r.options.LeaseDuration, r.probeAvailable())
 		} else if capable, ok := r.repository.(probeClaimer); ok {
@@ -322,7 +333,7 @@ func (r *Runner) run(serviceCtx context.Context, lease domain.JobLease) {
 	}
 	dbCtx, cancelDB := context.WithTimeout(context.WithoutCancel(serviceCtx), r.options.DBOperationTimeout)
 	defer cancelDB()
-	finishErr := r.repository.FinishJob(dbCtx, lease, state, code)
+	finishErr := r.finishJob(dbCtx, lease, state, code)
 	if state == domain.JobSucceeded && (errors.Is(finishErr, domain.ErrInventoryInvalidated) || errors.Is(finishErr, domain.ErrNFOInvalidated) || errors.Is(finishErr, domain.ErrNFOIdentityMismatch)) {
 		// The success transaction was rolled back. Persist the terminal safe
 		// failure without replacing the accepted inventory/image baseline.

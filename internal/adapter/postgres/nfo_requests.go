@@ -91,7 +91,7 @@ func (s *Store) LoadNFOWork(parent context.Context, l domain.JobLease) (domain.N
 	if current.Job.CancelRequested {
 		return domain.NFOWork{}, context.Canceled
 	}
-	if err = requireIgnoreOff(ctx, tx, l.Job.ID); err != nil {
+	if err = requireMetadataInventory(ctx, tx, l.Job.ID); err != nil {
 		return domain.NFOWork{}, err
 	}
 	r, err := loadNFORequest(ctx, tx, l.Job.ID)

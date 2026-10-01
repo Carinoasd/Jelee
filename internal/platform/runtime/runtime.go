@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	goruntime "runtime"
 	"sync"
 	"time"
 
@@ -68,6 +69,10 @@ func New(cfg config.Config, logger *slog.Logger) *fx.App {
 			}
 			p := c.Jobs
 			opts := jobworker.Options{Workers: p.Workers, PollInterval: time.Duration(p.PollMilliseconds) * time.Millisecond, LeaseDuration: time.Duration(p.LeaseSeconds) * time.Second, DBOperationTimeout: time.Duration(p.DatabaseTimeoutSeconds) * time.Second, MaxJobRuntime: time.Duration(p.MaxRuntimeSeconds) * time.Second}
+			if goruntime.GOOS == "linux" || goruntime.GOOS == "windows" {
+				ignoreScanner := scan.NewIgnoreScanner()
+				opts.Ignore = &jobworker.IgnoreOptions{Repository: store, Scanner: ignoreScanner, Observer: ignoreScanner}
+			}
 			if validation.Available() {
 				opts.NFO = &jobworker.NFOOptions{Repository: store, Reader: validation, MaxConcurrent: 2, Available: validation.Available, OnRuntimeUnavailable: validation.Disable}
 			}

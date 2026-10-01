@@ -197,8 +197,8 @@ func TestIgnoreRequestEveryRetryWrapperPreservesIntent(t *testing.T) {
 			if err != nil || !replay || got.ID != next.ID {
 				t.Fatal("retry replay did not retain original run", err)
 			}
-			if _, err = f.s.ClaimJobWithCapabilities(f.ctx, "cannot-run", false, time.Minute, domain.ScanCapabilities{Probe: true, NFO: true, Ignore: true}); !errors.Is(err, domain.ErrNotFound) {
-				t.Fatal("retry became executable in C1", err)
+			if _, err = f.s.ClaimJobWithCapabilities(f.ctx, "cannot-run", false, time.Minute, domain.ScanCapabilities{Probe: true, NFO: true}); !errors.Is(err, domain.ErrNotFound) {
+				t.Fatal("retry became executable without ignore capability", err)
 			}
 		})
 	}
@@ -276,8 +276,8 @@ func TestIgnoreRequestAllClaimWrappersLeaveEnabledQueued(t *testing.T) {
 		{"all-false", func() (domain.JobLease, error) {
 			return f.s.ClaimJobWithCapabilities(f.ctx, "all-false", true, time.Minute, domain.ScanCapabilities{})
 		}},
-		{"all-true", func() (domain.JobLease, error) {
-			return f.s.ClaimJobWithCapabilities(f.ctx, "all-true", false, time.Minute, domain.ScanCapabilities{Probe: true, NFO: true, Ignore: true})
+		{"without-ignore", func() (domain.JobLease, error) {
+			return f.s.ClaimJobWithCapabilities(f.ctx, "without-ignore", false, time.Minute, domain.ScanCapabilities{Probe: true, NFO: true})
 		}},
 	}
 	for _, tc := range calls {
@@ -514,8 +514,8 @@ func TestIgnoreRequestExpiredRecoveryNeverRunsOrPublishesInventory(t *testing.T)
 			if _, err := f.s.Pool.Exec(f.ctx, `UPDATE jobs SET lease_until=clock_timestamp()-interval '1 second' WHERE id=$1::uuid`, j.ID); err != nil {
 				t.Fatal(err)
 			}
-			if _, err := f.s.ClaimJobWithCapabilities(f.ctx, "recovery", false, time.Minute, domain.ScanCapabilities{Probe: true, NFO: true, Ignore: true}); !errors.Is(err, domain.ErrNotFound) {
-				t.Fatal("expiry recovery made enabled job executable", err)
+			if _, err := f.s.ClaimJobWithCapabilities(f.ctx, "recovery", false, time.Minute, domain.ScanCapabilities{Probe: true, NFO: true}); !errors.Is(err, domain.ErrNotFound) {
+				t.Fatal("expiry recovery admitted an incapable worker", err)
 			}
 			want := domain.JobQueued
 			if mode == "exhausted" {

@@ -24,7 +24,7 @@ func (s *Store) LoadProbeWork(parent context.Context, l domain.JobLease) (domain
 	if current.Job.CancelRequested {
 		return domain.ProbeWork{}, context.Canceled
 	}
-	if err = requireIgnoreOff(ctx, tx, l.Job.ID); err != nil {
+	if err = requireMetadataInventory(ctx, tx, l.Job.ID); err != nil {
 		return domain.ProbeWork{}, err
 	}
 	r, err := loadProbeRequest(ctx, tx, l.Job.ID)
@@ -67,7 +67,7 @@ func (s *Store) BeginRequestedProbePhase(parent context.Context, l domain.JobLea
 	if current.Job.CancelRequested {
 		return domain.ProbePhase{}, context.Canceled
 	}
-	if err = requireNFOFinished(ctx, tx, l.Job.ID); err != nil {
+	if err = requireMetadataNFOFinished(ctx, tx, l.Job.ID); err != nil {
 		return domain.ProbePhase{}, err
 	}
 	r, err := loadProbeRequest(ctx, tx, l.Job.ID)

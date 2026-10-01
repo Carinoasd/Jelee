@@ -48,7 +48,7 @@ func lockedProbePhase(ctx context.Context, tx pgx.Tx, l domain.JobLease, allowIn
 		return domain.ProbePhase{}, context.Canceled
 	}
 	if !allowInvalidated {
-		if err = requireNFOFinished(ctx, tx, l.Job.ID); err != nil {
+		if err = requireMetadataNFOFinished(ctx, tx, l.Job.ID); err != nil {
 			return domain.ProbePhase{}, err
 		}
 	}
@@ -85,7 +85,7 @@ func (s *Store) BeginProbePhase(parent context.Context, l domain.JobLease, start
 		return domain.ProbePhase{}, context.Canceled
 	}
 	request, requestErr := loadProbeRequest(ctx, tx, l.Job.ID)
-	if err = requireNFOFinished(ctx, tx, l.Job.ID); err != nil {
+	if err = requireMetadataNFOFinished(ctx, tx, l.Job.ID); err != nil {
 		return domain.ProbePhase{}, err
 	}
 	if requestErr != nil {

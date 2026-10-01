@@ -22,3 +22,10 @@ type IgnoreScanBatch struct {
 
 func (IgnoreScanBatch) String() string   { return "ignore scan batch (data redacted)" }
 func (IgnoreScanBatch) GoString() string { return "ignore scan batch (data redacted)" }
+
+// IgnoreExecutionProgress supports lease recovery without restarting frozen
+// inventory or forgetting unknown decisions committed by an earlier owner.
+type IgnoreExecutionProgress struct {
+	ComparisonStarted bool `json:"-"`
+	Unknown           bool `json:"-"`
+}

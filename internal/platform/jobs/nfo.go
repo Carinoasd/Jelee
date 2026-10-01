@@ -124,9 +124,9 @@ func validateNFOWork(l domain.JobLease, w domain.NFOWork) error {
 
 // Load both phases before scanning: a completed phase is proof that inventory
 // is frozen. In particular, a completed probe must not bypass unfinished NFO.
-func (r *Runner) execute(ctx context.Context, l domain.JobLease) (result error, storage bool) {
+func (r *Runner) executeStages(ctx context.Context, l domain.JobLease, inventoryDone bool) (result error, storage bool) {
 	if r.nfoRepository == nil {
-		return r.executeProbeOnly(ctx, l)
+		return r.executeProbeStages(ctx, l, inventoryDone)
 	}
 	defer func() {
 		if recover() != nil {
@@ -159,7 +159,7 @@ func (r *Runner) execute(ctx context.Context, l domain.JobLease) (result error, 
 		return &nfoAbort{domain.NFOPhaseIdentityMismatch, true}, false
 	}
 	frozen := probe.Phase != nil || nfoRequested && (nfo.Phase.State == domain.NFOPhaseRunning || nfo.Phase.State == domain.NFOPhaseDone)
-	if !frozen {
+	if !frozen && !inventoryDone {
 		if err, storage := r.executeInventory(ctx, l); err != nil {
 			return err, storage
 		}

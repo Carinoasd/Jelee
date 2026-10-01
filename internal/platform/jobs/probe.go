@@ -99,13 +99,19 @@ func probeRepositoryError(err error) (error, bool) {
 	}
 }
 
-func (r *Runner) executeProbeOnly(ctx context.Context, lease domain.JobLease) (result error, repositoryError bool) {
+func (r *Runner) executeProbeOnly(ctx context.Context, lease domain.JobLease) (error, bool) {
+	return r.executeProbeStages(ctx, lease, false)
+}
+func (r *Runner) executeProbeStages(ctx context.Context, lease domain.JobLease, inventoryDone bool) (result error, repositoryError bool) {
 	defer func() {
 		if recover() != nil {
 			result, repositoryError = domain.ErrScanIO, false
 		}
 	}()
 	if r.probeRepository == nil {
+		if inventoryDone {
+			return nil, false
+		}
 		return r.executeInventory(ctx, lease)
 	}
 	dbCtx, cancel := context.WithTimeout(ctx, r.options.DBOperationTimeout)
@@ -117,6 +123,9 @@ func (r *Runner) executeProbeOnly(ctx context.Context, lease domain.JobLease) (r
 	if work.Request == nil {
 		if work.Phase != nil {
 			return &probeAbort{code: domain.ProbePhaseIdentityMismatch}, false
+		}
+		if inventoryDone {
+			return nil, false
 		}
 		return r.executeInventory(ctx, lease)
 	}
@@ -156,7 +165,12 @@ func (r *Runner) executeProbeOnly(ctx context.Context, lease domain.JobLease) (r
 		return &probeAbort{domain.ProbePhaseIdentityMismatch, true}, false
 	}
 	if work.Phase == nil {
-		if err, storage := r.executeInventory(ctx, lease); err != nil {
+		if err, storage := func() (error, bool) {
+			if inventoryDone {
+				return nil, false
+			}
+			return r.executeInventory(ctx, lease)
+		}(); err != nil {
 			return err, storage
 		}
 		dbCtx, cancel = context.WithTimeout(ctx, r.options.DBOperationTimeout)
