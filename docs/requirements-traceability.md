@@ -808,4 +808,8 @@ HTTP 本機取消修復完整回歸已完成：[完整 PG race 證據](evidence/
 
 ### G09.4／G22.4 原生服務五分鐘穩定性
 
-同一服務固定五分鐘連續兩額度飽和／busy／活躍child取消／正常重用／temp清理，Linux5043輪、Windows9399輪，0fail／skip／timeout／active，來源保持，goroutine2→2。父Go heap抽樣3.3MiB以下，非RSS。新增必要CI步驟與證據artifact，不能縮短時長或只跑空等待。[合同與證據](ignore-family-sustained.md)。正式全伺服器／混合媒體長時間與其他歷史格式仍待驗收，G22部分完成。
+同一服務固定五分鐘連續兩額度飽和／busy／活躍child取消／正常重用／temp清理，Linux5043輪、Windows9399輪，0fail／skip／timeout／active，來源保持，goroutine2→2。父Go heap抽樣3.3MiB以下，非RSS。新增必要CI步驟與證據artifact，不能縮短時長或只跑空等待。[合同與證據](ignore-family-sustained.md)。混合媒體的測試建構接縫已有五分鐘證據；公開 New 全圖的持續負載與其他歷史格式仍待驗收，G22部分完成。
+
+### G09.4／G22.4 混合媒體持續暖掃描
+
+受保護的 1,000／100 檔容器各完成 303.903／300.392 秒連續暖掃描，共 20／170 輪；每輪完整 NFO read/hash、零重新解析／新增 probe、圖片 unchanged、來源與 quota 核對。取消恢復／SIGTERM join、原素材 hash、sourceDigest 與 owned cleanup 通過。[合同與逐輪證據](ignore-family-mixed-sustained.md)。沿用正式 worker 的測試建構接縫，公開 New 全圖持續負載仍待驗收；G22 其他格式未證明，維持部分完成。

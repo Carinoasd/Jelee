@@ -14,6 +14,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	goruntime "runtime"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -57,6 +58,10 @@ func (r *acceptanceNFOReader) Read(ctx context.Context, s domain.NFOSource) (app
 func TestProductionNFOWorkerAcceptance(t *testing.T) {
 	withFamily := os.Getenv("JELEE_FAMILY_IGNORE_ACCEPTANCE") == "true"
 	withIgnore := withFamily || os.Getenv("JELEE_NFO_IGNORE_ACCEPTANCE") == "true"
+	withSustained := os.Getenv("JELEE_FAMILY_IGNORE_SUSTAINED_ACCEPTANCE") == "true"
+	if withSustained && !withFamily {
+		t.Fatal("sustained mixed acceptance requires family mode")
+	}
 	if os.Getenv("JELEE_REQUIRE_NFO_WORKER") != "true" {
 		t.Skip("NFO worker acceptance requires controlled production container")
 	}
@@ -257,7 +262,12 @@ func TestProductionNFOWorkerAcceptance(t *testing.T) {
 	}
 	request("PUT", path+"/nfo/policy", fmt.Sprintf(`{"mode":"read-only","expectedGeneration":%d}`, policy.Generation), "enable-nfo")
 	request("GET", "/readyz", "", "")
-	for round := 0; round < 3; round++ {
+	var sustainedStarted time.Time
+	var sustainedRounds int
+	var baselineMemory goruntime.MemStats
+	var peakHeap uint64
+	var baselineGoroutines int
+	for round := 0; round < 3 || withSustained && time.Since(sustainedStarted) < 5*time.Minute; round++ {
 		before := validation.Stats()
 		beforeProbe := probing.probeCalls.Load()
 		beforeProcess := probing.processStats()
@@ -321,10 +331,14 @@ func TestProductionNFOWorkerAcceptance(t *testing.T) {
 		}
 		stats := validation.Stats()
 		proc := probing.processStats()
-		wantParse := []uint64{uint64(nfoCount), 0, uint64(changedNFO)}[round]
-		wantHit := []int64{0, nfoCount - 2*faultCount, nfoCount - 2*faultCount - changedNFO}[round]
-		wantNegative := []int64{0, 2 * faultCount, 2 * faultCount}[round]
-		wantProbe := []uint64{uint64(videoCount), 0, 0}[round]
+		assertionRound := round
+		if assertionRound > 2 {
+			assertionRound = 1
+		}
+		wantParse := []uint64{uint64(nfoCount), 0, uint64(changedNFO)}[assertionRound]
+		wantHit := []int64{0, nfoCount - 2*faultCount, nfoCount - 2*faultCount - changedNFO}[assertionRound]
+		wantNegative := []int64{0, 2 * faultCount, 2 * faultCount}[assertionRound]
+		wantProbe := []uint64{uint64(videoCount), 0, 0}[assertionRound]
 		if stats.ReadCalls-before.ReadCalls != uint64(2*nfoCount) || stats.CompletedReads-before.CompletedReads != uint64(2*nfoCount) || stats.HashCompletions-before.HashCompletions != uint64(2*nfoCount) || stats.ParseCalls-before.ParseCalls != wantParse || stats.ActiveCalls != 0 || stats.PeakCalls < 1 || stats.PeakCalls > 2 {
 			t.Fatalf("reader actual counters differ in round %d: %+v", round+1, stats)
 		}
@@ -334,7 +348,7 @@ func TestProductionNFOWorkerAcceptance(t *testing.T) {
 		if probing.probeCalls.Load()-beforeProbe != wantProbe || proc.Started-beforeProcess.Started != wantProbe || proc.Active != 0 || proc.Peak > 2 || probe.Processed != videoCount || probe.Succeeded != int64(wantProbe) || probe.Hits != videoCount-int64(wantProbe) || probe.Failed+probe.Changed+probe.Unavailable+probe.NegativeHits != 0 {
 			t.Fatal("probe actual starts/progress differs")
 		}
-		wantImages := []domain.ImageProgress{{Added: imageCount, ComparisonComplete: true}, {Unchanged: imageCount, ComparisonComplete: true}, {Changed: changedImages, Unchanged: imageCount - changedImages, ComparisonComplete: true}}[round]
+		wantImages := []domain.ImageProgress{{Added: imageCount, ComparisonComplete: true}, {Unchanged: imageCount, ComparisonComplete: true}, {Changed: changedImages, Unchanged: imageCount - changedImages, ComparisonComplete: true}}[assertionRound]
 		if images.ImageProgress != wantImages {
 			t.Fatalf("image attributes differ: %+v", images.ImageProgress)
 		}
@@ -383,7 +397,7 @@ func TestProductionNFOWorkerAcceptance(t *testing.T) {
 			t.Fatal("full-read count/bytes mismatch")
 		}
 		request("GET", path+"/nfo/current-validations?limit=25", "", "")
-		record, _ := json.Marshal(map[string]any{"round": round + 1, "elapsedMillis": time.Since(started).Milliseconds(), "readCalls": stats.ReadCalls - before.ReadCalls, "fullHashes": stats.HashCompletions - before.HashCompletions, "completedReadBytes": stats.CompletedReadBytes - before.CompletedReadBytes, "parseCalls": stats.ParseCalls - before.ParseCalls, "activeNFOCalls": stats.ActiveCalls, "peakNFOCalls": stats.PeakCalls, "metadataProberCalls": probing.probeCalls.Load() - beforeProbe, "metadataChildStarts": proc.Started - beforeProcess.Started, "activeChildLifecycles": proc.Active, "peakChildLifecycles": proc.Peak, "nfo": summary, "images": images, "cacheRows": rows, "cacheBytes": bytes, "persistedInvalidXML": invalid})
+		record, _ := json.Marshal(map[string]any{"round": round + 1, "sustained": withSustained && round >= 3, "elapsedMillis": time.Since(started).Milliseconds(), "readCalls": stats.ReadCalls - before.ReadCalls, "fullHashes": stats.HashCompletions - before.HashCompletions, "completedReadBytes": stats.CompletedReadBytes - before.CompletedReadBytes, "parseCalls": stats.ParseCalls - before.ParseCalls, "activeNFOCalls": stats.ActiveCalls, "peakNFOCalls": stats.PeakCalls, "metadataProberCalls": probing.probeCalls.Load() - beforeProbe, "metadataChildStarts": proc.Started - beforeProcess.Started, "activeChildLifecycles": proc.Active, "peakChildLifecycles": proc.Peak, "nfo": summary, "images": images, "cacheRows": rows, "cacheBytes": bytes, "persistedInvalidXML": invalid})
 		fmt.Println(string(record))
 		if round == 1 {
 			fmt.Println(`{"readyForReplacement":true}`)
@@ -398,6 +412,35 @@ func TestProductionNFOWorkerAcceptance(t *testing.T) {
 				}
 			}
 		}
+		if withSustained && round == 2 {
+			goruntime.GC()
+			goruntime.ReadMemStats(&baselineMemory)
+			peakHeap = baselineMemory.HeapAlloc
+			baselineGoroutines = goruntime.NumGoroutine()
+			sustainedStarted = time.Now()
+		} else if withSustained && round >= 3 {
+			sustainedRounds++
+			var sample goruntime.MemStats
+			goruntime.ReadMemStats(&sample)
+			if sample.HeapAlloc > peakHeap {
+				peakHeap = sample.HeapAlloc
+			}
+			if peakHeap > 256<<20 {
+				t.Fatal("mixed parent Go heap exceeded 256MiB sample bound", peakHeap)
+			}
+		}
+	}
+	if withSustained {
+		elapsed := time.Since(sustainedStarted)
+		goruntime.GC()
+		var finalMemory goruntime.MemStats
+		goruntime.ReadMemStats(&finalMemory)
+		finalGoroutines := goruntime.NumGoroutine()
+		if elapsed < 5*time.Minute || sustainedRounds < 5 || finalMemory.HeapAlloc > baselineMemory.HeapAlloc+(64<<20) || finalGoroutines > baselineGoroutines+8 {
+			t.Fatal("mixed sustained coverage or parent resource bound failed", elapsed, sustainedRounds, baselineMemory.HeapAlloc, finalMemory.HeapAlloc, baselineGoroutines, finalGoroutines)
+		}
+		record, _ := json.Marshal(map[string]any{"sustainedAcceptance": "passed", "seconds": elapsed.Seconds(), "rounds": sustainedRounds, "baselineHeap": baselineMemory.HeapAlloc, "finalHeap": finalMemory.HeapAlloc, "peakSampleHeap": peakHeap, "baselineGoroutines": baselineGoroutines, "finalGoroutines": finalGoroutines})
+		fmt.Println(string(record))
 	}
 	// Cancellation is observed after actual directory inventory and a real NFO
 	// read. The previous successful image baseline must survive the failed round.

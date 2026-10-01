@@ -23,7 +23,10 @@ from test_sandbox_native import select_fixtures
 ROOT = Path(__file__).resolve().parent.parent
 WITH_FAMILY = os.environ.get("JELEE_FAMILY_IGNORE_ACCEPTANCE") == "true"
 WITH_IGNORE = WITH_FAMILY or os.environ.get("JELEE_NFO_IGNORE_ACCEPTANCE") == "true"
-EVIDENCE_PREFIX = "family-ignore-worker" if WITH_FAMILY else ("ignore-worker" if WITH_IGNORE else "nfo-worker")
+WITH_SUSTAINED = os.environ.get("JELEE_FAMILY_IGNORE_SUSTAINED_ACCEPTANCE") == "true"
+if WITH_SUSTAINED and not WITH_FAMILY:
+    raise RuntimeError("sustained acceptance requires family mode")
+EVIDENCE_PREFIX = "family-ignore-sustained-worker" if WITH_SUSTAINED else ("family-ignore-worker" if WITH_FAMILY else ("ignore-worker" if WITH_IGNORE else "nfo-worker"))
 
 
 def source_digest():
@@ -112,6 +115,8 @@ def run_case(total):
                     env_file.write("JELEE_NFO_IGNORE_ACCEPTANCE=true\n")
                     if WITH_FAMILY:
                         env_file.write("JELEE_FAMILY_IGNORE_ACCEPTANCE=true\n")
+                        if WITH_SUSTAINED:
+                            env_file.write("JELEE_FAMILY_IGNORE_SUSTAINED_ACCEPTANCE=true\n")
             secret_file.chmod(0o600); cleanup_ready = True
             inputs = temp / "media"; inputs.mkdir()
             control = temp / "control"; control.mkdir()
@@ -146,6 +151,8 @@ def run_case(total):
                     if "round" in entry and entry["round"] not in reported_rounds:
                         report["rounds"].append(entry); reported_rounds.add(entry["round"])
                         print(json.dumps(dict(entry, fixtureFiles=total)), flush=True)
+                    if entry.get("sustainedAcceptance") == "passed":
+                        report["sustained"] = entry
                     if entry.get("shutdown") == "passed":
                         report["shutdown"] = entry
                     if entry.get("cancellationRecovery") == "passed":
@@ -179,7 +186,17 @@ def run_case(total):
                 raise RuntimeError("unexpected fixture mutation")
             if original_hashes != {name: digest(fixtures / name) for name in original_hashes} or before_source != source_digest():
                 raise RuntimeError("original fixtures or source changed")
-            if [r["parseCalls"] for r in report["rounds"]] != [nfo_count, 0, changed_nfo] or [r["metadataChildStarts"] for r in report["rounds"]] != [video_count, 0, 0]:
+            base_rounds = [r for r in report["rounds"] if not r.get("sustained")]
+            warm_rounds = [r for r in report["rounds"] if r.get("sustained")]
+            if WITH_SUSTAINED:
+                evidence = report.get("sustained", {})
+                if evidence.get("seconds", 0) < 300 or evidence.get("rounds", 0) < 5 or len(warm_rounds) != evidence.get("rounds"):
+                    raise RuntimeError("five-minute mixed sustained coverage missing")
+                if any(r["parseCalls"] != 0 or r["metadataChildStarts"] != 0 or r["readCalls"] != 2*nfo_count or r["activeNFOCalls"] != 0 or r["activeChildLifecycles"] != 0 for r in warm_rounds):
+                    raise RuntimeError("sustained warm operation counts differ")
+            elif warm_rounds:
+                raise RuntimeError("unexpected sustained rounds")
+            if [r["parseCalls"] for r in base_rounds] != [nfo_count, 0, changed_nfo] or [r["metadataChildStarts"] for r in base_rounds] != [video_count, 0, 0]:
                 raise RuntimeError("actual invocation counts differ")
             report.update(result="passed", originalFixtureHashesUnchanged=True, controlledNFOReplacements=changed_nfo, controlledImageReplacements=changed_images, unchangedVideoHashes=True, sourceUnchanged=True)
         finally:
@@ -207,6 +224,8 @@ def run_case(total):
 
 def main():
     (ROOT / ".testdata").mkdir(exist_ok=True)
+    if WITH_SUSTAINED and any((ROOT / (".testdata/" + EVIDENCE_PREFIX + suffix)).exists() for suffix in ("-acceptance.txt", "-summary.json")):
+        raise RuntimeError("refusing to replace sustained evidence")
     (ROOT / (".testdata/" + EVIDENCE_PREFIX + "-acceptance.txt")).write_text("")
     report = {"cases": [run_case(1000), run_case(100)], "result": "passed"}
     (ROOT / (".testdata/" + EVIDENCE_PREFIX + "-summary.json")).write_text(json.dumps(report, indent=2) + "\n")

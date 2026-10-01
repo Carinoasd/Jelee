@@ -722,3 +722,17 @@ Windows最新全Go exec68614已terminal exit0；本輪所有測試handles均term
 Linux exec7897 terminal exit0／validatedtrue，總312.061秒／負載300.022秒：5043輪／161376busy／Started15130／Cancelled10086／Peak2／Active0／TimedOut0、heap908296→970688、peak sample3339848、goroutine2→2。Windows exec65111 terminal exit0／validatedtrue，總301.406秒／負載300.025秒：9399輪／300768busy／Started28198／Cancelled18798／Peak2／Active0／TimedOut0、heap975912→1244784、peak sample3381040、goroutine2→2。全部0fail/skip/sourceUnchanged，兩份源碼hash逐檔重核相符；docs/evidence/ignore-family-sustained.json合併保存。原素材未接入測試，僅fixture字符串与owned helper temp；不能當整個server RSS／長穩。
 
 所有本輪handles均terminal。Windows short／probe tag／全Go／runtime vet、format／AST／YAML／make dry-run、增量brand0新增／100allowed、gitignore0、protected hash與diff已通過；正式worker／PG／遷移不變，不重跑既有完整PG254。本階段同分支提交推PR46，沒有新分支，禁止merge。下一步正式runtime／混合媒體長穩及歷史格式source證明；另已核對官方release最新4.10.1.0（2026-09-29），只是發布版本metadata，不是解析源碼證明，线索在.testdata/ignore-vendor-doc-discovery.json。G22與全案部分完成。
+
+### 真實混合媒體持續暖掃描（未提交，正在驗收）
+
+上一階段e095008773已提交推PR46，工作分支仍feat/jelee-ignore-family-worker。現在只修改nfo_acceptance_test.go／test_nfo_worker.py／Makefile／jelee.yml，增加JELEE_FAMILY_IGNORE_SUSTAINED_ACCEPTANCE=true模式，要求family模式；保留前三輪cold/warm/changed與取消恢復/SIGTERM，在同worker／HTTP／PG schema上五分鐘暖掃描至少5輪。round>=3使用原warm断言，Parse0/ProbeStarts0/全部imageUnchanged、2*nfoCount完整read/hash、quota/rules/source/cache全部每輪核對。heap每輪sample256MiB，GC增量64MiB／goroutine增量8，非RSS。脚本核對暖輪數與五分鐘證據，新的證據prefix拒絕覆寫；CI新增必跑target family-ignore-sustained-worker-test及always artifact。原一般模式只跑三輪。
+
+Windows probe tag compile／服務測試0.441秒pass，tagged runtime vet、Go格式、Python AST／YAML與diff已通過；正式worker／PG／migration沒有改動。完整新目標exec29349已確認live，要poll同handle，勿重啟／改源碼。自有容器jelee-nfo-worker-0db0058be67243e2beb6686dd32ba8d9，當前1000case；輸出證據.testdata/family-ignore-sustained-worker-acceptance.txt，末摘要同prefix-summary.json。目前前三輪已pass：parse400/0/17、probeStarts100/0/0、images500added→500unchanged→23changed477unchanged；已至少3個額外warm輪Parse0／Probe0／read800／cache400、quota相符。還沒有五分鐘／兩規模／取消恢復與SIGTERM末結果，不可提交或宣稱完成。
+
+原媒體仍read-only／UID65532／無cap／2CPU768MiB128PID，復用原真實probe／NFO／images，僅控制fixture替換；sourceDigest涵蓋internal全部productionGo／runtime test／SQL／工具manifest，因此測試執行中凍結來源。docs可更新。new docs/ignore-family-mixed-sustained.md為合同草稿。取得末結果後再sourceDigest／原素材hash／清理證明、gate與保護檔核對、保存證據、繁中提交推同PR46。全G00–G51目標不變；G22其他歷史格式來源仍未證明，不把局部驗收當完成。
+
+### 混合媒體五分鐘最終結果
+
+exec29349 terminal exit0：1,000／100 檔全部 passed，負載303.903／300.392秒、額外warm20／170輪；每輪Parse0／ProbeStarts0、read/hash800／80、images500／50 unchanged。parent heap peak3260656／3580976 bytes，goroutine13→13；cancel recovery baseline保持、SIGTERM HTTP關閉與active NFO／child／leases0。sourceDigest逐案與目前來源重核一致，原素材／影片hash保持、owned schema／container／image清理成功。證據docs/evidence/ignore-family-mixed-sustained.json。Windows全Go exec98725已terminal exit0，tag服務0.441秒／vet／三build／格式／AST／YAML通過。正式worker／PG／migration不變。
+
+本階段提交推現有PR46；公開New完整graph五分鐘與其他歷史忽略格式仍未完成，G22部分完成。分支已清47個，保留active PR46，無新分支。最新e095功能CI僅一個PG job仍running，完整品牌gate兩次fail，其餘非skipped全部success；新head須重新觀察。禁止merge／release／tag／force-push／身份設定。

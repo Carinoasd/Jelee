@@ -154,6 +154,19 @@ jobs:
             .testdata/family-ignore-worker-summary.json
           if-no-files-found: error
           retention-days: 7
+      - name: Real family ignore mixed media five-minute sustained acceptance
+        id: family-ignore-sustained-worker
+        run: make family-ignore-sustained-worker-test
+      - name: Retain mixed sustained acceptance evidence
+        if: always() && steps.family-ignore-sustained-worker.outcome != 'skipped'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: family-ignore-sustained-worker-acceptance
+          path: |
+            .testdata/family-ignore-sustained-worker-acceptance.txt
+            .testdata/family-ignore-sustained-worker-summary.json
+          if-no-files-found: error
+          retention-days: 7
       - name: Retain probe worker acceptance evidence
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
