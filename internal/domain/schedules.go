@@ -16,6 +16,7 @@ type ScheduleIgnore struct {
 }
 
 type ScanScheduleInput struct {
+	Watch            bool           `json:"watch"`
 	ExpectedRevision int64          `json:"expectedRevision"`
 	Enabled          bool           `json:"enabled"`
 	Timing           ScheduleTiming `json:"timing"`
@@ -25,6 +26,7 @@ type ScanScheduleInput struct {
 }
 
 type ScanSchedule struct {
+	Watch      bool           `json:"watch"`
 	LibraryID  string         `json:"libraryId"`
 	Revision   int64          `json:"revision"`
 	Enabled    bool           `json:"enabled"`

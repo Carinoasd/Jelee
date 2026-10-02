@@ -29,6 +29,10 @@ func TestScheduleActualTLS(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	service, err = app.NewJobsWithWatch(service, f.s)
+	if err != nil {
+		t.Fatal(err)
+	}
 	hasher, err := password.New(password.DefaultConfig())
 	if err != nil {
 		t.Fatal(err)
@@ -119,4 +123,26 @@ func TestScheduleActualTLS(t *testing.T) {
 	if status, body = request("GET", "/api/v1/openapi.json", "", ""); status != 200 || !strings.Contains(string(body), "/api/v1/libraries/{id}/schedule/run") || !strings.Contains(string(body), "ScanScheduleInput") {
 		t.Fatal("schedule OpenAPI absent", status)
 	}
+	watchRoute := "/api/v1/libraries/" + f.registration.Library.ID + "/watch"
+	for _, tc := range []struct {
+		token string
+		want  int
+	}{{"", 401}, {viewer.Token, 403}} {
+		if status, _ := request("GET", watchRoute, "", tc.token); status != tc.want {
+			t.Fatal("watch report authority", status)
+		}
+	}
+	input := watchInput()
+	input.ExpectedRevision = 1
+	encoded, err := json.Marshal(input)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if status, body = request("PUT", route, string(encoded), grant.Token); status != 200 {
+		t.Fatal("watch enable via TLS", status, string(body))
+	}
+	if status, body = request("GET", watchRoute, "", grant.Token); status != 200 || !strings.Contains(string(body), `"enabled":true`) || !strings.Contains(string(body), `"observing":false`) || strings.Contains(string(body), "lease_owner") || strings.Contains(string(body), "RootPath") {
+		t.Fatal("watch report", status, string(body))
+	}
+
 }

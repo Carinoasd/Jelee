@@ -28,3 +28,7 @@ Jelee 本仓库派生自 [Jellyfin](https://github.com/jellyfin/jellyfin)。审�
 ## 排程日曆依賴
 
 `github.com/robfig/cron/v3 v3.0.1` 的完整授權保留於 `internal/adapter/calendar/LICENSE.cron`，版本與校驗值由 go.mod/go.sum 固定。僅使用日曆解析及下次時間計算；工作執行與持久交易由 Jelee 管理。
+
+## 目錄通知依賴
+
+`github.com/fsnotify/fsnotify v1.10.1` 使用 BSD 三條款授權，Copyright © 2012 The Go Authors 與 Copyright © fsnotify Authors；完整聲明保留於 `internal/adapter/scan/LICENSE.fsnotify`。go.mod/go.sum 固定版本及校驗值，Linux 觀察器使用此依賴。

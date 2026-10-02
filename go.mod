@@ -4,6 +4,7 @@ go 1.27.1
 
 require (
 	github.com/dlclark/regexp2 v1.12.0
+	github.com/fsnotify/fsnotify v1.10.1
 	github.com/go-chi/chi/v5 v5.3.2
 	github.com/golang-migrate/migrate/v4 v4.18.3
 	github.com/jackc/pgx/v5 v5.11.0

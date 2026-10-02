@@ -95,6 +95,10 @@ func newWithLifetime(cfg config.Config, logger *slog.Logger, lifetime *lifetime)
 			if err != nil {
 				return nil, err
 			}
+			service, err = app.NewJobsWithWatch(service, store)
+			if err != nil {
+				return nil, err
+			}
 			p := c.Jobs
 			opts := jobworker.Options{Workers: p.Workers, PollInterval: time.Duration(p.PollMilliseconds) * time.Millisecond, LeaseDuration: time.Duration(p.LeaseSeconds) * time.Second, DBOperationTimeout: time.Duration(p.DatabaseTimeoutSeconds) * time.Second, MaxJobRuntime: time.Duration(p.MaxRuntimeSeconds) * time.Second}
 			opts.CatalogImport = &jobworker.CatalogImportOptions{Repository: store, Verifier: scan.New()}
@@ -115,7 +119,15 @@ func newWithLifetime(cfg config.Config, logger *slog.Logger, lifetime *lifetime)
 			if err != nil {
 				return nil, err
 			}
-			lifetime.worker = &scheduledWorker{worker: &probeWorker{worker: runner, probe: probing, nfo: validation}, dispatch: service, logger: l}
+			observer, err := scan.NewDirectoryWatcher(scan.DefaultWatchOptions())
+			if err != nil {
+				return nil, err
+			}
+			watchRunner, err := jobworker.NewWatchRunner(store, observer, service, l)
+			if err != nil {
+				return nil, err
+			}
+			lifetime.worker = &watchGroup{worker: &scheduledWorker{worker: &probeWorker{worker: runner, probe: probing, nfo: validation}, dispatch: service, logger: l}, watch: watchRunner}
 			return service, nil
 		},
 		func(c config.Config, store *postgres.Store, catalog *app.Catalog, jobs *app.Jobs, metadata *app.Metadata, l *slog.Logger) (http.Handler, error) {

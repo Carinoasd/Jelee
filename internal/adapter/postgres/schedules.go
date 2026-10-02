@@ -10,11 +10,11 @@ import (
 	"time"
 )
 
-const scheduleColumns = `library_id::text,revision,enabled,mode,interval_seconds,cron,timezone,probe,nfo,ignore_mode,ignore_case,next_due,retry_after,COALESCE(last_job_id::text,''),last_error,updated_at`
+const scheduleColumns = `library_id::text,revision,enabled,mode,interval_seconds,cron,timezone,probe,nfo,ignore_mode,ignore_case,next_due,retry_after,COALESCE(last_job_id::text,''),last_error,updated_at,watch_enabled`
 
 func readSchedule(row pgx.Row) (domain.ScanSchedule, error) {
 	var v domain.ScanSchedule
-	err := row.Scan(&v.LibraryID, &v.Revision, &v.Enabled, &v.Timing.Mode, &v.Timing.IntervalSeconds, &v.Timing.Cron, &v.Timing.Timezone, &v.Probe, &v.NFO, &v.Ignore.Mode, &v.Ignore.CaseMode, &v.NextDue, &v.RetryAfter, &v.LastJobID, &v.LastError, &v.UpdatedAt)
+	err := row.Scan(&v.LibraryID, &v.Revision, &v.Enabled, &v.Timing.Mode, &v.Timing.IntervalSeconds, &v.Timing.Cron, &v.Timing.Timezone, &v.Probe, &v.NFO, &v.Ignore.Mode, &v.Ignore.CaseMode, &v.NextDue, &v.RetryAfter, &v.LastJobID, &v.LastError, &v.UpdatedAt, &v.Watch)
 	return v, storageError(err)
 }
 
@@ -72,11 +72,25 @@ func (s *Store) PutScanSchedule(ctx context.Context, a domain.Actor, library str
 	if before.Revision != input.ExpectedRevision {
 		return domain.ScanSchedule{}, domain.ErrConflict
 	}
+	if input.Watch && !before.Watch {
+		var enabled int
+		if err = tx.QueryRow(ctx, `SELECT count(*) FROM scan_schedules WHERE watch_enabled`).Scan(&enabled); err != nil {
+			return domain.ScanSchedule{}, storageError(err)
+		}
+		if enabled >= domain.MaxWatchLibraries {
+			return domain.ScanSchedule{}, domain.ErrScanLimit
+		}
+	}
 	// One definition per library bounds storage by the existing library count.
-	v, err := readSchedule(tx.QueryRow(ctx, `INSERT INTO scan_schedules(library_id,owner_id,revision,enabled,mode,interval_seconds,cron,timezone,probe,nfo,ignore_mode,ignore_case,next_due) VALUES($1::uuid,$2::uuid,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
- ON CONFLICT(library_id) DO UPDATE SET owner_id=EXCLUDED.owner_id,revision=EXCLUDED.revision,enabled=EXCLUDED.enabled,mode=EXCLUDED.mode,interval_seconds=EXCLUDED.interval_seconds,cron=EXCLUDED.cron,timezone=EXCLUDED.timezone,probe=EXCLUDED.probe,nfo=EXCLUDED.nfo,ignore_mode=EXCLUDED.ignore_mode,ignore_case=EXCLUDED.ignore_case,next_due=EXCLUDED.next_due,retry_after=NULL,last_error='',updated_at=clock_timestamp() RETURNING `+scheduleColumns, library, a.UserID, input.ExpectedRevision+1, input.Enabled, input.Timing.Mode, input.Timing.IntervalSeconds, input.Timing.Cron, input.Timing.Timezone, input.Probe, input.NFO, input.Ignore.Mode, input.Ignore.CaseMode, due))
+	v, err := readSchedule(tx.QueryRow(ctx, `INSERT INTO scan_schedules(library_id,owner_id,revision,enabled,mode,interval_seconds,cron,timezone,probe,nfo,ignore_mode,ignore_case,next_due,watch_enabled) VALUES($1::uuid,$2::uuid,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
+ ON CONFLICT(library_id) DO UPDATE SET owner_id=EXCLUDED.owner_id,revision=EXCLUDED.revision,enabled=EXCLUDED.enabled,mode=EXCLUDED.mode,interval_seconds=EXCLUDED.interval_seconds,cron=EXCLUDED.cron,timezone=EXCLUDED.timezone,probe=EXCLUDED.probe,nfo=EXCLUDED.nfo,ignore_mode=EXCLUDED.ignore_mode,ignore_case=EXCLUDED.ignore_case,next_due=EXCLUDED.next_due,watch_enabled=EXCLUDED.watch_enabled,retry_after=NULL,last_error='',updated_at=clock_timestamp() RETURNING `+scheduleColumns, library, a.UserID, input.ExpectedRevision+1, input.Enabled, input.Timing.Mode, input.Timing.IntervalSeconds, input.Timing.Cron, input.Timing.Timezone, input.Probe, input.NFO, input.Ignore.Mode, input.Ignore.CaseMode, due, input.Watch))
 	if err != nil {
 		return v, err
+	}
+	if input.Watch {
+		if _, err = tx.Exec(ctx, `INSERT INTO scan_watch_state(library_id) VALUES($1::uuid) ON CONFLICT(library_id) DO UPDATE SET observe_after=NULL,retry_after=NULL`, library); err != nil {
+			return domain.ScanSchedule{}, storageError(err)
+		}
 	}
 	if err = auditAccount(ctx, tx, a, "schedule.updated", library, before, v); err != nil {
 		return domain.ScanSchedule{}, err

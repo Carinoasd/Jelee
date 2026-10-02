@@ -112,6 +112,7 @@ func TestNFOSeriesDetailsPublishedMovieRoundTripAndMissingLocks(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	nfoMigrateVersion(t, f, "down", 41)
 	nfoMigrateVersion(t, f, "down", 40)
 	nfoMigrateVersion(t, f, "down", 39)
 	nfoMigrateVersion(t, f, "down", 38)

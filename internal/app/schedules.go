@@ -32,6 +32,9 @@ func (j *Jobs) PutSchedule(ctx context.Context, a domain.Actor, library string, 
 	if j == nil || j.schedules == nil {
 		return domain.ScanSchedule{}, domain.ErrNotFound
 	}
+	if v.Watch && j.watchRepository == nil {
+		return domain.ScanSchedule{}, domain.ErrScanUnavailable
+	}
 	return j.schedules.PutScanSchedule(ctx, a, library, v, j.calendar)
 }
 
