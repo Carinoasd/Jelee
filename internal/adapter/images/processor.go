@@ -243,7 +243,7 @@ func (p *Processor) Render(ctx context.Context, source domain.LocalImageSource, 
 		if err := operation.Err(); err != nil {
 			return result, err
 		}
-		output := boundedImageWriter{ctx: operation, data: make([]byte, 0, int(p.options.MaxOutputBytes))}
+		output := boundedImageWriter{ctx: operation, limit: int(p.options.MaxOutputBytes)}
 		if err := jpeg.Encode(&output, thumbnail, &jpeg.Options{Quality: request.Quality}); err != nil {
 			return result, imageError(operation, err)
 		}
@@ -347,16 +347,27 @@ func (r contextImageReader) Read(data []byte) (int, error) {
 }
 
 type boundedImageWriter struct {
-	ctx  context.Context
-	data []byte
+	ctx   context.Context
+	data  []byte
+	limit int
 }
 
 func (w *boundedImageWriter) Write(data []byte) (int, error) {
 	if err := w.ctx.Err(); err != nil {
 		return 0, err
 	}
-	if len(data) > cap(w.data)-len(w.data) {
+	if len(data) > w.limit-len(w.data) {
 		return 0, domain.ErrImageTooLarge
+	}
+	needed := len(w.data) + len(data)
+	if needed > cap(w.data) {
+		// Small thumbnails need only a few KiB. Grow explicitly so append
+		// cannot round capacity above the output limit. Old and new storage
+		// together stay within the existing two-output-buffer estimate.
+		capacity := min(w.limit, max(needed, max(4<<10, 2*cap(w.data))))
+		grown := make([]byte, len(w.data), capacity)
+		copy(grown, w.data)
+		w.data = grown
 	}
 	w.data = append(w.data, data...)
 	return len(data), nil

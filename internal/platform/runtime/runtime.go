@@ -69,6 +69,7 @@ func newWithLifetime(cfg config.Config, logger *slog.Logger, lifetime *lifetime)
 				return nil, err
 			}
 			lifetime.closeImages = processor.Shutdown
+			lifetime.imageStats = processor.Stats
 			return processor, nil
 		},
 		func(c config.Config, store *postgres.Store, processor *imageadapter.Processor) (*app.Images, error) {
@@ -228,6 +229,8 @@ type lifetime struct {
 	exited          chan struct{}
 	stopped         chan struct{}
 	stopErr         error
+	// Observe the same processor used by HTTP without replacing its dependencies.
+	imageStats func() imageadapter.Stats
 }
 
 func newLifetime(logger *slog.Logger) *lifetime {

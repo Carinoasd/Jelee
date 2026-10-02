@@ -25,6 +25,7 @@ COPY --from=build /usr/local/go/LICENSE /licenses/go/LICENSE
 COPY --from=build /usr/local/go/PATENTS /licenses/go/PATENTS
 COPY LICENSE /LICENSE
 COPY docs/LICENSE-COMPLIANCE.md /licenses/README.md
+COPY --chmod=0444 internal/adapter/images/LICENSE.x-image /licenses/x-image/LICENSE
 USER 65532:65532
 EXPOSE 8097
 ENV JELEE_LISTEN=0.0.0.0:8097

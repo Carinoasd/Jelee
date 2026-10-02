@@ -78,12 +78,21 @@ def _gc_snapshot(value, elapsed):
 
 
 def validate_scan_gc(before, after, elapsed, budget):
+    return validate_gc_interval(before, after, elapsed, validate_scan_budget(budget))
+
+
+def validate_gc_interval(before, after, elapsed, budget):
     """Use whole-interval histogram deltas, with conservative integer bounds.
 
     Counter and histogram reads are not atomic. Each ratio uses the shortest
     interval guaranteed by that metric's recorded read boundaries.
+    The workload entry point must first validate its frozen budget. The scan
+    and image workloads share these raw measurements and the same GC metric.
     """
-    budget = validate_scan_budget(budget)
+    budget = _object(budget)
+    for key in ("maxElapsedNanos", "maxPauseUpperNanos", "pauseRatioNumerator", "pauseRatioDenominator"):
+        _need(_uint(budget.get(key)) > 0)
+    _need(budget.get("gcMetric") == _BUDGET["gcMetric"])
     elapsed = _uint(elapsed)
     _need(0 < elapsed <= budget["maxElapsedNanos"])
     before, after = _gc_snapshot(before, elapsed), _gc_snapshot(after, elapsed)

@@ -3,7 +3,7 @@ export PATH := $(CURDIR)/.bin:$(PATH)
 GO := $(CURDIR)/.bin/go
 PYTHON := python3
 
-.PHONY: scan-memory-test scan-memory-smoke-test runtime-memory-test runtime-memory-worker-test memory-contract-test i18n-check family-ignore-sustained-worker-test ignore-sustained-test init bootstrap bootstrap-media bootstrap-runtime runtime-tools-verify runtime-toolchain-test probe-runtime-test probe-worker-test nfo-worker-test family-ignore-worker-test ignore-oracle-test sandbox-test tools-verify media-tools-verify tools-clean fixtures fixtures-test build test test-race test-integration coverage fmt fmt-check lint toolchain-test media-toolchain-test brand-scan brand-scan-incremental gitignore-check migrate doctor
+.PHONY: image-memory-test image-memory-smoke-test scan-memory-test scan-memory-smoke-test runtime-memory-test runtime-memory-worker-test memory-contract-test i18n-check family-ignore-sustained-worker-test ignore-sustained-test init bootstrap bootstrap-media bootstrap-runtime runtime-tools-verify runtime-toolchain-test probe-runtime-test probe-worker-test nfo-worker-test family-ignore-worker-test ignore-oracle-test sandbox-test tools-verify media-tools-verify tools-clean fixtures fixtures-test build test test-race test-integration coverage fmt fmt-check lint toolchain-test media-toolchain-test brand-scan brand-scan-incremental gitignore-check migrate doctor
 init: bootstrap
 bootstrap:
 	sh scripts/bootstrap-tools
@@ -39,6 +39,10 @@ scan-memory-test:
 	$(PYTHON) -B scripts/test_scan_memory.py
 scan-memory-smoke-test:
 	$(PYTHON) -B scripts/test_scan_memory.py --smoke
+image-memory-test:
+	$(PYTHON) -B scripts/test_image_memory.py
+image-memory-smoke-test:
+	$(PYTHON) -B scripts/test_image_memory.py --smoke
 ignore-oracle-test:
 	JELEE_REQUIRE_IGNORE_ORACLE=true "$(GO)" test -count=1 -v -run '^TestGitOracle' ./internal/platform/ignore
 sandbox-test:

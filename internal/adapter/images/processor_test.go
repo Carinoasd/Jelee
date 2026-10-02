@@ -606,7 +606,7 @@ func TestImageMemoryEstimateIncludesProgressiveAndAdam7(t *testing.T) {
 }
 
 func TestImageBoundedOutputWriter(t *testing.T) {
-	w := boundedImageWriter{ctx: context.Background(), data: make([]byte, 0, 4)}
+	w := boundedImageWriter{ctx: context.Background(), limit: 4}
 	if n, err := w.Write([]byte("1234")); n != 4 || err != nil {
 		t.Fatal("exact output bound rejected")
 	}
@@ -618,6 +618,56 @@ func TestImageBoundedOutputWriter(t *testing.T) {
 	w.ctx = ctx
 	if _, err := w.Write(nil); err != context.Canceled {
 		t.Fatal("writer ignored cancellation")
+	}
+	if string(w.data) != "1234" {
+		t.Fatal("cancelled write changed existing output")
+	}
+	growing := boundedImageWriter{ctx: context.Background(), limit: 10001}
+	var expected bytes.Buffer
+	for _, size := range []int{3, 4094, 4100, 1804} {
+		chunk := bytes.Repeat([]byte{byte(size)}, size)
+		expected.Write(chunk)
+		if n, err := growing.Write(chunk); n != size || err != nil || cap(growing.data) > growing.limit || !bytes.Equal(growing.data, expected.Bytes()) {
+			t.Fatal("bounded growth changed bytes or exceeded the limit")
+		}
+	}
+	if _, err := growing.Write([]byte{1}); err != domain.ErrImageTooLarge || !bytes.Equal(growing.data, expected.Bytes()) {
+		t.Fatal("overflow changed output at a non-power-of-two limit")
+	}
+}
+
+func TestImageSmallThumbnailAllocationBudget(t *testing.T) {
+	source, scratch := imageSourceFixture(t)
+	processorTestPNG(t, source, color.NRGBA{R: 255, A: 255})
+	options := processorTestOptions(scratch)
+	options.CacheEntries = 1
+	measurement := testing.Benchmark(func(b *testing.B) {
+		p, err := New(context.Background(), options)
+		if err != nil {
+			b.Fatal(err)
+		}
+		defer p.Shutdown(context.Background())
+		for i := 0; i < b.N; i++ {
+			// Alternating qualities evict the sole entry, so every render must
+			// decode and encode instead of measuring cache hits.
+			result, err := p.Render(context.Background(), source, domain.ImageRequest{Width: 16, Height: 16, Quality: 80 + i%2})
+			if err != nil {
+				b.Fatal(err)
+			}
+			if _, err := io.Copy(io.Discard, result.Body); err != nil {
+				b.Fatal(err)
+			}
+			if err := result.Body.Close(); err != nil {
+				b.Fatal(err)
+			}
+		}
+		if p.Stats().Decodes != uint64(b.N) {
+			b.Fatal("allocation measurement included a cache hit")
+		}
+	})
+	t.Logf("small thumbnail: %d bytes per cold render", measurement.AllocedBytesPerOp())
+	if measurement.AllocedBytesPerOp() > 1<<20 {
+		t.Fatal("small thumbnail allocated over 1 MiB per cold render")
 	}
 }
 
