@@ -33,6 +33,7 @@ func nfoItemApplyFixture(t *testing.T) (jobFixture, domain.NFOItemScope, domain.
 
 func TestNFOItemPersistenceManualPriorityAndSeparateLocks(t *testing.T) {
 	f, scope, fields := nfoItemApplyFixture(t)
+	legacyMigrationAt44(t, f)
 	empty := ""
 	if _, err := f.s.UpdateItemMetadata(f.ctx, f.a, scope.ItemID, 1, []domain.ItemMetadataPatch{{Field: "overview", Value: &empty}}); err != nil {
 		t.Fatal(err)
@@ -99,6 +100,7 @@ func TestNFOItemPersistenceManualPriorityAndSeparateLocks(t *testing.T) {
 
 func TestNFOItemAtomicRollbackAndScopeInvalidation(t *testing.T) {
 	f, scope, fields := nfoItemApplyFixture(t)
+	legacyMigrationAt44(t, f)
 	nfoMigrateVersion(t, f, "down", 43)
 	nfoMigrateVersion(t, f, "down", 42)
 	nfoMigrateVersion(t, f, "down", 41)

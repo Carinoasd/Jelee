@@ -7,9 +7,9 @@ import (
 	"github.com/MoYuanCN/Jelee/internal/domain"
 )
 
-func familyScanFixture(t *testing.T) (jobFixture, domain.JobLease, domain.ScanDirectory, domain.FamilyIgnoreScanBatch) {
+func familyScanFixture(t *testing.T, setup ...func(*testing.T, jobFixture)) (jobFixture, domain.JobLease, domain.ScanDirectory, domain.FamilyIgnoreScanBatch) {
 	t.Helper()
-	f, l, legacy := legacyManifestFixture(t)
+	f, l, legacy := legacyManifestFixture(t, setup...)
 	custom := legacy.Proofs[0].IgnoreDirectoryProof
 	legacy.Proofs[0].RuleSize = 0
 	d, err := f.s.NextFamilyIgnoreScanDirectory(f.ctx, l)
@@ -27,7 +27,7 @@ func familyScanFixture(t *testing.T) (jobFixture, domain.JobLease, domain.ScanDi
 }
 
 func TestFamilyIgnoreScanReplayRestartAndMigration(t *testing.T) {
-	f, l, d, b := familyScanFixture(t)
+	f, l, d, b := familyScanFixture(t, legacyMigrationAt44)
 	for i := 0; i < 2; i++ {
 		if err := f.s.SaveFamilyIgnoreScanBatch(f.ctx, l, d, b); err != nil {
 			t.Fatal(err)

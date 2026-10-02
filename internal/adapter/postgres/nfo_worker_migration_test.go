@@ -35,6 +35,7 @@ func TestNFOWorkerUpgradeRejectsAllActiveLegacyReadOnlyPhases(t *testing.T) {
 	for _, state := range []string{domain.NFOPhaseWaiting, domain.NFOPhaseRunning, domain.NFOPhaseDone, domain.NFOPhaseAborted} {
 		t.Run(state, func(t *testing.T) {
 			f := newNFOFixture(t)
+			legacyMigrationAt44(t, f.jobFixture)
 			j := f.submit(t, "historical")
 			l := f.claim(t, "before-upgrade")
 			if err := f.s.FinishJob(f.ctx, l, domain.JobFailed, "scan_io"); err != nil {
@@ -115,6 +116,7 @@ func TestNFOWorkerUpgradeRejectsAllActiveLegacyReadOnlyPhases(t *testing.T) {
 }
 func TestNFOWorkerLegacyOffCanReplayButNeverAcquireReadOnlyIntent(t *testing.T) {
 	f := newNFOFixture(t)
+	legacyMigrationAt44(t, f.jobFixture)
 	j := f.jobFixture.submit(t, "legacy-off")
 	l := f.jobFixture.claim(t, "before-downgrade")
 	if err := f.s.FinishJob(f.ctx, l, domain.JobFailed, "scan_io"); err != nil {
@@ -188,6 +190,7 @@ func TestNFOWorkerLegacyOffCanReplayButNeverAcquireReadOnlyIntent(t *testing.T) 
 }
 func TestNFOWorkerDownGuardIncludesFrozenOffAndPreservesBCache(t *testing.T) {
 	f := newNFOFixture(t)
+	legacyMigrationAt44(t, f.jobFixture)
 	l, _ := f.start(t, "cache", "a.nfo")
 	f.parseHead(t, l, nfoValidSummary())
 	f.finish(t, l)

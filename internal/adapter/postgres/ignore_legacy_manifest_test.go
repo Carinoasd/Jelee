@@ -108,9 +108,9 @@ func TestLegacyIgnoreManifestLeaseCancelAndEpoch(t *testing.T) {
 	}
 }
 
-func legacyManifestFixture(t *testing.T) (jobFixture, domain.JobLease, domain.LegacyIgnoreObservation) {
+func legacyManifestFixture(t *testing.T, setup ...func(*testing.T, jobFixture)) (jobFixture, domain.JobLease, domain.LegacyIgnoreObservation) {
 	t.Helper()
-	f, l, p := manifestFixture(t)
+	f, l, p := manifestFixture(t, setup...)
 	if _, err := f.s.Pool.Exec(f.ctx, `DELETE FROM job_ignore_requests WHERE job_id=$1::uuid`, l.Job.ID); err != nil {
 		t.Fatal(err)
 	}

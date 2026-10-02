@@ -24,7 +24,7 @@ type jobFixture struct {
 	policy       domain.JobPolicy
 }
 
-func newJobFixture(t *testing.T) jobFixture {
+func newJobFixture(t *testing.T, setup ...func(*testing.T, jobFixture)) jobFixture {
 	t.Helper()
 	ctx, s, _ := accountTestStore(t)
 	if _, err := s.BootstrapAdmin(ctx, accountInput("job-admin")); err != nil {
@@ -35,7 +35,11 @@ func newJobFixture(t *testing.T) jobFixture {
 	if err != nil {
 		t.Fatal(err)
 	}
-	return jobFixture{ctx: ctx, s: s, a: a, registration: r, policy: jobTestPolicy()}
+	f := jobFixture{ctx: ctx, s: s, a: a, registration: r, policy: jobTestPolicy()}
+	for _, configure := range setup {
+		configure(t, f)
+	}
+	return f
 }
 func (f jobFixture) submit(t *testing.T, key string) domain.Job {
 	t.Helper()
@@ -623,7 +627,7 @@ func TestJobsThousandEntriesRemainBoundedAndCountsUseCurrentSizes(t *testing.T) 
 }
 
 func TestJobsMigrationRollbackPreservesAccountsAndLibraryConfiguration(t *testing.T) {
-	f := newJobFixture(t)
+	f := newJobFixture(t, legacyMigrationAt44)
 	f.complete(t, "rollback", []string{"observed.mkv"}, 0)
 	dsn := f.s.Pool.Config().ConnString()
 	if version, dirty, e := Migrate(f.ctx, dsn, "down"); e != nil || dirty || version != 43 {

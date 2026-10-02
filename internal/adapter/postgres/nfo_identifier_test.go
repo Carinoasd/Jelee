@@ -10,6 +10,7 @@ import (
 
 func TestNFOIdentifierAtomicPersistenceAndRetainedDataRollback(t *testing.T) {
 	f, scope, fields := nfoItemApplyFixture(t)
+	legacyMigrationAt44(t, f)
 	nfoMigrateVersion(t, f, "down", 43)
 	nfoMigrateVersion(t, f, "down", 42)
 	nfoMigrateVersion(t, f, "down", 41)
@@ -69,6 +70,7 @@ func TestNFOIdentifierAtomicPersistenceAndRetainedDataRollback(t *testing.T) {
 
 func TestNFOIdentifierPublishedActorsRoundTripAndMissingValueLock(t *testing.T) {
 	f, scope, fields := nfoItemApplyFixture(t)
+	legacyMigrationAt44(t, f)
 	fields.Version = domain.NFOItemActorFieldsVersion
 	fields.Actors = []domain.NFOActor{{Name: "Actor", Role: "Lead"}}
 	result, err := f.s.ApplyItemNFOObservation(f.ctx, f.a, scope, nfoObservationState(scope, fields, domain.NFOItemObservedValid))

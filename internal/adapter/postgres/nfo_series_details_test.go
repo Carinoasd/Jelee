@@ -106,6 +106,7 @@ func TestNFOSeriesDetailsAtomicPersistenceAndManualClear(t *testing.T) {
 
 func TestNFOSeriesDetailsPublishedMovieRoundTripAndMissingLocks(t *testing.T) {
 	f, scope, fields := seriesDetailsFixture(t)
+	legacyMigrationAt44(t, f)
 	fields.Version = domain.NFOItemMovieFieldsVersion
 	fields.DateAdded = "2024-02-29"
 	result, err := f.s.ApplyItemNFOObservation(f.ctx, f.a, scope, nfoObservationState(scope, fields, domain.NFOItemObservedValid))

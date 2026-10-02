@@ -71,6 +71,7 @@ func TestNFOCollectionAtomicPersistenceManualClearAndDowngrade(t *testing.T) {
 
 func TestNFOCollectionPublishedRatingsRoundTripAndMissingLock(t *testing.T) {
 	f, scope, fields := nfoItemApplyFixture(t)
+	legacyMigrationAt44(t, f)
 	fields.Version = domain.NFOItemRatingFieldsVersion
 	maximum, votes := 100.0, 0
 	fields.Ratings = []domain.NFOSourceRating{{Name: "source", Value: 85, Max: &maximum, Votes: &votes, Default: true}}

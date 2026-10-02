@@ -8,15 +8,15 @@ import (
 	"github.com/MoYuanCN/Jelee/internal/domain"
 )
 
-func legacyBaselineFixture(t *testing.T) (jobFixture, domain.JobLease, domain.LegacyIgnoreBaselineObservation) {
+func legacyBaselineFixture(t *testing.T, setup ...func(*testing.T, jobFixture)) (jobFixture, domain.JobLease, domain.LegacyIgnoreBaselineObservation) {
 	t.Helper()
-	f, l, source := legacyManifestFixture(t)
+	f, l, source := legacyManifestFixture(t, setup...)
 	root := source.Proofs[0]
 	return f, l, domain.LegacyIgnoreBaselineObservation{Version: domain.LegacyIgnoreBaselineProofVersion, LookupDirectory: "gone/deep", Source: source, MissingDirectory: domain.IgnoreDirectoryProof{RootID: root.RootID, Directory: "gone", ParentIdentity: root.Identity, MissingDirectory: true}}
 }
 
 func TestLegacyBaselineStoragePagesReplayAndMigration(t *testing.T) {
-	f, l, o := legacyBaselineFixture(t)
+	f, l, o := legacyBaselineFixture(t, legacyMigrationAt44)
 	var observations []domain.LegacyIgnoreBaselineObservation
 	for i := 0; i < 18; i++ {
 		q := o

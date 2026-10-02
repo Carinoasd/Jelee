@@ -10,9 +10,9 @@ import (
 	"github.com/MoYuanCN/Jelee/internal/domain"
 )
 
-func manifestFixture(t *testing.T) (jobFixture, domain.JobLease, domain.IgnoreDirectoryProof) {
+func manifestFixture(t *testing.T, setup ...func(*testing.T, jobFixture)) (jobFixture, domain.JobLease, domain.IgnoreDirectoryProof) {
 	t.Helper()
-	f := newJobFixture(t)
+	f := newJobFixture(t, setup...)
 	f.policy.MaxDirectories = 1000
 	j := ignoreSubmit(t, f, "manifest")
 	l := ignoreManufacturedLease(t, f, j.ID)
@@ -285,7 +285,7 @@ func TestIgnoreManifestReclaimRetainsProofsAndFreezeNeedsAllRoots(t *testing.T) 
 }
 
 func TestIgnoreManifestMigrationPreservesLedgerOnRefusedDown(t *testing.T) {
-	f, l, root := manifestFixture(t)
+	f, l, root := manifestFixture(t, legacyMigrationAt44)
 	if err := f.s.RecordIgnoreProofs(f.ctx, l, []domain.IgnoreDirectoryProof{root}); err != nil {
 		t.Fatal(err)
 	}

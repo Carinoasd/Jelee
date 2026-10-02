@@ -8,9 +8,9 @@ import (
 	"github.com/MoYuanCN/Jelee/internal/domain"
 )
 
-func baselineComparisonFixture(t *testing.T, total, seen int) (jobFixture, domain.JobLease, domain.IgnoreDirectoryProof) {
+func baselineComparisonFixture(t *testing.T, total, seen int, setup ...func(*testing.T, jobFixture)) (jobFixture, domain.JobLease, domain.IgnoreDirectoryProof) {
 	t.Helper()
-	f, l, root := manifestFixture(t)
+	f, l, root := manifestFixture(t, setup...)
 	_, err := f.s.Pool.Exec(f.ctx, `INSERT INTO library_inventory_baseline(library_id,root_id,path,attributes_known,kind,size,modified_unix_nano,inventory_generation,observed_revision)
  SELECT $1::uuid,$2::uuid,'f-'||lpad(n::text,6,'0')||'.mkv',true,'video',7,1,inventory_generation,inventory_baseline_revision FROM libraries CROSS JOIN generate_series(1,$3::int)n WHERE id=$1::uuid`, f.registration.Library.ID, root.RootID, total)
 	if err != nil {
@@ -309,7 +309,7 @@ func TestIgnoreBaselineClassificationNeedsActualProofChain(t *testing.T) {
 }
 
 func TestIgnoreBaselineRevisionAndMigrationGuards(t *testing.T) {
-	f := newJobFixture(t)
+	f := newJobFixture(t, legacyMigrationAt44)
 	f.complete(t, "revision-one", []string{"retained.mkv"}, 0)
 	var revision, observed int64
 	if err := f.s.Pool.QueryRow(f.ctx, `SELECT l.inventory_baseline_revision,b.observed_revision FROM libraries l JOIN library_inventory_baseline b ON b.library_id=l.id WHERE l.id=$1::uuid`, f.registration.Library.ID).Scan(&revision, &observed); err != nil || revision <= 1 || observed != revision {

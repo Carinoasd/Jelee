@@ -9,9 +9,9 @@ import (
 	"github.com/MoYuanCN/Jelee/internal/domain"
 )
 
-func legacyBaselineVerificationFixture(t *testing.T) (jobFixture, domain.JobLease) {
+func legacyBaselineVerificationFixture(t *testing.T, setup ...func(*testing.T, jobFixture)) (jobFixture, domain.JobLease) {
 	t.Helper()
-	f, l, o := legacyBaselineFixture(t)
+	f, l, o := legacyBaselineFixture(t, setup...)
 	if err := f.s.RecordLegacyIgnoreBaselineObservations(f.ctx, l, []domain.LegacyIgnoreBaselineObservation{o}); err != nil {
 		t.Fatal(err)
 	}
@@ -25,7 +25,7 @@ func legacyBaselineVerificationFixture(t *testing.T) (jobFixture, domain.JobLeas
 }
 
 func TestLegacyIgnoreBaselineVerificationCheckpointAndReplay(t *testing.T) {
-	f, l := legacyBaselineVerificationFixture(t)
+	f, l := legacyBaselineVerificationFixture(t, legacyMigrationAt44)
 	var deadline time.Time
 	if err := f.s.Pool.QueryRow(f.ctx, `SELECT deadline FROM job_ignore_legacy_baseline_verifications WHERE job_id=$1::uuid`, l.Job.ID).Scan(&deadline); err != nil {
 		t.Fatal(err)

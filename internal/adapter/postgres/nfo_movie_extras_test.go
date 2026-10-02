@@ -93,6 +93,7 @@ func TestNFOMovieExtrasAtomicPersistenceAndManualClear(t *testing.T) {
 
 func TestNFOMovieExtrasPublishedCollectionRoundTripAndMissingLocks(t *testing.T) {
 	f, scope, fields := nfoItemApplyFixture(t)
+	legacyMigrationAt44(t, f)
 	fields.Version = domain.NFOItemCollectionFieldsVersion
 	fields.Collection = &domain.NFOCollection{Name: "Collection", Overview: "Plot"}
 	result, err := f.s.ApplyItemNFOObservation(f.ctx, f.a, scope, nfoObservationState(scope, fields, domain.NFOItemObservedValid))

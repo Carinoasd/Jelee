@@ -7,7 +7,7 @@ import (
 )
 
 func TestLegacyIgnoreMigrationRoundTrip(t *testing.T) {
-	f := newJobFixture(t)
+	f := newJobFixture(t, legacyMigrationAt44)
 	nfoMigrateVersion(t, f, "down", 43)
 	nfoMigrateVersion(t, f, "down", 42)
 	nfoMigrateVersion(t, f, "down", 41)
@@ -47,7 +47,7 @@ func TestLegacyIgnoreMigrationRoundTrip(t *testing.T) {
 	}
 }
 func TestLegacyIgnoreMigrationGuardsAndCleanup(t *testing.T) {
-	f := newJobFixture(t)
+	f := newJobFixture(t, legacyMigrationAt44)
 	job := ignoreSubmit(t, f, "legacy-storage")
 	// The old immutable request must not acquire new-family state.
 	if _, err := f.s.Pool.Exec(f.ctx, `INSERT INTO job_ignore_legacy_manifests(job_id,inventory_generation) VALUES($1::uuid,1)`, job.ID); err == nil {

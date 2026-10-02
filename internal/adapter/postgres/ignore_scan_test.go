@@ -8,9 +8,9 @@ import (
 	"github.com/MoYuanCN/Jelee/internal/domain"
 )
 
-func ignoreScanFixture(t *testing.T) (jobFixture, domain.JobLease, domain.ScanDirectory, domain.IgnoreScanBatch) {
+func ignoreScanFixture(t *testing.T, setup ...func(*testing.T, jobFixture)) (jobFixture, domain.JobLease, domain.ScanDirectory, domain.IgnoreScanBatch) {
 	t.Helper()
-	f, l, root := manifestFixture(t)
+	f, l, root := manifestFixture(t, setup...)
 	d, err := f.s.NextIgnoreScanDirectory(f.ctx, l)
 	if err != nil {
 		t.Fatal(err)
@@ -29,7 +29,7 @@ func scanExclusionCounts(t *testing.T, f jobFixture, id string) (int64, int64) {
 }
 
 func TestIgnoreScanAtomicReplayRestartAndPublication(t *testing.T) {
-	f, l, d, b := ignoreScanFixture(t)
+	f, l, d, b := ignoreScanFixture(t, legacyMigrationAt44)
 	for i := 0; i < 2; i++ {
 		if err := f.s.SaveIgnoreScanBatch(f.ctx, l, d, b); err != nil {
 			t.Fatal(err)

@@ -6,9 +6,9 @@ import (
 	"github.com/MoYuanCN/Jelee/internal/domain"
 )
 
-func familyComparisonFixture(t *testing.T) (jobFixture, domain.JobLease) {
+func familyComparisonFixture(t *testing.T, setup ...func(*testing.T, jobFixture)) (jobFixture, domain.JobLease) {
 	t.Helper()
-	f, l, d, b := familyScanFixture(t)
+	f, l, d, b := familyScanFixture(t, setup...)
 	b.Inventory.Done = true
 	if err := f.s.SaveFamilyIgnoreScanBatch(f.ctx, l, d, b); err != nil {
 		t.Fatal(err)
@@ -56,7 +56,7 @@ func TestFamilyBaselineComparisonPageAndIsolation(t *testing.T) {
 }
 
 func TestFamilyBaselineComparisonMigration(t *testing.T) {
-	f, l := familyComparisonFixture(t)
+	f, l := familyComparisonFixture(t, legacyMigrationAt44)
 	if err := f.s.BeginFamilyIgnoreBaselineComparison(f.ctx, l); err != nil {
 		t.Fatal(err)
 	}

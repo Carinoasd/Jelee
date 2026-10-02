@@ -427,6 +427,7 @@ func TestNFOCacheLeaseExpiryAndHitTTLAtCheckpoint(t *testing.T) {
 
 func TestNFOCacheMigrationGuardAndRoundTrip(t *testing.T) {
 	f := newNFOFixture(t)
+	legacyMigrationAt44(t, f.jobFixture)
 	l, _ := f.start(t, "migration", "a.nfo")
 	body, err := migrationFiles.ReadFile("migrations/000006_nfo_cache.down.sql")
 	if err != nil {

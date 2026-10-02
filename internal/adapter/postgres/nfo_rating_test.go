@@ -23,6 +23,7 @@ func sourceRatingFact(t *testing.T, metadata domain.ItemMetadata, name string) d
 
 func TestNFOSourceRatingsAtomicPersistenceManualClearAndDowngrade(t *testing.T) {
 	f, scope, fields := nfoItemApplyFixture(t)
+	legacyMigrationAt44(t, f)
 	nfoMigrateVersion(t, f, "down", 43)
 	nfoMigrateVersion(t, f, "down", 42)
 	nfoMigrateVersion(t, f, "down", 41)
@@ -101,6 +102,7 @@ func TestNFOSourceRatingsAtomicPersistenceManualClearAndDowngrade(t *testing.T) 
 
 func TestNFOSourceRatingsPublishedIdentifiersRoundTripAndMissingLock(t *testing.T) {
 	f, scope, fields := nfoItemApplyFixture(t)
+	legacyMigrationAt44(t, f)
 	fields.Version = domain.NFOItemIdentifierFieldsVersion
 	fields.UniqueIDs = []domain.NFOUniqueID{{Type: "imdb", Value: "tt1234567", Default: true}}
 	result, err := f.s.ApplyItemNFOObservation(f.ctx, f.a, scope, nfoObservationState(scope, fields, domain.NFOItemObservedValid))

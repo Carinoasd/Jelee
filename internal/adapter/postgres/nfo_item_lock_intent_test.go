@@ -90,6 +90,7 @@ func TestNFOItemLockIntentDatabaseRejectsUnsafeProof(t *testing.T) {
 
 func TestNFOItemLockIntentPersistenceAndManualTakeover(t *testing.T) {
 	f, scope, fields := nfoItemApplyFixture(t)
+	legacyMigrationAt44(t, f)
 	fields.Fields = fields.Fields[:1]
 	fields.LockedFields = []string{"Overview", "unknown"}
 	result, err := f.s.ApplyItemNFOObservation(f.ctx, f.a, scope, nfoObservationState(scope, fields, domain.NFOItemObservedValid))

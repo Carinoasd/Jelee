@@ -10,6 +10,7 @@ import (
 
 func TestNFOActorAtomicPersistenceManualClearAndDowngrade(t *testing.T) {
 	f, scope, fields := nfoItemApplyFixture(t)
+	legacyMigrationAt44(t, f)
 	nfoMigrateVersion(t, f, "down", 43)
 	nfoMigrateVersion(t, f, "down", 42)
 	nfoMigrateVersion(t, f, "down", 41)
@@ -80,6 +81,7 @@ func TestNFOActorAtomicPersistenceManualClearAndDowngrade(t *testing.T) {
 
 func TestNFOActorNamedLockAndPublishedListsRoundTrip(t *testing.T) {
 	f, scope, fields := nfoItemApplyFixture(t)
+	legacyMigrationAt44(t, f)
 	fields.Version = domain.NFOItemListFieldsVersion
 	fields.Lists = []domain.NFOStringList{{Field: "genres", Values: []string{"Drama", "Mystery"}}}
 	result, err := f.s.ApplyItemNFOObservation(f.ctx, f.a, scope, nfoObservationState(scope, fields, domain.NFOItemObservedValid))

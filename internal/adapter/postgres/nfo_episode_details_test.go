@@ -131,6 +131,7 @@ func TestNFOEpisodeDetailsManualClearPreventsDowngrade(t *testing.T) {
 
 func TestNFOEpisodeDetailsPublishedSeriesRoundTrip(t *testing.T) {
 	f, scope, fields := seriesDetailsFixture(t)
+	legacyMigrationAt44(t, f)
 	count := -1
 	fields.Version = domain.NFOItemSeriesFieldsVersion
 	fields.SeriesDetails = &domain.NFOSeriesDetails{SeasonCount: &count, Status: "Continuing"}

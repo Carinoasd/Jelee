@@ -1,0 +1,216 @@
+{
+  "記錄時間UTC": "2026-10-02T18:58:48.311317+00:00",
+  "基準提交": "a5d9fe416eba28b16426252f38cce29865dfe5ef",
+  "範圍": "schema45 工作持久統計、只讀一致快照、既有遷移回歸及 CI 套件期限；工作系列尚未接 /metrics。",
+  "資料庫": "隔離 jelee_test 隨機 schema，PostgreSQL 16.15，非正式資料庫",
+  "PostgreSQLRace": {
+    "mode": "整包執行後修正測試前置，補跑未完成與受影響案例",
+    "verified": true,
+    "passed": 1160,
+    "skipped": [],
+    "registeredPostgresRaceTests": 388,
+    "allRegisteredPostgresRaceTestsPassed": true,
+    "firstFullRun": {
+      "mode": "full-pg",
+      "exitCode": 1,
+      "passed": 983,
+      "failed": [
+        "TestIgnoreMigrationHistoryTrimAllowsDowngrade",
+        "TestInventorySnapshotMigrationAndVisibleDML",
+        "github.com/MoYuanCN/Jelee/internal/adapter/postgres"
+      ],
+      "skipped": [],
+      "logSha256": "c82a8d04f674e4c35ba796596bc83918093e06f722916b4ba47a5d3dfce78de3"
+    },
+    "followupRun": {
+      "mode": "followup",
+      "exitCode": 0,
+      "passed": 187,
+      "failed": [],
+      "skipped": [],
+      "logSha256": "18cb142a13649bc79dedef1c10f6c8dd8d9d90b3056abe5a5425daa22fbdb167",
+      "skippedCount": 0
+    },
+    "firstFullSourceManifestSha256": "c7cd085d87a4b5bb927ce521b2f18ab362a39ad218fada3dbb99848ce2b190bb",
+    "testOnlyChangesAfterFirstFull": [
+      "internal/adapter/postgres/ignore_migration_test.go",
+      "internal/adapter/postgres/inventory_publication_test.go"
+    ],
+    "productionSourcesUnchangedBetweenRuns": true,
+    "raceListSha256": "988b49165b3ad9494608f30a28c0ed3a6a200de439bf59bd33592824c523b97e",
+    "說明": "保留原始整包 exit1、20分鐘套件逾時及兩個fixture失敗；僅修正兩份舊測試的版本前置，再補驗所有未完成與受影響案例。清單使用與執行相同的-race建置條件，非race原生/規模驗收不算進本段。"
+  },
+  "PostgreSQL套件耗時": [
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/platform/runtime",
+      "Action": "pass",
+      "Elapsed": 2.92
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/platform/outbound",
+      "Action": "pass",
+      "Elapsed": 86.26
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Action": "fail",
+      "Elapsed": 1200.196
+    },
+    {
+      "Package": "github.com/MoYuanCN/Jelee/internal/adapter/postgres",
+      "Action": "pass",
+      "Elapsed": 210.876
+    }
+  ],
+  "新增工作指標通過事件": 80,
+  "修正案例Race": {
+    "mode": "repair",
+    "exitCode": 0,
+    "passed": 2,
+    "failed": [],
+    "skipped": [],
+    "logSha256": "b355c413b03655f3a12098803b763192c30f96c8cdebe40d46146ddb6f4c1d6b",
+    "skippedCount": 0
+  },
+  "Windows": {
+    "mode": "windows",
+    "exitCode": 0,
+    "passed": 443,
+    "failed": [],
+    "skipped": "資料庫／原生環境／opt-in 相關案例；完整名稱保留於本機原始摘要。",
+    "logSha256": "e83b0d61156bf6c37eb7a77b9e844f1a42807f4848bf61acd7ed962b682b5579",
+    "skippedCount": 613
+  },
+  "初始紅測": {
+    "mode": "pg",
+    "exitCode": 1,
+    "passed": 0,
+    "failed": [
+      "TestJobMetricsIntegrationFixedStorage",
+      "github.com/MoYuanCN/Jelee/internal/adapter/postgres"
+    ],
+    "skipped": [],
+    "logSha256": "c62f3eeae32a85f930d6ba7052327f7352a82cbfdf55137ddb8bab9dbc49756f"
+  },
+  "首輪整合": {
+    "mode": "narrow",
+    "exitCode": 1,
+    "passed": 78,
+    "failed": [
+      "TestJobMetricsHistoryTrimDoesNotResetTotals",
+      "TestJobMetricsMigrationCountersSurviveLibraryDeletion",
+      "github.com/MoYuanCN/Jelee/internal/adapter/postgres"
+    ],
+    "skipped": [],
+    "logSha256": "8bb045f88b16bda941cff90cd5a7141594ce6ad33b3de569f4726d6911a52f8b"
+  },
+  "首輪修正說明": "兩個刪除測試原先直接刪 library，觸犯原有 roots 外鍵；改按 jobs、baseline、library 順序清理，保持全部 constraints/trigger及完整 metrics 比對。生產程式未因這兩例修改。",
+  "檢查": [
+    {
+      "name": "vet",
+      "exitCode": 0
+    },
+    {
+      "name": "build",
+      "exitCode": 0
+    },
+    {
+      "name": "modules",
+      "exitCode": 0
+    },
+    {
+      "name": "brand-new",
+      "exitCode": 0
+    },
+    {
+      "name": "gitignore",
+      "exitCode": 0
+    },
+    {
+      "name": "brand-full",
+      "exitCode": 1
+    }
+  ],
+  "來源凍結": {
+    "files": 813,
+    "manifestSha256": "ce937a68cc30eba18e3bb3967ddbbfb22d00f93cbe469d7ef441c12eabfc0f7c",
+    "unchangedDuringTests": true
+  },
+  "保護": {
+    "publishedSQLUnchanged": 88,
+    "protectedLiveTVFilesUnchanged": 5,
+    "LICENSE": "f371b80469fb235bc500ec29e0e85b682d4a6157a158567d828ff0be544d4f1d",
+    "requirementsSource": "755b6b32324efe710c3e1135a0c982c45b82f337e90fcb50ab3718a20cba5d07"
+  },
+  "CI修正": {
+    "失敗提交": "a5d9fe416eba28b16426252f38cce29865dfe5ef",
+    "job": "https://github.com/Carinoasd/Jelee/actions/runs/37045104808/job/110964827230",
+    "logSha256": "7c0fa59dca9f9566f627a8a120c1a93c779134b0bd88363abb9c25e69d492f4d",
+    "原因": "postgres 整個 test binary 用完20分鐘；當前NFO case才開始0秒，無此前斷言失敗。",
+    "變更": "兩平台 test-race 套件期限改45分鐘；個別fixture及SQL期限不改。runtime證據上傳只在前一步未略過時執行，保留缺檔失敗。",
+    "驗證": "Linux make -n test-race正確，PowerShell AST解析無錯；遠端新提交結果待查。"
+  },
+  "全量品牌": {
+    "violations": 14735,
+    "allowed": 344,
+    "status": "尚未通過"
+  },
+  "修改來源SHA256": {
+    ".github/workflows/jelee.yml": "cf23d42756d00bbc2cc994b1c4edc0dcee1eaeb476d144195174d6e85be08915",
+    "Makefile": "fe0513f6a7de0ccafcad13c54fff1e64af21a9a0c8dd7ff40f1f5908cc6101c2",
+    "internal/adapter/postgres/accounts_integration_test.go": "67f6b4e95a439d14484b783d956e253ce8d08670f507e70a6c373c16f9c3791f",
+    "internal/adapter/postgres/catalog_import_migration_test.go": "32486bc0dc503168d0fed7c92a8d179e2047a84bb4d3c355fa173d20bd75d492",
+    "internal/adapter/postgres/ignore_baseline_test.go": "3eae272b141f71c314cad6506804d2153550bd7038a6ad683cc80026abcd59c0",
+    "internal/adapter/postgres/ignore_family_comparison_test.go": "79664f011873599c5bcd0d606d9ee6d0fbc013e42489c985bffd69a090922598",
+    "internal/adapter/postgres/ignore_family_scan_test.go": "cb0f0756ee989d5f2304cb66ec73829639b72f56ed19b82ba2975545e16ba131",
+    "internal/adapter/postgres/ignore_legacy_baseline_test.go": "ecea31eea484f4f3d69438cdf8afe8cc8c8f670feeca1309a4a7be4acc699047",
+    "internal/adapter/postgres/ignore_legacy_baseline_verification_test.go": "121f18cff976491232ca5e1a913a58e9b17fb020990d246eceb36c151971ff17",
+    "internal/adapter/postgres/ignore_legacy_manifest_test.go": "b6eab9caf32ce619c7d2b3fe97e693c10a5771f26ec5e33a409ce35d391b2fde",
+    "internal/adapter/postgres/ignore_legacy_migration_test.go": "7009c6f10ff2e381717b28ee5f871274b28048d7fe3cda6ae07a69f6d45dde13",
+    "internal/adapter/postgres/ignore_legacy_verification_test.go": "f9eb70463388928a6c6955d24b97cac9b11097890b9f7f34d9857499b51c0fef",
+    "internal/adapter/postgres/ignore_manifest_test.go": "609f97a897180ddbfb6a0a14b0db5772153f1c4e59193ad4786af90dada8c8c8",
+    "internal/adapter/postgres/ignore_migration_test.go": "163cab16de881ec456311d0fe4a4c2b8c2cc038bde291286198f3fc5112ab437",
+    "internal/adapter/postgres/ignore_scan_test.go": "69a47918712a0dc77a9098863cd0bf28aabfeaa20b610654a560197ee98b40d5",
+    "internal/adapter/postgres/ignore_snapshot_test.go": "786ce62ea741edd4e6d65cd34020c8d288d36e28142fccacbf181aeb6957142c",
+    "internal/adapter/postgres/ignore_verification_test.go": "059ec154260d2105d7a9a101b329247460956db4d229097bb426392982274be7",
+    "internal/adapter/postgres/inventory_publication_test.go": "895dd388fd03b8521f1c18c29ec9d93b2cd907d9e5bba30e5e856b3be3a8d8ba",
+    "internal/adapter/postgres/item_metadata_test.go": "2e7345a4ab8e669733d2682cf41b33f58671a7605d4757daaef038884440d871",
+    "internal/adapter/postgres/job_metrics.go": "54d7da2767179f8e88f2cc11b8b92fb3aca00be8de095450342c379794f70fb2",
+    "internal/adapter/postgres/job_metrics_lifecycle_test.go": "3abe8eaf93ec7e050bbe25551ab027d20ed2a8c33597fc4cbe51bf245b88dacc",
+    "internal/adapter/postgres/job_metrics_migration_test.go": "76b2fd684d6642446d90e1b7bae79e876ec23ba87c4190dc3968884de96434b5",
+    "internal/adapter/postgres/job_metrics_snapshot_test.go": "e8f7b737eae6e8ea7a7c0e3409f90b0c89966124baaba784499caa21630fa1cd",
+    "internal/adapter/postgres/jobs_integration_test.go": "4c88b024ee2069470debce11a0536e08309674e6bf3f7eff55d22fb2b72e07c1",
+    "internal/adapter/postgres/legacy_migration_fixture_test.go": "e41fc337f6cb68b3f8c2a37d3c090344ca1f05d56a65b3650151af65cb7b9c82",
+    "internal/adapter/postgres/metadata_apply_test.go": "afa8eae23d1f5789d26de0ca7b71e47525056cc1e01ed6d7b3aa8be7658718a4",
+    "internal/adapter/postgres/metadata_image_preferences_test.go": "9050f995b03361fa6921b8813c20435c0e8327ca7e1576a4c1b3bf3743e0aea6",
+    "internal/adapter/postgres/metadata_preferences_test.go": "4a37f15356b589dbe8024e53d600e10ad51fa297fdda02d517f94fd964f96696",
+    "internal/adapter/postgres/migrations/000045_job_metrics.down.sql": "ae3cd64cc89d277edde841b60f4fce3e42d60828fe21dfa36b3ebc20a50f8dbc",
+    "internal/adapter/postgres/migrations/000045_job_metrics.up.sql": "a01a556c708b1211db68f8fbd1abe95ede228587af181ec9d52023f90a0bd4e3",
+    "internal/adapter/postgres/nfo_actor_test.go": "b8c8249e14c53f827a67fc125a95dc6c579c95413aa1abab56908910d5b3df7d",
+    "internal/adapter/postgres/nfo_collection_test.go": "f04dd757d44d3e79ef48c9f210c7557ef9d86d13842ca8b4c8cefcf87df20242",
+    "internal/adapter/postgres/nfo_episode_details_test.go": "39704018d392db2ef2b9aa715174d3126c75ae36e9bbe06ba8a7071b6da4b4b3",
+    "internal/adapter/postgres/nfo_identifier_test.go": "a5200e6c5a64e70fe446b8d9a547c07fd77e341fc86e390ce2738391a8ffaae3",
+    "internal/adapter/postgres/nfo_integration_test.go": "b58b05c96a78e88a6f9ebee0c415cd0191520776e8530ada6e0befbb735b2979",
+    "internal/adapter/postgres/nfo_item_apply_test.go": "196be309181ce2bbce1f739b0c172f9d7e7ab119f3c565c4ad8fdcad5b87e7ce",
+    "internal/adapter/postgres/nfo_item_lock_intent_test.go": "18012d32c0eb6f94591566081c32f8b959b9d7c1242014becfb0e8c9f5396e21",
+    "internal/adapter/postgres/nfo_item_observation_test.go": "3d4300190a0e6394317994cf2762fea19af8e6885e7080743cdc391d133ba4fe",
+    "internal/adapter/postgres/nfo_lock_only_test.go": "454720e58f6a03cb4041d1dcc6a13abf0330864130cfb851d6fda0a1d08bec3a",
+    "internal/adapter/postgres/nfo_movie_extras_test.go": "56cc2bf23e4d6fa394bd421fd32be673d9706aff206cae4f978b8418e648dc02",
+    "internal/adapter/postgres/nfo_numeric_facts_test.go": "38e92634af3cda1797ba1f822316ae4a988a260e2855fee84f6974ac52f7c784",
+    "internal/adapter/postgres/nfo_rating_test.go": "3df97871e9afaa0edd49134c8813275095fb61190d7b380c38aa46a6ab84cf62",
+    "internal/adapter/postgres/nfo_series_details_test.go": "d609daaff5bf1b76321b0f517c7bcc1aba9ddc8b2a3fc144ffef1ab076d236f2",
+    "internal/adapter/postgres/nfo_sort_title_test.go": "10ba5de1ac1154575245d802f7ee7a69ef152968bf1e6ccfd6776dd81df30013",
+    "internal/adapter/postgres/nfo_string_lists_test.go": "8e9221cce1a178dc201a4a705b320b5676cbb675d5a0e299d4f5fb378161e7d2",
+    "internal/adapter/postgres/nfo_text_fields_test.go": "d52b8e5b69dacfd791835233ff8452f37a139817098f0be00cdbae029f7b48ea",
+    "internal/adapter/postgres/nfo_worker_migration_test.go": "99d23f3f592fc4ff097d6bb58a45d91c36276e170f94d3d9924b0ca58207c109",
+    "internal/adapter/postgres/nfo_year_fact_test.go": "967830bb18719908f4e6eeb14b8246bf17ca35316f1ad336abb95e49f2e8f63f",
+    "internal/adapter/postgres/probe_integration_test.go": "06e500f1679f6135ab3e146ae1dac0c9a36203df88e0fad1bc2fa2d85ee54131",
+    "internal/adapter/postgres/probe_requests_test.go": "39bcddbe0e675dcb38e39b02a79824185fcc0242c5b47c552dab2e9801919d67",
+    "internal/adapter/postgres/schedules_test.go": "c06c201c8321f198f4958fcf2217b219e420a52f5c0080e063da3fa00259cf84",
+    "internal/adapter/postgres/store.go": "09d95730e4b7a298081e4d1aa4365fd1456399b6e26a20fa45a167376173723d",
+    "internal/adapter/postgres/store_integration_test.go": "85497b9fdce58a1b62c86fafc10de8d328ec95f6a584679fc0f09ef06aa51b77",
+    "internal/adapter/postgres/watch_test.go": "a4d08f34f141c234da9cbfec85b343ea1f16912befeef900040e550c9e94712d",
+    "internal/app/job_metrics_ports.go": "57ebe7c350a921f1f5a66430252b57c57c8d88ec356bda729fd8f36e1f6ece02",
+    "scripts/make.ps1": "ad9f26ac1cde5d6eb214a493c02b7820ab944846845fbccc844dbc215ca87055"
+  }
+}

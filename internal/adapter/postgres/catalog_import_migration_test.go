@@ -4,6 +4,7 @@ import "testing"
 
 func TestCatalogImportSchemaAvailable(t *testing.T) {
 	ctx, store, dsn := accountTestStore(t)
+	legacyMigrationStoreAt44(t, ctx, store)
 	var available bool
 	if err := store.Pool.QueryRow(ctx, `SELECT to_regclass('catalog_import_requests') IS NOT NULL AND to_regclass('catalog_import_entries') IS NOT NULL`).Scan(&available); err != nil || !available {
 		t.Fatal("durable catalog import schema unavailable", err)

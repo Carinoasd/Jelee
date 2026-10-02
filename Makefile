@@ -54,7 +54,7 @@ test:
 ignore-sustained-test:
 	$(PYTHON) scripts/test_ignore_sustained.py
 test-race:
-	"$(GO)" test -race -count=1 -timeout=20m ./...
+	"$(GO)" test -race -count=1 -timeout=45m ./...
 test-integration:
 	@test -n "$$JELEE_TEST_DATABASE_URL" || { echo 'JELEE_TEST_DATABASE_URL must name an isolated test database' >&2; exit 1; }
 	"$(GO)" test ./internal/adapter/postgres -run Integration -v -count=1

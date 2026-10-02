@@ -27,6 +27,7 @@ func TestNFONumericManualWhitespaceNullDoesNotBecomeZero(t *testing.T) {
 
 func TestNFONumericFactsAtomicPersistenceAndManualPriority(t *testing.T) {
 	f, scope, fields := nfoItemApplyFixture(t)
+	legacyMigrationAt44(t, f)
 	nfoMigrateVersion(t, f, "down", 43)
 	nfoMigrateVersion(t, f, "down", 42)
 	nfoMigrateVersion(t, f, "down", 41)
@@ -128,6 +129,7 @@ func TestNFONumericLockOnlyHasNoInventedValues(t *testing.T) {
 
 func TestNFONumericMigrationPreservesPublishedYearProjection(t *testing.T) {
 	f, scope, fields := nfoItemApplyFixture(t)
+	legacyMigrationAt44(t, f)
 	fields.Version = domain.NFOItemYearFieldsVersion
 	fields.Facts = []domain.NFOIntegerFact{{Field: "year", Value: 2024}}
 	fields.LockedFields = []string{"ProductionYear"}

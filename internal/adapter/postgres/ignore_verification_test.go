@@ -87,9 +87,9 @@ func TestIgnoreVerificationRechecksScopeAndCancellation(t *testing.T) {
 	}
 }
 
-func verificationFixture(t *testing.T, children int) (jobFixture, domain.JobLease) {
+func verificationFixture(t *testing.T, children int, setup ...func(*testing.T, jobFixture)) (jobFixture, domain.JobLease) {
 	t.Helper()
-	f, l, root := baselineComparisonFixture(t, 0, 0)
+	f, l, root := baselineComparisonFixture(t, 0, 0, setup...)
 	for start := 0; start < children; start += 128 {
 		var batch []domain.IgnoreDirectoryProof
 		for i := start; i < min(start+128, children); i++ {
@@ -274,7 +274,7 @@ func TestIgnoreVerificationFixedDeadlinesAndLateRollback(t *testing.T) {
 }
 
 func TestIgnoreVerificationFreezeHeartbeatAndMigration(t *testing.T) {
-	f, l := verificationFixture(t, 0)
+	f, l := verificationFixture(t, 0, legacyMigrationAt44)
 	if err := f.s.BeginIgnoreVerification(f.ctx, l); err != nil {
 		t.Fatal(err)
 	}

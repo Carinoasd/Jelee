@@ -446,6 +446,7 @@ func TestProbeRequestSweepReferencesAndDisabledFairness(t *testing.T) {
 
 func TestProbeRequestMigrationGuardAndRollbackPreserveCache(t *testing.T) {
 	f := newProbeFixture(t)
+	legacyMigrationAt44(t, f.jobFixture)
 	old, _ := f.begin(t, "legacy-cache", "a.mkv")
 	f.saveHead(t, old)
 	f.finish(t, old)

@@ -430,6 +430,7 @@ func TestProbeTransactionExpiryRollsBackMetadataQuotaAndCursor(t *testing.T) {
 
 func TestProbeReleaseRecoveryInvalidationAndMigration(t *testing.T) {
 	f := newProbeFixture(t)
+	legacyMigrationAt44(t, f.jobFixture)
 	f.importItem(t, "a.mkv")
 	f.complete(t, "baseline", []string{"a.mkv"}, 0)
 	l, _ := f.begin(t, "recovery", "a.mkv")

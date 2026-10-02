@@ -40,7 +40,7 @@ func TestMetadataImagePreferencePersistenceAndLegacyUpdates(t *testing.T) {
 }
 
 func TestMetadataImagePreferenceMigrationAndConstraints(t *testing.T) {
-	f := newJobFixture(t)
+	f := newJobFixture(t, legacyMigrationAt44)
 	id := f.registration.Library.ID
 	nfoMigrateVersion(t, f, "down", 43)
 	nfoMigrateVersion(t, f, "down", 42)

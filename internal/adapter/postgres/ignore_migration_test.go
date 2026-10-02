@@ -43,6 +43,10 @@ func ignoreIntentSnapshot(t *testing.T, f jobFixture) string {
 }
 func denyIgnoreDowngrade(t *testing.T, f jobFixture) {
 	t.Helper()
+	beforeVersion, beforeDirty, err := Migrate(f.ctx, f.s.Pool.Config().ConnString(), "status")
+	if err != nil || beforeDirty {
+		t.Fatal("direct guard requires a clean migration version", err)
+	}
 	before := ignoreIntentSnapshot(t, f)
 	legacy := ignoreLegacySnapshot(t, f)
 	body, err := migrationFiles.ReadFile("migrations/000008_ignore_intent.down.sql")
@@ -64,7 +68,7 @@ func denyIgnoreDowngrade(t *testing.T, f jobFixture) {
 		t.Fatal("refused downgrade changed retained intent or existing data")
 	}
 	v, dirty, err := Migrate(f.ctx, f.s.Pool.Config().ConnString(), "status")
-	if err != nil || dirty || v != SchemaVersion {
+	if err != nil || dirty || v != beforeVersion {
 		t.Fatal("direct guard regression dirtied migration version")
 	}
 }
@@ -80,6 +84,7 @@ func submitIgnoreForMigration(t *testing.T, f jobFixture) domain.Job {
 
 func TestIgnoreMigrationLegacySevenRoundTripAndReadiness(t *testing.T) {
 	f := newNFOFixture(t)
+	legacyMigrationAt44(t, f.jobFixture)
 	l, _ := f.start(t, "existing-cache", "retained.nfo")
 	f.parseHead(t, l, nfoValidSummary())
 	f.finish(t, l)
@@ -165,6 +170,7 @@ func TestIgnoreMigrationLegacySevenRoundTripAndReadiness(t *testing.T) {
 	if _, err = f.s.Pool.Exec(f.ctx, `UPDATE schema_migrations SET version=$1,dirty=false`, SchemaVersion); err != nil {
 		t.Fatal("restore private readiness fixture")
 	}
+	legacyMigrationAt44(t, f.jobFixture)
 	nfoMigrateVersion(t, f.jobFixture, "down", 43)
 	nfoMigrateVersion(t, f.jobFixture, "down", 42)
 	nfoMigrateVersion(t, f.jobFixture, "down", 41)
@@ -278,7 +284,7 @@ func TestIgnoreMigrationDownRefusesIncompleteRetainedIntent(t *testing.T) {
 }
 
 func TestIgnoreMigrationHistoryTrimAllowsDowngrade(t *testing.T) {
-	f := newJobFixture(t)
+	f := newJobFixture(t, legacyMigrationAt44)
 	j := submitIgnoreForMigration(t, f)
 	if _, err := f.s.CancelJob(f.ctx, f.a, j.ID); err != nil {
 		t.Fatal("terminate enabled queued fixture")

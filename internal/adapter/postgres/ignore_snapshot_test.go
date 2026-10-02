@@ -247,7 +247,7 @@ func TestIgnoreSnapshotLateSealAndLeaseRollback(t *testing.T) {
 
 func TestIgnoreSnapshotMigration(t *testing.T) {
 	t.Run("plain-preparation-round-trip", func(t *testing.T) {
-		f, l := snapshotFixture(t, 130)
+		f, l := snapshotFixture(t, 130, legacyMigrationAt44)
 		if _, err := f.s.PrepareInventoryPublication(f.ctx, l); err != nil {
 			t.Fatal(err)
 		}
@@ -259,7 +259,7 @@ func TestIgnoreSnapshotMigration(t *testing.T) {
 		}
 	})
 	t.Run("retained-ignore-denies-downgrade", func(t *testing.T) {
-		f, l := familyComparisonFixture(t)
+		f, l := familyComparisonFixture(t, legacyMigrationAt44)
 		classifyFamilyForPublication(t, f, l, familyExcluded, false)
 		if _, err := f.s.PrepareInventoryPublication(f.ctx, l); err != nil {
 			t.Fatal(err)

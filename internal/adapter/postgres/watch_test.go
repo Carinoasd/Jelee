@@ -347,6 +347,7 @@ func TestWatchActualObserverWorkersAndRestart(t *testing.T) {
 
 func TestWatchMigration(t *testing.T) {
 	ctx, s, dsn := accountTestStore(t)
+	legacyMigrationStoreAt44(t, ctx, s)
 	if version, dirty, err := Migrate(ctx, dsn, "down"); err != nil || dirty || version != 43 {
 		t.Fatal("ignored snapshot migration down", version, dirty, err)
 	}
@@ -370,6 +371,7 @@ func TestWatchMigration(t *testing.T) {
 	if _, err = s.PutScanSchedule(ctx, a, library.Library.ID, watchInput(), calendar.Calendar{}); err != nil {
 		t.Fatal(err)
 	}
+	legacyMigrationStoreAt44(t, ctx, s)
 	if version, dirty, err := Migrate(ctx, dsn, "down"); err != nil || dirty || version != 43 {
 		t.Fatal("ignored snapshot migration down", version, dirty, err)
 	}

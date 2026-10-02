@@ -584,6 +584,7 @@ func TestAccountIntegration(t *testing.T) {
 
 func TestAccountMigrationRejectsCaseCollisionWithoutRenaming(t *testing.T) {
 	ctx, s, dsn := accountTestStore(t)
+	legacyMigrationStoreAt44(t, ctx, s)
 	if version, dirty, e := Migrate(ctx, dsn, "down"); e != nil || dirty || version != 43 {
 		t.Fatalf("down43 version=%d dirty=%v error=%v", version, dirty, e)
 	}
@@ -730,6 +731,7 @@ func TestAccountMigrationRejectsCaseCollisionWithoutRenaming(t *testing.T) {
 
 func TestAccountMigrationRollbackKeepsDeletedAccountsDisabled(t *testing.T) {
 	ctx, s, dsn := accountTestStore(t)
+	legacyMigrationStoreAt44(t, ctx, s)
 	deletedToken, err := s.Provision(ctx, "DeletedBeforeRollback", access.ClientNative, false)
 	if err != nil {
 		t.Fatal(err)

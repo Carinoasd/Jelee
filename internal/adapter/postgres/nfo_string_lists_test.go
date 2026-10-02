@@ -10,6 +10,7 @@ import (
 
 func TestNFOStringListsAtomicPersistenceManualClearAndDowngrade(t *testing.T) {
 	f, scope, fields := nfoItemApplyFixture(t)
+	legacyMigrationAt44(t, f)
 	nfoMigrateVersion(t, f, "down", 43)
 	nfoMigrateVersion(t, f, "down", 42)
 	nfoMigrateVersion(t, f, "down", 41)
@@ -109,6 +110,7 @@ func TestNFOStringListsAtomicPersistenceManualClearAndDowngrade(t *testing.T) {
 
 func TestNFOStringListNamedLockOnlyAndPublishedNumericRoundTrip(t *testing.T) {
 	f, scope, fields := nfoItemApplyFixture(t)
+	legacyMigrationAt44(t, f)
 	fields.Version, fields.Fields = domain.NFOItemNumericFieldsVersion, nil
 	fields.Facts = []domain.NFOIntegerFact{{Field: "runtimeMinutes", Value: 92}}
 	result, err := f.s.ApplyItemNFOObservation(f.ctx, f.a, scope, nfoObservationState(scope, fields, domain.NFOItemObservedValid))

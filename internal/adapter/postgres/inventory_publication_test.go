@@ -59,9 +59,9 @@ func TestInventorySnapshotGarbageCollectionIsBounded(t *testing.T) {
 	}
 }
 
-func snapshotFixture(t *testing.T, count int) (jobFixture, domain.JobLease) {
+func snapshotFixture(t *testing.T, count int, setup ...func(*testing.T, jobFixture)) (jobFixture, domain.JobLease) {
 	t.Helper()
-	f := newJobFixture(t)
+	f := newJobFixture(t, setup...)
 	f.complete(t, "snapshot-old", []string{"keep.mkv"}, 0)
 	f.submit(t, "snapshot-new")
 	l := f.claim(t, "snapshot-owner")
@@ -219,6 +219,7 @@ func TestInventorySnapshotLeaseExpiresDuringStageAndPublish(t *testing.T) {
 
 func TestInventorySnapshotMigrationAndVisibleDML(t *testing.T) {
 	ctx, s, dsn := accountTestStore(t)
+	legacyMigrationStoreAt44(t, ctx, s)
 	if v, dirty, err := Migrate(ctx, dsn, "down"); err != nil || dirty || v != 43 {
 		t.Fatal("empty ignored snapshot down", v, dirty, err)
 	}
@@ -228,6 +229,7 @@ func TestInventorySnapshotMigrationAndVisibleDML(t *testing.T) {
 	if v, dirty, err := Migrate(ctx, dsn, "up"); err != nil || dirty || v != SchemaVersion {
 		t.Fatal("snapshot up", v, dirty, err)
 	}
+	legacyMigrationStoreAt44(t, ctx, s)
 	if _, err := s.BootstrapAdmin(ctx, accountInput("snapshot-migration")); err != nil {
 		t.Fatal(err)
 	}

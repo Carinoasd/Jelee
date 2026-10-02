@@ -35,6 +35,7 @@ func TestLockOnlyNFOPersistsIntentWithoutTextOrClassification(t *testing.T) {
 
 func TestLockOnlyNFOFusionPersistenceManualTakeoverAndMigration(t *testing.T) {
 	f, scope, fields := nfoItemApplyFixture(t)
+	legacyMigrationAt44(t, f)
 	nfoMigrateVersion(t, f, "down", 43)
 	nfoMigrateVersion(t, f, "down", 42)
 	nfoMigrateVersion(t, f, "down", 41)
@@ -61,6 +62,7 @@ func TestLockOnlyNFOFusionPersistenceManualTakeoverAndMigration(t *testing.T) {
 		t.Fatal(err)
 	}
 	// Legacy locks remain valid under schema25; the downgrade changes only the constraint.
+	legacyMigrationAt44(t, f)
 	nfoMigrateVersion(t, f, "down", 43)
 	nfoMigrateVersion(t, f, "down", 42)
 	nfoMigrateVersion(t, f, "down", 41)
@@ -120,6 +122,7 @@ func TestLockOnlyNFOFusionPersistenceManualTakeoverAndMigration(t *testing.T) {
 			t.Fatal("manual takeover retained lock-only proof")
 		}
 	}
+	legacyMigrationAt44(t, f)
 	nfoMigrateVersion(t, f, "down", 43)
 	nfoMigrateVersion(t, f, "down", 42)
 	nfoMigrateVersion(t, f, "down", 41)

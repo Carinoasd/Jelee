@@ -1,3 +1,17 @@
+## 最新接續：schema45 工作持久統計已驗證
+
+固定109列保存成功／失敗／取消、首次等待與首次開始至完成的耗時。trigger與工作狀態同交易；重試、租約接手、晚期guard／audit失敗及歷史清理均有真PG驗證。單一SQL讀一致佇列／有效與過期租約快照，最多兩秒，不拿工作寫入鎖、不自動恢復工作。已有統計時拒降版；53個舊遷移測試在產生工作之前明確選schema44，普通fixture仍走45。
+
+PostgreSQL repository／runtime／outbound race 經整包執行與補跑，合計 1160 個不重複通過事件，其中新增工作指標 80；略過 0 個。核對相同 race 建置下的 388 個 PostgreSQL 頂層測試，全部有通過紀錄。首輪在 20 分鐘套件期限中止，並發現兩個舊遷移測試前置錯誤；修正後補跑所有未完成及受影響案例，原始失敗紀錄完整保留。
+
+Windows 共 443 通過、613 略過；資料庫驗證採上述真 PG 結果。事件數包含父測試；非 race 的原生／規模驗收另行執行，不包含在本段。
+
+vet、三個命令 build、模組校驗、格式、增量品牌與 gitignore 通過；全量品牌仍有 14,735 項。每輪各凍結 813 份來源；兩輪間僅修正兩份測試前置，生產 Go／SQL 一致。相對既有提交，88 份已發布 SQL、五份受保護直播核心及授權／需求原文保持不變。[執行與來源證據](evidence/job-metrics.json)。
+
+修正a5遠端PG整package20分鐘逾時：兩平台test-race改45分鐘，不改單例/SQL期限；前置runtime驗收略過時略過其附件上傳。新推送CI結果待查。仍第三階段、336項4完成／186部分／146阻塞；工作系列尚未接正式端點。
+
+下一段沿 `.testdata/job-metrics-otel-next.md` 接NewWithJobs／requestctx預讀／OTel累計Producer。兩份 `.testdata/job-metrics-otel-*.patch` 是未套用草稿，先查實際內容、驗證red再套用；不得把草稿算完成。沿用同分支繁中PR46，不merge／release／tag／force-push／設定Git身分。以下為歷史紀錄。
+
 ## 最新接續：正式 OTel runtime 與連線池指標
 
 管理員 `/metrics` 接正式 OTel／Prometheus，預設關閉，需要帳戶功能；15 個固定無 labels 指標，私有 registry，無背景輪詢或收集 SQL。包含 runtime heap／goroutine／GC 暫停／配置總量及 pgxpool 狀態。即時認證、兩槽 admission、可取消收集等待，停止先 join snapshot 再釋放 pool。排隊可取消不代表同步 snapshot 有可強制中止的期限。

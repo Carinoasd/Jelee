@@ -167,6 +167,7 @@ func TestScheduleAdmissionFailureAndTransactionRollback(t *testing.T) {
 
 func TestScheduleMigration(t *testing.T) {
 	ctx, s, dsn := accountTestStore(t)
+	legacyMigrationStoreAt44(t, ctx, s)
 	var exists bool
 	if err := s.Pool.QueryRow(ctx, `SELECT to_regclass('scan_schedules') IS NOT NULL`).Scan(&exists); err != nil || !exists {
 		t.Fatal("schedule schema missing", err)
@@ -198,6 +199,7 @@ func TestScheduleMigration(t *testing.T) {
 	if _, err = s.PutScanSchedule(ctx, actor, library.Library.ID, scheduleInput(), calendar.Calendar{}); err != nil {
 		t.Fatal(err)
 	}
+	legacyMigrationStoreAt44(t, ctx, s)
 	if version, dirty, err := Migrate(ctx, dsn, "down"); err != nil || dirty || version != 43 {
 		t.Fatal("ignored snapshot migration down", version, dirty, err)
 	}
