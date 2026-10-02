@@ -1,3 +1,11 @@
+## 最新接續：五十萬檔忽略三輪與邊界修正
+
+量測來源 `2f59044777`：五十萬首次 365.30 秒、排除半數 876.02 秒、清理重掃 962.27 秒，全部 attempts=1。觀察 250,001＋歷史 249,999；第三輪底層仍一百萬列，歷史版號與原檔抽樣保持。取樣 heap 約 3.61 MiB、程序 RSS 約 27.01 MiB，不含 helper／PG。
+
+量測程序退出後，修正整頁共用 30 秒期限及診斷快取記帳：恢復每筆期限、保留父取消，按平台 int 大小及切片容量計費，重複鍵不重複計費。兩項新測試修前皆紅、修後皆綠；Linux race 443、Windows 446（略過 1）、真實 helper 8、PG worker 11 通過事件。[報告](ignore-scale-500000.md)／[量測](evidence/ignore-scale-500000.json)／[修正證據](evidence/ignore-family-boundaries.json)。五十萬耗時未在修正後重跑。
+
+接續先處理 ABI 的精確契約 gate（草案 `.testdata/abi-current-review.md`／`abi-guard-next.patch`，未套用），避免只承認舊命名 missing 而漏掉新 Jelee API 破壞；再依 `.testdata/metrics-design-review.md` 做原需求 OTel 產品監控。336 項仍 4 完成／184 部分／148 阻塞，第三階段；四核心忽略、混合寫入、圖片、容器 OOM／預算及 24h 尚未完整驗收。同分支繁中 PR46，不 merge／release／tag／force-push／設定 Git 身分。以下為歷史紀錄。
+
 ## 最新接續：十萬檔忽略模式三輪通過
 
 產品程式 `2f59044777`：首次 55.04 秒、排除一半 154.76 秒、清理重掃 131.77 秒，皆 attempts=1／批次最多 128。觀察 50,001＋歷史 49,999，第三輪底層仍二十萬列；heap 峰值約 3.39 MiB、程序 RSS 約 26.00 MiB，不含 helper／PG。

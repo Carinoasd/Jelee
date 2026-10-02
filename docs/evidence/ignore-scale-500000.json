@@ -1,0 +1,101 @@
+{
+  "sourceCommit": "2f590447772cfd10a19bb91f540cc7aa0732e001",
+  "results": [
+    {
+      "pass": "initial",
+      "totalFiles": 500000,
+      "observedFiles": 500000,
+      "historicalFiles": 0,
+      "retainedBaselineRows": 500000,
+      "gomaxprocs": 2,
+      "seconds": 365.296898269,
+      "state": "succeeded",
+      "errorCode": "",
+      "attempts": 1,
+      "maxBatch": 128,
+      "batches": 4505,
+      "helperStarts": 4502,
+      "peakHeapBytes": 3710440,
+      "peakRSSBytes": 26460160,
+      "afterGC": {
+        "seconds": 365.365615496,
+        "files": 500000,
+        "heapBytes": 2861784,
+        "heapInuseBytes": 4972544,
+        "rssBytes": 26439680,
+        "totalAllocBytes": 2266801536,
+        "gcCount": 1043,
+        "gcPauseTotalNanoseconds": 48316482,
+        "goroutines": 4,
+        "fileDescriptors": 11,
+        "dbAcquired": 0
+      }
+    },
+    {
+      "pass": "ignored",
+      "totalFiles": 500000,
+      "observedFiles": 250001,
+      "historicalFiles": 249999,
+      "retainedBaselineRows": 1000000,
+      "gomaxprocs": 2,
+      "seconds": 876.016212484,
+      "state": "succeeded",
+      "errorCode": "",
+      "attempts": 1,
+      "maxBatch": 128,
+      "batches": 4505,
+      "helperStarts": 9376,
+      "peakHeapBytes": 3688352,
+      "peakRSSBytes": 27836416,
+      "afterGC": {
+        "seconds": 876.105591036,
+        "files": 250001,
+        "heapBytes": 2711120,
+        "heapInuseBytes": 5210112,
+        "rssBytes": 27758592,
+        "totalAllocBytes": 17166804568,
+        "gcCount": 9218,
+        "gcPauseTotalNanoseconds": 466724920,
+        "goroutines": 4,
+        "fileDescriptors": 11,
+        "dbAcquired": 0
+      }
+    },
+    {
+      "pass": "cleanup",
+      "totalFiles": 500000,
+      "observedFiles": 250001,
+      "historicalFiles": 249999,
+      "retainedBaselineRows": 1000000,
+      "gomaxprocs": 2,
+      "seconds": 962.268099026,
+      "state": "succeeded",
+      "errorCode": "",
+      "attempts": 1,
+      "maxBatch": 128,
+      "batches": 4505,
+      "helperStarts": 9376,
+      "peakHeapBytes": 3783640,
+      "peakRSSBytes": 28323840,
+      "afterGC": {
+        "seconds": 962.35741891,
+        "files": 250001,
+        "heapBytes": 3193776,
+        "heapInuseBytes": 5718016,
+        "rssBytes": 28094464,
+        "totalAllocBytes": 32086305360,
+        "gcCount": 17485,
+        "gcPauseTotalNanoseconds": 937666872,
+        "goroutines": 4,
+        "fileDescriptors": 11,
+        "dbAcquired": 0
+      }
+    }
+  ],
+  "limits": [
+    "GOMAXPROCS=2, not a CPU quota",
+    "Worker RSS excludes helper and PostgreSQL",
+    "Boundary fixes were reviewed after measurement; the 500k timing was not rerun on the fixed source",
+    "No mixed write/image or container OOM or 24-hour acceptance"
+  ]
+}

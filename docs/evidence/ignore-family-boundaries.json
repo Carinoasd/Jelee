@@ -1,0 +1,62 @@
+{
+  "fixedIssues": [
+    "Per-candidate deadline must not become a page-wide deadline",
+    "Memo must account platform int width and retained slice capacity, without charging duplicate keys"
+  ],
+  "checks": {
+    "red": {
+      "pass": 0,
+      "fail": 2,
+      "skip": 0
+    },
+    "green": {
+      "pass": 2,
+      "fail": 0,
+      "skip": 0
+    },
+    "race": {
+      "pass": 443,
+      "fail": 0,
+      "skip": 0
+    },
+    "windows": {
+      "pass": 446,
+      "fail": 0,
+      "skip": 1
+    },
+    "native": {
+      "pass": 8,
+      "fail": 0,
+      "skip": 0
+    },
+    "pg": {
+      "pass": 11,
+      "fail": 0,
+      "skip": 0
+    }
+  },
+  "sourceSHA256": {
+    "internal/adapter/scan/ignore_family_batch.go": "3865cbe63648010244188f0fad78517ea14a07af90cdff1c7e98d4614ca50ec6",
+    "internal/adapter/scan/ignore_family_batch_test.go": "4edbd4e202437b4318ab5570b5a77c8f24076dacc03d5bc30248f66704505048"
+  },
+  "unchangedPublishedMigrations": 88,
+  "staticChecks": [
+    {
+      "name": "vet",
+      "exitCode": 0
+    },
+    {
+      "name": "build",
+      "exitCode": 0
+    },
+    {
+      "name": "brand-new",
+      "exitCode": 0
+    },
+    {
+      "name": "gitignore",
+      "exitCode": 0
+    }
+  ],
+  "formatPassed": true
+}

@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -167,6 +168,63 @@ func TestFamilyBaselineBatchCombinesPureMatching(t *testing.T) {
 		want, err := s.EvaluateFamilyIgnoreBaseline(context.Background(), root, candidate, intent)
 		if err != nil || !reflect.DeepEqual(got[i], want) {
 			t.Fatal("batch changed decision or source evidence", i, err)
+		}
+	}
+}
+
+func TestFamilyBaselineBatchKeepsPerCandidateDeadline(t *testing.T) {
+	root := filepath.Clean(t.TempDir())
+	writeScanFile(t, root, ".ignore", []byte("# baseline\n"))
+	for _, directory := range []string{"first", "second"} {
+		writeScanFile(t, root, directory+"/placeholder", nil)
+	}
+	var deadlines []time.Time
+	s := NewFamilyIgnoreScanner(legacyEvaluatorFunc(func(ctx context.Context, b legacyignore.Batch) (legacyignore.BatchResult, error) {
+		if len(b.Paths) == 1 && !strings.HasSuffix(b.Paths[0], "/") {
+			deadline, ok := ctx.Deadline()
+			remaining := time.Until(deadline)
+			if !ok || remaining <= 0 || remaining > 30*time.Second {
+				t.Fatal("candidate helper lacks its bounded deadline")
+			}
+			deadlines = append(deadlines, deadline)
+		}
+		return legacyignore.BatchResult{Decisions: make([]legacyignore.Decision, len(b.Paths))}, nil
+	}))
+	candidates := []domain.IgnoreBaselineCandidate{
+		{RootID: testRootID, Path: "first/movie.mkv"},
+		{RootID: testRootID, Path: "second/movie.mkv"},
+	}
+	intent := domain.IgnoreIntent{Mode: domain.IgnoreModeFamily, CaseMode: domain.IgnoreCaseSensitive}
+	values, err := s.EvaluateFamilyIgnoreBaselineBatch(context.Background(), root, candidates, intent)
+	if err != nil || len(values) != len(candidates) || len(deadlines) != len(candidates) {
+		t.Fatal("both candidates must reach their own helper evaluation", len(values), len(deadlines), err)
+	}
+	if !deadlines[1].After(deadlines[0]) {
+		t.Fatal("second candidate inherited the first candidate's deadline")
+	}
+}
+
+func TestFamilyBaselineBatchMemoAccountsBackingStorage(t *testing.T) {
+	memo := &familyMatchMemo{cache: make(map[familyMatchKey]familyMatchValue)}
+	for i := 0; i < 1000; i++ {
+		key := familyMatchKey{source: fmt.Sprintf("source-%04d", i), path: fmt.Sprintf("/file-%04d", i)}
+		// Distinct allocations with spare capacity model retained decoder storage.
+		value := familyMatchValue{invalidLines: make([]int, 2048, 4096)}
+		memo.remember(key, value)
+		if _, ok := memo.cache[key]; !ok {
+			t.Fatal("an entry within the memory budget was not retained")
+		}
+		retained := 0
+		for cachedKey, cachedValue := range memo.cache {
+			retained += len(cachedKey.source) + len(cachedKey.path) + cap(cachedValue.invalidLines)*(strconv.IntSize/8) + 64
+		}
+		if retained > memo.bytes || memo.bytes > familyMatchMemoBytes || len(memo.cache) > familyMatchMemoEntries {
+			t.Fatal("memo undercounted retained backing storage or exceeded its budget", retained, memo.bytes, len(memo.cache))
+		}
+		before := memo.bytes
+		memo.remember(key, value)
+		if memo.bytes != before {
+			t.Fatal("remembering an existing pure result charged it again")
 		}
 	}
 }

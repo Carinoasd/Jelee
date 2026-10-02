@@ -3,9 +3,9 @@ package scan
 import (
 	"context"
 	"path/filepath"
+	"strconv"
 	"strings"
 
-	ignoresource "github.com/MoYuanCN/Jelee/internal/adapter/media/ignore"
 	"github.com/MoYuanCN/Jelee/internal/domain"
 	"github.com/MoYuanCN/Jelee/internal/platform/ignore"
 	"github.com/MoYuanCN/Jelee/internal/platform/legacyignore"
@@ -41,13 +41,12 @@ func (s *FamilyIgnoreScanner) EvaluateFamilyIgnoreBaselineBatch(ctx context.Cont
 		parent := filepath.ToSlash(filepath.Dir(full))
 		groups[parent] = append(groups[parent], full)
 	}
-	ctx, cancel := context.WithTimeout(ctx, ignoresource.MaxDuration)
-	defer cancel()
 	memo := &familyMatchMemo{inner: s.evaluator, groups: groups, cache: make(map[familyMatchKey]familyMatchValue)}
 	batched := *s                          // Hold one shared slot for the entire batch, including its memo.
 	batched.slots = make(chan struct{}, 1) // Serial inner calls do not reacquire the shared slot.
 	batched.evaluator = memo
 	result := make([]domain.FamilyBaselineEvaluation, 0, len(candidates))
+	// Keep each candidate's existing deadline; the parent context bounds the page.
 	for _, candidate := range candidates {
 		value, err := batched.EvaluateFamilyIgnoreBaseline(ctx, root, candidate, intent)
 		if err != nil {
@@ -74,9 +73,12 @@ type familyMatchMemo struct {
 }
 
 func (m *familyMatchMemo) remember(key familyMatchKey, value familyMatchValue) {
-	// Charge the full source and diagnostics for each key conservatively,
+	if _, exists := m.cache[key]; exists {
+		return
+	}
+	// Charge the full source and diagnostic backing storage for each key conservatively,
 	// even when their backing storage is shared by the group.
-	charge := len(key.source) + len(key.path) + 4*len(value.invalidLines) + 64
+	charge := len(key.source) + len(key.path) + (strconv.IntSize/8)*cap(value.invalidLines) + 64
 	if charge > familyMatchMemoBytes {
 		return
 	}
