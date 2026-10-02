@@ -36,6 +36,15 @@ func (r *observedNFOItemReader) ReadItemFields(ctx context.Context, path domain.
 	return value, err
 }
 
+func (r *observedNFOItemReader) SelectItemNFO(ctx context.Context, scope domain.NFOItemScope) (domain.NFOItemSelection, error) {
+	value, err := r.reader.(app.NFOItemSelectionReader).SelectItemNFO(ctx, scope)
+	r.calls++
+	if r.after != nil {
+		r.after(r.calls)
+	}
+	return value, err
+}
+
 func TestNFOItemActualFilesHTTPAndPostgres(t *testing.T) {
 	f, scope, _ := nfoItemApplyFixture(t)
 	data := []byte(`<movie><title>NFO title</title><originaltitle>Original NFO</originaltitle><plot>NFO overview</plot><premiered>2024-02-29</premiered><lockedfields>Name</lockedfields></movie>`)
@@ -183,4 +192,21 @@ func TestNFOItemActualFilesHTTPAndPostgres(t *testing.T) {
 	if err := f.s.Pool.QueryRow(f.ctx, `SELECT count(*) FROM audit_logs WHERE event='item.nfo_metadata_applied' AND target_id=$1::uuid`, scope.ItemID).Scan(&audits); err != nil || audits != 2 {
 		t.Fatal("failed writes produced audit", audits, err)
 	}
+	// The NFO-only production reader also supports the conventional name.
+	conventional := filepath.Join(scope.Source.RootPath, "MOVIE.NFO")
+	if err := os.Rename(file, conventional); err != nil {
+		t.Fatal(err)
+	}
+	code, raw = request("POST", path+"/nfo", `{"expectedRevision":4,"confirmed":true}`, true)
+	if code != 200 || json.Unmarshal(raw, &result) != nil || result.Data.Metadata.Revision != 5 || len(result.Data.Applied) != 1 || result.Data.Metadata.Fields[1].Source != "nfo" {
+		t.Fatal("NFO-only conventional filename missing", code, string(raw))
+	}
+	if original, err := os.ReadFile(conventional); err != nil || string(original) != string(data) {
+		t.Fatal("conventional NFO modified", err)
+	}
+	if strings.Contains(string(raw), "MOVIE.NFO") || strings.Contains(string(raw), scope.Source.RootPath) {
+		t.Fatal("selected NFO path exposed")
+	}
+	t.Log("actual NFO-only HTTP/PostgreSQL conventional uppercase movie.nfo apply PASS")
+
 }

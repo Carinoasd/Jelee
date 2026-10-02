@@ -388,6 +388,91 @@ func TestTMDBMetadataThroughTLSHTTPAndPostgres(t *testing.T) {
 		t.Fatal(err)
 	}
 	document := `<movie><title>Local NFO title</title><premiered>2024-01-01</premiered><lockedfields>Name</lockedfields></movie>`
+	// Production filename selection runs through the same HTTP/TLS/database path.
+	genericMovie := filepath.Join(rootPath, "MOVIE.NFO")
+	genericDocument := `<movie><title>Generic directory movie</title></movie>`
+	if err := os.WriteFile(genericMovie, []byte(genericDocument), 0600); err != nil {
+		t.Fatal(err)
+	}
+	specific, specificFile := newNFOItem("selector", "Movie", `<movie><title>Specific selected movie</title></movie>`)
+	uppercaseSpecific := filepath.Join(rootPath, "SELECTOR.NFO")
+	if err := os.Rename(specificFile, uppercaseSpecific); err != nil {
+		t.Fatal(err)
+	}
+	if result := decode(apply(specific, "movie", 4800, 1)); result.Metadata.Fields[0].Value != "Specific selected movie" || result.Metadata.Fields[0].Source != "nfo" || result.Metadata.Revision != 2 {
+		t.Fatal("HTTP NFO selection ignored specific filename priority")
+	}
+	generic, genericAdjacent := newNFOItem("generic-selector", "Movie", document)
+	if err := os.Remove(genericAdjacent); err != nil {
+		t.Fatal(err)
+	}
+	if result := decode(apply(generic, "movie", 4801, 1)); result.Metadata.Fields[0].Value != "Generic directory movie" || result.Metadata.Fields[0].NFOOrigin == nil {
+		t.Fatal("HTTP conventional movie NFO was not applied")
+	}
+	genericSeries := filepath.Join(rootPath, "TVSHOW.NFO")
+	seriesDocument := `<tvshow><title>Generic directory series</title></tvshow>`
+	if err := os.WriteFile(genericSeries, []byte(seriesDocument), 0600); err != nil {
+		t.Fatal(err)
+	}
+	seriesItem, seriesAdjacent := newNFOItem("series-selector", "Series", seriesDocument)
+	if err := os.Remove(seriesAdjacent); err != nil {
+		t.Fatal(err)
+	}
+	if result := decode(apply(seriesItem, "series", 4802, 1)); result.Metadata.Fields[0].Value != "Generic directory series" || result.Metadata.Fields[0].Source != "nfo" {
+		t.Fatal("HTTP conventional tvshow NFO was not applied")
+	}
+	appearing, appearingFile := newNFOItem("appearing-selector", "Movie", document)
+	if err := os.Remove(appearingFile); err != nil {
+		t.Fatal(err)
+	}
+	providerActions.Store(4803, func() {
+		if err := os.WriteFile(appearingFile, []byte(document), 0600); err != nil {
+			t.Error(err)
+		}
+	})
+	if result := apply(appearing, "movie", 4803, 1); result.status != 409 {
+		t.Fatal("higher-priority NFO appeared during lookup but committed", result.status)
+	}
+	if value, err := store.ItemMetadata(ctx, actor, appearing); err != nil || value.Revision != 1 || value.Fields[0].Source != "existing" {
+		t.Fatal("selection conflict left partial write", err)
+	}
+	if err := os.Remove(genericMovie); err != nil {
+		t.Fatal(err)
+	}
+	candidateChange, _ := newNFOItem("candidate-change", "Movie", document)
+	providerActions.Store(4804, func() {
+		if err := os.WriteFile(genericMovie, []byte(genericDocument), 0600); err != nil {
+			t.Error(err)
+		}
+	})
+	if result := apply(candidateChange, "movie", 4804, 1); result.status != 409 {
+		t.Fatal("NFO candidate set changed during lookup but committed", result.status)
+	}
+	if value, err := store.ItemMetadata(ctx, actor, candidateChange); err != nil || value.Revision != 1 {
+		t.Fatal("candidate change left partial write", err)
+	}
+	if err := os.Remove(genericMovie); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Remove(genericSeries); err != nil {
+		t.Fatal(err)
+	}
+	collision, collisionFile := newNFOItem("case-collision", "Movie", document)
+	collisionUpper := filepath.Join(rootPath, "CASE-COLLISION.NFO")
+	if err := os.WriteFile(collisionUpper, []byte(document), 0600); err != nil {
+		t.Fatal(err)
+	}
+	beforeCollisionCalls := allCalls.Load()
+	if result := apply(collision, "movie", 4805, 1); result.status != 503 || allCalls.Load() != beforeCollisionCalls {
+		t.Fatal("ambiguous case-fold NFO reached provider", result.status)
+	}
+	if err := os.Remove(collisionUpper); err != nil {
+		t.Fatal(err)
+	}
+	if original, err := os.ReadFile(collisionFile); err != nil || string(original) != document {
+		t.Fatal("ambiguous NFO original changed", err)
+	}
+	t.Log("actual HTTP/TLS/NFO/PostgreSQL selection: specific and conventional movie/tvshow names, case folding, higher-priority appearance, secondary candidate change, ambiguous names denied before provider PASS")
 	fused, fusedFile := newNFOItem("fusion", "HomeVideo", document)
 	if response := request("PUT", "/api/v1/items/"+fused+"/metadata", `{"expectedRevision":1,"fields":[{"field":"overview","value":""}]}`); response.status != 200 {
 		t.Fatal("fusion manual clear", response.status)

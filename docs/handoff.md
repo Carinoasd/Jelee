@@ -1066,3 +1066,13 @@ brand new0／181、full14735／186仍FAIL、gitignore0；22版舊migrations的Gi
 Windows全Go 29pkg／3160pass事件含父／457測試skip；原435身份一致，額外21PG身份（含新rollback子項）＋1outbound均實測通過。完整PG race 731pass事件含父／0fail／0skip／366.899秒。Linux原生tmp五包race 1019pass事件含父／0fail／0skip；vet／產品build PASS。增量brand0／181、full14735／186仍FAIL、gitignore0。來源hash／原文件／五待授權核心／23版遷移／local links／336列／無C#diff核對通過。見nfo-tmdb-fusion.md與evidence/nfo-tmdb-fusion.json。
 
 全案仍第三階段、4done／184partial／148blocked，G14.6／G39.6保持partial。唯一同名相鄰NFO／單一movie-tvshow／四欄仍子集；缺NFO／invalid回退、其他檔名與來源、實際inventory／worker／影集階層、其他欄位、read-write／清除來源／前端／效能均未完成。兩次讀取非檔案系統原子快照。原NFO／媒體／圖片保持。下一段接安全NFO來源名稱選擇与缺失／損壞回退，需區分權限／unsafe／IO問題，不能把所有503都當缺檔。五核心3271行具體批次授權仍待答、沒有改刪。禁止merge／release／tag／forcepush／新branch／Git身分config，繁中push更新同PR46後接續。
+
+### G39 項目 NFO 檔名選擇與可信觀察
+
+接續20ceefd2bdf8626ee4ec1271a698bcccf636ea18，同PR46／同branch，schema23與原001–023保持。正式SummaryReader實作NFOItemSelectionReader，可信scope的同名NFO優先，其次Movie/HomeVideo movie.nfo或Series tvshow.nfo，basename case-fold／父路徑保持；拒大小寫碰撞、符號連結、非regular／缺媒體／不安全及不可讀來源。有界256batch／65536entries，complete listing才內部ErrNFOItemAbsent，bound／IO／permission不當缺檔。候選集合排序SHA＋實際選名保留於內部，兩次選擇與full stamp／identity／fields／lockintent一起比對，選名或任一候選變化409；讀中身份變更ErrNFOSourceChanged亦映射409。取消close listing並join callback，handle由讀者全關；原Snapshot限制仍存在。API/audit不帶path，Store最終scope/session/rev/gen及原子融合不改。
+
+真HTTP/TLS/NFO/PG通過specific-case-fold優先、MOVIE.NFO／TVSHOW.NFO、較高優先新檔出現／次要候選增加409、歧義不外呼；NFO-only真HTTP/PG也套用MOVIE.NFO。正式兩負例分別反轉candidate順序及停用candidateDigest比較，各1leaf fail；finally byte restore domain a17ab6101c00a6a8f15022264b5e4e8c6a102ba8d2b3ebf6c78b357956305cc3／app 7f892098f1687fe126df53092e8b1d3f37f85125ab36e6b7d1bab9e6f5d19fb2。完整復原矩陣67.878秒／1pass／0fail／0skip，120合成writes0fail。Linux實際mode000權限uid1000、三類symlink/collision／65536實檔越界、缺檔與缺媒體/parent/root/invalid/cancel分類／ownership已驗。
+
+Windows全Go 29pkg／3178pass事件含父／457testskip，原435與額外21PG＋1outbound身份保持，全部另實測。最終完整PG race 731pass事件含父／0fail／0skip／366.81s。Native Linux五pkg race 1044pass事件含父／0fail／0skip；vet/build、newbrand0/181、gitignore0 PASS，fullbrand14735/186仍FAIL。初次runtimefixture缺所宣告媒體檔而拒503，補實際owned media後通過，沒有放寬來源守衛。來源hash／保護文件／23migrations／links／336／無C#diff通過。詳nfo-item-selection.md與evidence/nfo-item-selection.json。
+
+G39.1／G39.6仍partial，全案4done184partial148blocked／仍第三階段。缺失／invalid仍HTTP503，回退尚未啟用；下一段.testdata/nfo-fallback-next.md接owned observation capsule、跨provider root/parent/media identity與選擇重核、same txn供應商回退／nfo_invalid狀態持久化。現有schema6快取隸屬workerfence/quota/TTL，不直接繞用。其他季／集、包裝、多項目、其他字段、實際inventory/worker/hierarchy、無損readwrite／清外部資料／前端仍缺。原檔及五待授權核心3271行保持，不重問、不绕拒絕。禁止merge/release/tag/newbranch/forcepush/oldmigration/Gitidentityconfig，繁中push同PR46後繼續。

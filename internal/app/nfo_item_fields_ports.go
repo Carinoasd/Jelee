@@ -12,6 +12,11 @@ type NFOItemFieldsReader interface {
 	ReadItemFields(context.Context, domain.NFOSource, string) (domain.NFOItemFields, error)
 }
 
+// Implemented by the production reader; the scope must be repository-owned.
+type NFOItemSelectionReader interface {
+	SelectItemNFO(context.Context, domain.NFOItemScope) (domain.NFOItemSelection, error)
+}
+
 type NFOItemScopeRepository interface {
 	ResolveItemNFO(context.Context, domain.Actor, string, int64) (domain.NFOItemScope, error)
 }

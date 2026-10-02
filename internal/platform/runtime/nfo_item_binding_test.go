@@ -30,6 +30,9 @@ func TestNFOItemProductionReaderBindingWithAndWithoutTMDB(t *testing.T) {
 	const id = "11111111-1111-4111-8111-111111111111"
 	for _, key := range []string{"", strings.Repeat("a", 32)} {
 		root := t.TempDir()
+		if err := os.WriteFile(filepath.Join(root, "film.mkv"), []byte("original media fixture"), 0600); err != nil {
+			t.Fatal(err)
+		}
 		if err := os.WriteFile(filepath.Join(root, "film.nfo"), []byte(`<movie><title>Bound NFO</title></movie>`), 0600); err != nil {
 			t.Fatal(err)
 		}
