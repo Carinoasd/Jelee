@@ -61,6 +61,7 @@ func (o *itemNFOObservation) Selection() domain.NFOItemSelection {
 	value.Fields.Ratings = domain.CloneNFORatings(value.Fields.Ratings)
 	value.Fields.Collection = domain.CloneNFOCollection(value.Fields.Collection)
 	value.Fields.SeriesDetails = domain.CloneNFOSeriesDetails(value.Fields.SeriesDetails)
+	value.Fields.SeasonDetails = domain.CloneNFOSeasonDetails(value.Fields.SeasonDetails)
 	value.Fields.EpisodeDetails = domain.CloneNFOEpisodeDetails(value.Fields.EpisodeDetails)
 	value.Fields.Trailers = slices.Clone(value.Fields.Trailers)
 	value.Fields.Art = domain.CloneNFOArtwork(value.Fields.Art)
@@ -90,7 +91,7 @@ func (o *itemNFOObservation) Recheck(ctx context.Context) (app.NFOItemObservatio
 		return nil, err
 	}
 	fresh := observed.(*itemNFOObservation)
-	if o.state.Status != fresh.state.Status || o.state.Identity != fresh.state.Identity || o.state.Stamp != fresh.state.Stamp || o.selected.RelativePath != fresh.selected.RelativePath || o.selected.CandidateDigest != fresh.selected.CandidateDigest || !os.SameFile(o.physical.root, fresh.physical.root) || !os.SameFile(o.physical.directory, fresh.physical.directory) || !sameSourceInfo(o.physical.media, fresh.physical.media) || !sameObservedNFO(o.physical, fresh.physical) {
+	if o.state.Status != fresh.state.Status || o.state.Identity != fresh.state.Identity || o.state.Stamp != fresh.state.Stamp || o.selected.RelativePath != fresh.selected.RelativePath || o.selected.CandidateDigest != fresh.selected.CandidateDigest || !os.SameFile(o.physical.root, fresh.physical.root) || !os.SameFile(o.physical.directory, fresh.physical.directory) || !sameItemAnchor(o.scope, o.physical.media, fresh.physical.media) || !sameObservedNFO(o.physical, fresh.physical) {
 		return nil, domain.ErrNFOSourceChanged
 	}
 	return fresh, nil
@@ -133,7 +134,7 @@ func (r *SummaryReader) ObserveItemNFO(ctx context.Context, scope domain.NFOItem
 	if err != nil {
 		return nil, err
 	}
-	if first.selected != last.selected || first.digest != last.digest || !os.SameFile(first.root, last.root) || !os.SameFile(first.directory, last.directory) || !sameSourceInfo(first.media, last.media) || !sameObservedNFO(first, last) || first.selected != "" && (state.Stamp.Size != last.nfo.Size() || state.Stamp.ModifiedUnixNano != last.nfo.ModTime().UnixNano()) {
+	if first.selected != last.selected || first.digest != last.digest || !os.SameFile(first.root, last.root) || !os.SameFile(first.directory, last.directory) || !sameItemAnchor(scope, first.media, last.media) || !sameObservedNFO(first, last) || first.selected != "" && (state.Stamp.Size != last.nfo.Size() || state.Stamp.ModifiedUnixNano != last.nfo.ModTime().UnixNano()) {
 		return nil, domain.ErrNFOSourceChanged
 	}
 	state.Selection.RelativePath = last.selected
@@ -173,17 +174,22 @@ func observeItemCandidates(ctx context.Context, scope domain.NFOItemScope) (valu
 		return value, domain.ErrNFOInputUnavailable
 	}
 	// Reject symlink components, including a link that resolves within the root.
-	components := strings.Split(scope.MediaPath, "/")
+	anchor := scope.MediaPath
+	isDirectory := scope.DirectoryPath != ""
+	if isDirectory {
+		anchor = scope.DirectoryPath
+	}
+	components := strings.Split(anchor, "/")
 	for i := range components {
 		if err := ctx.Err(); err != nil {
 			return value, err
 		}
 		info, err := root.Lstat(filepath.FromSlash(strings.Join(components[:i+1], "/")))
-		if err != nil || info.Mode()&os.ModeSymlink != 0 || i < len(components)-1 && !info.IsDir() || i == len(components)-1 && !info.Mode().IsRegular() {
+		if err != nil || info.Mode()&os.ModeSymlink != 0 || i < len(components)-1 && !info.IsDir() || i == len(components)-1 && ((!isDirectory && !info.Mode().IsRegular()) || (isDirectory && !info.IsDir())) {
 			return value, domain.ErrNFOInputUnavailable
 		}
 	}
-	media, err := root.OpenFile(filepath.FromSlash(scope.MediaPath), readOnlyFlags(), 0)
+	media, err := root.OpenFile(filepath.FromSlash(anchor), readOnlyFlags(), 0)
 	if err != nil {
 		return value, domain.ErrNFOInputUnavailable
 	}
@@ -193,10 +199,13 @@ func observeItemCandidates(ctx context.Context, scope domain.NFOItemScope) (valu
 		}
 	}()
 	value.media, err = media.Stat()
-	if err != nil || !validSourceInfo(value.media) {
+	if err != nil || !sameItemAnchor(scope, value.media, value.media) {
 		return value, domain.ErrNFOInputUnavailable
 	}
 	parent := path.Dir(scope.MediaPath)
+	if isDirectory {
+		parent = scope.DirectoryPath
+	}
 	directory, err := root.OpenRoot(filepath.FromSlash(parent))
 	if err != nil {
 		return value, domain.ErrNFOInputUnavailable
@@ -280,8 +289,8 @@ func observeItemCandidates(ctx context.Context, scope domain.NFOItemScope) (valu
 	if err != nil || !os.SameFile(value.directory, afterDir) || !value.directory.ModTime().Equal(afterDir.ModTime()) {
 		return value, domain.ErrNFOSourceChanged
 	}
-	afterMedia, err := root.Stat(filepath.FromSlash(scope.MediaPath))
-	if err != nil || !sameSourceInfo(value.media, afterMedia) {
+	afterMedia, err := root.Stat(filepath.FromSlash(anchor))
+	if err != nil || !sameItemAnchor(scope, value.media, afterMedia) {
 		return value, domain.ErrNFOSourceChanged
 	}
 	currentRoot, err := os.OpenRoot(rootPath + string(os.PathSeparator) + ".")
@@ -302,4 +311,11 @@ func observeItemCandidates(ctx context.Context, scope domain.NFOItemScope) (valu
 		return value, domain.ErrNFOSourceChanged
 	}
 	return value, nil
+}
+
+func sameItemAnchor(scope domain.NFOItemScope, a, b os.FileInfo) bool {
+	if scope.DirectoryPath != "" {
+		return a != nil && b != nil && a.IsDir() && b.IsDir() && os.SameFile(a, b)
+	}
+	return sameSourceInfo(a, b)
 }

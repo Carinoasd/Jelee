@@ -10,6 +10,7 @@ import (
 
 func TestNFOYearFactsAtomicPersistenceLocksAndManualClear(t *testing.T) {
 	f, scope, fields := nfoItemApplyFixture(t)
+	nfoMigrateVersion(t, f, "down", 38)
 	nfoMigrateVersion(t, f, "down", 37)
 	nfoMigrateVersion(t, f, "down", 36)
 	nfoMigrateVersion(t, f, "down", 35)

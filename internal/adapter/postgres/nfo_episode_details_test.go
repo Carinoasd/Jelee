@@ -138,6 +138,7 @@ func TestNFOEpisodeDetailsPublishedSeriesRoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	nfoMigrateVersion(t, f, "down", 38)
 	nfoMigrateVersion(t, f, "down", 37)
 	nfoMigrateVersion(t, f, "up", SchemaVersion)
 	after, err := f.s.ItemMetadata(f.ctx, f.a, scope.ItemID)

@@ -19,7 +19,7 @@ var _ app.NFOItemFieldsReader = (*SummaryReader)(nil)
 // ReadItemFields uses the same safe root-relative full-byte reader as validation.
 // The returned observation does not prove that the path belongs to an item.
 func (r *SummaryReader) ReadItemFields(ctx context.Context, path domain.NFOSource, kind string) (domain.NFOItemFields, error) {
-	if ctx == nil || (kind != "Movie" && kind != "Series" && kind != "HomeVideo" && kind != "Episode") {
+	if ctx == nil || (kind != "Movie" && kind != "Series" && kind != "HomeVideo" && kind != "Episode" && kind != "Season") {
 		return domain.NFOItemFields{}, domain.ErrInvalid
 	}
 	observed, err := r.Read(ctx, path)
@@ -49,6 +49,9 @@ func (r *SummaryReader) projectItemFields(ctx context.Context, source *summarySo
 	resultKind := "Movie"
 	if kind == "Series" {
 		root, resultKind = "tvshow", "Series"
+	}
+	if kind == "Season" {
+		root, resultKind = "season", "Season"
 	}
 	if kind == "Episode" {
 		root, resultKind = "episode", "Episode"
@@ -250,6 +253,12 @@ func (r *SummaryReader) projectItemFields(ctx context.Context, source *summarySo
 		}
 	}
 
+	if result.Kind == "Season" {
+		result.Version = domain.NFOItemSeasonFieldsVersion
+		if metadata.Season != nil {
+			result.SeasonDetails = domain.CloneNFOSeasonDetails(&domain.NFOSeasonDetails{Number: metadata.Season})
+		}
+	}
 	if result.Kind == "Episode" {
 		result.Version = domain.NFOItemEpisodeFieldsVersion
 		details := domain.NFOEpisodeDetails{SeasonNumber: metadata.Season, EpisodeNumber: metadata.Episode, DisplaySeason: metadata.DisplaySeason, DisplayEpisode: metadata.DisplayEpisode, Aired: metadata.Aired, ShowTitle: metadata.ShowTitle}
@@ -269,7 +278,7 @@ func (r *SummaryReader) projectItemFields(ctx context.Context, source *summarySo
 			}
 		}
 	}
-	if len(result.Fields) == 0 && len(result.Facts) == 0 && len(result.NumberFacts) == 0 && len(result.Lists) == 0 && result.Version != domain.NFOItemEpisodeFieldsVersion && result.Version != domain.NFOItemSeriesFieldsVersion && result.Version != domain.NFOItemMovieFieldsVersion && result.Version != domain.NFOItemCollectionFieldsVersion && result.Version != domain.NFOItemRatingFieldsVersion && result.Version != domain.NFOItemIdentifierFieldsVersion && result.Version != domain.NFOItemActorFieldsVersion && result.Version != domain.NFOItemListFieldsVersion && result.Version != domain.NFOItemNumericFieldsVersion && result.Version != domain.NFOItemYearFieldsVersion && result.Version != domain.NFOItemSortFieldsVersion && result.Version != domain.NFOItemTextFieldsVersion && domain.HasNFOItemFieldLock(result) {
+	if len(result.Fields) == 0 && len(result.Facts) == 0 && len(result.NumberFacts) == 0 && len(result.Lists) == 0 && result.Version != domain.NFOItemSeasonFieldsVersion && result.Version != domain.NFOItemEpisodeFieldsVersion && result.Version != domain.NFOItemSeriesFieldsVersion && result.Version != domain.NFOItemMovieFieldsVersion && result.Version != domain.NFOItemCollectionFieldsVersion && result.Version != domain.NFOItemRatingFieldsVersion && result.Version != domain.NFOItemIdentifierFieldsVersion && result.Version != domain.NFOItemActorFieldsVersion && result.Version != domain.NFOItemListFieldsVersion && result.Version != domain.NFOItemNumericFieldsVersion && result.Version != domain.NFOItemYearFieldsVersion && result.Version != domain.NFOItemSortFieldsVersion && result.Version != domain.NFOItemTextFieldsVersion && domain.HasNFOItemFieldLock(result) {
 		result.Version = domain.NFOItemLockFieldsVersion
 	}
 	// A newly read global lock covers every currently supported movie field.
@@ -278,6 +287,9 @@ func (r *SummaryReader) projectItemFields(ctx context.Context, source *summarySo
 		result.Version = domain.NFOItemMovieFieldsVersion
 		if result.Kind == "Series" {
 			result.Version = domain.NFOItemSeriesFieldsVersion
+		}
+		if result.Kind == "Season" {
+			result.Version = domain.NFOItemSeasonFieldsVersion
 		}
 		if result.Kind == "Episode" {
 			result.Version = domain.NFOItemEpisodeFieldsVersion

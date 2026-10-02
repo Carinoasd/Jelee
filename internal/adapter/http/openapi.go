@@ -30,6 +30,20 @@ func Specification(cfg config.Config) map[string]any {
 		paths["/api/v1/sources/{id}/stream"] = map[string]any{"get": op, "head": op}
 	}
 	schemas := accountSchemas()
+	if cfg.EnableCatalog {
+		schemas["CatalogItem"] = objectSchema(map[string]any{
+			"id": map[string]any{"type": "string", "format": "uuid"}, "libraryId": map[string]any{"type": "string", "format": "uuid"},
+			"title": map[string]any{"type": "string"}, "kind": map[string]any{"type": "string", "enum": []string{"Movie", "HomeVideo", "Series", "Season", "Episode"}},
+			"parentId": map[string]any{"type": "string", "format": "uuid", "description": "Present for an explicitly linked season or episode in the same library."},
+		}, "id", "libraryId", "title", "kind")
+		item := map[string]any{"$ref": "#/components/schemas/CatalogItem"}
+		for route, shape := range map[string]any{
+			"/api/v1/items/{id}": objectSchema(map[string]any{"data": item}, "data"),
+			"/api/v1/items":      objectSchema(map[string]any{"data": map[string]any{"type": "array", "maxItems": 100, "items": item}, "pagination": objectSchema(map[string]any{"nextCursor": map[string]any{"type": "string"}, "limit": map[string]any{"type": "integer", "minimum": 1, "maximum": 100}}, "nextCursor", "limit")}, "data", "pagination"),
+		} {
+			paths[route].(map[string]any)["get"].(map[string]any)["responses"].(map[string]any)["200"].(map[string]any)["content"] = map[string]any{"application/json": map[string]any{"schema": shape}}
+		}
+	}
 	if cfg.EnableAccounts {
 		itemMetadataSpecification(paths, schemas)
 		metadataOriginSpecification(schemas)

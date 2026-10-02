@@ -1039,6 +1039,60 @@ func TestTMDBMetadataThroughTLSHTTPAndPostgres(t *testing.T) {
 	if raw, err := os.ReadFile(movieExtrasFile); err != nil || string(raw) != lockedExtrasDocument || allCalls.Load() != beforeMovieExtrasCalls {
 		t.Fatal("HTTP movie edits changed source or contacted provider", err)
 	}
+	if err := os.MkdirAll(filepath.Join(rootPath, "directory-series", "Season 0"), 0700); err != nil {
+		t.Fatal(err)
+	}
+	directorySeries, err := store.ImportDirectory(ctx, "metadata-fixture", rootPath, "directory-series", "Directory series", "Series", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	directorySeason, err := store.ImportDirectory(ctx, "metadata-fixture", rootPath, "directory-series/Season 0", "Directory season", "Season", directorySeries)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, entry := range []struct{ item, relative, kind, document string }{
+		{directorySeries, "directory-series/tvshow.nfo", "Series", `<tvshow><title>Directory series NFO</title><season>1</season></tvshow>`},
+		{directorySeason, "directory-series/Season 0/season.nfo", "Season", `<season><title>Directory season NFO</title><seasonnumber>0</seasonnumber><plot>Specials plot</plot><lockdata>true</lockdata></season>`},
+	} {
+		file := filepath.Join(rootPath, filepath.FromSlash(entry.relative))
+		if err := os.WriteFile(file, []byte(entry.document), 0600); err != nil {
+			t.Fatal(err)
+		}
+		result := decode(request("POST", "/api/v1/items/"+entry.item+"/metadata/nfo", `{"expectedRevision":1,"confirmed":true}`))
+		if result.Metadata.Kind != entry.kind || result.Metadata.Revision != 2 {
+			t.Fatal("HTTP directory NFO did not persist", entry.kind)
+		}
+		if entry.kind == "Season" {
+			found := false
+			for _, fact := range result.Metadata.Facts {
+				if fact.Field == "seasonNumber" {
+					found = string(fact.Value) == "0" && fact.NFOOrigin != nil && fact.NFOLockOrigin != nil && fact.NFOOrigin.Projection == domain.NFOItemSeasonFieldsVersion
+				}
+			}
+			if !found || len(result.Metadata.Facts) != 20 {
+				t.Fatal("HTTP directory season lost number or proof")
+			}
+			if response := request("PUT", "/api/v1/items/"+entry.item+"/metadata", `{"expectedRevision":2,"facts":[{"field":"seasonNumber","value":null}]}`); response.status != 200 {
+				t.Fatal("HTTP season manual clear failed", response.status)
+			}
+			review := decode(request("POST", "/api/v1/items/"+entry.item+"/metadata/nfo", `{"expectedRevision":3,"confirmed":true}`))
+			for _, fact := range review.Metadata.Facts {
+				if fact.Field == "seasonNumber" && (string(fact.Value) != "null" || fact.Source != "manual" || fact.NFOOrigin != nil || fact.NFOLockOrigin == nil) {
+					t.Fatal("HTTP season review replaced manual clear")
+				}
+			}
+			response := request("GET", "/api/v1/items/"+entry.item, "")
+			var catalog struct {
+				Data domain.Item `json:"data"`
+			}
+			if response.status != 200 || json.Unmarshal(response.body, &catalog) != nil || catalog.Data.ParentID != directorySeries {
+				t.Fatal("HTTP catalog omitted directory parent")
+			}
+		}
+		if raw, err := os.ReadFile(file); err != nil || string(raw) != entry.document {
+			t.Fatal("HTTP directory review changed NFO", err)
+		}
+	}
 	for _, root := range []string{"episode", "episodedetails"} {
 		episodeDocument := `<` + root + `><title>Episode title</title><plot>Episode plot</plot><season>2</season><episode>7</episode><displayseason>3</displayseason><displayepisode>1</displayepisode><aired>2024-02-29</aired><showtitle>Series name</showtitle></` + root + `>`
 		episodeItem, episodeFile := newNFOItem("episode-details-"+root, "Episode", episodeDocument)

@@ -10,6 +10,7 @@ import (
 
 func TestNFOStringListsAtomicPersistenceManualClearAndDowngrade(t *testing.T) {
 	f, scope, fields := nfoItemApplyFixture(t)
+	nfoMigrateVersion(t, f, "down", 38)
 	nfoMigrateVersion(t, f, "down", 37)
 	nfoMigrateVersion(t, f, "down", 36)
 	nfoMigrateVersion(t, f, "down", 35)
@@ -109,6 +110,7 @@ func TestNFOStringListNamedLockOnlyAndPublishedNumericRoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	nfoMigrateVersion(t, f, "down", 38)
 	nfoMigrateVersion(t, f, "down", 37)
 	nfoMigrateVersion(t, f, "down", 36)
 	nfoMigrateVersion(t, f, "down", 35)

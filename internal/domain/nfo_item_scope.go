@@ -10,15 +10,16 @@ import (
 // NFOItemScope is repository-owned resolver state. Paths are private and must
 // never be accepted in an HTTP request or copied into audit metadata.
 type NFOItemScope struct {
-	ItemID     string
-	LibraryID  string
-	SourceID   string
-	RootID     string
-	Kind       string
-	Revision   int64
-	Generation int64
-	MediaPath  string
-	Source     NFOSource
+	ItemID        string
+	LibraryID     string
+	SourceID      string
+	RootID        string
+	Kind          string
+	Revision      int64
+	Generation    int64
+	DirectoryPath string
+	MediaPath     string
+	Source        NFOSource
 }
 
 func (NFOItemScope) String() string   { return "nfo item scope (paths redacted)" }
@@ -39,5 +40,12 @@ func AdjacentNFOPath(media string) (string, bool) {
 
 func ValidNFOItemScope(v NFOItemScope) bool {
 	relative, ok := AdjacentNFOPath(v.MediaPath)
-	return ok && ValidID(v.ItemID) && ValidID(v.LibraryID) && ValidID(v.SourceID) && ValidID(v.RootID) && v.Revision >= 1 && v.Revision < ItemMetadataRevisionMax && v.Generation >= 1 && (v.Kind == "Movie" || v.Kind == "HomeVideo" || v.Kind == "Series" || v.Kind == "Episode") && v.Source.RootPath != "" && v.Source.RelativePath == relative
+	if v.DirectoryPath != "" {
+		relative, ok = DirectoryNFOPath(v.DirectoryPath, v.Kind)
+		ok = ok && v.MediaPath == ""
+	}
+	if v.Kind == "Season" && v.DirectoryPath == "" {
+		return false
+	}
+	return ok && ValidID(v.ItemID) && ValidID(v.LibraryID) && ValidID(v.SourceID) && ValidID(v.RootID) && v.Revision >= 1 && v.Revision < ItemMetadataRevisionMax && v.Generation >= 1 && (v.Kind == "Movie" || v.Kind == "HomeVideo" || v.Kind == "Series" || v.Kind == "Episode" || v.Kind == "Season") && v.Source.RootPath != "" && v.Source.RelativePath == relative
 }

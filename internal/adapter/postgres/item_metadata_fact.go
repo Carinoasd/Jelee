@@ -29,7 +29,7 @@ func readItemMetadataFacts(ctx context.Context, tx pgx.Tx, value *domain.ItemMet
 		}
 		if len(origin) > 0 {
 			var proof domain.NFOItemOrigin
-			if json.Unmarshal(origin, &proof) != nil || !domain.ValidNFOItemOrigin(proof) || (proof.Projection != domain.NFOItemYearFieldsVersion && proof.Projection != domain.NFOItemNumericFieldsVersion && proof.Projection != domain.NFOItemListFieldsVersion && proof.Projection != domain.NFOItemActorFieldsVersion && proof.Projection != domain.NFOItemIdentifierFieldsVersion && proof.Projection != domain.NFOItemRatingFieldsVersion && proof.Projection != domain.NFOItemCollectionFieldsVersion && proof.Projection != domain.NFOItemMovieFieldsVersion && proof.Projection != domain.NFOItemSeriesFieldsVersion && proof.Projection != domain.NFOItemEpisodeFieldsVersion) || !slices.Contains(domain.NFOItemFieldNames(proof.Projection), fact.Field) {
+			if json.Unmarshal(origin, &proof) != nil || !domain.ValidNFOItemOrigin(proof) || (proof.Projection != domain.NFOItemYearFieldsVersion && proof.Projection != domain.NFOItemNumericFieldsVersion && proof.Projection != domain.NFOItemListFieldsVersion && proof.Projection != domain.NFOItemActorFieldsVersion && proof.Projection != domain.NFOItemIdentifierFieldsVersion && proof.Projection != domain.NFOItemRatingFieldsVersion && proof.Projection != domain.NFOItemCollectionFieldsVersion && proof.Projection != domain.NFOItemMovieFieldsVersion && proof.Projection != domain.NFOItemSeriesFieldsVersion && proof.Projection != domain.NFOItemEpisodeFieldsVersion && proof.Projection != domain.NFOItemSeasonFieldsVersion) || !slices.Contains(domain.NFOItemFieldNames(proof.Projection), fact.Field) {
 				return domain.ErrMetadataUnavailable
 			}
 			fact.NFOOrigin = &proof
@@ -149,6 +149,13 @@ func applyNFOFacts(ctx context.Context, tx pgx.Tx, before domain.ItemMetadata, s
 		}
 	}
 
+	if details := fields.SeasonDetails; details != nil && details.Number != nil {
+		raw, err := json.Marshal(*details.Number)
+		if err != nil {
+			return domain.ErrInvalid
+		}
+		incomingFacts = append(incomingFacts, domain.ItemMetadataFact{Field: "seasonNumber", Value: raw})
+	}
 	if details := fields.EpisodeDetails; details != nil {
 		for _, entry := range []struct {
 			name    string

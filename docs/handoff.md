@@ -1,5 +1,11 @@
 # 接手记录
 
+## 最新接續：第39版資料夾來源驗收完成
+
+第39版以獨立資料夾來源登記影集／季，父子關聯限同庫同根且子位置在父資料夾內；CLI支援Series、Season及有父層Episode，目錄API回傳parentId。Series只選tvshow.nfo、Season只選season.nfo，季投影29欄，零值／缺省、人工清除及獨立鎖保持。真實CLI與HTTP、交易回滾、目錄替換、非法父層／混合來源拒絕及降版保護通過；001–038共76份已發布SQL不改。
+
+全部本地測試已結束，負向季數測試逐位元復原後完整HTTP通過。前置提交e010c6a548為CLI種類匯入，3d5eb4e6dd為schema38單集；第39版證據在[驗收檔](evidence/directory-nfo-sources.json)。同分支繁中PR46持續更新；下一段掃描到catalog的實際匯入。仍第三階段／全G00–G51、4完成184部分148阻塞；禁止merge/release/tag/force-push/身份設定，五個未獲具體刪除授權的直播核心保持。以下保留歷史紀錄，舊live handles均已結束。
+
 ## 進行中：第33版識別碼
 
 第32版已提交推送 `9812cde07d7d467827f95e8c14a48087bd8aa1a8`，同一繁中PR46已更新／附聊天，最後工作目錄乾淨。完整PG795事件／455.135秒、原生worker11、Windows29包3258事件485略過、Linux五包1124、完整HTTP75.482秒零skip通過；Role負例精確失敗，Reader逐位元復原SHA256 `0e1d11a01dd9a80e1e37caa6568709ef667b81f2628105e47599f8a05a9e46d0`。所有本地驗證命令已結束。新head的GitHub CI正在執行，不能沿用舊head成功宣稱新head全綠。001–032共64份已發布SQL此後不可改寫。
@@ -1363,3 +1369,18 @@ checks首輪vet/build通過，brand-new抓到兩處docs舊品牌完整路徑；�
 | 相關 PostgreSQL race | 1 | 38 | 0 |
 
 [契約](import-video-kinds.md)與[證據](evidence/import-video-kinds.json)。本段全部本地程序已結束，待同分支提交推送及繁中PR46更新，再接續資料夾來源與階層。
+
+
+### 第39版：資料夾來源與父子關聯
+
+第39版以獨立資料夾來源登記影集／季，父子關聯限同庫同根且子位置在父資料夾內；CLI支援Series、Season及有父層Episode，目錄API回傳parentId。Series只選tvshow.nfo、Season只選season.nfo，季投影29欄，零值／缺省、人工清除及獨立鎖保持。真實CLI與HTTP、交易回滾、目錄替換、非法父層／混合來源拒絕及降版保護通過；001–038共76份已發布SQL不改。
+
+| 驗證 | 套件 | 通過事件（含父測試） | 略過 |
+| --- | ---: | ---: | ---: |
+| Windows 全套 | 29 | 3303 | 519 |
+| Linux race | 6 | 1329 | 0 |
+| 完整 PostgreSQL | 1 | 870 | 0 |
+| 原生 worker | 1 | 11 | 0 |
+| 完整 HTTP／TLS／PG | 1 | 1 | 0 |
+
+全部本地驗證已結束。待同分支提交推送及繁中PR46更新；仍第三階段，336項4完成184部分148阻塞。下一步實際掃描匯入與增量更新，前端及無損回寫等仍缺。見[契約](directory-nfo-sources.md)及[證據](evidence/directory-nfo-sources.json)。

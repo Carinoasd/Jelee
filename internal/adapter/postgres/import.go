@@ -14,8 +14,17 @@ func (s *Store) ImportVideo(ctx context.Context, library, root, relative, title,
 
 // ImportVideoKind registers an explicitly classified, validated existing video.
 func (s *Store) ImportVideoKind(ctx context.Context, library, root, relative, title, contentType, kind string) (string, error) {
+	return s.ImportVideoWithParent(ctx, library, root, relative, title, contentType, kind, "")
+}
+
+func (s *Store) ImportVideoWithParent(ctx context.Context, library, root, relative, title, contentType, kind, parent string) (string, error) {
 	if ctx == nil || !domain.ValidVideoItemKind(kind) || library == "" || len(library) > 128 || title == "" || len(title) > 1024 {
 		return "", domain.ErrInvalid
+	}
+	if parent != "" {
+		if _, valid := domain.AdjacentNFOPath(relative); !valid || kind != "Episode" || !domain.ValidID(parent) {
+			return "", domain.ErrInvalid
+		}
 	}
 	tx, err := s.Pool.Begin(ctx)
 	if err != nil {
@@ -41,6 +50,9 @@ func (s *Store) ImportVideoKind(ctx context.Context, library, root, relative, ti
 	}
 	if _, err = tx.Exec(ctx, `INSERT INTO audit_logs(event,target_id) VALUES('media.registered',$1)`, sourceID); err != nil {
 		return "", storageError(err)
+	}
+	if err := writeImportedParent(ctx, tx, itemID, libraryID, rootID, relative, kind, parent); err != nil {
+		return "", err
 	}
 	if err = tx.Commit(ctx); err != nil {
 		return "", storageError(err)

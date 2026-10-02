@@ -29,7 +29,7 @@ func NFOItemCandidatePaths(scope NFOItemScope) []string {
 	if !ValidNFOItemScope(scope) {
 		return nil
 	}
-	if scope.Kind == "Episode" {
+	if scope.Kind == "Episode" || scope.DirectoryPath != "" {
 		return []string{scope.Source.RelativePath}
 	}
 	generic := "movie.nfo"
@@ -57,7 +57,11 @@ func ValidNFOItemSelection(scope NFOItemScope, selected NFOItemSelection) bool {
 }
 
 func AllowedNFOItemPath(scope NFOItemScope, relative string) bool {
-	if len(relative) > 1024 || path.Clean(relative) != relative || path.Dir(relative) != path.Dir(scope.MediaPath) {
+	directory := path.Dir(scope.MediaPath)
+	if scope.DirectoryPath != "" {
+		directory = scope.DirectoryPath
+	}
+	if len(relative) > 1024 || path.Clean(relative) != relative || path.Dir(relative) != directory {
 		return false
 	}
 	for _, candidate := range NFOItemCandidatePaths(scope) {
