@@ -20,6 +20,7 @@ import (
 	"github.com/MoYuanCN/Jelee/internal/platform/config"
 	jobworker "github.com/MoYuanCN/Jelee/internal/platform/jobs"
 	"github.com/MoYuanCN/Jelee/internal/platform/password"
+	"github.com/MoYuanCN/Jelee/internal/platform/telemetry"
 	"go.uber.org/fx"
 )
 
@@ -47,6 +48,17 @@ func newWithLifetime(cfg config.Config, logger *slog.Logger, lifetime *lifetime)
 			return store, nil
 		},
 		func(store *postgres.Store) *app.Catalog { return app.NewCatalog(store) },
+		func(c config.Config, store *postgres.Store) (*telemetry.Metrics, error) {
+			if !c.EnableMetrics {
+				return nil, nil
+			}
+			metrics, err := telemetry.New(store)
+			if err != nil {
+				return nil, err
+			}
+			lifetime.closeTelemetry = metrics.Shutdown
+			return metrics, nil
+		},
 		func(c config.Config, store *postgres.Store, l *slog.Logger) (*app.Jobs, error) {
 			if !c.EnableJobs {
 				return nil, nil
@@ -130,7 +142,7 @@ func newWithLifetime(cfg config.Config, logger *slog.Logger, lifetime *lifetime)
 			lifetime.worker = &watchGroup{worker: &scheduledWorker{worker: &probeWorker{worker: runner, probe: probing, nfo: validation}, dispatch: service, logger: l}, watch: watchRunner}
 			return service, nil
 		},
-		func(c config.Config, store *postgres.Store, catalog *app.Catalog, jobs *app.Jobs, metadata *app.Metadata, l *slog.Logger) (http.Handler, error) {
+		func(c config.Config, store *postgres.Store, catalog *app.Catalog, jobs *app.Jobs, metadata *app.Metadata, metrics *telemetry.Metrics, l *slog.Logger) (http.Handler, error) {
 			if !c.EnableAccounts {
 				return httpapi.New(c, store, catalog, store, l)
 			}
@@ -146,7 +158,11 @@ func newWithLifetime(cfg config.Config, logger *slog.Logger, lifetime *lifetime)
 			if err != nil {
 				return nil, err
 			}
-			return httpapi.NewWithJobs(c, store, catalog, store, l, accounts, jobs, metadata)
+			var metricsHandler http.Handler
+			if metrics != nil {
+				metricsHandler = metrics.Handler()
+			}
+			return httpapi.NewWithTelemetry(c, store, catalog, store, l, accounts, jobs, metadata, metricsHandler)
 		},
 	), fx.Invoke(func(lc fx.Lifecycle, cfg config.Config, handler http.Handler, shutdown fx.Shutdowner) {
 		lifetime.server = &http.Server{Addr: cfg.Listen, Handler: handler, ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 15 * time.Second, IdleTimeout: 60 * time.Second, MaxHeaderBytes: 16 << 10}
@@ -176,6 +192,7 @@ type lifetime struct {
 	closeStore      func()
 	closeProbe      func() error
 	closeIgnore     func() error
+	closeTelemetry  func(context.Context) error
 	closeOnce       sync.Once
 	stopOnce        sync.Once
 	exited          chan struct{}
@@ -213,6 +230,23 @@ func (l *lifetime) closePool() {
 			if err := l.closeProbe(); err != nil {
 				l.stopErr = errors.Join(l.stopErr, errors.New("probe temporary cleanup failed"))
 				l.logger.Error("probe temporary cleanup failed", "component", "probe", "code", "probe_runtime_unavailable")
+			}
+		}
+		// Metrics callbacks only read in-process snapshots. Stop collection
+		// before releasing the pool, including Fx construction/start failures.
+		if l.closeTelemetry != nil {
+			ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+			err := l.closeTelemetry(ctx)
+			cancel()
+			if err != nil {
+				// Like worker cleanup, collection ownership outlives a caller's
+				// deadline. Keep the pool until its last snapshot has joined.
+				l.logger.Warn("waiting for metrics cleanup", "component", "metrics")
+				if err := l.closeTelemetry(context.Background()); err != nil {
+					l.stopErr = errors.Join(l.stopErr, errors.New("metrics shutdown failed"))
+					l.logger.Error("metrics shutdown failed; pool retained", "component", "metrics")
+					return
+				}
 			}
 		}
 		if l.closeStore != nil {

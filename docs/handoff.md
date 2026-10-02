@@ -1,8 +1,16 @@
+## 最新接續：正式 OTel runtime 與連線池指標
+
+管理員 `/metrics` 接正式 OTel／Prometheus，預設關閉，需要帳戶功能；15 個固定無 labels 指標，私有 registry，無背景輪詢或收集 SQL。包含 runtime heap／goroutine／GC 暫停／配置總量及 pgxpool 狀態。即時認證、兩槽 admission、可取消收集等待，停止先 join snapshot 再釋放 pool。排隊可取消不代表同步 snapshot 有可強制中止的期限。
+
+Windows 576（略過 7）、Linux race 570（略過 1）、真 PG race 5 事件通過；真 Fx／HTTP 管理員、撤銷及關閉連線均已驗證。805 份 Go／SQL／module 來源凍結保持，88 份已發布 SQL、五份直播核心及授權／需求原文不變。[契約](metrics.md)／[證據](evidence/metrics.json)。ABI 前段 0d7fb57971 的九組真實 CI 全綠，本段新提交須另查 CI。
+
+仍第三階段，336 項更新為 4 完成／186 部分／146 阻塞。接續 schema45 工作持久指標，涵蓋取消／租約恢復／ReleaseJob／各終態並避免 trimJobs 造成 counter 倒退；草案 `.testdata/metrics-design-review.md`。tracing、GOGC／GOMEMLIMIT、容器預算／OOM、混合負載與 24h 尚缺。沿用繁中 PR46、同分支，不 merge／release／tag／force-push／設定 Git 身分。以下為歷史紀錄。
+
 ## 最新接續：ABI 遷移契約與新命名基準
 
 ABI 門禁保留共同祖先的八組原始比較，逐項核對改名／功能裁剪產生的 52 條診斷；新增固定提交 `202b813a955cfc64ab87992484bf00b8aa72221a` 的真實命名程序集基準，第九組不允許 API 破壞。ApiCompat 固定 10.0.401，核對實際完整版本；未知、重複、過期差異及工具錯誤均失敗。
 
-20 項 parser 測試及真實 Naming 正向通過。隔離建置的型別移除、簽章改動、歷史模型還原，以及缺失／損壞 DLL 均被門禁拒絕；官方 unused suppression 回傳成功的情況也已實測攔截。本機舊八組沿用既存 CI 原始輸出，未重新比較其 DLL；最新 HEAD 九組實際比較須在推送後由 CI 確認。[契約](abi-report-check.md)／[證據](evidence/abi-guard-validation.json)。
+20 項 parser 測試及真實 Naming 正向通過。隔離建置的型別移除、簽章改動、歷史模型還原，以及缺失／損壞 DLL 均被門禁拒絕；官方 unused suppression 回傳成功的情況也已實測攔截。本機舊八組沿用既存 CI 原始輸出，未重新比較其 DLL；提交 `0d7fb57971` 的[CI](https://github.com/Carinoasd/Jelee/actions/runs/37042236978)已完成九組真實比較，建置與 Difference 全綠，下載 artifact 核對通過。[契約](abi-report-check.md)／[證據](evidence/abi-guard-validation.json)。
 
 接續原需求 OTel 產品指標；草案 `.testdata/otel-first-slice-review.md` 與 `.testdata/metrics-design-review.md`。仍第三階段，336 項 4 完成／184 部分／148 阻塞；全量品牌、四核心忽略、混合負載、容器 OOM／預算及 24h 尚待驗收。同分支繁中 PR46，不 merge／release／tag／force-push／設定 Git 身分。以下為歷史紀錄。
 

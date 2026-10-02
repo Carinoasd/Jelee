@@ -45,6 +45,8 @@ type Server struct {
 	jobs            *app.Jobs
 	jobSlots        chan struct{}
 	metadata        *app.Metadata
+	metrics         http.Handler
+	metricsSlots    chan struct{}
 }
 
 func New(cfg config.Config, backend Backend, catalog *app.Catalog, resolver media.Resolver, logger *slog.Logger, accounts ...*app.Accounts) (http.Handler, error) {
@@ -58,6 +60,21 @@ func New(cfg config.Config, backend Backend, catalog *app.Catalog, resolver medi
 }
 
 func NewWithJobs(cfg config.Config, backend Backend, catalog *app.Catalog, resolver media.Resolver, logger *slog.Logger, account *app.Accounts, jobs *app.Jobs, metadataServices ...*app.Metadata) (http.Handler, error) {
+	if len(metadataServices) > 1 {
+		return nil, errors.New("only one metadata service may be provided")
+	}
+	var metadata *app.Metadata
+	if len(metadataServices) == 1 {
+		metadata = metadataServices[0]
+	}
+	return newServer(cfg, backend, catalog, resolver, logger, account, jobs, metadata, nil)
+}
+
+func NewWithTelemetry(cfg config.Config, backend Backend, catalog *app.Catalog, resolver media.Resolver, logger *slog.Logger, account *app.Accounts, jobs *app.Jobs, metadata *app.Metadata, metrics http.Handler) (http.Handler, error) {
+	return newServer(cfg, backend, catalog, resolver, logger, account, jobs, metadata, metrics)
+}
+
+func newServer(cfg config.Config, backend Backend, catalog *app.Catalog, resolver media.Resolver, logger *slog.Logger, account *app.Accounts, jobs *app.Jobs, metadata *app.Metadata, metrics http.Handler) (http.Handler, error) {
 	if err := cfg.Validate(); err != nil {
 		return nil, err
 	}
@@ -73,17 +90,13 @@ func NewWithJobs(cfg config.Config, backend Backend, catalog *app.Catalog, resol
 		return nil, err
 	}
 	s := &Server{cfg: cfg, backend: backend, catalog: catalog, delivery: delivery, logger: logger, trustedProxies: prefixes}
-	if len(metadataServices) > 1 {
-		return nil, errors.New("only one metadata service may be provided")
-	}
-	if cfg.EnableAccounts && len(metadataServices) == 1 {
-		s.metadata = metadataServices[0]
+	if cfg.EnableAccounts {
+		s.metadata = metadata
 	}
 	if cfg.EnableAccounts && cfg.TMDBAPIKey != "" {
-		if len(metadataServices) != 1 || !metadataServices[0].HasProvider() {
+		if !metadata.HasProvider() {
 			return nil, errors.New("metadata service must be provided")
 		}
-		s.metadata = metadataServices[0]
 	}
 	if cfg.EnableAccounts {
 		if account == nil {
@@ -106,6 +119,13 @@ func NewWithJobs(cfg config.Config, backend Backend, catalog *app.Catalog, resol
 		}
 		s.jobs = jobs
 		s.jobSlots = make(chan struct{}, cfg.Jobs.Workers*2+2)
+	}
+	if cfg.EnableMetrics {
+		if metrics == nil {
+			return nil, errors.New("metrics handler must be provided")
+		}
+		s.metrics = metrics
+		s.metricsSlots = make(chan struct{}, 2)
 	}
 	r := chi.NewRouter()
 	r.Use(s.boundary)
@@ -137,6 +157,9 @@ func NewWithJobs(cfg config.Config, backend Backend, catalog *app.Catalog, resol
 	r.Get("/api/v1/openapi.json", func(w http.ResponseWriter, r *http.Request) { writeJSON(w, 200, Specification(cfg)) })
 	if cfg.EnableAccounts {
 		s.accountRoutes(r)
+	}
+	if cfg.EnableMetrics {
+		s.metricsRoutes(r)
 	}
 	if s.metadata != nil && cfg.TMDBAPIKey != "" {
 		s.metadataRoutes(r)

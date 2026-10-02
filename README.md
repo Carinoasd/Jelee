@@ -54,6 +54,7 @@ make bootstrap tools-verify build test
 - [需求追溯](docs/requirements-traceability.md)
 - [账户初始化与恢复](docs/account-bootstrap.md)
 - [账户 API 与权限](docs/accounts-api.md)
+- [管理員執行時與連線池指標](docs/metrics.md)
 - [第 2 阶段验证](docs/accounts-verification.md)
 - [只读盘点 API 与配置](docs/jobs-api.md)
 - [第 3A 段验证](docs/jobs-verification.md)

@@ -1,6 +1,6 @@
 {
   "verifiedOn": "2026-10-03",
-  "status": "本機驗證通過；最新 HEAD 的完整遠端 CI 尚待執行",
+  "status": "本機正向／反例及 0d7fb57971 的完整九組遠端 CI 通過",
   "baselineCommit": "202b813a955cfc64ab87992484bf00b8aa72221a",
   "headCommit": "cfba1009631a3ada2bc76b884f6616af8cb27be7",
   "dotnetSdk": "10.0.400",
@@ -118,10 +118,7 @@
     }
   ],
   "localEvidenceDirectory": ".testdata/abi-real-evidence/",
-  "remaining": [
-    "變更推送後最新 HEAD 的九組真實 DLL 遠端比較",
-    "修改後完整 GitHub Actions workflow 遠端驗收"
-  ],
+  "remaining": [],
   "exactCommandLog": ".testdata/abi-real-evidence/results.json（本機忽略目錄；完整命令與工作目錄）",
   "isolatedMutationsAppliedToTrackedSource": false,
   "trackedFileVerification": {
@@ -137,5 +134,17 @@
     "liveCoreFilesUnchanged": 5,
     "licenseAndRequirementsHashesUnchanged": true,
     "requirementRows": 336
+  },
+  "remoteCI": {
+    "head": "0d7fb57971f139daf062ce37a28816e5c5c4577d",
+    "run": "https://github.com/Carinoasd/Jelee/actions/runs/37042236978",
+    "differenceJob": "https://github.com/Carinoasd/Jelee/actions/runs/37042236978/job/110955760236",
+    "conclusion": "success",
+    "actualAssemblyComparisons": 9,
+    "approvedHistoricalDiagnostics": 52,
+    "newNamingDiagnostics": 0,
+    "validationErrors": [],
+    "reportSha256": "9f655b5f70eeca7a0201f7dcc75809b5fff799f92bf4ab782ea1ee0a802b1a88",
+    "rawArtifactRetentionDays": 14
   }
 }

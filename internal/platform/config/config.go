@@ -26,6 +26,7 @@ type Config struct {
 	EnableCatalog         bool           `json:"enableCatalog"`
 	EnableDirect          bool           `json:"enableDirect"`
 	EnableAccounts        bool           `json:"enableAccounts"`
+	EnableMetrics         bool           `json:"enableMetrics"`
 	Accounts              AccountsConfig `json:"accounts"`
 	EnableJobs            bool           `json:"enableJobs"`
 	Jobs                  JobsConfig     `json:"jobs"`
@@ -93,7 +94,7 @@ func LoadWith(lookup func(string) (string, bool)) (Config, error) {
 			c.TrustedProxies = strings.Split(value, ",")
 		}
 	}
-	for name, target := range map[string]*bool{"JELEE_ENABLE_CATALOG": &c.EnableCatalog, "JELEE_ENABLE_DIRECT": &c.EnableDirect, "JELEE_ENABLE_ACCOUNTS": &c.EnableAccounts, "JELEE_ENABLE_JOBS": &c.EnableJobs, "JELEE_ENABLE_PROBE": &c.EnableProbe, "JELEE_ENABLE_FAMILY_IGNORE": &c.EnableFamilyIgnore} {
+	for name, target := range map[string]*bool{"JELEE_ENABLE_CATALOG": &c.EnableCatalog, "JELEE_ENABLE_DIRECT": &c.EnableDirect, "JELEE_ENABLE_ACCOUNTS": &c.EnableAccounts, "JELEE_ENABLE_METRICS": &c.EnableMetrics, "JELEE_ENABLE_JOBS": &c.EnableJobs, "JELEE_ENABLE_PROBE": &c.EnableProbe, "JELEE_ENABLE_FAMILY_IGNORE": &c.EnableFamilyIgnore} {
 		if value, ok := lookup(name); ok {
 			b, err := strconv.ParseBool(value)
 			if err != nil {
@@ -165,6 +166,9 @@ func (c Config) Validate() error {
 		if err := c.Accounts.Validate(); err != nil {
 			return err
 		}
+	}
+	if c.EnableMetrics && !c.EnableAccounts {
+		return errors.New("metrics require account rollout")
 	}
 	if c.EnableJobs {
 		if !c.EnableAccounts {

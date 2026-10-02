@@ -57,6 +57,14 @@ func Specification(cfg config.Config) map[string]any {
 	if cfg.EnableAccounts && cfg.TMDBAPIKey != "" {
 		metadataSpecification(paths, schemas)
 	}
+	if cfg.EnableAccounts && cfg.EnableMetrics {
+		op := operation("Read local runtime and database pool metrics", "200", "400", "401", "403", "503")
+		op["security"] = []any{map[string]any{"bearer": []string{}}}
+		op["x-jelee-role"] = "administrator"
+		op["description"] = "Prometheus exposition from this process. No query parameters. At most two concurrent requests including authentication; request and write deadline are three seconds."
+		op["responses"].(map[string]any)["200"].(map[string]any)["content"] = map[string]any{"text/plain": map[string]any{"schema": map[string]any{"type": "string"}}}
+		paths["/metrics"] = map[string]any{"get": op}
+	}
 	if cfg.EnableJobs {
 		jobSpecification(paths, schemas)
 		nfoSpecification(paths, schemas)

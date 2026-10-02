@@ -73,7 +73,23 @@ func testLifetime(t *testing.T, worker serviceWorker, handler http.Handler) (*li
 	l.worker = worker
 	l.server = &http.Server{Addr: "127.0.0.1:0", Handler: handler}
 	closed := new(atomic.Int32)
-	l.closeStore = func() { closed.Add(1) }
+	metricsClosed := new(atomic.Int32)
+	l.closeTelemetry = func(ctx context.Context) error {
+		deadline, ok := ctx.Deadline()
+		if !ok || ctx.Err() != nil || time.Until(deadline) > 3*time.Second {
+			t.Error("metrics shutdown must have a fresh bounded context")
+		}
+		if metricsClosed.Add(1) != 1 || closed.Load() != 0 {
+			t.Error("metrics must close once before the pool")
+		}
+		return nil
+	}
+	l.closeStore = func() {
+		if metricsClosed.Load() != 1 {
+			t.Error("pool closed before metrics stopped")
+		}
+		closed.Add(1)
+	}
 	address := ""
 	l.listen = func(ctx context.Context, network, addr string) (net.Listener, error) {
 		listener, err := (&net.ListenConfig{}).Listen(ctx, network, addr)
@@ -181,9 +197,18 @@ func TestFxStopDeadlineStillCancelsWorkersAndEventuallyReclaimsPool(t *testing.T
 func TestConstructionAndStartFailuresReclaimStore(t *testing.T) {
 	t.Run("graph construction", func(t *testing.T) {
 		l := newLifetime(slog.New(slog.NewTextHandler(io.Discard, nil)))
-		var closed int
-		a := build(l, fx.NopLogger, fx.Invoke(func() { l.closeStore = func() { closed++ } }), fx.Invoke(func() error { return errors.New("handler initialization failed") }))
-		if a.Err() == nil || closed != 1 || l.ctx.Err() == nil {
+		var closed, metricsClosed int
+		a := build(l, fx.NopLogger, fx.Invoke(func() {
+			l.closeTelemetry = func(ctx context.Context) error {
+				if ctx.Err() != nil || closed != 0 {
+					t.Error("metrics cleanup ran after its store or with a cancelled context")
+				}
+				metricsClosed++
+				return nil
+			}
+			l.closeStore = func() { closed++ }
+		}), fx.Invoke(func() error { return errors.New("handler initialization failed") }))
+		if a.Err() == nil || closed != 1 || metricsClosed != 1 || l.ctx.Err() == nil {
 			t.Fatalf("failed graph leaked resources: err=%v closes=%d", a.Err(), closed)
 		}
 	})

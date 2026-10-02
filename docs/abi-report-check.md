@@ -35,4 +35,4 @@ python3 -B scripts/check-abi-report.py
 
 上述合併判讀使用的舊八組仍是已保存的CI原始報告；本機重新執行的是Naming正向與隔離反例，並未重建或重新比較舊八組。20項輕量parser測試通過。完整版本、結果與原始日誌SHA256見[實測摘要](evidence/abi-guard-validation.json)。所有實驗只改隔離快照，結束後恢復；正式工作樹未套用反例。
 
-尚未執行：變更推送後最新HEAD在GitHub Actions上的全部九組真實比較，以及修改後完整workflow的遠端驗收。需由該CI確認Linux工具輸出與已核准文字契約一致；不能把本機九組報告判讀通過描述為九組DLL全部在本機重比通過。
+推送後，提交 `0d7fb57971f139daf062ce37a28816e5c5c4577d` 的[遠端 CI](https://github.com/Carinoasd/Jelee/actions/runs/37042236978)已完成全部九組真實 DLL 比較：三個建置工作及 Difference 均成功，52 條歷史診斷完全吻合，新 Naming 基準沒有差異。原始 artifact 已下載核對，SHA256 記於實測摘要。本機八組歷史報告與這次遠端九組實際比較是不同證據。
