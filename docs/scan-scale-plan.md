@@ -19,4 +19,4 @@
 
 schema43 的普通清單分批快照已有三檔實測；目前再補 GOMAXPROCS=2／4、每檔位三輪與舊快照清理，見[三輪報告](scan-repeated.md)。忽略歷史合併、圖片／混合負載及真實 24h 仍按前述限制驗收。
 
-忽略規則的一萬檔完整 worker 三輪已有[獨立基線](ignore-scale-baseline.md)；歷史比對的 helper 啟動成本尚待改善，未把此成績推算成較大檔位通過。
+忽略規則的一萬檔完整 worker 三輪已有[獨立基線](ignore-scale-baseline.md)；[批次比對](ignore-family-batch.md)已降低 helper 啟動成本；[十萬檔三輪](ignore-scale-100000.md)已通過。五十萬忽略模式仍需獨立實測。
