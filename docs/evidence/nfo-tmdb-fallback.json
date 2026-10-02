@@ -1,0 +1,134 @@
+{
+  "baseCommit": "5b0feb166649b4f4ee85c01652e09505f16d52d2",
+  "schemaVersion": 24,
+  "sources": {
+    "internal/adapter/http/metadata_apply.go": "382a19f3c95c0bedd15cd110c8fc2ee586929067073892087a8fe2ef3e0194a1",
+    "internal/adapter/http/nfo_item_metadata_test.go": "913e8b7ed09df7c595c86090ca066ecd16647fee64cb96dc7ccaf23bc6582a51",
+    "internal/adapter/postgres/accounts_integration_test.go": "2307066c33e44854428920615c0d16e77f3001d1fbcbece975b4edd0a89703bd",
+    "internal/adapter/postgres/ignore_baseline_test.go": "583e068a925d7ba99ec7fbfd8f8264564ceccce0ec2104fb10dba034a9b1e1ad",
+    "internal/adapter/postgres/ignore_family_comparison_test.go": "68474db22baf46e4ccdab920b6264f9529506e201506d771f7c49a200efe8ac8",
+    "internal/adapter/postgres/ignore_family_scan_test.go": "65f0bc2c3609c7fb0a9ba63c40a642f671e861ec3c1b5a75d1ed446e9d72e79e",
+    "internal/adapter/postgres/ignore_legacy_baseline_test.go": "02ca577b2bbcb575d92c7d4ff254e49a13a6bdfa1becf6fe29d1d25ce54cd2f2",
+    "internal/adapter/postgres/ignore_legacy_baseline_verification_test.go": "3b0f790eaa40904758b9872ee789371258d655b007393236bea8d38249a8567c",
+    "internal/adapter/postgres/ignore_legacy_migration_test.go": "dc6a089982d26f650fbe810f4e3626c99bdfaa18eb1bfdcbe28af127fcb52c76",
+    "internal/adapter/postgres/ignore_legacy_verification_test.go": "5d7a989d8f6a59875d09d01334683d3bc8bc97600d0d66b9fbd5230ebd1fa422",
+    "internal/adapter/postgres/ignore_manifest_test.go": "225c526c8a8a3fc343631fbfb193f890ad64c77a6da5e6915e00f34f681e7b32",
+    "internal/adapter/postgres/ignore_migration_test.go": "c140ca3272d756a6741c02837f660df3a95af4e8731f5f847a73f2de756d2a6d",
+    "internal/adapter/postgres/ignore_scan_test.go": "bfcd9bc523b7049c66060f76ce01b13ea88b907b8643dad4ffbf082ddbd75119",
+    "internal/adapter/postgres/ignore_verification_test.go": "8d58435aaf128fdb54f4235501a98f99e52bd0752fdf794e2133615fd68d154a",
+    "internal/adapter/postgres/item_metadata.go": "c3c47b90200bf8bd550ea5f23d4b50d5c9d096a585f4b7b4e420c55e5acd3c3d",
+    "internal/adapter/postgres/item_metadata_test.go": "efd3949e63e80485f3c80207c04072e662115ad7743730e4ed14a860a6db4265",
+    "internal/adapter/postgres/jobs_integration_test.go": "c18b2cf8ff89a5b5e17ba82b1aa814bccbacfc06d00ff81406de87a38e3084bd",
+    "internal/adapter/postgres/metadata_apply_test.go": "ef3b398a509ca58cfa3a0949490cdf6050d9ebd0df5653fdc1001b7c182d11a4",
+    "internal/adapter/postgres/metadata_image_preferences_test.go": "ab270fc98d3d310160be8174ff89e6945cbac6ffbd7e757859ee59a9175d5cba",
+    "internal/adapter/postgres/metadata_nfo_fusion.go": "d48bf1279efbb1335816c369bd0c6344aa265bbe5681a02c1fa898dd43548b43",
+    "internal/adapter/postgres/metadata_preferences_test.go": "e7b982e6676fd0c297d85d1bd7f848dcc9b0a9d6a0d24fdda0058ffe226f6ee8",
+    "internal/adapter/postgres/nfo_integration_test.go": "e0295b3e3d6d08e9f16800c90cf0a16c455b7a44c302510371c8b5beb5981edb",
+    "internal/adapter/postgres/nfo_item_apply.go": "bfcfb4c6dbeba6b377a150e11fe32834375d16b3b77189eee56f24a9db31ac9a",
+    "internal/adapter/postgres/nfo_item_apply_test.go": "ea16ef73e053ce8ef674fb4377dd182c5ee941a2e186c88eb4e5a26059badb36",
+    "internal/adapter/postgres/nfo_item_http_test.go": "3b2df4d780cdb40f31fd2a0a9f5f6fdfb15f2dd7772a1eb4e4931fb15ba0a903",
+    "internal/adapter/postgres/nfo_worker_migration_test.go": "983fb98c684e6e95c955882b2947bfc9c06ea89fa3f23fd57fc045c567364444",
+    "internal/adapter/postgres/probe_integration_test.go": "862039e425097ff8856723fc9a683c611e01f07009b0070e15d2f91d63f08f39",
+    "internal/adapter/postgres/probe_requests_test.go": "557cf4fb042b3cd3a8caa712cd02c01f2181cd808760069f3f629f60450fce7d",
+    "internal/adapter/postgres/store.go": "8460acc1733dcfbf472498c7270e35f9ef8d630e72485a4135796aa4d82d6edb",
+    "internal/adapter/postgres/store_integration_test.go": "5806a0de17761701a54ad9dddde0a5f9a2ed0626da015ee70101065db800d628",
+    "internal/app/metadata_apply.go": "10fb32712a2f6c1dce02e2ebdfa8629d75cbf11a7644cf5a7c9c6c83b4ee5249",
+    "internal/app/nfo_item_apply.go": "a3e2c1b74d5e5ba361648385e0a86f1d5547db3a844c9ce3098db572facb72f0",
+    "internal/app/nfo_item_fields_ports.go": "f05a16618bf9ffd7c165c4dbc2615e0c9bcf36e39cc16463004b7bec31deed6c",
+    "internal/domain/item_metadata.go": "0115c940eeb3c59a53cfb52197a797b9a74720d63a698e87a1cc724e0fa931f9",
+    "internal/domain/metadata_apply.go": "6c937a501760f083503f84770b06a604a3bcedf290da65bd236aac5e54217712",
+    "internal/domain/nfo_item_observation.go": "319f3ba7233388606f81fc96e3243dc4d3ca0ec9a276e1f3e86f255f1a3a1b0f",
+    "internal/domain/nfo_item_observation_test.go": "479bc303033c83a9a2113a3e84cf0e1f86a258504193bb3d834b9e62464d7916",
+    "internal/domain/nfo_item_selection.go": "c15c0f5a84311c7c355e38e93dbba268993efe993c9cdb95875536bb03780d0b",
+    "internal/platform/outbound/metadata_apply_integration_test.go": "d8f65bcd4413495b6d8740a681b4a59b268d632b240a613b8d5afef7198f9177",
+    "internal/adapter/http/nfo_item_observation.go": "651e2ed5a1518d85bd8d71d52b592e1b8b78375971ea19797fb7d8333986803a",
+    "internal/adapter/postgres/migrations/000024_item_nfo_observation.down.sql": "cfbd6bc30a402bfe8f0ff38b249340e09162a7fd7677cc9701034f0a66cf09ac",
+    "internal/adapter/postgres/migrations/000024_item_nfo_observation.up.sql": "6e1910bdbb662b4e7b7791014fad0bf4cb0e9afad4b22652391388c05c572057",
+    "internal/adapter/postgres/nfo_item_observation.go": "0e78f1e5dfedea3c0e5aa13517e26baff0bf5f1bf5aa24e5725dab776526054d",
+    "internal/adapter/postgres/nfo_item_observation_test.go": "5038919da09520df5e7e337cdd5daa18ff36a5459b96c6fbeabe3c5effa28b8a",
+    "internal/domain/nfo_item_confirmed_observation.go": "919b0833bc6cc0afc41cd8222f2442141660a4faedbac2b03754fdc4c4c7a4ad",
+    "internal/domain/nfo_item_confirmed_observation_test.go": "e7d024034d9db3737c8b14bc35ba0bf47218ecbb3034810555a9176e2ed2028e"
+  },
+  "windowsFullGo": {
+    "passedPackages": 29,
+    "passedTestEventsIncludingParents": 3221,
+    "skippedTestEvents": 460
+  },
+  "nativeLinuxRace": {
+    "passedPackages": 5,
+    "passedTestEventsIncludingParents": 1087,
+    "skippedTestEvents": 0
+  },
+  "postgresFullRace": {
+    "passedPackages": 1,
+    "passedTestEventsIncludingParents": 737,
+    "skippedTestEvents": 0,
+    "elapsedSeconds": 373.848
+  },
+  "formalHTTP_TLS_NFO_Postgres": {
+    "passedPackages": 1,
+    "passedTestEventsIncludingParents": 1,
+    "skippedTestEvents": 0,
+    "elapsedSeconds": 70.928
+  },
+  "negativeCompleteHTTPPath": {
+    "negativeLeafFailures": 1,
+    "observed": "changed fallback observation committed invalid-bytes 200",
+    "restoredSources": {
+      "internal/adapter/nfo/item_selection.go": "1c7a212b81f929d44723bb457290c4d4c2ed03803889673ed0f8c73cd86c0f10",
+      "internal/app/nfo_item_apply.go": "a3e2c1b74d5e5ba361648385e0a86f1d5547db3a844c9ce3098db572facb72f0"
+    },
+    "restoredExitCode": 0
+  },
+  "windowsSkips": {
+    "old457IdentitiesRetained": true,
+    "addedPostgresTests": [
+      "TestNFOItemObservationDatabaseRejectsUnsafeRecords",
+      "TestNFOItemObservationPersistenceHistoryAndMigration",
+      "TestNFOItemObservationProviderObservationAndAuditRollback"
+    ],
+    "allExtraPostgresIdentitiesPassInFullDatabaseRun": true,
+    "outboundActualHTTPIntegrationPassed": true,
+    "allPostgresIdentitiesPassInRaceOrNativeRun": true
+  },
+  "persistence": "Safe versioned exact-key JSON <=2048 bytes in item_nfo_observations, same transaction as fields/catalog/kind/revision/audit. Historical source/root IDs retained, no private paths/field values. Missing stamp null; valid/invalid full original-byte stamp. Manual changes retain accepted history, not current-file freshness.",
+  "runtime": "Production SummaryReader state observation and Store observation transaction ports are preferred; unique live trusted scope before provider, owned Recheck after provider, final scope/session/revision/generation/kind checks in transaction. Legacy internal field-only contracts retained without granting missing/invalid fallback.",
+  "formalCases": [
+    "real missing and malformed-XML NFO fall back to governed TMDB with one revision/audit and saved missing/nfo_invalid status",
+    "NFO-only still rejects missing/invalid before provider or write; valid saves observation in same transaction",
+    "missing appears, invalid repaired, invalid bytes change at same size/mtime: 409, revision/classification/fields/history unchanged and zero apply audits",
+    "unsafe XML, valid lock-only and real mode-000 permission denial: 503, zero provider I/O and no observation",
+    "provider invalid response and incoming/provider cancellation during missing fallback: no half update or observation",
+    "existing candidate names/physical root-parent-media-NFO ownership/mixed fusion/manual/locks/concurrency/generation/root/429/cancel cases and 120 synthetic confirmed writes pass"
+  ],
+  "postgresCases": [
+    "missing, invalid and valid safe statuses persist with fields in one revision/audit",
+    "manual edit preserves last confirmed historical version; clone owns stamp",
+    "missing fallback protects old NFO fields and manual explicit clear even when no fields apply",
+    "provider-field, observation-table and audit trigger failures roll back fields/catalog/kind/revision/observation and leave zero apply audit",
+    "stale missing source generation refuses write",
+    "database rejects unsafe extra path keys, missing/invalid stamp mismatch, bad status/UUID/version/digest/integer bounds/UTC date and original stamp shape",
+    "retained observation refuses downgrade; empty 24->23->24 preserves metadata; all old migration chains rerun through new release"
+  ],
+  "fullVet": "PASS",
+  "productionBuild": "PASS cmd/jelee cmd/jelee-migrate",
+  "incrementalBranding": "0 violations / 181 allowed",
+  "fullBranding": "FAIL 14735 violations / 186 allowed",
+  "gitignore": "0 violations",
+  "protected": "LICENSE, requirements source, five pending core files, all published 001–023 migrations unchanged; no C# changes",
+  "project": "336 requirements: 4 done / 184 partial / 148 blocked; stage 3 and all G00–G51 incomplete",
+  "limits": [
+    "Four text fields only; unsupported valid NFO/season/episode/wrappers/multi-item sources and lock-only projection remain refused",
+    "Actual inventory/worker/hierarchy, other fields, lossless writeback, external metadata removal and frontend remain incomplete",
+    "Schema24 refuses retained-observation downgrade; no production clear-observation capability yet",
+    "Filesystem recheck is not an atomic snapshot and stalled operations have no hard cancellation guarantee",
+    "Synthetic 100 movie / 20 series matrix is not real inventory acceptance",
+    "Full branding and actual ABI differences remain failing gates"
+  ],
+  "nativePostgresWithoutRace": {
+    "passedPackages": 1,
+    "passedTestEventsIncludingParents": 11,
+    "skippedTestEvents": 0,
+    "elapsedSeconds": 14.84
+  }
+}

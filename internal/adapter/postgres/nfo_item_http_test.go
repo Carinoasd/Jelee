@@ -63,6 +63,9 @@ func (r *observedNFOItemReader) ObserveItemNFO(ctx context.Context, scope domain
 }
 
 func (o *observedNFOItemObservation) Selection() domain.NFOItemSelection { return o.actual.Selection() }
+func (o *observedNFOItemObservation) State() domain.NFOItemObservationState {
+	return o.actual.(app.NFOItemStateObservation).State()
+}
 func (o *observedNFOItemObservation) Recheck(ctx context.Context) (app.NFOItemObservation, error) {
 	actual, err := o.actual.Recheck(ctx)
 	o.owner.calls++
@@ -156,6 +159,9 @@ func TestNFOItemActualFilesHTTPAndPostgres(t *testing.T) {
 	}
 	if code != 200 || json.Unmarshal(raw, &result) != nil || result.Data.Metadata.Revision != 2 || len(result.Data.Applied) != 4 || result.Data.Metadata.Fields[0].NFOOrigin == nil || !result.Data.Metadata.Fields[0].NFOOrigin.Locked || result.Data.Metadata.Fields[0].Value != "NFO title" {
 		t.Fatal("actual NFO not persisted", code, string(raw))
+	}
+	if result.Data.NFO == nil || result.Data.NFO.Status != domain.NFOItemObservedValid || result.Data.Metadata.LastConfirmedNFOObservation == nil || result.Data.Metadata.LastConfirmedNFOObservation.AcceptedRevision != 2 || result.Data.Metadata.LastConfirmedNFOObservation.Status != domain.NFOItemObservedValid {
+		t.Fatal("NFO-only did not save confirmed observation in its transaction")
 	}
 	if strings.Contains(string(raw), scope.Source.RootPath) || strings.Contains(string(raw), "film.nfo") {
 		t.Fatal("NFO path exposed")

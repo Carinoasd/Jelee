@@ -31,7 +31,7 @@ func ValidNFOItemObservationState(scope NFOItemScope, v NFOItemObservationState)
 	case NFOItemObservedMissing:
 		return v.Selection.RelativePath == "" && v.Selection.CandidateDigest == NFOCandidateDigest([]string{}) && v.Stamp == (NFOStamp{}) && emptyNFOItemFields(v.Selection.Fields)
 	case NFOItemObservedInvalid:
-		return AllowedNFOItemPath(scope, v.Selection.RelativePath) && ValidateNFOStamp(v.Stamp) == nil && v.Stamp.Size <= v.Identity.MaxSourceBytes && emptyNFOItemFields(v.Selection.Fields)
+		return v.Selection.CandidateDigest != NFOCandidateDigest([]string{}) && AllowedNFOItemPath(scope, v.Selection.RelativePath) && ValidateNFOStamp(v.Stamp) == nil && v.Stamp.Size <= v.Identity.MaxSourceBytes && emptyNFOItemFields(v.Selection.Fields)
 	}
 	return false
 }

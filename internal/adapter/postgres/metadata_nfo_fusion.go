@@ -9,9 +9,22 @@ import (
 )
 
 var _ app.MetadataNFOFusionRepository = (*Store)(nil)
+var _ app.MetadataNFOObservationRepository = (*Store)(nil)
 
 func (s *Store) ApplyTMDBWithNFO(ctx context.Context, actor domain.Actor, scope domain.NFOItemScope, nfo domain.NFOItemFields, update domain.TMDBMetadataUpdate) (domain.MetadataApplyResult, error) {
-	if !domain.ValidNFOItemScope(scope) || !domain.ValidNFOItemFields(nfo) || !domain.ValidTMDBMetadataUpdate(update) || !domain.MetadataResourceMatchesKind(update.Resource, scope.Kind) || !(nfo.Kind == scope.Kind || scope.Kind == "HomeVideo" && nfo.Kind == "Movie") {
+	return s.applyTMDBWithNFO(ctx, actor, scope, nfo, nil, update)
+}
+
+func (s *Store) ApplyTMDBWithNFOObservation(ctx context.Context, actor domain.Actor, scope domain.NFOItemScope, state domain.NFOItemObservationState, update domain.TMDBMetadataUpdate) (domain.MetadataApplyResult, error) {
+	if !domain.ValidNFOItemObservationState(scope, state) {
+		return domain.MetadataApplyResult{}, domain.ErrInvalid
+	}
+	return s.applyTMDBWithNFO(ctx, actor, scope, state.Selection.Fields, &state, update)
+}
+
+func (s *Store) applyTMDBWithNFO(ctx context.Context, actor domain.Actor, scope domain.NFOItemScope, nfo domain.NFOItemFields, state *domain.NFOItemObservationState, update domain.TMDBMetadataUpdate) (domain.MetadataApplyResult, error) {
+	useNFO := state == nil || state.Status == domain.NFOItemObservedValid
+	if !domain.ValidNFOItemScope(scope) || !domain.ValidTMDBMetadataUpdate(update) || !domain.MetadataResourceMatchesKind(update.Resource, scope.Kind) || useNFO && (!domain.ValidNFOItemFields(nfo) || !(nfo.Kind == scope.Kind || scope.Kind == "HomeVideo" && nfo.Kind == "Movie")) {
 		return domain.MetadataApplyResult{}, domain.ErrInvalid
 	}
 	tx, err := s.authorizedJobs(ctx, actor)
@@ -34,9 +47,12 @@ func (s *Store) ApplyTMDBWithNFO(ctx context.Context, actor domain.Actor, scope 
 		return domain.MetadataApplyResult{}, storageError(err)
 	}
 	now := time.Now().UTC()
-	local, err := applyNFOFields(ctx, tx, before, scope, nfo, now)
-	if err != nil {
-		return domain.MetadataApplyResult{}, err
+	local := domain.MetadataApplyResult{Applied: []string{}, Skipped: []domain.MetadataFieldSkip{}}
+	if useNFO {
+		local, err = applyNFOFields(ctx, tx, before, scope, nfo, now)
+		if err != nil {
+			return domain.MetadataApplyResult{}, err
+		}
 	}
 	merged, err := readItemMetadata(ctx, tx, scope.ItemID, false)
 	if err != nil {
@@ -47,9 +63,18 @@ func (s *Store) ApplyTMDBWithNFO(ctx context.Context, actor domain.Actor, scope 
 		return domain.MetadataApplyResult{}, err
 	}
 	result := combineMetadataFieldResults(local, provider)
+	result.NFO.Status = domain.NFOItemObservedValid
+	if state != nil {
+		result.NFO.Status = state.Status
+	}
 	if len(result.Applied) > 0 && scope.Kind == "HomeVideo" && update.Resource == "movie" {
 		if _, err = tx.Exec(ctx, `UPDATE items SET kind='Movie' WHERE id=$1::uuid`, scope.ItemID); err != nil {
 			return domain.MetadataApplyResult{}, storageError(err)
+		}
+	}
+	if state != nil {
+		if err = writeConfirmedNFOObservation(ctx, tx, scope, *state); err != nil {
+			return domain.MetadataApplyResult{}, err
 		}
 	}
 	result.Metadata, err = readItemMetadata(ctx, tx, scope.ItemID, false)

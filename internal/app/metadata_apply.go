@@ -16,6 +16,10 @@ type MetadataNFOFusionRepository interface {
 	ApplyTMDBWithNFO(context.Context, domain.Actor, domain.NFOItemScope, domain.NFOItemFields, domain.TMDBMetadataUpdate) (domain.MetadataApplyResult, error)
 }
 
+type MetadataNFOObservationRepository interface {
+	ApplyTMDBWithNFOObservation(context.Context, domain.Actor, domain.NFOItemScope, domain.NFOItemObservationState, domain.TMDBMetadataUpdate) (domain.MetadataApplyResult, error)
+}
+
 func (m *Metadata) ApplyTMDB(ctx context.Context, actor domain.Actor, item string, input domain.TMDBMetadataApplyInput) (domain.MetadataApplyResult, error) {
 	if err := ctx.Err(); err != nil {
 		return domain.MetadataApplyResult{}, err
@@ -52,13 +56,19 @@ func (m *Metadata) ApplyTMDB(ctx context.Context, actor domain.Actor, item strin
 	var nfoScope domain.NFOItemScope
 	var nfoFields nfoItemRead
 	var fusion MetadataNFOFusionRepository
+	var observedFusion MetadataNFOObservationRepository
 	if before.NFOMode == domain.NFOModeReadOnly {
 		var ok bool
 		fusion, ok = m.items.(MetadataNFOFusionRepository)
 		if !ok || m.nfoFields == nil {
 			return domain.MetadataApplyResult{}, domain.ErrMetadataUnavailable
 		}
-		nfoScope, nfoFields, err = m.readItemNFO(ctx, actor, item, input.ExpectedRevision)
+		observedFusion, _ = m.items.(MetadataNFOObservationRepository)
+		if observedFusion != nil {
+			nfoScope, nfoFields, err = m.readItemNFOStates(ctx, actor, item, input.ExpectedRevision)
+		} else {
+			nfoScope, nfoFields, err = m.readItemNFO(ctx, actor, item, input.ExpectedRevision)
+		}
 		if err != nil {
 			return domain.MetadataApplyResult{}, err
 		}
@@ -124,7 +134,14 @@ func (m *Metadata) ApplyTMDB(ctx context.Context, actor domain.Actor, item strin
 		if err != nil {
 			return domain.MetadataApplyResult{}, err
 		}
-		result, err = fusion.ApplyTMDBWithNFO(ctx, actor, nfoScope, last.selected.Fields, update)
+		if observedFusion != nil {
+			if last.state == nil {
+				return domain.MetadataApplyResult{}, domain.ErrMetadataUnavailable
+			}
+			result, err = observedFusion.ApplyTMDBWithNFOObservation(ctx, actor, nfoScope, *last.state, update)
+		} else {
+			result, err = fusion.ApplyTMDBWithNFO(ctx, actor, nfoScope, last.selected.Fields, update)
+		}
 	} else {
 		result, err = repository.ApplyTMDBMetadata(ctx, actor, item, input.ExpectedRevision, update)
 	}

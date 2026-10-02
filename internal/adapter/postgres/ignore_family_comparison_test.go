@@ -83,6 +83,7 @@ func TestFamilyBaselineComparisonMigration(t *testing.T) {
 	if _, err = f.s.Pool.Exec(f.ctx, `DELETE FROM jobs WHERE id=$1::uuid`, l.Job.ID); err != nil {
 		t.Fatal("history cascade", err)
 	}
+	nfoMigrateVersion(t, f, "down", 23)
 	nfoMigrateVersion(t, f, "down", 22)
 	nfoMigrateVersion(t, f, "down", 21)
 	nfoMigrateVersion(t, f, "down", 20)

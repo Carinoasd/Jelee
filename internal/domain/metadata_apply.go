@@ -50,6 +50,7 @@ type MetadataApplyResult struct {
 }
 
 type MetadataFieldApplyReport struct {
+	Status  string              `json:"status,omitempty"`
 	Applied []string            `json:"applied"`
 	Skipped []MetadataFieldSkip `json:"skipped"`
 }

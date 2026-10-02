@@ -3,6 +3,7 @@ package outbound_test
 import (
 	"context"
 	"crypto/rand"
+	"crypto/sha256"
 	"crypto/tls"
 	"encoding/hex"
 	"encoding/json"
@@ -118,6 +119,7 @@ func TestTMDBMetadataThroughTLSHTTPAndPostgres(t *testing.T) {
 	var providerActions sync.Map
 	cancelStarted, cancelFinished := make(chan struct{}), make(chan struct{})
 	fusionCancelStarted, fusionCancelFinished := make(chan struct{}), make(chan struct{})
+	fallbackCancelStarted, fallbackCancelFinished := make(chan struct{}), make(chan struct{})
 	blocked, release := make(chan struct{}), make(chan struct{})
 	var releaseOnce sync.Once
 	defer releaseOnce.Do(func() { close(release) })
@@ -166,10 +168,13 @@ func TestTMDBMetadataThroughTLSHTTPAndPostgres(t *testing.T) {
 				}
 			}
 		}
-		if id == 4006 || id == 4751 {
+		if id == 4006 || id == 4751 || id == 4850 {
 			started, finished := cancelStarted, cancelFinished
 			if id == 4751 {
 				started, finished = fusionCancelStarted, fusionCancelFinished
+			}
+			if id == 4850 {
+				started, finished = fallbackCancelStarted, fallbackCancelFinished
 			}
 			close(started)
 			<-r.Context().Done()
@@ -472,9 +477,6 @@ func TestTMDBMetadataThroughTLSHTTPAndPostgres(t *testing.T) {
 	if original, err := os.ReadFile(collisionFile); err != nil || string(original) != document {
 		t.Fatal("ambiguous NFO original changed", err)
 	}
-	// Reader observations now retain missing/corrupt states, but applying them
-	// requires an atomic persistence capability. Until then both routes reject
-	// before provider I/O and preserve the original catalog and audit state.
 	for offset, mode := range []string{"missing", "invalid"} {
 		item, file := newNFOItem("state-guard-"+mode, "HomeVideo", `<movie><title>broken`)
 		if mode == "missing" {
@@ -483,9 +485,6 @@ func TestTMDBMetadataThroughTLSHTTPAndPostgres(t *testing.T) {
 			}
 		}
 		beforeCalls := allCalls.Load()
-		if response := apply(item, "movie", 4830+offset, 1); response.status != 503 || allCalls.Load() != beforeCalls {
-			t.Fatal("unpersisted NFO observation reached provider", mode, response.status)
-		}
 		if response := request("POST", "/api/v1/items/"+item+"/metadata/nfo", `{"expectedRevision":1,"confirmed":true}`); response.status != 503 {
 			t.Fatal("nonvalid NFO reached NFO-only write", mode, response.status)
 		}
@@ -496,12 +495,142 @@ func TestTMDBMetadataThroughTLSHTTPAndPostgres(t *testing.T) {
 		if err := store.Pool.QueryRow(ctx, `SELECT count(*) FROM audit_logs WHERE target_id=$1::uuid AND event IN ('item.tmdb_metadata_applied','item.nfo_metadata_applied')`, item).Scan(&count); err != nil || count != 0 {
 			t.Fatal("nonvalid NFO guard left audit", mode, err)
 		}
+		status := domain.NFOItemObservedMissing
+		if mode == "invalid" {
+			status = domain.NFOItemObservedInvalid
+		}
+		response := apply(item, "movie", 4830+offset, 1)
+		result := decode(response)
+		confirmed := result.Metadata.LastConfirmedNFOObservation
+		if allCalls.Load() != beforeCalls+1 || result.Metadata.Revision != 2 || result.Metadata.Kind != "Movie" || result.NFO == nil || result.NFO.Status != status || len(result.NFO.Applied) != 0 || len(result.TMDB.Applied) != 4 || confirmed == nil || confirmed.Status != status || confirmed.AcceptedRevision != 2 || !domain.ValidLastConfirmedNFOObservation(*confirmed) {
+			t.Fatal("trusted NFO fallback did not atomically preserve observation", mode)
+		}
+		if mode == "missing" && confirmed.Stamp != nil {
+			t.Fatal("missing fallback invented NFO stamp")
+		}
+		if mode == "invalid" {
+			hash := sha256.Sum256([]byte(`<movie><title>broken`))
+			if confirmed.Stamp == nil || confirmed.Stamp.SHA256 != hex.EncodeToString(hash[:]) {
+				t.Fatal("invalid fallback lost actual original bytes")
+			}
+		}
+		for _, field := range result.Metadata.Fields {
+			if field.Source != "tmdb" || field.NFOOrigin != nil {
+				t.Fatal("missing/invalid fallback invented NFO fields", mode)
+			}
+		}
+		if strings.Contains(string(response.body), file) || strings.Contains(string(response.body), rootPath) || strings.Contains(string(response.body), `<movie><title>broken`) {
+			t.Fatal("fallback exposed private NFO data")
+		}
+		var local int
+		if err := store.Pool.QueryRow(ctx, `SELECT count(*),count(*) FILTER(WHERE event='item.nfo_metadata_applied') FROM audit_logs WHERE target_id=$1::uuid AND event IN ('item.tmdb_metadata_applied','item.nfo_metadata_applied')`, item).Scan(&count, &local); err != nil || count != 1 || local != 0 {
+			t.Fatal("fallback left separate observation/NFO audit", mode, err)
+		}
 		if mode == "invalid" {
 			if original, err := os.ReadFile(file); err != nil || string(original) != `<movie><title>broken` {
 				t.Fatal("invalid NFO original changed", err)
 			}
 		}
 	}
+	assertNoObservation := func(item string) {
+		t.Helper()
+		if value, err := store.ItemMetadata(ctx, actor, item); err != nil || value.Revision != 1 || value.Kind != "HomeVideo" || value.Fields[0].Source != "existing" || value.LastConfirmedNFOObservation != nil {
+			t.Fatal("failed fallback left partial observation or metadata", err)
+		}
+		var count int
+		if err := store.Pool.QueryRow(ctx, `SELECT count(*) FROM audit_logs WHERE target_id=$1::uuid AND event IN ('item.tmdb_metadata_applied','item.nfo_metadata_applied')`, item).Scan(&count); err != nil || count != 0 {
+			t.Fatal("failed fallback left apply audit", err)
+		}
+	}
+	for offset, mode := range []string{"invalid-bytes", "missing-appears", "invalid-repaired"} {
+		item, file := newNFOItem("state-change-"+mode, "HomeVideo", `<movie><title>broken`)
+		if mode == "missing-appears" {
+			if err := os.Remove(file); err != nil {
+				t.Fatal(err)
+			}
+		}
+		providerActions.Store(4840+offset, func() {
+			changed := document
+			var stamp time.Time
+			if mode == "invalid-bytes" {
+				info, err := os.Stat(file)
+				if err != nil {
+					t.Error(err)
+					return
+				}
+				stamp, changed = info.ModTime(), `<movie><title>broKen`
+			}
+			if err := os.WriteFile(file, []byte(changed), 0600); err != nil {
+				t.Error(err)
+			}
+			if !stamp.IsZero() {
+				if err := os.Chtimes(file, stamp, stamp); err != nil {
+					t.Error(err)
+				}
+			}
+		})
+		if response := apply(item, "movie", 4840+offset, 1); response.status != 409 {
+			t.Fatal("changed fallback observation committed", mode, response.status)
+		}
+		assertNoObservation(item)
+	}
+	for offset, mode := range []string{"unsafe", "lock-only", "permission"} {
+		content := `<!DOCTYPE movie [<!ENTITY unsafe SYSTEM "file:///private">]><movie><title>&unsafe;</title></movie>`
+		if mode == "lock-only" {
+			content = `<movie><lockdata>true</lockdata></movie>`
+		}
+		item, file := newNFOItem("state-unavailable-"+mode, "HomeVideo", content)
+		if mode == "permission" {
+			if err := os.Chmod(file, 0000); err != nil {
+				t.Fatal(err)
+			}
+		}
+		beforeCalls := allCalls.Load()
+		response := apply(item, "movie", 4860+offset, 1)
+		if mode == "permission" {
+			if err := os.Chmod(file, 0600); err != nil {
+				t.Fatal(err)
+			}
+		}
+		if response.status != 503 || allCalls.Load() != beforeCalls {
+			t.Fatal("unsafe or unavailable input triggered fallback", mode, response.status)
+		}
+		assertNoObservation(item)
+	}
+	failedFallback, failedFallbackFile := newNFOItem("state-provider-error", "HomeVideo", document)
+	if err := os.Remove(failedFallbackFile); err != nil {
+		t.Fatal(err)
+	}
+	if response := apply(failedFallback, "movie", 4004, 1); response.status != 503 {
+		t.Fatal("provider failure accepted missing fallback", response.status)
+	}
+	assertNoObservation(failedFallback)
+	cancelFallback, cancelFallbackFile := newNFOItem("state-provider-cancel", "HomeVideo", document)
+	if err := os.Remove(cancelFallbackFile); err != nil {
+		t.Fatal(err)
+	}
+	fallbackCtx, cancelFallbackRequest := context.WithCancel(ctx)
+	fallbackDone := make(chan metadataHTTPResult, 1)
+	go func() {
+		fallbackDone <- do(fallbackCtx, "POST", "/api/v1/items/"+cancelFallback+"/metadata/tmdb", `{"resource":"movie","providerId":4850,"expectedRevision":1,"confirmed":true}`, grant.Token)
+	}()
+	select {
+	case <-fallbackCancelStarted:
+	case <-time.After(3 * time.Second):
+		cancelFallbackRequest()
+		t.Fatal("missing fallback cancellation did not reach provider")
+	}
+	cancelFallbackRequest()
+	if response := <-fallbackDone; !errors.Is(response.err, context.Canceled) {
+		t.Fatal("missing fallback request cancellation lost", response.err)
+	}
+	select {
+	case <-fallbackCancelFinished:
+	case <-time.After(3 * time.Second):
+		t.Fatal("missing fallback cancellation did not reach provider context")
+	}
+	assertNoObservation(cancelFallback)
+	t.Log("actual HTTP/TLS/NFO/PostgreSQL fallback: missing and corrupt original bytes, one revision/audit and retained safe status; appearance/repair/same-size-mtime byte change conflict; unsafe/lock-only/permission/provider failure leave no observation PASS")
 	t.Log("actual HTTP/TLS/NFO/PostgreSQL selection: specific and conventional movie/tvshow names, case folding, higher-priority appearance, secondary candidate change, ambiguous names denied before provider PASS")
 	for offset, mode := range []string{"root", "parent", "media", "nfo"} {
 		name := "identity-" + mode

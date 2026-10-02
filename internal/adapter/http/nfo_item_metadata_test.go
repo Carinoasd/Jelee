@@ -25,3 +25,24 @@ func TestNFOItemSchemaIndependentOfJobsAndTMDB(t *testing.T) {
 		t.Fatal("disabled accounts exposed NFO apply")
 	}
 }
+
+func TestNFOConfirmedObservationSchemaExcludesPrivatePaths(t *testing.T) {
+	spec := Specification(config.Config{EnableAccounts: true})
+	schemas := spec["components"].(map[string]any)["schemas"].(map[string]any)
+	for _, name := range []string{"LastConfirmedNFOObservation", "NFOItemObservationStamp"} {
+		schema, ok := schemas[name].(map[string]any)
+		if !ok || schema["additionalProperties"] != false {
+			t.Fatal("confirmed observation schema not bounded", name)
+		}
+		properties := schema["properties"].(map[string]any)
+		for _, private := range []string{"path", "relativePath", "rootPath", "fields", "lockData", "selection", "physical"} {
+			if properties[private] != nil {
+				t.Fatal("public observation exposes private reader data", name, private)
+			}
+		}
+	}
+	item := schemas["ItemMetadata"].(map[string]any)
+	if item["properties"].(map[string]any)["lastConfirmedNFOObservation"] == nil || schemas["LastConfirmedNFOObservation"].(map[string]any)["allOf"] == nil {
+		t.Fatal("historical observation or missing stamp contract absent")
+	}
+}

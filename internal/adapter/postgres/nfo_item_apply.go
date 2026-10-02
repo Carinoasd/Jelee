@@ -9,8 +9,20 @@ import (
 )
 
 var _ app.NFOItemApplyRepository = (*Store)(nil)
+var _ app.NFOItemObservationApplyRepository = (*Store)(nil)
 
 func (s *Store) ApplyItemNFO(ctx context.Context, actor domain.Actor, scope domain.NFOItemScope, fields domain.NFOItemFields) (domain.MetadataApplyResult, error) {
+	return s.applyItemNFO(ctx, actor, scope, fields, nil)
+}
+
+func (s *Store) ApplyItemNFOObservation(ctx context.Context, actor domain.Actor, scope domain.NFOItemScope, state domain.NFOItemObservationState) (domain.MetadataApplyResult, error) {
+	if !domain.ValidNFOItemObservationState(scope, state) || state.Status != domain.NFOItemObservedValid {
+		return domain.MetadataApplyResult{}, domain.ErrInvalid
+	}
+	return s.applyItemNFO(ctx, actor, scope, state.Selection.Fields, &state)
+}
+
+func (s *Store) applyItemNFO(ctx context.Context, actor domain.Actor, scope domain.NFOItemScope, fields domain.NFOItemFields, state *domain.NFOItemObservationState) (domain.MetadataApplyResult, error) {
 	if !domain.ValidNFOItemScope(scope) || !domain.ValidNFOItemFields(fields) || !(fields.Kind == scope.Kind || scope.Kind == "HomeVideo" && fields.Kind == "Movie") {
 		return domain.MetadataApplyResult{}, domain.ErrInvalid
 	}
@@ -42,6 +54,12 @@ func (s *Store) ApplyItemNFO(ctx context.Context, actor domain.Actor, scope doma
 		if _, err = tx.Exec(ctx, `UPDATE items SET kind='Movie' WHERE id=$1::uuid`, scope.ItemID); err != nil {
 			return domain.MetadataApplyResult{}, storageError(err)
 		}
+	}
+	if state != nil {
+		if err = writeConfirmedNFOObservation(ctx, tx, scope, *state); err != nil {
+			return domain.MetadataApplyResult{}, err
+		}
+		result.NFO = &domain.MetadataFieldApplyReport{Status: state.Status, Applied: result.Applied, Skipped: result.Skipped}
 	}
 	result.Metadata, err = readItemMetadata(ctx, tx, scope.ItemID, false)
 	if err != nil {

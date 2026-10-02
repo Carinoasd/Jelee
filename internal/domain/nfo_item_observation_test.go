@@ -44,6 +44,8 @@ func TestNFOItemObservationRejectsInventedProvenance(t *testing.T) {
 		{"invalid-partial-fields", invalid, func(v *NFOItemObservationState) { v.Selection.Fields = valid.Selection.Fields }},
 		{"invalid-lock", invalid, func(v *NFOItemObservationState) { v.Selection.Fields.LockData = true }},
 		{"invalid-empty-digest", invalid, func(v *NFOItemObservationState) { v.Selection.CandidateDigest = "" }},
+		{"invalid-empty-candidates", invalid, func(v *NFOItemObservationState) { v.Selection.CandidateDigest = NFOCandidateDigest([]string{}) }},
+		{"valid-empty-candidates", valid, func(v *NFOItemObservationState) { v.Selection.CandidateDigest = NFOCandidateDigest([]string{}) }},
 		{"invalid-identity", invalid, func(v *NFOItemObservationState) { v.Identity.ParserVersion = "unknown" }},
 		{"zero-read-time", missing, func(v *NFOItemObservationState) { v.ReadAt = time.Time{} }},
 		{"nonfinite-read-time", missing, func(v *NFOItemObservationState) { v.ReadAt = time.Date(10000, 1, 1, 0, 0, 0, 0, time.UTC) }},

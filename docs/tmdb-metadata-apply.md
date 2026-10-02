@@ -1,5 +1,7 @@
 # 確認 TMDB 候選後套用文字欄位
 
+本頁保留該階段的實作與驗證；後續第24版的三態保存及可信缺失／損壞回退，見[最新回退契約](nfo-tmdb-fallback.md)。
+
 管理員可呼叫 `POST /api/v1/items/{id}/metadata/tmdb`，提供 `resource`（movie／series）、正整數 `providerId`、目前 `expectedRevision` 與明確 `confirmed: true`。入口需要已配置 TMDB 金鑰；搜尋仍只回傳候選，套用需要另行確認。HTTP 不接受任意欄位值或來源網址。
 
 應用先以短交易驗證管理員、項目種類、版本與媒體庫偏好，再於交易外取得電影／劇集詳細資料。最終交易重新核對有效 session、版本、種類及 NFO 設定；網路等待期間不持有資料庫項目鎖。版本變更回傳 409，不覆蓋等待期間的人工修改。

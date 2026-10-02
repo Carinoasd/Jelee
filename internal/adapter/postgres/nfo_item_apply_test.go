@@ -68,8 +68,9 @@ func TestNFOItemPersistenceManualPriorityAndSeparateLocks(t *testing.T) {
 	if err != nil || value.Fields[0].Source != "manual" || value.Fields[0].NFOOrigin != nil {
 		t.Fatal("manual takeover retained origin", err)
 	}
+	nfoMigrateVersion(t, f, "down", 23)
 	nfoMigrateVersion(t, f, "down", 22)
-	nfoMigrateVersion(t, f, "up", 23)
+	nfoMigrateVersion(t, f, "up", SchemaVersion)
 	value, err = f.s.ItemMetadata(f.ctx, f.a, scope.ItemID)
 	if err != nil || value.Revision != 6 || value.Fields[0].Value != manual {
 		t.Fatal("clean NFO migration changed manual data", err)
@@ -78,8 +79,9 @@ func TestNFOItemPersistenceManualPriorityAndSeparateLocks(t *testing.T) {
 
 func TestNFOItemAtomicRollbackAndScopeInvalidation(t *testing.T) {
 	f, scope, fields := nfoItemApplyFixture(t)
+	nfoMigrateVersion(t, f, "down", 23)
 	nfoMigrateVersion(t, f, "down", 22)
-	nfoMigrateVersion(t, f, "up", 23)
+	nfoMigrateVersion(t, f, "up", SchemaVersion)
 	if _, err := f.s.Pool.Exec(f.ctx, `CREATE FUNCTION reject_nfo_overview() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF NEW.field='overview' THEN RAISE EXCEPTION 'fixture rejection'; END IF; RETURN NEW; END $$; CREATE TRIGGER reject_nfo_overview BEFORE INSERT ON item_metadata_fields FOR EACH ROW EXECUTE FUNCTION reject_nfo_overview()`); err != nil {
 		t.Fatal(err)
 	}

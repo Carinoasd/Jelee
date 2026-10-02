@@ -51,6 +51,11 @@ func readItemMetadata(ctx context.Context, tx pgx.Tx, item string, lock bool) (d
 	if err := rows.Err(); err != nil {
 		return value, storageError(err)
 	}
+	rows.Close()
+	value.LastConfirmedNFOObservation, err = readConfirmedNFOObservation(ctx, tx, item, value.Revision)
+	if err != nil {
+		return value, err
+	}
 	if len(value.Fields) == 0 || value.Fields[0].Field != "title" {
 		value.Fields = append([]domain.ItemMetadataField{{Field: "title", Value: title, Source: "existing"}}, value.Fields...)
 	}

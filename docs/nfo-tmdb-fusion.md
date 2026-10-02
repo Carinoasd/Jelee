@@ -1,5 +1,7 @@
 # 唯讀 NFO 與 TMDB 同次套用
 
+本頁保留該階段的實作與驗證；後續第24版的三態保存及可信缺失／損壞回退，見[最新回退契約](nfo-tmdb-fallback.md)。
+
 管理員確認 `POST /api/v1/items/{id}/metadata/tmdb` 時，唯讀 NFO 庫可在一次最終交易中合併可信 NFO 與 TMDB。沿用第 23 版資料結構，沒有新增遷移。
 
 ## 處理流程

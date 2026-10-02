@@ -19,12 +19,13 @@ type ItemMetadataField struct {
 }
 
 type ItemMetadata struct {
-	ItemID    string              `json:"itemId"`
-	LibraryID string              `json:"libraryId"`
-	Kind      string              `json:"kind"`
-	NFOMode   string              `json:"-"`
-	Revision  int64               `json:"revision"`
-	Fields    []ItemMetadataField `json:"fields"`
+	ItemID                      string                       `json:"itemId"`
+	LibraryID                   string                       `json:"libraryId"`
+	Kind                        string                       `json:"kind"`
+	NFOMode                     string                       `json:"-"`
+	Revision                    int64                        `json:"revision"`
+	Fields                      []ItemMetadataField          `json:"fields"`
+	LastConfirmedNFOObservation *LastConfirmedNFOObservation `json:"lastConfirmedNFOObservation"`
 }
 
 // Manual patches carry no provider or NFO identity. A nil value preserves the
@@ -78,6 +79,10 @@ func ValidItemMetadataPatches(item string, revision int64, patches []ItemMetadat
 }
 
 func CloneItemMetadata(value ItemMetadata) ItemMetadata {
+	if value.LastConfirmedNFOObservation != nil {
+		observation := CloneLastConfirmedNFOObservation(*value.LastConfirmedNFOObservation)
+		value.LastConfirmedNFOObservation = &observation
+	}
 	value.Fields = append([]ItemMetadataField{}, value.Fields...)
 	for i := range value.Fields {
 		if value.Fields[i].UpdatedAt != nil {

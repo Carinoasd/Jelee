@@ -41,3 +41,7 @@ type NFOItemApplyRepository interface {
 	NFOItemScopeRepository
 	ApplyItemNFO(context.Context, domain.Actor, domain.NFOItemScope, domain.NFOItemFields) (domain.MetadataApplyResult, error)
 }
+
+type NFOItemObservationApplyRepository interface {
+	ApplyItemNFOObservation(context.Context, domain.Actor, domain.NFOItemScope, domain.NFOItemObservationState) (domain.MetadataApplyResult, error)
+}
