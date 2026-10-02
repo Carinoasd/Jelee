@@ -1,0 +1,30 @@
+{
+  "version": 1,
+  "scope": "worker-process",
+  "rssSource": "/proc/self/statm",
+  "workload": "mixed-1000-default-kdf-v1",
+  "sampleEveryMillis": 1000,
+  "headroomPolicy": {
+    "percent": 25,
+    "roundUpMiB": 16,
+    "reason": "各組單次實測峰值增加 25% 工程餘量，再向上取整至 16 MiB；這是初始回歸門檻，未宣稱來自多次測量的統計變異。正式門檻凍結後須另跑相同負載驗證。"
+  },
+  "profiles": [
+    {
+      "gogcPercent": 100,
+      "goMemoryLimitBytes": 536870912,
+      "processRssBudgetBytes": 486539264,
+      "baselinePeakBytes": 375955456,
+      "baselineSourceDigest": "6cc2731c0f64fb819bc5b08e98fdfa94fc357704bbcd860f3a7b8dd24b2a8d07",
+      "baselineEvidenceSha256": "56288a9b07a22068445eb404049a16403a49c64a570f4486e59eebf74a2f06ac"
+    },
+    {
+      "gogcPercent": 50,
+      "goMemoryLimitBytes": 536870912,
+      "processRssBudgetBytes": 369098752,
+      "baselinePeakBytes": 290652160,
+      "baselineSourceDigest": "6cc2731c0f64fb819bc5b08e98fdfa94fc357704bbcd860f3a7b8dd24b2a8d07",
+      "baselineEvidenceSha256": "56288a9b07a22068445eb404049a16403a49c64a570f4486e59eebf74a2f06ac"
+    }
+  ]
+}

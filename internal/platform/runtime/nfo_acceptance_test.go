@@ -288,6 +288,9 @@ func TestProductionNFOWorkerAcceptance(t *testing.T) {
 	var peakHeap uint64
 	var baselineGoroutines int
 	for round := 0; round < 3 || withSustained && time.Since(sustainedStarted) < 5*time.Minute; round++ {
+		if round < 3 {
+			memoryProfile.residentPhase(t, []string{"cold", "warm", "changed"}[round])
+		}
 		before := validation.Stats()
 		beforeProbe := probing.probeCalls.Load()
 		beforeProcess := probing.processStats()
@@ -450,6 +453,7 @@ func TestProductionNFOWorkerAcceptance(t *testing.T) {
 			goruntime.ReadMemStats(&baselineMemory)
 			peakHeap = baselineMemory.HeapAlloc
 			baselineGoroutines = goruntime.NumGoroutine()
+			memoryProfile.residentPhase(t, "sustained")
 			sustainedStarted = time.Now()
 		} else if withSustained && round >= 3 {
 			sustainedRounds++
@@ -475,6 +479,7 @@ func TestProductionNFOWorkerAcceptance(t *testing.T) {
 		record, _ := json.Marshal(map[string]any{"sustainedAcceptance": "passed", "seconds": elapsed.Seconds(), "rounds": sustainedRounds, "baselineHeap": baselineMemory.HeapAlloc, "finalHeap": finalMemory.HeapAlloc, "peakSampleHeap": peakHeap, "baselineGoroutines": baselineGoroutines, "finalGoroutines": finalGoroutines})
 		fmt.Println(string(record))
 	}
+	memoryProfile.residentPhase(t, "cancellation")
 	// Cancellation is observed after actual directory inventory and a real NFO
 	// read. The previous successful image baseline must survive the failed round.
 	probing.Disable()
@@ -557,6 +562,7 @@ func TestProductionNFOWorkerAcceptance(t *testing.T) {
 		t.Fatal("recovery reads/cache/probe counts differ")
 	}
 	fmt.Println(`{"cancellationRecovery":"passed","cancelledMissing":0,"cancelledComparisonComplete":false,"baselineUnchanged":true,"recoveredComparisonComplete":true,"recoveryParses":0,"recoveryChildStarts":0}`)
+	memoryProfile.residentPhase(t, "shutdown")
 	// No read call is active now; rearm the test-only barrier for shutdown.
 	controlled.entered = make(chan struct{})
 	controlled.once = sync.Once{}
@@ -599,5 +605,6 @@ func TestProductionNFOWorkerAcceptance(t *testing.T) {
 		response.Body.Close()
 		t.Fatal("HTTP listener remained open")
 	}
+	memoryProfile.residentPhase(t, "stopped")
 	fmt.Println(`{"shutdown":"passed","signal":"SIGTERM","httpClosed":true,"activeNFOCalls":0,"activeChildLifecycles":0,"activeLeases":0,"readBarrier":"after a real read; cancelled API joined"}`)
 }

@@ -62,7 +62,7 @@ Fx 的單一資源擁有者在 HTTP／worker 結束後關閉 metrics，再關閉
 
 固定 OTel API／SDK `v1.47.0`、Prometheus exporter `v0.69.0`、client_golang `v1.24.1`，組合依上游 exporter 的 go.mod 選定；相依由 go.mod／go.sum 記錄。OTel 與 client_golang 採 Apache-2.0，來源見 [OTel release](https://github.com/open-telemetry/opentelemetry-go/releases/tag/v1.47.0)、[exporter go.mod](https://github.com/open-telemetry/opentelemetry-go/blob/exporters/prometheus/v0.69.0/exporters/prometheus/go.mod)、[OTel 授權](https://github.com/open-telemetry/opentelemetry-go/blob/v1.47.0/LICENSE)及 [Prometheus client 授權](https://github.com/prometheus/client_golang/blob/v1.24.1/LICENSE)。原專案 LICENSE 保留。
 
-原本 runtime／pool 段驗證：Windows 576 個通過事件、Linux race 570、真 PostgreSQL race 5。Windows 略過 7 個依賴原生環境／DB 的案例；Linux race 略過 1 個 DB 案例，該案另由真 PG 執行通過。事件數含父測試。vet、三個命令 build、模組 checksum、增量品牌、gitignore 與格式檢查通過；全量品牌仍失敗。見[執行證據與來源雜湊](evidence/metrics.json)。工作系列已接入同一端點；tracing、GOGC 配置、容器 OOM／記憶體預算及 24h 驗收尚未完成；G41.8 要求的指標均已暴露；G42.9 的記憶體預算門禁，以及 G42.8 的配置及容器驗收尚待實作。
+原本 runtime／pool 段驗證：Windows 576 個通過事件、Linux race 570、真 PostgreSQL race 5。Windows 略過 7 個依賴原生環境／DB 的案例；Linux race 略過 1 個 DB 案例，該案另由真 PG 執行通過。事件數含父測試。vet、三個命令 build、模組 checksum、增量品牌、gitignore 與格式檢查通過；全量品牌仍失敗。見[執行證據與來源雜湊](evidence/metrics.json)。工作系列已接入同一端點，G41.8 要求的指標均已暴露。後續 G42.8 的可覆寫配置與容器 OOM 驗收見[執行時記憶體設定](runtime-memory.md)，G42.9 的固定 RSS 基線、預算及獨立門禁見[常駐記憶體預算](resident-memory.md)。Tracing 及 24h 驗收仍未完成。
 
 ## 共享工作端點驗證
 

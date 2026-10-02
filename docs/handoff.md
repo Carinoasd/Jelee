@@ -1,4 +1,18 @@
-## 最新接續：G42.8 容器記憶體設定與驗收完成
+## 最新接續：G42.9 固定 RSS 預算與獨立門禁完成
+
+在既有 Go 指標上補上真 worker 父程序 RSS 採樣，每秒及八個工作階段邊界取樣，上限 1024 筆；固定使用近似的 `/proc/self/statm`。GOGC100／50 各一次 1000 檔／五分鐘基線，採樣峰值 358.54／277.19 MiB。增加 25% 工程餘量並向上取整至 16 MiB，將 464／352 MiB 預算固定入版控，綁定基線原始 bytes 與來源雜湊。
+
+另以兩個新容器驗證相同負載，RSS 峰值 358.65／277.39 MiB，406／397 筆，均通過固定預算。持續暖掃 21 輪約313.74秒／20輪約304.28秒；完整檔案計數、正式兩槽 KDF、取消復原、主入口／SIGTERM、正常 OOM 零增量及獨立 OOM 負向通過，自建資源清理。兩組 source digest 均為 `846c44a2e15a7f022faf06bb3ce7e0bc543aab397f76861f4452f614b66f96e1`，862 份凍結來源保持。
+
+Controller 固定讀取預算及基線，拒絕重複 JSON key、非有限值、缺檔、錯 hash、來源改動及缺組；每組與最後彙總均重算原始採樣。超標先保留採樣、門檻與失敗狀態，再清理。真基線複本的超標 1 byte 負向重播均退出1，原始證據未改；CI 沿原必要步驟執行並保留失敗 artifact。
+
+Windows Go 79 通過事件／13 略過，Linux race 73／7；44 個 Python 契約與 Linux Compose／原生 Go 檢查通過。Windows 初次 sampler 單元測試的時鐘解析度已修復，未改原生讀取；控制器暫存目錄的沙箱權限問題以標準本機測試確認通過。90 份 SQL、五份直播核心、授權與需求原文保持。遠端 CI 必須另外確認，完整品牌仍有既存舊名稱殘留。
+
+[預算與範圍](resident-memory.md)／[基線](evidence/resident-memory-baseline.json)／[獨立門禁證據](evidence/resident-memory-gate.json)。追溯 336 項：7 完成／184 部分／145 阻塞，仍第三階段。本段不代表 4C8G 整機、十萬圖片、五十萬混合條目或 24h 完成。
+
+下一小段依 `.testdata/runtime-pprof-next.md`，在既有負載與 GC 點補 heap／inuse_space 前後證據；不新增公開除錯端點或額外長負載，G42.10 仍有規模與長測待完成。沿用同分支繁中 PR46，不 merge／release／tag／force-push／設定 Git 身分。下方為歷史紀錄。
+
+## 歷史接續：G42.8 容器記憶體設定與驗收完成
 
 新增明確選用的 Compose 記憶體設定：GOGC=100、GOMEMLIMIT=512MiB、容器 768MiB 且禁用 swap，三值皆可覆寫。真正的 Compose 合併確認只影響 jelee 的預期欄位；基礎安全限制保持。沒有生產 Go 或 SQL 變更。
 

@@ -166,7 +166,7 @@ jobs:
         # Invoke directly so the original child exit code is not replaced by
         # GNU make's generic failure status. The wrapper always starts a report.
         run: python3 -B scripts/runtime_memory_contracts.py
-      - name: Real memory profiles and mixed media five-minute sustained acceptance
+      - name: Fixed RSS budgets and mixed media five-minute sustained acceptance
         id: family-ignore-sustained-worker
         run: make runtime-memory-worker-test
       - name: Retain memory and mixed sustained acceptance evidence
@@ -179,6 +179,8 @@ jobs:
             .testdata/runtime-memory-acceptance.txt
             .testdata/runtime-memory-summary.json
             .testdata/runtime-memory-case-*.json
+            tools/resident-memory-budget.json
+            docs/evidence/resident-memory-baseline.json
           if-no-files-found: error
           retention-days: 7
       - name: Retain probe worker acceptance evidence

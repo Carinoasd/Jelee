@@ -20,9 +20,12 @@ from test_probe_runtime import digest
 from test_probe_worker import source_digest as probe_source_digest
 from test_sandbox_native import select_fixtures
 from container_memory import validate_memory_profile
+from resident_memory import validate_resident_baseline, validate_resident_budget, validate_resident_results, validate_resident_samples
 from runtime_memory_acceptance import check_oom_negative, check_production_entry, container_state, inspect_owned, memory_flags, retain_worker_failure_log
 
 ROOT = Path(__file__).resolve().parent.parent
+RESIDENT_BUDGET = "tools/resident-memory-budget.json"
+RESIDENT_BASELINE = "docs/evidence/resident-memory-baseline.json"
 WITH_FAMILY = os.environ.get("JELEE_FAMILY_IGNORE_ACCEPTANCE") == "true"
 WITH_IGNORE = WITH_FAMILY or os.environ.get("JELEE_NFO_IGNORE_ACCEPTANCE") == "true"
 WITH_SUSTAINED = os.environ.get("JELEE_FAMILY_IGNORE_SUSTAINED_ACCEPTANCE") == "true"
@@ -37,10 +40,44 @@ EVIDENCE_PREFIX = "runtime-memory" if WITH_MEMORY else ("family-ignore-sustained
 def source_digest():
     record = {"sharedSources": probe_source_digest(), "controller": digest(Path(__file__).resolve())}
     record["memorySources"] = {name: digest(ROOT / name) for name in (
-        "scripts/container_memory.py", "scripts/runtime_memory_acceptance.py", "scripts/check_memory_compose.py",
+        "scripts/container_memory.py", "scripts/resident_memory.py", "scripts/runtime_memory_acceptance.py", "scripts/check_memory_compose.py",
         "deploy/docker-compose.yml", "deploy/docker-compose.memory.yml",
+        RESIDENT_BUDGET, RESIDENT_BASELINE,
     )}
     return hashlib.sha256(json.dumps(record, sort_keys=True).encode()).hexdigest()
+
+
+def unique_json_object(pairs):
+    result = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError("duplicate JSON key")
+        result[key] = value
+    return result
+
+
+def reject_json_constant(_value):
+    raise ValueError("non-finite JSON value")
+
+
+def load_resident_budget():
+    # Both files are tracked and fixed. CI has no calibration/bypass switch.
+    try:
+        with (ROOT / RESIDENT_BUDGET).open("rb") as stream:
+            budget_bytes = stream.read(65537)
+        with (ROOT / RESIDENT_BASELINE).open("rb") as stream:
+            baseline_bytes = stream.read(4 * 1024 * 1024 + 1)
+        if len(budget_bytes) > 65536 or len(baseline_bytes) > 4 * 1024 * 1024:
+            raise ValueError("oversized fixed evidence")
+        budget, baseline = (json.loads(data, object_pairs_hook=unique_json_object,
+                                       parse_constant=reject_json_constant)
+                            for data in (budget_bytes, baseline_bytes))
+    except (OSError, ValueError, UnicodeError):
+        raise RuntimeError("resident budget baseline files unavailable or invalid") from None
+    evidence_sha = hashlib.sha256(baseline_bytes).hexdigest()
+    validate_resident_baseline(budget, baseline, evidence_sha)
+    return budget, {"budgetSha256": hashlib.sha256(budget_bytes).hexdigest(),
+                    "baselineEvidenceSha256": evidence_sha}
 
 
 def png(width):
@@ -72,9 +109,11 @@ def snapshot(directory):
             for p in directory.iterdir()}
 
 
-def run_case(total, gogc=100):
+def run_case(total, gogc=100, resident_budget=None, budget_identity=None):
     if sys.platform != "linux":
         raise RuntimeError("NFO worker acceptance requires Linux Docker")
+    if WITH_MEMORY and (resident_budget is None or budget_identity is None):
+        raise RuntimeError("fixed resident memory budget required")
     dsn = os.environ.get("JELEE_TEST_DATABASE_URL", "")
     parsed = urlparse(dsn)
     if parsed.scheme not in ("postgres", "postgresql") or parsed.path != "/jelee_test" or not parsed.hostname or any(c in dsn for c in "\r\n"):
@@ -199,6 +238,14 @@ def run_case(total, gogc=100):
                         raise RuntimeError("required mixed acceptance failed or skipped")
                     if WITH_MEMORY:
                         report["memoryValidation"] = validate_memory_profile(report.get("memoryProfile"), inspect_owned(container), expected_gogc=gogc)
+                        report["residentValidation"] = validate_resident_samples(report["memoryProfile"])
+                        configured = next(p for p in resident_budget["profiles"] if p["gogcPercent"] == gogc)
+                        report["residentBudget"] = {"result": "failed", **budget_identity,
+                                                    "gogcPercent": gogc,
+                                                    "processRssBudgetBytes": configured["processRssBudgetBytes"],
+                                                    "observedPeakRssBytes": report["residentValidation"]["peakRssBytes"]}
+                        report["residentValidation"] = validate_resident_budget(report["memoryProfile"], resident_budget, gogc)
+                        report["residentBudget"]["result"] = "passed"
                     break
                 time.sleep(1)
             else:
@@ -253,7 +300,7 @@ def run_case(total, gogc=100):
                 report["testArtifactsCleaned"] = not cleanup_failed
                 if cleanup_failed:
                     report["result"] = "failed"
-                (ROOT / (".testdata/runtime-memory-case-%d-gogc%d.json" % (total, gogc))).write_text(json.dumps(report, indent=2) + "\n")
+                (ROOT / (".testdata/" + EVIDENCE_PREFIX + "-case-%d-gogc%d.json" % (total, gogc))).write_text(json.dumps(report, indent=2) + "\n")
             if cleanup_failed:
                 raise RuntimeError("owned schema/container/image cleanup failed")
     report["testArtifactsCleaned"] = True
@@ -269,9 +316,20 @@ def main():
     try:
         if WITH_MEMORY:
             from check_memory_compose import run_compose_check
+            report["residentBudget"] = {"result": "failed"}
+            before_source = source_digest()
+            budget, budget_identity = load_resident_budget()
+            if source_digest() != before_source:
+                raise RuntimeError("memory acceptance source changed while loading budget")
+            report["sourceDigest"] = before_source
+            report["residentBudget"] = {"result": "failed", **budget_identity}
             report["compose"] = run_compose_check()
-            report["cases"].append(run_case(1000, gogc=100))
-            report["cases"].append(run_case(1000, gogc=50))
+            report["cases"].append(run_case(1000, gogc=100, resident_budget=budget, budget_identity=budget_identity))
+            report["cases"].append(run_case(1000, gogc=50, resident_budget=budget, budget_identity=budget_identity))
+            validate_resident_results(report["cases"], budget)
+            if source_digest() != before_source:
+                raise RuntimeError("memory acceptance source changed between profiles")
+            report["residentBudget"]["result"] = "passed"
         else:
             report["cases"].append(run_case(1000))
             report["cases"].append(run_case(100))

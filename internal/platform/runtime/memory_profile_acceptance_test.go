@@ -59,15 +59,17 @@ type memoryKDFReport struct {
 }
 
 type memoryProfileReport struct {
-	Version       int                   `json:"version"`
-	Runtime       memoryRuntimeSettings `json:"runtime"`
-	Before        memoryCgroupSnapshot  `json:"before"`
-	After         memoryCgroupSnapshot  `json:"after"`
-	RuntimeBefore memoryRuntimeCounters `json:"runtimeBefore"`
-	RuntimeAfter  memoryRuntimeCounters `json:"runtimeAfter"`
-	KDF           memoryKDFReport       `json:"kdf"`
-	ElapsedMillis int64                 `json:"elapsedMillis"`
-	started       time.Time
+	Version         int                   `json:"version"`
+	Runtime         memoryRuntimeSettings `json:"runtime"`
+	Before          memoryCgroupSnapshot  `json:"before"`
+	After           memoryCgroupSnapshot  `json:"after"`
+	RuntimeBefore   memoryRuntimeCounters `json:"runtimeBefore"`
+	RuntimeAfter    memoryRuntimeCounters `json:"runtimeAfter"`
+	KDF             memoryKDFReport       `json:"kdf"`
+	Resident        residentProfile       `json:"resident"`
+	ElapsedMillis   int64                 `json:"elapsedMillis"`
+	started         time.Time
+	residentSampler *residentSampler
 }
 
 func readMemoryRuntimeSettings() (memoryRuntimeSettings, error) {
@@ -165,11 +167,21 @@ func startMemoryProfile() (*memoryProfileReport, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &memoryProfileReport{Version: 1, Runtime: runtime, Before: before, RuntimeBefore: readMemoryRuntimeCounters(), started: time.Now()}, nil
+	profile := &memoryProfileReport{Version: 1, Runtime: runtime, Before: before, RuntimeBefore: readMemoryRuntimeCounters(), started: time.Now()}
+	profile.residentSampler, err = startResidentSampler(profile.started)
+	if err != nil {
+		return nil, err
+	}
+	return profile, nil
 }
 
 func (profile *memoryProfileReport) finish(t *testing.T) {
 	t.Helper()
+	resident, err := profile.residentSampler.finish()
+	profile.Resident = resident
+	if err != nil {
+		t.Error("resident memory sampling failed", err)
+	}
 	after, err := readMemoryCgroup(memoryCgroupRoot)
 	if err != nil {
 		t.Error("read final memory profile cgroup evidence", err)
