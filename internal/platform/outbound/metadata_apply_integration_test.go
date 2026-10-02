@@ -1039,6 +1039,81 @@ func TestTMDBMetadataThroughTLSHTTPAndPostgres(t *testing.T) {
 	if raw, err := os.ReadFile(movieExtrasFile); err != nil || string(raw) != lockedExtrasDocument || allCalls.Load() != beforeMovieExtrasCalls {
 		t.Fatal("HTTP movie edits changed source or contacted provider", err)
 	}
+	for _, root := range []string{"episode", "episodedetails"} {
+		episodeDocument := `<` + root + `><title>Episode title</title><plot>Episode plot</plot><season>2</season><episode>7</episode><displayseason>3</displayseason><displayepisode>1</displayepisode><aired>2024-02-29</aired><showtitle>Series name</showtitle></` + root + `>`
+		episodeItem, episodeFile := newNFOItem("episode-details-"+root, "Episode", episodeDocument)
+		episodeResponse := request("POST", "/api/v1/items/"+episodeItem+"/metadata/nfo", `{"expectedRevision":1,"confirmed":true}`)
+		if episodeResponse.status != 200 {
+			t.Fatal("HTTP episode NFO is not supported by item scope", root, episodeResponse.status)
+		}
+		episodeResult := decode(episodeResponse)
+		if episodeResult.Metadata.Kind != "Episode" || episodeResult.Metadata.Revision != 2 || len(episodeResult.Metadata.Facts) != 6 {
+			t.Fatal("HTTP episode NFO facts were not persisted", root)
+		}
+		expected := map[string]string{"seasonNumber": `2`, "episodeNumber": `7`, "displaySeason": `3`, "displayEpisode": `1`, "aired": `"2024-02-29"`, "showTitle": `"Series name"`}
+		for _, fact := range episodeResult.Metadata.Facts {
+			if string(fact.Value) != expected[fact.Field] || fact.Source != "nfo" || fact.NFOOrigin == nil {
+				t.Fatal("HTTP episode NFO lost value or provenance", root, fact.Field)
+			}
+		}
+		if raw, err := os.ReadFile(episodeFile); err != nil || string(raw) != episodeDocument {
+			t.Fatal("episode NFO review changed source", err)
+		}
+		for _, invalid := range []struct{ field, value string }{
+			{"seasonNumber", `-1`}, {"episodeNumber", `1000001`}, {"displaySeason", `1.5`}, {"displayEpisode", `"1"`},
+			{"aired", `"2023-02-29"`}, {"showTitle", `"\t"`}, {"aired", `0`}, {"showTitle", `[]`},
+		} {
+			body := fmt.Sprintf(`{"expectedRevision":2,"facts":[{"field":%q,"value":%s}]}`, invalid.field, invalid.value)
+			if response := request("PUT", "/api/v1/items/"+episodeItem+"/metadata", body); response.status != 400 {
+				t.Fatal("HTTP invalid episode value accepted", invalid.field, response.status)
+			}
+		}
+		if response := request("PUT", "/api/v1/items/"+episodeItem+"/metadata", `{"expectedRevision":2,"facts":[{"field":"showTitle","locked":true}]}`); response.status != 200 {
+			t.Fatal("HTTP episode flag edit failed", response.status)
+		}
+		flagged, err := store.ItemMetadata(ctx, actor, episodeItem)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, fact := range flagged.Facts {
+			if fact.Field == "showTitle" && (!fact.Locked || fact.NFOOrigin == nil) {
+				t.Fatal("HTTP episode flag edit lost value provenance")
+			}
+		}
+		if response := request("PUT", "/api/v1/items/"+episodeItem+"/metadata", `{"expectedRevision":3,"facts":[{"field":"seasonNumber","value":null},{"field":"episodeNumber","value":0},{"field":"displaySeason","value":0},{"field":"displayEpisode","value":null},{"field":"aired","value":null},{"field":"showTitle","value":"Manual series","locked":false}]}`); response.status != 200 {
+			t.Fatal("HTTP manual episode edit failed", response.status)
+		}
+		review := decode(request("POST", "/api/v1/items/"+episodeItem+"/metadata/nfo", `{"expectedRevision":4,"confirmed":true}`))
+		expected = map[string]string{"seasonNumber": `null`, "episodeNumber": `0`, "displaySeason": `0`, "displayEpisode": `null`, "aired": `null`, "showTitle": `"Manual series"`}
+		for _, fact := range review.Metadata.Facts {
+			if string(fact.Value) != expected[fact.Field] || fact.Source != "manual" || fact.NFOOrigin != nil || fact.NFOLockOrigin != nil {
+				t.Fatal("HTTP episode review replaced manual value", fact.Field)
+			}
+		}
+		lockedDocument := strings.TrimSuffix(episodeDocument, "</"+root+">") + "<lockdata>true</lockdata></" + root + ">"
+		if err := os.WriteFile(episodeFile, []byte(lockedDocument), 0600); err != nil {
+			t.Fatal(err)
+		}
+		locked := decode(request("POST", "/api/v1/items/"+episodeItem+"/metadata/nfo", `{"expectedRevision":5,"confirmed":true}`))
+		if locked.Metadata.Revision != 6 || len(locked.Metadata.Facts) != 25 {
+			t.Fatal("HTTP episode global lock omitted supported facts")
+		}
+		for _, fact := range locked.Metadata.Facts {
+			if fact.NFOLockOrigin == nil || fact.NFOLockOrigin.Projection != domain.NFOItemEpisodeFieldsVersion {
+				t.Fatal("HTTP episode lock lost proof", fact.Field)
+			}
+			if value, present := expected[fact.Field]; present {
+				if string(fact.Value) != value || fact.Source != "manual" || fact.NFOOrigin != nil {
+					t.Fatal("HTTP episode lock replaced manual value", fact.Field)
+				}
+			} else if string(fact.Value) != "null" || fact.Source != "existing" || fact.UpdatedAt != nil || fact.NFOOrigin != nil {
+				t.Fatal("HTTP episode lock invented metadata", fact.Field)
+			}
+		}
+		if raw, err := os.ReadFile(episodeFile); err != nil || string(raw) != lockedDocument {
+			t.Fatal("episode edits changed source", err)
+		}
+	}
 	seriesDetailsDocument := `<tvshow><title>Series details</title><season>3</season><episode>24</episode><status>Continuing</status><airs_dayofweek>Friday</airs_dayofweek><airs_time>9 PM</airs_time></tvshow>`
 	seriesDetailsItem, seriesDetailsFile := newNFOItem("series-counts-and-airing", "Series", seriesDetailsDocument)
 	seriesDetailsResult := decode(request("POST", "/api/v1/items/"+seriesDetailsItem+"/metadata/nfo", `{"expectedRevision":1,"confirmed":true}`))
@@ -1315,12 +1390,21 @@ func TestTMDBMetadataThroughTLSHTTPAndPostgres(t *testing.T) {
 	actorSchemas := actorSpec["components"].(map[string]any)["schemas"].(map[string]any)
 	actorFactSchema := actorSchemas["ItemMetadataFact"].(map[string]any)
 	actorEnums := actorFactSchema["properties"].(map[string]any)["field"].(map[string]any)["enum"].([]any)
+	for _, field := range domain.ItemMetadataEpisodeFieldNames() {
+		found := false
+		for _, name := range actorEnums {
+			found = found || name == field
+		}
+		if !found || len(actorFactSchema["oneOf"].([]any)) != 16 {
+			t.Fatal("HTTP OpenAPI omits episode details", field)
+		}
+	}
 	for _, field := range []string{"seasonCount", "episodeCount", "seriesStatus", "airsDayOfWeek", "airsTime"} {
 		found := false
 		for _, name := range actorEnums {
 			found = found || name == field
 		}
-		if !found || len(actorFactSchema["oneOf"].([]any)) != 13 {
+		if !found || len(actorFactSchema["oneOf"].([]any)) != 16 {
 			t.Fatal("HTTP OpenAPI omits series details", field)
 		}
 	}
@@ -1329,7 +1413,7 @@ func TestTMDBMetadataThroughTLSHTTPAndPostgres(t *testing.T) {
 		for _, name := range actorEnums {
 			found = found || name == field
 		}
-		if !found || len(actorFactSchema["oneOf"].([]any)) != 13 {
+		if !found || len(actorFactSchema["oneOf"].([]any)) != 16 {
 			t.Fatal("HTTP OpenAPI omits movie extras", field)
 		}
 	}
@@ -1339,7 +1423,7 @@ func TestTMDBMetadataThroughTLSHTTPAndPostgres(t *testing.T) {
 			collectionAdvertised = true
 		}
 	}
-	if !collectionAdvertised || len(actorFactSchema["oneOf"].([]any)) != 13 {
+	if !collectionAdvertised || len(actorFactSchema["oneOf"].([]any)) != 16 {
 		t.Fatal("HTTP OpenAPI omits collection structure")
 	}
 	ratingsAdvertised := false
@@ -1348,7 +1432,7 @@ func TestTMDBMetadataThroughTLSHTTPAndPostgres(t *testing.T) {
 			ratingsAdvertised = true
 		}
 	}
-	if !ratingsAdvertised || len(actorFactSchema["oneOf"].([]any)) != 13 {
+	if !ratingsAdvertised || len(actorFactSchema["oneOf"].([]any)) != 16 {
 		t.Fatal("HTTP OpenAPI omits multi-source ratings")
 	}
 	identifierAdvertised := false
@@ -1357,13 +1441,13 @@ func TestTMDBMetadataThroughTLSHTTPAndPostgres(t *testing.T) {
 			identifierAdvertised = true
 		}
 	}
-	if !identifierAdvertised || len(actorFactSchema["oneOf"].([]any)) != 13 {
+	if !identifierAdvertised || len(actorFactSchema["oneOf"].([]any)) != 16 {
 		t.Fatal("HTTP OpenAPI omits typed provider identifiers")
 	}
 	applyReportProperties := actorSchemas["MetadataApplyResult"].(map[string]any)["properties"].(map[string]any)
 	for _, reportField := range []string{"applied", "skipped"} {
-		if applyReportProperties[reportField].(map[string]any)["maxItems"] != float64(33) {
-			t.Fatal("HTTP OpenAPI cannot describe the complete series projection", reportField)
+		if applyReportProperties[reportField].(map[string]any)["maxItems"] != float64(39) {
+			t.Fatal("HTTP OpenAPI cannot describe the metadata field union", reportField)
 		}
 	}
 	actorAdvertised := false
@@ -1372,7 +1456,7 @@ func TestTMDBMetadataThroughTLSHTTPAndPostgres(t *testing.T) {
 			actorAdvertised = true
 		}
 	}
-	if !actorAdvertised || len(actorFactSchema["oneOf"].([]any)) != 13 {
+	if !actorAdvertised || len(actorFactSchema["oneOf"].([]any)) != 16 {
 		t.Fatal("HTTP OpenAPI omits structured actor facts")
 	}
 	actorDocument := `<movie><title>Actor example</title><actor><name>演員甲</name><role>主角</role><thumb>https://images.example.invalid/a.jpg</thumb><order>0</order></actor><actor><name>Actor B</name></actor></movie>`
@@ -1460,6 +1544,7 @@ func TestTMDBMetadataThroughTLSHTTPAndPostgres(t *testing.T) {
 	}
 	maxAllFacts = append(maxAllFacts, map[string]any{"field": "dateAdded", "value": "9999-12-31T23:59:59.999999999+23:59"}, map[string]any{"field": "trailers", "value": maxTrailers}, map[string]any{"field": "art", "value": maxArtwork})
 	maxAllFacts = append(maxAllFacts, map[string]any{"field": "seasonCount", "value": 1000000}, map[string]any{"field": "episodeCount", "value": -1}, map[string]any{"field": "seriesStatus", "value": strings.Repeat("<", 128)}, map[string]any{"field": "airsDayOfWeek", "value": strings.Repeat("<", 128)}, map[string]any{"field": "airsTime", "value": strings.Repeat("<", 128)})
+	maxAllFacts = append(maxAllFacts, map[string]any{"field": "seasonNumber", "value": 1000000}, map[string]any{"field": "episodeNumber", "value": 0}, map[string]any{"field": "displaySeason", "value": 1000000}, map[string]any{"field": "displayEpisode", "value": 0}, map[string]any{"field": "aired", "value": "2024-02-29T23:59:59.123456789+08:00"}, map[string]any{"field": "showTitle", "value": strings.Repeat("<", 1024)})
 	maxAllBody, err := json.Marshal(map[string]any{"expectedRevision": 1, "fields": maxTextPatches, "facts": maxAllFacts})
 	if err != nil {
 		t.Fatal(err)

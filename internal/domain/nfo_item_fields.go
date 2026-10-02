@@ -21,6 +21,8 @@ func NFOItemFieldNames(version string) []string {
 		return []string{"title", "originalTitle", "overview", "date"}
 	case NFOItemSortFieldsVersion:
 		return []string{"title", "originalTitle", "overview", "date", "sortTitle"}
+	case NFOItemEpisodeFieldsVersion:
+		return append(NFOItemFieldNames(NFOItemMovieFieldsVersion), ItemMetadataEpisodeFieldNames()...)
 	case NFOItemSeriesFieldsVersion:
 		return append(NFOItemFieldNames(NFOItemMovieFieldsVersion), ItemMetadataSeriesFieldNames()...)
 	case NFOItemMovieFieldsVersion:
@@ -52,25 +54,26 @@ func ItemMetadataFieldNames() []string {
 // NFOItemFields is an internal observation, not a caller supplied write intent.
 // It contains no filesystem paths. Library/item ownership is checked separately.
 type NFOItemFields struct {
-	Version       string
-	Kind          string
-	Identity      NFOIdentity
-	Stamp         NFOStamp
-	ReadAt        time.Time
-	SeriesDetails *NFOSeriesDetails
-	DateAdded     string
-	Trailers      []string
-	Art           []NFOArtwork
-	Collection    *NFOCollection
-	Ratings       []NFOSourceRating
-	UniqueIDs     []NFOUniqueID
-	Actors        []NFOActor
-	Lists         []NFOStringList
-	NumberFacts   []NFONumberFact
-	Facts         []NFOIntegerFact
-	Fields        []NFOTextField
-	LockData      bool
-	LockedFields  []string
+	Version        string
+	Kind           string
+	Identity       NFOIdentity
+	Stamp          NFOStamp
+	ReadAt         time.Time
+	EpisodeDetails *NFOEpisodeDetails
+	SeriesDetails  *NFOSeriesDetails
+	DateAdded      string
+	Trailers       []string
+	Art            []NFOArtwork
+	Collection     *NFOCollection
+	Ratings        []NFOSourceRating
+	UniqueIDs      []NFOUniqueID
+	Actors         []NFOActor
+	Lists          []NFOStringList
+	NumberFacts    []NFONumberFact
+	Facts          []NFOIntegerFact
+	Fields         []NFOTextField
+	LockData       bool
+	LockedFields   []string
 }
 
 type NFONumberFact struct {
@@ -92,40 +95,43 @@ func (NFOItemFields) String() string   { return "nfo item fields (data redacted)
 func (NFOItemFields) GoString() string { return "nfo item fields (data redacted)" }
 
 func ValidNFOItemFields(v NFOItemFields) bool {
-	if (v.Kind != "Movie" && v.Kind != "Series") || ValidateNFOIdentity(v.Identity) != nil || ValidateNFOStamp(v.Stamp) != nil || v.Stamp.Size > v.Identity.MaxSourceBytes || v.ReadAt.IsZero() || v.ReadAt.Year() < 1 || v.ReadAt.Year() > 9999 || len(v.Fields) > len(NFOItemFieldNames(v.Version)) || len(v.LockedFields) > 128 {
+	if (v.Kind != "Movie" && v.Kind != "Series" && v.Kind != "Episode") || ValidateNFOIdentity(v.Identity) != nil || ValidateNFOStamp(v.Stamp) != nil || v.Stamp.Size > v.Identity.MaxSourceBytes || v.ReadAt.IsZero() || v.ReadAt.Year() < 1 || v.ReadAt.Year() > 9999 || len(v.Fields) > len(NFOItemFieldNames(v.Version)) || len(v.LockedFields) > 128 {
 		return false
 	}
-	if len(v.Facts) > 2 || len(v.Facts) > 0 && v.Version != NFOItemYearFieldsVersion && v.Version != NFOItemNumericFieldsVersion && v.Version != NFOItemListFieldsVersion && v.Version != NFOItemActorFieldsVersion && v.Version != NFOItemIdentifierFieldsVersion && v.Version != NFOItemRatingFieldsVersion && v.Version != NFOItemCollectionFieldsVersion && v.Version != NFOItemMovieFieldsVersion && v.Version != NFOItemSeriesFieldsVersion || v.Version == NFOItemYearFieldsVersion && len(v.Facts) > 1 {
+	if len(v.Facts) > 2 || len(v.Facts) > 0 && v.Version != NFOItemYearFieldsVersion && v.Version != NFOItemNumericFieldsVersion && v.Version != NFOItemListFieldsVersion && v.Version != NFOItemActorFieldsVersion && v.Version != NFOItemIdentifierFieldsVersion && v.Version != NFOItemRatingFieldsVersion && v.Version != NFOItemCollectionFieldsVersion && v.Version != NFOItemMovieFieldsVersion && v.Version != NFOItemSeriesFieldsVersion && v.Version != NFOItemEpisodeFieldsVersion || v.Version == NFOItemYearFieldsVersion && len(v.Facts) > 1 {
 		return false
 	}
-	if len(v.NumberFacts) > 2 || len(v.NumberFacts) > 0 && v.Version != NFOItemNumericFieldsVersion && v.Version != NFOItemListFieldsVersion && v.Version != NFOItemActorFieldsVersion && v.Version != NFOItemIdentifierFieldsVersion && v.Version != NFOItemRatingFieldsVersion && v.Version != NFOItemCollectionFieldsVersion && v.Version != NFOItemMovieFieldsVersion && v.Version != NFOItemSeriesFieldsVersion {
+	if len(v.NumberFacts) > 2 || len(v.NumberFacts) > 0 && v.Version != NFOItemNumericFieldsVersion && v.Version != NFOItemListFieldsVersion && v.Version != NFOItemActorFieldsVersion && v.Version != NFOItemIdentifierFieldsVersion && v.Version != NFOItemRatingFieldsVersion && v.Version != NFOItemCollectionFieldsVersion && v.Version != NFOItemMovieFieldsVersion && v.Version != NFOItemSeriesFieldsVersion && v.Version != NFOItemEpisodeFieldsVersion {
 		return false
 	}
-	if len(v.Lists) > len(ItemMetadataListFieldNames()) || len(v.Lists) > 0 && v.Version != NFOItemListFieldsVersion && v.Version != NFOItemActorFieldsVersion && v.Version != NFOItemIdentifierFieldsVersion && v.Version != NFOItemRatingFieldsVersion && v.Version != NFOItemCollectionFieldsVersion && v.Version != NFOItemMovieFieldsVersion && v.Version != NFOItemSeriesFieldsVersion {
+	if len(v.Lists) > len(ItemMetadataListFieldNames()) || len(v.Lists) > 0 && v.Version != NFOItemListFieldsVersion && v.Version != NFOItemActorFieldsVersion && v.Version != NFOItemIdentifierFieldsVersion && v.Version != NFOItemRatingFieldsVersion && v.Version != NFOItemCollectionFieldsVersion && v.Version != NFOItemMovieFieldsVersion && v.Version != NFOItemSeriesFieldsVersion && v.Version != NFOItemEpisodeFieldsVersion {
 		return false
 	}
-	if len(v.Actors) > 0 && (v.Version != NFOItemActorFieldsVersion && v.Version != NFOItemIdentifierFieldsVersion && v.Version != NFOItemRatingFieldsVersion && v.Version != NFOItemCollectionFieldsVersion && v.Version != NFOItemMovieFieldsVersion && v.Version != NFOItemSeriesFieldsVersion || !ValidMetadataActors(v.Actors)) {
+	if len(v.Actors) > 0 && (v.Version != NFOItemActorFieldsVersion && v.Version != NFOItemIdentifierFieldsVersion && v.Version != NFOItemRatingFieldsVersion && v.Version != NFOItemCollectionFieldsVersion && v.Version != NFOItemMovieFieldsVersion && v.Version != NFOItemSeriesFieldsVersion && v.Version != NFOItemEpisodeFieldsVersion || !ValidMetadataActors(v.Actors)) {
 		return false
 	}
-	if len(v.UniqueIDs) > 0 && (v.Version != NFOItemIdentifierFieldsVersion && v.Version != NFOItemRatingFieldsVersion && v.Version != NFOItemCollectionFieldsVersion && v.Version != NFOItemMovieFieldsVersion && v.Version != NFOItemSeriesFieldsVersion || !ValidMetadataUniqueIDs(v.UniqueIDs)) {
+	if len(v.UniqueIDs) > 0 && (v.Version != NFOItemIdentifierFieldsVersion && v.Version != NFOItemRatingFieldsVersion && v.Version != NFOItemCollectionFieldsVersion && v.Version != NFOItemMovieFieldsVersion && v.Version != NFOItemSeriesFieldsVersion && v.Version != NFOItemEpisodeFieldsVersion || !ValidMetadataUniqueIDs(v.UniqueIDs)) {
 		return false
 	}
-	if len(v.Ratings) > 0 && (v.Version != NFOItemRatingFieldsVersion && v.Version != NFOItemCollectionFieldsVersion && v.Version != NFOItemMovieFieldsVersion && v.Version != NFOItemSeriesFieldsVersion || !ValidMetadataRatings(v.Ratings)) {
+	if len(v.Ratings) > 0 && (v.Version != NFOItemRatingFieldsVersion && v.Version != NFOItemCollectionFieldsVersion && v.Version != NFOItemMovieFieldsVersion && v.Version != NFOItemSeriesFieldsVersion && v.Version != NFOItemEpisodeFieldsVersion || !ValidMetadataRatings(v.Ratings)) {
 		return false
 	}
-	if v.Collection != nil && (v.Version != NFOItemCollectionFieldsVersion && v.Version != NFOItemMovieFieldsVersion && v.Version != NFOItemSeriesFieldsVersion || !ValidMetadataCollection(*v.Collection)) {
+	if v.Collection != nil && (v.Version != NFOItemCollectionFieldsVersion && v.Version != NFOItemMovieFieldsVersion && v.Version != NFOItemSeriesFieldsVersion && v.Version != NFOItemEpisodeFieldsVersion || !ValidMetadataCollection(*v.Collection)) {
 		return false
 	}
-	if v.DateAdded != "" && (v.Version != NFOItemMovieFieldsVersion && v.Version != NFOItemSeriesFieldsVersion || !ValidMetadataAddedDate(v.DateAdded)) {
+	if v.DateAdded != "" && (v.Version != NFOItemMovieFieldsVersion && v.Version != NFOItemSeriesFieldsVersion && v.Version != NFOItemEpisodeFieldsVersion || !ValidMetadataAddedDate(v.DateAdded)) {
 		return false
 	}
-	if len(v.Trailers) > 0 && (v.Version != NFOItemMovieFieldsVersion && v.Version != NFOItemSeriesFieldsVersion || !ValidMetadataTrailers(v.Trailers)) {
+	if len(v.Trailers) > 0 && (v.Version != NFOItemMovieFieldsVersion && v.Version != NFOItemSeriesFieldsVersion && v.Version != NFOItemEpisodeFieldsVersion || !ValidMetadataTrailers(v.Trailers)) {
 		return false
 	}
-	if len(v.Art) > 0 && (v.Version != NFOItemMovieFieldsVersion && v.Version != NFOItemSeriesFieldsVersion || !ValidMetadataArtwork(v.Art)) {
+	if len(v.Art) > 0 && (v.Version != NFOItemMovieFieldsVersion && v.Version != NFOItemSeriesFieldsVersion && v.Version != NFOItemEpisodeFieldsVersion || !ValidMetadataArtwork(v.Art)) {
 		return false
 	}
 	if v.SeriesDetails != nil && (v.Kind != "Series" || v.Version != NFOItemSeriesFieldsVersion || !ValidNFOSeriesDetails(*v.SeriesDetails)) {
+		return false
+	}
+	if v.EpisodeDetails != nil && (v.Kind != "Episode" || v.Version != NFOItemEpisodeFieldsVersion || !ValidNFOEpisodeDetails(*v.EpisodeDetails)) {
 		return false
 	}
 	seenFacts := map[string]bool{}
@@ -146,7 +152,7 @@ func ValidNFOItemFields(v NFOItemFields) bool {
 				return false
 			}
 		case "runtimeMinutes":
-			if v.Version != NFOItemNumericFieldsVersion && v.Version != NFOItemListFieldsVersion && v.Version != NFOItemActorFieldsVersion && v.Version != NFOItemIdentifierFieldsVersion && v.Version != NFOItemRatingFieldsVersion && v.Version != NFOItemCollectionFieldsVersion && v.Version != NFOItemMovieFieldsVersion && v.Version != NFOItemSeriesFieldsVersion || fact.Value < 0 || fact.Value > 10000000 {
+			if v.Version != NFOItemNumericFieldsVersion && v.Version != NFOItemListFieldsVersion && v.Version != NFOItemActorFieldsVersion && v.Version != NFOItemIdentifierFieldsVersion && v.Version != NFOItemRatingFieldsVersion && v.Version != NFOItemCollectionFieldsVersion && v.Version != NFOItemMovieFieldsVersion && v.Version != NFOItemSeriesFieldsVersion && v.Version != NFOItemEpisodeFieldsVersion || fact.Value < 0 || fact.Value > 10000000 {
 				return false
 			}
 		default:
@@ -168,8 +174,8 @@ func ValidNFOItemFields(v NFOItemFields) bool {
 		if len(v.Fields) != 0 || !HasNFOItemFieldLock(v) {
 			return false
 		}
-	case NFOItemSortFieldsVersion, NFOItemTextFieldsVersion, NFOItemYearFieldsVersion, NFOItemNumericFieldsVersion, NFOItemListFieldsVersion, NFOItemActorFieldsVersion, NFOItemIdentifierFieldsVersion, NFOItemRatingFieldsVersion, NFOItemCollectionFieldsVersion, NFOItemMovieFieldsVersion, NFOItemSeriesFieldsVersion:
-		if len(v.Fields) == 0 && len(v.Facts) == 0 && len(v.NumberFacts) == 0 && len(v.Lists) == 0 && len(v.Actors) == 0 && len(v.UniqueIDs) == 0 && len(v.Ratings) == 0 && v.SeriesDetails == nil && v.Collection == nil && v.DateAdded == "" && len(v.Trailers) == 0 && len(v.Art) == 0 && !HasNFOItemFieldLock(v) {
+	case NFOItemSortFieldsVersion, NFOItemTextFieldsVersion, NFOItemYearFieldsVersion, NFOItemNumericFieldsVersion, NFOItemListFieldsVersion, NFOItemActorFieldsVersion, NFOItemIdentifierFieldsVersion, NFOItemRatingFieldsVersion, NFOItemCollectionFieldsVersion, NFOItemMovieFieldsVersion, NFOItemSeriesFieldsVersion, NFOItemEpisodeFieldsVersion:
+		if len(v.Fields) == 0 && len(v.Facts) == 0 && len(v.NumberFacts) == 0 && len(v.Lists) == 0 && len(v.Actors) == 0 && len(v.UniqueIDs) == 0 && len(v.Ratings) == 0 && v.EpisodeDetails == nil && v.SeriesDetails == nil && v.Collection == nil && v.DateAdded == "" && len(v.Trailers) == 0 && len(v.Art) == 0 && !HasNFOItemFieldLock(v) {
 			return false
 		}
 	default:

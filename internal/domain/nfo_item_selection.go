@@ -29,6 +29,9 @@ func NFOItemCandidatePaths(scope NFOItemScope) []string {
 	if !ValidNFOItemScope(scope) {
 		return nil
 	}
+	if scope.Kind == "Episode" {
+		return []string{scope.Source.RelativePath}
+	}
 	generic := "movie.nfo"
 	if scope.Kind == "Series" {
 		generic = "tvshow.nfo"

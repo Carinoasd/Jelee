@@ -1324,3 +1324,29 @@ Go／SQL freeze並記錄58檔snapshot .testdata/nfo-series-details-validation-so
 | 完整 HTTP／TLS／PG | 1 | 1 | 0 |
 
 全部本地驗證已終端結束。見[契約](nfo-series-details.md)與[證據](evidence/nfo-series-details.json)。接續繁中PR46提交推送，再處理季／單集来源與實際匯入；仍全G00–G51、4完成184部分148阻塞。禁止merge／release／tag／force-push／改寫已發布SQL及Git身份設定，五個未獲具體刪除授權的直播核心保持。
+
+
+### 第37版已發布，接續單集NFO
+
+第37版已提交推送 e211393d3ded952ff5b7eef94c98cec9cdb00368（feat(nfo): 保存劇集計數與播出資訊），63檔1095新增61刪除。繁中PR46更新／attach，遠端head核對一致、OPEN/master。001–037共74份SQL現已發布不可改寫。schema37證據記錄保護此前72份SQL是正確歷史數字。全部37本地驗證已終端：Windows29/3291/503skip，native5/1155/0skip，PG840/536.029秒/0skip，nativePG11/16.233秒/0skip，HTTP76.799秒/0skip。正式AirsTime傳遞改壞重現HTTP NFO series details lost values or provenance；finally逐位元復原25fc1e2dcf8820a05e2432b1a108934e962c6e665148310ec5c3102a871c643f後完整HTTP通過。
+
+checks首輪vet/build通過，brand-new抓到兩處docs舊品牌完整路徑；只將相容性來源描述改為SeriesNfoSaver.cs檔名，保留授權與原碼，不擴allowlist；續跑brand-new0/181、gitignore0、fullbrand14735/186。所有Go/SQL snapshot在回歸與負向復原後一致。新e211 CI尚未核對，上一3cbb C#Tests/Format/OpenAPI/CodeQLsuccess、ABI failure、Go兩workflow最後仍in_progress。
+
+下一段單集已開始，只有正式測試檔internal/platform/outbound/metadata_apply_integration_test.go新增Episode實際HTTP案例（兩種root：episode／episodedetails），預期seasonNumber、episodeNumber、displaySeason、displayEpisode、aired、showTitle六facts及sourceproof；已終端預期red，literal HTTP episode NFO is not supported by item scope episode 503。證據 .testdata/nfo-episode-details-initial-red.jsonl，wrapper run-nfo-episode-details-e2e.py，handle74898已結束，沒有live程序。尚未實作38新domain／scope／reader／store／SQL。
+
+實作方向：Episode綁真影片來源、僅同名.nfo，不回退movie.nfo或tvshow.nfo；接受episode與episodedetails兩root，先保持單文件／單Entry；新增EpisodeDetails有型別值、owned clone/recheck、來源／獨立鎖／人工clear同交易，new projection以movie28欄+episode6欄（34）為基礎，不含Series五欄；API facts聯集將30項（movie19+series5+episode6）。數值沿用parser0..1000000，aired保留日期表示，showTitle文字1024UTF8 bytes。一般parser已解析這六項；季／影集的資料夾來源與父子條目綁定仍待後續，不可用虛構media_sources冒充已完成。仍全G00–G51／4done184partial148blocked，禁merge等保持。
+
+
+### 第38版：單集NFO来源與六個欄位
+
+第38版將單集NFO綁定既有Episode真實影片來源，只選同名檔，接受episode及episodedetails單一根元素。保存季數、集數、顯示編號、首播日期與影集名；人工清除、來源及獨立鎖共交易，全域鎖34欄。API為30個facts聯集、16種變體。五表回滾、非法SQL拒絕、缺值鎖、影集資料38→37→38及保留新資料拒降通過；001–037共74份已發布SQL保持。
+
+| 驗證 | 套件 | 通過事件（含父測試） | 略過 |
+| --- | ---: | ---: | ---: |
+| Windows 全套 | 29 | 3298 | 512 |
+| Linux race | 5 | 1161 | 0 |
+| 完整 PostgreSQL | 1 | 855 | 0 |
+| 原生 worker | 1 | 11 | 0 |
+| 完整 HTTP／TLS／PG | 1 | 1 | 0 |
+
+全部本地驗證已結束。接續繁中PR46提交推送，再處理影集／季來源及實際匯入；仍第三階段、全案336項4完成184部分148阻塞。五個未獲具體刪除授權的直播核心保持。見[契約](nfo-episode-details.md)與[證據](evidence/nfo-episode-details.json)。

@@ -84,7 +84,7 @@ func TestItemFieldsSeriesEncodingAndCancellation(t *testing.T) {
 	if value, err := reader.ReadItemFields(ctx, path, "Series"); !errors.Is(err, context.Canceled) || len(value.Fields) != 0 {
 		t.Fatal("cancelled read produced fields")
 	}
-	if _, err := reader.ReadItemFields(context.Background(), path, "Episode"); !errors.Is(err, domain.ErrInvalid) {
+	if _, err := reader.ReadItemFields(context.Background(), path, "Season"); !errors.Is(err, domain.ErrInvalid) {
 		t.Fatal("unsupported item kind accepted")
 	}
 	if _, err := reader.ReadItemFields(nil, path, "Series"); !errors.Is(err, domain.ErrInvalid) {

@@ -39,5 +39,5 @@ func AdjacentNFOPath(media string) (string, bool) {
 
 func ValidNFOItemScope(v NFOItemScope) bool {
 	relative, ok := AdjacentNFOPath(v.MediaPath)
-	return ok && ValidID(v.ItemID) && ValidID(v.LibraryID) && ValidID(v.SourceID) && ValidID(v.RootID) && v.Revision >= 1 && v.Revision < ItemMetadataRevisionMax && v.Generation >= 1 && (v.Kind == "Movie" || v.Kind == "HomeVideo" || v.Kind == "Series") && v.Source.RootPath != "" && v.Source.RelativePath == relative
+	return ok && ValidID(v.ItemID) && ValidID(v.LibraryID) && ValidID(v.SourceID) && ValidID(v.RootID) && v.Revision >= 1 && v.Revision < ItemMetadataRevisionMax && v.Generation >= 1 && (v.Kind == "Movie" || v.Kind == "HomeVideo" || v.Kind == "Series" || v.Kind == "Episode") && v.Source.RootPath != "" && v.Source.RelativePath == relative
 }
