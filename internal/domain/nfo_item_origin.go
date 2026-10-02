@@ -20,7 +20,7 @@ type NFOItemOrigin struct {
 }
 
 func ValidNFOItemOrigin(v NFOItemOrigin) bool {
-	return ValidID(v.SourceID) && ValidID(v.RootID) && v.Generation >= 1 && probeHex(v.SHA256, 64) && probeHex(v.IdentityDigest, 64) && (v.Projection == NFOItemFieldsVersion || v.Projection == NFOItemSortFieldsVersion || v.Projection == NFOItemTextFieldsVersion || v.Projection == NFOItemYearFieldsVersion) && !v.ReadAt.IsZero() && v.ReadAt.Year() >= 1 && v.ReadAt.Year() <= 9999
+	return ValidID(v.SourceID) && ValidID(v.RootID) && v.Generation >= 1 && probeHex(v.SHA256, 64) && probeHex(v.IdentityDigest, 64) && (v.Projection == NFOItemFieldsVersion || v.Projection == NFOItemSortFieldsVersion || v.Projection == NFOItemTextFieldsVersion || v.Projection == NFOItemYearFieldsVersion || v.Projection == NFOItemNumericFieldsVersion) && !v.ReadAt.IsZero() && v.ReadAt.Year() >= 1 && v.ReadAt.Year() <= 9999
 }
 
 func NFOFieldLocked(fields NFOItemFields, field string) bool {
@@ -41,7 +41,7 @@ func NFOFieldLocked(fields NFOItemFields, field string) bool {
 		if (field == "mpaa" || field == "certification") && name == "officialrating" {
 			return true
 		}
-		if field == "title" && name == "name" || field == "originalTitle" && name == "originaltitle" || field == "overview" && name == "overview" || field == "date" && name == "premieredate" || field == "sortTitle" && name == "sortname" || field == "tagline" && name == "tagline" || field == "certification" && name == "certification" || field == "mpaa" && name == "mpaa" || field == "outline" && name == "outline" || field == "year" && (name == "year" || name == "productionyear") {
+		if field == "title" && name == "name" || field == "originalTitle" && name == "originaltitle" || field == "overview" && name == "overview" || field == "date" && name == "premieredate" || field == "sortTitle" && name == "sortname" || field == "tagline" && name == "tagline" || field == "certification" && name == "certification" || field == "mpaa" && name == "mpaa" || field == "outline" && name == "outline" || field == "year" && (name == "year" || name == "productionyear") || field == "runtimeMinutes" && (name == "runtime" || name == "runtimeminutes") || field == "rating" && (name == "rating" || name == "communityrating") || field == "userRating" && name == "userrating" {
 			return true
 		}
 	}

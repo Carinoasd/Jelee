@@ -22,12 +22,16 @@ func TestItemFieldsRejectsRepeatedUserRating(t *testing.T) {
 }
 
 func TestItemFieldsNumericSingletonsPreserveCompatibleValues(t *testing.T) {
-	for _, content := range []string{
-		`<year>1</year><runtime>0</runtime><rating>0</rating><userrating>0</userrating>`,
-		`<year>9999</year><runtime>10000000 minutes</runtime><communityrating>10</communityrating><userrating>10</userrating>`,
-		`<year>2024</year><runtime>92 min</runtime><rating>8,5</rating><userrating>9</userrating><ratings><rating name="imdb"><value>8.5</value></rating><rating name="critic" max="100"><value>95</value></rating></ratings>`,
+	for _, tc := range []struct {
+		content            string
+		year, runtime      int
+		rating, userRating float64
+	}{
+		{`<year>1</year><runtime>0</runtime><rating>0</rating><userrating>0</userrating>`, 1, 0, 0, 0},
+		{`<year>9999</year><runtime>10000000 minutes</runtime><communityrating>10</communityrating><userrating>10</userrating>`, 9999, 10000000, 10, 10},
+		{`<year>2024</year><runtime>92 min</runtime><rating>8,5</rating><userrating>9</userrating><ratings><rating name="imdb"><value>8.5</value></rating><rating name="critic" max="100"><value>95</value></rating></ratings>`, 2024, 92, 8.5, 9},
 	} {
-		root, name := sourceFixture(t, []byte(`<movie><title>T</title>`+content+`</movie>`))
+		root, name := sourceFixture(t, []byte(`<movie><title>T</title>`+tc.content+`</movie>`))
 		reader, err := NewSummaryReader(DefaultMaxBytes)
 		if err != nil {
 			t.Fatal(err)
@@ -35,6 +39,9 @@ func TestItemFieldsNumericSingletonsPreserveCompatibleValues(t *testing.T) {
 		fields, err := reader.ReadItemFields(context.Background(), domain.NFOSource{RootPath: root, RelativePath: name}, "Movie")
 		if err != nil || len(fields.Fields) != 1 || fields.Fields[0].Value != "T" {
 			t.Fatal("compatible numeric content rejected or invented text fields", err)
+		}
+		if fields.Version != domain.NFOItemNumericFieldsVersion || len(fields.Facts) != 2 || len(fields.NumberFacts) != 2 || fields.Facts[0] != (domain.NFOIntegerFact{Field: "year", Value: tc.year}) || fields.Facts[1] != (domain.NFOIntegerFact{Field: "runtimeMinutes", Value: tc.runtime}) || fields.NumberFacts[0] != (domain.NFONumberFact{Field: "rating", Value: tc.rating}) || fields.NumberFacts[1] != (domain.NFONumberFact{Field: "userRating", Value: tc.userRating}) {
+			t.Fatal("compatible numeric values lost their scalar types")
 		}
 	}
 }

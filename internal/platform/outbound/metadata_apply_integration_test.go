@@ -870,6 +870,69 @@ func TestTMDBMetadataThroughTLSHTTPAndPostgres(t *testing.T) {
 		t.Fatal("HTTP year lock-only invented a numeric value or classification")
 	}
 	t.Log("actual HTTP/TLS/NFO/PostgreSQL year fact: numeric provenance, manual null priority, strict null/type bounds and independent absent-value lock PASS")
+	runtimeItem, _ := newNFOItem("typed-runtime", "HomeVideo", `<movie><title>Runtime example</title><runtime>92 min</runtime></movie>`)
+	runtimeResult := decode(request("POST", "/api/v1/items/"+runtimeItem+"/metadata/nfo", `{"expectedRevision":1,"confirmed":true}`))
+	if runtimeResult.Metadata.Revision != 2 || len(runtimeResult.Metadata.Facts) != 1 || runtimeResult.Metadata.Facts[0].Field != "runtimeMinutes" || string(runtimeResult.Metadata.Facts[0].Value) != "92" || runtimeResult.Metadata.Facts[0].Source != "nfo" || runtimeResult.Metadata.Facts[0].NFOOrigin == nil {
+		t.Fatal("HTTP confirmed NFO runtime was not persisted as a typed fact")
+	}
+	ratingItem, _ := newNFOItem("typed-rating", "HomeVideo", `<movie><title>Rating example</title><rating>8.5</rating></movie>`)
+	ratingResult := decode(request("POST", "/api/v1/items/"+ratingItem+"/metadata/nfo", `{"expectedRevision":1,"confirmed":true}`))
+	if ratingResult.Metadata.Revision != 2 || len(ratingResult.Metadata.Facts) != 1 || ratingResult.Metadata.Facts[0].Field != "rating" || string(ratingResult.Metadata.Facts[0].Value) != "8.5" || ratingResult.Metadata.Facts[0].Source != "nfo" || ratingResult.Metadata.Facts[0].NFOOrigin == nil {
+		t.Fatal("HTTP confirmed NFO rating was not persisted as a typed fact")
+	}
+	userRatingItem, _ := newNFOItem("typed-user-rating", "HomeVideo", `<movie><title>User rating example</title><userrating>9.25</userrating></movie>`)
+	userRatingResult := decode(request("POST", "/api/v1/items/"+userRatingItem+"/metadata/nfo", `{"expectedRevision":1,"confirmed":true}`))
+	if userRatingResult.Metadata.Revision != 2 || len(userRatingResult.Metadata.Facts) != 1 || userRatingResult.Metadata.Facts[0].Field != "userRating" || string(userRatingResult.Metadata.Facts[0].Value) != "9.25" || userRatingResult.Metadata.Facts[0].Source != "nfo" || userRatingResult.Metadata.Facts[0].NFOOrigin == nil {
+		t.Fatal("HTTP confirmed NFO user rating was not persisted as a typed fact")
+	}
+	numericDocument := `<movie><title>Numeric example</title><originaltitle>Original</originaltitle><plot>Plot</plot><premiered>2024-02-29</premiered><sorttitle>Sort</sorttitle><tagline>Tag</tagline><outline>Outline</outline><mpaa>PG</mpaa><certification>TW:12</certification><year>2024</year><runtime>0 minutes</runtime><communityrating>0</communityrating><userrating>10</userrating><lockdata>true</lockdata></movie>`
+	numericItem, numericFile := newNFOItem("numeric-combined", "HomeVideo", numericDocument)
+	numericResult := decode(request("POST", "/api/v1/items/"+numericItem+"/metadata/nfo", `{"expectedRevision":1,"confirmed":true}`))
+	if numericResult.Metadata.Revision != 2 || len(numericResult.Applied) != 13 || len(numericResult.Metadata.Facts) != 4 {
+		t.Fatal("HTTP numeric projection did not apply all thirteen fields together")
+	}
+	expectedNumeric := map[string]string{"year": "2024", "runtimeMinutes": "0", "rating": "0", "userRating": "10"}
+	for _, fact := range numericResult.Metadata.Facts {
+		if string(fact.Value) != expectedNumeric[fact.Field] || fact.Source != "nfo" || fact.NFOOrigin == nil || fact.NFOOrigin.Projection != domain.NFOItemNumericFieldsVersion || fact.NFOLockOrigin == nil {
+			t.Fatal("HTTP numeric projection lost zero, bounds or global lock", fact.Field)
+		}
+	}
+	numericClear := request("PUT", "/api/v1/items/"+numericItem+"/metadata", `{"expectedRevision":2,"fields":[{"field":"title","value":"Owner title"}],"facts":[{"field":"year","value":2023},{"field":"runtimeMinutes","value":0},{"field":"rating","value":null},{"field":"userRating","value":9.25}]}`)
+	var clearedNumeric struct {
+		Data domain.ItemMetadata `json:"data"`
+	}
+	if numericClear.status != 200 || json.Unmarshal(numericClear.body, &clearedNumeric) != nil || clearedNumeric.Data.Revision != 3 || len(clearedNumeric.Data.Facts) != 4 {
+		t.Fatal("HTTP mixed text and four numeric manual edits failed", numericClear.status)
+	}
+	expectedNumeric = map[string]string{"year": "2023", "runtimeMinutes": "0", "rating": "null", "userRating": "9.25"}
+	for _, fact := range clearedNumeric.Data.Facts {
+		if string(fact.Value) != expectedNumeric[fact.Field] || fact.Source != "manual" || fact.NFOOrigin != nil || fact.NFOLockOrigin != nil {
+			t.Fatal("HTTP manual numeric takeover lost value or retained NFO proof", fact.Field)
+		}
+	}
+	for _, body := range []string{
+		`{"expectedRevision":3,"facts":[{"field":"runtimeMinutes","value":-1}]}`,
+		`{"expectedRevision":3,"facts":[{"field":"runtimeMinutes","value":1.5}]}`,
+		`{"expectedRevision":3,"facts":[{"field":"runtimeMinutes","value":10000001}]}`,
+		`{"expectedRevision":3,"facts":[{"field":"rating","value":10.1}]}`,
+		`{"expectedRevision":3,"facts":[{"field":"userRating","value":"9"}]}`,
+		`{"expectedRevision":3,"facts":[{"field":"rating","value":true}]}`,
+		`{"expectedRevision":3,"facts":[{"field":"rating","value":1},{"field":"rating","value":2}]}`,
+	} {
+		if response := request("PUT", "/api/v1/items/"+numericItem+"/metadata", body); response.status != 400 {
+			t.Fatal("HTTP invalid numeric manual edit accepted", response.status)
+		}
+	}
+	numericReview := decode(request("POST", "/api/v1/items/"+numericItem+"/metadata/nfo", `{"expectedRevision":3,"confirmed":true}`))
+	for _, fact := range numericReview.Metadata.Facts {
+		if string(fact.Value) != expectedNumeric[fact.Field] || fact.Source != "manual" || fact.NFOOrigin != nil || fact.NFOLockOrigin == nil {
+			t.Fatal("HTTP NFO review overwrote manual numeric edit or lost fresh lock", fact.Field)
+		}
+	}
+	if raw, err := os.ReadFile(numericFile); err != nil || string(raw) != numericDocument {
+		t.Fatal("numeric metadata review changed source bytes", err)
+	}
+	t.Log("actual HTTP/TLS/NFO/PostgreSQL: thirteen-field numeric projection, zero/bounds, mixed manual clear and renewed independent locks PASS")
 	if raw, err := os.ReadFile(textFile); err != nil || string(raw) != textDocument {
 		t.Fatal("extended text review changed original NFO", err)
 	}

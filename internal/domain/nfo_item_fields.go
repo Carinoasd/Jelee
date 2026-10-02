@@ -1,6 +1,7 @@
 package domain
 
 import (
+	"math"
 	"slices"
 	"strings"
 	"time"
@@ -11,6 +12,7 @@ const NFOItemLockFieldsVersion = "lock-only-fields-v1"
 const NFOItemSortFieldsVersion = "five-field-projection-v1"
 const NFOItemTextFieldsVersion = "extended-text-fields-v1"
 const NFOItemYearFieldsVersion = "year-fact-v1"
+const NFOItemNumericFieldsVersion = "numeric-facts-v1"
 
 // Each projection keeps its published field vocabulary. Returned slices are owned.
 func NFOItemFieldNames(version string) []string {
@@ -19,6 +21,8 @@ func NFOItemFieldNames(version string) []string {
 		return []string{"title", "originalTitle", "overview", "date"}
 	case NFOItemSortFieldsVersion:
 		return []string{"title", "originalTitle", "overview", "date", "sortTitle"}
+	case NFOItemNumericFieldsVersion:
+		return []string{"title", "originalTitle", "overview", "date", "sortTitle", "tagline", "outline", "mpaa", "certification", "year", "runtimeMinutes", "rating", "userRating"}
 	case NFOItemYearFieldsVersion:
 		return []string{"title", "originalTitle", "overview", "date", "sortTitle", "tagline", "outline", "mpaa", "certification", "year"}
 	case NFOItemTextFieldsVersion:
@@ -39,10 +43,16 @@ type NFOItemFields struct {
 	Identity     NFOIdentity
 	Stamp        NFOStamp
 	ReadAt       time.Time
+	NumberFacts  []NFONumberFact
 	Facts        []NFOIntegerFact
 	Fields       []NFOTextField
 	LockData     bool
 	LockedFields []string
+}
+
+type NFONumberFact struct {
+	Field string
+	Value float64
 }
 
 type NFOIntegerFact struct {
@@ -62,13 +72,36 @@ func ValidNFOItemFields(v NFOItemFields) bool {
 	if (v.Kind != "Movie" && v.Kind != "Series") || ValidateNFOIdentity(v.Identity) != nil || ValidateNFOStamp(v.Stamp) != nil || v.Stamp.Size > v.Identity.MaxSourceBytes || v.ReadAt.IsZero() || v.ReadAt.Year() < 1 || v.ReadAt.Year() > 9999 || len(v.Fields) > len(NFOItemFieldNames(v.Version)) || len(v.LockedFields) > 128 {
 		return false
 	}
-	if len(v.Facts) > 1 || len(v.Facts) > 0 && v.Version != NFOItemYearFieldsVersion {
+	if len(v.Facts) > 2 || len(v.Facts) > 0 && v.Version != NFOItemYearFieldsVersion && v.Version != NFOItemNumericFieldsVersion || v.Version == NFOItemYearFieldsVersion && len(v.Facts) > 1 {
 		return false
 	}
+	if len(v.NumberFacts) > 2 || len(v.NumberFacts) > 0 && v.Version != NFOItemNumericFieldsVersion {
+		return false
+	}
+	seenFacts := map[string]bool{}
 	for _, fact := range v.Facts {
-		if fact.Field != "year" || fact.Value < 1 || fact.Value > 9999 {
+		if seenFacts[fact.Field] {
 			return false
 		}
+		seenFacts[fact.Field] = true
+		switch fact.Field {
+		case "year":
+			if fact.Value < 1 || fact.Value > 9999 {
+				return false
+			}
+		case "runtimeMinutes":
+			if v.Version != NFOItemNumericFieldsVersion || fact.Value < 0 || fact.Value > 10000000 {
+				return false
+			}
+		default:
+			return false
+		}
+	}
+	for _, fact := range v.NumberFacts {
+		if seenFacts[fact.Field] || (fact.Field != "rating" && fact.Field != "userRating") || math.IsNaN(fact.Value) || math.IsInf(fact.Value, 0) || fact.Value < 0 || fact.Value > 10 {
+			return false
+		}
+		seenFacts[fact.Field] = true
 	}
 	switch v.Version {
 	case NFOItemFieldsVersion:
@@ -79,8 +112,8 @@ func ValidNFOItemFields(v NFOItemFields) bool {
 		if len(v.Fields) != 0 || !HasNFOItemFieldLock(v) {
 			return false
 		}
-	case NFOItemSortFieldsVersion, NFOItemTextFieldsVersion, NFOItemYearFieldsVersion:
-		if len(v.Fields) == 0 && len(v.Facts) == 0 && !HasNFOItemFieldLock(v) {
+	case NFOItemSortFieldsVersion, NFOItemTextFieldsVersion, NFOItemYearFieldsVersion, NFOItemNumericFieldsVersion:
+		if len(v.Fields) == 0 && len(v.Facts) == 0 && len(v.NumberFacts) == 0 && !HasNFOItemFieldLock(v) {
 			return false
 		}
 	default:

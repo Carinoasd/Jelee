@@ -1,6 +1,14 @@
 # 接手记录
 
-## 当前接续（优先于以下历史记录）
+## 最新接續：第30版數值保存
+
+目前仍第三階段，分支 `feat/jelee-ignore-family-worker`，延續普通 [PR #46](https://github.com/Carinoasd/Jelee/pull/46)，base `master`。第30版片長／一般評分／使用者評分已完成本地驗證，正式套用包含九文字與四數值；契約與實測見 [nfo-numeric-facts.md](nfo-numeric-facts.md)。Windows 29套件通過、480略過身份中的PG／完整HTTP均另有實測；Linux五套件race、完整PG 780事件、原生worker 11事件與實際HTTP／TLS／NFO／PG正反驗收通過。來源／需求／LICENSE／58份001–029遷移及五個待授權直播核心保持。
+
+G00–G51共336項仍4已完成／184部分完成／148未達完整驗收。下一段接多值資料的正式保存，之後人物／ID／來源季集／實際匯入／前端／無損回寫及全案驗收。全量品牌14735殘留與ABI相容差異仍待处理，不能宣稱CI全綠。所有PR文字用繁中；驗證後以命令級作者Carinoasd提交、同分支push／更新PR46／附聊天後立即接續。禁止merge、release/tag、force-push、既有遷移改寫與Git身份設定；第30版推送後也不可改寫。
+
+以下是逐段歷史，較舊的分支與schema版本不能當成目前狀態。
+
+## 歷史接續記錄
 
 使用者要求所有後續PR標題與說明使用繁體中文；PR18已改為繁中。用户再次明确每阶段验证后提交/push普通PR，持续下一阶段直到全部完成，不需阶段间确认。作者仍仅命令级Carinoasd，禁止merge/release/force push和改写旧迁移。
 
@@ -1140,3 +1148,11 @@ Windows {'passedPackages': 29, 'passedTestEventsIncludingParents': 3226, 'skippe
 接續95408f712ea75045c170e79fc978f046a32031b9，同PR46／branch。year-fact-v1固定九文字+year；Reader有型別整数→owned clone/recheck→NFO-only／fusion→JSONB facts／來源與獨立鎖／manualFacts省略與null／API。文字及facts共一revision/audit/transaction；人工值clear proof，flag-only保留；虛擬缺值year null不假造NFO值來源，旗標變更可實際保存existing-null且保留獨立鎖。JSON null僅facts[].value，其餘嚴格拒絕；TMDB仍四文字。新schema29嚴格值／來源／鎖約束，retained fact含manual-null或新proof拒降；001–028保持，40舊down鏈先29→28。驗證{"windows": {"passedPackages": 29, "passedTestEventsIncludingParents": 3253, "skippedTestEvents": 476, "elapsedSeconds": 8.596}, "native": {"passedPackages": 5, "passedTestEventsIncludingParents": 1119, "skippedTestEvents": 0, "elapsedSeconds": 3.449}, "full-pg": {"passedPackages": 1, "passedTestEventsIncludingParents": 771, "skippedTestEvents": 0, "elapsedSeconds": 412.16}, "native-pg": {"passedPackages": 1, "passedTestEventsIncludingParents": 11, "skippedTestEvents": 0, "elapsedSeconds": 15.358}, "e2e-restored": {"passedPackages": 1, "passedTestEventsIncludingParents": 1, "skippedTestEvents": 0, "elapsedSeconds": 74.029}}；五table融合rollback、混合人工text+fact原子rollback／commit、NULL範圍及來源／鎖通過。正式year projection disabled fullHTTP一葉缺typed fact失敗／byte restore／fullPASS，120合成writes保持。vet/build/newbrand0/181/gitignore0/full14735/186；56oldmig／原文件／五core／336／hash保持，無C#diff。見[nfo-year-fact.md](nfo-year-fact.md)／[證據](evidence/nfo-year-fact.json)。
 
 仍第三階段4done184partial148blocked。接續片長與評分等數值、人物／多值／IDs、來源／季集／實際inventory-worker-hierarchy／frontend／無損writeback／外部來源清除及全部G00–51。029推後immutable。禁merge／newbranch／forcepush／release-tag／oldmigration／Gitidentityconfig，同PR46繁中push／attach後立即下一段，goal active。
+
+### 第30版：片長與評分保存
+
+接續 3c04da041c1d76f01153fd9d067c182439df317a，同分支／PR46。numeric-facts-v1 固定九文字＋year/runtimeMinutes/rating/userRating；Reader 保留整數／小數與零值，owned clone 與重核比較兩種 fact 切片。NFO-only／融合／人工 facts／值来源与独立鎖同交易。全域13欄，只有鎖無值不虛構來源，manual-null/zero 優先，旗標保留 proof、給值解除 proof。新 schema30 嚴格型別／範圍／來源，retained 新資料含 manual-null 或任何 numeric proof 拒降；舊年份 proof 往返保持。40 舊降版鏈與 store loop 先30→29，001–029 58份保持。
+
+實測：{"windows": {"passedPackages": 29, "passedTestEventsIncludingParents": 3253, "skippedTestEvents": 480, "elapsedSeconds": 11.858}, "native": {"passedPackages": 5, "passedTestEventsIncludingParents": 1119, "skippedTestEvents": 0, "elapsedSeconds": 3.452}, "full-pg": {"passedPackages": 1, "passedTestEventsIncludingParents": 780, "skippedTestEvents": 0, "elapsedSeconds": 432.319}, "native-pg": {"passedPackages": 1, "passedTestEventsIncludingParents": 11, "skippedTestEvents": 0, "elapsedSeconds": 15.404}, "http": {"passedPackages": 1, "passedTestEventsIncludingParents": 1, "skippedTestEvents": 0, "elapsedSeconds": 74.007}}。四份初始 red、片長正式投影停用失敗／byte restore／完整 HTTP green；五 table rollback、manual priority/null/zero/lock-only/down guard/published year round trip 通過。見[nfo-numeric-facts.md](nfo-numeric-facts.md)與[證據](evidence/nfo-numeric-facts.json)。無 C# 變更；品牌與 ABI 差異仍待處理。
+
+仍第三階段，4 done／184 partial／148 blocked。接續人物／多值／ID、來源季集、實際 inventory／worker／階層、前端、無損 writeback、外部來源清除與效能等 G00–G51。30推後不可改寫。維持繁中同 PR46、命令級作者、禁 merge/release/tag/force-push/identity config；驗證後 push/attach 即繼續。

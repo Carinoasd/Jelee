@@ -2,6 +2,7 @@ package domain
 
 import (
 	"encoding/json"
+	"math"
 	"strconv"
 	"time"
 )
@@ -25,14 +26,19 @@ type ItemMetadataFactPatch struct {
 }
 
 func ValidItemMetadataEdit(item string, revision int64, fields []ItemMetadataPatch, facts []ItemMetadataFactPatch) bool {
-	if !ValidID(item) || revision < 1 || revision >= ItemMetadataRevisionMax || len(fields)+len(facts) == 0 || len(facts) > 1 {
+	if !ValidID(item) || revision < 1 || revision >= ItemMetadataRevisionMax || len(fields)+len(facts) == 0 || len(facts) > 4 {
 		return false
 	}
 	if len(fields) > 0 && !ValidItemMetadataPatches(item, revision, fields) {
 		return false
 	}
+	seen := map[string]bool{}
 	for _, fact := range facts {
-		if fact.Field != "year" || fact.Value == nil && fact.Locked == nil || fact.Value != nil && !ValidItemMetadataFactValue(fact.Field, fact.Value) {
+		if seen[fact.Field] {
+			return false
+		}
+		seen[fact.Field] = true
+		if (fact.Field != "year" && fact.Field != "runtimeMinutes" && fact.Field != "rating" && fact.Field != "userRating") || fact.Value == nil && fact.Locked == nil || fact.Value != nil && !ValidItemMetadataFactValue(fact.Field, fact.Value) {
 			return false
 		}
 	}
@@ -40,14 +46,30 @@ func ValidItemMetadataEdit(item string, revision int64, fields []ItemMetadataPat
 }
 
 func ValidItemMetadataFactValue(field string, value json.RawMessage) bool {
-	if field != "year" || len(value) > 4 {
+	if field == "rating" || field == "userRating" {
+		if len(value) > 1024 {
+			return false
+		}
+		if string(value) == "null" {
+			return true
+		}
+		var n *float64
+		return json.Unmarshal(value, &n) == nil && n != nil && !math.IsNaN(*n) && !math.IsInf(*n, 0) && *n >= 0 && *n <= 10
+	}
+	minimum, maximum, limit := 1, 9999, 4
+	if field == "runtimeMinutes" {
+		minimum, maximum, limit = 0, 10000000, 8
+	} else if field != "year" {
+		return false
+	}
+	if len(value) > limit {
 		return false
 	}
 	if string(value) == "null" {
 		return true
 	}
 	var year int
-	return json.Unmarshal(value, &year) == nil && year >= 1 && year <= 9999 && strconv.Itoa(year) == string(value)
+	return json.Unmarshal(value, &year) == nil && year >= minimum && year <= maximum && strconv.Itoa(year) == string(value)
 }
 
 func CloneItemMetadataFact(v ItemMetadataFact) ItemMetadataFact {

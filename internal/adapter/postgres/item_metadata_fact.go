@@ -28,7 +28,7 @@ func readItemMetadataFacts(ctx context.Context, tx pgx.Tx, value *domain.ItemMet
 		}
 		if len(origin) > 0 {
 			var proof domain.NFOItemOrigin
-			if json.Unmarshal(origin, &proof) != nil || !domain.ValidNFOItemOrigin(proof) || proof.Projection != domain.NFOItemYearFieldsVersion {
+			if json.Unmarshal(origin, &proof) != nil || !domain.ValidNFOItemOrigin(proof) || (proof.Projection != domain.NFOItemYearFieldsVersion && proof.Projection != domain.NFOItemNumericFieldsVersion) || fact.Field != "year" && proof.Projection != domain.NFOItemNumericFieldsVersion {
 				return domain.ErrMetadataUnavailable
 			}
 			fact.NFOOrigin = &proof
@@ -41,6 +41,11 @@ func readItemMetadataFacts(ctx context.Context, tx pgx.Tx, value *domain.ItemMet
 func writeItemMetadataFact(ctx context.Context, tx pgx.Tx, item string, fact domain.ItemMetadataFact, now time.Time) error {
 	if !domain.ValidItemMetadataFactValue(fact.Field, fact.Value) {
 		return domain.ErrInvalid
+	}
+	if (fact.Field == "rating" || fact.Field == "userRating") && string(fact.Value) != "null" {
+		var n float64
+		_ = json.Unmarshal(fact.Value, &n)
+		fact.Value, _ = json.Marshal(n)
 	}
 	var origin []byte
 	if fact.NFOOrigin != nil {
@@ -55,7 +60,18 @@ func writeItemMetadataFact(ctx context.Context, tx pgx.Tx, item string, fact dom
 }
 
 func applyNFOFacts(ctx context.Context, tx pgx.Tx, before domain.ItemMetadata, scope domain.NFOItemScope, fields domain.NFOItemFields, identity string, now time.Time, result *domain.MetadataApplyResult) error {
+	incomingFacts := []domain.ItemMetadataFact{}
 	for _, incoming := range fields.Facts {
+		incomingFacts = append(incomingFacts, domain.ItemMetadataFact{Field: incoming.Field, Value: json.RawMessage(strconv.Itoa(incoming.Value))})
+	}
+	for _, incoming := range fields.NumberFacts {
+		raw, err := json.Marshal(incoming.Value)
+		if err != nil {
+			return domain.ErrInvalid
+		}
+		incomingFacts = append(incomingFacts, domain.ItemMetadataFact{Field: incoming.Field, Value: raw})
+	}
+	for _, incoming := range incomingFacts {
 		old := domain.ItemMetadataFact{Field: incoming.Field}
 		for _, existing := range before.Facts {
 			if existing.Field == incoming.Field {
@@ -74,7 +90,7 @@ func applyNFOFacts(ctx context.Context, tx pgx.Tx, before domain.ItemMetadata, s
 			continue
 		}
 		origin := &domain.NFOItemOrigin{SourceID: scope.SourceID, RootID: scope.RootID, Generation: scope.Generation, SHA256: fields.Stamp.SHA256, IdentityDigest: identity, Projection: fields.Version, ReadAt: fields.ReadAt.UTC(), Locked: domain.NFOFieldLocked(fields, incoming.Field)}
-		fact := domain.ItemMetadataFact{Field: incoming.Field, Value: json.RawMessage(strconv.Itoa(incoming.Value)), Source: "nfo", NFOOrigin: origin}
+		fact := domain.ItemMetadataFact{Field: incoming.Field, Value: incoming.Value, Source: "nfo", NFOOrigin: origin}
 		if err := writeItemMetadataFact(ctx, tx, scope.ItemID, fact, now); err != nil {
 			return err
 		}

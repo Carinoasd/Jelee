@@ -124,7 +124,34 @@ func (r *SummaryReader) projectItemFields(ctx context.Context, source *summarySo
 			result.Version = domain.NFOItemYearFieldsVersion
 		}
 	}
-	if len(result.Fields) == 0 && len(result.Facts) == 0 && result.Version != domain.NFOItemYearFieldsVersion && result.Version != domain.NFOItemSortFieldsVersion && result.Version != domain.NFOItemTextFieldsVersion && domain.HasNFOItemFieldLock(result) {
+	if metadata.RuntimeMinutes != nil {
+		result.Version = domain.NFOItemNumericFieldsVersion
+		result.Facts = append(result.Facts, domain.NFOIntegerFact{Field: "runtimeMinutes", Value: *metadata.RuntimeMinutes})
+	}
+	for _, name := range metadata.LockedFields {
+		if strings.EqualFold(strings.TrimSpace(name), "runtime") || strings.EqualFold(strings.TrimSpace(name), "runtimeMinutes") {
+			result.Version = domain.NFOItemNumericFieldsVersion
+		}
+	}
+	if metadata.Rating != nil {
+		result.Version = domain.NFOItemNumericFieldsVersion
+		result.NumberFacts = []domain.NFONumberFact{{Field: "rating", Value: *metadata.Rating}}
+	}
+	for _, name := range metadata.LockedFields {
+		if strings.EqualFold(strings.TrimSpace(name), "rating") || strings.EqualFold(strings.TrimSpace(name), "communityRating") {
+			result.Version = domain.NFOItemNumericFieldsVersion
+		}
+	}
+	if metadata.UserRating != nil {
+		result.Version = domain.NFOItemNumericFieldsVersion
+		result.NumberFacts = append(result.NumberFacts, domain.NFONumberFact{Field: "userRating", Value: *metadata.UserRating})
+	}
+	for _, name := range metadata.LockedFields {
+		if strings.EqualFold(strings.TrimSpace(name), "userRating") {
+			result.Version = domain.NFOItemNumericFieldsVersion
+		}
+	}
+	if len(result.Fields) == 0 && len(result.Facts) == 0 && len(result.NumberFacts) == 0 && result.Version != domain.NFOItemNumericFieldsVersion && result.Version != domain.NFOItemYearFieldsVersion && result.Version != domain.NFOItemSortFieldsVersion && result.Version != domain.NFOItemTextFieldsVersion && domain.HasNFOItemFieldLock(result) {
 		result.Version = domain.NFOItemLockFieldsVersion
 	}
 	if !domain.ValidNFOItemFields(result) {
