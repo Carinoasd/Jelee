@@ -544,7 +544,7 @@ func TestJobsLeaseExpiryDuringWritesRollsBackProvisionalData(t *testing.T) {
 	if err = f.s.SaveScanBatch(f.ctx, l, d, domain.ScanBatch{Entries: []domain.InventoryEntry{scanEntry(d, "current.mkv", 2)}, Done: true}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err = f.s.Pool.Exec(f.ctx, `CREATE TRIGGER slow_baseline BEFORE INSERT ON library_inventory_baseline FOR EACH ROW EXECUTE FUNCTION delay_job_insert()`); err != nil {
+	if _, err = f.s.Pool.Exec(f.ctx, `CREATE TRIGGER slow_baseline BEFORE INSERT ON library_inventory_baseline_data FOR EACH ROW EXECUTE FUNCTION delay_job_insert()`); err != nil {
 		t.Fatal("install isolated completion delay")
 	}
 	if err = f.s.FinishJob(f.ctx, l, domain.JobSucceeded, ""); !errors.Is(err, domain.ErrJobLeaseLost) {
@@ -626,6 +626,9 @@ func TestJobsMigrationRollbackPreservesAccountsAndLibraryConfiguration(t *testin
 	f := newJobFixture(t)
 	f.complete(t, "rollback", []string{"observed.mkv"}, 0)
 	dsn := f.s.Pool.Config().ConnString()
+	if version, dirty, e := Migrate(f.ctx, dsn, "down"); e != nil || dirty || version != 42 {
+		t.Fatalf("down38 version=%d dirty=%v error=%v", version, dirty, e)
+	}
 	if version, dirty, e := Migrate(f.ctx, dsn, "down"); e != nil || dirty || version != 41 {
 		t.Fatalf("down38 version=%d dirty=%v error=%v", version, dirty, e)
 	}

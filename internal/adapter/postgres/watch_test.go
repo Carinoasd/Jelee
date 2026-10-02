@@ -347,6 +347,9 @@ func TestWatchActualObserverWorkersAndRestart(t *testing.T) {
 
 func TestWatchMigration(t *testing.T) {
 	ctx, s, dsn := accountTestStore(t)
+	if version, dirty, err := Migrate(ctx, dsn, "down"); err != nil || dirty || version != 42 {
+		t.Fatal("snapshot migration down", version, dirty, err)
+	}
 	if version, dirty, err := Migrate(ctx, dsn, "down"); err != nil || dirty || version != 41 {
 		t.Fatal("empty watch down", version, dirty, err)
 	}
@@ -363,6 +366,9 @@ func TestWatchMigration(t *testing.T) {
 	}
 	if _, err = s.PutScanSchedule(ctx, a, library.Library.ID, watchInput(), calendar.Calendar{}); err != nil {
 		t.Fatal(err)
+	}
+	if version, dirty, err := Migrate(ctx, dsn, "down"); err != nil || dirty || version != 42 {
+		t.Fatal("snapshot migration down", version, dirty, err)
 	}
 	if _, _, err = Migrate(ctx, dsn, "down"); err == nil {
 		t.Fatal("retained watch silently downgraded")

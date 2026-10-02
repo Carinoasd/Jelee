@@ -6,7 +6,7 @@
 
 ## 已測範圍
 
-規模工具使用 Linux 原生 ext4、自製的 33-byte 檔案、正式 scanner／worker／PostgreSQL、單 worker、128 項批次、GOMAXPROCS=2 與 GOMEMLIMIT=512MiB。它量測清單掃描，不執行媒體 probe 或圖片解碼。GOMAXPROCS 是 Go 排程設定，不代表獨占兩個 CPU；沒有清除作業系統快取，首次掃描不稱為冷快取。
+規模工具使用 Linux 原生 ext4、自製的 34-byte 檔案、正式 scanner／worker／PostgreSQL、單 worker、128 項批次、GOMAXPROCS=2 與 GOMEMLIMIT=512MiB。它量測清單掃描，不執行媒體 probe 或圖片解碼。GOMAXPROCS 是 Go 排程設定，不代表獨占兩個 CPU；沒有清除作業系統快取，首次掃描不稱為冷快取。
 
 素材建立與 profile 寫入不計入掃描耗時；完成輪詢約每 250ms 一次，資源每秒取樣。heap／RSS 峰值因此是觀測峰值。保存完整樣本及強制 GC 前後的 heap profile，結果不包含 DSN 或來源絕對路徑。pprof 使用預設配置的抽樣估計，小型 heap 的樣本誤差不能當成精確配置量；長期增長仍須穩態測試。
 

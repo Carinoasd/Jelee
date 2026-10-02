@@ -171,6 +171,9 @@ func TestScheduleMigration(t *testing.T) {
 	if err := s.Pool.QueryRow(ctx, `SELECT to_regclass('scan_schedules') IS NOT NULL`).Scan(&exists); err != nil || !exists {
 		t.Fatal("schedule schema missing", err)
 	}
+	if version, dirty, err := Migrate(ctx, dsn, "down"); err != nil || dirty || version != 42 {
+		t.Fatal("snapshot migration down", version, dirty, err)
+	}
 	if version, dirty, err := Migrate(ctx, dsn, "down"); err != nil || dirty || version != 41 {
 		t.Fatal("empty schedule down", version, dirty, err)
 	}
@@ -191,6 +194,9 @@ func TestScheduleMigration(t *testing.T) {
 	}
 	if _, err = s.PutScanSchedule(ctx, actor, library.Library.ID, scheduleInput(), calendar.Calendar{}); err != nil {
 		t.Fatal(err)
+	}
+	if version, dirty, err := Migrate(ctx, dsn, "down"); err != nil || dirty || version != 42 {
+		t.Fatal("snapshot migration down", version, dirty, err)
 	}
 	if version, dirty, err := Migrate(ctx, dsn, "down"); err != nil || dirty || version != 41 {
 		t.Fatal("empty watch downgrade", version, dirty, err)

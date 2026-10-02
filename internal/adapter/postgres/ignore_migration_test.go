@@ -17,7 +17,7 @@ func ignoreLegacySnapshot(t *testing.T, f jobFixture) string {
 	var result string
 	err := f.s.Pool.QueryRow(f.ctx, `SELECT jsonb_build_object(
  'jobs',(SELECT jsonb_agg(to_jsonb(j)-'ignore_requested' ORDER BY id) FROM jobs j),
- 'libraries',(SELECT jsonb_agg(to_jsonb(l)-'inventory_baseline_revision'-'metadata_language'-'metadata_preferences_revision'-'metadata_image_languages' ORDER BY id) FROM libraries l),
+ 'libraries',(SELECT jsonb_agg(to_jsonb(l)-'inventory_baseline_revision'-'metadata_language'-'metadata_preferences_revision'-'metadata_image_languages'-'active_inventory_snapshot' ORDER BY id) FROM libraries l),
  'roots',(SELECT jsonb_agg(to_jsonb(r) ORDER BY id) FROM library_roots r),
  'inventory',(SELECT jsonb_agg(to_jsonb(i) ORDER BY id) FROM job_inventory i),
  'directories',(SELECT jsonb_agg(to_jsonb(d) ORDER BY job_id,root_id,path) FROM job_directories d),
@@ -83,6 +83,7 @@ func TestIgnoreMigrationLegacySevenRoundTripAndReadiness(t *testing.T) {
 	l, _ := f.start(t, "existing-cache", "retained.nfo")
 	f.parseHead(t, l, nfoValidSummary())
 	f.finish(t, l)
+	nfoMigrateVersion(t, f.jobFixture, "down", 42)
 	nfoMigrateVersion(t, f.jobFixture, "down", 41)
 	nfoMigrateVersion(t, f.jobFixture, "down", 40)
 	nfoMigrateVersion(t, f.jobFixture, "down", 39)
@@ -163,6 +164,7 @@ func TestIgnoreMigrationLegacySevenRoundTripAndReadiness(t *testing.T) {
 	if _, err = f.s.Pool.Exec(f.ctx, `UPDATE schema_migrations SET version=$1,dirty=false`, SchemaVersion); err != nil {
 		t.Fatal("restore private readiness fixture")
 	}
+	nfoMigrateVersion(t, f.jobFixture, "down", 42)
 	nfoMigrateVersion(t, f.jobFixture, "down", 41)
 	nfoMigrateVersion(t, f.jobFixture, "down", 40)
 	nfoMigrateVersion(t, f.jobFixture, "down", 39)
@@ -287,6 +289,7 @@ func TestIgnoreMigrationHistoryTrimAllowsDowngrade(t *testing.T) {
 		t.Fatal("ordinary terminal history trim did not remove request with parent")
 	}
 	before := ignoreLegacySnapshot(t, f)
+	nfoMigrateVersion(t, f, "down", 42)
 	nfoMigrateVersion(t, f, "down", 41)
 	nfoMigrateVersion(t, f, "down", 40)
 	nfoMigrateVersion(t, f, "down", 39)

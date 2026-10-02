@@ -20,7 +20,7 @@ type ignoreComparison struct {
 }
 
 const ignoreBaselinePageSQL = `WITH raw AS MATERIALIZED (
- SELECT b.root_id,b.path FROM library_inventory_baseline b WHERE b.library_id=$1::uuid
+ SELECT b.root_id,b.path FROM library_inventory_baseline_data b WHERE b.library_id=$1::uuid AND b.snapshot_id=(SELECT active_inventory_snapshot FROM libraries WHERE id=$1::uuid)
  AND (b.root_id,b.path COLLATE "C")>(COALESCE(NULLIF($3,'')::uuid,'00000000-0000-0000-0000-000000000000'::uuid),$4 COLLATE "C")
  ORDER BY b.root_id,b.path COLLATE "C" LIMIT 128)
  SELECT raw.root_id::text,raw.path,i.id IS NOT NULL FROM raw LEFT JOIN LATERAL

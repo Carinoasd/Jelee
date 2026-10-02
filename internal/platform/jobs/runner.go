@@ -328,6 +328,22 @@ func (r *Runner) run(serviceCtx context.Context, lease domain.JobLease) {
 	go r.monitor(hbCtx, lease, cancelJob, started, monitored)
 	<-started
 	err, repositoryError := r.execute(ctx, lease)
+	if err == nil && lease.Job.Kind == "inventory_scan" {
+		if preparer, ok := r.repository.(app.InventoryPublicationPreparer); ok {
+			for {
+				call, stop := context.WithTimeout(ctx, r.options.DBOperationTimeout)
+				ready, prepareErr := preparer.PrepareInventoryPublication(call, lease)
+				stop()
+				if prepareErr != nil {
+					err, repositoryError = prepareErr, true
+					break
+				}
+				if ready {
+					break
+				}
+			}
+		}
+	}
 	stopHeartbeat()
 	<-monitored
 	cause := context.Cause(ctx)

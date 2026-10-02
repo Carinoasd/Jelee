@@ -1,0 +1,359 @@
+{
+  "parentCommit": "6aeceef495d7345e1b5170c9dd6124655d39c8be",
+  "verifiedAt": "2026-10-02T14:33:44.776970+00:00",
+  "schemaVersion": 43,
+  "verification": {
+    "plans": {
+      "passedPackages": 1,
+      "passedTestEventsIncludingParents": 4,
+      "skippedTestEvents": 0,
+      "packageElapsedSeconds": 9.048
+    },
+    "windows": {
+      "passedPackages": 3,
+      "passedTestEventsIncludingParents": 396,
+      "skippedTestEvents": 552,
+      "packageElapsedSeconds": 1.542
+    },
+    "native": {
+      "passedPackages": 8,
+      "passedTestEventsIncludingParents": 1334,
+      "skippedTestEvents": 0,
+      "packageElapsedSeconds": 19.546
+    },
+    "full-pg": {
+      "passedPackages": 1,
+      "passedTestEventsIncludingParents": 929,
+      "skippedTestEvents": 0,
+      "packageElapsedSeconds": 771.902,
+      "initialRun": {
+        "passedTestEventsIncludingParents": 920,
+        "failedTests": [
+          "TestIgnoreMigrationHistoryTrimAllowsDowngrade",
+          "TestIgnoreMigrationLegacySevenRoundTripAndReadiness",
+          "TestPostgresIntegration"
+        ],
+        "exitCode": 1
+      },
+      "testOnlyRepair": [
+        "internal/adapter/postgres/ignore_migration_test.go",
+        "internal/adapter/postgres/store_integration_test.go"
+      ],
+      "targetedRetest": {
+        "passedTestEventsIncludingParents": 31,
+        "exitCode": 0,
+        "log": ".testdata/snapshot-migration-retest.jsonl"
+      },
+      "unresolvedFailures": []
+    },
+    "native-pg": {
+      "passedPackages": 1,
+      "passedTestEventsIncludingParents": 11,
+      "skippedTestEvents": 0,
+      "packageElapsedSeconds": 17.629
+    },
+    "e2e": {
+      "passedPackages": 1,
+      "passedTestEventsIncludingParents": 1,
+      "skippedTestEvents": 0,
+      "packageElapsedSeconds": 77.262
+    }
+  },
+  "checks": [
+    {
+      "name": "vet",
+      "exitCode": 0
+    },
+    {
+      "name": "build",
+      "exitCode": 0
+    },
+    {
+      "name": "brand-new",
+      "exitCode": 0
+    },
+    {
+      "name": "gitignore",
+      "exitCode": 0
+    },
+    {
+      "name": "brand-full",
+      "exitCode": 1
+    }
+  ],
+  "sourceFreezeSHA256": {
+    "internal/adapter/postgres/accounts_integration_test.go": "2955aab3a4b34890660a327aabfc2a203071e1d3f22292aa78a01595e6ba757c",
+    "internal/adapter/postgres/catalog_import_migration_test.go": "3c0e69a2df55c2452a43b3547270ad90593548dcc1644507e082ba1b4a245104",
+    "internal/adapter/postgres/ignore_baseline.go": "04e6cda8d17e98c192e4b5de34f75b7d60956191f82f02e660bea41098e6bc4d",
+    "internal/adapter/postgres/ignore_baseline_test.go": "2b86947caa1543917db1f2d6d57d0ce0dafeddfa954fbec195d7bb73160af65e",
+    "internal/adapter/postgres/ignore_family_comparison_test.go": "4eb1deb60e166b5cc421325884bc9567120deef4db55068194c7f0eaed877d4b",
+    "internal/adapter/postgres/ignore_family_scan_test.go": "be1268925fd437e206cda19fa1eb728451b74a8da624c0b00e8fd40e17d5ba07",
+    "internal/adapter/postgres/ignore_legacy_baseline_test.go": "afd6cff4b02f4be766fff55596ca5a905c8e80397cbae75063e6f47b5c3c7021",
+    "internal/adapter/postgres/ignore_legacy_baseline_verification_test.go": "d9bcb1b11265ce048e1800675aced45417571535031b0271e154e32cf9826345",
+    "internal/adapter/postgres/ignore_legacy_migration_test.go": "ceda4836ff3bac3bd268e38068ab4bd073620d6e66e925e5caaddb8b8fce76db",
+    "internal/adapter/postgres/ignore_legacy_verification_test.go": "d398969c2cdcf1a82f91328f4a2aad2b2bc64e1218a211e557542f9b679e8802",
+    "internal/adapter/postgres/ignore_manifest_test.go": "1a393c1886ec1b3981899397914c193e96cfc767397581187badd605e8e34ceb",
+    "internal/adapter/postgres/ignore_migration_test.go": "4580c66c4e67286b80c1d83cfb4b14dc1971133179fc865cb2a39dc635bf4156",
+    "internal/adapter/postgres/ignore_scan_test.go": "73c39e5d2fbba44570f6760acc44e1f01f57045475e7b7245e5aeb62cc20184f",
+    "internal/adapter/postgres/ignore_verification_test.go": "4098e68538caf1033340a7d9f8930398cd6e0eb633eddfb5fbcfffd553526db8",
+    "internal/adapter/postgres/image_inventory.go": "4883411a55a21d924b8cb946ef2ff1437dcdc681f12b53f693735f48453221e2",
+    "internal/adapter/postgres/inventory_comparison.go": "ae69da23183b80f237d345d5d6da6884982f9ba6d2e029fea4740a967506f062",
+    "internal/adapter/postgres/inventory_publication.go": "954be227075b912d0b2c3082086d82025f92a33b5ed33ee282cde397c7afadcc",
+    "internal/adapter/postgres/inventory_publication_test.go": "84cbde8dc7910bcdc1057ad634dfee5a85f237b696979c89a2155b500a946d6d",
+    "internal/adapter/postgres/item_metadata_test.go": "ed4777a187bdd2edc0623bcddb9e7004cbc3292472bb1bbe50b9879e15b81fed",
+    "internal/adapter/postgres/jobs.go": "570e85ec549557cf2dc93caa7c6c89b7f278056f83f5b05a048da96a6f2a26ca",
+    "internal/adapter/postgres/jobs_execution.go": "44243e7aeced1c014212c2d74c4e952e96a4c9b813e96274ad204cfe532eb78d",
+    "internal/adapter/postgres/jobs_integration_test.go": "7d3968be94acfa4ca034e56b80fb4631777625e7da27803c530aff7d66042909",
+    "internal/adapter/postgres/jobs_lock_order_test.go": "096bd0cbcaeff1cd65f1c2ea96a33f10b9b5b3aadcd10df17ea51e2d91499163",
+    "internal/adapter/postgres/metadata_apply_test.go": "09fb39cd756f34248bf8eb3de8d15c00d7b42259a69c6152349e4fb7410f3908",
+    "internal/adapter/postgres/metadata_image_preferences_test.go": "81c0dd7da4b916ef98e43b7d9e54f528bdd73f2769779a47efe9598f35dd3a85",
+    "internal/adapter/postgres/metadata_preferences_test.go": "cfe3f5f6875345e50d6c13703bf4c743e2762a46b3a36e5070845848eba9c977",
+    "internal/adapter/postgres/migrations/000043_inventory_snapshots.down.sql": "97db3d6fb9eae2754eada0875ed24a5a14fa47356b1522182d70a199eef5f46e",
+    "internal/adapter/postgres/migrations/000043_inventory_snapshots.up.sql": "40cd0f7114393c886ab30dffb1ea8e55b05c51410b685a03d2e1bec624c015a2",
+    "internal/adapter/postgres/nfo_actor_test.go": "8a2ecd377dcfcc23126f6ffbed78826c05db7327b0b1479bcdd6a204dd65b976",
+    "internal/adapter/postgres/nfo_collection_test.go": "e4a00be9e66a4889d5a7db9b996ba3ff2b8949552babb48e2db715f921b0b4d4",
+    "internal/adapter/postgres/nfo_episode_details_test.go": "cee19dd75f26f940181b4f8212ad56e01670a0d37236b4b5c92450842ddd4512",
+    "internal/adapter/postgres/nfo_identifier_test.go": "53c7587d368c5736395e523b63f8eb7b37afccecd830933fcb86227fd27bf30f",
+    "internal/adapter/postgres/nfo_integration_test.go": "4feb3ac8eca68582ad91d1c56a3d8708629539dec56d3e694dafdb2848c2007e",
+    "internal/adapter/postgres/nfo_item_apply_test.go": "285106a20a098e859a220805817a872d1a94a7185e3f62db7f92cafbb4a18e14",
+    "internal/adapter/postgres/nfo_item_lock_intent_test.go": "e84d863f7ba2727fcdc31d1506e745dc5de0c825edbfd6230c6661255a4a63f0",
+    "internal/adapter/postgres/nfo_item_observation_test.go": "cfe0ab283d7e1eddb5830dc78d47554ad4c663877ea588c70a768b8a4f75ad8d",
+    "internal/adapter/postgres/nfo_lock_only_test.go": "5c8fe91493139ca29f67d46b040f32538ef295169d9645a2a4b1d53c804af709",
+    "internal/adapter/postgres/nfo_movie_extras_test.go": "85e5767aa5071eb595077f226325230d51d7203f86b6444171157da878bebdba",
+    "internal/adapter/postgres/nfo_numeric_facts_test.go": "9f26d6661b68967ede07052398fd7a59f51aaf6ab965af9134954b8fd3a0bdb3",
+    "internal/adapter/postgres/nfo_rating_test.go": "fa6d64de9c7d657a53fcde206baed5f1ba69c95bdc6cc6aa07ed01e68492a62b",
+    "internal/adapter/postgres/nfo_series_details_test.go": "97a6124d450639a16cfcdb56d4f347a814287e0f6c892fee16553c83687fbbe1",
+    "internal/adapter/postgres/nfo_sort_title_test.go": "cd9b8b5001dd39cad7b9d22df8180ad6b599cd13ca8ab9d3729cc5340afe8a27",
+    "internal/adapter/postgres/nfo_string_lists_test.go": "70877246fb95a8e8fc3bdd4029ae521945485ef7b3cfa8f1a457f6c4aa1fd0e4",
+    "internal/adapter/postgres/nfo_text_fields_test.go": "a9dc2990ef601200ac2af41c6cafb82214ecf4d789eb1376426bdf0e57d2d54f",
+    "internal/adapter/postgres/nfo_worker_migration_test.go": "f27edb42e25122846950ff9e1ff3a3ca06734c994b400229ee98d16b5ac14ec6",
+    "internal/adapter/postgres/nfo_worker_query_plan_test.go": "7861d771b21a948616dad99cc862861c33a839239c8494893e0560c6c9476662",
+    "internal/adapter/postgres/nfo_year_fact_test.go": "2b2ed7b41817bdc7df99e050b2c0333ff7ed75818dd19b838c389d973f974ee7",
+    "internal/adapter/postgres/probe_integration_test.go": "46ff1990e084eae0537653bbe52778abe2e4e4f17c1cad9309892d3979dea6bf",
+    "internal/adapter/postgres/probe_requests_test.go": "e173bb17853805b7e95bc78dc62cbffcd996d775f097ad27e5ad16bc8f5dbfee",
+    "internal/adapter/postgres/scan_scale_test.go": "1d6b6645018d4c1cc751c5ad66c8d61a097f988525cc02b31f0f10b7cb358f9f",
+    "internal/adapter/postgres/schedules_test.go": "81e469b57e7f8a186e27f3f2478c2aa11456805cc3f32692d245eaf1acb1ef0e",
+    "internal/adapter/postgres/store.go": "bec355f238a2cbd22055d3383f8183a7168fdb60addc78e4a2e1f0dd2a427e7d",
+    "internal/adapter/postgres/store_integration_test.go": "a6d2aa75cf04f346b564cefbf15c7fcd1a58d7cb279b213cf10db4bd8f619a71",
+    "internal/adapter/postgres/watch_test.go": "649ec0aa15b890d1310dcf5d4ef51ff380cd32863e0f284ab57e36e9ac17ce6a",
+    "internal/app/inventory_publication_ports.go": "063e50e34ceb5483f15908d7708b65abac1bb5b0ae0c549e5cfbb7431d090314",
+    "internal/platform/jobs/runner.go": "9aa89a49bc173ef866cf9a0b6b7df6a2e93cff7420c1d456ea435514590f524f"
+  },
+  "publishedSQLUnchanged": 84,
+  "profileHashes": [
+    {
+      "files": 10000,
+      "when": "before",
+      "sha256": "c149f011e08e6d721bec2f7d6fb93840f678349cc28a902757b9d2ea43cdd365"
+    },
+    {
+      "files": 10000,
+      "when": "after",
+      "sha256": "8b49b03819352d757b1de0c8e86814f6785eb3daa7749417ca3ec10eb133a312"
+    },
+    {
+      "files": 100000,
+      "when": "before",
+      "sha256": "d8122715ff430686e42152bfcb8febfe350402203d32663f9fc22de296f9dca7"
+    },
+    {
+      "files": 100000,
+      "when": "after",
+      "sha256": "d914c911ff61e07d3be7e61b68433d94f11609c15fd88f5769094743cfffdc82"
+    },
+    {
+      "files": 500000,
+      "when": "before",
+      "sha256": "657b63fecb040e963c36e03822373378cf60f48c43e465a04a9e3332307380d9"
+    },
+    {
+      "files": 500000,
+      "when": "after",
+      "sha256": "3d2e2ed01122aa737be555fe492d89c6e9b6c62689f054150d09c4252621056b"
+    }
+  ],
+  "scale": {
+    "10000": [
+      {
+        "attempts": 1,
+        "pass": "initial",
+        "files": 10000,
+        "gomaxprocs": 2,
+        "goVersion": "go1.27.1",
+        "seconds": 2.787188551,
+        "filesPerSecond": 3587.844818181445,
+        "maxBatch": 128,
+        "batches": 80,
+        "peakHeapBytes": 2919104,
+        "peakRSSBytes": 22847488,
+        "afterGC": {
+          "seconds": 2.793448325,
+          "files": 10000,
+          "heapBytes": 1827968,
+          "heapInuseBytes": 3219456,
+          "rssBytes": 21688320,
+          "totalAllocBytes": 30059752,
+          "gcCount": 13,
+          "gcPauseTotalNanoseconds": 501267,
+          "goroutines": 4,
+          "fileDescriptors": 10,
+          "dbAcquired": 0
+        }
+      },
+      {
+        "attempts": 1,
+        "pass": "unchanged",
+        "files": 10000,
+        "gomaxprocs": 2,
+        "goVersion": "go1.27.1",
+        "seconds": 2.760009677,
+        "filesPerSecond": 3623.175702365481,
+        "maxBatch": 128,
+        "batches": 80,
+        "peakHeapBytes": 2807168,
+        "peakRSSBytes": 23633920,
+        "afterGC": {
+          "seconds": 2.765672359,
+          "files": 10000,
+          "heapBytes": 1924216,
+          "heapInuseBytes": 3432448,
+          "rssBytes": 22970368,
+          "totalAllocBytes": 49634536,
+          "gcCount": 22,
+          "gcPauseTotalNanoseconds": 794665,
+          "goroutines": 4,
+          "fileDescriptors": 10,
+          "dbAcquired": 0
+        }
+      }
+    ],
+    "100000": [
+      {
+        "attempts": 1,
+        "pass": "initial",
+        "files": 100000,
+        "gomaxprocs": 2,
+        "goVersion": "go1.27.1",
+        "seconds": 34.541422493,
+        "filesPerSecond": 2895.074747435938,
+        "maxBatch": 128,
+        "batches": 783,
+        "peakHeapBytes": 3555936,
+        "peakRSSBytes": 23867392,
+        "afterGC": {
+          "seconds": 34.557884723,
+          "files": 100000,
+          "heapBytes": 1922408,
+          "heapInuseBytes": 3489792,
+          "rssBytes": 21757952,
+          "totalAllocBytes": 217480808,
+          "gcCount": 88,
+          "gcPauseTotalNanoseconds": 3773912,
+          "goroutines": 4,
+          "fileDescriptors": 10,
+          "dbAcquired": 0
+        }
+      },
+      {
+        "attempts": 1,
+        "pass": "unchanged",
+        "files": 100000,
+        "gomaxprocs": 2,
+        "goVersion": "go1.27.1",
+        "seconds": 29.760464720999998,
+        "filesPerSecond": 3360.1625827246103,
+        "maxBatch": 128,
+        "batches": 783,
+        "peakHeapBytes": 3590240,
+        "peakRSSBytes": 24092672,
+        "afterGC": {
+          "seconds": 29.777089207,
+          "files": 100000,
+          "heapBytes": 2110768,
+          "heapInuseBytes": 3891200,
+          "rssBytes": 22605824,
+          "totalAllocBytes": 391164016,
+          "gcCount": 164,
+          "gcPauseTotalNanoseconds": 6973623,
+          "goroutines": 4,
+          "fileDescriptors": 10,
+          "dbAcquired": 0
+        }
+      }
+    ],
+    "500000": [
+      {
+        "attempts": 1,
+        "pass": "initial",
+        "files": 500000,
+        "gomaxprocs": 2,
+        "goVersion": "go1.27.1",
+        "seconds": 112.792441161,
+        "filesPerSecond": 4432.9211678848205,
+        "maxBatch": 128,
+        "batches": 3908,
+        "peakHeapBytes": 3531392,
+        "peakRSSBytes": 24219648,
+        "afterGC": {
+          "seconds": 112.85615449,
+          "files": 500000,
+          "heapBytes": 2067904,
+          "heapInuseBytes": 3801088,
+          "rssBytes": 22810624,
+          "totalAllocBytes": 1039649752,
+          "gcCount": 392,
+          "gcPauseTotalNanoseconds": 17547770,
+          "goroutines": 4,
+          "fileDescriptors": 10,
+          "dbAcquired": 0
+        }
+      },
+      {
+        "attempts": 1,
+        "pass": "unchanged",
+        "files": 500000,
+        "gomaxprocs": 2,
+        "goVersion": "go1.27.1",
+        "seconds": 114.011019798,
+        "filesPerSecond": 4385.540984423078,
+        "maxBatch": 128,
+        "batches": 3908,
+        "peakHeapBytes": 3653472,
+        "peakRSSBytes": 24743936,
+        "afterGC": {
+          "seconds": 114.067458414,
+          "files": 500000,
+          "heapBytes": 2213168,
+          "heapInuseBytes": 4194304,
+          "rssBytes": 22913024,
+          "totalAllocBytes": 1896539096,
+          "gcCount": 743,
+          "gcPauseTotalNanoseconds": 32943109,
+          "goroutines": 4,
+          "fileDescriptors": 10,
+          "dbAcquired": 0
+        }
+      }
+    ]
+  },
+  "limitations": [
+    "第三階段尚未完成",
+    "僅 GOMAXPROCS=2、512MiB Go 記憶體限制、單 worker、原生 ext4 的純清單負載",
+    "忽略歷史合併仍走既有發布路徑",
+    "四核心、圖片與混合負載、容器 OOM 及二十四小時驗收尚未完成",
+    "全量品牌及既有 ABI 差異未解"
+  ],
+  "regressionHistory": [
+    "十萬整份基準複製曾逾時，改為分批準備與指標發布",
+    "狀態查詢曾等待 worker 寫入鎖，改為會話驗證下的 MVCC 讀取",
+    "一萬新鮮統計重掃曾耗時 61 秒並等待租約重試，改集合比對並要求 attempts=1"
+  ],
+  "logs": {
+    "plans": ".testdata/snapshot-plans.jsonl",
+    "windows": ".testdata/snapshot-windows.jsonl",
+    "native": ".testdata/snapshot-native.jsonl",
+    "full-pg": ".testdata/snapshot-full-pg.jsonl",
+    "native-pg": ".testdata/snapshot-native-pg.jsonl",
+    "e2e": ".testdata/snapshot-e2e.jsonl"
+  }
+}

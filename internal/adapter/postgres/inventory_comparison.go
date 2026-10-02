@@ -11,8 +11,13 @@ import (
 // nor image missing counts may infer absence from that historical scope.
 const baselineUnknownScopeSQL = `(NOT b.attributes_known OR b.inventory_generation IS DISTINCT FROM $3)`
 
-const inventoryMissingCountsSQL = `SELECT count(*),count(*) FILTER(WHERE ` + baselineUnknownScopeSQL + `),count(*) FILTER(WHERE i.id IS NULL)
- FROM library_inventory_baseline b LEFT JOIN job_inventory i ON i.job_id=$2::uuid AND i.root_id=b.root_id AND i.path=b.path WHERE b.library_id=$1::uuid`
+// Set difference avoids a per-baseline lookup whose estimated one-row parent
+// index can instead scan an entire fresh job before ANALYZE catches up.
+const inventoryMissingCountsSQL = `WITH baseline AS MATERIALIZED (
+ SELECT root_id,path,attributes_known,inventory_generation FROM library_inventory_baseline_data
+ WHERE library_id=$1::uuid AND snapshot_id=(SELECT active_inventory_snapshot FROM libraries WHERE id=$1::uuid)),
+ missing AS (SELECT root_id,path FROM baseline EXCEPT SELECT root_id,path FROM job_inventory WHERE job_id=$2::uuid)
+ SELECT count(*),count(*) FILTER(WHERE ` + baselineUnknownScopeSQL + `),(SELECT count(*) FROM missing) FROM baseline b`
 
 // A drained frontier is not sufficient: every configured root must have its
 // completed root record, and no foreign root may contribute an observation.

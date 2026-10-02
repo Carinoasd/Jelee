@@ -71,7 +71,7 @@ func TestPostgresIntegration(t *testing.T) {
 	for _, step := range []struct {
 		action  string
 		version uint
-	}{{"up", SchemaVersion}, {"status", SchemaVersion}, {"down", 41}, {"down", 40}, {"down", 39}, {"down", 38}, {"down", 37}, {"down", 36}, {"down", 35}, {"down", 34}, {"down", 33}, {"down", 32}, {"down", 31}, {"down", 30}, {"down", 29}, {"down", 28}, {"down", 27}, {"down", 26}, {"down", 25}, {"down", 24}, {"down", 23}, {"down", 22}, {"down", 21},
+	}{{"up", SchemaVersion}, {"status", SchemaVersion}, {"down", 42}, {"down", 41}, {"down", 40}, {"down", 39}, {"down", 38}, {"down", 37}, {"down", 36}, {"down", 35}, {"down", 34}, {"down", 33}, {"down", 32}, {"down", 31}, {"down", 30}, {"down", 29}, {"down", 28}, {"down", 27}, {"down", 26}, {"down", 25}, {"down", 24}, {"down", 23}, {"down", 22}, {"down", 21},
 		{"down", 20},
 		{"down", 19}, {"down", 18}, {"down", 17}, {"down", 16}, {"down", 15}, {"down", 14}, {"down", 13}, {"down", 12}, {"down", 11}, {"down", 10}, {"down", 9}, {"down", 8}, {"down", 7}, {"down", 6}, {"down", 5}, {"down", 4}, {"down", 3}, {"down", 2}, {"down", 1}, {"down", 0}, {"up", SchemaVersion}, {"up", SchemaVersion}} {
 		version, dirty, err := Migrate(ctx, isolatedDSN, step.action)

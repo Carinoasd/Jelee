@@ -116,6 +116,25 @@ func scaleProfile(t *testing.T, path string) {
 	}
 }
 
+func scaleExplain(s *Store, output, library, job string) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	var epoch int64
+	if s.Pool.QueryRow(ctx, `SELECT inventory_generation FROM libraries WHERE id=$1::uuid`, library).Scan(&epoch) != nil {
+		return
+	}
+	plans := make(map[string]json.RawMessage)
+	for name, query := range map[string]string{"inventoryMissing": inventoryMissingCountsSQL, "imageCurrent": imageCurrentCountsSQL, "imageMissing": imageMissingCountsSQL} {
+		var plan json.RawMessage
+		if s.Pool.QueryRow(ctx, "EXPLAIN (FORMAT JSON) "+query, library, job, epoch).Scan(&plan) == nil {
+			plans[name] = plan
+		}
+	}
+	if body, err := json.MarshalIndent(plans, "", "  "); err == nil {
+		_ = os.WriteFile(output, append(body, '\n'), 0600)
+	}
+}
+
 // This opt-in test exercises the real filesystem, worker, transactions and
 // accepted baseline. Empty-looking synthetic videos are inventory fixtures;
 // they are never advertised as probe/image or full-server workload coverage.
@@ -198,6 +217,7 @@ func TestScanScale(t *testing.T) {
 		}
 	}()
 	type result struct {
+		Attempts       int         `json:"attempts"`
 		Pass           string      `json:"pass"`
 		Files          int         `json:"files"`
 		GOMAXPROCS     int         `json:"gomaxprocs"`
@@ -226,6 +246,7 @@ func TestScanScale(t *testing.T) {
 			t.Fatal("submit scale scan")
 		}
 		encoder := json.NewEncoder(log)
+		jobID := job.ID
 		var peakHeap, peakRSS uint64
 		lastSample := time.Time{}
 		tick := time.NewTicker(250 * time.Millisecond)
@@ -234,6 +255,9 @@ func TestScanScale(t *testing.T) {
 			if err != nil {
 				tick.Stop()
 				log.Close()
+				if os.Getenv("JELEE_SCAN_SCALE_DIAGNOSTICS") == "true" {
+					scaleExplain(s, filepath.Join(output, pass+"-failed-plans.json"), registration.Library.ID, jobID)
+				}
 				t.Fatalf("read scale job: %v", err)
 			}
 			terminal := job.State == domain.JobSucceeded || job.State == domain.JobFailed || job.State == domain.JobCancelled
@@ -264,8 +288,11 @@ func TestScanScale(t *testing.T) {
 		if err = log.Close(); err != nil {
 			t.Fatal("close scale samples")
 		}
-		if job.State != domain.JobSucceeded || job.Files != int64(count) || job.Bytes != int64(count*len(data)) || job.Skipped != 0 || job.Missing != 0 || job.ReviewRequired {
-			t.Fatalf("scale job state=%s files=%d code=%s review=%t", job.State, job.Files, job.ErrorCode, job.ReviewRequired)
+		if job.Attempts != 1 || job.State != domain.JobSucceeded || job.Files != int64(count) || job.Bytes != int64(count*len(data)) || job.Skipped != 0 || job.Missing != 0 || job.ReviewRequired {
+			if os.Getenv("JELEE_SCAN_SCALE_DIAGNOSTICS") == "true" {
+				scaleExplain(s, filepath.Join(output, pass+"-failed-plans.json"), registration.Library.ID, jobID)
+			}
+			t.Fatalf("scale job state=%s files=%d code=%s review=%t attempts=%d", job.State, job.Files, job.ErrorCode, job.ReviewRequired, job.Attempts)
 		}
 		var stored, baseline int64
 		if err = s.Pool.QueryRow(ctx, `SELECT count(*) FROM job_inventory WHERE job_id=$1::uuid`, job.ID).Scan(&stored); err != nil {
@@ -277,8 +304,11 @@ func TestScanScale(t *testing.T) {
 		if stored != int64(count) || baseline != int64(count) || measured.maxBatch.Load() > domain.ScanBatchMaxEntries {
 			t.Fatal("scale persistence or batch bound mismatch")
 		}
+		if os.Getenv("JELEE_SCAN_SCALE_DIAGNOSTICS") == "true" {
+			scaleExplain(s, filepath.Join(output, pass+"-plans.json"), registration.Library.ID, jobID)
+		}
 		scaleProfile(t, filepath.Join(output, pass+"-after.heap"))
-		results = append(results, result{Pass: pass, Files: count, GOMAXPROCS: runtime.GOMAXPROCS(0), GoVersion: runtime.Version(), Seconds: elapsed, FilesPerSecond: float64(count) / elapsed, MaxBatch: measured.maxBatch.Load(), Batches: measured.batches.Load(), PeakHeap: peakHeap, PeakRSS: peakRSS, AfterGC: sampleScale(t, s, start, job.Files)})
+		results = append(results, result{Attempts: job.Attempts, Pass: pass, Files: count, GOMAXPROCS: runtime.GOMAXPROCS(0), GoVersion: runtime.Version(), Seconds: elapsed, FilesPerSecond: float64(count) / elapsed, MaxBatch: measured.maxBatch.Load(), Batches: measured.batches.Load(), PeakHeap: peakHeap, PeakRSS: peakRSS, AfterGC: sampleScale(t, s, start, job.Files)})
 		body, err := json.MarshalIndent(results, "", "  ")
 		if err != nil || os.WriteFile(filepath.Join(output, "result.json"), append(body, '\n'), 0600) != nil {
 			t.Fatal("write scale result")

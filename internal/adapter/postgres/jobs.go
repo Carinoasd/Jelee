@@ -95,14 +95,26 @@ func (s *Store) GetJob(ctx context.Context, a domain.Actor, id string) (domain.J
 	if !domain.ValidID(id) {
 		return domain.Job{}, domain.ErrNotFound
 	}
-	tx, err := s.authorizedJobs(ctx, a)
+	if !domain.ValidID(a.UserID) || !domain.ValidID(a.SessionID) {
+		return domain.Job{}, domain.ErrUnauthenticated
+	}
+	// Status reads need only the committed MVCC snapshot. Keep account/session
+	// serialization, but do not wait on the worker's exclusive write lock.
+	// This path takes no job row lock, so it cannot reverse the write lock order.
+	tx, err := s.accountTransaction(ctx)
 	if err != nil {
 		return domain.Job{}, err
 	}
 	defer tx.Rollback(ctx)
+	if _, err = authorizeActorInTransaction(ctx, tx, a, true); err != nil {
+		return domain.Job{}, err
+	}
 	j, err := scanJob(tx.QueryRow(ctx, `SELECT `+jobColumns+` FROM jobs WHERE id=$1::uuid`, id))
 	if err != nil {
 		return j, err
+	}
+	if err = probeAdminStillLive(ctx, tx, a); err != nil {
+		return domain.Job{}, err
 	}
 	return j, storageError(tx.Commit(ctx))
 }

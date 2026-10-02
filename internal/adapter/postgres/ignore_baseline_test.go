@@ -244,20 +244,20 @@ func TestIgnoreBaselineFencesAndLateExpiry(t *testing.T) {
 
 func TestIgnoreBaselinePrefixPlanBoundsSeenRows(t *testing.T) {
 	f, l, _ := baselineComparisonFixture(t, 10000, 9900)
-	if _, err := f.s.Pool.Exec(f.ctx, `ANALYZE library_inventory_baseline; ANALYZE job_inventory`); err != nil {
+	if _, err := f.s.Pool.Exec(f.ctx, `ANALYZE library_inventory_baseline_data; ANALYZE job_inventory`); err != nil {
 		t.Fatal(err)
 	}
 	plan := nfoWorkerPlan(t, f, ignoreBaselinePageSQL, f.registration.Library.ID, l.Job.ID, "", "")
 	baseline, inventory := float64(0), float64(0)
 	walkNFOWorkerPlan(plan, func(p nfoWorkerPlanNode) {
-		if p.Relation == "library_inventory_baseline" {
+		if p.Relation == "library_inventory_baseline_data" {
 			baseline += (p.Rows + p.Removed) * p.Loops
 		}
 		if p.Relation == "job_inventory" {
 			inventory += (p.Rows + p.Removed) * p.Loops
 		}
 	})
-	if baseline > 128 || inventory > 128 || plan.Rows != 128 {
+	if baseline == 0 || baseline > 128 || inventory > 128 || plan.Rows != 128 {
 		t.Fatalf("page scanned suffix: baseline=%g inventory=%g result=%g", baseline, inventory, plan.Rows)
 	}
 	t.Logf("10,000 baseline / 9,900 current: visited %g baseline and %g current rows for raw page 128", baseline, inventory)
@@ -315,6 +315,7 @@ func TestIgnoreBaselineRevisionAndMigrationGuards(t *testing.T) {
 	if err := f.s.Pool.QueryRow(f.ctx, `SELECT l.inventory_baseline_revision,b.observed_revision FROM libraries l JOIN library_inventory_baseline b ON b.library_id=l.id WHERE l.id=$1::uuid`, f.registration.Library.ID).Scan(&revision, &observed); err != nil || revision <= 1 || observed != revision {
 		t.Fatal("ordinary publication did not bind observed revision", err)
 	}
+	nfoMigrateVersion(t, f, "down", 42)
 	nfoMigrateVersion(t, f, "down", 41)
 	nfoMigrateVersion(t, f, "down", 40)
 	nfoMigrateVersion(t, f, "down", 39)
