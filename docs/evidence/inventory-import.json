@@ -1,0 +1,57 @@
+{
+  "parentCommit": "ddb22b2282c1302b11f88aac656068904a904872",
+  "verification": {
+    "windows": {
+      "passedPackages": 29,
+      "passedTestEventsIncludingParents": 3312,
+      "skippedTestEvents": 536
+    },
+    "native": {
+      "passedPackages": 2,
+      "passedTestEventsIncludingParents": 492,
+      "skippedTestEvents": 0
+    },
+    "pg": {
+      "passedPackages": 1,
+      "passedTestEventsIncludingParents": 15,
+      "skippedTestEvents": 0
+    }
+  },
+  "checks": [
+    {
+      "name": "vet",
+      "exitCode": 0
+    },
+    {
+      "name": "build",
+      "exitCode": 0
+    },
+    {
+      "name": "brand-new",
+      "exitCode": 0
+    },
+    {
+      "name": "gitignore",
+      "exitCode": 0
+    },
+    {
+      "name": "brand-full",
+      "exitCode": 1
+    }
+  ],
+  "publishedSQLUnchanged": 78,
+  "sourceHashes": {
+    "cmd/jelee-cli/main.go": "f218de77abfc13000e38f9d39857a4b0dacb65615c88c8768ecdafb93fba8db7",
+    "cmd/jelee-cli/import_inventory.go": "8816463e5e848741c2d0fe573fa175a9c5fbe4330f190f769111d3b6badb9301",
+    "cmd/jelee-cli/import_inventory_test.go": "2260821d9eb9c3e818d0e96306add8bcc7b3890e000c650ccb6943447cf3a8ce",
+    "internal/domain/inventory_import.go": "a10e4342d2976733a120292bdc112d831fba9d3c8b5eafb4c4b8cc5a71d36474",
+    "internal/adapter/postgres/inventory_import.go": "6115711ad6810a6f1b836a56388b4a40f0a3d4b7d8f6fb9290f8bee0880e3785",
+    "internal/adapter/postgres/inventory_import_test.go": "55aaca2641d60ac814e0a3c785816338e73f5608b141d74108a0c7ebc9e3a947"
+  },
+  "limits": [
+    "Local database operator CLI only; HTTP endpoint and batch import pending.",
+    "No schema migration. Full PostgreSQL and HTTP suites from the preceding directory phase were not rerun for this isolated CLI entry point.",
+    "Windows PostgreSQL skips covered by the targeted native integration run.",
+    "Full brand scan and existing ABI compatibility remain unresolved."
+  ]
+}

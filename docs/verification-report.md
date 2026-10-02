@@ -267,3 +267,12 @@ DTO單層解耦及兩份既有測試建構參數更新，14項回歸與完整Deb
 | 完整 HTTP／TLS／PG | 1 | 1 | 0 |
 
 全部本地驗證已結束。待同分支提交推送及繁中PR46更新；仍第三階段，336項4完成184部分148阻塞。下一步實際掃描匯入與增量更新，前端及無損回寫等仍缺。見[契約](directory-nfo-sources.md)及[證據](evidence/directory-nfo-sources.json)。
+
+
+## 掃描候選匯入入口已驗收
+
+`import-inventory --job ID --entry ID --title TITLE --kind Movie` 已接通正式 Scanner 產出的影片候選與 catalog。提交重查最新成功掃描、根世代、基線觀察版本及 size／mtime；重複、覆核、過期與交易故障拒絕。原檔不變，78份既有SQL保持。
+
+Windows 29套件／3312通過事件（含父測試）／536略過；Linux CLI與domain race 2套件／492事件／0略過；專項PG 15事件／0略過。vet、建置、增量品牌與gitignore通過；全量品牌及既有ABI仍未解決。這次未重跑完整PG與HTTP：前一段schema39的完整驗證保留為歷史證據。
+
+[操作與限制](inventory-import.md)、[證據](evidence/inventory-import.json)。仍第三階段，336項的4完成／184部分／148阻塞維持。下一段：已登入管理API與來源核對接線；全庫批次仍待完成。

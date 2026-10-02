@@ -1,3 +1,12 @@
+
+## 掃描候選匯入入口已驗收
+
+`import-inventory --job ID --entry ID --title TITLE --kind Movie` 已接通正式 Scanner 產出的影片候選與 catalog。提交重查最新成功掃描、根世代、基線觀察版本及 size／mtime；重複、覆核、過期與交易故障拒絕。原檔不變，78份既有SQL保持。
+
+Windows 29套件／3312通過事件（含父測試）／536略過；Linux CLI與domain race 2套件／492事件／0略過；專項PG 15事件／0略過。vet、建置、增量品牌與gitignore通過；全量品牌及既有ABI仍未解決。這次未重跑完整PG與HTTP：前一段schema39的完整驗證保留為歷史證據。
+
+[操作與限制](inventory-import.md)、[證據](evidence/inventory-import.json)。仍第三階段，336項的4完成／184部分／148阻塞維持。下一段：已登入管理API與來源核對接線；全庫批次仍待完成。
+
 # 接手记录
 
 ## 最新接續：第39版資料夾來源驗收完成

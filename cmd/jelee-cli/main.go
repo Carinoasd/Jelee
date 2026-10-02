@@ -23,10 +23,17 @@ func run() int {
 		return proberuntime.Helper(os.Args[2:])
 	}
 	if len(os.Args) < 2 {
-		fmt.Fprintln(os.Stderr, "usage: jelee-cli doctor|provision|import-video|import-directory|nfo|account|library|jobs")
+		fmt.Fprintln(os.Stderr, "usage: jelee-cli doctor|provision|import-video|import-directory|import-inventory|nfo|account|library|jobs")
 		return 2
 	}
 	command := os.Args[1]
+	if command == "import-inventory" {
+		ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
+		defer stop()
+		ctx, cancel := context.WithTimeout(ctx, 15*time.Second)
+		defer cancel()
+		return runInventoryImport(ctx, os.Args[2:], os.Stdout, os.Stderr)
+	}
 	if command == "doctor" && len(os.Args) >= 3 && os.Args[2] == "probe" {
 		ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 		defer stop()
