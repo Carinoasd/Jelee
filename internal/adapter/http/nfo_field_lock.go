@@ -9,7 +9,7 @@ func nfoFieldLockSpecification(schemas map[string]any) {
 		"generation":     map[string]any{"type": "integer", "format": "int64", "minimum": 1},
 		"stamp":          map[string]any{"$ref": "#/components/schemas/NFOItemObservationStamp"},
 		"identityDigest": map[string]any{"type": "string", "pattern": "^[0-9a-f]{64}$"},
-		"projection":     map[string]any{"type": "string", "enum": []string{domain.NFOItemFieldsVersion, domain.NFOItemLockFieldsVersion, domain.NFOItemSortFieldsVersion, domain.NFOItemTextFieldsVersion, domain.NFOItemYearFieldsVersion, domain.NFOItemNumericFieldsVersion, domain.NFOItemListFieldsVersion, domain.NFOItemActorFieldsVersion, domain.NFOItemIdentifierFieldsVersion, domain.NFOItemRatingFieldsVersion, domain.NFOItemCollectionFieldsVersion, domain.NFOItemMovieFieldsVersion}},
+		"projection":     map[string]any{"type": "string", "enum": []string{domain.NFOItemFieldsVersion, domain.NFOItemLockFieldsVersion, domain.NFOItemSortFieldsVersion, domain.NFOItemTextFieldsVersion, domain.NFOItemYearFieldsVersion, domain.NFOItemNumericFieldsVersion, domain.NFOItemListFieldsVersion, domain.NFOItemActorFieldsVersion, domain.NFOItemIdentifierFieldsVersion, domain.NFOItemRatingFieldsVersion, domain.NFOItemCollectionFieldsVersion, domain.NFOItemMovieFieldsVersion, domain.NFOItemSeriesFieldsVersion}},
 		"readAt":         map[string]any{"type": "string", "format": "date-time"},
 		"locked":         map[string]any{"type": "boolean", "const": true},
 	}, "sourceId", "rootId", "generation", "stamp", "identityDigest", "projection", "readAt", "locked")

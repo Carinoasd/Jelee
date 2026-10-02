@@ -11,7 +11,7 @@ import (
 
 func knownField(name string) bool {
 	switch name {
-	case "title", "name", "localtitle", "originaltitle", "sorttitle", "sortname", "plot", "outline", "tagline", "year", "season", "seasonnumber", "seasonname", "episode", "displayseason", "displayepisode", "runtime", "premiered", "releasedate", "aired", "dateadded", "mpaa", "certification", "status", "showtitle", "set", "collection", "genre", "tag", "style", "studio", "country", "language", "director", "writer", "credits", "producer", "trailer", "actor", "uniqueid", "imdbid", "tmdbid", "tvdbid", "id", "thumb", "fanart", "art", "poster", "banner", "clearart", "clearlogo", "landscape", "rating", "communityrating", "userrating", "ratings", "lockdata", "lockedfields":
+	case "title", "name", "localtitle", "originaltitle", "sorttitle", "sortname", "plot", "outline", "tagline", "year", "season", "seasonnumber", "seasonname", "episode", "displayseason", "displayepisode", "runtime", "premiered", "releasedate", "aired", "dateadded", "mpaa", "certification", "status", "airs_dayofweek", "airs_time", "showtitle", "set", "collection", "genre", "tag", "style", "studio", "country", "language", "director", "writer", "credits", "producer", "trailer", "actor", "uniqueid", "imdbid", "tmdbid", "tvdbid", "id", "thumb", "fanart", "art", "poster", "banner", "clearart", "clearlogo", "landscape", "rating", "communityrating", "userrating", "ratings", "lockdata", "lockedfields":
 		return true
 	}
 	return false
@@ -69,9 +69,17 @@ func mapField(metadata *Metadata, node *element, entry int) []Issue {
 	case "year":
 		metadata.Year = integer(value, 1, 9999)
 	case "season", "seasonnumber":
-		metadata.Season = integer(value, 0, 1000000)
+		minimum := 0
+		if metadata.Root == "tvshow" {
+			minimum = -1
+		}
+		metadata.Season = integer(value, minimum, 1000000)
 	case "episode":
-		metadata.Episode = integer(value, 0, 1000000)
+		minimum := 0
+		if metadata.Root == "tvshow" {
+			minimum = -1
+		}
+		metadata.Episode = integer(value, minimum, 1000000)
 	case "displayseason":
 		metadata.DisplaySeason = integer(value, 0, 1000000)
 	case "displayepisode":
@@ -94,6 +102,10 @@ func mapField(metadata *Metadata, node *element, entry int) []Issue {
 		metadata.Certification = value
 	case "status":
 		metadata.Status = value
+	case "airs_dayofweek":
+		metadata.AirsDayOfWeek = value
+	case "airs_time":
+		metadata.AirsTime = value
 	case "showtitle":
 		metadata.ShowTitle = value
 	case "collection", "set":

@@ -1289,3 +1289,38 @@ Store專項11通過事件0skip：五表觸發失敗全回滾、新日期/列表/
 | 完整 HTTP／TLS／PG | 1 | 1 | 0 |
 
 全部本地測試已結束。見[契約](nfo-movie-extras.md)及[證據](evidence/nfo-movie-extras.json)。下一步繁中PR46提交推送，然後接續季集與實際匯入。仍全G00–G51目標；禁止merge／release／tag／force-push／改寫已發布SQL與Git身份設定，五個未獲具體批次刪除授權的直播核心保持。
+
+
+### 第36版已發布，第37版劇集資料進行中
+
+schema36 已提交推送 3cbbefdbbba4778b5a295411182a064abf5e203b，PR46繁中說明更新並attach，遠端head核對一致、OPEN/master。63檔1259新增54刪除。驗收：Windows29套件3287事件496略過、native5套件1152零略過、完整PG827／526.532秒零略過、nativePG11／16.461秒、完整HTTP76.999秒。正式Preview傳遞停用確實使HTTP artwork structure...失敗，finally逐位元復原4b358220257eda511ae12a21624b0690872e232ce8340210f4020e6bc951e661後完整PASS。新保護基線001–036共72份SQL；schema36證據記載的70份舊SQL是正確歷史數字。所有36本地handle已終端。新head CI待核對，不沿用舊結果。
+
+第37版接續G39.4 tvshow五欄：seasonCount、episodeCount、seriesStatus、airsDayOfWeek、airsTime。首個真HTTP red已保存 nfo-series-details-initial-red.jsonl（缺五欄），後續domain/Reader/owned clone-recheck/Store/schema37已接，完整HTTP first-green已保存。查本地SeriesNfoSaver.cs原保存器輸出season/episode=-1，Reader原拒絕；unknown-counts-initial-red重現，現在只對tvshow允許-1，season/episode其他root仍0..1000000。新domain NFOSeriesDetails保留pointer counts缺省／-1／零，三個文字各128UTF8 bytes非空白，不擅自規範化9 PM或weekday字串。General parser補airs_dayofweek/airs_time。Reader新增三測試並整包PASS：未知counts、owned指標clone/recheck、重複別名/五欄與範圍拒絕。
+
+series-details-v1共33欄／24facts；新Series全域鎖用新投影，Movie全域鎖仍movie-extra-fields-v1的28欄。schema37新函數valid_item_metadata_series_value(text,jsonb)，五欄純量值／來源／獨立鎖增量约束與保留新資料拒降；001–036不改。46處helper／6處直接降版fixture補37→36。implement-nfo-series-details.py與schema37-series-details.py已執行一次，勿重跑。尚未更新API（預期13variants、24facts、33report與來源版本enum），目前live HTTP handle77064為spec紅測試，只新增期待五欄與13variants，尚未讀取終端結果。不能有live測試時改Go/SQL。
+
+待spec red後API修正、HTTP人工clear/優先/flags/全域與named缺值鎖、-1實際保存、最大24factsbody；Store五表回滾/直接非法SQL/36↔37往返與拒降；全回歸與正式airtime或count傳遞停用負例、docs/evidence/trace(G39.4/G39.6)/繁中PR更新。仍336項4/184/148，禁merge等與五直播core具體授權缺口保持。目標UI前次暫停後get_goal仍paused，普通使用者「切好了」已授權續做；工具不支援改active，不可用create_goal覆蓋既有目標。
+
+
+### 第37版完整回歸狀態
+
+上述spec handle77064已終端預期red並保存spec-initial-red；API已更新13variants/24facts/33report/proof enums。完整HTTP manual-green通過，涵蓋-1真保存、flag保來源、8種非法manual、五欄人工clear/零/值優先、Series33欄全域鎖與缺值不虛構、最大24factsbody。Store13事件0skip通過：Series實際fusion五表回滾、直接SQL五類非法值23514、manualnull與獨立鎖、舊movie37→36→37、missing五named locks及各欄位單獨manualnull拒降。
+
+Go／SQL freeze並記錄58檔snapshot .testdata/nfo-series-details-validation-source.json。Windows handle59942終端exit0，29套件3291事件503skip；native handle45037終端PASS5套件1155事件0skip。CURRENT LIVE fullPG handle61223；checks原handle83601已終端exit1（vet/build成功，brand-new兩處docs引用舊品牌路徑失敗）。只將docs/handoff.md與docs/nfo-series-details.md來源引用改為SeriesNfoSaver.cs檔名，保留原授權文件和程式，不擴allowlist。新checks-resume handle66942 live，只跑brand-new/gitignore/fullbrand，記錄沿用已成功vet/build；Go／SQL snapshot仍完全一致。不得在這些live測試完成前改正式Go/SQL。
+
+全部終端後依序native-PG與negative helper。negative已準備但未執行：AirsTime:metadata.AirsTime→"broken time"，期待HTTP NFO series details lost values or provenance，finally逐位元復原並完整HTTP。evidence/finalize helper均已準備但尚未執行；helper initial三檔對應initial-red/unknown-counts-initial-red/spec-initial-red。docs/nfo-series-details.md明示驗證中，待補證據/trace(G39.4/G39.6)/report/繁中PR，再提交推送。已發布schema36仍3cbbefdbbba4778b5a295411182a064abf5e203b；新schema37未發布。
+
+
+### 第37版：劇集計數、狀態與播出資訊
+
+第37版保存tvshow的季數、集數、劇集狀態與播出星期／時間，保留原文字及缺省／未知-1／零的區別。人工清除、來源與獨立鎖共交易；新劇集全域鎖涵蓋33欄，電影及歷史投影保持。API共13種變體、24個facts。五表回滾、直接SQL非法值、缺值鎖、舊電影資料37→36→37與保留新資料拒降通過。001–036共72份已發布SQL保持。
+
+| 驗證 | 套件 | 通過事件（含父測試） | 略過 |
+| --- | ---: | ---: | ---: |
+| Windows 全套 | 29 | 3291 | 503 |
+| Linux race | 5 | 1155 | 0 |
+| 完整 PostgreSQL | 1 | 840 | 0 |
+| 原生 worker | 1 | 11 | 0 |
+| 完整 HTTP／TLS／PG | 1 | 1 | 0 |
+
+全部本地驗證已終端結束。見[契約](nfo-series-details.md)與[證據](evidence/nfo-series-details.json)。接續繁中PR46提交推送，再處理季／單集来源與實際匯入；仍全G00–G51、4完成184部分148阻塞。禁止merge／release／tag／force-push／改寫已發布SQL及Git身份設定，五個未獲具體刪除授權的直播核心保持。

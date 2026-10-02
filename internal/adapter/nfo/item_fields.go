@@ -243,13 +243,29 @@ func (r *SummaryReader) projectItemFields(ctx context.Context, source *summarySo
 			result.Version = domain.NFOItemMovieFieldsVersion
 		}
 	}
-	if len(result.Fields) == 0 && len(result.Facts) == 0 && len(result.NumberFacts) == 0 && len(result.Lists) == 0 && result.Version != domain.NFOItemMovieFieldsVersion && result.Version != domain.NFOItemCollectionFieldsVersion && result.Version != domain.NFOItemRatingFieldsVersion && result.Version != domain.NFOItemIdentifierFieldsVersion && result.Version != domain.NFOItemActorFieldsVersion && result.Version != domain.NFOItemListFieldsVersion && result.Version != domain.NFOItemNumericFieldsVersion && result.Version != domain.NFOItemYearFieldsVersion && result.Version != domain.NFOItemSortFieldsVersion && result.Version != domain.NFOItemTextFieldsVersion && domain.HasNFOItemFieldLock(result) {
+
+	if result.Kind == "Series" {
+		details := domain.NFOSeriesDetails{SeasonCount: metadata.Season, EpisodeCount: metadata.Episode, Status: metadata.Status, AirsDayOfWeek: metadata.AirsDayOfWeek, AirsTime: metadata.AirsTime}
+		if metadata.Season != nil || metadata.Episode != nil || metadata.Status != "" || metadata.AirsDayOfWeek != "" || metadata.AirsTime != "" {
+			result.SeriesDetails = domain.CloneNFOSeriesDetails(&details)
+			result.Version = domain.NFOItemSeriesFieldsVersion
+		}
+		for _, name := range metadata.LockedFields {
+			if domain.MetadataSeriesFieldForLock(name) != "" {
+				result.Version = domain.NFOItemSeriesFieldsVersion
+			}
+		}
+	}
+	if len(result.Fields) == 0 && len(result.Facts) == 0 && len(result.NumberFacts) == 0 && len(result.Lists) == 0 && result.Version != domain.NFOItemSeriesFieldsVersion && result.Version != domain.NFOItemMovieFieldsVersion && result.Version != domain.NFOItemCollectionFieldsVersion && result.Version != domain.NFOItemRatingFieldsVersion && result.Version != domain.NFOItemIdentifierFieldsVersion && result.Version != domain.NFOItemActorFieldsVersion && result.Version != domain.NFOItemListFieldsVersion && result.Version != domain.NFOItemNumericFieldsVersion && result.Version != domain.NFOItemYearFieldsVersion && result.Version != domain.NFOItemSortFieldsVersion && result.Version != domain.NFOItemTextFieldsVersion && domain.HasNFOItemFieldLock(result) {
 		result.Version = domain.NFOItemLockFieldsVersion
 	}
 	// A newly read global lock covers every currently supported movie field.
 	// Historical observations retain their published projection vocabulary.
 	if result.LockData {
 		result.Version = domain.NFOItemMovieFieldsVersion
+		if result.Kind == "Series" {
+			result.Version = domain.NFOItemSeriesFieldsVersion
+		}
 	}
 	if !domain.ValidNFOItemFields(result) {
 		return domain.NFOItemFields{}, domain.ErrMetadataUnavailable
@@ -384,9 +400,11 @@ func uniqueItemFields(ctx context.Context, original []byte) error {
 				name = "rating"
 			case "set":
 				name = "collection"
+			case "seasonnumber":
+				name = "season"
 			}
 			switch name {
-			case "title", "originaltitle", "plot", "premiered", "sorttitle", "tagline", "outline", "mpaa", "certification", "year", "runtime", "rating", "userrating", "lockdata", "lockedfields", "collection", "dateadded":
+			case "title", "originaltitle", "plot", "premiered", "sorttitle", "tagline", "outline", "mpaa", "certification", "year", "runtime", "rating", "userrating", "lockdata", "lockedfields", "collection", "dateadded", "season", "episode", "status", "airs_dayofweek", "airs_time":
 				if seen[name] {
 					return domain.ErrMetadataUnavailable
 				}

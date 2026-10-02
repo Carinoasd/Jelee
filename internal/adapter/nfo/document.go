@@ -85,6 +85,8 @@ type Metadata struct {
 	MPAA               string     `json:"mpaa,omitempty"`
 	Certification      string     `json:"certification,omitempty"`
 	Status             string     `json:"status,omitempty"`
+	AirsDayOfWeek      string     `json:"airsDayOfWeek,omitempty"`
+	AirsTime           string     `json:"airsTime,omitempty"`
 	ShowTitle          string     `json:"showTitle,omitempty"`
 	Collection         string     `json:"collection,omitempty"`
 	CollectionOverview string     `json:"collectionOverview,omitempty"`

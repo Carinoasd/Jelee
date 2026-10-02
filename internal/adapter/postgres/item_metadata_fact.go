@@ -29,7 +29,7 @@ func readItemMetadataFacts(ctx context.Context, tx pgx.Tx, value *domain.ItemMet
 		}
 		if len(origin) > 0 {
 			var proof domain.NFOItemOrigin
-			if json.Unmarshal(origin, &proof) != nil || !domain.ValidNFOItemOrigin(proof) || (proof.Projection != domain.NFOItemYearFieldsVersion && proof.Projection != domain.NFOItemNumericFieldsVersion && proof.Projection != domain.NFOItemListFieldsVersion && proof.Projection != domain.NFOItemActorFieldsVersion && proof.Projection != domain.NFOItemIdentifierFieldsVersion && proof.Projection != domain.NFOItemRatingFieldsVersion && proof.Projection != domain.NFOItemCollectionFieldsVersion && proof.Projection != domain.NFOItemMovieFieldsVersion) || !slices.Contains(domain.NFOItemFieldNames(proof.Projection), fact.Field) {
+			if json.Unmarshal(origin, &proof) != nil || !domain.ValidNFOItemOrigin(proof) || (proof.Projection != domain.NFOItemYearFieldsVersion && proof.Projection != domain.NFOItemNumericFieldsVersion && proof.Projection != domain.NFOItemListFieldsVersion && proof.Projection != domain.NFOItemActorFieldsVersion && proof.Projection != domain.NFOItemIdentifierFieldsVersion && proof.Projection != domain.NFOItemRatingFieldsVersion && proof.Projection != domain.NFOItemCollectionFieldsVersion && proof.Projection != domain.NFOItemMovieFieldsVersion && proof.Projection != domain.NFOItemSeriesFieldsVersion) || !slices.Contains(domain.NFOItemFieldNames(proof.Projection), fact.Field) {
 				return domain.ErrMetadataUnavailable
 			}
 			fact.NFOOrigin = &proof
@@ -128,6 +128,25 @@ func applyNFOFacts(ctx context.Context, tx pgx.Tx, before domain.ItemMetadata, s
 			return domain.ErrInvalid
 		}
 		incomingFacts = append(incomingFacts, domain.ItemMetadataFact{Field: "art", Value: raw})
+	}
+
+	if details := fields.SeriesDetails; details != nil {
+		for _, entry := range []struct {
+			name    string
+			value   any
+			present bool
+		}{
+			{"seasonCount", details.SeasonCount, details.SeasonCount != nil}, {"episodeCount", details.EpisodeCount, details.EpisodeCount != nil},
+			{"seriesStatus", details.Status, details.Status != ""}, {"airsDayOfWeek", details.AirsDayOfWeek, details.AirsDayOfWeek != ""}, {"airsTime", details.AirsTime, details.AirsTime != ""},
+		} {
+			if entry.present {
+				raw, err := json.Marshal(entry.value)
+				if err != nil {
+					return domain.ErrInvalid
+				}
+				incomingFacts = append(incomingFacts, domain.ItemMetadataFact{Field: entry.name, Value: raw})
+			}
+		}
 	}
 	for _, incoming := range incomingFacts {
 		old := domain.ItemMetadataFact{Field: incoming.Field}

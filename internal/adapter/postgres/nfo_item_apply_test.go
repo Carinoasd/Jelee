@@ -68,6 +68,7 @@ func TestNFOItemPersistenceManualPriorityAndSeparateLocks(t *testing.T) {
 	if err != nil || value.Fields[0].Source != "manual" || value.Fields[0].NFOOrigin != nil {
 		t.Fatal("manual takeover retained origin", err)
 	}
+	nfoMigrateVersion(t, f, "down", 36)
 	nfoMigrateVersion(t, f, "down", 35)
 	nfoMigrateVersion(t, f, "down", 34)
 	nfoMigrateVersion(t, f, "down", 33)
@@ -91,6 +92,7 @@ func TestNFOItemPersistenceManualPriorityAndSeparateLocks(t *testing.T) {
 
 func TestNFOItemAtomicRollbackAndScopeInvalidation(t *testing.T) {
 	f, scope, fields := nfoItemApplyFixture(t)
+	nfoMigrateVersion(t, f, "down", 36)
 	nfoMigrateVersion(t, f, "down", 35)
 	nfoMigrateVersion(t, f, "down", 34)
 	nfoMigrateVersion(t, f, "down", 33)

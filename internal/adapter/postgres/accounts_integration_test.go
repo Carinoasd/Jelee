@@ -579,6 +579,9 @@ func TestAccountIntegration(t *testing.T) {
 
 func TestAccountMigrationRejectsCaseCollisionWithoutRenaming(t *testing.T) {
 	ctx, s, dsn := accountTestStore(t)
+	if version, dirty, e := Migrate(ctx, dsn, "down"); e != nil || dirty || version != 36 {
+		t.Fatalf("down36 version=%d dirty=%v error=%v", version, dirty, e)
+	}
 	if version, dirty, e := Migrate(ctx, dsn, "down"); e != nil || dirty || version != 35 {
 		t.Fatalf("down35 version=%d dirty=%v error=%v", version, dirty, e)
 	}
@@ -711,6 +714,9 @@ func TestAccountMigrationRollbackKeepsDeletedAccountsDisabled(t *testing.T) {
 	}
 	if _, err = s.Pool.Exec(ctx, `UPDATE users SET deleted_at=now() WHERE name='DeletedBeforeRollback'`); err != nil {
 		t.Fatal("prepare deleted account")
+	}
+	if version, dirty, e := Migrate(ctx, dsn, "down"); e != nil || dirty || version != 36 {
+		t.Fatalf("down36 version=%d dirty=%v error=%v", version, dirty, e)
 	}
 	if version, dirty, e := Migrate(ctx, dsn, "down"); e != nil || dirty || version != 35 {
 		t.Fatalf("down35 version=%d dirty=%v error=%v", version, dirty, e)
