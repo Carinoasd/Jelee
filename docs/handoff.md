@@ -1,3 +1,11 @@
+## 最新接續：一萬檔忽略規則規模基線
+
+新增 opt-in `TestIgnoreScanScale`，正式 FamilyIgnoreScanner／helper／worker／PG 三輪測一萬總檔案（含兩個規則檔），每目錄最多一千影片。首次 5.04 秒；排除一半重掃 70.77 秒；保持規則及清理 68.51 秒。三輪皆 attempts=1、批次最多 128；觀察 5001＋保留歷史 4999，第三輪底層仍兩萬列，歷史版號與原檔抽樣保持。
+
+[報告](ignore-scale-baseline.md)／[證據](evidence/ignore-scale-baseline.json)。GOMAXPROCS=2、512MiB、單 worker；heap 峰值約 3.41 MiB、程序 RSS 約 25.05 MiB，不含 helper 與 PG 合計。重掃每輪啟動 helper 10,089 次，是目前要檢查的成本；不能把一萬檔結果推算成十萬／五十萬通過。schema44 產品程式未改，88 份已發布 SQL 保持。
+
+上一提交 f1d1065957 的 Windows／Ubuntu foundation 已轉綠；ABI 與全量品牌仍紅，其餘 CI 需按新 SHA 核對。仍第三階段，336 項 4 完成／184 部分／148 阻塞。接續檢查有界批次歷史比對，保留來源身分與前後驗證，不擴大期限掩蓋問題。24h 尚未開始。沿用繁中 PR46、同分支、不 merge／release／tag／force-push／設定 Git 身分。以下為歷史紀錄。
+
 ## 最新接續：忽略規則分批快照
 
 schema44 已接 `.jeleeignore`／傳統忽略歷史的分批準備；每批最多 128 原始決策，保留歷史欄位與版號。準備在來源重驗與短效封印之前，完成後同交易切換基準與終態；取消、租約、模式、範圍與封印仍有前後守衛。圖片缺失統計的新鮮統計退化已以集合比對修正：一萬基準／9500 當前／450 決策，讀取由 49,890,000 降至 19,950 列。

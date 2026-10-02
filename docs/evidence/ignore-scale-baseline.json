@@ -1,0 +1,126 @@
+{
+  "parentCommit": "f1d106595702669fcbdf26cc7599a5c1d7bd3450",
+  "verifiedAt": "2026-10-02T16:01:21.683009+00:00",
+  "schemaVersion": 44,
+  "sourceFiles": {
+    "internal/adapter/postgres/ignore_scale_test.go": "baffd903ee260c2655090ba90e08eaeb3bbc5b07acf64ed987d7162408752b20"
+  },
+  "verification": {
+    "realWorkerScale": {
+      "passedPackages": 1,
+      "passedTestEventsIncludingParents": 1,
+      "skippedTestEvents": 0,
+      "log": ".testdata/ignore-scale-10000-cpu-2.jsonl"
+    }
+  },
+  "configuration": {
+    "gomaxprocs": 2,
+    "goMemoryLimit": "512MiB",
+    "workerCount": 1,
+    "mediaFilesPerDirectory": 1000,
+    "totalFilesIncludeRuleFiles": true,
+    "ruleFiles": 2,
+    "filesystem": "native ext4",
+    "database": "separate native-disk PostgreSQL 16.15",
+    "cpuQuotaEnforced": false
+  },
+  "results": [
+    {
+      "pass": "initial",
+      "totalFiles": 10000,
+      "observedFiles": 10000,
+      "historicalFiles": 0,
+      "retainedBaselineRows": 10000,
+      "gomaxprocs": 2,
+      "seconds": 5.043764433,
+      "state": "succeeded",
+      "errorCode": "",
+      "attempts": 1,
+      "maxBatch": 128,
+      "batches": 92,
+      "helperStarts": 91,
+      "peakHeapBytes": 2891560,
+      "peakRSSBytes": 23986176,
+      "afterGC": {
+        "seconds": 5.05450333,
+        "files": 10000,
+        "heapBytes": 2032592,
+        "heapInuseBytes": 3620864,
+        "rssBytes": 22704128,
+        "totalAllocBytes": 55320448,
+        "gcCount": 25,
+        "gcPauseTotalNanoseconds": 1281176,
+        "goroutines": 4,
+        "fileDescriptors": 10,
+        "dbAcquired": 0
+      }
+    },
+    {
+      "pass": "ignored",
+      "totalFiles": 10000,
+      "observedFiles": 5001,
+      "historicalFiles": 4999,
+      "retainedBaselineRows": 20000,
+      "gomaxprocs": 2,
+      "seconds": 70.766547974,
+      "state": "succeeded",
+      "errorCode": "",
+      "attempts": 1,
+      "maxBatch": 128,
+      "batches": 92,
+      "helperStarts": 10089,
+      "peakHeapBytes": 3577240,
+      "peakRSSBytes": 25563136,
+      "afterGC": {
+        "seconds": 70.772736873,
+        "files": 5001,
+        "heapBytes": 2869376,
+        "heapInuseBytes": 4857856,
+        "rssBytes": 24825856,
+        "totalAllocBytes": 484006336,
+        "gcCount": 242,
+        "gcPauseTotalNanoseconds": 11380815,
+        "goroutines": 4,
+        "fileDescriptors": 11,
+        "dbAcquired": 0
+      }
+    },
+    {
+      "pass": "cleanup",
+      "totalFiles": 10000,
+      "observedFiles": 5001,
+      "historicalFiles": 4999,
+      "retainedBaselineRows": 20000,
+      "gomaxprocs": 2,
+      "seconds": 68.511969449,
+      "state": "succeeded",
+      "errorCode": "",
+      "attempts": 1,
+      "maxBatch": 128,
+      "batches": 92,
+      "helperStarts": 10089,
+      "peakHeapBytes": 3352888,
+      "peakRSSBytes": 26271744,
+      "afterGC": {
+        "seconds": 68.518642915,
+        "files": 5001,
+        "heapBytes": 3001376,
+        "heapInuseBytes": 5177344,
+        "rssBytes": 25964544,
+        "totalAllocBytes": 913682368,
+        "gcCount": 477,
+        "gcPauseTotalNanoseconds": 22704778,
+        "goroutines": 4,
+        "fileDescriptors": 11,
+        "dbAcquired": 1
+      }
+    }
+  ],
+  "rawEvidenceDirectory": "/home/qwe296280/.cache/jelee-ignore-scale/files-10000-cpu-2-vv9ck33c/evidence",
+  "limitations": [
+    "Only 10000 total files measured; 100000 and 500000 pending",
+    "RSS/heap sample describes Go test/worker process, not aggregate helper children or PostgreSQL",
+    "No flat-directory, image, probe, container OOM or 24-hour claim",
+    "Three rounds cannot establish long-term memory steady state"
+  ]
+}
