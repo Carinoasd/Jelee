@@ -1,5 +1,7 @@
 # 唯讀 NFO 的項目欄位套用
 
+當前binary要求schema25；本頁保留先前階段的契約與證據。缺少文字值時的獨立NFO鎖及升降版限制，見[第25版契約](nfo-field-lock-intent.md)。
+
 管理員可使用 `POST /api/v1/items/{id}/metadata/nfo`，提供目前 `expectedRevision` 與明確 `confirmed: true`。需要帳號功能，項目所屬庫需啟用唯讀 NFO；套用入口不依賴 TMDB 金鑰或掃描工作開關。NFO 庫設定仍使用原有設定流程。
 
 ## 來源與讀取

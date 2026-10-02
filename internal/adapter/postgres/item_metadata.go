@@ -59,6 +59,9 @@ func readItemMetadata(ctx context.Context, tx pgx.Tx, item string, lock bool) (d
 	if len(value.Fields) == 0 || value.Fields[0].Field != "title" {
 		value.Fields = append([]domain.ItemMetadataField{{Field: "title", Value: title, Source: "existing"}}, value.Fields...)
 	}
+	if err := readNFOFieldLocks(ctx, tx, &value); err != nil {
+		return value, err
+	}
 	return value, nil
 }
 
@@ -111,6 +114,10 @@ func (s *Store) UpdateItemMetadata(ctx context.Context, actor domain.Actor, item
 			field.Source = "manual"
 			field.ProviderOrigin = nil
 			field.NFOOrigin = nil
+			field.NFOLockOrigin = nil
+			if _, err = tx.Exec(ctx, `DELETE FROM item_nfo_field_locks WHERE item_id=$1::uuid AND field=$2`, item, patch.Field); err != nil {
+				return domain.ItemMetadata{}, storageError(err)
+			}
 		}
 		if patch.Locked != nil {
 			field.Locked = *patch.Locked

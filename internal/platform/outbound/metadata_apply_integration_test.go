@@ -477,6 +477,33 @@ func TestTMDBMetadataThroughTLSHTTPAndPostgres(t *testing.T) {
 	if original, err := os.ReadFile(collisionFile); err != nil || string(original) != document {
 		t.Fatal("ambiguous NFO original changed", err)
 	}
+	for offset, directive := range []string{`<lockdata>true</lockdata>`, `<lockedfields>Overview|Unknown</lockedfields>`} {
+		lockDocument := `<movie><title>Partial locked NFO</title>` + directive + `</movie>`
+		item, file := newNFOItem(fmt.Sprintf("independent-lock-%d", offset), "Movie", lockDocument)
+		result := decode(apply(item, "movie", 4900+offset, 1))
+		if offset == 0 && (len(result.TMDB.Applied) != 0 || len(result.TMDB.Skipped) != 4) {
+			t.Fatal("HTTP global NFO lock failed to protect absent fields")
+		}
+		if offset == 1 && len(result.TMDB.Applied) != 2 {
+			t.Fatal("HTTP named NFO lock did not preserve unrelated provider fields")
+		}
+		stored, err := store.ItemMetadata(ctx, actor, item)
+		if err != nil || stored.Revision != 2 {
+			t.Fatal("HTTP lock persistence unavailable", err)
+		}
+		for _, field := range stored.Fields {
+			locked := offset == 0 || field.Field == "overview"
+			if locked && (field.NFOLockOrigin == nil || field.NFOLockOrigin.Stamp.SHA256 != stored.LastConfirmedNFOObservation.Stamp.SHA256) {
+				t.Fatal("HTTP NFO lock proof was not persisted", field.Field)
+			}
+			if locked && field.Field != "title" && (field.Value != "" || field.Source != "existing" || field.NFOOrigin != nil || field.ProviderOrigin != nil) {
+				t.Fatal("HTTP absent-field lock invented text provenance", field.Field)
+			}
+		}
+		if original, err := os.ReadFile(file); err != nil || string(original) != lockDocument {
+			t.Fatal("lock review altered original NFO", err)
+		}
+	}
 	for offset, mode := range []string{"missing", "invalid"} {
 		item, file := newNFOItem("state-guard-"+mode, "HomeVideo", `<movie><title>broken`)
 		if mode == "missing" {

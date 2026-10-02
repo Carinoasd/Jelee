@@ -56,6 +56,7 @@ func metadataOriginSpecification(schemas map[string]any) {
 	item["properties"].(map[string]any)["kind"] = map[string]any{"type": "string", "enum": []string{"Movie", "Series", "Season", "Episode", "HomeVideo"}}
 	item["required"] = append(item["required"].([]string), "kind")
 	nfoItemObservationSpecification(schemas)
+	nfoFieldLockSpecification(schemas)
 }
 
 func metadataApplyResultSpecification(schemas map[string]any) {

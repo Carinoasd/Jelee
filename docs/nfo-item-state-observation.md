@@ -1,5 +1,7 @@
 # NFO 有效、缺失與損壞的可信觀察
 
+當前binary要求schema25；本頁保留先前階段的契約與證據。缺少文字值時的獨立NFO鎖及升降版限制，見[第25版契約](nfo-field-lock-intent.md)。
+
 本頁保留該階段的實作與驗證；後續第24版的三態保存及可信缺失／損壞回退，見[最新回退契約](nfo-tmdb-fallback.md)。
 
 正式讀者現在分別保留 `valid`、`missing`、`nfo_invalid`。這是 TMDB 回退的前置觀察能力；狀態保存與回退尚未啟用，NFO-only 和 TMDB 套用遇到初始缺失／損壞仍回 503。

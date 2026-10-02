@@ -1,0 +1,101 @@
+{
+  "phase": "第三階段：第25版獨立NFO缺值欄位鎖",
+  "previousCommit": "3207cc9cda26ffca9529ead3d4c89a3f6a02a015",
+  "schemaVersion": 25,
+  "verification": {
+    "windows": {
+      "passedPackages": 29,
+      "passedTestEventsIncludingParents": 3221,
+      "skippedTestEvents": 464
+    },
+    "native": {
+      "passedPackages": 5,
+      "passedTestEventsIncludingParents": 1087,
+      "skippedTestEvents": 0
+    },
+    "full-pg": {
+      "passedPackages": 1,
+      "passedTestEventsIncludingParents": 743,
+      "skippedTestEvents": 0,
+      "elapsedSeconds": 385.417
+    },
+    "native-postgres": {
+      "passedPackages": 1,
+      "passedTestEventsIncludingParents": 11,
+      "skippedTestEvents": 0,
+      "elapsedSeconds": 14.55
+    },
+    "e2e-restored": {
+      "passedPackages": 1,
+      "passedTestEventsIncludingParents": 1,
+      "skippedTestEvents": 0,
+      "elapsedSeconds": 71.463
+    }
+  },
+  "originalRegression": {
+    "failedLeafTests": 1,
+    "reason": "lockdata allowed provider to overwrite fields absent from NFO"
+  },
+  "fullPathNegative": {
+    "negativeLeafFailures": 1,
+    "observed": "HTTP global NFO lock failed to protect absent fields",
+    "restoredSources": {
+      "internal/domain/metadata_apply.go": "8cd41f33defca900c43b2544b5f63bd5313c9d412f0ef3566745b3ad09539034"
+    },
+    "restoredExitCode": 0
+  },
+  "protectedPublishedMigrationFiles": 48,
+  "requirements": {
+    "partial": 184,
+    "blocked": 148,
+    "done": 4
+  },
+  "sourceSHA256": {
+    "internal/adapter/http/metadata_apply.go": "18ff437b0eefce2cad57d28828f87f197a59a4be7210cd3db0eb65b6c24e8ba7",
+    "internal/adapter/postgres/accounts_integration_test.go": "0db879fb91393a5732b9ff4054216316f557f5aa1c223ea9deb48f406e9f4d59",
+    "internal/adapter/postgres/ignore_baseline_test.go": "f1f8f724236cec34fbc6c981bc9a5ff635530c397c1ffd86428f249680889cb2",
+    "internal/adapter/postgres/ignore_family_comparison_test.go": "7fb89151bb4ae62013bf7c249e5f9707198f97e1c1fe282882182c1ffde4835a",
+    "internal/adapter/postgres/ignore_family_scan_test.go": "d67dfb3e90f646ee1e05f56c23522c29ab573684a7b5ed9fd02a1550a2a80a7f",
+    "internal/adapter/postgres/ignore_legacy_baseline_test.go": "dbfe0ef93f86ffa37bc86f2bae38736930ae8dd8f925987bd2b7a063c2870a6d",
+    "internal/adapter/postgres/ignore_legacy_baseline_verification_test.go": "21823472ac1db9630e774ecf0ccd9f869d3806a9178a4cc39baaa95ee12530d7",
+    "internal/adapter/postgres/ignore_legacy_migration_test.go": "1e9277bf034d649140d4405e1b1e51924f47900717010acf9b625dadc691e415",
+    "internal/adapter/postgres/ignore_legacy_verification_test.go": "1ad20171b07df4c11789bcf503f63205adcd18408ac1cbce87cface90613db58",
+    "internal/adapter/postgres/ignore_manifest_test.go": "39b28e0b5b2b0126b1ddafbb72b8ba24737eabc55a77536d0e70209b7b39ed99",
+    "internal/adapter/postgres/ignore_migration_test.go": "307841fa00441634829f4c54338a03afed0f8b022dfeb57e773d5bb6aba5db3d",
+    "internal/adapter/postgres/ignore_scan_test.go": "3ca615f081be567b2ca5546b61abaeb9cc4a29013b71f8c022c09748e8af0d9c",
+    "internal/adapter/postgres/ignore_verification_test.go": "4923cf2b6a2c8aaae5ab3b42fe890741a47b9ec698a3d046938f0d3d8c728afe",
+    "internal/adapter/postgres/item_metadata.go": "65056ac52d656feae9db9b2056ad021c8a8d692e4a320cece12b85ce7595583e",
+    "internal/adapter/postgres/item_metadata_test.go": "9da52ded6452030e4355b11f4925c7c91f84f2998cd3a14c82a66a43d6b7b891",
+    "internal/adapter/postgres/jobs_integration_test.go": "21ec59090cdc00fe412539e0bdac454b5ac6c9401bf1942cb8058177b68fc2b6",
+    "internal/adapter/postgres/metadata_apply_test.go": "97fb5633810fb868491acd28a9753b7652f0ebee70c313e9ddf46c8dddbe5ab4",
+    "internal/adapter/postgres/metadata_field_apply.go": "e413263f935434fe3c5c6e4409125699807a55c0f094189e0cfc70a640e3786b",
+    "internal/adapter/postgres/metadata_image_preferences_test.go": "54ac4fd45ec51e2c790bbc43a68d5cf029b4496995d60bc64897d9d5fb1b32cd",
+    "internal/adapter/postgres/metadata_preferences_test.go": "4c795528c98d330bff8f30f1b513cef0eadc852c563dad7e1149650d1c9b7af5",
+    "internal/adapter/postgres/nfo_integration_test.go": "42179a0b1d62ca1f458eb18f96b2e342b07f7e260085684b62ff0ab45962b5ad",
+    "internal/adapter/postgres/nfo_item_apply_test.go": "8e522445439a022fc273244b92a874b0db4090c30812bfc26b61d925575171eb",
+    "internal/adapter/postgres/nfo_item_observation_test.go": "1c3801b4461f68fe4ac6694856ffb739e6c8c0c8b0ceb4dcb7a1b730586c18f7",
+    "internal/adapter/postgres/nfo_worker_migration_test.go": "f1194774ad9bb5f3c8b01a2ea5c7fda98d3c4d1a5615e3f39dec99959421bfa0",
+    "internal/adapter/postgres/probe_integration_test.go": "28248ebe6e6cb0f96b671a434f369df2e1e674b0c4aa72c963f500e2223d33da",
+    "internal/adapter/postgres/probe_requests_test.go": "76ea9771955bceb4dd01692d186a25ece0fafa99921e28dc5e69714f46fec6a5",
+    "internal/adapter/postgres/store.go": "6d8f0e13b5453d6485c5cd1dd0704679ab0614b9fc15a577ef6b24a7522cbefb",
+    "internal/adapter/postgres/store_integration_test.go": "dc70dc61c162c5e1c596b55c4ef3980254a2add163f8165da473f4b789308a34",
+    "internal/domain/item_metadata.go": "66fbe70ccc1d8f5a0d4b1c59ee19ad46d8d2754cd5aa579e352af91a6ce9196f",
+    "internal/domain/metadata_apply.go": "8cd41f33defca900c43b2544b5f63bd5313c9d412f0ef3566745b3ad09539034",
+    "internal/platform/outbound/metadata_apply_integration_test.go": "6f695655f089041ec50328ef0176d8dbd84f597e1f63acad2a6ba7cf0a073058",
+    "internal/adapter/http/nfo_field_lock.go": "afba2b070935a283014605c4e8f9242cc11d371949269e02f7659db160f435ac",
+    "internal/adapter/postgres/migrations/000025_item_nfo_field_locks.down.sql": "227db56089ebfd05b2a2461e9c3f367cfe474f3609717c72b1867cfc332e83ad",
+    "internal/adapter/postgres/migrations/000025_item_nfo_field_locks.up.sql": "44e47b15c0950bae4f0a709dcbc2341f137677719b278efcb964d72cf4091e57",
+    "internal/adapter/postgres/nfo_field_lock.go": "a7fa88529ea3c0346c1c8aa2452021c6147761ba1b91e64f3ed94a77a7e20d65",
+    "internal/adapter/postgres/nfo_item_lock_intent_test.go": "6de29a8aeca6984ef35a31dca0bcfff8440e10dcc700a2e0655457aa5394959a",
+    "internal/domain/nfo_field_lock.go": "877d7fdee8fd8d5c886673c37b058940303c8b88e470765df94d3e24fc4b4165"
+  },
+  "gates": {
+    "vet": "passed",
+    "productBuild": "passed",
+    "newBrandViolations": 0,
+    "fullBrandViolations": 14735,
+    "fullBrandAllowed": 186,
+    "gitignoreViolations": 0
+  },
+  "scope": "四欄文字投影中全域／已知欄位鎖獨立保存；有效lock-only XML仍未支援。未宣稱全案完成。"
+}

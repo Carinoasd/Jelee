@@ -22,7 +22,7 @@ func applyNFOFields(ctx context.Context, tx pgx.Tx, before domain.ItemMetadata, 
 			}
 		}
 		reason := ""
-		if old.Locked || old.NFOOrigin != nil && old.NFOOrigin.Locked {
+		if old.Locked || old.NFOOrigin != nil && old.NFOOrigin.Locked || old.NFOLockOrigin != nil && old.NFOLockOrigin.Locked {
 			reason = "locked"
 		} else if old.Source == "manual" {
 			reason = "manual"
@@ -37,6 +37,9 @@ func applyNFOFields(ctx context.Context, tx pgx.Tx, before domain.ItemMetadata, 
 			return domain.MetadataApplyResult{}, err
 		}
 		result.Applied = append(result.Applied, incoming.Field)
+	}
+	if err := writeNFOFieldLocks(ctx, tx, scope, fields, identity); err != nil {
+		return domain.MetadataApplyResult{}, err
 	}
 	return result, nil
 }

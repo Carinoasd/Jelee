@@ -83,6 +83,7 @@ func TestItemMetadataPersistenceConflictAndAudit(t *testing.T) {
 func TestItemMetadataAuthorizationCancellationAndMigration(t *testing.T) {
 	f := newJobFixture(t)
 	item := metadataItem(t, f)
+	nfoMigrateVersion(t, f, "down", 24)
 	nfoMigrateVersion(t, f, "down", 23)
 	nfoMigrateVersion(t, f, "down", 22)
 	nfoMigrateVersion(t, f, "down", 21)

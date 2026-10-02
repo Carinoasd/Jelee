@@ -106,7 +106,7 @@ func MetadataResourceMatchesKind(resource, kind string) bool {
 
 // Explicit legacy-title replacement never overrides a lock or known local source.
 func TMDBMetadataSkip(old ItemMetadataField, replaceExistingTitle bool) string {
-	if old.Locked || old.NFOOrigin != nil && old.NFOOrigin.Locked {
+	if old.Locked || old.NFOOrigin != nil && old.NFOOrigin.Locked || old.NFOLockOrigin != nil && old.NFOLockOrigin.Locked {
 		return "locked"
 	}
 	if old.Source == "manual" {

@@ -16,6 +16,7 @@ type ItemMetadataField struct {
 	UpdatedAt      *time.Time              `json:"updatedAt"`
 	ProviderOrigin *MetadataProviderOrigin `json:"providerOrigin"`
 	NFOOrigin      *NFOItemOrigin          `json:"nfoOrigin"`
+	NFOLockOrigin  *NFOFieldLockOrigin     `json:"nfoLockOrigin"`
 }
 
 type ItemMetadata struct {
@@ -92,6 +93,10 @@ func CloneItemMetadata(value ItemMetadata) ItemMetadata {
 		if value.Fields[i].ProviderOrigin != nil {
 			origin := *value.Fields[i].ProviderOrigin
 			value.Fields[i].ProviderOrigin = &origin
+		}
+		if value.Fields[i].NFOLockOrigin != nil {
+			origin := *value.Fields[i].NFOLockOrigin
+			value.Fields[i].NFOLockOrigin = &origin
 		}
 		if value.Fields[i].NFOOrigin != nil {
 			origin := *value.Fields[i].NFOOrigin
