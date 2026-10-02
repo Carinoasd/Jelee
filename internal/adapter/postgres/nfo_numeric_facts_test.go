@@ -27,6 +27,7 @@ func TestNFONumericManualWhitespaceNullDoesNotBecomeZero(t *testing.T) {
 
 func TestNFONumericFactsAtomicPersistenceAndManualPriority(t *testing.T) {
 	f, scope, fields := nfoItemApplyFixture(t)
+	nfoMigrateVersion(t, f, "down", 33)
 	nfoMigrateVersion(t, f, "down", 32)
 	nfoMigrateVersion(t, f, "down", 31)
 	nfoMigrateVersion(t, f, "down", 30)
@@ -124,6 +125,7 @@ func TestNFONumericMigrationPreservesPublishedYearProjection(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	nfoMigrateVersion(t, f, "down", 33)
 	nfoMigrateVersion(t, f, "down", 32)
 	nfoMigrateVersion(t, f, "down", 31)
 	nfoMigrateVersion(t, f, "down", 30)

@@ -934,6 +934,75 @@ func TestTMDBMetadataThroughTLSHTTPAndPostgres(t *testing.T) {
 		t.Fatal("numeric metadata review changed source bytes", err)
 	}
 	t.Log("actual HTTP/TLS/NFO/PostgreSQL: thirteen-field numeric projection, zero/bounds, mixed manual clear and renewed independent locks PASS")
+	ratingsDocument := `<movie><title>Ratings example</title><ratings><rating name="imdb" max="10" default="true"><value>7.5</value><votes>123</votes></rating><rating name="custom" max="100"><value>85</value><votes>0</votes></rating><rating name="missing-optionals"><value>0</value></rating></ratings></movie>`
+	ratingsItem, ratingsFile := newNFOItem("typed-multi-source-ratings", "HomeVideo", ratingsDocument)
+	ratingsResult := decode(request("POST", "/api/v1/items/"+ratingsItem+"/metadata/nfo", `{"expectedRevision":1,"confirmed":true}`))
+	if ratingsResult.Metadata.Revision != 2 || len(ratingsResult.Metadata.Facts) != 1 || ratingsResult.Metadata.Facts[0].Field != "ratings" || ratingsResult.Metadata.Facts[0].NFOOrigin == nil {
+		t.Fatal("HTTP confirmed NFO multi-source ratings were not persisted")
+	}
+	var sourceRatings []struct {
+		Name    string   `json:"name"`
+		Value   float64  `json:"value"`
+		Max     *float64 `json:"max"`
+		Votes   *int     `json:"votes"`
+		Default bool     `json:"default"`
+	}
+	if err := json.Unmarshal(ratingsResult.Metadata.Facts[0].Value, &sourceRatings); err != nil || len(sourceRatings) != 3 || sourceRatings[0].Name != "imdb" || sourceRatings[0].Value != 7.5 || sourceRatings[0].Max == nil || *sourceRatings[0].Max != 10 || sourceRatings[0].Votes == nil || *sourceRatings[0].Votes != 123 || !sourceRatings[0].Default || sourceRatings[1].Value != 85 || sourceRatings[1].Max == nil || *sourceRatings[1].Max != 100 || sourceRatings[1].Votes == nil || *sourceRatings[1].Votes != 0 || sourceRatings[2].Max != nil || sourceRatings[2].Votes != nil || sourceRatings[2].Value != 0 {
+		t.Fatal("HTTP NFO multi-source ratings lost scale, votes, default or missing optionals")
+	}
+	if response := request("PUT", "/api/v1/items/"+ratingsItem+"/metadata", `{"expectedRevision":2,"facts":[{"field":"ratings","locked":true}]}`); response.status != 200 {
+		t.Fatal("HTTP rating flag edit failed", response.status)
+	}
+	flagRatings, err := store.ItemMetadata(ctx, actor, ratingsItem)
+	if err != nil || flagRatings.Facts[0].NFOOrigin == nil || !flagRatings.Facts[0].Locked {
+		t.Fatal("HTTP rating flag edit removed value origin", err)
+	}
+	for offset, clear := range []string{"null", "[]"} {
+		revision := 3 + offset*2
+		body := fmt.Sprintf(`{"expectedRevision":%d,"facts":[{"field":"ratings","value":%s,"locked":false}]}`, revision, clear)
+		if response := request("PUT", "/api/v1/items/"+ratingsItem+"/metadata", body); response.status != 200 {
+			t.Fatal("HTTP manual rating clear failed", response.status)
+		}
+		review := decode(request("POST", "/api/v1/items/"+ratingsItem+"/metadata/nfo", fmt.Sprintf(`{"expectedRevision":%d,"confirmed":true}`, revision+1)))
+		fact := review.Metadata.Facts[0]
+		if review.Metadata.Revision != int64(revision+2) || string(fact.Value) != clear || fact.Source != "manual" || fact.NFOOrigin != nil || fact.NFOLockOrigin != nil {
+			t.Fatal("HTTP NFO review overwrote manual rating clear")
+		}
+	}
+	for _, invalid := range []string{`"imdb"`, `[null]`, `[{"value":null}]`, `[{"value":11}]`, `[{"value":5,"max":0}]`, `[{"value":1e309}]`, `[{"value":5,"max":4}]`, `[{"value":5,"votes":1.5}]`, `[{"value":5,"votes":2147483648}]`, `[{"value":5,"default":null}]`, `[{"value":5,"name":null}]`, `[{"value":5,"extra":true}]`} {
+		body := `{"expectedRevision":7,"facts":[{"field":"ratings","value":` + invalid + `}]}`
+		if response := request("PUT", "/api/v1/items/"+ratingsItem+"/metadata", body); response.status != 400 {
+			t.Fatal("HTTP malformed source rating accepted", response.status)
+		}
+	}
+	if raw, err := os.ReadFile(ratingsFile); err != nil || string(raw) != ratingsDocument {
+		t.Fatal("rating edits changed original NFO", err)
+	}
+	lockedRatingsDocument := strings.Replace(ratingsDocument, "</movie>", "<lockedfields>SourceRatings</lockedfields></movie>", 1)
+	if err := os.WriteFile(ratingsFile, []byte(lockedRatingsDocument), 0600); err != nil {
+		t.Fatal(err)
+	}
+	lockedRatings := decode(request("POST", "/api/v1/items/"+ratingsItem+"/metadata/nfo", `{"expectedRevision":7,"confirmed":true}`))
+	if lockedRatings.Metadata.Revision != 8 || string(lockedRatings.Metadata.Facts[0].Value) != "[]" || lockedRatings.Metadata.Facts[0].Source != "manual" || lockedRatings.Metadata.Facts[0].NFOOrigin != nil || lockedRatings.Metadata.Facts[0].NFOLockOrigin == nil {
+		t.Fatal("HTTP rating clear lost renewed independent lock")
+	}
+	if response := request("PUT", "/api/v1/items/"+ratingsItem+"/metadata", `{"expectedRevision":8,"facts":[{"field":"ratings","value":[{"value":1,"max":null,"votes":null}]}]}`); response.status != 200 {
+		t.Fatal("HTTP optional rating nulls or unnamed source rejected", response.status)
+	}
+	if raw, err := os.ReadFile(ratingsFile); err != nil || string(raw) != lockedRatingsDocument {
+		t.Fatal("nullable rating edit changed NFO source", err)
+	}
+	for offset, ambiguous := range []string{`<rating><value>1</value><value>2</value></rating>`, `<rating><value>1</value><votes>0</votes><votes>1</votes></rating>`, `<rating max="10" MAX="100"><value>1</value></rating>`} {
+		item, _ := newNFOItem(fmt.Sprintf("ambiguous-source-rating-%d", offset), "HomeVideo", `<movie><title>Movie</title><ratings>`+ambiguous+`</ratings></movie>`)
+		before := allCalls.Load()
+		if response := request("POST", "/api/v1/items/"+item+"/metadata/nfo", `{"expectedRevision":1,"confirmed":true}`); response.status != 503 {
+			t.Fatal("HTTP ambiguous rating reached write", response.status)
+		}
+		if response := apply(item, "movie", 4980+offset, 1); response.status != 503 || allCalls.Load() != before {
+			t.Fatal("HTTP ambiguous rating triggered provider or write", response.status)
+		}
+		assertNoObservation(item)
+	}
 	identifierDocument := `<movie><title>ID example</title><uniqueid type="imdb" default="true">tt1234567</uniqueid><tmdbid>42</tmdbid><uniqueid type="custom">vendor-123</uniqueid></movie>`
 	identifierItem, identifierFile := newNFOItem("typed-identifiers", "HomeVideo", identifierDocument)
 	identifierResult := decode(request("POST", "/api/v1/items/"+identifierItem+"/metadata/nfo", `{"expectedRevision":1,"confirmed":true}`))
@@ -989,18 +1058,27 @@ func TestTMDBMetadataThroughTLSHTTPAndPostgres(t *testing.T) {
 	actorSchemas := actorSpec["components"].(map[string]any)["schemas"].(map[string]any)
 	actorFactSchema := actorSchemas["ItemMetadataFact"].(map[string]any)
 	actorEnums := actorFactSchema["properties"].(map[string]any)["field"].(map[string]any)["enum"].([]any)
+	ratingsAdvertised := false
+	for _, name := range actorEnums {
+		if name == "ratings" {
+			ratingsAdvertised = true
+		}
+	}
+	if !ratingsAdvertised || len(actorFactSchema["oneOf"].([]any)) != 7 {
+		t.Fatal("HTTP OpenAPI omits multi-source ratings")
+	}
 	identifierAdvertised := false
 	for _, name := range actorEnums {
 		if name == "uniqueIds" {
 			identifierAdvertised = true
 		}
 	}
-	if !identifierAdvertised || len(actorFactSchema["oneOf"].([]any)) != 6 {
+	if !identifierAdvertised || len(actorFactSchema["oneOf"].([]any)) != 7 {
 		t.Fatal("HTTP OpenAPI omits typed provider identifiers")
 	}
 	applyReportProperties := actorSchemas["MetadataApplyResult"].(map[string]any)["properties"].(map[string]any)
 	for _, reportField := range []string{"applied", "skipped"} {
-		if applyReportProperties[reportField].(map[string]any)["maxItems"] != float64(23) {
+		if applyReportProperties[reportField].(map[string]any)["maxItems"] != float64(24) {
 			t.Fatal("HTTP OpenAPI cannot describe the complete identifier projection", reportField)
 		}
 	}
@@ -1010,7 +1088,7 @@ func TestTMDBMetadataThroughTLSHTTPAndPostgres(t *testing.T) {
 			actorAdvertised = true
 		}
 	}
-	if !actorAdvertised || len(actorFactSchema["oneOf"].([]any)) != 6 {
+	if !actorAdvertised || len(actorFactSchema["oneOf"].([]any)) != 7 {
 		t.Fatal("HTTP OpenAPI omits structured actor facts")
 	}
 	actorDocument := `<movie><title>Actor example</title><actor><name>演員甲</name><role>主角</role><thumb>https://images.example.invalid/a.jpg</thumb><order>0</order></actor><actor><name>Actor B</name></actor></movie>`
@@ -1083,6 +1161,21 @@ func TestTMDBMetadataThroughTLSHTTPAndPostgres(t *testing.T) {
 		maxActors[i] = map[string]any{"name": strings.Repeat("<", 1024)}
 	}
 	maxActorPatches := append(append([]map[string]any{}, maxListPatches...), map[string]any{"field": "actors", "value": maxActors})
+	maxSourceRatings := make([]map[string]any, 16)
+	maxProviderIDs := make([]map[string]any, 16)
+	for i := range maxSourceRatings {
+		maxSourceRatings[i] = map[string]any{"name": strings.Repeat("<", 1024), "value": 1000000, "max": 1000000, "votes": 2147483647}
+		maxProviderIDs[i] = map[string]any{"type": "<", "value": strings.Repeat("<", 1023)}
+	}
+	maxAllFacts := append(append([]map[string]any{}, maxActorPatches...), map[string]any{"field": "ratings", "value": maxSourceRatings}, map[string]any{"field": "uniqueIds", "value": maxProviderIDs}, map[string]any{"field": "year", "value": 9999}, map[string]any{"field": "runtimeMinutes", "value": 10000000}, map[string]any{"field": "rating", "value": 10}, map[string]any{"field": "userRating", "value": 0})
+	maxAllBody, err := json.Marshal(map[string]any{"expectedRevision": 1, "fields": maxTextPatches, "facts": maxAllFacts})
+	if err != nil {
+		t.Fatal(err)
+	}
+	maxAllItem := newItem("Movie")
+	if response := request("PUT", "/api/v1/items/"+maxAllItem+"/metadata", string(maxAllBody)); response.status != 200 {
+		t.Fatal("HTTP complete maximum metadata exceeded request envelope", response.status, len(maxAllBody))
+	}
 	maxActorBody, err := json.Marshal(map[string]any{"expectedRevision": 2, "fields": maxTextPatches, "facts": maxActorPatches})
 	if err != nil {
 		t.Fatal(err)

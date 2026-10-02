@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"reflect"
 	"testing"
 
 	"github.com/MoYuanCN/Jelee/internal/domain"
@@ -22,14 +23,17 @@ func TestItemFieldsRejectsRepeatedUserRating(t *testing.T) {
 }
 
 func TestItemFieldsNumericSingletonsPreserveCompatibleValues(t *testing.T) {
+	sourceMaximum := 100.0
 	for _, tc := range []struct {
 		content            string
 		year, runtime      int
 		rating, userRating float64
+		version            string
+		sourceRatings      []domain.NFOSourceRating
 	}{
-		{`<year>1</year><runtime>0</runtime><rating>0</rating><userrating>0</userrating>`, 1, 0, 0, 0},
-		{`<year>9999</year><runtime>10000000 minutes</runtime><communityrating>10</communityrating><userrating>10</userrating>`, 9999, 10000000, 10, 10},
-		{`<year>2024</year><runtime>92 min</runtime><rating>8,5</rating><userrating>9</userrating><ratings><rating name="imdb"><value>8.5</value></rating><rating name="critic" max="100"><value>95</value></rating></ratings>`, 2024, 92, 8.5, 9},
+		{`<year>1</year><runtime>0</runtime><rating>0</rating><userrating>0</userrating>`, 1, 0, 0, 0, domain.NFOItemNumericFieldsVersion, nil},
+		{`<year>9999</year><runtime>10000000 minutes</runtime><communityrating>10</communityrating><userrating>10</userrating>`, 9999, 10000000, 10, 10, domain.NFOItemNumericFieldsVersion, nil},
+		{`<year>2024</year><runtime>92 min</runtime><rating>8,5</rating><userrating>9</userrating><ratings><rating name="imdb"><value>8.5</value></rating><rating name="critic" max="100"><value>95</value></rating></ratings>`, 2024, 92, 8.5, 9, domain.NFOItemRatingFieldsVersion, []domain.NFOSourceRating{{Name: "imdb", Value: 8.5}, {Name: "critic", Value: 95, Max: &sourceMaximum}}},
 	} {
 		root, name := sourceFixture(t, []byte(`<movie><title>T</title>`+tc.content+`</movie>`))
 		reader, err := NewSummaryReader(DefaultMaxBytes)
@@ -40,8 +44,11 @@ func TestItemFieldsNumericSingletonsPreserveCompatibleValues(t *testing.T) {
 		if err != nil || len(fields.Fields) != 1 || fields.Fields[0].Value != "T" {
 			t.Fatal("compatible numeric content rejected or invented text fields", err)
 		}
-		if fields.Version != domain.NFOItemNumericFieldsVersion || len(fields.Facts) != 2 || len(fields.NumberFacts) != 2 || fields.Facts[0] != (domain.NFOIntegerFact{Field: "year", Value: tc.year}) || fields.Facts[1] != (domain.NFOIntegerFact{Field: "runtimeMinutes", Value: tc.runtime}) || fields.NumberFacts[0] != (domain.NFONumberFact{Field: "rating", Value: tc.rating}) || fields.NumberFacts[1] != (domain.NFONumberFact{Field: "userRating", Value: tc.userRating}) {
+		if fields.Version != tc.version || len(fields.Facts) != 2 || len(fields.NumberFacts) != 2 || fields.Facts[0] != (domain.NFOIntegerFact{Field: "year", Value: tc.year}) || fields.Facts[1] != (domain.NFOIntegerFact{Field: "runtimeMinutes", Value: tc.runtime}) || fields.NumberFacts[0] != (domain.NFONumberFact{Field: "rating", Value: tc.rating}) || fields.NumberFacts[1] != (domain.NFONumberFact{Field: "userRating", Value: tc.userRating}) {
 			t.Fatal("compatible numeric values lost their scalar types")
+		}
+		if !reflect.DeepEqual(fields.Ratings, tc.sourceRatings) {
+			t.Fatal("compatible scalar and multi-source ratings lost source data")
 		}
 	}
 }

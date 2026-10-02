@@ -10,6 +10,7 @@ import (
 
 func TestNFOIdentifierAtomicPersistenceAndRetainedDataRollback(t *testing.T) {
 	f, scope, fields := nfoItemApplyFixture(t)
+	nfoMigrateVersion(t, f, "down", 33)
 	nfoMigrateVersion(t, f, "down", 32)
 	nfoMigrateVersion(t, f, "up", SchemaVersion)
 	fields.Version = domain.NFOItemIdentifierFieldsVersion
@@ -64,6 +65,7 @@ func TestNFOIdentifierPublishedActorsRoundTripAndMissingValueLock(t *testing.T) 
 	if err != nil {
 		t.Fatal(err)
 	}
+	nfoMigrateVersion(t, f, "down", 33)
 	nfoMigrateVersion(t, f, "down", 32)
 	nfoMigrateVersion(t, f, "up", SchemaVersion)
 	after, err := f.s.ItemMetadata(f.ctx, f.a, scope.ItemID)

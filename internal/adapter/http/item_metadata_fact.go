@@ -3,7 +3,15 @@ package httpapi
 import "github.com/MoYuanCN/Jelee/internal/domain"
 
 func itemMetadataFactSpecification(paths, schemas map[string]any) {
-	field := map[string]any{"type": "string", "enum": append([]string{"year", "runtimeMinutes", "rating", "userRating", "actors", "uniqueIds"}, domain.ItemMetadataListFieldNames()...)}
+	field := map[string]any{"type": "string", "enum": append([]string{"year", "runtimeMinutes", "rating", "userRating", "actors", "uniqueIds", "ratings"}, domain.ItemMetadataListFieldNames()...)}
+	sourceRating := objectSchema(map[string]any{
+		"name":    map[string]any{"type": "string", "maxLength": 1024},
+		"value":   map[string]any{"type": "number", "minimum": 0, "maximum": 1000000},
+		"max":     map[string]any{"type": []string{"number", "null"}, "exclusiveMinimum": 0, "maximum": 1000000},
+		"votes":   map[string]any{"type": []string{"integer", "null"}, "minimum": 0, "maximum": 2147483647},
+		"default": map[string]any{"type": "boolean"},
+	}, "value")
+	sourceRating["description"] = "Value cannot exceed max; absent or null max uses scale 10. Source names, source order, explicit scales, default flags and absent versus zero votes are preserved. Names are at most 1024 UTF-8 bytes each and 16384 combined bytes. Unnamed sources remain unnamed."
 	identifier := objectSchema(map[string]any{
 		"type":    map[string]any{"type": "string", "minLength": 1, "maxLength": 64},
 		"value":   map[string]any{"type": "string", "minLength": 1, "maxLength": 1024},
@@ -17,6 +25,7 @@ func itemMetadataFactSpecification(paths, schemas map[string]any) {
 	}, "name")
 	variants := func() []any {
 		return []any{
+			map[string]any{"properties": map[string]any{"field": map[string]any{"const": "ratings"}, "value": map[string]any{"type": []string{"array", "null"}, "maxItems": domain.MaxMetadataRatings, "items": sourceRating}}},
 			map[string]any{"properties": map[string]any{"field": map[string]any{"const": "uniqueIds"}, "value": map[string]any{"type": []string{"array", "null"}, "maxItems": domain.MaxMetadataUniqueIDs, "items": identifier, "description": "Provider identifiers retain source order and default flags. Type and value are nonblank; UTF-8 limits are 64 and 1024 bytes, with 16384 combined bytes. Null and an empty array explicitly clear manual identifiers."}}},
 			map[string]any{"properties": map[string]any{"field": map[string]any{"const": "actors"}, "value": map[string]any{"type": []string{"array", "null"}, "maxItems": domain.MaxMetadataActors, "items": actor, "description": "Actors retain source order and repetitions. Name is nonblank. UTF-8 limits: name/role 1024 bytes, thumb 4096 bytes, all actor strings combined 16384 bytes. Missing order remains missing; zero is an explicit order."}}},
 			map[string]any{"properties": map[string]any{"field": map[string]any{"enum": domain.ItemMetadataListFieldNames()}, "value": map[string]any{"type": []string{"array", "null"}, "maxItems": domain.MaxMetadataListEntries, "items": map[string]any{"type": "string", "minLength": 1, "maxLength": domain.MaxMetadataListValueBytes}, "description": "Ordered nonblank strings; each entry is at most 1024 UTF-8 bytes and their combined size is at most 16384 bytes."}}},
@@ -30,18 +39,18 @@ func itemMetadataFactSpecification(paths, schemas map[string]any) {
 	}
 	fact := objectSchema(map[string]any{"field": field, "value": map[string]any{"type": []string{"number", "array", "null"}}, "source": map[string]any{"type": "string", "enum": []string{"existing", "manual", "nfo"}}, "locked": map[string]any{"type": "boolean"}, "updatedAt": map[string]any{"type": []string{"string", "null"}, "format": "date-time"}, "nfoOrigin": nullRef("NFOItemOrigin"), "nfoLockOrigin": nullRef("NFOFieldLockOrigin")}, "field", "value", "source", "locked", "updatedAt", "nfoOrigin", "nfoLockOrigin")
 	fact["oneOf"] = variants()
-	fact["allOf"] = []any{map[string]any{"if": map[string]any{"properties": map[string]any{"source": map[string]any{"const": "nfo"}, "field": map[string]any{"enum": append([]string{"actors", "uniqueIds"}, domain.ItemMetadataListFieldNames()...)}}}, "then": map[string]any{"properties": map[string]any{"value": map[string]any{"type": "array", "minItems": 1}}}}}
+	fact["allOf"] = []any{map[string]any{"if": map[string]any{"properties": map[string]any{"source": map[string]any{"const": "nfo"}, "field": map[string]any{"enum": append([]string{"actors", "uniqueIds", "ratings"}, domain.ItemMetadataListFieldNames()...)}}}, "then": map[string]any{"properties": map[string]any{"value": map[string]any{"type": "array", "minItems": 1}}}}}
 	schemas["ItemMetadataFact"] = fact
 	item := schemas["ItemMetadata"].(map[string]any)
-	item["properties"].(map[string]any)["facts"] = map[string]any{"type": "array", "maxItems": 6 + len(domain.ItemMetadataListFieldNames()), "items": map[string]any{"$ref": "#/components/schemas/ItemMetadataFact"}}
+	item["properties"].(map[string]any)["facts"] = map[string]any{"type": "array", "maxItems": 7 + len(domain.ItemMetadataListFieldNames()), "items": map[string]any{"$ref": "#/components/schemas/ItemMetadataFact"}}
 	item["required"] = append(item["required"].([]string), "facts")
 	patch := objectSchema(map[string]any{"field": field, "value": map[string]any{"type": []string{"number", "array", "null"}}, "locked": map[string]any{"type": "boolean"}}, "field")
 	patch["oneOf"] = variants()
 	patch["anyOf"] = []any{map[string]any{"required": []string{"value"}}, map[string]any{"required": []string{"locked"}}}
 	put := paths["/api/v1/items/{id}/metadata"].(map[string]any)["put"].(map[string]any)
 	body := put["requestBody"].(map[string]any)["content"].(map[string]any)["application/json"].(map[string]any)["schema"].(map[string]any)
-	body["properties"].(map[string]any)["facts"] = map[string]any{"type": "array", "minItems": 1, "maxItems": 6 + len(domain.ItemMetadataListFieldNames()), "items": patch}
+	body["properties"].(map[string]any)["facts"] = map[string]any{"type": "array", "minItems": 1, "maxItems": 7 + len(domain.ItemMetadataListFieldNames()), "items": patch}
 	body["required"] = []string{"expectedRevision"}
 	body["anyOf"] = []any{map[string]any{"required": []string{"fields"}}, map[string]any{"required": []string{"facts"}}}
-	put["description"] = put["description"].(string) + " Year facts use JSON integers from 1 through 9999; runtimeMinutes uses integers from 0 through 10000000; rating and userRating use numbers from 0 through 10. String list facts retain order; null and an empty array are explicit manual clears. Entries are bounded to 128, 1024 UTF-8 bytes each and 16384 combined bytes per list. The request body is bounded to 2 MiB. Actor facts retain name, role, thumb reference and optional integer order; all actor text totals at most 16384 UTF-8 bytes. Null and an empty actor array are explicit manual clears. Fact names must be unique. Null at facts[].value records an explicit manual clear. Omitted fact value preserves it. Text and fact edits share one revision and transaction; explicit fact values clear NFO value and lock origins. Null anywhere else is rejected."
+	put["description"] = put["description"].(string) + " Year facts use JSON integers from 1 through 9999; runtimeMinutes uses integers from 0 through 10000000; rating and userRating use numbers from 0 through 10. String list facts retain order; null and an empty array are explicit manual clears. Entries are bounded to 128, 1024 UTF-8 bytes each and 16384 combined bytes per list. The request body is bounded to 2 MiB. Actor facts retain name, role, thumb reference and optional integer order; all actor text totals at most 16384 UTF-8 bytes. Null and an empty actor array are explicit manual clears. Fact names must be unique. Null at facts[].value records an explicit manual clear. Omitted fact value preserves it. Text and fact edits share one revision and transaction; explicit fact values clear NFO value and lock origins. Optional actor order and rating max/votes also accept null to represent a missing value; other null properties are rejected."
 }

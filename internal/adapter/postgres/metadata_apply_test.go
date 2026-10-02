@@ -64,6 +64,7 @@ func TestTMDBMetadataPersistencePriorityAndManualTakeover(t *testing.T) {
 func TestTMDBMetadataMigrationConstraintsAndAtomicFailure(t *testing.T) {
 	f := newJobFixture(t)
 	item := metadataItem(t, f)
+	nfoMigrateVersion(t, f, "down", 33)
 	nfoMigrateVersion(t, f, "down", 32)
 	nfoMigrateVersion(t, f, "down", 31)
 	nfoMigrateVersion(t, f, "down", 30)
@@ -112,6 +113,7 @@ func TestTMDBMetadataMigrationConstraintsAndAtomicFailure(t *testing.T) {
 	if _, err = f.s.UpdateItemMetadata(f.ctx, f.a, item, 2, patches); err != nil {
 		t.Fatal(err)
 	}
+	nfoMigrateVersion(t, f, "down", 33)
 	nfoMigrateVersion(t, f, "down", 32)
 	nfoMigrateVersion(t, f, "down", 31)
 	nfoMigrateVersion(t, f, "down", 30)

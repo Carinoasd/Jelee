@@ -202,7 +202,22 @@ func (r *SummaryReader) projectItemFields(ctx context.Context, source *summarySo
 			result.Version = domain.NFOItemIdentifierFieldsVersion
 		}
 	}
-	if len(result.Fields) == 0 && len(result.Facts) == 0 && len(result.NumberFacts) == 0 && len(result.Lists) == 0 && result.Version != domain.NFOItemIdentifierFieldsVersion && result.Version != domain.NFOItemActorFieldsVersion && result.Version != domain.NFOItemListFieldsVersion && result.Version != domain.NFOItemNumericFieldsVersion && result.Version != domain.NFOItemYearFieldsVersion && result.Version != domain.NFOItemSortFieldsVersion && result.Version != domain.NFOItemTextFieldsVersion && domain.HasNFOItemFieldLock(result) {
+	if len(metadata.Ratings) > 0 {
+		result.Version = domain.NFOItemRatingFieldsVersion
+		for _, rating := range metadata.Ratings {
+			if rating.Value == nil {
+				return domain.NFOItemFields{}, domain.ErrMetadataUnavailable
+			}
+			result.Ratings = append(result.Ratings, domain.NFOSourceRating{Name: rating.Name, Value: *rating.Value, Max: rating.Max, Votes: rating.Votes, Default: rating.Default})
+		}
+		result.Ratings = domain.CloneNFORatings(result.Ratings)
+	}
+	for _, name := range metadata.LockedFields {
+		if strings.EqualFold(strings.TrimSpace(name), "ratings") || strings.EqualFold(strings.TrimSpace(name), "sourceratings") {
+			result.Version = domain.NFOItemRatingFieldsVersion
+		}
+	}
+	if len(result.Fields) == 0 && len(result.Facts) == 0 && len(result.NumberFacts) == 0 && len(result.Lists) == 0 && result.Version != domain.NFOItemRatingFieldsVersion && result.Version != domain.NFOItemIdentifierFieldsVersion && result.Version != domain.NFOItemActorFieldsVersion && result.Version != domain.NFOItemListFieldsVersion && result.Version != domain.NFOItemNumericFieldsVersion && result.Version != domain.NFOItemYearFieldsVersion && result.Version != domain.NFOItemSortFieldsVersion && result.Version != domain.NFOItemTextFieldsVersion && domain.HasNFOItemFieldLock(result) {
 		result.Version = domain.NFOItemLockFieldsVersion
 	}
 	if !domain.ValidNFOItemFields(result) {
@@ -224,6 +239,8 @@ func uniqueItemFields(ctx context.Context, original []byte) error {
 	depth := 0
 	seen := map[string]bool{}
 	var actorFields map[string]bool
+	var ratingFields map[string]bool
+	ratingsContainer := false
 	for {
 		token, err := decoder.Token()
 		if err == io.EOF {
@@ -238,6 +255,28 @@ func uniqueItemFields(ctx context.Context, original []byte) error {
 		switch token := token.(type) {
 		case xml.StartElement:
 			depth++
+			if depth == 4 && ratingFields != nil {
+				name := elementName(token.Name)
+				if name == "value" || name == "votes" {
+					if ratingFields[name] {
+						return domain.ErrMetadataUnavailable
+					}
+					ratingFields[name] = true
+				}
+			}
+			if depth == 3 && ratingsContainer && elementName(token.Name) == "rating" {
+				ratingFields = map[string]bool{}
+				attributes := map[string]bool{}
+				for _, attribute := range token.Attr {
+					name := elementName(attribute.Name)
+					if name == "name" || name == "max" || name == "default" {
+						if attributes[name] {
+							return domain.ErrMetadataUnavailable
+						}
+						attributes[name] = true
+					}
+				}
+			}
 			if depth == 3 && actorFields != nil {
 				name := elementName(token.Name)
 				switch name {
@@ -252,6 +291,9 @@ func uniqueItemFields(ctx context.Context, original []byte) error {
 				continue
 			}
 			name := elementName(token.Name)
+			if name == "ratings" {
+				ratingsContainer = true
+			}
 			if name == "actor" {
 				actorFields = map[string]bool{}
 			}
@@ -274,8 +316,12 @@ func uniqueItemFields(ctx context.Context, original []byte) error {
 				seen[name] = true
 			}
 		case xml.EndElement:
+			if depth == 3 {
+				ratingFields = nil
+			}
 			if depth == 2 {
 				actorFields = nil
+				ratingsContainer = false
 			}
 			depth--
 		}

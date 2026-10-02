@@ -485,6 +485,9 @@ func TestProbeReleaseRecoveryInvalidationAndMigration(t *testing.T) {
 		t.Fatal(err)
 	}
 	dsn := f.s.Pool.Config().ConnString()
+	if version, dirty, e := Migrate(f.ctx, dsn, "down"); e != nil || dirty || version != 33 {
+		t.Fatalf("down33 version=%d dirty=%v error=%v", version, dirty, e)
+	}
 	if version, dirty, e := Migrate(f.ctx, dsn, "down"); e != nil || dirty || version != 32 {
 		t.Fatalf("down32 version=%d dirty=%v error=%v", version, dirty, e)
 	}

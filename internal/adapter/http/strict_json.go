@@ -24,7 +24,8 @@ func DecodeJSON(w http.ResponseWriter, r *http.Request, target any, maxBytes int
 	return decodeJSON(w, r, target, maxBytes, false)
 }
 
-// Manual fact clears permit null only at facts[].value. Other nulls stay invalid.
+// Manual facts allow clears and nullable structured values. Domain validation
+// checks that nullable members belong to the selected fact type.
 func decodeItemMetadataJSON(w http.ResponseWriter, r *http.Request, target any, maxBytes int64) error {
 	return decodeJSON(w, r, target, maxBytes, true)
 }
@@ -117,7 +118,7 @@ func checkJSONValueAt(decoder *json.Decoder, parentDepth int, path string, allow
 		return false
 	}
 	if token == nil {
-		return allowFactNull && path == "/FACTS/*/VALUE"
+		return allowFactNull && (path == "/FACTS/*/VALUE" || path == "/FACTS/*/VALUE/*/ORDER" || path == "/FACTS/*/VALUE/*/MAX" || path == "/FACTS/*/VALUE/*/VOTES")
 	}
 	delim, compound := token.(json.Delim)
 	if !compound {

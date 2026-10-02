@@ -169,3 +169,12 @@ DTO單層解耦及兩份既有測試建構參數更新，14項回歸與完整Deb
 ### 第33版：NFO識別碼保存
 
 {"windows": {"passedPackages": 29, "passedTestEventsIncludingParents": 3260, "skippedTestEvents": 487, "elapsedSeconds": 12.369}, "native": {"passedPackages": 5, "passedTestEventsIncludingParents": 1126, "skippedTestEvents": 0, "elapsedSeconds": 3.577}, "full-pg": {"passedPackages": 1, "passedTestEventsIncludingParents": 802, "skippedTestEvents": 0, "elapsedSeconds": 482.614}, "native-pg": {"passedPackages": 1, "passedTestEventsIncludingParents": 11, "skippedTestEvents": 0, "elapsedSeconds": 15.364}, "e2e-final": {"passedPackages": 1, "passedTestEventsIncludingParents": 1, "skippedTestEvents": 0, "elapsedSeconds": 75.705}}。provider-identifiers-v1固定23欄，uniqueIds保存type/value/default與來源順序，owned切片與重核、同供應商不同值拒絕；NFO-only／融合／人工null與空陣列／來源及獨立鎖共交易。四初始red、正式default傳遞停用fullHTTP失敗／finally byte restore／完整PASS。五表寫入失敗全回滾、正鎖重建／缺值ProviderIds鎖、旧actor33→32→33与retained資料含manualnull拒降通過。vet/build/newbrand0/181/gitignore0/fullbrand14735/186，64old SQL／原文件／5core／336與hash保持。見[nfo-identifiers.md](nfo-identifiers.md)／[證據](evidence/nfo-identifiers.json)。仍第三階段4done184partial148blocked；多來源評分／其他欄位、季集、實際匯入／前端／無損回寫與全部G00–51接續。禁merge/release/tag/forcepush/oldmigration/identity config；繁中同PR46推送後繼續，goal active。
+
+
+### 第34版：NFO多來源評分保存
+
+第34版保存多來源評分的 name／value／max／votes／default 與來源順序；缺省尺度和零票数保持區別，人工清除、來源、獨立鎖及確認觀察共交易。固定24欄、15種facts與七種API變體；001–033共66份SQL保持。完整HTTP驗收包含可空max／votes、最大合法混合請求及120筆合成確認寫入。五份初始失敗、票數傳遞停用的實際失敗與逐位元復原後完整通過均保存。Windows全套、Linux race、PG與原生worker、vet／建置及增量品牌通過；全量品牌14735與既有ABI差異仍未解決。 見[契約](nfo-ratings.md)及[證據](evidence/nfo-ratings.json)。
+
+{"windows": {"passedPackages": 29, "passedTestEventsIncludingParents": 3264, "skippedTestEvents": 489, "elapsedSeconds": 8.657}, "native": {"passedPackages": 5, "passedTestEventsIncludingParents": 1130, "skippedTestEvents": 0, "elapsedSeconds": 3.452}, "full-pg": {"passedPackages": 1, "passedTestEventsIncludingParents": 809, "skippedTestEvents": 0, "elapsedSeconds": 474.239}, "native-pg": {"passedPackages": 1, "passedTestEventsIncludingParents": 11, "skippedTestEvents": 0, "elapsedSeconds": 15.685}, "e2e-final": {"passedPackages": 1, "passedTestEventsIncludingParents": 1, "skippedTestEvents": 0, "elapsedSeconds": 76.128}}
+
+所有本地驗證已終端結束。仍第三階段；下一步其他NFO欄位與季集、實際匯入、監看／排程和規模驗收，維持全G00–G51目標。禁止merge／release／tag／force-push／改寫既有SQL／修改Git身份設定，五個未獲具體授權的直播核心仍保持。
