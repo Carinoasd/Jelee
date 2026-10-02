@@ -27,7 +27,7 @@ type ItemMetadataFactPatch struct {
 }
 
 func ValidItemMetadataEdit(item string, revision int64, fields []ItemMetadataPatch, facts []ItemMetadataFactPatch) bool {
-	if !ValidID(item) || revision < 1 || revision >= ItemMetadataRevisionMax || len(fields)+len(facts) == 0 || len(facts) > 4+len(ItemMetadataListFieldNames()) {
+	if !ValidID(item) || revision < 1 || revision >= ItemMetadataRevisionMax || len(fields)+len(facts) == 0 || len(facts) > 5+len(ItemMetadataListFieldNames()) {
 		return false
 	}
 	if len(fields) > 0 && !ValidItemMetadataPatches(item, revision, fields) {
@@ -39,7 +39,7 @@ func ValidItemMetadataEdit(item string, revision int64, fields []ItemMetadataPat
 			return false
 		}
 		seen[fact.Field] = true
-		if (fact.Field != "year" && fact.Field != "runtimeMinutes" && fact.Field != "rating" && fact.Field != "userRating" && !IsItemMetadataListField(fact.Field)) || fact.Value == nil && fact.Locked == nil || fact.Value != nil && !ValidItemMetadataFactValue(fact.Field, fact.Value) {
+		if (fact.Field != "year" && fact.Field != "runtimeMinutes" && fact.Field != "rating" && fact.Field != "userRating" && fact.Field != "actors" && !IsItemMetadataListField(fact.Field)) || fact.Value == nil && fact.Locked == nil || fact.Value != nil && !ValidItemMetadataFactValue(fact.Field, fact.Value) {
 			return false
 		}
 	}
@@ -47,6 +47,9 @@ func ValidItemMetadataEdit(item string, revision int64, fields []ItemMetadataPat
 }
 
 func ValidItemMetadataFactValue(field string, value json.RawMessage) bool {
+	if field == "actors" {
+		return ValidMetadataActorValue(value)
+	}
 	if IsItemMetadataListField(field) {
 		if len(value) > 128<<10 || !utf8.Valid(value) {
 			return false

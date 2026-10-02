@@ -308,8 +308,9 @@ func TestTMDBMetadataThroughTLSHTTPAndPostgres(t *testing.T) {
 			return metadataHTTPResult{err: err}
 		}
 		defer response.Body.Close()
-		data, err := io.ReadAll(io.LimitReader(response.Body, (1<<20)+1))
-		if len(data) > 1<<20 {
+		// Metadata can contain all bounded text, lists and structured actors.
+		data, err := io.ReadAll(io.LimitReader(response.Body, (2<<20)+1))
+		if len(data) > 2<<20 {
 			return metadataHTTPResult{status: response.StatusCode, err: errors.New("metadata fixture response exceeds bound")}
 		}
 		return metadataHTTPResult{status: response.StatusCode, body: data, err: err}
@@ -691,7 +692,7 @@ func TestTMDBMetadataThroughTLSHTTPAndPostgres(t *testing.T) {
 	}
 	aliasItem, _ := newNFOItem("single-alias", "HomeVideo", `<movie><localtitle>Alias title</localtitle><releasedate>2024-05-06</releasedate><actor><name>Actor one</name></actor><actor><name>Actor two</name></actor></movie>`)
 	aliasResult := decode(apply(aliasItem, "movie", 4938, 1))
-	if len(aliasResult.NFO.Applied) != 2 || aliasResult.Metadata.Fields[0].Value != "Alias title" || aliasResult.Metadata.Fields[3].Value != "2024-05-06" || aliasResult.Metadata.Fields[0].Source != "nfo" || aliasResult.Metadata.Fields[3].Source != "nfo" {
+	if len(aliasResult.NFO.Applied) != 3 || aliasResult.Metadata.Fields[0].Value != "Alias title" || aliasResult.Metadata.Fields[3].Value != "2024-05-06" || aliasResult.Metadata.Fields[0].Source != "nfo" || aliasResult.Metadata.Fields[3].Source != "nfo" || len(aliasResult.Metadata.Facts) != 1 || aliasResult.Metadata.Facts[0].Field != "actors" {
 		t.Fatal("HTTP single aliases or nested names lost compatibility")
 	}
 	t.Log("actual HTTP/TLS/NFO/PostgreSQL aliases: conflicting title/date aliases and empty alias rejected503 before provider/writes; single aliases and nested actor names remain supported PASS")
@@ -933,6 +934,38 @@ func TestTMDBMetadataThroughTLSHTTPAndPostgres(t *testing.T) {
 		t.Fatal("numeric metadata review changed source bytes", err)
 	}
 	t.Log("actual HTTP/TLS/NFO/PostgreSQL: thirteen-field numeric projection, zero/bounds, mixed manual clear and renewed independent locks PASS")
+	actorSpecResponse := request("GET", "/api/v1/openapi.json", "")
+	var actorSpec map[string]any
+	if actorSpecResponse.status != 200 || json.Unmarshal(actorSpecResponse.body, &actorSpec) != nil {
+		t.Fatal("HTTP actor metadata specification unavailable")
+	}
+	actorSchemas := actorSpec["components"].(map[string]any)["schemas"].(map[string]any)
+	actorFactSchema := actorSchemas["ItemMetadataFact"].(map[string]any)
+	actorEnums := actorFactSchema["properties"].(map[string]any)["field"].(map[string]any)["enum"].([]any)
+	actorAdvertised := false
+	for _, name := range actorEnums {
+		if name == "actors" {
+			actorAdvertised = true
+		}
+	}
+	if !actorAdvertised || len(actorFactSchema["oneOf"].([]any)) != 5 {
+		t.Fatal("HTTP OpenAPI omits structured actor facts")
+	}
+	actorDocument := `<movie><title>Actor example</title><actor><name>演員甲</name><role>主角</role><thumb>https://images.example.invalid/a.jpg</thumb><order>0</order></actor><actor><name>Actor B</name></actor></movie>`
+	actorItem, actorFile := newNFOItem("typed-actors", "HomeVideo", actorDocument)
+	actorResult := decode(request("POST", "/api/v1/items/"+actorItem+"/metadata/nfo", `{"expectedRevision":1,"confirmed":true}`))
+	if actorResult.Metadata.Revision != 2 || len(actorResult.Metadata.Facts) != 1 || actorResult.Metadata.Facts[0].Field != "actors" || actorResult.Metadata.Facts[0].Source != "nfo" || actorResult.Metadata.Facts[0].NFOOrigin == nil {
+		t.Fatal("HTTP confirmed NFO actors were not persisted as structured people")
+	}
+	var actorValues []struct {
+		Name  string `json:"name"`
+		Role  string `json:"role"`
+		Thumb string `json:"thumb"`
+		Order *int   `json:"order"`
+	}
+	if err := json.Unmarshal(actorResult.Metadata.Facts[0].Value, &actorValues); err != nil || len(actorValues) != 2 || actorValues[0].Name != "演員甲" || actorValues[0].Role != "主角" || actorValues[0].Thumb != "https://images.example.invalid/a.jpg" || actorValues[0].Order == nil || *actorValues[0].Order != 0 || actorValues[1].Name != "Actor B" || actorValues[1].Order != nil {
+		t.Fatal("HTTP NFO actors lost their structure, source order or missing order")
+	}
 	genreItem, _ := newNFOItem("typed-genres", "HomeVideo", `<movie><title>Genre example</title><genre>Drama</genre><genre>Mystery</genre></movie>`)
 	genreResult := decode(request("POST", "/api/v1/items/"+genreItem+"/metadata/nfo", `{"expectedRevision":1,"confirmed":true}`))
 	if genreResult.Metadata.Revision != 2 || len(genreResult.Metadata.Facts) != 1 || genreResult.Metadata.Facts[0].Field != "genres" || genreResult.Metadata.Facts[0].Source != "nfo" || genreResult.Metadata.Facts[0].NFOOrigin == nil {
@@ -982,6 +1015,49 @@ func TestTMDBMetadataThroughTLSHTTPAndPostgres(t *testing.T) {
 	}
 	if response := request("PUT", "/api/v1/items/"+listItem+"/metadata", string(maxListBody)); response.status != 200 {
 		t.Fatal("HTTP valid maximum text and list edits exceeded request envelope", response.status)
+	}
+	maxActors := make([]map[string]any, 16)
+	for i := range maxActors {
+		maxActors[i] = map[string]any{"name": strings.Repeat("<", 1024)}
+	}
+	maxActorPatches := append(append([]map[string]any{}, maxListPatches...), map[string]any{"field": "actors", "value": maxActors})
+	maxActorBody, err := json.Marshal(map[string]any{"expectedRevision": 2, "fields": maxTextPatches, "facts": maxActorPatches})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if response := request("PUT", "/api/v1/items/"+actorItem+"/metadata", string(maxActorBody)); response.status != 200 {
+		t.Fatal("HTTP valid maximum text, lists and actors exceeded request envelope", response.status)
+	}
+	actorClear := request("PUT", "/api/v1/items/"+actorItem+"/metadata", `{"expectedRevision":3,"facts":[{"field":"actors","value":null}]}`)
+	var actorManual struct {
+		Data domain.ItemMetadata `json:"data"`
+	}
+	if actorClear.status != 200 || json.Unmarshal(actorClear.body, &actorManual) != nil || actorManual.Data.Revision != 4 || actorManual.Data.Facts[0].Field != "actors" || string(actorManual.Data.Facts[0].Value) != "null" || actorManual.Data.Facts[0].Source != "manual" || actorManual.Data.Facts[0].NFOOrigin != nil || actorManual.Data.Facts[0].NFOLockOrigin != nil {
+		t.Fatal("HTTP manual actor null did not take ownership")
+	}
+	for _, invalid := range []string{`[null]`, `[1]`, `[{}]`, `[{"name":"\t"}]`, `[{"name":"Actor","order":-1}]`, `[{"name":"Actor","order":1.5}]`, `[{"name":"Actor","order":1000001}]`, `[{"name":"Actor","extra":true}]`, `[{"name":"Actor","role":null}]`} {
+		if response := request("PUT", "/api/v1/items/"+actorItem+"/metadata", `{"expectedRevision":4,"facts":[{"field":"actors","value":`+invalid+`}]}`); response.status != 400 {
+			t.Fatal("HTTP invalid actor value accepted", response.status)
+		}
+	}
+	actorReview := decode(request("POST", "/api/v1/items/"+actorItem+"/metadata/nfo", `{"expectedRevision":4,"confirmed":true}`))
+	if actorReview.Metadata.Revision != 5 || string(actorReview.Metadata.Facts[0].Value) != "null" || actorReview.Metadata.Facts[0].Source != "manual" {
+		t.Fatal("HTTP NFO review replaced manual actor clear")
+	}
+	if raw, err := os.ReadFile(actorFile); err != nil || string(raw) != actorDocument {
+		t.Fatal("HTTP actor edits changed original NFO", err)
+	}
+	lockedActorDocument := strings.Replace(actorDocument, "<movie>", "<movie><lockdata>true</lockdata>", 1)
+	if err := os.WriteFile(actorFile, []byte(lockedActorDocument), 0600); err != nil {
+		t.Fatal(err)
+	}
+	actorLocked := decode(request("POST", "/api/v1/items/"+actorItem+"/metadata/nfo", `{"expectedRevision":5,"confirmed":true}`))
+	if actorLocked.Metadata.Revision != 6 || len(actorLocked.Metadata.Facts) != 13 || string(actorLocked.Metadata.Facts[0].Value) != "null" || actorLocked.Metadata.Facts[0].NFOOrigin != nil || actorLocked.Metadata.Facts[0].NFOLockOrigin == nil {
+		t.Fatal("HTTP actor clear lost new independent global lock")
+	}
+	actorEmpty := request("PUT", "/api/v1/items/"+actorItem+"/metadata", `{"expectedRevision":6,"facts":[{"field":"actors","value":[]}]}`)
+	if actorEmpty.status != 200 || json.Unmarshal(actorEmpty.body, &actorManual) != nil || actorManual.Data.Revision != 7 || string(actorManual.Data.Facts[0].Value) != "[]" || actorManual.Data.Facts[0].NFOLockOrigin != nil {
+		t.Fatal("HTTP empty actor array did not preserve clear representation")
 	}
 	listClear := request("PUT", "/api/v1/items/"+listItem+"/metadata", `{"expectedRevision":3,"facts":[{"field":"genres","value":null},{"field":"tags","value":[]}]}`)
 	var clearedLists struct {
@@ -1037,7 +1113,7 @@ func TestTMDBMetadataThroughTLSHTTPAndPostgres(t *testing.T) {
 		t.Fatal("extended text review changed original NFO", err)
 	}
 	t.Log("actual HTTP/TLS/NFO/PostgreSQL extended text: nine fields fused with source/locks, maximum valid nine-field manual body accepted, original bytes preserved PASS")
-	for offset, mode := range []string{"unsafe", "empty", "permission", "unknown-lock", "false-lock", "list-limit"} {
+	for offset, mode := range []string{"unsafe", "empty", "permission", "unknown-lock", "false-lock", "list-limit", "actor-ambiguity"} {
 		content := `<!DOCTYPE movie [<!ENTITY unsafe SYSTEM "file:///private">]><movie><title>&unsafe;</title></movie>`
 		if mode == "empty" {
 			content = `<movie/>`
@@ -1050,6 +1126,9 @@ func TestTMDBMetadataThroughTLSHTTPAndPostgres(t *testing.T) {
 		}
 		if mode == "list-limit" {
 			content = `<movie><title>Too many genres</title>` + strings.Repeat(`<genre>Drama</genre>`, 129) + `</movie>`
+		}
+		if mode == "actor-ambiguity" {
+			content = `<movie><title>Movie</title><actor><name>A</name><name>B</name></actor></movie>`
 		}
 		item, file := newNFOItem("state-unavailable-"+mode, "HomeVideo", content)
 		if mode == "permission" {

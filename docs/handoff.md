@@ -1,5 +1,13 @@
 # 接手记录
 
+## 最新接續：第32版演員結構
+
+仍第三階段，分支feat/jelee-ignore-family-worker，繁中普通PR46，base master。接續已推送231a65b177929dd2b0bf61248287fc44bf2ffc36；第32版actor-structure-v1固定22欄，actors物件保存name／role／thumb／可省略order，來源／獨立鎖／人工null與[]共交易。契約與實測見[nfo-actors.md](nfo-actors.md)及[證據](evidence/nfo-actors.json)。Windows29包／3258事件／485略過、Linux五包race 1124、完整PG 795／原生worker 11、完整HTTP正反通過。四初始red保存；刻意移除Role傳遞會失敗，逐位元復原後完整通過。首輪PG只修正7份舊遷移測試相鄰步驟，全套已重跑，最終來源快照保持。所有本地命令已結束。
+
+最多128演員，name／role1024、thumb4096 UTF-8 bytes，全部字串16384合計；order可省略或null／整數0–1000000。保持來源排列與重複，owned order指標、actor-only來源、單actor的name／role／thumb／order歧義拒絕、NFO-only／融合、人工清除／缺值Cast鎖及舊資料往返／保留新資料拒降已驗。最大混合請求與有界HTTP驗收回應2MiB。001–031共62份SQL保持；32推送後亦不得改寫。
+
+336項仍4完成／184部分／148未達完整驗收。接續ID／多來源評分、圖像來源、季集、實際匯入／worker／階層、前端、無損回寫、外部來源清除與效能。全量品牌14735／186及ABI實際差異尚待處理。命令級作者Carinoasd、同分支push／繁中PR46／附聊天後立即接續；禁merge／release／tag／force-push／Git身份設定／已發布SQL改寫，原媒體、授權與五待授權核心保持。
+
 ## 最新接續：第31版八種字串列表
 
 仍第三階段，分支 `feat/jelee-ignore-family-worker`，普通 [PR #46](https://github.com/Carinoasd/Jelee/pull/46)，base `master`。接續331529e1b090fe4bfb960ddf318012a3003f61b7；第31版已完成本地驗證，九文字＋四數值＋八有順序字串列表，來源／獨立鎖與人工清除同交易。契約與實測見[nfo-string-lists.md](nfo-string-lists.md)及[證據](evidence/nfo-string-lists.json)。Windows29包／3255事件／483略過、Linux五包race1121事件、完整PG788事件／原生worker11、完整HTTP正反通過；四個初始red保存。PG全套結束後僅增加實際HTTP供應商融合案例，正式程式及PG／原生單元保持，最終HTTP／Windows重跑。所有本地命令已結束。

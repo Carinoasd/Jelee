@@ -20,7 +20,7 @@ type NFOItemOrigin struct {
 }
 
 func ValidNFOItemOrigin(v NFOItemOrigin) bool {
-	return ValidID(v.SourceID) && ValidID(v.RootID) && v.Generation >= 1 && probeHex(v.SHA256, 64) && probeHex(v.IdentityDigest, 64) && (v.Projection == NFOItemFieldsVersion || v.Projection == NFOItemSortFieldsVersion || v.Projection == NFOItemTextFieldsVersion || v.Projection == NFOItemYearFieldsVersion || v.Projection == NFOItemNumericFieldsVersion || v.Projection == NFOItemListFieldsVersion) && !v.ReadAt.IsZero() && v.ReadAt.Year() >= 1 && v.ReadAt.Year() <= 9999
+	return ValidID(v.SourceID) && ValidID(v.RootID) && v.Generation >= 1 && probeHex(v.SHA256, 64) && probeHex(v.IdentityDigest, 64) && (v.Projection == NFOItemFieldsVersion || v.Projection == NFOItemSortFieldsVersion || v.Projection == NFOItemTextFieldsVersion || v.Projection == NFOItemYearFieldsVersion || v.Projection == NFOItemNumericFieldsVersion || v.Projection == NFOItemListFieldsVersion || v.Projection == NFOItemActorFieldsVersion) && !v.ReadAt.IsZero() && v.ReadAt.Year() >= 1 && v.ReadAt.Year() <= 9999
 }
 
 func NFOFieldLocked(fields NFOItemFields, field string) bool {
@@ -38,6 +38,9 @@ func NFOFieldLocked(fields NFOItemFields, field string) bool {
 	}
 	for _, name := range fields.LockedFields {
 		name = strings.ToLower(strings.TrimSpace(name))
+		if field == "actors" && (name == "actor" || name == "actors" || name == "cast") {
+			return true
+		}
 		if IsItemMetadataListField(field) && MetadataListFieldForLock(name) == field {
 			return true
 		}

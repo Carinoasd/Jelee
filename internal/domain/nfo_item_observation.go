@@ -37,5 +37,5 @@ func ValidNFOItemObservationState(scope NFOItemScope, v NFOItemObservationState)
 }
 
 func emptyNFOItemFields(v NFOItemFields) bool {
-	return v.Version == "" && v.Kind == "" && v.Identity == (NFOIdentity{}) && v.Stamp == (NFOStamp{}) && v.ReadAt.IsZero() && !v.LockData && len(v.Fields) == 0 && len(v.Facts) == 0 && len(v.NumberFacts) == 0 && len(v.Lists) == 0 && len(v.LockedFields) == 0
+	return v.Version == "" && v.Kind == "" && v.Identity == (NFOIdentity{}) && v.Stamp == (NFOStamp{}) && v.ReadAt.IsZero() && !v.LockData && len(v.Fields) == 0 && len(v.Facts) == 0 && len(v.NumberFacts) == 0 && len(v.Lists) == 0 && len(v.Actors) == 0 && len(v.LockedFields) == 0
 }

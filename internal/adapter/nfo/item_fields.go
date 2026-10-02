@@ -168,7 +168,19 @@ func (r *SummaryReader) projectItemFields(ctx context.Context, source *summarySo
 			result.Version = domain.NFOItemListFieldsVersion
 		}
 	}
-	if len(result.Fields) == 0 && len(result.Facts) == 0 && len(result.NumberFacts) == 0 && len(result.Lists) == 0 && result.Version != domain.NFOItemListFieldsVersion && result.Version != domain.NFOItemNumericFieldsVersion && result.Version != domain.NFOItemYearFieldsVersion && result.Version != domain.NFOItemSortFieldsVersion && result.Version != domain.NFOItemTextFieldsVersion && domain.HasNFOItemFieldLock(result) {
+	if len(metadata.Actors) > 0 {
+		result.Version = domain.NFOItemActorFieldsVersion
+		for _, actor := range metadata.Actors {
+			result.Actors = append(result.Actors, domain.NFOActor{Name: actor.Name, Role: actor.Role, Thumb: actor.Thumb, Order: actor.Order})
+		}
+		result.Actors = domain.CloneNFOActors(result.Actors)
+	}
+	for _, name := range metadata.LockedFields {
+		if strings.EqualFold(strings.TrimSpace(name), "Actor") || strings.EqualFold(strings.TrimSpace(name), "Actors") || strings.EqualFold(strings.TrimSpace(name), "Cast") {
+			result.Version = domain.NFOItemActorFieldsVersion
+		}
+	}
+	if len(result.Fields) == 0 && len(result.Facts) == 0 && len(result.NumberFacts) == 0 && len(result.Lists) == 0 && result.Version != domain.NFOItemActorFieldsVersion && result.Version != domain.NFOItemListFieldsVersion && result.Version != domain.NFOItemNumericFieldsVersion && result.Version != domain.NFOItemYearFieldsVersion && result.Version != domain.NFOItemSortFieldsVersion && result.Version != domain.NFOItemTextFieldsVersion && domain.HasNFOItemFieldLock(result) {
 		result.Version = domain.NFOItemLockFieldsVersion
 	}
 	if !domain.ValidNFOItemFields(result) {
@@ -189,6 +201,7 @@ func uniqueItemFields(ctx context.Context, original []byte) error {
 	decoder.CharsetReader = decodedCharset(encoding)
 	depth := 0
 	seen := map[string]bool{}
+	var actorFields map[string]bool
 	for {
 		token, err := decoder.Token()
 		if err == io.EOF {
@@ -203,10 +216,23 @@ func uniqueItemFields(ctx context.Context, original []byte) error {
 		switch token := token.(type) {
 		case xml.StartElement:
 			depth++
+			if depth == 3 && actorFields != nil {
+				name := elementName(token.Name)
+				switch name {
+				case "name", "role", "thumb", "order":
+					if actorFields[name] {
+						return domain.ErrMetadataUnavailable
+					}
+					actorFields[name] = true
+				}
+			}
 			if depth != 2 {
 				continue
 			}
 			name := elementName(token.Name)
+			if name == "actor" {
+				actorFields = map[string]bool{}
+			}
 			// Count aliases by their scalar destination, matching metadata parsing.
 			switch name {
 			case "name", "localtitle", "seasonname":
@@ -226,6 +252,9 @@ func uniqueItemFields(ctx context.Context, original []byte) error {
 				seen[name] = true
 			}
 		case xml.EndElement:
+			if depth == 2 {
+				actorFields = nil
+			}
 			depth--
 		}
 	}

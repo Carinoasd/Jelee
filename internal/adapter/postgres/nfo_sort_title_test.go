@@ -42,6 +42,7 @@ func TestNFOSortTitlePersistsAndManualTakeoverClearsLock(t *testing.T) {
 
 func TestNFOSortTitleMigrationAndAtomicFailure(t *testing.T) {
 	f, scope, fields := nfoItemApplyFixture(t)
+	nfoMigrateVersion(t, f, "down", 31)
 	nfoMigrateVersion(t, f, "down", 30)
 	nfoMigrateVersion(t, f, "down", 29)
 	nfoMigrateVersion(t, f, "down", 28)

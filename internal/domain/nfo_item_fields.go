@@ -21,6 +21,8 @@ func NFOItemFieldNames(version string) []string {
 		return []string{"title", "originalTitle", "overview", "date"}
 	case NFOItemSortFieldsVersion:
 		return []string{"title", "originalTitle", "overview", "date", "sortTitle"}
+	case NFOItemActorFieldsVersion:
+		return append(NFOItemFieldNames(NFOItemListFieldsVersion), "actors")
 	case NFOItemListFieldsVersion:
 		return append(NFOItemFieldNames(NFOItemNumericFieldsVersion), ItemMetadataListFieldNames()...)
 	case NFOItemNumericFieldsVersion:
@@ -45,6 +47,7 @@ type NFOItemFields struct {
 	Identity     NFOIdentity
 	Stamp        NFOStamp
 	ReadAt       time.Time
+	Actors       []NFOActor
 	Lists        []NFOStringList
 	NumberFacts  []NFONumberFact
 	Facts        []NFOIntegerFact
@@ -75,13 +78,16 @@ func ValidNFOItemFields(v NFOItemFields) bool {
 	if (v.Kind != "Movie" && v.Kind != "Series") || ValidateNFOIdentity(v.Identity) != nil || ValidateNFOStamp(v.Stamp) != nil || v.Stamp.Size > v.Identity.MaxSourceBytes || v.ReadAt.IsZero() || v.ReadAt.Year() < 1 || v.ReadAt.Year() > 9999 || len(v.Fields) > len(NFOItemFieldNames(v.Version)) || len(v.LockedFields) > 128 {
 		return false
 	}
-	if len(v.Facts) > 2 || len(v.Facts) > 0 && v.Version != NFOItemYearFieldsVersion && v.Version != NFOItemNumericFieldsVersion && v.Version != NFOItemListFieldsVersion || v.Version == NFOItemYearFieldsVersion && len(v.Facts) > 1 {
+	if len(v.Facts) > 2 || len(v.Facts) > 0 && v.Version != NFOItemYearFieldsVersion && v.Version != NFOItemNumericFieldsVersion && v.Version != NFOItemListFieldsVersion && v.Version != NFOItemActorFieldsVersion || v.Version == NFOItemYearFieldsVersion && len(v.Facts) > 1 {
 		return false
 	}
-	if len(v.NumberFacts) > 2 || len(v.NumberFacts) > 0 && v.Version != NFOItemNumericFieldsVersion && v.Version != NFOItemListFieldsVersion {
+	if len(v.NumberFacts) > 2 || len(v.NumberFacts) > 0 && v.Version != NFOItemNumericFieldsVersion && v.Version != NFOItemListFieldsVersion && v.Version != NFOItemActorFieldsVersion {
 		return false
 	}
-	if len(v.Lists) > len(ItemMetadataListFieldNames()) || len(v.Lists) > 0 && v.Version != NFOItemListFieldsVersion {
+	if len(v.Lists) > len(ItemMetadataListFieldNames()) || len(v.Lists) > 0 && v.Version != NFOItemListFieldsVersion && v.Version != NFOItemActorFieldsVersion {
+		return false
+	}
+	if len(v.Actors) > 0 && (v.Version != NFOItemActorFieldsVersion || !ValidMetadataActors(v.Actors)) {
 		return false
 	}
 	seenFacts := map[string]bool{}
@@ -102,7 +108,7 @@ func ValidNFOItemFields(v NFOItemFields) bool {
 				return false
 			}
 		case "runtimeMinutes":
-			if v.Version != NFOItemNumericFieldsVersion && v.Version != NFOItemListFieldsVersion || fact.Value < 0 || fact.Value > 10000000 {
+			if v.Version != NFOItemNumericFieldsVersion && v.Version != NFOItemListFieldsVersion && v.Version != NFOItemActorFieldsVersion || fact.Value < 0 || fact.Value > 10000000 {
 				return false
 			}
 		default:
@@ -124,8 +130,8 @@ func ValidNFOItemFields(v NFOItemFields) bool {
 		if len(v.Fields) != 0 || !HasNFOItemFieldLock(v) {
 			return false
 		}
-	case NFOItemSortFieldsVersion, NFOItemTextFieldsVersion, NFOItemYearFieldsVersion, NFOItemNumericFieldsVersion, NFOItemListFieldsVersion:
-		if len(v.Fields) == 0 && len(v.Facts) == 0 && len(v.NumberFacts) == 0 && len(v.Lists) == 0 && !HasNFOItemFieldLock(v) {
+	case NFOItemSortFieldsVersion, NFOItemTextFieldsVersion, NFOItemYearFieldsVersion, NFOItemNumericFieldsVersion, NFOItemListFieldsVersion, NFOItemActorFieldsVersion:
+		if len(v.Fields) == 0 && len(v.Facts) == 0 && len(v.NumberFacts) == 0 && len(v.Lists) == 0 && len(v.Actors) == 0 && !HasNFOItemFieldLock(v) {
 			return false
 		}
 	default:
