@@ -1,4 +1,14 @@
-## 最新接續：G42.10 五十萬條目容器預算與 GC 子項完成
+## 最新接續：本地 Primary 圖片處理子項完成
+
+新增預設關閉的本地圖片 API：JPEG／PNG 真解碼、等比例縮小、白底合成與 JPEG 輸出。來源只讀、私有暫存串流、尺寸與解碼工作區預檢、有界編碼 LRU/TTL；請求和慢回應持有准入槽，取消不遺棄解碼工作。Windows held-handle ACL 與 Linux 擁有者/權限檢查均已驗證。每次取圖、HEAD/304/暖命中在處理前後重新查驗 live session、ACL 與唯一來源綁定。
+
+Windows 單元 723 通過／1 平台略過，Linux race 709／0；HTTP Windows 整包 444／0、Linux race 圖片專項 44／0；Linux 真 PG/Fx/HTTP 10／0。事件包含父與子測試，不能視為不重複案例。兩張 128×64 圖縮為32×16，正式 KDF 登入、撤權、ETag/HEAD/304、四個原檔保持與正常停止清理通過。初輪 Linux scratch 權限錯誤已保留，僅修測試私有目錄後成功。33 Go檔格式、vet、架構2項、三命令建置、模組驗證通過；最終905份來源凍結，90份SQL、五份直播核心、LICENSE與需求原文不變。
+
+[功能與限制](local-images.md)／[來源及執行證據](evidence/local-images.json)。336項為 **7完成／194部分／135阻塞**，仍第三階段；本次把9項由尚無實作推至部分完成，不代表G40整章完成。十萬圖片RSS、24h、其他角色/格式、持久變體、遠端/NFO/內嵌、鎖定重建與前端仍缺。
+
+下一小段使用正式圖片路徑驗十萬個獨立來源的冷解碼，再查暖快取與RSS/GC預算；草稿在忽略的 `.testdata/images-scale-next.md`。沿用繁中PR46，功能CI須查新head；完整品牌gate仍未通過，不合併。下方為歷史紀錄。
+
+## 歷史接續：G42.10 五十萬條目容器預算與 GC 子項完成
 
 正式 Fx／HTTP／PostgreSQL 單 worker 在 2 CPUs、GOGC100、Go soft limit 512 MiB、容器 768 MiB 下，完整掃描五十萬檔，inventory 與已生效 baseline 各五十萬筆，501 個目錄完成。一次嘗試，HTTP 提交至觀察成功 136.28 秒；全段觀測 138.11 秒、144 筆 RSS 採樣，峰值 154.32 MiB，低於事前固定 464 MiB。
 

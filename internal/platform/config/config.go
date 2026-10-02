@@ -27,6 +27,8 @@ type Config struct {
 	EnableDirect          bool           `json:"enableDirect"`
 	EnableAccounts        bool           `json:"enableAccounts"`
 	EnableMetrics         bool           `json:"enableMetrics"`
+	EnableImages          bool           `json:"enableImages"`
+	Images                ImagesConfig   `json:"images"`
 	Accounts              AccountsConfig `json:"accounts"`
 	EnableJobs            bool           `json:"enableJobs"`
 	Jobs                  JobsConfig     `json:"jobs"`
@@ -38,7 +40,7 @@ func Load() (Config, error) { return LoadWith(os.LookupEnv) }
 
 // LoadWith keeps environment lookup injectable and never includes values in errors.
 func LoadWith(lookup func(string) (string, bool)) (Config, error) {
-	c := Config{Listen: "127.0.0.1:8097", AllowedHosts: []string{"localhost", "127.0.0.1", "::1"}, MaxConnections: 8, MaxStreams: 8, RequestTimeoutSeconds: 15, Accounts: DefaultAccountsConfig(), Jobs: DefaultJobsConfig()}
+	c := Config{Listen: "127.0.0.1:8097", AllowedHosts: []string{"localhost", "127.0.0.1", "::1"}, MaxConnections: 8, MaxStreams: 8, RequestTimeoutSeconds: 15, Accounts: DefaultAccountsConfig(), Jobs: DefaultJobsConfig(), Images: DefaultImagesConfig()}
 	if path, ok := lookup("JELEE_CONFIG"); ok && path != "" {
 		f, err := os.Open(path)
 		if err != nil {
@@ -94,7 +96,7 @@ func LoadWith(lookup func(string) (string, bool)) (Config, error) {
 			c.TrustedProxies = strings.Split(value, ",")
 		}
 	}
-	for name, target := range map[string]*bool{"JELEE_ENABLE_CATALOG": &c.EnableCatalog, "JELEE_ENABLE_DIRECT": &c.EnableDirect, "JELEE_ENABLE_ACCOUNTS": &c.EnableAccounts, "JELEE_ENABLE_METRICS": &c.EnableMetrics, "JELEE_ENABLE_JOBS": &c.EnableJobs, "JELEE_ENABLE_PROBE": &c.EnableProbe, "JELEE_ENABLE_FAMILY_IGNORE": &c.EnableFamilyIgnore} {
+	for name, target := range map[string]*bool{"JELEE_ENABLE_CATALOG": &c.EnableCatalog, "JELEE_ENABLE_DIRECT": &c.EnableDirect, "JELEE_ENABLE_ACCOUNTS": &c.EnableAccounts, "JELEE_ENABLE_METRICS": &c.EnableMetrics, "JELEE_ENABLE_IMAGES": &c.EnableImages, "JELEE_ENABLE_JOBS": &c.EnableJobs, "JELEE_ENABLE_PROBE": &c.EnableProbe, "JELEE_ENABLE_FAMILY_IGNORE": &c.EnableFamilyIgnore} {
 		if value, ok := lookup(name); ok {
 			b, err := strconv.ParseBool(value)
 			if err != nil {
@@ -124,6 +126,9 @@ func LoadWith(lookup func(string) (string, bool)) (Config, error) {
 		return c, err
 	}
 	if err := c.Jobs.loadEnvironment(lookup); err != nil {
+		return c, err
+	}
+	if err := c.Images.loadEnvironment(lookup); err != nil {
 		return c, err
 	}
 	return c, c.Validate()
@@ -169,6 +174,14 @@ func (c Config) Validate() error {
 	}
 	if c.EnableMetrics && !c.EnableAccounts {
 		return errors.New("metrics require account rollout")
+	}
+	if c.EnableImages {
+		if !c.EnableAccounts || !c.EnableCatalog {
+			return errors.New("images require account and catalog rollout")
+		}
+		if err := c.Images.Validate(); err != nil {
+			return err
+		}
 	}
 	if c.EnableJobs {
 		if !c.EnableAccounts {

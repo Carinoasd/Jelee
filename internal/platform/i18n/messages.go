@@ -17,6 +17,10 @@ func Message(code, acceptLanguage, fallback string) string {
 // Keep complete phrases together so their grammar is not assembled at runtime.
 var messages = map[string]map[string]string{
 	"en-US": {
+		"image_busy":                "Image processing is busy. Try again later.",
+		"image_unavailable":         "Image is unavailable.",
+		"image_too_large":           "Image exceeds the processing limit.",
+		"image_unsupported":         "Image format is not supported.",
 		"metadata_unavailable":      "Metadata provider is unavailable. Try again later.",
 		"feature_removed":           "Discovery, live TV, recordings and channels are not supported.",
 		"nfo_disabled":              "NFO validation is disabled for this library.",
@@ -60,6 +64,10 @@ var messages = map[string]map[string]string{
 		"unsupported_media_type":    "Request content type is not supported.",
 	},
 	"zh-CN": {
+		"image_busy":                "图片处理繁忙，请稍后重试。",
+		"image_unavailable":         "图片暂时不可用。",
+		"image_too_large":           "图片超过处理上限。",
+		"image_unsupported":         "不支持此图片格式。",
 		"metadata_unavailable":      "元数据来源暂时不可用，请稍后重试。",
 		"feature_removed":           "不支持设备发现、直播电视、录制和频道。",
 		"nfo_disabled":              "此媒体库尚未启用NFO校验。",
@@ -103,6 +111,10 @@ var messages = map[string]map[string]string{
 		"unsupported_media_type":    "不支持此请求内容类型。",
 	},
 	"zh-TW": {
+		"image_busy":                "圖片處理繁忙，請稍後重試。",
+		"image_unavailable":         "圖片暫時無法使用。",
+		"image_too_large":           "圖片超過處理上限。",
+		"image_unsupported":         "不支援此圖片格式。",
 		"metadata_unavailable":      "中繼資料來源暫時無法使用，請稍後重試。",
 		"feature_removed":           "不支援裝置探索、直播電視、錄製與頻道。",
 		"nfo_disabled":              "此媒體庫尚未啟用NFO驗證。",
@@ -146,6 +158,10 @@ var messages = map[string]map[string]string{
 		"unsupported_media_type":    "不支援此請求內容類型。",
 	},
 	"ja-JP": {
+		"image_busy":                "画像処理が混み合っています。しばらくしてから再試行してください。",
+		"image_unavailable":         "画像を利用できません。",
+		"image_too_large":           "画像が処理上限を超えています。",
+		"image_unsupported":         "この画像形式には対応していません。",
 		"metadata_unavailable":      "メタデータの提供元を利用できません。後でもう一度お試しください。",
 		"feature_removed":           "デバイス検出、ライブテレビ、録画、チャンネルには対応していません。",
 		"nfo_disabled":              "このライブラリではNFO検証が無効です。",

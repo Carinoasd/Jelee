@@ -47,6 +47,8 @@ type Server struct {
 	metadata        *app.Metadata
 	metrics         http.Handler
 	metricsSlots    chan struct{}
+	images          *app.Images
+	imageSlots      chan struct{}
 }
 
 func New(cfg config.Config, backend Backend, catalog *app.Catalog, resolver media.Resolver, logger *slog.Logger, accounts ...*app.Accounts) (http.Handler, error) {
@@ -67,14 +69,18 @@ func NewWithJobs(cfg config.Config, backend Backend, catalog *app.Catalog, resol
 	if len(metadataServices) == 1 {
 		metadata = metadataServices[0]
 	}
-	return newServer(cfg, backend, catalog, resolver, logger, account, jobs, metadata, nil)
+	return newServer(cfg, backend, catalog, resolver, logger, account, jobs, metadata, nil, nil)
 }
 
 func NewWithTelemetry(cfg config.Config, backend Backend, catalog *app.Catalog, resolver media.Resolver, logger *slog.Logger, account *app.Accounts, jobs *app.Jobs, metadata *app.Metadata, metrics http.Handler) (http.Handler, error) {
-	return newServer(cfg, backend, catalog, resolver, logger, account, jobs, metadata, metrics)
+	return NewWithImages(cfg, backend, catalog, resolver, logger, account, jobs, metadata, metrics, nil)
 }
 
-func newServer(cfg config.Config, backend Backend, catalog *app.Catalog, resolver media.Resolver, logger *slog.Logger, account *app.Accounts, jobs *app.Jobs, metadata *app.Metadata, metrics http.Handler) (http.Handler, error) {
+func NewWithImages(cfg config.Config, backend Backend, catalog *app.Catalog, resolver media.Resolver, logger *slog.Logger, account *app.Accounts, jobs *app.Jobs, metadata *app.Metadata, metrics http.Handler, images *app.Images) (http.Handler, error) {
+	return newServer(cfg, backend, catalog, resolver, logger, account, jobs, metadata, metrics, images)
+}
+
+func newServer(cfg config.Config, backend Backend, catalog *app.Catalog, resolver media.Resolver, logger *slog.Logger, account *app.Accounts, jobs *app.Jobs, metadata *app.Metadata, metrics http.Handler, images *app.Images) (http.Handler, error) {
 	if err := cfg.Validate(); err != nil {
 		return nil, err
 	}
@@ -127,6 +133,13 @@ func newServer(cfg config.Config, backend Backend, catalog *app.Catalog, resolve
 		s.metrics = metrics
 		s.metricsSlots = make(chan struct{}, 2)
 	}
+	if cfg.EnableImages {
+		if images == nil {
+			return nil, errors.New("image service must be provided")
+		}
+		s.images = images
+		s.imageSlots = make(chan struct{}, cfg.Images.MaxConcurrent)
+	}
 	r := chi.NewRouter()
 	r.Use(s.boundary)
 	r.Get("/healthz", func(w http.ResponseWriter, r *http.Request) {
@@ -160,6 +173,9 @@ func newServer(cfg config.Config, backend Backend, catalog *app.Catalog, resolve
 	}
 	if cfg.EnableMetrics {
 		s.metricsRoutes(r)
+	}
+	if cfg.EnableImages {
+		s.imageRoutes(r)
 	}
 	if s.metadata != nil && cfg.TMDBAPIKey != "" {
 		s.metadataRoutes(r)
@@ -400,6 +416,15 @@ func WriteError(w http.ResponseWriter, r *http.Request, err error) {
 		status, code, message = 503, "not_ready", "Service is not ready."
 	case errors.Is(err, domain.ErrMetadataUnavailable):
 		status, code, message = 503, "metadata_unavailable", "Metadata provider is unavailable. Try again later."
+	case errors.Is(err, domain.ErrImageBusy):
+		status, code, message = 503, "image_busy", "Image processing is busy. Try again later."
+		w.Header().Set("Retry-After", "1")
+	case errors.Is(err, domain.ErrImageUnavailable):
+		status, code, message = 404, "image_unavailable", "Image is unavailable."
+	case errors.Is(err, domain.ErrImageTooLarge):
+		status, code, message = 413, "image_too_large", "Image exceeds the processing limit."
+	case errors.Is(err, domain.ErrImageUnsupported):
+		status, code, message = 415, "image_unsupported", "Image format is not supported."
 	case errors.Is(err, context.DeadlineExceeded), errors.Is(err, context.Canceled):
 		status, code, message = 408, "request_timeout", "Request was cancelled or timed out."
 	case errors.Is(err, media.ErrPlaybackDenied):

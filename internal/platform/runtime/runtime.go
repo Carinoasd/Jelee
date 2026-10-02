@@ -12,6 +12,7 @@ import (
 
 	"github.com/MoYuanCN/Jelee/internal/adapter/calendar"
 	httpapi "github.com/MoYuanCN/Jelee/internal/adapter/http"
+	imageadapter "github.com/MoYuanCN/Jelee/internal/adapter/images"
 	"github.com/MoYuanCN/Jelee/internal/adapter/nfo"
 	"github.com/MoYuanCN/Jelee/internal/adapter/postgres"
 	"github.com/MoYuanCN/Jelee/internal/adapter/scan"
@@ -48,6 +49,34 @@ func newWithLifetime(cfg config.Config, logger *slog.Logger, lifetime *lifetime)
 			return store, nil
 		},
 		func(store *postgres.Store) *app.Catalog { return app.NewCatalog(store) },
+		func(c config.Config) (*imageadapter.Processor, error) {
+			if !c.EnableImages {
+				return nil, nil
+			}
+			if err := c.Validate(); err != nil {
+				return nil, err
+			}
+			p := c.Images
+			processor, err := imageadapter.New(lifetime.ctx, imageadapter.Options{
+				TempRoot: p.TempRoot, MaxConcurrent: p.MaxConcurrent,
+				MaxImageBytes: p.MaxImageBytes, MaxSourceBytes: p.MaxSourceBytes,
+				MaxOutputBytes: p.MaxOutputBytes, MaxOutputDimension: p.MaxOutputDimension,
+				CacheBytes: p.CacheBytes, CacheEntries: p.CacheEntries,
+				Timeout:  time.Duration(p.TimeoutSeconds) * time.Second,
+				CacheTTL: time.Duration(p.CacheTTLSeconds) * time.Second, DefaultQuality: p.DefaultQuality,
+			})
+			if err != nil {
+				return nil, err
+			}
+			lifetime.closeImages = processor.Shutdown
+			return processor, nil
+		},
+		func(c config.Config, store *postgres.Store, processor *imageadapter.Processor) (*app.Images, error) {
+			if !c.EnableImages {
+				return nil, nil
+			}
+			return app.NewImages(store, processor)
+		},
 		func(c config.Config, store *postgres.Store) (*telemetry.Metrics, error) {
 			if !c.EnableMetrics {
 				return nil, nil
@@ -142,7 +171,7 @@ func newWithLifetime(cfg config.Config, logger *slog.Logger, lifetime *lifetime)
 			lifetime.worker = &watchGroup{worker: &scheduledWorker{worker: &probeWorker{worker: runner, probe: probing, nfo: validation}, dispatch: service, logger: l}, watch: watchRunner}
 			return service, nil
 		},
-		func(c config.Config, store *postgres.Store, catalog *app.Catalog, jobs *app.Jobs, metadata *app.Metadata, metrics *telemetry.Metrics, l *slog.Logger) (http.Handler, error) {
+		func(c config.Config, store *postgres.Store, catalog *app.Catalog, jobs *app.Jobs, metadata *app.Metadata, metrics *telemetry.Metrics, pictures *app.Images, l *slog.Logger) (http.Handler, error) {
 			if !c.EnableAccounts {
 				return httpapi.New(c, store, catalog, store, l)
 			}
@@ -162,7 +191,7 @@ func newWithLifetime(cfg config.Config, logger *slog.Logger, lifetime *lifetime)
 			if metrics != nil {
 				metricsHandler = metrics.Handler()
 			}
-			return httpapi.NewWithTelemetry(c, store, catalog, store, l, accounts, jobs, metadata, metricsHandler)
+			return httpapi.NewWithImages(c, store, catalog, store, l, accounts, jobs, metadata, metricsHandler, pictures)
 		},
 	), fx.Invoke(func(lc fx.Lifecycle, cfg config.Config, handler http.Handler, shutdown fx.Shutdowner) {
 		lifetime.server = &http.Server{Addr: cfg.Listen, Handler: handler, ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 15 * time.Second, IdleTimeout: 60 * time.Second, MaxHeaderBytes: 16 << 10}
@@ -193,6 +222,7 @@ type lifetime struct {
 	closeProbe      func() error
 	closeIgnore     func() error
 	closeTelemetry  func(context.Context) error
+	closeImages     func(context.Context) error
 	closeOnce       sync.Once
 	stopOnce        sync.Once
 	exited          chan struct{}
@@ -247,6 +277,14 @@ func (l *lifetime) closePool() {
 					l.logger.Error("metrics shutdown failed; pool retained", "component", "metrics")
 					return
 				}
+			}
+		}
+		// Image requests recheck catalog access after decoding. Keep the pool
+		// alive until cancelled decoding and held response bodies have joined.
+		if l.closeImages != nil {
+			if err := l.closeImages(context.Background()); err != nil {
+				l.stopErr = errors.Join(l.stopErr, errors.New("image shutdown failed"))
+				return
 			}
 		}
 		if l.closeStore != nil {
