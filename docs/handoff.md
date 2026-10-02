@@ -1,3 +1,11 @@
+## 最新接續：ABI 遷移契約與新命名基準
+
+ABI 門禁保留共同祖先的八組原始比較，逐項核對改名／功能裁剪產生的 52 條診斷；新增固定提交 `202b813a955cfc64ab87992484bf00b8aa72221a` 的真實命名程序集基準，第九組不允許 API 破壞。ApiCompat 固定 10.0.401，核對實際完整版本；未知、重複、過期差異及工具錯誤均失敗。
+
+20 項 parser 測試及真實 Naming 正向通過。隔離建置的型別移除、簽章改動、歷史模型還原，以及缺失／損壞 DLL 均被門禁拒絕；官方 unused suppression 回傳成功的情況也已實測攔截。本機舊八組沿用既存 CI 原始輸出，未重新比較其 DLL；最新 HEAD 九組實際比較須在推送後由 CI 確認。[契約](abi-report-check.md)／[證據](evidence/abi-guard-validation.json)。
+
+接續原需求 OTel 產品指標；草案 `.testdata/otel-first-slice-review.md` 與 `.testdata/metrics-design-review.md`。仍第三階段，336 項 4 完成／184 部分／148 阻塞；全量品牌、四核心忽略、混合負載、容器 OOM／預算及 24h 尚待驗收。同分支繁中 PR46，不 merge／release／tag／force-push／設定 Git 身分。以下為歷史紀錄。
+
 ## 最新接續：五十萬檔忽略三輪與邊界修正
 
 量測來源 `2f59044777`：五十萬首次 365.30 秒、排除半數 876.02 秒、清理重掃 962.27 秒，全部 attempts=1。觀察 250,001＋歷史 249,999；第三輪底層仍一百萬列，歷史版號與原檔抽樣保持。取樣 heap 約 3.61 MiB、程序 RSS 約 27.01 MiB，不含 helper／PG。

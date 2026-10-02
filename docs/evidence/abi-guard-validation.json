@@ -1,0 +1,141 @@
+{
+  "verifiedOn": "2026-10-03",
+  "status": "本機驗證通過；最新 HEAD 的完整遠端 CI 尚待執行",
+  "baselineCommit": "202b813a955cfc64ab87992484bf00b8aa72221a",
+  "headCommit": "cfba1009631a3ada2bc76b884f6616af8cb27be7",
+  "dotnetSdk": "10.0.400",
+  "apiCompatVersion": "10.0.401+e34a38d2ae1fc26406a317517196e55c68ff83ab",
+  "toolInvocationEnvironment": {
+    "DOTNET_CLI_UI_LANGUAGE": "en-US",
+    "DOTNET_SYSTEM_GLOBALIZATION_INVARIANT": "1"
+  },
+  "historicalEightComparisons": {
+    "source": "既存 GitHub Actions 原始報告；本機未重建或重新比較這八組 DLL",
+    "head": "533c21881d44553452b202638f13d06628bccee4",
+    "job": "https://github.com/Carinoasd/Jelee/actions/runs/37034513810/job/110930196589",
+    "reportSha256": "18fd896244e6e9dd3d53ee16b40aa46743edbacc1a2da95615fce315db75b68a",
+    "diagnostics": 52
+  },
+  "namingComparison": "本機實際建置固定基準與目前 HEAD 的 Naming 專案及正常引用，重新執行真實 DLL 比較",
+  "negativeBuilds": "隔離快照中移除公開 VideoResolver、改變 IsVideoFile 簽章、還原真實歷史探索模型；每項皆建置成功且實際比較，結束後恢復來源",
+  "parserFixtures": {
+    "passed": 20,
+    "failed": 0,
+    "command": "python -B .testdata/abi-guard-draft/scripts/test_abi_guard.py",
+    "scope": "舊八組真實 CI 文字報告加第九組合成成功文字；不等於九組 DLL 重新比較",
+    "logSha256": "56934d4dc03d5c36a4030114f0b2e590c101cdc96377ee1aad7889ccf887416e"
+  },
+  "checks": [
+    {
+      "case": "tool-version",
+      "exit": 0,
+      "rawLogSha256": "32fe36d97df2152c67716af50beaf6ab198da63ba398b5de0f9daae94d80df17"
+    },
+    {
+      "case": "naming-real-positive",
+      "exit": 0,
+      "rawLogSha256": "3755a2a52a176f80c3e9279d5140836f4f57bb87ed179114583886f69dd791dd"
+    },
+    {
+      "case": "guard-real-positive",
+      "exit": 0,
+      "rawLogSha256": "b6063058677983ab070b34d9483c2b144a828341bea808c40a44fc194f8620eb"
+    },
+    {
+      "case": "build-public-type-removed",
+      "exit": 0,
+      "rawLogSha256": "d565ee1328c5dadbd929ae2f826c354e22e5009786c61f9f3d95c116a45dd93b"
+    },
+    {
+      "case": "naming-public-type-removed",
+      "exit": 1,
+      "rawLogSha256": "f269bd26a58f8ac96ff15ef0af796257abc2e16528024858a894a101d101df10"
+    },
+    {
+      "case": "guard-public-type-removed",
+      "exit": 1,
+      "rawLogSha256": "13dbd585ad55bb141b279a8e98a98cfc2fa0bab2ad4cedeec3b662dfa47e0287"
+    },
+    {
+      "case": "build-signature-changed",
+      "exit": 0,
+      "rawLogSha256": "9bd3c293e9c0c647043222640ddd62556ea598ecdded92b3c0199aa8ced65efb"
+    },
+    {
+      "case": "naming-signature-changed",
+      "exit": 1,
+      "rawLogSha256": "2e66d1f7d9ce75bc8d111850c6740b74652bca487ea3cb3c81beca4156f09293"
+    },
+    {
+      "case": "guard-signature-changed",
+      "exit": 1,
+      "rawLogSha256": "f17e8e0c2257cf1b640649936edd32496874ade0844980f48acb6a3852704968"
+    },
+    {
+      "case": "build-restored-retired-model",
+      "exit": 0,
+      "rawLogSha256": "9bbf8262367b9efd73850fec3f4e8b20b4fd2f4decc378537a00c5aa01e0a5a6"
+    },
+    {
+      "case": "model-restored-stale",
+      "exit": 0,
+      "rawLogSha256": "3755a2a52a176f80c3e9279d5140836f4f57bb87ed179114583886f69dd791dd"
+    },
+    {
+      "case": "guard-real-stale-entry",
+      "exit": 1,
+      "rawLogSha256": "650823056f1ea5c1e1766085401a1d1e54f271d414c9e7fb2eed61289acbe7e7"
+    },
+    {
+      "case": "naming-missing-dll",
+      "exit": 1,
+      "rawLogSha256": "914826aa64fd30f9eccc829ee6d05431848c5de873d0e114ccd7205fa387f2d2"
+    },
+    {
+      "case": "guard-missing-dll",
+      "exit": 1,
+      "rawLogSha256": "c8ecbdeaf62490fb93e987a950dd95c738f0d505a4af4080cff5be39d59badd3"
+    },
+    {
+      "case": "naming-corrupt-dll",
+      "exit": 1,
+      "rawLogSha256": "f7d72aebb23b485256d38fa6a3d425d4869c6a4d9646fc6e5069ad135f237712"
+    },
+    {
+      "case": "guard-corrupt-dll",
+      "exit": 1,
+      "rawLogSha256": "4b92c513ad6fb616785b83c306e395e9969fba74aefc508daa4ed0c6bcc8a5d2"
+    },
+    {
+      "case": "official-unused-suppression",
+      "exit": 0,
+      "rawLogSha256": "f3a59d36981d732a3b49569814bdae002b59b1a20111f3356bb8837343427e94"
+    },
+    {
+      "case": "guard-official-unused-output",
+      "exit": 1,
+      "rawLogSha256": "85a957e580699b6ef106b7bcde55945566b4cb24344f7620a7efe139bca39ba5"
+    }
+  ],
+  "localEvidenceDirectory": ".testdata/abi-real-evidence/",
+  "remaining": [
+    "變更推送後最新 HEAD 的九組真實 DLL 遠端比較",
+    "修改後完整 GitHub Actions workflow 遠端驗收"
+  ],
+  "exactCommandLog": ".testdata/abi-real-evidence/results.json（本機忽略目錄；完整命令與工作目錄）",
+  "isolatedMutationsAppliedToTrackedSource": false,
+  "trackedFileVerification": {
+    "parserCommand": "python -B scripts/test_abi_guard.py",
+    "parserPassed": 20,
+    "parserFailed": 0,
+    "incrementalBrandViolations": 0,
+    "incrementalBrandAllowed": 339,
+    "gitignoreViolations": 0,
+    "gofmt": "passed",
+    "diffCheck": "passed",
+    "publishedMigrationsUnchanged": 88,
+    "liveCoreFilesUnchanged": 5,
+    "licenseAndRequirementsHashesUnchanged": true,
+    "requirementRows": 336
+  }
+}

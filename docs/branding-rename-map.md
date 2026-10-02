@@ -175,3 +175,9 @@ src/Jellyfin.Networking 與 tests/Jellyfin.Networking.Tests → src/Jelee.Networ
 - jobsControlClient: `cmd/jelee-cli/jobs.go`
 - nfoControlClient: `cmd/jelee-cli/nfo_jobs.go`
 - dependencyVersions: `Directory.Packages.props`
+
+## ABI 遷移契約的精確來源身份
+
+`tools/abi/expected-breaks.json` 只記錄舊程序集與公開符號在遷移比較中的精確身份，以及G00／G05／G11.5／G28對應；`scripts/fixtures/abi-legacy-report.json` 保留來源CI輸出作門禁反例。兩者按精確檔名加入品牌掃描白名單，不豁免任何實作目錄。
+
+命名模組增加固定的真實Jelee基準：`202b813a955cfc64ab87992484bf00b8aa72221a`，原八組比較與52條歷史差異仍完整保留。後續未核准的Jelee命名API差異依新組件比較失敗；詳見[ABI門禁](abi-report-check.md)。

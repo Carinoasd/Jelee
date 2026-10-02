@@ -76,18 +76,62 @@ jobs:
           if-no-files-found: error
           path: out/
 
+  abi-naming-base:
+    name: ABI - Naming baseline
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      DOTNET_CLI_UI_LANGUAGE: en-US
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout reviewed Naming identity transition
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: Carinoasd/Jelee
+          ref: 202b813a955cfc64ab87992484bf00b8aa72221a
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Build real Naming baseline and its project dependencies
+        run: |
+          test "$(git rev-parse HEAD)" = '202b813a955cfc64ab87992484bf00b8aa72221a'
+          dotnet build Jelee.Naming/Jelee.Naming.csproj -o ./out
+          git rev-parse HEAD > out/baseline.sha
+
+      - name: Upload Naming baseline
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: abi-naming-base
+          retention-days: 14
+          if-no-files-found: error
+          path: out/
+
   abi-diff:
     permissions:
       contents: read
 
     name: ABI - Difference
+    timeout-minutes: 20
+    env:
+      DOTNET_CLI_UI_LANGUAGE: en-US
     if: ${{ github.event_name == 'pull_request' }}
     runs-on: ubuntu-latest
     needs:
       - abi-head
       - abi-base
+      - abi-naming-base
 
     steps:
+      - name: Checkout reviewed gate and manifest
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          repository: ${{ github.event.pull_request.head.repo.full_name }}
+
       - name: Download abi-head
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
@@ -100,37 +144,51 @@ jobs:
           name: abi-base
           path: abi-base
 
-      - name: Setup ApiCompat
-        run: |
-          dotnet tool install --global Microsoft.DotNet.ApiCompat.Tool
+      - name: Download abi-naming-base
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: abi-naming-base
+          path: abi-naming-base
 
-      - name: Run ApiCompat
+      - name: Setup .NET
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Setup reviewed ApiCompat version
+        run: |
+          dotnet tool install --tool-path .tools/abi/10.0.401 Microsoft.DotNet.ApiCompat.Tool --version 10.0.401
+          mkdir -p abi-report
+          DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1 .tools/abi/10.0.401/apicompat --version > abi-report/tool-version.txt
+
+      - name: Validate ABI guard failure cases
+        run: python3 -B scripts/test_abi_guard.py
+
+      - name: Run ApiCompat and validate reviewed migration contract
         run: |
           mkdir -p abi-report
-          failed=0
-          printf '# ABI 相容性報告\n\n' > abi-report/report.md
+          compare() {
+            left_file="$1"
+            right_file="$2"
+            report_name="$3"
+            status=0
+            if [ ! -s "$left_file" ] || [ ! -s "$right_file" ]; then
+              printf 'Missing or empty comparison input: %s / %s\n' "$left_file" "$right_file" > "abi-report/${report_name}.txt"
+              status=125
+            else
+              DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1 .tools/abi/10.0.401/apicompat --left "$left_file" --right "$right_file" > "abi-report/${report_name}.txt" 2>&1 || status=$?
+            fi
+            printf '%s\n' "$status" > "abi-report/${report_name}.exit"
+          }
           for file in Jellyfin.Data.dll MediaBrowser.Common.dll MediaBrowser.Controller.dll MediaBrowser.Model.dll Jelee.Naming.dll Jellyfin.Extensions.dll Jellyfin.MediaEncoding.Keyframes.dll Jellyfin.Database.Implementations.dll; do
             base_file="${file}"
             if [ "${file}" = "Jelee.Naming.dll" ] && [ ! -f "./abi-base/${base_file}" ]; then
               base_file="Emby.Naming.dll"
             fi
-            printf '\n## %s\n\n' "${file}" >> abi-report/report.md
-            if [ ! -f "./abi-base/${base_file}" ] || [ ! -f "./abi-head/${file}" ]; then
-              printf '缺少比較用組件：%s / %s\n' "${base_file}" "${file}" >> abi-report/report.md
-              failed=1
-              continue
-            fi
-            status=0
-            apicompat --left "./abi-base/${base_file}" --right "./abi-head/${file}" > "abi-report/${file}.txt" 2>&1 || status=$?
-            printf '工具結束碼：%s\n\n```text\n' "${status}" >> abi-report/report.md
-            cat "abi-report/${file}.txt" >> abi-report/report.md
-            printf '\n```\n' >> abi-report/report.md
-            if [ "${status}" -ne 0 ]; then
-              failed=1
-            fi
+            compare "./abi-base/${base_file}" "./abi-head/${file}" "upstream-${file}"
           done
-          cat abi-report/report.md >> "$GITHUB_STEP_SUMMARY"
-          exit "${failed}"
+          compare './abi-naming-base/Jelee.Naming.dll' './abi-head/Jelee.Naming.dll' 'naming-contract'
+          python3 -B scripts/check-abi-report.py
 
       - name: Retain ABI report
         if: always()

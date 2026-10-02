@@ -16,3 +16,5 @@ CONTRIBUTORS.md # Upstream authorship.
 Jelee.Naming/Attribution.props # Original package authors and license only; preserved legal attribution.
 Jelee.Naming/Properties/Copyright.cs # Original assembly copyright statement only; preserved verbatim.
 src/Jelee.Networking/Compatibility/LegacyNetworkNames.cs # Exact legacy client discovery and configuration constants only.
+tools/abi/expected-breaks.json # Exact historical assembly and symbol identities for the reviewed ABI migration contract.
+scripts/fixtures/abi-legacy-report.json # Verbatim upstream ABI diagnostics used to verify the migration gate.
