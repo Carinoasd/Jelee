@@ -6,6 +6,7 @@ import (
 	"encoding/xml"
 	"io"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 
@@ -227,8 +228,28 @@ func (r *SummaryReader) projectItemFields(ctx context.Context, source *summarySo
 			result.Version = domain.NFOItemCollectionFieldsVersion
 		}
 	}
-	if len(result.Fields) == 0 && len(result.Facts) == 0 && len(result.NumberFacts) == 0 && len(result.Lists) == 0 && result.Version != domain.NFOItemCollectionFieldsVersion && result.Version != domain.NFOItemRatingFieldsVersion && result.Version != domain.NFOItemIdentifierFieldsVersion && result.Version != domain.NFOItemActorFieldsVersion && result.Version != domain.NFOItemListFieldsVersion && result.Version != domain.NFOItemNumericFieldsVersion && result.Version != domain.NFOItemYearFieldsVersion && result.Version != domain.NFOItemSortFieldsVersion && result.Version != domain.NFOItemTextFieldsVersion && domain.HasNFOItemFieldLock(result) {
+
+	if metadata.DateAdded != "" || len(metadata.Trailers) > 0 || len(metadata.Art) > 0 {
+		result.Version = domain.NFOItemMovieFieldsVersion
+		result.DateAdded = metadata.DateAdded
+		result.Trailers = slices.Clone(metadata.Trailers)
+		for _, art := range metadata.Art {
+			result.Art = append(result.Art, domain.NFOArtwork{Kind: art.Kind, Location: art.Location, Preview: art.Preview, Season: art.Season})
+		}
+		result.Art = domain.CloneNFOArtwork(result.Art)
+	}
+	for _, name := range metadata.LockedFields {
+		if domain.MetadataMovieFieldForLock(name) != "" {
+			result.Version = domain.NFOItemMovieFieldsVersion
+		}
+	}
+	if len(result.Fields) == 0 && len(result.Facts) == 0 && len(result.NumberFacts) == 0 && len(result.Lists) == 0 && result.Version != domain.NFOItemMovieFieldsVersion && result.Version != domain.NFOItemCollectionFieldsVersion && result.Version != domain.NFOItemRatingFieldsVersion && result.Version != domain.NFOItemIdentifierFieldsVersion && result.Version != domain.NFOItemActorFieldsVersion && result.Version != domain.NFOItemListFieldsVersion && result.Version != domain.NFOItemNumericFieldsVersion && result.Version != domain.NFOItemYearFieldsVersion && result.Version != domain.NFOItemSortFieldsVersion && result.Version != domain.NFOItemTextFieldsVersion && domain.HasNFOItemFieldLock(result) {
 		result.Version = domain.NFOItemLockFieldsVersion
+	}
+	// A newly read global lock covers every currently supported movie field.
+	// Historical observations retain their published projection vocabulary.
+	if result.LockData {
+		result.Version = domain.NFOItemMovieFieldsVersion
 	}
 	if !domain.ValidNFOItemFields(result) {
 		return domain.NFOItemFields{}, domain.ErrMetadataUnavailable
@@ -253,6 +274,7 @@ func uniqueItemFields(ctx context.Context, original []byte) error {
 	var collectionFields map[string]bool
 	collectionText := false
 	ratingsContainer := false
+	rootField := ""
 	for {
 		token, err := decoder.Token()
 		if err == io.EOF {
@@ -267,6 +289,33 @@ func uniqueItemFields(ctx context.Context, original []byte) error {
 		switch token := token.(type) {
 		case xml.StartElement:
 			depth++
+			if depth == 2 {
+				rootField = elementName(token.Name)
+			}
+			artName := elementName(token.Name)
+			isArtwork := slices.Contains([]string{"thumb", "poster", "fanart", "banner", "clearart", "clearlogo", "landscape"}, artName)
+			if isArtwork && (depth == 2 || depth == 3 && (rootField == "art" || rootField == "fanart" && artName == "thumb")) {
+				attributes := map[string]string{}
+				for _, attribute := range token.Attr {
+					name := elementName(attribute.Name)
+					if name != "aspect" && name != "type" && name != "season" && name != "preview" {
+						continue
+					}
+					if _, duplicate := attributes[name]; duplicate {
+						return domain.ErrMetadataUnavailable
+					}
+					attributes[name] = attribute.Value
+					if name == "season" {
+						season, err := strconv.Atoi(attribute.Value)
+						if err != nil || season < 0 || season > 1000000 {
+							return domain.ErrMetadataUnavailable
+						}
+					}
+				}
+				if attributes["aspect"] != "" && attributes["type"] != "" && attributes["aspect"] != attributes["type"] {
+					return domain.ErrMetadataUnavailable
+				}
+			}
 			if depth == 3 && collectionFields != nil {
 				collectionFields["hasChild"] = true
 				name := elementName(token.Name)
@@ -337,7 +386,7 @@ func uniqueItemFields(ctx context.Context, original []byte) error {
 				name = "collection"
 			}
 			switch name {
-			case "title", "originaltitle", "plot", "premiered", "sorttitle", "tagline", "outline", "mpaa", "certification", "year", "runtime", "rating", "userrating", "lockdata", "lockedfields", "collection":
+			case "title", "originaltitle", "plot", "premiered", "sorttitle", "tagline", "outline", "mpaa", "certification", "year", "runtime", "rating", "userrating", "lockdata", "lockedfields", "collection", "dateadded":
 				if seen[name] {
 					return domain.ErrMetadataUnavailable
 				}

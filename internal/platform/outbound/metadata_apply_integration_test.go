@@ -482,6 +482,12 @@ func TestTMDBMetadataThroughTLSHTTPAndPostgres(t *testing.T) {
 	if original, err := os.ReadFile(collisionFile); err != nil || string(original) != document {
 		t.Fatal("ambiguous NFO original changed", err)
 	}
+	assertVirtualMovieLock := func(fact domain.ItemMetadataFact) {
+		t.Helper()
+		if string(fact.Value) != "null" || fact.Source != "existing" || fact.NFOOrigin != nil || fact.UpdatedAt != nil || fact.NFOLockOrigin == nil || fact.NFOLockOrigin.Projection != domain.NFOItemMovieFieldsVersion {
+			t.Fatal("HTTP global lock invented a value or lost independent lock provenance", fact.Field)
+		}
+	}
 	for offset, directive := range []string{`<lockdata>true</lockdata>`, `<lockedfields>Overview|Unknown</lockedfields>`} {
 		lockDocument := `<movie><title>Partial locked NFO</title>` + directive + `</movie>`
 		item, file := newNFOItem(fmt.Sprintf("independent-lock-%d", offset), "Movie", lockDocument)
@@ -614,8 +620,21 @@ func TestTMDBMetadataThroughTLSHTTPAndPostgres(t *testing.T) {
 		if allCalls.Load() != beforeCalls || len(local.Applied) != 0 || local.Metadata.Kind != "HomeVideo" || local.Metadata.Revision != 2 || local.NFO == nil || local.NFO.Status != domain.NFOItemObservedValid || local.Metadata.LastConfirmedNFOObservation.Status != domain.NFOItemObservedValid {
 			t.Fatal("HTTP lock-only NFO invented text, classification or fallback")
 		}
+		lockProjection := domain.NFOItemLockFieldsVersion
+		if offset == 0 {
+			lockProjection = domain.NFOItemMovieFieldsVersion
+			if len(local.Metadata.Fields) != 9 || len(local.Metadata.Facts) != 19 {
+				t.Fatal("HTTP global lock omitted supported movie fields")
+			}
+			for _, fact := range local.Metadata.Facts {
+				assertVirtualMovieLock(fact)
+			}
+		}
 		for _, field := range local.Metadata.Fields {
-			if field.NFOLockOrigin != nil && (field.NFOLockOrigin.Projection != domain.NFOItemLockFieldsVersion || field.Source != "existing" || field.NFOOrigin != nil || field.ProviderOrigin != nil || field.UpdatedAt != nil) {
+			if offset == 0 && field.NFOLockOrigin == nil {
+				t.Fatal("HTTP global lock omitted a text field", field.Field)
+			}
+			if field.NFOLockOrigin != nil && (field.NFOLockOrigin.Projection != lockProjection || field.Source != "existing" || field.NFOOrigin != nil || field.ProviderOrigin != nil || field.UpdatedAt != nil) {
 				t.Fatal("HTTP lock-only NFO invented text provenance")
 			}
 		}
@@ -737,7 +756,7 @@ func TestTMDBMetadataThroughTLSHTTPAndPostgres(t *testing.T) {
 		t.Fatal("HTTP extended text did not fuse nine fields")
 	}
 	for _, field := range textResult.Metadata.Fields {
-		if field.Source != "nfo" || field.NFOOrigin == nil || field.NFOOrigin.Projection != domain.NFOItemTextFieldsVersion || field.NFOLockOrigin == nil {
+		if field.Source != "nfo" || field.NFOOrigin == nil || field.NFOOrigin.Projection != domain.NFOItemMovieFieldsVersion || field.NFOLockOrigin == nil || field.NFOLockOrigin.Projection != domain.NFOItemMovieFieldsVersion {
 			t.Fatal("HTTP extended text lost field provenance or lock", field.Field)
 		}
 	}
@@ -889,12 +908,16 @@ func TestTMDBMetadataThroughTLSHTTPAndPostgres(t *testing.T) {
 	numericDocument := `<movie><title>Numeric example</title><originaltitle>Original</originaltitle><plot>Plot</plot><premiered>2024-02-29</premiered><sorttitle>Sort</sorttitle><tagline>Tag</tagline><outline>Outline</outline><mpaa>PG</mpaa><certification>TW:12</certification><year>2024</year><runtime>0 minutes</runtime><communityrating>0</communityrating><userrating>10</userrating><lockdata>true</lockdata></movie>`
 	numericItem, numericFile := newNFOItem("numeric-combined", "HomeVideo", numericDocument)
 	numericResult := decode(request("POST", "/api/v1/items/"+numericItem+"/metadata/nfo", `{"expectedRevision":1,"confirmed":true}`))
-	if numericResult.Metadata.Revision != 2 || len(numericResult.Applied) != 13 || len(numericResult.Metadata.Facts) != 4 {
+	if numericResult.Metadata.Revision != 2 || len(numericResult.Applied) != 13 || len(numericResult.Metadata.Facts) != 19 {
 		t.Fatal("HTTP numeric projection did not apply all thirteen fields together")
 	}
 	expectedNumeric := map[string]string{"year": "2024", "runtimeMinutes": "0", "rating": "0", "userRating": "10"}
 	for _, fact := range numericResult.Metadata.Facts {
-		if string(fact.Value) != expectedNumeric[fact.Field] || fact.Source != "nfo" || fact.NFOOrigin == nil || fact.NFOOrigin.Projection != domain.NFOItemNumericFieldsVersion || fact.NFOLockOrigin == nil {
+		if _, ok := expectedNumeric[fact.Field]; !ok {
+			assertVirtualMovieLock(fact)
+			continue
+		}
+		if string(fact.Value) != expectedNumeric[fact.Field] || fact.Source != "nfo" || fact.NFOOrigin == nil || fact.NFOOrigin.Projection != domain.NFOItemMovieFieldsVersion || fact.NFOLockOrigin == nil || fact.NFOLockOrigin.Projection != domain.NFOItemMovieFieldsVersion {
 			t.Fatal("HTTP numeric projection lost zero, bounds or global lock", fact.Field)
 		}
 	}
@@ -902,11 +925,15 @@ func TestTMDBMetadataThroughTLSHTTPAndPostgres(t *testing.T) {
 	var clearedNumeric struct {
 		Data domain.ItemMetadata `json:"data"`
 	}
-	if numericClear.status != 200 || json.Unmarshal(numericClear.body, &clearedNumeric) != nil || clearedNumeric.Data.Revision != 3 || len(clearedNumeric.Data.Facts) != 4 {
+	if numericClear.status != 200 || json.Unmarshal(numericClear.body, &clearedNumeric) != nil || clearedNumeric.Data.Revision != 3 || len(clearedNumeric.Data.Facts) != 19 {
 		t.Fatal("HTTP mixed text and four numeric manual edits failed", numericClear.status)
 	}
 	expectedNumeric = map[string]string{"year": "2023", "runtimeMinutes": "0", "rating": "null", "userRating": "9.25"}
 	for _, fact := range clearedNumeric.Data.Facts {
+		if _, ok := expectedNumeric[fact.Field]; !ok {
+			assertVirtualMovieLock(fact)
+			continue
+		}
 		if string(fact.Value) != expectedNumeric[fact.Field] || fact.Source != "manual" || fact.NFOOrigin != nil || fact.NFOLockOrigin != nil {
 			t.Fatal("HTTP manual numeric takeover lost value or retained NFO proof", fact.Field)
 		}
@@ -926,6 +953,10 @@ func TestTMDBMetadataThroughTLSHTTPAndPostgres(t *testing.T) {
 	}
 	numericReview := decode(request("POST", "/api/v1/items/"+numericItem+"/metadata/nfo", `{"expectedRevision":3,"confirmed":true}`))
 	for _, fact := range numericReview.Metadata.Facts {
+		if _, ok := expectedNumeric[fact.Field]; !ok {
+			assertVirtualMovieLock(fact)
+			continue
+		}
 		if string(fact.Value) != expectedNumeric[fact.Field] || fact.Source != "manual" || fact.NFOOrigin != nil || fact.NFOLockOrigin == nil {
 			t.Fatal("HTTP NFO review overwrote manual numeric edit or lost fresh lock", fact.Field)
 		}
@@ -934,6 +965,80 @@ func TestTMDBMetadataThroughTLSHTTPAndPostgres(t *testing.T) {
 		t.Fatal("numeric metadata review changed source bytes", err)
 	}
 	t.Log("actual HTTP/TLS/NFO/PostgreSQL: thirteen-field numeric projection, zero/bounds, mixed manual clear and renewed independent locks PASS")
+	movieExtrasDocument := `<movie><title>Movie extras</title><dateadded>2024-02-29 12:34:56</dateadded><trailer>https://example.com/trailer-a</trailer><trailer>trailers/local-trailer.mp4</trailer><thumb aspect="poster" season="0" preview="https://example.com/preview.jpg">https://example.com/poster.jpg</thumb><fanart><thumb>fanart/local.jpg</thumb></fanart><art><clearlogo>https://example.com/logo.png</clearlogo></art></movie>`
+	movieExtrasItem, movieExtrasFile := newNFOItem("movie-date-trailers-art", "HomeVideo", movieExtrasDocument)
+	beforeMovieExtrasCalls := allCalls.Load()
+	movieExtras := decode(request("POST", "/api/v1/items/"+movieExtrasItem+"/metadata/nfo", `{"expectedRevision":1,"confirmed":true}`))
+	if movieExtras.Metadata.Revision != 2 || len(movieExtras.Metadata.Facts) != 3 {
+		t.Fatal("HTTP confirmed NFO movie date, trailers and artwork were not persisted")
+	}
+	extrasValues := map[string]json.RawMessage{}
+	for _, fact := range movieExtras.Metadata.Facts {
+		if fact.Source != "nfo" || fact.NFOOrigin == nil {
+			t.Fatal("movie extras lost NFO provenance")
+		}
+		extrasValues[fact.Field] = fact.Value
+	}
+	var added string
+	var trailers []string
+	var artwork []struct {
+		Kind     string `json:"kind"`
+		Location string `json:"location"`
+		Preview  string `json:"preview"`
+		Season   *int   `json:"season"`
+	}
+	if json.Unmarshal(extrasValues["dateAdded"], &added) != nil || added != "2024-02-29 12:34:56" || json.Unmarshal(extrasValues["trailers"], &trailers) != nil || len(trailers) != 2 || trailers[0] != "https://example.com/trailer-a" || trailers[1] != "trailers/local-trailer.mp4" {
+		t.Fatal("HTTP movie date or trailer order was lost")
+	}
+	if json.Unmarshal(extrasValues["art"], &artwork) != nil || len(artwork) != 3 || artwork[0].Kind != "poster" || artwork[0].Location != "https://example.com/poster.jpg" || artwork[0].Preview != "https://example.com/preview.jpg" || artwork[0].Season == nil || *artwork[0].Season != 0 || artwork[1].Kind != "fanart" || artwork[1].Location != "fanart/local.jpg" || artwork[1].Season != nil || artwork[2].Kind != "clearlogo" || artwork[2].Location != "https://example.com/logo.png" {
+		t.Fatal("HTTP artwork structure, source order or missing season was lost")
+	}
+	if raw, err := os.ReadFile(movieExtrasFile); err != nil || string(raw) != movieExtrasDocument || allCalls.Load() != beforeMovieExtrasCalls {
+		t.Fatal("movie extras review changed source or contacted provider", err)
+	}
+	if response := request("PUT", "/api/v1/items/"+movieExtrasItem+"/metadata", `{"expectedRevision":2,"facts":[{"field":"art","value":[{"kind":"poster","location":"manual.jpg","season":null}]}]}`); response.status != 200 {
+		t.Fatal("HTTP manual artwork nullable season rejected", response.status)
+	}
+	for _, invalid := range []struct{ field, value string }{
+		{"dateAdded", `"2023-02-29"`}, {"dateAdded", `"0000-01-01"`}, {"dateAdded", `"2024-01-01T24:00:00Z"`}, {"dateAdded", `"2024-01-01T00:00:00+24:00"`}, {"dateAdded", `""`}, {"dateAdded", `0`},
+		{"trailers", `[null]`}, {"trailers", `["\t"]`}, {"trailers", `[1]`}, {"trailers", `{}`},
+		{"art", `[{}]`}, {"art", `[{"kind":"poster","location":"\u00a0"}]`}, {"art", `[{"kind":"poster","location":"a","season":-1}]`}, {"art", `[{"kind":"poster","location":"a","season":1.5}]`}, {"art", `[{"kind":"poster","location":"a","season":1000001}]`}, {"art", `[{"kind":"poster","location":"a","preview":null}]`}, {"art", `[{"kind":"poster","location":"a","extra":true}]`},
+		{"actors", `[{"name":"Actor","season":null}]`},
+	} {
+		body := fmt.Sprintf(`{"expectedRevision":3,"facts":[{"field":%q,"value":%s}]}`, invalid.field, invalid.value)
+		if response := request("PUT", "/api/v1/items/"+movieExtrasItem+"/metadata", body); response.status != 400 {
+			t.Fatal("HTTP invalid movie metadata accepted", invalid.field, response.status)
+		}
+	}
+	if response := request("PUT", "/api/v1/items/"+movieExtrasItem+"/metadata", `{"expectedRevision":3,"facts":[{"field":"dateAdded","value":null},{"field":"trailers","value":[]},{"field":"art","value":null}]}`); response.status != 200 {
+		t.Fatal("HTTP manual movie extras clear failed", response.status)
+	}
+	movieCleared := decode(request("POST", "/api/v1/items/"+movieExtrasItem+"/metadata/nfo", `{"expectedRevision":4,"confirmed":true}`))
+	for _, fact := range movieCleared.Metadata.Facts {
+		expected := "null"
+		if fact.Field == "trailers" {
+			expected = "[]"
+		}
+		if string(fact.Value) != expected || fact.Source != "manual" || fact.NFOOrigin != nil || fact.NFOLockOrigin != nil {
+			t.Fatal("HTTP NFO review replaced manual movie clear", fact.Field)
+		}
+	}
+	lockedExtrasDocument := strings.Replace(movieExtrasDocument, "</movie>", "<lockedfields>DateCreated|RemoteTrailers|Images</lockedfields></movie>", 1)
+	if err := os.WriteFile(movieExtrasFile, []byte(lockedExtrasDocument), 0600); err != nil {
+		t.Fatal(err)
+	}
+	movieLocked := decode(request("POST", "/api/v1/items/"+movieExtrasItem+"/metadata/nfo", `{"expectedRevision":5,"confirmed":true}`))
+	if movieLocked.Metadata.Revision != 6 || len(movieLocked.Metadata.Facts) != 3 {
+		t.Fatal("HTTP movie clear lost new named locks")
+	}
+	for _, fact := range movieLocked.Metadata.Facts {
+		if fact.Source != "manual" || fact.NFOOrigin != nil || fact.NFOLockOrigin == nil || fact.NFOLockOrigin.Projection != domain.NFOItemMovieFieldsVersion {
+			t.Fatal("HTTP movie clear lost independent named lock", fact.Field)
+		}
+	}
+	if raw, err := os.ReadFile(movieExtrasFile); err != nil || string(raw) != lockedExtrasDocument || allCalls.Load() != beforeMovieExtrasCalls {
+		t.Fatal("HTTP movie edits changed source or contacted provider", err)
+	}
 	collectionDocument := `<movie><title>Collection example</title><set><name>Collection A</name><overview>Collection plot</overview></set></movie>`
 	collectionItem, collectionFile := newNFOItem("typed-collection-structure", "HomeVideo", collectionDocument)
 	collectionResult := decode(request("POST", "/api/v1/items/"+collectionItem+"/metadata/nfo", `{"expectedRevision":1,"confirmed":true}`))
@@ -1131,13 +1236,22 @@ func TestTMDBMetadataThroughTLSHTTPAndPostgres(t *testing.T) {
 	actorSchemas := actorSpec["components"].(map[string]any)["schemas"].(map[string]any)
 	actorFactSchema := actorSchemas["ItemMetadataFact"].(map[string]any)
 	actorEnums := actorFactSchema["properties"].(map[string]any)["field"].(map[string]any)["enum"].([]any)
+	for _, field := range []string{"dateAdded", "trailers", "art"} {
+		found := false
+		for _, name := range actorEnums {
+			found = found || name == field
+		}
+		if !found || len(actorFactSchema["oneOf"].([]any)) != 11 {
+			t.Fatal("HTTP OpenAPI omits movie extras", field)
+		}
+	}
 	collectionAdvertised := false
 	for _, name := range actorEnums {
 		if name == "collection" {
 			collectionAdvertised = true
 		}
 	}
-	if !collectionAdvertised || len(actorFactSchema["oneOf"].([]any)) != 8 {
+	if !collectionAdvertised || len(actorFactSchema["oneOf"].([]any)) != 11 {
 		t.Fatal("HTTP OpenAPI omits collection structure")
 	}
 	ratingsAdvertised := false
@@ -1146,7 +1260,7 @@ func TestTMDBMetadataThroughTLSHTTPAndPostgres(t *testing.T) {
 			ratingsAdvertised = true
 		}
 	}
-	if !ratingsAdvertised || len(actorFactSchema["oneOf"].([]any)) != 8 {
+	if !ratingsAdvertised || len(actorFactSchema["oneOf"].([]any)) != 11 {
 		t.Fatal("HTTP OpenAPI omits multi-source ratings")
 	}
 	identifierAdvertised := false
@@ -1155,13 +1269,13 @@ func TestTMDBMetadataThroughTLSHTTPAndPostgres(t *testing.T) {
 			identifierAdvertised = true
 		}
 	}
-	if !identifierAdvertised || len(actorFactSchema["oneOf"].([]any)) != 8 {
+	if !identifierAdvertised || len(actorFactSchema["oneOf"].([]any)) != 11 {
 		t.Fatal("HTTP OpenAPI omits typed provider identifiers")
 	}
 	applyReportProperties := actorSchemas["MetadataApplyResult"].(map[string]any)["properties"].(map[string]any)
 	for _, reportField := range []string{"applied", "skipped"} {
-		if applyReportProperties[reportField].(map[string]any)["maxItems"] != float64(25) {
-			t.Fatal("HTTP OpenAPI cannot describe the complete collection projection", reportField)
+		if applyReportProperties[reportField].(map[string]any)["maxItems"] != float64(28) {
+			t.Fatal("HTTP OpenAPI cannot describe the complete movie projection", reportField)
 		}
 	}
 	actorAdvertised := false
@@ -1170,7 +1284,7 @@ func TestTMDBMetadataThroughTLSHTTPAndPostgres(t *testing.T) {
 			actorAdvertised = true
 		}
 	}
-	if !actorAdvertised || len(actorFactSchema["oneOf"].([]any)) != 8 {
+	if !actorAdvertised || len(actorFactSchema["oneOf"].([]any)) != 11 {
 		t.Fatal("HTTP OpenAPI omits structured actor facts")
 	}
 	actorDocument := `<movie><title>Actor example</title><actor><name>演員甲</name><role>主角</role><thumb>https://images.example.invalid/a.jpg</thumb><order>0</order></actor><actor><name>Actor B</name></actor></movie>`
@@ -1251,6 +1365,12 @@ func TestTMDBMetadataThroughTLSHTTPAndPostgres(t *testing.T) {
 	}
 	maxAllFacts := append(append([]map[string]any{}, maxActorPatches...), map[string]any{"field": "ratings", "value": maxSourceRatings}, map[string]any{"field": "uniqueIds", "value": maxProviderIDs}, map[string]any{"field": "year", "value": 9999}, map[string]any{"field": "runtimeMinutes", "value": 10000000}, map[string]any{"field": "rating", "value": 10}, map[string]any{"field": "userRating", "value": 0})
 	maxAllFacts = append(maxAllFacts, map[string]any{"field": "collection", "value": map[string]any{"name": strings.Repeat("<", 1024), "overview": strings.Repeat("<", 16384)}})
+	maxTrailers := []string{strings.Repeat("<", 4096), strings.Repeat("<", 4096), strings.Repeat("<", 4096), strings.Repeat("<", 4096)}
+	maxArtwork := []map[string]any{
+		{"kind": strings.Repeat("<", 64), "location": strings.Repeat("<", 4096), "preview": strings.Repeat("<", 4096), "season": 1000000},
+		{"kind": strings.Repeat("<", 64), "location": strings.Repeat("<", 4096), "preview": strings.Repeat("<", 3968)},
+	}
+	maxAllFacts = append(maxAllFacts, map[string]any{"field": "dateAdded", "value": "9999-12-31T23:59:59.999999999+23:59"}, map[string]any{"field": "trailers", "value": maxTrailers}, map[string]any{"field": "art", "value": maxArtwork})
 	maxAllBody, err := json.Marshal(map[string]any{"expectedRevision": 1, "fields": maxTextPatches, "facts": maxAllFacts})
 	if err != nil {
 		t.Fatal(err)
@@ -1290,7 +1410,7 @@ func TestTMDBMetadataThroughTLSHTTPAndPostgres(t *testing.T) {
 		t.Fatal(err)
 	}
 	actorLocked := decode(request("POST", "/api/v1/items/"+actorItem+"/metadata/nfo", `{"expectedRevision":5,"confirmed":true}`))
-	if actorLocked.Metadata.Revision != 6 || len(actorLocked.Metadata.Facts) != 13 || string(actorLocked.Metadata.Facts[0].Value) != "null" || actorLocked.Metadata.Facts[0].NFOOrigin != nil || actorLocked.Metadata.Facts[0].NFOLockOrigin == nil {
+	if actorLocked.Metadata.Revision != 6 || len(actorLocked.Metadata.Facts) != 19 || string(actorLocked.Metadata.Facts[0].Value) != "null" || actorLocked.Metadata.Facts[0].NFOOrigin != nil || actorLocked.Metadata.Facts[0].NFOLockOrigin == nil {
 		t.Fatal("HTTP actor clear lost new independent global lock")
 	}
 	actorEmpty := request("PUT", "/api/v1/items/"+actorItem+"/metadata", `{"expectedRevision":6,"facts":[{"field":"actors","value":[]}]}`)
@@ -1329,14 +1449,15 @@ func TestTMDBMetadataThroughTLSHTTPAndPostgres(t *testing.T) {
 		t.Fatal(err)
 	}
 	listReview := decode(request("POST", "/api/v1/items/"+listItem+"/metadata/nfo", `{"expectedRevision":4,"confirmed":true}`))
-	if listReview.Metadata.Revision != 5 || len(listReview.Metadata.Facts) != 12 {
+	if listReview.Metadata.Revision != 5 || len(listReview.Metadata.Facts) != 19 {
 		t.Fatal("HTTP list review lost the complete projection or global locks")
 	}
 	for _, fact := range listReview.Metadata.Facts {
 		if _, ok := expectedLists[fact.Field]; !ok {
+			assertVirtualMovieLock(fact)
 			continue
 		}
-		if fact.Source != "manual" || fact.NFOOrigin != nil || fact.NFOLockOrigin == nil || fact.NFOLockOrigin.Projection != domain.NFOItemListFieldsVersion {
+		if fact.Source != "manual" || fact.NFOOrigin != nil || fact.NFOLockOrigin == nil || fact.NFOLockOrigin.Projection != domain.NFOItemMovieFieldsVersion {
 			t.Fatal("HTTP renewed NFO list lock lost manual priority", fact.Field)
 		}
 		if fact.Field == "genres" && string(fact.Value) != "null" || fact.Field == "tags" && string(fact.Value) != "[]" {

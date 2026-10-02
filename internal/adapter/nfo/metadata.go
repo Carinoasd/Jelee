@@ -30,6 +30,12 @@ func mapField(metadata *Metadata, node *element, entry int) []Issue {
 		}
 		return &parsed
 	}
+	artSeason := func(node *element) *int {
+		if value := node.attribute("season"); value != "" {
+			return integer(value, 0, 1000000)
+		}
+		return nil
+	}
 	number := func(value string, maximum float64) *float64 {
 		parsed, err := strconv.ParseFloat(strings.ReplaceAll(value, ",", "."), 64)
 		if err != nil || math.IsNaN(parsed) || math.IsInf(parsed, 0) || parsed < 0 || parsed > maximum {
@@ -164,11 +170,11 @@ func mapField(metadata *Metadata, node *element, entry int) []Issue {
 		metadata.Art = append(metadata.Art, art)
 	case "fanart":
 		if len(node.children) == 0 {
-			metadata.Art = append(metadata.Art, Artwork{Kind: "fanart", Location: value})
+			metadata.Art = append(metadata.Art, Artwork{Kind: "fanart", Location: value, Preview: node.attribute("preview"), Season: artSeason(node)})
 		} else {
 			for _, thumb := range node.children {
 				if thumb.name == "thumb" {
-					metadata.Art = append(metadata.Art, Artwork{Kind: "fanart", Location: thumb.value(), Preview: thumb.attribute("preview")})
+					metadata.Art = append(metadata.Art, Artwork{Kind: "fanart", Location: thumb.value(), Preview: thumb.attribute("preview"), Season: artSeason(thumb)})
 				}
 			}
 		}
@@ -176,7 +182,7 @@ func mapField(metadata *Metadata, node *element, entry int) []Issue {
 		for _, art := range node.children {
 			switch art.name {
 			case "poster", "fanart", "banner", "clearart", "clearlogo", "thumb", "landscape":
-				metadata.Art = append(metadata.Art, Artwork{Kind: art.name, Location: art.value(), Preview: art.attribute("preview")})
+				metadata.Art = append(metadata.Art, Artwork{Kind: art.name, Location: art.value(), Preview: art.attribute("preview"), Season: artSeason(art)})
 			}
 		}
 	case "rating", "communityrating":

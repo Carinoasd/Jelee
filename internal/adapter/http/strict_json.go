@@ -118,7 +118,7 @@ func checkJSONValueAt(decoder *json.Decoder, parentDepth int, path string, allow
 		return false
 	}
 	if token == nil {
-		return allowFactNull && (path == "/FACTS/*/VALUE" || path == "/FACTS/*/VALUE/*/ORDER" || path == "/FACTS/*/VALUE/*/MAX" || path == "/FACTS/*/VALUE/*/VOTES")
+		return allowFactNull && (path == "/FACTS/*/VALUE" || path == "/FACTS/*/VALUE/*/ORDER" || path == "/FACTS/*/VALUE/*/MAX" || path == "/FACTS/*/VALUE/*/VOTES" || path == "/FACTS/*/VALUE/*/SEASON")
 	}
 	delim, compound := token.(json.Delim)
 	if !compound {

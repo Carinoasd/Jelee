@@ -3,7 +3,14 @@ package httpapi
 import "github.com/MoYuanCN/Jelee/internal/domain"
 
 func itemMetadataFactSpecification(paths, schemas map[string]any) {
-	field := map[string]any{"type": "string", "enum": append([]string{"year", "runtimeMinutes", "rating", "userRating", "actors", "uniqueIds", "ratings", "collection"}, domain.ItemMetadataListFieldNames()...)}
+	field := map[string]any{"type": "string", "enum": append([]string{"year", "runtimeMinutes", "rating", "userRating", "actors", "uniqueIds", "ratings", "collection", "dateAdded", "trailers", "art"}, domain.ItemMetadataListFieldNames()...)}
+	artwork := objectSchema(map[string]any{
+		"kind":     map[string]any{"type": "string", "minLength": 1, "maxLength": 64},
+		"location": map[string]any{"type": "string", "minLength": 1, "maxLength": 4096},
+		"preview":  map[string]any{"type": "string", "maxLength": 4096},
+		"season":   map[string]any{"type": []string{"integer", "null"}, "minimum": 0, "maximum": 1000000},
+	}, "kind", "location")
+	artwork["description"] = "Ordered artwork references; saving does not fetch URLs or open files. Kind and location are nonblank. UTF-8 limits are 64 bytes for kind and 4096 for location/preview, with 16384 combined bytes across all artwork. Missing or null season is distinct from zero."
 	collection := objectSchema(map[string]any{"name": map[string]any{"type": "string", "minLength": 1, "maxLength": 1024}, "overview": map[string]any{"type": "string", "maxLength": 16384}}, "name")
 	collection["description"] = "Collection name and overview are saved together. Name must be nonblank; UTF-8 limits are 1024 bytes for name and 16384 bytes for overview. Null clears the whole collection; omitted overview means empty. No collection entity is created by this metadata edit."
 	sourceRating := objectSchema(map[string]any{
@@ -27,6 +34,9 @@ func itemMetadataFactSpecification(paths, schemas map[string]any) {
 	}, "name")
 	variants := func() []any {
 		return []any{
+			map[string]any{"properties": map[string]any{"field": map[string]any{"const": "dateAdded"}, "value": map[string]any{"type": []string{"string", "null"}, "minLength": 10, "maxLength": 64, "description": "A real calendar date in YYYY-MM-DD, YYYY-MM-DD HH:mm:ss or RFC3339 form (up to nine fractional digits). Original representation is preserved without assigning a time zone. Null clears the date."}}},
+			map[string]any{"properties": map[string]any{"field": map[string]any{"const": "trailers"}, "value": map[string]any{"type": []string{"array", "null"}, "maxItems": domain.MaxMetadataReferences, "items": map[string]any{"type": "string", "minLength": 1, "maxLength": 4096}, "description": "Ordered nonblank references, at most 4096 UTF-8 bytes each and 16384 combined bytes. Saving does not fetch references. Null and an empty array are manual clears."}}},
+			map[string]any{"properties": map[string]any{"field": map[string]any{"const": "art"}, "value": map[string]any{"type": []string{"array", "null"}, "maxItems": domain.MaxMetadataReferences, "items": artwork}}},
 			map[string]any{"properties": map[string]any{"field": map[string]any{"const": "collection"}, "value": map[string]any{"oneOf": []any{collection, map[string]any{"type": "null"}}}}},
 			map[string]any{"properties": map[string]any{"field": map[string]any{"const": "ratings"}, "value": map[string]any{"type": []string{"array", "null"}, "maxItems": domain.MaxMetadataRatings, "items": sourceRating}}},
 			map[string]any{"properties": map[string]any{"field": map[string]any{"const": "uniqueIds"}, "value": map[string]any{"type": []string{"array", "null"}, "maxItems": domain.MaxMetadataUniqueIDs, "items": identifier, "description": "Provider identifiers retain source order and default flags. Type and value are nonblank; UTF-8 limits are 64 and 1024 bytes, with 16384 combined bytes. Null and an empty array explicitly clear manual identifiers."}}},
@@ -40,21 +50,22 @@ func itemMetadataFactSpecification(paths, schemas map[string]any) {
 	nullRef := func(name string) map[string]any {
 		return map[string]any{"oneOf": []any{map[string]any{"$ref": "#/components/schemas/" + name}, map[string]any{"type": "null"}}}
 	}
-	fact := objectSchema(map[string]any{"field": field, "value": map[string]any{"type": []string{"number", "array", "object", "null"}}, "source": map[string]any{"type": "string", "enum": []string{"existing", "manual", "nfo"}}, "locked": map[string]any{"type": "boolean"}, "updatedAt": map[string]any{"type": []string{"string", "null"}, "format": "date-time"}, "nfoOrigin": nullRef("NFOItemOrigin"), "nfoLockOrigin": nullRef("NFOFieldLockOrigin")}, "field", "value", "source", "locked", "updatedAt", "nfoOrigin", "nfoLockOrigin")
+	fact := objectSchema(map[string]any{"field": field, "value": map[string]any{"type": []string{"number", "string", "array", "object", "null"}}, "source": map[string]any{"type": "string", "enum": []string{"existing", "manual", "nfo"}}, "locked": map[string]any{"type": "boolean"}, "updatedAt": map[string]any{"type": []string{"string", "null"}, "format": "date-time"}, "nfoOrigin": nullRef("NFOItemOrigin"), "nfoLockOrigin": nullRef("NFOFieldLockOrigin")}, "field", "value", "source", "locked", "updatedAt", "nfoOrigin", "nfoLockOrigin")
 	fact["oneOf"] = variants()
-	fact["allOf"] = []any{map[string]any{"if": map[string]any{"properties": map[string]any{"source": map[string]any{"const": "nfo"}, "field": map[string]any{"enum": append([]string{"actors", "uniqueIds", "ratings"}, domain.ItemMetadataListFieldNames()...)}}}, "then": map[string]any{"properties": map[string]any{"value": map[string]any{"type": "array", "minItems": 1}}}}}
+	fact["allOf"] = []any{map[string]any{"if": map[string]any{"properties": map[string]any{"source": map[string]any{"const": "nfo"}, "field": map[string]any{"enum": append([]string{"actors", "uniqueIds", "ratings", "trailers", "art"}, domain.ItemMetadataListFieldNames()...)}}}, "then": map[string]any{"properties": map[string]any{"value": map[string]any{"type": "array", "minItems": 1}}}}}
 	fact["allOf"] = append(fact["allOf"].([]any), map[string]any{"if": map[string]any{"properties": map[string]any{"source": map[string]any{"const": "nfo"}, "field": map[string]any{"const": "collection"}}}, "then": map[string]any{"properties": map[string]any{"value": map[string]any{"type": "object"}}}})
+	fact["allOf"] = append(fact["allOf"].([]any), map[string]any{"if": map[string]any{"properties": map[string]any{"source": map[string]any{"const": "nfo"}, "field": map[string]any{"const": "dateAdded"}}}, "then": map[string]any{"properties": map[string]any{"value": map[string]any{"type": "string", "minLength": 10}}}})
 	schemas["ItemMetadataFact"] = fact
 	item := schemas["ItemMetadata"].(map[string]any)
-	item["properties"].(map[string]any)["facts"] = map[string]any{"type": "array", "maxItems": 8 + len(domain.ItemMetadataListFieldNames()), "items": map[string]any{"$ref": "#/components/schemas/ItemMetadataFact"}}
+	item["properties"].(map[string]any)["facts"] = map[string]any{"type": "array", "maxItems": 11 + len(domain.ItemMetadataListFieldNames()), "items": map[string]any{"$ref": "#/components/schemas/ItemMetadataFact"}}
 	item["required"] = append(item["required"].([]string), "facts")
-	patch := objectSchema(map[string]any{"field": field, "value": map[string]any{"type": []string{"number", "array", "object", "null"}}, "locked": map[string]any{"type": "boolean"}}, "field")
+	patch := objectSchema(map[string]any{"field": field, "value": map[string]any{"type": []string{"number", "string", "array", "object", "null"}}, "locked": map[string]any{"type": "boolean"}}, "field")
 	patch["oneOf"] = variants()
 	patch["anyOf"] = []any{map[string]any{"required": []string{"value"}}, map[string]any{"required": []string{"locked"}}}
 	put := paths["/api/v1/items/{id}/metadata"].(map[string]any)["put"].(map[string]any)
 	body := put["requestBody"].(map[string]any)["content"].(map[string]any)["application/json"].(map[string]any)["schema"].(map[string]any)
-	body["properties"].(map[string]any)["facts"] = map[string]any{"type": "array", "minItems": 1, "maxItems": 8 + len(domain.ItemMetadataListFieldNames()), "items": patch}
+	body["properties"].(map[string]any)["facts"] = map[string]any{"type": "array", "minItems": 1, "maxItems": 11 + len(domain.ItemMetadataListFieldNames()), "items": patch}
 	body["required"] = []string{"expectedRevision"}
 	body["anyOf"] = []any{map[string]any{"required": []string{"fields"}}, map[string]any{"required": []string{"facts"}}}
-	put["description"] = put["description"].(string) + " Year facts use JSON integers from 1 through 9999; runtimeMinutes uses integers from 0 through 10000000; rating and userRating use numbers from 0 through 10. String list facts retain order; null and an empty array are explicit manual clears. Entries are bounded to 128, 1024 UTF-8 bytes each and 16384 combined bytes per list. The request body is bounded to 2 MiB. Actor facts retain name, role, thumb reference and optional integer order; all actor text totals at most 16384 UTF-8 bytes. Null and an empty actor array are explicit manual clears. Fact names must be unique. Null at facts[].value records an explicit manual clear. Omitted fact value preserves it. Text and fact edits share one revision and transaction; explicit fact values clear NFO value and lock origins. Optional actor order and rating max/votes also accept null to represent a missing value; other null properties are rejected."
+	put["description"] = put["description"].(string) + " Year facts use JSON integers from 1 through 9999; runtimeMinutes uses integers from 0 through 10000000; rating and userRating use numbers from 0 through 10. String list facts retain order; null and an empty array are explicit manual clears. Entries are bounded to 128, 1024 UTF-8 bytes each and 16384 combined bytes per list. The request body is bounded to 2 MiB. Actor facts retain name, role, thumb reference and optional integer order; all actor text totals at most 16384 UTF-8 bytes. Null and an empty actor array are explicit manual clears. Fact names must be unique. Null at facts[].value records an explicit manual clear. Omitted fact value preserves it. Text and fact edits share one revision and transaction; explicit fact values clear NFO value and lock origins. Optional artwork season, actor order and rating max/votes also accept null to represent a missing value; other null properties are rejected."
 }

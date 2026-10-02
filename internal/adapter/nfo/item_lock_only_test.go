@@ -21,7 +21,7 @@ func TestItemFieldsReadsLockOnlyProjection(t *testing.T) {
 	if err != nil {
 		t.Fatal("valid lock-only NFO was rejected", err)
 	}
-	if fields.Version != "lock-only-fields-v1" || !domain.ValidNFOItemFields(fields) || len(fields.Fields) != 0 || !fields.LockData || fields.Stamp.SHA256 != sourceDigest(original) || !domain.NFOFieldLocked(fields, "overview") {
+	if fields.Version != domain.NFOItemMovieFieldsVersion || !domain.ValidNFOItemFields(fields) || len(fields.Fields) != 0 || !fields.LockData || fields.Stamp.SHA256 != sourceDigest(original) || !domain.NFOFieldLocked(fields, "overview") {
 		t.Fatal("lock-only projection lost positive intent or invented text")
 	}
 	if actual, err := os.ReadFile(filepath.Join(root, name)); err != nil || string(actual) != string(original) {
@@ -49,7 +49,9 @@ func TestLockOnlyNFOOwnsValidObservationAndRechecks(t *testing.T) {
 				t.Fatal("lock-only observation unavailable", err)
 			}
 			state := observed.(app.NFOItemStateObservation).State()
-			if state.Status != domain.NFOItemObservedValid || !domain.ValidNFOItemObservationState(scope, state) || state.Selection.Fields.Version != domain.NFOItemLockFieldsVersion || len(state.Selection.Fields.Fields) != 0 || state.Stamp.SHA256 != sourceDigest(entry.original) {
+			expectedVersion := domain.NFOItemLockFieldsVersion
+			if entry.name == "global" { expectedVersion = domain.NFOItemMovieFieldsVersion }
+			if state.Status != domain.NFOItemObservedValid || !domain.ValidNFOItemObservationState(scope, state) || state.Selection.Fields.Version != expectedVersion || len(state.Selection.Fields.Fields) != 0 || state.Stamp.SHA256 != sourceDigest(entry.original) {
 				t.Fatal("lock-only observation became fallback or invented text")
 			}
 			if _, err := observed.Recheck(context.Background()); err != nil {

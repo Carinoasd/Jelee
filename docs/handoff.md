@@ -1252,3 +1252,40 @@ prepare-ratings-regression.py已執行一次，生成wrapper/protection與source
 
 
 本地驗證均已終端結束。仍全G00–G51目標；下一步其他NFO欄位與季集、實際匯入、監看／排程及規模驗收。禁止merge／release／tag／force-push／改寫既有SQL／修改Git身份設定，五個未獲具體批次授權的直播核心保持。
+
+
+### 合集已發布，接續剩餘電影NFO欄位
+
+本goal turn為progress。schema35合集完成提交、push、繁中PR46更新／attach；遠端head核對c252c7048ec6a8f808c8701f1f34b287c76ee0e7、OPEN/master。001–035共70份SQL現在已發布，不可改寫；所有本地handle均終端，沒有live程序。新head CI尚未完成，上一63d0的C#三平台／Go兩平台／format／CodeQL成功，ABI／fullbranding失敗、PG兩job最後查核仍在跑；不要沿用成新head结果。
+
+合集公開路徑保存、人工null／給值／flag保proof、NFO優先及獨立鎖、25欄／16facts／八API變體、最大混合body2MiB、五表回滾、舊評分35→34→35、保留新合集／null／鎖／投影拒降皆已驗。Reader拒重複set/collection/name/overview；只含overview／未知子元素且缺name、直接文字混合子欄位亦拒絕，readonly parser保持。DB原btrim只清ASCII空格，實際SQL Tab-name red後在新35函數用完整Unicode White_Space集合對齊Go；不得重跑舊schema35 generator覆寫該修正，更不可重寫已發布SQL。五份initial red：HTTP缺collection、Reader重複、OpenAPI缺合集、Reader缺名、DB空白。negative正式Overview:metadata.CollectionOverview→空字串使typed literal失敗；逐位元復原fed7877da73bbba31da3745d9f38727622c68db401a73a8a141d8ca6524d7af3，完整HTTP PASS76.452s。Windows29/3267/491skip、native5/1133/0skip、PG816/481.701s/0skip、native-PG11/15.985s/0skip。vet/build/newbrand0/181/gitignore0/fullbrand14735/186，70新保護基線形成；證據docs/evidence/nfo-collection.json為提交前68份舊SQL保護結果，歷史數字正確不要改成70。
+
+下一段改為成組處理剩餘電影NFO三類，減少逐欄新增migration與全面回歸的重複成本：dateAdded、trailers、art。已加入真HTTP／TLS／NFO／PG首個red，正式唯一未提交Go檔internal/platform/outbound/metadata_apply_integration_test.go。fixture包含dateadded原字串2024-02-29 12:34:56、兩個trailer順序、poster含preview與Season0、fanart無Season、art/clearlogo；期待三個typed facts與NFOOrigin、revision2、原bytes保持／零額外TMDB呼叫。已終端預期FAIL：HTTP confirmed NFO movie date, trailers and artwork were not persisted，證據.testdata/nfo-movie-extras-initial-red.jsonl，helper run-nfo-movie-extras-e2e.py，handle75427已終端exit1。之後僅將較晚的錯誤文字改成contacted provider，避免allCalls只計TMDB卻宣稱所有參照下載均已監測。尚未實作schema36／domain／Reader等正式接線，產品仍schema35；下一步先把此red修成green。
+
+既有解析器Metadata.DateAdded string、Trailers []string、Art []Artwork{Kind,Location,Preview,Season *int}。dateadded支援YYYY-MM-DD、YYYY-MM-DD HH:mm:ss、RFC3339；保留原表示，不猜時區。Artwork處理thumb aspect/type、preview、season，fanart/thumb與art多種子元素；保留順序及Season nil/0。一般parser的validDate與safeReference在internal/adapter/nfo/metadata.go，art/location及preview既有安全語法檢查，trailers目前僅保留文本。後續正式保存保持純參照，不因metadata確認開檔或下載，未來fetch仍需另行root／SSRF授權。可用單一新36投影同時加三欄，預期28欄、19facts與11個API變體；定界與strict ambiguous guards需依public seams驗收。其他季集、實際匯入、監看／排程、規模與24h、前端／無損寫回、全部G00–G51繼續，336狀態4/184/148不冒升。維持禁止merge/release/tag/forcepush/oldmigration/identityconfig，待具體授權的五直播core仍保持。
+
+
+### 第36版電影日期、預告片與圖片：完整回歸中
+
+schema36 尚未提交，已發布仍為 c252c7048ec6a8f808c8701f1f34b287c76ee0e7／PR46。日期保留原表示、預告片有序參照、圖片 kind/location/preview/optional season 已接 domain／Reader／owned clone-recheck／Store／API／新SQL。movie-extra-fields-v1 共28欄／19facts／11API變體。新讀取 lockdata=true 一律使用目前完整投影，歷史投影保持；global-only與numeric/text/list/actor實際HTTP已更新並通過。巢狀fanart/thumb及art子元素補回季數，重複dateadded、casefold重複圖片屬性、aspect/type衝突與非法季數拒絕。Reader完整PASS；HTTP先重現API缺欄與season:null被400，修正後完整PASS，含人工null/[]優先、獨立鎖、非法輸入、19facts最大混合請求與120寫入。
+
+Store專項11通過事件0skip：五表觸發失敗全回滾、新日期/列表/圖片DB非法值拒23514、人工清除／鎖、collection36→35→36保持、missing三欄只建鎖不虛構值proof，以及每一新欄位單獨manualnull保留時拒降。70份已發布SQL、5core、LICENSE與requirements hash維持。
+
+全面回歸Go／SQL已freeze；不得有live測試時修改。Windows handle26637終端exit0，native handle76487終端PASS5套件1152事件0skip。目前LIVE：full-PG handle16433（nfo-movie-extras-full-pg.jsonl），checks handle51687（vet/build/brand/gitignore）；待兩者terminal後native-PG，再正式preview傳遞停用negative。全部新wrapper在.testdata/run-nfo-movie-extras-*.py，negative helper已準備但尚未執行；會Preview:art.Preview→空字串，期待精確HTTP artwork structure...失敗，再finally逐位元復原與完整HTTP。正式來源snapshot .testdata/nfo-movie-extras-validation-source.json；不得重跑舊generators。
+
+初始red檔：initial-red、global-lock-initial-red、reader-initial-red（多葉）、spec-initial-red、nullable-initial-red。global-http-regression是預期版本舊斷言，不計功能初始red；reader-global-regression也是歷史fixture預期調整。docs/nfo-movie-extras.md尚標驗證中。待最終evidence/report/trace繁中PRbody與提交推送；仍全案336項4done184partial148blocked，禁止merge等保持。最後查c252 CI：C#Tests/Format/OpenAPI/CodeQLsuccess，ABI failure，Go兩workflow仍in_progress。
+
+
+### 第36版：電影日期、預告片與圖片參照
+
+第36版保存 dateAdded 原日期表示、trailers 有序參照，以及 art 的種類、位置、預覽和可選季數。人工清除、來源與獨立鎖共交易；新讀取全域鎖覆蓋28個已支援欄位，歷史投影保持。重複日期、衝突圖片屬性、非法季數與超量資料拒絕。API共11種變體、19個facts，最大混合請求、五表回滾、舊合集36→35→36與新欄位保留時拒降均通過。001–035共70份已發布SQL保持。
+
+| 驗證 | 套件 | 通過事件（含父測試） | 略過 |
+| --- | ---: | ---: | ---: |
+| Windows 全套 | 29 | 3287 | 496 |
+| Linux race | 5 | 1152 | 0 |
+| 完整 PostgreSQL | 1 | 827 | 0 |
+| 原生 worker | 1 | 11 | 0 |
+| 完整 HTTP／TLS／PG | 1 | 1 | 0 |
+
+全部本地測試已結束。見[契約](nfo-movie-extras.md)及[證據](evidence/nfo-movie-extras.json)。下一步繁中PR46提交推送，然後接續季集與實際匯入。仍全G00–G51目標；禁止merge／release／tag／force-push／改寫已發布SQL與Git身份設定，五個未獲具體批次刪除授權的直播核心保持。
