@@ -50,7 +50,9 @@ func TestLockOnlyNFOOwnsValidObservationAndRechecks(t *testing.T) {
 			}
 			state := observed.(app.NFOItemStateObservation).State()
 			expectedVersion := domain.NFOItemLockFieldsVersion
-			if entry.name == "global" { expectedVersion = domain.NFOItemMovieFieldsVersion }
+			if entry.name == "global" {
+				expectedVersion = domain.NFOItemMovieFieldsVersion
+			}
 			if state.Status != domain.NFOItemObservedValid || !domain.ValidNFOItemObservationState(scope, state) || state.Selection.Fields.Version != expectedVersion || len(state.Selection.Fields.Fields) != 0 || state.Stamp.SHA256 != sourceDigest(entry.original) {
 				t.Fatal("lock-only observation became fallback or invented text")
 			}

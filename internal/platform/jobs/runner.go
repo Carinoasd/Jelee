@@ -329,21 +329,11 @@ func (r *Runner) run(serviceCtx context.Context, lease domain.JobLease) {
 	<-started
 	err, repositoryError := r.execute(ctx, lease)
 	if err == nil && lease.Job.Kind == "inventory_scan" {
-		if preparer, ok := r.repository.(app.InventoryPublicationPreparer); ok {
-			for {
-				call, stop := context.WithTimeout(ctx, r.options.DBOperationTimeout)
-				ready, prepareErr := preparer.PrepareInventoryPublication(call, lease)
-				stop()
-				if prepareErr != nil {
-					err, repositoryError = prepareErr, true
-					break
-				}
-				if ready {
-					break
-				}
-			}
+		if prepareErr := r.prepareInventoryPublication(ctx, lease); prepareErr != nil {
+			err, repositoryError = prepareErr, true
 		}
 	}
+
 	stopHeartbeat()
 	<-monitored
 	cause := context.Cause(ctx)
@@ -506,6 +496,24 @@ func (r *Runner) executeInventory(ctx context.Context, lease domain.JobLease) (r
 		}
 		if !completed {
 			return domain.ErrScanIO, false
+		}
+	}
+}
+
+func (r *Runner) prepareInventoryPublication(ctx context.Context, l domain.JobLease) error {
+	preparer, ok := r.repository.(app.InventoryPublicationPreparer)
+	if !ok {
+		return nil
+	}
+	for {
+		call, stop := context.WithTimeout(ctx, r.options.DBOperationTimeout)
+		ready, err := preparer.PrepareInventoryPublication(call, l)
+		stop()
+		if err != nil {
+			return err
+		}
+		if ready {
+			return nil
 		}
 	}
 }

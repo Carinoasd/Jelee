@@ -143,6 +143,9 @@ func (r *Runner) executeIgnore(ctx context.Context, l domain.JobLease, request d
 	if progress.Unknown {
 		return nil, false
 	}
+	if err = r.prepareInventoryPublication(ctx, l); err != nil {
+		return err, true
+	}
 	if err = r.ignoreDB(ctx, func(c context.Context) error { return repo.BeginIgnoreVerification(c, l) }); err != nil {
 		return err, true
 	}

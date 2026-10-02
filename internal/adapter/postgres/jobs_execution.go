@@ -466,7 +466,7 @@ func (s *Store) FinishJob(ctx context.Context, l domain.JobLease, state, code st
 				if err = saveImageProgress(ctx, tx, current, imageEpoch, true); err != nil {
 					return err
 				}
-				published, publishErr := publishPreparedInventory(ctx, tx, current)
+				published, publishErr := publishPreparedInventory(ctx, tx, current, "", 0)
 				if publishErr != nil {
 					return publishErr
 				}

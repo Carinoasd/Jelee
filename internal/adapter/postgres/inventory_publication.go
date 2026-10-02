@@ -10,6 +10,8 @@ import (
 )
 
 type inventoryPreparation struct {
+	mode, historyRoot, historyPath                     string
+	excluded, excludedCopied                           int64
 	snapshot, previous, revision, epoch, files, copied int64
 	cursor                                             *string
 	cleaned, ready                                     bool
@@ -17,7 +19,7 @@ type inventoryPreparation struct {
 
 func readInventoryPreparation(ctx context.Context, tx pgx.Tx, job string) (inventoryPreparation, error) {
 	var p inventoryPreparation
-	err := tx.QueryRow(ctx, `SELECT snapshot_id,previous_snapshot,baseline_revision,inventory_generation,source_files,copied,cursor_id::text,cleaned,ready FROM inventory_snapshot_preparations WHERE job_id=$1::uuid`, job).Scan(&p.snapshot, &p.previous, &p.revision, &p.epoch, &p.files, &p.copied, &p.cursor, &p.cleaned, &p.ready)
+	err := tx.QueryRow(ctx, `SELECT snapshot_id,previous_snapshot,baseline_revision,inventory_generation,source_files,copied,cursor_id::text,cleaned,ready,publication_mode,excluded_files,excluded_copied,COALESCE(excluded_after_root::text,''),excluded_after_path FROM inventory_snapshot_preparations WHERE job_id=$1::uuid`, job).Scan(&p.snapshot, &p.previous, &p.revision, &p.epoch, &p.files, &p.copied, &p.cursor, &p.cleaned, &p.ready, &p.mode, &p.excluded, &p.excludedCopied, &p.historyRoot, &p.historyPath)
 	return p, storageError(err)
 }
 
@@ -55,14 +57,12 @@ func (s *Store) PrepareInventoryPublication(ctx context.Context, l domain.JobLea
 	if current.Job.Kind != "inventory_scan" {
 		return false, domain.ErrInvalid
 	}
-	// Ignore publication additionally merges historical excluded rows. Its
-	// existing verified path remains in place until separately staged.
-	var ignored bool
-	if err = tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM job_ignore_requests WHERE job_id=$1::uuid)`, l.Job.ID).Scan(&ignored); err != nil {
+	var mode string
+	if err = tx.QueryRow(ctx, `SELECT COALESCE((SELECT mode FROM job_ignore_requests WHERE job_id=$1::uuid),'')`, l.Job.ID).Scan(&mode); err != nil {
 		return false, storageError(err)
 	}
-	if ignored {
-		return true, nil
+	if mode != "" {
+		return prepareIgnoredInventory(ctx, tx, current, mode)
 	}
 	frozen, epoch, err := inventoryEpoch(ctx, tx, current)
 	if err != nil {
@@ -104,65 +104,78 @@ func (s *Store) PrepareInventoryPublication(ctx context.Context, l domain.JobLea
 	if err != nil {
 		return false, err
 	}
-	if err = checkInventoryPreparation(ctx, tx, current, p); err != nil {
+	if p.mode != "" {
+		return false, domain.ErrConflict
+	}
+	return prepareInventorySnapshotBatch(ctx, tx, current, p)
+}
+
+func prepareInventorySnapshotBatch(ctx context.Context, tx pgx.Tx, current domain.JobLease, p inventoryPreparation) (bool, error) {
+	if err := checkInventoryPreparation(ctx, tx, current, p); err != nil {
 		return false, err
 	}
 	if p.revision == math.MaxInt64 {
 		return false, domain.ErrScanLimit
 	}
 	if !p.ready && !p.cleaned {
-		// Bound garbage collection independently of media size. No currently
-		// visible snapshot or this resumable staging snapshot can be removed.
 		tag, err := tx.Exec(ctx, `WITH stale AS (SELECT ctid FROM library_inventory_baseline_data WHERE library_id=$1::uuid AND snapshot_id<>$2 AND snapshot_id<>$3 LIMIT 512) DELETE FROM library_inventory_baseline_data WHERE ctid IN (SELECT ctid FROM stale)`, current.Job.LibraryID, p.previous, p.snapshot)
 		if err != nil {
 			return false, storageError(err)
 		}
 		if tag.RowsAffected() > 0 {
-			if err = guardedJobUpdate(ctx, tx, current, `UPDATE jobs SET generation=generation WHERE id=$1::uuid`, l.Job.ID); err != nil {
-				return false, err
-			}
-			return false, storageError(tx.Commit(ctx))
+			return finishInventoryPreparationBatch(ctx, tx, current, p, false)
 		}
 		p.cleaned = true
 	}
 	if !p.ready {
-		var copied int64
-		var cursor *string
-		err = tx.QueryRow(ctx, `WITH entries AS MATERIALIZED (SELECT id,root_id,path,kind,size,modified_unix_nano FROM job_inventory WHERE job_id=$1::uuid AND id>COALESCE($2::uuid,'00000000-0000-0000-0000-000000000000'::uuid) ORDER BY id LIMIT 128), inserted AS (INSERT INTO library_inventory_baseline_data(library_id,snapshot_id,root_id,path,attributes_known,kind,size,modified_unix_nano,inventory_generation,observed_revision) SELECT $3::uuid,$4,root_id,path,true,kind,size,modified_unix_nano,$5,$6 FROM entries RETURNING 1) SELECT count(*),(SELECT id::text FROM entries ORDER BY id DESC LIMIT 1) FROM inserted`, l.Job.ID, p.cursor, current.Job.LibraryID, p.snapshot, p.epoch, p.revision+1).Scan(&copied, &cursor)
-		if err != nil {
-			return false, storageError(err)
-		}
-		p.copied += copied
-		if p.copied > p.files || (copied == 0 && p.copied != p.files) {
-			return false, domain.ErrInventoryInvalidated
-		}
-		if cursor != nil {
+		copiedCurrent := false
+		if p.copied < p.files {
+			var count int64
+			var cursor *string
+			err := tx.QueryRow(ctx, `WITH entries AS MATERIALIZED (SELECT id,root_id,path,kind,size,modified_unix_nano FROM job_inventory WHERE job_id=$1::uuid AND id>COALESCE($2::uuid,'00000000-0000-0000-0000-000000000000'::uuid) ORDER BY id LIMIT 128), inserted AS (INSERT INTO library_inventory_baseline_data(library_id,snapshot_id,root_id,path,attributes_known,kind,size,modified_unix_nano,inventory_generation,observed_revision) SELECT $3::uuid,$4,root_id,path,true,kind,size,modified_unix_nano,$5,$6 FROM entries RETURNING 1) SELECT count(*),(SELECT id::text FROM entries ORDER BY id DESC LIMIT 1) FROM inserted`, current.Job.ID, p.cursor, current.Job.LibraryID, p.snapshot, p.epoch, p.revision+1).Scan(&count, &cursor)
+			if err != nil {
+				return false, storageError(err)
+			}
+			p.copied += count
+			if count == 0 || p.copied > p.files {
+				return false, domain.ErrInventoryInvalidated
+			}
 			p.cursor = cursor
+			copiedCurrent = true
 		}
-		p.ready = p.copied == p.files
-		if p.ready {
+		if p.copied == p.files {
 			var more bool
-			if err = tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM job_inventory WHERE job_id=$1::uuid AND id>COALESCE($2::uuid,'00000000-0000-0000-0000-000000000000'::uuid))`, l.Job.ID, p.cursor).Scan(&more); err != nil {
+			if err := tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM job_inventory WHERE job_id=$1::uuid AND id>COALESCE($2::uuid,'00000000-0000-0000-0000-000000000000'::uuid))`, current.Job.ID, p.cursor).Scan(&more); err != nil {
 				return false, storageError(err)
 			}
 			if more {
 				return false, domain.ErrInventoryInvalidated
 			}
+			if !copiedCurrent && p.excludedCopied < p.excluded {
+				if err := copyIgnoredHistory(ctx, tx, current, &p); err != nil {
+					return false, err
+				}
+			}
+			p.ready = p.excludedCopied == p.excluded
 		}
-		if _, err = tx.Exec(ctx, `UPDATE inventory_snapshot_preparations SET copied=$2,cursor_id=$3::uuid,cleaned=true,ready=$4 WHERE job_id=$1::uuid`, l.Job.ID, p.copied, p.cursor, p.ready); err != nil {
+		if _, err := tx.Exec(ctx, `UPDATE inventory_snapshot_preparations SET copied=$2,cursor_id=$3::uuid,cleaned=true,ready=$4,excluded_copied=$5,excluded_after_root=NULLIF($6,'')::uuid,excluded_after_path=$7 WHERE job_id=$1::uuid`, current.Job.ID, p.copied, p.cursor, p.ready, p.excludedCopied, p.historyRoot, p.historyPath); err != nil {
 			return false, storageError(err)
 		}
 	}
-	if err = guardedJobUpdate(ctx, tx, current, `UPDATE jobs SET generation=generation WHERE id=$1::uuid`, l.Job.ID); err != nil {
-		return false, err
-	}
-	if err = guardInventoryFinish(ctx, tx, current, &p.epoch, true); err != nil {
-		return false, err
-	}
-	return p.ready, storageError(tx.Commit(ctx))
+	return finishInventoryPreparationBatch(ctx, tx, current, p, p.ready)
 }
 
-func publishPreparedInventory(ctx context.Context, tx pgx.Tx, l domain.JobLease) (bool, error) {
+func finishInventoryPreparationBatch(ctx context.Context, tx pgx.Tx, l domain.JobLease, p inventoryPreparation, ready bool) (bool, error) {
+	if err := guardedJobUpdate(ctx, tx, l, `UPDATE jobs SET generation=generation WHERE id=$1::uuid`, l.Job.ID); err != nil {
+		return false, err
+	}
+	if err := guardInventoryFinish(ctx, tx, l, &p.epoch, true); err != nil {
+		return false, err
+	}
+	return ready, storageError(tx.Commit(ctx))
+}
+
+func publishPreparedInventory(ctx context.Context, tx pgx.Tx, l domain.JobLease, mode string, excluded int64) (bool, error) {
 	p, err := readInventoryPreparation(ctx, tx, l.Job.ID)
 	if errors.Is(err, domain.ErrNotFound) {
 		return false, nil
@@ -173,14 +186,17 @@ func publishPreparedInventory(ctx context.Context, tx pgx.Tx, l domain.JobLease)
 	if err = checkInventoryPreparation(ctx, tx, l, p); err != nil {
 		return false, err
 	}
-	if !p.ready || p.copied != p.files {
+	if p.mode != mode || p.excluded != excluded {
+		return false, domain.ErrInventoryInvalidated
+	}
+	if !p.ready || p.copied != p.files || p.excludedCopied != p.excluded {
 		return false, domain.ErrConflict
 	}
 	var rows int64
 	if err = tx.QueryRow(ctx, `SELECT count(*) FROM library_inventory_baseline_data WHERE library_id=$1::uuid AND snapshot_id=$2`, l.Job.LibraryID, p.snapshot).Scan(&rows); err != nil {
 		return false, storageError(err)
 	}
-	if rows != p.files {
+	if rows != p.files+p.excluded {
 		return false, domain.ErrInventoryInvalidated
 	}
 	_, err = tx.Exec(ctx, `UPDATE libraries SET active_inventory_snapshot=$2,inventory_baseline_revision=inventory_baseline_revision+1 WHERE id=$1::uuid`, l.Job.LibraryID, p.snapshot)

@@ -219,6 +219,9 @@ func TestInventorySnapshotLeaseExpiresDuringStageAndPublish(t *testing.T) {
 
 func TestInventorySnapshotMigrationAndVisibleDML(t *testing.T) {
 	ctx, s, dsn := accountTestStore(t)
+	if v, dirty, err := Migrate(ctx, dsn, "down"); err != nil || dirty || v != 43 {
+		t.Fatal("empty ignored snapshot down", v, dirty, err)
+	}
 	if v, dirty, err := Migrate(ctx, dsn, "down"); err != nil || dirty || v != 42 {
 		t.Fatal("empty snapshot down", v, dirty, err)
 	}
@@ -252,6 +255,9 @@ func TestInventorySnapshotMigrationAndVisibleDML(t *testing.T) {
 	}
 	if _, err = s.Pool.Exec(ctx, `UPDATE library_inventory_baseline SET path='updated' WHERE library_id=$1::uuid`, r.Library.ID); err != nil {
 		t.Fatal("view update", err)
+	}
+	if v, dirty, err := Migrate(ctx, dsn, "down"); err != nil || dirty || v != 43 {
+		t.Fatal("plain preparation down", v, dirty, err)
 	}
 	if _, _, err = Migrate(ctx, dsn, "down"); err == nil {
 		t.Fatal("retained snapshot downgraded")

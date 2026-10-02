@@ -60,3 +60,5 @@ GOMAXPROCS=2、GOMEMLIMIT=512MiB、單 worker、Linux 原生 ext4；每檔 34 by
 ## 後續驗證
 
 GOMAXPROCS=4 與第三輪清理的補驗已另列[三輪清單報告](scan-repeated.md)；此處表格保留本段原始量測，當時 PostgreSQL 資料目錄使用 2 GiB tmpfs；後續報告改用原生磁碟，不能把兩個環境的耗時直接解讀成程式加速。
+
+忽略規則的後續分批準備與發布另見 [schema44 契約](ignore-snapshots.md)；本頁保留 schema43 當時的實測及邊界。

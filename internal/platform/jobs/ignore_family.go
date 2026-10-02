@@ -101,6 +101,9 @@ func (r *Runner) executeFamilyIgnore(ctx context.Context, l domain.JobLease, req
 	if progress.Unknown {
 		return nil, false
 	}
+	if err = r.prepareInventoryPublication(ctx, l); err != nil {
+		return err, true
+	}
 	if err = r.ignoreDB(ctx, func(c context.Context) error { return repo.BeginFamilyIgnoreVerification(c, l) }); err != nil {
 		return err, true
 	}
