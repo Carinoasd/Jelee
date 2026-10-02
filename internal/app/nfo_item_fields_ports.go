@@ -28,6 +28,11 @@ type NFOItemObservationReader interface {
 	ObserveItemNFO(context.Context, domain.NFOItemScope) (NFOItemObservation, error)
 }
 
+type NFOItemStateObservation interface {
+	NFOItemObservation
+	State() domain.NFOItemObservationState
+}
+
 type NFOItemScopeRepository interface {
 	ResolveItemNFO(context.Context, domain.Actor, string, int64) (domain.NFOItemScope, error)
 }

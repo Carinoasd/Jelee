@@ -10,6 +10,7 @@ import (
 	"slices"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/MoYuanCN/Jelee/internal/app"
 	"github.com/MoYuanCN/Jelee/internal/domain"
@@ -31,6 +32,13 @@ func (r *SummaryReader) SelectItemNFO(ctx context.Context, scope domain.NFOItemS
 	if err != nil {
 		return domain.NFOItemSelection{}, err
 	}
+	state := observed.(app.NFOItemStateObservation).State()
+	switch state.Status {
+	case domain.NFOItemObservedMissing:
+		return domain.NFOItemSelection{}, domain.ErrNFOItemAbsent
+	case domain.NFOItemObservedInvalid:
+		return domain.NFOItemSelection{}, domain.ErrMetadataUnavailable
+	}
 	return observed.Selection(), nil
 }
 
@@ -39,6 +47,7 @@ type itemNFOObservation struct {
 	scope    domain.NFOItemScope
 	selected domain.NFOItemSelection
 	physical itemCandidateObservation
+	state    domain.NFOItemObservationState
 }
 
 func (*itemNFOObservation) String() string   { return "nfo item observation (data redacted)" }
@@ -51,16 +60,26 @@ func (o *itemNFOObservation) Selection() domain.NFOItemSelection {
 	return value
 }
 
+func (o *itemNFOObservation) State() domain.NFOItemObservationState {
+	value := o.state
+	value.Selection = o.Selection()
+	return value
+}
+
+func sameObservedNFO(a, b itemCandidateObservation) bool {
+	if a.selected == "" && b.selected == "" {
+		return a.nfo == nil && b.nfo == nil
+	}
+	return sameSourceInfo(a.nfo, b.nfo)
+}
+
 func (o *itemNFOObservation) Recheck(ctx context.Context) (app.NFOItemObservation, error) {
 	observed, err := o.reader.ObserveItemNFO(ctx, o.scope)
 	if err != nil {
-		if errors.Is(err, domain.ErrNFOItemAbsent) {
-			return nil, domain.ErrNFOSourceChanged
-		}
 		return nil, err
 	}
 	fresh := observed.(*itemNFOObservation)
-	if !os.SameFile(o.physical.root, fresh.physical.root) || !os.SameFile(o.physical.directory, fresh.physical.directory) || !sameSourceInfo(o.physical.media, fresh.physical.media) || !sameSourceInfo(o.physical.nfo, fresh.physical.nfo) {
+	if o.state.Status != fresh.state.Status || o.state.Identity != fresh.state.Identity || o.state.Stamp != fresh.state.Stamp || o.selected.RelativePath != fresh.selected.RelativePath || o.selected.CandidateDigest != fresh.selected.CandidateDigest || !os.SameFile(o.physical.root, fresh.physical.root) || !os.SameFile(o.physical.directory, fresh.physical.directory) || !sameSourceInfo(o.physical.media, fresh.physical.media) || !sameObservedNFO(o.physical, fresh.physical) {
 		return nil, domain.ErrNFOSourceChanged
 	}
 	return fresh, nil
@@ -77,25 +96,41 @@ func (r *SummaryReader) ObserveItemNFO(ctx context.Context, scope domain.NFOItem
 	if err != nil {
 		return nil, err
 	}
-	if first.selected == "" {
-		return nil, domain.ErrNFOItemAbsent
-	}
-	fields, err := r.ReadItemFields(ctx, domain.NFOSource{RootPath: scope.Source.RootPath, RelativePath: first.selected}, scope.Kind)
-	if err != nil {
-		return nil, err
+	state := domain.NFOItemObservationState{Status: domain.NFOItemObservedMissing, Identity: r.Identity(), ReadAt: time.Now().UTC(), Selection: domain.NFOItemSelection{RelativePath: first.selected, CandidateDigest: first.digest}}
+	if first.selected != "" {
+		source, err := r.Read(ctx, domain.NFOSource{RootPath: scope.Source.RootPath, RelativePath: first.selected})
+		if err != nil {
+			return nil, err
+		}
+		state.Stamp = source.Stamp()
+		fields, err := r.projectItemFields(ctx, source.(*summarySource), scope.Kind)
+		if err != nil {
+			if ctx.Err() != nil {
+				return nil, ctx.Err()
+			}
+			if !errors.Is(err, ErrInvalidXML) && !errors.Is(err, ErrInvalidEncoding) {
+				return nil, domain.ErrMetadataUnavailable
+			}
+			state.Status = domain.NFOItemObservedInvalid
+		} else {
+			state.Status = domain.NFOItemObservedValid
+			state.Selection.Fields = fields
+			state.ReadAt = fields.ReadAt
+		}
 	}
 	last, err := observeItemCandidates(ctx, scope)
 	if err != nil {
 		return nil, err
 	}
-	if first.selected != last.selected || first.digest != last.digest || !os.SameFile(first.root, last.root) || !os.SameFile(first.directory, last.directory) || !sameSourceInfo(first.media, last.media) || !sameSourceInfo(first.nfo, last.nfo) || fields.Stamp.Size != last.nfo.Size() || fields.Stamp.ModifiedUnixNano != last.nfo.ModTime().UnixNano() {
+	if first.selected != last.selected || first.digest != last.digest || !os.SameFile(first.root, last.root) || !os.SameFile(first.directory, last.directory) || !sameSourceInfo(first.media, last.media) || !sameObservedNFO(first, last) || first.selected != "" && (state.Stamp.Size != last.nfo.Size() || state.Stamp.ModifiedUnixNano != last.nfo.ModTime().UnixNano()) {
 		return nil, domain.ErrNFOSourceChanged
 	}
-	value := domain.NFOItemSelection{RelativePath: last.selected, CandidateDigest: last.digest, Fields: fields}
-	if !domain.ValidNFOItemSelection(scope, value) {
+	state.Selection.RelativePath = last.selected
+	state.Selection.CandidateDigest = last.digest
+	if !domain.ValidNFOItemObservationState(scope, state) {
 		return nil, domain.ErrNFOReaderUnavailable
 	}
-	return &itemNFOObservation{reader: r, scope: scope, selected: value, physical: last}, nil
+	return &itemNFOObservation{reader: r, scope: scope, selected: state.Selection, physical: last, state: state}, nil
 }
 
 func observeItemCandidates(ctx context.Context, scope domain.NFOItemScope) (value itemCandidateObservation, resultErr error) {

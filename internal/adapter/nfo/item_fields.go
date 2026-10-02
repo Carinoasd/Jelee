@@ -25,13 +25,23 @@ func (r *SummaryReader) ReadItemFields(ctx context.Context, path domain.NFOSourc
 	if err != nil {
 		return domain.NFOItemFields{}, err
 	}
-	source := observed.(*summarySource)
-	document, err := source.source.Parse(ctx)
+	fields, err := r.projectItemFields(ctx, observed.(*summarySource), kind)
 	if err != nil {
 		if ctx.Err() != nil {
 			return domain.NFOItemFields{}, ctx.Err()
 		}
 		return domain.NFOItemFields{}, domain.ErrMetadataUnavailable
+	}
+	return fields, nil
+}
+
+func (r *SummaryReader) projectItemFields(ctx context.Context, source *summarySource, kind string) (domain.NFOItemFields, error) {
+	document, err := source.source.Parse(ctx)
+	if err != nil {
+		if ctx.Err() != nil {
+			return domain.NFOItemFields{}, ctx.Err()
+		}
+		return domain.NFOItemFields{}, err
 	}
 	summary, err := projectSummary(ctx, document)
 	root := "movie"
@@ -51,7 +61,7 @@ func (r *SummaryReader) ReadItemFields(ctx context.Context, path domain.NFOSourc
 		return domain.NFOItemFields{}, err
 	}
 	metadata := document.Entries[0]
-	result := domain.NFOItemFields{Version: domain.NFOItemFieldsVersion, Kind: resultKind, Identity: r.Identity(), Stamp: observed.Stamp(), ReadAt: time.Now().UTC(), Fields: []domain.NFOTextField{}, LockedFields: slices.Clone(metadata.LockedFields)}
+	result := domain.NFOItemFields{Version: domain.NFOItemFieldsVersion, Kind: resultKind, Identity: r.Identity(), Stamp: source.Stamp(), ReadAt: time.Now().UTC(), Fields: []domain.NFOTextField{}, LockedFields: slices.Clone(metadata.LockedFields)}
 	if metadata.LockData != nil {
 		result.LockData = *metadata.LockData
 	}

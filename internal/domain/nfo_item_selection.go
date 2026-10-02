@@ -50,11 +50,15 @@ func NFOCandidateDigest(names []string) string {
 }
 
 func ValidNFOItemSelection(scope NFOItemScope, selected NFOItemSelection) bool {
-	if !ValidNFOItemFields(selected.Fields) || !(selected.Fields.Kind == scope.Kind || scope.Kind == "HomeVideo" && selected.Fields.Kind == "Movie") || !probeHex(selected.CandidateDigest, 64) || len(selected.RelativePath) > 1024 || path.Clean(selected.RelativePath) != selected.RelativePath || path.Dir(selected.RelativePath) != path.Dir(scope.MediaPath) {
+	return ValidNFOItemFields(selected.Fields) && (selected.Fields.Kind == scope.Kind || scope.Kind == "HomeVideo" && selected.Fields.Kind == "Movie") && probeHex(selected.CandidateDigest, 64) && AllowedNFOItemPath(scope, selected.RelativePath)
+}
+
+func AllowedNFOItemPath(scope NFOItemScope, relative string) bool {
+	if len(relative) > 1024 || path.Clean(relative) != relative || path.Dir(relative) != path.Dir(scope.MediaPath) {
 		return false
 	}
 	for _, candidate := range NFOItemCandidatePaths(scope) {
-		if strings.EqualFold(path.Base(candidate), path.Base(selected.RelativePath)) {
+		if strings.EqualFold(path.Base(candidate), path.Base(relative)) {
 			return true
 		}
 	}

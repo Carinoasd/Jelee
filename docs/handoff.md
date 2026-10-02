@@ -1086,3 +1086,9 @@ G39.1／G39.6仍partial，全案4done184partial148blocked／仍第三階段。�
 Win全Go 29pkg／3183pass事件含父／457testskip，原435＋21PG身份＋1outbound保持，全部額外另實測。最終PG race 731pass事件含父／0fail0skip／366.203s；Linux原生tmp五pkg race 1049pass事件含父0fail0skip，含四種實檔相同投影／stamp替換與caller isolation。vet/build／newbrand0/181／gitignore0 PASS，full14735/186 FAIL；保護文件／23migrations／五未授權核心／sourcehash／links／336／無C#diff核對。見nfo-item-observation.md/evidence。
 
 仍valid四欄觀察，missing/invalid provider fallback＋狀態保存未接；後續依.testdata/nfo-fallback-next.md擴充owned immutable observation、保存nfo_invalid/missing且同一次transaction套用供應商、permission/unsafe/IO/bound/cancel不得當缺檔、unsupported有效XML/lock-only不得當損壞；之後實際inventory/worker/hierarchy、其他欄位/readwrite/清外部資料/frontend及全部G00–51。全案4done184partial148blocked／third stage，G14/G39未完。觀察非FS原子快照，最後檢查後仍可能變動，阻塞FS非硬性取消。原媒體/NFO/images/授權/五核心3271行保持；未獲具體批次授權不改、不重問、不绕自動review。禁止merge/release/tag/newbranch/forcepush/oldmigration/Gitidentityconfig，繁中push同PR46後接續。
+
+### NFO 三態可信觀察，回退尚未啟用
+
+接續675dea9bb5efd66e469c576eed1e9ff10d0e0a52，同branch／PR46／schema23。正式SummaryReader提供valid／missing／nfo_invalid，缺失無假stamp／字段／鎖，解析損壞持完整原bytes stamp；安全／IO／取消／unsupported有效投影仍拒。Recheck核狀態、identity、fullstamp、candidate/path與四類physical身分；Select和兩HTTP入口維持初始503，valid消失409。Win29pkg／3214pass含父／457testskip身份原樣，native五pkg race 1080pass含父0fail0skip，NFO項目PG race5pass含父0fail0skip，完整HTTP／TLS／NFO／PG及120合成寫入PASS。刻意停用原bytes戳比較，same-size／mtime損壞內容變更1leaf fail，byte restore 1c7a212b81f929d44723bb457290c4d4c2ed03803889673ed0f8c73cd86c0f10及重跑PASS；此負例是讀者層，未聲稱尚未存在的fallback HTTP負例。vet／build／newbrand0/181／gitignore0及原文件／五核心／23舊migrations核對PASS。全案仍4done184partial148blocked，第三階段。詳docs/nfo-item-state-observation.md/evidence。
+
+下一段依.testdata/nfo-fallback-next.md，新增schema24安全item observation持久化，正式State-port跨provider重核並同交易保存status與融合欄位／分類／單版本／單audit；missing與invalid只provider、不虛構NFO來源，manual／舊NFO／locks保護。新增DB／HTTP正反／失敗回滾驗收，舊migrations保持，禁止merge／newbranch／forcepush／release／tag／Gitidentityconfig。五待授權核心保持、其他全案繼續。

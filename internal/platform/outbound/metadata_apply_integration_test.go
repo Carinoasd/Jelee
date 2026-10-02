@@ -472,6 +472,36 @@ func TestTMDBMetadataThroughTLSHTTPAndPostgres(t *testing.T) {
 	if original, err := os.ReadFile(collisionFile); err != nil || string(original) != document {
 		t.Fatal("ambiguous NFO original changed", err)
 	}
+	// Reader observations now retain missing/corrupt states, but applying them
+	// requires an atomic persistence capability. Until then both routes reject
+	// before provider I/O and preserve the original catalog and audit state.
+	for offset, mode := range []string{"missing", "invalid"} {
+		item, file := newNFOItem("state-guard-"+mode, "HomeVideo", `<movie><title>broken`)
+		if mode == "missing" {
+			if err := os.Remove(file); err != nil {
+				t.Fatal(err)
+			}
+		}
+		beforeCalls := allCalls.Load()
+		if response := apply(item, "movie", 4830+offset, 1); response.status != 503 || allCalls.Load() != beforeCalls {
+			t.Fatal("unpersisted NFO observation reached provider", mode, response.status)
+		}
+		if response := request("POST", "/api/v1/items/"+item+"/metadata/nfo", `{"expectedRevision":1,"confirmed":true}`); response.status != 503 {
+			t.Fatal("nonvalid NFO reached NFO-only write", mode, response.status)
+		}
+		if value, err := store.ItemMetadata(ctx, actor, item); err != nil || value.Revision != 1 || value.Kind != "HomeVideo" || value.Fields[0].Source != "existing" {
+			t.Fatal("nonvalid NFO guard changed catalog", mode, err)
+		}
+		var count int
+		if err := store.Pool.QueryRow(ctx, `SELECT count(*) FROM audit_logs WHERE target_id=$1::uuid AND event IN ('item.tmdb_metadata_applied','item.nfo_metadata_applied')`, item).Scan(&count); err != nil || count != 0 {
+			t.Fatal("nonvalid NFO guard left audit", mode, err)
+		}
+		if mode == "invalid" {
+			if original, err := os.ReadFile(file); err != nil || string(original) != `<movie><title>broken` {
+				t.Fatal("invalid NFO original changed", err)
+			}
+		}
+	}
 	t.Log("actual HTTP/TLS/NFO/PostgreSQL selection: specific and conventional movie/tvshow names, case folding, higher-priority appearance, secondary candidate change, ambiguous names denied before provider PASS")
 	for offset, mode := range []string{"root", "parent", "media", "nfo"} {
 		name := "identity-" + mode
