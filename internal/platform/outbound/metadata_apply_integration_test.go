@@ -933,11 +933,111 @@ func TestTMDBMetadataThroughTLSHTTPAndPostgres(t *testing.T) {
 		t.Fatal("numeric metadata review changed source bytes", err)
 	}
 	t.Log("actual HTTP/TLS/NFO/PostgreSQL: thirteen-field numeric projection, zero/bounds, mixed manual clear and renewed independent locks PASS")
+	genreItem, _ := newNFOItem("typed-genres", "HomeVideo", `<movie><title>Genre example</title><genre>Drama</genre><genre>Mystery</genre></movie>`)
+	genreResult := decode(request("POST", "/api/v1/items/"+genreItem+"/metadata/nfo", `{"expectedRevision":1,"confirmed":true}`))
+	if genreResult.Metadata.Revision != 2 || len(genreResult.Metadata.Facts) != 1 || genreResult.Metadata.Facts[0].Field != "genres" || genreResult.Metadata.Facts[0].Source != "nfo" || genreResult.Metadata.Facts[0].NFOOrigin == nil {
+		t.Fatal("HTTP confirmed NFO genres were not persisted as a typed list")
+	}
+	var genreValues []string
+	if json.Unmarshal(genreResult.Metadata.Facts[0].Value, &genreValues) != nil || len(genreValues) != 2 || genreValues[0] != "Drama" || genreValues[1] != "Mystery" {
+		t.Fatal("HTTP NFO genres lost their values or order")
+	}
+	listDocument := `<movie><title>Lists example</title><genre>Drama / Mystery</genre><tag>Favorite</tag><style>Reviewed</style><studio>Studio A / Studio B</studio><country>TW / JP</country><language>zh / ja</language><director>Director A / Director B</director><writer>Writer A</writer><credits>Writer B</credits><producer>Producer A / Producer B</producer></movie>`
+	listItem, listFile := newNFOItem("typed-string-lists", "HomeVideo", listDocument)
+	listResult := decode(request("POST", "/api/v1/items/"+listItem+"/metadata/nfo", `{"expectedRevision":1,"confirmed":true}`))
+	expectedLists := map[string][]string{"genres": {"Drama", "Mystery"}, "tags": {"Favorite", "Reviewed"}, "studios": {"Studio A", "Studio B"}, "countries": {"TW", "JP"}, "languages": {"zh", "ja"}, "directors": {"Director A", "Director B"}, "writers": {"Writer A", "Writer B"}, "producers": {"Producer A", "Producer B"}}
+	if listResult.Metadata.Revision != 2 || len(listResult.Metadata.Facts) != 8 {
+		t.Fatal("HTTP confirmed NFO string lists were not persisted together")
+	}
+	for _, fact := range listResult.Metadata.Facts {
+		var values []string
+		want := expectedLists[fact.Field]
+		if json.Unmarshal(fact.Value, &values) != nil || len(want) != 2 || len(values) != 2 || values[0] != want[0] || values[1] != want[1] || fact.Source != "nfo" || fact.NFOOrigin == nil {
+			t.Fatal("HTTP NFO string list lost values, order or origin", fact.Field)
+		}
+	}
+	fusedListItem, _ := newNFOItem("fused-string-lists", "HomeVideo", listDocument)
+	fusedLists := decode(apply(fusedListItem, "movie", 4955, 1))
+	if fusedLists.Metadata.Revision != 2 || fusedLists.Metadata.Kind != "Movie" || len(fusedLists.Metadata.Facts) != 8 || fusedLists.NFO == nil || fusedLists.TMDB == nil || len(fusedLists.NFO.Applied) != 9 || len(fusedLists.TMDB.Applied) != 3 {
+		t.Fatal("HTTP NFO string lists and provider fields did not fuse together")
+	}
+	for _, fact := range fusedLists.Metadata.Facts {
+		var values []string
+		want := expectedLists[fact.Field]
+		if json.Unmarshal(fact.Value, &values) != nil || len(want) != 2 || len(values) != 2 || values[0] != want[0] || values[1] != want[1] || fact.Source != "nfo" || fact.NFOOrigin == nil {
+			t.Fatal("HTTP provider fusion lost NFO list values or priority", fact.Field)
+		}
+	}
+	maxListPatches := []map[string]any{}
+	for field := range expectedLists {
+		values := make([]string, 16)
+		for i := range values {
+			values[i] = strings.Repeat("<", 1024)
+		}
+		maxListPatches = append(maxListPatches, map[string]any{"field": field, "value": values})
+	}
+	maxListBody, err := json.Marshal(map[string]any{"expectedRevision": 2, "fields": maxTextPatches, "facts": maxListPatches})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if response := request("PUT", "/api/v1/items/"+listItem+"/metadata", string(maxListBody)); response.status != 200 {
+		t.Fatal("HTTP valid maximum text and list edits exceeded request envelope", response.status)
+	}
+	listClear := request("PUT", "/api/v1/items/"+listItem+"/metadata", `{"expectedRevision":3,"facts":[{"field":"genres","value":null},{"field":"tags","value":[]}]}`)
+	var clearedLists struct {
+		Data domain.ItemMetadata `json:"data"`
+	}
+	if listClear.status != 200 || json.Unmarshal(listClear.body, &clearedLists) != nil || clearedLists.Data.Revision != 4 || len(clearedLists.Data.Facts) != 8 {
+		t.Fatal("HTTP manual string-list clear failed", listClear.status)
+	}
+	for _, fact := range clearedLists.Data.Facts {
+		if fact.Source != "manual" || fact.NFOOrigin != nil || fact.NFOLockOrigin != nil {
+			t.Fatal("HTTP manual list takeover retained NFO provenance", fact.Field)
+		}
+		if fact.Field == "genres" && string(fact.Value) != "null" || fact.Field == "tags" && string(fact.Value) != "[]" {
+			t.Fatal("HTTP manual null and empty list were not distinct clears")
+		}
+	}
+	for _, invalidValue := range []any{"Drama", []int{1}, []any{nil}, []string{""}, []string{"\t"}, []string{"\u00a0"}, []string{"\x00"}, []string{strings.Repeat("a", 1025)}, strings.Split(strings.Repeat("a,", 128)+"a", ",")} {
+		body, err := json.Marshal(map[string]any{"expectedRevision": 4, "facts": []map[string]any{{"field": "genres", "value": invalidValue}}})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if response := request("PUT", "/api/v1/items/"+listItem+"/metadata", string(body)); response.status != 400 {
+			t.Fatal("HTTP invalid string-list edit accepted", response.status)
+		}
+	}
+	if raw, err := os.ReadFile(listFile); err != nil || string(raw) != listDocument {
+		t.Fatal("list metadata edits changed original source", err)
+	}
+	lockedListDocument := strings.Replace(listDocument, "</movie>", "<lockdata>true</lockdata></movie>", 1)
+	if err := os.WriteFile(listFile, []byte(lockedListDocument), 0600); err != nil {
+		t.Fatal(err)
+	}
+	listReview := decode(request("POST", "/api/v1/items/"+listItem+"/metadata/nfo", `{"expectedRevision":4,"confirmed":true}`))
+	if listReview.Metadata.Revision != 5 || len(listReview.Metadata.Facts) != 12 {
+		t.Fatal("HTTP list review lost the complete projection or global locks")
+	}
+	for _, fact := range listReview.Metadata.Facts {
+		if _, ok := expectedLists[fact.Field]; !ok {
+			continue
+		}
+		if fact.Source != "manual" || fact.NFOOrigin != nil || fact.NFOLockOrigin == nil || fact.NFOLockOrigin.Projection != domain.NFOItemListFieldsVersion {
+			t.Fatal("HTTP renewed NFO list lock lost manual priority", fact.Field)
+		}
+		if fact.Field == "genres" && string(fact.Value) != "null" || fact.Field == "tags" && string(fact.Value) != "[]" {
+			t.Fatal("HTTP NFO review overwrote a manual list clear")
+		}
+	}
+	if raw, err := os.ReadFile(listFile); err != nil || string(raw) != lockedListDocument {
+		t.Fatal("list review changed locked source bytes", err)
+	}
+	t.Log("actual HTTP/TLS/NFO/PostgreSQL: eight ordered string lists, maximum mixed body, manual null/empty clears, strict list types, renewed global locks and unchanged source bytes PASS")
 	if raw, err := os.ReadFile(textFile); err != nil || string(raw) != textDocument {
 		t.Fatal("extended text review changed original NFO", err)
 	}
 	t.Log("actual HTTP/TLS/NFO/PostgreSQL extended text: nine fields fused with source/locks, maximum valid nine-field manual body accepted, original bytes preserved PASS")
-	for offset, mode := range []string{"unsafe", "empty", "permission", "unknown-lock", "false-lock"} {
+	for offset, mode := range []string{"unsafe", "empty", "permission", "unknown-lock", "false-lock", "list-limit"} {
 		content := `<!DOCTYPE movie [<!ENTITY unsafe SYSTEM "file:///private">]><movie><title>&unsafe;</title></movie>`
 		if mode == "empty" {
 			content = `<movie/>`
@@ -947,6 +1047,9 @@ func TestTMDBMetadataThroughTLSHTTPAndPostgres(t *testing.T) {
 		}
 		if mode == "false-lock" {
 			content = `<movie><lockdata>false</lockdata></movie>`
+		}
+		if mode == "list-limit" {
+			content = `<movie><title>Too many genres</title>` + strings.Repeat(`<genre>Drama</genre>`, 129) + `</movie>`
 		}
 		item, file := newNFOItem("state-unavailable-"+mode, "HomeVideo", content)
 		if mode == "permission" {

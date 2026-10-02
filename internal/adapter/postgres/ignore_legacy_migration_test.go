@@ -8,6 +8,7 @@ import (
 
 func TestLegacyIgnoreMigrationRoundTrip(t *testing.T) {
 	f := newJobFixture(t)
+	nfoMigrateVersion(t, f, "down", 30)
 	nfoMigrateVersion(t, f, "down", 29)
 	nfoMigrateVersion(t, f, "down", 28)
 	nfoMigrateVersion(t, f, "down", 27)
@@ -72,6 +73,7 @@ func TestLegacyIgnoreMigrationGuardsAndCleanup(t *testing.T) {
 	if _, err := f.s.Pool.Exec(f.ctx, `DELETE FROM jobs WHERE id=$1::uuid`, job.ID); err != nil {
 		t.Fatal("retained history cleanup", err)
 	}
+	nfoMigrateVersion(t, f, "down", 30)
 	nfoMigrateVersion(t, f, "down", 29)
 	nfoMigrateVersion(t, f, "down", 28)
 	nfoMigrateVersion(t, f, "down", 27)

@@ -3,6 +3,7 @@ package postgres
 import (
 	"context"
 	"encoding/json"
+	"slices"
 	"strconv"
 	"time"
 
@@ -28,7 +29,7 @@ func readItemMetadataFacts(ctx context.Context, tx pgx.Tx, value *domain.ItemMet
 		}
 		if len(origin) > 0 {
 			var proof domain.NFOItemOrigin
-			if json.Unmarshal(origin, &proof) != nil || !domain.ValidNFOItemOrigin(proof) || (proof.Projection != domain.NFOItemYearFieldsVersion && proof.Projection != domain.NFOItemNumericFieldsVersion) || fact.Field != "year" && proof.Projection != domain.NFOItemNumericFieldsVersion {
+			if json.Unmarshal(origin, &proof) != nil || !domain.ValidNFOItemOrigin(proof) || (proof.Projection != domain.NFOItemYearFieldsVersion && proof.Projection != domain.NFOItemNumericFieldsVersion && proof.Projection != domain.NFOItemListFieldsVersion) || !slices.Contains(domain.NFOItemFieldNames(proof.Projection), fact.Field) {
 				return domain.ErrMetadataUnavailable
 			}
 			fact.NFOOrigin = &proof
@@ -70,6 +71,13 @@ func applyNFOFacts(ctx context.Context, tx pgx.Tx, before domain.ItemMetadata, s
 			return domain.ErrInvalid
 		}
 		incomingFacts = append(incomingFacts, domain.ItemMetadataFact{Field: incoming.Field, Value: raw})
+	}
+	for _, list := range fields.Lists {
+		raw, err := json.Marshal(list.Values)
+		if err != nil {
+			return domain.ErrInvalid
+		}
+		incomingFacts = append(incomingFacts, domain.ItemMetadataFact{Field: list.Field, Value: raw})
 	}
 	for _, incoming := range incomingFacts {
 		old := domain.ItemMetadataFact{Field: incoming.Field}

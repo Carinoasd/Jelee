@@ -27,6 +27,7 @@ func TestNFONumericManualWhitespaceNullDoesNotBecomeZero(t *testing.T) {
 
 func TestNFONumericFactsAtomicPersistenceAndManualPriority(t *testing.T) {
 	f, scope, fields := nfoItemApplyFixture(t)
+	nfoMigrateVersion(t, f, "down", 30)
 	nfoMigrateVersion(t, f, "down", 29)
 	nfoMigrateVersion(t, f, "up", SchemaVersion)
 	fields.Version = domain.NFOItemNumericFieldsVersion
@@ -121,6 +122,7 @@ func TestNFONumericMigrationPreservesPublishedYearProjection(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	nfoMigrateVersion(t, f, "down", 30)
 	nfoMigrateVersion(t, f, "down", 29)
 	nfoMigrateVersion(t, f, "up", SchemaVersion)
 	after, err := f.s.ItemMetadata(f.ctx, f.a, scope.ItemID)

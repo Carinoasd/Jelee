@@ -34,8 +34,8 @@ func (s *Server) itemMetadataRoutes(r chi.Router) {
 					Locked json.RawMessage `json:"locked"`
 				} `json:"facts"`
 			}
-			// Nine bounded text fields can expand sixfold when JSON escapes HTML.
-			if err := decodeItemMetadataJSON(w, r, &input, 256<<10); err != nil {
+			// Bounded text and eight string lists can expand sixfold in JSON.
+			if err := decodeItemMetadataJSON(w, r, &input, 1<<20); err != nil {
 				return nil, 0, err
 			}
 			patches := make([]domain.ItemMetadataPatch, 0, len(input.Fields))

@@ -1,12 +1,14 @@
 # 接手记录
 
-## 最新接續：第30版數值保存
+## 最新接續：第31版八種字串列表
 
-目前仍第三階段，分支 `feat/jelee-ignore-family-worker`，延續普通 [PR #46](https://github.com/Carinoasd/Jelee/pull/46)，base `master`。第30版片長／一般評分／使用者評分已完成本地驗證，正式套用包含九文字與四數值；契約與實測見 [nfo-numeric-facts.md](nfo-numeric-facts.md)。Windows 29套件通過、480略過身份中的PG／完整HTTP均另有實測；Linux五套件race、完整PG 780事件、原生worker 11事件與實際HTTP／TLS／NFO／PG正反驗收通過。來源／需求／LICENSE／58份001–029遷移及五個待授權直播核心保持。
+仍第三階段，分支 `feat/jelee-ignore-family-worker`，普通 [PR #46](https://github.com/Carinoasd/Jelee/pull/46)，base `master`。接續331529e1b090fe4bfb960ddf318012a3003f61b7；第31版已完成本地驗證，九文字＋四數值＋八有順序字串列表，來源／獨立鎖與人工清除同交易。契約與實測見[nfo-string-lists.md](nfo-string-lists.md)及[證據](evidence/nfo-string-lists.json)。Windows29包／3255事件／483略過、Linux五包race1121事件、完整PG788事件／原生worker11、完整HTTP正反通過；四個初始red保存。PG全套結束後僅增加實際HTTP供應商融合案例，正式程式及PG／原生單元保持，最終HTTP／Windows重跑。所有本地命令已結束。
 
-G00–G51共336項仍4已完成／184部分完成／148未達完整驗收。下一段接多值資料的正式保存，之後人物／ID／來源季集／實際匯入／前端／無損回寫及全案驗收。全量品牌14735殘留與ABI相容差異仍待处理，不能宣稱CI全綠。所有PR文字用繁中；驗證後以命令級作者Carinoasd提交、同分支push／更新PR46／附聊天後立即接續。禁止merge、release/tag、force-push、既有遷移改寫與Git身份設定；第30版推送後也不可改寫。
+string-lists-v1固定21欄；genres/tags/studios/countries/languages/directors/writers/producers以JSON陣列保存於facts，維持順序／重複，手動null與[]皆清除並維持原型別。1MiB請求，128值／1024 UTF-8 bytes每值／16384合計每列；DB／domain一致拒空白／NUL／異型／超限。新schema31保留列表含人工清除／新proof拒降，舊數值往返保持；001–030共60份保持。31推送後也不可改寫。
 
-以下是逐段歷史，較舊的分支與schema版本不能當成目前狀態。
+G00–G51共336項仍4完成／184部分／148未達完整驗收。接續 actor 結構、ID／多來源評分、來源季集、實際匯入、前端、無損回寫、外部來源清除與效能等。全量品牌14735／186與ABI實際差異尚待處理，不能宣稱CI全綠。PR一律繁中、命令級作者Carinoasd、同分支push／更新PR46／附聊天後立即接續。禁merge/release/tag/force-push/既有遷移改寫/Git身份設定，保護原媒體／授權及五待授權核心。
+
+以下為歷史，舊分支與schema不可當目前狀態。
 
 ## 歷史接續記錄
 
@@ -1156,3 +1158,7 @@ Windows {'passedPackages': 29, 'passedTestEventsIncludingParents': 3226, 'skippe
 實測：{"windows": {"passedPackages": 29, "passedTestEventsIncludingParents": 3253, "skippedTestEvents": 480, "elapsedSeconds": 11.858}, "native": {"passedPackages": 5, "passedTestEventsIncludingParents": 1119, "skippedTestEvents": 0, "elapsedSeconds": 3.452}, "full-pg": {"passedPackages": 1, "passedTestEventsIncludingParents": 780, "skippedTestEvents": 0, "elapsedSeconds": 432.319}, "native-pg": {"passedPackages": 1, "passedTestEventsIncludingParents": 11, "skippedTestEvents": 0, "elapsedSeconds": 15.404}, "http": {"passedPackages": 1, "passedTestEventsIncludingParents": 1, "skippedTestEvents": 0, "elapsedSeconds": 74.007}}。四份初始 red、片長正式投影停用失敗／byte restore／完整 HTTP green；五 table rollback、manual priority/null/zero/lock-only/down guard/published year round trip 通過。見[nfo-numeric-facts.md](nfo-numeric-facts.md)與[證據](evidence/nfo-numeric-facts.json)。無 C# 變更；品牌與 ABI 差異仍待處理。
 
 仍第三階段，4 done／184 partial／148 blocked。接續人物／多值／ID、來源季集、實際 inventory／worker／階層、前端、無損 writeback、外部來源清除與效能等 G00–G51。30推後不可改寫。維持繁中同 PR46、命令級作者、禁 merge/release/tag/force-push/identity config；驗證後 push/attach 即繼續。
+
+### 第31版：八種有順序字串列表
+
+{"windows": {"passedPackages": 29, "passedTestEventsIncludingParents": 3255, "skippedTestEvents": 483, "elapsedSeconds": 9.034}, "native": {"passedPackages": 5, "passedTestEventsIncludingParents": 1121, "skippedTestEvents": 0, "elapsedSeconds": 1.089}, "full-pg": {"passedPackages": 1, "passedTestEventsIncludingParents": 788, "skippedTestEvents": 0, "elapsedSeconds": 440.619}, "native-pg": {"passedPackages": 1, "passedTestEventsIncludingParents": 11, "skippedTestEvents": 0, "elapsedSeconds": 15.457}, "http": {"passedPackages": 1, "passedTestEventsIncludingParents": 1, "skippedTestEvents": 0, "elapsedSeconds": 74.648}}。新schema31、固定21欄，明確套用／人工修改／來源與鎖共交易，舊投影保持；1MiB請求與逐列界限、四初始red及正式傳遞停用／byte restore／完整HTTP green，五表回滾、指定缺值鎖、舊數值往返／新資料拒降通過。見[nfo-string-lists.md](nfo-string-lists.md)與[證據](evidence/nfo-string-lists.json)。仍第三階段4/184/148，同繁中PR46，推送後立即續actor／ID／ratings／來源季集／實際匯入／frontend／無損writeback等全部G00–51。

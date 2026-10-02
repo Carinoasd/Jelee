@@ -55,7 +55,7 @@ func TestItemFieldsRejectsAmbiguousOrInvalidSources(t *testing.T) {
 		{"duplicate-lock", "Movie", `<movie><title>One</title><lockdata>true</lockdata><lockdata>false</lockdata></movie>`},
 		{"bad-date", "Movie", `<movie><title>One</title><premiered>2024-02-30</premiered></movie>`},
 		{"oversized-title", "Movie", `<movie><title>` + strings.Repeat("字", 400) + `</title></movie>`},
-		{"no-text", "Movie", `<movie><genre>Drama</genre></movie>`},
+		{"no-supported-fields", "Movie", `<movie><status>Released</status></movie>`},
 		{"external-entity", "Movie", `<!DOCTYPE movie [<!ENTITY x SYSTEM "file:///private">]><movie><title>&x;</title></movie>`},
 		{"malformed", "Movie", `<movie><title>One`},
 	} {

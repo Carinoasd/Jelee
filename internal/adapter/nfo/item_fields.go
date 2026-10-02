@@ -151,7 +151,24 @@ func (r *SummaryReader) projectItemFields(ctx context.Context, source *summarySo
 			result.Version = domain.NFOItemNumericFieldsVersion
 		}
 	}
-	if len(result.Fields) == 0 && len(result.Facts) == 0 && len(result.NumberFacts) == 0 && result.Version != domain.NFOItemNumericFieldsVersion && result.Version != domain.NFOItemYearFieldsVersion && result.Version != domain.NFOItemSortFieldsVersion && result.Version != domain.NFOItemTextFieldsVersion && domain.HasNFOItemFieldLock(result) {
+	for _, list := range []domain.NFOStringList{
+		{Field: "genres", Values: metadata.Genres}, {Field: "tags", Values: metadata.Tags},
+		{Field: "studios", Values: metadata.Studios}, {Field: "countries", Values: metadata.Countries},
+		{Field: "languages", Values: metadata.Languages}, {Field: "directors", Values: metadata.Directors},
+		{Field: "writers", Values: metadata.Writers}, {Field: "producers", Values: metadata.Producers},
+	} {
+		if len(list.Values) > 0 {
+			result.Version = domain.NFOItemListFieldsVersion
+			list.Values = slices.Clone(list.Values)
+			result.Lists = append(result.Lists, list)
+		}
+	}
+	for _, name := range metadata.LockedFields {
+		if domain.MetadataListFieldForLock(name) != "" {
+			result.Version = domain.NFOItemListFieldsVersion
+		}
+	}
+	if len(result.Fields) == 0 && len(result.Facts) == 0 && len(result.NumberFacts) == 0 && len(result.Lists) == 0 && result.Version != domain.NFOItemListFieldsVersion && result.Version != domain.NFOItemNumericFieldsVersion && result.Version != domain.NFOItemYearFieldsVersion && result.Version != domain.NFOItemSortFieldsVersion && result.Version != domain.NFOItemTextFieldsVersion && domain.HasNFOItemFieldLock(result) {
 		result.Version = domain.NFOItemLockFieldsVersion
 	}
 	if !domain.ValidNFOItemFields(result) {
