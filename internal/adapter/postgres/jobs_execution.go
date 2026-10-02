@@ -280,40 +280,70 @@ func saveScanBatch(ctx context.Context, tx pgx.Tx, current domain.JobLease, d do
 		return storageError(err)
 	}
 	files, bytes := current.Job.Files, current.Job.Bytes
-	for _, e := range b.Entries {
-		var oldSize int64
-		err = tx.QueryRow(ctx, `SELECT size FROM job_inventory WHERE job_id=$1::uuid AND root_id=$2::uuid AND path=$3`, l.Job.ID, d.RootID, e.Path).Scan(&oldSize)
-		if errors.Is(err, pgx.ErrNoRows) {
-			files++
-		} else if err != nil {
+	if len(b.Entries) > 0 {
+		paths := make([]string, len(b.Entries))
+		kinds := make([]string, len(b.Entries))
+		sizes := make([]int64, len(b.Entries))
+		modified := make([]int64, len(b.Entries))
+		for i, entry := range b.Entries {
+			paths[i], kinds[i], sizes[i], modified[i] = entry.Path, entry.Kind, entry.Size, entry.ModifiedUnixNano
+		}
+		// Read only this bounded batch. The jobs transaction lock keeps the
+		// observation stable until the upsert and fenced counter update commit.
+		type previousEntry struct {
+			exists, directory bool
+			size              int64
+		}
+		previous := make(map[string]previousEntry, len(paths))
+		rows, err := tx.Query(ctx, `SELECT requested.path,i.path IS NOT NULL,COALESCE(i.size,0),EXISTS(SELECT 1 FROM job_directories d WHERE d.job_id=$1::uuid AND d.root_id=$2::uuid AND d.path=requested.path) FROM unnest($3::text[]) requested(path) LEFT JOIN job_inventory i ON i.job_id=$1::uuid AND i.root_id=$2::uuid AND i.path=requested.path`, l.Job.ID, d.RootID, paths)
+		if err != nil {
 			return storageError(err)
 		}
-		if files > int64(current.Policy.MaxEntries) || oldSize > bytes || e.Size > math.MaxInt64-(bytes-oldSize) {
-			return domain.ErrScanLimit
+		for rows.Next() {
+			var name string
+			var old previousEntry
+			if err = rows.Scan(&name, &old.exists, &old.size, &old.directory); err != nil {
+				rows.Close()
+				return storageError(err)
+			}
+			previous[name] = old
 		}
-		bytes = bytes - oldSize + e.Size
-		var conflicts bool
-		if err = tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM job_directories WHERE job_id=$1::uuid AND root_id=$2::uuid AND path=$3)`, l.Job.ID, d.RootID, e.Path).Scan(&conflicts); err != nil {
+		err = rows.Err()
+		rows.Close()
+		if err != nil {
 			return storageError(err)
 		}
-		if conflicts {
+		if len(previous) != len(paths) {
 			return domain.ErrConflict
 		}
-		if _, err = tx.Exec(ctx, `INSERT INTO job_inventory(job_id,root_id,parent_path,path,kind,size,modified_unix_nano) VALUES($1::uuid,$2::uuid,$3,$4,$5,$6,$7) ON CONFLICT(job_id,root_id,path) DO UPDATE SET kind=EXCLUDED.kind,size=EXCLUDED.size,modified_unix_nano=EXCLUDED.modified_unix_nano`, l.Job.ID, d.RootID, d.Path, e.Path, e.Kind, e.Size, e.ModifiedUnixNano); err != nil {
+		for _, entry := range b.Entries {
+			old := previous[entry.Path]
+			if !old.exists {
+				files++
+			}
+			if files > int64(current.Policy.MaxEntries) || old.size > bytes || entry.Size > math.MaxInt64-(bytes-old.size) {
+				return domain.ErrScanLimit
+			}
+			bytes = bytes - old.size + entry.Size
+			if old.directory {
+				return domain.ErrConflict
+			}
+		}
+		if _, err = tx.Exec(ctx, `INSERT INTO job_inventory(job_id,root_id,parent_path,path,kind,size,modified_unix_nano) SELECT $1::uuid,$2::uuid,$3,e.path,e.kind,e.size,e.modified FROM unnest($4::text[],$5::text[],$6::bigint[],$7::bigint[]) e(path,kind,size,modified) ON CONFLICT(job_id,root_id,path) DO UPDATE SET kind=EXCLUDED.kind,size=EXCLUDED.size,modified_unix_nano=EXCLUDED.modified_unix_nano`, l.Job.ID, d.RootID, d.Path, paths, kinds, sizes, modified); err != nil {
 			return storageError(err)
 		}
 	}
-	for _, p := range b.Directories {
+	if len(b.Directories) > 0 {
 		var conflicts bool
-		if err = tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM job_inventory WHERE job_id=$1::uuid AND root_id=$2::uuid AND path=$3)`, l.Job.ID, d.RootID, p).Scan(&conflicts); err != nil {
+		if err = tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM job_inventory WHERE job_id=$1::uuid AND root_id=$2::uuid AND path=ANY($3::text[]))`, l.Job.ID, d.RootID, b.Directories).Scan(&conflicts); err != nil {
 			return storageError(err)
 		}
 		if conflicts {
 			return domain.ErrConflict
 		}
-		tag, e := tx.Exec(ctx, `INSERT INTO job_directories(job_id,root_id,path,parent_path) VALUES($1::uuid,$2::uuid,$3,$4) ON CONFLICT DO NOTHING`, l.Job.ID, d.RootID, p, d.Path)
-		if e != nil {
-			return storageError(e)
+		tag, err := tx.Exec(ctx, `INSERT INTO job_directories(job_id,root_id,path,parent_path) SELECT $1::uuid,$2::uuid,p.path,$4 FROM unnest($3::text[]) p(path) ON CONFLICT DO NOTHING`, l.Job.ID, d.RootID, b.Directories, d.Path)
+		if err != nil {
+			return storageError(err)
 		}
 		totalDirs += tag.RowsAffected()
 		if totalDirs > int64(current.Policy.MaxDirectories) {

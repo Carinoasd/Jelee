@@ -1,0 +1,192 @@
+{
+  "parentCommit": "6ddacf1f2c229c7a863d0d4b283665828af80837",
+  "verifiedAt": "2026-10-02T13:22:24.012165+00:00",
+  "schemaVersion": 42,
+  "verification": {
+    "windows": {
+      "passedPackages": 1,
+      "passedTestEventsIncludingParents": 181,
+      "skippedTestEvents": 536,
+      "packageElapsedSeconds": 0.085
+    },
+    "full-pg": {
+      "passedPackages": 1,
+      "passedTestEventsIncludingParents": 916,
+      "skippedTestEvents": 0,
+      "packageElapsedSeconds": 692.82
+    },
+    "native-pg": {
+      "passedPackages": 1,
+      "passedTestEventsIncludingParents": 11,
+      "skippedTestEvents": 0,
+      "packageElapsedSeconds": 17.104
+    },
+    "e2e": {
+      "passedPackages": 1,
+      "passedTestEventsIncludingParents": 1,
+      "skippedTestEvents": 0,
+      "packageElapsedSeconds": 77.198
+    }
+  },
+  "checks": [
+    {
+      "name": "vet",
+      "exitCode": 0
+    },
+    {
+      "name": "build",
+      "exitCode": 0
+    },
+    {
+      "name": "brand-new",
+      "exitCode": 0
+    },
+    {
+      "name": "gitignore",
+      "exitCode": 0
+    },
+    {
+      "name": "brand-full",
+      "exitCode": 1
+    }
+  ],
+  "sourceFreezeSHA256": {
+    "internal/adapter/postgres/accounts_integration_test.go": "59c3d896fb379623ae7e9182e88b44c85aa2332a25490a09eb11728f3d595b92",
+    "internal/adapter/postgres/jobs_execution.go": "c5a22e09bfb4b2b97ac2d1534142dfd2acc7918f5ee214fc667373a9309aa9f0",
+    "internal/adapter/postgres/scan_batch_test.go": "acab81661b7bd6cce7ddd839676506d30a6dd27cfbc598afb52d03a15af9322d",
+    "internal/adapter/postgres/scan_scale_test.go": "98bd4138a86bfed270e47bf1d9f8d65775f0e1788a504745d1ae7d5d25675c09"
+  },
+  "publishedSQLUnchanged": 84,
+  "limitations": [
+    "stage 3 remains incomplete",
+    "scale/24h acceptance pending",
+    "full branding gate and existing ABI differences unresolved",
+    "100000-file run failed during atomic baseline copy; snapshot publication pending",
+    "10000-file inventory workload only; image/probe and 24h acceptance pending"
+  ],
+  "logs": {
+    "windows": ".testdata/scan-batch-windows.jsonl",
+    "full-pg": ".testdata/scan-batch-full-pg.jsonl",
+    "native-pg": ".testdata/scan-batch-native-pg.jsonl",
+    "e2e": ".testdata/scan-batch-e2e.jsonl"
+  },
+  "scaleBaseline10000": [
+    {
+      "pass": "initial",
+      "files": 10000,
+      "gomaxprocs": 2,
+      "goVersion": "go1.27.1",
+      "seconds": 14.124452076,
+      "filesPerSecond": 707.9920655465148,
+      "maxBatch": 128,
+      "batches": 80,
+      "peakHeapBytes": 3336128,
+      "peakRSSBytes": 23011328,
+      "afterGC": {
+        "seconds": 14.13000629,
+        "files": 10000,
+        "heapBytes": 1841576,
+        "heapInuseBytes": 3407872,
+        "rssBytes": 22499328,
+        "totalAllocBytes": 40367688,
+        "gcCount": 16,
+        "gcPauseTotalNanoseconds": 856855,
+        "goroutines": 4,
+        "fileDescriptors": 11,
+        "dbAcquired": 0
+      }
+    },
+    {
+      "pass": "unchanged",
+      "files": 10000,
+      "gomaxprocs": 2,
+      "goVersion": "go1.27.1",
+      "seconds": 12.698959915,
+      "filesPerSecond": 787.4660654836787,
+      "maxBatch": 128,
+      "batches": 80,
+      "peakHeapBytes": 3101352,
+      "peakRSSBytes": 22777856,
+      "afterGC": {
+        "seconds": 12.705073704,
+        "files": 10000,
+        "heapBytes": 1950040,
+        "heapInuseBytes": 3670016,
+        "rssBytes": 22638592,
+        "totalAllocBytes": 70245528,
+        "gcCount": 29,
+        "gcPauseTotalNanoseconds": 1457604,
+        "goroutines": 4,
+        "fileDescriptors": 11,
+        "dbAcquired": 0
+      }
+    }
+  ],
+  "scaleOptimized10000": [
+    {
+      "pass": "initial",
+      "files": 10000,
+      "gomaxprocs": 2,
+      "goVersion": "go1.27.1",
+      "seconds": 2.265838163,
+      "filesPerSecond": 4413.37786753484,
+      "maxBatch": 128,
+      "batches": 80,
+      "peakHeapBytes": 2587888,
+      "peakRSSBytes": 23011328,
+      "afterGC": {
+        "seconds": 2.272572721,
+        "files": 10000,
+        "heapBytes": 1791088,
+        "heapInuseBytes": 3104768,
+        "rssBytes": 20979712,
+        "totalAllocBytes": 28862952,
+        "gcCount": 13,
+        "gcPauseTotalNanoseconds": 736613,
+        "goroutines": 4,
+        "fileDescriptors": 10,
+        "dbAcquired": 0
+      }
+    },
+    {
+      "pass": "unchanged",
+      "files": 10000,
+      "gomaxprocs": 2,
+      "goVersion": "go1.27.1",
+      "seconds": 2.304046285,
+      "filesPerSecond": 4340.19058779455,
+      "maxBatch": 128,
+      "batches": 80,
+      "peakHeapBytes": 3028224,
+      "peakRSSBytes": 23162880,
+      "afterGC": {
+        "seconds": 2.309217063,
+        "files": 10000,
+        "heapBytes": 1914640,
+        "heapInuseBytes": 3227648,
+        "rssBytes": 21729280,
+        "totalAllocBytes": 47417056,
+        "gcCount": 22,
+        "gcPauseTotalNanoseconds": 1217049,
+        "goroutines": 4,
+        "fileDescriptors": 10,
+        "dbAcquired": 0
+      }
+    }
+  ],
+  "databaseRoundTrips": {
+    "batchSize": 128,
+    "beforeFiles": 395,
+    "beforeDirectories": 267,
+    "afterFiles": 13,
+    "afterDirectories": 13,
+    "includesReplay": true
+  },
+  "heapProfileSummary": "scan-batch-heap-inuse.txt",
+  "scale100000Failure": {
+    "observed": true,
+    "accepted": false,
+    "baselineInsertCancelledMilliseconds": 1982,
+    "statusReadLockTimeoutMilliseconds": 1500
+  }
+}

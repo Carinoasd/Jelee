@@ -25,6 +25,11 @@ const changedAccountTestHash = "$argon2id$v=19$m=8192,t=1,p=1$b3RoZXItc2FsdA$b3R
 
 func accountTestStore(t *testing.T) (context.Context, *Store, string) {
 	t.Helper()
+	return accountTestStoreWithTimeout(t, 90*time.Second)
+}
+
+func accountTestStoreWithTimeout(t *testing.T, timeout time.Duration) (context.Context, *Store, string) {
+	t.Helper()
 	dsn := os.Getenv("JELEE_TEST_DATABASE_URL")
 	if dsn == "" {
 		if strings.EqualFold(os.Getenv("JELEE_REQUIRE_INTEGRATION"), "true") {
@@ -36,7 +41,7 @@ func accountTestStore(t *testing.T) (context.Context, *Store, string) {
 	if err != nil || u == nil || (u.Scheme != "postgres" && u.Scheme != "postgresql") || u.Path != "/jelee_test" || u.Hostname() == "" {
 		t.Fatal("account integration requires dedicated jelee_test database")
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	t.Cleanup(cancel)
 	admin, err := pgx.Connect(ctx, dsn)
 	if err != nil {
