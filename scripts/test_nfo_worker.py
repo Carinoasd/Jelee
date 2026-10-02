@@ -22,6 +22,7 @@ from test_sandbox_native import select_fixtures
 from container_memory import validate_memory_profile
 from resident_memory import validate_resident_baseline, validate_resident_budget, validate_resident_results, validate_resident_samples
 from runtime_memory_acceptance import check_oom_negative, check_production_entry, container_state, inspect_owned, memory_flags, retain_worker_failure_log
+from runtime_heap_controller import HeapCapture
 
 ROOT = Path(__file__).resolve().parent.parent
 RESIDENT_BUDGET = "tools/resident-memory-budget.json"
@@ -41,6 +42,7 @@ def source_digest():
     record = {"sharedSources": probe_source_digest(), "controller": digest(Path(__file__).resolve())}
     record["memorySources"] = {name: digest(ROOT / name) for name in (
         "scripts/container_memory.py", "scripts/resident_memory.py", "scripts/runtime_memory_acceptance.py", "scripts/check_memory_compose.py",
+        "scripts/runtime_heap_controller.py", "scripts/heap_profile_acceptance.py",
         "deploy/docker-compose.yml", "deploy/docker-compose.memory.yml",
         RESIDENT_BUDGET, RESIDENT_BASELINE,
     )}
@@ -154,12 +156,20 @@ def run_case(total, gogc=100, resident_budget=None, budget_identity=None):
             return result
 
         try:
+            heap_capture = None
+            if WITH_MEMORY:
+                report["heapComparison"] = {}
+                heap_capture = HeapCapture(ROOT / (".testdata/" + EVIDENCE_PREFIX + "-heap-gogc%d" % gogc), report["heapComparison"])
             run(["docker", "build", "--network", "host", "-t", base, "."], timeout=600)
             report["productionImage"] = run(["docker", "image", "inspect", base, "--format", "{{.Id}}"]).stdout.decode().strip()
             env = dict(os.environ, CGO_ENABLED="0")
-            run([str(ROOT / ".bin/go"), "test", "-tags", "jelee_probe_tests", "-c", "-o", str(temp / "worker.test"), "./internal/platform/runtime"], env=env)
+            run([str(ROOT / ".bin/go"), "test", "-trimpath", "-tags", "jelee_probe_tests", "-c", "-o", str(temp / "worker.test"), "./internal/platform/runtime"], env=env)
+            if WITH_MEMORY:
+                report["testBinarySha256"] = digest(temp / "worker.test")
             (temp / "Dockerfile").write_text("FROM " + base + "\nCOPY --chmod=0555 worker.test /worker.test\n")
             run(["docker", "build", "--network", "none", "-t", image, str(temp)])
+            if WITH_MEMORY:
+                report["testImage"] = run(["docker", "image", "inspect", image, "--format", "{{.Id}}"]).stdout.decode().strip()
             # No secrets or media were present in the derived build context.
             secret_file.write_text("JELEE_TEST_DATABASE_URL=" + dsn + "\nJELEE_REQUIRE_NFO_WORKER=true\nJELEE_PROBE_TEST_SCHEMA=" + schema + "\nJELEE_NFO_FIXTURE_FILES=" + str(total) + "\n")
             if WITH_IGNORE:
@@ -214,6 +224,8 @@ def run_case(total, gogc=100, resident_budget=None, budget_identity=None):
                         report["cancellationRecovery"] = entry
                     if "memoryProfile" in entry:
                         report["memoryProfile"] = entry["memoryProfile"]
+                if heap_capture is not None:
+                    heap_capture.consume(latest, container, control)
                 if not replaced and '{"readyForReplacement":true}' in latest:
                     if WITH_MEMORY:
                         report["productionEntry"] = {}
@@ -246,6 +258,9 @@ def run_case(total, gogc=100, resident_budget=None, budget_identity=None):
                                                     "observedPeakRssBytes": report["residentValidation"]["peakRssBytes"]}
                         report["residentValidation"] = validate_resident_budget(report["memoryProfile"], resident_budget, gogc)
                         report["residentBudget"]["result"] = "passed"
+                        heap_capture.finish(report["memoryProfile"], ROOT / ".bin/go",
+                                            forbidden_prefixes=(str(ROOT), str(Path.home()), "C:\\Users\\", "/mnt/c/Users/"),
+                                            secret_markers=tuple(value for value in (dsn, parsed.password, "PRIVATE_FIXTURE") if value))
                     break
                 time.sleep(1)
             else:

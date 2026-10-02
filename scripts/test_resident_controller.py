@@ -153,6 +153,8 @@ class ResidentControllerTests(unittest.TestCase):
             calls = []
             def run(argv, **_kwargs):
                 calls.append(argv)
+                if "-o" in argv and "./internal/platform/runtime" in argv:
+                    Path(argv[argv.index("-o") + 1]).write_bytes(b"fake test binary")
                 if argv[:2] == ["docker", "logs"]:
                     output = log.encode()
                 elif argv[:2] == ["docker", "inspect"]:

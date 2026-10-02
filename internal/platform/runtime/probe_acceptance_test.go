@@ -33,6 +33,11 @@ import (
 )
 
 func TestMain(m *testing.M) {
+	for _, arg := range os.Args[1:] {
+		if strings.HasPrefix(arg, heapProfileExportCommand) {
+			os.Exit(heapProfileExportMain(os.Args[1:]))
+		}
+	}
 	if len(os.Args) > 1 && os.Args[1] == legacyignorehelper.Command {
 		os.Exit(legacyignorehelper.Main())
 	}

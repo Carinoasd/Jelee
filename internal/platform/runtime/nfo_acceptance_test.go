@@ -453,6 +453,10 @@ func TestProductionNFOWorkerAcceptance(t *testing.T) {
 			goruntime.ReadMemStats(&baselineMemory)
 			peakHeap = baselineMemory.HeapAlloc
 			baselineGoroutines = goruntime.NumGoroutine()
+			if memoryProfile != nil && (validation.Stats().ActiveCalls != 0 || probing.processStats().Active != 0) {
+				t.Fatal("heap profile boundary retained active worker reads or children")
+			}
+			memoryProfile.captureHeap(t, ctx, "/control", "before")
 			memoryProfile.residentPhase(t, "sustained")
 			sustainedStarted = time.Now()
 		} else if withSustained && round >= 3 {
@@ -476,6 +480,10 @@ func TestProductionNFOWorkerAcceptance(t *testing.T) {
 		if elapsed < 5*time.Minute || sustainedRounds < 5 || finalMemory.HeapAlloc > baselineMemory.HeapAlloc+(64<<20) || finalGoroutines > baselineGoroutines+8 {
 			t.Fatal("mixed sustained coverage or parent resource bound failed", elapsed, sustainedRounds, baselineMemory.HeapAlloc, finalMemory.HeapAlloc, baselineGoroutines, finalGoroutines)
 		}
+		if memoryProfile != nil && (validation.Stats().ActiveCalls != 0 || probing.processStats().Active != 0) {
+			t.Fatal("heap profile boundary retained active worker reads or children")
+		}
+		memoryProfile.captureHeap(t, ctx, "/control", "after")
 		record, _ := json.Marshal(map[string]any{"sustainedAcceptance": "passed", "seconds": elapsed.Seconds(), "rounds": sustainedRounds, "baselineHeap": baselineMemory.HeapAlloc, "finalHeap": finalMemory.HeapAlloc, "peakSampleHeap": peakHeap, "baselineGoroutines": baselineGoroutines, "finalGoroutines": finalGoroutines})
 		fmt.Println(string(record))
 	}

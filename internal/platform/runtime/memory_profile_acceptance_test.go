@@ -67,6 +67,7 @@ type memoryProfileReport struct {
 	RuntimeAfter    memoryRuntimeCounters `json:"runtimeAfter"`
 	KDF             memoryKDFReport       `json:"kdf"`
 	Resident        residentProfile       `json:"resident"`
+	HeapProfiles    []heapProfileMetadata `json:"heapProfiles"`
 	ElapsedMillis   int64                 `json:"elapsedMillis"`
 	started         time.Time
 	residentSampler *residentSampler
@@ -177,6 +178,9 @@ func startMemoryProfile() (*memoryProfileReport, error) {
 
 func (profile *memoryProfileReport) finish(t *testing.T) {
 	t.Helper()
+	if len(profile.HeapProfiles) != 2 {
+		t.Error("heap profile pair incomplete")
+	}
 	resident, err := profile.residentSampler.finish()
 	profile.Resident = resident
 	if err != nil {
