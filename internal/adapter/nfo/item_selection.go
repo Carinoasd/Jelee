@@ -7,6 +7,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 
@@ -18,39 +19,83 @@ import (
 const maxItemDirectoryEntries = 65536
 
 var _ app.NFOItemSelectionReader = (*SummaryReader)(nil)
+var _ app.NFOItemObservationReader = (*SummaryReader)(nil)
 
 type itemCandidateObservation struct {
-	selected, digest       string
-	root, directory, media os.FileInfo
+	selected, digest            string
+	root, directory, media, nfo os.FileInfo
 }
 
 func (r *SummaryReader) SelectItemNFO(ctx context.Context, scope domain.NFOItemScope) (domain.NFOItemSelection, error) {
+	observed, err := r.ObserveItemNFO(ctx, scope)
+	if err != nil {
+		return domain.NFOItemSelection{}, err
+	}
+	return observed.Selection(), nil
+}
+
+type itemNFOObservation struct {
+	reader   *SummaryReader
+	scope    domain.NFOItemScope
+	selected domain.NFOItemSelection
+	physical itemCandidateObservation
+}
+
+func (*itemNFOObservation) String() string   { return "nfo item observation (data redacted)" }
+func (*itemNFOObservation) GoString() string { return "nfo item observation (data redacted)" }
+
+func (o *itemNFOObservation) Selection() domain.NFOItemSelection {
+	value := o.selected
+	value.Fields.Fields = slices.Clone(value.Fields.Fields)
+	value.Fields.LockedFields = slices.Clone(value.Fields.LockedFields)
+	return value
+}
+
+func (o *itemNFOObservation) Recheck(ctx context.Context) (app.NFOItemObservation, error) {
+	observed, err := o.reader.ObserveItemNFO(ctx, o.scope)
+	if err != nil {
+		if errors.Is(err, domain.ErrNFOItemAbsent) {
+			return nil, domain.ErrNFOSourceChanged
+		}
+		return nil, err
+	}
+	fresh := observed.(*itemNFOObservation)
+	if !os.SameFile(o.physical.root, fresh.physical.root) || !os.SameFile(o.physical.directory, fresh.physical.directory) || !sameSourceInfo(o.physical.media, fresh.physical.media) || !sameSourceInfo(o.physical.nfo, fresh.physical.nfo) {
+		return nil, domain.ErrNFOSourceChanged
+	}
+	return fresh, nil
+}
+
+func (r *SummaryReader) ObserveItemNFO(ctx context.Context, scope domain.NFOItemScope) (app.NFOItemObservation, error) {
 	if ctx == nil || !domain.ValidNFOItemScope(scope) {
-		return domain.NFOItemSelection{}, domain.ErrInvalid
+		return nil, domain.ErrInvalid
+	}
+	if r == nil || domain.ValidateNFOIdentity(r.identity) != nil {
+		return nil, domain.ErrNFOReaderUnavailable
 	}
 	first, err := observeItemCandidates(ctx, scope)
 	if err != nil {
-		return domain.NFOItemSelection{}, err
+		return nil, err
 	}
 	if first.selected == "" {
-		return domain.NFOItemSelection{}, domain.ErrNFOItemAbsent
+		return nil, domain.ErrNFOItemAbsent
 	}
 	fields, err := r.ReadItemFields(ctx, domain.NFOSource{RootPath: scope.Source.RootPath, RelativePath: first.selected}, scope.Kind)
 	if err != nil {
-		return domain.NFOItemSelection{}, err
+		return nil, err
 	}
 	last, err := observeItemCandidates(ctx, scope)
 	if err != nil {
-		return domain.NFOItemSelection{}, err
+		return nil, err
 	}
-	if first.selected != last.selected || first.digest != last.digest || !os.SameFile(first.root, last.root) || !os.SameFile(first.directory, last.directory) || !sameSourceInfo(first.media, last.media) {
-		return domain.NFOItemSelection{}, domain.ErrNFOSourceChanged
+	if first.selected != last.selected || first.digest != last.digest || !os.SameFile(first.root, last.root) || !os.SameFile(first.directory, last.directory) || !sameSourceInfo(first.media, last.media) || !sameSourceInfo(first.nfo, last.nfo) || fields.Stamp.Size != last.nfo.Size() || fields.Stamp.ModifiedUnixNano != last.nfo.ModTime().UnixNano() {
+		return nil, domain.ErrNFOSourceChanged
 	}
 	value := domain.NFOItemSelection{RelativePath: last.selected, CandidateDigest: last.digest, Fields: fields}
 	if !domain.ValidNFOItemSelection(scope, value) {
-		return domain.NFOItemSelection{}, domain.ErrNFOReaderUnavailable
+		return nil, domain.ErrNFOReaderUnavailable
 	}
-	return value, nil
+	return &itemNFOObservation{reader: r, scope: scope, selected: value, physical: last}, nil
 }
 
 func observeItemCandidates(ctx context.Context, scope domain.NFOItemScope) (value itemCandidateObservation, resultErr error) {
@@ -179,6 +224,12 @@ func observeItemCandidates(ctx context.Context, scope domain.NFOItemScope) (valu
 		}
 	}
 	value.digest = domain.NFOCandidateDigest(names)
+	if value.selected != "" {
+		value.nfo, err = root.Stat(filepath.FromSlash(value.selected))
+		if err != nil || !validSourceInfo(value.nfo) {
+			return value, domain.ErrNFOSourceChanged
+		}
+	}
 	afterDir, err := directory.Stat(".")
 	if err != nil || !os.SameFile(value.directory, afterDir) || !value.directory.ModTime().Equal(afterDir.ModTime()) {
 		return value, domain.ErrNFOSourceChanged

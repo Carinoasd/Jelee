@@ -1076,3 +1076,13 @@ Windows全Go 29pkg／3160pass事件含父／457測試skip；原435身份一致�
 Windows全Go 29pkg／3178pass事件含父／457testskip，原435與額外21PG＋1outbound身份保持，全部另實測。最終完整PG race 731pass事件含父／0fail／0skip／366.81s。Native Linux五pkg race 1044pass事件含父／0fail／0skip；vet/build、newbrand0/181、gitignore0 PASS，fullbrand14735/186仍FAIL。初次runtimefixture缺所宣告媒體檔而拒503，補實際owned media後通過，沒有放寬來源守衛。來源hash／保護文件／23migrations／links／336／無C#diff通過。詳nfo-item-selection.md與evidence/nfo-item-selection.json。
 
 G39.1／G39.6仍partial，全案4done184partial148blocked／仍第三階段。缺失／invalid仍HTTP503，回退尚未啟用；下一段.testdata/nfo-fallback-next.md接owned observation capsule、跨provider root/parent/media identity與選擇重核、same txn供應商回退／nfo_invalid狀態持久化。現有schema6快取隸屬workerfence/quota/TTL，不直接繞用。其他季／集、包裝、多項目、其他字段、實際inventory/worker/hierarchy、無損readwrite／清外部資料／前端仍缺。原檔及五待授權核心3271行保持，不重問、不绕拒絕。禁止merge/release/tag/newbranch/forcepush/oldmigration/Gitidentityconfig，繁中push同PR46後繼續。
+
+### G14／G39 跨供應商等待的 NFO 實體身分重核
+
+接續d3f48ba92e0f578527697238fef960a54c4b736a，同PR46／同branch，schema23／001–023保持。正式NFOItemObservationReader提供Observe及reader-owned Selection/Recheck，adapter私有物件持scope、root/parent/media/NFO FileInfo及selection，全部handle讀完關閉；Selection複製fields/lockedfields。App以private nfoItemRead把物件帶過provider等待，最終Recheck再核四類os.SameFile/媒體NFOstamp及原candidate/filename/fullhash/identity/fields/locks；最終DB scope/session/rev/gen原子守衛保持。NFO-only HTTP/PG wrapper正式委託Observe/Recheck，保留原aftercall mutation hooks。valid NFO消失回409，first absent仍503。
+
+真TCP HTTP/TLS/NFO/PG四種實體替換：在provider handler將root、parent、media或NFO替換，DBroot path不變，NFO bytes/hash/size/mtime及候選名相同；皆409且rev1/HomeVideo/existing字段不變，零套用audit，owned original bytes備份並復原。停用真正reader跨觀察四類身分比較，完整路徑1leaf fail，root替換被接受200；finally byte復原SHA 72ce2f3a23560393cbfa13451babe09ea7c161323f83dcfec77f2d5a82628c60。完整復原69.342s／1pass0fail0skip，含valid NFO消失、原source選擇／混合來源／manual空值/locks／429/cancel／concurrentmanual／gen/DBroot與120合成writes0fail。
+
+Win全Go 29pkg／3183pass事件含父／457testskip，原435＋21PG身份＋1outbound保持，全部額外另實測。最終PG race 731pass事件含父／0fail0skip／366.203s；Linux原生tmp五pkg race 1049pass事件含父0fail0skip，含四種實檔相同投影／stamp替換與caller isolation。vet/build／newbrand0/181／gitignore0 PASS，full14735/186 FAIL；保護文件／23migrations／五未授權核心／sourcehash／links／336／無C#diff核對。見nfo-item-observation.md/evidence。
+
+仍valid四欄觀察，missing/invalid provider fallback＋狀態保存未接；後續依.testdata/nfo-fallback-next.md擴充owned immutable observation、保存nfo_invalid/missing且同一次transaction套用供應商、permission/unsafe/IO/bound/cancel不得當缺檔、unsupported有效XML/lock-only不得當損壞；之後實際inventory/worker/hierarchy、其他欄位/readwrite/清外部資料/frontend及全部G00–51。全案4done184partial148blocked／third stage，G14/G39未完。觀察非FS原子快照，最後檢查後仍可能變動，阻塞FS非硬性取消。原媒體/NFO/images/授權/五核心3271行保持；未獲具體批次授權不改、不重問、不绕自動review。禁止merge/release/tag/newbranch/forcepush/oldmigration/Gitidentityconfig，繁中push同PR46後接續。

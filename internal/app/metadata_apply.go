@@ -50,7 +50,7 @@ func (m *Metadata) ApplyTMDB(ctx context.Context, actor domain.Actor, item strin
 		return domain.MetadataApplyResult{}, domain.ErrInvalid
 	}
 	var nfoScope domain.NFOItemScope
-	var nfoFields domain.NFOItemSelection
+	var nfoFields nfoItemRead
 	var fusion MetadataNFOFusionRepository
 	if before.NFOMode == domain.NFOModeReadOnly {
 		var ok bool
@@ -119,12 +119,12 @@ func (m *Metadata) ApplyTMDB(ctx context.Context, actor domain.Actor, item strin
 	}
 	var result domain.MetadataApplyResult
 	if fusion != nil {
-		var last domain.NFOItemSelection
+		var last nfoItemRead
 		last, err = m.rereadItemNFO(ctx, nfoScope, nfoFields)
 		if err != nil {
 			return domain.MetadataApplyResult{}, err
 		}
-		result, err = fusion.ApplyTMDBWithNFO(ctx, actor, nfoScope, last.Fields, update)
+		result, err = fusion.ApplyTMDBWithNFO(ctx, actor, nfoScope, last.selected.Fields, update)
 	} else {
 		result, err = repository.ApplyTMDBMetadata(ctx, actor, item, input.ExpectedRevision, update)
 	}

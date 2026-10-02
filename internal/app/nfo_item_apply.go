@@ -47,61 +47,78 @@ func (m *Metadata) ApplyNFO(ctx context.Context, actor domain.Actor, item string
 	if err != nil {
 		return domain.MetadataApplyResult{}, err
 	}
-	result, err := repository.ApplyItemNFO(ctx, actor, scope, last.Fields)
+	result, err := repository.ApplyItemNFO(ctx, actor, scope, last.selected.Fields)
 	return domain.CloneMetadataApplyResult(result), err
 }
 
-func (m *Metadata) readItemNFO(ctx context.Context, actor domain.Actor, item string, expected int64) (domain.NFOItemScope, domain.NFOItemSelection, error) {
+type nfoItemRead struct {
+	selected    domain.NFOItemSelection
+	observation NFOItemObservation
+}
+
+func (m *Metadata) readItemNFO(ctx context.Context, actor domain.Actor, item string, expected int64) (domain.NFOItemScope, nfoItemRead, error) {
 	repository, ok := m.items.(NFOItemScopeRepository)
 	if !ok || m.nfoFields == nil {
-		return domain.NFOItemScope{}, domain.NFOItemSelection{}, domain.ErrMetadataUnavailable
+		return domain.NFOItemScope{}, nfoItemRead{}, domain.ErrMetadataUnavailable
 	}
 	scope, err := repository.ResolveItemNFO(ctx, actor, item, expected)
 	if err != nil {
-		return domain.NFOItemScope{}, domain.NFOItemSelection{}, err
+		return domain.NFOItemScope{}, nfoItemRead{}, err
 	}
 	if !domain.ValidNFOItemScope(scope) || scope.ItemID != item || scope.Revision != expected {
-		return domain.NFOItemScope{}, domain.NFOItemSelection{}, domain.ErrMetadataUnavailable
+		return domain.NFOItemScope{}, nfoItemRead{}, domain.ErrMetadataUnavailable
 	}
 	selected, err := m.selectItemNFO(ctx, scope)
 	if err != nil {
-		return domain.NFOItemScope{}, domain.NFOItemSelection{}, nfoItemError(ctx, err)
+		return domain.NFOItemScope{}, nfoItemRead{}, nfoItemError(ctx, err)
 	}
 	return scope, selected, nil
 }
 
-func (m *Metadata) selectItemNFO(ctx context.Context, scope domain.NFOItemScope) (domain.NFOItemSelection, error) {
-	var selected domain.NFOItemSelection
+func (m *Metadata) selectItemNFO(ctx context.Context, scope domain.NFOItemScope) (nfoItemRead, error) {
+	var value nfoItemRead
 	var err error
-	if reader, ok := m.nfoFields.(NFOItemSelectionReader); ok {
-		selected, err = reader.SelectItemNFO(ctx, scope)
+	if reader, ok := m.nfoFields.(NFOItemObservationReader); ok {
+		value.observation, err = reader.ObserveItemNFO(ctx, scope)
+		if err == nil && value.observation != nil {
+			value.selected = value.observation.Selection()
+		}
+	} else if reader, ok := m.nfoFields.(NFOItemSelectionReader); ok {
+		value.selected, err = reader.SelectItemNFO(ctx, scope)
 	} else {
-		// Older internal readers retain their explicit adjacent-file contract.
-		selected.Fields, err = m.nfoFields.ReadItemFields(ctx, scope.Source, scope.Kind)
-		selected.RelativePath = scope.Source.RelativePath
-		selected.CandidateDigest = domain.NFOCandidateDigest([]string{selected.RelativePath})
+		value.selected.Fields, err = m.nfoFields.ReadItemFields(ctx, scope.Source, scope.Kind)
+		value.selected.RelativePath = scope.Source.RelativePath
+		value.selected.CandidateDigest = domain.NFOCandidateDigest([]string{value.selected.RelativePath})
 	}
 	if err != nil {
-		return domain.NFOItemSelection{}, err
+		return nfoItemRead{}, err
 	}
-	if !domain.ValidNFOItemSelection(scope, selected) || !validNFOForScope(scope, selected.Fields) {
-		return domain.NFOItemSelection{}, domain.ErrMetadataUnavailable
+	if !domain.ValidNFOItemSelection(scope, value.selected) || !validNFOForScope(scope, value.selected.Fields) {
+		return nfoItemRead{}, domain.ErrMetadataUnavailable
 	}
-	return selected, nil
+	return value, nil
 }
 
-func (m *Metadata) rereadItemNFO(ctx context.Context, scope domain.NFOItemScope, first domain.NFOItemSelection) (domain.NFOItemSelection, error) {
-	// Recheck selection as well as full bytes: a higher-priority name may appear
-	// during provider lookup. These checkpoints are not a filesystem snapshot.
-	last, err := m.selectItemNFO(ctx, scope)
-	if err != nil {
-		return domain.NFOItemSelection{}, nfoItemError(ctx, err)
+func (m *Metadata) rereadItemNFO(ctx context.Context, scope domain.NFOItemScope, first nfoItemRead) (nfoItemRead, error) {
+	var last nfoItemRead
+	var err error
+	if first.observation != nil {
+		last.observation, err = first.observation.Recheck(ctx)
+		if err == nil && last.observation != nil {
+			last.selected = last.observation.Selection()
+		}
+	} else {
+		last, err = m.selectItemNFO(ctx, scope)
 	}
-	if first.RelativePath != last.RelativePath || first.CandidateDigest != last.CandidateDigest || first.Fields.Stamp != last.Fields.Stamp || first.Fields.Identity != last.Fields.Identity || first.Fields.LockData != last.Fields.LockData || !slices.Equal(first.Fields.Fields, last.Fields.Fields) || !slices.Equal(first.Fields.LockedFields, last.Fields.LockedFields) {
-		return domain.NFOItemSelection{}, domain.ErrConflict
+	if err != nil {
+		return nfoItemRead{}, nfoItemError(ctx, err)
+	}
+	a, b := first.selected, last.selected
+	if !domain.ValidNFOItemSelection(scope, b) || !validNFOForScope(scope, b.Fields) || a.RelativePath != b.RelativePath || a.CandidateDigest != b.CandidateDigest || a.Fields.Stamp != b.Fields.Stamp || a.Fields.Identity != b.Fields.Identity || a.Fields.LockData != b.Fields.LockData || !slices.Equal(a.Fields.Fields, b.Fields.Fields) || !slices.Equal(a.Fields.LockedFields, b.Fields.LockedFields) {
+		return nfoItemRead{}, domain.ErrConflict
 	}
 	if err := ctx.Err(); err != nil {
-		return domain.NFOItemSelection{}, err
+		return nfoItemRead{}, err
 	}
 	return last, nil
 }

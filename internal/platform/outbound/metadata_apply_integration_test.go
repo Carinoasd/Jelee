@@ -473,6 +473,117 @@ func TestTMDBMetadataThroughTLSHTTPAndPostgres(t *testing.T) {
 		t.Fatal("ambiguous NFO original changed", err)
 	}
 	t.Log("actual HTTP/TLS/NFO/PostgreSQL selection: specific and conventional movie/tvshow names, case folding, higher-priority appearance, secondary candidate change, ambiguous names denied before provider PASS")
+	for offset, mode := range []string{"root", "parent", "media", "nfo"} {
+		name := "identity-" + mode
+		if mode == "parent" {
+			name = "identity-parent/film"
+			if err := os.Mkdir(filepath.Join(rootPath, "identity-parent"), 0700); err != nil {
+				t.Fatal(err)
+			}
+		}
+		item, nfoFile := newNFOItem(name, "HomeVideo", document)
+		mediaFile := filepath.Join(rootPath, name+".mkv")
+		nfoInfo, err := os.Stat(nfoFile)
+		if err != nil {
+			t.Fatal(err)
+		}
+		mediaInfo, err := os.Stat(mediaFile)
+		if err != nil {
+			t.Fatal(err)
+		}
+		backup := filepath.Join(t.TempDir(), "backup")
+		target := rootPath
+		switch mode {
+		case "parent":
+			target = filepath.Dir(nfoFile)
+		case "media":
+			target = mediaFile
+		case "nfo":
+			target = nfoFile
+		}
+		var moved atomic.Bool
+		restore := func() {
+			if moved.Swap(false) {
+				// target was created solely by this owned fixture replacement.
+				if err := os.RemoveAll(target); err != nil {
+					t.Error(err)
+				}
+				if err := os.Rename(backup, target); err != nil {
+					t.Error(err)
+				}
+			}
+		}
+		t.Cleanup(restore)
+		providerID := 4820 + offset
+		providerActions.Store(providerID, func() {
+			if err := os.Rename(target, backup); err != nil {
+				t.Error(err)
+				return
+			}
+			moved.Store(true)
+			if mode == "root" || mode == "parent" {
+				if err := os.MkdirAll(filepath.Dir(nfoFile), 0700); err != nil {
+					t.Error(err)
+					return
+				}
+			}
+			if mode != "media" {
+				if err := os.WriteFile(nfoFile, []byte(document), 0600); err != nil {
+					t.Error(err)
+					return
+				}
+				if err := os.Chtimes(nfoFile, nfoInfo.ModTime(), nfoInfo.ModTime()); err != nil {
+					t.Error(err)
+					return
+				}
+			}
+			if mode != "nfo" {
+				if err := os.WriteFile(mediaFile, []byte("original media fixture"), 0600); err != nil {
+					t.Error(err)
+					return
+				}
+				if err := os.Chtimes(mediaFile, mediaInfo.ModTime(), mediaInfo.ModTime()); err != nil {
+					t.Error(err)
+				}
+			}
+		})
+		response := apply(item, "movie", providerID, 1)
+		restore()
+		if response.status != 409 {
+			t.Fatal("physical NFO ownership replacement committed", mode, response.status)
+		}
+		if value, err := store.ItemMetadata(ctx, actor, item); err != nil || value.Revision != 1 || value.Kind != "HomeVideo" || value.Fields[0].Source != "existing" {
+			t.Fatal("physical ownership conflict left partial metadata", mode, err)
+		}
+		var count int
+		if err := store.Pool.QueryRow(ctx, `SELECT count(*) FROM audit_logs WHERE target_id=$1::uuid AND event IN ('item.tmdb_metadata_applied','item.nfo_metadata_applied')`, item).Scan(&count); err != nil || count != 0 {
+			t.Fatal("physical ownership conflict left audit", mode, count, err)
+		}
+		if original, err := os.ReadFile(nfoFile); err != nil || string(original) != document {
+			t.Fatal("original NFO did not survive owned replacement fixture", mode, err)
+		}
+		if original, err := os.ReadFile(mediaFile); err != nil || string(original) != "original media fixture" {
+			t.Fatal("original media did not survive owned replacement fixture", mode, err)
+		}
+	}
+	disappearing, disappearingFile := newNFOItem("identity-disappearing", "HomeVideo", document)
+	disappearingBackup := filepath.Join(t.TempDir(), "original.nfo")
+	providerActions.Store(4824, func() {
+		if err := os.Rename(disappearingFile, disappearingBackup); err != nil {
+			t.Error(err)
+		}
+	})
+	disappearance := apply(disappearing, "movie", 4824, 1)
+	if err := os.Rename(disappearingBackup, disappearingFile); err != nil {
+		t.Fatal(err)
+	}
+	if disappearance.status != 409 {
+		t.Fatal("valid NFO disappearance did not conflict", disappearance.status)
+	}
+	if value, err := store.ItemMetadata(ctx, actor, disappearing); err != nil || value.Revision != 1 || value.Kind != "HomeVideo" {
+		t.Fatal("NFO disappearance left partial update", err)
+	}
+	t.Log("actual HTTP/TLS/NFO/PostgreSQL physical ownership: root, parent, media and NFO replaced with same bytes/size/mtime; 409, unchanged revision/kind/fields and zero audits PASS")
 	fused, fusedFile := newNFOItem("fusion", "HomeVideo", document)
 	if response := request("PUT", "/api/v1/items/"+fused+"/metadata", `{"expectedRevision":1,"fields":[{"field":"overview","value":""}]}`); response.status != 200 {
 		t.Fatal("fusion manual clear", response.status)

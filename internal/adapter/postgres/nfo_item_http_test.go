@@ -45,6 +45,36 @@ func (r *observedNFOItemReader) SelectItemNFO(ctx context.Context, scope domain.
 	return value, err
 }
 
+type observedNFOItemObservation struct {
+	owner  *observedNFOItemReader
+	actual app.NFOItemObservation
+}
+
+func (r *observedNFOItemReader) ObserveItemNFO(ctx context.Context, scope domain.NFOItemScope) (app.NFOItemObservation, error) {
+	actual, err := r.reader.(app.NFOItemObservationReader).ObserveItemNFO(ctx, scope)
+	r.calls++
+	if r.after != nil {
+		r.after(r.calls)
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &observedNFOItemObservation{owner: r, actual: actual}, nil
+}
+
+func (o *observedNFOItemObservation) Selection() domain.NFOItemSelection { return o.actual.Selection() }
+func (o *observedNFOItemObservation) Recheck(ctx context.Context) (app.NFOItemObservation, error) {
+	actual, err := o.actual.Recheck(ctx)
+	o.owner.calls++
+	if o.owner.after != nil {
+		o.owner.after(o.owner.calls)
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &observedNFOItemObservation{owner: o.owner, actual: actual}, nil
+}
+
 func TestNFOItemActualFilesHTTPAndPostgres(t *testing.T) {
 	f, scope, _ := nfoItemApplyFixture(t)
 	data := []byte(`<movie><title>NFO title</title><originaltitle>Original NFO</originaltitle><plot>NFO overview</plot><premiered>2024-02-29</premiered><lockedfields>Name</lockedfields></movie>`)

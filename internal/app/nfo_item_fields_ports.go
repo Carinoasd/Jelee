@@ -17,6 +17,17 @@ type NFOItemSelectionReader interface {
 	SelectItemNFO(context.Context, domain.NFOItemScope) (domain.NFOItemSelection, error)
 }
 
+// A reader-owned observation retains filesystem identity without holding file
+// handles across provider requests. Returned selections belong to the caller.
+type NFOItemObservation interface {
+	Selection() domain.NFOItemSelection
+	Recheck(context.Context) (NFOItemObservation, error)
+}
+
+type NFOItemObservationReader interface {
+	ObserveItemNFO(context.Context, domain.NFOItemScope) (NFOItemObservation, error)
+}
+
 type NFOItemScopeRepository interface {
 	ResolveItemNFO(context.Context, domain.Actor, string, int64) (domain.NFOItemScope, error)
 }
