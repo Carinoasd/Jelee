@@ -53,3 +53,7 @@ PUT 相同資料且來源條件仍有效時回傳相同 ID，不新增條目或�
 | 最終TLS與OpenAPI | 1 | 1 | 0 |
 
 見[API驗收證據](evidence/inventory-api.json)。Windows略過項不能視為本輪PG通過項；本輪原生專項無略過。
+
+## 多筆確認
+
+需要一次處理多筆時，可用[持久批次匯入任務](catalog-import-jobs.md)，每批最多100筆，提供進度、取消與中斷恢復。

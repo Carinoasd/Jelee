@@ -46,6 +46,33 @@ func (s *Server) jobRoutes(router chi.Router) {
 			return j, 200, err
 		}))
 		r.Get("/api/v1/jobs/{id}/entries", s.accountEndpoint(true, true, s.listJobEntries))
+		r.Post("/api/v1/jobs/{id}/imports", s.accountEndpoint(true, false, func(w http.ResponseWriter, r *http.Request, actor domain.Actor) (any, int, error) {
+			var input struct {
+				Priority string                          `json:"priority"`
+				Items    []domain.CatalogImportSelection `json:"items"`
+			}
+			if err := DecodeJSON(w, r, &input, accountBodyLimit); err != nil {
+				return nil, 0, err
+			}
+			if input.Priority == "" {
+				input.Priority = domain.JobPriorityManual
+			}
+			for i := range input.Items {
+				if input.Items[i].Kind == "" {
+					input.Items[i].Kind = "HomeVideo"
+				}
+			}
+			key, err := jobKey(r)
+			if err != nil {
+				return nil, 0, err
+			}
+			job, replay, err := s.jobs.SubmitCatalogImport(r.Context(), actor, chi.URLParam(r, "id"), key, input.Priority, input.Items)
+			return acceptedJob(w, job, replay, err)
+		}))
+		r.Get("/api/v1/jobs/{id}/imports", s.accountEndpoint(true, false, func(_ http.ResponseWriter, r *http.Request, actor domain.Actor) (any, int, error) {
+			value, err := s.jobs.CatalogImportReport(r.Context(), actor, chi.URLParam(r, "id"))
+			return value, 200, err
+		}))
 		r.Put("/api/v1/jobs/{id}/entries/{entry}/item", s.accountEndpoint(true, false, func(w http.ResponseWriter, r *http.Request, actor domain.Actor) (any, int, error) {
 			var input domain.InventoryImportInput
 			if err := DecodeJSON(w, r, &input, accountBodyLimit); err != nil {

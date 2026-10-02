@@ -26,6 +26,9 @@ func (r *Runner) execute(ctx context.Context, l domain.JobLease) (result error, 
 			result, storage = domain.ErrScanIO, false
 		}
 	}()
+	if l.Job.Kind == domain.JobCatalogImport {
+		return r.executeCatalogImport(ctx, l)
+	}
 	repository, ok := r.repository.(app.IgnoreExecutionRepository)
 	if !ok {
 		return r.executeStages(ctx, l, false)
@@ -234,6 +237,12 @@ func (r *Runner) executeIgnoreInventory(ctx context.Context, l domain.JobLease, 
 // finishJob keeps failure/cancellation on the existing terminal path and routes
 // enabled success through the repository's verification seal and protected merge.
 func (r *Runner) finishJob(ctx context.Context, l domain.JobLease, state, code string) error {
+	if l.Job.Kind == domain.JobCatalogImport {
+		if r.options.CatalogImport == nil {
+			return domain.ErrInvalid
+		}
+		return r.options.CatalogImport.Repository.FinishCatalogImport(ctx, l, state, code)
+	}
 	if state == domain.JobSucceeded {
 		if repo, ok := r.repository.(app.IgnoreExecutionRepository); ok {
 			request, err := func() (*domain.IgnoreRequest, error) {

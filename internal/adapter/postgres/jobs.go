@@ -81,7 +81,7 @@ func trimJobs(ctx context.Context, tx pgx.Tx, limit int) error {
 	if _, err := releaseExpiredProbeLeases(ctx, tx, domain.ProbeSweepMax); err != nil {
 		return err
 	}
-	_, err := tx.Exec(ctx, `DELETE FROM jobs WHERE id IN (SELECT id FROM jobs WHERE state IN ('succeeded','failed','cancelled') ORDER BY finished_at DESC,id DESC OFFSET $1)`, limit)
+	_, err := tx.Exec(ctx, `DELETE FROM jobs WHERE id IN (SELECT id FROM jobs WHERE state IN ('succeeded','failed','cancelled') AND NOT EXISTS(SELECT 1 FROM catalog_import_requests r JOIN jobs active ON active.id=r.job_id WHERE r.source_job_id=jobs.id AND active.state IN ('queued','running')) ORDER BY finished_at DESC,id DESC OFFSET $1)`, limit)
 	return storageError(err)
 }
 

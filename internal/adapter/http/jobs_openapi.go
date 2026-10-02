@@ -6,6 +6,9 @@ func jobSpecification(paths, schemas map[string]any) {
 	uuid := map[string]any{"type": "string", "format": "uuid"}
 	schemas["InventoryImportInput"] = objectSchema(map[string]any{"title": stringSchema(1024), "kind": map[string]any{"type": "string", "enum": []string{"HomeVideo", "Movie", "Episode"}, "default": "HomeVideo"}, "parentId": uuid}, "title")
 	schemas["InventoryImportResult"] = objectSchema(map[string]any{"itemId": uuid, "sourceId": uuid}, "itemId", "sourceId")
+	schemas["CatalogImportSelection"] = objectSchema(map[string]any{"entryId": uuid, "title": stringSchema(1024), "kind": map[string]any{"type": "string", "enum": []string{"HomeVideo", "Movie", "Episode"}, "default": "HomeVideo"}, "parentId": uuid}, "entryId", "title")
+	schemas["CatalogImportRequest"] = objectSchema(map[string]any{"priority": map[string]any{"type": "string", "enum": []string{"manual", "background"}, "default": "manual"}, "items": map[string]any{"type": "array", "minItems": 1, "maxItems": 100, "items": schemaRef("CatalogImportSelection")}}, "items")
+	schemas["CatalogImportReport"] = objectSchema(map[string]any{"jobId": uuid, "total": map[string]any{"type": "integer", "minimum": 1, "maximum": 100}, "completed": map[string]any{"type": "integer", "minimum": 0, "maximum": 100}, "entries": map[string]any{"type": "array", "minItems": 1, "maxItems": 100, "items": objectSchema(map[string]any{"entryId": uuid, "completed": map[string]any{"type": "boolean"}, "itemId": uuid, "sourceId": uuid}, "entryId", "completed")}}, "jobId", "total", "completed", "entries")
 	count := map[string]any{"type": "integer", "format": "int64", "minimum": 0}
 	instant := map[string]any{"type": "string", "format": "date-time"}
 	state := map[string]any{"type": "string", "enum": []string{"queued", "running", "succeeded", "failed", "cancelled"}}
@@ -13,7 +16,7 @@ func jobSpecification(paths, schemas map[string]any) {
 	schemas["ScanRequest"] = objectSchema(map[string]any{"priority": priority, "probe": map[string]any{"type": "boolean", "default": false, "description": "Opt in to isolated metadata probing after inventory. New probe jobs require an available capability. An identical retained replay can return its original job while probing is disabled or unavailable."}})
 	schemas["ProbeRebuildRequest"] = objectSchema(map[string]any{"priority": priority})
 	schemas["ProbeJobSummary"] = objectSchema(map[string]any{"jobId": uuid, "libraryId": uuid, "enabled": map[string]any{"type": "boolean"}, "scope": map[string]any{"type": "string", "enum": []string{"incremental", "library_rebuild", "item_rebuild"}}, "targetItemId": uuid, "phase": map[string]any{"type": "string", "enum": []string{"disabled", "waiting_scan", "running", "done", "aborted", "cancelled"}}, "processed": count, "hits": count, "negativeHits": count, "succeeded": count, "failed": count, "changed": count, "unavailable": count, "errorCode": stringSchema(64)}, "jobId", "libraryId", "enabled", "phase", "processed", "hits", "negativeHits", "succeeded", "failed", "changed", "unavailable")
-	schemas["Job"] = objectSchema(map[string]any{"id": uuid, "libraryId": uuid, "kind": map[string]any{"type": "string", "const": "inventory_scan"}, "state": state, "priority": priority, "attempts": count, "cancelRequested": map[string]any{"type": "boolean"}, "files": count, "directories": count, "skipped": count, "bytes": count, "missing": count, "reviewRequired": map[string]any{"type": "boolean"}, "errorCode": stringSchema(64), "createdAt": instant, "startedAt": instant, "finishedAt": instant}, "id", "libraryId", "kind", "state", "priority", "attempts", "cancelRequested", "files", "directories", "skipped", "bytes", "missing", "reviewRequired", "createdAt")
+	schemas["Job"] = objectSchema(map[string]any{"id": uuid, "libraryId": uuid, "kind": map[string]any{"type": "string", "enum": []string{"inventory_scan", "catalog_import"}}, "state": state, "priority": priority, "attempts": count, "cancelRequested": map[string]any{"type": "boolean"}, "files": count, "directories": count, "skipped": count, "bytes": count, "missing": count, "reviewRequired": map[string]any{"type": "boolean"}, "errorCode": stringSchema(64), "createdAt": instant, "startedAt": instant, "finishedAt": instant}, "id", "libraryId", "kind", "state", "priority", "attempts", "cancelRequested", "files", "directories", "skipped", "bytes", "missing", "reviewRequired", "createdAt")
 	schemas["InventoryEntry"] = objectSchema(map[string]any{"id": uuid, "rootId": uuid, "path": stringSchema(1024), "kind": map[string]any{"type": "string", "enum": []string{"video", "nfo", "image", "other"}}, "size": count, "modifiedUnixNano": map[string]any{"type": "integer", "format": "int64"}}, "id", "rootId", "path", "kind", "size", "modifiedUnixNano")
 	schemas["LibrarySummary"] = objectSchema(map[string]any{"id": uuid, "name": stringSchema(128), "roots": count}, "id", "name", "roots")
 	pagination := objectSchema(map[string]any{"nextCursor": map[string]any{"type": "string"}, "limit": map[string]any{"type": "integer", "minimum": 1, "maximum": 100}}, "nextCursor", "limit")
@@ -31,6 +34,8 @@ func jobSpecification(paths, schemas map[string]any) {
 		{"/jobs/{id}/probe", "get", "Read committed probe counters without paths, tool identities or raw metadata; totals and ETA remain unknown", "", "ProbeJobSummary", false, false},
 		{"/jobs", "get", "List retained jobs by UUID cursor", "", "JobPage", true, false},
 		{"/jobs/{id}", "get", "Read job progress; total work and ETA remain unknown", "", "Job", false, false},
+		{"/jobs/{id}/imports", "post", "Queue 1 to 100 explicitly selected video candidates from a completed scan; successful entries persist across interruption", "CatalogImportRequest", "Job", false, true},
+		{"/jobs/{id}/imports", "get", "Read bounded durable catalog import progress and completed item IDs", "", "CatalogImportReport", false, false},
 		{"/jobs/{id}/entries", "get", "List observed inventory; partial runs never authorize deletion", "", "InventoryPage", true, false},
 		{"/jobs/{id}/entries/{entry}/item", "put", "Import a current accepted video candidate after file verification; identical existing values return the same item without rewriting metadata", "InventoryImportInput", "InventoryImportResult", false, false},
 		{"/jobs/{id}/cancel", "post", "Persist cancellation; running work stops at its next checkpoint or heartbeat", "Empty", "Job", false, false},
@@ -70,6 +75,14 @@ func jobSpecification(paths, schemas map[string]any) {
 		if route.key {
 			op["responses"].(map[string]any)["202"] = response
 		}
-		paths["/api/v1"+route.path] = map[string]any{route.method: op}
+		if route.body == "CatalogImportRequest" {
+			op["description"] = "Administrator confirmation of bounded candidate selections. Idempotency replay compares retained intent. Cancellation or failure preserves completed entries; originals are unchanged."
+		}
+		operations, ok := paths["/api/v1"+route.path].(map[string]any)
+		if !ok {
+			operations = map[string]any{}
+			paths["/api/v1"+route.path] = operations
+		}
+		operations[route.method] = op
 	}
 }

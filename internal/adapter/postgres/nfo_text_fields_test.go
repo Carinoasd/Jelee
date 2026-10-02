@@ -30,6 +30,7 @@ func TestNFOTextTaglinePersistsWithIndependentLock(t *testing.T) {
 
 func TestNFOExtendedTextMigrationRollbackAndManualTakeover(t *testing.T) {
 	f, scope, fields := nfoItemApplyFixture(t)
+	nfoMigrateVersion(t, f, "down", 39)
 	nfoMigrateVersion(t, f, "down", 38)
 	nfoMigrateVersion(t, f, "down", 37)
 	nfoMigrateVersion(t, f, "down", 36)

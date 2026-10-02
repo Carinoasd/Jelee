@@ -76,6 +76,9 @@ func TestInventoryImportActualTLS(t *testing.T) {
 		}
 		r.Host = "localhost"
 		r.Header.Set("Content-Type", "application/json")
+		if method == "POST" {
+			r.Header.Set("Idempotency-Key", "tls-catalog-batch")
+		}
 		if token != "" {
 			r.Header.Set("Authorization", "Bearer "+token)
 		}
@@ -133,6 +136,31 @@ func TestInventoryImportActualTLS(t *testing.T) {
 	var count int
 	if err := f.s.Pool.QueryRow(f.ctx, `SELECT count(*) FROM audit_logs WHERE event='inventory.imported'`).Scan(&count); err != nil || count != 1 {
 		t.Fatal("PUT repeat added audit", count, err)
+	}
+	batchPath := "/api/v1/jobs/" + job.ID + "/imports"
+	batchPayload := `{"items":[{"entryId":"` + entries[0].ID + `","title":"Scanned film","kind":"Movie"}]}`
+	if status, _ := request("POST", batchPath, batchPayload, viewer.Token); status != 403 {
+		t.Fatal("non-admin queued import", status)
+	}
+	status, body = request("POST", batchPath, batchPayload, grant.Token)
+	var batch struct {
+		Data domain.Job `json:"data"`
+	}
+	if status != 202 || json.Unmarshal(body, &batch) != nil || batch.Data.Kind != domain.JobCatalogImport {
+		t.Fatal("TLS batch admission", status, string(body))
+	}
+	if status, _ := request("POST", batchPath, batchPayload, grant.Token); status != 200 {
+		t.Fatal("TLS batch replay", status)
+	}
+	if terminal := runCatalogWorker(t, f, batch.Data.ID); terminal.State != domain.JobSucceeded {
+		t.Fatal("TLS batch worker failed", terminal.ErrorCode)
+	}
+	status, body = request("GET", "/api/v1/jobs/"+batch.Data.ID+"/imports", "", grant.Token)
+	var report struct {
+		Data domain.CatalogImportReport `json:"data"`
+	}
+	if status != 200 || json.Unmarshal(body, &report) != nil || report.Data.Completed != 1 || report.Data.Entries[0].ItemID != first.ItemID {
+		t.Fatal("TLS batch report", status, string(body))
 	}
 	if _, err := f.s.Pool.Exec(f.ctx, `UPDATE sessions SET revoked_at=clock_timestamp() WHERE id=$1`, grant.Session.ID); err != nil {
 		t.Fatal(err)

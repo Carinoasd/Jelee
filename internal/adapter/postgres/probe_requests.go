@@ -90,6 +90,9 @@ func (s *Store) submitScanJobWithIgnoreFamilies(parentContext context.Context, a
 	}
 	old, err := scanJob(tx.QueryRow(ctx, `SELECT `+jobColumns+` FROM jobs WHERE actor_id=$1::uuid AND idempotency_key=$2`, a.UserID, key))
 	if err == nil {
+		if old.Kind != "inventory_scan" {
+			return domain.Job{}, false, domain.ErrConflict
+		}
 		var originalParent string
 		if err = tx.QueryRow(ctx, `SELECT COALESCE(parent_id::text,'') FROM jobs WHERE id=$1::uuid`, old.ID).Scan(&originalParent); err != nil {
 			return domain.Job{}, false, storageError(err)
@@ -142,6 +145,9 @@ func (s *Store) submitScanJobWithIgnoreFamilies(parentContext context.Context, a
 		old, err = scanJob(tx.QueryRow(ctx, `SELECT `+jobColumns+` FROM jobs WHERE id=$1::uuid`, parent))
 		if err != nil {
 			return domain.Job{}, false, err
+		}
+		if old.Kind != "inventory_scan" {
+			return domain.Job{}, false, domain.ErrInvalid
 		}
 		if old.State != domain.JobFailed && old.State != domain.JobCancelled {
 			return domain.Job{}, false, domain.ErrConflict

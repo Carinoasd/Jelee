@@ -43,6 +43,18 @@ func (s *Store) PutInventoryVideo(ctx context.Context, actor domain.Actor, expec
 	if current != expected {
 		return domain.InventoryImportResult{}, domain.ErrConflict
 	}
+	result, err := putInventoryImport(ctx, tx, current, input, actor)
+	if err != nil {
+		return domain.InventoryImportResult{}, err
+	}
+	if err = probeAdminStillLive(ctx, tx, actor); err != nil {
+		return domain.InventoryImportResult{}, err
+	}
+	return result, storageError(tx.Commit(ctx))
+}
+
+func putInventoryImport(ctx context.Context, tx pgx.Tx, current domain.InventoryImportSource, input domain.InventoryImportInput, actor domain.Actor) (domain.InventoryImportResult, error) {
+	var err error
 	var result domain.InventoryImportResult
 	var existing domain.InventoryImportInput
 	err = tx.QueryRow(ctx, `SELECT i.id::text,s.id::text,i.title,i.kind,COALESCE(p.parent_id::text,'') FROM media_sources s JOIN items i ON i.id=s.item_id AND i.library_id=s.library_id LEFT JOIN item_parent_links p ON p.item_id=i.id WHERE s.root_id=$1::uuid AND s.relative_path=$2 FOR UPDATE OF i,s`, current.RootID, current.Path).Scan(&result.ItemID, &result.SourceID, &existing.Title, &existing.Kind, &existing.ParentID)
@@ -58,8 +70,5 @@ func (s *Store) PutInventoryVideo(ctx context.Context, actor domain.Actor, expec
 	} else {
 		return domain.InventoryImportResult{}, storageError(err)
 	}
-	if err = probeAdminStillLive(ctx, tx, actor); err != nil {
-		return domain.InventoryImportResult{}, err
-	}
-	return result, storageError(tx.Commit(ctx))
+	return result, nil
 }

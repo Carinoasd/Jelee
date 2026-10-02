@@ -291,3 +291,19 @@ Windows 29套件／3312通過事件（含父測試）／536略過；Linux CLI與
 vet、產品建置、增量品牌、gitignore通過；全量品牌與既有ABI仍未解決。本段未重跑完整PG套件，採相關Store／app／CLI／真實TLS整合；78份已發布SQL不改。
 
 [契約](inventory-import.md)／[證據](evidence/inventory-api.json)。仍第三階段，336項4完成184部分148阻塞。下一段批次匯入；全庫自動辨識、監看與排程等未完成。以下為歷史紀錄。
+
+## 最新接續：持久批次影片匯入已驗收
+
+schema40新增catalog_import持久任務與1至100筆明確選取。逐筆檔案核對、item／source／audit與進度同交易；取消保留已提交前綴，owner更換後接續，舊租約不能寫入；活動來源不被歷史清理。相同意圖重播、既有相同條目不重複寫入，原檔不變。
+
+| 驗證 | 套件 | 通過事件（含父測試） | 略過 |
+| --- | ---: | ---: | ---: |
+| Windows全套 | 29 | 3314 | 550 |
+| Linux race | 7 | 1321 | 0 |
+| 完整PostgreSQL race | 1 | 901 | 0 |
+| 原生worker | 1 | 11 | 0 |
+| 完整HTTP／TLS／PG | 1 | 1 | 0 |
+
+全部本地驗證已結束，61份Go／SQL的凍結雜湊已核對。vet、產品建置、增量品牌及gitignore通過；全量品牌仍14735项，既有ABI差異未解決。001–039共78份SQL保持，schema40有資料時拒絕降版。
+
+[契約](catalog-import-jobs.md)／[證據](evidence/catalog-import-jobs.json)。仍第三階段，336項4完成184部分148阻塞。下一段回到原計畫3D的監看、排程與規模驗收；全庫自動辨識與前端等另列未完成。維持同分支繁中PR46，不merge／release／tag／force-push／設定Git身分。以下是歷史紀錄。

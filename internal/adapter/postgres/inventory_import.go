@@ -33,11 +33,11 @@ func readInventoryImport(ctx context.Context, tx pgx.Tx, job, entry string) (dom
  JOIN libraries l ON l.id=j.library_id
  JOIN library_roots r ON r.id=i.root_id AND r.library_id=j.library_id
  JOIN library_inventory_baseline b ON b.library_id=j.library_id AND b.root_id=i.root_id AND b.path=i.path
- WHERE j.id=$1::uuid AND i.id=$2::uuid AND j.state='succeeded' AND NOT j.review_required AND NOT j.cancel_requested
+ WHERE j.id=$1::uuid AND i.id=$2::uuid AND j.kind='inventory_scan' AND j.state='succeeded' AND NOT j.review_required AND NOT j.cancel_requested
  AND j.inventory_generation=l.inventory_generation AND i.kind='video' AND b.attributes_known AND b.kind=i.kind
  AND b.size=i.size AND b.modified_unix_nano=i.modified_unix_nano AND b.inventory_generation=l.inventory_generation
  AND b.observed_revision=l.inventory_baseline_revision
- AND NOT EXISTS(SELECT 1 FROM jobs newer WHERE newer.library_id=j.library_id AND (newer.created_at,newer.id)>(j.created_at,j.id))
+ AND NOT EXISTS(SELECT 1 FROM jobs newer WHERE newer.library_id=j.library_id AND newer.kind='inventory_scan' AND (newer.created_at,newer.id)>(j.created_at,j.id))
  FOR UPDATE OF j,i,l,r,b`, job, entry).Scan(&value.JobID, &value.EntryID, &value.LibraryID, &value.RootID, &value.RootPath, &value.Path, &value.Size, &value.ModifiedUnixNano, &value.Generation, &value.BaselineRevision)
 	if err != nil {
 		return domain.InventoryImportSource{}, storageError(err)

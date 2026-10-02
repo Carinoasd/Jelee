@@ -31,6 +31,7 @@ func (realClock) NewTimer(d time.Duration) Timer { return realTimer{time.NewTime
 func (t realTimer) C() <-chan time.Time          { return t.Timer.C }
 
 type Options struct {
+	CatalogImport      *CatalogImportOptions
 	Ignore             *IgnoreOptions
 	FamilyIgnore       *FamilyIgnoreOptions
 	Workers            int
@@ -94,6 +95,13 @@ func New(repository app.JobExecutionRepository, scanner app.InventoryScanner, op
 	}
 	if opts.Clock == nil {
 		opts.Clock = realClock{}
+	}
+	if opts.CatalogImport != nil {
+		if _, ok := repository.(stagesClaimer); !ok || opts.CatalogImport.Repository == nil || opts.CatalogImport.Verifier == nil {
+			return nil, domain.ErrInvalid
+		}
+		value := *opts.CatalogImport
+		opts.CatalogImport = &value
 	}
 	if opts.Ignore != nil {
 		if _, ok := repository.(app.IgnoreExecutionRepository); !ok {
@@ -195,9 +203,9 @@ func (r *Runner) work(ctx context.Context) {
 		var lease domain.JobLease
 		var err error
 		if r.nfoRepository != nil {
-			lease, err = r.nfoRepository.ClaimJobWithCapabilities(dbCtx, r.options.Owner, turn%4 == 3, r.options.LeaseDuration, domain.ScanCapabilities{Probe: r.probeAvailable(), NFO: r.nfoAvailable(), Ignore: r.options.Ignore != nil, FamilyIgnore: r.familyIgnoreAvailable()})
+			lease, err = r.nfoRepository.ClaimJobWithCapabilities(dbCtx, r.options.Owner, turn%4 == 3, r.options.LeaseDuration, domain.ScanCapabilities{CatalogImport: r.options.CatalogImport != nil, Probe: r.probeAvailable(), NFO: r.nfoAvailable(), Ignore: r.options.Ignore != nil, FamilyIgnore: r.familyIgnoreAvailable()})
 		} else if capable, ok := r.repository.(stagesClaimer); ok {
-			lease, err = capable.ClaimJobWithCapabilities(dbCtx, r.options.Owner, turn%4 == 3, r.options.LeaseDuration, domain.ScanCapabilities{Probe: r.probeAvailable(), Ignore: r.options.Ignore != nil, FamilyIgnore: r.familyIgnoreAvailable()})
+			lease, err = capable.ClaimJobWithCapabilities(dbCtx, r.options.Owner, turn%4 == 3, r.options.LeaseDuration, domain.ScanCapabilities{CatalogImport: r.options.CatalogImport != nil, Probe: r.probeAvailable(), Ignore: r.options.Ignore != nil, FamilyIgnore: r.familyIgnoreAvailable()})
 		} else if r.probeRepository != nil {
 			lease, err = r.probeRepository.ClaimJobWithProbe(dbCtx, r.options.Owner, turn%4 == 3, r.options.LeaseDuration, r.probeAvailable())
 		} else if capable, ok := r.repository.(probeClaimer); ok {
@@ -384,6 +392,9 @@ func (r *Runner) run(serviceCtx context.Context, lease domain.JobLease) {
 		default:
 			code = "scan_io"
 		}
+	}
+	if lease.Job.Kind == domain.JobCatalogImport && state == domain.JobFailed && code != "job_timeout" {
+		code = "catalog_import_failed"
 	}
 	dbCtx, cancelDB := context.WithTimeout(context.WithoutCancel(serviceCtx), r.options.DBOperationTimeout)
 	defer cancelDB()
