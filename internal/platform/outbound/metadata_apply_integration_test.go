@@ -667,6 +667,30 @@ func TestTMDBMetadataThroughTLSHTTPAndPostgres(t *testing.T) {
 	}
 	assertNoObservation(lockOnlyProviderError)
 	t.Log("actual HTTP/TLS/NFO/PostgreSQL lock-only: NFO-only and fusion, global and named locks, preserved text provenance/classification, one audit per review, changed intent409 and provider error rollback PASS")
+	for offset, aliasDocument := range []string{
+		`<movie><title>First</title><name>Second</name></movie>`,
+		`<movie><title>First</title><name/><lockdata>true</lockdata></movie>`,
+		`<movie><title>First</title><premiered>2024-01-01</premiered><releasedate>2025-01-01</releasedate></movie>`,
+	} {
+		item, file := newNFOItem(fmt.Sprintf("ambiguous-alias-%d", offset), "HomeVideo", aliasDocument)
+		beforeCalls := allCalls.Load()
+		if response := request("POST", "/api/v1/items/"+item+"/metadata/nfo", `{"expectedRevision":1,"confirmed":true}`); response.status != 503 {
+			t.Fatal("HTTP conflicting aliases reached NFO-only write", response.status)
+		}
+		if response := apply(item, "movie", 4930+offset, 1); response.status != 503 || allCalls.Load() != beforeCalls {
+			t.Fatal("HTTP conflicting aliases triggered provider fallback", response.status)
+		}
+		assertNoObservation(item)
+		if raw, err := os.ReadFile(file); err != nil || string(raw) != aliasDocument {
+			t.Fatal("ambiguous original changed", err)
+		}
+	}
+	aliasItem, _ := newNFOItem("single-alias", "HomeVideo", `<movie><localtitle>Alias title</localtitle><releasedate>2024-05-06</releasedate><actor><name>Actor one</name></actor><actor><name>Actor two</name></actor></movie>`)
+	aliasResult := decode(apply(aliasItem, "movie", 4938, 1))
+	if len(aliasResult.NFO.Applied) != 2 || aliasResult.Metadata.Fields[0].Value != "Alias title" || aliasResult.Metadata.Fields[3].Value != "2024-05-06" || aliasResult.Metadata.Fields[0].Source != "nfo" || aliasResult.Metadata.Fields[3].Source != "nfo" {
+		t.Fatal("HTTP single aliases or nested names lost compatibility")
+	}
+	t.Log("actual HTTP/TLS/NFO/PostgreSQL aliases: conflicting title/date aliases and empty alias rejected503 before provider/writes; single aliases and nested actor names remain supported PASS")
 	for offset, mode := range []string{"unsafe", "empty", "permission", "unknown-lock", "false-lock"} {
 		content := `<!DOCTYPE movie [<!ENTITY unsafe SYSTEM "file:///private">]><movie><title>&unsafe;</title></movie>`
 		if mode == "empty" {

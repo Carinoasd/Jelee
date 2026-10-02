@@ -109,6 +109,13 @@ func uniqueItemFields(ctx context.Context, original []byte) error {
 				continue
 			}
 			name := elementName(token.Name)
+			// Count aliases by their scalar destination, matching metadata parsing.
+			switch name {
+			case "name", "localtitle", "seasonname":
+				name = "title"
+			case "releasedate":
+				name = "premiered"
+			}
 			switch name {
 			case "title", "originaltitle", "plot", "premiered", "lockdata", "lockedfields":
 				if seen[name] {
