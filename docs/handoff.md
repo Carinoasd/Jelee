@@ -1,3 +1,11 @@
+## 最新接續：忽略歷史批次比對
+
+一萬檔排除半數重掃由 70.77 秒降至 21.01 秒，保持規則及清理由 68.51 秒降至 15.77 秒；helper 啟動 10,089 → 187。三輪皆 attempts=1，歷史版號、筆數及原檔抽樣保持。每頁最多 128、局部快取最多 256 項，保留每筆來源身分與前後重驗。
+
+[報告](ignore-family-batch.md)／[證據](evidence/ignore-family-batch.json)。Linux race 441、Windows 444（略過 1）、真實 helper 8、原生 PG worker 11 個通過事件。接續十萬／五十萬忽略規模，24h 尚未開始。仍第三階段，336 項 4 完成／184 部分／148 阻塞。
+
+PR46 前一個 a4f004a 的 Windows／Ubuntu foundation、三平台測試、格式與 CodeQL 已綠；ABI／全量品牌仍紅，PG CI 查詢時仍執行中。沿用同分支及繁中 PR，不 merge／release／tag／force-push／設定 Git 身分。以下為歷史紀錄。
+
 ## 最新接續：一萬檔忽略規則規模基線
 
 新增 opt-in `TestIgnoreScanScale`，正式 FamilyIgnoreScanner／helper／worker／PG 三輪測一萬總檔案（含兩個規則檔），每目錄最多一千影片。首次 5.04 秒；排除一半重掃 70.77 秒；保持規則及清理 68.51 秒。三輪皆 attempts=1、批次最多 128；觀察 5001＋保留歷史 4999，第三輪底層仍兩萬列，歷史版號與原檔抽樣保持。

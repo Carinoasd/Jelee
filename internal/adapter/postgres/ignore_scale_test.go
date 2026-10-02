@@ -43,6 +43,10 @@ func (s *measuredFamilyScanner) ScanFamilyIgnoreDirectory(ctx context.Context, d
 	})
 }
 
+func (s *measuredFamilyScanner) EvaluateFamilyIgnoreBaselineBatch(ctx context.Context, root string, candidates []domain.IgnoreBaselineCandidate, intent domain.IgnoreIntent) ([]domain.FamilyBaselineEvaluation, error) {
+	return s.FamilyIgnoreScanner.(app.FamilyIgnoreBaselineBatchScanner).EvaluateFamilyIgnoreBaselineBatch(ctx, root, candidates, intent)
+}
+
 func ignoreScalePath(i int) string {
 	prefix := "keep"
 	if i%2 == 1 {

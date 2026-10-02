@@ -39,3 +39,9 @@ type FamilyIgnoreScanner interface {
 	ReobserveLegacyIgnore(context.Context, string, domain.LegacyIgnoreObservation) (domain.LegacyIgnoreObservation, error)
 	ReobserveLegacyIgnoreBaseline(context.Context, string, domain.LegacyIgnoreBaselineObservation) (domain.LegacyIgnoreBaselineObservation, error)
 }
+
+// FamilyIgnoreBaselineBatchScanner is an optional bounded optimization. Every
+// result retains the same source proofs and ordering as individual evaluation.
+type FamilyIgnoreBaselineBatchScanner interface {
+	EvaluateFamilyIgnoreBaselineBatch(context.Context, string, []domain.IgnoreBaselineCandidate, domain.IgnoreIntent) ([]domain.FamilyBaselineEvaluation, error)
+}

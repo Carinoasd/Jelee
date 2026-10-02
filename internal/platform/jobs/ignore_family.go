@@ -55,31 +55,9 @@ func (r *Runner) executeFamilyIgnore(ctx context.Context, l domain.JobLease, req
 		if len(page.Unseen) > 128 {
 			return domain.ErrScanLimit, true
 		}
-		evaluations := make([]domain.FamilyBaselineEvaluation, 0, len(page.Unseen))
-		for _, candidate := range page.Unseen {
-			var root string
-			err = r.ignoreDB(ctx, func(c context.Context) error {
-				var e error
-				root, e = repo.ReadFamilyIgnoreRoot(c, l, candidate.RootID)
-				return e
-			})
-			if err != nil {
-				return err, true
-			}
-			evaluation, e := scanner.EvaluateFamilyIgnoreBaseline(ctx, root, candidate, request.Intent)
-			if e != nil {
-				if ctx.Err() != nil {
-					return ctx.Err(), false
-				}
-				if !errors.Is(e, domain.ErrIgnoreUnavailable) {
-					return e, false
-				}
-				evaluation = domain.FamilyBaselineEvaluation{Decision: domain.FamilyIgnoreBaselineDecision{RootID: candidate.RootID, Path: candidate.Path, Outcome: domain.IgnoreBaselineUnknown, Reason: domain.IgnoreUnknownSource}}
-			}
-			if evaluation.Decision.RootID != candidate.RootID || evaluation.Decision.Path != candidate.Path || domain.ValidateFamilyBaselineEvaluation(evaluation) != nil {
-				return domain.ErrInventoryInvalidated, false
-			}
-			evaluations = append(evaluations, evaluation)
+		evaluations, evaluationErr, storage := r.evaluateFamilyBaselinePage(ctx, l, page.Unseen, request.Intent)
+		if evaluationErr != nil {
+			return evaluationErr, storage
 		}
 		if err = r.ignoreDB(ctx, func(c context.Context) error {
 			return repo.CommitFamilyIgnoreBaselinePage(c, l, page.Token, evaluations)
@@ -260,4 +238,59 @@ func (r *Runner) executeFamilyInventory(ctx context.Context, l domain.JobLease, 
 func (r *Runner) familyIgnoreAvailable() bool {
 	o := r.options.FamilyIgnore
 	return o != nil && (o.Available == nil || o.Available())
+}
+
+func (r *Runner) evaluateFamilyBaselinePage(ctx context.Context, l domain.JobLease, candidates []domain.IgnoreBaselineCandidate, intent domain.IgnoreIntent) ([]domain.FamilyBaselineEvaluation, error, bool) {
+	result := make([]domain.FamilyBaselineEvaluation, 0, len(candidates))
+	scanner := r.options.FamilyIgnore.Scanner
+	for first := 0; first < len(candidates); {
+		last := first + 1
+		for last < len(candidates) && candidates[last].RootID == candidates[first].RootID {
+			last++
+		}
+		group := candidates[first:last]
+		var root string
+		err := r.ignoreDB(ctx, func(c context.Context) error {
+			var e error
+			root, e = r.options.FamilyIgnore.Repository.ReadFamilyIgnoreRoot(c, l, group[0].RootID)
+			return e
+		})
+		if err != nil {
+			return nil, err, true
+		}
+		var values []domain.FamilyBaselineEvaluation
+		if batch, ok := scanner.(app.FamilyIgnoreBaselineBatchScanner); ok {
+			values, err = batch.EvaluateFamilyIgnoreBaselineBatch(ctx, root, group, intent)
+			if err != nil && !errors.Is(err, domain.ErrIgnoreUnavailable) {
+				return nil, err, false
+			}
+			if err == nil && len(values) != len(group) {
+				return nil, domain.ErrInventoryInvalidated, false
+			}
+		}
+		if values == nil || err != nil {
+			values = make([]domain.FamilyBaselineEvaluation, 0, len(group))
+			for _, candidate := range group {
+				value, e := scanner.EvaluateFamilyIgnoreBaseline(ctx, root, candidate, intent)
+				if e != nil {
+					if ctx.Err() != nil {
+						return nil, ctx.Err(), false
+					}
+					if !errors.Is(e, domain.ErrIgnoreUnavailable) {
+						return nil, e, false
+					}
+					value = domain.FamilyBaselineEvaluation{Decision: domain.FamilyIgnoreBaselineDecision{RootID: candidate.RootID, Path: candidate.Path, Outcome: domain.IgnoreBaselineUnknown, Reason: domain.IgnoreUnknownSource}}
+				}
+				values = append(values, value)
+			}
+		}
+		for i, value := range values {
+			if value.Decision.RootID != group[i].RootID || value.Decision.Path != group[i].Path || domain.ValidateFamilyBaselineEvaluation(value) != nil {
+				return nil, domain.ErrInventoryInvalidated, false
+			}
+		}
+		result = append(result, values...)
+		first = last
+	}
+	return result, nil, false
 }
