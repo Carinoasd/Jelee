@@ -1,0 +1,10 @@
+# Opt in after the base file: -f deploy/docker-compose.yml -f deploy/docker-compose.memory.yml
+# Candidate values; see docs/runtime-memory.md for workload and validation limits.
+services:
+  jelee:
+    environment:
+      GOGC: "${GOGC:-100}"
+      GOMEMLIMIT: "${GOMEMLIMIT:-512MiB}"
+    mem_limit: "${JELEE_CONTAINER_MEMORY_LIMIT:-768m}"
+    # Equal memory and memory+swap limits disable container swap.
+    memswap_limit: "${JELEE_CONTAINER_MEMORY_LIMIT:-768m}"

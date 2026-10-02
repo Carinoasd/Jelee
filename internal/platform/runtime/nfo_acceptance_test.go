@@ -34,17 +34,23 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
-// The shutdown-only barrier is after a real completed file read. It creates a
-// reproducible in-flight API call; it does not claim to emulate blocked OS I/O.
+// Both acceptance barriers follow a real completed file read. They create a
+// reproducible in-flight API call; they do not claim to emulate blocked OS I/O.
 type acceptanceNFOReader struct {
 	app.NFOReader
 	block   atomic.Bool
 	entered chan struct{}
 	once    sync.Once
+	memory  atomic.Pointer[memoryWorkerBarrier]
 }
 
 func (r *acceptanceNFOReader) Read(ctx context.Context, s domain.NFOSource) (app.NFOReadSource, error) {
 	source, err := r.NFOReader.Read(ctx, s)
+	if barrier := r.memory.Load(); err == nil && barrier != nil {
+		if err = barrier.wait(ctx); err != nil {
+			return nil, err
+		}
+	}
 	if err == nil && r.block.Load() {
 		r.once.Do(func() { close(r.entered) })
 		<-ctx.Done()
@@ -67,6 +73,15 @@ func TestProductionNFOWorkerAcceptance(t *testing.T) {
 	}
 	if os.Getuid() != 65532 {
 		t.Fatal("nonroot production profile required")
+	}
+	var memoryProfile *memoryProfileReport
+	if os.Getenv("JELEE_MEMORY_PROFILE_ACCEPTANCE") == "true" {
+		var err error
+		memoryProfile, err = startMemoryProfile()
+		if err != nil {
+			t.Fatal("read required memory profile inputs", err)
+		}
+		defer memoryProfile.finish(t)
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Minute)
 	total, nfoCount, videoCount, imageCount, changedNFO, changedImages, faultCount := int64(1000), int64(400), int64(100), int64(500), int64(17), int64(23), int64(10)
@@ -134,7 +149,12 @@ func TestProductionNFOWorkerAcceptance(t *testing.T) {
 	if err != nil {
 		t.Fatal("config")
 	}
-	hasher, err := password.New(password.Config{MemoryKiB: password.MinMemoryKiB, Iterations: password.MinIterations, Parallelism: 1, MaxConcurrent: 1})
+	passwordConfig := password.Config{MemoryKiB: password.MinMemoryKiB, Iterations: password.MinIterations, Parallelism: 1, MaxConcurrent: 1}
+	if memoryProfile != nil {
+		passwordConfig = password.DefaultConfig()
+		memoryProfile.KDF = memoryKDFReport{MemoryKiB: passwordConfig.MemoryKiB, Iterations: passwordConfig.Iterations, Parallelism: passwordConfig.Parallelism, Concurrency: passwordConfig.MaxConcurrent}
+	}
+	hasher, err := password.New(passwordConfig)
 	if err != nil {
 		t.Fatal("hasher")
 	}
@@ -272,6 +292,12 @@ func TestProductionNFOWorkerAcceptance(t *testing.T) {
 		beforeProbe := probing.probeCalls.Load()
 		beforeProcess := probing.processStats()
 		started := time.Now()
+		var memoryBarrier *memoryWorkerBarrier
+		if memoryProfile != nil && round < 2 {
+			memoryBarrier = newMemoryWorkerBarrier()
+			controlled.memory.Store(memoryBarrier)
+			defer memoryBarrier.close()
+		}
 		var job domain.Job
 		body := `{"nfo":true,"probe":true}`
 		if withIgnore {
@@ -282,6 +308,13 @@ func TestProductionNFOWorkerAcceptance(t *testing.T) {
 		}
 		if json.Unmarshal(request("POST", path+"/scan", body, fmt.Sprintf("mixed-%d", round)), &job) != nil || !domain.ValidID(job.ID) {
 			t.Fatal("job admission")
+		}
+		if memoryBarrier != nil {
+			if err := exerciseMemoryKDF(ctx, hasher, secret, hash, memoryBarrier, func() bool { return validation.Stats().ActiveCalls > 0 }, &memoryProfile.KDF); err != nil {
+				t.Fatal("production KDF overlap with worker", err)
+			}
+			memoryBarrier.close()
+			controlled.memory.Store(nil)
 		}
 		for {
 			if json.Unmarshal(request("GET", "/api/v1/jobs/"+job.ID, "", ""), &job) != nil {

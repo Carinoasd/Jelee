@@ -14,6 +14,10 @@ docker compose -f deploy/docker-compose.yml up --build -d
 
 Compose 内部网络使用 sslmode=disable，仅用于此隔离网络；远程数据库应使用证书验证。HTTP 默认只向宿主环回发布。启用直投还需要 `JELEE_ENABLE_DIRECT=true` 与有效 native 会话，不能匿名访问媒体。令牌与媒体登记操作使用容器内 `/jelee-cli`。
 
+## 可選的執行時記憶體設定
+
+在基礎檔後加入 `-f deploy/docker-compose.memory.yml`，可為 `jelee` 選用 `GOGC=100`、`GOMEMLIMIT=512MiB` 與容器 768 MiB 上限；三者均可覆寫，memory 與 memory+swap 上限保持相同，因此此設定不提供 swap。PostgreSQL 與遷移服務的預算另計。本輪固定混合負載的真容器驗收已通過，`GOGC=50` 比較組也通過；使用方式、實測數據與容量限制見[執行時記憶體設定](runtime-memory.md)。
+
 ## 媒體庫語言設定的升級
 
 第19／20版新增以下偏好；當前版本要求乾淨schema29，見[lock-only NFO](nfo-lock-only.md)。先執行資料庫遷移，再啟動新的服務；001–019保持原樣。第19版新增媒體庫文字語言及更新版本，第20版新增有序圖片語言清單。設定有更新時降版會拒絕丟失偏好；介面與回復限制見[媒體庫語言](tmdb-library-language.md)及[圖片語言](tmdb-image-preferences.md)。以下仍是首階段容器的歷史驗證。

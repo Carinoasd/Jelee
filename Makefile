@@ -3,7 +3,7 @@ export PATH := $(CURDIR)/.bin:$(PATH)
 GO := $(CURDIR)/.bin/go
 PYTHON := python3
 
-.PHONY: i18n-check family-ignore-sustained-worker-test ignore-sustained-test init bootstrap bootstrap-media bootstrap-runtime runtime-tools-verify runtime-toolchain-test probe-runtime-test probe-worker-test nfo-worker-test family-ignore-worker-test ignore-oracle-test sandbox-test tools-verify media-tools-verify tools-clean fixtures fixtures-test build test test-race test-integration coverage fmt fmt-check lint toolchain-test media-toolchain-test brand-scan brand-scan-incremental gitignore-check migrate doctor
+.PHONY: runtime-memory-test runtime-memory-worker-test memory-contract-test i18n-check family-ignore-sustained-worker-test ignore-sustained-test init bootstrap bootstrap-media bootstrap-runtime runtime-tools-verify runtime-toolchain-test probe-runtime-test probe-worker-test nfo-worker-test family-ignore-worker-test ignore-oracle-test sandbox-test tools-verify media-tools-verify tools-clean fixtures fixtures-test build test test-race test-integration coverage fmt fmt-check lint toolchain-test media-toolchain-test brand-scan brand-scan-incremental gitignore-check migrate doctor
 init: bootstrap
 bootstrap:
 	sh scripts/bootstrap-tools
@@ -29,6 +29,12 @@ family-ignore-worker-test:
 	JELEE_FAMILY_IGNORE_ACCEPTANCE=true $(PYTHON) -B scripts/test_nfo_worker.py
 family-ignore-sustained-worker-test:
 	JELEE_FAMILY_IGNORE_ACCEPTANCE=true JELEE_FAMILY_IGNORE_SUSTAINED_ACCEPTANCE=true $(PYTHON) -B scripts/test_nfo_worker.py
+memory-contract-test:
+	$(PYTHON) -B scripts/runtime_memory_contracts.py
+runtime-memory-test: memory-contract-test
+	$(MAKE) runtime-memory-worker-test
+runtime-memory-worker-test:
+	JELEE_MEMORY_PROFILE_ACCEPTANCE=true JELEE_FAMILY_IGNORE_ACCEPTANCE=true JELEE_FAMILY_IGNORE_SUSTAINED_ACCEPTANCE=true $(PYTHON) -B scripts/test_nfo_worker.py
 ignore-oracle-test:
 	JELEE_REQUIRE_IGNORE_ORACLE=true "$(GO)" test -count=1 -v -run '^TestGitOracle' ./internal/platform/ignore
 sandbox-test:

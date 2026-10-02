@@ -1,3 +1,17 @@
+## 最新接續：G42.8 容器記憶體設定與驗收完成
+
+新增明確選用的 Compose 記憶體設定：GOGC=100、GOMEMLIMIT=512MiB、容器 768MiB 且禁用 swap，三值皆可覆寫。真正的 Compose 合併確認只影響 jelee 的預期欄位；基礎安全限制保持。沒有生產 Go 或 SQL 變更。
+
+GOGC100／50 各跑相同 1000 檔（400 NFO／100 影片／500 圖片），包含三種重掃、19 輪約309秒持續負載、正式64MiB兩槽KDF四次操作、取消復原及SIGTERM。100 的 cgroup 峰值518.17MiB、631次GC、33.36ms累計暫停；50 為272.27MiB、1708次、86.64ms。兩組正常退出、OOM事件零；正式 /jelee 入口健康與停止通過。獨立64MiB無網路負向在確認配置標記後退出137／OOMKilled=true。所有自建容器、schema及image清理，原fixture保持。
+
+保留100預設：本profile約有250MiB硬上限餘量且GC較少；50可作記憶體優先覆寫。兩組各一次，未量CPU；cgroup不是RSS，main有效GC未由主程序直接觀測。五分鐘與500張圖片不代替24h或十萬圖片。[設定與調整依據](runtime-memory.md)／[來源與實測](evidence/runtime-memory.json)。
+
+Windows55通過／13略過，Linux race49／7略過，19項Python測試通過；事件含父測試，需PG／專用容器的普通略過項有明列。CI contracts、tagged vet、三命令build、模組、格式、增量品牌及gitignore通過；全量品牌仍14735項。856份來源在native期間保持，量測後只補修Python失敗日誌保存及其mock測試，Go與部署不變；兩組負載沒有重跑。90份SQL、五份直播核心、授權與需求原文保持。
+
+追溯共336項：6完成／185部分／145阻塞，仍第三階段。目前無本機驗證程序存活；本段推送後CI須另查，不能宣稱全綠。接續 `.testdata/runtime-resident-budget-next.md` 做G42.9：增加同profile父程序RSS採樣，按真基線制定固定預算及CI超標門禁；不增加原文未要求的GC histogram/P99，也不把768MiB硬上限當預算。
+
+沿用同分支繁中PR46，不merge／release／tag／force-push／設定Git身分。下方為歷史紀錄。
+
 ## 最新接續：G41.8 工作指標已完成
 
 實作提交 `956ff40b80`，承接 schema45 的 `60fb02d2e3`。管理員 `/metrics` 增加共享工作統計，固定 22 家族／163 系列；OTel Producer 使用 DB 絕對累計及 epoch，runtime／pool 仍為各程序本機數據。請求先讀兩秒期限的一致快照，SDK callback／Producer 不執行 SQL；逾時、取消或部分收集回安全錯誤。停止先等待已接納的預讀與收集，再釋放 pool。

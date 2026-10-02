@@ -19,18 +19,27 @@ sys.dont_write_bytecode = True
 from test_probe_runtime import digest
 from test_probe_worker import source_digest as probe_source_digest
 from test_sandbox_native import select_fixtures
+from container_memory import validate_memory_profile
+from runtime_memory_acceptance import check_oom_negative, check_production_entry, container_state, inspect_owned, memory_flags, retain_worker_failure_log
 
 ROOT = Path(__file__).resolve().parent.parent
 WITH_FAMILY = os.environ.get("JELEE_FAMILY_IGNORE_ACCEPTANCE") == "true"
 WITH_IGNORE = WITH_FAMILY or os.environ.get("JELEE_NFO_IGNORE_ACCEPTANCE") == "true"
 WITH_SUSTAINED = os.environ.get("JELEE_FAMILY_IGNORE_SUSTAINED_ACCEPTANCE") == "true"
+WITH_MEMORY = os.environ.get("JELEE_MEMORY_PROFILE_ACCEPTANCE") == "true"
+if WITH_MEMORY and not WITH_SUSTAINED:
+    raise RuntimeError("memory acceptance requires sustained family mode")
 if WITH_SUSTAINED and not WITH_FAMILY:
     raise RuntimeError("sustained acceptance requires family mode")
-EVIDENCE_PREFIX = "family-ignore-sustained-worker" if WITH_SUSTAINED else ("family-ignore-worker" if WITH_FAMILY else ("ignore-worker" if WITH_IGNORE else "nfo-worker"))
+EVIDENCE_PREFIX = "runtime-memory" if WITH_MEMORY else ("family-ignore-sustained-worker" if WITH_SUSTAINED else ("family-ignore-worker" if WITH_FAMILY else ("ignore-worker" if WITH_IGNORE else "nfo-worker")))
 
 
 def source_digest():
     record = {"sharedSources": probe_source_digest(), "controller": digest(Path(__file__).resolve())}
+    record["memorySources"] = {name: digest(ROOT / name) for name in (
+        "scripts/container_memory.py", "scripts/runtime_memory_acceptance.py", "scripts/check_memory_compose.py",
+        "deploy/docker-compose.yml", "deploy/docker-compose.memory.yml",
+    )}
     return hashlib.sha256(json.dumps(record, sort_keys=True).encode()).hexdigest()
 
 
@@ -63,7 +72,7 @@ def snapshot(directory):
             for p in directory.iterdir()}
 
 
-def run_case(total):
+def run_case(total, gogc=100):
     if sys.platform != "linux":
         raise RuntimeError("NFO worker acceptance requires Linux Docker")
     dsn = os.environ.get("JELEE_TEST_DATABASE_URL", "")
@@ -78,18 +87,22 @@ def run_case(total):
     base = "jelee/jelee:nfo-worker-" + identity
     image, container = base + "-test", "jelee-nfo-worker-" + identity
     cleanup_container = container + "-cleanup"
+    main_container, oom_container = container + "-main", container + "-oom"
     schema = "jelee_probe_worker_" + identity  # Existing test helper validates this exact owned prefix.
     nfo_count, video_count, image_count = total * 4 // 10, total // 10, total // 2
     changed_nfo, changed_images = (17, 23) if total == 1000 else (3, 4)
     report = {"sourceDigest": before_source, "profile": "Linux amd64 UID65532; readonly root/media; no capabilities; no-new-privileges; 2 CPUs/768MiB/128 PIDs", "fixtureFiles": total, "fixtures": {"nfo": nfo_count, "video": video_count, "image": image_count, "invalidXML": total // 100, "semanticInvalid": total // 100, "warningFiles": total // 100, "multiEpisodeFiles": total // 100}, "rounds": []}
     report["ignoreEnabled"] = WITH_IGNORE
     report["familyIgnoreEnabled"] = WITH_FAMILY
+    report["memoryProfileEnabled"] = WITH_MEMORY
+    report["result"] = "failed"
     transcript = ROOT / (".testdata/" + EVIDENCE_PREFIX + "-acceptance.txt")
     with transcript.open("a", encoding="utf-8") as log, tempfile.TemporaryDirectory(prefix="nfo-worker-", dir=ROOT / ".testdata") as temp:
         log.write("\nFIXTURE FILE COUNT %d\n" % total)
         temp = Path(temp)
         secret_file = temp / "database.env"
         cleanup_ready = False
+        latest = ""
 
         def run(argv, timeout=300, check=True, **kwargs):
             # argv contains no credentials; the secret stays in the private env file.
@@ -117,6 +130,9 @@ def run_case(total):
                         env_file.write("JELEE_FAMILY_IGNORE_ACCEPTANCE=true\n")
                         if WITH_SUSTAINED:
                             env_file.write("JELEE_FAMILY_IGNORE_SUSTAINED_ACCEPTANCE=true\n")
+            if WITH_MEMORY:
+                with secret_file.open("a") as env_file:
+                    env_file.write("JELEE_MEMORY_PROFILE_ACCEPTANCE=true\n")
             secret_file.chmod(0o600); cleanup_ready = True
             inputs = temp / "media"; inputs.mkdir()
             control = temp / "control"; control.mkdir()
@@ -136,14 +152,14 @@ def run_case(total):
                 (inputs / ".jeleeignore").write_bytes(b"ignored-video.mp4\n!video-*\n")
                 (inputs / ".ignore").write_bytes(b"ignored-*\nvideo-*\n")
             before_inputs = snapshot(inputs)
-            run(["docker", "run", "-d", "--name", container, "--read-only", "--network", "host", "--cap-drop", "ALL", "--security-opt", "no-new-privileges", "--memory", "768m", "--pids-limit", "128", "--cpus", "2", "--tmpfs", "/tmp:rw,noexec,nosuid,nodev,size=64m,mode=1777", "--env-file", str(secret_file), "--volume", str(inputs) + ":/media:ro", "--volume", str(control) + ":/control:ro", "--entrypoint", "/worker.test", image, "-test.v", "-test.run", "^TestProductionNFOWorkerAcceptance$", "-test.timeout", "16m"])
+            limits = memory_flags(gogc) if WITH_MEMORY else ["--memory", "768m", "--pids-limit", "128", "--cpus", "2"]
+            run(["docker", "run", "-d", "--name", container, "--read-only", "--network", "host", "--cap-drop", "ALL", "--security-opt", "no-new-privileges", *limits, "--tmpfs", "/tmp:rw,noexec,nosuid,nodev,size=64m,mode=1777", "--env-file", str(secret_file), "--volume", str(inputs) + ":/media:ro", "--volume", str(control) + ":/control:ro", "--entrypoint", "/worker.test", image, "-test.v", "-test.run", "^TestProductionNFOWorkerAcceptance$", "-test.timeout", "16m"])
             deadline = time.monotonic() + 17 * 60
             replaced, terminated = False, False
             reported_rounds = set()
-            latest = ""
             while time.monotonic() < deadline:
                 state = json.loads(subprocess.run(["docker", "inspect", container, "--format", "{{json .State}}"], check=True, stdout=subprocess.PIPE, timeout=15).stdout)
-                latest = subprocess.run(["docker", "logs", container], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=15).stdout.decode(errors="replace")
+                latest = subprocess.run(["docker", "logs", container], check=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=15).stdout.decode(errors="replace")
                 for line in latest.splitlines():
                     if not line.startswith("{"):
                         continue
@@ -157,7 +173,12 @@ def run_case(total):
                         report["shutdown"] = entry
                     if entry.get("cancellationRecovery") == "passed":
                         report["cancellationRecovery"] = entry
+                    if "memoryProfile" in entry:
+                        report["memoryProfile"] = entry["memoryProfile"]
                 if not replaced and '{"readyForReplacement":true}' in latest:
+                    if WITH_MEMORY:
+                        report["productionEntry"] = {}
+                        check_production_entry(run, image, main_container, temp, dsn, schema, gogc, report["productionEntry"])
                     for n in range(changed_nfo):
                         incoming = inputs / ("replacement-%04d" % n)
                         incoming.write_bytes(nfo_bytes(n, nfo_count, changed=True))
@@ -173,8 +194,11 @@ def run_case(total):
                     terminated = True
                 if not state["Running"]:
                     log.write(latest.replace(dsn, "[redacted database URL]")); log.flush()
+                    report["containerExit"] = {"status": state["Status"], "exitCode": state["ExitCode"], "oomKilled": state["OOMKilled"]}
                     if state["ExitCode"] != 0 or not replaced or not terminated or "--- SKIP:" in latest or "\nPASS\n" not in latest or "shutdown" not in report or "cancellationRecovery" not in report:
                         raise RuntimeError("required mixed acceptance failed or skipped")
+                    if WITH_MEMORY:
+                        report["memoryValidation"] = validate_memory_profile(report.get("memoryProfile"), inspect_owned(container), expected_gogc=gogc)
                     break
                 time.sleep(1)
             else:
@@ -198,9 +222,15 @@ def run_case(total):
                 raise RuntimeError("unexpected sustained rounds")
             if [r["parseCalls"] for r in base_rounds] != [nfo_count, 0, changed_nfo] or [r["metadataChildStarts"] for r in base_rounds] != [video_count, 0, 0]:
                 raise RuntimeError("actual invocation counts differ")
+            if WITH_MEMORY and gogc == 100:
+                report["oomNegative"] = {}
+                check_oom_negative(run, image, oom_container, report["oomNegative"])
             report.update(result="passed", originalFixtureHashesUnchanged=True, controlledNFOReplacements=changed_nfo, controlledImageReplacements=changed_images, unchangedVideoHashes=True, sourceUnchanged=True)
         finally:
             cleanup_failed = False
+            if WITH_MEMORY and report["result"] != "passed":
+                report["workerStateBeforeCleanup"] = container_state(container)
+                report["workerFailureLog"] = retain_worker_failure_log(run, log, container, latest, dsn)
             def remove_owned(kind, name):
                 nonlocal cleanup_failed
                 try:
@@ -209,6 +239,9 @@ def run_case(total):
                 except (OSError, subprocess.SubprocessError):
                     cleanup_failed = True
             remove_owned("container", container)
+            if WITH_MEMORY:
+                remove_owned("container", main_container)
+                remove_owned("container", oom_container)
             try:
                 if cleanup_ready:
                     cleanup_failed |= run(["docker", "run", "--name", cleanup_container, "--network", "host", "--read-only", "--cap-drop", "ALL", "--security-opt", "no-new-privileges", "--memory", "256m", "--pids-limit", "32", "--env-file", str(secret_file), "--entrypoint", "/worker.test", image, "--cleanup-probe-worker"], timeout=30, check=False).returncode != 0
@@ -216,6 +249,11 @@ def run_case(total):
                 cleanup_failed = True
             finally:
                 remove_owned("container", cleanup_container); remove_owned("image", image); remove_owned("image", base)
+            if WITH_MEMORY:
+                report["testArtifactsCleaned"] = not cleanup_failed
+                if cleanup_failed:
+                    report["result"] = "failed"
+                (ROOT / (".testdata/runtime-memory-case-%d-gogc%d.json" % (total, gogc))).write_text(json.dumps(report, indent=2) + "\n")
             if cleanup_failed:
                 raise RuntimeError("owned schema/container/image cleanup failed")
     report["testArtifactsCleaned"] = True
@@ -227,9 +265,20 @@ def main():
     if WITH_SUSTAINED and any((ROOT / (".testdata/" + EVIDENCE_PREFIX + suffix)).exists() for suffix in ("-acceptance.txt", "-summary.json")):
         raise RuntimeError("refusing to replace sustained evidence")
     (ROOT / (".testdata/" + EVIDENCE_PREFIX + "-acceptance.txt")).write_text("")
-    report = {"cases": [run_case(1000), run_case(100)], "result": "passed"}
-    (ROOT / (".testdata/" + EVIDENCE_PREFIX + "-summary.json")).write_text(json.dumps(report, indent=2) + "\n")
-    print(json.dumps({"result": "passed", "fixtureFiles": [1000, 100], "SIGTERMJoined": True, "testArtifactsCleaned": True}), flush=True)
+    report = {"cases": [], "result": "failed"}
+    try:
+        if WITH_MEMORY:
+            from check_memory_compose import run_compose_check
+            report["compose"] = run_compose_check()
+            report["cases"].append(run_case(1000, gogc=100))
+            report["cases"].append(run_case(1000, gogc=50))
+        else:
+            report["cases"].append(run_case(1000))
+            report["cases"].append(run_case(100))
+        report["result"] = "passed"
+    finally:
+        (ROOT / (".testdata/" + EVIDENCE_PREFIX + "-summary.json")).write_text(json.dumps(report, indent=2) + "\n")
+    print(json.dumps({"result": "passed", "fixtureFiles": [1000, 1000] if WITH_MEMORY else [1000, 100], "SIGTERMJoined": True, "testArtifactsCleaned": True}), flush=True)
 
 
 def snapshot_value(path):
