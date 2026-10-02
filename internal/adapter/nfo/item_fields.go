@@ -70,6 +70,9 @@ func (r *SummaryReader) projectItemFields(ctx context.Context, source *summarySo
 			result.Fields = append(result.Fields, field)
 		}
 	}
+	if len(result.Fields) == 0 && domain.HasNFOItemFieldLock(result) {
+		result.Version = domain.NFOItemLockFieldsVersion
+	}
 	if !domain.ValidNFOItemFields(result) {
 		return domain.NFOItemFields{}, domain.ErrMetadataUnavailable
 	}

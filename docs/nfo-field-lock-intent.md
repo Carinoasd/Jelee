@@ -1,5 +1,7 @@
 # NFO 缺值欄位的獨立鎖定
 
+當前binary要求schema26。本頁保留第25版的契約與證據；只有鎖定指令而沒有文字的有效NFO，已在[第26版](nfo-lock-only.md)支援。
+
 第三階段 G14.6／G39.6 的四欄位子集。此頁說明第25版的新契約；[實測證據](evidence/nfo-field-lock-intent.json)。
 
 ## 行為

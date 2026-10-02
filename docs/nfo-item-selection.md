@@ -1,6 +1,6 @@
 # 項目 NFO 檔名選擇與可信觀察
 
-當前binary要求schema25；本頁保留先前階段的契約與證據。缺少文字值時的獨立NFO鎖及升降版限制，見[第25版契約](nfo-field-lock-intent.md)。
+當前binary要求schema26；本頁保留先前階段的契約與證據。缺少文字值時的獨立NFO鎖及升降版限制，見[第25版契約](nfo-field-lock-intent.md)；有效lock-only投影見[第26版契約](nfo-lock-only.md)。
 
 正式 NFO 項目套用及唯讀庫的 TMDB 合併入口，現在都會從資料庫授權的唯一媒體來源選擇 NFO。HTTP 仍只接受項目 ID、版本與確認意圖，不接受檔案路徑。
 

@@ -601,10 +601,82 @@ func TestTMDBMetadataThroughTLSHTTPAndPostgres(t *testing.T) {
 		}
 		assertNoObservation(item)
 	}
-	for offset, mode := range []string{"unsafe", "lock-only", "permission"} {
+	for offset, directive := range []string{`<lockdata>true</lockdata>`, `<lockedfields>Overview|Unknown</lockedfields>`} {
+		lockOnlyDocument := `<movie>` + directive + `</movie>`
+		item, file := newNFOItem(fmt.Sprintf("lock-only-%d", offset), "HomeVideo", lockOnlyDocument)
+		beforeCalls := allCalls.Load()
+		local := decode(request("POST", "/api/v1/items/"+item+"/metadata/nfo", `{"expectedRevision":1,"confirmed":true}`))
+		if allCalls.Load() != beforeCalls || len(local.Applied) != 0 || local.Metadata.Kind != "HomeVideo" || local.Metadata.Revision != 2 || local.NFO == nil || local.NFO.Status != domain.NFOItemObservedValid || local.Metadata.LastConfirmedNFOObservation.Status != domain.NFOItemObservedValid {
+			t.Fatal("HTTP lock-only NFO invented text, classification or fallback")
+		}
+		for _, field := range local.Metadata.Fields {
+			if field.NFOLockOrigin != nil && (field.NFOLockOrigin.Projection != domain.NFOItemLockFieldsVersion || field.Source != "existing" || field.NFOOrigin != nil || field.ProviderOrigin != nil || field.UpdatedAt != nil) {
+				t.Fatal("HTTP lock-only NFO invented text provenance")
+			}
+		}
+		fused := decode(apply(item, "movie", 4910+offset, 2))
+		if fused.NFO.Status != domain.NFOItemObservedValid || len(fused.NFO.Applied) != 0 || fused.Metadata.Revision != 3 || allCalls.Load() != beforeCalls+1 {
+			t.Fatal("HTTP lock-only fusion state or provider calls differ")
+		}
+		if offset == 0 && (len(fused.TMDB.Applied) != 0 || len(fused.TMDB.Skipped) != 4 || fused.Metadata.Kind != "HomeVideo") {
+			t.Fatal("HTTP lock-only global intent did not protect provider fields")
+		}
+		if offset == 1 && (len(fused.TMDB.Applied) != 3 || len(fused.TMDB.Skipped) != 1 || fused.TMDB.Skipped[0].Field != "overview" || fused.Metadata.Kind != "Movie") {
+			t.Fatal("HTTP lock-only named intent blocked unrelated fields or lost lock")
+		}
+		stored, err := store.ItemMetadata(ctx, actor, item)
+		if err != nil || stored.Revision != 3 {
+			t.Fatal("HTTP lock-only persistence unavailable", err)
+		}
+		var auditCount int
+		if err := store.Pool.QueryRow(ctx, `SELECT count(*) FROM audit_logs WHERE target_id=$1::uuid AND event IN ('item.nfo_metadata_applied','item.tmdb_metadata_applied')`, item).Scan(&auditCount); err != nil || auditCount != 2 {
+			t.Fatal("lock-only reviews did not commit one audit each", err)
+		}
+		if original, err := os.ReadFile(file); err != nil || string(original) != lockOnlyDocument {
+			t.Fatal("lock-only HTTP review changed original NFO", err)
+		}
+	}
+	changedLockDocument := `<movie><lockedfields>Overview</lockedfields></movie>`
+	changedLockItem, changedLockFile := newNFOItem("lock-only-changed", "HomeVideo", changedLockDocument)
+	changedLockInfo, err := os.Stat(changedLockFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	providerActions.Store(4912, func() {
+		if err := os.WriteFile(changedLockFile, []byte(strings.Replace(changedLockDocument, "Overview", "Name    ", 1)), 0600); err != nil {
+			t.Error(err)
+		}
+		if err := os.Chtimes(changedLockFile, changedLockInfo.ModTime(), changedLockInfo.ModTime()); err != nil {
+			t.Error(err)
+		}
+	})
+	changedLockResponse := apply(changedLockItem, "movie", 4912, 1)
+	if err := os.WriteFile(changedLockFile, []byte(changedLockDocument), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chtimes(changedLockFile, changedLockInfo.ModTime(), changedLockInfo.ModTime()); err != nil {
+		t.Fatal(err)
+	}
+	if changedLockResponse.status != 409 {
+		t.Fatal("changed lock-only intent was committed", changedLockResponse.status)
+	}
+	assertNoObservation(changedLockItem)
+	lockOnlyProviderError, _ := newNFOItem("lock-only-provider-error", "HomeVideo", `<movie><lockdata>true</lockdata></movie>`)
+	if response := apply(lockOnlyProviderError, "movie", 4004, 1); response.status != 503 {
+		t.Fatal("provider failure saved lock-only observation", response.status)
+	}
+	assertNoObservation(lockOnlyProviderError)
+	t.Log("actual HTTP/TLS/NFO/PostgreSQL lock-only: NFO-only and fusion, global and named locks, preserved text provenance/classification, one audit per review, changed intent409 and provider error rollback PASS")
+	for offset, mode := range []string{"unsafe", "empty", "permission", "unknown-lock", "false-lock"} {
 		content := `<!DOCTYPE movie [<!ENTITY unsafe SYSTEM "file:///private">]><movie><title>&unsafe;</title></movie>`
-		if mode == "lock-only" {
-			content = `<movie><lockdata>true</lockdata></movie>`
+		if mode == "empty" {
+			content = `<movie/>`
+		}
+		if mode == "unknown-lock" {
+			content = `<movie><lockedfields>Unknown</lockedfields></movie>`
+		}
+		if mode == "false-lock" {
+			content = `<movie><lockdata>false</lockdata></movie>`
 		}
 		item, file := newNFOItem("state-unavailable-"+mode, "HomeVideo", content)
 		if mode == "permission" {

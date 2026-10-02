@@ -1,0 +1,102 @@
+{
+  "phase": "第三階段：第26版有效lock-only NFO",
+  "previousCommit": "7c2b0f616b30cac278170861c295c1f6d329c056",
+  "schemaVersion": 26,
+  "verification": {
+    "windows": {
+      "passedPackages": 29,
+      "passedTestEventsIncludingParents": 3226,
+      "skippedTestEvents": 467
+    },
+    "native": {
+      "passedPackages": 5,
+      "passedTestEventsIncludingParents": 1092,
+      "skippedTestEvents": 0
+    },
+    "full-pg": {
+      "passedPackages": 1,
+      "passedTestEventsIncludingParents": 749,
+      "skippedTestEvents": 0,
+      "elapsedSeconds": 392.807
+    },
+    "native-postgres": {
+      "passedPackages": 1,
+      "passedTestEventsIncludingParents": 11,
+      "skippedTestEvents": 0,
+      "elapsedSeconds": 14.895
+    },
+    "e2e-restored": {
+      "passedPackages": 1,
+      "passedTestEventsIncludingParents": 1,
+      "skippedTestEvents": 0,
+      "elapsedSeconds": 72.453
+    }
+  },
+  "originalRegressions": {
+    "readerFailedLeaves": 1,
+    "storeFailedLeaves": 1
+  },
+  "fullPathNegative": {
+    "negativeLeafFailures": 1,
+    "observed": "provider apply status=503 after disabling dedicated lock-only projection",
+    "restoredSources": {
+      "internal/adapter/nfo/item_fields.go": "cc766dbc02c5a2f045c0ad5f2363dc2886f35198780c535ea21b66f8172a1d38"
+    },
+    "restoredExitCode": 0
+  },
+  "protectedPublishedMigrationFiles": 50,
+  "requirements": {
+    "partial": 184,
+    "blocked": 148,
+    "done": 4
+  },
+  "sourceSHA256": {
+    "internal/adapter/http/metadata_apply.go": "5d4d2e20d88567e0712177cbae1d026c29c0332651e87b4a42e1689aa274e998",
+    "internal/adapter/http/nfo_field_lock.go": "a7c4b47a68cd5e33056bfd81a05407193e676aaaea4c548697349bf4069e75d6",
+    "internal/adapter/http/nfo_item_metadata.go": "40308ae9f3ac0c77bc8d526029de4ee381d64b2fb9d8d04dad0c0eefd27d9e64",
+    "internal/adapter/nfo/item_fields.go": "cc766dbc02c5a2f045c0ad5f2363dc2886f35198780c535ea21b66f8172a1d38",
+    "internal/adapter/nfo/item_state_observation_test.go": "90322f3a1c235a7c7f7211f56a7f200ddd9a5832187a369e3b240fffb5215e5e",
+    "internal/adapter/postgres/accounts_integration_test.go": "e678ea1d4d7911e78c70d2ebe78895f959db3599fbc9906b482d074910f0ae6a",
+    "internal/adapter/postgres/ignore_baseline_test.go": "9023fa46c40e2f80609ed28a23c5b97414bdc44490763937ddd1b4d89cee253d",
+    "internal/adapter/postgres/ignore_family_comparison_test.go": "3ac9a5dba61f3ad31c3e24b4c752baf77c1a4f2d2f25001c2b13916ca9338e61",
+    "internal/adapter/postgres/ignore_family_scan_test.go": "444d5015223c7e4741b61b1bd0ac4c1e005e05826256d30e7c5f82a48acf3a4b",
+    "internal/adapter/postgres/ignore_legacy_baseline_test.go": "eb32c8811283baae9442bcc91ab000419725301c24b352a92723cb4eae09306b",
+    "internal/adapter/postgres/ignore_legacy_baseline_verification_test.go": "0b482aef440da2f0ae5ca96a6a08edd2084366df1f79dde9d3ecbbd026a60baf",
+    "internal/adapter/postgres/ignore_legacy_migration_test.go": "9d073bae2768727b06e4935ac47f639bf6be3500a914f5798c299540a69a4d21",
+    "internal/adapter/postgres/ignore_legacy_verification_test.go": "828f271491a0bcb2ee2471179713c9fab1105eee20f73cfa56650bbdf1e47658",
+    "internal/adapter/postgres/ignore_manifest_test.go": "4079c242909a3480f69fd0d5f02718dc85b0df407fc1bb8493d1a1f54f5e9178",
+    "internal/adapter/postgres/ignore_migration_test.go": "2d887a4b36ab0f211dfb151740e87074f814ecf28e9c56bc9498103f366581f2",
+    "internal/adapter/postgres/ignore_scan_test.go": "b1c9c8f7bf7ab9f568ab7ebd8fa3aa94d9262580944be3f89f872b18435d670a",
+    "internal/adapter/postgres/ignore_verification_test.go": "db3fb6a354623ef517f4ea218eae66b8d6bdcf23ed9338841c3b00951946354c",
+    "internal/adapter/postgres/item_metadata_test.go": "a6544922af6e975023b700e2f9244cc171f07d51d745cf529fe669e24afd13fb",
+    "internal/adapter/postgres/jobs_integration_test.go": "f736b0e88a00c073f3f05f33800e9b4f566e378228e760f74bf1fa40a1a82997",
+    "internal/adapter/postgres/metadata_apply_test.go": "d66dab1b7dc92868f416d7b9304ae3c10078f4a1870197908f03d64da6f653e1",
+    "internal/adapter/postgres/metadata_image_preferences_test.go": "5ddb46eff2d77fd58ad8f030268647f7120c0437b5b44df570b43968bc54ed5f",
+    "internal/adapter/postgres/metadata_preferences_test.go": "7639ae1fc86d283075d3831a40b0a6c49a560edac21bb64b69fac5b4fa7889e2",
+    "internal/adapter/postgres/nfo_integration_test.go": "31eddf342accc7a179b5f7181f42c9f24d0355cefcdd68d676f3b4d9d37702ba",
+    "internal/adapter/postgres/nfo_item_apply_test.go": "5b8776cc4cc1d07d62cf408521452232d7225e73f0a7b2b9a8b3dfa56a46202c",
+    "internal/adapter/postgres/nfo_item_lock_intent_test.go": "f5c8b39b0b2968f116064981c9531a8055e0787a0dd8c8a925ec4d315c3f1c0a",
+    "internal/adapter/postgres/nfo_item_observation_test.go": "fde0ae9799b03e62ea4ddebf0028de324c2552aa92898113fb3e10dd53d26260",
+    "internal/adapter/postgres/nfo_worker_migration_test.go": "907b727f7d5d27e1ffb929504fbcc845175d3a6d8492d9707b58bcbb6797fb1a",
+    "internal/adapter/postgres/probe_integration_test.go": "e7207f61ebdf9fa02530b90e4d46954b7f796645bd8a0c150bc8cdfdb4bb016a",
+    "internal/adapter/postgres/probe_requests_test.go": "2b235305000e60ad2b3836cdc9d765badfb2b79ada9f7e3aabd3efc0fc0729ec",
+    "internal/adapter/postgres/store.go": "d98346f9f83dac41a057743ed6e74384de2d47945b455aacd85cd7ba6c3ff820",
+    "internal/adapter/postgres/store_integration_test.go": "1613cbf9abf3773e77bf0be713c686d9a81204195cf63996ba00b63bd47fc49a",
+    "internal/domain/nfo_field_lock.go": "cc637c30998ed8d267994b2a9e4a083263504bb847e346e795d79b3514aaad42",
+    "internal/domain/nfo_item_fields.go": "82ca8f27d99c07ebe58704e4a4a764bdfdac4c61f197c11530992c084283c711",
+    "internal/platform/outbound/metadata_apply_integration_test.go": "a0d4a5927e5d27145d7e6f1b0f5670ce5a94326c8d74f9bd35a6159792a82a86",
+    "internal/adapter/nfo/item_lock_only_test.go": "dcd0ad96735f456c59ed4da1d1430cf0b99e81b40ad42d9daac442610a3b8796",
+    "internal/adapter/postgres/migrations/000026_nfo_lock_only_projection.down.sql": "607af36ec089e6c41b608de7bf3a01a1ba4a6300be9951c46ee30264051f3fbc",
+    "internal/adapter/postgres/migrations/000026_nfo_lock_only_projection.up.sql": "8b404b90544731d4050863c1c26ef8e752dfaf0f1f356a21b759757744a6132e",
+    "internal/adapter/postgres/nfo_lock_only_test.go": "ffde20c1dfb824e7f02680b4ab665ec05b2ef2ca9a12ef53ca9c5e1e38d630c8"
+  },
+  "gates": {
+    "vet": "passed",
+    "productBuild": "passed",
+    "newBrandViolations": 0,
+    "fullBrandViolations": 14735,
+    "fullBrandAllowed": 186,
+    "gitignoreViolations": 0
+  },
+  "scope": "只有已知正鎖且無四文字值時使用專用投影；有效觀察／獨立鎖同交易保存，無損回寫／季集／其他字段及全案仍未完成。"
+}

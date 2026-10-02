@@ -1,6 +1,6 @@
 # NFO 有效、缺失與損壞的可信觀察
 
-當前binary要求schema25；本頁保留先前階段的契約與證據。缺少文字值時的獨立NFO鎖及升降版限制，見[第25版契約](nfo-field-lock-intent.md)。
+當前binary要求schema26；本頁保留先前階段的契約與證據。缺少文字值時的獨立NFO鎖及升降版限制，見[第25版契約](nfo-field-lock-intent.md)；有效lock-only投影見[第26版契約](nfo-lock-only.md)。
 
 本頁保留該階段的實作與驗證；後續第24版的三態保存及可信缺失／損壞回退，見[最新回退契約](nfo-tmdb-fallback.md)。
 

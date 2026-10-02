@@ -83,7 +83,7 @@ func TestItemNFOStateObservationsAndTransitions(t *testing.T) {
 }
 
 func TestItemNFOValidUnsupportedProjectionIsNotCorruption(t *testing.T) {
-	for _, document := range []string{`<movie/>`, `<movie><lockdata>true</lockdata></movie>`, `<root><movie><title>Wrapped</title></movie></root>`, `<tvshow><title>Wrong kind</title></tvshow>`, `<movie><title>One</title><title>Two</title></movie>`, `<movie><title>Local</title><lockdata>true</lockdata><lockdata>false</lockdata></movie>`, `<!DOCTYPE movie [<!ENTITY unsafe SYSTEM "file:///private">]><movie><title>&unsafe;</title></movie>`, `<?xml version="1.0" encoding="ISO-8859-1"?><movie><title>Local</title></movie>`} {
+	for _, document := range []string{`<movie/>`, `<movie><lockdata>false</lockdata></movie>`, `<movie><lockedfields>Unknown</lockedfields></movie>`, `<movie><lockedfields> </lockedfields></movie>`, `<root><movie><title>Wrapped</title></movie></root>`, `<tvshow><title>Wrong kind</title></tvshow>`, `<movie><title>One</title><title>Two</title></movie>`, `<movie><title>Local</title><lockdata>true</lockdata><lockdata>false</lockdata></movie>`, `<!DOCTYPE movie [<!ENTITY unsafe SYSTEM "file:///private">]><movie><title>&unsafe;</title></movie>`, `<?xml version="1.0" encoding="ISO-8859-1"?><movie><title>Local</title></movie>`} {
 		reader, scope := itemSelectionFixture(t, "Movie")
 		if err := os.WriteFile(filepath.Join(scope.Source.RootPath, "folder", "Film.nfo"), []byte(document), 0600); err != nil {
 			t.Fatal(err)

@@ -108,6 +108,7 @@ func TestMetadataPreferencesAuthorizationAndValidation(t *testing.T) {
 
 func TestMetadataPreferencesMigrationDefaultAndCleanRollback(t *testing.T) {
 	f := newJobFixture(t)
+	nfoMigrateVersion(t, f, "down", 25)
 	nfoMigrateVersion(t, f, "down", 24)
 	nfoMigrateVersion(t, f, "down", 23)
 	nfoMigrateVersion(t, f, "down", 22)
@@ -125,6 +126,7 @@ func TestMetadataPreferencesMigrationDefaultAndCleanRollback(t *testing.T) {
 			t.Fatal("database preference constraint missing")
 		}
 	}
+	nfoMigrateVersion(t, f, "down", 25)
 	nfoMigrateVersion(t, f, "down", 24)
 	nfoMigrateVersion(t, f, "down", 23)
 	nfoMigrateVersion(t, f, "down", 22)

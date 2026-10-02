@@ -1,6 +1,6 @@
 # 唯讀 NFO 的可信回退與確認狀態
 
-當前binary要求schema25；本頁保留先前階段的契約與證據。缺少文字值時的獨立NFO鎖及升降版限制，見[第25版契約](nfo-field-lock-intent.md)。
+當前binary要求schema26；本頁保留先前階段的契約與證據。缺少文字值時的獨立NFO鎖及升降版限制，見[第25版契約](nfo-field-lock-intent.md)；有效lock-only投影見[第26版契約](nfo-lock-only.md)。
 
 唯讀庫在明確確認套用 TMDB 時，先從可信項目／媒體／根目錄關係取得 NFO 觀察，再查詢供應商。狀態決定欄位來源：
 
