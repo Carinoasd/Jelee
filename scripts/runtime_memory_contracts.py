@@ -34,9 +34,11 @@ def run_contracts():
         ("resident-controller", [sys.executable, "-B", "scripts/test_resident_controller.py"], 120),
         ("heap-evidence", [sys.executable, "-B", "scripts/test_heap_profile_acceptance.py"], 180),
         ("heap-controller", [sys.executable, "-B", "scripts/test_runtime_heap_controller.py"], 120),
+        ("scan-memory-evidence", [sys.executable, "-B", "scripts/test_scan_memory_acceptance.py"], 120),
+        ("scan-memory-controller", [sys.executable, "-B", "scripts/test_scan_memory_controller.py"], 180),
         ("compose-configuration", [sys.executable, "-B", "scripts/check_memory_compose.py"], 180),
         ("native-runtime", [str(ROOT / ".bin/go"), "test", "-tags", "jelee_probe_tests", "-count=1",
-                            "-run", "^Test(MemoryProfile(RuntimeSubprocess|CgroupEvidenceRequired)$|Resident|HeapProfile)",
+                            "-run", "^Test(MemoryProfile(RuntimeSubprocess|CgroupEvidenceRequired)$|Resident|HeapProfile|ScanMemory)",
                             "./internal/platform/runtime"], 600),
     )
     report = {"version": 1, "result": "failed", "scope": "memory contracts only",

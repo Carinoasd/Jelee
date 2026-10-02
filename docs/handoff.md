@@ -1,4 +1,16 @@
-## 最新接續：G42.10 heap／inuse_space 前後比較子項完成
+## 最新接續：G42.10 五十萬條目容器預算與 GC 子項完成
+
+正式 Fx／HTTP／PostgreSQL 單 worker 在 2 CPUs、GOGC100、Go soft limit 512 MiB、容器 768 MiB 下，完整掃描五十萬檔，inventory 與已生效 baseline 各五十萬筆，501 個目錄完成。一次嘗試，HTTP 提交至觀察成功 136.28 秒；全段觀測 138.11 秒、144 筆 RSS 採樣，峰值 154.32 MiB，低於事前固定 464 MiB。
+
+GC 暫停最高桶上界 0.196608 ms，計數器及 histogram 保守暫停比例 0.02080%／0.02335%，低於 50 ms／1% 工程門檻；633 個 cycle、1266 個 STW 事件分別記錄。原檔抽樣保持，SIGTERM、HTTP 關閉、lifetime 取消、租約與 DB 連線清空通過，OOM 零增量、退出 0，自建資源已清理。外部 PostgreSQL 記憶體不包含在 worker 預算中。
+
+Windows Go 與 Linux race 各 24 個通過事件、1 略過；Python Windows 21 通過／1 略過、Linux 22 通過，CI 契約 10 步與 vet／格式／差異檢查通過。876 份量測來源保持；90 份 SQL、五份 LiveTV 核心、LICENSE 與需求原文未改。前置 tmpfs 拒絕與首輪短測試請求錯誤已保留，修正後同來源短測試及正式五十萬負載通過。
+
+[方法與範圍](scan-memory.md)／[來源及實測證據](evidence/scan-memory.json)。336 項仍為 7 完成／185 部分／144 阻塞，仍第三階段。G42.10 的 heap 前後比較與五十萬掃描已有證據；十萬真正圖片處理、至少 24h 穩態仍待完成。
+
+下一段先實作可用的本地圖片處理路徑，再用真解碼／縮放／輸出驗十萬圖片；忽略草稿 `.testdata/image-processing-next.md` 尚不是實作或驗收。沿用繁中 PR46。完整品牌 gate 仍未通過，不合併；新推送 CI 另查。下方為歷史紀錄。
+
+## 歷史接續：G42.10 heap／inuse_space 前後比較子項完成
 
 既有 1000 檔混合 worker 在冷／暖／變更掃描後與五分鐘持續暖掃後各採一份 heap；沿用 GC 點，沒有增加暖機或 GC。GOGC100／50 兩組均通過，RSS 峰值 359.30／222.36 MiB，仍低於固定 464／352 MiB。兩槽 KDF、取消復原、停止、OOM 零增量及獨立 OOM 負向均通過，自建資源已清理。
 
