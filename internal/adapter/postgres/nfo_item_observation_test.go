@@ -24,6 +24,7 @@ func nfoObservationState(scope domain.NFOItemScope, fields domain.NFOItemFields,
 
 func TestNFOItemObservationPersistenceHistoryAndMigration(t *testing.T) {
 	f, scope, fields := nfoItemApplyFixture(t)
+	nfoMigrateVersion(t, f, "down", 26)
 	nfoMigrateVersion(t, f, "down", 25)
 	nfoMigrateVersion(t, f, "down", 24)
 	nfoMigrateVersion(t, f, "down", 23)
@@ -80,6 +81,7 @@ func TestNFOItemObservationPersistenceHistoryAndMigration(t *testing.T) {
 	if _, err := f.s.Pool.Exec(f.ctx, `DELETE FROM item_nfo_observations WHERE item_id=$1::uuid`, scope.ItemID); err != nil {
 		t.Fatal(err)
 	}
+	nfoMigrateVersion(t, f, "down", 26)
 	nfoMigrateVersion(t, f, "down", 25)
 	nfoMigrateVersion(t, f, "down", 24)
 	nfoMigrateVersion(t, f, "down", 23)

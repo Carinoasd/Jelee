@@ -65,12 +65,20 @@ func (r *SummaryReader) projectItemFields(ctx context.Context, source *summarySo
 	if metadata.LockData != nil {
 		result.LockData = *metadata.LockData
 	}
-	for _, field := range []domain.NFOTextField{{Field: "title", Value: metadata.Title}, {Field: "originalTitle", Value: metadata.OriginalTitle}, {Field: "overview", Value: metadata.Plot}, {Field: "date", Value: metadata.Premiered}} {
+	if strings.TrimSpace(metadata.SortTitle) != "" {
+		result.Version = domain.NFOItemSortFieldsVersion
+	}
+	for _, name := range metadata.LockedFields {
+		if strings.EqualFold(strings.TrimSpace(name), "SortName") {
+			result.Version = domain.NFOItemSortFieldsVersion
+		}
+	}
+	for _, field := range []domain.NFOTextField{{Field: "title", Value: metadata.Title}, {Field: "originalTitle", Value: metadata.OriginalTitle}, {Field: "overview", Value: metadata.Plot}, {Field: "date", Value: metadata.Premiered}, {Field: "sortTitle", Value: metadata.SortTitle}} {
 		if strings.TrimSpace(field.Value) != "" {
 			result.Fields = append(result.Fields, field)
 		}
 	}
-	if len(result.Fields) == 0 && domain.HasNFOItemFieldLock(result) {
+	if len(result.Fields) == 0 && result.Version != domain.NFOItemSortFieldsVersion && domain.HasNFOItemFieldLock(result) {
 		result.Version = domain.NFOItemLockFieldsVersion
 	}
 	if !domain.ValidNFOItemFields(result) {
@@ -115,9 +123,11 @@ func uniqueItemFields(ctx context.Context, original []byte) error {
 				name = "title"
 			case "releasedate":
 				name = "premiered"
+			case "sortname":
+				name = "sorttitle"
 			}
 			switch name {
-			case "title", "originaltitle", "plot", "premiered", "lockdata", "lockedfields":
+			case "title", "originaltitle", "plot", "premiered", "sorttitle", "lockdata", "lockedfields":
 				if seen[name] {
 					return domain.ErrMetadataUnavailable
 				}

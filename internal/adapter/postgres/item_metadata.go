@@ -22,7 +22,7 @@ func readItemMetadata(ctx context.Context, tx pgx.Tx, item string, lock bool) (d
 	if err := tx.QueryRow(ctx, `SELECT COALESCE((SELECT revision FROM item_metadata_state WHERE item_id=$1::uuid),1)`, item).Scan(&value.Revision); err != nil {
 		return value, storageError(err)
 	}
-	rows, err := tx.Query(ctx, `SELECT field,value,source,locked,updated_at,provider_resource,provider_id,provider_source_url,provider_language,provider_fetched_at,nfo_origin FROM item_metadata_fields WHERE item_id=$1::uuid ORDER BY CASE field WHEN 'title' THEN 0 WHEN 'originalTitle' THEN 1 WHEN 'overview' THEN 2 ELSE 3 END`, item)
+	rows, err := tx.Query(ctx, `SELECT field,value,source,locked,updated_at,provider_resource,provider_id,provider_source_url,provider_language,provider_fetched_at,nfo_origin FROM item_metadata_fields WHERE item_id=$1::uuid ORDER BY CASE field WHEN 'title' THEN 0 WHEN 'originalTitle' THEN 1 WHEN 'overview' THEN 2 WHEN 'date' THEN 3 ELSE 4 END`, item)
 	if err != nil {
 		return value, storageError(err)
 	}

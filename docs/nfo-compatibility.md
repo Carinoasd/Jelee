@@ -10,7 +10,9 @@
 
 唯讀項目套用已接可信來源、人工優先、四文字欄位及其獨立鎖、NFO／TMDB同交易融合與可信缺失／解析損壞回退。第26版亦支援沒有文字、但有已知正鎖定指令的有效NFO；見[lock-only契約](nfo-lock-only.md)。按庫worker的摘要觀察與缓存已有[實際驗證](nfo-worker-verification.md)，尚未等同完整媒體階層匯入。
 
-尚未完成：四欄以外的套用／鎖、季集與多項目來源的正式套用、完整實體匯入及前端、編輯後的無損回寫、原子替換與備份、跨進程鎖、批量匯入／匯出、`--fix`、真實客戶端雙向互操作驗收。G39仍為部分完成。
+第27版新增排序標題（第五欄）與其獨立鎖、人工接管及同交易融合；[排序標題契約](nfo-sort-title.md)。
+
+尚未完成：五欄以外的套用／鎖、季集與多項目來源的正式套用、完整實體匯入及前端、編輯後的無損回寫、原子替換與備份、跨進程鎖、批量匯入／匯出、`--fix`、真實客戶端雙向互操作驗收。G39仍為部分完成。
 
 ## 上游证据与格式选择
 
@@ -40,7 +42,7 @@
 | 人员 | actor/name、role、thumb、order |
 | 标识 | uniqueid/type/default、imdbid、tmdbid、tvdbid、id（映射为 imdb）；冲突值同时保留并告警 |
 | 评分 | rating/communityrating、userrating、ratings/rating 的 name/max/default/value/votes |
-| 锁 | lockdata、以 `\|` 分隔的 lockedfields；保留原鎖資訊；已知四欄鎖已接唯讀套用與TMDB融合，其他欄位尚未支援 |
+| 锁 | lockdata、以 `\|` 分隔的 lockedfields；保留原鎖資訊；已知四欄及排序標題鎖已接唯讀套用與TMDB融合，其他欄位尚未支援 |
 | 合集 | 文本 set/collection 或 set/name、set/overview |
 | 图片 | thumb/aspect/type/season/preview、fanart/thumb、多种 art 子元素、poster/banner/clearart/clearlogo/landscape |
 | 其他 | trailer 原始文本列表 |

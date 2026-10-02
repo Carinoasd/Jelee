@@ -691,6 +691,40 @@ func TestTMDBMetadataThroughTLSHTTPAndPostgres(t *testing.T) {
 		t.Fatal("HTTP single aliases or nested names lost compatibility")
 	}
 	t.Log("actual HTTP/TLS/NFO/PostgreSQL aliases: conflicting title/date aliases and empty alias rejected503 before provider/writes; single aliases and nested actor names remain supported PASS")
+	sortDocument := `<movie><title>Display title</title><originaltitle>Original title</originaltitle><plot>Local plot</plot><premiered>2024-05-06</premiered><sortname>Sorting title</sortname><lockedfields>SortName</lockedfields></movie>`
+	sortItem, sortFile := newNFOItem("sort-title", "HomeVideo", sortDocument)
+	sortResult := decode(apply(sortItem, "movie", 4939, 1))
+	if sortResult.Metadata.Revision != 2 || len(sortResult.Metadata.Fields) != 5 || len(sortResult.NFO.Applied) != 5 || len(sortResult.TMDB.Applied) != 0 {
+		t.Fatal("HTTP NFO sort title was dropped from fusion")
+	}
+	sortField := sortResult.Metadata.Fields[4]
+	if sortField.Field != "sortTitle" || sortField.Value != "Sorting title" || sortField.Source != "nfo" || sortField.NFOOrigin == nil || sortField.NFOOrigin.Projection != domain.NFOItemSortFieldsVersion || sortField.NFOLockOrigin == nil || !sortField.NFOOrigin.Locked {
+		t.Fatal("HTTP sort title lost NFO provenance or lock")
+	}
+	cleared := request("PUT", "/api/v1/items/"+sortItem+"/metadata", `{"expectedRevision":2,"fields":[{"field":"sortTitle","value":""}]}`)
+	if cleared.status != 200 {
+		t.Fatal("HTTP manual sort title clear failed", cleared.status)
+	}
+	sortResult = decode(apply(sortItem, "movie", 4940, 3))
+	sortField = sortResult.Metadata.Fields[4]
+	if sortField.Value != "" || sortField.Source != "manual" || sortField.NFOOrigin != nil || sortField.NFOLockOrigin == nil {
+		t.Fatal("HTTP NFO overwrote manual sort title clear")
+	}
+	if raw, err := os.ReadFile(sortFile); err != nil || string(raw) != sortDocument {
+		t.Fatal("sort title review changed original NFO", err)
+	}
+	conflictSortItem, _ := newNFOItem("sort-title-alias-conflict", "HomeVideo", `<movie><sorttitle>First</sorttitle><sortname>Second</sortname></movie>`)
+	beforeSortCalls := allCalls.Load()
+	if response := apply(conflictSortItem, "movie", 4941, 1); response.status != 503 || allCalls.Load() != beforeSortCalls {
+		t.Fatal("HTTP sort title alias conflict triggered provider or write", response.status)
+	}
+	assertNoObservation(conflictSortItem)
+	sortLockItem, _ := newNFOItem("sort-title-lock-only", "HomeVideo", `<movie><lockedfields>SortName</lockedfields></movie>`)
+	sortLockResult := decode(request("POST", "/api/v1/items/"+sortLockItem+"/metadata/nfo", `{"expectedRevision":1,"confirmed":true}`))
+	if len(sortLockResult.Applied) != 0 || sortLockResult.Metadata.Kind != "HomeVideo" || len(sortLockResult.Metadata.Fields) != 2 || sortLockResult.Metadata.Fields[1].Field != "sortTitle" || sortLockResult.Metadata.Fields[1].NFOLockOrigin == nil || sortLockResult.Metadata.Fields[1].NFOOrigin != nil {
+		t.Fatal("HTTP sort title lock-only review invented text or lost intent")
+	}
+	t.Log("actual HTTP/TLS/NFO/PostgreSQL sortTitle: five NFO fields fused with provenance/locks, manual clear preserved, conflicting aliases rejected before provider, absent-value lock-only accepted without text PASS")
 	for offset, mode := range []string{"unsafe", "empty", "permission", "unknown-lock", "false-lock"} {
 		content := `<!DOCTYPE movie [<!ENTITY unsafe SYSTEM "file:///private">]><movie><title>&unsafe;</title></movie>`
 		if mode == "empty" {
