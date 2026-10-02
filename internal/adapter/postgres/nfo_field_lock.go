@@ -41,7 +41,10 @@ func readNFOFieldLocks(ctx context.Context, tx pgx.Tx, value *domain.ItemMetadat
 	if err := rows.Err(); err != nil {
 		return storageError(err)
 	}
-	order := map[string]int{"title": 0, "originalTitle": 1, "overview": 2, "date": 3, "sortTitle": 4}
+	order := map[string]int{}
+	for i, name := range domain.ItemMetadataFieldNames() {
+		order[name] = i
+	}
 	sort.Slice(value.Fields, func(i, j int) bool { return order[value.Fields[i].Field] < order[value.Fields[j].Field] })
 	return nil
 }
@@ -55,7 +58,7 @@ func writeNFOFieldLocks(ctx context.Context, tx pgx.Tx, scope domain.NFOItemScop
 	if err != nil {
 		return domain.ErrInvalid
 	}
-	for _, field := range []string{"title", "originalTitle", "overview", "date", "sortTitle"} {
+	for _, field := range domain.NFOItemFieldNames(fields.Version) {
 		if !domain.NFOFieldLocked(fields, field) {
 			continue
 		}

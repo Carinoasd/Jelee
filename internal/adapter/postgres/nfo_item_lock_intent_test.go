@@ -132,6 +132,7 @@ func TestNFOItemLockIntentPersistenceAndManualTakeover(t *testing.T) {
 	if err != nil || stored.Fields[2].NFOLockOrigin != nil || stored.Fields[2].Source != "manual" || stored.Fields[2].Value != manual {
 		t.Fatal("manual takeover retained lock intent", err)
 	}
+	nfoMigrateVersion(t, f, "down", 27)
 	nfoMigrateVersion(t, f, "down", 26)
 	nfoMigrateVersion(t, f, "down", 25)
 	nfoMigrateVersion(t, f, "down", 24)

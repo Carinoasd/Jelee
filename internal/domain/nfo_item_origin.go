@@ -1,6 +1,7 @@
 package domain
 
 import (
+	"slices"
 	"strings"
 	"time"
 )
@@ -19,11 +20,17 @@ type NFOItemOrigin struct {
 }
 
 func ValidNFOItemOrigin(v NFOItemOrigin) bool {
-	return ValidID(v.SourceID) && ValidID(v.RootID) && v.Generation >= 1 && probeHex(v.SHA256, 64) && probeHex(v.IdentityDigest, 64) && (v.Projection == NFOItemFieldsVersion || v.Projection == NFOItemSortFieldsVersion) && !v.ReadAt.IsZero() && v.ReadAt.Year() >= 1 && v.ReadAt.Year() <= 9999
+	return ValidID(v.SourceID) && ValidID(v.RootID) && v.Generation >= 1 && probeHex(v.SHA256, 64) && probeHex(v.IdentityDigest, 64) && (v.Projection == NFOItemFieldsVersion || v.Projection == NFOItemSortFieldsVersion || v.Projection == NFOItemTextFieldsVersion) && !v.ReadAt.IsZero() && v.ReadAt.Year() >= 1 && v.ReadAt.Year() <= 9999
 }
 
 func NFOFieldLocked(fields NFOItemFields, field string) bool {
-	if field == "sortTitle" && fields.Version != NFOItemSortFieldsVersion {
+	version := fields.Version
+	// Standalone legacy lock mapping predates compiled observations. Such a
+	// capsule is still rejected by ValidNFOItemFields before any persistence.
+	if version == "" {
+		version = NFOItemFieldsVersion
+	}
+	if !slices.Contains(NFOItemFieldNames(version), field) {
 		return false
 	}
 	if fields.LockData {
@@ -31,7 +38,10 @@ func NFOFieldLocked(fields NFOItemFields, field string) bool {
 	}
 	for _, name := range fields.LockedFields {
 		name = strings.ToLower(strings.TrimSpace(name))
-		if field == "title" && name == "name" || field == "originalTitle" && name == "originaltitle" || field == "overview" && name == "overview" || field == "date" && name == "premieredate" || field == "sortTitle" && name == "sortname" {
+		if (field == "mpaa" || field == "certification") && name == "officialrating" {
+			return true
+		}
+		if field == "title" && name == "name" || field == "originalTitle" && name == "originaltitle" || field == "overview" && name == "overview" || field == "date" && name == "premieredate" || field == "sortTitle" && name == "sortname" || field == "tagline" && name == "tagline" || field == "certification" && name == "certification" || field == "mpaa" && name == "mpaa" || field == "outline" && name == "outline" {
 			return true
 		}
 	}

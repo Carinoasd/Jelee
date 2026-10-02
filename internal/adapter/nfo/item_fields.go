@@ -62,23 +62,60 @@ func (r *SummaryReader) projectItemFields(ctx context.Context, source *summarySo
 	}
 	metadata := document.Entries[0]
 	result := domain.NFOItemFields{Version: domain.NFOItemFieldsVersion, Kind: resultKind, Identity: r.Identity(), Stamp: source.Stamp(), ReadAt: time.Now().UTC(), Fields: []domain.NFOTextField{}, LockedFields: slices.Clone(metadata.LockedFields)}
+	for _, name := range metadata.LockedFields {
+		if strings.EqualFold(strings.TrimSpace(name), "OfficialRating") {
+			result.Version = domain.NFOItemTextFieldsVersion
+		}
+	}
 	if metadata.LockData != nil {
 		result.LockData = *metadata.LockData
 	}
-	if strings.TrimSpace(metadata.SortTitle) != "" {
+	if strings.TrimSpace(metadata.SortTitle) != "" && result.Version != domain.NFOItemTextFieldsVersion {
 		result.Version = domain.NFOItemSortFieldsVersion
 	}
 	for _, name := range metadata.LockedFields {
-		if strings.EqualFold(strings.TrimSpace(name), "SortName") {
+		if strings.EqualFold(strings.TrimSpace(name), "SortName") && result.Version != domain.NFOItemTextFieldsVersion {
 			result.Version = domain.NFOItemSortFieldsVersion
 		}
 	}
-	for _, field := range []domain.NFOTextField{{Field: "title", Value: metadata.Title}, {Field: "originalTitle", Value: metadata.OriginalTitle}, {Field: "overview", Value: metadata.Plot}, {Field: "date", Value: metadata.Premiered}, {Field: "sortTitle", Value: metadata.SortTitle}} {
+	if strings.TrimSpace(metadata.Tagline) != "" {
+		result.Version = domain.NFOItemTextFieldsVersion
+	}
+	for _, name := range metadata.LockedFields {
+		if strings.EqualFold(strings.TrimSpace(name), "Tagline") {
+			result.Version = domain.NFOItemTextFieldsVersion
+		}
+	}
+	if strings.TrimSpace(metadata.Outline) != "" {
+		result.Version = domain.NFOItemTextFieldsVersion
+	}
+	for _, name := range metadata.LockedFields {
+		if strings.EqualFold(strings.TrimSpace(name), "outline") {
+			result.Version = domain.NFOItemTextFieldsVersion
+		}
+	}
+	if strings.TrimSpace(metadata.MPAA) != "" {
+		result.Version = domain.NFOItemTextFieldsVersion
+	}
+	for _, name := range metadata.LockedFields {
+		if strings.EqualFold(strings.TrimSpace(name), "mpaa") {
+			result.Version = domain.NFOItemTextFieldsVersion
+		}
+	}
+	if strings.TrimSpace(metadata.Certification) != "" {
+		result.Version = domain.NFOItemTextFieldsVersion
+	}
+	for _, name := range metadata.LockedFields {
+		if strings.EqualFold(strings.TrimSpace(name), "certification") {
+			result.Version = domain.NFOItemTextFieldsVersion
+		}
+	}
+	for _, field := range []domain.NFOTextField{{Field: "title", Value: metadata.Title}, {Field: "originalTitle", Value: metadata.OriginalTitle}, {Field: "overview", Value: metadata.Plot}, {Field: "date", Value: metadata.Premiered}, {Field: "sortTitle", Value: metadata.SortTitle}, {Field: "tagline", Value: metadata.Tagline}, {Field: "outline", Value: metadata.Outline}, {Field: "mpaa", Value: metadata.MPAA}, {Field: "certification", Value: metadata.Certification}} {
 		if strings.TrimSpace(field.Value) != "" {
 			result.Fields = append(result.Fields, field)
 		}
 	}
-	if len(result.Fields) == 0 && result.Version != domain.NFOItemSortFieldsVersion && domain.HasNFOItemFieldLock(result) {
+	if len(result.Fields) == 0 && result.Version != domain.NFOItemSortFieldsVersion && result.Version != domain.NFOItemTextFieldsVersion && domain.HasNFOItemFieldLock(result) {
 		result.Version = domain.NFOItemLockFieldsVersion
 	}
 	if !domain.ValidNFOItemFields(result) {
@@ -127,7 +164,7 @@ func uniqueItemFields(ctx context.Context, original []byte) error {
 				name = "sorttitle"
 			}
 			switch name {
-			case "title", "originaltitle", "plot", "premiered", "sorttitle", "lockdata", "lockedfields":
+			case "title", "originaltitle", "plot", "premiered", "sorttitle", "tagline", "outline", "mpaa", "certification", "lockdata", "lockedfields":
 				if seen[name] {
 					return domain.ErrMetadataUnavailable
 				}

@@ -29,7 +29,8 @@ func (s *Server) itemMetadataRoutes(r chi.Router) {
 					Locked json.RawMessage `json:"locked"`
 				} `json:"fields"`
 			}
-			if err := DecodeJSON(w, r, &input, 32<<10); err != nil {
+			// Nine bounded text fields can expand sixfold when JSON escapes HTML.
+			if err := DecodeJSON(w, r, &input, 256<<10); err != nil {
 				return nil, 0, err
 			}
 			patches := make([]domain.ItemMetadataPatch, 0, len(input.Fields))
@@ -58,9 +59,9 @@ func (s *Server) itemMetadataRoutes(r chi.Router) {
 }
 
 func itemMetadataSpecification(paths, schemas map[string]any) {
-	field := map[string]any{"type": "string", "enum": []string{"title", "originalTitle", "overview", "date", "sortTitle"}}
+	field := map[string]any{"type": "string", "enum": domain.ItemMetadataFieldNames()}
 	schemas["ItemMetadataField"] = objectSchema(map[string]any{"field": field, "value": map[string]any{"type": "string", "maxLength": 16384}, "source": map[string]any{"type": "string", "enum": []string{"existing", "manual"}}, "locked": map[string]any{"type": "boolean"}, "updatedAt": map[string]any{"type": []string{"string", "null"}, "format": "date-time"}}, "field", "value", "source", "locked", "updatedAt")
-	schemas["ItemMetadata"] = objectSchema(map[string]any{"itemId": map[string]any{"type": "string", "format": "uuid"}, "libraryId": map[string]any{"type": "string", "format": "uuid"}, "revision": map[string]any{"type": "integer", "minimum": 1, "maximum": domain.ItemMetadataRevisionMax}, "fields": map[string]any{"type": "array", "minItems": 1, "maxItems": 5, "items": map[string]any{"$ref": "#/components/schemas/ItemMetadataField"}}}, "itemId", "libraryId", "revision", "fields")
+	schemas["ItemMetadata"] = objectSchema(map[string]any{"itemId": map[string]any{"type": "string", "format": "uuid"}, "libraryId": map[string]any{"type": "string", "format": "uuid"}, "revision": map[string]any{"type": "integer", "minimum": 1, "maximum": domain.ItemMetadataRevisionMax}, "fields": map[string]any{"type": "array", "minItems": 1, "maxItems": len(domain.ItemMetadataFieldNames()), "items": map[string]any{"$ref": "#/components/schemas/ItemMetadataField"}}}, "itemId", "libraryId", "revision", "fields")
 	get := operation("Read item metadata and field locks (administrator)", "200", "400", "401", "403", "404", "408", "503")
 	put := operation("Manually update item metadata and locks with revision check (administrator)", "200", "400", "401", "403", "404", "408", "409", "503")
 	for _, op := range []map[string]any{get, put} {
@@ -70,7 +71,7 @@ func itemMetadataSpecification(paths, schemas map[string]any) {
 	}
 	patch := objectSchema(map[string]any{"field": field, "value": map[string]any{"type": "string", "maxLength": 16384}, "locked": map[string]any{"type": "boolean"}}, "field")
 	patch["anyOf"] = []any{map[string]any{"required": []string{"value"}}, map[string]any{"required": []string{"locked"}}}
-	put["requestBody"] = map[string]any{"required": true, "content": map[string]any{"application/json": map[string]any{"schema": objectSchema(map[string]any{"expectedRevision": map[string]any{"type": "integer", "minimum": 1, "maximum": domain.ItemMetadataRevisionMax - 1}, "fields": map[string]any{"type": "array", "minItems": 1, "maxItems": 5, "items": patch}}, "expectedRevision", "fields")}}}
-	put["description"] = "Explicit manual edits may change locked fields and lock flags. Omitted value/locked preserves it; an empty optional value is a recorded manual clear. JSON null, repeated fields, unknown properties and invalid dates are rejected. Title must be nonblank; title/originalTitle/sortTitle 1024 bytes, overview 16384 bytes, date empty or a real YYYY-MM-DD. No provider calls or original asset writes."
+	put["requestBody"] = map[string]any{"required": true, "content": map[string]any{"application/json": map[string]any{"schema": objectSchema(map[string]any{"expectedRevision": map[string]any{"type": "integer", "minimum": 1, "maximum": domain.ItemMetadataRevisionMax - 1}, "fields": map[string]any{"type": "array", "minItems": 1, "maxItems": len(domain.ItemMetadataFieldNames()), "items": patch}}, "expectedRevision", "fields")}}}
+	put["description"] = "Explicit manual edits may change locked fields and lock flags. Omitted value/locked preserves it; an empty optional value is a recorded manual clear. JSON null, repeated fields, unknown properties and invalid dates are rejected. Title must be nonblank; title/originalTitle/sortTitle/tagline/mpaa/certification 1024 bytes, overview/outline 16384 bytes, date empty or a real YYYY-MM-DD. No provider calls or original asset writes."
 	paths["/api/v1/items/{id}/metadata"] = map[string]any{"get": get, "put": put}
 }

@@ -308,7 +308,10 @@ func TestTMDBMetadataThroughTLSHTTPAndPostgres(t *testing.T) {
 			return metadataHTTPResult{err: err}
 		}
 		defer response.Body.Close()
-		data, err := io.ReadAll(io.LimitReader(response.Body, 128<<10))
+		data, err := io.ReadAll(io.LimitReader(response.Body, (1<<20)+1))
+		if len(data) > 1<<20 {
+			return metadataHTTPResult{status: response.StatusCode, err: errors.New("metadata fixture response exceeds bound")}
+		}
 		return metadataHTTPResult{status: response.StatusCode, body: data, err: err}
 	}
 	request := func(method, path, body string) metadataHTTPResult {
@@ -329,11 +332,12 @@ func TestTMDBMetadataThroughTLSHTTPAndPostgres(t *testing.T) {
 		return request("POST", "/api/v1/items/"+item+"/metadata/tmdb", fmt.Sprintf(`{"resource":%q,"providerId":%d,"expectedRevision":%d,"confirmed":true,"replaceExistingTitle":true}`, resource, id, revision))
 	}
 	decode := func(response metadataHTTPResult) domain.MetadataApplyResult {
+		t.Helper()
 		var body struct {
 			Data domain.MetadataApplyResult `json:"data"`
 		}
 		if response.status != 200 || json.Unmarshal(response.body, &body) != nil {
-			t.Fatalf("provider apply status=%d body=%s", response.status, response.body)
+			t.Fatalf("provider apply status=%d validJSON=%v responseBytes=%d", response.status, json.Valid(response.body), len(response.body))
 		}
 		return body.Data
 	}
@@ -725,6 +729,64 @@ func TestTMDBMetadataThroughTLSHTTPAndPostgres(t *testing.T) {
 		t.Fatal("HTTP sort title lock-only review invented text or lost intent")
 	}
 	t.Log("actual HTTP/TLS/NFO/PostgreSQL sortTitle: five NFO fields fused with provenance/locks, manual clear preserved, conflicting aliases rejected before provider, absent-value lock-only accepted without text PASS")
+	textDocument := `<movie><title>Display title</title><originaltitle>Original title</originaltitle><plot>Long plot</plot><premiered>2024-05-06</premiered><sorttitle>Sorting title</sorttitle><tagline>Short tagline</tagline><outline>Short outline</outline><mpaa>PG-13</mpaa><certification>TW:12</certification><lockdata>true</lockdata></movie>`
+	textItem, textFile := newNFOItem("extended-text", "HomeVideo", textDocument)
+	textResult := decode(apply(textItem, "movie", 4942, 1))
+	if len(textResult.NFO.Applied) != 9 || len(textResult.Metadata.Fields) != 9 || len(textResult.TMDB.Applied) != 0 || textResult.Metadata.Revision != 2 {
+		t.Fatal("HTTP extended text did not fuse nine fields")
+	}
+	for _, field := range textResult.Metadata.Fields {
+		if field.Source != "nfo" || field.NFOOrigin == nil || field.NFOOrigin.Projection != domain.NFOItemTextFieldsVersion || field.NFOLockOrigin == nil {
+			t.Fatal("HTTP extended text lost field provenance or lock", field.Field)
+		}
+	}
+	maxTextPatches := []domain.ItemMetadataPatch{}
+	for _, field := range textResult.Metadata.Fields {
+		value := strings.Repeat("<", 1024)
+		if field.Field == "overview" || field.Field == "outline" {
+			value = strings.Repeat("<", 16384)
+		}
+		if field.Field == "date" {
+			value = "2024-05-06"
+		}
+		maxTextPatches = append(maxTextPatches, domain.ItemMetadataPatch{Field: field.Field, Value: &value})
+	}
+	maxTextBody, err := json.Marshal(map[string]any{"expectedRevision": 2, "fields": maxTextPatches})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if response := request("PUT", "/api/v1/items/"+textItem+"/metadata", string(maxTextBody)); response.status != 200 {
+		t.Fatal("HTTP nine valid maximum text fields exceeded request envelope", response.status)
+	}
+	textResult = decode(apply(textItem, "movie", 4943, 3))
+	if len(textResult.Applied) != 0 || textResult.Metadata.Revision != 4 {
+		t.Fatal("extended NFO overwrote manual maximum values")
+	}
+	for _, field := range textResult.Metadata.Fields {
+		if field.Source != "manual" || field.NFOOrigin != nil || field.NFOLockOrigin == nil {
+			t.Fatal("manual text ownership or renewed lock changed", field.Field)
+		}
+	}
+	ratingLockItem, _ := newNFOItem("official-rating-lock-only", "HomeVideo", `<movie><lockedfields>OfficialRating</lockedfields></movie>`)
+	ratingLock := decode(request("POST", "/api/v1/items/"+ratingLockItem+"/metadata/nfo", `{"expectedRevision":1,"confirmed":true}`))
+	if len(ratingLock.Applied) != 0 || ratingLock.Metadata.Kind != "HomeVideo" || len(ratingLock.Metadata.Fields) != 3 {
+		t.Fatal("HTTP official rating lock-only invented text or classification")
+	}
+	for _, field := range ratingLock.Metadata.Fields[1:] {
+		if field.NFOLockOrigin == nil || field.NFOOrigin != nil || field.UpdatedAt != nil || field.Source != "existing" {
+			t.Fatal("HTTP missing rating value lost independent intent")
+		}
+	}
+	duplicateTextItem, _ := newNFOItem("duplicate-tagline", "HomeVideo", `<movie><tagline>First</tagline><TAGLINE>Second</TAGLINE></movie>`)
+	beforeTextCalls := allCalls.Load()
+	if response := apply(duplicateTextItem, "movie", 4944, 1); response.status != 503 || allCalls.Load() != beforeTextCalls {
+		t.Fatal("HTTP duplicate text reached provider or write", response.status)
+	}
+	assertNoObservation(duplicateTextItem)
+	if raw, err := os.ReadFile(textFile); err != nil || string(raw) != textDocument {
+		t.Fatal("extended text review changed original NFO", err)
+	}
+	t.Log("actual HTTP/TLS/NFO/PostgreSQL extended text: nine fields fused with source/locks, maximum valid nine-field manual body accepted, original bytes preserved PASS")
 	for offset, mode := range []string{"unsafe", "empty", "permission", "unknown-lock", "false-lock"} {
 		content := `<!DOCTYPE movie [<!ENTITY unsafe SYSTEM "file:///private">]><movie><title>&unsafe;</title></movie>`
 		if mode == "empty" {

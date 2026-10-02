@@ -1,6 +1,7 @@
 package domain
 
 import (
+	"slices"
 	"strings"
 	"time"
 )
@@ -8,6 +9,24 @@ import (
 const NFOItemFieldsVersion = "four-text-fields-v1"
 const NFOItemLockFieldsVersion = "lock-only-fields-v1"
 const NFOItemSortFieldsVersion = "five-field-projection-v1"
+const NFOItemTextFieldsVersion = "extended-text-fields-v1"
+
+// Each projection keeps its published field vocabulary. Returned slices are owned.
+func NFOItemFieldNames(version string) []string {
+	switch version {
+	case NFOItemFieldsVersion, NFOItemLockFieldsVersion:
+		return []string{"title", "originalTitle", "overview", "date"}
+	case NFOItemSortFieldsVersion:
+		return []string{"title", "originalTitle", "overview", "date", "sortTitle"}
+	case NFOItemTextFieldsVersion:
+		return []string{"title", "originalTitle", "overview", "date", "sortTitle", "tagline", "outline", "mpaa", "certification"}
+	}
+	return nil
+}
+
+func ItemMetadataFieldNames() []string {
+	return []string{"title", "originalTitle", "overview", "date", "sortTitle", "tagline", "outline", "mpaa", "certification"}
+}
 
 // NFOItemFields is an internal observation, not a caller supplied write intent.
 // It contains no filesystem paths. Library/item ownership is checked separately.
@@ -31,7 +50,7 @@ func (NFOItemFields) String() string   { return "nfo item fields (data redacted)
 func (NFOItemFields) GoString() string { return "nfo item fields (data redacted)" }
 
 func ValidNFOItemFields(v NFOItemFields) bool {
-	if (v.Kind != "Movie" && v.Kind != "Series") || ValidateNFOIdentity(v.Identity) != nil || ValidateNFOStamp(v.Stamp) != nil || v.Stamp.Size > v.Identity.MaxSourceBytes || v.ReadAt.IsZero() || v.ReadAt.Year() < 1 || v.ReadAt.Year() > 9999 || len(v.Fields) > 5 || len(v.LockedFields) > 128 {
+	if (v.Kind != "Movie" && v.Kind != "Series") || ValidateNFOIdentity(v.Identity) != nil || ValidateNFOStamp(v.Stamp) != nil || v.Stamp.Size > v.Identity.MaxSourceBytes || v.ReadAt.IsZero() || v.ReadAt.Year() < 1 || v.ReadAt.Year() > 9999 || len(v.Fields) > len(NFOItemFieldNames(v.Version)) || len(v.LockedFields) > 128 {
 		return false
 	}
 	switch v.Version {
@@ -43,7 +62,7 @@ func ValidNFOItemFields(v NFOItemFields) bool {
 		if len(v.Fields) != 0 || !HasNFOItemFieldLock(v) {
 			return false
 		}
-	case NFOItemSortFieldsVersion:
+	case NFOItemSortFieldsVersion, NFOItemTextFieldsVersion:
 		if len(v.Fields) == 0 && !HasNFOItemFieldLock(v) {
 			return false
 		}
@@ -52,7 +71,7 @@ func ValidNFOItemFields(v NFOItemFields) bool {
 	}
 	seen := map[string]bool{}
 	for _, field := range v.Fields {
-		if seen[field.Field] || field.Field == "sortTitle" && v.Version != NFOItemSortFieldsVersion || !ValidItemMetadataValue(field.Field, field.Value) || strings.TrimSpace(field.Value) == "" {
+		if seen[field.Field] || !slices.Contains(NFOItemFieldNames(v.Version), field.Field) || !ValidItemMetadataValue(field.Field, field.Value) || strings.TrimSpace(field.Value) == "" {
 			return false
 		}
 		seen[field.Field] = true
@@ -66,7 +85,7 @@ func ValidNFOItemFields(v NFOItemFields) bool {
 }
 
 func HasNFOItemFieldLock(fields NFOItemFields) bool {
-	for _, field := range []string{"title", "originalTitle", "overview", "date", "sortTitle"} {
+	for _, field := range NFOItemFieldNames(fields.Version) {
 		if NFOFieldLocked(fields, field) {
 			return true
 		}

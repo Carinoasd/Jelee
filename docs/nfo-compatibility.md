@@ -12,7 +12,9 @@
 
 第27版新增排序標題（第五欄）與其獨立鎖、人工接管及同交易融合；[排序標題契約](nfo-sort-title.md)。
 
-尚未完成：五欄以外的套用／鎖、季集與多項目來源的正式套用、完整實體匯入及前端、編輯後的無損回寫、原子替換與備份、跨進程鎖、批量匯入／匯出、`--fix`、真實客戶端雙向互操作驗收。G39仍為部分完成。
+第28版另新增tagline、outline、mpaa與certification，合計九個文字欄位；OfficialRating保護兩種分級文字，人工九欄patch與同交易融合已接；[擴充文字契約](nfo-text-fields.md)。
+
+尚未完成：九欄以外的套用／鎖、季集與多項目來源的正式套用、完整實體匯入及前端、編輯後的無損回寫、原子替換與備份、跨進程鎖、批量匯入／匯出、`--fix`、真實客戶端雙向互操作驗收。G39仍為部分完成。
 
 ## 上游证据与格式选择
 
@@ -42,7 +44,7 @@
 | 人员 | actor/name、role、thumb、order |
 | 标识 | uniqueid/type/default、imdbid、tmdbid、tvdbid、id（映射为 imdb）；冲突值同时保留并告警 |
 | 评分 | rating/communityrating、userrating、ratings/rating 的 name/max/default/value/votes |
-| 锁 | lockdata、以 `\|` 分隔的 lockedfields；保留原鎖資訊；已知四欄及排序標題鎖已接唯讀套用與TMDB融合，其他欄位尚未支援 |
+| 锁 | lockdata、以 `\|` 分隔的 lockedfields；保留原鎖資訊；已知九個文字欄位鎖已接唯讀套用與TMDB融合，其他欄位尚未支援 |
 | 合集 | 文本 set/collection 或 set/name、set/overview |
 | 图片 | thumb/aspect/type/season/preview、fanart/thumb、多种 art 子元素、poster/banner/clearart/clearlogo/landscape |
 | 其他 | trailer 原始文本列表 |

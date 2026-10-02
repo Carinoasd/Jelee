@@ -92,7 +92,12 @@ func ValidTMDBMetadataUpdate(update TMDBMetadataUpdate) bool {
 	}
 	seen := map[string]bool{}
 	for _, f := range update.Fields {
-		if seen[f.Field] || f.Field == "sortTitle" || !ValidItemMetadataValue(f.Field, f.Value) || strings.TrimSpace(f.Value) == "" || !ValidMetadataProviderOrigin(f.Origin) || f.Origin.Resource != update.Resource || f.Origin.ProviderID != update.ProviderID {
+		switch f.Field {
+		case "title", "originalTitle", "overview", "date":
+		default:
+			return false
+		}
+		if seen[f.Field] || !ValidItemMetadataValue(f.Field, f.Value) || strings.TrimSpace(f.Value) == "" || !ValidMetadataProviderOrigin(f.Origin) || f.Origin.Resource != update.Resource || f.Origin.ProviderID != update.ProviderID {
 			return false
 		}
 		seen[f.Field] = true

@@ -44,9 +44,9 @@ func ValidItemMetadataValue(field, value string) bool {
 	switch field {
 	case "title":
 		return len(value) <= 1024 && strings.TrimSpace(value) != ""
-	case "originalTitle", "sortTitle":
+	case "originalTitle", "sortTitle", "tagline", "mpaa", "certification":
 		return len(value) <= 1024
-	case "overview":
+	case "overview", "outline":
 		return len(value) <= 16384
 	case "date":
 		if value == "" {
@@ -59,7 +59,7 @@ func ValidItemMetadataValue(field, value string) bool {
 }
 
 func ValidItemMetadataPatches(item string, revision int64, patches []ItemMetadataPatch) bool {
-	if !ValidID(item) || revision < 1 || revision >= ItemMetadataRevisionMax || len(patches) < 1 || len(patches) > 5 {
+	if !ValidID(item) || revision < 1 || revision >= ItemMetadataRevisionMax || len(patches) < 1 || len(patches) > len(ItemMetadataFieldNames()) {
 		return false
 	}
 	seen := map[string]bool{}
