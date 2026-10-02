@@ -25,6 +25,7 @@ type ItemMetadata struct {
 	Kind                        string                       `json:"kind"`
 	NFOMode                     string                       `json:"-"`
 	Revision                    int64                        `json:"revision"`
+	Facts                       []ItemMetadataFact           `json:"facts"`
 	Fields                      []ItemMetadataField          `json:"fields"`
 	LastConfirmedNFOObservation *LastConfirmedNFOObservation `json:"lastConfirmedNFOObservation"`
 }
@@ -83,6 +84,10 @@ func CloneItemMetadata(value ItemMetadata) ItemMetadata {
 	if value.LastConfirmedNFOObservation != nil {
 		observation := CloneLastConfirmedNFOObservation(*value.LastConfirmedNFOObservation)
 		value.LastConfirmedNFOObservation = &observation
+	}
+	value.Facts = append([]ItemMetadataFact{}, value.Facts...)
+	for i := range value.Facts {
+		value.Facts[i] = CloneItemMetadataFact(value.Facts[i])
 	}
 	value.Fields = append([]ItemMetadataField{}, value.Fields...)
 	for i := range value.Fields {

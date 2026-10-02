@@ -38,6 +38,9 @@ func applyNFOFields(ctx context.Context, tx pgx.Tx, before domain.ItemMetadata, 
 		}
 		result.Applied = append(result.Applied, incoming.Field)
 	}
+	if err := applyNFOFacts(ctx, tx, before, scope, fields, identity, now, &result); err != nil {
+		return domain.MetadataApplyResult{}, err
+	}
 	if err := writeNFOFieldLocks(ctx, tx, scope, fields, identity); err != nil {
 		return domain.MetadataApplyResult{}, err
 	}

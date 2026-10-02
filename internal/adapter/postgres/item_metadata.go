@@ -59,6 +59,9 @@ func readItemMetadata(ctx context.Context, tx pgx.Tx, item string, lock bool) (d
 	if len(value.Fields) == 0 || value.Fields[0].Field != "title" {
 		value.Fields = append([]domain.ItemMetadataField{{Field: "title", Value: title, Source: "existing"}}, value.Fields...)
 	}
+	if err := readItemMetadataFacts(ctx, tx, &value); err != nil {
+		return value, err
+	}
 	if err := readNFOFieldLocks(ctx, tx, &value); err != nil {
 		return value, err
 	}
@@ -83,6 +86,13 @@ func (s *Store) ItemMetadata(ctx context.Context, actor domain.Actor, item strin
 
 func (s *Store) UpdateItemMetadata(ctx context.Context, actor domain.Actor, item string, expected int64, patches []domain.ItemMetadataPatch) (domain.ItemMetadata, error) {
 	if !domain.ValidItemMetadataPatches(item, expected, patches) {
+		return domain.ItemMetadata{}, domain.ErrInvalid
+	}
+	return s.UpdateItemMetadataWithFacts(ctx, actor, item, expected, patches, nil)
+}
+
+func (s *Store) UpdateItemMetadataWithFacts(ctx context.Context, actor domain.Actor, item string, expected int64, patches []domain.ItemMetadataPatch, facts []domain.ItemMetadataFactPatch) (domain.ItemMetadata, error) {
+	if !domain.ValidItemMetadataEdit(item, expected, patches, facts) {
 		return domain.ItemMetadata{}, domain.ErrInvalid
 	}
 	tx, err := s.authorizedJobs(ctx, actor)
@@ -125,6 +135,9 @@ func (s *Store) UpdateItemMetadata(ctx context.Context, actor domain.Actor, item
 		if err = writeItemMetadataField(ctx, tx, item, field, now); err != nil {
 			return domain.ItemMetadata{}, err
 		}
+	}
+	if err := updateManualFacts(ctx, tx, item, before, facts, now); err != nil {
+		return domain.ItemMetadata{}, err
 	}
 	after, err := readItemMetadata(ctx, tx, item, false)
 	if err != nil {

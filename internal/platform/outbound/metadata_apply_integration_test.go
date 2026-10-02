@@ -811,6 +811,65 @@ func TestTMDBMetadataThroughTLSHTTPAndPostgres(t *testing.T) {
 	if raw, err := os.ReadFile(duplicateYearFile); err != nil || string(raw) != `<movie><title>Unconfirmed</title><year>2024</year><YEAR>2025</YEAR></movie>` {
 		t.Fatal("ambiguous year review changed original NFO", err)
 	}
+	yearItem, _ := newNFOItem("typed-year", "HomeVideo", `<movie><title>Year example</title><year>2024</year></movie>`)
+	yearResponse := request("POST", "/api/v1/items/"+yearItem+"/metadata/nfo", `{"expectedRevision":1,"confirmed":true}`)
+	var typedYear struct {
+		Data struct {
+			Metadata struct {
+				Revision int64 `json:"revision"`
+				Facts    []struct {
+					Field     string                `json:"field"`
+					Value     json.RawMessage       `json:"value"`
+					Source    string                `json:"source"`
+					NFOOrigin *domain.NFOItemOrigin `json:"nfoOrigin"`
+				} `json:"facts"`
+			} `json:"metadata"`
+		} `json:"data"`
+	}
+	if yearResponse.status != 200 || json.Unmarshal(yearResponse.body, &typedYear) != nil || typedYear.Data.Metadata.Revision != 2 || len(typedYear.Data.Metadata.Facts) != 1 {
+		t.Fatal("HTTP confirmed NFO year was not persisted as a typed fact", yearResponse.status)
+	}
+	yearFact := typedYear.Data.Metadata.Facts[0]
+	if yearFact.Field != "year" || string(yearFact.Value) != "2024" || yearFact.Source != "nfo" || yearFact.NFOOrigin == nil {
+		t.Fatal("HTTP NFO year lost numeric type or source provenance")
+	}
+	yearClear := request("PUT", "/api/v1/items/"+yearItem+"/metadata", `{"expectedRevision":2,"facts":[{"field":"year","value":null}]}`)
+	var clearedYear struct {
+		Data struct {
+			Revision int64                     `json:"revision"`
+			Facts    []domain.ItemMetadataFact `json:"facts"`
+		} `json:"data"`
+	}
+	if yearClear.status != 200 || json.Unmarshal(yearClear.body, &clearedYear) != nil || clearedYear.Data.Revision != 3 || len(clearedYear.Data.Facts) != 1 || string(clearedYear.Data.Facts[0].Value) != "null" || clearedYear.Data.Facts[0].Source != "manual" || clearedYear.Data.Facts[0].NFOOrigin != nil || clearedYear.Data.Facts[0].NFOLockOrigin != nil {
+		t.Fatal("HTTP manual year clear did not preserve typed null and takeover", yearClear.status)
+	}
+	for _, body := range []string{
+		`{"expectedRevision":3,"facts":null}`,
+		`{"expectedRevision":3,"facts":[{"field":"year","locked":null}]}`,
+		`{"expectedRevision":3,"fields":[{"field":"overview","value":null}]}`,
+		`{"expectedRevision":3,"facts":[{"field":"year","value":"2024"}]}`,
+		`{"expectedRevision":3,"facts":[{"field":"year","value":0}]}`,
+		`{"expectedRevision":3,"facts":[{"field":"year","value":10000}]}`,
+		`{"expectedRevision":3,"facts":[{"field":"year","value":2024.5}]}`,
+		`{"expectedRevision":3,"facts":[{"field":"year","value":2024,"VALUE":null}]}`,
+	} {
+		if response := request("PUT", "/api/v1/items/"+yearItem+"/metadata", body); response.status != 400 {
+			t.Fatal("HTTP year fact accepted invalid type, bounds or null location", response.status)
+		}
+	}
+	if value, err := store.ItemMetadata(ctx, actor, yearItem); err != nil || value.Revision != 3 || string(value.Facts[0].Value) != "null" {
+		t.Fatal("rejected year edits changed persisted state", err)
+	}
+	yearReview := decode(apply(yearItem, "movie", 4950, 3))
+	if yearReview.Metadata.Revision != 4 || len(yearReview.Metadata.Facts) != 1 || string(yearReview.Metadata.Facts[0].Value) != "null" || yearReview.Metadata.Facts[0].Source != "manual" {
+		t.Fatal("HTTP NFO fusion overwrote manual year clear")
+	}
+	yearLockItem, _ := newNFOItem("year-lock-only", "HomeVideo", `<movie><lockedfields>ProductionYear</lockedfields></movie>`)
+	yearLock := decode(request("POST", "/api/v1/items/"+yearLockItem+"/metadata/nfo", `{"expectedRevision":1,"confirmed":true}`))
+	if len(yearLock.Applied) != 0 || yearLock.Metadata.Kind != "HomeVideo" || len(yearLock.Metadata.Facts) != 1 || string(yearLock.Metadata.Facts[0].Value) != "null" || yearLock.Metadata.Facts[0].Source != "existing" || yearLock.Metadata.Facts[0].NFOOrigin != nil || yearLock.Metadata.Facts[0].UpdatedAt != nil || yearLock.Metadata.Facts[0].NFOLockOrigin == nil {
+		t.Fatal("HTTP year lock-only invented a numeric value or classification")
+	}
+	t.Log("actual HTTP/TLS/NFO/PostgreSQL year fact: numeric provenance, manual null priority, strict null/type bounds and independent absent-value lock PASS")
 	if raw, err := os.ReadFile(textFile); err != nil || string(raw) != textDocument {
 		t.Fatal("extended text review changed original NFO", err)
 	}

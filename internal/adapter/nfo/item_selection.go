@@ -56,6 +56,7 @@ func (*itemNFOObservation) GoString() string { return "nfo item observation (dat
 func (o *itemNFOObservation) Selection() domain.NFOItemSelection {
 	value := o.selected
 	value.Fields.Fields = slices.Clone(value.Fields.Fields)
+	value.Fields.Facts = slices.Clone(value.Fields.Facts)
 	value.Fields.LockedFields = slices.Clone(value.Fields.LockedFields)
 	return value
 }

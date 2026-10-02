@@ -115,7 +115,16 @@ func (r *SummaryReader) projectItemFields(ctx context.Context, source *summarySo
 			result.Fields = append(result.Fields, field)
 		}
 	}
-	if len(result.Fields) == 0 && result.Version != domain.NFOItemSortFieldsVersion && result.Version != domain.NFOItemTextFieldsVersion && domain.HasNFOItemFieldLock(result) {
+	if metadata.Year != nil {
+		result.Version = domain.NFOItemYearFieldsVersion
+		result.Facts = []domain.NFOIntegerFact{{Field: "year", Value: *metadata.Year}}
+	}
+	for _, name := range metadata.LockedFields {
+		if strings.EqualFold(strings.TrimSpace(name), "year") || strings.EqualFold(strings.TrimSpace(name), "productionyear") {
+			result.Version = domain.NFOItemYearFieldsVersion
+		}
+	}
+	if len(result.Fields) == 0 && len(result.Facts) == 0 && result.Version != domain.NFOItemYearFieldsVersion && result.Version != domain.NFOItemSortFieldsVersion && result.Version != domain.NFOItemTextFieldsVersion && domain.HasNFOItemFieldLock(result) {
 		result.Version = domain.NFOItemLockFieldsVersion
 	}
 	if !domain.ValidNFOItemFields(result) {

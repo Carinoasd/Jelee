@@ -25,6 +25,21 @@ func readNFOFieldLocks(ctx context.Context, tx pgx.Tx, value *domain.ItemMetadat
 		if json.Unmarshal(raw, &origin) != nil || !domain.ValidNFOFieldLockOrigin(origin) {
 			return domain.ErrMetadataUnavailable
 		}
+		if name == "year" {
+			index := -1
+			for i := range value.Facts {
+				if value.Facts[i].Field == name {
+					index = i
+					break
+				}
+			}
+			if index < 0 {
+				value.Facts = append(value.Facts, domain.ItemMetadataFact{Field: name, Source: "existing"})
+				index = len(value.Facts) - 1
+			}
+			value.Facts[index].NFOLockOrigin = &origin
+			continue
+		}
 		index := -1
 		for i := range value.Fields {
 			if value.Fields[i].Field == name {

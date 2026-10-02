@@ -11,6 +11,53 @@ type ItemMetadataRepository interface {
 	UpdateItemMetadata(context.Context, domain.Actor, string, int64, []domain.ItemMetadataPatch) (domain.ItemMetadata, error)
 }
 
+type ItemMetadataFactsRepository interface {
+	UpdateItemMetadataWithFacts(context.Context, domain.Actor, string, int64, []domain.ItemMetadataPatch, []domain.ItemMetadataFactPatch) (domain.ItemMetadata, error)
+}
+
+func (m *Metadata) UpdateItemFacts(ctx context.Context, actor domain.Actor, item string, expected int64, fields []domain.ItemMetadataPatch, facts []domain.ItemMetadataFactPatch) (domain.ItemMetadata, error) {
+	if len(facts) == 0 {
+		return m.UpdateItemFields(ctx, actor, item, expected, fields)
+	}
+	if err := ctx.Err(); err != nil {
+		return domain.ItemMetadata{}, err
+	}
+	if !domain.ValidID(actor.UserID) || !domain.ValidID(actor.SessionID) {
+		return domain.ItemMetadata{}, domain.ErrUnauthenticated
+	}
+	if !domain.ValidItemMetadataEdit(item, expected, fields, facts) {
+		return domain.ItemMetadata{}, domain.ErrInvalid
+	}
+	if !m.HasItemMetadata() {
+		return domain.ItemMetadata{}, domain.ErrMetadataUnavailable
+	}
+	repo, ok := m.items.(ItemMetadataFactsRepository)
+	if !ok {
+		return domain.ItemMetadata{}, domain.ErrMetadataUnavailable
+	}
+	owned := append([]domain.ItemMetadataPatch(nil), fields...)
+	for i := range owned {
+		if owned[i].Value != nil {
+			v := *owned[i].Value
+			owned[i].Value = &v
+		}
+		if owned[i].Locked != nil {
+			v := *owned[i].Locked
+			owned[i].Locked = &v
+		}
+	}
+	ownedFacts := append([]domain.ItemMetadataFactPatch(nil), facts...)
+	for i := range ownedFacts {
+		ownedFacts[i].Value = append([]byte(nil), ownedFacts[i].Value...)
+		if ownedFacts[i].Locked != nil {
+			v := *ownedFacts[i].Locked
+			ownedFacts[i].Locked = &v
+		}
+	}
+	value, err := repo.UpdateItemMetadataWithFacts(ctx, actor, item, expected, owned, ownedFacts)
+	return domain.CloneItemMetadata(value), err
+}
+
 func NewLocalMetadata(repository ItemMetadataRepository) (*Metadata, error) {
 	if repository == nil {
 		return nil, domain.ErrInvalid

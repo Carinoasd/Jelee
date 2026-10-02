@@ -451,6 +451,9 @@ func TestNFOCacheMigrationGuardAndRoundTrip(t *testing.T) {
 		t.Fatal(err)
 	}
 	dsn := f.s.Pool.Config().ConnString()
+	if version, dirty, e := Migrate(f.ctx, dsn, "down"); e != nil || dirty || version != 28 {
+		t.Fatalf("down28 version=%d dirty=%v error=%v", version, dirty, e)
+	}
 	if version, dirty, e := Migrate(f.ctx, dsn, "down"); e != nil || dirty || version != 27 {
 		t.Fatalf("down28 version=%d dirty=%v error=%v", version, dirty, e)
 	}

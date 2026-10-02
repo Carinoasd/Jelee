@@ -28,9 +28,14 @@ func (s *Server) itemMetadataRoutes(r chi.Router) {
 					Value  json.RawMessage `json:"value"`
 					Locked json.RawMessage `json:"locked"`
 				} `json:"fields"`
+				Facts []struct {
+					Field  string          `json:"field"`
+					Value  json.RawMessage `json:"value"`
+					Locked json.RawMessage `json:"locked"`
+				} `json:"facts"`
 			}
 			// Nine bounded text fields can expand sixfold when JSON escapes HTML.
-			if err := DecodeJSON(w, r, &input, 256<<10); err != nil {
+			if err := decodeItemMetadataJSON(w, r, &input, 256<<10); err != nil {
 				return nil, 0, err
 			}
 			patches := make([]domain.ItemMetadataPatch, 0, len(input.Fields))
@@ -52,7 +57,19 @@ func (s *Server) itemMetadataRoutes(r chi.Router) {
 				}
 				patches = append(patches, patch)
 			}
-			value, err := s.metadata.UpdateItemFields(r.Context(), a, chi.URLParam(r, "id"), input.ExpectedRevision, patches)
+			facts := make([]domain.ItemMetadataFactPatch, 0, len(input.Facts))
+			for _, raw := range input.Facts {
+				patch := domain.ItemMetadataFactPatch{Field: raw.Field, Value: raw.Value}
+				if raw.Locked != nil {
+					var locked *bool
+					if json.Unmarshal(raw.Locked, &locked) != nil || locked == nil {
+						return nil, 0, domain.ErrInvalid
+					}
+					patch.Locked = locked
+				}
+				facts = append(facts, patch)
+			}
+			value, err := s.metadata.UpdateItemFacts(r.Context(), a, chi.URLParam(r, "id"), input.ExpectedRevision, patches, facts)
 			return value, 200, err
 		}))
 	})
@@ -72,6 +89,7 @@ func itemMetadataSpecification(paths, schemas map[string]any) {
 	patch := objectSchema(map[string]any{"field": field, "value": map[string]any{"type": "string", "maxLength": 16384}, "locked": map[string]any{"type": "boolean"}}, "field")
 	patch["anyOf"] = []any{map[string]any{"required": []string{"value"}}, map[string]any{"required": []string{"locked"}}}
 	put["requestBody"] = map[string]any{"required": true, "content": map[string]any{"application/json": map[string]any{"schema": objectSchema(map[string]any{"expectedRevision": map[string]any{"type": "integer", "minimum": 1, "maximum": domain.ItemMetadataRevisionMax - 1}, "fields": map[string]any{"type": "array", "minItems": 1, "maxItems": len(domain.ItemMetadataFieldNames()), "items": patch}}, "expectedRevision", "fields")}}}
-	put["description"] = "Explicit manual edits may change locked fields and lock flags. Omitted value/locked preserves it; an empty optional value is a recorded manual clear. JSON null, repeated fields, unknown properties and invalid dates are rejected. Title must be nonblank; title/originalTitle/sortTitle/tagline/mpaa/certification 1024 bytes, overview/outline 16384 bytes, date empty or a real YYYY-MM-DD. No provider calls or original asset writes."
+	put["description"] = "Explicit manual edits may change locked fields and lock flags. Omitted value/locked preserves it; an empty optional value is a recorded manual clear. JSON null in text fields, repeated fields, unknown properties and invalid dates are rejected. Title must be nonblank; title/originalTitle/sortTitle/tagline/mpaa/certification 1024 bytes, overview/outline 16384 bytes, date empty or a real YYYY-MM-DD. No provider calls or original asset writes."
 	paths["/api/v1/items/{id}/metadata"] = map[string]any{"get": get, "put": put}
+	itemMetadataFactSpecification(paths, schemas)
 }

@@ -123,3 +123,5 @@
 同日 WSL Ubuntu / Go 1.27.1 的 `-race -count=1` 专项通过，文件符号链接逃逸和并发替换用例均实际执行通过。完整输出保存在被忽略的 `.testdata/nfo-linux-race.txt`；其中 FIFO 一项按上述文件系统限制明确跳过。
 
 確認套用亦拒絕年份、片長及兩種評分的單值重複；rating／communityrating共用目的欄位，巢狀多來源保持。這是投影守衛，數值保存尚未完成；見[數值單值守衛](nfo-numeric-ambiguity.md)。
+
+年份現經year-fact-v1以有型別整數保存於facts，範圍1–9999；人工null清除、來源／鎖與文字同交易。既有九文字版本保持；片長與評分等其他數值保存仍待接入。見[年份契約](nfo-year-fact.md)。
