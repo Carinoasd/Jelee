@@ -7,6 +7,8 @@ import (
 )
 
 type Jobs struct {
+	schedules             ScheduleRepository
+	calendar              ScheduleCalendar
 	importRepository      InventoryImportRepository
 	importVerifier        InventoryImportVerifier
 	cancellationNotifier  JobCancellationNotifier

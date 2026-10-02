@@ -4,6 +4,10 @@ import "strings"
 
 func jobSpecification(paths, schemas map[string]any) {
 	uuid := map[string]any{"type": "string", "format": "uuid"}
+	schemas["ScheduleTiming"] = objectSchema(map[string]any{"mode": map[string]any{"type": "string", "enum": []string{"interval", "cron"}}, "intervalSeconds": map[string]any{"type": "integer", "minimum": 0, "maximum": 31536000}, "cron": stringSchema(256), "timezone": stringSchema(128)}, "mode", "intervalSeconds", "cron", "timezone")
+	schemas["ScheduleIgnore"] = objectSchema(map[string]any{"mode": map[string]any{"type": "string", "enum": []string{"", "jeleeignore", "jeleeignore-legacy-v1"}}, "caseMode": map[string]any{"type": "string", "enum": []string{"", "sensitive", "ascii-insensitive"}}}, "mode", "caseMode")
+	schemas["ScanScheduleInput"] = objectSchema(map[string]any{"expectedRevision": map[string]any{"type": "integer", "format": "int64", "minimum": 0}, "enabled": map[string]any{"type": "boolean"}, "timing": schemaRef("ScheduleTiming"), "probe": map[string]any{"type": "boolean"}, "nfo": map[string]any{"type": "boolean"}, "ignore": schemaRef("ScheduleIgnore")}, "expectedRevision", "enabled", "timing", "probe", "nfo", "ignore")
+	schemas["ScanSchedule"] = objectSchema(map[string]any{"libraryId": uuid, "revision": map[string]any{"type": "integer", "format": "int64"}, "enabled": map[string]any{"type": "boolean"}, "timing": schemaRef("ScheduleTiming"), "probe": map[string]any{"type": "boolean"}, "nfo": map[string]any{"type": "boolean"}, "ignore": schemaRef("ScheduleIgnore"), "nextDue": map[string]any{"type": "string", "format": "date-time"}, "retryAfter": map[string]any{"type": "string", "format": "date-time"}, "lastJobId": uuid, "lastError": map[string]any{"type": "string", "enum": []string{"owner_unavailable", "admission_unavailable"}}, "updatedAt": map[string]any{"type": "string", "format": "date-time"}}, "libraryId", "revision", "enabled", "timing", "probe", "nfo", "ignore", "updatedAt")
 	schemas["InventoryImportInput"] = objectSchema(map[string]any{"title": stringSchema(1024), "kind": map[string]any{"type": "string", "enum": []string{"HomeVideo", "Movie", "Episode"}, "default": "HomeVideo"}, "parentId": uuid}, "title")
 	schemas["InventoryImportResult"] = objectSchema(map[string]any{"itemId": uuid, "sourceId": uuid}, "itemId", "sourceId")
 	schemas["CatalogImportSelection"] = objectSchema(map[string]any{"entryId": uuid, "title": stringSchema(1024), "kind": map[string]any{"type": "string", "enum": []string{"HomeVideo", "Movie", "Episode"}, "default": "HomeVideo"}, "parentId": uuid}, "entryId", "title")
@@ -27,6 +31,9 @@ func jobSpecification(paths, schemas map[string]any) {
 		path, method, summary, body, result string
 		page, key                           bool
 	}{
+		{"/libraries/{id}/schedule", "get", "Read a persisted scan schedule", "", "ScanSchedule", false, false},
+		{"/libraries/{id}/schedule", "put", "Replace a schedule using its expected revision; interval 60..31536000 seconds or five-field cron with an explicit IANA timezone", "ScanScheduleInput", "ScanSchedule", false, false},
+		{"/libraries/{id}/schedule/run", "post", "Run the currently stored scan options manually without advancing the schedule", "Empty", "Job", false, true},
 		{"/libraries", "get", "List registered libraries without root paths", "", "LibraryPage", true, false},
 		{"/libraries/{id}/scan", "post", "Queue readonly inventory and optional metadata probing; replay is bounded by retained job history", "ScanRequest", "Job", false, true},
 		{"/libraries/{id}/probe/rebuild", "post", "Atomically invalidate library metadata and queue a scan/probe job; identical replay does not invalidate again", "ProbeRebuildRequest", "Job", false, true},

@@ -24,3 +24,7 @@ Jelee 本仓库派生自 [Jellyfin](https://github.com/jellyfin/jellyfin)。审�
 ## 舊格式 regex 執行依賴
 
 `github.com/dlclark/regexp2 v1.12.0` 為 MIT，Copyright (c) Doug Clark；完整授權保留於 `internal/platform/legacyignorehelper/LICENSE.regexp2`，版本及內容校驗由 go.mod/go.sum 固定。此項不代表其他依賴的整體發行審計已完成。
+
+## 排程日曆依賴
+
+`github.com/robfig/cron/v3 v3.0.1` 的完整授權保留於 `internal/adapter/calendar/LICENSE.cron`，版本與校驗值由 go.mod/go.sum 固定。僅使用日曆解析及下次時間計算；工作執行與持久交易由 Jelee 管理。

@@ -31,6 +31,30 @@ func (s *Server) jobRoutes(router chi.Router) {
 	router.Group(func(r chi.Router) {
 		r.Use(s.jobBudget, s.authenticate)
 		s.nfoRoutes(r)
+		r.Post("/api/v1/libraries/{id}/schedule/run", s.accountEndpoint(true, false, func(w http.ResponseWriter, r *http.Request, a domain.Actor) (any, int, error) {
+			var input struct{}
+			if err := DecodeJSON(w, r, &input, accountBodyLimit); err != nil {
+				return nil, 0, err
+			}
+			key, err := jobKey(r)
+			if err != nil {
+				return nil, 0, err
+			}
+			job, replay, err := s.jobs.RunSchedule(r.Context(), a, chi.URLParam(r, "id"), key)
+			return acceptedJob(w, job, replay, err)
+		}))
+		r.Get("/api/v1/libraries/{id}/schedule", s.accountEndpoint(true, false, func(_ http.ResponseWriter, r *http.Request, a domain.Actor) (any, int, error) {
+			v, err := s.jobs.GetSchedule(r.Context(), a, chi.URLParam(r, "id"))
+			return v, 200, err
+		}))
+		r.Put("/api/v1/libraries/{id}/schedule", s.accountEndpoint(true, false, func(w http.ResponseWriter, r *http.Request, a domain.Actor) (any, int, error) {
+			var input domain.ScanScheduleInput
+			if err := DecodeJSON(w, r, &input, accountBodyLimit); err != nil {
+				return nil, 0, err
+			}
+			v, err := s.jobs.PutSchedule(r.Context(), a, chi.URLParam(r, "id"), input)
+			return v, 200, err
+		}))
 		r.Get("/api/v1/jobs/{id}/ignore", s.accountEndpoint(true, true, s.ignoreReport))
 		r.Get("/api/v1/libraries", s.accountEndpoint(true, true, s.listJobLibraries))
 		r.Post("/api/v1/libraries/{id}/scan", s.accountEndpoint(true, false, s.submitScan))

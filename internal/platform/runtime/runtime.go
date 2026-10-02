@@ -10,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/MoYuanCN/Jelee/internal/adapter/calendar"
 	httpapi "github.com/MoYuanCN/Jelee/internal/adapter/http"
 	"github.com/MoYuanCN/Jelee/internal/adapter/nfo"
 	"github.com/MoYuanCN/Jelee/internal/adapter/postgres"
@@ -90,6 +91,10 @@ func newWithLifetime(cfg config.Config, logger *slog.Logger, lifetime *lifetime)
 			if err != nil {
 				return nil, err
 			}
+			service, err = app.NewJobsWithSchedules(service, store, calendar.Calendar{})
+			if err != nil {
+				return nil, err
+			}
 			p := c.Jobs
 			opts := jobworker.Options{Workers: p.Workers, PollInterval: time.Duration(p.PollMilliseconds) * time.Millisecond, LeaseDuration: time.Duration(p.LeaseSeconds) * time.Second, DBOperationTimeout: time.Duration(p.DatabaseTimeoutSeconds) * time.Second, MaxJobRuntime: time.Duration(p.MaxRuntimeSeconds) * time.Second}
 			opts.CatalogImport = &jobworker.CatalogImportOptions{Repository: store, Verifier: scan.New()}
@@ -110,7 +115,7 @@ func newWithLifetime(cfg config.Config, logger *slog.Logger, lifetime *lifetime)
 			if err != nil {
 				return nil, err
 			}
-			lifetime.worker = &probeWorker{worker: runner, probe: probing, nfo: validation}
+			lifetime.worker = &scheduledWorker{worker: &probeWorker{worker: runner, probe: probing, nfo: validation}, dispatch: service, logger: l}
 			return service, nil
 		},
 		func(c config.Config, store *postgres.Store, catalog *app.Catalog, jobs *app.Jobs, metadata *app.Metadata, l *slog.Logger) (http.Handler, error) {

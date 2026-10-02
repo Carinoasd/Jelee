@@ -56,11 +56,41 @@ func (s *Store) submitScanJobWithIgnore(parentContext context.Context, a domain.
 	return s.submitScanJobWithIgnoreFamilies(parentContext, a, libraryID, parent, key, priority, scanIntent, p, identity, nfoIdentity, app.IgnoreAdmissionCapabilities{Custom: ignoreAvailable}, false)
 }
 func (s *Store) submitScanJobWithIgnoreFamilies(parentContext context.Context, a domain.Actor, libraryID, parent, key, priority string, scanIntent domain.ScanIntent, p domain.JobPolicy, identity *domain.ProbeIdentity, nfoIdentity *domain.NFOIdentity, capabilities app.IgnoreAdmissionCapabilities, familyAllowed bool) (domain.Job, bool, error) {
+	validate := domain.ValidateScanIntent
+	if familyAllowed {
+		validate = domain.ValidateScanIntentWithFamilyIgnore
+	}
+	if parentContext == nil || !validJobPolicy(p) || !validJobKey(key) || validate(scanIntent) != nil {
+		return domain.Job{}, false, domain.ErrInvalid
+	}
+	if parent == "" && ((priority != domain.JobPriorityManual && priority != domain.JobPriorityBackground) || (libraryID == "" && scanIntent.Probe.Scope != domain.ProbeScopeItemRebuild) || (libraryID != "" && !domain.ValidID(libraryID))) {
+		return domain.Job{}, false, domain.ErrInvalid
+	}
+	ctx, cancel := context.WithTimeout(parentContext, probeDBTimeout)
+	defer cancel()
+	tx, err := s.authorizedJobs(ctx, a)
+	if err != nil {
+		return domain.Job{}, false, err
+	}
+	defer tx.Rollback(ctx)
+	job, replay, err := s.submitScanInTransaction(ctx, tx, a, libraryID, parent, key, priority, scanIntent, p, identity, nfoIdentity, capabilities, familyAllowed, func() error { return probeAdminStillLive(ctx, tx, a) })
+	if err != nil {
+		return domain.Job{}, false, err
+	}
+	if err = tx.Commit(ctx); err != nil {
+		return domain.Job{}, false, storageError(err)
+	}
+	return job, replay, nil
+}
+
+// Caller owns the transaction and supplies its final authority check. Public
+// requests use a live session; scheduling uses the persisted enabled owner.
+func (s *Store) submitScanInTransaction(ctx context.Context, tx pgx.Tx, a domain.Actor, libraryID, parent, key, priority string, scanIntent domain.ScanIntent, p domain.JobPolicy, identity *domain.ProbeIdentity, nfoIdentity *domain.NFOIdentity, capabilities app.IgnoreAdmissionCapabilities, familyAllowed bool, guard func() error) (domain.Job, bool, error) {
 	validateIntent := domain.ValidateScanIntent
 	if familyAllowed {
 		validateIntent = domain.ValidateScanIntentWithFamilyIgnore
 	}
-	if parentContext == nil || !validJobPolicy(p) || !validJobKey(key) || validateIntent(scanIntent) != nil {
+	if !validJobPolicy(p) || !validJobKey(key) || validateIntent(scanIntent) != nil {
 		return domain.Job{}, false, domain.ErrInvalid
 	}
 	intent, nfoRequested, ignoreIntent := scanIntent.Probe, scanIntent.NFO, scanIntent.Ignore
@@ -71,13 +101,7 @@ func (s *Store) submitScanJobWithIgnoreFamilies(parentContext context.Context, a
 	if parent == "" && ((priority != domain.JobPriorityManual && priority != domain.JobPriorityBackground) || (libraryID == "" && intent.Scope != domain.ProbeScopeItemRebuild) || (libraryID != "" && !domain.ValidID(libraryID))) {
 		return domain.Job{}, false, domain.ErrInvalid
 	}
-	ctx, cancel := context.WithTimeout(parentContext, probeDBTimeout)
-	defer cancel()
-	tx, err := s.authorizedJobs(ctx, a)
-	if err != nil {
-		return domain.Job{}, false, err
-	}
-	defer tx.Rollback(ctx)
+	var err error
 	if err = trimJobs(ctx, tx, p.HistoryLimit); err != nil {
 		return domain.Job{}, false, err
 	}
@@ -130,11 +154,8 @@ func (s *Store) submitScanJobWithIgnoreFamilies(parentContext context.Context, a
 		if originalParent != parent || parent == "" && (old.LibraryID != libraryID || old.Priority != priority || previousIntent != intent || previousNFO != nfoRequested || previousIgnore != ignoreIntent) {
 			return domain.Job{}, false, domain.ErrConflict
 		}
-		if err = probeAdminStillLive(ctx, tx, a); err != nil {
+		if err = guard(); err != nil {
 			return domain.Job{}, false, err
-		}
-		if err = tx.Commit(ctx); err != nil {
-			return domain.Job{}, false, storageError(err)
 		}
 		return old, true, nil
 	}
@@ -286,11 +307,8 @@ func (s *Store) submitScanJobWithIgnoreFamilies(parentContext context.Context, a
 	if err = auditAccount(ctx, tx, a, "job.submitted", j.ID, nil, map[string]any{"job": j, "probeScope": intent.Scope, "probeTargetItemId": intent.TargetItemID, "nfo": nfoRequested, "ignoreMode": ignoreIntent.Mode, "ignoreCaseMode": ignoreIntent.CaseMode}); err != nil {
 		return domain.Job{}, false, err
 	}
-	if err = probeAdminStillLive(ctx, tx, a); err != nil {
+	if err = guard(); err != nil {
 		return domain.Job{}, false, err
-	}
-	if err = tx.Commit(ctx); err != nil {
-		return domain.Job{}, false, storageError(err)
 	}
 	return j, false, nil
 }

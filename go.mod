@@ -3,16 +3,18 @@ module github.com/MoYuanCN/Jelee
 go 1.27.1
 
 require (
+	github.com/dlclark/regexp2 v1.12.0
 	github.com/go-chi/chi/v5 v5.3.2
 	github.com/golang-migrate/migrate/v4 v4.18.3
 	github.com/jackc/pgx/v5 v5.11.0
+	github.com/robfig/cron/v3 v3.0.1
 	go.uber.org/fx v1.24.0
 	golang.org/x/crypto v0.57.0
+	golang.org/x/sys v0.48.0
 	golang.org/x/text v0.42.0
 )
 
 require (
-	github.com/dlclark/regexp2 v1.12.0
 	github.com/hashicorp/errwrap v1.1.0 // indirect
 	github.com/hashicorp/go-multierror v1.1.1 // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect
@@ -24,5 +26,4 @@ require (
 	go.uber.org/multierr v1.10.0 // indirect
 	go.uber.org/zap v1.26.0 // indirect
 	golang.org/x/sync v0.23.0 // indirect
-	golang.org/x/sys v0.48.0 // indirect
 )
