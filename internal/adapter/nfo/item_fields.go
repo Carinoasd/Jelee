@@ -217,7 +217,17 @@ func (r *SummaryReader) projectItemFields(ctx context.Context, source *summarySo
 			result.Version = domain.NFOItemRatingFieldsVersion
 		}
 	}
-	if len(result.Fields) == 0 && len(result.Facts) == 0 && len(result.NumberFacts) == 0 && len(result.Lists) == 0 && result.Version != domain.NFOItemRatingFieldsVersion && result.Version != domain.NFOItemIdentifierFieldsVersion && result.Version != domain.NFOItemActorFieldsVersion && result.Version != domain.NFOItemListFieldsVersion && result.Version != domain.NFOItemNumericFieldsVersion && result.Version != domain.NFOItemYearFieldsVersion && result.Version != domain.NFOItemSortFieldsVersion && result.Version != domain.NFOItemTextFieldsVersion && domain.HasNFOItemFieldLock(result) {
+
+	if strings.TrimSpace(metadata.Collection) != "" || strings.TrimSpace(metadata.CollectionOverview) != "" {
+		result.Version = domain.NFOItemCollectionFieldsVersion
+		result.Collection = &domain.NFOCollection{Name: metadata.Collection, Overview: metadata.CollectionOverview}
+	}
+	for _, name := range metadata.LockedFields {
+		if strings.EqualFold(strings.TrimSpace(name), "collection") || strings.EqualFold(strings.TrimSpace(name), "set") {
+			result.Version = domain.NFOItemCollectionFieldsVersion
+		}
+	}
+	if len(result.Fields) == 0 && len(result.Facts) == 0 && len(result.NumberFacts) == 0 && len(result.Lists) == 0 && result.Version != domain.NFOItemCollectionFieldsVersion && result.Version != domain.NFOItemRatingFieldsVersion && result.Version != domain.NFOItemIdentifierFieldsVersion && result.Version != domain.NFOItemActorFieldsVersion && result.Version != domain.NFOItemListFieldsVersion && result.Version != domain.NFOItemNumericFieldsVersion && result.Version != domain.NFOItemYearFieldsVersion && result.Version != domain.NFOItemSortFieldsVersion && result.Version != domain.NFOItemTextFieldsVersion && domain.HasNFOItemFieldLock(result) {
 		result.Version = domain.NFOItemLockFieldsVersion
 	}
 	if !domain.ValidNFOItemFields(result) {
@@ -240,6 +250,8 @@ func uniqueItemFields(ctx context.Context, original []byte) error {
 	seen := map[string]bool{}
 	var actorFields map[string]bool
 	var ratingFields map[string]bool
+	var collectionFields map[string]bool
+	collectionText := false
 	ratingsContainer := false
 	for {
 		token, err := decoder.Token()
@@ -255,6 +267,16 @@ func uniqueItemFields(ctx context.Context, original []byte) error {
 		switch token := token.(type) {
 		case xml.StartElement:
 			depth++
+			if depth == 3 && collectionFields != nil {
+				collectionFields["hasChild"] = true
+				name := elementName(token.Name)
+				if name == "name" || name == "overview" {
+					if collectionFields[name] {
+						return domain.ErrMetadataUnavailable
+					}
+					collectionFields[name] = true
+				}
+			}
 			if depth == 4 && ratingFields != nil {
 				name := elementName(token.Name)
 				if name == "value" || name == "votes" {
@@ -291,6 +313,10 @@ func uniqueItemFields(ctx context.Context, original []byte) error {
 				continue
 			}
 			name := elementName(token.Name)
+			if name == "set" || name == "collection" {
+				collectionFields = map[string]bool{}
+				collectionText = false
+			}
 			if name == "ratings" {
 				ratingsContainer = true
 			}
@@ -307,19 +333,29 @@ func uniqueItemFields(ctx context.Context, original []byte) error {
 				name = "sorttitle"
 			case "communityrating":
 				name = "rating"
+			case "set":
+				name = "collection"
 			}
 			switch name {
-			case "title", "originaltitle", "plot", "premiered", "sorttitle", "tagline", "outline", "mpaa", "certification", "year", "runtime", "rating", "userrating", "lockdata", "lockedfields":
+			case "title", "originaltitle", "plot", "premiered", "sorttitle", "tagline", "outline", "mpaa", "certification", "year", "runtime", "rating", "userrating", "lockdata", "lockedfields", "collection":
 				if seen[name] {
 					return domain.ErrMetadataUnavailable
 				}
 				seen[name] = true
+			}
+		case xml.CharData:
+			if depth == 2 && collectionFields != nil && strings.TrimSpace(string(token)) != "" {
+				collectionText = true
 			}
 		case xml.EndElement:
 			if depth == 3 {
 				ratingFields = nil
 			}
 			if depth == 2 {
+				if collectionFields != nil && collectionFields["hasChild"] && (!collectionFields["name"] || collectionText) {
+					return domain.ErrMetadataUnavailable
+				}
+				collectionFields = nil
 				actorFields = nil
 				ratingsContainer = false
 			}

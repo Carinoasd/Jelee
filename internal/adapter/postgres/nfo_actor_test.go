@@ -10,6 +10,7 @@ import (
 
 func TestNFOActorAtomicPersistenceManualClearAndDowngrade(t *testing.T) {
 	f, scope, fields := nfoItemApplyFixture(t)
+	nfoMigrateVersion(t, f, "down", 34)
 	nfoMigrateVersion(t, f, "down", 33)
 	nfoMigrateVersion(t, f, "down", 32)
 	nfoMigrateVersion(t, f, "down", 31)
@@ -76,6 +77,7 @@ func TestNFOActorNamedLockAndPublishedListsRoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	nfoMigrateVersion(t, f, "down", 34)
 	nfoMigrateVersion(t, f, "down", 33)
 	nfoMigrateVersion(t, f, "down", 32)
 	nfoMigrateVersion(t, f, "down", 31)

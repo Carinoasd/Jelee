@@ -21,6 +21,8 @@ func NFOItemFieldNames(version string) []string {
 		return []string{"title", "originalTitle", "overview", "date"}
 	case NFOItemSortFieldsVersion:
 		return []string{"title", "originalTitle", "overview", "date", "sortTitle"}
+	case NFOItemCollectionFieldsVersion:
+		return append(NFOItemFieldNames(NFOItemRatingFieldsVersion), "collection")
 	case NFOItemRatingFieldsVersion:
 		return append(NFOItemFieldNames(NFOItemIdentifierFieldsVersion), "ratings")
 	case NFOItemIdentifierFieldsVersion:
@@ -51,6 +53,7 @@ type NFOItemFields struct {
 	Identity     NFOIdentity
 	Stamp        NFOStamp
 	ReadAt       time.Time
+	Collection   *NFOCollection
 	Ratings      []NFOSourceRating
 	UniqueIDs    []NFOUniqueID
 	Actors       []NFOActor
@@ -84,22 +87,25 @@ func ValidNFOItemFields(v NFOItemFields) bool {
 	if (v.Kind != "Movie" && v.Kind != "Series") || ValidateNFOIdentity(v.Identity) != nil || ValidateNFOStamp(v.Stamp) != nil || v.Stamp.Size > v.Identity.MaxSourceBytes || v.ReadAt.IsZero() || v.ReadAt.Year() < 1 || v.ReadAt.Year() > 9999 || len(v.Fields) > len(NFOItemFieldNames(v.Version)) || len(v.LockedFields) > 128 {
 		return false
 	}
-	if len(v.Facts) > 2 || len(v.Facts) > 0 && v.Version != NFOItemYearFieldsVersion && v.Version != NFOItemNumericFieldsVersion && v.Version != NFOItemListFieldsVersion && v.Version != NFOItemActorFieldsVersion && v.Version != NFOItemIdentifierFieldsVersion && v.Version != NFOItemRatingFieldsVersion || v.Version == NFOItemYearFieldsVersion && len(v.Facts) > 1 {
+	if len(v.Facts) > 2 || len(v.Facts) > 0 && v.Version != NFOItemYearFieldsVersion && v.Version != NFOItemNumericFieldsVersion && v.Version != NFOItemListFieldsVersion && v.Version != NFOItemActorFieldsVersion && v.Version != NFOItemIdentifierFieldsVersion && v.Version != NFOItemRatingFieldsVersion && v.Version != NFOItemCollectionFieldsVersion || v.Version == NFOItemYearFieldsVersion && len(v.Facts) > 1 {
 		return false
 	}
-	if len(v.NumberFacts) > 2 || len(v.NumberFacts) > 0 && v.Version != NFOItemNumericFieldsVersion && v.Version != NFOItemListFieldsVersion && v.Version != NFOItemActorFieldsVersion && v.Version != NFOItemIdentifierFieldsVersion && v.Version != NFOItemRatingFieldsVersion {
+	if len(v.NumberFacts) > 2 || len(v.NumberFacts) > 0 && v.Version != NFOItemNumericFieldsVersion && v.Version != NFOItemListFieldsVersion && v.Version != NFOItemActorFieldsVersion && v.Version != NFOItemIdentifierFieldsVersion && v.Version != NFOItemRatingFieldsVersion && v.Version != NFOItemCollectionFieldsVersion {
 		return false
 	}
-	if len(v.Lists) > len(ItemMetadataListFieldNames()) || len(v.Lists) > 0 && v.Version != NFOItemListFieldsVersion && v.Version != NFOItemActorFieldsVersion && v.Version != NFOItemIdentifierFieldsVersion && v.Version != NFOItemRatingFieldsVersion {
+	if len(v.Lists) > len(ItemMetadataListFieldNames()) || len(v.Lists) > 0 && v.Version != NFOItemListFieldsVersion && v.Version != NFOItemActorFieldsVersion && v.Version != NFOItemIdentifierFieldsVersion && v.Version != NFOItemRatingFieldsVersion && v.Version != NFOItemCollectionFieldsVersion {
 		return false
 	}
-	if len(v.Actors) > 0 && (v.Version != NFOItemActorFieldsVersion && v.Version != NFOItemIdentifierFieldsVersion && v.Version != NFOItemRatingFieldsVersion || !ValidMetadataActors(v.Actors)) {
+	if len(v.Actors) > 0 && (v.Version != NFOItemActorFieldsVersion && v.Version != NFOItemIdentifierFieldsVersion && v.Version != NFOItemRatingFieldsVersion && v.Version != NFOItemCollectionFieldsVersion || !ValidMetadataActors(v.Actors)) {
 		return false
 	}
-	if len(v.UniqueIDs) > 0 && (v.Version != NFOItemIdentifierFieldsVersion && v.Version != NFOItemRatingFieldsVersion || !ValidMetadataUniqueIDs(v.UniqueIDs)) {
+	if len(v.UniqueIDs) > 0 && (v.Version != NFOItemIdentifierFieldsVersion && v.Version != NFOItemRatingFieldsVersion && v.Version != NFOItemCollectionFieldsVersion || !ValidMetadataUniqueIDs(v.UniqueIDs)) {
 		return false
 	}
-	if len(v.Ratings) > 0 && (v.Version != NFOItemRatingFieldsVersion || !ValidMetadataRatings(v.Ratings)) {
+	if len(v.Ratings) > 0 && (v.Version != NFOItemRatingFieldsVersion && v.Version != NFOItemCollectionFieldsVersion || !ValidMetadataRatings(v.Ratings)) {
+		return false
+	}
+	if v.Collection != nil && (v.Version != NFOItemCollectionFieldsVersion || !ValidMetadataCollection(*v.Collection)) {
 		return false
 	}
 	seenFacts := map[string]bool{}
@@ -120,7 +126,7 @@ func ValidNFOItemFields(v NFOItemFields) bool {
 				return false
 			}
 		case "runtimeMinutes":
-			if v.Version != NFOItemNumericFieldsVersion && v.Version != NFOItemListFieldsVersion && v.Version != NFOItemActorFieldsVersion && v.Version != NFOItemIdentifierFieldsVersion && v.Version != NFOItemRatingFieldsVersion || fact.Value < 0 || fact.Value > 10000000 {
+			if v.Version != NFOItemNumericFieldsVersion && v.Version != NFOItemListFieldsVersion && v.Version != NFOItemActorFieldsVersion && v.Version != NFOItemIdentifierFieldsVersion && v.Version != NFOItemRatingFieldsVersion && v.Version != NFOItemCollectionFieldsVersion || fact.Value < 0 || fact.Value > 10000000 {
 				return false
 			}
 		default:
@@ -142,8 +148,8 @@ func ValidNFOItemFields(v NFOItemFields) bool {
 		if len(v.Fields) != 0 || !HasNFOItemFieldLock(v) {
 			return false
 		}
-	case NFOItemSortFieldsVersion, NFOItemTextFieldsVersion, NFOItemYearFieldsVersion, NFOItemNumericFieldsVersion, NFOItemListFieldsVersion, NFOItemActorFieldsVersion, NFOItemIdentifierFieldsVersion, NFOItemRatingFieldsVersion:
-		if len(v.Fields) == 0 && len(v.Facts) == 0 && len(v.NumberFacts) == 0 && len(v.Lists) == 0 && len(v.Actors) == 0 && len(v.UniqueIDs) == 0 && len(v.Ratings) == 0 && !HasNFOItemFieldLock(v) {
+	case NFOItemSortFieldsVersion, NFOItemTextFieldsVersion, NFOItemYearFieldsVersion, NFOItemNumericFieldsVersion, NFOItemListFieldsVersion, NFOItemActorFieldsVersion, NFOItemIdentifierFieldsVersion, NFOItemRatingFieldsVersion, NFOItemCollectionFieldsVersion:
+		if len(v.Fields) == 0 && len(v.Facts) == 0 && len(v.NumberFacts) == 0 && len(v.Lists) == 0 && len(v.Actors) == 0 && len(v.UniqueIDs) == 0 && len(v.Ratings) == 0 && v.Collection == nil && !HasNFOItemFieldLock(v) {
 			return false
 		}
 	default:

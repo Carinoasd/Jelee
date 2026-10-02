@@ -29,7 +29,7 @@ func readItemMetadataFacts(ctx context.Context, tx pgx.Tx, value *domain.ItemMet
 		}
 		if len(origin) > 0 {
 			var proof domain.NFOItemOrigin
-			if json.Unmarshal(origin, &proof) != nil || !domain.ValidNFOItemOrigin(proof) || (proof.Projection != domain.NFOItemYearFieldsVersion && proof.Projection != domain.NFOItemNumericFieldsVersion && proof.Projection != domain.NFOItemListFieldsVersion && proof.Projection != domain.NFOItemActorFieldsVersion && proof.Projection != domain.NFOItemIdentifierFieldsVersion && proof.Projection != domain.NFOItemRatingFieldsVersion) || !slices.Contains(domain.NFOItemFieldNames(proof.Projection), fact.Field) {
+			if json.Unmarshal(origin, &proof) != nil || !domain.ValidNFOItemOrigin(proof) || (proof.Projection != domain.NFOItemYearFieldsVersion && proof.Projection != domain.NFOItemNumericFieldsVersion && proof.Projection != domain.NFOItemListFieldsVersion && proof.Projection != domain.NFOItemActorFieldsVersion && proof.Projection != domain.NFOItemIdentifierFieldsVersion && proof.Projection != domain.NFOItemRatingFieldsVersion && proof.Projection != domain.NFOItemCollectionFieldsVersion) || !slices.Contains(domain.NFOItemFieldNames(proof.Projection), fact.Field) {
 				return domain.ErrMetadataUnavailable
 			}
 			fact.NFOOrigin = &proof
@@ -99,6 +99,13 @@ func applyNFOFacts(ctx context.Context, tx pgx.Tx, before domain.ItemMetadata, s
 			return domain.ErrInvalid
 		}
 		incomingFacts = append(incomingFacts, domain.ItemMetadataFact{Field: "ratings", Value: raw})
+	}
+	if fields.Collection != nil {
+		raw, err := json.Marshal(fields.Collection)
+		if err != nil {
+			return domain.ErrInvalid
+		}
+		incomingFacts = append(incomingFacts, domain.ItemMetadataFact{Field: "collection", Value: raw})
 	}
 	for _, incoming := range incomingFacts {
 		old := domain.ItemMetadataFact{Field: incoming.Field}

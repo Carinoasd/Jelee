@@ -178,3 +178,19 @@ DTO單層解耦及兩份既有測試建構參數更新，14項回歸與完整Deb
 {"windows": {"passedPackages": 29, "passedTestEventsIncludingParents": 3264, "skippedTestEvents": 489, "elapsedSeconds": 8.657}, "native": {"passedPackages": 5, "passedTestEventsIncludingParents": 1130, "skippedTestEvents": 0, "elapsedSeconds": 3.452}, "full-pg": {"passedPackages": 1, "passedTestEventsIncludingParents": 809, "skippedTestEvents": 0, "elapsedSeconds": 474.239}, "native-pg": {"passedPackages": 1, "passedTestEventsIncludingParents": 11, "skippedTestEvents": 0, "elapsedSeconds": 15.685}, "e2e-final": {"passedPackages": 1, "passedTestEventsIncludingParents": 1, "skippedTestEvents": 0, "elapsedSeconds": 76.128}}
 
 所有本地驗證已終端結束。仍第三階段；下一步其他NFO欄位與季集、實際匯入、監看／排程和規模驗收，維持全G00–G51目標。禁止merge／release／tag／force-push／改寫既有SQL／修改Git身份設定，五個未獲具體授權的直播核心仍保持。
+
+
+### 第35版：NFO合集結構保存
+
+第35版保存合集name／overview結構，支援文本set／collection與結構name／overview，來源／獨立鎖及人工null清除共交易。重複別名／子欄位、缺少名稱及混合內容拒絕；名稱Unicode空白與UTF-8界限在API／資料庫保持一致。固定25欄、16種facts與八種API變體；001–034共68份SQL保持。最大合法混合請求、120筆合成確認寫入、五表回滾、舊評分35→34→35及保留新資料拒降通過。五份初始失敗與正式簡介傳遞停用的負例保存，逐位元復原後完整HTTP通過。 見[契約](nfo-collection.md)及[證據](evidence/nfo-collection.json)。
+
+| 驗證 | 套件 | 通過事件（含父測試） | 略過 |
+| --- | ---: | ---: | ---: |
+| Windows全套 | 29 | 3267 | 491 |
+| Linux race | 5 | 1133 | 0 |
+| 完整PostgreSQL | 1 | 816 | 0 |
+| 原生worker | 1 | 11 | 0 |
+| 完整HTTP／TLS／PG | 1 | 1 | 0 |
+
+
+本地驗證均已終端結束。仍全G00–G51目標；下一步其他NFO欄位與季集、實際匯入、監看／排程及規模驗收。禁止merge／release／tag／force-push／改寫既有SQL／修改Git身份設定，五個未獲具體批次授權的直播核心保持。

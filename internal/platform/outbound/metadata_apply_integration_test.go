@@ -934,6 +934,79 @@ func TestTMDBMetadataThroughTLSHTTPAndPostgres(t *testing.T) {
 		t.Fatal("numeric metadata review changed source bytes", err)
 	}
 	t.Log("actual HTTP/TLS/NFO/PostgreSQL: thirteen-field numeric projection, zero/bounds, mixed manual clear and renewed independent locks PASS")
+	collectionDocument := `<movie><title>Collection example</title><set><name>Collection A</name><overview>Collection plot</overview></set></movie>`
+	collectionItem, collectionFile := newNFOItem("typed-collection-structure", "HomeVideo", collectionDocument)
+	collectionResult := decode(request("POST", "/api/v1/items/"+collectionItem+"/metadata/nfo", `{"expectedRevision":1,"confirmed":true}`))
+	if collectionResult.Metadata.Revision != 2 || len(collectionResult.Metadata.Facts) != 1 || collectionResult.Metadata.Facts[0].Field != "collection" || collectionResult.Metadata.Facts[0].NFOOrigin == nil {
+		t.Fatal("HTTP confirmed NFO collection structure was not persisted")
+	}
+	var collectionValue struct {
+		Name     string `json:"name"`
+		Overview string `json:"overview"`
+	}
+	if json.Unmarshal(collectionResult.Metadata.Facts[0].Value, &collectionValue) != nil || collectionValue.Name != "Collection A" || collectionValue.Overview != "Collection plot" {
+		t.Fatal("HTTP NFO collection name or overview was lost")
+	}
+	if raw, err := os.ReadFile(collectionFile); err != nil || string(raw) != collectionDocument {
+		t.Fatal("collection metadata review changed source bytes", err)
+	}
+	if response := request("PUT", "/api/v1/items/"+collectionItem+"/metadata", `{"expectedRevision":2,"facts":[{"field":"collection","locked":true}]}`); response.status != 200 {
+		t.Fatal("HTTP collection flag edit failed", response.status)
+	}
+	collectionFlag, err := store.ItemMetadata(ctx, actor, collectionItem)
+	if err != nil || collectionFlag.Facts[0].NFOOrigin == nil || !collectionFlag.Facts[0].Locked {
+		t.Fatal("HTTP collection flag lost origin", err)
+	}
+	if response := request("PUT", "/api/v1/items/"+collectionItem+"/metadata", `{"expectedRevision":3,"facts":[{"field":"collection","value":null,"locked":false}]}`); response.status != 200 {
+		t.Fatal("HTTP collection clear failed", response.status)
+	}
+	collectionReview := decode(request("POST", "/api/v1/items/"+collectionItem+"/metadata/nfo", `{"expectedRevision":4,"confirmed":true}`))
+	collectionFact := collectionReview.Metadata.Facts[0]
+	if collectionReview.Metadata.Revision != 5 || string(collectionFact.Value) != "null" || collectionFact.Source != "manual" || collectionFact.NFOOrigin != nil || collectionFact.NFOLockOrigin != nil {
+		t.Fatal("HTTP NFO review replaced collection clear")
+	}
+	for _, invalid := range []string{`[]`, `{}`, `"Collection"`, `{"name":null}`, `{"name":" "}`, `{"name":"A","overview":null}`, `{"name":"A","overview":1}`, `{"name":"A","extra":true}`, `{"name":"A","NAME":"B"}`} {
+		if response := request("PUT", "/api/v1/items/"+collectionItem+"/metadata", `{"expectedRevision":5,"facts":[{"field":"collection","value":`+invalid+`}]}`); response.status != 400 {
+			t.Fatal("HTTP invalid collection accepted", response.status)
+		}
+	}
+	lockedCollectionDocument := strings.Replace(collectionDocument, "</movie>", "<lockedfields>Collection</lockedfields></movie>", 1)
+	if err := os.WriteFile(collectionFile, []byte(lockedCollectionDocument), 0600); err != nil {
+		t.Fatal(err)
+	}
+	collectionLocked := decode(request("POST", "/api/v1/items/"+collectionItem+"/metadata/nfo", `{"expectedRevision":5,"confirmed":true}`))
+	collectionFact = collectionLocked.Metadata.Facts[0]
+	if collectionLocked.Metadata.Revision != 6 || string(collectionFact.Value) != "null" || collectionFact.NFOOrigin != nil || collectionFact.NFOLockOrigin == nil {
+		t.Fatal("HTTP collection clear lost independent lock")
+	}
+	if response := request("PUT", "/api/v1/items/"+collectionItem+"/metadata", `{"expectedRevision":6,"facts":[{"field":"collection","value":{"name":"Manual"}}]}`); response.status != 200 {
+		t.Fatal("HTTP manual collection object rejected", response.status)
+	}
+	manualCollection := decode(request("POST", "/api/v1/items/"+collectionItem+"/metadata/nfo", `{"expectedRevision":7,"confirmed":true}`))
+	collectionValue.Name, collectionValue.Overview = "", ""
+	if json.Unmarshal(manualCollection.Metadata.Facts[0].Value, &collectionValue) != nil || collectionValue.Name != "Manual" || collectionValue.Overview != "" || manualCollection.Metadata.Facts[0].Source != "manual" || manualCollection.Metadata.Facts[0].NFOOrigin != nil {
+		t.Fatal("HTTP review replaced manual collection name")
+	}
+	if raw, err := os.ReadFile(collectionFile); err != nil || string(raw) != lockedCollectionDocument {
+		t.Fatal("manual collection edit changed source", err)
+	}
+	for offset, ambiguous := range []string{`<set>A</set><collection>B</collection>`, `<set><name>A</name><name>B</name></set>`, `<set><overview>No name</overview></set>`, `<set>Text<name>Name</name></set>`} {
+		item, _ := newNFOItem(fmt.Sprintf("ambiguous-collection-%d", offset), "HomeVideo", `<movie><title>Movie</title>`+ambiguous+`</movie>`)
+		before := allCalls.Load()
+		for _, path := range []string{"/metadata/nfo", "/metadata/tmdb"} {
+			body := `{"expectedRevision":1,"confirmed":true}`
+			if path == "/metadata/tmdb" {
+				body = `{"expectedRevision":1,"confirmed":true,"providerId":16,"resource":"movie","replaceExistingTitle":true}`
+			}
+			if response := request("POST", "/api/v1/items/"+item+path, body); response.status != 503 {
+				t.Fatal("HTTP ambiguous collection accepted", response.status)
+			}
+		}
+		unchanged, err := store.ItemMetadata(ctx, actor, item)
+		if err != nil || unchanged.Revision != 1 || unchanged.LastConfirmedNFOObservation != nil || allCalls.Load() != before {
+			t.Fatal("ambiguous collection made provider calls or saved observation", err)
+		}
+	}
 	ratingsDocument := `<movie><title>Ratings example</title><ratings><rating name="imdb" max="10" default="true"><value>7.5</value><votes>123</votes></rating><rating name="custom" max="100"><value>85</value><votes>0</votes></rating><rating name="missing-optionals"><value>0</value></rating></ratings></movie>`
 	ratingsItem, ratingsFile := newNFOItem("typed-multi-source-ratings", "HomeVideo", ratingsDocument)
 	ratingsResult := decode(request("POST", "/api/v1/items/"+ratingsItem+"/metadata/nfo", `{"expectedRevision":1,"confirmed":true}`))
@@ -1058,13 +1131,22 @@ func TestTMDBMetadataThroughTLSHTTPAndPostgres(t *testing.T) {
 	actorSchemas := actorSpec["components"].(map[string]any)["schemas"].(map[string]any)
 	actorFactSchema := actorSchemas["ItemMetadataFact"].(map[string]any)
 	actorEnums := actorFactSchema["properties"].(map[string]any)["field"].(map[string]any)["enum"].([]any)
+	collectionAdvertised := false
+	for _, name := range actorEnums {
+		if name == "collection" {
+			collectionAdvertised = true
+		}
+	}
+	if !collectionAdvertised || len(actorFactSchema["oneOf"].([]any)) != 8 {
+		t.Fatal("HTTP OpenAPI omits collection structure")
+	}
 	ratingsAdvertised := false
 	for _, name := range actorEnums {
 		if name == "ratings" {
 			ratingsAdvertised = true
 		}
 	}
-	if !ratingsAdvertised || len(actorFactSchema["oneOf"].([]any)) != 7 {
+	if !ratingsAdvertised || len(actorFactSchema["oneOf"].([]any)) != 8 {
 		t.Fatal("HTTP OpenAPI omits multi-source ratings")
 	}
 	identifierAdvertised := false
@@ -1073,13 +1155,13 @@ func TestTMDBMetadataThroughTLSHTTPAndPostgres(t *testing.T) {
 			identifierAdvertised = true
 		}
 	}
-	if !identifierAdvertised || len(actorFactSchema["oneOf"].([]any)) != 7 {
+	if !identifierAdvertised || len(actorFactSchema["oneOf"].([]any)) != 8 {
 		t.Fatal("HTTP OpenAPI omits typed provider identifiers")
 	}
 	applyReportProperties := actorSchemas["MetadataApplyResult"].(map[string]any)["properties"].(map[string]any)
 	for _, reportField := range []string{"applied", "skipped"} {
-		if applyReportProperties[reportField].(map[string]any)["maxItems"] != float64(24) {
-			t.Fatal("HTTP OpenAPI cannot describe the complete identifier projection", reportField)
+		if applyReportProperties[reportField].(map[string]any)["maxItems"] != float64(25) {
+			t.Fatal("HTTP OpenAPI cannot describe the complete collection projection", reportField)
 		}
 	}
 	actorAdvertised := false
@@ -1088,7 +1170,7 @@ func TestTMDBMetadataThroughTLSHTTPAndPostgres(t *testing.T) {
 			actorAdvertised = true
 		}
 	}
-	if !actorAdvertised || len(actorFactSchema["oneOf"].([]any)) != 7 {
+	if !actorAdvertised || len(actorFactSchema["oneOf"].([]any)) != 8 {
 		t.Fatal("HTTP OpenAPI omits structured actor facts")
 	}
 	actorDocument := `<movie><title>Actor example</title><actor><name>演員甲</name><role>主角</role><thumb>https://images.example.invalid/a.jpg</thumb><order>0</order></actor><actor><name>Actor B</name></actor></movie>`
@@ -1168,6 +1250,7 @@ func TestTMDBMetadataThroughTLSHTTPAndPostgres(t *testing.T) {
 		maxProviderIDs[i] = map[string]any{"type": "<", "value": strings.Repeat("<", 1023)}
 	}
 	maxAllFacts := append(append([]map[string]any{}, maxActorPatches...), map[string]any{"field": "ratings", "value": maxSourceRatings}, map[string]any{"field": "uniqueIds", "value": maxProviderIDs}, map[string]any{"field": "year", "value": 9999}, map[string]any{"field": "runtimeMinutes", "value": 10000000}, map[string]any{"field": "rating", "value": 10}, map[string]any{"field": "userRating", "value": 0})
+	maxAllFacts = append(maxAllFacts, map[string]any{"field": "collection", "value": map[string]any{"name": strings.Repeat("<", 1024), "overview": strings.Repeat("<", 16384)}})
 	maxAllBody, err := json.Marshal(map[string]any{"expectedRevision": 1, "fields": maxTextPatches, "facts": maxAllFacts})
 	if err != nil {
 		t.Fatal(err)

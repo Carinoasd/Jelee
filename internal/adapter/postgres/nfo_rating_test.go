@@ -23,6 +23,7 @@ func sourceRatingFact(t *testing.T, metadata domain.ItemMetadata, name string) d
 
 func TestNFOSourceRatingsAtomicPersistenceManualClearAndDowngrade(t *testing.T) {
 	f, scope, fields := nfoItemApplyFixture(t)
+	nfoMigrateVersion(t, f, "down", 34)
 	nfoMigrateVersion(t, f, "down", 33)
 	nfoMigrateVersion(t, f, "up", SchemaVersion)
 	maximum, votes := 100.0, 0
@@ -97,6 +98,7 @@ func TestNFOSourceRatingsPublishedIdentifiersRoundTripAndMissingLock(t *testing.
 	if err != nil {
 		t.Fatal(err)
 	}
+	nfoMigrateVersion(t, f, "down", 34)
 	nfoMigrateVersion(t, f, "down", 33)
 	nfoMigrateVersion(t, f, "up", SchemaVersion)
 	after, err := f.s.ItemMetadata(f.ctx, f.a, scope.ItemID)

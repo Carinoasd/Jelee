@@ -25,7 +25,7 @@ func readNFOFieldLocks(ctx context.Context, tx pgx.Tx, value *domain.ItemMetadat
 		if json.Unmarshal(raw, &origin) != nil || !domain.ValidNFOFieldLockOrigin(origin) {
 			return domain.ErrMetadataUnavailable
 		}
-		if name == "year" || name == "runtimeMinutes" || name == "rating" || name == "userRating" || domain.IsItemMetadataListField(name) || name == "actors" || name == "uniqueIds" || name == "ratings" {
+		if name == "year" || name == "runtimeMinutes" || name == "rating" || name == "userRating" || domain.IsItemMetadataListField(name) || name == "actors" || name == "uniqueIds" || name == "ratings" || name == "collection" {
 			index := -1
 			for i := range value.Facts {
 				if value.Facts[i].Field == name {

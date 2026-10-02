@@ -59,6 +59,7 @@ func (o *itemNFOObservation) Selection() domain.NFOItemSelection {
 	value.Fields.Actors = domain.CloneNFOActors(value.Fields.Actors)
 	value.Fields.UniqueIDs = slices.Clone(value.Fields.UniqueIDs)
 	value.Fields.Ratings = domain.CloneNFORatings(value.Fields.Ratings)
+	value.Fields.Collection = domain.CloneNFOCollection(value.Fields.Collection)
 	value.Fields.Fields = slices.Clone(value.Fields.Fields)
 	value.Fields.Facts = slices.Clone(value.Fields.Facts)
 	value.Fields.NumberFacts = slices.Clone(value.Fields.NumberFacts)

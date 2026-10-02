@@ -1227,3 +1227,28 @@ prepare-ratings-regression.py已執行一次，生成wrapper/protection與source
 {"windows": {"passedPackages": 29, "passedTestEventsIncludingParents": 3264, "skippedTestEvents": 489, "elapsedSeconds": 8.657}, "native": {"passedPackages": 5, "passedTestEventsIncludingParents": 1130, "skippedTestEvents": 0, "elapsedSeconds": 3.452}, "full-pg": {"passedPackages": 1, "passedTestEventsIncludingParents": 809, "skippedTestEvents": 0, "elapsedSeconds": 474.239}, "native-pg": {"passedPackages": 1, "passedTestEventsIncludingParents": 11, "skippedTestEvents": 0, "elapsedSeconds": 15.685}, "e2e-final": {"passedPackages": 1, "passedTestEventsIncludingParents": 1, "skippedTestEvents": 0, "elapsedSeconds": 76.128}}
 
 所有本地驗證已終端結束。仍第三階段；下一步其他NFO欄位與季集、實際匯入、監看／排程和規模驗收，維持全G00–G51目標。禁止merge／release／tag／force-push／改寫既有SQL／修改Git身份設定，五個未獲具體授權的直播核心仍保持。
+
+
+### 多來源評分已發布，接續合集結構
+
+上一goal turn為progress：schema34多來源評分完成最終驗收、提交與push同branch，繁中PR46更新／attach，遠端head核對63d0cba0a0af3207415656c537d6033460e72389、OPEN/master。001–034共68份SQL現已發布不可改寫。完整PG809／native-PG11／Windows29套件3264事件489skip／native5套件1130事件0skip／完整HTTP76.128s0skip；Windows PG與HTTP略過由實際執行補足。最後HTTP max／votes null正例抓到strict_json只允許whole-value null；修正指定nested max／votes／actor order路徑，domain仍按fact型別檢查未知或非法值。新增第五份nullable-initial-red與完整green證據。全部檢查重跑通過（全品牌14735／186仍fail）；故意Votes:nil精確失敗、finally byte restore e834db8e523c8a567fba40110eb4880ad283f71f4cf6270c5389d20cfbe3d9bf，復原後完整HTTP PASS。所有本地handle終端；目前沒有live程序。
+
+下一段合集開始：唯一正式Go變更為internal/platform/outbound/metadata_apply_integration_test.go的collection public-seam測試；<set><name>Collection A</name><overview>Collection plot</overview></set>期待typed facts collection JSON{name,overview}、NFOOrigin、revision2與原bytes保持。已執行完整HTTP／TLS／PG，終端預期red：HTTP confirmed NFO collection structure was not persisted，.testdata/nfo-collection-initial-red.jsonl保存；helper run-nfo-collection-e2e.py使用固定Go／workspace cache／owned native/tmp，handle38868已終端exit1。正式產品仍schema34，尚未實作合集接線，勿把此未提交red當已發布版失敗。
+
+下一步針對合集name／overview以domain typed object／Reader／owned clone-recheck／Store來源與獨立鎖及人工null／新schema35接線，先此actualHTTP red→green，再契約、重複set/collection/name/overview歧義、人工／回滾／降版／全面回歸。文本set/collection別名與結構set/name,set/overview需同目的欄位守衛；一般readonly parser保持。仍全G00–G51／第三階段4done184partial148blocked，其他NFO欄位、季集、實際匯入、監看／排程、規模與24h驗收、前端／無損回寫續做。禁止merge/release/tag/forcepush/oldmigration/identity config，未獲具體批次授權的五直播core保持。schema34新headCI剛觸發，上一f177功能CI（C#三平台／Go兩平台／PG／format／CodeQL）全PASS但不能沿用；ABI差異與fullbranding仍FAIL。
+
+
+### 第35版：NFO合集結構保存
+
+第35版保存合集name／overview結構，支援文本set／collection與結構name／overview，來源／獨立鎖及人工null清除共交易。重複別名／子欄位、缺少名稱及混合內容拒絕；名稱Unicode空白與UTF-8界限在API／資料庫保持一致。固定25欄、16種facts與八種API變體；001–034共68份SQL保持。最大合法混合請求、120筆合成確認寫入、五表回滾、舊評分35→34→35及保留新資料拒降通過。五份初始失敗與正式簡介傳遞停用的負例保存，逐位元復原後完整HTTP通過。 見[契約](nfo-collection.md)及[證據](evidence/nfo-collection.json)。
+
+| 驗證 | 套件 | 通過事件（含父測試） | 略過 |
+| --- | ---: | ---: | ---: |
+| Windows全套 | 29 | 3267 | 491 |
+| Linux race | 5 | 1133 | 0 |
+| 完整PostgreSQL | 1 | 816 | 0 |
+| 原生worker | 1 | 11 | 0 |
+| 完整HTTP／TLS／PG | 1 | 1 | 0 |
+
+
+本地驗證均已終端結束。仍全G00–G51目標；下一步其他NFO欄位與季集、實際匯入、監看／排程及規模驗收。禁止merge／release／tag／force-push／改寫既有SQL／修改Git身份設定，五個未獲具體批次授權的直播核心保持。
