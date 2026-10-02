@@ -56,3 +56,7 @@ GOMAXPROCS=2、GOMEMLIMIT=512MiB、單 worker、Linux 原生 ext4；每檔 34 by
 完整 PG 首輪 920 個通過事件、3 個遷移測試失敗；只修正兩份測試的欄位投影與降版順序後，相關 31 個事件重測全過。表內 PG 數量已去除重複事件，未重跑未變動的其餘案例。
 
 [機器可讀證據](evidence/inventory-snapshots.json)／[取樣 heap profile 摘要](evidence/inventory-snapshots-heap-inuse.txt)。pprof 為取樣配置，不等於逐位元組 heap 計數。56 份來源雜湊一致；84 份已發布 SQL、五份直播核心、LICENSE 及需求原文保持。vet、建置、增量品牌、gitignore 通過；全量品牌與既有 ABI 門禁仍未解。
+
+## 後續驗證
+
+GOMAXPROCS=4 與第三輪清理的補驗已另列[三輪清單報告](scan-repeated.md)；此處表格保留本段原始量測，當時 PostgreSQL 資料目錄使用 2 GiB tmpfs；後續報告改用原生磁碟，不能把兩個環境的耗時直接解讀成程式加速。

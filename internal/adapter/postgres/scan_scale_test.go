@@ -217,21 +217,22 @@ func TestScanScale(t *testing.T) {
 		}
 	}()
 	type result struct {
-		Attempts       int         `json:"attempts"`
-		Pass           string      `json:"pass"`
-		Files          int         `json:"files"`
-		GOMAXPROCS     int         `json:"gomaxprocs"`
-		GoVersion      string      `json:"goVersion"`
-		Seconds        float64     `json:"seconds"`
-		FilesPerSecond float64     `json:"filesPerSecond"`
-		MaxBatch       int64       `json:"maxBatch"`
-		Batches        int64       `json:"batches"`
-		PeakHeap       uint64      `json:"peakHeapBytes"`
-		PeakRSS        uint64      `json:"peakRSSBytes"`
-		AfterGC        scaleSample `json:"afterGC"`
+		RetainedBaselineRows int64       `json:"retainedBaselineRows"`
+		Attempts             int         `json:"attempts"`
+		Pass                 string      `json:"pass"`
+		Files                int         `json:"files"`
+		GOMAXPROCS           int         `json:"gomaxprocs"`
+		GoVersion            string      `json:"goVersion"`
+		Seconds              float64     `json:"seconds"`
+		FilesPerSecond       float64     `json:"filesPerSecond"`
+		MaxBatch             int64       `json:"maxBatch"`
+		Batches              int64       `json:"batches"`
+		PeakHeap             uint64      `json:"peakHeapBytes"`
+		PeakRSS              uint64      `json:"peakRSSBytes"`
+		AfterGC              scaleSample `json:"afterGC"`
 	}
 	var results []result
-	for _, pass := range []string{"initial", "unchanged"} {
+	for _, pass := range []string{"initial", "unchanged", "cleanup"} {
 		measured.maxBatch.Store(0)
 		measured.batches.Store(0)
 		scaleProfile(t, filepath.Join(output, pass+"-before.heap"))
@@ -304,11 +305,22 @@ func TestScanScale(t *testing.T) {
 		if stored != int64(count) || baseline != int64(count) || measured.maxBatch.Load() > domain.ScanBatchMaxEntries {
 			t.Fatal("scale persistence or batch bound mismatch")
 		}
+		var retained int64
+		if err = s.Pool.QueryRow(ctx, `SELECT count(*) FROM library_inventory_baseline_data WHERE library_id=$1::uuid`, registration.Library.ID).Scan(&retained); err != nil {
+			t.Fatal("count retained snapshots")
+		}
+		wantRetained := int64(count)
+		if pass != "initial" {
+			wantRetained *= 2
+		}
+		if retained != wantRetained {
+			t.Fatalf("retained snapshots grew: pass=%s rows=%d want=%d", pass, retained, wantRetained)
+		}
 		if os.Getenv("JELEE_SCAN_SCALE_DIAGNOSTICS") == "true" {
 			scaleExplain(s, filepath.Join(output, pass+"-plans.json"), registration.Library.ID, jobID)
 		}
 		scaleProfile(t, filepath.Join(output, pass+"-after.heap"))
-		results = append(results, result{Attempts: job.Attempts, Pass: pass, Files: count, GOMAXPROCS: runtime.GOMAXPROCS(0), GoVersion: runtime.Version(), Seconds: elapsed, FilesPerSecond: float64(count) / elapsed, MaxBatch: measured.maxBatch.Load(), Batches: measured.batches.Load(), PeakHeap: peakHeap, PeakRSS: peakRSS, AfterGC: sampleScale(t, s, start, job.Files)})
+		results = append(results, result{RetainedBaselineRows: retained, Attempts: job.Attempts, Pass: pass, Files: count, GOMAXPROCS: runtime.GOMAXPROCS(0), GoVersion: runtime.Version(), Seconds: elapsed, FilesPerSecond: float64(count) / elapsed, MaxBatch: measured.maxBatch.Load(), Batches: measured.batches.Load(), PeakHeap: peakHeap, PeakRSS: peakRSS, AfterGC: sampleScale(t, s, start, job.Files)})
 		body, err := json.MarshalIndent(results, "", "  ")
 		if err != nil || os.WriteFile(filepath.Join(output, "result.json"), append(body, '\n'), 0600) != nil {
 			t.Fatal("write scale result")
