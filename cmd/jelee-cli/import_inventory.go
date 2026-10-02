@@ -5,11 +5,9 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"os"
-	"path/filepath"
-	"strings"
 
 	"github.com/MoYuanCN/Jelee/internal/adapter/postgres"
+	"github.com/MoYuanCN/Jelee/internal/adapter/scan"
 	"github.com/MoYuanCN/Jelee/internal/domain"
 	"github.com/MoYuanCN/Jelee/internal/platform/config"
 )
@@ -59,24 +57,5 @@ func runInventoryImport(ctx context.Context, args []string, out, diagnostic io.W
 }
 
 func validInventoryImportFile(ctx context.Context, source domain.InventoryImportSource) bool {
-	if ctx == nil || ctx.Err() != nil || !filepath.IsAbs(source.RootPath) || domain.ImportVideoContentType(source.Path) == "" {
-		return false
-	}
-	info, err := os.Lstat(source.RootPath)
-	if err != nil || !info.IsDir() || info.Mode()&os.ModeSymlink != 0 {
-		return false
-	}
-	root, err := os.OpenRoot(source.RootPath)
-	if err != nil {
-		return false
-	}
-	defer root.Close()
-	parts := strings.Split(source.Path, "/")
-	for i := range parts {
-		info, err = root.Lstat(strings.Join(parts[:i+1], "/"))
-		if err != nil || info.Mode()&os.ModeSymlink != 0 || i < len(parts)-1 && !info.IsDir() {
-			return false
-		}
-	}
-	return ctx.Err() == nil && info.Mode().IsRegular() && info.Size() == source.Size && info.ModTime().UnixNano() == source.ModifiedUnixNano
+	return scan.New().VerifyInventoryImport(ctx, source) == nil
 }

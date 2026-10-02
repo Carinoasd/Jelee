@@ -7,6 +7,8 @@ import (
 )
 
 type Jobs struct {
+	importRepository      InventoryImportRepository
+	importVerifier        InventoryImportVerifier
 	cancellationNotifier  JobCancellationNotifier
 	ignoreAvailable       func() bool
 	familyIgnoreAvailable func() bool

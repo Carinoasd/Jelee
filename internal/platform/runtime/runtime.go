@@ -86,6 +86,10 @@ func newWithLifetime(cfg config.Config, logger *slog.Logger, lifetime *lifetime)
 			if err != nil {
 				return nil, err
 			}
+			service, err = app.NewJobsWithInventoryImport(service, store, scan.New())
+			if err != nil {
+				return nil, err
+			}
 			p := c.Jobs
 			opts := jobworker.Options{Workers: p.Workers, PollInterval: time.Duration(p.PollMilliseconds) * time.Millisecond, LeaseDuration: time.Duration(p.LeaseSeconds) * time.Second, DBOperationTimeout: time.Duration(p.DatabaseTimeoutSeconds) * time.Second, MaxJobRuntime: time.Duration(p.MaxRuntimeSeconds) * time.Second}
 			if goruntime.GOOS == "linux" || goruntime.GOOS == "windows" {

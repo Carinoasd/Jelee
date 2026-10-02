@@ -11,6 +11,21 @@ type InventoryImportSource struct {
 	Size, ModifiedUnixNano, Generation, BaselineRevision int64
 }
 
+type InventoryImportInput struct {
+	Title    string `json:"title"`
+	Kind     string `json:"kind"`
+	ParentID string `json:"parentId,omitempty"`
+}
+
+type InventoryImportResult struct {
+	ItemID   string `json:"itemId"`
+	SourceID string `json:"sourceId"`
+}
+
+func ValidInventoryImportInput(v InventoryImportInput) bool {
+	return v.Title != "" && len(v.Title) <= 1024 && ValidVideoItemKind(v.Kind) && (v.ParentID == "" || v.Kind == "Episode" && ValidID(v.ParentID))
+}
+
 func (InventoryImportSource) String() string   { return "inventory import source (paths redacted)" }
 func (InventoryImportSource) GoString() string { return "inventory import source (paths redacted)" }
 

@@ -46,6 +46,17 @@ func (s *Server) jobRoutes(router chi.Router) {
 			return j, 200, err
 		}))
 		r.Get("/api/v1/jobs/{id}/entries", s.accountEndpoint(true, true, s.listJobEntries))
+		r.Put("/api/v1/jobs/{id}/entries/{entry}/item", s.accountEndpoint(true, false, func(w http.ResponseWriter, r *http.Request, actor domain.Actor) (any, int, error) {
+			var input domain.InventoryImportInput
+			if err := DecodeJSON(w, r, &input, accountBodyLimit); err != nil {
+				return nil, 0, err
+			}
+			if input.Kind == "" {
+				input.Kind = "HomeVideo"
+			}
+			result, err := s.jobs.ImportInventory(r.Context(), actor, chi.URLParam(r, "id"), chi.URLParam(r, "entry"), input)
+			return result, 200, err
+		}))
 		r.Post("/api/v1/jobs/{id}/cancel", s.accountEndpoint(true, false, func(w http.ResponseWriter, r *http.Request, a domain.Actor) (any, int, error) {
 			if err := emptyAccountInput(w, r); err != nil {
 				return nil, 0, err

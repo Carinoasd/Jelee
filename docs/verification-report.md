@@ -276,3 +276,18 @@ DTO單層解耦及兩份既有測試建構參數更新，14項回歸與完整Deb
 Windows 29套件／3312通過事件（含父測試）／536略過；Linux CLI與domain race 2套件／492事件／0略過；專項PG 15事件／0略過。vet、建置、增量品牌與gitignore通過；全量品牌及既有ABI仍未解決。這次未重跑完整PG與HTTP：前一段schema39的完整驗證保留為歷史證據。
 
 [操作與限制](inventory-import.md)、[證據](evidence/inventory-import.json)。仍第三階段，336項的4完成／184部分／148阻塞維持。下一段：已登入管理API與來源核對接線；全庫批次仍待完成。
+
+## 最新接續：掃描候選匯入 API 已驗收
+
+新增管理員 `PUT /api/v1/jobs/{id}/entries/{entry}/item`，來源由DB解析，交易外檔案核對後再查有效身分與候選。相同PUT回傳同一條目，異值409且不覆蓋人工資料。撤權／停權／降權／到期拒絕；六路並行只寫一份條目、來源與稽核。CLI共用檔案核對及交易寫入，保留重複拒絕。
+
+| 驗證 | 套件 | 通過事件（含父測試） | 略過 |
+| --- | ---: | ---: | ---: |
+| Windows全套 | 29 | 3313 | 542 |
+| Linux race | 6 | 1147 | 0 |
+| 專項PG／CLI／TLS | 1 | 22 | 0 |
+| 最終TLS與OpenAPI | 1 | 1 | 0 |
+
+vet、產品建置、增量品牌、gitignore通過；全量品牌與既有ABI仍未解決。本段未重跑完整PG套件，採相關Store／app／CLI／真實TLS整合；78份已發布SQL不改。
+
+[契約](inventory-import.md)／[證據](evidence/inventory-api.json)。仍第三階段，336項4完成184部分148阻塞。下一段批次匯入；全庫自動辨識、監看與排程等未完成。以下為歷史紀錄。

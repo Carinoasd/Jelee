@@ -4,6 +4,8 @@ import "strings"
 
 func jobSpecification(paths, schemas map[string]any) {
 	uuid := map[string]any{"type": "string", "format": "uuid"}
+	schemas["InventoryImportInput"] = objectSchema(map[string]any{"title": stringSchema(1024), "kind": map[string]any{"type": "string", "enum": []string{"HomeVideo", "Movie", "Episode"}, "default": "HomeVideo"}, "parentId": uuid}, "title")
+	schemas["InventoryImportResult"] = objectSchema(map[string]any{"itemId": uuid, "sourceId": uuid}, "itemId", "sourceId")
 	count := map[string]any{"type": "integer", "format": "int64", "minimum": 0}
 	instant := map[string]any{"type": "string", "format": "date-time"}
 	state := map[string]any{"type": "string", "enum": []string{"queued", "running", "succeeded", "failed", "cancelled"}}
@@ -30,6 +32,7 @@ func jobSpecification(paths, schemas map[string]any) {
 		{"/jobs", "get", "List retained jobs by UUID cursor", "", "JobPage", true, false},
 		{"/jobs/{id}", "get", "Read job progress; total work and ETA remain unknown", "", "Job", false, false},
 		{"/jobs/{id}/entries", "get", "List observed inventory; partial runs never authorize deletion", "", "InventoryPage", true, false},
+		{"/jobs/{id}/entries/{entry}/item", "put", "Import a current accepted video candidate after file verification; identical existing values return the same item without rewriting metadata", "InventoryImportInput", "InventoryImportResult", false, false},
 		{"/jobs/{id}/cancel", "post", "Persist cancellation; running work stops at its next checkpoint or heartbeat", "Empty", "Job", false, false},
 		{"/jobs/{id}/retry", "post", "Create a fresh scan preserving probe scope with current trusted tools; replay never repins or repeats invalidation", "Empty", "Job", false, true},
 	} {
@@ -39,6 +42,9 @@ func jobSpecification(paths, schemas map[string]any) {
 		params := []any{}
 		if strings.Contains(route.path, "{id}") {
 			params = append(params, idParameter())
+		}
+		if strings.Contains(route.path, "{entry}") {
+			params = append(params, map[string]any{"name": "entry", "in": "path", "required": true, "schema": uuid})
 		}
 		if route.page {
 			params = append(params, map[string]any{"name": "cursor", "in": "query", "schema": uuid}, map[string]any{"name": "limit", "in": "query", "schema": map[string]any{"type": "integer", "minimum": 1, "maximum": 100, "default": 50}})
@@ -57,6 +63,9 @@ func jobSpecification(paths, schemas map[string]any) {
 			op["requestBody"] = map[string]any{"required": true, "content": map[string]any{"application/json": map[string]any{"schema": schemaRef(route.body)}}, "description": "Maximum 64 KiB; one strict JSON object. Cancel and retry require an empty JSON object."}
 		}
 		response := map[string]any{"description": "Successful result; replay adds Idempotency-Replayed: true; accepted jobs add Location.", "content": map[string]any{"application/json": map[string]any{"schema": objectSchema(map[string]any{"data": schemaRef(route.result)}, "data")}}}
+		if route.result == "InventoryImportResult" {
+			response["description"] = "Registered item and source IDs. An identical current source and input returns the existing IDs without another write; differing existing metadata returns 409."
+		}
 		op["responses"].(map[string]any)["200"] = response
 		if route.key {
 			op["responses"].(map[string]any)["202"] = response
