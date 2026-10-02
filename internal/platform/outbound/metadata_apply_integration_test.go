@@ -934,6 +934,53 @@ func TestTMDBMetadataThroughTLSHTTPAndPostgres(t *testing.T) {
 		t.Fatal("numeric metadata review changed source bytes", err)
 	}
 	t.Log("actual HTTP/TLS/NFO/PostgreSQL: thirteen-field numeric projection, zero/bounds, mixed manual clear and renewed independent locks PASS")
+	identifierDocument := `<movie><title>ID example</title><uniqueid type="imdb" default="true">tt1234567</uniqueid><tmdbid>42</tmdbid><uniqueid type="custom">vendor-123</uniqueid></movie>`
+	identifierItem, identifierFile := newNFOItem("typed-identifiers", "HomeVideo", identifierDocument)
+	identifierResult := decode(request("POST", "/api/v1/items/"+identifierItem+"/metadata/nfo", `{"expectedRevision":1,"confirmed":true}`))
+	if identifierResult.Metadata.Revision != 2 || len(identifierResult.Metadata.Facts) != 1 || identifierResult.Metadata.Facts[0].Field != "uniqueIds" || identifierResult.Metadata.Facts[0].Source != "nfo" || identifierResult.Metadata.Facts[0].NFOOrigin == nil {
+		t.Fatal("HTTP confirmed NFO identifiers were not persisted as typed provider IDs")
+	}
+	var identifiers []struct {
+		Type    string `json:"type"`
+		Value   string `json:"value"`
+		Default bool   `json:"default"`
+	}
+	if err := json.Unmarshal(identifierResult.Metadata.Facts[0].Value, &identifiers); err != nil || len(identifiers) != 3 || identifiers[0].Type != "imdb" || identifiers[0].Value != "tt1234567" || !identifiers[0].Default || identifiers[1].Type != "tmdb" || identifiers[1].Value != "42" || identifiers[1].Default || identifiers[2].Type != "custom" || identifiers[2].Value != "vendor-123" {
+		t.Fatal("HTTP NFO identifiers lost provider type, value, default or source order")
+	}
+	conflictingIdentifierItem, _ := newNFOItem("conflicting-identifiers", "HomeVideo", `<movie><title>ID conflict</title><uniqueid type="IMDB">tt1234567</uniqueid><imdbid>tt7654321</imdbid></movie>`)
+	beforeIdentifierCalls := allCalls.Load()
+	if response := request("POST", "/api/v1/items/"+conflictingIdentifierItem+"/metadata/nfo", `{"expectedRevision":1,"confirmed":true}`); response.status != 503 {
+		t.Fatal("HTTP conflicting provider identifiers reached NFO write", response.status)
+	}
+	if response := apply(conflictingIdentifierItem, "movie", 4941, 1); response.status != 503 || allCalls.Load() != beforeIdentifierCalls {
+		t.Fatal("HTTP conflicting provider identifiers triggered provider fallback or write", response.status)
+	}
+	assertNoObservation(conflictingIdentifierItem)
+	for offset, clear := range []string{"null", "[]"} {
+		revision := 2 + offset*2
+		body := fmt.Sprintf(`{"expectedRevision":%d,"facts":[{"field":"uniqueIds","value":%s}]}`, revision, clear)
+		if response := request("PUT", "/api/v1/items/"+identifierItem+"/metadata", body); response.status != 200 {
+			t.Fatal("HTTP manual identifier clear failed", response.status)
+		}
+		review := decode(request("POST", "/api/v1/items/"+identifierItem+"/metadata/nfo", fmt.Sprintf(`{"expectedRevision":%d,"confirmed":true}`, revision+1)))
+		if review.Metadata.Revision != int64(revision+2) || len(review.Metadata.Facts) != 1 {
+			t.Fatal("HTTP identifier clear review lost revision or fact")
+		}
+		fact := review.Metadata.Facts[0]
+		if string(fact.Value) != clear || fact.Source != "manual" || fact.NFOOrigin != nil || fact.NFOLockOrigin != nil {
+			t.Fatal("HTTP NFO review overwrote manual identifier clear")
+		}
+	}
+	for _, invalid := range []string{`"tt1234567"`, `[null]`, `[{"type":"imdb","value":42}]`, `[{"type":"imdb","value":"tt1","default":null}]`, `[{"type":"imdb","value":"tt1","unknown":true}]`, `[{"type":" ","value":"tt1"}]`} {
+		body := `{"expectedRevision":6,"facts":[{"field":"uniqueIds","value":` + invalid + `}]}`
+		if response := request("PUT", "/api/v1/items/"+identifierItem+"/metadata", body); response.status != 400 {
+			t.Fatal("HTTP malformed provider identifiers accepted", response.status)
+		}
+	}
+	if raw, err := os.ReadFile(identifierFile); err != nil || string(raw) != identifierDocument {
+		t.Fatal("identifier edits changed original NFO", err)
+	}
 	actorSpecResponse := request("GET", "/api/v1/openapi.json", "")
 	var actorSpec map[string]any
 	if actorSpecResponse.status != 200 || json.Unmarshal(actorSpecResponse.body, &actorSpec) != nil {
@@ -942,13 +989,28 @@ func TestTMDBMetadataThroughTLSHTTPAndPostgres(t *testing.T) {
 	actorSchemas := actorSpec["components"].(map[string]any)["schemas"].(map[string]any)
 	actorFactSchema := actorSchemas["ItemMetadataFact"].(map[string]any)
 	actorEnums := actorFactSchema["properties"].(map[string]any)["field"].(map[string]any)["enum"].([]any)
+	identifierAdvertised := false
+	for _, name := range actorEnums {
+		if name == "uniqueIds" {
+			identifierAdvertised = true
+		}
+	}
+	if !identifierAdvertised || len(actorFactSchema["oneOf"].([]any)) != 6 {
+		t.Fatal("HTTP OpenAPI omits typed provider identifiers")
+	}
+	applyReportProperties := actorSchemas["MetadataApplyResult"].(map[string]any)["properties"].(map[string]any)
+	for _, reportField := range []string{"applied", "skipped"} {
+		if applyReportProperties[reportField].(map[string]any)["maxItems"] != float64(23) {
+			t.Fatal("HTTP OpenAPI cannot describe the complete identifier projection", reportField)
+		}
+	}
 	actorAdvertised := false
 	for _, name := range actorEnums {
 		if name == "actors" {
 			actorAdvertised = true
 		}
 	}
-	if !actorAdvertised || len(actorFactSchema["oneOf"].([]any)) != 5 {
+	if !actorAdvertised || len(actorFactSchema["oneOf"].([]any)) != 6 {
 		t.Fatal("HTTP OpenAPI omits structured actor facts")
 	}
 	actorDocument := `<movie><title>Actor example</title><actor><name>演員甲</name><role>主角</role><thumb>https://images.example.invalid/a.jpg</thumb><order>0</order></actor><actor><name>Actor B</name></actor></movie>`

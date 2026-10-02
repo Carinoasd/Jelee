@@ -1,5 +1,13 @@
 # 接手记录
 
+## 進行中：第33版識別碼
+
+第32版已提交推送 `9812cde07d7d467827f95e8c14a48087bd8aa1a8`，同一繁中PR46已更新／附聊天，最後工作目錄乾淨。完整PG795事件／455.135秒、原生worker11、Windows29包3258事件485略過、Linux五包1124、完整HTTP75.482秒零skip通過；Role負例精確失敗，Reader逐位元復原SHA256 `0e1d11a01dd9a80e1e37caa6568709ef667b81f2628105e47599f8a05a9e46d0`。所有本地驗證命令已結束。新head的GitHub CI正在執行，不能沿用舊head成功宣稱新head全綠。001–032共64份已發布SQL此後不可改寫。
+
+已開始下一垂直切片：正式完整HTTP／TLS／NFO／PG新增uniqueIds驗收，movie的imdb預設ID、tmdbid別名與custom型別／原順序須以結構保存。目前正式程式未改，只改 `internal/platform/outbound/metadata_apply_integration_test.go`，測試已終止為預期真red：`HTTP confirmed NFO identifiers were not persisted as typed provider IDs`，零略過。初始red在 `.testdata/nfo-identifiers-initial-red.jsonl`，重跑工具 `.testdata/run-nfo-identifiers-e2e.py`。目前沒有本地活動測試；接續domain／Reader／Store／新schema33 typed uniqueIds保存，再綠後展開人工清除／鎖與降版、來源歧義及OpenAPI。維持舊32演員投影集合，新增投影，不改已發布SQL。下一份版本的OpenAPI若增加oneOf須同步調整既有公開HTTP演員宣告的精確變體數，保留演員variant驗收。
+
+仍第三階段／active goal，不在小段後等待確認。每段驗證後命令級作者Carinoasd提交、同分支push、繁中PR46／附聊天後接續。ID後仍多來源評分／圖像／季集／實際匯入／前端／無損回寫等未完成；全量品牌與ABI實際差異仍待處理，五核心未授權保持。禁止merge／release／tag／force-push／Git身份設定／已發布SQL改寫。
+
 ## 最新接續：第32版演員結構
 
 仍第三階段，分支feat/jelee-ignore-family-worker，繁中普通PR46，base master。接續已推送231a65b177929dd2b0bf61248287fc44bf2ffc36；第32版actor-structure-v1固定22欄，actors物件保存name／role／thumb／可省略order，來源／獨立鎖／人工null與[]共交易。契約與實測見[nfo-actors.md](nfo-actors.md)及[證據](evidence/nfo-actors.json)。Windows29包／3258事件／485略過、Linux五包race 1124、完整PG 795／原生worker 11、完整HTTP正反通過。四初始red保存；刻意移除Role傳遞會失敗，逐位元復原後完整通過。首輪PG只修正7份舊遷移測試相鄰步驟，全套已重跑，最終來源快照保持。所有本地命令已結束。
@@ -1170,3 +1178,23 @@ Windows {'passedPackages': 29, 'passedTestEventsIncludingParents': 3226, 'skippe
 ### 第31版：八種有順序字串列表
 
 {"windows": {"passedPackages": 29, "passedTestEventsIncludingParents": 3255, "skippedTestEvents": 483, "elapsedSeconds": 9.034}, "native": {"passedPackages": 5, "passedTestEventsIncludingParents": 1121, "skippedTestEvents": 0, "elapsedSeconds": 1.089}, "full-pg": {"passedPackages": 1, "passedTestEventsIncludingParents": 788, "skippedTestEvents": 0, "elapsedSeconds": 440.619}, "native-pg": {"passedPackages": 1, "passedTestEventsIncludingParents": 11, "skippedTestEvents": 0, "elapsedSeconds": 15.457}, "http": {"passedPackages": 1, "passedTestEventsIncludingParents": 1, "skippedTestEvents": 0, "elapsedSeconds": 74.648}}。新schema31、固定21欄，明確套用／人工修改／來源與鎖共交易，舊投影保持；1MiB請求與逐列界限、四初始red及正式傳遞停用／byte restore／完整HTTP green，五表回滾、指定缺值鎖、舊數值往返／新資料拒降通過。見[nfo-string-lists.md](nfo-string-lists.md)與[證據](evidence/nfo-string-lists.json)。仍第三階段4/184/148，同繁中PR46，推送後立即續actor／ID／ratings／來源季集／實際匯入／frontend／無損writeback等全部G00–51。
+
+### 第33版識別碼進行中：首次實際保存與衝突驗收
+
+尚未提交。provider-identifiers-v1／schema33 的 Reader、owned selection、facts、來源與鎖初步接線完成；40 fixture 與6 direct migration chains先33→32，001–032不改。真實HTTP/TLS/PG先重現缺少typed uniqueIds，首次完整測試通過，原始證據 .testdata/nfo-identifiers-first-green.jsonl。下一個公開路徑測試重現同一IMDB供應商不同ID仍200保存；正式寫入投影新增provider比較守衛，read-only compatibility parser保持。NFO-only與融合均拒503，未觸發provider、未保存observation；完整HTTP測試再次終端PASS、0skip，證據 .testdata/nfo-identifiers-conflict-initial-red.jsonl／nfo-identifiers-conflict-green.jsonl。全部本地執行已結束，無live handle。
+
+仍須識別碼OpenAPI、人工修改/clear/locks、Reader邊界與Store交易/降版驗收、全面回歸、負向驗收、文件與繁中同PR46提交推送。最新已發布9812cde(schema32)。用戶詢問第三階段剩餘：已核對jobs-stage3-plan.md，主要剩完整資料套用與實際匯入、持續監看/排程、大規模與24h驗收；前端/完整回寫是全案後續，不能全算原stage3。無可靠百分比或工時，goal active繼續。
+
+### 第33版識別碼續作：API、人工清除與交易驗收
+
+上一goal turn屬progress。OpenAPI缺識別碼的實際HTTP red已保存 .testdata/nfo-identifiers-spec-initial-red.jsonl；新版6個fact變體、14項facts上限、兩種來源證明projection新增identifier version後完整HTTP終端PASS，證據spec-green。人工null/[]清除與二次NFO確認保持manual、6種無效識別碼400、原始來源bytes保持，完整HTTP終端PASS，證據manual-green。新nfo_identifier_test.go的五表觸發拒絕全部回滾、保留ID/manualnull拒降、正鎖重建與舊actor33→32→33、missing ProviderIds獨立鎖，專項7事件0skip PASS。Reader2測試驗證ID-only、id alias、同值重複、default與順序、owned切片/recheck，以及128/64/1024/16384界限和衝突，Windows nfo/http/domain終端PASS。原始64 SQL／5core／LICENSE／requirements hash／336項已核對保持。
+
+全面回歸已啟動，正式Go/SQL source已freeze，切勿有live測試時修改：Windows全套handle91153終端exit0，log .testdata/nfo-identifiers-windows.jsonl；native五套件handle57395終端PASS1126 events0skip。完整PG live handle8861（.testdata/nfo-identifiers-full-pg.jsonl），checks vet/build/brand/gitignore live handle93491（run-nfo-identifiers-checks.py），最近已實際輪詢兩者live。必須沿用handle等待，不能因timeout重啟。待fullPG/checks全部terminal後再依序native-PG與negative；native-PG wrapper與negative工具已準備但未執行。negative會Default:id.Default→false、重現typedIDliteral失敗、finally byte restore再完整HTTP，需全部其他測試terminal後才可執行。
+
+docs/nfo-identifiers.md目前明示未提交與驗證中，待最終metrics/evidence/report/trace與繁中PRbody。仍未push新commit，published9812cde／PR46。最新CI查核C#三平台/format/CodeQL/foundationssuccess，ABI/brandingfail，PG兩job仍in_progress；不要當新33結果。人問stage3剩幾％：已明確回覆無加權基準，不能可靠換算，尚未收尾；上一問至今同identifier子階段進展有限。goal active維持全G00–51、禁merge/release/tag/forcepush等；pending五直播core批次未得答覆仍不可刪，但不阻其他工作。
+
+
+### 第33版：NFO識別碼保存
+
+{"windows": {"passedPackages": 29, "passedTestEventsIncludingParents": 3260, "skippedTestEvents": 487, "elapsedSeconds": 12.369}, "native": {"passedPackages": 5, "passedTestEventsIncludingParents": 1126, "skippedTestEvents": 0, "elapsedSeconds": 3.577}, "full-pg": {"passedPackages": 1, "passedTestEventsIncludingParents": 802, "skippedTestEvents": 0, "elapsedSeconds": 482.614}, "native-pg": {"passedPackages": 1, "passedTestEventsIncludingParents": 11, "skippedTestEvents": 0, "elapsedSeconds": 15.364}, "e2e-final": {"passedPackages": 1, "passedTestEventsIncludingParents": 1, "skippedTestEvents": 0, "elapsedSeconds": 75.705}}。provider-identifiers-v1固定23欄，uniqueIds保存type/value/default與來源順序，owned切片與重核、同供應商不同值拒絕；NFO-only／融合／人工null與空陣列／來源及獨立鎖共交易。四初始red、正式default傳遞停用fullHTTP失敗／finally byte restore／完整PASS。五表寫入失敗全回滾、正鎖重建／缺值ProviderIds鎖、旧actor33→32→33与retained資料含manualnull拒降通過。vet/build/newbrand0/181/gitignore0/fullbrand14735/186，64old SQL／原文件／5core／336與hash保持。見[nfo-identifiers.md](nfo-identifiers.md)／[證據](evidence/nfo-identifiers.json)。仍第三階段4done184partial148blocked；多來源評分／其他欄位、季集、實際匯入／前端／無損回寫與全部G00–51接續。禁merge/release/tag/forcepush/oldmigration/identity config；繁中同PR46推送後繼續，goal active。
+識別碼最終驗證的所有本地程序均已終端結束，沒有 live handle。最後只修正 HTTP OpenAPI applied/skipped 上限22→23及對應公開契約測試；其後Windows全套、native五套件、HTTP與checks重跑通過，資料庫／遷移／worker來源未再變動，因此沿用完整PG802與nativePG11結果。四初始red均保存，負向default遺失失敗與byte復原／完整PASS已驗證。證據已產生，繁中PRbody已更新，接續命令級作者提交／push／PR46 edit／attach，然後多來源評分。

@@ -61,6 +61,16 @@ func (r *SummaryReader) projectItemFields(ctx context.Context, source *summarySo
 		return domain.NFOItemFields{}, err
 	}
 	metadata := document.Entries[0]
+	// A write cannot choose between different IDs for the same provider.
+	// The compatibility parser still retains both entries for read-only use.
+	providerIDs := make(map[string]string)
+	for _, id := range metadata.UniqueIDs {
+		provider := strings.ToLower(strings.TrimSpace(id.Type))
+		if previous, exists := providerIDs[provider]; exists && previous != id.Value {
+			return domain.NFOItemFields{}, domain.ErrMetadataUnavailable
+		}
+		providerIDs[provider] = id.Value
+	}
 	result := domain.NFOItemFields{Version: domain.NFOItemFieldsVersion, Kind: resultKind, Identity: r.Identity(), Stamp: source.Stamp(), ReadAt: time.Now().UTC(), Fields: []domain.NFOTextField{}, LockedFields: slices.Clone(metadata.LockedFields)}
 	for _, name := range metadata.LockedFields {
 		if strings.EqualFold(strings.TrimSpace(name), "OfficialRating") {
@@ -180,7 +190,19 @@ func (r *SummaryReader) projectItemFields(ctx context.Context, source *summarySo
 			result.Version = domain.NFOItemActorFieldsVersion
 		}
 	}
-	if len(result.Fields) == 0 && len(result.Facts) == 0 && len(result.NumberFacts) == 0 && len(result.Lists) == 0 && result.Version != domain.NFOItemActorFieldsVersion && result.Version != domain.NFOItemListFieldsVersion && result.Version != domain.NFOItemNumericFieldsVersion && result.Version != domain.NFOItemYearFieldsVersion && result.Version != domain.NFOItemSortFieldsVersion && result.Version != domain.NFOItemTextFieldsVersion && domain.HasNFOItemFieldLock(result) {
+	if len(metadata.UniqueIDs) > 0 {
+		result.Version = domain.NFOItemIdentifierFieldsVersion
+		for _, id := range metadata.UniqueIDs {
+			result.UniqueIDs = append(result.UniqueIDs, domain.NFOUniqueID{Type: id.Type, Value: id.Value, Default: id.Default})
+		}
+	}
+	for _, name := range metadata.LockedFields {
+		switch strings.ToLower(strings.TrimSpace(name)) {
+		case "uniqueid", "uniqueids", "providerids", "imdbid", "tmdbid", "tvdbid":
+			result.Version = domain.NFOItemIdentifierFieldsVersion
+		}
+	}
+	if len(result.Fields) == 0 && len(result.Facts) == 0 && len(result.NumberFacts) == 0 && len(result.Lists) == 0 && result.Version != domain.NFOItemIdentifierFieldsVersion && result.Version != domain.NFOItemActorFieldsVersion && result.Version != domain.NFOItemListFieldsVersion && result.Version != domain.NFOItemNumericFieldsVersion && result.Version != domain.NFOItemYearFieldsVersion && result.Version != domain.NFOItemSortFieldsVersion && result.Version != domain.NFOItemTextFieldsVersion && domain.HasNFOItemFieldLock(result) {
 		result.Version = domain.NFOItemLockFieldsVersion
 	}
 	if !domain.ValidNFOItemFields(result) {

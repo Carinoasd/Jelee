@@ -29,7 +29,7 @@ func readItemMetadataFacts(ctx context.Context, tx pgx.Tx, value *domain.ItemMet
 		}
 		if len(origin) > 0 {
 			var proof domain.NFOItemOrigin
-			if json.Unmarshal(origin, &proof) != nil || !domain.ValidNFOItemOrigin(proof) || (proof.Projection != domain.NFOItemYearFieldsVersion && proof.Projection != domain.NFOItemNumericFieldsVersion && proof.Projection != domain.NFOItemListFieldsVersion && proof.Projection != domain.NFOItemActorFieldsVersion) || !slices.Contains(domain.NFOItemFieldNames(proof.Projection), fact.Field) {
+			if json.Unmarshal(origin, &proof) != nil || !domain.ValidNFOItemOrigin(proof) || (proof.Projection != domain.NFOItemYearFieldsVersion && proof.Projection != domain.NFOItemNumericFieldsVersion && proof.Projection != domain.NFOItemListFieldsVersion && proof.Projection != domain.NFOItemActorFieldsVersion && proof.Projection != domain.NFOItemIdentifierFieldsVersion) || !slices.Contains(domain.NFOItemFieldNames(proof.Projection), fact.Field) {
 				return domain.ErrMetadataUnavailable
 			}
 			fact.NFOOrigin = &proof
@@ -85,6 +85,13 @@ func applyNFOFacts(ctx context.Context, tx pgx.Tx, before domain.ItemMetadata, s
 			return domain.ErrInvalid
 		}
 		incomingFacts = append(incomingFacts, domain.ItemMetadataFact{Field: "actors", Value: raw})
+	}
+	if len(fields.UniqueIDs) > 0 {
+		raw, err := json.Marshal(fields.UniqueIDs)
+		if err != nil {
+			return domain.ErrInvalid
+		}
+		incomingFacts = append(incomingFacts, domain.ItemMetadataFact{Field: "uniqueIds", Value: raw})
 	}
 	for _, incoming := range incomingFacts {
 		old := domain.ItemMetadataFact{Field: incoming.Field}

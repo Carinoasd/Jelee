@@ -470,6 +470,9 @@ func TestProbeRequestMigrationGuardAndRollbackPreserveCache(t *testing.T) {
 	}
 	preserved := probeFaultSnapshot(t, f)
 	dsn := f.s.Pool.Config().ConnString()
+	if version, dirty, e := Migrate(f.ctx, dsn, "down"); e != nil || dirty || version != 32 {
+		t.Fatalf("down32 version=%d dirty=%v error=%v", version, dirty, e)
+	}
 	if version, dirty, e := Migrate(f.ctx, dsn, "down"); e != nil || dirty || version != 31 {
 		t.Fatalf("down31 version=%d dirty=%v error=%v", version, dirty, e)
 	}

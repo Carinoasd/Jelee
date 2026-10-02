@@ -164,3 +164,8 @@ DTO單層解耦及兩份既有測試建構參數更新，14項回歸與完整Deb
 ## TMDB請求限流與共享冷卻
 
 [當前治理驗收](tmdb-governor.md)包含容量／取消／冷卻延長及真TLS跨呼叫等待；移除正式入口的負例可偵測繞過。恢復後相關完整回歸、全Go／vet／產品build與Linux四包race通過，435略過名稱集合另逐項驗證。資料cache與完整刮削未完成，需求狀態不提升為完成。
+
+
+### 第33版：NFO識別碼保存
+
+{"windows": {"passedPackages": 29, "passedTestEventsIncludingParents": 3260, "skippedTestEvents": 487, "elapsedSeconds": 12.369}, "native": {"passedPackages": 5, "passedTestEventsIncludingParents": 1126, "skippedTestEvents": 0, "elapsedSeconds": 3.577}, "full-pg": {"passedPackages": 1, "passedTestEventsIncludingParents": 802, "skippedTestEvents": 0, "elapsedSeconds": 482.614}, "native-pg": {"passedPackages": 1, "passedTestEventsIncludingParents": 11, "skippedTestEvents": 0, "elapsedSeconds": 15.364}, "e2e-final": {"passedPackages": 1, "passedTestEventsIncludingParents": 1, "skippedTestEvents": 0, "elapsedSeconds": 75.705}}。provider-identifiers-v1固定23欄，uniqueIds保存type/value/default與來源順序，owned切片與重核、同供應商不同值拒絕；NFO-only／融合／人工null與空陣列／來源及獨立鎖共交易。四初始red、正式default傳遞停用fullHTTP失敗／finally byte restore／完整PASS。五表寫入失敗全回滾、正鎖重建／缺值ProviderIds鎖、旧actor33→32→33与retained資料含manualnull拒降通過。vet/build/newbrand0/181/gitignore0/fullbrand14735/186，64old SQL／原文件／5core／336與hash保持。見[nfo-identifiers.md](nfo-identifiers.md)／[證據](evidence/nfo-identifiers.json)。仍第三階段4done184partial148blocked；多來源評分／其他欄位、季集、實際匯入／前端／無損回寫與全部G00–51接續。禁merge/release/tag/forcepush/oldmigration/identity config；繁中同PR46推送後繼續，goal active。
