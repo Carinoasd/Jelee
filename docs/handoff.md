@@ -1,3 +1,15 @@
+## 最新接續：G41.8 工作指標已完成
+
+實作提交 `956ff40b80`，承接 schema45 的 `60fb02d2e3`。管理員 `/metrics` 增加共享工作統計，固定 22 家族／163 系列；OTel Producer 使用 DB 絕對累計及 epoch，runtime／pool 仍為各程序本機數據。請求先讀兩秒期限的一致快照，SDK callback／Producer 不執行 SQL；逾時、取消或部分收集回安全錯誤。停止先等待已接納的預讀與收集，再釋放 pool。
+
+Windows 518 通過／9 略過，Linux race 512／3 略過，真 PostgreSQL／HTTP race 10／0 略過；事件含父測試。三個資料庫頂層案例另由真 PG 全數通過。驗證實際 submit／claim／release／reclaim／publish、never-started cancel、history=1 裁剪、兩副本與重建、權限撤銷、資料庫鎖定失敗與恢復、SDK epoch／互斥桶及部分輸出防護。最大回應 20,353 bytes，低於 64 KiB。
+
+vet、三命令 build、模組校驗、格式、增量品牌及 gitignore 通過；全量品牌仍有 14,735 項。817 份 Go／SQL／module 來源凍結保持，90 份已發布 SQL、五份直播核心、授權及需求原文不變。[契約](metrics.md)／[本輪證據](evidence/jobs-exporter.json)。目前無本機測試程序存活；新推送遠端 CI 待查，不能宣稱全綠。
+
+G41.8 已有全部所列指標及驗證，追溯共 336 項：5 完成／185 部分／146 阻塞，仍第三階段。下一段先依 `.testdata/runtime-memory-next.md` 實作 G42.8 可覆寫部署記憶體設定、有效 GC 值、真容器 peak／OOM 及預設 KDF 兩槽驗收；候選 GOGC=100／Go soft limit 512MiB／hard limit 768MiB 尚待重驗。現有 heap 門禁不是容器總記憶體預算，需區分父 heap、RSS 與 cgroup。計畫尚未實作。
+
+沿用同分支繁中 PR46；不 merge／release／tag／force-push／設定 Git 身分。下方為歷史紀錄。
+
 ## 最新接續：schema45 工作持久統計已驗證
 
 固定109列保存成功／失敗／取消、首次等待與首次開始至完成的耗時。trigger與工作狀態同交易；重試、租約接手、晚期guard／audit失敗及歷史清理均有真PG驗證。單一SQL讀一致佇列／有效與過期租約快照，最多兩秒，不拿工作寫入鎖、不自動恢復工作。已有統計時拒降版；53個舊遷移測試在產生工作之前明確選schema44，普通fixture仍走45。
