@@ -52,7 +52,7 @@ func newWithLifetime(cfg config.Config, logger *slog.Logger, lifetime *lifetime)
 			if !c.EnableMetrics {
 				return nil, nil
 			}
-			metrics, err := telemetry.New(store)
+			metrics, err := telemetry.NewWithJobs(store, store)
 			if err != nil {
 				return nil, err
 			}
@@ -232,8 +232,8 @@ func (l *lifetime) closePool() {
 				l.logger.Error("probe temporary cleanup failed", "component", "probe", "code", "probe_runtime_unavailable")
 			}
 		}
-		// Metrics callbacks only read in-process snapshots. Stop collection
-		// before releasing the pool, including Fx construction/start failures.
+		// Metrics scrapes may prefetch shared database snapshots. Stop admitted
+		// scrapes before releasing the pool, including Fx startup failures.
 		if l.closeTelemetry != nil {
 			ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 			err := l.closeTelemetry(ctx)

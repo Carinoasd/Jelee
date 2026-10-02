@@ -1,6 +1,6 @@
 # 工作持久統計與資料庫快照
 
-schema45 保存工作結果、首次等待時間與工作耗時，清理舊工作或刪除媒體庫時保留累計值。這一段提供內部 `JobMetricsSource` 讀取介面；正式 `/metrics` 仍只有[執行時與連線池指標](metrics.md)，工作系列尚待接入 OTel。
+schema45 保存工作結果、首次等待時間與工作耗時，清理舊工作或刪除媒體庫時保留累計值。內部 `JobMetricsSource` 讀取介面已接到管理員 [`/metrics`](metrics.md)，透過正式 OTel／Prometheus exporter 輸出固定工作系列。
 
 ## 計數方式
 
@@ -21,7 +21,7 @@ schema45 保存工作結果、首次等待時間與工作耗時，清理舊工�
 
 ## 等待與耗時分布
 
-每個觀測只增加一個互斥桶。最後一桶為 +Inf。後續 OTel cumulative histogram 可以直接使用桶計數；Prometheus exposition 才轉成累積的 le 桶，不能每次讀取都重播 `Histogram.Record`。
+每個觀測只增加一個互斥桶。最後一桶為 +Inf。OTel cumulative histogram 直接使用桶計數；Prometheus exposition 才轉成累積的 le 桶，不能每次讀取都重播 `Histogram.Record`。
 
 - 等待上界（秒）：0.1、0.5、1、2.5、5、10、30、60、300、1800、3600、86400、+Inf。
 - 耗時上界（秒）：1、5、10、30、60、300、900、1800、3600、7200、21600、86400、+Inf。
@@ -32,7 +32,7 @@ schema45 保存工作結果、首次等待時間與工作耗時，清理舊工�
 
 介面用單一 SQL statement 取得 epoch、累計、分桶與當前工作，使用同一 MVCC 快照與資料庫觀察時間。只查活動工作與小型聚合表，不讀清單／快照內容、不取得 jobs advisory lock、不執行恢復寫入。context 最多兩秒，包含等待連線；缺少固定資料或查詢失敗時回傳錯誤及空結果，不能把失敗當成零值指標。
 
-這些數值屬於共用資料庫 schema。多個服務副本讀到相同累計，不能將它們相加；後續端點應使用 `jelee.jobs.shared.*` 名稱，部署時選一個收集目標或先依有限 cluster 維度去重再求速率。cluster 由 scrape 設定提供，不把 DSN 或 schema 名稱轉成 labels。
+這些數值屬於共用資料庫 schema。多個服務副本讀到相同累計，不能將它們相加；端點的 OTel 指標使用 `jelee.jobs.shared.*` 名稱，部署時選一個收集目標或先依有限 cluster 維度去重再求速率。cluster 由 scrape 設定提供，不把 DSN 或 schema 名稱轉成 labels。
 
 ## 遷移與降版
 
@@ -50,8 +50,14 @@ Windows 共 443 通過、613 略過；資料庫驗證採上述真 PG 結果。�
 
 vet、三個命令 build、模組校驗、格式、增量品牌與 gitignore 通過；全量品牌仍有 14,735 項。每輪各凍結 813 份來源；兩輪間僅修正兩份測試前置，生產 Go／SQL 一致。相對既有提交，88 份已發布 SQL、五份受保護直播核心及授權／需求原文保持不變。[執行與來源證據](evidence/job-metrics.json)。
 
-G41.8 仍為部分完成，工作統計尚未接到對外端點；tracing、混合負載、容器 OOM／記憶體預算與真實 24h 驗收仍待接續。
+G41.8 的工作統計已接到對外端點並完成真 HTTP／PostgreSQL 驗證；tracing、混合負載、容器 OOM／記憶體預算與真實 24h 驗收仍待接續。
 
 ## CI 套件期限
 
 提交 a5d9fe416e 的遠端資料庫套件在整體 20 分鐘時被 Go 測試工具中止，當時正在啟動下一個 NFO 案例；日誌未見此前斷言失敗。兩平台 test-race 的套件期限調整為 45 分鐘，維持個別 fixture 的 context 與 SQL 期限。缺少前一步未執行所產生的附件，不再額外報錯；應執行的附件仍要求存在。新提交的遠端結果另行核對。
+
+## 正式端點驗證
+
+本段 Windows 518 個通過事件／9 略過，Linux race 512／3 略過，真 PostgreSQL／HTTP race 10／0 略過；事件包含父測試，分平台列出，不相加。Windows 的原生環境案例未在本段重跑；三個資料庫頂層案例均由真 PG 執行通過。固定 22 家族／163 系列，測得最大 20,353 bytes，小於 64 KiB 限額。
+
+vet、三命令 build、模組 checksum、格式、增量品牌與 gitignore 通過；全量品牌仍有 14,735 項。817 份來源在各輪維持不變，90 份已發布 SQL、五份直播核心、授權及需求原文不變。見[端點驗證證據](evidence/jobs-exporter.json)。

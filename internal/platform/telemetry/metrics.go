@@ -9,6 +9,7 @@ import (
 	"runtime"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/MoYuanCN/Jelee/internal/app"
 	"github.com/prometheus/client_golang/prometheus"
@@ -25,6 +26,7 @@ import (
 // polling workers and does not register anything with global providers.
 type Metrics struct {
 	provider     *sdkmetric.MeterProvider
+	jobsProducer *jobMetricsProducer
 	handler      http.Handler
 	gate         chan struct{}
 	scrapeGate   chan struct{}
@@ -60,17 +62,36 @@ func New(pool app.PoolStatsSource) (*Metrics, error) {
 	return newMetrics(pool, readRuntime)
 }
 
+// NewWithJobs adds shared database job metrics. JobMetrics must honor its
+// context; it is called once per admitted request, before SDK collection.
+func NewWithJobs(pool app.PoolStatsSource, jobs app.JobMetricsSource) (*Metrics, error) {
+	if jobs == nil {
+		return nil, errors.New("telemetry requires a job metrics source")
+	}
+	return newMetricsWithJobs(pool, jobs, readRuntime)
+}
+
 func newMetrics(pool app.PoolStatsSource, read func() runtimeSnapshot, readers ...sdkmetric.Reader) (*Metrics, error) {
+	return newMetricsWithJobs(pool, nil, read, readers...)
+}
+
+func newMetricsWithJobs(pool app.PoolStatsSource, jobs app.JobMetricsSource, read func() runtimeSnapshot, readers ...sdkmetric.Reader) (*Metrics, error) {
 	if pool == nil || read == nil {
 		return nil, errors.New("telemetry requires snapshot sources")
 	}
 	registry := prometheus.NewRegistry()
-	exporter, err := otelexport.New(
+	exporterOptions := []otelexport.Option{
 		otelexport.WithRegisterer(registry),
 		otelexport.WithoutTargetInfo(),
 		otelexport.WithoutScopeInfo(),
 		otelexport.WithTranslationStrategy(otlptranslator.UnderscoreEscapingWithSuffixes),
-	)
+	}
+	var producer *jobMetricsProducer
+	if jobs != nil {
+		producer = &jobMetricsProducer{}
+		exporterOptions = append(exporterOptions, otelexport.WithProducer(producer))
+	}
+	exporter, err := otelexport.New(exporterOptions...)
 	if err != nil {
 		return nil, err
 	}
@@ -86,7 +107,7 @@ func newMetrics(pool app.PoolStatsSource, read func() runtimeSnapshot, readers .
 	m := &Metrics{
 		provider: sdkmetric.NewMeterProvider(options...), gate: make(chan struct{}, 1),
 		scrapeGate: make(chan struct{}, 1), stopScrapes: make(chan struct{}),
-		shutdownGate: make(chan struct{}, 1),
+		shutdownGate: make(chan struct{}, 1), jobsProducer: producer,
 	}
 	m.gate <- struct{}{}
 	m.scrapeGate <- struct{}{}
@@ -94,7 +115,13 @@ func newMetrics(pool app.PoolStatsSource, read func() runtimeSnapshot, readers .
 	if err = m.register(pool, read); err != nil {
 		return nil, errors.Join(err, m.provider.Shutdown(context.Background()))
 	}
-	serve := promhttp.HandlerFor(registry, promhttp.HandlerOpts{DisableCompression: true})
+	var gatherer prometheus.Gatherer = registry
+	if producer != nil {
+		gatherer = jobMetricsGatherer{registry: registry, producer: producer}
+	}
+	serve := promhttp.HandlerFor(gatherer, promhttp.HandlerOpts{
+		DisableCompression: true, ErrorHandling: promhttp.HTTPErrorOnError,
+	})
 	m.handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// The exporter collects with context.TODO(), so wait outside it using
 		// the request context. Only one request enters a real gather at a time.
@@ -119,6 +146,27 @@ func newMetrics(pool app.PoolStatsSource, read func() runtimeSnapshot, readers .
 			return
 		default:
 		}
+		if jobs != nil {
+			prefetchCtx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
+			snapshot, err := jobs.JobMetrics(prefetchCtx)
+			contextErr := prefetchCtx.Err()
+			cancel()
+			if err != nil || contextErr != nil || !validJobSnapshot(snapshot) {
+				http.Error(w, "metrics unavailable", http.StatusServiceUnavailable)
+				return
+			}
+			select {
+			case <-r.Context().Done():
+				http.Error(w, "metrics unavailable", http.StatusServiceUnavailable)
+				return
+			case <-m.stopScrapes:
+				http.Error(w, "metrics unavailable", http.StatusServiceUnavailable)
+				return
+			default:
+			}
+			producer.active.Store(&jobMetricCollection{snapshot: snapshot, requestContext: r.Context()})
+			defer producer.active.Store(nil)
+		}
 		serve.ServeHTTP(w, r)
 	})
 	return m, nil
@@ -126,14 +174,15 @@ func newMetrics(pool app.PoolStatsSource, read func() runtimeSnapshot, readers .
 
 // Handler returns the uninstrumented private exporter. The HTTP adapter owns
 // authentication, admission, request limits, and response deadlines. Waiting
-// scrapes are cancelable; an executing local snapshot is synchronous and cannot
-// be interrupted by the request deadline.
+// scrapes are cancelable. Database prefetch has a two-second context, which the
+// source must honor; an executing local snapshot is synchronous and cannot be
+// interrupted by the request deadline.
 func (m *Metrics) Handler() http.Handler { return m.handler }
 
-// Shutdown waits for an active snapshot before stopping the provider. After a
-// successful shutdown no callback can read the pool. A canceled wait can be
-// retried; scrape admission stays closed after shutdown begins. Repeated
-// successful shutdowns return nil.
+// Shutdown waits for admitted scrapes and local snapshots before stopping the
+// provider. After a successful shutdown no source can read the pool. A canceled
+// gate wait can be retried; admission stays closed once shutdown begins. The
+// provider shutdown result is cached, including any error from the SDK.
 func (m *Metrics) Shutdown(ctx context.Context) error {
 	if err := ctx.Err(); err != nil {
 		return err
@@ -151,12 +200,27 @@ func (m *Metrics) Shutdown(ctx context.Context) error {
 	select {
 	case <-ctx.Done():
 		return ctx.Err()
+	case <-m.scrapeGate:
+	}
+	select {
+	case <-ctx.Done():
+		m.scrapeGate <- struct{}{}
+		return ctx.Err()
 	case <-m.gate:
 	}
+	if err := ctx.Err(); err != nil {
+		m.gate <- struct{}{}
+		m.scrapeGate <- struct{}{}
+		return err
+	}
 	m.stopped.Store(true)
-	// Release the callback gate before entering SDK shutdown. A reader may
-	// already be collecting and waiting to invoke our stopped callback.
+	if m.jobsProducer != nil {
+		m.jobsProducer.active.Store(nil)
+	}
+	// Release both collection gates before SDK shutdown. A reader may
+	// already hold the SDK collection lock and be waiting for our callback.
 	m.gate <- struct{}{}
+	m.scrapeGate <- struct{}{}
 	m.shutdownErr = m.provider.Shutdown(ctx)
 	m.shutdownDone = true
 	return m.shutdownErr
