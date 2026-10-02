@@ -121,3 +121,5 @@
 首段只读解析的提交为 `f21d15668477bd5806e7e525149bfb373d9a68bd`。包含 CLI 的完整 [Windows 测试](evidence/windows-tests.txt)与 [Linux race 测试](evidence/linux-race.txt)均通过；Linux 实际执行 NFO 符号链接逃逸与替换测试，NFO 覆盖率 89.8%。日志中列出的跳过仍保留上述限制。
 
 同日 WSL Ubuntu / Go 1.27.1 的 `-race -count=1` 专项通过，文件符号链接逃逸和并发替换用例均实际执行通过。完整输出保存在被忽略的 `.testdata/nfo-linux-race.txt`；其中 FIFO 一项按上述文件系统限制明确跳过。
+
+確認套用亦拒絕年份、片長及兩種評分的單值重複；rating／communityrating共用目的欄位，巢狀多來源保持。這是投影守衛，數值保存尚未完成；見[數值單值守衛](nfo-numeric-ambiguity.md)。

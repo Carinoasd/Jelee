@@ -783,6 +783,34 @@ func TestTMDBMetadataThroughTLSHTTPAndPostgres(t *testing.T) {
 		t.Fatal("HTTP duplicate text reached provider or write", response.status)
 	}
 	assertNoObservation(duplicateTextItem)
+	duplicateYearItem, duplicateYearFile := newNFOItem("duplicate-year", "HomeVideo", `<movie><title>Unconfirmed</title><year>2024</year><YEAR>2025</YEAR></movie>`)
+	beforeYearCalls := allCalls.Load()
+	if response := apply(duplicateYearItem, "movie", 4945, 1); response.status != 503 || allCalls.Load() != beforeYearCalls {
+		t.Fatal("HTTP ambiguous year reached provider or write", response.status)
+	}
+	assertNoObservation(duplicateYearItem)
+	if response := request("POST", "/api/v1/items/"+duplicateYearItem+"/metadata/nfo", `{"expectedRevision":1,"confirmed":true}`); response.status != 503 {
+		t.Fatal("HTTP ambiguous year reached NFO-only write", response.status)
+	}
+	assertNoObservation(duplicateYearItem)
+	for offset, content := range []string{
+		`<runtime>92 min</runtime><RUNTIME>93 minutes</RUNTIME>`,
+		`<rating>8.5</rating><communityrating>9</communityrating>`,
+		`<userrating>8</userrating><USERRATING>9</USERRATING>`,
+	} {
+		item, _ := newNFOItem(fmt.Sprintf("duplicate-numeric-%d", offset), "HomeVideo", `<movie><title>Unconfirmed</title>`+content+`</movie>`)
+		beforeCalls := allCalls.Load()
+		if response := apply(item, "movie", 4946+offset, 1); response.status != 503 || allCalls.Load() != beforeCalls {
+			t.Fatal("HTTP ambiguous numeric content reached provider or write", response.status)
+		}
+		if response := request("POST", "/api/v1/items/"+item+"/metadata/nfo", `{"expectedRevision":1,"confirmed":true}`); response.status != 503 {
+			t.Fatal("HTTP ambiguous numeric content reached NFO-only write", response.status)
+		}
+		assertNoObservation(item)
+	}
+	if raw, err := os.ReadFile(duplicateYearFile); err != nil || string(raw) != `<movie><title>Unconfirmed</title><year>2024</year><YEAR>2025</YEAR></movie>` {
+		t.Fatal("ambiguous year review changed original NFO", err)
+	}
 	if raw, err := os.ReadFile(textFile); err != nil || string(raw) != textDocument {
 		t.Fatal("extended text review changed original NFO", err)
 	}

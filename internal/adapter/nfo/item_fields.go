@@ -162,9 +162,11 @@ func uniqueItemFields(ctx context.Context, original []byte) error {
 				name = "premiered"
 			case "sortname":
 				name = "sorttitle"
+			case "communityrating":
+				name = "rating"
 			}
 			switch name {
-			case "title", "originaltitle", "plot", "premiered", "sorttitle", "tagline", "outline", "mpaa", "certification", "lockdata", "lockedfields":
+			case "title", "originaltitle", "plot", "premiered", "sorttitle", "tagline", "outline", "mpaa", "certification", "year", "runtime", "rating", "userrating", "lockdata", "lockedfields":
 				if seen[name] {
 					return domain.ErrMetadataUnavailable
 				}
