@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/MoYuanCN/Jelee/internal/access"
 	"github.com/MoYuanCN/Jelee/internal/adapter/postgres"
+	"github.com/MoYuanCN/Jelee/internal/domain"
 	"github.com/MoYuanCN/Jelee/internal/platform/config"
 	"github.com/MoYuanCN/Jelee/internal/platform/proberuntime"
 	"github.com/MoYuanCN/Jelee/internal/platform/sandbox"
@@ -76,7 +77,12 @@ func run() int {
 	root := args.String("root", "", "absolute media root")
 	relative := args.String("file", "", "root-relative video path")
 	title := args.String("title", "", "catalog title")
+	itemKind := args.String("kind", "HomeVideo", "video kind: HomeVideo, Movie or Episode")
 	if err := args.Parse(os.Args[2:]); err != nil || args.NArg() != 0 {
+		return 2
+	}
+	if command == "import-video" && !domain.ValidVideoItemKind(*itemKind) {
+		fmt.Fprintln(os.Stderr, "video kind must be HomeVideo, Movie or Episode")
 		return 2
 	}
 	cfg, err := config.Load()
@@ -132,7 +138,7 @@ func run() int {
 			fmt.Fprintln(os.Stderr, "video is not a readable regular file in the root")
 			return 1
 		}
-		id, err := store.ImportVideo(ctx, *library, filepath.Clean(*root), filepath.ToSlash(filepath.Clean(*relative)), *title, contentType)
+		id, err := store.ImportVideoKind(ctx, *library, filepath.Clean(*root), filepath.ToSlash(filepath.Clean(*relative)), *title, contentType, *itemKind)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, "registration failed: check names, duplicate paths and database state")
 			return 1

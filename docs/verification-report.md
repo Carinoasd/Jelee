@@ -239,3 +239,16 @@ DTO單層解耦及兩份既有測試建構參數更新，14項回歸與完整Deb
 | 完整 HTTP／TLS／PG | 1 | 1 | 0 |
 
 全部本地驗證已結束。接續繁中PR46提交推送，再處理影集／季來源及實際匯入；仍第三階段、全案336項4完成184部分148阻塞。五個未獲具體刪除授權的直播核心保持。見[契約](nfo-episode-details.md)與[證據](evidence/nfo-episode-details.json)。
+
+
+### 影片種類匯入入口
+
+影片匯入可明確指定Movie、Episode或HomeVideo，省略仍為HomeVideo；實際CLI到隔離PG再套用同名NFO通過，拒絕資料夾／非法種類，重複匯入保持原子性及原檔bytes。schema仍38，76份已發布SQL不改；全案4完成184部分148阻塞，仍第三階段。
+
+| 驗證 | 套件 | 通過事件（含父測試） | 略過 |
+| --- | ---: | ---: | ---: |
+| Windows 全套 | 29 | 3298 | 514 |
+| Linux CLI／domain race | 2 | 483 | 0 |
+| 相關 PostgreSQL race | 1 | 38 | 0 |
+
+[契約](import-video-kinds.md)與[證據](evidence/import-video-kinds.json)。本段全部本地程序已結束，待同分支提交推送及繁中PR46更新，再接續資料夾來源與階層。

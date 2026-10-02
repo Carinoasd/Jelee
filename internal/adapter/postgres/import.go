@@ -9,7 +9,12 @@ import (
 // ImportVideo registers a single validated existing file without changing it.
 // File safety checks belong to the local CLI and again to the delivery adapter.
 func (s *Store) ImportVideo(ctx context.Context, library, root, relative, title, contentType string) (string, error) {
-	if library == "" || len(library) > 128 || title == "" || len(title) > 1024 {
+	return s.ImportVideoKind(ctx, library, root, relative, title, contentType, "HomeVideo")
+}
+
+// ImportVideoKind registers an explicitly classified, validated existing video.
+func (s *Store) ImportVideoKind(ctx context.Context, library, root, relative, title, contentType, kind string) (string, error) {
+	if ctx == nil || !domain.ValidVideoItemKind(kind) || library == "" || len(library) > 128 || title == "" || len(title) > 1024 {
 		return "", domain.ErrInvalid
 	}
 	tx, err := s.Pool.Begin(ctx)
@@ -28,7 +33,7 @@ func (s *Store) ImportVideo(ctx context.Context, library, root, relative, title,
 		return "", storageError(err)
 	}
 	// Duplicate files fail atomically rather than producing orphan items.
-	if err = tx.QueryRow(ctx, `INSERT INTO items(library_id,title,kind) VALUES($1,$2,'HomeVideo') RETURNING id::text`, libraryID, title).Scan(&itemID); err != nil {
+	if err = tx.QueryRow(ctx, `INSERT INTO items(library_id,title,kind) VALUES($1,$2,$3) RETURNING id::text`, libraryID, title, kind).Scan(&itemID); err != nil {
 		return "", storageError(err)
 	}
 	if err = tx.QueryRow(ctx, `INSERT INTO media_sources(item_id,library_id,root_id,relative_path,content_type) VALUES($1,$2,$3,$4,$5) RETURNING id::text`, itemID, libraryID, rootID, relative, contentType).Scan(&sourceID); err != nil {

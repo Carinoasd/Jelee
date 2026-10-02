@@ -1,0 +1,54 @@
+{
+  "phase": "第三階段：影片種類匯入入口",
+  "schemaVersion": 38,
+  "previousCommit": "3d5eb4e6dda3d682ed5ff1dbe28ee23e8b2841b7",
+  "verification": {
+    "windows": {
+      "passedPackages": 29,
+      "passedTestEventsIncludingParents": 3298,
+      "skippedTestEvents": 514
+    },
+    "native": {
+      "passedPackages": 2,
+      "passedTestEventsIncludingParents": 483,
+      "skippedTestEvents": 0
+    },
+    "regression-pg": {
+      "passedPackages": 1,
+      "passedTestEventsIncludingParents": 38,
+      "skippedTestEvents": 0
+    }
+  },
+  "checks": [
+    {
+      "name": "vet",
+      "exitCode": 0
+    },
+    {
+      "name": "build",
+      "exitCode": 0
+    },
+    {
+      "name": "brand-new",
+      "exitCode": 0
+    },
+    {
+      "name": "gitignore",
+      "exitCode": 0
+    },
+    {
+      "name": "brand-full",
+      "exitCode": 1
+    }
+  ],
+  "protectedPublishedMigrationFiles": 76,
+  "sourceSHA256AfterVerification": {
+    "cmd/jelee-cli/main.go": "cbb271b16b55051cface4a606e0fe07dfda34d05aef5a5584b3447f73a8a8d3a",
+    "internal/adapter/postgres/import.go": "3336960af35ff4329aa305d9f74665bc827430e82e1e91f4b17b38bdd00d7e35",
+    "internal/adapter/postgres/import_kind_test.go": "84904f6b31d0d16349821a3dc15c8de551db46ea722342ccd57e7516abc33cd3",
+    "internal/domain/import_video.go": "3d29e8363cf2f9d9e6d5186555c260ce8b62d8a9582ff466a9dc85700133f10a"
+  },
+  "initialRed": "正式CLI的三個明確kind選項回傳exit2；另修正預設案例對既有HomeVideo→Movie分類行為的測試預期。",
+  "scope": "實際CLI進程、隔離PostgreSQL、真實臨時檔案、Reader及Store NFO套用；確認四種指定／預設匯入、非法kind拒絕、重複匯入原子性、原媒體與NFO bytes保持。",
+  "limits": "不自動讀NFO、不執行probe、不建立影集／季階層；本段沒有SQL遷移，採相關PG回歸，沒有重新宣稱全部PG或HTTP已驗收。"
+}
