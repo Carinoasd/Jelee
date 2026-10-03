@@ -1,3 +1,12 @@
+## 2026-10-03 schema54已發布至既有PR46，完整回歸1520PASS
+
+發布audit22506 terminal0，精確5Go/SQL及8docs的13檔內容hash與staged清單一致；cached diff通過。已提交並推送f0cdda06f99bbacb783904abc47d4c6c48d4a521，遠端PR46 OPEN及HEAD吻合，工作目錄乾淨。108份已發布SQL自此不可修改；舊JSON checkpoint與失敗證據保持。
+
+V2完整487 roots／1520PASS、零skipfail與獨立finalizer已通過；Linux真PG選測37PASS、Windows真PG選測28PASS的範圍保持。遠端完整品牌兩項FAIL，PG整合兩項IN_PROGRESS；格式及Windows foundation成功，不能宣稱CI全部通過。PR描述同步本批實作、測試與未完成邊界。
+
+原24h長測來源24caf不含本批，無24h完成證據，不重啟。全案7完成／198部分／131阻塞保持；下一接partial stage自動續作及正式target commit／backup／rollback／結算／crash recovery，Windows目錄耐久性、worker三批次／missing-NFO與整體heap／RSS仍需驗收。私有實際程序中斷四PASS只證明保留與拒絕重試，不證自動恢復或硬體斷電耐久性。不得重跑BASE3d79／SQL106的舊freeze、finalizer或audit作current驗證。
+
+---
 ## 2026-10-03 修正版V2完整1520PASS獨立核驗通過，沿既有PR46準備發布54
 
 15453 terminal0，四片exit0；487roots恰run/pass一次、1520PASS零skipfail、999source終態吻合。93256獨立finalizer --check-only terminal0/ready=true，compiled list/groups/coverage/logs/hash/106舊SQL/protected、Win9591036/native28/Linux37與雙向RR red4fail2marker皆吻合；正式公開摘要另執行保存，需再核其terminal及內容。13檔發布清單為5Go/SQL+8docs，私有資料不stage；舊checkpoint/失敗/不完整kind-scope紀錄保持。

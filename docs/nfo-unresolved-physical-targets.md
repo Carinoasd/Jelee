@@ -1,6 +1,6 @@
-# 同一原生 NFO 的未解決提交排除（候選schema54）
+# 同一原生 NFO 的未解決提交排除（schema54）
 
-schema53保存首次native receipt，但缺少不同job之間的同實體排除。候選schema54已新增持久claims與Begin／plan／ready守衛，尚未提交或推送；kind分組的跨角色缺口已正式修正並通過選測，仍須新凍結及完整回歸才能發布。正式target寫回及復原仍未啟用。
+schema53保存首次native receipt，但缺少不同job之間的同實體排除。schema54已新增持久claims與Begin／plan／ready守衛，於f0cdda06f99bbacb783904abc47d4c6c48d4a521提交並推送既有PR46；kind分組的跨角色缺口已正式修正，修正版V2完整回歸與獨立核驗通過。正式target寫回及復原仍未啟用。
 
 ## 已重現的缺口
 
@@ -68,4 +68,4 @@ V1終態後才將54主鍵改為identity、conflict查詢跨roles；kind仍核首
 
 修正版999份Go／SQL來源凍結，完整四片PG race皆exit0；487個實際compiled roots各run／pass一次，1520PASS／零skipfail。獨立finalizer重新核listing／groups／coverage／logs／當前全來源hash／106已發布SQL與原需求／mod／sum／LICENSE；Windows959／1036條件skip、真PG28選測與Linux37選測、雙向RR只停identity主鍵控制4FAIL events／兩marker均吻合。公開安全摘要只含計數、來源及log hashes，不含XML或連線資料。
 
-修正前kind分組的1506PASS只屬已證明功能缺口的歷史回歸，仍保留其禁止發布範圍；修正後V2不能用來消除其他歷史失敗或owned cleanup未全證明的限制。schema54本批待發布audit與既有PR提交，完整G00–G51仍7完成／198部分／131阻塞。正式target commit／backup／rollback／結算／crash recovery、partial stage自動續作、Windows目錄metadata耐久性、正式worker三批次及整體heap／RSS仍缺。
+修正前kind分組的1506PASS只屬已證明功能缺口的歷史回歸，仍保留其禁止發布範圍；修正後V2不能用來消除其他歷史失敗或owned cleanup未全證明的限制。schema54本批發布audit通過，已提交並推送既有PR46（f0cdda06f9）；現共108份已發布SQL保持不可變，完整G00–G51仍7完成／198部分／131阻塞。正式target commit／backup／rollback／結算／crash recovery、partial stage自動續作、Windows目錄metadata耐久性、正式worker三批次及整體heap／RSS仍缺。
