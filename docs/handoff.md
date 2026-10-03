@@ -1,3 +1,11 @@
+## 最新接續：正式 runtime 時間窗配置與 catalog 恢復已驗證
+
+新增 window_integration_test.go：真 Fx runtime/config/HTTP listener/PG/scanner 在關窗配置下保持 job queued/attempts0；Stop 後全天配置 restart，同一job完成/attempts1且原檔未變。Linux race3.222秒通過。新增 catalog PostgreSQL pause 前綴測試，第一筆commit後PauseJob，舊owner拒絕，實際worker恢復後completed/items恰為2，故障次數不耗損；Linux race通過。證據docs/scan-window.md。
+
+452a37ebd2 Windows foundation job111102378156已pass，前批時鐘測試修正獲一次遠端成功；另一次Windows仍pending，品牌兩門禁fail，其他部分pending。正式長測同run033822f3aecf4b6491406594c8687cfd/PID645523/boot4a5d9c5c-4482-4c3e-8978-30156b1ce92f/start31097741已核running、OOM false，case status elapsed1200/raw219577。不重啟，也不把c61c12b007證據歸後續修改。
+
+接著補 ignore 流程與真 ffprobe/NFO 關窗取消驗收，並推進 G13.5 目錄並發/全域 CPU-I/O預算。G13.5與第三階段仍未完成；全部G00–G51目標不變，禁止合併。
+
 ## 最新接續：探測／NFO 關窗矩陣與 Windows CI 修正
 
 新增 window_stages_test.go：Inspect/Probe/NFO Read/Parse 關窗後 join、gate歸零、不提交檔案失敗或phase abort，開窗後恰好處理一次。使用受控替身，未聲稱真 ffprobe 程序驗收。真 PG 新增 PauseJob 回收 probe 子租約/配額、拒舊租約、phase續跑；NFO 第一筆已提交再暫停，恢復只處理第二筆，计數不重複。Linux race 全部通過，證據見 docs/scan-window.md。

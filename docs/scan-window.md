@@ -55,3 +55,11 @@ worker 測試使用可控時間與階段替身，分別在探測 Inspect、Probe
 ## Windows CI 期限測試
 
 ff1d7eccaf 的 Windows foundation job 111101499591 在 `TestFamilyBaselineBatchKeepsPerCandidateDeadline` 失敗，另一個 Windows job 通過。原測試直接要求連續建立的期限嚴格遞增；Windows 時鐘刻度可能相同。修正先等待時鐘跨過第一個期限建立刻度，仍要求第二個期限嚴格較晚，並檢查前一 candidate context 已取消、下一個仍有效及最終清理。Windows 100 次通過；沒有放寬生產期限或刪除新期限斷言。遠端修正後結果仍待 CI 確認。
+
+## 正式 runtime 配置與匯入續跑
+
+`TestJobWindowProductionRuntimeConfiguration` 使用真 Fx runtime、設定載入、HTTP listener、PostgreSQL 與檔案掃描。啟動關閉的時間窗後，同一持久工作保持 queued/attempts0；停止服務再以全天配置啟動，該工作 succeeded/attempts1，檔案數與位元組正確，原媒體內容不變。這驗證正式建構流程確實注入時間窗，不只是直接建構 worker。
+
+匯入整合先驗證並提交第一個 catalog 項目，再以 PauseJob 暫停；舊 owner 不可再次提交。實際 catalog worker 恢復後報告 completed2、資料庫 items2，無重複或跳過；attempts只計一次。此例驗證持久匯入前綴恢復，尚未涵蓋真驗證 I/O 進行中的關窗。
+
+[正式 runtime Linux race](evidence/jobs-window-runtime-linux-race.txt)、[匯入 PostgreSQL Linux race](evidence/jobs-window-catalog-postgres.txt) 通過。452a37ebd2 的 [Windows foundation](https://github.com/Carinoasd/Jelee/actions/runs/37088061602/job/111102378156) 已通過；其他未完成 CI 與品牌門禁不可推定通過。

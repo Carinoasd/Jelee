@@ -282,3 +282,51 @@ func TestCatalogImportInvalidSelections(t *testing.T) {
 		}
 	}
 }
+
+func TestCatalogImportPlannedPauseResumesCommittedPrefix(t *testing.T) {
+	f, source, items := catalogImportFixture(t, 2)
+	job, _, err := f.s.SubmitCatalogImport(f.ctx, f.a, source.ID, "window-import", domain.JobPriorityManual, items, f.policy)
+	if err != nil {
+		t.Fatal(err)
+	}
+	lease, err := f.s.ClaimJobWithCapabilities(f.ctx, "window-importer", false, time.Minute, domain.ScanCapabilities{CatalogImport: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	task, err := f.s.NextCatalogImport(f.ctx, lease)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = scan.New().VerifyInventoryImport(f.ctx, task.Source); err != nil {
+		t.Fatal(err)
+	}
+	if err = f.s.CommitCatalogImport(f.ctx, lease, task); err != nil {
+		t.Fatal(err)
+	}
+	if err = f.s.PauseJob(f.ctx, lease); err != nil {
+		t.Fatal(err)
+	}
+	paused := f.get(t, job.ID)
+	if paused.State != domain.JobQueued || paused.Attempts != 0 {
+		t.Fatal("planned import pause spent failure budget")
+	}
+	report, err := f.s.GetCatalogImportReport(f.ctx, f.a, job.ID)
+	if err != nil || report.Completed != 1 {
+		t.Fatal("planned pause lost committed prefix")
+	}
+	if err = f.s.CommitCatalogImport(f.ctx, lease, task); !errors.Is(err, domain.ErrJobLeaseLost) {
+		t.Fatal("paused importer committed again")
+	}
+	completed := runCatalogWorker(t, f, job.ID)
+	if completed.State != domain.JobSucceeded || completed.Attempts != 1 {
+		t.Fatalf("import resume: %s", completed.ErrorCode)
+	}
+	report, err = f.s.GetCatalogImportReport(f.ctx, f.a, job.ID)
+	if err != nil || report.Completed != 2 {
+		t.Fatal("import replayed or skipped prefix")
+	}
+	var count int
+	if err = f.s.Pool.QueryRow(f.ctx, `SELECT count(*) FROM items`).Scan(&count); err != nil || count != 2 {
+		t.Fatal("import duplicated catalog items")
+	}
+}
