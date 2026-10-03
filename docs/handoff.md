@@ -1,3 +1,14 @@
+## 2026-10-03 最新：schema49已推、時鐘夾具已驗、正式24h RSS失敗
+
+schema49已發布HEAD23a6da45910dc970de5a78ac93938736f8e9f040，PR46遠端HEAD吻合且OPEN。完整PG四分片session9283已terminal0、424根各run/pass恰一次、1133通過/零skipfail；公共證據已提交。96份001–048保持，現在001–049共98份均已發布且不得改。
+
+本輪後續修復internal/platform/runtime/images_soak_failure_unit_test.go：503 handler等待time.Since(requestStarted)>0，request context可取消；保持Finish>Start與全部原統計/狀態斷言，加數值Fatal。原50次17FAIL，診斷overlay50次10FAIL皆start=finish=0而統計完整；修正Windows100與Linux race100皆PASS，完整runtime Windows214PASS/20skip、Linux227PASS/13skip，vet/格式/增量品牌0/339/gitignore/diff通過。docs/evidence/images-cold-clock-fixture.json已產生，本批待提交推送同PR46。
+
+重要狀態更新：正式run9a0c8d956e3f4fbea9e844e3fc59bc26已terminal failed，PID788902不存在、worker exit1/OOMfalse、雙層cleanup true、snapshotVerified false。完成38輪，failedRound38/cold context_finished/首未完index171/status0；collector sampler_failed，sampler rss_budget_invalid，sampleIndex11571/RSS489373696>464MiB486539264，超2834432bytes，前RSS376164352/拒絕heap298269576；partial11551 samples/193blocks/Complete false。source9a74a8932a，安全摘要docs/evidence/image-soak-rss-failure.json，未重啟，舊頂段live已由本段取代。
+
+下一步先定位正式長測RSS峰值的配置/分配/回收根因與強復現，再按原門禁smoke→matching-source24h；不要提高464/352MiB門檻或把夾具修复當正式故障修復。全G00–G51仍7完成/198部分/131阻塞，原生NFO恢復與准入/worker等目標保留，不merge/release/tag/force-push，不改Git身份設定與已發布SQL，保留原媒體/圖片/授權。
+
+---
 ## 2026-10-03 schema49 最終完整回歸已通過，準備發布
 
 session9283已terminal exit0，四分片皆0，編譯出的424根測試各run/pass恰一次，1133通過事件、零skip/fail。彙整腳本已嚴格核對manifest、946份凍結來源及96份已發布SQL，安全證據docs/evidence/nfo-write-commit-journal.json與race txt已產生。Windows tagged八套件1557通過/705條件跳過、journal選測30/0skipfail、runtime真PG1/0skipfail、Linux三套race與vet/格式/增量品牌0/339/gitignore/diff均通過。初次完整PG唯一55006舊DDL夾具失敗與修復保留，不把失敗run稱PASS。

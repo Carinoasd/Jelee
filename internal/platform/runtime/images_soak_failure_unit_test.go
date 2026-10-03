@@ -33,7 +33,19 @@ func TestImagesColdFailureClassification(t *testing.T) {
 }
 
 func TestImagesColdHTTPFailureRetainsStatistics(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(http.StatusServiceUnavailable) }))
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// A Windows clock tick can outlast this local HTTP request. Keep the
+		// fixture measurable without changing acceptance timing assertions.
+		started := time.Now()
+		for time.Since(started) <= 0 {
+			select {
+			case <-r.Context().Done():
+				return
+			case <-time.After(time.Millisecond):
+			}
+		}
+		w.WriteHeader(http.StatusServiceUnavailable)
+	}))
 	defer server.Close()
 	life := &lifetime{imageStats: func() imageadapter.Stats { return imageadapter.Stats{Admitted: 9, Failed: 1} }}
 	var report imagesMemoryPhaseResult
@@ -48,6 +60,6 @@ func TestImagesColdHTTPFailureRetainsStatistics(t *testing.T) {
 		t.Fatal("HTTP status/index not retained")
 	}
 	if report.Before.Admitted != 9 || report.After.Admitted != 9 || report.Get200 != 0 || report.FinishedNanos <= report.StartedNanos {
-		t.Fatal("failure discarded phase evidence")
+		t.Fatalf("phase evidence: before=%d after=%d get200=%d start=%d finish=%d elapsed=%d", report.Before.Admitted, report.After.Admitted, report.Get200, report.StartedNanos, report.FinishedNanos, report.ElapsedNanos)
 	}
 }

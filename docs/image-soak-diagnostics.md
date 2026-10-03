@@ -7,3 +7,15 @@
 collector及sampler都join後才讀失敗狀態；未完成時保留partial summary及samplerFailure。collectorFailureCode只區分sampler_failed與stream_or_context_failed，後者不能單獨證明是外部stream故障。成功summary不被失敗清理覆蓋。
 
 Windows tagged TestImagesSoak/TestImagesCold及vet通過；[Linux tagged race](evidence/soak-sampler-diagnostics-race-linux.txt)通過。新增回歸核464MiB+1、processor active3等失敗值與原因保存，原有bounds拒絕仍成立；queue timeout固定原因、reader私密錯誤不序列化、collector取消仍保留失敗觀測且Complete=false。opt-in真smoke與formal在一般測試中略過，需另外執行完整600秒與24h；本批不宣稱長測通過。
+
+## Windows HTTP 診斷夾具的時鐘解析度
+
+短本地HTTP請求可在Windows同一個時鐘tick內完成；原夾具開始／結束皆讀成0，卻要求嚴格遞增而間歇失敗。原案例50次有17次失敗；只加數值診斷的overlay50次有10次失敗，確認統計9/9、503與index0均保留。修復讓受控HTTP handler在回503前等待自己的時鐘前進，等待可由request context取消；保持原統計、503及Finish>Start斷言，失敗時記錄數值。
+
+修正案例Windows與Linux race各連跑100次全部通過。完整runtime：Windows214通過事件/20條件跳過，Linux race227通過事件/13條件跳過；vet、格式、增量品牌0/339、gitignore與diff檢查通過。見[夾具證據](evidence/images-cold-clock-fixture.json)。此修復只修改單元測試，不變正式採樣門檻或長測來源。
+
+## 9a74a8932a 正式長測的 RSS 失敗
+
+正式24h run `9a0c8d956e3f4fbea9e844e3fc59bc26`已terminal failed，原PID不存在，worker exit1/OOMfalse。完成38輪後，第38輪cold因collector取消而context_finished，首未完成請求index171/status0。採樣診斷明確指出rss_budget_invalid：RSS489373696 bytes，超過464MiB（486539264 bytes）2834432 bytes；前樣本RSS376164352、拒絕樣本heap298269576。collectorFailureCode為sampler_failed，partial summary不完整。
+
+雙層owned資源清理皆true，snapshotVerified false；不能宣稱完整原始資產核驗或24h通過。見[RSS失敗摘要](evidence/image-soak-rss-failure.json)。底層配置／分配／回收根因尚待定位；本輪未重啟，也不以單元夾具修復宣稱長測故障已修。464/352MiB門檻、容器768MiB/無swap、正式採樣與來源門禁保持。
