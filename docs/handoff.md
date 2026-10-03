@@ -1,3 +1,9 @@
+## 2026-10-04 補齊NFO之後第8–20階段路線
+
+使用者追問後續階段，已在claude-handoff-schema56.md補入原需求第六節的image-assets至hardening-release全部13階段，列任務／驗收及跨階段完成規則。這是接續路線，非已完成宣告；原始requirements-source與336項狀態保持，不把前7階段或任何既有子集推定完整通過。schema56 WIP交接提交0228c24702已推送PR46，最新守衛／quota因果／Stage接線缺口保持。
+
+---
+
 ## 2026-10-04 使用者要求先推送schema56 WIP供Claude從GitHub接續
 
 本批依使用者明確要求提交現有13份Go／SQL及交接文件至既有branch／PR46，供接續調查；不是schema56功能驗收。完整公開交接見[claude-handoff-schema56.md](claude-handoff-schema56.md)，13份來源bytes／SHA256見[evidence/nfo-attempt-ledger-wip-source-snapshot.json](evidence/nfo-attempt-ledger-wip-source-snapshot.json)。
