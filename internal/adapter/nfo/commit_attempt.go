@@ -4,11 +4,14 @@ import (
 	"context"
 	"crypto/sha256"
 	"os"
+
+	"github.com/MoYuanCN/Jelee/internal/domain"
 )
 
-const maxNFOCommitAttempts uint8 = 3
+const maxNFOCommitAttempts = domain.NFOWriteCommitAttemptLimit
 
-// One reservation covers all three attempts before any file side effect. Names
+// One reservation covers the legacy names and three new attempts before any
+// file side effect. Names
 // and hashes are private immutable intent; they never authorize a filesystem
 // operation, ownership of an existing object, recovery or journal settlement.
 type nfoCommitAttemptReservation struct {
@@ -46,7 +49,7 @@ func prepareNFOCommitAttempt(ctx context.Context, directory *os.Root, filename s
 	originalBytes, replacementBytes := int64(len(original.original)), int64(len(replacement.original))
 	// Five names contain two new regular files and three hardlinks. Conservatively
 	// charge every planned name independently, including the original witness.
-	retainedBytes := int64(maxNFOCommitAttempts) * (3*originalBytes + 2*replacementBytes)
+	retainedBytes := domain.NFOWriteCommitAttemptRetainedBytes(originalBytes, replacementBytes)
 	return prepareNFOCommitFiles(ctx, directory, filename, original, replacement, token, nfoCommitFilePersistence{
 		attempt: attempt, resume: persist.resume, progress: persist.progress, ready: persist.ready,
 		plan: func(ctx context.Context, plan nfoCommitFilePlan) error {

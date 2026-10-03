@@ -74,7 +74,7 @@ func TestNFOCommitAttemptAbruptNextNamespace(t *testing.T) {
 			if json.Unmarshal(data, &first) != nil {
 				t.Fatal("first reservation decode failed")
 			}
-			expectedBytes := int64(maxNFOCommitAttempts) * (3*int64(len(original.original)) + 2*int64(len(replacement.original)))
+			expectedBytes := int64(maxNFOCommitAttempts+1) * (3*int64(len(original.original)) + 2*int64(len(replacement.original)))
 			if first.Attempt != 1 || first.RetainedBytes != expectedBytes || first.OriginalHash != sha256.Sum256(original.original) || first.ReplacementHash != sha256.Sum256(replacement.original) {
 				t.Fatal("first reservation scope differs")
 			}

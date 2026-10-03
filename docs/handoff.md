@@ -1,3 +1,21 @@
+## 2026-10-04 使用者要求先推送schema56 WIP供Claude從GitHub接續
+
+本批依使用者明確要求提交現有13份Go／SQL及交接文件至既有branch／PR46，供接續調查；不是schema56功能驗收。完整公開交接見[claude-handoff-schema56.md](claude-handoff-schema56.md)，13份來源bytes／SHA256見[evidence/nfo-attempt-ledger-wip-source-snapshot.json](evidence/nfo-attempt-ledger-wip-source-snapshot.json)。
+
+最新legacy互斥守衛尚未重測；quota測試共用job/library可能由既有job UPDATE拒絕，尚缺不同job/library與僅移quota fence的精確紅測；正式Stage自動allocation／PG實際中斷／恢復lease／FS grant仍未接線。歷史ledger12PASS／quota7PASS只證各自當時bytes；本次追加四套件test -run ^$編譯檢查全exit0／no tests to run，沒有新功能或完整PG驗收。全7／198／131／完整brand門禁與原24h保持，失敗歷史不刪除。下段「未提交」為提交前快照，以上述本批WIP交接為最新狀態。
+
+---
+
+## 2026-10-04 轉交Claude：候選schema56未提交
+
+使用者要求記錄本段並轉交Claude。HEAD53796aa1472af5c4006988162db625fb10289451／既有PR46；13份Go／SQL WIP尚未stage／commit／push，另補本摘要。56新增持久reservation／attempt0–3／per-attempt兩階段checkpoint／ready及全域256筆／1GiB fence；容量factor4含legacy0＋新1–3。Store版本56，legacy SavePlan亦自動計入容量；正式Stage自動選attempt與PG實際中斷接線尚未完成。
+
+既有JSONL本次實讀：ledger Linux12PASS、quota V4七PASS、Windows conditional21PASS／16skip／3packagePASS。都早於最後新增legacy ready／checkpoint與新attempt互斥守衛及LegacyEvidenceExclusive測試，不能當最新bytes驗收。沒有56freeze／完整PG／finalizer／Windows真PG證據。quota目前兩候選共用job/library，RR可能由既有job UPDATE拒絕，仍需不同job/library fixture與僅移quota fence的精確紅測，不能宣稱全域fence因果已證。
+
+完整Claude交接及13份WIP hashes存於本聊天outputs的jelee-claude-handoff.md／jelee-claude-wip-snapshot.json。保留所有V1–V3失敗及V4green；原24h不重啟，完整品牌FAIL／全7完成198部分131阻塞及正式commit/recovery/FS grant/worker/heapRSS缺口保持。本回合只寫交接，未啟動測試或修改程式；目標尚未完成。
+
+---
+
 ## 2026-10-04 有界attempt內部流程已發布f2af24361c
 
 精確11檔publication hashes／staged inventory及cached diff通過，已提交推送f2af24361c837efe765a201550ce99d7f338c159至既有branch／PR46，提交後工作目錄乾淨。1010來源雜湊、110已發布SQL及trace保持；前述BASE1f75的finalizer只作本批歷史，不在新HEAD重跑。method新增發布狀態，本段兩文件接續記錄；PR描述補有界attempt範圍／驗證與缺口，下一核遠端HEAD/body/CI。

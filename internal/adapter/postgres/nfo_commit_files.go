@@ -113,6 +113,11 @@ func (s *Store) SaveNFOWriteCommitFilePlan(ctx context.Context, lease domain.Job
 		return domain.NFOWriteCommitFilePlan{}, err
 	}
 	defer tx.Rollback(ctx)
+	// Acquire the new capacity fence before job/catalog locks. Historical owned
+	// pre56 fixtures retain their original schema and do not have this fence.
+	if err := lockNFOCommitAttemptQuota(ctx, tx, true); err != nil {
+		return domain.NFOWriteCommitFilePlan{}, err
+	}
 	if err := checkNFOCommitFileToken(ctx, tx, lease, sequence, token); err != nil {
 		return domain.NFOWriteCommitFilePlan{}, err
 	}
