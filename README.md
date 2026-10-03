@@ -25,7 +25,7 @@ Jelee 正在以独立 Go 服务逐步接管视频目录与原文件直投。本�
 - schema 10 增加基线版本、可恢复的三态分类与有界分页，enabled 执行仍关闭，见[基线分类](docs/ignore-baseline.md)。
 - schema 9 保存有界、不可覆盖的忽略来源证明，支持父身份核对、冲突失效、冻结与游标分页；执行仍未开放，见[来源清单](docs/ignore-manifest.md)。
 
-尚未交付完整管理前端、第三方协议兼容、完整 metadata 增量导入、持续监看/排程、图片资产处理、用户权限管理界面、完整诊断、完整工具与素材链。NFO 尚缺修改后的 XML 序列化、Catalog 来源优先级/锁合并、`--fix` 及真实客户端往返验收。现有旧服务端源码仍保留，尚未完成所有功能裁剪与内部重命名。完整品牌门禁目前会失败；增量检查通过不能代替最终验收。
+尚未交付完整管理前端、第三方协议兼容、完整 metadata 增量导入、持续监看/排程、图片资产处理、用户权限管理界面、完整诊断、完整工具与素材链。NFO 尚缺修改后的 XML 序列化、Catalog 来源优先级/锁合并、`--fix` 及真实客户端往返验收。上游 C# 服务端源码已移出工作树，仓库只含 Go 服务与其工具、脚本和文档，不再需要 .NET SDK；旧源码可从 Git 标签 `upstream-csharp-final` 取回，见[许可证与来源](docs/LICENSE-COMPLIANCE.md)。`make brand-scan` 完整扫描为零非白名单命中。
 
 ## 开始使用
 
@@ -74,7 +74,7 @@ make bootstrap tools-verify build test
 - [许可证与来源](docs/LICENSE-COMPLIANCE.md)
 - [保留的上游说明](docs/upstream-README.md)
 
-各段验证后分别推送并提 PR：[基础与账户 #1](https://github.com/MoYuanCN/Jelee/pull/1)、[持久盘点 #2](https://github.com/MoYuanCN/Jelee/pull/2)、[固定媒体工具 #3](https://github.com/MoYuanCN/Jelee/pull/3)、[执行器与素材 #4](https://github.com/MoYuanCN/Jelee/pull/4)、[Linux 隔离探测 #5](https://github.com/MoYuanCN/Jelee/pull/5)、[探测快取 #6](https://github.com/MoYuanCN/Jelee/pull/6)、[探测 worker #7](https://github.com/MoYuanCN/Jelee/pull/7)、[NFO 来源 #8](https://github.com/MoYuanCN/Jelee/pull/8)、[NFO 快取 #9](https://github.com/MoYuanCN/Jelee/pull/9)、[NFO worker与图片比较 #10](https://github.com/MoYuanCN/Jelee/pull/10)、[忽略规则匹配 #11](https://github.com/MoYuanCN/Jelee/pull/11)、[忽略来源与缓存 #12](https://github.com/MoYuanCN/Jelee/pull/12)、[持久忽略意图 #13](https://github.com/MoYuanCN/Jelee/pull/13)。第一阶段[验证记录](docs/verification-report.md)保留为历史快照。尚未创建发布标签或正式版本。上游历史、许可证与归属资料保留，不能把当前版本标记为 G00–G51 已完成。
+各段验证后分别推送并提 PR：[基础与账户 #1](https://github.com/MoYuanCN/Jelee/pull/1)、[持久盘点 #2](https://github.com/MoYuanCN/Jelee/pull/2)、[固定媒体工具 #3](https://github.com/MoYuanCN/Jelee/pull/3)、[执行器与素材 #4](https://github.com/MoYuanCN/Jelee/pull/4)、[Linux 隔离探测 #5](https://github.com/MoYuanCN/Jelee/pull/5)、[探测快取 #6](https://github.com/MoYuanCN/Jelee/pull/6)、[探测 worker #7](https://github.com/MoYuanCN/Jelee/pull/7)、[NFO 来源 #8](https://github.com/MoYuanCN/Jelee/pull/8)、[NFO 快取 #9](https://github.com/MoYuanCN/Jelee/pull/9)、[NFO worker与图片比较 #10](https://github.com/MoYuanCN/Jelee/pull/10)、[忽略规则匹配 #11](https://github.com/MoYuanCN/Jelee/pull/11)、[忽略来源与缓存 #12](https://github.com/MoYuanCN/Jelee/pull/12)、[持久忽略意图 #13](https://github.com/MoYuanCN/Jelee/pull/13)。第一阶段[验证记录](docs/verification-report.md)保留为历史快照。尚未创建发布标签或正式版本。上游 Git 历史、许可证与归属资料保留（独立声明原文见 `docs/legal/upstream/`），不能把当前版本标记为 G00–G51 已完成。
 
 ### Linux 实验运行时验证
 

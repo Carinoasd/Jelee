@@ -1,14 +1,14 @@
 # 命名迁移映射
 
-本文件记录从 Jellyfin / Emby / MediaBrowser 来源到 Jelee 的分阶段映射。当前新增 Go 服务独立装配，旧 C# 文件未进行全局文本替换，也未批量删除。
+本文件记录从 Jellyfin / Emby / MediaBrowser 来源到 Jelee 的分阶段映射。新增 Go 服务独立装配，旧 C# 文件从未做全局文本替换；2026-10-04 起整棵上游 C# 树移出工作树，见文末“上游 C# 树移除”。
 
 | 来源或旧标识 | 新标识 / 边界 | 状态 |
 | --- | --- | --- |
-| Jellyfin 服务入口与程序集 | `cmd/jelee`、`jelee` 可执行文件 | Go 基础实现已新增，旧程序集保留 |
+| Jellyfin 服务入口与程序集 | `cmd/jelee`、`jelee` 可执行文件 | Go 基础实现已新增；旧程序集已移出工作树（标签 `upstream-csharp-final`） |
 | 旧迁移入口 | `cmd/jelee-migrate` | 新 PostgreSQL up/down/status 已新增；旧 SQLite 导入未实现 |
 | 旧管理 CLI | `cmd/jelee-cli` | 已提交 doctor、provision、import-video 和只读 nfo validate |
 | `JELLYFIN_` 配置前缀 | `JELEE_` | 新服务只读新前缀；旧配置转换未实现 |
-| 旧领域/Controller 命名 | `internal/domain`、`internal/app`、`internal/adapter` | 仅已迁移功能；旧 C# 核心仍含旧名称 |
+| 旧领域/Controller 命名 | `internal/domain`、`internal/app`、`internal/adapter` | 仅已迁移功能；旧 C# 核心已移出工作树 |
 | Jellyfin/Emby 协议对象 | 未来隔离于 `internal/adapter/compat` | 兼容协议尚未实现 |
 | 原 README | Jelee README；原文保存在 `docs/upstream-README.md` | 已完成主页来源分离 |
 | 原法定作者、LICENSE、NOTICE | 保留原文 | 必须保留 |
@@ -17,7 +17,7 @@
 
 `make brand-scan` 扫描受跟踪与新增未忽略文本，白名单以精确文件路径配置。许可证/来源文档和扫描器规则本身有明确例外；没有给整个旧项目目录豁免。
 
-`make brand-scan-incremental` 使用 `--new`，只检查新服务目录及其文档，适合作为增量修改的检查。**完整扫描目前仍会失败，G00 的全仓库纯净性未完成。** 后续每个模块需单独替换、编译和回归后再更新该映射。
+`make brand-scan-incremental` 使用 `--new`，只检查新服务目录及其文档，适合作为增量修改的检查。上游 C# 树移出工作树后，完整扫描为零非白名单命中（2026-10-04：14,736 → 0，白名单命中 195）；此后新增内容须保持完整扫描通过。
 
 ## 倉庫管理與 OpenAPI 產物工作流程
 
@@ -181,3 +181,24 @@ src/Jellyfin.Networking 與 tests/Jellyfin.Networking.Tests → src/Jelee.Networ
 `tools/abi/expected-breaks.json` 只記錄舊程序集與公開符號在遷移比較中的精確身份，以及G00／G05／G11.5／G28對應；`scripts/fixtures/abi-legacy-report.json` 保留來源CI輸出作門禁反例。兩者按精確檔名加入品牌掃描白名單，不豁免任何實作目錄。
 
 命名模組增加固定的真實Jelee基準：`202b813a955cfc64ab87992484bf00b8aa72221a`，原八組比較與52條歷史差異仍完整保留。後續未核准的Jelee命名API差異依新組件比較失敗；詳見[ABI門禁](abi-report-check.md)。
+
+## 上游 C# 樹移除（2026-10-04）
+
+依需求原文零.7／G28.1／G00.4，取代“保留原 C# 源碼”的舊決定（理由見[需求澄清](requirements-clarifications.md)）。刪除前最後完整提交以標籤 `upstream-csharp-final` 標記，回滾與比對一律從該標籤取回。
+
+| 來源 | 處理 |
+| --- | --- |
+| 根目錄 14 個舊程序集目錄、`src/`、`tests/`、`fuzz/`、`deployment/` | 刪除（2,472 個跟蹤檔） |
+| 舊 solution、`Directory.Build.props`／`Directory.Packages.props`、`global.json`、`nuget.config`、`stylecop.json`、`BannedSymbols.txt`、`SharedVersion.cs`、舊 code-workspace、`.config/dotnet-tools.json`、`bump_version` | 刪除 |
+| 舊本地化目錄四語 `Core/<locale>.json` | 移至 `web/src/i18n/<locale>/core.json`；`StartupEmbyServerIsLoading` → `StartupServerIsLoading`，`NewVersionIsAvailable` 與該鍵字串中的舊產品名 → Jelee |
+| `scripts/check-ui-locales.py` | 改讀 `web/src/i18n/<locale>/*.json` |
+| ListenBrainz `NOTICE.md`、命名模組 `Attribution.props`／`Properties/Copyright.cs`、兩段 MIT 檔頭 | 原文移至 `docs/legal/upstream/`，精確檔名列入品牌白名單 |
+| `src/Jelee.Networking/Compatibility/LegacyNetworkNames.cs`、`tools/abi/expected-breaks.json`、`scripts/fixtures/abi-legacy-report.json` | 隨樹／ABI 門禁刪除，自白名單移除 |
+| ABI 門禁（`tools/abi/`、`scripts/check-abi-report.py`、`scripts/test_abi_guard.py`、`ci-compat`） | 刪除；[紀錄](abi-report-check.md)標為已退役 |
+| `.github/workflows` 的 ci-tests、ci-format、ci-compat、openapi-generate／merge／pull-request／workflow-run、issue-template-check、pull-request-stale、release-bump-version | 刪除（.NET 建置或上游專用 bot／token）；Go 的 OpenAPI 門禁已在 `make lint`（`openapi-check`） |
+| `ci-codeql-analysis` | 語言 csharp → go，以 `make bootstrap build` 手動建置 |
+| `.github/CODEOWNERS`、`renovate.json` | 刪除（上游個人／組織與 dotnet 預設） |
+| Issue／PR 範本 | 改寫為 Jelee 中性內容 |
+| `.devcontainer/`、`.vscode` 的 launch／tasks／settings | 刪除（.NET 開發容器與偵錯設定）；`extensions.json` 改推薦 Go 擴充 |
+| `.gitignore`、`.dockerignore`、`.editorconfig` | 移除 .NET／舊產品專用規則；`.tools` 改為不帶斜線以涵蓋 worktree 的符號連結 |
+| `docs/owner-verification-queue.md` E2 | 舊忽略檔名改寫為「G22.2 所列兩種上游舊品牌忽略檔」 |

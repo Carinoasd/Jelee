@@ -1,5 +1,7 @@
 # ABI 遷移契約檢查
 
+> **已退役（2026-10-04）**：上游 C# 樹移出工作樹後，`ci-compat` 工作流程、`tools/abi/`、`scripts/check-abi-report.py`、`scripts/test_abi_guard.py` 與 `scripts/fixtures/abi-legacy-report.json` 一併刪除，本門禁不再執行。以下內容保留為當時的驗證紀錄，原始檔可從標籤 `upstream-csharp-final` 取回，見[許可證與來源](LICENSE-COMPLIANCE.md)。
+
 品牌改名與退役功能刪除會改變舊 .NET 二進位 API。G00 要求內部名稱改為 Jelee，G05／G11.5 要求裁剪直播與探索，G28 將 .NET 定位為遷移期參考。G24 另外要求 HTTP／JSON／Header 客戶端相容；本門禁通過不代表 G24 已完成。
 
 ## 基準與已核准差異

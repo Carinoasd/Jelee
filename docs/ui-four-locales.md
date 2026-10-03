@@ -10,4 +10,6 @@ LocalizationManager 回歸 148 項通過。完整 Debug solution 的 17 套件�
 
 [驗證證據](evidence/ui-four-locales.json)。
 
+2026-10-04 上游 C# 樹移出工作樹時，四份資源移至 G03.2 指定的 `web/src/i18n/<locale>/core.json`（各121鍵不變），兩條字串中的舊產品名改為 Jelee，啟動中提示的鍵名去品牌化為 `StartupServerIsLoading`。`make i18n-check` 改為檢查 `web/src/i18n` 下恰好四個語系目錄、各目錄檔名集合一致，以及每檔的鍵與占位符一致；舊 LocalizationManager 與其回退測試隨樹刪除。
+
 後續[自動工作裁剪](live-feature-actors-removal.md)刪除三個專用翻譯鍵，目前四份資源各121鍵；先前階段的124鍵與驗證證據保留為當時結果。
