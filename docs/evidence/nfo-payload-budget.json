@@ -1,0 +1,111 @@
+{
+  "sourceBaseCommit": "23544a416c66c56d3d961b7a3746f10d571da3ba",
+  "scope": "Shared raw request/original/replacement reservation across staging lifecycle; not heap or RSS accounting",
+  "changedSourceManifest": {
+    "internal/app/work_budget.go": "26861468422ea81bec8b20fe9f8aa07023fb5c99ee65d18e38738c8033a0ed41",
+    "internal/platform/resources/budget.go": "a6e4b610ce3ac8c088a1794b7aa02946742582bb065702f8f1331e22dad9e08c",
+    "internal/platform/resources/payload_test.go": "c9947e79140f3baafbe8ff89517e006db0a9155e639bac9d741fbaa0c55ad04a",
+    "internal/adapter/nfo/stage_commit_files.go": "14202a2877ea5e91af0e4107304de48ee1b258e8df770274ca642b3456c824fc",
+    "internal/adapter/nfo/stage_payload_test.go": "b176e92d4bce55ddb2449bb5aa4d551be1e32c31e5747580fdd1fcd0036379ab"
+  },
+  "defaultPayloadLimitBytes": 201326592,
+  "stageReservationBytes": 100663296,
+  "sqlPayloadLimitPerFieldBytes": 33554432,
+  "windows": {
+    "packagesPassed": 5,
+    "testsPassed": 607,
+    "testsSkipped": 13,
+    "failureEvents": 0,
+    "newPassedTests": [
+      "TestPayloadReservationsConcurrentAndIndependent",
+      "TestPayloadReservationsInvalidBusyAndCancelled",
+      "TestStagePayloadHeldAcrossCPUWaitAndSharedWriters",
+      "TestStagePayloadHeldThroughUnknownReadyCleanup",
+      "TestStagePayloadRejectsBeforeReadWithoutCapacity"
+    ],
+    "logSHA256": "725b5e3678d3e339357052e7a31656feb0ce10cefee4eba47e08d94af9cb1118"
+  },
+  "linuxRace": {
+    "packagesPassed": 5,
+    "testsPassed": 616,
+    "testsSkipped": 6,
+    "failureEvents": 0,
+    "newPassedTests": [
+      "TestPayloadReservationsConcurrentAndIndependent",
+      "TestPayloadReservationsInvalidBusyAndCancelled",
+      "TestStagePayloadHeldAcrossCPUWaitAndSharedWriters",
+      "TestStagePayloadHeldThroughUnknownReadyCleanup",
+      "TestStagePayloadRejectsBeforeReadWithoutCapacity"
+    ],
+    "logSHA256": "3d5b1571285408861ec8e47ee85002106b9a24793077df95a9b710cc1829b991"
+  },
+  "selectedPostgresRace": {
+    "packagesPassed": 1,
+    "testsPassed": 36,
+    "testsSkipped": 0,
+    "failureEvents": 0,
+    "newPassedTests": [],
+    "logSHA256": "d13e313a528f896200ea745ec94f1ac77b81ee5507bb2f6c2f3c51caf2d631e8"
+  },
+  "redOverlay": {
+    "packagesPassed": 0,
+    "testsPassed": 0,
+    "testsSkipped": 0,
+    "failureEvents": 2,
+    "newPassedTests": [],
+    "logSHA256": "d9588d72c987c5451bedb97626dbc2c935a3ef05482fba9e90f88a43e6b8c33c"
+  },
+  "initialWindowsFailure": {
+    "counts": {
+      "packagesPassed": 4,
+      "testsPassed": 606,
+      "testsSkipped": 13,
+      "failureEvents": 2,
+      "newPassedTests": [
+        "TestPayloadReservationsConcurrentAndIndependent",
+        "TestPayloadReservationsInvalidBusyAndCancelled",
+        "TestStagePayloadHeldAcrossCPUWaitAndSharedWriters",
+        "TestStagePayloadRejectsBeforeReadWithoutCapacity"
+      ],
+      "logSHA256": "195ed79cea6a9ca19a1ec43374b36a8bb806b8c565e9788b0cc6b54741dd9c98"
+    },
+    "reason": "New ready cancellation fixture expected context.Canceled; corrected to existing ErrReplace unknown persistence contract and added five retained artifacts check"
+  },
+  "verified": [
+    "shared_across_writer_instances",
+    "reserve_before_payload_read",
+    "held_while_waiting_cpu",
+    "held_until_unknown_ready_cleanup_joins",
+    "busy_and_missing_capability_zero_reads",
+    "capacity_reusable_after_cancel_and_success",
+    "concurrent_upper_bound_and_idempotent_release",
+    "actual_linux_pg_staging_and_child_reopen"
+  ],
+  "rawPayloadReservationVerified": true,
+  "fullHeapOrRSSBoundVerified": false,
+  "callerSourceAccounted": false,
+  "parserAndReconstructionCopiesAccounted": false,
+  "publicConfigurationAndTelemetryEnabled": false,
+  "productionCallerEnabled": false,
+  "targetRenameEnabled": false,
+  "settlementEnabled": false,
+  "automaticRecoveryEnabled": false,
+  "windowsDirectoryMetadataDurabilityVerified": false,
+  "fullPostgresRegressionRerun": false,
+  "newMigration": false,
+  "requirementsComplete": false,
+  "checks": {
+    "publishedSQLFilesUnchanged": 100,
+    "protectedSourceUnchanged": true,
+    "windowsVet": true,
+    "linuxVet": true,
+    "darwinAmd64Compiled": true,
+    "darwinExecuted": false,
+    "format": true,
+    "incrementalBrandViolations": 0,
+    "brandAllowed": 339,
+    "gitignoreViolations": 0
+  },
+  "formalSoakSourceCommit": "24caf7d45fb96390689dcc03685033242b7bbfea",
+  "formalSoakIncludesThisChange": false
+}

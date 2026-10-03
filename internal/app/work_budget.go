@@ -16,3 +16,11 @@ const (
 type WorkBudget interface {
 	Acquire(context.Context, WorkClass) (release func(), err error)
 }
+
+// PayloadBudget reserves raw input bytes across CPU/I/O transitions. Busy must
+// fail before loading the payload. Release follows all joined child activity;
+// cancellation alone must not release bytes still held by an operation.
+// This is independent of class permits and does not measure heap or RSS.
+type PayloadBudget interface {
+	ReservePayloadBytes(context.Context, int64) (release func(), err error)
+}

@@ -20,20 +20,60 @@ type waiter struct {
 	granted bool
 }
 type Budget struct {
-	mu      sync.Mutex
-	limits  Limits
-	stats   Stats
-	pending list.List
+	mu           sync.Mutex
+	limits       Limits
+	stats        Stats
+	pending      list.List
+	payloadLimit int64
+	payloadUsed  int64
 }
 
 // Limits returns a copy of the immutable admission limits.
 func (b *Budget) Limits() Limits { return b.limits }
 
 func New(l Limits) (*Budget, error) {
+	return NewWithPayloadLimit(l, 192<<20)
+}
+
+// NewWithPayloadLimit configures one shared raw-payload reservation limit.
+// Runtime consumers must share this Budget, including across Writer instances.
+func NewWithPayloadLimit(l Limits, payloadBytes int64) (*Budget, error) {
 	if l.CPU < 1 || l.CPU > 256 || l.IO < 1 || l.IO > 1024 || l.Total < 1 || l.Total > 1024 || l.Queue < 0 || l.Queue > 4096 {
 		return nil, domain.ErrInvalid
 	}
-	return &Budget{limits: l}, nil
+	if payloadBytes < 1 || payloadBytes > 1<<40 {
+		return nil, domain.ErrInvalid
+	}
+	return &Budget{limits: l, payloadLimit: payloadBytes}, nil
+}
+
+func (b *Budget) PayloadBytes() (used, limit int64) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.payloadUsed, b.payloadLimit
+}
+
+func (b *Budget) ReservePayloadBytes(ctx context.Context, bytes int64) (func(), error) {
+	if ctx == nil || bytes < 1 {
+		return nil, domain.ErrInvalid
+	}
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	b.mu.Lock()
+	if bytes > b.payloadLimit-b.payloadUsed {
+		b.mu.Unlock()
+		return nil, domain.ErrResourceBusy
+	}
+	b.payloadUsed += bytes
+	b.mu.Unlock()
+	var once sync.Once
+	release := func() { once.Do(func() { b.mu.Lock(); b.payloadUsed -= bytes; b.mu.Unlock() }) }
+	if err := ctx.Err(); err != nil {
+		release()
+		return nil, err
+	}
+	return release, nil
 }
 func (b *Budget) fits(c app.WorkClass) bool {
 	return b.stats.Total < b.limits.Total && (c == app.WorkCPU && b.stats.CPU < b.limits.CPU || c == app.WorkIO && b.stats.IO < b.limits.IO)

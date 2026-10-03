@@ -14,4 +14,4 @@ Windows owned fixture 的100個並行呼叫共用一次 payload 讀取、一次 
 
 ## 尚缺的准入與恢復
 
-I/O 讀取准入限制同時讀取數量，並不限制等待 CPU／後續 I/O 時仍保留的全部 payload bytes。完整 bytes 配額、不同意圖的整體混合記憶體／延遲、持久 plan／ready 讀取及 stage 重開續作仍需完成。沒有新增 runtime caller、正式寫回策略、target Rename、結算或恢復；完整 root／媒體／revision／policy 跨程序授權與 Windows directory metadata 耐久性仍缺。
+I/O 讀取准入限制同時讀取數量，並不限制等待 CPU／後續 I/O 時仍保留的全部 payload bytes。後續[原始 payload 生命週期配額](nfo-payload-budget.md)已按三份SQL上限在讀取前保留，跨CPU／IO等待直到清理；Source、重建副本與XML物件尚未納入，整體混合記憶體／延遲、持久 plan／ready 讀取及 stage 重開續作仍需完成。沒有新增 runtime caller、正式寫回策略、target Rename、結算或恢復；完整 root／媒體／revision／policy 跨程序授權與 Windows directory metadata 耐久性仍缺。

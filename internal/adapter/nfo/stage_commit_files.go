@@ -67,6 +67,18 @@ func (w *Writer) stageCommitFiles(ctx context.Context, source *Source, lease dom
 }
 
 func (w *Writer) stageCommitFilesOwned(ctx context.Context, source *Source, lease domain.JobLease, record domain.NFOWriteCommitRecord, repository app.NFOWriteCommitFilesRepository, ops nfoWriteOperations) error {
+	payload, ok := w.budget.(app.PayloadBudget)
+	if !ok {
+		return ErrInvalidInput
+	}
+	// SQL bounds each original/replacement/request payload by NFOMaxSourceBytes.
+	// Reserve the complete worst case before reading, never trusting a caller's
+	// source cap to size another job's stored payload. Hold through stage cleanup.
+	releasePayload, err := payload.ReservePayloadBytes(ctx, 3*domain.NFOMaxSourceBytes)
+	if err != nil {
+		return err
+	}
+	defer releasePayload()
 	releaseRead, err := w.budget.Acquire(ctx, app.WorkIO)
 	if err != nil {
 		return err

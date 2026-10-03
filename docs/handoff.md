@@ -1,3 +1,14 @@
+## 2026-10-03 原始payload生命週期共享配額已驗
+
+基線23544a416c66c56d3d961b7a3746f10d571da3ba／schema50／PR46，本批隨提交沿同分支發布。app.PayloadBudget與resources.Budget共享raw bytes counter；New預設192MiB，內部NewWithPayloadLimit可設有界上限，Reserve容量不足即Busy、沒有額外queue，release並行重複安全。Stage owner在GetTask前按SQL三份request／original／replacement各32MiB保守預留96MiB，不依caller cap；不同Writer同Budget共享，缺能力拒絕。保留跨CPU／IO等待及ready未知結果清理，所有活動join後才釋放；原class permits不巢狀、不改現有CPU／IO／Total規則。
+
+Windows五套件resources／nfo／architecture／jobs／runtime607PASS／13條件skip；Linux同五套race616PASS／6條件skip；新增五個payload案例兩平台PASS，128並行上限／idempotent release／invalid／overflow／cancel、CPU排隊時bytes保持及第二Writer零讀取Busy、ready取消等待cleanup與五份保留證據、缺能力拒絕均驗。真PG選測36PASS／零skipfail，含實際stage及子程序重開；vet兩平台、Darwin僅compile、格式／增量品牌0／339／gitignore／diff通過。初次Windows唯一新ready取消預期寫錯（既有ErrReplace而非context.Canceled），修夾具並保留initial log；隔離overlay移除reservation，新負例確實在repository讀取失敗。handles37735／85822／59968已terminal0，Windows及red overlay同步terminal；100份SQL／mod／sum／需求原文／LICENSE保持，沒有新migration或完整PG重跑。方法 docs/nfo-payload-budget.md，安全摘要 docs/evidence/nfo-payload-budget.json。
+
+此上限只計原始三份payload，caller已讀Source、重建副本、XML物件、GC resident及其他模块不計；不能宣稱192MiB是heap／RSS上限。公開配置／遙測、完整混合資源與延遲仍缺。下一步持久plan／ready安全讀取、staged重開續作，完整root／媒體／revision／policy跨重啟證據、同實體未解決排除、Rename／backup／rollback／結算／恢復與正式准入／worker／三種操作。runtime未啟用，不依bytes或stage缺失猜已提交，Windows directory metadata耐久性仍缺。全案7完成／198部分／131阻塞保持。
+
+正式24h維持run329073a5d193446383327ab217aba147／PID1026300／startTicks33072456／boot4a5d9c5c-4482-4c3e-8978-30156b1ce92f，來源24caf7d45f不含本批；本輪實核身分吻合、container running／OOMfalse，核同handle不重啟、完整24h尚未通過。完整品牌門禁保持，不merge／release／tag／force-push、不改已發布100份SQL或Git身份設定，原媒體／圖片／授權保持。下方為歷史狀態。
+
+---
 ## 2026-10-03 Stage工作去重與payload讀取准入已驗
 
 基線 d8c3e42b6aa089f40a9d8c0b4bcd21e8e5f18265／schema50 已推PR46，本批沿同分支發布。StageCommitFiles在GetTask／重建前加入runIntent；SHA256結構化key包含repository型別與实例、job／owner／generation／sequence／journal token、私有root／path、Source stamp／maxBytes，並核root／parent／file實體。非pointer repository不共用，typed nil pointer拒絕。owner先取得共享IO才讀payload，釋放後依既有CPU→IO階段，Total1不巢狀；等待者取消不釋放owner，owner取消join read清理，完成不快取，既有stage碰撞仍拒絕且保留。
