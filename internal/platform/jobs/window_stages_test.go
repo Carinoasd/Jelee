@@ -8,6 +8,7 @@ import (
 
 	"github.com/MoYuanCN/Jelee/internal/app"
 	"github.com/MoYuanCN/Jelee/internal/domain"
+	"github.com/MoYuanCN/Jelee/internal/platform/resources"
 )
 
 func TestWindowProbeStagesJoinReleaseAndResume(t *testing.T) {
@@ -33,7 +34,9 @@ func TestWindowProbeStagesJoinReleaseAndResume(t *testing.T) {
 					return domain.ProbeObservation{}, c.Err()
 				}
 			}
+			budget, _ := resources.New(resources.Limits{CPU: 1, IO: 1, Total: 1, Queue: 1})
 			opts := DefaultOptions()
+			opts.Budget = budget
 			opts.Workers = 1
 			opts.Window = window
 			opts.Probe = &ProbeOptions{Repository: f.repo, Prober: f.prober, LeaseDuration: 10 * time.Second, MaxConcurrent: 1}
@@ -45,6 +48,9 @@ func TestWindowProbeStagesJoinReleaseAndResume(t *testing.T) {
 			clock.fire(time.Second)
 			receive(t, repo.paused)
 			receive(t, done)
+			if budget.Stats() != (resources.Stats{}) {
+				t.Fatal("window cancellation leaked shared permit")
+			}
 			if len(r.probeGate) != 0 || len(f.batches) != 0 || len(f.aborts) != 0 {
 				t.Fatal("cancel leaked slot or committed probe outcome")
 			}
@@ -91,7 +97,9 @@ func TestWindowNFOStagesJoinReleaseAndResume(t *testing.T) {
 					return domain.NFOValidationSummary{}, c.Err()
 				}}, nil
 			}
+			budget, _ := resources.New(resources.Limits{CPU: 1, IO: 1, Total: 1, Queue: 1})
 			opts := DefaultOptions()
+			opts.Budget = budget
 			opts.Workers = 1
 			opts.Window = window
 			opts.NFO = &NFOOptions{Repository: f.repo, Reader: f.reader, MaxConcurrent: 2}
@@ -103,6 +111,9 @@ func TestWindowNFOStagesJoinReleaseAndResume(t *testing.T) {
 			clock.fire(time.Second)
 			receive(t, repo.paused)
 			receive(t, done)
+			if budget.Stats() != (resources.Stats{}) {
+				t.Fatal("window cancellation leaked shared permit")
+			}
 			if len(r.nfoGate) != 0 || len(f.batches) != 0 || len(f.aborts) != 0 {
 				t.Fatal("cancel leaked NFO slot or committed outcome")
 			}

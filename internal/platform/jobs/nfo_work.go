@@ -206,6 +206,11 @@ func (r *Runner) readNFO(ctx context.Context, path domain.NFOSource) (source app
 			source, stamp, result = nil, domain.NFOStamp{}, domain.ErrNFOReaderUnavailable
 		}
 	}()
+	release, err := r.acquireWork(ctx, app.WorkIO)
+	if err != nil {
+		return nil, domain.NFOStamp{}, err
+	}
+	defer release()
 	fileCtx, cancel := context.WithTimeout(ctx, r.options.NFO.FileTimeout)
 	defer cancel()
 	source, result = r.options.NFO.Reader.Read(fileCtx, path)
@@ -233,6 +238,11 @@ func (r *Runner) parseNFO(ctx context.Context, source app.NFOReadSource) (summar
 			summary, result = domain.NFOValidationSummary{}, domain.ErrNFOReaderUnavailable
 		}
 	}()
+	release, err := r.acquireWork(ctx, app.WorkCPU)
+	if err != nil {
+		return domain.NFOValidationSummary{}, err
+	}
+	defer release()
 	fileCtx, cancel := context.WithTimeout(ctx, r.options.NFO.FileTimeout)
 	defer cancel()
 	summary, result = source.Parse(fileCtx)

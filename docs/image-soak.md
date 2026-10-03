@@ -1,3 +1,7 @@
+## 最新正式長測失敗
+
+run `033822f3aecf4b6491406594c8687cfd`（source `c61c12b007`）已在約 2111.73 秒後失敗，完成 7 輪。工作測試回報 `cold_image_processing_failed`，controller 將未經 ready 的失敗報告記為 `soak_event_invalid`。容器 exit 1、OOM false，清理兩項皆 true，snapshotVerified false。這次不構成 24 小時驗收；尚待診斷冷圖片失敗原因，並改善錯誤報告保留。見 [失敗證據](evidence/image-soak-formal-failure.json)。歷史「執行中」紀錄已被此結果取代。
+
 # 圖片與掃描 24 小時驗收（實作中）
 
 本頁記錄驗收工具的進度，**目前沒有正式 24 小時結果**，G42.10 仍未完成。既有十萬圖片結果見 [image-memory.md](image-memory.md)。

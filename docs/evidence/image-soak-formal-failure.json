@@ -1,0 +1,20 @@
+{
+  "scope": "formal",
+  "result": "failed",
+  "finalAcceptance": false,
+  "sourceCommit": "c61c12b00715eb616df68d4e2b0d57537daf03dc",
+  "failureCode": "soak_event_invalid",
+  "workerStateBeforeCleanup": {
+    "status": "exited",
+    "exitCode": 1,
+    "oomKilled": false,
+    "running": false
+  },
+  "testArtifactsCleaned": true,
+  "snapshotVerified": false,
+  "launcherArtifactsCleaned": true,
+  "runId": "033822f3aecf4b6491406594c8687cfd",
+  "observedWorkerError": "cold_image_processing_failed",
+  "completedRounds": 7,
+  "workerTestElapsedSeconds": 2111.73
+}

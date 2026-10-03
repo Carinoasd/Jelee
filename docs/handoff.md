@@ -1,3 +1,11 @@
+## 最新接續：inventory 與 NFO 共用配額已接正式 jobs
+
+jobs.Options.Budget 由runtime同一fx實例注入。scanDirectory持IO至callback完成/返回（panic defer釋放），readNFO持IO、parseNFO持CPU，進filetimeout前先acquire，跨階段不巢狀。acquireWork於ErrResourceBusy時以既有worker/PollInterval等待，父job監控繼續，無新增goroutine/無媒體失敗；取消正常傳回，MaxJobRuntime仍生效。此等待不是持久化pause。
+
+真budget total1 NFO read/parse/revalidate、scan queue0背壓取消恢復、scan panic釋放、NFO關窗read/parse退款通過。Windows jobs/runtime/architecture+vet、Linux race、真PG Fx runtime通過；證據 docs/shared-work-budget.md。probe尚未接：要先拿CPU再建childlease，probe後複核IO的等待亦須尊重child期限，不能直接在已有子租約時無界等待。下一步處理probe，再接images/ignore/watch/其他CPU-IO。G41.3/G13.5仍部分。
+
+正式24h run033822f3aecf4b6491406594c8687cfd已終止：result.json failed/soak_event_invalid，worker exit1/OOMfalse，testArtifactsCleaned及launcherArtifactsCleaned true，snapshotVerified false。PID與容器已清理，不能報running或pass；原始events顯示TestImagesSoakAcceptance約2111.73秒失敗，error cold_image_processing_failed，已完成7輪（index0–6）。monitor因failed report未經ready而覆蓋為soak_event_invalid；需查images_memory_acceptance_test.go約874行冷圖片統計斷言與失敗報告後續改良，不能重啟未修正版本。PR46繼續，禁止合併。
+
 ## 最新接續：資源配置與正式直投已接共用配額
 
 新增 ResourcesConfig（CPUFactor1、IO16、Total32、Queue128，JSON/env/Validate），runtime fx 單一resources.Budget傳入所有帳號模式的HTTP建構。直投在ACL lookup後開檔前AcquireIO，等候最多RequestTimeout；queue滿/timeout→429+RetryAfter，cancel無body；傳輸與檔案/回呼清理後release。文件 docs/shared-work-budget.md 有配置表與限制。

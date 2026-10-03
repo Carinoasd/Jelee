@@ -33,6 +33,7 @@ func (t realTimer) C() <-chan time.Time          { return t.Timer.C }
 type WorkWindow interface{ Allows(time.Time) bool }
 
 type Options struct {
+	Budget             app.WorkBudget
 	Window             WorkWindow
 	Now                func() time.Time
 	CatalogImport      *CatalogImportOptions
@@ -515,7 +516,7 @@ func (r *Runner) executeInventory(ctx context.Context, lease domain.JobLease) (r
 		}
 		var callbackError error
 		callbackFailed, completed := false, false
-		err = r.scanner.ScanDirectory(ctx, directory, func(batch domain.ScanBatch) error {
+		err = r.scanDirectory(ctx, directory, func(batch domain.ScanBatch) error {
 			if callbackError != nil {
 				return callbackError
 			}
