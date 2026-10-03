@@ -19,19 +19,34 @@ def unique_object(pairs):
     return result
 
 
+def flatten(value, prefix, out, path):
+    # Frontend catalogs nest messages by area; the legacy core catalog is flat.
+    for key, item in value.items():
+        name = f"{prefix}.{key}" if prefix else key
+        if isinstance(item, dict):
+            if not item:
+                raise ValueError(f"{path}: empty object at {name}")
+            flatten(item, name, out, path)
+        elif isinstance(item, str) and item.strip():
+            out[name] = item
+        else:
+            raise ValueError(f"{path}: expected nonempty string values")
+    return out
+
+
 def load(path):
     data = json.loads(path.read_text(encoding="utf-8"), object_pairs_hook=unique_object)
     if not isinstance(data, dict) or not data:
         raise ValueError(f"{path}: expected nonempty object")
-    if any(not isinstance(v, str) or not v.strip() for v in data.values()):
-        raise ValueError(f"{path}: expected nonempty string values")
-    return data
+    return flatten(data, "", {}, path)
 
 
 def check(root):
     """Check web/src/i18n/<locale>/*.json: four locales, same files, same keys."""
-    entries = sorted(p for p in root.iterdir())
-    if any(not p.is_dir() for p in entries) or {p.name for p in entries} != LOCALES:
+    # The i18n source folder also holds the frontend loader (*.ts); only its
+    # subdirectories are locale catalogs, and they must be exactly the four.
+    entries = sorted(p for p in root.iterdir() if p.is_dir())
+    if {p.name for p in entries} != LOCALES:
         raise ValueError("UI catalogs must contain exactly zh-CN, zh-TW, ja-JP, en-US directories")
     catalogs = {}
     for folder in entries:
