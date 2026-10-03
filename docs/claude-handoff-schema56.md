@@ -18,10 +18,15 @@
    - attempt 0 仍走原 legacy 流程（`stageLegacyNFOCommitFiles`），舊行為不變。
    - 新 namespace 的 plan callback 會重播同一 plan，並用 `ReserveNFOWriteCommitAttempts` 比對首次 reservation。
    - 測試：nfo 套件 6 個假 repository 案例；另做反向驗證，把名稱偵測關掉時 3 個會失敗。postgres 套件新增 `TestNFOCommitAttemptStageTruePG`（rotate／exhausted），用丟失首次 checkpoint 的 wrapper 模擬「已建檔、未存 checkpoint」，驗證真 PG 依序分配 1–3、上限拒絕、未知物件保留、legacy evidence 不被寫入、target 不變。
+5. 真 PG＋實際 child `os.Exit` 中斷矩陣（`TestNFOCommitAttemptActualProcessRecovery`）：子程序在 legacy 建檔後、attempt 建檔後（都在首次 checkpoint 提交前）、attempt phase1／phase2 提交後、attempt ready 提交後直接退出。之後換新的 Store 連線，並刪掉 preparation，再跑一次 Stage。驗證：
+   - 建檔後中斷：分配下一個 attempt（legacy → 1、attempt 1 → 2）。
+   - phase1／2 後中斷：留在 attempt 1 續作，首次輸出 ID 與 phase1 時間不變。
+   - ready 後中斷：只重播。
+   - 所有未知物件保留，legacy evidence 不被寫入，target 不變。
+   5 個案例全 PASS（`.testdata/claude-schema56-attempt-process-linux-v1.jsonl`：7 PASS／0 fail，含父測試與 helper）。
 4. 所有 NFO commit／Stage 相關測試（接線後重跑，含舊 Stage 測試改走新流程）：524 PASS／0 fail／0 skip，4 package PASS（`.testdata/claude-schema56-stage-linux-v1.jsonl`）。
 
 仍未做（不要當成完成）：
-- 真 PG + 實際 child `os.Exit` 的中斷點矩陣（建檔後、phase1／2 存檔前後、unknown response），本批用 wrapper 模擬，不能替代。
 - 新 freeze、完整分片 PG 回歸、Windows 真 PG、finalizer。這些交給 @MoYuanCN 在自己的環境跑，說明見 PR46 留言。
 - 恢復 lease、FS grant、target Rename／settlement、worker 接線；G00–G51 狀態不變（7／198／131）。
 - 原 24h 只對應來源 24caf7d4，本批沒動圖片／記憶體路徑。

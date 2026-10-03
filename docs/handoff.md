@@ -1,3 +1,9 @@
+## 2026-10-04 Claude 接續：真 PG＋child os.Exit attempt 中斷矩陣
+
+新增 `TestNFOCommitAttemptActualProcessRecovery`：子程序在 legacy／attempt 建檔後（首次 checkpoint 提交前）、attempt phase1／phase2 提交後、ready 提交後直接 `os.Exit`。之後由新的 Store 連線重跑 Stage，分別驗證四件事：建檔後中斷會依序分配下一個 attempt；有 checkpoint 就在同一個 attempt 續作，首次 ID 與時間不變；ready 後只重播；未知物件保留，legacy evidence 不被寫入。Linux 真 PG、race：5 個案例全 PASS（7 PASS／0 fail）。仍缺恢復 lease／FS grant／settlement／worker 與完整回歸（交 @MoYuanCN）。
+
+---
+
 ## 2026-10-04 Claude 接續：legacy守衛重測、quota因果紅測、Stage接持久attempt
 
 詳見 [claude-handoff-schema56.md](claude-handoff-schema56.md)「Claude 接續進度」。最新 legacy 互斥守衛：Linux 真 PG、race，69 PASS。quota 因果：第二候選建在獨立 library／job，有 fence 時 RC／RR／Serializable 都拒絕；只把 owned schema 的 fence 換成空操作，RR 下第二筆超額被接納，8 PASS。正式 Stage 經 `app.NFOWriteCommitAttemptStageRepository` 接持久 attempt：有 checkpoint 固定續作、首次輸出變動拒絕；沒 checkpoint 而名稱已存在就先持久分配下一個；3 個用完有界拒絕；未知物件一律保留；attempt 0 走原 legacy 流程。NFO commit／Stage 相關真 PG 測試（`^(TestNFOCommit.*|TestNFOWriteRootGeneration.*|TestStage.*|TestNFOWriteCommit.*)$`，四套件、race）：524 PASS／0 fail／0 skip，4 package PASS。
