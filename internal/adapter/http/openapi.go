@@ -48,6 +48,7 @@ func Specification(cfg config.Config) map[string]any {
 		itemMetadataSpecification(paths, schemas)
 		metadataOriginSpecification(schemas)
 		metadataApplyResultSpecification(schemas)
+		metadataRemoveSpecification(paths, schemas)
 		nfoItemMetadataSpecification(paths)
 		if cfg.TMDBAPIKey != "" {
 			metadataApplySpecification(paths, schemas)

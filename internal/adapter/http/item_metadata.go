@@ -12,6 +12,7 @@ func (s *Server) itemMetadataRoutes(r chi.Router) {
 	r.Group(func(r chi.Router) {
 		r.Use(s.accountBudget, s.authenticate)
 		s.nfoItemMetadataRoutes(r)
+		s.metadataRemoveRoutes(r)
 		if s.cfg.TMDBAPIKey != "" {
 			s.metadataApplyRoutes(r)
 		}
