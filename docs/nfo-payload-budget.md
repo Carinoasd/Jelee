@@ -14,4 +14,4 @@ Windows resources／NFO／architecture／jobs／runtime五套件607通過事件�
 
 ## 尚未證明的記憶體與恢復
 
-這個上限計算原始 request／original／replacement，沒有計入呼叫者已讀取的 Source、重建副本、XML parser物件、其他模組配置或GC尚未歸還的resident頁。不能把192MiB預留上限當成heap／RSS上限。完整混合記憶體與延遲、公開配額設定／遙測，以及持久證據安全讀取、staged重開續作、完整root／媒體授權、正式提交／結算／恢復仍需完成。runtime沒有啟用NFO写回；正式24h仍是24caf凍結來源，不包含本批。
+這個上限計算原始 request／original／replacement，沒有計入呼叫者已讀取的 Source、重建副本、XML parser物件、其他模組配置或GC尚未歸還的resident頁。不能把192MiB預留上限當成heap／RSS上限。完整混合記憶體與延遲、公開配額設定／遙測，以及完整root／媒體授權、正式提交／結算／恢復仍需完成。後續[ready讀取與重開](nfo-ready-resume.md)已接租約觀察及完整ready核對；部分stage仍不能自動續作。runtime沒有啟用NFO写回；正式24h仍是24caf凍結來源，不包含本批。

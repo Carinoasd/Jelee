@@ -10,6 +10,7 @@ import (
 type NFOWriteCommitFilesRepository interface {
 	GetNFOWriteTask(context.Context, domain.JobLease, int) (domain.NFOWriteTask, error)
 	BeginNFOWriteCommit(context.Context, domain.JobLease, int) (domain.NFOWriteCommitRecord, error)
+	GetNFOWriteCommitFiles(context.Context, domain.JobLease, int, string) (domain.NFOWriteCommitFileEvidence, error)
 	SaveNFOWriteCommitFilePlan(context.Context, domain.JobLease, int, string, domain.NFOWriteCommitFilePlan) (domain.NFOWriteCommitFilePlan, error)
 	SaveNFOWriteCommitFilesReady(context.Context, domain.JobLease, int, string, domain.NFOWriteCommitFilesReady) (domain.NFOWriteCommitFilesReady, error)
 }

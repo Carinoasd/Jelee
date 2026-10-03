@@ -34,6 +34,19 @@ type NFOWriteCommitFilesReady struct {
 	RollbackIdentity [48]byte `json:"-"`
 }
 
+// Evidence is a bounded observation of retained preparation, never proof that
+// a target Rename committed or authorization for a filesystem change.
+type NFOWriteCommitFileEvidence struct {
+	Record        NFOWriteCommitRecord     `json:"-"`
+	PlanRecorded  bool                     `json:"-"`
+	ReadyRecorded bool                     `json:"-"`
+	Plan          NFOWriteCommitFilePlan   `json:"-"`
+	Ready         NFOWriteCommitFilesReady `json:"-"`
+}
+
+func (NFOWriteCommitFileEvidence) String() string   { return "nfo commit file evidence (redacted)" }
+func (NFOWriteCommitFileEvidence) GoString() string { return "nfo commit file evidence (redacted)" }
+
 func (NFOWriteCommitFilePlan) String() string     { return "nfo commit file plan (redacted)" }
 func (NFOWriteCommitFilePlan) GoString() string   { return "nfo commit file plan (redacted)" }
 func (NFOWriteCommitFilesReady) String() string   { return "nfo commit files (redacted)" }

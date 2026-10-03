@@ -84,12 +84,19 @@ func (w *Writer) stageCommitFilesOwned(ctx context.Context, source *Source, leas
 		return err
 	}
 	task, err := repository.GetNFOWriteTask(ctx, lease, record.Sequence)
+	var evidence domain.NFOWriteCommitFileEvidence
+	if err == nil {
+		evidence, err = repository.GetNFOWriteCommitFiles(ctx, lease, record.Sequence, record.Token)
+	}
 	releaseRead()
 	if err != nil {
 		return err
 	}
 	if task.JobID != record.JobID || task.Sequence != record.Sequence {
 		return ErrInvalidInput
+	}
+	if evidence.Record.JobID != record.JobID || evidence.Record.Sequence != record.Sequence || evidence.Record.Owner != record.Owner || evidence.Record.Generation != record.Generation || evidence.Record.Token != record.Token || evidence.ReadyRecorded && !evidence.PlanRecorded {
+		return ErrChanged
 	}
 	// Only the job-owned immutable intent can drive reconstruction. A caller's
 	// unrelated preparation, even with the same basename, is never accepted.
@@ -169,6 +176,9 @@ func (w *Writer) stageCommitFilesOwned(ctx context.Context, source *Source, leas
 		return ErrInvalidInput
 	}
 	copy(token[:], decoded)
+	if evidence.ReadyRecorded {
+		return resumeNFOCommitFiles(ctx, directory, filename, original, replacement, lease, record, evidence, repository, check)
+	}
 	ports := nfoCommitFilePersistence{
 		plan: func(ctx context.Context, plan nfoCommitFilePlan) error {
 			if err := check(ctx); err != nil {
@@ -202,4 +212,42 @@ func (w *Writer) stageCommitFilesOwned(ctx context.Context, source *Source, leas
 	ops.documentsValidated, ops.checkSource = true, check
 	_, err = prepareNFOCommitFiles(ctx, directory, filename, original, replacement, token, ports, ops)
 	return err
+}
+
+func resumeNFOCommitFiles(ctx context.Context, directory *os.Root, filename string, original, replacement *Document, lease domain.JobLease, record domain.NFOWriteCommitRecord, evidence domain.NFOWriteCommitFileEvidence, repository app.NFOWriteCommitFilesRepository, check func(context.Context) error) error {
+	if evidence.Plan.TargetName != filename {
+		return ErrChanged
+	}
+	lock, err := lockNFOFile(ctx, directory, filename)
+	if err != nil {
+		return err
+	}
+	defer lock.Close()
+	verify := func() error {
+		if err := check(ctx); err != nil {
+			return err
+		}
+		if !lock.check() {
+			return ErrFileLock
+		}
+		return VerifyCommitFiles(ctx, directory, record.Token, evidence.Plan, evidence.Ready, original.original, replacement.original)
+	}
+	if err := verify(); err != nil {
+		return err
+	}
+	plan, err := repository.SaveNFOWriteCommitFilePlan(ctx, lease, record.Sequence, record.Token, evidence.Plan)
+	if err != nil {
+		return err
+	}
+	if plan != evidence.Plan {
+		return ErrChanged
+	}
+	ready, err := repository.SaveNFOWriteCommitFilesReady(ctx, lease, record.Sequence, record.Token, evidence.Ready)
+	if err != nil {
+		return err
+	}
+	if ready != evidence.Ready {
+		return ErrChanged
+	}
+	return verify()
 }

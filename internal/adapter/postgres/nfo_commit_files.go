@@ -11,6 +11,74 @@ import (
 
 var _ app.NFOWriteCommitFilesRepository = (*Store)(nil)
 
+// GetNFOWriteCommitFiles observes an existing journal; it never creates one or
+// resolves retained evidence. A subsequent execution needs fresh commit fences.
+func (s *Store) GetNFOWriteCommitFiles(ctx context.Context, lease domain.JobLease, sequence int, token string) (domain.NFOWriteCommitFileEvidence, error) {
+	zero := domain.NFOWriteCommitFileEvidence{}
+	if ctx == nil || sequence < 1 || sequence > 100 || !domain.ValidID(token) {
+		return zero, domain.ErrInvalid
+	}
+	tx, err := s.jobTransaction(ctx)
+	if err != nil {
+		return zero, err
+	}
+	defer tx.Rollback(ctx)
+	current, err := fencedJob(ctx, tx, lease)
+	if err != nil {
+		return zero, err
+	}
+	if current.Job.Kind != domain.JobNFOWrite {
+		return zero, domain.ErrInvalid
+	}
+	if current.Job.CancelRequested {
+		return zero, context.Canceled
+	}
+	var actor string
+	if err := tx.QueryRow(ctx, `SELECT u.id::text FROM jobs j JOIN users u ON u.id=j.actor_id WHERE j.id=$1::uuid AND u.is_admin AND NOT u.disabled AND u.deleted_at IS NULL FOR SHARE OF u`, lease.Job.ID).Scan(&actor); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return zero, domain.ErrForbidden
+		}
+		return zero, storageError(err)
+	}
+	var value domain.NFOWriteCommitFileEvidence
+	var parent, target, output, rollback []byte
+	err = tx.QueryRow(ctx, `SELECT w.job_id::text,w.sequence,w.generation,w.token::text,w.owner,w.recorded_at,w.lease_until,p.token IS NOT NULL,r.token IS NOT NULL,COALESCE(p.version,0),COALESCE(p.target_name,''),p.parent_identity,p.target_identity,r.output_identity,r.rollback_identity FROM nfo_write_commit_journal w LEFT JOIN nfo_write_commit_file_plans p ON p.token=w.token LEFT JOIN nfo_write_commit_files_ready r ON r.token=w.token WHERE w.token=$1::uuid AND w.job_id=$2::uuid AND w.sequence=$3 AND w.generation=$4 AND w.owner=$5`, token, lease.Job.ID, sequence, lease.Generation, lease.Owner).Scan(&value.Record.JobID, &value.Record.Sequence, &value.Record.Generation, &value.Record.Token, &value.Record.Owner, &value.Record.RecordedAt, &value.Record.LeaseUntil, &value.PlanRecorded, &value.ReadyRecorded, &value.Plan.Version, &value.Plan.TargetName, &parent, &target, &output, &rollback)
+	if err != nil {
+		return zero, storageError(err)
+	}
+	if value.PlanRecorded {
+		if len(parent) != 48 || len(target) != 48 {
+			return zero, domain.ErrDatabase
+		}
+		copy(value.Plan.ParentIdentity[:], parent)
+		copy(value.Plan.TargetIdentity[:], target)
+		if domain.ValidateNFOWriteCommitFilePlan(value.Plan) != nil {
+			return zero, domain.ErrDatabase
+		}
+	}
+	if value.ReadyRecorded {
+		if !value.PlanRecorded || len(output) != 48 || len(rollback) != 48 {
+			return zero, domain.ErrDatabase
+		}
+		copy(value.Ready.OutputIdentity[:], output)
+		copy(value.Ready.RollbackIdentity[:], rollback)
+		if domain.ValidateNFOWriteCommitFilesReady(value.Ready) != nil || value.Plan.TargetIdentity[1] != value.Ready.OutputIdentity[1] || value.Plan.TargetIdentity == value.Ready.OutputIdentity || value.Plan.TargetIdentity == value.Ready.RollbackIdentity {
+			return zero, domain.ErrDatabase
+		}
+	}
+	var live bool
+	if err := tx.QueryRow(ctx, `SELECT state='running' AND owner=$2 AND generation=$3 AND lease_until>clock_timestamp() AND NOT cancel_requested FROM jobs WHERE id=$1::uuid`, lease.Job.ID, lease.Owner, lease.Generation).Scan(&live); err != nil {
+		return zero, storageError(err)
+	}
+	if !live {
+		return zero, domain.ErrJobLeaseLost
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return zero, storageError(err)
+	}
+	return value, nil
+}
+
 func (s *Store) BeginNFOWriteCommit(ctx context.Context, lease domain.JobLease, sequence int) (domain.NFOWriteCommitRecord, error) {
 	if ctx == nil {
 		return domain.NFOWriteCommitRecord{}, domain.ErrInvalid

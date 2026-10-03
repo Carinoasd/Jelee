@@ -20,6 +20,10 @@ type stagingRepository struct {
 	reads, plans, readies atomic.Int32
 }
 
+func (*stagingRepository) GetNFOWriteCommitFiles(_ context.Context, l domain.JobLease, seq int, token string) (domain.NFOWriteCommitFileEvidence, error) {
+	return domain.NFOWriteCommitFileEvidence{Record: domain.NFOWriteCommitRecord{JobID: l.Job.ID, Owner: l.Owner, Generation: l.Generation, Sequence: seq, Token: token}}, nil
+}
+
 func (r *stagingRepository) GetNFOWriteTask(ctx context.Context, l domain.JobLease, seq int) (domain.NFOWriteTask, error) {
 	r.reads.Add(1)
 	return r.read(ctx, l, seq)

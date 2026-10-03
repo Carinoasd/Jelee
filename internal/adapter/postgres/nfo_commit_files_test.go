@@ -10,6 +10,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -125,7 +126,7 @@ func TestNFOCommitFilePersistenceNativeAndChildReopen(t *testing.T) {
 	ctx, cancel := context.WithTimeout(f.ctx, 25*time.Second)
 	defer cancel()
 	cmd := exec.CommandContext(ctx, os.Args[0], "-test.run=^TestNFOCommitFilePersistenceChildHelper$")
-	cmd.Env = append(os.Environ(), "JELEE_NFO_COMMIT_DATABASE_CHILD="+f.s.Pool.Config().ConnString(), "JELEE_NFO_COMMIT_TOKEN_CHILD="+record.Token)
+	cmd.Env = append(os.Environ(), "JELEE_NFO_COMMIT_DATABASE_CHILD="+f.s.Pool.Config().ConnString(), "JELEE_NFO_COMMIT_TOKEN_CHILD="+record.Token, "JELEE_NFO_COMMIT_JOB_CHILD="+l.Job.ID, "JELEE_NFO_COMMIT_OWNER_CHILD="+l.Owner, "JELEE_NFO_COMMIT_GENERATION_CHILD="+strconv.FormatInt(l.Generation, 10))
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("database and retained physical evidence reopen: %v %s", err, out)
 	}
@@ -143,6 +144,28 @@ func TestNFOCommitFilePersistenceChildHelper(t *testing.T) {
 		t.Fatal("reopen owned file evidence database")
 	}
 	defer store.Pool.Close()
+	generation, err := strconv.ParseInt(os.Getenv("JELEE_NFO_COMMIT_GENERATION_CHILD"), 10, 64)
+	if err != nil {
+		t.Fatal("child lease unavailable")
+	}
+	lease := domain.JobLease{Job: domain.Job{ID: os.Getenv("JELEE_NFO_COMMIT_JOB_CHILD")}, Owner: os.Getenv("JELEE_NFO_COMMIT_OWNER_CHILD"), Generation: generation}
+	evidence, err := store.GetNFOWriteCommitFiles(ctx, lease, 1, os.Getenv("JELEE_NFO_COMMIT_TOKEN_CHILD"))
+	if err != nil || !evidence.PlanRecorded || !evidence.ReadyRecorded {
+		t.Fatal("fenced evidence read unavailable", err)
+	}
+	task, err := store.GetNFOWriteTask(ctx, lease, 1)
+	if err != nil {
+		t.Fatal("owned child task unavailable", err)
+	}
+	source, err := nfo.ReadSource(ctx, task.Preparation.Scope.Source.RootPath, task.Preparation.Scope.Source.RelativePath, task.Preparation.Request.MaxBytes)
+	if err != nil {
+		t.Fatal("child source unavailable", err)
+	}
+	budget, _ := resources.New(resources.Limits{CPU: 1, IO: 1, Total: 1, Queue: 0})
+	writer, _ := nfo.NewWriterWithBudget(budget)
+	if err := writer.StageCommitFiles(ctx, source, lease, evidence.Record, store); err != nil {
+		t.Fatal("child ready resume rejected", err)
+	}
 	var plan domain.NFOWriteCommitFilePlan
 	var ready domain.NFOWriteCommitFilesReady
 	var parent, target, output, rollback, original, replacement []byte

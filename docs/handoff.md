@@ -1,3 +1,16 @@
+## 2026-10-03 既有journal證據讀取與ready重開核對已驗
+
+基線7b952dbec58166b67828f4bb33ec7dfa1e8f4c59／schema50／PR46，本批隨提交沿同分支發布。GetNFOWriteCommitFiles短交易核真實running nfo_write／owner／generation／live lease／cancel／活躍admin，鎖job與actor、讀後再核租約；只觀察既有journal及plan／ready，不建立或結算，失敗零值。private Evidence固定大小身分／flags、JSON{}與格式遮蔽，歷史時間不授權未來FS。
+
+Stage owner持payload及read IO取工作意圖與證據，受控重建；ready已保存時持native鎖核Source／parent／target原文及五份完整bytes／身分，重放相同SavePlan／SaveReady以deferred提交租約守衛，再核全部檔案。不Rename／輪替／刪除／結算，成功只是準備仍吻合。ready已commit但回應遺失可從DB重讀後重開；缺output／pin、rollback同bytes換實體、parent替換、target為輸出、cancel／disabled／expiry拒絕且剩餘檔案保持。沒有ready的部分stage仍EXCL碰撞保持，不能自動辨識或刪未知物件。
+
+Windows六套domain／app／nfo／postgres／architecture／resources1113PASS／744條件skip；Linux六套domain／app／resources／nfo／architecture／jobs race1121PASS／1Windows平台skip。兩平台owned ready重開6PASS；真PG選測10根／59PASS／零skipfail，含lease／actor／token／seq／job零部分輸出、plan-only／ready／missing不建立journal、實際commit回應遺失及原生負例；子程序刪準備TTL後用新lease讀取port及Writer實際重開。所有handles99083／27149／25172已terminal0，Windows及隔離red同步terminal；red移除ready分支重試確實失敗，正式來源未變。vet兩平台、Darwin僅compile、格式／增量品牌0／339／gitignore／diff通過，100份SQL／mod／sum／原需求／LICENSE保持，無migration或完整PG重跑。Windows真PG仍未證；方法docs/nfo-ready-resume.md、安全摘要docs/evidence/nfo-ready-resume.json。
+
+下一步持久完整root／媒體／revision／policy證據及同實體未解決排除，原生target提交邊界、backup／rollback／結算／crash恢復，部分stage處置與正式准入／worker／三種操作。原始payload配額不證完整heap／RSS；Windowsdirectory metadata耐久性缺。全案7完成／198部分／131阻塞，runtime未啟用read-write，不依bytes相等或stage缺失猜提交。
+
+正式24h維持run329073a5d193446383327ab217aba147／PID1026300／startTicks33072456／boot4a5d9c5c-4482-4c3e-8978-30156b1ce92f，來源24caf7d45f不含本批；本輪實核身分吻合、container running／OOMfalse，完整24h尚未通過。核同handle、不重啟；完整品牌门禁保持。不merge／release／tag／force-push、不改已發布100份SQL或Git身份設定，原媒體／圖片／授權保持。下方為歷史狀態。
+
+---
 ## 2026-10-03 原始payload生命週期共享配額已驗
 
 基線23544a416c66c56d3d961b7a3746f10d571da3ba／schema50／PR46，本批隨提交沿同分支發布。app.PayloadBudget與resources.Budget共享raw bytes counter；New預設192MiB，內部NewWithPayloadLimit可設有界上限，Reserve容量不足即Busy、沒有額外queue，release並行重複安全。Stage owner在GetTask前按SQL三份request／original／replacement各32MiB保守預留96MiB，不依caller cap；不同Writer同Budget共享，缺能力拒絕。保留跨CPU／IO等待及ready未知結果清理，所有活動join後才釋放；原class permits不巢狀、不改現有CPU／IO／Total規則。
