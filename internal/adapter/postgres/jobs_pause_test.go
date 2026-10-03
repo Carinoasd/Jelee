@@ -172,3 +172,71 @@ func TestJobsWindowWorkerPausesAndResumesPostgres(t *testing.T) {
 		t.Fatalf("resumed progress: %+v", completed)
 	}
 }
+
+func TestJobsPlannedPauseReleasesProbeLeaseAndResumesPhase(t *testing.T) {
+	f := newProbeFixture(t)
+	l, _ := f.begin(t, "pause-probe", "one.mkv")
+	page, candidates := f.page(t, l)
+	old, err := f.s.AcquireProbe(f.ctx, l, page.Token, candidates[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	f.quota(t, 1, 1)
+	if err = f.s.PauseJob(f.ctx, l); err != nil {
+		t.Fatal(err)
+	}
+	f.quota(t, 0, 0)
+	resumed := f.claim(t, "resumed-probe")
+	next, candidates := f.page(t, resumed)
+	if next.Token != page.Token || len(next.Entries) != 1 {
+		t.Fatal("pause lost probe checkpoint")
+	}
+	if _, err = f.s.CommitProbeBatch(f.ctx, l, page.Token, []domain.ProbeCompletion{{Candidate: candidates[0], Kind: domain.ProbeCompletionSucceeded, Lease: &old, Metadata: probeTestMetadata()}}); !errors.Is(err, domain.ErrJobLeaseLost) {
+		t.Fatalf("stale child committed: %v", err)
+	}
+	lease, err := f.s.AcquireProbe(f.ctx, resumed, next.Token, candidates[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = f.s.CommitProbeBatch(f.ctx, resumed, next.Token, []domain.ProbeCompletion{{Candidate: candidates[0], Kind: domain.ProbeCompletionSucceeded, Lease: &lease, Metadata: probeTestMetadata()}}); err != nil {
+		t.Fatal(err)
+	}
+	f.quota(t, 1, 0)
+	f.finish(t, resumed)
+	if f.get(t, l.Job.ID).State != domain.JobSucceeded {
+		t.Fatal("probe phase did not finish after pause")
+	}
+}
+
+func TestJobsPlannedPausePreservesNFOCheckpoint(t *testing.T) {
+	f := newNFOFixture(t)
+	l, _ := f.start(t, "pause-nfo", "one.nfo", "two.nfo")
+	completed := f.parseHead(t, l, nfoValidSummary())
+	before, err := f.s.NextNFOPage(f.ctx, l, domain.NFOPageMax)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = f.s.PauseJob(f.ctx, l); err != nil {
+		t.Fatal(err)
+	}
+	resumed := f.claim(t, "resumed-nfo")
+	after, err := f.s.NextNFOPage(f.ctx, resumed, domain.NFOPageMax)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if after.Token != before.Token || len(after.Entries) != 1 || after.Entries[0].Inventory.ID != before.Entries[0].Inventory.ID {
+		t.Fatal("NFO checkpoint replayed completed work")
+	}
+	summary := nfoValidSummary()
+	if _, err = f.s.CommitNFOBatch(f.ctx, l, before.Token, []domain.NFOCompletion{{Candidate: nfoCandidate(before.Entries[0]), Kind: domain.NFOCompletionParsed, Summary: &summary}}); !errors.Is(err, domain.ErrJobLeaseLost) {
+		t.Fatalf("old NFO owner committed: %v", err)
+	}
+	final := f.parseHead(t, resumed, nfoValidSummary())
+	if completed.Progress.Processed != 1 || final.Progress.Processed != 2 || final.Progress.Valid != 2 {
+		t.Fatal("NFO counts duplicated after resume")
+	}
+	f.finish(t, resumed)
+	if f.get(t, l.Job.ID).State != domain.JobSucceeded {
+		t.Fatal("NFO phase did not complete")
+	}
+}

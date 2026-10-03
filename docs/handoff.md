@@ -1,3 +1,11 @@
+## 最新接續：探測／NFO 關窗矩陣與 Windows CI 修正
+
+新增 window_stages_test.go：Inspect/Probe/NFO Read/Parse 關窗後 join、gate歸零、不提交檔案失敗或phase abort，開窗後恰好處理一次。使用受控替身，未聲稱真 ffprobe 程序驗收。真 PG 新增 PauseJob 回收 probe 子租約/配額、拒舊租約、phase續跑；NFO 第一筆已提交再暫停，恢復只處理第二筆，计數不重複。Linux race 全部通過，證據見 docs/scan-window.md。
+
+ff1d7eccaf Windows foundation job111101499591 的候選期限測試失敗（另一Windows job通過）。修正測試等待時鐘跨第一個期限建立刻度，保留嚴格新deadline與context獨立取消斷言。Windows100次及jobs/scan套件通過，Linux包含scan的race通過；修正後遠端CI仍待核。全品牌兩門禁仍失敗，未放寬。
+
+下一步：真正 runtime 配置啟動與 ffprobe/NFO/ignore/catalog 關窗恢復整合，依 G13.5 全域 CPU/I/O 預算及目錄並行缺口繼續。正式24h沿用 run033822f3aecf4b6491406594c8687cfd/PID645523/source c61c12b007，剛再次核實running/OOM false，勿重啟。第三階段及全案仍未完成。
+
 ## 最新接續：時間窗已接入配置與 worker
 
 新增 Jobs.WindowStart/End/Timezone（JSON windowStart/windowEnd/windowTimezone，環境 JELEE_JOB_WINDOW_START/END/TIMEZONE），預設皆空全天。runtime 解析 calendar.DailyWindow 注入 worker。窗外所有 claim 分支等待；monitor 每秒檢查關窗，取消並 join 後 PauseJob，保留 checkpoint 且不耗故障重試。領取期間關窗也不開始掃描；非取消的真實掃描錯誤不以關窗掩蓋。啟用需 repository 實作 JobPauseRepository。

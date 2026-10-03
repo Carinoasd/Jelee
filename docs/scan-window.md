@@ -41,3 +41,17 @@ G13.5 要求掃描窗口避開高峰。時間判斷、設定與 worker 已接線
 受控計時器覆蓋窗外不 claim、開窗後 claim、執行中關窗等待 scanner 收束後 PauseJob、claim 期间關窗不開始掃描，以及真實掃描失敗不被關窗掩蓋。Stop 後沒有遺留 timer。
 
 真 PostgreSQL worker 保存根目錄 checkpoint 後關窗，工作回 queued、attempts 歸零且檔案/位元組保留；開窗後從子目錄續跑至 succeeded、attempts 為一。證據：[worker/配置/calendar Linux race](evidence/jobs-window-unit-linux-race.txt)、[PostgreSQL worker 與暫停 Linux race](evidence/jobs-window-linux-race.txt)。這不是整套 G13.5 效能驗收，也不代替多節點負載測試。
+
+## 探測與 NFO 關窗矩陣
+
+worker 測試使用可控時間與階段替身，分別在探測 Inspect、Probe、NFO Read、Parse 阻塞處關窗。四個案例均等待處理返回再暫停，未提交失敗媒體結果、未中止整個階段、未遺留 gate slot；再開窗只完成一筆預期項目。這些替身測試不代表外部 ffprobe 程序的端到端驗收。
+
+真 PostgreSQL 驗證探測子租約由父工作 PauseJob 交易清理，active leases 與 quota 回到零，phase checkpoint 保留；旧父/子租約無法提交，重新領取可完成。另在 NFO 第一筆提交後暫停，恢復只处理第二筆，總 processed/valid 為二，沒有重複計數。
+
+證據：[Linux worker/config/calendar/scan race](evidence/jobs-window-stages-unit.txt)、[真 PostgreSQL 暫停與階段續跑 race](evidence/jobs-window-stages-postgres.txt)。Windows 關窗測試及 jobs/scan 套件回歸通過。
+
+仍待實際 ffprobe/NFO runtime 與 ignore/catalog 各階段整合的關窗恢復驗收；不把受控替身矩陣等同完整實際程序測試。
+
+## Windows CI 期限測試
+
+ff1d7eccaf 的 Windows foundation job 111101499591 在 `TestFamilyBaselineBatchKeepsPerCandidateDeadline` 失敗，另一個 Windows job 通過。原測試直接要求連續建立的期限嚴格遞增；Windows 時鐘刻度可能相同。修正先等待時鐘跨過第一個期限建立刻度，仍要求第二個期限嚴格較晚，並檢查前一 candidate context 已取消、下一個仍有效及最終清理。Windows 100 次通過；沒有放寬生產期限或刪除新期限斷言。遠端修正後結果仍待 CI 確認。

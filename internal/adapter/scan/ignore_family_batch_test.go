@@ -178,6 +178,7 @@ func TestFamilyBaselineBatchKeepsPerCandidateDeadline(t *testing.T) {
 	for _, directory := range []string{"first", "second"} {
 		writeScanFile(t, root, directory+"/placeholder", nil)
 	}
+	var contexts []context.Context
 	var deadlines []time.Time
 	s := NewFamilyIgnoreScanner(legacyEvaluatorFunc(func(ctx context.Context, b legacyignore.Batch) (legacyignore.BatchResult, error) {
 		if len(b.Paths) == 1 && !strings.HasSuffix(b.Paths[0], "/") {
@@ -186,7 +187,27 @@ func TestFamilyBaselineBatchKeepsPerCandidateDeadline(t *testing.T) {
 			if !ok || remaining <= 0 || remaining > 30*time.Second {
 				t.Fatal("candidate helper lacks its bounded deadline")
 			}
+			if len(contexts) > 0 && contexts[len(contexts)-1].Err() != context.Canceled {
+				t.Fatal("previous candidate context remains active during the next candidate")
+			}
+			if ctx.Err() != nil {
+				t.Fatal("new candidate inherited cancellation")
+			}
+			contexts = append(contexts, ctx)
 			deadlines = append(deadlines, deadline)
+			if len(contexts) == 1 {
+				// Advance beyond the tick that created the first deadline. This retains
+				// the fresh-budget assertion even on coarse Windows clocks.
+				for !time.Now().After(deadline.Add(-30 * time.Second)) {
+					timer := time.NewTimer(time.Millisecond)
+					select {
+					case <-timer.C:
+					case <-ctx.Done():
+						timer.Stop()
+						t.Fatal("candidate expired while waiting for clock tick")
+					}
+				}
+			}
 		}
 		return legacyignore.BatchResult{Decisions: make([]legacyignore.Decision, len(b.Paths))}, nil
 	}))
@@ -196,11 +217,17 @@ func TestFamilyBaselineBatchKeepsPerCandidateDeadline(t *testing.T) {
 	}
 	intent := domain.IgnoreIntent{Mode: domain.IgnoreModeFamily, CaseMode: domain.IgnoreCaseSensitive}
 	values, err := s.EvaluateFamilyIgnoreBaselineBatch(context.Background(), root, candidates, intent)
-	if err != nil || len(values) != len(candidates) || len(deadlines) != len(candidates) {
-		t.Fatal("both candidates must reach their own helper evaluation", len(values), len(deadlines), err)
+	if err != nil || len(values) != len(candidates) || len(contexts) != len(candidates) {
+		t.Fatal("both candidates must reach their own helper evaluation", len(values), len(contexts), err)
 	}
 	if !deadlines[1].After(deadlines[0]) {
 		t.Fatal("second candidate inherited the first candidate's deadline")
+	}
+	// Every candidate also releases its context independently.
+	for _, ctx := range contexts {
+		if ctx.Err() != context.Canceled {
+			t.Fatal("candidate context was not released")
+		}
 	}
 }
 
