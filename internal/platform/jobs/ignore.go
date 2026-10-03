@@ -106,7 +106,7 @@ func (r *Runner) executeIgnore(ctx context.Context, l domain.JobLease, request d
 			if err != nil {
 				return err, true
 			}
-			decision, proofs, e := r.options.Ignore.Observer.EvaluateIgnoreBaseline(ctx, root, candidate, request.Intent)
+			decision, proofs, e := r.evaluateIgnoreBaseline(ctx, root, candidate, request.Intent)
 			if e != nil {
 				if ctx.Err() != nil {
 					return ctx.Err(), false
@@ -175,7 +175,9 @@ func (r *Runner) executeIgnore(ctx context.Context, l domain.JobLease, request d
 			if err != nil {
 				return err, true
 			}
-			p, e := r.options.Ignore.Observer.ReobserveIgnoreProof(ctx, root, proof)
+			p, e := withJobIO(r, ctx, func() (domain.IgnoreDirectoryProof, error) {
+				return r.options.Ignore.Observer.ReobserveIgnoreProof(ctx, root, proof)
+			})
 			if e != nil {
 				return e, false
 			}

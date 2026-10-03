@@ -7,6 +7,7 @@ import (
 
 	"github.com/MoYuanCN/Jelee/internal/app"
 	"github.com/MoYuanCN/Jelee/internal/domain"
+	"github.com/MoYuanCN/Jelee/internal/platform/resources"
 )
 
 type familyBatchRepo struct {
@@ -22,6 +23,7 @@ func (f *familyBatchRepo) ReadFamilyIgnoreRoot(context.Context, domain.JobLease,
 
 type familyBatchScanner struct {
 	app.FamilyIgnoreScanner
+	budget           *resources.Budget
 	mode             string
 	batches, singles int
 }
@@ -30,10 +32,16 @@ func unknownFamilyCandidate(c domain.IgnoreBaselineCandidate) domain.FamilyBasel
 	return domain.FamilyBaselineEvaluation{Decision: domain.FamilyIgnoreBaselineDecision{RootID: c.RootID, Path: c.Path, Outcome: domain.IgnoreBaselineUnknown, Reason: domain.IgnoreUnknownSource}}
 }
 func (f *familyBatchScanner) EvaluateFamilyIgnoreBaseline(_ context.Context, _ string, c domain.IgnoreBaselineCandidate, _ domain.IgnoreIntent) (domain.FamilyBaselineEvaluation, error) {
+	if f.budget != nil && f.budget.Stats() != (resources.Stats{IO: 1, Total: 1}) {
+		return domain.FamilyBaselineEvaluation{}, domain.ErrInvalid
+	}
 	f.singles++
 	return unknownFamilyCandidate(c), nil
 }
 func (f *familyBatchScanner) EvaluateFamilyIgnoreBaselineBatch(_ context.Context, _ string, c []domain.IgnoreBaselineCandidate, _ domain.IgnoreIntent) ([]domain.FamilyBaselineEvaluation, error) {
+	if f.budget != nil && f.budget.Stats() != (resources.Stats{IO: 1, Total: 1}) {
+		return nil, domain.ErrInvalid
+	}
 	f.batches++
 	if f.mode == "unavailable" {
 		return nil, domain.ErrIgnoreUnavailable
@@ -61,10 +69,14 @@ func TestFamilyRunnerBaselineBatchDispatchAndRejection(t *testing.T) {
 			if mode == "root-failure" {
 				repo.err = domain.ErrDatabase
 			}
-			scanner := &familyBatchScanner{mode: mode}
-			r := &Runner{options: Options{DBOperationTimeout: time.Second, FamilyIgnore: &FamilyIgnoreOptions{Repository: repo, Scanner: scanner}}}
+			budget, _ := resources.New(resources.Limits{CPU: 1, IO: 1, Total: 1, Queue: 1})
+			scanner := &familyBatchScanner{mode: mode, budget: budget}
+			r := &Runner{options: Options{Budget: budget, DBOperationTimeout: time.Second, FamilyIgnore: &FamilyIgnoreOptions{Repository: repo, Scanner: scanner}}}
 			candidates := []domain.IgnoreBaselineCandidate{{RootID: "00000000-0000-4000-8000-000000000001", Path: "a.mkv"}, {RootID: "00000000-0000-4000-8000-000000000001", Path: "b.mkv"}, {RootID: "00000000-0000-4000-8000-000000000002", Path: "c.mkv"}}
 			got, err, storage := r.evaluateFamilyBaselinePage(context.Background(), domain.JobLease{}, candidates, domain.IgnoreIntent{})
+			if budget.Stats() != (resources.Stats{}) {
+				t.Fatal("baseline retained shared permit")
+			}
 			switch mode {
 			case "success", "unavailable":
 				wantSingles := 0

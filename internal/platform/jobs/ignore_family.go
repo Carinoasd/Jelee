@@ -175,7 +175,7 @@ func verifyFamilyStream[T any, P any](ctx context.Context, r *Runner, l domain.J
 			if err != nil {
 				return err, true
 			}
-			value, e := observe(ctx, root, p)
+			value, e := withJobIO(r, ctx, func() (T, error) { return observe(ctx, root, p) })
 			if e != nil {
 				return e, false
 			}
@@ -260,7 +260,9 @@ func (r *Runner) evaluateFamilyBaselinePage(ctx context.Context, l domain.JobLea
 		}
 		var values []domain.FamilyBaselineEvaluation
 		if batch, ok := scanner.(app.FamilyIgnoreBaselineBatchScanner); ok {
-			values, err = batch.EvaluateFamilyIgnoreBaselineBatch(ctx, root, group, intent)
+			values, err = withJobIO(r, ctx, func() ([]domain.FamilyBaselineEvaluation, error) {
+				return batch.EvaluateFamilyIgnoreBaselineBatch(ctx, root, group, intent)
+			})
 			if err != nil && !errors.Is(err, domain.ErrIgnoreUnavailable) {
 				return nil, err, false
 			}
@@ -271,7 +273,9 @@ func (r *Runner) evaluateFamilyBaselinePage(ctx context.Context, l domain.JobLea
 		if values == nil || err != nil {
 			values = make([]domain.FamilyBaselineEvaluation, 0, len(group))
 			for _, candidate := range group {
-				value, e := scanner.EvaluateFamilyIgnoreBaseline(ctx, root, candidate, intent)
+				value, e := withJobIO(r, ctx, func() (domain.FamilyBaselineEvaluation, error) {
+					return scanner.EvaluateFamilyIgnoreBaseline(ctx, root, candidate, intent)
+				})
 				if e != nil {
 					if ctx.Err() != nil {
 						return nil, ctx.Err(), false

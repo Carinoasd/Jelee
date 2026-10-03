@@ -87,3 +87,54 @@ func TestFamilyInventoryBudgetReleasedAfterBatchFailure(t *testing.T) {
 		})
 	}
 }
+
+func TestFamilyVerificationReleasesBeforeCommit(t *testing.T) {
+	for _, mode := range []string{"success", "observe-error", "cancel"} {
+		t.Run(mode, func(t *testing.T) {
+			budget, _ := resources.New(resources.Limits{CPU: 1, IO: 1, Total: 1, Queue: 1})
+			repo := &familyBatchRepo{}
+			r := &Runner{options: Options{Budget: budget, DBOperationTimeout: time.Second, FamilyIgnore: &FamilyIgnoreOptions{Repository: repo}}}
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			pages, observed, committed := 0, 0, 0
+			root := "00000000-0000-4000-8000-000000000001"
+			err, storage := verifyFamilyStream(ctx, r, domain.JobLease{}, 128,
+				func(context.Context) (int, []domain.IgnoreDirectoryProof, bool, error) {
+					pages++
+					return 1, []domain.IgnoreDirectoryProof{{RootID: root}}, pages > 1, nil
+				},
+				func(p domain.IgnoreDirectoryProof) string { return p.RootID },
+				func(_ context.Context, _ string, p domain.IgnoreDirectoryProof) (domain.IgnoreDirectoryProof, error) {
+					observed++
+					if stats := budget.Stats(); stats != (resources.Stats{IO: 1, Total: 1}) {
+						t.Errorf("proof without IO: %+v", stats)
+					}
+					if mode == "observe-error" {
+						return p, domain.ErrIgnoreUnavailable
+					}
+					if mode == "cancel" {
+						cancel()
+						return p, ctx.Err()
+					}
+					return p, nil
+				},
+				func(context.Context, int, []domain.IgnoreDirectoryProof) error {
+					committed++
+					if budget.Stats() != (resources.Stats{}) {
+						t.Error("proof held shared permit during commit")
+					}
+					return nil
+				})
+			if storage || observed != 1 || budget.Stats() != (resources.Stats{}) {
+				t.Fatal("verification lost phase or leaked permit")
+			}
+			if mode == "success" {
+				if err != nil || committed != 1 {
+					t.Fatal("verification did not commit once")
+				}
+			} else if err == nil || committed != 0 {
+				t.Fatal("failed observation was committed")
+			}
+		})
+	}
+}

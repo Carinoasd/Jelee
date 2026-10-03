@@ -57,3 +57,28 @@ func (r *Runner) scanFamilyIgnoreDirectory(ctx context.Context, directory domain
 	defer release()
 	return r.options.FamilyIgnore.Scanner.ScanFamilyIgnoreDirectory(ctx, directory, intent, emit)
 }
+
+// withJobIO scopes one synchronous observation, including any joined helper
+// process. It must be called after releasing any earlier shared permit.
+func withJobIO[T any](r *Runner, ctx context.Context, operation func() (T, error)) (T, error) {
+	release, err := r.acquireWork(ctx, app.WorkIO)
+	if err != nil {
+		var zero T
+		return zero, err
+	}
+	defer release()
+	return operation()
+}
+
+type ignoreBaselineObservation struct {
+	decision domain.IgnoreBaselineDecision
+	proofs   []domain.IgnoreDirectoryProof
+}
+
+func (r *Runner) evaluateIgnoreBaseline(ctx context.Context, root string, candidate domain.IgnoreBaselineCandidate, intent domain.IgnoreIntent) (domain.IgnoreBaselineDecision, []domain.IgnoreDirectoryProof, error) {
+	value, err := withJobIO(r, ctx, func() (ignoreBaselineObservation, error) {
+		decision, proofs, err := r.options.Ignore.Observer.EvaluateIgnoreBaseline(ctx, root, candidate, intent)
+		return ignoreBaselineObservation{decision, proofs}, err
+	})
+	return value.decision, value.proofs, err
+}

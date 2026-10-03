@@ -1,3 +1,9 @@
+## 最新接續：忽略基線與三種複核接入共用 I/O
+
+withJobIO泛型helper只包同步observer，普通EvaluateIgnoreBaseline用aggregate wrapper保留decision+proofs。普通Reobserve、family批次/逐筆Evaluate、verifyFamilyStream的observe皆接入。批次釋放後才fallback，observe釋放後才commit，不巢狀。family baseline六種矩陣加入真budget，verification成功/error/cancel驗證不誤提交與回收；Windowsjobs/architecture+vet、Linuxrace通過，docs/shared-work-budget.md/resources-baseline-race-linux.txt。
+
+接續監看建置/重建的I/O配額（不能把整個Observe長生命週期占住slot），再補索引/metadata下載與G41配置可觀測及真混合負載。正式af2530314062427bb16da7d2f11961b4/PID726258/start31439656/boot4a5d9c5c-4482-4c3e-8978-30156b1ce92f剛核實running/OOMfalse，source38a47082e9隔離快照不含後續資源接入，不重啟活躍run。全案未完成，PR46禁止merge。
+
 ## 最新接續：兩種忽略目錄掃描已接共用 I/O
 
 jobs/resources.go新增scanIgnoreDirectory與scanFamilyIgnoreDirectory，兩個executeInventory分支改呼叫wrapper；acquireWork到scanner+同步SaveBatch返回持IO，defer在error/panic返回釋放。一般ignore既有savefailure/missingdone/afterdone/success矩陣加真budget；family新增四種success/storage/missingdone/cancel矩陣。Windowsjobs/architecture+vet及Linuxrace通過，docs/shared-work-budget.md及resources-ignore-race-linux.txt記錄。未修改baseline/verification，接著補那些操作與watch；全域需求仍部分。
