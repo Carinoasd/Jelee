@@ -168,15 +168,7 @@ func (s *Store) releaseJob(ctx context.Context, l domain.JobLease, planned bool)
 		return err
 	}
 	if current.Job.Kind == domain.JobNFOWrite {
-		// A journal pins the owner and generation (schema49); such a job stops
-		// and is resolved by recovery instead of returning to the queue.
-		var journaled bool
-		if err = tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM nfo_write_commit_journal WHERE job_id=$1::uuid)`, l.Job.ID).Scan(&journaled); err != nil {
-			return storageError(err)
-		}
-		if journaled {
-			return domain.ErrConflict
-		}
+		return domain.ErrInvalid
 	}
 	if err = releaseParentProbeLeases(ctx, tx, l.Job.ID); err != nil {
 		return err

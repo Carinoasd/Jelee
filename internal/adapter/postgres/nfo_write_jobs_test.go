@@ -18,8 +18,8 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 )
 
-// Only a private SQL fixture can create these jobs until admission and commit
-// recovery are connected. No runtime capability or read-write mode is enabled.
+// A private SQL fixture that also supports historical schemas; current code
+// admits these jobs through SubmitNFOWriteJob.
 func nfoWriteJobFixture(t *testing.T, f jobFixture, prepared domain.NFOWritePreparation, key, priority string, additionalPreparations ...string) domain.Job {
 	t.Helper()
 	tx, err := f.s.authorizedJobs(f.ctx, f.a)
@@ -133,9 +133,12 @@ func TestNFOWriteJobsFenceObservationAndExcludeOldWorker(t *testing.T) {
 				if _, err := f.s.ClaimJob(f.ctx, "old-recovery", false, time.Minute); err != domain.ErrNotFound {
 					t.Fatal("old worker recovered write job", err)
 				}
-				var state, owner string
-				if err := f.s.Pool.QueryRow(f.ctx, `SELECT state,owner FROM jobs WHERE id=$1::uuid`, j.ID).Scan(&state, &owner); err != nil || state != "running" || owner != l.Owner {
-					t.Fatal("unsupported recovery mutated lease")
+				// Without a commit journal nothing touched the filesystem, so the
+				// expired claim returns to the queue for an NFO-write worker only.
+				var state string
+				var owner *string
+				if err := f.s.Pool.QueryRow(f.ctx, `SELECT state,owner FROM jobs WHERE id=$1::uuid`, j.ID).Scan(&state, &owner); err != nil || state != "queued" || owner != nil {
+					t.Fatal("expired unjournaled write job was not requeued")
 				}
 			case "cancelled":
 				if _, err := f.s.CancelJob(f.ctx, f.a, j.ID); err != nil {
