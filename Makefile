@@ -14,7 +14,7 @@ BENCH_CURRENT ?= .testdata/bench-current.txt
 BENCH_BASELINE ?= docs/evidence/bench-baseline.txt
 BENCHGATE_FLAGS ?=
 
-.PHONY: image-memory-test image-memory-smoke-test scan-memory-test scan-memory-smoke-test runtime-memory-test runtime-memory-worker-test memory-contract-test i18n-check family-ignore-sustained-worker-test ignore-sustained-test init bootstrap bootstrap-media bootstrap-runtime runtime-tools-verify runtime-toolchain-test probe-runtime-test probe-worker-test nfo-worker-test family-ignore-worker-test ignore-oracle-test sandbox-test tools-verify media-tools-verify tools-clean fixtures fixtures-test build test test-race test-integration coverage fmt fmt-check lint toolchain-test media-toolchain-test brand-scan brand-scan-incremental gitignore-check openapi openapi-check migrate doctor bench bench-check benchgate-test
+.PHONY: image-memory-test image-memory-smoke-test scan-memory-test scan-memory-smoke-test runtime-memory-test runtime-memory-worker-test memory-contract-test i18n-check family-ignore-sustained-worker-test ignore-sustained-test init bootstrap bootstrap-media bootstrap-runtime runtime-tools-verify runtime-toolchain-test probe-runtime-test probe-worker-test nfo-worker-test family-ignore-worker-test ignore-oracle-test sandbox-test tools-verify media-tools-verify tools-clean fixtures fixtures-test build test test-race test-integration coverage fmt fmt-check lint toolchain-test media-toolchain-test brand-scan brand-scan-incremental gitignore-check openapi openapi-check migrate doctor bench bench-check benchgate-test doc-check dev nfo diag
 init: bootstrap
 bootstrap:
 	sh scripts/bootstrap-tools
@@ -99,7 +99,7 @@ fmt:
 	"$(GO)" fmt ./...
 fmt-check:
 	$(PYTHON) scripts/check-format.py
-lint: fmt-check openapi-check
+lint: fmt-check openapi-check doc-check
 	"$(GO)" vet ./...
 toolchain-test:
 	$(PYTHON) -B scripts/test_toolchain.py
@@ -121,6 +121,36 @@ migrate:
 	"$(GO)" run ./cmd/jelee-migrate up
 doctor:
 	"$(GO)" run ./cmd/jelee-cli doctor
+# Offline documentation gate (G49.8): relative links and anchors in README.md
+# and docs/, external link format (no network) and documented error codes.
+doc-check:
+	"$(GO)" run ./tools/doccheck
+# Local development server on JELEE_LISTEN (default 127.0.0.1:8097). Needs a
+# migrated database: set JELEE_DATABASE_URL (or _FILE / JELEE_CONFIG), then
+# run `make migrate` once.
+dev:
+	@test -n "$$JELEE_DATABASE_URL$$JELEE_DATABASE_URL_FILE$$JELEE_CONFIG" || { echo 'make dev: set JELEE_DATABASE_URL (or JELEE_DATABASE_URL_FILE / JELEE_CONFIG) to a development database, then run make migrate' >&2; exit 2; }
+	"$(GO)" run ./cmd/jelee
+# NFO checks without a database. With NFO_ROOT (absolute media root) and
+# NFO_FILE (root-relative .nfo) it validates that file read-only; otherwise it
+# runs the offline NFO reader/writer test suites.
+nfo:
+	@if [ -n "$(NFO_ROOT)$(NFO_FILE)" ]; then \
+		if [ -z "$(NFO_ROOT)" ] || [ -z "$(NFO_FILE)" ]; then echo 'make nfo: set both NFO_ROOT and NFO_FILE' >&2; exit 2; fi; \
+		"$(GO)" run ./cmd/jelee-cli nfo validate --root "$(NFO_ROOT)" --file "$(NFO_FILE)"; \
+	else \
+		"$(GO)" test -count=1 ./internal/adapter/nfo && \
+		"$(GO)" test -count=1 -run 'NFO|Nfo' ./internal/domain ./internal/app ./cmd/jelee-cli; \
+	fi
+# Diagnostics entry (G50). `jelee-cli diag export` is not implemented yet, so
+# this runs every existing doctor check and reports all sections before
+# failing: pinned media tools, probe sandbox, then configuration/database.
+diag:
+	@status=0; \
+	echo '== jelee-cli doctor tools'; "$(GO)" run ./cmd/jelee-cli doctor tools || status=1; \
+	echo '== jelee-cli doctor probe'; "$(GO)" run ./cmd/jelee-cli doctor probe || status=1; \
+	echo '== jelee-cli doctor'; "$(GO)" run ./cmd/jelee-cli doctor || status=1; \
+	exit $$status
 
 i18n-check:
 	$(PYTHON) scripts/check-ui-locales.py
