@@ -1,6 +1,6 @@
 # NFO 檔案 checkpoint 的持久化（schema55）
 
-schema55 將[已保存 witness pair 的內部續作](nfo-partial-stage-recovery.md)接到 PostgreSQL 與 StageCommitFiles。完整凍結 PG 回歸與獨立核驗已通過；本批準備提交至既有 PR46。原 target 保持，正式 read-write 與 worker 尚未啟用。
+schema55 將[已保存 witness pair 的內部續作](nfo-partial-stage-recovery.md)接到 PostgreSQL 與 StageCommitFiles。完整凍結 PG 回歸與獨立核驗已通過；已提交並推送807e494f5769448ee4832ffcb7f82dfa9a0f4972至既有 PR46，遠端HEAD吻合。原 target 保持，正式 read-write 與 worker 尚未啟用。
 
 ## 首次證據與固定容量
 
