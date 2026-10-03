@@ -2,7 +2,15 @@
 
 ## 需求與目前狀態
 
-G13.5 要求掃描窗口避開高峰。此功能尚未啟用；已具備 `internal/adapter/calendar/window.go` 時間判斷與 PostgreSQL `PauseJob` 持久暫停操作，不能視為 worker 已受到限制。
+G13.5 要求掃描窗口避開高峰。時間判斷、設定與 worker 已接線：窗外不領取工作，執行中每秒檢查一次，關窗取消目前操作並在其收束後呼叫有租約保護的計畫暫停。重新開窗從持久 checkpoint 續跑。整個 G13.5 仍有目錄並行、CPU/I/O 全域預算及完整增量整合待完成。
+
+## 設定
+
+在 jobs JSON 設定 `windowStart`、`windowEnd`、`windowTimezone`，例如 `22:00`、`06:00`、`Asia/Taipei`。環境變數 `JELEE_JOB_WINDOW_START`、`JELEE_JOB_WINDOW_END`、`JELEE_JOB_WINDOW_TIMEZONE` 覆寫對應 JSON 欄位。三者預設皆空，全天執行；修改後需重新啟動。job worker 啟用時，不完整或無效窗口會拒絕啟動。
+
+此設定限制該實例的所有 job worker，包含手動、排程、watcher 所建立的掃描及 catalog import；不限制一般 HTTP 讀取。窗外仍可提交至原本有容量上限的持久佇列，沒有額外記憶體等待佇列。多實例應使用一致設定。
+
+關窗觀測粒度為一秒，加上正在進行操作的取消收束時間；不承諾在邊界瞬間搶占同步解碼。開始工作前再檢查一次，避免 claim 期間剛好關窗。正常 Stop、執行期限、租約失效與使用者取消維持既有語意。真正 I/O 失敗即使與關窗同時發生，仍記為失敗。
 
 ## 時間規則
 
@@ -10,17 +18,13 @@ G13.5 要求掃描窗口避開高峰。此功能尚未啟用；已具備 `intern
 
 判斷以實際時間點轉換成当地時分，不用固定 24 小時推算一天。夏令時間回撥時，兩次出現的同一時分都依相同規則；跳過的時分沒有可執行時間。單元測試涵蓋 UTC 精確邊界、台北跨午夜與紐約春秋切換。
 
-## 必須完成的執行整合
+## 執行契約
 
-1. 設定載入與嚴格驗證，預設不限制。直到 worker 真正接線前，不公開會被忽略的設定。
-2. 所有工作領取分支在窗外停止領取，保持持久佇列；不能只限制 scheduler，因為手動及 watcher 同樣會排入掃描。
-3. 工作執行中關窗時，以既有取消機制停止 I/O／子程序，等待 monitor 收束，保留 checkpoint 並交還租約；重新開窗才續跑。
-4. 新增受 owner/generation/lease 保護的「計畫暫停」持久操作。現有 ReleaseJob 保留 attempts 並在達上限時直接失敗，不能直接拿來實作正常關窗，否則跨多日掃描會耗盡重試。
-5. 取消請求優先於暫停；原工作重試與故障上限不可被暫停繞過。核對整合的 probe/NFO/catalog stage 狀態與恢復行為。
-6. 真 PostgreSQL 驗證 checkpoint 保留、嘗試次數不耗盡、過期 owner 拒絕、取消競態；worker 以受控時鐘驗證窗外不領取、關窗停止、重新開窗續跑及 Stop 收束。
-7. 更新設定說明、需求追蹤與執行證據。多節點需一致時區及時間窗設定；這不是跨節點全域 CPU/I/O 配額的替代方案。
+所有 claim 分支共用窗外檢查；服務內既有 monitor 增加一個每秒計時器，沒有新增每工作 goroutine。關窗取消後先等待工作與 monitor 收束，再用獨立有界資料庫 context 暫停。只接受能提供 JobPauseRepository 的 repository，避免配置啟用卻無法保存暫停。
 
-未完成以上整合前，G13.5 的掃描窗口仍屬未交付。正式長測的 c61c12b007 快照不包含本功能。
+暫停與使用者取消透過持久交易排序；已取消的工作不會重新入隊。過期 owner 不可暫停或發布。正常故障與服務中斷維持既有 ReleaseJob 與重試限制。
+
+尚待補充 probe/NFO/ignore 各階段的真實關窗恢复矩陣及多節點測試。正式長測的 c61c12b007 快照不包含本功能。
 
 ## 持久暫停驗證
 
@@ -30,4 +34,10 @@ G13.5 要求掃描窗口避開高峰。此功能尚未啟用；已具備 `intern
 
 [暫停測試](evidence/jobs-pause-linux-race.txt)、[既有回歸](evidence/jobs-pause-regression-linux-race.txt) 均通過。回歸包括取消與 fencing、部分目錄重新開始、交易內租約到期回滾、工作指標及 catalog import 續跑。Windows vet 通過。
 
-尚未接上配置與 worker，時間窗仍未啟用；probe/NFO 等所有執行階段的關窗中斷需隨 worker 整合驗證。
+配置與 worker 已接上；probe/NFO 等所有執行階段仍需擴充真實關窗中斷矩陣。
+
+## Worker 驗證
+
+受控計時器覆蓋窗外不 claim、開窗後 claim、執行中關窗等待 scanner 收束後 PauseJob、claim 期间關窗不開始掃描，以及真實掃描失敗不被關窗掩蓋。Stop 後沒有遺留 timer。
+
+真 PostgreSQL worker 保存根目錄 checkpoint 後關窗，工作回 queued、attempts 歸零且檔案/位元組保留；開窗後從子目錄續跑至 succeeded、attempts 為一。證據：[worker/配置/calendar Linux race](evidence/jobs-window-unit-linux-race.txt)、[PostgreSQL worker 與暫停 Linux race](evidence/jobs-window-linux-race.txt)。這不是整套 G13.5 效能驗收，也不代替多節點負載測試。

@@ -139,3 +139,7 @@ Controllable timers exercise long deadlines without long sleeps. Each worker tes
 joins its runner and checks that its timers were released. PostgreSQL fencing,
 rollback and recovery integration tests belong to the repository adapter; real
 filesystem handle and path checks belong to the scanner adapter.
+
+## 每日工作時間窗
+
+可設定 `JELEE_JOB_WINDOW_START=22:00`、`JELEE_JOB_WINDOW_END=06:00`、`JELEE_JOB_WINDOW_TIMEZONE=Asia/Taipei`（三欄預設皆空）。窗外不領取工作，執行中每秒檢查關窗並保留進度暫停，開窗續跑；手動與背景工作都適用。設定需重啟，多節點需一致。完整邊界、限制與證據見[掃描時間窗](scan-window.md)。

@@ -1,9 +1,15 @@
 package postgres
 
 import (
+	"context"
 	"errors"
 	"github.com/MoYuanCN/Jelee/internal/domain"
+	jobworker "github.com/MoYuanCN/Jelee/internal/platform/jobs"
+	"io"
+	"log/slog"
+	"sync/atomic"
 	"testing"
+	"time"
 )
 
 func TestJobsPlannedPausePreservesCheckpointsAndFailureBudget(t *testing.T) {
@@ -87,5 +93,82 @@ func TestJobsPlannedPauseCancellationAndExpiredLease(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+type pauseWorkWindow struct{ open atomic.Bool }
+
+func (w *pauseWorkWindow) Allows(time.Time) bool { return w.open.Load() }
+
+type pauseInventoryScanner struct{ entered chan struct{} }
+
+func (s pauseInventoryScanner) ScanDirectory(ctx context.Context, d domain.ScanDirectory, emit func(domain.ScanBatch) error) error {
+	if d.Path == "." {
+		if err := emit(domain.ScanBatch{Entries: []domain.InventoryEntry{scanEntry(d, "movie.mkv", 7)}, Directories: []string{"child"}, Done: true}); err != nil {
+			return err
+		}
+		close(s.entered)
+		<-ctx.Done()
+		return ctx.Err()
+	}
+	return emit(domain.ScanBatch{Done: true})
+}
+
+func TestJobsWindowWorkerPausesAndResumesPostgres(t *testing.T) {
+	f := newJobFixture(t)
+	job := f.submit(t, "window-worker")
+	window := &pauseWorkWindow{}
+	window.open.Store(true)
+	scanner := pauseInventoryScanner{entered: make(chan struct{})}
+	opts := jobworker.DefaultOptions()
+	opts.Workers = 1
+	opts.PollInterval = 100 * time.Millisecond
+	opts.Window = window
+	r, err := jobworker.New(f.s, scanner, opts, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = r.Start(f.ctx); err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+		defer cancel()
+		if err := r.Stop(ctx); err != nil {
+			t.Error(err)
+		}
+	}()
+	select {
+	case <-scanner.entered:
+	case <-time.After(5 * time.Second):
+		t.Fatal("scan did not start")
+	}
+	window.open.Store(false)
+	await := func(state string) domain.Job {
+		t.Helper()
+		deadline := time.NewTimer(5 * time.Second)
+		defer deadline.Stop()
+		tick := time.NewTicker(20 * time.Millisecond)
+		defer tick.Stop()
+		for {
+			got := f.get(t, job.ID)
+			if got.State == state {
+				return got
+			}
+			select {
+			case <-deadline.C:
+				t.Fatalf("state=%s want=%s code=%s", got.State, state, got.ErrorCode)
+			case <-tick.C:
+			}
+		}
+	}
+	paused := await(domain.JobQueued)
+	if paused.Attempts != 0 || paused.Files != 1 || paused.Bytes != 7 {
+		t.Fatalf("paused progress: %+v", paused)
+	}
+	window.open.Store(true)
+	completed := await(domain.JobSucceeded)
+	if completed.Attempts != 1 || completed.Files != 1 || completed.Bytes != 7 {
+		t.Fatalf("resumed progress: %+v", completed)
 	}
 }

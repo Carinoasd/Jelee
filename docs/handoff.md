@@ -1,3 +1,11 @@
+## 最新接續：時間窗已接入配置與 worker
+
+新增 Jobs.WindowStart/End/Timezone（JSON windowStart/windowEnd/windowTimezone，環境 JELEE_JOB_WINDOW_START/END/TIMEZONE），預設皆空全天。runtime 解析 calendar.DailyWindow 注入 worker。窗外所有 claim 分支等待；monitor 每秒檢查關窗，取消並 join 後 PauseJob，保留 checkpoint 且不耗故障重試。領取期間關窗也不開始掃描；非取消的真實掃描錯誤不以關窗掩蓋。啟用需 repository 實作 JobPauseRepository。
+
+Windows jobs/config/calendar 全套件、runtime 編譯選測及 vet 通過；最終 Linux 三套件 race 通過。真 PG race 驗證 root checkpoint 關窗後 queued/attempts0、開窗子目錄續跑 succeeded/attempts1，另包含既有計畫暫停測試。見 docs/scan-window.md 與 docs/evidence/jobs-window-*.txt。
+
+後续補 probe/NFO/ignore/catalog 各階段的實際關窗取消恢復矩陣、真正 runtime 配置啟動整合。G13.5仍部分完成；全域資源預算與目錄並行未完成，不能把本批當第三階段結案。正式長測沿用 c61c12b007 的 run033822f3aecf4b6491406594c8687cfd/PID645523，不包含後續產品改動。
+
 ## 最新接續：計畫暫停持久操作已驗證
 
 新增 app.JobPauseRepository/PauseJob，Postgres 共用 releaseJob(planned) 保持 owner/generation/lease 與最終 UPDATE fence。計畫暫停僅退回目前 claim 的一次 attempts；取消優先，checkpoint 不刪，一般 ReleaseJob 故障上限不變。真 PG race 新測試與六組既有回歸通過，證據見 docs/scan-window.md。未改遷移。

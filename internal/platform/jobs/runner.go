@@ -30,7 +30,11 @@ type realTimer struct{ *time.Timer }
 func (realClock) NewTimer(d time.Duration) Timer { return realTimer{time.NewTimer(d)} }
 func (t realTimer) C() <-chan time.Time          { return t.Timer.C }
 
+type WorkWindow interface{ Allows(time.Time) bool }
+
 type Options struct {
+	Window             WorkWindow
+	Now                func() time.Time
 	CatalogImport      *CatalogImportOptions
 	Ignore             *IgnoreOptions
 	FamilyIgnore       *FamilyIgnoreOptions
@@ -52,6 +56,7 @@ func DefaultOptions() Options {
 var (
 	errCancelRequested = errors.New("persisted job cancellation")
 	errHeartbeatFailed = errors.New("job heartbeat failed")
+	errWindowClosed    = errors.New("job work window closed")
 )
 
 type Runner struct {
@@ -82,6 +87,14 @@ func New(repository app.JobExecutionRepository, scanner app.InventoryScanner, op
 		opts.DBOperationTimeout <= 0 || opts.DBOperationTimeout >= opts.LeaseDuration/3 ||
 		opts.MaxJobRuntime < time.Minute || opts.MaxJobRuntime > 24*time.Hour || opts.Owner != "" && !domain.ValidID(opts.Owner) {
 		return nil, domain.ErrInvalid
+	}
+	if opts.Window != nil {
+		if _, ok := repository.(app.JobPauseRepository); !ok {
+			return nil, domain.ErrInvalid
+		}
+	}
+	if opts.Now == nil {
+		opts.Now = time.Now
 	}
 	if opts.Owner == "" {
 		var id [16]byte
@@ -199,6 +212,12 @@ func (r *Runner) Stop(ctx context.Context) error {
 func (r *Runner) work(ctx context.Context) {
 	turn := 0
 	for ctx.Err() == nil {
+		if r.options.Window != nil && !r.options.Window.Allows(r.options.Now()) {
+			if !r.wait(ctx, r.options.PollInterval) {
+				return
+			}
+			continue
+		}
 		dbCtx, cancel := context.WithTimeout(ctx, r.options.DBOperationTimeout)
 		var lease domain.JobLease
 		var err error
@@ -254,7 +273,12 @@ func (r *Runner) monitor(ctx context.Context, lease domain.JobLease, cancelJob c
 		cancellation = r.options.Clock.NewTimer(time.Second)
 		cancellationReady = cancellation.C()
 	}
-	close(started)
+	var window Timer
+	var windowReady <-chan time.Time
+	if r.options.Window != nil {
+		window = r.options.Clock.NewTimer(time.Second)
+		windowReady = window.C()
+	}
 	defer close(done)
 	defer func() {
 		heartbeat.Stop()
@@ -262,11 +286,28 @@ func (r *Runner) monitor(ctx context.Context, lease domain.JobLease, cancelJob c
 		if cancellation != nil {
 			cancellation.Stop()
 		}
+		if window != nil {
+			window.Stop()
+		}
 	}()
+	if r.options.Window != nil && !r.options.Window.Allows(r.options.Now()) {
+		cancelJob(errWindowClosed)
+		close(started)
+		return
+	}
+	close(started)
 	for {
 		select {
 		case <-ctx.Done():
 			return
+		case <-windowReady:
+			if !r.options.Window.Allows(r.options.Now()) {
+				cancelJob(errWindowClosed)
+				return
+			}
+			window.Stop()
+			window = r.options.Clock.NewTimer(time.Second)
+			windowReady = window.C()
 		case <-runtime.C():
 			cancelJob(context.DeadlineExceeded)
 			return
@@ -339,6 +380,16 @@ func (r *Runner) run(serviceCtx context.Context, lease domain.JobLease) {
 	cause := context.Cause(ctx)
 	if errors.Is(err, domain.ErrJobLeaseLost) || errors.Is(err, domain.ErrProbeLeaseLost) || errors.Is(cause, domain.ErrJobLeaseLost) || errors.Is(cause, errHeartbeatFailed) {
 		r.logger.Warn("job ownership could not be retained", "component", "jobs", "taskId", lease.Job.ID, "code", "job_lease_lost")
+		return
+	}
+	// A planned closure refunds the current claim only after work and monitor
+	// have joined. The repository rechecks persisted cancellation under its lock.
+	if errors.Is(cause, errWindowClosed) && (err == nil || errors.Is(err, context.Canceled)) {
+		dbCtx, cancelDB := context.WithTimeout(context.WithoutCancel(serviceCtx), r.options.DBOperationTimeout)
+		defer cancelDB()
+		if err := r.repository.(app.JobPauseRepository).PauseJob(dbCtx, lease); err != nil {
+			r.logPersistenceFailure(lease)
+		}
 		return
 	}
 	// Cleanup survives service cancellation but always has its own short bound.
