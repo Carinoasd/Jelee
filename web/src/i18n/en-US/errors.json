@@ -1,0 +1,14 @@
+{
+  "errors": {
+    "generic": "Something went wrong. Please try again later.",
+    "network": "Cannot reach the server. Check your connection and try again.",
+    "sessionExpired": "Your session has ended. Please sign in again.",
+    "forbidden": "You do not have permission to do this.",
+    "traceId": "Trace ID: {id}",
+    "notFoundTitle": "Page not found",
+    "notFoundBody": "The page you requested does not exist.",
+    "forbiddenTitle": "Access denied",
+    "forbiddenBody": "Your account cannot view this page.",
+    "backHome": "Back to libraries"
+  }
+}

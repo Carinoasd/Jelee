@@ -14,7 +14,10 @@ BENCH_CURRENT ?= .testdata/bench-current.txt
 BENCH_BASELINE ?= docs/evidence/bench-baseline.txt
 BENCHGATE_FLAGS ?=
 
-.PHONY: image-memory-test image-memory-smoke-test scan-memory-test scan-memory-smoke-test runtime-memory-test runtime-memory-worker-test memory-contract-test i18n-check family-ignore-sustained-worker-test ignore-sustained-test init bootstrap bootstrap-media bootstrap-runtime runtime-tools-verify runtime-toolchain-test probe-runtime-test probe-worker-test nfo-worker-test family-ignore-worker-test ignore-oracle-test sandbox-test tools-verify media-tools-verify tools-clean fixtures fixtures-test build test test-race test-integration coverage fmt fmt-check lint toolchain-test media-toolchain-test brand-scan brand-scan-incremental gitignore-check openapi openapi-check migrate doctor bench bench-check benchgate-test doc-check dev nfo diag
+NPM := $(CURDIR)/.bin/npm
+WEB := --workspace @jelee/web
+
+.PHONY: image-memory-test image-memory-smoke-test scan-memory-test scan-memory-smoke-test runtime-memory-test runtime-memory-worker-test memory-contract-test i18n-check family-ignore-sustained-worker-test ignore-sustained-test init bootstrap bootstrap-media bootstrap-runtime runtime-tools-verify runtime-toolchain-test probe-runtime-test probe-worker-test nfo-worker-test family-ignore-worker-test ignore-oracle-test sandbox-test tools-verify media-tools-verify tools-clean fixtures fixtures-test build test test-race test-integration coverage fmt fmt-check lint toolchain-test media-toolchain-test brand-scan brand-scan-incremental gitignore-check openapi openapi-check migrate doctor bench bench-check benchgate-test doc-check dev nfo diag web-install web-build web-test web-lint web-types
 init: bootstrap
 bootstrap:
 	sh scripts/bootstrap-tools
@@ -148,3 +151,16 @@ diag:
 
 i18n-check:
 	$(PYTHON) scripts/check-ui-locales.py
+
+# Web frontend (G31/G27). Uses the manifest-pinned Node from `make bootstrap`;
+# dependency lifecycle scripts never run (also enforced by .npmrc).
+web-install:
+	"$(NPM)" ci --ignore-scripts
+web-types:
+	"$(NPM)" run $(WEB) types
+web-lint:
+	"$(NPM)" run $(WEB) lint
+web-test:
+	"$(NPM)" run $(WEB) test
+web-build:
+	"$(NPM)" run $(WEB) build

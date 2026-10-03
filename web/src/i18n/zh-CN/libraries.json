@@ -1,0 +1,7 @@
+{
+  "libraries": {
+    "title": "媒体库",
+    "roots": "根目录数量：{count}",
+    "empty": "当前没有可访问的媒体库。"
+  }
+}

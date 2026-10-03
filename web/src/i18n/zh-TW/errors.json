@@ -1,0 +1,14 @@
+{
+  "errors": {
+    "generic": "操作失敗，請稍後再試。",
+    "network": "無法連線到伺服器，請檢查網路後重試。",
+    "sessionExpired": "登入已失效，請重新登入。",
+    "forbidden": "你沒有執行此操作的權限。",
+    "traceId": "追蹤編號：{id}",
+    "notFoundTitle": "頁面不存在",
+    "notFoundBody": "找不到你要造訪的頁面。",
+    "forbiddenTitle": "無權存取",
+    "forbiddenBody": "你的帳號無權檢視此頁面。",
+    "backHome": "返回媒體庫"
+  }
+}

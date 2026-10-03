@@ -1,0 +1,56 @@
+/* Design tokens: single source for color, spacing, radius, type and motion
+   (G33.1, G34.1). Spacing follows a 4/8 px grid. Runtime overrides replace
+   these custom properties; components never hard-code values. */
+:root {
+  color-scheme: light dark;
+  --jl-color-bg: #f7f7f9;
+  --jl-color-surface: #ffffff;
+  --jl-color-text: #1b1d22;
+  --jl-color-text-muted: #545a66;
+  --jl-color-border: #c9cdd6;
+  --jl-color-primary: #2f5bd3;
+  --jl-color-primary-text: #ffffff;
+  --jl-color-danger: #b42318;
+  --jl-color-danger-bg: #fdecea;
+  --jl-color-focus: #1d4ed8;
+  --jl-space-1: 4px;
+  --jl-space-2: 8px;
+  --jl-space-3: 12px;
+  --jl-space-4: 16px;
+  --jl-space-6: 24px;
+  --jl-space-8: 32px;
+  --jl-radius-sm: 4px;
+  --jl-radius-md: 8px;
+  --jl-shadow-1: 0 1px 2px rgb(0 0 0 / 8%), 0 1px 3px rgb(0 0 0 / 6%);
+  --jl-font-family: system-ui, -apple-system, "Segoe UI", "Noto Sans", "Hiragino Sans", "Microsoft JhengHei",
+    "Microsoft YaHei", sans-serif;
+  --jl-font-size-sm: 0.875rem;
+  --jl-font-size-md: 1rem;
+  --jl-font-size-lg: 1.25rem;
+  --jl-font-size-xl: 1.5rem;
+  --jl-z-header: 10;
+  --jl-motion-duration: 200ms;
+  --jl-motion-easing: cubic-bezier(0.2, 0, 0, 1);
+  --jl-touch-target: 44px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --jl-color-bg: #121418;
+    --jl-color-surface: #1c1f26;
+    --jl-color-text: #eceef2;
+    --jl-color-text-muted: #a9afbb;
+    --jl-color-border: #3a3f4b;
+    --jl-color-primary: #7ea2ff;
+    --jl-color-primary-text: #0b1530;
+    --jl-color-danger: #ffb4ab;
+    --jl-color-danger-bg: #3b1512;
+    --jl-color-focus: #a8c1ff;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --jl-motion-duration: 0ms;
+  }
+}

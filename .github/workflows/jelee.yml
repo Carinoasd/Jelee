@@ -30,6 +30,9 @@ jobs:
       - name: Linux bootstrap and verification
         if: runner.os == 'Linux'
         run: make bootstrap tools-verify bootstrap-media media-tools-verify bootstrap-runtime runtime-tools-verify runtime-toolchain-test fixtures fixtures-test toolchain-test media-toolchain-test lint build test-race sandbox-test probe-runtime-test gitignore-check brand-scan-incremental
+      - name: Web frontend gates on Linux
+        if: runner.os == 'Linux'
+        run: make web-install web-types web-lint web-test web-build
       - name: Windows bootstrap and verification
         if: runner.os == 'Windows'
         shell: pwsh

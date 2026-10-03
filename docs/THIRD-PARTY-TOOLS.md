@@ -5,6 +5,9 @@
 | 名称 | 版本 | 许可证与归属 | 用途 | 分发范围 |
 | --- | --- | --- | --- | --- |
 | Go（包含 gofmt、vet、coverage） | 1.27.1 | BSD-3-Clause，The Go Authors；发行包内 `go/LICENSE` 与 `go/PATENTS` 保留 | 构建、检查、测试 | 仅项目本地工具；工具链不随应用二进制分发 |
+| Node.js（含 npm 11.19.0） | 24.21.0 | MIT，Node.js contributors / OpenJS Foundation；捆绑组件许可列于发行包 `LICENSE` | 前端安装、型别检查、lint、测试与构建 | 仅项目本地工具；不随 Go 服务端或容器镜像分发 |
+| npm 前端开发依赖（Vite、vue-tsc、ESLint、Vitest、openapi-typescript 等） | 见 `package-lock.json` | 各包自身许可（以 MIT/Apache-2.0/BSD 为主），版本与完整性哈希锁在 lockfile | 前端构建与检查 | 构建期依赖；产物只包含 Vue、vue-router、Pinia、vue-i18n、openapi-fetch 的运行代码 |
+| Playwright | 1.63.0（仅预留） | Apache-2.0，Microsoft Corporation 与贡献者 | 未来 E2E / 视觉回归 | 尚未安装、未下载浏览器 |
 | Gyan Windows amd64 ffmpeg / ffprobe | `9.0.2-essentials_build-www.gyan.dev` | GPL-3.0-or-later，FFmpeg developers、Gyan Doshi 与所链接依赖作者；保留发行包 `LICENSE`、README 与文档 | 可选开发工具；ffmpeg 仅用于合成测试素材/调试，ffprobe 用于开发验证 | 本地被忽略目录，不进入本阶段生产镜像 |
 | BtbN Linux amd64 ffmpeg / ffprobe | `n9.0.2-17-g2a571b6068-20260930` | GPL-3.0-or-later，FFmpeg developers、BtbN 与所链接依赖作者；保留发行包 `LICENSE.txt` 及文档 | 同上；glibc 2.28+、Linux 4.18+ | 本地被忽略目录，不进入本阶段生产镜像 |
 | Debian libc6 amd64（七个 ELF） | `2.41-12+deb13u4` | LGPL-2.1-or-later 与文件级条款；完整包版权文件保留，glibc contributors / Free Software Foundation / Debian GNU Libc Maintainers | 实验 Linux ffprobe 的加载器与 glibc 闭包 | 仅本地实验镜像；未发布公共镜像 |
@@ -22,7 +25,7 @@
 
 此前 Linux race 测试的实际结果保留，但当时宿主 C 编译器尚未登记；2026-10-01 补登记后，再进行最终 Linux race 复验。不得将历史测试描述为已满足 manifest-first。Windows 未找到可用 race 编译器的结果仍为不可用，没有安装新编译器。盘点证据见 `docs/evidence/host-compiler.txt`。
 
-浏览器驱动、Node、mkvtoolnix、mediainfo 与其余扫描工具尚未加入清单；不可据此表宣称 G51 工具集合已完整。完整状态见 `docs/toolchain.md`。将来新增工具须先记录来源、精确版本、平台、SHA256、许可证与归属，再允许下载。
+浏览器驱动（Playwright 仅预留）、mkvtoolnix、mediainfo 与其余扫描工具尚未加入清单；不可据此表宣称 G51 工具集合已完整。完整状态见 `docs/toolchain.md`。将来新增工具须先记录来源、精确版本、平台、SHA256、许可证与归属，再允许下载。
 
 ## 媒体构建来源与许可
 

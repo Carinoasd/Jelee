@@ -460,6 +460,86 @@
           "executable": "go/bin/go"
         }
       }
+    },
+    {
+      "name": "node",
+      "version": "24.21.0",
+      "releaseLine": "24.x Active LTS (Krypton)",
+      "bundledPackageManager": "npm 11.19.0",
+      "purpose": "Install, type-check, lint, test and build the web frontend in web/; never a runtime dependency of the Go server",
+      "required": true,
+      "license": "MIT (Node.js); bundled dependencies retain the licenses listed in the archive LICENSE file",
+      "attribution": "Node.js contributors and the OpenJS Foundation",
+      "homepage": "https://nodejs.org/",
+      "metadataSource": "https://nodejs.org/dist/index.json",
+      "checksumURL": "https://nodejs.org/dist/v24.21.0/SHASUMS256.txt",
+      "checksumSignatureURL": "https://nodejs.org/dist/v24.21.0/SHASUMS256.txt.sig",
+      "checksumSigningKey": "5BE8A3F6C8A5C01D106C0AD820B1A390B168D356",
+      "checksumSignatureVerification": "gpgv against the nodejs/release-keys pubring.kbx on 2026-10-04 (Good signature); the bootstrap itself only enforces the pinned SHA256",
+      "verifiedOn": "2026-10-04",
+      "npmCache": "npm-cache",
+      "platforms": {
+        "linux-amd64": {
+          "url": "https://nodejs.org/dist/v24.21.0/node-v24.21.0-linux-x64.tar.xz",
+          "sha256": "fd8e59d5a511510f6a298afb548f18c7d2b1be404d8b4a27d94fbe49f56cb2d6",
+          "archive": "tar.xz",
+          "installPath": "node/24.21.0/linux-amd64",
+          "archiveRoot": "node-v24.21.0-linux-x64",
+          "executable": "node-v24.21.0-linux-x64/bin/node",
+          "npmCli": "node-v24.21.0-linux-x64/lib/node_modules/npm/bin/npm-cli.js",
+          "skippedLinks": {
+            "node-v24.21.0-linux-x64/bin/npm": "../lib/node_modules/npm/bin/npm-cli.js",
+            "node-v24.21.0-linux-x64/bin/npx": "../lib/node_modules/npm/bin/npx-cli.js",
+            "node-v24.21.0-linux-x64/bin/corepack": "../lib/node_modules/corepack/dist/corepack.js"
+          }
+        },
+        "linux-arm64": {
+          "url": "https://nodejs.org/dist/v24.21.0/node-v24.21.0-linux-arm64.tar.xz",
+          "sha256": "6ad1325edbdb5649c379b75a237147a666c95d4f9ae8d340fef2d1575d289ad2",
+          "archive": "tar.xz",
+          "installPath": "node/24.21.0/linux-arm64",
+          "archiveRoot": "node-v24.21.0-linux-arm64",
+          "executable": "node-v24.21.0-linux-arm64/bin/node",
+          "npmCli": "node-v24.21.0-linux-arm64/lib/node_modules/npm/bin/npm-cli.js",
+          "skippedLinks": {
+            "node-v24.21.0-linux-arm64/bin/npm": "../lib/node_modules/npm/bin/npm-cli.js",
+            "node-v24.21.0-linux-arm64/bin/npx": "../lib/node_modules/npm/bin/npx-cli.js",
+            "node-v24.21.0-linux-arm64/bin/corepack": "../lib/node_modules/corepack/dist/corepack.js"
+          }
+        },
+        "windows-amd64": {
+          "url": "https://nodejs.org/dist/v24.21.0/node-v24.21.0-win-x64.zip",
+          "sha256": "158f7685b44de51f6c0df1d153526cbcd3e1bc739a8dfc607721cef75de9e541",
+          "archive": "zip",
+          "installPath": "node/24.21.0/windows-amd64",
+          "archiveRoot": "node-v24.21.0-win-x64",
+          "executable": "node-v24.21.0-win-x64/node.exe",
+          "npmCli": "node-v24.21.0-win-x64/node_modules/npm/bin/npm-cli.js",
+          "bootstrapStatus": "Recorded for the Windows PowerShell bootstrap; scripts/bootstrap-tools.ps1 does not install Node yet"
+        },
+        "windows-arm64": {
+          "url": "https://nodejs.org/dist/v24.21.0/node-v24.21.0-win-arm64.zip",
+          "sha256": "8779b1bde1d39f8d420e3b57aa657b39891af434d3de44a919044cec06785921",
+          "archive": "zip",
+          "installPath": "node/24.21.0/windows-arm64",
+          "archiveRoot": "node-v24.21.0-win-arm64",
+          "executable": "node-v24.21.0-win-arm64/node.exe",
+          "npmCli": "node-v24.21.0-win-arm64/node_modules/npm/bin/npm-cli.js",
+          "bootstrapStatus": "Recorded for the Windows PowerShell bootstrap; scripts/bootstrap-tools.ps1 does not install Node yet"
+        }
+      }
+    },
+    {
+      "name": "playwright",
+      "version": "1.63.0",
+      "status": "reserved",
+      "purpose": "Future end-to-end and visual regression tests of the web frontend (G27.4, G34.6); browsers will be downloaded into .tools/playwright",
+      "required": false,
+      "license": "Apache-2.0",
+      "attribution": "Microsoft Corporation and Playwright contributors",
+      "homepage": "https://playwright.dev/",
+      "installPath": "playwright/1.63.0",
+      "registration": "Reserved entry only: no npm package is installed and no browser is downloaded until browser archive URLs and SHA256 values are pinned here"
     }
   ]
 }

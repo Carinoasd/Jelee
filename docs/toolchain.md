@@ -66,14 +66,34 @@ python3 scripts/toolchain.py verify
 
 Go 包装器将 `GOCACHE`、`GOPATH`、`GOMODCACHE`、`GOTMPDIR`、临时目录与 Go 配置放入 `.tools/cache/`；设置 `GOTOOLCHAIN=local`、`GOENV=off`。引导在该项目专用配置目录关闭 Go telemetry。Windows 在调用完成后恢复进程环境变量。不要直接调用 `.tools` 内的裸 Go 二进制，以免绕过这些设置。
 
+## Node 与前端工具（15.1）
+
+`tools/manifest.json` 的 `node` 条目固定 Node 24.21.0（24.x Active LTS，内含 npm 11.19.0），记录 Linux/Windows amd64、arm64 四个官方压缩包的 HTTPS URL 与 SHA256。哈希取自官方 `SHASUMS256.txt`；2026-10-04 另以 `gpgv` 对照 Node 发布者公钥环验证该文件签名（签名者指纹记录在清单），引导时只强制比对固定的 SHA256。`playwright` 条目只预留版本与安装路径，目前不安装 npm 包、不下载浏览器。
+
+Linux `make bootstrap`（`sh scripts/bootstrap-tools`）先装 Go，再装 Node；`--tool node` 或 `--tool go` 可只处理其一，`--offline` 只用 `.tools/downloads/` 缓存。Node 压缩包是 tar.xz，沿用同一个安全解压器：只有清单 `skippedLinks` 列出的三个符号链接（`bin/npm`、`bin/npx`、`bin/corepack`，名称与目标都必须完全相符）被略过不建立，其他链接或特殊文件一律使整次解压失败。安装到 `.tools/node/<版本>/<平台>/`，`bin/node` 与 npm CLI 的字节和已校验压缩包逐一比对。记录写在 `.tools/.installed.json` 的 `tools.node.<平台>`，原本 Go 使用的 `platforms` 结构不变。
+
+`.bin/node`、`.bin/npm`、`.bin/npx` 是生成的 POSIX 包装脚本：直接执行固定版本的 node，并把 npm cache 放在 `.tools/npm-cache`、prefix 放在 `.tools/npm-prefix`，使用不存在的项目内 user/global config，因此不读取也不写入使用者的 `~/.npmrc` 或全局目录；`PATH` 前置 `.bin`，让 npm script 内的 `node`/`npm` 也落在固定版本。`tools-verify` 会检查压缩包、安装记录、node/npm 版本与包装脚本内容。
+
+根目录 `.npmrc` 设 `ignore-scripts=true`、`engine-strict=true`、`save-exact=true`；`package.json` 的 `engines` 限定 Node `>=24.21.0 <25`。依赖版本精确固定在 `package.json`，完整解析结果锁在根目录 `package-lock.json`（npm workspace，成员为 `web/`）。
+
+| 目标 | 行为 |
+| --- | --- |
+| `web-install` | `npm ci --ignore-scripts`（只依 lockfile） |
+| `web-types` | OpenAPI 型别过期检查 + `vue-tsc --noEmit`（应用与 Node 设定两个 tsconfig） |
+| `web-lint` | ESLint（零警告）+ i18n 检查 + 禁播门禁 |
+| `web-test` | `vitest run` |
+| `web-build` | `vite build`，再以 `--require-dist` 扫描产物 |
+
+Windows：`scripts/bootstrap-tools.ps1` 目前仍只安装 Go；清单已记录 Windows Node 压缩包与哈希（`bootstrapStatus` 字段注明），PowerShell 安装流程与 `make.ps1` 的 web 目标留待后续，CI 的前端门禁目前只在 Linux 执行。
+
 ## 命令
 
 以下名称同时适用于 `make <目标>` 与 `pwsh -File scripts/make.ps1 <目标>`：
 
 | 目标 | 行为 |
 | --- | --- |
-| `init` / `bootstrap` | 安装清单中的本地 Go |
-| `tools-verify` | 校验固定版本与完整性 |
+| `init` / `bootstrap` | 安装清单中的本地 Go 与 Node（Linux；Windows 仅 Go） |
+| `tools-verify` | 校验 Go 与 Node 的固定版本与完整性 |
 | `toolchain-test` | 校验和、恶意归档、边界测试 |
 | `build` | 生成 `bin/jelee`、`bin/jelee-cli`、`bin/jelee-migrate`，Windows 带 `.exe` |
 | `test` | `go test -count=1 ./...` |

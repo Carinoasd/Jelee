@@ -1,0 +1,18 @@
+{
+  "common": {
+    "appName": "Jelee",
+    "language": "介面語言",
+    "localeNames": {
+      "zhCN": "简体中文",
+      "zhTW": "繁體中文",
+      "enUS": "English",
+      "jaJP": "日本語"
+    },
+    "loading": "正在載入…",
+    "retry": "重試",
+    "loadMore": "載入更多",
+    "logout": "登出",
+    "mainNavigation": "主導覽",
+    "signedInAs": "目前使用者：{name}"
+  }
+}
