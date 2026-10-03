@@ -1,3 +1,11 @@
+## 最新接續：掃描時間窗判斷已建立，尚未啟用
+
+新增 calendar.ParseDailyWindow/Allows，嚴格 HH:MM／IANA 時區、跨午夜、半開區間與 DST 回撥/跳時測試；Windows calendar 套件通過。設計及接續步驟見 docs/scan-window.md。
+
+關鍵發現：Postgres ReleaseJob 會保留 attempts，達 max_attempts 即失敗，正常每日關窗不能用它直接暫停。下一步新增 fenced 計畫暫停操作（取消優先、保留checkpoint、避免消耗故障重試），真 PG 驗證，再把 window 設定與 worker 所有 claim 分支／monitor 關窗取消接上。尚未公開配置，也未宣稱 G13.5 已有時間窗。原始遷移不可改写。
+
+正式長測沿用下方 run 033822f3aecf4b6491406594c8687cfd；不要重啟活躍工作。G00–G51 與第三階段仍未完成。
+
 ## 最新產品進度：圖片來源複製緩衝重用
 
 圖片 copyImageBytes 已以 sync.Pool 重用固定 32 KiB buffer，所有返回路徑清零歸還。Windows 完整圖片套件/vet、Linux 完整圖片套件 race 通過；新增 12 路不同內容並行回歸。256 KiB 來源讀取至 SHA-256 微基準由約 32838 B/op、3 allocations 降至 51 B/op、2 allocations；證據在 docs/perf-report.md。JPEG 標準庫無公開 encoder 重用入口，編碼器部分仍缺，不將 G42.5 標為完成。
