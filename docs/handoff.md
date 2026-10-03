@@ -1,3 +1,9 @@
+## 最新產品進度：媒體串流緩衝重用
+
+原媒體 streamWriter 已以每 Handler sync.Pool 重用固定 32 KiB buffer，成功或失敗皆清零歸還。Windows 套件通過，Linux race 通過；16 KiB Range 基準 Windows 58523 → 25859–25874 B/op、Linux 57782–57783 → 25184–25191 B/op，各少一次配置。詳見 docs/perf-report.md。G42.5 改為部分完成；總計 8 完成／194 部分／134 阻塞，第三階段未完成。
+
+正式長測仍使用 c61c12b007 快照，不能將其證據歸於這次 pool 修改。沿用下段 run/PID，不要重啟。最新 CI 尚待完成；本批未合併。
+
 ## 最新狀態：正式 24 小時測試已啟動
 
 修正版 c61c12b007 的短測 2a0923d1359749be9d55a040d486eeec 已通過兩輪 600 秒，來源與原始樣本核對、快照核對、worker 與 launcher 資源清理均通過。證據見 docs/evidence/image-soak-flush-smoke.json；它只證明短測，不代表正式驗收。

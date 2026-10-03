@@ -1,0 +1,9 @@
+goos: linux
+goarch: amd64
+pkg: github.com/MoYuanCN/Jelee/internal/adapter/media
+cpu: AMD Ryzen 7 9850X3D 8-Core Processor           
+BenchmarkOriginalRange-16    	   79206	     14664 ns/op	1117.30 MB/s	   25184 B/op	      63 allocs/op
+BenchmarkOriginalRange-16    	   82250	     14705 ns/op	1114.21 MB/s	   25191 B/op	      63 allocs/op
+BenchmarkOriginalRange-16    	   81150	     14585 ns/op	1123.38 MB/s	   25188 B/op	      63 allocs/op
+PASS
+ok  	github.com/MoYuanCN/Jelee/internal/adapter/media	4.034s

@@ -463,3 +463,44 @@ func TestCancellationBetweenDeadlineRefreshAndWrite(t *testing.T) {
 		t.Fatal("stream wrote after cancellation during deadline refresh")
 	}
 }
+
+// Concurrent copies use distinct payloads and sizes to detect premature reuse.
+func TestStreamCopyConcurrentIsolation(t *testing.T) {
+	pool := &sync.Pool{New: func() any { return new([32 << 10]byte) }}
+	var wg sync.WaitGroup
+	for worker := 0; worker < 16; worker++ {
+		wg.Go(func() {
+			payload := bytes.Repeat([]byte{byte(worker + 1)}, (32<<10)+worker*137)
+			for round := 0; round < 20; round++ {
+				recorder := httptest.NewRecorder()
+				writer := &streamWriter{ResponseWriter: recorder, request: nativeRequest("GET", "/stream"), controller: http.NewResponseController(recorder), timeout: time.Second, buffers: pool}
+				n, err := writer.ReadFrom(bytes.NewReader(payload))
+				if err != nil || n != int64(len(payload)) || !bytes.Equal(recorder.Body.Bytes(), payload) {
+					t.Errorf("concurrent copy corrupted: worker=%d round=%d bytes=%d err=%v", worker, round, n, err)
+					return
+				}
+			}
+		})
+	}
+	wg.Wait()
+}
+
+type failingCopyReader struct{}
+
+func (failingCopyReader) Read(p []byte) (int, error) {
+	return copy(p, "private media"), io.ErrUnexpectedEOF
+}
+
+func TestStreamCopyClearsBufferAfterReadFailure(t *testing.T) {
+	buffer := new([32 << 10]byte)
+	pool := &sync.Pool{New: func() any { return buffer }}
+	recorder := httptest.NewRecorder()
+	writer := &streamWriter{ResponseWriter: recorder, request: nativeRequest("GET", "/stream"), controller: http.NewResponseController(recorder), timeout: time.Second, buffers: pool}
+	n, err := writer.ReadFrom(failingCopyReader{})
+	if !errors.Is(err, io.ErrUnexpectedEOF) || n != 13 || recorder.Body.String() != "private media" {
+		t.Fatalf("copy lost partial read or error: n=%d err=%v", n, err)
+	}
+	if *buffer != [32 << 10]byte{} {
+		t.Fatal("failed copy retained media bytes")
+	}
+}
