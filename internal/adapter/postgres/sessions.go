@@ -6,14 +6,22 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"errors"
+	"net/netip"
 	"time"
 
+	"github.com/MoYuanCN/Jelee/internal/access"
 	"github.com/MoYuanCN/Jelee/internal/domain"
 	"github.com/jackc/pgx/v5"
 )
 
 const credentialColumns = `id::text,name,COALESCE(password_hash,''),auth_version,disabled,deleted_at IS NOT NULL,locked_until`
-const sessionColumns = `id::text,user_id::text,client_kind,device_name,created_at,expires_at,revoked_at`
+const sessionColumns = `id::text,user_id::text,client_kind,device_name,COALESCE(client_name,''),COALESCE(device_id,''),COALESCE(client_version,''),created_at,expires_at,last_seen_at,COALESCE(last_ip,''),revoked_at`
+
+func scanSession(row pgx.Row) (domain.Session, error) {
+	var session domain.Session
+	err := row.Scan(&session.ID, &session.UserID, &session.ClientKind, &session.DeviceName, &session.Client, &session.DeviceID, &session.Version, &session.CreatedAt, &session.ExpiresAt, &session.LastSeenAt, &session.LastIP, &session.RevokedAt)
+	return session, storageError(err)
+}
 
 func scanCredentials(row pgx.Row) (domain.Credentials, error) {
 	var c domain.Credentials
@@ -50,21 +58,32 @@ func (s *Store) CredentialsFor(ctx context.Context, actor domain.Actor, userID s
 
 func validTTL(ttl time.Duration) bool { return ttl >= time.Second && ttl <= 30*24*time.Hour }
 
-func newSession(ctx context.Context, tx pgx.Tx, userID, kind, device string, ttl time.Duration) (domain.Session, string, error) {
+// validNativeClient mirrors the application check so the store never writes
+// an unbounded or control-character label even when called directly.
+func validNativeClient(c domain.NativeClient) bool {
+	return validText(c.Name, domain.NativeClientNameMax, false) && validText(c.DeviceID, domain.NativeDeviceIDMax, false) &&
+		validText(c.Device, domain.NativeDeviceNameMax, true) && validText(c.Version, domain.NativeClientVersionMax, true)
+}
+
+// newSession stores the client labels as NULL when absent. Web sessions carry
+// none of them.
+func newSession(ctx context.Context, tx pgx.Tx, userID, kind, device string, client domain.NativeClient, ttl time.Duration) (domain.Session, string, error) {
 	secret := make([]byte, 32)
 	if _, err := rand.Read(secret); err != nil {
 		return domain.Session{}, "", domain.ErrDatabase
 	}
 	token := base64.RawURLEncoding.EncodeToString(secret)
 	hash := sha256.Sum256([]byte(token))
-	var session domain.Session
-	err := tx.QueryRow(ctx, `INSERT INTO sessions(user_id,token_hash,client_kind,device_name,expires_at) VALUES($1::uuid,$2,$3,$4,now()+$5*interval '1 second') RETURNING `+sessionColumns, userID, hash[:], kind, device, int64(ttl/time.Second)).Scan(&session.ID, &session.UserID, &session.ClientKind, &session.DeviceName, &session.CreatedAt, &session.ExpiresAt, &session.RevokedAt)
-	return session, token, storageError(err)
+	session, err := scanSession(tx.QueryRow(ctx, `INSERT INTO sessions(user_id,token_hash,client_kind,device_name,client_name,device_id,client_version,expires_at) VALUES($1::uuid,$2,$3,$4,NULLIF($5,''),NULLIF($6,''),NULLIF($7,''),now()+$8*interval '1 second') RETURNING `+sessionColumns, userID, hash[:], kind, device, client.Name, client.DeviceID, client.Version, int64(ttl/time.Second)))
+	return session, token, err
 }
 
 func (s *Store) CommitLogin(ctx context.Context, in domain.LoginInput) (domain.SessionGrant, error) {
 	if !domain.ValidID(in.Credentials.UserID) {
 		return domain.SessionGrant{}, domain.ErrUnauthenticated
+	}
+	if in.Native && !validNativeClient(in.Client) || !in.Native && in.Client != (domain.NativeClient{}) {
+		return domain.SessionGrant{}, domain.ErrInvalid
 	}
 	if !validText(in.DeviceName, 128, true) || in.MaxSessions < 1 || in.MaxSessions > 100 || !validTTL(in.SessionTTL) || in.LockAfter < 1 || in.LockAfter > 100 || in.LockFor < time.Second || in.LockFor > 24*time.Hour {
 		return domain.SessionGrant{}, domain.ErrInvalid
@@ -104,6 +123,25 @@ func (s *Store) CommitLogin(ctx context.Context, in domain.LoginInput) (domain.S
 		}
 		return domain.SessionGrant{}, domain.ErrUnauthenticated
 	}
+	kind := string(access.ClientWeb)
+	if in.Native {
+		// Checked only after the password matched, so the answer never tells an
+		// unauthenticated caller whether an account allows native devices.
+		var allowed bool
+		if err = tx.QueryRow(ctx, `SELECT allow_native FROM users WHERE id=$1::uuid`, current.UserID).Scan(&allowed); err != nil {
+			return domain.SessionGrant{}, storageError(err)
+		}
+		if !allowed {
+			if err = auditAccount(ctx, tx, actor, "login.native_denied", current.UserID, nil, map[string]string{"client": in.Client.Name, "deviceId": in.Client.DeviceID, "version": in.Client.Version, "deviceName": in.DeviceName}); err != nil {
+				return domain.SessionGrant{}, err
+			}
+			if err = tx.Commit(ctx); err != nil {
+				return domain.SessionGrant{}, storageError(err)
+			}
+			return domain.SessionGrant{}, domain.ErrNativeLoginDisabled
+		}
+		kind = string(access.ClientNative)
+	}
 	var count int
 	if err = tx.QueryRow(ctx, `SELECT count(*) FROM sessions WHERE user_id=$1::uuid AND revoked_at IS NULL AND expires_at>now()`, current.UserID).Scan(&count); err != nil {
 		return domain.SessionGrant{}, storageError(err)
@@ -114,7 +152,7 @@ func (s *Store) CommitLogin(ctx context.Context, in domain.LoginInput) (domain.S
 	if _, err = tx.Exec(ctx, `UPDATE users SET failed_login=0,locked_until=NULL WHERE id=$1::uuid`, current.UserID); err != nil {
 		return domain.SessionGrant{}, storageError(err)
 	}
-	session, token, err := newSession(ctx, tx, current.UserID, "web", in.DeviceName, in.SessionTTL)
+	session, token, err := newSession(ctx, tx, current.UserID, kind, in.DeviceName, in.Client, in.SessionTTL)
 	if err != nil {
 		return domain.SessionGrant{}, err
 	}
@@ -216,19 +254,9 @@ func (s *Store) ListSessions(ctx context.Context, actor domain.Actor, userID str
 	if err != nil {
 		return nil, storageError(err)
 	}
-	result := make([]domain.Session, 0)
-	for rows.Next() {
-		var item domain.Session
-		if err = rows.Scan(&item.ID, &item.UserID, &item.ClientKind, &item.DeviceName, &item.CreatedAt, &item.ExpiresAt, &item.RevokedAt); err != nil {
-			rows.Close()
-			return nil, storageError(err)
-		}
-		result = append(result, item)
-	}
-	err = rows.Err()
-	rows.Close()
+	result, err := collectSessions(rows)
 	if err != nil {
-		return nil, storageError(err)
+		return nil, err
 	}
 	if len(result) > 1000 {
 		return nil, domain.ErrConflict
@@ -294,17 +322,20 @@ func (s *Store) RotateSession(ctx context.Context, actor domain.Actor, device st
 		return domain.SessionGrant{}, err
 	}
 	defer tx.Rollback(ctx)
-	var kind, oldDevice string
-	if err = tx.QueryRow(ctx, `SELECT client_kind,device_name FROM sessions WHERE id=$1::uuid`, actor.SessionID).Scan(&kind, &oldDevice); err != nil {
-		return domain.SessionGrant{}, storageError(err)
+	old, err := scanSession(tx.QueryRow(ctx, `SELECT `+sessionColumns+` FROM sessions WHERE id=$1::uuid`, actor.SessionID))
+	if err != nil {
+		return domain.SessionGrant{}, err
 	}
 	if device == "" {
-		device = oldDevice
+		device = old.DeviceName
 	}
+	// The replacement keeps the reported client identity; only the device
+	// label may change on rotation.
+	client := domain.NativeClient{Name: old.Client, Device: device, DeviceID: old.DeviceID, Version: old.Version}
 	if _, err = tx.Exec(ctx, `UPDATE sessions SET revoked_at=now() WHERE id=$1::uuid`, actor.SessionID); err != nil {
 		return domain.SessionGrant{}, storageError(err)
 	}
-	session, token, err := newSession(ctx, tx, actor.UserID, kind, device, ttl)
+	session, token, err := newSession(ctx, tx, actor.UserID, old.ClientKind, device, client, ttl)
 	if err != nil {
 		return domain.SessionGrant{}, err
 	}
@@ -319,4 +350,104 @@ func (s *Store) RotateSession(ctx context.Context, actor domain.Actor, device st
 		return domain.SessionGrant{}, storageError(err)
 	}
 	return domain.SessionGrant{User: u, Session: session, Token: token}, nil
+}
+
+func collectSessions(rows pgx.Rows) ([]domain.Session, error) {
+	defer rows.Close()
+	result := make([]domain.Session, 0)
+	for rows.Next() {
+		item, err := scanSession(rows)
+		if err != nil {
+			return nil, err
+		}
+		result = append(result, item)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, storageError(err)
+	}
+	return result, nil
+}
+
+// ListAllSessions is the administrator view of every active session, paged
+// by session ID so a large installation never needs an unbounded result.
+func (s *Store) ListAllSessions(ctx context.Context, actor domain.Actor, cursor string, limit int) ([]domain.Session, error) {
+	if cursor != "" && !domain.ValidID(cursor) || limit < 1 || limit > 100 {
+		return nil, domain.ErrInvalid
+	}
+	tx, _, err := s.authorizedTransaction(ctx, actor, true)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback(ctx)
+	rows, err := tx.Query(ctx, `SELECT `+sessionColumns+` FROM sessions WHERE revoked_at IS NULL AND expires_at>now() AND id>COALESCE(NULLIF($1,'')::uuid,'00000000-0000-0000-0000-000000000000'::uuid) ORDER BY id LIMIT $2`, cursor, limit)
+	if err != nil {
+		return nil, storageError(err)
+	}
+	result, err := collectSessions(rows)
+	if err != nil {
+		return nil, err
+	}
+	return result, storageError(tx.Commit(ctx))
+}
+
+// SetNativeAccess changes whether password login may issue native sessions
+// to a user. Withdrawing the right also revokes the user's active native
+// sessions, including CLI-provisioned ones, so the change takes effect at
+// once instead of when the tokens expire. An unchanged value is a no-op.
+func (s *Store) SetNativeAccess(ctx context.Context, actor domain.Actor, userID string, allow bool) (domain.User, error) {
+	tx, _, err := s.authorizedTransaction(ctx, actor, true)
+	if err != nil {
+		return domain.User{}, err
+	}
+	defer tx.Rollback(ctx)
+	old, err := userInTransaction(ctx, tx, userID)
+	if err != nil {
+		return old, err
+	}
+	if old.DeletedAt != nil {
+		return domain.User{}, domain.ErrNotFound
+	}
+	if old.AllowNative == allow {
+		return old, storageError(tx.Commit(ctx))
+	}
+	u, err := scanUser(tx.QueryRow(ctx, `UPDATE users SET allow_native=$2 WHERE id=$1::uuid RETURNING `+userColumns, userID, allow))
+	if err != nil {
+		return u, err
+	}
+	var revoked int64
+	if !allow {
+		tag, err := tx.Exec(ctx, `UPDATE sessions SET revoked_at=now() WHERE user_id=$1::uuid AND client_kind='native' AND revoked_at IS NULL`, userID)
+		if err != nil {
+			return domain.User{}, storageError(err)
+		}
+		revoked = tag.RowsAffected()
+	}
+	if err = auditAccount(ctx, tx, actor, "user.native_access_changed", userID, map[string]bool{"allowNative": old.AllowNative}, map[string]any{"allowNative": u.AllowNative, "nativeSessionsRevoked": revoked}); err != nil {
+		return domain.User{}, err
+	}
+	return u, storageError(tx.Commit(ctx))
+}
+
+// sessionTouchInterval throttles last-use bookkeeping: a session row is
+// written at most once per interval however many requests it authenticates.
+const sessionTouchInterval = 60 * time.Second
+
+// AuthenticateFrom authenticates like Authenticate and records the session's
+// last use and client address, at most once per sessionTouchInterval. The
+// bookkeeping is best effort: failing to record it never fails the request.
+func (s *Store) AuthenticateFrom(ctx context.Context, token, ip string) (access.Principal, error) {
+	p, stale, err := s.authenticate(ctx, token)
+	if err != nil || !stale {
+		return p, err
+	}
+	var address *string
+	if parsed, perr := netip.ParseAddr(ip); perr == nil {
+		normalized := parsed.Unmap().WithZone("").String()
+		address = &normalized
+	}
+	// The repeated staleness test makes concurrent requests write once, and
+	// SKIP LOCKED keeps a request from waiting behind an account transaction
+	// that holds the session row; that use is recorded by a later request.
+	_, _ = s.Pool.Exec(ctx, `UPDATE sessions SET last_seen_at=clock_timestamp(),last_ip=COALESCE($2,last_ip) WHERE id=(SELECT id FROM sessions WHERE id=$1::uuid AND (last_seen_at IS NULL OR last_seen_at<=clock_timestamp()-$3*interval '1 second') FOR UPDATE SKIP LOCKED)`, p.SessionID, address, int64(sessionTouchInterval/time.Second))
+	return p, nil
 }

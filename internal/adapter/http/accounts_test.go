@@ -156,7 +156,7 @@ func TestAccountHTTPLoginPublicUsesPeerAndCannotSelectNativeKind(t *testing.T) {
 		},
 		login: func(_ context.Context, input domain.LoginInput) (domain.SessionGrant, error) {
 			commits++
-			if !input.PasswordOK || input.IP != "198.51.100.23" || input.DeviceName != "browser" {
+			if !input.PasswordOK || input.IP != "198.51.100.23" || input.DeviceName != "browser" || input.Native || input.Client != (domain.NativeClient{}) {
 				t.Fatal("incorrect verified login input")
 			}
 			for _, field := range []string{"Kind", "ClientKind", "Admin"} {
@@ -635,7 +635,7 @@ func TestAccountHTTPOpenAPIMatchesRoutesAndHasValidRequiredArrays(t *testing.T) 
 		paths := spec["paths"].(map[string]any)
 		routerRoutes := map[string]bool{}
 		if err := chi.Walk(f.handler.(chi.Router), func(method, path string, _ http.Handler, _ ...func(http.Handler) http.Handler) error {
-			if strings.HasPrefix(path, "/api/v1/auth/") || strings.HasPrefix(path, "/api/v1/users") {
+			if strings.HasPrefix(path, "/api/v1/auth/") || strings.HasPrefix(path, "/api/v1/users") || path == "/api/v1/sessions" {
 				routerRoutes[strings.ToLower(method)+" "+path] = true
 			}
 			return nil
@@ -644,13 +644,13 @@ func TestAccountHTTPOpenAPIMatchesRoutesAndHasValidRequiredArrays(t *testing.T) 
 		}
 		documentedRoutes := map[string]bool{}
 		for path, methods := range paths {
-			if !strings.HasPrefix(path, "/api/v1/auth/") && !strings.HasPrefix(path, "/api/v1/users") {
+			if !strings.HasPrefix(path, "/api/v1/auth/") && !strings.HasPrefix(path, "/api/v1/users") && path != "/api/v1/sessions" {
 				continue
 			}
 			for method, raw := range methods.(map[string]any) {
 				documentedRoutes[method+" "+path] = true
 				op := raw.(map[string]any)
-				if path == "/api/v1/auth/login" {
+				if path == "/api/v1/auth/login" || path == "/api/v1/auth/login/native" {
 					if _, exists := op["security"]; exists {
 						t.Fatal("public login documented as authenticated")
 					}
@@ -667,7 +667,7 @@ func TestAccountHTTPOpenAPIMatchesRoutesAndHasValidRequiredArrays(t *testing.T) 
 		if !reflect.DeepEqual(routerRoutes, documentedRoutes) {
 			t.Fatalf("documented account routes differ: router=%v spec=%v", routerRoutes, documentedRoutes)
 		}
-		if enabled && len(routerRoutes) != 19 || !enabled && len(routerRoutes) != 0 {
+		if enabled && len(routerRoutes) != 22 || !enabled && len(routerRoutes) != 0 {
 			t.Fatalf("unexpected rollout route count %d", len(routerRoutes))
 		}
 		data, err := json.Marshal(spec)

@@ -8,6 +8,16 @@
 
 目录列表、详情和媒体解析通过参数化 SQL 限制到用户获准访问的库；管理员具有所有库访问权。无权直接访问条目、来源或图片默认返回 404（`JELEE_HIDDEN_CONTENT_STATUS=403` 或配置文件 `access.hiddenStatus` 可改为 403；不存在与不可见的 ID 始终得到相同响应，不暴露存在性）。`internal/adapter/http/access_leak_test.go` 以 `chi.Walk` 遍历全部已注册路由，对隐藏条目/库/来源/图片断言零泄漏；新增路由未登记即失败。打开媒体前再次查询有效会话和库权限。账户 API 支持库 ACL 替换及自己/管理员撤销会话，并在事务中重新核对操作者；尚无用户组、内容分级、目录/条目级规则、客户端策略编辑或 ACL 管理 UI。
 
+## 原生设备登录与浏览器隔离（G07.4、G24.2）
+
+native 会话可以直投，web 会话不能（G27.3）。`POST /api/v1/auth/login/native` 是第一个能用密码换取 native 会话的公开入口，因此必须保证浏览器页面无法经它拿到可播放的令牌，否则“网页不能播放”只剩前端自律：
+
+- **只对管理员显式开启的用户签发**（`allowNative`，默认 false）。开关检查放在密码验证之后、同一用户行锁事务内，未认证者无法借此探测账户设置；撤回开关立即撤销该用户的 native 会话。
+- **凡带 `Origin` 的请求一律 `403 forbidden`，`Sec-Fetch-Site`、`Sec-Fetch-Mode` 同样处理，且在读取正文和密码计算之前拒绝。** 理由：浏览器对每个跨源请求和每个 POST（含同源 fetch 与表单提交）都会附加 `Origin`，现代浏览器还会附加 Fetch Metadata 头；这些都是禁止由页面脚本设置或删除的请求头。原生客户端的 HTTP 栈不会发送它们。于是无论页面来自任何源（包括本站前端、被注入的脚本或第三方站点），都不能调用此入口；只靠 CORS 不够，因为 CORS 只限制读取响应，不阻止同源页面，而同源页面恰恰是 web 前端本身。服务端本就不返回任何 CORS 允许头，这一规则是在此之外的明确拒绝。
+- **不设 Cookie、不发 csrf**：native 令牌只出现在响应正文；`authenticate` 本来就拒绝经 Cookie 出示的 native 令牌。
+- **限制**：内嵌浏览器内核的“客户端”（Electron、WebView、以网页为界面的桌面播放器等）发出的请求同样带 `Origin`，无法使用此入口；这类客户端需由管理员用 `jelee-cli provision --native` 签发令牌，或等待后续第三方协议适配层。持有 native 令牌的人仍可自行编写任意客户端使用它；开关限制的是谁能用密码换取它，不是设备可信证明。
+- 会话的 client、deviceId、version、设备名均为客户端自报标签；`lastSeenAt`/`lastIp` 是服务端观测值（同一会话 60 秒内最多写一次）。它们供会话列表与 G47.1 客户端识别使用，不参与授权判断。
+
 ## 网页会话 Cookie 与 CSRF（G35.1）
 
 `POST /api/v1/auth/login` 在原有 JSON 之外，仅对 web 会话设置 `__Host-jelee_session` Cookie：HttpOnly、Secure、SameSite=Strict、Path=/、不设 Domain，Max-Age 等于会话剩余有效期。native 会话从不写入 Cookie。`authenticate` 只在请求没有 `Authorization` 头时读取该 Cookie；有头时完全按原 Bearer 规则处理，无效头不会回退到 Cookie。经 Cookie 认证的会话必须是数据库中的 `client_kind='web'`，native 令牌放进 Cookie 一律 401；同名 Cookie 出现多个、格式不符或会话已失效时返回 401 并下发过期 Cookie。Web 会话即使经 Cookie 访问直投仍得到 `403 web_playback_disabled`（G27.3）。

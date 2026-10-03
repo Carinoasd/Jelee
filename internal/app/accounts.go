@@ -31,6 +31,8 @@ type AccountRepository interface {
 	RevokeSession(context.Context, domain.Actor, string, string) error
 	RevokeSessions(context.Context, domain.Actor, string) error
 	RotateSession(context.Context, domain.Actor, string, time.Duration) (domain.SessionGrant, error)
+	ListAllSessions(context.Context, domain.Actor, string, int) ([]domain.Session, error)
+	SetNativeAccess(context.Context, domain.Actor, string, bool) (domain.User, error)
 	GetLibraryAccess(context.Context, domain.Actor, string) ([]domain.LibraryGrant, error)
 	ReplaceLibraryAccess(context.Context, domain.Actor, string, []string) error
 }
@@ -103,8 +105,39 @@ func validKey(value string) bool {
 	return true
 }
 
+// Login issues a web session. Web sessions can browse and administer but
+// never play media.
 func (a *Accounts) Login(ctx context.Context, name, password, deviceName, ip string) (domain.SessionGrant, error) {
-	if !ValidUserName(name) || !utf8.ValidString(password) || len(password) > 1024 || !validText(deviceName, 128, true) || len(ip) > 45 {
+	if !validText(deviceName, 128, true) {
+		return domain.SessionGrant{}, domain.ErrInvalid
+	}
+	return a.login(ctx, name, password, ip, domain.LoginInput{DeviceName: deviceName})
+}
+
+// LoginNative issues a native session, which may use direct delivery. The
+// password is verified exactly like Login; the store then refuses with
+// ErrNativeLoginDisabled unless an administrator allowed the user native
+// devices.
+func (a *Accounts) LoginNative(ctx context.Context, name, password string, client domain.NativeClient, ip string) (domain.SessionGrant, error) {
+	if !ValidNativeClient(client) {
+		return domain.SessionGrant{}, domain.ErrInvalid
+	}
+	return a.login(ctx, name, password, ip, domain.LoginInput{DeviceName: client.Device, Native: true, Client: client})
+}
+
+// ValidNativeClient bounds every reported field and refuses control
+// characters. The client name and device ID identify the device and are
+// required; they may not be blank or carry surrounding spaces.
+func ValidNativeClient(c domain.NativeClient) bool {
+	required := func(value string, max int) bool {
+		return validText(value, max, false) && value == strings.TrimSpace(value)
+	}
+	return required(c.Name, domain.NativeClientNameMax) && required(c.DeviceID, domain.NativeDeviceIDMax) &&
+		validText(c.Device, domain.NativeDeviceNameMax, true) && validText(c.Version, domain.NativeClientVersionMax, true)
+}
+
+func (a *Accounts) login(ctx context.Context, name, password, ip string, input domain.LoginInput) (domain.SessionGrant, error) {
+	if !ValidUserName(name) || !utf8.ValidString(password) || len(password) > 1024 || len(ip) > 45 {
 		return domain.SessionGrant{}, domain.ErrInvalid
 	}
 	credentials, err := a.repository.Credentials(ctx, name)
@@ -134,7 +167,9 @@ func (a *Accounts) Login(ctx context.Context, name, password, deviceName, ip str
 	if err = ctx.Err(); err != nil {
 		return domain.SessionGrant{}, err
 	}
-	grant, err := a.repository.CommitLogin(ctx, domain.LoginInput{Credentials: credentials, PasswordOK: matched, DeviceName: deviceName, IP: ip, MaxSessions: a.options.MaxSessions, SessionTTL: a.options.SessionTTL, LockAfter: a.options.LockAfter, LockFor: a.options.LockFor})
+	input.Credentials, input.PasswordOK, input.IP = credentials, matched, ip
+	input.MaxSessions, input.SessionTTL, input.LockAfter, input.LockFor = a.options.MaxSessions, a.options.SessionTTL, a.options.LockAfter, a.options.LockFor
+	grant, err := a.repository.CommitLogin(ctx, input)
 	if err != nil {
 		return domain.SessionGrant{}, fmt.Errorf("complete login: %w", err)
 	}
@@ -253,6 +288,24 @@ func (a *Accounts) RevokeAll(ctx context.Context, actor domain.Actor, id string)
 		return domain.ErrNotFound
 	}
 	return a.repository.RevokeSessions(ctx, actor, id)
+}
+
+// AllSessions lists active sessions of every user for an administrator,
+// ordered by session ID with cursor pagination.
+func (a *Accounts) AllSessions(ctx context.Context, actor domain.Actor, cursor string, limit int) ([]domain.Session, error) {
+	if !validActor(actor) || cursor != "" && !domain.ValidID(cursor) || limit < 1 || limit > 100 {
+		return nil, domain.ErrInvalid
+	}
+	return a.repository.ListAllSessions(ctx, actor, cursor, limit)
+}
+
+// SetNativeAccess lets an administrator allow or withdraw native logins for
+// a user. Withdrawing also revokes the user's active native sessions.
+func (a *Accounts) SetNativeAccess(ctx context.Context, actor domain.Actor, id string, allow bool) (domain.User, error) {
+	if !validTarget(actor, id) {
+		return domain.User{}, domain.ErrNotFound
+	}
+	return a.repository.SetNativeAccess(ctx, actor, id, allow)
 }
 
 func (a *Accounts) Rotate(ctx context.Context, actor domain.Actor, deviceName string) (domain.SessionGrant, error) {

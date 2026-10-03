@@ -12,7 +12,7 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 )
 
-const userColumns = `id::text,name,display_name,locale,hidden,is_admin,disabled,deleted_at,created_at`
+const userColumns = `id::text,name,display_name,locale,hidden,is_admin,disabled,allow_native,deleted_at,created_at`
 
 func storageError(err error) error {
 	if err == nil {
@@ -41,7 +41,7 @@ func storageError(err error) error {
 
 func scanUser(row pgx.Row) (domain.User, error) {
 	var u domain.User
-	err := row.Scan(&u.ID, &u.Name, &u.DisplayName, &u.Locale, &u.Hidden, &u.Admin, &u.Disabled, &u.DeletedAt, &u.CreatedAt)
+	err := row.Scan(&u.ID, &u.Name, &u.DisplayName, &u.Locale, &u.Hidden, &u.Admin, &u.Disabled, &u.AllowNative, &u.DeletedAt, &u.CreatedAt)
 	return u, storageError(err)
 }
 

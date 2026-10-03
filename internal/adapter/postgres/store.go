@@ -20,7 +20,7 @@ type Store struct{ Pool *pgxpool.Pool }
 
 // SchemaVersion is the only clean schema accepted by this binary. Adjacent
 // releases cannot serve against different cache and job lifecycle contracts.
-const SchemaVersion = 62
+const SchemaVersion = 63
 
 func Open(ctx context.Context, dsn string, maxConnections int32) (*Store, error) {
 	cfg, err := pgxpool.ParseConfig(dsn)
@@ -54,19 +54,27 @@ func (s *Store) Ready(ctx context.Context) error {
 }
 
 func (s *Store) Authenticate(ctx context.Context, token string) (access.Principal, error) {
+	p, _, err := s.authenticate(ctx, token)
+	return p, err
+}
+
+// authenticate also reports whether the session's last-use record is older
+// than sessionTouchInterval, so callers write it only when it is due.
+func (s *Store) authenticate(ctx context.Context, token string) (access.Principal, bool, error) {
 	if len(token) != 43 {
-		return access.Principal{}, domain.ErrUnauthenticated
+		return access.Principal{}, false, domain.ErrUnauthenticated
 	}
 	hash := sha256.Sum256([]byte(token))
 	var p access.Principal
-	err := s.Pool.QueryRow(ctx, `SELECT u.id::text,s.id::text,s.client_kind,u.is_admin,u.locale FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token_hash=$1 AND s.revoked_at IS NULL AND s.expires_at>now() AND NOT u.disabled AND u.deleted_at IS NULL`, hash[:]).Scan(&p.UserID, &p.SessionID, &p.Kind, &p.Admin, &p.Locale)
+	var stale bool
+	err := s.Pool.QueryRow(ctx, `SELECT u.id::text,s.id::text,s.client_kind,u.is_admin,u.locale,s.last_seen_at IS NULL OR s.last_seen_at<=clock_timestamp()-$2*interval '1 second' FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token_hash=$1 AND s.revoked_at IS NULL AND s.expires_at>now() AND NOT u.disabled AND u.deleted_at IS NULL`, hash[:], int64(sessionTouchInterval/time.Second)).Scan(&p.UserID, &p.SessionID, &p.Kind, &p.Admin, &p.Locale, &stale)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return p, domain.ErrUnauthenticated
+		return p, false, domain.ErrUnauthenticated
 	}
 	if err != nil {
-		return p, storageError(err)
+		return p, false, storageError(err)
 	}
-	return p, nil
+	return p, stale, nil
 }
 
 // Split the administrator path from library ACL lookup so an invisible large

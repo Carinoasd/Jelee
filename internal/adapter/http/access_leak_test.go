@@ -98,6 +98,7 @@ func leakRouteTable() map[string]leakRoute {
 
 		// Accounts.
 		"POST /api/v1/auth/login":                         exempt("credential exchange; takes no media identifiers and returns only a session grant"),
+		"POST /api/v1/auth/login/native":                  exempt("native credential exchange; takes no media identifiers and returns only a session grant"),
 		"POST /api/v1/auth/logout":                        exempt("revokes the caller's own session; carries no media identifiers"),
 		"POST /api/v1/auth/rotate":                        exempt("rotates the caller's own token; carries no media identifiers"),
 		"GET /api/v1/auth/csrf":                           noMedia(noParams, "returns only a token derived from the caller's own credential"),
@@ -115,6 +116,8 @@ func leakRouteTable() map[string]leakRoute {
 		"DELETE /api/v1/users/{id}":                       admin(selfParam),
 		"POST /api/v1/users/{id}/restore":                 admin(selfParam),
 		"POST /api/v1/users/{id}/unlock":                  admin(selfParam),
+		"PUT /api/v1/users/{id}/native":                   admin(selfParam),
+		"GET /api/v1/sessions":                            admin(noParams),
 		"PUT /api/v1/users/{id}/libraries":                admin(selfParam),
 		"GET /metrics":                                    admin(noParams),
 		"GET /api/v1/items/{id}/metadata":                 admin(itemParam),
@@ -215,7 +218,12 @@ func (r leakRenderer) RenderItemImage(ctx context.Context, _ domain.ItemImage, r
 
 func leakHandler(t *testing.T, store *postgres.Store, cfg config.Config) http.Handler {
 	t.Helper()
-	accounts, err := app.NewAccounts(store, &httpAccountPasswords{}, app.AccountOptions{SessionTTL: time.Hour, MaxSessions: 8, LockAfter: 5, LockFor: time.Minute})
+	return leakHandlerWith(t, store, cfg, &httpAccountPasswords{})
+}
+
+func leakHandlerWith(t *testing.T, store *postgres.Store, cfg config.Config, passwords *httpAccountPasswords) http.Handler {
+	t.Helper()
+	accounts, err := app.NewAccounts(store, passwords, app.AccountOptions{SessionTTL: time.Hour, MaxSessions: 8, LockAfter: 5, LockFor: time.Minute})
 	if err != nil {
 		t.Fatal(err)
 	}

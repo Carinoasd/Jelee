@@ -37,6 +37,7 @@ var errorCodeStatuses = map[string][]int{
 	"lookup_timeout":            {504},
 	"metadata_unavailable":      {503},
 	"method_not_allowed":        {405},
+	"native_login_disabled":     {403},
 	"metrics_busy":              {503},
 	"nfo_cache_capacity":        {409},
 	"nfo_disabled":              {409},

@@ -103,13 +103,7 @@ func (s *Server) login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	ip := requestClientIP(r)
-	if allowed, retry := s.loginLimiter.Allow(ip, input.Name); !allowed {
-		seconds := int64((retry + time.Second - 1) / time.Second)
-		if seconds < 1 {
-			seconds = 1
-		}
-		w.Header().Set("Retry-After", strconv.FormatInt(seconds, 10))
-		writeProblem(w, r, 429, "auth_rate_limited", "Too many login attempts. Try again later.")
+	if !s.allowLogin(w, r, ip, input.Name) {
 		return
 	}
 	grant, err := s.accounts.Login(ctx, input.Name, *input.Password, input.DeviceName, ip)
@@ -118,6 +112,83 @@ func (s *Server) login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, 200, map[string]any{"data": issueWebGrant(w, grant)})
+}
+
+// allowLogin applies the shared login budget. Web and native password logins
+// draw from the same IP and name buckets, so switching endpoints gains an
+// attacker nothing.
+func (s *Server) allowLogin(w http.ResponseWriter, r *http.Request, ip, name string) bool {
+	allowed, retry := s.loginLimiter.Allow(ip, name)
+	if allowed {
+		return true
+	}
+	seconds := int64((retry + time.Second - 1) / time.Second)
+	if seconds < 1 {
+		seconds = 1
+	}
+	w.Header().Set("Retry-After", strconv.FormatInt(seconds, 10))
+	writeProblem(w, r, 429, "auth_rate_limited", "Too many login attempts. Try again later.")
+	return false
+}
+
+// browserRequest reports headers that only a browser engine attaches and that
+// page scripts cannot remove or forge: Origin (sent on every cross-origin
+// request and on same-origin POST) and the Fetch Metadata headers.
+func browserRequest(r *http.Request) bool {
+	for _, name := range []string{"Origin", "Sec-Fetch-Site", "Sec-Fetch-Mode"} {
+		if len(r.Header.Values(name)) > 0 {
+			return true
+		}
+	}
+	return false
+}
+
+// nativeLogin issues a native session to an installed client (G07.4, G24.2).
+// Native sessions may play media, which browser pages must never do, so the
+// endpoint refuses anything a browser sends before reading the body: a web
+// page on any origin, including this one, cannot obtain a playable token by
+// calling it. The token is returned in the body only; no cookie is set and no
+// CSRF token is issued, because native credentials are never cookie borne.
+func (s *Server) nativeLogin(w http.ResponseWriter, r *http.Request) {
+	if browserRequest(r) {
+		writeProblem(w, r, 403, "forbidden", "Operation is not permitted.")
+		return
+	}
+	if _, err := strictQuery(r); err != nil {
+		WriteError(w, r, err)
+		return
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), s.cfg.RequestTimeout())
+	defer cancel()
+	r = r.WithContext(ctx)
+	_ = http.NewResponseController(w).SetReadDeadline(time.Now().Add(s.cfg.RequestTimeout()))
+	var input struct {
+		Name     string  `json:"name"`
+		Password *string `json:"password"`
+		Client   string  `json:"client"`
+		Device   string  `json:"device"`
+		DeviceID string  `json:"deviceId"`
+		Version  string  `json:"version"`
+	}
+	if err := DecodeJSON(w, r, &input, accountBodyLimit); err != nil {
+		WriteError(w, r, err)
+		return
+	}
+	if input.Password == nil {
+		WriteError(w, r, domain.ErrInvalid)
+		return
+	}
+	ip := requestClientIP(r)
+	if !s.allowLogin(w, r, ip, input.Name) {
+		return
+	}
+	client := domain.NativeClient{Name: input.Client, Device: input.Device, DeviceID: input.DeviceID, Version: input.Version}
+	grant, err := s.accounts.LoginNative(ctx, input.Name, *input.Password, client, ip)
+	if err != nil {
+		WriteError(w, r, err)
+		return
+	}
+	writeJSON(w, 200, map[string]any{"data": grant})
 }
 
 // POST actions without input require an empty JSON object. DELETE actions
@@ -138,6 +209,7 @@ func emptyAccountInput(w http.ResponseWriter, r *http.Request) error {
 
 func (s *Server) accountRoutes(r chi.Router) {
 	r.With(s.accountBudget).Post("/api/v1/auth/login", s.login)
+	r.With(s.accountBudget).Post("/api/v1/auth/login/native", s.nativeLogin)
 	r.Group(func(r chi.Router) {
 		r.Use(s.accountBudget)
 		r.Use(s.authenticate)
@@ -247,6 +319,20 @@ func (s *Server) accountRoutes(r chi.Router) {
 			}
 			return nil, 204, s.accounts.Unlock(r.Context(), a, chi.URLParam(r, "id"))
 		}))
+		r.Put("/api/v1/users/{id}/native", s.accountEndpoint(true, false, func(w http.ResponseWriter, r *http.Request, a domain.Actor) (any, int, error) {
+			var input struct {
+				AllowNative *bool `json:"allowNative"`
+			}
+			if err := DecodeJSON(w, r, &input, accountBodyLimit); err != nil {
+				return nil, 0, err
+			}
+			if input.AllowNative == nil {
+				return nil, 0, domain.ErrInvalid
+			}
+			user, err := s.accounts.SetNativeAccess(r.Context(), a, chi.URLParam(r, "id"), *input.AllowNative)
+			return user, 200, err
+		}))
+		r.Get("/api/v1/sessions", s.accountEndpoint(true, true, s.listAllSessions))
 		r.Get("/api/v1/users/{id}/sessions", s.accountEndpoint(false, false, func(w http.ResponseWriter, r *http.Request, a domain.Actor) (any, int, error) {
 			sessions, err := s.accounts.Sessions(r.Context(), a, chi.URLParam(r, "id"))
 			return sessions, 200, err
@@ -364,4 +450,26 @@ func (s *Server) listUsers(w http.ResponseWriter, r *http.Request, a domain.Acto
 		next = users[len(users)-1].ID
 	}
 	return map[string]any{"users": users, "pagination": map[string]any{"nextCursor": next, "limit": limit}}, 200, nil
+}
+
+func (s *Server) listAllSessions(w http.ResponseWriter, r *http.Request, a domain.Actor) (any, int, error) {
+	query, err := strictQuery(r, "cursor", "limit")
+	if err != nil {
+		return nil, 0, err
+	}
+	limit := 50
+	if value, ok := query["limit"]; ok {
+		if limit, err = strconv.Atoi(value); err != nil {
+			return nil, 0, domain.ErrInvalid
+		}
+	}
+	sessions, err := s.accounts.AllSessions(r.Context(), a, query["cursor"], limit)
+	if err != nil {
+		return nil, 0, err
+	}
+	next := ""
+	if len(sessions) == limit {
+		next = sessions[len(sessions)-1].ID
+	}
+	return map[string]any{"sessions": sessions, "pagination": map[string]any{"nextCursor": next, "limit": limit}}, 200, nil
 }

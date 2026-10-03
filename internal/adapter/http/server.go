@@ -31,6 +31,13 @@ type Backend interface {
 	Authenticate(context.Context, string) (access.Principal, error)
 }
 
+// sessionUseTracker is implemented by backends that record when and from
+// which address a session was last used (G07.4). Such bookkeeping is
+// throttled and best effort; it never changes the authentication result.
+type sessionUseTracker interface {
+	AuthenticateFrom(ctx context.Context, token, ip string) (access.Principal, error)
+}
+
 type Server struct {
 	trustedProxies  []netip.Prefix
 	cfg             config.Config
@@ -304,7 +311,13 @@ func (s *Server) authenticate(next http.Handler) http.Handler {
 			return
 		}
 		ctx, cancel := context.WithTimeout(r.Context(), s.cfg.RequestTimeout())
-		p, err := s.backend.Authenticate(ctx, method.token)
+		var p access.Principal
+		var err error
+		if tracker, ok := s.backend.(sessionUseTracker); ok {
+			p, err = tracker.AuthenticateFrom(ctx, method.token, requestClientIP(r))
+		} else {
+			p, err = s.backend.Authenticate(ctx, method.token)
+		}
 		cancel()
 		if method.cookie && (errors.Is(err, domain.ErrUnauthenticated) || err == nil && p.Kind != access.ClientWeb) {
 			// Only web sessions may ride on a cookie. A native credential in the
@@ -486,6 +499,8 @@ func WriteError(w http.ResponseWriter, r *http.Request, err error) {
 		status, code, message = 409, "nfo_invalidated", "NFO validation scope changed. Retry the job."
 	case errors.Is(err, domain.ErrLastAdmin):
 		status, code, message = 409, "last_admin", "An active administrator must remain."
+	case errors.Is(err, domain.ErrNativeLoginDisabled):
+		status, code, message = 403, "native_login_disabled", "Native device login is not enabled for this account."
 	case errors.Is(err, domain.ErrSessionLimit):
 		status, code, message = 429, "session_limit", "Active session limit reached."
 	case errors.Is(err, errAuthRateLimited):

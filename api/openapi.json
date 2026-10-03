@@ -693,6 +693,7 @@
           "metadata_unavailable",
           "method_not_allowed",
           "metrics_busy",
+          "native_login_disabled",
           "nfo_cache_capacity",
           "nfo_disabled",
           "nfo_identity_mismatch",
@@ -791,6 +792,9 @@
           ],
           "metrics_busy": [
             "503"
+          ],
+          "native_login_disabled": [
+            "403"
           ],
           "nfo_cache_capacity": [
             "409"
@@ -3405,6 +3409,61 @@
         },
         "type": "object"
       },
+      "NativeAccess": {
+        "additionalProperties": false,
+        "properties": {
+          "allowNative": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "allowNative"
+        ],
+        "type": "object"
+      },
+      "NativeLogin": {
+        "additionalProperties": false,
+        "properties": {
+          "client": {
+            "description": "Required client application name; no surrounding spaces. At most 128 UTF-8 bytes; control characters are rejected.",
+            "maxLength": 128,
+            "type": "string"
+          },
+          "device": {
+            "description": "Optional device name shown in session lists. At most 128 UTF-8 bytes; control characters are rejected.",
+            "maxLength": 128,
+            "type": "string"
+          },
+          "deviceId": {
+            "description": "Required stable device identifier; no surrounding spaces. At most 256 UTF-8 bytes; control characters are rejected.",
+            "maxLength": 256,
+            "type": "string"
+          },
+          "name": {
+            "description": "The server also enforces the stated maximum in UTF-8 bytes.",
+            "maxLength": 128,
+            "type": "string"
+          },
+          "password": {
+            "description": "Unmodified UTF-8. New passwords must contain 12–1024 bytes; passwords are never trimmed or normalized.",
+            "maxLength": 1024,
+            "type": "string",
+            "writeOnly": true
+          },
+          "version": {
+            "description": "Optional client application version. At most 64 UTF-8 bytes; control characters are rejected.",
+            "maxLength": 64,
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "password",
+          "client",
+          "deviceId"
+        ],
+        "type": "object"
+      },
       "PasswordChange": {
         "additionalProperties": false,
         "properties": {
@@ -4340,6 +4399,11 @@
       "Session": {
         "additionalProperties": false,
         "properties": {
+          "client": {
+            "description": "Client application name reported at native login. At most 128 UTF-8 bytes; control characters are rejected.",
+            "maxLength": 128,
+            "type": "string"
+          },
           "clientKind": {
             "enum": [
               "web",
@@ -4349,6 +4413,11 @@
           },
           "createdAt": {
             "format": "date-time",
+            "type": "string"
+          },
+          "deviceId": {
+            "description": "Device identifier reported at native login; a label, not a device proof. At most 256 UTF-8 bytes; control characters are rejected.",
+            "maxLength": 256,
             "type": "string"
           },
           "deviceName": {
@@ -4364,12 +4433,27 @@
             "format": "uuid",
             "type": "string"
           },
+          "lastIp": {
+            "description": "Client address of the last recorded use, as determined by the trusted proxy settings.",
+            "maxLength": 45,
+            "type": "string"
+          },
+          "lastSeenAt": {
+            "description": "Last authenticated use, recorded at most once per 60 seconds.",
+            "format": "date-time",
+            "type": "string"
+          },
           "revokedAt": {
             "format": "date-time",
             "type": "string"
           },
           "userId": {
             "format": "uuid",
+            "type": "string"
+          },
+          "version": {
+            "description": "Client application version reported at native login. At most 64 UTF-8 bytes; control characters are rejected.",
+            "maxLength": 64,
             "type": "string"
           }
         },
@@ -4412,10 +4496,49 @@
         ],
         "type": "object"
       },
+      "SessionPage": {
+        "additionalProperties": false,
+        "properties": {
+          "pagination": {
+            "additionalProperties": false,
+            "properties": {
+              "limit": {
+                "maximum": 100,
+                "minimum": 1,
+                "type": "integer"
+              },
+              "nextCursor": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "nextCursor",
+              "limit"
+            ],
+            "type": "object"
+          },
+          "sessions": {
+            "items": {
+              "$ref": "#/components/schemas/Session"
+            },
+            "maxItems": 100,
+            "type": "array"
+          }
+        },
+        "required": [
+          "sessions",
+          "pagination"
+        ],
+        "type": "object"
+      },
       "User": {
         "additionalProperties": false,
         "properties": {
           "admin": {
+            "type": "boolean"
+          },
+          "allowNative": {
+            "description": "Whether POST /api/v1/auth/login/native may issue native sessions to this user. Changed only through PUT /api/v1/users/{id}/native.",
             "type": "boolean"
           },
           "createdAt": {
@@ -4464,6 +4587,7 @@
           "hidden",
           "admin",
           "disabled",
+          "allowNative",
           "createdAt"
         ],
         "type": "object"
@@ -4889,6 +5013,143 @@
           }
         },
         "summary": "Password login; issues a web session and sets the HttpOnly __Host-jelee_session cookie"
+      }
+    },
+    "/api/v1/auth/login/native": {
+      "post": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NativeLogin"
+              }
+            }
+          },
+          "description": "Maximum 64 KiB; exactly one object; unknown or duplicate keys rejected.",
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/SessionGrant"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful response; Cache-Control: no-store"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 400"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 401"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 403"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 404"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 409"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 413"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 415"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 429"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 503"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Jelee error envelope with code, message, details and traceId; see the Error schema."
+          }
+        },
+        "summary": "Password login for an installed native client; issues a playable native session only when an administrator allowed the user native devices (otherwise 403 native_login_disabled after the password is verified). Returns the token in the body only: no cookie, no CSRF token. Requests carrying Origin, Sec-Fetch-Site or Sec-Fetch-Mode, which only browsers send, are refused with 403 forbidden. Shares the login rate limit, lockout and audit with /auth/login"
       }
     },
     "/api/v1/auth/logout": {
@@ -13732,6 +13993,161 @@
         "summary": "Inspect service"
       }
     },
+    "/api/v1/sessions": {
+      "get": {
+        "parameters": [
+          {
+            "in": "query",
+            "name": "cursor",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "default": 50,
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/SessionPage"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful response; Cache-Control: no-store"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 400"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 401"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 403"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 404"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 409"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 413"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 415"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 429"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 503"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Jelee error envelope with code, message, details and traceId; see the Error schema."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "webSession": []
+          }
+        ],
+        "summary": "List active sessions of all users with client, device and last use; cursor pagination by session ID",
+        "x-jelee-role": "administrator"
+      }
+    },
     "/api/v1/sources/{id}/stream": {
       "get": {
         "parameters": [
@@ -15363,6 +15779,163 @@
         "x-jelee-role": "administrator"
       }
     },
+    "/api/v1/users/{id}/native": {
+      "put": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NativeAccess"
+              }
+            }
+          },
+          "description": "Maximum 64 KiB; exactly one object; unknown or duplicate keys rejected.",
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/User"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful response; Cache-Control: no-store"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 400"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 401"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 403"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 404"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 409"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 413"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 415"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 429"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 503"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Jelee error envelope with code, message, details and traceId; see the Error schema."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "webSession": []
+          }
+        ],
+        "summary": "Allow or withdraw native-device login for a user; withdrawing revokes the user's active native sessions; audited",
+        "x-jelee-role": "administrator"
+      }
+    },
     "/api/v1/users/{id}/restore": {
       "post": {
         "parameters": [
@@ -15793,7 +16366,7 @@
             "webSession": []
           }
         ],
-        "summary": "List active sessions for self or as administrator; over 1000 returns conflict"
+        "summary": "List active sessions with client, device and last use for self or as administrator; over 1000 returns conflict"
       }
     },
     "/api/v1/users/{id}/sessions/{sessionID}": {

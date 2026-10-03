@@ -16,6 +16,7 @@
 | 方法与路径 | 权限 | 请求与结果 |
 | --- | --- | --- |
 | POST `/auth/login` | 公开 | `name,password,deviceName?`；返回 user、session、token、csrf；只能签发 web 会话，并设置 HttpOnly 会话 Cookie |
+| POST `/auth/login/native` | 公开（仅非浏览器） | `name,password,client,deviceId,device?,version?`；返回 user、session、token；仅当管理员为该用户开启 `allowNative` 时签发可直投的 native 会话，否则在密码验证通过后返回 `403 native_login_disabled`。不设 Cookie、不返回 csrf；带 `Origin`、`Sec-Fetch-Site` 或 `Sec-Fetch-Mode` 的请求一律 `403 forbidden`。详见[原生设备登录](#原生设备登录g074g242) |
 | POST `/auth/logout` | 自己 | `{}`；撤销当前会话；请求携带的会话 Cookie 被清除 |
 | POST `/auth/rotate` | 自己 | `deviceName?`；原子撤销旧令牌并返回新令牌，保留服务端会话类型；web 会话同时替换 Cookie 并返回新 csrf |
 | GET `/auth/csrf` | 自己 | 返回当前凭据对应的 `csrf`，供页面重载后取回 |
@@ -29,7 +30,9 @@
 | DELETE `/users/{id}` | 管理员 | 软删除并撤销会话 |
 | POST `/users/{id}/restore` | 管理员 | `{}`；恢复资料，原令牌保持撤销 |
 | POST `/users/{id}/unlock` | 管理员 | `{}`；重置失败计数和锁定时间 |
-| GET `/users/{id}/sessions` | 自己或管理员 | 有效会话列表；返回会话 ID 和设备标签，不返回令牌 |
+| PUT `/users/{id}/native` | 管理员 | `{"allowNative":true}` 或 `false`；开启或撤回原生设备登录；撤回时同时撤销该用户全部有效 native 会话；写审计 `user.native_access_changed`；值未变时不写审计 |
+| GET `/sessions` | 管理员 | 全部用户的有效会话；`cursor?,limit=1..100`，按会话 ID 游标分页；data.sessions 与 data.pagination |
+| GET `/users/{id}/sessions` | 自己或管理员 | 有效会话列表；返回会话 ID、类型、设备名、client/deviceId/version、最后使用时间与地址，不返回令牌 |
 | DELETE `/users/{id}/sessions` | 自己或管理员 | 撤销目标全部会话 |
 | DELETE `/users/{id}/sessions/{sessionID}` | 自己或管理员 | 撤销目标单个会话 |
 | GET `/users/{id}/libraries` | 自己或管理员 | 显式库授权列表；管理员实际仍可访问全部库 |
@@ -53,10 +56,21 @@ PUT 中遗漏的可选字符串/布尔字段会重置为空/false；它不是 PA
 
 账户管理、授权修改、已知账户失败登录与会话变化写入 PostgreSQL 审计表，包含可用的操作者、目标、IP、时间和安全前后值；不写密码、哈希或令牌。设备名称是用户提供的标签，不是可信设备认证。
 
+## 原生设备登录（G07.4、G24.2）
+
+选择独立路由 `POST /api/v1/auth/login/native`，而不是在 `/auth/login` 加参数：web 登录契约（Cookie、csrf、浏览器调用）保持原样，原生路由的“拒绝浏览器、不发 Cookie”规则也不会与之混在一起。两者共用同一张登录限速表（IP 与名称两个维度）、同一套失败计数与锁定、同一套审计；换路由不会多出尝试次数。
+
+- **权限**：用户字段 `allowNative`（schema 63 起 `users.allow_native`）默认 false，包括管理员本人；只能由管理员经 `PUT /users/{id}/native` 修改，`PUT /users/{id}` 不接受也不重置它。未开启时，密码正确的原生登录返回 `403 native_login_disabled` 并写安全类审计 `login.native_denied`，不签发任何会话、不改失败计数；密码错误、未知账户、锁定等仍统一返回 401，因此未认证的调用者无法探知某账户是否开启了原生登录。撤回权限会立即撤销该用户的全部有效 native 会话（含 CLI `provision --native` 签发的），web 会话不受影响。`jelee-cli provision --native` 是受信任的本地运维入口，行为不变，不检查此开关。
+- **请求字段**：`client`（客户端名，必填，1–128 字节）、`deviceId`（设备标识，必填，1–256 字节）、`device`（设备名，选填，≤128 字节，存为会话的 `deviceName`）、`version`（客户端版本，选填，≤64 字节）。全部要求合法 UTF-8、不得含控制字符；必填项不得有首尾空格。超限或非法在密码计算前返回 400。这些值是客户端自报的标签，用于会话列表与后续 G47.1 客户端识别规则，不是设备可信证明。
+- **响应**：`data.token` 是唯一凭据；native 凭据从不进入 Cookie，也没有 csrf。轮换（`/auth/rotate`）保留会话类型与 client/deviceId/version，只允许更换设备名。
+- **会话使用记录**：每次认证成功时记录 `lastSeenAt` 与 `lastIp`（按可信代理设置得出的客户端地址），同一会话 60 秒内最多写一次；记录失败或会话行正被账户事务锁住时跳过，不影响请求本身。
+
 ## 迁移、回滚与剩余范围
 
 000001–000003 已发布迁移保持不变。000002 添加账户字段、大小写唯一索引、会话元数据、审计字段与幂等键表。旧库若存在只差大小写的名称，迁移失败并保留原名，不自动合并用户；应由操作员先处理冲突，再按 dirty 状态恢复流程处理。当前 binary 只接受 clean schema 4；升级和回滚都必须配合相同 schema 的 binary，见[快取回滚](probe-cache.md#升级与回滚)。
 
 关闭账户开关并不撤销已经签发的会话。正常回退优先关闭功能开关；数据库 down 会丢失密码、资料、软删除信息、锁定计数、设备标签、扩展审计与幂等记录，并将软删除用户保留为禁用。需要恢复这些字段时必须使用备份。切勿把 down 当作无损操作。
+
+schema 63（`000063_native_session_devices`）为 users 增加 `allow_native`，为 sessions 增加可空且有长度/字符约束的 `device_id`、`client_name`、`client_version`、`last_seen_at`、`last_ip`。down 删除这些列：原生登录权限随之收回（失败即关闭），已签发的 native 会话在 schema 62 下仍按 CLI 签发的 native 会话一样有效且可撤销，只丢失客户端标签与最后使用记录；再次 up 后所有用户的 `allowNative` 回到 false。
 
 本阶段未实现头像、内容分级、可疑登录通知、用户/设备带宽与播放并发预算、永久删除与个人数据导出、管理 UI、MFA、分布式限速及完整安全验收。web 会话依旧禁止播放；第三方原生客户端协议适配在后续阶段完成。
