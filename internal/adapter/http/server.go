@@ -177,7 +177,7 @@ func newServer(cfg config.Config, backend Backend, catalog *app.Catalog, resolve
 		}
 		_, _ = w.Write([]byte(page + "</html>"))
 	})
-	r.Get("/api/v1/openapi.json", func(w http.ResponseWriter, r *http.Request) { writeJSON(w, 200, Specification(cfg)) })
+	r.Get("/api/v1/openapi.json", openAPIHandler(cfg))
 	if cfg.EnableAccounts {
 		s.accountRoutes(r)
 	}

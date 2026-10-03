@@ -209,8 +209,16 @@ func scrapeSharedMetricsSnapshot(t *testing.T, ctx context.Context, store *postg
 	if err != nil {
 		t.Fatal("parse production metrics exposition")
 	}
-	if len(families) != 30 {
-		t.Fatalf("production metrics exposed %d families, want 30", len(families))
+	// 30 runtime, pool, job, and resource families plus 7 cache families for
+	// the HTTP server's OpenAPI cache in the process-wide cache registry.
+	if len(families) != 37 {
+		t.Fatalf("production metrics exposed %d families, want 37", len(families))
+	}
+	for _, name := range []string{"jelee_cache_hits_total", "jelee_cache_misses_total", "jelee_cache_evictions_total", "jelee_cache_expirations_total", "jelee_cache_entries", "jelee_cache_size_bytes", "jelee_cache_hit_ratio"} {
+		family := families[name]
+		if family == nil || len(family.Metric) != 1 || len(family.Metric[0].Label) != 1 || family.Metric[0].Label[0].GetName() != "cache" || family.Metric[0].Label[0].GetValue() != "http.openapi" {
+			t.Fatalf("production cache metric %s must have exactly the fixed cache label", name)
+		}
 	}
 	// Workers are disabled in this fixture. Scraping must not acquire work
 	// permits, and each instance must expose its configured resource limits.

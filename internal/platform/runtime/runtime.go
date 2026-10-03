@@ -18,6 +18,7 @@ import (
 	"github.com/MoYuanCN/Jelee/internal/adapter/scan"
 	"github.com/MoYuanCN/Jelee/internal/app"
 	"github.com/MoYuanCN/Jelee/internal/domain"
+	"github.com/MoYuanCN/Jelee/internal/platform/cache"
 	"github.com/MoYuanCN/Jelee/internal/platform/config"
 	jobworker "github.com/MoYuanCN/Jelee/internal/platform/jobs"
 	"github.com/MoYuanCN/Jelee/internal/platform/password"
@@ -125,6 +126,9 @@ func newWithLifetime(cfg config.Config, logger *slog.Logger, lifetime *lifetime)
 			metrics, err := telemetry.NewWithImages(store, store, budget, pictures)
 			if err != nil {
 				return nil, err
+			}
+			if err := metrics.RegisterCaches(cache.Default()); err != nil {
+				return nil, errors.Join(err, metrics.Shutdown(context.Background()))
 			}
 			lifetime.closeTelemetry = metrics.Shutdown
 			return metrics, nil
