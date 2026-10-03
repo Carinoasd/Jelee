@@ -103,6 +103,12 @@ func TestFamilyExecutionRequestDispatchRead(t *testing.T) {
 
 func TestFamilyExecutionBeforeSources(t *testing.T) {
 	f, l, _ := legacyManifestFixture(t)
+	// A fresh family job has neither manifest until its first scan batch; the
+	// progress read must not depend on comparison-only manifest rows.
+	var manifests bool
+	if e := f.s.Pool.QueryRow(f.ctx, `SELECT EXISTS(SELECT 1 FROM job_ignore_manifests WHERE job_id=$1::uuid) OR EXISTS(SELECT 1 FROM job_ignore_legacy_manifests WHERE job_id=$1::uuid)`, l.Job.ID).Scan(&manifests); e != nil || manifests {
+		t.Fatal("fresh family job already has a manifest", e)
+	}
 	if p, e := f.s.ReadFamilyIgnoreProgress(f.ctx, l); e != nil || p != (domain.IgnoreExecutionProgress{}) {
 		t.Fatal("unstarted progress unavailable", e)
 	}
