@@ -4,6 +4,8 @@
 記錄日期：2026-10-04（Asia/Taipei）
 
 ## Claude 接續進度（2026-10-04）
+> 後續：分支 claude/nfo-worker 已加 schema58 結算／收尾、nfo_write worker 與恢復迴圈，見 [nfo-commit-settlement.md](nfo-commit-settlement.md) 與 handoff.md 最上方。
+
 工作目錄已從 Windows 轉到 WSL 的獨立 clone（同 branch／PR46）；原 Windows 目錄留給仍在跑的原 24h（run329073a5），未動。本節是最新狀態，下方原交接內容保留為歷史。
 
 已完成並驗證（Linux 真 PG、race；私密 JSONL 只取計數）：

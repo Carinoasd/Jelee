@@ -33,6 +33,5 @@ Go 端：`domain.JobLease.RecoveryEpoch` 大於 0 時表示恢復租約，Owner 
 
 ## 還沒做
 - 原 actor 被停用或刪除後，恢復與回滾都會被 actor 檢查擋下，需要另外設計系統層級的回滾出口。
-- worker 何時自動取得恢復租約、何時續約，以及恢復後的完整授權重核（policy／root／media）。
-- 結算：rename、備份、rollback。
-- 恢復完成後 job 的最終狀態轉換。schema49 目前不允許，需要另外設計「已結算」的出口。
+
+schema58 已補上（見 [結算與收尾](nfo-commit-settlement.md)）：worker 自動取得與續約恢復租約、恢復時沿用 Stage 的完整重核、rename／備份／rollback 的持久結算，以及收尾後 job 的最終狀態（failed 且每個 entry 都已替換時改為 succeeded）。

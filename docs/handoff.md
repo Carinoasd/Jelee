@@ -1,3 +1,15 @@
+## 2026-10-04 Claude 接續：schema58 NFO 結算、收尾與 nfo_write worker（分支 claude/nfo-worker）
+
+設計見 [nfo-commit-settlement.md](nfo-commit-settlement.md)。新增只追加的結算紀錄（備份→替換／回滾，只能前進、首次時間不可變、取消只回滾、回滾不受 catalog 漂移阻擋）與 job 收尾；`retain_nfo_write_commit_job` 允許「有收尾且每個 entry 已替換」時轉 succeeded（running 或恢復後的 failed）。Writer.SettleCommitFiles／AbortCommitFiles 接上 Rename、備份、回滾並可從持久階段與目標實體續作；app.NFOWriteWorker 與 jobs.Runner 的 NFOWriteOptions 接上 claim、執行、停止與恢復迴圈，設定 `JELEE_ENABLE_NFO_WRITE` 預設關閉。Store.SubmitNFOWriteJob 為 Store 層送件（尚無 HTTP／CLI）。
+
+行為變更：沒有 journal 的過期 nfo_write 現在依一般規則重排（原測試期望保持 running，已更新）。
+
+合併時 migration 需重新編號；測試只用 SchemaVersion／SchemaVersion-1 與檔名後綴，不寫死 58。
+
+仍缺：結算後保留檔與 attempt 容量的清理協議（全域 256 個 token 後新寫回全被拒）、G39.14 三種批次操作、外來目標的人工處理、Windows 真 PG／完整回歸。
+
+---
+
 ## 2026-10-04 Claude 接續：schema57 NFO 寫回恢復租約
 
 設計見 [nfo-commit-recovery-lease.md](nfo-commit-recovery-lease.md)。schema49 讓有 journal 的 job 只能停止，原本當機後永遠無法續作；057 讓已停止的 job 取得有界的恢復租約，以 epoch 接手過期租約，續作同一個 token，不開新 journal。
