@@ -1,3 +1,12 @@
+## 2026-10-03 schema53實作已發布6b44f3ac64，PR46已核，後續完整提交與復原待接
+
+本批明確43檔已commit／push既有branch：實作來源6b44f3ac644d55f9a9be7dbeda3f6f906ad53605，PR46 OPEN／遠端head實核吻合，body以final草稿更新且normalized內容一致，artifact已連結。36 Go／SQL＋7 docs，沒有private .testdata／.tools或其他來源；舊104 SQL保持，schema53兩檔後106份已發布SQL不可改。publication audit55343已terminal0／ready=true；commit前各43檔hash與audit吻合、staged清單相同、cached diff0，push非force。此段handoff另以docs提交保存，不改schema53實作。
+
+474 compiled roots完整V4四片各run/pass一次、1486PASS零skipfail、Win953/1008零fail、Win真PG兩native receipt roots PASS均已核。新6b44head的PG及完整品牌各兩CI實核IN_PROGRESS，未宣稱新CI通過；本docs提交後head／CI需再次核。原24h同identity最後核running／OOMfalse、來源24caf不含53，無24h完成證據、不重啟。全案7完成／198部分／131阻塞保持。
+
+重要：old V3/V4 freeze／finalizer／publication audit有BASE361及published SQL104保護，提交後不可重跑它們當current HEAD檢查或重啟已terminal測試。原logs／coverage／source manifests及公開安全摘要保留凍結範圍，source實作commit以6b44對應。下一先核最新遠端CI（PG／完整品牌不弱化），接同實體未解決排除、partial stage與完整target commit／backup／rollback／settlement／crash recovery，再正式worker及三批次／missing-NFO absence協議與整體heapRSS，保留Windows目錄耐久性缺口與V1 OOM cleanup未全證明；全G00–G51仍active。
+
+---
 ## 2026-10-03 schema53完整V4已獨立驗證，沿既有PR46接續提交
 
 26780已terminal0，四片exit0；474 roots各run／pass一次，1486PASS／零skipfail，996份Go／SQL成員與bytes終態吻合。5284 finalizer已terminal0，獨立compiled listing／groups／coverage／四logs、Win953/1008、新兩正式4PASS及red精確marker皆吻合，104已發布SQL／mod／sum／原需求／LICENSE保持。公開docs/evidence/nfo-write-native-receipt-v4.json新增；原V1/V2 failures及V3 checkpoint均保留。後續不得將V3 frozen當新增後來源證據。
