@@ -1,3 +1,10 @@
+## 2026-10-03 接續：NFO native檔案鎖已驗證
+
+81aa845e51文字修改及b33260d832追蹤已推PR46，工作區原先乾淨。新增私有lockNFOFile，固定零長度旁檔不刪除，POSIX flock/Windows LockFileEx立即嘗試與context取消，安全普通檔案/同身分複核；Windows大小寫別名同鎖。Windows nfo/architecture/vet與Linux同套race通過；詳細docs/nfo-file-lock.md，證據nfo-file-lock-race-linux.txt。G39.9改部分完成，統計7完成/196部分/133阻塞；仍缺進程內singleflight、原子writer/備份/回滾/安全來源複核、正式read-write jobs及100次完整NFO寫入。
+
+正式24h仍是9a0c8d956e3f4fbea9e844e3fc59bc26/PID788902/start31680373/boot4a5d9c5c-4482-4c3e-8978-30156b1ce92f，來源9a74a8932a。先核同handle，不重啟存活工作；不把後續NFO程式歸此長測。全案未完成，PR46禁止merge。
+
+---
 ## 2026-10-03 接續：同來源正式24h已啟動，NFO文字基礎待提交
 
 完整600秒smoke0bf08daaefc84d099f23abcbdb032b9e已passed，2輪、618採樣；soakWorkloadPassed/snapshotVerified/testArtifactsCleaned/launcherArtifactsCleaned全true，finalAcceptance=false。來源9a74a8932a8703b991b8ee2678fb8eb2ec2bdd9b，安全摘要docs/evidence/image-soak-sampler-smoke.json。此結果不能代替正式24h。
