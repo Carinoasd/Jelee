@@ -32,6 +32,15 @@ GC判定使用25個相接的真量測邊界，逐24小時各核一次並核完�
 
 驗證：Linux race真Fx／HTTP／PG整合完成兩輪2008檔混合掃描、106目錄和snapshot核對；管理員／一般使用者各rotation成功，資料庫各僅一個live session。這個短整合使用微型檔案，只驗掃描與session，未代替真圖片負載。Windows選測及tagged vet通過（未提供DB的整合測試略過）；Python新22項、既有圖片控制器21項通過。
 
-另以原1000張真JPEG／PNG／PNG16短測驗證負例拆分，案例72bd27a66a854db9a2468752cba2c610，來源摘要2be0bdf008e8a1ce7d425fb772a6a7b43d51e3af4d8e9aa523b0152b9f630899。1000冷解碼、192暖命中、ACL／負例／取消／SIGTERM／來源保持及自建資源清理通過；finalAcceptance=false。後加資源schema與GC工具不屬該短測來源，不把此结果擴大為完整長測。私人紀錄為 .testdata/image-memory-72bd27a66a854db9a2468752cba2c610/summary.json、.testdata/soak-workload-linux-race.log。
+另以原1000張真JPEG／PNG／PNG16短測驗證負例拆分，案例72bd27a66a854db9a2468752cba2c610，來源摘要2be0bdf008e8a1ce7d425fb772a6a7b43d51e3af4d8e9aa523b0152b9f630899。1000冷解碼、192暖命中、ACL／負例／取消／SIGTERM／來源保持及自建資源清理通過；finalAcceptance=false。後加資源schema與GC工具不屬該短測來源，不把此結果擴大為完整長測。私人紀錄為 .testdata/image-memory-72bd27a66a854db9a2468752cba2c610/summary.json、.testdata/soak-workload-linux-race.log。
 
 下一步仍是整體協調器：把現有sampler、writer、round和GC helper接成同一Fx程序；組合600秒smoke通過後才能提交固定快照啟動24h。
+## 第三批：同程序輪次、協調器與 opt-in 入口
+
+新增 TestImagesSoakAcceptance，須明確提供 JELEE_IMAGES_SOAK_ACCEPTANCE=true、scope formal或smoke與32位run ID。共用原Fx／PG／帳戶／SIGTERM生命週期，formal固定288輪、smoke固定2輪，每輪300秒，不接受加速時數；第144輪rotation，末輪後仍等待滿工作時長。提前訊號會取消並join工作，再走共用清理。
+
+collector由單一consumer排列sample／round／hour事件；每小時先flush並drain才讀全部採樣的min/peak，只保留24組聚合。Processor observer只可綁定一次，寫入失敗取消producer，正常停止join後讀GC/cgroup結束邊界。ready/final記錄與事件共用期限和大小限制，各最多一次，final不消耗事件序號。最終結果仍須外層驗證，Go返回passed本身不等於正式驗收完成。
+
+Windows選測及vet通過；Linux race與真PG輔助整合通過（soak-collector-linux-race.log），最後ready/final變更另做對應race選測通過（soak-collector-final-linux-race.log）。Windows首次collector fixture緊迴圈遇相同時鐘tick，改測試注入嚴格遞增時鐘後通過；正式原生時鐘未更改。共用生命周期抽取已由原1000圖片smoke 8ff8521fd760435795b53dfe7cea1196驗過，後增collector/入口不屬該smoke來源。
+
+**尚未執行完整600秒或24h入口。** 下一步是外層控制器：固定快照、單條logs-follow有界reader、完整stream/round/hour/GC重驗、ready後SIGTERM、私有status與自建資源清理。不得以本批單元或短PG整合替代長跑證據。

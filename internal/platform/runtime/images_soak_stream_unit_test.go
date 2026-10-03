@@ -187,3 +187,37 @@ func TestImagesSoakStreamSizeAndTimeLimits(t *testing.T) {
 		reader.Close()
 	}
 }
+
+func TestImagesSoakStreamReadyAndFinalAreSeparateSingleRecords(t *testing.T) {
+	writer, reader := net.Pipe()
+	defer writer.Close()
+	defer reader.Close()
+	s, _ := newImagesSoakStream(writer, strings.Repeat("f", 32))
+	s.workEnded = true
+	done := make(chan error, 1)
+	go func() {
+		if err := s.ready(context.Background()); err != nil {
+			done <- err
+			return
+		}
+		done <- s.final(context.Background(), imagesSoakAcceptanceReport{Version: 1, RunID: strings.Repeat("f", 32), Scope: "smoke", Result: "failed"})
+	}()
+	_ = reader.SetReadDeadline(time.Now().Add(time.Second))
+	r := bufio.NewReader(reader)
+	for _, key := range []string{"imagesSoakReadyForSIGTERM", "imagesSoakAcceptance"} {
+		line, err := r.ReadBytes('\n')
+		var record map[string]json.RawMessage
+		if err != nil || json.Unmarshal(line, &record) != nil || len(record) != 1 || record[key] == nil {
+			t.Fatal("invalid control record")
+		}
+	}
+	if err := <-done; err != nil {
+		t.Fatal(err)
+	}
+	if s.seq != 0 {
+		t.Fatal("control records consumed event sequence")
+	}
+	if s.final(context.Background(), imagesSoakAcceptanceReport{Version: 1, RunID: strings.Repeat("f", 32)}) == nil {
+		t.Fatal("duplicate final accepted")
+	}
+}

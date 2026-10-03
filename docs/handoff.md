@@ -1,3 +1,19 @@
+## 最新接續：長測Go入口與協調器已串接
+
+新增TestImagesSoakAcceptance、collector及固定round引擎，沿用共用runImagesAcceptance生命周期。每輪300秒，formal288輪、smoke2輪；sample/round/hour單consumer排序，每小時flush/drain後聚合，GC/cgroup前後邊界，ready/final各一次，提前停止cancel/join。只在jelee_probe_tests明確env啟用，尚未執行600秒或24h入口。
+
+Windows選測/vet/格式/增量品牌與Linux race通過，Linux真PG輔助scan/rotation仍通過。紀錄 .testdata/soak-collector-linux-race.log、.testdata/soak-collector-final-linux-race.log，sessions26569/35485均退出0。首次Windows測試fixture相同時鐘tick，改注入嚴格遞增測試時鐘後通過，原生reader未改。先前shared-lifecycle 1000smoke8ff8521fd760435795b53dfe7cea1196只涵蓋當時來源，不涵蓋後加collector入口。
+
+下一步優先完成外層controller/validator並實跑600秒：新module需固定已提交快照、單一docker logs-follow reader、有界JSON解析、完整events/round/GC/cgroup/資源核對、ready後SIGTERM、狀態與清理；formal需同快照≥24h，不可拼接中斷。collector已提供phase/begin/hourRange/emit hooks，不要再重做草稿。TestImagesSoakAcceptance fixture固定/media、1000主items+4negative，共2008檔106目錄。
+
+沿用PR46，本批沿同分支提交推送；全案與G42.10未完成，第三階段百分比未重估。當前無活躍本地程序。下列為歷史紀錄。
+## 進行中：共用生命周期與固定輪次流程
+
+本機已將原圖片驗收的Fx／帳戶／PG／SIGTERM／cleanup抽為runImagesAcceptance hooks，舊入口仍委派同一cold/warm/negative/cancellation工作。原1000真圖片smoke 8ff8521fd760435795b53dfe7cea1196通過，sourceDigest ed8fb09565ee1d32e9429f15b7b137551e62095220d76888329593c66e9ba2dd，來源保持與自建資源清理true；session34977退出0。這只驗共享生命周期，沒有執行新的600秒或24h流程。
+
+新增images_soak_rounds_test.go：正式288輪／smoke2輪、每輪五分鐘deadline、scan/cold/warm/idle/resource checkpoint、第144輪雙角色rotation、每小時GC及來源檢查、最後等待滿時數、前後negative/cancellation。新輪次函式尚未接入口；hourRange/begin/phase/emit hooks待採樣寫入協調器提供。Windows選測、vet、格式及增量品牌通過，基本scope/取消/median單元通過；不可把這些算作真長測。
+
+上述Go變更尚未提交。下一步實作collector：configure時啟動sampler與單writer，安全attach Processor stats、work起點、flush/drain hourly range、ready/final JSON，再建TestImagesSoakAcceptance及固定快照controller。需真正600秒smoke後才啟24h。當前無活躍本地測試。
 ## 最新接續：長測輪次輔助與逐小時GC
 
 第二批工具已實作：真HTTP混合scan＋清單/基線/快照核對、session rotation舊失效新可用與24h TTL、負例seed/check拆分、round/rotation/resources型別與逐小時GC判定。Linux race真PG/Fx/HTTP兩輪2008檔／106目錄與雙角色rotation通過；新Python22項、既有控制器21項、Windows選測、vet、格式與增量品牌通過。Linux session18229已退出0，無活躍本地測試。

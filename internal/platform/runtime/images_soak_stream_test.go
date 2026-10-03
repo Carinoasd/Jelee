@@ -67,6 +67,8 @@ type imagesSoakStream struct {
 	elapsed   int64
 	err       error
 	workEnded bool
+	readySent bool
+	finalSent bool
 	timeout   time.Duration
 }
 
@@ -140,6 +142,22 @@ func (s *imagesSoakStream) write(ctx context.Context, elapsed int64, data any) e
 	if err != nil || len(line) > 64<<10 || s.bytes+len(line) > 64<<20 {
 		return fail()
 	}
+	if s.writeBytes(ctx, line) != nil {
+		return fail()
+	}
+	s.seq++
+	s.elapsed = elapsed
+	s.workEnded = s.workEnded || kind == "workEnd"
+	return nil
+}
+
+// Caller holds mu. Keep deadlines/cancellation identical for events and the
+// separate ready/final records; an expired previous deadline is never reused.
+func (s *imagesSoakStream) writeBytes(ctx context.Context, line []byte) error {
+	fail := func() error { s.err = errImagesSoakStream; return s.err }
+	if ctx.Err() != nil || s.err != nil || s.finalSent || s.bytes+len(line) > 64<<20 {
+		return fail()
+	}
 	deadline := time.Now().Add(s.timeout)
 	if parent, ok := ctx.Deadline(); ok && parent.Before(deadline) {
 		deadline = parent
@@ -158,9 +176,42 @@ func (s *imagesSoakStream) write(ctx context.Context, elapsed int64, data any) e
 	if err != nil || n != len(line) || ctx.Err() != nil {
 		return fail()
 	}
-	s.seq++
 	s.bytes += n
-	s.elapsed = elapsed
-	s.workEnded = s.workEnded || kind == "workEnd"
+	return nil
+}
+
+func (s *imagesSoakStream) ready(ctx context.Context) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if !s.workEnded || s.readySent {
+		s.err = errImagesSoakStream
+		return s.err
+	}
+	if err := s.writeBytes(ctx, []byte("{\"imagesSoakReadyForSIGTERM\":true}\n")); err != nil {
+		return err
+	}
+	s.readySent = true
+	return nil
+}
+
+func (s *imagesSoakStream) final(ctx context.Context, report imagesSoakAcceptanceReport) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.finalSent || report.Version != 1 || report.RunID != s.runID {
+		s.err = errImagesSoakStream
+		return s.err
+	}
+	line, err := json.Marshal(struct {
+		Report imagesSoakAcceptanceReport `json:"imagesSoakAcceptance"`
+	}{report})
+	line = append(line, '\n')
+	if err != nil || len(line) > 2<<20 {
+		s.err = errImagesSoakStream
+		return s.err
+	}
+	if err := s.writeBytes(ctx, line); err != nil {
+		return err
+	}
+	s.finalSent = true
 	return nil
 }

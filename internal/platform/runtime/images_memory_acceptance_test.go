@@ -203,7 +203,44 @@ func TestImagesMemoryAcceptance(t *testing.T) {
 	report.ErrorCode = runImagesMemoryAcceptance(ctx, profile, &report)
 }
 
-func runImagesMemoryAcceptance(ctx context.Context, profile *imagesMemoryProfile, report *imagesMemoryAcceptanceReport) (failure string) {
+type imagesAcceptanceSession struct {
+	store                                  *postgres.Store
+	registration                           domain.LibraryRegistration
+	life                                   *lifetime
+	client                                 *http.Client
+	address, applicationName, observerName string
+	administrator, viewer                  *domain.SessionGrant
+	access                                 func(bool) error
+	verifySources                          func() error
+}
+
+// Shared real runtime lifecycle. Hooks only select the opt-in acceptance
+// workload and evidence collector; authentication and shutdown stay common.
+type imagesAcceptanceHooks struct {
+	jobs      bool
+	configure func(imagesMemoryConfiguration) error
+	phase     func(string) error
+	observe   func(func() imageadapter.Stats) error
+	work      func(context.Context, imagesAcceptanceSession, *imagesMemoryAcceptanceReport) string
+	ready     func() error
+	finish    func(*imagesMemoryAcceptanceReport) error
+}
+
+func runImagesMemoryAcceptance(ctx context.Context, profile *imagesMemoryProfile, report *imagesMemoryAcceptanceReport) string {
+	hooks := imagesAcceptanceHooks{phase: profile.changePhase, observe: profile.observeProcessor}
+	hooks.work = func(ctx context.Context, session imagesAcceptanceSession, report *imagesMemoryAcceptanceReport) string {
+		return runImagesMemoryWorkload(ctx, profile, session, report)
+	}
+	hooks.ready = func() error { _, err := fmt.Println(`{"imagesMemoryReadyForSIGTERM":true}`); return err }
+	hooks.finish = func(report *imagesMemoryAcceptanceReport) error {
+		var err error
+		report.MemoryProfile, err = profile.finish()
+		return err
+	}
+	return runImagesAcceptance(ctx, hooks, report)
+}
+
+func runImagesAcceptance(ctx context.Context, hooks imagesAcceptanceHooks, report *imagesMemoryAcceptanceReport) (failure string) {
 	cleanupFailure := func(code string) {
 		if failure == "" {
 			failure = code
@@ -251,16 +288,22 @@ func runImagesMemoryAcceptance(ctx context.Context, profile *imagesMemoryProfile
 	query.Set("application_name", applicationName)
 	u.RawQuery = query.Encode()
 	values := map[string]string{"JELEE_DATABASE_URL": u.String(), "JELEE_ENABLE_ACCOUNTS": "true", "JELEE_ENABLE_CATALOG": "true", "JELEE_ENABLE_IMAGES": "true", "JELEE_IMAGE_TEMP_ROOT": imagesMemoryScratch, "JELEE_MAX_CONNECTIONS": "8"}
+	if hooks.jobs {
+		values["JELEE_ENABLE_JOBS"], values["JELEE_JOB_WORKERS"] = "true", "1"
+	}
 	cfg, err := config.LoadWith(func(key string) (string, bool) { value, ok := values[key]; return value, ok })
 	if err != nil || cfg.Images != (func() config.ImagesConfig {
 		v := config.DefaultImagesConfig()
 		v.TempRoot = imagesMemoryScratch
 		return v
-	})() || cfg.Accounts != config.DefaultAccountsConfig() || cfg.EnableJobs || cfg.EnableProbe || cfg.EnableFamilyIgnore || goruntime.GOMAXPROCS(0) != 2 {
+	})() || cfg.Accounts != config.DefaultAccountsConfig() || cfg.EnableJobs != hooks.jobs || cfg.EnableProbe || cfg.EnableFamilyIgnore || goruntime.GOMAXPROCS(0) != 2 {
 		return "runtime_configuration_failed"
 	}
 	p, a := cfg.Images, cfg.Accounts
 	report.Configuration = imagesMemoryConfiguration{p.MaxConcurrent, p.MaxImageBytes, p.MaxSourceBytes, p.MaxOutputBytes, p.MaxOutputDimension, p.CacheBytes, p.CacheEntries, p.DefaultQuality, p.TimeoutSeconds, p.CacheTTLSeconds, goruntime.GOMAXPROCS(0), a.PasswordMemoryKiB, a.PasswordIterations, a.PasswordParallelism, a.PasswordConcurrency, cfg.EnableJobs, cfg.EnableProbe, cfg.EnableFamilyIgnore}
+	if hooks.configure != nil && hooks.configure(report.Configuration) != nil {
+		return "memory_configuration_failed"
+	}
 	hasher, err := password.New(password.DefaultConfig())
 	if err != nil {
 		return "password_configuration_failed"
@@ -294,7 +337,7 @@ func runImagesMemoryAcceptance(ctx context.Context, profile *imagesMemoryProfile
 		return "fixture_samples_failed"
 	}
 	report.SourceSampleCount = len(samples)
-	if profile.changePhase("login") != nil {
+	if hooks.phase("login") != nil {
 		return "memory_phase_failed"
 	}
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
@@ -308,7 +351,7 @@ func runImagesMemoryAcceptance(ctx context.Context, profile *imagesMemoryProfile
 		return l, e
 	}
 	application := newWithLifetime(cfg, logger, life)
-	if application.Err() != nil || life.imageStats == nil || profile.observeProcessor(life.imageStats) != nil {
+	if application.Err() != nil || life.imageStats == nil || hooks.observe(life.imageStats) != nil {
 		return "runtime_build_failed"
 	}
 	stopped := false
@@ -325,7 +368,7 @@ func runImagesMemoryAcceptance(ctx context.Context, profile *imagesMemoryProfile
 	startCtx, stopStart := context.WithTimeout(ctx, 20*time.Second)
 	err = application.Start(startCtx)
 	stopStart()
-	if err != nil || address == "" || life.worker != nil || life.closeImages == nil {
+	if err != nil || address == "" || (life.worker != nil) != hooks.jobs || life.closeImages == nil {
 		return "runtime_start_failed"
 	}
 	// Reuse exactly two HTTP/1 connections for the two cold workers. The
@@ -368,29 +411,33 @@ func runImagesMemoryAcceptance(ctx context.Context, profile *imagesMemoryProfile
 	if access(true) != nil {
 		return "http_acl_grant_failed"
 	}
-	var warmTags [64]string
-	if profile.changePhase("cold") != nil {
-		return "memory_phase_failed"
-	}
-	if code := runImagesMemoryCold(ctx, profile, life, client, address, viewer.Token, report.FixtureItems, &report.Cold, &warmTags); code != "" {
-		return code
-	}
-	if profile.changePhase("warm") != nil {
-		return "memory_phase_failed"
-	}
-	if code := runImagesMemoryWarm(ctx, profile, life, client, address, viewer.Token, report.FixtureItems, &report.Warm, warmTags); code != "" {
-		return code
-	}
-	if profile.changePhase("negative") != nil {
-		return "memory_phase_failed"
-	}
-	if code := runImagesMemoryNegative(ctx, store, registration, life, client, address, viewer.Token, report.FixtureItems, warmTags[63], access, &report.Negative); code != "" {
-		return code
-	}
-	if profile.changePhase("cancellation") != nil {
-		return "memory_phase_failed"
-	}
-	if code := runImagesMemoryCancellation(ctx, store, applicationName, life, client, address, viewer.Token, report.FixtureItems, &report.Cancellation); code != "" {
+	session := imagesAcceptanceSession{store: store, registration: registration, life: life, client: client,
+		address: address, applicationName: applicationName, observerName: schemaName + "_observer",
+		administrator: &administrator, viewer: &viewer, access: access,
+		verifySources: func() error { return verifyImagesMemoryFixtures(samples) }}
+	if hooks.jobs {
+		// A long idle slot must still respond to an early stop signal. Cancel
+		// and join the workload before the shared Fx cleanup runs.
+		workCtx, stopWork := context.WithCancel(ctx)
+		workDone := make(chan string, 1)
+		go func() { workDone <- hooks.work(workCtx, session, report) }()
+		var code string
+		select {
+		case code = <-workDone:
+		case <-signals:
+			stopWork()
+			<-workDone
+			code = "soak_interrupted"
+		case <-ctx.Done():
+			stopWork()
+			<-workDone
+			code = "soak_context_cancelled"
+		}
+		stopWork()
+		if code != "" {
+			return code
+		}
+	} else if code := hooks.work(ctx, session, report); code != "" {
 		return code
 	}
 	if err := verifyImagesMemoryFixtures(samples); err != nil {
@@ -443,7 +490,9 @@ func runImagesMemoryAcceptance(ctx context.Context, profile *imagesMemoryProfile
 	if waitImagesMemoryBlocked(ctx, store, applicationName, 1) != nil {
 		return "shutdown_inflight_not_observed"
 	}
-	fmt.Println(`{"imagesMemoryReadyForSIGTERM":true}`)
+	if hooks.ready() != nil {
+		return "shutdown_handshake_failed"
+	}
 	timer := time.NewTimer(30 * time.Second)
 	defer timer.Stop()
 	select {
@@ -465,7 +514,7 @@ func runImagesMemoryAcceptance(ctx context.Context, profile *imagesMemoryProfile
 	}
 	report.Shutdown.InFlightBeforeStop = true
 	stopNew.Store(true)
-	if profile.changePhase("shutdown") != nil {
+	if hooks.phase("shutdown") != nil {
 		return "memory_phase_failed"
 	}
 	stopCtx, cancelStop := context.WithTimeout(context.Background(), 15*time.Second)
@@ -527,14 +576,40 @@ func runImagesMemoryAcceptance(ctx context.Context, profile *imagesMemoryProfile
 	if !report.Shutdown.ScratchEmpty {
 		return "image_scratch_retained"
 	}
-	if profile.changePhase("stopped") != nil {
+	if hooks.phase("stopped") != nil {
 		return "memory_phase_failed"
 	}
-	if report.MemoryProfile, err = profile.finish(); err != nil {
+	if hooks.finish(report) != nil {
 		return "memory_profile_failed"
 	}
 	report.Shutdown.Result = "passed"
 	return ""
+}
+
+func runImagesMemoryWorkload(ctx context.Context, profile *imagesMemoryProfile, session imagesAcceptanceSession, report *imagesMemoryAcceptanceReport) string {
+	var warmTags [64]string
+	if profile.changePhase("cold") != nil {
+		return "memory_phase_failed"
+	}
+	if code := runImagesMemoryCold(ctx, profile, session.life, session.client, session.address, session.viewer.Token, report.FixtureItems, &report.Cold, &warmTags); code != "" {
+		return code
+	}
+	if profile.changePhase("warm") != nil {
+		return "memory_phase_failed"
+	}
+	if code := runImagesMemoryWarm(ctx, profile, session.life, session.client, session.address, session.viewer.Token, report.FixtureItems, &report.Warm, warmTags); code != "" {
+		return code
+	}
+	if profile.changePhase("negative") != nil {
+		return "memory_phase_failed"
+	}
+	if code := runImagesMemoryNegative(ctx, session.store, session.registration, session.life, session.client, session.address, session.viewer.Token, report.FixtureItems, warmTags[63], session.access, &report.Negative); code != "" {
+		return code
+	}
+	if profile.changePhase("cancellation") != nil {
+		return "memory_phase_failed"
+	}
+	return runImagesMemoryCancellation(ctx, session.store, session.applicationName, session.life, session.client, session.address, session.viewer.Token, report.FixtureItems, &report.Cancellation)
 }
 
 func imagesMemoryItem(index int) string { return fmt.Sprintf("64000000-0000-4000-8000-%012x", index+1) }

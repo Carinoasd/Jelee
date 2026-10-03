@@ -21,6 +21,7 @@ type imagesSoakSampleBlock struct {
 type imagesSoakSampleCommand struct {
 	phase string
 	stop  bool
+	flush bool
 	reply chan residentSample
 }
 
@@ -125,7 +126,7 @@ func newImagesSoakSampler(ctx context.Context, started time.Time, now func() tim
 				if !capture() {
 					return
 				}
-				if command.stop && !flush() {
+				if (command.stop || command.flush) && !flush() {
 					return
 				}
 				command.reply <- previous
@@ -147,7 +148,11 @@ func imagesSoakPhaseValid(phase string) bool {
 }
 
 func (s *imagesSoakSampler) samplePhase(ctx context.Context, phase string, stop bool) (residentSample, error) {
-	command := imagesSoakSampleCommand{phase: phase, stop: stop, reply: make(chan residentSample, 1)}
+	return s.samplePhaseFlush(ctx, phase, stop, false)
+}
+
+func (s *imagesSoakSampler) samplePhaseFlush(ctx context.Context, phase string, stop, flush bool) (residentSample, error) {
+	command := imagesSoakSampleCommand{phase: phase, stop: stop, flush: flush, reply: make(chan residentSample, 1)}
 	select {
 	case s.commands <- command:
 	case <-s.done:
