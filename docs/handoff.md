@@ -1,3 +1,12 @@
+## 2026-10-04 遠端287ebb0b5a與PR描述核驗，下一恢復探針完成
+
+三文件發布狀態提交287ebb0b5afb9fdd22d0ba07d4e9f876763805c7已push；PR46 OPEN／HEAD及normalized body吻合，當時工作目錄乾淨，artifact已attach。新HEAD CI為Analyze／Linux foundation IN_PROGRESS、Win foundation／完整branding／PG QUEUED，沒有全綠證據。private pr46-schema55-remote-verified.json及pr46-schema55-body-final.md保存安全摘要／完整描述。
+
+下一恢復探針private probe-ephemeral-stage-v1/v2.py及nfo-ephemeral-stage-probe-v2-result.json：Linux /var/tmp O_TMPFILE與Windows DELETE_ON_CLOSE，兩平台普通stage／未保存ephemeral／proof已Sync ephemeral三個actual child osexit70/71/72皆terminal成功；後兩stage不在，phase72 proof仍在。此處proof為file-backed、非PG／formal stage／FS grant／硬體斷電耐久性。Windows首次受限執行CreateFileW setup exit11 metadata保持，原生權限V2成功，不據此猜原因。自動close刪檔仍可能留下first proof指向missing stage，不能替代有界持久attempt／容量／清理與恢復授權。
+
+本次只補handoff及nfo-partial-stage-recovery兩文件更新schema55最新範圍；1008 Go/SQL不改、110已發布SQL保持、336 status不改。完整目標active，下一沿首次證據不可變／未知物件不採用設計及實作bounded attempt，再真PG與actual crash驗證並接full commit／backup／rollback／結算／worker。不得將本探針當部分stage恢復完成。
+
+---
 ## 2026-10-04 schema55已提交推送807e494f57
 
 publication audit terminal0／ready=true，13source＋5docs共18檔hash與staged inventory保持，336需求status changes0／cached diff通過。提交807e494f5769448ee4832ffcb7f82dfa9a0f4972已推送既有feat/jelee-ignore-family-worker，PR46 OPEN／遠端HEAD吻合，提交後工作目錄乾淨。完整1548PASS／494根／1008來源證據保持；110份001–055 SQL自此已發布，不修改。舊BASE224 freeze／finalizer／publication audit只作本批歷史，不在新HEAD重跑作current驗收。

@@ -1,6 +1,6 @@
 # NFO 部分落檔的中斷恢復
 
-G13.3 要求任務可恢復；G39.8 要求原子替換、寫前備份與失敗自動回滾。現有 StageCommitFiles 只有 plan 與完整 ready 的持久邊界，部分落檔仍沒有自動續作入口。本文件記錄可重現的缺口及下一步必須滿足的恢復條件；正式 read-write 與 worker 尚未啟用。
+G13.3 要求任務可恢復；G39.8 要求原子替換、寫前備份與失敗自動回滾。schema55 已將完整 witness pair 的 checkpoint 與續作接入 PostgreSQL／Stage；create 到首次 checkpoint 間的未知物件仍沒有完整恢復協議。以下保留各階段的中斷基線及恢復條件，schema55 最新範圍見[持久 checkpoint](nfo-commit-checkpoints.md)；正式 read-write 與 worker 尚未啟用。
 
 ## 實際程序中斷回歸
 
@@ -45,3 +45,11 @@ G13.3 要求任務可恢復；G39.8 要求原子替換、寫前備份與失敗�
 本原型沒有 target Rename、backup、rollback、結算、claim 解除或正式 worker 呼叫者，不能宣稱 G13.3／G39.8／G39.14 完成。後續必須接入持久 checkpoint schema／ports、交易首次及重放守衛、恢復租約與完整授權，再驗真正 PG 子程序中斷及未知結果。
 
 同來源選測Windows／Linux race各12PASS（包含無操作helper一PASS）、零skipfail；兩個實際中斷正例及七個拒絕leaf各執行通過一次。完整NFO套件Windows395PASS／5symlink條件skip、Linux race413PASS／1Windows專屬skip。私有overlay僅移除重開前唯讀核對，四個拒絕案例留下新物件，Go exit1／5 test FAIL events／四個精確retained artifact marker，正式來源保持。vet、格式、增量品牌0／339及gitignore通過；見[原型安全證據](evidence/nfo-commit-progress-primitive.json)。
+
+## schema55 之後的恢復邊界
+
+schema55 已發布807e494f57，完整當前PG494 roots／1548PASS／零skipfail及獨立核驗通過；Linux聯合真PG74PASS、Windows真PG28PASS包含兩個DB checkpoint保存後的實際子程序中斷。這補上已保存完整witness pair的重開，仍未補create-before-first-checkpoint、換owner／generation恢復租約或完整filesystem授權。前述file-backed回歸保持各自歷史範圍。
+
+另以自有目錄執行程序中斷探針：普通具名stage在os.Exit70後保留；Linux WSL /var/tmp的O_TMPFILE及Windows DELETE_ON_CLOSE在os.Exit71後不保留stage；先將首次handle身分與bytes digest同步至自有proof檔再os.Exit72時，proof保留而stage不存在。每平台三案例成功，沒有PG或正式Stage呼叫者，不證硬體斷電耐久性。Windows首次受限執行在CreateFileW setup exit11，失敗保留；原生權限探針三案例terminal0。
+
+此探針只界定可用機制的邊界：自動刪除可減少未保存具名物件，仍會產生「首次證據已保存但stage消失」的恢復狀態。下一實作須保留第一次觀察、以持久有界attempt取得另一路徑、計入容量並處理清理與恢復授權，不能改写首次output／rollback身分或採用未知物件。尚未選定或接入這類原生機制。
