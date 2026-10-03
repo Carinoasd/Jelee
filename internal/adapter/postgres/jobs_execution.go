@@ -76,9 +76,15 @@ func (s *Store) ClaimJobWithCapabilities(ctx context.Context, owner string, pref
 	}
 	// An expired NFO write that holds a commit journal cannot be requeued or
 	// reassigned (schema49). Stop it so a recovery lease can settle its tokens.
-	_, err = tx.Exec(ctx, `UPDATE jobs SET state=CASE WHEN cancel_requested THEN 'cancelled' ELSE 'failed' END,error_code=CASE WHEN cancel_requested THEN '' ELSE 'job_timeout' END,finished_at=clock_timestamp(),owner=NULL,lease_until=NULL WHERE state='running' AND lease_until<=clock_timestamp() AND kind='nfo_write' AND EXISTS(SELECT 1 FROM nfo_write_commit_journal w WHERE w.job_id=jobs.id)`)
-	if err != nil {
+	// Historical schemas without the journal table have nothing to stop.
+	var journaled bool
+	if err = tx.QueryRow(ctx, `SELECT to_regclass('nfo_write_commit_journal') IS NOT NULL`).Scan(&journaled); err != nil {
 		return domain.JobLease{}, storageError(err)
+	}
+	if journaled {
+		if _, err = tx.Exec(ctx, `UPDATE jobs SET state=CASE WHEN cancel_requested THEN 'cancelled' ELSE 'failed' END,error_code=CASE WHEN cancel_requested THEN '' ELSE 'job_timeout' END,finished_at=clock_timestamp(),owner=NULL,lease_until=NULL WHERE state='running' AND lease_until<=clock_timestamp() AND kind='nfo_write' AND EXISTS(SELECT 1 FROM nfo_write_commit_journal w WHERE w.job_id=jobs.id)`); err != nil {
+			return domain.JobLease{}, storageError(err)
+		}
 	}
 	var retention int
 	if err = tx.QueryRow(ctx, `SELECT COALESCE(min(history_limit),1) FROM jobs`).Scan(&retention); err != nil {
