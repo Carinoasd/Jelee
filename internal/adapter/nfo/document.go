@@ -1,4 +1,4 @@
-// Package nfo reads local metadata without modifying user files or fetching URLs.
+// Package nfo reads and edits local metadata without fetching referenced URLs.
 package nfo
 
 import (

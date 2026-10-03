@@ -1,3 +1,12 @@
+## 2026-10-03 接續：NFO目錄內替換/備份/回滾基礎已驗證
+
+d97dc01232檔案鎖已推PR46；新增私有replaceNFODocument持有父os.Root、核全原bytes/身分、native鎖、EXCL隨機暫存/file.Sync/Root.Rename、0至16份備份與失敗回滾。Windows與Linux race的100個goroutine及4個子程序各25次完整XML讀改寫已驗，不遺失未知XML與註解；故障注入/取消/還原size+mtime外部修改/回滾時外部改寫均驗。回滾無法完成時固定ErrRollback並保留原文恢復暫存，不覆蓋外部修改。docs/nfo-replace-document.md說明完整範圍與限制；證據nfo-write-document-race-linux.txt。Windows目錄metadata斷電耐久性、不同檔案系統原子性與ACL/owner保留未證明；備份輪替中途失敗集合可能已部分輪替，原NFO保持。
+
+G39.8改部分完成，全案7完成/197部分/132阻塞。仍須公開正式writer/app ports、singleflight完整意圖去重、原始Source/父目錄/root/項目身分綁定、安全複核、read-write策略與持久jobs、缺失NFO建立/ID規則/完整欄位與真實客戶端互操作，不能把私有helper當全案完成。保留原媒體與授權、既有SQL不改。PR46禁止merge。
+
+正式9a0c8d956e3f4fbea9e844e3fc59bc26/PID788902/start31680373/boot4a5d9c5c-4482-4c3e-8978-30156b1ce92f同handle重核吻合，容器running/OOMfalse，source9a74a8932a不含後續NFO變更；先核handle與terminal，不重啟活躍工作。
+
+---
 ## 2026-10-03 接續：NFO native檔案鎖已驗證
 
 81aa845e51文字修改及b33260d832追蹤已推PR46，工作區原先乾淨。新增私有lockNFOFile，固定零長度旁檔不刪除，POSIX flock/Windows LockFileEx立即嘗試與context取消，安全普通檔案/同身分複核；Windows大小寫別名同鎖。Windows nfo/architecture/vet與Linux同套race通過；詳細docs/nfo-file-lock.md，證據nfo-file-lock-race-linux.txt。G39.9改部分完成，統計7完成/196部分/133阻塞；仍缺進程內singleflight、原子writer/備份/回滾/安全來源複核、正式read-write jobs及100次完整NFO寫入。

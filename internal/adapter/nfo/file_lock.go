@@ -15,9 +15,10 @@ import (
 var ErrFileLock = errors.New("nfo_file_lock_failed")
 
 type nfoFileLock struct {
-	file *os.File
-	once sync.Once
-	err  error
+	file  *os.File
+	check func() bool
+	once  sync.Once
+	err   error
 }
 
 // lockNFOFile locks a persistent sidecar in an already-held parent directory.
@@ -76,7 +77,7 @@ func lockNFOFile(ctx context.Context, directory *os.Root, filename string) (*nfo
 				return nil, ErrFileLock
 			}
 			keep = true
-			return &nfoFileLock{file: file}, nil
+			return &nfoFileLock{file: file, check: check}, nil
 		}
 		timer.Reset(25 * time.Millisecond)
 	}
