@@ -1,3 +1,28 @@
+## 2026-10-03 接續：同來源正式24h已啟動，NFO文字基礎待提交
+
+完整600秒smoke0bf08daaefc84d099f23abcbdb032b9e已passed，2輪、618採樣；soakWorkloadPassed/snapshotVerified/testArtifactsCleaned/launcherArtifactsCleaned全true，finalAcceptance=false。來源9a74a8932a8703b991b8ee2678fb8eb2ec2bdd9b，安全摘要docs/evidence/image-soak-sampler-smoke.json。此結果不能代替正式24h。
+
+同HEAD已啟正式run9a0c8d956e3f4fbea9e844e3fc59bc26，PID788902/startTicks31680373/bootId4a5d9c5c-4482-4c3e-8978-30156b1ce92f；開始UTC2026-10-03T03:14:07.539195+00:00，sourceTree c2525c6d0a1e47c8f14f0a00e3be8c32fc2377f6。啟動後實核process identity完全吻合。snapshot /var/tmp/jelee-soak-snapshot-9a0c8d956e3f4fbea9e844e3fc59bc26，evidence .testdata/soak-launch-9a0c8d956e3f4fbea9e844e3fc59bc26。先核同handle，不因poll timeout重啟；此來源不含後續NFO變更。舊smoke與暫留HEAD事項已由本段取代。
+
+NFO WithText/WithTextOptions保留未知XML及鎖，支援十種文字替換、可選缺欄位新增、原行尾/縮排或指定相對縮排、UTF-8 BOM preserve/include/omit。詳細範圍docs/nfo-edit-text.md；原文不變與並行純Document測試不等於檔案寫回。接續atomic writer、備份/回滾、跨程序鎖、ID規則及正式read-write jobs；不要只憑helper關閉G39需求。全案仍7完成/195部分/134阻塞，沿用PR46禁止merge。
+
+---
+## NFO待存程式：文字修改基礎已驗證，暫留HEAD
+
+新增internal/adapter/nfo/edit_text.go/edit_text_test.go，Document.WithText替換既有十種標量文字，lexical保留未知XML/屬性/註解，輸出UTF-8及原BOM策略；從原文重新核鎖、不覆寫ID。Windows nfo/architecture、vet、Linux nfo/architecture race通過，docs/nfo-edit-text.md與docs/evidence/nfo-edit-text-race-linux.txt已記範圍。這不是完整NFO寫回，atomic檔案writer/鎖/backup/正式read-write jobs仍缺。
+
+HEAD仍9a74a8932a等待smoke0bf08daaefc84d099f23abcbdb032b9e，先核同handle。容器實際logs已有seq5/samples/232秒，running/OOMfalse；status檔elapsed0為更新間隔，不可當worker沒有進度或重啟依據。待smoke通過後先同HEAD啟正式，再提交以上程式及交接；不要讓NFO提交破壞matching smoke gate。
+
+---
+
+## 活躍smoke：先核handle，暫留HEAD9a74a8932a
+
+診斷修補9a74a8932a已推PR46，Windows tagged/race Linux、vet、格式、增量品牌、gitignore與51項Python控制器測試通過。新完整600秒smoke run0bf08daaefc84d099f23abcbdb032b9e，PID764115/startTicks31610556/bootId4a5d9c5c-4482-4c3e-8978-30156b1ce92f，來源9a74a8932a8703b991b8ee2678fb8eb2ec2bdd9b；啟動UTC2026-10-03T03:02:29.370792+00:00。啟動後process identity已實核吻合。evidence .testdata/soak-launch-0bf08daaefc84d099f23abcbdb032b9e，snapshot /var/tmp/jelee-soak-snapshot-0bf08daaefc84d099f23abcbdb032b9e。
+
+暫勿提交本段交接或其他待存變更，需保持HEAD以同commitmatching smoke gate啟正式。先核程序與result；不因觀察timeout重啟。若smoke完整passed且snapshotVerified/testArtifactsCleaned/launcherArtifactsCleaned皆true，立即同HEAD啟正式24h、核新handle，再提交待存文件與繼續開發。若failed先查memorySummary.samplerFailure/collectorFailureCode；不得猜測已修圖片故障。
+
+---
+
 ## 2026-10-03 接續：正式長測終止，採樣失敗證據修補
 
 原run af2530314062427bb16da7d2f11961b4已failed。PID726258的/proc身分不存在；result.json終態failed，workerErrorCode cold_image_processing_failed，worker exit1/OOMfalse，testArtifactsCleaned與launcherArtifactsCleaned皆true，snapshotVerified false。沒有仍活躍的正式24h。來源38a47082e9，只完成4輪；failedRound index4/cold failureCode context_finished/首失敗request index186 status0/約1209秒，不能判定原圖片故障已修。安全摘要docs/evidence/image-soak-context-failure.json。

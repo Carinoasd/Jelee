@@ -1,0 +1,34 @@
+{
+  "runId": "0bf08daaefc84d099f23abcbdb032b9e",
+  "scope": "smoke",
+  "result": "passed",
+  "sourceCommit": "9a74a8932a8703b991b8ee2678fb8eb2ec2bdd9b",
+  "sourceTree": "c2525c6d0a1e47c8f14f0a00e3be8c32fc2377f6",
+  "finalAcceptance": false,
+  "soakWorkloadPassed": true,
+  "snapshotVerified": true,
+  "testArtifactsCleaned": true,
+  "launcherArtifactsCleaned": true,
+  "completedRounds": 2,
+  "samples": {
+    "sampleCount": 618,
+    "blockCount": 11,
+    "firstSampleNanos": 678275,
+    "lastSampleNanos": 602790322859,
+    "rssPeakBytes": 401240064,
+    "heapPeakBytes": 173526216,
+    "processorMaxima": {
+      "maxActive": 2,
+      "maxReservedBytes": 201326592,
+      "maxEstimatedImageBytes": 92099262,
+      "maxCacheEntries": 128,
+      "maxCacheBytes": 1633920
+    }
+  },
+  "containerExit": {
+    "status": "exited",
+    "exitCode": 0,
+    "oomKilled": false,
+    "running": false
+  }
+}
