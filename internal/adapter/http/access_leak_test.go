@@ -200,6 +200,10 @@ func (leakRenderer) Render(context.Context, domain.LocalImageSource, domain.Imag
 	return app.ImageResult{Body: &httpImageBody{Reader: bytes.NewReader(data)}, ContentType: "image/jpeg", ETag: httpImageETag, Size: int64(len(data)), Width: 1, Height: 1}, nil
 }
 
+func (r leakRenderer) RenderItemImage(ctx context.Context, _ domain.ItemImage, request domain.ImageRequest) (app.ImageResult, error) {
+	return r.Render(ctx, domain.LocalImageSource{}, request)
+}
+
 func leakHandler(t *testing.T, store *postgres.Store, cfg config.Config) http.Handler {
 	t.Helper()
 	accounts, err := app.NewAccounts(store, &httpAccountPasswords{}, app.AccountOptions{SessionTTL: time.Hour, MaxSessions: 8, LockAfter: 5, LockFor: time.Minute})
@@ -221,6 +225,9 @@ func leakHandler(t *testing.T, store *postgres.Store, cfg config.Config) http.Ha
 		t.Fatal(err)
 	}
 	images, err := app.NewImages(store, leakRenderer{})
+	if err == nil {
+		images, err = images.WithAssets(store, leakRenderer{})
+	}
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -429,6 +436,10 @@ func leakFixture(t *testing.T, ctx context.Context, store *postgres.Store) leakI
 			t.Fatal(err)
 		}
 		if err = store.Pool.QueryRow(ctx, `INSERT INTO media_sources(item_id,library_id,root_id,relative_path,content_type) VALUES($1::uuid,$2::uuid,$3::uuid,$4,'video/x-matroska') RETURNING id::text`, f.item[scenario], f.library[scenario], rootID, spec.file).Scan(&f.source[scenario]); err != nil {
+			t.Fatal(err)
+		}
+		// An asset row exercises the item_images resolver on the image routes.
+		if _, err = store.Pool.Exec(ctx, `INSERT INTO item_images(item_id,library_id,image_type,image_index,source_kind,root_id,relative_path) VALUES($1::uuid,$2::uuid,'Primary',0,'local',$3::uuid,$4)`, f.item[scenario], f.library[scenario], rootID, strings.TrimSuffix(spec.file, ".mkv")+"-poster.jpg"); err != nil {
 			t.Fatal(err)
 		}
 		job, _, err := store.SubmitJob(ctx, domain.Actor{UserID: adminID, SessionID: adminSession, IP: "127.0.0.1"}, f.library[scenario], "leak-"+spec.root, domain.JobPriorityManual, config.DefaultJobsConfig().Policy())

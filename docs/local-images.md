@@ -1,6 +1,6 @@
 # 本地海報縮圖
 
-狀態：本地 Primary 海報子項已實作及驗證；十萬圖片規模已有[獨立來源的實測證據](image-memory.md)，同尺寸副本另有[修正驗證](image-same-size.md)。完整圖片功能與至少24小時穩態仍待完成。
+狀態：本地 Primary 海報子項已實作及驗證；圖片資產表（G40.1 全部類型與 index）、G40.10 選圖與持久存放區已接入請求（見[資產取圖](#資產取圖g401g405g408g4010)）；十萬圖片規模已有[獨立來源的實測證據](image-memory.md)，同尺寸副本另有[修正驗證](image-same-size.md)。完整圖片功能與至少24小時穩態仍待完成。
 
 本段提供已入庫影片項目的本地 `Primary` 海報：JPEG／PNG 解碼、等比例縮小、JPEG 輸出與有界記憶體快取。原圖和影片維持唯讀。圖片處理不需要啟用影片探測、NFO 或掃描 worker。
 
@@ -32,9 +32,9 @@ JELEE_IMAGE_TEMP_ROOT=/var/lib/jelee/image-work
 
 總配置另限制「並發數 × 每筆預算 ＋ 快取」不超過 1 GiB。每筆預算是依固定解碼器與縮放器配置路徑作尺寸預檢的保守估計，包含壓縮來源、像素、解碼工作區及輸出；它不是作業系統 RSS 硬限制。Go 執行期、其他功能及 GC 尚未回收的頁面仍須由容器設定與實際負載驗收檢查。
 
-### 持久原圖／變體存放區（尚未接入請求）
+### 持久原圖／變體存放區
 
-`internal/adapter/images/store.go` 提供內容定址存放區，目前尚未接到 app 層或 HTTP，設定後也不會改變上述請求行為。
+`internal/adapter/images/store.go` 提供內容定址存放區。`JELEE_IMAGE_STORE_ROOT` 有設定才啟用；未設定時維持只有記憶體快取的行為。啟用後的請求流程見[資產取圖](#資產取圖g401g405g408g4010)。
 
 | 設定 | 預設 |
 | --- | ---: |
@@ -45,7 +45,7 @@ JELEE_IMAGE_TEMP_ROOT=/var/lib/jelee/image-work
 
 存放區根目錄的規則與 `image-work` 相同：已存在、私有、無符號連結別名、不在媒體根目錄內也不是其祖先，且不得與 `image-work` 重疊。版面為 `originals/<sha256 前兩碼>/<sha256>`、`variants/<來源 sha256>/<變體 key>` 與私有 `tmp/`；寫入先寫 `tmp`、fsync 後原子 rename。原圖與變體各自有位元組與筆數上限，以記憶體 LRU 淘汰，最近使用時間以檔案 mtime（至多每分鐘更新一次）保存，重啟時以固定批次讀目錄重建索引。讀取一律核對大小，變體另核對標頭內的 SHA-256，原圖可選擇重算雜湊；損壞視為未命中並只刪除該檔。`variants` 可整個清空並按需重建。存放區只刪除自己命名格式的檔案，其他檔案只計數不處理，也從不碰媒體根目錄。
 
-### 圖片資產表（schema 58，尚未接入請求）
+### 圖片資產表（schema 58）
 
 `item_images` 記錄每個 item 的圖片引用：類型依 G40.1（Primary、Backdrop、Logo、ClearLogo、Banner、ClearArt、Art、Disc、Thumb、Landscape、Chapter、Box、BoxRear、Menu、Profile；Fanart 存成 Backdrop），只有 Backdrop／Chapter 可用 index 1–9999。來源分 `local`、`nfo`、`remote`、`embedded`：local／embedded 必須是同媒體庫的 root＋相對路徑（外鍵綁 item 所屬媒體庫，路徑不得含 `..`、絕對路徑、反斜線、冒號或控制字元；local 與 NFO 本地圖須為圖片副檔名），remote 只能是不含帳密、最長 2048 位元組的 `https://` URL，nfo 二擇一。內容欄（SHA-256、寬高、格式、位元組數、平均色、抓取時間）全有或全無，NULL 表示尚未讀取。每個 (item, 類型, index, 來源) 一列，每個槽最多一列鎖定。
 
@@ -56,6 +56,7 @@ JELEE_IMAGE_TEMP_ROOT=/var/lib/jelee/image-work
 ```text
 GET /images/Primary/{itemID}?width=320&height=480&quality=85&format=jpeg
 HEAD /images/Primary/{itemID}?width=320&height=480
+GET /images/Backdrop/{itemID}?index=2&width=1280&tag=<原圖 SHA-256>
 ```
 
 需要有效 Bearer session 及該媒體庫的查看權限，Web 與原生 session 都可使用。處理前與交付前各重新查驗權限及 item 的來源綁定；快取命中、HEAD、304 也必須通過。API 不接受檔案路徑或 URL。
@@ -63,6 +64,24 @@ HEAD /images/Primary/{itemID}?width=320&height=480
 省略尺寸時縮入 640 × 640，保持比例且不放大；只給一個尺寸時限制該方向，輸出仍受配置的最大邊長限制。明寫尺寸須為 1–2048，品質須為 1–100；實際輸出限制以配置為準。PNG 透明區域以白底合成。回應提供 `image/jpeg`、內容長度與強 ETag，支援 `If-None-Match` 的 304；快取政策為 `private, no-cache, must-revalidate`。
 
 滿載回 503 與 `Retry-After`；沒有權限或沒有可用海報回 404；超過處理預算回 413，不支援的圖片格式回 415。只有省略的參數使用預設值，重複與未知參數均拒絕。
+
+## 資產取圖（G40.1／G40.5／G40.8／G40.10）
+
+`{type}` 接受 G40.1 全部類型：Primary、Backdrop（別名 Fanart）、Logo、ClearLogo、Banner、ClearArt、Art、Disc、Thumb、Landscape、Chapter、Box、BoxRear、Menu、Profile。`index` 為查詢參數（0–9999，預設 0），只有 Backdrop／Chapter 可用非零值；其他類型帶非零 index、未知類型、非十進位或前置零均回 400。輸出格式維持 JPEG；WebP／AVIF 輸出延後（`format` 只接受 `jpeg`）。
+
+選圖：app 層以 `ResolveItemImageSources` 在同一句 SQL 內重驗 session 與媒體庫授權，取得該槽可用的列（鎖定優先，其次 local > nfo > remote > embedded；尚未抓取內容的 URL 不列入），依序嘗試：
+
+- local／nfo 且指向媒體庫檔案：以 root＋相對路徑經 `probe.Open`（拒絕符號連結元件、os.Root 邊界）複製到私有暫存區，處理後重新開啟並重算完整雜湊，與 Primary 海報相同。
+- remote／embedded 或 NFO URL：只從持久存放區讀取已存在的原圖（開啟時重算雜湊）。**請求路徑不會發出外部請求，也不會抽取內嵌圖**；存放區沒有內容或未啟用存放區時視為不可用，換下一個來源。實際抓取由之後的 image_refresh 任務負責。
+- 檔案不存在或來源異動（not found／unavailable）時換下一個來源；過大、格式不支援、忙碌等真正的處理結果直接回應，不再嘗試其他來源。
+- 交付前（含快取命中、HEAD、304）再查一次該槽，產生圖片的那一列必須仍可見且綁定相同（列 ID、來源類別、root、路徑、URL、內容雜湊）；否則回 404。
+- 該槽完全沒有可用列、或全部不可用時，Primary／index 0 回退到原本「媒體檔旁海報」的行為；其他類型回 404。
+
+`tag`：1–128 位十六進位字元。等於原圖內容 SHA-256（大小寫不拘）時，回應改為 `Cache-Control: public, max-age=31536000, immutable`；不相符則維持 `private, no-cache, must-revalidate`，不會因此拒絕。兩種情況都保留強 ETag、`If-None-Match` 304 與 `Vary: Authorization`。注意 `public` 允許共用快取在相同 Authorization 下保存一年；撤權後已被快取的副本不會被收回，這是長快取的既定取捨。
+
+持久存放區（`JELEE_IMAGE_STORE_ROOT`）：啟動時列出現有媒體庫 root 做重疊檢查（未有媒體庫亦可啟動），之後每個讀取媒體庫檔案的請求再以 `CheckMediaRoot` 檢查該 root，重疊即回 unavailable。查詢順序為記憶體快取 → 存放區變體 → 解碼。變體 key 綁定管線版本、輸出上限、格式、寬高與品質。解碼後：原圖以內容雜湊入庫（已存在則略過）、變體寫入存放區，再 `PutImageVariant` 更新 `image_variants`；命中變體時 `TouchImageVariant`，索引缺列（寫入失敗或存放區重建）則補回。存放區或索引寫入失敗只計數，不影響已驗證的回應。
+
+淘汰：變體用量達上限 90%（位元組或筆數）時喚醒單一背景工作，依 `ListOldestImageVariants` 由舊到新，`DeleteImageVariant` 回 true（列出後未被使用）才刪除對應檔案，降到 80% 停止；被觸碰過的列保留，檔案已不存在的過期列一併刪除。列刪除後即使停止中也完成刪檔。存放區自身的 LRU 仍是硬上限保險；索引缺列的孤兒檔由它處理。原圖不在此淘汰範圍內。停止時先等此工作結束，再關閉存放區與資料庫連線池。
 
 ## 來源與快取
 
@@ -91,4 +110,4 @@ HEAD /images/Primary/{itemID}?width=320&height=480
 
 ## 尚未涵蓋
 
-其他圖片角色與完整命名、WebP／AVIF 等輸入輸出、裁切與 EXIF 方向處理、NFO／遠端／內嵌來源、鎖定管理、持久變體目錄、相容圖片路由、tag 長快取、前端與圖片重建工作尚未完成。十萬圖片處理、混合並發與至少 24h 的驗收另行執行。本段不能據此將 G40 或 G42.10 標為完成。
+掃描入庫（命名辨識寫入 `item_images`）、遠端抓取與內嵌抽取的 image_refresh 任務、鎖定／更換的管理 API、WebP／AVIF 輸出、裁切、相容圖片路由、前端與圖片重建工作尚未完成。十萬圖片處理、混合並發與至少 24h 的驗收另行執行。本段不能據此將 G40 或 G42.10 標為完成。

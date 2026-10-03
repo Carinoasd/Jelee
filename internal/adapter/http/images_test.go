@@ -409,7 +409,8 @@ func TestImagesHTTPRolloutAndOpenAPI(t *testing.T) {
 			method, path  string
 			enabledStatus int
 		}{
-			{"GET", "/images/Primary/" + itemID, 200}, {"GET", "/images/Backdrop/" + itemID, 400},
+			{"GET", "/images/Primary/" + itemID, 200}, {"GET", "/images/Backdrop/" + itemID, 404}, {"GET", "/images/Poster/" + itemID, 400},
+			{"GET", "/images/Primary/" + itemID + "?index=1", 400},
 			{"GET", "/images/Primary/not-a-uuid", 400}, {"POST", "/images/Primary/" + itemID, 405},
 		} {
 			request := httptest.NewRequest(test.method, "http://localhost"+test.path, nil)

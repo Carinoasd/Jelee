@@ -2,6 +2,7 @@ package httpapi
 
 import (
 	"context"
+	"encoding/hex"
 	"io"
 	"net/http"
 	"strconv"
@@ -48,12 +49,25 @@ func (s *Server) image(w http.ResponseWriter, r *http.Request) {
 		WriteError(w, r, domain.ErrUnauthenticated)
 		return
 	}
-	query, err := strictQuery(r, "width", "height", "quality", "format")
+	query, err := strictQuery(r, "width", "height", "quality", "format", "index", "tag")
 	if err != nil {
 		WriteError(w, r, err)
 		return
 	}
 	request := domain.ImageRequest{Type: chi.URLParam(r, "type")}
+	if raw, exists := query["index"]; exists {
+		value, parseErr := strconv.Atoi(raw)
+		if parseErr != nil || raw != strconv.Itoa(value) || value < 0 || value > domain.ItemImageMaxIndex {
+			WriteError(w, r, domain.ErrInvalid)
+			return
+		}
+		request.Index = value
+	}
+	tag, tagged := query["tag"]
+	if tagged && !validImageTag(tag) {
+		WriteError(w, r, domain.ErrInvalid)
+		return
+	}
 	for key, target := range map[string]*int{"width": &request.Width, "height": &request.Height, "quality": &request.Quality} {
 		if raw, exists := query[key]; exists {
 			value, parseErr := strconv.Atoi(raw)
@@ -95,7 +109,15 @@ func (s *Server) image(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("ETag", result.ETag)
-	w.Header().Set("Cache-Control", "private, no-cache, must-revalidate")
+	// A tag that names the original's content digest makes the URL change
+	// whenever the image does, so it may be cached for a year (G40.8). Any
+	// other tag keeps the revalidated private policy. Vary still keys every
+	// cached copy to the caller's credentials.
+	if tagged && imageTagMatches(tag, result.ContentSHA256) {
+		w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
+	} else {
+		w.Header().Set("Cache-Control", "private, no-cache, must-revalidate")
+	}
 	w.Header().Add("Vary", "Authorization")
 	if imageNotModified(r.Header.Values("If-None-Match"), result.ETag) {
 		w.WriteHeader(http.StatusNotModified)
@@ -110,6 +132,24 @@ func (s *Server) image(w http.ResponseWriter, r *http.Request) {
 		// failed write ends this response and still releases the held body.
 		_, _ = io.CopyN(w, result.Body, result.Size)
 	}
+}
+
+// validImageTag accepts 1–128 hexadecimal digits in either case; only the
+// full lowercase SHA-256 of the original can ever match.
+func validImageTag(value string) bool {
+	if len(value) < 1 || len(value) > 128 {
+		return false
+	}
+	for _, c := range value {
+		if !(c >= '0' && c <= '9' || c >= 'a' && c <= 'f' || c >= 'A' && c <= 'F') {
+			return false
+		}
+	}
+	return true
+}
+
+func imageTagMatches(tag string, content [32]byte) bool {
+	return content != [32]byte{} && strings.EqualFold(tag, hex.EncodeToString(content[:]))
 }
 
 func validImageETag(value string) bool {
