@@ -73,3 +73,45 @@ vet、三命令 build、模組 checksum、格式、增量品牌與 gitignore 通
 ## 現行 runtime 指標契約
 
 正式端點包含15個本機、7個共享工作與8個資源family。共享工作固定6個kind／priority組與18個outcome點；資源指標各為單一無標籤gauge。真PostgreSQL runtime race三根8PASS／零skipfail，涵蓋多實例生命週期、授權與阻塞來源；收集不取得工作配額，失敗回應不洩漏資源指標。Linux telemetry race78PASS。見[現行契約證據](evidence/runtime-metrics-contract.json)。前述歷史驗收數字屬當時來源，不能當現行完整CI通過。
+
+## 圖片快取與存放區指標（G40.13、G42.4）
+
+啟用 `enableImages` 時，正式端點另以 OTel observable instruments 讀取圖片處理器與持久存放區的 `Stats()`。每次收集各取一次快照，只讀程序內計數，不執行 I/O；metrics 關閉後不再讀取。圖片功能關閉時不註冊任何 `jelee_images_*` 指標。Counter 是程序啟動後的累計值，重啟歸零；超過 int64 上限時飽和而不回繞。
+
+處理器指標（12 個 family，無 labels）：
+
+| Prometheus 名稱 | 型別 | 意義 |
+| --- | --- | --- |
+| `jelee_images_active` | gauge | 佔用處理槽的轉檔數 |
+| `jelee_images_reserved_bytes` | gauge | 進行中轉檔保留的解碼記憶體 |
+| `jelee_images_requests_admitted_total` | counter | 准入的轉檔請求 |
+| `jelee_images_requests_completed_total` | counter | 已備妥回應的轉檔（不代表已送達） |
+| `jelee_images_requests_failed_total` | counter | 准入後失敗的轉檔 |
+| `jelee_images_requests_rejected_total` | counter | 處理槽全滿而拒絕的請求（503） |
+| `jelee_images_decodes_total` | counter | 實際解碼來源圖片次數 |
+| `jelee_images_cache_hits_total` | counter | 記憶體變體快取命中 |
+| `jelee_images_cache_misses_total` | counter | 記憶體變體快取未命中；命中率 = hits /(hits + misses) |
+| `jelee_images_cache_evictions_total` | counter | 記憶體快取淘汰數 |
+| `jelee_images_cache_entries` | gauge | 記憶體快取項目數 |
+| `jelee_images_cache_usage_bytes` | gauge | 記憶體快取佔用 bytes |
+
+持久存放區指標（14 個 family）只在設定存放區時註冊。未啟用存放區時整組不輸出，而不是輸出零，避免監控把「沒有存放區」誤判成「冷存放區、命中率零」；是否有存放區在啟動後不會改變。`class` 是唯一 label，固定為 `original` 或 `variant`。
+
+| Prometheus 名稱 | 型別 | 意義 |
+| --- | --- | --- |
+| `jelee_images_store_hits_total{class}` | counter | 存放區查找命中 |
+| `jelee_images_store_misses_total{class}` | counter | 存放區查找未命中 |
+| `jelee_images_store_entries{class}` | gauge | 存放區物件數 |
+| `jelee_images_store_usage_bytes{class}` | gauge | 存放區佔用 bytes |
+| `jelee_images_store_evictions_total` | counter | 存放區容量淘汰 |
+| `jelee_images_store_corrupt_total` | counter | 偵測到的損壞物件 |
+| `jelee_images_store_deduplicated_total` | counter | 內容已存在而略過的寫入 |
+| `jelee_images_store_cleared_total` | counter | 清除變體的次數 |
+| `jelee_images_store_remove_errors_total` | counter | 刪除失敗 |
+| `jelee_images_store_foreign_total` | counter | 存放區內非本程式產生、保留待人工檢查的檔案 |
+| `jelee_images_store_served_total` | counter | 由驗證過的已存變體直接回應的請求 |
+| `jelee_images_store_failures_total` | counter | 存放區讀寫失敗或內容不合格；請求本身仍成功 |
+| `jelee_images_index_failures_total` | counter | 變體索引寫入失敗；請求本身仍成功 |
+| `jelee_images_index_evictions_total` | counter | 經索引淘汰的變體 |
+
+沒有路徑、內容摘要、項目、使用者或媒體庫 labels。圖片與存放區全開時正式端點共 56 個 families（原 30 個加 26 個）；只開圖片不開存放區時為 42 個。

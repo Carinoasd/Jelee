@@ -798,3 +798,28 @@ func TestStoreConcurrentEvictionAndClearStayConsistent(t *testing.T) {
 		t.Fatal("store and index diverged", files, indexed, bytesIndexed)
 	}
 }
+
+func TestProcessorStoreStatsReportsAttachedStore(t *testing.T) {
+	scratch := t.TempDir()
+	without := processorTestNew(t, processorTestOptions(scratch))
+	if stats, ok := without.StoreStats(); ok || stats != (StoreStats{}) {
+		t.Fatal("processor without a store reported store stats")
+	}
+	var nilProcessor *Processor
+	if _, ok := nilProcessor.StoreStats(); ok {
+		t.Fatal("nil processor reported a store")
+	}
+	fixture := newStoreFixture(t)
+	store := openTestStore(t, fixture.options(64<<20, 16<<20, 1024))
+	var missing [32]byte
+	if _, err := store.OpenVariant(context.Background(), missing, missing); err == nil {
+		t.Fatal("missing variant opened")
+	}
+	options := processorTestOptions(scratch)
+	options.Store = store
+	with := processorTestNew(t, options)
+	stats, ok := with.StoreStats()
+	if !ok || stats != store.Stats() || stats.VariantMisses != 1 {
+		t.Fatalf("processor store stats: %+v %v", stats, ok)
+	}
+}

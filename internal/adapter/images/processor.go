@@ -194,6 +194,15 @@ func (p *Processor) Stats() Stats {
 	return result
 }
 
+// StoreStats reports the persistent store's aggregate counts. ok is false
+// when the processor runs without a store; that never changes after New.
+func (p *Processor) StoreStats() (stats StoreStats, ok bool) {
+	if p == nil || p.options.Store == nil {
+		return StoreStats{}, false
+	}
+	return p.options.Store.Stats(), true
+}
+
 func (p *Processor) Render(ctx context.Context, source domain.LocalImageSource, request domain.ImageRequest) (result app.ImageResult, err error) {
 	if p == nil || ctx == nil {
 		return result, domain.ErrInvalid

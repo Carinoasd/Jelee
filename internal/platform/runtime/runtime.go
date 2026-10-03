@@ -113,11 +113,16 @@ func newWithLifetime(cfg config.Config, logger *slog.Logger, lifetime *lifetime)
 			}
 			return images.WithAssets(store, processor)
 		},
-		func(c config.Config, store *postgres.Store, budget *resources.Budget) (*telemetry.Metrics, error) {
+		func(c config.Config, store *postgres.Store, budget *resources.Budget, processor *imageadapter.Processor) (*telemetry.Metrics, error) {
 			if !c.EnableMetrics {
 				return nil, nil
 			}
-			metrics, err := telemetry.NewWithResources(store, store, budget)
+			// A nil processor means images are disabled; avoid a typed-nil source.
+			var pictures telemetry.ImageStatsSource
+			if processor != nil {
+				pictures = processor
+			}
+			metrics, err := telemetry.NewWithImages(store, store, budget, pictures)
 			if err != nil {
 				return nil, err
 			}
