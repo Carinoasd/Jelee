@@ -3,7 +3,7 @@ export PATH := $(CURDIR)/.bin:$(PATH)
 GO := $(CURDIR)/.bin/go
 PYTHON := python3
 
-.PHONY: image-memory-test image-memory-smoke-test scan-memory-test scan-memory-smoke-test runtime-memory-test runtime-memory-worker-test memory-contract-test i18n-check family-ignore-sustained-worker-test ignore-sustained-test init bootstrap bootstrap-media bootstrap-runtime runtime-tools-verify runtime-toolchain-test probe-runtime-test probe-worker-test nfo-worker-test family-ignore-worker-test ignore-oracle-test sandbox-test tools-verify media-tools-verify tools-clean fixtures fixtures-test build test test-race test-integration coverage fmt fmt-check lint toolchain-test media-toolchain-test brand-scan brand-scan-incremental gitignore-check migrate doctor
+.PHONY: image-memory-test image-memory-smoke-test scan-memory-test scan-memory-smoke-test runtime-memory-test runtime-memory-worker-test memory-contract-test i18n-check family-ignore-sustained-worker-test ignore-sustained-test init bootstrap bootstrap-media bootstrap-runtime runtime-tools-verify runtime-toolchain-test probe-runtime-test probe-worker-test nfo-worker-test family-ignore-worker-test ignore-oracle-test sandbox-test tools-verify media-tools-verify tools-clean fixtures fixtures-test build test test-race test-integration coverage fmt fmt-check lint toolchain-test media-toolchain-test brand-scan brand-scan-incremental gitignore-check openapi openapi-check migrate doctor
 init: bootstrap
 bootstrap:
 	sh scripts/bootstrap-tools
@@ -78,7 +78,7 @@ fmt:
 	"$(GO)" fmt ./...
 fmt-check:
 	$(PYTHON) scripts/check-format.py
-lint: fmt-check
+lint: fmt-check openapi-check
 	"$(GO)" vet ./...
 toolchain-test:
 	$(PYTHON) -B scripts/test_toolchain.py
@@ -88,6 +88,14 @@ brand-scan-incremental:
 	"$(GO)" run ./tools/brand-scan --new
 gitignore-check:
 	"$(GO)" run ./tools/gitignore-check
+# Regenerate api/openapi.json from the router's specification code.
+openapi:
+	"$(GO)" run ./tools/openapi
+# Offline OpenAPI gate: committed document is current, every route is
+# documented and every documented path is routed, error codes are described.
+openapi-check:
+	"$(GO)" run ./tools/openapi -check
+	"$(GO)" test -count=1 -run OpenAPI ./tools/openapi ./internal/adapter/http
 migrate:
 	"$(GO)" run ./cmd/jelee-migrate up
 doctor:

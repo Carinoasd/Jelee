@@ -1,6 +1,6 @@
 #requires -Version 7.2
 [CmdletBinding()]
-param([ValidateSet('init','bootstrap','bootstrap-media','bootstrap-runtime','runtime-tools-verify','tools-verify','media-tools-verify','media-toolchain-test','ignore-oracle-test','tools-clean','fixtures','fixtures-test','build','test','test-race','test-integration','coverage','fmt','fmt-check','lint','toolchain-test','brand-scan','brand-scan-incremental','gitignore-check','migrate','doctor')][string]$Target = 'test')
+param([ValidateSet('init','bootstrap','bootstrap-media','bootstrap-runtime','runtime-tools-verify','tools-verify','media-tools-verify','media-toolchain-test','ignore-oracle-test','tools-clean','fixtures','fixtures-test','build','test','test-race','test-integration','coverage','fmt','fmt-check','lint','toolchain-test','brand-scan','brand-scan-incremental','gitignore-check','openapi','openapi-check','migrate','doctor')][string]$Target = 'test')
 . "$PSScriptRoot/toolchain-lib.ps1"
 $root = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 Push-Location $root
@@ -69,12 +69,18 @@ try {
         }
         'lint' {
             & "$PSScriptRoot/make.ps1" fmt-check
+            & "$PSScriptRoot/make.ps1" openapi-check
             & "$PSScriptRoot/run-go.ps1" vet ./...
         }
         'toolchain-test' { & "$PSScriptRoot/test-toolchain.ps1" }
         'brand-scan' { & "$PSScriptRoot/run-go.ps1" run ./tools/brand-scan }
         'brand-scan-incremental' { & "$PSScriptRoot/run-go.ps1" run ./tools/brand-scan --new }
         'gitignore-check' { & "$PSScriptRoot/run-go.ps1" run ./tools/gitignore-check }
+        'openapi' { & "$PSScriptRoot/run-go.ps1" run ./tools/openapi }
+        'openapi-check' {
+            & "$PSScriptRoot/run-go.ps1" run ./tools/openapi -check
+            & "$PSScriptRoot/run-go.ps1" test -count=1 -run OpenAPI ./tools/openapi ./internal/adapter/http
+        }
         'migrate' { & "$PSScriptRoot/run-go.ps1" run ./cmd/jelee-migrate up }
         'doctor' { & "$PSScriptRoot/run-go.ps1" run ./cmd/jelee-cli doctor }
     }

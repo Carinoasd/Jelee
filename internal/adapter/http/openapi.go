@@ -72,13 +72,14 @@ func Specification(cfg config.Config) map[string]any {
 	if cfg.EnableImages && cfg.EnableAccounts && cfg.EnableCatalog {
 		imageSpecification(paths, cfg)
 	}
+	errorSpecification(paths, schemas)
 	return map[string]any{"openapi": "3.1.0", "info": map[string]any{"title": "Jelee API", "version": "0.1.0-dev", "description": "Experimental foundation. Full feature parity is not yet available."}, "paths": paths, "x-jelee-removed-features": map[string]any{"pathRoots": []string{"/LiveTv", "/Channels", "/Dlna"}, "status": 501, "code": "feature_removed", "description": "All methods and descendant paths return a localized unsupported-feature error; transformation routes retain their 409 guard."}, "components": map[string]any{"schemas": schemas, "securitySchemes": map[string]any{"bearer": map[string]any{"type": "http", "scheme": "bearer"}}}}
 }
 func idParameter() map[string]any {
 	return map[string]any{"name": "id", "in": "path", "required": true, "schema": map[string]any{"type": "string", "format": "uuid"}}
 }
 func operation(summary string, statuses ...string) map[string]any {
-	responses := map[string]any{"default": map[string]any{"description": "Jelee structured error envelope with code, message, details and traceId."}}
+	responses := map[string]any{"default": map[string]any{"description": "Jelee error envelope with code, message, details and traceId; see the Error schema."}}
 	for _, status := range statuses {
 		responses[status] = map[string]any{"description": "HTTP " + status}
 	}
