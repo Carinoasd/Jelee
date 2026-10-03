@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
 """Run real mixed image/scan soak in an owned container with streaming receipts.
 
-Invoke from a frozen source directory. Snapshot launcher integration is pending;
-this module is not yet a standalone formal acceptance entry point.
+The start_images_soak launcher supplies a frozen committed source directory.
 """
 import hashlib
 import os
@@ -24,6 +23,7 @@ from test_scan_memory import capture, SafeLog, ScanFailure, strict_json, check_p
 from runtime_memory_acceptance import memory_flags, inspect_owned, container_state
 from images_soak_acceptance import validate_soak_budget, validate_soak_log
 from images_soak_monitor import MonitorFailure, follow, atomic_status
+from images_soak_snapshot import SnapshotFailure
 
 
 def load_soak_budget():
@@ -33,11 +33,13 @@ def load_soak_budget():
     return budget, hashlib.sha256(body).hexdigest()
 
 
-def run_case(*, smoke=False):
-    identity = uuid.uuid4().hex
+def run_case(*, smoke=False, evidence_root=None, identity=None, snapshot=None):
+    identity = identity or uuid.uuid4().hex
+    if not re.fullmatch(r"[a-f0-9]{32}", identity):
+        raise ImageFailure("soak_identity_invalid")
     count = SMOKE_ITEMS
-    evidence = ROOT / ".testdata" / ("image-soak-" + identity)
-    evidence.parent.mkdir(exist_ok=True)
+    evidence = (evidence_root or ROOT / ".testdata") / ("image-soak-" + identity)
+    evidence.parent.mkdir(parents=True, exist_ok=True)
     evidence.mkdir(mode=0o700)
     report = {"version": 1, "scope": "smoke" if smoke else "formal", "result": "failed",
               "finalAcceptance": False, "fixtureItems": count, "stage": "preflight"}
@@ -53,6 +55,10 @@ def run_case(*, smoke=False):
             raise ImageFailure("image_memory_linux_required")
         if Path.cwd().resolve() != ROOT.resolve():
             raise ImageFailure("soak_working_directory_invalid")
+        if snapshot is not None:
+            from images_soak_snapshot import verify
+            verify(ROOT, snapshot["files"])
+            report.update(sourceCommit=snapshot["commit"], sourceTree=snapshot["tree"])
         dsn = os.environ.get("JELEE_TEST_DATABASE_URL", "")
         parsed = urlsplit(dsn)
         if parsed.scheme not in ("postgres", "postgresql") or parsed.path != "/jelee_test" or not parsed.hostname or any(c in dsn for c in "\r\n\x00"):
@@ -138,10 +144,15 @@ def run_case(*, smoke=False):
             raise ImageFailure("image_memory_fixture_changed")
         if source_digest() != before_source:
             raise ImageFailure("image_memory_source_changed")
+        if snapshot is not None:
+            verify(ROOT, snapshot["files"])
         report.update(result="passed", stage="complete", sourceUnchanged=True,
-                      originalSamplesUnchanged=True, finalAcceptance=False, soakWorkloadPassed=True)
+                      originalSamplesUnchanged=True, finalAcceptance=not smoke and snapshot is not None,
+                      soakWorkloadPassed=True)
     except (Exception, KeyboardInterrupt) as error:
-        code = error.code if isinstance(error, (ImageFailure, ScanFailure, MonitorFailure)) else "image_memory_acceptance_failed"
+        code = error.code if isinstance(error, (ImageFailure, ScanFailure, MonitorFailure, SnapshotFailure)) else "image_memory_acceptance_failed"
+        if isinstance(error, KeyboardInterrupt):
+            code = "cancelled_by_user"
         report.update(result="failed", finalAcceptance=False, failureCode=code.replace("scan_memory_", "image_memory_"))
     finally:
         handlers = {}

@@ -1,3 +1,11 @@
+## 最新接續：固定提交快照與背景啟動器
+
+images_soak_snapshot.py從HEAD commit/tree匯出並封存來源，拒絕links/device/escape/重複/過大archive；所有tracked檔案唯讀並逐檔SHA/size/execute核對。只複製現有pin SDK archive、ffprobe/license/runtime檔並核SHA，snapshot內offline bootstrap SDK。start_images_soak.py用Linux flock避免同checkout重複啟動；背景worker從snapshot reexec，記PID/startTicks/bootId、UTC、commit/tree，獨立PG image ID/container/volume/動態loopback port，DSN只在私有env及記憶體。清理只處理該UUID。
+
+run_case接受snapshot並前後驗來源，仍固定1000fixture/600秒或24h；formal launcher必須先找到同commit真smoke passed及完整cleanup。啟動前工具測試Windows42通過／5平台略過，Linux47通過，含Git commit與dirty worktree隔離及惡意archive拒絕。尚未實跑新入口，接下來先提交本批，再用 python3 -B scripts/start_images_soak.py --smoke 真跑600秒。
+
+私有 .testdata/soak-launch-UUID/{registry,status,source,result}.json；細部controller輸出在cases/image-soak-UUID。active registry只供定位；必須用PID/startTicks/bootId或Docker inspect確認是否活著。不要因換模型重啟。正式24h未啟動，全案與第三階段未完成，不合併。
+
 ## 最新接續：外層串流監控與容器流程已接上
 
 新增 scripts/images_soak_monitor.py：單一 docker logs --follow 子程序，以 Linux 非阻塞管線持續讀取；raw 64MiB、event 64KiB、final 2MiB，完整事件接收心跳70秒。每5秒查容器，每300秒原子更新最多4KiB狀態；ready只送一次SIGTERM，EOF需核follower與worker退出/OOM，任何退出都回收follower。

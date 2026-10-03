@@ -60,3 +60,11 @@ Windows與Linux各32項合成資料測試通過，包括完整288輪／24個小�
 run_images_soak.py串接實際建置、固定fixture/預算、私有env、image ID、重播與來源/fixture/cleanup核對。Windows39通過／3平台略過，Linux42通過；包含真管線握手、心跳逾時回收和控制器故障注入。這些測試未執行Docker長測。
 
 **尚缺固定已提交來源快照及背景啟動器。** 模組暫不提供CLI，finalAcceptance保持false；真正600秒smoke與24h仍未啟動。
+
+## 第六批：固定來源及背景啟動器
+
+Linux入口 `python3 -B scripts/start_images_soak.py --smoke` 從HEAD提交建立原生磁碟快照；tracked來源唯讀、逐檔SHA核對。SDK與media runtime只用本機已有的manifest pin，背景worker及imports皆來自snapshot。每輪自建專屬PG容器與volume、動態loopback port，不修改既有PG。flock由worker持有至退出，避免重複長測；registry記PID/startTicks/bootId以供接手確認。
+
+省略--smoke可啟動formal，但必須先有同commit真smoke成功與完整清理證據。正式run固定288輪/24h，沒有任意時長override。SIGTERM/INT取消會走容器與schema補償清理，不能將中斷時段拼接。清理專屬PG、secret與snapshot後才寫launcher最終結果。
+
+本批工具測試Windows42通過／5平台略過、Linux47通過；包含Git真提交與dirty workspace隔離、archive逃逸/link拒絕、formal短測前提。**實際600秒與24h結果需另附，不以工具測試代替。**
