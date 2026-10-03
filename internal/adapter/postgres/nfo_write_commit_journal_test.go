@@ -296,6 +296,7 @@ func TestNFOWriteCommitJournalMigrationEmptyAndRetained(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
+		jobMetricMigration(t, f, "down", 49)
 		if _, _, err := Migrate(f.ctx, f.s.Pool.Config().ConnString(), "down"); err == nil {
 			t.Fatal("downgrade removed unresolved journal")
 		}
@@ -341,7 +342,7 @@ func TestNFOWriteCommitJournalSQLGuardAndMissingTable(t *testing.T) {
 			t.Fatal(err)
 		}
 		defer tx.Rollback(f.ctx)
-		if _, err := tx.Exec(f.ctx, `DROP TABLE nfo_write_commit_journal`); err != nil {
+		if _, err := tx.Exec(f.ctx, `DROP TABLE nfo_write_commit_journal CASCADE`); err != nil {
 			t.Fatal(err)
 		}
 		if err := trimJobs(f.ctx, tx, 0); err == nil {

@@ -50,8 +50,10 @@ func prepareNFOCommitFiles(ctx context.Context, directory *os.Root, filename str
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
-	if err := validateNFOWriteDocuments(ctx, original, replacement); err != nil {
-		return nil, err
+	if !ops.documentsValidated {
+		if err := validateNFOWriteDocuments(ctx, original, replacement); err != nil {
+			return nil, err
+		}
 	}
 	parent, err := nativeIdentityWithin(directory, ".")
 	if err != nil {
@@ -72,6 +74,11 @@ func prepareNFOCommitFiles(ctx context.Context, directory *os.Root, filename str
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
+	if ops.checkSource != nil {
+		if err := ops.checkSource(ctx); err != nil {
+			return nil, err
+		}
+	}
 	lock, err := lockNFOFile(ctx, directory, filename)
 	if err != nil {
 		return nil, err
@@ -89,6 +96,11 @@ func prepareNFOCommitFiles(ctx context.Context, directory *os.Root, filename str
 	}
 	if current, err := nativeIdentityWithin(directory, filename); err != nil || current != target {
 		return nil, ErrChanged
+	}
+	if ops.checkSource != nil {
+		if err := ops.checkSource(ctx); err != nil {
+			return nil, err
+		}
 	}
 	names := plan.names()
 	owned := make(map[string]os.FileInfo, len(names))

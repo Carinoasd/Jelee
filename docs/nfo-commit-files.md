@@ -1,5 +1,7 @@
 # NFO 提交前的檔案計畫與保留證據
 
+本頁保留 c7dda1d 批次的私有 callback 驗證範圍。後續 schema50 已加入真實 Store 持久化及內部 StageCommitFiles 接線，見[持久化方法與限制](nfo-commit-files-persistence.md)；下列歷史測試數字不代表後續來源。
+
 新增私有 `prepareNFOCommitFiles` 與只讀 `verifyNFOCommitFiles`，準備跨程序可核對的輸出、回滾副本與 hardlink witness。這是既有目標的準備步驟；沒有正式 Writer／worker 呼叫，沒有新 migration 或資料庫儲存實作，也不授權 target Rename、結算或自動恢復。
 
 ## 副作用與保存順序

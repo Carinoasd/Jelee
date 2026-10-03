@@ -1,3 +1,16 @@
+## 2026-10-03 schema50 持久檔案證據全回歸已驗
+
+已發布基線 c7dda1dc96ec7077075dfd45c43699ef534c7234，沿用 feat/jelee-ignore-family-worker／OPEN PR46。本批候選schema50新增不可變plan／ready，固定journal token外鍵、entry basename、48-byte canonical身分、真實工作／owner／generation／租約／取消／活躍admin守衛；首次與no-op重試均deferred重核提交時權限。保留證據拒50→49降版，空降升保持metrics epoch。001–049共98份已發布SQL內容保持。
+
+Store短交易Begin／SavePlan／SaveReady已接內部Writer.StageCommitFiles；從真實工作所屬意圖受控重建，重核Source，使用CPU／IO配額與既有原生鎖／EXCL／Sync／五個hardlink及副本證據。ready未知保存結果保留所有名稱，沒有target Rename／backup輪替／結算／自動恢復，也未接runtime。Linux實際PG落檔、清除準備TTL後子程序從DB重讀並原生核對已驗；其他工作的同basename Source拒絕。合成身分案例只證儲存守衛。
+
+完整PG session57076已terminal0：四分片皆0、434根各run／pass恰一次、零skip／fail，覆蓋 .testdata/nfo-commit-files-schema-shards-coverage.json；966份Go／SQL來源凍結於 .testdata/nfo-commit-files-schema-source.json。選測86PASS／零skipfail；初次選測僅衝突夾具令output等於rollback而拒Invalid，改測試身分後重驗，失敗log保留。Windows八套件1586PASS／743條件skip；Linux六套件race1169PASS／1Windows平台skip；runtime真PG另1PASS／零skipfail。Windows原生＋PG嘗試無法連既有資料庫，在fixture前失敗，不計通過。兩平台vet、Darwin amd64僅交叉編譯、格式、增量品牌0／339、gitignore與diff通過。方法 docs/nfo-commit-files-persistence.md，安全摘要 docs/evidence/nfo-commit-files-persistence.json；本批隨本提交沿同分支發布。
+
+下一步優先補StageCommitFiles在GetTask／重建前singleflight、payload資源准入與整體bytes配額、保存plan／ready的讀取及已staged續作，之後持久完整root／媒體／revision／policy證據、原生提交／rollback／backup／結算／恢復與同實體未解決排除。現在既有stage重試碰撞保留；bytes相等或stage缺失不能推定已提交。Windows directory sync仍stub，metadata斷電耐久性缺；不能啟用read-write准入／worker。全G00–G51仍7完成／198部分／131阻塞。
+
+正式24h仍run329073a5d193446383327ab217aba147／PID1026300／startTicks33072456／boot4a5d9c5c-4482-4c3e-8978-30156b1ce92f，來源24caf7d45fb96390689dcc03685033242b7bbfea。本輪實核程序身分吻合、container running／OOMfalse，完整24h未通過，不包含本批；核同handle，不重啟。完整品牌門禁保持。不merge／release／tag／force-push、不改Git身份設定，原媒體／圖片／授權保持；本批發布後001–050共100份SQL同樣不可改。下方為歷史狀態。
+
+---
 ## 2026-10-03 提交前檔案計畫／witness已驗，仍待資料庫與提交接線
 
 已發布HEAD99980e8f1b584ee5ae6d3eb23ff3db0d4619c752／PR46 OPEN。本批新增私有commit_files.go及測試：版本1／固定非零16-byte token推導五個有界stage／rollback／pin名稱，plan port先成功才建native鎖sidecar與檔案；完整輸出與獨立rollback EXCL建立／32KiB寫／file.Sync，原文與兩副本各持hardlink pin，核完整bytes及原生身分、directory sync後ready port。只準備，不Rename原target／不輪替backup。兩個port目前是測試callback，未接SQL／journal／Writer／worker，不授權FS提交／結算／恢復。

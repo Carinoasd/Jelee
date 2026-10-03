@@ -3,7 +3,6 @@ package postgres
 import (
 	"context"
 	"errors"
-	"time"
 
 	"github.com/MoYuanCN/Jelee/internal/domain"
 	"github.com/jackc/pgx/v5"
@@ -11,18 +10,7 @@ import (
 
 // This private first record is unresolved. It cannot authorize a filesystem
 // operation or certify replacement/rollback; native recovery is still required.
-type nfoWriteCommitRecord struct {
-	JobID      string    `json:"-"`
-	Sequence   int       `json:"-"`
-	Generation int64     `json:"-"`
-	Token      string    `json:"-"`
-	Owner      string    `json:"-"`
-	RecordedAt time.Time `json:"-"`
-	LeaseUntil time.Time `json:"-"`
-}
-
-func (nfoWriteCommitRecord) String() string   { return "nfo commit record (data redacted)" }
-func (nfoWriteCommitRecord) GoString() string { return "nfo commit record (data redacted)" }
+type nfoWriteCommitRecord = domain.NFOWriteCommitRecord
 
 const nfoWriteCommitColumns = `job_id::text,sequence,generation,token::text,owner,recorded_at,lease_until`
 
