@@ -55,7 +55,7 @@ HEAD /images/Primary/{itemID}?width=320&height=480
 
 取消採合作式方式：I/O 與處理邊界檢查 context，CPU 解碼或縮放結束前保留准入槽，取消後不交付圖片。標準解碼器沒有可強制中止 CPU 運算的 context API；設定的逾時不代表 CPU 指令會在該瞬間終止。停止流程會等待仍在處理的請求結束，再關閉資料庫。
 
-縮放使用固定 [Go x/image v0.46.0](https://pkg.go.dev/golang.org/x/image@v0.46.0/draw) 的 `ApproxBiLinear`，從已解碼來源直接寫入唯一輸出 RGBA。真正縮小時不建立額外全尺寸 RGBA；但來源已低於限制且未要求縮小時，輸出會與來源同尺寸，兩份全尺寸位圖仍同時存活，G42.6 的這個分支尚待修正。JPEG 的 RGB／CMYK 轉換及尚未驗證的子格式會拒絕；尺寸預檢須包含 progressive 係數與 PNG 16-bit／交錯工作區，不能只算寬 × 高 × 4。
+縮放使用固定 [Go x/image v0.46.0](https://pkg.go.dev/golang.org/x/image@v0.46.0/draw) 的 `ApproxBiLinear`，從已解碼來源直接寫入唯一輸出 RGBA。真正縮小時不建立額外全尺寸 RGBA；同尺寸時改為直接編碼或在私有解碼緩衝內合成白底，亦不建立完整副本，見[同尺寸修正及證據](image-same-size.md)。JPEG 的 RGB／CMYK 轉換及尚未驗證的子格式會拒絕；尺寸預檢須包含 progressive 係數與 PNG 16-bit／交錯工作區，不能只算寬 × 高 × 4。
 
 ## 已執行驗證
 

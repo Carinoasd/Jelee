@@ -235,16 +235,24 @@ func (p *Processor) Render(ctx context.Context, source domain.LocalImageSource, 
 		if decoded.Bounds() != image.Rect(0, 0, inspected.width, inspected.height) {
 			return result, domain.ErrImageUnavailable
 		}
-		thumbnail := image.NewRGBA(image.Rect(0, 0, width, height))
-		draw.Draw(thumbnail, thumbnail.Bounds(), image.NewUniform(color.White), image.Point{}, draw.Src)
-		// ApproxBiLinear has no source-sized intermediate kernel buffer. The
-		// source goes directly to the only output RGBA image, over white.
-		draw.ApproxBiLinear.Scale(thumbnail, thumbnail.Bounds(), decoded, decoded.Bounds(), draw.Over, nil)
+		var encodeInput image.Image
+		if width == inspected.width && height == inspected.height {
+			encodeInput, err = sameSizeJPEGImage(operation, decoded)
+			if err != nil {
+				return result, imageError(operation, err)
+			}
+		} else {
+			thumbnail := image.NewRGBA(image.Rect(0, 0, width, height))
+			draw.Draw(thumbnail, thumbnail.Bounds(), image.NewUniform(color.White), image.Point{}, draw.Src)
+			// ApproxBiLinear has no source-sized intermediate kernel buffer.
+			draw.ApproxBiLinear.Scale(thumbnail, thumbnail.Bounds(), decoded, decoded.Bounds(), draw.Over, nil)
+			encodeInput = thumbnail
+		}
 		if err := operation.Err(); err != nil {
 			return result, err
 		}
 		output := boundedImageWriter{ctx: operation, limit: int(p.options.MaxOutputBytes)}
-		if err := jpeg.Encode(&output, thumbnail, &jpeg.Options{Quality: request.Quality}); err != nil {
+		if err := jpeg.Encode(&output, encodeInput, &jpeg.Options{Quality: request.Quality}); err != nil {
 			return result, imageError(operation, err)
 		}
 		// Tighten capacity once. Both allocations are included in the estimate;

@@ -665,6 +665,9 @@ func TestImageSmallThumbnailAllocationBudget(t *testing.T) {
 			b.Fatal("allocation measurement included a cache hit")
 		}
 	})
+	if measurement.N == 0 || measurement.AllocedBytesPerOp() == 0 {
+		t.Fatal("small thumbnail allocation benchmark did not complete")
+	}
 	t.Logf("small thumbnail: %d bytes per cold render", measurement.AllocedBytesPerOp())
 	if measurement.AllocedBytesPerOp() > 1<<20 {
 		t.Fatal("small thumbnail allocated over 1 MiB per cold render")
