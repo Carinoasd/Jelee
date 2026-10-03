@@ -1,3 +1,11 @@
+## 失敗診斷修正
+
+控制器現可辨識提前的 failed 報告，結果仍是 failed，並以 `soak_worker_failed` 搭配有界 `workerErrorCode` 保留原因。成功仍必須經 ready／SIGTERM／PASS 與完整重播，不放寬。先執行失敗測試重現 `soak_event_invalid` 覆蓋，再修正為正確保留；原始 run 重播結果見 [診斷證據](evidence/image-soak-failure-replay.json)。
+
+工作報告新增失敗輪次 failedRound（不計入成功 rounds），冷圖片 FailureCode 區分 HTTP、父 context、未 idle 與計數不符；首個失敗請求保留索引與 HTTP status，不包含 URL、token 或原始錯誤。原 run 缺少失敗輪次資料，仍不能判定圖片根因。準備以同一固定 smoke 規格驗證新診斷，再重現正式長測；不將診斷修正宣稱為圖片故障修復。
+
+Linux 全部 `test_images_soak_*.py` 51 項通過；Windows相關 Go 測試與 [Linux race](evidence/soak-failure-diagnostics-race.txt) 通過，HTTP503 fixture 驗證冷圖片請求失敗保留統計、status與index。
+
 ## 最新正式長測失敗
 
 run `033822f3aecf4b6491406594c8687cfd`（source `c61c12b007`）已在約 2111.73 秒後失敗，完成 7 輪。工作測試回報 `cold_image_processing_failed`，controller 將未經 ready 的失敗報告記為 `soak_event_invalid`。容器 exit 1、OOM false，清理兩項皆 true，snapshotVerified false。這次不構成 24 小時驗收；尚待診斷冷圖片失敗原因，並改善錯誤報告保留。見 [失敗證據](evidence/image-soak-formal-failure.json)。歷史「執行中」紀錄已被此結果取代。

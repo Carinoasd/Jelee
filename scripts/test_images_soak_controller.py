@@ -51,6 +51,8 @@ class ControllerTests(unittest.TestCase):
                 self.assertIn("JELEE_IMAGES_SOAK_RUN_ID=", body)
                 self.assertNotIn("JELEE_IMAGES_MEMORY_ACCEPTANCE", body)
                 raw.write_bytes(b"private-test-log")
+                if mode == "worker-failed":
+                    raise controller.MonitorFailure("soak_worker_failed", "cold_image_processing_failed")
                 if mode == "heartbeat":
                     raise controller.MonitorFailure("soak_heartbeat_timeout")
                 if mode == "interrupt":
@@ -91,6 +93,9 @@ class ControllerTests(unittest.TestCase):
             self.assertEqual(json.loads(summary.read_bytes()), result)
             self.assertNotIn("PRIVATE", json.dumps(result))
             self.assertFalse(result["finalAcceptance"])
+            if mode == "worker-failed":
+                self.assertEqual(result["failureCode"], "soak_worker_failed")
+                self.assertEqual(result["workerErrorCode"], "cold_image_processing_failed")
             self.assertEqual(result["result"], "passed" if mode == "success" else "failed")
             self.assertEqual(result["testArtifactsCleaned"], mode != "cleanup")
             self.assertEqual(len(removed), 4)
@@ -110,7 +115,7 @@ class ControllerTests(unittest.TestCase):
                 self.exercise(smoke=smoke)
 
     def test_failures_preserve_raw_and_cleanup_owned_resources(self):
-        for mode in ("heartbeat", "interrupt", "validation", "missing-container", "source", "fixture", "cleanup"):
+        for mode in ("worker-failed", "heartbeat", "interrupt", "validation", "missing-container", "source", "fixture", "cleanup"):
             with self.subTest(mode=mode):
                 self.exercise(mode)
 

@@ -3,6 +3,7 @@
 import hashlib
 import json
 import os
+import re
 from pathlib import Path
 import selectors
 import subprocess
@@ -12,8 +13,9 @@ from images_soak_acceptance import BUDGET, pairs, bad_constant
 
 
 class MonitorFailure(RuntimeError):
-    def __init__(self, code):
+    def __init__(self, code, worker_error_code=None):
         self.code = code
+        self.worker_error_code = worker_error_code
         super().__init__(code)
 
 
@@ -89,6 +91,17 @@ class Receipt:
                 self.last_heartbeat = now
             elif set(value) == {"imagesSoakReadyForSIGTERM"} and value["imagesSoakReadyForSIGTERM"] is True and not self.ready and not self.final:
                 self.ready = True
+            elif (set(value) == {"imagesSoakAcceptance"} and not self.final
+                  and type(value["imagesSoakAcceptance"]) is dict
+                  and value["imagesSoakAcceptance"].get("result") == "failed"):
+                report = value["imagesSoakAcceptance"]
+                code = report.get("errorCode")
+                if (type(report.get("version")) is not int or report["version"] != 1
+                        or type(code) is not str or re.fullmatch(r"[a-z][a-z0-9_]{0,95}", code) is None):
+                    raise MonitorFailure("soak_event_invalid")
+                # Failure is terminal, never a substitute for success replay or
+                # the ready/SIGTERM/PASS protocol. Retain only a bounded code.
+                raise MonitorFailure("soak_worker_failed", worker_error_code=code)
             elif set(value) == {"imagesSoakAcceptance"} and self.ready and not self.final:
                 self.final = True
             else:

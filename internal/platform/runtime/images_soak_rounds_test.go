@@ -9,6 +9,7 @@ import (
 )
 
 type imagesSoakWorkReport struct {
+	FailedRound        *imagesSoakRound         `json:"failedRound,omitempty"`
 	Rounds             []imagesSoakRound        `json:"rounds"`
 	Rotation           imagesSoakRotation       `json:"rotation"`
 	NegativeBefore     imagesMemoryNegative     `json:"negativeBefore"`
@@ -125,7 +126,7 @@ func runImagesSoakRounds(ctx context.Context, scope string, fixtureBytes int64, 
 			}
 		}
 		roundCtx, cancel := context.WithDeadline(ctx, slot.Add(5*time.Minute))
-		code := func() string {
+		code := func() (failure string) {
 			if index == 144 {
 				if _, err := hooks.phase(roundCtx, "rotate"); err != nil {
 					return "soak_phase_failed"
@@ -149,6 +150,12 @@ func runImagesSoakRounds(ctx context.Context, scope string, fixtureBytes int64, 
 				}
 			}
 			round := imagesSoakRound{Index: index, ScheduledNanos: slot.Sub(hooks.origin).Nanoseconds(), StartedNanos: time.Since(hooks.origin).Nanoseconds()}
+			defer func() {
+				if failure != "" {
+					round.FinishedNanos = time.Since(hooks.origin).Nanoseconds()
+					report.FailedRound = &round
+				}
+			}()
 			if _, err := hooks.phase(roundCtx, "scan"); err != nil {
 				return "soak_phase_failed"
 			}

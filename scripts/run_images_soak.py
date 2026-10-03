@@ -160,6 +160,8 @@ def run_case(*, smoke=False, evidence_root=None, identity=None, snapshot=None):
         if isinstance(error, KeyboardInterrupt):
             code = "cancelled_by_user"
         report.update(result="failed", finalAcceptance=False, failureCode=code.replace("scan_memory_", "image_memory_"))
+        if isinstance(error, MonitorFailure) and error.worker_error_code is not None:
+            report["workerErrorCode"] = error.worker_error_code
     finally:
         handlers = {}
         if threading.current_thread() is threading.main_thread():

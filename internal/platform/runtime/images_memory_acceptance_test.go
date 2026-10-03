@@ -113,16 +113,23 @@ func imagesMemoryStatsValue(value imageadapter.Stats) imagesMemoryStats {
 		value.Decodes, value.CacheEntries, value.CacheBytes, value.CacheEvictions}
 }
 
+type imagesMemoryFailedRequest struct {
+	Index  int `json:"index"`
+	Status int `json:"status"`
+}
+
 type imagesMemoryPhaseResult struct {
-	StartedNanos   int64             `json:"startedNanos"`
-	FinishedNanos  int64             `json:"finishedNanos"`
-	ElapsedNanos   int64             `json:"elapsedNanos"`
-	Get200         int64             `json:"get200"`
-	Head200        int64             `json:"head200"`
-	NotModified304 int64             `json:"notModified304"`
-	HTTPBytes      int64             `json:"httpBytes"`
-	Before         imagesMemoryStats `json:"before"`
-	After          imagesMemoryStats `json:"after"`
+	FailedRequest  *imagesMemoryFailedRequest `json:"failedRequest,omitempty"`
+	FailureCode    string                     `json:"failureCode,omitempty"`
+	StartedNanos   int64                      `json:"startedNanos"`
+	FinishedNanos  int64                      `json:"finishedNanos"`
+	ElapsedNanos   int64                      `json:"elapsedNanos"`
+	Get200         int64                      `json:"get200"`
+	Head200        int64                      `json:"head200"`
+	NotModified304 int64                      `json:"notModified304"`
+	HTTPBytes      int64                      `json:"httpBytes"`
+	Before         imagesMemoryStats          `json:"before"`
+	After          imagesMemoryStats          `json:"after"`
 }
 
 type imagesMemoryNegative struct {
@@ -844,7 +851,9 @@ func runImagesColdSince(ctx context.Context, started time.Time, life *lifetime, 
 				}
 				result, e := imagesMemoryGET(c, client, address, token, index, total, "GET", "", 200)
 				if e != nil {
-					failed.Store(true)
+					if failed.CompareAndSwap(false, true) {
+						report.FailedRequest = &imagesMemoryFailedRequest{Index: index, Status: result.status}
+					}
 					cancel()
 					return
 				}
@@ -870,7 +879,8 @@ produce:
 	report.FinishedNanos = time.Since(started).Nanoseconds()
 	report.ElapsedNanos = report.FinishedNanos - report.StartedNanos
 	report.After, err = imagesMemoryIdle(ctx, life)
-	if failed.Load() || ctx.Err() != nil || err != nil || !imagesMemoryPhaseValid(*report, int64(total), false) {
+	report.FailureCode = imagesColdFailure(ctx.Err(), failed.Load(), err, imagesMemoryPhaseValid(*report, int64(total), false))
+	if report.FailureCode != "" {
 		return "cold_image_processing_failed"
 	}
 	return ""
@@ -1357,5 +1367,21 @@ func TestImagesMemoryErrorEvidenceRejectsPrivateData(t *testing.T) {
 				t.Fatal("acceptance error exposed response content")
 			}
 		})
+	}
+}
+
+// Bounded diagnostics only: never serialize request URLs, tokens or raw errors.
+func imagesColdFailure(ctxErr error, requestFailed bool, idleErr error, valid bool) string {
+	switch {
+	case ctxErr != nil:
+		return "context_finished"
+	case requestFailed:
+		return "http_request_failed"
+	case idleErr != nil:
+		return "processor_not_idle"
+	case !valid:
+		return "counter_mismatch"
+	default:
+		return ""
 	}
 }

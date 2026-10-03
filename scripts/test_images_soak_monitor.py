@@ -61,6 +61,29 @@ class ReceiptTests(unittest.TestCase):
                     item.feed(body, 1)
                     item.finish(2)
 
+    def test_failed_worker_report_keeps_safe_cause_without_ready(self):
+        item = self.receipt()
+        body = json.dumps({"imagesSoakAcceptance": {
+            "version": 1, "result": "failed", "errorCode": "cold_image_processing_failed"
+        }}).encode() + b"\n"
+        with self.assertRaises(monitor.MonitorFailure) as caught:
+            item.feed(body, 1)
+        self.assertEqual(caught.exception.code, "soak_worker_failed")
+        self.assertEqual(caught.exception.worker_error_code, "cold_image_processing_failed")
+        self.assertFalse(item.passed)
+
+    def test_failed_worker_code_is_bounded_and_not_arbitrary_text(self):
+        for code in ("private/path", "secret value", "x" * 97, None, 1):
+            with self.subTest(code=code):
+                item = self.receipt()
+                body = json.dumps({"imagesSoakAcceptance": {
+                    "version": 1, "result": "failed", "errorCode": code
+                }}).encode() + b"\n"
+                with self.assertRaises(monitor.MonitorFailure) as caught:
+                    item.feed(body, 1)
+                self.assertEqual(caught.exception.code, "soak_event_invalid")
+                self.assertIsNone(caught.exception.worker_error_code)
+
     def test_bounds_and_incomplete(self):
         item = self.receipt()
         item.feed(b"x" * 65536, 1)

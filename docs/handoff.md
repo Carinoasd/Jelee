@@ -1,3 +1,11 @@
+## 最新接續：長測失敗原因覆蓋已修，需重現圖片故障
+
+正式run033822f3aecf4b6491406594c8687cfd已failed，沒有活躍正式長測。monitor收到ready前failed report原本丟soak_event_invalid；red測試Linux確認，現回soak_worker_failed並安全保留workerErrorCode，run_images_soak report也保存。原始events重播確認cold_image_processing_failed，證據docs/evidence/image-soak-failure-replay.json。Python51tests、WindowsGo及Linuxrace通過。
+
+Go失敗報告現在保留failedRound且不加入success rounds；冷圖片FailureCode分HTTP/context/idle/counter，FailedRequest有index/status（CAS取首個，join後讀取），无敏感字串。原run沒失敗輪統計，根因仍未定，不要把診斷修正當圖片已修。接著以已提交HEAD啟動固定600s smoke並核實handle；通過後同commit才能啟正式。保留既有smoke/正式證據，禁止覆蓋。
+
+資源配額後續仍需probe子租約等待安全、images/ignore/watch等；G41.3/G13.5及全案未完成，PR46禁止merge。
+
 ## 最新接續：inventory 與 NFO 共用配額已接正式 jobs
 
 jobs.Options.Budget 由runtime同一fx實例注入。scanDirectory持IO至callback完成/返回（panic defer釋放），readNFO持IO、parseNFO持CPU，進filetimeout前先acquire，跨階段不巢狀。acquireWork於ErrResourceBusy時以既有worker/PollInterval等待，父job監控繼續，無新增goroutine/無媒體失敗；取消正常傳回，MaxJobRuntime仍生效。此等待不是持久化pause。
