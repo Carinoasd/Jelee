@@ -41,3 +41,33 @@ Windows 的 `BenchmarkImageSourceCopy` 以同一 256 KiB 檔案讀取至 SHA-256
 [修改前](evidence/image-copy-before-windows.txt)、[修改後](evidence/image-copy-after-windows.txt)、[Linux race](evidence/image-copy-race-linux.txt)。Windows 圖片套件及 vet 通過，Linux 全套件 race 通過；新增 12 個並行複製使用不同內容與大小，核對各回應完整性。原有來源上限、short write、取消、變更偵測及清理測試保留。
 
 JPEG 標準庫的 encoder 型別未匯出，現有 `jpeg.Encode` 沒有 encoder 重用介面。G42.5 的編碼器與其他熱路徑驗收仍待處理；沒有因此修改需求或宣稱完成。正在執行的 c61c12b007 正式長測不包含本次變更。
+
+## 熱點基準與退化門禁（G26.1、G26.4）
+
+`make bench`（Windows：`scripts/make.ps1 bench`）在下列套件執行全部 `Benchmark*`，輸出到 `.testdata/bench-current.txt`（已被 `.gitignore` 排除）：
+
+| 套件 | 基準 | 量測內容 |
+| --- | --- | --- |
+| `internal/access` | `Evaluate1k`、`Evaluate10k`、`Compile10k` | 存取規則評估與編譯 |
+| `internal/domain/medianame` | `ParsePath` | 10 條固定路徑（電影、季集、動畫絕對集數、日期、特典、CJK） |
+| `internal/domain` | `VersionLabels` | 合成探測結果＋檔名的版本標籤判定 |
+| `internal/adapter/nfo` | `ReadDocument`、`SourceHashAndParse/*` | 記憶體內 NFO 解析；含讀檔與雜湊的路徑 |
+| `internal/adapter/images` | `RenderDecodedSmall`、`ImageSourceCopy` | 640×360 JPEG 解碼縮成 160×90 再編碼（不經快取）；來源複製 |
+| `internal/adapter/subtitles` | `DetectCharset/*` | UTF-8、GB18030、Big5、Shift_JIS、EUC-KR 各 48 行 SRT 的編碼偵測 |
+| `internal/adapter/http` | `WriteJSONItemPage`、`WriteJSONError` | `writeJSON` 編碼 50 筆列表信封與錯誤信封（假資料、丟棄式 ResponseWriter） |
+
+輸入皆固定且在計時迴圈外準備，全部 `b.ReportAllocs()`；不需要資料庫。讀 100 個檔案的 `ObservedHundredFiles` 受磁碟影響太大，預設以 `BENCH_SKIP` 排除，需要時可手動執行。
+
+可調參數：`BENCH`（基準 regexp，預設 `.`）、`BENCH_SKIP`、`BENCH_COUNT`（預設 6）、`BENCH_TIME`（預設 500ms）、`BENCH_CURRENT`、`BENCH_BASELINE`、`BENCHGATE_FLAGS`；PowerShell 用 `JELEE_BENCH`、`JELEE_BENCH_SKIP`、`JELEE_BENCH_COUNT`、`JELEE_BENCH_TIME` 環境變數。
+
+`make bench-check` 先跑 `bench`，再以 `tools/benchgate` 對比 [`docs/evidence/bench-baseline.txt`](evidence/bench-baseline.txt)。門禁規則：
+
+- 同一基準的多次執行（`-count`）先取中位數，再比較基線與目前的中位數；單次離群值不會單獨造成通過或失敗。
+- 基準名稱會加上 `pkg:` 前綴並去掉 `-N`（GOMAXPROCS）尾碼，不同核心數的機器仍能對上。
+- ns/op 增加超過 15%（`-ns`）或 allocs/op 增加超過 10%（`-allocs`）即退化；B/op 預設只列出不擋（`-bytes 20` 可啟用）。門檻設負值就停用該項。基線為 0 而目前大於 0 視為無限大增幅。
+- 基線有、目前沒有的基準算失敗（`-allow-missing` 可放行），新增但沒有基線的基準只列出不擋；`-match` 可限縮比對範圍。
+- 結束碼：0 通過、1 有退化或缺項（列出每一項）、2 用法或輸入錯誤（檔案不存在、沒有任何基準結果、兩邊沒有共同基準）。
+
+例：`make bench-check BENCHGATE_FLAGS='-ns 20 -bytes 25'`；也可以直接 `go run ./tools/benchgate -base A.txt -current B.txt`。
+
+目前提交的基線是在開發機（Ryzen 7 9850X3D、WSL2、go1.27.1、同時有其他負載）上產生，只供參考。同機連跑兩次的 ns/op 中位數差距最多約 11%，已接近 15% 門檻，所以正式基線必須在固定且閒置的 CI 硬體上用 `make bench` 重產並替換，門禁才有判斷力。每個優化提交仍應附 benchstat 前後數據（G26.4）；本工具是回歸門禁，不取代 benchstat 的統計檢定。

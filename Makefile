@@ -2,8 +2,19 @@ GO_VERSION := 1.27.1
 export PATH := $(CURDIR)/.bin:$(PATH)
 GO := $(CURDIR)/.bin/go
 PYTHON := python3
+# Hot-path benchmarks (G26.1/G26.4). BENCH_COUNT repetitions are reduced to a
+# median by tools/benchgate; BENCH_SKIP drops disk-bound benchmarks too noisy
+# for a percentage gate.
+BENCH_PKGS := ./internal/access ./internal/domain ./internal/domain/medianame ./internal/adapter/nfo ./internal/adapter/images ./internal/adapter/subtitles ./internal/adapter/http
+BENCH ?= .
+BENCH_SKIP ?= ObservedHundredFiles
+BENCH_COUNT ?= 6
+BENCH_TIME ?= 500ms
+BENCH_CURRENT ?= .testdata/bench-current.txt
+BENCH_BASELINE ?= docs/evidence/bench-baseline.txt
+BENCHGATE_FLAGS ?=
 
-.PHONY: image-memory-test image-memory-smoke-test scan-memory-test scan-memory-smoke-test runtime-memory-test runtime-memory-worker-test memory-contract-test i18n-check family-ignore-sustained-worker-test ignore-sustained-test init bootstrap bootstrap-media bootstrap-runtime runtime-tools-verify runtime-toolchain-test probe-runtime-test probe-worker-test nfo-worker-test family-ignore-worker-test ignore-oracle-test sandbox-test tools-verify media-tools-verify tools-clean fixtures fixtures-test build test test-race test-integration coverage fmt fmt-check lint toolchain-test media-toolchain-test brand-scan brand-scan-incremental gitignore-check openapi openapi-check migrate doctor
+.PHONY: image-memory-test image-memory-smoke-test scan-memory-test scan-memory-smoke-test runtime-memory-test runtime-memory-worker-test memory-contract-test i18n-check family-ignore-sustained-worker-test ignore-sustained-test init bootstrap bootstrap-media bootstrap-runtime runtime-tools-verify runtime-toolchain-test probe-runtime-test probe-worker-test nfo-worker-test family-ignore-worker-test ignore-oracle-test sandbox-test tools-verify media-tools-verify tools-clean fixtures fixtures-test build test test-race test-integration coverage fmt fmt-check lint toolchain-test media-toolchain-test brand-scan brand-scan-incremental gitignore-check openapi openapi-check migrate doctor bench bench-check benchgate-test
 init: bootstrap
 bootstrap:
 	sh scripts/bootstrap-tools
@@ -72,6 +83,16 @@ test-race:
 test-integration:
 	@test -n "$$JELEE_TEST_DATABASE_URL" || { echo 'JELEE_TEST_DATABASE_URL must name an isolated test database' >&2; exit 1; }
 	"$(GO)" test ./internal/adapter/postgres -run Integration -v -count=1
+# Run the hot-path benchmarks into $(BENCH_CURRENT).
+bench:
+	mkdir -p "$(dir $(BENCH_CURRENT))"
+	"$(GO)" test -run '^$$' -bench '$(BENCH)' -skip '$(BENCH_SKIP)' -benchmem -count=$(BENCH_COUNT) -benchtime=$(BENCH_TIME) $(BENCH_PKGS) > "$(BENCH_CURRENT)"
+	@echo "benchmark output written to $(BENCH_CURRENT)"
+# Fail when a median regresses past the thresholds (ns/op +15%, allocs/op +10%).
+bench-check: bench
+	"$(GO)" run ./tools/benchgate -base "$(BENCH_BASELINE)" -current "$(BENCH_CURRENT)" $(BENCHGATE_FLAGS)
+benchgate-test:
+	"$(GO)" test -count=1 ./tools/benchgate
 coverage:
 	"$(GO)" test -count=1 -coverprofile=coverage.out ./...
 fmt:

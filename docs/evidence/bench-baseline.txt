@@ -1,0 +1,152 @@
+# Jelee hot-path benchmark baseline (G26.1 / G26.4) -- LOCAL REFERENCE ONLY.
+# Produced by `make bench` (BENCH_COUNT=6, BENCH_TIME=500ms, BENCH_SKIP=ObservedHundredFiles)
+# on a developer workstation: AMD Ryzen 7 9850X3D (16 logical CPUs), 14 GiB RAM,
+# WSL2 (Linux 6.18 microsoft-standard), go1.27.1 linux/amd64, shared with other
+# workloads (load average about 3). A second run on the same machine moved
+# ns/op medians by up to about 11%, so this file only shows the expected shape.
+# A gating baseline must be regenerated on fixed, otherwise idle CI hardware
+# with `make bench` and copied here; see docs/perf-report.md.
+goos: linux
+goarch: amd64
+pkg: github.com/MoYuanCN/Jelee/internal/access
+cpu: AMD Ryzen 7 9850X3D 8-Core Processor           
+BenchmarkEvaluate1k-16     	   42392	     15337 ns/op	     113 B/op	       1 allocs/op
+BenchmarkEvaluate1k-16     	   45424	     13644 ns/op	     113 B/op	       1 allocs/op
+BenchmarkEvaluate1k-16     	   48000	     13100 ns/op	     112 B/op	       1 allocs/op
+BenchmarkEvaluate1k-16     	   43153	     13721 ns/op	     112 B/op	       1 allocs/op
+BenchmarkEvaluate1k-16     	   43792	     14197 ns/op	     113 B/op	       1 allocs/op
+BenchmarkEvaluate1k-16     	   43678	     13825 ns/op	     113 B/op	       1 allocs/op
+BenchmarkEvaluate10k-16    	    4999	    126310 ns/op	     119 B/op	       1 allocs/op
+BenchmarkEvaluate10k-16    	    4106	    133644 ns/op	     121 B/op	       1 allocs/op
+BenchmarkEvaluate10k-16    	    4628	    147154 ns/op	     120 B/op	       1 allocs/op
+BenchmarkEvaluate10k-16    	    4456	    146305 ns/op	     120 B/op	       1 allocs/op
+BenchmarkEvaluate10k-16    	    3607	    164608 ns/op	     122 B/op	       1 allocs/op
+BenchmarkEvaluate10k-16    	    4336	    148911 ns/op	     129 B/op	       1 allocs/op
+BenchmarkCompile10k-16     	     134	   4375613 ns/op	 6213254 B/op	   36094 allocs/op
+BenchmarkCompile10k-16     	     144	   4134069 ns/op	 6213124 B/op	   36094 allocs/op
+BenchmarkCompile10k-16     	     153	   3956047 ns/op	 6213078 B/op	   36094 allocs/op
+BenchmarkCompile10k-16     	     136	   4334119 ns/op	 6213121 B/op	   36094 allocs/op
+BenchmarkCompile10k-16     	     146	   4068138 ns/op	 6213073 B/op	   36094 allocs/op
+BenchmarkCompile10k-16     	     151	   3799116 ns/op	 6213077 B/op	   36094 allocs/op
+PASS
+ok  	github.com/MoYuanCN/Jelee/internal/access	11.083s
+goos: linux
+goarch: amd64
+pkg: github.com/MoYuanCN/Jelee/internal/domain
+cpu: AMD Ryzen 7 9850X3D 8-Core Processor           
+BenchmarkVersionLabels-16    	   16986	     35806 ns/op	    4039 B/op	     121 allocs/op
+BenchmarkVersionLabels-16    	   15740	     40452 ns/op	    4037 B/op	     121 allocs/op
+BenchmarkVersionLabels-16    	   13819	     41323 ns/op	    4037 B/op	     121 allocs/op
+BenchmarkVersionLabels-16    	   16026	     37530 ns/op	    4029 B/op	     121 allocs/op
+BenchmarkVersionLabels-16    	   12405	     46520 ns/op	    4044 B/op	     121 allocs/op
+BenchmarkVersionLabels-16    	   15166	     38486 ns/op	    4055 B/op	     121 allocs/op
+PASS
+ok  	github.com/MoYuanCN/Jelee/internal/domain	3.586s
+goos: linux
+goarch: amd64
+pkg: github.com/MoYuanCN/Jelee/internal/domain/medianame
+cpu: AMD Ryzen 7 9850X3D 8-Core Processor           
+BenchmarkParsePath-16    	   26677	     22842 ns/op	   19392 B/op	     237 allocs/op
+BenchmarkParsePath-16    	   27300	     22164 ns/op	   19392 B/op	     237 allocs/op
+BenchmarkParsePath-16    	   27290	     21745 ns/op	   19392 B/op	     237 allocs/op
+BenchmarkParsePath-16    	   28182	     21684 ns/op	   19392 B/op	     237 allocs/op
+BenchmarkParsePath-16    	   24044	     23799 ns/op	   19392 B/op	     237 allocs/op
+BenchmarkParsePath-16    	   26408	     22458 ns/op	   19392 B/op	     237 allocs/op
+PASS
+ok  	github.com/MoYuanCN/Jelee/internal/domain/medianame	3.592s
+goos: linux
+goarch: amd64
+pkg: github.com/MoYuanCN/Jelee/internal/adapter/nfo
+cpu: AMD Ryzen 7 9850X3D 8-Core Processor           
+BenchmarkReadDocument-16          	   11850	     50806 ns/op	  39.50 MB/s	   39813 B/op	     783 allocs/op
+BenchmarkReadDocument-16          	   10000	     51699 ns/op	  38.82 MB/s	   39773 B/op	     783 allocs/op
+BenchmarkReadDocument-16          	   10000	     52333 ns/op	  38.35 MB/s	   39814 B/op	     783 allocs/op
+BenchmarkReadDocument-16          	   10000	     51239 ns/op	  39.17 MB/s	   39702 B/op	     783 allocs/op
+BenchmarkReadDocument-16          	   10000	     57040 ns/op	  35.19 MB/s	   39740 B/op	     783 allocs/op
+BenchmarkReadDocument-16          	   10000	     51225 ns/op	  39.18 MB/s	   39832 B/op	     783 allocs/op
+BenchmarkSourceHashAndParse/ReadSource-16         	   15098	     39612 ns/op	 414.92 MB/s	   43328 B/op	      62 allocs/op
+BenchmarkSourceHashAndParse/ReadSource-16         	   15169	     39556 ns/op	 415.51 MB/s	   43328 B/op	      62 allocs/op
+BenchmarkSourceHashAndParse/ReadSource-16         	   15399	     39011 ns/op	 421.31 MB/s	   43328 B/op	      62 allocs/op
+BenchmarkSourceHashAndParse/ReadSource-16         	   15711	     38649 ns/op	 425.27 MB/s	   43328 B/op	      62 allocs/op
+BenchmarkSourceHashAndParse/ReadSource-16         	   15308	     38772 ns/op	 423.91 MB/s	   43328 B/op	      62 allocs/op
+BenchmarkSourceHashAndParse/ReadSource-16         	   15295	     39086 ns/op	 420.51 MB/s	   43328 B/op	      62 allocs/op
+BenchmarkSourceHashAndParse/ReadFile-16           	    4297	    144588 ns/op	 113.67 MB/s	  116081 B/op	     110 allocs/op
+BenchmarkSourceHashAndParse/ReadFile-16           	    4390	    141993 ns/op	 115.75 MB/s	  116081 B/op	     110 allocs/op
+BenchmarkSourceHashAndParse/ReadFile-16           	    4068	    142756 ns/op	 115.13 MB/s	  116081 B/op	     110 allocs/op
+BenchmarkSourceHashAndParse/ReadFile-16           	    4232	    144146 ns/op	 114.02 MB/s	  116081 B/op	     110 allocs/op
+BenchmarkSourceHashAndParse/ReadFile-16           	    4038	    141447 ns/op	 116.20 MB/s	  116081 B/op	     110 allocs/op
+BenchmarkSourceHashAndParse/ReadFile-16           	    3726	    142178 ns/op	 115.60 MB/s	  116081 B/op	     110 allocs/op
+PASS
+ok  	github.com/MoYuanCN/Jelee/internal/adapter/nfo	10.388s
+goos: linux
+goarch: amd64
+pkg: github.com/MoYuanCN/Jelee/internal/adapter/images
+cpu: AMD Ryzen 7 9850X3D 8-Core Processor           
+BenchmarkRenderDecodedSmall-16    	     409	   1486170 ns/op	  13.29 MB/s	  451944 B/op	      23 allocs/op
+BenchmarkRenderDecodedSmall-16    	     391	   1562908 ns/op	  12.64 MB/s	  451956 B/op	      23 allocs/op
+BenchmarkRenderDecodedSmall-16    	     378	   1582756 ns/op	  12.48 MB/s	  451944 B/op	      23 allocs/op
+BenchmarkRenderDecodedSmall-16    	     375	   1557545 ns/op	  12.68 MB/s	  451942 B/op	      23 allocs/op
+BenchmarkRenderDecodedSmall-16    	     387	   1573730 ns/op	  12.55 MB/s	  451956 B/op	      23 allocs/op
+BenchmarkRenderDecodedSmall-16    	     358	   1699456 ns/op	  11.62 MB/s	  451941 B/op	      23 allocs/op
+BenchmarkImageSourceCopy-16       	    4846	    118219 ns/op	2217.45 MB/s	      48 B/op	       2 allocs/op
+BenchmarkImageSourceCopy-16       	    5199	    115999 ns/op	2259.88 MB/s	      48 B/op	       2 allocs/op
+BenchmarkImageSourceCopy-16       	    5176	    113436 ns/op	2310.94 MB/s	      54 B/op	       2 allocs/op
+BenchmarkImageSourceCopy-16       	    5035	    113167 ns/op	2316.44 MB/s	      48 B/op	       2 allocs/op
+BenchmarkImageSourceCopy-16       	    4596	    118852 ns/op	2205.63 MB/s	      55 B/op	       2 allocs/op
+BenchmarkImageSourceCopy-16       	    5209	    116234 ns/op	2255.30 MB/s	      54 B/op	       2 allocs/op
+PASS
+ok  	github.com/MoYuanCN/Jelee/internal/adapter/images	7.690s
+goos: linux
+goarch: amd64
+pkg: github.com/MoYuanCN/Jelee/internal/adapter/subtitles
+cpu: AMD Ryzen 7 9850X3D 8-Core Processor           
+BenchmarkDetectCharset/UTF8-16         	   47227	     12980 ns/op	 303.47 MB/s	   40152 B/op	      13 allocs/op
+BenchmarkDetectCharset/UTF8-16         	   46038	     12870 ns/op	 306.06 MB/s	   40152 B/op	      13 allocs/op
+BenchmarkDetectCharset/UTF8-16         	   45536	     12891 ns/op	 305.55 MB/s	   40152 B/op	      13 allocs/op
+BenchmarkDetectCharset/UTF8-16         	   47326	     13246 ns/op	 297.38 MB/s	   40152 B/op	      13 allocs/op
+BenchmarkDetectCharset/UTF8-16         	   35736	     15217 ns/op	 258.86 MB/s	   40152 B/op	      13 allocs/op
+BenchmarkDetectCharset/UTF8-16         	   38170	     14596 ns/op	 269.88 MB/s	   40152 B/op	      13 allocs/op
+BenchmarkDetectCharset/GB18030-16      	    7500	     82313 ns/op	  39.45 MB/s	   78368 B/op	      35 allocs/op
+BenchmarkDetectCharset/GB18030-16      	    6619	     88881 ns/op	  36.53 MB/s	   78368 B/op	      35 allocs/op
+BenchmarkDetectCharset/GB18030-16      	    7195	     77499 ns/op	  41.90 MB/s	   78368 B/op	      35 allocs/op
+BenchmarkDetectCharset/GB18030-16      	    8182	     79413 ns/op	  40.89 MB/s	   78368 B/op	      35 allocs/op
+BenchmarkDetectCharset/GB18030-16      	    7772	     77431 ns/op	  41.93 MB/s	   78368 B/op	      35 allocs/op
+BenchmarkDetectCharset/GB18030-16      	    8256	     80008 ns/op	  40.58 MB/s	   78368 B/op	      35 allocs/op
+BenchmarkDetectCharset/Big5-16         	    9093	     67759 ns/op	  47.92 MB/s	   81568 B/op	      36 allocs/op
+BenchmarkDetectCharset/Big5-16         	    9568	     67713 ns/op	  47.95 MB/s	   81568 B/op	      36 allocs/op
+BenchmarkDetectCharset/Big5-16         	    8421	    113071 ns/op	  28.72 MB/s	   81569 B/op	      36 allocs/op
+BenchmarkDetectCharset/Big5-16         	    5475	    101838 ns/op	  31.88 MB/s	   81569 B/op	      36 allocs/op
+BenchmarkDetectCharset/Big5-16         	    8077	     77723 ns/op	  41.78 MB/s	   81568 B/op	      36 allocs/op
+BenchmarkDetectCharset/Big5-16         	    8682	     72003 ns/op	  45.10 MB/s	   81568 B/op	      36 allocs/op
+BenchmarkDetectCharset/ShiftJIS-16     	    5628	     91836 ns/op	  40.15 MB/s	   94944 B/op	      36 allocs/op
+BenchmarkDetectCharset/ShiftJIS-16     	    6470	     89061 ns/op	  41.40 MB/s	   94944 B/op	      36 allocs/op
+BenchmarkDetectCharset/ShiftJIS-16     	    6825	    102220 ns/op	  36.07 MB/s	   94944 B/op	      36 allocs/op
+BenchmarkDetectCharset/ShiftJIS-16     	    6740	     92728 ns/op	  39.76 MB/s	   94944 B/op	      36 allocs/op
+BenchmarkDetectCharset/ShiftJIS-16     	    6099	     98330 ns/op	  37.50 MB/s	   94944 B/op	      36 allocs/op
+BenchmarkDetectCharset/ShiftJIS-16     	    7171	     89155 ns/op	  41.36 MB/s	   94944 B/op	      36 allocs/op
+BenchmarkDetectCharset/EUCKR-16        	    7843	     85416 ns/op	  40.92 MB/s	   85088 B/op	      35 allocs/op
+BenchmarkDetectCharset/EUCKR-16        	    5856	     98010 ns/op	  35.66 MB/s	   85088 B/op	      35 allocs/op
+BenchmarkDetectCharset/EUCKR-16        	    6955	     84234 ns/op	  41.49 MB/s	   85088 B/op	      35 allocs/op
+BenchmarkDetectCharset/EUCKR-16        	    7711	     84129 ns/op	  41.54 MB/s	   85088 B/op	      35 allocs/op
+BenchmarkDetectCharset/EUCKR-16        	    7899	     81699 ns/op	  42.78 MB/s	   85088 B/op	      35 allocs/op
+BenchmarkDetectCharset/EUCKR-16        	    8088	     80384 ns/op	  43.48 MB/s	   85088 B/op	      35 allocs/op
+PASS
+ok  	github.com/MoYuanCN/Jelee/internal/adapter/subtitles	18.677s
+goos: linux
+goarch: amd64
+pkg: github.com/MoYuanCN/Jelee/internal/adapter/http
+cpu: AMD Ryzen 7 9850X3D 8-Core Processor           
+BenchmarkWriteJSONItemPage-16    	   57918	     10179 ns/op	     868 B/op	      16 allocs/op
+BenchmarkWriteJSONItemPage-16    	   55834	     10717 ns/op	     867 B/op	      16 allocs/op
+BenchmarkWriteJSONItemPage-16    	   58294	     10893 ns/op	     867 B/op	      16 allocs/op
+BenchmarkWriteJSONItemPage-16    	   51880	     11311 ns/op	     868 B/op	      16 allocs/op
+BenchmarkWriteJSONItemPage-16    	   52274	     11392 ns/op	     866 B/op	      16 allocs/op
+BenchmarkWriteJSONItemPage-16    	   57032	     10366 ns/op	     869 B/op	      16 allocs/op
+BenchmarkWriteJSONError-16       	  696704	       897.4 ns/op	     817 B/op	      12 allocs/op
+BenchmarkWriteJSONError-16       	  666698	       889.4 ns/op	     817 B/op	      12 allocs/op
+BenchmarkWriteJSONError-16       	  667702	      1023 ns/op	     817 B/op	      12 allocs/op
+BenchmarkWriteJSONError-16       	  510534	      1080 ns/op	     817 B/op	      12 allocs/op
+BenchmarkWriteJSONError-16       	  658768	       909.0 ns/op	     817 B/op	      12 allocs/op
+BenchmarkWriteJSONError-16       	  656941	       922.8 ns/op	     817 B/op	      12 allocs/op
+PASS
+ok  	github.com/MoYuanCN/Jelee/internal/adapter/http	7.269s
