@@ -1,3 +1,9 @@
+## 2026-10-04 Claude 接續：schema56 守衛審查與歷史超額升級測試
+
+逐項對照交接第 3 步。lease／actor／提前 flush／首次輸出 FK 已有測試涵蓋。新增歷史超額升級測試：schema55 留 1120MiB 歷史 plan 後升級，升級被拒絕，不留 schema56 物件，歷史不變，狀態停在 56 dirty。Linux 真 PG、race：PASS。SQL 允許有 checkpoint 後再分配下一個 attempt，屬既有設計；目前由 Stage 保證不輪替，放棄協議時再決定是否收緊。
+
+---
+
 ## 2026-10-04 Claude 接續：真 PG＋child os.Exit attempt 中斷矩陣
 
 新增 `TestNFOCommitAttemptActualProcessRecovery`：子程序在 legacy／attempt 建檔後（首次 checkpoint 提交前）、attempt phase1／phase2 提交後、ready 提交後直接 `os.Exit`。之後由新的 Store 連線重跑 Stage，分別驗證四件事：建檔後中斷會依序分配下一個 attempt；有 checkpoint 就在同一個 attempt 續作，首次 ID 與時間不變；ready 後只重播；未知物件保留，legacy evidence 不被寫入。Linux 真 PG、race：5 個案例全 PASS（7 PASS／0 fail）。仍缺恢復 lease／FS grant／settlement／worker 與完整回歸（交 @MoYuanCN）。

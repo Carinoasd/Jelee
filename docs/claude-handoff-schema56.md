@@ -24,6 +24,12 @@
    - ready 後中斷：只重播。
    - 所有未知物件保留，legacy evidence 不被寫入，target 不變。
    5 個案例全 PASS（`.testdata/claude-schema56-attempt-process-linux-v1.jsonl`：7 PASS／0 fail，含父測試與 helper）。
+6. 守衛審查（交接第 3 步）：
+   - lease 到期／取消、actor 停用／非管理員：既有 `LeaseAndActorFences` 已涵蓋。
+   - 同交易提前 flush：既有 `CatalogAfterConstraintFlush` 已涵蓋。
+   - 首次輸出 FK、ready 需 phase1／2 完整：既有 `LedgerReplayAndBounds` 已涵蓋。
+   - 新增 `TestNFOCommitAttemptMigrationRefusesHistoricalExcess`：在 schema55 留 7 份 8MiB 歷史 plan（共 1120MiB）後升級。升級被拒絕，不留任何 schema56 物件，歷史 plan 不變，狀態停在 56 dirty，需要人工處理。Linux 真 PG、race：PASS。
+   - 刻意保留的行為：SQL 允許在上一個 attempt 已有 checkpoint 時分配下一個（既有測試明確依賴，可能是給之後的放棄／清理協議用）。「有 checkpoint 就不輪替」目前只由 Stage 保證，日後做放棄協議時要一併決定是否在 SQL 收緊。
 4. 所有 NFO commit／Stage 相關測試（接線後重跑，含舊 Stage 測試改走新流程）：524 PASS／0 fail／0 skip，4 package PASS（`.testdata/claude-schema56-stage-linux-v1.jsonl`）。
 
 仍未做（不要當成完成）：

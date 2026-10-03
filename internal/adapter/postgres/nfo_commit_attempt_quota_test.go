@@ -295,3 +295,50 @@ func attemptQuotaRace(t *testing.T, kind string, isolation pgx.TxIsoLevel, fence
 		t.Fatal("excess or partial attempt reservation retained")
 	}
 }
+
+// Historical schema55 plans already retain their legacy names. An upgrade must
+// charge them before admitting a new reservation and, when they exceed the
+// global budget, refuse atomically without deleting or adopting any history.
+func TestNFOCommitAttemptMigrationRefusesHistoricalExcess(t *testing.T) {
+	f, base, prepared := nfoCommitFixture(t)
+	stopAttemptQuotaJob(t, f, base)
+	jobMetricMigration(t, f, "down", 55)
+	const count = 7
+	sizes := make([][2]int, count)
+	for i := range sizes {
+		sizes[i] = [2]int{8 << 20, 8 << 20}
+	}
+	if int64(count)*domain.NFOWriteCommitAttemptRetainedBytes(8<<20, 8<<20) <= 1073741824 {
+		t.Fatal("owned historical excess recipe invalid")
+	}
+	lease, plans, tokens := makeAttemptQuotaBatch(t, f, base, prepared, 1, count, 0, sizes)
+	for i := range plans {
+		if _, err := f.s.SaveNFOWriteCommitFilePlan(f.ctx, lease, i+1, tokens[i], plans[i]); err != nil {
+			t.Fatal("owned historical plan refused")
+		}
+	}
+	stopAttemptQuotaJob(t, f, lease)
+	history := func() string {
+		var digest string
+		if err := f.s.Pool.QueryRow(f.ctx, `SELECT md5(COALESCE(string_agg(token::text||recorded_at::text||target_name,',' ORDER BY token),'')) FROM nfo_write_commit_file_plans`).Scan(&digest); err != nil {
+			t.Fatal("owned historical plans unavailable")
+		}
+		return digest
+	}
+	before := history()
+	if _, _, err := Migrate(f.ctx, f.s.Pool.Config().ConnString(), "up"); err == nil {
+		t.Fatal("historical excess upgraded")
+	}
+	var present bool
+	if err := f.s.Pool.QueryRow(f.ctx, `SELECT to_regclass('nfo_write_commit_attempt_reservations') IS NOT NULL OR to_regclass('nfo_commit_attempt_quota_fence') IS NOT NULL`).Scan(&present); err != nil || present {
+		t.Fatal("refused upgrade left partial attempt storage")
+	}
+	if history() != before {
+		t.Fatal("refused upgrade changed historical plans")
+	}
+	// The migrator marks the refused version dirty; the operator must resolve it
+	// explicitly, and no schema56 object exists in the meantime.
+	if version, dirty, err := Migrate(f.ctx, f.s.Pool.Config().ConnString(), "status"); err != nil || version != 56 || !dirty {
+		t.Fatal("refused upgrade did not stay dirty at the refused version")
+	}
+}
