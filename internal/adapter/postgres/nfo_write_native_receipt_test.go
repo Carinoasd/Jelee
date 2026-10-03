@@ -290,6 +290,12 @@ func TestNFOWriteNativeReceiptPlanSQLBinding(t *testing.T) {
 					if _, err := tx.Exec(f.ctx, `ALTER TABLE nfo_write_commit_file_plans DISABLE TRIGGER guard_nfo_commit_plan_native`); err != nil {
 						t.Fatal("isolate deferred native plan guard")
 					}
+					// Schema56 reserves attempt capacity in an AFTER INSERT trigger, and
+					// the reservation's catalog guard checks the same native binding at
+					// once. Disable it too so only the plan's deferred guard is exercised.
+					if _, err := tx.Exec(f.ctx, `ALTER TABLE nfo_write_commit_file_plans DISABLE TRIGGER reserve_nfo_commit_plan_attempts`); err != nil {
+						t.Fatal("isolate deferred native plan reservation")
+					}
 				}
 				if phase != "positive_replay" {
 					if field == "parent" {
