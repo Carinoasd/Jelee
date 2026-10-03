@@ -1,3 +1,14 @@
+## 2026-10-03 準備保存交易catalog scope複核已驗
+
+基線8b9ab67b089d6b1cc737c6b1d6d1ff1b4c2489ab／schema50／PR46，本批隨提交沿同分支發布。Begin／SavePlan／SaveReady從固定entry讀scope，重新解析當下item／library／source／root／kind／revision／policy generation及私有root／媒體／目錄／NFO路徑，逐欄比較，鎖item／policy／source／root直到交易結束。已有revision row另鎖；revision1無state row時item FOR UPDATE透過FK阻擋新state。plan／ready寫入及no-op replay後再查scope。失敗零結果、回滾新journal／plan／ready，既有紀錄保持。只讀策略下的內部準備不授權target寫回；GetEvidence仍可讀lease／actor有效的歷史資料供稽核，不能執行過期scope。
+
+真PG race主選測124PASS／補充8PASS，組合132PASS／零skipfail，最終編譯14個TestNFOCommit根各run／pass一次；63個scope變更子案例涵蓋Begin／plan／ready首次與重試／首次native stage／ready重開，revision／generation／policy／root／source path／ID／missing／ambiguous／kind拒絕，SQL列數與原生剩餘bytes保持，首次plan拒絕零lock／stage。補充Series／Season目錄意圖正例及變更拒絕、保存trigger在同交易改generation後完整回滾。隔離真PG overlay移除scope檢查，過期revision plan被保存而測試確實FAIL。Windows postgres／architecture226PASS／811DB條件skip，不當Windows真PG通過；vet兩平台、Darwin NFO僅compile、格式／增量品牌0／339／gitignore／diff通過。handles48370／56355／77778／54066／64673皆terminal0；100份SQL／mod／sum／需求原文／LICENSE保持，本批無migration、未重跑完整PG。方法docs/nfo-commit-catalog-fence.md，安全摘要docs/evidence/nfo-commit-catalog-fence.json，明列两次選測及補充test file在主run後加入、生產來源未再改。
+
+下一步仍須新的SQL catalog scope守衛、root generation及原生root／媒體／ancestor跨程序證據、同實體未解決排除，target提交邊界、backup／rollback／結算／crash恢復、部分stage處置及正式准入／worker／三種操作。原始payload配額不證整體heap／RSS，Windowsdirectory metadata耐久性仍缺；不把路徑／catalog ID相等當原生實體相等。全案7完成／198部分／131阻塞，runtime未開read-write。
+
+正式24h仍run329073a5d193446383327ab217aba147／PID1026300／startTicks33072456／boot4a5d9c5c-4482-4c3e-8978-30156b1ce92f，來源24caf7d45f不含本批；本輪實核身分吻合、container running／OOMfalse，24h未通過。核同handle不重啟、完整品牌門禁保持。不merge／release／tag／force-push、不改已發布100份SQL或Git身份設定，原媒體／圖片／授權保持。下方為歷史狀態。
+
+---
 ## 2026-10-03 既有journal證據讀取與ready重開核對已驗
 
 基線7b952dbec58166b67828f4bb33ec7dfa1e8f4c59／schema50／PR46，本批隨提交沿同分支發布。GetNFOWriteCommitFiles短交易核真實running nfo_write／owner／generation／live lease／cancel／活躍admin，鎖job與actor、讀後再核租約；只觀察既有journal及plan／ready，不建立或結算，失敗零值。private Evidence固定大小身分／flags、JSON{}與格式遮蔽，歷史時間不授權未來FS。

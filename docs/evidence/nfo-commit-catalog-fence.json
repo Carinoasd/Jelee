@@ -1,0 +1,106 @@
+{
+  "sourceBaseCommit": "8b9ab67b089d6b1cc737c6b1d6d1ff1b4c2489ab",
+  "scope": "Application Begin/plan/ready catalog-scope revalidation and transaction rollback; no new SQL scope trigger or native root/media proof",
+  "changedSourceManifest": {
+    "internal/adapter/postgres/nfo_commit_files.go": "70bc7b75bf3adb220d8521599b80afa8648e5c29ef95032c78c9d922ba919ad9",
+    "internal/adapter/postgres/nfo_commit_catalog_scope_test.go": "12e1e1b70f9dc420238f3efa3c972c4fb96e6eb7ec48454185f6706fb04db0af",
+    "internal/adapter/postgres/nfo_commit_catalog_boundary_test.go": "742ef55f7410577439ac061d040a85bac4b17466e363d0bfed48fa613868dcd4"
+  },
+  "windows": {
+    "packagesPassed": 2,
+    "testsPassed": 226,
+    "testsSkipped": 811,
+    "failureEvents": 0,
+    "logSHA256": "32b69ca21e8cf20f9c5671fe9e2f77425afafbf83b3322f8aeeceadefc04929c",
+    "databaseConfigured": false
+  },
+  "selectedPostgresRace": {
+    "combinedIndependentRuns": true,
+    "main": {
+      "packagesPassed": 1,
+      "testsPassed": 124,
+      "testsSkipped": 0,
+      "failureEvents": 0,
+      "logSHA256": "e973e1ed29b12a889e6286ae7c1873327075b2ecdc89558cba011e54c9523ee0"
+    },
+    "additionalBoundaryCases": {
+      "packagesPassed": 1,
+      "testsPassed": 8,
+      "testsSkipped": 0,
+      "failureEvents": 0,
+      "logSHA256": "79ca2d3388292efcb45c8f5d8e1dd7fb56336d25b62287fef449a37d2f3222d5"
+    },
+    "additionalTestFileAddedAfterMainRun": true,
+    "totalPassedEvents": 132,
+    "compiledSelectedRoots": 14,
+    "rootRunsAndPassesExactlyOnce": true,
+    "rootPassedTests": [
+      "TestNFOCommitCatalogScopeFencesBeginPlanReadyAndReplay",
+      "TestNFOCommitCatalogScopeRechecksAfterStorageTrigger",
+      "TestNFOCommitCatalogScopeRejectsNativeStageAndReadyResume",
+      "TestNFOCommitCatalogScopeSupportsDirectoryIntents",
+      "TestNFOCommitFileEvidenceReadFencesAndNoCreation",
+      "TestNFOCommitFilePersistenceChildHelper",
+      "TestNFOCommitFilePersistenceDeferredLeaseAndRollback",
+      "TestNFOCommitFilePersistenceImmutableAndMigration",
+      "TestNFOCommitFilePersistenceLeaseAndRetention",
+      "TestNFOCommitFilePersistenceNativeAndChildReopen",
+      "TestNFOCommitFilePersistenceNativeRejectsOtherSource",
+      "TestNFOCommitFilePersistenceReplayAndReopen",
+      "TestNFOCommitFilePersistenceStorageCodec",
+      "TestNFOCommitFileResumeUnknownReadyAndNativeChanges"
+    ],
+    "compiledListingSHA256": "449d28538cde9774a7fdcd48d5cfa0a145ae46a8becc79772626470a29bb0c8b"
+  },
+  "redOverlay": {
+    "packagesPassed": 0,
+    "testsPassed": 0,
+    "testsSkipped": 0,
+    "failureEvents": 3,
+    "logSHA256": "0c10eda6e122fd0b3166415d6469bb81defc83ee8dd7becc7b11369d45ae7664",
+    "reason": "Removed application catalog checks only in isolated overlay; stale revision plan returned evidence"
+  },
+  "verified": [
+    "immutable_intent_compared_to_current_catalog_scope",
+    "begin_plan_ready_and_replays_refuse_scope_changes",
+    "nine_catalog_change_cases_across_seven_phases",
+    "zero_partial_result_and_new_rows_rollback",
+    "native_stage_refusal_before_lock_or_files",
+    "ready_resume_preserves_existing_files",
+    "series_and_season_directory_intents_accepted_then_changed_path_refused",
+    "post_write_trigger_catalog_change_rolls_back_scope_and_evidence",
+    "retained_evidence_remains_observable",
+    "actual_linux_pg_child_ready_reopen_regression"
+  ],
+  "catalogApplicationPortFenceVerified": true,
+  "catalogSQLGuardAdded": false,
+  "rootGenerationPersisted": false,
+  "nativeRootMediaPersistenceVerified": false,
+  "nativeWindowsDatabaseVerified": false,
+  "nativeLinuxDatabaseVerified": true,
+  "readPortIsFilesystemCommitAuthorization": false,
+  "partialStageAutomaticResumeEnabled": false,
+  "targetRenameEnabled": false,
+  "settlementEnabled": false,
+  "automaticRecoveryEnabled": false,
+  "productionCallerEnabled": false,
+  "windowsDirectoryMetadataDurabilityVerified": false,
+  "fullHeapOrRSSBoundVerified": false,
+  "fullPostgresRegressionRerun": false,
+  "newMigration": false,
+  "requirementsComplete": false,
+  "checks": {
+    "publishedSQLFilesUnchanged": 100,
+    "protectedSourceUnchanged": true,
+    "windowsVet": true,
+    "linuxVet": true,
+    "darwinNFOAmd64Compiled": true,
+    "darwinExecuted": false,
+    "format": true,
+    "incrementalBrandViolations": 0,
+    "brandAllowed": 339,
+    "gitignoreViolations": 0
+  },
+  "formalSoakSourceCommit": "24caf7d45fb96390689dcc03685033242b7bbfea",
+  "formalSoakIncludesThisChange": false
+}

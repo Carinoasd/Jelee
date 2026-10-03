@@ -92,6 +92,9 @@ func (s *Store) BeginNFOWriteCommit(ctx context.Context, lease domain.JobLease, 
 	if err != nil {
 		return domain.NFOWriteCommitRecord{}, err
 	}
+	if err := checkNFOCommitCatalogScope(ctx, tx, lease.Job.ID, sequence); err != nil {
+		return domain.NFOWriteCommitRecord{}, err
+	}
 	if err := tx.Commit(ctx); err != nil {
 		return domain.NFOWriteCommitRecord{}, storageError(err)
 	}
@@ -128,6 +131,9 @@ func (s *Store) SaveNFOWriteCommitFilePlan(ctx context.Context, lease domain.Job
 	if saved != plan {
 		return domain.NFOWriteCommitFilePlan{}, domain.ErrConflict
 	}
+	if err := checkNFOCommitCatalogScope(ctx, tx, lease.Job.ID, sequence); err != nil {
+		return domain.NFOWriteCommitFilePlan{}, err
+	}
 	if err := tx.Commit(ctx); err != nil {
 		return domain.NFOWriteCommitFilePlan{}, storageError(err)
 	}
@@ -162,6 +168,9 @@ func (s *Store) SaveNFOWriteCommitFilesReady(ctx context.Context, lease domain.J
 	if saved != ready {
 		return domain.NFOWriteCommitFilesReady{}, domain.ErrConflict
 	}
+	if err := checkNFOCommitCatalogScope(ctx, tx, lease.Job.ID, sequence); err != nil {
+		return domain.NFOWriteCommitFilesReady{}, err
+	}
 	if err := tx.Commit(ctx); err != nil {
 		return domain.NFOWriteCommitFilesReady{}, storageError(err)
 	}
@@ -182,6 +191,42 @@ func checkNFOCommitFileToken(ctx context.Context, tx pgx.Tx, lease domain.JobLea
 			return domain.ErrJobLeaseLost
 		}
 		return storageError(err)
+	}
+	return checkNFOCommitCatalogScope(ctx, tx, lease.Job.ID, sequence)
+}
+
+// Lock and compare the current repository scope with the immutable job intent.
+// This fences application plan/ready transactions, not direct SQL or native
+// root/media identity; it does not grant filesystem commit authorization.
+func checkNFOCommitCatalogScope(ctx context.Context, tx pgx.Tx, job string, sequence int) error {
+	var saved domain.NFOItemScope
+	err := tx.QueryRow(ctx, `SELECT e.item_id::text,e.library_id::text,e.source_id::text,e.root_id::text,e.kind,e.revision,e.generation,e.directory_path,e.media_path,e.root_path,e.relative_path FROM nfo_write_entries e JOIN jobs j ON j.id=e.job_id AND j.library_id=e.library_id WHERE e.job_id=$1::uuid AND e.sequence=$2`, job, sequence).Scan(&saved.ItemID, &saved.LibraryID, &saved.SourceID, &saved.RootID, &saved.Kind, &saved.Revision, &saved.Generation, &saved.DirectoryPath, &saved.MediaPath, &saved.Source.RootPath, &saved.Source.RelativePath)
+	if err != nil {
+		return storageError(err)
+	}
+	if !domain.ValidNFOItemScope(saved) {
+		return domain.ErrDatabase
+	}
+	live, err := readItemNFOScope(ctx, tx, saved.ItemID, saved.Revision)
+	if err != nil {
+		return err
+	}
+	if live != saved {
+		return domain.ErrConflict
+	}
+	// Metadata's item row is already locked. Lock its revision row too so even
+	// a direct update cannot change the compared revision before this TX ends.
+	var revision int64
+	if err := tx.QueryRow(ctx, `SELECT revision FROM item_metadata_state WHERE item_id=$1::uuid FOR UPDATE`, saved.ItemID).Scan(&revision); err != nil {
+		// Revision one has no state row. The held item FOR UPDATE lock blocks
+		// insertion through the state's item FK until this transaction ends.
+		if errors.Is(err, pgx.ErrNoRows) && saved.Revision == 1 {
+			return nil
+		}
+		return storageError(err)
+	}
+	if revision != saved.Revision {
+		return domain.ErrConflict
 	}
 	return nil
 }

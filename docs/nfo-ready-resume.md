@@ -18,4 +18,4 @@ Windows／Linux owned 夾具模擬 ready 成功後回應遺失，使用新 Sourc
 
 真 Linux PG 夾具完成 stage、刪除準備 TTL 資料後，子程序使用新的 lease 讀取 port 與 Writer 實際重開 ready；另測實際 DB commit 後遺失回應的重試及原生更換／租約負例，前後完整剩餘檔案保持。測試數字、來源及範圍見[安全證據](evidence/nfo-ready-resume.json)。本批無新 SQL、不當完整PG回歸重跑；Windows真PG連線仍未驗證，Darwin只有交叉編譯。
 
-完整跨程序 root／媒體／catalog revision／policy generation 證據、同實體未解決工作排除、target 提交邊界、backup／rollback／結算與 crash 恢復仍缺。部分 stage 沒有自動續作；原始 payload 預留也不是完整 heap／RSS 配額。Windows directory metadata 斷電耐久性仍未證明，runtime 沒有啟用正式寫回；全G00–G51尚未完成。
+後續[應用保存交易的catalog複核](nfo-commit-catalog-fence.md)已比較固定意圖與當下scope並鎖到提交；直接SQL scope守衛、完整跨程序 root／媒體／catalog revision／policy generation 證據、同實體未解決工作排除、target 提交邊界、backup／rollback／結算與 crash 恢復仍缺。部分 stage 沒有自動續作；原始 payload 預留也不是完整 heap／RSS 配額。Windows directory metadata 斷電耐久性仍未證明，runtime 沒有啟用正式寫回；全G00–G51尚未完成。
