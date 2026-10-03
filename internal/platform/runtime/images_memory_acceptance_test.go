@@ -891,6 +891,28 @@ func imagesMemoryErrorResponse(ctx context.Context, client *http.Client, address
 }
 
 func runImagesMemoryNegative(ctx context.Context, store *postgres.Store, registration domain.LibraryRegistration, life *lifetime, client *http.Client, address, token string, total int, tag string, access func(bool) error, report *imagesMemoryNegative) string {
+	if code := seedImagesMemoryNegative(ctx, store, registration, total); code != "" {
+		return code
+	}
+	return checkImagesMemoryNegative(ctx, life, client, address, token, total, tag, access, report)
+}
+
+// Seed once per owned schema. Long-running acceptance can check the same
+// failures before and after work without reinserting or hiding duplicate rows.
+func seedImagesMemoryNegative(ctx context.Context, store *postgres.Store, registration domain.LibraryRegistration, total int) string {
+	for offset, name := range []string{"unsupported", "corrupt", "oversized-source", "oversized-dimensions"} {
+		index := total + offset
+		if _, err := store.Pool.Exec(ctx, `INSERT INTO items(id,library_id,title,kind) VALUES($1::uuid,$2::uuid,'Image negative fixture','Movie')`, imagesMemoryItem(index), registration.Library.ID); err != nil {
+			return "negative_fixture_seed_failed"
+		}
+		if _, err := store.Pool.Exec(ctx, `INSERT INTO media_sources(id,item_id,library_id,root_id,relative_path,content_type) VALUES($1::uuid,$2::uuid,$3::uuid,$4::uuid,$5,'video/x-matroska')`, imagesMemorySource(index), imagesMemoryItem(index), registration.Library.ID, registration.RootID, "negative/"+name+"/clip.mkv"); err != nil {
+			return "negative_fixture_seed_failed"
+		}
+	}
+	return ""
+}
+
+func checkImagesMemoryNegative(ctx context.Context, life *lifetime, client *http.Client, address, token string, total int, tag string, access func(bool) error, report *imagesMemoryNegative) string {
 	if _, err := imagesMemoryErrorResponse(ctx, client, address, "", total-1, "", 401, "authentication_required"); err != nil {
 		return "unauthenticated_image_failed"
 	}
@@ -922,12 +944,6 @@ func runImagesMemoryNegative(ctx context.Context, store *postgres.Store, registr
 	}
 	for offset, tc := range cases {
 		index := total + offset
-		if _, err := store.Pool.Exec(ctx, `INSERT INTO items(id,library_id,title,kind) VALUES($1::uuid,$2::uuid,'Image negative fixture','Movie')`, imagesMemoryItem(index), registration.Library.ID); err != nil {
-			return "negative_fixture_seed_failed"
-		}
-		if _, err := store.Pool.Exec(ctx, `INSERT INTO media_sources(id,item_id,library_id,root_id,relative_path,content_type) VALUES($1::uuid,$2::uuid,$3::uuid,$4::uuid,$5,'video/x-matroska')`, imagesMemorySource(index), imagesMemoryItem(index), registration.Library.ID, registration.RootID, "negative/"+tc.name+"/clip.mkv"); err != nil {
-			return "negative_fixture_seed_failed"
-		}
 		before, err := imagesMemoryIdle(ctx, life)
 		if err != nil {
 			return "negative_not_idle"

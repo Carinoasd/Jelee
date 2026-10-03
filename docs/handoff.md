@@ -1,3 +1,10 @@
+## 最新接續：長測輪次輔助與逐小時GC
+
+第二批工具已實作：真HTTP混合scan＋清單/基線/快照核對、session rotation舊失效新可用與24h TTL、負例seed/check拆分、round/rotation/resources型別與逐小時GC判定。Linux race真PG/Fx/HTTP兩輪2008檔／106目錄與雙角色rotation通過；新Python22項、既有控制器21項、Windows選測、vet、格式與增量品牌通過。Linux session18229已退出0，無活躍本地測試。
+
+原1000真圖片smoke 72bd27a66a854db9a2468752cba2c610（session86563已退出0）驗負例拆分，1000decode／192warmhits、取消/ACL/SIGTERM/cleanup皆通過；後加型別/GC不屬此smoke source。詳細方法/來源限制見docs/image-soak.md。G42.10仍未完成、24h未啟動。
+
+下一步整體協調器，接同一Fx程序的sampler/stream/round/hour；先600秒smoke，再固定已提交快照24h。仍PR46與第三階段，需求計數不變，不合併。以下為歷史工具批次。
 ## 最新接續：24 小時驗收工具第一批
 
 完成測試專用 Go 有界採樣器與 typed JSONL 寫入器，Python 採樣／穩態判定，以及冷暖 HTTP 負載共用起點；加入既有 memory contracts CI runner。方法與尚缺部分見 [image-soak.md](image-soak.md)。所有內容仍屬驗收工具，G42.10 未完成、24h 尚未啟動。

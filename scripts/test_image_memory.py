@@ -45,6 +45,7 @@ def source_digest():
              "scripts/runtime_memory_contracts.py", "Makefile", ".dockerignore", "LICENSE", "docs/LICENSE-COMPLIANCE.md",
              "scripts/images_soak_samples.py", "scripts/test_images_soak_samples.py",
              "scripts/images_soak_trend.py", "scripts/test_images_soak_trend.py",
+             "scripts/images_soak_gc.py", "scripts/test_images_soak_gc.py",
              "internal/adapter/images/LICENSE.x-image",
              "scripts/test_scan_memory.py",
              "scripts/scan_memory_acceptance.py", "scripts/container_memory.py",

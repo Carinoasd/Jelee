@@ -108,6 +108,16 @@ func (s *imagesSoakStream) write(ctx context.Context, elapsed int64, data any) e
 			return fail()
 		}
 		kind = "hour"
+	case imagesSoakRound:
+		if value.Index < 0 || value.Index >= 288 || value.ScheduledNanos < 0 || value.StartedNanos < value.ScheduledNanos || value.FinishedNanos <= value.StartedNanos || value.FinishedNanos > elapsed {
+			return fail()
+		}
+		kind = "round"
+	case imagesSoakRotation:
+		if value.AtRound != 144 {
+			return fail()
+		}
+		kind = "rotation"
 	case imagesSoakWorkEnd:
 		if s.workEnded || value.WorkStartedNanos < 0 || value.WorkFinishedNanos <= value.WorkStartedNanos || value.WorkFinishedNanos > elapsed || value.CompletedRounds < 1 || value.CompletedRounds > 288 {
 			return fail()
