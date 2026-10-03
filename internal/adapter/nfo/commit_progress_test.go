@@ -23,7 +23,7 @@ type ownedCommitProgress struct {
 }
 
 func (r ownedCommitProgress) files() nfoCommitFiles {
-	return nfoCommitFiles{plan: nfoCommitFilePlan{r.Version, r.Token, r.Filename, nfoNativeIdentity{r.Parent}, nfoNativeIdentity{r.Target}}, output: nfoNativeIdentity{r.Output}, rollback: nfoNativeIdentity{r.Rollback}}
+	return nfoCommitFiles{plan: nfoCommitFilePlan{version: r.Version, token: r.Token, filename: r.Filename, parent: nfoNativeIdentity{r.Parent}, target: nfoNativeIdentity{r.Target}}, output: nfoNativeIdentity{r.Output}, rollback: nfoNativeIdentity{r.Rollback}}
 }
 
 func TestNFOCommitProgressProcessResume(t *testing.T) {

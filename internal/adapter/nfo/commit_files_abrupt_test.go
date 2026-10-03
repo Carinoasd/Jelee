@@ -65,7 +65,7 @@ func TestNFOCommitFilesAbruptPartialProcess(t *testing.T) {
 			if err := json.Unmarshal(encoded, &record); err != nil {
 				t.Fatal(err)
 			}
-			plan := nfoCommitFilePlan{record.Version, record.Token, record.Filename, nfoNativeIdentity{record: record.Parent}, nfoNativeIdentity{record: record.Target}}
+			plan := nfoCommitFilePlan{version: record.Version, token: record.Token, filename: record.Filename, parent: nfoNativeIdentity{record: record.Parent}, target: nfoNativeIdentity{record: record.Target}}
 			names := plan.names()
 			before := make(map[string]nfoNativeIdentity)
 			for i, name := range names {

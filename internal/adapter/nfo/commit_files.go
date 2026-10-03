@@ -15,6 +15,7 @@ type nfoCommitFilePlan struct {
 	token          [16]byte
 	filename       string
 	parent, target nfoNativeIdentity
+	attempt        uint8
 }
 
 type nfoCommitFiles struct {
@@ -29,6 +30,9 @@ func (nfoCommitFiles) GoString() string    { return "nfo commit files (redacted)
 
 func (p nfoCommitFilePlan) names() [5]string {
 	base := ".jelee-nfo-commit-" + hex.EncodeToString(p.token[:])
+	if p.attempt != 0 {
+		base += "-attempt-" + string(rune('0'+p.attempt))
+	}
 	return [5]string{base + "-original-pin", base + "-output", base + "-output-pin", base + "-rollback", base + "-rollback-pin"}
 }
 
@@ -38,9 +42,10 @@ type nfoCommitFilePersistence struct {
 	plan  func(context.Context, nfoCommitFilePlan) error
 	ready func(context.Context, nfoCommitFiles) error
 	// Optional internal checkpoints require a committed first observation of
-	// a complete output/witness pair. No production repository supplies them yet.
+	// a complete output/witness pair. Stage uses its checkpoint repository.
 	progress func(context.Context, nfoCommitFiles) error
 	resume   *nfoCommitFiles
+	attempt  uint8
 }
 
 // prepareNFOCommitFiles records the bounded names before creating any sidecar,
@@ -48,7 +53,7 @@ type nfoCommitFilePersistence struct {
 // and creating retained witnesses. It never renames the target or rotates backups.
 // Successful preparation retains all five names for future guarded settlement.
 func prepareNFOCommitFiles(ctx context.Context, directory *os.Root, filename string, original, replacement *Document, token [16]byte, persist nfoCommitFilePersistence, ops nfoWriteOperations) (result *nfoCommitFiles, resultErr error) {
-	if ctx == nil || directory == nil || token == ([16]byte{}) || !IsNFOName(filename) || strings.ContainsAny(filename, "/\\:") || strings.ContainsFunc(filename, unicode.IsControl) || persist.plan == nil || persist.ready == nil || ops.syncFile == nil || ops.syncDirectory == nil {
+	if persist.attempt > maxNFOCommitAttempts || ctx == nil || directory == nil || token == ([16]byte{}) || !IsNFOName(filename) || strings.ContainsAny(filename, "/\\:") || strings.ContainsFunc(filename, unicode.IsControl) || persist.plan == nil || persist.ready == nil || ops.syncFile == nil || ops.syncDirectory == nil {
 		return nil, ErrInvalidInput
 	}
 	if err := ctx.Err(); err != nil {
@@ -71,7 +76,7 @@ func prepareNFOCommitFiles(ctx context.Context, directory *os.Root, filename str
 	if err != nil {
 		return nil, err
 	}
-	plan := nfoCommitFilePlan{version: 1, token: token, filename: filename, parent: parent, target: target}
+	plan := nfoCommitFilePlan{version: 1, token: token, filename: filename, parent: parent, target: target, attempt: persist.attempt}
 	if persist.resume != nil {
 		saved := persist.resume
 		if persist.progress == nil || saved.plan != plan || !validNFOCommitProgress(*saved) {
@@ -300,7 +305,7 @@ func verifyNFOCommitFiles(ctx context.Context, directory *os.Root, files nfoComm
 	if ctx == nil || directory == nil {
 		return ErrInvalidInput
 	}
-	if files.plan.version != 1 || files.plan.token == ([16]byte{}) || !IsNFOName(files.plan.filename) || strings.ContainsAny(files.plan.filename, "/\\:") || strings.ContainsFunc(files.plan.filename, unicode.IsControl) {
+	if files.plan.attempt > maxNFOCommitAttempts || files.plan.version != 1 || files.plan.token == ([16]byte{}) || !IsNFOName(files.plan.filename) || strings.ContainsAny(files.plan.filename, "/\\:") || strings.ContainsFunc(files.plan.filename, unicode.IsControl) {
 		return ErrInvalidInput
 	}
 	if err := ctx.Err(); err != nil {

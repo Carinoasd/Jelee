@@ -12,7 +12,7 @@ import (
 // shape is private evidence, never filesystem authorization or a commit result.
 func validNFOCommitProgress(files nfoCommitFiles) bool {
 	plan := domain.NFOWriteCommitFilePlan{Version: files.plan.version, TargetName: files.plan.filename, ParentIdentity: files.plan.parent.record, TargetIdentity: files.plan.target.record}
-	if files.plan.token == ([16]byte{}) || domain.ValidateNFOWriteCommitFilePlan(plan) != nil || !domain.ValidNFONativeIdentity(files.output.record, 1) || files.output.record[1] != plan.TargetIdentity[1] || files.output == files.plan.target {
+	if files.plan.attempt > maxNFOCommitAttempts || files.plan.token == ([16]byte{}) || domain.ValidateNFOWriteCommitFilePlan(plan) != nil || !domain.ValidNFONativeIdentity(files.output.record, 1) || files.output.record[1] != plan.TargetIdentity[1] || files.output == files.plan.target {
 		return false
 	}
 	if files.rollback == (nfoNativeIdentity{}) {

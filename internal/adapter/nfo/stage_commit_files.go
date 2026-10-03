@@ -242,7 +242,7 @@ func (w *Writer) stageCommitFilesOwned(ctx context.Context, source *Source, leas
 				return ErrChanged
 			}
 			ports.resume = &nfoCommitFiles{
-				plan:   nfoCommitFilePlan{evidence.Plan.Version, token, evidence.Plan.TargetName, nfoNativeIdentity{evidence.Plan.ParentIdentity}, nfoNativeIdentity{evidence.Plan.TargetIdentity}},
+				plan:   nfoCommitFilePlan{version: evidence.Plan.Version, token: token, filename: evidence.Plan.TargetName, parent: nfoNativeIdentity{evidence.Plan.ParentIdentity}, target: nfoNativeIdentity{evidence.Plan.TargetIdentity}},
 				output: nfoNativeIdentity{evidence.Checkpoint.OutputIdentity}, rollback: nfoNativeIdentity{evidence.Checkpoint.RollbackIdentity},
 			}
 		}

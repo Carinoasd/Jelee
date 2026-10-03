@@ -1,3 +1,14 @@
+## 2026-10-04 私有有界attempt準備與實際中斷驗證通過
+
+HEAD仍1f75ce224391ebfb3361039949a396471cee157d，本批準備發布8Go＋3docs。新增commit_attempt.go／test，private plan增加attempt序號0legacy／1–3新names，舊四個位置初始化改具名，legacy Stage保持0；progress／files核ordinal上限。prepareNFOCommitAttempt先reserve完整first plan／序號／兩payload長度及hash、三新attempt全名稱保守容量，返回first值完全相同才落檔；unknown response或scope drift副作用前拒。新attempt不採用／更動旧attempt物件；同attempt保留first output／rollback續作，跨attempt不能採用proof。只有內部primitive，沒有PG allocator／global capacity／自動選latest／放棄清理／恢復lease或FS grant，legacy容量須後續涵蓋。
+
+四個actual child osexit101在output／rollback Sync及兩directory callbacks中斷，reservation已file Sync；fresh root以持久attempt2 names完成ready，attempt1物件IDs／bytes及target原文保持。兩個same-attempt resume與6種副作用前拒絕亦通過。Windows完整NFO413PASS／5symlink條件skip terminal0；Linux domain＋NFO race session39964 terminal0 762PASS／1Win skip；Linux真PG聯合session87833 terminal0 23roots74PASS／零skipfail，Windows真PG22381 terminal0七roots28PASS／零skipfail／relay disposed。PG驗證是既有Stage／checkpoint／claims，非attempt持久協議；原schema55 full1548不可外推到本批1010來源。
+
+vet／Linux format／new brand0／339／gitignore／diff成功；初次選測old abrupt positional initializer build fail、format錯平台、private finalizer字串SyntaxError全部保留。nfo-attempt-source-v1.json核1010 current Go/SQL與110 oldSQL/protected保持，finalize-nfo-attempt-v1.py獨立check-only及寫docs/evidence/nfo-commit-attempt-primitive.json皆terminal0／verified，currentFullPGRegressionProven=false／fullG00G51Acceptance=false。下一核精確8source＋method/handoff/evidence三docs共11檔、commitpush／PR描述與遠端HEAD，再接真正持久bounded attempt／容量fence／未知結果重讀／恢復授權及全formal commit/recovery/worker。
+
+原24h同run329073a5d193446383327ab217aba147/PID1026300/startTicks33072456/boot4a5d9c5c-4482-4c3e-8978-30156b1ce92f再核running／OOMfalse，source24caf不含本批；不重啟，無24h完成證據。完整brand門禁保持，7／198／131與goal active不變。
+
+---
 ## 2026-10-04 遠端287ebb0b5a與PR描述核驗，下一恢復探針完成
 
 三文件發布狀態提交287ebb0b5afb9fdd22d0ba07d4e9f876763805c7已push；PR46 OPEN／HEAD及normalized body吻合，當時工作目錄乾淨，artifact已attach。新HEAD CI為Analyze／Linux foundation IN_PROGRESS、Win foundation／完整branding／PG QUEUED，沒有全綠證據。private pr46-schema55-remote-verified.json及pr46-schema55-body-final.md保存安全摘要／完整描述。

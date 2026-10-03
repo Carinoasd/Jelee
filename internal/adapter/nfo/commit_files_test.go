@@ -259,7 +259,7 @@ func TestNFOCommitFilesProcessHelper(t *testing.T) {
 		t.Fatal("cannot reopen owned commit root")
 	}
 	defer directory.Close()
-	files := nfoCommitFiles{nfoCommitFilePlan{record.Version, record.Token, record.Filename, identities[0], identities[1]}, identities[2], identities[3]}
+	files := nfoCommitFiles{nfoCommitFilePlan{version: record.Version, token: record.Token, filename: record.Filename, parent: identities[0], target: identities[1]}, identities[2], identities[3]}
 	if err := verifyNFOCommitFiles(context.Background(), directory, files, record.OriginalBytes, record.ReplacementBytes); err != nil {
 		t.Fatal("retained physical witnesses failed cross-process verification", err)
 	}
