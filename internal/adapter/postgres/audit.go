@@ -63,6 +63,7 @@ var auditEvents = map[string]string{
 	"library.registered":                   domain.AuditCategoryAudit,
 	"login.failed":                         domain.AuditCategorySecurity,
 	"media.registered":                     domain.AuditCategoryAudit,
+	"media.sidecars_changed":               domain.AuditCategoryAudit,
 	"nfo.policy_changed":                   domain.AuditCategoryAudit,
 	"nfo.write_prepared":                   domain.AuditCategoryAudit,
 	"probe.item_invalidated":               domain.AuditCategoryAudit,
