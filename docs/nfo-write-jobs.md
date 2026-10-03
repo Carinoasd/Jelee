@@ -1,6 +1,6 @@
 # NFO 寫回任務的持久資料契約
 
-schema47新增`nfo_write`工作種類、`nfo_write_requests`及`nfo_write_entries`。這是正式批次寫回的儲存與觀察接點；公開准入、read-write政策、執行worker與提交journal尚未接入。runtime仍不宣告或claim這個種類。
+schema47新增`nfo_write`工作種類、`nfo_write_requests`及`nfo_write_entries`。這是正式批次寫回的儲存與觀察接點；公開准入、read-write政策與執行worker尚未接入。schema49另新增[未解決提交紀錄](nfo-write-commit-journal.md)，保留工作與完整意圖；檔案提交與恢復仍待接入。runtime仍不宣告或claim這個種類。
 
 ## 固定意圖的生命週期
 
@@ -8,7 +8,7 @@ schema47新增`nfo_write`工作種類、`nfo_write_requests`及`nfo_write_entrie
 
 準備ID為歷史識別，沒有指回準備表的外鍵；準備資料24小時到期清理後，工作意圖仍保留到工作生命週期結束。任務讀取結果不帶準備期限，不能重新套用準備TTL。payload保留schema46的大小、雜湊、請求與item/revision/maxBytes綁定檢查；不以catalog外鍵删除正在處理的固定原文。library/generation由工作請求外鍵綁定，條目順序唯一且每批item唯一。
 
-request與entry內容不可更新。同交易提交時，deferred constraint trigger核工作種類、library與完整批次：必須恰有total筆、sequence連續1至total。缺request、部分批次、刪除單筆或將kind改成其他種類都拒絕；整筆工作刪除時照原歷史生命週期連帶移除意圖。正式journal接入前，仍需處理未完成提交／待恢復資料的保留，不能讓history trim清掉它們。
+request與entry內容不可更新。同交易提交時，deferred constraint trigger核工作種類、library與完整批次：必須恰有total筆、sequence連續1至total。缺request、部分批次、刪除單筆或將kind改成其他種類都拒絕。schema49已有未解決journal的工作不能刪除，history trim亦先排除這些工作；其完整意圖保留至後續可驗證的恢復結算。沒有journal的工作仍按原歷史生命週期連帶移除意圖。
 
 意圖儲存全域最多1024條、512MiB，每工作最多128MiB，以請求/原文/輸出三份實際bytes計費。schema48在原同schema固定advisory鎖及容量檢查前加入固定列更新，防止Repeatable Read使用過期快照超量插入；交易失敗須整筆回滾。見[交易快照防護](nfo-write-quota-fences.md)。不依赖caller search_path，沒有無界過期事件表。
 
@@ -16,7 +16,7 @@ request與entry內容不可更新。同交易提交時，deferred constraint tri
 
 `GetNFOWriteTask`一次取回指定sequence的私有固定資料。讀取需當下running工作、相同owner/generation、未過期租約、未取消與仍活躍的管理員actor。保留users讀鎖至短交易結束，讀完再核租約，失敗不回部分bytes。它只觀察資料，沒有policy或檔案提交授權。
 
-原ClaimJobWithCapabilities仍只接inventory_scan/catalog_import；過期租約回收也只處理這兩種。舊worker不能claim或回收nfo_write。通用FinishJob拒絕真正的nfo_write，即使呼叫者把傳入Kind改成inventory_scan。專用寫回worker、資料庫與原生檔案的提交邊界、journal/恢復、媒體實體確認及read-write准入仍必須完成。
+原ClaimJobWithCapabilities仍只接inventory_scan/catalog_import；過期租約回收也只處理這兩種。舊worker不能claim或回收nfo_write。通用FinishJob、Release與Pause拒絕真正的nfo_write，即使呼叫者把傳入Kind改成inventory_scan。專用寫回worker、資料庫與原生檔案的提交邊界、journal結算與恢復、媒體實體確認及read-write准入仍必須完成。
 
 ## 指標與降版
 

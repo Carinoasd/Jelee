@@ -1,3 +1,45 @@
+## 2026-10-03 schema49 最終完整回歸已通過，準備發布
+
+session9283已terminal exit0，四分片皆0，編譯出的424根測試各run/pass恰一次，1133通過事件、零skip/fail。彙整腳本已嚴格核對manifest、946份凍結來源及96份已發布SQL，安全證據docs/evidence/nfo-write-commit-journal.json與race txt已產生。Windows tagged八套件1557通過/705條件跳過、journal選測30/0skipfail、runtime真PG1/0skipfail、Linux三套race與vet/格式/增量品牌0/339/gitignore/diff均通過。初次完整PG唯一55006舊DDL夾具失敗與修復保留，不把失敗run稱PASS。
+
+另查明Windows既有圖片HTTP失敗診斷夾具間歇失敗：診斷overlay count50為40PASS/10FAIL，失敗時start=finish=elapsed=0但統計與503均保持。等待HTTP handler時鐘tick前進的修復overlay count100全通過，正式時間斷言保持，尚未套入凍結來源；schema49提交後另修並重驗。見.testdata/images-cold-clock-repair.md。
+
+本批schema49仍未提交，下一步提交推送同PR46並核遠端HEAD，之後修上述測試夾具及繼續原生恢復/准入/worker。全案仍7完成/198部分/131阻塞，正式24h同PID788902仍live，不含schema49。不merge/release/tag/force-push、不改已發布SQL與Git身份設定，原媒體/圖片/授權保持。
+
+---
+## 2026-10-03 接續：舊夾具已修復，全424根測試分片回歸仍執行
+
+初次完整PG session15318已terminal exit1，1132通過事件、零跳過，唯一失敗為TestInventoryScopeLegacyJobCannotBindCurrentEpoch（SQLSTATE55006），耗時1538.997秒。已僅修inventory_scope_test.go，在UPDATE後、ENABLE前SET CONSTRAINTS ALL IMMEDIATE，保留原legacy/baseline/缺失斷言與96份已發布SQL。journal與inventory選測session53948已terminal0、78.759秒，修正案例通過2.01秒。
+
+當前完整PG改以四個獨立程序平衡分片執行，同一個已編譯套件的424個root各執行一次；不是選測縮限。CURRENT LIVE session9283，wrapper .testdata/run-nfo-commit-journal-full-shards.py，logs .testdata/nfo-commit-journal-full-shard-{0,1,2,3}.jsonl；最後poll確認仍live。測試manifest .testdata/nfo-commit-journal-shards-manifest.json；必須等四個程序終端0、零fail/skip及coverage根集合逐一吻合，才能說完整回歸通過。946份最終Go/SQL來源凍結於.testdata/nfo-commit-journal-validation-source-final.json；不得改測試中的來源或因觀察timeout重啟。
+
+Windows最終八套件（jelee_probe_tests）1557通過事件/705條件跳過，零fail，vet通過。第一次本輪Windows重驗有TestImagesColdHTTPFailureRetainsStatistics「failure discarded phase evidence」失敗，未改來源重跑八套件通過；初次失敗保留.testdata/nfo-commit-journal-windows-retry-initial.jsonl，根因尚未證實，不能掩蓋成從未失敗。Linux格式、增量品牌0/339、gitignore及diff檢查通過。finalizer已改採最終分片覆蓋與凍結來源，明列初次PG失敗及Windows重跑；公共report尚未產生，schema49仍未提交。
+
+正式24h PID788902/startTicks31680373/bootId4a5d9c5c-4482-4c3e-8978-30156b1ce92f本輪實核吻合，容器running/OOMfalse，source9a74a8932a不含schema49。保持全G00–G51及7完成/198部分/131阻塞，PR46不merge。待最終分片通過，再彙整證據、更新文件/PR、提交推送；後续仍須原生恢復證明與正式寫回准入。
+
+---
+## 2026-10-03 接續觀察：完整PG已發現舊DDL夾具失敗，仍live
+
+前turn為journal實作progress。本turn續核同session15318仍live，未重啟、Go/SQL未改；完整回歸在inventory_scope_test.go:178抓到TestInventoryScopeLegacyJobCannotBindCurrentEpoch，SQLSTATE55006（jobs有pending trigger events，不能ALTER）。舊夾具同一Exec內DISABLE immutable→UPDATE inventory_generation=NULL→ENABLE，schema47 deferred驗證尚未flush。不能移除正式守衛或改47 SQL；待full terminal後，在UPDATE與ENABLE間SET CONSTRAINTS ALL IMMEDIATE，重驗原legacy epoch/baseline/缺失保護斷言。修復說明.testdata/nfo-commit-journal-fixture-repair.md。先蒐集所有failures，不把live或初次full failed說成PASS。finalizer目前要求完整PASS；若改用full+修正案例組合，須明列組合與fullRunPassed=false，不能暗改full通過定義。
+
+來源仍946份凍結snapshot，當前未提交schema49、已發布HEAD1f8c693ddd。最新safe tail已到JobMetrics transaction/savepoint等案例，尚未terminal。續poll15318，不改Go/SQL，所有較早selected/runtime handle terminal；先前頂段「無已觀察failure」由本段取代。原生恢復接點核對另記.testdata/nfo-native-recovery-next.md，只是待實作方案；Source/FileInfo尚無跨程序staging/rollback持久證明。
+
+---
+## 2026-10-03 接續：schema49 journal 基礎待完整PG，來源凍結
+
+已發布仍為1f8c693ddd3a968b168cb2304f7529f4bc0abb5d/schema48，分支feat/jelee-ignore-family-worker、OPEN PR46。上一goal turn已提交推送配額修補，本turn為progress：新增尚未發布的migration49、私有recordNFOWriteCommit及測試，schemaVersion49。journal是不可變未解決紀錄，不授權FS；綁job/sequence/owner/generation固定token，SQL核真實running kind、live lease/未取消/活躍admin/entry外鍵，deferred commit時重核。job保留守衛拒刪除、換owner/generation/kind/library/actor、重排及success；running可停止failed/cancelled而保留journal與完整意圖。history trim排除journal jobs，舊乾淨schema供migration夾具，當前或dirty缺表fail closed；通用Release/Pause核實際kind拒nfo即使input偽裝或未記錄journal。
+
+真PG第一輪journal選測通過後追加直接SQL舊快照負例，repeatable_read與serializable均重現owner轉移，初始紅證據.testdata/nfo-commit-journal-snapshot-red.jsonl。新49插入journal時同步touch jobs MVCC版本修正，最終全部journal race選測30通過/零跳過失敗/47.935秒，含三隔離層級、16並行/reopen固定token、TTL清理後bytes、owner/gen/expiry/cancel/disabled/admin/entry/kind拒絕、deferred expiry/disable/cancel及rollback、immutable/terminal保留/ordinary trim、兩通用release、缺表fail closed、空降升/retained dirty48。Windows八套件最終1386通過/696條件跳過，vet通過；Linux telemetry/architecture/jobs race3套件及runtime真PG metrics HTTP已terminal0。增量品牌0/339、格式、gitignore、diffcheck通過。
+
+CURRENT LIVE：完整PG race session15318（exec_command/write_stdin；不是functions.wait cell），wrapper .testdata/run-nfo-commit-journal-full-pg.py，log .testdata/nfo-commit-journal-full-pg.jsonl，timeout1800/subprocess1860。最後poll確認仍live，已過忽略規則/發布/native bridge等，無已觀察failure；不得當完整通過。946份Go/SQL/go.mod/go.sum凍結於.testdata/nfo-commit-journal-validation-source.json，完整suite結束前不要改Go/SQL，不因poll timeout重啟。journal final selected session45251已terminal0；初始35329 terminal0、snapshot red49050 terminal1；runtime44143 terminal0；沒有其他本批live handle。先續poll15318與讀safe failure事件。
+
+完整suite若terminal PASS/零skipfail，依.testdata/finalize-nfo-commit-journal.ps1嚴格檢查所有required tests、source freeze及96份已發布SQL內容雜湊，產安全docs/evidence/nfo-write-commit-journal.json與race txt；更新docs/nfo-write-commit-journal.md/本交接/trace的範圍並維持7完成/198部分/131阻塞，再繁中commit/push/PR46 body更新/attach/遠端HEAD與clean核對。若fail，等terminal後查根因並修復，不能使用尚未通過或失敗完整套件作完成證據。finalizer已準備但未執行，公共report尚無。
+
+尚缺原生staging/rollback檔案身分與跨重啟root/parent/media/NFO proof、租約/native鎖真正提交邊界、可驗證結算與恢復，才能解除journal保留；目前沒有resolution port，不能由bytes相等認定commit、不能以此紀錄直接Rename。read-write/capability/public admission/worker/API/CLI仍未啟用；新寫回准入還必須排除同實體未解決提交。96份001–048已發布SQL不可改，新49尚可在無live測試時修復。
+
+正式24h同9a0c8d956e3f4fbea9e844e3fc59bc26/PID788902/start31680373/boot4a5d9c5c-4482-4c3e-8978-30156b1ce92f本回合實核吻合，容器running/OOMfalse，source9a74a8932a不含後續NFO；不重啟。全G00–G51目標與品牌門禁保留，禁止merge/release/tag/force-push/改Git身份設定/改已發布SQL，原媒體/圖片/授權保持。
+
+---
 ## 2026-10-03 接續：schema48 修復 NFO 配額快照漏洞
 
 基於252dc740708500fd47c756bf073034b2a633a8d7，真PG紅測試重現兩筆Repeatable Read都看到31列、依序取advisory鎖後仍插到33列，突破actor32上限。新migration48加入兩列固定quota fence；BEFORE INSERT先同schema原advisory鎖、再更新固定列、最後跑原容量守衛。過期RR/Serializable快照回報40001，須整筆交易回滾／重試；缺防護列23514拒絕。準備與工作意圖各自固定scope，沒有無界事件。94份001–047已發布SQL逐一Git內容雜湊保持。

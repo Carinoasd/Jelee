@@ -165,7 +165,7 @@ func TestNFOQuotaFenceMigrationAndMissingRow(t *testing.T) {
 		f := newJobFixture(t)
 		before := jobMetricMigrationStorage(t, f)
 		jobMetricMigration(t, f, "down", 47)
-		jobMetricMigration(t, f, "up", 48)
+		jobMetricMigration(t, f, "up", SchemaVersion)
 		var count int
 		if err := f.s.Pool.QueryRow(f.ctx, `SELECT count(*) FROM nfo_write_quota_fences`).Scan(&count); err != nil || count != 2 || jobMetricMigrationStorage(t, f) != before {
 			t.Fatal("fence round trip changed metrics", err)
@@ -173,6 +173,7 @@ func TestNFOQuotaFenceMigrationAndMissingRow(t *testing.T) {
 	})
 	t.Run("retained preparation", func(t *testing.T) {
 		f, service, _, request := nfoWritePreparationFixture(t)
+		jobMetricMigration(t, f, "down", 48)
 		if _, _, err := service.Prepare(f.ctx, f.a, "retained-fence", request); err != nil {
 			t.Fatal(err)
 		}
@@ -255,6 +256,9 @@ func TestNFOQuotaFenceRetainedJobAndMissingIntentFence(t *testing.T) {
 	for _, missing := range []bool{false, true} {
 		t.Run(fmt.Sprintf("missing=%t", missing), func(t *testing.T) {
 			f, service, _, request := nfoWritePreparationFixture(t)
+			if !missing {
+				jobMetricMigration(t, f, "down", 48)
+			}
 			saved, _, err := service.Prepare(f.ctx, f.a, "intent-fence-source", request)
 			if err != nil {
 				t.Fatal(err)

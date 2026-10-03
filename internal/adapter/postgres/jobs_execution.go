@@ -151,6 +151,9 @@ func (s *Store) releaseJob(ctx context.Context, l domain.JobLease, planned bool)
 	if err != nil {
 		return err
 	}
+	if current.Job.Kind == domain.JobNFOWrite {
+		return domain.ErrInvalid
+	}
 	if err = releaseParentProbeLeases(ctx, tx, l.Job.ID); err != nil {
 		return err
 	}
