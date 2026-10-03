@@ -18,3 +18,4 @@ Jelee.Naming/Properties/Copyright.cs # Original assembly copyright statement onl
 src/Jelee.Networking/Compatibility/LegacyNetworkNames.cs # Exact legacy client discovery and configuration constants only.
 tools/abi/expected-breaks.json # Exact historical assembly and symbol identities for the reviewed ABI migration contract.
 scripts/fixtures/abi-legacy-report.json # Verbatim upstream ABI diagnostics used to verify the migration gate.
+internal/adapter/compat/wire.go # Exact legacy client authentication header and scheme names at the compatibility boundary only.
