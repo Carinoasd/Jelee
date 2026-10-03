@@ -1,4 +1,4 @@
-## 2026-10-04 Claude 接續：schema58 NFO 結算、收尾與 nfo_write worker（分支 claude/nfo-worker）
+## 2026-10-04 Claude 接續：schema59 NFO 結算、收尾與 nfo_write worker（原分支 claude/nfo-worker 合併時由 058 重新編號）
 
 設計見 [nfo-commit-settlement.md](nfo-commit-settlement.md)。新增只追加的結算紀錄（備份→替換／回滾，只能前進、首次時間不可變、取消只回滾、回滾不受 catalog 漂移阻擋）與 job 收尾；`retain_nfo_write_commit_job` 允許「有收尾且每個 entry 已替換」時轉 succeeded（running 或恢復後的 failed）。Writer.SettleCommitFiles／AbortCommitFiles 接上 Rename、備份、回滾並可從持久階段與目標實體續作；app.NFOWriteWorker 與 jobs.Runner 的 NFOWriteOptions 接上 claim、執行、停止與恢復迴圈，設定 `JELEE_ENABLE_NFO_WRITE` 預設關閉。Store.SubmitNFOWriteJob 為 Store 層送件（尚無 HTTP／CLI）。
 

@@ -1,4 +1,4 @@
-# NFO 寫回的結算、收尾與 worker（schema58）
+# NFO 寫回的結算、收尾與 worker（schema59）
 
 接續 [恢復租約](nfo-commit-recovery-lease.md)。Stage 只準備檔案；本批把「改名替換目標、備份、回滾」接成持久的結算協議，並加上 nfo_write worker 與恢復迴圈，讓 NFO 寫回可以端到端執行。對應需求 G39.8（原子寫入、寫前備份、失敗回滾）、G13.3（可取消、可恢復、可觀測）。
 
@@ -88,7 +88,7 @@ Store 方法：
 
 ## 降級
 
-058 down 在有任何結算、收尾或 journal 時拒絕，停在 57 dirty（與 057 同範圍）。空資料時刪除兩表與新函式，並以原文還原 049 的 `retain_nfo_write_commit_job`、054 的 `guard_nfo_native_claim`、057 的 `nfo_commit_live_lease`。
+059 down 在有任何結算、收尾或 journal 時拒絕，停在 58 dirty（與 057 同範圍）。空資料時刪除兩表與新函式，並以原文還原 049 的 `retain_nfo_write_commit_job`、054 的 `guard_nfo_native_claim`、057 的 `nfo_commit_live_lease`。
 
 ## 驗證（Linux 真 PG、race）
 
