@@ -208,6 +208,8 @@ func newServer(cfg config.Config, backend Backend, catalog *app.Catalog, resolve
 			if cfg.EnableDirect {
 				r.Get("/api/v1/sources/{id}/stream", s.stream)
 				r.Head("/api/v1/sources/{id}/stream", s.stream)
+				r.Get("/api/v1/items/{id}/playback", s.playbackInfo)
+				r.Post("/api/v1/items/{id}/playback/check", s.playbackCheck)
 			}
 		})
 	}

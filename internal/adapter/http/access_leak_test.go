@@ -87,12 +87,14 @@ func leakRouteTable() map[string]leakRoute {
 		"GET /api/v1/openapi.json": noMedia(noParams, "generated specification"),
 
 		// Catalog and delivery: the direct media surfaces.
-		"GET /api/v1/items":                {mode: leakList, params: noParams, control: true},
-		"GET /api/v1/items/{id}":           {mode: leakByID, params: itemParam, control: true},
-		"GET /api/v1/sources/{id}/stream":  {mode: leakByID, params: sourceParam, control: true},
-		"HEAD /api/v1/sources/{id}/stream": {mode: leakByID, params: sourceParam, control: true},
-		"GET /images/{type}/{id}":          {mode: leakByID, params: map[string]string{"type": "image-type", "id": "item"}, control: true},
-		"HEAD /images/{type}/{id}":         {mode: leakByID, params: map[string]string{"type": "image-type", "id": "item"}, control: true},
+		"GET /api/v1/items":                      {mode: leakList, params: noParams, control: true},
+		"GET /api/v1/items/{id}":                 {mode: leakByID, params: itemParam, control: true},
+		"GET /api/v1/sources/{id}/stream":        {mode: leakByID, params: sourceParam, control: true},
+		"HEAD /api/v1/sources/{id}/stream":       {mode: leakByID, params: sourceParam, control: true},
+		"GET /api/v1/items/{id}/playback":        {mode: leakByID, params: itemParam, control: true},
+		"POST /api/v1/items/{id}/playback/check": {mode: leakByID, params: itemParam, control: true},
+		"GET /images/{type}/{id}":                {mode: leakByID, params: map[string]string{"type": "image-type", "id": "item"}, control: true},
+		"HEAD /images/{type}/{id}":               {mode: leakByID, params: map[string]string{"type": "image-type", "id": "item"}, control: true},
 
 		// Accounts.
 		"POST /api/v1/auth/login":                         exempt("credential exchange; takes no media identifiers and returns only a session grant"),
@@ -239,7 +241,11 @@ func leakHandler(t *testing.T, store *postgres.Store, cfg config.Config) http.Ha
 		t.Fatal(err)
 	}
 	metrics := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { _, _ = io.WriteString(w, "# metrics\n") })
-	handler, err := NewWithImages(cfg, store, app.NewCatalog(store), store, slog.New(slog.NewTextHandler(io.Discard, nil)), accounts, jobs, metadata, metrics, images)
+	catalog, err := app.NewCatalog(store).WithPlayback(store)
+	if err != nil {
+		t.Fatal(err)
+	}
+	handler, err := NewWithImages(cfg, store, catalog, store, slog.New(slog.NewTextHandler(io.Discard, nil)), accounts, jobs, metadata, metrics, images)
 	if err != nil {
 		t.Fatal(err)
 	}

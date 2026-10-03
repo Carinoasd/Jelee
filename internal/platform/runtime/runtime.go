@@ -58,7 +58,7 @@ func newWithLifetime(cfg config.Config, logger *slog.Logger, lifetime *lifetime)
 			lifetime.closeStore = store.Pool.Close
 			return store, nil
 		},
-		func(store *postgres.Store) *app.Catalog { return app.NewCatalog(store) },
+		func(store *postgres.Store) (*app.Catalog, error) { return app.NewCatalog(store).WithPlayback(store) },
 		func(c config.Config, store *postgres.Store, budget *resources.Budget) (*imageadapter.Processor, error) {
 			if !c.EnableImages {
 				return nil, nil

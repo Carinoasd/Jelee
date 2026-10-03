@@ -30,6 +30,9 @@ func Specification(cfg config.Config) map[string]any {
 		paths["/api/v1/sources/{id}/stream"] = map[string]any{"get": op, "head": op}
 	}
 	schemas := accountSchemas()
+	if cfg.EnableCatalog && cfg.EnableDirect {
+		playbackSpecification(paths, schemas)
+	}
 	if cfg.EnableCatalog {
 		schemas["CatalogItem"] = objectSchema(map[string]any{
 			"id": map[string]any{"type": "string", "format": "uuid"}, "libraryId": map[string]any{"type": "string", "format": "uuid"},

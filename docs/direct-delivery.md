@@ -29,6 +29,52 @@ Web 禁止播放的承诺基于**服务端签发时绑定的会话类型**。原
 
 `Options.WriteError` 必须注入统一 HTTP 错误映射。包括标准库生成的 412、416 在内，错误通过该回调输出，禁止回显底层绝对路径或数据库错误。媒体已开始发送后的连接/读取错误通过终止流处理，不能在媒体字节后追加 JSON 错误。
 
+## 播放信息与直投判定（G10.4、G10.5、G15.2、G16.3）
+
+两条自有 API 路由与 `/api/v1/sources/{id}/stream` 同属播放面，仅在同时启用目录与直投时注册：
+
+- `GET /api/v1/items/{id}/playback`：列出条目的全部原始资源。
+- `POST /api/v1/items/{id}/playback/check`：请求体为客户端能力声明，逐个资源返回直投判定。
+
+处理顺序固定：
+
+1. `GuardProduction`：查询串与请求体中任何转换参数一律 409 `transcode_disabled`，对 Web 会话同样适用。
+2. 会话类型：只有原生会话可用，Web 会话 403 `web_playback_disabled`。
+3. 查询参数：两条路由都不接受任何查询参数，出现即 400 `invalid_request`。
+4. 查库：仓储在同一条 SQL 中重新确认用户未停用、会话为未撤销未过期的原生会话、库授权与条目存在；不可见与不存在的条目答复相同（默认 404，按 G48.3 配置可为 403）。响应只含文件名推导的版本标签，不含库根目录、目录名或相对路径。
+
+### 资源描述
+
+每个资源给出 `id`、由存储的内容类型得出的容器（`mp4`、`mkv`、`webm`、`mov`、`avi`、`mpegts`）、大小、时长、码率、G20.2 版本标签，以及探测得到的视频轨（不含封面图流；`primary` 标出判定所用的主视频流）、内嵌音轨（编码、语言、声道、采样率、码率、默认/强制、Atmos）、内嵌字幕轨（编码与规范化格式、语言、默认/强制），和外挂字幕/音轨（语言、标题、forced、SDH、default、评论音轨、字符集、大小、由扩展名确定的格式）。多个资源按版本质量分数从高到低排列，同分按 ID。
+
+只有当前有效的探测结果才会被使用：探测缓存状态为 ready、未过期，且若该资源由目录同步登记，探测时的大小与修改时间必须与最近一次扫描一致。否则资源仍会列出，但 `probed=false`，流列表为空，版本标签只来自文件名，大小取扫描记录。缓存中无法再通过白名单校验的文档同样按未探测处理。没有码率字段时以 大小×8÷时长 推算。
+
+两个响应都带固定的投递声明 `delivery`：`directPlay=true`，`transcoding`、`hls`、`dash`、`remux` 均为 `false`（G10.4）。
+
+### 能力声明与转换请求分开解析
+
+请求体字段为 `containers`、`videoCodecs`、`audioCodecs`、`subtitleFormats`（每项最多 32 个、每个 1–32 个字符 `[A-Za-z0-9._-]`）与 `maxBitrate`（比特每秒，0 或省略表示不声明上限）。它们只描述客户端能解什么，服务端不据此改变任何字节。字段名刻意避开上游的转换参数：请求体先经 `GuardProduction` 完整检查，其中出现 `videoCodec`、`audioCodec`、`maxStreamingBitrate`、`TranscodingProfiles`、`subtitleMethod=Encode` 等（包括嵌套）仍然 409；之后再用严格 JSON 解码，未知字段、`null`、非法标记和负码率为 400。拦截器本身没有任何放宽。
+
+标记不区分大小写，并接受常见别名：`matroska`→`mkv`、`ts`/`m2ts`→`mpegts`、`h265`/`hvc1`/`x265`→`hevc`、`avc`/`x264`→`h264`、`ac-3`→`ac3`、`ec3`/`e-ac-3`→`eac3`、`dca`→`dts`、`subrip`→`srt`、`vtt`→`webvtt`、`sup`→`pgs`、`idx`→`vobsub`。音频声明 `pcm` 覆盖所有 PCM 采样格式。空列表表示什么都不支持。
+
+### 判定规则
+
+资源可直投当且仅当：容器在声明中；资源已探测；主视频流的编码在声明中（无视频流时不检查）；资源有音轨时，至少一条内嵌音轨的编码在声明中；已知码率不大于 `maxBitrate`（等于上限可通过，未知码率不报告）。
+
+不可直投时 `directPlay=false`、`code` 为 `direct_play_unsupported`，`reasons` 按以下固定顺序列出全部原因：
+
+| 原因 | 含义 |
+| --- | --- |
+| `container_unsupported` | 容器未声明，或内容类型无法映射到容器 |
+| `source_not_probed` | 没有当前有效的探测结果，编码未知，无法确认 |
+| `video_codec_unsupported` | 主视频流编码未声明或未知 |
+| `audio_codec_unsupported` | 没有任何一条内嵌音轨的编码被声明 |
+| `bitrate_exceeds_client` | 已知码率严格大于声明的上限 |
+
+字幕和外挂音轨永不改变资源判定，而是在 `tracks` 中逐条报告：内嵌与外挂音轨不支持时为 `audio_codec_unsupported`，字幕为 `subtitle_format_unsupported`；扩展名不能唯一确定编码的外挂文件（`mka`、`m4a`、`ogg`、`oga` 与可能是 MicroDVD 也可能是 VobSub 的 `.sub`）为 `track_not_probed`。
+
+判定结果本身不是错误：即使没有任何资源可直投，响应也是 200，`directPlayable=false`。服务端从不建议也不尝试转码、Remux 或烧录字幕救场。存在不可直投资源时记录一条 `direct play unsupported` 日志，只含请求 ID、资源数、不可直投数和原因代码，不含名称或路径（G10.5 可排查）。
+
 ## 生产模式转换请求拦截
 
 `IsForbiddenDeliveryRoute` 可用于路由前检查，覆盖 `hls`、上游已有 `hls1`、`dash`、`transcode`、`transcoding`、分段路由以及 `.m3u8`、`.mpd`、`.m4s`。大小写、百分号编码及多次编码会归一化。直接传输原始 `.ts` 文件仍可接受。
