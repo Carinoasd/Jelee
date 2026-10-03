@@ -97,6 +97,21 @@ class SnapshotTests(unittest.TestCase):
             snapshot.remove_snapshot(self.root)
         self.assertTrue(self.root.exists())
 
+    def test_provision_includes_full_runtime_license_texts(self):
+        manifest_path = Path(__file__).resolve().parent.parent / "tools/manifest.json"
+        manifest = json.loads(manifest_path.read_bytes())
+        target = self.root / "source"
+        (target / "tools").mkdir(parents=True)
+        (target / "tools/manifest.json").write_bytes(manifest_path.read_bytes())
+        with patch.object(snapshot, "copy_verified") as copy:
+            snapshot.provision(self.root / "workspace", target)
+        destinations = {str(call.args[1].relative_to(target)).replace("\\", "/"): call.args[2] for call in copy.call_args_list}
+        runtime = manifest["mediaRuntime"]
+        for item in runtime["licenseTexts"]:
+            key = ".tools/" + runtime["installPath"] + "/" + item["destination"]
+            self.assertEqual(destinations[key], item["sha256"])
+        self.assertEqual(len(runtime["licenseTexts"]), 4)
+
     def test_formal_requires_matching_successful_smoke_with_all_cleanup(self):
         directory = self.root / "soak-launch-123"
         directory.mkdir()

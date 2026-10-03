@@ -123,6 +123,9 @@ def provision(workspace, root):
         for item in package["files"]:
             name = Path(".tools") / str(relative(runtime["installPath"])) / str(relative(item["destination"]))
             copy_verified(workspace / name, root / name, item["sha256"], item["destination"].startswith("lib64/"))
+    for item in runtime["licenseTexts"]:
+        name = Path(".tools") / str(relative(runtime["installPath"])) / str(relative(item["destination"]))
+        copy_verified(workspace / name, root / name, item["sha256"])
 
 
 def prepare(workspace, owned):

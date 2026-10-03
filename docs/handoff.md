@@ -1,3 +1,9 @@
+## 真短測首輪建置失敗已定位
+
+caf1b3ef65短測56c5857eaa044b0aa1ef60c1cdcaaeb4在Docker runtime_image_invalid退出，尚未執行負載。snapshot provision只複製package notices，漏mediaRuntime.licenseTexts四份GPL/LGPL/GCC exception文字；已补全部pin檔案並新增回歸。Windows snapshot4通過／2略過、Linux6通過。原始失敗證據保留，worker/test/native及launcher PG/volume/snapshot清理皆true，PID572932已不存在。
+
+下一輪使用補授權文字後的新commit，重新開始完整600秒；不能沿用失敗時數。24h未開始。
+
 ## 最新接續：固定提交快照與背景啟動器
 
 images_soak_snapshot.py從HEAD commit/tree匯出並封存來源，拒絕links/device/escape/重複/過大archive；所有tracked檔案唯讀並逐檔SHA/size/execute核對。只複製現有pin SDK archive、ffprobe/license/runtime檔並核SHA，snapshot內offline bootstrap SDK。start_images_soak.py用Linux flock避免同checkout重複啟動；背景worker從snapshot reexec，記PID/startTicks/bootId、UTC、commit/tree，獨立PG image ID/container/volume/動態loopback port，DSN只在私有env及記憶體。清理只處理該UUID。
