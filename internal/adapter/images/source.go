@@ -411,38 +411,30 @@ func observeImageSource(ctx context.Context, source domain.LocalImageSource) (va
 	}
 	base := strings.TrimSuffix(path.Base(source.MediaPath), path.Ext(source.MediaPath))
 	candidates := [6]string{base + "-poster.jpg", base + "-poster.jpeg", base + "-poster.png", "poster.jpg", "poster.jpeg", "poster.png"}
-	entries, nameBytes := 0, 0
-	for {
-		if ctx.Err() != nil {
-			return value, ctx.Err()
-		}
-		batch, readErr := listing.ReadDir(128)
-		entries += len(batch)
-		if entries > imageDirectoryEntries {
-			return value, domain.ErrImageTooLarge
-		}
-		for _, entry := range batch {
-			nameBytes += len(entry.Name())
-			if nameBytes > imageDirectoryNameBytes {
-				return value, domain.ErrImageTooLarge
-			}
-			for i, candidate := range candidates {
-				if !strings.EqualFold(entry.Name(), candidate) {
-					continue
-				}
-				info, statErr := directory.Lstat(entry.Name())
-				if statErr != nil || !info.Mode().IsRegular() || value.matches[i] != "" {
-					return value, imageSourceError(ctx, statErr)
-				}
-				value.matches[i] = path.Join(parentPath, entry.Name())
+	isCandidate := func(name string) bool {
+		for _, candidate := range candidates {
+			if strings.EqualFold(name, candidate) {
+				return true
 			}
 		}
-		if errors.Is(readErr, io.EOF) {
-			break
+		return false
+	}
+	record := func(name string) error {
+		for i, candidate := range candidates {
+			if !strings.EqualFold(name, candidate) {
+				continue
+			}
+			// A case collision rejects the whole selection, even for a
+			// lower-ranked candidate.
+			if value.matches[i] != "" {
+				return imageSourceError(ctx, nil)
+			}
+			value.matches[i] = path.Join(parentPath, name)
 		}
-		if readErr != nil {
-			return value, imageSourceError(ctx, readErr)
-		}
+		return nil
+	}
+	if err := listImageCandidates(ctx, directory, listing, isCandidate, record); err != nil {
+		return value, err
 	}
 	for _, match := range value.matches {
 		if match != "" {
@@ -468,6 +460,48 @@ func observeImageSource(ctx context.Context, source domain.LocalImageSource) (va
 		return value, imageSourceError(ctx, err)
 	}
 	return value, ctx.Err()
+}
+
+// listImageCandidates completes one bounded enumeration of an opened
+// directory: at most imageDirectoryEntries entries and imageDirectoryNameBytes
+// of names, read in batches of 128. Every name accepted by match must be a
+// regular file, not a symbolic link, before found sees it. Exceeding a bound
+// fails the whole listing, so callers never act on a partial directory.
+func listImageCandidates(ctx context.Context, directory *os.Root, listing *os.File, match func(string) bool, found func(string) error) error {
+	entries, nameBytes := 0, 0
+	for {
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
+		batch, readErr := listing.ReadDir(128)
+		entries += len(batch)
+		if entries > imageDirectoryEntries {
+			return domain.ErrImageTooLarge
+		}
+		for _, entry := range batch {
+			name := entry.Name()
+			nameBytes += len(name)
+			if nameBytes > imageDirectoryNameBytes {
+				return domain.ErrImageTooLarge
+			}
+			if !match(name) {
+				continue
+			}
+			info, statErr := directory.Lstat(name)
+			if statErr != nil || !info.Mode().IsRegular() {
+				return imageSourceError(ctx, statErr)
+			}
+			if err := found(name); err != nil {
+				return err
+			}
+		}
+		if errors.Is(readErr, io.EOF) {
+			return nil
+		}
+		if readErr != nil {
+			return imageSourceError(ctx, readErr)
+		}
+	}
 }
 
 func sameImageFile(a, b os.FileInfo) bool {
