@@ -29,7 +29,7 @@ func TestJobMetricsIntegrationSnapshotIsReadOnlyAndBounded(t *testing.T) {
 		t.Fatal(err)
 	}
 	snapshot := metricsSnapshot(t, f)
-	g := snapshot.Groups[3]
+	g := snapshot.Groups[5]
 	if snapshot.StartedAt.IsZero() || snapshot.ObservedAt.Before(snapshot.StartedAt) ||
 		g.Kind != "inventory_scan" || g.Priority != "manual" || g.Queued != 1 || g.Running != 0 || g.ExpiredRunning != 0 ||
 		g.OldestQueuedAgeSeconds < 60 || g.OldestQueuedAgeSeconds > 65 || g.Wait.Count != 0 {
@@ -52,7 +52,7 @@ func TestJobMetricsIntegrationSnapshotIsReadOnlyAndBounded(t *testing.T) {
 	ctx, cancel := context.WithTimeout(f.ctx, time.Second)
 	observed, err := f.s.JobMetrics(ctx)
 	cancel()
-	if err != nil || observed.Groups[3].Running != 1 || observed.Groups[3].Queued != 0 || observed.Groups[3].Wait.Count != 1 {
+	if err != nil || observed.Groups[5].Running != 1 || observed.Groups[5].Queued != 0 || observed.Groups[5].Wait.Count != 1 {
 		t.Fatalf("snapshot waited for the job writer or modified queue: %+v %v", observed, err)
 	}
 	if err := f.s.Pool.QueryRow(f.ctx, `SELECT to_jsonb(j)::text FROM jobs j WHERE id=$1`, j.ID).Scan(&after); err != nil || before != after {
@@ -64,7 +64,7 @@ func TestJobMetricsIntegrationSnapshotIsReadOnlyAndBounded(t *testing.T) {
 	if _, err := f.s.Pool.Exec(f.ctx, `UPDATE jobs SET lease_until=clock_timestamp()-interval '1 second' WHERE id=$1`, j.ID); err != nil {
 		t.Fatal(err)
 	}
-	expired := metricsSnapshot(t, f).Groups[3]
+	expired := metricsSnapshot(t, f).Groups[5]
 	if expired.Running != 0 || expired.ExpiredRunning != 1 || expired.Failed != 0 || expired.Queued != 0 || expired.Wait.Count != 1 {
 		t.Fatal("scrape recovered an expired job", expired)
 	}
@@ -154,7 +154,7 @@ func TestJobMetricsIntegrationHistogramBoundaries(t *testing.T) {
 		accumulate(&expectedWait, w, waitBounds)
 		accumulate(&expectedDuration, d, durationBounds)
 	}
-	g := metricsSnapshot(t, f).Groups[3]
+	g := metricsSnapshot(t, f).Groups[5]
 	assertHistogram := func(name string, got, want app.JobMetricHistogram) {
 		t.Helper()
 		if got.Count != want.Count || got.BucketCounts != want.BucketCounts || math.Abs(got.SumSeconds-want.SumSeconds) > 1e-8 {
@@ -167,7 +167,7 @@ func TestJobMetricsIntegrationHistogramBoundaries(t *testing.T) {
 		t.Fatal("terminal samples disagree", g)
 	}
 	var count int
-	if err := f.s.Pool.QueryRow(f.ctx, `SELECT (SELECT count(*) FROM job_metric_epoch)+(SELECT count(*) FROM job_metric_totals)+(SELECT count(*) FROM job_metric_buckets)`).Scan(&count); err != nil || count != 163 {
+	if err := f.s.Pool.QueryRow(f.ctx, `SELECT (SELECT count(*) FROM job_metric_epoch)+(SELECT count(*) FROM job_metric_totals)+(SELECT count(*) FROM job_metric_buckets)`).Scan(&count); err != nil || count != 217 {
 		t.Fatal("metric storage grew with job history", count, err)
 	}
 	// Independently re-read; an observation must not add histogram samples.
@@ -213,14 +213,14 @@ func TestJobMetricsIntegrationActiveQueryPlan(t *testing.T) {
 	if strings.Contains(plan, "Seq Scan on jobs") || strings.Contains(plan, "job_inventory") || strings.Contains(plan, "library_inventory_baseline") || !strings.Contains(plan, "jobs_active_library_idx") {
 		t.Fatalf("metrics scanned retained history/inventory: %s", plan)
 	}
-	if got := metricsSnapshot(t, f).Groups[3]; got.Cancelled != 1 || got.Queued != 0 || got.Running != 0 {
+	if got := metricsSnapshot(t, f).Groups[5]; got.Cancelled != 1 || got.Queued != 0 || got.Running != 0 {
 		t.Fatal("retained rows altered durable counters", got)
 	}
 }
 
 func TestJobMetricsIntegrationKindsAndPriorities(t *testing.T) {
 	f := newJobFixture(t)
-	for _, kind := range []string{"catalog_import", "inventory_scan"} {
+	for _, kind := range []string{"catalog_import", "catalog_sync", "inventory_scan"} {
 		for _, priority := range []string{"background", "manual"} {
 			j := f.submit(t, kind+priority)
 			if _, err := f.s.Pool.Exec(f.ctx, `UPDATE jobs SET kind=$2,priority=$3 WHERE id=$1`, j.ID, kind, priority); err != nil {

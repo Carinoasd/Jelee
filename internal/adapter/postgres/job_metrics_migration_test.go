@@ -20,7 +20,7 @@ func TestJobMetricsIntegrationFixedStorage(t *testing.T) {
 	if err != nil {
 		t.Fatal("durable job metrics schema unavailable:", err)
 	}
-	if epoch != 1 || totals != 6 || buckets != 156 {
+	if epoch != 1 || totals != 8 || buckets != 208 {
 		t.Fatalf("fixed metric rows: epoch=%d totals=%d buckets=%d", epoch, totals, buckets)
 	}
 }
@@ -42,13 +42,15 @@ func jobMetricMigration(t *testing.T, f jobFixture, action string, want uint) {
 
 // Compare the durable rows themselves, including the epoch and exact numeric
 // sums. Scrape timestamps and queue ages deliberately do not enter this check.
+// The catalog_sync dimension exists only from schema58; its zero rows come and
+// go with that migration and are excluded so older-schema comparisons hold.
 func jobMetricMigrationStorage(t *testing.T, f jobFixture) string {
 	t.Helper()
 	var result string
 	err := f.s.Pool.QueryRow(f.ctx, `SELECT jsonb_build_object(
 	 'epoch',(SELECT jsonb_agg(to_jsonb(m) ORDER BY singleton) FROM job_metric_epoch m),
-	 'totals',(SELECT jsonb_agg(to_jsonb(m) ORDER BY kind,priority) FROM job_metric_totals m),
-	 'buckets',(SELECT jsonb_agg(to_jsonb(m) ORDER BY kind,priority,measure,bucket_index) FROM job_metric_buckets m)
+	 'totals',(SELECT jsonb_agg(to_jsonb(m) ORDER BY kind,priority) FROM job_metric_totals m WHERE kind<>'catalog_sync'),
+	 'buckets',(SELECT jsonb_agg(to_jsonb(m) ORDER BY kind,priority,measure,bucket_index) FROM job_metric_buckets m WHERE kind<>'catalog_sync')
 	)::text`).Scan(&result)
 	if err != nil {
 		t.Fatal("read durable metric rows:", err)
@@ -70,10 +72,10 @@ func jobMetricMigrationZero(t *testing.T, f jobFixture) {
 	var valid bool
 	err := f.s.Pool.QueryRow(f.ctx, `SELECT
 	 (SELECT count(*)=1 AND bool_and(singleton AND isfinite(started_at)) FROM job_metric_epoch)
-	 AND (SELECT count(*)=(SELECT CASE WHEN version>=47 THEN 6 ELSE 4 END FROM schema_migrations) AND bool_and(succeeded_total=0 AND failed_total=0 AND cancelled_total=0
+	 AND (SELECT count(*)=(SELECT CASE WHEN version>=58 THEN 8 WHEN version>=47 THEN 6 ELSE 4 END FROM schema_migrations) AND bool_and(succeeded_total=0 AND failed_total=0 AND cancelled_total=0
 	  AND wait_count=0 AND wait_sum_microseconds=0 AND duration_count=0 AND duration_sum_microseconds=0)
 	  FROM job_metric_totals)
-	 AND (SELECT count(*)=(SELECT CASE WHEN version>=47 THEN 156 ELSE 104 END FROM schema_migrations) AND bool_and(bucket_count=0) FROM job_metric_buckets)`).Scan(&valid)
+	 AND (SELECT count(*)=(SELECT CASE WHEN version>=58 THEN 208 WHEN version>=47 THEN 156 ELSE 104 END FROM schema_migrations) AND bool_and(bucket_count=0) FROM job_metric_buckets)`).Scan(&valid)
 	if err != nil || !valid {
 		t.Fatalf("migration did not establish an empty finite epoch: valid=%t error=%v", valid, err)
 	}
@@ -153,7 +155,7 @@ func TestJobMetricsMigrationExistingJobsStartAtNewEpoch(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	g := snapshot.Groups[3]
+	g := snapshot.Groups[5]
 	if g.Failed != 1 || g.Succeeded != 0 || g.Cancelled != 0 || g.Duration.Count != 1 || g.Wait.Count != 0 ||
 		g.Wait.SumSeconds != 0 || g.Queued != 1 || g.Running != 0 || g.ExpiredRunning != 0 {
 		t.Fatalf("legacy transition was backfilled or lost: %+v", g)
@@ -342,7 +344,7 @@ func TestJobMetricsMigrationTriggerIgnoresCallerSearchPath(t *testing.T) {
 		t.Fatal(err)
 	}
 	snapshot, err := f.s.JobMetrics(f.ctx)
-	if err != nil || snapshot.Groups[3].Wait.Count != 1 || snapshot.Groups[3].Wait.SumSeconds != .5 {
+	if err != nil || snapshot.Groups[5].Wait.Count != 1 || snapshot.Groups[5].Wait.SumSeconds != .5 {
 		t.Fatal("qualified metrics did not survive commit", err)
 	}
 }

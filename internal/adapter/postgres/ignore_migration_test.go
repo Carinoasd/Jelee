@@ -17,10 +17,10 @@ func ignoreLegacySnapshot(t *testing.T, f jobFixture) string {
 	var result string
 	err := f.s.Pool.QueryRow(f.ctx, `SELECT jsonb_build_object(
  'jobs',(SELECT jsonb_agg(to_jsonb(j)-'ignore_requested' ORDER BY id) FROM jobs j),
- 'libraries',(SELECT jsonb_agg(to_jsonb(l)-'inventory_baseline_revision'-'metadata_language'-'metadata_preferences_revision'-'metadata_image_languages'-'active_inventory_snapshot' ORDER BY id) FROM libraries l),
+ 'libraries',(SELECT jsonb_agg(to_jsonb(l)-'inventory_baseline_revision'-'metadata_language'-'metadata_preferences_revision'-'metadata_image_languages'-'active_inventory_snapshot'-'catalog_sync_auto' ORDER BY id) FROM libraries l),
  'roots',(SELECT jsonb_agg(to_jsonb(r) ORDER BY id) FROM library_roots r),
  'inventory',(SELECT jsonb_agg(to_jsonb(i) ORDER BY id) FROM job_inventory i),
- 'directories',(SELECT jsonb_agg(to_jsonb(d) ORDER BY job_id,root_id,path) FROM job_directories d),
+ 'directories',(SELECT jsonb_agg(to_jsonb(d)-'claim_generation'-'claim_token' ORDER BY job_id,root_id,path) FROM job_directories d),
  'baseline',(SELECT jsonb_agg(to_jsonb(b)-'observed_revision' ORDER BY library_id,root_id,path) FROM library_inventory_baseline b),
  'nfo_cache',(SELECT jsonb_agg(to_jsonb(c) ORDER BY root_id,relative_path) FROM nfo_cache c),
  'nfo_phases',(SELECT jsonb_agg(to_jsonb(p) ORDER BY job_id) FROM nfo_job_state p),

@@ -22,10 +22,12 @@ type jobDimensions struct {
 	kind, priority string
 }
 
-func fixedJobDimensions() [6]jobDimensions {
-	return [6]jobDimensions{
+func fixedJobDimensions() [8]jobDimensions {
+	return [8]jobDimensions{
 		{"catalog_import", "background"},
 		{"catalog_import", "manual"},
+		{"catalog_sync", "background"},
+		{"catalog_sync", "manual"},
 		{"inventory_scan", "background"},
 		{"inventory_scan", "manual"},
 		{"nfo_write", "background"},
@@ -222,9 +224,10 @@ func completeJobFamilies(families []*dto.MetricFamily) bool {
 		}
 		seen[index] = true
 		withOutcome := expected[index].kind == dto.MetricType_COUNTER
-		want := uint32(0x3f)
+		groups := uint(len(fixedJobDimensions()))
+		want := uint32(1)<<groups - 1
 		if withOutcome {
-			want = 0x3ffff
+			want = uint32(1)<<(groups*uint(len(fixedJobOutcomes()))) - 1
 		}
 		var points uint32
 		for _, point := range family.Metric {
