@@ -120,7 +120,8 @@ func TMDBMetadataSkip(old ItemMetadataField, replaceExistingTitle bool) string {
 	if old.Source == "nfo" {
 		return "nfo"
 	}
-	if old.Source != "" && old.Source != "existing" && old.Source != "tmdb" {
+	// File-name values (source scan) have the lowest priority and are replaced.
+	if old.Source != "" && old.Source != "existing" && old.Source != "tmdb" && old.Source != "scan" {
 		return "existing"
 	}
 	if old.Source == "existing" && strings.TrimSpace(old.Value) != "" && !(old.Field == "title" && replaceExistingTitle) {

@@ -70,7 +70,7 @@ func (s *Store) ClaimJobWithCapabilities(ctx context.Context, owner string, pref
 	if _, err = releaseExpiredProbeLeases(ctx, tx, domain.ProbeSweepMax); err != nil {
 		return domain.JobLease{}, err
 	}
-	_, err = tx.Exec(ctx, `UPDATE jobs SET state=CASE WHEN cancel_requested THEN 'cancelled' WHEN attempts>=max_attempts THEN 'failed' ELSE 'queued' END,error_code=CASE WHEN NOT cancel_requested AND attempts>=max_attempts THEN 'job_attempts_exhausted' ELSE '' END,finished_at=CASE WHEN cancel_requested OR attempts>=max_attempts THEN clock_timestamp() ELSE NULL END,owner=NULL,lease_until=NULL WHERE state='running' AND lease_until<=clock_timestamp() AND kind IN ('inventory_scan','catalog_import')`)
+	_, err = tx.Exec(ctx, `UPDATE jobs SET state=CASE WHEN cancel_requested THEN 'cancelled' WHEN attempts>=max_attempts THEN 'failed' ELSE 'queued' END,error_code=CASE WHEN NOT cancel_requested AND attempts>=max_attempts THEN 'job_attempts_exhausted' ELSE '' END,finished_at=CASE WHEN cancel_requested OR attempts>=max_attempts THEN clock_timestamp() ELSE NULL END,owner=NULL,lease_until=NULL WHERE state='running' AND lease_until<=clock_timestamp() AND kind IN ('inventory_scan','catalog_import','catalog_sync')`)
 	if err != nil {
 		return domain.JobLease{}, storageError(err)
 	}
@@ -102,7 +102,7 @@ func (s *Store) ClaimJobWithCapabilities(ctx context.Context, owner string, pref
 		priority = domain.JobPriorityBackground
 	}
 	// Only workers with ignore capability may claim matching enabled contracts.
-	l, err := scanLease(tx.QueryRow(ctx, `UPDATE jobs SET state='running',owner=$1,generation=generation+1,attempts=attempts+1,lease_until=clock_timestamp()+$2*interval '1 microsecond',started_at=COALESCE(started_at,clock_timestamp()) WHERE id=(SELECT id FROM jobs WHERE state='queued' AND (kind='inventory_scan' OR ($10 AND kind='catalog_import') OR ($11 AND kind='nfo_write')) AND ((NOT ignore_requested AND NOT EXISTS(SELECT 1 FROM job_ignore_requests g WHERE g.job_id=jobs.id)) OR ($6 AND ignore_requested AND EXISTS(SELECT 1 FROM job_ignore_requests g WHERE g.job_id=jobs.id AND g.library_id=jobs.library_id AND g.mode='jeleeignore' AND g.case_mode IN ('sensitive','ascii-insensitive') AND g.program_version=$7 AND g.proof_version=$8)) OR ($9 AND ignore_requested AND EXISTS(SELECT 1 FROM job_ignore_requests g WHERE g.job_id=jobs.id AND g.library_id=jobs.library_id AND g.mode='jeleeignore-legacy-v1' AND g.case_mode IN ('sensitive','ascii-insensitive') AND g.program_version='jeleeignore-legacy-v1' AND g.proof_version='jeleeignore-legacy-proof-v1'))) AND ($4 OR NOT EXISTS(SELECT 1 FROM probe_requests r WHERE r.job_id=jobs.id)) AND ($5 OR NOT EXISTS(SELECT 1 FROM nfo_job_requests n WHERE n.job_id=jobs.id AND n.requested)) AND NOT EXISTS(SELECT 1 FROM nfo_job_state n WHERE n.job_id=jobs.id AND n.mode='read-only' AND NOT EXISTS(SELECT 1 FROM nfo_job_requests r WHERE r.job_id=jobs.id)) ORDER BY CASE WHEN priority=$3 THEN 0 ELSE 1 END,created_at,id LIMIT 1 FOR UPDATE) RETURNING `+leaseColumns, owner, ttl.Microseconds(), priority, capabilities.Probe, capabilities.NFO, capabilities.Ignore, domain.IgnoreProgramVersion, domain.IgnoreProofVersion, capabilities.FamilyIgnore, capabilities.CatalogImport, capabilities.NFOWrite))
+	l, err := scanLease(tx.QueryRow(ctx, `UPDATE jobs SET state='running',owner=$1,generation=generation+1,attempts=attempts+1,lease_until=clock_timestamp()+$2*interval '1 microsecond',started_at=COALESCE(started_at,clock_timestamp()) WHERE id=(SELECT id FROM jobs WHERE state='queued' AND (kind='inventory_scan' OR ($10 AND kind='catalog_import') OR ($11 AND kind='nfo_write') OR ($12 AND kind='catalog_sync')) AND ((NOT ignore_requested AND NOT EXISTS(SELECT 1 FROM job_ignore_requests g WHERE g.job_id=jobs.id)) OR ($6 AND ignore_requested AND EXISTS(SELECT 1 FROM job_ignore_requests g WHERE g.job_id=jobs.id AND g.library_id=jobs.library_id AND g.mode='jeleeignore' AND g.case_mode IN ('sensitive','ascii-insensitive') AND g.program_version=$7 AND g.proof_version=$8)) OR ($9 AND ignore_requested AND EXISTS(SELECT 1 FROM job_ignore_requests g WHERE g.job_id=jobs.id AND g.library_id=jobs.library_id AND g.mode='jeleeignore-legacy-v1' AND g.case_mode IN ('sensitive','ascii-insensitive') AND g.program_version='jeleeignore-legacy-v1' AND g.proof_version='jeleeignore-legacy-proof-v1'))) AND ($4 OR NOT EXISTS(SELECT 1 FROM probe_requests r WHERE r.job_id=jobs.id)) AND ($5 OR NOT EXISTS(SELECT 1 FROM nfo_job_requests n WHERE n.job_id=jobs.id AND n.requested)) AND NOT EXISTS(SELECT 1 FROM nfo_job_state n WHERE n.job_id=jobs.id AND n.mode='read-only' AND NOT EXISTS(SELECT 1 FROM nfo_job_requests r WHERE r.job_id=jobs.id)) ORDER BY CASE WHEN priority=$3 THEN 0 ELSE 1 END,created_at,id LIMIT 1 FOR UPDATE) RETURNING `+leaseColumns, owner, ttl.Microseconds(), priority, capabilities.Probe, capabilities.NFO, capabilities.Ignore, domain.IgnoreProgramVersion, domain.IgnoreProofVersion, capabilities.FamilyIgnore, capabilities.CatalogImport, capabilities.NFOWrite, capabilities.CatalogSync))
 	if errors.Is(err, domain.ErrNotFound) {
 		if e := tx.Commit(ctx); e != nil {
 			return l, storageError(e)
@@ -205,11 +205,64 @@ func (s *Store) NextScanDirectory(ctx context.Context, l domain.JobLease) (domai
 	return d, storageError(tx.Commit(ctx))
 }
 
+// ClaimScanDirectory hands one ready directory to one concurrent scan slot of
+// the current lease. Directories already claimed under this lease generation
+// are skipped, so slots never share a directory. Claims of an earlier
+// generation are void: such a directory restarts from its beginning. NotFound
+// means no directory is ready now; unfinished claims may still add children.
+func (s *Store) ClaimScanDirectory(ctx context.Context, l domain.JobLease) (domain.ScanDirectory, error) {
+	tx, err := s.jobTransaction(ctx)
+	if err != nil {
+		return domain.ScanDirectory{}, err
+	}
+	defer tx.Rollback(ctx)
+	current, err := fencedJob(ctx, tx, l)
+	if err != nil {
+		return domain.ScanDirectory{}, err
+	}
+	if current.Job.CancelRequested {
+		return domain.ScanDirectory{}, context.Canceled
+	}
+	if err = requireInventoryPhase(ctx, tx, l.Job.ID); err != nil {
+		return domain.ScanDirectory{}, err
+	}
+	d, err := claimScanDirectory(ctx, tx, current, true)
+	if err != nil {
+		return d, err
+	}
+	return d, storageError(tx.Commit(ctx))
+}
+
 func nextScanDirectory(ctx context.Context, tx pgx.Tx, current domain.JobLease) (domain.ScanDirectory, error) {
+	return claimScanDirectory(ctx, tx, current, false)
+}
+
+// directoryClaimsAvailable reports whether the catalog-sync migration's claim
+// columns exist. Historical migration fixtures run current code against older
+// schemas, where scanning stays sequential and unclaimed exactly as before.
+func directoryClaimsAvailable(ctx context.Context, tx pgx.Tx) (bool, error) {
+	var available bool
+	err := tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM pg_catalog.pg_attribute WHERE attrelid=to_regclass('job_directories') AND attname='claim_token' AND NOT attisdropped)`).Scan(&available)
+	return available, storageError(err)
+}
+
+func claimScanDirectory(ctx context.Context, tx pgx.Tx, current domain.JobLease, exclusive bool) (domain.ScanDirectory, error) {
 	l := current
-	var err error
 	var d domain.ScanDirectory
-	err = tx.QueryRow(ctx, `SELECT d.root_id::text,r.path,d.path FROM job_directories d JOIN library_roots r ON r.id=d.root_id WHERE d.job_id=$1::uuid AND NOT d.done AND (d.parent_path IS NULL OR EXISTS(SELECT 1 FROM job_directories p WHERE p.job_id=d.job_id AND p.root_id=d.root_id AND p.path=d.parent_path AND p.done)) ORDER BY d.root_id,d.path LIMIT 1 FOR UPDATE OF d`, l.Job.ID).Scan(&d.RootID, &d.RootPath, &d.Path)
+	claims, err := directoryClaimsAvailable(ctx, tx)
+	if err != nil {
+		return d, err
+	}
+	if exclusive && !claims {
+		return d, domain.ErrConflict
+	}
+	query := `SELECT d.root_id::text,r.path,d.path FROM job_directories d JOIN library_roots r ON r.id=d.root_id WHERE d.job_id=$1::uuid AND NOT d.done AND (d.parent_path IS NULL OR EXISTS(SELECT 1 FROM job_directories p WHERE p.job_id=d.job_id AND p.root_id=d.root_id AND p.path=d.parent_path AND p.done)) ORDER BY d.root_id,d.path LIMIT 1 FOR UPDATE OF d`
+	args := []any{l.Job.ID}
+	if exclusive {
+		query = `SELECT d.root_id::text,r.path,d.path FROM job_directories d JOIN library_roots r ON r.id=d.root_id WHERE d.job_id=$1::uuid AND NOT d.done AND (d.claim_generation IS NULL OR d.claim_generation<>$2) AND (d.parent_path IS NULL OR EXISTS(SELECT 1 FROM job_directories p WHERE p.job_id=d.job_id AND p.root_id=d.root_id AND p.path=d.parent_path AND p.done)) ORDER BY d.root_id,d.path LIMIT 1 FOR UPDATE OF d`
+		args = append(args, l.Generation)
+	}
+	err = tx.QueryRow(ctx, query, args...).Scan(&d.RootID, &d.RootPath, &d.Path)
 	if err != nil {
 		return d, storageError(err)
 	}
@@ -227,6 +280,11 @@ func nextScanDirectory(ctx context.Context, tx pgx.Tx, current domain.JobLease) 
 	tag, err := tx.Exec(ctx, `DELETE FROM job_directories WHERE job_id=$1::uuid AND root_id=$2::uuid AND parent_path=$3 AND NOT done`, l.Job.ID, d.RootID, d.Path)
 	if err != nil {
 		return d, storageError(err)
+	}
+	if claims {
+		if err = tx.QueryRow(ctx, `UPDATE job_directories SET claim_generation=$4,claim_token=gen_random_uuid() WHERE job_id=$1::uuid AND root_id=$2::uuid AND path=$3 RETURNING claim_token::text`, l.Job.ID, d.RootID, d.Path, l.Generation).Scan(&d.ClaimToken); err != nil {
+			return d, storageError(err)
+		}
 	}
 	if err = guardedJobUpdate(ctx, tx, l, `UPDATE jobs SET files=files-$2,bytes=bytes-$3,directory_total=directory_total-$4 WHERE id=$1::uuid`, l.Job.ID, files, bytes, tag.RowsAffected()); err != nil {
 		return d, err
@@ -295,12 +353,23 @@ func saveScanBatch(ctx context.Context, tx pgx.Tx, current domain.JobLease, d do
 	var done bool
 	var rootPath string
 	var totalDirs int64
+	claimed := true
 	err = tx.QueryRow(ctx, `SELECT d.done,r.path FROM job_directories d JOIN library_roots r ON r.id=d.root_id WHERE d.job_id=$1::uuid AND d.root_id=$2::uuid AND d.path=$3 AND (d.parent_path IS NULL OR EXISTS(SELECT 1 FROM job_directories p WHERE p.job_id=d.job_id AND p.root_id=d.root_id AND p.path=d.parent_path AND p.done)) FOR UPDATE OF d`, l.Job.ID, d.RootID, d.Path).Scan(&done, &rootPath)
 	if err != nil {
 		return storageError(err)
 	}
+	if d.ClaimToken != "" {
+		if err = tx.QueryRow(ctx, `SELECT claim_generation IS NOT DISTINCT FROM $4::bigint AND claim_token=$5::uuid FROM job_directories WHERE job_id=$1::uuid AND root_id=$2::uuid AND path=$3`, l.Job.ID, d.RootID, d.Path, l.Generation, d.ClaimToken).Scan(&claimed); err != nil {
+			return storageError(err)
+		}
+	}
 	if rootPath != d.RootPath {
 		return domain.ErrInvalid
+	}
+	// A claimed directory accepts batches only from the slot holding the claim
+	// in this lease generation. Unclaimed legacy callers keep their behaviour.
+	if d.ClaimToken != "" && !claimed {
+		return domain.ErrConflict
 	}
 	if done {
 		return nil
@@ -407,6 +476,9 @@ func validJobError(state, code string) bool {
 func (s *Store) FinishJob(ctx context.Context, l domain.JobLease, state, code string) error {
 	if l.Job.Kind == domain.JobCatalogImport {
 		return s.FinishCatalogImport(ctx, l, state, code)
+	}
+	if l.Job.Kind == domain.JobCatalogSync {
+		return s.FinishCatalogSync(ctx, l, state, code)
 	}
 	if l.Job.Kind == domain.JobNFOWrite {
 		return domain.ErrInvalid
@@ -532,6 +604,13 @@ func (s *Store) FinishJob(ctx context.Context, l domain.JobLease, state, code st
 	}
 	if err = auditAccount(ctx, tx, domain.Actor{}, "job.finished", l.Job.ID, nil, map[string]any{"state": state, "errorCode": code, "missing": missing, "reviewRequired": review}); err != nil {
 		return err
+	}
+	// The scan is terminal now, so an opted-in library can queue the catalog
+	// synchronisation of exactly the baseline this transaction publishes.
+	if state == domain.JobSucceeded && !review && epoch != nil {
+		if err = enqueueAutoCatalogSync(ctx, tx, current); err != nil {
+			return err
+		}
 	}
 	if err = trimJobs(ctx, tx, current.Policy.HistoryLimit); err != nil {
 		return err

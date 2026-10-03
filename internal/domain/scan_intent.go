@@ -11,6 +11,7 @@ type ScanIntent struct {
 // Capabilities only filter claims; they do not authorize an identity or source.
 type ScanCapabilities struct {
 	CatalogImport bool
+	CatalogSync   bool
 	Probe         bool
 	NFO           bool
 	Ignore        bool

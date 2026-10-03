@@ -54,3 +54,12 @@ type JobCancellationReader interface {
 type JobPauseRepository interface {
 	PauseJob(context.Context, domain.JobLease) error
 }
+
+// ScanDirectoryClaimer hands distinct ready directories to the concurrent
+// scan slots of one live lease. A claim belongs to that lease generation;
+// batches for a directory claimed by another slot are rejected. NotFound
+// means nothing is ready now while other claimed directories may still add
+// children; callers wait for an outstanding slot before asking again.
+type ScanDirectoryClaimer interface {
+	ClaimScanDirectory(context.Context, domain.JobLease) (domain.ScanDirectory, error)
+}

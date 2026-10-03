@@ -32,7 +32,7 @@
 
 每个 run 保存配置快照；worker 租约使用数据库时钟和 generation，过期 owner 不能续约、提交或结束任务。恢复保留已完成目录，清掉未完成目录的局部结果后从头读取，防止重复计数及保留消失的局部文件。恢复达到尝试上限会失败；主动 retry 建立新 run。
 
-只有完整成功、零 skipped 的扫描能比较上一份完整基准。skipped>0 时 missing=0 且 reviewRequired=true，并保留基准。缺失数或比例达到阈值时同样保留基准，连续重扫仍会显示缺失警告。当前没有接受新基准的人工确认 API。未触阈值的完整观测可替换基准。失败、取消、根失联和半次扫描不会产生删除依据；本段完全不删除原文件或 catalog。
+只有完整成功、零 skipped 的扫描能比较上一份完整基准。skipped>0 时 missing=0 且 reviewRequired=true，并保留基准。缺失数或比例达到阈值时同样保留基准，连续重扫仍会显示缺失警告。管理员可用 `POST /api/v1/jobs/{id}/accept-missing` 明确接受缺失并发布该次观测为新基准，详见[目录同步](catalog-sync.md)。未触阈值的完整观测可替换基准。失败、取消、根失联和半次扫描不会产生删除依据；本段完全不删除原文件或 catalog。
 
 每库基准最多保存一次完整 run 的 MaxEntries；HistoryLimit 是全局终态 run 上限。队列、每 run 文件/目录、worker、HTTP 准入与请求/DB 期限均有限额，详见[worker](jobs-worker.md)。既有 libraries/audit_logs 未增加全局总量保留策略，不宣称整个数据库恒定大小。
 

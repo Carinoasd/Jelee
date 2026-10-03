@@ -42,7 +42,7 @@ func jobMetricMigration(t *testing.T, f jobFixture, action string, want uint) {
 
 // Compare the durable rows themselves, including the epoch and exact numeric
 // sums. Scrape timestamps and queue ages deliberately do not enter this check.
-// The catalog_sync dimension exists only from schema58; its zero rows come and
+// The catalog_sync dimension exists only from the catalog-sync schema (061); its zero rows come and
 // go with that migration and are excluded so older-schema comparisons hold.
 func jobMetricMigrationStorage(t *testing.T, f jobFixture) string {
 	t.Helper()
@@ -72,10 +72,10 @@ func jobMetricMigrationZero(t *testing.T, f jobFixture) {
 	var valid bool
 	err := f.s.Pool.QueryRow(f.ctx, `SELECT
 	 (SELECT count(*)=1 AND bool_and(singleton AND isfinite(started_at)) FROM job_metric_epoch)
-	 AND (SELECT count(*)=(SELECT CASE WHEN version>=58 THEN 8 WHEN version>=47 THEN 6 ELSE 4 END FROM schema_migrations) AND bool_and(succeeded_total=0 AND failed_total=0 AND cancelled_total=0
+	 AND (SELECT count(*)=(SELECT CASE WHEN version>=61 THEN 8 WHEN version>=47 THEN 6 ELSE 4 END FROM schema_migrations) AND bool_and(succeeded_total=0 AND failed_total=0 AND cancelled_total=0
 	  AND wait_count=0 AND wait_sum_microseconds=0 AND duration_count=0 AND duration_sum_microseconds=0)
 	  FROM job_metric_totals)
-	 AND (SELECT count(*)=(SELECT CASE WHEN version>=58 THEN 208 WHEN version>=47 THEN 156 ELSE 104 END FROM schema_migrations) AND bool_and(bucket_count=0) FROM job_metric_buckets)`).Scan(&valid)
+	 AND (SELECT count(*)=(SELECT CASE WHEN version>=61 THEN 208 WHEN version>=47 THEN 156 ELSE 104 END FROM schema_migrations) AND bool_and(bucket_count=0) FROM job_metric_buckets)`).Scan(&valid)
 	if err != nil || !valid {
 		t.Fatalf("migration did not establish an empty finite epoch: valid=%t error=%v", valid, err)
 	}

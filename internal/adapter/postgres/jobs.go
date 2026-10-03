@@ -92,6 +92,14 @@ func trimJobs(ctx context.Context, tx pgx.Tx, limit int) error {
 	if version >= 49 || dirty {
 		journal = ` AND NOT EXISTS(SELECT 1 FROM nfo_write_commit_journal c WHERE c.job_id=jobs.id)`
 	}
+	// An active catalog synchronisation still reads its accepted source scan.
+	var syncRequests bool
+	if err := tx.QueryRow(ctx, `SELECT to_regclass('catalog_sync_requests') IS NOT NULL`).Scan(&syncRequests); err != nil {
+		return storageError(err)
+	}
+	if syncRequests {
+		journal += ` AND NOT EXISTS(SELECT 1 FROM catalog_sync_requests r JOIN jobs active ON active.id=r.job_id WHERE r.source_job_id=jobs.id AND active.state IN ('queued','running'))`
+	}
 	_, err := tx.Exec(ctx, `DELETE FROM jobs WHERE id IN (SELECT id FROM jobs WHERE state IN ('succeeded','failed','cancelled')`+journal+` AND NOT EXISTS(SELECT 1 FROM catalog_import_requests r JOIN jobs active ON active.id=r.job_id WHERE r.source_job_id=jobs.id AND active.state IN ('queued','running')) ORDER BY finished_at DESC,id DESC OFFSET $1)`, limit)
 	return storageError(err)
 }

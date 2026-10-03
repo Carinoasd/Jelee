@@ -74,6 +74,9 @@ type ScanDirectory struct {
 	RootID   string
 	RootPath string // Private absolute path from the configured database root.
 	Path     string // Slash-separated root-relative path; dot names the root itself.
+	// ClaimToken identifies the scan slot holding this directory under the
+	// current lease generation. Empty for callers that do not claim.
+	ClaimToken string
 }
 
 type InventoryEntry struct {

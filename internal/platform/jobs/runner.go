@@ -49,11 +49,22 @@ type Options struct {
 	Probe              *ProbeOptions
 	NFO                *NFOOptions
 	NFOWrite           *NFOWriteOptions
+	CatalogSync        *CatalogSyncOptions
+	// ScanConcurrency bounds directories scanned at once by one inventory job.
+	// Zero or one keeps the sequential loop.
+	ScanConcurrency int
 }
 
 func DefaultOptions() Options {
-	return Options{Workers: 2, PollInterval: 250 * time.Millisecond, LeaseDuration: 30 * time.Second, DBOperationTimeout: 2 * time.Second, MaxJobRuntime: time.Hour}
+	return Options{ScanConcurrency: DefaultScanConcurrency, Workers: 2, PollInterval: 250 * time.Millisecond, LeaseDuration: 30 * time.Second, DBOperationTimeout: 2 * time.Second, MaxJobRuntime: time.Hour}
 }
+
+// DefaultScanConcurrency is deliberately small: directory reads compete with
+// streaming for disk and the shared I/O budget still bounds every slot.
+const DefaultScanConcurrency = 2
+
+// MaxScanConcurrency bounds slots per job; each holds one directory claim.
+const MaxScanConcurrency = 16
 
 var (
 	errCancelRequested = errors.New("persisted job cancellation")
@@ -87,7 +98,7 @@ func New(repository app.JobExecutionRepository, scanner app.InventoryScanner, op
 		opts.PollInterval < 100*time.Millisecond || opts.PollInterval > time.Minute ||
 		opts.LeaseDuration < 10*time.Second || opts.LeaseDuration > 5*time.Minute ||
 		opts.DBOperationTimeout <= 0 || opts.DBOperationTimeout >= opts.LeaseDuration/3 ||
-		opts.MaxJobRuntime < time.Minute || opts.MaxJobRuntime > 24*time.Hour || opts.Owner != "" && !domain.ValidID(opts.Owner) {
+		opts.MaxJobRuntime < time.Minute || opts.MaxJobRuntime > 24*time.Hour || opts.ScanConcurrency < 0 || opts.ScanConcurrency > MaxScanConcurrency || opts.Owner != "" && !domain.ValidID(opts.Owner) {
 		return nil, domain.ErrInvalid
 	}
 	if opts.Window != nil {
@@ -117,6 +128,13 @@ func New(repository app.JobExecutionRepository, scanner app.InventoryScanner, op
 		}
 		value := *opts.CatalogImport
 		opts.CatalogImport = &value
+	}
+	if opts.CatalogSync != nil {
+		if _, ok := repository.(stagesClaimer); !ok || opts.CatalogSync.Repository == nil {
+			return nil, domain.ErrInvalid
+		}
+		value := *opts.CatalogSync
+		opts.CatalogSync = &value
 	}
 	if opts.Ignore != nil {
 		if _, ok := repository.(app.IgnoreExecutionRepository); !ok {
@@ -238,9 +256,9 @@ func (r *Runner) work(ctx context.Context) {
 		var lease domain.JobLease
 		var err error
 		if r.nfoRepository != nil {
-			lease, err = r.nfoRepository.ClaimJobWithCapabilities(dbCtx, r.options.Owner, turn%4 == 3, r.options.LeaseDuration, domain.ScanCapabilities{CatalogImport: r.options.CatalogImport != nil, Probe: r.probeAvailable(), NFO: r.nfoAvailable(), Ignore: r.options.Ignore != nil, FamilyIgnore: r.familyIgnoreAvailable(), NFOWrite: r.options.NFOWrite != nil})
+			lease, err = r.nfoRepository.ClaimJobWithCapabilities(dbCtx, r.options.Owner, turn%4 == 3, r.options.LeaseDuration, domain.ScanCapabilities{CatalogImport: r.options.CatalogImport != nil, CatalogSync: r.options.CatalogSync != nil, Probe: r.probeAvailable(), NFO: r.nfoAvailable(), Ignore: r.options.Ignore != nil, FamilyIgnore: r.familyIgnoreAvailable(), NFOWrite: r.options.NFOWrite != nil})
 		} else if capable, ok := r.repository.(stagesClaimer); ok {
-			lease, err = capable.ClaimJobWithCapabilities(dbCtx, r.options.Owner, turn%4 == 3, r.options.LeaseDuration, domain.ScanCapabilities{CatalogImport: r.options.CatalogImport != nil, Probe: r.probeAvailable(), Ignore: r.options.Ignore != nil, FamilyIgnore: r.familyIgnoreAvailable(), NFOWrite: r.options.NFOWrite != nil})
+			lease, err = capable.ClaimJobWithCapabilities(dbCtx, r.options.Owner, turn%4 == 3, r.options.LeaseDuration, domain.ScanCapabilities{CatalogImport: r.options.CatalogImport != nil, CatalogSync: r.options.CatalogSync != nil, Probe: r.probeAvailable(), Ignore: r.options.Ignore != nil, FamilyIgnore: r.familyIgnoreAvailable(), NFOWrite: r.options.NFOWrite != nil})
 		} else if r.probeRepository != nil {
 			lease, err = r.probeRepository.ClaimJobWithProbe(dbCtx, r.options.Owner, turn%4 == 3, r.options.LeaseDuration, r.probeAvailable())
 		} else if capable, ok := r.repository.(probeClaimer); ok {
@@ -472,6 +490,9 @@ func (r *Runner) run(serviceCtx context.Context, lease domain.JobLease) {
 	if lease.Job.Kind == domain.JobNFOWrite && state == domain.JobFailed && code != "job_timeout" {
 		code = "nfo_write_failed"
 	}
+	if lease.Job.Kind == domain.JobCatalogSync && state == domain.JobFailed && code != "job_timeout" {
+		code = "catalog_sync_failed"
+	}
 	dbCtx, cancelDB := context.WithTimeout(context.WithoutCancel(serviceCtx), r.options.DBOperationTimeout)
 	defer cancelDB()
 	finishErr := r.finishJob(dbCtx, lease, state, code)
@@ -519,6 +540,9 @@ func (r *Runner) executeInventory(ctx context.Context, lease domain.JobLease) (r
 			result, repositoryError = domain.ErrScanIO, false
 		}
 	}()
+	if claimer, ok := r.repository.(app.ScanDirectoryClaimer); ok && r.options.ScanConcurrency > 1 {
+		return r.executeInventoryConcurrent(ctx, lease, claimer)
+	}
 	for {
 		if err := ctx.Err(); err != nil {
 			return err, false
@@ -532,42 +556,120 @@ func (r *Runner) executeInventory(ctx context.Context, lease domain.JobLease) (r
 		if err != nil {
 			return err, true
 		}
-		var callbackError error
-		callbackFailed, completed := false, false
-		err = r.scanDirectory(ctx, directory, func(batch domain.ScanBatch) error {
-			if callbackError != nil {
-				return callbackError
-			}
-			if err := ctx.Err(); err != nil {
-				callbackError = err
-				return err
-			}
-			if completed {
-				callbackError = domain.ErrScanIO
-				return callbackError
-			}
-			if len(batch.Entries)+len(batch.Directories) > domain.ScanBatchMaxEntries || batch.Skipped < 0 {
-				callbackError = domain.ErrScanLimit
-				return callbackError
-			}
-			dbCtx, cancel := context.WithTimeout(ctx, r.options.DBOperationTimeout)
-			defer cancel()
-			err := r.repository.SaveScanBatch(dbCtx, lease, directory, batch)
-			callbackError = err
-			callbackFailed = err != nil
-			completed = err == nil && batch.Done
-			return err
-		})
-		if callbackError != nil {
-			return callbackError, callbackFailed
-		}
-		if err != nil {
-			return err, callbackFailed
-		}
-		if !completed {
-			return domain.ErrScanIO, false
+		if err, repository := r.scanInventoryDirectory(ctx, lease, directory); err != nil {
+			return err, repository
 		}
 	}
+}
+
+// executeInventoryConcurrent scans up to ScanConcurrency claimed directories
+// at once under one lease. The monitor goroutine still owns heartbeat,
+// cancellation and runtime limits; every slot stops when the job context ends
+// and the first failure cancels the others before the job reports it. Slots
+// write the same per-directory checkpoints as the sequential loop, so the
+// committed inventory does not depend on the order directories complete in.
+func (r *Runner) executeInventoryConcurrent(ctx context.Context, lease domain.JobLease, claimer app.ScanDirectoryClaimer) (error, bool) {
+	scanCtx, stop := context.WithCancel(ctx)
+	defer stop()
+	type outcome struct {
+		err        error
+		repository bool
+	}
+	done := make(chan outcome, r.options.ScanConcurrency)
+	active := 0
+	var first *outcome
+	fail := func(o outcome) {
+		if first == nil {
+			first = &o
+			stop()
+		}
+	}
+	for {
+		if first == nil && active < r.options.ScanConcurrency && scanCtx.Err() == nil {
+			dbCtx, cancel := context.WithTimeout(scanCtx, r.options.DBOperationTimeout)
+			directory, err := claimer.ClaimScanDirectory(dbCtx, lease)
+			cancel()
+			switch {
+			case err == nil:
+				active++
+				go func() {
+					o := outcome{domain.ErrScanIO, false}
+					defer func() {
+						if recover() != nil {
+							o = outcome{domain.ErrScanIO, false}
+						}
+						done <- o
+					}()
+					o.err, o.repository = r.scanInventoryDirectory(scanCtx, lease, directory)
+				}()
+				continue
+			case errors.Is(err, domain.ErrNotFound):
+				if active == 0 {
+					return nil, false
+				}
+			case ctx.Err() != nil:
+				fail(outcome{ctx.Err(), false})
+			default:
+				fail(outcome{err, true})
+			}
+		}
+		if active == 0 {
+			break
+		}
+		o := <-done
+		active--
+		if o.err != nil {
+			fail(o)
+		}
+	}
+	if first != nil {
+		return first.err, first.repository
+	}
+	if err := ctx.Err(); err != nil {
+		return err, false
+	}
+	return nil, false
+}
+
+// scanInventoryDirectory streams one directory to its checkpoint. A directory
+// is complete only after a Done batch commits.
+func (r *Runner) scanInventoryDirectory(ctx context.Context, lease domain.JobLease, directory domain.ScanDirectory) (error, bool) {
+	var callbackError error
+	callbackFailed, completed := false, false
+	err := r.scanDirectory(ctx, directory, func(batch domain.ScanBatch) error {
+		if callbackError != nil {
+			return callbackError
+		}
+		if err := ctx.Err(); err != nil {
+			callbackError = err
+			return err
+		}
+		if completed {
+			callbackError = domain.ErrScanIO
+			return callbackError
+		}
+		if len(batch.Entries)+len(batch.Directories) > domain.ScanBatchMaxEntries || batch.Skipped < 0 {
+			callbackError = domain.ErrScanLimit
+			return callbackError
+		}
+		dbCtx, cancel := context.WithTimeout(ctx, r.options.DBOperationTimeout)
+		defer cancel()
+		err := r.repository.SaveScanBatch(dbCtx, lease, directory, batch)
+		callbackError = err
+		callbackFailed = err != nil
+		completed = err == nil && batch.Done
+		return err
+	})
+	if callbackError != nil {
+		return callbackError, callbackFailed
+	}
+	if err != nil {
+		return err, callbackFailed
+	}
+	if !completed {
+		return domain.ErrScanIO, false
+	}
+	return nil, false
 }
 
 func (r *Runner) prepareInventoryPublication(ctx context.Context, l domain.JobLease) error {

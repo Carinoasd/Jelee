@@ -120,6 +120,7 @@ func (s *Server) jobRoutes(router chi.Router) {
 			return j, 200, err
 		}))
 		r.Post("/api/v1/jobs/{id}/retry", s.accountEndpoint(true, false, s.retryJob))
+		s.catalogSyncRoutes(r)
 	})
 }
 
