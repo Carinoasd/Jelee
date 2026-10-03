@@ -352,12 +352,9 @@ func TestNFOCommitCheckpointMigrationRetainsHistoricalReady(t *testing.T) {
 				}
 			}
 			nfoMigrationDenied(t, f, "000055_nfo_commit_checkpoints.down.sql")
-			top := downgradeAboveMigration(t, f, "nfo_commit_recovery_leases")
-			if _, _, err := Migrate(f.ctx, f.s.Pool.Config().ConnString(), "down"); err == nil {
-				t.Fatal("retained checkpoint or journal downgraded")
-			}
+			top := refuseRetainedDowngrade(t, f, "nfo_commit_recovery_leases", "retained checkpoint or journal downgraded")
 			version, dirty, err := Migrate(f.ctx, f.s.Pool.Config().ConnString(), "status")
-			if err != nil || version != top-1 || !dirty {
+			if err != nil || version != top || !dirty {
 				t.Fatal("retained downgrade lost dirty status")
 			}
 			var kept int

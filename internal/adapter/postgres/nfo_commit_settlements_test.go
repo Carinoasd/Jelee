@@ -336,7 +336,7 @@ func settlementMigration(t *testing.T, suffix string) string {
 
 func TestNFOCommitSettlementMigrationRoundTrip(t *testing.T) {
 	f := newJobFixture(t)
-	jobMetricMigration(t, f, "down", SchemaVersion-1)
+	jobMetricMigration(t, f, "down", downgradeAboveMigration(t, f, "nfo_commit_settlements")-1)
 	var removed, restored bool
 	if err := f.s.Pool.QueryRow(f.ctx, `SELECT to_regclass('nfo_write_commit_settlements') IS NULL AND to_regclass('nfo_write_commit_resolutions') IS NULL AND to_regprocedure('guard_nfo_commit_settlement()') IS NULL`).Scan(&removed); err != nil || !removed {
 		t.Fatal("empty downgrade left settlement objects", err)
@@ -356,12 +356,13 @@ func TestNFOCommitSettlementMigrationRefusesRetainedData(t *testing.T) {
 	if _, err := f.s.SaveNFOWriteCommitSettlement(f.ctx, l, 1, token, 0, domain.NFOWriteCommitBackedUp); err != nil {
 		t.Fatal(err)
 	}
+	want := downgradeAboveMigration(t, f, "nfo_commit_settlements")
 	nfoMigrationDenied(t, f, settlementMigration(t, "down"))
 	if _, _, err := Migrate(f.ctx, f.s.Pool.Config().ConnString(), "down"); err == nil {
 		t.Fatal("retained settlement downgraded")
 	}
 	version, dirty, err := Migrate(f.ctx, f.s.Pool.Config().ConnString(), "status")
-	if err != nil || version != SchemaVersion-1 || !dirty {
+	if err != nil || version != want-1 || !dirty {
 		t.Fatal("refused settlement downgrade lost dirty status", err)
 	}
 	if phases := settlementPhases(t, f, token); len(phases) != 1 {

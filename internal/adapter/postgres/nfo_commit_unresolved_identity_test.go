@@ -169,12 +169,9 @@ func TestNFOCommitNativeClaimsMigrationRetainsFirstObservation(t *testing.T) {
 		t.Fatal("migration did not copy retained first observation", err)
 	}
 	nfoMigrationDenied(t, f, "000054_nfo_unresolved_native_claims.down.sql")
-	top := downgradeAboveMigration(t, f, "nfo_commit_recovery_leases")
-	if _, _, err := Migrate(f.ctx, f.s.Pool.Config().ConnString(), "down"); err == nil {
-		t.Fatal("downgrade removed unresolved claims")
-	}
+	top := refuseRetainedDowngrade(t, f, "nfo_commit_recovery_leases", "downgrade removed unresolved claims")
 	version, dirty, err := Migrate(f.ctx, f.s.Pool.Config().ConnString(), "status")
-	if err != nil || version != top-1 || !dirty {
+	if err != nil || version != top || !dirty {
 		t.Fatal("failed downgrade did not expose dirty migration state", err)
 	}
 	var retained int
@@ -218,10 +215,7 @@ func TestNFOCommitHistoricalUnknownJournalRefusesFreshTarget(t *testing.T) {
 	if err := f.s.Pool.QueryRow(f.ctx, `SELECT (SELECT count(*) FROM nfo_write_entries WHERE job_id=$1::uuid AND native_receipt IS NULL),(SELECT count(*) FROM nfo_write_native_claims),(SELECT count(*) FROM nfo_write_commit_journal WHERE token=$2::uuid)`, job.ID, first.Token).Scan(&unknown, &claims, &journals); err != nil || unknown != 1 || claims != 0 || journals != 1 {
 		t.Fatal("upgrade inferred history or discarded unknown journal", err)
 	}
-	downgradeAboveMigration(t, f, "nfo_commit_recovery_leases")
-	if _, _, err := Migrate(f.ctx, f.s.Pool.Config().ConnString(), "down"); err == nil {
-		t.Fatal("unknown unresolved journal allowed downgrade")
-	}
+	refuseRetainedDowngrade(t, f, "nfo_commit_recovery_leases", "unknown unresolved journal allowed downgrade")
 	if err := f.s.Pool.QueryRow(f.ctx, `SELECT count(*) FROM nfo_write_commit_journal WHERE token=$1::uuid`, first.Token).Scan(&journals); err != nil || journals != 1 {
 		t.Fatal("failed downgrade discarded historical journal", err)
 	}

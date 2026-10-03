@@ -234,12 +234,9 @@ func TestNFOCommitAttemptMigrationRetainsLegacyCapacity(t *testing.T) {
 	if f.s.Pool.QueryRow(f.ctx, `SELECT count(*) FROM nfo_write_commit_attempts WHERE token=$1::uuid AND attempt=0`, r.Token).Scan(&slots) != nil || slots != 1 {
 		t.Fatal("migration inferred new attempt or lost legacy slot")
 	}
-	top := downgradeAboveMigration(t, f, "nfo_commit_recovery_leases")
-	if _, _, err = Migrate(f.ctx, f.s.Pool.Config().ConnString(), "down"); err == nil {
-		t.Fatal("retained attempt capacity downgraded")
-	}
+	top := refuseRetainedDowngrade(t, f, "nfo_commit_recovery_leases", "retained attempt capacity downgraded")
 	version, dirty, err := Migrate(f.ctx, f.s.Pool.Config().ConnString(), "status")
-	if err != nil || version != top-1 || !dirty {
+	if err != nil || version != top || !dirty {
 		t.Fatal("retained attempt downgrade lost dirty status")
 	}
 }

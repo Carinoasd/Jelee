@@ -38,3 +38,31 @@ func downgradeAboveMigration(t *testing.T, f jobFixture, name string) uint {
 	}
 	return want
 }
+
+// refuseRetainedDowngrade steps down one schema at a time until a migration
+// refuses because the test's retained data still needs it. The refusal must
+// come from the named migration or a later one that protects the same data;
+// reaching below the named migration fails the test. It returns the dirty
+// version left behind by the refused step.
+func refuseRetainedDowngrade(t *testing.T, f jobFixture, name, message string) uint {
+	t.Helper()
+	want := migrationVersion(t, name)
+	dsn := f.s.Pool.Config().ConnString()
+	version, dirty, err := Migrate(f.ctx, dsn, "status")
+	if err != nil || dirty {
+		t.Fatalf("retained downgrade start: version=%d dirty=%t error=%v", version, dirty, err)
+	}
+	for version >= want {
+		next, _, err := Migrate(f.ctx, dsn, "down")
+		if err != nil {
+			refused, dirty, statusErr := Migrate(f.ctx, dsn, "status")
+			if statusErr != nil || !dirty || refused != version-1 {
+				t.Fatalf("refused downgrade state: version=%d dirty=%t error=%v", refused, dirty, statusErr)
+			}
+			return refused
+		}
+		version = next
+	}
+	t.Fatal(message)
+	return 0
+}

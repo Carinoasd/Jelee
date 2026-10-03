@@ -210,12 +210,9 @@ func TestNFOCommitCatalogMigration(t *testing.T) {
 	})
 	t.Run("retained_journal", func(t *testing.T) {
 		f, l, p, r := catalogSQLPhaseFixture(t, "plan")
-		top := downgradeAboveMigration(t, f, "nfo_commit_recovery_leases")
-		if _, _, err := Migrate(f.ctx, f.s.Pool.Config().ConnString(), "down"); err == nil {
-			t.Fatal("retained catalog guard downgraded")
-		}
+		top := refuseRetainedDowngrade(t, f, "nfo_commit_recovery_leases", "retained catalog guard downgraded")
 		version, dirty, err := Migrate(f.ctx, f.s.Pool.Config().ConnString(), "status")
-		if err != nil || version != top-1 || !dirty || f.s.Ready(f.ctx) == nil {
+		if err != nil || version != top || !dirty || f.s.Ready(f.ctx) == nil {
 			t.Fatal("retained downgrade did not reject dirty schema")
 		}
 		var token string

@@ -39,6 +39,9 @@ func auditRejected(t *testing.T, err error, what string) {
 	}
 }
 
+// jobFixture exposes the store for migration helpers shared with job tests.
+func (f auditFixture) jobFixture() jobFixture { return jobFixture{ctx: f.ctx, s: f.s} }
+
 func (f auditFixture) count(t *testing.T, where string, args ...any) int {
 	t.Helper()
 	var n int
@@ -337,7 +340,8 @@ func TestAuditMigrationRoundTrip(t *testing.T) {
 		return s
 	}
 	before := snapshot()
-	if v, dirty, err := Migrate(f.ctx, dsn, "down"); err != nil || dirty || v != SchemaVersion-1 {
+	want := downgradeAboveMigration(t, f.jobFixture(), "audit_append_only")
+	if v, dirty, err := Migrate(f.ctx, dsn, "down"); err != nil || dirty || v != want-1 {
 		t.Fatalf("down: %d %t %v", v, dirty, err)
 	}
 	var legacy bool
@@ -367,10 +371,11 @@ func TestAuditMigrationRoundTrip(t *testing.T) {
 		t.Fatal(err)
 	}
 	retained := snapshot()
+	downgradeAboveMigration(t, f.jobFixture(), "audit_append_only")
 	if _, _, err = Migrate(f.ctx, dsn, "down"); err == nil {
 		t.Fatal("downgrade discarded non-UUID audit targets")
 	}
-	if v, dirty, err := Migrate(f.ctx, dsn, "status"); err != nil || v != SchemaVersion-1 || !dirty {
+	if v, dirty, err := Migrate(f.ctx, dsn, "status"); err != nil || v != want-1 || !dirty {
 		t.Fatalf("refused downgrade status: %d %t %v", v, dirty, err)
 	}
 	if snapshot() != retained || f.count(t, `target_ref='audit_retention'`) != 2 {

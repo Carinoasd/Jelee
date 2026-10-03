@@ -473,12 +473,13 @@ func TestItemImageMigrationDownRefusesRetainedImages(t *testing.T) {
 	if err := f.s.PutImageVariant(f.ctx, digest, digest, 1); err != nil {
 		t.Fatal(err)
 	}
-	nfoMigrationDenied(t, f, "000058_item_images.down.sql")
+	want := downgradeAboveMigration(t, f, "item_images")
+	nfoMigrationDenied(t, f, itemImagesMigrationFile(t, "down"))
 	if _, _, err := Migrate(f.ctx, f.s.Pool.Config().ConnString(), "down"); err == nil {
 		t.Fatal("retained item images downgraded")
 	}
 	version, dirty, err := Migrate(f.ctx, f.s.Pool.Config().ConnString(), "status")
-	if err != nil || version != SchemaVersion-1 || !dirty {
+	if err != nil || version != want-1 || !dirty {
 		t.Fatal("refused downgrade lost dirty status", version, dirty, err)
 	}
 	var rows int
@@ -496,7 +497,7 @@ func TestItemImageMigrationRoundTrip(t *testing.T) {
 	}
 	imageRepositoryExec(t, f, `DELETE FROM item_images`)
 	// The variant index is a rebuildable cache and does not block rollback.
-	jobMetricMigration(t, f, "down", SchemaVersion-1)
+	jobMetricMigration(t, f, "down", downgradeAboveMigration(t, f, "item_images")-1)
 	var tables int
 	if err := f.s.Pool.QueryRow(f.ctx, `SELECT count(*) FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
  WHERE n.nspname=current_schema() AND c.relname IN ('item_images','image_variants')`).Scan(&tables); err != nil || tables != 0 {
@@ -607,4 +608,9 @@ func TestItemImageListLibraryRootPaths(t *testing.T) {
 	if _, err := f.s.ListLibraryRootPaths(f.ctx, 0); err != domain.ErrInvalid {
 		t.Fatal("zero limit accepted", err)
 	}
+}
+
+func itemImagesMigrationFile(t *testing.T, direction string) string {
+	t.Helper()
+	return fmt.Sprintf("%06d_item_images.%s.sql", migrationVersion(t, "item_images"), direction)
 }
