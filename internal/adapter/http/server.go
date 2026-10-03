@@ -49,6 +49,7 @@ type Server struct {
 	metricsSlots    chan struct{}
 	images          *app.Images
 	imageSlots      chan struct{}
+	web             *webApp
 }
 
 func New(cfg config.Config, backend Backend, catalog *app.Catalog, resolver media.Resolver, logger *slog.Logger, accounts ...*app.Accounts) (http.Handler, error) {
@@ -106,6 +107,9 @@ func newServer(cfg config.Config, backend Backend, catalog *app.Catalog, resolve
 		return nil, err
 	}
 	s := &Server{cfg: cfg, backend: backend, catalog: catalog, delivery: delivery, logger: logger, trustedProxies: prefixes}
+	if s.web, err = newWebApp(cfg.WebDir); err != nil {
+		return nil, err
+	}
 	if cfg.EnableAccounts {
 		s.metadata = metadata
 	}
@@ -207,7 +211,15 @@ func newServer(cfg config.Config, backend Backend, catalog *app.Catalog, resolve
 			}
 		})
 	}
-	r.NotFound(func(w http.ResponseWriter, r *http.Request) { WriteError(w, r, domain.ErrNotFound) })
+	// The frontend has no routes of its own: a GET or HEAD outside /api that no
+	// API route claims is answered from the web directory when one is set.
+	r.NotFound(func(w http.ResponseWriter, r *http.Request) {
+		if s.web.handles(r) {
+			s.web.serve(w, r)
+			return
+		}
+		WriteError(w, r, domain.ErrNotFound)
+	})
 	r.MethodNotAllowed(func(w http.ResponseWriter, r *http.Request) { WriteError(w, r, media.ErrMethodNotAllowed) })
 	return r, nil
 }
@@ -268,23 +280,54 @@ func (s *Server) boundary(next http.Handler) http.Handler {
 
 func (s *Server) authenticate(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		header := r.Header.Get("Authorization")
-		if !strings.HasPrefix(header, "Bearer ") || len(header) != 50 {
+		// An Authorization header always wins and keeps its exact behavior; the
+		// browser session cookie is consulted only when no header is present.
+		method := authMethod{}
+		if len(r.Header.Values("Authorization")) > 0 {
+			header := r.Header.Get("Authorization")
+			if !strings.HasPrefix(header, "Bearer ") || len(header) != 50 {
+				WriteError(w, r, domain.ErrUnauthenticated)
+				return
+			}
+			method.token = strings.TrimPrefix(header, "Bearer ")
+		} else if cookie, present := sessionCookieToken(r); present {
+			if !validSessionToken(cookie) {
+				clearSessionCookie(w)
+				WriteError(w, r, domain.ErrUnauthenticated)
+				return
+			}
+			method = authMethod{cookie: true, token: cookie}
+		} else {
 			WriteError(w, r, domain.ErrUnauthenticated)
 			return
 		}
 		ctx, cancel := context.WithTimeout(r.Context(), s.cfg.RequestTimeout())
-		p, err := s.backend.Authenticate(ctx, strings.TrimPrefix(header, "Bearer "))
+		p, err := s.backend.Authenticate(ctx, method.token)
 		cancel()
+		if method.cookie && (errors.Is(err, domain.ErrUnauthenticated) || err == nil && p.Kind != access.ClientWeb) {
+			// Only web sessions may ride on a cookie. A native credential in the
+			// cookie is refused exactly like an unknown one, and a stale cookie is
+			// expired so the browser stops sending it.
+			clearSessionCookie(w)
+			WriteError(w, r, domain.ErrUnauthenticated)
+			return
+		}
 		if err != nil {
 			WriteError(w, r, err)
+			return
+		}
+		// Cookies are attached by the browser automatically, so every unsafe
+		// method authenticated by one must prove same-origin intent (G35.1).
+		// Bearer requests carry an explicit credential and need no token.
+		if method.cookie && !safeMethod(r.Method) && !validCSRF(r, method.token) {
+			writeProblem(w, r, 403, "csrf_failed", "Security token is missing or invalid. Reload the page and try again.")
 			return
 		}
 		if app.ValidLocale(p.Locale) {
 			r = r.Clone(r.Context())
 			r.Header.Set("Accept-Language", p.Locale)
 		}
-		next.ServeHTTP(w, r.WithContext(access.WithPrincipal(r.Context(), p)))
+		next.ServeHTTP(w, r.WithContext(withAuthMethod(access.WithPrincipal(r.Context(), p), method)))
 	})
 }
 

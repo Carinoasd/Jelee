@@ -9,6 +9,7 @@ import (
 	"net"
 	"net/url"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -40,6 +41,9 @@ type Config struct {
 	// EnableNFOWrite lets job workers claim nfo_write jobs and run NFO commit
 	// recovery. It is off by default and requires job rollout.
 	EnableNFOWrite bool `json:"enableNFOWrite"`
+	// WebDir is the built single-page frontend (for example web/dist). Empty
+	// disables the frontend; the API is unaffected either way.
+	WebDir string `json:"webDir"`
 }
 
 func Load() (Config, error) { return LoadWith(os.LookupEnv) }
@@ -95,6 +99,9 @@ func LoadWith(lookup func(string) (string, bool)) (Config, error) {
 	}
 	if value, ok := lookup("JELEE_ALLOWED_HOSTS"); ok {
 		c.AllowedHosts = strings.Split(value, ",")
+	}
+	if value, ok := lookup("JELEE_WEB_DIR"); ok {
+		c.WebDir = value
 	}
 	if value, ok := lookup("JELEE_TRUSTED_PROXIES"); ok {
 		c.TrustedProxies = nil
@@ -184,6 +191,9 @@ func (c Config) Validate() error {
 		if h == "" || strings.ContainsAny(h, " /\\@\r\n\t") || h != strings.ToLower(h) {
 			return errors.New("invalid allowedHosts entry")
 		}
+	}
+	if c.WebDir != "" && (!filepath.IsAbs(c.WebDir) || filepath.Clean(c.WebDir) != c.WebDir || strings.ContainsRune(c.WebDir, 0)) {
+		return errors.New("webDir must be a clean absolute path")
 	}
 	if c.MaxConnections < 1 || c.MaxConnections > 128 || c.MaxStreams < 1 || c.MaxStreams > 128 || c.RequestTimeoutSeconds < 1 || c.RequestTimeoutSeconds > 120 {
 		return errors.New("concurrency or timeout is outside the supported range")

@@ -77,7 +77,7 @@ GET /images/Backdrop/{itemID}?index=2&width=1280&tag=<原圖 SHA-256>
 - 交付前（含快取命中、HEAD、304）再查一次該槽，產生圖片的那一列必須仍可見且綁定相同（列 ID、來源類別、root、路徑、URL、內容雜湊）；否則回 404。
 - 該槽完全沒有可用列、或全部不可用時，Primary／index 0 回退到原本「媒體檔旁海報」的行為；其他類型回 404。
 
-`tag`：1–128 位十六進位字元。等於原圖內容 SHA-256（大小寫不拘）時，回應改為 `Cache-Control: private, max-age=31536000, immutable`；不相符則維持 `private, no-cache, must-revalidate`，不會因此拒絕。兩種情況都保留強 ETag、`If-None-Match` 304 與 `Vary: Authorization`。長快取用 `private`：圖片需要登入才能取得，共用快取（代理、CDN）不得保存；只有使用者自己的瀏覽器會保存一年。撤權後，該使用者瀏覽器裡已快取的副本無法收回，這是長快取的取捨。
+`tag`：1–128 位十六進位字元。等於原圖內容 SHA-256（大小寫不拘）時，回應改為 `Cache-Control: private, max-age=31536000, immutable`；不相符則維持 `private, no-cache, must-revalidate`，不會因此拒絕。兩種情況都保留強 ETag、`If-None-Match` 304 與 `Vary: Authorization, Cookie`（網頁端以 Cookie 驗證時同樣按憑證區分快取）。長快取用 `private`：圖片需要登入才能取得，共用快取（代理、CDN）不得保存；只有使用者自己的瀏覽器會保存一年。撤權後，該使用者瀏覽器裡已快取的副本無法收回，這是長快取的取捨。
 
 持久存放區（`JELEE_IMAGE_STORE_ROOT`）：啟動時列出現有媒體庫 root 做重疊檢查（未有媒體庫亦可啟動），之後每個讀取媒體庫檔案的請求再以 `CheckMediaRoot` 檢查該 root，重疊即回 unavailable。查詢順序為記憶體快取 → 存放區變體 → 解碼。變體 key 綁定管線版本、輸出上限、格式、寬高與品質。解碼後：原圖以內容雜湊入庫（已存在則略過）、變體寫入存放區，再 `PutImageVariant` 更新 `image_variants`；命中變體時 `TouchImageVariant`，索引缺列（寫入失敗或存放區重建）則補回。存放區或索引寫入失敗只計數，不影響已驗證的回應。
 

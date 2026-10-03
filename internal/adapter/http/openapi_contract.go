@@ -18,6 +18,7 @@ var errorCodeStatuses = map[string][]int{
 	"authentication_required":   {401},
 	"body_too_large":            {413},
 	"conflict":                  {409},
+	"csrf_failed":               {403},
 	"feature_removed":           {501},
 	"forbidden":                 {403},
 	"ignore_unavailable":        {503},

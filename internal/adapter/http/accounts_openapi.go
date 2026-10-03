@@ -27,6 +27,7 @@ func accountSchemas() map[string]any {
 		create[k] = v
 	}
 	create["password"] = password
+	csrf := map[string]any{"type": "string", "minLength": 43, "maxLength": 43, "description": "Present for web sessions. Send it as the X-Jelee-CSRF header on every POST, PUT, PATCH or DELETE authenticated by the session cookie; it changes when the session is rotated."}
 	return map[string]any{
 		"Login":          objectSchema(map[string]any{"name": stringSchema(128), "password": password, "deviceName": stringSchema(128)}, "name", "password"),
 		"Rotate":         objectSchema(map[string]any{"deviceName": stringSchema(128)}),
@@ -38,7 +39,8 @@ func accountSchemas() map[string]any {
 		"LibraryAccess":  objectSchema(map[string]any{"libraryIds": map[string]any{"type": "array", "items": uuid, "maxItems": 1000, "uniqueItems": true}}, "libraryIds"),
 		"User":           objectSchema(map[string]any{"id": uuid, "name": stringSchema(128), "displayName": stringSchema(128), "locale": locale, "hidden": boolean, "admin": boolean, "disabled": boolean, "createdAt": instant, "deletedAt": instant}, "id", "name", "displayName", "locale", "hidden", "admin", "disabled", "createdAt"),
 		"Session":        objectSchema(map[string]any{"id": uuid, "userId": uuid, "clientKind": map[string]any{"type": "string", "enum": []string{"web", "native"}}, "deviceName": stringSchema(128), "createdAt": instant, "expiresAt": instant, "revokedAt": instant}, "id", "userId", "clientKind", "deviceName", "createdAt", "expiresAt"),
-		"SessionGrant":   objectSchema(map[string]any{"user": schemaRef("User"), "session": schemaRef("Session"), "token": map[string]any{"type": "string", "minLength": 43, "maxLength": 43, "description": "One-time returned opaque bearer credential. Store securely; never log."}}, "user", "session", "token"),
+		"SessionGrant":   objectSchema(map[string]any{"user": schemaRef("User"), "session": schemaRef("Session"), "token": map[string]any{"type": "string", "minLength": 43, "maxLength": 43, "description": "One-time returned opaque bearer credential. Store securely; never log."}, "csrf": csrf}, "user", "session", "token"),
+		"CSRFToken":      objectSchema(map[string]any{"csrf": csrf}, "csrf"),
 		"LibraryGrant":   objectSchema(map[string]any{"libraryId": uuid, "name": map[string]any{"type": "string"}}, "libraryId", "name"),
 		"UserPage":       objectSchema(map[string]any{"users": map[string]any{"type": "array", "maxItems": 100, "items": schemaRef("User")}, "pagination": objectSchema(map[string]any{"nextCursor": map[string]any{"type": "string"}, "limit": map[string]any{"type": "integer", "minimum": 1, "maximum": 100}}, "nextCursor", "limit")}, "users", "pagination"),
 	}
@@ -51,9 +53,10 @@ func accountSpecification(paths map[string]any) {
 		admin                               bool
 	}
 	routes := []route{
-		{"/auth/login", "post", "Password login; issues a web session", "Login", "SessionGrant", "200", false},
-		{"/auth/logout", "post", "Revoke the current session", "Empty", "", "204", false},
-		{"/auth/rotate", "post", "Atomically replace the current token and preserve its client kind", "Rotate", "SessionGrant", "200", false},
+		{"/auth/login", "post", "Password login; issues a web session and sets the HttpOnly __Host-jelee_session cookie", "Login", "SessionGrant", "200", false},
+		{"/auth/logout", "post", "Revoke the current session and expire its browser cookie", "Empty", "", "204", false},
+		{"/auth/rotate", "post", "Atomically replace the current token and preserve its client kind; a web session's cookie and CSRF token move to the replacement", "Rotate", "SessionGrant", "200", false},
+		{"/auth/csrf", "get", "Read the CSRF token of the authenticating session, for example after a page reload", "", "CSRFToken", "200", false},
 		{"/users/me", "get", "Read own account", "", "User", "200", false},
 		{"/users/me/profile", "put", "Replace own profile fields; omitted optional fields reset", "Profile", "User", "200", false},
 		{"/users/me/password", "put", "Verify old password, replace password and revoke all sessions", "PasswordChange", "", "204", false},

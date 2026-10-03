@@ -98,6 +98,7 @@ func leakRouteTable() map[string]leakRoute {
 		"POST /api/v1/auth/login":                         exempt("credential exchange; takes no media identifiers and returns only a session grant"),
 		"POST /api/v1/auth/logout":                        exempt("revokes the caller's own session; carries no media identifiers"),
 		"POST /api/v1/auth/rotate":                        exempt("rotates the caller's own token; carries no media identifiers"),
+		"GET /api/v1/auth/csrf":                           noMedia(noParams, "returns only a token derived from the caller's own credential"),
 		"PUT /api/v1/users/me/profile":                    exempt("mutates the caller's own profile; carries no media identifiers"),
 		"PUT /api/v1/users/me/password":                   exempt("mutates the caller's own password; carries no media identifiers"),
 		"DELETE /api/v1/users/{id}/sessions":              exempt("revokes the caller's own sessions; carries no media identifiers"),

@@ -14,7 +14,7 @@ func TestMetadataRemoveSchemaIndependentOfTMDB(t *testing.T) {
 		t.Fatal("external removal not documented without TMDB key")
 	}
 	op := path["delete"].(map[string]any)
-	if op["requestBody"] != nil || len(op["security"].([]any)) != 1 {
+	if op["requestBody"] != nil || len(op["security"].([]any)) != 2 {
 		t.Fatal("DELETE documented with body or without bearer")
 	}
 	params := op["parameters"].([]any)

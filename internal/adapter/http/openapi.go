@@ -74,7 +74,8 @@ func Specification(cfg config.Config) map[string]any {
 		imageSpecification(paths, cfg)
 	}
 	errorSpecification(paths, schemas)
-	return map[string]any{"openapi": "3.1.0", "info": map[string]any{"title": "Jelee API", "version": "0.1.0-dev", "description": "Experimental foundation. Full feature parity is not yet available."}, "paths": paths, "x-jelee-removed-features": map[string]any{"pathRoots": []string{"/LiveTv", "/Channels", "/Dlna"}, "status": 501, "code": "feature_removed", "description": "All methods and descendant paths return a localized unsupported-feature error; transformation routes retain their 409 guard."}, "components": map[string]any{"schemas": schemas, "securitySchemes": map[string]any{"bearer": map[string]any{"type": "http", "scheme": "bearer"}}}}
+	webSessionSpecification(paths)
+	return map[string]any{"openapi": "3.1.0", "info": map[string]any{"title": "Jelee API", "version": "0.1.0-dev", "description": "Experimental foundation. Full feature parity is not yet available."}, "paths": paths, "x-jelee-removed-features": map[string]any{"pathRoots": []string{"/LiveTv", "/Channels", "/Dlna"}, "status": 501, "code": "feature_removed", "description": "All methods and descendant paths return a localized unsupported-feature error; transformation routes retain their 409 guard."}, "components": map[string]any{"schemas": schemas, "securitySchemes": map[string]any{"bearer": map[string]any{"type": "http", "scheme": "bearer"}, "webSession": webSessionScheme()}}}
 }
 func idParameter() map[string]any {
 	return map[string]any{"name": "id", "in": "path", "required": true, "schema": map[string]any{"type": "string", "format": "uuid"}}
@@ -85,4 +86,21 @@ func operation(summary string, statuses ...string) map[string]any {
 		responses[status] = map[string]any{"description": "HTTP " + status}
 	}
 	return map[string]any{"summary": summary, "responses": responses}
+}
+
+// webSessionScheme documents the browser cookie (G35.1). It is an alternative
+// to bearer on every authenticated operation, accepted for web sessions only.
+func webSessionScheme() map[string]any {
+	return map[string]any{"type": "apiKey", "in": "cookie", "name": sessionCookieName, "description": "Set by login and rotate for web sessions only: HttpOnly, Secure, SameSite=Strict, Path=/, no Domain, Max-Age equal to the session lifetime. Ignored when an Authorization header is present. Native sessions are refused through the cookie. POST, PUT, PATCH and DELETE authenticated by it must send the X-Jelee-CSRF header (from login, rotate or GET /api/v1/auth/csrf); otherwise 403 csrf_failed."}
+}
+
+func webSessionSpecification(paths map[string]any) {
+	for _, item := range paths {
+		for _, raw := range item.(map[string]any) {
+			op := raw.(map[string]any)
+			if _, ok := op["security"]; ok {
+				op["security"] = []any{map[string]any{"bearer": []string{}}, map[string]any{"webSession": []string{}}}
+			}
+		}
+	}
 }

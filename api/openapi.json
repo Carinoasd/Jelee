@@ -17,6 +17,21 @@
         ],
         "type": "object"
       },
+      "CSRFToken": {
+        "additionalProperties": false,
+        "properties": {
+          "csrf": {
+            "description": "Present for web sessions. Send it as the X-Jelee-CSRF header on every POST, PUT, PATCH or DELETE authenticated by the session cookie; it changes when the session is rotated.",
+            "maxLength": 43,
+            "minLength": 43,
+            "type": "string"
+          }
+        },
+        "required": [
+          "csrf"
+        ],
+        "type": "object"
+      },
       "CatalogImportReport": {
         "additionalProperties": false,
         "properties": {
@@ -601,6 +616,7 @@
           "authentication_required",
           "body_too_large",
           "conflict",
+          "csrf_failed",
           "feature_removed",
           "forbidden",
           "ignore_unavailable",
@@ -658,6 +674,9 @@
           ],
           "conflict": [
             "409"
+          ],
+          "csrf_failed": [
+            "403"
           ],
           "feature_removed": [
             "501"
@@ -3929,6 +3948,12 @@
       "SessionGrant": {
         "additionalProperties": false,
         "properties": {
+          "csrf": {
+            "description": "Present for web sessions. Send it as the X-Jelee-CSRF header on every POST, PUT, PATCH or DELETE authenticated by the session cookie; it changes when the session is rotated.",
+            "maxLength": 43,
+            "minLength": 43,
+            "type": "string"
+          },
           "session": {
             "$ref": "#/components/schemas/Session"
           },
@@ -4121,6 +4146,12 @@
       "bearer": {
         "scheme": "bearer",
         "type": "http"
+      },
+      "webSession": {
+        "description": "Set by login and rotate for web sessions only: HttpOnly, Secure, SameSite=Strict, Path=/, no Domain, Max-Age equal to the session lifetime. Ignored when an Authorization header is present. Native sessions are refused through the cookie. POST, PUT, PATCH and DELETE authenticated by it must send the X-Jelee-CSRF header (from login, rotate or GET /api/v1/auth/csrf); otherwise 403 csrf_failed.",
+        "in": "cookie",
+        "name": "__Host-jelee_session",
+        "type": "apiKey"
       }
     }
   },
@@ -4149,6 +4180,140 @@
           }
         },
         "summary": "Inspect service"
+      }
+    },
+    "/api/v1/auth/csrf": {
+      "get": {
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/CSRFToken"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful response; Cache-Control: no-store"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 400"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 401"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 403"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 404"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 409"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 413"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 415"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 429"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 503"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Jelee error envelope with code, message, details and traceId; see the Error schema."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "webSession": []
+          }
+        ],
+        "summary": "Read the CSRF token of the authenticating session, for example after a page reload"
       }
     },
     "/api/v1/auth/login": {
@@ -4285,7 +4450,7 @@
             "description": "Jelee error envelope with code, message, details and traceId; see the Error schema."
           }
         },
-        "summary": "Password login; issues a web session"
+        "summary": "Password login; issues a web session and sets the HttpOnly __Host-jelee_session cookie"
       }
     },
     "/api/v1/auth/logout": {
@@ -4409,9 +4574,12 @@
         "security": [
           {
             "bearer": []
+          },
+          {
+            "webSession": []
           }
         ],
-        "summary": "Revoke the current session"
+        "summary": "Revoke the current session and expire its browser cookie"
       }
     },
     "/api/v1/auth/rotate": {
@@ -4551,9 +4719,12 @@
         "security": [
           {
             "bearer": []
+          },
+          {
+            "webSession": []
           }
         ],
-        "summary": "Atomically replace the current token and preserve its client kind"
+        "summary": "Atomically replace the current token and preserve its client kind; a web session's cookie and CSRF token move to the replacement"
       }
     },
     "/api/v1/items": {
@@ -4635,6 +4806,9 @@
         "security": [
           {
             "bearer": []
+          },
+          {
+            "webSession": []
           }
         ],
         "summary": "List visible video items"
@@ -4687,6 +4861,9 @@
         "security": [
           {
             "bearer": []
+          },
+          {
+            "webSession": []
           }
         ],
         "summary": "Read a visible video item"
@@ -4799,6 +4976,9 @@
         "security": [
           {
             "bearer": []
+          },
+          {
+            "webSession": []
           }
         ],
         "summary": "Read item metadata and field locks (administrator)"
@@ -5496,6 +5676,9 @@
         "security": [
           {
             "bearer": []
+          },
+          {
+            "webSession": []
           }
         ],
         "summary": "Manually update item metadata and locks with revision check (administrator)"
@@ -5630,6 +5813,9 @@
         "security": [
           {
             "bearer": []
+          },
+          {
+            "webSession": []
           }
         ],
         "summary": "Remove stored external (TMDB) metadata from one item (administrator)"
@@ -5779,6 +5965,9 @@
         "security": [
           {
             "bearer": []
+          },
+          {
+            "webSession": []
           }
         ],
         "summary": "Apply confirmed read-only selected NFO fields (administrator)"
@@ -5956,6 +6145,9 @@
         "security": [
           {
             "bearer": []
+          },
+          {
+            "webSession": []
           }
         ],
         "summary": "Apply explicitly confirmed TMDB details while preserving local fields and locks (administrator)"
@@ -6148,6 +6340,9 @@
         "security": [
           {
             "bearer": []
+          },
+          {
+            "webSession": []
           }
         ],
         "summary": "Atomically invalidate item metadata and queue whole-library inventory followed by probing only this item's mapped sources",
@@ -6324,6 +6519,9 @@
         "security": [
           {
             "bearer": []
+          },
+          {
+            "webSession": []
           }
         ],
         "summary": "List retained jobs by UUID cursor",
@@ -6477,6 +6675,9 @@
         "security": [
           {
             "bearer": []
+          },
+          {
+            "webSession": []
           }
         ],
         "summary": "Read job progress; total work and ETA remain unknown",
@@ -6660,6 +6861,9 @@
         "security": [
           {
             "bearer": []
+          },
+          {
+            "webSession": []
           }
         ],
         "summary": "Accept the missing files of a reviewed, complete scan and queue a catalog_sync job that publishes it as the baseline; repeating an accepted decision returns 409",
@@ -6824,6 +7028,9 @@
         "security": [
           {
             "bearer": []
+          },
+          {
+            "webSession": []
           }
         ],
         "summary": "Persist cancellation; running work stops at its next checkpoint or heartbeat",
@@ -6977,6 +7184,9 @@
         "security": [
           {
             "bearer": []
+          },
+          {
+            "webSession": []
           }
         ],
         "summary": "Read durable catalog synchronisation counters without paths",
@@ -7148,6 +7358,9 @@
         "security": [
           {
             "bearer": []
+          },
+          {
+            "webSession": []
           }
         ],
         "summary": "List observed inventory; partial runs never authorize deletion",
@@ -7321,6 +7534,9 @@
         "security": [
           {
             "bearer": []
+          },
+          {
+            "webSession": []
           }
         ],
         "summary": "Import a current accepted video candidate after file verification; identical existing values return the same item without rewriting metadata",
@@ -7474,6 +7690,9 @@
         "security": [
           {
             "bearer": []
+          },
+          {
+            "webSession": []
           }
         ],
         "summary": "Read retained ignore decisions for a terminal job",
@@ -7628,6 +7847,9 @@
         "security": [
           {
             "bearer": []
+          },
+          {
+            "webSession": []
           }
         ],
         "summary": "Read image inventory attribute comparisons",
@@ -7781,6 +8003,9 @@
         "security": [
           {
             "bearer": []
+          },
+          {
+            "webSession": []
           }
         ],
         "summary": "Read bounded durable catalog import progress and completed item IDs",
@@ -7972,6 +8197,9 @@
         "security": [
           {
             "bearer": []
+          },
+          {
+            "webSession": []
           }
         ],
         "summary": "Queue 1 to 100 explicitly selected video candidates from a completed scan; successful entries persist across interruption",
@@ -8126,6 +8354,9 @@
         "security": [
           {
             "bearer": []
+          },
+          {
+            "webSession": []
           }
         ],
         "summary": "Read committed historical NFO counters",
@@ -8279,6 +8510,9 @@
         "security": [
           {
             "bearer": []
+          },
+          {
+            "webSession": []
           }
         ],
         "summary": "Read committed probe counters without paths, tool identities or raw metadata; totals and ETA remain unknown",
@@ -8472,6 +8706,9 @@
         "security": [
           {
             "bearer": []
+          },
+          {
+            "webSession": []
           }
         ],
         "summary": "Create a fresh scan preserving probe scope with current trusted tools; replay never repins or repeats invalidation",
@@ -8634,6 +8871,9 @@
         "security": [
           {
             "bearer": []
+          },
+          {
+            "webSession": []
           }
         ],
         "summary": "List registered libraries without root paths",
@@ -8787,6 +9027,9 @@
         "security": [
           {
             "bearer": []
+          },
+          {
+            "webSession": []
           }
         ],
         "summary": "Read whether successful scans queue catalog synchronisation automatically",
@@ -8978,6 +9221,9 @@
         "security": [
           {
             "bearer": []
+          },
+          {
+            "webSession": []
           }
         ],
         "summary": "Queue synchronisation of the accepted baseline into Movie, Series, Season and Episode items; only high-confidence names create structure",
@@ -9140,6 +9386,9 @@
         "security": [
           {
             "bearer": []
+          },
+          {
+            "webSession": []
           }
         ],
         "summary": "Enable or disable automatic catalog synchronisation after a published scan",
@@ -9311,6 +9560,9 @@
         "security": [
           {
             "bearer": []
+          },
+          {
+            "webSession": []
           }
         ],
         "summary": "List files awaiting manual confirmation because their names were not confident enough",
@@ -9424,6 +9676,9 @@
         "security": [
           {
             "bearer": []
+          },
+          {
+            "webSession": []
           }
         ],
         "summary": "Read library metadata language (administrator)"
@@ -9591,6 +9846,9 @@
         "security": [
           {
             "bearer": []
+          },
+          {
+            "webSession": []
           }
         ],
         "summary": "Update library metadata language with revision check (administrator)"
@@ -9762,6 +10020,9 @@
         "security": [
           {
             "bearer": []
+          },
+          {
+            "webSession": []
           }
         ],
         "summary": "List current NFO cache observations by UUID cursor",
@@ -9945,6 +10206,9 @@
         "security": [
           {
             "bearer": []
+          },
+          {
+            "webSession": []
           }
         ],
         "summary": "Read retained issues for one current observation",
@@ -10099,6 +10363,9 @@
         "security": [
           {
             "bearer": []
+          },
+          {
+            "webSession": []
           }
         ],
         "summary": "Read the library NFO policy",
@@ -10271,6 +10538,9 @@
         "security": [
           {
             "bearer": []
+          },
+          {
+            "webSession": []
           }
         ],
         "summary": "Set NFO mode with expected-generation CAS and retained idempotency",
@@ -10464,6 +10734,9 @@
         "security": [
           {
             "bearer": []
+          },
+          {
+            "webSession": []
           }
         ],
         "summary": "Queue a new NFO-only validation scan without changing the library policy",
@@ -10657,6 +10930,9 @@
         "security": [
           {
             "bearer": []
+          },
+          {
+            "webSession": []
           }
         ],
         "summary": "Atomically invalidate library metadata and queue a scan/probe job; identical replay does not invalidate again",
@@ -10850,6 +11126,9 @@
         "security": [
           {
             "bearer": []
+          },
+          {
+            "webSession": []
           }
         ],
         "summary": "Queue readonly inventory and optional metadata probing; replay is bounded by retained job history",
@@ -11003,6 +11282,9 @@
         "security": [
           {
             "bearer": []
+          },
+          {
+            "webSession": []
           }
         ],
         "summary": "Read a persisted scan schedule",
@@ -11165,6 +11447,9 @@
         "security": [
           {
             "bearer": []
+          },
+          {
+            "webSession": []
           }
         ],
         "summary": "Replace a schedule using its expected revision; interval 60..31536000 seconds or five-field cron with an explicit IANA timezone",
@@ -11358,6 +11643,9 @@
         "security": [
           {
             "bearer": []
+          },
+          {
+            "webSession": []
           }
         ],
         "summary": "Run the currently stored scan options manually without advancing the schedule",
@@ -11511,6 +11799,9 @@
         "security": [
           {
             "bearer": []
+          },
+          {
+            "webSession": []
           }
         ],
         "summary": "Read effective directory observation and retained pending-scan state",
@@ -11646,6 +11937,9 @@
         "security": [
           {
             "bearer": []
+          },
+          {
+            "webSession": []
           }
         ],
         "summary": "Search TMDB movie candidates for administrator confirmation"
@@ -11782,6 +12076,9 @@
         "security": [
           {
             "bearer": []
+          },
+          {
+            "webSession": []
           }
         ],
         "summary": "Preview a TMDB movie candidate (administrator)"
@@ -11905,6 +12202,9 @@
         "security": [
           {
             "bearer": []
+          },
+          {
+            "webSession": []
           }
         ],
         "summary": "List TMDB image candidates for administrator confirmation"
@@ -12039,6 +12339,9 @@
         "security": [
           {
             "bearer": []
+          },
+          {
+            "webSession": []
           }
         ],
         "summary": "Search TMDB series by title and first-air-date year for administrator confirmation"
@@ -12175,6 +12478,9 @@
         "security": [
           {
             "bearer": []
+          },
+          {
+            "webSession": []
           }
         ],
         "summary": "Preview TMDB series data (administrator)"
@@ -12298,6 +12604,9 @@
         "security": [
           {
             "bearer": []
+          },
+          {
+            "webSession": []
           }
         ],
         "summary": "List TMDB image candidates for administrator confirmation"
@@ -12445,6 +12754,9 @@
         "security": [
           {
             "bearer": []
+          },
+          {
+            "webSession": []
           }
         ],
         "summary": "Preview TMDB season or episode data (administrator)"
@@ -12603,6 +12915,9 @@
         "security": [
           {
             "bearer": []
+          },
+          {
+            "webSession": []
           }
         ],
         "summary": "Preview TMDB season or episode data (administrator)"
@@ -12696,6 +13011,9 @@
         "security": [
           {
             "bearer": []
+          },
+          {
+            "webSession": []
           }
         ],
         "summary": "Read the unmodified original resource"
@@ -12767,6 +13085,9 @@
         "security": [
           {
             "bearer": []
+          },
+          {
+            "webSession": []
           }
         ],
         "summary": "Read the unmodified original resource"
@@ -12946,6 +13267,9 @@
         "security": [
           {
             "bearer": []
+          },
+          {
+            "webSession": []
           }
         ],
         "summary": "List accounts, including hidden accounts; cursor pagination",
@@ -13117,6 +13441,9 @@
         "security": [
           {
             "bearer": []
+          },
+          {
+            "webSession": []
           }
         ],
         "summary": "Create account; same actor/key replays original result even if payload differs",
@@ -13249,6 +13576,9 @@
         "security": [
           {
             "bearer": []
+          },
+          {
+            "webSession": []
           }
         ],
         "summary": "Read own account"
@@ -13375,6 +13705,9 @@
         "security": [
           {
             "bearer": []
+          },
+          {
+            "webSession": []
           }
         ],
         "summary": "Verify old password, replace password and revoke all sessions"
@@ -13517,6 +13850,9 @@
         "security": [
           {
             "bearer": []
+          },
+          {
+            "webSession": []
           }
         ],
         "summary": "Replace own profile fields; omitted optional fields reset"
@@ -13643,6 +13979,9 @@
         "security": [
           {
             "bearer": []
+          },
+          {
+            "webSession": []
           }
         ],
         "summary": "Soft delete account and revoke sessions; request body must be empty",
@@ -13784,6 +14123,9 @@
         "security": [
           {
             "bearer": []
+          },
+          {
+            "webSession": []
           }
         ],
         "summary": "Read own account or any account as administrator"
@@ -13935,6 +14277,9 @@
         "security": [
           {
             "bearer": []
+          },
+          {
+            "webSession": []
           }
         ],
         "summary": "Replace account settings; omitted optional fields reset",
@@ -14082,6 +14427,9 @@
         "security": [
           {
             "bearer": []
+          },
+          {
+            "webSession": []
           }
         ],
         "summary": "Read explicit library grants for self or as administrator; max 1000"
@@ -14217,6 +14565,9 @@
         "security": [
           {
             "bearer": []
+          },
+          {
+            "webSession": []
           }
         ],
         "summary": "Atomically replace explicit library grants; empty array removes grants",
@@ -14371,6 +14722,9 @@
         "security": [
           {
             "bearer": []
+          },
+          {
+            "webSession": []
           }
         ],
         "summary": "Restore a soft-deleted account; old sessions stay revoked",
@@ -14498,6 +14852,9 @@
         "security": [
           {
             "bearer": []
+          },
+          {
+            "webSession": []
           }
         ],
         "summary": "Revoke all target sessions; self or administrator; empty body"
@@ -14642,6 +14999,9 @@
         "security": [
           {
             "bearer": []
+          },
+          {
+            "webSession": []
           }
         ],
         "summary": "List active sessions for self or as administrator; over 1000 returns conflict"
@@ -14777,6 +15137,9 @@
         "security": [
           {
             "bearer": []
+          },
+          {
+            "webSession": []
           }
         ],
         "summary": "Revoke target session; self or administrator; empty body"
@@ -14914,6 +15277,9 @@
         "security": [
           {
             "bearer": []
+          },
+          {
+            "webSession": []
           }
         ],
         "summary": "Reset login failure count and lock",
@@ -14942,7 +15308,7 @@
     },
     "/images/{type}/{id}": {
       "get": {
-        "description": "Artwork of one item slot (G40.1), encoded as JPEG without enlargement. The source is chosen per G40.10: a locked image first, then a library file, an NFO reference, a fetched remote image and embedded artwork. Remote images are never fetched while serving a request; one whose bytes are not stored yet is skipped. Without a usable image the Primary slot falls back to the poster next to the media file. Omitting both dimensions selects a 640×640 fit; omitting one leaves that direction unconstrained, subject to the configured output limit. Omitting quality selects the configured default. Source and live access are checked again after rendering, including cache hits and conditional requests. Responses are private and revalidated unless tag equals the SHA-256 of the original image, in which case they are cacheable for a year and immutable; Vary: Authorization still applies. Byte ranges and legacy compatibility parameters are not supported.",
+        "description": "Artwork of one item slot (G40.1), encoded as JPEG without enlargement. The source is chosen per G40.10: a locked image first, then a library file, an NFO reference, a fetched remote image and embedded artwork. Remote images are never fetched while serving a request; one whose bytes are not stored yet is skipped. Without a usable image the Primary slot falls back to the poster next to the media file. Omitting both dimensions selects a 640×640 fit; omitting one leaves that direction unconstrained, subject to the configured output limit. Omitting quality selects the configured default. Source and live access are checked again after rendering, including cache hits and conditional requests. Responses are private and revalidated unless tag equals the SHA-256 of the original image, in which case they are cacheable for a year and immutable; Vary: Authorization, Cookie still applies. Byte ranges and legacy compatibility parameters are not supported.",
         "parameters": [
           {
             "description": "Image type. Fanart is an alias of Backdrop.",
@@ -15192,6 +15558,9 @@
         "security": [
           {
             "bearer": []
+          },
+          {
+            "webSession": []
           }
         ],
         "summary": "Read authorized item artwork",
@@ -15204,7 +15573,7 @@
         }
       },
       "head": {
-        "description": "Artwork of one item slot (G40.1), encoded as JPEG without enlargement. The source is chosen per G40.10: a locked image first, then a library file, an NFO reference, a fetched remote image and embedded artwork. Remote images are never fetched while serving a request; one whose bytes are not stored yet is skipped. Without a usable image the Primary slot falls back to the poster next to the media file. Omitting both dimensions selects a 640×640 fit; omitting one leaves that direction unconstrained, subject to the configured output limit. Omitting quality selects the configured default. Source and live access are checked again after rendering, including cache hits and conditional requests. Responses are private and revalidated unless tag equals the SHA-256 of the original image, in which case they are cacheable for a year and immutable; Vary: Authorization still applies. Byte ranges and legacy compatibility parameters are not supported.",
+        "description": "Artwork of one item slot (G40.1), encoded as JPEG without enlargement. The source is chosen per G40.10: a locked image first, then a library file, an NFO reference, a fetched remote image and embedded artwork. Remote images are never fetched while serving a request; one whose bytes are not stored yet is skipped. Without a usable image the Primary slot falls back to the poster next to the media file. Omitting both dimensions selects a 640×640 fit; omitting one leaves that direction unconstrained, subject to the configured output limit. Omitting quality selects the configured default. Source and live access are checked again after rendering, including cache hits and conditional requests. Responses are private and revalidated unless tag equals the SHA-256 of the original image, in which case they are cacheable for a year and immutable; Vary: Authorization, Cookie still applies. Byte ranges and legacy compatibility parameters are not supported.",
         "parameters": [
           {
             "description": "Image type. Fanart is an alias of Backdrop.",
@@ -15446,6 +15815,9 @@
         "security": [
           {
             "bearer": []
+          },
+          {
+            "webSession": []
           }
         ],
         "summary": "Read authorized item artwork",
@@ -15526,6 +15898,9 @@
         "security": [
           {
             "bearer": []
+          },
+          {
+            "webSession": []
           }
         ],
         "summary": "Read local runtime and database pool metrics",

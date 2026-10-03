@@ -314,7 +314,7 @@ func TestNFOFeatureFlagAndOpenAPIContract(t *testing.T) {
 		{"/libraries/{id}/nfo/current-validations", "get", false}, {"/libraries/{id}/nfo/current-validations/{observationId}/issues", "get", false}, {"/jobs/{id}/nfo", "get", false}, {"/jobs/{id}/images", "get", false},
 	} {
 		op := paths["/api/v1"+r.path].(map[string]any)[r.method].(map[string]any)
-		if op["x-jelee-role"] != "administrator" || len(op["security"].([]any)) != 1 {
+		if op["x-jelee-role"] != "administrator" || len(op["security"].([]any)) != 2 {
 			t.Fatal("missing auth")
 		}
 		found := false

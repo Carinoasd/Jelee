@@ -129,7 +129,7 @@ func TestImagesHTTPRepresentationAndConditionalAuthorization(t *testing.T) {
 			if w.Code != test.status || (w.Body.Len() > 0) != test.body || body.closed.Load() != 1 || lookups != 2 {
 				t.Fatalf("response=%d body=%q close=%d lookups=%d", w.Code, w.Body.String(), body.closed.Load(), lookups)
 			}
-			if w.Header().Get("ETag") != httpImageETag || w.Header().Get("Cache-Control") != "private, no-cache, must-revalidate" || w.Header().Get("Vary") != "Authorization" || w.Header().Get("X-Content-Type-Options") != "nosniff" {
+			if w.Header().Get("ETag") != httpImageETag || w.Header().Get("Cache-Control") != "private, no-cache, must-revalidate" || w.Header().Get("Vary") != "Authorization, Cookie" || w.Header().Get("X-Content-Type-Options") != "nosniff" {
 				t.Fatal("missing private cache or HTTP boundary")
 			}
 			if test.status == 200 && (w.Header().Get("Content-Length") != "20" || w.Header().Get("Content-Type") != "image/jpeg") {

@@ -118,7 +118,7 @@ func (s *Server) image(w http.ResponseWriter, r *http.Request) {
 	} else {
 		w.Header().Set("Cache-Control", "private, no-cache, must-revalidate")
 	}
-	w.Header().Add("Vary", "Authorization")
+	w.Header().Add("Vary", "Authorization, Cookie")
 	if imageNotModified(r.Header.Values("If-None-Match"), result.ETag) {
 		w.WriteHeader(http.StatusNotModified)
 		return

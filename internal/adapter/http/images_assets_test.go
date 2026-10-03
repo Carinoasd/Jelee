@@ -136,7 +136,7 @@ func TestImagesHTTPContentTagSelectsImmutableCaching(t *testing.T) {
 		h.ServeHTTP(w, r)
 		bodyWanted := test.status == 200 && test.method == "GET"
 		if w.Code != test.status || w.Header().Get("Cache-Control") != test.cache || w.Header().Get("ETag") != httpImageETag ||
-			w.Header().Get("Vary") != "Authorization" || (w.Body.Len() > 0) != bodyWanted {
+			w.Header().Get("Vary") != "Authorization, Cookie" || (w.Body.Len() > 0) != bodyWanted {
 			t.Fatalf("%s %s: status=%d cache=%q", test.method, test.query, w.Code, w.Header().Get("Cache-Control"))
 		}
 	}

@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/MoYuanCN/Jelee/internal/access"
@@ -116,7 +117,7 @@ func (s *Server) login(w http.ResponseWriter, r *http.Request) {
 		WriteError(w, r, err)
 		return
 	}
-	writeJSON(w, 200, map[string]any{"data": grant})
+	writeJSON(w, 200, map[string]any{"data": issueWebGrant(w, grant)})
 }
 
 // POST actions without input require an empty JSON object. DELETE actions
@@ -144,7 +145,18 @@ func (s *Server) accountRoutes(r chi.Router) {
 			if err := emptyAccountInput(w, r); err != nil {
 				return nil, 0, err
 			}
-			return nil, 204, s.accounts.Revoke(r.Context(), a, a.UserID, a.SessionID)
+			err := s.accounts.Revoke(r.Context(), a, a.UserID, a.SessionID)
+			if err == nil {
+				clearRevokedSessionCookie(w, r)
+			}
+			return nil, 204, err
+		}))
+		r.Get("/api/v1/auth/csrf", s.accountEndpoint(false, false, func(w http.ResponseWriter, r *http.Request, a domain.Actor) (any, int, error) {
+			method, ok := authMethodFrom(r.Context())
+			if !ok {
+				return nil, 0, domain.ErrUnauthenticated
+			}
+			return map[string]string{"csrf": csrfToken(method.token)}, 200, nil
 		}))
 		r.Post("/api/v1/auth/rotate", s.accountEndpoint(false, false, func(w http.ResponseWriter, r *http.Request, a domain.Actor) (any, int, error) {
 			var input struct {
@@ -154,7 +166,12 @@ func (s *Server) accountRoutes(r chi.Router) {
 				return nil, 0, err
 			}
 			grant, err := s.accounts.Rotate(r.Context(), a, input.DeviceName)
-			return grant, 200, err
+			if err != nil {
+				return nil, 0, err
+			}
+			// The old credential is revoked; a web session moves its cookie to the
+			// replacement in the same response.
+			return issueWebGrant(w, grant), 200, nil
 		}))
 		r.Get("/api/v1/users/me", s.accountEndpoint(false, false, func(w http.ResponseWriter, r *http.Request, a domain.Actor) (any, int, error) {
 			user, err := s.accounts.Get(r.Context(), a, a.UserID)
@@ -193,7 +210,11 @@ func (s *Server) accountRoutes(r chi.Router) {
 				w.Header().Set("Retry-After", strconv.FormatInt(seconds, 10))
 				return nil, 0, errAuthRateLimited
 			}
-			return nil, 204, s.accounts.ChangePassword(r.Context(), a, *input.OldPassword, *input.NewPassword)
+			err := s.accounts.ChangePassword(r.Context(), a, *input.OldPassword, *input.NewPassword)
+			if err == nil {
+				clearRevokedSessionCookie(w, r)
+			}
+			return nil, 204, err
 		}))
 		r.Get("/api/v1/users", s.accountEndpoint(true, true, s.listUsers))
 		r.Post("/api/v1/users", s.accountEndpoint(true, false, s.createUser))
@@ -206,7 +227,12 @@ func (s *Server) accountRoutes(r chi.Router) {
 			if err := emptyAccountInput(w, r); err != nil {
 				return nil, 0, err
 			}
-			return nil, 204, s.accounts.Delete(r.Context(), a, chi.URLParam(r, "id"))
+			id := chi.URLParam(r, "id")
+			err := s.accounts.Delete(r.Context(), a, id)
+			if err == nil && strings.EqualFold(id, a.UserID) {
+				clearRevokedSessionCookie(w, r)
+			}
+			return nil, 204, err
 		}))
 		r.Post("/api/v1/users/{id}/restore", s.accountEndpoint(true, false, func(w http.ResponseWriter, r *http.Request, a domain.Actor) (any, int, error) {
 			if err := emptyAccountInput(w, r); err != nil {
@@ -229,13 +255,23 @@ func (s *Server) accountRoutes(r chi.Router) {
 			if err := emptyAccountInput(w, r); err != nil {
 				return nil, 0, err
 			}
-			return nil, 204, s.accounts.RevokeAll(r.Context(), a, chi.URLParam(r, "id"))
+			id := chi.URLParam(r, "id")
+			err := s.accounts.RevokeAll(r.Context(), a, id)
+			if err == nil && strings.EqualFold(id, a.UserID) {
+				clearRevokedSessionCookie(w, r)
+			}
+			return nil, 204, err
 		}))
 		r.Delete("/api/v1/users/{id}/sessions/{sessionID}", s.accountEndpoint(false, false, func(w http.ResponseWriter, r *http.Request, a domain.Actor) (any, int, error) {
 			if err := emptyAccountInput(w, r); err != nil {
 				return nil, 0, err
 			}
-			return nil, 204, s.accounts.Revoke(r.Context(), a, chi.URLParam(r, "id"), chi.URLParam(r, "sessionID"))
+			id, session := chi.URLParam(r, "id"), chi.URLParam(r, "sessionID")
+			err := s.accounts.Revoke(r.Context(), a, id, session)
+			if err == nil && strings.EqualFold(id, a.UserID) && strings.EqualFold(session, a.SessionID) {
+				clearRevokedSessionCookie(w, r)
+			}
+			return nil, 204, err
 		}))
 		r.Get("/api/v1/users/{id}/libraries", s.accountEndpoint(false, false, func(w http.ResponseWriter, r *http.Request, a domain.Actor) (any, int, error) {
 			libraries, err := s.accounts.Libraries(r.Context(), a, chi.URLParam(r, "id"))

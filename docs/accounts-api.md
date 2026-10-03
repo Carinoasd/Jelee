@@ -4,7 +4,7 @@
 
 ## 请求和响应
 
-- 路由前缀 `/api/v1`；除登录外均要求 `Authorization: Bearer <token>`。
+- 路由前缀 `/api/v1`；除登录外均要求 `Authorization: Bearer <token>`，或（仅 web 会话）登录时下发的 `__Host-jelee_session` Cookie。经 Cookie 认证的 POST/PUT/PATCH/DELETE 必须带 `X-Jelee-CSRF`，否则 `403 csrf_failed`；Bearer 不需要。规则见[安全模型](security-model.md#网页会话-cookie-与-csrfg351)。
 - JSON 请求必须是单一对象，`Content-Type: application/json`，上限 64 KiB。未知字段、null 值、重复键、尾随 JSON、非法 UTF-8、未知或重复查询参数会被拒绝。无参数的 POST 仍发送 `{}`；DELETE 正文必须为空。
 - 成功返回 `{"data": ...}`；无返回值的修改返回 204。错误沿用 `error.code/message/details/traceId`；详情不包含底层错误、SQL、密码或令牌。全部响应 `Cache-Control: no-store`。
 - 名称、显示名、设备名上限均为 128 UTF-8 字节，不允许控制字符。名称不得为空或有首尾空格；数据库名称不区分大小写且唯一。locale 仅支持 `zh-CN/zh-TW/ja-JP/en-US`。
@@ -15,9 +15,10 @@
 
 | 方法与路径 | 权限 | 请求与结果 |
 | --- | --- | --- |
-| POST `/auth/login` | 公开 | `name,password,deviceName?`；返回 user、session、token；只能签发 web 会话 |
-| POST `/auth/logout` | 自己 | `{}`；撤销当前会话 |
-| POST `/auth/rotate` | 自己 | `deviceName?`；原子撤销旧令牌并返回新令牌，保留服务端会话类型 |
+| POST `/auth/login` | 公开 | `name,password,deviceName?`；返回 user、session、token、csrf；只能签发 web 会话，并设置 HttpOnly 会话 Cookie |
+| POST `/auth/logout` | 自己 | `{}`；撤销当前会话；请求携带的会话 Cookie 被清除 |
+| POST `/auth/rotate` | 自己 | `deviceName?`；原子撤销旧令牌并返回新令牌，保留服务端会话类型；web 会话同时替换 Cookie 并返回新 csrf |
+| GET `/auth/csrf` | 自己 | 返回当前凭据对应的 `csrf`，供页面重载后取回 |
 | GET `/users/me` | 自己 | 当前用户资料 |
 | PUT `/users/me/profile` | 自己 | `displayName,locale,hidden`；不能修改角色或密码 |
 | PUT `/users/me/password` | 自己 | `oldPassword,newPassword`；成功后撤销所有会话，需重新登录 |

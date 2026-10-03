@@ -223,7 +223,7 @@ func TestProbeOpenAPIReflectsRoutesStrictInputsAndAdminRole(t *testing.T) {
 	paths := spec["paths"].(map[string]any)
 	for path, method := range map[string]string{"/api/v1/libraries/{id}/probe/rebuild": "post", "/api/v1/items/{id}/probe/rebuild": "post", "/api/v1/jobs/{id}/probe": "get"} {
 		op := paths[path].(map[string]any)[method].(map[string]any)
-		if op["x-jelee-role"] != "administrator" || len(op["security"].([]any)) != 1 {
+		if op["x-jelee-role"] != "administrator" || len(op["security"].([]any)) != 2 {
 			t.Fatal("probe operation has no admin auth declaration")
 		}
 		if method == "post" {

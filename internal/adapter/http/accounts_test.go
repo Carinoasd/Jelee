@@ -654,8 +654,8 @@ func TestAccountHTTPOpenAPIMatchesRoutesAndHasValidRequiredArrays(t *testing.T) 
 					if _, exists := op["security"]; exists {
 						t.Fatal("public login documented as authenticated")
 					}
-				} else if security, ok := op["security"].([]any); !ok || len(security) != 1 {
-					t.Fatal("protected route lacks bearer security")
+				} else if security, ok := op["security"].([]any); !ok || len(security) != 2 {
+					t.Fatal("protected route lacks bearer and web session security")
 				}
 				if method == "delete" {
 					if _, exists := op["requestBody"]; exists {
@@ -667,7 +667,7 @@ func TestAccountHTTPOpenAPIMatchesRoutesAndHasValidRequiredArrays(t *testing.T) 
 		if !reflect.DeepEqual(routerRoutes, documentedRoutes) {
 			t.Fatalf("documented account routes differ: router=%v spec=%v", routerRoutes, documentedRoutes)
 		}
-		if enabled && len(routerRoutes) != 18 || !enabled && len(routerRoutes) != 0 {
+		if enabled && len(routerRoutes) != 19 || !enabled && len(routerRoutes) != 0 {
 			t.Fatalf("unexpected rollout route count %d", len(routerRoutes))
 		}
 		data, err := json.Marshal(spec)
