@@ -7,7 +7,6 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
-	"time"
 	"unicode"
 
 	"github.com/MoYuanCN/Jelee/internal/domain"
@@ -26,8 +25,18 @@ func (t *TMDB) Movie(ctx context.Context, id int32, language string) (domain.Mov
 	if movie, ok := t.movies.get(key, t.now()); ok {
 		return movie, nil
 	}
-	budget, cancel := context.WithTimeout(ctx, 15*time.Second)
-	defer cancel()
+	return t.movieFlights.do(ctx, key, providerBudget, func(budget context.Context) (domain.MovieCandidate, error) {
+		return t.fetchMovie(budget, key)
+	}, func(movie domain.MovieCandidate) { t.movies.put(key, movie) })
+}
+
+func (t *TMDB) fetchMovie(budget context.Context, key movieKey) (domain.MovieCandidate, error) {
+	// A flight that finished between the caller's lookup and this one has
+	// already filled the cache.
+	if movie, ok := t.movies.get(key, t.now()); ok {
+		return movie, nil
+	}
+	id, language := key.id, key.language
 	query := url.Values{"api_key": {t.key}, "language": {language}}
 	r, err := t.providerRequest(budget, "https://api.themoviedb.org/3/movie/"+strconv.FormatInt(int64(id), 10)+"?"+query.Encode(), 1<<20)
 	if err != nil {
@@ -61,7 +70,6 @@ func (t *TMDB) Movie(ctx context.Context, id int32, language string) (domain.Mov
 	if err := budget.Err(); err != nil {
 		return domain.MovieCandidate{}, err
 	}
-	t.movies.put(key, movie)
 	return movie, nil
 }
 

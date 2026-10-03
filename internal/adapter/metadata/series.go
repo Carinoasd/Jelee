@@ -32,8 +32,16 @@ func (t *TMDB) Series(ctx context.Context, id int32, language string) (domain.Se
 	if value, ok := t.series.get(key, t.now()); ok {
 		return value, nil
 	}
-	budget, cancel := context.WithTimeout(ctx, 15*time.Second)
-	defer cancel()
+	return t.seriesFlights.do(ctx, key, providerBudget, func(budget context.Context) (domain.SeriesCandidate, error) {
+		return t.fetchSeries(budget, key)
+	}, func(value domain.SeriesCandidate) { t.series.put(key, value) })
+}
+
+func (t *TMDB) fetchSeries(budget context.Context, key candidateKey) (domain.SeriesCandidate, error) {
+	if value, ok := t.series.get(key, t.now()); ok {
+		return value, nil
+	}
+	id, language := key.id, key.language
 	query := url.Values{"api_key": {t.key}, "language": {language}}
 	r, err := t.providerRequest(budget, "https://api.themoviedb.org/3/tv/"+strconv.FormatInt(int64(id), 10)+"?"+query.Encode(), 1<<20)
 	if err := seriesResponseError(r, err, true); err != nil {
@@ -50,7 +58,6 @@ func (t *TMDB) Series(ctx context.Context, id int32, language string) (domain.Se
 	if err := budget.Err(); err != nil {
 		return domain.SeriesCandidate{}, err
 	}
-	t.series.put(key, value)
 	return value, nil
 }
 

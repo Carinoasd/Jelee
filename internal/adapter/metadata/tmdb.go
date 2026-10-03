@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/MoYuanCN/Jelee/internal/app"
+	"github.com/MoYuanCN/Jelee/internal/domain"
 	"github.com/MoYuanCN/Jelee/internal/platform/outbound"
 )
 
@@ -31,7 +32,18 @@ type TMDB struct {
 	seasons  seasonCache
 	episodes episodeCache
 	images   imageCache
+	external externalCache
+
+	movieFlights    flightGroup[candidateKey, domain.MovieCandidate]
+	seriesFlights   flightGroup[candidateKey, domain.SeriesCandidate]
+	seasonFlights   flightGroup[episodeKey, domain.SeasonCandidate]
+	episodeFlights  flightGroup[episodeKey, domain.EpisodeCandidate]
+	externalFlights flightGroup[externalKey, domain.ExternalIDMatches]
 }
+
+// providerBudget bounds one provider lookup, including governed waits and
+// retries. Coalesced waiters share the same budget.
+const providerBudget = 15 * time.Second
 
 func NewTMDB(key string) (*TMDB, error) {
 	return newTMDB(key, nil)

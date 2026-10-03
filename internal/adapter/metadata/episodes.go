@@ -37,8 +37,21 @@ func (t *TMDB) Season(ctx context.Context, seriesID, seasonNumber int32, languag
 	if value, ok := t.seasons.get(key, t.now()); ok {
 		return cloneSeason(value), nil
 	}
-	budget, cancel := context.WithTimeout(ctx, 15*time.Second)
-	defer cancel()
+	value, err := t.seasonFlights.do(ctx, key, providerBudget, func(budget context.Context) (domain.SeasonCandidate, error) {
+		return t.fetchSeason(budget, key)
+	}, func(value domain.SeasonCandidate) { t.seasons.put(key, cloneSeason(value)) })
+	if err != nil {
+		return domain.SeasonCandidate{}, err
+	}
+	// Every coalesced waiter receives its own episode slice.
+	return cloneSeason(value), nil
+}
+
+func (t *TMDB) fetchSeason(budget context.Context, key episodeKey) (domain.SeasonCandidate, error) {
+	if value, ok := t.seasons.get(key, t.now()); ok {
+		return value, nil
+	}
+	seriesID, seasonNumber, language := key.seriesID, key.seasonNumber, key.language
 	query := url.Values{"api_key": {t.key}, "language": {language}}
 	r, err := t.providerRequest(budget, "https://api.themoviedb.org/3"+seasonPath(seriesID, seasonNumber)+"?"+query.Encode(), 1<<20)
 	if err := seriesResponseError(r, err, true); err != nil {
@@ -78,7 +91,6 @@ func (t *TMDB) Season(ctx context.Context, seriesID, seasonNumber int32, languag
 	if err := budget.Err(); err != nil {
 		return domain.SeasonCandidate{}, err
 	}
-	t.seasons.put(key, cloneSeason(value))
 	return value, nil
 }
 
@@ -93,8 +105,16 @@ func (t *TMDB) Episode(ctx context.Context, seriesID, seasonNumber, episodeNumbe
 	if value, ok := t.episodes.get(key, t.now()); ok {
 		return value, nil
 	}
-	budget, cancel := context.WithTimeout(ctx, 15*time.Second)
-	defer cancel()
+	return t.episodeFlights.do(ctx, key, providerBudget, func(budget context.Context) (domain.EpisodeCandidate, error) {
+		return t.fetchEpisode(budget, key)
+	}, func(value domain.EpisodeCandidate) { t.episodes.put(key, value) })
+}
+
+func (t *TMDB) fetchEpisode(budget context.Context, key episodeKey) (domain.EpisodeCandidate, error) {
+	if value, ok := t.episodes.get(key, t.now()); ok {
+		return value, nil
+	}
+	seriesID, seasonNumber, episodeNumber, language := key.seriesID, key.seasonNumber, key.episodeNumber, key.language
 	query := url.Values{"api_key": {t.key}, "language": {language}}
 	r, err := t.providerRequest(budget, "https://api.themoviedb.org/3"+episodePath(seriesID, seasonNumber, episodeNumber)+"?"+query.Encode(), 1<<20)
 	if err := seriesResponseError(r, err, true); err != nil {
@@ -111,7 +131,6 @@ func (t *TMDB) Episode(ctx context.Context, seriesID, seasonNumber, episodeNumbe
 	if err := budget.Err(); err != nil {
 		return domain.EpisodeCandidate{}, err
 	}
-	t.episodes.put(key, value)
 	return value, nil
 }
 
