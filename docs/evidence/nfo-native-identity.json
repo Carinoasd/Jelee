@@ -1,0 +1,93 @@
+{
+  "sourceBaseCommit": "152d3cbb1091707573e8ef96ebd074f55ae2cc08",
+  "changedSourceManifest": {
+    "internal/adapter/nfo/native_identity_linux.go": "66eed921ffb43f03f9aa3700825350481af13ed5a0f7a5461735304f198189a7",
+    "internal/adapter/nfo/native_identity_other_test.go": "6f1ffbb8fb4136d91001b090e54581587748e848454965e78455077f6084335b",
+    "internal/adapter/nfo/native_identity_other.go": "6bcbd3dce5617426816c40636a1e0caeccce2535fdf955170ba60bba3fbde279",
+    "internal/adapter/nfo/native_identity_process_test.go": "38bf03dbfa0fc7735f7a47dfaa1542d44bdb63706b56e808331bcfe329963728",
+    "internal/adapter/nfo/native_identity_test.go": "e9a14fd02b6d1fea385327fab37dda2b498ad8845fe93f5c8ceaf3d2031ab9e9",
+    "internal/adapter/nfo/native_identity_windows.go": "95aba5d9a17fa0d89b57838f16dea9c842a9ed28c6e5a8fcebc1ed7eb7cd371e",
+    "internal/adapter/nfo/native_identity.go": "3483202847e7a09820586f3ef4928687a198932766b2271c8421ff04fd774a2a"
+  },
+  "scope": "Private native identity observation from held file handles and fixed-size serialization; cross-process owned fixture checks; no production writer or recovery call site",
+  "recordBytes": 48,
+  "version": 1,
+  "windows": {
+    "packagesPassed": 2,
+    "testsPassed": 311,
+    "testsSkipped": 2,
+    "skippedTests": [
+      "TestDirectoryNFODoesNotFollowSymlink",
+      "TestReadFileBoundaryAndOriginalProtection/symlink_escape"
+    ],
+    "failureEvents": 0,
+    "nativePassedTests": [
+      "TestNFONativeIdentityAcrossProcessRenameAndWitness",
+      "TestNFONativeIdentityProcessHelper",
+      "TestNFONativeIdentityRejectsClosedHandle",
+      "TestNFONativeIdentityRejectsPipe",
+      "TestNFONativeIdentityRootReplacement",
+      "TestNFONativeIdentityCodec"
+    ],
+    "logSHA256": "2d11dbbe9140f2f5e52a7b566af702d5a7ece0aeeafc3bc57c9dceaf78cd74c1"
+  },
+  "linuxRace": {
+    "packagesPassed": 2,
+    "testsPassed": 326,
+    "testsSkipped": 1,
+    "skippedTests": [
+      "TestNFOFileLockWindowsCaseAliases"
+    ],
+    "failureEvents": 0,
+    "nativePassedTests": [
+      "TestNFONativeIdentityAcrossProcessRenameAndWitness",
+      "TestNFONativeIdentityProcessHelper",
+      "TestNFONativeIdentityRejectsClosedHandle",
+      "TestNFONativeIdentityRejectsPipe",
+      "TestNFONativeIdentityRootReplacement",
+      "TestNFONativeIdentityCodec"
+    ],
+    "logSHA256": "25950ca650c514e82dddaf1fa552f1e18510cb9674cca59bafab39bbcf45c433"
+  },
+  "windowsIdentity": "64-bit volume, full 128-bit FileIdInfo, native creation FILETIME",
+  "linuxIdentity": "statx AT_EMPTY_PATH; device major/minor, inode, birth timestamp; required TYPE/INO/BTIME mask",
+  "verified": [
+    "serialized_record_reopened_in_child_process",
+    "rename_keeps_identity",
+    "retained_hardlink_keeps_inode_live",
+    "same_bytes_size_mtime_replacement_rejected",
+    "parent_and_root_replacements_rejected",
+    "content_and_mtime_are_separate_from_identity",
+    "nil_closed_pipe_handles_rejected",
+    "unknown_format_and_reserved_bytes_rejected",
+    "full_128_bit_windows_identity_codec",
+    "private_formatting_redacted"
+  ],
+  "helperRootWithoutEnvironmentIsNoOp": true,
+  "unverified": [
+    "inode_or_ID_reuse_after_all_witnesses_removed",
+    "malicious_creation_time_changes",
+    "power_loss",
+    "production_witness_ownership_and_creation",
+    "database_persistence_and_commit_boundary",
+    "settlement_and_recovery",
+    "native_darwin"
+  ],
+  "productionWriterUsesObservation": false,
+  "filesystemWriteAuthorization": false,
+  "automaticRecoveryEnabled": false,
+  "newMigration": false,
+  "requirementsComplete": false,
+  "checks": {
+    "linuxVet": true,
+    "format": true,
+    "darwinAmd64Compiled": true,
+    "publishedSQLFilesUnchanged": 98,
+    "darwinExecuted": false,
+    "brandAllowed": 339,
+    "incrementalBrandViolations": 0,
+    "windowsVet": true,
+    "protectedSourceUnchanged": true,
+    "gitignoreViolations": 0
+  }
+}

@@ -1,3 +1,14 @@
+## 2026-10-03 原生身分觀察已驗，正式24h同handle仍執行
+
+已發布來源152d3cbb1091707573e8ef96ebd074f55ae2cc08，PR46 OPEN。新增私有nfoNativeIdentity／observeNFONativeIdentity及固定48-byte codec；Windows完整FileIdInfo／volume／native creation ticks，Linux held-descriptor statx device／inode／birth，要求TYPE／INO／BTIME回傳mask。其他平台明確拒絕，尚未接Source／DB準備／journal／Writer／worker，不授權FS也不啟用恢復。
+
+owned夾具落檔再啟子程序核對root／parent／NFO、Rename／hardlink、相同bytes／size／mtime替換、目錄替換及內容mtime與原生身分分離；保留hardlink維持原inode活著，不宣稱已證ID重用／惡意creation變更／斷電。nil／closed／pipe、codec版本／長度／保留位／奈秒與Windows完整128位、格式遮蔽已驗。Windows NFO／architecture311PASS／2既有symlink条件skip；Linux race326PASS／1Windows專屬skip，零fail；新原生案例均通過。兩平台vet、Darwin amd64交叉編譯、格式、增量品牌0／339、gitignore／diff通過；Darwin沒有原生執行結果。98份SQL／模組／需求原文／LICENSE保持。安全報告docs/evidence/nfo-native-identity.json，方法docs/nfo-native-identity.md；本批待沿同PR提交推送。
+
+正式24h仍run329073a5d193446383327ab217aba147／PID1026300／startTicks33072456／bootId4a5d9c5c-4482-4c3e-8978-30156b1ce92f，來源24caf7d45f不含後續本批。最後實核身分吻合、container running／OOMfalse；先核同handle，不因timeout重啟。完整品牌兩檢查在152d來源已FAIL，仍保留門禁；其他CI尚未全部terminal，不宣稱全綠。
+
+下一接點是檔案副作用前的持久stage／rollback／owned witness計畫與身分、target Rename前的提交邊界及可驗證結算，再接native鎖／lease／owner join、同實體未解決提交排除及正式read-write准入／worker／三種批次操作。單獨原生ID或bytes相等不足以認定提交。全G00–G51仍7完成／198部分／131阻塞，目標保持；不merge／release／tag／force-push、不改已發布SQL／Git身份設定，原媒體／圖片／授權保持。下方為歷史狀態。
+
+---
 ## 2026-10-03 正式24h已啟，準備資料全域配額測試已驗
 
 smoke dfc8b37f805843b384f26bb72ca22804 已terminal passed：scope smoke、source24caf7d45fb96390689dcc03685033242b7bbfea、兩輪／618採樣，RSS251736064，完整／負載GC門檻通過，soakWorkloadPassed／snapshotVerified／testArtifactsCleaned／launcherArtifactsCleaned全true。安全摘要docs/evidence/image-reclaim-smoke.json。舊正式RSS失敗保持，短測不能當24h。
