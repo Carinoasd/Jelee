@@ -25,3 +25,13 @@ Read Committed 等待後由原容量守衛使用當下資料計算。Repeatable 
 本批不啟用 read-write 政策、capability、公開准入或 worker。下一步仍為提交 journal／恢復保留、租約與媒體實體的提交邊界，再接正式 API／CLI／runtime 寫回。正式24h來源9a74a8932a不含本批。
 
 初始Repeatable Read超量失敗、最終來源SHA256與完整範圍見[安全證據](evidence/nfo-write-quota-fences.json)。歷史schema47報告保持其原測試範圍。
+
+## 後續：準備資料全域邊界
+
+在 schema49 來源 `24caf7d45f` 補上準備資料的全域256列與256MiB獨立矩陣。Read Committed、Repeatable Read、Serializable 各建立兩筆先讀相同容量的交易；第一筆提交後，第二筆因容量或過期快照被拒絕，核對沒有第二筆資料殘留。
+
+列數案例先建立255列，分散到多個 actor，總 bytes 低於單 library 界限，再驗第256列成功、下一列拒絕。bytes 案例將三筆各64MiB payload 分散到獨立 library，先接受另32MiB，再拒絕會超過全域256MiB的32MiB；請求 bytes 也計入總量。actor、library 與列數均低於各自界限，避免其他配額遮蔽全域判定。
+
+真 PostgreSQL race 選測8個通過事件、零跳過／失敗，17.916秒。Windows編譯及條件測試2個根測試通過、6個資料庫子測試跳過，不能計為 Windows 真PG驗證。vet、格式、增量品牌與 gitignore 通過，98份已發布 SQL 內容保持。本次只新增測試，不改 production；schema49先前完整424根回歸與本次選測分開記錄，見[後續安全證據](evidence/nfo-preparation-global-quota.json)。
+
+合成 SQL 夾具只驗邏輯儲存容量，沒有 Writer 來源鏈或檔案授權。三種正式批次操作、持久原生身分、提交／恢復與公開准入仍未完成。

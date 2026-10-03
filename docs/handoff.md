@@ -1,3 +1,23 @@
+## 2026-10-03 正式24h已啟，準備資料全域配額測試已驗
+
+smoke dfc8b37f805843b384f26bb72ca22804 已terminal passed：scope smoke、source24caf7d45fb96390689dcc03685033242b7bbfea、兩輪／618採樣，RSS251736064，完整／負載GC門檻通過，soakWorkloadPassed／snapshotVerified／testArtifactsCleaned／launcherArtifactsCleaned全true。安全摘要docs/evidence/image-reclaim-smoke.json。舊正式RSS失敗保持，短測不能當24h。
+
+同HEAD已啟正式run329073a5d193446383327ab217aba147，PID1026300／startTicks33072456／bootId4a5d9c5c-4482-4c3e-8978-30156b1ce92f；開始UTC2026-10-03T07:06:08.369636+00:00，sourceTree852be378e999cbc820c4658ab7c51403eb7dc52c。啟動後實核程序身分吻合，status workload。私有evidence .testdata/soak-launch-329073a5d193446383327ab217aba147，active registry .testdata/images-soak-active.json；先核同handle，不因觀察timeout重啟。正式來源為24caf，後續測試／文件不在凍結來源內。暫留HEAD限制已解除，可提交本批。
+
+新增nfo_preparation_global_quota_test.go，準備資料全域256列／256MiB於Read Committed／Repeatable Read／Serializable各兩交易快照驗第一个成功、第二个拒絕且無部分資料。actor／library／其他全域界限均未遮蔽拒絕；SQL合成資料只驗儲存，不授權FS或Writer。真PG race8PASS／零skipfail／17.916秒；Windows2根PASS／6資料庫子測試skip，vet／格式／增量品牌0／339／gitignore通過，98份SQL保持。安全證據docs/evidence/nfo-preparation-global-quota.json；本批僅新增測試，未重新跑完整PG，先前schema49全424根回歸分開記錄。
+
+接續沿既有分支與PR46提交推送本批，再做原生NFO持久身分／staging／rollback／提交與恢復、政策及capability准入／worker／API／CLI與三種完整批次操作。全G00–G51仍7完成／198部分／131阻塞，不宣稱完成。不merge／release／tag／force-push，不改已發布SQL／Git身份設定，原媒體／圖片／授權與品牌門禁保持。下方是歷史狀態。
+
+---
+## 2026-10-03 活躍smoke：大圖回收來源24caf7d45f，暫留HEAD
+
+回收修復已提交推送24caf7d45fb96390689dcc03685033242b7bbfea，PR46遠端HEAD吻合、OPEN；所有隔離與回歸本批handle已terminal。新完整600秒smoke run dfc8b37f805843b384f26bb72ca22804 已啟動，PID1001850/startTicks32997981/bootId4a5d9c5c-4482-4c3e-8978-30156b1ce92f，開始UTC2026-10-03T06:53:43.620276+00:00，sourceTree852be378e999cbc820c4658ab7c51403eb7dc52c。最後實核身分完全吻合，stage workload、container running/OOMfalse；尚無通過結論，先核同handle，不因觀察timeout重啟。
+
+私有evidence .testdata/soak-launch-dfc8b37f805843b384f26bb72ca22804，snapshot /var/tmp/jelee-soak-snapshot-dfc8b37f805843b384f26bb72ca22804；active registry .testdata/images-soak-active.json。此來源包含schema49與大圖按壓力回收，舊9a74正式RSS失敗保留，不能將舊結果歸新來源。
+
+暫勿提交本段待存交接或其他工作，需保持matching smoke的HEAD。若smoke完整passed、soakWorkloadPassed/snapshotVerified/testArtifactsCleaned/launcherArtifactsCleaned皆true，先同HEAD啟正式24h並實核新handle，再提交待存交接與繼續全G00–G51。若failed先讀memorySummary.samplerFailure/collectorFailureCode及failedRound，定位根因，門檻不改。不merge，全案7完成/198部分/131阻塞。
+
+---
 ## 2026-10-03 大圖resident回收候選修復已驗，待發布與新smoke
 
 已發布HEADaaee979084dcf35931047a336e0b16c788675820，PR46 OPEN。舊正式9a0c8d956e3f4fbea9e844e3fc59bc26為terminal RSS失敗，沒有存活正式24h，不重啟舊run。此輪先隔離根因：圖片adapter原版相同64大PNG16+36PNG+900JPEG／兩worker／GOGC100／512MiB，1198張後RSS498192384超464MiB；GC後heap342720但RSS498786304，再FreeOSMemory降8724480，profile前主要兩80MiB PNG解碼，後已消失。不是持續存活快取的證據。
