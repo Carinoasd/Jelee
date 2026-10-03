@@ -70,7 +70,7 @@ func (s *Store) ClaimJobWithCapabilities(ctx context.Context, owner string, pref
 	if _, err = releaseExpiredProbeLeases(ctx, tx, domain.ProbeSweepMax); err != nil {
 		return domain.JobLease{}, err
 	}
-	_, err = tx.Exec(ctx, `UPDATE jobs SET state=CASE WHEN cancel_requested THEN 'cancelled' WHEN attempts>=max_attempts THEN 'failed' ELSE 'queued' END,error_code=CASE WHEN NOT cancel_requested AND attempts>=max_attempts THEN 'job_attempts_exhausted' ELSE '' END,finished_at=CASE WHEN cancel_requested OR attempts>=max_attempts THEN clock_timestamp() ELSE NULL END,owner=NULL,lease_until=NULL WHERE state='running' AND lease_until<=clock_timestamp()`)
+	_, err = tx.Exec(ctx, `UPDATE jobs SET state=CASE WHEN cancel_requested THEN 'cancelled' WHEN attempts>=max_attempts THEN 'failed' ELSE 'queued' END,error_code=CASE WHEN NOT cancel_requested AND attempts>=max_attempts THEN 'job_attempts_exhausted' ELSE '' END,finished_at=CASE WHEN cancel_requested OR attempts>=max_attempts THEN clock_timestamp() ELSE NULL END,owner=NULL,lease_until=NULL WHERE state='running' AND lease_until<=clock_timestamp() AND kind IN ('inventory_scan','catalog_import')`)
 	if err != nil {
 		return domain.JobLease{}, storageError(err)
 	}
@@ -389,6 +389,9 @@ func (s *Store) FinishJob(ctx context.Context, l domain.JobLease, state, code st
 	if l.Job.Kind == domain.JobCatalogImport {
 		return s.FinishCatalogImport(ctx, l, state, code)
 	}
+	if l.Job.Kind == domain.JobNFOWrite {
+		return domain.ErrInvalid
+	}
 
 	if !validJobError(state, code) {
 		return domain.ErrInvalid
@@ -401,6 +404,9 @@ func (s *Store) FinishJob(ctx context.Context, l domain.JobLease, state, code st
 	current, err := fencedJob(ctx, tx, l)
 	if err != nil {
 		return err
+	}
+	if current.Job.Kind != "inventory_scan" {
+		return domain.ErrInvalid
 	}
 	epoch, currentEpoch, err := inventoryEpoch(ctx, tx, current)
 	if err != nil {

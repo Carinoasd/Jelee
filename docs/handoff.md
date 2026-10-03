@@ -1,3 +1,18 @@
+## 2026-10-03 接續：schema47 NFO 工作所屬意圖與固定統計已驗證
+
+81629dc172979386e086ce7dea36eb65a233cf72已推PR46。本批schema47新增nfo_write種類及requests/entries持久契約，每批1–100，從schema46同actor/library/generation且未到期準備列複製完整請求/原文/固定輸出/UUID，與job生命週期綁定，不受準備TTL清理影響；歷史preparedId無外鍵。payload沿用schema46大小/雜湊/請求綁定CHECK，requests/entries不可改，deferred trigger要求工作種類/library與完整連續批次，不允許缺request、部分批次、單筆刪除或改kind。全域1024列/512MiB與每job128MiB SQL配額；全域兩界限尚未獨立跑边界矩陣。
+
+GetNFOWriteTask只提供私有資料觀察，核真實running kind、owner/generation/expiry、取消與活躍admin actor，保留user讀鎖，讀完再核lease，失敗無部分bytes。旧Claim仍不支持新種類，expired回收SQL改只處理inventory_scan/catalog_import；通用Finish拒真實nfo_write，即使傳入Kind偽裝。公開准入、library read-write政策、worker與journal/恢復仍未接入，不能把觀察port當提交授權。
+
+schema47固定metrics六組/156桶/163儲存列，exporter位圖擴uint32綁完整18outcomes；原epoch及兩原kind累計保持。47→46任何新kind工作/意圖/統計樣本保留均拒，dirty目標46且Ready拒絕；空新kind才移除零值列。92份已發布SQL保持。
+
+Windows domain/app/postgres/nfo/telemetry/jobs/runtime/architecture8套件1377通過事件/659條件跳過；vet通過。Linux telemetry/architecture/jobs race通過。真PG準備/工作/metrics/全migration選測及最後重驗合計115通過/零跳過失敗；runtime真PG metrics HTTP另1通過/零跳過。首輪Windows發現旧四組位圖/SDK計數未擴，已修正；首輪PG唯一舊總列數109斷言改163後重验该案與全部新NFOjob案。測試包括準備清理及reopen後固定bytes/UUID、工作資料到原生Writer、租約/取消/actor私有輸出拒絕、舊worker不claim/recover、不可變/部分批次、128MiB容量整批回滾、epoch保持與歷史清理後樣本拒降版。docs/nfo-write-jobs.md及docs/evidence/nfo-write-jobs.json、nfo-write-jobs-race-linux.txt記錄組合範圍，不當完整PG套件重跑。
+
+全案仍7完成/198部分/131阻塞；G39.14三種完整批次操作仍缺。下一步正式提交journal/恢復保留、generation/revision/媒體/root/檔案實體与lease提交邊界、read-write政策與capability准入、API/CLI/runtime共用budget worker、來源缺NFO建立/全欄位/批次操作。啟用前須阻止history trim清除未完成提交或待恢復意圖，不能以bytes相等推断已提交，也不能只放寬mode或claim capability。全域配額邊界與完整PG regression仍待後續擴驗。
+
+正式24h同run9a0c8d956e3f4fbea9e844e3fc59bc26/PID788902/start31680373/boot4a5d9c5c-4482-4c3e-8978-30156b1ce92f本回合實核吻合，容器running/OOMfalse；source9a74a8932a不含後續NFO，先核同handle、不重啟。完整品牌殘留保持門禁；禁止merge/release/tag/force-push、Git身份設定變更及改已發布SQL；原媒體/圖片/授權保持。
+
+---
 ## 2026-10-03 接續：持久 NFO 準備資料已接受控 Writer
 
 28e12e1c490d8eda8398efcbdc1eb9f8298358d8已推PR46。本批Writer.ReplacePrepared消費schema46受信任持久準備資料與當下ReadSource，要求共用budget，重核路徑/maxBytes/完整stamp/原文bytes，依保存recipe重建受控修改來源。原文無ID時只用固定輸出的唯一jelee UUID v4，不重新random；原文手工ID保持。重建bytes必須與保存輸出完全相同，任意XML、未知標籤/註解/手工ID改動拒絕。

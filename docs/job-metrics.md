@@ -17,7 +17,9 @@ schema45 保存工作結果、首次等待時間與工作耗時，清理舊工�
 
 同 ID 釋放後重新 claim 只保留一個首次等待樣本。產品 Retry 會建立新工作，獨立計數；同 key 重送仍沿用既有工作。從未開始就取消的工作只有取消計數；曾開始、重排後取消的工作仍有耗時。`review_required` 的成功掃描照成功計算。時間差使用資料庫微秒，遇到時鐘倒退取零。
 
-統計只使用兩種 kind（inventory_scan、catalog_import）及兩種 priority（manual、background）。固定一列 epoch、四列累計、104 列分桶，共 109 列；不保存逐工作指標事件，不包含帳戶、路徑、媒體庫、owner 或連線資訊。
+schema47統計使用三種kind（inventory_scan、catalog_import、nfo_write）及兩種priority（manual、background）。固定一列epoch、六列累計、156列分桶，共163列；不保存逐工作指標事件，不包含帳戶、路徑、媒體庫、owner或連線資訊。nfo_write資料契約已接統計，正式准入與worker尚未啟用。
+
+schema47只新增新kind的零值列，不重置schema45建立的epoch或既有kind數值。保留新kind工作/意圖或任一統計樣本時拒47→46降版；空新kind才移除其零值列。驗證與工作生命週期限制見[NFO任務契約](nfo-write-jobs.md)。下方既有schema45驗證數字按原來源保留。
 
 ## 等待與耗時分布
 

@@ -20,7 +20,7 @@ func TestJobMetricsIntegrationFixedStorage(t *testing.T) {
 	if err != nil {
 		t.Fatal("durable job metrics schema unavailable:", err)
 	}
-	if epoch != 1 || totals != 4 || buckets != 104 {
+	if epoch != 1 || totals != 6 || buckets != 156 {
 		t.Fatalf("fixed metric rows: epoch=%d totals=%d buckets=%d", epoch, totals, buckets)
 	}
 }
@@ -63,10 +63,10 @@ func jobMetricMigrationZero(t *testing.T, f jobFixture) {
 	var valid bool
 	err := f.s.Pool.QueryRow(f.ctx, `SELECT
 	 (SELECT count(*)=1 AND bool_and(singleton AND isfinite(started_at)) FROM job_metric_epoch)
-	 AND (SELECT count(*)=4 AND bool_and(succeeded_total=0 AND failed_total=0 AND cancelled_total=0
+	 AND (SELECT count(*)=(SELECT CASE WHEN version>=47 THEN 6 ELSE 4 END FROM schema_migrations) AND bool_and(succeeded_total=0 AND failed_total=0 AND cancelled_total=0
 	  AND wait_count=0 AND wait_sum_microseconds=0 AND duration_count=0 AND duration_sum_microseconds=0)
 	  FROM job_metric_totals)
-	 AND (SELECT count(*)=104 AND bool_and(bucket_count=0) FROM job_metric_buckets)`).Scan(&valid)
+	 AND (SELECT count(*)=(SELECT CASE WHEN version>=47 THEN 156 ELSE 104 END FROM schema_migrations) AND bool_and(bucket_count=0) FROM job_metric_buckets)`).Scan(&valid)
 	if err != nil || !valid {
 		t.Fatalf("migration did not establish an empty finite epoch: valid=%t error=%v", valid, err)
 	}
@@ -82,6 +82,7 @@ func jobMetricMigrationRejected(t *testing.T, err error) {
 
 func TestJobMetricsMigrationEmptyRoundTrip(t *testing.T) {
 	f := newJobFixture(t)
+	jobMetricMigration(t, f, "down", 46)
 	jobMetricMigration(t, f, "down", 45)
 	jobMetricMigrationZero(t, f)
 	jobMetricMigration(t, f, "down", 44)
@@ -100,6 +101,7 @@ func TestJobMetricsMigrationEmptyRoundTrip(t *testing.T) {
 
 func TestJobMetricsMigrationExistingJobsStartAtNewEpoch(t *testing.T) {
 	f := newJobFixture(t)
+	jobMetricMigration(t, f, "down", 46)
 	jobMetricMigration(t, f, "down", 45)
 	jobMetricMigration(t, f, "down", 44)
 	terminal := f.submit(t, "pre-metrics-terminal")
@@ -153,6 +155,7 @@ func TestJobMetricsMigrationExistingJobsStartAtNewEpoch(t *testing.T) {
 
 func TestJobMetricsMigrationRetainedSamplesRefuseDowngrade(t *testing.T) {
 	f := newJobFixture(t)
+	jobMetricMigration(t, f, "down", 46)
 	jobMetricMigration(t, f, "down", 45)
 	j := f.submit(t, "retained-metrics")
 	if _, err := f.s.CancelJob(f.ctx, f.a, j.ID); err != nil {

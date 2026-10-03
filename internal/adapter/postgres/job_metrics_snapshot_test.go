@@ -167,7 +167,7 @@ func TestJobMetricsIntegrationHistogramBoundaries(t *testing.T) {
 		t.Fatal("terminal samples disagree", g)
 	}
 	var count int
-	if err := f.s.Pool.QueryRow(f.ctx, `SELECT (SELECT count(*) FROM job_metric_epoch)+(SELECT count(*) FROM job_metric_totals)+(SELECT count(*) FROM job_metric_buckets)`).Scan(&count); err != nil || count != 109 {
+	if err := f.s.Pool.QueryRow(f.ctx, `SELECT (SELECT count(*) FROM job_metric_epoch)+(SELECT count(*) FROM job_metric_totals)+(SELECT count(*) FROM job_metric_buckets)`).Scan(&count); err != nil || count != 163 {
 		t.Fatal("metric storage grew with job history", count, err)
 	}
 	// Independently re-read; an observation must not add histogram samples.
@@ -232,6 +232,12 @@ func TestJobMetricsIntegrationKindsAndPriorities(t *testing.T) {
 		}
 	}
 	for _, g := range metricsSnapshot(t, f).Groups {
+		if g.Kind == "nfo_write" {
+			if g.Cancelled != 0 || g.Duration.Count != 0 || g.Wait.Count != 0 {
+				t.Fatal("legacy jobs changed write metrics", g)
+			}
+			continue
+		}
 		if g.Cancelled != 1 || g.Duration.Count != 0 || g.Wait.Count != 0 {
 			t.Fatal("fixed dimension missed a group", g)
 		}

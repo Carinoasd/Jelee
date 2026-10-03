@@ -42,9 +42,9 @@
 | `jelee_jobs_shared_initial_wait_seconds` | histogram | 提交至首次開始的等待時間 |
 | `jelee_jobs_shared_duration_seconds` | histogram | 首次開始至終態的耗時，包含重排間隔 |
 
-固定 labels 為 `kind`（catalog_import／inventory_scan）、`priority`（background／manual）；outcomes 另有 `outcome`（succeeded／failed／cancelled）。所有零值組合也會輸出。Histogram 的上界與計數語意見[持久工作統計](job-metrics.md)。OTel 接收互斥桶並標記 cumulative；官方 exporter 轉成 Prometheus 累積 le 桶。
+固定 labels 為 `kind`（catalog_import／inventory_scan／nfo_write）、`priority`（background／manual）；outcomes 另有 `outcome`（succeeded／failed／cancelled）。所有零值組合也會輸出。Histogram 的上界與計數語意見[持久工作統計](job-metrics.md)。OTel 接收互斥桶並標記 cumulative；官方 exporter 轉成 Prometheus 累積 le 桶。
 
-工作指標新增 148 個 series，連同本機指標共 22 個 families／163 個 series，classic exposition 上限測試為 64 KiB。沒有 job、媒體庫、使用者、路徑、owner、DSN 或 schema labels。OTel counter／histogram 的 StartTime 使用資料庫 epoch；目前 classic exporter 不輸出 `_created`，不能從文字端點讀取該 epoch。
+schema47工作指標固定222個series，連同本機指標共22個families／237個series，classic exposition上限測試維持64KiB。另有八個資源gauge，包含資源的端點共30個families。沒有job、媒體庫、使用者、路徑、owner、DSN或schema labels。OTel counter／histogram的StartTime使用資料庫epoch；目前classic exporter不輸出`_created`，不能從文字端點讀取該epoch。nfo_write正式准入與worker仍未啟用，驗證見[任務資料契約](nfo-write-jobs.md)。
 
 同一資料庫的多個服務副本共享工作累計，不能把副本數值相加。部署時優先選一個收集目標；若需多目標，先以部署端設定的有限 cluster 維度去重，再計算速率，histogram 的 bucket／sum／count 需使用相同選擇規則。不同副本的抓取時間不同，跨副本取 max 也不等於單一資料庫快照。程序重啟或清理工作歷史不使累計歸零；資料庫還原造成的下降照實輸出，由監控端處理 counter reset。
 

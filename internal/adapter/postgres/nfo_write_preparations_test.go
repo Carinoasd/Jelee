@@ -278,6 +278,7 @@ func TestNFOWritePreparationLibraryByteCapacity(t *testing.T) {
 func TestNFOWritePreparationMigrationEmptyRoundTripAndRetainedRefusal(t *testing.T) {
 	t.Run("empty", func(t *testing.T) {
 		f := newJobFixture(t)
+		jobMetricMigration(t, f, "down", 46)
 		jobMetricMigration(t, f, "down", 45)
 		jobMetricMigration(t, f, "up", SchemaVersion)
 		if err := f.s.Ready(f.ctx); err != nil {
@@ -290,6 +291,7 @@ func TestNFOWritePreparationMigrationEmptyRoundTripAndRetainedRefusal(t *testing
 		if err != nil {
 			t.Fatal("prepare retained output")
 		}
+		jobMetricMigration(t, f, "down", 46)
 		if _, _, err := Migrate(f.ctx, f.s.Pool.Config().ConnString(), "down"); err == nil {
 			t.Fatal("downgrade discarded prepared output")
 		}
