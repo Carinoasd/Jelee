@@ -11,6 +11,7 @@ import (
 
 	"github.com/MoYuanCN/Jelee/internal/platform/legacyignore"
 	"github.com/MoYuanCN/Jelee/internal/platform/process"
+	"github.com/MoYuanCN/Jelee/internal/platform/scratch"
 )
 
 type familyIgnoreEvaluator interface {
@@ -65,7 +66,7 @@ func prepareProductionFamilyIgnore(ctx context.Context) (preparedFamilyIgnore, e
 	if goruntime.GOOS != "linux" && goruntime.GOOS != "windows" {
 		return preparedFamilyIgnore{}, process.ErrIgnoreUnavailable
 	}
-	directory, err := os.MkdirTemp("", "jelee-service-ignore-")
+	directory, err := scratch.MkdirOwned("", scratch.ServiceIgnore)
 	if err != nil {
 		return preparedFamilyIgnore{}, process.ErrStart
 	}

@@ -2,10 +2,8 @@ package images
 
 import (
 	"context"
-	"crypto/rand"
 	"crypto/sha256"
 	"encoding/binary"
-	"encoding/hex"
 	"errors"
 	"hash"
 	"io"
@@ -21,6 +19,7 @@ import (
 
 	"github.com/MoYuanCN/Jelee/internal/adapter/probe"
 	"github.com/MoYuanCN/Jelee/internal/domain"
+	"github.com/MoYuanCN/Jelee/internal/platform/scratch"
 )
 
 // Only fixed-size scratch buffers are retained; decoded images and cache data
@@ -98,11 +97,12 @@ func stageLocalPrimary(ctx context.Context, source domain.LocalImageSource, temp
 	if err != nil || !sameImageFile(observed.image, info) {
 		return nil, imageSourceError(ctx, err)
 	}
-	var nonce [16]byte
-	if _, err := rand.Read(nonce[:]); err != nil {
+	// The owner-tagged name lets a later startup sweep remove crash leftovers.
+	name, err := scratch.ImageStage.NewName()
+	if err != nil {
 		return nil, domain.ErrImageUnavailable
 	}
-	staged.name = "image-" + hex.EncodeToString(nonce[:]) + ".partial"
+	staged.name = name
 	writer, err := temp.OpenFile(staged.name, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0600)
 	if err != nil {
 		staged.name = "" // An existing file is never owned by this invocation.

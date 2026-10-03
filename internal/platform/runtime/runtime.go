@@ -27,6 +27,7 @@ import (
 )
 
 func New(cfg config.Config, logger *slog.Logger) *fx.App {
+	sweepStartupTemporaries(context.Background(), cfg, logger)
 	return newWithLifetime(cfg, logger, newLifetime(logger))
 }
 

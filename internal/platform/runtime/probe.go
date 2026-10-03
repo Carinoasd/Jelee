@@ -15,6 +15,7 @@ import (
 	"github.com/MoYuanCN/Jelee/internal/domain"
 	"github.com/MoYuanCN/Jelee/internal/platform/proberuntime"
 	"github.com/MoYuanCN/Jelee/internal/platform/process"
+	"github.com/MoYuanCN/Jelee/internal/platform/scratch"
 )
 
 type probeMaintenance interface {
@@ -104,7 +105,7 @@ func prepareProductionProbe(ctx context.Context) (preparedProbe, string, error) 
 	if health := proberuntime.Diagnose(ctx); health.Capability != "available" {
 		return preparedProbe{}, "health_check_failed", domain.ErrProbeRuntimeUnavailable
 	}
-	directory, err := os.MkdirTemp("", "jelee-service-probe-")
+	directory, err := scratch.MkdirOwned("", scratch.ServiceProbe)
 	if err != nil {
 		return preparedProbe{}, "temporary_unavailable", domain.ErrProbeRuntimeUnavailable
 	}

@@ -7,6 +7,7 @@ import (
 	"runtime"
 
 	"github.com/MoYuanCN/Jelee/internal/platform/process"
+	"github.com/MoYuanCN/Jelee/internal/platform/scratch"
 	"github.com/MoYuanCN/Jelee/tools"
 )
 
@@ -49,7 +50,7 @@ func diagnose(ctx context.Context, platform string, factory func(context.Context
 		diagnosticContext(&result, err)
 		return
 	}
-	dir, err := os.MkdirTemp("", "jelee-probe-check-")
+	dir, err := scratch.MkdirOwned("", scratch.ProbeCheck)
 	if err != nil {
 		result.Reason = "temporary_unavailable"
 		return
