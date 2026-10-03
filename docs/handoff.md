@@ -1,3 +1,11 @@
+## 最新接續：原生目錄監看建置／重建／根檢查已接共用 I/O
+
+scan.WatchOptions.Budget由runtime同fx實例注入。build取得I/O至建置/錯誤清理返回，Observe常駐Poll不持配額；health checkRoots另短期取得。queuefull由既有watch goroutine250ms重試，可ctx取消。新增queue0/1取消與buildlimit回收測試；真RebuildIncludesNewChildren加入budget記錄，dirtycallback配額0、rebuild至少再次取得。
+
+Windowsscan/runtime/architecture+vet通過；Linuxrace與真PG runtime window/watch通過，證據docs/shared-work-budget.md/resources-watch-*。下一步查索引/metadata下載其他操作是否受限，並补資源指標、全模組混合壓測、不同核數配置調校；G41.3/G13.5仍部分，勿因已接幾種consumer關閉需求。
+
+正式af2530314062427bb16da7d2f11961b4/PID726258/start31439656/boot4a5d9c5c-4482-4c3e-8978-30156b1ce92f source38a47082e9繼續；先核handle，不重啟。該source不含後續probe/images/ignore/watch配額。CI目前f00661198f品牌兩fail、多數功能仍pending，尚無全綠結論。PR46禁止merge。
+
 ## 最新接續：忽略基線與三種複核接入共用 I/O
 
 withJobIO泛型helper只包同步observer，普通EvaluateIgnoreBaseline用aggregate wrapper保留decision+proofs。普通Reobserve、family批次/逐筆Evaluate、verifyFamilyStream的observe皆接入。批次釋放後才fallback，observe釋放後才commit，不巢狀。family baseline六種矩陣加入真budget，verification成功/error/cancel驗證不誤提交與回收；Windowsjobs/architecture+vet、Linuxrace通過，docs/shared-work-budget.md/resources-baseline-race-linux.txt。

@@ -176,7 +176,9 @@ func newWithLifetime(cfg config.Config, logger *slog.Logger, lifetime *lifetime)
 			if err != nil {
 				return nil, err
 			}
-			observer, err := scan.NewDirectoryWatcher(scan.DefaultWatchOptions())
+			watchOptions := scan.DefaultWatchOptions()
+			watchOptions.Budget = budget
+			observer, err := scan.NewDirectoryWatcher(watchOptions)
 			if err != nil {
 				return nil, err
 			}

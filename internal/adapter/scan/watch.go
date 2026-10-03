@@ -7,10 +7,12 @@ import (
 	"os"
 	"time"
 
+	"github.com/MoYuanCN/Jelee/internal/app"
 	"github.com/MoYuanCN/Jelee/internal/domain"
 )
 
 type WatchOptions struct {
+	Budget         app.WorkBudget
 	MaxDirectories int
 	QuietPeriod    time.Duration
 	MaxDelay       time.Duration
@@ -44,6 +46,11 @@ func (tree *watchedTree) close() error {
 }
 
 func (w *DirectoryWatcher) build(ctx context.Context, roots []domain.ScanDirectory) (*watchedTree, error) {
+	release, err := w.acquireIO(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer release()
 	backend, err := newDirectoryWatchBackend()
 	if err != nil {
 		return nil, err
@@ -204,10 +211,43 @@ func (w *DirectoryWatcher) Observe(ctx context.Context, roots []domain.ScanDirec
 			first, last = time.Time{}, time.Time{}
 		}
 		if !now.Before(health) {
-			if err = tree.checkRoots(); err != nil {
+			if err = w.checkRoots(ctx, tree); err != nil {
 				return err
 			}
 			health = now.Add(5 * time.Second)
 		}
 	}
+}
+
+// Only active traversal/checks occupy a shared slot; native event polling does
+// not hold a permit for the watch's lifetime. At most the bounded watch runners
+// wait here, and cancellation interrupts both queueing and overflow backoff.
+func (w *DirectoryWatcher) acquireIO(ctx context.Context) (func(), error) {
+	if w.options.Budget == nil {
+		return func() {}, ctx.Err()
+	}
+	for {
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
+		release, err := w.options.Budget.Acquire(ctx, app.WorkIO)
+		if !errors.Is(err, domain.ErrResourceBusy) {
+			return release, err
+		}
+		timer := time.NewTimer(250 * time.Millisecond)
+		select {
+		case <-ctx.Done():
+			timer.Stop()
+			return nil, ctx.Err()
+		case <-timer.C:
+		}
+	}
+}
+func (w *DirectoryWatcher) checkRoots(ctx context.Context, tree *watchedTree) error {
+	release, err := w.acquireIO(ctx)
+	if err != nil {
+		return err
+	}
+	defer release()
+	return tree.checkRoots()
 }

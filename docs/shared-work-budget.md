@@ -1,6 +1,6 @@
 # 共用 CPU／I/O 配額：底層實作
 
-目前新增 `app.WorkBudget` 介面與 `platform/resources.Budget`。正式 runtime 已建立單一實例，HTTP 直投使用共享 I/O／總量配額；目錄掃描與 NFO 讀取／解析亦已接入；探測的 Inspect／Probe 亦已接入；圖片處理亦已接入；忽略目錄掃描亦已接入；忽略基線比對與複核亦已接入；監看等仍待接入。G41.3 與 G13.5 保持部分完成。
+目前新增 `app.WorkBudget` 介面與 `platform/resources.Budget`。正式 runtime 已建立單一實例，HTTP 直投使用共享 I/O／總量配額；目錄掃描與 NFO 讀取／解析亦已接入；探測的 Inspect／Probe 亦已接入；圖片處理亦已接入；忽略目錄掃描亦已接入；忽略基線比對與複核亦已接入；目錄監看建置／重建／根檢查亦已接入；索引與其他下載等操作仍須逐一稽核。G41.3 與 G13.5 保持部分完成。
 
 ## 已實作
 
@@ -20,7 +20,7 @@ Linux：固定 Go 工具鏈 `go test -race -count=1 ./internal/platform/resource
 
 ## 待接入
 
-Runtime 單一實例、配置及直投已接入。下一步接監看等其餘消費者。各操作依階段取得配額，跨 CPU／I/O 階段先釋放再取得，避免巢狀等待。背壓不得被誤記為壞媒體或解析失敗。補齊實際混合工作、HTTP、取消／停機、可觀測性及調校驗收後才能關閉需求。
+Runtime 單一實例、配置及直投已接入。下一步稽核索引與其他下載等消費者並補混合負載驗收。各操作依階段取得配額，跨 CPU／I/O 階段先釋放再取得，避免巢狀等待。背壓不得被誤記為壞媒體或解析失敗。補齊實際混合工作、HTTP、取消／停機、可觀測性及調校驗收後才能關閉需求。
 
 ## 正式配置與直投接入
 
@@ -80,3 +80,9 @@ Runtime 的圖片處理器取得同一 budget。來源暫存取得 I/O；快取�
 一般基線 EvaluateIgnoreBaseline、ReobserveIgnoreProof，以及 family 基線批次／逐筆與三種 verification stream 的 observe，均經 withJobIO 取得共用 I/O。範圍只包含同步觀察操作；批次返回釋放後才進入逐筆 fallback，觀察返回釋放後才 Commit 頁面。既有錯誤、unknown 與 fencing 規則保持。
 
 Family baseline success/unavailable/failure/short/wrong-path/root-failure矩陣加入真budget total1，驗證批次退回逐筆不巢狀且每次結束配額歸零。verifyFamilyStream新增成功、觀察錯誤與取消，確認持IO時觀察、提交前已釋放，錯誤不提交。Windows jobs/architecture、vet與[Linux race](evidence/resources-baseline-race-linux.txt)通過。仍需真正外部helper與其他模組的混合壓測，不能據此關閉G41.3或G41.9。
+
+## 目錄監看
+
+WatchOptions.Budget 使用runtime同一實例。build 的遍歷／註冊及失敗清理持 I/O；建置完成即釋放，重建重新取得。每5秒的根身分檢查另取得短期I/O。常駐原生事件輪詢不持有共享名額。佇列滿時既有有限數量的watch worker每250ms重試，等待可被關窗／取消／停止中斷，不新增背景goroutine。
+
+測試涵蓋 queue0 退避及 queue1 等待取消、建置目錄上限失敗回收，真原生監看新增子目錄後重建再次取得I/O且dirty callback時無持有。Windows scan/runtime/architecture與vet通過；[Linux race](evidence/resources-watch-race-linux.txt)及[真PG runtime時間窗／watch](evidence/resources-watch-runtime.txt)通過。這不是全部混合負載或不同核心數調校驗收。

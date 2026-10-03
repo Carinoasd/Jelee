@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/MoYuanCN/Jelee/internal/domain"
+	"github.com/MoYuanCN/Jelee/internal/platform/resources"
 )
 
 func TestDirectoryWatchActualChangesAndCancellation(t *testing.T) {
@@ -135,7 +136,9 @@ func TestDirectoryWatchPinnedObjectAfterRename(t *testing.T) {
 
 func TestDirectoryWatchRebuildIncludesNewChildren(t *testing.T) {
 	root := t.TempDir()
-	w, err := NewDirectoryWatcher(WatchOptions{MaxDirectories: 16, QuietPeriod: 100 * time.Millisecond, MaxDelay: time.Second})
+	budget, _ := resources.New(resources.Limits{CPU: 1, IO: 1, Total: 1, Queue: 1})
+	recorded := &watchTestBudget{budget: budget}
+	w, err := NewDirectoryWatcher(WatchOptions{Budget: recorded, MaxDirectories: 16, QuietPeriod: 100 * time.Millisecond, MaxDelay: time.Second})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -144,6 +147,9 @@ func TestDirectoryWatchRebuildIncludesNewChildren(t *testing.T) {
 	done := make(chan error, 1)
 	go func() {
 		done <- w.Observe(ctx, []domain.ScanDirectory{{RootID: watchTestRootID, RootPath: root, Path: "."}}, func(context.Context) error {
+			if budget.Stats() != (resources.Stats{}) {
+				t.Error("idle observer held shared I/O permit")
+			}
 			select {
 			case events <- struct{}{}:
 			default:
@@ -186,6 +192,9 @@ drain:
 		default:
 			break drain
 		}
+	}
+	if recorded.calls.Load() < 2 {
+		t.Fatal("rebuild did not reacquire I/O")
 	}
 	if err := os.WriteFile(filepath.Join(child, "later.mkv"), []byte("original"), 0600); err != nil {
 		t.Fatal(err)
