@@ -1,9 +1,11 @@
 package postgres
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/json"
+	"errors"
 
 	"github.com/MoYuanCN/Jelee/internal/app"
 	"github.com/MoYuanCN/Jelee/internal/domain"
@@ -118,4 +120,75 @@ func (s *Store) GetNFOWriteTask(ctx context.Context, lease domain.JobLease, sequ
 		return domain.NFOWriteTask{}, storageError(err)
 	}
 	return result, nil
+}
+
+// SubmitNFOWriteJob admits a batch of the actor's unexpired preparations as one
+// queued nfo_write job; the job owns copies of their immutable intents. Replay
+// of the same key and intent returns the first job. Execution still rechecks
+// the catalog, the native scope and the target before any filesystem change.
+func (s *Store) SubmitNFOWriteJob(ctx context.Context, actor domain.Actor, library, key, priority string, preparations []string, policy domain.JobPolicy) (domain.Job, bool, error) {
+	if ctx == nil || !domain.ValidID(library) || !validJobKey(key) || !validJobPolicy(policy) || len(preparations) < 1 || len(preparations) > 100 || (priority != domain.JobPriorityManual && priority != domain.JobPriorityBackground) {
+		return domain.Job{}, false, domain.ErrInvalid
+	}
+	encoded, _ := json.Marshal(struct {
+		Priority     string
+		Preparations []string
+	}{priority, preparations})
+	digest := sha256.Sum256(encoded)
+	tx, err := s.authorizedJobs(ctx, actor)
+	if err != nil {
+		return domain.Job{}, false, err
+	}
+	defer tx.Rollback(ctx)
+	old, err := scanJob(tx.QueryRow(ctx, `SELECT `+jobColumns+` FROM jobs WHERE actor_id=$1 AND idempotency_key=$2`, actor.UserID, key))
+	if err == nil {
+		if old.Kind != domain.JobNFOWrite || old.LibraryID != library {
+			return domain.Job{}, false, domain.ErrConflict
+		}
+		var retained []byte
+		if err = tx.QueryRow(ctx, `SELECT intent_digest FROM nfo_write_requests WHERE job_id=$1`, old.ID).Scan(&retained); err != nil {
+			return domain.Job{}, false, storageError(err)
+		}
+		if !bytes.Equal(retained, digest[:]) {
+			return domain.Job{}, false, domain.ErrConflict
+		}
+		if err = probeAdminStillLive(ctx, tx, actor); err != nil {
+			return domain.Job{}, false, err
+		}
+		return old, true, storageError(tx.Commit(ctx))
+	}
+	if !errors.Is(err, domain.ErrNotFound) {
+		return domain.Job{}, false, err
+	}
+	var busy bool
+	var active int
+	if err = tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM jobs WHERE library_id=$1 AND state IN ('queued','running')),(SELECT count(*) FROM jobs WHERE state IN ('queued','running'))`, library).Scan(&busy, &active); err != nil {
+		return domain.Job{}, false, storageError(err)
+	}
+	if busy {
+		return domain.Job{}, false, domain.ErrJobBusy
+	}
+	if active >= policy.QueueLimit {
+		return domain.Job{}, false, domain.ErrJobQueueFull
+	}
+	job, err := scanJob(tx.QueryRow(ctx, `INSERT INTO jobs(library_id,actor_id,idempotency_key,kind,priority,queue_limit,history_limit,max_entries,max_directories,max_attempts,missing_count_limit,missing_percent_limit) VALUES($1,$2,$3,'nfo_write',$4,$5,$6,$7,$8,$9,$10,$11) RETURNING `+jobColumns, library, actor.UserID, key, priority, policy.QueueLimit, policy.HistoryLimit, policy.MaxEntries, policy.MaxDirectories, policy.MaxAttempts, policy.MissingCountLimit, policy.MissingPercentLimit))
+	if err != nil {
+		return domain.Job{}, false, err
+	}
+	if err = copyNFOWriteIntents(ctx, tx, job.ID, preparations); err != nil {
+		if errors.Is(err, domain.ErrNotFound) {
+			err = domain.ErrConflict
+		}
+		return domain.Job{}, false, err
+	}
+	if err = trimJobs(ctx, tx, policy.HistoryLimit); err != nil {
+		return domain.Job{}, false, err
+	}
+	if err = auditAccount(ctx, tx, actor, "nfo.write_submitted", job.ID, nil, map[string]any{"total": len(preparations)}); err != nil {
+		return domain.Job{}, false, err
+	}
+	if err = probeAdminStillLive(ctx, tx, actor); err != nil {
+		return domain.Job{}, false, err
+	}
+	return job, false, storageError(tx.Commit(ctx))
 }

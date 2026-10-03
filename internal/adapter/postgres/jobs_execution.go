@@ -85,6 +85,10 @@ func (s *Store) ClaimJobWithCapabilities(ctx context.Context, owner string, pref
 		if _, err = tx.Exec(ctx, `UPDATE jobs SET state=CASE WHEN cancel_requested THEN 'cancelled' ELSE 'failed' END,error_code=CASE WHEN cancel_requested THEN '' ELSE 'job_timeout' END,finished_at=clock_timestamp(),owner=NULL,lease_until=NULL WHERE state='running' AND lease_until<=clock_timestamp() AND kind='nfo_write' AND EXISTS(SELECT 1 FROM nfo_write_commit_journal w WHERE w.job_id=jobs.id)`); err != nil {
 			return domain.JobLease{}, storageError(err)
 		}
+		// Without a journal nothing touched the filesystem: retry as other kinds do.
+		if _, err = tx.Exec(ctx, `UPDATE jobs SET state=CASE WHEN cancel_requested THEN 'cancelled' WHEN attempts>=max_attempts THEN 'failed' ELSE 'queued' END,error_code=CASE WHEN NOT cancel_requested AND attempts>=max_attempts THEN 'job_attempts_exhausted' ELSE '' END,finished_at=CASE WHEN cancel_requested OR attempts>=max_attempts THEN clock_timestamp() ELSE NULL END,owner=NULL,lease_until=NULL WHERE state='running' AND lease_until<=clock_timestamp() AND kind='nfo_write' AND NOT EXISTS(SELECT 1 FROM nfo_write_commit_journal w WHERE w.job_id=jobs.id)`); err != nil {
+			return domain.JobLease{}, storageError(err)
+		}
 	}
 	var retention int
 	if err = tx.QueryRow(ctx, `SELECT COALESCE(min(history_limit),1) FROM jobs`).Scan(&retention); err != nil {
@@ -98,7 +102,7 @@ func (s *Store) ClaimJobWithCapabilities(ctx context.Context, owner string, pref
 		priority = domain.JobPriorityBackground
 	}
 	// Only workers with ignore capability may claim matching enabled contracts.
-	l, err := scanLease(tx.QueryRow(ctx, `UPDATE jobs SET state='running',owner=$1,generation=generation+1,attempts=attempts+1,lease_until=clock_timestamp()+$2*interval '1 microsecond',started_at=COALESCE(started_at,clock_timestamp()) WHERE id=(SELECT id FROM jobs WHERE state='queued' AND (kind='inventory_scan' OR ($10 AND kind='catalog_import')) AND ((NOT ignore_requested AND NOT EXISTS(SELECT 1 FROM job_ignore_requests g WHERE g.job_id=jobs.id)) OR ($6 AND ignore_requested AND EXISTS(SELECT 1 FROM job_ignore_requests g WHERE g.job_id=jobs.id AND g.library_id=jobs.library_id AND g.mode='jeleeignore' AND g.case_mode IN ('sensitive','ascii-insensitive') AND g.program_version=$7 AND g.proof_version=$8)) OR ($9 AND ignore_requested AND EXISTS(SELECT 1 FROM job_ignore_requests g WHERE g.job_id=jobs.id AND g.library_id=jobs.library_id AND g.mode='jeleeignore-legacy-v1' AND g.case_mode IN ('sensitive','ascii-insensitive') AND g.program_version='jeleeignore-legacy-v1' AND g.proof_version='jeleeignore-legacy-proof-v1'))) AND ($4 OR NOT EXISTS(SELECT 1 FROM probe_requests r WHERE r.job_id=jobs.id)) AND ($5 OR NOT EXISTS(SELECT 1 FROM nfo_job_requests n WHERE n.job_id=jobs.id AND n.requested)) AND NOT EXISTS(SELECT 1 FROM nfo_job_state n WHERE n.job_id=jobs.id AND n.mode='read-only' AND NOT EXISTS(SELECT 1 FROM nfo_job_requests r WHERE r.job_id=jobs.id)) ORDER BY CASE WHEN priority=$3 THEN 0 ELSE 1 END,created_at,id LIMIT 1 FOR UPDATE) RETURNING `+leaseColumns, owner, ttl.Microseconds(), priority, capabilities.Probe, capabilities.NFO, capabilities.Ignore, domain.IgnoreProgramVersion, domain.IgnoreProofVersion, capabilities.FamilyIgnore, capabilities.CatalogImport))
+	l, err := scanLease(tx.QueryRow(ctx, `UPDATE jobs SET state='running',owner=$1,generation=generation+1,attempts=attempts+1,lease_until=clock_timestamp()+$2*interval '1 microsecond',started_at=COALESCE(started_at,clock_timestamp()) WHERE id=(SELECT id FROM jobs WHERE state='queued' AND (kind='inventory_scan' OR ($10 AND kind='catalog_import') OR ($11 AND kind='nfo_write')) AND ((NOT ignore_requested AND NOT EXISTS(SELECT 1 FROM job_ignore_requests g WHERE g.job_id=jobs.id)) OR ($6 AND ignore_requested AND EXISTS(SELECT 1 FROM job_ignore_requests g WHERE g.job_id=jobs.id AND g.library_id=jobs.library_id AND g.mode='jeleeignore' AND g.case_mode IN ('sensitive','ascii-insensitive') AND g.program_version=$7 AND g.proof_version=$8)) OR ($9 AND ignore_requested AND EXISTS(SELECT 1 FROM job_ignore_requests g WHERE g.job_id=jobs.id AND g.library_id=jobs.library_id AND g.mode='jeleeignore-legacy-v1' AND g.case_mode IN ('sensitive','ascii-insensitive') AND g.program_version='jeleeignore-legacy-v1' AND g.proof_version='jeleeignore-legacy-proof-v1'))) AND ($4 OR NOT EXISTS(SELECT 1 FROM probe_requests r WHERE r.job_id=jobs.id)) AND ($5 OR NOT EXISTS(SELECT 1 FROM nfo_job_requests n WHERE n.job_id=jobs.id AND n.requested)) AND NOT EXISTS(SELECT 1 FROM nfo_job_state n WHERE n.job_id=jobs.id AND n.mode='read-only' AND NOT EXISTS(SELECT 1 FROM nfo_job_requests r WHERE r.job_id=jobs.id)) ORDER BY CASE WHEN priority=$3 THEN 0 ELSE 1 END,created_at,id LIMIT 1 FOR UPDATE) RETURNING `+leaseColumns, owner, ttl.Microseconds(), priority, capabilities.Probe, capabilities.NFO, capabilities.Ignore, domain.IgnoreProgramVersion, domain.IgnoreProofVersion, capabilities.FamilyIgnore, capabilities.CatalogImport, capabilities.NFOWrite))
 	if errors.Is(err, domain.ErrNotFound) {
 		if e := tx.Commit(ctx); e != nil {
 			return l, storageError(e)
@@ -164,7 +168,15 @@ func (s *Store) releaseJob(ctx context.Context, l domain.JobLease, planned bool)
 		return err
 	}
 	if current.Job.Kind == domain.JobNFOWrite {
-		return domain.ErrInvalid
+		// A journal pins the owner and generation (schema49); such a job stops
+		// and is resolved by recovery instead of returning to the queue.
+		var journaled bool
+		if err = tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM nfo_write_commit_journal WHERE job_id=$1::uuid)`, l.Job.ID).Scan(&journaled); err != nil {
+			return storageError(err)
+		}
+		if journaled {
+			return domain.ErrConflict
+		}
 	}
 	if err = releaseParentProbeLeases(ctx, tx, l.Job.ID); err != nil {
 		return err

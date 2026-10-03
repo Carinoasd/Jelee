@@ -15,6 +15,8 @@ type ScanCapabilities struct {
 	NFO           bool
 	Ignore        bool
 	FamilyIgnore  bool
+	// NFOWrite lets a worker with a configured writer claim nfo_write jobs.
+	NFOWrite bool
 }
 
 func ValidateScanIntent(v ScanIntent) error {
