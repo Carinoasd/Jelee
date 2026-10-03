@@ -71,3 +71,12 @@ Linux入口 `python3 -B scripts/start_images_soak.py --smoke` 從HEAD提交建�
 
 ### 真Docker輸出期限修正
 第三輪在3.43秒退出，尚未產生start事件。Docker提供的原始stdout是blocking FIFO，Go SetWriteDeadline不支援；最小容器probe重現。Linux測試入口改用O_NONBLOCK重開同FIFO，核對SameFile並預檢期限，自己的Close不關原stdout。Linux race真pipe塞滿期限與整合通過；此修正只影響opt-in驗收程式，正式產品未變。所有失敗短測證據保留，均未計入24h。
+
+### 首個完整600秒短測結果
+提交dc7725b567，run 5a70b541fa654dd6ad6da1e8ef39b932完成2輪固定工作，實際600.000566047秒；618筆採樣，RSS峰值380.8515625MiB，GC最大桶上界1.835008ms，逐事件重播、容器exit0/OOM零、正常SIGTERM及所有owned資源清理通過。原始receipt最大間隔60.000858秒，小於70秒。見[evidence/image-soak-smoke.json](evidence/image-soak-smoke.json)。
+
+此結果只涵蓋上述來源與600秒，沒有24組逐小時穩態證據。後續c61c12的controller即時flush修正正另跑完整smoke，尚不得歸入本結果。正式24h尚未啟動。
+
+### 修正版短測及正式執行
+
+c61c12b007 的兩輪短測已通過，詳見 [修正版短測證據](evidence/image-soak-flush-smoke.json)。同來源正式 run `033822f3aecf4b6491406594c8687cfd` 已於 2026-10-03 01:37:01 UTC 啟動，尚待完整 24 小時結果、重播及清理核對。短測與啟動成功均不等於 G42.10 完成。

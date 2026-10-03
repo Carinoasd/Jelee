@@ -1,0 +1,74 @@
+{
+  "version": 1,
+  "scope": "600-second-smoke-only",
+  "finalAcceptance": false,
+  "runId": "5a70b541fa654dd6ad6da1e8ef39b932",
+  "sourceCommit": "dc7725b5674e8d5b3a1915b1940b46ee58854843",
+  "sourceTree": "f5118d2782e83bad6de2208c3c3c70c9f493836f",
+  "sourceDigest": "b8f02ede9edb6a3d2d9e8b6d87f61b076350cd1618c5a088c8ea6753a959a056",
+  "sourceManifestSha256": "412932beb1f72e41d0be77793eba5dc9e067737836ee47b3a57ccdd854588a66",
+  "budgetSha256": "01c3fda397247da4092d6afea4da318a01c6d9582cb2a085770238015be19539",
+  "testBinarySha256": "408a1d660ea5deecb57f28d27f1f47a89e8e0afff8bd833509bb4206d685bac5",
+  "testImage": "sha256:5361a64ec7b3ce874e56f35488280b5dd9f10a91a782e2f6fe72f4e1ee9b5330",
+  "fixtureItems": 1000,
+  "fixtureCounts": {
+    "jpeg": 900,
+    "png": 36,
+    "png16": 64
+  },
+  "completedRounds": 2,
+  "workDurationNanos": 600000566047,
+  "samples": {
+    "sampleCount": 618,
+    "blockCount": 11,
+    "firstSampleNanos": 1061639,
+    "lastSampleNanos": 602790047577,
+    "rssPeakBytes": 399351808,
+    "heapPeakBytes": 260771992,
+    "processorMaxima": {
+      "maxActive": 2,
+      "maxReservedBytes": 201326592,
+      "maxEstimatedImageBytes": 92099262,
+      "maxCacheEntries": 128,
+      "maxCacheBytes": 1677632
+    }
+  },
+  "receipt": {
+    "rawBytes": 129996,
+    "rawSha256": "7b1c6f1e2b5d580f1b1b21f073da5e66bbf1e3e6e6a21533b838b7b6cc9da844",
+    "lines": 20,
+    "maxReceiptGapSeconds": 60.00085804902483,
+    "elapsedSeconds": 604.4470260869712,
+    "heartbeatLimitSeconds": 70
+  },
+  "workGC": {
+    "passed": true,
+    "observedPauses": 1572,
+    "maxPauseUpperNanos": 1835008,
+    "histogramPauseUpperNanos": 69302784,
+    "histogramIntervalNanos": 600000354283,
+    "counterDelta": {
+      "totalAllocBytes": 13858793520,
+      "numGC": 786,
+      "pauseTotalNs": 63453049
+    },
+    "counterIntervalNanos": 600000314731
+  },
+  "containerExit": {
+    "status": "exited",
+    "exitCode": 0,
+    "oomKilled": false,
+    "running": false
+  },
+  "sourceUnchanged": true,
+  "originalSamplesUnchanged": true,
+  "testArtifactsCleaned": true,
+  "launcherArtifactsCleaned": true,
+  "privateResultSha256": "9a690e72aa50c84d4e95284dbd3aa3527615d84367b6e2631de0d90720546669",
+  "limitations": [
+    "Two five-minute rounds; not a 24-hour soak or hourly steady-state proof.",
+    "Source fixture contains 1000 image paths from three templates, plus negative fixtures.",
+    "Original image preservation uses bounded hash samples.",
+    "Later controller flush commit requires separate verification."
+  ]
+}

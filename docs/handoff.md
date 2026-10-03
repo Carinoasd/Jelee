@@ -1,3 +1,19 @@
+## 最新狀態：正式 24 小時測試已啟動
+
+修正版 c61c12b007 的短測 2a0923d1359749be9d55a040d486eeec 已通過兩輪 600 秒，來源與原始樣本核對、快照核對、worker 與 launcher 資源清理均通過。證據見 docs/evidence/image-soak-flush-smoke.json；它只證明短測，不代表正式驗收。
+
+正式 run 033822f3aecf4b6491406594c8687cfd 已於 2026-10-03 01:37:01 UTC 啟動，來源固定 c61c12b00715eb616df68d4e2b0d57537daf03dc。PID 645523、startTicks 31097741、bootId 4a5d9c5c-4482-4c3e-8978-30156b1ce92f 已實際核對。registry/result 位於 .testdata/soak-launch-033822f3aecf4b6491406594c8687cfd/；snapshot 位於 /var/tmp/jelee-soak-snapshot-033822f3aecf4b6491406594c8687cfd。先查此程序與容器，不要重啟仍活著的測試。啟動時間包含建置；24 小時計時以實際 workload 為準。
+
+後續工作可修改工作目錄，測試使用獨立已提交快照。下一項候選是媒體串流 32 KiB 緩衝重用，修改前基準在 .testdata/stream-copy-baseline.json。G00–G51、第三階段及 G42.10 仍未完成。下列內容是歷史紀錄，其當時狀態不代表最新狀態。
+
+## 第一個真正600秒已通過；修正版短測正在建置
+
+dc7725b567的5a70b541fa654dd6ad6da1e8ef39b932已passed：工作600.000566047秒、2輪、618samples、RSS380.8515625MiB、GC最高桶1.835008ms、exit0/OOM false，source/samples保持、worker與launcher所有owned資源清理true。PID602883與snapshot皆已不存在。安全摘要已寫docs/evidence/image-soak-smoke.json（尚未提交），只代表此commit的600秒，不是24h。
+
+目前新run 2a0923d1359749be9d55a040d486eeec，PID626813/startTicks31021034/bootId4a5d9c5c-4482-4c3e-8978-30156b1ce92f，source c61c12b00715eb616df68d4e2b0d57537daf03dc（已推PR46，含每chunk flush）。registry在.testdata/soak-launch-2a0923d1359749be9d55a040d486eeec/registry.json，case狀態在cases/image-soak-2a0923d1359749be9d55a040d486eeec/status.json。先核實現有handle與terminal，不能重啟仍活著的run。
+
+若新run完整passed/cleanup true，直接在同HEAD以 python3 -B scripts/start_images_soak.py 啟動formal（無--smoke），先別提交這些pending文件，以免HEAD改變導致同commit smoke gate不匹配。formal啟動並確認registry/實際PID後，再提交doc/evidence與繼續其他工作。背景正式24h不能因換模型重啟；只查小型status或實際container。全部G00–G51、G42.10與第三階段仍未完成。
+
 ## 活躍真短測：不要重啟
 
 dc7725b567固定快照的run 5a70b541fa654dd6ad6da1e8ef39b932目前仍活著；PID602883/startTicks30952947/bootId4a5d9c5c-4482-4c3e-8978-30156b1ce92f。最近實際docker inspect running/OOM false，controller status elapsed300/rawBytes56560，尚無result.json。registry與結果在.testdata/soak-launch-5a70b541fa654dd6ad6da1e8ef39b932；細部在cases/image-soak-5a70b541fa654dd6ad6da1e8ef39b932。下一步核實同handle/終態，不能因status每5分鐘才更新或raw未刷出而重啟。
