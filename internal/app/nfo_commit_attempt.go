@@ -14,3 +14,9 @@ type NFOWriteCommitAttemptRepository interface {
 	SaveNFOWriteCommitAttemptCheckpoint(context.Context, domain.JobLease, int, string, uint8, domain.NFOWriteCommitFileCheckpoint) (domain.NFOWriteCommitFileCheckpoint, error)
 	SaveNFOWriteCommitAttemptReady(context.Context, domain.JobLease, int, string, uint8, domain.NFOWriteCommitFilesReady) (domain.NFOWriteCommitFilesReady, error)
 }
+
+// Stage selects persisted attempts only through a checkpoint-capable repository.
+type NFOWriteCommitAttemptStageRepository interface {
+	NFOWriteCommitCheckpointRepository
+	NFOWriteCommitAttemptRepository
+}

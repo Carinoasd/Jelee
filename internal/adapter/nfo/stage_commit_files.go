@@ -185,6 +185,16 @@ func (w *Writer) stageCommitFilesOwned(ctx context.Context, source *Source, leas
 		return ErrInvalidInput
 	}
 	copy(token[:], decoded)
+	ops.documentsValidated, ops.checkSource = true, check
+	if attempts, ok := repository.(app.NFOWriteCommitAttemptStageRepository); ok {
+		return stageNFOCommitAttempts(ctx, directory, filename, original, replacement, token, lease, record, evidence, attempts, check, ops)
+	}
+	return stageLegacyNFOCommitFiles(ctx, directory, filename, original, replacement, token, lease, record, evidence, repository, check, ops)
+}
+
+// stageLegacyNFOCommitFiles continues the schema55 names (attempt 0). It never
+// allocates or inspects a later namespace.
+func stageLegacyNFOCommitFiles(ctx context.Context, directory *os.Root, filename string, original, replacement *Document, token [16]byte, lease domain.JobLease, record domain.NFOWriteCommitRecord, evidence domain.NFOWriteCommitFileEvidence, repository app.NFOWriteCommitFilesRepository, check func(context.Context) error, ops nfoWriteOperations) error {
 	if evidence.ReadyRecorded {
 		return resumeNFOCommitFiles(ctx, directory, filename, original, replacement, lease, record, evidence, repository, check)
 	}
@@ -249,8 +259,7 @@ func (w *Writer) stageCommitFilesOwned(ctx context.Context, source *Source, leas
 	} else if evidence.CheckpointRecorded {
 		return ErrChanged
 	}
-	ops.documentsValidated, ops.checkSource = true, check
-	_, err = prepareNFOCommitFiles(ctx, directory, filename, original, replacement, token, ports, ops)
+	_, err := prepareNFOCommitFiles(ctx, directory, filename, original, replacement, token, ports, ops)
 	return err
 }
 

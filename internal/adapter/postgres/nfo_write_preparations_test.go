@@ -18,7 +18,15 @@ import (
 
 func nfoWritePreparationFixture(t *testing.T) (jobFixture, *app.NFOWritePreparations, domain.NFOItemScope, domain.NFOWritePrepareRequest) {
 	t.Helper()
-	f, scope, _ := nfoItemApplyFixture(t)
+	f := newJobFixture(t)
+	service, scope, request := nfoWritePreparationLibrary(t, f)
+	return f, service, scope, request
+}
+
+// nfoWritePreparationLibrary prepares a private NFO source in f.registration's library.
+func nfoWritePreparationLibrary(t *testing.T, f jobFixture) (*app.NFOWritePreparations, domain.NFOItemScope, domain.NFOWritePrepareRequest) {
+	t.Helper()
+	scope, _ := nfoItemApplyLibrary(t, f)
 	if err := os.WriteFile(filepath.Join(scope.Source.RootPath, scope.Source.RelativePath), []byte("\xef\xbb\xbf<movie x='keep'>\r\n  <title>old</title><!--keep-->\r\n  <vendor a='1'/>\r\n</movie>"), 0600); err != nil {
 		t.Fatal("create private NFO fixture")
 	}
@@ -26,7 +34,7 @@ func nfoWritePreparationFixture(t *testing.T) (jobFixture, *app.NFOWritePreparat
 	p, _ := nfo.NewWritePreparer(b)
 	service, _ := app.NewNFOWritePreparations(f.s, p)
 	request := domain.NFOWritePrepareRequest{ItemID: scope.ItemID, Revision: scope.Revision, Edits: []domain.NFOWriteTextEdit{{Field: "title", Value: "新標題"}}, MaxBytes: domain.NFODefaultSourceBytes, Backups: 3, BOM: "preserve"}
-	return f, service, scope, request
+	return service, scope, request
 }
 
 func TestNFOWritePreparationPersistsControlledOutputAndExactReplay(t *testing.T) {

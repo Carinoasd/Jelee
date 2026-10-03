@@ -14,6 +14,13 @@ import (
 func nfoItemApplyFixture(t *testing.T) (jobFixture, domain.NFOItemScope, domain.NFOItemFields) {
 	t.Helper()
 	f := newJobFixture(t)
+	scope, fields := nfoItemApplyLibrary(t, f)
+	return f, scope, fields
+}
+
+// nfoItemApplyLibrary prepares one movie item in f.registration's library.
+func nfoItemApplyLibrary(t *testing.T, f jobFixture) (domain.NFOItemScope, domain.NFOItemFields) {
+	t.Helper()
 	item := metadataItem(t, f)
 	var root string
 	if err := f.s.Pool.QueryRow(f.ctx, `SELECT id::text FROM library_roots WHERE library_id=$1::uuid`, f.registration.Library.ID).Scan(&root); err != nil {
@@ -33,7 +40,7 @@ func nfoItemApplyFixture(t *testing.T) (jobFixture, domain.NFOItemScope, domain.
 		t.Fatal("create owned media fixture")
 	}
 	fields := domain.NFOItemFields{Version: domain.NFOItemFieldsVersion, Kind: "Movie", Identity: domain.DefaultNFOIdentity(), Stamp: domain.NFOStamp{Size: 123, SHA256: strings.Repeat("a", 64), FingerprintVersion: domain.NFOFingerprintVersion}, ReadAt: time.Now().UTC(), Fields: []domain.NFOTextField{{Field: "title", Value: "NFO title"}, {Field: "originalTitle", Value: "Original NFO"}, {Field: "overview", Value: "NFO overview"}, {Field: "date", Value: "2024-02-29"}}}
-	return f, scope, fields
+	return scope, fields
 }
 
 func TestNFOItemPersistenceManualPriorityAndSeparateLocks(t *testing.T) {

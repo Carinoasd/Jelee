@@ -1,7 +1,53 @@
-> 本文件隨使用者要求的 WIP 交接提交公開。schema56 最新 legacy 守衛尚未重測，quota fence 因果性未證明，正式 Stage 尚未接線。以下既有 green 只對應各自歷史來源。四套件編譯檢查通過，不是功能或完整驗收。Claude 請從「最重要的待修驗證問題」接續。使用者已要求先推送，因此本次先保存問題；後續功能發布仍須完成驗證。
+> 最新進度見下方「Claude 接續進度」。以下為原交接：本文件隨使用者要求的 WIP 交接提交公開。schema56 最新 legacy 守衛尚未重測，quota fence 因果性未證明，正式 Stage 尚未接線。以下既有 green 只對應各自歷史來源。四套件編譯檢查通過，不是功能或完整驗收。Claude 請從「最重要的待修驗證問題」接續。使用者已要求先推送，因此本次先保存問題；後續功能發布仍須完成驗證。
 
 # Jelee 交接給 Claude：schema56 WIP與後續全部階段
 記錄日期：2026-10-04（Asia/Taipei）
+
+## Claude 接續進度（2026-10-04）
+工作目錄已從 Windows 轉到 WSL 的獨立 clone（同 branch／PR46）；原 Windows 目錄留給仍在跑的原 24h（run329073a5），未動。本節是最新狀態，下方原交接內容保留為歷史。
+
+已完成並驗證（Linux 真 PG、race；私密 JSONL 只取計數）：
+1. 最新 legacy 互斥守衛：`^(TestNFOCommitAttempt.*|TestNFOCommitCheckpoint.*)$` 四套件 69 PASS／0 fail／0 skip（`.testdata/claude-schema56-selected-linux-v1.jsonl`）。以上是在 Stage 接線前跑的。
+2. quota fence 因果：第二候選改由正式 fixture 建在另一個 library／job／root／item，測試先查兩者不共用 job、library、root、item、source，且兩個 lease 都是 running。rows／bytes 各跑 RC／RR／Serializable，第二筆都被拒；另加 `fence-disabled/repeatable_read` 對照，只把 owned schema 的 `fence_nfo_commit_attempt_quota()` 換成 `RETURN NEW`，第二筆就被接納且超額（rows 257、bytes 上限再加一份）。8 項全 PASS（`.testdata/claude-schema56-quota-causal-linux-v1.jsonl`）。失敗標記拆為 `stale attempt capacity admitted` 與 `unrelated attempt capacity refusal`。
+3. 正式 Stage 接線（`internal/adapter/nfo/stage_commit_attempts.go`）：repository 實作 `app.NFOWriteCommitAttemptStageRepository`（Store 有）時改走持久 attempt：
+   - 先讀 `GetNFOWriteCommitAttempts`；legacy ready 與已分配 attempt 並存就 ErrChanged。
+   - 有 ready 的 attempt：只驗證並重播，不新建、不認領、不刪除。
+   - 有 checkpoint 的 attempt 固定續作；首次輸出被改過即拒絕，不輪替。
+   - 沒有 checkpoint：該 namespace 五個名稱都不存在才重試同一 namespace；任一存在（或觀察不清）就保留，先 `AllocateNFOWriteCommitAttempt` 持久分配下一個，才開始動檔案。
+   - 第 3 個用完回 `ErrCommitAttemptsExhausted`，不刪任何物件。
+   - attempt 0 仍走原 legacy 流程（`stageLegacyNFOCommitFiles`），舊行為不變。
+   - 新 namespace 的 plan callback 會重播同一 plan，並用 `ReserveNFOWriteCommitAttempts` 比對首次 reservation。
+   - 測試：nfo 套件 6 個假 repository 案例；另做反向驗證，把名稱偵測關掉時 3 個會失敗。postgres 套件新增 `TestNFOCommitAttemptStageTruePG`（rotate／exhausted），用丟失首次 checkpoint 的 wrapper 模擬「已建檔、未存 checkpoint」，驗證真 PG 依序分配 1–3、上限拒絕、未知物件保留、legacy evidence 不被寫入、target 不變。
+4. 所有 NFO commit／Stage 相關測試（接線後重跑，含舊 Stage 測試改走新流程）：524 PASS／0 fail／0 skip，4 package PASS（`.testdata/claude-schema56-stage-linux-v1.jsonl`）。
+
+仍未做（不要當成完成）：
+- 真 PG + 實際 child `os.Exit` 的中斷點矩陣（建檔後、phase1／2 存檔前後、unknown response），本批用 wrapper 模擬，不能替代。
+- 新 freeze、完整分片 PG 回歸、Windows 真 PG、finalizer。這些交給 @MoYuanCN 在自己的環境跑，說明見 PR46 留言。
+- 恢復 lease、FS grant、target Rename／settlement、worker 接線；G00–G51 狀態不變（7／198／131）。
+- 原 24h 只對應來源 24caf7d4，本批沒動圖片／記憶體路徑。
+
+
+## 請 MoYuanCN 執行的驗證
+給 @MoYuanCN（或代跑的 Codex）照著做。只跑、只回報，不要改 Go／SQL，也不要刪改 `.testdata` 的舊 log。
+
+前提：
+- 分支 `feat/jelee-ignore-family-worker` 的最新 commit（PR46 頁面顯示的 HEAD），工作樹乾淨。
+- 已跑過 `make bootstrap`；Windows 用 `scripts/bootstrap-tools.ps1`。
+- 一個獨立的 PostgreSQL 16，資料庫名稱必須是 `jelee_test`；不可和正式資料或圖片長測共用。測試會在裡面建立和刪除自己的 schema。
+
+1. Linux 完整回歸（race）
+   ```
+   export JELEE_TEST_DATABASE_URL='postgres://<user>:<password>@127.0.0.1:<port>/jelee_test?sslmode=disable'
+   export JELEE_REQUIRE_INTEGRATION=true
+   make test-race
+   .bin/go test -race -count=1 -timeout=120m -tags jelee_probe_tests ./internal/adapter/postgres ./internal/adapter/nfo ./internal/platform/runtime
+   ```
+   - `make test-race` 是整個 repo 的基本回歸，每個套件期限 45 分鐘。第二行加上 `jelee_probe_tests` tag，補跑歷史完整回歸也有涵蓋的 probe 測試；postgres 套件若在第一行逾時，以第二行的結果為準。
+   - 想要 JSON 計數的話加 `-json`，輸出導到 `.testdata/` 底下的新檔名，不要覆寫舊檔。
+2. Windows 真 PG：在 PowerShell 設好同樣兩個環境變數，用 `pwsh ./scripts/run-go.ps1 test -count=1 -timeout=120m -tags jelee_probe_tests ./...` 跑一次。不加 `-race`，因為 Windows 的 race 需要 CGO 和 gcc，以前也沒在 Windows 跑過 race。目前 schema56 在 Windows 只有條件 skip 的結果。
+3. 回報：在 PR46 留言，寫 commit、平台、test pass／fail／skip 數、package pass／fail 數；有失敗的話列出測試名稱。不要貼 DSN、XML 或錯誤細節原文。
+
+這次不用跑 24h：本批沒有動圖片和記憶體路徑。之後若改到圖片或掃描，再照 [image-soak.md](image-soak.md) 用 `scripts/start_images_soak.py` 跑。
 
 ## 先讀這段
 使用者要求把目前這一小段工作記錄下來，轉交 Claude 接續。初次交接只整理紀錄。使用者隨後明確要求把現有修改與問題提交推送，供 Claude 從 GitHub 接續。已直接核對工作目錄與既有測試 JSONL。以下明確區分歷史通過與目前未驗證內容。

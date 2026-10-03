@@ -103,99 +103,195 @@ func insertAttemptQuotaPlan(t *testing.T, f jobFixture, tx pgx.Tx, token string,
 	return err
 }
 
+// attemptQuotaOtherLibrary builds a second library, item, preparation and queued
+// job through the ordinary fixtures. Its candidate shares no job, library, root,
+// item or catalog row with the seeded library, so only the global fence can
+// serialize the two final-slot plans.
+func attemptQuotaOtherLibrary(t *testing.T, f jobFixture) (jobFixture, domain.Job, domain.NFOWritePreparation) {
+	t.Helper()
+	r, err := f.s.RegisterLibrary(f.ctx, "attempt-quota-other", t.TempDir())
+	if err != nil {
+		t.Fatal("owned quota second library unavailable")
+	}
+	g := f
+	g.registration = r
+	service, _, request := nfoWritePreparationLibrary(t, g)
+	prepared, _, err := service.Prepare(g.ctx, g.a, "attempt-quota-other", request)
+	if err != nil || prepared.Scope.LibraryID != r.Library.ID || prepared.Scope.LibraryID == f.registration.Library.ID {
+		t.Fatal("owned quota second preparation unavailable")
+	}
+	j := nfoWriteJobFixture(t, g, prepared, "attempt-quota-other-job", domain.JobPriorityManual)
+	if _, err = g.s.Pool.Exec(g.ctx, `DELETE FROM nfo_write_preparations WHERE id=$1::uuid`, prepared.ID); err != nil {
+		t.Fatal("owned quota second preparation cleanup failed")
+	}
+	return g, j, prepared
+}
+func attemptQuotaOtherCandidate(t *testing.T, g jobFixture, j domain.Job) (domain.JobLease, domain.NFOWriteCommitFilePlan, string) {
+	t.Helper()
+	l := nfoWriteLeaseFixture(t, g, j.ID)
+	task, err := g.s.GetNFOWriteTask(g.ctx, l, 1)
+	if err != nil {
+		t.Fatal("owned quota second task read failed")
+	}
+	r, err := g.s.BeginNFOWriteCommit(g.ctx, l, 1)
+	if err != nil {
+		t.Fatal("owned quota second journal failed")
+	}
+	return l, commitPlanFixture(task.Preparation), r.Token
+}
+func attemptQuotaFiller(t *testing.T, retained int64) [2]int {
+	t.Helper()
+	for original := int64(8); original <= 8<<20; original++ {
+		rest := retained/4 - 3*original
+		if retained%4 == 0 && rest%2 == 0 && rest/2 >= 8 && rest/2 <= 8<<20 && domain.NFOWriteCommitAttemptRetainedBytes(original, rest/2) == retained {
+			return [2]int{int(original), int(rest / 2)}
+		}
+	}
+	t.Fatal("owned exact filler recipe invalid")
+	return [2]int{}
+}
+func disableAttemptQuotaFence(t *testing.T, f jobFixture) {
+	t.Helper()
+	var schema string
+	if err := f.s.Pool.QueryRow(f.ctx, `SELECT current_schema()`).Scan(&schema); err != nil || schema == "public" {
+		t.Fatal("owned quota schema unavailable")
+	}
+	name := pgx.Identifier{schema, "fence_nfo_commit_attempt_quota"}.Sanitize()
+	if _, err := f.s.Pool.Exec(f.ctx, `CREATE OR REPLACE FUNCTION `+name+`() RETURNS trigger LANGUAGE plpgsql SECURITY INVOKER SET search_path=pg_catalog AS $$ BEGIN RETURN NEW; END $$`); err != nil {
+		t.Fatal("owned quota fence overlay failed")
+	}
+}
+
 func TestNFOCommitAttemptGlobalQuotaSnapshots(t *testing.T) {
 	for _, kind := range []string{"rows", "bytes"} {
 		for _, isolation := range []pgx.TxIsoLevel{pgx.ReadCommitted, pgx.RepeatableRead, pgx.Serializable} {
-			t.Run(kind+"/"+string(isolation), func(t *testing.T) {
-				f, base, prepared, _, initial := commitAttemptFixture(t)
-				stopAttemptQuotaJob(t, f, base)
-				seedCount := 254
-				capBytes := int64(1073741824)
-				sizes := make([][2]int, 256)
-				incoming := initial.RetainedBytes
-				if kind == "bytes" {
-					per := domain.NFOWriteCommitAttemptRetainedBytes(2<<20, 2<<20)
-					seedCount = int((capBytes - initial.RetainedBytes) / per)
-					sizes = make([][2]int, seedCount+2)
-					for i := 0; i < seedCount; i++ {
-						sizes[i] = [2]int{2 << 20, 2 << 20}
-					}
-					incoming = capBytes - initial.RetainedBytes - int64(seedCount)*per
-					original := int64(8)
-					if (incoming/4-3*original)%2 != 0 {
-						original++
-					}
-					replacement := (incoming/4 - 3*original) / 2
-					if original < 8 || replacement < 8 || replacement > 32<<20 || domain.NFOWriteCommitAttemptRetainedBytes(original, replacement) != incoming {
-						t.Fatal("owned exact byte recipe invalid")
-					}
-					sizes[seedCount] = [2]int{int(original), int(replacement)}
-					sizes[seedCount+1] = sizes[seedCount]
-				}
-				var candidatePlans []domain.NFOWriteCommitFilePlan
-				var candidateTokens []string
-				remaining, total, batch := seedCount+2, 0, 0
-				for remaining > 0 {
-					count := min(remaining, 100)
-					batch++
-					lease, plans, tokens := makeAttemptQuotaBatch(t, f, base, prepared, batch, count, total, sizes)
-					for i := 0; i < count; i++ {
-						if total+i < seedCount {
-							if _, err := f.s.SaveNFOWriteCommitFilePlan(f.ctx, lease, i+1, tokens[i], plans[i]); err != nil {
-								t.Fatal("owned below-bound plan refused")
-							}
-						} else {
-							candidatePlans = append(candidatePlans, plans[i])
-							candidateTokens = append(candidateTokens, tokens[i])
-						}
-					}
-					remaining -= count
-					total += count
-					if remaining > 0 {
-						stopAttemptQuotaJob(t, f, lease)
-					}
-				}
-				if len(candidateTokens) != 2 {
-					t.Fatal("owned final-slot candidates missing")
-				}
-				first, err := f.s.Pool.BeginTx(f.ctx, pgx.TxOptions{IsoLevel: isolation})
-				if err != nil {
-					t.Fatal("owned quota first snapshot unavailable")
-				}
-				defer first.Rollback(f.ctx)
-				second, err := f.s.Pool.BeginTx(f.ctx, pgx.TxOptions{IsoLevel: isolation})
-				if err != nil {
-					t.Fatal("owned quota second snapshot unavailable")
-				}
-				defer second.Rollback(f.ctx)
-				for _, tx := range []pgx.Tx{first, second} {
-					var rows int
-					var used int64
-					if err = tx.QueryRow(f.ctx, `SELECT count(*),COALESCE(sum(retained_bytes),0) FROM nfo_write_commit_attempt_reservations`).Scan(&rows, &used); err != nil || rows != seedCount+1 || (kind == "rows" && rows != 255) || (kind == "bytes" && used != capBytes-incoming) {
-						t.Fatal("owned quota boundary masked by another limit")
-					}
-				}
-				if err = insertAttemptQuotaPlan(t, f, first, candidateTokens[0], candidatePlans[0]); err != nil {
-					t.Fatal("first exact-slot plan refused")
-				}
-				if err = first.Commit(f.ctx); err != nil {
-					t.Fatal("first exact-slot commit refused")
-				}
-				err = insertAttemptQuotaPlan(t, f, second, candidateTokens[1], candidatePlans[1])
-				if err == nil {
-					err = second.Commit(f.ctx)
-				}
-				var failure *pgconn.PgError
-				if !errors.As(err, &failure) || !((failure.Code == "23514" && failure.Message == "nfo attempt capacity reached") || (isolation != pgx.ReadCommitted && failure.Code == "40001")) {
-					t.Fatal("stale attempt capacity exceeded or unrelated refusal")
-				}
-				_ = second.Rollback(f.ctx)
-				var rows, partial int
-				var used int64
-				if err = f.s.Pool.QueryRow(f.ctx, `SELECT count(*),COALESCE(sum(retained_bytes),0),(SELECT count(*) FROM nfo_write_commit_file_plans WHERE token=$1::uuid) FROM nfo_write_commit_attempt_reservations`, candidateTokens[1]).Scan(&rows, &used, &partial); err != nil || rows != seedCount+2 || partial != 0 || (kind == "rows" && rows != 256) || (kind == "bytes" && used != capBytes) {
-					t.Fatal("excess or partial attempt reservation retained")
-				}
-			})
+			t.Run(kind+"/"+string(isolation), func(t *testing.T) { attemptQuotaRace(t, kind, isolation, false) })
 		}
+		// Causality control: the same independent candidates, with only the owned
+		// schema's fence made a no-op, must let a stale snapshot exceed the bound.
+		t.Run(kind+"/fence-disabled/"+string(pgx.RepeatableRead), func(t *testing.T) { attemptQuotaRace(t, kind, pgx.RepeatableRead, true) })
+	}
+}
+
+func attemptQuotaRace(t *testing.T, kind string, isolation pgx.TxIsoLevel, fenceDisabled bool) {
+	f, base, prepared, _, initial := commitAttemptFixture(t)
+	stopAttemptQuotaJob(t, f, base)
+	g, otherJob, other := attemptQuotaOtherLibrary(t, f)
+	otherBytes := domain.NFOWriteCommitAttemptRetainedBytes(int64(len(other.Original)), int64(len(other.Replacement)))
+	capBytes := int64(1073741824)
+	// The first candidate is the last entry of the seeded library; the second is
+	// the other library. Both fit alone and exactly one fits together.
+	seedCount := 254
+	sizes := make([][2]int, seedCount+1)
+	if kind == "bytes" {
+		per := domain.NFOWriteCommitAttemptRetainedBytes(2<<20, 2<<20)
+		room := capBytes - initial.RetainedBytes - otherBytes
+		full := room / per
+		filler := room - full*per
+		if filler != 0 && filler < 160 {
+			full--
+			filler += per
+		}
+		seedCount = int(full)
+		sizes = make([][2]int, 0, seedCount+2)
+		for i := 0; i < seedCount; i++ {
+			sizes = append(sizes, [2]int{2 << 20, 2 << 20})
+		}
+		if filler != 0 {
+			sizes = append(sizes, attemptQuotaFiller(t, filler))
+			seedCount++
+		}
+		sizes = append(sizes, [2]int{len(other.Original), len(other.Replacement)})
+	}
+	var firstPlan domain.NFOWriteCommitFilePlan
+	var firstToken string
+	remaining, total, batch := seedCount+1, 0, 0
+	for remaining > 0 {
+		count := min(remaining, 100)
+		batch++
+		lease, plans, tokens := makeAttemptQuotaBatch(t, f, base, prepared, batch, count, total, sizes)
+		for i := 0; i < count; i++ {
+			if total+i < seedCount {
+				if _, err := f.s.SaveNFOWriteCommitFilePlan(f.ctx, lease, i+1, tokens[i], plans[i]); err != nil {
+					t.Fatal("owned below-bound plan refused")
+				}
+			} else {
+				firstPlan, firstToken = plans[i], tokens[i]
+			}
+		}
+		remaining -= count
+		total += count
+		if remaining > 0 {
+			stopAttemptQuotaJob(t, f, lease)
+		}
+	}
+	if firstToken == "" {
+		t.Fatal("owned final-slot candidates missing")
+	}
+	_, secondPlan, secondToken := attemptQuotaOtherCandidate(t, g, otherJob)
+	var shared int
+	if err := f.s.Pool.QueryRow(f.ctx, `SELECT count(*) FROM nfo_write_commit_journal a JOIN nfo_write_commit_journal b ON b.token=$2::uuid JOIN jobs ja ON ja.id=a.job_id JOIN jobs jb ON jb.id=b.job_id
+ JOIN nfo_write_entries ea ON ea.job_id=a.job_id AND ea.sequence=a.sequence JOIN nfo_write_entries eb ON eb.job_id=b.job_id AND eb.sequence=b.sequence
+ WHERE a.token=$1::uuid AND (ja.id=jb.id OR ja.library_id=jb.library_id OR ea.root_id=eb.root_id OR ea.item_id=eb.item_id OR ea.source_id=eb.source_id OR ja.state<>'running' OR jb.state<>'running')`, firstToken, secondToken).Scan(&shared); err != nil || shared != 0 {
+		t.Fatal("owned quota candidates are not independent live scopes")
+	}
+	if fenceDisabled {
+		disableAttemptQuotaFence(t, f)
+	}
+	first, err := f.s.Pool.BeginTx(f.ctx, pgx.TxOptions{IsoLevel: isolation})
+	if err != nil {
+		t.Fatal("owned quota first snapshot unavailable")
+	}
+	defer first.Rollback(f.ctx)
+	second, err := f.s.Pool.BeginTx(f.ctx, pgx.TxOptions{IsoLevel: isolation})
+	if err != nil {
+		t.Fatal("owned quota second snapshot unavailable")
+	}
+	defer second.Rollback(f.ctx)
+	for _, tx := range []pgx.Tx{first, second} {
+		var rows int
+		var used int64
+		if err = tx.QueryRow(f.ctx, `SELECT count(*),COALESCE(sum(retained_bytes),0) FROM nfo_write_commit_attempt_reservations`).Scan(&rows, &used); err != nil || rows != seedCount+1 || (kind == "rows" && rows != 255) || (kind == "bytes" && used != capBytes-otherBytes) {
+			t.Fatal("owned quota boundary masked by another limit")
+		}
+	}
+	if err = insertAttemptQuotaPlan(t, f, first, firstToken, firstPlan); err != nil {
+		t.Fatal("first exact-slot plan refused")
+	}
+	if err = first.Commit(f.ctx); err != nil {
+		t.Fatal("first exact-slot commit refused")
+	}
+	err = insertAttemptQuotaPlan(t, g, second, secondToken, secondPlan)
+	if err == nil {
+		err = second.Commit(f.ctx)
+	}
+	var rows, partial int
+	var used int64
+	count := func() {
+		if err := f.s.Pool.QueryRow(f.ctx, `SELECT count(*),COALESCE(sum(retained_bytes),0),(SELECT count(*) FROM nfo_write_commit_file_plans WHERE token=$1::uuid) FROM nfo_write_commit_attempt_reservations`, secondToken).Scan(&rows, &used, &partial); err != nil {
+			t.Fatal("owned quota totals unavailable")
+		}
+	}
+	if fenceDisabled {
+		count()
+		if err != nil || rows != seedCount+3 || partial != 1 || (kind == "bytes" && used != capBytes+otherBytes) {
+			t.Fatal("fence-disabled control did not admit stale candidate")
+		}
+		return
+	}
+	if err == nil {
+		t.Fatal("stale attempt capacity admitted")
+	}
+	var failure *pgconn.PgError
+	if !errors.As(err, &failure) || !((failure.Code == "23514" && failure.Message == "nfo attempt capacity reached") || (isolation != pgx.ReadCommitted && failure.Code == "40001")) {
+		if failure != nil {
+			t.Logf("unrelated quota refusal sqlstate=%s constraint=%s", failure.Code, failure.ConstraintName)
+		}
+		t.Fatal("unrelated attempt capacity refusal")
+	}
+	_ = second.Rollback(f.ctx)
+	count()
+	if rows != seedCount+2 || partial != 0 || (kind == "rows" && rows != 256) || (kind == "bytes" && used != capBytes) {
+		t.Fatal("excess or partial attempt reservation retained")
 	}
 }
