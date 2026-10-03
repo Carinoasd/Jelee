@@ -1,5 +1,7 @@
 # NFO 有界 attempt 的內部準備流程
 
+已提交並推送f2af24361c837efe765a201550ce99d7f338c159至既有PR46。
+
 本段在schema55已保存witness pair續作之外，增加另一個預先保存的名稱空間，以便保留create到first checkpoint之間的未知物件。`prepareNFOCommitAttempt`仍是私有準備流程；正式Stage／PostgreSQL沒有attempt配置或呼叫者，不提供自動恢復租約及filesystem授權。
 
 ## 名稱、首次意圖及容量

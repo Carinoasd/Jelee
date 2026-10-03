@@ -1,3 +1,10 @@
+## 2026-10-04 有界attempt內部流程已發布f2af24361c
+
+精確11檔publication hashes／staged inventory及cached diff通過，已提交推送f2af24361c837efe765a201550ce99d7f338c159至既有branch／PR46，提交後工作目錄乾淨。1010來源雜湊、110已發布SQL及trace保持；前述BASE1f75的finalizer只作本批歷史，不在新HEAD重跑。method新增發布狀態，本段兩文件接續記錄；PR描述補有界attempt範圍／驗證與缺口，下一核遠端HEAD/body/CI。
+
+下一須把reservation／attempt allocator及per-attempt first checkpoints接到真PG：一次性全域容量須含既有legacy retained names，序號1–3必須由持久ledger分配並保留首次意圖與IDs，latest／未知結果需重讀，不修改schema55已有first output。另需放棄／清理協議、恢復lease與FS grant，才可接正式Stage與全部target commit／backup／rollback／結算／crash recovery／三批次worker。新prepare還沒有這些正式呼叫者；全7／198／131／原24h／完整品牌門禁與goal active保持。
+
+---
 ## 2026-10-04 私有有界attempt準備與實際中斷驗證通過
 
 HEAD仍1f75ce224391ebfb3361039949a396471cee157d，本批準備發布8Go＋3docs。新增commit_attempt.go／test，private plan增加attempt序號0legacy／1–3新names，舊四個位置初始化改具名，legacy Stage保持0；progress／files核ordinal上限。prepareNFOCommitAttempt先reserve完整first plan／序號／兩payload長度及hash、三新attempt全名稱保守容量，返回first值完全相同才落檔；unknown response或scope drift副作用前拒。新attempt不採用／更動旧attempt物件；同attempt保留first output／rollback續作，跨attempt不能採用proof。只有內部primitive，沒有PG allocator／global capacity／自動選latest／放棄清理／恢復lease或FS grant，legacy容量須後續涵蓋。
