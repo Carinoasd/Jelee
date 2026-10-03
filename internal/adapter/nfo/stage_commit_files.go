@@ -92,7 +92,7 @@ func (w *Writer) stageCommitFilesOwned(ctx context.Context, source *Source, leas
 	if err != nil {
 		return err
 	}
-	if task.JobID != record.JobID || task.Sequence != record.Sequence {
+	if task.JobID != record.JobID || task.Sequence != record.Sequence || task.Preparation.Scope.RootGeneration < 1 {
 		return ErrInvalidInput
 	}
 	if evidence.Record.JobID != record.JobID || evidence.Record.Sequence != record.Sequence || evidence.Record.Owner != record.Owner || evidence.Record.Generation != record.Generation || evidence.Record.Token != record.Token || evidence.ReadyRecorded && !evidence.PlanRecorded {

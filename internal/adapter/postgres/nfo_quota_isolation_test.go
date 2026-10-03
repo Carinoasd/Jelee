@@ -172,11 +172,8 @@ func TestNFOQuotaFenceMigrationAndMissingRow(t *testing.T) {
 		}
 	})
 	t.Run("retained preparation", func(t *testing.T) {
-		f, service, _, request := nfoWritePreparationFixture(t)
-		jobMetricMigration(t, f, "down", 48)
-		if _, _, err := service.Prepare(f.ctx, f.a, "retained-fence", request); err != nil {
-			t.Fatal(err)
-		}
+		f, _, _, request := nfoWritePreparationFixture(t)
+		legacyNFOWritePreparationFixture(t, f, request, "retained-fence", 48)
 		if _, _, err := Migrate(f.ctx, f.s.Pool.Config().ConnString(), "down"); err == nil {
 			t.Fatal("removed retained fence")
 		}
@@ -219,8 +216,8 @@ func TestNFOQuotaJobGlobalBytesRollBackAdmission(t *testing.T) {
 	// Logical byte sizes are measured before TOAST compression. Every individual
 	// job is below 128 MiB, so only the global 512 MiB guard can refuse job eight.
 	query := `WITH large AS MATERIALIZED (SELECT convert_to(rpad('<movie/>',33554432,' '),'UTF8') AS value), target AS MATERIALIZED (SELECT gen_random_uuid() AS item), recipe AS MATERIALIZED (SELECT e.*,target.item,convert_to((convert_from(request_bytes,'UTF8')::jsonb||jsonb_build_object('itemId',target.item,'maxBytes',33554432))::text,'UTF8') AS encoded FROM nfo_write_entries e CROSS JOIN target WHERE job_id=$2::uuid AND sequence=1)
- INSERT INTO nfo_write_entries(job_id,sequence,preparation_id,version,request_bytes,request_digest,library_id,item_id,source_id,root_id,kind,revision,generation,root_path,relative_path,media_path,directory_path,max_bytes,modified_unix_nano,original_bytes,original_sha256,replacement_bytes,replacement_sha256)
- SELECT $1::uuid,1,gen_random_uuid(),version,encoded,encode(sha256(encoded),'hex'),library_id,item,source_id,root_id,kind,revision,generation,root_path,relative_path,media_path,directory_path,33554432,modified_unix_nano,value,encode(sha256(value),'hex'),value,encode(sha256(value),'hex') FROM recipe CROSS JOIN large`
+ INSERT INTO nfo_write_entries(job_id,sequence,preparation_id,version,request_bytes,request_digest,library_id,item_id,source_id,root_id,kind,revision,generation,root_generation,root_path,relative_path,media_path,directory_path,max_bytes,modified_unix_nano,original_bytes,original_sha256,replacement_bytes,replacement_sha256)
+ SELECT $1::uuid,1,gen_random_uuid(),version,encoded,encode(sha256(encoded),'hex'),library_id,item,source_id,root_id,kind,revision,generation,root_generation,root_path,relative_path,media_path,directory_path,33554432,modified_unix_nano,value,encode(sha256(value),'hex'),value,encode(sha256(value),'hex') FROM recipe CROSS JOIN large`
 	for i := 0; i < 8; i++ {
 		tx, err := f.s.Pool.Begin(f.ctx)
 		if err != nil {
@@ -256,12 +253,15 @@ func TestNFOQuotaFenceRetainedJobAndMissingIntentFence(t *testing.T) {
 	for _, missing := range []bool{false, true} {
 		t.Run(fmt.Sprintf("missing=%t", missing), func(t *testing.T) {
 			f, service, _, request := nfoWritePreparationFixture(t)
+			var saved domain.NFOWritePreparation
 			if !missing {
-				jobMetricMigration(t, f, "down", 48)
-			}
-			saved, _, err := service.Prepare(f.ctx, f.a, "intent-fence-source", request)
-			if err != nil {
-				t.Fatal(err)
+				saved = legacyNFOWritePreparationFixture(t, f, request, "intent-fence-source", 48)
+			} else {
+				var err error
+				saved, _, err = service.Prepare(f.ctx, f.a, "intent-fence-source", request)
+				if err != nil {
+					t.Fatal(err)
+				}
 			}
 			j := nfoWriteJobFixture(t, f, saved, "intent-fence-base", domain.JobPriorityManual)
 			if _, err := f.s.CancelJob(f.ctx, f.a, j.ID); err != nil {

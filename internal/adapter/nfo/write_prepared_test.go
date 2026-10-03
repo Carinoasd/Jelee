@@ -21,7 +21,7 @@ import (
 func preparedWriterFixture(t *testing.T, content []byte, kind string) (string, *Source, domain.NFOWritePreparation, *resources.Budget) {
 	t.Helper()
 	root, name := sourceFixture(t, content)
-	scope := domain.NFOItemScope{ItemID: "a0000000-0000-0000-0000-000000000001", LibraryID: "a0000000-0000-0000-0000-000000000002", SourceID: "a0000000-0000-0000-0000-000000000003", RootID: "a0000000-0000-0000-0000-000000000004", Kind: kind, Revision: 1, Generation: 1, MediaPath: "電影 title.mkv", Source: domain.NFOSource{RootPath: root, RelativePath: name}}
+	scope := domain.NFOItemScope{ItemID: "a0000000-0000-0000-0000-000000000001", LibraryID: "a0000000-0000-0000-0000-000000000002", SourceID: "a0000000-0000-0000-0000-000000000003", RootID: "a0000000-0000-0000-0000-000000000004", Kind: kind, Revision: 1, Generation: 1, RootGeneration: 1, MediaPath: "電影 title.mkv", Source: domain.NFOSource{RootPath: root, RelativePath: name}}
 	if kind == "Series" || kind == "Season" {
 		scope.MediaPath = ""
 		scope.DirectoryPath = "folder"

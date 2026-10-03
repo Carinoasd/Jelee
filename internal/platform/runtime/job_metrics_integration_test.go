@@ -24,9 +24,10 @@ import (
 )
 
 type jobMetricsRuntimeFixture struct {
-	endpoint string
-	client   *http.Client
-	stop     func()
+	endpoint       string
+	client         *http.Client
+	stop           func()
+	resourceValues map[string]float64
 }
 
 func startJobMetricsRuntime(t *testing.T, ctx context.Context, observer *pgx.Conn, dsn, suffix string, maxConnections int) jobMetricsRuntimeFixture {
@@ -71,6 +72,11 @@ func startJobMetricsRuntime(t *testing.T, ctx context.Context, observer *pgx.Con
 	transport := &http.Transport{}
 	t.Cleanup(transport.CloseIdleConnections)
 	fixture := jobMetricsRuntimeFixture{endpoint: "http://" + address + "/metrics", client: &http.Client{Transport: transport, Timeout: 5 * time.Second}}
+	fixture.resourceValues = map[string]float64{
+		"cpu_active": 0, "io_active": 0, "total_active": 0, "waiting": 0,
+		"cpu_limit": float64(cfg.Resources.CPULimit()), "io_limit": float64(cfg.Resources.IO),
+		"total_limit": float64(cfg.Resources.Total), "queue_limit": float64(cfg.Resources.Queue),
+	}
 	stopped := false
 	fixture.stop = func() {
 		if stopped {
@@ -158,7 +164,7 @@ func (f jobMetricsRuntimeFixture) request(t *testing.T, ctx context.Context, tok
 		if !strings.HasPrefix(response.Header.Get("Content-Type"), "text/plain;") {
 			t.Fatal("shared metrics did not return exporter exposition")
 		}
-	} else if strings.Contains(string(body), "jelee_jobs_") || strings.Contains(string(body), "jelee_runtime_") || strings.Contains(string(body), "jelee_db_pool_") {
+	} else if strings.Contains(string(body), "jelee_jobs_") || strings.Contains(string(body), "jelee_runtime_") || strings.Contains(string(body), "jelee_db_pool_") || strings.Contains(string(body), "jelee_resources_") {
 		t.Fatal("failed shared metrics request exposed partial data")
 	}
 	return string(body)
@@ -167,9 +173,9 @@ func (f jobMetricsRuntimeFixture) request(t *testing.T, ctx context.Context, tok
 func sharedMetricsPoint(t *testing.T, families map[string]*dto.MetricFamily, name, kind, priority, outcome string, typ dto.MetricType) *dto.Metric {
 	t.Helper()
 	family := families[name]
-	wantLabels, wantPoints := 2, 4
+	wantLabels, wantPoints := 2, 6
 	if outcome != "" {
-		wantLabels, wantPoints = 3, 12
+		wantLabels, wantPoints = 3, 18
 	}
 	if family == nil || family.GetType() != typ || len(family.Metric) != wantPoints {
 		t.Fatal("missing fixed shared metrics family", name)
@@ -200,8 +206,20 @@ func scrapeSharedMetricsSnapshot(t *testing.T, ctx context.Context, store *postg
 	}
 	parser := expfmt.NewTextParser(model.LegacyValidation)
 	families, err := parser.TextToMetricFamilies(strings.NewReader(body))
-	if err != nil || len(families) != 22 {
-		t.Fatal("production metrics did not expose all 22 families")
+	if err != nil {
+		t.Fatal("parse production metrics exposition")
+	}
+	if len(families) != 30 {
+		t.Fatalf("production metrics exposed %d families, want 30", len(families))
+	}
+	// Workers are disabled in this fixture. Scraping must not acquire work
+	// permits, and each instance must expose its configured resource limits.
+	for suffix, want := range runtime.resourceValues {
+		name := "jelee_resources_" + suffix
+		family := families[name]
+		if family == nil || family.GetType() != dto.MetricType_GAUGE || len(family.Metric) != 1 || len(family.Metric[0].Label) != 0 || family.Metric[0].Gauge == nil || family.Metric[0].GetGauge().GetValue() != want {
+			t.Fatalf("production resource metric %s must be one unlabeled gauge with value %v", name, want)
+		}
 	}
 	if metricsIntegrationValue(t, body, "jelee_db_pool_connections_max", "gauge") != float64(maxConnections) {
 		t.Fatal("shared metrics contaminated the local pool dimensions")

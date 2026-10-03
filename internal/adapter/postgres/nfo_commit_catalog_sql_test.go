@@ -214,7 +214,7 @@ func TestNFOCommitCatalogMigration(t *testing.T) {
 			t.Fatal("retained catalog guard downgraded")
 		}
 		version, dirty, err := Migrate(f.ctx, f.s.Pool.Config().ConnString(), "status")
-		if err != nil || version != 50 || !dirty || f.s.Ready(f.ctx) == nil {
+		if err != nil || version != SchemaVersion-1 || !dirty || f.s.Ready(f.ctx) == nil {
 			t.Fatal("retained downgrade did not reject dirty schema")
 		}
 		var token string
@@ -224,8 +224,9 @@ func TestNFOCommitCatalogMigration(t *testing.T) {
 	})
 	t.Run("historical_scope", func(t *testing.T) {
 		f, l, p := nfoCommitFixture(t)
+		nfoRootGenerationLegacyAt51(t, f)
 		jobMetricMigration(t, f, "down", 50)
-		r, err := f.s.BeginNFOWriteCommit(f.ctx, l, 1)
+		r, err := persistNFOWriteCommitFixture(f.ctx, f.s, l, 1)
 		if err != nil {
 			t.Fatal(err)
 		}

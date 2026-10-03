@@ -48,6 +48,9 @@ func (w *Writer) preparedIntentKey(ctx context.Context, source *Source, prepared
 	if err := domain.ValidateNFOWritePreparation(prepared); err != nil {
 		return "", ErrInvalidInput
 	}
+	if prepared.Scope.RootGeneration < 1 {
+		return "", ErrInvalidInput
+	}
 	if len(prepared.Scope.Source.RootPath) > 32768 || len(source.rootPath) > 32768 {
 		return "", ErrInvalidInput
 	}
@@ -83,6 +86,9 @@ func (w *Writer) rebuildPrepared(ctx context.Context, source *Source, prepared d
 	// Validate shape and size before cloning the bounded payload. Domain checks
 	// full source digest; the replacement is checked by controlled reconstruction.
 	if err := domain.ValidateNFOWritePreparation(prepared); err != nil {
+		return nil, ErrInvalidInput
+	}
+	if prepared.Scope.RootGeneration < 1 {
 		return nil, ErrInvalidInput
 	}
 	prepared = domain.CloneNFOWritePreparation(prepared)

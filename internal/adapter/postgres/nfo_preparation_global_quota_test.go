@@ -97,12 +97,15 @@ func quotaPreparationScope(t *testing.T, f jobFixture, base, key string) (string
 	if err := f.s.Pool.QueryRow(f.ctx, `INSERT INTO items SELECT (jsonb_populate_record(NULL::items,to_jsonb(i)||jsonb_build_object('id',gen_random_uuid(),'library_id',$2::uuid))).* FROM items i JOIN nfo_write_preparations p ON p.item_id=i.id WHERE p.id=$1::uuid RETURNING id::text`, base, library).Scan(&item); err != nil {
 		t.Fatal(err)
 	}
+	if _, err := f.s.Pool.Exec(f.ctx, `INSERT INTO library_roots SELECT (jsonb_populate_record(NULL::library_roots,to_jsonb(r)||jsonb_build_object('id',gen_random_uuid(),'library_id',$2::uuid,'path',r.path||'/quota-'||$2::text))).* FROM library_roots r JOIN nfo_write_preparations p ON p.root_id=r.id WHERE p.id=$1::uuid`, base, library); err != nil {
+		t.Fatal("create owned quota root", err)
+	}
 	return library, item
 }
 
 const insertQuotaPreparationBytes = `WITH large AS MATERIALIZED (SELECT convert_to(rpad('<movie/>',$5::integer,' '),'UTF8') AS payload), recipe AS MATERIALIZED (SELECT p.*,convert_to((convert_from(request_bytes,'UTF8')::jsonb||jsonb_build_object('itemId',$3::uuid,'maxBytes',$5::bigint))::text,'UTF8') AS encoded FROM nfo_write_preparations p WHERE id=$1::uuid)
- INSERT INTO nfo_write_preparations(actor_id,idempotency_key,version,request_bytes,request_digest,library_id,item_id,source_id,root_id,kind,revision,generation,root_path,relative_path,media_path,directory_path,max_bytes,modified_unix_nano,original_bytes,original_sha256,replacement_bytes,replacement_sha256,created_at,expires_at)
- SELECT actor_id,$4,version,encoded,encode(sha256(encoded),'hex'),$2::uuid,$3::uuid,source_id,root_id,kind,revision,generation,root_path,relative_path,media_path,directory_path,$5::bigint,modified_unix_nano,payload,encode(sha256(payload),'hex'),payload,encode(sha256(payload),'hex'),created_at,expires_at FROM recipe CROSS JOIN large`
+ INSERT INTO nfo_write_preparations(actor_id,idempotency_key,version,request_bytes,request_digest,library_id,item_id,source_id,root_id,kind,revision,generation,root_generation,root_path,relative_path,media_path,directory_path,max_bytes,modified_unix_nano,original_bytes,original_sha256,replacement_bytes,replacement_sha256,created_at,expires_at)
+ SELECT actor_id,$4,version,encoded,encode(sha256(encoded),'hex'),$2::uuid,$3::uuid,source_id,(SELECT id FROM library_roots WHERE library_id=$2::uuid),kind,revision,generation,(SELECT nfo_generation FROM library_roots WHERE library_id=$2::uuid),(SELECT path FROM library_roots WHERE library_id=$2::uuid),relative_path,media_path,directory_path,$5::bigint,modified_unix_nano,payload,encode(sha256(payload),'hex'),payload,encode(sha256(payload),'hex'),created_at,expires_at FROM recipe CROSS JOIN large`
 
 func TestNFOQuotaPreparationGlobalBytesConcurrentSnapshots(t *testing.T) {
 	for _, isolation := range []pgx.TxIsoLevel{pgx.ReadCommitted, pgx.RepeatableRead, pgx.Serializable} {

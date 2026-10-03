@@ -200,7 +200,11 @@ func checkNFOCommitFileToken(ctx context.Context, tx pgx.Tx, lease domain.JobLea
 // root/media identity; it does not grant filesystem commit authorization.
 func checkNFOCommitCatalogScope(ctx context.Context, tx pgx.Tx, job string, sequence int) error {
 	var saved domain.NFOItemScope
-	err := tx.QueryRow(ctx, `SELECT e.item_id::text,e.library_id::text,e.source_id::text,e.root_id::text,e.kind,e.revision,e.generation,e.directory_path,e.media_path,e.root_path,e.relative_path FROM nfo_write_entries e JOIN jobs j ON j.id=e.job_id AND j.library_id=e.library_id WHERE e.job_id=$1::uuid AND e.sequence=$2`, job, sequence).Scan(&saved.ItemID, &saved.LibraryID, &saved.SourceID, &saved.RootID, &saved.Kind, &saved.Revision, &saved.Generation, &saved.DirectoryPath, &saved.MediaPath, &saved.Source.RootPath, &saved.Source.RelativePath)
+	columns, err := nfoHistoricalRootColumns(ctx, tx, `e.item_id::text,e.library_id::text,e.source_id::text,e.root_id::text,e.kind,e.revision,e.generation,COALESCE(e.root_generation,0),e.directory_path,e.media_path,e.root_path,e.relative_path`, "nfo_write_entries")
+	if err != nil {
+		return err
+	}
+	err = tx.QueryRow(ctx, `SELECT `+columns+` FROM nfo_write_entries e JOIN jobs j ON j.id=e.job_id AND j.library_id=e.library_id WHERE e.job_id=$1::uuid AND e.sequence=$2`, job, sequence).Scan(&saved.ItemID, &saved.LibraryID, &saved.SourceID, &saved.RootID, &saved.Kind, &saved.Revision, &saved.Generation, &saved.RootGeneration, &saved.DirectoryPath, &saved.MediaPath, &saved.Source.RootPath, &saved.Source.RelativePath)
 	if err != nil {
 		return storageError(err)
 	}
@@ -211,7 +215,7 @@ func checkNFOCommitCatalogScope(ctx context.Context, tx pgx.Tx, job string, sequ
 	if err != nil {
 		return err
 	}
-	if live != saved {
+	if saved.RootGeneration < 1 || live != saved {
 		return domain.ErrConflict
 	}
 	// Metadata's item row is already locked. Lock its revision row too so even

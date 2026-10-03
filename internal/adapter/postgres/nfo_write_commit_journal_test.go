@@ -293,6 +293,7 @@ func TestNFOWriteCommitJournalMigrationEmptyAndRetained(t *testing.T) {
 	t.Run("retained", func(t *testing.T) {
 		f, l, _ := nfoCommitFixture(t)
 		// Exercise the published schema49 refusal independently of newer guards.
+		nfoRootGenerationLegacyAt51(t, f)
 		jobMetricMigration(t, f, "down", 49)
 		r, err := persistNFOWriteCommitFixture(f.ctx, f.s, l, 1)
 		if err != nil {

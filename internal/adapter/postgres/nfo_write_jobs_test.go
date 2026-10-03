@@ -32,7 +32,16 @@ func nfoWriteJobFixture(t *testing.T, f jobFixture, prepared domain.NFOWritePrep
 	if err != nil {
 		t.Fatal("create private write job", err)
 	}
-	if err := copyNFOWriteIntents(f.ctx, tx, j.ID, []string{prepared.ID}); err != nil {
+	var hasRootColumn bool
+	if err = tx.QueryRow(f.ctx, `SELECT EXISTS(SELECT 1 FROM pg_catalog.pg_attribute WHERE attrelid='nfo_write_entries'::regclass AND attname='root_generation' AND NOT attisdropped)`).Scan(&hasRootColumn); err != nil {
+		t.Fatal(err)
+	}
+	if hasRootColumn {
+		err = copyNFOWriteIntents(f.ctx, tx, j.ID, []string{prepared.ID})
+	} else {
+		err = copyLegacyNFOWriteFixture(t, f, tx, j, prepared)
+	}
+	if err != nil {
 		t.Fatal("copy job-owned intent", err)
 	}
 	if err := tx.Commit(f.ctx); err != nil {
@@ -197,12 +206,8 @@ func TestNFOWriteJobsMigrationPreservesEpochAndRefusesRetainedData(t *testing.T)
 		jobMetricMigration(t, f, "up", SchemaVersion)
 	})
 	t.Run("retained", func(t *testing.T) {
-		f, service, _, request := nfoWritePreparationFixture(t)
-		jobMetricMigration(t, f, "down", 47)
-		saved, _, err := service.Prepare(f.ctx, f.a, "retained-job", request)
-		if err != nil {
-			t.Fatal(err)
-		}
+		f, _, _, request := nfoWritePreparationFixture(t)
+		saved := legacyNFOWritePreparationFixture(t, f, request, "retained-job", 47)
 		j := nfoWriteJobFixture(t, f, saved, "retained-job", domain.JobPriorityManual)
 		if _, _, err := Migrate(f.ctx, f.s.Pool.Config().ConnString(), "down"); err == nil {
 			t.Fatal("downgrade discarded job intent")
@@ -218,12 +223,8 @@ func TestNFOWriteJobsMigrationPreservesEpochAndRefusesRetainedData(t *testing.T)
 		}
 	})
 	t.Run("metrics only", func(t *testing.T) {
-		f, service, _, request := nfoWritePreparationFixture(t)
-		jobMetricMigration(t, f, "down", 47)
-		saved, _, err := service.Prepare(f.ctx, f.a, "retained-metrics", request)
-		if err != nil {
-			t.Fatal(err)
-		}
+		f, _, _, request := nfoWritePreparationFixture(t)
+		saved := legacyNFOWritePreparationFixture(t, f, request, "retained-metrics", 47)
 		j := nfoWriteJobFixture(t, f, saved, "metric-job", domain.JobPriorityManual)
 		if _, err := f.s.CancelJob(f.ctx, f.a, j.ID); err != nil {
 			t.Fatal(err)
@@ -288,8 +289,8 @@ func TestNFOWriteJobsByteCapacityRollsBackWholeBatch(t *testing.T) {
 	}
 	defer tx.Rollback(f.ctx)
 	query := `WITH large AS MATERIALIZED (SELECT convert_to(rpad('<movie/>',33554432,' '),'UTF8') AS value), target AS MATERIALIZED (SELECT gen_random_uuid() AS item), recipe AS MATERIALIZED (SELECT e.*,target.item,convert_to((convert_from(request_bytes,'UTF8')::jsonb||jsonb_build_object('itemId',target.item,'maxBytes',33554432))::text,'UTF8') AS encoded FROM nfo_write_entries e CROSS JOIN target WHERE job_id=$1::uuid AND sequence=1)
- INSERT INTO nfo_write_entries(job_id,sequence,preparation_id,version,request_bytes,request_digest,library_id,item_id,source_id,root_id,kind,revision,generation,root_path,relative_path,media_path,directory_path,max_bytes,modified_unix_nano,original_bytes,original_sha256,replacement_bytes,replacement_sha256)
- SELECT job_id,$2,gen_random_uuid(),version,encoded,encode(sha256(encoded),'hex'),library_id,item,source_id,root_id,kind,revision,generation,root_path,relative_path,media_path,directory_path,33554432,modified_unix_nano,value,encode(sha256(value),'hex'),value,encode(sha256(value),'hex') FROM recipe CROSS JOIN large`
+ INSERT INTO nfo_write_entries(job_id,sequence,preparation_id,version,request_bytes,request_digest,library_id,item_id,source_id,root_id,kind,revision,generation,root_generation,root_path,relative_path,media_path,directory_path,max_bytes,modified_unix_nano,original_bytes,original_sha256,replacement_bytes,replacement_sha256)
+ SELECT job_id,$2,gen_random_uuid(),version,encoded,encode(sha256(encoded),'hex'),library_id,item,source_id,root_id,kind,revision,generation,root_generation,root_path,relative_path,media_path,directory_path,33554432,modified_unix_nano,value,encode(sha256(value),'hex'),value,encode(sha256(value),'hex') FROM recipe CROSS JOIN large`
 	if _, err := tx.Exec(f.ctx, query, j.ID, 2); err != nil {
 		t.Fatal("capacity rejected below 128MiB", err)
 	}

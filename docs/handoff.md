@@ -1,3 +1,51 @@
+## 2026-10-03 schema52 完整459根已驗，準備發布
+
+已發布基線2b3cb5b8c69bc11eae7bebc0c29a89eb4b0515b6／schema51／PR46，本批隨提交沿同分支發布schema52。資料庫root generation在準備及job-owned intent保存同一觀察；缺證歷史NULL不回填、不授權新準備／Begin／plan／ready／Stage。SQL及app核root ID／library／path／generation，SAVEPOINT／提早flush後準備root mutation與generation倒退拒絕；Save先quota後root。保留root proof或journal拒52降版dirty51，空降升保留metrics epoch。沒有原生media／ancestor receipt或target提交准入。
+
+完整60665已terminal0，四片皆0，459根各run／pass恰一次，1454PASS／零skipfail，980份Go／SQL凍結hash全部吻合。新前綴.testdata/nfo-root-generation-schema-v2-*及嚴格彙整器.testdata/finalize-nfo-root-generation-v2.py保持。safe evidence docs/evidence/nfo-write-root-generation.json。上一53932完整459已terminal1、兩歷史48夾具失敗，舊6FAIL events／coverage保持；修正owned原始SQL夾具後重新完整回歸，無production fallback。正式十根root generation 54PASS，新增窄測不是完整通過的替代。
+
+Windows七套件1043PASS／989條件skip／零fail，未證Windows真PG。runtime metrics三根真PG race8PASS／零skipfail；舊22family／4組／12outcome斷言改為現行30／6／18並逐一核8資源gauge與錯誤回應不洩漏，production接線保持；telemetry Linux race78PASS。兩平台vet、Darwin NFO僅compile、格式／增量品牌0／339／gitignore／diff通過，最終文件仍須核門禁。102份001–051已發布SQL／mod／sum／需求原文／LICENSE保持；本批發布52後001–052共104份SQL不可改。
+
+原生下一階段私人overlay11888／44820皆terminal0（Go test預期1，wrapper精確核5／8FAIL events後0），ordinary media positive及missing／directory／symlink、CPU等待期間缺失或同bytes／mtime不同實體被prepare接受已重現。正式來源前後980hash一致，不當52驗收green；詳見.testdata/nfo-native-scope-next.md。52發布後用新53，先在prepare首次IO捕捉root／media／NFO及完整相關ancestor私有有界receipt、跨CPU重核與取消join，再沿job-owned／plan／ready／恢復同一證據，不能Stage晚認媒體。
+
+正式24h維持run329073a5d193446383327ab217aba147／PID1026300／startTicks33072456／boot4a5d9c5c-4482-4c3e-8978-30156b1ce92f，來源24caf7d45f不含本批；原身分及container running／OOMfalse最後實核吻合，沒有24h通過結論、不重啟。完整品牌及已發布51的PG CI兩檢查FAIL保持，不沿用本機窄測稱CI綠。全案7完成／198部分／131阻塞；原生授權／partial stage／same physical unresolved排除／backup／target Rename／rollback／結算／crash恢復／Windows目錄耐久性／正式worker／三種批次及完整heapRSS仍缺。不merge／release／tag／force-push／改Git身份設定，原媒體／圖片／授權保持。下方為歷史。
+
+---
+## 2026-10-03 等候完整回歸期間的原生準備缺口重現
+
+同一完整PG四片60665仍live；980 Go／SQL hash一致，最後四片合計1099PASS／零skipfail，這是中途觀察，不能宣稱完整通過。原長測329073a5d193446383327ab217aba147原身分與容器running吻合。已準備嚴格彙整器.testdata/finalize-nfo-root-generation-v2.py；只有459根各run／pass一次、四片terminal0、零skipfail、coverage hash與980來源全吻合，才能寫docs/evidence/nfo-write-root-generation.json。--check-only目前因缺final coverage拒絕，未寫完整驗收證據。PR46已更正已發布schema51的兩PG CI FAIL，gh再讀body與本地相同、HEAD仍2b3cb5；候選52沒有外部發布。
+
+下一原生準備階段已用私人Go overlay重現真PG race負例，不改凍結來源：普通真實檔案positive通過；media missing／directory／symlink被現行prepare接受。CPU permit控制使首次IO完成後等待CPU，再移走media或Rename保留原物件並用同bytes／mtime建立不同實體，prepare仍接受。首overlay11888 terminal0（驗證預期5FAIL events），擴充overlay44820 terminal0（驗證預期8FAIL events）；Go test本身預期exit1，wrapper核正例與每個預期失敗後exit0，不當功能green。log／summary前綴.testdata/nfo-native-preparation-next-red及nfo-native-preparation-cpu-next-red，來源manifestSHA與所有980 hash前後不變。它們是下一階段缺口證據，不屬52完整回歸；prepared recipe仍不授權FS執行。先保存真正Root／Media／NFO及相關ancestor的首次觀察，跨CPU等待與取消join，之後延續同receipt至工作意圖／plan／ready／恢復，不能到Stage才重新觀察並當原證據。
+
+其餘發布及門禁見下節。全案7完成／198部分／131阻塞保持；先等60665終態，不重啟、不改Go／SQL。
+
+---
+## 2026-10-03 schema52 完整回歸失敗已修夾具，新459根回歸執行中
+
+已發布仍2b3cb5b8c69bc11eae7bebc0c29a89eb4b0515b6／schema51／OPEN PR46，候選52尚未提交。上一53932已terminal1，459根各run一次、零skip，但兩個schema48歷史夾具失敗（retained_preparation與missing=false），不能當完整通過；原四片log、coverage與980來源manifest保持。原因是降至48後呼叫要求52欄位的現行Save。兩案改用既有owned原始SQL歷史夾具，沒有production舊版fallback；真PG race重新驗兩根7PASS／零skipfail，session64088 terminal0，log .testdata/nfo-quota-legacy-repaired.jsonl。
+
+已發布51的PG CI兩檢查實際FAIL，私人失敗log保留。runtime兩個metrics案本機重現同樣22-family斷言失敗；production已接8個資源family，且nfo_write令工作組由4增至6、outcome由12增至18。修正測試為完整30 family／6組／18outcome，逐一核8個資源gauge的單一無標籤series、配置值與零活動；失敗回應也不得洩漏資源指標。production exporter與runtime接線不改。first repaired v2仍捕捉舊4／12斷言失敗，紀錄保持；最終v3真PG race三根8PASS／零skipfail，41248 terminal0，含生命週期／多實例、授權與阻塞、一般metrics runtime。Linux telemetry race78PASS／零skipfail，89473 terminal0。安全證據docs/evidence/runtime-metrics-contract.json；這些窄測不證完整CI通過。
+
+CURRENT LIVE session60665，wrapper .testdata/run-nfo-root-generation-schema-v2-full-shards.py，重新編譯459根四片；來源 .testdata/nfo-root-generation-schema-v2-source.json 凍結980 Go／SQL，102份已發布SQL保持。manifest／coverage／四片logs前綴 .testdata/nfo-root-generation-schema-v2-*，不得覆蓋原失敗批次。來源核 .testdata/check-nfo-root-generation-v2-live.py。61007 freeze已terminal0，60665已回報Compiled roots459，四片已輸出run／pass；尚無最終coverage或完整通過，不改凍結Go／SQL、不重啟存活handle。等四片terminal0、459根各run／pass一次、零skipfail及全部hash吻合後才彙整52 safe evidence、追蹤／PR說明及提交推送。
+
+Windows最終七套件1043PASS／989條件skip／零fail，log .testdata/nfo-root-generation-windows-final-v2.jsonl，不當Windows真PG。Windows vet、Linux vet與Darwin NFO僅compile皆0；86275已terminal0。最新格式／增量品牌0／339／gitignore／diff皆通過。正式24h仍run329073a5d193446383327ab217aba147／PID1026300／startTicks33072456／boot4a5d9c5c-4482-4c3e-8978-30156b1ce92f，核原身分吻合、container running／OOMfalse，沒有24h通過證據，不重啟且來源24caf7d45f不含本批。
+
+全案7完成／198部分／131阻塞保持。PR完整品牌兩檢查FAIL門禁保持，PG CI仍是已發布來源FAIL。後續原生root／media／ancestor準備觀察、同實體排除、partial stage、target Rename／backup／rollback／結算／恢復、Windows目錄耐久性、正式worker/API/CLI／三種批次操作與完整heap/RSS仍缺；沒有read-write runtime准入。保留原媒體／圖片／授權及不可改的已發布SQL，不merge／release／tag／force-push／改Git身份設定。下方是歷史觀察，舊「53932 live／PG CI pending」已由本節更正。
+
+---
+## 2026-10-03 schema52 root generation候選，完整459根回歸執行中
+
+已發布基線2b3cb5b8c69bc11eae7bebc0c29a89eb4b0515b6／schema51／OPEN PR46，工作仍沿feat/jelee-ignore-family-worker。上一輪schema51已提交推送，102份001–051 SQL不可改。本批候選52新增nullable root_generation於準備／job-owned entry：Resolve同交易讀鎖root generation與path，準備保存及job copy保留同一觀察；新準備、prepared writer與Stage拒缺證，歷史NULL讀為零且不回填。Begin／plan／ready應用複核加欄位，SQL原catalog函式保留v51並以原呼叫名稱加root generation守衛。準備／entry insert及no-op重放即時／deferred核root ID／library／generation／path；提早flush後的generation／path／ID／delete由本交易visible未提交xmin守衛，active／released子交易保留；generation不能倒退。保留root證據或journal拒52降版dirty51，空降升保留metrics epoch。沒有target提交或read-write runtime准入；完整原生root／media／ancestor準備證據仍缺。
+
+實際真PG root generation六SQL階段紅測8FAIL events，首個修正選測因應用scope漏讀欄位失敗，補齊後新測試有建構器名稱編譯錯誤（已修NewWriterWithBudget）；各log保留。v2選測78PASS／8FAIL events，只有三個舊migration夾具先建立新資料才降版（被既有schema48保留資料門禁擋住）與copy夾具active job唯一性錯誤；改為空資料庫選定歷史版本後用owned原始SQL形狀建立資料，不為production新增舊版寫入fallback，也不削弱已發布SQL。v3容量夾具root path撞全域unique；改為各library自己的唯一root，保持合成storage-only容量驗證。新增鎖順序真PG紅測2FAIL events：Save等待quota時先鎖root；已改先取quota fence再解析scope。owned overlay只停root mutation guard，counter退回及準備flush後root四種變更紅測7FAIL events，正式來源不改。
+
+最終選測v4 session37399已terminal0，100PASS／零skipfail，含root drift所有寫入與重放、首次stage／ready resume剩餘bytes、SAVEPOINT、三隔離、準備／copy、歷史／降版及原global quota cases。CURRENT LIVE session53932，wrapper .testdata/run-nfo-root-generation-schema-full-shards.py；980份Go／SQL凍結 .testdata/nfo-root-generation-schema-source.json，最終編譯459根四分片，manifest／coverage／logs為.testdata/nfo-root-generation-schema-*。最後實核980份hash吻合，四片合計844PASS／零skipfail，53932仍live；這是中途狀態，尚無完整通過結論。不得改凍結Go／SQL、不得因觀察timeout重啟；待四片terminal0、459根各run／pass一次、零skipfail與hash全吻合，才彙整safe evidence、需求追蹤、PR說明及提交推送。
+
+Windows凍結來源五套件1126PASS／978DB條件skip／零fail，不當Windows真PG；Windows vet、Linux vet與Darwin NFO僅compile皆terminal0；格式通過。75080 overlay red、11057 Windows及51065 vet皆terminal0。增量品牌／gitignore／diff須再以最後文件核。本批尚未提交；方法docs/nfo-write-root-generation.md仍標候選。正式24h同run329073a5d193446383327ab217aba147／PID1026300／startTicks33072456／boot4a5d9c5c-4482-4c3e-8978-30156b1ce92f，來源24caf7d45f不含本批；本輪實核身分吻合、容器running／OOMfalse，沒有24h通過結論、不重啟。PR2b3完整品牌兩檢查FAIL，PG CI尚在執行，不宣稱全綠。
+
+下一步仍須在prepare觀察／保存真正root、media及所有相關ancestor原生身分，保留跨CPU等待與取消join，再沿工作意圖、plan／ready／恢復使用同一證據，不能到Stage才把新媒體當原觀察。Movie／HomeVideo／Episode media file、Series／Season directory與Series legacy fallback分開；先補owned真實media fixture。缺證／錯平台／unsupported拒授權，原生48-byte record不當不可偽造或永不重用身分。之後same physical target unresolved排除、partial stage、backup／target Rename／rollback／結算／crash恢復、正式worker/API/CLI／三種批次操作及整體heap/RSS仍缺。全案7完成／198部分／131阻塞保持。不merge／release／tag／force-push、不改Git身份設定，原媒體／圖片／授權保持。下方為歷史。
+
+---
 ## 2026-10-03 schema51完整449根已驗，準備發布
 
 已發布基線a2734f2fd5e9aaba8a26c1e7df0cf408290e99f2／schema50／PR46，本批隨提交沿同分支發布schema51。SQL核固定entry對當下catalog scope，journal／plan／ready首次與no-op重放、deferred提交再驗，鎖item／policy／source／root／revision。catalog變更端檢查本交易visible未提交xmin，涵蓋active／released SAVEPOINT，提早SET CONSTRAINTS後仍拒scope漂移；回滾savepoint不凍結catalog。沿用probe mapping MVCC touch並補source ID／directory／revision；Series media intent有directory source時拒絕。保留歷史證據可觀察，任何journal拒51降版dirty50，空降升保留metrics epoch。

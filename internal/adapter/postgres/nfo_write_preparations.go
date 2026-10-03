@@ -14,7 +14,7 @@ import (
 
 var _ app.NFOWritePreparationRepository = (*Store)(nil)
 
-const nfoWritePreparationColumns = `id::text,version,request_bytes,library_id::text,item_id::text,source_id::text,root_id::text,kind,revision,generation,root_path,relative_path,media_path,directory_path,max_bytes,modified_unix_nano,original_bytes,original_sha256,replacement_bytes,created_at,expires_at`
+const nfoWritePreparationColumns = `id::text,version,request_bytes,library_id::text,item_id::text,source_id::text,root_id::text,kind,revision,generation,COALESCE(root_generation,0),root_path,relative_path,media_path,directory_path,max_bytes,modified_unix_nano,original_bytes,original_sha256,replacement_bytes,created_at,expires_at`
 
 func readNFOWritePreparation(ctx context.Context, tx pgx.Tx, actor, key, digest string) (domain.NFOWritePreparation, error) {
 	var retained string
@@ -28,7 +28,11 @@ func readNFOWritePreparation(ctx context.Context, tx pgx.Tx, actor, key, digest 
 	var result domain.NFOWritePreparation
 	var requestBytes []byte
 	var maxBytes int64
-	err = tx.QueryRow(ctx, `SELECT `+nfoWritePreparationColumns+` FROM nfo_write_preparations WHERE actor_id=$1::uuid AND idempotency_key=$2 AND expires_at>clock_timestamp()`, actor, key).Scan(&result.ID, &result.Version, &requestBytes, &result.Scope.LibraryID, &result.Scope.ItemID, &result.Scope.SourceID, &result.Scope.RootID, &result.Scope.Kind, &result.Scope.Revision, &result.Scope.Generation, &result.Scope.Source.RootPath, &result.Scope.Source.RelativePath, &result.Scope.MediaPath, &result.Scope.DirectoryPath, &maxBytes, &result.Stamp.ModifiedUnixNano, &result.Original, &result.Stamp.SHA256, &result.Replacement, &result.CreatedAt, &result.ExpiresAt)
+	columns, err := nfoHistoricalRootColumns(ctx, tx, nfoWritePreparationColumns, "nfo_write_preparations")
+	if err != nil {
+		return domain.NFOWritePreparation{}, err
+	}
+	err = tx.QueryRow(ctx, `SELECT `+columns+` FROM nfo_write_preparations WHERE actor_id=$1::uuid AND idempotency_key=$2 AND expires_at>clock_timestamp()`, actor, key).Scan(&result.ID, &result.Version, &requestBytes, &result.Scope.LibraryID, &result.Scope.ItemID, &result.Scope.SourceID, &result.Scope.RootID, &result.Scope.Kind, &result.Scope.Revision, &result.Scope.Generation, &result.Scope.RootGeneration, &result.Scope.Source.RootPath, &result.Scope.Source.RelativePath, &result.Scope.MediaPath, &result.Scope.DirectoryPath, &maxBytes, &result.Stamp.ModifiedUnixNano, &result.Original, &result.Stamp.SHA256, &result.Replacement, &result.CreatedAt, &result.ExpiresAt)
 	if err != nil {
 		return domain.NFOWritePreparation{}, storageError(err)
 	}
@@ -69,7 +73,7 @@ func (s *Store) FindNFOWritePreparation(ctx context.Context, actor domain.Actor,
 // The caller's observation is re-bound to current authorized catalog data in a
 // short transaction. Concurrent equal requests keep the first UUID and bytes.
 func (s *Store) SaveNFOWritePreparation(ctx context.Context, actor domain.Actor, key string, input domain.NFOWritePreparation) (domain.NFOWritePreparation, bool, error) {
-	if ctx == nil || !validJobKey(key) || domain.ValidateNFOWritePreparation(input) != nil {
+	if ctx == nil || !validJobKey(key) || domain.ValidateNFOWritePreparation(input) != nil || input.Scope.RootGeneration < 1 {
 		return domain.NFOWritePreparation{}, false, domain.ErrInvalid
 	}
 	input = domain.CloneNFOWritePreparation(input)
@@ -91,6 +95,16 @@ func (s *Store) SaveNFOWritePreparation(ctx context.Context, actor domain.Actor,
 	}
 	if !errors.Is(err, domain.ErrNotFound) {
 		return domain.NFOWritePreparation{}, false, err
+	}
+	// SQL INSERT triggers take the global quota fence before the root lock.
+	// Take it before resolving live scope too, so a quota waiter never retains
+	// a root that the current quota owner still needs.
+	tag, err := tx.Exec(ctx, `SELECT pg_advisory_xact_lock(hashtext(current_schema()),17481247); UPDATE nfo_write_quota_fences SET scope=scope WHERE scope='preparation'`)
+	if err != nil {
+		return domain.NFOWritePreparation{}, false, storageError(err)
+	}
+	if tag.RowsAffected() != 1 {
+		return domain.NFOWritePreparation{}, false, domain.ErrDatabase
 	}
 	live, err := readItemNFOScope(ctx, tx, input.Scope.ItemID, input.Scope.Revision)
 	if err != nil {
@@ -116,7 +130,7 @@ func (s *Store) SaveNFOWritePreparation(ctx context.Context, actor domain.Actor,
 		return domain.NFOWritePreparation{}, false, domain.ErrNFOCacheCapacity
 	}
 	replacementHash := sha256.Sum256(input.Replacement)
-	_, err = tx.Exec(ctx, `INSERT INTO nfo_write_preparations(actor_id,idempotency_key,version,request_bytes,request_digest,library_id,item_id,source_id,root_id,kind,revision,generation,root_path,relative_path,media_path,directory_path,max_bytes,modified_unix_nano,original_bytes,original_sha256,replacement_bytes,replacement_sha256) VALUES($1::uuid,$2,$3,$4,$5,$6::uuid,$7::uuid,$8::uuid,$9::uuid,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22)`, actor.UserID, key, input.Version, requestBytes, digest, live.LibraryID, live.ItemID, live.SourceID, live.RootID, live.Kind, live.Revision, live.Generation, live.Source.RootPath, live.Source.RelativePath, live.MediaPath, live.DirectoryPath, input.Request.MaxBytes, input.Stamp.ModifiedUnixNano, input.Original, input.Stamp.SHA256, input.Replacement, hex.EncodeToString(replacementHash[:]))
+	_, err = tx.Exec(ctx, `INSERT INTO nfo_write_preparations(actor_id,idempotency_key,version,request_bytes,request_digest,library_id,item_id,source_id,root_id,kind,revision,generation,root_generation,root_path,relative_path,media_path,directory_path,max_bytes,modified_unix_nano,original_bytes,original_sha256,replacement_bytes,replacement_sha256) VALUES($1::uuid,$2,$3,$4,$5,$6::uuid,$7::uuid,$8::uuid,$9::uuid,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23)`, actor.UserID, key, input.Version, requestBytes, digest, live.LibraryID, live.ItemID, live.SourceID, live.RootID, live.Kind, live.Revision, live.Generation, live.RootGeneration, live.Source.RootPath, live.Source.RelativePath, live.MediaPath, live.DirectoryPath, input.Request.MaxBytes, input.Stamp.ModifiedUnixNano, input.Original, input.Stamp.SHA256, input.Replacement, hex.EncodeToString(replacementHash[:]))
 	if err != nil {
 		return domain.NFOWritePreparation{}, false, storageError(err)
 	}

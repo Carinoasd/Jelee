@@ -28,7 +28,7 @@ func readItemNFOScope(ctx context.Context, tx pgx.Tx, item string, expected int6
 	}
 	if metadata.Kind == "Series" || metadata.Kind == "Season" {
 		value := domain.NFOItemScope{ItemID: item, LibraryID: metadata.LibraryID, Kind: metadata.Kind, Revision: metadata.Revision, Generation: policy.Generation}
-		err := tx.QueryRow(ctx, `SELECT d.id::text,d.root_id::text,d.relative_path,r.path FROM item_directory_sources d JOIN library_roots r ON r.id=d.root_id AND r.library_id=d.library_id WHERE d.item_id=$1::uuid AND d.library_id=$2::uuid AND NOT EXISTS(SELECT 1 FROM media_sources s WHERE s.item_id=d.item_id) FOR UPDATE OF d,r`, item, metadata.LibraryID).Scan(&value.SourceID, &value.RootID, &value.DirectoryPath, &value.Source.RootPath)
+		err := tx.QueryRow(ctx, `SELECT d.id::text,d.root_id::text,d.relative_path,r.path,r.nfo_generation FROM item_directory_sources d JOIN library_roots r ON r.id=d.root_id AND r.library_id=d.library_id WHERE d.item_id=$1::uuid AND d.library_id=$2::uuid AND NOT EXISTS(SELECT 1 FROM media_sources s WHERE s.item_id=d.item_id) FOR UPDATE OF d,r`, item, metadata.LibraryID).Scan(&value.SourceID, &value.RootID, &value.DirectoryPath, &value.Source.RootPath, &value.RootGeneration)
 		if err == nil {
 			value.Source.RelativePath, _ = domain.DirectoryNFOPath(value.DirectoryPath, value.Kind)
 			if !filepath.IsAbs(value.Source.RootPath) || !domain.ValidNFOItemScope(value) {
@@ -49,7 +49,7 @@ func readItemNFOScope(ctx context.Context, tx pgx.Tx, item string, expected int6
 	}
 	// Two rows suffice to detect ambiguity. The foreign keys bind both source
 	// and root to this item's library; no path is supplied by the request.
-	rows, err := tx.Query(ctx, `SELECT s.id::text,s.root_id::text,s.relative_path,r.path FROM media_sources s JOIN library_roots r ON r.id=s.root_id AND r.library_id=s.library_id WHERE s.item_id=$1::uuid AND s.library_id=$2::uuid ORDER BY s.id LIMIT 2 FOR UPDATE OF s,r`, item, metadata.LibraryID)
+	rows, err := tx.Query(ctx, `SELECT s.id::text,s.root_id::text,s.relative_path,r.path,r.nfo_generation FROM media_sources s JOIN library_roots r ON r.id=s.root_id AND r.library_id=s.library_id WHERE s.item_id=$1::uuid AND s.library_id=$2::uuid ORDER BY s.id LIMIT 2 FOR UPDATE OF s,r`, item, metadata.LibraryID)
 	if err != nil {
 		return domain.NFOItemScope{}, storageError(err)
 	}
@@ -58,7 +58,7 @@ func readItemNFOScope(ctx context.Context, tx pgx.Tx, item string, expected int6
 	count := 0
 	for rows.Next() {
 		count++
-		if err := rows.Scan(&value.SourceID, &value.RootID, &value.MediaPath, &value.Source.RootPath); err != nil {
+		if err := rows.Scan(&value.SourceID, &value.RootID, &value.MediaPath, &value.Source.RootPath, &value.RootGeneration); err != nil {
 			return domain.NFOItemScope{}, storageError(err)
 		}
 	}

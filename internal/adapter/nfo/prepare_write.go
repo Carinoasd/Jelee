@@ -22,7 +22,7 @@ func NewWritePreparer(budget app.WorkBudget) (*WritePreparer, error) {
 var _ app.NFOWritePreparer = (*WritePreparer)(nil)
 
 func (p *WritePreparer) PrepareNFOWrite(ctx context.Context, scope domain.NFOItemScope, request domain.NFOWritePrepareRequest) (domain.NFOWritePreparation, error) {
-	if ctx == nil || p == nil || p.budget == nil || !domain.ValidNFOItemScope(scope) || domain.ValidateNFOWritePrepareRequest(request) != nil || scope.ItemID != request.ItemID || scope.Revision != request.Revision {
+	if ctx == nil || p == nil || p.budget == nil || !domain.ValidNFOItemScope(scope) || scope.RootGeneration < 1 || domain.ValidateNFOWritePrepareRequest(request) != nil || scope.ItemID != request.ItemID || scope.Revision != request.Revision {
 		return domain.NFOWritePreparation{}, domain.ErrInvalid
 	}
 	release, err := p.budget.Acquire(ctx, app.WorkIO)

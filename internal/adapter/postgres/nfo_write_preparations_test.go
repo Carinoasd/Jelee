@@ -262,8 +262,8 @@ func TestNFOWritePreparationLibraryByteCapacity(t *testing.T) {
 	// One row has two exact 32MiB documents. The second exceeds the 128MiB library
 	// cap once recipes and the existing small row are included.
 	query := `WITH large AS MATERIALIZED (SELECT convert_to(rpad('<movie/>',33554432,' '),'UTF8') AS value), recipe AS MATERIALIZED (SELECT p.*,convert_to((convert_from(request_bytes,'UTF8')::jsonb||jsonb_build_object('maxBytes',33554432))::text,'UTF8') AS encoded FROM nfo_write_preparations p WHERE id=$1::uuid)
- INSERT INTO nfo_write_preparations(id,actor_id,idempotency_key,version,request_bytes,request_digest,library_id,item_id,source_id,root_id,kind,revision,generation,root_path,relative_path,media_path,directory_path,max_bytes,modified_unix_nano,original_bytes,original_sha256,replacement_bytes,replacement_sha256)
- SELECT gen_random_uuid(),actor_id,$2,version,encoded,encode(sha256(encoded),'hex'),library_id,item_id,source_id,root_id,kind,revision,generation,root_path,relative_path,media_path,directory_path,33554432,modified_unix_nano,value,encode(sha256(value),'hex'),value,encode(sha256(value),'hex') FROM recipe CROSS JOIN large`
+ INSERT INTO nfo_write_preparations(id,actor_id,idempotency_key,version,request_bytes,request_digest,library_id,item_id,source_id,root_id,kind,revision,generation,root_generation,root_path,relative_path,media_path,directory_path,max_bytes,modified_unix_nano,original_bytes,original_sha256,replacement_bytes,replacement_sha256)
+ SELECT gen_random_uuid(),actor_id,$2,version,encoded,encode(sha256(encoded),'hex'),library_id,item_id,source_id,root_id,kind,revision,generation,root_generation,root_path,relative_path,media_path,directory_path,33554432,modified_unix_nano,value,encode(sha256(value),'hex'),value,encode(sha256(value),'hex') FROM recipe CROSS JOIN large`
 	if _, err := f.s.Pool.Exec(f.ctx, query, first.ID, "large-one"); err != nil {
 		t.Fatal("byte quota rejected below limit")
 	}
@@ -286,12 +286,8 @@ func TestNFOWritePreparationMigrationEmptyRoundTripAndRetainedRefusal(t *testing
 		}
 	})
 	t.Run("retained", func(t *testing.T) {
-		f, service, _, request := nfoWritePreparationFixture(t)
-		jobMetricMigration(t, f, "down", 46)
-		prepared, _, err := service.Prepare(f.ctx, f.a, "retained", request)
-		if err != nil {
-			t.Fatal("prepare retained output")
-		}
+		f, _, _, request := nfoWritePreparationFixture(t)
+		prepared := legacyNFOWritePreparationFixture(t, f, request, "retained", 46)
 		if _, _, err := Migrate(f.ctx, f.s.Pool.Config().ConnString(), "down"); err == nil {
 			t.Fatal("downgrade discarded prepared output")
 		}

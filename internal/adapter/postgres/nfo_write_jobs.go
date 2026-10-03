@@ -45,8 +45,8 @@ func copyNFOWriteIntents(ctx context.Context, tx pgx.Tx, job string, ids []strin
 		return storageError(err)
 	}
 	for i, id := range ids {
-		tag, err := tx.Exec(ctx, `INSERT INTO nfo_write_entries(job_id,sequence,preparation_id,version,request_bytes,request_digest,library_id,item_id,source_id,root_id,kind,revision,generation,root_path,relative_path,media_path,directory_path,max_bytes,modified_unix_nano,original_bytes,original_sha256,replacement_bytes,replacement_sha256)
- SELECT $1::uuid,$2,id,version,request_bytes,request_digest,library_id,item_id,source_id,root_id,kind,revision,generation,root_path,relative_path,media_path,directory_path,max_bytes,modified_unix_nano,original_bytes,original_sha256,replacement_bytes,replacement_sha256 FROM nfo_write_preparations WHERE id=$3::uuid AND actor_id=$4::uuid AND library_id=$5::uuid AND generation=$6 AND expires_at>clock_timestamp()`, job, i+1, id, actor, library, generation)
+		tag, err := tx.Exec(ctx, `INSERT INTO nfo_write_entries(job_id,sequence,preparation_id,version,request_bytes,request_digest,library_id,item_id,source_id,root_id,kind,revision,generation,root_generation,root_path,relative_path,media_path,directory_path,max_bytes,modified_unix_nano,original_bytes,original_sha256,replacement_bytes,replacement_sha256)
+ SELECT $1::uuid,$2,id,version,request_bytes,request_digest,library_id,item_id,source_id,root_id,kind,revision,generation,root_generation,root_path,relative_path,media_path,directory_path,max_bytes,modified_unix_nano,original_bytes,original_sha256,replacement_bytes,replacement_sha256 FROM nfo_write_preparations WHERE id=$3::uuid AND actor_id=$4::uuid AND library_id=$5::uuid AND generation=$6 AND root_generation>0 AND expires_at>clock_timestamp()`, job, i+1, id, actor, library, generation)
 		if err != nil {
 			return storageError(err)
 		}
@@ -90,7 +90,11 @@ func (s *Store) GetNFOWriteTask(ctx context.Context, lease domain.JobLease, sequ
 	var requestBytes []byte
 	var digest string
 	var maxBytes int64
-	err = tx.QueryRow(ctx, `SELECT preparation_id::text,version,request_bytes,request_digest,library_id::text,item_id::text,source_id::text,root_id::text,kind,revision,generation,root_path,relative_path,media_path,directory_path,max_bytes,modified_unix_nano,original_bytes,original_sha256,replacement_bytes FROM nfo_write_entries WHERE job_id=$1::uuid AND sequence=$2`, lease.Job.ID, sequence).Scan(&p.ID, &p.Version, &requestBytes, &digest, &p.Scope.LibraryID, &p.Scope.ItemID, &p.Scope.SourceID, &p.Scope.RootID, &p.Scope.Kind, &p.Scope.Revision, &p.Scope.Generation, &p.Scope.Source.RootPath, &p.Scope.Source.RelativePath, &p.Scope.MediaPath, &p.Scope.DirectoryPath, &maxBytes, &p.Stamp.ModifiedUnixNano, &p.Original, &p.Stamp.SHA256, &p.Replacement)
+	columns, err := nfoHistoricalRootColumns(ctx, tx, `preparation_id::text,version,request_bytes,request_digest,library_id::text,item_id::text,source_id::text,root_id::text,kind,revision,generation,COALESCE(root_generation,0),root_path,relative_path,media_path,directory_path,max_bytes,modified_unix_nano,original_bytes,original_sha256,replacement_bytes`, "nfo_write_entries")
+	if err != nil {
+		return domain.NFOWriteTask{}, err
+	}
+	err = tx.QueryRow(ctx, `SELECT `+columns+` FROM nfo_write_entries WHERE job_id=$1::uuid AND sequence=$2`, lease.Job.ID, sequence).Scan(&p.ID, &p.Version, &requestBytes, &digest, &p.Scope.LibraryID, &p.Scope.ItemID, &p.Scope.SourceID, &p.Scope.RootID, &p.Scope.Kind, &p.Scope.Revision, &p.Scope.Generation, &p.Scope.RootGeneration, &p.Scope.Source.RootPath, &p.Scope.Source.RelativePath, &p.Scope.MediaPath, &p.Scope.DirectoryPath, &maxBytes, &p.Stamp.ModifiedUnixNano, &p.Original, &p.Stamp.SHA256, &p.Replacement)
 	if err != nil {
 		return domain.NFOWriteTask{}, storageError(err)
 	}

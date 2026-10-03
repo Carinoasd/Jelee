@@ -44,7 +44,7 @@
 
 固定 labels 為 `kind`（catalog_import／inventory_scan／nfo_write）、`priority`（background／manual）；outcomes 另有 `outcome`（succeeded／failed／cancelled）。所有零值組合也會輸出。Histogram 的上界與計數語意見[持久工作統計](job-metrics.md)。OTel 接收互斥桶並標記 cumulative；官方 exporter 轉成 Prometheus 累積 le 桶。
 
-schema47工作指標固定222個series，連同本機指標共22個families／237個series，classic exposition上限測試維持64KiB。另有八個資源gauge，包含資源的端點共30個families。沒有job、媒體庫、使用者、路徑、owner、DSN或schema labels。OTel counter／histogram的StartTime使用資料庫epoch；目前classic exporter不輸出`_created`，不能從文字端點讀取該epoch。nfo_write正式准入與worker仍未啟用，驗證見[任務資料契約](nfo-write-jobs.md)。
+schema47工作指標固定222個series，連同本機指標共22個families／237個series，classic exposition上限測試維持64KiB。另有八個資源gauge，包含資源的端點共30個families／245個series。沒有job、媒體庫、使用者、路徑、owner、DSN或schema labels。OTel counter／histogram的StartTime使用資料庫epoch；目前classic exporter不輸出`_created`，不能從文字端點讀取該epoch。nfo_write正式准入與worker仍未啟用，驗證見[任務資料契約](nfo-write-jobs.md)。
 
 同一資料庫的多個服務副本共享工作累計，不能把副本數值相加。部署時優先選一個收集目標；若需多目標，先以部署端設定的有限 cluster 維度去重，再計算速率，histogram 的 bucket／sum／count 需使用相同選擇規則。不同副本的抓取時間不同，跨副本取 max 也不等於單一資料庫快照。程序重啟或清理工作歷史不使累計歸零；資料庫還原造成的下降照實輸出，由監控端處理 counter reset。
 
@@ -69,3 +69,7 @@ Fx 的單一資源擁有者在 HTTP／worker 結束後關閉 metrics，再關閉
 本段 Windows 518 個通過事件／9 略過，Linux race 512／3 略過，真 PostgreSQL／HTTP race 10／0 略過；事件包含父測試，分平台列出，不相加。Windows 的原生環境案例未在本段重跑；三個資料庫頂層案例均由真 PG 執行通過。固定 22 家族／163 系列，測得最大 20,353 bytes，小於 64 KiB 限額。
 
 vet、三命令 build、模組 checksum、格式、增量品牌與 gitignore 通過；全量品牌仍有 14,735 項。817 份來源在各輪維持不變，90 份已發布 SQL、五份直播核心、授權及需求原文不變。見[端點驗證證據](evidence/jobs-exporter.json)。
+
+## 現行 runtime 指標契約
+
+正式端點包含15個本機、7個共享工作與8個資源family。共享工作固定6個kind／priority組與18個outcome點；資源指標各為單一無標籤gauge。真PostgreSQL runtime race三根8PASS／零skipfail，涵蓋多實例生命週期、授權與阻塞來源；收集不取得工作配額，失敗回應不洩漏資源指標。Linux telemetry race78PASS。見[現行契約證據](evidence/runtime-metrics-contract.json)。前述歷史驗收數字屬當時來源，不能當現行完整CI通過。
