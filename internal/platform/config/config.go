@@ -16,6 +16,7 @@ import (
 
 type Config struct {
 	Resources             ResourcesConfig `json:"resources"`
+	Access                AccessConfig    `json:"access"`
 	Listen                string          `json:"listen"`
 	AllowedHosts          []string        `json:"allowedHosts"`
 	TrustedProxies        []string        `json:"trustedProxies"`
@@ -41,7 +42,7 @@ func Load() (Config, error) { return LoadWith(os.LookupEnv) }
 
 // LoadWith keeps environment lookup injectable and never includes values in errors.
 func LoadWith(lookup func(string) (string, bool)) (Config, error) {
-	c := Config{Resources: DefaultResourcesConfig(), Listen: "127.0.0.1:8097", AllowedHosts: []string{"localhost", "127.0.0.1", "::1"}, MaxConnections: 8, MaxStreams: 8, RequestTimeoutSeconds: 15, Accounts: DefaultAccountsConfig(), Jobs: DefaultJobsConfig(), Images: DefaultImagesConfig()}
+	c := Config{Resources: DefaultResourcesConfig(), Access: DefaultAccessConfig(), Listen: "127.0.0.1:8097", AllowedHosts: []string{"localhost", "127.0.0.1", "::1"}, MaxConnections: 8, MaxStreams: 8, RequestTimeoutSeconds: 15, Accounts: DefaultAccountsConfig(), Jobs: DefaultJobsConfig(), Images: DefaultImagesConfig()}
 	if path, ok := lookup("JELEE_CONFIG"); ok && path != "" {
 		f, err := os.Open(path)
 		if err != nil {
@@ -135,11 +136,17 @@ func LoadWith(lookup func(string) (string, bool)) (Config, error) {
 	if err := c.Resources.loadEnvironment(lookup); err != nil {
 		return c, err
 	}
+	if err := c.Access.loadEnvironment(lookup); err != nil {
+		return c, err
+	}
 	return c, c.Validate()
 }
 
 func (c Config) Validate() error {
 	if err := c.Resources.Validate(); err != nil {
+		return err
+	}
+	if err := c.Access.Validate(); err != nil {
 		return err
 	}
 	u, err := url.Parse(c.DatabaseURL)

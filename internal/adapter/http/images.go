@@ -81,7 +81,7 @@ func (s *Server) image(w http.ResponseWriter, r *http.Request) {
 		defer result.Body.Close()
 	}
 	if err != nil {
-		WriteError(w, r, err)
+		WriteError(w, r, s.hiddenContentError(err))
 		return
 	}
 	if result.Body == nil || result.ContentType != "image/jpeg" || result.Size <= 0 || result.Size > s.cfg.Images.MaxOutputBytes ||

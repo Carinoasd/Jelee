@@ -94,6 +94,9 @@ func newServer(cfg config.Config, backend Backend, catalog *app.Catalog, resolve
 	if backend == nil || catalog == nil || logger == nil {
 		return nil, errors.New("HTTP dependencies must be provided")
 	}
+	if resolver != nil && cfg.Access.HiddenContentStatus() == http.StatusForbidden {
+		resolver = hiddenContentResolver{resolver}
+	}
 	delivery, err := media.NewHandler(resolver, media.Options{Budget: budget, MaxConcurrent: cfg.MaxStreams, WriteTimeout: 30 * time.Second, LookupTimeout: cfg.RequestTimeout(), WriteError: WriteError})
 	if err != nil {
 		return nil, err
@@ -324,7 +327,7 @@ func (s *Server) item(w http.ResponseWriter, r *http.Request) {
 	defer cancel()
 	item, err := s.catalog.Get(ctx, p.UserID, chi.URLParam(r, "id"))
 	if err != nil {
-		WriteError(w, r, err)
+		WriteError(w, r, s.hiddenContentError(err))
 		return
 	}
 	writeJSON(w, 200, map[string]any{"data": item})
@@ -345,6 +348,29 @@ func (s *Server) stream(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.delivery.ServeSource(w, r, id)
+}
+
+// hiddenContentError maps a direct media lookup miss to the configured
+// hidden-content status (G48.3). Lookups apply authorization in SQL and cannot
+// tell a missing ID from an invisible one, so both get the same answer and the
+// response never confirms existence. Only the explicit 403 opt-in changes it.
+func (s *Server) hiddenContentError(err error) error {
+	if s.cfg.Access.HiddenContentStatus() == http.StatusForbidden && (errors.Is(err, domain.ErrNotFound) || errors.Is(err, media.ErrNotFound)) {
+		return domain.ErrForbidden
+	}
+	return err
+}
+
+// hiddenContentResolver applies the 403 opt-in to authorized source lookups
+// only. File-level failures after a successful lookup keep their own status.
+type hiddenContentResolver struct{ media.Resolver }
+
+func (h hiddenContentResolver) Resolve(ctx context.Context, p access.Principal, id string) (media.Source, error) {
+	source, err := h.Resolver.Resolve(ctx, p, id)
+	if errors.Is(err, domain.ErrNotFound) || errors.Is(err, media.ErrNotFound) {
+		return media.Source{}, domain.ErrForbidden
+	}
+	return source, err
 }
 
 func strictQuery(r *http.Request, keys ...string) (map[string]string, error) {
