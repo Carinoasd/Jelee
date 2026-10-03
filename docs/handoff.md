@@ -1,3 +1,12 @@
+## 最新接續：串流重播與固定預算已實作
+
+新增scripts/images_soak_acceptance.py、test_images_soak_acceptance.py與tools/image-soak-budget.json，memory contracts CI增加image-soak-replay。核每輪scan/cold/warm/resources、checkpoint與raw sample一致、每小時GC與range/trend、rotation、最終報告對照；有界解析與固定門檻，沒有finalAcceptance捷徑。提供inspect才核container，controller必须要求這部分存在。
+
+Windows/Linux各32項通過，包含完整288輪／24h合成重播；既有控制器21項、incremental branding0/339及diff-check通過。合成不代表實際24h。此批沿PR46提交推送，當前沒有活躍本地程序。
+
+下一步直接完成外層controller，不要再重做Go入口或驗證器。參考scripts/test_image_memory.py的build/fixtures/private env/owned cleanup工具，使用新Go TestImagesSoakAcceptance與validate_soak_log(...,inspect=actual_exit_inspect)，必須validate_soak_budget。固定已提交snapshot執行、單一docker logs-follow reader，檢查receive heartbeat≤70s、source/fixture保持、SIGTERM、exit/OOM/cleanup；先真正600秒smoke，再同snapshot24h。stream驗證本身不含receive heartbeat、source、owned cleanup，不能單獨宣布驗收完成。
+
+正式與600秒入口都尚未執行。全案G00–G51及G42.10保持未完成，仍第三階段。以下為歷史批次。
 ## 最新接續：長測Go入口與協調器已串接
 
 新增TestImagesSoakAcceptance、collector及固定round引擎，沿用共用runImagesAcceptance生命周期。每輪300秒，formal288輪、smoke2輪；sample/round/hour單consumer排序，每小時flush/drain後聚合，GC/cgroup前後邊界，ready/final各一次，提前停止cancel/join。只在jelee_probe_tests明確env啟用，尚未執行600秒或24h入口。

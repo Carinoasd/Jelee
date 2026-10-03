@@ -44,3 +44,12 @@ collector由單一consumer排列sample／round／hour事件；每小時先flush�
 Windows選測及vet通過；Linux race與真PG輔助整合通過（soak-collector-linux-race.log），最後ready/final變更另做對應race選測通過（soak-collector-final-linux-race.log）。Windows首次collector fixture緊迴圈遇相同時鐘tick，改測試注入嚴格遞增時鐘後通過；正式原生時鐘未更改。共用生命周期抽取已由原1000圖片smoke 8ff8521fd760435795b53dfe7cea1196驗過，後增collector/入口不屬該smoke來源。
 
 **尚未執行完整600秒或24h入口。** 下一步是外層控制器：固定快照、單條logs-follow有界reader、完整stream/round/hour/GC重驗、ready後SIGTERM、私有status與自建資源清理。不得以本批單元或短PG整合替代長跑證據。
+## 第四批：串流重播與固定預算
+
+scripts/images_soak_acceptance.py逐行重播有界JSONL，拒絕重複JSON key、非有限數、未知事件、身分或序號錯誤、截斷及超量。逐輪核scan、cold/warm增量、quiescent資源，checkpoint須精確對上原始採樣；正式模式再核24組hour、rotation、GC邊界與穩態。最後報告不能覆蓋或補造缺少的事件。
+
+重播只保留400筆近期採樣、288輪摘要及24小時聚合。事件64KiB、final2MiB、raw64MiB；這些與RSS／GC／趨勢門檻固定於tools/image-soak-budget.json，validator拒絕修改。提供實際Docker inspect時會另核cgroup／OOM／退出限制與媒體唯讀mount；未提供inspect的結果只有streamValidated，沒有finalAcceptance。
+
+Windows與Linux各32項合成資料測試通過，包括完整288輪／24個小時的正向重播、缺號／截斷／final矛盾、checkpoint造假、唯讀mount破壞、門檻放寬拒絕。既有圖片控制器21項通過，新重播步驟已加入memory contracts CI。**所有上述資料為合成契約測試，沒有實際運行24小時。**
+
+下一步外層controller仍須完成固定快照與單條logs-follow、接收時間heartbeat、真容器退出與cleanup核對；然後執行600秒smoke，正式24h尚未啟動。
