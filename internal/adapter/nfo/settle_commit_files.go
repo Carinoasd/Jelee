@@ -380,3 +380,61 @@ func (r *nfoSettleRotation) undo(directory *os.Root, ops nfoWriteOperations) boo
 	}
 	return ops.syncDirectory(directory) == nil
 }
+
+// abortNFOCommitFiles concludes prepared files without replacement. It never
+// performs a forward Rename: a target that is still the original stays as is,
+// a target holding the prepared output is restored from the rollback object,
+// and a completed rollback only re-establishes directory durability. Rotated
+// backups are kept; the newest one then links the unchanged original.
+// It returns nfoSettleRolledBack with nil once the target is not the output.
+func abortNFOCommitFiles(ctx context.Context, directory *os.Root, files nfoCommitFiles, original, replacement []byte, ops nfoWriteOperations) (phase nfoSettlePhase, resultErr error) {
+	filename := files.plan.filename
+	if ctx == nil || directory == nil || ops.rename == nil || ops.syncDirectory == nil || !validNFOCommitProgress(files) || files.rollback == (nfoNativeIdentity{}) || !IsNFOName(filename) || strings.ContainsAny(filename, "/\\:") || strings.ContainsFunc(filename, unicode.IsControl) || len(original) == 0 || len(replacement) == 0 || int64(len(original)) > MaxAllowedBytes || int64(len(replacement)) > MaxAllowedBytes {
+		return nfoSettleUnchanged, ErrInvalidInput
+	}
+	if err := ctx.Err(); err != nil {
+		return nfoSettleUnchanged, err
+	}
+	lock, err := lockNFOFile(ctx, directory, filename)
+	if err != nil {
+		return nfoSettleUnchanged, err
+	}
+	defer func() {
+		if err := lock.Close(); err != nil && resultErr == nil {
+			resultErr = err
+		}
+	}()
+	if current, err := nativeIdentityWithin(directory, "."); err != nil || current != files.plan.parent {
+		return nfoSettleIndeterminate, ErrChanged
+	}
+	target, err := nativeIdentityWithin(directory, filename)
+	if err != nil {
+		return nfoSettleIndeterminate, ErrChanged
+	}
+	switch target {
+	case files.plan.target:
+		// This token never renamed the target; its content is not ours to judge.
+		if err := ops.syncDirectory(directory); err != nil {
+			return nfoSettleIndeterminate, ErrRollback
+		}
+		return nfoSettleRolledBack, nil
+	case files.output:
+		if !lock.check() {
+			return nfoSettleIndeterminate, ErrFileLock
+		}
+		if err := verifyNFOSettled(ctx, directory, files, original, replacement); err != nil {
+			return nfoSettleIndeterminate, err
+		}
+		if phase, err := rollbackNFOSettle(directory, files, original, replacement, ops); phase != nfoSettleRolledBack {
+			return phase, err
+		}
+		return nfoSettleRolledBack, nil
+	case files.rollback:
+		if phase, err := resumeNFOSettleRolledBack(ctx, directory, files, original, replacement, ops); phase != nfoSettleRolledBack {
+			return phase, err
+		}
+		return nfoSettleRolledBack, nil
+	default:
+		return nfoSettleIndeterminate, ErrChanged
+	}
+}
