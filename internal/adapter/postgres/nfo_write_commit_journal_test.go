@@ -292,11 +292,12 @@ func TestNFOWriteCommitJournalMigrationEmptyAndRetained(t *testing.T) {
 	})
 	t.Run("retained", func(t *testing.T) {
 		f, l, _ := nfoCommitFixture(t)
+		// Exercise the published schema49 refusal independently of newer guards.
+		jobMetricMigration(t, f, "down", 49)
 		r, err := persistNFOWriteCommitFixture(f.ctx, f.s, l, 1)
 		if err != nil {
 			t.Fatal(err)
 		}
-		jobMetricMigration(t, f, "down", 49)
 		if _, _, err := Migrate(f.ctx, f.s.Pool.Config().ConnString(), "down"); err == nil {
 			t.Fatal("downgrade removed unresolved journal")
 		}

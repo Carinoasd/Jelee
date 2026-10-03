@@ -1,3 +1,40 @@
+## 2026-10-03 schema51完整449根已驗，準備發布
+
+已發布基線a2734f2fd5e9aaba8a26c1e7df0cf408290e99f2／schema50／PR46，本批隨提交沿同分支發布schema51。SQL核固定entry對當下catalog scope，journal／plan／ready首次與no-op重放、deferred提交再驗，鎖item／policy／source／root／revision。catalog變更端檢查本交易visible未提交xmin，涵蓋active／released SAVEPOINT，提早SET CONSTRAINTS後仍拒scope漂移；回滾savepoint不凍結catalog。沿用probe mapping MVCC touch並補source ID／directory／revision；Series media intent有directory source時拒絕。保留歷史證據可觀察，任何journal拒51降版dirty50，空降升保留metrics epoch。
+
+完整CURRENT28141已terminal0，四片皆0，最終449根各run／pass恰一次、1400PASS／零skipfail，975份Go／SQL凍結雜湊全部吻合；manifest／coverage／logs為.testdata/nfo-catalog-v2-schema-*。正式新增四根26PASS／零skipfail。Windows兩套件234PASS／930DB條件skip，未證Windows真PG；兩平台vet、Darwin NFO僅compile、格式／增量品牌0／339／gitignore／diff通過。先前445根來源不含SAVEPOINT與Series缺口，補充紅測0PASS／15FAIL events，原型與正式新增回歸26PASS；deferred提早flush紅測8FAIL與修正、metadata touch停用的舊RR紅測3FAIL保持，不把早期media touch停用仍PASS當red成功。所有本批測試handle已terminal。安全摘要docs/evidence/nfo-commit-catalog-sql.json，方法docs/nfo-commit-catalog-sql.md；嚴格彙整器.testdata/finalize-nfo-catalog-v2.py核基線a273及來源，只在提交前適用。
+
+100份001–050已發布SQL／mod／sum／需求原文／LICENSE保持；本批新增51兩份，發布後001–051共102份不可改。root generation／原生root、media、ancestor跨程序準備證据仍缺，沒有target提交或runtime read-write准入，actual XID wraparound未跑。下一接點調查.testdata/nfo-native-scope-next.md：須自prepare觀察並保存，而不是Stage看到新媒體後回填；先建立真media owned fixture，版本／歷史缺證／SQL容量與三隔離／跨程序／取消及替換矩陣都要做。之後same physical target unresolved排除、partial stage、backup／target Rename／rollback／結算／crash恢復、正式worker/API/CLI與三種批次操作，以及完整heap/RSS仍缺。全案7完成／198部分／131阻塞保持，不把SQL守衛當原生FS授權。
+
+正式24h仍run329073a5d193446383327ab217aba147／PID1026300／startTicks33072456／boot4a5d9c5c-4482-4c3e-8978-30156b1ce92f，來源24caf7d45f不含本批；本輪實核吻合、容器running／OOMfalse，24h未通過，核同handle不重啟。完整品牌兩檢查FAIL門禁保持，CI非全綠。不merge／release／tag／force-push，不改Git身份設定，原媒體／圖片／授權保持。下方為歷史狀態。
+
+---
+## 2026-10-03 schema51補充修正已套，完整449根新來源回歸仍執行
+
+已發布基線仍a2734f2fd5e9aaba8a26c1e7df0cf408290e99f2／schema50／OPEN PR46。上一445根四分片90285已terminal0，445根各run／pass恰一次、零skipfail；但補充owned overlay重現12個SAVEPOINT active／released繞過及Series media intent被新增directory source取代，0PASS／15FAIL events。舊445通過不涵蓋這些缺口，不能當修正後來源通過。
+
+獨立schema原型先14PASS，再加ROLLBACK TO SAVEPOINT與72個active／released子交易26PASS／零fail，15401／67606已terminal0。正式新增nfo_commit_catalog_subtransactions_test.go及修改候選51：不只比top xid，從visible xmin重建epoch、用pg_xact_status辨識本交易未提交子交易，排除歷史／特殊xmin與過舊或未來候選；Series媒體意圖有directory source時拒絕。downgrade同時移除helper；100份已發布SQL保持。正式来源選測98536已terminal0，26PASS／零skipfail；原型不是正式發布證據，實際XID wraparound未跑。root generation／native root-media-ancestor／target提交／恢復／worker等仍缺，沒有read-write准入。
+
+CURRENT LIVE session28141，wrapper .testdata/run-nfo-catalog-v2-schema-full-shards.py，445舊root＋4新增root最終編譯449根；四片logs .testdata/nfo-catalog-v2-schema-full-shard-{0,1,2,3}.jsonl，manifest .testdata/nfo-catalog-v2-schema-shards-manifest.json，coverage最終 .testdata/nfo-catalog-v2-schema-shards-coverage.json。975份Go／SQL凍結 .testdata/nfo-catalog-v2-schema-source.json，核對腳本 .testdata/check-nfo-catalog-v2-live.py。最後實核來源hash全部吻合、28141存活，四片37PASS／零skipfail，這是中途狀態，尚無完整通過結論。不能改凍結Go／SQL，不能因timeout重啟；等四片terminal0、449根各run/pass一次、零skipfail及來源hash全吻合，才彙整安全evidence、更新需求追蹤／PR說明並提交推送。本批仍未提交。舊974 manifest與445 logs保留，只證舊候選。
+
+最終Windows v2兩套件234PASS／930DB條件skip／零fail，不當Windows真PG；Windows vet／Linux vet52128與Darwin NFO僅compile皆terminal0；格式通過。增量品牌／gitignore／diff提交前仍須以最後文件核。完整品牌兩檢查FAIL門禁保持，PG CI最後尚在執行，不宣稱全綠。全案7完成／198部分／131阻塞，root generation／native root／media／ancestor／同實體排除／target Rename／backup／rollback／結算／恢復及正式worker／三種操作仍缺。
+
+正式24h仍run329073a5d193446383327ab217aba147／PID1026300／startTicks33072456／boot4a5d9c5c-4482-4c3e-8978-30156b1ce92f，來源24caf7d45f不含本批；本輪實核吻合、容器running／OOMfalse，未通過24h，不重啟。不merge／release／tag／force-push、不改已發布SQL／Git身份設定，原媒體／圖片／授權保持。下方為歷史狀態。
+
+---
+## 2026-10-03 schema51候選：SQL catalog守衛，完整445根回歸仍執行
+
+已發布基線a2734f2fd5e9aaba8a26c1e7df0cf408290e99f2／schema50／PR46，候選schema51尚未提交。新增000051上下migration及SQL守衛：journal／plan／ready首次及no-op重試核固定entry對當下item／library／source／root／revision／policy／路徑，鎖到交易结束並deferred複核。catalog變更端只檢查同交易新建／重放證據的xmin，避免SET CONSTRAINTS ALL IMMEDIATE提早flush後繞過；歷史證據可觀察，不凍結未來metadata編輯。沿用schema4 probe mapping的item MVCC touch，新增media ID／directory／metadata revision涵蓋，拒舊RR／Serializable快照。root generation／原生root及媒體跨程序持久證據仍缺，不授權target提交或runtime read-write。
+
+完整四片CURRENT LIVE session90285，wrapper .testdata/run-nfo-catalog-sql-schema-full-shards.py；最終編譯445根，manifest .testdata/nfo-catalog-sql-schema-shards-manifest.json，log .testdata/nfo-catalog-sql-schema-full-shard-{0,1,2,3}.jsonl。974份Go／SQL凍結於.testdata/nfo-catalog-sql-schema-source.json，100份已發布SQL／mod／sum／需求原文／LICENSE未變。來源不得再改，不能因觀察timeout重啟。最後實核90285仍live，四片合計146PASS／零skipfail，974份來源hash全吻合；這是中途觀察，尚無完整通過結論。啟動器首次74146在執行測試前因私有權重日誌路徑錯誤terminal1，修私有wrapper後才啟90285；不是重啟存活測試。必須等四片terminal0、445根各run／pass一次、零skip／fail及凍結來源逐一吻合後，才能稱完整通過與提交發布。
+
+證據歷史分開：初版真PG SQL三根72PASS／零skipfail；SET CONSTRAINTS缺口六phase紅測8FAIL events已捕捉。加變更端守衛後主選測207PASS／8FAIL events，六個deferred夾具因UPDATE已提前拒絕而失敗；只在owned夾具停用library mutation trigger以隔離deferred守衛，修正選測36PASS／零skipfail，含24個flush後library／root／revision／ambiguous變更及空降升／保留journal dirty50／既有historical scope不被授權。最後去除重複media touch、補直接SQL revision後三隔離選測10PASS／零skipfail；停revision touch的overlay舊RR快照確實繞過，紅測3FAIL events。早期停media touch仍PASS，因既有schema4已覆蓋，不能稱該紅測成功。各日志保持，不以組合窄測宣稱最終完整回歸通過。
+
+Windows最終凍結測試log .testdata/nfo-catalog-sql-windows-frozen.jsonl已terminal0，231PASS／907DB条件skip／零fail，未證Windows真PG。最終Windows vet／格式／增量品牌0／339／gitignore／diff通過；Linux vet／Darwin NFO僅compile40901已terminal0。PR已發布基線完整品牌兩檢查FAIL，PostgreSQL CI尚在執行，不能說全綠。所有先前本批選測32841／53048／84924／93514／53839／69281已terminal，失败原因与修复保持；方法docs/nfo-commit-catalog-sql.md。
+
+正式24h仍run329073a5d193446383327ab217aba147／PID1026300／startTicks33072456／boot4a5d9c5c-4482-4c3e-8978-30156b1ce92f，來源24caf7d45f不含本批，最後實核身分吻合、容器running／OOMfalse。先核同handle，不重啟。全案7完成／198部分／131阻塞，完整品牌門禁保留。後續root generation／native root／media／ancestor證據、同實體未解決排除、backup／target提交／rollback／結算／恢復及正式准入／worker／三種操作仍缺。不merge／release／tag／force-push，不改已發布100份SQL／Git身份設定，原媒體／圖片／授權保持。
+
+---
 ## 2026-10-03 準備保存交易catalog scope複核已驗
 
 基線8b9ab67b089d6b1cc737c6b1d6d1ff1b4c2489ab／schema50／PR46，本批隨提交沿同分支發布。Begin／SavePlan／SaveReady從固定entry讀scope，重新解析當下item／library／source／root／kind／revision／policy generation及私有root／媒體／目錄／NFO路徑，逐欄比較，鎖item／policy／source／root直到交易結束。已有revision row另鎖；revision1無state row時item FOR UPDATE透過FK阻擋新state。plan／ready寫入及no-op replay後再查scope。失敗零結果、回滾新journal／plan／ready，既有紀錄保持。只讀策略下的內部準備不授權target寫回；GetEvidence仍可讀lease／actor有效的歷史資料供稽核，不能執行過期scope。
