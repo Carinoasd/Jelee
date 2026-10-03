@@ -114,7 +114,7 @@ func (s *Server) image(w http.ResponseWriter, r *http.Request) {
 	// other tag keeps the revalidated private policy. Vary still keys every
 	// cached copy to the caller's credentials.
 	if tagged && imageTagMatches(tag, result.ContentSHA256) {
-		w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
+		w.Header().Set("Cache-Control", "private, max-age=31536000, immutable")
 	} else {
 		w.Header().Set("Cache-Control", "private, no-cache, must-revalidate")
 	}

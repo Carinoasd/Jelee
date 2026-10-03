@@ -13698,7 +13698,7 @@
             }
           },
           {
-            "description": "Lowercase hexadecimal SHA-256 of the original image. When it matches, the response is served with Cache-Control: public, max-age=31536000, immutable; otherwise the private revalidated policy applies.",
+            "description": "Lowercase hexadecimal SHA-256 of the original image. When it matches, the response is served with Cache-Control: private, max-age=31536000, immutable; otherwise the private revalidated policy applies.",
             "in": "query",
             "name": "tag",
             "schema": {
@@ -13960,7 +13960,7 @@
             }
           },
           {
-            "description": "Lowercase hexadecimal SHA-256 of the original image. When it matches, the response is served with Cache-Control: public, max-age=31536000, immutable; otherwise the private revalidated policy applies.",
+            "description": "Lowercase hexadecimal SHA-256 of the original image. When it matches, the response is served with Cache-Control: private, max-age=31536000, immutable; otherwise the private revalidated policy applies.",
             "in": "query",
             "name": "tag",
             "schema": {

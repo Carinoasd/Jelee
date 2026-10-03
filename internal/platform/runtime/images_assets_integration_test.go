@@ -270,7 +270,7 @@ func TestImageAssetsRuntimePostgresIntegration(t *testing.T) {
 		}
 		return decoded.Bounds()
 	}
-	const immutable = "public, max-age=31536000, immutable"
+	const immutable = "private, max-age=31536000, immutable"
 	for _, s := range slots {
 		digest := digests[s]
 		tag := hex.EncodeToString(digest[:])

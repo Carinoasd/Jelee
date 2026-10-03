@@ -113,7 +113,7 @@ func TestImagesHTTPContentTagSelectsImmutableCaching(t *testing.T) {
 	var seen []domain.ImageRequest
 	h := assetImageRouter(t, &seen)
 	tag := hex.EncodeToString(httpImageContent[:])
-	const immutable, private = "public, max-age=31536000, immutable", "private, no-cache, must-revalidate"
+	const immutable, private = "private, max-age=31536000, immutable", "private, no-cache, must-revalidate"
 	for _, test := range []struct {
 		method, query, conditional, cache string
 		status                            int
