@@ -282,3 +282,10 @@ func SetupGateFor(completed bool, method, path string) SetupGate {
 	}
 	return SetupGateRequired
 }
+
+// SetupListenAddress is a parsed listen address, produced outside the domain.
+type SetupListenAddress struct {
+	Port     uint16
+	Loopback bool
+	Zoned    bool
+}

@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"net/netip"
 	"path/filepath"
 	"strings"
 	"time"
@@ -35,7 +34,14 @@ type SetupStateRepository interface {
 }
 
 // SetupEnvironment performs the live checks of G18.3.
+// SetupAddressParser keeps net address parsing outside the application layer.
+type SetupAddressParser interface {
+	ParseListen(string) (domain.SetupListenAddress, bool)
+	ValidProxyPrefix(string) bool
+}
+
 type SetupEnvironment interface {
+	SetupAddressParser
 	DatabaseStatus(context.Context) (SetupDatabaseStatus, error)
 	InspectDirectory(context.Context, string) (SetupDirectoryStatus, error)
 	// ListenAvailable must report the server's own current listener as
@@ -228,19 +234,22 @@ func ValidateSetupMetadataPolicy(policy domain.SetupMetadataPolicy, tmdbEnabled 
 	return issues
 }
 
-func ValidateSetupNetwork(network domain.SetupNetwork) []SetupIssue {
+func ValidateSetupNetwork(network domain.SetupNetwork, addresses SetupAddressParser) []SetupIssue {
 	var issues []SetupIssue
 	mode := network.Mode
 	if mode != domain.SetupNetworkLocal && mode != domain.SetupNetworkLAN && mode != domain.SetupNetworkReverseProxy {
 		issues = append(issues, SetupIssue{"network.mode", "network_mode_invalid"})
 	}
-	listen, err := netip.ParseAddrPort(network.Listen)
+	listen, ok := domain.SetupListenAddress{}, false
+	if addresses != nil {
+		listen, ok = addresses.ParseListen(network.Listen)
+	}
 	switch {
-	case err != nil || listen.Port() == 0 || listen.Addr().Zone() != "":
+	case !ok || listen.Port == 0 || listen.Zoned:
 		issues = append(issues, SetupIssue{"network.listen", "listen_invalid"})
-	case mode == domain.SetupNetworkLocal && !listen.Addr().IsLoopback():
+	case mode == domain.SetupNetworkLocal && !listen.Loopback:
 		issues = append(issues, SetupIssue{"network.listen", "listen_not_loopback"})
-	case mode == domain.SetupNetworkLAN && listen.Addr().IsLoopback():
+	case mode == domain.SetupNetworkLAN && listen.Loopback:
 		issues = append(issues, SetupIssue{"network.listen", "listen_loopback_only"})
 	}
 	if len(network.AllowedHosts) == 0 || len(network.AllowedHosts) > setupMaxAllowedHosts {
@@ -257,7 +266,7 @@ func ValidateSetupNetwork(network domain.SetupNetwork) []SetupIssue {
 		issues = append(issues, SetupIssue{"network.trustedProxies", "trusted_proxies_too_many"})
 	}
 	for i, value := range network.TrustedProxies {
-		if prefix, err := netip.ParsePrefix(value); err != nil || prefix.Addr().Zone() != "" {
+		if addresses == nil || !addresses.ValidProxyPrefix(value) {
 			issues = append(issues, SetupIssue{fmt.Sprintf("network.trustedProxies[%d]", i), "trusted_proxy_invalid"})
 		}
 	}
@@ -275,14 +284,14 @@ func ValidateSetupNetwork(network domain.SetupNetwork) []SetupIssue {
 // ValidateSetupPlan checks a headless plan without touching the environment.
 // The password is checked separately with ValidateSetupPassword so callers
 // can reject bad flags before reading a secret.
-func ValidateSetupPlan(plan SetupPlan) []SetupIssue {
+func ValidateSetupPlan(plan SetupPlan, addresses SetupAddressParser) []SetupIssue {
 	var issues []SetupIssue
 	issues = append(issues, ValidateSetupLanguage(plan.Locale)...)
 	issues = append(issues, ValidateSetupAdmin(plan.Admin)...)
 	issues = append(issues, ValidateSetupMedia(plan.Media)...)
 	issues = append(issues, ValidateSetupTMDB(plan.TMDB)...)
 	issues = append(issues, ValidateSetupMetadataPolicy(plan.MetadataPolicy, plan.TMDB.Enabled)...)
-	issues = append(issues, ValidateSetupNetwork(plan.Network)...)
+	issues = append(issues, ValidateSetupNetwork(plan.Network, addresses)...)
 	return issues
 }
 
@@ -497,7 +506,7 @@ func (s *Setup) SubmitMetadataPolicy(ctx context.Context, policy domain.SetupMet
 
 func (s *Setup) SubmitNetwork(ctx context.Context, network domain.SetupNetwork) (domain.SetupState, error) {
 	return s.submit(ctx, domain.SetupStepNetwork, func(domain.SetupState) ([]SetupIssue, error) {
-		if issues := ValidateSetupNetwork(network); len(issues) > 0 {
+		if issues := ValidateSetupNetwork(network, s.environment); len(issues) > 0 {
 			return issues, nil
 		}
 		available, err := s.environment.ListenAvailable(ctx, network.Listen)
@@ -557,7 +566,7 @@ func (s *Setup) Finish(ctx context.Context) (domain.SetupState, error) {
 // the first step and replayed, and the admin step is skipped if the earlier
 // run already created the administrator.
 func (s *Setup) RunHeadless(ctx context.Context, plan SetupPlan, password string) (domain.SetupState, error) {
-	if issues := append(ValidateSetupPlan(plan), ValidateSetupPassword(plan.Admin.Name, password)...); len(issues) > 0 {
+	if issues := append(ValidateSetupPlan(plan, s.environment), ValidateSetupPassword(plan.Admin.Name, password)...); len(issues) > 0 {
 		return domain.SetupState{}, &SetupValidationError{Issues: issues}
 	}
 	state, err := s.editable(ctx)

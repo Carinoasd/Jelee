@@ -6,6 +6,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"github.com/MoYuanCN/Jelee/internal/platform/netaddr"
 	"io"
 	"os"
 	"os/signal"
@@ -62,7 +63,7 @@ func openUnimplementedSetup(context.Context) (setupCLIRunner, func(), error) {
 	return setup, func() {}, nil
 }
 
-type setupUnimplementedPorts struct{}
+type setupUnimplementedPorts struct{ netaddr.Setup }
 
 func (setupUnimplementedPorts) LoadSetupState(context.Context) (domain.SetupState, error) {
 	return domain.SetupState{}, errSetupNotImplemented
@@ -169,7 +170,7 @@ func runSetupCLIWith(ctx context.Context, argv []string, stdin io.Reader, stdout
 		fmt.Fprintln(stderr, setupUsage)
 		return 2
 	}
-	if issues := app.ValidateSetupPlan(plan); len(issues) > 0 {
+	if issues := app.ValidateSetupPlan(plan, netaddr.Setup{}); len(issues) > 0 {
 		writeSetupIssues(stderr, issues)
 		return 2
 	}

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/MoYuanCN/Jelee/internal/platform/netaddr"
 	"slices"
 	"strings"
 	"sync"
@@ -106,6 +107,7 @@ func (r *setupMemoryRepository) CompleteSetup(_ context.Context, next domain.Set
 }
 
 type setupFakeEnvironment struct {
+	netaddr.Setup
 	db        SetupDatabaseStatus
 	dirs      map[string]SetupDirectoryStatus
 	busy      map[string]bool
@@ -413,17 +415,17 @@ func TestSetupStaticValidation(t *testing.T) {
 		{"nfo write", ValidateSetupMetadataPolicy(domain.SetupMetadataPolicy{NFORead: "off", NFOWrite: "always"}, true), "nfo_write_mode_invalid"},
 		{"nfo write needs read", ValidateSetupMetadataPolicy(domain.SetupMetadataPolicy{NFORead: "off", NFOWrite: "write-back"}, true), "nfo_write_requires_read"},
 		{"image fetch needs tmdb", ValidateSetupMetadataPolicy(domain.SetupMetadataPolicy{NFORead: "off", NFOWrite: "off", ImageFetch: true}, false), "image_fetch_requires_tmdb"},
-		{"network mode", ValidateSetupNetwork(domain.SetupNetwork{Mode: "public", Listen: "127.0.0.1:1", AllowedHosts: []string{"x"}}), "network_mode_invalid"},
-		{"listen", ValidateSetupNetwork(domain.SetupNetwork{Mode: "local", Listen: "localhost:8097", AllowedHosts: []string{"x"}}), "listen_invalid"},
-		{"listen port 0", ValidateSetupNetwork(domain.SetupNetwork{Mode: "local", Listen: "127.0.0.1:0", AllowedHosts: []string{"x"}}), "listen_invalid"},
-		{"local not loopback", ValidateSetupNetwork(domain.SetupNetwork{Mode: "local", Listen: "0.0.0.0:8097", AllowedHosts: []string{"x"}}), "listen_not_loopback"},
-		{"lan loopback", ValidateSetupNetwork(domain.SetupNetwork{Mode: "lan", Listen: "[::1]:8097", AllowedHosts: []string{"x"}, PrivacyAcknowledged: true}), "listen_loopback_only"},
-		{"lan privacy", ValidateSetupNetwork(domain.SetupNetwork{Mode: "lan", Listen: "0.0.0.0:8097", AllowedHosts: []string{"x"}}), "privacy_acknowledgement_required"},
-		{"hosts empty", ValidateSetupNetwork(domain.SetupNetwork{Mode: "local", Listen: "127.0.0.1:8097"}), "allowed_hosts_count_invalid"},
-		{"host upper", ValidateSetupNetwork(domain.SetupNetwork{Mode: "local", Listen: "127.0.0.1:8097", AllowedHosts: []string{"Media.Example"}}), "allowed_host_invalid"},
-		{"host dup", ValidateSetupNetwork(domain.SetupNetwork{Mode: "local", Listen: "127.0.0.1:8097", AllowedHosts: []string{"a", "a"}}), "allowed_host_invalid"},
-		{"proxy invalid", ValidateSetupNetwork(domain.SetupNetwork{Mode: "local", Listen: "127.0.0.1:8097", AllowedHosts: []string{"a"}, TrustedProxies: []string{"10.0.0.1"}}), "trusted_proxy_invalid"},
-		{"proxy required", ValidateSetupNetwork(domain.SetupNetwork{Mode: "reverse-proxy", Listen: "127.0.0.1:8097", AllowedHosts: []string{"a"}, PrivacyAcknowledged: true}), "trusted_proxies_required"},
+		{"network mode", ValidateSetupNetwork(domain.SetupNetwork{Mode: "public", Listen: "127.0.0.1:1", AllowedHosts: []string{"x"}}, netaddr.Setup{}), "network_mode_invalid"},
+		{"listen", ValidateSetupNetwork(domain.SetupNetwork{Mode: "local", Listen: "localhost:8097", AllowedHosts: []string{"x"}}, netaddr.Setup{}), "listen_invalid"},
+		{"listen port 0", ValidateSetupNetwork(domain.SetupNetwork{Mode: "local", Listen: "127.0.0.1:0", AllowedHosts: []string{"x"}}, netaddr.Setup{}), "listen_invalid"},
+		{"local not loopback", ValidateSetupNetwork(domain.SetupNetwork{Mode: "local", Listen: "0.0.0.0:8097", AllowedHosts: []string{"x"}}, netaddr.Setup{}), "listen_not_loopback"},
+		{"lan loopback", ValidateSetupNetwork(domain.SetupNetwork{Mode: "lan", Listen: "[::1]:8097", AllowedHosts: []string{"x"}, PrivacyAcknowledged: true}, netaddr.Setup{}), "listen_loopback_only"},
+		{"lan privacy", ValidateSetupNetwork(domain.SetupNetwork{Mode: "lan", Listen: "0.0.0.0:8097", AllowedHosts: []string{"x"}}, netaddr.Setup{}), "privacy_acknowledgement_required"},
+		{"hosts empty", ValidateSetupNetwork(domain.SetupNetwork{Mode: "local", Listen: "127.0.0.1:8097"}, netaddr.Setup{}), "allowed_hosts_count_invalid"},
+		{"host upper", ValidateSetupNetwork(domain.SetupNetwork{Mode: "local", Listen: "127.0.0.1:8097", AllowedHosts: []string{"Media.Example"}}, netaddr.Setup{}), "allowed_host_invalid"},
+		{"host dup", ValidateSetupNetwork(domain.SetupNetwork{Mode: "local", Listen: "127.0.0.1:8097", AllowedHosts: []string{"a", "a"}}, netaddr.Setup{}), "allowed_host_invalid"},
+		{"proxy invalid", ValidateSetupNetwork(domain.SetupNetwork{Mode: "local", Listen: "127.0.0.1:8097", AllowedHosts: []string{"a"}, TrustedProxies: []string{"10.0.0.1"}}, netaddr.Setup{}), "trusted_proxy_invalid"},
+		{"proxy required", ValidateSetupNetwork(domain.SetupNetwork{Mode: "reverse-proxy", Listen: "127.0.0.1:8097", AllowedHosts: []string{"a"}, PrivacyAcknowledged: true}, netaddr.Setup{}), "trusted_proxies_required"},
 	}
 	for _, c := range cases {
 		found := false
@@ -438,7 +440,7 @@ func TestSetupStaticValidation(t *testing.T) {
 		}
 	}
 	plan := setupTestPlan()
-	if issues := ValidateSetupPlan(plan); len(issues) != 0 {
+	if issues := ValidateSetupPlan(plan, netaddr.Setup{}); len(issues) != 0 {
 		t.Fatalf("valid plan rejected: %+v", issues)
 	}
 	if issues := ValidateSetupPassword(plan.Admin.Name, setupTestPassword); len(issues) != 0 {
@@ -450,7 +452,7 @@ func TestSetupStaticValidation(t *testing.T) {
 		{Mode: "reverse-proxy", Listen: "127.0.0.1:8097", AllowedHosts: []string{"media.example"}, TrustedProxies: []string{"127.0.0.1/32", "::1/128"}, PrivacyAcknowledged: true},
 	}
 	for _, network := range valid {
-		if issues := ValidateSetupNetwork(network); len(issues) != 0 {
+		if issues := ValidateSetupNetwork(network, netaddr.Setup{}); len(issues) != 0 {
 			t.Errorf("valid network %+v rejected: %+v", network, issues)
 		}
 	}

@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"github.com/MoYuanCN/Jelee/internal/platform/netaddr"
 	"slices"
 	"strings"
 	"testing"
@@ -67,7 +68,7 @@ func TestParseSetupCLIDefaultsAndRepeatables(t *testing.T) {
 		!slices.Equal(plan.Network.AllowedHosts, []string{"localhost", "127.0.0.1", "::1"}) || plan.TMDB.Enabled || len(plan.Media) != 0 {
 		t.Fatalf("defaults: %+v", plan)
 	}
-	if issues := app.ValidateSetupPlan(plan); len(issues) != 0 {
+	if issues := app.ValidateSetupPlan(plan, netaddr.Setup{}); len(issues) != 0 {
 		t.Fatalf("default plan invalid: %+v", issues)
 	}
 	plan, err = parseSetupCLI(setupBaseArgs(
@@ -87,7 +88,7 @@ func TestParseSetupCLIDefaultsAndRepeatables(t *testing.T) {
 		!plan.Network.PrivacyAcknowledged || plan.Admin.DisplayName != "管理者" {
 		t.Fatalf("parsed: %+v", plan)
 	}
-	if issues := app.ValidateSetupPlan(plan); len(issues) != 0 {
+	if issues := app.ValidateSetupPlan(plan, netaddr.Setup{}); len(issues) != 0 {
 		t.Fatalf("plan invalid: %+v", issues)
 	}
 }
