@@ -1,7 +1,6 @@
 package domain
 
 import (
-	"net/url"
 	"path"
 	"strings"
 	"time"
@@ -170,14 +169,59 @@ func ValidItemImageRemoteURL(value string) bool {
 			return false
 		}
 	}
-	u, err := url.Parse(value)
-	if err != nil || u.Scheme != "https" || u.User != nil || u.Opaque != "" || u.Host == "" {
-		return false
+	// Hand-written authority and escape checks keep net/url out of the domain.
+	for i := 0; i < len(value); i++ {
+		if value[i] == '%' && (i+2 >= len(value) || !isHexDigit(value[i+1]) || !isHexDigit(value[i+2])) {
+			return false
+		}
 	}
 	host, _, _ := strings.Cut(value[len("https://"):], "/")
 	host, _, _ = strings.Cut(host, "?")
 	host, _, _ = strings.Cut(host, "#")
-	return host != "" && !strings.Contains(host, "@")
+	if host == "" || strings.Contains(host, "@") {
+		return false
+	}
+	if strings.HasPrefix(host, "[") {
+		end := strings.IndexByte(host, ']')
+		if end < 2 {
+			return false
+		}
+		for _, c := range host[1:end] {
+			if !isHexDigit(byte(c)) && c != ':' && c != '.' || c > 0x7f {
+				return false
+			}
+		}
+		return validItemImagePort(host[end+1:])
+	}
+	name, port, hasPort := strings.Cut(host, ":")
+	if name == "" || hasPort && !validItemImagePort(":"+port) {
+		return false
+	}
+	for _, c := range name {
+		if !(c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c >= '0' && c <= '9' || c == '-' || c == '.' || c == '%' || c > 0x7f) {
+			return false
+		}
+	}
+	return true
+}
+
+func validItemImagePort(value string) bool {
+	if value == "" {
+		return true
+	}
+	if len(value) < 2 || len(value) > 6 || value[0] != ':' {
+		return false
+	}
+	for _, c := range value[1:] {
+		if c < '0' || c > '9' {
+			return false
+		}
+	}
+	return true
+}
+
+func isHexDigit(c byte) bool {
+	return c >= '0' && c <= '9' || c >= 'a' && c <= 'f' || c >= 'A' && c <= 'F'
 }
 
 func validItemImageContent(value *ItemImageContent) bool {
