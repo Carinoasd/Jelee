@@ -110,6 +110,8 @@ type Metadata struct {
 }
 
 type Document struct {
+	editBaseHash [32]byte
+	edited       bool
 	Root         string `json:"root"`
 	Encoding     string `json:"encoding"`
 	OriginalSize int64  `json:"originalSize"`

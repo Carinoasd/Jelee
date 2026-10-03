@@ -3,6 +3,7 @@ package nfo
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"encoding/xml"
 	"errors"
 	"io"
@@ -254,7 +255,16 @@ func (d *Document) WithTextOptions(ctx context.Context, entry int, field, value 
 		return nil, ErrTooLarge
 	}
 	output.Write(data[offset:])
-	return parseOriginal(ctx, output.Bytes())
+	result, err := parseOriginal(ctx, output.Bytes())
+	if err != nil {
+		return nil, err
+	}
+	result.edited = true
+	result.editBaseHash = sha256.Sum256(d.original)
+	if d.edited {
+		result.editBaseHash = d.editBaseHash
+	}
+	return result, nil
 }
 
 func insertTextField(data []byte, root *editTextFrame, name string, value []byte, relativeIndent string) textPatch {

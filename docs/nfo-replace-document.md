@@ -10,4 +10,4 @@ Windows資料檔同樣Sync後Rename，已驗證100次並行與跨程序修改沒
 
 Windows nfo/architecture及vet通過，[Linux race](evidence/nfo-write-document-race-linux.txt)通過。實測範圍：未知XML/屬性/註解/CRLF保留，備份3份輪替與調低至1份、no-op身分保持、原文改變拒絕、取消與臨時檔清理；file sync、backup rename/目錄sync、target rename/目錄sync故障注入，回滾失敗保留原文恢復bytes；還原size/mtime的手動修改、回滾前外部修改均拒絕覆蓋。POSIX另驗符號連結與鎖旁檔替換拒絕。100個goroutine及4個子程序各25次的實際讀→修改title→替換→再讀，最後計數100且未知XML/註解保持。
 
-G39.8/9/15仍未完成：尚缺singleflight、正式持久read-write jobs、來源/策略/項目身分與獨立鎖授權、缺失NFO建立與ID生成、完整欄位和真實上游客戶端互操作。上述100次僅是目錄內替換基礎，不能代替完整正式工作流程驗收；G41混合負載亦須接入真正NFO工作。
+G39.8/9/15仍未完成。後續[原文綁定writer](nfo-bound-writer.md)已接Source實體證明、受控修改來源與singleflight；正式持久read-write jobs、庫策略/項目/租約generation與独立鎖授權、缺失NFO建立/ID生成、完整欄位及真實上游客戶端互操作仍缺。上述100次僅是目錄內替換基礎，不能代替完整正式工作流程驗收；G41混合負載亦須接入真正NFO工作。

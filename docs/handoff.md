@@ -1,3 +1,12 @@
+## 2026-10-03 接續：NFO原文綁定adapter Writer與singleflight已驗證
+
+5d381730fe原子替換基礎已推PR46。本批Source保留私有root/父目錄/檔案身分与maxBytes，讀取新增父目錄前後身分核對，String/GoString不露路徑/bytes。Writer.Replace重新開root/父目錄并持有，拒symlink元件，native鎖後/備份前/替換前核Source實體與全原bytes。WithText/WithTextOptions私有最初原文雜湊證明可鏈式修改，Writer拒任意替換XML/其他原文修改/手工ID覆寫。
+
+singleflight完整key含路徑/stamp/新bytesHash/原讀取上限/備份份數，並用active意圖身分比較區分root/父目錄/file；相同stamp但不同實體不共用，獨立同實體Source可共用。等待者取消不取消owner；owner工作已開始取消後join清理，完成引用清除且不缓存結果。x/sync沿用既有v0.23.0改直接依賴。Windows nfo/architecture/vet及jobs/runtime通過，Linux nfo/architecture race通過；證據nfo-writer-race-linux.txt及docs/nfo-bound-writer.md。相同實體一次replace、不同文字/備份不合併、取消/清理/隐私、相同bytes+mtime檔案/root/父目錄換實體與同步old/new實體不合併均驗。
+
+全案仍7完成/197部分/132阻塞。接續正式app writer port與read-write策略/持久jobs/租約generation與項目媒體身分/共用IO配額/恢復稽核；缺失NFO建立與ID規則、完整欄位、Windows完整落盤/ACL与真實客戶端仍缺。不可把adapter宣稱整個G39已完成。長測同9a0c8d956e3f4fbea9e844e3fc59bc26/PID788902/start31680373/boot4a5d9c5c-4482-4c3e-8978-30156b1ce92f已重核吻合、容器running/OOMfalse，source9a74a8932a不含本批。PR46禁止merge，不重啟存活長測。
+
+---
 ## 2026-10-03 接續：NFO目錄內替換/備份/回滾基礎已驗證
 
 d97dc01232檔案鎖已推PR46；新增私有replaceNFODocument持有父os.Root、核全原bytes/身分、native鎖、EXCL隨機暫存/file.Sync/Root.Rename、0至16份備份與失敗回滾。Windows與Linux race的100個goroutine及4個子程序各25次完整XML讀改寫已驗，不遺失未知XML與註解；故障注入/取消/還原size+mtime外部修改/回滾時外部改寫均驗。回滾無法完成時固定ErrRollback並保留原文恢復暫存，不覆蓋外部修改。docs/nfo-replace-document.md說明完整範圍與限制；證據nfo-write-document-race-linux.txt。Windows目錄metadata斷電耐久性、不同檔案系統原子性與ACL/owner保留未證明；備份輪替中途失敗集合可能已部分輪替，原NFO保持。

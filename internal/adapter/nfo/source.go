@@ -28,12 +28,19 @@ type SourceStamp struct {
 
 // Source retains bounded original bytes privately. Reading it does not parse
 // XML: a future cache can compare Stamp before deciding whether to call Parse.
-// It contains no path, file handle, or mutable exported data.
+// Disk observations retain private path and physical identity proofs for later
+// writes, without open handles or mutable exported data.
 type Source struct {
-	original []byte
-	stamp    SourceStamp
-	ready    bool
+	original                       []byte
+	stamp                          SourceStamp
+	ready                          bool
+	rootPath, relative             string
+	rootInfo, parentInfo, fileInfo os.FileInfo
+	maxBytes                       int64
 }
+
+func (*Source) String() string   { return "nfo source (data redacted)" }
+func (*Source) GoString() string { return "nfo source (data redacted)" }
 
 func (s *Source) Stamp() SourceStamp {
 	if s == nil || !s.ready {
@@ -162,6 +169,10 @@ func readSource(ctx context.Context, rootAbs, relativeSlash string, maxBytes int
 		return nil, err
 	}
 	relative := filepath.FromSlash(relativeSlash)
+	parentInfo, err := root.Stat(filepath.Dir(relative))
+	if err != nil || !parentInfo.IsDir() {
+		return nil, ErrNotFound
+	}
 	opened, err := root.OpenFile(relative, readOnlyFlags(), 0)
 	if err != nil {
 		return nil, ErrNotFound
@@ -203,6 +214,10 @@ func readSource(ctx context.Context, rootAbs, relativeSlash string, maxBytes int
 	if err != nil || !currentRootInfo.IsDir() || !os.SameFile(rootInfo, currentRootInfo) {
 		return nil, ErrChanged
 	}
+	currentParentInfo, err := currentRoot.Stat(filepath.Dir(relative))
+	if err != nil || !currentParentInfo.IsDir() || !os.SameFile(parentInfo, currentParentInfo) {
+		return nil, ErrChanged
+	}
 	currentFile, err := currentRoot.OpenFile(relative, readOnlyFlags(), 0)
 	if err != nil {
 		return nil, ErrChanged
@@ -220,10 +235,11 @@ func readSource(ctx context.Context, rootAbs, relativeSlash string, maxBytes int
 		return nil, err
 	}
 	hash := sha256.Sum256(original)
-	return &Source{original: original, ready: true, stamp: SourceStamp{
-		Size: before.Size(), ModifiedUnixNano: before.ModTime().UnixNano(),
-		SHA256: hex.EncodeToString(hash[:]), FingerprintVersion: SourceFingerprintVersion,
-	}}, nil
+	return &Source{original: original, ready: true, rootPath: rootPath, relative: relativeSlash,
+		rootInfo: rootInfo, parentInfo: parentInfo, fileInfo: before, maxBytes: maxBytes, stamp: SourceStamp{
+			Size: before.Size(), ModifiedUnixNano: before.ModTime().UnixNano(),
+			SHA256: hex.EncodeToString(hash[:]), FingerprintVersion: SourceFingerprintVersion,
+		}}, nil
 }
 
 func validSourceInfo(info os.FileInfo) bool {

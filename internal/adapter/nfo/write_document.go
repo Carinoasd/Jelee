@@ -22,6 +22,8 @@ type nfoWriteOperations struct {
 	syncFile      func(*os.File) error
 	rename        func(*os.Root, string, string) error
 	syncDirectory func(*os.Root) error
+	checkSource   func(context.Context) error
+	submitted     func()
 }
 
 func nativeNFOWriteOperations() nfoWriteOperations {
@@ -67,6 +69,11 @@ func replaceNFODocumentWithOperations(ctx context.Context, directory *os.Root, f
 			resultErr = err
 		}
 	}()
+	if ops.checkSource != nil {
+		if err := ops.checkSource(ctx); err != nil {
+			return err
+		}
+	}
 	info, err := verifyNFOOriginal(ctx, directory, filename, original.original, nil)
 	if err != nil {
 		return err
@@ -109,6 +116,11 @@ func replaceNFODocumentWithOperations(ctx context.Context, directory *os.Root, f
 			return err
 		}
 		defer removeOwnedNFOStage(directory, backup, backupInfo)
+		if ops.checkSource != nil {
+			if err := ops.checkSource(ctx); err != nil {
+				return err
+			}
+		}
 		if !lock.check() {
 			return ErrFileLock
 		}
@@ -149,6 +161,11 @@ func replaceNFODocumentWithOperations(ctx context.Context, directory *os.Root, f
 	}
 	if err := ctx.Err(); err != nil {
 		return err
+	}
+	if ops.checkSource != nil {
+		if err := ops.checkSource(ctx); err != nil {
+			return err
+		}
 	}
 	if err := ops.rename(directory, staged, filename); err != nil {
 		return ErrReplace
