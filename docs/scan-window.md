@@ -2,7 +2,7 @@
 
 ## 需求與目前狀態
 
-G13.5 要求掃描窗口避開高峰。此功能尚未啟用；目前只有 `internal/adapter/calendar/window.go` 的時間判斷與測試，不能視為 worker 已受到限制。
+G13.5 要求掃描窗口避開高峰。此功能尚未啟用；已具備 `internal/adapter/calendar/window.go` 時間判斷與 PostgreSQL `PauseJob` 持久暫停操作，不能視為 worker 已受到限制。
 
 ## 時間規則
 
@@ -21,3 +21,13 @@ G13.5 要求掃描窗口避開高峰。此功能尚未啟用；目前只有 `int
 7. 更新設定說明、需求追蹤與執行證據。多節點需一致時區及時間窗設定；這不是跨節點全域 CPU/I/O 配額的替代方案。
 
 未完成以上整合前，G13.5 的掃描窗口仍屬未交付。正式長測的 c61c12b007 快照不包含本功能。
+
+## 持久暫停驗證
+
+`JobPauseRepository.PauseJob` 與一般 ReleaseJob 共用原租約 fencing 及探測租約清理。只有持有有效 owner/generation/lease 的內部 worker 可呼叫；取消優先轉為 cancelled。正常計畫暫停將此次 claim 的 attempts 扣回一次、回到 queued，保留既有故障次數及 checkpoint。過期或重播租約不得扣回。未新增公開 HTTP 暫停入口，亦未改寫遷移。
+
+真 PostgreSQL + race 測試：六次暫停後仍保留完成根目錄、檔案與位元組計數，續跑從子目錄開始；之前一次失敗仍計入 attempts；普通 ReleaseJob 最終仍達三次上限而失敗。另驗證已取消工作不再排回佇列，以及過期 owner 無法修改狀態。
+
+[暫停測試](evidence/jobs-pause-linux-race.txt)、[既有回歸](evidence/jobs-pause-regression-linux-race.txt) 均通過。回歸包括取消與 fencing、部分目錄重新開始、交易內租約到期回滾、工作指標及 catalog import 續跑。Windows vet 通過。
+
+尚未接上配置與 worker，時間窗仍未啟用；probe/NFO 等所有執行階段的關窗中斷需隨 worker 整合驗證。

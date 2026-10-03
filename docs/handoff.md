@@ -1,3 +1,11 @@
+## 最新接續：計畫暫停持久操作已驗證
+
+新增 app.JobPauseRepository/PauseJob，Postgres 共用 releaseJob(planned) 保持 owner/generation/lease 與最終 UPDATE fence。計畫暫停僅退回目前 claim 的一次 attempts；取消優先，checkpoint 不刪，一般 ReleaseJob 故障上限不變。真 PG race 新測試與六組既有回歸通過，證據見 docs/scan-window.md。未改遷移。
+
+下一步接上時間窗配置與 worker：Options 的時間判斷要可控時鐘測試；窗外所有 claim 分支停領取；執行中監控關窗取消，join 後呼叫 PauseJob，取消優先；涵蓋 probe/NFO/catalog/ignore 的暫停恢復。此功能仍未啟用，不能把 helper 或 repository 通過當成時間窗交付。
+
+正式長測645523（startTicks31097741/bootId4a5d9c5c-4482-4c3e-8978-30156b1ce92f）及run033822f3aecf4b6491406594c8687cfd容器再次確認 running/OOM false。59c46b7 CI 已見兩品牌fail，format與一Windows foundation通過，其餘部分pending，不能稱全綠。全案仍未完成，不合併。
+
 ## 最新接續：掃描時間窗判斷已建立，尚未啟用
 
 新增 calendar.ParseDailyWindow/Allows，嚴格 HH:MM／IANA 時區、跨午夜、半開區間與 DST 回撥/跳時測試；Windows calendar 套件通過。設計及接續步驟見 docs/scan-window.md。

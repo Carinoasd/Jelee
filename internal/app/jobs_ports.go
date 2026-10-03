@@ -47,3 +47,10 @@ type JobCancellationNotifier interface {
 type JobCancellationReader interface {
 	ReadJobCancellation(context.Context, domain.JobLease) (bool, error)
 }
+
+// JobPauseRepository returns a live lease to the queue for a planned window
+// closure. Completed checkpoints remain; this claim does not consume a failure
+// attempt. Persisted cancellation wins. Stale or expired leases cannot pause.
+type JobPauseRepository interface {
+	PauseJob(context.Context, domain.JobLease) error
+}

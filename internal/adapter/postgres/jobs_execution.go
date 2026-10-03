@@ -132,6 +132,16 @@ func (s *Store) HeartbeatJob(ctx context.Context, l domain.JobLease, ttl time.Du
 	return current.Job.CancelRequested, storageError(tx.Commit(ctx))
 }
 func (s *Store) ReleaseJob(ctx context.Context, l domain.JobLease) error {
+	return s.releaseJob(ctx, l, false)
+}
+
+// PauseJob refunds only the current claim, after its owner has joined all work.
+// Fencing prevents replay from refunding an earlier failure or a newer claim.
+func (s *Store) PauseJob(ctx context.Context, l domain.JobLease) error {
+	return s.releaseJob(ctx, l, true)
+}
+
+func (s *Store) releaseJob(ctx context.Context, l domain.JobLease, planned bool) error {
 	tx, err := s.jobTransaction(ctx)
 	if err != nil {
 		return err
@@ -144,7 +154,7 @@ func (s *Store) ReleaseJob(ctx context.Context, l domain.JobLease) error {
 	if err = releaseParentProbeLeases(ctx, tx, l.Job.ID); err != nil {
 		return err
 	}
-	err = guardedJobUpdate(ctx, tx, l, `UPDATE jobs SET state=CASE WHEN cancel_requested THEN 'cancelled' WHEN attempts>=max_attempts THEN 'failed' ELSE 'queued' END,error_code=CASE WHEN NOT cancel_requested AND attempts>=max_attempts THEN 'job_attempts_exhausted' ELSE '' END,finished_at=CASE WHEN cancel_requested OR attempts>=max_attempts THEN clock_timestamp() ELSE NULL END,owner=NULL,lease_until=NULL WHERE id=$1::uuid`, l.Job.ID)
+	err = guardedJobUpdate(ctx, tx, l, `UPDATE jobs SET state=CASE WHEN cancel_requested THEN 'cancelled' WHEN NOT $2 AND attempts>=max_attempts THEN 'failed' ELSE 'queued' END,error_code=CASE WHEN NOT cancel_requested AND NOT $2 AND attempts>=max_attempts THEN 'job_attempts_exhausted' ELSE '' END,finished_at=CASE WHEN cancel_requested OR (NOT $2 AND attempts>=max_attempts) THEN clock_timestamp() ELSE NULL END,attempts=CASE WHEN $2 AND NOT cancel_requested THEN GREATEST(attempts-1,0) ELSE attempts END,owner=NULL,lease_until=NULL WHERE id=$1::uuid`, l.Job.ID, planned)
 	if err != nil {
 		return err
 	}
