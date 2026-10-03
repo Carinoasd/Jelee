@@ -160,8 +160,10 @@ func TestJobsConcurrentScanFirstFailureStopsSiblings(t *testing.T) {
 	if !errors.Is(err, failure) || repository {
 		t.Fatalf("first failure was not reported: %v %t", err, repository)
 	}
-	if cancelled.Load() == 0 {
-		t.Fatal("siblings were not cancelled")
+	// Siblings either never reached the scanner (the slot saw the cancelled
+	// context first) or were released by cancellation; none may complete.
+	if len(f.completed) != 1 || f.completed[0] != "." || cancelled.Load() > 3 {
+		t.Fatal("siblings were not cancelled", f.completed, cancelled.Load())
 	}
 }
 
