@@ -13,6 +13,9 @@ import (
 	"sync"
 	"sync/atomic"
 
+	"github.com/MoYuanCN/Jelee/internal/app"
+	"github.com/MoYuanCN/Jelee/internal/domain"
+
 	"golang.org/x/sync/singleflight"
 )
 
@@ -24,6 +27,16 @@ type Writer struct {
 	mu       sync.Mutex
 	intents  map[string][]*writerIntent
 	sequence uint64
+	budget   app.WorkBudget
+}
+
+// NewWriterWithBudget binds the same shared budget used by the caller's runtime.
+// Callers must release prior permits before Replace; its stages never nest.
+func NewWriterWithBudget(budget app.WorkBudget) (*Writer, error) {
+	if budget == nil {
+		return nil, domain.ErrInvalid
+	}
+	return &Writer{budget: budget}, nil
 }
 
 type writerIntent struct {
@@ -114,7 +127,7 @@ func (w *Writer) replace(ctx context.Context, original *Source, replacement *Doc
 	var ownsOperation atomic.Bool
 	result := w.group.DoChan(key, func() (any, error) {
 		ownsOperation.Store(true)
-		return nil, writeBoundNFOSource(ctx, original, replacement, backups, ops)
+		return nil, writeBoundNFOSource(ctx, original, replacement, backups, ops, w.budget)
 	})
 	if ops.submitted != nil {
 		ops.submitted()
@@ -130,10 +143,19 @@ func (w *Writer) replace(ctx context.Context, original *Source, replacement *Doc
 	}
 }
 
-func writeBoundNFOSource(ctx context.Context, original *Source, replacement *Document, backups int, ops nfoWriteOperations) error {
+func writeBoundNFOSource(ctx context.Context, original *Source, replacement *Document, backups int, ops nfoWriteOperations, budget app.WorkBudget) error {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
+	base, replacement, err := prepareBoundNFODocuments(ctx, original, replacement, budget)
+	if err != nil {
+		return err
+	}
+	releaseIO, err := acquireWriterWork(ctx, budget, app.WorkIO)
+	if err != nil {
+		return err
+	}
+	defer releaseIO()
 	root, err := os.OpenRoot(original.rootPath + string(os.PathSeparator) + ".")
 	if err != nil {
 		return ErrChanged
@@ -200,9 +222,26 @@ func writeBoundNFOSource(ctx context.Context, original *Source, replacement *Doc
 		return err
 	}
 	ops.checkSource = check
+	ops.documentsValidated = true
+	return replaceNFODocumentWithOperations(ctx, directory, filename, base, replacement, backups, ops)
+}
+
+func acquireWriterWork(ctx context.Context, budget app.WorkBudget, class app.WorkClass) (func(), error) {
+	if budget == nil {
+		return func() {}, ctx.Err()
+	}
+	return budget.Acquire(ctx, class)
+}
+
+func prepareBoundNFODocuments(ctx context.Context, original *Source, replacement *Document, budget app.WorkBudget) (*Document, *Document, error) {
+	release, err := acquireWriterWork(ctx, budget, app.WorkCPU)
+	if err != nil {
+		return nil, nil, err
+	}
+	defer release()
 	base, err := original.Parse(ctx)
 	if err != nil {
-		return err
+		return nil, nil, err
 	}
 	// Generate inside the shared operation so duplicate requests choose one ID.
 	// Controlled edits preserve the original entry structure and existing IDs.
@@ -212,8 +251,11 @@ func writeBoundNFOSource(ctx context.Context, original *Source, replacement *Doc
 		}
 		replacement, err = replacement.EnsureID(ctx, entry, original.maxBytes, TextEditOptions{})
 		if err != nil {
-			return err
+			return nil, nil, err
 		}
 	}
-	return replaceNFODocumentWithOperations(ctx, directory, filename, base, replacement, backups, ops)
+	if err := validateNFOWriteDocuments(ctx, base, replacement); err != nil {
+		return nil, nil, err
+	}
+	return base, replacement, nil
 }

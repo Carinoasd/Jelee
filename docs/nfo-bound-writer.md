@@ -10,4 +10,12 @@
 
 Windows nfo/architecture、jobs/runtime與nfo vet通過，[Linux nfo/architecture race](evidence/nfo-writer-race-linux.txt)通過。以每次呼叫的私有提交觀察與阻塞sync控制驗證：同意圖/獨立同源觀察只替換一次，不同文字/備份選項不共用、等待者取消不取消擁有者、擁有者取消清理後所有共用者返回取消、完成意圖不保留。另核任意XML/不同修改來源拒絕、多次文字修改/缺欄位新增/手工ID保持、相同bytes與mtime的實體替換拒絕與診斷隱私；前批100次同程序/跨程序替換仍回歸通過。
 
-G39.6/8/9/10/14/15仍未完成。這是adapter writer，尚未接正式read-write库策略、持久jobs、項目與租約/generation授權、媒體身分複核及提交恢復稽核，也未接共用I/O配額。Windows落盤與完整ACL/owner保留、缺失NFO建立/ID生成、完整欄位、真實上游客戶端與正式混合負載仍待驗收；實體複核與rename之間的外部修改競態仍非檔案系統快照。
+## 共用 CPU 與 I/O 配額
+
+`NewWriterWithBudget`接收呼叫者共用的`app.WorkBudget`，拒絕nil。每次singleflight共用操作先取得CPU，完成原文解析、缺ID生成及兩份XML嚴格驗證後釋放；再取得I/O，開啟root/父目錄、等待native檔案鎖、複核來源、暫存/備份/替換/回滾，直到全部handle與暫存清理後釋放。兩階段不巢狀，total=1可完成。呼叫者不得持有同一budget配額進入Replace。
+
+配額滿載原樣回報`domain.ErrResourceBusy`，排隊可取消；取得I/O前不建立鎖旁檔、備份或暫存。等待者取消不釋放擁有者持有的I/O；共用操作完成才回收。零值Writer仍供獨立adapter呼叫者使用，沒有配額。正式runtime尚未建立此writer或接入持久寫回jobs；未宣稱所有NFO寫回已由runtime配置控制。
+
+Windows nfo/architecture、jobs/runtime及vet通過；[Linux nfo/architecture race](evidence/nfo-writer-budget-race-linux.txt)通過。真budget驗證CPU→I/O順序、total1實際替換、sync失敗與兩種滿載拒絕、CPU/I/O排隊取消後無檔案副作用與可重試、共用等待者取消時擁有者配額保持；完成後active/waiting歸零。既有native鎖、原文身分、singleflight及回滾矩陣也回歸。
+
+G39.6/8/9/10/14/15仍未完成。這是adapter writer，尚未接正式read-write庫策略、持久jobs、項目與租約/generation授權、媒體身分複核及提交恢復稽核。Windows落盤與完整ACL/owner保留、缺失NFO建立、完整欄位、真實上游客戶端與正式混合負載仍待驗收；實體複核與rename之間的外部修改競態仍非檔案系統快照。

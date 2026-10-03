@@ -1,3 +1,14 @@
+## 2026-10-03 接續：NFO adapter 寫回共用配額已驗證
+
+已發布HEAD3e33b5ae59，沿用feat/jelee-ignore-family-worker與PR46。本批NewWriterWithBudget接app.WorkBudget；singleflight共用工作CPU解析/缺ID生成/嚴格驗證後釋放，再持I/O至root/父目錄/native鎖/暫存/備份/替換/回滾與清理結束，不巢狀。零值Writer保持独立無配額模式；runtime尚未建立此writer或實作持久寫回worker，不得宣稱正式read-write已啟用。
+
+Windows nfo/architecture、platform/jobs/runtime及vet通過，Linux nfo/architecture race通過，證據nfo-writer-budget-race-linux.txt。真budget驗CPU→IO、total1實際寫入、sync失敗回收、兩类queue0滿載拒絕、queue1取消無檔案副作用/可重試、共用等待者取消不釋放ownerIO。格式、增量品牌0/339、gitignore0、diffcheck通過。本批無SQL變更與真PG写回驗證；第一次命令誤用不存在internal/app/jobs，已改正internal/platform/jobs並通過。
+
+全案保持7完成/198部分/131阻塞。下一步完整正式write/export任務：新migration（目前45）、library read-write policy、固定UUID/完整輸出持久意圖、generation/租約/項目/來源授權、capability、API/CLI/worker及恢復稽核。不能僅放寬mode。呼叫者須釋放原共享permit後進入Writer，worker需處理Busy與租約等待。
+
+同正式9a0c8d956e3f4fbea9e844e3fc59bc26/PID788902/start31680373/boot4a5d9c5c-4482-4c3e-8978-30156b1ce92f本回合實核吻合，container running/OOMfalse，source9a74a8932a不含後續NFO；不重啟活躍程序。原媒體/授權/既有SQL保持，禁止merge/release/tag/force-push/Git身份設定變更。最新CI尚待核對。
+
+---
 ## 2026-10-03 接續：adapter寫回缺ID生成已驗證
 
 a5d8e43a46已推PR46。本批EnsureID/EnsureIDValue僅在所選原文條目無已識別ID時新增<uniqueid type="jelee">UUID</uniqueid>，隨機UUID v4或預先固定的canonical UUID，不指定default；既有uniqueid/custom/jelee手工值、imdbid/tmdbid/tvdbid/id保持。公開視圖修改不能繞過原文IDs；lockdata/ID欄位鎖拒絕新增；損壞/空ID不自動修復。Writer在singleflight共用工作中補缺ID，已有ID條目略過，同請求一次生成，重寫後ID不變；凍結UUID不被覆寫。docs/nfo-compatibility.md明定策略，docs/nfo-generated-id.md及nfo-id-write-race-linux.txt記範圍。Windows nfo/architecture/vet與jobs/runtime、Linux nfo/architecture race通過；BOM/UTF16/排版/多條目/取消/界限/鎖與實際寫回/共用/重寫亦驗。

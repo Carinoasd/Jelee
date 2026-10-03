@@ -106,3 +106,9 @@ Fetch 完成 URL／host／port 驗證後、DNS與開連線前取得 I/O，持有
 Windows outbound/metadata/runtime/architecture與vet通過；[Linux race](evidence/resources-metadata-race-linux.txt)涵蓋上述與resources。真HTTP測試驗證CPU占滿total時queue0拒絕／queue1取消且無dial，釋放後恰好恢復；body讀取持IO，取消後歸零。真TLS的成功、憑證拒絕、429、非法回應、私有DNS、redirect及Retry-After矩陣均加入total1配額並驗歸零；Retry-After期間另一CPU操作可取得唯一total配額。正式預檢建構測試以滿queue0 budget驗證網路前拒絕。
 
 [真PG HTTP runtime race](evidence/resources-metadata-runtime.txt)核實單一budget供應後Fx服務與metrics配置仍正確；該PG案例未配置TMDB，元資料網路驗證由上述受控TLS服務完成。未使用真API key或外部TMDB服務。尚未實作的遠端圖片內容抓取與索引等不能由此宣稱已完成，G41.3及完整混合驗收仍待接續。
+
+## NFO adapter 寫回配額
+
+`nfo.NewWriterWithBudget`新增共用budget建構入口。共用操作以CPU解析/生成缺ID/驗證XML，釋放後以I/O持有root、native鎖及完整檔案替換/清理；total1不巢狀。Busy及排隊取消在檔案操作前返回，重試須由未來正式worker決定；持native鎖期間不再取得CPU。等待者取消不回收擁有者配額，擁有者完成清理才釋放。
+
+Windows nfo/architecture/jobs/runtime及vet、[Linux nfo/architecture race](evidence/nfo-writer-budget-race-linux.txt)通過，含真budget的total1、兩類queue0拒絕與queue1取消/恢復、sync故障與共用等待者取消。詳見[writer契約](nfo-bound-writer.md)。目前正式read-write策略與持久寫回worker尚未實作，runtime尚未供應此writer；本批未跑真PG寫回或完整混合負載。G41.3/G41.9狀態保持。

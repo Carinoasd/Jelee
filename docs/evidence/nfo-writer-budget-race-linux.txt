@@ -1,0 +1,2 @@
+ok  	github.com/MoYuanCN/Jelee/internal/adapter/nfo	10.885s
+ok  	github.com/MoYuanCN/Jelee/internal/architecture	1.221s

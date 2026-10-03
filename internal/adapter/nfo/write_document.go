@@ -19,11 +19,12 @@ var (
 // These ports are invocation-local and private; production callers cannot
 // replace file sync or rename. Tests exercise failures before and after commit.
 type nfoWriteOperations struct {
-	syncFile      func(*os.File) error
-	rename        func(*os.Root, string, string) error
-	syncDirectory func(*os.Root) error
-	checkSource   func(context.Context) error
-	submitted     func()
+	syncFile           func(*os.File) error
+	rename             func(*os.Root, string, string) error
+	syncDirectory      func(*os.Root) error
+	checkSource        func(context.Context) error
+	submitted          func()
+	documentsValidated bool
 }
 
 func nativeNFOWriteOperations() nfoWriteOperations {
@@ -46,18 +47,9 @@ func replaceNFODocumentWithOperations(ctx context.Context, directory *os.Root, f
 	if ctx == nil || directory == nil || original == nil || replacement == nil || backups < 0 || backups > 16 || ops.syncFile == nil || ops.rename == nil || ops.syncDirectory == nil {
 		return ErrInvalidInput
 	}
-	for _, document := range []*Document{original, replacement} {
-		if len(document.original) == 0 || int64(len(document.original)) > MaxAllowedBytes {
-			return ErrInvalidInput
-		}
-		parsed, err := parseOriginal(ctx, document.original)
-		if err != nil {
+	if !ops.documentsValidated {
+		if err := validateNFOWriteDocuments(ctx, original, replacement); err != nil {
 			return err
-		}
-		for _, issue := range parsed.Issues {
-			if issue.Severity == "error" {
-				return ErrInvalidInput
-			}
 		}
 	}
 	lock, err := lockNFOFile(ctx, directory, filename)
@@ -191,6 +183,24 @@ func replaceNFODocumentWithOperations(ctx context.Context, directory *os.Root, f
 		return ErrRollback
 	}
 	return ErrReplace
+}
+
+func validateNFOWriteDocuments(ctx context.Context, documents ...*Document) error {
+	for _, document := range documents {
+		if document == nil || len(document.original) == 0 || int64(len(document.original)) > MaxAllowedBytes {
+			return ErrInvalidInput
+		}
+		parsed, err := parseOriginal(ctx, document.original)
+		if err != nil {
+			return err
+		}
+		for _, issue := range parsed.Issues {
+			if issue.Severity == "error" {
+				return ErrInvalidInput
+			}
+		}
+	}
+	return nil
 }
 
 func nfoBackupName(filename string, index int) string {
