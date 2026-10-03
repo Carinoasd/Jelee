@@ -196,6 +196,13 @@ func newWithLifetime(cfg config.Config, logger *slog.Logger, lifetime *lifetime)
 			if validation.Available() {
 				opts.NFO = &jobworker.NFOOptions{Repository: store, Reader: validation, MaxConcurrent: 2, Available: validation.Available, OnRuntimeUnavailable: validation.Disable}
 			}
+			if c.EnableNFOWrite {
+				writer, err := nfo.NewWriterWithBudget(budget)
+				if err != nil {
+					return nil, err
+				}
+				opts.NFOWrite = &jobworker.NFOWriteOptions{Repository: store, Committer: writer}
+			}
 			if probing.Available() {
 				opts.Probe = &jobworker.ProbeOptions{Repository: store, Prober: probing, LeaseDuration: domain.DefaultProbeCachePolicy().LeaseDuration, MaxConcurrent: 2, Available: probing.Available, OnRuntimeUnavailable: probing.Disable}
 			}

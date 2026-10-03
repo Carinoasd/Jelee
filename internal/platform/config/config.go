@@ -37,6 +37,9 @@ type Config struct {
 	EnableProbe           bool            `json:"enableProbe"`
 	EnableFamilyIgnore    bool            `json:"enableFamilyIgnore"`
 	Logging               LoggingConfig   `json:"logging"`
+	// EnableNFOWrite lets job workers claim nfo_write jobs and run NFO commit
+	// recovery. It is off by default and requires job rollout.
+	EnableNFOWrite bool `json:"enableNFOWrite"`
 }
 
 func Load() (Config, error) { return LoadWith(os.LookupEnv) }
@@ -99,7 +102,7 @@ func LoadWith(lookup func(string) (string, bool)) (Config, error) {
 			c.TrustedProxies = strings.Split(value, ",")
 		}
 	}
-	for name, target := range map[string]*bool{"JELEE_ENABLE_CATALOG": &c.EnableCatalog, "JELEE_ENABLE_DIRECT": &c.EnableDirect, "JELEE_ENABLE_ACCOUNTS": &c.EnableAccounts, "JELEE_ENABLE_METRICS": &c.EnableMetrics, "JELEE_ENABLE_IMAGES": &c.EnableImages, "JELEE_ENABLE_JOBS": &c.EnableJobs, "JELEE_ENABLE_PROBE": &c.EnableProbe, "JELEE_ENABLE_FAMILY_IGNORE": &c.EnableFamilyIgnore} {
+	for name, target := range map[string]*bool{"JELEE_ENABLE_CATALOG": &c.EnableCatalog, "JELEE_ENABLE_DIRECT": &c.EnableDirect, "JELEE_ENABLE_ACCOUNTS": &c.EnableAccounts, "JELEE_ENABLE_METRICS": &c.EnableMetrics, "JELEE_ENABLE_IMAGES": &c.EnableImages, "JELEE_ENABLE_JOBS": &c.EnableJobs, "JELEE_ENABLE_PROBE": &c.EnableProbe, "JELEE_ENABLE_FAMILY_IGNORE": &c.EnableFamilyIgnore, "JELEE_ENABLE_NFO_WRITE": &c.EnableNFOWrite} {
 		if value, ok := lookup(name); ok {
 			b, err := strconv.ParseBool(value)
 			if err != nil {
@@ -217,6 +220,15 @@ func (c Config) Validate() error {
 	}
 	if c.EnableFamilyIgnore && !c.EnableJobs {
 		return errors.New("family ignore requires job rollout")
+	}
+	if c.EnableNFOWrite {
+		if !c.EnableJobs {
+			return errors.New("nfo write requires job rollout")
+		}
+		// The recovery loop and its lease renewal need a connection of their own.
+		if int(c.MaxConnections) < c.Jobs.Workers+3 {
+			return errors.New("nfo write requires at least workers plus three database connections")
+		}
 	}
 	if c.EnableProbe {
 		if !c.EnableJobs {
