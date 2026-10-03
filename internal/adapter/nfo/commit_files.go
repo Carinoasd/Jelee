@@ -37,6 +37,10 @@ type nfoCommitFilePersistence struct {
 	// An error can mean an unknown commit outcome. No caller receives write power.
 	plan  func(context.Context, nfoCommitFilePlan) error
 	ready func(context.Context, nfoCommitFiles) error
+	// Optional internal checkpoints require a committed first observation of
+	// a complete output/witness pair. No production repository supplies them yet.
+	progress func(context.Context, nfoCommitFiles) error
+	resume   *nfoCommitFiles
 }
 
 // prepareNFOCommitFiles records the bounded names before creating any sidecar,
@@ -68,6 +72,12 @@ func prepareNFOCommitFiles(ctx context.Context, directory *os.Root, filename str
 		return nil, err
 	}
 	plan := nfoCommitFilePlan{version: 1, token: token, filename: filename, parent: parent, target: target}
+	if persist.resume != nil {
+		saved := persist.resume
+		if persist.progress == nil || saved.plan != plan || !validNFOCommitProgress(*saved) {
+			return nil, ErrChanged
+		}
+	}
 	if err := persist.plan(ctx, plan); err != nil {
 		return nil, ErrReplace
 	}
@@ -104,7 +114,7 @@ func prepareNFOCommitFiles(ctx context.Context, directory *os.Root, filename str
 	}
 	names := plan.names()
 	owned := make(map[string]os.FileInfo, len(names))
-	retain := false
+	retain := persist.resume != nil
 	defer func() {
 		if !retain {
 			for name, identity := range owned {
@@ -131,7 +141,11 @@ func prepareNFOCommitFiles(ctx context.Context, directory *os.Root, filename str
 		}
 		return nil
 	}
-	if err := link(filename, names[0], info); err != nil {
+	if persist.resume != nil {
+		if err := verifyNFOCommitProgress(ctx, directory, *persist.resume, original.original, replacement.original); err != nil {
+			return nil, err
+		}
+	} else if err := link(filename, names[0], info); err != nil {
 		return nil, err
 	}
 	stage := func(name string, data []byte) (os.FileInfo, error) {
@@ -165,30 +179,69 @@ func prepareNFOCommitFiles(ctx context.Context, directory *os.Root, filename str
 		}
 		return final, nil
 	}
-	output, err := stage(names[1], replacement.original)
-	if err != nil {
-		return nil, err
+	var outputID, rollbackID nfoNativeIdentity
+	checkpoint := func(files nfoCommitFiles) error {
+		if persist.progress == nil {
+			return nil
+		}
+		if err := verifyNFOCommitProgress(ctx, directory, files, original.original, replacement.original); err != nil {
+			return err
+		}
+		if ops.checkSource != nil {
+			if err := ops.checkSource(ctx); err != nil {
+				return err
+			}
+		}
+		if !lock.check() {
+			return ErrFileLock
+		}
+		if err := ops.syncDirectory(directory); err != nil {
+			return ErrReplace
+		}
+		// Even an error can follow a committed checkpoint. Preserve witnesses
+		// before the callback, including any subsequently incomplete stage.
+		retain = true
+		if err := persist.progress(ctx, files); err != nil {
+			return ErrReplace
+		}
+		return ctx.Err()
 	}
-	if err := link(names[1], names[2], output); err != nil {
-		return nil, err
+	if persist.resume != nil {
+		outputID, rollbackID = persist.resume.output, persist.resume.rollback
+	} else {
+		output, err := stage(names[1], replacement.original)
+		if err != nil {
+			return nil, err
+		}
+		if err := link(names[1], names[2], output); err != nil {
+			return nil, err
+		}
+		outputID, err = nativeIdentityWithin(directory, names[1])
+		if err != nil {
+			return nil, err
+		}
+		if err := checkpoint(nfoCommitFiles{plan: plan, output: outputID}); err != nil {
+			return nil, err
+		}
 	}
-	rollback, err := stage(names[3], original.original)
-	if err != nil {
-		return nil, err
-	}
-	if err := link(names[3], names[4], rollback); err != nil {
-		return nil, err
-	}
-	outputID, err := nativeIdentityWithin(directory, names[1])
-	if err != nil {
-		return nil, err
-	}
-	rollbackID, err := nativeIdentityWithin(directory, names[3])
-	if err != nil {
-		return nil, err
+	if rollbackID == (nfoNativeIdentity{}) {
+		rollback, err := stage(names[3], original.original)
+		if err != nil {
+			return nil, err
+		}
+		if err := link(names[3], names[4], rollback); err != nil {
+			return nil, err
+		}
+		rollbackID, err = nativeIdentityWithin(directory, names[3])
+		if err != nil {
+			return nil, err
+		}
 	}
 	files := &nfoCommitFiles{plan: plan, output: outputID, rollback: rollbackID}
 	if err := verifyNFOCommitFiles(ctx, directory, *files, original.original, replacement.original); err != nil {
+		return nil, err
+	}
+	if err := checkpoint(*files); err != nil {
 		return nil, err
 	}
 	if !lock.check() {

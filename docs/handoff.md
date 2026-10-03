@@ -1,3 +1,12 @@
+## 2026-10-03 已保存witness pair的內部checkpoint續作原型通過
+
+prepareNFOCommitFiles新增可選private progress／resume，未提供時既有plan／ready入口保持。output＋pin及完整pair在核first plan／native IDs／bytes／source／lock與directory sync後保存；callback嘗試前retain，未知回應保留。resume只接受同一first plan與完整已保存pair；output checkpoint須rollback兩名皆缺，未知物件不採用。兩個actual child osexit80/81經file-backed first observations重開可達ready，output／rollback first IDs保持；不是PG或換owner恢复授權。七拒絕leaf核target與五artifact identities/bytes digests保持。
+
+Windows及Linux race選測各12PASS零skipfail（含noop helper1）；完整NFO Windows395PASS/5symlink skip，Linux race413PASS/1Win-only skip，皆terminal0。私有overlay只移resume readonly verification，Go exit1/5test fail/4精確rejected resume changed retained artifacts markers，formal source不變；vet/format/brand0/339/gitignore通過。docs/evidence/nfo-commit-progress-primitive.json獨立核三source hashes/四green logs/各case一次/red control。原checkpointJSON保持，108已發布SQL及原requirements/mod/sum/LICENSE保持。
+
+下一接真正PG checkpoint schema/ports及Stage、首次/重放/deferred守衛、恢復租約與完整授權，再真PG實際中斷及未知結果。create到first checkpoint之間未知物件仍需有界attempt/容量/清理協議；正式target Rename/backup/rollback/結算/crash recovery/Win目錄耐久性/worker三批次/missingNFO/heapRSS仍缺。全7/198/131保持active，原24h不重啟，不能把原schema54凍結1520PASS外推為新current source完整PG驗收。
+
+---
 ## 2026-10-03 正式部分落檔程序中斷回歸通過，恢復協議仍待實作
 
 新增commit_files_abrupt_test.go：真子程序osexit70/71/72/73繞過defer，plan Sync但無副作用時可續作；output／rollback／directory callback後留下2/4/5物件時fresh root仍ErrReplace，保持第一次plan／物件身分與原target，無ready。file-backed callback不是PG；Windows目錄同步stub不證metadata耐久性。正式選測Windows及Linux race各5PASS零skipfail；完整NFO Windows383PASS／5symlink條件skip、Linux race401PASS／1Windows専屬skip，均terminal0。vet／format／增量brand0/339／gitignore／diff通過；安全JSON獨立核四logs及五case各run/pass一次、source及log SHA256。

@@ -33,3 +33,15 @@ G13.3 要求任務可恢復；G39.8 要求原子替換、寫前備份與失敗�
 ## 已驗證範圍
 
 正式中斷選測在Windows與Linux race各5PASS、零skipfail；完整NFO套件Windows383PASS／5個symlink條件跳過，Linux race401PASS／1個Windows專屬跳過，兩者package terminal pass。vet、格式、增量品牌0／339、gitignore及diff通過。安全摘要獨立核每個中斷案例各run／pass一次、全部日誌terminal及hash，見[本批證據](evidence/nfo-partial-stage-abrupt.json)。沒有修改108份已發布SQL或schema54來源，沒有重跑完整PostgreSQL宇宙。
+
+## 已保存 witness pair 的內部續作原型
+
+`prepareNFOCommitFiles` 新增私有 progress callback 與 resume evidence。原有呼叫者未提供 callback 時仍走既有 plan／ready 流程；正式 StageCommitFiles／PostgreSQL repository 尚未接入。checkpoint 只可保存完整 output＋output-pin（連同 original-pin），或完整五份準備物件；保存前核對原文、首次 parent／target／output／rollback 身分與 witness，並核 source callback、native lock 和 directory sync。保存嘗試前即保留證據，回應未知不刪檔。
+
+重開只接受同一 plan 與首次持久身分。output pair checkpoint 須核原文及 output pair，且 rollback／rollback-pin 都尚不存在；只建立缺少的 rollback pair，保留 output 身分。完整 pair checkpoint 核全部物件後沿同一身分保存 ready。任何未知 rollback 物件、缺 witness、換實體、內容變更或不一致 plan 皆拒絕；拒絕前後原 target、五個準備名稱、物件身分與 bytes digest 保持。
+
+實際子程序在 output pair 或完整 pair callback 將紀錄 Sync 後 os.Exit；父程序重讀紀錄及重開目錄，兩條路徑均可完成 ready。這個 callback 仍是自有檔案夾具，不是真 PostgreSQL 交易，也未證明換 owner／generation 的恢復租約。建立物件後、保存首次 checkpoint 前的中斷仍需有界 attempt 協議；目前不能採用未知物件。原始三個部分落檔中斷回歸保持原範圍。
+
+本原型沒有 target Rename、backup、rollback、結算、claim 解除或正式 worker 呼叫者，不能宣稱 G13.3／G39.8／G39.14 完成。後續必須接入持久 checkpoint schema／ports、交易首次及重放守衛、恢復租約與完整授權，再驗真正 PG 子程序中斷及未知結果。
+
+同來源選測Windows／Linux race各12PASS（包含無操作helper一PASS）、零skipfail；兩個實際中斷正例及七個拒絕leaf各執行通過一次。完整NFO套件Windows395PASS／5symlink條件skip、Linux race413PASS／1Windows專屬skip。私有overlay僅移除重開前唯讀核對，四個拒絕案例留下新物件，Go exit1／5 test FAIL events／四個精確retained artifact marker，正式來源保持。vet、格式、增量品牌0／339及gitignore通過；見[原型安全證據](evidence/nfo-commit-progress-primitive.json)。
