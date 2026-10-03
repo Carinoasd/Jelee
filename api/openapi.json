@@ -2338,6 +2338,51 @@
         ],
         "type": "object"
       },
+      "MetadataRemoveResult": {
+        "additionalProperties": false,
+        "properties": {
+          "metadata": {
+            "$ref": "#/components/schemas/ItemMetadata"
+          },
+          "removed": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 39,
+            "type": "array"
+          },
+          "skipped": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "field": {
+                  "type": "string"
+                },
+                "reason": {
+                  "enum": [
+                    "locked",
+                    "required"
+                  ],
+                  "type": "string"
+                }
+              },
+              "required": [
+                "field",
+                "reason"
+              ],
+              "type": "object"
+            },
+            "maxItems": 9,
+            "type": "array"
+          }
+        },
+        "required": [
+          "metadata",
+          "removed",
+          "skipped"
+        ],
+        "type": "object"
+      },
       "MovieCandidate": {
         "additionalProperties": false,
         "properties": {
@@ -5173,6 +5218,140 @@
           }
         ],
         "summary": "Manually update item metadata and locks with revision check (administrator)"
+      }
+    },
+    "/api/v1/items/{id}/metadata/external": {
+      "delete": {
+        "description": "G14.7 removal. Deletes every unlocked field value whose source is tmdb, including provider origin and fetch time, in one transaction with one revision increment and one item.external_metadata_removed audit that records removed provider origins but not the removed text. Manual, NFO and existing values are untouched. Locked tmdb fields (Jelee lock or NFO lock intent) are kept and reported as skipped with reason locked; unlock first to remove them. Providers never replace manual, NFO or nonempty local values, so removed fields fall back to absent; a removed title falls back to the local media filename without extension, or the directory name, and is reported as skipped with reason required when no local source exists. NFO values reappear through the next NFO apply. Facts never store provider values. Does not need a TMDB key, call the provider, change item kind, or modify media, NFO or image files. Request body must be empty. A review with nothing to remove still advances the revision.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Current item metadata revision; a stale value returns 409 without changes.",
+            "in": "query",
+            "name": "expectedRevision",
+            "required": true,
+            "schema": {
+              "maximum": 2147483646,
+              "minimum": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/MetadataRemoveResult"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Persisted metadata and removed/skipped report"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 400"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 401"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 403"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 404"
+          },
+          "408": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 408"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 409"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 503"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Jelee error envelope with code, message, details and traceId; see the Error schema."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Remove stored external (TMDB) metadata from one item (administrator)"
       }
     },
     "/api/v1/items/{id}/metadata/nfo": {

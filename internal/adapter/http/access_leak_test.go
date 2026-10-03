@@ -118,6 +118,7 @@ func leakRouteTable() map[string]leakRoute {
 		"PUT /api/v1/items/{id}/metadata":                 admin(itemParam),
 		"POST /api/v1/items/{id}/metadata/nfo":            admin(itemParam),
 		"POST /api/v1/items/{id}/metadata/tmdb":           admin(itemParam),
+		"DELETE /api/v1/items/{id}/metadata/external":     admin(itemParam),
 		"GET /api/v1/libraries/{id}/metadata-preferences": admin(libParam),
 		"PUT /api/v1/libraries/{id}/metadata-preferences": admin(libParam),
 
