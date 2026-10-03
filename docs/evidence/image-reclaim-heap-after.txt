@@ -1,0 +1,14 @@
+File: repro
+Build ID: 5de63282ca77d9957732e4f65c05e75a1d56c21b
+Type: inuse_space
+Time: 2026-10-03 14:36:28 CST
+Showing nodes accounting for 512.12kB, 100% of 512.12kB total
+      flat  flat%   sum%        cum   cum%
+  512.12kB   100%   100%   512.12kB   100%  sync.(*Pool).pinSlow
+         0     0%   100%   512.12kB   100%  encoding/json.(*Encoder).Encode
+         0     0%   100%   512.12kB   100%  encoding/json/jsontext.export.GetBufferedEncoder (inline)
+         0     0%   100%   512.12kB   100%  encoding/json/jsontext.getBufferedEncoder
+         0     0%   100%   512.12kB   100%  main.main.func1
+         0     0%   100%   512.12kB   100%  main.main.func2
+         0     0%   100%   512.12kB   100%  sync.(*Pool).Get
+         0     0%   100%   512.12kB   100%  sync.(*Pool).pin

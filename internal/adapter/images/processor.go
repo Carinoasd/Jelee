@@ -15,6 +15,8 @@ import (
 	"io"
 	"math"
 	"path/filepath"
+	"runtime/debug"
+	"runtime/metrics"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -85,7 +87,8 @@ type Processor struct {
 	decodes     atomic.Uint64
 	// A private seam lets lifecycle tests stop inside a synchronous decode.
 	// Production always uses the pinned standard-library decoders below.
-	decode func(context.Context, io.ReadSeeker, inspectedImage) (image.Image, error)
+	decode  func(context.Context, io.ReadSeeker, inspectedImage) (image.Image, error)
+	reclaim func()
 }
 
 func New(lifetime context.Context, options Options) (*Processor, error) {
@@ -99,7 +102,8 @@ func New(lifetime context.Context, options Options) (*Processor, error) {
 	lifetime, cancel := context.WithCancel(lifetime)
 	return &Processor{options: options, lifetime: lifetime, cancel: cancel,
 		cache: newImageCache(options.CacheBytes, options.CacheEntries, options.CacheTTL),
-		done:  make(chan struct{}), decode: decodeImage}, nil
+		done:  make(chan struct{}), decode: decodeImage,
+		reclaim: func() { reclaimImageMemory(int64(options.MaxConcurrent)*options.MaxImageBytes + options.CacheBytes) }}, nil
 }
 
 func (p *Processor) admit() error {
@@ -244,42 +248,18 @@ func (p *Processor) Render(ctx context.Context, source domain.LocalImageSource, 
 		p.maxEstimate = max(p.maxEstimate, estimate)
 		p.mu.Unlock()
 		p.decodes.Add(1)
-		decoded, decodeErr := p.decode(operation, staged.Reader(), inspected)
-		if decodeErr != nil {
-			return result, imageError(operation, decodeErr)
+		value, err = p.renderDecoded(operation, staged.Reader(), inspected, width, height, request.Quality)
+		// Large decoder objects are now outside the active stack frame. GC can
+		// collect them and return their pages before another request reuses this
+		// reservation. A GC alone may leave hundreds of MiB resident. Reclaim
+		// only under pressure; keep the CPU permit and image slot through it, even
+		// after a failed or cancelled decode; never abandon it in a goroutine.
+		if estimate >= min(int64(64<<20), p.options.MaxImageBytes/2) {
+			p.reclaim()
 		}
-		if err := operation.Err(); err != nil {
-			return result, err
-		}
-		if decoded.Bounds() != image.Rect(0, 0, inspected.width, inspected.height) {
-			return result, domain.ErrImageUnavailable
-		}
-		var encodeInput image.Image
-		if width == inspected.width && height == inspected.height {
-			encodeInput, err = sameSizeJPEGImage(operation, decoded)
-			if err != nil {
-				return result, imageError(operation, err)
-			}
-		} else {
-			thumbnail := image.NewRGBA(image.Rect(0, 0, width, height))
-			draw.Draw(thumbnail, thumbnail.Bounds(), image.NewUniform(color.White), image.Point{}, draw.Src)
-			// ApproxBiLinear has no source-sized intermediate kernel buffer.
-			draw.ApproxBiLinear.Scale(thumbnail, thumbnail.Bounds(), decoded, decoded.Bounds(), draw.Over, nil)
-			encodeInput = thumbnail
-		}
-		if err := operation.Err(); err != nil {
-			return result, err
-		}
-		output := boundedImageWriter{ctx: operation, limit: int(p.options.MaxOutputBytes)}
-		if err := jpeg.Encode(&output, encodeInput, &jpeg.Options{Quality: request.Quality}); err != nil {
+		if err != nil {
 			return result, imageError(operation, err)
 		}
-		// Tighten capacity once. Both allocations are included in the estimate;
-		// a small cached JPEG does not pin the entire output-byte allowance.
-		encoded := make([]byte, len(output.data))
-		copy(encoded, output.data)
-		digest := sha256.Sum256(encoded)
-		value = encodedImage{data: encoded, width: width, height: height, etag: `"` + hex.EncodeToString(digest[:]) + `"`}
 	}
 	if sharedRelease != nil {
 		dropShared()
@@ -310,6 +290,66 @@ func (p *Processor) Render(ctx context.Context, source domain.LocalImageSource, 
 	p.completed.Add(1)
 	success = true
 	return result, nil
+}
+
+// No decoded bitmap escapes this frame. Only the tightly sized JPEG is retained
+// by the cache or response body. Keeping this frame separate also makes large
+// decoder allocations collectible before Render releases its processing slot.
+func (p *Processor) renderDecoded(ctx context.Context, source io.ReadSeeker, input inspectedImage, width, height, quality int) (encodedImage, error) {
+	decoded, err := p.decode(ctx, source, input)
+	if err != nil {
+		return encodedImage{}, err
+	}
+	if err := ctx.Err(); err != nil {
+		return encodedImage{}, err
+	}
+	if decoded.Bounds() != image.Rect(0, 0, input.width, input.height) {
+		return encodedImage{}, domain.ErrImageUnavailable
+	}
+	var encodeInput image.Image
+	if width == input.width && height == input.height {
+		encodeInput, err = sameSizeJPEGImage(ctx, decoded)
+		if err != nil {
+			return encodedImage{}, err
+		}
+	} else {
+		thumbnail := image.NewRGBA(image.Rect(0, 0, width, height))
+		draw.Draw(thumbnail, thumbnail.Bounds(), image.NewUniform(color.White), image.Point{}, draw.Src)
+		// ApproxBiLinear has no source-sized intermediate kernel buffer.
+		draw.ApproxBiLinear.Scale(thumbnail, thumbnail.Bounds(), decoded, decoded.Bounds(), draw.Over, nil)
+		encodeInput = thumbnail
+	}
+	if err := ctx.Err(); err != nil {
+		return encodedImage{}, err
+	}
+	output := boundedImageWriter{ctx: ctx, limit: int(p.options.MaxOutputBytes)}
+	if err := jpeg.Encode(&output, encodeInput, &jpeg.Options{Quality: quality}); err != nil {
+		return encodedImage{}, err
+	}
+	// Tighten capacity once. Both allocations are included in the estimate;
+	// a small cached JPEG does not pin the entire output-byte allowance.
+	encoded := make([]byte, len(output.data))
+	copy(encoded, output.data)
+	digest := sha256.Sum256(encoded)
+	return encodedImage{data: encoded, width: width, height: height, etag: `"` + hex.EncodeToString(digest[:]) + `"`}, nil
+}
+
+// Large allocations can leave resident heap pages after their bitmaps die.
+// Compare all Go-managed, unreleased memory with this processor's existing
+// aggregate reservation. Below it, ordinary GC/scavenging can keep working;
+// above it, synchronous reclamation runs before another image reuses a slot.
+// This changes neither GOGC/GOMEMLIMIT nor the configured image concurrency.
+func reclaimImageMemory(reservation int64) {
+	samples := []metrics.Sample{{Name: "/memory/classes/total:bytes"}, {Name: "/memory/classes/heap/released:bytes"}}
+	metrics.Read(samples)
+	if samples[0].Value.Kind() != metrics.KindUint64 || samples[1].Value.Kind() != metrics.KindUint64 {
+		debug.FreeOSMemory()
+		return
+	}
+	total, released := samples[0].Value.Uint64(), samples[1].Value.Uint64()
+	if total < released || total-released >= uint64(reservation) {
+		debug.FreeOSMemory()
+	}
 }
 
 func imageError(ctx context.Context, err error) error {

@@ -19,3 +19,5 @@ Windows tagged TestImagesSoak/TestImagesCold及vet通過；[Linux tagged race](e
 正式24h run `9a0c8d956e3f4fbea9e844e3fc59bc26`已terminal failed，原PID不存在，worker exit1/OOMfalse。完成38輪後，第38輪cold因collector取消而context_finished，首未完成請求index171/status0。採樣診斷明確指出rss_budget_invalid：RSS489373696 bytes，超過464MiB（486539264 bytes）2834432 bytes；前樣本RSS376164352、拒絕樣本heap298269576。collectorFailureCode為sampler_failed，partial summary不完整。
 
 雙層owned資源清理皆true，snapshotVerified false；不能宣稱完整原始資產核驗或24h通過。見[RSS失敗摘要](evidence/image-soak-rss-failure.json)。底層配置／分配／回收根因尚待定位；本輪未重啟，也不以單元夾具修復宣稱長測故障已修。464/352MiB門檻、容器768MiB/無swap、正式採樣與來源門禁保持。
+
+圖片adapter已隔離重現死亡解碼物件的resident頁面累積，並新增按壓力同步回收；原生10000張對照與完整回歸見[回收修復](image-reclaim-pressure.md)。這是候選修復的隔離證據，正式smoke／24h仍須新來源驗證。

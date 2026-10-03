@@ -1,3 +1,16 @@
+## 2026-10-03 大圖resident回收候選修復已驗，待發布與新smoke
+
+已發布HEADaaee979084dcf35931047a336e0b16c788675820，PR46 OPEN。舊正式9a0c8d956e3f4fbea9e844e3fc59bc26為terminal RSS失敗，沒有存活正式24h，不重啟舊run。此輪先隔離根因：圖片adapter原版相同64大PNG16+36PNG+900JPEG／兩worker／GOGC100／512MiB，1198張後RSS498192384超464MiB；GC後heap342720但RSS498786304，再FreeOSMemory降8724480，profile前主要兩80MiB PNG解碼，後已消失。不是持續存活快取的證據。
+
+未提交修復internal/adapter/images/processor.go：renderDecoded短frame只返緊縮JPEG；大估算達min64MiB/半單圖預算時，在frame返回後看Go total minus released，超原圖片並行×每圖＋cache才同步回收。default驗收值224MiB，保持CPU及image admission直到完成，失敗／cancel亦回收，Shutdown要join；small/cache hit不做。原配置、來源、RSS／GC門檻與GC env皆不改。最初無條件大圖回收版本RSS約178MiB但密集診斷pause1.78%，未採用；最終按壓力版相同程式/模板10000張通過、100ms抽樣RSS352055296／counter pause0.64178%，未驗正式GC直方圖或混合延遲，不能當24h。
+
+Windows圖片/HTTP/architecture540PASS/1平台skip、runtime214PASS/20conditional skip；Linux race三套526PASS/0skip、runtime227PASS/13conditional skip、真PG runtime1PASS/0skip。red證明decode error/cancel原先回收calls0；最終取消與Shutdown join及CPU/image持有、小圖/cache門禁通過。session57204、2135、70913、52621、70259、16719皆terminal0，57189是原版診斷terminal0但overBudget=true，不混成PASS。vet/格式/增量品牌0/339/gitignore/diff通過，98份已發布SQL保持。public docs/image-reclaim-pressure.md與docs/evidence/image-reclaim-pressure.json及reproducer/runner/profile摘要已產生。
+
+下一步提交推送同PR46，再python3 -B scripts/start_images_soak.py --smoke，核新run/PID/startTicks/bootId實際handle，完整600秒/2輪smoke通過且snapshot/雙層cleanup true後同HEAD啟正式24h。smoke等待期間不要提交其他批次導致matching commit變更；可留本交接新run資訊待存，Git archive只取HEAD。正式啟動後再提交待存文件與續全G00–G51（仍7完成/198部分/131阻塞），原生NFO恢復與准入/worker等缺口保持。
+
+不merge/release/tag/force-push、不改已發布SQL/Git身份設定，原媒體/圖片/授權保持，完整品牌門禁不放寬。
+
+---
 ## 2026-10-03 最新：schema49已推、時鐘夾具已驗、正式24h RSS失敗
 
 schema49已發布HEAD23a6da45910dc970de5a78ac93938736f8e9f040，PR46遠端HEAD吻合且OPEN。完整PG四分片session9283已terminal0、424根各run/pass恰一次、1133通過/零skipfail；公共證據已提交。96份001–048保持，現在001–049共98份均已發布且不得改。

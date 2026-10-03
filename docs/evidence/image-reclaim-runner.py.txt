@@ -1,0 +1,32 @@
+from pathlib import Path
+import json,os,sys,tempfile,subprocess,shutil,hashlib
+root=Path(__file__).resolve().parent.parent
+sys.path.insert(0,str(root/'scripts'))
+import toolchain
+_,spec,_=toolchain.selected();go=str(root/'.tools'/spec['installPath']/spec['executable'])
+env=os.environ.copy();env.update(toolchain.go_environment(spec));env.update(CGO_ENABLED='0')
+with tempfile.TemporaryDirectory(prefix='jelee-rss-isolation-',dir='/var/tmp') as temporary:
+    native=Path(temporary);env.update(TMPDIR=temporary,GOTMPDIR=temporary)
+    for directory in ('inputs','scratch','evidence'):(native/directory).mkdir(mode=0o700)
+    for package,name in (('./tools/image-fixture','fixture'),('./.testdata/image-rss-repro','repro')):
+        result=subprocess.run([go,'build','-mod=readonly','-trimpath','-o',str(native/name),package],cwd=root,env=env,capture_output=True,timeout=180)
+        if result.returncode:
+            (root/'.testdata/image-rss-repro-build.log').write_bytes(result.stdout+result.stderr);raise SystemExit('Diagnostic build failed')
+    generated=subprocess.run([str(native/'fixture'),'--root',str(native/'inputs'),'--count','1000'],cwd=root,env=env,capture_output=True,timeout=180)
+    if generated.returncode:raise SystemExit('Owned fixture generation failed')
+    manifest=json.loads(generated.stdout);(root/'.testdata/image-rss-repro-fixtures.json').write_text(json.dumps(manifest,indent=2)+'\n')
+    env.update(GOGC='100',GOMEMLIMIT='512MiB',GOMAXPROCS='2')
+    with (root/'.testdata/image-rss-repro-native.jsonl').open('wb') as log:
+        run=subprocess.run([str(native/'repro'),str(native/'inputs'),str(native/'scratch'),str(native/'evidence')],cwd=root,env=env,stdout=log,stderr=subprocess.STDOUT,timeout=660)
+    for name in ('before-forced-gc','after-forced-gc'):
+        path=native/'evidence'/f'{name}.pprof'
+        if path.exists():
+            saved=root/'.testdata'/f'image-rss-repro-{name}.pprof';shutil.copyfile(path,saved)
+            profile=subprocess.run([go,'tool','pprof','-top','-sample_index=inuse_space',str(native/'repro'),str(path)],cwd=root,env=env,capture_output=True,timeout=30)
+            (root/'.testdata'/f'image-rss-repro-{name}-top.txt').write_bytes(profile.stdout+profile.stderr)
+    lines=(root/'.testdata/image-rss-repro-native.jsonl').read_text().splitlines()
+    records=[json.loads(line) for line in lines if line.startswith('{')]
+    samples=[r for r in records if 'rssBytes' in r]
+    summary={'exitCode':run.returncode,'sampleRecords':len(samples),'maxRssBytes':max((s['rssBytes'] for s in samples),default=0),'maxHeapAlloc':max((s['heapAlloc'] for s in samples),default=0),'final':records[-1] if records else None,'programSHA256':hashlib.sha256((root/'.testdata/image-rss-repro/main.go').read_bytes()).hexdigest(),'fixtureTemplateSHA256':{k:v['sha256'] for k,v in manifest['templates'].items()}}
+    (root/'.testdata/image-rss-repro-summary.json').write_text(json.dumps(summary,indent=2)+'\n');print(json.dumps(summary),flush=True)
+    sys.exit(run.returncode)
