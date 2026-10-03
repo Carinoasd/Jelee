@@ -13,9 +13,7 @@ internal/adapter/nfo/read_test.go # Contract fixtures for those exact legacy XML
 docs/nfo-compatibility.md # NFO compatibility evidence and upstream parser source references.
 LICENSE # Legal text.
 CONTRIBUTORS.md # Upstream authorship.
-Jelee.Naming/Attribution.props # Original package authors and license only; preserved legal attribution.
-Jelee.Naming/Properties/Copyright.cs # Original assembly copyright statement only; preserved verbatim.
-src/Jelee.Networking/Compatibility/LegacyNetworkNames.cs # Exact legacy client discovery and configuration constants only.
-tools/abi/expected-breaks.json # Exact historical assembly and symbol identities for the reviewed ABI migration contract.
-scripts/fixtures/abi-legacy-report.json # Verbatim upstream ABI diagnostics used to verify the migration gate.
+docs/legal/upstream/listenbrainz-logo-NOTICE.md # Verbatim third-party logo attribution notice moved out of the removed legacy tree.
+docs/legal/upstream/naming-attribution.props.txt # Verbatim original package authors and license expression moved out of the removed legacy tree.
+docs/legal/upstream/naming-copyright.cs.txt # Verbatim original assembly copyright statement moved out of the removed legacy tree.
 internal/adapter/compat/wire.go # Exact legacy client authentication header and scheme names at the compatibility boundary only.

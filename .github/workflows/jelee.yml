@@ -89,8 +89,9 @@ jobs:
           path: .tools
           key: jelee-${{ runner.os }}-${{ runner.arch }}-go1.27.1-${{ hashFiles('tools/manifest.json', 'go.sum') }}
       - run: make bootstrap tools-verify brand-scan
-      # This gate remains blocking while the preserved legacy source contains old
-      # internal identifiers. The incremental gate is not a replacement for it.
+      # Full-repository gate over every tracked and new file; only the exact
+      # files in tools/brand-scan/allowlist.txt may contain legacy names. The
+      # incremental gate above is not a replacement for it.
 
   postgres-integration:
     name: PostgreSQL migration and repository integration

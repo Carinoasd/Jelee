@@ -24,25 +24,29 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        language: [ 'csharp' ]
+        language: [ 'go' ]
 
     steps:
     - name: Checkout repository
       uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-    - name: Setup .NET
-      uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+    - name: Restore project-local toolchain
+      uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
       with:
-        dotnet-version: '10.0.x'
+        path: .tools
+        key: jelee-${{ runner.os }}-${{ runner.arch }}-go1.27.1-${{ hashFiles('tools/manifest.json', 'go.sum') }}
 
     - name: Initialize CodeQL
       uses: github/codeql-action/init@ff2f1c621b7f889edc0d3c761ac2e6a3f8cdb0dd # v4.37.7
       with:
         languages: ${{ matrix.language }}
+        build-mode: manual
         queries: +security-extended
 
-    - name: Autobuild
-      uses: github/codeql-action/autobuild@ff2f1c621b7f889edc0d3c761ac2e6a3f8cdb0dd # v4.37.7
+    # Build with the pinned project-local Go toolchain so CodeQL traces the
+    # same compiler version that CI and releases use.
+    - name: Build
+      run: make bootstrap build
 
     - name: Perform CodeQL Analysis
       uses: github/codeql-action/analyze@ff2f1c621b7f889edc0d3c761ac2e6a3f8cdb0dd # v4.37.7

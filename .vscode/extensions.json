@@ -1,11 +1,8 @@
 {
     "recommendations": [
-        "ms-dotnettools.csharp",
+        "golang.go",
         "editorconfig.editorconfig",
-        "github.vscode-github-actions",
-        "ms-dotnettools.vscode-dotnet-runtime",
-        "ms-dotnettools.csdevkit",
-        "alexcvzz.vscode-sqlite"
+        "github.vscode-github-actions"
     ],
     "unwantedRecommendations": [
 

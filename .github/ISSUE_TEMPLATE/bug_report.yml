@@ -1,0 +1,61 @@
+name: Issue Report
+description: File an issue report
+labels: [bug, triage]
+type: Bug
+body:
+  - type: markdown
+    id: introduction
+    attributes:
+      value: |
+        ### Thank you for taking the time to report an issue!
+        Please search the existing issues first, and report only one problem per issue.
+  - type: textarea
+    id: bug-description
+    attributes:
+      label: Description of the bug
+      description: A clear description of the problem you encountered.
+    validations:
+      required: true
+  - type: textarea
+    id: repro-steps
+    attributes:
+      label: Reproduction steps
+      description: Complete, self-contained steps that reproduce the problem.
+      placeholder: |
+        1. Start `jelee` with ...
+        2. Call ...
+        3. Observe ...
+    validations:
+      required: true
+  - type: textarea
+    id: actual-behavior
+    attributes:
+      label: What is the current bug behavior?
+    validations:
+      required: true
+  - type: textarea
+    id: expected-behavior
+    attributes:
+      label: What is the expected correct behavior?
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Jelee version or commit
+      description: The release version, or the commit hash you built from.
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Operating system, PostgreSQL version, container or native install, and media tool versions (ffprobe).
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: Relevant `jelee` log lines. Remove secrets, tokens and private paths before posting.
+      render: shell

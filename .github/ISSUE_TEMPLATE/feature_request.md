@@ -1,13 +1,16 @@
 ---
 name: Feature Request
-about: Request a new feature
+about: Propose a new feature for Jelee
 title: ''
 labels: feature-request
 assignees: ''
 ---
 
-**PLEASE DO NOT OPEN FEATURE REQUEST ISSUES ON GITHUB**
+**Problem**
+<!-- What are you trying to do, and why is it not possible today? -->
 
-**Feature requests should be opened on our dedicated [feature request](https://features.jellyfin.org/) hub so they can be appropriately discussed and prioritized.**
+**Proposed approach**
+<!-- Describe the behaviour you want. If you plan to implement it, outline the design and which requirement (G00-G51) it relates to. -->
 
-However, if you are willing to contribute to the project by adding a new feature yourself, then please ensure that you first review our [documentation](https://docs.jellyfin.org/general/contributing/development.html) on contributing code. Once you have reviewed the documentation, feel free to come back here and open an issue here outlining your proposed approach so that it can be documented, tracked, and discussed by other team members.
+**Alternatives considered**
+<!-- Optional. -->
