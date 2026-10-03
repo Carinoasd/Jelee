@@ -1,3 +1,9 @@
+## 第三輪短測 stdout 期限失敗已修正
+
+1783af0d1d7b497789c83e4bc6d4a41b進入worker但3.43秒退出，無start event、只有soak_final_write_failed；OOM false，全部owned資源清理true，PID591106已不存在。最小非root/readonly/無網路Docker probe實測stdout為FIFO且原os.Stdout deadline不支援；以/proc/self/fd/1及O_NONBLOCK重開同FIFO後deadline及write成功。
+
+加入test-only Linux openImagesSoakOutput：只接受FIFO、重開後SameFile核對、真deadline預檢，owned Close不關原stdout；非Linux明確拒絕opt-in長測。入口採用新handle，失敗測試多輸出固定ErrorCode方便診斷。Windows TestImagesSoak、tagged vet、Linux全TestImagesSoak race含真PG通過（8.572s，.testdata/soak-output-linux-race.log，session31435已退出0）；新增塞滿2MiB管線30ms deadline測試及非pipe拒絕。下一輪新提交完整600秒，尚無600秒或24h完成證據。
+
 ## 第二轮短測建置相容性修正
 
 25d68f4e905c4752a8852e5e45450c51產品Docker與test binary成功，測試image的FROM bare sha256被BuildKit解讀成遠端repo而失敗；全owned資源清理true，PID575968已不存在。改本輪唯一local tag作FROM，前後核image ID不變；run/cleanup仍固定image ID。Windows/Linux控制器故障矩陣通過，下一輪從新提交重跑，尚無600秒或24h完成證據。

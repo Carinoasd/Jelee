@@ -74,7 +74,12 @@ func TestImagesSoakAcceptance(t *testing.T) {
 	if scope != "formal" && scope != "smoke" {
 		t.Fatal("soak_scope_invalid")
 	}
-	finalStream, err := newImagesSoakStream(os.Stdout, runID)
+	output, err := openImagesSoakOutput(os.Stdout)
+	if err != nil {
+		t.Fatal("soak_output_unavailable")
+	}
+	defer output.Close()
+	finalStream, err := newImagesSoakStream(output, runID)
 	if err != nil {
 		t.Fatal("soak_identity_invalid")
 	}
@@ -107,13 +112,13 @@ func TestImagesSoakAcceptance(t *testing.T) {
 			t.Error("soak_final_write_failed")
 		}
 		if report.Result != "passed" {
-			t.Error("soak_acceptance_failed")
+			t.Errorf("soak_acceptance_failed: %s", report.ErrorCode)
 		}
 	}()
 	var hooks imagesAcceptanceHooks
 	hooks.jobs = true
 	hooks.configure = func(configuration imagesMemoryConfiguration) error {
-		collector, err = startImagesSoakCollector(ctx, os.Stdout, runID, scope, configuration)
+		collector, err = startImagesSoakCollector(ctx, output, runID, scope, configuration)
 		return err
 	}
 	hooks.phase = func(phase string) error { _, err := collector.phase(collector.ctx, phase); return err }

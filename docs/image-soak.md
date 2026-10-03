@@ -68,3 +68,6 @@ Linux入口 `python3 -B scripts/start_images_soak.py --smoke` 從HEAD提交建�
 省略--smoke可啟動formal，但必須先有同commit真smoke成功與完整清理證據。正式run固定288輪/24h，沒有任意時長override。SIGTERM/INT取消會走容器與schema補償清理，不能將中斷時段拼接。清理專屬PG、secret與snapshot後才寫launcher最終結果。
 
 本批工具測試Windows42通過／5平台略過、Linux47通過；包含Git真提交與dirty workspace隔離、archive逃逸/link拒絕、formal短測前提。**實際600秒與24h結果需另附，不以工具測試代替。**
+
+### 真Docker輸出期限修正
+第三輪在3.43秒退出，尚未產生start事件。Docker提供的原始stdout是blocking FIFO，Go SetWriteDeadline不支援；最小容器probe重現。Linux測試入口改用O_NONBLOCK重開同FIFO，核對SameFile並預檢期限，自己的Close不關原stdout。Linux race真pipe塞滿期限與整合通過；此修正只影響opt-in驗收程式，正式產品未變。所有失敗短測證據保留，均未計入24h。
