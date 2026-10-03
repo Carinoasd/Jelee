@@ -18,11 +18,14 @@ func legacyMigrationStoreAt44(t *testing.T, ctx context.Context, store *Store) {
 	t.Helper()
 	var version int
 	var dirty bool
-	if err := store.Pool.QueryRow(ctx, `SELECT version,dirty FROM schema_migrations`).Scan(&version, &dirty); err != nil || dirty || version != 45 {
-		t.Fatal("legacy migration fixture requires a clean schema45 before downgrading", version, dirty, err)
+	if err := store.Pool.QueryRow(ctx, `SELECT version,dirty FROM schema_migrations`).Scan(&version, &dirty); err != nil || dirty || version != SchemaVersion {
+		t.Fatal("legacy migration fixture requires the latest clean schema before downgrading", version, dirty, err)
 	}
-	actual, dirty, err := Migrate(ctx, store.Pool.Config().ConnString(), "down")
-	if err != nil || dirty || actual != 44 {
-		t.Fatal("legacy migration fixture cannot discard recorded job metrics", actual, dirty, err)
+	for version > 44 {
+		actual, dirty, err := Migrate(ctx, store.Pool.Config().ConnString(), "down")
+		if err != nil || dirty || actual != uint(version-1) {
+			t.Fatal("legacy migration fixture cannot discard retained data", actual, dirty, err)
+		}
+		version--
 	}
 }

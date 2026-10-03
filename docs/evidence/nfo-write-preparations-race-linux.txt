@@ -1,0 +1,4 @@
+ok  	github.com/MoYuanCN/Jelee/internal/domain	1.270s
+ok  	github.com/MoYuanCN/Jelee/internal/app	1.040s
+ok  	github.com/MoYuanCN/Jelee/internal/adapter/nfo	12.404s
+ok  	github.com/MoYuanCN/Jelee/internal/architecture	1.221s

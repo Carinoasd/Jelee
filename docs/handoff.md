@@ -1,3 +1,16 @@
+## 2026-10-03 接續：NFO 持久準備資料與 schema46 已驗證
+
+基於已推送6a150ee52232b32e61daa9eb28125076074fb288，沿用feat/jelee-ignore-family-worker及PR46。本批新增domain/app/adapter準備入口與schema46：受控十種文字修改、缺ID UUID、原文及完整輸出先保存PostgreSQL；相同actor/key/request並行或重開pool後取回第一次固定UUID/輸出。準備服務依序持I/O→CPU→I/O，不巢狀、不寫原檔；SQL交易不跨檔案讀取，保存前重核catalog revision、policy generation與source/root範圍，與安全稽核同交易。
+
+準備資料不授予檔案寫入權限。policy仍off/read-only，尚無HTTP/CLI/runtime寫回worker或正式job。24h期限/全域256列256MiB/actor32列/library128MiB有SQL守衛與有界清理；資料不可變，46→45有任何保留列即拒降版。既有90份SQL保持。請求先計JSON跳脫長度，避免拒絕超量輸入前先配置大型JSON。
+
+Windows完整套件結果合併最終受影響套件重驗通過；images/toolidentity初次受sandbox ACL拒絕，僅這兩個套件原生ACL重驗通過。Linux domain/app/nfo/architecture race及vet通過。真PG完整race最初四個舊夾具失敗：三個HTTP漏預設Resources、一個通用降版漏46→45；修正後四入口與全部新準備案例重驗通過，合併證據見docs/evidence/nfo-write-preparations.json。前期準備revision變更測試改用正式UpdateItemMetadata確實推進revision。runtime真PG metrics通過，production NFO worker未配置nonroot profile而未執行，不計通過。詳見docs/nfo-write-preparations.md及nfo-write-preparations-race-linux.txt。
+
+全案仍7完成/198部分/131阻塞。下一步須完成正式read-write政策、持久批次write/export jobs、固定意圖生命週期、generation/租約/項目媒體/實體複核、capability admission、API/CLI/runtime配額接線及提交恢復稽核。不能讓準備TTL刪掉執行或恢復中job的意圖；worker須重新驗證受控輸出與當下權限。缺失NFO建立、全部欄位、Windows完整落盤/ACL與真實客戶端仍缺。
+
+同正式run9a0c8d956e3f4fbea9e844e3fc59bc26，PID788902/startTicks31680373/bootId4a5d9c5c-4482-4c3e-8978-30156b1ce92f本回合實核吻合，container running/OOMfalse。來源9a74a8932a不含後續NFO，不重啟活躍工作。原媒體、圖片、授權與已發布SQL保持；禁止merge/release/tag/force-push與Git身份設定變更。完整品牌殘留仍是門禁。
+
+---
 ## 2026-10-03 接續：NFO adapter 寫回共用配額已驗證
 
 已發布HEAD3e33b5ae59，沿用feat/jelee-ignore-family-worker與PR46。本批NewWriterWithBudget接app.WorkBudget；singleflight共用工作CPU解析/缺ID生成/嚴格驗證後釋放，再持I/O至root/父目錄/native鎖/暫存/備份/替換/回滾與清理結束，不巢狀。零值Writer保持独立無配額模式；runtime尚未建立此writer或實作持久寫回worker，不得宣稱正式read-write已啟用。

@@ -82,6 +82,7 @@ func jobMetricMigrationRejected(t *testing.T, err error) {
 
 func TestJobMetricsMigrationEmptyRoundTrip(t *testing.T) {
 	f := newJobFixture(t)
+	jobMetricMigration(t, f, "down", 45)
 	jobMetricMigrationZero(t, f)
 	jobMetricMigration(t, f, "down", 44)
 	var removed bool
@@ -90,7 +91,7 @@ func TestJobMetricsMigrationEmptyRoundTrip(t *testing.T) {
 	 AND to_regprocedure('record_job_metrics()') IS NULL`).Scan(&removed); err != nil || !removed {
 		t.Fatal("empty downgrade left metric objects", err)
 	}
-	jobMetricMigration(t, f, "up", 45)
+	jobMetricMigration(t, f, "up", SchemaVersion)
 	jobMetricMigrationZero(t, f)
 	if err := f.s.Ready(f.ctx); err != nil {
 		t.Fatal("round-trip schema is not ready", err)
@@ -99,6 +100,7 @@ func TestJobMetricsMigrationEmptyRoundTrip(t *testing.T) {
 
 func TestJobMetricsMigrationExistingJobsStartAtNewEpoch(t *testing.T) {
 	f := newJobFixture(t)
+	jobMetricMigration(t, f, "down", 45)
 	jobMetricMigration(t, f, "down", 44)
 	terminal := f.submit(t, "pre-metrics-terminal")
 	if _, err := f.s.CancelJob(f.ctx, f.a, terminal.ID); err != nil {
@@ -122,7 +124,7 @@ func TestJobMetricsMigrationExistingJobsStartAtNewEpoch(t *testing.T) {
 	if err := f.s.Pool.QueryRow(f.ctx, `SELECT clock_timestamp()`).Scan(&before); err != nil {
 		t.Fatal(err)
 	}
-	jobMetricMigration(t, f, "up", 45)
+	jobMetricMigration(t, f, "up", SchemaVersion)
 	jobMetricMigrationZero(t, f)
 	if err := f.s.Pool.QueryRow(f.ctx, `SELECT started_at,clock_timestamp() FROM job_metric_epoch WHERE singleton`).Scan(&epoch, &after); err != nil {
 		t.Fatal(err)
@@ -151,6 +153,7 @@ func TestJobMetricsMigrationExistingJobsStartAtNewEpoch(t *testing.T) {
 
 func TestJobMetricsMigrationRetainedSamplesRefuseDowngrade(t *testing.T) {
 	f := newJobFixture(t)
+	jobMetricMigration(t, f, "down", 45)
 	j := f.submit(t, "retained-metrics")
 	if _, err := f.s.CancelJob(f.ctx, f.a, j.ID); err != nil {
 		t.Fatal(err)
