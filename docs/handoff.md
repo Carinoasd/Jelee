@@ -1,3 +1,9 @@
+## 最新接續：共用資源限額器底層已驗證，尚未接 runtime
+
+新增 app.WorkBudget/domain.ErrResourceBusy/platform/resources.Budget；同鎖取得 CPU或I/O+total，bounded queue，oldest eligible派發，取消退款/idempotent release。Windows資源與architecture測試、vet，Linux race通過；詳見 docs/shared-work-budget.md。沒有正式consumer注入，不得宣稱全域配額生效，G41.3/G13.5仍部分完成。
+
+下一步必須實際接 runtime 單一實例與可配置 CPU係數/I-O/total/queue，並接掃描、probe、NFO、images、direct等，避免巢狀取得和把背壓寫成媒體失敗。請沿用現有PR46；禁止merge。長測同run033822f3aecf4b6491406594c8687cfd/PID645523/start31097741/boot4a5d9c5c-4482-4c3e-8978-30156b1ce92f剛核實running、OOM false，勿重啟。
+
 ## 最新接續：忽略基線計畫暫停回歸已驗證
 
 TestIgnoreBaselineRawPagesReplayAndReclaim、TestFamilyClaimCapabilities 都增加 planned-pause 分支並保留 recovery 分支。真PG race11.284秒通過；基線260筆游標/精確重播/128 observed+128 excluded+4 unknown/seq4保持，舊owner與改動重播拒絕，attempts只在計畫暫停退回。不同忽略模式能力仍不能互相領取。詳見docs/scan-window.md；人工lease基線fixture不等於外部解析端到端。
