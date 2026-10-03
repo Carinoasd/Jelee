@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Check the four embedded UI catalogs; does not audit frontend text usage."""
+"""Check the four UI catalogs under web/src/i18n; does not audit frontend text usage."""
 import collections
 import json
 import pathlib
@@ -19,39 +19,51 @@ def unique_object(pairs):
     return result
 
 
-def check(folder):
-    paths = sorted(folder.glob("*.json"))
-    if {p.stem for p in paths} != LOCALES:
-        raise ValueError("UI catalogs must contain exactly zh-CN, zh-TW, ja-JP, en-US")
+def load(path):
+    data = json.loads(path.read_text(encoding="utf-8"), object_pairs_hook=unique_object)
+    if not isinstance(data, dict) or not data:
+        raise ValueError(f"{path}: expected nonempty object")
+    if any(not isinstance(v, str) or not v.strip() for v in data.values()):
+        raise ValueError(f"{path}: expected nonempty string values")
+    return data
+
+
+def check(root):
+    """Check web/src/i18n/<locale>/*.json: four locales, same files, same keys."""
+    entries = sorted(p for p in root.iterdir())
+    if any(not p.is_dir() for p in entries) or {p.name for p in entries} != LOCALES:
+        raise ValueError("UI catalogs must contain exactly zh-CN, zh-TW, ja-JP, en-US directories")
     catalogs = {}
-    for path in paths:
-        data = json.loads(path.read_text(encoding="utf-8"), object_pairs_hook=unique_object)
-        if not isinstance(data, dict) or not data:
-            raise ValueError(f"{path.name}: expected nonempty object")
-        if any(not isinstance(v, str) or not v.strip() for v in data.values()):
-            raise ValueError(f"{path.name}: expected nonempty string values")
-        catalogs[path.stem] = data
+    for folder in entries:
+        files = sorted(folder.iterdir())
+        if not files or any(not p.is_file() or p.suffix != ".json" for p in files):
+            raise ValueError(f"{folder.name}: expected only nonempty set of JSON files")
+        catalogs[folder.name] = {p.name: load(p) for p in files}
     base = catalogs["en-US"]
-    for locale, data in catalogs.items():
-        missing = sorted(base.keys() - data.keys())
-        extra = sorted(data.keys() - base.keys())
-        if missing or extra:
-            raise ValueError(f"{locale}: missing={missing}, extra={extra}")
-        for key in base:
-            if collections.Counter(SLOT.findall(base[key])) != collections.Counter(SLOT.findall(data[key])):
-                raise ValueError(f"{locale}: placeholder mismatch for {key}")
-    print(f"UI catalogs: {len(catalogs)} locales, {len(base)} keys; JSON, key and placeholder parity passed")
+    for locale, namespaces in catalogs.items():
+        if namespaces.keys() != base.keys():
+            raise ValueError(f"{locale}: files differ from en-US: {sorted(namespaces.keys() ^ base.keys())}")
+        for name, reference in base.items():
+            data = namespaces[name]
+            missing = sorted(reference.keys() - data.keys())
+            extra = sorted(data.keys() - reference.keys())
+            if missing or extra:
+                raise ValueError(f"{locale}/{name}: missing={missing}, extra={extra}")
+            for key in reference:
+                if collections.Counter(SLOT.findall(reference[key])) != collections.Counter(SLOT.findall(data[key])):
+                    raise ValueError(f"{locale}/{name}: placeholder mismatch for {key}")
+    keys = sum(len(v) for v in base.values())
+    print(f"UI catalogs: {len(catalogs)} locales, {len(base)} files, {keys} keys; JSON, key and placeholder parity passed")
 
 
 def main():
-    roots = list(pathlib.Path(__file__).resolve().parents[1].glob("*/Localization/Core"))
     if len(sys.argv) == 2:
-        folder = pathlib.Path(sys.argv[1])
-    elif len(sys.argv) == 1 and len(roots) == 1:
-        folder = roots[0]
+        root = pathlib.Path(sys.argv[1])
+    elif len(sys.argv) == 1:
+        root = pathlib.Path(__file__).resolve().parents[1] / "web" / "src" / "i18n"
     else:
-        raise ValueError("expected one catalog directory")
-    check(folder)
+        raise ValueError("expected at most one catalog root directory")
+    check(root)
 
 
 if __name__ == "__main__":
