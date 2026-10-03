@@ -168,11 +168,12 @@ func TestNFOCommitNativeClaimsMigrationRetainsFirstObservation(t *testing.T) {
 	if err := f.s.Pool.QueryRow(f.ctx, `SELECT count(*) FROM nfo_write_native_claims WHERE token=$1::uuid AND ((kind='media' AND identity=substring($2::bytea FROM 57 FOR 48)) OR (kind='nfo' AND identity=substring($2::bytea FROM 105 FOR 48)))`, first.Token, receipt).Scan(&matches); err != nil || matches != 2 {
 		t.Fatal("migration did not copy retained first observation", err)
 	}
+	nfoMigrationDenied(t, f, "000054_nfo_unresolved_native_claims.down.sql")
 	if _, _, err := Migrate(f.ctx, f.s.Pool.Config().ConnString(), "down"); err == nil {
 		t.Fatal("downgrade removed unresolved claims")
 	}
 	version, dirty, err := Migrate(f.ctx, f.s.Pool.Config().ConnString(), "status")
-	if err != nil || version != 53 || !dirty {
+	if err != nil || version != SchemaVersion-1 || !dirty {
 		t.Fatal("failed downgrade did not expose dirty migration state", err)
 	}
 	var retained int

@@ -29,6 +29,27 @@ type NFOWriteCommitFilePlan struct {
 	TargetIdentity [48]byte `json:"-"`
 }
 
+// Phase 1 is the complete output/witness pair; phase 2 also retains rollback.
+// Each phase is immutable first evidence, not filesystem authorization.
+type NFOWriteCommitFileCheckpoint struct {
+	Phase            uint8    `json:"-"`
+	OutputIdentity   [48]byte `json:"-"`
+	RollbackIdentity [48]byte `json:"-"`
+}
+
+func (NFOWriteCommitFileCheckpoint) String() string   { return "nfo commit checkpoint (redacted)" }
+func (NFOWriteCommitFileCheckpoint) GoString() string { return "nfo commit checkpoint (redacted)" }
+
+func ValidateNFOWriteCommitFileCheckpoint(v NFOWriteCommitFileCheckpoint) error {
+	if v.Phase == 1 && ValidNFONativeIdentity(v.OutputIdentity, 1) && v.RollbackIdentity == ([48]byte{}) {
+		return nil
+	}
+	if v.Phase == 2 {
+		return ValidateNFOWriteCommitFilesReady(NFOWriteCommitFilesReady{OutputIdentity: v.OutputIdentity, RollbackIdentity: v.RollbackIdentity})
+	}
+	return ErrInvalid
+}
+
 type NFOWriteCommitFilesReady struct {
 	OutputIdentity   [48]byte `json:"-"`
 	RollbackIdentity [48]byte `json:"-"`
@@ -37,11 +58,13 @@ type NFOWriteCommitFilesReady struct {
 // Evidence is a bounded observation of retained preparation, never proof that
 // a target Rename committed or authorization for a filesystem change.
 type NFOWriteCommitFileEvidence struct {
-	Record        NFOWriteCommitRecord     `json:"-"`
-	PlanRecorded  bool                     `json:"-"`
-	ReadyRecorded bool                     `json:"-"`
-	Plan          NFOWriteCommitFilePlan   `json:"-"`
-	Ready         NFOWriteCommitFilesReady `json:"-"`
+	Record             NFOWriteCommitRecord         `json:"-"`
+	PlanRecorded       bool                         `json:"-"`
+	ReadyRecorded      bool                         `json:"-"`
+	CheckpointRecorded bool                         `json:"-"`
+	Checkpoint         NFOWriteCommitFileCheckpoint `json:"-"`
+	Plan               NFOWriteCommitFilePlan       `json:"-"`
+	Ready              NFOWriteCommitFilesReady     `json:"-"`
 }
 
 func (NFOWriteCommitFileEvidence) String() string   { return "nfo commit file evidence (redacted)" }

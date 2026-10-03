@@ -66,6 +66,9 @@ func (s *Store) GetNFOWriteCommitFiles(ctx context.Context, lease domain.JobLeas
 			return zero, domain.ErrDatabase
 		}
 	}
+	if err := readNFOCommitCheckpoint(ctx, tx, token, &value); err != nil {
+		return zero, err
+	}
 	var live bool
 	if err := tx.QueryRow(ctx, `SELECT state='running' AND owner=$2 AND generation=$3 AND lease_until>clock_timestamp() AND NOT cancel_requested FROM jobs WHERE id=$1::uuid`, lease.Job.ID, lease.Owner, lease.Generation).Scan(&live); err != nil {
 		return zero, storageError(err)

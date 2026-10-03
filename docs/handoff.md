@@ -1,3 +1,27 @@
+## 2026-10-04 schema55完整1548PASS與獨立核驗通過，準備發布
+
+同session57408已實核terminal0，四片exit0，494 compiled roots恰run/pass一次，1548PASS／零skipfail。1008凍結Go/SQL與108已發布SQL及protected文件保持。finalizer --check-only及正式寫入皆terminal0／Verified；docs/evidence/nfo-checkpoints-schema-v1.json已保存完整摘要，candidate checkpoint與歷史失敗保持。接續publication audit限13source＋5docs共18檔，核精確hash／336 status保持，再stage／commit／push既有branch及PR46。
+
+遠端目前HEAD224db765／OPEN；完整品牌兩FAIL、PG兩IN_PROGRESS，不能宣稱CI全通過。原24h同run329073a5d193446383327ab217aba147／PID1026300／startTicks33072456／boot4a5d9c5c-4482-4c3e-8978-30156b1ce92f實核仍running／OOMfalse，source24caf不含本批，不重啟。全案7完成／198部分／131阻塞保持；未知create-before-first checkpoint、換owner恢復、完整target commit／backup／rollback／結算／crash recovery、Windows目錄耐久性、formal worker三批次／missingNFO與heapRSS仍缺。完整目標保持active。
+
+---
+## 2026-10-04 候選schema55已接PG與Stage，1008凍結／494完整PG仍live
+
+HEAD/既有PR46仍224db765479ebb42e814e8570341d3bf1fb3398b，schema55尚未stage/commit/push。13source：Stage／write_prepared／Windows slash test，PG Store version／Get files／claims歷史降版test／new checkpoints store+test／55兩SQL，app port／domain model+test。108已發布SQL/mod/sum/requirements/LICENSE保持；所有Go/SQL已凍結1008，不得再改直到完整終態。
+
+55每token最多兩immutable phases，phase2自參照FK綁phase1 first output；沿用live lease/actor/firstreceipt/root/catalog/claims及deferred，no-op保留timestamps。reverse catalog xmin納checkpoint，SET CONSTRAINTS後變更三隔離拒絕。已有checkpoint時ready須完整且同proof；ready-only歷史相容入口不提供partial recovery或FS授權。Stage以new optional port保存/讀latest phase並重開known witness pair；create到first save未知objects及換owner恢复仍缺，formalworker disabled。
+
+失敗保留：Linux selected V1及noop diagnostic，generated first_phase導致BEFORE UPDATE immutable23514；改DEFAULT1/CHECK。V2剩一mutation錯誤原因因consistency trigger排序，調整後V3真PG31PASS。V4含原claims聯合74PASS。Windows nativePG V1實际子程序兩case早期ErrChanged，兩diagnostic與兩private overlays保留；固定標記13/70僅root文字分隔符不同，其他stamp/bytes相同。write_prepared改按ReadSource OS filepath.Clean比較，Windows新slash正例與不同root拒絕1PASS。正式幫助器只白名單錯誤/exit碼，不輸出DSN/XML/原childoutput。
+
+CURRENT frozen selected：Linux V5 session60629 terminal0，23roots／74PASS零skipfail；Windows nativePG V2 session95089 terminal0，七roots／28PASS零skipfail，两actualchild osexit91/92／same first IDs及timestamp／TTL cleanup後ready，relay finally dispose exact child0。Win conditional V3984PASS/1059条件skip/3packagepass，domain+NFO Linux race session62269 terminal0 745PASS/1Win-only skip/2packagepass；vet/format/newbrand0/339/gitignore/diff通過。docs/evidence/nfo-checkpoints-candidate-checkpoint.json 保存13source hashes/五terminal logs/歷史failures，fullCandidateRegressionPassed=false，hash references不可重寫。
+
+freeze session86520 terminal0/1008/108；完整runner首啟動早於freeze terminal因manifest缺失exit1，未compiled/測試，startup-failure.json保留。確認freeze成功才啟動 CURRENT FULL session57408：run-nfo-checkpoints-schema-v1-full-shards.py，actual compiled494roots/4groups，最後同handle write_stdin實核live；checker1008 bytes全吻合/494groups無重覆且完整、四片209/261/227/184PASS共881，零skipfail/無package terminal。不可重啟、覆寫四logs或改Go/SQL；prefix nfo-checkpoints-schema-v1 source/list/manifest/shard0..3/coverage。checker .testdata/check-nfo-checkpoints-schema-v1.py只安全counts。
+
+新finalizer finalize-nfo-checkpoints-schema-v1.py獨立核BASE224/1008/108Git文字內容/五selectedterminal、phase1/2 actualchild、fail history/compiled494/groups/coverage/logs/hashes。初次check-only因CRLF checkout與Git LF原bytes比較誤拒，改依Git文字LF正規化；凍結Go/SQL仍以實際bytes核。session16211已實核Pending coverage not present/selectedTerminalVerifiedtrue，未寫完整success JSON；成功分支仍待驗。audit-nfo-checkpoints-publication-v1.py限13source＋5docs、branch/index/336status，session66621terminal ready=false獨立finalizer未完成。pub JSON final須另生成docs/evidence/nfo-checkpoints-schema-v1.json，候選checkpoint不改；audit成功後生成private publication-files exact hashes，stage18files/commitpush/更新PR46及核遠端HEAD/body/CI。
+
+下一監測同57408終態，再獨立finalizer check-only及寫報告，method/trace/handoff終態更新、audit精確scope、發布既有PR。完整target commit/backup/rollback/結算/crash recovery、未知partial attempt、恢復lease/FS授權、Win目錄metadata耐久性、worker三批次/missingNFO/heapRSS仍缺；全7/198/131維持active。原24h最後same run329073a5d193446383327ab217aba147/PID1026300/startTicks33072456/boot4a5d9c5c-4482-4c3e-8978-30156b1ce92f核running/OOMfalse，source24caf不包含本批，不重啟；品牌完整FAIL保持。不得重跑BASE3d79/SQL106或phase54舊finalizers作current驗收。
+
+---
 ## 2026-10-03 已保存witness pair的內部checkpoint續作原型通過
 
 prepareNFOCommitFiles新增可選private progress／resume，未提供時既有plan／ready入口保持。output＋pin及完整pair在核first plan／native IDs／bytes／source／lock與directory sync後保存；callback嘗試前retain，未知回應保留。resume只接受同一first plan與完整已保存pair；output checkpoint須rollback兩名皆缺，未知物件不採用。兩個actual child osexit80/81經file-backed first observations重開可達ready，output／rollback first IDs保持；不是PG或換owner恢复授權。七拒絕leaf核target與五artifact identities/bytes digests保持。

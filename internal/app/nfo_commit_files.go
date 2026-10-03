@@ -14,3 +14,10 @@ type NFOWriteCommitFilesRepository interface {
 	SaveNFOWriteCommitFilePlan(context.Context, domain.JobLease, int, string, domain.NFOWriteCommitFilePlan) (domain.NFOWriteCommitFilePlan, error)
 	SaveNFOWriteCommitFilesReady(context.Context, domain.JobLease, int, string, domain.NFOWriteCommitFilesReady) (domain.NFOWriteCommitFilesReady, error)
 }
+
+// Checkpoints persist retained witness pairs before complete ready. Historical
+// plan/ready repositories cannot manufacture a checkpoint from current files.
+type NFOWriteCommitCheckpointRepository interface {
+	NFOWriteCommitFilesRepository
+	SaveNFOWriteCommitFileCheckpoint(context.Context, domain.JobLease, int, string, domain.NFOWriteCommitFileCheckpoint) (domain.NFOWriteCommitFileCheckpoint, error)
+}

@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"path/filepath"
 
 	"github.com/MoYuanCN/Jelee/internal/app"
 	"github.com/MoYuanCN/Jelee/internal/domain"
@@ -93,7 +94,7 @@ func (w *Writer) rebuildPrepared(ctx context.Context, source *Source, prepared d
 	}
 	prepared = domain.CloneNFOWritePreparation(prepared)
 	stamp := source.Stamp()
-	if source.rootPath != prepared.Scope.Source.RootPath || source.relative != prepared.Scope.Source.RelativePath || source.maxBytes != prepared.Request.MaxBytes || stamp.Size != prepared.Stamp.Size || stamp.ModifiedUnixNano != prepared.Stamp.ModifiedUnixNano || stamp.SHA256 != prepared.Stamp.SHA256 || stamp.FingerprintVersion != prepared.Stamp.FingerprintVersion || !bytes.Equal(source.original, prepared.Original) {
+	if source.rootPath != filepath.Clean(prepared.Scope.Source.RootPath) || source.relative != prepared.Scope.Source.RelativePath || source.maxBytes != prepared.Request.MaxBytes || stamp.Size != prepared.Stamp.Size || stamp.ModifiedUnixNano != prepared.Stamp.ModifiedUnixNano || stamp.SHA256 != prepared.Stamp.SHA256 || stamp.FingerprintVersion != prepared.Stamp.FingerprintVersion || !bytes.Equal(source.original, prepared.Original) {
 		return nil, ErrChanged
 	}
 	base, err := source.Parse(ctx)

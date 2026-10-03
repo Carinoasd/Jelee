@@ -98,6 +98,12 @@ func (w *Writer) stageCommitFilesOwned(ctx context.Context, source *Source, leas
 	if evidence.Record.JobID != record.JobID || evidence.Record.Sequence != record.Sequence || evidence.Record.Owner != record.Owner || evidence.Record.Generation != record.Generation || evidence.Record.Token != record.Token || evidence.ReadyRecorded && !evidence.PlanRecorded {
 		return ErrChanged
 	}
+	if evidence.CheckpointRecorded {
+		checkpoint := evidence.Checkpoint
+		if !evidence.PlanRecorded || domain.ValidateNFOWriteCommitFileCheckpoint(checkpoint) != nil || checkpoint.OutputIdentity[1] != evidence.Plan.TargetIdentity[1] || checkpoint.OutputIdentity == evidence.Plan.TargetIdentity || checkpoint.RollbackIdentity == evidence.Plan.TargetIdentity || evidence.ReadyRecorded && (checkpoint.Phase != 2 || checkpoint.OutputIdentity != evidence.Ready.OutputIdentity || checkpoint.RollbackIdentity != evidence.Ready.RollbackIdentity) {
+			return ErrChanged
+		}
+	}
 	// Only the job-owned immutable intent can drive reconstruction. A caller's
 	// unrelated preparation, even with the same basename, is never accepted.
 	replacement, err := w.rebuildPrepared(ctx, source, task.Preparation)
@@ -211,6 +217,37 @@ func (w *Writer) stageCommitFilesOwned(ctx context.Context, source *Source, leas
 			}
 			return nil
 		},
+	}
+	if checkpoints, ok := repository.(app.NFOWriteCommitCheckpointRepository); ok {
+		ports.progress = func(ctx context.Context, files nfoCommitFiles) error {
+			if err := check(ctx); err != nil {
+				return err
+			}
+			value := domain.NFOWriteCommitFileCheckpoint{Phase: 1, OutputIdentity: files.output.record}
+			if files.rollback != (nfoNativeIdentity{}) {
+				value.Phase = 2
+				value.RollbackIdentity = files.rollback.record
+			}
+			saved, err := checkpoints.SaveNFOWriteCommitFileCheckpoint(ctx, lease, record.Sequence, record.Token, value)
+			if err != nil {
+				return err
+			}
+			if saved != value {
+				return ErrChanged
+			}
+			return nil
+		}
+		if evidence.CheckpointRecorded {
+			if !evidence.PlanRecorded || domain.ValidateNFOWriteCommitFileCheckpoint(evidence.Checkpoint) != nil {
+				return ErrChanged
+			}
+			ports.resume = &nfoCommitFiles{
+				plan:   nfoCommitFilePlan{evidence.Plan.Version, token, evidence.Plan.TargetName, nfoNativeIdentity{evidence.Plan.ParentIdentity}, nfoNativeIdentity{evidence.Plan.TargetIdentity}},
+				output: nfoNativeIdentity{evidence.Checkpoint.OutputIdentity}, rollback: nfoNativeIdentity{evidence.Checkpoint.RollbackIdentity},
+			}
+		}
+	} else if evidence.CheckpointRecorded {
+		return ErrChanged
 	}
 	ops.documentsValidated, ops.checkSource = true, check
 	_, err = prepareNFOCommitFiles(ctx, directory, filename, original, replacement, token, ports, ops)
