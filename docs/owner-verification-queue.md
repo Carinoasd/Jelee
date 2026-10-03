@@ -58,7 +58,7 @@
 | # | 項目 | 目前做法 | 狀態 |
 |---|---|---|---|
 | E1 | 外部工具用 `os.StartProcess`／Windows Job，而不是 `os/exec` | `docs/adr/0001-external-process-start.md` | 待確認 |
-| E2 | `.jellyfinignore`／`.embyignore` 語義（G22.2） | 上游原始碼找不到入口，暫記為阻塞 | 待確認 |
+| E2 | 兩種上游舊品牌忽略檔的語義（G22.2 列出的兩個檔名） | 上游原始碼找不到入口，暫記為阻塞 | 待確認 |
 | E3 | TMDB 資料使用條款：保存期限、24 小時快取是否合規、署名位置 | `docs/tmdb-external-metadata-removal.md` | 待確認 |
 | E4 | 外部工具 MediaInfo、mkvtoolnix 的下載與授權核准（G19.1、G51） | 尚未引入 | 待確認 |
 
