@@ -38,9 +38,11 @@ def run_contracts():
         ("scan-memory-controller", [sys.executable, "-B", "scripts/test_scan_memory_controller.py"], 180),
         ("image-memory-evidence", [sys.executable, "-B", "scripts/test_image_memory_acceptance.py"], 120),
         ("image-memory-controller", [sys.executable, "-B", "scripts/test_image_memory_controller.py"], 180),
+        ("image-soak-samples", [sys.executable, "-B", "scripts/test_images_soak_samples.py"], 120),
+        ("image-soak-trend", [sys.executable, "-B", "scripts/test_images_soak_trend.py"], 120),
         ("compose-configuration", [sys.executable, "-B", "scripts/check_memory_compose.py"], 180),
         ("native-runtime", [str(ROOT / ".bin/go"), "test", "-tags", "jelee_probe_tests", "-count=1",
-                            "-run", "^Test(MemoryProfile(RuntimeSubprocess|CgroupEvidenceRequired)$|Resident|HeapProfile|ScanMemory|ImagesMemory)",
+                            "-run", "^Test(MemoryProfile(RuntimeSubprocess|CgroupEvidenceRequired)$|Resident|HeapProfile|ScanMemory|ImagesMemory|ImagesSoak)",
                             "./internal/platform/runtime"], 600),
     )
     report = {"version": 1, "result": "failed", "scope": "memory contracts only",

@@ -1,3 +1,12 @@
+## 最新接續：24 小時驗收工具第一批
+
+完成測試專用 Go 有界採樣器與 typed JSONL 寫入器，Python 採樣／穩態判定，以及冷暖 HTTP 負載共用起點；加入既有 memory contracts CI runner。方法與尚缺部分見 [image-soak.md](image-soak.md)。所有內容仍屬驗收工具，G42.10 未完成、24h 尚未啟動。
+
+Windows TestImages(Soak|Memory) 選測通過；Linux 同選測 race 通過，真 os.Pipe 驗證通過，紀錄 .testdata/soak-stream-final-linux-race.log。Python新16項與既有圖片控制器21項通過；控制器初次受Windows restricted-token暫存ACL阻擋，使用一般本機權限重跑通過，未削弱產品檢查。Tagged vet、gofmt、增量品牌0違規／339allow及diff-check通過。LICENSE／需求原文hash保持，沒有SQL、LiveTV或產品行為變更。
+
+接續：單一事件消費者、round／rotation型別與逐小時GC/cgroup邊界；真scan/rotate/negative輪次、SIGTERM及固定快照背景controller。先600秒smoke，再同一已提交快照24h正式運行；不得把合成86400筆或短測算作24h。沿用PR46，禁止合併／發版／tag等原限制不變。
+
+遠端73134c9fe7最近查詢：foundation、格式、ABI、OpenAPI、.NET三平台、CodeQL成功；兩個品牌gate失敗，兩個PG integration仍IN_PROGRESS。新提交需另查。第三階段約80%仍只是粗估，336項8完成／193部分／135阻塞保持。
 ## 最新接續：G42.6 同尺寸圖片完整副本已修正
 
 JPEG Gray／YCbCr直接編碼；PNG七種標準解碼型別在請求獨占像素內白底合成／16轉8，同Pix與原stride，沒有第二份全尺寸位圖。縮小路徑、估算和所有預算保持，原檔不改。640×960冷JPEG配置量先紅3,758,080 bytes／筆，修後1,282,375 bytes／筆；共享像素、白底oracle、alpha、取消、真PNG／PNG16／Adam7及來源保持通過。

@@ -43,6 +43,8 @@ def source_digest():
     names = ("scripts/test_image_memory.py", "scripts/test_image_memory_controller.py",
              "scripts/image_memory_acceptance.py", "scripts/test_image_memory_acceptance.py",
              "scripts/runtime_memory_contracts.py", "Makefile", ".dockerignore", "LICENSE", "docs/LICENSE-COMPLIANCE.md",
+             "scripts/images_soak_samples.py", "scripts/test_images_soak_samples.py",
+             "scripts/images_soak_trend.py", "scripts/test_images_soak_trend.py",
              "internal/adapter/images/LICENSE.x-image",
              "scripts/test_scan_memory.py",
              "scripts/scan_memory_acceptance.py", "scripts/container_memory.py",

@@ -741,12 +741,18 @@ func imagesMemoryPhaseValid(phase imagesMemoryPhaseResult, cold int64, warm bool
 }
 
 func runImagesMemoryCold(ctx context.Context, profile *imagesMemoryProfile, life *lifetime, client *http.Client, address, token string, total int, report *imagesMemoryPhaseResult, tags *[64]string) string {
+	return runImagesColdSince(ctx, profile.started, life, client, address, token, total, report, tags)
+}
+
+// A shared monotonic origin lets the soak repeat the same real HTTP workload
+// without constructing or resetting the one-hour memory sampler.
+func runImagesColdSince(ctx context.Context, started time.Time, life *lifetime, client *http.Client, address, token string, total int, report *imagesMemoryPhaseResult, tags *[64]string) string {
 	var err error
 	report.Before, err = imagesMemoryIdle(ctx, life)
 	if err != nil {
 		return "cold_not_idle"
 	}
-	report.StartedNanos = time.Since(profile.started).Nanoseconds()
+	report.StartedNanos = time.Since(started).Nanoseconds()
 	c, cancel := context.WithCancel(ctx)
 	defer cancel()
 	work := make(chan int, 32)
@@ -786,7 +792,7 @@ produce:
 	close(work)
 	joined.Wait()
 	report.Get200, report.HTTPBytes = completed.Load(), transferred.Load()
-	report.FinishedNanos = time.Since(profile.started).Nanoseconds()
+	report.FinishedNanos = time.Since(started).Nanoseconds()
 	report.ElapsedNanos = report.FinishedNanos - report.StartedNanos
 	report.After, err = imagesMemoryIdle(ctx, life)
 	if failed.Load() || ctx.Err() != nil || err != nil || !imagesMemoryPhaseValid(*report, int64(total), false) {
@@ -796,12 +802,16 @@ produce:
 }
 
 func runImagesMemoryWarm(ctx context.Context, profile *imagesMemoryProfile, life *lifetime, client *http.Client, address, token string, total int, report *imagesMemoryPhaseResult, tags [64]string) string {
+	return runImagesWarmSince(ctx, profile.started, life, client, address, token, total, report, tags)
+}
+
+func runImagesWarmSince(ctx context.Context, started time.Time, life *lifetime, client *http.Client, address, token string, total int, report *imagesMemoryPhaseResult, tags [64]string) string {
 	var err error
 	report.Before, err = imagesMemoryIdle(ctx, life)
 	if err != nil {
 		return "warm_not_idle"
 	}
-	report.StartedNanos = time.Since(profile.started).Nanoseconds()
+	report.StartedNanos = time.Since(started).Nanoseconds()
 	for offset, etag := range tags {
 		if !imagesMemoryValidETag(etag) {
 			return "warm_etag_missing"
@@ -825,7 +835,7 @@ func runImagesMemoryWarm(ctx context.Context, profile *imagesMemoryProfile, life
 			}
 		}
 	}
-	report.FinishedNanos = time.Since(profile.started).Nanoseconds()
+	report.FinishedNanos = time.Since(started).Nanoseconds()
 	report.ElapsedNanos = report.FinishedNanos - report.StartedNanos
 	report.After, err = imagesMemoryIdle(ctx, life)
 	if err != nil || !imagesMemoryPhaseValid(*report, 0, true) {
