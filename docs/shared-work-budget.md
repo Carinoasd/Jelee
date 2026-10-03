@@ -1,6 +1,6 @@
 # 共用 CPU／I/O 配額：底層實作
 
-目前新增 `app.WorkBudget` 介面與 `platform/resources.Budget`。正式 runtime 已建立單一實例，HTTP 直投使用共享 I/O／總量配額；目錄掃描與 NFO 讀取／解析亦已接入；探測的 Inspect／Probe 亦已接入；圖片處理亦已接入；忽略掃描、監看等仍待接入。G41.3 與 G13.5 保持部分完成。
+目前新增 `app.WorkBudget` 介面與 `platform/resources.Budget`。正式 runtime 已建立單一實例，HTTP 直投使用共享 I/O／總量配額；目錄掃描與 NFO 讀取／解析亦已接入；探測的 Inspect／Probe 亦已接入；圖片處理亦已接入；忽略目錄掃描亦已接入；基線比對、複核與監看等仍待接入。G41.3 與 G13.5 保持部分完成。
 
 ## 已實作
 
@@ -20,7 +20,7 @@ Linux：固定 Go 工具鏈 `go test -race -count=1 ./internal/platform/resource
 
 ## 待接入
 
-Runtime 單一實例、配置及直投已接入。下一步接忽略掃描、監看等其餘消費者。各操作依階段取得配額，跨 CPU／I/O 階段先釋放再取得，避免巢狀等待。背壓不得被誤記為壞媒體或解析失敗。補齊實際混合工作、HTTP、取消／停機、可觀測性及調校驗收後才能關閉需求。
+Runtime 單一實例、配置及直投已接入。下一步接忽略基線比對、複核與監看等其餘消費者。各操作依階段取得配額，跨 CPU／I/O 階段先釋放再取得，避免巢狀等待。背壓不得被誤記為壞媒體或解析失敗。補齊實際混合工作、HTTP、取消／停機、可觀測性及調校驗收後才能關閉需求。
 
 ## 正式配置與直投接入
 
@@ -68,3 +68,9 @@ Runtime 的圖片處理器取得同一 budget。來源暫存取得 I/O；快取�
 此變更尚未包含在目前來源38a47082e9的隔離smoke中，不能把該長測證據歸於圖片配額實作。完整混合負載驗收仍待後續執行。
 
 探測既有 BusyReleasesBeforeBackoff 矩陣亦使用真共用限額器，驗證 lookup/acquire/process 三類忙碌退避前 total/CPU/IO 歸零，恢復成功後仍無配額殘留；Windows及Linuxrace通過。
+
+## 忽略目錄掃描
+
+兩種目錄遍歷路徑 ScanIgnoreDirectory／ScanFamilyIgnoreDirectory 都使用 runner 既有 acquireWork 取得 I/O，掃描與同步 SaveBatch 回呼返回後釋放。因為範圍只包單一目錄，沒有把整個工作或基線階段包在配額內；佇列滿與取消沿用共用 worker 的有界等待。
+
+一般忽略掃描既有批次矩陣加入真 budget total=1；family 新增成功、資料庫回呼失敗（即使掃描器吞掉回呼錯誤）、缺少 done、取消四種案例，驗證 scanner 執行時 IO/total各1、返回後皆0及原錯誤分類不變。Windows jobs/architecture、vet 與 [Linux race](evidence/resources-ignore-race-linux.txt) 通過。基線觀察、批次比對與目錄證據複核仍需各自接入，不能據此聲稱整個忽略流程受限。

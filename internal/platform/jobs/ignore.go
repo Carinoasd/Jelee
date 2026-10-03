@@ -208,7 +208,7 @@ func (r *Runner) executeIgnoreInventory(ctx context.Context, l domain.JobLease, 
 		}
 		completed, storage := false, false
 		var callbackErr error
-		err = r.options.Ignore.Scanner.ScanIgnoreDirectory(ctx, directory, intent, func(batch domain.IgnoreScanBatch) error {
+		err = r.scanIgnoreDirectory(ctx, directory, intent, func(batch domain.IgnoreScanBatch) error {
 			if callbackErr != nil {
 				return callbackErr
 			}

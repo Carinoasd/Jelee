@@ -206,7 +206,7 @@ func (r *Runner) executeFamilyInventory(ctx context.Context, l domain.JobLease, 
 		}
 		done, storage := false, false
 		var callbackErr error
-		err = r.options.FamilyIgnore.Scanner.ScanFamilyIgnoreDirectory(ctx, d, intent, func(b domain.FamilyIgnoreScanBatch) error {
+		err = r.scanFamilyIgnoreDirectory(ctx, d, intent, func(b domain.FamilyIgnoreScanBatch) error {
 			if callbackErr != nil {
 				return callbackErr
 			}

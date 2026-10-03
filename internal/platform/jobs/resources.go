@@ -39,3 +39,21 @@ func (r *Runner) scanDirectory(ctx context.Context, directory domain.ScanDirecto
 	defer release()
 	return r.scanner.ScanDirectory(ctx, directory, emit)
 }
+
+func (r *Runner) scanIgnoreDirectory(ctx context.Context, directory domain.ScanDirectory, intent domain.IgnoreIntent, emit func(domain.IgnoreScanBatch) error) error {
+	release, err := r.acquireWork(ctx, app.WorkIO)
+	if err != nil {
+		return err
+	}
+	defer release()
+	return r.options.Ignore.Scanner.ScanIgnoreDirectory(ctx, directory, intent, emit)
+}
+
+func (r *Runner) scanFamilyIgnoreDirectory(ctx context.Context, directory domain.ScanDirectory, intent domain.IgnoreIntent, emit func(domain.FamilyIgnoreScanBatch) error) error {
+	release, err := r.acquireWork(ctx, app.WorkIO)
+	if err != nil {
+		return err
+	}
+	defer release()
+	return r.options.FamilyIgnore.Scanner.ScanFamilyIgnoreDirectory(ctx, directory, intent, emit)
+}

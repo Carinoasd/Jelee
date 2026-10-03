@@ -1,3 +1,9 @@
+## 最新接續：兩種忽略目錄掃描已接共用 I/O
+
+jobs/resources.go新增scanIgnoreDirectory與scanFamilyIgnoreDirectory，兩個executeInventory分支改呼叫wrapper；acquireWork到scanner+同步SaveBatch返回持IO，defer在error/panic返回釋放。一般ignore既有savefailure/missingdone/afterdone/success矩陣加真budget；family新增四種success/storage/missingdone/cancel矩陣。Windowsjobs/architecture+vet及Linuxrace通過，docs/shared-work-budget.md及resources-ignore-race-linux.txt記錄。未修改baseline/verification，接著補那些操作與watch；全域需求仍部分。
+
+正式長測af2530314062427bb16da7d2f11961b4/PID726258/start31439656/boot4a5d9c5c-4482-4c3e-8978-30156b1ce92f剛核實程序及容器running/OOMfalse；source仍38a47082e9、不含後續probe/images/ignore配額變更，不重啟。原始冷圖片失敗根因仍待觀察failedRound新證據。PR46持續推送，禁止merge。
+
 ## 最新接續：探測與圖片配額已驗證；同來源正式24h已啟動
 
 smoke127a0c5f396e446a984754f007796f94來源38a47082e951573947cbfdd6445919d178443b21固定600s兩輪完整passed；soakWorkloadPassed/snapshotVerified/testArtifactsCleaned/launcherArtifactsCleaned全true，finalAcceptance false。安全證據docs/evidence/image-soak-diagnostics-smoke.json。
