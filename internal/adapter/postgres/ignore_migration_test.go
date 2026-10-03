@@ -26,7 +26,7 @@ func ignoreLegacySnapshot(t *testing.T, f jobFixture) string {
  'nfo_phases',(SELECT jsonb_agg(to_jsonb(p) ORDER BY job_id) FROM nfo_job_state p),
  'nfo_requests',(SELECT jsonb_agg(to_jsonb(r) ORDER BY job_id) FROM nfo_job_requests r),
  'images',(SELECT jsonb_agg(to_jsonb(i) ORDER BY job_id) FROM image_job_state i),
- 'audit',(SELECT jsonb_agg(to_jsonb(a) ORDER BY id) FROM audit_logs a))::text`).Scan(&result)
+ 'audit',(SELECT jsonb_agg(to_jsonb(a)-'category'-'request_id'-'target_ref' ORDER BY id) FROM audit_logs a))::text`).Scan(&result)
 	if err != nil {
 		t.Fatal("read private legacy migration snapshot")
 	}

@@ -20,7 +20,7 @@ type Store struct{ Pool *pgxpool.Pool }
 
 // SchemaVersion is the only clean schema accepted by this binary. Adjacent
 // releases cannot serve against different cache and job lifecycle contracts.
-const SchemaVersion = 59
+const SchemaVersion = 60
 
 func Open(ctx context.Context, dsn string, maxConnections int32) (*Store, error) {
 	cfg, err := pgxpool.ParseConfig(dsn)
@@ -160,7 +160,7 @@ func (s *Store) Provision(ctx context.Context, name string, kind access.ClientKi
 	if _, err = tx.Exec(ctx, `INSERT INTO sessions(user_id,token_hash,client_kind,expires_at) VALUES($1,$2,$3,now()+interval '24 hours')`, id, hash[:], kind); err != nil {
 		return "", storageError(err)
 	}
-	if _, err = tx.Exec(ctx, `INSERT INTO audit_logs(event,target_id) VALUES('user.provisioned',$1)`, id); err != nil {
+	if err = appendAudit(ctx, tx, AuditEntry{Event: "user.provisioned", TargetID: id}); err != nil {
 		return "", storageError(err)
 	}
 	if err = tx.Commit(ctx); err != nil {

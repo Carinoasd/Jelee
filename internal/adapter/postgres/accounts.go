@@ -2,9 +2,7 @@ package postgres
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
-	"net/netip"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -125,27 +123,12 @@ func authorizeActorInTransaction(ctx context.Context, tx pgx.Tx, actor domain.Ac
 	return admin, nil
 }
 
+// auditAccount records a change against a UUID target through appendAudit.
 func auditAccount(ctx context.Context, tx pgx.Tx, actor domain.Actor, event, target string, before, after any) error {
-	if before == nil {
-		before = struct{}{}
+	if target == "" {
+		return domain.ErrInvalid
 	}
-	if after == nil {
-		after = struct{}{}
-	}
-	b, err := json.Marshal(before)
-	if err != nil {
-		return domain.ErrDatabase
-	}
-	a, err := json.Marshal(after)
-	if err != nil {
-		return domain.ErrDatabase
-	}
-	ip := ""
-	if addr, parseErr := netip.ParseAddr(actor.IP); parseErr == nil {
-		ip = addr.Unmap().String()
-	}
-	_, err = tx.Exec(ctx, `INSERT INTO audit_logs(event,target_id,actor_id,actor_ip,before_state,after_state) VALUES($1,$2::uuid,NULLIF($3,'')::uuid,NULLIF($4,'')::inet,$5::jsonb,$6::jsonb)`, event, target, actor.UserID, ip, b, a)
-	return storageError(err)
+	return appendAudit(ctx, tx, AuditEntry{Event: event, Actor: actor, TargetID: target, Before: before, After: after})
 }
 
 func userInTransaction(ctx context.Context, tx pgx.Tx, id string) (domain.User, error) {

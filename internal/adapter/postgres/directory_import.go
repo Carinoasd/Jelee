@@ -38,7 +38,7 @@ func (s *Store) ImportDirectory(ctx context.Context, library, root, relative, ti
 	if err := writeImportedParent(ctx, tx, itemID, libraryID, rootID, relative, kind, parent); err != nil {
 		return "", err
 	}
-	if _, err := tx.Exec(ctx, `INSERT INTO audit_logs(event,target_id) VALUES('directory.registered',$1)`, itemID); err != nil {
+	if err := appendAudit(ctx, tx, AuditEntry{Event: "directory.registered", TargetID: itemID}); err != nil {
 		return "", storageError(err)
 	}
 	return itemID, storageError(tx.Commit(ctx))

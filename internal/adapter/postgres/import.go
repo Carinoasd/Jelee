@@ -48,7 +48,7 @@ func (s *Store) ImportVideoWithParent(ctx context.Context, library, root, relati
 	if err = tx.QueryRow(ctx, `INSERT INTO media_sources(item_id,library_id,root_id,relative_path,content_type) VALUES($1,$2,$3,$4,$5) RETURNING id::text`, itemID, libraryID, rootID, relative, contentType).Scan(&sourceID); err != nil {
 		return "", storageError(err)
 	}
-	if _, err = tx.Exec(ctx, `INSERT INTO audit_logs(event,target_id) VALUES('media.registered',$1)`, sourceID); err != nil {
+	if err = appendAudit(ctx, tx, AuditEntry{Event: "media.registered", TargetID: sourceID}); err != nil {
 		return "", storageError(err)
 	}
 	if err := writeImportedParent(ctx, tx, itemID, libraryID, rootID, relative, kind, parent); err != nil {
