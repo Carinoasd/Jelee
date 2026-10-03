@@ -86,7 +86,7 @@ type Processor struct {
 	misses      atomic.Uint64
 	decodes     atomic.Uint64
 	// A private seam lets lifecycle tests stop inside a synchronous decode.
-	// Production always uses the pinned standard-library decoders below.
+	// Production always uses the pinned decoders in decodeImage.
 	decode  func(context.Context, io.ReadSeeker, inspectedImage) (image.Image, error)
 	reclaim func()
 }
@@ -239,7 +239,8 @@ func (p *Processor) Render(ctx context.Context, source domain.LocalImageSource, 
 		if inspectErr != nil {
 			return result, imageError(operation, inspectErr)
 		}
-		width, height := targetSize(inspected.width, inspected.height, request, p.options.MaxOutputDimension)
+		displayWidth, displayHeight := inspected.displaySize()
+		width, height := targetSize(displayWidth, displayHeight, request, p.options.MaxOutputDimension)
 		estimate, estimateErr := estimateImageBytes(inspected, width, height, staged.Size(), p.options.MaxOutputBytes)
 		if estimateErr != nil || estimate > p.options.MaxImageBytes {
 			return result, domain.ErrImageTooLarge
@@ -307,16 +308,25 @@ func (p *Processor) renderDecoded(ctx context.Context, source io.ReadSeeker, inp
 		return encodedImage{}, domain.ErrImageUnavailable
 	}
 	var encodeInput image.Image
-	if width == input.width && height == input.height {
+	if width == input.width && height == input.height && !input.oriented() {
 		encodeInput, err = sameSizeJPEGImage(ctx, decoded)
 		if err != nil {
 			return encodedImage{}, err
 		}
 	} else {
+		// An EXIF-oriented image always takes this path, even at full size:
+		// the output RGBA is the only bitmap besides the decoded one, and the
+		// estimate already reserves it as the output-sized thumbnail.
 		thumbnail := image.NewRGBA(image.Rect(0, 0, width, height))
 		draw.Draw(thumbnail, thumbnail.Bounds(), image.NewUniform(color.White), image.Point{}, draw.Src)
-		// ApproxBiLinear has no source-sized intermediate kernel buffer.
-		draw.ApproxBiLinear.Scale(thumbnail, thumbnail.Bounds(), decoded, decoded.Bounds(), draw.Over, nil)
+		if input.oriented() {
+			// The affine map rotates or mirrors while it scales, writing
+			// straight into the output; no rotated source copy exists.
+			draw.ApproxBiLinear.Transform(thumbnail, orientationTransform(input.orientation, input.width, input.height, width, height), decoded, decoded.Bounds(), draw.Over, nil)
+		} else {
+			// ApproxBiLinear has no source-sized intermediate kernel buffer.
+			draw.ApproxBiLinear.Scale(thumbnail, thumbnail.Bounds(), decoded, decoded.Bounds(), draw.Over, nil)
+		}
 		encodeInput = thumbnail
 	}
 	if err := ctx.Err(); err != nil {
@@ -462,6 +472,14 @@ type inspectedImage struct {
 	width, height                 int
 	progressive, interlaced       bool
 	components, maxH, maxV, sumHV int64
+	// EXIF/TIFF orientation 1-8; zero means none was declared.
+	orientation int
+	// WebP: VP8L stream, and ALPH chunk kind (webpAlphaRaw/webpAlphaLossless).
+	lossless bool
+	alpha    uint8
+	// BMP/TIFF decoded bytes per pixel; BMP row buffer; TIFF strip or tile
+	// pixels, block count and first-IFD entry count.
+	pixelBytes, rowBytes, blockPixels, blocks, entries int64
 }
 
 func inspectImage(ctx context.Context, source io.ReadSeeker) (inspectedImage, error) {
@@ -477,6 +495,9 @@ func inspectImage(ctx context.Context, source io.ReadSeeker) (inspectedImage, er
 		return inspectedImage{}, err
 	}
 	reader := contextImageReader{ctx, source}
+	if format := sniffAdditionalFormat(header[:n]); format != "" {
+		return inspectAdditionalFormat(ctx, source, format)
+	}
 	if bytes.Equal(header[:8], []byte("\x89PNG\r\n\x1a\n")) {
 		if n < len(header) || binary.BigEndian.Uint32(header[8:12]) != 13 || string(header[12:16]) != "IHDR" {
 			return inspectedImage{}, domain.ErrImageUnavailable
@@ -507,7 +528,7 @@ func inspectJPEG(ctx context.Context, source io.ReadSeeker) (inspectedImage, err
 		return inspectedImage{}, domain.ErrImageUnavailable
 	}
 	result := inspectedImage{format: "jpeg"}
-	inScan, sawScan := false, false
+	inScan, sawScan, sawExif := false, false, false
 	for {
 		prefix, err := r.ReadByte()
 		if err != nil {
@@ -555,7 +576,18 @@ func inspectJPEG(ctx context.Context, source io.ReadSeeker) (inspectedImage, err
 		if _, err := io.ReadFull(r, segment[:kept]); err != nil {
 			return inspectedImage{}, err
 		}
-		if _, err := r.Discard(size - kept); err != nil {
+		if marker == 0xe1 && !sawExif && kept >= 6 && string(segment[:6]) == "Exif\x00\x00" {
+			// Only the first Exif APP1 counts. A segment is at most 64 KiB and
+			// every IFD offset in it is bounds-checked; nothing is followed
+			// outside the segment.
+			sawExif = true
+			exif := make([]byte, size)
+			copy(exif, segment[:kept])
+			if _, err := io.ReadFull(r, exif[kept:]); err != nil {
+				return inspectedImage{}, err
+			}
+			result.orientation = exifOrientation(exif[6:])
+		} else if _, err := r.Discard(size - kept); err != nil {
 			return inspectedImage{}, err
 		}
 		switch {
@@ -665,6 +697,8 @@ func estimateImageBytes(input inspectedImage, width, height int, sourceBytes, ou
 				return 0, domain.ErrImageTooLarge
 			}
 		}
+	case "webp", "gif", "bmp", "tiff":
+		decoded, ok = estimateAdditionalFormatBytes(input, sourceBytes)
 	default:
 		return 0, domain.ErrImageUnsupported
 	}
@@ -686,7 +720,9 @@ func estimateImageBytes(input inspectedImage, width, height int, sourceBytes, ou
 	// Go 1.27.1 PNG: full 8-byte pixels, plus all Adam7 pass images (their
 	// disjoint pixels total <= original pixels), and two rows for every pass.
 	// JPEG: padded planes and progressive [64]int32 coefficients per MCU.
-	// 1 MiB additionally covers decoder/zlib/encoder state, 16 KiB preflight,
+	// WebP/GIF/BMP/TIFF: see estimateAdditionalFormatBytes.
+	// 1 MiB additionally covers decoder/zlib/encoder state, 16 KiB preflight
+	// (plus at most one 64 KiB JPEG Exif segment, released before decoding),
 	// 32 KiB staging hash/copy buffers and bounded 128-entry directory batches.
 	total, ok := checkedSum(sourceBytes, decoded, rows, coefficients, thumbnail, encoded, 1<<20)
 	if !ok {
@@ -716,10 +752,13 @@ func decodeImage(ctx context.Context, source io.ReadSeeker, input inspectedImage
 		return nil, err
 	}
 	reader := contextImageReader{ctx, source}
-	if input.format == "png" {
+	switch input.format {
+	case "png":
 		return png.Decode(reader)
+	case "jpeg":
+		return jpeg.Decode(reader)
 	}
-	return jpeg.Decode(reader)
+	return decodeAdditionalFormat(ctx, source, input)
 }
 
 func (p *Processor) acquireWork(ctx context.Context, class app.WorkClass) (func(), error) {

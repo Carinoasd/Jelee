@@ -21,6 +21,8 @@ func sameSizeJPEGImage(ctx context.Context, decoded image.Image) (image.Image, e
 	switch source := decoded.(type) {
 	case *image.YCbCr, *image.Gray:
 		return source, nil
+	case *image.NYCbCrA:
+		return flattenNYCbCrA(ctx, source)
 	case *image.RGBA:
 		rgba = source
 	case *image.NRGBA:
