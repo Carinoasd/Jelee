@@ -1,0 +1,3 @@
+ok  	github.com/MoYuanCN/Jelee/internal/platform/resources	1.198s
+ok  	github.com/MoYuanCN/Jelee/internal/adapter/images	5.220s
+ok  	github.com/MoYuanCN/Jelee/internal/platform/runtime	1.098s

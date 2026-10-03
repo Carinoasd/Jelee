@@ -28,6 +28,7 @@ import (
 )
 
 type Options struct {
+	Budget             app.WorkBudget
 	TempRoot           string
 	MaxConcurrent      int
 	MaxImageBytes      int64
@@ -194,10 +195,24 @@ func (p *Processor) Render(ctx context.Context, source domain.LocalImageSource, 
 	if stageLimit <= 0 {
 		return result, domain.ErrImageTooLarge
 	}
+	// Shared permits cover active processing, while the existing image memory
+	// reservation remains held until the response body closes.
+	var sharedRelease func()
+	defer func() {
+		if sharedRelease != nil {
+			sharedRelease()
+		}
+	}()
+	dropShared := func() { sharedRelease(); sharedRelease = nil }
+	sharedRelease, err = p.acquireWork(operation, app.WorkIO)
+	if err != nil {
+		return result, err
+	}
 	staged, err := stageLocalPrimary(operation, source, p.options.TempRoot, stageLimit)
 	if err != nil {
 		return result, imageError(operation, err)
 	}
+	dropShared()
 	stageClosed := false
 	defer func() {
 		if !stageClosed {
@@ -212,6 +227,10 @@ func (p *Processor) Render(ctx context.Context, source domain.LocalImageSource, 
 		p.hits.Add(1)
 	} else {
 		p.misses.Add(1)
+		sharedRelease, err = p.acquireWork(operation, app.WorkCPU)
+		if err != nil {
+			return result, err
+		}
 		inspected, inspectErr := inspectImage(operation, staged.Reader())
 		if inspectErr != nil {
 			return result, imageError(operation, inspectErr)
@@ -262,6 +281,13 @@ func (p *Processor) Render(ctx context.Context, source domain.LocalImageSource, 
 		digest := sha256.Sum256(encoded)
 		value = encodedImage{data: encoded, width: width, height: height, etag: `"` + hex.EncodeToString(digest[:]) + `"`}
 	}
+	if sharedRelease != nil {
+		dropShared()
+	}
+	sharedRelease, err = p.acquireWork(operation, app.WorkIO)
+	if err != nil {
+		return result, err
+	}
 	if err := staged.Verify(operation); err != nil {
 		return result, imageError(operation, err)
 	}
@@ -272,6 +298,7 @@ func (p *Processor) Render(ctx context.Context, source domain.LocalImageSource, 
 		return result, domain.ErrImageUnavailable
 	}
 	stageClosed = true
+	dropShared()
 	if !hit {
 		p.cache.put(key, value)
 	}
@@ -653,4 +680,19 @@ func decodeImage(ctx context.Context, source io.ReadSeeker, input inspectedImage
 		return png.Decode(reader)
 	}
 	return jpeg.Decode(reader)
+}
+
+func (p *Processor) acquireWork(ctx context.Context, class app.WorkClass) (func(), error) {
+	if p.options.Budget == nil {
+		return func() {}, ctx.Err()
+	}
+	release, err := p.options.Budget.Acquire(ctx, class)
+	if errors.Is(err, domain.ErrResourceBusy) {
+		p.busy.Add(1)
+		return nil, domain.ErrImageBusy
+	}
+	if err != nil {
+		return nil, imageError(ctx, err)
+	}
+	return release, nil
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"io"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -110,5 +111,94 @@ func TestSharedBudgetScanPanicReleasesPermit(t *testing.T) {
 	}
 	if b.Stats() != (resources.Stats{}) {
 		t.Fatal("panic leaked shared permit")
+	}
+}
+
+func TestSharedBudgetProbeClassesAndLeaseOrder(t *testing.T) {
+	f := newProbeWorkerFixture(t, 1)
+	b, _ := resources.New(resources.Limits{CPU: 1, IO: 1, Total: 1, Queue: 1})
+	inspect, probe, acquire := f.prober.inspect, f.prober.probe, f.repo.acquire
+	f.prober.inspect = func(c context.Context, s domain.ProbeSource) (domain.ProbeStamp, error) {
+		if stats := b.Stats(); stats != (resources.Stats{IO: 1, Total: 1}) {
+			t.Errorf("inspect budget: %+v", stats)
+		}
+		return inspect(c, s)
+	}
+	f.prober.probe = func(c context.Context, s domain.ProbeSource) (domain.ProbeObservation, error) {
+		if stats := b.Stats(); stats != (resources.Stats{CPU: 1, Total: 1}) {
+			t.Errorf("probe budget: %+v", stats)
+		}
+		return probe(c, s)
+	}
+	f.repo.acquire = func(c context.Context, l domain.JobLease, p domain.ProbePageToken, v domain.ProbeCandidate) (domain.ProbeLease, error) {
+		if stats := b.Stats(); stats != (resources.Stats{CPU: 1, Total: 1}) {
+			t.Errorf("child lease acquired before CPU: %+v", stats)
+		}
+		return acquire(c, l, p, v)
+	}
+	r := f.runner(t, newTestClock(), func(o *Options) { o.Budget = b })
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	r.run(ctx, f.lease)
+	if receive(t, f.base.terminal).state != domain.JobSucceeded || f.probes != 1 || f.inspections != 2 {
+		t.Fatal("probe did not complete/revalidate")
+	}
+	if b.Stats() != (resources.Stats{}) || len(r.probeGate) != 0 {
+		t.Fatal("probe leaked permits")
+	}
+}
+
+func TestSharedBudgetProbeWaitDoesNotHoldChildLease(t *testing.T) {
+	for _, cancelled := range []bool{false, true} {
+		f := newProbeWorkerFixture(t, 1)
+		b, _ := resources.New(resources.Limits{CPU: 1, IO: 1, Total: 2, Queue: 1})
+		held, err := b.Acquire(context.Background(), app.WorkCPU)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer held()
+		var acquired atomic.Int32
+		original := f.repo.acquire
+		f.repo.acquire = func(c context.Context, l domain.JobLease, p domain.ProbePageToken, v domain.ProbeCandidate) (domain.ProbeLease, error) {
+			acquired.Add(1)
+			return original(c, l, p, v)
+		}
+		r := f.runner(t, newTestClock(), func(o *Options) { o.Budget = b })
+		ctx, cancel := context.WithCancel(context.Background())
+		done := make(chan bool, 1)
+		go func() { r.run(ctx, f.lease); done <- true }()
+		deadline := time.NewTimer(3 * time.Second)
+		ticker := time.NewTicker(time.Millisecond)
+		for b.Stats().Waiting != 1 {
+			select {
+			case <-deadline.C:
+				t.Fatal("probe did not wait for CPU")
+			case <-ticker.C:
+			}
+		}
+		deadline.Stop()
+		ticker.Stop()
+		if acquired.Load() != 0 {
+			t.Fatal("waiting probe occupied database child lease")
+		}
+		if cancelled {
+			cancel()
+		} else {
+			held()
+		}
+		receive(t, done)
+		cancel()
+		held()
+		if cancelled {
+			receive(t, f.base.released)
+			if acquired.Load() != 0 || len(f.batches) != 0 || len(f.aborts) != 0 {
+				t.Fatal("cancelled wait wrote a probe outcome")
+			}
+		} else if receive(t, f.base.terminal).state != domain.JobSucceeded || acquired.Load() != 1 {
+			t.Fatal("probe failed to resume")
+		}
+		if b.Stats() != (resources.Stats{}) || len(r.probeGate) != 0 {
+			t.Fatal("waiting probe leaked permit")
+		}
 	}
 }

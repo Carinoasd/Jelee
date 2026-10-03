@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"github.com/MoYuanCN/Jelee/internal/domain"
+	"github.com/MoYuanCN/Jelee/internal/platform/resources"
 )
 
 func processorTestOptions(scratch string) Options {
@@ -328,6 +329,8 @@ func TestImageProcessorCancellationDoesNotAbandonDecode(t *testing.T) {
 	processorTestPNG(t, source, color.NRGBA{A: 255})
 	options := processorTestOptions(scratch)
 	options.MaxConcurrent = 1
+	budget, _ := resources.New(resources.Limits{CPU: 1, IO: 1, Total: 1, Queue: 1})
+	options.Budget = budget
 	p := processorTestNew(t, options)
 	entered, unblock, finished := make(chan context.Context, 1), make(chan struct{}), make(chan error, 1)
 	p.decode = func(ctx context.Context, _ io.ReadSeeker, _ inspectedImage) (image.Image, error) {
@@ -351,7 +354,7 @@ func TestImageProcessorCancellationDoesNotAbandonDecode(t *testing.T) {
 		t.Fatal("decode did not begin")
 	}
 	cancel()
-	if p.Stats().Active != 1 {
+	if p.Stats().Active != 1 || budget.Stats() != (resources.Stats{CPU: 1, Total: 1}) {
 		close(unblock)
 		t.Fatal("cancellation released an executing decode")
 	}
@@ -374,7 +377,7 @@ func TestImageProcessorCancellationDoesNotAbandonDecode(t *testing.T) {
 	case <-time.After(5 * time.Second):
 		t.Fatal("decode did not join")
 	}
-	if p.Stats().Active != 0 {
+	if p.Stats().Active != 0 || budget.Stats() != (resources.Stats{}) {
 		t.Fatal("finished cancellation retained slot")
 	}
 	imageScratchEmpty(t, scratch)
@@ -386,6 +389,8 @@ func TestImageProcessorTimeoutKeepsReservationUntilDecodeReturns(t *testing.T) {
 	options := processorTestOptions(scratch)
 	options.Timeout = time.Second
 	options.MaxConcurrent = 1
+	budget, _ := resources.New(resources.Limits{CPU: 1, IO: 1, Total: 1, Queue: 1})
+	options.Budget = budget
 	p := processorTestNew(t, options)
 	timedOut, unblock, finished := make(chan struct{}), make(chan struct{}), make(chan error, 1)
 	p.decode = func(ctx context.Context, _ io.ReadSeeker, _ inspectedImage) (image.Image, error) {
@@ -407,7 +412,7 @@ func TestImageProcessorTimeoutKeepsReservationUntilDecodeReturns(t *testing.T) {
 		close(unblock)
 		t.Fatal("operation timeout did not reach decoder")
 	}
-	if p.Stats().Active != 1 {
+	if p.Stats().Active != 1 || budget.Stats() != (resources.Stats{CPU: 1, Total: 1}) {
 		close(unblock)
 		t.Fatal("timeout prematurely released decoder")
 	}
@@ -424,7 +429,7 @@ func TestImageProcessorTimeoutKeepsReservationUntilDecodeReturns(t *testing.T) {
 	case <-time.After(5 * time.Second):
 		t.Fatal("timed-out decoder did not finish")
 	}
-	if p.Stats().Active != 0 {
+	if p.Stats().Active != 0 || budget.Stats() != (resources.Stats{}) {
 		t.Fatal("joined timeout retained reservation")
 	}
 }

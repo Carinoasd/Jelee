@@ -14,6 +14,7 @@ import (
 
 	"github.com/MoYuanCN/Jelee/internal/app"
 	"github.com/MoYuanCN/Jelee/internal/domain"
+	"github.com/MoYuanCN/Jelee/internal/platform/resources"
 )
 
 const probeJobID = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"
@@ -475,11 +476,12 @@ func TestProbeWorkerBusyReleasesBeforeBackoff(t *testing.T) {
 					return old(c, s)
 				}
 			}
-			r := f.runner(t, clock, nil)
+			budget, _ := resources.New(resources.Limits{CPU: 1, IO: 1, Total: 1, Queue: 1})
+			r := f.runner(t, clock, func(o *Options) { o.Budget = budget })
 			done := make(chan struct{})
 			go func() { defer close(done); r.run(context.Background(), f.lease) }()
 			clock.waitFor(t, DefaultOptions().PollInterval, 1)
-			if len(r.probeGate) != 0 {
+			if len(r.probeGate) != 0 || budget.Stats() != (resources.Stats{}) {
 				t.Error("gate held during backoff")
 			}
 			if where == "process" && f.releases != 1 {
@@ -487,7 +489,7 @@ func TestProbeWorkerBusyReleasesBeforeBackoff(t *testing.T) {
 			}
 			clock.fire(DefaultOptions().PollInterval)
 			receive(t, done)
-			if receive(t, f.base.terminal).state != domain.JobSucceeded || len(f.batches) != 1 {
+			if receive(t, f.base.terminal).state != domain.JobSucceeded || len(f.batches) != 1 || budget.Stats() != (resources.Stats{}) {
 				t.Fatal("busy retry did not complete once")
 			}
 		})

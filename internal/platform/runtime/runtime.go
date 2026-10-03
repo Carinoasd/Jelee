@@ -56,7 +56,7 @@ func newWithLifetime(cfg config.Config, logger *slog.Logger, lifetime *lifetime)
 			return store, nil
 		},
 		func(store *postgres.Store) *app.Catalog { return app.NewCatalog(store) },
-		func(c config.Config) (*imageadapter.Processor, error) {
+		func(c config.Config, budget *resources.Budget) (*imageadapter.Processor, error) {
 			if !c.EnableImages {
 				return nil, nil
 			}
@@ -65,6 +65,7 @@ func newWithLifetime(cfg config.Config, logger *slog.Logger, lifetime *lifetime)
 			}
 			p := c.Images
 			processor, err := imageadapter.New(lifetime.ctx, imageadapter.Options{
+				Budget:   budget,
 				TempRoot: p.TempRoot, MaxConcurrent: p.MaxConcurrent,
 				MaxImageBytes: p.MaxImageBytes, MaxSourceBytes: p.MaxSourceBytes,
 				MaxOutputBytes: p.MaxOutputBytes, MaxOutputDimension: p.MaxOutputDimension,

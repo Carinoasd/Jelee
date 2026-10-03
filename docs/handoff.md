@@ -1,3 +1,29 @@
+## 最新接續：探測與圖片配額已驗證；同來源正式24h已啟動
+
+smoke127a0c5f396e446a984754f007796f94來源38a47082e951573947cbfdd6445919d178443b21固定600s兩輪完整passed；soakWorkloadPassed/snapshotVerified/testArtifactsCleaned/launcherArtifactsCleaned全true，finalAcceptance false。安全證據docs/evidence/image-soak-diagnostics-smoke.json。
+
+正式run af2530314062427bb16da7d2f11961b4，PID726258/startTicks31439656/boot4a5d9c5c-4482-4c3e-8978-30156b1ce92f，startedUTC2026-10-03T02:34:00.370709+00:00，source同38a47082e9，snapshot /var/tmp/jelee-soak-snapshot-af2530314062427bb16da7d2f11961b4，evidence .testdata/soak-launch-af2530314062427bb16da7d2f11961b4。啟動後已核process identity存活；先核handle再poll，不重啟活躍run。此來源不含本批probe/images配額，不能把通過證據歸後續HEAD。原冷圖片根因尚未定；若再fail查failedRound.FailureCode/FailedRequest status/index，monitor保留workerErrorCode。
+
+本批probe InspectIO、CPU先於childlease、返回後釋放再複核IO，heartbeat本來續租有效child、expired不復活真PG已驗。images stageIO→CPU→verifyIO，不巢狀，Body只保留原memory reservation。所有相關Windows、Linuxrace、PG/HTTP整合已通過；probe busy lookup/acquire/process退避先歸零也驗證。詳見docs/shared-work-budget.md。接續忽略掃描、baseline、watch、索引等配額與混合驗收。G41.3/G13.5及全案未完成，PR46禁止merge。
+
+以下待提交文字為歷史記錄，此批提交後以本段為準。
+
+## 待提交補充：圖片共用配額已驗證，HEAD仍須保留38a
+
+除前段probe待提交外，images/processor.go Options.Budget與runtime factory已接同fx實例。stageIO→miss CPU(inspect/decode/resize/encode)→verify/closeIO，各階段先drop再acquire，hit只有IO/IO。Render結束不占共享配額，原本memory reservation仍等Body.Close。queuefull映射ErrImageBusy；operationctx含請求/timeout/lifetime，decode未返回仍持CPU。
+
+resources_test.go驗cold/hit classsequence、總量1不巢狀、body保留分離、滿queue與cancel；processor_test.go的同步decode cancel/timeout加入共享CPU斷言。Windows完整images與vet通過；Linuxrace resources/images/runtime通過；真PG TestImagesRuntimePostgresIntegration通過3.452秒。docs/shared-work-budget.md及resources-images證據待一併提交。
+
+smoke127a0c5f396e446a984754f007796f94/PID700210/start31372862/boot4a5d9c5c-4482-4c3e-8978-30156b1ce92f仍是source38a47082e9。2026-10-03T02:29Z case elapsed300/raw56556；程序容器先前核running。請先核handle、等待terminal；若passed且snapshot/cleanup全真，立即同HEAD啟正式（scripts/start_images_soak.py無--smoke），再提交所有probe+images+文件變更及推PR46。若failed先查failedRound/workerErrorCode。不得把這次smoke歸新配額功能；不得合併。
+
+## 待提交：探測 CPU／I/O 配額已驗證；等 smoke 後先啟正式長測
+
+目前 HEAD38a47082e951573947cbfdd6445919d178443b21 必須暫留，固定600s smoke run127a0c5f396e446a984754f007796f94正在執行，PID700210/start31372862/boot4a5d9c5c-4482-4c3e-8978-30156b1ce92f，來源38a47082e9。最新case狀態workload，launcher process已核存活；不重啟。先確認smoke terminal passed+cleanup/snapshot全真，再用同HEAD執行 start_images_soak.py 啟正式（不帶--smoke），核實新handle後才能提交待存變更，以免matching smoke gate不符。工作快照獨立於這些未提交變更。
+
+未提交probe.go/probe_work.go/resources_test.go：Inspect acquireIO；probeMiss在DB AcquireProbe前acquireCPU，probe後即釋放再複核IO，不巢狀。原先擔心child排隊逾期已確認HeartbeatJob本來會續租live child。真PG TestProbeAdversarialHeartbeatDoesNotReviveExpiredChild通過2.661s；Windowsjobs/architecture+vet及Linuxrace通過。docs/shared-work-budget.md/evidence已更新待提交。需一起以命令作者提交推PR46，不merge。背景其他images/ignore/watch等仍待接。
+
+圖片根因仍待重現；之前正式run033822...已failed。這次smoke尚無結果，不可宣称通過。CI38a：Windowsfoundation2個pass，format pass，品牌2個fail，其餘部分pending。
+
 ## 最新接續：長測失敗原因覆蓋已修，需重現圖片故障
 
 正式run033822f3aecf4b6491406594c8687cfd已failed，沒有活躍正式長測。monitor收到ready前failed report原本丟soak_event_invalid；red測試Linux確認，現回soak_worker_failed並安全保留workerErrorCode，run_images_soak report也保存。原始events重播確認cold_image_processing_failed，證據docs/evidence/image-soak-failure-replay.json。Python51tests、WindowsGo及Linuxrace通過。

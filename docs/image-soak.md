@@ -1,3 +1,9 @@
+## 診斷版 smoke 已通過，正式長測已重新啟動
+
+固定600秒 run `127a0c5f396e446a984754f007796f94` 完整通過：兩輪各1000 cold GET，snapshot與清理檢查全true；[證據](evidence/image-soak-diagnostics-smoke.json)。這只是smoke，finalAcceptance仍false。
+
+正式run `af2530314062427bb16da7d2f11961b4` 於2026-10-03 02:34 UTC啟動，source `38a47082e951573947cbfdd6445919d178443b21`，和smoke相同。啟動程序已核存活，尚未完成。隔離來源不含之後probe/images共用配額接入，原冷圖片故障仍待重現，不能宣稱已修復或24h已過。
+
 ## 失敗診斷修正
 
 控制器現可辨識提前的 failed 報告，結果仍是 failed，並以 `soak_worker_failed` 搭配有界 `workerErrorCode` 保留原因。成功仍必須經 ready／SIGTERM／PASS 與完整重播，不放寬。先執行失敗測試重現 `soak_event_invalid` 覆蓋，再修正為正確保留；原始 run 重播結果見 [診斷證據](evidence/image-soak-failure-replay.json)。
