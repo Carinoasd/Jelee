@@ -1,3 +1,12 @@
+## 2026-10-03 接續：adapter寫回缺ID生成已驗證
+
+a5d8e43a46已推PR46。本批EnsureID/EnsureIDValue僅在所選原文條目無已識別ID時新增<uniqueid type="jelee">UUID</uniqueid>，隨機UUID v4或預先固定的canonical UUID，不指定default；既有uniqueid/custom/jelee手工值、imdbid/tmdbid/tvdbid/id保持。公開視圖修改不能繞過原文IDs；lockdata/ID欄位鎖拒絕新增；損壞/空ID不自動修復。Writer在singleflight共用工作中補缺ID，已有ID條目略過，同請求一次生成，重寫後ID不變；凍結UUID不被覆寫。docs/nfo-compatibility.md明定策略，docs/nfo-generated-id.md及nfo-id-write-race-linux.txt記範圍。Windows nfo/architecture/vet與jobs/runtime、Linux nfo/architecture race通過；BOM/UTF16/排版/多條目/取消/界限/鎖與實際寫回/共用/重寫亦驗。
+
+G39.10部分完成，統計7完成/198部分/131阻塞。下一個正式接點已讀：library policy/nfo_requests/nfo_phase只接受off/read-only，多處有降版與CHECK/不可變守衛；現有jobs還有inventory_scan/catalog_import及兩種類別metrics（schema最新45）。不能僅放寬ValidNFOMode開read-write；須新完整write/export任務意圖、policy/generation/租約/項目身分/輸出結果與恢復稽核、capability admission、worker/API/CLI、共用CPU/IO及新migration。正式持久任務須先保存固定UUID與預期完整輸出，不能未保存randomUUID後當可重試。缺失NFO建立、全部欄位、Windows完整落盤/ACL与真實客戶端仍缺；原媒體與原SQL/授權保持。
+
+同正式9a0c8d956e3f4fbea9e844e3fc59bc26/PID788902/start31680373/boot4a5d9c5c-4482-4c3e-8978-30156b1ce92f實核吻合，container running/OOMfalse，source9a74a8932a不含NFO。先核同handle，PR46禁止merge，全案未完成。
+
+---
 ## 2026-10-03 接續：NFO原文綁定adapter Writer與singleflight已驗證
 
 5d381730fe原子替換基礎已推PR46。本批Source保留私有root/父目錄/檔案身分与maxBytes，讀取新增父目錄前後身分核對，String/GoString不露路徑/bytes。Writer.Replace重新開root/父目錄并持有，拒symlink元件，native鎖後/備份前/替換前核Source實體與全原bytes。WithText/WithTextOptions私有最初原文雜湊證明可鏈式修改，Writer拒任意替換XML/其他原文修改/手工ID覆寫。

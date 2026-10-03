@@ -80,10 +80,17 @@ func (d *Document) WithText(ctx context.Context, entry int, field, value string,
 // WithTextOptions optionally creates a missing scalar field and controls output
 // BOM and insertion indentation. Existing XML keeps its lexical layout.
 func (d *Document) WithTextOptions(ctx context.Context, entry int, field, value string, maxBytes int64, options TextEditOptions) (*Document, error) {
+	return d.withTextOptions(ctx, entry, field, value, maxBytes, options, false)
+}
+
+func (d *Document) withTextOptions(ctx context.Context, entry int, field, value string, maxBytes int64, options TextEditOptions, generatedID bool) (*Document, error) {
 	if options.BOM != "" && options.BOM != "preserve" && options.BOM != "include" && options.BOM != "omit" || len(options.Indent) > 8 || strings.Trim(options.Indent, " \t") != "" {
 		return nil, ErrInvalidInput
 	}
 	canonical := editableTextName(field)
+	if generatedID && field == "uniqueid" {
+		canonical = field
+	}
 	if d == nil || ctx == nil || canonical == "" || canonical != field || entry < 0 || maxBytes < 1 || maxBytes > MaxAllowedBytes || !utf8.ValidString(value) {
 		return nil, ErrInvalidInput
 	}
@@ -127,6 +134,9 @@ func (d *Document) WithTextOptions(ctx context.Context, entry int, field, value 
 			lock = "plot"
 		}
 		if editableTextName(lock) == field {
+			return nil, ErrEditLocked
+		}
+		if generatedID && lockedIdentifierName(lock) {
 			return nil, ErrEditLocked
 		}
 	}
@@ -212,7 +222,13 @@ func (d *Document) WithTextOptions(ctx context.Context, entry int, field, value 
 	}
 	var patches []textPatch
 	if len(selected) == 0 {
-		patches = append(patches, insertTextField(data, selectedRoot, field, escaped.Bytes(), options.Indent))
+		if generatedID {
+			markup := append([]byte(`<uniqueid type="jelee">`), escaped.Bytes()...)
+			markup = append(markup, []byte(`</uniqueid>`)...)
+			patches = append(patches, insertFieldMarkup(data, selectedRoot, markup, options.Indent))
+		} else {
+			patches = append(patches, insertTextField(data, selectedRoot, field, escaped.Bytes(), options.Indent))
+		}
 	} else {
 		f := selected[0]
 		if bytes.HasSuffix(data[f.start:f.openEnd], []byte("/>")) {
@@ -270,6 +286,10 @@ func (d *Document) WithTextOptions(ctx context.Context, entry int, field, value 
 func insertTextField(data []byte, root *editTextFrame, name string, value []byte, relativeIndent string) textPatch {
 	field := append([]byte("<"+name+">"), value...)
 	field = append(field, []byte("</"+name+">")...)
+	return insertFieldMarkup(data, root, field, relativeIndent)
+}
+
+func insertFieldMarkup(data []byte, root *editTextFrame, field []byte, relativeIndent string) textPatch {
 	if bytes.HasSuffix(data[root.start:root.openEnd], []byte("/>")) {
 		body := append([]byte(nil), data[root.start:root.openEnd-2]...)
 		body = append(body, '>')

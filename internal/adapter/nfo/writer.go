@@ -204,5 +204,16 @@ func writeBoundNFOSource(ctx context.Context, original *Source, replacement *Doc
 	if err != nil {
 		return err
 	}
+	// Generate inside the shared operation so duplicate requests choose one ID.
+	// Controlled edits preserve the original entry structure and existing IDs.
+	for entry := range base.Entries {
+		if len(base.Entries[entry].UniqueIDs) > 0 {
+			continue
+		}
+		replacement, err = replacement.EnsureID(ctx, entry, original.maxBytes, TextEditOptions{})
+		if err != nil {
+			return err
+		}
+	}
 	return replaceNFODocumentWithOperations(ctx, directory, filename, base, replacement, backups, ops)
 }

@@ -2,7 +2,13 @@
 
 ## 已实现的边界
 
-`internal/adapter/nfo` 读取、校验本地 NFO，提取元数据并保留原始字节。它不修改原 NFO、不写媒体文件、不生成新 ID、不启动外部进程，也不访问 NFO 中的 URL。CLI 可以在没有数据库的情况下使用这个模块校验文件。
+`internal/adapter/nfo` 讀取、校驗本地NFO，提取元資料並保留原始bytes。CLI仍是唯讀校驗；adapter另有受控文字修改、原文實體綁定writer與缺ID生成基礎，尚未接正式read-write庫策略或持久jobs。它不寫媒體檔案、不啟動外部程序、不訪問NFO內的URL。CLI可在沒有資料庫時校驗檔案。
+
+## 寫回識別碼策略
+
+adapter writer對沒有任何已識別ID的條目新增`<uniqueid type="jelee">UUID</uniqueid>`。自動值使用crypto/rand產生的UUID v4，不指定default屬性，既有識別碼或其default值不改。已存在uniqueid（含自訂type）、imdbid、tmdbid、tvdbid或id時保留原bytes；手工填寫的jelee值也不覆蓋。空值/不完整ID屬損壞資料，不自動修復。lockdata與ID欄位鎖阻止缺ID新增，不能寫回半份多條目文件。
+
+Document.EnsureID僅在所選條目缺ID時生成；EnsureIDValue接受預先固定的canonical UUID，讓正式持久任務能先保存ID與輸出意圖再寫檔。Writer在singleflight的共用操作內補齊缺ID，多條目依原文順序逐項核對；相同共用請求不各自產生不同UUID。後續寫回再次讀取已有ID，保持原值。未知XML/註解、行尾、BOM及縮排沿用受控修改介面。詳細驗證見[ID寫回基礎](nfo-generated-id.md)；正式jobs/恢復稽核與真實上游客戶端對type=jelee的互操作仍待驗證。
 
 当前支持**读取和原文复制**。`WriteOriginal` 不把修改后的 `Metadata` 序列化回 XML；修改提取视图后调用它，输出仍是最初读取的原文。未知标签、属性、注释、元素顺序、缩进、换行、BOM 和原编码由原始字节保留。
 

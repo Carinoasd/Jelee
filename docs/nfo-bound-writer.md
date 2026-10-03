@@ -2,7 +2,7 @@
 
 `Writer.Replace`接收`ReadSource`的原文觀察、受控修改Document及備份份數。Source私下保留root、父目錄與檔案身分、路徑與讀取上限，仍無開啟的handle；JSON及String/GoString診斷不暴露原文或路徑。讀取也新增父目錄前後身分核對。writer重新開啟root與父目錄並持有到操作完成，拒絕符號連結元件；取得native鎖後、備份輪替前及替換前重新核root/父目錄/原檔身分與完整bytes。檔案在相同bytes/size/mtime下換成新inode，或父目錄/root換成新實體並保留hardlink，均拒絕。
 
-修改Document必須由同一原文的WithText/WithTextOptions產生，可連續修改；私有原文雜湊證明綁定最初bytes。任意Read得到的替換XML或從其他原文修改的Document不能寫入。Metadata/Entries公開視圖的變動不能改原文、解除鎖或偽造修改證明。既有ID保持；新增ID與完整其他欄位尚待實作。零變更原文可保持原inode。替換仍受原始ReadSource的maxBytes限制。
+修改Document必須由同一原文的WithText/WithTextOptions或EnsureID/EnsureIDValue產生，可連續修改；私有原文雜湊證明綁定最初bytes。任意Read得到的替換XML或從其他原文修改的Document不能寫入。Metadata/Entries公開視圖的變動不能改原文、解除鎖或偽造修改證明。既有ID保持；缺ID於共用操作內生成，詳見[ID策略](nfo-generated-id.md)。已有ID的零變更原文可保持原inode。替換仍受原始ReadSource的maxBytes限制。
 
 單一Writer實例使用singleflight，只共用同時存在的相同完整意圖：原文stamp、新內容雜湊、原始讀取上限、備份份數及路徑一致，且root/父目錄/檔案身分均相同。不同Source讀取若指向同實體也可共用；同一路徑換成不同實體會分開。意圖key為固定雜湊/數字，不含原文或路徑；引用在每個呼叫返回時清除，不保存完成結果。不同修改或備份選項不合併，原文已改變時後來的操作拒絕，須重新觀察。
 
