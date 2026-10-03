@@ -131,6 +131,13 @@ func nfoNativeReceiptLegacyAt52(t *testing.T, f jobFixture) {
 	if err := f.s.Pool.QueryRow(f.ctx, `SELECT count(*) FROM nfo_write_commit_journal`).Scan(&journals); err != nil || journals != 0 {
 		t.Fatal("historical fixture cannot discard journal evidence")
 	}
+	var hasClaims bool
+	if err := f.s.Pool.QueryRow(f.ctx, `SELECT to_regclass('nfo_write_native_claims') IS NOT NULL`).Scan(&hasClaims); err != nil {
+		t.Fatal("inspect owned historical claims schema", err)
+	}
+	if hasClaims {
+		jobMetricMigration(t, f, "down", 53)
+	}
 	if _, err := f.s.Pool.Exec(f.ctx, `ALTER TABLE nfo_write_preparations DISABLE TRIGGER ALL;
 ALTER TABLE nfo_write_entries DISABLE TRIGGER ALL;
 UPDATE nfo_write_preparations SET native_receipt=NULL;
@@ -155,7 +162,7 @@ func TestNFOWriteNativeReceiptHistoricalNULLIsNotBackfilled(t *testing.T) {
 	if err != nil || !history.NativeObservation.Empty() || history.Scope.RootGeneration < 1 {
 		t.Fatal("historical observation gained today's receipt")
 	}
-	jobMetricMigration(t, f, "up", 53)
+	jobMetricMigration(t, f, "up", SchemaVersion)
 	history, err = f.s.FindNFOWritePreparation(f.ctx, f.a, "native-history", digest)
 	if err != nil || !history.NativeObservation.Empty() {
 		t.Fatal("upgrade backfilled native receipt")

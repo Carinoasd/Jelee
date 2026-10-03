@@ -1,3 +1,120 @@
+## 2026-10-03 修正版V2完整1520PASS獨立核驗通過，沿既有PR46準備發布54
+
+15453 terminal0，四片exit0；487roots恰run/pass一次、1520PASS零skipfail、999source終態吻合。93256獨立finalizer --check-only terminal0/ready=true，compiled list/groups/coverage/logs/hash/106舊SQL/protected、Win9591036/native28/Linux37與雙向RR red4fail2marker皆吻合；正式公開摘要另執行保存，需再核其terminal及內容。13檔發布清單為5Go/SQL+8docs，私有資料不stage；舊checkpoint/失敗/不完整kind-scope紀錄保持。
+
+等待full PG時補private NFO overlay實際子程序中斷：16774第一output Sync後osexit71，一PASS；62565擴至output/rollback/directory Sync後osexit71/72/73，四PASS零skipfail。原plan在private callback同步寫檔（不是真PGport），2/4/5 artifacts保持；fresh root重試遇original pin collision精確ErrReplace、未ready、target原文及artifact nativeIDs保持。這證明安全保留，非partial stage自動恢復或斷電耐久性，正式999 Go/SQL不變；private logs及candidate script保留供下一phase接入。
+
+G39.14/方法文件更新V2完整範圍，狀態不擴張；PR草稿仍需按1520/current source重寫驗證與提交/CI段，pub audit ready後核hash stage13files/commitpush既有branch/更新PR46/實核遠端HEAD与CI。完整品牌FAIL、原24h不同source無完成證據、完整commit/recovery/Windows目錄耐久性/worker三批次missing-NFO/heapRSS保持；全goal active。發布後不可重跑BASE3d79且SQL106的舊freeze/finalizer/audit當current驗證，不重啟原24h。
+
+---
+## 2026-10-03 候選54發布audit與PR草稿備妥，V2完整回歸仍live
+
+同15453 write_stdin實核live；最新checker source999/compiled487保持、四片178/219/202/166 PASS共765、零skipfail/無package terminal。Go/SQL不改、四片未完整coverage，不宣稱成功。遠端唯讀核PR46 OPEN/3d79ed9577c37f074a0498dca720d79ff50bc6cc，品牌兩COMPLETED FAILURE、PG兩IN_PROGRESS；未更新遠端。
+
+新增private audit-nfo-native-claims-publication.py，核HEAD/既有branch/空index、V2 source999全成員與bytes、精確5source（Store/歷史helper/newclaims test/54兩SQL）、106舊SQL/requirements/mod/sum/LICENSE保持，再限定8docs。13檔明確list輸出至private nfo-native-claims-publication-files.json，排除.testdata/.tools；實跑ready=false/V2 public terminal evidence missing，沒有stage/commit/push。ready成功還必須487四片terminal/完整coverage/finalizer/source manifest/claimscope及336status保持、docs JSON無私密材料，成功分支待驗。
+
+private pr46-schema54-body-draft.md保留累積ignore/CLI/API/scheduler/runtime metrics及schema47–53範圍，新增54 global identity/雙向crossrole/TTL/未知history/升降/成對deferred行為，明記37Linux/28Win選測與V2未terminal、Win9591036/品牌FAIL/PG未terminal/原24h不同source/先前OOM清理未全證明。草稿頂部禁止未完整驗證直接發布；green後重寫完整結果與commit/CI段，保持限制，再沿既有PR46更新，不發新PR或merge。
+
+原24h本輪同run329073a5d193446383327ab217aba147/PID1026300/startTicks33072456/boot4a5d9c5c-4482-4c3e-8978-30156b1ce92f核running/OOMfalse，來源24caf不含本批、無24h完成證據/不重啟。全案7/198/131保持active。下一同15453終態、V2 finalizer獨立成功驗證、docs/PR草稿終態更新與publication audit、hash核stage13files/commitpush；完成仍要接partialstage/完整commit backup rollback settlement recovery/Windows目錄耐久性/正式worker三批次missingNFO/heapRSS，不縮減全G00–G51。
+
+---
+## 2026-10-03 修正版V2新凍結999/編譯487完整PG執行中，跨角色三隔離與雙向控制成立
+
+新增正式CrossRoleSnapshotIsolation，shared snapshot helper改為owned真XML/media及fresh receipts，兩方向各三隔離。RC/RR精確23505/nfo_native_target_unresolved、Serializable可40001且整筆rollback；first commit/第二零partial皆核。22704三roots12PASS/race terminal0。聯合84944 terminal0，16roots合37PASS/零skipfail，global-identity-selected-v2；87993 Windows真PG terminal0，七roots合28PASS/零skipfail，windows-real-pg-v3，relay finally dispose與exactowned child0。
+
+58147私有雙向RR僅移owned identity主鍵，Go exit1/4FAIL events/零skip/兩個精確stale native claim snapshot admitted conflicting complete journal markers，兩方向第二完整journal均真commit；正式test bytes保持。原logs保留。新global-identity-checkpoint-v2保存current五source與三logs hashes，fullFixedCandidateRegressionPassed=false；原checkpoint與V1kind-scope摘要不改。
+
+70899新V2freeze terminal0，999Go/SQL、106已發布SQL/mod/sum/requirements/LICENSE保持。CURRENT完整PG session15453，run-nfo-native-claims-schema-v2-full-shards.py，实际compile487roots四片、source/manifest/log/coverage全新prefix nfo-native-claims-schema-v2。最後同15453實核live，checker source999/compiled487吻合，四片79/90/85/65PASS，零skipfail/無package terminal。不得改Go/SQL、覆寫或重啟；V1只作舊kind分組歷史證據。
+
+Win新V2三套件terminal0：959PASS/1036條件skip/零fail/package3，不拿skip作PG證據；三套件vet/格式/增量brand0/339/diff0。新finalizer V2要求999current hashes/487compiled groups/全四exit0各root一次/Win9591036/native28/Linux37/雙方向red4fail2marker/106旧SQL及protected文件吻合才能寫nfo-native-claims-schema-v2.json。--check-only已實核Pending/terminal coverage missing/無public success，成功分支仍待驗。
+
+requirements-traceability只G39.14補candidate scope/37與28選測/完整V2未terminal未發布；獨立Markdown escaped管線解析核336項與HEAD status完全相同，7完成/198部分/131阻塞、changes0。原requirements-source不改，54未commit/push。下一同15453完整終態、新finalizer獨立核成功/更新docs和PR草稿/發布audit/明確stage commitpush，再接partial stage/完整target commit backup rollback settlement recovery/Win目錄耐久性/worker三批次missing-NFO/heapRSS，不縮減goal、不重啟原24h。
+
+---
+## 2026-10-03 V1完整1506PASS已終態但禁止發布；正式global identity修正30/Win21選測通過
+
+28348 terminal0，四片exit0，484roots各run/pass一次/1506PASS零skipfail/999source終態吻合。43053 finalizer精確Rejected cross-role exclusion unverified。91471獨立核root/groups/list/coverage/logs/selected/checkpoint/protected files後保存docs/evidence/nfo-native-claims-kind-scope-regression.json，fullCandidateAcceptance=false/nativePhysicalExclusionComplete=false/knownGap=true；其源及log保持，不能宣稱54功能完成。
+
+74925私有完整up SQL歷史matrix3PASS零skipfail/双向exact23505constraint/DDLrollback/两first journals receipts+metrics保持，migration registry原53clean（raw SQL不改version）。已備formal history fragment追加Migrate wrapper失败dirty54验证。两片finalizer都terminal后按checkpoint哈希核三候选draft，才将54up改PRIMARY KEY(identity)、conflict跨roles，kind仍角色firstproof核对；append正式CrossRoleMatrix/HistoryMigration两roots与helper，gofmt。106旧SQL保持，不重跑旧999frozen checker当current来源。
+
+18238正式PG race terminal0，15roots合30PASS/零skipfail，log cross-role-formal-v1；18433 Win真PG terminal0，六roots合21PASS零skipfail/package1，log windows-real-pg-v2；兩方向/migration dirty54/保留证明与同job Prepare ErrInvalid都涵盖，relay finally dispose/Linux exactowned child0。86157 global identity RR主键only控制terminal1是真Go exit1/2FAIL events/精确第二完整冲突journal marker/正式test bytes保持，log primary-key-control-red-v3。format/brand0/339/diff0。
+
+新docs/evidence/nfo-native-claims-global-identity-checkpoint.json保存当前五source+三log哈希，fullFixedCandidateRegressionPassed=false。旧checkpoint/完整kind-scope regression当历史保留，不能改其bytes破坏hash。下一可补cross-role三隔离旧snapshot专例，然后新V2freeze/实际compiled宇宙/完整PG与Win回归/新独立finalizer，再req追踪/PR发布audit/commitpush54。54仍未提交推送，HEAD3d79/全案7/198/131及完整commit/recovery/partialstage/Win目录耐久性/worker三批次missingNFO/heapRSS/品牌门禁缺口保持active。原24h不重啟。
+
+---
+## 2026-10-03 私有跨角色雙向matrix四PASS及未修正紅測成立，正式freeze仍保持
+
+28348同handle仍live，最新source999/compiled484吻合、四片221/261/346/201 PASS共1029，零skipfail/無package terminal，不能宣稱完整green。原24h同run/PID/startTicks/boot再次核running/OOMfalse，來源24caf不包含本批、不重啟。
+
+私有矩陣初次77262 terminal1：兩跨job方向PASS，但same-job fixture Prepare已由既有native validation ErrInvalid拒絕，錯誤期待journal邊界而FAIL；原matrix-green-v1保留。V2改核samejob Prepare ErrInvalid、無preparation/journal/claims，雙向仍要Begin ErrConflict/raw23505特定identityconstraint及只有first journal雙claims。36832 terminal0，matrix-green-v2四PASS/零skipfail，owned SQL global-identity candidate/正式Go bytes保持。
+
+54312 terminal1是真Go exit1，matrix-red-v2一PASS(same_job_alias早期拒絕)/4FAIL events/零skip/兩個精確cross-role physical inode admitted conflicting unresolved journal markers；兩跨job方向在未改kind分組下確實接納衝突。不是pool/lease/catalog錯誤。checkpoint補各loghash、初次fixture失敗修正及private candidate範圍，knownCrossRoleAdmissionGap仍true/crossRoleExcludedVerified仍false（正式來源未改）。
+
+已備private nfo-native-claims-cross-role-full-up-candidate.sql，54主鍵直接identity、conflict query跨roles、owned pair仍核kind+原proof；native-claims-cross-role-formal-candidate.go.txt去掉owned schema修改，只剩正式測試/helper fragment。其hash保存checkpoint供接續核。尚未覆寫正式upSQL/append Go，等待同28348terminal後接入，再補跨role既有history migration/Windows/重新RR因果控制，新freeze與完整回歸；不得發布kind分組V1即使其後green。全案7/198/131/完整功能缺口保持active。
+
+---
+## 2026-10-03 跨NFO/media角色排除缺口已真PG red/私有修正green，正式999凍結不變
+
+28348同handle實核live；最新checker source999/compiled484吻合、四片85/102/103/64 PASS，零skipfail、無package終態；不是完整green。新增private finalizer核HEAD3d79/999 hashes/106舊SQL/484compiled/group/logs/coverage/Win9561025/native14/Linux9/redcontrol/source checkpoint，--check-only已實測Pending拒絕/未写public evidence。其成功分支尚未驗。
+
+審claims發現kind分組跨角色風險，private overlay在owned real files將第二job NFO hardlink到第一job media並fresh Prepare；91388 terminal1是真Go exit1/2FAIL events/精確cross-role physical inode admitted conflicting unresolved journal marker，正式Go bytes不變。證明現行PRIMARY KEY(kind,identity)及同kind查詢仍允許同一實體inode跨角色占用；此候選不得發布，full V1將來green亦不證修復。
+
+private .testdata/nfo-native-claims-cross-role-candidate.sql僅owned schema把主鍵改identity、checkscope conflict跨kind比對，kind留角色/first proof核對。65574 terminal0，private cross-role-green-v1一root1PASS/零skipfail，正式來源保持；先驗單方向，不外推反向/同jobalias/舊快照/fullPG。checkpoint已記knownCrossRoleAdmissionGap=true/crossRoleExcludedVerified=false及redloghash，V1 finalizer新增明確跨角色拒絕發布門檻。docs範圍補缺口。
+
+下一先監測同28348至terminal，保留全V1證據；此間不改正式Go/SQL。再正式54主鍵identity及跨role查詢/新增雙向與同jobalias案例、replay/alias/RR控制/Windows重新驗，之後新V2freeze/完整matrix/獨立finalizer才發布。private candidate成功不是正式功能green。完整target commit/backup/rollback/結算/recovery/worker三批次/partialstage/Win目錄耐久性/heapRSS/品牌與全案7/198/131保持active，不重啟原24h。
+
+---
+## 2026-10-03 候選54新凍結999/編譯484，完整PG四片執行中
+
+85961 freeze已terminal0，CURRENT HEAD仍3d79；新prefix nfo-native-claims-schema-v1，999份Go/SQL全成員與bytes凍結，106已發布SQL/mod/sum/requirements/LICENSE保持。新runner由實際compiled list建立484 roots四片manifest，原53 V4 frozen/finalizer不可重用。CURRENT完整PG session28348，run-nfo-native-claims-schema-v1-full-shards.py已輸出Compiled roots484/shards4，write_stdin同handle實核live。不重啟/覆寫；Go/SQL保持凍結，文檔可補進度。未有完整terminal/coverage，不宣稱54green。
+
+Windows新source三套件完整回歸exit0，nfo-native-claims-schema-v1-windows.jsonl：956PASS/1025條件skip/零fail、三package pass；三套件vet exit0。Win條件skip不作PG證據；前段Windows真PG四roots14PASS另保留。safe checkpoint仍fullCandidateRegressionPassed=false，尚未commit/push54，完整品牌FAIL與全案7/198/131保持。
+
+下一核同28348各片完整終態與999 source hashes/484 root恰run/pass一次、零skipfail；成功再新獨立finalizer/compiled list/groups/coverage/logs/106舊SQL/需求驗證與公開安全證據、需求追蹤/PR更新/發布audit。失敗保留原log、修正再新freeze，不拿舊checkpoint替代全matrix。正式target commit/backup/rollback/結算/recovery/partial stage/Win目錄耐久性/worker三批次missing-NFO/heapRSS仍待接；原24h不重啟。
+
+---
+## 2026-10-03 候選54三隔離/deferred九PASS與Windows真PG十四PASS，完整freeze待做
+
+重構RR helper為三隔離正式TestNFOCommitNativeClaimsSnapshotIsolation，保留原RR root及精確主鍵control。RC/RR必須23505/nfo_native_target_unresolved；Serializable可同23505或40001且驗整筆第二TXrollback，不外推主鍵因果。新增DeferredPairCompleteness，owned TX只停record producer、保留所有immediate/deferred guards：零/一claim commit精確23514/nfo physical claims missing並清零journal/claim與恢復producer，完整pair正例通過。
+
+V1 session29511 terminal1：7PASS/3FAIL events/零skip；只完整pair fixture在pending triggers時ALTER ENABLE撞55006，原log isolation-deferred-v1保留。改先SET CONSTRAINTS ALL IMMEDIATE驗完整pair再ENABLE producer，沒有弱化任何production guard。V2 session13490 terminal0，三roots含六leaf合9PASS/零skipfail/race exit0，log isolation-deferred-v2。重构后RR單主鍵overlay control65388 terminal1真正Go exit1/2FAIL events/零skip/精確衝突完整journal marker/正式test bytes保持，log primary-key-control-red-v2。
+
+Windows88784 terminal0，temporary owned loopback relay，四roots加十leaf14PASS/零skipfail/一package pass，真Windows native hardlinks与独立copies、三隔離、deferredpair、replay/immutability皆通過；log windows-real-pg-v1。finally dispose及Linux exact owned relay child count0實核，不改PG設定，不宣稱完整WindowsPGsuite。safe docs/evidence/nfo-native-claims-checkpoint.json保存五source及四log hashes、各範圍/失敗修正/限制，fullCandidateRegressionPassed=false。
+
+格式/增量brand0/339/diff check0，106已發布SQL保持，54仍未commit/push。下一新freeze/compiled universe/完整PG及Windows回歸、獨立coverage/hash驗證、更新需求追蹤與PR才發布54；若新失敗保留原證據修正重freeze。正式target commit/backup/rollback/結算/recovery、partial stage、Windows目錄耐久性、worker三種批次missing-NFO協議、heapRSS及完整品牌門禁缺口保持，全案7/198/131 active。原24h不得重啟，來源24caf不含本批。
+
+---
+## 2026-10-03 候選54真hardlink跨library與RR舊快照通過，單主鍵反例成立
+
+新增正式兩roots。owned另一library/item/root/media mapping及實際file建立；NFO+media hardlinks／NFO-only／media-only三負例、同bytes/mtime獨立copy正例，每個皆重新Prepare native receipt，不借SQLidentity。不同root/library仍精確23505/nfo_native_target_unresolved拒絕，独立copy成功兩tokens四claims。RR兩TX都先讀claims0、首journal持久化後第二精確同主鍵23505且rollback只留first journal/2claims。
+
+47293 terminal0，nfo-native-claims-alias-stale-v1.jsonl兩roots+四leaf共6PASS/零skipfail。45355負向控制terminal1是真Go exit1：private overlay僅移owned claims主鍵、其他guard保持；第二完整衝突journal確實commit，2FAIL events/零skip/精確stale native claim snapshot admitted conflicting complete journal marker。正式test前後bytes保持、原log nfo-native-claims-primary-key-control-red-v1.jsonl保留。Linux格式、增量brand0/339、diff check0，未改106已發布SQL/遠端PR，不宣稱54完整green。
+
+下一補RC/Serializable競爭、raw/deferred缺claims與Windows真PG，再新freeze/完整compiled universe及回歸。所有前次logs只證各自來源，不以schema53舊freeze證新增兩roots。完整target commit/backup/rollback/結算/recovery、partial stage、Windows目錄耐久性、正式worker三批次missing-NFO、整體heapRSS仍待接；全案7/198/131保持active。原24h不重啟。
+
+---
+## 2026-10-03 候選schema54已實作，遷移矩陣及聯合選測通過，尚未發布
+
+已新增54 up/down、Store.SchemaVersion54、NFO與media雙claims及Begin/plan/ready guard；不同token同48-byte first native identity精確23505/nfo_native_target_unresolved拒絕，同token可重放，停止lease/TTL不解除claims。保留原red V1；3根新案例及既有4根回歸已通過，沒有完整54驗收宣稱。
+
+新增三個正式migration roots。V1兩根2PASS、V2三根3PASS，零skipfail、race exit0；53既有journal升54只copy原first receipt，metrics保持，未解決claims拒降版並保留；pre53 NULL journal不回填且阻擋fresh commit，raw SQL精確23505/同constraint/歷史message，未知journal亦拒降版；53既有兩個衝突token升54精確唯一約束拒絕，DDL完整rollback、claims表不存在、兩journal及原receipt保留，Migrate失敗dirty狀態實核。原logs保留。
+
+新增空claims降版metrics保持斷言後，CURRENT聯合選測34065 terminal0；nfo-native-claims-selected-v3.jsonl九個roots各PASS一次、9PASS/零skipfail、一package pass。範圍六個新54 roots，加既有16並行重放、file plan reopen及歷史NULL三根。三隔離目前只讀取claims，不作競爭證據。Linuxformat、incremental brand0/339、diff check均0，106已發布SQL tracked diff空；54兩檔尚未提交。
+
+PR46仍OPEN/3d79ed9577c37f074a0498dca720d79ff50bc6cc，唯讀最新核完整品牌兩FAIL/PG兩IN_PROGRESS；未改遠端。原24h run329073a5d193446383327ab217aba147/PID1026300/startTicks33072456/boot4a5d9c5c-4482-4c3e-8978-30156b1ce92f同身分實核running/OOMfalse，来源24caf，不含53/54，不重啟、無完成證據。全案7完成/198部分/131阻塞保持active。
+
+下一補跨library/hardlink及不同實體正例、RR舊快照唯一約束因果控制、raw/deferred缺claim、Windows真PG，之後新freeze/compiled universe/完整matrix才提交推送54。完整target commit/backup/rollback/結算/recovery、partial stage、Windows目錄metadata耐久性、正式worker三批次missing-NFO協議及整體heapRSS仍待接。不可用schema53舊freeze/finalizer證新來源。
+
+---
+## 2026-10-03 schema54同實體排除缺口已真PG重現，尚未實作migration
+
+已發布HEAD3d79ed9577c37f074a0498dca720d79ff50bc6cc，schema53實作6b44不變。新CI唯讀實核：完整品牌兩COMPLETED FAILURE、PG兩IN_PROGRESS；不弱化品牌，不宣稱新PG成功。本輪新增未提交nfo_commit_unresolved_identity_test.go，owned真media／NFO first receipt：第一job Begin journal後停止lease為cancelled，第二job用同一prepared receipt仍成功Begin。79338 terminal1、0PASS／2FAIL events／零skip、精確same physical NFO admitted despite unresolved journal marker，原log nfo-unresolved-physical-target-red-v1.jsonl保留。不是連線／lease／policy失敗，缺同實體排除已證。red後assert補ErrConflict，避免未來其他錯誤假green，需新log重驗。
+
+新增docs/nfo-unresolved-physical-targets.md記待54儲存邊界：同token擁有NFO及media兩份48-byte native identity claims，各以kind＋identity唯一，單交易取得／回滾，保留同token重放，跨library／alias／NFO inode已替換而media未變仍排除；直接SQL／deferred／舊快照及migration皆需保護。歷史NULL不新認filesystem、不回填；缺證未解決journal先拒新提交。既有native journal只copy原持久first proof建立claims，碰到既有衝突拒migration，不選勝者或刪journal。claim無取消／TTL／history解除入口，待正式可驗證native結算／復原才放行。106份已發布SQL不改。
+
+只有上述新test及設計doc，Store仍53，沒有54檔、claims或guard實作；全案7／198／131不變。下一補raw SQL精確拒絕、同／跨library、same-media新NFO／hardlink、不同實體正例、replay、歷史與三隔離；再54持久claims及Begin／plan／ready守衛、負向控制、全matrix及新完整freeze。原24h不得重啟，Win目錄耐久性／完整target commit／recovery／worker三批次missing-NFO／heapRSS缺口保持。
+
+---
 ## 2026-10-03 schema53實作已發布6b44f3ac64，PR46已核，後續完整提交與復原待接
 
 本批明確43檔已commit／push既有branch：實作來源6b44f3ac644d55f9a9be7dbeda3f6f906ad53605，PR46 OPEN／遠端head實核吻合，body以final草稿更新且normalized內容一致，artifact已連結。36 Go／SQL＋7 docs，沒有private .testdata／.tools或其他來源；舊104 SQL保持，schema53兩檔後106份已發布SQL不可改。publication audit55343已terminal0／ready=true；commit前各43檔hash與audit吻合、staged清單相同、cached diff0，push非force。此段handoff另以docs提交保存，不改schema53實作。
