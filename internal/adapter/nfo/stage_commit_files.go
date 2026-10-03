@@ -2,9 +2,12 @@ package nfo
 
 import (
 	"context"
+	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 
 	"github.com/MoYuanCN/Jelee/internal/app"
@@ -16,10 +19,60 @@ import (
 // Runtime has no caller. It neither renames the target nor grants policy,
 // catalog/media authorization, recovery or successful-job completion.
 func (w *Writer) StageCommitFiles(ctx context.Context, source *Source, lease domain.JobLease, record domain.NFOWriteCommitRecord, repository app.NFOWriteCommitFilesRepository) error {
+	return w.stageCommitFiles(ctx, source, lease, record, repository, nativeNFOWriteOperations())
+}
+
+func (w *Writer) stageCommitFiles(ctx context.Context, source *Source, lease domain.JobLease, record domain.NFOWriteCommitRecord, repository app.NFOWriteCommitFilesRepository, ops nfoWriteOperations) error {
 	if w == nil || w.budget == nil || ctx == nil || source == nil || !source.ready || source.rootInfo == nil || source.parentInfo == nil || source.fileInfo == nil || repository == nil || !domain.ValidID(record.Token) || record.JobID != lease.Job.ID || record.Owner != lease.Owner || record.Generation != lease.Generation || record.Sequence < 1 || record.Sequence > 100 {
 		return ErrInvalidInput
 	}
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	// Capture the repository in the operation closure, keeping its identity alive
+	// for the whole flight. Non-pointer implementations execute independently.
+	value := reflect.ValueOf(repository)
+	var repositoryID uint64
+	if value.Kind() == reflect.Pointer {
+		if value.IsNil() {
+			return ErrInvalidInput
+		}
+		repositoryID = uint64(value.Pointer())
+	} else {
+		w.mu.Lock()
+		w.sequence++
+		repositoryID = w.sequence
+		w.mu.Unlock()
+	}
+	if len(source.rootPath) > 32768 || len(source.relative) > domain.ScanPathMaxBytes || len(lease.Owner) > 1024 {
+		return ErrInvalidInput
+	}
+	encoded, err := json.Marshal(struct {
+		RepositoryType      string
+		RepositoryID        uint64
+		JobID, Owner, Token string
+		Generation          int64
+		Sequence            int
+		Root, Relative      string
+		Stamp               SourceStamp
+		MaxBytes            int64
+	}{value.Type().String(), repositoryID, lease.Job.ID, lease.Owner, record.Token, lease.Generation, record.Sequence, source.rootPath, source.relative, source.stamp, source.maxBytes})
+	if err != nil {
+		return ErrInvalidInput
+	}
+	digest := sha256.Sum256(encoded)
+	return w.runIntent(ctx, "stage:"+hex.EncodeToString(digest[:]), source, ops, func() error {
+		return w.stageCommitFilesOwned(ctx, source, lease, record, repository, ops)
+	})
+}
+
+func (w *Writer) stageCommitFilesOwned(ctx context.Context, source *Source, lease domain.JobLease, record domain.NFOWriteCommitRecord, repository app.NFOWriteCommitFilesRepository, ops nfoWriteOperations) error {
+	releaseRead, err := w.budget.Acquire(ctx, app.WorkIO)
+	if err != nil {
+		return err
+	}
 	task, err := repository.GetNFOWriteTask(ctx, lease, record.Sequence)
+	releaseRead()
 	if err != nil {
 		return err
 	}
@@ -134,7 +187,6 @@ func (w *Writer) StageCommitFiles(ctx context.Context, source *Source, lease dom
 			return nil
 		},
 	}
-	ops := nativeNFOWriteOperations()
 	ops.documentsValidated, ops.checkSource = true, check
 	_, err = prepareNFOCommitFiles(ctx, directory, filename, original, replacement, token, ports, ops)
 	return err

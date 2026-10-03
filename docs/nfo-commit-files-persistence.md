@@ -24,4 +24,4 @@ plan／ready port 都是提交後才回傳的短資料庫交易，不跨完整�
 
 完整 PostgreSQL race 的434根測試分四個獨立程序，各根執行及通過恰一次，零跳過／失敗。Windows 八套件1,586通過事件／743條件跳過；Linux六套件race1,169通過事件／1個Windows專屬跳過。Windows實際原生＋PG選測在連線既有資料庫時失敗，未到檔案夾具，不計通過。Darwin只交叉編譯，沒有原生執行。初次 PG 選測的衝突夾具誤使 output 等於 rollback，已修正測試資料並重驗，原失敗證據保留。詳見[本批安全證據](evidence/nfo-commit-files-persistence.json)。
 
-仍缺跨重啟完整 root／媒體／catalog revision／policy generation 授權、同實體未解決工作排除、target Rename／backup／rollback／結算及可驗證恢復。StageCommitFiles 尚未接 singleflight，取得工作 payload 前的資源准入與整體 bytes 配額仍需補齊；已存在的 stage 重試會碰撞並保留，沒有重開續作入口。不能啟用正式 read-write 或 worker。Windows directory sync 沿既有 stub，斷電 metadata 耐久性未證明。正式24h是24caf凍結來源，不包含本批。
+仍缺跨重啟完整 root／媒體／catalog revision／policy generation 授權、同實體未解決工作排除、target Rename／backup／rollback／結算及可驗證恢復。後續[去重與讀取准入](nfo-stage-admission.md)已接 singleflight 及 GetTask 前的 I/O 配額，整體 payload bytes 配額仍需補齊；已存在的 stage 重試會碰撞並保留，沒有重開續作入口。不能啟用正式 read-write 或 worker。Windows directory sync 沿既有 stub，斷電 metadata 耐久性未證明。正式24h是24caf凍結來源，不包含本批。

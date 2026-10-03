@@ -1,3 +1,14 @@
+## 2026-10-03 Stage工作去重與payload讀取准入已驗
+
+基線 d8c3e42b6aa089f40a9d8c0b4bcd21e8e5f18265／schema50 已推PR46，本批沿同分支發布。StageCommitFiles在GetTask／重建前加入runIntent；SHA256結構化key包含repository型別與实例、job／owner／generation／sequence／journal token、私有root／path、Source stamp／maxBytes，並核root／parent／file實體。非pointer repository不共用，typed nil pointer拒絕。owner先取得共享IO才讀payload，釋放後依既有CPU→IO階段，Total1不巢狀；等待者取消不釋放owner，owner取消join read清理，完成不快取，既有stage碰撞仍拒絕且保留。
+
+新增100同呼叫只讀一次／plan一次／ready一次且原target保持，九種不同意圖不共用、配額滿載／取消在read前拒絕零副作用、owner與waiter取消／配額／意圖引用清空。隔離overlay移除pre-read permit，回歸測試確實失敗「busy read reached repository」，正式來源未改。Windows NFO／architecture340PASS／2既有symlink skip；Linux NFO／architecture／jobs race568PASS／1Windows平台skip；新增Stage13PASS兩平台，真PG選測36PASS／零skipfail，包括原生stage及子程序重開。vet兩平台、Darwin amd64僅編譯、格式／增量品牌0／339／gitignore／diff通過。所有本批handles55956／86269／87023已terminal0；Windows與red overlay同步已terminal。100份SQL／模組／需求原文／LICENSE保持，本批無migration、未重跑完整PG；之前schema50全434根屬d8c3e42來源。方法 docs/nfo-stage-admission.md，安全摘要 docs/evidence/nfo-stage-admission.json。
+
+下一步完整payload bytes生命週期准入（CPU／IO等待時仍持bytes，讀取准入不證整體memory），持久plan／ready安全讀取與staged重開續作，再完整root／媒體／revision／policy跨重啟證據、同實體未解決排除、原生Rename／backup／rollback／結算／恢復及正式准入／worker／三種操作。不得因bytes相等或stage缺失猜已提交，Windows directory metadata耐久性仍缺，runtime未啟用。全案7完成／198部分／131阻塞保持。
+
+正式24h仍run329073a5d193446383327ab217aba147／PID1026300／startTicks33072456／boot4a5d9c5c-4482-4c3e-8978-30156b1ce92f，來源24caf7d45f不含本批；本輪實核身分吻合、container running／OOMfalse，尚未通過。核同handle、不重啟；完整品牌門禁保持。沿PR46不merge／release／tag／force-push、不改100份已發布SQL或Git身份設定，原媒體／圖片／授權保持。下方為歷史狀態。
+
+---
 ## 2026-10-03 schema50 持久檔案證據全回歸已驗
 
 已發布基線 c7dda1dc96ec7077075dfd45c43699ef534c7234，沿用 feat/jelee-ignore-family-worker／OPEN PR46。本批候選schema50新增不可變plan／ready，固定journal token外鍵、entry basename、48-byte canonical身分、真實工作／owner／generation／租約／取消／活躍admin守衛；首次與no-op重試均deferred重核提交時權限。保留證據拒50→49降版，空降升保持metrics epoch。001–049共98份已發布SQL內容保持。
