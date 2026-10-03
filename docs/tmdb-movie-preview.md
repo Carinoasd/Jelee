@@ -33,3 +33,7 @@ ID 必須是正整數 int32 的標準十進位字串。language 只接受 zh-CN�
 ## 後續語言行為
 
 目前省略 language 時採已認證使用者偏好，缺失簡介與空候選頁已加入四語回退；完整規則與尚缺範圍見 [語言回退](tmdb-language-fallback.md)。以上原階段驗收記錄保留其當時範圍。
+
+## 2026-10-04 更新：並行 miss 合併
+
+本文件先前所寫的「沒有合併並行 miss」與「不建立新 goroutine」已不再成立。`internal/adapter/metadata/flight.go` 的 `flightGroup` 讓同一快取 key 的並行 miss 只發一次上游請求，期間每個進行中的 key 有一個最多存活 15 秒的 goroutine。共享請求只帶 15 秒總預算，不繼承個別呼叫者的期限，所以期限較短的呼叫者會在自己的期限到時收到 `DeadlineExceeded`，請求則繼續替其他等待者跑完。只有在請求成功、且仍有未取消的等待者時才寫入快取；錯誤一律不快取。
