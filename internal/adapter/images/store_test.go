@@ -573,11 +573,19 @@ func TestStoreRejectsUnsafeRoots(t *testing.T) {
 		"public small originals": fixture.options(1<<20, 16<<20, 1024),
 		"public small variants":  fixture.options(64<<20, 1<<20, 1024),
 		"public small index":     fixture.options(64<<20, 16<<20, 16),
-		"public no media":        {Root: fixture.root, OriginalBytes: 64 << 20, VariantBytes: 16 << 20, MaxEntries: 1024},
 	} {
 		if _, err := OpenStore(context.Background(), options); !errors.Is(err, domain.ErrInvalid) {
 			t.Fatal("public bounds", name, err)
 		}
+	}
+	// A fresh installation has no library roots yet; later roots are checked
+	// with CheckMediaRoot on every request that reads them.
+	empty, err := OpenStore(context.Background(), StoreOptions{Root: fixture.root, OriginalBytes: 64 << 20, VariantBytes: 16 << 20, MaxEntries: 1024})
+	if err != nil || empty.CheckMediaRoot(fixture.base) == nil {
+		t.Fatal("store without media roots", err)
+	}
+	if err := empty.Close(context.Background()); err != nil {
+		t.Fatal(err)
 	}
 	store, err := OpenStore(context.Background(), fixture.options(64<<20, 16<<20, 1024))
 	if err != nil {

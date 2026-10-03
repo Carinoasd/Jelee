@@ -512,3 +512,99 @@ func TestItemImageMigrationRoundTrip(t *testing.T) {
 	}
 	itemImageUpsert(t, f, itemImageLocal(f, item, "poster.jpg"))
 }
+
+func TestItemImageResolveSourcesOrderAndAccess(t *testing.T) {
+	f, item := itemImageFixture(t)
+	if _, err := f.s.ResolveItemImageSources(f.ctx, f.a, item, "Primary", 0); err != domain.ErrNotFound {
+		t.Fatal("slot without rows", err)
+	}
+	embedded := itemImageLocal(f, item, "Film.mkv")
+	embedded.SourceKind, embedded.SourceModifiedUnixNano, embedded.SourceSize = domain.ImageSourceEmbedded, nil, nil
+	embedded.Content = itemImageContent("embedded")
+	remote := itemImageRemote(item, domain.ImageSourceRemote, "https://image.example/poster.jpg")
+	nfoURL := itemImageRemote(item, domain.ImageSourceNFO, "https://image.example/nfo.jpg")
+	for _, in := range []domain.ItemImageInput{embedded, remote, nfoURL, itemImageLocal(f, item, "poster.jpg")} {
+		itemImageUpsert(t, f, in)
+	}
+	kinds := func(want ...string) {
+		t.Helper()
+		rows, err := f.s.ResolveItemImageSources(f.ctx, f.a, item, "Primary", 0)
+		if err != nil || len(rows) != len(want) {
+			t.Fatalf("resolve sources: %d rows, %v", len(rows), err)
+		}
+		for i, row := range rows {
+			if row.SourceKind != want[i] || row.ItemID != item || row.Type != "Primary" {
+				t.Fatalf("source %d=%s want %s", i, row.SourceKind, want[i])
+			}
+		}
+	}
+	// URL references without fetched content never take part.
+	kinds(domain.ImageSourceLocal, domain.ImageSourceEmbedded)
+	remote.Content = itemImageContent("remote")
+	itemImageUpsert(t, f, remote)
+	nfoURL.Content = itemImageContent("nfo")
+	itemImageUpsert(t, f, nfoURL)
+	kinds(domain.ImageSourceLocal, domain.ImageSourceNFO, domain.ImageSourceRemote, domain.ImageSourceEmbedded)
+	if _, err := f.s.SetItemImageLock(f.ctx, f.a, item, "Primary", 0, domain.ImageSourceRemote, true); err != nil {
+		t.Fatal(err)
+	}
+	kinds(domain.ImageSourceRemote, domain.ImageSourceLocal, domain.ImageSourceNFO, domain.ImageSourceEmbedded)
+	rows, _ := f.s.ResolveItemImageSources(f.ctx, f.a, item, "Primary", 0)
+	if rows[1].RootPath == "" || rows[1].RelativePath != "movie/poster.jpg" || !rows[0].Locked {
+		t.Fatal("resolved row lacks its binding")
+	}
+	backdrop := itemImageLocal(f, item, "fanart7.jpg")
+	backdrop.Type, backdrop.Index = "Backdrop", 7
+	itemImageUpsert(t, f, backdrop)
+	if rows, err := f.s.ResolveItemImageSources(f.ctx, f.a, item, "Backdrop", 7); err != nil || len(rows) != 1 || rows[0].Index != 7 {
+		t.Fatal("gallery slot", err)
+	}
+	for _, slot := range []struct {
+		imageType string
+		index     int
+	}{{"Backdrop", 6}, {"Logo", 0}, {"Primary", 1}, {"Poster", 0}} {
+		if _, err := f.s.ResolveItemImageSources(f.ctx, f.a, item, slot.imageType, slot.index); err != domain.ErrNotFound {
+			t.Fatal("unexpected slot resolved", slot, err)
+		}
+	}
+	// A reader sees nothing without a grant, everything with it, and nothing
+	// again after revocation or session end.
+	reader := imageRepositoryActor(t, f, "item-image-sources", access.ClientWeb)
+	if rows, err := f.s.ResolveItemImageSources(f.ctx, reader, item, "Primary", 0); rows != nil || err != domain.ErrNotFound {
+		t.Fatal("ungranted reader resolved sources")
+	}
+	imageRepositoryExec(t, f, `INSERT INTO library_acl(user_id,library_id) VALUES($1::uuid,$2::uuid)`, reader.UserID, f.registration.Library.ID)
+	if rows, err := f.s.ResolveItemImageSources(f.ctx, reader, item, "Primary", 0); err != nil || len(rows) != 4 {
+		t.Fatal("granted reader", err)
+	}
+	imageRepositoryExec(t, f, `DELETE FROM library_acl WHERE user_id=$1::uuid`, reader.UserID)
+	if _, err := f.s.ResolveItemImageSources(f.ctx, reader, item, "Primary", 0); err != domain.ErrNotFound {
+		t.Fatal("revoked reader resolved sources", err)
+	}
+	imageRepositoryExec(t, f, `INSERT INTO library_acl(user_id,library_id) VALUES($1::uuid,$2::uuid)`, reader.UserID, f.registration.Library.ID)
+	imageRepositoryExec(t, f, `UPDATE sessions SET revoked_at=clock_timestamp() WHERE id=$1::uuid`, reader.SessionID)
+	if _, err := f.s.ResolveItemImageSources(f.ctx, reader, item, "Primary", 0); err != domain.ErrNotFound {
+		t.Fatal("revoked session resolved sources", err)
+	}
+}
+
+func TestItemImageListLibraryRootPaths(t *testing.T) {
+	f, _ := itemImageFixture(t)
+	var want string
+	if err := f.s.Pool.QueryRow(f.ctx, `SELECT path FROM library_roots WHERE id=$1::uuid`, f.registration.RootID).Scan(&want); err != nil {
+		t.Fatal(err)
+	}
+	roots, err := f.s.ListLibraryRootPaths(f.ctx, 1024)
+	if err != nil || len(roots) != 1 || roots[0] != want {
+		t.Fatal("library roots", roots, err)
+	}
+	if _, err := f.s.RegisterLibrary(f.ctx, "second", t.TempDir()); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.s.ListLibraryRootPaths(f.ctx, 1); err != domain.ErrInvalid {
+		t.Fatal("truncated root list returned", err)
+	}
+	if _, err := f.s.ListLibraryRootPaths(f.ctx, 0); err != domain.ErrInvalid {
+		t.Fatal("zero limit accepted", err)
+	}
+}

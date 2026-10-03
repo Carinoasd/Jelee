@@ -58,3 +58,35 @@ func (s *Store) ResolveImageSource(parent context.Context, actor domain.Actor, i
 	}
 	return value, nil
 }
+
+// ListLibraryRootPaths returns every library root path, for the startup check
+// that keeps the image store outside media. It takes no actor: it runs before
+// any session exists and returns operator configuration only. More than
+// limit roots is ErrInvalid rather than a partial list.
+func (s *Store) ListLibraryRootPaths(parent context.Context, limit int) ([]string, error) {
+	if parent == nil || limit < 1 || limit > 4096 {
+		return nil, domain.ErrInvalid
+	}
+	ctx, cancel := context.WithTimeout(parent, 5*time.Second)
+	defer cancel()
+	rows, err := s.Pool.Query(ctx, `SELECT path FROM library_roots ORDER BY path LIMIT $1`, limit+1)
+	if err != nil {
+		return nil, storageError(err)
+	}
+	defer rows.Close()
+	result := make([]string, 0, min(limit, 64))
+	for rows.Next() {
+		var path string
+		if err := rows.Scan(&path); err != nil {
+			return nil, storageError(err)
+		}
+		result = append(result, path)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, storageError(err)
+	}
+	if len(result) > limit {
+		return nil, domain.ErrInvalid
+	}
+	return result, nil
+}

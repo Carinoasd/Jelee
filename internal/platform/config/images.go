@@ -23,8 +23,9 @@ type ImagesConfig struct {
 	TimeoutSeconds     int    `json:"timeoutSeconds"`
 	CacheTTLSeconds    int    `json:"cacheTTLSeconds"`
 	DefaultQuality     int    `json:"defaultQuality"`
-	// The persistent original/variant store is optional until it is wired
-	// into the request path. Byte limits and the index bound are per class.
+	// The persistent original/variant store is used only when StoreRoot is
+	// set; otherwise rendered images live in the memory cache alone. Byte
+	// limits and the index bound are per class.
 	StoreRoot          string `json:"storeRoot"`
 	StoreOriginalBytes int64  `json:"storeOriginalBytes"`
 	StoreVariantBytes  int64  `json:"storeVariantBytes"`

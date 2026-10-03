@@ -148,6 +148,9 @@ func ValidItemImageRelativePath(value string) bool {
 	return true
 }
 
+// ValidItemImageFileName reports whether a name has a G40.2 image extension.
+func ValidItemImageFileName(value string) bool { return validItemImageFileName(value) }
+
 func validItemImageFileName(value string) bool {
 	lower := strings.ToLower(value)
 	for _, extension := range itemImageExtensions {

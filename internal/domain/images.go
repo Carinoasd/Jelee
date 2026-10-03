@@ -21,19 +21,25 @@ func (LocalImageSource) GoString() string { return "local image source (redacted
 type ImageRequest struct {
 	Type, Format           string
 	Width, Height, Quality int
+	// Index selects a gallery slot; only Backdrop and Chapter use non-zero.
+	Index int
 }
 
 // NormalizeImageRequest leaves quality zero for the configured default. A
 // zero dimension means unconstrained in that direction, subject to the
-// processor's output and memory limits. Images are never enlarged.
+// processor's output and memory limits. Images are never enlarged. Every
+// G40.1 type is accepted; Fanart is an alias of Backdrop. Output stays JPEG.
 func NormalizeImageRequest(value ImageRequest) (ImageRequest, error) {
 	if value.Type == "" {
 		value.Type = "Primary"
 	}
+	if value.Type == "Fanart" {
+		value.Type = "Backdrop"
+	}
 	if value.Format == "" {
 		value.Format = "jpeg"
 	}
-	if value.Type != "Primary" || value.Format != "jpeg" || value.Width < 0 || value.Width > 2048 || value.Height < 0 || value.Height > 2048 || value.Quality < 0 || value.Quality > 100 {
+	if !ValidItemImageSlot(value.Type, value.Index) || value.Format != "jpeg" || value.Width < 0 || value.Width > 2048 || value.Height < 0 || value.Height > 2048 || value.Quality < 0 || value.Quality > 100 {
 		return ImageRequest{}, ErrInvalid
 	}
 	if value.Width == 0 && value.Height == 0 {

@@ -58,7 +58,7 @@ func newWithLifetime(cfg config.Config, logger *slog.Logger, lifetime *lifetime)
 			return store, nil
 		},
 		func(store *postgres.Store) *app.Catalog { return app.NewCatalog(store) },
-		func(c config.Config, budget *resources.Budget) (*imageadapter.Processor, error) {
+		func(c config.Config, store *postgres.Store, budget *resources.Budget) (*imageadapter.Processor, error) {
 			if !c.EnableImages {
 				return nil, nil
 			}
@@ -66,7 +66,7 @@ func newWithLifetime(cfg config.Config, logger *slog.Logger, lifetime *lifetime)
 				return nil, err
 			}
 			p := c.Images
-			processor, err := imageadapter.New(lifetime.ctx, imageadapter.Options{
+			options := imageadapter.Options{
 				Budget:   budget,
 				TempRoot: p.TempRoot, MaxConcurrent: p.MaxConcurrent,
 				MaxImageBytes: p.MaxImageBytes, MaxSourceBytes: p.MaxSourceBytes,
@@ -74,11 +74,32 @@ func newWithLifetime(cfg config.Config, logger *slog.Logger, lifetime *lifetime)
 				CacheBytes: p.CacheBytes, CacheEntries: p.CacheEntries,
 				Timeout:  time.Duration(p.TimeoutSeconds) * time.Second,
 				CacheTTL: time.Duration(p.CacheTTLSeconds) * time.Second, DefaultQuality: p.DefaultQuality,
-			})
+			}
+			pictures, err := openImageStore(lifetime.ctx, p, store)
 			if err != nil {
 				return nil, err
 			}
-			lifetime.closeImages = processor.Shutdown
+			if pictures != nil {
+				options.Store, options.Index = pictures, store
+			}
+			processor, err := imageadapter.New(lifetime.ctx, options)
+			if err != nil {
+				if pictures != nil {
+					_ = pictures.Close(context.Background())
+				}
+				return nil, err
+			}
+			// The store closes after the processor: held responses and the
+			// eviction pass may still use it until Shutdown returns.
+			lifetime.closeImages = func(ctx context.Context) error {
+				if err := processor.Shutdown(ctx); err != nil {
+					return err
+				}
+				if pictures != nil {
+					return pictures.Close(ctx)
+				}
+				return nil
+			}
 			lifetime.imageStats = processor.Stats
 			return processor, nil
 		},
@@ -86,7 +107,11 @@ func newWithLifetime(cfg config.Config, logger *slog.Logger, lifetime *lifetime)
 			if !c.EnableImages {
 				return nil, nil
 			}
-			return app.NewImages(store, processor)
+			images, err := app.NewImages(store, processor)
+			if err != nil {
+				return nil, err
+			}
+			return images.WithAssets(store, processor)
 		},
 		func(c config.Config, store *postgres.Store, budget *resources.Budget) (*telemetry.Metrics, error) {
 			if !c.EnableMetrics {
@@ -409,4 +434,25 @@ func (l *lifetime) NotifyJobCancellation(id string) {
 	if notifier, ok := l.worker.(app.JobCancellationNotifier); ok {
 		notifier.NotifyJobCancellation(id)
 	}
+}
+
+// openImageStore opens the persistent original/variant store only when a
+// root is configured. Library roots known at startup are checked for overlap
+// here; roots added later are checked on every request that reads them.
+func openImageStore(lifetime context.Context, c config.ImagesConfig, catalog *postgres.Store) (*imageadapter.Store, error) {
+	if c.StoreRoot == "" {
+		return nil, nil
+	}
+	ctx, cancel := context.WithTimeout(lifetime, 30*time.Second)
+	defer cancel()
+	roots, err := catalog.ListLibraryRootPaths(ctx, 1024)
+	if err != nil {
+		return nil, errors.New("cannot list library roots for the image store")
+	}
+	store, err := imageadapter.OpenStore(ctx, imageadapter.StoreOptions{Root: c.StoreRoot, MediaRoots: roots,
+		OriginalBytes: c.StoreOriginalBytes, VariantBytes: c.StoreVariantBytes, MaxEntries: c.StoreEntries})
+	if err != nil {
+		return nil, errors.New("cannot open image store")
+	}
+	return store, nil
 }

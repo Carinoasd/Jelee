@@ -13,11 +13,21 @@ type ImageSourceRepository interface {
 	ResolveImageSource(context.Context, domain.Actor, string) (domain.LocalImageSource, error)
 }
 
+// ItemImageResolver is the read side used by image requests.
+type ItemImageResolver interface {
+	// ResolveItemImageSources returns the usable rows of one slot in G40.10
+	// order: the locked row first, then local, NFO, remote and embedded. A
+	// URL reference without fetched content is never usable. A missing or
+	// invisible item, and a visible item without usable rows, are ErrNotFound.
+	ResolveItemImageSources(ctx context.Context, actor domain.Actor, item, imageType string, index int) ([]domain.ItemImage, error)
+}
+
 // ItemImageRepository stores G40 image references. Reads recheck the live
 // session and library grant in the same statement; an invisible item is
 // ErrNotFound. Writes require a live administrator and audit manual
 // replacement, lock changes and deletion. No method touches files.
 type ItemImageRepository interface {
+	ItemImageResolver
 	// UpsertItemImage merges one observation into its (item, type, index,
 	// source kind) row. A locked row is returned unchanged with Skipped set
 	// unless the input is manual.
@@ -49,8 +59,18 @@ type ImageResult struct {
 	ContentType, ETag string
 	Size              int64
 	Width, Height     int
+	// ContentSHA256 is the digest of the original bytes the representation
+	// was derived from; zero when unknown. It is the immutable image tag.
+	ContentSHA256 [32]byte
 }
 
 type ImageRenderer interface {
 	Render(context.Context, domain.LocalImageSource, domain.ImageRequest) (ImageResult, error)
+}
+
+// ItemImageRenderer renders one authorized item_images row. It never fetches
+// a remote URL: a row whose bytes are neither a readable library file nor
+// held by the persistent store is ErrNotFound, so the caller can fall back.
+type ItemImageRenderer interface {
+	RenderItemImage(context.Context, domain.ItemImage, domain.ImageRequest) (ImageResult, error)
 }

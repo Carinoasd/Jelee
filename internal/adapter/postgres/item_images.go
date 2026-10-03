@@ -176,6 +176,48 @@ func (s *Store) ResolveItemImage(parent context.Context, actor domain.Actor, ite
 	return value, nil
 }
 
+// ResolveItemImageSources lists every usable source of one slot in
+// selection order, so a caller can fall back when the best one cannot be
+// read. A slot holds at most one row per source kind.
+func (s *Store) ResolveItemImageSources(parent context.Context, actor domain.Actor, item, imageType string, index int) ([]domain.ItemImage, error) {
+	if !domain.ValidItemImageSlot(imageType, index) {
+		return nil, domain.ErrNotFound
+	}
+	ctx, cancel, err := readerContext(parent, actor, item)
+	if err != nil {
+		return nil, err
+	}
+	defer cancel()
+	rows, err := s.Pool.Query(ctx, `SELECT `+itemImageColumns+` `+itemImageVisibleItem+`
+ JOIN item_images g ON g.item_id=i.id AND g.library_id=i.library_id AND g.image_type=$4 AND g.image_index=$5
+  AND (g.root_id IS NOT NULL OR g.content_sha256 IS NOT NULL)
+ LEFT JOIN library_roots r ON r.id=g.root_id AND r.library_id=g.library_id
+ WHERE `+itemImageVisibleWhere+`
+ ORDER BY `+itemImagePriority+` LIMIT 4`, actor.UserID, actor.SessionID, item, imageType, index)
+	if err != nil {
+		return nil, storageError(err)
+	}
+	defer rows.Close()
+	result := make([]domain.ItemImage, 0, 4)
+	for rows.Next() {
+		value, err := scanItemImage(rows)
+		if err != nil {
+			return nil, storageError(err)
+		}
+		result = append(result, value)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, storageError(err)
+	}
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	if len(result) == 0 {
+		return nil, domain.ErrNotFound
+	}
+	return result, nil
+}
+
 func readItemImageSlot(ctx context.Context, tx pgx.Tx, item, imageType string, index int, kind string, lock bool) (domain.ItemImage, error) {
 	query := `SELECT ` + itemImageColumns + ` FROM item_images g LEFT JOIN library_roots r ON r.id=g.root_id AND r.library_id=g.library_id
  WHERE g.item_id=$1::uuid AND g.image_type=$2 AND g.image_index=$3 AND g.source_kind=$4`

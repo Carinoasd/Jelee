@@ -38,15 +38,17 @@ type imageObservation struct {
 // stagedImage owns a private file, independent of later changes to the original.
 // It is not safe to read while closing; the processor owns that sequencing.
 type stagedImage struct {
-	ctx        context.Context
-	source     domain.LocalImageSource
-	observed   imageObservation
-	temp       *os.Root
-	file       *os.File
-	name       string
-	size       int64
-	content    [32]byte
-	key        [32]byte
+	ctx      context.Context
+	source   domain.LocalImageSource
+	observed imageObservation
+	temp     *os.Root
+	file     *os.File
+	name     string
+	size     int64
+	content  [32]byte
+	key      [32]byte
+	// asset is set for an item_images file; source and observed are unused.
+	asset      *assetBinding
 	closeOnce  sync.Once
 	closeError error
 }
@@ -97,42 +99,8 @@ func stageLocalPrimary(ctx context.Context, source domain.LocalImageSource, temp
 	if err != nil || !sameImageFile(observed.image, info) {
 		return nil, imageSourceError(ctx, err)
 	}
-	// The owner-tagged name lets a later startup sweep remove crash leftovers.
-	name, err := scratch.ImageStage.NewName()
-	if err != nil {
-		return nil, domain.ErrImageUnavailable
-	}
-	staged.name = name
-	writer, err := temp.OpenFile(staged.name, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0600)
-	if err != nil {
-		staged.name = "" // An existing file is never owned by this invocation.
-		return nil, domain.ErrImageUnavailable
-	}
-	writtenInfo, statErr := writer.Stat()
-	if statErr != nil || privateImageObject(writer, false) != nil {
-		_ = writer.Close()
-		return nil, domain.ErrImageUnavailable
-	}
-	digest := sha256.New()
-	count, copyErr := copyImageBytes(ctx, io.MultiWriter(writer, digest), input.Stdin(), maxSourceBytes)
-	closeErr := writer.Close()
-	if ctx.Err() != nil {
-		return nil, ctx.Err()
-	}
-	if copyErr != nil {
-		return nil, copyErr
-	}
-	if closeErr != nil || count != staged.size {
-		return nil, domain.ErrImageUnavailable
-	}
-	copy(staged.content[:], digest.Sum(nil))
-	staged.file, err = temp.Open(staged.name)
-	if err != nil {
-		return nil, domain.ErrImageUnavailable
-	}
-	openedInfo, statErr := staged.file.Stat()
-	if statErr != nil || !os.SameFile(writtenInfo, openedInfo) || privateImageObject(staged.file, false) != nil {
-		return nil, domain.ErrImageUnavailable
+	if err := staged.copyFrom(ctx, input.Stdin(), maxSourceBytes); err != nil {
+		return nil, err
 	}
 	// This also hashes the current source again. A writer that restores mtime
 	// cannot silently change bytes while the original is being staged.
@@ -152,6 +120,49 @@ func stageLocalPrimary(ctx context.Context, source domain.LocalImageSource, temp
 	return staged, nil
 }
 
+// copyFrom streams the opened original into a new owner-tagged private file
+// and records its digest. The temp root must already be held.
+func (s *stagedImage) copyFrom(ctx context.Context, input *os.File, maxSourceBytes int64) error {
+	// The owner-tagged name lets a later startup sweep remove crash leftovers.
+	name, err := scratch.ImageStage.NewName()
+	if err != nil {
+		return domain.ErrImageUnavailable
+	}
+	s.name = name
+	writer, err := s.temp.OpenFile(s.name, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0600)
+	if err != nil {
+		s.name = "" // An existing file is never owned by this invocation.
+		return domain.ErrImageUnavailable
+	}
+	writtenInfo, statErr := writer.Stat()
+	if statErr != nil || privateImageObject(writer, false) != nil {
+		_ = writer.Close()
+		return domain.ErrImageUnavailable
+	}
+	digest := sha256.New()
+	count, copyErr := copyImageBytes(ctx, io.MultiWriter(writer, digest), input, maxSourceBytes)
+	closeErr := writer.Close()
+	if ctx.Err() != nil {
+		return ctx.Err()
+	}
+	if copyErr != nil {
+		return copyErr
+	}
+	if closeErr != nil || count != s.size {
+		return domain.ErrImageUnavailable
+	}
+	copy(s.content[:], digest.Sum(nil))
+	s.file, err = s.temp.Open(s.name)
+	if err != nil {
+		return domain.ErrImageUnavailable
+	}
+	openedInfo, statErr := s.file.Stat()
+	if statErr != nil || !os.SameFile(writtenInfo, openedInfo) || privateImageObject(s.file, false) != nil {
+		return domain.ErrImageUnavailable
+	}
+	return nil
+}
+
 func (s *stagedImage) Reader() io.ReadSeeker { return imageContextFile{s.ctx, s.file} }
 func (s *stagedImage) Size() int64           { return s.size }
 func (s *stagedImage) Key() [32]byte         { return s.key }
@@ -160,6 +171,9 @@ func (s *stagedImage) Verify(ctx context.Context) error {
 	if ctx == nil || s == nil || s.file == nil {
 		return domain.ErrInvalid
 	}
+	if s.asset != nil {
+		return s.verifyAsset(ctx)
+	}
 	current, err := observeImageSource(ctx, s.source)
 	if err != nil {
 		return imageSourceError(ctx, err)
@@ -167,15 +181,28 @@ func (s *stagedImage) Verify(ctx context.Context) error {
 	if !sameImageObservation(s.observed, current) {
 		return domain.ErrImageUnavailable
 	}
-	input, err := probe.Open(ctx, domain.ProbeSource{RootPath: s.source.RootPath, RelativePath: current.selected})
+	if err := rehashImageFile(ctx, s.source.RootPath, current.selected, s.observed.image, s.size, s.content); err != nil {
+		return err
+	}
+	last, err := observeImageSource(ctx, s.source)
+	if err != nil || !sameImageObservation(s.observed, last) {
+		return imageSourceError(ctx, err)
+	}
+	return ctx.Err()
+}
+
+// rehashImageFile reopens one original and requires the same file identity,
+// size, time and complete content digest as when it was staged.
+func rehashImageFile(ctx context.Context, rootPath, relative string, observed os.FileInfo, size int64, content [32]byte) error {
+	input, err := probe.Open(ctx, domain.ProbeSource{RootPath: rootPath, RelativePath: relative})
 	if err != nil {
 		return imageSourceError(ctx, err)
 	}
 	before, statErr := input.Stdin().Stat()
 	digest := sha256.New()
 	var count int64
-	if statErr == nil && sameImageFile(s.observed.image, before) {
-		count, err = copyImageBytes(ctx, digest, input.Stdin(), s.size)
+	if statErr == nil && sameImageFile(observed, before) {
+		count, err = copyImageBytes(ctx, digest, input.Stdin(), size)
 	} else {
 		err = domain.ErrImageUnavailable
 	}
@@ -186,14 +213,10 @@ func (s *stagedImage) Verify(ctx context.Context) error {
 	}
 	var got [32]byte
 	copy(got[:], digest.Sum(nil))
-	if err != nil || afterErr != nil || closeErr != nil || count != s.size || got != s.content || !sameImageFile(before, after) {
+	if err != nil || afterErr != nil || closeErr != nil || count != size || got != content || !sameImageFile(before, after) {
 		return domain.ErrImageUnavailable
 	}
-	last, err := observeImageSource(ctx, s.source)
-	if err != nil || !sameImageObservation(s.observed, last) {
-		return imageSourceError(ctx, err)
-	}
-	return ctx.Err()
+	return nil
 }
 
 func (s *stagedImage) Close() error {

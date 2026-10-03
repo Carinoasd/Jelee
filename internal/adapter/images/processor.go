@@ -17,6 +17,7 @@ import (
 	"path/filepath"
 	"runtime/debug"
 	"runtime/metrics"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -42,6 +43,11 @@ type Options struct {
 	DefaultQuality     int
 	Timeout            time.Duration
 	CacheTTL           time.Duration
+	// Store optionally persists originals and variants (G40.5). Index mirrors
+	// variants in the database and drives their eviction; it needs Store. The
+	// processor never closes either; their owner does after Shutdown.
+	Store *Store
+	Index app.ImageVariantIndex
 }
 
 func validOptions(o Options) bool {
@@ -54,7 +60,8 @@ func validOptions(o Options) bool {
 		o.MaxOutputDimension >= 16 && o.MaxOutputDimension <= 2048 && o.CacheBytes >= o.MaxOutputBytes && o.CacheBytes <= 256<<20 &&
 		o.CacheEntries >= 1 && o.CacheEntries <= 4096 && o.Timeout >= time.Second && o.Timeout <= 120*time.Second &&
 		o.CacheTTL >= time.Second && o.CacheTTL <= 86400*time.Second && o.DefaultQuality >= 1 && o.DefaultQuality <= 100 &&
-		o.MaxOutputBytes < o.MaxImageBytes && int64(o.MaxConcurrent)*o.MaxImageBytes+o.CacheBytes <= 1<<30
+		o.MaxOutputBytes < o.MaxImageBytes && int64(o.MaxConcurrent)*o.MaxImageBytes+o.CacheBytes <= 1<<30 &&
+		(o.Index == nil || o.Store != nil)
 }
 
 // Stats contains aggregate counts only; source identifiers and paths never
@@ -66,6 +73,9 @@ type Stats struct {
 	CacheEntries                                  int
 	CacheBytes                                    int64
 	CacheEvictions                                uint64
+	// Persistent store: variant hits, failed store or index writes (requests
+	// still succeed) and variants removed through the index.
+	VariantHits, StoreFailures, IndexFailures, IndexEvictions uint64
 }
 
 type Processor struct {
@@ -85,6 +95,13 @@ type Processor struct {
 	hits        atomic.Uint64
 	misses      atomic.Uint64
 	decodes     atomic.Uint64
+	variantHits atomic.Uint64
+	// Store or index writes that failed; the request itself still succeeded.
+	storeFailures  atomic.Uint64
+	indexFailures  atomic.Uint64
+	indexEvictions atomic.Uint64
+	evictWake      chan struct{}
+	evictDone      chan struct{}
 	// A private seam lets lifecycle tests stop inside a synchronous decode.
 	// Production always uses the pinned decoders in decodeImage.
 	decode  func(context.Context, io.ReadSeeker, inspectedImage) (image.Image, error)
@@ -100,10 +117,17 @@ func New(lifetime context.Context, options Options) (*Processor, error) {
 	}
 	options.TempRoot = filepath.Clean(options.TempRoot)
 	lifetime, cancel := context.WithCancel(lifetime)
-	return &Processor{options: options, lifetime: lifetime, cancel: cancel,
+	p := &Processor{options: options, lifetime: lifetime, cancel: cancel,
 		cache: newImageCache(options.CacheBytes, options.CacheEntries, options.CacheTTL),
-		done:  make(chan struct{}), decode: decodeImage,
-		reclaim: func() { reclaimImageMemory(int64(options.MaxConcurrent)*options.MaxImageBytes + options.CacheBytes) }}, nil
+		done:  make(chan struct{}), decode: decodeImage, evictDone: make(chan struct{}),
+		reclaim: func() { reclaimImageMemory(int64(options.MaxConcurrent)*options.MaxImageBytes + options.CacheBytes) }}
+	if options.Index != nil {
+		p.evictWake = make(chan struct{}, 1)
+		go p.evictLoop()
+	} else {
+		close(p.evictDone)
+	}
+	return p, nil
 }
 
 func (p *Processor) admit() error {
@@ -144,12 +168,15 @@ func (p *Processor) Shutdown(ctx context.Context) error {
 	}
 	p.mu.Unlock()
 	p.cache.shutdown()
-	select {
-	case <-p.done:
-		return nil
-	case <-ctx.Done():
-		return ctx.Err()
+	// Eviction uses the database index; it must stop before the pool closes.
+	for _, done := range []chan struct{}{p.done, p.evictDone} {
+		select {
+		case <-done:
+		case <-ctx.Done():
+			return ctx.Err()
+		}
 	}
+	return nil
 }
 
 func (p *Processor) Stats() Stats {
@@ -162,6 +189,8 @@ func (p *Processor) Stats() Stats {
 	result.Admitted, result.Completed, result.Failed, result.Busy = p.admitted.Load(), p.completed.Load(), p.failed.Load(), p.busy.Load()
 	result.CacheHits, result.CacheMisses, result.Decodes = p.hits.Load(), p.misses.Load(), p.decodes.Load()
 	result.CacheEntries, result.CacheBytes, result.CacheEvictions = p.cache.stats()
+	result.VariantHits, result.StoreFailures = p.variantHits.Load(), p.storeFailures.Load()
+	result.IndexFailures, result.IndexEvictions = p.indexFailures.Load(), p.indexEvictions.Load()
 	return result
 }
 
@@ -173,9 +202,157 @@ func (p *Processor) Render(ctx context.Context, source domain.LocalImageSource, 
 		return result, err
 	}
 	request, err = domain.NormalizeImageRequest(request)
-	if err != nil {
+	if err != nil || request.Type != "Primary" || request.Index != 0 {
+		return result, domain.ErrInvalid
+	}
+	return p.render(ctx, request, source.RootPath, func(operation context.Context, limit int64) (renderSource, error) {
+		staged, err := stageLocalPrimary(operation, source, p.options.TempRoot, limit)
+		if err != nil {
+			return nil, err
+		}
+		return staged, nil
+	})
+}
+
+// RenderItemImage renders one authorized item_images row. Local and NFO file
+// rows are read from the library like the Primary poster. Rows that name no
+// image file (remote, embedded) are served only from bytes already in the
+// persistent store; nothing is fetched or extracted on the request path, and
+// a row without stored bytes is ErrNotFound so the caller can fall back.
+func (p *Processor) RenderItemImage(ctx context.Context, value domain.ItemImage, request domain.ImageRequest) (result app.ImageResult, err error) {
+	if p == nil || ctx == nil {
+		return result, domain.ErrInvalid
+	}
+	if err := ctx.Err(); err != nil {
 		return result, err
 	}
+	request, err = domain.NormalizeImageRequest(request)
+	if err != nil || request.Type != value.Type || request.Index != value.Index {
+		return result, domain.ErrInvalid
+	}
+	if itemImageFile(value) {
+		if !validItemImageFile(value) {
+			return result, domain.ErrNotFound
+		}
+		return p.render(ctx, request, value.RootPath, func(operation context.Context, limit int64) (renderSource, error) {
+			staged, err := stageItemImage(operation, value, p.options.TempRoot, limit)
+			if err != nil {
+				return nil, err
+			}
+			return staged, nil
+		})
+	}
+	if p.options.Store == nil || value.Content == nil || len(value.Content.SHA256) != sha256.Size {
+		return result, domain.ErrNotFound
+	}
+	var digest [32]byte
+	copy(digest[:], value.Content.SHA256)
+	return p.render(ctx, request, "", func(context.Context, int64) (renderSource, error) {
+		return &storedOriginal{store: p.options.Store, digest: digest}, nil
+	})
+}
+
+// renderSource is one original prepared for rendering. Key identifies the
+// in-memory cache entry, Content is the digest of the original bytes and
+// names the store bucket. Open is called only on a cache miss.
+type renderSource interface {
+	Key() [32]byte
+	Content() [32]byte
+	Open(ctx context.Context, limit int64) (io.ReadSeeker, int64, error)
+	// Verify binds the decoded bytes to the current source before delivery.
+	Verify(context.Context) error
+	// Persist stores the original in the persistent store if it is not there.
+	Persist(context.Context, *Store) error
+	Close() error
+}
+
+func (s *stagedImage) Content() [32]byte { return s.content }
+
+func (s *stagedImage) Open(_ context.Context, _ int64) (io.ReadSeeker, int64, error) {
+	return s.Reader(), s.size, nil
+}
+
+func (s *stagedImage) Persist(ctx context.Context, store *Store) error {
+	if store.HasOriginal(s.content) {
+		return nil
+	}
+	reader := s.Reader()
+	if _, err := reader.Seek(0, io.SeekStart); err != nil {
+		return err
+	}
+	digest, _, err := store.PutOriginal(ctx, reader, s.size)
+	if err == nil && digest != s.content {
+		err = domain.ErrImageUnavailable
+	}
+	return err
+}
+
+// storedOriginal reads a content-addressed original from the store. The
+// digest is rechecked when the bytes are opened for decoding.
+type storedOriginal struct {
+	store  *Store
+	digest [32]byte
+	object *StoreObject
+}
+
+func (s *storedOriginal) Key() [32]byte {
+	key := sha256.New()
+	imageHashString(key, "stored-original-v1")
+	_, _ = key.Write(s.digest[:])
+	var value [32]byte
+	copy(value[:], key.Sum(nil))
+	return value
+}
+
+func (s *storedOriginal) Content() [32]byte { return s.digest }
+
+func (s *storedOriginal) Open(ctx context.Context, limit int64) (io.ReadSeeker, int64, error) {
+	if s.object == nil {
+		object, err := s.store.OpenOriginal(ctx, s.digest, true)
+		if err != nil {
+			return nil, 0, err
+		}
+		s.object = object
+	}
+	if s.object.Size() > limit {
+		return nil, 0, domain.ErrImageTooLarge
+	}
+	return storeContextReadSeeker{ctx: ctx, object: s.object}, s.object.Size(), nil
+}
+
+func (*storedOriginal) Verify(context.Context) error          { return nil }
+func (*storedOriginal) Persist(context.Context, *Store) error { return nil }
+
+func (s *storedOriginal) Close() error {
+	if s.object == nil {
+		return nil
+	}
+	return s.object.Close()
+}
+
+type storeContextReadSeeker struct {
+	ctx    context.Context
+	object *StoreObject
+}
+
+func (r storeContextReadSeeker) Read(data []byte) (int, error) {
+	if err := r.ctx.Err(); err != nil {
+		return 0, err
+	}
+	return r.object.Read(data)
+}
+
+func (r storeContextReadSeeker) Seek(offset int64, whence int) (int64, error) {
+	if err := r.ctx.Err(); err != nil {
+		return 0, err
+	}
+	return r.object.Seek(offset, whence)
+}
+
+// render runs admission, the memory cache, the optional persistent variant
+// store and the bounded decoder for one prepared source. mediaRoot is the
+// library root the source is read from, or empty for stored originals.
+func (p *Processor) render(ctx context.Context, request domain.ImageRequest, mediaRoot string, prepare func(context.Context, int64) (renderSource, error)) (result app.ImageResult, err error) {
 	if request.Quality == 0 {
 		request.Quality = p.options.DefaultQuality
 	}
@@ -199,6 +376,12 @@ func (p *Processor) Render(ctx context.Context, source domain.LocalImageSource, 
 	if stageLimit <= 0 {
 		return result, domain.ErrImageTooLarge
 	}
+	store := p.options.Store
+	// The store must never sit inside a library root or contain one; roots
+	// can be added after startup, so check the one this request reads.
+	if store != nil && mediaRoot != "" && store.CheckMediaRoot(mediaRoot) != nil {
+		return result, domain.ErrImageUnavailable
+	}
 	// Shared permits cover active processing, while the existing image memory
 	// reservation remains held until the response body closes.
 	var sharedRelease func()
@@ -212,36 +395,56 @@ func (p *Processor) Render(ctx context.Context, source domain.LocalImageSource, 
 	if err != nil {
 		return result, err
 	}
-	staged, err := stageLocalPrimary(operation, source, p.options.TempRoot, stageLimit)
+	source, err := prepare(operation, stageLimit)
 	if err != nil {
 		return result, imageError(operation, err)
 	}
 	dropShared()
-	stageClosed := false
+	sourceClosed := false
 	defer func() {
-		if !stageClosed {
-			if closeErr := staged.Close(); closeErr != nil {
+		if !sourceClosed {
+			if closeErr := source.Close(); closeErr != nil {
 				err = domain.ErrImageUnavailable
 			}
 		}
 	}()
-	key := imageCacheKey(staged.Key(), request)
+	content := source.Content()
+	variant := p.variantKey(request)
+	key := imageCacheKey(source.Key(), request)
 	value, hit := p.cache.get(key)
+	stored := false
 	if hit {
 		p.hits.Add(1)
 	} else {
 		p.misses.Add(1)
+		if store != nil {
+			sharedRelease, err = p.acquireWork(operation, app.WorkIO)
+			if err != nil {
+				return result, err
+			}
+			value, stored, err = p.readVariant(operation, store, content, variant)
+			if err != nil {
+				return result, err
+			}
+			dropShared()
+		}
+	}
+	if !hit && !stored {
 		sharedRelease, err = p.acquireWork(operation, app.WorkCPU)
 		if err != nil {
 			return result, err
 		}
-		inspected, inspectErr := inspectImage(operation, staged.Reader())
+		reader, size, openErr := source.Open(operation, stageLimit)
+		if openErr != nil {
+			return result, imageError(operation, openErr)
+		}
+		inspected, inspectErr := inspectImage(operation, reader)
 		if inspectErr != nil {
 			return result, imageError(operation, inspectErr)
 		}
 		displayWidth, displayHeight := inspected.displaySize()
 		width, height := targetSize(displayWidth, displayHeight, request, p.options.MaxOutputDimension)
-		estimate, estimateErr := estimateImageBytes(inspected, width, height, staged.Size(), p.options.MaxOutputBytes)
+		estimate, estimateErr := estimateImageBytes(inspected, width, height, size, p.options.MaxOutputBytes)
 		if estimateErr != nil || estimate > p.options.MaxImageBytes {
 			return result, domain.ErrImageTooLarge
 		}
@@ -249,7 +452,7 @@ func (p *Processor) Render(ctx context.Context, source domain.LocalImageSource, 
 		p.maxEstimate = max(p.maxEstimate, estimate)
 		p.mu.Unlock()
 		p.decodes.Add(1)
-		value, err = p.renderDecoded(operation, staged.Reader(), inspected, width, height, request.Quality)
+		value, err = p.renderDecoded(operation, reader, inspected, width, height, request.Quality)
 		// Large decoder objects are now outside the active stack frame. GC can
 		// collect them and return their pages before another request reuses this
 		// reservation. A GC alone may leave hundreds of MiB resident. Reclaim
@@ -269,16 +472,24 @@ func (p *Processor) Render(ctx context.Context, source domain.LocalImageSource, 
 	if err != nil {
 		return result, err
 	}
-	if err := staged.Verify(operation); err != nil {
+	if err := source.Verify(operation); err != nil {
 		return result, imageError(operation, err)
 	}
 	if err := operation.Err(); err != nil {
 		return result, err
 	}
-	if err := staged.Close(); err != nil {
+	if store != nil && !hit && !stored {
+		// Best effort: a failed write leaves a miss that the next request
+		// repeats; it never fails a representation that is already verified.
+		p.persist(operation, store, source, content, variant, value.data)
+		if err := operation.Err(); err != nil {
+			return result, err
+		}
+	}
+	if err := source.Close(); err != nil {
 		return result, domain.ErrImageUnavailable
 	}
-	stageClosed = true
+	sourceClosed = true
 	dropShared()
 	if !hit {
 		p.cache.put(key, value)
@@ -287,10 +498,87 @@ func (p *Processor) Render(ctx context.Context, source domain.LocalImageSource, 
 		return result, err
 	}
 	result = app.ImageResult{Body: &imageBody{ctx: operation, reader: bytes.NewReader(value.data), release: release},
-		ContentType: "image/jpeg", ETag: value.etag, Size: int64(len(value.data)), Width: value.width, Height: value.height}
+		ContentType: "image/jpeg", ETag: value.etag, Size: int64(len(value.data)), Width: value.width, Height: value.height, ContentSHA256: content}
 	p.completed.Add(1)
 	success = true
 	return result, nil
+}
+
+// variantKey binds every output parameter, including the configured output
+// bound, which changes the result for the same request. Bump the pipeline
+// version whenever decoding or encoding output changes.
+func (p *Processor) variantKey(request domain.ImageRequest) [32]byte {
+	return StoreVariantKey("fit-v1/max="+strconv.Itoa(p.options.MaxOutputDimension), "jpeg", request.Width, request.Height, request.Quality)
+}
+
+// readVariant returns a stored representation. A missing, corrupt or
+// implausible object is a miss; only cancellation is an error.
+func (p *Processor) readVariant(ctx context.Context, store *Store, content, variant [32]byte) (encodedImage, bool, error) {
+	object, err := store.OpenVariant(ctx, content, variant)
+	if err != nil {
+		if ctx.Err() != nil {
+			return encodedImage{}, false, ctx.Err()
+		}
+		if !errors.Is(err, domain.ErrNotFound) {
+			p.storeFailures.Add(1)
+		}
+		return encodedImage{}, false, nil
+	}
+	defer object.Close()
+	size := object.Size()
+	if size < 1 || size > p.options.MaxOutputBytes {
+		p.storeFailures.Add(1)
+		return encodedImage{}, false, nil
+	}
+	data := make([]byte, size)
+	if _, err := io.ReadFull(storeContextReadSeeker{ctx: ctx, object: object}, data); err != nil {
+		if ctx.Err() != nil {
+			return encodedImage{}, false, ctx.Err()
+		}
+		p.storeFailures.Add(1)
+		return encodedImage{}, false, nil
+	}
+	config, err := jpeg.DecodeConfig(bytes.NewReader(data))
+	if err != nil || config.Width < 1 || config.Height < 1 || config.Width > p.options.MaxOutputDimension || config.Height > p.options.MaxOutputDimension {
+		p.storeFailures.Add(1)
+		return encodedImage{}, false, nil
+	}
+	p.variantHits.Add(1)
+	if index := p.options.Index; index != nil {
+		// Keep the database recency in step with the store; an entry the index
+		// lost (a failed write or a rebuilt store) is added back.
+		err := index.TouchImageVariant(ctx, content, variant)
+		if errors.Is(err, domain.ErrNotFound) {
+			err = index.PutImageVariant(ctx, content, variant, size)
+		}
+		if err != nil {
+			if ctx.Err() != nil {
+				return encodedImage{}, false, ctx.Err()
+			}
+			p.indexFailures.Add(1)
+		}
+	}
+	digest := sha256.Sum256(data)
+	return encodedImage{data: data, width: config.Width, height: config.Height, etag: `"` + hex.EncodeToString(digest[:]) + `"`}, true, nil
+}
+
+// persist writes the original (once per content digest), the variant and
+// its index row, then wakes eviction. The index row follows the file, so an
+// index entry never names a variant that was not written.
+func (p *Processor) persist(ctx context.Context, store *Store, source renderSource, content, variant [32]byte, data []byte) {
+	if err := source.Persist(ctx, store); err != nil {
+		p.storeFailures.Add(1)
+	}
+	if _, err := store.PutVariant(ctx, content, variant, bytes.NewReader(data), int64(len(data))); err != nil {
+		p.storeFailures.Add(1)
+		return
+	}
+	if index := p.options.Index; index != nil {
+		if err := index.PutImageVariant(ctx, content, variant, int64(len(data))); err != nil {
+			p.indexFailures.Add(1)
+		}
+		p.wakeEviction()
+	}
 }
 
 // No decoded bitmap escapes this frame. Only the tightly sized JPEG is retained

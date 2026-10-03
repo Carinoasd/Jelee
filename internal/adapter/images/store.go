@@ -65,7 +65,9 @@ type StoreOptions struct {
 
 // Keep the public configuration and adapter bounds identical.
 func validStoreOptions(o StoreOptions) bool {
-	if !validStorePath(o.Root) || len(o.MediaRoots) < 1 || len(o.MediaRoots) > 1024 {
+	// No media roots is valid for a fresh installation; callers apply
+	// CheckMediaRoot to every root they read from later.
+	if !validStorePath(o.Root) || len(o.MediaRoots) > 1024 {
 		return false
 	}
 	for _, root := range o.MediaRoots {
@@ -410,6 +412,58 @@ func (s *Store) PutVariant(ctx context.Context, source, variant [32]byte, input 
 		return 0, err
 	}
 	return staged.payload, nil
+}
+
+// HasOriginal reports whether the index holds an original. It does not open
+// or validate the file; OpenOriginal does.
+func (s *Store) HasOriginal(digest [32]byte) bool {
+	if s == nil {
+		return false
+	}
+	_, ok := s.present(storeKey{class: storeOriginals, source: digest})
+	return ok
+}
+
+// VariantUsage reports the variant index size and its configured bounds, for
+// eviction driven by the database index before the hard limits apply.
+func (s *Store) VariantUsage() (bytes int64, entries int, limitBytes int64, maxEntries int) {
+	if s == nil {
+		return 0, 0, 0, 0
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	lru := &s.classes[storeVariants]
+	return lru.bytes, lru.order.Len(), s.limits[storeVariants], s.maxEntries
+}
+
+// RemoveVariant drops one variant from the index and deletes its file. An
+// unknown variant is not an error. Readers holding the object keep reading
+// it; writers of the same key are excluded while the file is removed.
+func (s *Store) RemoveVariant(ctx context.Context, source, variant [32]byte) error {
+	if s == nil || ctx == nil {
+		return domain.ErrInvalid
+	}
+	if err := s.enter(); err != nil {
+		return err
+	}
+	defer s.leave()
+	key := storeKey{class: storeVariants, source: source, variant: variant}
+	unlock, err := s.lockKey(ctx, key)
+	if err != nil {
+		return err
+	}
+	defer unlock()
+	s.mu.Lock()
+	if element, ok := s.classes[storeVariants].entries[key]; ok {
+		s.dropLocked(element)
+		s.evictions.Add(1)
+	}
+	s.mu.Unlock()
+	if err := s.root.Remove(key.file()); err != nil && !errors.Is(err, fs.ErrNotExist) {
+		s.removeErrors.Add(1)
+		return domain.ErrImageUnavailable
+	}
+	return nil
 }
 
 func (s *Store) present(key storeKey) (int64, bool) {
