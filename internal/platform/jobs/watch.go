@@ -18,6 +18,9 @@ type WatchDispatcher interface {
 }
 
 type WatchRunner struct {
+	window     WorkWindow
+	clock      Clock
+	now        func() time.Time
 	repository app.WatchRepository
 	observer   app.DirectoryObserver
 	dispatcher WatchDispatcher
@@ -29,6 +32,12 @@ type WatchRunner struct {
 }
 
 func NewWatchRunner(repository app.WatchRepository, observer app.DirectoryObserver, dispatcher WatchDispatcher, logger *slog.Logger) (*WatchRunner, error) {
+	return NewWatchRunnerWithWindow(repository, observer, dispatcher, logger, nil)
+}
+
+// NewWatchRunnerWithWindow keeps directory traversal inside the job window.
+// Reopened observers emit their normal initial dirty signal for missed changes.
+func NewWatchRunnerWithWindow(repository app.WatchRepository, observer app.DirectoryObserver, dispatcher WatchDispatcher, logger *slog.Logger, window WorkWindow) (*WatchRunner, error) {
 	if repository == nil || observer == nil || dispatcher == nil || logger == nil {
 		return nil, domain.ErrInvalid
 	}
@@ -40,7 +49,7 @@ func NewWatchRunner(repository app.WatchRepository, observer app.DirectoryObserv
 	id[8] = id[8]&0x3f | 0x80
 	raw := hex.EncodeToString(id[:])
 	owner := raw[:8] + "-" + raw[8:12] + "-" + raw[12:16] + "-" + raw[16:20] + "-" + raw[20:]
-	return &WatchRunner{repository: repository, observer: observer, dispatcher: dispatcher, logger: logger, owner: owner}, nil
+	return &WatchRunner{window: window, clock: realClock{}, now: time.Now, repository: repository, observer: observer, dispatcher: dispatcher, logger: logger, owner: owner}, nil
 }
 
 func (w *WatchRunner) Start(ctx context.Context) error {
@@ -102,15 +111,16 @@ func (w *WatchRunner) run(ctx context.Context) {
 			_ = w.repository.ReleaseWatch(cleanup, watch.lease, "")
 		}
 	}()
-	timer := time.NewTimer(0)
-	defer timer.Stop()
+	timer := w.clock.NewTimer(0)
+	defer func() { timer.Stop() }()
 	for {
 		select {
 		case <-ctx.Done():
 			return
-		case <-timer.C:
+		case <-timer.C():
 		}
-		now := time.Now()
+		now := w.now()
+		allowed := w.window == nil || w.window.Allows(now)
 		for library, watch := range active {
 			select {
 			case err := <-watch.done:
@@ -131,6 +141,10 @@ func (w *WatchRunner) run(ctx context.Context) {
 				delete(active, library)
 				continue
 			default:
+			}
+			if !allowed {
+				watch.cancel()
+				watch.stopping = true
 			}
 			if watch.stopping {
 				continue
@@ -160,12 +174,16 @@ func (w *WatchRunner) run(ctx context.Context) {
 				watch.dispatchAt = now.Add(5 * time.Second)
 			}
 		}
-		if len(active) < domain.MaxWatchLibraries && ctx.Err() == nil {
+		if allowed && len(active) < domain.MaxWatchLibraries && ctx.Err() == nil {
 			call, stop := context.WithTimeout(ctx, 2*time.Second)
 			lease, err := w.repository.ClaimWatch(call, w.owner, 30*time.Second)
 			stop()
 			if err == nil {
-				if previous := active[lease.LibraryID]; previous != nil {
+				if w.window != nil && !w.window.Allows(w.now()) {
+					call, stop := context.WithTimeout(ctx, 2*time.Second)
+					_ = w.repository.ReleaseWatch(call, lease, "")
+					stop()
+				} else if previous := active[lease.LibraryID]; previous != nil {
 					previous.cancel()
 					previous.stopping = true
 					call, stop := context.WithTimeout(ctx, 2*time.Second)
@@ -187,6 +205,7 @@ func (w *WatchRunner) run(ctx context.Context) {
 				w.logger.Warn("watch claim failed", "component", "jobs", "code", "watch_claim_failed")
 			}
 		}
-		timer.Reset(time.Second)
+		timer.Stop()
+		timer = w.clock.NewTimer(time.Second)
 	}
 }

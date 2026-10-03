@@ -8,7 +8,7 @@ G13.5 要求掃描窗口避開高峰。時間判斷、設定與 worker 已接線
 
 在 jobs JSON 設定 `windowStart`、`windowEnd`、`windowTimezone`，例如 `22:00`、`06:00`、`Asia/Taipei`。環境變數 `JELEE_JOB_WINDOW_START`、`JELEE_JOB_WINDOW_END`、`JELEE_JOB_WINDOW_TIMEZONE` 覆寫對應 JSON 欄位。三者預設皆空，全天執行；修改後需重新啟動。job worker 啟用時，不完整或無效窗口會拒絕啟動。
 
-此設定限制該實例的所有 job worker，包含手動、排程、watcher 所建立的掃描及 catalog import；不限制一般 HTTP 讀取。窗外仍可提交至原本有容量上限的持久佇列，沒有額外記憶體等待佇列。多實例應使用一致設定。
+此設定限制該實例的目錄監看與所有 job worker，包含手動、排程、watcher 所建立的掃描及 catalog import；不限制一般 HTTP 讀取。窗外仍可提交至原本有容量上限的持久佇列，沒有額外記憶體等待佇列。多實例應使用一致設定。
 
 關窗觀測粒度為一秒，加上正在進行操作的取消收束時間；不承諾在邊界瞬間搶占同步解碼。開始工作前再檢查一次，避免 claim 期間剛好關窗。正常 Stop、執行期限、租約失效與使用者取消維持既有語意。真正 I/O 失敗即使與關窗同時發生，仍記為失敗。
 
@@ -63,3 +63,11 @@ ff1d7eccaf 的 Windows foundation job 111101499591 在 `TestFamilyBaselineBatchK
 匯入整合先驗證並提交第一個 catalog 項目，再以 PauseJob 暫停；舊 owner 不可再次提交。實際 catalog worker 恢復後報告 completed2、資料庫 items2，無重複或跳過；attempts只計一次。此例驗證持久匯入前綴恢復，尚未涵蓋真驗證 I/O 進行中的關窗。
 
 [正式 runtime Linux race](evidence/jobs-window-runtime-linux-race.txt)、[匯入 PostgreSQL Linux race](evidence/jobs-window-catalog-postgres.txt) 通過。452a37ebd2 的 [Windows foundation](https://github.com/Carinoasd/Jelee/actions/runs/37088061602/job/111102378156) 已通過；其他未完成 CI 與品牌門禁不可推定通過。
+
+## 目錄監看也遵守時間窗
+
+WatchRunner 使用相同 DailyWindow：窗外不領取監看租約，關窗取消正在建置或運行的 observer，等待返回後釋放租約。claim 期間關窗會直接交還租約，避免啟動新的目錄走訪。開窗重新建立原生監看，既有初始 dirty 通知會安排補掃關窗期間的變動；不依賴關窗時保留所有檔案事件。
+
+受控計時器驗證關窗／開窗、沒有錯誤退避、租約釋放及重建 dirty 通知；Windows 100 次通過，jobs/scan 回歸與 vet 通過。正式 runtime 整合啟用 watch，窗外 lease_generation 保持零；重啟開窗後真正的 native observer 進入 observing 狀態。Linux runtime race 與 jobs/config/calendar/scan race 通過：[runtime](evidence/jobs-watch-window-runtime.txt)、[套件](evidence/jobs-watch-window-unit.txt)。
+
+監看使用既有一秒輪詢及有界 DB 呼叫，取消收束也需要時間；這不是邊界瞬間的強制搶占。正式長測仍固定較早來源，不包含此修改。

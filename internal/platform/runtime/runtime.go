@@ -172,7 +172,7 @@ func newWithLifetime(cfg config.Config, logger *slog.Logger, lifetime *lifetime)
 			if err != nil {
 				return nil, err
 			}
-			watchRunner, err := jobworker.NewWatchRunner(store, observer, service, l)
+			watchRunner, err := jobworker.NewWatchRunnerWithWindow(store, observer, service, l, opts.Window)
 			if err != nil {
 				return nil, err
 			}

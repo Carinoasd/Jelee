@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/MoYuanCN/Jelee/internal/adapter/calendar"
 	"github.com/MoYuanCN/Jelee/internal/domain"
 	"github.com/MoYuanCN/Jelee/internal/platform/config"
 )
@@ -75,6 +76,9 @@ func TestJobWindowProductionRuntimeConfiguration(t *testing.T) {
 		}
 		return stop
 	}
+	if _, err = store.PutScanSchedule(ctx, actor, library.Library.ID, domain.ScanScheduleInput{Watch: true, Timing: domain.ScheduleTiming{Mode: "interval", IntervalSeconds: 3600, Timezone: "UTC"}}, calendar.Calendar{}); err != nil {
+		t.Fatal("enable directory observation")
+	}
 	stop := start(cfg)
 	timer := time.NewTimer(500 * time.Millisecond)
 	select {
@@ -86,6 +90,10 @@ func TestJobWindowProductionRuntimeConfiguration(t *testing.T) {
 	queued, err := store.GetJob(ctx, actor, job.ID)
 	if err != nil || queued.State != domain.JobQueued || queued.Attempts != 0 {
 		t.Fatal("production runtime ignored closed window")
+	}
+	var watchGeneration int64
+	if err = store.Pool.QueryRow(ctx, `SELECT lease_generation FROM scan_watch_state WHERE library_id=$1::uuid`, library.Library.ID).Scan(&watchGeneration); err != nil || watchGeneration != 0 {
+		t.Fatal("closed runtime claimed a directory observer")
 	}
 	stop()
 	// Configuration is restart-scoped; reopening through a new real runtime must
@@ -117,6 +125,20 @@ func TestJobWindowProductionRuntimeConfiguration(t *testing.T) {
 	}
 	if job.Files != 1 || job.Bytes != int64(len(original)) || job.Attempts != 1 {
 		t.Fatal("runtime resume counts differ")
+	}
+	for {
+		status, err := store.GetWatchStatus(ctx, actor, library.Library.ID)
+		if err != nil {
+			t.Fatal("read reopened watcher")
+		}
+		if status.Observing {
+			break
+		}
+		select {
+		case <-deadline.C:
+			t.Fatal("reopened runtime did not recreate native observer")
+		case <-tick.C:
+		}
 	}
 	stop()
 	got, err := os.ReadFile(media)

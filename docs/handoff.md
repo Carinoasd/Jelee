@@ -1,3 +1,11 @@
+## 最新接續：補上目錄監看的時間窗缺口
+
+WatchRunner 原本在 job 窗外仍會建置/重建目錄監看。新增 NewWatchRunnerWithWindow，runtime傳同一opts.Window。窗外不claim，關窗cancel/join observer後ReleaseWatch，claim期間關窗直接釋放；開窗重新Observe以既有startup dirty通知補掃。原無window建構仍全天。
+
+受控watcher關窗/重開/dirty/lease/timer清理Windows100次通過，jobs/scan全套與vet通過。正式Fx runtime測試啟用watch，閉窗lease_generation0、開窗native observing，Linux race通過；jobs/config/calendar/scan race也通過。證據docs/scan-window.md與jobs-watch-window-*.txt。
+
+接續仍需真 ffprobe/NFO 與 ignore 關窗恢復驗收，或推進 G13.5 全域 CPU/I/O/目錄並發缺口；不得把窄測試當全項完成。正式24h維持 run033822f3aecf4b6491406594c8687cfd、PID645523/start31097741/boot4a5d9c5c-4482-4c3e-8978-30156b1ce92f、sourcec61c12b007，先核實再觀測，不重啟活躍run。
+
 ## 最新接續：正式 runtime 時間窗配置與 catalog 恢復已驗證
 
 新增 window_integration_test.go：真 Fx runtime/config/HTTP listener/PG/scanner 在關窗配置下保持 job queued/attempts0；Stop 後全天配置 restart，同一job完成/attempts1且原檔未變。Linux race3.222秒通過。新增 catalog PostgreSQL pause 前綴測試，第一筆commit後PauseJob，舊owner拒絕，實際worker恢復後completed/items恰為2，故障次數不耗損；Linux race通過。證據docs/scan-window.md。
