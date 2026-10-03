@@ -271,11 +271,12 @@ func TestNFOCommitFilePersistenceImmutableAndMigration(t *testing.T) {
 				t.Fatal("file evidence mutation accepted")
 			}
 		}
+		top := downgradeAboveMigration(t, f, "nfo_commit_recovery_leases")
 		if _, _, err := Migrate(f.ctx, f.s.Pool.Config().ConnString(), "down"); err == nil {
 			t.Fatal("retained file evidence downgraded")
 		}
 		version, dirty, err := Migrate(f.ctx, f.s.Pool.Config().ConnString(), "status")
-		if err != nil || version != SchemaVersion-1 || !dirty || f.s.Ready(f.ctx) == nil {
+		if err != nil || version != top-1 || !dirty || f.s.Ready(f.ctx) == nil {
 			t.Fatal("retained file downgrade lost dirty/readiness rejection", err)
 		}
 		var count int

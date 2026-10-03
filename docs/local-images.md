@@ -45,6 +45,12 @@ JELEE_IMAGE_TEMP_ROOT=/var/lib/jelee/image-work
 
 存放區根目錄的規則與 `image-work` 相同：已存在、私有、無符號連結別名、不在媒體根目錄內也不是其祖先，且不得與 `image-work` 重疊。版面為 `originals/<sha256 前兩碼>/<sha256>`、`variants/<來源 sha256>/<變體 key>` 與私有 `tmp/`；寫入先寫 `tmp`、fsync 後原子 rename。原圖與變體各自有位元組與筆數上限，以記憶體 LRU 淘汰，最近使用時間以檔案 mtime（至多每分鐘更新一次）保存，重啟時以固定批次讀目錄重建索引。讀取一律核對大小，變體另核對標頭內的 SHA-256，原圖可選擇重算雜湊；損壞視為未命中並只刪除該檔。`variants` 可整個清空並按需重建。存放區只刪除自己命名格式的檔案，其他檔案只計數不處理，也從不碰媒體根目錄。
 
+### 圖片資產表（schema 58，尚未接入請求）
+
+`item_images` 記錄每個 item 的圖片引用：類型依 G40.1（Primary、Backdrop、Logo、ClearLogo、Banner、ClearArt、Art、Disc、Thumb、Landscape、Chapter、Box、BoxRear、Menu、Profile；Fanart 存成 Backdrop），只有 Backdrop／Chapter 可用 index 1–9999。來源分 `local`、`nfo`、`remote`、`embedded`：local／embedded 必須是同媒體庫的 root＋相對路徑（外鍵綁 item 所屬媒體庫，路徑不得含 `..`、絕對路徑、反斜線、冒號或控制字元；local 與 NFO 本地圖須為圖片副檔名），remote 只能是不含帳密、最長 2048 位元組的 `https://` URL，nfo 二擇一。內容欄（SHA-256、寬高、格式、位元組數、平均色、抓取時間）全有或全無，NULL 表示尚未讀取。每個 (item, 類型, index, 來源) 一列，每個槽最多一列鎖定。
+
+選圖順序：鎖定者優先，其次 local > nfo > remote > embedded；尚未抓取內容的 URL 引用不參與。非手動（掃描、刷新）寫入不會改動已鎖定的列，也不能設定鎖定；來源身分不變而未帶內容時保留已存內容。讀取在同一句 SQL 內重驗 session 與媒體庫授權，無權與不存在一律回 not found；寫入僅限管理員，手動新增／更換、鎖定變更及刪除寫入 `audit_logs`（不含路徑或 URL）。刪除只移除資料庫引用，從不刪使用者檔案；item 刪除時級聯。`image_variants` 是變體存放區的資料庫索引（內容雜湊＋變體 key、大小、最近使用時間，觸碰至多每分鐘一次，淘汰時以列出時的時間做條件刪除）。降級時有 `item_images` 資料即拒絕；變體索引可重建，直接移除。
+
 ## API
 
 ```text

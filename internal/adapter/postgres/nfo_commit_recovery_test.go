@@ -95,6 +95,7 @@ func TestNFOCommitRecoveryLeaseContinuesStoppedJob(t *testing.T) {
 			if err := f.s.Pool.QueryRow(f.ctx, `SELECT count(*) FROM nfo_write_commit_journal WHERE job_id=$1::uuid`, l.Job.ID).Scan(&journals); err != nil || journals != 1 {
 				t.Fatal("recovery opened another journal")
 			}
+			downgradeAboveMigration(t, f, "nfo_commit_recovery_leases")
 			if _, _, err := Migrate(f.ctx, f.s.Pool.Config().ConnString(), "down"); err == nil {
 				t.Fatal("retained recovery lease downgraded")
 			}
