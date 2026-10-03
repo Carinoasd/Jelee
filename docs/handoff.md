@@ -1,3 +1,11 @@
+## 最新接續：忽略基線計畫暫停回歸已驗證
+
+TestIgnoreBaselineRawPagesReplayAndReclaim、TestFamilyClaimCapabilities 都增加 planned-pause 分支並保留 recovery 分支。真PG race11.284秒通過；基線260筆游標/精確重播/128 observed+128 excluded+4 unknown/seq4保持，舊owner與改動重播拒絕，attempts只在計畫暫停退回。不同忽略模式能力仍不能互相領取。詳見docs/scan-window.md；人工lease基線fixture不等於外部解析端到端。
+
+下一個主要實作缺口 G41.3/G13.5：目前 jobs worker、probe/nfo gate、images與direct各有個別限額，沒有統一總量與分離CPU/I-O預算。需從現有runtime建構接點設計單一共享限額器，配置預設與取消/背壓/釋放所有路徑，避免同操作巢狀持有導致死鎖；不能只補helper測試便視為完成。真ffprobe/NFO/ignore各關窗端到端驗收仍保留待辦。
+
+正式24h同run033822f3aecf4b6491406594c8687cfd、PID645523/start31097741/boot4a5d9c5c-4482-4c3e-8978-30156b1ce92f已再次確認running/OOM false，不重啟。最新4451d447 CI檢查時多數pending，未宣稱通過。第三階段及全案仍未完成，禁止合併。
+
 ## 最新接續：補上目錄監看的時間窗缺口
 
 WatchRunner 原本在 job 窗外仍會建置/重建目錄監看。新增 NewWatchRunnerWithWindow，runtime傳同一opts.Window。窗外不claim，關窗cancel/join observer後ReleaseWatch，claim期間關窗直接釋放；開窗重新Observe以既有startup dirty通知補掃。原無window建構仍全天。

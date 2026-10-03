@@ -60,6 +60,11 @@ func comparisonCounts(t *testing.T, f jobFixture, id string) (domain.IgnoreCompa
 }
 
 func TestIgnoreBaselineRawPagesReplayAndReclaim(t *testing.T) {
+	for _, planned := range []bool{false, true} {
+		t.Run(map[bool]string{false: "recovery", true: "planned-pause"}[planned], func(t *testing.T) { testIgnoreBaselineReclaim(t, planned) })
+	}
+}
+func testIgnoreBaselineReclaim(t *testing.T, planned bool) {
 	f, l, _ := baselineComparisonFixture(t, 260, 128)
 	if err := f.s.BeginIgnoreBaselineComparison(f.ctx, l); err != nil {
 		t.Fatal(err)
@@ -86,8 +91,20 @@ func TestIgnoreBaselineRawPagesReplayAndReclaim(t *testing.T) {
 	if err = f.s.CommitIgnoreBaselinePage(f.ctx, l, second.Token, decisions); err != nil {
 		t.Fatal(err)
 	}
-	if err = f.s.ReleaseJob(f.ctx, l); err != nil {
+	release := f.s.ReleaseJob
+	if planned {
+		release = f.s.PauseJob
+	}
+	before := f.get(t, l.Job.ID).Attempts
+	if err = release(f.ctx, l); err != nil {
 		t.Fatal(err)
+	}
+	expected := before
+	if planned {
+		expected--
+	}
+	if got := f.get(t, l.Job.ID); got.State != domain.JobQueued || got.Attempts != expected {
+		t.Fatal("baseline pause changed attempt budget")
 	}
 	reclaimed := ignoreManufacturedLease(t, f, l.Job.ID)
 	if err = f.s.CommitIgnoreBaselinePage(f.ctx, l, second.Token, decisions); err != domain.ErrJobLeaseLost {

@@ -71,3 +71,9 @@ WatchRunner 使用相同 DailyWindow：窗外不領取監看租約，關窗取�
 受控計時器驗證關窗／開窗、沒有錯誤退避、租約釋放及重建 dirty 通知；Windows 100 次通過，jobs/scan 回歸與 vet 通過。正式 runtime 整合啟用 watch，窗外 lease_generation 保持零；重啟開窗後真正的 native observer 進入 observing 狀態。Linux runtime race 與 jobs/config/calendar/scan race 通過：[runtime](evidence/jobs-watch-window-runtime.txt)、[套件](evidence/jobs-watch-window-unit.txt)。
 
 監看使用既有一秒輪詢及有界 DB 呼叫，取消收束也需要時間；這不是邊界瞬間的強制搶占。正式長測仍固定較早來源，不包含此修改。
+
+## 忽略基線持久恢復
+
+既有原始分頁恢復測試增加 PauseJob 分支，同時保留普通 ReleaseJob 分支。260 筆基線在已提交兩頁後暫停，續領後游標與精確重播維持一致，最終 observed128/excluded128/unknown4、sequence4；舊 owner 與不同內容重播仍拒絕。正常恢復保留 attempts，計畫暫停只退回本次 claim。
+
+忽略模式能力測試亦涵蓋普通恢復與計畫暫停：family 工作不能被只有舊模式能力的 worker 領取，反向亦然。這是 repository 的真 PostgreSQL 持久恢復驗證；基線案例沿用既有人工 lease fixture，不代表外部忽略解析程序關窗的端到端測試。[Linux race 證據](evidence/jobs-window-ignore-postgres.txt)。

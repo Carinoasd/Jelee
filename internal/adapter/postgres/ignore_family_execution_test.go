@@ -112,8 +112,17 @@ func TestFamilyExecutionBeforeSources(t *testing.T) {
 }
 
 func TestFamilyClaimCapabilities(t *testing.T) {
+	for _, planned := range []bool{false, true} {
+		t.Run(map[bool]string{false: "recovery", true: "planned-pause"}[planned], func(t *testing.T) { testFamilyClaimCapabilities(t, planned) })
+	}
+}
+func testFamilyClaimCapabilities(t *testing.T, planned bool) {
 	f, l, _ := legacyManifestFixture(t)
-	if err := f.s.ReleaseJob(f.ctx, l); err != nil {
+	release := f.s.ReleaseJob
+	if planned {
+		release = f.s.PauseJob
+	}
+	if err := release(f.ctx, l); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := f.s.ClaimJobWithCapabilities(f.ctx, "old-mode", false, time.Minute, domain.ScanCapabilities{Ignore: true}); err != domain.ErrNotFound {
@@ -123,7 +132,11 @@ func TestFamilyClaimCapabilities(t *testing.T) {
 		t.Fatal("family capability did not claim", err)
 	}
 	f2, l2, _ := manifestFixture(t)
-	if err := f2.s.ReleaseJob(f2.ctx, l2); err != nil {
+	release = f2.s.ReleaseJob
+	if planned {
+		release = f2.s.PauseJob
+	}
+	if err := release(f2.ctx, l2); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := f2.s.ClaimJobWithCapabilities(f2.ctx, "family-mode", false, time.Minute, domain.ScanCapabilities{FamilyIgnore: true}); err != domain.ErrNotFound {
