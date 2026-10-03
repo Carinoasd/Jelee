@@ -20,7 +20,7 @@ repository每次準備及重播都重新驗證活躍session與管理員。首次
 - SQL trigger在INSERT取得同schema固定advisory鎖並檢查容量；不依賴caller search_path。完整SHA256與大小、请求/項目/版本綁定、跨庫item外鍵均由SQL約束檢查。列內容不可更新。
 - 46→45只允許空準備表；保留任何準備資料即拒降版並保持資料，golang-migrate留下dirty目標版本，runtime拒絕。45之前已發布的90份SQL保持。
 
-`NFOWritePreparation`的JSON為空物件，String/GoString遮蔽全部私有資料；application與repository結果各自擁有bytes與請求副本。目前沒有可執行jobs引用這些列。未來提交worker時必須將固定完整意圖保存到工作生命週期中，不能讓24小時準備期限清掉正在執行或待恢復的輸出。
+`NFOWritePreparation`的JSON為空物件，String/GoString遮蔽全部私有資料；application與repository結果各自擁有bytes與請求副本。[受控Writer入口](nfo-prepared-writer.md)可以依保存請求及固定UUID重建來源證明，並逐位元比對完整輸出。目前沒有可執行jobs引用這些列。未來提交worker時必須將固定完整意圖保存到工作生命週期中，不能讓24小時準備期限清掉正在執行或待恢復的輸出。
 
 ## 驗證範圍
 

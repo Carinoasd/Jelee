@@ -1,3 +1,16 @@
+## 2026-10-03 接續：持久 NFO 準備資料已接受控 Writer
+
+28e12e1c490d8eda8398efcbdc1eb9f8298358d8已推PR46。本批Writer.ReplacePrepared消費schema46受信任持久準備資料與當下ReadSource，要求共用budget，重核路徑/maxBytes/完整stamp/原文bytes，依保存recipe重建受控修改來源。原文無ID時只用固定輸出的唯一jelee UUID v4，不重新random；原文手工ID保持。重建bytes必須與保存輸出完全相同，任意XML、未知標籤/註解/手工ID改動拒絕。
+
+singleflight提前到文件複製及重建之前；等待者只驗受控請求/原文/輸出摘要，共用owner重建一次。key明確含saved/observed私有路徑（NFOSource JSON會隱藏它們）、scope、兩份stamp、請求/輸出摘要/maxBytes與Source實體。同內容不同私有root不能共用；等待者取消與owner取消join清理保持。普通Replace共用runIntent整理，完整舊Writer測試亦回歸。
+
+Windows nfo/postgres/architecture/jobs/runtime通過，5套件762通過/646條件跳過；vet通過。Linux nfo/architecture/jobs完整race通過；真PG持久準備與Writer選測race17通過/零跳過/零失敗，重開pool後固定UUID、完整檔案與原文備份相符；任意XML在副作用前拒絕。100並行共用一次替換、UTF16/BOM/各root/手工ID、sync失敗固定輸出重試、外部同size/mtime修改保持、配額/取消與私有root不共用已驗。docs/nfo-prepared-writer.md及docs/evidence/nfo-prepared-writer.json、nfo-prepared-writer-race-linux.txt記錄範圍。本批無SQL變更。
+
+全案仍7完成/198部分/131阻塞；runtime未啟用此入口或read-write政策。若來源已等於保存輸出而非原文，返回ErrChanged，不能以相等bytes推斷已提交。下一步正式持久write/export job須保存意圖至工作生命週期、核policy/revision/generation/租約/媒體/實體、提供capability/API/CLI/runtime共用配額及提交journal/恢復稽核。既有prepared資料不授權寫回，也未保存跨重啟實體proof；不得直接開read-write或略過完整恢復。缺失NFO/全部欄位/批次操作/Windows完整落盤/真實客戶端仍缺。
+
+同正式run9a0c8d956e3f4fbea9e844e3fc59bc26，PID788902/start31680373/boot4a5d9c5c-4482-4c3e-8978-30156b1ce92f本回合實核吻合，container running/OOMfalse；source9a74a8932a不含本批。遠端28e12e1c49 foundation/三平台Tests/format/ABI已success，兩完整品牌fail，PG及CodeQL仍in_progress。不宣稱全綠；保持全部門禁，不merge/release/tag/force-push、不改Git身份設定、原媒體/圖片/授權/已發布SQL保持。
+
+---
 ## 2026-10-03 接續：NFO 持久準備資料與 schema46 已驗證
 
 基於已推送6a150ee52232b32e61daa9eb28125076074fb288，沿用feat/jelee-ignore-family-worker及PR46。本批新增domain/app/adapter準備入口與schema46：受控十種文字修改、缺ID UUID、原文及完整輸出先保存PostgreSQL；相同actor/key/request並行或重開pool後取回第一次固定UUID/輸出。準備服務依序持I/O→CPU→I/O，不巢狀、不寫原檔；SQL交易不跨檔案讀取，保存前重核catalog revision、policy generation與source/root範圍，與安全稽核同交易。

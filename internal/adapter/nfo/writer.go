@@ -122,12 +122,18 @@ func (w *Writer) replace(ctx context.Context, original *Source, replacement *Doc
 		return ErrInvalidInput
 	}
 	keyHash := sha256.Sum256(keyBytes)
-	key, releaseIntent := w.acquireIntent(hex.EncodeToString(keyHash[:]), original)
+	return w.runIntent(ctx, hex.EncodeToString(keyHash[:]), original, ops, func() error {
+		return writeBoundNFOSource(ctx, original, replacement, backups, ops, w.budget)
+	})
+}
+
+func (w *Writer) runIntent(ctx context.Context, base string, original *Source, ops nfoWriteOperations, work func() error) error {
+	key, releaseIntent := w.acquireIntent(base, original)
 	defer releaseIntent()
 	var ownsOperation atomic.Bool
 	result := w.group.DoChan(key, func() (any, error) {
 		ownsOperation.Store(true)
-		return nil, writeBoundNFOSource(ctx, original, replacement, backups, ops, w.budget)
+		return nil, work()
 	})
 	if ops.submitted != nil {
 		ops.submitted()
