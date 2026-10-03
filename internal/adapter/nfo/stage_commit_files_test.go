@@ -124,7 +124,7 @@ func TestStageCommitFilesReadAdmission(t *testing.T) {
 		t.Fatal(err)
 	}
 	entries, err := os.ReadDir(root)
-	if err != nil || len(entries) != 1 || repo.reads.Load() != 0 || b.Stats() != (resources.Stats{}) {
+	if err != nil || len(entries) != 2 || repo.reads.Load() != 0 || b.Stats() != (resources.Stats{}) {
 		t.Fatal("rejected read had side effects")
 	}
 }

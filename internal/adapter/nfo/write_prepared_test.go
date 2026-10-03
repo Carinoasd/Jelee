@@ -21,6 +21,11 @@ import (
 func preparedWriterFixture(t *testing.T, content []byte, kind string) (string, *Source, domain.NFOWritePreparation, *resources.Budget) {
 	t.Helper()
 	root, name := sourceFixture(t, content)
+	if kind != "Series" && kind != "Season" {
+		if err := os.WriteFile(filepath.Join(root, "電影 title.mkv"), []byte("owned synthetic media"), 0600); err != nil {
+			t.Fatal("create owned prepared writer media")
+		}
+	}
 	scope := domain.NFOItemScope{ItemID: "a0000000-0000-0000-0000-000000000001", LibraryID: "a0000000-0000-0000-0000-000000000002", SourceID: "a0000000-0000-0000-0000-000000000003", RootID: "a0000000-0000-0000-0000-000000000004", Kind: kind, Revision: 1, Generation: 1, RootGeneration: 1, MediaPath: "電影 title.mkv", Source: domain.NFOSource{RootPath: root, RelativePath: name}}
 	if kind == "Series" || kind == "Season" {
 		scope.MediaPath = ""
@@ -124,7 +129,7 @@ func TestPreparedWriterRejectsUncontrolledOutputBeforeFilesystem(t *testing.T) {
 			}
 			actual, _ := os.ReadFile(filepath.Join(root, source.relative))
 			entries, _ := os.ReadDir(root)
-			if !bytes.Equal(actual, content) || len(entries) != 1 || b.Stats() != (resources.Stats{}) {
+			if !bytes.Equal(actual, content) || len(entries) != 2 || b.Stats() != (resources.Stats{}) {
 				t.Fatal("rejection wrote source, sidecar, backup or leaked budget")
 			}
 		})
@@ -173,7 +178,7 @@ func TestPreparedWriterBusyCancellationAndRequiredBudget(t *testing.T) {
 	}
 	actual, _ := os.ReadFile(filepath.Join(root, source.relative))
 	entries, _ := os.ReadDir(root)
-	if !bytes.Equal(actual, prepared.Original) || len(entries) != 1 || b.Stats() != (resources.Stats{}) {
+	if !bytes.Equal(actual, prepared.Original) || len(entries) != 2 || b.Stats() != (resources.Stats{}) {
 		t.Fatal("busy/cancelled preparation touched filesystem")
 	}
 }

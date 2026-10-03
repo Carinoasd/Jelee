@@ -29,7 +29,7 @@ func (p *WritePreparer) PrepareNFOWrite(ctx context.Context, scope domain.NFOIte
 	if err != nil {
 		return domain.NFOWritePreparation{}, err
 	}
-	source, err := ReadSource(ctx, scope.Source.RootPath, scope.Source.RelativePath, request.MaxBytes)
+	source, firstReceipt, err := readNativePreparationSource(ctx, scope, request.MaxBytes)
 	release()
 	if err != nil {
 		return domain.NFOWritePreparation{}, err
@@ -38,16 +38,20 @@ func (p *WritePreparer) PrepareNFOWrite(ctx context.Context, scope domain.NFOIte
 	if err != nil {
 		return domain.NFOWritePreparation{}, err
 	}
+	prepared.NativeObservation = firstReceipt
+	if err := domain.ValidateNFOWritePreparation(prepared); err != nil {
+		return domain.NFOWritePreparation{}, err
+	}
 	release, err = p.budget.Acquire(ctx, app.WorkIO)
 	if err != nil {
 		return domain.NFOWritePreparation{}, err
 	}
 	defer release()
-	last, err := ReadSource(ctx, scope.Source.RootPath, scope.Source.RelativePath, request.MaxBytes)
+	last, lastReceipt, err := readNativePreparationSource(ctx, scope, request.MaxBytes)
 	if err != nil {
 		return domain.NFOWritePreparation{}, err
 	}
-	if !os.SameFile(source.rootInfo, last.rootInfo) || !os.SameFile(source.parentInfo, last.parentInfo) || !os.SameFile(source.fileInfo, last.fileInfo) || source.stamp != last.stamp || !bytes.Equal(source.original, last.original) {
+	if !firstReceipt.Equal(lastReceipt) || !source.nativeObserved || !last.nativeObserved || source.nativeRoot != last.nativeRoot || source.nativeFile != last.nativeFile || !os.SameFile(source.rootInfo, last.rootInfo) || !os.SameFile(source.parentInfo, last.parentInfo) || !os.SameFile(source.fileInfo, last.fileInfo) || source.stamp != last.stamp || !bytes.Equal(source.original, last.original) {
 		return domain.NFOWritePreparation{}, ErrChanged
 	}
 	return prepared, nil

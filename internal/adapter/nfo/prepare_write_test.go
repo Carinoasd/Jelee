@@ -27,6 +27,9 @@ func TestWritePreparerReadonlyOutputAndResourceCleanup(t *testing.T) {
 		`<tvshow><title>old</title></tvshow>`,
 	} {
 		root, _ := sourceFixture(t, []byte(content))
+		if err := os.WriteFile(filepath.Join(root, "電影 title.mkv"), []byte("owned synthetic media"), 0600); err != nil {
+			t.Fatal("create owned preparation media")
+		}
 		scope := domain.NFOItemScope{ItemID: "a0000000-0000-0000-0000-000000000001", LibraryID: "a0000000-0000-0000-0000-000000000002", SourceID: "a0000000-0000-0000-0000-000000000003", RootID: "a0000000-0000-0000-0000-000000000004", Kind: "Movie", Revision: 1, Generation: 1, RootGeneration: 1, MediaPath: "電影 title.mkv", Source: domain.NFOSource{RootPath: root, RelativePath: "電影 title.nfo"}}
 		request := domain.NFOWritePrepareRequest{ItemID: scope.ItemID, Revision: 1, Edits: []domain.NFOWriteTextEdit{{Field: "title", Value: "new"}}, MaxBytes: DefaultMaxBytes, Backups: 1}
 		b := &recordingWriterBudget{Budget: writerBudget(t, 1, 0)}
@@ -49,7 +52,7 @@ func TestWritePreparerReadonlyOutputAndResourceCleanup(t *testing.T) {
 		}
 		after, _ := os.ReadFile(filepath.Join(root, scope.Source.RelativePath))
 		entries, _ := os.ReadDir(root)
-		if !bytes.Equal(after, []byte(content)) || len(entries) != 1 {
+		if !bytes.Equal(after, []byte(content)) || len(entries) != 2 {
 			t.Fatal("preparation wrote filesystem")
 		}
 	}
@@ -58,6 +61,7 @@ func TestWritePreparerReadonlyOutputAndResourceCleanup(t *testing.T) {
 func TestWritePreparerAndPreparedWriterRefuseMissingRootGeneration(t *testing.T) {
 	root, source, p, budget := preparedWriterFixture(t, []byte(`<movie><title>old</title></movie>`), "Movie")
 	p.Scope.RootGeneration = 0
+	p.NativeObservation = domain.NFONativePreparationReceipt{}
 	if domain.ValidateNFOWritePreparation(p) != nil {
 		t.Fatal("historical shape became unreadable")
 	}
@@ -71,7 +75,7 @@ func TestWritePreparerAndPreparedWriterRefuseMissingRootGeneration(t *testing.T)
 	}
 	after, err := os.ReadFile(filepath.Join(root, source.relative))
 	entries, readErr := os.ReadDir(root)
-	if err != nil || readErr != nil || !bytes.Equal(after, p.Original) || len(entries) != 1 {
+	if err != nil || readErr != nil || !bytes.Equal(after, p.Original) || len(entries) != 2 {
 		t.Fatal("missing observation changed native files")
 	}
 	if budget.Stats() != (resources.Stats{}) {

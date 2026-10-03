@@ -91,6 +91,11 @@ func TestNFOWritePreparationPersistsControlledOutputAndExactReplay(t *testing.T)
 
 func TestNFOWritePreparationConcurrentReplayStoresOneOutput(t *testing.T) {
 	f, service, scope, request := nfoWritePreparationFixture(t)
+	mediaPath := filepath.Join(scope.Source.RootPath, filepath.FromSlash(scope.MediaPath))
+	mediaBefore, err := os.ReadFile(mediaPath)
+	if err != nil {
+		t.Fatal("read owned media fixture")
+	}
 	var wg sync.WaitGroup
 	start := make(chan struct{})
 	type result struct {
@@ -132,7 +137,8 @@ func TestNFOWritePreparationConcurrentReplayStoresOneOutput(t *testing.T) {
 	}
 	after, _ := os.ReadFile(filepath.Join(scope.Source.RootPath, scope.Source.RelativePath))
 	entries, _ := os.ReadDir(scope.Source.RootPath)
-	if !bytes.Equal(after, first.Original) || len(entries) != 1 {
+	mediaAfter, mediaErr := os.ReadFile(mediaPath)
+	if !bytes.Equal(after, first.Original) || len(entries) != 2 || mediaErr != nil || !bytes.Equal(mediaBefore, mediaAfter) {
 		t.Fatal("preparation performed a filesystem write")
 	}
 }
@@ -262,8 +268,8 @@ func TestNFOWritePreparationLibraryByteCapacity(t *testing.T) {
 	// One row has two exact 32MiB documents. The second exceeds the 128MiB library
 	// cap once recipes and the existing small row are included.
 	query := `WITH large AS MATERIALIZED (SELECT convert_to(rpad('<movie/>',33554432,' '),'UTF8') AS value), recipe AS MATERIALIZED (SELECT p.*,convert_to((convert_from(request_bytes,'UTF8')::jsonb||jsonb_build_object('maxBytes',33554432))::text,'UTF8') AS encoded FROM nfo_write_preparations p WHERE id=$1::uuid)
- INSERT INTO nfo_write_preparations(id,actor_id,idempotency_key,version,request_bytes,request_digest,library_id,item_id,source_id,root_id,kind,revision,generation,root_generation,root_path,relative_path,media_path,directory_path,max_bytes,modified_unix_nano,original_bytes,original_sha256,replacement_bytes,replacement_sha256)
- SELECT gen_random_uuid(),actor_id,$2,version,encoded,encode(sha256(encoded),'hex'),library_id,item_id,source_id,root_id,kind,revision,generation,root_generation,root_path,relative_path,media_path,directory_path,33554432,modified_unix_nano,value,encode(sha256(value),'hex'),value,encode(sha256(value),'hex') FROM recipe CROSS JOIN large`
+ INSERT INTO nfo_write_preparations(id,actor_id,idempotency_key,version,request_bytes,request_digest,library_id,item_id,source_id,root_id,kind,revision,generation,root_generation,root_path,relative_path,media_path,directory_path,max_bytes,modified_unix_nano,original_bytes,original_sha256,replacement_bytes,replacement_sha256,native_receipt)
+ SELECT gen_random_uuid(),actor_id,$2,version,encoded,encode(sha256(encoded),'hex'),library_id,item_id,source_id,root_id,kind,revision,generation,root_generation,root_path,relative_path,media_path,directory_path,33554432,modified_unix_nano,value,encode(sha256(value),'hex'),value,encode(sha256(value),'hex'),native_receipt FROM recipe CROSS JOIN large`
 	if _, err := f.s.Pool.Exec(f.ctx, query, first.ID, "large-one"); err != nil {
 		t.Fatal("byte quota rejected below limit")
 	}

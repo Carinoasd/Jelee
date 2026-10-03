@@ -21,6 +21,7 @@ import (
 // the new retained-proof refusal. Never discard unresolved journal evidence.
 func nfoRootGenerationLegacyAt51(t *testing.T, f jobFixture) {
 	t.Helper()
+	nfoNativeReceiptLegacyAt52(t, f)
 	var journals int
 	if err := f.s.Pool.QueryRow(f.ctx, `SELECT count(*) FROM nfo_write_commit_journal`).Scan(&journals); err != nil || journals != 0 {
 		t.Fatal("legacy fixture cannot discard unresolved evidence", err)
@@ -230,6 +231,7 @@ func TestNFOWriteRootGenerationMigration(t *testing.T) {
 	t.Run("empty", func(t *testing.T) {
 		f := newJobFixture(t)
 		before := jobMetricMigrationStorage(t, f)
+		jobMetricMigration(t, f, "down", 52)
 		jobMetricMigration(t, f, "down", 51)
 		jobMetricMigration(t, f, "up", SchemaVersion)
 		if f.s.Ready(f.ctx) != nil || jobMetricMigrationStorage(t, f) != before {
@@ -242,6 +244,9 @@ func TestNFOWriteRootGenerationMigration(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
+		// Isolate schema52 root-proof retention after removing only the newer
+		// native field in this owned historical migration fixture.
+		nfoNativeReceiptLegacyAt52(t, f)
 		if _, _, err = Migrate(f.ctx, f.s.Pool.Config().ConnString(), "down"); err == nil {
 			t.Fatal("downgrade discarded root proof")
 		}

@@ -113,6 +113,18 @@ func (s *Store) SaveNFOWriteCommitFilePlan(ctx context.Context, lease domain.Job
 	if err := checkNFOCommitFileToken(ctx, tx, lease, sequence, token); err != nil {
 		return domain.NFOWriteCommitFilePlan{}, err
 	}
+	var nativeBytes []byte
+	if err := tx.QueryRow(ctx, `SELECT native_receipt FROM nfo_write_entries WHERE job_id=$1::uuid AND sequence=$2`, lease.Job.ID, sequence).Scan(&nativeBytes); err != nil {
+		return domain.NFOWriteCommitFilePlan{}, storageError(err)
+	}
+	receipt, err := readNFONativeReceipt(nativeBytes)
+	if err != nil {
+		return domain.NFOWriteCommitFilePlan{}, err
+	}
+	ancestors := receipt.AncestorIdentities()
+	if len(ancestors) == 0 || plan.ParentIdentity != ancestors[len(ancestors)-1] || plan.TargetIdentity != receipt.NFOFileIdentity() {
+		return domain.NFOWriteCommitFilePlan{}, domain.ErrConflict
+	}
 	if _, err := tx.Exec(ctx, `INSERT INTO nfo_write_commit_file_plans(token,version,target_name,parent_identity,target_identity) VALUES($1::uuid,$2,$3,$4,$5) ON CONFLICT(token) DO NOTHING`, token, plan.Version, plan.TargetName, plan.ParentIdentity[:], plan.TargetIdentity[:]); err != nil {
 		return domain.NFOWriteCommitFilePlan{}, storageError(err)
 	}
@@ -200,13 +212,28 @@ func checkNFOCommitFileToken(ctx context.Context, tx pgx.Tx, lease domain.JobLea
 // root/media identity; it does not grant filesystem commit authorization.
 func checkNFOCommitCatalogScope(ctx context.Context, tx pgx.Tx, job string, sequence int) error {
 	var saved domain.NFOItemScope
-	columns, err := nfoHistoricalRootColumns(ctx, tx, `e.item_id::text,e.library_id::text,e.source_id::text,e.root_id::text,e.kind,e.revision,e.generation,COALESCE(e.root_generation,0),e.directory_path,e.media_path,e.root_path,e.relative_path`, "nfo_write_entries")
+	var nativeBytes []byte
+	columns, err := nfoHistoricalNativeColumns(ctx, tx, `e.item_id::text,e.library_id::text,e.source_id::text,e.root_id::text,e.kind,e.revision,e.generation,COALESCE(e.root_generation,0),e.directory_path,e.media_path,e.root_path,e.relative_path,COALESCE(e.native_receipt,NULL::bytea)`, "nfo_write_entries")
 	if err != nil {
 		return err
 	}
-	err = tx.QueryRow(ctx, `SELECT `+columns+` FROM nfo_write_entries e JOIN jobs j ON j.id=e.job_id AND j.library_id=e.library_id WHERE e.job_id=$1::uuid AND e.sequence=$2`, job, sequence).Scan(&saved.ItemID, &saved.LibraryID, &saved.SourceID, &saved.RootID, &saved.Kind, &saved.Revision, &saved.Generation, &saved.RootGeneration, &saved.DirectoryPath, &saved.MediaPath, &saved.Source.RootPath, &saved.Source.RelativePath)
+	err = tx.QueryRow(ctx, `SELECT `+columns+` FROM nfo_write_entries e JOIN jobs j ON j.id=e.job_id AND j.library_id=e.library_id WHERE e.job_id=$1::uuid AND e.sequence=$2`, job, sequence).Scan(&saved.ItemID, &saved.LibraryID, &saved.SourceID, &saved.RootID, &saved.Kind, &saved.Revision, &saved.Generation, &saved.RootGeneration, &saved.DirectoryPath, &saved.MediaPath, &saved.Source.RootPath, &saved.Source.RelativePath, &nativeBytes)
 	if err != nil {
 		return storageError(err)
+	}
+	receipt, err := readNFONativeReceipt(nativeBytes)
+	if err != nil {
+		return err
+	}
+	if receipt.Empty() {
+		return domain.ErrConflict
+	}
+	wantKind := byte(1)
+	if saved.DirectoryPath != "" {
+		wantKind = 2
+	}
+	if receipt.MediaIdentity()[2] != wantKind {
+		return domain.ErrDatabase
 	}
 	if !domain.ValidNFOItemScope(saved) {
 		return domain.ErrDatabase

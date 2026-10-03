@@ -112,15 +112,16 @@ func NFOWriteRequestDigest(v NFOWritePrepareRequest) (string, error) {
 // Frozen bytes are private preparation data. A preparation grants no filesystem
 // execution authority. A future job must recheck policy, lease, scope and media.
 type NFOWritePreparation struct {
-	ID          string                 `json:"-"`
-	Version     int                    `json:"-"`
-	Request     NFOWritePrepareRequest `json:"-"`
-	Scope       NFOItemScope           `json:"-"`
-	Stamp       NFOStamp               `json:"-"`
-	Original    []byte                 `json:"-"`
-	Replacement []byte                 `json:"-"`
-	CreatedAt   time.Time              `json:"-"`
-	ExpiresAt   time.Time              `json:"-"`
+	ID                string                      `json:"-"`
+	Version           int                         `json:"-"`
+	Request           NFOWritePrepareRequest      `json:"-"`
+	Scope             NFOItemScope                `json:"-"`
+	NativeObservation NFONativePreparationReceipt `json:"-"`
+	Stamp             NFOStamp                    `json:"-"`
+	Original          []byte                      `json:"-"`
+	Replacement       []byte                      `json:"-"`
+	CreatedAt         time.Time                   `json:"-"`
+	ExpiresAt         time.Time                   `json:"-"`
 }
 
 func (NFOWritePreparation) String() string   { return "nfo write preparation (data redacted)" }
@@ -128,6 +129,7 @@ func (NFOWritePreparation) GoString() string { return "nfo write preparation (da
 
 func CloneNFOWritePreparation(v NFOWritePreparation) NFOWritePreparation {
 	v.Request = CloneNFOWritePrepareRequest(v.Request)
+	v.NativeObservation = CloneNFONativePreparationReceipt(v.NativeObservation)
 	v.Original = slices.Clone(v.Original)
 	v.Replacement = slices.Clone(v.Replacement)
 	return v
@@ -136,6 +138,15 @@ func CloneNFOWritePreparation(v NFOWritePreparation) NFOWritePreparation {
 func ValidateNFOWritePreparation(v NFOWritePreparation) error {
 	if v.Version != NFOWritePreparationVersion || ValidateNFOWritePrepareRequest(v.Request) != nil || !ValidNFOItemScope(v.Scope) || v.Scope.ItemID != v.Request.ItemID || v.Scope.Revision != v.Request.Revision || len(v.Original) < 1 || len(v.Replacement) < 1 || int64(len(v.Original)) > v.Request.MaxBytes || int64(len(v.Replacement)) > v.Request.MaxBytes || v.Stamp.Size != int64(len(v.Original)) || v.Stamp.FingerprintVersion != NFOFingerprintVersion {
 		return ErrInvalid
+	}
+	if !v.NativeObservation.Empty() {
+		kind := byte(1)
+		if v.Scope.DirectoryPath != "" {
+			kind = 2
+		}
+		if v.Scope.RootGeneration < 1 || ValidateNFONativePreparationReceipt(v.NativeObservation) != nil || v.NativeObservation.MediaIdentity()[2] != kind {
+			return ErrInvalid
+		}
 	}
 	hash := sha256.Sum256(v.Original)
 	if v.Stamp.SHA256 != hex.EncodeToString(hash[:]) {

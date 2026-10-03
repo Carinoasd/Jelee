@@ -1,3 +1,187 @@
+## 2026-10-03 schema53完整V4已獨立驗證，沿既有PR46接續提交
+
+26780已terminal0，四片exit0；474 roots各run／pass一次，1486PASS／零skipfail，996份Go／SQL成員與bytes終態吻合。5284 finalizer已terminal0，獨立compiled listing／groups／coverage／四logs、Win953/1008、新兩正式4PASS及red精確marker皆吻合，104已發布SQL／mod／sum／原需求／LICENSE保持。公開docs/evidence/nfo-write-native-receipt-v4.json新增；原V1/V2 failures及V3 checkpoint均保留。後續不得將V3 frozen當新增後來源證據。
+
+Windows真PG直接連線兩root0PASS／3FAIL events／零skip，safe分類皆connect dedicated account test database，沒到native行為。端點綁WSL127.0.0.1:55438；短暫Windows loopback→wsl python binary stdio轉送後59707 terminal0、兩root2PASS／零skipfail一package pass，包含native preparation保存／pool reopen、job copy／prep清理／GetTask receipt同一first observation。finally已dispose，Linuxowned relay子程序0實核。私有logs windows-real-pg-v1/v2保留，不改PG配置、不輸出認證、不宣稱完整Windows PG套件。V4摘要另記selected scope，full Win DB仍false。
+
+方法及G39.14追蹤改為已驗schema53範圍，全336狀態不擴張（7／198／131）；PR final草稿依1486及Windows兩root重寫，沒有完整CI green／runtime寫回完成宣稱。本批依原授權沿既有branch／PR46提交推送；新CI須以實際head另核，不merge／release／tag／forcepush。V1 OOM cleanup未全證明、原24h不同source無完成證據、品牌FAIL、same-physical unresolved／partial stage／完整commit recovery／Windows metadata durability／正式worker三批次missing NFO／heapRSS仍缺。
+
+下一完成publication audit／stage明確43檔／commit／push、更新PR並核遠端head／CI；之後接續同實體未解決排除及完整原生提交／復原，不縮減G00–G51。
+
+---
+## 2026-10-03 候選53發布前清單與失敗清理限制已核，V4仍執行中
+
+新增private audit-nfo-native-receipt-publication.py：只讀核HEAD361dc681f1／既有branch／空index、V4 source996成員及bytes、限定36份Go／SQL變更範圍、只新增53 up/down、104已發布SQL／mod／sum／requirements／LICENSE保持，產生明確36 source＋7 docs清單；排除.testdata／.tools。71740已terminal，ready=false／V4 public terminal evidence missing，拒絕尚未完整驗證的發布準備，沒有stage或commit。成功分支還需V4公開成功摘要、coverage hash／全部exit0／474 roots一次、scope flags不擴張、所有docs存在及JSON不含連線URL。
+
+公開V1 OOM失敗摘要新增ownedTrialSchemaCleanupFullyVerified=false及cleanup失敗限制，PR私有草稿亦補該限制。查現有fixture cleanup：account隨機schema建立／刪除錯誤只記通用文字，不能憑prefix補推精確ownership並任意drop；後續成功回歸不證前次未清理物件消失。不刪未知／未解決資源、不重啟scale或原24h。
+
+本輪26780同handle實核live；最後V4 checker四片232／291／244／276 PASS（合1043），零skipfail、無package terminal，source996吻合／compiled474。沒有改Go／SQL或遠端PR。下一繼續核同26780完整終態；green才V4 finalizer獨立核驗、更新docs及PR草稿、重跑publication audit、明確stage清單／commit／push；保留品牌FAIL與7／198／131、完整功能缺口。
+
+---
+## 2026-10-03 候選53需求追蹤與PR草稿已備，V4仍執行中
+
+本輪26780同handle再核live，Go／SQL不改。docs/requirements-traceability.md僅G39.14補候選53 first receipt持久化／job copy／plan／Stage／quota及正式三隔離與red範圍，明記V4未terminal／未發布，不構成完整FS授權。逐列含G01.4b／c核336項與HEAD狀態完全相同：7完成／198部分／131阻塞，statusChanges0；原需求SHA755b6b32324efe710c3e1135a0c982c45b82f337e90fcb50ab3718a20cba5d07實核保持。
+
+保存已發布PR body到private .testdata/pr46-published-body-before-schema53.md，另備pr46-schema53-body-draft.md，保留累積ignore／CLI／scheduler／resources／metrics與NFO守衛範圍，更新53問題／行為及未完成限制。私有草稿頂部明示V4未通過不可直接發布；沒有更改遠端body。唯讀PR46實核OPEN／361dc681f1，PG兩COMPLETED SUCCESS／完整品牌兩COMPLETED FAILURE；不宣稱候選53新CI。incremental brand0／339、gitignore0、diff0。
+
+下一待同26780完整終態，V4成功才safe evidence及更新草稿驗證／CI段，再提交推送；失敗保留來源與log並調查。正式worker／三種批次／missing NFO／完整commit recovery／Windows metadata durability／整體heapRSS仍未完成，維持全goal active。
+
+---
+## 2026-10-03 job完整batch三隔離四PASS與native byte控制成立，完整V4執行中
+
+新增正式TestNFOWriteNativeReceiptJobExactBytesBatchRollbackIsolation：各三隔離在單TX建立自己的total3 batch，first／second entries恰job128MiB，清除已copy source preps再配置third避免library128MiB混淆；第三筆精確23514／intent capacity拒絕，rollback後job/request/entries全0、first/second prep恢復、third prep消失。storage-only owned metadata／loaned receipt，不作FS觀察或production admission。helper nativeQuotaStoragePreparationWith支持pool或tx，不改production或104SQL。66015 terminal0、4PASS零skipfail一package pass，log nfo-native-job-batch-isolation-formal-v1.jsonl。
+
+43901 private overlay terminal0核Go真正exit1、3FAIL events零skip；owned TX只從guard_nfo_write_intent移native byte contribution，RC第三entry確實接納且完整total3 batch提交，精確native job bytes admitted an oversized complete batch marker，正式test bytes保持。log nfo-native-job-batch-control-red-v1.jsonl。現有job2筆／library128／global256／entry512 exact及native prep/global entry舊快照保持，沒有假設已提交job可追加。
+
+V4 freeze71705 terminal0、996份Go／SQL、新增兩root後compile474。第一次runner在freeze仍live時因source.json不存在退出，沒有執行test；確認freeze terminal0後才啟動CURRENT完整PG session26780，run-nfo-native-receipt-schema-v4-full-shards.py、前綴nfo-native-receipt-schema-v4，四片實際編譯474。來源不得改、不覆寫V1–V3或重啟存活handle。Windows V4三套件已exit0／953PASS1008條件skip零fail三package pass；vet三套件／incremental brand0/339／gitignore0／diff0。
+
+新finalizer V4要求996 current hashes／474 roots／Win9531008、新兩正式4PASS及兩red精確markers、四片終態exit0且零skipfail才另寫docs/evidence/nfo-write-native-receipt-v4.json，保留原V3摘要。52386 check-only已terminal，精確Pending／coverage missing／no public evidence written，拒絕分支實核。原24h同329073...原PID/startTicks/boot身分核running／OOMfalse，無24h完成證據、來源不含candidate。全案7／198／131、完整品牌FAIL／完整commit recovery worker三批次missing-NFO heapRSS仍缺，candidate53未提交推送。
+
+下一核52386拒絕分支與26780同handle完整終態，完整成功才safe V4 evidence、追蹤／提交／推送PR53；不把Windowsskip或V3 frozen集合當current474證據。
+
+---
+## 2026-10-03 global snapshot單entry fence反例成立，已升正式來源／選測四PASS
+
+83673 terminal0：V2私有RR控制真正Go exit1、3FAIL events、零skip，必含stale native byte snapshot admitted a second complete batch；僅停owned aa_fence_nfo_write_entry，正式source996在控制前後全成員／bytes一致。log native-entry-snapshot-candidate-red-v2.jsonl。正向13455三隔離4PASS及原V1失敗均保留；Serializable可在job階段40001整筆回滾，RC／RR拒絕位置仍精確，單entry fence因果由RR控制證明。
+
+控制結束後正式nfo_write_native_quota_test.go新增TestNFOWriteNativeReceiptEntryExactBytesStaleSnapshots，移除private disable常量及block、gofmt／diff0。正式選測session74812已terminal0／4PASS／零skipfail／一package pass，runner .testdata/run-nfo-native-entry-snapshot-formal-v1.py，log nfo-native-entry-snapshot-formal-v1.jsonl（不覆寫）。正式四PASS終態及安全計數已實核。當前Go已新增測試，V3完整1478PASS及public evidence只屬原996份frozen hashes，不能再跑其finalizer宣称当前集合通過。方法文件明記此checkpoint及新增後待重freeze／完整回歸。候選53仍未提交推送，7／198／131／品牌FAIL／完整功能缺口保持。
+
+下一審job128MiB三隔離實際完整batch模型，然後新freeze／compiled universe／Win及完整PG；舊V3各log／manifest／coverage及安全摘要均保留。不要重啟原24h。
+
+---
+## 2026-10-03 V3完整1478PASS已獨立核驗，global snapshot私有V2四PASS，單entry fence反例執行中
+
+71956 terminal0：四片exit0，472 roots各run／pass一次、1478PASS／零skipfail，996份Go／SQL成員與bytes吻合。64809 check-only及後續正式彙整均exit0，compiled list／groups／coverage及各log獨立重建吻合，104舊SQL／mod／sum／需求原文／LICENSE保持。docs/evidence/nfo-write-native-receipt.json已保存安全計數、來源及log hashes；沒有XML／DSN。只證當前996份來源的回歸，不證完整G00–G51或新增正式test來源。
+
+私有global snapshot V1 session41937 terminal1／2PASS3FAIL events／零skip。Serializable在job階段40001，候選原斷言強制entry階段而失敗；安全分類已實核stage=job、SQLSTATE40001，沒有capacity23514。V1 log保留。V2修為Serializable可在完整admission任一步驟40001但必須整筆rollback，RC／RR仍強制entry階段拒絕並核精確錯誤，明記早期Serializable abort不證entry fence因果。13455 terminal0／三隔離leaf加root4PASS零skipfail，source996全成員／bytes不變；log native-entry-snapshot-candidate-v2.jsonl。接續--red --v2只停owned aa_fence_nfo_write_entry、選RR；仍待真正超限marker／3FAIL events與來源核對終態。
+
+docs/nfo-write-native-receipt.md已更新V3終態及成功分支證據；incremental brand0／339、gitignore0、diff0。原24h同identity running／OOMfalse，仍未有24h完成證據。候選53尚未提交推送，PR仍schema52／361dc681f1，完整品牌FAIL與7／198／131保持。下一核red終態；若控制真正red再升正式global snapshot測試，重凍結完整回歸，不沿用V3證新來源。job128MiB matrix／完整commit／recovery／worker／三批次／heapRSS等仍待驗。
+
+---
+## 2026-10-03 native全域byte舊快照私有候選已編譯，V3仍存活
+
+新增private native-entry-snapshot-candidate.go.txt及run-native-entry-snapshot-candidate.py，overlay既有native quota test檔、正式Go／SQL不變。候選在兩快照前建立各自source prep，八個owned大job配置global512MiB只剩一份small batch的native bytes，兩TX各建自己的完整job/request/entry，第一恰cap、第二必須在entry階段23514精確capacity或RR／Serializable40001，RC必須23514；rollback後jobs／requests／entries及bytes均核，扣native後兩批仍可容納。private red只停owned aa_fence_nfo_write_entry並選RR，必須真正接納第二完整batch、精確marker及3FAIL events，其他守衛保持。metadata／receipt loan僅storage，不作FS或production admission授權。
+
+第一次37026編譯exit0／candidate root清單恰一次，凍結996來源成員與bytes不變；補entry拒絕位置檢查後67968重新編譯亦exit0／root恰一次、996份正式來源保持。沒有执行512MiB案例或red，也沒有正式來源test增量。本runner在--run前硬性要求V3完整四片passed／terminal0，避免與存活四片同時加重scale PG。最新V3 live checker四片277／369／265／251 PASS（合1162）、零skipfail、無package terminal；71956原handle仍live，不能宣告完整通過。原7／198／131及候選未發布保持。
+
+下一核67968編譯終態、同71956完整終態與來源。V3通過後先run私有global snapshot候選及單fence red，失敗保留並調查，再升正式測試、重凍結完整回歸；不能把私有編譯當三隔離證據或沿用舊996／472當新增正式來源的證據。job128MiB三隔離及完整commit／recovery／worker／三種批次／heapRSS仍需完成。
+
+---
+## 2026-10-03 V3成功摘要門檻已加，pending拒絕實核；完整回歸仍存活
+
+本輪write_stdin核同71956存活；最後live checker四片187／201／187／185 PASS（合760）、零skip／fail、尚無package terminal，996份來源吻合，compiled472。未重啟或修改Go／SQL。新增private .testdata/finalize-nfo-native-receipt-schema-v3.py，核compiled listing與四片分組、各root run／pass各一次、四exit0、零skipfail、996份成員與bytes、104已發布SQL及mod／sum／原需求／LICENSE保持，再独立重建log計數及specialist／negative controls，才能產生docs/evidence/nfo-write-native-receipt.json。本輪--check-only確實走Pending：coverage missing／no public evidence written；尚未驗成功分支，也沒有公開成功摘要。
+
+docs/nfo-write-native-receipt.md補證據门槛及剩餘快照交易範圍：copyNFOWriteIntents單交易完整batch且job/request/intent不可變，job128MiB需以各交易自己的完整batch核超限整批rollback；global entry512MiB需合法source preps、完整job競爭最後bytes，排除prep fence／active-library唯一／scope干擾，再有只停entry fence的真正超限控制。沒有拿追加既有job當合法admission，也不把現有generic rows矩陣當native exact bytes全矩陣。
+
+原24h本輪read-only核原PID／startTicks／boot匹配、container running／OOMfalse，仍無完成證據。候選53未提交／推送，公開HEAD361dc681f1／schema52，品牌FAIL及7完成／198部分／131阻塞保持。下一核同71956終態；有fail保留原log並修，無fail仍須finalizer獨立全部核對及剩餘矩陣完成，不縮減完整commit／recovery／worker／三批次／missing-NFO／heapRSS範圍。
+
+---
+## 2026-10-03 全quota正式29PASS、native exact舊快照4PASS，完整V3執行中
+
+V2 session6840已terminal1：四片0／2 exit1、1／3 exit0，471 roots各run一次、凍結996份在終態吻合，但僅1469PASS／5FAIL tests、零skip，failed roots為TestNFOQuotaJobConcurrentSnapshotsAndGlobalRows及TestNFOQuotaJobGlobalBytesRollBackAdmission。三隔離leaf精確23514／nfo write intent differs from first prepared scope；global bytes拒在native receipt missing or invalid。安全失敗摘要docs/evidence/nfo-native-receipt-quota-fixture-failure.json，V2原manifest／coverage／logs保留，不宣稱green。沒有PG OOM中斷造成此輪失敗。
+
+私有52412 overlay三根8PASS零skipfail／terminal0，正式來源未改。V2停後正式nfo_quota_isolation_test.go換cloneNativeQuotaEntries：每item用owned真實item row及matching preparation，直接bytea payload欄位，copy同一native proof／完整scope後刪source preparation，避免actor32／prep256限制混淆1024 entry rows。移除未使用旧clone常量；READ COMMITTED的23514必須精確nfo write intent capacity reached，RR／Serializable可40001，其他23514不接受。不改production或104SQL、不把SQL storage metadata／loaned receipt當filesystem觀察或執行授權。最新59720已terminal0／八根29PASS零skipfail，log .testdata/nfo-native-receipt-quota-matrix-formal-v1.jsonl，包括Actor／global rows及bytes三隔離、歷史／missing fence／完整admission rollback。
+
+新native preparation exact snapshot根：各三隔離在cap256MiB只剩一份small recipe的同snapshot起步，first入庫恰exact limit、second拒且不留partial；另核去native計算仍有空間。39293 terminal0／4PASS零skipfail，log nfo-native-receipt-exact-native-snapshots-v1.jsonl。62996 private overlay只在owned schema停aa_fence_nfo_write_preparation，選repeatable_read真的接納錯誤資料，Go exit1／3FAIL events零skip，wrapper核red後terminal0、正式source byte保持；log nfo-native-receipt-snapshot-fence-control-red.jsonl。native job／entry global exact boundary已三根PASS及各停用receipt contribution紅控制；其native特有新舊快照完整矩陣尚需審查，不擴大目前scope結論。
+
+CURRENT session71956，runner .testdata/run-nfo-native-receipt-schema-v3-full-shards.py；996份Go／SQL新凍結，實際編譯472 roots四片，104已發布SQL／mod／sum／原需求／LICENSE保持。source／manifest／logs／coverage前綴nfo-native-receipt-schema-v3，checker .testdata/check-nfo-native-receipt-schema-v3-live.py。尚未完整終態，不改Go／SQL、不覆寫V1/V2、不重啟存活handle。待各root恰run/pass一次、零skipfail、四片terminal0及來源全hash吻合才彙整safe evidence與發布候選53；PR已發布仍361dc681f1／schema52，未提交／推送53。
+
+Windows V3三套件已terminal0，951PASS／1002條件skip／零fail，三package pass；log .testdata/nfo-native-receipt-schema-v3-windows.jsonl，不當Windows真PG；Win三套件vet／Linux格式／diff0。原24h同run329073a5d193446383327ab217aba147／PID1026300／startTicks33072456／boot4a5d9c5c-4482-4c3e-8978-30156b1ce92f本輪再次實核running／OOMfalse、不重啟，未有24h完成證據；来源24caf7d45f不含候選。V1 OOM／cleanup未全證明限制保持。全案7完成／198部分／131阻塞不變，完整品牌兩FAIL、完整target commit／rollback／recovery／Windows目錄耐久性／worker／三種批次／missing-NFO export／全heapRSS仍缺。
+
+---
+## 2026-10-03 native三個exact byte boundary及停用控制成立，完整V2執行中
+
+新增nfo_write_native_quota_test.go：準備全域256MiB、job128MiB、entry全域512MiB精確receipt-byte邊界。每案先允許exact inclusive limit，再確認扣掉native bytes後仍有空間容納新資料；SQL追加必須由23514／capacity守衛拒絕，global preparation另核app ErrNFOCacheCapacity。storage-only owned metadata／receipt loan明確不作新filesystem觀察或執行授權；大payload直接欄位傳遞，沒有大XML轉JSON。新helper支持兩份準備建立完整job，清除source prep後entry仍持有quota bytes，額外entry使用新owned item避免unique衝突；不提交incomplete batch，也不讓prep quota混淆job拒絕。
+
+55217 terminal0／三根3PASS零skipfail，log .testdata/nfo-native-receipt-exact-native-quota-v1.jsonl。76046 wrapper terminal0核private overlay三根Go真正exit1／4FAIL events零skip；只在每個owned schema把SQL容量函式的native contribution移除，額外資料被接納，三個formal assertions全紅，正式source byte不變。log .testdata/nfo-native-receipt-exact-quota-control-red.jsonl。此控制不是功能green，原library128MiB exact測試／其他copy及Stage controls保持。generic global preparation三隔離在direct-v2兩根5PASS已覆蓋，native特有job／global stale snapshot矩陣仍需審查補齊，不宣稱全部新隔離案例完成。
+
+新完整PG CURRENT session6840；runner .testdata/run-nfo-native-receipt-schema-v2-full-shards.py。996份Go／SQL凍結，104份001–052／mod／sum／原需求／LICENSE保持，實際編譯471 roots四片。source／manifest／logs／coverage前綴nfo-native-receipt-schema-v2，checker .testdata/check-nfo-native-receipt-schema-v2-live.py。尚未完整終態，不改Go／SQL，不覆寫V1失敗batch、不重啟存活handle。待四片terminal、各root恰run/pass一次、零skipfail及全部hash吻合才彙整；任何失敗保留並修正，不弱化守衛。候選53仍未提交／推送，PR52 PG兩SUCCESS、完整品牌兩FAIL／OPEN HEAD361dc681f1維持。
+
+Windows新凍結三套件terminal0，950PASS／999條件skip／零fail，三package pass；log .testdata/nfo-native-receipt-schema-v2-windows.jsonl，不當Windows真PG；Windows三套件vet及diff通過。原24h同run329073a5d193446383327ab217aba147／PID1026300／startTicks33072456／boot4a5d9c5c-4482-4c3e-8978-30156b1ce92f在scale PG OOM之後再次實核吻合，image container running／OOMfalse，不重啟，仍無24h完成證據。scale PG OOM失敗摘要及cleanup限制保留在下節與docs/evidence/nfo-native-receipt-pg-interruption.json。全案7完成／198部分／131阻塞不變，完整commit／rollback／recovery／missing-NFO export／worker／三種批次／全heapRSS仍缺。
+
+---
+## 2026-10-03 候選53完整V1因容量overlay OOM失敗；夾具已修，兩根5PASS
+
+完整70350已terminal1，四片exit1。468 roots各run一次，source995份在終態核對吻合，但並非各pass一次；790PASS／558FAIL tests、零skip，coverage.passed=false。所有nfo-native-receipt-schema-v1-*原log／manifest／coverage保留。不能當schema53全回歸通過，舊live checker現在因兩份Go test夾具已修改而不再適用。
+
+私有容量overlay77542實際exit1：global preparation三隔離根4PASS，job大payload recipe用jsonb_populate_record使PG server PID55764被signal9終止。Docker safe狀態核scale測試容器OOMKilled=true、仍running、restartCount0；server reinitializing／ready一次，492 recovery-mode訊息。失敗statement分類核含capacity-storage及whole-row JSON，沒有輸出SQL／XML／DSN。該OOM影響四片，owned account schema cleanup有失敗，不能稱cleanup全通過或隨意刪除未解決證據；schema剩餘資源待按精確owned證據處理。原圖片長測容器與專用PG不是該scale容器，不重啟。
+
+四片停止後正式修兩份owned test：nfo_preparation_global_quota_test.go明確INSERT／SELECT帶native_receipt，nfo_write_jobs_test.go以直接欄位配置大payload、建立合法owned item／source preparation，再copy同一receipt；首個大prep複製後cleanup釋放prep容量，第二次拒絕必須精確23514／nfo write intent capacity reached。第一direct63310 exit1／4PASS1FAIL，是缺owned item FK；已補合法item，最新5656 terminal0／兩根5PASS／零skipfail，log nfo-native-receipt-quota-fixture-direct-v2.jsonl。大XML只在owned SQL storage夾具，不作原生filesystem授權或完整heap／RSS證明。沒有削弱production／舊104SQL或以缺證例外通過。
+
+凍結V1來源的新負向控制40486已terminal0：copy Go真正exit1／2FAIL events，Stage Go真正exit1／6FAIL events，兩wrapper核預期且正式來源byte保持；logs nfo-native-receipt-copy-control-red-v2.jsonl及nfo-native-stage-receipt-control-red-v2.jsonl。Linux相關vet／Darwin NFO僅compile77131 terminal0。新方法docs/nfo-write-native-receipt.md與安全失敗摘要docs/evidence/nfo-native-receipt-pg-interruption.json已寫，不含私有payload／DSN。
+
+最新PR46唯讀實核OPEN／361dc681f1，schema52 PG兩SUCCESS、完整品牌兩FAIL，候選53未提交或推送。下一先補native特有job／global receipt-byte exact boundary及三隔離證據，再new source freeze／完整PG V2，不覆寫V1或把大量fail稱green。新型缺失NFO export、same-physical unresolved／partial stage／target commit／rollback／recovery／Windows目錄耐久性／worker／三種批次／全heapRSS仍未完成。全案7完成／198部分／131阻塞維持，不merge／release／tag／force-push／改Git身份／碰原媒體圖片授權。
+
+---
+## 2026-10-03 候選53 plan綁定29根通過，完整PG四片接續驗證
+
+本輪從真PG red（兩個canonical parent／target負例，0PASS／3FAIL tests，86725 terminal1）接續。53新增plan BEFORE及deferred trigger，比NEW.parent_identity與first receipt最後48-byte ancestor、NEW.target_identity與首次讀original bytes的NFO record；catalog wrapper另核已保存plan，涵蓋journal／plan／ready重放。應用SavePlan在INSERT前同樣核job-owned receipt，缺證或不同身分ErrConflict。53 down移除新trigger／function，但原proof／journal保留降版拒絕不變；104份001–052 SQL實核全部未改。
+
+正式v2真PG race18PASS tests／零skipfail、package terminal0（17719），包含native九根、直接SQL before／deferred、合法plan／no-op replay／commit、原16併發replay及repository reopen。log .testdata/nfo-native-receipt-plan-binding-v2.jsonl。私有Go overlay只在owned rollback交易停用新BEFORE trigger，兩個before負例真正Go exit1／4FAIL events、零skip；68453 wrapper核red後terminal0，正式來源byte保持，log nfo-native-receipt-plan-control-red.jsonl。這是缺口控制，不是功能通過。
+
+Windows及Linux race path plan兩根均PASS，所有scope kind、Series／Season根目錄自身、最大128深度明確核最後ancestor=NFO parent；Linux45423 terminal0，log .testdata/nfo-native-plan-parent-order-linux.jsonl。root migration retained夾具先移除owned native欄位並降52，才能單獨測原root proof拒降51，沒有削弱新53保留拒絕。
+
+擴充session22327已terminal0，wrapper .testdata/run-nfo-native-receipt-plan-binding-expanded-v3.py，log .testdata/nfo-native-receipt-plan-binding-expanded-v3.jsonl；native／commit file／root generation29根、130PASS／零skipfail。最後Windows三套件vet、Linux格式與增量brand0／339、diff皆通過。Windows凍結三套件最終950PASS／996條件skip／零fail，三package terminal0；log .testdata/nfo-native-receipt-schema-v1-windows.jsonl，不當Windows真PG證據。新完整PG CURRENT session70350：.testdata/run-nfo-native-receipt-schema-v1-full-shards.py，995份Go／SQL凍結，已發布104 SQL／mod／sum／需求原文／LICENSE保持，實際編譯468 roots四片驗證。來源與logs前綴nfo-native-receipt-schema-v1，沒有完整通過結論；不得改Go／SQL、覆寫舊log或重啟存活handle。候選53仍未提交或推送，已發布仍361dc681f1／schema52。下一核70350同handle編譯／四片終態、全root各run/pass一次且零skipfail、凍結全部hash吻合；若失敗保留原證據並調查，不削弱production守衛。native特有全部quota／三隔離尚未全補，safe evidence／完整驗收仍需補齊後才發布53。
+
+原24h同run329073a5d193446383327ab217aba147／PID1026300／startTicks33072456／boot4a5d9c5c-4482-4c3e-8978-30156b1ce92f本輪實核匹配，container running／OOMfalse；沒有24h完成證據，來源24caf7d45f不含本候選，不重啟。全案7完成／198部分／131阻塞保持。完整commit／rollback／recovery／Windows目錄耐久性／正式worker/API/CLI／三種批次、missing-NFO export協議與全heapRSS仍未完成；完整品牌兩FAIL門禁保持，不merge／release／tag／force-push／改Git身份設定／碰原媒體圖片與授權。
+
+---
+## 2026-10-03 候選schema53：native receipt已保存／job copy／Stage複核，尚未完整驗收或發布
+
+本輪已實作未提交53 up/down兩檔，Store.SchemaVersion=53；已發布HEAD仍361dc681f1cbb77c937d9bc0f7414b39061bdf5e／schema52。104份001–052 SQL對HEAD換行正規化後內容全部一致。nullable native_receipt在prep／entry保存同一first observation；歷史NULL不回填。SQL有界canonical函式核200–6296bytes、1–128 ancestors、header／platform／kind／reserved／Linux nsecs／media-NFO alias，與domain codec對照。新INSERT缺證拒、no-op歷史NULL可觀察、原immutable whole-row守衛保留；即時／deferred native guards與catalog wrapper53→52→51續接。entry BEFORE copy核source prep仍有效、actor/library、同native bytes、同首次scope／root generation／version／digest／stamp及payload hashes；deferred後不依賴已清除prep。53拒含native proof或journal降版，空或historicalNULL可降。prep應用和兩SQL quota aggregates均計native bytes，舊quota fence順序保持。
+
+Save／Find／copy／GetTask已保存／解析private receipt，缺歷史column以NULL觀察，metadata-only pg_attribute投影不JSON整XMLrow。新Save缺native拒，Begin／plan／ready app scope核native非空有效與kind；SQL catalog wrapper缺blob拒。Stage／ready resume現在核同一首次physical receipt：held ancestors／media／current NFO entry，另保留既有original bytes核對；verification用expected NFO identity template核当前entry，不額外讀／配置整份XML。只是checkpoint observations，沒有target Rename／backup／rollback／成功結算／crash恢复或runtime准入。
+
+原真PG red两根0PASS／2FAIL tests，證Save和job copy遺失native；log nfo-native-receipt-persistence-red.jsonl保持。首53 migration v1因CASE括號syntax失敗；私人overlay保留底層error chain僅取42601／position2714診斷，正式migrate錯誤遮蔽不改，修正兩CASE括號後成功。v5真PG native＋既有準備22PASS／零skipfail，75426 terminal0；最新v7 native七根7PASS／零skipfail，22373 terminal0，log .testdata/nfo-native-receipt-persistence-v7.jsonl，含canonical parity、reopen／prep清除、NULL歴史52→53不回填與Begin拒、保留降版拒、缺證Save拒、copy不能換first observation、128MiB exact native-byte boundary。boundary獨立88392 terminal0／1PASS；它證舊未計blob算法仍有空間但新app與SQL都拒，SQL大payload是owned storage-only，非FS授權。job/global aggregate替換已接，但新native特有全部quota／三隔離矩陣仍未全面補齊。
+
+copy负例修正掉unique(job,item)混雜：只在rollback控制交易刪owned existing entry、從source prep重插同一合法slot及不同canonical native blob，精確23514/native copy守衛拒。private Go overlay只在owned transaction DROP該BEFORE guard，Go真正fail2events／零skip，13023 wrapper核red後terminal0，正式test來源不變。Stage receipt equality overlay四个media／absolute ancestor、before_plan／ready_resume真紅6FAIL events／零skip，80389 wrapper核red後terminal0，正式source hash保持；log nfo-native-stage-receipt-control-red.jsonl。正式Stage新根含六leaf：Windows7PASS零skipfail、Linux7PASS零skipfail，27512 terminal0，缺證／新media／root外ancestor拒且snapshot／plan／ready／payload reservation保持，保留已有artifact。
+
+最后Linux完整domain＋NFO race726PASS／1Windows skip／零fail，22450 terminal0，log nfo-native-stage-receipt-all-linux-race.jsonl；Windows完整两套件在新增Stage負例之前701PASS／5skip／零fail，log nfo-native-stage-receipt-windows-v1.jsonl，新增負例另7PASS。Windows vet、Linux相關vet／Darwin NFO僅compile21279 terminal0、格式與diff通過；最後文件增量brand0／339、gitignore與diff通過。沒有新完整PG compiled universe／四片freeze或完整通過，不把7/22/726換算全schema53驗收。
+
+下一先補SQL plan parent／target與首次receipt的綁定及正反例（目前catalog wrapper只核native可用／kind），審root generation已變後不能把old receipt copy成新scope、全部quota及三隔離／历史／leaseactor／migration matrix；RootGeneration舊empty下版51測試需先下53→52，其他明確欄位SQL夾具需同步native但歷史原SQL形狀保持。接著新Go／SQL freeze及完整PG，safe evidence、追蹤／PR53說明與發布。舊52 freeze checker不可再跑当前來源。下方舊「資料庫仍遺失receipt」已由本節更正。SourceNative scope新增NVbytes只在private数据中，完整heap／RSS未证明。
+
+最新PR52兩個PostgreSQL migration and repository integration CI均COMPLETED SUCCESS；完整品牌仍兩COMPLETED FAILURE。PRbody已精確更新已發布52的PG成功，remote OPEN／HEAD／normalized body實核匹配，private pr46-schema52-ci-pg-success.json，未宣稱候選53發布。原24h同run329073a5d193446383327ab217aba147／PID1026300／startTicks33072456／boot4a5d9c5c-4482-4c3e-8978-30156b1ce92f實核running、container OOMfalse，來源24caf7d45f不含本候選，沒有24h完成結論、不重啟。全案7完成／198部分／131阻塞保持；same physical unresolved排除／partial stage／missing-NFO export新協議／完整commit recovery／Windows目錄耐久性／正式worker/API/CLI／三種批次與其他G00–G51要求未完成，不merge／release／tag／force-push／改Git身份設定／碰原媒體圖片與授權。
+
+---
+## 2026-10-03 原生準備：media／全祖先held-handle觀察已接，持久化仍待53
+
+本轮新增native_preparation_source.go：依有界path plan，自volume／filesystem root沿held os.Root逐層OpenRoot，保留全部absolute及relative ancestor；Lstat拒symlink／ModeIrregular、held native kind與SameFile核對。media file在NFO讀取前開啟並保留，directory media來自held ancestor；NFO receipt身分取自讀original bytes的同一Source.nativeFile，第二handle只核目前entry。讀後重核各held ancestor與其parent entry、media held ID及当前entry；所有handles反向關閉，失敗／取消零Source與零receipt，不回退。仍是checkpoint observations，非atomic snapshot或不可偽造身分。
+
+WritePreparer首次與最後IO改用此collector，CPU後比較整份首次receipt、原root／parent／NFO／stamp／原文；prepared.NativeObservation保存首次觀察。跨CPU時首輪所有handles已關閉，Windows與Linux確實可替換media、relative ancestor及configured root外的absolute ancestor，original media／NFO／root objects保持但ancestor替換仍拒；同bytes／mtime新media實體拒，cancel waiter與permit皆歸零，測試goroutine取消後join。新增Series／Season directory「.」與Series legacy media驗證。
+
+Windows完整domain／NFO兩套件701PASS／5skip／零fail，log .testdata/nfo-native-preparer-all-windows-v4.jsonl；Linux race完整719PASS／1Windows skip／零fail，78208 terminal0，log .testdata/nfo-native-preparer-all-linux-race-v3.jsonl。此後加強ModeIrregular拒絕並跑post-control affected suite：Windows18PASS／3symlink privilege skip／零fail，Linux21PASS／零skipfail，2909 terminal0；logs .testdata/nfo-native-preparer-post-control-windows.jsonl及-linux.jsonl。Windows讀取期間held directory handles阻擋兩個ancestor rename，test明記「沒有實際替換」，不當該期間已替換測試；跨CPU測試則確實替換且拒絕，沒有這個替代分支。Linux讀取期間全部五種改變確實執行。
+
+私人overlay只停用firstReceipt.Equal(lastReceipt)，選media_same_bytes／absolute_ancestor兩負例真正紅，4FAIL events／零skip，23333 wrapper核預期後terminal0，正式prepare_write.go hash未變；log .testdata/nfo-native-preparer-cpu-control-red.jsonl。原先全套失敗Windows／Linux logs及夾具修正保持：preparedWriterFixture补owned synthetic media，歷史root-generation缺證recipe清空native receipt（不弱化有receipt必須root generation正值），各目錄count同步兩檔。原本旧52 overlay8FAIL仍作歷史缺口，不覆寫或直接重用其凍結checker。
+
+上一輪fixture擴充PG21815已terminal0，217PASS／零skipfail，nfo-native-path-plan-preparation-pg-v2.jsonl；它在collector接入前，只證fixture/catalog baseline。collector接入後真PG準備選測22791 terminal0，16PASS／零skipfail，nfo-native-preparer-full-pg.jsonl；不證native blob保存。目前Store.SchemaVersion52／104 SQL immutable，Save／Find／job copy／GetTask尚未保存NativeObservation，新觀察仍會在DB保存時遺失，不能發布為完整原生準備或FS授權。尚未提交，下一必須53 nullable bytea canonical receipt、historical NULL不回填／新缺證拒、job-owned同一receipt／Begin／plan／ready／resume，以及全域storage quota計blob bytes，不能到Stage重新認新媒體。
+
+Windows vet、Linux相關vet與Darwin NFO僅compile4684 terminal0、最後Linux格式與diff通過；最後文件增量品牌0／339、gitignore與diff通過。原24h同run329073a5d193446383327ab217aba147／PID1026300／startTicks33072456／boot4a5d9c5c-4482-4c3e-8978-30156b1ce92f實核吻合，container running／OOMfalse，沒有24h通過、不重啟。PR46 OPEN HEAD361dc681f1cbb77c937d9bc0f7414b39061bdf5e，完整品牌兩FAIL／PG CI兩IN_PROGRESS最新實核保持。全案7完成／198部分／131阻塞；same physical unresolved／partial stage／backup／target Rename／rollback／結算／crash恢復／Windows目錄耐久性／正式worker／三種批次操作與完整heapRSS保持未完成。
+
+---
+## 2026-10-03 原生準備續作：有界scope path plan與owned媒體夾具
+
+本輪新增private native_preparation_paths.go，從resolver-owned scope確定root／media／NFO與所有absolute root祖先及relative parent順序，去重且總ancestor最多128。Movie／HomeVideo／Episode／Series legacy file為file；Series／Season directory支援「.」root自身，media parent在root自身時不越出根鏈。拒root dot segments及相對root；Windows混合slash轉平台分隔符，不因其拒合法root。私有path plan診斷遮蔽。它尚未接WritePreparer、原生media／ancestor觀察或receipt持久化，不能當FS授權或修好原8FAIL。
+
+nfoItemApplyFixture在t.TempDir建立owned synthetic media（不碰原媒體）。三個原先預期只有NFO的目錄數斷言改為兩檔，concurrent replay另核媒體內容前後不變。第一次真PG選測15PASS／1FAIL，失敗是新增media後舊目錄count斷言，log .testdata/nfo-native-path-plan-preparation-pg.jsonl保留。修正後擴充真PG race CURRENT session21815，wrapper .testdata/run-nfo-native-path-plan-preparation-pg-v2.py，log .testdata/nfo-native-path-plan-preparation-pg-v2.jsonl；包括準備、持久recipe writer、catalog scope與SQL守衛，不是全PG。最後75PASS／零skipfail只是中途，21815實核仍live，不能宣稱終態或重啟。
+
+Windows兩個path plan根通過；Linux race最終v2兩根2PASS／零skipfail，55991 terminal0，log .testdata/nfo-native-path-plan-linux-race-v2.jsonl。測試包含各scope kind、directory root自身、absolute ancestor、穩定去重、combined總128接受／129拒絕及dotsegment拒絕。Windows vet與最後Linux格式／增量品牌0／339／gitignore／diff通過；Python格式工具在Windows因POSIX-only拒絕後改用Linux執行成功。尚未提交，schema仍52／104舊SQL保持。全案7完成／198部分／131阻塞不變。
+
+原24h run329073a5d193446383327ab217aba147／PID1026300／startTicks33072456／boot4a5d9c5c-4482-4c3e-8978-30156b1ce92f同身分實核吻合，container running／OOMfalse，沒有完成結論。PR46 OPEN／HEAD361dc681f1cbb77c937d9bc0f7414b39061bdf5e，完整branding兩FAIL／PG CI兩IN_PROGRESS最新實核不變。下一先核21815同handle終態，再接首次IO media／ancestor held-handle capture與同Source original NFO、跨CPU重核、取消join，之後新53保存／jobcopy／quota／歷史缺證拒准入；完整commit／recovery／worker與其他需求保持待驗。
+
+---
+## 2026-10-03 原生準備候選：有界receipt及held root／NFO觀察已接
+
+已發布schema52／361dc681f1cbb77c937d9bc0f7414b39061bdf5e／OPEN PR46，104份001–052 SQL不可改。本輪未提交，Store.SchemaVersion仍52，尚無53 migration；沒有完整原生準備完成結論。新增domain私有NFONativePreparationReceipt：最多128個ancestor、固定48-byte canonical records、8-byte header、最大6296bytes，root／media／NFO及所有ancestor同platform／kind；拒file media與NFO同物件、缺损／越界／padding／錯platform，格式與JSON遮蔽，constructor／accessor／clone不共享可變ancestor陣列。NFOWritePreparation加NativeObservation並深複製，歷史空receipt仍可讀；存在receipt時必須有效、media kind與scope一致且root generation正值。Canonical shape不是實體ownership或FS授權。
+
+ReadSource的sourceAccess新增每次呼叫獨立的可選native observer，普通readonly ReadSource不要求平台native支援。新增private readNativeSource，從同一held NFO file及已held os.Root的"."取得root／NFO身分，讀bytes前後核相同觀察，失敗不fallback且零Source結果，所有既有取消callback／close join保持。WritePreparer首次及最後IO改用native路徑，CPU等待後核同root／NFO record；NativeObservation尚未由prepare建立／DB保存，media與完整ancestor尚未捕捉，不能宣稱原先overlay8FAIL已修復。新receipt會沿prep／job-owned／GetTask／Begin／plan／ready／resume保存同一觀察，而不是Stage晚認media；53還須把blob bytes計入全域quota、拒新缺證及不回填歷史。
+
+Windows domain／nfo兩套件681PASS／2平台skip／零fail，log .testdata/nfo-native-receipt-source-windows.jsonl；Linux race696PASS／1Windows skip／零fail，38830 terminal0，log .testdata/nfo-native-receipt-source-linux-race.jsonl。真PG preparation選測16PASS／零skipfail，45350 terminal0，log .testdata/nfo-native-source-preparation-pg.jsonl，僅證既有准备回歸、不證新blob持久化。Windows vet0；Linux vet／Darwin NFO僅compile56500 terminal0。私人overlay移除讀取後native比較與constructor clone，兩個root測試確實失敗，4FAIL events／零skip，95812 wrapper精確核預期後terminal0，正式兩檔hash未變；原碼focused post-control兩套件2PASS／零skipfail，log .testdata/nfo-native-receipt-source-post-control.jsonl。先前Fuzz fixture改為testing.TB並用真正testing.F，不建造空testing.T。尚未跑新完整PG，不沿用52的459根作目前來源通過。
+
+下一步：先补owned真正media檔案fixture，新增deterministic scope path plan，包含configured root以外相關absolute ancestor及media／NFO相對ancestor、總數≤128，缺證／symlink／reparse／unsupported拒準備。第一次IO須先觀察media與ancestor，與同一held NFO原文捕捉前後核對；最後IO重核同receipt，跨CPU替換及cancel join。再接新53 nullable bytea／canonical SQL／immutability／scope＋leaseactor／quota fence、job copy／TTL／historical與resume，舊104 SQL不改。Movie／HomeVideo／Episode media file、Series／Season directory與Series legacy file分開，NFOItemScope仍可比較。same physical unresolved／partial stage／target Rename／backup／rollback／結算／crash恢復／Windows目錄耐久性／正式worker／三種批次與完整heapRSS仍缺。
+
+正式24h同run329073a5d193446383327ab217aba147／PID1026300／startTicks33072456／boot4a5d9c5c-4482-4c3e-8978-30156b1ce92f，原身分running與container OOMfalse實核吻合，沒有24h通過、不重啟。現在Go／SQL已有變更，不能再用52凍結checker核長測，請用獨立.testdata/check-original-images-soak-identity.py。PR52新head兩個完整品牌FAIL，PG integration兩檢查目前IN_PROGRESS（private pr46-schema52-ci-current-v2.json），不宣稱CI綠。全案7完成／198部分／131阻塞保持，不merge／release／tag／force-push／改Git身份設定，原媒體／圖片／授權保持。下方為歷史。
+
+---
 ## 2026-10-03 schema52 完整459根已驗，準備發布
 
 已發布基線2b3cb5b8c69bc11eae7bebc0c29a89eb4b0515b6／schema51／PR46，本批隨提交沿同分支發布schema52。資料庫root generation在準備及job-owned intent保存同一觀察；缺證歷史NULL不回填、不授權新準備／Begin／plan／ready／Stage。SQL及app核root ID／library／path／generation，SAVEPOINT／提早flush後準備root mutation與generation倒退拒絕；Save先quota後root。保留root proof或journal拒52降版dirty51，空降升保留metrics epoch。沒有原生media／ancestor receipt或target提交准入。

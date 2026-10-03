@@ -44,7 +44,7 @@ func TestNFOPreparedWriterConsumesPersistedRecipeAfterReopen(t *testing.T) {
 	}
 	before, _ := os.ReadFile(filepath.Join(scope.Source.RootPath, scope.Source.RelativePath))
 	entries, _ := os.ReadDir(scope.Source.RootPath)
-	if !bytes.Equal(before, saved.Original) || len(entries) != 1 {
+	if !bytes.Equal(before, saved.Original) || len(entries) != 2 {
 		t.Fatal("rejected recipe touched source or sidecar")
 	}
 	if err := w.ReplacePrepared(f.ctx, source, recovered); err != nil {

@@ -92,7 +92,7 @@ func (w *Writer) stageCommitFilesOwned(ctx context.Context, source *Source, leas
 	if err != nil {
 		return err
 	}
-	if task.JobID != record.JobID || task.Sequence != record.Sequence || task.Preparation.Scope.RootGeneration < 1 {
+	if task.JobID != record.JobID || task.Sequence != record.Sequence || task.Preparation.Scope.RootGeneration < 1 || task.Preparation.NativeObservation.Empty() {
 		return ErrInvalidInput
 	}
 	if evidence.Record.JobID != record.JobID || evidence.Record.Sequence != record.Sequence || evidence.Record.Owner != record.Owner || evidence.Record.Generation != record.Generation || evidence.Record.Token != record.Token || evidence.ReadyRecorded && !evidence.PlanRecorded {
@@ -132,6 +132,9 @@ func (w *Writer) stageCommitFilesOwned(ctx context.Context, source *Source, leas
 	filename := filepath.Base(filepath.FromSlash(source.relative))
 	check := func(checkCtx context.Context) error {
 		if err := checkCtx.Err(); err != nil {
+			return err
+		}
+		if err := verifyNativePreparationScope(checkCtx, task.Preparation.Scope, task.Preparation.NativeObservation); err != nil {
 			return err
 		}
 		current, err := os.OpenRoot(source.rootPath + string(os.PathSeparator) + ".")

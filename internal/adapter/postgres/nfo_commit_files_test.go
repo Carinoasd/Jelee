@@ -28,7 +28,13 @@ func commitIdentityFixture(kind, id byte) [48]byte {
 }
 
 func commitPlanFixture(prepared domain.NFOWritePreparation) domain.NFOWriteCommitFilePlan {
-	return domain.NFOWriteCommitFilePlan{Version: 1, TargetName: filepath.Base(filepath.FromSlash(prepared.Scope.Source.RelativePath)), ParentIdentity: commitIdentityFixture(2, 1), TargetIdentity: commitIdentityFixture(1, 2)}
+	plan := domain.NFOWriteCommitFilePlan{Version: 1, TargetName: filepath.Base(filepath.FromSlash(prepared.Scope.Source.RelativePath)), ParentIdentity: commitIdentityFixture(2, 1), TargetIdentity: commitIdentityFixture(1, 2)}
+	if !prepared.NativeObservation.Empty() {
+		ancestors := prepared.NativeObservation.AncestorIdentities()
+		plan.ParentIdentity = ancestors[len(ancestors)-1]
+		plan.TargetIdentity = prepared.NativeObservation.NFOFileIdentity()
+	}
+	return plan
 }
 
 func commitReadyFixture() domain.NFOWriteCommitFilesReady {

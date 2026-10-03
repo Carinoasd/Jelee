@@ -1,6 +1,8 @@
 package postgres
 
 import (
+	"os"
+	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
@@ -26,6 +28,9 @@ func nfoItemApplyFixture(t *testing.T) (jobFixture, domain.NFOItemScope, domain.
 	scope, err := f.s.ResolveItemNFO(f.ctx, f.a, item, 1)
 	if err != nil {
 		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(scope.Source.RootPath, filepath.FromSlash(scope.MediaPath)), []byte("owned synthetic media fixture"), 0600); err != nil {
+		t.Fatal("create owned media fixture")
 	}
 	fields := domain.NFOItemFields{Version: domain.NFOItemFieldsVersion, Kind: "Movie", Identity: domain.DefaultNFOIdentity(), Stamp: domain.NFOStamp{Size: 123, SHA256: strings.Repeat("a", 64), FingerprintVersion: domain.NFOFingerprintVersion}, ReadAt: time.Now().UTC(), Fields: []domain.NFOTextField{{Field: "title", Value: "NFO title"}, {Field: "originalTitle", Value: "Original NFO"}, {Field: "overview", Value: "NFO overview"}, {Field: "date", Value: "2024-02-29"}}}
 	return f, scope, fields

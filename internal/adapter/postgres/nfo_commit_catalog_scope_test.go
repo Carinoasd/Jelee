@@ -150,7 +150,7 @@ func TestNFOCommitCatalogScopeRejectsNativeStageAndReadyResume(t *testing.T) {
 				if err != nil {
 					t.Fatal(err)
 				}
-				if phase == "before_plan" && len(entries) != 1 {
+				if phase == "before_plan" && len(entries) != 2 {
 					t.Fatal("plan rejection created native side effects")
 				}
 			})

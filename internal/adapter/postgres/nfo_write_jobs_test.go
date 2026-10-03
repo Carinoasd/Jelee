@@ -20,7 +20,7 @@ import (
 
 // Only a private SQL fixture can create these jobs until admission and commit
 // recovery are connected. No runtime capability or read-write mode is enabled.
-func nfoWriteJobFixture(t *testing.T, f jobFixture, prepared domain.NFOWritePreparation, key, priority string) domain.Job {
+func nfoWriteJobFixture(t *testing.T, f jobFixture, prepared domain.NFOWritePreparation, key, priority string, additionalPreparations ...string) domain.Job {
 	t.Helper()
 	tx, err := f.s.authorizedJobs(f.ctx, f.a)
 	if err != nil {
@@ -37,8 +37,12 @@ func nfoWriteJobFixture(t *testing.T, f jobFixture, prepared domain.NFOWritePrep
 		t.Fatal(err)
 	}
 	if hasRootColumn {
-		err = copyNFOWriteIntents(f.ctx, tx, j.ID, []string{prepared.ID})
+		ids := append([]string{prepared.ID}, additionalPreparations...)
+		err = copyNFOWriteIntents(f.ctx, tx, j.ID, ids)
 	} else {
+		if len(additionalPreparations) != 0 {
+			t.Fatal("historical fixture supports one preparation")
+		}
 		err = copyLegacyNFOWriteFixture(t, f, tx, j, prepared)
 	}
 	if err != nil {
@@ -288,16 +292,38 @@ func TestNFOWriteJobsByteCapacityRollsBackWholeBatch(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer tx.Rollback(f.ctx)
-	query := `WITH large AS MATERIALIZED (SELECT convert_to(rpad('<movie/>',33554432,' '),'UTF8') AS value), target AS MATERIALIZED (SELECT gen_random_uuid() AS item), recipe AS MATERIALIZED (SELECT e.*,target.item,convert_to((convert_from(request_bytes,'UTF8')::jsonb||jsonb_build_object('itemId',target.item,'maxBytes',33554432))::text,'UTF8') AS encoded FROM nfo_write_entries e CROSS JOIN target WHERE job_id=$1::uuid AND sequence=1)
- INSERT INTO nfo_write_entries(job_id,sequence,preparation_id,version,request_bytes,request_digest,library_id,item_id,source_id,root_id,kind,revision,generation,root_generation,root_path,relative_path,media_path,directory_path,max_bytes,modified_unix_nano,original_bytes,original_sha256,replacement_bytes,replacement_sha256)
- SELECT job_id,$2,gen_random_uuid(),version,encoded,encode(sha256(encoded),'hex'),library_id,item,source_id,root_id,kind,revision,generation,root_generation,root_path,relative_path,media_path,directory_path,33554432,modified_unix_nano,value,encode(sha256(value),'hex'),value,encode(sha256(value),'hex') FROM recipe CROSS JOIN large`
-	if _, err := tx.Exec(f.ctx, query, j.ID, 2); err != nil {
-		t.Fatal("capacity rejected below 128MiB", err)
-	}
-	_, err = tx.Exec(f.ctx, query, j.ID, 3)
-	var pgErr *pgconn.PgError
-	if !errors.As(err, &pgErr) || pgErr.Code != "23514" || pgErr.Message != "nfo write intent capacity reached" {
-		t.Fatal("capacity refused for an unrelated constraint", err)
+	// Owned storage-only recipes retain matching source proof. Neither these
+	// synthetic item IDs nor large XML bytes are used as filesystem authority.
+	prepare := `WITH large AS MATERIALIZED (SELECT convert_to(rpad('<movie/>',33554432,' '),'UTF8') AS value), target AS MATERIALIZED (SELECT $3::uuid AS item), recipe AS MATERIALIZED (SELECT p.*,target.item,convert_to((convert_from(request_bytes,'UTF8')::jsonb||jsonb_build_object('itemId',target.item,'maxBytes',33554432))::text,'UTF8') AS encoded FROM nfo_write_preparations p CROSS JOIN target WHERE id=$1::uuid)
+ INSERT INTO nfo_write_preparations(actor_id,idempotency_key,version,request_bytes,request_digest,library_id,item_id,source_id,root_id,kind,revision,generation,root_generation,root_path,relative_path,media_path,directory_path,max_bytes,modified_unix_nano,original_bytes,original_sha256,replacement_bytes,replacement_sha256,native_receipt)
+ SELECT actor_id,'capacity-storage-'||$2::integer::text,version,encoded,encode(sha256(encoded),'hex'),library_id,item,source_id,root_id,kind,revision,generation,root_generation,root_path,relative_path,media_path,directory_path,33554432,modified_unix_nano,value,encode(sha256(value),'hex'),value,encode(sha256(value),'hex'),native_receipt FROM recipe CROSS JOIN large RETURNING id::text`
+	copy := `INSERT INTO nfo_write_entries(job_id,sequence,preparation_id,version,request_bytes,request_digest,library_id,item_id,source_id,root_id,kind,revision,generation,root_generation,root_path,relative_path,media_path,directory_path,max_bytes,modified_unix_nano,original_bytes,original_sha256,replacement_bytes,replacement_sha256,native_receipt)
+ SELECT $1::uuid,$2,id,version,request_bytes,request_digest,library_id,item_id,source_id,root_id,kind,revision,generation,root_generation,root_path,relative_path,media_path,directory_path,max_bytes,modified_unix_nano,original_bytes,original_sha256,replacement_bytes,replacement_sha256,native_receipt FROM nfo_write_preparations WHERE id=$3::uuid`
+	for _, sequence := range []int{2, 3} {
+		var item string
+		if err := tx.QueryRow(f.ctx, `INSERT INTO items SELECT (jsonb_populate_record(NULL::items,to_jsonb(i)||jsonb_build_object('id',gen_random_uuid()))).* FROM items i WHERE id=$1::uuid RETURNING id::text`, saved.Scope.ItemID).Scan(&item); err != nil {
+			t.Fatal("create owned capacity item", err)
+		}
+		var preparation string
+		if err := tx.QueryRow(f.ctx, prepare, saved.ID, sequence, item).Scan(&preparation); err != nil {
+			t.Fatal("prepare owned capacity recipe", err)
+		}
+		_, err = tx.Exec(f.ctx, copy, j.ID, sequence, preparation)
+		if sequence == 2 {
+			if err != nil {
+				t.Fatal("capacity rejected below 128MiB", err)
+			}
+			// Source TTL cleanup must not remove copied intent; free preparation
+			// bytes so the next refusal isolates the job quota rather than prep quota.
+			if _, err := tx.Exec(f.ctx, `DELETE FROM nfo_write_preparations WHERE id=$1::uuid`, preparation); err != nil {
+				t.Fatal("cleanup copied owned recipe", err)
+			}
+		} else {
+			var pgErr *pgconn.PgError
+			if !errors.As(err, &pgErr) || pgErr.Code != "23514" || pgErr.Message != "nfo write intent capacity reached" {
+				t.Fatal("capacity refused for an unrelated constraint", err)
+			}
+		}
 	}
 	_ = tx.Rollback(f.ctx)
 	var count int
