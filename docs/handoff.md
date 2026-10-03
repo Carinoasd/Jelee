@@ -1,3 +1,10 @@
+## 2026-10-03 正式部分落檔程序中斷回歸通過，恢復協議仍待實作
+
+新增commit_files_abrupt_test.go：真子程序osexit70/71/72/73繞過defer，plan Sync但無副作用時可續作；output／rollback／directory callback後留下2/4/5物件時fresh root仍ErrReplace，保持第一次plan／物件身分與原target，無ready。file-backed callback不是PG；Windows目錄同步stub不證metadata耐久性。正式選測Windows及Linux race各5PASS零skipfail；完整NFO Windows383PASS／5symlink條件skip、Linux race401PASS／1Windows専屬skip，均terminal0。vet／format／增量brand0/339／gitignore／diff通過；安全JSON獨立核四logs及五case各run/pass一次、source及log SHA256。
+
+docs/nfo-partial-stage-recovery.md列出G13.3/G39.8恢復條件：有界持久attempt／names、每階段first object proof、create到first save之間未知物件保留與另一已保存attempt、有效恢復租約與完整授權、Sync與ready、真PG及實際程序中斷矩陣。尚未實作，不能用安全保留替代自動恢復；下一接持久協議與正式接線。108舊SQL保持；原完整1520PASS僅schema54凍結來源，不涵蓋新增回歸。PR90c975時品牌兩FAIL、PG兩IN_PROGRESS，原24h不重啟，全案7/198/131保持active。
+
+---
 ## 2026-10-03 schema54已發布至既有PR46，完整回歸1520PASS
 
 發布audit22506 terminal0，精確5Go/SQL及8docs的13檔內容hash與staged清單一致；cached diff通過。已提交並推送f0cdda06f99bbacb783904abc47d4c6c48d4a521，遠端PR46 OPEN及HEAD吻合，工作目錄乾淨。108份已發布SQL自此不可修改；舊JSON checkpoint與失敗證據保持。
