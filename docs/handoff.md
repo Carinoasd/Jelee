@@ -1,3 +1,7 @@
+## 第二轮短測建置相容性修正
+
+25d68f4e905c4752a8852e5e45450c51產品Docker與test binary成功，測試image的FROM bare sha256被BuildKit解讀成遠端repo而失敗；全owned資源清理true，PID575968已不存在。改本輪唯一local tag作FROM，前後核image ID不變；run/cleanup仍固定image ID。Windows/Linux控制器故障矩陣通過，下一輪從新提交重跑，尚無600秒或24h完成證據。
+
 ## 真短測首輪建置失敗已定位
 
 caf1b3ef65短測56c5857eaa044b0aa1ef60c1cdcaaeb4在Docker runtime_image_invalid退出，尚未執行負載。snapshot provision只複製package notices，漏mediaRuntime.licenseTexts四份GPL/LGPL/GCC exception文字；已补全部pin檔案並新增回歸。Windows snapshot4通過／2略過、Linux6通過。原始失敗證據保留，worker/test/native及launcher PG/volume/snapshot清理皆true，PID572932已不存在。

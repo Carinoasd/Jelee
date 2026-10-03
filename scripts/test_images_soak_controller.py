@@ -36,6 +36,10 @@ class ControllerTests(unittest.TestCase):
                 elif "--count" in argv:
                     self.assertEqual(argv[-1], "1000")
                     body = json.dumps(manifest).encode()
+                elif argv[:2] == ["docker", "build"] and argv[-1] == str(native / "build"):
+                    dockerfile = (native / "build/Dockerfile").read_text()
+                    self.assertTrue(dockerfile.startswith("FROM jelee/jelee:image-soak-"))
+                    self.assertNotIn("FROM sha256:", dockerfile)
                 if "--cleanup-probe-worker" in argv and mode == "cleanup":
                     return subprocess.CompletedProcess(argv, 1, b"")
                 return subprocess.CompletedProcess(argv, 0, body)

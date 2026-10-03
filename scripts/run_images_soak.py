@@ -96,9 +96,15 @@ def run_case(*, smoke=False, evidence_root=None, identity=None, snapshot=None):
         report["sdk"] = {"goVersion": sdk.decode("ascii").strip(), "manifestSha256": digest(ROOT / "tools/manifest.json")}
         run([str(ROOT / ".bin/go"), "test", "-trimpath", "-tags", "jelee_probe_tests", "-c", "-o", str(build / "worker.test"), "./internal/platform/runtime"], env=env, timeout=900)
         report["testBinarySha256"] = digest(build / "worker.test")
-        (build / "Dockerfile").write_text("FROM " + report["productionImage"] + "\nCOPY --chmod=0555 worker.test /worker.test\n", encoding="utf-8")
+        # BuildKit parses bare sha256:IDs as repository tags in FROM. This
+        # invocation owns a unique local tag; verify it before and after build.
+        if image_identity(run(["docker", "image", "inspect", base, "--format", "{{.Id}}"], timeout=15).stdout) != report["productionImage"]:
+            raise ImageFailure("soak_base_image_changed")
+        (build / "Dockerfile").write_text("FROM " + base + "\nCOPY --chmod=0555 worker.test /worker.test\n", encoding="utf-8")
         attempted.add(("image", image))
         run(["docker", "build", "--network", "none", "-t", image, str(build)], timeout=300)
+        if image_identity(run(["docker", "image", "inspect", base, "--format", "{{.Id}}"], timeout=15).stdout) != report["productionImage"]:
+            raise ImageFailure("soak_base_image_changed")
         report["testImage"] = image_identity(run(["docker", "image", "inspect", image, "--format", "{{.Id}}"], timeout=15).stdout)
         generator = native / "image-fixture"
         run([str(ROOT / ".bin/go"), "build", "-trimpath", "-o", str(generator), "./tools/image-fixture"], env=env, timeout=300)
