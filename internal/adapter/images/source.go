@@ -23,6 +23,10 @@ import (
 	"github.com/MoYuanCN/Jelee/internal/domain"
 )
 
+// Only fixed-size scratch buffers are retained; decoded images and cache data
+// never enter this pool. The runtime may discard idle buffers at any GC.
+var imageCopyBuffers = sync.Pool{New: func() any { return new([32 << 10]byte) }}
+
 const imageDirectoryEntries = 10000
 const imageDirectoryNameBytes = 4 << 20
 
@@ -239,8 +243,12 @@ func (f imageContextFile) Seek(offset int64, whence int) (int64, error) {
 }
 
 func copyImageBytes(ctx context.Context, out io.Writer, input *os.File, limit int64) (int64, error) {
-	buffer := make([]byte, 32<<10)
-	n, err := io.CopyBuffer(out, io.LimitReader(imageContextFile{ctx, input}, limit+1), buffer)
+	buffer := imageCopyBuffers.Get().(*[32 << 10]byte)
+	defer func() {
+		clear(buffer[:])
+		imageCopyBuffers.Put(buffer)
+	}()
+	n, err := io.CopyBuffer(out, io.LimitReader(imageContextFile{ctx, input}, limit+1), buffer[:])
 	if ctx.Err() != nil {
 		return n, ctx.Err()
 	}

@@ -3,6 +3,7 @@ package images
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"errors"
 	"fmt"
 	"io"
@@ -311,4 +312,58 @@ func TestImageSourceDirectoryLimitRejectsIncompleteSelection(t *testing.T) {
 		t.Fatal("partial oversized directory was treated as a complete selection")
 	}
 	imageScratchEmpty(t, scratch)
+}
+
+func BenchmarkImageSourceCopy(b *testing.B) {
+	file, err := os.CreateTemp(b.TempDir(), "source-")
+	if err != nil {
+		b.Fatal(err)
+	}
+	defer file.Close()
+	payload := bytes.Repeat([]byte("0123456789abcdef"), 16384)
+	if _, err := file.Write(payload); err != nil {
+		b.Fatal(err)
+	}
+	digest := sha256.New()
+	b.ReportAllocs()
+	b.SetBytes(int64(len(payload)))
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		if _, err := file.Seek(0, io.SeekStart); err != nil {
+			b.Fatal(err)
+		}
+		digest.Reset()
+		n, err := copyImageBytes(context.Background(), digest, file, int64(len(payload)))
+		if err != nil || n != int64(len(payload)) {
+			b.Fatalf("copy: %d %v", n, err)
+		}
+	}
+}
+
+func TestImageSourceCopyParallelContent(t *testing.T) {
+	for worker := 0; worker < 12; worker++ {
+		t.Run(fmt.Sprint(worker), func(t *testing.T) {
+			t.Parallel()
+			payload := bytes.Repeat([]byte{byte(worker + 1)}, (32<<10)+worker*149)
+			name := filepath.Join(t.TempDir(), "image")
+			if err := os.WriteFile(name, payload, 0600); err != nil {
+				t.Fatal(err)
+			}
+			file, err := os.Open(name)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer file.Close()
+			for round := 0; round < 12; round++ {
+				if _, err := file.Seek(0, io.SeekStart); err != nil {
+					t.Fatal(err)
+				}
+				var output bytes.Buffer
+				n, err := copyImageBytes(context.Background(), &output, file, int64(len(payload)))
+				if err != nil || n != int64(len(payload)) || !bytes.Equal(output.Bytes(), payload) {
+					t.Fatalf("copy corrupted: %d %v", n, err)
+				}
+			}
+		})
+	}
 }

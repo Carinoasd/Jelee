@@ -1,3 +1,9 @@
+## 最新產品進度：圖片來源複製緩衝重用
+
+圖片 copyImageBytes 已以 sync.Pool 重用固定 32 KiB buffer，所有返回路徑清零歸還。Windows 完整圖片套件/vet、Linux 完整圖片套件 race 通過；新增 12 路不同內容並行回歸。256 KiB 來源讀取至 SHA-256 微基準由約 32838 B/op、3 allocations 降至 51 B/op、2 allocations；證據在 docs/perf-report.md。JPEG 標準庫無公開 encoder 重用入口，編碼器部分仍缺，不將 G42.5 標為完成。
+
+正式長測 PID645523/startTicks31097741/bootId4a5d9c5c-4482-4c3e-8978-30156b1ce92f 與容器已再次確認運行中，來源仍為 c61c12b007，不包含後續 pool 變更。沿用下方 run，不重啟。下一步依 G13.5 掃描工作時間窗與全域資源预算缺口評估整合，或核對長測與 CI 實際終態。全案與第三階段仍未完成。
+
 ## 最新產品進度：媒體串流緩衝重用
 
 原媒體 streamWriter 已以每 Handler sync.Pool 重用固定 32 KiB buffer，成功或失敗皆清零歸還。Windows 套件通過，Linux race 通過；16 KiB Range 基準 Windows 58523 → 25859–25874 B/op、Linux 57782–57783 → 25184–25191 B/op，各少一次配置。詳見 docs/perf-report.md。G42.5 改為部分完成；總計 8 完成／194 部分／134 阻塞，第三階段未完成。
