@@ -42,6 +42,8 @@ def run_contracts():
         ("image-soak-trend", [sys.executable, "-B", "scripts/test_images_soak_trend.py"], 120),
         ("image-soak-gc", [sys.executable, "-B", "scripts/test_images_soak_gc.py"], 120),
         ("image-soak-replay", [sys.executable, "-B", "scripts/test_images_soak_acceptance.py"], 120),
+        ("image-soak-monitor", [sys.executable, "-B", "scripts/test_images_soak_monitor.py"], 120),
+        ("image-soak-controller", [sys.executable, "-B", "scripts/test_images_soak_controller.py"], 120),
         ("compose-configuration", [sys.executable, "-B", "scripts/check_memory_compose.py"], 180),
         ("native-runtime", [str(ROOT / ".bin/go"), "test", "-tags", "jelee_probe_tests", "-count=1",
                             "-run", "^Test(MemoryProfile(RuntimeSubprocess|CgroupEvidenceRequired)$|Resident|HeapProfile|ScanMemory|ImagesMemory|ImagesSoak)",

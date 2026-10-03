@@ -47,6 +47,8 @@ def source_digest():
              "scripts/images_soak_trend.py", "scripts/test_images_soak_trend.py",
              "scripts/images_soak_gc.py", "scripts/test_images_soak_gc.py",
              "scripts/images_soak_acceptance.py", "scripts/test_images_soak_acceptance.py", "tools/image-soak-budget.json",
+             "scripts/images_soak_monitor.py", "scripts/test_images_soak_monitor.py",
+             "scripts/run_images_soak.py", "scripts/test_images_soak_controller.py",
              "internal/adapter/images/LICENSE.x-image",
              "scripts/test_scan_memory.py",
              "scripts/scan_memory_acceptance.py", "scripts/container_memory.py",

@@ -53,3 +53,10 @@ scripts/images_soak_acceptance.py逐行重播有界JSONL，拒絕重複JSON key�
 Windows與Linux各32項合成資料測試通過，包括完整288輪／24個小時的正向重播、缺號／截斷／final矛盾、checkpoint造假、唯讀mount破壞、門檻放寬拒絕。既有圖片控制器21項通過，新重播步驟已加入memory contracts CI。**所有上述資料為合成契約測試，沒有實際運行24小時。**
 
 下一步外層controller仍須完成固定快照與單條logs-follow、接收時間heartbeat、真容器退出與cleanup核對；然後執行600秒smoke，正式24h尚未啟動。
+## 第五批：外層日誌監控與容器生命週期
+
+單一 logs-follow 管線持續讀取，不重新抓取累積日誌；以控制器 monotonic clock 核70秒完整事件接收心跳，部分行或任意文字不刷新心跳。raw與行長有硬上限，私有raw保留供重播；每5秒查容器、每300秒更新有界status。ready後只送一次SIGTERM，串流結束再核follower exit、worker exit/OOM。失敗/中斷取消並回收follower，容器先嘗試20秒正常停止，再清理本次UUID資源。
+
+run_images_soak.py串接實際建置、固定fixture/預算、私有env、image ID、重播與來源/fixture/cleanup核對。Windows39通過／3平台略過，Linux42通過；包含真管線握手、心跳逾時回收和控制器故障注入。這些測試未執行Docker長測。
+
+**尚缺固定已提交來源快照及背景啟動器。** 模組暫不提供CLI，finalAcceptance保持false；真正600秒smoke與24h仍未啟動。

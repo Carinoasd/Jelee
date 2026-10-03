@@ -1,3 +1,13 @@
+## 最新接續：外層串流監控與容器流程已接上
+
+新增 scripts/images_soak_monitor.py：單一 docker logs --follow 子程序，以 Linux 非阻塞管線持續讀取；raw 64MiB、event 64KiB、final 2MiB，完整事件接收心跳70秒。每5秒查容器，每300秒原子更新最多4KiB狀態；ready只送一次SIGTERM，EOF需核follower與worker退出/OOM，任何退出都回收follower。
+
+scripts/run_images_soak.py接建置、1000圖片fixture、私有env、固定容器預算、串流重播、來源/fixture前後核對與owned cleanup；以image ID運行。暫無CLI，finalAcceptance固定false，因固定已提交快照/背景launcher尚未接好，不應直接當正式驗收入口。保留原有image-memory native prefix供共用cleanup驗證，UUID仍唯一。
+
+Windows長測工具39通過／3個Linux管線測試略過；Linux42全通過。含真管線ready握手、失敗exit保留raw、靜默live process逾時後回收，以及控制器中斷/驗證/來源/fixture/cleanup故障注入。只屬工具測試，真正600秒及24h尚未啟動，沒有活躍本地測試。
+
+下一步固定已提交source snapshot並從snapshot reexec控制器：提供固定SDK/媒體runtime、獨立背景handle、SIGTERM/INT處理、持久evidence路徑與清理；不可從持續編輯的workspace載入controller imports。共用 .bin/go 未追蹤，snapshot需產生wrapper或直接用固定SDK。toolchain local_path拒絕逃出ROOT的symlink，不能單純連結外部.tools；Dockerfile亦需實體media/runtime內容。先600秒smoke再同snapshot24h。全案G00–G51與第三階段仍未完成，不合併。
+
 ## 最新接續：串流重播與固定預算已實作
 
 新增scripts/images_soak_acceptance.py、test_images_soak_acceptance.py與tools/image-soak-budget.json，memory contracts CI增加image-soak-replay。核每輪scan/cold/warm/resources、checkpoint與raw sample一致、每小時GC與range/trend、rotation、最終報告對照；有界解析與固定門檻，沒有finalAcceptance捷徑。提供inspect才核container，controller必须要求這部分存在。
