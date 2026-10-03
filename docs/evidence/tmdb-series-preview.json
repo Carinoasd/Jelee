@@ -1,0 +1,121 @@
+{
+  "baseCommit": "e5e12cfe94fd14bae84b6bce49c74644ef162833",
+  "scope": "Admin-only TV series search and details, typed domain/app/runtime composition and separate movie/series caches sharing bounded LRU implementation",
+  "sources": {
+    "internal/domain/metadata_series.go": "f665170c60909b810dd8c06bd505a15e84765d6ff2fe520a2d66961f39a458f8",
+    "internal/domain/metadata_search.go": "8700962c275583fb35c545d4f4004ea81f0d429db054751b0ae3458042c75aea",
+    "internal/adapter/metadata/movie_cache.go": "e3e5b2e1ebe0846a87c4e2037887c43db329f5b4bfb94414f3d8016026c4448b",
+    "internal/adapter/metadata/tmdb.go": "729b94d0c4479d520f31d2abff9efc7b93ed0facac744cda05abcbeb131ea8dc",
+    "internal/adapter/metadata/series.go": "1f50c1eb72b6e8ba9162da001730e92af952ea7bd82bffb32e5126d484a87909",
+    "internal/adapter/metadata/series_test.go": "70ee7cec54f9113a69569ac1407fcaea316b2ff6219993d4a6e1410a4ab95dc8",
+    "internal/adapter/metadata/search.go": "4bb03e057601c3af2e79ee6df0158ecaeed421a5da94f37d7cf3a76838dc24ee",
+    "internal/app/metadata.go": "eb83269698c9bd032866b97b15b0f02fb31d7ff9aff8f427d28fa99de750e3ff",
+    "internal/app/metadata_series.go": "59290b60d4174a60f5bbf0cd337180ee1f9b6bb9b9ea3b985c2e61fdfa803bb7",
+    "internal/app/metadata_series_test.go": "d1a9ab50095189e0235e4e414018f484f4f6d3efc24781ab65491b79352e4fde",
+    "internal/app/metadata_test.go": "9b9e8ea9a1449442d78e974816f8e53efc5d303cbc0349d20490d6ade21341d5",
+    "internal/app/metadata_search_test.go": "d439238697f2692277b90e87a053953b6bc68ab44c62e6ca515263701eec3d84",
+    "internal/adapter/http/metadata.go": "9b3cd60bfdc2c1f5afeb5f5945348c44da2191909108d9c2b07831e492bccd7b",
+    "internal/adapter/http/metadata_series.go": "5f9c5318ebd0f9923a67f3304de8e8f7c71a86c4fac555ded0bf87e585b1e8c6",
+    "internal/adapter/http/metadata_series_test.go": "939cb839f86f09abfb35e58aedb65c88570a052330562f7adc02d915d4e13fc4",
+    "internal/adapter/http/metadata_test.go": "6b2fc84ae6117cd4572065d64435091550b142102c9c368068a785d28d0ade12",
+    "internal/platform/outbound/series_integration_test.go": "a69c9b7da7fe935aec9b5cc18d318bc3a09016b5e89e14dd84630d19ff9b843f"
+  },
+  "windowsFullGo": {
+    "passedPackages": 29,
+    "passedTestEventsIncludingParents": 2994,
+    "skippedTestEvents": 435,
+    "failedEvents": 0
+  },
+  "skippedListSource": {
+    "path": "docs/evidence/outbound-tmdb-preflight.json",
+    "sha256": "d9dc00f78f14d500c79b1be8c2490a172ce84e7257034f0cd6ba72c240431882",
+    "jsonField": "windowsFullGo.skippedTests",
+    "comparison": "sorted package/test identities equal"
+  },
+  "linuxRace": {
+    "status": "PASS six packages",
+    "output": "ok  \tgithub.com/MoYuanCN/Jelee/internal/adapter/metadata\t1.282s\nok  \tgithub.com/MoYuanCN/Jelee/internal/app\t(cached)\nok  \tgithub.com/MoYuanCN/Jelee/internal/adapter/http\t3.646s\nok  \tgithub.com/MoYuanCN/Jelee/internal/platform/runtime\t1.188s\nok  \tgithub.com/MoYuanCN/Jelee/internal/platform/outbound\t(cached)\nok  \tgithub.com/MoYuanCN/Jelee/internal/platform/i18n\t(cached)",
+    "skips": "summary does not report skips; zero skips not claimed"
+  },
+  "fullVet": "PASS",
+  "productionBuild": "PASS cmd/jelee; final subsequent edits affected test source only",
+  "negative": {
+    "change": "disable actual Series cache hit",
+    "leafFailures": 1,
+    "observed": "search=1 series=2 movie=1",
+    "restoredSeriesSha256": "1f50c1eb72b6e8ba9162da001730e92af952ea7bd82bffb32e5126d484a87909",
+    "relatedFullRegression": "PASS metadata/app/HTTP/outbound after byte-identical restoration"
+  },
+  "policy": {
+    "detailsEndpoint": "/3/tv/{series_id}",
+    "searchEndpoint": "/3/search/tv",
+    "yearParameter": "first_air_date_year, not year covering episode dates",
+    "queryBytes": 256,
+    "optionalYearRange": [
+      1000,
+      9999
+    ],
+    "page": 1,
+    "includeAdult": false,
+    "maxCandidates": 20,
+    "bodyBytes": 1048576,
+    "totalTimeoutSeconds": 15,
+    "cacheEntriesPerMediaKind": 256,
+    "cacheTTLSeconds": 86400,
+    "cacheKey": [
+      "provider ID",
+      "language"
+    ],
+    "cacheIsolation": "distinct typed movie and series cache instances; shared implementation",
+    "searchCached": false,
+    "authenticationCached": false,
+    "errorsCached": false,
+    "ttlRefreshOnHit": false,
+    "allCandidatesNeedConfirmation": true,
+    "automaticSelection": false,
+    "automaticMetadataWrite": false,
+    "backgroundWorkers": 0
+  },
+  "actualTLS": "20 candidates through controlled client and app; search does not fetch details; two selected series reads fetch once, identical movie ID fetches its own endpoint",
+  "syntheticAcceptanceScope": "20 series candidate contract only; full 100 movie/20 series scraping with persistence and locks is incomplete",
+  "missing": [
+    "season and episode metadata/number matching",
+    "IMDB/TVDB identity",
+    "fuzzy confidence",
+    "user/library language fallback",
+    "NFO/manual priority and field locks",
+    "library persistence/jobs and removal of external metadata",
+    "search caching/coalescing",
+    "remote artwork",
+    "full frontend attribution and TMDB terms/cache acceptance",
+    "real external credentials/quota"
+  ],
+  "officialSources": [
+    "https://developer.themoviedb.org/reference/search-tv",
+    "https://developer.themoviedb.org/reference/tv-series-details"
+  ],
+  "officialDetailsVerification": "web tool timeout; same official page retrieved through HTTP, documented endpoint confirmed",
+  "gates": {
+    "incrementalBrand": {
+      "violations": 0,
+      "allowed": 181
+    },
+    "fullBrand": {
+      "violations": 14735,
+      "allowed": 186,
+      "status": "FAIL retained"
+    },
+    "gitignoreViolations": 0,
+    "sources": "17 SHA256 verified",
+    "protectedHashes": "PASS",
+    "fiveCoreFiles": "byte-identical to base commit",
+    "csOrMigrationsChanged": false,
+    "localLinks": "PASS",
+    "traceability": {
+      "done": 4,
+      "partial": 182,
+      "blocked": 150
+    },
+    "allowlistChanged": false
+  }
+}

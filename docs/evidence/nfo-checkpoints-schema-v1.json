@@ -1,0 +1,41 @@
+{
+  "scope": "Complete current PostgreSQL package regression and selected physical checkpoint paths; not full G00-G51 acceptance",
+  "baseCommit": "224db765479ebb42e814e8570341d3bf1fb3398b",
+  "frozenGoSQL": 1008,
+  "publishedSQLUnchanged": 108,
+  "compiledPGRoots": 494,
+  "testPass": 1548,
+  "failed": 0,
+  "skipped": 0,
+  "rootsRunExactlyOnce": true,
+  "rootsPassedExactlyOnce": true,
+  "fullCandidateRegressionPassed": true,
+  "sourceManifestSha256": "22e0041bc569ab4bd27691863ad631598d8a1d7d11dfe4f52704daf28524162b",
+  "manifestSha256": "9418260677b88a54be8121cee8954792587d1aadb4d88fade9a8cedf365ac448",
+  "coverageSha256": "a9b35da7bebae82439b510512f19b9f3b618e098fc31721a45967e902f129e89",
+  "compiledListSha256": "c3756627b86ecf95ac418d4037456e06ee3d1672f1f774d213ac4822d05f0dcd",
+  "shardLogs": [
+    {
+      "shard": 0,
+      "sha256": "9423447d68c4aad8723f4051b774072944940f24170870f1f5f79459e5109461"
+    },
+    {
+      "shard": 1,
+      "sha256": "865650d367fa3dd958828e2598b544a45b972e9df9c9ab991956a07a1c4f8f04"
+    },
+    {
+      "shard": 2,
+      "sha256": "201e3e43619982bacd072052dabb478abba3e70bc31ca28aa89303e2b573fd61"
+    },
+    {
+      "shard": 3,
+      "sha256": "6f37e8efb39e31efc8354f9d106f1934c69d9a77e72917d39f9cb425eecca16e"
+    }
+  ],
+  "selectedCheckpointSha256": "5c7da493c7f18e5c7dcecdac18967675908bf3c1e8b161f522fcd9e648168f2a",
+  "creationBeforeFirstCheckpointRecoveryComplete": false,
+  "recoveryWithNewOwnerGenerationComplete": false,
+  "windowsDirectorySyncIsStub": true,
+  "formalWorkerEnabled": false,
+  "fullG00G51Acceptance": false
+}

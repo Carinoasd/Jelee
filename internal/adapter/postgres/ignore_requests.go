@@ -11,6 +11,10 @@ import (
 // The jobs bit survives a missing request. Neither half may turn an enabled
 // job into an unfiltered scan when the retained state is inconsistent.
 func loadIgnoreRequest(ctx context.Context, tx pgx.Tx, id string) (*domain.IgnoreRequest, error) {
+	return loadExecutionIgnoreRequest(ctx, tx, id, false)
+}
+
+func loadExecutionIgnoreRequest(ctx context.Context, tx pgx.Tx, id string, familyAllowed bool) (*domain.IgnoreRequest, error) {
 	var requested bool
 	var library string
 	if err := tx.QueryRow(ctx, `SELECT ignore_requested,library_id::text FROM jobs WHERE id=$1::uuid`, id).Scan(&requested, &library); err != nil {
@@ -27,15 +31,19 @@ func loadIgnoreRequest(ctx context.Context, tx pgx.Tx, id string) (*domain.Ignor
 	if err != nil {
 		return nil, storageError(err)
 	}
-	if !requested || r.LibraryID != library || domain.ValidateIgnoreRequest(r) != nil {
+	valid := domain.ValidateIgnoreRequest(r) == nil || familyAllowed && domain.ValidateFamilyIgnoreRequest(r) == nil
+	if !requested || r.LibraryID != library || !valid {
 		return nil, domain.ErrConflict
 	}
 	return &r, nil
 }
 
 func insertIgnoreRequest(ctx context.Context, tx pgx.Tx, r domain.IgnoreRequest) error {
-	if err := domain.ValidateIgnoreRequest(r); err != nil {
-		return err
+	return insertAdmissionIgnoreRequest(ctx, tx, r, false)
+}
+func insertAdmissionIgnoreRequest(ctx context.Context, tx pgx.Tx, r domain.IgnoreRequest, familyAllowed bool) error {
+	if domain.ValidateIgnoreRequest(r) != nil && !(familyAllowed && domain.ValidateFamilyIgnoreRequest(r) == nil) {
+		return domain.ErrInvalid
 	}
 	_, err := tx.Exec(ctx, `INSERT INTO job_ignore_requests(job_id,library_id,mode,case_mode,program_version,proof_version) VALUES($1::uuid,$2::uuid,$3,$4,$5,$6)`, r.JobID, r.LibraryID, r.Intent.Mode, r.Intent.CaseMode, r.Identity.ProgramVersion, r.Identity.ProofVersion)
 	return storageError(err)

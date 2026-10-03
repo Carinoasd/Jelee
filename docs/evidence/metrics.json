@@ -1,0 +1,116 @@
+{
+  "verifiedOn": "2026-10-03",
+  "sourceBaseCommit": "0d7fb57971f139daf062ce37a28816e5c5c4577d",
+  "scope": "正式 OTel runtime／pgxpool 指標、管理員 HTTP、Fx 資源管理；不含 jobs 持久計數或 tracing",
+  "schemaVersion": 44,
+  "fixedSeries": 15,
+  "dynamicLabels": 0,
+  "versions": {
+    "go": "1.27.1",
+    "otel": "1.47.0",
+    "otelPrometheusExporter": "0.69.0",
+    "prometheusClient": "1.24.1"
+  },
+  "tests": [
+    {
+      "mode": "windows",
+      "exitCode": 0,
+      "passed": 576,
+      "failed": [],
+      "skipped": [
+        "TestFamilyIgnoreProductionRuntimeHTTP/false",
+        "TestFamilyIgnoreProductionRuntimeHTTP/true",
+        "TestFamilyIgnoreProductionRuntimeActiveChildStop",
+        "TestFamilyIgnoreProductionRuntimeActiveChildHTTPCancel",
+        "TestFamilyIgnoreProductionRuntimeRemoteActiveChildHTTPCancel",
+        "TestIgnoreServiceNativeSustainedSaturation",
+        "TestMetricsRuntimePostgresIntegration"
+      ],
+      "logSha256": "b8822f2ffab0ecf1f547acebbac0e7fc643dd047b77df18b9ea9a7de558916f1"
+    },
+    {
+      "mode": "race",
+      "exitCode": 0,
+      "passed": 570,
+      "failed": [],
+      "skipped": [
+        "TestMetricsRuntimePostgresIntegration"
+      ],
+      "logSha256": "b8ac7ed08d4faa6988222fbafdb59444c19430bfcc99afc6772f80d1d6f93ebc"
+    },
+    {
+      "mode": "pg",
+      "exitCode": 0,
+      "passed": 5,
+      "failed": [],
+      "skipped": [],
+      "logSha256": "5945cb86054f2592b69c61c3adf5ae95ee7ea0f460af428dfcb4fc472b0ce74d"
+    }
+  ],
+  "staticChecks": [
+    {
+      "name": "vet",
+      "exitCode": 0
+    },
+    {
+      "name": "build",
+      "exitCode": 0
+    },
+    {
+      "name": "modules",
+      "exitCode": 0
+    },
+    {
+      "name": "brand-new",
+      "exitCode": 0
+    },
+    {
+      "name": "gitignore",
+      "exitCode": 0
+    },
+    {
+      "name": "brand-full",
+      "exitCode": 1
+    }
+  ],
+  "fullBrandSummary": "brand scan: mode=new:false violations=14735 allowed=344",
+  "sourceFilesFrozen": 805,
+  "changedSourceSha256": {
+    "go.mod": "5d82d1b28189cf5a85a0407360db81d00ac35ce18da056f999de772cb53d3a60",
+    "go.sum": "0588a6989afaf09be2dc1bd5830b342e7f4a86fbcc1d5d40f2f267ba5b7c4a80",
+    "internal/adapter/http/metrics.go": "c44139294ed100af2d14daf407df8a7989a2329e9c496979b3d74fde47ee2be2",
+    "internal/adapter/http/metrics_openapi_test.go": "bb5c20a8603c8c6e6425c69e733c22c7b928e8676ced8553b9bf2f57338aa92b",
+    "internal/adapter/http/metrics_test.go": "588116d61ea4d9629e342397dcc9c5dda66aee0272065cae2ea99e6965005bbe",
+    "internal/adapter/http/openapi.go": "9eeabcfcb677cb9758b521e2075569470c066ac976faa6248000c23b2dd2fc7c",
+    "internal/adapter/http/server.go": "989ca4696cd22ea30c6c29a698c2058090c6c0db6127254f37578a702e17c3bd",
+    "internal/adapter/postgres/telemetry.go": "51eb16f94eed1049f600235f74d140da4caaa460041f957528d747bfbebb1dd3",
+    "internal/adapter/postgres/telemetry_test.go": "c127144d6e7332df7c78bd0a828bb5d4adff0dbb29bcceac6d9f179feb5c2c60",
+    "internal/app/telemetry_ports.go": "9e429d1e547d28407ef3f66f6c23e8b3d282979dd1a7875d852987c15b9dc7dc",
+    "internal/platform/config/config.go": "af94692c1e166460ce567dac92cd3cdd84c91ee2f9d20eefef28c881ce0e41f1",
+    "internal/platform/config/metrics_test.go": "132df34b4afa72200351c1018934597aa509bbf6dac35d0dee843090ebbba4ee",
+    "internal/platform/i18n/messages.go": "100848e73596b173dd3951513a7a7fb1ce18a62d90fb7c40af20e43ab916b2b6",
+    "internal/platform/runtime/metrics_cleanup_test.go": "34d1f6bf76e5fcc4a0ab9af69253859a56c59aac3ad1914143b97f3377e0af7f",
+    "internal/platform/runtime/metrics_integration_test.go": "43557d5e20f4efa3de56104db1b5f6eb4cc4c70a62a2b3e3bcbd0986ce41280b",
+    "internal/platform/runtime/runtime.go": "a6c56ca3bb3997b1bf4fd91735c0a55d5af76af26c9fde5e71fa62be755d70ac",
+    "internal/platform/runtime/runtime_test.go": "51331dd9eceac0d25076b54967ddb3598c5ec8ed257236307558afbc07534548",
+    "internal/platform/telemetry/metrics.go": "a63fccf7942f7c858306c02167a6056ad2b4c532741ff7ed9881295ac14a838e",
+    "internal/platform/telemetry/metrics_test.go": "377f37436e80494afa0421e541bb92500f480be3ee42325bfdac1bc26668f496"
+  },
+  "sourceFreezeUnchanged": true,
+  "publishedMigrationsUnchanged": 88,
+  "protectedLiveCoreFilesUnchanged": 5,
+  "licenseAndRequirementsHashesUnchanged": true,
+  "exercised": [
+    "真 SDK ManualReader 與官方 Prometheus exporter；兩次絕對值不倍增、型別與數值正確",
+    "兩個 registry 隔離；環境秘密不輸出；固定 15 個無 labels series",
+    "真 exporter 等候取消／期限／停止；SDK 收集與停止鎖序；無 detached gather",
+    "HTTP 認證、即時管理員、query/method/host拒絕、兩槽滿載、四語busy",
+    "Fx正常/建構/啟動/HTTP drain期限清理；telemetry未join時保留pool",
+    "真 pgxpool 取得/釋放/取消與無SQL snapshot；真 PG＋Fx＋HTTP＋session撤銷／停機連線清理"
+  ],
+  "limits": [
+    "正在執行的本機同步snapshot無法被request deadline強制中止；排隊等待可取消",
+    "驗證的是此程序指標，不含共享工作持久計數、tracing、容器OOM/預算與24h",
+    "本段遠端CI須在推送後按新SHA核對；ABI前段0d7fb57971已全九組通過"
+  ]
+}

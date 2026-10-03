@@ -1,0 +1,76 @@
+{
+  "scope": "G05 removed-feature probes in Go entrypoint; legacy services and full client acceptance incomplete",
+  "roots": [
+    "/LiveTv",
+    "/Channels",
+    "/Dlna"
+  ],
+  "response": {
+    "status": 501,
+    "code": "feature_removed",
+    "requestPersonalization": "public probe: no authentication/backend lookup",
+    "guardOverrides": {
+      "invalidHost": 400,
+      "transformRoute": 409,
+      "debugPath": 404
+    }
+  },
+  "capabilitiesAlwaysFalse": [
+    "dlna",
+    "discovery",
+    "liveTv",
+    "epg",
+    "tuners",
+    "recordings",
+    "channels"
+  ],
+  "errorCatalogKeysPerLocale": {
+    "en-US": 39,
+    "zh-CN": 39,
+    "zh-TW": 39,
+    "ja-JP": 39
+  },
+  "tests": {
+    "requestMatrix": {
+      "paths": 17,
+      "methods": 6,
+      "languages": 4,
+      "catalogDirectFlagStates": 2,
+      "requests": 816,
+      "result": "PASS"
+    },
+    "headRejection": "PASS",
+    "boundaryOverridesAndUnknownPaths": "PASS",
+    "openApiExtensionAndThreeRoots": "PASS",
+    "backendCatalogAndMediaCalls": 0,
+    "windowsFullGo": "PASS before final guard-order adjustment",
+    "windowsFullVet": "PASS",
+    "finalWindowsHttp": "PASS 2.092s",
+    "finalWindowsI18n": "PASS 0.177s",
+    "finalLinuxRaceHttp": "PASS 3.279s",
+    "finalLinuxRaceI18n": "PASS 1.022s",
+    "finalGoBuilds": [
+      "jelee",
+      "jelee-cli",
+      "jelee-migrate"
+    ],
+    "fourUiCatalogGate": "PASS 4 locales / 123 keys",
+    "format": "gofmt no unformatted files",
+    "nativeLoopbackHead": "PASS: actual HTTP transport, 501, empty body, en-US, no backend calls"
+  },
+  "sourceHashes": {
+    "internal/adapter/compat/removed.go": "8015ff8c8d084e2aa1aa934d441602526c7ed21d4d0925a821c0221bafce36b1",
+    "internal/adapter/http/server.go": "3970b9b02708fc48bfc633822111c81f9f568de502013ebae0d0c83cd46d1a5c",
+    "internal/adapter/http/server_test.go": "9b25a8d46c872ce07299668fb34ccd40b223bcfe43b3c8725c3dacc80ba541a4",
+    "internal/adapter/http/removed_features_test.go": "e925871ea66eca7cec5d894d04dac9f337ffcd1791278db4c9f652d4c9c682b4",
+    "internal/adapter/http/openapi.go": "588bcd46ee47eea13d59e0b7884b24041e4effca60cb276ed06384b0f56e425e",
+    "internal/platform/i18n/messages.go": "2ce32601e0aa953adc0b47956a5191f611d072c29c688e4d4f35bae77a8c41da"
+  },
+  "existingSqlCSharpAndMigrationsChanged": false,
+  "protectedHashesUnchanged": true,
+  "limitations": [
+    "No actual third-party client handshake or LAN SSDP packet-capture evidence",
+    "Legacy C# LiveTV/EPG/tuner/recording/channel controllers, services, data/config/resources remain",
+    "Public unsupported probes do not resolve persisted user locale; authenticated supported API preference behavior remains independently tested"
+  ]
+}

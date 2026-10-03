@@ -1,0 +1,19 @@
+{
+  "head": "d0ef9b219584eaf37e5448a8ed0f61c484d03f9b",
+  "run": 36891727049,
+  "job": 110469886230,
+  "artifact": 11176927400,
+  "artifactReportSha256": "04c9f98aa5e19cfbd7572331664b20e04e385b6ba999f9bb56cc3b2ad322ae5d",
+  "assemblyComparisons": 8,
+  "compatible": 7,
+  "nonzeroExitCodes": [
+    1
+  ],
+  "namingIdentityDifferences": {
+    "CP0001": 47,
+    "CP0004": 1
+  },
+  "reportRetained": true,
+  "compatibilityGate": "FAIL preserved; no suppression",
+  "jobUrl": "https://github.com/Carinoasd/Jelee/actions/runs/36891727049/job/110469886230"
+}

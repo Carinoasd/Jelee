@@ -2,11 +2,25 @@
 
 ## 已实现的边界
 
-`internal/adapter/nfo` 读取、校验本地 NFO，提取元数据并保留原始字节。它不修改原 NFO、不写媒体文件、不生成新 ID、不启动外部进程，也不访问 NFO 中的 URL。CLI 可以在没有数据库的情况下使用这个模块校验文件。
+`internal/adapter/nfo` 讀取、校驗本地NFO，提取元資料並保留原始bytes。CLI仍是唯讀校驗；adapter另有受控文字修改、原文實體綁定writer與缺ID生成基礎，尚未接正式read-write庫策略或持久jobs。它不寫媒體檔案、不啟動外部程序、不訪問NFO內的URL。CLI可在沒有資料庫時校驗檔案。
+
+## 寫回識別碼策略
+
+adapter writer對沒有任何已識別ID的條目新增`<uniqueid type="jelee">UUID</uniqueid>`。自動值使用crypto/rand產生的UUID v4，不指定default屬性，既有識別碼或其default值不改。已存在uniqueid（含自訂type）、imdbid、tmdbid、tvdbid或id時保留原bytes；手工填寫的jelee值也不覆蓋。空值/不完整ID屬損壞資料，不自動修復。lockdata與ID欄位鎖阻止缺ID新增，不能寫回半份多條目文件。
+
+Document.EnsureID僅在所選條目缺ID時生成；EnsureIDValue接受預先固定的canonical UUID，讓正式持久任務能先保存ID與輸出意圖再寫檔。Writer在singleflight的共用操作內補齊缺ID，多條目依原文順序逐項核對；相同共用請求不各自產生不同UUID。後續寫回再次讀取已有ID，保持原值。未知XML/註解、行尾、BOM及縮排沿用受控修改介面。詳細驗證見[ID寫回基礎](nfo-generated-id.md)；正式jobs/恢復稽核與真實上游客戶端對type=jelee的互操作仍待驗證。
 
 当前支持**读取和原文复制**。`WriteOriginal` 不把修改后的 `Metadata` 序列化回 XML；修改提取视图后调用它，输出仍是最初读取的原文。未知标签、属性、注释、元素顺序、缩进、换行、BOM 和原编码由原始字节保留。
 
-尚未实现：编辑后的无损写回、原子替换与备份、跨进程锁、字段锁与刮削合并策略、批量导入/导出任务、按库扫描、`--fix`、真实客户端双向互操作验收。G39 因此仍为部分完成，不能用本模块测试代替这些验收。
+確認套用的單值投影會共用標題／日期別名的重複檢查，歧義內容在供應商查詢與保存前拒絕；[別名契約](nfo-alias-ambiguity.md)。
+
+唯讀項目套用已接可信來源、人工優先、四文字欄位及其獨立鎖、NFO／TMDB同交易融合與可信缺失／解析損壞回退。第26版亦支援沒有文字、但有已知正鎖定指令的有效NFO；見[lock-only契約](nfo-lock-only.md)。按庫worker的摘要觀察與缓存已有[實際驗證](nfo-worker-verification.md)，尚未等同完整媒體階層匯入。
+
+第27版新增排序標題（第五欄）與其獨立鎖、人工接管及同交易融合；[排序標題契約](nfo-sort-title.md)。
+
+第28版另新增tagline、outline、mpaa與certification，合計九個文字欄位；OfficialRating保護兩種分級文字，人工九欄patch與同交易融合已接；[擴充文字契約](nfo-text-fields.md)。
+
+尚未完成：九欄以外的套用／鎖、季集與多項目來源的正式套用、完整實體匯入及前端、編輯後的無損回寫、原子替換與備份、跨進程鎖、批量匯入／匯出、`--fix`、真實客戶端雙向互操作驗收。G39仍為部分完成。
 
 ## 上游证据与格式选择
 
@@ -36,7 +50,7 @@
 | 人员 | actor/name、role、thumb、order |
 | 标识 | uniqueid/type/default、imdbid、tmdbid、tvdbid、id（映射为 imdb）；冲突值同时保留并告警 |
 | 评分 | rating/communityrating、userrating、ratings/rating 的 name/max/default/value/votes |
-| 锁 | lockdata、以 `\|` 分隔的 lockedfields；仅暴露锁信息，尚未接入字段覆盖决策 |
+| 锁 | lockdata、以 `\|` 分隔的 lockedfields；保留原鎖資訊；已知九個文字欄位鎖已接唯讀套用與TMDB融合，其他欄位尚未支援 |
 | 合集 | 文本 set/collection 或 set/name、set/overview |
 | 图片 | thumb/aspect/type/season/preview、fanart/thumb、多种 art 子元素、poster/banner/clearart/clearlogo/landscape |
 | 其他 | trailer 原始文本列表 |
@@ -113,3 +127,7 @@
 首段只读解析的提交为 `f21d15668477bd5806e7e525149bfb373d9a68bd`。包含 CLI 的完整 [Windows 测试](evidence/windows-tests.txt)与 [Linux race 测试](evidence/linux-race.txt)均通过；Linux 实际执行 NFO 符号链接逃逸与替换测试，NFO 覆盖率 89.8%。日志中列出的跳过仍保留上述限制。
 
 同日 WSL Ubuntu / Go 1.27.1 的 `-race -count=1` 专项通过，文件符号链接逃逸和并发替换用例均实际执行通过。完整输出保存在被忽略的 `.testdata/nfo-linux-race.txt`；其中 FIFO 一项按上述文件系统限制明确跳过。
+
+確認套用亦拒絕年份、片長及兩種評分的單值重複；rating／communityrating共用目的欄位，巢狀多來源保持。這是投影守衛，數值保存尚未完成；見[數值單值守衛](nfo-numeric-ambiguity.md)。
+
+年份現經year-fact-v1以有型別整數保存於facts，範圍1–9999；人工null清除、來源／鎖與文字同交易。既有九文字版本保持；片長與評分等其他數值保存仍待接入。見[年份契約](nfo-year-fact.md)。

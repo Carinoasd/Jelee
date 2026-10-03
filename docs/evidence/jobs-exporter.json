@@ -1,0 +1,180 @@
+{
+  "記錄時間UTC": "2026-10-02T19:15:31.680617+00:00",
+  "基準提交": "60fb02d2e3cc6d115f8814f4064e8fe82410e872",
+  "範圍": "管理員 /metrics 使用 schema45 快照與正式 OTel cumulative Producer；既有 90 份 SQL 不變。",
+  "平台": {
+    "Windows": {
+      "mode": "windows",
+      "exitCode": 0,
+      "passed": 518,
+      "failed": [],
+      "skipped": [
+        "TestFamilyIgnoreProductionRuntimeHTTP/false",
+        "TestFamilyIgnoreProductionRuntimeHTTP/true",
+        "TestFamilyIgnoreProductionRuntimeActiveChildStop",
+        "TestFamilyIgnoreProductionRuntimeActiveChildHTTPCancel",
+        "TestFamilyIgnoreProductionRuntimeRemoteActiveChildHTTPCancel",
+        "TestIgnoreServiceNativeSustainedSaturation",
+        "TestJobMetricsRuntimePostgresLifecycleAndInstances",
+        "TestJobMetricsRuntimePostgresAuthorizationAndBlockedSource",
+        "TestMetricsRuntimePostgresIntegration"
+      ],
+      "logSha256": "46be1297a641d42e7e1fd4ec245f4e417261f00cb30edc73bc60354dcbef188d",
+      "packages": [
+        {
+          "package": "github.com/MoYuanCN/Jelee/internal/architecture",
+          "elapsedSeconds": 0.202,
+          "result": "pass"
+        },
+        {
+          "package": "github.com/MoYuanCN/Jelee/internal/platform/runtime",
+          "elapsedSeconds": 0.693,
+          "result": "pass"
+        },
+        {
+          "package": "github.com/MoYuanCN/Jelee/internal/adapter/http",
+          "elapsedSeconds": 2.187,
+          "result": "pass"
+        },
+        {
+          "package": "github.com/MoYuanCN/Jelee/internal/platform/telemetry",
+          "elapsedSeconds": 2.682,
+          "result": "pass"
+        }
+      ]
+    },
+    "LinuxRace": {
+      "mode": "race",
+      "exitCode": 0,
+      "passed": 512,
+      "failed": [],
+      "skipped": [
+        "TestJobMetricsRuntimePostgresLifecycleAndInstances",
+        "TestJobMetricsRuntimePostgresAuthorizationAndBlockedSource",
+        "TestMetricsRuntimePostgresIntegration"
+      ],
+      "logSha256": "c1098a745d5bceb5a153a3f3918abc611257c952e486d009347f3529b072eeea",
+      "packages": [
+        {
+          "package": "github.com/MoYuanCN/Jelee/internal/platform/runtime",
+          "elapsedSeconds": 1.102,
+          "result": "pass"
+        },
+        {
+          "package": "github.com/MoYuanCN/Jelee/internal/architecture",
+          "elapsedSeconds": 1.25,
+          "result": "pass"
+        },
+        {
+          "package": "github.com/MoYuanCN/Jelee/internal/platform/telemetry",
+          "elapsedSeconds": 3.574,
+          "result": "pass"
+        },
+        {
+          "package": "github.com/MoYuanCN/Jelee/internal/adapter/http",
+          "elapsedSeconds": 3.695,
+          "result": "pass"
+        }
+      ]
+    },
+    "PostgreSQLHTTPRace": {
+      "mode": "pg",
+      "exitCode": 0,
+      "passed": 10,
+      "failed": [],
+      "skipped": [],
+      "logSha256": "b0c47c1e4ebf12cf07b6c97ba855be1634e70636e13c657699fbdbe63b238d6a",
+      "packages": [
+        {
+          "package": "github.com/MoYuanCN/Jelee/internal/platform/runtime",
+          "elapsedSeconds": 8.849,
+          "result": "pass"
+        }
+      ]
+    }
+  },
+  "計數說明": "通過事件包含父測試；平台分列，不相加為不重複案例。Windows略過9項、無DB的Linux race略過3項；3個DB頂層案例已在獨立真PG執行通過。此段不重跑先前已驗證的全部repository及原生規模套件。",
+  "資料庫": "既有 PostgreSQL 16.15 專用 jelee_test 資料庫，各案例隨機隔離 schema，測後清理；非正式資料庫。",
+  "命令": {
+    "Windows": "scripts/run-go.ps1 test -count=1 -json -timeout=10m ./internal/platform/telemetry ./internal/platform/runtime ./internal/adapter/http ./internal/architecture",
+    "LinuxRace": "go test -race -count=1 -json -timeout=10m ./internal/platform/telemetry ./internal/platform/runtime ./internal/adapter/http ./internal/architecture",
+    "PostgreSQLHTTPRace": "go test -race -count=1 -json -timeout=10m -run ^Test(Metrics|JobMetrics|SharedJobMetrics) ./internal/platform/runtime；JELEE_REQUIRE_INTEGRATION=true"
+  },
+  "真實行為RED": {
+    "原因": "套用端點黑盒測試，暫時建構器只轉呼叫既有 New；實際HTTP仍15 families/15 series，斷言應22/163失敗。RED結束後移除暫時檔並套用正式實作。",
+    "exitCode": 1,
+    "logSha256": "b8c0994f7269a01a05eeda8bfb1125cc665545e5d7bb71d7c14881ae110f8cfd"
+  },
+  "固定輸出": {
+    "families": 22,
+    "series": 163,
+    "sharedJobFamilies": 7,
+    "sharedJobSeries": 148,
+    "largestObservedBytes": 20353,
+    "testedLimitBytes": 65536,
+    "histogramFiniteBounds": 12,
+    "histogramExclusiveBuckets": 13
+  },
+  "關鍵契約": [
+    "官方SDK與exporter輸出累計絕對值；重讀/新provider/多副本不重加；真ManualReader核對epoch、observed time、temporality及獨占slices。",
+    "子context兩秒逾時卻回成功仍拒絕；等待收集可取消；收集取消/Producer錯誤及不完整families不輸出部分200。",
+    "真PG submit/claim/release/reclaim/publish、never-started cancel及history_limit=1清理，HTTP全部工作家族與DB快照對照。",
+    "真HTTP即時管理員認證、降權/撤銷、query/host拒絕；ACCESS EXCLUSIVE metrics relation lock使預讀503，解除後恢復；jobs advisory lock不阻塞快照。",
+    "Fx關閉等待預讀/本機callback，兩gate在SDK shutdown前釋放；重試清理与listener/pool釋放有驗證。"
+  ],
+  "靜態檢查": [
+    {
+      "name": "vet",
+      "exitCode": 0
+    },
+    {
+      "name": "build",
+      "exitCode": 0
+    },
+    {
+      "name": "modules",
+      "exitCode": 0
+    },
+    {
+      "name": "brand-new",
+      "exitCode": 0
+    },
+    {
+      "name": "gitignore",
+      "exitCode": 0
+    },
+    {
+      "name": "brand-full",
+      "exitCode": 1
+    }
+  ],
+  "格式檢查": "scripts/check-format.py exit0；git diff --check exit0",
+  "來源凍結": {
+    "count": 817,
+    "manifestSha256": "57f25d014ed42fae492515ec105baa1e77ec7683e8cfc02933ac8bdf8b1efbee",
+    "unchangedAcrossAllRuns": true
+  },
+  "保護": {
+    "publishedSQLUnchanged": 90,
+    "liveCoreFilesUnchanged": 5,
+    "licenseAndRequirementsHashesUnchanged": true,
+    "goModAndGoSumUnchanged": true
+  },
+  "本段來源SHA256": {
+    "internal/platform/telemetry/metrics.go": "c71833efc23618d12020e0500f70373af25342b8649dc9aed9fe2ed14989e44a",
+    "internal/platform/telemetry/jobs.go": "924b0656786d256cc2a81452b195cf6c9636d75660c46ae8b40391a6a8a20797",
+    "internal/platform/telemetry/jobs_test.go": "46fe654fd8672e645288de6263fcdb89a6644b3032f8e8e0792b980d3bc01b84",
+    "internal/platform/telemetry/jobs_sdk_test.go": "a570e818099ba1734f2d373a288afef9b0d9f30c83025ee7abd2472f1d282a9b",
+    "internal/platform/runtime/runtime.go": "1c9143ec367741d4b04739bbf7f44551691a4341cd138897a89efb76650e9fcc",
+    "internal/platform/runtime/job_metrics_integration_test.go": "b0e8b011fffafa545cc99e1cb0355584e546c8f9f5078049a4abe69315f25f2f"
+  },
+  "檢查日誌SHA256": {
+    "vet": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "build": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "modules": "b4537ed75f533f993f371954de47e42a793b8e5b0587577de7e27fb3e50696bd",
+    "brand-new": "b3422fa44b15714b5d1722ddb64695d011d9d71e6e5481f17f788f5c48f30a0e",
+    "gitignore": "4f1d2138829531443d183eaaa396d1eff37920b5b068b9814775729683385e0a",
+    "brand-full": "f23d459a8787029ab967a9676d91f4c3dc9fbe23a9ff2e226a71fe1969791edc"
+  },
+  "未完成": "全量品牌殘留仍失敗；本段新提交遠端CI待驗。G42 GC/容器OOM與記憶體budget、tracing、完整混合負載及24h仍未完成。"
+}

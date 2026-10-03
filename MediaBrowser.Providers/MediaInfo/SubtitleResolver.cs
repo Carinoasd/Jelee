@@ -1,4 +1,4 @@
-using Emby.Naming.Common;
+using Jelee.Naming.Common;
 using MediaBrowser.Controller.Entities;
 using MediaBrowser.Controller.MediaEncoding;
 using MediaBrowser.Model.Dlna;

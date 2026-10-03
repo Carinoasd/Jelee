@@ -1,5 +1,9 @@
 name: Jelee Go foundation
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
+
 on:
   push:
   pull_request:
@@ -21,6 +25,8 @@ jobs:
         with:
           path: .tools
           key: jelee-${{ runner.os }}-${{ runner.arch }}-go1.27.1-${{ hashFiles('tools/manifest.json', 'go.sum') }}
+      - name: Validate four UI catalogs
+        run: python scripts/check-ui-locales.py
       - name: Linux bootstrap and verification
         if: runner.os == 'Linux'
         run: make bootstrap tools-verify bootstrap-media media-tools-verify bootstrap-runtime runtime-tools-verify runtime-toolchain-test fixtures fixtures-test toolchain-test media-toolchain-test lint build test-race sandbox-test probe-runtime-test gitignore-check brand-scan-incremental
@@ -111,11 +117,73 @@ jobs:
           key: jelee-${{ runner.os }}-${{ runner.arch }}-go1.27.1-${{ hashFiles('tools/manifest.json', 'go.sum') }}
       - run: make bootstrap tools-verify test-integration test-race
       - name: Native family ignore storage acceptance
-        run: .bin/go test -count=1 -timeout=90s -run '^TestFamilyIgnoreNativeStorage$' ./internal/adapter/postgres
+        run: .bin/go test -count=1 -timeout=90s -run '^TestFamily(IgnoreNativeStorage|RunnerNative.*)$' ./internal/adapter/postgres
+      - name: Native family ignore production runtime acceptance
+        id: family-ignore-runtime
+        run: |
+          set -o pipefail
+          .bin/go test -count=1 -timeout=90s -run '^TestFamilyIgnore' ./internal/platform/runtime 2>&1 | tee .testdata/ignore-family-runtime.txt
+      - name: Retain family ignore runtime evidence
+        if: always() && steps.family-ignore-runtime.outcome != 'skipped'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ignore-family-runtime
+          path: .testdata/ignore-family-runtime.txt
+          if-no-files-found: error
+          retention-days: 7
+      - name: Five-minute native ignore service sustained acceptance
+        id: ignore-sustained
+        run: make ignore-sustained-test
+      - name: Retain sustained ignore service evidence
+        if: always() && steps.ignore-sustained.outcome != 'skipped'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ignore-sustained-acceptance
+          path: |
+            .testdata/ignore-sustained-acceptance.jsonl
+            .testdata/ignore-sustained-summary.json
+          if-no-files-found: error
+          retention-days: 7
       - name: Real media scan and probe cache acceptance
         run: make bootstrap-media media-tools-verify bootstrap-runtime runtime-tools-verify fixtures probe-worker-test
       - name: Real mixed NFO, video and image incremental acceptance
         run: make nfo-worker-test
+      - name: Real family ignore, NFO, video and image acceptance
+        id: family-ignore-worker
+        run: make family-ignore-worker-test
+      - name: Retain family ignore mixed acceptance evidence
+        if: always() && steps.family-ignore-worker.outcome != 'skipped'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: family-ignore-worker-acceptance
+          path: |
+            .testdata/family-ignore-worker-acceptance.txt
+            .testdata/family-ignore-worker-summary.json
+          if-no-files-found: error
+          retention-days: 7
+      - name: Runtime memory evidence and configuration contracts
+        id: runtime-memory-contracts
+        # Invoke directly so the original child exit code is not replaced by
+        # GNU make's generic failure status. The wrapper always starts a report.
+        run: python3 -B scripts/runtime_memory_contracts.py
+      - name: Fixed RSS budgets and heap comparisons under five-minute mixed media load
+        id: family-ignore-sustained-worker
+        run: make runtime-memory-worker-test
+      - name: Retain memory and mixed sustained acceptance evidence
+        if: always() && (steps.runtime-memory-contracts.outcome != 'skipped' || steps.family-ignore-sustained-worker.outcome != 'skipped')
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: runtime-memory-acceptance
+          path: |
+            .testdata/runtime-memory-contracts.json
+            .testdata/runtime-memory-acceptance.txt
+            .testdata/runtime-memory-summary.json
+            .testdata/runtime-memory-case-*.json
+            .testdata/runtime-memory-heap-gogc*/heap-analysis-state.json
+            tools/resident-memory-budget.json
+            docs/evidence/resident-memory-baseline.json
+          if-no-files-found: error
+          retention-days: 7
       - name: Retain probe worker acceptance evidence
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1

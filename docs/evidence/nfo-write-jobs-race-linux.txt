@@ -1,0 +1,3 @@
+ok  	github.com/MoYuanCN/Jelee/internal/platform/telemetry	3.574s
+ok  	github.com/MoYuanCN/Jelee/internal/architecture	1.241s
+ok  	github.com/MoYuanCN/Jelee/internal/platform/jobs	1.337s

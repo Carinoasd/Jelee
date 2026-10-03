@@ -1,0 +1,51 @@
+{
+  "previousCommit": "83ea03edf0ff5a493c145037506d55acb3534ec6",
+  "phase": "第三階段：NFO單值別名歧義",
+  "schemaVersion": 26,
+  "verification": {
+    "windows": {
+      "passedPackages": 29,
+      "passedTestEventsIncludingParents": 3229,
+      "skippedTestEvents": 467
+    },
+    "native": {
+      "passedPackages": 5,
+      "passedTestEventsIncludingParents": 1095,
+      "skippedTestEvents": 0
+    },
+    "e2e-restored": {
+      "passedPackages": 1,
+      "passedTestEventsIncludingParents": 1,
+      "skippedTestEvents": 0,
+      "elapsedSeconds": 72.701
+    }
+  },
+  "originalRegressionFailedLeaves": 1,
+  "fullPathNegative": {
+    "negativeLeafFailures": 1,
+    "observed": "HTTP conflicting aliases reached NFO-only write 200",
+    "restoredSources": {
+      "internal/adapter/nfo/item_fields.go": "f56c944f355d782976ff5a3ff7cfdd2b19309c28d6df7c7fd9635dafd3b40bdd"
+    },
+    "restoredExitCode": 0
+  },
+  "protectedPublishedMigrationFiles": 52,
+  "sourceSHA256": {
+    "internal/adapter/nfo/item_fields.go": "f56c944f355d782976ff5a3ff7cfdd2b19309c28d6df7c7fd9635dafd3b40bdd",
+    "internal/platform/outbound/metadata_apply_integration_test.go": "deff9ff45b737e38a6b31c4469ea07075f2cdcffd619c3c218fa922a8ef57ffb",
+    "internal/adapter/nfo/item_alias_ambiguity_test.go": "12fa5ec532b7f9ebde8046a639012489e009797946331c23b7dbc4fac80855d2"
+  },
+  "requirements": {
+    "partial": 184,
+    "blocked": 148,
+    "done": 4
+  },
+  "gates": {
+    "vet": "passed",
+    "productBuild": "passed",
+    "newBrandViolations": 0,
+    "fullBrandViolations": 14735,
+    "gitignoreViolations": 0
+  },
+  "scope": "正式確認投影共用單值別名計數，通用文件解析相容與原文保持；沒有DB邏輯或遷移變更，資料庫驗證是實際HTTP／NFO-only／融合路徑。更多NFO欄位及全案尚未完成。"
+}

@@ -1,0 +1,58 @@
+{
+  "sourceBaseCommit": "252dc740708500fd47c756bf073034b2a633a8d7",
+  "schemaVersion": 48,
+  "changedSourceManifest": {
+    "internal/adapter/postgres/job_metrics_migration_test.go": "6395654c2244c64d9f15bb2ebbf03bc1200e55f0cb277bbf819977fbd673fff4",
+    "internal/adapter/postgres/migrations/000048_nfo_write_quota_fences.down.sql": "d214e640988145fcef66666d816b2745e7516068ed51594f81c03b849ffda14d",
+    "internal/adapter/postgres/migrations/000048_nfo_write_quota_fences.up.sql": "c7d62527a65611d753819568f2ed1a31c886ac91aa85f22b231af58c3a29d83b",
+    "internal/adapter/postgres/nfo_quota_isolation_test.go": "a12234fad37484f38397c3b15fc579f69460b0c303d66625302d79f3fe78cec7",
+    "internal/adapter/postgres/nfo_write_jobs_test.go": "414fc9a97e6e3a100b0c6118fe5178647f4d090132eb46e1ebc8d1312b25522b",
+    "internal/adapter/postgres/nfo_write_preparations_test.go": "7a36ddfc5834ab7d0e054e694b30298b051a0a9e363bd3dd0d218a007c2a2763",
+    "internal/adapter/postgres/store.go": "8c7a3da4e529ff13b59ed0bb3ad60df815b3768bfe78ba4875fc0716649b9642"
+  },
+  "publishedSQLFilesUnchanged": 94,
+  "windows": {
+    "packagesPassed": 8,
+    "testsPassed": 1381,
+    "testsSkipped": 671,
+    "failureEvents": 0
+  },
+  "postgresSelectedRace": {
+    "packagesPassed": 1,
+    "testsPassed": 139,
+    "testsSkipped": 0,
+    "failureEvents": 0
+  },
+  "selection": "^(TestNFOQuota|TestNFOWritePreparation|TestNFOWriteJobs|TestJobMetrics|TestPostgresIntegration)",
+  "initialRed": {
+    "requiredLimit": 32,
+    "test": "TestNFOQuotaConcurrentSnapshotsCannotExceedActorLimit/repeatable_read",
+    "initialLogSHA256": "8d1d7cc26d8acbf55a568c9d7725d18d01a766fad9a99907895886b20ca6c062",
+    "observedRows": 33
+  },
+  "intermediateTestCorrection": "Serializable can refuse job INSERT before entry INSERT; final test handles the entire admission transaction and checks rollback.",
+  "verified": [
+    "actor_limit_all_three_isolation_levels",
+    "global_job_1024_rows_all_three_isolation_levels",
+    "global_job_512MiB_rollback_of_job_request_and_entry",
+    "fixed_fence_missing_rows_fail_closed_both_scopes",
+    "retained_preparations_and_job_bytes_refuse_downgrade",
+    "empty_round_trip_preserves_metric_epoch",
+    "preparation_job_metrics_and_full_migration_selected_regressions"
+  ],
+  "checks": {
+    "incrementalBrandViolations": 0,
+    "vet": true,
+    "format": true,
+    "diffCheck": true,
+    "gitignoreViolations": 0,
+    "brandAllowed": 339
+  },
+  "preparationGlobal256RowAnd256MiBBoundaryTested": false,
+  "fullPostgresSuiteRun": false,
+  "runtimeWriteWorkerEnabled": false,
+  "writeAdmissionEnabled": false,
+  "durableCommitRecoveryVerified": false,
+  "formal24hSourceIncludesThisChange": false,
+  "requirementsComplete": false
+}

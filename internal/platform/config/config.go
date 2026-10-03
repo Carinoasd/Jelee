@@ -15,26 +15,33 @@ import (
 )
 
 type Config struct {
-	Listen                string         `json:"listen"`
-	AllowedHosts          []string       `json:"allowedHosts"`
-	DatabaseURL           string         `json:"-"`
-	MaxConnections        int32          `json:"maxConnections"`
-	MaxStreams            int            `json:"maxStreams"`
-	RequestTimeoutSeconds int            `json:"requestTimeoutSeconds"`
-	EnableCatalog         bool           `json:"enableCatalog"`
-	EnableDirect          bool           `json:"enableDirect"`
-	EnableAccounts        bool           `json:"enableAccounts"`
-	Accounts              AccountsConfig `json:"accounts"`
-	EnableJobs            bool           `json:"enableJobs"`
-	Jobs                  JobsConfig     `json:"jobs"`
-	EnableProbe           bool           `json:"enableProbe"`
+	Resources             ResourcesConfig `json:"resources"`
+	Listen                string          `json:"listen"`
+	AllowedHosts          []string        `json:"allowedHosts"`
+	TrustedProxies        []string        `json:"trustedProxies"`
+	DatabaseURL           string          `json:"-"`
+	TMDBAPIKey            string          `json:"-"`
+	MaxConnections        int32           `json:"maxConnections"`
+	MaxStreams            int             `json:"maxStreams"`
+	RequestTimeoutSeconds int             `json:"requestTimeoutSeconds"`
+	EnableCatalog         bool            `json:"enableCatalog"`
+	EnableDirect          bool            `json:"enableDirect"`
+	EnableAccounts        bool            `json:"enableAccounts"`
+	EnableMetrics         bool            `json:"enableMetrics"`
+	EnableImages          bool            `json:"enableImages"`
+	Images                ImagesConfig    `json:"images"`
+	Accounts              AccountsConfig  `json:"accounts"`
+	EnableJobs            bool            `json:"enableJobs"`
+	Jobs                  JobsConfig      `json:"jobs"`
+	EnableProbe           bool            `json:"enableProbe"`
+	EnableFamilyIgnore    bool            `json:"enableFamilyIgnore"`
 }
 
 func Load() (Config, error) { return LoadWith(os.LookupEnv) }
 
 // LoadWith keeps environment lookup injectable and never includes values in errors.
 func LoadWith(lookup func(string) (string, bool)) (Config, error) {
-	c := Config{Listen: "127.0.0.1:8097", AllowedHosts: []string{"localhost", "127.0.0.1", "::1"}, MaxConnections: 8, MaxStreams: 8, RequestTimeoutSeconds: 15, Accounts: DefaultAccountsConfig(), Jobs: DefaultJobsConfig()}
+	c := Config{Resources: DefaultResourcesConfig(), Listen: "127.0.0.1:8097", AllowedHosts: []string{"localhost", "127.0.0.1", "::1"}, MaxConnections: 8, MaxStreams: 8, RequestTimeoutSeconds: 15, Accounts: DefaultAccountsConfig(), Jobs: DefaultJobsConfig(), Images: DefaultImagesConfig()}
 	if path, ok := lookup("JELEE_CONFIG"); ok && path != "" {
 		f, err := os.Open(path)
 		if err != nil {
@@ -58,6 +65,11 @@ func LoadWith(lookup func(string) (string, bool)) (Config, error) {
 	if value, ok := lookup("JELEE_DATABASE_URL"); ok {
 		c.DatabaseURL = value
 	}
+	var tmdbErr error
+	c.TMDBAPIKey, tmdbErr = loadTMDBKey(lookup)
+	if tmdbErr != nil {
+		return c, tmdbErr
+	}
 	if value, ok := lookup("JELEE_DATABASE_URL_FILE"); ok && value != "" {
 		if c.DatabaseURL != "" {
 			return c, errors.New("set only one database credential source")
@@ -79,7 +91,13 @@ func LoadWith(lookup func(string) (string, bool)) (Config, error) {
 	if value, ok := lookup("JELEE_ALLOWED_HOSTS"); ok {
 		c.AllowedHosts = strings.Split(value, ",")
 	}
-	for name, target := range map[string]*bool{"JELEE_ENABLE_CATALOG": &c.EnableCatalog, "JELEE_ENABLE_DIRECT": &c.EnableDirect, "JELEE_ENABLE_ACCOUNTS": &c.EnableAccounts, "JELEE_ENABLE_JOBS": &c.EnableJobs, "JELEE_ENABLE_PROBE": &c.EnableProbe} {
+	if value, ok := lookup("JELEE_TRUSTED_PROXIES"); ok {
+		c.TrustedProxies = nil
+		if strings.TrimSpace(value) != "" {
+			c.TrustedProxies = strings.Split(value, ",")
+		}
+	}
+	for name, target := range map[string]*bool{"JELEE_ENABLE_CATALOG": &c.EnableCatalog, "JELEE_ENABLE_DIRECT": &c.EnableDirect, "JELEE_ENABLE_ACCOUNTS": &c.EnableAccounts, "JELEE_ENABLE_METRICS": &c.EnableMetrics, "JELEE_ENABLE_IMAGES": &c.EnableImages, "JELEE_ENABLE_JOBS": &c.EnableJobs, "JELEE_ENABLE_PROBE": &c.EnableProbe, "JELEE_ENABLE_FAMILY_IGNORE": &c.EnableFamilyIgnore} {
 		if value, ok := lookup(name); ok {
 			b, err := strconv.ParseBool(value)
 			if err != nil {
@@ -111,10 +129,19 @@ func LoadWith(lookup func(string) (string, bool)) (Config, error) {
 	if err := c.Jobs.loadEnvironment(lookup); err != nil {
 		return c, err
 	}
+	if err := c.Images.loadEnvironment(lookup); err != nil {
+		return c, err
+	}
+	if err := c.Resources.loadEnvironment(lookup); err != nil {
+		return c, err
+	}
 	return c, c.Validate()
 }
 
 func (c Config) Validate() error {
+	if err := c.Resources.Validate(); err != nil {
+		return err
+	}
 	u, err := url.Parse(c.DatabaseURL)
 	if err != nil || u == nil || (u.Scheme != "postgres" && u.Scheme != "postgresql") || u.Host == "" || strings.Trim(u.Path, "/") == "" {
 		return errors.New("JELEE_DATABASE_URL must identify a PostgreSQL database")
@@ -126,6 +153,12 @@ func (c Config) Validate() error {
 	n, err := strconv.Atoi(port)
 	if err != nil || n < 1 || n > 65535 {
 		return errors.New("invalid listen port")
+	}
+	if _, err := c.TrustedProxyPrefixes(); err != nil {
+		return err
+	}
+	if c.TMDBAPIKey != "" && !validTMDBKey(c.TMDBAPIKey) {
+		return errors.New("invalid TMDB_API_KEY")
 	}
 	if len(c.AllowedHosts) == 0 {
 		return errors.New("allowedHosts cannot be empty")
@@ -146,6 +179,17 @@ func (c Config) Validate() error {
 			return err
 		}
 	}
+	if c.EnableMetrics && !c.EnableAccounts {
+		return errors.New("metrics require account rollout")
+	}
+	if c.EnableImages {
+		if !c.EnableAccounts || !c.EnableCatalog {
+			return errors.New("images require account and catalog rollout")
+		}
+		if err := c.Images.Validate(); err != nil {
+			return err
+		}
+	}
 	if c.EnableJobs {
 		if !c.EnableAccounts {
 			return errors.New("jobs require account rollout")
@@ -156,6 +200,9 @@ func (c Config) Validate() error {
 		if int(c.MaxConnections) < c.Jobs.Workers+2 {
 			return errors.New("jobs require at least workers plus two database connections")
 		}
+	}
+	if c.EnableFamilyIgnore && !c.EnableJobs {
+		return errors.New("family ignore requires job rollout")
 	}
 	if c.EnableProbe {
 		if !c.EnableJobs {

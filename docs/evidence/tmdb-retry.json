@@ -1,0 +1,213 @@
+{
+  "baseCommit": "9137aaeffa0b07e1fd1b1cf79e9d49ca90f2da99",
+  "scope": "Actual TMDB authentication startup path HTTP retry subset; not complete G14.3 governance",
+  "sources": {
+    "internal/adapter/metadata/retry.go": "5d84999a4c72cb0c9c7ff77ad326371c88e0e901f5708e98181aab5a60cb8701",
+    "internal/adapter/metadata/retry_test.go": "97fa327ec610a8600a12065993a2f88027667175b900132a89e82c2a7cbb1425",
+    "internal/adapter/metadata/tmdb.go": "5b6174b8f7169d01a144e867c5dc4031ea690283a65974e6d7d47a619a780b4d",
+    "internal/adapter/metadata/tmdb_test.go": "351ff2f6439f91edb86f6aac365586fb9945ef0a1a1dffbf9f5af3ba71a7a7fd",
+    "internal/platform/outbound/client.go": "f8579ab0b3019519bd872a1e87c035df5dfb8c2c5aaa802d7068632719115c94",
+    "internal/platform/outbound/tmdb_integration_test.go": "98550fc1ca63bbd955c038b5366fade67c1e5d391c0170c553277e6308f60aa4"
+  },
+  "windowsFullGo": {
+    "packages": [
+      {
+        "package": "internal/access",
+        "elapsed": 0.297
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "elapsed": 0.179
+      },
+      {
+        "package": "internal/app",
+        "elapsed": 0.309
+      },
+      {
+        "package": "internal/architecture",
+        "elapsed": 0.314
+      },
+      {
+        "package": "internal/adapter/media",
+        "elapsed": 0.806
+      },
+      {
+        "package": "internal/domain",
+        "elapsed": 0.359
+      },
+      {
+        "package": "internal/platform/i18n",
+        "elapsed": 0.369
+      },
+      {
+        "package": "internal/platform/config",
+        "elapsed": 0.429
+      },
+      {
+        "package": "internal/adapter/metadata",
+        "elapsed": 0.816
+      },
+      {
+        "package": "internal/platform/legacyignore",
+        "elapsed": 0.421
+      },
+      {
+        "package": "internal/platform/logging",
+        "elapsed": 0.386
+      },
+      {
+        "package": "cmd/jelee-cli",
+        "elapsed": 1.298
+      },
+      {
+        "package": "internal/platform/proberuntime",
+        "elapsed": 0.414
+      },
+      {
+        "package": "internal/platform/sandbox",
+        "elapsed": 0.327
+      },
+      {
+        "package": "internal/platform/jobs",
+        "elapsed": 0.77
+      },
+      {
+        "package": "internal/adapter/nfo",
+        "elapsed": 1.256
+      },
+      {
+        "package": "tools",
+        "elapsed": 0.345
+      },
+      {
+        "package": "internal/platform/legacyignorehelper",
+        "elapsed": 0.865
+      },
+      {
+        "package": "internal/platform/password",
+        "elapsed": 0.853
+      },
+      {
+        "package": "internal/platform/toolidentity",
+        "elapsed": 0.714
+      },
+      {
+        "package": "tools/runtime-image",
+        "elapsed": 0.642
+      },
+      {
+        "package": "internal/adapter/http",
+        "elapsed": 2.266
+      },
+      {
+        "package": "internal/platform/runtime",
+        "elapsed": 1.203
+      },
+      {
+        "package": "internal/adapter/media/ignore",
+        "elapsed": 2.875
+      },
+      {
+        "package": "internal/adapter/probe",
+        "elapsed": 2.847
+      },
+      {
+        "package": "internal/platform/outbound",
+        "elapsed": 3.026
+      },
+      {
+        "package": "internal/platform/process",
+        "elapsed": 3.144
+      },
+      {
+        "package": "internal/adapter/scan",
+        "elapsed": 4.037
+      },
+      {
+        "package": "internal/platform/ignore",
+        "elapsed": 10.275
+      }
+    ],
+    "passEventsIncludingParents": 2858,
+    "passedLeaves": 2681,
+    "skippedTestEvents": 435
+  },
+  "skippedNames": "Identical package/test names to previous stage verified by sorted comparison",
+  "skippedListSource": {
+    "path": "docs/evidence/outbound-tmdb-preflight.json",
+    "sha256": "d9dc00f78f14d500c79b1be8c2490a172ce84e7257034f0cd6ba72c240431882",
+    "jsonField": "windowsFullGo.skippedTests"
+  },
+  "restoredRegression": {
+    "packages": [
+      {
+        "package": "internal/adapter/metadata",
+        "elapsed": 0.406
+      },
+      {
+        "package": "internal/platform/outbound",
+        "elapsed": 2.559
+      }
+    ],
+    "passEventsIncludingParents": 121,
+    "passedLeaves": 113,
+    "skippedTestEvents": 0
+  },
+  "linuxRace": {
+    "status": "PASS 4 packages",
+    "output": "ok  \tgithub.com/MoYuanCN/Jelee/internal/adapter/metadata\t1.115s\nok  \tgithub.com/MoYuanCN/Jelee/internal/platform/outbound\t3.401s\nok  \tgithub.com/MoYuanCN/Jelee/internal/platform/runtime\t1.206s\nok  \tgithub.com/MoYuanCN/Jelee/internal/platform/config\t1.311s",
+    "skips": "not emitted by summary command; not claimed zero"
+  },
+  "fullVet": "PASS",
+  "negative": {
+    "exitCode": 1,
+    "leafFailures": 1,
+    "restoredSha256": "f8579ab0b3019519bd872a1e87c035df5dfb8c2c5aaa802d7068632719115c94"
+  },
+  "policy": {
+    "attemptsIncludingFirst": 3,
+    "totalSeconds": 15,
+    "retryStatus": "429 and HTTP 500..599 only",
+    "initialBackoffMilliseconds": 250,
+    "secondBackoffMilliseconds": 500,
+    "jitter": "0..25% added",
+    "serverMinimum": "decimal seconds or HTTP-date; never shortened",
+    "malformedOrOverBudgetHeader": "stop without early retry",
+    "notRetried": [
+      "transport/security/size failure",
+      "401/403",
+      "invalid successful JSON",
+      "redirect"
+    ],
+    "authenticationCached": false
+  },
+  "missing": [
+    "request limiter and shared cooldown",
+    "metadata cache and actual movie/series integration",
+    "remaining quota and full G14 regression matrix"
+  ],
+  "gates": {
+    "incrementalBrand": {
+      "violations": 0,
+      "allowed": 181
+    },
+    "fullBrand": {
+      "violations": 14735,
+      "allowed": 186,
+      "status": "FAIL retained"
+    },
+    "gitignoreViolations": 0,
+    "sourceHashes": "PASS",
+    "protectedHashes": "PASS",
+    "fivePendingCoreFiles": "byte-identical",
+    "migrationsAndCsChanged": false,
+    "localLinks": "PASS",
+    "productionBuild": "PASS cmd/jelee",
+    "traceability": {
+      "done": 4,
+      "partial": 179,
+      "blocked": 153
+    },
+    "allowlistChanged": false
+  }
+}

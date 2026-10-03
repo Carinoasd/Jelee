@@ -1,0 +1,439 @@
+{
+  "suites": 17,
+  "totals": {
+    "total": 4119,
+    "executed": 4098,
+    "passed": 4098,
+    "failed": 0,
+    "notExecuted": 0,
+    "error": 0,
+    "timeout": 0,
+    "aborted": 0
+  },
+  "reports": [
+    {
+      "counters": {
+        "total": 2,
+        "executed": 2,
+        "passed": 2,
+        "failed": 0,
+        "error": 0,
+        "timeout": 0,
+        "aborted": 0,
+        "inconclusive": 0,
+        "passedButRunAborted": 0,
+        "notRunnable": 0,
+        "notExecuted": 0,
+        "disconnected": 0,
+        "warning": 0,
+        "completed": 0,
+        "inProgress": 0,
+        "pending": 0
+      },
+      "sha256": "927a372a863568684c7aaf44feff0cc0a8263f9da14d8bdc1a9de7bbd8bbb5d2"
+    },
+    {
+      "counters": {
+        "total": 164,
+        "executed": 164,
+        "passed": 164,
+        "failed": 0,
+        "error": 0,
+        "timeout": 0,
+        "aborted": 0,
+        "inconclusive": 0,
+        "passedButRunAborted": 0,
+        "notRunnable": 0,
+        "notExecuted": 0,
+        "disconnected": 0,
+        "warning": 0,
+        "completed": 0,
+        "inProgress": 0,
+        "pending": 0
+      },
+      "sha256": "144014e7907d0c8fedc84bd61e54de732f9d1f7d35f30e16af9b5ebbe2683dd4"
+    },
+    {
+      "counters": {
+        "total": 78,
+        "executed": 78,
+        "passed": 78,
+        "failed": 0,
+        "error": 0,
+        "timeout": 0,
+        "aborted": 0,
+        "inconclusive": 0,
+        "passedButRunAborted": 0,
+        "notRunnable": 0,
+        "notExecuted": 0,
+        "disconnected": 0,
+        "warning": 0,
+        "completed": 0,
+        "inProgress": 0,
+        "pending": 0
+      },
+      "sha256": "2fcd1eaa98cde2cbe10507daaa903afa258e989acf1a2b37d8e008c5bce9df62"
+    },
+    {
+      "counters": {
+        "total": 748,
+        "executed": 748,
+        "passed": 748,
+        "failed": 0,
+        "error": 0,
+        "timeout": 0,
+        "aborted": 0,
+        "inconclusive": 0,
+        "passedButRunAborted": 0,
+        "notRunnable": 0,
+        "notExecuted": 0,
+        "disconnected": 0,
+        "warning": 0,
+        "completed": 0,
+        "inProgress": 0,
+        "pending": 0
+      },
+      "sha256": "73ebb7dde6cb2df3ff441b7dd3848e4c4bf228c897280ffb5b0a061e14b507c9"
+    },
+    {
+      "counters": {
+        "total": 18,
+        "executed": 18,
+        "passed": 18,
+        "failed": 0,
+        "error": 0,
+        "timeout": 0,
+        "aborted": 0,
+        "inconclusive": 0,
+        "passedButRunAborted": 0,
+        "notRunnable": 0,
+        "notExecuted": 0,
+        "disconnected": 0,
+        "warning": 0,
+        "completed": 0,
+        "inProgress": 0,
+        "pending": 0
+      },
+      "sha256": "0d0220c168b5ee1f75e71e26d0dc601570dfc2fca9aa66d4b633e2f62f4526e3"
+    },
+    {
+      "counters": {
+        "total": 101,
+        "executed": 100,
+        "passed": 100,
+        "failed": 0,
+        "error": 0,
+        "timeout": 0,
+        "aborted": 0,
+        "inconclusive": 0,
+        "passedButRunAborted": 0,
+        "notRunnable": 0,
+        "notExecuted": 0,
+        "disconnected": 0,
+        "warning": 0,
+        "completed": 0,
+        "inProgress": 0,
+        "pending": 0
+      },
+      "sha256": "4340b0e13fcedf41e3be6d6d3a15a59abfa802e49d6545efdddc6ee4d0831e3c"
+    },
+    {
+      "counters": {
+        "total": 210,
+        "executed": 210,
+        "passed": 210,
+        "failed": 0,
+        "error": 0,
+        "timeout": 0,
+        "aborted": 0,
+        "inconclusive": 0,
+        "passedButRunAborted": 0,
+        "notRunnable": 0,
+        "notExecuted": 0,
+        "disconnected": 0,
+        "warning": 0,
+        "completed": 0,
+        "inProgress": 0,
+        "pending": 0
+      },
+      "sha256": "af64997fdb65bbe621bbe4fa4fe63b8f4c1c02fec06777d2af733dddfe641227"
+    },
+    {
+      "counters": {
+        "total": 147,
+        "executed": 147,
+        "passed": 147,
+        "failed": 0,
+        "error": 0,
+        "timeout": 0,
+        "aborted": 0,
+        "inconclusive": 0,
+        "passedButRunAborted": 0,
+        "notRunnable": 0,
+        "notExecuted": 0,
+        "disconnected": 0,
+        "warning": 0,
+        "completed": 0,
+        "inProgress": 0,
+        "pending": 0
+      },
+      "sha256": "e6db03e092d95b41e16ce89ad9ec60bc3addef507ff875d91c875a04e821b75c"
+    },
+    {
+      "counters": {
+        "total": 30,
+        "executed": 30,
+        "passed": 30,
+        "failed": 0,
+        "error": 0,
+        "timeout": 0,
+        "aborted": 0,
+        "inconclusive": 0,
+        "passedButRunAborted": 0,
+        "notRunnable": 0,
+        "notExecuted": 0,
+        "disconnected": 0,
+        "warning": 0,
+        "completed": 0,
+        "inProgress": 0,
+        "pending": 0
+      },
+      "sha256": "db266967fb36249e58bf824f65082695526427ba46f7852a07293787b2ca51d4"
+    },
+    {
+      "counters": {
+        "total": 144,
+        "executed": 144,
+        "passed": 144,
+        "failed": 0,
+        "error": 0,
+        "timeout": 0,
+        "aborted": 0,
+        "inconclusive": 0,
+        "passedButRunAborted": 0,
+        "notRunnable": 0,
+        "notExecuted": 0,
+        "disconnected": 0,
+        "warning": 0,
+        "completed": 0,
+        "inProgress": 0,
+        "pending": 0
+      },
+      "sha256": "3ef146ef0986a0a731950cc90c5e658f42f2829e3c1847cfeb99cd18f9e75c6e"
+    },
+    {
+      "counters": {
+        "total": 509,
+        "executed": 509,
+        "passed": 509,
+        "failed": 0,
+        "error": 0,
+        "timeout": 0,
+        "aborted": 0,
+        "inconclusive": 0,
+        "passedButRunAborted": 0,
+        "notRunnable": 0,
+        "notExecuted": 0,
+        "disconnected": 0,
+        "warning": 0,
+        "completed": 0,
+        "inProgress": 0,
+        "pending": 0
+      },
+      "sha256": "e01af2efc56a632d68eeb2629054aa05b305f7d519a1f788aee8de3eeca099fa"
+    },
+    {
+      "counters": {
+        "total": 701,
+        "executed": 701,
+        "passed": 701,
+        "failed": 0,
+        "error": 0,
+        "timeout": 0,
+        "aborted": 0,
+        "inconclusive": 0,
+        "passedButRunAborted": 0,
+        "notRunnable": 0,
+        "notExecuted": 0,
+        "disconnected": 0,
+        "warning": 0,
+        "completed": 0,
+        "inProgress": 0,
+        "pending": 0
+      },
+      "sha256": "b67c0b7f8f849445bc3cfd7cbf26788a26d1e9c7273007335da34fb8da312d6d"
+    },
+    {
+      "counters": {
+        "total": 28,
+        "executed": 28,
+        "passed": 28,
+        "failed": 0,
+        "error": 0,
+        "timeout": 0,
+        "aborted": 0,
+        "inconclusive": 0,
+        "passedButRunAborted": 0,
+        "notRunnable": 0,
+        "notExecuted": 0,
+        "disconnected": 0,
+        "warning": 0,
+        "completed": 0,
+        "inProgress": 0,
+        "pending": 0
+      },
+      "sha256": "cb2e124a494b3d6d30510cced660a8454abed64152fde4ebfa68b5f907811b32"
+    },
+    {
+      "counters": {
+        "total": 38,
+        "executed": 38,
+        "passed": 38,
+        "failed": 0,
+        "error": 0,
+        "timeout": 0,
+        "aborted": 0,
+        "inconclusive": 0,
+        "passedButRunAborted": 0,
+        "notRunnable": 0,
+        "notExecuted": 0,
+        "disconnected": 0,
+        "warning": 0,
+        "completed": 0,
+        "inProgress": 0,
+        "pending": 0
+      },
+      "sha256": "ad5d60f8fd3080c508af1ace07dd0528f9be091990ea8e27d1cc5c0df204aeaf"
+    },
+    {
+      "counters": {
+        "total": 24,
+        "executed": 24,
+        "passed": 24,
+        "failed": 0,
+        "error": 0,
+        "timeout": 0,
+        "aborted": 0,
+        "inconclusive": 0,
+        "passedButRunAborted": 0,
+        "notRunnable": 0,
+        "notExecuted": 0,
+        "disconnected": 0,
+        "warning": 0,
+        "completed": 0,
+        "inProgress": 0,
+        "pending": 0
+      },
+      "sha256": "8291143e4f0947dc9a5414e84617f9d732b591032f03e28a5b0b2b9cbe177592"
+    },
+    {
+      "counters": {
+        "total": 128,
+        "executed": 125,
+        "passed": 125,
+        "failed": 0,
+        "error": 0,
+        "timeout": 0,
+        "aborted": 0,
+        "inconclusive": 0,
+        "passedButRunAborted": 0,
+        "notRunnable": 0,
+        "notExecuted": 0,
+        "disconnected": 0,
+        "warning": 0,
+        "completed": 0,
+        "inProgress": 0,
+        "pending": 0
+      },
+      "sha256": "d2b45879ffa2b0bd3f74803487d2c1eaae0c36e8df2607cf96184d0ca0e28c38"
+    },
+    {
+      "counters": {
+        "total": 1049,
+        "executed": 1032,
+        "passed": 1032,
+        "failed": 0,
+        "error": 0,
+        "timeout": 0,
+        "aborted": 0,
+        "inconclusive": 0,
+        "passedButRunAborted": 0,
+        "notRunnable": 0,
+        "notExecuted": 0,
+        "disconnected": 0,
+        "warning": 0,
+        "completed": 0,
+        "inProgress": 0,
+        "pending": 0
+      },
+      "sha256": "2a0923fbc153bbbd8236de6a8fe124194930bcd301d5552c00284e3ac2124b82"
+    }
+  ],
+  "outcomes": {
+    "Passed": 4098,
+    "NotExecuted": 21
+  },
+  "sdk": "10.0.400",
+  "scope": {
+    "inventoryFiles": 124,
+    "moduleFiles": 49,
+    "testFiles": 29,
+    "consumerAndBuildFiles": 46
+  },
+  "sourceEquivalence": {
+    "checkedSourceFiles": 116,
+    "parsingLogic": "byte equivalent after explicit namespace mapping and using-order normalization",
+    "copyrightPreserved": true
+  },
+  "beforeViolations": 15233,
+  "afterViolations": 15007,
+  "removedViolations": 226,
+  "fullBrandingGate": "still failing; not waived",
+  "moduleTests": {
+    "passed": 701,
+    "failed": 0,
+    "skipped": 0
+  },
+  "finalSolutionDebugBuild": {
+    "exitCode": 0,
+    "seconds": 5.89,
+    "warnings": 6,
+    "errors": 0
+  },
+  "initialAttempts": {
+    "build": {
+      "errors": 7,
+      "cause": "three relative namespace references and four using ordering errors"
+    },
+    "fullTests": {
+      "failed": 2,
+      "cause": "English assertions inherited zh-TW CurrentUICulture; now culture explicitly set and restored"
+    }
+  },
+  "testCultureFix": "existing one-argument localization test now explicitly uses en-US CurrentUICulture and restores prior culture",
+  "finalFormat": {
+    "exitCode": 0,
+    "verifyNoChanges": true,
+    "scope": "changed C# files",
+    "workspaceLoadWarning": true
+  },
+  "migrationFiles": "unchanged",
+  "artifactComparison": "base assembly maps to renamed head assembly; namespace changes remain visible to API comparison",
+  "packageMetadata": {
+    "AssemblyName": "Jelee.Naming",
+    "RootNamespace": "Jelee.Naming",
+    "PackageId": "Jelee.Naming",
+    "RepositoryUrl": "https://github.com/Carinoasd/Jelee",
+    "PackageLicenseExpression": "GPL-3.0-only"
+  },
+  "originalAuthorsPreserved": true,
+  "logHashes": {
+    "initialBuild": "7e1818553397282ef7ba8b41a63ac3c7458adb436f3fdc90992150cba2bcde06",
+    "finalBuild": "d2b1051383fea9c550f6d76d88b9e2e212859678f1e46b820413024b1b41441d",
+    "initialFullTest": "6c3733c4f3be159b85bc861f4908c005c18a4688e3ae6f81ed4d80c4756237bc",
+    "finalFullTest": "51f93fc6d819cf4a280674d0af3f3c1eb5c864a39e0065de926649f98c6280ab"
+  },
+  "protectedHashes": "verified",
+  "apiComparisonShellSyntax": "passed",
+  "formatLogHash": "34ff5cb6c77694ee1de6a3349c12cf36b74751ded6b699fa67abc47cce382559"
+}

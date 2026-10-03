@@ -1,0 +1,422 @@
+{
+  "result": "passed",
+  "sdk": "10.0.400",
+  "inventoryFiles": 15,
+  "sourceEquivalence": {
+    "checkedSources": 12,
+    "explicitChanges": [
+      "namespace and using ordering",
+      "public log brand",
+      "legacy literals moved to exact compatibility constants",
+      "example host/path fixtures and log assertion brand"
+    ],
+    "networkControlLogic": "unchanged after explicit mapping",
+    "discoveryPort": "unchanged",
+    "discoveryLiteral": "unchanged",
+    "legacyConfigurationLiteral": "unchanged",
+    "mitLicenseHeaderSha256": "6631df5e45ff1bbede26b701ce2c89f6e99f156f85459efdae35dd7d807d30d5",
+    "mitLicenseHeader": "byte identical"
+  },
+  "moduleTests": {
+    "passed": 147,
+    "failed": 0,
+    "skipped": 0
+  },
+  "fullSolutionDebugTests": {
+    "suites": 17,
+    "outcomes": {
+      "Passed": 4098,
+      "NotExecuted": 21
+    },
+    "reports": [
+      {
+        "counters": {
+          "total": 2,
+          "executed": 2,
+          "passed": 2,
+          "failed": 0,
+          "error": 0,
+          "timeout": 0,
+          "aborted": 0,
+          "inconclusive": 0,
+          "passedButRunAborted": 0,
+          "notRunnable": 0,
+          "notExecuted": 0,
+          "disconnected": 0,
+          "warning": 0,
+          "completed": 0,
+          "inProgress": 0,
+          "pending": 0
+        },
+        "sha256": "376676e7261ba6082003127cf01ce95bf35058c7034a1d35a94b0e3dfd60d477"
+      },
+      {
+        "counters": {
+          "total": 164,
+          "executed": 164,
+          "passed": 164,
+          "failed": 0,
+          "error": 0,
+          "timeout": 0,
+          "aborted": 0,
+          "inconclusive": 0,
+          "passedButRunAborted": 0,
+          "notRunnable": 0,
+          "notExecuted": 0,
+          "disconnected": 0,
+          "warning": 0,
+          "completed": 0,
+          "inProgress": 0,
+          "pending": 0
+        },
+        "sha256": "efd9f22c48b505801de74277126297efbcbd834ff50279f42c4b91f520358491"
+      },
+      {
+        "counters": {
+          "total": 210,
+          "executed": 210,
+          "passed": 210,
+          "failed": 0,
+          "error": 0,
+          "timeout": 0,
+          "aborted": 0,
+          "inconclusive": 0,
+          "passedButRunAborted": 0,
+          "notRunnable": 0,
+          "notExecuted": 0,
+          "disconnected": 0,
+          "warning": 0,
+          "completed": 0,
+          "inProgress": 0,
+          "pending": 0
+        },
+        "sha256": "901e430bd0203a432a9530d577bfa3660a000c634530e564a4e58970ed5f6bbe"
+      },
+      {
+        "counters": {
+          "total": 748,
+          "executed": 748,
+          "passed": 748,
+          "failed": 0,
+          "error": 0,
+          "timeout": 0,
+          "aborted": 0,
+          "inconclusive": 0,
+          "passedButRunAborted": 0,
+          "notRunnable": 0,
+          "notExecuted": 0,
+          "disconnected": 0,
+          "warning": 0,
+          "completed": 0,
+          "inProgress": 0,
+          "pending": 0
+        },
+        "sha256": "0adecd71cc9c457e2f8da4a00e6ac8a80beb371207ab6ed0589e807b3e9b7ec8"
+      },
+      {
+        "counters": {
+          "total": 28,
+          "executed": 28,
+          "passed": 28,
+          "failed": 0,
+          "error": 0,
+          "timeout": 0,
+          "aborted": 0,
+          "inconclusive": 0,
+          "passedButRunAborted": 0,
+          "notRunnable": 0,
+          "notExecuted": 0,
+          "disconnected": 0,
+          "warning": 0,
+          "completed": 0,
+          "inProgress": 0,
+          "pending": 0
+        },
+        "sha256": "6914edb05081207cd8e63d4bc7182751e0b47456585274ed36463746045fc49a"
+      },
+      {
+        "counters": {
+          "total": 18,
+          "executed": 18,
+          "passed": 18,
+          "failed": 0,
+          "error": 0,
+          "timeout": 0,
+          "aborted": 0,
+          "inconclusive": 0,
+          "passedButRunAborted": 0,
+          "notRunnable": 0,
+          "notExecuted": 0,
+          "disconnected": 0,
+          "warning": 0,
+          "completed": 0,
+          "inProgress": 0,
+          "pending": 0
+        },
+        "sha256": "4bc0db0b27a1fd234f046b467f20210a2c5424a4027171806259593973818843"
+      },
+      {
+        "counters": {
+          "total": 101,
+          "executed": 100,
+          "passed": 100,
+          "failed": 0,
+          "error": 0,
+          "timeout": 0,
+          "aborted": 0,
+          "inconclusive": 0,
+          "passedButRunAborted": 0,
+          "notRunnable": 0,
+          "notExecuted": 0,
+          "disconnected": 0,
+          "warning": 0,
+          "completed": 0,
+          "inProgress": 0,
+          "pending": 0
+        },
+        "sha256": "30b0c34638f97007c894080382bebe80a96c1df430a8c0511b6371dbb57164ab"
+      },
+      {
+        "counters": {
+          "total": 147,
+          "executed": 147,
+          "passed": 147,
+          "failed": 0,
+          "error": 0,
+          "timeout": 0,
+          "aborted": 0,
+          "inconclusive": 0,
+          "passedButRunAborted": 0,
+          "notRunnable": 0,
+          "notExecuted": 0,
+          "disconnected": 0,
+          "warning": 0,
+          "completed": 0,
+          "inProgress": 0,
+          "pending": 0
+        },
+        "sha256": "fda155bde2ae10576bc92889d8d2e3b1e7bf7b9f509d9f6d370020de42ba6748"
+      },
+      {
+        "counters": {
+          "total": 78,
+          "executed": 78,
+          "passed": 78,
+          "failed": 0,
+          "error": 0,
+          "timeout": 0,
+          "aborted": 0,
+          "inconclusive": 0,
+          "passedButRunAborted": 0,
+          "notRunnable": 0,
+          "notExecuted": 0,
+          "disconnected": 0,
+          "warning": 0,
+          "completed": 0,
+          "inProgress": 0,
+          "pending": 0
+        },
+        "sha256": "b6a17d7332c00a787f51948cc2177f41fde7f0be817f02c90582862786f70c49"
+      },
+      {
+        "counters": {
+          "total": 509,
+          "executed": 509,
+          "passed": 509,
+          "failed": 0,
+          "error": 0,
+          "timeout": 0,
+          "aborted": 0,
+          "inconclusive": 0,
+          "passedButRunAborted": 0,
+          "notRunnable": 0,
+          "notExecuted": 0,
+          "disconnected": 0,
+          "warning": 0,
+          "completed": 0,
+          "inProgress": 0,
+          "pending": 0
+        },
+        "sha256": "75cbdc71bb6d041b4b221601977617f84af783826c65fb5ae43be152d01d485e"
+      },
+      {
+        "counters": {
+          "total": 30,
+          "executed": 30,
+          "passed": 30,
+          "failed": 0,
+          "error": 0,
+          "timeout": 0,
+          "aborted": 0,
+          "inconclusive": 0,
+          "passedButRunAborted": 0,
+          "notRunnable": 0,
+          "notExecuted": 0,
+          "disconnected": 0,
+          "warning": 0,
+          "completed": 0,
+          "inProgress": 0,
+          "pending": 0
+        },
+        "sha256": "9c2f36ad9b76afc9578d87f93952125f3d437f1f6cc089ff73028976e5d3e9f8"
+      },
+      {
+        "counters": {
+          "total": 144,
+          "executed": 144,
+          "passed": 144,
+          "failed": 0,
+          "error": 0,
+          "timeout": 0,
+          "aborted": 0,
+          "inconclusive": 0,
+          "passedButRunAborted": 0,
+          "notRunnable": 0,
+          "notExecuted": 0,
+          "disconnected": 0,
+          "warning": 0,
+          "completed": 0,
+          "inProgress": 0,
+          "pending": 0
+        },
+        "sha256": "f215ead40c7a8e7d9780fa8ee9b2440846e428da5d1f7ac47b178623a1efdc6a"
+      },
+      {
+        "counters": {
+          "total": 38,
+          "executed": 38,
+          "passed": 38,
+          "failed": 0,
+          "error": 0,
+          "timeout": 0,
+          "aborted": 0,
+          "inconclusive": 0,
+          "passedButRunAborted": 0,
+          "notRunnable": 0,
+          "notExecuted": 0,
+          "disconnected": 0,
+          "warning": 0,
+          "completed": 0,
+          "inProgress": 0,
+          "pending": 0
+        },
+        "sha256": "dc76484f6c881945c56ff7fe36fdd302d14d9f2f768d1a41e52a7ab20ea362aa"
+      },
+      {
+        "counters": {
+          "total": 701,
+          "executed": 701,
+          "passed": 701,
+          "failed": 0,
+          "error": 0,
+          "timeout": 0,
+          "aborted": 0,
+          "inconclusive": 0,
+          "passedButRunAborted": 0,
+          "notRunnable": 0,
+          "notExecuted": 0,
+          "disconnected": 0,
+          "warning": 0,
+          "completed": 0,
+          "inProgress": 0,
+          "pending": 0
+        },
+        "sha256": "4a7fa4badfcfd1ec519dea94713db2164510ae4f988d70241ec53c6b80f53dbf"
+      },
+      {
+        "counters": {
+          "total": 24,
+          "executed": 24,
+          "passed": 24,
+          "failed": 0,
+          "error": 0,
+          "timeout": 0,
+          "aborted": 0,
+          "inconclusive": 0,
+          "passedButRunAborted": 0,
+          "notRunnable": 0,
+          "notExecuted": 0,
+          "disconnected": 0,
+          "warning": 0,
+          "completed": 0,
+          "inProgress": 0,
+          "pending": 0
+        },
+        "sha256": "1ca4f0e7db3444577c4f1e8a2302c8c7dd3a07888db1f875e6aed34a2efdd751"
+      },
+      {
+        "counters": {
+          "total": 128,
+          "executed": 125,
+          "passed": 125,
+          "failed": 0,
+          "error": 0,
+          "timeout": 0,
+          "aborted": 0,
+          "inconclusive": 0,
+          "passedButRunAborted": 0,
+          "notRunnable": 0,
+          "notExecuted": 0,
+          "disconnected": 0,
+          "warning": 0,
+          "completed": 0,
+          "inProgress": 0,
+          "pending": 0
+        },
+        "sha256": "0a77ada2e2f0f83b1d8eeaf6160c902945b3792a5d24e758bef10abdd5a0d81e"
+      },
+      {
+        "counters": {
+          "total": 1049,
+          "executed": 1032,
+          "passed": 1032,
+          "failed": 0,
+          "error": 0,
+          "timeout": 0,
+          "aborted": 0,
+          "inconclusive": 0,
+          "passedButRunAborted": 0,
+          "notRunnable": 0,
+          "notExecuted": 0,
+          "disconnected": 0,
+          "warning": 0,
+          "completed": 0,
+          "inProgress": 0,
+          "pending": 0
+        },
+        "sha256": "a7878a7577a750f7ac9ca3dd98651c26c13cf7e4fa79486211dcde465e3dd971"
+      }
+    ]
+  },
+  "format": {
+    "verifyNoChanges": true,
+    "exitCode": 0,
+    "workspaceLoadWarning": true
+  },
+  "initialAttempt": {
+    "passed": 142,
+    "failed": 5,
+    "cause": "existing assertions expected previous public log brand; updated to Jelee without removing warning or credential checks"
+  },
+  "beforeViolations": 15007,
+  "afterViolations": 14960,
+  "removedViolations": 47,
+  "fullBrandingGate": "still failing; not waived",
+  "g05": "legacy discovery preserved in this naming stage; removal not completed",
+  "logHashes": {
+    "initialModule": "b5bc395dabeb428bc3d6f0a803edf77e012ca27dd6d3985709d49f96aae2123a",
+    "finalModule": "f4f696510b300f7683824062964e59381217e3029c97c1472575e7566478be8b",
+    "finalFull": "b85e33fa79ac5331f15b00a844c9775465dfcf9e7f2620de58916b51474aef92",
+    "finalFormat": "34ff5cb6c77694ee1de6a3349c12cf36b74751ded6b699fa67abc47cce382559",
+    "finalSolutionBuild": "4a155cdeecdd4a35a260a38bdab9fca51f0e7cca1708873b73529145b9e466aa"
+  },
+  "protectedHashes": "verified",
+  "migrationFiles": "unchanged",
+  "solutionDebugBuild": {
+    "exitCode": 0,
+    "seconds": 4.87,
+    "warnings": 0,
+    "errors": 0,
+    "incremental": true
+  }
+}

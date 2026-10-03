@@ -24,3 +24,15 @@ Jelee 本仓库派生自 [Jellyfin](https://github.com/jellyfin/jellyfin)。审�
 ## 舊格式 regex 執行依賴
 
 `github.com/dlclark/regexp2 v1.12.0` 為 MIT，Copyright (c) Doug Clark；完整授權保留於 `internal/platform/legacyignorehelper/LICENSE.regexp2`，版本及內容校驗由 go.mod/go.sum 固定。此項不代表其他依賴的整體發行審計已完成。
+
+## 排程日曆依賴
+
+`github.com/robfig/cron/v3 v3.0.1` 的完整授權保留於 `internal/adapter/calendar/LICENSE.cron`，版本與校驗值由 go.mod/go.sum 固定。僅使用日曆解析及下次時間計算；工作執行與持久交易由 Jelee 管理。
+
+## 目錄通知依賴
+
+`github.com/fsnotify/fsnotify v1.10.1` 使用 BSD 三條款授權，Copyright © 2012 The Go Authors 與 Copyright © fsnotify Authors；完整聲明保留於 `internal/adapter/scan/LICENSE.fsnotify`。go.mod/go.sum 固定版本及校驗值，Linux 觀察器使用此依賴。
+
+## 圖片縮放依賴
+
+`golang.org/x/image v0.46.0` 使用 BSD 三條款授權，Copyright (c) 2009 The Go Authors；完整聲明保留於 `internal/adapter/images/LICENSE.x-image`，正式容器另附於 `/licenses/x-image/LICENSE`。版本與校驗值由 go.mod/go.sum 固定；本地圖片縮圖使用 `draw.ApproxBiLinear`（EXIF 方向以同一插值器的仿射 `Transform`），WebP／BMP／TIFF 解碼使用同一固定版本的 `webp`、`bmp`、`tiff` 子套件；JPEG／PNG／GIF 解碼與 JPEG 編碼使用固定 Go SDK。

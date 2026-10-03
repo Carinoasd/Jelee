@@ -20,7 +20,7 @@ type Store struct{ Pool *pgxpool.Pool }
 
 // SchemaVersion is the only clean schema accepted by this binary. Adjacent
 // releases cannot serve against different cache and job lifecycle contracts.
-const SchemaVersion = 18
+const SchemaVersion = 57
 
 func Open(ctx context.Context, dsn string, maxConnections int32) (*Store, error) {
 	cfg, err := pgxpool.ParseConfig(dsn)
@@ -87,7 +87,7 @@ const listItemsSQL = `WITH principal AS MATERIALIZED (
   WHERE id>COALESCE(NULLIF($2,'')::uuid,'00000000-0000-0000-0000-000000000000'::uuid)
   ORDER BY id LIMIT $3
  ) i ON true WHERE u.is_admin
-) SELECT id::text,library_id::text,title,kind FROM visible ORDER BY id LIMIT $3`
+) SELECT id::text,library_id::text,title,kind,COALESCE((SELECT parent_id::text FROM item_parent_links p WHERE p.item_id=visible.id),'') FROM visible ORDER BY id LIMIT $3`
 
 func (s *Store) ListItems(ctx context.Context, userID, cursor string, limit int) ([]domain.Item, error) {
 	rows, err := s.Pool.Query(ctx, listItemsSQL, userID, cursor, limit)
@@ -98,7 +98,7 @@ func (s *Store) ListItems(ctx context.Context, userID, cursor string, limit int)
 	items := make([]domain.Item, 0, limit)
 	for rows.Next() {
 		var item domain.Item
-		if err = rows.Scan(&item.ID, &item.LibraryID, &item.Title, &item.Kind); err != nil {
+		if err = rows.Scan(&item.ID, &item.LibraryID, &item.Title, &item.Kind, &item.ParentID); err != nil {
 			return nil, storageError(err)
 		}
 		items = append(items, item)
@@ -111,7 +111,7 @@ func (s *Store) ListItems(ctx context.Context, userID, cursor string, limit int)
 
 func (s *Store) GetItem(ctx context.Context, userID, id string) (domain.Item, error) {
 	var item domain.Item
-	err := s.Pool.QueryRow(ctx, `SELECT i.id::text,i.library_id::text,i.title,i.kind FROM items i JOIN users u ON u.id=$1::uuid AND NOT u.disabled AND u.deleted_at IS NULL WHERE i.id=$2::uuid AND (u.is_admin OR EXISTS(SELECT 1 FROM library_acl a WHERE a.user_id=u.id AND a.library_id=i.library_id))`, userID, id).Scan(&item.ID, &item.LibraryID, &item.Title, &item.Kind)
+	err := s.Pool.QueryRow(ctx, `SELECT i.id::text,i.library_id::text,i.title,i.kind,COALESCE((SELECT parent_id::text FROM item_parent_links p WHERE p.item_id=i.id),'') FROM items i JOIN users u ON u.id=$1::uuid AND NOT u.disabled AND u.deleted_at IS NULL WHERE i.id=$2::uuid AND (u.is_admin OR EXISTS(SELECT 1 FROM library_acl a WHERE a.user_id=u.id AND a.library_id=i.library_id))`, userID, id).Scan(&item.ID, &item.LibraryID, &item.Title, &item.Kind, &item.ParentID)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return item, domain.ErrNotFound
 	}

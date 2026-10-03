@@ -1,0 +1,137 @@
+{
+  "schemaVersion": 54,
+  "sourceBaseCommit": "3d79ed9577c37f074a0498dca720d79ff50bc6cc",
+  "scope": "Unresolved native NFO and media physical claims, migration retention, alias exclusion, stale snapshots and deferred pair completeness",
+  "changedSourceManifest": {
+    "internal/adapter/postgres/migrations/000054_nfo_unresolved_native_claims.down.sql": "3ac040a94d3d17650b909e39c017f80c995a93f404ac4399cbe470f2e883620d",
+    "internal/adapter/postgres/migrations/000054_nfo_unresolved_native_claims.up.sql": "e6fbe60583d2a4265f726fa6329e3599d5f9ce000411736cf67da301db1bb982",
+    "internal/adapter/postgres/nfo_commit_unresolved_identity_test.go": "0b2dafdcfe5e2f5a7ebf1fc29387bca91784cf6fe120ab2558dc1d764d1e7d89",
+    "internal/adapter/postgres/nfo_write_native_receipt_test.go": "1afc50cb1cf6c62864829ae63859b2e02338f91067867dbaeb004c04ded1ad26",
+    "internal/adapter/postgres/store.go": "a29b1e9507f411e87b9050f91bde7303f0ab56705eb9d78dd64d8a451be20a55"
+  },
+  "frozenSourceFiles": 999,
+  "frozenSourceManifestSHA256": "5f43ca32d3774a1c2d89d5f862d1ff93a6015d02ba892a0cef76a83f7dff7749",
+  "fullPostgresRace": {
+    "packagesPassed": 4,
+    "testsPassed": 1520,
+    "testsSkipped": 0,
+    "failureEvents": 0,
+    "compiledRoots": 487,
+    "rootsRunAndPassedExactlyOnce": true,
+    "exitCodes": {
+      "2": 0,
+      "3": 0,
+      "0": 0,
+      "1": 0
+    },
+    "compiledManifestSHA256": "5716a3efdcb7370874ca215afab2ffda6ee122b79fbf6325e58d786806021df3",
+    "coverageSHA256": "7f08b84971291b49c69f566b438c55c47354b22362103873d7df56b4237bf5d9",
+    "shardLogSHA256": {
+      "nfo-native-claims-schema-v2-full-shard-0.jsonl": "7826f86ca23ac65fadea8cdc28990d9c05a00387c89a0d394ff27d7068f1e034",
+      "nfo-native-claims-schema-v2-full-shard-1.jsonl": "c949b31a7a70ddce86527713e17f10af5ae3429b1fda75bc2b3fb1c45e88255a",
+      "nfo-native-claims-schema-v2-full-shard-2.jsonl": "e2833f25a81b225056b9ac92c91b9110a5254d251be8e3fccf5a33ee02406606",
+      "nfo-native-claims-schema-v2-full-shard-3.jsonl": "638eaec9ce436c4c3a150be61db2ce28ce2153202f9495557d1c000bf6399c7e"
+    }
+  },
+  "claimFamily": {
+    "packagesPassed": 0,
+    "testsPassed": 34,
+    "testsSkipped": 0,
+    "failureEvents": 0,
+    "roots": [
+      "TestNFOCommitUnresolvedPhysicalTargetRefusesAnotherJob",
+      "TestNFOCommitNativeClaimsReplayAndImmutability",
+      "TestNFOCommitUnresolvedMediaRefusesNewNFOIdentity",
+      "TestNFOCommitNativeClaimsMigrationRetainsFirstObservation",
+      "TestNFOCommitHistoricalUnknownJournalRefusesFreshTarget",
+      "TestNFOCommitNativeClaimsMigrationRefusesConflictingHistory",
+      "TestNFOCommitNativeClaimsAcrossLibrariesAndIndependentCopies",
+      "TestNFOCommitNativeClaimsRepeatableReadStaleSnapshot",
+      "TestNFOCommitNativeClaimsSnapshotIsolation",
+      "TestNFOCommitNativeClaimsCrossRoleSnapshotIsolation",
+      "TestNFOCommitNativeClaimsDeferredPairCompleteness",
+      "TestNFOCommitNativeClaimsCrossRoleMatrix",
+      "TestNFOCommitNativeClaimsCrossRoleHistoryMigration"
+    ]
+  },
+  "windows": {
+    "packagesPassed": 3,
+    "testsPassed": 959,
+    "testsSkipped": 1036,
+    "failureEvents": 0,
+    "logSHA256": "dc21f6a992fe68d08ddc52ba5b1567bfa30168a5da6252453d6a8227b8c9245a",
+    "selectedRoots": null,
+    "databaseConfigured": false
+  },
+  "windowsNativeClaims": {
+    "packagesPassed": 1,
+    "testsPassed": 28,
+    "testsSkipped": 0,
+    "failureEvents": 0,
+    "logSHA256": "cf45615647feabd1ff5741b33b2ad9ef1599a32422bda6866fb18c2de797c281",
+    "selectedRoots": [
+      "TestNFOCommitNativeClaimsAcrossLibrariesAndIndependentCopies",
+      "TestNFOCommitNativeClaimsSnapshotIsolation",
+      "TestNFOCommitNativeClaimsDeferredPairCompleteness",
+      "TestNFOCommitNativeClaimsReplayAndImmutability",
+      "TestNFOCommitNativeClaimsCrossRoleMatrix",
+      "TestNFOCommitNativeClaimsCrossRoleHistoryMigration",
+      "TestNFOCommitNativeClaimsCrossRoleSnapshotIsolation"
+    ],
+    "databaseConfigured": true,
+    "fullPostgresSuite": false,
+    "relayDisposed": true,
+    "ownedRelayChildProcessesAfter": 0
+  },
+  "linuxSelected": {
+    "packagesPassed": 1,
+    "testsPassed": 37,
+    "testsSkipped": 0,
+    "failureEvents": 0,
+    "logSHA256": "00ce8286ace54df18bee7a422f1cba695e4497cf843c256eb975208a1c6120b3",
+    "selectedRoots": [
+      "TestNFOCommitUnresolvedPhysicalTargetRefusesAnotherJob",
+      "TestNFOCommitNativeClaimsReplayAndImmutability",
+      "TestNFOCommitUnresolvedMediaRefusesNewNFOIdentity",
+      "TestNFOCommitNativeClaimsMigrationRetainsFirstObservation",
+      "TestNFOCommitHistoricalUnknownJournalRefusesFreshTarget",
+      "TestNFOCommitNativeClaimsMigrationRefusesConflictingHistory",
+      "TestNFOCommitNativeClaimsAcrossLibrariesAndIndependentCopies",
+      "TestNFOCommitNativeClaimsRepeatableReadStaleSnapshot",
+      "TestNFOCommitNativeClaimsSnapshotIsolation",
+      "TestNFOCommitNativeClaimsCrossRoleSnapshotIsolation",
+      "TestNFOCommitNativeClaimsDeferredPairCompleteness",
+      "TestNFOCommitNativeClaimsCrossRoleMatrix",
+      "TestNFOCommitNativeClaimsCrossRoleHistoryMigration",
+      "TestNFOWriteCommitJournalConcurrentReplayAndReopen",
+      "TestNFOCommitFilePersistenceReplayAndReopen",
+      "TestNFOWriteNativeReceiptHistoricalNULLIsNotBackfilled"
+    ]
+  },
+  "causalControl": {
+    "packagesPassed": 0,
+    "testsPassed": 0,
+    "testsSkipped": 0,
+    "failureEvents": 4,
+    "logSHA256": "c47e7e3c09ea7420d68afe854272a08bbf6cf0aa52d1f27d2339222f1fd5d08a",
+    "functionalSuccess": false,
+    "conflictingCompleteJournalCommitted": true,
+    "crossRoleDirections": 2,
+    "onlyDisabledConstraint": "nfo_native_target_unresolved",
+    "formalTestBytesUnchanged": true
+  },
+  "checkpointSHA256": "04fd6f62ae53b5f86a083682fdd319cd9493aac7bac4cd81449113a969e800d4",
+  "protectedFiles": {
+    "publishedSQLUnchanged": 106,
+    "requirementsSourceModSumLicenseUnchanged": true
+  },
+  "runtimeTargetCommitRecoveryEnabled": false,
+  "fullGoalComplete": false,
+  "limitations": [
+    "Selected Windows PG coverage only",
+    "Serializable abort proves rollback; primary-key causality proven by RR control",
+    "Full branding gate remains failing",
+    "Target commit/backup/rollback/settlement/crash recovery, partial stage, Windows directory durability, worker bulk operations and heap/RSS remain incomplete",
+    "Original 24h soak uses an earlier source and has no completion proof"
+  ]
+}

@@ -1,0 +1,71 @@
+# 同一原生 NFO 的未解決提交排除（schema54）
+
+schema53保存首次native receipt，但缺少不同job之間的同實體排除。schema54已新增持久claims與Begin／plan／ready守衛，於f0cdda06f99bbacb783904abc47d4c6c48d4a521提交並推送既有PR46；kind分組的跨角色缺口已正式修正，修正版V2完整回歸與獨立核驗通過。正式target寫回及復原仍未啟用。
+
+## 已重現的缺口
+
+owned真PG案例先由第一個job建立journal，停止其lease而保留未解決紀錄，再讓第二個job使用同一首次preparation receipt。第二個`BeginNFOWriteCommit`仍成功，取得新的journal token。原測試Go exit1、兩FAIL events、零skip，明確命中same physical NFO admitted despite unresolved journal。
+
+第一個job的cancelled／failed狀態不能證明target最終結果。item、library、root、basename或job不同，也不能證明實體不同。後續target修改必須先保護仍待恢復的首次證據。
+
+## 已實作的持久邊界
+
+- 新增claim表，直接以首次receipt內完整48-byte實體身分作唯一key；kind保留NFO／media角色與first proof核對，保存首次journal token及其外鍵。Windows／Linux平台標記包含在canonical record中。兩份claim同屬一個token，不依賴preparation TTL或pathname，不由Stage重新觀察mint出替代身分。
+- 新journal在同一短交易內取得兩份claim。不同token占用同一NFO或media時由資料庫唯一約束拒絕並整筆回滾；錯誤對應`ErrConflict`。相同journal token的首次結果可重放，不能換owner或generation。保留media排除，避免target被替換成新的NFO inode後繞過原未解決提交；不以root相同推斷整個庫都衝突。
+- Begin／plan／ready使用首次claim核對同一token；直接SQL首次／重放與deferred提交邊界亦須受保護。單靠應用查詢或advisory lock不能保證舊快照下的排除。
+- migration只可從已持久保存的同一first receipt建立既有journal的claims，不回填歷史NULL、不新讀filesystem。已有不同token占用相同NFO或media身分時拒絕migration，不挑選勝者或刪除journal。
+- 歷史journal缺first receipt時，無法排除其他path／library指向同一實體。這類未解決證據存在時，先拒絕新提交；純讀取／保留歷史資料仍可用。解除限制需要後續可驗證的原生復原協議。
+- claim不能由取消、TTL、history trim、通用Finish或人工狀態更新解除。schema54保留claim或journal時拒降版。未來解除claim必須綁定正式提交／回滾的持久結算證據；本批不提供解除入口。
+
+## 驗收範圍
+
+正例須保留同token重放、repository reopen、不同NFO及media的獨立提交與準備TTL清理後claims。負例須涵蓋同／跨library、不同item／root／path及hardlink alias仍為同NFO或media、同media而NFO已換新inode、已停止job、缺證歷史資料、直接SQL及三隔離競爭。真正不同實體但相同bytes／mtime不能混同；不得用pathname相等代替原生觀察。
+
+排除要以真正cause驗證：第二筆必須由claim的特定唯一約束拒絕，或因該競爭產生40001；不能接受其他lease／policy／catalog／active-library錯誤當排除通過。交易失敗不得留下新journal、claim或檔案。控制只在owned測試schema停用排除機制，應真正接納衝突token，正式來源保持。
+
+106份已發布SQL保持。新增後需新的完整compiled universe及來源凍結，Windows／Linux原生觀察與真PG、migration升降／歷史／保留、增量品牌與完整品牌門禁各自核對。native ID可能重用，claim不是完整filesystem授權；runtime caller、target Rename、partial stage、backup／rollback、結算及crash recovery仍需接線。
+
+## 候選驗證進度
+
+schema54新增up／down及Store版本，106份已發布SQL保持原樣。真PG選測三根3PASS／零skipfail，涵蓋同實體第二job拒絕、NFO換新inode但media相同仍拒絕、同token重放與claims不可變；既有重放／repository reopen／歷史NULL回歸四根4PASS／零skipfail。三隔離僅已核claims讀取，不構成三隔離競爭證據。
+
+migration V2三根3PASS／零skipfail、race exit0：53既有journal只複製原first receipt、job metrics保持、claims或未知歷史journal保留時拒降版；pre53未知歷史不回填且拒新提交，raw SQL精確23505／nfo_native_target_unresolved；53兩個衝突token升54時同一指定唯一約束拒絕，整筆DDL回滾，不選勝者、不留下claims表、不刪原journal。Migrate失敗另保留dirty狀態供後續處置，不能直接重試當成功。
+
+跨library／hardlink與不同實體正例、RR舊快照及單一約束負向控制已補驗如下；READ COMMITTED／Serializable競爭、deferred缺claim與Windows真PG已補驗如下；仍待新來源凍結及完整回歸。格式與增量品牌0／339已通過；完整品牌仍FAIL。這些選測不表示schema54完整驗收，也不涵蓋完整target commit／backup／rollback／結算／crash recovery。
+補充空claims降版不改metrics斷言後，聯合選測V3九根9PASS、零skipfail、一package pass、race exit0；包含六個新54案例及三個既有回歸。尚未替代完整凍結回歸。
+
+## 真實跨library alias與舊快照因果驗證
+
+另建owned library／item／root／media source，使用真hardlink及重新Prepare的first receipts，沒有借用SQL native identity。四情境：NFO與media皆hardlink、僅NFO hardlink、僅media hardlink，均由精確23505/nfo_native_target_unresolved拒絕；兩檔均為相同bytes／mtime的獨立copy則可提交第二journal，兩token完整四claims。所有files位於測試fixture，不改使用者媒體。
+
+RR兩TX在journal提交前都讀到零claims，首TX持久化成功，第二TX仍由同一指定主鍵23505拒絕，rollback後只有first journal及雙claims。兩root加四leaf合6PASS、零skipfail、race exit0；log nfo-native-claims-alias-stale-v1.jsonl。
+
+私有Go overlay只在owned schema移除nfo_native_target_unresolved主鍵，保留scope／lease／catalog／pair完整性與其他constraints。同RR案例確實提交第二完整衝突journal，Go exit1、2FAIL events、零skip，精確stale native claim snapshot admitted conflicting complete journal marker。overlay前後正式test bytes相同；log nfo-native-claims-primary-key-control-red-v1.jsonl原樣保留。這證明指定主鍵在舊快照下的排除因果，不能外推全部隔離或Windows已驗。
+## 三隔離、deferred pair與Windows checkpoint
+
+最新Linux race選測三roots加六leaf9PASS、零skipfail：RC/RR要求精確23505/nfo_native_target_unresolved；Serializable允許同一23505或40001並確認第二TX全rollback。不能把Serializable早期abort當特定主鍵因果。refactor後RR單主鍵反例再次成立，2FAIL events、精確衝突完整journal marker、正式test bytes保持。
+
+只在owned TX停用自動producer，零／一claim在deferred commit精確23514/nfo physical claims missing拒絕，journal/claims全rollback且producer恢復；manual完整pair通過。首次完整pair fixture因pending trigger時ALTER ENABLE撞55006，原失敗log保留；改先SET CONSTRAINTS ALL IMMEDIATE核完整pair，再恢復producer，production guards保持。
+
+Windows真PG四roots加十leaf14PASS、零skipfail，涵蓋實際hardlinks與独立copies、三隔離、deferred pair及replay/immutability；短暫loopback relay finally dispose，Linux owned child count0。這是選測，非完整WindowsPGsuite。安全checkpoint保存精確五source hashes及四private log hashes、初次失敗及修正與範圍；完整54回歸仍false，發布及runtime target commit/recovery仍未完成。
+## 發布前發現的跨角色缺口
+
+私有overlay用owned真hardlink捕捉第二job NFO等於第一job media的48-byte身分。現行kind+identity主鍵與同kind conflict查詢仍接納第二完整journal，真Go exit1、精確cross-role physical inode admitted conflicting unresolved journal marker；正式999來源bytes保持。這與資料庫連線或catalog/lease失敗無關。
+
+候選修正直接以identity作唯一主鍵，kind只保留角色與first proof核對；conflict查詢跨兩角色比對。先在owned schema及private overlay驗證，不改存活完整回歸的frozen來源。即使schema-v1回歸通過也不代表跨角色已修復，finalizer已加明確拒絕門檻；正式修正、新來源凍結及新完整回歸仍必要。
+私有雙向matrix V2已4PASS/零skipfail：兩個跨job方向均由global identity候選拒絕，samejob alias已在既有Prepare validation ErrInvalid拒絕且無持久部分證據。未修正kind分組控制兩方向均接納衝突（兩精確markers/4FAIL events），samejob早期拒絕仍PASS。初次matrix-green-v1錯誤期待samejob可Prepare而失敗，原log保留。正式凍結999來源及舊Windows14選測仍屬未修正版本，尚不能作新global identity驗收。
+
+## 正式global identity修正 checkpoint
+
+kind分組V1完整四片已terminal0、484 roots各run/pass一次、1506PASS／零skipfail、999來源終態吻合；獨立summary明記功能不完整与禁止發布，原finalizer亦精確拒絕跨角色未驗。原log／manifest／coverage／source及安全摘要均保留，不構成正式修正的來源驗收。
+
+V1終態後才將54主鍵改為identity、conflict查詢跨roles；kind仍核首次角色，106已發布SQL保持。新增正式雙向／samejob matrix與跨角色既有journal升級案例。Linux真PG race選測15roots合30PASS／零skipfail，Windows真PG六roots合21PASS／零skipfail；同job alias由Prepare ErrInvalid拒絕且無部分證據，雙向跨job由精確23505/native identityconstraint拒絕，Migrate失敗dirty54与两journal原receipt/metrics保留皆實核。
+
+新版RR只移global identity主鍵反例再次成立，Go exit1／2FAIL events／精確第二完整衝突journal marker，正式test bytes保持。Win relay finally dispose与owned子程序0已核。新global identity checkpoint保存当前五source及三logs hashes，fullFixedCandidateRegressionPassed=false；待新freeze与完整回歸，仍未發布。
+修正版補雙向跨角色三隔離舊快照：聯合Linux37PASS／Windows真PG28PASS，零skipfail。只停identity主鍵的雙向RR反例4FAIL events、兩個精確第二完整衝突journal markers，正式test bytes保持。V2已凍結999Go/SQL、實際compile487roots，完整四片仍執行中；Windows三套件959PASS/1036條件skip/零fail與vet通過。新finalizer Pending拒絕已核，尚未產生V2成功摘要或發布54。
+
+## 完整V2終態與發布邊界
+
+修正版999份Go／SQL來源凍結，完整四片PG race皆exit0；487個實際compiled roots各run／pass一次，1520PASS／零skipfail。獨立finalizer重新核listing／groups／coverage／logs／當前全來源hash／106已發布SQL與原需求／mod／sum／LICENSE；Windows959／1036條件skip、真PG28選測與Linux37選測、雙向RR只停identity主鍵控制4FAIL events／兩marker均吻合。公開安全摘要只含計數、來源及log hashes，不含XML或連線資料。
+
+修正前kind分組的1506PASS只屬已證明功能缺口的歷史回歸，仍保留其禁止發布範圍；修正後V2不能用來消除其他歷史失敗或owned cleanup未全證明的限制。schema54本批發布audit通過，已提交並推送既有PR46（f0cdda06f9）；現共108份已發布SQL保持不可變，完整G00–G51仍7完成／198部分／131阻塞。正式target commit／backup／rollback／結算／crash recovery、partial stage自動續作、Windows目錄metadata耐久性、正式worker三批次及整體heap／RSS仍缺。

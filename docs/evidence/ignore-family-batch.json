@@ -1,0 +1,252 @@
+{
+  "baselineCommit": "a4f004a8864c1f54460fdac6021b29c417185ec3",
+  "baseline": [
+    {
+      "pass": "initial",
+      "totalFiles": 10000,
+      "observedFiles": 10000,
+      "historicalFiles": 0,
+      "retainedBaselineRows": 10000,
+      "gomaxprocs": 2,
+      "seconds": 5.043764433,
+      "state": "succeeded",
+      "errorCode": "",
+      "attempts": 1,
+      "maxBatch": 128,
+      "batches": 92,
+      "helperStarts": 91,
+      "peakHeapBytes": 2891560,
+      "peakRSSBytes": 23986176,
+      "afterGC": {
+        "seconds": 5.05450333,
+        "files": 10000,
+        "heapBytes": 2032592,
+        "heapInuseBytes": 3620864,
+        "rssBytes": 22704128,
+        "totalAllocBytes": 55320448,
+        "gcCount": 25,
+        "gcPauseTotalNanoseconds": 1281176,
+        "goroutines": 4,
+        "fileDescriptors": 10,
+        "dbAcquired": 0
+      }
+    },
+    {
+      "pass": "ignored",
+      "totalFiles": 10000,
+      "observedFiles": 5001,
+      "historicalFiles": 4999,
+      "retainedBaselineRows": 20000,
+      "gomaxprocs": 2,
+      "seconds": 70.766547974,
+      "state": "succeeded",
+      "errorCode": "",
+      "attempts": 1,
+      "maxBatch": 128,
+      "batches": 92,
+      "helperStarts": 10089,
+      "peakHeapBytes": 3577240,
+      "peakRSSBytes": 25563136,
+      "afterGC": {
+        "seconds": 70.772736873,
+        "files": 5001,
+        "heapBytes": 2869376,
+        "heapInuseBytes": 4857856,
+        "rssBytes": 24825856,
+        "totalAllocBytes": 484006336,
+        "gcCount": 242,
+        "gcPauseTotalNanoseconds": 11380815,
+        "goroutines": 4,
+        "fileDescriptors": 11,
+        "dbAcquired": 0
+      }
+    },
+    {
+      "pass": "cleanup",
+      "totalFiles": 10000,
+      "observedFiles": 5001,
+      "historicalFiles": 4999,
+      "retainedBaselineRows": 20000,
+      "gomaxprocs": 2,
+      "seconds": 68.511969449,
+      "state": "succeeded",
+      "errorCode": "",
+      "attempts": 1,
+      "maxBatch": 128,
+      "batches": 92,
+      "helperStarts": 10089,
+      "peakHeapBytes": 3352888,
+      "peakRSSBytes": 26271744,
+      "afterGC": {
+        "seconds": 68.518642915,
+        "files": 5001,
+        "heapBytes": 3001376,
+        "heapInuseBytes": 5177344,
+        "rssBytes": 25964544,
+        "totalAllocBytes": 913682368,
+        "gcCount": 477,
+        "gcPauseTotalNanoseconds": 22704778,
+        "goroutines": 4,
+        "fileDescriptors": 11,
+        "dbAcquired": 1
+      }
+    }
+  ],
+  "batched": [
+    {
+      "pass": "initial",
+      "totalFiles": 10000,
+      "observedFiles": 10000,
+      "historicalFiles": 0,
+      "retainedBaselineRows": 10000,
+      "gomaxprocs": 2,
+      "seconds": 5.292939652,
+      "state": "succeeded",
+      "errorCode": "",
+      "attempts": 1,
+      "maxBatch": 128,
+      "batches": 92,
+      "helperStarts": 91,
+      "peakHeapBytes": 2793256,
+      "peakRSSBytes": 23719936,
+      "afterGC": {
+        "seconds": 5.301793055,
+        "files": 10000,
+        "heapBytes": 1980088,
+        "heapInuseBytes": 3506176,
+        "rssBytes": 23777280,
+        "totalAllocBytes": 55137400,
+        "gcCount": 25,
+        "gcPauseTotalNanoseconds": 1375221,
+        "goroutines": 4,
+        "fileDescriptors": 10,
+        "dbAcquired": 0
+      }
+    },
+    {
+      "pass": "ignored",
+      "totalFiles": 10000,
+      "observedFiles": 5001,
+      "historicalFiles": 4999,
+      "retainedBaselineRows": 20000,
+      "gomaxprocs": 2,
+      "seconds": 21.010189285,
+      "state": "succeeded",
+      "errorCode": "",
+      "attempts": 1,
+      "maxBatch": 128,
+      "batches": 92,
+      "helperStarts": 187,
+      "peakHeapBytes": 2908208,
+      "peakRSSBytes": 25923584,
+      "afterGC": {
+        "seconds": 21.020401843,
+        "files": 5001,
+        "heapBytes": 2561584,
+        "heapInuseBytes": 4300800,
+        "rssBytes": 24408064,
+        "totalAllocBytes": 356575328,
+        "gcCount": 173,
+        "gcPauseTotalNanoseconds": 7520522,
+        "goroutines": 4,
+        "fileDescriptors": 10,
+        "dbAcquired": 0
+      }
+    },
+    {
+      "pass": "cleanup",
+      "totalFiles": 10000,
+      "observedFiles": 5001,
+      "historicalFiles": 4999,
+      "retainedBaselineRows": 20000,
+      "gomaxprocs": 2,
+      "seconds": 15.766070573,
+      "state": "succeeded",
+      "errorCode": "",
+      "attempts": 1,
+      "maxBatch": 128,
+      "batches": 92,
+      "helperStarts": 187,
+      "peakHeapBytes": 3266320,
+      "peakRSSBytes": 26206208,
+      "afterGC": {
+        "seconds": 15.772009131,
+        "files": 5001,
+        "heapBytes": 2688856,
+        "heapInuseBytes": 4505600,
+        "rssBytes": 25382912,
+        "totalAllocBytes": 658736216,
+        "gcCount": 324,
+        "gcPauseTotalNanoseconds": 14456683,
+        "goroutines": 4,
+        "fileDescriptors": 10,
+        "dbAcquired": 0
+      }
+    }
+  ],
+  "checks": {
+    "targeted": {
+      "pass": 12,
+      "fail": 0,
+      "skip": 0
+    },
+    "windows": {
+      "pass": 444,
+      "fail": 0,
+      "skip": 1
+    },
+    "race": {
+      "pass": 441,
+      "fail": 0,
+      "skip": 0
+    },
+    "native": {
+      "pass": 8,
+      "fail": 0,
+      "skip": 0
+    },
+    "pg": {
+      "pass": 11,
+      "fail": 0,
+      "skip": 0
+    }
+  },
+  "sourceSHA256": {
+    "internal/adapter/postgres/ignore_scale_test.go": "c516fbfc6bfe2e374d4140efb3abf5fc2c7849ff3357e4b594a7583e2a833415",
+    "internal/adapter/scan/ignore_family_baseline_native_test.go": "4ab1e7c63aab460d7ebdc95b4e2bf2d7788c9d31342a7a064ff16988370bc7d6",
+    "internal/app/ignore_family_jobs_ports.go": "d59b4a9df333b4c840ea5c121ca71a7e6c50b8fad1e1e89c49e7c2d2ff882e2a",
+    "internal/platform/jobs/ignore_family.go": "f64f70a737d9b6a79320c42c9f2b06c430fba22d9917e5f1a789f284ca6915bf",
+    "internal/adapter/scan/ignore_family_batch.go": "c78a6b8e16759a3f77166c4ac721b4af0e9f9e1f88127b300439f1d9da479c0f",
+    "internal/adapter/scan/ignore_family_batch_test.go": "9392aed99beba6202bfb713939992f019168f16644c23875cd364ebef7458f12",
+    "internal/platform/jobs/ignore_family_batch_test.go": "fb0f846d3cf6521d4ebbc703597543e5b248175525409693d5aa485f13b23cba"
+  },
+  "limits": [
+    "GOMAXPROCS is not a hardware CPU quota",
+    "RSS excludes helper processes and PostgreSQL",
+    "No 24-hour or larger ignore scale acceptance yet",
+    "Wall time is a single run and shared-machine load varies"
+  ],
+  "staticChecks": [
+    {
+      "name": "vet",
+      "exitCode": 0
+    },
+    {
+      "name": "build",
+      "exitCode": 0
+    },
+    {
+      "name": "brand-new",
+      "exitCode": 0
+    },
+    {
+      "name": "gitignore",
+      "exitCode": 0
+    },
+    {
+      "name": "brand-full",
+      "exitCode": 1
+    }
+  ],
+  "formatPassed": true
+}

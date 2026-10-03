@@ -1,0 +1,42 @@
+{
+  "sourceBaseCommit": "28e12e1c490d8eda8398efcbdc1eb9f8298358d8",
+  "schemaVersion": 46,
+  "changedSourceManifest": {
+    "internal/adapter/nfo/writer.go": "8faed667fdc772fd09f9b65a526c0855663b7c1b24dd9e8ad125b37a6712b7e5",
+    "internal/adapter/nfo/write_prepared.go": "00514b94169436d1d2349ce855cbf1219e5a7203ff6c3a19d8653f078d0c4ac3",
+    "internal/adapter/nfo/write_prepared_test.go": "8f877d1e9a656826b44dd9be4885e1d11b319ce4fa6c6757fe789d5b4b7e25c3",
+    "internal/adapter/postgres/nfo_prepared_writer_test.go": "686d46db1ea7755ab40cafe102e0ce1ba90d627bb2992755533d12347a61f916"
+  },
+  "windows": {
+    "packagesPassed": 5,
+    "testsPassed": 762,
+    "testsSkipped": 646,
+    "failureEvents": 0
+  },
+  "linuxRace": {
+    "race": true,
+    "packagesPassed": 3
+  },
+  "postgresPreparedWriterRace": {
+    "packagesPassed": 1,
+    "testsPassed": 17,
+    "testsSkipped": 0,
+    "failureEvents": 0
+  },
+  "verifiedContracts": [
+    "controlled_recipe_exact_bytes",
+    "frozen_uuid_no_regeneration",
+    "persisted_recipe_after_pool_reopen",
+    "private_root_keys_do_not_share",
+    "unknown_xml_and_manual_ids_preserved",
+    "100_concurrent_requests_one_replacement",
+    "external_same_size_mtime_edit_preserved",
+    "sync_failure_retry_fixed_output",
+    "cpu_io_permit_cleanup"
+  ],
+  "sqlChanges": 0,
+  "runtimeWriteWorkerEnabled": false,
+  "durableCommitRecoveryVerified": false,
+  "formal24hSourceIncludesThisChange": false,
+  "requirementsComplete": false
+}

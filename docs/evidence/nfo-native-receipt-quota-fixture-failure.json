@@ -1,0 +1,29 @@
+{
+  "scope": "Failed candidate schema53 complete PostgreSQL V2 trial; not release evidence",
+  "compiledRoots": 471,
+  "frozenGoSQL": 996,
+  "frozenSourceVerifiedAtTrialEnd": true,
+  "sourceManifestSHA256": "0dc5c84ed0b15cf821039545e537cbb8f14b77c1f3452e6f3dd75bea20a27b03",
+  "testManifestSHA256": "15f3703546bb170330a6ae9723ac8f682c56882234cbbb8ee2da2527c0b057b5",
+  "rootsRunExactlyOnce": true,
+  "rootsPassedExactlyOnce": false,
+  "testPass": 1469,
+  "testFail": 5,
+  "skip": 0,
+  "shardExitCodes": {
+    "0": 1,
+    "2": 1,
+    "3": 0,
+    "1": 0
+  },
+  "passed": false,
+  "failedRoots": [
+    "TestNFOQuotaJobConcurrentSnapshotsAndGlobalRows",
+    "TestNFOQuotaJobGlobalBytesRollBackAdmission"
+  ],
+  "fixtureFailures": [
+    "quota entry clone changes item while retaining another preparation scope",
+    "global entry byte fixture omits native receipt and matching source preparation"
+  ],
+  "resolution": "Owned matching item and preparation per entry; direct payload columns; preserve first receipt and native guards. Formal quota eight roots/29 tests passed after repair."
+}

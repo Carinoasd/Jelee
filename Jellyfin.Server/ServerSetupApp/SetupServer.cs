@@ -9,7 +9,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Emby.Server.Implementations.Configuration;
 using Emby.Server.Implementations.Serialization;
-using Jellyfin.Networking.Manager;
+using Jelee.Networking.Manager;
 using Jellyfin.Server.Extensions;
 using MediaBrowser.Common.Configuration;
 using MediaBrowser.Common.Net;

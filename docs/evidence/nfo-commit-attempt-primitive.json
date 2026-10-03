@@ -1,0 +1,98 @@
+{
+  "baseCommit": "1f75ce224391ebfb3361039949a396471cee157d",
+  "scope": "Private bounded namespace preparation and selected existing PG regression, not durable attempt recovery",
+  "currentGoSQL": 1010,
+  "publishedSQLUnchanged": 110,
+  "changedSources": [
+    {
+      "path": "internal/adapter/nfo/commit_attempt.go",
+      "sha256": "57d64b29dd1970f4f2f42cafd3e52c6c7bc595adb4bc9a169322909e0e258b98"
+    },
+    {
+      "path": "internal/adapter/nfo/commit_attempt_test.go",
+      "sha256": "183b3b06827262c9eda3bd5e768ccea5a9acd9b10ea6fdd0fa0fc901a1fb223a"
+    },
+    {
+      "path": "internal/adapter/nfo/commit_files.go",
+      "sha256": "a92045c864f5186f3ca6d6b7df493fc0952b328e17cb09df1f213fae7414830a"
+    },
+    {
+      "path": "internal/adapter/nfo/commit_files_abrupt_test.go",
+      "sha256": "fba8084012edccad1b5ba8a34c10cee821caeb40f5641772563e3306918acd43"
+    },
+    {
+      "path": "internal/adapter/nfo/commit_files_test.go",
+      "sha256": "73625f8fda48e661644ba8ffd565a26f434541b45ab17fec6d917a4199ab8b52"
+    },
+    {
+      "path": "internal/adapter/nfo/commit_progress.go",
+      "sha256": "52aa2b83c14ef4ceaeffed00ed7cd27e726befa98dea4964b9d179bbf039beb8"
+    },
+    {
+      "path": "internal/adapter/nfo/commit_progress_test.go",
+      "sha256": "929faa836acf3e08354328ae09d56d919ac12285e3ac156b67a7b612dea88c85"
+    },
+    {
+      "path": "internal/adapter/nfo/stage_commit_files.go",
+      "sha256": "c2d444960e387cc692257542f10315b06a93d5d47138628aa856ca29bf21b2a6"
+    }
+  ],
+  "sourceManifestSha256": "b98931e75e4fc9bb05ebaf7c1c220420464f3aaf668a8de7e298ebc42d503c91",
+  "terminalLogs": [
+    {
+      "log": "nfo-attempt-full-windows-v1.jsonl",
+      "sha256": "08a4774a54c11842853b300817c8db4fad2671d5225c501c8dd3b13452b4c3ef",
+      "testPass": 413,
+      "skip": 5,
+      "packagePass": 1
+    },
+    {
+      "log": "nfo-attempt-domain-nfo-linux-v1.jsonl",
+      "sha256": "996887fb96b55243fa8200e4b8c241e881cd82d6af125a94904d7b7d784c748f",
+      "testPass": 762,
+      "skip": 1,
+      "packagePass": 2
+    },
+    {
+      "log": "nfo-attempt-pg-linux-v1.jsonl",
+      "sha256": "3d56379959ffbf2fcc92a8558cb8cb6cb5114319d886cb6105a779f30f0e8a76",
+      "testPass": 74,
+      "skip": 0,
+      "packagePass": 1
+    },
+    {
+      "log": "nfo-attempt-pg-windows-v1.jsonl",
+      "sha256": "976ef45a35878926af78e19d52912fd491b3a1a137f22791a56c9dbe6e05cc49",
+      "testPass": 28,
+      "skip": 0,
+      "packagePass": 1
+    }
+  ],
+  "historicalFailuresRetained": [
+    {
+      "file": "nfo-attempt-selected-windows-v1.jsonl",
+      "sha256": "11ac3bf39885761324c1c4137ad3ddd63003f666bdab1ffadd6be648b94e56ef"
+    },
+    {
+      "file": "nfo-attempt-check-format-windows-failure.json",
+      "sha256": "0ef34b63f6f5b64a50e84077874517167de2697937c328d7d0fef9444d4098c8"
+    },
+    {
+      "file": "finalize-nfo-attempt-v1-syntax-failure.py.txt",
+      "sha256": "a7c39736614cf4c96c883a8344f497cc4a415f23ee538267f4371fa6713d08bf"
+    },
+    {
+      "file": "nfo-attempt-finalizer-syntax-failure.json",
+      "sha256": "e0e7ba0a2abcef371df897a325ec342bd114b39a3ba93bd79a91b75e2071f5e9"
+    }
+  ],
+  "maxNewAttempts": 3,
+  "newPlannedNames": 15,
+  "globalPGReservationImplemented": false,
+  "automaticAttemptSelectionImplemented": false,
+  "recoveryWithNewOwnerGenerationComplete": false,
+  "currentFullPGRegressionProven": false,
+  "windowsDirectorySyncIsStub": true,
+  "formalWorkerEnabled": false,
+  "fullG00G51Acceptance": false
+}

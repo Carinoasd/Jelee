@@ -21,6 +21,16 @@ import (
 // treats as the same field. Errors never contain body text or field names.
 // The caller owns the request body and its transport read deadline.
 func DecodeJSON(w http.ResponseWriter, r *http.Request, target any, maxBytes int64) error {
+	return decodeJSON(w, r, target, maxBytes, false)
+}
+
+// Manual facts allow clears and nullable structured values. Domain validation
+// checks that nullable members belong to the selected fact type.
+func decodeItemMetadataJSON(w http.ResponseWriter, r *http.Request, target any, maxBytes int64) error {
+	return decodeJSON(w, r, target, maxBytes, true)
+}
+
+func decodeJSON(w http.ResponseWriter, r *http.Request, target any, maxBytes int64, allowFactNull bool) error {
 	if r == nil || r.Body == nil || target == nil || maxBytes < 1 {
 		return domain.ErrInvalid
 	}
@@ -56,7 +66,7 @@ func DecodeJSON(w http.ResponseWriter, r *http.Request, target any, maxBytes int
 	validator := json.NewDecoder(bytes.NewReader(body))
 	validator.UseNumber()
 	first, err := validator.Token()
-	if err != nil || first != json.Delim('{') || !checkJSONObject(validator, 1) {
+	if err != nil || first != json.Delim('{') || !checkJSONObjectAt(validator, 1, "", allowFactNull) {
 		return domain.ErrInvalid
 	}
 	if _, err := validator.Token(); err != io.EOF {
@@ -71,6 +81,10 @@ func DecodeJSON(w http.ResponseWriter, r *http.Request, target any, maxBytes int
 }
 
 func checkJSONObject(decoder *json.Decoder, depth int) bool {
+	return checkJSONObjectAt(decoder, depth, "", false)
+}
+
+func checkJSONObjectAt(decoder *json.Decoder, depth int, path string, allowFactNull bool) bool {
 	if depth > 64 {
 		return false
 	}
@@ -86,7 +100,7 @@ func checkJSONObject(decoder *json.Decoder, depth int) bool {
 			return false
 		}
 		seen[key] = struct{}{}
-		if !checkJSONValue(decoder, depth) {
+		if !checkJSONValueAt(decoder, depth, path+"/"+key, allowFactNull) {
 			return false
 		}
 	}
@@ -95,9 +109,16 @@ func checkJSONObject(decoder *json.Decoder, depth int) bool {
 }
 
 func checkJSONValue(decoder *json.Decoder, parentDepth int) bool {
+	return checkJSONValueAt(decoder, parentDepth, "", false)
+}
+
+func checkJSONValueAt(decoder *json.Decoder, parentDepth int, path string, allowFactNull bool) bool {
 	token, err := decoder.Token()
-	if err != nil || token == nil {
+	if err != nil {
 		return false
+	}
+	if token == nil {
+		return allowFactNull && (path == "/FACTS/*/VALUE" || path == "/FACTS/*/VALUE/*/ORDER" || path == "/FACTS/*/VALUE/*/MAX" || path == "/FACTS/*/VALUE/*/VOTES" || path == "/FACTS/*/VALUE/*/SEASON")
 	}
 	delim, compound := token.(json.Delim)
 	if !compound {
@@ -109,10 +130,10 @@ func checkJSONValue(decoder *json.Decoder, parentDepth int) bool {
 	}
 	switch delim {
 	case '{':
-		return checkJSONObject(decoder, depth)
+		return checkJSONObjectAt(decoder, depth, path, allowFactNull)
 	case '[':
 		for decoder.More() {
-			if !checkJSONValue(decoder, depth) {
+			if !checkJSONValueAt(decoder, depth, path+"/*", allowFactNull) {
 				return false
 			}
 		}

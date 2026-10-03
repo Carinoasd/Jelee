@@ -76,3 +76,44 @@ func TestIgnoreCLIReportRejectsFlagsBeforeCredentials(t *testing.T) {
 		}
 	}
 }
+
+func TestIgnoreCLIFamilyReportProvenance(t *testing.T) {
+	for _, family := range []string{"jeleeignore", "legacy-ignore-021"} {
+		for _, reason := range []string{"rule", "blank-source", "invalid-source"} {
+			r := validCLIIgnoreReport()
+			e := r["entries"].([]any)[0].(map[string]any)
+			e["family"] = family
+			e["reason"] = reason
+			if reason != "rule" {
+				delete(e, "ruleLine")
+			}
+			raw, _ := json.Marshal(r)
+			out, ok := decodeCLIIgnoreReport(raw, 1)
+			valid := family == "legacy-ignore-021" || reason == "rule"
+			if ok != valid {
+				t.Fatal("incorrect family contract", family, reason, ok)
+			}
+			if valid && (len(out.Entries) != 1 || out.Entries[0].Family != family || out.Entries[0].Reason != reason) {
+				t.Fatal("provenance stripped")
+			}
+		}
+	}
+	r := validCLIIgnoreReport()
+	e := r["entries"].([]any)[0].(map[string]any)
+	e["family"] = "legacy-ignore-021"
+	e["reason"] = "blank-source"
+	e["path"] = "hidden"
+	e["kind"] = "directory"
+	e["matchedPath"] = "hidden"
+	e["ruleDirectory"] = "hidden"
+	delete(e, "ruleLine")
+	raw, _ := json.Marshal(r)
+	if _, ok := decodeCLIIgnoreReport(raw, 1); !ok {
+		t.Fatal("own-directory source rejected")
+	}
+	e["family"] = nil
+	raw, _ = json.Marshal(r)
+	if _, ok := decodeCLIIgnoreReport(raw, 1); ok {
+		t.Fatal("null family accepted")
+	}
+}

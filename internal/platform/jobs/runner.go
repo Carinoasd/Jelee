@@ -30,8 +30,15 @@ type realTimer struct{ *time.Timer }
 func (realClock) NewTimer(d time.Duration) Timer { return realTimer{time.NewTimer(d)} }
 func (t realTimer) C() <-chan time.Time          { return t.Timer.C }
 
+type WorkWindow interface{ Allows(time.Time) bool }
+
 type Options struct {
+	Budget             app.WorkBudget
+	Window             WorkWindow
+	Now                func() time.Time
+	CatalogImport      *CatalogImportOptions
 	Ignore             *IgnoreOptions
+	FamilyIgnore       *FamilyIgnoreOptions
 	Workers            int
 	PollInterval       time.Duration
 	LeaseDuration      time.Duration
@@ -50,25 +57,28 @@ func DefaultOptions() Options {
 var (
 	errCancelRequested = errors.New("persisted job cancellation")
 	errHeartbeatFailed = errors.New("job heartbeat failed")
+	errWindowClosed    = errors.New("job work window closed")
 )
 
 type Runner struct {
-	repository       app.JobExecutionRepository
-	scanner          app.InventoryScanner
-	options          Options
-	logger           *slog.Logger
-	mu               sync.Mutex
-	started          bool
-	cancel           context.CancelFunc
-	done             chan struct{}
-	probeRepository  app.ProbeExecutionRepository
-	probeGate        chan struct{}
-	probeIdentity    string
-	probeUnavailable atomic.Bool
-	nfoRepository    app.NFOExecutionRepository
-	nfoGate          chan struct{}
-	nfoIdentity      domain.NFOIdentity
-	nfoUnavailable   atomic.Bool
+	cancellationMu       sync.Mutex
+	runningCancellations map[string]runningCancellation
+	repository           app.JobExecutionRepository
+	scanner              app.InventoryScanner
+	options              Options
+	logger               *slog.Logger
+	mu                   sync.Mutex
+	started              bool
+	cancel               context.CancelFunc
+	done                 chan struct{}
+	probeRepository      app.ProbeExecutionRepository
+	probeGate            chan struct{}
+	probeIdentity        string
+	probeUnavailable     atomic.Bool
+	nfoRepository        app.NFOExecutionRepository
+	nfoGate              chan struct{}
+	nfoIdentity          domain.NFOIdentity
+	nfoUnavailable       atomic.Bool
 }
 
 func New(repository app.JobExecutionRepository, scanner app.InventoryScanner, opts Options, logger *slog.Logger) (*Runner, error) {
@@ -78,6 +88,14 @@ func New(repository app.JobExecutionRepository, scanner app.InventoryScanner, op
 		opts.DBOperationTimeout <= 0 || opts.DBOperationTimeout >= opts.LeaseDuration/3 ||
 		opts.MaxJobRuntime < time.Minute || opts.MaxJobRuntime > 24*time.Hour || opts.Owner != "" && !domain.ValidID(opts.Owner) {
 		return nil, domain.ErrInvalid
+	}
+	if opts.Window != nil {
+		if _, ok := repository.(app.JobPauseRepository); !ok {
+			return nil, domain.ErrInvalid
+		}
+	}
+	if opts.Now == nil {
+		opts.Now = time.Now
 	}
 	if opts.Owner == "" {
 		var id [16]byte
@@ -92,6 +110,13 @@ func New(repository app.JobExecutionRepository, scanner app.InventoryScanner, op
 	if opts.Clock == nil {
 		opts.Clock = realClock{}
 	}
+	if opts.CatalogImport != nil {
+		if _, ok := repository.(stagesClaimer); !ok || opts.CatalogImport.Repository == nil || opts.CatalogImport.Verifier == nil {
+			return nil, domain.ErrInvalid
+		}
+		value := *opts.CatalogImport
+		opts.CatalogImport = &value
+	}
 	if opts.Ignore != nil {
 		if _, ok := repository.(app.IgnoreExecutionRepository); !ok {
 			return nil, domain.ErrInvalid
@@ -101,6 +126,19 @@ func New(repository app.JobExecutionRepository, scanner app.InventoryScanner, op
 			return nil, domain.ErrInvalid
 		}
 		opts.Ignore = &i
+	}
+	if opts.FamilyIgnore != nil {
+		if _, ok := repository.(app.IgnoreExecutionRepository); !ok {
+			return nil, domain.ErrInvalid
+		}
+		if _, ok := repository.(app.FamilyIgnoreExecutionRepository); !ok {
+			return nil, domain.ErrInvalid
+		}
+		i := *opts.FamilyIgnore
+		if i.Repository == nil || i.Scanner == nil {
+			return nil, domain.ErrInvalid
+		}
+		opts.FamilyIgnore = &i
 	}
 	r := &Runner{repository: repository, scanner: scanner, options: opts, logger: logger}
 	if err := r.configureProbe(); err != nil {
@@ -175,13 +213,19 @@ func (r *Runner) Stop(ctx context.Context) error {
 func (r *Runner) work(ctx context.Context) {
 	turn := 0
 	for ctx.Err() == nil {
+		if r.options.Window != nil && !r.options.Window.Allows(r.options.Now()) {
+			if !r.wait(ctx, r.options.PollInterval) {
+				return
+			}
+			continue
+		}
 		dbCtx, cancel := context.WithTimeout(ctx, r.options.DBOperationTimeout)
 		var lease domain.JobLease
 		var err error
 		if r.nfoRepository != nil {
-			lease, err = r.nfoRepository.ClaimJobWithCapabilities(dbCtx, r.options.Owner, turn%4 == 3, r.options.LeaseDuration, domain.ScanCapabilities{Probe: r.probeAvailable(), NFO: r.nfoAvailable(), Ignore: r.options.Ignore != nil})
+			lease, err = r.nfoRepository.ClaimJobWithCapabilities(dbCtx, r.options.Owner, turn%4 == 3, r.options.LeaseDuration, domain.ScanCapabilities{CatalogImport: r.options.CatalogImport != nil, Probe: r.probeAvailable(), NFO: r.nfoAvailable(), Ignore: r.options.Ignore != nil, FamilyIgnore: r.familyIgnoreAvailable()})
 		} else if capable, ok := r.repository.(stagesClaimer); ok {
-			lease, err = capable.ClaimJobWithCapabilities(dbCtx, r.options.Owner, turn%4 == 3, r.options.LeaseDuration, domain.ScanCapabilities{Probe: r.probeAvailable(), Ignore: r.options.Ignore != nil})
+			lease, err = capable.ClaimJobWithCapabilities(dbCtx, r.options.Owner, turn%4 == 3, r.options.LeaseDuration, domain.ScanCapabilities{CatalogImport: r.options.CatalogImport != nil, Probe: r.probeAvailable(), Ignore: r.options.Ignore != nil, FamilyIgnore: r.familyIgnoreAvailable()})
 		} else if r.probeRepository != nil {
 			lease, err = r.probeRepository.ClaimJobWithProbe(dbCtx, r.options.Owner, turn%4 == 3, r.options.LeaseDuration, r.probeAvailable())
 		} else if capable, ok := r.repository.(probeClaimer); ok {
@@ -223,16 +267,75 @@ func (r *Runner) wait(ctx context.Context, d time.Duration) bool {
 func (r *Runner) monitor(ctx context.Context, lease domain.JobLease, cancelJob context.CancelCauseFunc, started, done chan struct{}) {
 	heartbeat := r.options.Clock.NewTimer(r.heartbeatInterval())
 	runtime := r.options.Clock.NewTimer(r.options.MaxJobRuntime)
-	close(started)
+	reader, _ := r.repository.(app.JobCancellationReader)
+	var cancellation Timer
+	var cancellationReady <-chan time.Time
+	if reader != nil {
+		cancellation = r.options.Clock.NewTimer(time.Second)
+		cancellationReady = cancellation.C()
+	}
+	var window Timer
+	var windowReady <-chan time.Time
+	if r.options.Window != nil {
+		window = r.options.Clock.NewTimer(time.Second)
+		windowReady = window.C()
+	}
 	defer close(done)
-	defer func() { heartbeat.Stop(); runtime.Stop() }()
+	defer func() {
+		heartbeat.Stop()
+		runtime.Stop()
+		if cancellation != nil {
+			cancellation.Stop()
+		}
+		if window != nil {
+			window.Stop()
+		}
+	}()
+	if r.options.Window != nil && !r.options.Window.Allows(r.options.Now()) {
+		cancelJob(errWindowClosed)
+		close(started)
+		return
+	}
+	close(started)
 	for {
 		select {
 		case <-ctx.Done():
 			return
+		case <-windowReady:
+			if !r.options.Window.Allows(r.options.Now()) {
+				cancelJob(errWindowClosed)
+				return
+			}
+			window.Stop()
+			window = r.options.Clock.NewTimer(time.Second)
+			windowReady = window.C()
 		case <-runtime.C():
 			cancelJob(context.DeadlineExceeded)
 			return
+		case <-cancellationReady:
+			// Poll committed flags without increasing heartbeat writes. The
+			// existing monitor owns this timer; no extra goroutine is started.
+			dbCtx, cancel := context.WithTimeout(ctx, r.options.DBOperationTimeout)
+			requested, err := reader.ReadJobCancellation(dbCtx, lease)
+			cancel()
+			if ctx.Err() != nil {
+				return
+			}
+			if err != nil {
+				if errors.Is(err, domain.ErrJobLeaseLost) {
+					cancelJob(domain.ErrJobLeaseLost)
+				} else {
+					cancelJob(errHeartbeatFailed)
+				}
+				return
+			}
+			if requested {
+				cancelJob(errCancelRequested)
+				return
+			}
+			cancellation.Stop()
+			cancellation = r.options.Clock.NewTimer(time.Second)
+			cancellationReady = cancellation.C()
 		case <-heartbeat.C():
 			dbCtx, cancel := context.WithTimeout(ctx, r.options.DBOperationTimeout)
 			requested, err := r.repository.HeartbeatJob(dbCtx, lease, r.options.LeaseDuration)
@@ -261,16 +364,33 @@ func (r *Runner) monitor(ctx context.Context, lease domain.JobLease, cancelJob c
 func (r *Runner) run(serviceCtx context.Context, lease domain.JobLease) {
 	ctx, cancelJob := context.WithCancelCause(serviceCtx)
 	defer cancelJob(nil)
+	defer r.registerCancellation(lease, cancelJob)()
 	hbCtx, stopHeartbeat := context.WithCancel(ctx)
 	started, monitored := make(chan struct{}), make(chan struct{})
 	go r.monitor(hbCtx, lease, cancelJob, started, monitored)
 	<-started
 	err, repositoryError := r.execute(ctx, lease)
+	if err == nil && lease.Job.Kind == "inventory_scan" {
+		if prepareErr := r.prepareInventoryPublication(ctx, lease); prepareErr != nil {
+			err, repositoryError = prepareErr, true
+		}
+	}
+
 	stopHeartbeat()
 	<-monitored
 	cause := context.Cause(ctx)
 	if errors.Is(err, domain.ErrJobLeaseLost) || errors.Is(err, domain.ErrProbeLeaseLost) || errors.Is(cause, domain.ErrJobLeaseLost) || errors.Is(cause, errHeartbeatFailed) {
 		r.logger.Warn("job ownership could not be retained", "component", "jobs", "taskId", lease.Job.ID, "code", "job_lease_lost")
+		return
+	}
+	// A planned closure refunds the current claim only after work and monitor
+	// have joined. The repository rechecks persisted cancellation under its lock.
+	if errors.Is(cause, errWindowClosed) && (err == nil || errors.Is(err, context.Canceled)) {
+		dbCtx, cancelDB := context.WithTimeout(context.WithoutCancel(serviceCtx), r.options.DBOperationTimeout)
+		defer cancelDB()
+		if err := r.repository.(app.JobPauseRepository).PauseJob(dbCtx, lease); err != nil {
+			r.logPersistenceFailure(lease)
+		}
 		return
 	}
 	// Cleanup survives service cancellation but always has its own short bound.
@@ -330,6 +450,9 @@ func (r *Runner) run(serviceCtx context.Context, lease domain.JobLease) {
 		default:
 			code = "scan_io"
 		}
+	}
+	if lease.Job.Kind == domain.JobCatalogImport && state == domain.JobFailed && code != "job_timeout" {
+		code = "catalog_import_failed"
 	}
 	dbCtx, cancelDB := context.WithTimeout(context.WithoutCancel(serviceCtx), r.options.DBOperationTimeout)
 	defer cancelDB()
@@ -393,7 +516,7 @@ func (r *Runner) executeInventory(ctx context.Context, lease domain.JobLease) (r
 		}
 		var callbackError error
 		callbackFailed, completed := false, false
-		err = r.scanner.ScanDirectory(ctx, directory, func(batch domain.ScanBatch) error {
+		err = r.scanDirectory(ctx, directory, func(batch domain.ScanBatch) error {
 			if callbackError != nil {
 				return callbackError
 			}
@@ -425,6 +548,24 @@ func (r *Runner) executeInventory(ctx context.Context, lease domain.JobLease) (r
 		}
 		if !completed {
 			return domain.ErrScanIO, false
+		}
+	}
+}
+
+func (r *Runner) prepareInventoryPublication(ctx context.Context, l domain.JobLease) error {
+	preparer, ok := r.repository.(app.InventoryPublicationPreparer)
+	if !ok {
+		return nil
+	}
+	for {
+		call, stop := context.WithTimeout(ctx, r.options.DBOperationTimeout)
+		ready, err := preparer.PrepareInventoryPublication(call, l)
+		stop()
+		if err != nil {
+			return err
+		}
+		if ready {
+			return nil
 		}
 	}
 }

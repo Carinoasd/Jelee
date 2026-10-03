@@ -14,6 +14,7 @@ type Item struct {
 	LibraryID string `json:"libraryId"`
 	Title     string `json:"title"`
 	Kind      string `json:"kind"`
+	ParentID  string `json:"parentId,omitempty"`
 }
 
 // ValidID accepts the canonical UUID representation used at the API boundary.

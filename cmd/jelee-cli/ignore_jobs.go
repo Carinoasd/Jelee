@@ -37,7 +37,7 @@ func decodeCLIIgnoreReport(raw []byte, limit int) (domain.IgnoreReport, bool) {
 	result.Entries = make([]domain.IgnoreReportEntry, 0, len(entries))
 	for _, rawEntry := range entries {
 		var entry domain.IgnoreReportEntry
-		if !jobsCLIPublicObject(rawEntry, &entry, []string{"source", "rootId", "path", "outcome"}, "kind", "ruleDirectory", "ruleLine", "matchedPath", "reason") || domain.ValidateIgnoreReportEntry(entry) != nil {
+		if !jobsCLIPublicObject(rawEntry, &entry, []string{"source", "rootId", "path", "outcome"}, "kind", "ruleDirectory", "ruleLine", "matchedPath", "reason", "family") || domain.ValidateIgnoreReportEntry(entry) != nil {
 			return domain.IgnoreReport{}, false
 		}
 		result.Entries = append(result.Entries, entry)

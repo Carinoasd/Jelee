@@ -1,6 +1,6 @@
 #nullable disable
 
-using Emby.Naming.Common;
+using Jelee.Naming.Common;
 using MediaBrowser.Controller.Entities;
 using MediaBrowser.Controller.Library;
 using MediaBrowser.Controller.Providers;

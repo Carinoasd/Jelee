@@ -1,4 +1,4 @@
-using Emby.Naming.Common;
+using Jelee.Naming.Common;
 using MediaBrowser.Controller.Chapters;
 using MediaBrowser.Controller.Configuration;
 using MediaBrowser.Controller.Entities;

@@ -1,0 +1,61 @@
+{
+  "runId": "dfc8b37f805843b384f26bb72ca22804",
+  "scope": "smoke",
+  "result": "passed",
+  "sourceCommit": "24caf7d45fb96390689dcc03685033242b7bbfea",
+  "sourceTree": "852be378e999cbc820c4658ab7c51403eb7dc52c",
+  "sourceDigest": "bb9e4f8cc3dbef639c71409be28f8409364433e197003e15d439b4d487103650",
+  "budgetSHA256": "01c3fda397247da4092d6afea4da318a01c6d9582cb2a085770238015be19539",
+  "finalAcceptance": false,
+  "soakWorkloadPassed": true,
+  "snapshotVerified": true,
+  "testArtifactsCleaned": true,
+  "launcherArtifactsCleaned": true,
+  "completedRounds": 2,
+  "workDurationNanos": 600000416325,
+  "samples": {
+    "sampleCount": 618,
+    "blockCount": 11,
+    "firstSampleNanos": 931266,
+    "lastSampleNanos": 602825364724,
+    "rssPeakBytes": 251736064,
+    "heapPeakBytes": 260681392,
+    "processorMaxima": {
+      "maxActive": 2,
+      "maxReservedBytes": 201326592,
+      "maxEstimatedImageBytes": 92099262,
+      "maxCacheEntries": 128,
+      "maxCacheBytes": 1633920
+    }
+  },
+  "containerExit": {
+    "status": "exited",
+    "exitCode": 0,
+    "oomKilled": false,
+    "running": false
+  },
+  "wholeGC": {
+    "histogramIntervalNanos": 602825406308,
+    "passed": true,
+    "maxPauseUpperNanos": 20971520,
+    "counterDelta": {
+      "totalAllocBytes": 13909587936,
+      "numGC": 766,
+      "pauseTotalNs": 114143570
+    },
+    "histogramPauseUpperNanos": 124470272
+  },
+  "workGC": {
+    "histogramIntervalNanos": 600000305068,
+    "passed": true,
+    "maxPauseUpperNanos": 20971520,
+    "counterDelta": {
+      "totalAllocBytes": 13628269712,
+      "numGC": 761,
+      "pauseTotalNs": 113667488
+    },
+    "histogramPauseUpperNanos": 123954176
+  },
+  "formal24hPassed": false,
+  "rawStreamSHA256": "b135440455e36a30aa22bd8d25cdd7dd518a7c9c9f850b015a59f82402da03e6"
+}

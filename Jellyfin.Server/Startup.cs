@@ -8,13 +8,14 @@ using System.Net.Mime;
 using System.Text;
 using Emby.Server.Implementations.EntryPoints;
 using Emby.Server.Implementations.Localization;
+using Jelee.Api.Compatibility;
+using Jelee.Networking;
+using Jelee.Networking.HappyEyeballs;
+using Jelee.Server.Localization;
 using Jellyfin.Api.Middleware;
 using Jellyfin.Database.Implementations;
 using Jellyfin.LiveTv.Extensions;
-using Jellyfin.LiveTv.Recordings;
 using Jellyfin.MediaEncoding.Hls.Extensions;
-using Jellyfin.Networking;
-using Jellyfin.Networking.HappyEyeballs;
 using Jellyfin.Server.Extensions;
 using Jellyfin.Server.HealthChecks;
 using Jellyfin.Server.Implementations.Extensions;
@@ -131,11 +132,7 @@ namespace Jellyfin.Server
             services.AddHlsPlaylistGenerator();
             services.AddLiveTvServices();
 
-            var serverUICulture = _serverConfigurationManager.Configuration.UICulture;
-            if (string.IsNullOrEmpty(serverUICulture))
-            {
-                serverUICulture = "en-US";
-            }
+            var serverUICulture = LocalizationManager.ResolveUICulture(_serverConfigurationManager.Configuration.UICulture);
 
             CultureInfo.DefaultThreadCurrentUICulture = new CultureInfo(serverUICulture);
 
@@ -148,14 +145,18 @@ namespace Jellyfin.Server
                 options.ApplyCurrentCultureToResponseHeaders = true;
                 options.FallBackToParentCultures = true;
                 options.FallBackToParentUICultures = true;
+                for (var i = 0; i < options.RequestCultureProviders.Count; i++)
+                {
+                    if (options.RequestCultureProviders[i] is AcceptLanguageHeaderRequestCultureProvider)
+                    {
+                        options.RequestCultureProviders[i] = new FourLocaleRequestCultureProvider();
+                    }
+                }
             });
 
-            services.AddHostedService<RecordingsHost>();
-            services.AddHostedService<AutoDiscoveryHost>();
             services.AddHostedService<NfoUserDataSaver>();
             services.AddHostedService<LibraryChangedNotifier>();
             services.AddHostedService<UserDataChangeNotifier>();
-            services.AddHostedService<RecordingNotifier>();
             services.AddHostedService<DeviceAccessHost>();
         }
 
@@ -236,6 +237,7 @@ namespace Jellyfin.Server
                 mainApp.UseAuthorization();
 
                 mainApp.UseIPBasedAccessValidation();
+                mainApp.UseMiddleware<RemovedFeaturesMiddleware>();
                 mainApp.UseWebSocketHandler();
                 mainApp.UseServerStartupMessage();
 

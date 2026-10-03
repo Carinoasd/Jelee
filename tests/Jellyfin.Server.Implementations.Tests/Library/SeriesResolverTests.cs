@@ -1,5 +1,5 @@
-using Emby.Naming.Common;
 using Emby.Server.Implementations.Library.Resolvers.TV;
+using Jelee.Naming.Common;
 using Jellyfin.Data.Enums;
 using MediaBrowser.Controller;
 using MediaBrowser.Controller.Entities.TV;

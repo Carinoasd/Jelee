@@ -1,0 +1,79 @@
+{
+  "scope": "G05 task/provider retirement and unused channel task resources; core service/storage cleanup remains partial",
+  "baseCommit": "fb994a86acbad04fbf0f680a4f120cf1cf4af7a0",
+  "removed": [
+    "Guide refresh scheduled task",
+    "Channel refresh scheduled task",
+    "Channel post-scan database cleanup actor",
+    "Live TV and Channel dynamic media providers",
+    "Channel image provider",
+    "five queue calls and two task manager constructor dependencies",
+    "unused dataSourceChanged flag in tuner save interface/implementation"
+  ],
+  "removedResourceKeys": [
+    "TaskRefreshChannels",
+    "TaskRefreshChannelsDescription",
+    "TasksChannelsCategory"
+  ],
+  "uiCatalogs": {
+    "locales": 4,
+    "keysPerLocale": 121,
+    "Windows": "PASS",
+    "Linux": "PASS"
+  },
+  "tests": {
+    "focused": {
+      "Passed": 10,
+      "Failed": 0,
+      "Skipped": 0
+    },
+    "negativeRestoredActors": {
+      "Passed": 0,
+      "Failed": 8,
+      "Skipped": 0,
+      "scope": "six compiled types plus registered tasks and authenticated API listing; constructors not restored"
+    },
+    "restoration": "all six actor files restored to absent state byte-for-byte; no other source changed",
+    "fullSolution": {
+      "suites": 17,
+      "Passed": 4808,
+      "NotExecuted": 21,
+      "Failed": 0
+    },
+    "format": "verify-no-changes PASS with workspace-load warning"
+  },
+  "sourceIndex": "../branding-rename-map.md",
+  "sourceHashes": {
+    "tunerHostManager": "a6941fb1e7557d4bd9b70310d8fc5accc3c445e326aaa7252b0c86ad6637ece8",
+    "listingsManager": "d0210b584f11a9e609875d667a9901a672dd96a36ed8fdf2d681c85d5b63c74d",
+    "tunerInterface": "a0322eb5c0ba5fe0e27d82926b813b0a663b2bb6a5ccfd4bf445e4875c4b048a",
+    "existingListingsTests": "9f80eeb8dd5ea471f1ea9fb98e803dad808af6a213ff028eb3bea3f4e85c2e0d",
+    "actorRemovalTests": "afc36136034905b91815fe53907b3c68908632475e547bce0625eaaf0587e67e",
+    "englishCatalog": "95c8e6da974b71c0e2131488cb82bfe20f5f2ad1c05ec7a3dd50714809746b2f",
+    "japaneseCatalog": "a437fe589c7d2b7a72863276c7e627f3dc79d425428953fb25e5ef82b5661299",
+    "simplifiedChineseCatalog": "f3aeec1501eaca77ff434f3fbeccdb660e6ba9b97b53f49b76e8e1e29aca5359",
+    "traditionalChineseCatalog": "c721428b70e59973f83189d4f9986daa7ac9857a64e31bb3a739b0a7444a32bc"
+  },
+  "removedSourceHashesAtBase": {
+    "guideTask": "7491541c56473a3bb6ac038acf56e72fe372ffb8eb9c815f54afcb2646e2350d",
+    "channelTask": "c67ed901f1847a6fda45ea649061af83b49b644b569cb364418e9ca6c9750682",
+    "channelCleanup": "f795e8c32d6ec74f24606d79806fc95c9dd15ec072eec0a229a1051ee7e41649",
+    "liveMediaProvider": "d52e6d5bbd5e16363016a6e13ab20355bb0315123834da60921714f864a69521",
+    "channelMediaProvider": "825372320930118f96b57656dd4cea51a7b4e8f20a2faae597bc8c7ad6707c0d",
+    "channelImageProvider": "5ce9a4f39aefab9e35a147512623d4fff85ae5e95aa816bc5935af4f0e4b50b1"
+  },
+  "existingMigrationsChanged": false,
+  "protectedHashesUnchanged": true,
+  "limitations": [
+    "Core Live TV, guide, tuner, recording and Channel managers still retained by legacy entities and library services",
+    "Retired configuration/storage rows, other feature resources and UI icons remain to audit/clean",
+    "No full client or LAN SSDP acceptance",
+    "Public constructor/method/type deletions intentionally change ABI; difference gate retained"
+  ],
+  "gates": {
+    "fullBrandGate": "FAIL retained",
+    "fullBrandViolations": 14728,
+    "incrementalBrandViolations": 0,
+    "gitignoreViolations": 0
+  }
+}

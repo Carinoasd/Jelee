@@ -1,0 +1,2060 @@
+{
+  "baseCommit": "11185953a570782dd1a404a003b3301be4552444",
+  "scope": "Guarded GET transport consumed by actual TMDB authentication startup preflight; not all outbound consumers",
+  "sources": {
+    "controlledClient": {
+      "path": "internal/platform/outbound/client.go",
+      "sha256": "6151c08f3f34bd4bd61411f5393d30746f4c2818241bbf2f885f84a81bddf3a6"
+    },
+    "transportTests": {
+      "path": "internal/platform/outbound/client_test.go",
+      "sha256": "263d998898c3dee6eb343c5ca5e961abe9e928ab8567d2ef49878b52d9154522"
+    },
+    "testOnlyTransportSeam": {
+      "path": "internal/platform/outbound/export_test.go",
+      "sha256": "43674172828ae4c5fbc9177df9c88379396eeb514fff40c1c745af114528dabc"
+    },
+    "actualAdapterTlsTests": {
+      "path": "internal/platform/outbound/tmdb_integration_test.go",
+      "sha256": "b2803fa60d2465cb9f38779a48467580d741dce75eb9d437b906ccec0c323c84"
+    },
+    "providerAdapter": {
+      "path": "internal/adapter/metadata/tmdb.go",
+      "sha256": "a12f8b2a8365f1bbd1762204288675fe434900568df7f542bab912b9b7b68658"
+    },
+    "providerContractTests": {
+      "path": "internal/adapter/metadata/tmdb_test.go",
+      "sha256": "b9d03e7bf5a5c8b05c01ce4b42614409c98aa9cb2b8700c0ae28e445a914374b"
+    },
+    "credentialConfig": {
+      "path": "internal/platform/config/tmdb.go",
+      "sha256": "164139a36114bbfa488fe9a989bf1aadfb8b6c3a4d388a016fb303a898427332"
+    },
+    "credentialConfigTests": {
+      "path": "internal/platform/config/tmdb_test.go",
+      "sha256": "dd20040028489317f3ced5c43fe013fa393ad9f6c5852515833a7499d8d866d2"
+    },
+    "configHook": {
+      "path": "internal/platform/config/config.go",
+      "sha256": "6ef716d437f5a98250c76a92ed9ffcbcbfb33a8e80197243f39c21212bf92988"
+    },
+    "startupPreflight": {
+      "path": "internal/platform/runtime/tmdb.go",
+      "sha256": "2be9df7263af9446682d5d67ac5aecc6cbe048ad5680f8aa831573291d002b34"
+    },
+    "startupTests": {
+      "path": "internal/platform/runtime/tmdb_test.go",
+      "sha256": "8a3b95ea2d1b22c7915449b3096fdb8fec1aeded67a54dbc30820a3e42ff044d"
+    },
+    "lifetimeHook": {
+      "path": "internal/platform/runtime/runtime.go",
+      "sha256": "b227b25e0ede7a6a9a948687e2275c42bc81acc4b2f155cdc94ae1c6782a6420"
+    },
+    "envExample": {
+      "path": ".env.example",
+      "sha256": "6a01d051a6cffaba26c9c48f88687df855372b5751dfe78c0aa3e58a743e8003"
+    }
+  },
+  "windowsFocused": {
+    "packages": [
+      {
+        "package": "internal/platform/config",
+        "elapsed": 0.216
+      },
+      {
+        "package": "internal/adapter/metadata",
+        "elapsed": 0.427
+      },
+      {
+        "package": "internal/platform/runtime",
+        "elapsed": 0.588
+      },
+      {
+        "package": "internal/platform/outbound",
+        "elapsed": 0.705
+      }
+    ],
+    "passEventsIncludingParents": 207,
+    "passedLeaves": 190,
+    "skippedTestEvents": 6,
+    "skippedTests": [
+      {
+        "package": "internal/platform/runtime",
+        "test": "TestFamilyIgnoreProductionRuntimeHTTP/false"
+      },
+      {
+        "package": "internal/platform/runtime",
+        "test": "TestFamilyIgnoreProductionRuntimeHTTP/true"
+      },
+      {
+        "package": "internal/platform/runtime",
+        "test": "TestFamilyIgnoreProductionRuntimeActiveChildStop"
+      },
+      {
+        "package": "internal/platform/runtime",
+        "test": "TestFamilyIgnoreProductionRuntimeActiveChildHTTPCancel"
+      },
+      {
+        "package": "internal/platform/runtime",
+        "test": "TestFamilyIgnoreProductionRuntimeRemoteActiveChildHTTPCancel"
+      },
+      {
+        "package": "internal/platform/runtime",
+        "test": "TestIgnoreServiceNativeSustainedSaturation"
+      }
+    ]
+  },
+  "windowsFullGo": {
+    "packages": [
+      {
+        "package": "internal/access",
+        "elapsed": 0.282
+      },
+      {
+        "package": "internal/adapter/media",
+        "elapsed": 0.718
+      },
+      {
+        "package": "internal/adapter/metadata",
+        "elapsed": 0.736
+      },
+      {
+        "package": "cmd/jelee-cli",
+        "elapsed": 1.1360000000000001
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "elapsed": 0.197
+      },
+      {
+        "package": "internal/app",
+        "elapsed": 0.352
+      },
+      {
+        "package": "internal/architecture",
+        "elapsed": 0.365
+      },
+      {
+        "package": "internal/domain",
+        "elapsed": 0.38
+      },
+      {
+        "package": "internal/platform/i18n",
+        "elapsed": 0.4
+      },
+      {
+        "package": "internal/adapter/nfo",
+        "elapsed": 1.346
+      },
+      {
+        "package": "internal/platform/legacyignore",
+        "elapsed": 0.481
+      },
+      {
+        "package": "internal/platform/config",
+        "elapsed": 0.576
+      },
+      {
+        "package": "internal/platform/logging",
+        "elapsed": 0.463
+      },
+      {
+        "package": "internal/platform/proberuntime",
+        "elapsed": 0.428
+      },
+      {
+        "package": "internal/platform/sandbox",
+        "elapsed": 0.376
+      },
+      {
+        "package": "internal/platform/jobs",
+        "elapsed": 0.813
+      },
+      {
+        "package": "internal/platform/legacyignorehelper",
+        "elapsed": 0.906
+      },
+      {
+        "package": "tools",
+        "elapsed": 0.391
+      },
+      {
+        "package": "internal/platform/toolidentity",
+        "elapsed": 0.673
+      },
+      {
+        "package": "internal/platform/password",
+        "elapsed": 0.932
+      },
+      {
+        "package": "tools/runtime-image",
+        "elapsed": 0.628
+      },
+      {
+        "package": "internal/adapter/http",
+        "elapsed": 2.282
+      },
+      {
+        "package": "internal/platform/outbound",
+        "elapsed": 1.213
+      },
+      {
+        "package": "internal/platform/runtime",
+        "elapsed": 1.2770000000000001
+      },
+      {
+        "package": "internal/adapter/media/ignore",
+        "elapsed": 3.115
+      },
+      {
+        "package": "internal/adapter/probe",
+        "elapsed": 2.729
+      },
+      {
+        "package": "internal/platform/process",
+        "elapsed": 3.162
+      },
+      {
+        "package": "internal/adapter/scan",
+        "elapsed": 3.7800000000000002
+      },
+      {
+        "package": "internal/platform/ignore",
+        "elapsed": 10.032
+      }
+    ],
+    "passEventsIncludingParents": 2830,
+    "passedLeaves": 2655,
+    "skippedTestEvents": 435,
+    "skippedTests": [
+      {
+        "package": "internal/adapter/media",
+        "test": "TestPathBoundariesAndNoDisclosure/symlink_escape"
+      },
+      {
+        "package": "internal/adapter/media",
+        "test": "TestPathBoundariesAndNoDisclosure/directory_symlink_escape"
+      },
+      {
+        "package": "internal/adapter/nfo",
+        "test": "TestReadFileBoundaryAndOriginalProtection/symlink_escape"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestAccountIntegration"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestAccountMigrationRejectsCaseCollisionWithoutRenaming"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestAccountMigrationRollbackKeepsDeletedAccountsDisabled"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestIgnoreAdmissionAvailabilityReplayAndRetry"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestIgnoreBaselineRawPagesReplayAndReclaim"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestIgnoreBaselineFreezesInventoryAndHistoryCanDelete"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestIgnoreBaselineBeginCoverageAndScope/pending"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestIgnoreBaselineBeginCoverageAndScope/skipped"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestIgnoreBaselineBeginCoverageAndScope/no-root-proof"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestIgnoreBaselineBeginCoverageAndScope/scope-reset"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestIgnoreBaselineFencesAndLateExpiry/revision"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestIgnoreBaselineFencesAndLateExpiry/epoch"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestIgnoreBaselineFencesAndLateExpiry/cancelled"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestIgnoreBaselineFencesAndLateExpiry/late"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestIgnoreBaselinePrefixPlanBoundsSeenRows"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestIgnoreBaselineClassificationNeedsActualProofChain/missing-proof"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestIgnoreBaselineClassificationNeedsActualProofChain/absent-parent"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestIgnoreBaselineClassificationNeedsActualProofChain/excluded-ancestor"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestIgnoreBaselineClassificationNeedsActualProofChain/unknown"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestIgnoreBaselineRevisionAndMigrationGuards"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestIgnoreExecutionPrivateReadsFenced"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestFamilyAdmissionAvailabilityReplayAndRetry/sensitive"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestFamilyAdmissionAvailabilityReplayAndRetry/ascii-insensitive"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestFamilyAdmissionContractsAndIsolation"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestFamilyAdmissionLiveAuthorization"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestFamilyBaselineCommitRollbackAfterCustomWrite/legacy-source"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestFamilyBaselineCommitRollbackAfterCustomWrite/cross-family-absence"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestFamilyBaselineCommitFences/epoch"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestFamilyBaselineCommitFences/cancelled"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestFamilyBaselineCommitFences/generation"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestFamilyBaselineCommitFences/late"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestFamilyBaselineCommitPagesReplayAndEOF"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestFamilyBaselineCommitConflictRollsBackWholePage"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestFamilyBaselineComparisonPageAndIsolation"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestFamilyBaselineComparisonMigration"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestFamilyBaselineComparisonRejectsInvalidSources/job_ignore_manifests"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestFamilyBaselineComparisonRejectsInvalidSources/job_ignore_legacy_manifests"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestFamilyBaselineComparisonRequiresDrainedScan"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestFamilyExecutionPrivateReads"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestFamilyExecutionPrivateReadFences/generation"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestFamilyExecutionPrivateReadFences/cancel"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestFamilyExecutionPrivateReadFences/epoch"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestFamilyExecutionPrivateReadFences/custom-invalid"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestFamilyExecutionPrivateReadFences/legacy-invalid"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestFamilyExecutionRequestDispatchRead"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestFamilyExecutionBeforeSources"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestFamilyClaimCapabilities"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestFamilyMetadataAdmission/valid"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestFamilyMetadataAdmission/incomplete"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestFamilyMetadataAdmission/custom-invalid"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestFamilyMetadataAdmission/legacy-invalid"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestFamilyMetadataAdmission/epoch"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestFamilyMetadataAdmission/revision"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestFamilyMetadataAdmission/cancel"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestFamilyMetadataAdmission/lease"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestFamilyIgnoreNativeStorage"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestFamilyPublicationPreservesExcludedAndImageCounts"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestFamilyPublicationUnknownPreservesBaseline"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestFamilyPublicationReviewResetAndMergedLimit/threshold"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestFamilyPublicationReviewResetAndMergedLimit/scope-reset"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestFamilyPublicationReviewResetAndMergedLimit/merged-limit"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestFamilyPublicationSealFailuresAreAtomic/unsealed"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestFamilyPublicationSealFailuresAreAtomic/source-count"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestFamilyPublicationSealFailuresAreAtomic/baseline-expired"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestFamilyPublicationSealFailuresAreAtomic/late"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestFamilyReportDeepPageUsesBoundedIndexes"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestFamilyReportTerminalPaginationAndAuthorization"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestFamilyReportLegacyInvalidated"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestFamilyReportBaselineRuleProvenance"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestFamilyRunnerNativeRescanSameSizeAndMtime/missing-percent-50"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestFamilyRunnerNativeRescanSameSizeAndMtime/missing-percent-100"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestFamilyRunnerNativePublish"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestFamilyRunnerNativeNFO"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestFamilyRunnerNativeResume"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestFamilyRunnerNativeChangedSource"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestFamilyRunnerNativeUnknown"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestFamilyRunnerNativeExpiredLease"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestFamilyRunnerNativeCancelVerification"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestFamilyIgnoreScanReplayRestartAndMigration"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestFamilyIgnoreScanSourceConflictRollsBackBothFamilies"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestFamilyIgnoreScanRejectsMalformedProvenance/identity"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestFamilyIgnoreScanRejectsMalformedProvenance/query"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestFamilyIgnoreScanRejectsMalformedProvenance/family"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestFamilyIgnoreScanRejectsMalformedProvenance/reason"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestFamilyIgnoreScanRejectsMalformedProvenance/line"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestFamilyIgnoreScanRejectsMalformedProvenance/source"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestFamilyIgnoreScanRejectsMalformedProvenance/overlap"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestFamilyIgnoreScanCancelAndFrozen/cancel"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestFamilyIgnoreScanCancelAndFrozen/frozen"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestFamilyIgnoreScanCancelAndFrozen/budget"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestFamilyIgnoreScanDatabaseFreezeAndModeGuards"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestFamilySealRetryAndExpiry"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestFamilySealCountsAndLateDeadline/custom-count"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestFamilySealCountsAndLateDeadline/source-count"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestFamilySealCountsAndLateDeadline/baseline-count"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestFamilySealCountsAndLateDeadline/late"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestFamilyBeginExpiredLegacyRollsBackCoordinator"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestFamilyVerificationRejectsUnknownComparison"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestFamilyVerificationBeginRetryAndGeneration"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestFamilyVerificationDoesNotRenewIndependentLegacyDeadline"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestFamilyVerificationRequiresCompleteKnownComparison"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestFamilyVerificationCustomPagesAndInvalidation/changed"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestFamilyVerificationCustomPagesAndInvalidation/deadline"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestFamilyVerificationCustomPagesAndInvalidation/missing-checkpoint"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestFamilyVerificationCustomPagesAndInvalidation/legacy-invalid"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestIgnoreHTTPPostgresNativeReport"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestLegacyBaselineNativeRetainRestoreRecheck"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestLegacyBaselineNativeVerificationCheckpoint"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestLegacyBaselineStoragePagesReplayAndMigration"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestLegacyBaselineStorageContradictoryPresence/missing"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestLegacyBaselineStorageContradictoryPresence/present"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestLegacyBaselineStorageContradictoryPresence/same-batch"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestLegacyBaselineStorageBudgetRollsBackSource"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestLegacyBaselineStorageLeaseAndCancelFences/lease"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestLegacyBaselineStorageLeaseAndCancelFences/cancel"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestLegacyBaselineStorageLeaseAndCancelFences/epoch"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestLegacyIgnoreBaselineVerificationCheckpointAndReplay"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestLegacyIgnoreBaselineVerificationRejectsChangeAndExpiry/source"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestLegacyIgnoreBaselineVerificationRejectsChangeAndExpiry/expired"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestLegacyIgnoreBaselineVerificationRejectsChangeAndExpiry/generation"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestLegacyIgnoreBaselineVerificationRejectsChangeAndExpiry/cancel"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestLegacyIgnoreBaselineVerificationDeadlineAtCommit"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestLegacyIgnoreBaselineVerificationPagesCoverLookupKeys"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestLegacyIgnoreBaselineVerificationRejectsChangedBoundary"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestLegacyIgnoreBatchSharedAncestorsAndReplay"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestLegacyIgnoreBatchConflictRetainsNoPrefix/false"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestLegacyIgnoreBatchConflictRetainsNoPrefix/true"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestLegacyIgnoreBatchShadowUpgradePreservesQuery"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestLegacyIgnoreBatchBudgetRollsBackAllQueries"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestLegacyIgnoreManifestFreezeAndPages"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestLegacyIgnoreManifestLeaseCancelAndEpoch/lease"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestLegacyIgnoreManifestLeaseCancelAndEpoch/cancel"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestLegacyIgnoreManifestLeaseCancelAndEpoch/epoch"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestLegacyIgnoreManifestReplayUpgradeAndConflict"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestLegacyIgnoreManifestLimitsAndFences/budget"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestLegacyIgnoreManifestLimitsAndFences/old_mode"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestLegacyIgnoreMigrationRoundTrip"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestLegacyIgnoreMigrationGuardsAndCleanup"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestLegacyIgnoreNativeRetainRestoreRecheck"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestLegacyIgnoreQueryPagesRestoreOriginalSelection"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestLegacyIgnoreVerificationCheckpointAndReplay"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestLegacyIgnoreVerificationRejectsChangeAndExpiry/source"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestLegacyIgnoreVerificationRejectsChangeAndExpiry/expired"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestLegacyIgnoreVerificationRejectsChangeAndExpiry/generation"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestLegacyIgnoreVerificationRejectsChangeAndExpiry/cancel"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestLegacyIgnoreVerificationDeadlineAtCommit"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestIgnoreManifestReplayFreezeAndBoundedPages"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestIgnoreManifestConflictInvalidatesWithoutNewPrefix"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestIgnoreManifestParentsMissingDirectoriesAndRootOwnership/no-parent"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestIgnoreManifestParentsMissingDirectoriesAndRootOwnership/wrong-parent"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestIgnoreManifestParentsMissingDirectoriesAndRootOwnership/missing-parent"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestIgnoreManifestParentsMissingDirectoriesAndRootOwnership/foreign-root"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestIgnoreManifestParentsMissingDirectoriesAndRootOwnership"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestIgnoreManifestLeaseCancellationEpochAndQuota/expired"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestIgnoreManifestLeaseCancellationEpochAndQuota/generation"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestIgnoreManifestLeaseCancellationEpochAndQuota/cancelled"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestIgnoreManifestLeaseCancellationEpochAndQuota/epoch"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestIgnoreManifestLeaseCancellationEpochAndQuota/quota"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestIgnoreManifestLateLeaseExpiryRollsBack"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestIgnoreManifestReclaimRetainsProofsAndFreezeNeedsAllRoots"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestIgnoreManifestMigrationPreservesLedgerOnRefusedDown"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestIgnoreManifestConcurrentReplayAndSourceBudget"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestIgnoreManifestRejectsOffJobAndInvalidBatch"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestIgnoreManifestPagePlanReadsOnlyRequestedPrefix"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestIgnoreMetadataAdmission/valid"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestIgnoreMetadataAdmission/invalidated"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestIgnoreMetadataAdmission/epoch"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestIgnoreMetadataAdmission/revision"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestIgnoreMigrationLegacySevenRoundTripAndReadiness"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestIgnoreMigrationDownRefusesEveryRetainedJobState/queued"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestIgnoreMigrationDownRefusesEveryRetainedJobState/running"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestIgnoreMigrationDownRefusesEveryRetainedJobState/succeeded"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestIgnoreMigrationDownRefusesEveryRetainedJobState/failed"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestIgnoreMigrationDownRefusesEveryRetainedJobState/cancelled"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestIgnoreMigrationDownRefusesIncompleteRetainedIntent/marker-only"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestIgnoreMigrationDownRefusesIncompleteRetainedIntent/row-only"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestIgnoreMigrationDownRefusesIncompleteRetainedIntent/orphan-row"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestIgnoreMigrationHistoryTrimAllowsDowngrade"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestIgnoreMigrationDatabaseConstraints"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestIgnoreNativeBridgePublication/stable"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestIgnoreNativeBridgePublication/source-change"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestIgnorePublicationProtectedMergeAndImageTransitions"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestIgnorePublicationReviewDoesNotDiluteMissing"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestIgnorePublicationUnknownAndScopeReset/unknown"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestIgnorePublicationUnknownAndScopeReset/reset"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestIgnorePublicationSealAndLimitFailuresAreAtomic/unsealed"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestIgnorePublicationSealAndLimitFailuresAreAtomic/expired"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestIgnorePublicationSealAndLimitFailuresAreAtomic/late"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestIgnorePublicationSealAndLimitFailuresAreAtomic/limit"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestIgnoreReportDeepPageUsesBoundedIndexes"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestIgnoreReportTerminalPaginationAndAuthorization"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestIgnoreReportRetainsUnknownReason"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestIgnoreRequestConcurrentReplayAndLiveAdministration"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestIgnoreRequestReplayComparesModeCaseAndOff"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestIgnoreRequestEveryRetryWrapperPreservesIntent/job"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestIgnoreRequestEveryRetryWrapperPreservesIntent/probe"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestIgnoreRequestEveryRetryWrapperPreservesIntent/stages"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestIgnoreRequestMissingRowCannotDowngradeMarker"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestIgnoreRequestInsertFailureRollsBackAllSubmissionEffects"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestIgnoreRequestAllClaimWrappersLeaveEnabledQueued"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestIgnoreRequestDirectExecutionIsClosedEvenWithLiveLease"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestIgnoreRequestFailureCancellationAndOffRecoveryPreserveBaseline/failure"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestIgnoreRequestFailureCancellationAndOffRecoveryPreserveBaseline/finish-cancel"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestIgnoreRequestFailureCancellationAndOffRecoveryPreserveBaseline/release-cancel"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestIgnoreRequestFailureCancellationAndOffRecoveryPreserveBaseline/queued-cancel"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestIgnoreRequestOrphanRowCannotAuthorizeOffExecution"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestIgnoreRequestCancelledAndExpiredCallsHaveNoEffects"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestIgnoreRequestExpiredRecoveryNeverRunsOrPublishesInventory/requeue"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestIgnoreRequestExpiredRecoveryNeverRunsOrPublishesInventory/exhausted"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestIgnoreRequestExpiredRecoveryNeverRunsOrPublishesInventory/cancelled"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestIgnoreRequestDeadlineDuringInsertRollsBack"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestIgnoreRunnerRescanSameSizeAndMtime"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestIgnoreRunnerNativeClaimAndPublish"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestIgnoreRunnerNativeNFO"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestIgnoreRunnerNativeResume"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestIgnoreRunnerNativeChangedSource"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestIgnoreRunnerUnknownReview"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestIgnoreScanAtomicReplayRestartAndPublication"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestIgnoreScanProvenanceAndOverlapRejected/identity"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestIgnoreScanProvenanceAndOverlapRejected/missing-proof"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestIgnoreScanProvenanceAndOverlapRejected/rule"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestIgnoreScanProvenanceAndOverlapRejected/overlap"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestIgnoreScanProvenanceAndOverlapRejected/changed-replay"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestIgnoreScanChangedSourceInvalidatesWithoutInventoryChange"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestIgnoreScanBudgetAndLateLeaseRollback/files"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestIgnoreScanBudgetAndLateLeaseRollback/directories"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestIgnoreScanBudgetAndLateLeaseRollback/late"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestIgnoreScanComparisonFreezesExclusions"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestIgnoreVerificationRequiresCompleteKnownClassification/incomplete"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestIgnoreVerificationRequiresCompleteKnownClassification/unknown"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestIgnoreVerificationRequiresCompleteKnownClassification/reset"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestIgnoreVerificationRechecksScopeAndCancellation/epoch"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestIgnoreVerificationRechecksScopeAndCancellation/revision"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestIgnoreVerificationRechecksScopeAndCancellation/cancel"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestIgnoreVerificationRechecksScopeAndCancellation/lease"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestIgnoreVerificationPagesReclaimAndSeal"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestIgnoreVerificationChangedSourceInvalidatesWithoutPrefix"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestIgnoreVerificationFixedDeadlinesAndLateRollback/deadline"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestIgnoreVerificationFixedDeadlinesAndLateRollback/seal"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestIgnoreVerificationFixedDeadlinesAndLateRollback/late"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestIgnoreVerificationFreezeHeartbeatAndMigration"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestImageComparisonColdWarmChangesAndKindTransitions"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestImageIncompleteAndReviewNeverAcknowledgeMissing/skipped"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestImageIncompleteAndReviewNeverAcknowledgeMissing/failed"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestImageIncompleteAndReviewNeverAcknowledgeMissing/cancelled"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestImageIncompleteAndReviewNeverAcknowledgeMissing/review"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestImageUnknownBaselineAndRootEpochRecovery"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestImageLateTerminalLeaseExpiryRollsBackPublication"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestImageUnfinishedTerminalPathsRetainStableUncomparedCounts/queued-cancel"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestImageUnfinishedTerminalPathsRetainStableUncomparedCounts/release-cancel"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestImageUnfinishedTerminalPathsRetainStableUncomparedCounts/release-exhausted"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestImageUnfinishedTerminalPathsRetainStableUncomparedCounts/expiry-exhausted"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestImageUnfinishedTerminalPathsRetainStableUncomparedCounts/expiry-cancel"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestInventoryEpochIsIndependentOfNFOAndProbePolicy"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestInventoryScopeIncomparableBaselineCanRecover/unknown-attributes"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestInventoryScopeIncomparableBaselineCanRecover/mixed-attributes"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestInventoryScopeIncomparableBaselineCanRecover/old-root-epoch"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestInventoryScopeIncomparableBaselineCanRecover/mixed-epochs"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestInventoryScopeEmptyBaselineIsComparable/one-image"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestInventoryScopeEmptyBaselineIsComparable/empty-library"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestInventoryScopeIncompleteRootCoverageCannotPublish/missing-root"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestInventoryScopeIncompleteRootCoverageCannotPublish/all-roots-deleted"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestInventoryScopeIncompleteRootCoverageCannotPublish/foreign-root"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestInventoryScopeIncompleteRootCoverageCannotPublish/root-has-parent"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestInventoryScopeIncompleteRootCoverageCannotPublish/pending-root"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestInventoryScopeDirectorySkippedCannotBeHiddenByJobCounter"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestInventoryScopeRootChangedAfterObservationRollsBack"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestInventoryScopeLegacyJobCannotBindCurrentEpoch"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestInventoryScopeSameScopeMissingAndKindTransition"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestInventoryScopeRebaselineFinalLeaseExpiryRollsBack"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestJobCancellationReadFencesWithoutWrites"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestJobCancellationReadSeesOnlyCommittedFlag"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestJobsSubmissionIdempotencyAndLiveAdministration"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestJobsCapacityAndPriorityAcrossCompetingWorkers"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestJobsCancellationRecoveryAndFencing"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestJobsPartialDirectoryRestartAndInventoryPagination"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestJobsBatchLimitsRollbackAndSafeMissingBaseline/entry_directory_and_overflow_limits"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestJobsBatchLimitsRollbackAndSafeMissingBaseline/history_retention_baseline_and_partial_fail_closed"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestJobsBatchLimitsRollbackAndSafeMissingBaseline/complete_scan_below_missing_threshold_replaces_baseline"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestJobsLeaseExpiryDuringWritesRollsBackProvisionalData"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestJobsThousandEntriesRemainBoundedAndCountsUseCurrentSizes"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestJobsMigrationRollbackPreservesAccountsAndLibraryConfiguration"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestJobsLockOrderHeartbeatAndAuthorizedRead"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestNFOCacheSummaryVersionUpgradeAndCorruption/old-digest"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestNFOCacheSummaryVersionUpgradeAndCorruption/expired"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestNFOCacheSummaryVersionUpgradeAndCorruption/matching-corrupt"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestNFOSummaryJSONBChargeAndSQLBounds"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestNFOFinalFenceAfterJobUpdateWait/prepare"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestNFOFinalFenceAfterJobUpdateWait/load"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestNFOFinalFenceAfterJobUpdateWait/begin"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestNFOFinalFenceAfterJobUpdateWait/next"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestNFOFinalFenceAfterJobUpdateWait/lookup"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestNFOFinalFenceAfterJobUpdateWait/commit"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestNFOFinalFenceAfterJobUpdateWait/finish"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestNFOFinalFenceAfterJobUpdateWait/abort"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestNFOQuotaCapacityEvictsBoundedRowsAndCharges/global-rows"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestNFOQuotaCapacityEvictsBoundedRowsAndCharges/library-rows"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestNFOQuotaCapacityEvictsBoundedRowsAndCharges/global-bytes"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestNFOQuotaCapacityEvictsBoundedRowsAndCharges/library-bytes"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestNFOScopesRetainedRecoveryAndBoundedCleanup"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestNFOCacheClosedAndCancelledReturnZero"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestNFOCacheMatchingSummaryHasNoArbitraryData"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestNFOAdmissionRequiresEstablishedPolicyAndAvailableScope"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestNFODeferredCommitFailureReturnsZeroAndRollsBack"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestNFOSweepFailureRollsBackAndRetries"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestNFOCacheRoundTripHitsNegativeAndHashIdentity"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestNFOPhaseFreezeInventoryAndFinishBarriers/off_cannot_silently_opt_in"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestNFOPhaseFreezeInventoryAndFinishBarriers/waiting_running_aborted_done"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestNFOPhaseFreezeInventoryAndFinishBarriers/prepare_too_late"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestNFOPhaseRootInvalidationRecoveryAndOldIdentity/root"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestNFOPhaseRootInvalidationRecoveryAndOldIdentity/policy"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestNFOPhaseRootInvalidationRecoveryAndOldIdentity/old-identity"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestNFOCacheChangedUnavailableRejectedDoNotPoison"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestNFOCachePrefixAndCancelledFencing"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestNFOCacheLeaseExpiryAndHitTTLAtCheckpoint/lease"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestNFOCacheLeaseExpiryAndHitTTLAtCheckpoint/hit-ttl"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestNFOCacheMigrationGuardAndRoundTrip"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestNFOCacheFreshFailureRollsBackAndRetries"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestNFOPolicySwitchReplayCASAndVideoIsolation"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestNFOPolicyConcurrentCASAndExactReplay/same_key_false"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestNFOPolicyConcurrentCASAndExactReplay/same_key_true"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestNFOPolicyRequiresLiveAdministrationIncludingReplay/revoked"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestNFOPolicyRequiresLiveAdministrationIncludingReplay/demoted"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestNFOPolicyRequiresLiveAdministrationIncludingReplay/disabled"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestNFOPolicyRequiresLiveAdministrationIncludingReplay/forged-session"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestNFOPolicyLedgerQuotaSerializesLastSlot/actor"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestNFOPolicyLedgerQuotaSerializesLastSlot/global"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestNFOPolicyExpiredExactKeyAndBoundedAtomicCleanup"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestNFOPolicyLateSessionExpiryRollsBackMutation"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestNFOPolicyCancellationAfterWriteRollsBackAndJoins"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestNFOInventoryPageSkipsLargeNonNFOInventory"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestNFOCacheIndexedMaintenanceAndExactQuota"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestNFORequestedIntentIsAtomicFrozenAndReplayable"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestNFOClaimFiltersBothCapabilities"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestNFOEnqueueRollbackAndUnavailableReader"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestNFOCurrentObservationIdentityAndIssuePagination"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestNFOCurrentQueriesRejectRevokedActorAndReturnZero"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestNFORequestedPhaseMustFinishBeforeProbeAndPublication"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestNFOCurrentObservationsScopeExpiryAndCorruption"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestNFOQueriesRecheckLiveActorAfterLockWait/history"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestNFOQueriesRecheckLiveActorAfterLockWait/observations"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestNFOQueriesRecheckLiveActorAfterLockWait/issues"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestNFOQueriesRecheckLiveActorAfterLockWait/images"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestNFOWorkerUpgradeRejectsAllActiveLegacyReadOnlyPhases/waiting"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestNFOWorkerUpgradeRejectsAllActiveLegacyReadOnlyPhases/running"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestNFOWorkerUpgradeRejectsAllActiveLegacyReadOnlyPhases/done"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestNFOWorkerUpgradeRejectsAllActiveLegacyReadOnlyPhases/aborted"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestNFOWorkerLegacyOffCanReplayButNeverAcquireReadOnlyIntent"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestNFOWorkerDownGuardIncludesFrozenOffAndPreservesBCache"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestNFOFrozenOffRejectsCorruptProgress"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestNFOCurrentObservationPlanUsesScopedCursorIndex"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestImageComparisonQueriesAggregateBoundedInventories"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestProbeAdversarialLastLeaseSlotAcrossParents"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestProbeAdversarialIdentityAndScopeCapacity"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestProbeAdversarialHeartbeatDoesNotReviveExpiredChild"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestProbeAdversarialForeignAndSkippedPrefix"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestProbeAdversarialCancelledLockWaitDoesNotReserve"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestProbeAdversarialHistoryTrimPreservesActiveSibling"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestProbeAdversarialTerminalHistoryDoesNotPinEmptyScope"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestProbeAdversarialInvalidationRequiresLiveAdminAndRecordsActor"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestProbeAdversarialBoundedEvictionAtQuotaBoundary/global_rows"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestProbeAdversarialBoundedEvictionAtQuotaBoundary/library_rows"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestProbeAdversarialBoundedEvictionAtQuotaBoundary/global_bytes"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestProbeAdversarialBoundedEvictionAtQuotaBoundary/library_bytes"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestProbeRebuildScopesAndReplayPreserveGenerations"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestProbeScopeMutationFencesInflightResults/root"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestProbeScopeMutationFencesInflightResults/item"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestProbeScopeMutationFencesInflightResults/mapping"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestProbeCurrentKeyAndTTLRecheckedAtCommit"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestProbeMetadataJSONBExpansionBecomesBoundedFailure"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestProbeAdminExpiryDuringWriteRollsBackGenerationAndAudit"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestProbeNegativeTTLRetryAndNewToolIdentity"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestProbeBeginMissingIdentityAndItemHaveNoAdmissionEffects"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestProbeMalformedTokensAndMetadataCannotTouchLease"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestProbePolicyRequiredBeforeAdmission"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestProbeFaultCheckpointAndCommitDeniedRollBackWholeOutcome/checkpoint_success"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestProbeFaultCheckpointAndCommitDeniedRollBackWholeOutcome/checkpoint_negative"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestProbeFaultCheckpointAndCommitDeniedRollBackWholeOutcome/deferred_commit"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestProbeFaultReservationWriteFailureReleasesProvisionalQuota"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestProbeFaultCancellationAfterCacheWriteRollsBack"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestProbeFaultUnavailablePoolAndCancelledCallsAreAtomic"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestProbeFaultPersistedIdentityMismatchCannotBeReused"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestProbeFaultDeleteDenialRestoresQuotaAndLease/sweep_expired"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestProbeFaultDeleteDenialRestoresQuotaAndLease/release_child"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestProbeFaultDeleteDenialRestoresQuotaAndLease/capacity_eviction"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestProbeEvictionUsesBoundedIndexPagesAndExactDeltas"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestProbePolicyIdentityAndPhaseContract"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestProbePersistAndHitPrefixCheckpoint"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestProbeNegativeChangedAndUnavailableOutcomes"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestProbeLeaseABAConcurrencyCancellationAndExpiry"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestProbeTransactionExpiryRollsBackMetadataQuotaAndCursor"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestProbeReleaseRecoveryInvalidationAndMigration"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestProbeRequestConcurrentReplayAndCapabilityClaim"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestProbeRequestItemResolutionAndQueuedInvalidation/stable"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestProbeRequestItemResolutionAndQueuedInvalidation/root"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestProbeRequestItemResolutionAndQueuedInvalidation/item"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestProbeRequestRetryPreservesIntentAndPinsNewIdentity"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestProbeRequestCheckpointAndDoneRecovery"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestProbeRequestEnqueueFaultsAreAtomic/insert"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestProbeRequestEnqueueFaultsAreAtomic/commit"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestProbeRequestEnqueueFaultsAreAtomic/admin_expiry"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestProbeRequestSweepReferencesAndDisabledFairness"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestProbeRequestMigrationGuardAndRollbackPreserveCache"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestProbeRequestInvalidInputsAndCancelledCalls"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestProbeRequestAbortReleasesChildAndPreservesProgress"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestProbeRequestEnqueueSerializesWithSweep"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestProbeRequestParentFenceAndPersistentCancellation/stale"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestProbeRequestParentFenceAndPersistentCancellation/expired"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestProbeRequestParentFenceAndPersistentCancellation/cancelled"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestProbeRequestRejectsMissingOrTerminalWork"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestProbeRequestRejectsPhaseIdentityDrift"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestProbeRequestFinalFenceRollsBackBeginAndAbort/begin"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestProbeRequestFinalFenceRollsBackBeginAndAbort/abort"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestProbeRequestRequiresExistingPolicyAndTarget"
+      },
+      {
+        "package": "internal/adapter/postgres",
+        "test": "TestPostgresIntegration"
+      },
+      {
+        "package": "internal/platform/runtime",
+        "test": "TestFamilyIgnoreProductionRuntimeHTTP/false"
+      },
+      {
+        "package": "internal/platform/runtime",
+        "test": "TestFamilyIgnoreProductionRuntimeHTTP/true"
+      },
+      {
+        "package": "internal/platform/runtime",
+        "test": "TestFamilyIgnoreProductionRuntimeActiveChildStop"
+      },
+      {
+        "package": "internal/platform/runtime",
+        "test": "TestFamilyIgnoreProductionRuntimeActiveChildHTTPCancel"
+      },
+      {
+        "package": "internal/platform/runtime",
+        "test": "TestFamilyIgnoreProductionRuntimeRemoteActiveChildHTTPCancel"
+      },
+      {
+        "package": "tools/runtime-image",
+        "test": "TestImageRejectsSymlinkAndDifferentOpenedIdentity"
+      },
+      {
+        "package": "internal/platform/toolidentity",
+        "test": "TestIdentityCancellationAndFilesystemBoundaries/project"
+      },
+      {
+        "package": "internal/platform/toolidentity",
+        "test": "TestIdentityCancellationAndFilesystemBoundaries/ancestor"
+      },
+      {
+        "package": "internal/platform/toolidentity",
+        "test": "TestIdentityCancellationAndFilesystemBoundaries/leaf"
+      },
+      {
+        "package": "internal/platform/toolidentity",
+        "test": "TestIdentityCancellationAndFilesystemBoundaries/temporary"
+      },
+      {
+        "package": "internal/platform/toolidentity",
+        "test": "TestPinnedInstalledFFprobe"
+      },
+      {
+        "package": "internal/adapter/probe",
+        "test": "TestAdapterRejectsChangedSource/replace_symlink"
+      },
+      {
+        "package": "internal/platform/runtime",
+        "test": "TestIgnoreServiceNativeSustainedSaturation"
+      },
+      {
+        "package": "internal/adapter/probe",
+        "test": "TestVisibleSymlinksRefusedAndExternalPathsCannotEscape"
+      },
+      {
+        "package": "internal/adapter/probe",
+        "test": "TestInspectDetectsSymlinkReplacement"
+      },
+      {
+        "package": "internal/adapter/media/ignore",
+        "test": "TestSourceWindowsSymlinkIsNotAbsence"
+      },
+      {
+        "package": "internal/adapter/scan",
+        "test": "TestVisibleSymlinksSkippedAndExplicitTraversalRejected"
+      }
+    ]
+  },
+  "restoredTransportAndAdapter": {
+    "packages": [
+      {
+        "package": "internal/adapter/metadata",
+        "elapsed": 0.369
+      },
+      {
+        "package": "internal/platform/outbound",
+        "elapsed": 0.659
+      }
+    ],
+    "passEventsIncludingParents": 93,
+    "passedLeaves": 87,
+    "skippedTestEvents": 0,
+    "skippedTests": []
+  },
+  "windowsFullVet": "PASS",
+  "linuxRace": {
+    "status": "PASS",
+    "packages": 4,
+    "log": "ok  \tgithub.com/MoYuanCN/Jelee/internal/platform/outbound\t1.475s\nok  \tgithub.com/MoYuanCN/Jelee/internal/adapter/metadata\t1.088s\nok  \tgithub.com/MoYuanCN/Jelee/internal/platform/config\t1.343s\nok  \tgithub.com/MoYuanCN/Jelee/internal/platform/runtime\t1.192s",
+    "skipCounts": "not emitted by summary-only command; not claimed zero"
+  },
+  "negativeDnsGuard": {
+    "exitCode": 1,
+    "restoredSha256": "6151c08f3f34bd4bd61411f5393d30746f4c2818241bbf2f885f84a81bddf3a6",
+    "leafFailures": 1,
+    "ownedTlsFixture": true
+  },
+  "negativeStartupHook": {
+    "exitCode": 1,
+    "restoredSha256": "b227b25e0ede7a6a9a948687e2275c42bc81acc4b2f155cdc94ae1c6782a6420",
+    "leafFailures": 2
+  },
+  "restoredLifetimeRegression": "ok  \tgithub.com/MoYuanCN/Jelee/internal/platform/runtime\t0.542s",
+  "limits": {
+    "dnsAndConnectSeconds": 5,
+    "requestSeconds": 15,
+    "dnsAnswers": 64,
+    "maxConnsPerHost": 4,
+    "idleConnections": 16,
+    "headerBytes": 32768,
+    "authenticationBodyBytes": 4096,
+    "credentialFileBytes": 4096,
+    "redirectsAllowed": 0
+  },
+  "officialSources": [
+    "https://www.iana.org/assignments/iana-ipv4-special-registry",
+    "https://www.iana.org/assignments/iana-ipv6-special-registry",
+    "https://developer.themoviedb.org/reference/authentication-validate-key"
+  ],
+  "protected": {
+    "LICENSE": "f371b80469fb235bc500ec29e0e85b682d4a6157a158567d828ff0be544d4f1d",
+    "docs/requirements-source.md": "755b6b32324efe710c3e1135a0c982c45b82f337e90fcb50ab3718a20cba5d07"
+  },
+  "gates": {
+    "incrementalBrand": {
+      "violations": 0,
+      "allowed": 181
+    },
+    "fullBrand": {
+      "violations": 14735,
+      "allowed": 186,
+      "status": "FAIL retained"
+    },
+    "gitignoreViolations": 0,
+    "sourceHashes": "PASS",
+    "protectedHashes": "PASS",
+    "pendingFiveCoreFiles": "byte-identical to base",
+    "migrationsAndCsChanged": false,
+    "documentLinks": "PASS",
+    "productionBuild": "PASS cmd/jelee",
+    "testSeamExcludedFromProductionGoFiles": true,
+    "traceability": {
+      "done": 4,
+      "partial": 178,
+      "blocked": 154
+    },
+    "allowlistChanged": false
+  },
+  "notProven": [
+    "real external TMDB credential or remaining quota",
+    "complete scraper, TMDB retries/cache/rate governance",
+    "remote images, webhook, remote NFO consumers",
+    "legacy SDK/factory SSRF enforcement",
+    "full public deployment/network leak matrix",
+    "dedicated SSRF security log events"
+  ]
+}

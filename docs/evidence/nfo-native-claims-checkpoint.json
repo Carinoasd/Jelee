@@ -1,0 +1,105 @@
+{
+  "schema": 54,
+  "candidateUnpublished": true,
+  "baseCommit": "3d79ed9577c37f074a0498dca720d79ff50bc6cc",
+  "sourceHashes": {
+    "internal/adapter/postgres/store.go": "a29b1e9507f411e87b9050f91bde7303f0ab56705eb9d78dd64d8a451be20a55",
+    "internal/adapter/postgres/nfo_commit_unresolved_identity_test.go": "33ece22c1ec991aff1da9c8aa52cfd2e7010e8027b9b8db45090f75352149a41",
+    "internal/adapter/postgres/nfo_write_native_receipt_test.go": "1afc50cb1cf6c62864829ae63859b2e02338f91067867dbaeb004c04ded1ad26",
+    "internal/adapter/postgres/migrations/000054_nfo_unresolved_native_claims.up.sql": "8d8f7d662606c88e57f1a5b334e55f7dd3a6cc80c42db5c4b39e71c5af7719ff",
+    "internal/adapter/postgres/migrations/000054_nfo_unresolved_native_claims.down.sql": "3ac040a94d3d17650b909e39c017f80c995a93f404ac4399cbe470f2e883620d"
+  },
+  "privateLogHashes": {
+    "nfo-native-claims-isolation-deferred-v1.jsonl": "6a45f5341abb9f8d7e5f8416a5abccf51a7909ced6147467b3ca703956f9a259",
+    "nfo-native-claims-isolation-deferred-v2.jsonl": "78c77891e5cb82a74a200778e1541243037d8427521fb433a46dace4abb0364f",
+    "nfo-native-claims-windows-real-pg-v1.jsonl": "34f61526ab4c546f66f320bd9cce97bd1613046b283829163347d63dd17db682",
+    "nfo-native-claims-primary-key-control-red-v2.jsonl": "a34d74fa84efd9a4dbaaa14768ed87e1d221139236048040455b32a11e6f57d6",
+    "nfo-native-claims-cross-role-red-v1.jsonl": "b9b55bde4d4c8d08063480f2ccfe2b0112dbe3b73c10ff491af2fd048eb3a7ac",
+    "nfo-native-claims-cross-role-matrix-green-v1.jsonl": "f67e195b1c670449be8a1341826bab134f6b2463dd6c9026c5357db822f21d51",
+    "nfo-native-claims-cross-role-matrix-green-v2.jsonl": "15814a5740b71b96f43dc22d66b7ca60b7d40016efcbf8cc94d8c63a26d930d1",
+    "nfo-native-claims-cross-role-matrix-red-v2.jsonl": "32e94e95f12a2aab6823d5f31cd8ab590c6da27adc3e29b466ea561ba7ce06e6",
+    "nfo-native-claims-cross-role-history-green-v1.jsonl": "73cff2ece1ec3195bd4b0080c80d3550488a6482ce208ea8f0709c8d35d04a7c"
+  },
+  "linuxSelected": {
+    "exitCode": 0,
+    "testPass": 9,
+    "skip": 0,
+    "fail": 0,
+    "race": true,
+    "roots": [
+      "TestNFOCommitNativeClaimsRepeatableReadStaleSnapshot",
+      "TestNFOCommitNativeClaimsSnapshotIsolation",
+      "TestNFOCommitNativeClaimsDeferredPairCompleteness"
+    ]
+  },
+  "windowsRealPostgresSelected": {
+    "exitCode": 0,
+    "testPass": 14,
+    "skip": 0,
+    "fail": 0,
+    "roots": [
+      "TestNFOCommitNativeClaimsAcrossLibrariesAndIndependentCopies",
+      "TestNFOCommitNativeClaimsSnapshotIsolation",
+      "TestNFOCommitNativeClaimsDeferredPairCompleteness",
+      "TestNFOCommitNativeClaimsReplayAndImmutability"
+    ],
+    "transport": "temporary owned loopback stdio relay",
+    "ownedRelayChildProcessesAfter": 0,
+    "fullSuite": false
+  },
+  "causalControl": {
+    "goExitCode": 1,
+    "failEvents": 2,
+    "skip": 0,
+    "onlyDisabledConstraint": "nfo_native_target_unresolved",
+    "conflictingCompleteJournalCommitted": true,
+    "formalTestBytesUnchanged": true
+  },
+  "retainedFixtureFailure": {
+    "goExitCode": 1,
+    "sqlState": "55006",
+    "cause": "complete-pair fixture attempted ALTER TABLE with pending trigger events",
+    "fixedBy": "validate deferred constraints before restoring producer",
+    "productionGuardWeakened": false
+  },
+  "fullCandidateRegressionPassed": false,
+  "runtimeTargetCommitOrRecoveryEnabled": false,
+  "fullGoalComplete": false,
+  "limitations": [
+    "Serializable 40001 proves transaction rollback; specific physical-identity primary-key causality is proven by Repeatable Read control",
+    "Selected Windows PostgreSQL coverage only",
+    "New complete compiled universe, source freeze and regression remain required",
+    "Full branding gate remains failing",
+    "Target commit, backup, rollback, settlement, crash recovery and worker integration remain incomplete",
+    "Current kind+identity key admits an NFO inode already claimed as media by another job; publication forbidden pending cross-role fix and new freeze"
+  ],
+  "knownCrossRoleAdmissionGap": true,
+  "crossRoleExcludedVerified": false,
+  "privateCrossRoleCandidateMatrix": {
+    "formalSourceChanged": false,
+    "productionMigrationChanged": false,
+    "testPass": 4,
+    "skip": 0,
+    "fail": 0,
+    "twoCrossJobDirectionsExcluded": true,
+    "sameJobAliasRejectedByPreparationErrInvalid": true,
+    "unfixedControlPass": 1,
+    "unfixedControlFailEvents": 4,
+    "unfixedControlExactCrossJobMarkers": 2,
+    "firstMatrixTrialFailure": "same-job alias was already rejected during Prepare, so the initial fixture incorrectly expected a journal boundary",
+    "candidateUpSQLSHA256": "e6fbe60583d2a4265f726fa6329e3599d5f9ce000411736cf67da301db1bb982",
+    "formalTestFragmentSHA256": "5ec9f970b922da337c671902a1b0c1cc15fe38cf8c919e6c90fe68a43bb96e4c"
+  },
+  "privateCrossRoleHistoryCandidate": {
+    "formalSourceChanged": false,
+    "rawCompleteUpSQLTestPass": 3,
+    "skip": 0,
+    "fail": 0,
+    "twoDirectionsRefusedByExactNativeIdentityConstraint": true,
+    "ddlFullyRolledBack": true,
+    "firstJournalsAndReceiptsRetained": true,
+    "metricsRetained": true,
+    "MigrateRunnerDirtyStateForFixedMigrationVerified": false,
+    "formalFragmentSHA256": "c7702824ac297851694b9b7e6cd8a29b8f77c551638b27d052aeb5940d5d2ea9"
+  }
+}

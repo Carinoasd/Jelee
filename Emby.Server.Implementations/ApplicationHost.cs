@@ -13,8 +13,6 @@ using System.Net;
 using System.Reflection;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
-using Emby.Naming.Common;
-using Emby.Naming.Video;
 using Emby.Photos;
 using Emby.Server.Implementations.Chapters;
 using Emby.Server.Implementations.Collections;
@@ -38,13 +36,15 @@ using Emby.Server.Implementations.Session;
 using Emby.Server.Implementations.SyncPlay;
 using Emby.Server.Implementations.TV;
 using Emby.Server.Implementations.Updates;
+using Jelee.Naming.Common;
+using Jelee.Naming.Video;
+using Jelee.Networking.Manager;
+using Jelee.Networking.Udp;
 using Jellyfin.Api.Helpers;
 using Jellyfin.Data;
 using Jellyfin.Database.Implementations.Enums;
 using Jellyfin.Drawing;
 using Jellyfin.MediaEncoding.Hls.Playlist;
-using Jellyfin.Networking.Manager;
-using Jellyfin.Networking.Udp;
 using Jellyfin.Server.Implementations.FullSystemBackup;
 using Jellyfin.Server.Implementations.Item;
 using Jellyfin.Server.Implementations.MediaSegments;
@@ -601,8 +601,6 @@ namespace Emby.Server.Implementations
 
             serviceCollection.AddSingleton<IProviderManager, ProviderManager>();
 
-            // TODO: Refactor to eliminate the circular dependency here so that Lazy<T> isn't required
-            serviceCollection.AddTransient(provider => new Lazy<ILiveTvManager>(provider.GetRequiredService<ILiveTvManager>));
             serviceCollection.AddSingleton<IDtoService, DtoService>();
 
             serviceCollection.AddSingleton<ISessionManager, SessionManager>();

@@ -53,3 +53,22 @@ func TestJobsConfigurationRejectsUnboundedSettings(t *testing.T) {
 		t.Fatal("bad disabled environment accepted")
 	}
 }
+
+func TestJobsWorkWindowConfiguration(t *testing.T) {
+	values := map[string]string{"JELEE_DATABASE_URL": "postgres://localhost/jelee", "JELEE_ENABLE_JOBS": "true", "JELEE_ENABLE_ACCOUNTS": "true", "JELEE_CONFIG": accountConfigFile(t, `{"jobs":{"windowStart":"22:00","windowEnd":"06:00","windowTimezone":"Asia/Taipei"}}`)}
+	c, err := LoadWith(accountConfigLookup(values))
+	if err != nil || c.Jobs.WindowStart != "22:00" || c.Jobs.WindowEnd != "06:00" || c.Jobs.WindowTimezone != "Asia/Taipei" {
+		t.Fatalf("window load: %v", err)
+	}
+	values["JELEE_JOB_WINDOW_START"] = "23:00"
+	c, err = LoadWith(accountConfigLookup(values))
+	if err != nil || c.Jobs.WindowStart != "23:00" {
+		t.Fatalf("environment override: %v", err)
+	}
+	for _, bad := range []string{"secret", "06:00", "24:00", ""} {
+		values["JELEE_JOB_WINDOW_START"] = bad
+		if _, err = LoadWith(accountConfigLookup(values)); err == nil || strings.Contains(err.Error(), "secret") {
+			t.Fatal("invalid window accepted or echoed")
+		}
+	}
+}

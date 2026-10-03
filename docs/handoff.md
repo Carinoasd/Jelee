@@ -1,6 +1,1483 @@
+## 2026-10-04 Claude 接續：schema57 NFO 寫回恢復租約
+
+設計見 [nfo-commit-recovery-lease.md](nfo-commit-recovery-lease.md)。schema49 讓有 journal 的 job 只能停止，原本當機後永遠無法續作；057 讓已停止的 job 取得有界的恢復租約，以 epoch 接手過期租約，續作同一個 token，不開新 journal。
+
+主要變更：
+- 050／056 的守衛與 054 的 claim 判斷改經 `nfo_commit_live_lease`。
+- 已取消的 job 在恢復模式下不能新增 evidence。
+- 過期且有 journal 的 nfo_write 會由 ClaimJob 回收成 failed（`job_timeout`）。
+- 057 down 在有恢復租約或 journal 時拒絕。
+
+只讀審查子代理找出的兩個中級、兩個低級問題已修。Linux 真 PG、race：NFO commit／Stage／recovery／migration 相關 406 PASS／0 fail／0 skip。
+
+仍缺：
+- worker 自動取得與續約恢復租約。
+- actor 失效後的系統回滾出口。
+- 結算後 job 的最終狀態。
+
+---
+
+## 2026-10-04 Claude 接續：schema56 守衛審查與歷史超額升級測試
+
+逐項對照交接第 3 步。lease／actor／提前 flush／首次輸出 FK 已有測試涵蓋。新增歷史超額升級測試：schema55 留 1120MiB 歷史 plan 後升級，升級被拒絕，不留 schema56 物件，歷史不變，狀態停在 56 dirty。Linux 真 PG、race：PASS。SQL 允許有 checkpoint 後再分配下一個 attempt，屬既有設計；目前由 Stage 保證不輪替，放棄協議時再決定是否收緊。
+
+---
+
+## 2026-10-04 Claude 接續：真 PG＋child os.Exit attempt 中斷矩陣
+
+新增 `TestNFOCommitAttemptActualProcessRecovery`：子程序在 legacy／attempt 建檔後（首次 checkpoint 提交前）、attempt phase1／phase2 提交後、ready 提交後直接 `os.Exit`。之後由新的 Store 連線重跑 Stage，分別驗證四件事：建檔後中斷會依序分配下一個 attempt；有 checkpoint 就在同一個 attempt 續作，首次 ID 與時間不變；ready 後只重播；未知物件保留，legacy evidence 不被寫入。Linux 真 PG、race：5 個案例全 PASS（7 PASS／0 fail）。仍缺恢復 lease／FS grant／settlement／worker 與完整回歸（交 @MoYuanCN）。
+
+---
+
+## 2026-10-04 Claude 接續：legacy守衛重測、quota因果紅測、Stage接持久attempt
+
+詳見 [claude-handoff-schema56.md](claude-handoff-schema56.md)「Claude 接續進度」。最新 legacy 互斥守衛：Linux 真 PG、race，69 PASS。quota 因果：第二候選建在獨立 library／job，有 fence 時 RC／RR／Serializable 都拒絕；只把 owned schema 的 fence 換成空操作，RR 下第二筆超額被接納，8 PASS。正式 Stage 經 `app.NFOWriteCommitAttemptStageRepository` 接持久 attempt：有 checkpoint 固定續作、首次輸出變動拒絕；沒 checkpoint 而名稱已存在就先持久分配下一個；3 個用完有界拒絕；未知物件一律保留；attempt 0 走原 legacy 流程。NFO commit／Stage 相關真 PG 測試（`^(TestNFOCommit.*|TestNFOWriteRootGeneration.*|TestStage.*|TestNFOWriteCommit.*)$`，四套件、race）：524 PASS／0 fail／0 skip，4 package PASS。
+
+仍缺：真 PG＋child os.Exit 中斷矩陣、新 freeze／完整分片 PG／Windows 真 PG／finalizer（請 @MoYuanCN 在自己的環境跑，見 PR46 留言）、恢復 lease／FS grant／settlement／worker。7／198／131、原 24h（來源 24caf7d4）與完整品牌門禁狀態不變。
+
+---
+
+## 2026-10-04 補齊NFO之後第8–20階段路線
+
+使用者追問後續階段，已在claude-handoff-schema56.md補入原需求第六節的image-assets至hardening-release全部13階段，列任務／驗收及跨階段完成規則。這是接續路線，非已完成宣告；原始requirements-source與336項狀態保持，不把前7階段或任何既有子集推定完整通過。schema56 WIP交接提交0228c24702已推送PR46，最新守衛／quota因果／Stage接線缺口保持。
+
+---
+
+## 2026-10-04 使用者要求先推送schema56 WIP供Claude從GitHub接續
+
+本批依使用者明確要求提交現有13份Go／SQL及交接文件至既有branch／PR46，供接續調查；不是schema56功能驗收。完整公開交接見[claude-handoff-schema56.md](claude-handoff-schema56.md)，13份來源bytes／SHA256見[evidence/nfo-attempt-ledger-wip-source-snapshot.json](evidence/nfo-attempt-ledger-wip-source-snapshot.json)。
+
+最新legacy互斥守衛尚未重測；quota測試共用job/library可能由既有job UPDATE拒絕，尚缺不同job/library與僅移quota fence的精確紅測；正式Stage自動allocation／PG實際中斷／恢復lease／FS grant仍未接線。歷史ledger12PASS／quota7PASS只證各自當時bytes；本次追加四套件test -run ^$編譯檢查全exit0／no tests to run，沒有新功能或完整PG驗收。全7／198／131／完整brand門禁與原24h保持，失敗歷史不刪除。下段「未提交」為提交前快照，以上述本批WIP交接為最新狀態。
+
+---
+
+## 2026-10-04 轉交Claude：候選schema56未提交
+
+使用者要求記錄本段並轉交Claude。HEAD53796aa1472af5c4006988162db625fb10289451／既有PR46；13份Go／SQL WIP尚未stage／commit／push，另補本摘要。56新增持久reservation／attempt0–3／per-attempt兩階段checkpoint／ready及全域256筆／1GiB fence；容量factor4含legacy0＋新1–3。Store版本56，legacy SavePlan亦自動計入容量；正式Stage自動選attempt與PG實際中斷接線尚未完成。
+
+既有JSONL本次實讀：ledger Linux12PASS、quota V4七PASS、Windows conditional21PASS／16skip／3packagePASS。都早於最後新增legacy ready／checkpoint與新attempt互斥守衛及LegacyEvidenceExclusive測試，不能當最新bytes驗收。沒有56freeze／完整PG／finalizer／Windows真PG證據。quota目前兩候選共用job/library，RR可能由既有job UPDATE拒絕，仍需不同job/library fixture與僅移quota fence的精確紅測，不能宣稱全域fence因果已證。
+
+完整Claude交接及13份WIP hashes存於本聊天outputs的jelee-claude-handoff.md／jelee-claude-wip-snapshot.json。保留所有V1–V3失敗及V4green；原24h不重啟，完整品牌FAIL／全7完成198部分131阻塞及正式commit/recovery/FS grant/worker/heapRSS缺口保持。本回合只寫交接，未啟動測試或修改程式；目標尚未完成。
+
+---
+
+## 2026-10-04 有界attempt內部流程已發布f2af24361c
+
+精確11檔publication hashes／staged inventory及cached diff通過，已提交推送f2af24361c837efe765a201550ce99d7f338c159至既有branch／PR46，提交後工作目錄乾淨。1010來源雜湊、110已發布SQL及trace保持；前述BASE1f75的finalizer只作本批歷史，不在新HEAD重跑。method新增發布狀態，本段兩文件接續記錄；PR描述補有界attempt範圍／驗證與缺口，下一核遠端HEAD/body/CI。
+
+下一須把reservation／attempt allocator及per-attempt first checkpoints接到真PG：一次性全域容量須含既有legacy retained names，序號1–3必須由持久ledger分配並保留首次意圖與IDs，latest／未知結果需重讀，不修改schema55已有first output。另需放棄／清理協議、恢復lease與FS grant，才可接正式Stage與全部target commit／backup／rollback／結算／crash recovery／三批次worker。新prepare還沒有這些正式呼叫者；全7／198／131／原24h／完整品牌門禁與goal active保持。
+
+---
+## 2026-10-04 私有有界attempt準備與實際中斷驗證通過
+
+HEAD仍1f75ce224391ebfb3361039949a396471cee157d，本批準備發布8Go＋3docs。新增commit_attempt.go／test，private plan增加attempt序號0legacy／1–3新names，舊四個位置初始化改具名，legacy Stage保持0；progress／files核ordinal上限。prepareNFOCommitAttempt先reserve完整first plan／序號／兩payload長度及hash、三新attempt全名稱保守容量，返回first值完全相同才落檔；unknown response或scope drift副作用前拒。新attempt不採用／更動旧attempt物件；同attempt保留first output／rollback續作，跨attempt不能採用proof。只有內部primitive，沒有PG allocator／global capacity／自動選latest／放棄清理／恢復lease或FS grant，legacy容量須後續涵蓋。
+
+四個actual child osexit101在output／rollback Sync及兩directory callbacks中斷，reservation已file Sync；fresh root以持久attempt2 names完成ready，attempt1物件IDs／bytes及target原文保持。兩個same-attempt resume與6種副作用前拒絕亦通過。Windows完整NFO413PASS／5symlink條件skip terminal0；Linux domain＋NFO race session39964 terminal0 762PASS／1Win skip；Linux真PG聯合session87833 terminal0 23roots74PASS／零skipfail，Windows真PG22381 terminal0七roots28PASS／零skipfail／relay disposed。PG驗證是既有Stage／checkpoint／claims，非attempt持久協議；原schema55 full1548不可外推到本批1010來源。
+
+vet／Linux format／new brand0／339／gitignore／diff成功；初次選測old abrupt positional initializer build fail、format錯平台、private finalizer字串SyntaxError全部保留。nfo-attempt-source-v1.json核1010 current Go/SQL與110 oldSQL/protected保持，finalize-nfo-attempt-v1.py獨立check-only及寫docs/evidence/nfo-commit-attempt-primitive.json皆terminal0／verified，currentFullPGRegressionProven=false／fullG00G51Acceptance=false。下一核精確8source＋method/handoff/evidence三docs共11檔、commitpush／PR描述與遠端HEAD，再接真正持久bounded attempt／容量fence／未知結果重讀／恢復授權及全formal commit/recovery/worker。
+
+原24h同run329073a5d193446383327ab217aba147/PID1026300/startTicks33072456/boot4a5d9c5c-4482-4c3e-8978-30156b1ce92f再核running／OOMfalse，source24caf不含本批；不重啟，無24h完成證據。完整brand門禁保持，7／198／131與goal active不變。
+
+---
+## 2026-10-04 遠端287ebb0b5a與PR描述核驗，下一恢復探針完成
+
+三文件發布狀態提交287ebb0b5afb9fdd22d0ba07d4e9f876763805c7已push；PR46 OPEN／HEAD及normalized body吻合，當時工作目錄乾淨，artifact已attach。新HEAD CI為Analyze／Linux foundation IN_PROGRESS、Win foundation／完整branding／PG QUEUED，沒有全綠證據。private pr46-schema55-remote-verified.json及pr46-schema55-body-final.md保存安全摘要／完整描述。
+
+下一恢復探針private probe-ephemeral-stage-v1/v2.py及nfo-ephemeral-stage-probe-v2-result.json：Linux /var/tmp O_TMPFILE與Windows DELETE_ON_CLOSE，兩平台普通stage／未保存ephemeral／proof已Sync ephemeral三個actual child osexit70/71/72皆terminal成功；後兩stage不在，phase72 proof仍在。此處proof為file-backed、非PG／formal stage／FS grant／硬體斷電耐久性。Windows首次受限執行CreateFileW setup exit11 metadata保持，原生權限V2成功，不據此猜原因。自動close刪檔仍可能留下first proof指向missing stage，不能替代有界持久attempt／容量／清理與恢復授權。
+
+本次只補handoff及nfo-partial-stage-recovery兩文件更新schema55最新範圍；1008 Go/SQL不改、110已發布SQL保持、336 status不改。完整目標active，下一沿首次證據不可變／未知物件不採用設計及實作bounded attempt，再真PG與actual crash驗證並接full commit／backup／rollback／結算／worker。不得將本探針當部分stage恢復完成。
+
+---
+## 2026-10-04 schema55已提交推送807e494f57
+
+publication audit terminal0／ready=true，13source＋5docs共18檔hash與staged inventory保持，336需求status changes0／cached diff通過。提交807e494f5769448ee4832ffcb7f82dfa9a0f4972已推送既有feat/jelee-ignore-family-worker，PR46 OPEN／遠端HEAD吻合，提交後工作目錄乾淨。完整1548PASS／494根／1008來源證據保持；110份001–055 SQL自此已發布，不修改。舊BASE224 freeze／finalizer／publication audit只作本批歷史，不在新HEAD重跑作current驗收。
+
+本段三文件接續記錄發布狀態，PR描述同步55結果及完整未完成邊界；新HEAD CI待核。下一實作create-before-first-checkpoint的有界持久attempt與容量／清理、換owner恢復租約及FS授權，再完整提交／backup／rollback／結算／crash recovery與正式三批次worker。原24h／品牌完整門禁與全7／198／131保持，goal active。
+
+---
+## 2026-10-04 schema55完整1548PASS與獨立核驗通過，準備發布
+
+同session57408已實核terminal0，四片exit0，494 compiled roots恰run/pass一次，1548PASS／零skipfail。1008凍結Go/SQL與108已發布SQL及protected文件保持。finalizer --check-only及正式寫入皆terminal0／Verified；docs/evidence/nfo-checkpoints-schema-v1.json已保存完整摘要，candidate checkpoint與歷史失敗保持。接續publication audit限13source＋5docs共18檔，核精確hash／336 status保持，再stage／commit／push既有branch及PR46。
+
+遠端目前HEAD224db765／OPEN；完整品牌兩FAIL、PG兩IN_PROGRESS，不能宣稱CI全通過。原24h同run329073a5d193446383327ab217aba147／PID1026300／startTicks33072456／boot4a5d9c5c-4482-4c3e-8978-30156b1ce92f實核仍running／OOMfalse，source24caf不含本批，不重啟。全案7完成／198部分／131阻塞保持；未知create-before-first checkpoint、換owner恢復、完整target commit／backup／rollback／結算／crash recovery、Windows目錄耐久性、formal worker三批次／missingNFO與heapRSS仍缺。完整目標保持active。
+
+---
+## 2026-10-04 候選schema55已接PG與Stage，1008凍結／494完整PG仍live
+
+HEAD/既有PR46仍224db765479ebb42e814e8570341d3bf1fb3398b，schema55尚未stage/commit/push。13source：Stage／write_prepared／Windows slash test，PG Store version／Get files／claims歷史降版test／new checkpoints store+test／55兩SQL，app port／domain model+test。108已發布SQL/mod/sum/requirements/LICENSE保持；所有Go/SQL已凍結1008，不得再改直到完整終態。
+
+55每token最多兩immutable phases，phase2自參照FK綁phase1 first output；沿用live lease/actor/firstreceipt/root/catalog/claims及deferred，no-op保留timestamps。reverse catalog xmin納checkpoint，SET CONSTRAINTS後變更三隔離拒絕。已有checkpoint時ready須完整且同proof；ready-only歷史相容入口不提供partial recovery或FS授權。Stage以new optional port保存/讀latest phase並重開known witness pair；create到first save未知objects及換owner恢复仍缺，formalworker disabled。
+
+失敗保留：Linux selected V1及noop diagnostic，generated first_phase導致BEFORE UPDATE immutable23514；改DEFAULT1/CHECK。V2剩一mutation錯誤原因因consistency trigger排序，調整後V3真PG31PASS。V4含原claims聯合74PASS。Windows nativePG V1實际子程序兩case早期ErrChanged，兩diagnostic與兩private overlays保留；固定標記13/70僅root文字分隔符不同，其他stamp/bytes相同。write_prepared改按ReadSource OS filepath.Clean比較，Windows新slash正例與不同root拒絕1PASS。正式幫助器只白名單錯誤/exit碼，不輸出DSN/XML/原childoutput。
+
+CURRENT frozen selected：Linux V5 session60629 terminal0，23roots／74PASS零skipfail；Windows nativePG V2 session95089 terminal0，七roots／28PASS零skipfail，两actualchild osexit91/92／same first IDs及timestamp／TTL cleanup後ready，relay finally dispose exact child0。Win conditional V3984PASS/1059条件skip/3packagepass，domain+NFO Linux race session62269 terminal0 745PASS/1Win-only skip/2packagepass；vet/format/newbrand0/339/gitignore/diff通過。docs/evidence/nfo-checkpoints-candidate-checkpoint.json 保存13source hashes/五terminal logs/歷史failures，fullCandidateRegressionPassed=false，hash references不可重寫。
+
+freeze session86520 terminal0/1008/108；完整runner首啟動早於freeze terminal因manifest缺失exit1，未compiled/測試，startup-failure.json保留。確認freeze成功才啟動 CURRENT FULL session57408：run-nfo-checkpoints-schema-v1-full-shards.py，actual compiled494roots/4groups，最後同handle write_stdin實核live；checker1008 bytes全吻合/494groups無重覆且完整、四片209/261/227/184PASS共881，零skipfail/無package terminal。不可重啟、覆寫四logs或改Go/SQL；prefix nfo-checkpoints-schema-v1 source/list/manifest/shard0..3/coverage。checker .testdata/check-nfo-checkpoints-schema-v1.py只安全counts。
+
+新finalizer finalize-nfo-checkpoints-schema-v1.py獨立核BASE224/1008/108Git文字內容/五selectedterminal、phase1/2 actualchild、fail history/compiled494/groups/coverage/logs/hashes。初次check-only因CRLF checkout與Git LF原bytes比較誤拒，改依Git文字LF正規化；凍結Go/SQL仍以實際bytes核。session16211已實核Pending coverage not present/selectedTerminalVerifiedtrue，未寫完整success JSON；成功分支仍待驗。audit-nfo-checkpoints-publication-v1.py限13source＋5docs、branch/index/336status，session66621terminal ready=false獨立finalizer未完成。pub JSON final須另生成docs/evidence/nfo-checkpoints-schema-v1.json，候選checkpoint不改；audit成功後生成private publication-files exact hashes，stage18files/commitpush/更新PR46及核遠端HEAD/body/CI。
+
+下一監測同57408終態，再獨立finalizer check-only及寫報告，method/trace/handoff終態更新、audit精確scope、發布既有PR。完整target commit/backup/rollback/結算/crash recovery、未知partial attempt、恢復lease/FS授權、Win目錄metadata耐久性、worker三批次/missingNFO/heapRSS仍缺；全7/198/131維持active。原24h最後same run329073a5d193446383327ab217aba147/PID1026300/startTicks33072456/boot4a5d9c5c-4482-4c3e-8978-30156b1ce92f核running/OOMfalse，source24caf不包含本批，不重啟；品牌完整FAIL保持。不得重跑BASE3d79/SQL106或phase54舊finalizers作current驗收。
+
+---
+## 2026-10-03 已保存witness pair的內部checkpoint續作原型通過
+
+prepareNFOCommitFiles新增可選private progress／resume，未提供時既有plan／ready入口保持。output＋pin及完整pair在核first plan／native IDs／bytes／source／lock與directory sync後保存；callback嘗試前retain，未知回應保留。resume只接受同一first plan與完整已保存pair；output checkpoint須rollback兩名皆缺，未知物件不採用。兩個actual child osexit80/81經file-backed first observations重開可達ready，output／rollback first IDs保持；不是PG或換owner恢复授權。七拒絕leaf核target與五artifact identities/bytes digests保持。
+
+Windows及Linux race選測各12PASS零skipfail（含noop helper1）；完整NFO Windows395PASS/5symlink skip，Linux race413PASS/1Win-only skip，皆terminal0。私有overlay只移resume readonly verification，Go exit1/5test fail/4精確rejected resume changed retained artifacts markers，formal source不變；vet/format/brand0/339/gitignore通過。docs/evidence/nfo-commit-progress-primitive.json獨立核三source hashes/四green logs/各case一次/red control。原checkpointJSON保持，108已發布SQL及原requirements/mod/sum/LICENSE保持。
+
+下一接真正PG checkpoint schema/ports及Stage、首次/重放/deferred守衛、恢復租約與完整授權，再真PG實際中斷及未知結果。create到first checkpoint之間未知物件仍需有界attempt/容量/清理協議；正式target Rename/backup/rollback/結算/crash recovery/Win目錄耐久性/worker三批次/missingNFO/heapRSS仍缺。全7/198/131保持active，原24h不重啟，不能把原schema54凍結1520PASS外推為新current source完整PG驗收。
+
+---
+## 2026-10-03 正式部分落檔程序中斷回歸通過，恢復協議仍待實作
+
+新增commit_files_abrupt_test.go：真子程序osexit70/71/72/73繞過defer，plan Sync但無副作用時可續作；output／rollback／directory callback後留下2/4/5物件時fresh root仍ErrReplace，保持第一次plan／物件身分與原target，無ready。file-backed callback不是PG；Windows目錄同步stub不證metadata耐久性。正式選測Windows及Linux race各5PASS零skipfail；完整NFO Windows383PASS／5symlink條件skip、Linux race401PASS／1Windows専屬skip，均terminal0。vet／format／增量brand0/339／gitignore／diff通過；安全JSON獨立核四logs及五case各run/pass一次、source及log SHA256。
+
+docs/nfo-partial-stage-recovery.md列出G13.3/G39.8恢復條件：有界持久attempt／names、每階段first object proof、create到first save之間未知物件保留與另一已保存attempt、有效恢復租約與完整授權、Sync與ready、真PG及實際程序中斷矩陣。尚未實作，不能用安全保留替代自動恢復；下一接持久協議與正式接線。108舊SQL保持；原完整1520PASS僅schema54凍結來源，不涵蓋新增回歸。PR90c975時品牌兩FAIL、PG兩IN_PROGRESS，原24h不重啟，全案7/198/131保持active。
+
+---
+## 2026-10-03 schema54已發布至既有PR46，完整回歸1520PASS
+
+發布audit22506 terminal0，精確5Go/SQL及8docs的13檔內容hash與staged清單一致；cached diff通過。已提交並推送f0cdda06f99bbacb783904abc47d4c6c48d4a521，遠端PR46 OPEN及HEAD吻合，工作目錄乾淨。108份已發布SQL自此不可修改；舊JSON checkpoint與失敗證據保持。
+
+V2完整487 roots／1520PASS、零skipfail與獨立finalizer已通過；Linux真PG選測37PASS、Windows真PG選測28PASS的範圍保持。遠端完整品牌兩項FAIL，PG整合兩項IN_PROGRESS；格式及Windows foundation成功，不能宣稱CI全部通過。PR描述同步本批實作、測試與未完成邊界。
+
+原24h長測來源24caf不含本批，無24h完成證據，不重啟。全案7完成／198部分／131阻塞保持；下一接partial stage自動續作及正式target commit／backup／rollback／結算／crash recovery，Windows目錄耐久性、worker三批次／missing-NFO與整體heap／RSS仍需驗收。私有實際程序中斷四PASS只證明保留與拒絕重試，不證自動恢復或硬體斷電耐久性。不得重跑BASE3d79／SQL106的舊freeze、finalizer或audit作current驗證。
+
+---
+## 2026-10-03 修正版V2完整1520PASS獨立核驗通過，沿既有PR46準備發布54
+
+15453 terminal0，四片exit0；487roots恰run/pass一次、1520PASS零skipfail、999source終態吻合。93256獨立finalizer --check-only terminal0/ready=true，compiled list/groups/coverage/logs/hash/106舊SQL/protected、Win9591036/native28/Linux37與雙向RR red4fail2marker皆吻合；正式公開摘要另執行保存，需再核其terminal及內容。13檔發布清單為5Go/SQL+8docs，私有資料不stage；舊checkpoint/失敗/不完整kind-scope紀錄保持。
+
+等待full PG時補private NFO overlay實際子程序中斷：16774第一output Sync後osexit71，一PASS；62565擴至output/rollback/directory Sync後osexit71/72/73，四PASS零skipfail。原plan在private callback同步寫檔（不是真PGport），2/4/5 artifacts保持；fresh root重試遇original pin collision精確ErrReplace、未ready、target原文及artifact nativeIDs保持。這證明安全保留，非partial stage自動恢復或斷電耐久性，正式999 Go/SQL不變；private logs及candidate script保留供下一phase接入。
+
+G39.14/方法文件更新V2完整範圍，狀態不擴張；PR草稿仍需按1520/current source重寫驗證與提交/CI段，pub audit ready後核hash stage13files/commitpush既有branch/更新PR46/實核遠端HEAD与CI。完整品牌FAIL、原24h不同source無完成證據、完整commit/recovery/Windows目錄耐久性/worker三批次missing-NFO/heapRSS保持；全goal active。發布後不可重跑BASE3d79且SQL106的舊freeze/finalizer/audit當current驗證，不重啟原24h。
+
+---
+## 2026-10-03 候選54發布audit與PR草稿備妥，V2完整回歸仍live
+
+同15453 write_stdin實核live；最新checker source999/compiled487保持、四片178/219/202/166 PASS共765、零skipfail/無package terminal。Go/SQL不改、四片未完整coverage，不宣稱成功。遠端唯讀核PR46 OPEN/3d79ed9577c37f074a0498dca720d79ff50bc6cc，品牌兩COMPLETED FAILURE、PG兩IN_PROGRESS；未更新遠端。
+
+新增private audit-nfo-native-claims-publication.py，核HEAD/既有branch/空index、V2 source999全成員與bytes、精確5source（Store/歷史helper/newclaims test/54兩SQL）、106舊SQL/requirements/mod/sum/LICENSE保持，再限定8docs。13檔明確list輸出至private nfo-native-claims-publication-files.json，排除.testdata/.tools；實跑ready=false/V2 public terminal evidence missing，沒有stage/commit/push。ready成功還必須487四片terminal/完整coverage/finalizer/source manifest/claimscope及336status保持、docs JSON無私密材料，成功分支待驗。
+
+private pr46-schema54-body-draft.md保留累積ignore/CLI/API/scheduler/runtime metrics及schema47–53範圍，新增54 global identity/雙向crossrole/TTL/未知history/升降/成對deferred行為，明記37Linux/28Win選測與V2未terminal、Win9591036/品牌FAIL/PG未terminal/原24h不同source/先前OOM清理未全證明。草稿頂部禁止未完整驗證直接發布；green後重寫完整結果與commit/CI段，保持限制，再沿既有PR46更新，不發新PR或merge。
+
+原24h本輪同run329073a5d193446383327ab217aba147/PID1026300/startTicks33072456/boot4a5d9c5c-4482-4c3e-8978-30156b1ce92f核running/OOMfalse，來源24caf不含本批、無24h完成證據/不重啟。全案7/198/131保持active。下一同15453終態、V2 finalizer獨立成功驗證、docs/PR草稿終態更新與publication audit、hash核stage13files/commitpush；完成仍要接partialstage/完整commit backup rollback settlement recovery/Windows目錄耐久性/正式worker三批次missingNFO/heapRSS，不縮減全G00–G51。
+
+---
+## 2026-10-03 修正版V2新凍結999/編譯487完整PG執行中，跨角色三隔離與雙向控制成立
+
+新增正式CrossRoleSnapshotIsolation，shared snapshot helper改為owned真XML/media及fresh receipts，兩方向各三隔離。RC/RR精確23505/nfo_native_target_unresolved、Serializable可40001且整筆rollback；first commit/第二零partial皆核。22704三roots12PASS/race terminal0。聯合84944 terminal0，16roots合37PASS/零skipfail，global-identity-selected-v2；87993 Windows真PG terminal0，七roots合28PASS/零skipfail，windows-real-pg-v3，relay finally dispose與exactowned child0。
+
+58147私有雙向RR僅移owned identity主鍵，Go exit1/4FAIL events/零skip/兩個精確stale native claim snapshot admitted conflicting complete journal markers，兩方向第二完整journal均真commit；正式test bytes保持。原logs保留。新global-identity-checkpoint-v2保存current五source與三logs hashes，fullFixedCandidateRegressionPassed=false；原checkpoint與V1kind-scope摘要不改。
+
+70899新V2freeze terminal0，999Go/SQL、106已發布SQL/mod/sum/requirements/LICENSE保持。CURRENT完整PG session15453，run-nfo-native-claims-schema-v2-full-shards.py，实际compile487roots四片、source/manifest/log/coverage全新prefix nfo-native-claims-schema-v2。最後同15453實核live，checker source999/compiled487吻合，四片79/90/85/65PASS，零skipfail/無package terminal。不得改Go/SQL、覆寫或重啟；V1只作舊kind分組歷史證據。
+
+Win新V2三套件terminal0：959PASS/1036條件skip/零fail/package3，不拿skip作PG證據；三套件vet/格式/增量brand0/339/diff0。新finalizer V2要求999current hashes/487compiled groups/全四exit0各root一次/Win9591036/native28/Linux37/雙方向red4fail2marker/106旧SQL及protected文件吻合才能寫nfo-native-claims-schema-v2.json。--check-only已實核Pending/terminal coverage missing/無public success，成功分支仍待驗。
+
+requirements-traceability只G39.14補candidate scope/37與28選測/完整V2未terminal未發布；獨立Markdown escaped管線解析核336項與HEAD status完全相同，7完成/198部分/131阻塞、changes0。原requirements-source不改，54未commit/push。下一同15453完整終態、新finalizer獨立核成功/更新docs和PR草稿/發布audit/明確stage commitpush，再接partial stage/完整target commit backup rollback settlement recovery/Win目錄耐久性/worker三批次missing-NFO/heapRSS，不縮減goal、不重啟原24h。
+
+---
+## 2026-10-03 V1完整1506PASS已終態但禁止發布；正式global identity修正30/Win21選測通過
+
+28348 terminal0，四片exit0，484roots各run/pass一次/1506PASS零skipfail/999source終態吻合。43053 finalizer精確Rejected cross-role exclusion unverified。91471獨立核root/groups/list/coverage/logs/selected/checkpoint/protected files後保存docs/evidence/nfo-native-claims-kind-scope-regression.json，fullCandidateAcceptance=false/nativePhysicalExclusionComplete=false/knownGap=true；其源及log保持，不能宣稱54功能完成。
+
+74925私有完整up SQL歷史matrix3PASS零skipfail/双向exact23505constraint/DDLrollback/两first journals receipts+metrics保持，migration registry原53clean（raw SQL不改version）。已備formal history fragment追加Migrate wrapper失败dirty54验证。两片finalizer都terminal后按checkpoint哈希核三候选draft，才将54up改PRIMARY KEY(identity)、conflict跨roles，kind仍角色firstproof核对；append正式CrossRoleMatrix/HistoryMigration两roots与helper，gofmt。106旧SQL保持，不重跑旧999frozen checker当current来源。
+
+18238正式PG race terminal0，15roots合30PASS/零skipfail，log cross-role-formal-v1；18433 Win真PG terminal0，六roots合21PASS零skipfail/package1，log windows-real-pg-v2；兩方向/migration dirty54/保留证明与同job Prepare ErrInvalid都涵盖，relay finally dispose/Linux exactowned child0。86157 global identity RR主键only控制terminal1是真Go exit1/2FAIL events/精确第二完整冲突journal marker/正式test bytes保持，log primary-key-control-red-v3。format/brand0/339/diff0。
+
+新docs/evidence/nfo-native-claims-global-identity-checkpoint.json保存当前五source+三log哈希，fullFixedCandidateRegressionPassed=false。旧checkpoint/完整kind-scope regression当历史保留，不能改其bytes破坏hash。下一可补cross-role三隔离旧snapshot专例，然后新V2freeze/实际compiled宇宙/完整PG与Win回归/新独立finalizer，再req追踪/PR发布audit/commitpush54。54仍未提交推送，HEAD3d79/全案7/198/131及完整commit/recovery/partialstage/Win目录耐久性/worker三批次missingNFO/heapRSS/品牌门禁缺口保持active。原24h不重啟。
+
+---
+## 2026-10-03 私有跨角色雙向matrix四PASS及未修正紅測成立，正式freeze仍保持
+
+28348同handle仍live，最新source999/compiled484吻合、四片221/261/346/201 PASS共1029，零skipfail/無package terminal，不能宣稱完整green。原24h同run/PID/startTicks/boot再次核running/OOMfalse，來源24caf不包含本批、不重啟。
+
+私有矩陣初次77262 terminal1：兩跨job方向PASS，但same-job fixture Prepare已由既有native validation ErrInvalid拒絕，錯誤期待journal邊界而FAIL；原matrix-green-v1保留。V2改核samejob Prepare ErrInvalid、無preparation/journal/claims，雙向仍要Begin ErrConflict/raw23505特定identityconstraint及只有first journal雙claims。36832 terminal0，matrix-green-v2四PASS/零skipfail，owned SQL global-identity candidate/正式Go bytes保持。
+
+54312 terminal1是真Go exit1，matrix-red-v2一PASS(same_job_alias早期拒絕)/4FAIL events/零skip/兩個精確cross-role physical inode admitted conflicting unresolved journal markers；兩跨job方向在未改kind分組下確實接納衝突。不是pool/lease/catalog錯誤。checkpoint補各loghash、初次fixture失敗修正及private candidate範圍，knownCrossRoleAdmissionGap仍true/crossRoleExcludedVerified仍false（正式來源未改）。
+
+已備private nfo-native-claims-cross-role-full-up-candidate.sql，54主鍵直接identity、conflict query跨roles、owned pair仍核kind+原proof；native-claims-cross-role-formal-candidate.go.txt去掉owned schema修改，只剩正式測試/helper fragment。其hash保存checkpoint供接續核。尚未覆寫正式upSQL/append Go，等待同28348terminal後接入，再補跨role既有history migration/Windows/重新RR因果控制，新freeze與完整回歸；不得發布kind分組V1即使其後green。全案7/198/131/完整功能缺口保持active。
+
+---
+## 2026-10-03 跨NFO/media角色排除缺口已真PG red/私有修正green，正式999凍結不變
+
+28348同handle實核live；最新checker source999/compiled484吻合、四片85/102/103/64 PASS，零skipfail、無package終態；不是完整green。新增private finalizer核HEAD3d79/999 hashes/106舊SQL/484compiled/group/logs/coverage/Win9561025/native14/Linux9/redcontrol/source checkpoint，--check-only已實測Pending拒絕/未写public evidence。其成功分支尚未驗。
+
+審claims發現kind分組跨角色風險，private overlay在owned real files將第二job NFO hardlink到第一job media並fresh Prepare；91388 terminal1是真Go exit1/2FAIL events/精確cross-role physical inode admitted conflicting unresolved journal marker，正式Go bytes不變。證明現行PRIMARY KEY(kind,identity)及同kind查詢仍允許同一實體inode跨角色占用；此候選不得發布，full V1將來green亦不證修復。
+
+private .testdata/nfo-native-claims-cross-role-candidate.sql僅owned schema把主鍵改identity、checkscope conflict跨kind比對，kind留角色/first proof核對。65574 terminal0，private cross-role-green-v1一root1PASS/零skipfail，正式來源保持；先驗單方向，不外推反向/同jobalias/舊快照/fullPG。checkpoint已記knownCrossRoleAdmissionGap=true/crossRoleExcludedVerified=false及redloghash，V1 finalizer新增明確跨角色拒絕發布門檻。docs範圍補缺口。
+
+下一先監測同28348至terminal，保留全V1證據；此間不改正式Go/SQL。再正式54主鍵identity及跨role查詢/新增雙向與同jobalias案例、replay/alias/RR控制/Windows重新驗，之後新V2freeze/完整matrix/獨立finalizer才發布。private candidate成功不是正式功能green。完整target commit/backup/rollback/結算/recovery/worker三批次/partialstage/Win目錄耐久性/heapRSS/品牌與全案7/198/131保持active，不重啟原24h。
+
+---
+## 2026-10-03 候選54新凍結999/編譯484，完整PG四片執行中
+
+85961 freeze已terminal0，CURRENT HEAD仍3d79；新prefix nfo-native-claims-schema-v1，999份Go/SQL全成員與bytes凍結，106已發布SQL/mod/sum/requirements/LICENSE保持。新runner由實際compiled list建立484 roots四片manifest，原53 V4 frozen/finalizer不可重用。CURRENT完整PG session28348，run-nfo-native-claims-schema-v1-full-shards.py已輸出Compiled roots484/shards4，write_stdin同handle實核live。不重啟/覆寫；Go/SQL保持凍結，文檔可補進度。未有完整terminal/coverage，不宣稱54green。
+
+Windows新source三套件完整回歸exit0，nfo-native-claims-schema-v1-windows.jsonl：956PASS/1025條件skip/零fail、三package pass；三套件vet exit0。Win條件skip不作PG證據；前段Windows真PG四roots14PASS另保留。safe checkpoint仍fullCandidateRegressionPassed=false，尚未commit/push54，完整品牌FAIL與全案7/198/131保持。
+
+下一核同28348各片完整終態與999 source hashes/484 root恰run/pass一次、零skipfail；成功再新獨立finalizer/compiled list/groups/coverage/logs/106舊SQL/需求驗證與公開安全證據、需求追蹤/PR更新/發布audit。失敗保留原log、修正再新freeze，不拿舊checkpoint替代全matrix。正式target commit/backup/rollback/結算/recovery/partial stage/Win目錄耐久性/worker三批次missing-NFO/heapRSS仍待接；原24h不重啟。
+
+---
+## 2026-10-03 候選54三隔離/deferred九PASS與Windows真PG十四PASS，完整freeze待做
+
+重構RR helper為三隔離正式TestNFOCommitNativeClaimsSnapshotIsolation，保留原RR root及精確主鍵control。RC/RR必須23505/nfo_native_target_unresolved；Serializable可同23505或40001且驗整筆第二TXrollback，不外推主鍵因果。新增DeferredPairCompleteness，owned TX只停record producer、保留所有immediate/deferred guards：零/一claim commit精確23514/nfo physical claims missing並清零journal/claim與恢復producer，完整pair正例通過。
+
+V1 session29511 terminal1：7PASS/3FAIL events/零skip；只完整pair fixture在pending triggers時ALTER ENABLE撞55006，原log isolation-deferred-v1保留。改先SET CONSTRAINTS ALL IMMEDIATE驗完整pair再ENABLE producer，沒有弱化任何production guard。V2 session13490 terminal0，三roots含六leaf合9PASS/零skipfail/race exit0，log isolation-deferred-v2。重构后RR單主鍵overlay control65388 terminal1真正Go exit1/2FAIL events/零skip/精確衝突完整journal marker/正式test bytes保持，log primary-key-control-red-v2。
+
+Windows88784 terminal0，temporary owned loopback relay，四roots加十leaf14PASS/零skipfail/一package pass，真Windows native hardlinks与独立copies、三隔離、deferredpair、replay/immutability皆通過；log windows-real-pg-v1。finally dispose及Linux exact owned relay child count0實核，不改PG設定，不宣稱完整WindowsPGsuite。safe docs/evidence/nfo-native-claims-checkpoint.json保存五source及四log hashes、各範圍/失敗修正/限制，fullCandidateRegressionPassed=false。
+
+格式/增量brand0/339/diff check0，106已發布SQL保持，54仍未commit/push。下一新freeze/compiled universe/完整PG及Windows回歸、獨立coverage/hash驗證、更新需求追蹤與PR才發布54；若新失敗保留原證據修正重freeze。正式target commit/backup/rollback/結算/recovery、partial stage、Windows目錄耐久性、worker三種批次missing-NFO協議、heapRSS及完整品牌門禁缺口保持，全案7/198/131 active。原24h不得重啟，來源24caf不含本批。
+
+---
+## 2026-10-03 候選54真hardlink跨library與RR舊快照通過，單主鍵反例成立
+
+新增正式兩roots。owned另一library/item/root/media mapping及實際file建立；NFO+media hardlinks／NFO-only／media-only三負例、同bytes/mtime獨立copy正例，每個皆重新Prepare native receipt，不借SQLidentity。不同root/library仍精確23505/nfo_native_target_unresolved拒絕，独立copy成功兩tokens四claims。RR兩TX都先讀claims0、首journal持久化後第二精確同主鍵23505且rollback只留first journal/2claims。
+
+47293 terminal0，nfo-native-claims-alias-stale-v1.jsonl兩roots+四leaf共6PASS/零skipfail。45355負向控制terminal1是真Go exit1：private overlay僅移owned claims主鍵、其他guard保持；第二完整衝突journal確實commit，2FAIL events/零skip/精確stale native claim snapshot admitted conflicting complete journal marker。正式test前後bytes保持、原log nfo-native-claims-primary-key-control-red-v1.jsonl保留。Linux格式、增量brand0/339、diff check0，未改106已發布SQL/遠端PR，不宣稱54完整green。
+
+下一補RC/Serializable競爭、raw/deferred缺claims與Windows真PG，再新freeze/完整compiled universe及回歸。所有前次logs只證各自來源，不以schema53舊freeze證新增兩roots。完整target commit/backup/rollback/結算/recovery、partial stage、Windows目錄耐久性、正式worker三批次missing-NFO、整體heapRSS仍待接；全案7/198/131保持active。原24h不重啟。
+
+---
+## 2026-10-03 候選schema54已實作，遷移矩陣及聯合選測通過，尚未發布
+
+已新增54 up/down、Store.SchemaVersion54、NFO與media雙claims及Begin/plan/ready guard；不同token同48-byte first native identity精確23505/nfo_native_target_unresolved拒絕，同token可重放，停止lease/TTL不解除claims。保留原red V1；3根新案例及既有4根回歸已通過，沒有完整54驗收宣稱。
+
+新增三個正式migration roots。V1兩根2PASS、V2三根3PASS，零skipfail、race exit0；53既有journal升54只copy原first receipt，metrics保持，未解決claims拒降版並保留；pre53 NULL journal不回填且阻擋fresh commit，raw SQL精確23505/同constraint/歷史message，未知journal亦拒降版；53既有兩個衝突token升54精確唯一約束拒絕，DDL完整rollback、claims表不存在、兩journal及原receipt保留，Migrate失敗dirty狀態實核。原logs保留。
+
+新增空claims降版metrics保持斷言後，CURRENT聯合選測34065 terminal0；nfo-native-claims-selected-v3.jsonl九個roots各PASS一次、9PASS/零skipfail、一package pass。範圍六個新54 roots，加既有16並行重放、file plan reopen及歷史NULL三根。三隔離目前只讀取claims，不作競爭證據。Linuxformat、incremental brand0/339、diff check均0，106已發布SQL tracked diff空；54兩檔尚未提交。
+
+PR46仍OPEN/3d79ed9577c37f074a0498dca720d79ff50bc6cc，唯讀最新核完整品牌兩FAIL/PG兩IN_PROGRESS；未改遠端。原24h run329073a5d193446383327ab217aba147/PID1026300/startTicks33072456/boot4a5d9c5c-4482-4c3e-8978-30156b1ce92f同身分實核running/OOMfalse，来源24caf，不含53/54，不重啟、無完成證據。全案7完成/198部分/131阻塞保持active。
+
+下一補跨library/hardlink及不同實體正例、RR舊快照唯一約束因果控制、raw/deferred缺claim、Windows真PG，之後新freeze/compiled universe/完整matrix才提交推送54。完整target commit/backup/rollback/結算/recovery、partial stage、Windows目錄metadata耐久性、正式worker三批次missing-NFO協議及整體heapRSS仍待接。不可用schema53舊freeze/finalizer證新來源。
+
+---
+## 2026-10-03 schema54同實體排除缺口已真PG重現，尚未實作migration
+
+已發布HEAD3d79ed9577c37f074a0498dca720d79ff50bc6cc，schema53實作6b44不變。新CI唯讀實核：完整品牌兩COMPLETED FAILURE、PG兩IN_PROGRESS；不弱化品牌，不宣稱新PG成功。本輪新增未提交nfo_commit_unresolved_identity_test.go，owned真media／NFO first receipt：第一job Begin journal後停止lease為cancelled，第二job用同一prepared receipt仍成功Begin。79338 terminal1、0PASS／2FAIL events／零skip、精確same physical NFO admitted despite unresolved journal marker，原log nfo-unresolved-physical-target-red-v1.jsonl保留。不是連線／lease／policy失敗，缺同實體排除已證。red後assert補ErrConflict，避免未來其他錯誤假green，需新log重驗。
+
+新增docs/nfo-unresolved-physical-targets.md記待54儲存邊界：同token擁有NFO及media兩份48-byte native identity claims，各以kind＋identity唯一，單交易取得／回滾，保留同token重放，跨library／alias／NFO inode已替換而media未變仍排除；直接SQL／deferred／舊快照及migration皆需保護。歷史NULL不新認filesystem、不回填；缺證未解決journal先拒新提交。既有native journal只copy原持久first proof建立claims，碰到既有衝突拒migration，不選勝者或刪journal。claim無取消／TTL／history解除入口，待正式可驗證native結算／復原才放行。106份已發布SQL不改。
+
+只有上述新test及設計doc，Store仍53，沒有54檔、claims或guard實作；全案7／198／131不變。下一補raw SQL精確拒絕、同／跨library、same-media新NFO／hardlink、不同實體正例、replay、歷史與三隔離；再54持久claims及Begin／plan／ready守衛、負向控制、全matrix及新完整freeze。原24h不得重啟，Win目錄耐久性／完整target commit／recovery／worker三批次missing-NFO／heapRSS缺口保持。
+
+---
+## 2026-10-03 schema53實作已發布6b44f3ac64，PR46已核，後續完整提交與復原待接
+
+本批明確43檔已commit／push既有branch：實作來源6b44f3ac644d55f9a9be7dbeda3f6f906ad53605，PR46 OPEN／遠端head實核吻合，body以final草稿更新且normalized內容一致，artifact已連結。36 Go／SQL＋7 docs，沒有private .testdata／.tools或其他來源；舊104 SQL保持，schema53兩檔後106份已發布SQL不可改。publication audit55343已terminal0／ready=true；commit前各43檔hash與audit吻合、staged清單相同、cached diff0，push非force。此段handoff另以docs提交保存，不改schema53實作。
+
+474 compiled roots完整V4四片各run/pass一次、1486PASS零skipfail、Win953/1008零fail、Win真PG兩native receipt roots PASS均已核。新6b44head的PG及完整品牌各兩CI實核IN_PROGRESS，未宣稱新CI通過；本docs提交後head／CI需再次核。原24h同identity最後核running／OOMfalse、來源24caf不含53，無24h完成證據、不重啟。全案7完成／198部分／131阻塞保持。
+
+重要：old V3/V4 freeze／finalizer／publication audit有BASE361及published SQL104保護，提交後不可重跑它們當current HEAD檢查或重啟已terminal測試。原logs／coverage／source manifests及公開安全摘要保留凍結範圍，source實作commit以6b44對應。下一先核最新遠端CI（PG／完整品牌不弱化），接同實體未解決排除、partial stage與完整target commit／backup／rollback／settlement／crash recovery，再正式worker及三批次／missing-NFO absence協議與整體heapRSS，保留Windows目錄耐久性缺口與V1 OOM cleanup未全證明；全G00–G51仍active。
+
+---
+## 2026-10-03 schema53完整V4已獨立驗證，沿既有PR46接續提交
+
+26780已terminal0，四片exit0；474 roots各run／pass一次，1486PASS／零skipfail，996份Go／SQL成員與bytes終態吻合。5284 finalizer已terminal0，獨立compiled listing／groups／coverage／四logs、Win953/1008、新兩正式4PASS及red精確marker皆吻合，104已發布SQL／mod／sum／原需求／LICENSE保持。公開docs/evidence/nfo-write-native-receipt-v4.json新增；原V1/V2 failures及V3 checkpoint均保留。後續不得將V3 frozen當新增後來源證據。
+
+Windows真PG直接連線兩root0PASS／3FAIL events／零skip，safe分類皆connect dedicated account test database，沒到native行為。端點綁WSL127.0.0.1:55438；短暫Windows loopback→wsl python binary stdio轉送後59707 terminal0、兩root2PASS／零skipfail一package pass，包含native preparation保存／pool reopen、job copy／prep清理／GetTask receipt同一first observation。finally已dispose，Linuxowned relay子程序0實核。私有logs windows-real-pg-v1/v2保留，不改PG配置、不輸出認證、不宣稱完整Windows PG套件。V4摘要另記selected scope，full Win DB仍false。
+
+方法及G39.14追蹤改為已驗schema53範圍，全336狀態不擴張（7／198／131）；PR final草稿依1486及Windows兩root重寫，沒有完整CI green／runtime寫回完成宣稱。本批依原授權沿既有branch／PR46提交推送；新CI須以實際head另核，不merge／release／tag／forcepush。V1 OOM cleanup未全證明、原24h不同source無完成證據、品牌FAIL、same-physical unresolved／partial stage／完整commit recovery／Windows metadata durability／正式worker三批次missing NFO／heapRSS仍缺。
+
+下一完成publication audit／stage明確43檔／commit／push、更新PR並核遠端head／CI；之後接續同實體未解決排除及完整原生提交／復原，不縮減G00–G51。
+
+---
+## 2026-10-03 候選53發布前清單與失敗清理限制已核，V4仍執行中
+
+新增private audit-nfo-native-receipt-publication.py：只讀核HEAD361dc681f1／既有branch／空index、V4 source996成員及bytes、限定36份Go／SQL變更範圍、只新增53 up/down、104已發布SQL／mod／sum／requirements／LICENSE保持，產生明確36 source＋7 docs清單；排除.testdata／.tools。71740已terminal，ready=false／V4 public terminal evidence missing，拒絕尚未完整驗證的發布準備，沒有stage或commit。成功分支還需V4公開成功摘要、coverage hash／全部exit0／474 roots一次、scope flags不擴張、所有docs存在及JSON不含連線URL。
+
+公開V1 OOM失敗摘要新增ownedTrialSchemaCleanupFullyVerified=false及cleanup失敗限制，PR私有草稿亦補該限制。查現有fixture cleanup：account隨機schema建立／刪除錯誤只記通用文字，不能憑prefix補推精確ownership並任意drop；後續成功回歸不證前次未清理物件消失。不刪未知／未解決資源、不重啟scale或原24h。
+
+本輪26780同handle實核live；最後V4 checker四片232／291／244／276 PASS（合1043），零skipfail、無package terminal，source996吻合／compiled474。沒有改Go／SQL或遠端PR。下一繼續核同26780完整終態；green才V4 finalizer獨立核驗、更新docs及PR草稿、重跑publication audit、明確stage清單／commit／push；保留品牌FAIL與7／198／131、完整功能缺口。
+
+---
+## 2026-10-03 候選53需求追蹤與PR草稿已備，V4仍執行中
+
+本輪26780同handle再核live，Go／SQL不改。docs/requirements-traceability.md僅G39.14補候選53 first receipt持久化／job copy／plan／Stage／quota及正式三隔離與red範圍，明記V4未terminal／未發布，不構成完整FS授權。逐列含G01.4b／c核336項與HEAD狀態完全相同：7完成／198部分／131阻塞，statusChanges0；原需求SHA755b6b32324efe710c3e1135a0c982c45b82f337e90fcb50ab3718a20cba5d07實核保持。
+
+保存已發布PR body到private .testdata/pr46-published-body-before-schema53.md，另備pr46-schema53-body-draft.md，保留累積ignore／CLI／scheduler／resources／metrics與NFO守衛範圍，更新53問題／行為及未完成限制。私有草稿頂部明示V4未通過不可直接發布；沒有更改遠端body。唯讀PR46實核OPEN／361dc681f1，PG兩COMPLETED SUCCESS／完整品牌兩COMPLETED FAILURE；不宣稱候選53新CI。incremental brand0／339、gitignore0、diff0。
+
+下一待同26780完整終態，V4成功才safe evidence及更新草稿驗證／CI段，再提交推送；失敗保留來源與log並調查。正式worker／三種批次／missing NFO／完整commit recovery／Windows metadata durability／整體heapRSS仍未完成，維持全goal active。
+
+---
+## 2026-10-03 job完整batch三隔離四PASS與native byte控制成立，完整V4執行中
+
+新增正式TestNFOWriteNativeReceiptJobExactBytesBatchRollbackIsolation：各三隔離在單TX建立自己的total3 batch，first／second entries恰job128MiB，清除已copy source preps再配置third避免library128MiB混淆；第三筆精確23514／intent capacity拒絕，rollback後job/request/entries全0、first/second prep恢復、third prep消失。storage-only owned metadata／loaned receipt，不作FS觀察或production admission。helper nativeQuotaStoragePreparationWith支持pool或tx，不改production或104SQL。66015 terminal0、4PASS零skipfail一package pass，log nfo-native-job-batch-isolation-formal-v1.jsonl。
+
+43901 private overlay terminal0核Go真正exit1、3FAIL events零skip；owned TX只從guard_nfo_write_intent移native byte contribution，RC第三entry確實接納且完整total3 batch提交，精確native job bytes admitted an oversized complete batch marker，正式test bytes保持。log nfo-native-job-batch-control-red-v1.jsonl。現有job2筆／library128／global256／entry512 exact及native prep/global entry舊快照保持，沒有假設已提交job可追加。
+
+V4 freeze71705 terminal0、996份Go／SQL、新增兩root後compile474。第一次runner在freeze仍live時因source.json不存在退出，沒有執行test；確認freeze terminal0後才啟動CURRENT完整PG session26780，run-nfo-native-receipt-schema-v4-full-shards.py、前綴nfo-native-receipt-schema-v4，四片實際編譯474。來源不得改、不覆寫V1–V3或重啟存活handle。Windows V4三套件已exit0／953PASS1008條件skip零fail三package pass；vet三套件／incremental brand0/339／gitignore0／diff0。
+
+新finalizer V4要求996 current hashes／474 roots／Win9531008、新兩正式4PASS及兩red精確markers、四片終態exit0且零skipfail才另寫docs/evidence/nfo-write-native-receipt-v4.json，保留原V3摘要。52386 check-only已terminal，精確Pending／coverage missing／no public evidence written，拒絕分支實核。原24h同329073...原PID/startTicks/boot身分核running／OOMfalse，無24h完成證據、來源不含candidate。全案7／198／131、完整品牌FAIL／完整commit recovery worker三批次missing-NFO heapRSS仍缺，candidate53未提交推送。
+
+下一核52386拒絕分支與26780同handle完整終態，完整成功才safe V4 evidence、追蹤／提交／推送PR53；不把Windowsskip或V3 frozen集合當current474證據。
+
+---
+## 2026-10-03 global snapshot單entry fence反例成立，已升正式來源／選測四PASS
+
+83673 terminal0：V2私有RR控制真正Go exit1、3FAIL events、零skip，必含stale native byte snapshot admitted a second complete batch；僅停owned aa_fence_nfo_write_entry，正式source996在控制前後全成員／bytes一致。log native-entry-snapshot-candidate-red-v2.jsonl。正向13455三隔離4PASS及原V1失敗均保留；Serializable可在job階段40001整筆回滾，RC／RR拒絕位置仍精確，單entry fence因果由RR控制證明。
+
+控制結束後正式nfo_write_native_quota_test.go新增TestNFOWriteNativeReceiptEntryExactBytesStaleSnapshots，移除private disable常量及block、gofmt／diff0。正式選測session74812已terminal0／4PASS／零skipfail／一package pass，runner .testdata/run-nfo-native-entry-snapshot-formal-v1.py，log nfo-native-entry-snapshot-formal-v1.jsonl（不覆寫）。正式四PASS終態及安全計數已實核。當前Go已新增測試，V3完整1478PASS及public evidence只屬原996份frozen hashes，不能再跑其finalizer宣称当前集合通過。方法文件明記此checkpoint及新增後待重freeze／完整回歸。候選53仍未提交推送，7／198／131／品牌FAIL／完整功能缺口保持。
+
+下一審job128MiB三隔離實際完整batch模型，然後新freeze／compiled universe／Win及完整PG；舊V3各log／manifest／coverage及安全摘要均保留。不要重啟原24h。
+
+---
+## 2026-10-03 V3完整1478PASS已獨立核驗，global snapshot私有V2四PASS，單entry fence反例執行中
+
+71956 terminal0：四片exit0，472 roots各run／pass一次、1478PASS／零skipfail，996份Go／SQL成員與bytes吻合。64809 check-only及後續正式彙整均exit0，compiled list／groups／coverage及各log獨立重建吻合，104舊SQL／mod／sum／需求原文／LICENSE保持。docs/evidence/nfo-write-native-receipt.json已保存安全計數、來源及log hashes；沒有XML／DSN。只證當前996份來源的回歸，不證完整G00–G51或新增正式test來源。
+
+私有global snapshot V1 session41937 terminal1／2PASS3FAIL events／零skip。Serializable在job階段40001，候選原斷言強制entry階段而失敗；安全分類已實核stage=job、SQLSTATE40001，沒有capacity23514。V1 log保留。V2修為Serializable可在完整admission任一步驟40001但必須整筆rollback，RC／RR仍強制entry階段拒絕並核精確錯誤，明記早期Serializable abort不證entry fence因果。13455 terminal0／三隔離leaf加root4PASS零skipfail，source996全成員／bytes不變；log native-entry-snapshot-candidate-v2.jsonl。接續--red --v2只停owned aa_fence_nfo_write_entry、選RR；仍待真正超限marker／3FAIL events與來源核對終態。
+
+docs/nfo-write-native-receipt.md已更新V3終態及成功分支證據；incremental brand0／339、gitignore0、diff0。原24h同identity running／OOMfalse，仍未有24h完成證據。候選53尚未提交推送，PR仍schema52／361dc681f1，完整品牌FAIL與7／198／131保持。下一核red終態；若控制真正red再升正式global snapshot測試，重凍結完整回歸，不沿用V3證新來源。job128MiB matrix／完整commit／recovery／worker／三批次／heapRSS等仍待驗。
+
+---
+## 2026-10-03 native全域byte舊快照私有候選已編譯，V3仍存活
+
+新增private native-entry-snapshot-candidate.go.txt及run-native-entry-snapshot-candidate.py，overlay既有native quota test檔、正式Go／SQL不變。候選在兩快照前建立各自source prep，八個owned大job配置global512MiB只剩一份small batch的native bytes，兩TX各建自己的完整job/request/entry，第一恰cap、第二必須在entry階段23514精確capacity或RR／Serializable40001，RC必須23514；rollback後jobs／requests／entries及bytes均核，扣native後兩批仍可容納。private red只停owned aa_fence_nfo_write_entry並選RR，必須真正接納第二完整batch、精確marker及3FAIL events，其他守衛保持。metadata／receipt loan僅storage，不作FS或production admission授權。
+
+第一次37026編譯exit0／candidate root清單恰一次，凍結996來源成員與bytes不變；補entry拒絕位置檢查後67968重新編譯亦exit0／root恰一次、996份正式來源保持。沒有执行512MiB案例或red，也沒有正式來源test增量。本runner在--run前硬性要求V3完整四片passed／terminal0，避免與存活四片同時加重scale PG。最新V3 live checker四片277／369／265／251 PASS（合1162）、零skipfail、無package terminal；71956原handle仍live，不能宣告完整通過。原7／198／131及候選未發布保持。
+
+下一核67968編譯終態、同71956完整終態與來源。V3通過後先run私有global snapshot候選及單fence red，失敗保留並調查，再升正式測試、重凍結完整回歸；不能把私有編譯當三隔離證據或沿用舊996／472當新增正式來源的證據。job128MiB三隔離及完整commit／recovery／worker／三種批次／heapRSS仍需完成。
+
+---
+## 2026-10-03 V3成功摘要門檻已加，pending拒絕實核；完整回歸仍存活
+
+本輪write_stdin核同71956存活；最後live checker四片187／201／187／185 PASS（合760）、零skip／fail、尚無package terminal，996份來源吻合，compiled472。未重啟或修改Go／SQL。新增private .testdata/finalize-nfo-native-receipt-schema-v3.py，核compiled listing與四片分組、各root run／pass各一次、四exit0、零skipfail、996份成員與bytes、104已發布SQL及mod／sum／原需求／LICENSE保持，再独立重建log計數及specialist／negative controls，才能產生docs/evidence/nfo-write-native-receipt.json。本輪--check-only確實走Pending：coverage missing／no public evidence written；尚未驗成功分支，也沒有公開成功摘要。
+
+docs/nfo-write-native-receipt.md補證據门槛及剩餘快照交易範圍：copyNFOWriteIntents單交易完整batch且job/request/intent不可變，job128MiB需以各交易自己的完整batch核超限整批rollback；global entry512MiB需合法source preps、完整job競爭最後bytes，排除prep fence／active-library唯一／scope干擾，再有只停entry fence的真正超限控制。沒有拿追加既有job當合法admission，也不把現有generic rows矩陣當native exact bytes全矩陣。
+
+原24h本輪read-only核原PID／startTicks／boot匹配、container running／OOMfalse，仍無完成證據。候選53未提交／推送，公開HEAD361dc681f1／schema52，品牌FAIL及7完成／198部分／131阻塞保持。下一核同71956終態；有fail保留原log並修，無fail仍須finalizer獨立全部核對及剩餘矩陣完成，不縮減完整commit／recovery／worker／三批次／missing-NFO／heapRSS範圍。
+
+---
+## 2026-10-03 全quota正式29PASS、native exact舊快照4PASS，完整V3執行中
+
+V2 session6840已terminal1：四片0／2 exit1、1／3 exit0，471 roots各run一次、凍結996份在終態吻合，但僅1469PASS／5FAIL tests、零skip，failed roots為TestNFOQuotaJobConcurrentSnapshotsAndGlobalRows及TestNFOQuotaJobGlobalBytesRollBackAdmission。三隔離leaf精確23514／nfo write intent differs from first prepared scope；global bytes拒在native receipt missing or invalid。安全失敗摘要docs/evidence/nfo-native-receipt-quota-fixture-failure.json，V2原manifest／coverage／logs保留，不宣稱green。沒有PG OOM中斷造成此輪失敗。
+
+私有52412 overlay三根8PASS零skipfail／terminal0，正式來源未改。V2停後正式nfo_quota_isolation_test.go換cloneNativeQuotaEntries：每item用owned真實item row及matching preparation，直接bytea payload欄位，copy同一native proof／完整scope後刪source preparation，避免actor32／prep256限制混淆1024 entry rows。移除未使用旧clone常量；READ COMMITTED的23514必須精確nfo write intent capacity reached，RR／Serializable可40001，其他23514不接受。不改production或104SQL、不把SQL storage metadata／loaned receipt當filesystem觀察或執行授權。最新59720已terminal0／八根29PASS零skipfail，log .testdata/nfo-native-receipt-quota-matrix-formal-v1.jsonl，包括Actor／global rows及bytes三隔離、歷史／missing fence／完整admission rollback。
+
+新native preparation exact snapshot根：各三隔離在cap256MiB只剩一份small recipe的同snapshot起步，first入庫恰exact limit、second拒且不留partial；另核去native計算仍有空間。39293 terminal0／4PASS零skipfail，log nfo-native-receipt-exact-native-snapshots-v1.jsonl。62996 private overlay只在owned schema停aa_fence_nfo_write_preparation，選repeatable_read真的接納錯誤資料，Go exit1／3FAIL events零skip，wrapper核red後terminal0、正式source byte保持；log nfo-native-receipt-snapshot-fence-control-red.jsonl。native job／entry global exact boundary已三根PASS及各停用receipt contribution紅控制；其native特有新舊快照完整矩陣尚需審查，不擴大目前scope結論。
+
+CURRENT session71956，runner .testdata/run-nfo-native-receipt-schema-v3-full-shards.py；996份Go／SQL新凍結，實際編譯472 roots四片，104已發布SQL／mod／sum／原需求／LICENSE保持。source／manifest／logs／coverage前綴nfo-native-receipt-schema-v3，checker .testdata/check-nfo-native-receipt-schema-v3-live.py。尚未完整終態，不改Go／SQL、不覆寫V1/V2、不重啟存活handle。待各root恰run/pass一次、零skipfail、四片terminal0及來源全hash吻合才彙整safe evidence與發布候選53；PR已發布仍361dc681f1／schema52，未提交／推送53。
+
+Windows V3三套件已terminal0，951PASS／1002條件skip／零fail，三package pass；log .testdata/nfo-native-receipt-schema-v3-windows.jsonl，不當Windows真PG；Win三套件vet／Linux格式／diff0。原24h同run329073a5d193446383327ab217aba147／PID1026300／startTicks33072456／boot4a5d9c5c-4482-4c3e-8978-30156b1ce92f本輪再次實核running／OOMfalse、不重啟，未有24h完成證據；来源24caf7d45f不含候選。V1 OOM／cleanup未全證明限制保持。全案7完成／198部分／131阻塞不變，完整品牌兩FAIL、完整target commit／rollback／recovery／Windows目錄耐久性／worker／三種批次／missing-NFO export／全heapRSS仍缺。
+
+---
+## 2026-10-03 native三個exact byte boundary及停用控制成立，完整V2執行中
+
+新增nfo_write_native_quota_test.go：準備全域256MiB、job128MiB、entry全域512MiB精確receipt-byte邊界。每案先允許exact inclusive limit，再確認扣掉native bytes後仍有空間容納新資料；SQL追加必須由23514／capacity守衛拒絕，global preparation另核app ErrNFOCacheCapacity。storage-only owned metadata／receipt loan明確不作新filesystem觀察或執行授權；大payload直接欄位傳遞，沒有大XML轉JSON。新helper支持兩份準備建立完整job，清除source prep後entry仍持有quota bytes，額外entry使用新owned item避免unique衝突；不提交incomplete batch，也不讓prep quota混淆job拒絕。
+
+55217 terminal0／三根3PASS零skipfail，log .testdata/nfo-native-receipt-exact-native-quota-v1.jsonl。76046 wrapper terminal0核private overlay三根Go真正exit1／4FAIL events零skip；只在每個owned schema把SQL容量函式的native contribution移除，額外資料被接納，三個formal assertions全紅，正式source byte不變。log .testdata/nfo-native-receipt-exact-quota-control-red.jsonl。此控制不是功能green，原library128MiB exact測試／其他copy及Stage controls保持。generic global preparation三隔離在direct-v2兩根5PASS已覆蓋，native特有job／global stale snapshot矩陣仍需審查補齊，不宣稱全部新隔離案例完成。
+
+新完整PG CURRENT session6840；runner .testdata/run-nfo-native-receipt-schema-v2-full-shards.py。996份Go／SQL凍結，104份001–052／mod／sum／原需求／LICENSE保持，實際編譯471 roots四片。source／manifest／logs／coverage前綴nfo-native-receipt-schema-v2，checker .testdata/check-nfo-native-receipt-schema-v2-live.py。尚未完整終態，不改Go／SQL，不覆寫V1失敗batch、不重啟存活handle。待四片terminal、各root恰run/pass一次、零skipfail及全部hash吻合才彙整；任何失敗保留並修正，不弱化守衛。候選53仍未提交／推送，PR52 PG兩SUCCESS、完整品牌兩FAIL／OPEN HEAD361dc681f1維持。
+
+Windows新凍結三套件terminal0，950PASS／999條件skip／零fail，三package pass；log .testdata/nfo-native-receipt-schema-v2-windows.jsonl，不當Windows真PG；Windows三套件vet及diff通過。原24h同run329073a5d193446383327ab217aba147／PID1026300／startTicks33072456／boot4a5d9c5c-4482-4c3e-8978-30156b1ce92f在scale PG OOM之後再次實核吻合，image container running／OOMfalse，不重啟，仍無24h完成證據。scale PG OOM失敗摘要及cleanup限制保留在下節與docs/evidence/nfo-native-receipt-pg-interruption.json。全案7完成／198部分／131阻塞不變，完整commit／rollback／recovery／missing-NFO export／worker／三種批次／全heapRSS仍缺。
+
+---
+## 2026-10-03 候選53完整V1因容量overlay OOM失敗；夾具已修，兩根5PASS
+
+完整70350已terminal1，四片exit1。468 roots各run一次，source995份在終態核對吻合，但並非各pass一次；790PASS／558FAIL tests、零skip，coverage.passed=false。所有nfo-native-receipt-schema-v1-*原log／manifest／coverage保留。不能當schema53全回歸通過，舊live checker現在因兩份Go test夾具已修改而不再適用。
+
+私有容量overlay77542實際exit1：global preparation三隔離根4PASS，job大payload recipe用jsonb_populate_record使PG server PID55764被signal9終止。Docker safe狀態核scale測試容器OOMKilled=true、仍running、restartCount0；server reinitializing／ready一次，492 recovery-mode訊息。失敗statement分類核含capacity-storage及whole-row JSON，沒有輸出SQL／XML／DSN。該OOM影響四片，owned account schema cleanup有失敗，不能稱cleanup全通過或隨意刪除未解決證據；schema剩餘資源待按精確owned證據處理。原圖片長測容器與專用PG不是該scale容器，不重啟。
+
+四片停止後正式修兩份owned test：nfo_preparation_global_quota_test.go明確INSERT／SELECT帶native_receipt，nfo_write_jobs_test.go以直接欄位配置大payload、建立合法owned item／source preparation，再copy同一receipt；首個大prep複製後cleanup釋放prep容量，第二次拒絕必須精確23514／nfo write intent capacity reached。第一direct63310 exit1／4PASS1FAIL，是缺owned item FK；已補合法item，最新5656 terminal0／兩根5PASS／零skipfail，log nfo-native-receipt-quota-fixture-direct-v2.jsonl。大XML只在owned SQL storage夾具，不作原生filesystem授權或完整heap／RSS證明。沒有削弱production／舊104SQL或以缺證例外通過。
+
+凍結V1來源的新負向控制40486已terminal0：copy Go真正exit1／2FAIL events，Stage Go真正exit1／6FAIL events，兩wrapper核預期且正式來源byte保持；logs nfo-native-receipt-copy-control-red-v2.jsonl及nfo-native-stage-receipt-control-red-v2.jsonl。Linux相關vet／Darwin NFO僅compile77131 terminal0。新方法docs/nfo-write-native-receipt.md與安全失敗摘要docs/evidence/nfo-native-receipt-pg-interruption.json已寫，不含私有payload／DSN。
+
+最新PR46唯讀實核OPEN／361dc681f1，schema52 PG兩SUCCESS、完整品牌兩FAIL，候選53未提交或推送。下一先補native特有job／global receipt-byte exact boundary及三隔離證據，再new source freeze／完整PG V2，不覆寫V1或把大量fail稱green。新型缺失NFO export、same-physical unresolved／partial stage／target commit／rollback／recovery／Windows目錄耐久性／worker／三種批次／全heapRSS仍未完成。全案7完成／198部分／131阻塞維持，不merge／release／tag／force-push／改Git身份／碰原媒體圖片授權。
+
+---
+## 2026-10-03 候選53 plan綁定29根通過，完整PG四片接續驗證
+
+本輪從真PG red（兩個canonical parent／target負例，0PASS／3FAIL tests，86725 terminal1）接續。53新增plan BEFORE及deferred trigger，比NEW.parent_identity與first receipt最後48-byte ancestor、NEW.target_identity與首次讀original bytes的NFO record；catalog wrapper另核已保存plan，涵蓋journal／plan／ready重放。應用SavePlan在INSERT前同樣核job-owned receipt，缺證或不同身分ErrConflict。53 down移除新trigger／function，但原proof／journal保留降版拒絕不變；104份001–052 SQL實核全部未改。
+
+正式v2真PG race18PASS tests／零skipfail、package terminal0（17719），包含native九根、直接SQL before／deferred、合法plan／no-op replay／commit、原16併發replay及repository reopen。log .testdata/nfo-native-receipt-plan-binding-v2.jsonl。私有Go overlay只在owned rollback交易停用新BEFORE trigger，兩個before負例真正Go exit1／4FAIL events、零skip；68453 wrapper核red後terminal0，正式來源byte保持，log nfo-native-receipt-plan-control-red.jsonl。這是缺口控制，不是功能通過。
+
+Windows及Linux race path plan兩根均PASS，所有scope kind、Series／Season根目錄自身、最大128深度明確核最後ancestor=NFO parent；Linux45423 terminal0，log .testdata/nfo-native-plan-parent-order-linux.jsonl。root migration retained夾具先移除owned native欄位並降52，才能單獨測原root proof拒降51，沒有削弱新53保留拒絕。
+
+擴充session22327已terminal0，wrapper .testdata/run-nfo-native-receipt-plan-binding-expanded-v3.py，log .testdata/nfo-native-receipt-plan-binding-expanded-v3.jsonl；native／commit file／root generation29根、130PASS／零skipfail。最後Windows三套件vet、Linux格式與增量brand0／339、diff皆通過。Windows凍結三套件最終950PASS／996條件skip／零fail，三package terminal0；log .testdata/nfo-native-receipt-schema-v1-windows.jsonl，不當Windows真PG證據。新完整PG CURRENT session70350：.testdata/run-nfo-native-receipt-schema-v1-full-shards.py，995份Go／SQL凍結，已發布104 SQL／mod／sum／需求原文／LICENSE保持，實際編譯468 roots四片驗證。來源與logs前綴nfo-native-receipt-schema-v1，沒有完整通過結論；不得改Go／SQL、覆寫舊log或重啟存活handle。候選53仍未提交或推送，已發布仍361dc681f1／schema52。下一核70350同handle編譯／四片終態、全root各run/pass一次且零skipfail、凍結全部hash吻合；若失敗保留原證據並調查，不削弱production守衛。native特有全部quota／三隔離尚未全補，safe evidence／完整驗收仍需補齊後才發布53。
+
+原24h同run329073a5d193446383327ab217aba147／PID1026300／startTicks33072456／boot4a5d9c5c-4482-4c3e-8978-30156b1ce92f本輪實核匹配，container running／OOMfalse；沒有24h完成證據，來源24caf7d45f不含本候選，不重啟。全案7完成／198部分／131阻塞保持。完整commit／rollback／recovery／Windows目錄耐久性／正式worker/API/CLI／三種批次、missing-NFO export協議與全heapRSS仍未完成；完整品牌兩FAIL門禁保持，不merge／release／tag／force-push／改Git身份設定／碰原媒體圖片與授權。
+
+---
+## 2026-10-03 候選schema53：native receipt已保存／job copy／Stage複核，尚未完整驗收或發布
+
+本輪已實作未提交53 up/down兩檔，Store.SchemaVersion=53；已發布HEAD仍361dc681f1cbb77c937d9bc0f7414b39061bdf5e／schema52。104份001–052 SQL對HEAD換行正規化後內容全部一致。nullable native_receipt在prep／entry保存同一first observation；歷史NULL不回填。SQL有界canonical函式核200–6296bytes、1–128 ancestors、header／platform／kind／reserved／Linux nsecs／media-NFO alias，與domain codec對照。新INSERT缺證拒、no-op歷史NULL可觀察、原immutable whole-row守衛保留；即時／deferred native guards與catalog wrapper53→52→51續接。entry BEFORE copy核source prep仍有效、actor/library、同native bytes、同首次scope／root generation／version／digest／stamp及payload hashes；deferred後不依賴已清除prep。53拒含native proof或journal降版，空或historicalNULL可降。prep應用和兩SQL quota aggregates均計native bytes，舊quota fence順序保持。
+
+Save／Find／copy／GetTask已保存／解析private receipt，缺歷史column以NULL觀察，metadata-only pg_attribute投影不JSON整XMLrow。新Save缺native拒，Begin／plan／ready app scope核native非空有效與kind；SQL catalog wrapper缺blob拒。Stage／ready resume現在核同一首次physical receipt：held ancestors／media／current NFO entry，另保留既有original bytes核對；verification用expected NFO identity template核当前entry，不額外讀／配置整份XML。只是checkpoint observations，沒有target Rename／backup／rollback／成功結算／crash恢复或runtime准入。
+
+原真PG red两根0PASS／2FAIL tests，證Save和job copy遺失native；log nfo-native-receipt-persistence-red.jsonl保持。首53 migration v1因CASE括號syntax失敗；私人overlay保留底層error chain僅取42601／position2714診斷，正式migrate錯誤遮蔽不改，修正兩CASE括號後成功。v5真PG native＋既有準備22PASS／零skipfail，75426 terminal0；最新v7 native七根7PASS／零skipfail，22373 terminal0，log .testdata/nfo-native-receipt-persistence-v7.jsonl，含canonical parity、reopen／prep清除、NULL歴史52→53不回填與Begin拒、保留降版拒、缺證Save拒、copy不能換first observation、128MiB exact native-byte boundary。boundary獨立88392 terminal0／1PASS；它證舊未計blob算法仍有空間但新app與SQL都拒，SQL大payload是owned storage-only，非FS授權。job/global aggregate替換已接，但新native特有全部quota／三隔離矩陣仍未全面補齊。
+
+copy负例修正掉unique(job,item)混雜：只在rollback控制交易刪owned existing entry、從source prep重插同一合法slot及不同canonical native blob，精確23514/native copy守衛拒。private Go overlay只在owned transaction DROP該BEFORE guard，Go真正fail2events／零skip，13023 wrapper核red後terminal0，正式test來源不變。Stage receipt equality overlay四个media／absolute ancestor、before_plan／ready_resume真紅6FAIL events／零skip，80389 wrapper核red後terminal0，正式source hash保持；log nfo-native-stage-receipt-control-red.jsonl。正式Stage新根含六leaf：Windows7PASS零skipfail、Linux7PASS零skipfail，27512 terminal0，缺證／新media／root外ancestor拒且snapshot／plan／ready／payload reservation保持，保留已有artifact。
+
+最后Linux完整domain＋NFO race726PASS／1Windows skip／零fail，22450 terminal0，log nfo-native-stage-receipt-all-linux-race.jsonl；Windows完整两套件在新增Stage負例之前701PASS／5skip／零fail，log nfo-native-stage-receipt-windows-v1.jsonl，新增負例另7PASS。Windows vet、Linux相關vet／Darwin NFO僅compile21279 terminal0、格式與diff通過；最後文件增量brand0／339、gitignore與diff通過。沒有新完整PG compiled universe／四片freeze或完整通過，不把7/22/726換算全schema53驗收。
+
+下一先補SQL plan parent／target與首次receipt的綁定及正反例（目前catalog wrapper只核native可用／kind），審root generation已變後不能把old receipt copy成新scope、全部quota及三隔離／历史／leaseactor／migration matrix；RootGeneration舊empty下版51測試需先下53→52，其他明確欄位SQL夾具需同步native但歷史原SQL形狀保持。接著新Go／SQL freeze及完整PG，safe evidence、追蹤／PR53說明與發布。舊52 freeze checker不可再跑当前來源。下方舊「資料庫仍遺失receipt」已由本節更正。SourceNative scope新增NVbytes只在private数据中，完整heap／RSS未证明。
+
+最新PR52兩個PostgreSQL migration and repository integration CI均COMPLETED SUCCESS；完整品牌仍兩COMPLETED FAILURE。PRbody已精確更新已發布52的PG成功，remote OPEN／HEAD／normalized body實核匹配，private pr46-schema52-ci-pg-success.json，未宣稱候選53發布。原24h同run329073a5d193446383327ab217aba147／PID1026300／startTicks33072456／boot4a5d9c5c-4482-4c3e-8978-30156b1ce92f實核running、container OOMfalse，來源24caf7d45f不含本候選，沒有24h完成結論、不重啟。全案7完成／198部分／131阻塞保持；same physical unresolved排除／partial stage／missing-NFO export新協議／完整commit recovery／Windows目錄耐久性／正式worker/API/CLI／三種批次與其他G00–G51要求未完成，不merge／release／tag／force-push／改Git身份設定／碰原媒體圖片與授權。
+
+---
+## 2026-10-03 原生準備：media／全祖先held-handle觀察已接，持久化仍待53
+
+本轮新增native_preparation_source.go：依有界path plan，自volume／filesystem root沿held os.Root逐層OpenRoot，保留全部absolute及relative ancestor；Lstat拒symlink／ModeIrregular、held native kind與SameFile核對。media file在NFO讀取前開啟並保留，directory media來自held ancestor；NFO receipt身分取自讀original bytes的同一Source.nativeFile，第二handle只核目前entry。讀後重核各held ancestor與其parent entry、media held ID及当前entry；所有handles反向關閉，失敗／取消零Source與零receipt，不回退。仍是checkpoint observations，非atomic snapshot或不可偽造身分。
+
+WritePreparer首次與最後IO改用此collector，CPU後比較整份首次receipt、原root／parent／NFO／stamp／原文；prepared.NativeObservation保存首次觀察。跨CPU時首輪所有handles已關閉，Windows與Linux確實可替換media、relative ancestor及configured root外的absolute ancestor，original media／NFO／root objects保持但ancestor替換仍拒；同bytes／mtime新media實體拒，cancel waiter與permit皆歸零，測試goroutine取消後join。新增Series／Season directory「.」與Series legacy media驗證。
+
+Windows完整domain／NFO兩套件701PASS／5skip／零fail，log .testdata/nfo-native-preparer-all-windows-v4.jsonl；Linux race完整719PASS／1Windows skip／零fail，78208 terminal0，log .testdata/nfo-native-preparer-all-linux-race-v3.jsonl。此後加強ModeIrregular拒絕並跑post-control affected suite：Windows18PASS／3symlink privilege skip／零fail，Linux21PASS／零skipfail，2909 terminal0；logs .testdata/nfo-native-preparer-post-control-windows.jsonl及-linux.jsonl。Windows讀取期間held directory handles阻擋兩個ancestor rename，test明記「沒有實際替換」，不當該期間已替換測試；跨CPU測試則確實替換且拒絕，沒有這個替代分支。Linux讀取期間全部五種改變確實執行。
+
+私人overlay只停用firstReceipt.Equal(lastReceipt)，選media_same_bytes／absolute_ancestor兩負例真正紅，4FAIL events／零skip，23333 wrapper核預期後terminal0，正式prepare_write.go hash未變；log .testdata/nfo-native-preparer-cpu-control-red.jsonl。原先全套失敗Windows／Linux logs及夾具修正保持：preparedWriterFixture补owned synthetic media，歷史root-generation缺證recipe清空native receipt（不弱化有receipt必須root generation正值），各目錄count同步兩檔。原本旧52 overlay8FAIL仍作歷史缺口，不覆寫或直接重用其凍結checker。
+
+上一輪fixture擴充PG21815已terminal0，217PASS／零skipfail，nfo-native-path-plan-preparation-pg-v2.jsonl；它在collector接入前，只證fixture/catalog baseline。collector接入後真PG準備選測22791 terminal0，16PASS／零skipfail，nfo-native-preparer-full-pg.jsonl；不證native blob保存。目前Store.SchemaVersion52／104 SQL immutable，Save／Find／job copy／GetTask尚未保存NativeObservation，新觀察仍會在DB保存時遺失，不能發布為完整原生準備或FS授權。尚未提交，下一必須53 nullable bytea canonical receipt、historical NULL不回填／新缺證拒、job-owned同一receipt／Begin／plan／ready／resume，以及全域storage quota計blob bytes，不能到Stage重新認新媒體。
+
+Windows vet、Linux相關vet與Darwin NFO僅compile4684 terminal0、最後Linux格式與diff通過；最後文件增量品牌0／339、gitignore與diff通過。原24h同run329073a5d193446383327ab217aba147／PID1026300／startTicks33072456／boot4a5d9c5c-4482-4c3e-8978-30156b1ce92f實核吻合，container running／OOMfalse，沒有24h通過、不重啟。PR46 OPEN HEAD361dc681f1cbb77c937d9bc0f7414b39061bdf5e，完整品牌兩FAIL／PG CI兩IN_PROGRESS最新實核保持。全案7完成／198部分／131阻塞；same physical unresolved／partial stage／backup／target Rename／rollback／結算／crash恢復／Windows目錄耐久性／正式worker／三種批次操作與完整heapRSS保持未完成。
+
+---
+## 2026-10-03 原生準備續作：有界scope path plan與owned媒體夾具
+
+本輪新增private native_preparation_paths.go，從resolver-owned scope確定root／media／NFO與所有absolute root祖先及relative parent順序，去重且總ancestor最多128。Movie／HomeVideo／Episode／Series legacy file為file；Series／Season directory支援「.」root自身，media parent在root自身時不越出根鏈。拒root dot segments及相對root；Windows混合slash轉平台分隔符，不因其拒合法root。私有path plan診斷遮蔽。它尚未接WritePreparer、原生media／ancestor觀察或receipt持久化，不能當FS授權或修好原8FAIL。
+
+nfoItemApplyFixture在t.TempDir建立owned synthetic media（不碰原媒體）。三個原先預期只有NFO的目錄數斷言改為兩檔，concurrent replay另核媒體內容前後不變。第一次真PG選測15PASS／1FAIL，失敗是新增media後舊目錄count斷言，log .testdata/nfo-native-path-plan-preparation-pg.jsonl保留。修正後擴充真PG race CURRENT session21815，wrapper .testdata/run-nfo-native-path-plan-preparation-pg-v2.py，log .testdata/nfo-native-path-plan-preparation-pg-v2.jsonl；包括準備、持久recipe writer、catalog scope與SQL守衛，不是全PG。最後75PASS／零skipfail只是中途，21815實核仍live，不能宣稱終態或重啟。
+
+Windows兩個path plan根通過；Linux race最終v2兩根2PASS／零skipfail，55991 terminal0，log .testdata/nfo-native-path-plan-linux-race-v2.jsonl。測試包含各scope kind、directory root自身、absolute ancestor、穩定去重、combined總128接受／129拒絕及dotsegment拒絕。Windows vet與最後Linux格式／增量品牌0／339／gitignore／diff通過；Python格式工具在Windows因POSIX-only拒絕後改用Linux執行成功。尚未提交，schema仍52／104舊SQL保持。全案7完成／198部分／131阻塞不變。
+
+原24h run329073a5d193446383327ab217aba147／PID1026300／startTicks33072456／boot4a5d9c5c-4482-4c3e-8978-30156b1ce92f同身分實核吻合，container running／OOMfalse，沒有完成結論。PR46 OPEN／HEAD361dc681f1cbb77c937d9bc0f7414b39061bdf5e，完整branding兩FAIL／PG CI兩IN_PROGRESS最新實核不變。下一先核21815同handle終態，再接首次IO media／ancestor held-handle capture與同Source original NFO、跨CPU重核、取消join，之後新53保存／jobcopy／quota／歷史缺證拒准入；完整commit／recovery／worker與其他需求保持待驗。
+
+---
+## 2026-10-03 原生準備候選：有界receipt及held root／NFO觀察已接
+
+已發布schema52／361dc681f1cbb77c937d9bc0f7414b39061bdf5e／OPEN PR46，104份001–052 SQL不可改。本輪未提交，Store.SchemaVersion仍52，尚無53 migration；沒有完整原生準備完成結論。新增domain私有NFONativePreparationReceipt：最多128個ancestor、固定48-byte canonical records、8-byte header、最大6296bytes，root／media／NFO及所有ancestor同platform／kind；拒file media與NFO同物件、缺损／越界／padding／錯platform，格式與JSON遮蔽，constructor／accessor／clone不共享可變ancestor陣列。NFOWritePreparation加NativeObservation並深複製，歷史空receipt仍可讀；存在receipt時必須有效、media kind與scope一致且root generation正值。Canonical shape不是實體ownership或FS授權。
+
+ReadSource的sourceAccess新增每次呼叫獨立的可選native observer，普通readonly ReadSource不要求平台native支援。新增private readNativeSource，從同一held NFO file及已held os.Root的"."取得root／NFO身分，讀bytes前後核相同觀察，失敗不fallback且零Source結果，所有既有取消callback／close join保持。WritePreparer首次及最後IO改用native路徑，CPU等待後核同root／NFO record；NativeObservation尚未由prepare建立／DB保存，media與完整ancestor尚未捕捉，不能宣稱原先overlay8FAIL已修復。新receipt會沿prep／job-owned／GetTask／Begin／plan／ready／resume保存同一觀察，而不是Stage晚認media；53還須把blob bytes計入全域quota、拒新缺證及不回填歷史。
+
+Windows domain／nfo兩套件681PASS／2平台skip／零fail，log .testdata/nfo-native-receipt-source-windows.jsonl；Linux race696PASS／1Windows skip／零fail，38830 terminal0，log .testdata/nfo-native-receipt-source-linux-race.jsonl。真PG preparation選測16PASS／零skipfail，45350 terminal0，log .testdata/nfo-native-source-preparation-pg.jsonl，僅證既有准备回歸、不證新blob持久化。Windows vet0；Linux vet／Darwin NFO僅compile56500 terminal0。私人overlay移除讀取後native比較與constructor clone，兩個root測試確實失敗，4FAIL events／零skip，95812 wrapper精確核預期後terminal0，正式兩檔hash未變；原碼focused post-control兩套件2PASS／零skipfail，log .testdata/nfo-native-receipt-source-post-control.jsonl。先前Fuzz fixture改為testing.TB並用真正testing.F，不建造空testing.T。尚未跑新完整PG，不沿用52的459根作目前來源通過。
+
+下一步：先补owned真正media檔案fixture，新增deterministic scope path plan，包含configured root以外相關absolute ancestor及media／NFO相對ancestor、總數≤128，缺證／symlink／reparse／unsupported拒準備。第一次IO須先觀察media與ancestor，與同一held NFO原文捕捉前後核對；最後IO重核同receipt，跨CPU替換及cancel join。再接新53 nullable bytea／canonical SQL／immutability／scope＋leaseactor／quota fence、job copy／TTL／historical與resume，舊104 SQL不改。Movie／HomeVideo／Episode media file、Series／Season directory與Series legacy file分開，NFOItemScope仍可比較。same physical unresolved／partial stage／target Rename／backup／rollback／結算／crash恢復／Windows目錄耐久性／正式worker／三種批次與完整heapRSS仍缺。
+
+正式24h同run329073a5d193446383327ab217aba147／PID1026300／startTicks33072456／boot4a5d9c5c-4482-4c3e-8978-30156b1ce92f，原身分running與container OOMfalse實核吻合，沒有24h通過、不重啟。現在Go／SQL已有變更，不能再用52凍結checker核長測，請用獨立.testdata/check-original-images-soak-identity.py。PR52新head兩個完整品牌FAIL，PG integration兩檢查目前IN_PROGRESS（private pr46-schema52-ci-current-v2.json），不宣稱CI綠。全案7完成／198部分／131阻塞保持，不merge／release／tag／force-push／改Git身份設定，原媒體／圖片／授權保持。下方為歷史。
+
+---
+## 2026-10-03 schema52 完整459根已驗，準備發布
+
+已發布基線2b3cb5b8c69bc11eae7bebc0c29a89eb4b0515b6／schema51／PR46，本批隨提交沿同分支發布schema52。資料庫root generation在準備及job-owned intent保存同一觀察；缺證歷史NULL不回填、不授權新準備／Begin／plan／ready／Stage。SQL及app核root ID／library／path／generation，SAVEPOINT／提早flush後準備root mutation與generation倒退拒絕；Save先quota後root。保留root proof或journal拒52降版dirty51，空降升保留metrics epoch。沒有原生media／ancestor receipt或target提交准入。
+
+完整60665已terminal0，四片皆0，459根各run／pass恰一次，1454PASS／零skipfail，980份Go／SQL凍結hash全部吻合。新前綴.testdata/nfo-root-generation-schema-v2-*及嚴格彙整器.testdata/finalize-nfo-root-generation-v2.py保持。safe evidence docs/evidence/nfo-write-root-generation.json。上一53932完整459已terminal1、兩歷史48夾具失敗，舊6FAIL events／coverage保持；修正owned原始SQL夾具後重新完整回歸，無production fallback。正式十根root generation 54PASS，新增窄測不是完整通過的替代。
+
+Windows七套件1043PASS／989條件skip／零fail，未證Windows真PG。runtime metrics三根真PG race8PASS／零skipfail；舊22family／4組／12outcome斷言改為現行30／6／18並逐一核8資源gauge與錯誤回應不洩漏，production接線保持；telemetry Linux race78PASS。兩平台vet、Darwin NFO僅compile、格式／增量品牌0／339／gitignore／diff通過，最終文件仍須核門禁。102份001–051已發布SQL／mod／sum／需求原文／LICENSE保持；本批發布52後001–052共104份SQL不可改。
+
+原生下一階段私人overlay11888／44820皆terminal0（Go test預期1，wrapper精確核5／8FAIL events後0），ordinary media positive及missing／directory／symlink、CPU等待期間缺失或同bytes／mtime不同實體被prepare接受已重現。正式來源前後980hash一致，不當52驗收green；詳見.testdata/nfo-native-scope-next.md。52發布後用新53，先在prepare首次IO捕捉root／media／NFO及完整相關ancestor私有有界receipt、跨CPU重核與取消join，再沿job-owned／plan／ready／恢復同一證據，不能Stage晚認媒體。
+
+正式24h維持run329073a5d193446383327ab217aba147／PID1026300／startTicks33072456／boot4a5d9c5c-4482-4c3e-8978-30156b1ce92f，來源24caf7d45f不含本批；原身分及container running／OOMfalse最後實核吻合，沒有24h通過結論、不重啟。完整品牌及已發布51的PG CI兩檢查FAIL保持，不沿用本機窄測稱CI綠。全案7完成／198部分／131阻塞；原生授權／partial stage／same physical unresolved排除／backup／target Rename／rollback／結算／crash恢復／Windows目錄耐久性／正式worker／三種批次及完整heapRSS仍缺。不merge／release／tag／force-push／改Git身份設定，原媒體／圖片／授權保持。下方為歷史。
+
+---
+## 2026-10-03 等候完整回歸期間的原生準備缺口重現
+
+同一完整PG四片60665仍live；980 Go／SQL hash一致，最後四片合計1099PASS／零skipfail，這是中途觀察，不能宣稱完整通過。原長測329073a5d193446383327ab217aba147原身分與容器running吻合。已準備嚴格彙整器.testdata/finalize-nfo-root-generation-v2.py；只有459根各run／pass一次、四片terminal0、零skipfail、coverage hash與980來源全吻合，才能寫docs/evidence/nfo-write-root-generation.json。--check-only目前因缺final coverage拒絕，未寫完整驗收證據。PR46已更正已發布schema51的兩PG CI FAIL，gh再讀body與本地相同、HEAD仍2b3cb5；候選52沒有外部發布。
+
+下一原生準備階段已用私人Go overlay重現真PG race負例，不改凍結來源：普通真實檔案positive通過；media missing／directory／symlink被現行prepare接受。CPU permit控制使首次IO完成後等待CPU，再移走media或Rename保留原物件並用同bytes／mtime建立不同實體，prepare仍接受。首overlay11888 terminal0（驗證預期5FAIL events），擴充overlay44820 terminal0（驗證預期8FAIL events）；Go test本身預期exit1，wrapper核正例與每個預期失敗後exit0，不當功能green。log／summary前綴.testdata/nfo-native-preparation-next-red及nfo-native-preparation-cpu-next-red，來源manifestSHA與所有980 hash前後不變。它們是下一階段缺口證據，不屬52完整回歸；prepared recipe仍不授權FS執行。先保存真正Root／Media／NFO及相關ancestor的首次觀察，跨CPU等待與取消join，之後延續同receipt至工作意圖／plan／ready／恢復，不能到Stage才重新觀察並當原證據。
+
+其餘發布及門禁見下節。全案7完成／198部分／131阻塞保持；先等60665終態，不重啟、不改Go／SQL。
+
+---
+## 2026-10-03 schema52 完整回歸失敗已修夾具，新459根回歸執行中
+
+已發布仍2b3cb5b8c69bc11eae7bebc0c29a89eb4b0515b6／schema51／OPEN PR46，候選52尚未提交。上一53932已terminal1，459根各run一次、零skip，但兩個schema48歷史夾具失敗（retained_preparation與missing=false），不能當完整通過；原四片log、coverage與980來源manifest保持。原因是降至48後呼叫要求52欄位的現行Save。兩案改用既有owned原始SQL歷史夾具，沒有production舊版fallback；真PG race重新驗兩根7PASS／零skipfail，session64088 terminal0，log .testdata/nfo-quota-legacy-repaired.jsonl。
+
+已發布51的PG CI兩檢查實際FAIL，私人失敗log保留。runtime兩個metrics案本機重現同樣22-family斷言失敗；production已接8個資源family，且nfo_write令工作組由4增至6、outcome由12增至18。修正測試為完整30 family／6組／18outcome，逐一核8個資源gauge的單一無標籤series、配置值與零活動；失敗回應也不得洩漏資源指標。production exporter與runtime接線不改。first repaired v2仍捕捉舊4／12斷言失敗，紀錄保持；最終v3真PG race三根8PASS／零skipfail，41248 terminal0，含生命週期／多實例、授權與阻塞、一般metrics runtime。Linux telemetry race78PASS／零skipfail，89473 terminal0。安全證據docs/evidence/runtime-metrics-contract.json；這些窄測不證完整CI通過。
+
+CURRENT LIVE session60665，wrapper .testdata/run-nfo-root-generation-schema-v2-full-shards.py，重新編譯459根四片；來源 .testdata/nfo-root-generation-schema-v2-source.json 凍結980 Go／SQL，102份已發布SQL保持。manifest／coverage／四片logs前綴 .testdata/nfo-root-generation-schema-v2-*，不得覆蓋原失敗批次。來源核 .testdata/check-nfo-root-generation-v2-live.py。61007 freeze已terminal0，60665已回報Compiled roots459，四片已輸出run／pass；尚無最終coverage或完整通過，不改凍結Go／SQL、不重啟存活handle。等四片terminal0、459根各run／pass一次、零skipfail及全部hash吻合後才彙整52 safe evidence、追蹤／PR說明及提交推送。
+
+Windows最終七套件1043PASS／989條件skip／零fail，log .testdata/nfo-root-generation-windows-final-v2.jsonl，不當Windows真PG。Windows vet、Linux vet與Darwin NFO僅compile皆0；86275已terminal0。最新格式／增量品牌0／339／gitignore／diff皆通過。正式24h仍run329073a5d193446383327ab217aba147／PID1026300／startTicks33072456／boot4a5d9c5c-4482-4c3e-8978-30156b1ce92f，核原身分吻合、container running／OOMfalse，沒有24h通過證據，不重啟且來源24caf7d45f不含本批。
+
+全案7完成／198部分／131阻塞保持。PR完整品牌兩檢查FAIL門禁保持，PG CI仍是已發布來源FAIL。後續原生root／media／ancestor準備觀察、同實體排除、partial stage、target Rename／backup／rollback／結算／恢復、Windows目錄耐久性、正式worker/API/CLI／三種批次操作與完整heap/RSS仍缺；沒有read-write runtime准入。保留原媒體／圖片／授權及不可改的已發布SQL，不merge／release／tag／force-push／改Git身份設定。下方是歷史觀察，舊「53932 live／PG CI pending」已由本節更正。
+
+---
+## 2026-10-03 schema52 root generation候選，完整459根回歸執行中
+
+已發布基線2b3cb5b8c69bc11eae7bebc0c29a89eb4b0515b6／schema51／OPEN PR46，工作仍沿feat/jelee-ignore-family-worker。上一輪schema51已提交推送，102份001–051 SQL不可改。本批候選52新增nullable root_generation於準備／job-owned entry：Resolve同交易讀鎖root generation與path，準備保存及job copy保留同一觀察；新準備、prepared writer與Stage拒缺證，歷史NULL讀為零且不回填。Begin／plan／ready應用複核加欄位，SQL原catalog函式保留v51並以原呼叫名稱加root generation守衛。準備／entry insert及no-op重放即時／deferred核root ID／library／generation／path；提早flush後的generation／path／ID／delete由本交易visible未提交xmin守衛，active／released子交易保留；generation不能倒退。保留root證據或journal拒52降版dirty51，空降升保留metrics epoch。沒有target提交或read-write runtime准入；完整原生root／media／ancestor準備證據仍缺。
+
+實際真PG root generation六SQL階段紅測8FAIL events，首個修正選測因應用scope漏讀欄位失敗，補齊後新測試有建構器名稱編譯錯誤（已修NewWriterWithBudget）；各log保留。v2選測78PASS／8FAIL events，只有三個舊migration夾具先建立新資料才降版（被既有schema48保留資料門禁擋住）與copy夾具active job唯一性錯誤；改為空資料庫選定歷史版本後用owned原始SQL形狀建立資料，不為production新增舊版寫入fallback，也不削弱已發布SQL。v3容量夾具root path撞全域unique；改為各library自己的唯一root，保持合成storage-only容量驗證。新增鎖順序真PG紅測2FAIL events：Save等待quota時先鎖root；已改先取quota fence再解析scope。owned overlay只停root mutation guard，counter退回及準備flush後root四種變更紅測7FAIL events，正式來源不改。
+
+最終選測v4 session37399已terminal0，100PASS／零skipfail，含root drift所有寫入與重放、首次stage／ready resume剩餘bytes、SAVEPOINT、三隔離、準備／copy、歷史／降版及原global quota cases。CURRENT LIVE session53932，wrapper .testdata/run-nfo-root-generation-schema-full-shards.py；980份Go／SQL凍結 .testdata/nfo-root-generation-schema-source.json，最終編譯459根四分片，manifest／coverage／logs為.testdata/nfo-root-generation-schema-*。最後實核980份hash吻合，四片合計844PASS／零skipfail，53932仍live；這是中途狀態，尚無完整通過結論。不得改凍結Go／SQL、不得因觀察timeout重啟；待四片terminal0、459根各run／pass一次、零skipfail與hash全吻合，才彙整safe evidence、需求追蹤、PR說明及提交推送。
+
+Windows凍結來源五套件1126PASS／978DB條件skip／零fail，不當Windows真PG；Windows vet、Linux vet與Darwin NFO僅compile皆terminal0；格式通過。75080 overlay red、11057 Windows及51065 vet皆terminal0。增量品牌／gitignore／diff須再以最後文件核。本批尚未提交；方法docs/nfo-write-root-generation.md仍標候選。正式24h同run329073a5d193446383327ab217aba147／PID1026300／startTicks33072456／boot4a5d9c5c-4482-4c3e-8978-30156b1ce92f，來源24caf7d45f不含本批；本輪實核身分吻合、容器running／OOMfalse，沒有24h通過結論、不重啟。PR2b3完整品牌兩檢查FAIL，PG CI尚在執行，不宣稱全綠。
+
+下一步仍須在prepare觀察／保存真正root、media及所有相關ancestor原生身分，保留跨CPU等待與取消join，再沿工作意圖、plan／ready／恢復使用同一證據，不能到Stage才把新媒體當原觀察。Movie／HomeVideo／Episode media file、Series／Season directory與Series legacy fallback分開；先補owned真實media fixture。缺證／錯平台／unsupported拒授權，原生48-byte record不當不可偽造或永不重用身分。之後same physical target unresolved排除、partial stage、backup／target Rename／rollback／結算／crash恢復、正式worker/API/CLI／三種批次操作及整體heap/RSS仍缺。全案7完成／198部分／131阻塞保持。不merge／release／tag／force-push、不改Git身份設定，原媒體／圖片／授權保持。下方為歷史。
+
+---
+## 2026-10-03 schema51完整449根已驗，準備發布
+
+已發布基線a2734f2fd5e9aaba8a26c1e7df0cf408290e99f2／schema50／PR46，本批隨提交沿同分支發布schema51。SQL核固定entry對當下catalog scope，journal／plan／ready首次與no-op重放、deferred提交再驗，鎖item／policy／source／root／revision。catalog變更端檢查本交易visible未提交xmin，涵蓋active／released SAVEPOINT，提早SET CONSTRAINTS後仍拒scope漂移；回滾savepoint不凍結catalog。沿用probe mapping MVCC touch並補source ID／directory／revision；Series media intent有directory source時拒絕。保留歷史證據可觀察，任何journal拒51降版dirty50，空降升保留metrics epoch。
+
+完整CURRENT28141已terminal0，四片皆0，最終449根各run／pass恰一次、1400PASS／零skipfail，975份Go／SQL凍結雜湊全部吻合；manifest／coverage／logs為.testdata/nfo-catalog-v2-schema-*。正式新增四根26PASS／零skipfail。Windows兩套件234PASS／930DB條件skip，未證Windows真PG；兩平台vet、Darwin NFO僅compile、格式／增量品牌0／339／gitignore／diff通過。先前445根來源不含SAVEPOINT與Series缺口，補充紅測0PASS／15FAIL events，原型與正式新增回歸26PASS；deferred提早flush紅測8FAIL與修正、metadata touch停用的舊RR紅測3FAIL保持，不把早期media touch停用仍PASS當red成功。所有本批測試handle已terminal。安全摘要docs/evidence/nfo-commit-catalog-sql.json，方法docs/nfo-commit-catalog-sql.md；嚴格彙整器.testdata/finalize-nfo-catalog-v2.py核基線a273及來源，只在提交前適用。
+
+100份001–050已發布SQL／mod／sum／需求原文／LICENSE保持；本批新增51兩份，發布後001–051共102份不可改。root generation／原生root、media、ancestor跨程序準備證据仍缺，沒有target提交或runtime read-write准入，actual XID wraparound未跑。下一接點調查.testdata/nfo-native-scope-next.md：須自prepare觀察並保存，而不是Stage看到新媒體後回填；先建立真media owned fixture，版本／歷史缺證／SQL容量與三隔離／跨程序／取消及替換矩陣都要做。之後same physical target unresolved排除、partial stage、backup／target Rename／rollback／結算／crash恢復、正式worker/API/CLI與三種批次操作，以及完整heap/RSS仍缺。全案7完成／198部分／131阻塞保持，不把SQL守衛當原生FS授權。
+
+正式24h仍run329073a5d193446383327ab217aba147／PID1026300／startTicks33072456／boot4a5d9c5c-4482-4c3e-8978-30156b1ce92f，來源24caf7d45f不含本批；本輪實核吻合、容器running／OOMfalse，24h未通過，核同handle不重啟。完整品牌兩檢查FAIL門禁保持，CI非全綠。不merge／release／tag／force-push，不改Git身份設定，原媒體／圖片／授權保持。下方為歷史狀態。
+
+---
+## 2026-10-03 schema51補充修正已套，完整449根新來源回歸仍執行
+
+已發布基線仍a2734f2fd5e9aaba8a26c1e7df0cf408290e99f2／schema50／OPEN PR46。上一445根四分片90285已terminal0，445根各run／pass恰一次、零skipfail；但補充owned overlay重現12個SAVEPOINT active／released繞過及Series media intent被新增directory source取代，0PASS／15FAIL events。舊445通過不涵蓋這些缺口，不能當修正後來源通過。
+
+獨立schema原型先14PASS，再加ROLLBACK TO SAVEPOINT與72個active／released子交易26PASS／零fail，15401／67606已terminal0。正式新增nfo_commit_catalog_subtransactions_test.go及修改候選51：不只比top xid，從visible xmin重建epoch、用pg_xact_status辨識本交易未提交子交易，排除歷史／特殊xmin與過舊或未來候選；Series媒體意圖有directory source時拒絕。downgrade同時移除helper；100份已發布SQL保持。正式来源選測98536已terminal0，26PASS／零skipfail；原型不是正式發布證據，實際XID wraparound未跑。root generation／native root-media-ancestor／target提交／恢復／worker等仍缺，沒有read-write准入。
+
+CURRENT LIVE session28141，wrapper .testdata/run-nfo-catalog-v2-schema-full-shards.py，445舊root＋4新增root最終編譯449根；四片logs .testdata/nfo-catalog-v2-schema-full-shard-{0,1,2,3}.jsonl，manifest .testdata/nfo-catalog-v2-schema-shards-manifest.json，coverage最終 .testdata/nfo-catalog-v2-schema-shards-coverage.json。975份Go／SQL凍結 .testdata/nfo-catalog-v2-schema-source.json，核對腳本 .testdata/check-nfo-catalog-v2-live.py。最後實核來源hash全部吻合、28141存活，四片37PASS／零skipfail，這是中途狀態，尚無完整通過結論。不能改凍結Go／SQL，不能因timeout重啟；等四片terminal0、449根各run/pass一次、零skipfail及來源hash全吻合，才彙整安全evidence、更新需求追蹤／PR說明並提交推送。本批仍未提交。舊974 manifest與445 logs保留，只證舊候選。
+
+最終Windows v2兩套件234PASS／930DB條件skip／零fail，不當Windows真PG；Windows vet／Linux vet52128與Darwin NFO僅compile皆terminal0；格式通過。增量品牌／gitignore／diff提交前仍須以最後文件核。完整品牌兩檢查FAIL門禁保持，PG CI最後尚在執行，不宣稱全綠。全案7完成／198部分／131阻塞，root generation／native root／media／ancestor／同實體排除／target Rename／backup／rollback／結算／恢復及正式worker／三種操作仍缺。
+
+正式24h仍run329073a5d193446383327ab217aba147／PID1026300／startTicks33072456／boot4a5d9c5c-4482-4c3e-8978-30156b1ce92f，來源24caf7d45f不含本批；本輪實核吻合、容器running／OOMfalse，未通過24h，不重啟。不merge／release／tag／force-push、不改已發布SQL／Git身份設定，原媒體／圖片／授權保持。下方為歷史狀態。
+
+---
+## 2026-10-03 schema51候選：SQL catalog守衛，完整445根回歸仍執行
+
+已發布基線a2734f2fd5e9aaba8a26c1e7df0cf408290e99f2／schema50／PR46，候選schema51尚未提交。新增000051上下migration及SQL守衛：journal／plan／ready首次及no-op重試核固定entry對當下item／library／source／root／revision／policy／路徑，鎖到交易结束並deferred複核。catalog變更端只檢查同交易新建／重放證據的xmin，避免SET CONSTRAINTS ALL IMMEDIATE提早flush後繞過；歷史證據可觀察，不凍結未來metadata編輯。沿用schema4 probe mapping的item MVCC touch，新增media ID／directory／metadata revision涵蓋，拒舊RR／Serializable快照。root generation／原生root及媒體跨程序持久證據仍缺，不授權target提交或runtime read-write。
+
+完整四片CURRENT LIVE session90285，wrapper .testdata/run-nfo-catalog-sql-schema-full-shards.py；最終編譯445根，manifest .testdata/nfo-catalog-sql-schema-shards-manifest.json，log .testdata/nfo-catalog-sql-schema-full-shard-{0,1,2,3}.jsonl。974份Go／SQL凍結於.testdata/nfo-catalog-sql-schema-source.json，100份已發布SQL／mod／sum／需求原文／LICENSE未變。來源不得再改，不能因觀察timeout重啟。最後實核90285仍live，四片合計146PASS／零skipfail，974份來源hash全吻合；這是中途觀察，尚無完整通過結論。啟動器首次74146在執行測試前因私有權重日誌路徑錯誤terminal1，修私有wrapper後才啟90285；不是重啟存活測試。必須等四片terminal0、445根各run／pass一次、零skip／fail及凍結來源逐一吻合後，才能稱完整通過與提交發布。
+
+證據歷史分開：初版真PG SQL三根72PASS／零skipfail；SET CONSTRAINTS缺口六phase紅測8FAIL events已捕捉。加變更端守衛後主選測207PASS／8FAIL events，六個deferred夾具因UPDATE已提前拒絕而失敗；只在owned夾具停用library mutation trigger以隔離deferred守衛，修正選測36PASS／零skipfail，含24個flush後library／root／revision／ambiguous變更及空降升／保留journal dirty50／既有historical scope不被授權。最後去除重複media touch、補直接SQL revision後三隔離選測10PASS／零skipfail；停revision touch的overlay舊RR快照確實繞過，紅測3FAIL events。早期停media touch仍PASS，因既有schema4已覆蓋，不能稱該紅測成功。各日志保持，不以組合窄測宣稱最終完整回歸通過。
+
+Windows最終凍結測試log .testdata/nfo-catalog-sql-windows-frozen.jsonl已terminal0，231PASS／907DB条件skip／零fail，未證Windows真PG。最終Windows vet／格式／增量品牌0／339／gitignore／diff通過；Linux vet／Darwin NFO僅compile40901已terminal0。PR已發布基線完整品牌兩檢查FAIL，PostgreSQL CI尚在執行，不能說全綠。所有先前本批選測32841／53048／84924／93514／53839／69281已terminal，失败原因与修复保持；方法docs/nfo-commit-catalog-sql.md。
+
+正式24h仍run329073a5d193446383327ab217aba147／PID1026300／startTicks33072456／boot4a5d9c5c-4482-4c3e-8978-30156b1ce92f，來源24caf7d45f不含本批，最後實核身分吻合、容器running／OOMfalse。先核同handle，不重啟。全案7完成／198部分／131阻塞，完整品牌門禁保留。後續root generation／native root／media／ancestor證據、同實體未解決排除、backup／target提交／rollback／結算／恢復及正式准入／worker／三種操作仍缺。不merge／release／tag／force-push，不改已發布100份SQL／Git身份設定，原媒體／圖片／授權保持。
+
+---
+## 2026-10-03 準備保存交易catalog scope複核已驗
+
+基線8b9ab67b089d6b1cc737c6b1d6d1ff1b4c2489ab／schema50／PR46，本批隨提交沿同分支發布。Begin／SavePlan／SaveReady從固定entry讀scope，重新解析當下item／library／source／root／kind／revision／policy generation及私有root／媒體／目錄／NFO路徑，逐欄比較，鎖item／policy／source／root直到交易結束。已有revision row另鎖；revision1無state row時item FOR UPDATE透過FK阻擋新state。plan／ready寫入及no-op replay後再查scope。失敗零結果、回滾新journal／plan／ready，既有紀錄保持。只讀策略下的內部準備不授權target寫回；GetEvidence仍可讀lease／actor有效的歷史資料供稽核，不能執行過期scope。
+
+真PG race主選測124PASS／補充8PASS，組合132PASS／零skipfail，最終編譯14個TestNFOCommit根各run／pass一次；63個scope變更子案例涵蓋Begin／plan／ready首次與重試／首次native stage／ready重開，revision／generation／policy／root／source path／ID／missing／ambiguous／kind拒絕，SQL列數與原生剩餘bytes保持，首次plan拒絕零lock／stage。補充Series／Season目錄意圖正例及變更拒絕、保存trigger在同交易改generation後完整回滾。隔離真PG overlay移除scope檢查，過期revision plan被保存而測試確實FAIL。Windows postgres／architecture226PASS／811DB條件skip，不當Windows真PG通過；vet兩平台、Darwin NFO僅compile、格式／增量品牌0／339／gitignore／diff通過。handles48370／56355／77778／54066／64673皆terminal0；100份SQL／mod／sum／需求原文／LICENSE保持，本批無migration、未重跑完整PG。方法docs/nfo-commit-catalog-fence.md，安全摘要docs/evidence/nfo-commit-catalog-fence.json，明列两次選測及補充test file在主run後加入、生產來源未再改。
+
+下一步仍須新的SQL catalog scope守衛、root generation及原生root／媒體／ancestor跨程序證據、同實體未解決排除，target提交邊界、backup／rollback／結算／crash恢復、部分stage處置及正式准入／worker／三種操作。原始payload配額不證整體heap／RSS，Windowsdirectory metadata耐久性仍缺；不把路徑／catalog ID相等當原生實體相等。全案7完成／198部分／131阻塞，runtime未開read-write。
+
+正式24h仍run329073a5d193446383327ab217aba147／PID1026300／startTicks33072456／boot4a5d9c5c-4482-4c3e-8978-30156b1ce92f，來源24caf7d45f不含本批；本輪實核身分吻合、container running／OOMfalse，24h未通過。核同handle不重啟、完整品牌門禁保持。不merge／release／tag／force-push、不改已發布100份SQL或Git身份設定，原媒體／圖片／授權保持。下方為歷史狀態。
+
+---
+## 2026-10-03 既有journal證據讀取與ready重開核對已驗
+
+基線7b952dbec58166b67828f4bb33ec7dfa1e8f4c59／schema50／PR46，本批隨提交沿同分支發布。GetNFOWriteCommitFiles短交易核真實running nfo_write／owner／generation／live lease／cancel／活躍admin，鎖job與actor、讀後再核租約；只觀察既有journal及plan／ready，不建立或結算，失敗零值。private Evidence固定大小身分／flags、JSON{}與格式遮蔽，歷史時間不授權未來FS。
+
+Stage owner持payload及read IO取工作意圖與證據，受控重建；ready已保存時持native鎖核Source／parent／target原文及五份完整bytes／身分，重放相同SavePlan／SaveReady以deferred提交租約守衛，再核全部檔案。不Rename／輪替／刪除／結算，成功只是準備仍吻合。ready已commit但回應遺失可從DB重讀後重開；缺output／pin、rollback同bytes換實體、parent替換、target為輸出、cancel／disabled／expiry拒絕且剩餘檔案保持。沒有ready的部分stage仍EXCL碰撞保持，不能自動辨識或刪未知物件。
+
+Windows六套domain／app／nfo／postgres／architecture／resources1113PASS／744條件skip；Linux六套domain／app／resources／nfo／architecture／jobs race1121PASS／1Windows平台skip。兩平台owned ready重開6PASS；真PG選測10根／59PASS／零skipfail，含lease／actor／token／seq／job零部分輸出、plan-only／ready／missing不建立journal、實際commit回應遺失及原生負例；子程序刪準備TTL後用新lease讀取port及Writer實際重開。所有handles99083／27149／25172已terminal0，Windows及隔離red同步terminal；red移除ready分支重試確實失敗，正式來源未變。vet兩平台、Darwin僅compile、格式／增量品牌0／339／gitignore／diff通過，100份SQL／mod／sum／原需求／LICENSE保持，無migration或完整PG重跑。Windows真PG仍未證；方法docs/nfo-ready-resume.md、安全摘要docs/evidence/nfo-ready-resume.json。
+
+下一步持久完整root／媒體／revision／policy證據及同實體未解決排除，原生target提交邊界、backup／rollback／結算／crash恢復，部分stage處置與正式准入／worker／三種操作。原始payload配額不證完整heap／RSS；Windowsdirectory metadata耐久性缺。全案7完成／198部分／131阻塞，runtime未啟用read-write，不依bytes相等或stage缺失猜提交。
+
+正式24h維持run329073a5d193446383327ab217aba147／PID1026300／startTicks33072456／boot4a5d9c5c-4482-4c3e-8978-30156b1ce92f，來源24caf7d45f不含本批；本輪實核身分吻合、container running／OOMfalse，完整24h尚未通過。核同handle、不重啟；完整品牌门禁保持。不merge／release／tag／force-push、不改已發布100份SQL或Git身份設定，原媒體／圖片／授權保持。下方為歷史狀態。
+
+---
+## 2026-10-03 原始payload生命週期共享配額已驗
+
+基線23544a416c66c56d3d961b7a3746f10d571da3ba／schema50／PR46，本批隨提交沿同分支發布。app.PayloadBudget與resources.Budget共享raw bytes counter；New預設192MiB，內部NewWithPayloadLimit可設有界上限，Reserve容量不足即Busy、沒有額外queue，release並行重複安全。Stage owner在GetTask前按SQL三份request／original／replacement各32MiB保守預留96MiB，不依caller cap；不同Writer同Budget共享，缺能力拒絕。保留跨CPU／IO等待及ready未知結果清理，所有活動join後才釋放；原class permits不巢狀、不改現有CPU／IO／Total規則。
+
+Windows五套件resources／nfo／architecture／jobs／runtime607PASS／13條件skip；Linux同五套race616PASS／6條件skip；新增五個payload案例兩平台PASS，128並行上限／idempotent release／invalid／overflow／cancel、CPU排隊時bytes保持及第二Writer零讀取Busy、ready取消等待cleanup與五份保留證據、缺能力拒絕均驗。真PG選測36PASS／零skipfail，含實際stage及子程序重開；vet兩平台、Darwin僅compile、格式／增量品牌0／339／gitignore／diff通過。初次Windows唯一新ready取消預期寫錯（既有ErrReplace而非context.Canceled），修夾具並保留initial log；隔離overlay移除reservation，新負例確實在repository讀取失敗。handles37735／85822／59968已terminal0，Windows及red overlay同步terminal；100份SQL／mod／sum／需求原文／LICENSE保持，沒有新migration或完整PG重跑。方法 docs/nfo-payload-budget.md，安全摘要 docs/evidence/nfo-payload-budget.json。
+
+此上限只計原始三份payload，caller已讀Source、重建副本、XML物件、GC resident及其他模块不計；不能宣稱192MiB是heap／RSS上限。公開配置／遙測、完整混合資源與延遲仍缺。下一步持久plan／ready安全讀取、staged重開續作，完整root／媒體／revision／policy跨重啟證據、同實體未解決排除、Rename／backup／rollback／結算／恢復與正式准入／worker／三種操作。runtime未啟用，不依bytes或stage缺失猜已提交，Windows directory metadata耐久性仍缺。全案7完成／198部分／131阻塞保持。
+
+正式24h維持run329073a5d193446383327ab217aba147／PID1026300／startTicks33072456／boot4a5d9c5c-4482-4c3e-8978-30156b1ce92f，來源24caf7d45f不含本批；本輪實核身分吻合、container running／OOMfalse，核同handle不重啟、完整24h尚未通過。完整品牌門禁保持，不merge／release／tag／force-push、不改已發布100份SQL或Git身份設定，原媒體／圖片／授權保持。下方為歷史狀態。
+
+---
+## 2026-10-03 Stage工作去重與payload讀取准入已驗
+
+基線 d8c3e42b6aa089f40a9d8c0b4bcd21e8e5f18265／schema50 已推PR46，本批沿同分支發布。StageCommitFiles在GetTask／重建前加入runIntent；SHA256結構化key包含repository型別與实例、job／owner／generation／sequence／journal token、私有root／path、Source stamp／maxBytes，並核root／parent／file實體。非pointer repository不共用，typed nil pointer拒絕。owner先取得共享IO才讀payload，釋放後依既有CPU→IO階段，Total1不巢狀；等待者取消不釋放owner，owner取消join read清理，完成不快取，既有stage碰撞仍拒絕且保留。
+
+新增100同呼叫只讀一次／plan一次／ready一次且原target保持，九種不同意圖不共用、配額滿載／取消在read前拒絕零副作用、owner與waiter取消／配額／意圖引用清空。隔離overlay移除pre-read permit，回歸測試確實失敗「busy read reached repository」，正式來源未改。Windows NFO／architecture340PASS／2既有symlink skip；Linux NFO／architecture／jobs race568PASS／1Windows平台skip；新增Stage13PASS兩平台，真PG選測36PASS／零skipfail，包括原生stage及子程序重開。vet兩平台、Darwin amd64僅編譯、格式／增量品牌0／339／gitignore／diff通過。所有本批handles55956／86269／87023已terminal0；Windows與red overlay同步已terminal。100份SQL／模組／需求原文／LICENSE保持，本批無migration、未重跑完整PG；之前schema50全434根屬d8c3e42來源。方法 docs/nfo-stage-admission.md，安全摘要 docs/evidence/nfo-stage-admission.json。
+
+下一步完整payload bytes生命週期准入（CPU／IO等待時仍持bytes，讀取准入不證整體memory），持久plan／ready安全讀取與staged重開續作，再完整root／媒體／revision／policy跨重啟證據、同實體未解決排除、原生Rename／backup／rollback／結算／恢復及正式准入／worker／三種操作。不得因bytes相等或stage缺失猜已提交，Windows directory metadata耐久性仍缺，runtime未啟用。全案7完成／198部分／131阻塞保持。
+
+正式24h仍run329073a5d193446383327ab217aba147／PID1026300／startTicks33072456／boot4a5d9c5c-4482-4c3e-8978-30156b1ce92f，來源24caf7d45f不含本批；本輪實核身分吻合、container running／OOMfalse，尚未通過。核同handle、不重啟；完整品牌門禁保持。沿PR46不merge／release／tag／force-push、不改100份已發布SQL或Git身份設定，原媒體／圖片／授權保持。下方為歷史狀態。
+
+---
+## 2026-10-03 schema50 持久檔案證據全回歸已驗
+
+已發布基線 c7dda1dc96ec7077075dfd45c43699ef534c7234，沿用 feat/jelee-ignore-family-worker／OPEN PR46。本批候選schema50新增不可變plan／ready，固定journal token外鍵、entry basename、48-byte canonical身分、真實工作／owner／generation／租約／取消／活躍admin守衛；首次與no-op重試均deferred重核提交時權限。保留證據拒50→49降版，空降升保持metrics epoch。001–049共98份已發布SQL內容保持。
+
+Store短交易Begin／SavePlan／SaveReady已接內部Writer.StageCommitFiles；從真實工作所屬意圖受控重建，重核Source，使用CPU／IO配額與既有原生鎖／EXCL／Sync／五個hardlink及副本證據。ready未知保存結果保留所有名稱，沒有target Rename／backup輪替／結算／自動恢復，也未接runtime。Linux實際PG落檔、清除準備TTL後子程序從DB重讀並原生核對已驗；其他工作的同basename Source拒絕。合成身分案例只證儲存守衛。
+
+完整PG session57076已terminal0：四分片皆0、434根各run／pass恰一次、零skip／fail，覆蓋 .testdata/nfo-commit-files-schema-shards-coverage.json；966份Go／SQL來源凍結於 .testdata/nfo-commit-files-schema-source.json。選測86PASS／零skipfail；初次選測僅衝突夾具令output等於rollback而拒Invalid，改測試身分後重驗，失敗log保留。Windows八套件1586PASS／743條件skip；Linux六套件race1169PASS／1Windows平台skip；runtime真PG另1PASS／零skipfail。Windows原生＋PG嘗試無法連既有資料庫，在fixture前失敗，不計通過。兩平台vet、Darwin amd64僅交叉編譯、格式、增量品牌0／339、gitignore與diff通過。方法 docs/nfo-commit-files-persistence.md，安全摘要 docs/evidence/nfo-commit-files-persistence.json；本批隨本提交沿同分支發布。
+
+下一步優先補StageCommitFiles在GetTask／重建前singleflight、payload資源准入與整體bytes配額、保存plan／ready的讀取及已staged續作，之後持久完整root／媒體／revision／policy證據、原生提交／rollback／backup／結算／恢復與同實體未解決排除。現在既有stage重試碰撞保留；bytes相等或stage缺失不能推定已提交。Windows directory sync仍stub，metadata斷電耐久性缺；不能啟用read-write准入／worker。全G00–G51仍7完成／198部分／131阻塞。
+
+正式24h仍run329073a5d193446383327ab217aba147／PID1026300／startTicks33072456／boot4a5d9c5c-4482-4c3e-8978-30156b1ce92f，來源24caf7d45fb96390689dcc03685033242b7bbfea。本輪實核程序身分吻合、container running／OOMfalse，完整24h未通過，不包含本批；核同handle，不重啟。完整品牌門禁保持。不merge／release／tag／force-push、不改Git身份設定，原媒體／圖片／授權保持；本批發布後001–050共100份SQL同樣不可改。下方為歷史狀態。
+
+---
+## 2026-10-03 提交前檔案計畫／witness已驗，仍待資料庫與提交接線
+
+已發布HEAD99980e8f1b584ee5ae6d3eb23ff3db0d4619c752／PR46 OPEN。本批新增私有commit_files.go及測試：版本1／固定非零16-byte token推導五個有界stage／rollback／pin名稱，plan port先成功才建native鎖sidecar與檔案；完整輸出與獨立rollback EXCL建立／32KiB寫／file.Sync，原文與兩副本各持hardlink pin，核完整bytes及原生身分、directory sync後ready port。只準備，不Rename原target／不輪替backup。兩個port目前是測試callback，未接SQL／journal／Writer／worker，不授權FS提交／結算／恢復。
+
+ready開始前即保留全部五名，ready錯誤／取消不因未知commit結果刪掉witness；較早故障只刪已觀察自有且仍同實體的物件，身分不明保留，native lock不刪。新增bytes核對返回FileInfo綁後續原生身分觀察，拒絕兩次讀不同實體。owned fixture落檔再子程序重開；plan前零副作用、EXCL碰撞保持、source／witness換實體、來源原地改動而獨立rollback保持、七種故障／取消／未知保存結果、缺stage不猜commit均驗。
+
+Windows NFO／architecture327PASS／2既有symlink條件skip；Linux同两套件race342PASS／1Windows專屬skip，零fail；新增準備16PASS／零skip。vet兩平台／Darwin amd64交叉編譯／格式／增量品牌0／339／gitignore／diff通過，98份已發布SQL與模組／需求原文／LICENSE保持。所有本批測試handle已terminal0，沒有PG重跑。安全報告docs/evidence/nfo-commit-files.json，方法docs/nfo-commit-files.md；本批待提交推送同分支PR46。
+
+下一步需新migration持久計畫及ready原生證據，綁schema49固定journal token／owner／generation／entry並保留未知結果；完整root／媒體／revision／policy／actor／lease與native鎖／owner join、backup計畫、target Rename／rollback／可驗證結算及同實體未解決排除仍缺。Windowsdirectory sync仍是既有stub，未證斷電metadata耐久性；不能啟用正式read-write。
+
+正式24h保持run329073a5d193446383327ab217aba147／PID1026300／startTicks33072456／bootId4a5d9c5c-4482-4c3e-8978-30156b1ce92f，來源24caf7d45f不含後續本批；本輪實核身分吻合、container running／OOMfalse。先核同handle不重啟，完整24h尚未通過。全G00–G51仍7完成／198部分／131阻塞，完整品牌門禁保持。不merge／release／tag／force-push、不改已發布SQL／Git身份設定，原媒體／圖片／授權保持。下方為歷史狀態。
+
+---
+## 2026-10-03 原生身分觀察已驗，正式24h同handle仍執行
+
+已發布來源152d3cbb1091707573e8ef96ebd074f55ae2cc08，PR46 OPEN。新增私有nfoNativeIdentity／observeNFONativeIdentity及固定48-byte codec；Windows完整FileIdInfo／volume／native creation ticks，Linux held-descriptor statx device／inode／birth，要求TYPE／INO／BTIME回傳mask。其他平台明確拒絕，尚未接Source／DB準備／journal／Writer／worker，不授權FS也不啟用恢復。
+
+owned夾具落檔再啟子程序核對root／parent／NFO、Rename／hardlink、相同bytes／size／mtime替換、目錄替換及內容mtime與原生身分分離；保留hardlink維持原inode活著，不宣稱已證ID重用／惡意creation變更／斷電。nil／closed／pipe、codec版本／長度／保留位／奈秒與Windows完整128位、格式遮蔽已驗。Windows NFO／architecture311PASS／2既有symlink条件skip；Linux race326PASS／1Windows專屬skip，零fail；新原生案例均通過。兩平台vet、Darwin amd64交叉編譯、格式、增量品牌0／339、gitignore／diff通過；Darwin沒有原生執行結果。98份SQL／模組／需求原文／LICENSE保持。安全報告docs/evidence/nfo-native-identity.json，方法docs/nfo-native-identity.md；本批待沿同PR提交推送。
+
+正式24h仍run329073a5d193446383327ab217aba147／PID1026300／startTicks33072456／bootId4a5d9c5c-4482-4c3e-8978-30156b1ce92f，來源24caf7d45f不含後續本批。最後實核身分吻合、container running／OOMfalse；先核同handle，不因timeout重啟。完整品牌兩檢查在152d來源已FAIL，仍保留門禁；其他CI尚未全部terminal，不宣稱全綠。
+
+下一接點是檔案副作用前的持久stage／rollback／owned witness計畫與身分、target Rename前的提交邊界及可驗證結算，再接native鎖／lease／owner join、同實體未解決提交排除及正式read-write准入／worker／三種批次操作。單獨原生ID或bytes相等不足以認定提交。全G00–G51仍7完成／198部分／131阻塞，目標保持；不merge／release／tag／force-push、不改已發布SQL／Git身份設定，原媒體／圖片／授權保持。下方為歷史狀態。
+
+---
+## 2026-10-03 正式24h已啟，準備資料全域配額測試已驗
+
+smoke dfc8b37f805843b384f26bb72ca22804 已terminal passed：scope smoke、source24caf7d45fb96390689dcc03685033242b7bbfea、兩輪／618採樣，RSS251736064，完整／負載GC門檻通過，soakWorkloadPassed／snapshotVerified／testArtifactsCleaned／launcherArtifactsCleaned全true。安全摘要docs/evidence/image-reclaim-smoke.json。舊正式RSS失敗保持，短測不能當24h。
+
+同HEAD已啟正式run329073a5d193446383327ab217aba147，PID1026300／startTicks33072456／bootId4a5d9c5c-4482-4c3e-8978-30156b1ce92f；開始UTC2026-10-03T07:06:08.369636+00:00，sourceTree852be378e999cbc820c4658ab7c51403eb7dc52c。啟動後實核程序身分吻合，status workload。私有evidence .testdata/soak-launch-329073a5d193446383327ab217aba147，active registry .testdata/images-soak-active.json；先核同handle，不因觀察timeout重啟。正式來源為24caf，後續測試／文件不在凍結來源內。暫留HEAD限制已解除，可提交本批。
+
+新增nfo_preparation_global_quota_test.go，準備資料全域256列／256MiB於Read Committed／Repeatable Read／Serializable各兩交易快照驗第一个成功、第二个拒絕且無部分資料。actor／library／其他全域界限均未遮蔽拒絕；SQL合成資料只驗儲存，不授權FS或Writer。真PG race8PASS／零skipfail／17.916秒；Windows2根PASS／6資料庫子測試skip，vet／格式／增量品牌0／339／gitignore通過，98份SQL保持。安全證據docs/evidence/nfo-preparation-global-quota.json；本批僅新增測試，未重新跑完整PG，先前schema49全424根回歸分開記錄。
+
+接續沿既有分支與PR46提交推送本批，再做原生NFO持久身分／staging／rollback／提交與恢復、政策及capability准入／worker／API／CLI與三種完整批次操作。全G00–G51仍7完成／198部分／131阻塞，不宣稱完成。不merge／release／tag／force-push，不改已發布SQL／Git身份設定，原媒體／圖片／授權與品牌門禁保持。下方是歷史狀態。
+
+---
+## 2026-10-03 活躍smoke：大圖回收來源24caf7d45f，暫留HEAD
+
+回收修復已提交推送24caf7d45fb96390689dcc03685033242b7bbfea，PR46遠端HEAD吻合、OPEN；所有隔離與回歸本批handle已terminal。新完整600秒smoke run dfc8b37f805843b384f26bb72ca22804 已啟動，PID1001850/startTicks32997981/bootId4a5d9c5c-4482-4c3e-8978-30156b1ce92f，開始UTC2026-10-03T06:53:43.620276+00:00，sourceTree852be378e999cbc820c4658ab7c51403eb7dc52c。最後實核身分完全吻合，stage workload、container running/OOMfalse；尚無通過結論，先核同handle，不因觀察timeout重啟。
+
+私有evidence .testdata/soak-launch-dfc8b37f805843b384f26bb72ca22804，snapshot /var/tmp/jelee-soak-snapshot-dfc8b37f805843b384f26bb72ca22804；active registry .testdata/images-soak-active.json。此來源包含schema49與大圖按壓力回收，舊9a74正式RSS失敗保留，不能將舊結果歸新來源。
+
+暫勿提交本段待存交接或其他工作，需保持matching smoke的HEAD。若smoke完整passed、soakWorkloadPassed/snapshotVerified/testArtifactsCleaned/launcherArtifactsCleaned皆true，先同HEAD啟正式24h並實核新handle，再提交待存交接與繼續全G00–G51。若failed先讀memorySummary.samplerFailure/collectorFailureCode及failedRound，定位根因，門檻不改。不merge，全案7完成/198部分/131阻塞。
+
+---
+## 2026-10-03 大圖resident回收候選修復已驗，待發布與新smoke
+
+已發布HEADaaee979084dcf35931047a336e0b16c788675820，PR46 OPEN。舊正式9a0c8d956e3f4fbea9e844e3fc59bc26為terminal RSS失敗，沒有存活正式24h，不重啟舊run。此輪先隔離根因：圖片adapter原版相同64大PNG16+36PNG+900JPEG／兩worker／GOGC100／512MiB，1198張後RSS498192384超464MiB；GC後heap342720但RSS498786304，再FreeOSMemory降8724480，profile前主要兩80MiB PNG解碼，後已消失。不是持續存活快取的證據。
+
+未提交修復internal/adapter/images/processor.go：renderDecoded短frame只返緊縮JPEG；大估算達min64MiB/半單圖預算時，在frame返回後看Go total minus released，超原圖片並行×每圖＋cache才同步回收。default驗收值224MiB，保持CPU及image admission直到完成，失敗／cancel亦回收，Shutdown要join；small/cache hit不做。原配置、來源、RSS／GC門檻與GC env皆不改。最初無條件大圖回收版本RSS約178MiB但密集診斷pause1.78%，未採用；最終按壓力版相同程式/模板10000張通過、100ms抽樣RSS352055296／counter pause0.64178%，未驗正式GC直方圖或混合延遲，不能當24h。
+
+Windows圖片/HTTP/architecture540PASS/1平台skip、runtime214PASS/20conditional skip；Linux race三套526PASS/0skip、runtime227PASS/13conditional skip、真PG runtime1PASS/0skip。red證明decode error/cancel原先回收calls0；最終取消與Shutdown join及CPU/image持有、小圖/cache門禁通過。session57204、2135、70913、52621、70259、16719皆terminal0，57189是原版診斷terminal0但overBudget=true，不混成PASS。vet/格式/增量品牌0/339/gitignore/diff通過，98份已發布SQL保持。public docs/image-reclaim-pressure.md與docs/evidence/image-reclaim-pressure.json及reproducer/runner/profile摘要已產生。
+
+下一步提交推送同PR46，再python3 -B scripts/start_images_soak.py --smoke，核新run/PID/startTicks/bootId實際handle，完整600秒/2輪smoke通過且snapshot/雙層cleanup true後同HEAD啟正式24h。smoke等待期間不要提交其他批次導致matching commit變更；可留本交接新run資訊待存，Git archive只取HEAD。正式啟動後再提交待存文件與續全G00–G51（仍7完成/198部分/131阻塞），原生NFO恢復與准入/worker等缺口保持。
+
+不merge/release/tag/force-push、不改已發布SQL/Git身份設定，原媒體/圖片/授權保持，完整品牌門禁不放寬。
+
+---
+## 2026-10-03 最新：schema49已推、時鐘夾具已驗、正式24h RSS失敗
+
+schema49已發布HEAD23a6da45910dc970de5a78ac93938736f8e9f040，PR46遠端HEAD吻合且OPEN。完整PG四分片session9283已terminal0、424根各run/pass恰一次、1133通過/零skipfail；公共證據已提交。96份001–048保持，現在001–049共98份均已發布且不得改。
+
+本輪後續修復internal/platform/runtime/images_soak_failure_unit_test.go：503 handler等待time.Since(requestStarted)>0，request context可取消；保持Finish>Start與全部原統計/狀態斷言，加數值Fatal。原50次17FAIL，診斷overlay50次10FAIL皆start=finish=0而統計完整；修正Windows100與Linux race100皆PASS，完整runtime Windows214PASS/20skip、Linux227PASS/13skip，vet/格式/增量品牌0/339/gitignore/diff通過。docs/evidence/images-cold-clock-fixture.json已產生，本批待提交推送同PR46。
+
+重要狀態更新：正式run9a0c8d956e3f4fbea9e844e3fc59bc26已terminal failed，PID788902不存在、worker exit1/OOMfalse、雙層cleanup true、snapshotVerified false。完成38輪，failedRound38/cold context_finished/首未完index171/status0；collector sampler_failed，sampler rss_budget_invalid，sampleIndex11571/RSS489373696>464MiB486539264，超2834432bytes，前RSS376164352/拒絕heap298269576；partial11551 samples/193blocks/Complete false。source9a74a8932a，安全摘要docs/evidence/image-soak-rss-failure.json，未重啟，舊頂段live已由本段取代。
+
+下一步先定位正式長測RSS峰值的配置/分配/回收根因與強復現，再按原門禁smoke→matching-source24h；不要提高464/352MiB門檻或把夾具修复當正式故障修復。全G00–G51仍7完成/198部分/131阻塞，原生NFO恢復與准入/worker等目標保留，不merge/release/tag/force-push，不改Git身份設定與已發布SQL，保留原媒體/圖片/授權。
+
+---
+## 2026-10-03 schema49 最終完整回歸已通過，準備發布
+
+session9283已terminal exit0，四分片皆0，編譯出的424根測試各run/pass恰一次，1133通過事件、零skip/fail。彙整腳本已嚴格核對manifest、946份凍結來源及96份已發布SQL，安全證據docs/evidence/nfo-write-commit-journal.json與race txt已產生。Windows tagged八套件1557通過/705條件跳過、journal選測30/0skipfail、runtime真PG1/0skipfail、Linux三套race與vet/格式/增量品牌0/339/gitignore/diff均通過。初次完整PG唯一55006舊DDL夾具失敗與修復保留，不把失敗run稱PASS。
+
+另查明Windows既有圖片HTTP失敗診斷夾具間歇失敗：診斷overlay count50為40PASS/10FAIL，失敗時start=finish=elapsed=0但統計與503均保持。等待HTTP handler時鐘tick前進的修復overlay count100全通過，正式時間斷言保持，尚未套入凍結來源；schema49提交後另修並重驗。見.testdata/images-cold-clock-repair.md。
+
+本批schema49仍未提交，下一步提交推送同PR46並核遠端HEAD，之後修上述測試夾具及繼續原生恢復/准入/worker。全案仍7完成/198部分/131阻塞，正式24h同PID788902仍live，不含schema49。不merge/release/tag/force-push、不改已發布SQL與Git身份設定，原媒體/圖片/授權保持。
+
+---
+## 2026-10-03 接續：舊夾具已修復，全424根測試分片回歸仍執行
+
+初次完整PG session15318已terminal exit1，1132通過事件、零跳過，唯一失敗為TestInventoryScopeLegacyJobCannotBindCurrentEpoch（SQLSTATE55006），耗時1538.997秒。已僅修inventory_scope_test.go，在UPDATE後、ENABLE前SET CONSTRAINTS ALL IMMEDIATE，保留原legacy/baseline/缺失斷言與96份已發布SQL。journal與inventory選測session53948已terminal0、78.759秒，修正案例通過2.01秒。
+
+當前完整PG改以四個獨立程序平衡分片執行，同一個已編譯套件的424個root各執行一次；不是選測縮限。CURRENT LIVE session9283，wrapper .testdata/run-nfo-commit-journal-full-shards.py，logs .testdata/nfo-commit-journal-full-shard-{0,1,2,3}.jsonl；最後poll確認仍live。測試manifest .testdata/nfo-commit-journal-shards-manifest.json；必須等四個程序終端0、零fail/skip及coverage根集合逐一吻合，才能說完整回歸通過。946份最終Go/SQL來源凍結於.testdata/nfo-commit-journal-validation-source-final.json；不得改測試中的來源或因觀察timeout重啟。
+
+Windows最終八套件（jelee_probe_tests）1557通過事件/705條件跳過，零fail，vet通過。第一次本輪Windows重驗有TestImagesColdHTTPFailureRetainsStatistics「failure discarded phase evidence」失敗，未改來源重跑八套件通過；初次失敗保留.testdata/nfo-commit-journal-windows-retry-initial.jsonl，根因尚未證實，不能掩蓋成從未失敗。Linux格式、增量品牌0/339、gitignore及diff檢查通過。finalizer已改採最終分片覆蓋與凍結來源，明列初次PG失敗及Windows重跑；公共report尚未產生，schema49仍未提交。
+
+正式24h PID788902/startTicks31680373/bootId4a5d9c5c-4482-4c3e-8978-30156b1ce92f本輪實核吻合，容器running/OOMfalse，source9a74a8932a不含schema49。保持全G00–G51及7完成/198部分/131阻塞，PR46不merge。待最終分片通過，再彙整證據、更新文件/PR、提交推送；後续仍須原生恢復證明與正式寫回准入。
+
+---
+## 2026-10-03 接續觀察：完整PG已發現舊DDL夾具失敗，仍live
+
+前turn為journal實作progress。本turn續核同session15318仍live，未重啟、Go/SQL未改；完整回歸在inventory_scope_test.go:178抓到TestInventoryScopeLegacyJobCannotBindCurrentEpoch，SQLSTATE55006（jobs有pending trigger events，不能ALTER）。舊夾具同一Exec內DISABLE immutable→UPDATE inventory_generation=NULL→ENABLE，schema47 deferred驗證尚未flush。不能移除正式守衛或改47 SQL；待full terminal後，在UPDATE與ENABLE間SET CONSTRAINTS ALL IMMEDIATE，重驗原legacy epoch/baseline/缺失保護斷言。修復說明.testdata/nfo-commit-journal-fixture-repair.md。先蒐集所有failures，不把live或初次full failed說成PASS。finalizer目前要求完整PASS；若改用full+修正案例組合，須明列組合與fullRunPassed=false，不能暗改full通過定義。
+
+來源仍946份凍結snapshot，當前未提交schema49、已發布HEAD1f8c693ddd。最新safe tail已到JobMetrics transaction/savepoint等案例，尚未terminal。續poll15318，不改Go/SQL，所有較早selected/runtime handle terminal；先前頂段「無已觀察failure」由本段取代。原生恢復接點核對另記.testdata/nfo-native-recovery-next.md，只是待實作方案；Source/FileInfo尚無跨程序staging/rollback持久證明。
+
+---
+## 2026-10-03 接續：schema49 journal 基礎待完整PG，來源凍結
+
+已發布仍為1f8c693ddd3a968b168cb2304f7529f4bc0abb5d/schema48，分支feat/jelee-ignore-family-worker、OPEN PR46。上一goal turn已提交推送配額修補，本turn為progress：新增尚未發布的migration49、私有recordNFOWriteCommit及測試，schemaVersion49。journal是不可變未解決紀錄，不授權FS；綁job/sequence/owner/generation固定token，SQL核真實running kind、live lease/未取消/活躍admin/entry外鍵，deferred commit時重核。job保留守衛拒刪除、換owner/generation/kind/library/actor、重排及success；running可停止failed/cancelled而保留journal與完整意圖。history trim排除journal jobs，舊乾淨schema供migration夾具，當前或dirty缺表fail closed；通用Release/Pause核實際kind拒nfo即使input偽裝或未記錄journal。
+
+真PG第一輪journal選測通過後追加直接SQL舊快照負例，repeatable_read與serializable均重現owner轉移，初始紅證據.testdata/nfo-commit-journal-snapshot-red.jsonl。新49插入journal時同步touch jobs MVCC版本修正，最終全部journal race選測30通過/零跳過失敗/47.935秒，含三隔離層級、16並行/reopen固定token、TTL清理後bytes、owner/gen/expiry/cancel/disabled/admin/entry/kind拒絕、deferred expiry/disable/cancel及rollback、immutable/terminal保留/ordinary trim、兩通用release、缺表fail closed、空降升/retained dirty48。Windows八套件最終1386通過/696條件跳過，vet通過；Linux telemetry/architecture/jobs race3套件及runtime真PG metrics HTTP已terminal0。增量品牌0/339、格式、gitignore、diffcheck通過。
+
+CURRENT LIVE：完整PG race session15318（exec_command/write_stdin；不是functions.wait cell），wrapper .testdata/run-nfo-commit-journal-full-pg.py，log .testdata/nfo-commit-journal-full-pg.jsonl，timeout1800/subprocess1860。最後poll確認仍live，已過忽略規則/發布/native bridge等，無已觀察failure；不得當完整通過。946份Go/SQL/go.mod/go.sum凍結於.testdata/nfo-commit-journal-validation-source.json，完整suite結束前不要改Go/SQL，不因poll timeout重啟。journal final selected session45251已terminal0；初始35329 terminal0、snapshot red49050 terminal1；runtime44143 terminal0；沒有其他本批live handle。先續poll15318與讀safe failure事件。
+
+完整suite若terminal PASS/零skipfail，依.testdata/finalize-nfo-commit-journal.ps1嚴格檢查所有required tests、source freeze及96份已發布SQL內容雜湊，產安全docs/evidence/nfo-write-commit-journal.json與race txt；更新docs/nfo-write-commit-journal.md/本交接/trace的範圍並維持7完成/198部分/131阻塞，再繁中commit/push/PR46 body更新/attach/遠端HEAD與clean核對。若fail，等terminal後查根因並修復，不能使用尚未通過或失敗完整套件作完成證據。finalizer已準備但未執行，公共report尚無。
+
+尚缺原生staging/rollback檔案身分與跨重啟root/parent/media/NFO proof、租約/native鎖真正提交邊界、可驗證結算與恢復，才能解除journal保留；目前沒有resolution port，不能由bytes相等認定commit、不能以此紀錄直接Rename。read-write/capability/public admission/worker/API/CLI仍未啟用；新寫回准入還必須排除同實體未解決提交。96份001–048已發布SQL不可改，新49尚可在無live測試時修復。
+
+正式24h同9a0c8d956e3f4fbea9e844e3fc59bc26/PID788902/start31680373/boot4a5d9c5c-4482-4c3e-8978-30156b1ce92f本回合實核吻合，容器running/OOMfalse，source9a74a8932a不含後續NFO；不重啟。全G00–G51目標與品牌門禁保留，禁止merge/release/tag/force-push/改Git身份設定/改已發布SQL，原媒體/圖片/授權保持。
+
+---
+## 2026-10-03 接續：schema48 修復 NFO 配額快照漏洞
+
+基於252dc740708500fd47c756bf073034b2a633a8d7，真PG紅測試重現兩筆Repeatable Read都看到31列、依序取advisory鎖後仍插到33列，突破actor32上限。新migration48加入兩列固定quota fence；BEFORE INSERT先同schema原advisory鎖、再更新固定列、最後跑原容量守衛。過期RR/Serializable快照回報40001，須整筆交易回滾／重試；缺防護列23514拒絕。準備與工作意圖各自固定scope，沒有無界事件。94份001–047已發布SQL逐一Git內容雜湊保持。
+
+Windows domain/app/postgres/nfo/telemetry/jobs/runtime/architecture八套件1381通過事件／671條件跳過，vet、格式、增量品牌0/339、gitignore、diff檢查通過。真PG相關race選測139通過／零跳過失敗／179.936秒：三隔離層級actor32與工作全域1024列、全域512MiB由七個各約64MiB工作成功後拒第八個並完整回滾、兩scope缺防護列拒絕、準備或工作bytes保留拒48→47／dirty Ready拒絕、空降升保持epoch；準備／工作／metrics／完整升降版案例回歸通過。首輪只有Serializable在job INSERT已40001而測試提前Fatal，修正接受整筆准入任何步驟的序列化拒絕，最終核無部分資料。所有本批handle已終端，不當完整PG套件重跑。見docs/nfo-write-quota-fences.md及docs/evidence/nfo-write-quota-fences.json。
+
+全案保持7完成/198部分/131阻塞。準備全域256列/256MiB獨立邊界尚未補，完整PG regression仍待擴驗。接續正式提交journal/恢復保留、generation/revision/媒體/root/檔案實體與lease提交邊界、read-write政策與capability准入、API/CLI/runtime共用budget worker及三種完整批次操作。不能依bytes相等推斷已提交；不只放寬mode或claim。原worker仍不執行nfo_write。
+
+正式24h同run9a0c8d956e3f4fbea9e844e3fc59bc26／PID788902/start31680373/boot4a5d9c5c-4482-4c3e-8978-30156b1ce92f本回合實核吻合，容器running/OOMfalse，source9a74a8932a不含後續NFO；不重啟活躍工作。保持原媒體/圖片/授權、完整品牌門禁，禁止merge/release/tag/force-push/Git身份設定變更/改已發布SQL。沿用分支及OPEN PR46，本批按同分支驗證、提交與推送流程接續。
+
+---
+## 2026-10-03 接續：schema47 NFO 工作所屬意圖與固定統計已驗證
+
+81629dc172979386e086ce7dea36eb65a233cf72已推PR46。本批schema47新增nfo_write種類及requests/entries持久契約，每批1–100，從schema46同actor/library/generation且未到期準備列複製完整請求/原文/固定輸出/UUID，與job生命週期綁定，不受準備TTL清理影響；歷史preparedId無外鍵。payload沿用schema46大小/雜湊/請求綁定CHECK，requests/entries不可改，deferred trigger要求工作種類/library與完整連續批次，不允許缺request、部分批次、單筆刪除或改kind。全域1024列/512MiB與每job128MiB SQL配額；全域兩界限尚未獨立跑边界矩陣。
+
+GetNFOWriteTask只提供私有資料觀察，核真實running kind、owner/generation/expiry、取消與活躍admin actor，保留user讀鎖，讀完再核lease，失敗無部分bytes。旧Claim仍不支持新種類，expired回收SQL改只處理inventory_scan/catalog_import；通用Finish拒真實nfo_write，即使傳入Kind偽裝。公開准入、library read-write政策、worker與journal/恢復仍未接入，不能把觀察port當提交授權。
+
+schema47固定metrics六組/156桶/163儲存列，exporter位圖擴uint32綁完整18outcomes；原epoch及兩原kind累計保持。47→46任何新kind工作/意圖/統計樣本保留均拒，dirty目標46且Ready拒絕；空新kind才移除零值列。92份已發布SQL保持。
+
+Windows domain/app/postgres/nfo/telemetry/jobs/runtime/architecture8套件1377通過事件/659條件跳過；vet通過。Linux telemetry/architecture/jobs race通過。真PG準備/工作/metrics/全migration選測及最後重驗合計115通過/零跳過失敗；runtime真PG metrics HTTP另1通過/零跳過。首輪Windows發現旧四組位圖/SDK計數未擴，已修正；首輪PG唯一舊總列數109斷言改163後重验该案與全部新NFOjob案。測試包括準備清理及reopen後固定bytes/UUID、工作資料到原生Writer、租約/取消/actor私有輸出拒絕、舊worker不claim/recover、不可變/部分批次、128MiB容量整批回滾、epoch保持與歷史清理後樣本拒降版。docs/nfo-write-jobs.md及docs/evidence/nfo-write-jobs.json、nfo-write-jobs-race-linux.txt記錄組合範圍，不當完整PG套件重跑。
+
+全案仍7完成/198部分/131阻塞；G39.14三種完整批次操作仍缺。下一步正式提交journal/恢復保留、generation/revision/媒體/root/檔案實體与lease提交邊界、read-write政策與capability准入、API/CLI/runtime共用budget worker、來源缺NFO建立/全欄位/批次操作。啟用前須阻止history trim清除未完成提交或待恢復意圖，不能以bytes相等推断已提交，也不能只放寬mode或claim capability。全域配額邊界與完整PG regression仍待後續擴驗。
+
+正式24h同run9a0c8d956e3f4fbea9e844e3fc59bc26/PID788902/start31680373/boot4a5d9c5c-4482-4c3e-8978-30156b1ce92f本回合實核吻合，容器running/OOMfalse；source9a74a8932a不含後續NFO，先核同handle、不重啟。完整品牌殘留保持門禁；禁止merge/release/tag/force-push、Git身份設定變更及改已發布SQL；原媒體/圖片/授權保持。
+
+---
+## 2026-10-03 接續：持久 NFO 準備資料已接受控 Writer
+
+28e12e1c490d8eda8398efcbdc1eb9f8298358d8已推PR46。本批Writer.ReplacePrepared消費schema46受信任持久準備資料與當下ReadSource，要求共用budget，重核路徑/maxBytes/完整stamp/原文bytes，依保存recipe重建受控修改來源。原文無ID時只用固定輸出的唯一jelee UUID v4，不重新random；原文手工ID保持。重建bytes必須與保存輸出完全相同，任意XML、未知標籤/註解/手工ID改動拒絕。
+
+singleflight提前到文件複製及重建之前；等待者只驗受控請求/原文/輸出摘要，共用owner重建一次。key明確含saved/observed私有路徑（NFOSource JSON會隱藏它們）、scope、兩份stamp、請求/輸出摘要/maxBytes與Source實體。同內容不同私有root不能共用；等待者取消與owner取消join清理保持。普通Replace共用runIntent整理，完整舊Writer測試亦回歸。
+
+Windows nfo/postgres/architecture/jobs/runtime通過，5套件762通過/646條件跳過；vet通過。Linux nfo/architecture/jobs完整race通過；真PG持久準備與Writer選測race17通過/零跳過/零失敗，重開pool後固定UUID、完整檔案與原文備份相符；任意XML在副作用前拒絕。100並行共用一次替換、UTF16/BOM/各root/手工ID、sync失敗固定輸出重試、外部同size/mtime修改保持、配額/取消與私有root不共用已驗。docs/nfo-prepared-writer.md及docs/evidence/nfo-prepared-writer.json、nfo-prepared-writer-race-linux.txt記錄範圍。本批無SQL變更。
+
+全案仍7完成/198部分/131阻塞；runtime未啟用此入口或read-write政策。若來源已等於保存輸出而非原文，返回ErrChanged，不能以相等bytes推斷已提交。下一步正式持久write/export job須保存意圖至工作生命週期、核policy/revision/generation/租約/媒體/實體、提供capability/API/CLI/runtime共用配額及提交journal/恢復稽核。既有prepared資料不授權寫回，也未保存跨重啟實體proof；不得直接開read-write或略過完整恢復。缺失NFO/全部欄位/批次操作/Windows完整落盤/真實客戶端仍缺。
+
+同正式run9a0c8d956e3f4fbea9e844e3fc59bc26，PID788902/start31680373/boot4a5d9c5c-4482-4c3e-8978-30156b1ce92f本回合實核吻合，container running/OOMfalse；source9a74a8932a不含本批。遠端28e12e1c49 foundation/三平台Tests/format/ABI已success，兩完整品牌fail，PG及CodeQL仍in_progress。不宣稱全綠；保持全部門禁，不merge/release/tag/force-push、不改Git身份設定、原媒體/圖片/授權/已發布SQL保持。
+
+---
+## 2026-10-03 接續：NFO 持久準備資料與 schema46 已驗證
+
+基於已推送6a150ee52232b32e61daa9eb28125076074fb288，沿用feat/jelee-ignore-family-worker及PR46。本批新增domain/app/adapter準備入口與schema46：受控十種文字修改、缺ID UUID、原文及完整輸出先保存PostgreSQL；相同actor/key/request並行或重開pool後取回第一次固定UUID/輸出。準備服務依序持I/O→CPU→I/O，不巢狀、不寫原檔；SQL交易不跨檔案讀取，保存前重核catalog revision、policy generation與source/root範圍，與安全稽核同交易。
+
+準備資料不授予檔案寫入權限。policy仍off/read-only，尚無HTTP/CLI/runtime寫回worker或正式job。24h期限/全域256列256MiB/actor32列/library128MiB有SQL守衛與有界清理；資料不可變，46→45有任何保留列即拒降版。既有90份SQL保持。請求先計JSON跳脫長度，避免拒絕超量輸入前先配置大型JSON。
+
+Windows完整套件結果合併最終受影響套件重驗通過；images/toolidentity初次受sandbox ACL拒絕，僅這兩個套件原生ACL重驗通過。Linux domain/app/nfo/architecture race及vet通過。真PG完整race最初四個舊夾具失敗：三個HTTP漏預設Resources、一個通用降版漏46→45；修正後四入口與全部新準備案例重驗通過，合併證據見docs/evidence/nfo-write-preparations.json。前期準備revision變更測試改用正式UpdateItemMetadata確實推進revision。runtime真PG metrics通過，production NFO worker未配置nonroot profile而未執行，不計通過。詳見docs/nfo-write-preparations.md及nfo-write-preparations-race-linux.txt。
+
+全案仍7完成/198部分/131阻塞。下一步須完成正式read-write政策、持久批次write/export jobs、固定意圖生命週期、generation/租約/項目媒體/實體複核、capability admission、API/CLI/runtime配額接線及提交恢復稽核。不能讓準備TTL刪掉執行或恢復中job的意圖；worker須重新驗證受控輸出與當下權限。缺失NFO建立、全部欄位、Windows完整落盤/ACL與真實客戶端仍缺。
+
+同正式run9a0c8d956e3f4fbea9e844e3fc59bc26，PID788902/startTicks31680373/bootId4a5d9c5c-4482-4c3e-8978-30156b1ce92f本回合實核吻合，container running/OOMfalse。來源9a74a8932a不含後續NFO，不重啟活躍工作。原媒體、圖片、授權與已發布SQL保持；禁止merge/release/tag/force-push與Git身份設定變更。完整品牌殘留仍是門禁。
+
+---
+## 2026-10-03 接續：NFO adapter 寫回共用配額已驗證
+
+已發布HEAD3e33b5ae59，沿用feat/jelee-ignore-family-worker與PR46。本批NewWriterWithBudget接app.WorkBudget；singleflight共用工作CPU解析/缺ID生成/嚴格驗證後釋放，再持I/O至root/父目錄/native鎖/暫存/備份/替換/回滾與清理結束，不巢狀。零值Writer保持独立無配額模式；runtime尚未建立此writer或實作持久寫回worker，不得宣稱正式read-write已啟用。
+
+Windows nfo/architecture、platform/jobs/runtime及vet通過，Linux nfo/architecture race通過，證據nfo-writer-budget-race-linux.txt。真budget驗CPU→IO、total1實際寫入、sync失敗回收、兩类queue0滿載拒絕、queue1取消無檔案副作用/可重試、共用等待者取消不釋放ownerIO。格式、增量品牌0/339、gitignore0、diffcheck通過。本批無SQL變更與真PG写回驗證；第一次命令誤用不存在internal/app/jobs，已改正internal/platform/jobs並通過。
+
+全案保持7完成/198部分/131阻塞。下一步完整正式write/export任務：新migration（目前45）、library read-write policy、固定UUID/完整輸出持久意圖、generation/租約/項目/來源授權、capability、API/CLI/worker及恢復稽核。不能僅放寬mode。呼叫者須釋放原共享permit後進入Writer，worker需處理Busy與租約等待。
+
+同正式9a0c8d956e3f4fbea9e844e3fc59bc26/PID788902/start31680373/boot4a5d9c5c-4482-4c3e-8978-30156b1ce92f本回合實核吻合，container running/OOMfalse，source9a74a8932a不含後續NFO；不重啟活躍程序。原媒體/授權/既有SQL保持，禁止merge/release/tag/force-push/Git身份設定變更。最新CI尚待核對。
+
+---
+## 2026-10-03 接續：adapter寫回缺ID生成已驗證
+
+a5d8e43a46已推PR46。本批EnsureID/EnsureIDValue僅在所選原文條目無已識別ID時新增<uniqueid type="jelee">UUID</uniqueid>，隨機UUID v4或預先固定的canonical UUID，不指定default；既有uniqueid/custom/jelee手工值、imdbid/tmdbid/tvdbid/id保持。公開視圖修改不能繞過原文IDs；lockdata/ID欄位鎖拒絕新增；損壞/空ID不自動修復。Writer在singleflight共用工作中補缺ID，已有ID條目略過，同請求一次生成，重寫後ID不變；凍結UUID不被覆寫。docs/nfo-compatibility.md明定策略，docs/nfo-generated-id.md及nfo-id-write-race-linux.txt記範圍。Windows nfo/architecture/vet與jobs/runtime、Linux nfo/architecture race通過；BOM/UTF16/排版/多條目/取消/界限/鎖與實際寫回/共用/重寫亦驗。
+
+G39.10部分完成，統計7完成/198部分/131阻塞。下一個正式接點已讀：library policy/nfo_requests/nfo_phase只接受off/read-only，多處有降版與CHECK/不可變守衛；現有jobs還有inventory_scan/catalog_import及兩種類別metrics（schema最新45）。不能僅放寬ValidNFOMode開read-write；須新完整write/export任務意圖、policy/generation/租約/項目身分/輸出結果與恢復稽核、capability admission、worker/API/CLI、共用CPU/IO及新migration。正式持久任務須先保存固定UUID與預期完整輸出，不能未保存randomUUID後當可重試。缺失NFO建立、全部欄位、Windows完整落盤/ACL与真實客戶端仍缺；原媒體與原SQL/授權保持。
+
+同正式9a0c8d956e3f4fbea9e844e3fc59bc26/PID788902/start31680373/boot4a5d9c5c-4482-4c3e-8978-30156b1ce92f實核吻合，container running/OOMfalse，source9a74a8932a不含NFO。先核同handle，PR46禁止merge，全案未完成。
+
+---
+## 2026-10-03 接續：NFO原文綁定adapter Writer與singleflight已驗證
+
+5d381730fe原子替換基礎已推PR46。本批Source保留私有root/父目錄/檔案身分与maxBytes，讀取新增父目錄前後身分核對，String/GoString不露路徑/bytes。Writer.Replace重新開root/父目錄并持有，拒symlink元件，native鎖後/備份前/替換前核Source實體與全原bytes。WithText/WithTextOptions私有最初原文雜湊證明可鏈式修改，Writer拒任意替換XML/其他原文修改/手工ID覆寫。
+
+singleflight完整key含路徑/stamp/新bytesHash/原讀取上限/備份份數，並用active意圖身分比較區分root/父目錄/file；相同stamp但不同實體不共用，獨立同實體Source可共用。等待者取消不取消owner；owner工作已開始取消後join清理，完成引用清除且不缓存結果。x/sync沿用既有v0.23.0改直接依賴。Windows nfo/architecture/vet及jobs/runtime通過，Linux nfo/architecture race通過；證據nfo-writer-race-linux.txt及docs/nfo-bound-writer.md。相同實體一次replace、不同文字/備份不合併、取消/清理/隐私、相同bytes+mtime檔案/root/父目錄換實體與同步old/new實體不合併均驗。
+
+全案仍7完成/197部分/132阻塞。接續正式app writer port與read-write策略/持久jobs/租約generation與項目媒體身分/共用IO配額/恢復稽核；缺失NFO建立與ID規則、完整欄位、Windows完整落盤/ACL与真實客戶端仍缺。不可把adapter宣稱整個G39已完成。長測同9a0c8d956e3f4fbea9e844e3fc59bc26/PID788902/start31680373/boot4a5d9c5c-4482-4c3e-8978-30156b1ce92f已重核吻合、容器running/OOMfalse，source9a74a8932a不含本批。PR46禁止merge，不重啟存活長測。
+
+---
+## 2026-10-03 接續：NFO目錄內替換/備份/回滾基礎已驗證
+
+d97dc01232檔案鎖已推PR46；新增私有replaceNFODocument持有父os.Root、核全原bytes/身分、native鎖、EXCL隨機暫存/file.Sync/Root.Rename、0至16份備份與失敗回滾。Windows與Linux race的100個goroutine及4個子程序各25次完整XML讀改寫已驗，不遺失未知XML與註解；故障注入/取消/還原size+mtime外部修改/回滾時外部改寫均驗。回滾無法完成時固定ErrRollback並保留原文恢復暫存，不覆蓋外部修改。docs/nfo-replace-document.md說明完整範圍與限制；證據nfo-write-document-race-linux.txt。Windows目錄metadata斷電耐久性、不同檔案系統原子性與ACL/owner保留未證明；備份輪替中途失敗集合可能已部分輪替，原NFO保持。
+
+G39.8改部分完成，全案7完成/197部分/132阻塞。仍須公開正式writer/app ports、singleflight完整意圖去重、原始Source/父目錄/root/項目身分綁定、安全複核、read-write策略與持久jobs、缺失NFO建立/ID規則/完整欄位與真實客戶端互操作，不能把私有helper當全案完成。保留原媒體與授權、既有SQL不改。PR46禁止merge。
+
+正式9a0c8d956e3f4fbea9e844e3fc59bc26/PID788902/start31680373/boot4a5d9c5c-4482-4c3e-8978-30156b1ce92f同handle重核吻合，容器running/OOMfalse，source9a74a8932a不含後續NFO變更；先核handle與terminal，不重啟活躍工作。
+
+---
+## 2026-10-03 接續：NFO native檔案鎖已驗證
+
+81aa845e51文字修改及b33260d832追蹤已推PR46，工作區原先乾淨。新增私有lockNFOFile，固定零長度旁檔不刪除，POSIX flock/Windows LockFileEx立即嘗試與context取消，安全普通檔案/同身分複核；Windows大小寫別名同鎖。Windows nfo/architecture/vet與Linux同套race通過；詳細docs/nfo-file-lock.md，證據nfo-file-lock-race-linux.txt。G39.9改部分完成，統計7完成/196部分/133阻塞；仍缺進程內singleflight、原子writer/備份/回滾/安全來源複核、正式read-write jobs及100次完整NFO寫入。
+
+正式24h仍是9a0c8d956e3f4fbea9e844e3fc59bc26/PID788902/start31680373/boot4a5d9c5c-4482-4c3e-8978-30156b1ce92f，來源9a74a8932a。先核同handle，不重啟存活工作；不把後續NFO程式歸此長測。全案未完成，PR46禁止merge。
+
+---
+## 2026-10-03 接續：同來源正式24h已啟動，NFO文字基礎待提交
+
+完整600秒smoke0bf08daaefc84d099f23abcbdb032b9e已passed，2輪、618採樣；soakWorkloadPassed/snapshotVerified/testArtifactsCleaned/launcherArtifactsCleaned全true，finalAcceptance=false。來源9a74a8932a8703b991b8ee2678fb8eb2ec2bdd9b，安全摘要docs/evidence/image-soak-sampler-smoke.json。此結果不能代替正式24h。
+
+同HEAD已啟正式run9a0c8d956e3f4fbea9e844e3fc59bc26，PID788902/startTicks31680373/bootId4a5d9c5c-4482-4c3e-8978-30156b1ce92f；開始UTC2026-10-03T03:14:07.539195+00:00，sourceTree c2525c6d0a1e47c8f14f0a00e3be8c32fc2377f6。啟動後實核process identity完全吻合。snapshot /var/tmp/jelee-soak-snapshot-9a0c8d956e3f4fbea9e844e3fc59bc26，evidence .testdata/soak-launch-9a0c8d956e3f4fbea9e844e3fc59bc26。先核同handle，不因poll timeout重啟；此來源不含後續NFO變更。舊smoke與暫留HEAD事項已由本段取代。
+
+NFO WithText/WithTextOptions保留未知XML及鎖，支援十種文字替換、可選缺欄位新增、原行尾/縮排或指定相對縮排、UTF-8 BOM preserve/include/omit。詳細範圍docs/nfo-edit-text.md；原文不變與並行純Document測試不等於檔案寫回。接續atomic writer、備份/回滾、跨程序鎖、ID規則及正式read-write jobs；不要只憑helper關閉G39需求。全案仍7完成/195部分/134阻塞，沿用PR46禁止merge。
+
+---
+## NFO待存程式：文字修改基礎已驗證，暫留HEAD
+
+新增internal/adapter/nfo/edit_text.go/edit_text_test.go，Document.WithText替換既有十種標量文字，lexical保留未知XML/屬性/註解，輸出UTF-8及原BOM策略；從原文重新核鎖、不覆寫ID。Windows nfo/architecture、vet、Linux nfo/architecture race通過，docs/nfo-edit-text.md與docs/evidence/nfo-edit-text-race-linux.txt已記範圍。這不是完整NFO寫回，atomic檔案writer/鎖/backup/正式read-write jobs仍缺。
+
+HEAD仍9a74a8932a等待smoke0bf08daaefc84d099f23abcbdb032b9e，先核同handle。容器實際logs已有seq5/samples/232秒，running/OOMfalse；status檔elapsed0為更新間隔，不可當worker沒有進度或重啟依據。待smoke通過後先同HEAD啟正式，再提交以上程式及交接；不要讓NFO提交破壞matching smoke gate。
+
+---
+
+## 活躍smoke：先核handle，暫留HEAD9a74a8932a
+
+診斷修補9a74a8932a已推PR46，Windows tagged/race Linux、vet、格式、增量品牌、gitignore與51項Python控制器測試通過。新完整600秒smoke run0bf08daaefc84d099f23abcbdb032b9e，PID764115/startTicks31610556/bootId4a5d9c5c-4482-4c3e-8978-30156b1ce92f，來源9a74a8932a8703b991b8ee2678fb8eb2ec2bdd9b；啟動UTC2026-10-03T03:02:29.370792+00:00。啟動後process identity已實核吻合。evidence .testdata/soak-launch-0bf08daaefc84d099f23abcbdb032b9e，snapshot /var/tmp/jelee-soak-snapshot-0bf08daaefc84d099f23abcbdb032b9e。
+
+暫勿提交本段交接或其他待存變更，需保持HEAD以同commitmatching smoke gate啟正式。先核程序與result；不因觀察timeout重啟。若smoke完整passed且snapshotVerified/testArtifactsCleaned/launcherArtifactsCleaned皆true，立即同HEAD啟正式24h、核新handle，再提交待存文件與繼續開發。若failed先查memorySummary.samplerFailure/collectorFailureCode；不得猜測已修圖片故障。
+
+---
+
+## 2026-10-03 接續：正式長測終止，採樣失敗證據修補
+
+原run af2530314062427bb16da7d2f11961b4已failed。PID726258的/proc身分不存在；result.json終態failed，workerErrorCode cold_image_processing_failed，worker exit1/OOMfalse，testArtifactsCleaned與launcherArtifactsCleaned皆true，snapshotVerified false。沒有仍活躍的正式24h。來源38a47082e9，只完成4輪；failedRound index4/cold failureCode context_finished/首失敗request index186 status0/約1209秒，不能判定原圖片故障已修。安全摘要docs/evidence/image-soak-context-failure.json。
+
+診斷發現collector取消work context後，被拒绝採樣及partial memory summary原本丟失。新增固定原因碼與數值失敗觀測（前值、拒絕值、sample index、processor stats）；abort/join後把partial summary保存到失敗report，Complete仍false。保留464MiB RSS／所有時間和配額門檻。Windows tagged TestImagesSoak/TestImagesCold與vet、Linux同選測race通過；證據soak-sampler-diagnostics-race-linux.txt。診斷修補不是原始故障修復。
+
+下一步從已提交診斷版本啟完整600秒smoke，核registry的PID/startTicks/bootId並觀察。若再failed先看memorySummary.samplerFailure與collectorFailureCode。smoke成功且snapshot/雙層cleanup皆true後，同來源commit才可啟正式24h；不把舊來源結果歸新HEAD。PR46沿用，不merge。
+
+NFO寫回已核原文G39.7–10，尚未開始程式：保留未知XML/屬性/註解/縮排順序，编码BOM策略、備份/fsync/rename/回滾、flock/LockFileEx/singleflight及ID不覆蓋均必須接正式read-write工作流程；不能只做序列化helper就關需求。全案仍7完成／195部分／134阻塞。
+
+---
+
+## 2026-10-03 接續：元資料外連接入共用 I/O
+
+基於212e19f6a2接續；runtime先建立單一budget再準備TMDB，fx.Supply同實例。outbound.Fetch在URL檢查後/DNS前AcquireIO，15秒共用等待與網路期限，Body.Close後release。provider限流/RetryAfter不持共享配額；queuefull走既有安全Unavailable，不使用provider response retry、不寫cache。詳見docs/shared-work-budget.md。
+
+Windows outbound/metadata/runtime/architecture與vet、Linux race（另含resources）、真PG TestMetricsRuntimePostgresIntegration race通過；真TLS七矩陣含total1及退避釋放驗證；queue0/1、cancel、body持有與回收通過。證據resources-metadata-*。真PG案例未配置TMDB；不將它稱為真TMDB/PG聯測。
+
+同正式長測PID726258/start31439656/boot4a5d9c5c-4482-4c3e-8978-30156b1ce92f重核吻合，container running/OOMfalse，source38a47082e9保持。遠端212e19f6a2兩平台foundation/format/ABI成功，兩品牌失敗，PG/三平台Tests/CodeQL當時仍在執行。全案7完成/195部分/134阻塞，PR46沿用且禁止merge。下一步繼續稽核索引、NFO寫回與其他工作，補混合race/資源等待指標/不同配置調校；原媒體與授權、既有SQL保持。
+
+---
+
+## 2026-10-03 新對話接續：資源指標驗證通過
+
+已讀交接、需求追蹤與適用規範。HEAD4e1bf2e68a與未提交檔案吻合。Linux telemetry/resources/jobs/runtime race及真PG TestMetricsRuntimePostgresIntegration race退出0，Windows受影響套件vet退出0；證據已放docs/evidence/resources-metrics-*。指標測試import分組整理；Windows telemetry/resources/runtime/architecture重驗、vet、增量品牌（0違規／339白名單）及gitignore（0違規）通過。沿用PR46提交推送，不merge。
+
+G41.8追蹤表原先已完成僅能证明兩種job的統計；其他任務覆蓋及資源等待分布仍缺，改回部分完成，統計7完成／195部分／134阻塞。docs/metrics.md及shared-work-budget.md已說明。
+
+長測PID726258/start31439656/boot4a5d9c5c-4482-4c3e-8978-30156b1ce92f實核吻合，容器running/OOMfalse。保留source38a47082e9，不重啟。遠端4e1bf2e68a：兩Windows及兩Linux foundation、三平台Tests、format、ABI已success；兩品牌fail，兩PG與CodeQL仍in_progress。不能宣稱全綠或全案完成。
+
+---
+
+## 2026-10-03 換模型／新對話交接：已停止開發，資源指標尚未提交
+
+使用者要求「等等準備換模型了跟開新的對話繼續了，寫交接」。本次到此停止，不自動繼續。新對話收到繼續指示後，先核對 git 狀態及下列活躍長測，不重啟仍存活的工作。
+
+### 範圍與 Git
+
+- 全部 G00–G51 仍是目標，以 requirements-source.md／requirements-traceability.md 為準。全案及第三階段未完成；舊約80%估算未重算，勿當最新百分比。
+- Repo https://github.com/Carinoasd/Jelee；本機目錄為本文件所在 docs 的上一層 outputs/Jelee。
+- HEAD 4e1bf2e68a；分支 feat/jelee-ignore-family-worker；現有普通 PR46 https://github.com/Carinoasd/Jelee/pull/46。沿用此 PR，勿因子批次另開重複 PR。
+- 最新持續目標禁止 merge、release、tag、force-push、改既有 migrations 或 Git 身份設定；保護授權與原媒體。先前允許 merge 的歷史訊息不適用目前目標。
+- 提交作者僅命令級：git -c user.name=Carinoasd -c user.email=46304809+Carinoasd@users.noreply.github.com commit ...。PR／提交說明用繁中。
+- 最新 developer 禁止主動派子代理；除非使用者／適用指令明確要求。
+
+### 本次未提交變更與驗證
+
+五個程式檔：internal/platform/resources/budget.go（immutable Limits getter）、internal/platform/telemetry/resources.go（新增 NewWithResources 及八個 gauge）、resources_test.go（新增真配額滿載／排隊／取消／回復測試）、internal/platform/runtime/runtime.go（同 fx Budget 注入 metrics）、metrics_integration_test.go（正式 HTTP 檢查配置限額、未授權不得洩漏資源指標）。另本交接文件修改。
+
+指標前綴 jelee_resources_：cpu_active/io_active/total_active/waiting/cpu_limit/io_limit/total_limit/queue_limit，無動態標籤。每次 callback 只讀一次 Stats，不取得工作配額、不做 I/O、不新增 goroutine。使用既有管理員 metrics endpoint。
+
+Windows 最新執行 scripts/run-go.ps1 test ./internal/platform/telemetry ./internal/platform/resources ./internal/platform/runtime ./internal/architecture 全通過。首次測試失敗是重用了固定22 families的舊 helper；新增八項後改成新測試自己解析並驗30 families，未放寬舊測試。已 gofmt。Linux race、真 PG HTTP 整合、vet 尚未執行；不能把 Windows runtime 套件通過宣稱為已跑真 PG 整合。
+
+下一步：審查上述差異，執行 .testdata/run-resources-metrics-race.py 和 .testdata/run-resources-metrics-runtime.py（本次從 watch scripts 產生，尚未執行）；核輸出 .testdata/resources-metrics-race-linux.txt／resources-metrics-runtime.log。後者指定 TestMetricsRuntimePostgresIntegration、讀私密 scale-database-url，不可輸出連線字串。Linux透過 WSL Ubuntu、固定 Go1.27.1、gcc15、/var/tmp native TMP。補 vet、docs/shared-work-budget.md／必要 traceability／安全 evidence，再提交推送 PR46並 attach。不要把 G41.8 因八個 gauge 就標完成：等待時長、其他任務、完整混合負載等仍缺。
+
+### 活躍正式24h長測：不要重啟
+
+run af2530314062427bb16da7d2f11961b4；PID726258；startTicks31439656；bootId4a5d9c5c-4482-4c3e-8978-30156b1ce92f。2026-10-03 本回合最後核實 process_identity 完全相符，容器 running=true、oomKilled=false。換模型不需停止此隔離工作。
+
+worker容器 jelee-image-memory-af2530314062427bb16da7d2f11961b4；開始UTC2026-10-03T02:34:00.370709+00:00；來源38a47082e951573947cbfdd6445919d178443b21，包含長測失敗診斷修正，不包含後續 probe/images/ignore/watch 資源配額，更不含本次未提交 metrics。不可把將來通過歸到最新 HEAD。
+
+快照 /var/tmp/jelee-soak-snapshot-af2530314062427bb16da7d2f11961b4；證據 .testdata/soak-launch-af2530314062427bb16da7d2f11961b4/。核程序用 scripts/start_images_soak.py 的 process_identity(726258)，容器用 runtime_memory_acceptance.container_state(...)。若handle消失再讀result.json，只印安全摘要，不因觀察逾時重啟。固定288×300秒24h；matching600s煙測127a0...已pass、finalAcceptance=false。
+
+之前正式033822...在約35分鐘 cold_image_processing_failed，根因尚未定。新來源保留 failedRound/FailureCode/FailedRequest(status,index)，monitor不再用soak_event_invalid遮蔽worker錯誤；若這次失敗先查這些證據，勿猜測已修。
+
+### 後續大項及 CI
+
+共用配額已接直投、inventory/NFO、probe、images、ignore baseline/verification、watch建置/重建/根檢查；索引、metadata下載等仍需稽核。完整 G41.9 混合負載必須含 NFO 寫回（尚未實作），不可用唯讀代替；不同核數/記憶體調校 G41.10 未完成。G41.3/G13.5仍部分。
+
+最後歷史CI觀察 f00661198f：品牌兩fail、多數功能pending；本回合未查遠端最新CI，不能宣稱全綠。品牌殘留舊記錄14735/344，未重掃。gh 位於 C:/projects/tools/gh/bin/gh.exe，命令需 --repo Carinoasd/Jelee；push可用既有 gh credential helper，不改Git設定。
+
+全案 traceability 前次統計8完成／194部分／134阻塞（共336），本回合未重算。保留完整目標；新對話先完成未提交指標驗證，再接其餘需求。
+
+---
+
+## 最新接續：原生目錄監看建置／重建／根檢查已接共用 I/O
+
+scan.WatchOptions.Budget由runtime同fx實例注入。build取得I/O至建置/錯誤清理返回，Observe常駐Poll不持配額；health checkRoots另短期取得。queuefull由既有watch goroutine250ms重試，可ctx取消。新增queue0/1取消與buildlimit回收測試；真RebuildIncludesNewChildren加入budget記錄，dirtycallback配額0、rebuild至少再次取得。
+
+Windowsscan/runtime/architecture+vet通過；Linuxrace與真PG runtime window/watch通過，證據docs/shared-work-budget.md/resources-watch-*。下一步查索引/metadata下載其他操作是否受限，並补資源指標、全模組混合壓測、不同核數配置調校；G41.3/G13.5仍部分，勿因已接幾種consumer關閉需求。
+
+正式af2530314062427bb16da7d2f11961b4/PID726258/start31439656/boot4a5d9c5c-4482-4c3e-8978-30156b1ce92f source38a47082e9繼續；先核handle，不重啟。該source不含後續probe/images/ignore/watch配額。CI目前f00661198f品牌兩fail、多數功能仍pending，尚無全綠結論。PR46禁止merge。
+
+## 最新接續：忽略基線與三種複核接入共用 I/O
+
+withJobIO泛型helper只包同步observer，普通EvaluateIgnoreBaseline用aggregate wrapper保留decision+proofs。普通Reobserve、family批次/逐筆Evaluate、verifyFamilyStream的observe皆接入。批次釋放後才fallback，observe釋放後才commit，不巢狀。family baseline六種矩陣加入真budget，verification成功/error/cancel驗證不誤提交與回收；Windowsjobs/architecture+vet、Linuxrace通過，docs/shared-work-budget.md/resources-baseline-race-linux.txt。
+
+接續監看建置/重建的I/O配額（不能把整個Observe長生命週期占住slot），再補索引/metadata下載與G41配置可觀測及真混合負載。正式af2530314062427bb16da7d2f11961b4/PID726258/start31439656/boot4a5d9c5c-4482-4c3e-8978-30156b1ce92f剛核實running/OOMfalse，source38a47082e9隔離快照不含後續資源接入，不重啟活躍run。全案未完成，PR46禁止merge。
+
+## 最新接續：兩種忽略目錄掃描已接共用 I/O
+
+jobs/resources.go新增scanIgnoreDirectory與scanFamilyIgnoreDirectory，兩個executeInventory分支改呼叫wrapper；acquireWork到scanner+同步SaveBatch返回持IO，defer在error/panic返回釋放。一般ignore既有savefailure/missingdone/afterdone/success矩陣加真budget；family新增四種success/storage/missingdone/cancel矩陣。Windowsjobs/architecture+vet及Linuxrace通過，docs/shared-work-budget.md及resources-ignore-race-linux.txt記錄。未修改baseline/verification，接著補那些操作與watch；全域需求仍部分。
+
+正式長測af2530314062427bb16da7d2f11961b4/PID726258/start31439656/boot4a5d9c5c-4482-4c3e-8978-30156b1ce92f剛核實程序及容器running/OOMfalse；source仍38a47082e9、不含後續probe/images/ignore配額變更，不重啟。原始冷圖片失敗根因仍待觀察failedRound新證據。PR46持續推送，禁止merge。
+
+## 最新接續：探測與圖片配額已驗證；同來源正式24h已啟動
+
+smoke127a0c5f396e446a984754f007796f94來源38a47082e951573947cbfdd6445919d178443b21固定600s兩輪完整passed；soakWorkloadPassed/snapshotVerified/testArtifactsCleaned/launcherArtifactsCleaned全true，finalAcceptance false。安全證據docs/evidence/image-soak-diagnostics-smoke.json。
+
+正式run af2530314062427bb16da7d2f11961b4，PID726258/startTicks31439656/boot4a5d9c5c-4482-4c3e-8978-30156b1ce92f，startedUTC2026-10-03T02:34:00.370709+00:00，source同38a47082e9，snapshot /var/tmp/jelee-soak-snapshot-af2530314062427bb16da7d2f11961b4，evidence .testdata/soak-launch-af2530314062427bb16da7d2f11961b4。啟動後已核process identity存活；先核handle再poll，不重啟活躍run。此來源不含本批probe/images配額，不能把通過證據歸後續HEAD。原冷圖片根因尚未定；若再fail查failedRound.FailureCode/FailedRequest status/index，monitor保留workerErrorCode。
+
+本批probe InspectIO、CPU先於childlease、返回後釋放再複核IO，heartbeat本來續租有效child、expired不復活真PG已驗。images stageIO→CPU→verifyIO，不巢狀，Body只保留原memory reservation。所有相關Windows、Linuxrace、PG/HTTP整合已通過；probe busy lookup/acquire/process退避先歸零也驗證。詳見docs/shared-work-budget.md。接續忽略掃描、baseline、watch、索引等配額與混合驗收。G41.3/G13.5及全案未完成，PR46禁止merge。
+
+以下待提交文字為歷史記錄，此批提交後以本段為準。
+
+## 待提交補充：圖片共用配額已驗證，HEAD仍須保留38a
+
+除前段probe待提交外，images/processor.go Options.Budget與runtime factory已接同fx實例。stageIO→miss CPU(inspect/decode/resize/encode)→verify/closeIO，各階段先drop再acquire，hit只有IO/IO。Render結束不占共享配額，原本memory reservation仍等Body.Close。queuefull映射ErrImageBusy；operationctx含請求/timeout/lifetime，decode未返回仍持CPU。
+
+resources_test.go驗cold/hit classsequence、總量1不巢狀、body保留分離、滿queue與cancel；processor_test.go的同步decode cancel/timeout加入共享CPU斷言。Windows完整images與vet通過；Linuxrace resources/images/runtime通過；真PG TestImagesRuntimePostgresIntegration通過3.452秒。docs/shared-work-budget.md及resources-images證據待一併提交。
+
+smoke127a0c5f396e446a984754f007796f94/PID700210/start31372862/boot4a5d9c5c-4482-4c3e-8978-30156b1ce92f仍是source38a47082e9。2026-10-03T02:29Z case elapsed300/raw56556；程序容器先前核running。請先核handle、等待terminal；若passed且snapshot/cleanup全真，立即同HEAD啟正式（scripts/start_images_soak.py無--smoke），再提交所有probe+images+文件變更及推PR46。若failed先查failedRound/workerErrorCode。不得把這次smoke歸新配額功能；不得合併。
+
+## 待提交：探測 CPU／I/O 配額已驗證；等 smoke 後先啟正式長測
+
+目前 HEAD38a47082e951573947cbfdd6445919d178443b21 必須暫留，固定600s smoke run127a0c5f396e446a984754f007796f94正在執行，PID700210/start31372862/boot4a5d9c5c-4482-4c3e-8978-30156b1ce92f，來源38a47082e9。最新case狀態workload，launcher process已核存活；不重啟。先確認smoke terminal passed+cleanup/snapshot全真，再用同HEAD執行 start_images_soak.py 啟正式（不帶--smoke），核實新handle後才能提交待存變更，以免matching smoke gate不符。工作快照獨立於這些未提交變更。
+
+未提交probe.go/probe_work.go/resources_test.go：Inspect acquireIO；probeMiss在DB AcquireProbe前acquireCPU，probe後即釋放再複核IO，不巢狀。原先擔心child排隊逾期已確認HeartbeatJob本來會續租live child。真PG TestProbeAdversarialHeartbeatDoesNotReviveExpiredChild通過2.661s；Windowsjobs/architecture+vet及Linuxrace通過。docs/shared-work-budget.md/evidence已更新待提交。需一起以命令作者提交推PR46，不merge。背景其他images/ignore/watch等仍待接。
+
+圖片根因仍待重現；之前正式run033822...已failed。這次smoke尚無結果，不可宣称通過。CI38a：Windowsfoundation2個pass，format pass，品牌2個fail，其餘部分pending。
+
+## 最新接續：長測失敗原因覆蓋已修，需重現圖片故障
+
+正式run033822f3aecf4b6491406594c8687cfd已failed，沒有活躍正式長測。monitor收到ready前failed report原本丟soak_event_invalid；red測試Linux確認，現回soak_worker_failed並安全保留workerErrorCode，run_images_soak report也保存。原始events重播確認cold_image_processing_failed，證據docs/evidence/image-soak-failure-replay.json。Python51tests、WindowsGo及Linuxrace通過。
+
+Go失敗報告現在保留failedRound且不加入success rounds；冷圖片FailureCode分HTTP/context/idle/counter，FailedRequest有index/status（CAS取首個，join後讀取），无敏感字串。原run沒失敗輪統計，根因仍未定，不要把診斷修正當圖片已修。接著以已提交HEAD啟動固定600s smoke並核實handle；通過後同commit才能啟正式。保留既有smoke/正式證據，禁止覆蓋。
+
+資源配額後續仍需probe子租約等待安全、images/ignore/watch等；G41.3/G13.5及全案未完成，PR46禁止merge。
+
+## 最新接續：inventory 與 NFO 共用配額已接正式 jobs
+
+jobs.Options.Budget 由runtime同一fx實例注入。scanDirectory持IO至callback完成/返回（panic defer釋放），readNFO持IO、parseNFO持CPU，進filetimeout前先acquire，跨階段不巢狀。acquireWork於ErrResourceBusy時以既有worker/PollInterval等待，父job監控繼續，無新增goroutine/無媒體失敗；取消正常傳回，MaxJobRuntime仍生效。此等待不是持久化pause。
+
+真budget total1 NFO read/parse/revalidate、scan queue0背壓取消恢復、scan panic釋放、NFO關窗read/parse退款通過。Windows jobs/runtime/architecture+vet、Linux race、真PG Fx runtime通過；證據 docs/shared-work-budget.md。probe尚未接：要先拿CPU再建childlease，probe後複核IO的等待亦須尊重child期限，不能直接在已有子租約時無界等待。下一步處理probe，再接images/ignore/watch/其他CPU-IO。G41.3/G13.5仍部分。
+
+正式24h run033822f3aecf4b6491406594c8687cfd已終止：result.json failed/soak_event_invalid，worker exit1/OOMfalse，testArtifactsCleaned及launcherArtifactsCleaned true，snapshotVerified false。PID與容器已清理，不能報running或pass；原始events顯示TestImagesSoakAcceptance約2111.73秒失敗，error cold_image_processing_failed，已完成7輪（index0–6）。monitor因failed report未經ready而覆蓋為soak_event_invalid；需查images_memory_acceptance_test.go約874行冷圖片統計斷言與失敗報告後續改良，不能重啟未修正版本。PR46繼續，禁止合併。
+
+## 最新接續：資源配置與正式直投已接共用配額
+
+新增 ResourcesConfig（CPUFactor1、IO16、Total32、Queue128，JSON/env/Validate），runtime fx 單一resources.Budget傳入所有帳號模式的HTTP建構。直投在ACL lookup後開檔前AcquireIO，等候最多RequestTimeout；queue滿/timeout→429+RetryAfter，cancel無body；傳輸與檔案/回呼清理後release。文件 docs/shared-work-budget.md 有配置表與限制。
+
+Windows受影響套件與vet、Linux race及真PG Fx runtime通過。internal廣泛回歸images/toolidentity因沙箱ACL失敗，正常權限各自重跑通過。CI前一HEAD兩個Windows foundation成功、品牌門禁失敗、其餘仍有pending。尚未接scan/probe/NFO/images/索引/download，CPU配額目前不約束那些模組；G41.3/G13.5部分完成。下一步將同一fx budget傳到背景操作，背壓須不消耗故障重試或被分類壞媒體，防巢狀等待。
+
+長測仍沿用run033822f3aecf4b6491406594c8687cfd/PID645523/start31097741/boot4a5d9c5c-4482-4c3e-8978-30156b1ce92f。未合併，PR46繼續。
+
+## 最新接續：共用資源限額器底層已驗證，尚未接 runtime
+
+新增 app.WorkBudget/domain.ErrResourceBusy/platform/resources.Budget；同鎖取得 CPU或I/O+total，bounded queue，oldest eligible派發，取消退款/idempotent release。Windows資源與architecture測試、vet，Linux race通過；詳見 docs/shared-work-budget.md。沒有正式consumer注入，不得宣稱全域配額生效，G41.3/G13.5仍部分完成。
+
+下一步必須實際接 runtime 單一實例與可配置 CPU係數/I-O/total/queue，並接掃描、probe、NFO、images、direct等，避免巢狀取得和把背壓寫成媒體失敗。請沿用現有PR46；禁止merge。長測同run033822f3aecf4b6491406594c8687cfd/PID645523/start31097741/boot4a5d9c5c-4482-4c3e-8978-30156b1ce92f剛核實running、OOM false，勿重啟。
+
+## 最新接續：忽略基線計畫暫停回歸已驗證
+
+TestIgnoreBaselineRawPagesReplayAndReclaim、TestFamilyClaimCapabilities 都增加 planned-pause 分支並保留 recovery 分支。真PG race11.284秒通過；基線260筆游標/精確重播/128 observed+128 excluded+4 unknown/seq4保持，舊owner與改動重播拒絕，attempts只在計畫暫停退回。不同忽略模式能力仍不能互相領取。詳見docs/scan-window.md；人工lease基線fixture不等於外部解析端到端。
+
+下一個主要實作缺口 G41.3/G13.5：目前 jobs worker、probe/nfo gate、images與direct各有個別限額，沒有統一總量與分離CPU/I-O預算。需從現有runtime建構接點設計單一共享限額器，配置預設與取消/背壓/釋放所有路徑，避免同操作巢狀持有導致死鎖；不能只補helper測試便視為完成。真ffprobe/NFO/ignore各關窗端到端驗收仍保留待辦。
+
+正式24h同run033822f3aecf4b6491406594c8687cfd、PID645523/start31097741/boot4a5d9c5c-4482-4c3e-8978-30156b1ce92f已再次確認running/OOM false，不重啟。最新4451d447 CI檢查時多數pending，未宣稱通過。第三階段及全案仍未完成，禁止合併。
+
+## 最新接續：補上目錄監看的時間窗缺口
+
+WatchRunner 原本在 job 窗外仍會建置/重建目錄監看。新增 NewWatchRunnerWithWindow，runtime傳同一opts.Window。窗外不claim，關窗cancel/join observer後ReleaseWatch，claim期間關窗直接釋放；開窗重新Observe以既有startup dirty通知補掃。原無window建構仍全天。
+
+受控watcher關窗/重開/dirty/lease/timer清理Windows100次通過，jobs/scan全套與vet通過。正式Fx runtime測試啟用watch，閉窗lease_generation0、開窗native observing，Linux race通過；jobs/config/calendar/scan race也通過。證據docs/scan-window.md與jobs-watch-window-*.txt。
+
+接續仍需真 ffprobe/NFO 與 ignore 關窗恢復驗收，或推進 G13.5 全域 CPU/I/O/目錄並發缺口；不得把窄測試當全項完成。正式24h維持 run033822f3aecf4b6491406594c8687cfd、PID645523/start31097741/boot4a5d9c5c-4482-4c3e-8978-30156b1ce92f、sourcec61c12b007，先核實再觀測，不重啟活躍run。
+
+## 最新接續：正式 runtime 時間窗配置與 catalog 恢復已驗證
+
+新增 window_integration_test.go：真 Fx runtime/config/HTTP listener/PG/scanner 在關窗配置下保持 job queued/attempts0；Stop 後全天配置 restart，同一job完成/attempts1且原檔未變。Linux race3.222秒通過。新增 catalog PostgreSQL pause 前綴測試，第一筆commit後PauseJob，舊owner拒絕，實際worker恢復後completed/items恰為2，故障次數不耗損；Linux race通過。證據docs/scan-window.md。
+
+452a37ebd2 Windows foundation job111102378156已pass，前批時鐘測試修正獲一次遠端成功；另一次Windows仍pending，品牌兩門禁fail，其他部分pending。正式長測同run033822f3aecf4b6491406594c8687cfd/PID645523/boot4a5d9c5c-4482-4c3e-8978-30156b1ce92f/start31097741已核running、OOM false，case status elapsed1200/raw219577。不重啟，也不把c61c12b007證據歸後續修改。
+
+接著補 ignore 流程與真 ffprobe/NFO 關窗取消驗收，並推進 G13.5 目錄並發/全域 CPU-I/O預算。G13.5與第三階段仍未完成；全部G00–G51目標不變，禁止合併。
+
+## 最新接續：探測／NFO 關窗矩陣與 Windows CI 修正
+
+新增 window_stages_test.go：Inspect/Probe/NFO Read/Parse 關窗後 join、gate歸零、不提交檔案失敗或phase abort，開窗後恰好處理一次。使用受控替身，未聲稱真 ffprobe 程序驗收。真 PG 新增 PauseJob 回收 probe 子租約/配額、拒舊租約、phase續跑；NFO 第一筆已提交再暫停，恢復只處理第二筆，计數不重複。Linux race 全部通過，證據見 docs/scan-window.md。
+
+ff1d7eccaf Windows foundation job111101499591 的候選期限測試失敗（另一Windows job通過）。修正測試等待時鐘跨第一個期限建立刻度，保留嚴格新deadline與context獨立取消斷言。Windows100次及jobs/scan套件通過，Linux包含scan的race通過；修正後遠端CI仍待核。全品牌兩門禁仍失敗，未放寬。
+
+下一步：真正 runtime 配置啟動與 ffprobe/NFO/ignore/catalog 關窗恢復整合，依 G13.5 全域 CPU/I/O 預算及目錄並行缺口繼續。正式24h沿用 run033822f3aecf4b6491406594c8687cfd/PID645523/source c61c12b007，剛再次核實running/OOM false，勿重啟。第三階段及全案仍未完成。
+
+## 最新接續：時間窗已接入配置與 worker
+
+新增 Jobs.WindowStart/End/Timezone（JSON windowStart/windowEnd/windowTimezone，環境 JELEE_JOB_WINDOW_START/END/TIMEZONE），預設皆空全天。runtime 解析 calendar.DailyWindow 注入 worker。窗外所有 claim 分支等待；monitor 每秒檢查關窗，取消並 join 後 PauseJob，保留 checkpoint 且不耗故障重試。領取期間關窗也不開始掃描；非取消的真實掃描錯誤不以關窗掩蓋。啟用需 repository 實作 JobPauseRepository。
+
+Windows jobs/config/calendar 全套件、runtime 編譯選測及 vet 通過；最終 Linux 三套件 race 通過。真 PG race 驗證 root checkpoint 關窗後 queued/attempts0、開窗子目錄續跑 succeeded/attempts1，另包含既有計畫暫停測試。見 docs/scan-window.md 與 docs/evidence/jobs-window-*.txt。
+
+後续補 probe/NFO/ignore/catalog 各階段的實際關窗取消恢復矩陣、真正 runtime 配置啟動整合。G13.5仍部分完成；全域資源預算與目錄並行未完成，不能把本批當第三階段結案。正式長測沿用 c61c12b007 的 run033822f3aecf4b6491406594c8687cfd/PID645523，不包含後續產品改動。
+
+## 最新接續：計畫暫停持久操作已驗證
+
+新增 app.JobPauseRepository/PauseJob，Postgres 共用 releaseJob(planned) 保持 owner/generation/lease 與最終 UPDATE fence。計畫暫停僅退回目前 claim 的一次 attempts；取消優先，checkpoint 不刪，一般 ReleaseJob 故障上限不變。真 PG race 新測試與六組既有回歸通過，證據見 docs/scan-window.md。未改遷移。
+
+下一步接上時間窗配置與 worker：Options 的時間判斷要可控時鐘測試；窗外所有 claim 分支停領取；執行中監控關窗取消，join 後呼叫 PauseJob，取消優先；涵蓋 probe/NFO/catalog/ignore 的暫停恢復。此功能仍未啟用，不能把 helper 或 repository 通過當成時間窗交付。
+
+正式長測645523（startTicks31097741/bootId4a5d9c5c-4482-4c3e-8978-30156b1ce92f）及run033822f3aecf4b6491406594c8687cfd容器再次確認 running/OOM false。59c46b7 CI 已見兩品牌fail，format與一Windows foundation通過，其餘部分pending，不能稱全綠。全案仍未完成，不合併。
+
+## 最新接續：掃描時間窗判斷已建立，尚未啟用
+
+新增 calendar.ParseDailyWindow/Allows，嚴格 HH:MM／IANA 時區、跨午夜、半開區間與 DST 回撥/跳時測試；Windows calendar 套件通過。設計及接續步驟見 docs/scan-window.md。
+
+關鍵發現：Postgres ReleaseJob 會保留 attempts，達 max_attempts 即失敗，正常每日關窗不能用它直接暫停。下一步新增 fenced 計畫暫停操作（取消優先、保留checkpoint、避免消耗故障重試），真 PG 驗證，再把 window 設定與 worker 所有 claim 分支／monitor 關窗取消接上。尚未公開配置，也未宣稱 G13.5 已有時間窗。原始遷移不可改写。
+
+正式長測沿用下方 run 033822f3aecf4b6491406594c8687cfd；不要重啟活躍工作。G00–G51 與第三階段仍未完成。
+
+## 最新產品進度：圖片來源複製緩衝重用
+
+圖片 copyImageBytes 已以 sync.Pool 重用固定 32 KiB buffer，所有返回路徑清零歸還。Windows 完整圖片套件/vet、Linux 完整圖片套件 race 通過；新增 12 路不同內容並行回歸。256 KiB 來源讀取至 SHA-256 微基準由約 32838 B/op、3 allocations 降至 51 B/op、2 allocations；證據在 docs/perf-report.md。JPEG 標準庫無公開 encoder 重用入口，編碼器部分仍缺，不將 G42.5 標為完成。
+
+正式長測 PID645523/startTicks31097741/bootId4a5d9c5c-4482-4c3e-8978-30156b1ce92f 與容器已再次確認運行中，來源仍為 c61c12b007，不包含後續 pool 變更。沿用下方 run，不重啟。下一步依 G13.5 掃描工作時間窗與全域資源预算缺口評估整合，或核對長測與 CI 實際終態。全案與第三階段仍未完成。
+
+## 最新產品進度：媒體串流緩衝重用
+
+原媒體 streamWriter 已以每 Handler sync.Pool 重用固定 32 KiB buffer，成功或失敗皆清零歸還。Windows 套件通過，Linux race 通過；16 KiB Range 基準 Windows 58523 → 25859–25874 B/op、Linux 57782–57783 → 25184–25191 B/op，各少一次配置。詳見 docs/perf-report.md。G42.5 改為部分完成；總計 8 完成／194 部分／134 阻塞，第三階段未完成。
+
+正式長測仍使用 c61c12b007 快照，不能將其證據歸於這次 pool 修改。沿用下段 run/PID，不要重啟。最新 CI 尚待完成；本批未合併。
+
+## 最新狀態：正式 24 小時測試已啟動
+
+修正版 c61c12b007 的短測 2a0923d1359749be9d55a040d486eeec 已通過兩輪 600 秒，來源與原始樣本核對、快照核對、worker 與 launcher 資源清理均通過。證據見 docs/evidence/image-soak-flush-smoke.json；它只證明短測，不代表正式驗收。
+
+正式 run 033822f3aecf4b6491406594c8687cfd 已於 2026-10-03 01:37:01 UTC 啟動，來源固定 c61c12b00715eb616df68d4e2b0d57537daf03dc。PID 645523、startTicks 31097741、bootId 4a5d9c5c-4482-4c3e-8978-30156b1ce92f 已實際核對。registry/result 位於 .testdata/soak-launch-033822f3aecf4b6491406594c8687cfd/；snapshot 位於 /var/tmp/jelee-soak-snapshot-033822f3aecf4b6491406594c8687cfd。先查此程序與容器，不要重啟仍活著的測試。啟動時間包含建置；24 小時計時以實際 workload 為準。
+
+後續工作可修改工作目錄，測試使用獨立已提交快照。下一項候選是媒體串流 32 KiB 緩衝重用，修改前基準在 .testdata/stream-copy-baseline.json。G00–G51、第三階段及 G42.10 仍未完成。下列內容是歷史紀錄，其當時狀態不代表最新狀態。
+
+## 第一個真正600秒已通過；修正版短測正在建置
+
+dc7725b567的5a70b541fa654dd6ad6da1e8ef39b932已passed：工作600.000566047秒、2輪、618samples、RSS380.8515625MiB、GC最高桶1.835008ms、exit0/OOM false，source/samples保持、worker與launcher所有owned資源清理true。PID602883與snapshot皆已不存在。安全摘要已寫docs/evidence/image-soak-smoke.json（尚未提交），只代表此commit的600秒，不是24h。
+
+目前新run 2a0923d1359749be9d55a040d486eeec，PID626813/startTicks31021034/bootId4a5d9c5c-4482-4c3e-8978-30156b1ce92f，source c61c12b00715eb616df68d4e2b0d57537daf03dc（已推PR46，含每chunk flush）。registry在.testdata/soak-launch-2a0923d1359749be9d55a040d486eeec/registry.json，case狀態在cases/image-soak-2a0923d1359749be9d55a040d486eeec/status.json。先核實現有handle與terminal，不能重啟仍活著的run。
+
+若新run完整passed/cleanup true，直接在同HEAD以 python3 -B scripts/start_images_soak.py 啟動formal（無--smoke），先別提交這些pending文件，以免HEAD改變導致同commit smoke gate不匹配。formal啟動並確認registry/實際PID後，再提交doc/evidence與繼續其他工作。背景正式24h不能因換模型重啟；只查小型status或實際container。全部G00–G51、G42.10與第三階段仍未完成。
+
+## 活躍真短測：不要重啟
+
+dc7725b567固定快照的run 5a70b541fa654dd6ad6da1e8ef39b932目前仍活著；PID602883/startTicks30952947/bootId4a5d9c5c-4482-4c3e-8978-30156b1ce92f。最近實際docker inspect running/OOM false，controller status elapsed300/rawBytes56560，尚無result.json。registry與結果在.testdata/soak-launch-5a70b541fa654dd6ad6da1e8ef39b932；細部在cases/image-soak-5a70b541fa654dd6ad6da1e8ef39b932。下一步核實同handle/終態，不能因status每5分鐘才更新或raw未刷出而重啟。
+
+Docker --tail1診斷已見seq4/samples/172秒，原raw仍0是Python在DrvFS的大緩衝。工作區已修Receipt.feed每chunk flush並加真1MiB buffer可見性/後續失敗保留測試；Windows6通過3略過，Linux9通過。這兩個Python修改已驗證並與本段交接一同提交，沒有變動活躍snapshot。現有輪跑完後需核完整replay/cleanup；之後從flush新commit跑smoke，再同commit formal，不能把舊snapshot結果歸給新commit。
+
+本機全品牌重新測得14735違規/344allow，log.testdata/branding-latest.txt；新增範圍既有0/339。dc7725遠端兩品牌fail，其他CI多數仍running，不能宣稱全綠。完整24h未啟動，phase3粗估80%不变。
+
+## 第三輪短測 stdout 期限失敗已修正
+
+1783af0d1d7b497789c83e4bc6d4a41b進入worker但3.43秒退出，無start event、只有soak_final_write_failed；OOM false，全部owned資源清理true，PID591106已不存在。最小非root/readonly/無網路Docker probe實測stdout為FIFO且原os.Stdout deadline不支援；以/proc/self/fd/1及O_NONBLOCK重開同FIFO後deadline及write成功。
+
+加入test-only Linux openImagesSoakOutput：只接受FIFO、重開後SameFile核對、真deadline預檢，owned Close不關原stdout；非Linux明確拒絕opt-in長測。入口採用新handle，失敗測試多輸出固定ErrorCode方便診斷。Windows TestImagesSoak、tagged vet、Linux全TestImagesSoak race含真PG通過（8.572s，.testdata/soak-output-linux-race.log，session31435已退出0）；新增塞滿2MiB管線30ms deadline測試及非pipe拒絕。下一輪新提交完整600秒，尚無600秒或24h完成證據。
+
+## 第二轮短測建置相容性修正
+
+25d68f4e905c4752a8852e5e45450c51產品Docker與test binary成功，測試image的FROM bare sha256被BuildKit解讀成遠端repo而失敗；全owned資源清理true，PID575968已不存在。改本輪唯一local tag作FROM，前後核image ID不變；run/cleanup仍固定image ID。Windows/Linux控制器故障矩陣通過，下一輪從新提交重跑，尚無600秒或24h完成證據。
+
+## 真短測首輪建置失敗已定位
+
+caf1b3ef65短測56c5857eaa044b0aa1ef60c1cdcaaeb4在Docker runtime_image_invalid退出，尚未執行負載。snapshot provision只複製package notices，漏mediaRuntime.licenseTexts四份GPL/LGPL/GCC exception文字；已补全部pin檔案並新增回歸。Windows snapshot4通過／2略過、Linux6通過。原始失敗證據保留，worker/test/native及launcher PG/volume/snapshot清理皆true，PID572932已不存在。
+
+下一輪使用補授權文字後的新commit，重新開始完整600秒；不能沿用失敗時數。24h未開始。
+
+## 最新接續：固定提交快照與背景啟動器
+
+images_soak_snapshot.py從HEAD commit/tree匯出並封存來源，拒絕links/device/escape/重複/過大archive；所有tracked檔案唯讀並逐檔SHA/size/execute核對。只複製現有pin SDK archive、ffprobe/license/runtime檔並核SHA，snapshot內offline bootstrap SDK。start_images_soak.py用Linux flock避免同checkout重複啟動；背景worker從snapshot reexec，記PID/startTicks/bootId、UTC、commit/tree，獨立PG image ID/container/volume/動態loopback port，DSN只在私有env及記憶體。清理只處理該UUID。
+
+run_case接受snapshot並前後驗來源，仍固定1000fixture/600秒或24h；formal launcher必須先找到同commit真smoke passed及完整cleanup。啟動前工具測試Windows42通過／5平台略過，Linux47通過，含Git commit與dirty worktree隔離及惡意archive拒絕。尚未實跑新入口，接下來先提交本批，再用 python3 -B scripts/start_images_soak.py --smoke 真跑600秒。
+
+私有 .testdata/soak-launch-UUID/{registry,status,source,result}.json；細部controller輸出在cases/image-soak-UUID。active registry只供定位；必須用PID/startTicks/bootId或Docker inspect確認是否活著。不要因換模型重啟。正式24h未啟動，全案與第三階段未完成，不合併。
+
+## 最新接續：外層串流監控與容器流程已接上
+
+新增 scripts/images_soak_monitor.py：單一 docker logs --follow 子程序，以 Linux 非阻塞管線持續讀取；raw 64MiB、event 64KiB、final 2MiB，完整事件接收心跳70秒。每5秒查容器，每300秒原子更新最多4KiB狀態；ready只送一次SIGTERM，EOF需核follower與worker退出/OOM，任何退出都回收follower。
+
+scripts/run_images_soak.py接建置、1000圖片fixture、私有env、固定容器預算、串流重播、來源/fixture前後核對與owned cleanup；以image ID運行。暫無CLI，finalAcceptance固定false，因固定已提交快照/背景launcher尚未接好，不應直接當正式驗收入口。保留原有image-memory native prefix供共用cleanup驗證，UUID仍唯一。
+
+Windows長測工具39通過／3個Linux管線測試略過；Linux42全通過。含真管線ready握手、失敗exit保留raw、靜默live process逾時後回收，以及控制器中斷/驗證/來源/fixture/cleanup故障注入。只屬工具測試，真正600秒及24h尚未啟動，沒有活躍本地測試。
+
+下一步固定已提交source snapshot並從snapshot reexec控制器：提供固定SDK/媒體runtime、獨立背景handle、SIGTERM/INT處理、持久evidence路徑與清理；不可從持續編輯的workspace載入controller imports。共用 .bin/go 未追蹤，snapshot需產生wrapper或直接用固定SDK。toolchain local_path拒絕逃出ROOT的symlink，不能單純連結外部.tools；Dockerfile亦需實體media/runtime內容。先600秒smoke再同snapshot24h。全案G00–G51與第三階段仍未完成，不合併。
+
+## 最新接續：串流重播與固定預算已實作
+
+新增scripts/images_soak_acceptance.py、test_images_soak_acceptance.py與tools/image-soak-budget.json，memory contracts CI增加image-soak-replay。核每輪scan/cold/warm/resources、checkpoint與raw sample一致、每小時GC與range/trend、rotation、最終報告對照；有界解析與固定門檻，沒有finalAcceptance捷徑。提供inspect才核container，controller必须要求這部分存在。
+
+Windows/Linux各32項通過，包含完整288輪／24h合成重播；既有控制器21項、incremental branding0/339及diff-check通過。合成不代表實際24h。此批沿PR46提交推送，當前沒有活躍本地程序。
+
+下一步直接完成外層controller，不要再重做Go入口或驗證器。參考scripts/test_image_memory.py的build/fixtures/private env/owned cleanup工具，使用新Go TestImagesSoakAcceptance與validate_soak_log(...,inspect=actual_exit_inspect)，必須validate_soak_budget。固定已提交snapshot執行、單一docker logs-follow reader，檢查receive heartbeat≤70s、source/fixture保持、SIGTERM、exit/OOM/cleanup；先真正600秒smoke，再同snapshot24h。stream驗證本身不含receive heartbeat、source、owned cleanup，不能單獨宣布驗收完成。
+
+正式與600秒入口都尚未執行。全案G00–G51及G42.10保持未完成，仍第三階段。以下為歷史批次。
+## 最新接續：長測Go入口與協調器已串接
+
+新增TestImagesSoakAcceptance、collector及固定round引擎，沿用共用runImagesAcceptance生命周期。每輪300秒，formal288輪、smoke2輪；sample/round/hour單consumer排序，每小時flush/drain後聚合，GC/cgroup前後邊界，ready/final各一次，提前停止cancel/join。只在jelee_probe_tests明確env啟用，尚未執行600秒或24h入口。
+
+Windows選測/vet/格式/增量品牌與Linux race通過，Linux真PG輔助scan/rotation仍通過。紀錄 .testdata/soak-collector-linux-race.log、.testdata/soak-collector-final-linux-race.log，sessions26569/35485均退出0。首次Windows測試fixture相同時鐘tick，改注入嚴格遞增測試時鐘後通過，原生reader未改。先前shared-lifecycle 1000smoke8ff8521fd760435795b53dfe7cea1196只涵蓋當時來源，不涵蓋後加collector入口。
+
+下一步優先完成外層controller/validator並實跑600秒：新module需固定已提交快照、單一docker logs-follow reader、有界JSON解析、完整events/round/GC/cgroup/資源核對、ready後SIGTERM、狀態與清理；formal需同快照≥24h，不可拼接中斷。collector已提供phase/begin/hourRange/emit hooks，不要再重做草稿。TestImagesSoakAcceptance fixture固定/media、1000主items+4negative，共2008檔106目錄。
+
+沿用PR46，本批沿同分支提交推送；全案與G42.10未完成，第三階段百分比未重估。當前無活躍本地程序。下列為歷史紀錄。
+## 進行中：共用生命周期與固定輪次流程
+
+本機已將原圖片驗收的Fx／帳戶／PG／SIGTERM／cleanup抽為runImagesAcceptance hooks，舊入口仍委派同一cold/warm/negative/cancellation工作。原1000真圖片smoke 8ff8521fd760435795b53dfe7cea1196通過，sourceDigest ed8fb09565ee1d32e9429f15b7b137551e62095220d76888329593c66e9ba2dd，來源保持與自建資源清理true；session34977退出0。這只驗共享生命周期，沒有執行新的600秒或24h流程。
+
+新增images_soak_rounds_test.go：正式288輪／smoke2輪、每輪五分鐘deadline、scan/cold/warm/idle/resource checkpoint、第144輪雙角色rotation、每小時GC及來源檢查、最後等待滿時數、前後negative/cancellation。新輪次函式尚未接入口；hourRange/begin/phase/emit hooks待採樣寫入協調器提供。Windows選測、vet、格式及增量品牌通過，基本scope/取消/median單元通過；不可把這些算作真長測。
+
+上述Go變更尚未提交。下一步實作collector：configure時啟動sampler與單writer，安全attach Processor stats、work起點、flush/drain hourly range、ready/final JSON，再建TestImagesSoakAcceptance及固定快照controller。需真正600秒smoke後才啟24h。當前無活躍本地測試。
+## 最新接續：長測輪次輔助與逐小時GC
+
+第二批工具已實作：真HTTP混合scan＋清單/基線/快照核對、session rotation舊失效新可用與24h TTL、負例seed/check拆分、round/rotation/resources型別與逐小時GC判定。Linux race真PG/Fx/HTTP兩輪2008檔／106目錄與雙角色rotation通過；新Python22項、既有控制器21項、Windows選測、vet、格式與增量品牌通過。Linux session18229已退出0，無活躍本地測試。
+
+原1000真圖片smoke 72bd27a66a854db9a2468752cba2c610（session86563已退出0）驗負例拆分，1000decode／192warmhits、取消/ACL/SIGTERM/cleanup皆通過；後加型別/GC不屬此smoke source。詳細方法/來源限制見docs/image-soak.md。G42.10仍未完成、24h未啟動。
+
+下一步整體協調器，接同一Fx程序的sampler/stream/round/hour；先600秒smoke，再固定已提交快照24h。仍PR46與第三階段，需求計數不變，不合併。以下為歷史工具批次。
+## 最新接續：24 小時驗收工具第一批
+
+完成測試專用 Go 有界採樣器與 typed JSONL 寫入器，Python 採樣／穩態判定，以及冷暖 HTTP 負載共用起點；加入既有 memory contracts CI runner。方法與尚缺部分見 [image-soak.md](image-soak.md)。所有內容仍屬驗收工具，G42.10 未完成、24h 尚未啟動。
+
+Windows TestImages(Soak|Memory) 選測通過；Linux 同選測 race 通過，真 os.Pipe 驗證通過，紀錄 .testdata/soak-stream-final-linux-race.log。Python新16項與既有圖片控制器21項通過；控制器初次受Windows restricted-token暫存ACL阻擋，使用一般本機權限重跑通過，未削弱產品檢查。Tagged vet、gofmt、增量品牌0違規／339allow及diff-check通過。LICENSE／需求原文hash保持，沒有SQL、LiveTV或產品行為變更。
+
+接續：單一事件消費者、round／rotation型別與逐小時GC/cgroup邊界；真scan/rotate/negative輪次、SIGTERM及固定快照背景controller。先600秒smoke，再同一已提交快照24h正式運行；不得把合成86400筆或短測算作24h。沿用PR46，禁止合併／發版／tag等原限制不變。
+
+遠端73134c9fe7最近查詢：foundation、格式、ABI、OpenAPI、.NET三平台、CodeQL成功；兩個品牌gate失敗，兩個PG integration仍IN_PROGRESS。新提交需另查。第三階段約80%仍只是粗估，336項8完成／193部分／135阻塞保持。
+## 最新接續：G42.6 同尺寸圖片完整副本已修正
+
+JPEG Gray／YCbCr直接編碼；PNG七種標準解碼型別在請求獨占像素內白底合成／16轉8，同Pix與原stride，沒有第二份全尺寸位圖。縮小路徑、估算和所有預算保持，原檔不改。640×960冷JPEG配置量先紅3,758,080 bytes／筆，修後1,282,375 bytes／筆；共享像素、白底oracle、alpha、取消、真PNG／PNG16／Adam7及來源保持通過。
+
+Windows images74通過／1平台略過、HTTP44／0；Linux race images60／0、HTTP44／0。Tagged vet、格式及三命令建置通過，922份來源保持。草稿benchmark前置錯誤產生的零結果已棄用，改明確尺寸並拒絕零量測，再驗真紅綠。[方法](image-same-size.md)／[證據](evidence/image-same-size.json)。十萬圖片量測屬前一c0a436a42c來源，本次未重跑。
+
+G42.6本行已完成；全案336項 **8完成／193部分／135阻塞**，仍第三階段。前述約80%／2～4天為工作量粗估，未新增精確進度分母。下一段依忽略的 `.testdata/soak-contract.md`／`.testdata/images-soak-next.md` 實作單一24h固定快照驗收；尚未啟動。繁中同PR46推送，完整品牌仍待處理，不合併／發版／tag／force-push／改舊SQL或Git身份設定。以下為歷史紀錄。
+
+## 歷史接續：十萬圖片 RSS／GC 子項通過
+
+進度估計（2026-10-03）：按原訂第三階段的任務／掃描／探測／唯讀NFO／忽略／監看／排程範圍，向使用者回報約80%、剩20%，屬工作量粗估而非需求完成率；暫估2～4天持續開發及測試，至少24h連續長測尚未啟動，若失敗重跑須重估。完整前端與其他後續能力不混入第三階段估計，但全G00–G51仍是總目標。
+
+正式 Fx／HTTP／PostgreSQL、預設 KDF，在固定 2 CPUs、GOGC100、Go 512 MiB／容器 768 MiB 下，十萬個獨立本地 JPEG／PNG 來源均成功解碼、縮小及傳完。修後冷輪 787.89 秒、全段 807.56 秒，816 筆採樣 RSS 峰值 355.55 MiB < 464 MiB；GC 最高桶上界 0.524288 ms，counter／histogram 暫停比例 0.39286%／0.42921% < 1%。暖 GET／HEAD／304 共 192 次全命中，無新解碼。權限、負例、取消復原、SIGTERM、原檔抽樣與自建資源清理通過，退出0、OOM零。
+
+首輪十萬張完成但 GC 比例 1.30739%／1.44244% 超標，整體失敗紀錄保留。每次預配2MiB輸出改為有硬上限的按需增長；實際小縮圖配置由2,438,565降至309,049 bytes/筆。修後十萬冷輪比首輪380.85秒慢，未隔離環境或分析原因，不宣稱吞吐提升。固定預算與素材均未放寬。
+
+驗收工具 Windows Go84／Linux race85通過事件、各2選用測試略過；Python33項、CI契約12步通過。產品修正另驗 Windows images56／1略過、HTTP44／0，Linux race images42／0、HTTP44／0；格式、tagged vet、三命令建置、增量品牌與gitignore通過。920份來源在量測期間保持，90份SQL、五份LiveTV核心、LICENSE及需求原文不變。[方法及限制](image-memory.md)／[來源、失敗與修後證據](evidence/image-memory.json)。
+
+仍第三階段，336項為 **7完成／194部分／135阻塞**。G42.10尚缺至少24h；圖片的其他角色／命名／來源與前端仍待完成。覆核G42.6找到未縮小時decoded與同尺寸RGBA並存，已修正文件過度主張，這是下一段先處理的具體缺口；其他格式不是G42.6本行阻塞。
+
+下一段先審查並套用忽略的 `.testdata/image-fullsize-next.patch`，完成同尺寸私有位圖原地白底合成及回歸後推送；草稿尚未編譯／測試。之後依 `.testdata/soak-contract.md` 與 `.testdata/images-soak-next.md` 做單一24h固定快照驗收，目前尚未啟動。沿用繁中PR46及同分支；完整品牌門禁未通過，前一head的PG CI仍在跑，不能宣稱全綠或合併。以下為歷史紀錄。
+
+## 歷史接續：本地 Primary 圖片處理子項完成
+
+新增預設關閉的本地圖片 API：JPEG／PNG 真解碼、等比例縮小、白底合成與 JPEG 輸出。來源只讀、私有暫存串流、尺寸與解碼工作區預檢、有界編碼 LRU/TTL；請求和慢回應持有准入槽，取消不遺棄解碼工作。Windows held-handle ACL 與 Linux 擁有者/權限檢查均已驗證。每次取圖、HEAD/304/暖命中在處理前後重新查驗 live session、ACL 與唯一來源綁定。
+
+Windows 單元 723 通過／1 平台略過，Linux race 709／0；HTTP Windows 整包 444／0、Linux race 圖片專項 44／0；Linux 真 PG/Fx/HTTP 10／0。事件包含父與子測試，不能視為不重複案例。兩張 128×64 圖縮為32×16，正式 KDF 登入、撤權、ETag/HEAD/304、四個原檔保持與正常停止清理通過。初輪 Linux scratch 權限錯誤已保留，僅修測試私有目錄後成功。33 Go檔格式、vet、架構2項、三命令建置、模組驗證通過；最終905份來源凍結，90份SQL、五份直播核心、LICENSE與需求原文不變。
+
+[功能與限制](local-images.md)／[來源及執行證據](evidence/local-images.json)。336項為 **7完成／194部分／135阻塞**，仍第三階段；本次把9項由尚無實作推至部分完成，不代表G40整章完成。十萬圖片RSS、24h、其他角色/格式、持久變體、遠端/NFO/內嵌、鎖定重建與前端仍缺。
+
+下一小段使用正式圖片路徑驗十萬個獨立來源的冷解碼，再查暖快取與RSS/GC預算；草稿在忽略的 `.testdata/images-scale-next.md`。沿用繁中PR46，功能CI須查新head；完整品牌gate仍未通過，不合併。下方為歷史紀錄。
+
+## 歷史接續：G42.10 五十萬條目容器預算與 GC 子項完成
+
+正式 Fx／HTTP／PostgreSQL 單 worker 在 2 CPUs、GOGC100、Go soft limit 512 MiB、容器 768 MiB 下，完整掃描五十萬檔，inventory 與已生效 baseline 各五十萬筆，501 個目錄完成。一次嘗試，HTTP 提交至觀察成功 136.28 秒；全段觀測 138.11 秒、144 筆 RSS 採樣，峰值 154.32 MiB，低於事前固定 464 MiB。
+
+GC 暫停最高桶上界 0.196608 ms，計數器及 histogram 保守暫停比例 0.02080%／0.02335%，低於 50 ms／1% 工程門檻；633 個 cycle、1266 個 STW 事件分別記錄。原檔抽樣保持，SIGTERM、HTTP 關閉、lifetime 取消、租約與 DB 連線清空通過，OOM 零增量、退出 0，自建資源已清理。外部 PostgreSQL 記憶體不包含在 worker 預算中。
+
+Windows Go 與 Linux race 各 24 個通過事件、1 略過；Python Windows 21 通過／1 略過、Linux 22 通過，CI 契約 10 步與 vet／格式／差異檢查通過。876 份量測來源保持；90 份 SQL、五份 LiveTV 核心、LICENSE 與需求原文未改。前置 tmpfs 拒絕與首輪短測試請求錯誤已保留，修正後同來源短測試及正式五十萬負載通過。
+
+[方法與範圍](scan-memory.md)／[來源及實測證據](evidence/scan-memory.json)。336 項仍為 7 完成／185 部分／144 阻塞，仍第三階段。G42.10 的 heap 前後比較與五十萬掃描已有證據；十萬真正圖片處理、至少 24h 穩態仍待完成。
+
+下一段先實作可用的本地圖片處理路徑，再用真解碼／縮放／輸出驗十萬圖片；忽略草稿 `.testdata/image-processing-next.md` 尚不是實作或驗收。沿用繁中 PR46。完整品牌 gate 仍未通過，不合併；新推送 CI 另查。下方為歷史紀錄。
+
+## 歷史接續：G42.10 heap／inuse_space 前後比較子項完成
+
+既有 1000 檔混合 worker 在冷／暖／變更掃描後與五分鐘持續暖掃後各採一份 heap；沿用 GC 點，沒有增加暖機或 GC。GOGC100／50 兩組均通過，RSS 峰值 359.30／222.36 MiB，仍低於固定 464／352 MiB。兩槽 KDF、取消復原、停止、OOM 零增量及獨立 OOM 負向均通過，自建資源已清理。
+
+新增 tagged 固定匯出命令、有界取回／SHA 回執、固定 SDK 本地分析及安全摘要；沒有產品 pprof HTTP 端點。Docker archive 無法取回 live tmpfs 的首輪失敗已保留，小型重現後改用 exporter 再完整重跑。Windows Go 64／Linux race 80 通過事件，各略過 2；Python 兩平台各 63 項，契約 8 步驟、小型真 SDK 與匯出整合均通過。869 份來源全程不變，90 份 SQL、五份 LiveTV 核心、LICENSE 與需求原文保持。全量品牌仍有 14,735 項；上一提交功能 CI 全通過，只有品牌 gate 失敗，新推送需另查。
+
+[範圍與結果](heap-profile.md)／[來源與實測證據](evidence/heap-profile.json)。336 項為 7 完成／185 部分／144 阻塞，仍第三階段；G42.10 整行僅部分完成。
+
+下一小段：一輪五十萬條目的正式 runtime 純清單掃描，在事前固定的 RSS／GC 門檻下驗收；沿用既有 snapshot 清理及本輪 pprof 證據，不增加無必要矩陣。原文沒有要求五十萬必須混合 probe／NFO／圖片，亦未要求與十萬圖片同時測試。十萬真正圖片處理及至少 24h 仍是後續獨立缺項。詳細最小計畫在忽略的 `.testdata/runtime-memory-next-after-heap.md`。沿用同分支繁中 PR46；目前完整品牌 gate 尚未通過，不合併。下方為歷史紀錄。
+
+## 歷史接續：G42.9 固定 RSS 預算與獨立門禁完成
+
+在既有 Go 指標上補上真 worker 父程序 RSS 採樣，每秒及八個工作階段邊界取樣，上限 1024 筆；固定使用近似的 `/proc/self/statm`。GOGC100／50 各一次 1000 檔／五分鐘基線，採樣峰值 358.54／277.19 MiB。增加 25% 工程餘量並向上取整至 16 MiB，將 464／352 MiB 預算固定入版控，綁定基線原始 bytes 與來源雜湊。
+
+另以兩個新容器驗證相同負載，RSS 峰值 358.65／277.39 MiB，406／397 筆，均通過固定預算。持續暖掃 21 輪約313.74秒／20輪約304.28秒；完整檔案計數、正式兩槽 KDF、取消復原、主入口／SIGTERM、正常 OOM 零增量及獨立 OOM 負向通過，自建資源清理。兩組 source digest 均為 `846c44a2e15a7f022faf06bb3ce7e0bc543aab397f76861f4452f614b66f96e1`，862 份凍結來源保持。
+
+Controller 固定讀取預算及基線，拒絕重複 JSON key、非有限值、缺檔、錯 hash、來源改動及缺組；每組與最後彙總均重算原始採樣。超標先保留採樣、門檻與失敗狀態，再清理。真基線複本的超標 1 byte 負向重播均退出1，原始證據未改；CI 沿原必要步驟執行並保留失敗 artifact。
+
+Windows Go 79 通過事件／13 略過，Linux race 73／7；44 個 Python 契約與 Linux Compose／原生 Go 檢查通過。Windows 初次 sampler 單元測試的時鐘解析度已修復，未改原生讀取；控制器暫存目錄的沙箱權限問題以標準本機測試確認通過。90 份 SQL、五份直播核心、授權與需求原文保持。遠端 CI 必須另外確認，完整品牌仍有既存舊名稱殘留。
+
+[預算與範圍](resident-memory.md)／[基線](evidence/resident-memory-baseline.json)／[獨立門禁證據](evidence/resident-memory-gate.json)。追溯 336 項：7 完成／184 部分／145 阻塞，仍第三階段。本段不代表 4C8G 整機、十萬圖片、五十萬混合條目或 24h 完成。
+
+下一小段依 `.testdata/runtime-pprof-next.md`，在既有負載與 GC 點補 heap／inuse_space 前後證據；不新增公開除錯端點或額外長負載，G42.10 仍有規模與長測待完成。沿用同分支繁中 PR46，不 merge／release／tag／force-push／設定 Git 身分。下方為歷史紀錄。
+
+## 歷史接續：G42.8 容器記憶體設定與驗收完成
+
+新增明確選用的 Compose 記憶體設定：GOGC=100、GOMEMLIMIT=512MiB、容器 768MiB 且禁用 swap，三值皆可覆寫。真正的 Compose 合併確認只影響 jelee 的預期欄位；基礎安全限制保持。沒有生產 Go 或 SQL 變更。
+
+GOGC100／50 各跑相同 1000 檔（400 NFO／100 影片／500 圖片），包含三種重掃、19 輪約309秒持續負載、正式64MiB兩槽KDF四次操作、取消復原及SIGTERM。100 的 cgroup 峰值518.17MiB、631次GC、33.36ms累計暫停；50 為272.27MiB、1708次、86.64ms。兩組正常退出、OOM事件零；正式 /jelee 入口健康與停止通過。獨立64MiB無網路負向在確認配置標記後退出137／OOMKilled=true。所有自建容器、schema及image清理，原fixture保持。
+
+保留100預設：本profile約有250MiB硬上限餘量且GC較少；50可作記憶體優先覆寫。兩組各一次，未量CPU；cgroup不是RSS，main有效GC未由主程序直接觀測。五分鐘與500張圖片不代替24h或十萬圖片。[設定與調整依據](runtime-memory.md)／[來源與實測](evidence/runtime-memory.json)。
+
+Windows55通過／13略過，Linux race49／7略過，19項Python測試通過；事件含父測試，需PG／專用容器的普通略過項有明列。CI contracts、tagged vet、三命令build、模組、格式、增量品牌及gitignore通過；全量品牌仍14735項。856份來源在native期間保持，量測後只補修Python失敗日誌保存及其mock測試，Go與部署不變；兩組負載沒有重跑。90份SQL、五份直播核心、授權與需求原文保持。
+
+追溯共336項：6完成／185部分／145阻塞，仍第三階段。目前無本機驗證程序存活；本段推送後CI須另查，不能宣稱全綠。接續 `.testdata/runtime-resident-budget-next.md` 做G42.9：增加同profile父程序RSS採樣，按真基線制定固定預算及CI超標門禁；不增加原文未要求的GC histogram/P99，也不把768MiB硬上限當預算。
+
+沿用同分支繁中PR46，不merge／release／tag／force-push／設定Git身分。下方為歷史紀錄。
+
+## 最新接續：G41.8 工作指標已完成
+
+實作提交 `956ff40b80`，承接 schema45 的 `60fb02d2e3`。管理員 `/metrics` 增加共享工作統計，固定 22 家族／163 系列；OTel Producer 使用 DB 絕對累計及 epoch，runtime／pool 仍為各程序本機數據。請求先讀兩秒期限的一致快照，SDK callback／Producer 不執行 SQL；逾時、取消或部分收集回安全錯誤。停止先等待已接納的預讀與收集，再釋放 pool。
+
+Windows 518 通過／9 略過，Linux race 512／3 略過，真 PostgreSQL／HTTP race 10／0 略過；事件含父測試。三個資料庫頂層案例另由真 PG 全數通過。驗證實際 submit／claim／release／reclaim／publish、never-started cancel、history=1 裁剪、兩副本與重建、權限撤銷、資料庫鎖定失敗與恢復、SDK epoch／互斥桶及部分輸出防護。最大回應 20,353 bytes，低於 64 KiB。
+
+vet、三命令 build、模組校驗、格式、增量品牌及 gitignore 通過；全量品牌仍有 14,735 項。817 份 Go／SQL／module 來源凍結保持，90 份已發布 SQL、五份直播核心、授權及需求原文不變。[契約](metrics.md)／[本輪證據](evidence/jobs-exporter.json)。目前無本機測試程序存活；新推送遠端 CI 待查，不能宣稱全綠。
+
+G41.8 已有全部所列指標及驗證，追溯共 336 項：5 完成／185 部分／146 阻塞，仍第三階段。下一段先依 `.testdata/runtime-memory-next.md` 實作 G42.8 可覆寫部署記憶體設定、有效 GC 值、真容器 peak／OOM 及預設 KDF 兩槽驗收；候選 GOGC=100／Go soft limit 512MiB／hard limit 768MiB 尚待重驗。現有 heap 門禁不是容器總記憶體預算，需區分父 heap、RSS 與 cgroup。計畫尚未實作。
+
+沿用同分支繁中 PR46；不 merge／release／tag／force-push／設定 Git 身分。下方為歷史紀錄。
+
+## 最新接續：schema45 工作持久統計已驗證
+
+固定109列保存成功／失敗／取消、首次等待與首次開始至完成的耗時。trigger與工作狀態同交易；重試、租約接手、晚期guard／audit失敗及歷史清理均有真PG驗證。單一SQL讀一致佇列／有效與過期租約快照，最多兩秒，不拿工作寫入鎖、不自動恢復工作。已有統計時拒降版；53個舊遷移測試在產生工作之前明確選schema44，普通fixture仍走45。
+
+PostgreSQL repository／runtime／outbound race 經整包執行與補跑，合計 1160 個不重複通過事件，其中新增工作指標 80；略過 0 個。核對相同 race 建置下的 388 個 PostgreSQL 頂層測試，全部有通過紀錄。首輪在 20 分鐘套件期限中止，並發現兩個舊遷移測試前置錯誤；修正後補跑所有未完成及受影響案例，原始失敗紀錄完整保留。
+
+Windows 共 443 通過、613 略過；資料庫驗證採上述真 PG 結果。事件數包含父測試；非 race 的原生／規模驗收另行執行，不包含在本段。
+
+vet、三個命令 build、模組校驗、格式、增量品牌與 gitignore 通過；全量品牌仍有 14,735 項。每輪各凍結 813 份來源；兩輪間僅修正兩份測試前置，生產 Go／SQL 一致。相對既有提交，88 份已發布 SQL、五份受保護直播核心及授權／需求原文保持不變。[執行與來源證據](evidence/job-metrics.json)。
+
+修正a5遠端PG整package20分鐘逾時：兩平台test-race改45分鐘，不改單例/SQL期限；前置runtime驗收略過時略過其附件上傳。新推送CI結果待查。仍第三階段、336項4完成／186部分／146阻塞；工作系列尚未接正式端點。
+
+下一段沿 `.testdata/job-metrics-otel-next.md` 接NewWithJobs／requestctx預讀／OTel累計Producer。兩份 `.testdata/job-metrics-otel-*.patch` 是未套用草稿，先查實際內容、驗證red再套用；不得把草稿算完成。沿用同分支繁中PR46，不merge／release／tag／force-push／設定Git身分。以下為歷史紀錄。
+
+## 最新接續：正式 OTel runtime 與連線池指標
+
+管理員 `/metrics` 接正式 OTel／Prometheus，預設關閉，需要帳戶功能；15 個固定無 labels 指標，私有 registry，無背景輪詢或收集 SQL。包含 runtime heap／goroutine／GC 暫停／配置總量及 pgxpool 狀態。即時認證、兩槽 admission、可取消收集等待，停止先 join snapshot 再釋放 pool。排隊可取消不代表同步 snapshot 有可強制中止的期限。
+
+Windows 576（略過 7）、Linux race 570（略過 1）、真 PG race 5 事件通過；真 Fx／HTTP 管理員、撤銷及關閉連線均已驗證。805 份 Go／SQL／module 來源凍結保持，88 份已發布 SQL、五份直播核心及授權／需求原文不變。[契約](metrics.md)／[證據](evidence/metrics.json)。ABI 前段 0d7fb57971 的九組真實 CI 全綠，本段新提交須另查 CI。
+
+仍第三階段，336 項更新為 4 完成／186 部分／146 阻塞。接續 schema45 工作持久指標，涵蓋取消／租約恢復／ReleaseJob／各終態並避免 trimJobs 造成 counter 倒退；草案 `.testdata/metrics-design-review.md`。tracing、GOGC／GOMEMLIMIT、容器預算／OOM、混合負載與 24h 尚缺。沿用繁中 PR46、同分支，不 merge／release／tag／force-push／設定 Git 身分。以下為歷史紀錄。
+
+## 最新接續：ABI 遷移契約與新命名基準
+
+ABI 門禁保留共同祖先的八組原始比較，逐項核對改名／功能裁剪產生的 52 條診斷；新增固定提交 `202b813a955cfc64ab87992484bf00b8aa72221a` 的真實命名程序集基準，第九組不允許 API 破壞。ApiCompat 固定 10.0.401，核對實際完整版本；未知、重複、過期差異及工具錯誤均失敗。
+
+20 項 parser 測試及真實 Naming 正向通過。隔離建置的型別移除、簽章改動、歷史模型還原，以及缺失／損壞 DLL 均被門禁拒絕；官方 unused suppression 回傳成功的情況也已實測攔截。本機舊八組沿用既存 CI 原始輸出，未重新比較其 DLL；提交 `0d7fb57971` 的[CI](https://github.com/Carinoasd/Jelee/actions/runs/37042236978)已完成九組真實比較，建置與 Difference 全綠，下載 artifact 核對通過。[契約](abi-report-check.md)／[證據](evidence/abi-guard-validation.json)。
+
+接續原需求 OTel 產品指標；草案 `.testdata/otel-first-slice-review.md` 與 `.testdata/metrics-design-review.md`。仍第三階段，336 項 4 完成／184 部分／148 阻塞；全量品牌、四核心忽略、混合負載、容器 OOM／預算及 24h 尚待驗收。同分支繁中 PR46，不 merge／release／tag／force-push／設定 Git 身分。以下為歷史紀錄。
+
+## 最新接續：五十萬檔忽略三輪與邊界修正
+
+量測來源 `2f59044777`：五十萬首次 365.30 秒、排除半數 876.02 秒、清理重掃 962.27 秒，全部 attempts=1。觀察 250,001＋歷史 249,999；第三輪底層仍一百萬列，歷史版號與原檔抽樣保持。取樣 heap 約 3.61 MiB、程序 RSS 約 27.01 MiB，不含 helper／PG。
+
+量測程序退出後，修正整頁共用 30 秒期限及診斷快取記帳：恢復每筆期限、保留父取消，按平台 int 大小及切片容量計費，重複鍵不重複計費。兩項新測試修前皆紅、修後皆綠；Linux race 443、Windows 446（略過 1）、真實 helper 8、PG worker 11 通過事件。[報告](ignore-scale-500000.md)／[量測](evidence/ignore-scale-500000.json)／[修正證據](evidence/ignore-family-boundaries.json)。五十萬耗時未在修正後重跑。
+
+接續先處理 ABI 的精確契約 gate（草案 `.testdata/abi-current-review.md`／`abi-guard-next.patch`，未套用），避免只承認舊命名 missing 而漏掉新 Jelee API 破壞；再依 `.testdata/metrics-design-review.md` 做原需求 OTel 產品監控。336 項仍 4 完成／184 部分／148 阻塞，第三階段；四核心忽略、混合寫入、圖片、容器 OOM／預算及 24h 尚未完整驗收。同分支繁中 PR46，不 merge／release／tag／force-push／設定 Git 身分。以下為歷史紀錄。
+
+## 最新接續：十萬檔忽略模式三輪通過
+
+產品程式 `2f59044777`：首次 55.04 秒、排除一半 154.76 秒、清理重掃 131.77 秒，皆 attempts=1／批次最多 128。觀察 50,001＋歷史 49,999，第三輪底層仍二十萬列；heap 峰值約 3.39 MiB、程序 RSS 約 26.00 MiB，不含 helper／PG。
+
+[報告](ignore-scale-100000.md)／[證據](evidence/ignore-scale-100000.json)。接續五十萬忽略三輪，24h 未開始。仍第三階段與 4／184／148；同 PR46、繁中、不 merge／release／tag／force-push／設定 Git 身分。runtime 指標接續草案在忽略的 `.testdata/runtime-metrics-next-plan.md`。以下為歷史紀錄。
+
+## 最新接續：忽略歷史批次比對
+
+一萬檔排除半數重掃由 70.77 秒降至 21.01 秒，保持規則及清理由 68.51 秒降至 15.77 秒；helper 啟動 10,089 → 187。三輪皆 attempts=1，歷史版號、筆數及原檔抽樣保持。每頁最多 128、局部快取最多 256 項，保留每筆來源身分與前後重驗。
+
+[報告](ignore-family-batch.md)／[證據](evidence/ignore-family-batch.json)。Linux race 441、Windows 444（略過 1）、真實 helper 8、原生 PG worker 11 個通過事件。接續十萬／五十萬忽略規模，24h 尚未開始。仍第三階段，336 項 4 完成／184 部分／148 阻塞。
+
+PR46 前一個 a4f004a 的 Windows／Ubuntu foundation、三平台測試、格式與 CodeQL 已綠；ABI／全量品牌仍紅，PG CI 查詢時仍執行中。沿用同分支及繁中 PR，不 merge／release／tag／force-push／設定 Git 身分。以下為歷史紀錄。
+
+## 最新接續：一萬檔忽略規則規模基線
+
+新增 opt-in `TestIgnoreScanScale`，正式 FamilyIgnoreScanner／helper／worker／PG 三輪測一萬總檔案（含兩個規則檔），每目錄最多一千影片。首次 5.04 秒；排除一半重掃 70.77 秒；保持規則及清理 68.51 秒。三輪皆 attempts=1、批次最多 128；觀察 5001＋保留歷史 4999，第三輪底層仍兩萬列，歷史版號與原檔抽樣保持。
+
+[報告](ignore-scale-baseline.md)／[證據](evidence/ignore-scale-baseline.json)。GOMAXPROCS=2、512MiB、單 worker；heap 峰值約 3.41 MiB、程序 RSS 約 25.05 MiB，不含 helper 與 PG 合計。重掃每輪啟動 helper 10,089 次，是目前要檢查的成本；不能把一萬檔結果推算成十萬／五十萬通過。schema44 產品程式未改，88 份已發布 SQL 保持。
+
+上一提交 f1d1065957 的 Windows／Ubuntu foundation 已轉綠；ABI 與全量品牌仍紅，其餘 CI 需按新 SHA 核對。仍第三階段，336 項 4 完成／184 部分／148 阻塞。接續檢查有界批次歷史比對，保留來源身分與前後驗證，不擴大期限掩蓋問題。24h 尚未開始。沿用繁中 PR46、同分支、不 merge／release／tag／force-push／設定 Git 身分。以下為歷史紀錄。
+
+## 最新接續：忽略規則分批快照
+
+schema44 已接 `.jeleeignore`／傳統忽略歷史的分批準備；每批最多 128 原始決策，保留歷史欄位與版號。準備在來源重驗與短效封印之前，完成後同交易切換基準與終態；取消、租約、模式、範圍與封印仍有前後守衛。圖片缺失統計的新鮮統計退化已以集合比對修正：一萬基準／9500 當前／450 決策，讀取由 49,890,000 降至 19,950 列。
+
+| 驗證 | 套件 | 通過事件（含父測試） | 略過 |
+| --- | ---: | ---: | ---: |
+| Windows 受影響套件 | 4 | 628 | 573 |
+| Linux race | 9 | 1571 | 0 |
+| 完整 PostgreSQL race | 1 | 954 | 0 |
+| 原生 worker | 1 | 11 | 0 |
+| HTTP／TLS／PostgreSQL | 1 | 1 | 0 |
+
+定向回歸 25 個事件通過；完整 PG 一次全過。初次測試 fixture 型別錯誤及新重現的圖片計畫退化保留在證據。既有 NFO 測試的 gofmt 漏失已修正；CI ABI 與全量品牌仍待處理。86 份已發布 SQL、五份直播核心、LICENSE 與需求原文保持。
+
+[契約](ignore-snapshots.md)／[證據](evidence/ignore-snapshots.json)。仍第三階段，336 項 4 完成／184 部分／148 阻塞。下一段依忽略的 `.testdata/ignore-scale-next-plan.md` 進行真實忽略 worker 規模；純清單五十萬成績不能代替忽略歷史或圖片負載，24h 尚未啟動。維持繁中 PR46、同分支、不 merge／release／tag／force-push／設定 Git 身分。以下為歷史紀錄。
+
+## 最新接續：三輪清單規模與清理驗收
+
+GOMAXPROCS=2／4 各測一萬、十萬、五十萬檔案，每組首次、重掃及清理重掃，共十八輪均一次完成；批次最多 128，第二、三輪可見基底列數維持 2N。只修改 opt-in 測試及文件，產品程式碼仍為 schema43。
+
+| GOMAXPROCS | 檔案數 | 首次（秒） | 重掃（秒） | 清理重掃（秒） | heap 峰值（MiB） | RSS 峰值（MiB） |
+| ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| 2 | 10,000 | 3.55 | 3.76 | 4.77 | 3.37 | 22.66 |
+| 2 | 100,000 | 45.55 | 23.76 | 24.76 | 3.32 | 23.39 |
+| 2 | 500,000 | 129.30 | 122.76 | 136.76 | 3.49 | 23.75 |
+| 4 | 10,000 | 3.04 | 3.27 | 3.27 | 2.72 | 23.15 |
+| 4 | 100,000 | 26.05 | 23.51 | 25.51 | 3.19 | 23.34 |
+| 4 | 500,000 | 127.55 | 124.28 | 133.77 | 3.45 | 24.19 |
+
+[方法與限制](scan-repeated.md)／[證據](evidence/scan-repeated.json)。86 份已發布 SQL、五份直播核心、LICENSE 與需求原文保持。GOMAXPROCS 並非硬體配額；不含忽略歷史合併、圖片或混合負載，24h 尚未啟動。仍第三階段，336 項 4 完成／184 部分／148 阻塞。接續忽略規則的分批發布，草案在忽略的 .testdata/ignore-snapshot-next-plan.md。沿用繁中 PR46，不 merge／release／tag／force-push／設定 Git 身分。以下為歷史紀錄。
+
+## 最新接續：分批清單快照已驗收
+
+schema43 將清單基準拆成每批最多 128 筆的不可見快照，完成後同交易切換基準與任務終態。保持心跳、取消及租約／根世代守衛；單筆狀態查詢不再等待 worker 寫入鎖。新鮮統計曾造成一萬重掃逾時重試，現改為集合比對並要求規模驗收 attempts=1。
+
+| 檔案數 | 首次（秒） | 不變重掃（秒） | heap 峰值（MiB） | RSS 峰值（MiB） |
+| ---: | ---: | ---: | ---: | ---: |
+| 10,000 | 2.79 | 2.76 | 2.78 | 22.54 |
+| 100,000 | 34.54 | 29.76 | 3.42 | 22.98 |
+| 500,000 | 112.79 | 114.01 | 3.48 | 23.60 |
+
+| 驗證 | 套件 | 通過事件（含父測試） | 略過 |
+| --- | ---: | ---: | ---: |
+| 查詢計畫（有／無統計） | 1 | 4 | 0 |
+| Windows 受影響套件 | 3 | 396 | 552 |
+| Linux race | 8 | 1334 | 0 |
+| PostgreSQL race＋遷移重測 | 1 | 929 | 0 |
+| 原生 worker | 1 | 11 | 0 |
+| 完整 HTTP／TLS／PG | 1 | 1 | 0 |
+
+完整 PG 首輪 920 個通過事件、3 個遷移測試失敗；只修正兩份測試的欄位投影與降版順序後，相關 31 個事件重測全過。表內 PG 數量已去除重複事件，未重跑未變動的其餘案例。
+
+56 份來源凍結一致，84 份既有 SQL、五份直播核心、LICENSE 與需求原文保持。[契約與限制](inventory-snapshots.md)／[證據](evidence/inventory-snapshots.json)。仍第三階段，336 項 4 完成／184 部分／148 阻塞。下一段處理忽略規則歷史合併的大規模發布、四核心曲線與後續真實 24h。繁中 PR46、同分支，不 merge／release／tag／force-push／設定 Git 身分。以下為歷史紀錄。
+
+## 最新接續：清單批次入庫已驗收
+
+清單每批資料庫往返由 128 檔案 395 次、128 目錄 267 次降為各 13 次；保留重播 ID、逐項容量與溢位、衝突及租約到期回滾。新增 opt-in 真實規模工具。一萬檔案已量測；十萬檔案在整份基準複製時超過兩秒期限，尚未驗收。
+
+| 驗證 | 套件 | 通過事件（含父測試） | 略過 |
+| --- | ---: | ---: | ---: |
+| Windows PostgreSQL 套件 | 1 | 181 | 536 |
+| 完整 PostgreSQL race | 1 | 916 | 0 |
+| 原生 worker | 1 | 11 | 0 |
+| 完整 HTTP／TLS／PG | 1 | 1 | 0 |
+
+四份 Go 來源凍結一致，84 份既有 SQL、五份直播核心、LICENSE 與需求原文保持。vet、建置、增量品牌及 gitignore 通過；全量品牌與 ABI 未解。
+
+[批次與規模限制](scan-batch.md)／[證據](evidence/scan-batch.json)。下一段處理分批準備基準與原子發布，再重測十萬／五十萬及後續 24h。設計草案在忽略的 .testdata/inventory-publication-plan.md；尚未實作 schema43。仍第三階段，336 項 4 完成／184 部分／148 阻塞。繁中 PR46，同分支、不 merge／release／tag／force-push／設定 Git 身分。以下是歷史紀錄。
+
+## 最新接續：目錄監看已驗收
+
+schema42 將本機 Linux／Windows 目錄監看接入持久掃描；事件去抖、啟動與重建核對、多實例租約及到期守衛已驗證。監看與定時掃描可獨立啟停，共用容量與權限檢查；根目錄或定義改變使舊租約失效。
+
+| 驗證 | 套件 | 通過事件（含父測試） | 略過 |
+| --- | ---: | ---: | ---: |
+| Windows 全套 | 30 | 3327 | 561 |
+| Linux race | 8 | 1334 | 0 |
+| 完整 PostgreSQL race | 1 | 912 | 0 |
+| 原生 worker | 1 | 11 | 0 |
+| 完整 HTTP／TLS／PG | 1 | 1 | 0 |
+
+全部本地驗證已結束。66 份 Go／SQL／模組檔凍結雜湊一致；82 份既有 SQL、五份直播核心、LICENSE 與需求原文保持。vet、建置、增量品牌及 gitignore 通過；全量品牌 14735 項及既有 ABI 差異未解。
+
+[監看契約](scan-watch.md)／[證據](evidence/scan-watch.json)。仍第三階段，336 項為 4 完成、184 部分、148 阻塞。下一段規模／24 小時驗收；短測不等於穩態驗收。沿用繁中 PR46，不 merge／release／tag／force-push／設定 Git 身分。以下為歷史紀錄。
+
+## 最新接續：持久掃描排程已驗收
+
+schema41 新增每庫一份持久掃描排程，支援固定間隔、五欄 cron、明確時區、啟停、版號更新與手動觸發。到期與入庫同交易，多實例並行只提交一次；錯過多次合併一次，忙碌／能力不可用延後重試。擁有者失效停用，登出不取消已保存意圖。
+
+| 驗證 | 套件 | 通過事件（含父測試） | 略過 |
+| --- | ---: | ---: | ---: |
+| Windows 全套 | 30 | 3323 | 555 |
+| Linux race | 8 | 1330 | 0 |
+| 完整 PostgreSQL race | 1 | 906 | 0 |
+| 原生 worker | 1 | 11 | 0 |
+| 完整 HTTP／TLS／PG | 1 | 1 | 0 |
+
+全部本地驗證已結束。59 份 Go／SQL／模組檔凍結雜湊一致；80 份既有 SQL、五份直播核心、LICENSE 與需求原文保持。vet、建置、增量品牌及 gitignore 通過；全量品牌與 ABI 仍有既有未解項。
+
+[排程契約](scan-schedules.md)／[證據](evidence/scan-schedules.json)。仍第三階段，336 項為 4 完成、184 部分、148 阻塞。下一段檔案監看與規模／24 小時驗收。沿用繁中 PR46，不 merge／release／tag／force-push／設定 Git 身分。以下是歷史紀錄。
+
+## 最新接續：持久批次影片匯入已驗收
+
+schema40新增catalog_import持久任務與1至100筆明確選取。逐筆檔案核對、item／source／audit與進度同交易；取消保留已提交前綴，owner更換後接續，舊租約不能寫入；活動來源不被歷史清理。相同意圖重播、既有相同條目不重複寫入，原檔不變。
+
+| 驗證 | 套件 | 通過事件（含父測試） | 略過 |
+| --- | ---: | ---: | ---: |
+| Windows全套 | 29 | 3314 | 550 |
+| Linux race | 7 | 1321 | 0 |
+| 完整PostgreSQL race | 1 | 901 | 0 |
+| 原生worker | 1 | 11 | 0 |
+| 完整HTTP／TLS／PG | 1 | 1 | 0 |
+
+全部本地驗證已結束，61份Go／SQL的凍結雜湊已核對。vet、產品建置、增量品牌及gitignore通過；全量品牌仍14735项，既有ABI差異未解決。001–039共78份SQL保持，schema40有資料時拒絕降版。
+
+[契約](catalog-import-jobs.md)／[證據](evidence/catalog-import-jobs.json)。仍第三階段，336項4完成184部分148阻塞。下一段回到原計畫3D的監看、排程與規模驗收；全庫自動辨識與前端等另列未完成。維持同分支繁中PR46，不merge／release／tag／force-push／設定Git身分。以下是歷史紀錄。
+
+## 最新接續：掃描候選匯入 API 已驗收
+
+新增管理員 `PUT /api/v1/jobs/{id}/entries/{entry}/item`，來源由DB解析，交易外檔案核對後再查有效身分與候選。相同PUT回傳同一條目，異值409且不覆蓋人工資料。撤權／停權／降權／到期拒絕；六路並行只寫一份條目、來源與稽核。CLI共用檔案核對及交易寫入，保留重複拒絕。
+
+| 驗證 | 套件 | 通過事件（含父測試） | 略過 |
+| --- | ---: | ---: | ---: |
+| Windows全套 | 29 | 3313 | 542 |
+| Linux race | 6 | 1147 | 0 |
+| 專項PG／CLI／TLS | 1 | 22 | 0 |
+| 最終TLS與OpenAPI | 1 | 1 | 0 |
+
+vet、產品建置、增量品牌、gitignore通過；全量品牌與既有ABI仍未解決。本段未重跑完整PG套件，採相關Store／app／CLI／真實TLS整合；78份已發布SQL不改。
+
+[契約](inventory-import.md)／[證據](evidence/inventory-api.json)。仍第三階段，336項4完成184部分148阻塞。下一段批次匯入；全庫自動辨識、監看與排程等未完成。以下為歷史紀錄。
+
+
+## 掃描候選匯入入口已驗收
+
+`import-inventory --job ID --entry ID --title TITLE --kind Movie` 已接通正式 Scanner 產出的影片候選與 catalog。提交重查最新成功掃描、根世代、基線觀察版本及 size／mtime；重複、覆核、過期與交易故障拒絕。原檔不變，78份既有SQL保持。
+
+Windows 29套件／3312通過事件（含父測試）／536略過；Linux CLI與domain race 2套件／492事件／0略過；專項PG 15事件／0略過。vet、建置、增量品牌與gitignore通過；全量品牌及既有ABI仍未解決。這次未重跑完整PG與HTTP：前一段schema39的完整驗證保留為歷史證據。
+
+[操作與限制](inventory-import.md)、[證據](evidence/inventory-import.json)。仍第三階段，336項的4完成／184部分／148阻塞維持。下一段：已登入管理API與來源核對接線；全庫批次仍待完成。
+
 # 接手记录
 
-## 当前接续（优先于以下历史记录）
+## 最新接續：第39版資料夾來源驗收完成
+
+第39版以獨立資料夾來源登記影集／季，父子關聯限同庫同根且子位置在父資料夾內；CLI支援Series、Season及有父層Episode，目錄API回傳parentId。Series只選tvshow.nfo、Season只選season.nfo，季投影29欄，零值／缺省、人工清除及獨立鎖保持。真實CLI與HTTP、交易回滾、目錄替換、非法父層／混合來源拒絕及降版保護通過；001–038共76份已發布SQL不改。
+
+全部本地測試已結束，負向季數測試逐位元復原後完整HTTP通過。前置提交e010c6a548為CLI種類匯入，3d5eb4e6dd為schema38單集；第39版證據在[驗收檔](evidence/directory-nfo-sources.json)。同分支繁中PR46持續更新；下一段掃描到catalog的實際匯入。仍第三階段／全G00–G51、4完成184部分148阻塞；禁止merge/release/tag/force-push/身份設定，五個未獲具體刪除授權的直播核心保持。以下保留歷史紀錄，舊live handles均已結束。
+
+## 進行中：第33版識別碼
+
+第32版已提交推送 `9812cde07d7d467827f95e8c14a48087bd8aa1a8`，同一繁中PR46已更新／附聊天，最後工作目錄乾淨。完整PG795事件／455.135秒、原生worker11、Windows29包3258事件485略過、Linux五包1124、完整HTTP75.482秒零skip通過；Role負例精確失敗，Reader逐位元復原SHA256 `0e1d11a01dd9a80e1e37caa6568709ef667b81f2628105e47599f8a05a9e46d0`。所有本地驗證命令已結束。新head的GitHub CI正在執行，不能沿用舊head成功宣稱新head全綠。001–032共64份已發布SQL此後不可改寫。
+
+已開始下一垂直切片：正式完整HTTP／TLS／NFO／PG新增uniqueIds驗收，movie的imdb預設ID、tmdbid別名與custom型別／原順序須以結構保存。目前正式程式未改，只改 `internal/platform/outbound/metadata_apply_integration_test.go`，測試已終止為預期真red：`HTTP confirmed NFO identifiers were not persisted as typed provider IDs`，零略過。初始red在 `.testdata/nfo-identifiers-initial-red.jsonl`，重跑工具 `.testdata/run-nfo-identifiers-e2e.py`。目前沒有本地活動測試；接續domain／Reader／Store／新schema33 typed uniqueIds保存，再綠後展開人工清除／鎖與降版、來源歧義及OpenAPI。維持舊32演員投影集合，新增投影，不改已發布SQL。下一份版本的OpenAPI若增加oneOf須同步調整既有公開HTTP演員宣告的精確變體數，保留演員variant驗收。
+
+仍第三階段／active goal，不在小段後等待確認。每段驗證後命令級作者Carinoasd提交、同分支push、繁中PR46／附聊天後接續。ID後仍多來源評分／圖像／季集／實際匯入／前端／無損回寫等未完成；全量品牌與ABI實際差異仍待處理，五核心未授權保持。禁止merge／release／tag／force-push／Git身份設定／已發布SQL改寫。
+
+## 最新接續：第32版演員結構
+
+仍第三階段，分支feat/jelee-ignore-family-worker，繁中普通PR46，base master。接續已推送231a65b177929dd2b0bf61248287fc44bf2ffc36；第32版actor-structure-v1固定22欄，actors物件保存name／role／thumb／可省略order，來源／獨立鎖／人工null與[]共交易。契約與實測見[nfo-actors.md](nfo-actors.md)及[證據](evidence/nfo-actors.json)。Windows29包／3258事件／485略過、Linux五包race 1124、完整PG 795／原生worker 11、完整HTTP正反通過。四初始red保存；刻意移除Role傳遞會失敗，逐位元復原後完整通過。首輪PG只修正7份舊遷移測試相鄰步驟，全套已重跑，最終來源快照保持。所有本地命令已結束。
+
+最多128演員，name／role1024、thumb4096 UTF-8 bytes，全部字串16384合計；order可省略或null／整數0–1000000。保持來源排列與重複，owned order指標、actor-only來源、單actor的name／role／thumb／order歧義拒絕、NFO-only／融合、人工清除／缺值Cast鎖及舊資料往返／保留新資料拒降已驗。最大混合請求與有界HTTP驗收回應2MiB。001–031共62份SQL保持；32推送後亦不得改寫。
+
+336項仍4完成／184部分／148未達完整驗收。接續ID／多來源評分、圖像來源、季集、實際匯入／worker／階層、前端、無損回寫、外部來源清除與效能。全量品牌14735／186及ABI實際差異尚待處理。命令級作者Carinoasd、同分支push／繁中PR46／附聊天後立即接續；禁merge／release／tag／force-push／Git身份設定／已發布SQL改寫，原媒體、授權與五待授權核心保持。
+
+## 最新接續：第31版八種字串列表
+
+仍第三階段，分支 `feat/jelee-ignore-family-worker`，普通 [PR #46](https://github.com/Carinoasd/Jelee/pull/46)，base `master`。接續331529e1b090fe4bfb960ddf318012a3003f61b7；第31版已完成本地驗證，九文字＋四數值＋八有順序字串列表，來源／獨立鎖與人工清除同交易。契約與實測見[nfo-string-lists.md](nfo-string-lists.md)及[證據](evidence/nfo-string-lists.json)。Windows29包／3255事件／483略過、Linux五包race1121事件、完整PG788事件／原生worker11、完整HTTP正反通過；四個初始red保存。PG全套結束後僅增加實際HTTP供應商融合案例，正式程式及PG／原生單元保持，最終HTTP／Windows重跑。所有本地命令已結束。
+
+string-lists-v1固定21欄；genres/tags/studios/countries/languages/directors/writers/producers以JSON陣列保存於facts，維持順序／重複，手動null與[]皆清除並維持原型別。1MiB請求，128值／1024 UTF-8 bytes每值／16384合計每列；DB／domain一致拒空白／NUL／異型／超限。新schema31保留列表含人工清除／新proof拒降，舊數值往返保持；001–030共60份保持。31推送後也不可改寫。
+
+G00–G51共336項仍4完成／184部分／148未達完整驗收。接續 actor 結構、ID／多來源評分、來源季集、實際匯入、前端、無損回寫、外部來源清除與效能等。全量品牌14735／186與ABI實際差異尚待處理，不能宣稱CI全綠。PR一律繁中、命令級作者Carinoasd、同分支push／更新PR46／附聊天後立即接續。禁merge/release/tag/force-push/既有遷移改寫/Git身份設定，保護原媒體／授權及五待授權核心。
+
+以下為歷史，舊分支與schema不可當目前狀態。
+
+## 歷史接續記錄
 
 使用者要求所有後續PR標題與說明使用繁體中文；PR18已改為繁中。用户再次明确每阶段验证后提交/push普通PR，持续下一阶段直到全部完成，不需阶段间确认。作者仍仅命令级Carinoasd，禁止merge/release/force push和改写旧迁移。
 
@@ -562,3 +2039,793 @@ Windows postgres編譯/純測試.067秒、相關vet/diff通過。尚需完整PG�
 ### 合併模式發布完整回歸通過
 
 family-publication-full 真實 PostgreSQL race 239 頂層通過、0 fail、0 skip，327.366 秒，sourceUnchanged=true，證據 .testdata/inventory-family-publication-full-postgres-summary.json。Windows domain/scan/architecture、全 vet 與三命令 build 已通過；LICENSE 與需求原文雜湊未變。當前發布實作尚未提交，接續增量品牌、gitignore、diff 門禁後提交繁中 PR；正式 worker 與公開入口仍未完成。PR44 最新三平台 run-tests 與 foundation 通過，兩 PostgreSQL CI 仍執行中，完整品牌失敗。
+
+### 主分支整合與 worker 讀取接續
+
+使用者明確要求直接合入主分支，已透過普通繁中 PR45 合入 master，合併提交 1021996de3927413b0be664c7f861a11c6829ca3。主分支合併未改變 b7e7ee0165 已驗證的檔案樹。新分支 feat/jelee-ignore-family-worker 從 origin/master 接續。使用者正在討論倉庫歸屬與 token 成本，尚未同意搬移；目前只做本機工作，未新增遠端寫入。
+
+新增 ReadFamilyIgnoreRoot / ReadFamilyIgnoreProgress，與舊入口共用私有讀取實作。family 路徑使用 comparisonModeFence 檢查模式、租約、取消、epoch 與兩份 manifest 有效性，最後仍以 commitIgnoreManifest 重驗。舊入口保持拒絕 family。真實 PostgreSQL race family-execution-reads：3 頂層通過，0 fail / 0 skip，23.075 秒，sourceUnchanged=true；包含初始/比較進度、外庫 root 不可讀、舊入口隔離、stale generation、取消、epoch、兩 manifest invalidation。Windows postgres 編譯與純測試通過。尚未做全套回歸，尚未提交。
+
+下一步：request 讀取仍由 loadIgnoreRequest 限制為原模式，應設計明確的 worker 模式辨識及完整保留 request 身份驗證，不可盲目放寬公開入口。接續 family app ports、runner dispatch/claim capability、三路 observer 復核、NFO/probe 階段守衛與正式 worker 原生驗收。
+
+### 開發倉庫搬移
+
+使用者要求改由自己的帳號管理開發，已建立公開倉庫 https://github.com/Carinoasd/Jelee 。本機 origin 改指向該倉庫；原朋友倉庫保留為 friend，上游保留為 upstream。後續 PR 與推送使用 Carinoasd/Jelee。保留完整主分支歷史、LICENSE 與原有歸屬；搬移不轉移既有著作權。朋友倉庫不刪除、不撤回、不改寫。此提交包含已通過真實 PG 專項與 vet 的 worker 私有讀取進度，完整 worker 尚未完成。
+
+### 原倉庫所有權轉移完成（取代上段搬移安排）
+
+使用者刪除剛建立的獨立倉庫後，原 MoYuanCN/Jelee 已正式轉移為 Carinoasd/Jelee。已查證 Carinoasd 為 ADMIN、MoYuanCN 為 WRITE。origin 現在指向轉入的原倉庫，原 PR/歷史保留；先前獨立倉庫的 PR1 已不存在，不可當作本次工作連結。主分支仍為 1021996de3，最新私有讀取提交 c7b8e21e5b 比主分支多一個提交，完整備份保留於 .testdata/jelee-before-repository-delete.bundle。接續將該分支補回轉入的倉庫。
+
+### PR46 CI 安全分析修復
+
+PR46 兩 PostgreSQL、foundation 與三平台 run-tests 全部通過；完整品牌仍失敗。CodeQL run 36855765109 的 C# Debug autobuild 因兩處測試 XML 反序列化觸發 CA5369 失敗。已將兩處改為 XmlReader，明確 DTD Prohibit 與 XmlResolver=null，未改安全分析設定或正式遷移。初次本機驗證因新增多餘 EOF 換行觸發 SA1518，修正檔尾後 .NET 10.0.400 Debug 相關測試 4 pass、0 fail、0 skip（529ms），編譯含安全分析通過。下一步推至既有 PR46，等待遠端 CodeQL 結果；worker request/dispatch/claim 仍待整合。
+
+### worker 請求辨識與完整依賴合同（未提交）
+
+新增 domain.ValidateFamilyIgnoreRequest 與 IgnoreFamilyProofVersion，明確檢查 ID/case/mode/版本配對；原 ValidateIgnoreIntent/Request 不放寬。loadIgnoreRequest 委派私有 loadExecutionIgnoreRequest(familyAllowed=false)，新 ReadExecutionIgnoreRequest 才接受兩種已知保留合同，沿用 fencedJob/cancel/最後 guardedJobUpdate。新增 FamilyIgnoreExecutionRepository 與 FamilyIgnoreScanner app ports，Store 與原生適配器都有編譯斷言；三路重新觀察委派既有 bounded observer，尚未修改 runner/claim/public admission。
+
+真實 PG race family-execution-dispatch 16 頂層 pass、0fail0skip，43.674 秒，sourceUnchanged=true；Windows 相關五包、全 vet、三 build 通過；Linux原生 race domain/app/scan/architecture 全 pass。完整 PG race 已啟動，exec session66532，mode family-worker-contract-full，請持續 poll 同一 handle，不可因觀察超時重跑。來源在完整回歸結束前不可修改。CodeQL 修復提交24e0128ce9已推PR46，run36860057857仍進行中。
+
+完整 PG race family-worker-contract-full 已結束：242 頂層 pass、0 fail、0 skip，351.415 秒，sourceUnchanged=true。exec66532及Linux90722都已結束，沒有本機測試 handle。下一步 requireMetadataInventory 仍以 loadIgnoreRequest 拒絕 family，需改明確模式讀取並檢查完成 comparison/epoch/revision 與兩manifest有效；runner需 family 選項、啟動依賴檢查、明確 capability及dispatch，保持舊 fake repository/test相容與閉鎖。尚未接 worker，不能稱正式整合完成。
+
+### 舊階段分支清理
+
+使用者要求清除多餘分支。已逐一核對45個 feat/jelee-* 與 fix/jelee-* 舊階段分支（排除目前 worker）：相對 origin/master 沒有獨有非merge提交，git merge-tree 的合併結果與主線 tree 完全相同。已保留完整 .testdata/jelee-branches-before-cleanup.bundle 及 .testdata/branch-cleanup-audit.json，再 atomic push 刪除45個遠端分支，同名本機舊分支以 git branch -d 清理。驗證 origin 已無這45個分支。保留 master、目前 PR46 worker 與其他尚未整合的上游/功能分支；遠端剩32個。沒有刪除任何提交歷史或 tag。
+
+### 合併模式正式 runner 已接線（未提交）
+
+新增 jobs.FamilyIgnoreOptions/executeFamilyIgnore/executeFamilyInventory/verifyFamilyStream，dispatch 以 ReadExecutionIgnoreRequest 明確辨識，成功終態走 FinishFamilyIgnoreJob。三路分頁使用不同 token，128/16/16 限制，unknown 保留 review-only。New 要求 root repository 同時支援舊模式及 family 完整合同，拒絕普通 inventory fallback。domain.ScanCapabilities 新增 FamilyIgnore，ClaimJobWithCapabilities SQL 以獨立能力檢查精確tuple，原模式不能互相認領。requireMetadataInventory 以私有模式讀取，family 要兩manifest有效、generation/完成分類/revision全部成立。
+
+原生首輪 family-runner-native：1pass、2fail（新任務 ReadFamilyProgress 先要求 manifest 存在）；第二輪字串替換未匹配換行，來源未改，仍1pass2fail。修正 executionModeFence 初始狀態後 family-runner-native-start 三項 pass18.316秒。family-runner-native-faults 五項 pass20.121秒：新任務、NFO排除、resume attempts2、改.ignore後失败且baseline0、unknown保留原baseline並Review/Missing0。comparison開始後讀取仍要求兩manifest齊全與revision一致。所有第一次失败证据保留，正式代码未掩盖失敗。
+
+family-metadata-first 17頂層 pass45.982秒；新增claim/初始讀取後family-worker-fences 19pass48.282秒。完整PG race family-worker-execution-full 245頂層pass、0fail0skip339.075秒sourceUnchanged=true。Windows相關包/全vet/三build通過；Linuxjobs/domain/app/scan/architecture race全pass。完整PG後僅收緊New啟動guard，新增專項jobs測試通過；正在跑最後原生storage+worker驗收family-worker-execution-native，exec71759。CI原生regex擴為 TestFamily(IgnoreNativeStorage|RunnerNative.*)。公開提交/服務設定尚未開放，不可宣稱G22完成。CodeQL此前修復已遠端成功。
+
+最後 family-worker-execution-native 原生 storage+worker 六項通過、0fail0skip24.631秒sourceUnchanged=true；exec71759已結束。最終全vet/三build/diff檢查通過。來源與授權原文保持；接續以既有PR46推送，保留單一工作分支。所有本機測試handle已結束。friend 重複遠端已移除，origin指向Carinoasd/Jelee，upstream仍指向原始上游。
+
+### 合併模式結果報告已驗證
+
+GetIgnoreReport 改用私有完整 request 辨識，依已验证 mode 選取兩個固定 SQL 常數。合併模式讀 family decisions/exclusions，增加公開 family 與 reason；原模式省略 family 並維持 JSON 合同。摘要 invalidated 同時讀取 custom/legacy manifests。游標仍以 source/root/path 排序和綁定工作，兩來源各 limit+1，終態與 live admin/session/最後授權 guard 維持。family scan 目錄來源可等於自己的路徑；baseline 檔案仍要求祖先來源。unknown 不宣稱規則家族。OpenAPI 與 CLI 解碼已同步，空白/無效來源無行號，報告不包含來源內容/雜湊/絕對根路徑。
+
+首輪 family-report-first 5pass/1fail24.533秒，深頁 fixture INSERT 漏兩個新欄位的值；第二輪 family-report-fixed 5pass/1fail24.430秒，baseline fixture 漏必填 family 空字串。兩者均為測試資料建置問題，未修改資料庫約束或正式查詢掩蓋失敗。補齊後 family-report-plan-complete 6pass0fail0skip25.679秒。最後新增歷史baseline排除專項並含既有HTTP完整鏈，family-report-regression 8頂層pass0fail0skip28.684秒、sourceUnchanged=true；證據 docs/evidence/ignore-family-report.json。Linux domain/HTTP/CLI/architecture race 1.067/3.259/1.847/1.114秒通過；Windows五包/全vet/三build通過。LICENSE 與需求原文 SHA256 符合既有值。所有本機 handle 結束。
+
+PR46 f9a48d94cf 的兩 PostgreSQL、三平台 run-tests、foundation、format、ABI、CodeQL 都已通過，僅完整品牌檢查失敗。此次報告尚待推送後確認新的遠端 CI。接續公開准入：ScanServices 必須獨立 family availability；新明確 admission port 保留舊入口封閉合同。submitScanJobWithIgnore 需 mode-aware validation/retained request read/identity insert；授權重送先於現時可用性，retry保留父模式與身份，只有新任務需要正確家族能力。公開准入完成後仍需正式 runtime helper readiness/lifetime/feature flag，不可以僅 OS 判斷宣稱可用。公開入口與 G22 目前仍未完成。
+
+### 合併模式准入交易進行中
+
+報告已提交 e9f019f3f2 並推至既有繁中 PR46。後續新增 DefaultFamilyIgnoreIdentity、獨立 family intent/scan intent validator；原 validator 保持拒 family。app.FamilyIgnoreAdmissionRepository 与 IgnoreAdmissionCapabilities{Custom,Family} 明確區分兩家族可用性。Store 新 SubmitScanWithIgnoreFamilies/RetryScanWithIgnoreFamilies，共用 private submitScanJobWithIgnoreFamilies；旧入口 familyAllowed=false。授權重送先於可用性，retry讀取保留mode/identity，固定 server identity insert，NFO/probe、quota、忙碌、世代、歷史清理及最後 live authorization 合同保持。
+
+ScanServices.FamilyIgnoreAvailable 与 Jobs 獨立回呼，新 port優先分派，family 設定缺少完整 port 則 startup ErrInvalid；舊 repo不能普通掃描 fallback。HTTP／CLI掃描提交仍拒 family；正式runtime仍未配置helper和family回呼。
+
+真PG family-admission-first 16頂層pass0fail0skip36.203秒sourceUnchanged=true。原生worker五測試改由正式app准入建立family任務，移除SQL DELETE/INSERT request替換；成功後再讀正式報告保留兩家族來源。family-admission-native 五pass0fail0skip20.817秒sourceUnchanged=true。Windows相關包/全vet/三build通過，Linuxdomain/app/HTTP/runtime/architecture race全pass1.068/1.031/3.224/1.084/1.118秒。
+
+完整PG race family-admission-full 已啟動，exec76433，同一handle仍在執行，來源不得修改；Linuxexec80845已結束。接續poll同一handle，不可因觀察超時重跑。当前约141顶层通过零失败。下一步正式runtime可參考probe service工廠及lifetime.closePool：固定health batch驗證helper確實可執行、預設關閉featureflag、workerjoin後暫存清理。process.IgnoreRunner沒有Close，Evaluate各自join後清理，service負責頂層MkdirTemp目錄。cmd/jelee/main.go已有legacyhelper入口，runtime的TestMain目前只接probehelper，原生runtime測試需補legacyhelper dispatch。source_unavailable不應誤關閉整服務，adapter目前將helper多種錯誤映成同一domain錯誤，需明確保留runtime失敗辨識或在helper邊界追蹤。
+
+完整PG race family-admission-full已結束：252頂層pass、0fail0skip349.781秒、sourceUnchanged=true。exec76433已結束，沒有本機測試handle。證據docs/evidence/ignore-family-admission.json。此段准入交易與app合同已驗證，接續正式runtime與HTTP/CLI；不得再重啟同mode覆寫證據。
+
+### 合併模式正式 runtime 與公開入口驗證
+
+新增 EnableFamilyIgnore/JELEE_ENABLE_FAMILY_IGNORE，預設false、jobs/accounts依賴校驗，環境覆蓋及Compose傳遞。HTTP/CLI接受已知family意圖，server身份及可用性仍由准入判斷；OpenAPI实际定义在nfo_openapi.go，已更新枚舉。runtime新familyIgnoreService以固定helper真正執行規則健康檢查，再提供app回呼及worker scanner。helper邊界偵測啟動/逾時/錯誤/非法結果後停用，不將來源讀取錯誤誤判全服務失效；cancel/busy保留健康。FamilyIgnoreOptions.Available使兩條認領路径每次重讀並在dispatch前重驗。Close先停用再等待Evaluate讀鎖join，lifetime在workerjoin後清理helper顶层MkdirTemp，Fx建構失敗也沿用closePool。
+
+Windows native健康/清理與全部Go套件編譯和可執行測試通過；沒有Windows真PG聲明。新unit的NFO claim fake第一次編譯缺AbortNFOPhase，補完整介面後通過；未修改正式介面掩蓋錯誤。Linux runtime/jobs/config/HTTP/CLI/architecture/scan race全pass1.093/1.343/1.024/3.245/1.893/1.128/1.264秒。全vet/三build/jelee_probe_tests入口相容通過。
+
+真實PG＋正式Fx runtime native family-runtime-first 5頂層pass0fail0skip16.311秒；補服務重啟關閉後保留重送與new key拒絕，family-runtime-restart 5頂層pass0fail0skip14.906秒sourceUnchanged=true，證據docs/evidence/ignore-family-runtime.json。實際監聽、KDF真登入、HTTP提交、familyworker發布/報告，含disabled不留下job、匿名拒絕、重送、兩家族來源、原fixture媒体/NFO内容不變及temp清空。所有本機handles86779/20162/79282/72312已結束。CI增加PG環境下nonrace ^TestFamilyIgnore runtime步驟與證據；foundation race不啟動有2GiB限制的native child。
+
+本次未改PG來源/遷移；准入版本753dd43d4c已驗證252真PG全回歸，服務版本用上述正式原生完整鏈及相關race驗證。接續規則修改後多輪重掃/基線保留、取消與lease恢復、完整混合NFO/probe/images；另外兩種舊格式的精確來源仍待核對，G22不可標完成。仍沿用PR46工作分支，不新增分支。
+
+### 合併模式多輪重掃驗收
+
+新增 TestFamilyRunnerNativeRescanSameSizeAndMtime，正式 app 准入、PG、同一原生 scanner 與 worker 六輪重掃，固定 mtime、含同長內容變更、自有優先、舊規則變更、歷史排除保留、包含刷新、來源家族報告、媒體保持與 child Active=0。首輪 family-rescan-native 1pass/1fail21.521秒：最後移除兩個規則檔，2/4基線缺失達既有50%覆核門檻，測試預期錯誤；正式實作未修改。補50%覆核保留全部基線及100%正常移除兩個控制檔記錄兩條路徑。
+
+family-rescan-review 2頂層pass0fail0skip25.784秒（含既有單一模式重掃）；family-rescan-regression 7頂層pass0fail0skip26.833秒（原生儲存與所有正式family worker），均sourceUnchanged=true。所有本機 handles98476/44859已結束。WindowsPG套件測試／vet通過，無Windows真PG聲明。證據docs/evidence/ignore-family-rescan.json，合同docs/ignore-family-rescan.md。本次只有驗收與文件變更，遷移／正式門檻未改。接續取消與租約失效恢復、完整混合NFO/probe/images及其他舊格式；G22保持部分完成，沿用PR46分支，整合後清理階段分支。
+
+### 合併模式取消與租約過期驗收
+
+新增原生 TestFamilyRunnerNativeExpiredLease／CancelVerification。expired先原生掃描保存，再過期fixture租約；舊owner progress／合法batch保存／發布全部ErrJobLeaseLost，新正式worker接同job，attempts2成功。取消在實際來源觀察後的verification屏障透過app.Cancel與heartbeat傳播；終態Cancelled、Missing0、baseline0、全部fixture内容保持、helperActive0。屏障沒有活躍child，不把本段稱活躍child中途取消證據。
+
+初次編譯誤用FinishFamilyIgnoreJob参数已修正。family-recovery-native 1pass1fail26.585秒，空batch先被合法輸入驗證拒絕；改用已由原生scanner保存的合法batch，family-recovery-valid-batch 2pass0fail0skip27.588秒。最後family-recovery-regression 9頂層pass0fail0skip38.811秒sourceUnchanged=true，證據docs/evidence/ignore-family-recovery.json；WindowsPG包test/vet、incrementalbrand0/100、gitignore0、diffcheck通過。所有handles24602/69315/58581已結束。正式程式與遷移未改。
+
+同步原始來源審計的後續進度，明確最初排除並集建議已被實作的自有明确決定優先合同取代；歷史只讀審計不冒稱已執行後來測試。接續完整混合NFO/probe/images、活躍helper取消的正式服務完整鏈、規模及其他舊格式精確來源。G22維持部分完成，沿用PR46。767988527f重掃階段已推送。
+
+### 合併模式受保護混合媒體驗收
+
+test_nfo_worker.py新增JELEE_FAMILY_IGNORE_ACCEPTANCE模式，沿用1,000與100媒體、真PG／HTTP／app／Fx生命周期／正式worker／固定原生probe與ignorehelper。自有ignored-video排除與!video-*包含，舊ignored-*及video-*排除；正常影片由自有include覆蓋，三個惡意排除檔未進入cache/baseline，report精確family/reason/line/path。新Makefile target與CI必跑步驟保留family日誌摘要；原驗收不省略。
+
+兩規模全部passed/sourceUnchanged/testArtifactsCleaned。1,000三輪parse400/0/17、probe child100/0/0、圖片最後23changed/477unchanged，時間36.664/18.389/19.442秒；100三輪parse40/0/3、probe10/0/0、圖片4changed/46unchanged，4.434/2.778/3.682秒。每輪仍兩次完整讀/hash全部納入NFO（800/80次），不能稱只讀變更文件。兩規模取消恢復與SIGTERM都通過，API屏障在完成實際NFO讀取後，沒有活躍helper中途取消聲明。原合成素材/影片hash保持，僅指定fixture受控替換，UUID容器/映像/schema清理。證據docs/evidence/ignore-family-mixed.json及合同docs/ignore-family-mixed.md。
+
+本機混合exec77877與Windows全Go/vet/build/YAMLexec94698已結束；Linux runtime/jobs/architecture race已通過1.105/1.356/1.215秒，exec73628已結束，所有本機測試handles均結束。Windows probe tag與Python語法檢查通過，無Windows真PG聲明。前一正式服務版本8a28 PG/foundation/CodeQL已遠端通過，完整brand仍失敗；目前de807 CI還有PG/CodeQL在跑。接續活躍helper取消服務完整鏈、壓力穩定性與其他舊格式精確來源，G22保持部分完成。另已核對其他舊格式的公開來源，尚未找到可證明其解析語意的固定實作；目前搜尋的缺失不足以證明所有歷史版本不存在，仍不可猜實作。
+
+### 活躍忽略 child 的服務取消與正式 runtime 停止
+
+公開New原簽名委派private newWithLifetime，lifetime保留其已有ignoreService私有引用，讓正式圖的native Stats能被验收觀察，無假backend/repository/result。TestFamilyIgnoreProductionRuntimeActiveChildStop由真登入／HTTP提交／PG／正式worker啟動heavy4,000條來源，觀察health之後Started>=2且Active1，再Fx.Stop限5秒；child0、temp空、HTTP關閉、baseline0、owner0、jobqueued，所有fixture保持。初次字串插入誤加到重啟區域造成job作用域編譯錯誤，移除多餘測試塊，正式guard未改。
+
+增加TestFamilyIgnoreServiceNativeActiveChildCancellation兩情境：真helper Active1時ctx取消無partial結果且可重用健康服務；Close先Availablefalse但等待讀鎖/child join，不提前移除temp，cancel後才清理。Windows native兩情境0.652秒pass，probe tag服務native0.501秒pass。Linux真PG/runtime active-child-stop 6頂層pass38.184秒；final active-child-cancel-close 7頂層pass0fail0skip31.625秒sourceUnchanged=true，證據docs/evidence/ignore-family-active-child.json，合同docs/ignore-family-active-child.md。兩native模態不使用race子程序（正式2GiB AS與race reservation不相容），Linux runtime/jobs/architecture race通過1.097/1.357/1.405秒。
+
+所有native handles82569/57795與vet/build76268、Linux72410已結束。Windows全Go final通過，exec18841已結束，沒有本機測試handle。formal HTTP cancel flag→活躍helper、壓力長穩與其他舊格式仍需驗收，G22保持部分完成。前一混合版本fd85384f5c已推PR46，沒有新分支。
+
+### HTTP 取消與本機即時通知修復（待完整PG回歸）
+
+首次HTTP active cancel測試415（fixture請求未帶JSON），修正{}後仍fail：工作Cancelled但Stats Started3/Cancelled0/TimedOut0，兩次掃描helper自行完成，沒有中斷。增加process.Stats Cancelled/TimedOut，只記OS child已開始後select先觀察ctx取消/逾時的控制分支，不計prestart或先正常退出；不是OS終止原因獨立量測。native ProcessRunner生命周期新增cancel1/timeout1斷言，Windows0.923秒pass；Linuxprocess race152.824秒pass。
+
+app.JobCancellationNotifier選用port接ScanServices，只有CancelJob授權提交成功、同ID Running/CancelRequestedtrue才通知。runtime lifetime／probeWorker轉送runner。runner執行前註冊cancelCause，map/mutex有界於執行workers；defer清理按lease.Generation防舊owner刪新註冊。無新goroutine，DB旗標/lease/publish fence不變，其他instance/未註冊仍fallback heartbeat。app取消auth/txn/queued/terminal專項；worker無heartbeat進展的取消、無關ID與世代cleanup專項pass。
+
+Native真PG/runtime http-child-cancel-notifier 8頂層pass39.313秒，取消55ms、cancelStops1/timeout0/started2。以預設30秒lease補final專項與process來源hash，http-child-cancel-final 8頂層pass0fail0skip76.058秒sourceUnchanged=true，取消69ms、cancel1/timeout0/started2，Availabletrue、child0、baseline0/owner0，最後stop/temp/HTTP/fixture保持通過。證據docs/evidence/ignore-family-http-cancel.json、合同docs/ignore-family-http-cancel.md。
+
+所有先前native/race handles35628/94204/28692/5620/81574/2880/42357已結束。Linux app/runtime/jobs/architecture race final1.042/1.109/1.372/1.366秒pass；全vet/三buildpass。Windows全Go與probe tag final仍exec96770待末輸出。完整PG race local-cancel-full正在exec59172，必須poll同handle，不可重啟/改PG來源；目前48頂層pass0fail。來源碼凍結直到本輪驗證結束；文件可更新。29e70a0b89前一版本的PG/CodeQL/功能CI已通過，完整brand仍fail。本次尚未提交，接續完整回歸完成後同PR46推送，再壓力長穩與其他舊格式。
+
+### 本輪完整 PG 回歸觀察更新
+
+Windows 全 Go 與 probe tag exec96770 已完成，exit0；probe tag runtime0.692秒。完整 PG race local-cancel-full exec59172 已 terminal：外層600.067秒逾時exit124，229頂層pass、0測試fail、0skip、sourceUnchanged=true，不能當作完整通過。確認沒有殘留 go/postgres.test 程序後重跑。local-cancel-full-extended exec55028 因發現 Go 自身仍預設10分鐘期限，明確停止當次test PID2581314；exit1/48.515秒/15頂層pass，屬人工中止而非測試斷言失敗，證據保留。
+
+目前唯一完整PG handle是exec72180，mode local-cancel-full-final：Go -timeout=20m，外層1500秒。來源及斷言不變；需poll同handle，尚未完成不可提交本階段或宣稱全PG通過。測試內容包含全部^Test；延長期限不省略測試。下一步取得末輸出後保存摘要、更新本段與取消合同、核對保護檔與門禁，再以命令級作者提交／推送同PR46。
+
+### 本機取消修復完整回歸完成
+
+exec72180已結束exit0：252頂層pass、0fail／skip、344.936秒、sourceUnchanged=true。摘要已保存docs/evidence/ignore-local-cancellation-postgres.json。所有本輪測試handles均terminal，無需重啟或poll舊handle。上述待完成記錄為當時觀察；本段為最新結果。Windows全Go／probe tag、Linux相關race／vet／三build、增量品牌0新增違規／100allowed與gitignore0違規已通過，LICENSE與requirements-source SHA256保持。已修正G22.4／G22.5表格中的過期重掃待驗收文字，需求仍部分完成。
+
+本段準備以命令級Carinoasd身份提交並推送現有分支、更新並附PR46，禁止merge/tag/release/force-push。下一段先驗證原生合併服務實際併發飽和、busy後健康及多輪取消重用／清理，再補跨實例旗標取消及其他舊格式來源；不要把短測试當長穩證據。
+
+### 原生併發飽和小階段
+
+取消修復1e9383dc6c已提交推送、繁中更新並附普通PR46。接續只新增ignore_family_saturation_test.go：正式兩個slots、8輪Active2、256次busy拒絕、16個child取消、8次正常重用；Started25／Peak2／Cancelled16／TimedOut0／Active0，每輪輸入清空、最終Close暫存空。沒有新fake/helper放寬。Windows專項0.402秒／probe tag服務0.466秒及runtime vet pass；Linux真PG/正式runtime完整9頂層pass0fail0skip18.263秒sourceUnchanged=true，exec59763已terminal。證據docs/evidence/ignore-family-saturation.json。只新增test，不重跑未改正式實作的完整PG252；前段證據保留。
+
+本小階段以同分支提交推送／更新PR46。下一步跨實例持久取消旗標傳播與長時間穩定性，其他兩個歷史格式的固定源碼語意仍未確認，G22維持部分完成。最新取消修復遠端CI仍待完整結果；完整品牌門禁已fail，禁止稱全綠。已合併無用分支已清45，PR46未合併所以保留現有分支。
+
+### 跨實例取消旗標讀取（未提交，測試中）
+
+上一個飽和階段b7a8e33823已推PR46，無新分支。現在新增app.JobCancellationReader選用port、PG Store.ReadJobCancellation（主鍵／running／owner／generation／有效租約、2s context、只讀），worker原monitor一秒timer，不加goroutine或心跳寫入。PG新增2專項：5次讀取xmin／lease_until不變、owner/gen/invalid/expired/terminal拒絕、context取消、未提交旗標不可見／提交後可見。worker新時鐘專項核對read／heartbeat分離與error失效。
+
+正式runtime acceptance新增兩個獨立graph，同schema但不同worker/pool；第二個關閉family不可claim，取消只POST第二個HTTP，第一個helper被取消。三失敗模態remote-cancel-first／read-poll（原計算過短，Cancelled0）／real-work（100前綴先單條規則timeout，工作failed）保留；最終十字元前綴remote-cancel-bounded-prefix 10頂層pass0fail0skip18.360秒sourceUnchanged=true，remote973ms／Cancelled1／TimedOut0／Started2，baseline0／owner0、文件不變／temp清空。證據docs/evidence/ignore-family-remote-cancel.json。exec6118／4004／58929／95945均terminal。
+
+Linux app/jobs/runtime/architecture race exec56618已pass1.033／1.325／1.082／1.119秒。Windows相關四包pass；全Go/vet/三build exec12596待末輸出。完整真PG race remote-cancel-full-final exec75821仍live，Go20m／外層1500s，必須poll同handle；勿改PG或正式源碼直到末輸出。最後同素材反向驗證計畫：PG／Windows handles結束後暫存現runner，暫時使用上一提交runner驗證remote情境會fail，再恢復並final完整原生驗收；不得把還在執行的test來源改動。未提交，不宣稱全G22。
+
+### 跨實例取消最終驗證完成
+
+完整PG exec75821已terminal exit0，254顶層pass0fail0skip357.980秒sourceUnchanged=true，PG新增讀取專項全通過。Windows全Go/vet/三build exec12596完成。相同十前綴fixture反向驗證exec62996：暫用b7a8e33823 runner，僅remote情境fail／其他9pass，20.566秒；runner逐位元恢復。final exec35554 10pass17.913秒；後檢查修正monitor defer順序，使全部timers在done/join前Stop，沒有PG來源改動。最新joined-timers exec75892 10pass19.069秒sourceUnchanged=true，remote897ms／Cancel1／Timeout0／Started2，baseline／owner／temp與來源保持。Linux四包race exec40258 1.329／1.028／1.082／1.108秒pass，vet／三build通過。Windows最新全Go exec68614待末輸出；probe tag0.514秒pass。
+
+證據docs/evidence/ignore-family-remote-cancel.json／remote-negative.json／remote-postgres.json；合同docs/ignore-family-remote-cancel.md。本階段以同分支提交推PR46，禁止merge/tag/release/force-push，無需新分支。下一步正式長穩及剩餘歷史格式固定語意，G22／全案保持部分完成。完整品牌CI仍fail，功能CI需核對最新head，不宣稱全綠。
+
+Windows最新全Go exec68614已terminal exit0；本輪所有測試handles均terminal，沒有待poll或重啟項目。最終各證據中的sourceHashes逐檔重新比對相符，LICENSE／requirements-source hash保持，增量品牌0新增／100allowed、gitignore0及diff檢查通過。
+
+### 五分鐘原生服務穩定性（尚未提交）
+
+上階段ac0a44b7b1已推PR46。改ignore_family_saturation_test.go共用短／長驗收，長驗收名字TestIgnoreServiceNativeSustainedSaturation，以明確JELEE_IGNORE_SUSTAINED_ACCEPTANCE=true執行固定5分鐘，至少100輪。每輪兩活躍child／32busy／cancel join／正常重用／temp清空，同一service不重建。每輪defer cancel，避免t.Cleanup逐輪累積；heap每64輪sample64MiB、結束GC增量16MiB／goroutine增量4，明確非RSS。Python腳本保存不覆寫證據、核對時長／全部計數／no fail/skip／sourcehash；新增Makefile PHONY target與必要CI步驟／always evidence upload。
+
+首輪Linux exec98303已terminal passed／validatedtrue，313.484秒總時間，300.023秒負載5146輪／164672busy／Started15439／Cancelled10292／Peak2／Active0／TimedOut0，heap870856→990000、peak sample3295272、goroutine2→2。首次Windows入口不支援POSIX，在0.203秒測試前失敗，紀錄保留。現在脚本Windows改接run-go.ps1／POSIX go args保持；兩平台final並行：Linux exec7897、Windows exec65111，都已確認live，必須poll相同handles，不改snapshot源碼或重啟。來源腳本連同launcher／manifest／LICENSE／需求檔有hash。Windows短native0.342秒、probe tag0.474秒及全Go exec74520已完成exit0；runtime vet／Python AST與YAML／make dry-run／diff通過。
+
+另實際找到某舊格式的官方4.8／4.9版本說明（正向文件證據，之前僅公開source缺失），線索保存.testdata/ignore-vendor-doc-discovery.json；尚無固定解析source，encoding／case／escape／否定／來源衝突仍未證明，不得用現有regex或自有語法猜實作。此線索不當作G22.2完成。下一步先取兩平台五分鐘末結果、保存final證據、更新合同／trace，核對gate後同PR46提交；再固定源碼語意或其他未完成需求。
+
+### 五分鐘兩平台最終驗收完成
+
+Linux exec7897 terminal exit0／validatedtrue，總312.061秒／負載300.022秒：5043輪／161376busy／Started15130／Cancelled10086／Peak2／Active0／TimedOut0、heap908296→970688、peak sample3339848、goroutine2→2。Windows exec65111 terminal exit0／validatedtrue，總301.406秒／負載300.025秒：9399輪／300768busy／Started28198／Cancelled18798／Peak2／Active0／TimedOut0、heap975912→1244784、peak sample3381040、goroutine2→2。全部0fail/skip/sourceUnchanged，兩份源碼hash逐檔重核相符；docs/evidence/ignore-family-sustained.json合併保存。原素材未接入測試，僅fixture字符串与owned helper temp；不能當整個server RSS／長穩。
+
+所有本輪handles均terminal。Windows short／probe tag／全Go／runtime vet、format／AST／YAML／make dry-run、增量brand0新增／100allowed、gitignore0、protected hash與diff已通過；正式worker／PG／遷移不變，不重跑既有完整PG254。本階段同分支提交推PR46，沒有新分支，禁止merge。下一步正式runtime／混合媒體長穩及歷史格式source證明；另已核對官方release最新4.10.1.0（2026-09-29），只是發布版本metadata，不是解析源碼證明，线索在.testdata/ignore-vendor-doc-discovery.json。G22與全案部分完成。
+
+### 真實混合媒體持續暖掃描（未提交，正在驗收）
+
+上一階段e095008773已提交推PR46，工作分支仍feat/jelee-ignore-family-worker。現在只修改nfo_acceptance_test.go／test_nfo_worker.py／Makefile／jelee.yml，增加JELEE_FAMILY_IGNORE_SUSTAINED_ACCEPTANCE=true模式，要求family模式；保留前三輪cold/warm/changed與取消恢復/SIGTERM，在同worker／HTTP／PG schema上五分鐘暖掃描至少5輪。round>=3使用原warm断言，Parse0/ProbeStarts0/全部imageUnchanged、2*nfoCount完整read/hash、quota/rules/source/cache全部每輪核對。heap每輪sample256MiB，GC增量64MiB／goroutine增量8，非RSS。脚本核對暖輪數與五分鐘證據，新的證據prefix拒絕覆寫；CI新增必跑target family-ignore-sustained-worker-test及always artifact。原一般模式只跑三輪。
+
+Windows probe tag compile／服務測試0.441秒pass，tagged runtime vet、Go格式、Python AST／YAML與diff已通過；正式worker／PG／migration沒有改動。完整新目標exec29349已確認live，要poll同handle，勿重啟／改源碼。自有容器jelee-nfo-worker-0db0058be67243e2beb6686dd32ba8d9，當前1000case；輸出證據.testdata/family-ignore-sustained-worker-acceptance.txt，末摘要同prefix-summary.json。目前前三輪已pass：parse400/0/17、probeStarts100/0/0、images500added→500unchanged→23changed477unchanged；已至少3個額外warm輪Parse0／Probe0／read800／cache400、quota相符。還沒有五分鐘／兩規模／取消恢復與SIGTERM末結果，不可提交或宣稱完成。
+
+原媒體仍read-only／UID65532／無cap／2CPU768MiB128PID，復用原真實probe／NFO／images，僅控制fixture替換；sourceDigest涵蓋internal全部productionGo／runtime test／SQL／工具manifest，因此測試執行中凍結來源。docs可更新。new docs/ignore-family-mixed-sustained.md為合同草稿。取得末結果後再sourceDigest／原素材hash／清理證明、gate與保護檔核對、保存證據、繁中提交推同PR46。全G00–G51目標不變；G22其他歷史格式來源仍未證明，不把局部驗收當完成。
+
+### 混合媒體五分鐘最終結果
+
+exec29349 terminal exit0：1,000／100 檔全部 passed，負載303.903／300.392秒、額外warm20／170輪；每輪Parse0／ProbeStarts0、read/hash800／80、images500／50 unchanged。parent heap peak3260656／3580976 bytes，goroutine13→13；cancel recovery baseline保持、SIGTERM HTTP關閉與active NFO／child／leases0。sourceDigest逐案與目前來源重核一致，原素材／影片hash保持、owned schema／container／image清理成功。證據docs/evidence/ignore-family-mixed-sustained.json。Windows全Go exec98725已terminal exit0，tag服務0.441秒／vet／三build／格式／AST／YAML通過。正式worker／PG／migration不變。
+
+本階段提交推現有PR46；公開New完整graph五分鐘與其他歷史忽略格式仍未完成，G22部分完成。分支已清47個，保留active PR46，無新分支。最新e095功能CI僅一個PG job仍running，完整品牌gate兩次fail，其餘非skipped全部success；新head須重新觀察。禁止merge／release／tag／force-push／身份設定。
+
+### 倉庫工作流程品牌清理
+
+混合媒體階段91c558dc86已推並繁中更新／附PR46，exec29349 terminal。接著移除commands／issue-stale／project-automation／pull-request-conflict四個上游專用管理workflow；openapi-merge保留原push triggers／reusable generator／openapi-head artifact，移除綁定外部伺服器的SCP／SSH發布jobs。沒有改application／migration／LICENSE或scanner allowlist。12剩餘workflow YAML合法、全部local uses可解析、8個核心CI／generator逐位元相同；protected hashes、incremental brand0／gitignore0與diff通過。full brand15278→15237，減少41，完整門禁仍fail。證據docs/evidence/workflow-brand-cleanup.json；映射docs/branding-rename-map.md。本批同PR46提交推送，不合併／不發布／不建新分支。
+
+下一步仍需清理舊品牌模組與補未完成G00–G51功能，不能把刪除不適用管理整合當應用功能完成。公開New完整graph持續負載與其他歷史ignore格式仍未完成；最新PR head CI須核對，不把pending當success。
+
+### 程式碼分析器模組重命名
+
+上一工作流程階段26c465e270已推／繁中更新附PR46。現在完整移動src/Jelee.CodeAnalysis與csproj，namespace／程序集改名；Directory.Build.props載入與自引用排除、solution條目同步。正式邏輯只有namespace修改，發布紀錄／csproj逐位元保持。實際compiler bad同步using→JF0001 exit1、good await using→exit0；module Debug build0warnings/errors、module format通過。完整solution Debug exec43733 terminal exit0，34.50秒、215warnings／0errors，未放寬分析設定。fullbrand15237→15233減4，protected hashes保持；證據docs/evidence/analyzer-brand-rename.json／合同docs/analyzer-brand-rename.md。
+
+本批同PR46提交推，不加分支、不merge／release／tag／forcepush。最新已推26c CI目前僅完整品牌失敗，其餘觀察時仍部分running；需以新head核對功能結果。其他C#模組／G00／G22／G00–G51仍部分完成，公開New長穩與其餘ignore來源未完成。所有本機test handles均terminal。
+
+### 檔名解析模組與引用改名
+
+上一分析器ad908efff5已推／附PR46。事前124檔，49module／29test／46consumer/build；改Jelee.Naming／Jelee.Naming.Tests，project/namespace/package/assembly與引用一起遷移。原Authors／GPL與AssemblyCopyright分離兩個純法律檔、精確whitelist；沒有全模組豁免。116個C#檔正規化namespace／using順序後source逐檔一致，三個相對Naming.TV引用改完整Jelee.Naming.TV。bump_version只改路徑、bash-n通過，未執行；APICompat base old/head renamed映射，保留差異報告，shell syntax通過、未本機跑實際ABI。
+
+module exec99242 pass701/0fail/0skip。首次fullbuild exec99789失敗7errors（3相對namespace／4排序），formatter exec47075完成；修復fullbuild5.89秒6warnings/0errors。首次fulltest exec18494兩個localization因本機繁中currentUICulture，而期待英文；保留正式邏輯，在原test明確en-US並finally恢復。最終fulltest exec49480 terminal exit0：17套件total4119／passed4098／NotExecuted21／failed0。finalformat exec2535 terminal exit0，變更C#檔檢查，有workspace-load warning；初format exec17087 CRLF失敗保留，LF修正只改換行、不改語意。所有本機handles terminal。metadata作者與license原值、compiledtitle/product新名及copyright原字串核對，LICENSE／source hash保持、migration無改。證據docs/evidence/naming-brand-rename.json。
+
+fullbrand15233→15007減226，仍fail；新增法律檔只隔離歸屬字串，不隱藏其他殘留。此模組仍舊核心dependencies、Audio/Book等domain待G02裁剪，G00／G22／全部G00–G51未完成。本批同PR46繁中commit/push／更新附，不merge/release/tag/forcepush或新branch。CI需以新head核對，不能把pending當green。
+
+### 網路模組品牌重命名
+
+上一檔名解析202b813a95已推／繁中更新附PR46。盤點15檔，改src/Jelee.Networking／tests/Jelee.Networking.Tests及namespace、程序集、project/solution引用；公開log新品牌與中性sample hosts/path。兩個舊client discovery／config值隔離純constants檔，精確allowlist，沒有整模組豁免；discovery port／網路控制邏輯保持。12 C#source按明確mapping／using排序／訊息／fixtures核對，MITheader逐位元相同，LICENSE/sourcehash保持、migration無改。此階段不實作G05裁剪，仍舊核心dependencies。
+
+first exec10275 terminal failure：142pass/5fail同一舊log斷言，原紀錄保留。修斷言／fixture品牌後exec19655 terminal exit0，module147/0fail/0skip，完整Debug17suites 4098Passed／21NotExecuted／0fail。format exec81480 terminal exit0 verify-no-changes，有workspace-load warning。全部本機handles terminal；證據docs/evidence/networking-brand-rename.json／contract docs/networking-brand-rename.md。fullbrand15007→14960減47，仍fail；增量／ignore／diff等末gate須通過再提交。本批同PR46提交推送繁中update／attach，不merge/release/tag/forcepush、不新branch。最新觀察功能CI尚未見failure，但不把pending當pass。G00／G05／G22及全G00–G51未完成。
+
+網路本批末gate已通過：增量品牌0／allowed103、gitignore0、diff/cached-diff通過；另外明確dotnet build全solution Debug --no-restore 4.87秒0warnings/0errors，證據追加build日誌hash。沒有待本機test或gate handle。
+
+### ABI 報告失敗原因與修正
+
+使用者已授權自行判斷可合併並清理分支；舊「禁止 merge」指示已被取代，其餘發布／tag／force-push限制維持。c728e71bc9 PR46 ABI-Difference 的留言缺 JF_BOT_TOKEN；實際報告另有 Naming 改名的 CP0001/CP0004。改保存 artifact／summary，移除留言寫入權限，缺 DLL／工具非零均失敗，不抑制差異。四種隔離模擬 PASS，實際比較待 CI。詳 docs/abi-report-check.md。全品牌門禁仍 blocking，尚未合併。G03 刪除101份語言／預設簡中／未知英文已取得明確使用者授權，接續實作。
+
+### 四語 UI 與分支清理完成
+
+G03 明確人類授權後刪101個 Core UI catalog，ja→ja-JP，四份123鍵，server default zh-CN，manager unknown en-US且不記缺資源錯誤；Startup／configuration update先Resolve避免invalid CultureInfo。保留rating/country/ISO媒體語言。新UI catalog gate已入Makefile／兩平台CI，八種正反fixture通過；補日文一筆既有缺占位符。模組148pass，完整Debug17套件4116Passed/21NotExecuted/0fail，Goi18n0.256pass，格式pass有workspacewarning。full brand14960→14800仍fail，增量0/gitignore0/hash/diff通過。證據docs/evidence/ui-four-locales.json；合同docs/ui-four-locales.md。G03保留partial，下一步舊HTTP fallback/user優先或前端等未完項目。所有本輪測試handle已terminal。
+
+遠端閒置28枝無開放PR、沒有master之外Carinoasd作者commit，逐ref SHA保存.testdata/idle-branches-audit.json；git bundle create/verify/list-heads逐項核對後刪除。遠端僅master與PR46工作枝，開啟delete_branch_on_merge。這些舊枝可能有未整合的上游差異，備份可恢復，不把刪枝當成合併。之前47枝加此次28枝累計75。PR46仍未merge，full品牌gate仍blocking；ABI保留實際breaking failures，不誤稱全綠。
+
+### 四語階段 CI 證據路徑修正
+
+d0ef9b2195 兩平台 foundation 新失敗已取 job110468731814/110468731720 原始log查明：新增證據JSON的8個歷史來源路徑命中增量品牌。上輪本地掃描在寫證據前，沒有覆蓋最後文檔，不能當最終0新增。來源路徑移入既有精確改名映射docs/branding-rename-map.md，JSON仍保留角色hash和sourceIndex；沒有新增allowlist或藏匿／編碼舊名。catalog gate腳本統一LF並重核hash。須最後文檔全部寫完才跑門禁，避免再犯。HTTP provider工作仍未提交；34項真HTTP回歸pass，格式pass。
+
+### 四語 HTTP 協商完成
+
+只替換舊ASP.NET header provider，四語／alias／q／specificity／order／q0／wildcard／8192字元限制；無header沿server配置，有但未知／畸形／全部排除→en-US。query/cookie原順序保持，沒有新增舊user語系schema，Go既有持久化優先回歸另驗。首build一次CS1061 IList不支援FindIndex，改原IList迴圈替換，正式邏輯後續沒有再改。真host HTTP34pass，real middleware從host取正式options，3silentlogger情境pass，finalfocused37pass0fail/skip。完整Debug exec40056已terminal17套件4150Passed/21NotExecuted/0fail；後只加3個logtests，runtime source沒變；Go i18n0.200/HTTP2.531pass。format final handle46989尚待取末結果；無其他live。證據docs/evidence/ui-http-locales.json，來源角色索引放既有brandmap，不擴大allowlist。最後所有文檔寫完再跑品牌／gitignore／diff／hash，之後同PR46推送。G03保持partial，下一步G05發現／直播裁剪；探索host仍在network模組並有Startup注册，不能只關default旗標宣稱刪能力。
+
+已下載d0ef9b2195的真CI ABI report（artifact11176927400）：8組比較7個exit0，Naming改名exit1／CP0001+CP0004保持；artifact成功保存，JF_BOT_TOKEN問題已修。仍未merge、full品牌仍blocking。c18a5f273c新headfoundation待CI，不用舊head通過宣稱。
+
+格式exec46989已terminal exit0（workspace warning），所有本輪handles已terminal，沒有待poll測試。LICENSE／需求檔與HTTP證據source hash逐項相符。
+
+### G05 伺服器探索裁剪验收完成
+
+删除网络探索host／Startup注册／DiscoveryRequest常数／响应model／OpenAPI schema registration；移除空namespace using及多余空行。旧配置AutoDiscovery保留既有迁移契约，注释标明不启listener，不改变已发布迁移。前三个编译阻碍是bool文档SA1623、空namespace using、双空行SA1507，另test namespace修为实际Manager；均已解决，没有弱化分析器。positive三项pass（旧flagtrue／程序集／真OpenAPI）；negative exec74249先恢复HEAD五源，同样3fail0pass，finally逐bit恢复；随后全Debug17套件4156Passed/21NotExecuted/0fail。format exec23191 terminal0，有workspace warning；本轮全部handle已terminal。source hash/protected hash/migration diff已核对，最后文档写完再跑门禁后同PR46推送。
+
+证据docs/evidence/server-discovery-removal.json／合同docs/server-discovery-removal.md；防火墙文档补不开放UDP1900/7359。G05明确partial：UDP SocketFactory还在ApplicationHost注册且HdHomerun tuner使用；LiveTV82源文件及controller／recording／channel服务仍保留，下一步裁剪与明确不支持合同，不能声称LAN SSDP已验收。3d9c5298c7真CI基础两平台pass，C#/Format/CodeQL/OpenAPI pass；PG仍live，ABI真差异与full品牌仍fail。不能把前headpass当新head全绿。
+
+G05最後完整品牌14805（新增回歸仍引用舊測試host，未增加豁免）；增量0違規／119既有允許、gitignore0。完整門禁保持失敗。
+
+### G05 Go 公開探測合同完成
+
+新的internal/adapter/compat/removed.go只識別完整第一段LiveTv／Channels／Dlna，HTTP boundary在Host／轉碼／debug守衛後明確501 feature_removed；不初始化功能、不查驗帳號／查資料庫／媒體／建立工作。system七個相關能力固定false；OpenAPI x-jelee-removed-features擴充欄位描述根路徑／501／code並有一致性測試。四語錯誤catalog各39鍵，新code由既有HTTP跨層translation gate覆蓋。HTTP合同驗收：17路徑*6方法*4語系*2catalog/direct開關=816 HTTP router requests通過，HEAD、Host400、HLS409、debug404、相似prefix404與OpenAPI另pass。Windows全Go/vet/三build先pass；最後只移feature拒絕到既有debug後並補測，finalHTTP2.480/i18n0.181/vet/builds pass。finalLinuxrace exec89601已terminal HTTP3.275/i18n1.024pass，Windows／Linux所有handles已terminal。四UI123keys gate保持pass。Go source hash／protected hash／沒有SQL或C#或migration修改已核對。
+
+證據docs/evidence/removed-feature-http.json／合同docs/compat-matrix.md；G05仍partial，公開探測不取使用者偏好，正式已驗證API驗證流程的持久偏好保持。舊C#直播／EPG／tuner／recording／channel與資料配置等未清完，真客戶端握手及LANSSDP未驗收。下一步切除舊服務controller/host/dependencies，勿將Go501當成整個G05刪除完成。所有文檔落盤後再跑品牌/gitignore/diff再同PR46提交。
+
+補真正 loopback TCP/HTTP HEAD 驗收，501／無正文／fr-FR→en-US且無後端呼叫；只加測試，正式源碼沒有改。final Windows HTTP2.092/i18n0.177，final Linuxrace exec51465 HTTP3.279/i18n1.022 terminal pass。所有handles terminal；證據已刷新最終測試source hash，最後所有文檔納入品牌與gitignore門禁。
+
+### G05 錄製自動啟動來源裁剪驗收完成
+
+刪除錄製啟動與通知兩個host及Startup註冊；錄製管理器移除NamedConfigurationUpdated訂閱與async void回呼。沒有空host替代或隱藏型別，其他核心服務仍可解析。三項focused回歸pass；反向恢復HEAD四個來源同樣三項全部fail，finally逐位元恢復包含deleted狀態。初次測試1fail原因是Moq遞迴VerifyNoOtherCalls連帶計入constructor讀paths，清除constructor mock紀錄後3pass；正式碼沒有因此變動。完整Debug17套件4159Passed／21NotExecuted／0fail；格式verify-no-changes pass（workspace warning），所有測試handles已terminal。
+
+合同docs/recording-startup-removal.md、證據docs/evidence/recording-startup-removal.json，角色來源索引放既有brandmap，沒有增加豁免。保護檔hash與基底相同，沒有改migration、原媒體、計時器資料或授權檔。G05維持partial：controller、explicit recording calls、guide/channel scheduled tasks與tuner依賴仍可運行，下階段須裁剪控制器／501合同及排程來源。不要把刪host當成完整G05完成；TimerManager的明確Add／Update仍存在。
+
+d7ac92e850最新CI兩平台foundation與Ubuntu C#／Format／OpenAPI均pass；PG、CodeQL、其他C#尚pending於檢查時，ABI與完整品牌仍fail，未merge。最後所有文檔寫完才跑品牌／gitignore門禁並同PR46推送。
+
+錄製啟動階段最後完整品牌14807仍fail（新回歸也引用舊主機名稱）；增量0違規、gitignore0、diff與保護hash檢查pass，沒有擴大豁免。全部handles terminal。
+
+### G05 舊 HTTP 直播與頻道入口裁剪驗收完成
+
+刪除LiveTV與Channel兩個controller及兩個專用DTO；新增Jelee.Api.Compatibility的RemovedFeaturesMiddleware（四根匹配包含System/Configuration/livetv），位於既有authorization與IP validation後。三類功能根所有方法501／feature_removed，HEAD無正文，四Core catalog新增FeatureRemoved各124鍵。保留原設定授權，unauth GET/POST先401，authorized設定501；IP受限先503；相似prefix／query不匹配。初測24fail為設定未登入401，沒有移動安全邊界去符合錯誤假設，改正式登入設定矩陣，另加401與3種IP拒絕回歸。630矩陣+13附加共643pass，直播設定逐request未變。正反編譯型別／真OpenAPI negative 2fail，finally五源逐bit還原，四檔保持absent；沒有執行舊功能write矩陣。
+
+完整Debug17套件4798Passed／21NotExecuted／0fail，格式verify-no-changes pass（workspace warning），Win/Linux UI124 gate pass。全部測試handles terminal；來源角色hash／基底刪除hash見docs/evidence/legacy-removed-features.json，sourceIndex既有brandmap，不加豁免。合同docs/legacy-removed-features.md與compat-matrix已更新。G05 partial：LiveTV core服务、Guide/Channel排程、tuner、動態media provider、設定factory／存量資料與真client/LAN仍待清；下一段刪排程與queue references，避免只刪task型別讓調諧器保存編譯失敗。一般auth可能查帳號，不宣稱舊API完全無後端呼叫。
+
+109d25337e CI雙平台foundation／三平台C#／format／OpenAPI已pass；PG與CodeQL仍pending於檢查時，ABI difference／full branding仍fail。未合併。最後全部文檔寫完再跑品牌/gitignore/hash/diff後同PR46推送。
+
+舊HTTP階段最後完整品牌14807→14761，仍fail；增量0違規／136既有允許、gitignore0、protected hashes／migration diff／staged diff pass。沒有放寬豁免；所有本輪測試handles terminal。
+
+### G05 EPG／Channel自動工作裁剪驗收完成
+
+刪6實作：guide/channel排程、channelpostscan資料cleanup、live/channel動態來源、channel image provider。刪5queuecalls、兩constructor ITaskManager依賴；ITunerHostManager與實作刪只用於排程的dataSourceChanged可選旗標。修正既有ListingsManagerTest依賴參數。刪3排程专用key（TaskRefreshChannels/Description、TasksChannelsCategory），四Core catalog121keys Win/Linux gate pass。沒有改legacy migrate、timerdata、原媒体/授權。
+
+初次工具漏2個無空行結尾queuecalls，compile抓出，刪後SA1508抓出兩處空行，已修；API驗收先假設camelcase而Key查不到，改正式TaskInfo反序列化，再補現有JsonDefaults.Options以支援字串enum；正式產品API協定沒改。positive10pass，negative恢復6實作同8型別/host/API情境全fail，finally6檔回absent逐bit核對；不恢復新constructor。完整Debug17套件4808Passed／21NotExecuted／0fail，format pass（workspace warning）；所有handles terminal。沒有弱化analyzer或刪測試取綠。
+
+合同docs/live-feature-actors-removal.md，證據docs/evidence/live-feature-actors-removal.json；G05.4由blocked改partial，來源角色hash見既有brandmap；矩陣逐行重算336條為4done／175partial／157blocked。G05核心manager/entity/library依賴、設定及存量資料／其他翻譯／圖示與真client/LAN仍未完成。下一段查核心直播依賴，不能用空服務代替功能刪除。fb994a86ac CI Go雙平台／Ubuntu C#／Format／OpenAPI pass，其他C#、CodeQL、PG當時pending，ABI/full品牌fail；未合併。最後所有文檔寫完再跑門禁同PR46推送。
+
+自動工作階段最後完整品牌14761→14728，仍fail；增量0違規／151既有允許、gitignore0、保護檔hash／migration diff／staged diff pass。沒有增加豁免；所有本輪handles terminal。矩陣計數保留G01.4b/c並正確跳過欄內escaped pipe，已核对336條。
+
+### G05 DTO單層解耦驗收完成
+
+一次刪七core檔案+DTO/View/DI的工具操作遭auto-review拒絕（廣泛範圍、未先分批解耦）；CreateProcess拒絕前未寫任何檔案，原script也未建立。沒有繞過拒絕；採明確較小替代先只改DTO類別與兩現有test constructorargs，新工具審查允許。刪錄製與Lazy LiveTV ctor/fields、single/batch TV augmentation、active recording DTO覆寫；未刪7core也未改UserViewManager/ApplicationHost/CoreAppHost/DI registry，逐bit對base證明。未移除Video實體的static錄製依賴。
+
+既有DTO14pass，所有assertions保留，完整Debug17套件4808Passed／21NotExecuted／0fail；format verify-no-changes pass（workspace warning），所有本輪handles terminal。證據docs/evidence/dto-live-decoupling.json／合同docs/dto-live-decoupling.md，來源角色在既有brandmap。license/requirements-source與未改11源hash驗證，無migration或媒體改動；最後文檔全部写完再跑門禁同PR46推送。
+
+下一步先單獨解耦UserViewManager的LiveTV folder增補及constructor，再以降低影響的可編譯範圍刪core／DI。不要直接重跑被拒絕的七檔大批操作或間接繞過；需要新證據證明風險降低或另取得授權。G05partial、336矩陣4done/175partial/157blocked保持。2cc622d355 CI雙平台Go／Ubuntu C#／Format／OpenAPI pass，其他C#/CodeQL/PG當時pending；ABI/full brand fail，未合併。
+
+DTO階段最後完整品牌14728仍fail，增量0違規／158既有允許、gitignore0、保護檔與未改核心來源hash／migration diff／staged diff pass；未擴大豁免，所有handles terminal。
+
+### G05 使用者視圖單層解耦驗收完成
+
+UserViewManager刪IChannelManager/ILiveTvManager ctor/fields、externalTV/Channelfolder增補、GetLatestChannelItemsInternal外抓分支；既存Channel父項現在走一般library query，存量資料未刪。UserViewsController只改兩參數XMLdoc說明legacyflag不增補退休內容，route／auth保持。unit4pass（true/false本機folder保留、普通/Channel父項一般query），HTTP2pass6requests（新舊route及false/true/default）freshhost，未seed退休庫故不宣稱migrationdata驗收。
+
+新unit初compile漏兩enum namespace／mock把List父项簽名誤寫IReadOnlyList，按實際介面修正；所有產品碼沒有因此改動。完整Debug17套件4814Passed／21NotExecuted／0fail，format先抓新HTTPtestCRLF，終止full後統一LF只改test，再finalHTTP2pass／formatpass（workspacewarning）。全部handles terminal。7core及3DI/assembly索引與base逐bit同，license/requirements hash不變，無migration／media改動；證據docs/evidence/user-view-live-decoupling.json／合同docs/user-view-live-decoupling.md。最後所有文檔写完再跑門禁並同PR46推送。
+
+接續已無一般DTO/UserView的ILiveTvManager引用，一般伺服器實作只餘ApplicationHost Lazy註冊；CoreAppHost還用LiveTvManager作程序集marker，registry還注入4個core。下一步先移除這些DI/marker相依並驗證，再刪實作/介面。勿直接重跑之前被auto-review拒絕的跨層七檔batch；此階段是獲准的單層替代。G05仍partial，336矩陣4done/175partial/157blocked不變。3b95ddafc6兩平台Go／三平台C#／Format／OpenAPI pass，PG／CodeQL當時pending，ABI/full brandingfail；未合併。
+
+視圖階段最後完整品牌14749，仍fail；增量0違規／165既有允許、gitignore0、staged diff pass。未增加豁免；全部測試已結束，使用者授權G03四語裁剪已完成，G03其餘驗收仍待完成。
+
+### G05 核心註冊分層解耦
+
+移除四個核心DI與一般主機Lazy註冊，程序集marker改用保留的錄製管理器，未刪核心檔案。六项實際啟動／服務集合驗收通過，必要頻道／錄製／節目來源／調諧器服務可解析。七個核心檔與LICENSE／原始需求逐位元不變。沒有重跑先前遭auto-review拒絕的跨層刪除；完成較小分層後再評估無引用核心刪除。完整Debug17套件4820Passed／21NotExecuted／0fail，format pass（workspace warning），所有handles terminal。最後只移除失效的循環相依TODO註解，產品行為沒有額外變更。G05及全案仍部分完成，336需求4done／175partial／157blocked不變。
+
+核心註冊階段完整品牌14756，仍fail；相較前階段增加7項來自新測試對既有命名的實際引用，沒有增加豁免或隱藏引用。gitignore0，增量0違規／169既有允許，staged diff pass；核心正式來源引用已限於七個待裁剪檔案，接續先從沒有其他依赖的指南實作檢查。
+
+### G05 指南核心裁剪
+
+DI／DTO／View先分層完成後，工具審查允許本次只刪兩個指南檔案。新rg發現節目來源仍引用指南MaxCacheDays，已移為來源本地2天常數；修正前階段「核心引用全限於七檔」的不完整判斷。兩舊etag註解更新為持久化內容編碼語意，斷言不變。七項整合验收通過，只恢復兩舊核心的compiled-type negative兩項全部失敗，finally兩檔回absent；沒有啟動舊服務。完整Debug17套件4821Passed／21NotExecuted／0fail，format pass（workspace warning），所有handles terminal。G05與全案仍部分完成。
+
+指南裁剪最後完整品牌14756→14735（減21），仍fail；gitignore0、保護檔hash／遷移diff／staged diff pass。04a80ad9f9 CI當時格式與雙Windows Go已pass，其他主要功能仍pending，品牌fail；新head仍需另外檢查CI。下一步需先處理直播DTO對管理器的兩個轉換方法相依，不能直接刪管理器造成編譯失敗。
+
+指南階段增量品牌0違規／175既有允許；沒有增加豁免。所有來源與文檔寫完再驗證通過後同PR46提交推送。
+
+### G03 Go HTTP 靜態翻譯鍵門禁
+
+五檔核心3271行刪除仍遭auto-review拒絕要求明確授權，已只製作.testdata/g05-live-core-proposal.md與patch、發出async問題，產品核心未改也未繞過。等待期間處理獨立G03門禁：既有regex僅固定三檔改為所有HTTP正式Go來源AST，排除test，對照資源鍵捕捉missing/unused。八fixture加keydiff負例通過，Windows HTTP/i18n完整回歸與vet通過；Linux HTTP/i18n race亦通過（3.598s／1.069s），全部handles terminal。沒有改catalog、產品行為或直播核心。G03仍partial，前端及舊UI完整文案使用尚未驗收。
+
+G03靜態鍵驗收最後增量品牌0違規／175允許，gitignore0，完整品牌14735／180允許仍fail；staged diff及五個待核准核心／保護檔逐位元比對通過。無來源測試handles仍執行，沒有核心刪除。
+
+### G11.8 網路隱私文件
+
+五檔核心仍待使用者明確授權，未刪也未改。獨立補齊docs/network-privacy.md：直連公網IP不可能對該客戶端隱藏、域名與代理的可見位址邊界、直接Go環回／容器全址／宿主環回差異、Host驗證、傳輸peer共用限流與代理TLS/HSTS限制。RFC9110與RFC7239原始規範已讀並連結，產品來源逐項核對；重驗現有Host、ClientIP與登入限流三項通過。沒有新產品功能、公網／firewall實測或宣稱完整安全驗收。
+
+G11.8 blocked→partial（指定文檔完成，共用網路Plan的SSRF／WS／部署矩陣仍未完成）；336矩陣逐行重算為4done／176partial／156blocked。G05仍等async核准3271行五檔刪除，不能把goal自動繼續當成該授權。
+
+網路文件階段增量品牌0違規／175允許、gitignore0、staged diff pass；完整品牌14735／180允許仍fail。待核准核心五檔與LICENSE／原始需求逐位元不變，產品無變更。
+
+### G11.2 可信代理設計核對
+
+接續獨立功能設計，原G11.2已授權並由使用者要求自主接續；採CIDR白名單＋嚴格XFF、右向左可信鏈、32hop／8KiB上限、私有context有效地址、固定告警不含原值。設計與驗收規格docs/specs/2026-10-02-trusted-proxies-design.md已自我審查，產品未實作，G11.2保持partial／336統計不變。下一段按規格先設定與地址解析，再接登入／稽核實際回歸，不得只有解析器而宣稱整體完成。
+
+五檔核心仍待async明確授權，原提案與patch在.testdata，禁止把此獨立設計當作核心刪除授權；核心產品保持不變。先前6829b14c01是文件階段提交。
+
+可信代理設計階段來源逐位元未變，增量品牌0／175允許、staged diff通過；此輪沒有runtime test，也不宣稱代理功能完成。
+
+### G11.2 可信代理產品接線
+
+依前段規格已實作JSON／env可信CIDR、64前綴、XFF8KiB／32hop、由右向左可信鏈、context有效地址、固定reason告警無原值。一般ClientIP保持transport-only；帳號入口改requestClientIP，登入與稽核／密碼限流接線完整。初期受影響回歸通過；設定／鏈／限流／稽核／角色／Host／真HTTP代理專項通過，真HTTP已從手工context示例強化到實際帳號Handler與repository，地址不回顯。完整Win Go+vet與Linux config/HTTP/i18n race通過，全部handles terminal。
+
+移除boundary單行注入時稽核與真HTTP兩項負例均失敗，finally逐位元復原，Windows config/HTTP/i18n再次完整通過。所有來源角色hash與負例前相同，補證據更新G11.2後同PR46提交。五個直播核心仍待async授權，不得刪除；產品組件之外的原媒體／既有遷移／LICENSE保護。全案仍部分完成。
+
+可信代理階段Win完整Go27個通過套件／2724個pass事件、435個環境skip（逐項見evidence），vet通過；Linux config／HTTP／i18n race1.368／3.616／1.074s。專項48個pass事件無skip，負例兩fail已復原。增量品牌0／175允許、gitignore0／diff通過；完整品牌14735／180允許仍fail，沒有增加豁免。來源hash與負例前相同，待核准直播五檔及保護檔逐位元未變。G11.2維持partial，下一段PUBLIC_URL／完整公網代理驗收仍待實作。
+
+613005e0b0已推送產品與回歸；最後補寫證據的Python字串語法錯誤使該補寫未執行，而後续提交命令仍執行。此次只補齊實測門禁／略過摘要，產品與測試來源不變。後續inline Python一律檢查exit code後才提交。
+
+### CI 最新執行控制與舊run清理
+
+查得最新b92b79a0d4排隊、同分支19個舊head仍active。六CI父workflow只加workflow/event/ref根層concurrency；PyYAML解析與去欄位前後語意相同，所有jobs/steps/權限/trigger/gates不變。清理前逐run再次核對head/branch/event/status與遠端head保護，17一般取消均已確認cancelled，兩個已自然terminal。曾有36905726685未退出，保持同handle觀測直到completed/cancelled；没有restart/force cancel。第一次WSL inline表達式遇shell展開bad substitution，改寫檔案後驗證完成，沒有跳過檢查。
+
+04a80ad9f9的Go兩平台／PG皆success，foundation全workflowfailure為Full branding；其他功能不是同一失敗來源。新head仍需自身CI，取消不計為成功。沒有改產品、待核准五核心、原媒体或既有遷移。
+
+另重讀G11.1原文是「相對地址或顯式PublicBaseUrl」，前幾段把PUBLIC_URL描述成必须後續功能屬過度解讀，現文檔及追溯已修正，保留相對路徑方案；G11.1仍partial因共用網路Plan的SSRF/WS/部署矩陣不全，336計數不變。五核心3271行刪除仍等async明確授權。
+
+CI階段增量品牌0／175允許、gitignore0、staged diff通過；完整品牌14735／180允許仍fail。六workflow保留原BOM，移除新增block後與base逐位元相同，記錄原始before／after SHA256。沒有runtime來源變更，未重跑本地產品全套測試；新head需自身CI。
+
+### G11.4 出站接線盤點與設計
+
+掃描233 Go／1919 C#正式來源，文字匹配factory43行／34檔、直接handler2行／1檔、SDK1行／1檔；internal Go出站模式0、管理CLI6行／2檔。已讀正式註冊、hostname socket、圖片／套件／tuner與SDK建構來源，发现共用factory未涵蓋SDK；CLI環回控制面必須保持。原始SDK與第三方依賴完整程式、alias／reflection／動態外掛尚未稽核；文字匹配不是完整call graph。未實作未使用client來冒充覆蓋。設計與來源證據見outbound-request-audit與specs，G11.4保持blocked，336統計4done／176partial／156blocked不變。
+
+本輪僅文件；沒有runtime／SSRF通過宣稱。後續須把受控Go client與正式抓取適配器一起接線，逐能力驗證；舊SDK不能從factory推定保護。五檔3271行直播核心仍待原async具體核准，沒有改動。e4e8 CI格式／OpenAPI通過，ABI base/head build與報告保留通過，實際Difference失敗；其他尚在執行，沒有合併。
+
+出站盤點最終增量品牌0／181既有允許，完整14735／186仍fail，gitignore0；來源索引新增10角色令既有允許匹配增加6，沒有修改掃描allowlist。2152正式來源與待核准核心五檔Git blob核對不變、保護hash、文件連結與336統計核對通過；初始逐檔git show受Windows長revision:path限制失敗，改用一次ls-tree與本機blob hash完成，沒有更改Git設定。本輪沒有runtime source變更或test。
+
+### G11.4／G14.2 受控出站與 TMDB 啟動接線
+
+受控GET client已被正式TMDB authentication適配器使用，來源僅TMDB_API_KEY／FILE（互斥、32hex、4KiB檔案、JSON隱藏），存在時單一lifetime.start在listener／worker前預檢；無憑據的逐步遷移模式不連TMDB。失敗取消並清理已建資源，client關閉idle。handler／SDK舊來源未改，管理CLI環回維持，不宣稱完整刮削。DNS全部答案先拒私網／特殊地址、64上限、5秒預算、具體IP dial無重解析；GET15秒、每host4、idle16／header32KiB，預檢body4KiB；拒全部redirect、環境proxy關閉、TLS保留hostname驗證、安全固定錯誤及context取消。保守特殊地址策略已讀IANA兩registry；真外部憑據／剩餘quota與專用SSRF安全日誌尚未驗收／接線。
+
+正式adapter透過自有TLS服務及測試專用CA／DNS／dial驗證6case，private seam僅test binary；另有地址／URL／DNS混合／rebinding／proxy／TLS／body與取消矩陣。Windowsfull29package、2830pass events含父／435skip（完整清單入證據），vetPASS；焦點4pkg207pass events／6既有環境skip；Linux4pkg racePASS（摘要不列skip，未宣稱0）。移除實際DNSguard負例1leaf fail、移除start接線2fail，finally來源逐位元恢復，transport/adapter與lifetime相關完整回歸再pass。全部handles terminal。詳見outbound-tmdb-preflight.md／evidence，來源hash13角色。G11.4與G14.2 blocked→partial，336矩陣4done／178partial／154blocked；其他仍按實際範圍不提高狀態。
+
+3271行五檔核心依舊等原async具體授權，沒有修改。下一段接TMDB資料取得與429治理／cache，或依授權續裁核心；不能用認證預檢代替電影／劇集匹配、圖片抓取、Webhook／NFO外鏈與全域SSRF。111859 CI C#／Format／OpenAPI已pass，ABI Difference fail，foundation／CodeQL當時仍live；新HEAD仍需自己的CI，未合併。
+
+TMDB接線最後產品build PASS，go list確認正式outbound只編client.go、測試替身只在TestGoFiles；增量品牌0／181、完整14735／186仍fail、gitignore0、來源13角色hash／保護hash／待核准核心五檔／遷移與C#無diff／文件link與336統計核對通過。没有更改allowlist；所有本輪handles已結束，推送同PR46後立即續作。
+
+### G14.3 預檢 HTTP 重試
+
+上一段9137aaeffa已推同PR46；接續真實ValidateCredentials預檢而非未使用helper：429／5xx最多三attempt含第一次、250／500ms加0–25%抖動、Retry-After十進位秒／HTTPdate最小等待，不縮短大值；格式錯／overflow／超过總15秒剩餘預算停止，不提早重試。Transport／SSRF／TLS／body／401／403／成功JSON錯不重試，ctx取消停止timer。正式Response僅多帶RetryAfter，沒有回傳全部headers；authentication不cache，完整request limiter／cache／movie/series及真quota仍缺。
+
+真TLS429→200最低1秒實測；只移除client標頭傳遞負例1leaf fail（0.27s），finally逐位元恢復再完整adapter/outbound PASS。Windows full29pkg／2858pass events含父／435skip，逐項名稱集合比對前段435完整清單一致；fullvet PASS，Linux4pkg race PASS（summary不列skip未宣稱0），所有handles terminal。G14.3 blocked→partial，336統計4done／179partial／153blocked。詳見tmdb-retry.md/evidence，沒有C#／migration／媒體／待核准核心修改。
+
+下一步仍要完整TMDB治理與資料庫／工作pool接線，不能把認證retry當作完整刮削。五檔3271行core仍待原具體核准，新goal自動繼續不是授權；品牌／ABI門禁維持，未合併。
+
+重試階段最後增量品牌0／181、完整14735／186仍fail、gitignore0、產品build PASS；來源／保護hash／原435略過清單hash／待核准五核心逐位元／C#與遷移無diff／link／336統計皆核對。沒有增加allowlist；所有本輪測試已結束，同PR46推送。
+
+### G14.3 正式請求限流／共享冷卻
+
+前段7341a42d25已推同PR46，接續真实governedFetch：每適配器250ms啟動間隔與4容量，所有authentication嘗試共享；槽含rate/cooldown等待及fetch，不創背景goroutine。取消等待釋放容量且不預约下一時段，wake重新檢查mutex狀態；429／503共享Retry-After／backoff，先publish再release且terminal回應也更新，invalid header保守15秒。跨程序／不同adapter coordination、可配置provider預算、資料cache與完整movie/series仍未實作，G14.3partial與336統計4done／179partial／153blocked不變。
+
+八併發峰值4／queued取消釋放、間隔／取消無多預約、cooldown延長／長等待通過；真TLS第一call150ms遇1秒header拒retry，第二600ms仍cooldown取消且upstream只有1request，第三等滿至少1秒success。移除正式governedFetch接線負例1fail（第二call错误nil），finally retry.go逐位元恢復，相關兩pkg完整回歸再pass。Windowsfull29pkg／2863pass events含父／435skip，skip名稱集合與前段435清單逐項一致；vet／產品build PASS，Linux4pkg race PASS（summary未列skip未宣稱0）。所有handles terminal，來源7檔hash與詳細證據tmdb-governor.md／evidence。
+
+五核心3271行依舊等原async具體核准，沒有改／刪；本輪無C#／migration／media變更。下一步需正式metadata資料取得與cache／library／worker接線，不能把預檢治理當完整刮削。品牌門禁／ABI差異保留，不合併。
+
+治理最後冷卻延長測試改私有確定時鐘／wait，驗證60ms後再40ms，避免依賴CI排程；正式constructor固定time.Now／waitRetry，沒有公開替換設定。最終全Go／vet／build和Linux race重驗通過，來源hash已更新。增量品牌0／181、完整14735／186仍fail、gitignore0；保護hash／五核心逐位元／skip集合／無C#或遷移diff／links／336統計驗證通過。全部本輪handles結束，同PR46推送，未合併。
+
+### G14 電影候選預覽與快取
+
+管理員只讀API已正式接runtime擁有的TMDB client與應用層，使用受控出站／共享治理；256筆LRU、ID+四語、24h從取得時間到期，來源與UTC時間保留，認證及錯誤不cache，無新增背景goroutine。重啟清空，並行miss仍可重複查詢；未修改library／field locks／NFO／圖片／遷移。API docs Credits含官方未修改標誌與必要聲明，沒有將此當完整前端／商業授權驗收。
+
+Windows完整Go29套件／2906pass事件含父／435略過，略過與前次完整清單逐項一致；vet與產品build通過，Linux六套件race通過（summary不列skip，未宣稱零略過）。真TLS連接實際adapter＋app驗證電影兩call一upstream、認證兩call兩upstream。移除實際快取命中接線負例1leaf fail，finally逐位元恢復再完整相關回歸通過。初始TLS工廠參數不符造成編譯失敗，修正後才完成最終回歸。詳細docs/tmdb-movie-preview.md與evidence/tmdb-movie-preview.json。
+
+G14.1 blocked→partial、G14.3仍partial，336統計4done／180partial／152blocked。名稱／年份匹配、劇集、NFO優先與欄位鎖、工作佇列與持久化、圖片及完整前端仍缺；五核心3271行仍待原具體授權，沒有改／刪。舊HEAD f6e CI Tests／CodeQL／Format／OpenAPI已success；ABI base/head success，Difference仍fail在ApiCompat；foundation當時仍live。全案未完成，不合併。
+
+電影候選階段最終增量品牌0／181、完整14735／186仍fail、gitignore0；來源17hash、保護檔、待核准五核心逐位元、無C#／遷移diff、文件links與336統計核對通過。全部本輪測試handles已結束，同PR46推送；下一段從本階段接電影匹配／刮削，不重新建立branch。
+
+### G14 電影名稱／年份候選查詢
+
+接續2b20e9493c，正式管理員API增加名稱＋選填年份、四語查詢，固定第一頁／非成人／最多20候選，url.Values轉義；整批唯一ID與共用movie欄位驗證。app比較標題／原名與年份，全部needsConfirmation=true，不自動選首筆或寫入；搜尋結果未cache，選定ID後走既有detail cache。真TLS確認兩候選比較／待確認與search不抓detail、後續明確ID才抓detail。100合成名稱只是app契約，不是100電影／20劇集全矩陣。
+
+完整Windows Go29包／2961pass事件含父／435略過，skip身份與前次完整清單逐項相同；vet、產品build與Linux六包race通過（摘要不列skip未宣稱0）。移除app待確認標記負例1leaf fail，finally逐位元恢復後metadata／app／HTTP／outbound四包完整回歸通過。來源／執行證據docs/tmdb-movie-search.md及evidence。G14.4 blocked→partial；回填前段與本段來源／時間／Credits證據，G14.7 blocked→partial，沒有宣稱全合規，336計數4done／182partial／150blocked。
+
+劇集／季集、IMDB／TVDB、模糊置信度、library／worker寫入、語言回退、NFO優先／field locks、移除外部元資料與完整合規仍缺。五核心3271行仍待具體核准，沒有改刪。前段HEAD的Format／OpenAPI success，ABI failure，其餘當時仍live，新HEAD要自身CI；品牌與ABI門禁維持，不合併，仍第3階段。
+
+搜尋階段最後增量品牌0／181、完整14735／186仍fail、gitignore0；11來源hash、保護hash與五核心逐位元、C#／遷移無diff、links與336統計核對通過。補Movie欄位驗證後／cache發布前context檢查及確定取消測試，最終完整Go／vet／build及Linux race皆重驗，pass事件2961（含父），略過435逐項相同。所有handles terminal，同PR46續推，下一步仍需劇集／季／集与元資料寫入保護。
+
+### G14 劇集搜尋與詳細候選資料
+
+接續e5e12cfe94，正式管理員API加入TV名稱／選填首播年份與ID詳細；使用first_air_date_year，不用涵蓋所有集播出年的year。共享transport／governor／重試，正文1MiB／15秒，整批最多20唯一ID與共用欄位驗證，全部待確認，不選首筆／不寫入。SeriesCandidate保留firstAirDate／TMDB劇集來源／UTC時間；電影與劇集各256筆24h，獨立typed cache共用LRU實作，Movie schema及語意不變。搜尋輸入改共用MetadataSearchInput，runtime provider編譯期涵蓋兩類。
+
+真TLS正式adapter＋app查出20劇集、兩次detail一次上游、同ID電影自有endpoint，搜尋不抓detail；繞過Series快取命中負例1leaf fail（search=1／series=2／movie=1），finally逐位元復原後metadata／app／HTTP／outbound四包完整回歸通過。Windows全Go29pkg／2994pass事件含父／435略過，與原完整skip清單逐項一致；vet與產品build PASS，Linux六包race PASS（摘要不列skip未宣稱0）。21候選拒絕／schema隔離、權限／query／ID／安全錯誤與取消、cache TTL／語言／跨類型／容量及既有並行回歸通過。20只是候選契約，不是原100電影／20劇集與鎖定寫入完整驗收。
+
+G14.1／3／4保持partial，336統計4done／182partial／150blocked不變。季／集、IMDB／TVDB、置信度、語言回退、NFO優先／鎖、library／worker寫入與清除元資料、圖片／前端／完整TMDB條款仍缺。五核心3271行仍待原具體核准，沒有改／刪；原媒體／NFO／圖片／遷移／LICENSE保護。前HEAD Format／OpenAPI success，ABI仍fail，其他當時live；本HEAD要自身CI，不合併。詳見tmdb-series-preview與evidence。
+
+劇集階段最後增量品牌0／181、完整14735／186仍fail、gitignore0；17來源hash與負例恢復、保護hash／五核心逐位元、C#／遷移無diff、local links／336統計核對通過。全部本輪handles terminal，無新branch，同PR46推送；下一段季與單集metadata，不把preview當完整library刮削。
+
+### G14 季與單集候選資料
+
+接續408eaca0eb，正式管理員API增加season及episode；第0季specials允許，季／集與正int32系列ID只接受標準十進位，四語／auth／admin／admission／rollout維持。官方GET受控transport／governor／retry／15s／1MiB，回應必須明確季號／集號與請求一致，show_id若有亦核對；沒有父ID時按已驗證路由歸屬。季清單最多1000，缺／null／重复ID或集號／超上限拒整批。來源／UTC／系列季集身份保留；不寫庫。
+
+型別化LRU拓展完整鍵（series／season／episode／language），季16與單集256、TTL24h；季含陣列，insert及每次hit都clone，電影／劇集原256政策保留，season不預填episode cache，不建背景goroutine。真TLS正式adapter＋app驗證specials／tuple／source/time、三season讀一次upstream、兩episode讀一次upstream與兩種修改隔離；移除hit clone負例1leaf fail，finally逐位元恢復，四相關pkg完整回歸通過。Windowsfull29pkg／3019pass事件含父／435略過，skip與原完整清單逐項相同；vet／build及Linux六pkg race PASS（摘要不列skip，未宣稱0）。
+
+G14.1／3／4仍partial，336計數4done／182partial／150blocked不變。檔名解析／自動配對、IMDB／TVDB、模糊置信度、庫／user語言回退、NFO優先／人工值／field locks、worker／library寫入與清除、圖片／完整前端／條款仍缺。五核心3271行待原具體授權，沒有改／刪；媒體／NFO／圖片／遷移／LICENSE保持。前HEAD Tests／CodeQL／Format／OpenAPI success、ABI仍failure，foundation當時live，新HEAD須自身CI；不合併。詳見tmdb-season-episode-preview及evidence。
+
+季／集最後補單集anonymous與非admin兩個獨立拒絕案例，最终全Go／vet与Linux六包race已重驗，3019pass事件含父／435skip逐項一致。增量品牌0／181、完整14735／186仍fail、gitignore0；15來源hash與負例復原、保護hash／五核心逐位元、C#／遷移無diff、links與336計數核對通過。所有本輪handles terminal，推同PR46；下一段語言回退／NFO與人工值優先、欄位鎖及元資料寫入保護，不能只延續preview就宣稱全刮削。
+
+### G14 使用者語言與簡介回退
+
+接續029036a252，六個管理員查詢採已認證user.locale，明確language可覆蓋；空／未知參數仍拒絕，客戶端標頭不能改可信偏好。詳細简介與空候選頁沿CN→TW→JA→EN從偏好位置回退，整段共用15秒期限，錯誤與取消立即終止。保留原標題／日期／身份／取得時間，每段overviewSource記實際請求語言與取得時間；不偵測文字語言。季只填身份相符現有集且複製陣列，原始語言cache不存合併結果。
+
+真TLS正式adapter＋app、六路由profile矩陣與應用回退／身份／slice隔離驗收通過；限制首語言的接線負例1leaf fail，finally逐位元恢復與四包回歸通過。Windowsfull29pkg／3058pass事件含父／435略過逐項與原清單相同；vet／build、Linux六pkg race通過（摘要未列skip）。增量brand0／181、full14735／186仍fail、gitignore0。G14.5 blocked→partial，336計數4done／183partial／149blocked。詳見tmdb-language-fallback及evidence。
+
+媒體庫語言設定／優先序、圖片偏好、其他文字、NFO／人工值／鎖、library／worker寫入與完整前端／矩陣仍缺。五核心3271行保持未修改，原具體批次授權仍待答覆。前HEAD Tests／CodeQL／Format／OpenAPI success，ABI failure，兩foundation當時live；新HEAD要自身CI，不合併、不新開branch，同PR46續推。下一段接媒體庫偏好與寫入保護。
+
+### G14 媒體庫語言持久化與查詢接線
+
+接續24931eb3ee，新增schema19庫語言／revision，原001–018不改。GET／PUT metadata-preferences管理員API驗證四語／UUID／嚴格JSON／expectedRevision，短交易重核session與admin，列鎖及版本比較防覆蓋，成功更新同交易前後稽核。降版表鎖且任何更新過的設定均拒回復，含改回CN。runtime以不可變新app服務綁Store，供應商沿用原生命週期。六個TMDB路由增加libraryId，明確語言→指定库→可信user→CN；即使明確語言也驗庫與session，失敗不外呼，DB交易不等網路。
+
+HTTP六路由／偏好授權／strict body／409及真HTTP＋app＋PG接線、競爭更新、audits、約束、升降版／保存設定驗收通過。停用正式repo revision比較的負例1leaf fail，finally逐位元復原，四項PG race專項0skip PASS。初輪完整PG兩項舊schema7/current整列快照因新欄位失敗；只排除新增兩欄，所有原欄位維持比對，新欄位另有專項遷移測試；測試fixture另補配置所需DB URL與既有支援密碼預設，產品驗證不放寬。最終完整PG race711pass事件含父／0fail／0skip，346.150秒。Windows全Go29pkg／3071pass事件含父／439skip；原435身份逐項相同，另4新PG專項已在真PG完整執行通過。vet／產品build及Linux六包race通過。
+
+G14.5仍partial，336計數4done／183partial／149blocked。增量品牌0／181、full14735／186仍fail、gitignore0；來源hash／LICENSE／requirements／五核心逐位元與001–018 Git正規化內容、local links／無C#diff已核對。五核心3271行仍待原具體授權，沒有改刪。圖像語言／前端、其他文字、NFO／人工值／鎖、library／worker寫入等仍缺；下一段圖片語言偏好與候選。前HEAD Tests／CodeQL／Format／OpenAPI success，ABI failure，foundation當時live；本HEAD要自身CI，同branch同PR46繁中續推，不合併。詳見tmdb-library-language与evidence；下一段細案在忽略的 .testdata/metadata-image-language-next.md。
+
+### G14 圖片語言偏好與電影／劇集圖片候選
+
+接續8d746b015b，schema20新增有序圖片語言清單，原001–019保持；省略新欄位保留現值，明確null／空／重複／未知值拒絕，文字與圖片共用版本及稽核。DB另限制維度與下標，升級保留文字與版本；降版在表鎖下只允許預設清單及版本1，文字更新過亦保守拒降。電影／劇集圖片管理員API實際讀庫圖片偏好，無庫按可信user預設；沿受控出站／共享治理，15s／1MiB，逐筆總1000候選，固定官方URL及安全檔名／尺寸／語言／分數驗證。偏好語言排序優先於票數，全部待確認，沒有下載或原圖寫入。
+
+圖片LRU共16筆／24h，鍵含資源／ID／完整有序清單；adapter插入與命中、app篩選排序均複製陣列。正式TLS＋app驗證query、來源、排序、確認與跨資源快取；真HTTP／app／PG驗庫設定與撤銷session。刻意忽略HTTP庫圖片偏好的負例1leaf fail，逐位元復原後六項PG race專項0skip通過。最終Windows全Go29pkg／3123pass事件含父／441skip；原435身份一致，新增六PG專項均已在完整真PG race執行。完整PG713pass事件含父／0fail／0skip，344.947秒；vet／產品build及Linux六pkg race PASS。
+
+增量品牌0／181、完整14735／186仍失敗、gitignore0；來源hash、LICENSE／requirements、五核心逐位元、19份既有升級與降版遷移的Git正規化內容、local links／無C#diff／336列核對通過。G14.5保持部分完成，全案4done／183partial／149blocked。詳細契約與證據見tmdb-image-preferences.md及evidence。前HEAD Tests／CodeQL／Format／OpenAPI成功，ABI仍失敗，foundation當時執行中；新HEAD須自己的CI，沒有合併。所有本輪測試handles已結束，同PR46／同分支續推。
+
+下一段接G14.6資料持久化、欄位鎖、人工與NFO優先順序及正式API；季／集圖片、logo、前端、完整100電影／20劇集與清除外部資料仍未完成。待核准五核心3271行保持，原具體批次問題未重問；不把此圖片候選階段當完整刮削。
+
+### G14 人工元資料與欄位鎖持久化
+
+接續a6b5621f66，新增schema21永久item狀態與四個文字欄位，原001–020保持。讀取從items原標題投影existing／版本1，不建立row；人工value更新標manual，optional明確清空仍留來源；只改鎖保留value與來源。既有來源標題沿原1–1024字元限制，包含較長UTF-8／空白，兩類實際PG鎖定及catalog保持，不能用同值當新人工輸入繞過非空白／1024byte規則。
+
+正式管理員GET／PUT items/{id}/metadata不需TMDB金鑰，runtime有／無供應商均不可變綁定item repository，有provider維持库偏好；router與OpenAPI按帳號設定一致。短交易重驗session/admin，item列鎖、expectedRevision、四欄有界唯一patch、版本加一、實際items.title與前後audit原子提交；無出站／原檔操作。JSON null／未知屬性／非法日期／多餘query拒400，明確人工編輯可修改已鎖欄位及解除鎖。
+
+真HTTP／app／PG驗目錄標題變更、人工清空、鎖／明確解除、409、無效JSON與撤銷session；並行同版本一成功一衝突；SQL约束、乾淨升降版、保留狀態拒降、取消／非admin／缺項與注入SQL失敗回滾已驗證。停用實際repo版本判斷負例1leaf fail，finally逐位元復原；最後四項PG專項含兩個legacy子項共6pass事件，0skip通過。
+
+初次完整PG717pass事件含父／0fail／0skip已通過，隨後補既有標題限制相容性，最終完整PG719通過事件含父／0fail／0skip，352.444秒。Windows全Go29pkg／3127pass事件含父／445skip、vet／build PASS，原435skip身份一致，新增10PG專項均在完整真PG通過。Linuxdomain／app／HTTP／runtime race PASS（摘要未列skip）；此四包產品來源與驗收後未變，最後SQL／PG測試相容性修改另由完整PG race覆蓋。增量brand0／181、full14735／186仍失敗、gitignore0；來源hash／LICENSE／requirements／五核心逐位元、20版既有遷移Git正規化內容、local links／336列及無C#diff已核對。
+
+G14.6 blocked→partial，全案4done／184partial／148blocked。實際自動TMDB／NFO寫入、人工與NFO優先序及鎖不覆蓋、provider來源／時間保存／清除、worker、前端與120項完整矩陣尚缺，不能把保存鎖當自動刮削鎖已生效。詳細見item-metadata.md與evidence/item-metadata.json。
+
+前HEAD的Windows／Linux foundation、Tests／Format／OpenAPI／CodeQL成功，ABI仍失敗、fullbranding失敗、PG當時live；新HEAD要自身CI，不合併、不新開branch，同PR46續推。五核心3271行仍未改刪，原具體授權提問待答。下一段依.testdata/tmdb-write-next.md接明確確認候選後的實際寫入、鎖與人工優先，以及可信NFO抽取接線，不停留在候選預覽。
+
+### G14 明確確認 TMDB 候選後實際寫入（schema22）
+
+接續1d92628f70，同PR46與feat/jelee-ignore-family-worker。管理員POST items/{id}/metadata/tmdb明確confirmed=true，驗resource/ID/revision、先短交易讀權限／種類／庫偏好，受控TLS查詢在交易外，最終重驗session／revision／kind／NFO mode。四文字欄來源含固定官方URL／ID／要求語言／取得時間，overview回退保存自身來源；鎖與人工（包括空值）保護，existing標題明確flag才取代，缺值不清空。catalog title／欄位／revision／前後audit原子；HomeVideo只有套用至少一電影欄才改Movie；全部略過亦推版本及audit。
+
+schema22保留原001–021，來源SQL約束／有限時間／canonical URL，保留provider來源拒降；全部人工接管後降21／升22保持值及版本。真SQL trigger中途失敗驗之前欄位、title、kind、revision回滾。唯讀NFO庫仍503，抽取／優先序尚未實作，此guard不是完整NFO支援。
+
+真HTTP／app／受控TLS／PG120項合成矩陣：100電影／20劇集逐筆名稱／年份搜尋（movie primary_release_year／TV first_air_date_year），確認ID後四欄／來源／catalog核對，120精確匹配／120寫入／0寫入失敗；不含原檔inventory／worker／階層匯入。鎖＋manual空值、overview回退、429／非法回應／取消與網路等待中的人工PUT、終態409亦通過。停用domain鎖判斷的實際完整路徑负例1leaf fail，逐位元復原SHA e987dc21e93a709733cd0343f147452a12e90a25b715abf94c70b80731ebebb6；最終矩陣1pass／0skip／64.484秒。
+
+Windows完整Go 29pkg／3129pass事件含父／448skip；原435身份一致，新增12PG與1outbound整合均在各自真整合跑過。完整PG race 721pass含父／0fail／0skip／356.806秒；vet／build PASS，Linuxdomain/app/HTTP/outbound/runtime race PASS，摘要不列skips。首次Windows舊CLI取消測試超2秒，未改來源／測試後完整重跑通過；初次年份斷言用錯movie參數，修正fixture後完整矩陣通過。初次Linuxruntime錯路徑已修正單包成功，其他四包原跑成功。
+
+增量brand0／181，全量14735／186仍失敗，gitignore0；來源hash／LICENSE／requirements／五核心逐位元／21版舊遷移Git正規化／local links／336列／無C#diff核對通過。全案4done／184partial／148blocked，G14.6及G14.7仍部分完成。見tmdb-metadata-apply.md及evidence/tmdb-metadata-apply.json。上一HEAD所有CI已結束，foundation Windows／Linux／PG成功，只有fullbrand／ABI仍失敗。
+
+下一段按.testdata/nfo-fields-next.md做可信唯讀NFO欄位抽取與實際接線、manual>NFO>TMDB及鎖；不留在preview／只寫計畫。原五核心3271行未刪，具體授权提問待答，不另問、不繞審查。禁止merge／新branch／release／forcepush／改舊遷移。所有本輪handles結束後提交／push繁中並更新同PR46，新HEADCI需自身結果。
+
+### G14／G39 唯讀 NFO 四欄與可信來源套用（schema23）
+
+接續99ccac11177675e7c28ba8ad652e573a31a843dd，同PR46／同branch。SummaryReader沿原安全ReadSource讀完整不可變bytes，compiled identity／四欄projection版本，拒namespace／wrapper／多項目／重複singleton／非法日期與XML／oversized／無文字；UTF16／取消／caller ownership及原檔bytes保持經測。NFOItemScope由authorizedJobs短交易從永久item→唯一media_sources→library_roots，LIMIT2拒歧義，來源相鄰同名.nfo、canonical相對path、不接受HTTP path。actor／revision／NFO mode/gen／kind先查；交易外兩次full讀比對SHA／stamp／identity／fields／鎖，最後ApplyItemNFO重驗完整scope／session／generation／revision，fields／catalog／revision／audit同txn。沒有原檔／媒體／圖片寫入。
+
+NFOItemOrigin保存source/root UUID、generation、SHA256、identityDigest、projection、readAt、NFO locked；不含path。NFOOrigin.locked與人工Locked獨立，manual／兩類鎖保護（含manual空值）；NFO可取代existing／tmdb，missing不清空，manual value接管清NFO／provider來源，只改lock保留。接受全略過亦推版本，HomeVideo至少一欄movie才改Movie。即使NFO讀取off，保存NFO來源仍比TMDB優先。schema23 JSON有完整鍵／唯一允許鍵／UUID／有限generation／digest／projection／boolean／finite-time SQL約束，非NFO不能帶來源；保留NFO拒down，全部manual接管可23→22→23保持值／revision。原001–022保持；旧down链加23→22。
+
+管理員POST items/{id}/metadata/nfo只有expectedRevision／confirmed=true，8KiB嚴格body、帳號認證／budget、safe errors；不依賴TMDB key或EnableJobs，库NFO設定仍原流程。OpenAPI／來源read schema在無key亦有，live job/provider feature tests更新成實際受旗標控制的路徑，另新增本地NFO flags合同。runtime bindMetadata有／無provider都綁正式安全reader，實際prod closure同函式，兩種狀態用真檔案測到正式讀者。
+
+真檔案＋HTTP TCP＋app＋PG驗401／非法確認／不能偽造path、NFO四欄與origin、人工接管／空值／兩類鎖、原檔bytes、過期409、非法XML503、兩次讀間變檔409、讀後gen改變409、失敗無更新或audit；repo再驗SQL中途失敗全回滾、來源替換、撤session、migration保留／clean。刻意停用NFO來源優先序（含unknown fallback）的實際repo TMDB寫入负例1leaf fail，逐位元恢復SHA 98f808121876bcc8654b5dbc027a7ea7758ab88f695955425873b688610fa630；復原五PG專項0fail／0skip通過。首fixture把帶參數多SQL一呼叫造成42601，已拆開，非產品失敗。
+
+最終完整PG race 726pass事件含父／0fail／0skip／364.466秒；Windows完整29pkg／3155pass含父／453skip，原435身份一致，额外17PG＋1outbound各自在实测通過。Linux原生tmp五包race 1015pass含父／0fail／0skip；schema23下原100電影／20劇集真TLS／HTTP／PG合成矩陣1pass／0skip／64.553s，120confirm writes／0fail。完整Windows／native／120矩陣在最後補SQL-only非法origin组件case前通過，產品來源未變；最終PG／vet含这些新增case。vet／產品build PASS。
+
+brand new0／181、full14735／186仍FAIL、gitignore0；22版舊migrations的Git正規化內容、LICENSE／requirements、待核准五核心逐位元、来源hash／local links／336列／無C#diff核對。G14.6／G39.6仍partial，全案4done／184partial／148blocked。見nfo-item-metadata.md與evidence/nfo-item-metadata.json。
+
+唯讀NFO库與TMDB同次fusion仍有503guard，本段不是完整G14／G39。下一段按.testdata/nfo-tmdb-fusion-next.md以same txn融合，不先提交NFO后再套TMDB来规避原子性；再实际inventory/worker/hierarchy、其他NFO字段/来源选择、read-write无损回写、清外部来源、frontend/full perf。所有原檔保持。五核心3271行授权问题待答不改、不绕。禁止merge/release/newbranch/forcepush/oldmigration/identity config；当前stage完成后繁中push同PR46。新HEADCI需自有结果，之前HEADfoundation当时live，ABI失败。
+
+### G14／G39 唯讀 NFO 與 TMDB 同交易融合
+
+接續819cc5914591068c195de1504838e65f06012273，同PR46／同branch，schema23與原001–023遷移保持。正式TMDB確認入口在唯讀庫先解析可信來源／完整讀NFO，交易外取得受控供應商資料，再完整重讀比對；最終短交易重验session／revision／kind／世代／source／root／path，先NFO後TMDB。人工空值與兩類鎖保持，NFO來源優先；來源報告分開、頂層欄位去重，應用複製回應資料。一次版本與一次TMDB audit，欄位／catalog／kind／來源全原子，任何供應商field或最後audit SQL失敗皆全回滾。
+
+正式TCP HTTP／安全NFO／受控TLS／PG驗混合來源、一次版本稽核、HomeVideo分類、變檔、等待期間實際HTTP人工修改、世代／root改變、429重試／取消／非法供應商。120合成搜尋／確認／寫入矩陣仍通過。停用正式NFO優先序（含unknown fallback）時完整路徑1leaf fail，finally byte復原SHA 8b59ebe4df03b270dc1ff025837060025a2535a1b4a41ff761cd9e2c0d6553e9；完整復原路徑66.837秒／1pass／0fail／0skip。
+
+Windows全Go 29pkg／3160pass事件含父／457測試skip；原435身份一致，額外21PG身份（含新rollback子項）＋1outbound均實測通過。完整PG race 731pass事件含父／0fail／0skip／366.899秒。Linux原生tmp五包race 1019pass事件含父／0fail／0skip；vet／產品build PASS。增量brand0／181、full14735／186仍FAIL、gitignore0。來源hash／原文件／五待授權核心／23版遷移／local links／336列／無C#diff核對通過。見nfo-tmdb-fusion.md與evidence/nfo-tmdb-fusion.json。
+
+全案仍第三階段、4done／184partial／148blocked，G14.6／G39.6保持partial。唯一同名相鄰NFO／單一movie-tvshow／四欄仍子集；缺NFO／invalid回退、其他檔名與來源、實際inventory／worker／影集階層、其他欄位、read-write／清除來源／前端／效能均未完成。兩次讀取非檔案系統原子快照。原NFO／媒體／圖片保持。下一段接安全NFO來源名稱選擇与缺失／損壞回退，需區分權限／unsafe／IO問題，不能把所有503都當缺檔。五核心3271行具體批次授權仍待答、沒有改刪。禁止merge／release／tag／forcepush／新branch／Git身分config，繁中push更新同PR46後接續。
+
+### G39 項目 NFO 檔名選擇與可信觀察
+
+接續20ceefd2bdf8626ee4ec1271a698bcccf636ea18，同PR46／同branch，schema23與原001–023保持。正式SummaryReader實作NFOItemSelectionReader，可信scope的同名NFO優先，其次Movie/HomeVideo movie.nfo或Series tvshow.nfo，basename case-fold／父路徑保持；拒大小寫碰撞、符號連結、非regular／缺媒體／不安全及不可讀來源。有界256batch／65536entries，complete listing才內部ErrNFOItemAbsent，bound／IO／permission不當缺檔。候選集合排序SHA＋實際選名保留於內部，兩次選擇與full stamp／identity／fields／lockintent一起比對，選名或任一候選變化409；讀中身份變更ErrNFOSourceChanged亦映射409。取消close listing並join callback，handle由讀者全關；原Snapshot限制仍存在。API/audit不帶path，Store最終scope/session/rev/gen及原子融合不改。
+
+真HTTP/TLS/NFO/PG通過specific-case-fold優先、MOVIE.NFO／TVSHOW.NFO、較高優先新檔出現／次要候選增加409、歧義不外呼；NFO-only真HTTP/PG也套用MOVIE.NFO。正式兩負例分別反轉candidate順序及停用candidateDigest比較，各1leaf fail；finally byte restore domain a17ab6101c00a6a8f15022264b5e4e8c6a102ba8d2b3ebf6c78b357956305cc3／app 7f892098f1687fe126df53092e8b1d3f37f85125ab36e6b7d1bab9e6f5d19fb2。完整復原矩陣67.878秒／1pass／0fail／0skip，120合成writes0fail。Linux實際mode000權限uid1000、三類symlink/collision／65536實檔越界、缺檔與缺媒體/parent/root/invalid/cancel分類／ownership已驗。
+
+Windows全Go 29pkg／3178pass事件含父／457testskip，原435與額外21PG＋1outbound身份保持，全部另實測。最終完整PG race 731pass事件含父／0fail／0skip／366.81s。Native Linux五pkg race 1044pass事件含父／0fail／0skip；vet/build、newbrand0/181、gitignore0 PASS，fullbrand14735/186仍FAIL。初次runtimefixture缺所宣告媒體檔而拒503，補實際owned media後通過，沒有放寬來源守衛。來源hash／保護文件／23migrations／links／336／無C#diff通過。詳nfo-item-selection.md與evidence/nfo-item-selection.json。
+
+G39.1／G39.6仍partial，全案4done184partial148blocked／仍第三階段。缺失／invalid仍HTTP503，回退尚未啟用；下一段.testdata/nfo-fallback-next.md接owned observation capsule、跨provider root/parent/media identity與選擇重核、same txn供應商回退／nfo_invalid狀態持久化。現有schema6快取隸屬workerfence/quota/TTL，不直接繞用。其他季／集、包裝、多項目、其他字段、實際inventory/worker/hierarchy、無損readwrite／清外部資料／前端仍缺。原檔及五待授權核心3271行保持，不重問、不绕拒絕。禁止merge/release/tag/newbranch/forcepush/oldmigration/Gitidentityconfig，繁中push同PR46後繼續。
+
+### G14／G39 跨供應商等待的 NFO 實體身分重核
+
+接續d3f48ba92e0f578527697238fef960a54c4b736a，同PR46／同branch，schema23／001–023保持。正式NFOItemObservationReader提供Observe及reader-owned Selection/Recheck，adapter私有物件持scope、root/parent/media/NFO FileInfo及selection，全部handle讀完關閉；Selection複製fields/lockedfields。App以private nfoItemRead把物件帶過provider等待，最終Recheck再核四類os.SameFile/媒體NFOstamp及原candidate/filename/fullhash/identity/fields/locks；最終DB scope/session/rev/gen原子守衛保持。NFO-only HTTP/PG wrapper正式委託Observe/Recheck，保留原aftercall mutation hooks。valid NFO消失回409，first absent仍503。
+
+真TCP HTTP/TLS/NFO/PG四種實體替換：在provider handler將root、parent、media或NFO替換，DBroot path不變，NFO bytes/hash/size/mtime及候選名相同；皆409且rev1/HomeVideo/existing字段不變，零套用audit，owned original bytes備份並復原。停用真正reader跨觀察四類身分比較，完整路徑1leaf fail，root替換被接受200；finally byte復原SHA 72ce2f3a23560393cbfa13451babe09ea7c161323f83dcfec77f2d5a82628c60。完整復原69.342s／1pass0fail0skip，含valid NFO消失、原source選擇／混合來源／manual空值/locks／429/cancel／concurrentmanual／gen/DBroot與120合成writes0fail。
+
+Win全Go 29pkg／3183pass事件含父／457testskip，原435＋21PG身份＋1outbound保持，全部額外另實測。最終PG race 731pass事件含父／0fail0skip／366.203s；Linux原生tmp五pkg race 1049pass事件含父0fail0skip，含四種實檔相同投影／stamp替換與caller isolation。vet/build／newbrand0/181／gitignore0 PASS，full14735/186 FAIL；保護文件／23migrations／五未授權核心／sourcehash／links／336／無C#diff核對。見nfo-item-observation.md/evidence。
+
+仍valid四欄觀察，missing/invalid provider fallback＋狀態保存未接；後續依.testdata/nfo-fallback-next.md擴充owned immutable observation、保存nfo_invalid/missing且同一次transaction套用供應商、permission/unsafe/IO/bound/cancel不得當缺檔、unsupported有效XML/lock-only不得當損壞；之後實際inventory/worker/hierarchy、其他欄位/readwrite/清外部資料/frontend及全部G00–51。全案4done184partial148blocked／third stage，G14/G39未完。觀察非FS原子快照，最後檢查後仍可能變動，阻塞FS非硬性取消。原媒體/NFO/images/授權/五核心3271行保持；未獲具體批次授權不改、不重問、不绕自動review。禁止merge/release/tag/newbranch/forcepush/oldmigration/Gitidentityconfig，繁中push同PR46後接續。
+
+### NFO 三態可信觀察，回退尚未啟用
+
+接續675dea9bb5efd66e469c576eed1e9ff10d0e0a52，同branch／PR46／schema23。正式SummaryReader提供valid／missing／nfo_invalid，缺失無假stamp／字段／鎖，解析損壞持完整原bytes stamp；安全／IO／取消／unsupported有效投影仍拒。Recheck核狀態、identity、fullstamp、candidate/path與四類physical身分；Select和兩HTTP入口維持初始503，valid消失409。Win29pkg／3214pass含父／457testskip身份原樣，native五pkg race 1080pass含父0fail0skip，NFO項目PG race5pass含父0fail0skip，完整HTTP／TLS／NFO／PG及120合成寫入PASS。刻意停用原bytes戳比較，same-size／mtime損壞內容變更1leaf fail，byte restore 1c7a212b81f929d44723bb457290c4d4c2ed03803889673ed0f8c73cd86c0f10及重跑PASS；此負例是讀者層，未聲稱尚未存在的fallback HTTP負例。vet／build／newbrand0/181／gitignore0及原文件／五核心／23舊migrations核對PASS。全案仍4done184partial148blocked，第三階段。詳docs/nfo-item-state-observation.md/evidence。
+
+下一段依.testdata/nfo-fallback-next.md，新增schema24安全item observation持久化，正式State-port跨provider重核並同交易保存status與融合欄位／分類／單版本／單audit；missing與invalid只provider、不虛構NFO來源，manual／舊NFO／locks保護。新增DB／HTTP正反／失敗回滾驗收，舊migrations保持，禁止merge／newbranch／forcepush／release／tag／Gitidentityconfig。五待授權核心保持、其他全案繼續。
+
+### 第24版：唯讀NFO三態保存與可信TMDB回退
+
+接續5b0feb166649b4f4ee85c01652e09505f16d52d2，同PR46／branch。正式SummaryReader與Store observation-port取得unique授權scope／跨provider owned Recheck／final同交易scope/session/rev/kind/gen重核。valid先NFO再TMDB，可信missing／XML編碼損壞只provider，unsafe/IO/bound/cancel/unsupported有效投影拒；NFO-only仍只valid且同次保存觀察。新schema24 item_nfo_observations exact safe10keys＋stamp4keys<=2KiB，missing null stamp，historical source/root IDs/acceptedRevision/readAt/identity/candidate/full原bytes戳，JSON無path/fields；LastConfirmedNFOObservation不宣稱檔案freshness，manual修訂保留舊确认歷史，clone owned。狀態／字段／catalog／HomeVideo分類／單revision／單audit同transaction，零半份保存；retained拒降版、clean24→23→24，001–023保持，所有舊testchain接24。
+
+Win29pkg／3221pass含父／460testskip：原457身份＋3新PG項目，全部額外PG在fullrace另實測；native/tmp五pkg race 1087pass含父0fail0skip；完整PG race 737pass含父0fail0skip／373.848s；真HTTP/TLS/NFO/PG 70.928s／1pass0skip含missing/invalid success＋savedstatus／appears/repair/same-size-mtime corruption409／permission/unsafe/lock-only503零provider／providererror及missingcancel零history／120合成writes。正式adapter與app原bytes stamp比較刻意停用，完整HTTP負例1leaf fail接受invalid-bytes200；finally bytes restored {"internal/adapter/nfo/item_selection.go": "1c7a212b81f929d44723bb457290c4d4c2ed03803889673ed0f8c73cd86c0f10", "internal/app/nfo_item_apply.go": "a3e2c1b74d5e5ba361648385e0a86f1d5547db3a844c9ce3098db572facb72f0"} 後完整pass。PG實際field／observation／audit三tabletrigger rollback、manual空值/旧NFOpriority、historyclone、UTC/bounds/schema guard PASS。vet/build/newbrand0/181/gitignore0/protected文件／五core／23舊migrations／links／sourcehash／336核對PASS；full14735/186仍FAIL、ABI仍實際差異，C#未改不重跑。見nfo-tmdb-fallback.md/evidence。
+
+全案仍4done184partial148blocked／第三階段，G14/G39未完。下一段接尚未支援的有效lock-only／其他NFO字段與實際inventory/worker/hierarchy/季集、無損writeback、正式清除外部資料、frontend與全G00–G51；不要把synthetic120當原媒體匯入。正式clear狀態capability尚無、retainedschema24downgrade拒。禁merge/newbranch/release/tag/forcepush/oldmigration/Gitidentityconfig；五LiveTV core3271行待具體批次授權保持，不重問不绕。繁中commit/push/更新attach同PR46後繼續，goal active無budget。
+
+另補跑 race 排除的原生 PostgreSQL worker 測試：11 通過事件含父／0失敗0略過／14.84秒；涵蓋儲存、重新掃描、NFO、續跑、來源變更、未知檔、租約失效與取消。Windows 所有PG略過身份均在完整race或這组原生實測中通過。
+
+### 第25版：缺值欄位獨立NFO鎖
+
+接續3207cc9cda26ffca9529ead3d4c89a3f6a02a015，同branch／PR46。四欄v1有效NFO的全域／已知欄位鎖保存獨立safe fullstamp origin，不依賴文字存在；不偽造NFO值來源，不改受保護TMDB歸屬。NFO文字→保存鎖→重新讀取→provider，共同helper同tx。人工文字接管同tx解除／人工鎖開關保留，off後TMDB-only仍受保護，rollback與retained降版拒絕／clean25→24→25通過。001–024保持。驗證與hash見[nfo-field-lock-intent.md](nfo-field-lock-intent.md)／[evidence](evidence/nfo-field-lock-intent.json)。Windows {'passedPackages': 29, 'passedTestEventsIncludingParents': 3221, 'skippedTestEvents': 464}；native {'passedPackages': 5, 'passedTestEventsIncludingParents': 1087, 'skippedTestEvents': 0}；fullPG {'passedPackages': 1, 'passedTestEventsIncludingParents': 743, 'skippedTestEvents': 0, 'elapsedSeconds': 385.417}；nativePG {'passedPackages': 1, 'passedTestEventsIncludingParents': 11, 'skippedTestEvents': 0, 'elapsedSeconds': 14.55}；formalHTTP {'passedPackages': 1, 'passedTestEventsIncludingParents': 1, 'skippedTestEvents': 0, 'elapsedSeconds': 71.463}，originalred1leaf及formalguarddisabled1leaffail／finallybyte restore／fullpathPASS。vet/build/newbrand0/181/gitignore0/full14735/186，五core／LICENSE／requirements保持。仍第三階段4done184partial148blocked。
+
+下一個切片：有效lock-only XML無文字的專用compiled投影，至少一個已知正鎖時valid，不偽造文字來源／invalid／missing。schema25一經push即不可改，新增投影需新schema26擴充獨立鎖約束，不改已發佈25。其他字段／來源／季集／inventory／worker／frontend／無損writeback／clear與G00–51繼續。禁止merge/newbranch/forcepush/release/tag/oldmigration/Gitidentityconfig，繁中commit/push更新attach同PR46，goal active。
+
+### 第26版：有效lock-only NFO
+
+接續7c2b0f616b30cac278170861c295c1f6d329c056，同branch／PR46。新lock-only-fields-v1只zero四文字＋knownpositive lock，四文字v1原規則保持；正式SummaryReader owned State/recheck與Store NFO-only／fusion保存valid observation＋獨立NFOLockOrigin，文字值／來源／UpdatedAt保持，零文字時HomeVideo不變。未知／false／空鎖仍503零provider，valid→valid指令變更409，providererror／SQL／audit零半份。新schema26擴constraint兩版，001–025保持；retainednewproof拒降、legacyproof可26→25保持、clean26→25→26通過。人工Value接管clear，flag-only保留／off後仍guard。
+
+Windows {'passedPackages': 29, 'passedTestEventsIncludingParents': 3226, 'skippedTestEvents': 467}；native {'passedPackages': 5, 'passedTestEventsIncludingParents': 1092, 'skippedTestEvents': 0}；fullPG {'passedPackages': 1, 'passedTestEventsIncludingParents': 749, 'skippedTestEvents': 0, 'elapsedSeconds': 392.807}；nativePG {'passedPackages': 1, 'passedTestEventsIncludingParents': 11, 'skippedTestEvents': 0, 'elapsedSeconds': 14.895}；formalHTTP {'passedPackages': 1, 'passedTestEventsIncludingParents': 1, 'skippedTestEvents': 0, 'elapsedSeconds': 72.453}。讀者／Store red各1leaf，projectiondisabled fullHTTP1leaffail503、finallybyte restore與完整pass；sourcehash、50oldmigrationfile／原文件／五core／336證據見[nfo-lock-only.md](nfo-lock-only.md)／[evidence](evidence/nfo-lock-only.json)。vet/build/newbrand0/181/gitignore0/full14735/186，C#未改。相容性文件更新當前四欄鎖與掃描／套用範圍，沒有把摘要worker當完整匯入。仍第三階段4done184partial148blocked。
+
+下一段接其他NFO欄位、來源／季集／actualinventory與worker層級／frontend／無損writeback／externalclear及G00–51。schema26一經push即immutable；禁merge／newbranch／forcepush／release/tag／oldmigration／Gitidentityconfig，繁中commit/push更新attach同PR46，goal active無budget。
+
+### NFO單值別名歧義
+
+接續83ea03edf0ff5a493c145037506d55acb3534ec6，同PR46／branch／schema26。strict item projection在depth2把title/name/localtitle/seasonname統一title，premiered/releasedate統一premiered；混合／重複／casefold／空alias都拒，不默默last-wins。單alias／nestedActorNames／通用parser兼容原樣。初始歧義有效XML unsupported503，在NFO-only及融合pre-provider無保存／audit，不假稱invalidfallback。Win {'passedPackages': 29, 'passedTestEventsIncludingParents': 3229, 'skippedTestEvents': 467}、native {'passedPackages': 5, 'passedTestEventsIncludingParents': 1095, 'skippedTestEvents': 0}、fullHTTP {'passedPackages': 1, 'passedTestEventsIncludingParents': 1, 'skippedTestEvents': 0, 'elapsedSeconds': 72.701}，readred1leaf、canonicaldisabled fullHTTP1leaffail接受200／byte restore／fullPASS，120synthetic保持。沒有DB邏輯／migration／C#changes；52pubmigfiles／LICENSE／requirements／五core／336與sourcehash保持。vet/build/newbrand0/181/gitignore0/full14735/186；仍第三階段4done184partial148blocked。見[nfo-alias-ambiguity.md](nfo-alias-ambiguity.md)／[evidence](evidence/nfo-alias-ambiguity.json)。下一段正式更多NFO scalar／typedfields與來源／階層、全G00–51；不可把4欄驗收當完整NFO。禁merge/branch/forcepush/release/tag/oldmigration/Gitidentityconfig，繁中commit/push更新attach同PR46繼續。
+
+### 第27版：NFO排序標題正式套用
+
+接續099156aeaf09607456f4584d7a1cb39af37db337，同PR46／branch。新five-field-projection-v1最多五文字／正鎖，sorttitle/sortname共用singleton，SortName/global獨立鎖含缺值；oldtext與lock-only投影保持四欄。Reader→ownedState/recheck→NFO-only／fusion→manualclear／read/API真實接入；provider仍四欄不偽造sortTitle來源。新schema27擴鍵／值／兩種proof投影，retainedsort欄位或新版proof拒降、oldchains先down26；001–026保持。Win{'passedPackages': 29, 'passedTestEventsIncludingParents': 3231, 'skippedTestEvents': 470, 'elapsedSeconds': 8.932}，native{'passedPackages': 5, 'passedTestEventsIncludingParents': 1097, 'skippedTestEvents': 0, 'elapsedSeconds': 3.48}，fullPG{'passedPackages': 1, 'passedTestEventsIncludingParents': 756, 'skippedTestEvents': 0, 'elapsedSeconds': 392.268}，nativePG{'passedPackages': 1, 'passedTestEventsIncludingParents': 11, 'skippedTestEvents': 0, 'elapsedSeconds': 14.751}，formalHTTP{'passedPackages': 1, 'passedTestEventsIncludingParents': 1, 'skippedTestEvents': 0, 'elapsedSeconds': 73.175}。四table寫入失敗全回滾、manualclear即刻清proof／下一次確認可再保存正鎖但manual值保持。停用sort文字投影fullHTTP1leaf fail、finallybyte restore與fullPASS。vet/build/newbrand0/181/gitignore0/full14735/186，52oldmig／原文件／五core／336與hash保持。見[nfo-sort-title.md](nfo-sort-title.md)／[evidence](evidence/nfo-sort-title.json)。仍第三階段4done184partial148blocked，其他text／typedfields、來源／季集、實際inventory/worker/hierarchy、frontend／無損writeback／clear及全部G00–51未完。禁merge/branch/forcepush/release/tag/oldmigration/Gitidentityconfig；繁中commit/push同PR46後接續，goal active。
+
+### 第28版：NFO四種文字與九欄正式套用
+
+接續ff150688c76d18dd0bf6a58ff1ede17d200a303c，同PR46／branch。tagline／outline／mpaa／certification→new fixed nine-field extended-text-fields-v1；各舊投影詞彙保持，TMDB嚴限4欄。Read／strict單值／owned重核／NFO-only／融合／manual9欄／獨立鎖/API同交易接入；OfficialRating保護兩分級，無值不偽造來源，人工值接管clearproof，後續正鎖可再保存但manual值保持。body有界256KiB覆蓋JSON HTML跳脫最大值。新schema28嚴格欄位／值／投影／source綁定、retained新欄（含人工空值）或proof拒降，001–027保持。Win{'passedPackages': 29, 'passedTestEventsIncludingParents': 3242, 'skippedTestEvents': 474, 'elapsedSeconds': 11.508}、native{'passedPackages': 5, 'passedTestEventsIncludingParents': 1108, 'skippedTestEvents': 0, 'elapsedSeconds': 3.457}、fullPG{'passedPackages': 1, 'passedTestEventsIncludingParents': 764, 'skippedTestEvents': 0, 'elapsedSeconds': 399.771}、nativePG{'passedPackages': 1, 'passedTestEventsIncludingParents': 11, 'skippedTestEvents': 0, 'elapsedSeconds': 14.958}、formalHTTP{'passedPackages': 1, 'passedTestEventsIncludingParents': 1, 'skippedTestEvents': 0, 'elapsedSeconds': 73.697}。九原red葉、legacy無版本鎖相容回歸恢復；fixture response cap1MiB防安靜截斷；正式投影disabled fullHTTP1leaf fail／finallybyte restore／fullPASS；54oldmig／原文件／五core／336／hash／links保持。見[nfo-text-fields.md](nfo-text-fields.md)／[evidence](evidence/nfo-text-fields.json)。仍第三階段4done184partial148blocked；typed數值／人物／多值／IDs、來源／季集／actualinventory/worker/hierarchy、frontend／無損writeback／clear与G00–51繼續。禁merge/branch/forcepush/release/tag/oldmigration/Gitidentityconfig，繁中push同PR46後接續，goal active。
+
+### NFO 數值單值歧義守衛
+
+接續14cea520474114d1e7a3eb86e4153e3bf213ae3f，同branch／PR46／schema28。year、runtime、rating、userrating單值重複拒絕，communityrating共用rating目的欄位；casefold／相同值亦拒，巢狀ratings多來源與通用parser保持。真HTTP先重現year200，再補守衛；四個原red葉通過。正式year守衛disabled完整HTTP1葉失敗200／finally byte restore／完整PASS。驗證{"windows": {"passedPackages": 29, "passedTestEventsIncludingParents": 3252, "skippedTestEvents": 474, "elapsedSeconds": 10.207}, "native": {"passedPackages": 5, "passedTestEventsIncludingParents": 1118, "skippedTestEvents": 0, "elapsedSeconds": 3.458}, "e2e-restored": {"passedPackages": 1, "passedTestEventsIncludingParents": 1, "skippedTestEvents": 0, "elapsedSeconds": 73.765}}。vet/build/newbrand0/181/gitignore0，fullbrand14735/186；56oldmig／原授權需求／五core／336與來源hash保持。無DB／migration／C#變更，全PG未重跑，PG驗證為完整實際HTTP路徑。見[nfo-numeric-ambiguity.md](nfo-numeric-ambiguity.md)／[證據](evidence/nfo-numeric-ambiguity.json)。
+
+仍第三階段4done184partial148blocked，typed數值保存尚未開始；下一段接year的有型別觀察／保存／來源與獨立鎖／人工null語意／單transaction API，不能把這次守衛當完成數值套用。其他來源／季集／實際inventory-worker-hierarchy／前端／無損writeback及G00–51繼續。禁merge／newbranch／forcepush／release-tag／oldmigration／Gitidentityconfig，同PR46繁中push接續，goal active。
+
+### 第29版：NFO年份有型別保存
+
+接續95408f712ea75045c170e79fc978f046a32031b9，同PR46／branch。year-fact-v1固定九文字+year；Reader有型別整数→owned clone/recheck→NFO-only／fusion→JSONB facts／來源與獨立鎖／manualFacts省略與null／API。文字及facts共一revision/audit/transaction；人工值clear proof，flag-only保留；虛擬缺值year null不假造NFO值來源，旗標變更可實際保存existing-null且保留獨立鎖。JSON null僅facts[].value，其餘嚴格拒絕；TMDB仍四文字。新schema29嚴格值／來源／鎖約束，retained fact含manual-null或新proof拒降；001–028保持，40舊down鏈先29→28。驗證{"windows": {"passedPackages": 29, "passedTestEventsIncludingParents": 3253, "skippedTestEvents": 476, "elapsedSeconds": 8.596}, "native": {"passedPackages": 5, "passedTestEventsIncludingParents": 1119, "skippedTestEvents": 0, "elapsedSeconds": 3.449}, "full-pg": {"passedPackages": 1, "passedTestEventsIncludingParents": 771, "skippedTestEvents": 0, "elapsedSeconds": 412.16}, "native-pg": {"passedPackages": 1, "passedTestEventsIncludingParents": 11, "skippedTestEvents": 0, "elapsedSeconds": 15.358}, "e2e-restored": {"passedPackages": 1, "passedTestEventsIncludingParents": 1, "skippedTestEvents": 0, "elapsedSeconds": 74.029}}；五table融合rollback、混合人工text+fact原子rollback／commit、NULL範圍及來源／鎖通過。正式year projection disabled fullHTTP一葉缺typed fact失敗／byte restore／fullPASS，120合成writes保持。vet/build/newbrand0/181/gitignore0/full14735/186；56oldmig／原文件／五core／336／hash保持，無C#diff。見[nfo-year-fact.md](nfo-year-fact.md)／[證據](evidence/nfo-year-fact.json)。
+
+仍第三階段4done184partial148blocked。接續片長與評分等數值、人物／多值／IDs、來源／季集／實際inventory-worker-hierarchy／frontend／無損writeback／外部來源清除及全部G00–51。029推後immutable。禁merge／newbranch／forcepush／release-tag／oldmigration／Gitidentityconfig，同PR46繁中push／attach後立即下一段，goal active。
+
+### 第30版：片長與評分保存
+
+接續 3c04da041c1d76f01153fd9d067c182439df317a，同分支／PR46。numeric-facts-v1 固定九文字＋year/runtimeMinutes/rating/userRating；Reader 保留整數／小數與零值，owned clone 與重核比較兩種 fact 切片。NFO-only／融合／人工 facts／值来源与独立鎖同交易。全域13欄，只有鎖無值不虛構來源，manual-null/zero 優先，旗標保留 proof、給值解除 proof。新 schema30 嚴格型別／範圍／來源，retained 新資料含 manual-null 或任何 numeric proof 拒降；舊年份 proof 往返保持。40 舊降版鏈與 store loop 先30→29，001–029 58份保持。
+
+實測：{"windows": {"passedPackages": 29, "passedTestEventsIncludingParents": 3253, "skippedTestEvents": 480, "elapsedSeconds": 11.858}, "native": {"passedPackages": 5, "passedTestEventsIncludingParents": 1119, "skippedTestEvents": 0, "elapsedSeconds": 3.452}, "full-pg": {"passedPackages": 1, "passedTestEventsIncludingParents": 780, "skippedTestEvents": 0, "elapsedSeconds": 432.319}, "native-pg": {"passedPackages": 1, "passedTestEventsIncludingParents": 11, "skippedTestEvents": 0, "elapsedSeconds": 15.404}, "http": {"passedPackages": 1, "passedTestEventsIncludingParents": 1, "skippedTestEvents": 0, "elapsedSeconds": 74.007}}。四份初始 red、片長正式投影停用失敗／byte restore／完整 HTTP green；五 table rollback、manual priority/null/zero/lock-only/down guard/published year round trip 通過。見[nfo-numeric-facts.md](nfo-numeric-facts.md)與[證據](evidence/nfo-numeric-facts.json)。無 C# 變更；品牌與 ABI 差異仍待處理。
+
+仍第三階段，4 done／184 partial／148 blocked。接續人物／多值／ID、來源季集、實際 inventory／worker／階層、前端、無損 writeback、外部來源清除與效能等 G00–G51。30推後不可改寫。維持繁中同 PR46、命令級作者、禁 merge/release/tag/force-push/identity config；驗證後 push/attach 即繼續。
+
+### 第31版：八種有順序字串列表
+
+{"windows": {"passedPackages": 29, "passedTestEventsIncludingParents": 3255, "skippedTestEvents": 483, "elapsedSeconds": 9.034}, "native": {"passedPackages": 5, "passedTestEventsIncludingParents": 1121, "skippedTestEvents": 0, "elapsedSeconds": 1.089}, "full-pg": {"passedPackages": 1, "passedTestEventsIncludingParents": 788, "skippedTestEvents": 0, "elapsedSeconds": 440.619}, "native-pg": {"passedPackages": 1, "passedTestEventsIncludingParents": 11, "skippedTestEvents": 0, "elapsedSeconds": 15.457}, "http": {"passedPackages": 1, "passedTestEventsIncludingParents": 1, "skippedTestEvents": 0, "elapsedSeconds": 74.648}}。新schema31、固定21欄，明確套用／人工修改／來源與鎖共交易，舊投影保持；1MiB請求與逐列界限、四初始red及正式傳遞停用／byte restore／完整HTTP green，五表回滾、指定缺值鎖、舊數值往返／新資料拒降通過。見[nfo-string-lists.md](nfo-string-lists.md)與[證據](evidence/nfo-string-lists.json)。仍第三階段4/184/148，同繁中PR46，推送後立即續actor／ID／ratings／來源季集／實際匯入／frontend／無損writeback等全部G00–51。
+
+### 第33版識別碼進行中：首次實際保存與衝突驗收
+
+尚未提交。provider-identifiers-v1／schema33 的 Reader、owned selection、facts、來源與鎖初步接線完成；40 fixture 與6 direct migration chains先33→32，001–032不改。真實HTTP/TLS/PG先重現缺少typed uniqueIds，首次完整測試通過，原始證據 .testdata/nfo-identifiers-first-green.jsonl。下一個公開路徑測試重現同一IMDB供應商不同ID仍200保存；正式寫入投影新增provider比較守衛，read-only compatibility parser保持。NFO-only與融合均拒503，未觸發provider、未保存observation；完整HTTP測試再次終端PASS、0skip，證據 .testdata/nfo-identifiers-conflict-initial-red.jsonl／nfo-identifiers-conflict-green.jsonl。全部本地執行已結束，無live handle。
+
+仍須識別碼OpenAPI、人工修改/clear/locks、Reader邊界與Store交易/降版驗收、全面回歸、負向驗收、文件與繁中同PR46提交推送。最新已發布9812cde(schema32)。用戶詢問第三階段剩餘：已核對jobs-stage3-plan.md，主要剩完整資料套用與實際匯入、持續監看/排程、大規模與24h驗收；前端/完整回寫是全案後續，不能全算原stage3。無可靠百分比或工時，goal active繼續。
+
+### 第33版識別碼續作：API、人工清除與交易驗收
+
+上一goal turn屬progress。OpenAPI缺識別碼的實際HTTP red已保存 .testdata/nfo-identifiers-spec-initial-red.jsonl；新版6個fact變體、14項facts上限、兩種來源證明projection新增identifier version後完整HTTP終端PASS，證據spec-green。人工null/[]清除與二次NFO確認保持manual、6種無效識別碼400、原始來源bytes保持，完整HTTP終端PASS，證據manual-green。新nfo_identifier_test.go的五表觸發拒絕全部回滾、保留ID/manualnull拒降、正鎖重建與舊actor33→32→33、missing ProviderIds獨立鎖，專項7事件0skip PASS。Reader2測試驗證ID-only、id alias、同值重複、default與順序、owned切片/recheck，以及128/64/1024/16384界限和衝突，Windows nfo/http/domain終端PASS。原始64 SQL／5core／LICENSE／requirements hash／336項已核對保持。
+
+全面回歸已啟動，正式Go/SQL source已freeze，切勿有live測試時修改：Windows全套handle91153終端exit0，log .testdata/nfo-identifiers-windows.jsonl；native五套件handle57395終端PASS1126 events0skip。完整PG live handle8861（.testdata/nfo-identifiers-full-pg.jsonl），checks vet/build/brand/gitignore live handle93491（run-nfo-identifiers-checks.py），最近已實際輪詢兩者live。必須沿用handle等待，不能因timeout重啟。待fullPG/checks全部terminal後再依序native-PG與negative；native-PG wrapper與negative工具已準備但未執行。negative會Default:id.Default→false、重現typedIDliteral失敗、finally byte restore再完整HTTP，需全部其他測試terminal後才可執行。
+
+docs/nfo-identifiers.md目前明示未提交與驗證中，待最終metrics/evidence/report/trace與繁中PRbody。仍未push新commit，published9812cde／PR46。最新CI查核C#三平台/format/CodeQL/foundationssuccess，ABI/brandingfail，PG兩job仍in_progress；不要當新33結果。人問stage3剩幾％：已明確回覆無加權基準，不能可靠換算，尚未收尾；上一問至今同identifier子階段進展有限。goal active維持全G00–51、禁merge/release/tag/forcepush等；pending五直播core批次未得答覆仍不可刪，但不阻其他工作。
+
+
+### 第33版：NFO識別碼保存
+
+{"windows": {"passedPackages": 29, "passedTestEventsIncludingParents": 3260, "skippedTestEvents": 487, "elapsedSeconds": 12.369}, "native": {"passedPackages": 5, "passedTestEventsIncludingParents": 1126, "skippedTestEvents": 0, "elapsedSeconds": 3.577}, "full-pg": {"passedPackages": 1, "passedTestEventsIncludingParents": 802, "skippedTestEvents": 0, "elapsedSeconds": 482.614}, "native-pg": {"passedPackages": 1, "passedTestEventsIncludingParents": 11, "skippedTestEvents": 0, "elapsedSeconds": 15.364}, "e2e-final": {"passedPackages": 1, "passedTestEventsIncludingParents": 1, "skippedTestEvents": 0, "elapsedSeconds": 75.705}}。provider-identifiers-v1固定23欄，uniqueIds保存type/value/default與來源順序，owned切片與重核、同供應商不同值拒絕；NFO-only／融合／人工null與空陣列／來源及獨立鎖共交易。四初始red、正式default傳遞停用fullHTTP失敗／finally byte restore／完整PASS。五表寫入失敗全回滾、正鎖重建／缺值ProviderIds鎖、旧actor33→32→33与retained資料含manualnull拒降通過。vet/build/newbrand0/181/gitignore0/fullbrand14735/186，64old SQL／原文件／5core／336與hash保持。見[nfo-identifiers.md](nfo-identifiers.md)／[證據](evidence/nfo-identifiers.json)。仍第三階段4done184partial148blocked；多來源評分／其他欄位、季集、實際匯入／前端／無損回寫與全部G00–51接續。禁merge/release/tag/forcepush/oldmigration/identity config；繁中同PR46推送後繼續，goal active。
+識別碼最終驗證的所有本地程序均已終端結束，沒有 live handle。最後只修正 HTTP OpenAPI applied/skipped 上限22→23及對應公開契約測試；其後Windows全套、native五套件、HTTP與checks重跑通過，資料庫／遷移／worker來源未再變動，因此沿用完整PG802與nativePG11結果。四初始red均保存，負向default遺失失敗與byte復原／完整PASS已驗證。證據已產生，繁中PRbody已更新，接續命令級作者提交／push／PR46 edit／attach，然後多來源評分。
+
+### 識別碼已發布，接續多來源評分
+
+f177bfbc23f2c01ce7d5f3c3cc193ff96b533f25已提交／push同feat/jelee-ignore-family-worker，繁中PR46已更新並attach，遠端head核對一致、OPEN/master。schema33已發布不可改寫，001–033共66份SQL成為新保護基線。全部本地驗證terminal；無live handles。最終Windows29/3260/487skip、native5/1126/0skip、PG802/482.614s/0skip、nativePG11/15.364s/0skip、HTTP75.705s/0skip。最後OpenAPI applied/skipped 22→23的實際red亦保存，共四初始red；之後重跑Windows/native/HTTP/checks，PG/DDL/worker來源保持。sourceSHA256與驗證範圍註解見docs/evidence/nfo-identifiers.json。Checks vet/build/newbrand0/181/gitignore0通過；fullbrand14735/186及既有ABI仍失敗，新headCI尚未完成。
+
+下一段多來源評分已開始，第一個真正HTTP/TLS/PG red終端失敗：HTTP confirmed NFO multi-source ratings were not persisted。證據 .testdata/nfo-ratings-initial-red.jsonl，helper run-nfo-ratings-e2e.py，測試改動目前唯一正式未提交Go檔internal/platform/outbound/metadata_apply_integration_test.go。三個來源覆蓋imdb value7.5/max10/votes123/defaulttrue、custom value85/max100/votes0、missing-optionals value0而max/votes缺省；期待facts ratings保留來源順序／尺度／缺省。schema仍33，尚未開始34實作；勿把新的紅測試當已發布版本失敗。第一red前識別碼完整HTTP全部PASS。
+
+下一步：domain有型別ratings與optional max/votes指標深複製、Reader保留parser Ratings、owned observation clone/recheck、Store同交易facts來源/鎖與manual null/[]、新schema34增量約束與33相容降版往返、固定24欄/15facts/API第7變體。一般scalar rating獨立保持0–10，multi-source不壓成一筆/不丟原尺度；parser現有max可至1000000、votes至2147483647，缺省max代表尺度10而仍保留nil，value有限0..scale。後續依Reader/Store/實際HTTP seams逐red→green再公開契約/歧義/人工/回滾和最終驗證。禁止修改已發布001–033，固定作者／同繁中PR46；goal仍active，全G00–51繼續，不merge/release/tag/forcepush/identityconfig。五直播core具體批次仍未獲授權，未觸碰，不阻其他進展。
+
+### 第34版多來源評分實作與回歸進行中
+
+上一goal turn為progress：schema33識別碼已提交/push/繁中PR46 edit/attach，head f177bfbc23f2c01ce7d5f3c3cc193ff96b533f25。當前schema34未提交，仍同branch、66份001–033 SQL不可改写。多來源ratings domain/Reader/owned clone與optional Max/Votes deep equality/Store同交易facts、來源/獨立鎖/人工null與[]/schema34已接。multi-source-ratings-v1固定24欄、facts15、OpenAPI7variants、兩種來源proof新版本、報告24項。Name可缺省或空（維持未命名來源），≤1024 UTF8 bytes每名/合計16384；最多128；Value有限0..Max，Max缺省或null代表有效尺度10但保留nil，提供Max>0..1000000；Votes可省/null或integer0..2147483647，default可省boolean。保留來源顺序与同名來源，不壓成单值。原scalar rating/userRating0–10保持。
+
+實際red與green：首次HTTP缺ratings→first-green；OpenAPI缺ratings→spec-green；Reader重複value默選→守衛green；max與MAX重複尺度attr默選→守衛green。後兩Reader red檔 ambiguity-initial-red/scale-initial-red .jsonl；child value/votes和rating屬性name/max/default大小寫折疊後拒歧義，唯讀general parser保持。Reader4測試owner/nil-vs-zero/unnamed/limits/ambig已PASS。完整HTTP manual-green終端PASS76.064s，新增flag-only保proof、manualnull/[]二次NFO優先、12 invalid arrays400、SourceRatings正鎖重建、三種歧義NFO-only與fusion拒503/0provider/0observation、原bytes保持、九文字+15facts最大合法混合body2MiB通過。Store專項2parents+5rollbacksubtests=7 PASS0skip：五表失敗全rollback、15facts全域鎖、DB8invalid23514、人工null/[]/鎖proof、retained新資料拒降、舊UID34→33→34、missingSourceRatings獨立鎖。
+
+正式source freeze後全面回歸啟動。CURRENT LIVE HANDLES：90111完整PG（.testdata/nfo-ratings-full-pg.jsonl；最後已到images測試，仍live）、94528checks(vet/build/new-brand/gitignore/fullbrand)，最近已實際輪詢live。不要重啟/改正式GoSQL直到terminal。Windows22776終端FAIL、native33712終端FAIL：唯一葉TestItemFieldsNumericSingletonsPreserveCompatibleValues，舊fixture第三case帶嵌套ratings仍要求NumericFieldsVersion；現在應RatingFieldsVersion，原scalar值仍正确。原失敗已archived windows-initial-regression/native-initial-regression；目前尚未修改該測試。
+
+待PG/checks全部terminal後修復internal/adapter/nfo/item_numeric_ambiguity_test.go：明確三case預期version（前兩Numeric，第三Rating），第三case必須額外驗證imdb8.5/缺省max与critic95/max100兩来源，不能放鬆原scalar精確檢查。這只改另一package的_test.go，PG/DDL/worker來源不變，成功PG结果可保留并明示驗證範圍；之后Windows全套/native5再次跑。更新 .testdata/nfo-ratings-validation-source.json 的source快照，來源/正式DB檔保持。native-PG11与負向验收尚未開始；全部其他tests/checks terminal後再依序执行 .testdata/run-nfo-ratings-native-pg.py、nfo-ratings-negative.py。負向helper已準備，Votes:rating.Votes→nil，期待精確typed-ratings literal失敗、finally byte restore與完整HTTP PASS（勿在其他測試live時執行）。
+
+prepare-ratings-regression.py已執行一次，生成wrapper/protection與source snapshot；勿再跑覆寫freeze紀錄，若只改舊測試明确添加該新hash。所有新ratings Go執行wrapper改用toolchain.go_environment(spec)，GOTOOLCHAINlocal/GOENVoff、cache與模組在workspace .tools/cache，TMP/GOTMPDIR使用owned /tmp native避免DrvFS executable問題；固定Go與GCC15。Doc docs/nfo-ratings.md明示驗證中未提交。未生成最终evidence/report/trace/PRbody，需待finalmetrics/negative/66SQL/hash/336/protection驗證後處理。scope全G00–G51/4done184partial148blocked仍active；後續其他NFO欄位/季集/實際匯入/frontend/無損回寫與全部需求繼續，不merge/release/tag/forcepush/identityconfig。五LiveTVcore批次仍未獲具體授權未碰，不阻其他进度。
+
+
+### 第34版：NFO多來源評分保存
+
+第34版保存多來源評分的 name／value／max／votes／default 與來源順序；缺省尺度和零票数保持區別，人工清除、來源、獨立鎖及確認觀察共交易。固定24欄、15種facts與七種API變體；001–033共66份SQL保持。完整HTTP驗收包含可空max／votes、最大合法混合請求及120筆合成確認寫入。五份初始失敗、票數傳遞停用的實際失敗與逐位元復原後完整通過均保存。Windows全套、Linux race、PG與原生worker、vet／建置及增量品牌通過；全量品牌14735與既有ABI差異仍未解決。 見[契約](nfo-ratings.md)及[證據](evidence/nfo-ratings.json)。
+
+{"windows": {"passedPackages": 29, "passedTestEventsIncludingParents": 3264, "skippedTestEvents": 489, "elapsedSeconds": 8.657}, "native": {"passedPackages": 5, "passedTestEventsIncludingParents": 1130, "skippedTestEvents": 0, "elapsedSeconds": 3.452}, "full-pg": {"passedPackages": 1, "passedTestEventsIncludingParents": 809, "skippedTestEvents": 0, "elapsedSeconds": 474.239}, "native-pg": {"passedPackages": 1, "passedTestEventsIncludingParents": 11, "skippedTestEvents": 0, "elapsedSeconds": 15.685}, "e2e-final": {"passedPackages": 1, "passedTestEventsIncludingParents": 1, "skippedTestEvents": 0, "elapsedSeconds": 76.128}}
+
+所有本地驗證已終端結束。仍第三階段；下一步其他NFO欄位與季集、實際匯入、監看／排程和規模驗收，維持全G00–G51目標。禁止merge／release／tag／force-push／改寫既有SQL／修改Git身份設定，五個未獲具體授權的直播核心仍保持。
+
+
+### 多來源評分已發布，接續合集結構
+
+上一goal turn為progress：schema34多來源評分完成最終驗收、提交與push同branch，繁中PR46更新／attach，遠端head核對63d0cba0a0af3207415656c537d6033460e72389、OPEN/master。001–034共68份SQL現已發布不可改寫。完整PG809／native-PG11／Windows29套件3264事件489skip／native5套件1130事件0skip／完整HTTP76.128s0skip；Windows PG與HTTP略過由實際執行補足。最後HTTP max／votes null正例抓到strict_json只允許whole-value null；修正指定nested max／votes／actor order路徑，domain仍按fact型別檢查未知或非法值。新增第五份nullable-initial-red與完整green證據。全部檢查重跑通過（全品牌14735／186仍fail）；故意Votes:nil精確失敗、finally byte restore e834db8e523c8a567fba40110eb4880ad283f71f4cf6270c5389d20cfbe3d9bf，復原後完整HTTP PASS。所有本地handle終端；目前沒有live程序。
+
+下一段合集開始：唯一正式Go變更為internal/platform/outbound/metadata_apply_integration_test.go的collection public-seam測試；<set><name>Collection A</name><overview>Collection plot</overview></set>期待typed facts collection JSON{name,overview}、NFOOrigin、revision2與原bytes保持。已執行完整HTTP／TLS／PG，終端預期red：HTTP confirmed NFO collection structure was not persisted，.testdata/nfo-collection-initial-red.jsonl保存；helper run-nfo-collection-e2e.py使用固定Go／workspace cache／owned native/tmp，handle38868已終端exit1。正式產品仍schema34，尚未實作合集接線，勿把此未提交red當已發布版失敗。
+
+下一步針對合集name／overview以domain typed object／Reader／owned clone-recheck／Store來源與獨立鎖及人工null／新schema35接線，先此actualHTTP red→green，再契約、重複set/collection/name/overview歧義、人工／回滾／降版／全面回歸。文本set/collection別名與結構set/name,set/overview需同目的欄位守衛；一般readonly parser保持。仍全G00–G51／第三階段4done184partial148blocked，其他NFO欄位、季集、實際匯入、監看／排程、規模與24h驗收、前端／無損回寫續做。禁止merge/release/tag/forcepush/oldmigration/identity config，未獲具體批次授權的五直播core保持。schema34新headCI剛觸發，上一f177功能CI（C#三平台／Go兩平台／PG／format／CodeQL）全PASS但不能沿用；ABI差異與fullbranding仍FAIL。
+
+
+### 第35版：NFO合集結構保存
+
+第35版保存合集name／overview結構，支援文本set／collection與結構name／overview，來源／獨立鎖及人工null清除共交易。重複別名／子欄位、缺少名稱及混合內容拒絕；名稱Unicode空白與UTF-8界限在API／資料庫保持一致。固定25欄、16種facts與八種API變體；001–034共68份SQL保持。最大合法混合請求、120筆合成確認寫入、五表回滾、舊評分35→34→35及保留新資料拒降通過。五份初始失敗與正式簡介傳遞停用的負例保存，逐位元復原後完整HTTP通過。 見[契約](nfo-collection.md)及[證據](evidence/nfo-collection.json)。
+
+| 驗證 | 套件 | 通過事件（含父測試） | 略過 |
+| --- | ---: | ---: | ---: |
+| Windows全套 | 29 | 3267 | 491 |
+| Linux race | 5 | 1133 | 0 |
+| 完整PostgreSQL | 1 | 816 | 0 |
+| 原生worker | 1 | 11 | 0 |
+| 完整HTTP／TLS／PG | 1 | 1 | 0 |
+
+
+本地驗證均已終端結束。仍全G00–G51目標；下一步其他NFO欄位與季集、實際匯入、監看／排程及規模驗收。禁止merge／release／tag／force-push／改寫既有SQL／修改Git身份設定，五個未獲具體批次授權的直播核心保持。
+
+
+### 合集已發布，接續剩餘電影NFO欄位
+
+本goal turn為progress。schema35合集完成提交、push、繁中PR46更新／attach；遠端head核對c252c7048ec6a8f808c8701f1f34b287c76ee0e7、OPEN/master。001–035共70份SQL現在已發布，不可改寫；所有本地handle均終端，沒有live程序。新head CI尚未完成，上一63d0的C#三平台／Go兩平台／format／CodeQL成功，ABI／fullbranding失敗、PG兩job最後查核仍在跑；不要沿用成新head结果。
+
+合集公開路徑保存、人工null／給值／flag保proof、NFO優先及獨立鎖、25欄／16facts／八API變體、最大混合body2MiB、五表回滾、舊評分35→34→35、保留新合集／null／鎖／投影拒降皆已驗。Reader拒重複set/collection/name/overview；只含overview／未知子元素且缺name、直接文字混合子欄位亦拒絕，readonly parser保持。DB原btrim只清ASCII空格，實際SQL Tab-name red後在新35函數用完整Unicode White_Space集合對齊Go；不得重跑舊schema35 generator覆寫該修正，更不可重寫已發布SQL。五份initial red：HTTP缺collection、Reader重複、OpenAPI缺合集、Reader缺名、DB空白。negative正式Overview:metadata.CollectionOverview→空字串使typed literal失敗；逐位元復原fed7877da73bbba31da3745d9f38727622c68db401a73a8a141d8ca6524d7af3，完整HTTP PASS76.452s。Windows29/3267/491skip、native5/1133/0skip、PG816/481.701s/0skip、native-PG11/15.985s/0skip。vet/build/newbrand0/181/gitignore0/fullbrand14735/186，70新保護基線形成；證據docs/evidence/nfo-collection.json為提交前68份舊SQL保護結果，歷史數字正確不要改成70。
+
+下一段改為成組處理剩餘電影NFO三類，減少逐欄新增migration與全面回歸的重複成本：dateAdded、trailers、art。已加入真HTTP／TLS／NFO／PG首個red，正式唯一未提交Go檔internal/platform/outbound/metadata_apply_integration_test.go。fixture包含dateadded原字串2024-02-29 12:34:56、兩個trailer順序、poster含preview與Season0、fanart無Season、art/clearlogo；期待三個typed facts與NFOOrigin、revision2、原bytes保持／零額外TMDB呼叫。已終端預期FAIL：HTTP confirmed NFO movie date, trailers and artwork were not persisted，證據.testdata/nfo-movie-extras-initial-red.jsonl，helper run-nfo-movie-extras-e2e.py，handle75427已終端exit1。之後僅將較晚的錯誤文字改成contacted provider，避免allCalls只計TMDB卻宣稱所有參照下載均已監測。尚未實作schema36／domain／Reader等正式接線，產品仍schema35；下一步先把此red修成green。
+
+既有解析器Metadata.DateAdded string、Trailers []string、Art []Artwork{Kind,Location,Preview,Season *int}。dateadded支援YYYY-MM-DD、YYYY-MM-DD HH:mm:ss、RFC3339；保留原表示，不猜時區。Artwork處理thumb aspect/type、preview、season，fanart/thumb與art多種子元素；保留順序及Season nil/0。一般parser的validDate與safeReference在internal/adapter/nfo/metadata.go，art/location及preview既有安全語法檢查，trailers目前僅保留文本。後續正式保存保持純參照，不因metadata確認開檔或下載，未來fetch仍需另行root／SSRF授權。可用單一新36投影同時加三欄，預期28欄、19facts與11個API變體；定界與strict ambiguous guards需依public seams驗收。其他季集、實際匯入、監看／排程、規模與24h、前端／無損寫回、全部G00–G51繼續，336狀態4/184/148不冒升。維持禁止merge/release/tag/forcepush/oldmigration/identityconfig，待具體授權的五直播core仍保持。
+
+
+### 第36版電影日期、預告片與圖片：完整回歸中
+
+schema36 尚未提交，已發布仍為 c252c7048ec6a8f808c8701f1f34b287c76ee0e7／PR46。日期保留原表示、預告片有序參照、圖片 kind/location/preview/optional season 已接 domain／Reader／owned clone-recheck／Store／API／新SQL。movie-extra-fields-v1 共28欄／19facts／11API變體。新讀取 lockdata=true 一律使用目前完整投影，歷史投影保持；global-only與numeric/text/list/actor實際HTTP已更新並通過。巢狀fanart/thumb及art子元素補回季數，重複dateadded、casefold重複圖片屬性、aspect/type衝突與非法季數拒絕。Reader完整PASS；HTTP先重現API缺欄與season:null被400，修正後完整PASS，含人工null/[]優先、獨立鎖、非法輸入、19facts最大混合請求與120寫入。
+
+Store專項11通過事件0skip：五表觸發失敗全回滾、新日期/列表/圖片DB非法值拒23514、人工清除／鎖、collection36→35→36保持、missing三欄只建鎖不虛構值proof，以及每一新欄位單獨manualnull保留時拒降。70份已發布SQL、5core、LICENSE與requirements hash維持。
+
+全面回歸Go／SQL已freeze；不得有live測試時修改。Windows handle26637終端exit0，native handle76487終端PASS5套件1152事件0skip。目前LIVE：full-PG handle16433（nfo-movie-extras-full-pg.jsonl），checks handle51687（vet/build/brand/gitignore）；待兩者terminal後native-PG，再正式preview傳遞停用negative。全部新wrapper在.testdata/run-nfo-movie-extras-*.py，negative helper已準備但尚未執行；會Preview:art.Preview→空字串，期待精確HTTP artwork structure...失敗，再finally逐位元復原與完整HTTP。正式來源snapshot .testdata/nfo-movie-extras-validation-source.json；不得重跑舊generators。
+
+初始red檔：initial-red、global-lock-initial-red、reader-initial-red（多葉）、spec-initial-red、nullable-initial-red。global-http-regression是預期版本舊斷言，不計功能初始red；reader-global-regression也是歷史fixture預期調整。docs/nfo-movie-extras.md尚標驗證中。待最終evidence/report/trace繁中PRbody與提交推送；仍全案336項4done184partial148blocked，禁止merge等保持。最後查c252 CI：C#Tests/Format/OpenAPI/CodeQLsuccess，ABI failure，Go兩workflow仍in_progress。
+
+
+### 第36版：電影日期、預告片與圖片參照
+
+第36版保存 dateAdded 原日期表示、trailers 有序參照，以及 art 的種類、位置、預覽和可選季數。人工清除、來源與獨立鎖共交易；新讀取全域鎖覆蓋28個已支援欄位，歷史投影保持。重複日期、衝突圖片屬性、非法季數與超量資料拒絕。API共11種變體、19個facts，最大混合請求、五表回滾、舊合集36→35→36與新欄位保留時拒降均通過。001–035共70份已發布SQL保持。
+
+| 驗證 | 套件 | 通過事件（含父測試） | 略過 |
+| --- | ---: | ---: | ---: |
+| Windows 全套 | 29 | 3287 | 496 |
+| Linux race | 5 | 1152 | 0 |
+| 完整 PostgreSQL | 1 | 827 | 0 |
+| 原生 worker | 1 | 11 | 0 |
+| 完整 HTTP／TLS／PG | 1 | 1 | 0 |
+
+全部本地測試已結束。見[契約](nfo-movie-extras.md)及[證據](evidence/nfo-movie-extras.json)。下一步繁中PR46提交推送，然後接續季集與實際匯入。仍全G00–G51目標；禁止merge／release／tag／force-push／改寫已發布SQL與Git身份設定，五個未獲具體批次刪除授權的直播核心保持。
+
+
+### 第36版已發布，第37版劇集資料進行中
+
+schema36 已提交推送 3cbbefdbbba4778b5a295411182a064abf5e203b，PR46繁中說明更新並attach，遠端head核對一致、OPEN/master。63檔1259新增54刪除。驗收：Windows29套件3287事件496略過、native5套件1152零略過、完整PG827／526.532秒零略過、nativePG11／16.461秒、完整HTTP76.999秒。正式Preview傳遞停用確實使HTTP artwork structure...失敗，finally逐位元復原4b358220257eda511ae12a21624b0690872e232ce8340210f4020e6bc951e661後完整PASS。新保護基線001–036共72份SQL；schema36證據記載的70份舊SQL是正確歷史數字。所有36本地handle已終端。新head CI待核對，不沿用舊結果。
+
+第37版接續G39.4 tvshow五欄：seasonCount、episodeCount、seriesStatus、airsDayOfWeek、airsTime。首個真HTTP red已保存 nfo-series-details-initial-red.jsonl（缺五欄），後續domain/Reader/owned clone-recheck/Store/schema37已接，完整HTTP first-green已保存。查本地SeriesNfoSaver.cs原保存器輸出season/episode=-1，Reader原拒絕；unknown-counts-initial-red重現，現在只對tvshow允許-1，season/episode其他root仍0..1000000。新domain NFOSeriesDetails保留pointer counts缺省／-1／零，三個文字各128UTF8 bytes非空白，不擅自規範化9 PM或weekday字串。General parser補airs_dayofweek/airs_time。Reader新增三測試並整包PASS：未知counts、owned指標clone/recheck、重複別名/五欄與範圍拒絕。
+
+series-details-v1共33欄／24facts；新Series全域鎖用新投影，Movie全域鎖仍movie-extra-fields-v1的28欄。schema37新函數valid_item_metadata_series_value(text,jsonb)，五欄純量值／來源／獨立鎖增量约束與保留新資料拒降；001–036不改。46處helper／6處直接降版fixture補37→36。implement-nfo-series-details.py與schema37-series-details.py已執行一次，勿重跑。尚未更新API（預期13variants、24facts、33report與來源版本enum），目前live HTTP handle77064為spec紅測試，只新增期待五欄與13variants，尚未讀取終端結果。不能有live測試時改Go/SQL。
+
+待spec red後API修正、HTTP人工clear/優先/flags/全域與named缺值鎖、-1實際保存、最大24factsbody；Store五表回滾/直接非法SQL/36↔37往返與拒降；全回歸與正式airtime或count傳遞停用負例、docs/evidence/trace(G39.4/G39.6)/繁中PR更新。仍336項4/184/148，禁merge等與五直播core具體授權缺口保持。目標UI前次暫停後get_goal仍paused，普通使用者「切好了」已授權續做；工具不支援改active，不可用create_goal覆蓋既有目標。
+
+
+### 第37版完整回歸狀態
+
+上述spec handle77064已終端預期red並保存spec-initial-red；API已更新13variants/24facts/33report/proof enums。完整HTTP manual-green通過，涵蓋-1真保存、flag保來源、8種非法manual、五欄人工clear/零/值優先、Series33欄全域鎖與缺值不虛構、最大24factsbody。Store13事件0skip通過：Series實際fusion五表回滾、直接SQL五類非法值23514、manualnull與獨立鎖、舊movie37→36→37、missing五named locks及各欄位單獨manualnull拒降。
+
+Go／SQL freeze並記錄58檔snapshot .testdata/nfo-series-details-validation-source.json。Windows handle59942終端exit0，29套件3291事件503skip；native handle45037終端PASS5套件1155事件0skip。CURRENT LIVE fullPG handle61223；checks原handle83601已終端exit1（vet/build成功，brand-new兩處docs引用舊品牌路徑失敗）。只將docs/handoff.md與docs/nfo-series-details.md來源引用改為SeriesNfoSaver.cs檔名，保留原授權文件和程式，不擴allowlist。新checks-resume handle66942 live，只跑brand-new/gitignore/fullbrand，記錄沿用已成功vet/build；Go／SQL snapshot仍完全一致。不得在這些live測試完成前改正式Go/SQL。
+
+全部終端後依序native-PG與negative helper。negative已準備但未執行：AirsTime:metadata.AirsTime→"broken time"，期待HTTP NFO series details lost values or provenance，finally逐位元復原並完整HTTP。evidence/finalize helper均已準備但尚未執行；helper initial三檔對應initial-red/unknown-counts-initial-red/spec-initial-red。docs/nfo-series-details.md明示驗證中，待補證據/trace(G39.4/G39.6)/report/繁中PR，再提交推送。已發布schema36仍3cbbefdbbba4778b5a295411182a064abf5e203b；新schema37未發布。
+
+
+### 第37版：劇集計數、狀態與播出資訊
+
+第37版保存tvshow的季數、集數、劇集狀態與播出星期／時間，保留原文字及缺省／未知-1／零的區別。人工清除、來源與獨立鎖共交易；新劇集全域鎖涵蓋33欄，電影及歷史投影保持。API共13種變體、24個facts。五表回滾、直接SQL非法值、缺值鎖、舊電影資料37→36→37與保留新資料拒降通過。001–036共72份已發布SQL保持。
+
+| 驗證 | 套件 | 通過事件（含父測試） | 略過 |
+| --- | ---: | ---: | ---: |
+| Windows 全套 | 29 | 3291 | 503 |
+| Linux race | 5 | 1155 | 0 |
+| 完整 PostgreSQL | 1 | 840 | 0 |
+| 原生 worker | 1 | 11 | 0 |
+| 完整 HTTP／TLS／PG | 1 | 1 | 0 |
+
+全部本地驗證已終端結束。見[契約](nfo-series-details.md)與[證據](evidence/nfo-series-details.json)。接續繁中PR46提交推送，再處理季／單集来源與實際匯入；仍全G00–G51、4完成184部分148阻塞。禁止merge／release／tag／force-push／改寫已發布SQL及Git身份設定，五個未獲具體刪除授權的直播核心保持。
+
+
+### 第37版已發布，接續單集NFO
+
+第37版已提交推送 e211393d3ded952ff5b7eef94c98cec9cdb00368（feat(nfo): 保存劇集計數與播出資訊），63檔1095新增61刪除。繁中PR46更新／attach，遠端head核對一致、OPEN/master。001–037共74份SQL現已發布不可改寫。schema37證據記錄保護此前72份SQL是正確歷史數字。全部37本地驗證已終端：Windows29/3291/503skip，native5/1155/0skip，PG840/536.029秒/0skip，nativePG11/16.233秒/0skip，HTTP76.799秒/0skip。正式AirsTime傳遞改壞重現HTTP NFO series details lost values or provenance；finally逐位元復原25fc1e2dcf8820a05e2432b1a108934e962c6e665148310ec5c3102a871c643f後完整HTTP通過。
+
+checks首輪vet/build通過，brand-new抓到兩處docs舊品牌完整路徑；只將相容性來源描述改為SeriesNfoSaver.cs檔名，保留授權與原碼，不擴allowlist；續跑brand-new0/181、gitignore0、fullbrand14735/186。所有Go/SQL snapshot在回歸與負向復原後一致。新e211 CI尚未核對，上一3cbb C#Tests/Format/OpenAPI/CodeQLsuccess、ABI failure、Go兩workflow最後仍in_progress。
+
+下一段單集已開始，只有正式測試檔internal/platform/outbound/metadata_apply_integration_test.go新增Episode實際HTTP案例（兩種root：episode／episodedetails），預期seasonNumber、episodeNumber、displaySeason、displayEpisode、aired、showTitle六facts及sourceproof；已終端預期red，literal HTTP episode NFO is not supported by item scope episode 503。證據 .testdata/nfo-episode-details-initial-red.jsonl，wrapper run-nfo-episode-details-e2e.py，handle74898已結束，沒有live程序。尚未實作38新domain／scope／reader／store／SQL。
+
+實作方向：Episode綁真影片來源、僅同名.nfo，不回退movie.nfo或tvshow.nfo；接受episode與episodedetails兩root，先保持單文件／單Entry；新增EpisodeDetails有型別值、owned clone/recheck、來源／獨立鎖／人工clear同交易，new projection以movie28欄+episode6欄（34）為基礎，不含Series五欄；API facts聯集將30項（movie19+series5+episode6）。數值沿用parser0..1000000，aired保留日期表示，showTitle文字1024UTF8 bytes。一般parser已解析這六項；季／影集的資料夾來源與父子條目綁定仍待後續，不可用虛構media_sources冒充已完成。仍全G00–G51／4done184partial148blocked，禁merge等保持。
+
+
+### 第38版：單集NFO来源與六個欄位
+
+第38版將單集NFO綁定既有Episode真實影片來源，只選同名檔，接受episode及episodedetails單一根元素。保存季數、集數、顯示編號、首播日期與影集名；人工清除、來源及獨立鎖共交易，全域鎖34欄。API為30個facts聯集、16種變體。五表回滾、非法SQL拒絕、缺值鎖、影集資料38→37→38及保留新資料拒降通過；001–037共74份已發布SQL保持。
+
+| 驗證 | 套件 | 通過事件（含父測試） | 略過 |
+| --- | ---: | ---: | ---: |
+| Windows 全套 | 29 | 3298 | 512 |
+| Linux race | 5 | 1161 | 0 |
+| 完整 PostgreSQL | 1 | 855 | 0 |
+| 原生 worker | 1 | 11 | 0 |
+| 完整 HTTP／TLS／PG | 1 | 1 | 0 |
+
+全部本地驗證已結束。接續繁中PR46提交推送，再處理影集／季來源及實際匯入；仍第三階段、全案336項4完成184部分148阻塞。五個未獲具體刪除授權的直播核心保持。見[契約](nfo-episode-details.md)與[證據](evidence/nfo-episode-details.json)。
+
+
+### 影片種類匯入入口
+
+影片匯入可明確指定Movie、Episode或HomeVideo，省略仍為HomeVideo；實際CLI到隔離PG再套用同名NFO通過，拒絕資料夾／非法種類，重複匯入保持原子性及原檔bytes。schema仍38，76份已發布SQL不改；全案4完成184部分148阻塞，仍第三階段。
+
+| 驗證 | 套件 | 通過事件（含父測試） | 略過 |
+| --- | ---: | ---: | ---: |
+| Windows 全套 | 29 | 3298 | 514 |
+| Linux CLI／domain race | 2 | 483 | 0 |
+| 相關 PostgreSQL race | 1 | 38 | 0 |
+
+[契約](import-video-kinds.md)與[證據](evidence/import-video-kinds.json)。本段全部本地程序已結束，待同分支提交推送及繁中PR46更新，再接續資料夾來源與階層。
+
+
+### 第39版：資料夾來源與父子關聯
+
+第39版以獨立資料夾來源登記影集／季，父子關聯限同庫同根且子位置在父資料夾內；CLI支援Series、Season及有父層Episode，目錄API回傳parentId。Series只選tvshow.nfo、Season只選season.nfo，季投影29欄，零值／缺省、人工清除及獨立鎖保持。真實CLI與HTTP、交易回滾、目錄替換、非法父層／混合來源拒絕及降版保護通過；001–038共76份已發布SQL不改。
+
+| 驗證 | 套件 | 通過事件（含父測試） | 略過 |
+| --- | ---: | ---: | ---: |
+| Windows 全套 | 29 | 3303 | 519 |
+| Linux race | 6 | 1329 | 0 |
+| 完整 PostgreSQL | 1 | 870 | 0 |
+| 原生 worker | 1 | 11 | 0 |
+| 完整 HTTP／TLS／PG | 1 | 1 | 0 |
+
+全部本地驗證已結束。待同分支提交推送及繁中PR46更新；仍第三階段，336項4完成184部分148阻塞。下一步實際掃描匯入與增量更新，前端及無損回寫等仍缺。見[契約](directory-nfo-sources.md)及[證據](evidence/directory-nfo-sources.json)。

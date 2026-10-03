@@ -1,0 +1,36 @@
+{
+  "scope": "Candidate schema53 full PostgreSQL trial; failed and not release evidence",
+  "publishedBaseline": "361dc681f1cbb77c937d9bc0f7414b39061bdf5e",
+  "compiledRoots": 468,
+  "frozenGoSQL": 995,
+  "frozenSourceVerifiedAtTrialEnd": true,
+  "sourceManifestSHA256": "929d17e25f687e894d1749a19ee6fe3476f17b0f7717ba4574c495e035472b50",
+  "testManifestSHA256": "8c1f1af142a768ba612771a346a22f95f96abcffa65e7f1431d51507448b7bea",
+  "rootsRunExactlyOnce": true,
+  "rootsPassedExactlyOnce": false,
+  "testPass": 790,
+  "testFail": 558,
+  "skip": 0,
+  "shardExitCodes": {
+    "1": 1,
+    "3": 1,
+    "0": 1,
+    "2": 1
+  },
+  "passed": false,
+  "ownedTrialSchemaCleanupFullyVerified": false,
+  "interruption": {
+    "testDatabaseContainerOOMKilled": true,
+    "serverTerminatedBySignal": 9,
+    "containerRecoveredWithoutRestart": true,
+    "failedQueryClass": "owned capacity overlay using JSON for two 32 MiB payloads",
+    "fullTrialAffected": true
+  },
+  "nextAction": "Keep failed logs; replace large payload JSON in owned fixture with explicit columns, preserve source receipt and required item FK, verify alone then rerun full frozen trial",
+  "limitations": [
+    "No full schema53 success",
+    "Interrupted trial had owned test schema cleanup failures; remaining cleanup is not fully verified",
+    "Storage fixtures do not certify native filesystem authority",
+    "No product heap/RSS or commit/recovery acceptance"
+  ]
+}

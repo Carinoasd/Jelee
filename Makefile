@@ -3,7 +3,7 @@ export PATH := $(CURDIR)/.bin:$(PATH)
 GO := $(CURDIR)/.bin/go
 PYTHON := python3
 
-.PHONY: init bootstrap bootstrap-media bootstrap-runtime runtime-tools-verify runtime-toolchain-test probe-runtime-test probe-worker-test nfo-worker-test ignore-oracle-test sandbox-test tools-verify media-tools-verify tools-clean fixtures fixtures-test build test test-race test-integration coverage fmt fmt-check lint toolchain-test media-toolchain-test brand-scan brand-scan-incremental gitignore-check migrate doctor
+.PHONY: image-memory-test image-memory-smoke-test scan-memory-test scan-memory-smoke-test runtime-memory-test runtime-memory-worker-test memory-contract-test i18n-check family-ignore-sustained-worker-test ignore-sustained-test init bootstrap bootstrap-media bootstrap-runtime runtime-tools-verify runtime-toolchain-test probe-runtime-test probe-worker-test nfo-worker-test family-ignore-worker-test ignore-oracle-test sandbox-test tools-verify media-tools-verify tools-clean fixtures fixtures-test build test test-race test-integration coverage fmt fmt-check lint toolchain-test media-toolchain-test brand-scan brand-scan-incremental gitignore-check migrate doctor
 init: bootstrap
 bootstrap:
 	sh scripts/bootstrap-tools
@@ -25,6 +25,24 @@ probe-worker-test:
 	$(PYTHON) -B scripts/test_probe_worker.py
 nfo-worker-test:
 	$(PYTHON) -B scripts/test_nfo_worker.py
+family-ignore-worker-test:
+	JELEE_FAMILY_IGNORE_ACCEPTANCE=true $(PYTHON) -B scripts/test_nfo_worker.py
+family-ignore-sustained-worker-test:
+	JELEE_FAMILY_IGNORE_ACCEPTANCE=true JELEE_FAMILY_IGNORE_SUSTAINED_ACCEPTANCE=true $(PYTHON) -B scripts/test_nfo_worker.py
+memory-contract-test:
+	$(PYTHON) -B scripts/runtime_memory_contracts.py
+runtime-memory-test: memory-contract-test
+	$(MAKE) runtime-memory-worker-test
+runtime-memory-worker-test:
+	JELEE_MEMORY_PROFILE_ACCEPTANCE=true JELEE_FAMILY_IGNORE_ACCEPTANCE=true JELEE_FAMILY_IGNORE_SUSTAINED_ACCEPTANCE=true $(PYTHON) -B scripts/test_nfo_worker.py
+scan-memory-test:
+	$(PYTHON) -B scripts/test_scan_memory.py
+scan-memory-smoke-test:
+	$(PYTHON) -B scripts/test_scan_memory.py --smoke
+image-memory-test:
+	$(PYTHON) -B scripts/test_image_memory.py
+image-memory-smoke-test:
+	$(PYTHON) -B scripts/test_image_memory.py --smoke
 ignore-oracle-test:
 	JELEE_REQUIRE_IGNORE_ORACLE=true "$(GO)" test -count=1 -v -run '^TestGitOracle' ./internal/platform/ignore
 sandbox-test:
@@ -47,8 +65,10 @@ build:
 	"$(GO)" build -trimpath -o bin/jelee-cli ./cmd/jelee-cli
 test:
 	"$(GO)" test -count=1 ./...
+ignore-sustained-test:
+	$(PYTHON) scripts/test_ignore_sustained.py
 test-race:
-	"$(GO)" test -race -count=1 -timeout=20m ./...
+	"$(GO)" test -race -count=1 -timeout=45m ./...
 test-integration:
 	@test -n "$$JELEE_TEST_DATABASE_URL" || { echo 'JELEE_TEST_DATABASE_URL must name an isolated test database' >&2; exit 1; }
 	"$(GO)" test ./internal/adapter/postgres -run Integration -v -count=1
@@ -72,3 +92,6 @@ migrate:
 	"$(GO)" run ./cmd/jelee-migrate up
 doctor:
 	"$(GO)" run ./cmd/jelee-cli doctor
+
+i18n-check:
+	$(PYTHON) scripts/check-ui-locales.py

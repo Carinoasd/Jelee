@@ -1,0 +1,9 @@
+goos: windows
+goarch: amd64
+pkg: github.com/MoYuanCN/Jelee/internal/adapter/images
+cpu: AMD Ryzen 7 9850X3D 8-Core Processor           
+BenchmarkImageSourceCopy-16    	    9472	    114357 ns/op	2292.33 MB/s	   32839 B/op	       3 allocs/op
+BenchmarkImageSourceCopy-16    	   10000	    115410 ns/op	2271.42 MB/s	   32838 B/op	       3 allocs/op
+BenchmarkImageSourceCopy-16    	   10000	    114168 ns/op	2296.12 MB/s	   32838 B/op	       3 allocs/op
+PASS
+ok  	github.com/MoYuanCN/Jelee/internal/adapter/images	3.661s

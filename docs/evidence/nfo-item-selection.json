@@ -1,0 +1,148 @@
+{
+  "baseCommit": "20ceefd2bdf8626ee4ec1271a698bcccf636ea18",
+  "schemaVersion": 23,
+  "sources": {
+    "internal/adapter/http/metadata_apply.go": "571c3738a39039382e58750b66a6d60a700bc85dc3b9e67a939885ffc89df6fb",
+    "internal/adapter/http/nfo_item_metadata.go": "b57080613132f7281e9c8d15e1aa4f88d8f798ef17bc31c996698e327fca8480",
+    "internal/adapter/postgres/nfo_item_http_test.go": "930caca27a29fcc409bfbdbc44646669cd7c69d3c00749261dd15a58708cd444",
+    "internal/app/metadata_apply.go": "ffdc571ae7aea646fa17f7c29ea4f08c4f9fb4676768f1abb1b4e993360728f0",
+    "internal/app/nfo_item_apply.go": "7f892098f1687fe126df53092e8b1d3f37f85125ab36e6b7d1bab9e6f5d19fb2",
+    "internal/app/nfo_item_fields_ports.go": "54846f9e6c6ebb36b91a5b84b9d3e7b2d9fe025949c73286ca7acf78c42d6aae",
+    "internal/platform/outbound/metadata_apply_integration_test.go": "bf19ff0a3866616da9a9df6cd8cc873bd11b95bff720bb107de240e42df2ae0a",
+    "internal/platform/runtime/nfo_item_binding_test.go": "8e4fa920b4ddbf8ed4c293830b8fd27bb6bfe2f21176dd2798e8c80ee9008bef",
+    "internal/adapter/nfo/item_selection.go": "8282a1e8beba4988205c79dd624e14fb0b027f1472122dcd456b20c91546e909",
+    "internal/adapter/nfo/item_selection_linux_test.go": "965708b3a9efbe55c84891aeef6082a4fed970357a60eb08dcb6b3b415f3224c",
+    "internal/adapter/nfo/item_selection_test.go": "62977e6b9442807e3048dd08ef1ba7fe8c2e5b9f3b95b9fab804cb1ae810a62d",
+    "internal/app/nfo_item_selection_test.go": "f1b896ee7fb304ce30fd3a1b0fd2705ec44bc2a58d67e76c3167ecb0a160b11b",
+    "internal/domain/nfo_item_selection.go": "a17ab6101c00a6a8f15022264b5e4e8c6a102ba8d2b3ebf6c78b357956305cc3",
+    "internal/domain/nfo_item_selection_test.go": "a0afef6443506d3bf0c6e6c6fd6ce33ee4a5124e7032147324ca3c8a81bab10e"
+  },
+  "scope": "Production NFO-only and TMDB fusion filename selection: video basename before movie.nfo/tvshow.nfo, case-insensitive filename comparison, bounded complete directory observation and repeated candidate-set/full-byte checks",
+  "directoryBound": {
+    "maximumEntries": 65536,
+    "batchEntries": 256,
+    "absence": "only a complete successful listing beneath a verified root with an existing regular media source; unavailable/unsafe/incomplete listing is not absence"
+  },
+  "windowsFullGo": {
+    "passedPackages": 29,
+    "passedTestEventsIncludingParents": 3178,
+    "skippedTestEvents": 457,
+    "failedEvents": 0
+  },
+  "windowsSkips": {
+    "original435": "same identities retained",
+    "addedDatabaseTests": [
+      "TestItemMetadataActualHTTPAndPostgres",
+      "TestItemMetadataAuthorizationCancellationAndMigration",
+      "TestItemMetadataPersistenceConflictAndAudit",
+      "TestItemMetadataSQLConstraints",
+      "TestMetadataImagePreferenceMigrationAndConstraints",
+      "TestMetadataImagePreferencePersistenceAndLegacyUpdates",
+      "TestMetadataPreferencesActualHTTPAndPostgres",
+      "TestMetadataPreferencesAuthorizationAndValidation",
+      "TestMetadataPreferencesMigrationDefaultAndCleanRollback",
+      "TestMetadataPreferencesPersistenceConflictAndAudit",
+      "TestNFOFusionAllProtectedReviewAndFinalScopeChecks",
+      "TestNFOFusionMixedSourcesOneRevisionAndAudit",
+      "TestNFOFusionProviderAndAuditFailureRollBackBothSources/audit",
+      "TestNFOFusionProviderAndAuditFailureRollBackBothSources/provider-field",
+      "TestNFOItemActualFilesHTTPAndPostgres",
+      "TestNFOItemAtomicRollbackAndScopeInvalidation",
+      "TestNFOItemPersistenceManualPriorityAndSeparateLocks",
+      "TestNFOItemScopeAuthorizationAndSourceOwnership",
+      "TestNFOItemSourceRemainsAboveTMDBWhenReadingDisabled",
+      "TestTMDBMetadataMigrationConstraintsAndAtomicFailure",
+      "TestTMDBMetadataPersistencePriorityAndManualTakeover"
+    ],
+    "outbound": "TestTMDBMetadataThroughTLSHTTPAndPostgres",
+    "reason": "URL unset on Windows; all additional identities actually passed in full PostgreSQL or native HTTP/TLS/NFO/PostgreSQL"
+  },
+  "postgresRace": {
+    "passedPackages": 1,
+    "passedTestEventsIncludingParents": 731,
+    "skippedTestEvents": 0,
+    "failedEvents": 0,
+    "elapsedSeconds": 366.81
+  },
+  "nativeLinuxRace": {
+    "passedPackages": 5,
+    "passedTestEventsIncludingParents": 1044,
+    "skippedTestEvents": 0,
+    "failedEvents": 0
+  },
+  "nativeLinuxPackages": [
+    "nfo",
+    "domain",
+    "app",
+    "HTTP",
+    "runtime"
+  ],
+  "nativePermission": "mode 000 on owned directory tested by unprivileged uid 1000, PASS; root processes cannot prove this mode denial and the test explicitly skips that case for root",
+  "nativeDirectoryBound": "65536 unrelated real files plus the existing media exceed the compiled bound; returns source limit, never absence",
+  "formalPositive": {
+    "passedPackages": 1,
+    "passedTestEventsIncludingParents": 1,
+    "skippedTestEvents": 0,
+    "failedEvents": 0,
+    "elapsedSeconds": 67.961
+  },
+  "negative": [
+    {
+      "change": "priority",
+      "observed": "HTTP NFO selection ignored specific filename priority",
+      "leafFailures": 1,
+      "restoredSource": "internal/domain/nfo_item_selection.go",
+      "restoredSha256": "a17ab6101c00a6a8f15022264b5e4e8c6a102ba8d2b3ebf6c78b357956305cc3"
+    },
+    {
+      "change": "candidate",
+      "observed": "NFO candidate set changed during lookup but committed",
+      "leafFailures": 1,
+      "restoredSource": "internal/app/nfo_item_apply.go",
+      "restoredSha256": "7f892098f1687fe126df53092e8b1d3f37f85125ab36e6b7d1bab9e6f5d19fb2"
+    }
+  ],
+  "formalRestored": {
+    "passedPackages": 1,
+    "passedTestEventsIncludingParents": 1,
+    "skippedTestEvents": 0,
+    "failedEvents": 0,
+    "elapsedSeconds": 67.878
+  },
+  "formalCases": [
+    "actual uppercase specific filename wins over MOVIE.NFO",
+    "actual conventional MOVIE.NFO and TVSHOW.NFO applied",
+    "higher-priority filename appears during provider request, 409 and no update",
+    "secondary candidate appears with same selected bytes, 409 and no update",
+    "case-fold collision denied before provider request",
+    "NFO-only actual HTTP/PostgreSQL conventional uppercase filename apply"
+  ],
+  "nativeCases": [
+    "Movie/HomeVideo/Series name and case selection",
+    "candidate priority and digest, caller-owned fields",
+    "missing NFO is distinct from missing media, parent or root",
+    "candidate directory and invalid XML do not become absence",
+    "case-fold collision",
+    "candidate, media and parent symlinks",
+    "permission denial",
+    "actual oversized directory",
+    "cancellation"
+  ],
+  "syntheticMatrix": {
+    "movies": 100,
+    "series": 20,
+    "confirmedWrites": 120,
+    "writeFailures": 0,
+    "realInventoryIncluded": false
+  },
+  "fullVet": "PASS",
+  "productionBuild": "PASS cmd/jelee",
+  "initialFailure": "Runtime binding fixture previously declared media but created only NFO; add actual owned media to satisfy the production ownership observation, no weakening of the source guard",
+  "filesystemLimit": "Observations are not an atomic snapshot; changes after the final check remain possible and stalled filesystem operations have no hard cancellation guarantee",
+  "limits": [
+    "Missing/invalid NFO still returns HTTP 503; safe provider fallback needs revalidated missing/invalid observations and persisted status, not enabled yet",
+    "Only unique media ownership, movie/HomeVideo/series and four text fields; season/episode/wrappers/multi-item sources and full inventory/worker/hierarchy remain incomplete",
+    "No editable NFO writeback, external metadata removal, artwork bytes or frontend; full G14/G39 and full project incomplete",
+    "Full branding and actual ABI differences still fail"
+  ]
+}

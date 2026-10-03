@@ -1,0 +1,62 @@
+{
+  "baseCommit": "675dea9bb5efd66e469c576eed1e9ff10d0e0a52",
+  "schemaVersion": 23,
+  "sources": {
+    "internal/adapter/nfo/item_fields.go": "21f9e65d1558dce2a44aa6c163b0371c5a7c4b257f468aa823957b6186da359d",
+    "internal/adapter/nfo/item_selection.go": "1c7a212b81f929d44723bb457290c4d4c2ed03803889673ed0f8c73cd86c0f10",
+    "internal/app/nfo_item_fields_ports.go": "85894ced5147e20e05f44a13fbe5f2f64c3fb9fdad81c877c114d9d149779985",
+    "internal/domain/nfo_item_selection.go": "3bb4a3d4463234d7a1ec794741def0a3d0794818a9374fceabb2a36012bde7c8",
+    "internal/platform/outbound/metadata_apply_integration_test.go": "1f38d91480f62b1d79a3f19568c0c17e13e5a71d3fa164ccf04b19c186185f54",
+    "internal/adapter/nfo/item_state_observation_test.go": "5a3cc613c9b1393390607e29969489e63ae9890f1217f011af7da1385f9e4691",
+    "internal/domain/nfo_item_observation.go": "9e4bcbf27fa701ee2e4fad3540fa3a4e9e0b747b48a0cedacfacbc8a7e210b98",
+    "internal/domain/nfo_item_observation_test.go": "f635e44a24d189e1289415b041f986a14ae8f22d40939f5c56704a33ba29893c"
+  },
+  "windowsFullGo": {
+    "passedPackages": 29,
+    "passedTestEventsIncludingParents": 3214,
+    "skippedTestEvents": 457
+  },
+  "nativeLinuxRace": {
+    "passedPackages": 5,
+    "passedTestEventsIncludingParents": 1080,
+    "skippedTestEvents": 0
+  },
+  "postgresNFOItemRace": {
+    "passedPackages": 1,
+    "passedTestEventsIncludingParents": 5,
+    "skippedTestEvents": 0
+  },
+  "formalHTTP_TLS_NFO_Postgres": {
+    "passedPackages": 1,
+    "passedTestEventsIncludingParents": 1,
+    "skippedTestEvents": 0
+  },
+  "negativeActualReader": {
+    "negativeLeafFailures": 1,
+    "restoredSha256": "1c7a212b81f929d44723bb457290c4d4c2ed03803889673ed0f8c73cd86c0f10",
+    "restoredTestEventsIncludingParent": 2
+  },
+  "negativeScope": "Actual reader adapter test, not an HTTP fallback test. Removing original-byte stamp comparison accepts changed corrupt bytes with identical size/mtime; one leaf fails; byte restore and rerun pass.",
+  "cases": [
+    "valid, complete bounded absence and actual XML/encoding corruption retain distinct owned observations",
+    "missing has no invented file stamp, fields, NFO provenance or locks",
+    "invalid retains full original-byte SHA256 and actual size/mtime, with no partial fields",
+    "missing appearance, invalid repair and same-size/mtime invalid content changes conflict",
+    "unsafe XML, unsupported encoding, wrong kind, wrappers, empty/lock-only valid content and duplicate singleton/lock intent remain unavailable",
+    "domain rejects invented provenance, mismatched identity/stamp/time and unauthorized path",
+    "both real HTTP routes initially reject missing/invalid with 503, no provider I/O, unchanged catalog and zero apply audits",
+    "existing full HTTP/TLS/NFO/PostgreSQL selection/physical identity/fusion/120 synthetic confirmed writes remain passing"
+  ],
+  "fullVet": "PASS",
+  "productionBuild": "PASS cmd/jelee cmd/jelee-migrate",
+  "incrementalBranding": "0 violations / 181 allowed",
+  "gitignore": "0 violations",
+  "protected": "LICENSE, requirements source, five pending LiveTV core files and 001–023 unchanged",
+  "limitations": [
+    "No persistent item observation table or provider fallback yet; missing/invalid still 503 at both apply endpoints",
+    "PostgreSQL verification in this phase covers NFO item tests and complete actual HTTP/TLS integration; prior 731-test full PostgreSQL run belongs to base commit",
+    "Status/selection objects are private internal data and must not be serialized into HTTP/audit",
+    "Filesystem observations are checkpoints, not atomic snapshots or hard cancellation guarantees",
+    "G14/G39, stage 3 and all 336 requirements remain incomplete; full branding and ABI gates still fail"
+  ]
+}

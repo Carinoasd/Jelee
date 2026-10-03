@@ -1,0 +1,103 @@
+{
+  "version": 1,
+  "result": "passed",
+  "baseCommit": "c0a436a42c9f6ffc2ffa23567b4e3949add7c659",
+  "scope": "G42.6 same-size JPEG/PNG output without a second full-size bitmap",
+  "sourceFreezeSha256": "6c828d11780f5cfe4251e0fde77eff7d1527b209464a13883fc743cdce0f2850",
+  "frozenFiles": 922,
+  "sourceSha256": {
+    "internal/adapter/images/processor.go": "8464fd5352d429299a765d26ba39d95900adb351a5b8d12df63c752b295e071b",
+    "internal/adapter/images/processor_test.go": "902a2290801c795450f21462aff0d94858f7ab1fedd6ef2abeba180dbd75add2",
+    "internal/adapter/images/same_size.go": "5fb1f8828ec4190aa544ec6fe3fa64405a11bd4bb45300d071690cf05ec994e0",
+    "internal/adapter/images/same_size_test.go": "7cac5be5299f4778a6dd6212740c6d095e10fed017cae5aa97d515d206c61656"
+  },
+  "windows": {
+    "images": {
+      "pass": 74,
+      "skip": 1,
+      "fail": 0,
+      "skippedTests": [
+        "TestImageSourceRejectsAmbiguityAndNonregularCandidates"
+      ],
+      "logSha256": "80d28fe903ad3d8ace2b1d02e149739b691bd13bdd5d3c1c87b40bc7433729b1"
+    },
+    "http": {
+      "pass": 44,
+      "skip": 0,
+      "fail": 0,
+      "skippedTests": [],
+      "logSha256": "7e4aa951ebb05d627582d6cc0e6998c7c2f636199b5e32a27bab069528d0e500"
+    }
+  },
+  "linuxRace": {
+    "images": {
+      "pass": 60,
+      "skip": 0,
+      "fail": 0,
+      "skippedTests": [],
+      "logSha256": "92ba6b54c8f6d199492dbff6f1fb15563f4b626cbe1e1082b950d7e376e35cef"
+    },
+    "http": {
+      "pass": 44,
+      "skip": 0,
+      "fail": 0,
+      "skippedTests": [],
+      "logSha256": "35d278e3cf0fc04fd6a4460e4db23042fdf9d935ac13a24c83d8323758c6fde1"
+    }
+  },
+  "taggedVet": {
+    "exitCode": 0,
+    "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "build": {
+    "commands": [
+      "jelee",
+      "jelee-cli",
+      "jelee-migrate"
+    ],
+    "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "artifacts": {
+      "jelee": "f11a0f2db1710c57b81111bd0b2d1a97e967f290085e1726ea81b5b6dfd9f9aa",
+      "jelee-cli": "955805054ce902564cf420d596125bf2b79ad7db7ebbdd0673f6a107f0af6c23",
+      "jelee-migrate": "e4f0042c046645a6010fc60b9f7e8f4e3357b5d5d34ee318bb9b1d7b4294b975"
+    }
+  },
+  "allocationRegression": {
+    "width": 640,
+    "height": 960,
+    "cacheEntries": 1,
+    "alternatingQuality": [
+      80,
+      81
+    ],
+    "beforeBytesPerColdRender": 3758080,
+    "afterBytesPerColdRender": 1282375,
+    "limitBytes": 2097152,
+    "redLogSha256": "202f858dd340c8c256b1168592aef1bf80e34794827bed2237656bd2ef8bb0d4",
+    "greenLogSha256": "9327728db2ade21a97117beb0f665771bc10550e432e06fb698bef0c4a183dd0"
+  },
+  "discardedInitialFixture": {
+    "reason": "Default request constrains output to a 640 square; benchmark aborted on unexpected dimensions and returned zero. Fixture now requests explicit 640x960 and all allocation tests reject zero iterations or bytes. Initial result is not passing evidence.",
+    "logSha256": "c63963a7132e97d0c93d212b72d4977f2e6fa242bc822960ff066dc09315ca6d"
+  },
+  "verified": [
+    "shared pixel backing and original stride, including nonzero rectangles",
+    "white composition against standard draw oracle",
+    "8-bit/16-bit alpha boundaries, Gray/YCbCr, palette",
+    "row-boundary cancellation and unsupported type rejection",
+    "no allocation count proportional to pixel count",
+    "real PNG rendering keeps source bytes and clears scratch",
+    "existing progressive JPEG/PNG16/Adam7 regressions"
+  ],
+  "limits": [
+    "Only request-owned decoded buffers may be mutated. Original and staged files stay read-only.",
+    "JPEG output bytes and ETags can change when avoiding RGB conversion; ETag remains the actual output digest.",
+    "Existing conservative per-image estimate and all budgets are unchanged.",
+    "100000-image RSS/GC result belongs to c0a436a42c predecessor source; not rerun for this same-size branch.",
+    "24-hour stability and other image roles/formats/sources remain incomplete."
+  ],
+  "protected": {
+    "licenseSha256": "f371b80469fb235bc500ec29e0e85b682d4a6157a158567d828ff0be544d4f1d",
+    "requirementsSha256": "755b6b32324efe710c3e1135a0c982c45b82f337e90fcb50ab3718a20cba5d07"
+  }
+}

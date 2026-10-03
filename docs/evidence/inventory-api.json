@@ -1,0 +1,68 @@
+{
+  "parentCommit": "1e455631009000f00b8f02bf55a5f40930227ff6",
+  "verification": {
+    "windows": {
+      "passedPackages": 29,
+      "passedTestEventsIncludingParents": 3313,
+      "skippedTestEvents": 542
+    },
+    "native": {
+      "passedPackages": 6,
+      "passedTestEventsIncludingParents": 1147,
+      "skippedTestEvents": 0
+    },
+    "pg": {
+      "passedPackages": 1,
+      "passedTestEventsIncludingParents": 22,
+      "skippedTestEvents": 0
+    },
+    "final": {
+      "passedPackages": 1,
+      "passedTestEventsIncludingParents": 1,
+      "skippedTestEvents": 0
+    }
+  },
+  "checks": [
+    {
+      "name": "vet",
+      "exitCode": 0
+    },
+    {
+      "name": "build",
+      "exitCode": 0
+    },
+    {
+      "name": "brand-new",
+      "exitCode": 0
+    },
+    {
+      "name": "gitignore",
+      "exitCode": 0
+    },
+    {
+      "name": "brand-full",
+      "exitCode": 1
+    }
+  ],
+  "publishedSQLUnchanged": 78,
+  "sourceHashes": {
+    "cmd/jelee-cli/import_inventory.go": "4ee8b194238381588b06b3532d3fadef7d8c1e39e85399d3b84ae29693938f00",
+    "internal/adapter/http/jobs.go": "bb480ae5995a8f329271c2c452a82f4e5fd7c140171566c6dbedface14676ad6",
+    "internal/adapter/http/jobs_openapi.go": "d472149030c1d88bb8cb674cc78f938435f994ac14752d7abf4ac67ad7eb3868",
+    "internal/adapter/postgres/inventory_import.go": "bbd3c4642f8a23567b1e8ffa5e9073bba651b8208c0851c456a2b102a005e22c",
+    "internal/adapter/postgres/inventory_import_api.go": "a4885b0e6b3c739bbd65f953f0c2f7d26fc188d2ae56ac11d6c8365b44111781",
+    "internal/adapter/postgres/inventory_import_authorization_test.go": "2cf97cbcd03c26fd01f4bdcaa4d92f32f4454bf7a42002039cf2156a997e8282",
+    "internal/adapter/postgres/inventory_import_http_test.go": "dcd6b3a9e7610eb21113f17c0fbfe7e87c144319efb78750eaf0bc25278f7a14",
+    "internal/adapter/scan/inventory_import.go": "0aba5abe191f2352ae3b75d322b3385733175e0f79a3b1cafb4401f0a65edbd7",
+    "internal/app/inventory_import.go": "a733f2e54fea13da67ff736874dadfc57fd247fd9e9458b1e80c28a8fd222bb7",
+    "internal/app/jobs.go": "7fc2353a981379dbf9cf3bbd8c04ee641e5f2040987f15d7f1aa5db1adb63d1a",
+    "internal/domain/inventory_import.go": "637bd6dca44d05d6acf72b912f78df6e2d0c3c42e3797d31862270dbdc5a17df",
+    "internal/platform/runtime/runtime.go": "769ffa95b2825f3a6881893da2df2d6049b3ca6aee75337f5d6989397bf9cb17"
+  },
+  "limits": [
+    "Authenticated administrator PUT and local CLI; automatic and whole-library batch import pending.",
+    "No schema migration. Full PostgreSQL suite was not rerun; targeted Store, app, actual TLS and CLI regression cover this increment.",
+    "New PostgreSQL scenarios ran natively without skips; historical Windows skips are not all rerun here.",
+    "Full brand scan and existing ABI compatibility remain unresolved."
+  ]
+}

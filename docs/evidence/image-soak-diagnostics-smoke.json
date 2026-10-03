@@ -1,0 +1,12 @@
+{
+  "scope": "smoke",
+  "result": "passed",
+  "sourceCommit": "38a47082e951573947cbfdd6445919d178443b21",
+  "sourceTree": "33fa836d8ab5f53e4fa17f6c4645cdd49d1a777b",
+  "finalAcceptance": false,
+  "soakWorkloadPassed": true,
+  "snapshotVerified": true,
+  "testArtifactsCleaned": true,
+  "launcherArtifactsCleaned": true,
+  "runId": "127a0c5f396e446a984754f007796f94"
+}

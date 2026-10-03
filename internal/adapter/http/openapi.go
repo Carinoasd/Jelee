@@ -29,15 +29,50 @@ func Specification(cfg config.Config) map[string]any {
 		op["parameters"] = []any{idParameter(), map[string]any{"name": "Range", "in": "header", "schema": map[string]any{"type": "string"}}, map[string]any{"name": "If-Range", "in": "header", "schema": map[string]any{"type": "string"}}}
 		paths["/api/v1/sources/{id}/stream"] = map[string]any{"get": op, "head": op}
 	}
+	schemas := accountSchemas()
+	if cfg.EnableCatalog {
+		schemas["CatalogItem"] = objectSchema(map[string]any{
+			"id": map[string]any{"type": "string", "format": "uuid"}, "libraryId": map[string]any{"type": "string", "format": "uuid"},
+			"title": map[string]any{"type": "string"}, "kind": map[string]any{"type": "string", "enum": []string{"Movie", "HomeVideo", "Series", "Season", "Episode"}},
+			"parentId": map[string]any{"type": "string", "format": "uuid", "description": "Present for an explicitly linked season or episode in the same library."},
+		}, "id", "libraryId", "title", "kind")
+		item := map[string]any{"$ref": "#/components/schemas/CatalogItem"}
+		for route, shape := range map[string]any{
+			"/api/v1/items/{id}": objectSchema(map[string]any{"data": item}, "data"),
+			"/api/v1/items":      objectSchema(map[string]any{"data": map[string]any{"type": "array", "maxItems": 100, "items": item}, "pagination": objectSchema(map[string]any{"nextCursor": map[string]any{"type": "string"}, "limit": map[string]any{"type": "integer", "minimum": 1, "maximum": 100}}, "nextCursor", "limit")}, "data", "pagination"),
+		} {
+			paths[route].(map[string]any)["get"].(map[string]any)["responses"].(map[string]any)["200"].(map[string]any)["content"] = map[string]any{"application/json": map[string]any{"schema": shape}}
+		}
+	}
 	if cfg.EnableAccounts {
+		itemMetadataSpecification(paths, schemas)
+		metadataOriginSpecification(schemas)
+		metadataApplyResultSpecification(schemas)
+		nfoItemMetadataSpecification(paths)
+		if cfg.TMDBAPIKey != "" {
+			metadataApplySpecification(paths, schemas)
+		}
 		accountSpecification(paths)
 	}
-	schemas := accountSchemas()
+	if cfg.EnableAccounts && cfg.TMDBAPIKey != "" {
+		metadataSpecification(paths, schemas)
+	}
+	if cfg.EnableAccounts && cfg.EnableMetrics {
+		op := operation("Read local runtime and database pool metrics", "200", "400", "401", "403", "503")
+		op["security"] = []any{map[string]any{"bearer": []string{}}}
+		op["x-jelee-role"] = "administrator"
+		op["description"] = "Prometheus exposition from this process. No query parameters. At most two concurrent requests including authentication; request and write deadline are three seconds."
+		op["responses"].(map[string]any)["200"].(map[string]any)["content"] = map[string]any{"text/plain": map[string]any{"schema": map[string]any{"type": "string"}}}
+		paths["/metrics"] = map[string]any{"get": op}
+	}
 	if cfg.EnableJobs {
 		jobSpecification(paths, schemas)
 		nfoSpecification(paths, schemas)
 	}
-	return map[string]any{"openapi": "3.1.0", "info": map[string]any{"title": "Jelee API", "version": "0.1.0-dev", "description": "Experimental foundation. Full feature parity is not yet available."}, "paths": paths, "components": map[string]any{"schemas": schemas, "securitySchemes": map[string]any{"bearer": map[string]any{"type": "http", "scheme": "bearer"}}}}
+	if cfg.EnableImages && cfg.EnableAccounts && cfg.EnableCatalog {
+		imageSpecification(paths, cfg)
+	}
+	return map[string]any{"openapi": "3.1.0", "info": map[string]any{"title": "Jelee API", "version": "0.1.0-dev", "description": "Experimental foundation. Full feature parity is not yet available."}, "paths": paths, "x-jelee-removed-features": map[string]any{"pathRoots": []string{"/LiveTv", "/Channels", "/Dlna"}, "status": 501, "code": "feature_removed", "description": "All methods and descendant paths return a localized unsupported-feature error; transformation routes retain their 409 guard."}, "components": map[string]any{"schemas": schemas, "securitySchemes": map[string]any{"bearer": map[string]any{"type": "http", "scheme": "bearer"}}}}
 }
 func idParameter() map[string]any {
 	return map[string]any{"name": "id", "in": "path", "required": true, "schema": map[string]any{"type": "string", "format": "uuid"}}

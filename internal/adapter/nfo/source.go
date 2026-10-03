@@ -28,12 +28,21 @@ type SourceStamp struct {
 
 // Source retains bounded original bytes privately. Reading it does not parse
 // XML: a future cache can compare Stamp before deciding whether to call Parse.
-// It contains no path, file handle, or mutable exported data.
+// Disk observations retain private path and physical identity proofs for later
+// writes, without open handles or mutable exported data.
 type Source struct {
-	original []byte
-	stamp    SourceStamp
-	ready    bool
+	original                       []byte
+	stamp                          SourceStamp
+	ready                          bool
+	rootPath, relative             string
+	rootInfo, parentInfo, fileInfo os.FileInfo
+	maxBytes                       int64
+	nativeRoot, nativeFile         nfoNativeIdentity
+	nativeObserved                 bool
 }
+
+func (*Source) String() string   { return "nfo source (data redacted)" }
+func (*Source) GoString() string { return "nfo source (data redacted)" }
 
 func (s *Source) Stamp() SourceStamp {
 	if s == nil || !s.ready {
@@ -67,7 +76,11 @@ func (s *Source) Parse(ctx context.Context) (*Document, error) {
 // timestamps. Open/stat calls on a stalled filesystem are not hard-cancellable;
 // cancellation closes the owned reading file and joins its cancellation callback.
 func ReadSource(ctx context.Context, rootAbs, relativeSlash string, maxBytes int64) (*Source, error) {
-	return readSource(ctx, rootAbs, relativeSlash, maxBytes, sourceAccess{
+	return readSource(ctx, rootAbs, relativeSlash, maxBytes, diskSourceAccess())
+}
+
+func diskSourceAccess() sourceAccess {
+	return sourceAccess{
 		statRoot: os.Stat,
 		openRoot: func(path string) (sourceRoot, error) {
 			root, err := os.OpenRoot(path)
@@ -76,14 +89,15 @@ func ReadSource(ctx context.Context, rootAbs, relativeSlash string, maxBytes int
 			}
 			return diskSourceRoot{root}, nil
 		},
-	})
+	}
 }
 
 // Small per-invocation ports permit deterministic read/replace/close tests. No
 // hook is global and callers of the exported API cannot replace these ports.
 type sourceAccess struct {
-	statRoot func(string) (os.FileInfo, error)
-	openRoot func(string) (sourceRoot, error)
+	statRoot      func(string) (os.FileInfo, error)
+	openRoot      func(string) (sourceRoot, error)
+	observeNative func(sourceRoot, sourceFile) (nfoNativeIdentity, nfoNativeIdentity, error)
 }
 type sourceRoot interface {
 	Stat(string) (os.FileInfo, error)
@@ -162,6 +176,10 @@ func readSource(ctx context.Context, rootAbs, relativeSlash string, maxBytes int
 		return nil, err
 	}
 	relative := filepath.FromSlash(relativeSlash)
+	parentInfo, err := root.Stat(filepath.Dir(relative))
+	if err != nil || !parentInfo.IsDir() {
+		return nil, ErrNotFound
+	}
 	opened, err := root.OpenFile(relative, readOnlyFlags(), 0)
 	if err != nil {
 		return nil, ErrNotFound
@@ -177,6 +195,13 @@ func readSource(ctx context.Context, rootAbs, relativeSlash string, maxBytes int
 	if before.Size() > maxBytes {
 		return nil, ErrTooLarge
 	}
+	var nativeRoot, nativeFile nfoNativeIdentity
+	if access.observeNative != nil {
+		nativeRoot, nativeFile, err = access.observeNative(root, opened)
+		if err != nil {
+			return nil, errNativeIdentity
+		}
+	}
 	original, readErr := io.ReadAll(io.LimitReader(contextReader{ctx, file}, maxBytes+1))
 	if err := ctx.Err(); err != nil {
 		return nil, err
@@ -187,6 +212,15 @@ func readSource(ctx context.Context, rootAbs, relativeSlash string, maxBytes int
 	}
 	if !sameSourceInfo(before, after) {
 		return nil, ErrChanged
+	}
+	if access.observeNative != nil {
+		lastRoot, lastFile, nativeErr := access.observeNative(root, opened)
+		if nativeErr != nil {
+			return nil, errNativeIdentity
+		}
+		if lastRoot != nativeRoot || lastFile != nativeFile {
+			return nil, ErrChanged
+		}
 	}
 	if readErr != nil {
 		return nil, ErrRead
@@ -201,6 +235,10 @@ func readSource(ctx context.Context, rootAbs, relativeSlash string, maxBytes int
 	resources = append(resources, currentRoot)
 	currentRootInfo, err := currentRoot.Stat(".")
 	if err != nil || !currentRootInfo.IsDir() || !os.SameFile(rootInfo, currentRootInfo) {
+		return nil, ErrChanged
+	}
+	currentParentInfo, err := currentRoot.Stat(filepath.Dir(relative))
+	if err != nil || !currentParentInfo.IsDir() || !os.SameFile(parentInfo, currentParentInfo) {
 		return nil, ErrChanged
 	}
 	currentFile, err := currentRoot.OpenFile(relative, readOnlyFlags(), 0)
@@ -220,10 +258,12 @@ func readSource(ctx context.Context, rootAbs, relativeSlash string, maxBytes int
 		return nil, err
 	}
 	hash := sha256.Sum256(original)
-	return &Source{original: original, ready: true, stamp: SourceStamp{
-		Size: before.Size(), ModifiedUnixNano: before.ModTime().UnixNano(),
-		SHA256: hex.EncodeToString(hash[:]), FingerprintVersion: SourceFingerprintVersion,
-	}}, nil
+	return &Source{original: original, ready: true, rootPath: rootPath, relative: relativeSlash,
+		rootInfo: rootInfo, parentInfo: parentInfo, fileInfo: before, maxBytes: maxBytes,
+		nativeRoot: nativeRoot, nativeFile: nativeFile, nativeObserved: access.observeNative != nil, stamp: SourceStamp{
+			Size: before.Size(), ModifiedUnixNano: before.ModTime().UnixNano(),
+			SHA256: hex.EncodeToString(hash[:]), FingerprintVersion: SourceFingerprintVersion,
+		}}, nil
 }
 
 func validSourceInfo(info os.FileInfo) bool {

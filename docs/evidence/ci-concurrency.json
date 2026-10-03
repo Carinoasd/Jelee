@@ -1,0 +1,226 @@
+{
+  "scope": "Root concurrency in six parent CI workflows and cancellation of superseded same-branch runs",
+  "baseCommit": "b92b79a0d49862ecebeea702e15c00d6452c13a0",
+  "workflows": {
+    ".github/workflows/jelee.yml": {
+      "beforeSha256": "e76900580da966838e662f36fed9c7621838df4a35b0c2ac25d7212f1cb8f167",
+      "afterSha256": "78a38948099ec790bcb53bb533bb6edd16b109d69ed46e1995742df1ff208ce0"
+    },
+    ".github/workflows/ci-tests.yml": {
+      "beforeSha256": "33005b0e8d626f76b16ff55e2d0f93ea0ca528af09c741fc25d99c4f1db66c9e",
+      "afterSha256": "6127a62153bd8c22c5a3c78e5c4601e74c7a0e9f0d25c925331de628359da80f"
+    },
+    ".github/workflows/ci-format.yml": {
+      "beforeSha256": "86729b82d936de40cf6bf6c28cb357969141adcf49bba3442198e813e3c082a3",
+      "afterSha256": "799272810d7d5baed2c4190a7fc1196b12d96891844daf89e8671a5434c61272"
+    },
+    ".github/workflows/ci-compat.yml": {
+      "beforeSha256": "a8d9fadab0981718cd6aa9052a77de6d4c47c4e8925a0c6c778cd0999f77b41e",
+      "afterSha256": "92cfd89c6dab0afb1735435ec4739b3e5ddd79619919845ba62c15bb71a9e26e"
+    },
+    ".github/workflows/ci-codeql-analysis.yml": {
+      "beforeSha256": "6346a515a454ba04024f61eee1d33699cf8f5b0aa586aeba941ad0882d062cd1",
+      "afterSha256": "8330df0184b0cd778d31a2f784718f08eb880c59511819a390f3b5d4682cd308"
+    },
+    ".github/workflows/openapi-pull-request.yml": {
+      "beforeSha256": "8451d72f0a1aae710604c59d9676e57c8bcc616177e9ce7e4406169532301a7b",
+      "afterSha256": "0d9215cdf1981f6f84aee33ea70f3cac8a08081e503534cb3d3475cf1d6a2f9f"
+    }
+  },
+  "group": "workflow/event/ref",
+  "cancelInProgress": true,
+  "verification": "Six YAML documents parsed; all fields identical after removing concurrency; byte-for-byte base restored when removing added block, original BOM retained",
+  "protectedHeads": [
+    "b92b79a0d49862ecebeea702e15c00d6452c13a0"
+  ],
+  "obsoleteRuns": [
+    {
+      "runId": 36908763776,
+      "headSha": "613005e0b02d159cff4e5ff1e4553f15574653d6",
+      "workflow": "Format",
+      "requestResult": "cancellation requested",
+      "status": "completed",
+      "conclusion": "cancelled"
+    },
+    {
+      "runId": 36908763684,
+      "headSha": "613005e0b02d159cff4e5ff1e4553f15574653d6",
+      "workflow": "ABI Compatibility",
+      "requestResult": "cancellation requested",
+      "status": "completed",
+      "conclusion": "cancelled"
+    },
+    {
+      "runId": 36908763579,
+      "headSha": "613005e0b02d159cff4e5ff1e4553f15574653d6",
+      "workflow": "Tests",
+      "requestResult": "cancellation requested",
+      "status": "completed",
+      "conclusion": "cancelled"
+    },
+    {
+      "runId": 36908764395,
+      "headSha": "613005e0b02d159cff4e5ff1e4553f15574653d6",
+      "workflow": "OpenAPI Check",
+      "requestResult": "cancellation requested",
+      "status": "completed",
+      "conclusion": "cancelled"
+    },
+    {
+      "runId": 36908763699,
+      "headSha": "613005e0b02d159cff4e5ff1e4553f15574653d6",
+      "workflow": "CodeQL",
+      "requestResult": "cancellation requested",
+      "status": "completed",
+      "conclusion": "cancelled"
+    },
+    {
+      "runId": 36908763782,
+      "headSha": "613005e0b02d159cff4e5ff1e4553f15574653d6",
+      "workflow": "Jelee Go foundation",
+      "requestResult": "cancellation requested",
+      "status": "completed",
+      "conclusion": "cancelled"
+    },
+    {
+      "runId": 36908756009,
+      "headSha": "613005e0b02d159cff4e5ff1e4553f15574653d6",
+      "workflow": "Jelee Go foundation",
+      "requestResult": "cancellation requested",
+      "status": "completed",
+      "conclusion": "cancelled"
+    },
+    {
+      "runId": 36907583098,
+      "headSha": "0ee673b594cf1a8e8ef89909147d085301c98ab1",
+      "workflow": "CodeQL",
+      "requestResult": "already terminal",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "runId": 36907583140,
+      "headSha": "0ee673b594cf1a8e8ef89909147d085301c98ab1",
+      "workflow": "Jelee Go foundation",
+      "requestResult": "cancellation requested",
+      "status": "completed",
+      "conclusion": "cancelled"
+    },
+    {
+      "runId": 36907583543,
+      "headSha": "0ee673b594cf1a8e8ef89909147d085301c98ab1",
+      "workflow": "OpenAPI Check",
+      "requestResult": "cancellation requested",
+      "status": "completed",
+      "conclusion": "cancelled"
+    },
+    {
+      "runId": 36907575868,
+      "headSha": "0ee673b594cf1a8e8ef89909147d085301c98ab1",
+      "workflow": "Jelee Go foundation",
+      "requestResult": "cancellation requested",
+      "status": "completed",
+      "conclusion": "cancelled"
+    },
+    {
+      "runId": 36907213292,
+      "headSha": "6829b14c01ab2e01fd8d5dd51d268ff4375015ab",
+      "workflow": "OpenAPI Check",
+      "requestResult": "cancellation requested",
+      "status": "completed",
+      "conclusion": "cancelled"
+    },
+    {
+      "runId": 36907212809,
+      "headSha": "6829b14c01ab2e01fd8d5dd51d268ff4375015ab",
+      "workflow": "Jelee Go foundation",
+      "requestResult": "cancellation requested",
+      "status": "completed",
+      "conclusion": "cancelled"
+    },
+    {
+      "runId": 36907205330,
+      "headSha": "6829b14c01ab2e01fd8d5dd51d268ff4375015ab",
+      "workflow": "Jelee Go foundation",
+      "requestResult": "cancellation requested",
+      "status": "completed",
+      "conclusion": "cancelled"
+    },
+    {
+      "runId": 36906652187,
+      "headSha": "0023d53361e6fb3df1253c79818f4c7ee84534c3",
+      "workflow": "Jelee Go foundation",
+      "requestResult": "cancellation requested",
+      "status": "completed",
+      "conclusion": "cancelled"
+    },
+    {
+      "runId": 36906648039,
+      "headSha": "0023d53361e6fb3df1253c79818f4c7ee84534c3",
+      "workflow": "Jelee Go foundation",
+      "requestResult": "cancellation requested",
+      "status": "completed",
+      "conclusion": "cancelled"
+    },
+    {
+      "runId": 36905726685,
+      "headSha": "5381ee390cff6effd334d44bdd0b3098a171844e",
+      "workflow": "Jelee Go foundation",
+      "requestResult": "cancellation requested",
+      "status": "completed",
+      "conclusion": "cancelled"
+    },
+    {
+      "runId": 36905721810,
+      "headSha": "5381ee390cff6effd334d44bdd0b3098a171844e",
+      "workflow": "Jelee Go foundation",
+      "requestResult": "cancellation requested",
+      "status": "completed",
+      "conclusion": "cancelled"
+    },
+    {
+      "runId": 36905070410,
+      "headSha": "04a80ad9f937ceb244fe964f5b935d4bb07bb1ac",
+      "workflow": "Jelee Go foundation",
+      "requestResult": "already terminal",
+      "status": "completed",
+      "conclusion": "failure"
+    }
+  ],
+  "cancellationRequests": 17,
+  "cancelledConfirmed": 17,
+  "alreadyTerminal": 2,
+  "jobsOrGatesChanged": false,
+  "productBehaviorChanged": false,
+  "pendingCoreAndProtectedFilesByteIdenticalToBase": true,
+  "olderGoFailureAudit": {
+    "head": "04a80ad9f937ceb244fe964f5b935d4bb07bb1ac",
+    "windowsFoundation": "SUCCESS",
+    "linuxFoundation": "SUCCESS",
+    "postgres": "SUCCESS",
+    "fullBranding": "FAIL retained"
+  },
+  "limitations": [
+    "New head CI still requires execution",
+    "Cancellation is not a passing check",
+    "Full branding and ABI failures retained",
+    "Full CI/contract/E2E/performance acceptance incomplete"
+  ],
+  "gates": {
+    "incrementalBrandGate": {
+      "violations": 0,
+      "allowed": 175,
+      "status": "PASS"
+    },
+    "fullBrandGate": {
+      "violations": 14735,
+      "allowed": 180,
+      "status": "FAIL retained"
+    },
+    "gitignoreGate": {
+      "violations": 0,
+      "status": "PASS"
+    },
+    "stagedDiffCheck": "PASS"
+  }
+}

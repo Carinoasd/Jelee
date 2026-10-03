@@ -1,0 +1,168 @@
+{
+  "sourceBaseCommit": "2b3cb5b8c69bc11eae7bebc0c29a89eb4b0515b6",
+  "schemaVersion": 52,
+  "scope": "Persist database root generation through preparation and job-owned intent, and reject missing or stale observations at SQL and application preparation boundaries",
+  "changedSourceManifest": {
+    "internal/adapter/nfo/prepare_write.go": "cbe1d3d876e6f1a29a33e9814dcf7914b3676673e48f607439bbc7a7ee1c3c08",
+    "internal/adapter/nfo/prepare_write_test.go": "fc7f6e829f501cdd73fcc0c0926ae69e1d8df798c9457692cf0044e76c3a8144",
+    "internal/adapter/nfo/stage_commit_files.go": "c9ef6594bd96c27c94c86e78890369896353feba110eb080742c7290624e5b5f",
+    "internal/adapter/nfo/write_prepared.go": "e636a360ed6d3a95b2ed95a5e6acf9286fa4c37126da3882fb12777d5b8eabf8",
+    "internal/adapter/nfo/write_prepared_test.go": "de7272f3c6b00f285a5c9583ee45ad35ba4e318b23706c4b033613eb5a9d6d2d",
+    "internal/adapter/postgres/migrations/000052_nfo_write_root_generation.down.sql": "d2ae7e95541df60a88373ef7a277c23ef59fa50cb9d580613860b89290e31439",
+    "internal/adapter/postgres/migrations/000052_nfo_write_root_generation.up.sql": "05c73a4ec2e4f56d5fe0d8a037b810a6a2dbfc1325e106b1610b621ab2be6deb",
+    "internal/adapter/postgres/nfo_commit_catalog_sql_test.go": "fcd31011ebd10c2d3b9c6c6c37c4e11607c749347fc2476b5985caad3b8c1907",
+    "internal/adapter/postgres/nfo_commit_files.go": "df028dd7adacee16ea7e758955e6be83a8106c12956826bbb8e29d751399eea1",
+    "internal/adapter/postgres/nfo_item_scope.go": "c86f4c0fdf22066ad262ce9b68935aa2ddf080c260a8ac0e6e7e9756a25e6f3d",
+    "internal/adapter/postgres/nfo_preparation_global_quota_test.go": "98ebe275520f4660c6a67263fff9dd0d7867e1d5c0346b0c776155954038f850",
+    "internal/adapter/postgres/nfo_quota_isolation_test.go": "546e5ea6d6e3539955bbd80b3a1043bfff8050a72956e8ae7e8517333e1843fb",
+    "internal/adapter/postgres/nfo_write_commit_journal_test.go": "285128c5ef320eb18012de09daa7f6c6c81cdb522979701845961fd90e412176",
+    "internal/adapter/postgres/nfo_write_jobs.go": "41cc29a94167c5cd39f1e89d6adae48abdf9b92266d150575ed22305c699ecb9",
+    "internal/adapter/postgres/nfo_write_jobs_test.go": "34b497bc561df6a69bed84d81d249adabadb7f4f7f9beb1edca83fb9b4e424a6",
+    "internal/adapter/postgres/nfo_write_legacy_preparation_fixture_test.go": "ccb6ae59c2e320e92291af75bb094d3bd6d1c484ce08bdbda76a6ef7c87492bc",
+    "internal/adapter/postgres/nfo_write_preparations.go": "128513272936f12fb8e9b3332fc02923f824872dce4b9abc67f00eb0e00f0b45",
+    "internal/adapter/postgres/nfo_write_preparations_test.go": "dbaa71f146b37b17d3634e7209787aae2aeb7a046693853cba902113924fefa2",
+    "internal/adapter/postgres/nfo_write_root_generation.go": "79079e12cd36ef4b69ed470c4ab78d5a5ea20250fcdf1994c3c8ba82bcc76d05",
+    "internal/adapter/postgres/nfo_write_root_generation_test.go": "23df2aca8c6be2fa4bacae49042a1cdf55d34b6771e4fb667a4566bc75130832",
+    "internal/adapter/postgres/store.go": "8204deb29dba887424374900c0c1ed0d64e0c6dcc56aad137336d4e065402414",
+    "internal/domain/nfo_item_scope.go": "4992828b5b29a36b5876bc05c8071dc5250df092c2fa97bcce2dc93fd267952a",
+    "internal/platform/runtime/job_metrics_integration_test.go": "7f7f5c455321e75194b7433a036e863e230495d2b4f5dd4fd5d56a5b76055a4b"
+  },
+  "frozenSourceFiles": 980,
+  "frozenSourceManifestSHA256": "dbfd3292dca5172333ee9305bdeccd6d657e081f37afac3ea8509614ca793f1b",
+  "fullPostgresRace": {
+    "packagesPassed": 4,
+    "testsPassed": 1454,
+    "testsSkipped": 0,
+    "failureEvents": 0,
+    "compiledRoots": 459,
+    "rootsRunAndPassedExactlyOnce": true,
+    "exitCodes": {
+      "0": 0,
+      "1": 0,
+      "2": 0,
+      "3": 0
+    },
+    "compiledManifestSHA256": "ee58270899c5716062cc39a1782826e9df1a6e5043d553f12649365e39b49b87",
+    "coverageSHA256": "874dd0fa32a29b1b4d8dd62bf559286496b138057688ba453a8662b7c4d677c9",
+    "shardLogSHA256": {
+      "nfo-root-generation-schema-v2-full-shard-0.jsonl": "ce287a1b9577ea0f3c0969c615761656110917e41b0fb882fbe9e0663784605d",
+      "nfo-root-generation-schema-v2-full-shard-1.jsonl": "543bb7fcff27e2a8b66f5e7cabb979be2a4caa40a8534946c4a76852620cb6a3",
+      "nfo-root-generation-schema-v2-full-shard-2.jsonl": "d2a0b387f5ee4f88194124b8444ffd8c42e7457ed27b55baded2971573c82a4b",
+      "nfo-root-generation-schema-v2-full-shard-3.jsonl": "d4bcac20ce57e33ac06e98f226f7182dde3e01cf57a54ed4cdcfc645fe5b06d7"
+    }
+  },
+  "rootGenerationTests": {
+    "packagesPassed": 0,
+    "testsPassed": 54,
+    "testsSkipped": 0,
+    "failureEvents": 0,
+    "roots": [
+      "TestNFOWriteRootGenerationAfterConstraintFlush",
+      "TestNFOWriteRootGenerationApplicationFence",
+      "TestNFOWriteRootGenerationCounterCannotRegress",
+      "TestNFOWriteRootGenerationMigration",
+      "TestNFOWriteRootGenerationPreparationAndCopy",
+      "TestNFOWriteRootGenerationPreparationSQL",
+      "TestNFOWriteRootGenerationPreparedRootChangeAfterFlush",
+      "TestNFOWriteRootGenerationSQLCommitFence",
+      "TestNFOWriteRootGenerationSaveLockOrder",
+      "TestNFOWriteRootGenerationSnapshot"
+    ]
+  },
+  "windows": {
+    "packagesPassed": 7,
+    "testsPassed": 1043,
+    "testsSkipped": 989,
+    "failureEvents": 0,
+    "logSHA256": "db4b3ecb40c4f2d2e7ff4b5c428bbb4e7b58fa1a5904e8e9b1aa19d95a4bde7b",
+    "databaseConfigured": false
+  },
+  "historicalQuotaFixtureRegression": {
+    "packagesPassed": 1,
+    "testsPassed": 7,
+    "testsSkipped": 0,
+    "failureEvents": 0,
+    "logSHA256": "f8d0f2ea461073e3872387cf9bd51457bb999b26c15da10ce518052bb5f6f625"
+  },
+  "runtimeMetricsPostgresRace": {
+    "packagesPassed": 1,
+    "testsPassed": 8,
+    "testsSkipped": 0,
+    "failureEvents": 0,
+    "logSHA256": "a94cb789dc575b5ab8acd09d247a4b411eb7e54d64b9d601700bdd81245f2762"
+  },
+  "telemetryLinuxRace": {
+    "packagesPassed": 1,
+    "testsPassed": 78,
+    "testsSkipped": 0,
+    "failureEvents": 0,
+    "logSHA256": "68c3c387fdad4467b37de5908e0bb6a573f8c33b31879e1c68d84e7882f80b8f"
+  },
+  "priorCompleteRun": {
+    "compiledRoots": 459,
+    "passed": false,
+    "failureEvents": 6,
+    "failedLeafCases": [
+      "TestNFOQuotaFenceMigrationAndMissingRow/retained_preparation",
+      "TestNFOQuotaFenceRetainedJobAndMissingIntentFence/missing=false"
+    ],
+    "coverageSHA256": "73b19a685b3b37d8619742743febb0e512b23fa5a072fc2bb8917d3240b92968",
+    "belongsToFinalSource": false
+  },
+  "redEvidence": {
+    "rootGenerationDriftFailureEvents": 8,
+    "saveQuotaLockOrderFailureEvents": 2,
+    "rootMutationGuardOverlayFailureEvents": 7,
+    "logSHA256": {
+      "nfo-root-generation-red.jsonl": "c8efdb7860015991810e6bf7bd6272f33fd227ec9fdb4b6fb61de0c5139b3b1b",
+      "nfo-root-generation-lock-order-red.jsonl": "9c8f29c3080010713c7759d04c7ba5d4edfc0879fcb9366444bab5daa4365921",
+      "nfo-root-generation-mutation-red.jsonl": "1a25ebb1c055e1e909602df63f29b495bc03bfa96025f01f110dfd1ea3e423e4"
+    }
+  },
+  "verified": [
+    "root_generation_observed_with_locked_scope_and_persisted_in_preparation_and_job_owned_copy",
+    "journal_plan_ready_first_write_and_replay_refuse_root_drift",
+    "stage_and_ready_resume_refuse_root_drift_without_changing_remaining_files",
+    "active_and_released_savepoint_root_mutations_refused_after_constraint_flush",
+    "preparation_root_generation_path_id_deletion_mutations_refused_after_constraint_flush",
+    "counter_regression_refused",
+    "three_isolation_levels_refuse_stale_root_snapshot",
+    "historical_null_not_backfilled_and_cannot_authorize_new_writes",
+    "empty_downgrade_upgrade_preserves_metrics_epoch",
+    "retained_root_proof_or_journal_refuses_downgrade_dirty51",
+    "save_waits_for_quota_without_holding_root",
+    "owned_schema46_47_48_legacy_fixtures_use_original_sql_without_production_fallback"
+  ],
+  "rootGenerationPersisted": true,
+  "historicalRootProofBackfilled": false,
+  "nativeRootMediaAncestorPreparationPersistenceVerified": false,
+  "nativeWindowsDatabaseVerified": false,
+  "targetRenameEnabled": false,
+  "settlementEnabled": false,
+  "automaticRecoveryEnabled": false,
+  "productionWriteCallerEnabled": false,
+  "windowsDirectoryMetadataDurabilityVerified": false,
+  "fullHeapOrRSSBoundVerified": false,
+  "requirementsComplete": false,
+  "protectedFiles": {
+    "publishedSQLUnchanged": 102,
+    "requirementsSourceModSumLicenseUnchanged": true
+  },
+  "checks": {
+    "windowsVet": true,
+    "linuxVet": true,
+    "darwinNFOAmd64Compiled": true,
+    "darwinExecuted": false,
+    "format": true,
+    "incrementalBrandViolations": 0,
+    "brandAllowed": 339,
+    "gitignoreViolations": 0
+  },
+  "publishedBaseCI": {
+    "fullBrandingPassed": false,
+    "postgresIntegrationPassed": false
+  },
+  "formalSoakSourceCommit": "24caf7d45fb96390689dcc03685033242b7bbfea",
+  "formalSoakIncludesThisChange": false,
+  "formalTwentyFourHourPassed": false
+}

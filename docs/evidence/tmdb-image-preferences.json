@@ -1,0 +1,92 @@
+{
+  "baseCommit": "8d746b015b2c5551ee590fb8bcfde8a5f23aec40",
+  "scope": "Ordered persistent image language preferences; actual movie and series image candidates through governed TLS provider, application and admin HTTP",
+  "schemaVersion": 20,
+  "sources": {
+    "internal/adapter/http/metadata.go": "a1d794effc8e5bbfea3cd2d145d4311c37ad2ccefbeac374abd63187ceb49acc",
+    "internal/adapter/http/metadata_preferences.go": "f44604e2e90268a6c3f92b0dd35d13d65dfa1b5d07f54cf351707c31851439e8",
+    "internal/adapter/http/metadata_preferences_test.go": "481f049c5ab9e821081deb62108ad68d7772cfdf33c184222a7193d1fbee5f60",
+    "internal/adapter/http/metadata_test.go": "988102fbb499d44c769bc4bce355bcc27aae11696d96731bf83434913a13ee10",
+    "internal/adapter/metadata/tmdb.go": "f4ef359ea4fae6f6e7a3e747721e10580c2cff2082270c44cc3e10cf2581fa94",
+    "internal/adapter/postgres/accounts_integration_test.go": "385fe9fb67b32cf4117c22c0af03812524ea616677489762011066950ccd3c15",
+    "internal/adapter/postgres/ignore_baseline_test.go": "8fa4989bf8200c11b69ad2b7bdce25397e63cd1417bd36418af36b25a9acbc35",
+    "internal/adapter/postgres/ignore_family_comparison_test.go": "3dc9d944859890b7e68ea34e80c0f0066ba109f8bba85e972498030fb63e3a76",
+    "internal/adapter/postgres/ignore_family_scan_test.go": "e5c5d6de08febfebe85b0f53e348bd1987b2c42a54abf33531885ad8e1c7eddf",
+    "internal/adapter/postgres/ignore_legacy_baseline_test.go": "7bb47de65c246a7d4c64d80a9419876bcb068c2328e16ca1d62cf0f8c3ae3610",
+    "internal/adapter/postgres/ignore_legacy_baseline_verification_test.go": "1678ed136f1242d80a578f59ff78fdfe5194aa49a29ad13811620a2fd651fa2e",
+    "internal/adapter/postgres/ignore_legacy_migration_test.go": "9093b57694b67f7c7e5732c9e5eee988ffab68d5a853d20686fc06a2090bae27",
+    "internal/adapter/postgres/ignore_legacy_verification_test.go": "ce03061361f9a875e02e4332ed8c458a192871ea949fc6c430241291588c1451",
+    "internal/adapter/postgres/ignore_manifest_test.go": "9464392de886bb1d702c14b4eb49c190b74e4c1de0b89ada650f5778db5e8cc4",
+    "internal/adapter/postgres/ignore_migration_test.go": "a06171ae02a43703504c92e85ff9e4b21478d2fd9aa4f8f9c31768ec3253a5f1",
+    "internal/adapter/postgres/ignore_scan_test.go": "5c4097aa82c4c9a95e672a061d3850fb97b296b606b609eda65982e8b1c5304b",
+    "internal/adapter/postgres/ignore_verification_test.go": "8e69adb239d2d1cabf7e3b4bb04cb1f73c1edf3fdd32d119941c47a2a9ee8133",
+    "internal/adapter/postgres/jobs_integration_test.go": "3ac168643fe6b7589fad45ed2591d2edf0bc29647dd699f2fb91228a43bbc231",
+    "internal/adapter/postgres/metadata_preferences.go": "4ad3fae9f7c9731d7634b36b9823f24ee3a523a6ab2f9ae456d40db439396b2f",
+    "internal/adapter/postgres/metadata_preferences_http_test.go": "232816c783f91b13f8d0a2afb69fd723e07d80c963cb53f2747efeb574cfca10",
+    "internal/adapter/postgres/metadata_preferences_test.go": "4fef3a2d0cdecb2aa37c6c0655dfd781c4c009045be7c7b564effbdce7a70603",
+    "internal/adapter/postgres/nfo_integration_test.go": "fa617b31c2ba9aeb33e3fae2e0bc0c6397f521e207148f6ea66e8c92cc606643",
+    "internal/adapter/postgres/nfo_worker_migration_test.go": "090be9bd4ecd01b56632208427c5b66c28d56eb0558c3a70d39eea275b79159d",
+    "internal/adapter/postgres/probe_integration_test.go": "c098f764ebcbdfd7ed1f612525c222b116a518e444b5326c01a638711ba1fa33",
+    "internal/adapter/postgres/probe_requests_test.go": "eb47d84194cd4b028f117541b557b4c1dd5996f05c59d34d02ab6b9814d3400b",
+    "internal/adapter/postgres/store.go": "0972b1bcd06534e54af9de9626a2ac88df2e5c8c2c046e3e0377f62af82e6a87",
+    "internal/adapter/postgres/store_integration_test.go": "02a7f3619dc670aca264d931466c9bf0d9a834f3360025b51acd91914d681e1e",
+    "internal/app/metadata_preferences.go": "e5cda5671fa2beefffea10e3ebbbd3c32cea41a853fcb4e6c4f89c11249bb32d",
+    "internal/domain/metadata_preferences.go": "7e58bfd72d20bcce36e88c44c68ef5d57efc1d680f02f683d82311d17cb3c5c4",
+    "internal/platform/runtime/tmdb.go": "5867be73b1efe435f876d525f517cd79bd7e86606f5160cff6e61f0790eb5d92",
+    "internal/adapter/http/metadata_images.go": "41693003eff39c9e123b73a90beb50c6071eabb9d9614f60d079b9a49dcf9015",
+    "internal/adapter/http/metadata_images_test.go": "98964f77aa22709300aee441157750302b42e23f110edd6624bf8d7b1c998a05",
+    "internal/adapter/metadata/images.go": "da669c12d5b88bc730903602b4f8e252113b327db0c75d2c7b35dab248f601f8",
+    "internal/adapter/metadata/images_test.go": "91e991b36261c5fea283409be32e74b05d7cdc33b2d206d19d355ca94d54b3ff",
+    "internal/adapter/postgres/metadata_image_preferences_test.go": "df35c48b966d77eea4b9f64f272527fd673d501353c3a60607bea7c35c3fccd3",
+    "internal/adapter/postgres/migrations/000020_metadata_image_languages.down.sql": "75f7ee6d2ab3ccaf9257f7dd2a2e9521381410ec1f5d05d6a50a755822db3d5e",
+    "internal/adapter/postgres/migrations/000020_metadata_image_languages.up.sql": "5f9fe8af87ef6e094bb18d1d81fadde3813451af4b192a22e73264aa275cf52d",
+    "internal/app/metadata_images.go": "4f557493e6cc6f34247e1f36067db5931f91694c72a8d80cd0f5e13fb2119255",
+    "internal/app/metadata_images_test.go": "8157e407ae8b36d92140f59fbc23cc61c2ea694f6bbc7ddc6fb48ba6eada1384",
+    "internal/domain/metadata_images.go": "70a2ad9a0df533c1ae102ac2e34723a00b64d40c724437fb6d31c89a958495e2",
+    "internal/platform/outbound/images_integration_test.go": "30a2d2ad3f8a774c57d2bccbc98c286a7602d1772049b379367c026add343c1f"
+  },
+  "windowsFullGo": {
+    "passedPackages": 29,
+    "passedTestEventsIncludingParents": 3123,
+    "skippedTestEvents": 441,
+    "failedEvents": 0
+  },
+  "windowsSkips": {
+    "original435": "same identities retained",
+    "addedSix": [
+      "TestMetadataImagePreferenceMigrationAndConstraints",
+      "TestMetadataImagePreferencePersistenceAndLegacyUpdates",
+      "TestMetadataPreferencesActualHTTPAndPostgres",
+      "TestMetadataPreferencesAuthorizationAndValidation",
+      "TestMetadataPreferencesMigrationDefaultAndCleanRollback",
+      "TestMetadataPreferencesPersistenceConflictAndAudit"
+    ],
+    "reason": "dedicated PostgreSQL URL unset; these six are executed successfully by the separate Linux database run"
+  },
+  "postgresRace": {
+    "passedPackages": 1,
+    "passedTestEventsIncludingParents": 713,
+    "skippedTestEvents": 0,
+    "failedEvents": 0
+  },
+  "linuxRace": {
+    "status": "PASS metadata/app/HTTP/runtime/outbound/i18n",
+    "output": "metadata 1.380s; app 1.102s; HTTP 3.849s; runtime 1.224s; outbound 7.662s; i18n cached",
+    "skips": "summary does not report skips"
+  },
+  "fullVet": "PASS",
+  "productionBuild": "PASS cmd/jelee",
+  "negative": {
+    "change": "ignore actual HTTP library image preference",
+    "leafFailures": 1,
+    "observed": "image preference not wired",
+    "restoredSha256": "41693003eff39c9e123b73a90beb50c6071eabb9d9614f60d079b9a49dcf9015",
+    "restoredPostgresRace": "six tests PASS without skips"
+  },
+  "legacyProjection": "Only newly added image preference column excluded from schema7/current original-column comparison; dedicated new-field migration tests retained",
+  "limits": [
+    "Season/episode images, logos, frontend and full scraping matrix not implemented",
+    "No metadata worker/library field write, NFO edits or artwork changes",
+    "Full branding and actual ABI differences remain failing"
+  ]
+}

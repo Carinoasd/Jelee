@@ -1,0 +1,4 @@
+ok  	github.com/MoYuanCN/Jelee/internal/platform/jobs	1.334s
+ok  	github.com/MoYuanCN/Jelee/internal/platform/config	1.045s
+ok  	github.com/MoYuanCN/Jelee/internal/adapter/calendar	1.020s
+ok  	github.com/MoYuanCN/Jelee/internal/adapter/scan	4.438s

@@ -1,0 +1,219 @@
+{
+  "sourceBaseCommit": "361dc681f1cbb77c937d9bc0f7414b39061bdf5e",
+  "schemaVersion": 53,
+  "scope": "First native observation persistence, owned intent copy, plan binding, Stage checks and storage quota regression",
+  "changedSourceManifest": {
+    "internal/adapter/nfo/native_preparation_paths.go": "cb80d792af49e1cb6cfd259b3208e1f2f44e3260c86363287a22806d23a9c9bf",
+    "internal/adapter/nfo/native_preparation_paths_test.go": "96bc2785f866d489cf4d97a4ca82c36137dbf74529683af4fe4178569fcdb3d1",
+    "internal/adapter/nfo/native_preparation_source.go": "6390603714a5dcd6d03ad1c47eb69a5db9f5f3c59aa19f3563f9252b629c3e37",
+    "internal/adapter/nfo/native_preparation_source_test.go": "b57fa9c428f2d5687642ca621e5a45283f1dbdd7624ecc8fecc2fdd24ebcb618",
+    "internal/adapter/nfo/native_preparation_wait_test.go": "aad41735200d17499775b335b40f18b557a2bbc0f420471524cf76034beb08ec",
+    "internal/adapter/nfo/native_source.go": "a0d7810f015311ecfe3ee8aba94072036e442b24440f1d8d3d26df985a4ca0e9",
+    "internal/adapter/nfo/native_source_failure_test.go": "e154369bc6e2a3c62dbb270f03d9cd5da6aeb9ae3b9bf0fe907e1bec9db701aa",
+    "internal/adapter/nfo/native_source_test.go": "70f4e4a1067fbc01bd52e966534131cd325d20aa19fdb5c12cda811793ab95e7",
+    "internal/adapter/nfo/prepare_write.go": "6048266e48168716cd9687f425f6a98e87a64ac973264dd61680faba1c4a55b5",
+    "internal/adapter/nfo/prepare_write_test.go": "40a4a627e2154f337010220ea392b86392d6a6db4abcd3b74713fe9b84cdc229",
+    "internal/adapter/nfo/source.go": "4b9ebe8f08a9fb9bfd291347896f504a4087fd84e913f75b1d252c09533001f6",
+    "internal/adapter/nfo/stage_commit_files.go": "19894ca1f4c5b6b90335d1e0242e9541d60cb2f9b14014caee89d9d5ab52a256",
+    "internal/adapter/nfo/stage_commit_files_test.go": "61d74c0f8c254d6b667d6f5d9b7feb6f0f7f690e4a99550062c58d63ed5a9e5c",
+    "internal/adapter/nfo/stage_native_receipt_test.go": "002bf68920298cde097b9010da91cca6a5ef7d9b2b80589cb9204718e894a808",
+    "internal/adapter/nfo/write_prepared_test.go": "9ca89c2856aec22f77d418737c960af98b6adc703166d7043cd01fff453f0d95",
+    "internal/adapter/postgres/migrations/000053_nfo_write_native_receipt.down.sql": "00d6fa36efdab6b1b4af5bfc1a2fc6f58439b105c2bf9b4197313a91d4346bf7",
+    "internal/adapter/postgres/migrations/000053_nfo_write_native_receipt.up.sql": "9da585c9a0335d9aceb70fd2b6cb27819ce5547639c95f3af5fd8836b956fe15",
+    "internal/adapter/postgres/nfo_commit_catalog_scope_test.go": "d140a70793565af4713848fd172ad2e56f2300b2f50c511affcf1e2df032a27f",
+    "internal/adapter/postgres/nfo_commit_files.go": "1bb83fe17d387846a34a3235591848340fb12dba6bfa02805e5d4084c1ca21c3",
+    "internal/adapter/postgres/nfo_commit_files_test.go": "2d54653264de03b5543a3540ff6c39852717a7237ff1aaa21a99348b5fd0684c",
+    "internal/adapter/postgres/nfo_item_apply_test.go": "db39ca62f55cda1e6fcefaa9aa1e35939ae310ab16453181698be12e3f904c3a",
+    "internal/adapter/postgres/nfo_preparation_global_quota_test.go": "51898f93eb0d6e28a1ac19aef598ead0a069c2db40ca4357bb66a85e6cac7e10",
+    "internal/adapter/postgres/nfo_prepared_writer_test.go": "b4e7f9aec515a386357c2cf0422ac53ecbfbc465d28c60014a4d028889b32dad",
+    "internal/adapter/postgres/nfo_quota_isolation_test.go": "cade081569eb494a5af77ccff71e4471b11e3a34a2b9f3b44607b15ae02143e8",
+    "internal/adapter/postgres/nfo_write_jobs.go": "0a95427a681da33f021839cfae456f08c5525b1a36204009ddf52885623ef77e",
+    "internal/adapter/postgres/nfo_write_jobs_test.go": "d5a3395e36af29a744c9cde2284d4ebca203f531b04fe0ffd740b90e719b82b5",
+    "internal/adapter/postgres/nfo_write_native_quota_test.go": "088ab4923111fbdf0a79de05918eab8684ff0fc2f18d18ca5be295b6ff19d01c",
+    "internal/adapter/postgres/nfo_write_native_receipt.go": "fe894bee5343232caeefb7647f822df7d277942fb6da4e53939476ad950951b5",
+    "internal/adapter/postgres/nfo_write_native_receipt_test.go": "5263fc29df19b725f81c4b2a5bd508f960434c6bad9f7a246087794e0819d8c5",
+    "internal/adapter/postgres/nfo_write_preparations.go": "7f63584aacf4e8262abab96aba0351786fdc111ead8f9d91f9dbec417c37a1c8",
+    "internal/adapter/postgres/nfo_write_preparations_test.go": "5db587867401ba2b741b33926f2e88b8fa6bee28dcf46d368ad401ab76f02783",
+    "internal/adapter/postgres/nfo_write_root_generation_test.go": "2736fec45ebf6fb67b5fcd7d2d715255200d7fd5d8581233c9d67defc4c02324",
+    "internal/adapter/postgres/store.go": "0c05c06df7ff47c4c5388a7725541c4dc4157d9a71c938e6483ee61f277e43e2",
+    "internal/domain/nfo_native_preparation.go": "2b69083114fa2f368415057b5341868f473449296acac8b3ac4993dde4203f86",
+    "internal/domain/nfo_native_preparation_test.go": "9d0c1a88b095174a5ac305795c45ca7d2605ca1edf79261e9fa7e65405e2117c",
+    "internal/domain/nfo_write_preparation.go": "44debde5371c795188c4edfe8893b841383d81bc4956813b075234593b985524"
+  },
+  "frozenSourceFiles": 996,
+  "frozenSourceManifestSHA256": "4024636da3d26c4ea29c76cfe77e278c6427a225a8e7c3dfd417ed2195d062be",
+  "fullPostgresRace": {
+    "packagesPassed": 4,
+    "testsPassed": 1478,
+    "testsSkipped": 0,
+    "failureEvents": 0,
+    "compiledRoots": 472,
+    "rootsRunAndPassedExactlyOnce": true,
+    "exitCodes": {
+      "0": 0,
+      "2": 0,
+      "3": 0,
+      "1": 0
+    },
+    "compiledManifestSHA256": "8981ca5d00f9af222d30db379c45aa1b24f15070a9acd2870949b7e77e905eec",
+    "coverageSHA256": "0f2409462d8aa23848fe7c81dee3aa38af4f833fb3da8bac03615a77d92121c7",
+    "shardLogSHA256": {
+      "nfo-native-receipt-schema-v3-full-shard-0.jsonl": "6830e7a92fb96db5f37abfb08ada494a5b3e51a76abb7bb4e205435c2a3d81f8",
+      "nfo-native-receipt-schema-v3-full-shard-1.jsonl": "715d61728a535a19139166b20912879cbddf6f561b77860ae06f3f38b5a7b426",
+      "nfo-native-receipt-schema-v3-full-shard-2.jsonl": "fed7d27c7e878518069d902ac86394c36054a8156a747220605eed11de290428",
+      "nfo-native-receipt-schema-v3-full-shard-3.jsonl": "591deaacbd88be7767be17f8180468fffe4cfd240f2f40f552afd4ae73247309"
+    }
+  },
+  "selectedFamilies": {
+    "TestNFOWriteNative": {
+      "packagesPassed": 0,
+      "testsPassed": 24,
+      "testsSkipped": 0,
+      "failureEvents": 0,
+      "roots": [
+        "TestNFOWriteNativeReceiptBytesCountAtLibraryCapacityBoundary",
+        "TestNFOWriteNativeReceiptEntryCannotCopyDifferentObservation",
+        "TestNFOWriteNativeReceiptEntryGlobalExactBytes",
+        "TestNFOWriteNativeReceiptHistoricalNULLIsNotBackfilled",
+        "TestNFOWriteNativeReceiptJobCopySurvivesPreparationCleanup",
+        "TestNFOWriteNativeReceiptJobExactBytes",
+        "TestNFOWriteNativeReceiptPlanMustMatchFirstParentAndTarget",
+        "TestNFOWriteNativeReceiptPlanSQLBinding",
+        "TestNFOWriteNativeReceiptPreparationExactBytesStaleSnapshots",
+        "TestNFOWriteNativeReceiptPreparationGlobalExactBytes",
+        "TestNFOWriteNativeReceiptPreparationPersistence",
+        "TestNFOWriteNativeReceiptRefusesMissingSaveAndRetainedDowngrade",
+        "TestNFOWriteNativeReceiptSQLCanonicalParity"
+      ]
+    },
+    "TestNFOQuota": {
+      "packagesPassed": 0,
+      "testsPassed": 29,
+      "testsSkipped": 0,
+      "failureEvents": 0,
+      "roots": [
+        "TestNFOQuotaCapacityEvictsBoundedRowsAndCharges",
+        "TestNFOQuotaConcurrentSnapshotsCannotExceedActorLimit",
+        "TestNFOQuotaFenceMigrationAndMissingRow",
+        "TestNFOQuotaFenceRetainedJobAndMissingIntentFence",
+        "TestNFOQuotaJobConcurrentSnapshotsAndGlobalRows",
+        "TestNFOQuotaJobGlobalBytesRollBackAdmission",
+        "TestNFOQuotaPreparationGlobalBytesConcurrentSnapshots",
+        "TestNFOQuotaPreparationGlobalRowsConcurrentSnapshots"
+      ]
+    },
+    "TestNFOWriteRootGeneration": {
+      "packagesPassed": 0,
+      "testsPassed": 54,
+      "testsSkipped": 0,
+      "failureEvents": 0,
+      "roots": [
+        "TestNFOWriteRootGenerationAfterConstraintFlush",
+        "TestNFOWriteRootGenerationApplicationFence",
+        "TestNFOWriteRootGenerationCounterCannotRegress",
+        "TestNFOWriteRootGenerationMigration",
+        "TestNFOWriteRootGenerationPreparationAndCopy",
+        "TestNFOWriteRootGenerationPreparationSQL",
+        "TestNFOWriteRootGenerationPreparedRootChangeAfterFlush",
+        "TestNFOWriteRootGenerationSQLCommitFence",
+        "TestNFOWriteRootGenerationSaveLockOrder",
+        "TestNFOWriteRootGenerationSnapshot"
+      ]
+    }
+  },
+  "windows": {
+    "packagesPassed": 3,
+    "testsPassed": 951,
+    "testsSkipped": 1002,
+    "failureEvents": 0,
+    "logSHA256": "f561344d33b2685425909fd1407b5ac85ea644ee15f7cae3e3abdd95511005c0",
+    "databaseConfigured": false
+  },
+  "quotaRegression": {
+    "packagesPassed": 1,
+    "testsPassed": 29,
+    "testsSkipped": 0,
+    "failureEvents": 0,
+    "logSHA256": "8699a50dcfbc8570137481f52639970536b3418040f5328f93ce88a5ba0a7f5f"
+  },
+  "nativeExactByteBoundaries": {
+    "packagesPassed": 1,
+    "testsPassed": 3,
+    "testsSkipped": 0,
+    "failureEvents": 0,
+    "logSHA256": "34560285b1adf850dba06ba19a14d82a92e9bfd196653b85c67d50c12c0b0da2"
+  },
+  "nativePreparationStaleSnapshots": {
+    "packagesPassed": 1,
+    "testsPassed": 4,
+    "testsSkipped": 0,
+    "failureEvents": 0,
+    "logSHA256": "daf4a836c9033752545bd3c8a1ce002f8d53c3650e0ade6a94c0fa173eaf15f1"
+  },
+  "negativeControls": {
+    "nfo-native-receipt-plan-control-red.jsonl": {
+      "packagesPassed": 0,
+      "testsPassed": 0,
+      "testsSkipped": 0,
+      "failureEvents": 4,
+      "logSHA256": "fa1b95a4a413dcb836f9b1e321ef8ca90ea49b6a14157886327e838c5da854cc",
+      "functionalSuccess": false
+    },
+    "nfo-native-receipt-copy-control-red-v2.jsonl": {
+      "packagesPassed": 0,
+      "testsPassed": 0,
+      "testsSkipped": 0,
+      "failureEvents": 2,
+      "logSHA256": "b1bcf54a12e463af792247d0f02cebd58e1e9ede6fca60bd732d15ff4bea25bd",
+      "functionalSuccess": false
+    },
+    "nfo-native-stage-receipt-control-red-v2.jsonl": {
+      "packagesPassed": 0,
+      "testsPassed": 0,
+      "testsSkipped": 0,
+      "failureEvents": 6,
+      "logSHA256": "04e4953b2a4cbd2c2c8cac09186b4680f85812d5ca40977a4c451c95bc63e3f8",
+      "functionalSuccess": false
+    },
+    "nfo-native-receipt-exact-quota-control-red.jsonl": {
+      "packagesPassed": 0,
+      "testsPassed": 0,
+      "testsSkipped": 0,
+      "failureEvents": 4,
+      "logSHA256": "e5dda27846799bae50ff354be2f7efba512280fa2d85c1583d3d6ee37800e884",
+      "functionalSuccess": false
+    },
+    "nfo-native-receipt-snapshot-fence-control-red.jsonl": {
+      "packagesPassed": 0,
+      "testsPassed": 0,
+      "testsSkipped": 0,
+      "failureEvents": 3,
+      "logSHA256": "d3f3c34c66dd69c15eb1f46f0eeca0425a48332d17e04b982c9cb9b165f771e8",
+      "functionalSuccess": false
+    }
+  },
+  "protectedFiles": {
+    "publishedSQLUnchanged": 104,
+    "requirementsSourceModSumLicenseUnchanged": true
+  },
+  "priorFailedTrials": [
+    "nfo-native-receipt-pg-interruption.json",
+    "nfo-native-receipt-quota-fixture-failure.json"
+  ],
+  "nativeWindowsDatabaseVerified": false,
+  "nativeJobAndGlobalEntryExactSnapshotMatrixComplete": false,
+  "historicalNativeReceiptBackfilled": false,
+  "targetRenameEnabled": false,
+  "settlementEnabled": false,
+  "automaticRecoveryEnabled": false,
+  "productionWriteCallerEnabled": false,
+  "windowsDirectoryMetadataDurabilityVerified": false,
+  "fullHeapOrRSSBoundVerified": false,
+  "requirementsComplete": false,
+  "fullBrandingPassed": false,
+  "candidatePublishedCIClaimed": false,
+  "formalSoakSourceCommit": "24caf7d45fb96390689dcc03685033242b7bbfea",
+  "formalSoakIncludesThisChange": false,
+  "formalTwentyFourHourPassed": false,
+  "priorInterruptedTrialCleanupFullyVerified": false
+}

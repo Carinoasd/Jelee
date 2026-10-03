@@ -1,0 +1,119 @@
+{
+  "baseCommit": "d3f48ba92e0f578527697238fef960a54c4b736a",
+  "schemaVersion": 23,
+  "sources": {
+    "internal/adapter/http/metadata_apply.go": "b0db333a04945467b185fb2d8ebf381c494d2d6adaf4f88429c4e1224b3b3c84",
+    "internal/adapter/http/nfo_item_metadata.go": "212f6e573396a188d239819dc0a7e47ddb164c2378575a592415936efdbd8cdf",
+    "internal/adapter/nfo/item_selection.go": "72ce2f3a23560393cbfa13451babe09ea7c161323f83dcfec77f2d5a82628c60",
+    "internal/adapter/postgres/nfo_item_http_test.go": "24031e3c330478eebcf0d91017cf9b2cb228b80796c182da06d2a080d181fcfd",
+    "internal/app/metadata_apply.go": "fb0a2aa15af8efabd6243445b5d02b2f986791aca24dec85207e872b1b858ce5",
+    "internal/app/nfo_item_apply.go": "5d81950414f709ba163329ea66ebe32d299bb50ca76453250cf72b2307c24f4c",
+    "internal/app/nfo_item_fields_ports.go": "7cf3b05104ee03aa765d7d6b1021015cfdbc0e3cd6fe8a0967468495ee57b354",
+    "internal/platform/outbound/metadata_apply_integration_test.go": "04a70951193592e41a179b81dbb0fbe4a76e76b1f3b4e4dadcb29a2811ab9054",
+    "internal/adapter/nfo/item_observation_test.go": "ed8c6acde947ee87bcad57197759962ad9f513cd01c07f387acbc9404ce2e64d"
+  },
+  "scope": "Reader-owned live filesystem observation across provider waiting; root/parent/media/NFO identities rechecked without retained file handles, independent of unchanged bytes/hash/size/mtime; existing candidate and field guards remain",
+  "windowsFullGo": {
+    "passedPackages": 29,
+    "passedTestEventsIncludingParents": 3183,
+    "skippedTestEvents": 457,
+    "failedEvents": 0
+  },
+  "windowsSkips": {
+    "original435": "same identities retained",
+    "addedDatabaseTests": [
+      "TestItemMetadataActualHTTPAndPostgres",
+      "TestItemMetadataAuthorizationCancellationAndMigration",
+      "TestItemMetadataPersistenceConflictAndAudit",
+      "TestItemMetadataSQLConstraints",
+      "TestMetadataImagePreferenceMigrationAndConstraints",
+      "TestMetadataImagePreferencePersistenceAndLegacyUpdates",
+      "TestMetadataPreferencesActualHTTPAndPostgres",
+      "TestMetadataPreferencesAuthorizationAndValidation",
+      "TestMetadataPreferencesMigrationDefaultAndCleanRollback",
+      "TestMetadataPreferencesPersistenceConflictAndAudit",
+      "TestNFOFusionAllProtectedReviewAndFinalScopeChecks",
+      "TestNFOFusionMixedSourcesOneRevisionAndAudit",
+      "TestNFOFusionProviderAndAuditFailureRollBackBothSources/audit",
+      "TestNFOFusionProviderAndAuditFailureRollBackBothSources/provider-field",
+      "TestNFOItemActualFilesHTTPAndPostgres",
+      "TestNFOItemAtomicRollbackAndScopeInvalidation",
+      "TestNFOItemPersistenceManualPriorityAndSeparateLocks",
+      "TestNFOItemScopeAuthorizationAndSourceOwnership",
+      "TestNFOItemSourceRemainsAboveTMDBWhenReadingDisabled",
+      "TestTMDBMetadataMigrationConstraintsAndAtomicFailure",
+      "TestTMDBMetadataPersistencePriorityAndManualTakeover"
+    ],
+    "outbound": "TestTMDBMetadataThroughTLSHTTPAndPostgres",
+    "reason": "URL unset on Windows; all extra identities passed in full real PostgreSQL or native HTTP/TLS/NFO/PostgreSQL"
+  },
+  "postgresRace": {
+    "passedPackages": 1,
+    "passedTestEventsIncludingParents": 731,
+    "skippedTestEvents": 0,
+    "failedEvents": 0,
+    "elapsedSeconds": 366.203
+  },
+  "nativeLinuxRace": {
+    "passedPackages": 5,
+    "passedTestEventsIncludingParents": 1049,
+    "skippedTestEvents": 0,
+    "failedEvents": 0
+  },
+  "nativeLinuxPackages": [
+    "nfo",
+    "domain",
+    "app",
+    "HTTP",
+    "runtime"
+  ],
+  "formalFirstPositive": {
+    "passedPackages": 1,
+    "passedTestEventsIncludingParents": 1,
+    "skippedTestEvents": 0,
+    "failedEvents": 0,
+    "elapsedSeconds": 68.945
+  },
+  "negative": {
+    "change": "disable the actual reader observation cross-read root/parent/media/NFO physical identity comparison",
+    "leafFailures": 1,
+    "observed": "physical NFO ownership replacement committed root 200",
+    "restoredSource": "internal/adapter/nfo/item_selection.go",
+    "restoredSha256": "72ce2f3a23560393cbfa13451babe09ea7c161323f83dcfec77f2d5a82628c60"
+  },
+  "formalRestored": {
+    "passedPackages": 1,
+    "passedTestEventsIncludingParents": 1,
+    "skippedTestEvents": 0,
+    "failedEvents": 0,
+    "elapsedSeconds": 69.342
+  },
+  "formalCases": [
+    "root directory swapped during provider HTTP, database root path unchanged",
+    "parent directory swapped during provider HTTP",
+    "media file swapped during provider HTTP",
+    "NFO file swapped during provider HTTP",
+    "NFO bytes/hash/size/mtime and candidate names held equal in all four cases",
+    "all four return 409 and preserve revision, HomeVideo classification, existing fields and zero apply audits",
+    "original owned fixture files restored and bytes checked",
+    "valid NFO disappears during provider lookup: 409 and unchanged revision/classification",
+    "existing selection/fusion/manual/429/cancel/concurrent manual/generation/root database cases and 120 synthetic confirmation writes remain passing"
+  ],
+  "observationOwnership": "Selection returns cloned fields and locked-field arrays; private scope and FileInfo do not enter HTTP/audit; all file handles closed before provider request",
+  "nfoOnly": "actual reader-owned Observe/Recheck delegated by HTTP/PostgreSQL observer wrapper; original safe file, mutation/generation/revision and conventional filename tests pass",
+  "syntheticMatrix": {
+    "movies": 100,
+    "series": 20,
+    "confirmedWrites": 120,
+    "writeFailures": 0,
+    "realInventoryIncluded": false
+  },
+  "fullVet": "PASS",
+  "productionBuild": "PASS cmd/jelee",
+  "filesystemLimit": "Recheck checkpoints are not an atomic filesystem snapshot; changes after final observation remain possible and stalled filesystem operations have no hard cancellation guarantee",
+  "limits": [
+    "Only valid four-field NFO observations; initially absent/invalid returns 503; safe provider fallback and persisted NFO-invalid/missing status remain incomplete",
+    "Season/episode/wrappers/multiple item sources, actual inventory/worker/hierarchy, other fields, editable NFO, external metadata removal and frontend remain incomplete",
+    "Full branding and actual ABI differences still fail; full G14/G39/stage3/project not completed"
+  ]
+}

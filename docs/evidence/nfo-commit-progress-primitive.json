@@ -1,0 +1,81 @@
+{
+  "scope": "Private preparation checkpoint primitive; actual process exits with file-backed first observations",
+  "baseCommit": "4a22153fb96a1f4ffa460a584cde45a12858ba7b",
+  "sources": [
+    {
+      "path": "internal/adapter/nfo/commit_files.go",
+      "sha256": "683cfd54fa224abb1c3c744c6ae8bbe1d167803fe3c5caf7803e7425b223f82f"
+    },
+    {
+      "path": "internal/adapter/nfo/commit_progress.go",
+      "sha256": "dd7bcf41ffbcd5ff288b957e0bb69a409f8b528d2772b41298e70a53e828deda"
+    },
+    {
+      "path": "internal/adapter/nfo/commit_progress_test.go",
+      "sha256": "fdc9afe125a697ed98c74ff5c6f4254864654895565eeb6c29e96dfd5c489269"
+    }
+  ],
+  "logs": [
+    {
+      "log": "nfo-progress-selected-windows-v2.jsonl",
+      "packagePass": 1,
+      "normalNoOpHelperPassIncluded": 1,
+      "testPass": 12,
+      "progressCasesEachRunAndPassOnce": true,
+      "skipped": [],
+      "sha256": "feaaa94c1bcede0d3e47b4bfb670e9a377955274a2888ae641fc896e3c3e34b8",
+      "failed": 0
+    },
+    {
+      "log": "nfo-progress-selected-linux-v1.jsonl",
+      "packagePass": 1,
+      "normalNoOpHelperPassIncluded": 1,
+      "testPass": 12,
+      "progressCasesEachRunAndPassOnce": true,
+      "skipped": [],
+      "sha256": "9d33ca38a600b255b0d949603be074138e320d2d6ce87f9859391737eeb914fe",
+      "failed": 0
+    },
+    {
+      "log": "nfo-progress-package-windows-v1.jsonl",
+      "packagePass": 1,
+      "normalNoOpHelperPassIncluded": 1,
+      "testPass": 395,
+      "progressCasesEachRunAndPassOnce": true,
+      "skipped": [
+        "TestDirectoryNFODoesNotFollowSymlink",
+        "TestNativePreparationSourceRejectsMissingWrongKindAndLinks/symlink",
+        "TestNativePreparationSourceRejectsMissingWrongKindAndLinks/ancestor_symlink",
+        "TestNativePreparationSourceRejectsMissingWrongKindAndLinks/nfo_symlink",
+        "TestReadFileBoundaryAndOriginalProtection/symlink_escape"
+      ],
+      "sha256": "5a0e19cd8eddd17a060c5daa5513394d6682562bcbd071a2df79f45f99f4e3a1",
+      "failed": 0
+    },
+    {
+      "log": "nfo-progress-package-linux-v1.jsonl",
+      "packagePass": 1,
+      "normalNoOpHelperPassIncluded": 1,
+      "testPass": 413,
+      "progressCasesEachRunAndPassOnce": true,
+      "skipped": [
+        "TestNFOFileLockWindowsCaseAliases"
+      ],
+      "sha256": "e144bb3a4fe303bde71b04430dc7f1799a4f68c70591336b275b19ecc431e3a1",
+      "failed": 0
+    }
+  ],
+  "control": {
+    "formalSourceUnchanged": true,
+    "sha256": "82cdab93659ae086b5d7a89ce3be93c287675fb6a571efc1ba39d0db81fcbe6e",
+    "log": "nfo-progress-resume-control-red-v1.jsonl",
+    "failedTestEvents": 5,
+    "retainedArtifactMarkers": 4,
+    "goExit": 1
+  },
+  "postgresCheckpointConnected": false,
+  "creationBeforeFirstCheckpointRecoveryComplete": false,
+  "windowsDirectorySyncIsStub": true,
+  "formalWorkerEnabled": false,
+  "fullG00G51Acceptance": false
+}

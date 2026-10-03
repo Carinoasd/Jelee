@@ -8,6 +8,7 @@ import (
 
 	"github.com/MoYuanCN/Jelee/internal/app"
 	"github.com/MoYuanCN/Jelee/internal/domain"
+	"github.com/MoYuanCN/Jelee/internal/platform/resources"
 )
 
 type ignoreRunFake struct {
@@ -80,10 +81,14 @@ func TestIgnoreRunnerBatchFailureAndCompletion(t *testing.T) {
 	for _, mode := range []string{"save-failure", "missing-done", "after-done", "success"} {
 		t.Run(mode, func(t *testing.T) {
 			f := &ignoreRunFake{}
+			budget, _ := resources.New(resources.Limits{CPU: 1, IO: 1, Total: 1, Queue: 1})
 			if mode == "save-failure" {
 				f.saveError = sentinel
 			}
 			scanner := ignoreScannerFunc(func(_ context.Context, _ domain.ScanDirectory, _ domain.IgnoreIntent, emit func(domain.IgnoreScanBatch) error) error {
+				if s := budget.Stats(); s != (resources.Stats{IO: 1, Total: 1}) {
+					t.Errorf("ignore scan budget: %+v", s)
+				}
 				b := domain.IgnoreScanBatch{Inventory: domain.ScanBatch{Done: mode != "missing-done"}}
 				err := emit(b)
 				if mode == "after-done" {
@@ -94,7 +99,7 @@ func TestIgnoreRunnerBatchFailureAndCompletion(t *testing.T) {
 				} // Even a buggy scanner cannot hide DB failure.
 				return err
 			})
-			r := &Runner{options: Options{DBOperationTimeout: time.Second, Ignore: &IgnoreOptions{Repository: f, Scanner: scanner}}}
+			r := &Runner{options: Options{Budget: budget, DBOperationTimeout: time.Second, Ignore: &IgnoreOptions{Repository: f, Scanner: scanner}}}
 			err, storage := r.executeIgnoreInventory(context.Background(), domain.JobLease{}, domain.IgnoreIntent{})
 			switch mode {
 			case "save-failure":
@@ -110,7 +115,7 @@ func TestIgnoreRunnerBatchFailureAndCompletion(t *testing.T) {
 					t.Fatal("completed inventory failed", err)
 				}
 			}
-			if f.saved != 1 {
+			if f.saved != 1 || budget.Stats() != (resources.Stats{}) {
 				t.Fatal("unexpected persisted batches", f.saved)
 			}
 		})

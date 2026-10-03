@@ -85,7 +85,6 @@
     "TasksMaintenanceCategory": "Maintenance",
     "TasksLibraryCategory": "Library",
     "TasksApplicationCategory": "Application",
-    "TasksChannelsCategory": "Internet Channels",
     "TaskCleanActivityLog": "Clean Activity Log",
     "TaskCleanActivityLogDescription": "Deletes activity log entries older than the configured age.",
     "TaskCleanCache": "Clean Cache Directory",
@@ -106,8 +105,6 @@
     "TaskUpdatePluginsDescription": "Downloads and installs updates for plugins that are configured to update automatically.",
     "TaskCleanTranscode": "Clean Transcode Directory",
     "TaskCleanTranscodeDescription": "Deletes transcode files more than one day old.",
-    "TaskRefreshChannels": "Refresh Channels",
-    "TaskRefreshChannelsDescription": "Refreshes internet channel information.",
     "TaskDownloadMissingLyrics": "Download missing lyrics",
     "TaskDownloadMissingLyricsDescription": "Downloads lyrics for songs",
     "TaskDownloadMissingSubtitles": "Download missing subtitles",
@@ -121,5 +118,6 @@
     "TaskMoveTrickplayImages": "Migrate Trickplay Image Location",
     "TaskMoveTrickplayImagesDescription": "Moves existing trickplay files according to the library settings.",
     "CleanupUserDataTask": "User data cleanup task",
-    "CleanupUserDataTaskDescription": "Cleans all user data (Watch state, favorite status etc) from media that is no longer present for at least 90 days."
+    "CleanupUserDataTaskDescription": "Cleans all user data (Watch state, favorite status etc) from media that is no longer present for at least 90 days.",
+    "FeatureRemoved": "Discovery, live TV, recordings and channels are not supported."
 }

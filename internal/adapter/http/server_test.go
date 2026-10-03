@@ -99,7 +99,8 @@ type fixture struct {
 
 func validConfig() config.Config {
 	return config.Config{
-		Listen: "127.0.0.1:8097", AllowedHosts: []string{"localhost", "127.0.0.1", "::1"},
+		Resources: config.DefaultResourcesConfig(),
+		Listen:    "127.0.0.1:8097", AllowedHosts: []string{"localhost", "127.0.0.1", "::1"},
 		DatabaseURL: "postgres://localhost/jelee", MaxConnections: 2, MaxStreams: 2,
 		RequestTimeoutSeconds: 1,
 	}
@@ -251,7 +252,7 @@ func TestRolloutFlagsAndCapabilities(t *testing.T) {
 			if system.Data.Name != "Jelee" || system.Data.DevMode || system.Data.Capabilities["catalog"] != flags.catalog || system.Data.Capabilities["directDelivery"] != flags.direct {
 				t.Fatalf("capabilities mismatch: %+v", system)
 			}
-			for _, capability := range []string{"transcoding", "hls", "dash", "remux", "downloads"} {
+			for _, capability := range []string{"transcoding", "hls", "dash", "remux", "downloads", "dlna", "discovery", "liveTv", "epg", "tuners", "recordings", "channels"} {
 				value, exists := system.Data.Capabilities[capability]
 				if !exists || value {
 					t.Errorf("forbidden capability %q absent or enabled", capability)

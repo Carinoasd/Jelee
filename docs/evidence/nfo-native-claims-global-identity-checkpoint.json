@@ -1,0 +1,69 @@
+{
+  "schema": 54,
+  "candidateUnpublished": true,
+  "baseCommit": "3d79ed9577c37f074a0498dca720d79ff50bc6cc",
+  "sourceHashes": {
+    "internal/adapter/postgres/store.go": "a29b1e9507f411e87b9050f91bde7303f0ab56705eb9d78dd64d8a451be20a55",
+    "internal/adapter/postgres/nfo_commit_unresolved_identity_test.go": "954a8b0f070bc091483818a58417c900be9dbfe5a3a05fddc80581b3fad895a0",
+    "internal/adapter/postgres/nfo_write_native_receipt_test.go": "1afc50cb1cf6c62864829ae63859b2e02338f91067867dbaeb004c04ded1ad26",
+    "internal/adapter/postgres/migrations/000054_nfo_unresolved_native_claims.up.sql": "e6fbe60583d2a4265f726fa6329e3599d5f9ce000411736cf67da301db1bb982",
+    "internal/adapter/postgres/migrations/000054_nfo_unresolved_native_claims.down.sql": "3ac040a94d3d17650b909e39c017f80c995a93f404ac4399cbe470f2e883620d"
+  },
+  "privateLogHashes": {
+    "nfo-native-claims-cross-role-formal-v1.jsonl": "1fed76a103ab0de7065ee7df84b7182f9a0cce1985f66a312ca7e53978358343",
+    "nfo-native-claims-windows-real-pg-v2.jsonl": "0cb448ea2d4b2f116fe8464bb9dbad5285e0d757608c2d962e59d7d695511d47",
+    "nfo-native-claims-primary-key-control-red-v3.jsonl": "90ea0c4bd10d16d1dadf6c7a4e193d263984d40d9f478818798afcf3ee4f74ae"
+  },
+  "key": "identity",
+  "kindRetainedForFirstProofRole": true,
+  "crossRoleExcludedSelectedTests": true,
+  "linuxPostgresRaceSelected": {
+    "exitCode": 0,
+    "testPass": 30,
+    "skip": 0,
+    "fail": 0,
+    "rootCount": 15
+  },
+  "windowsRealPostgresSelected": {
+    "exitCode": 0,
+    "testPass": 21,
+    "skip": 0,
+    "fail": 0,
+    "rootCount": 6,
+    "fullSuite": false,
+    "ownedRelayChildProcessesAfter": 0
+  },
+  "nativeAliasScopes": [
+    "same-role across libraries",
+    "both cross-role directions",
+    "same-job alias rejected at Prepare with ErrInvalid"
+  ],
+  "historyMigration": {
+    "bothCrossRoleDirections": true,
+    "exactConstraint": "nfo_native_target_unresolved",
+    "sqlState": "23505",
+    "firstJournalsAndReceiptsRetained": true,
+    "ddlRolledBack": true,
+    "metricsRetained": true,
+    "MigrateDirtyVersion54Verified": true
+  },
+  "causalControl": {
+    "goExitCode": 1,
+    "failEvents": 2,
+    "skip": 0,
+    "onlyDisabledConstraint": "nfo_native_target_unresolved",
+    "repeatableReadConflictingJournalCommitted": true,
+    "formalTestBytesUnchanged": true
+  },
+  "supersededKindScopeRegression": "nfo-native-claims-kind-scope-regression.json",
+  "fullFixedCandidateRegressionPassed": false,
+  "runtimeTargetCommitRecoveryEnabled": false,
+  "fullGoalComplete": false,
+  "limitations": [
+    "New source freeze and complete compiled universe/regression remain required",
+    "Selected Windows PG coverage only",
+    "Serializable abort proves rollback; primary-key causality proven by RR control",
+    "Target commit/backup/rollback/settlement/crash recovery, partial stage, Windows directory durability, formal worker bulk operations and heap/RSS remain incomplete",
+    "Full branding gate remains failing"
+  ]
+}

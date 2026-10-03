@@ -65,7 +65,7 @@ func (s *Server) accountEndpoint(admin, listQuery bool, operation accountOperati
 		// Account bodies are small. Bound network reads separately from the request
 		// context, since cancellation alone does not unblock a slow HTTP body reader.
 		_ = http.NewResponseController(w).SetReadDeadline(time.Now().Add(s.cfg.RequestTimeout()))
-		actor := domain.Actor{UserID: principal.UserID, SessionID: principal.SessionID, IP: ClientIP(r)}
+		actor := domain.Actor{UserID: principal.UserID, SessionID: principal.SessionID, IP: requestClientIP(r)}
 		data, status, err := operation(w, r, actor)
 		if err != nil {
 			WriteError(w, r, err)
@@ -101,7 +101,7 @@ func (s *Server) login(w http.ResponseWriter, r *http.Request) {
 		WriteError(w, r, domain.ErrInvalid)
 		return
 	}
-	ip := ClientIP(r)
+	ip := requestClientIP(r)
 	if allowed, retry := s.loginLimiter.Allow(ip, input.Name); !allowed {
 		seconds := int64((retry + time.Second - 1) / time.Second)
 		if seconds < 1 {

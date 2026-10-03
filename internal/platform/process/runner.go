@@ -66,12 +66,14 @@ func (Result) String() string   { return "process result (output redacted)" }
 func (Result) GoString() string { return "process result (output redacted)" }
 
 type Runner struct {
-	config  Config
-	tools   map[string]Tool
-	slots   chan struct{}
-	started atomic.Uint64
-	active  atomic.Int64
-	peak    atomic.Int64
+	config    Config
+	tools     map[string]Tool
+	slots     chan struct{}
+	started   atomic.Uint64
+	active    atomic.Int64
+	peak      atomic.Int64
+	cancelled atomic.Uint64
+	timedOut  atomic.Uint64
 }
 
 // Stats contains aggregate process lifecycle counts without paths or output.
@@ -83,13 +85,17 @@ type Stats struct {
 	Started uint64
 	Active  int64
 	Peak    int64
+	// Count context-triggered termination before exit readiness was observed.
+	// They exclude pre-start cancellation and normal exits noticed first.
+	Cancelled uint64
+	TimedOut  uint64
 }
 
 func (r *Runner) Stats() Stats {
 	if r == nil {
 		return Stats{}
 	}
-	return Stats{Started: r.started.Load(), Active: r.active.Load(), Peak: r.peak.Load()}
+	return Stats{Started: r.started.Load(), Active: r.active.Load(), Peak: r.peak.Load(), Cancelled: r.cancelled.Load(), TimedOut: r.timedOut.Load()}
 }
 
 func validName(value string) bool {
@@ -307,6 +313,11 @@ func (r *Runner) run(ctx context.Context, request Request, exitError func(int) e
 	select {
 	case <-ctx.Done():
 		resultErr = contextError(ctx)
+		if errors.Is(ctx.Err(), context.DeadlineExceeded) {
+			r.timedOut.Add(1)
+		} else {
+			r.cancelled.Add(1)
+		}
 	case <-limit:
 		resultErr = ErrOutputLimit
 	case waitError = <-exited:

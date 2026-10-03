@@ -226,3 +226,9 @@ Windows `fmt-check` 让固定 gofmt 递归检查 cmd/internal/tools，避免长�
 测试默认查找宿主已有 Git；可用 `JELEE_IGNORE_ORACLE_GIT` 指定绝对可执行文件路径。本地验证使用清单中登记的现有二进制；CI 使用 runner 自带版本并在 `IGNORE_ORACLE_REPORT` 记录实际完整路径、版本、SHA256、语料 hash 与平台差异。此记录是来源盘点，不是跨机器固定 Git 分发包，也不会安装工具或修改全局 Git 配置。
 
 测试使用项目 `.testdata` 下新建的私有目录，隔离 system/global config、templates、excludes、HOME 和环境变量，固定参数仅执行 --version、init/check-ignore。候选经 NUL 分隔 stdin 传入，输入/输出有上限；Git 单程序最多5秒，命令与 matcher 共用60秒 context。普通文件 I/O、二进制 hash 与清理不保证可被硬中断，不能把该 context 称为整个测试的硬期限。结束清理本次创建的目录。Windows 无法真实创建的语料单列，仍执行纯值黄金测试；原生 Linux 另行对照。CI 保存两平台 `.testdata/ignore-oracle.txt` 7天。
+
+## ABI 遷移門禁的本機產物
+
+門禁使用固定的ApiCompat `10.0.401`，只安裝在專案的 `.tools/abi/10.0.401`；實際 `--version` 輸出另與核准完整版本核對。工具版本及逐符號契約記錄於 `tools/abi/expected-breaks.json`，用途為開發／CI檢查，不隨產品分發。
+
+根目錄 `/abi-base/`、`/abi-head/`、`/abi-naming-base/` 是下載或建置的組件，`/abi-report/` 是原始診斷、退出碼與驗證結果。四個目錄均以精確根路徑忽略，允許刪除後由CI或驗證流程重建；`scripts/fixtures/` 與 `tools/abi/` 中受審查的文字契約仍納入Git。詳見[ABI門禁](abi-report-check.md)。

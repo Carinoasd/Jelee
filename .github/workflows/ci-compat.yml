@@ -1,4 +1,8 @@
 ﻿name: ABI Compatibility
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
+
 on:
   pull_request:
 
@@ -72,18 +76,62 @@ jobs:
           if-no-files-found: error
           path: out/
 
+  abi-naming-base:
+    name: ABI - Naming baseline
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      DOTNET_CLI_UI_LANGUAGE: en-US
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout reviewed Naming identity transition
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: Carinoasd/Jelee
+          ref: 202b813a955cfc64ab87992484bf00b8aa72221a
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Build real Naming baseline and its project dependencies
+        run: |
+          test "$(git rev-parse HEAD)" = '202b813a955cfc64ab87992484bf00b8aa72221a'
+          dotnet build Jelee.Naming/Jelee.Naming.csproj -o ./out
+          git rev-parse HEAD > out/baseline.sha
+
+      - name: Upload Naming baseline
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: abi-naming-base
+          retention-days: 14
+          if-no-files-found: error
+          path: out/
+
   abi-diff:
     permissions:
-      pull-requests: write  #  to create or update comment (peter-evans/create-or-update-comment)
+      contents: read
 
     name: ABI - Difference
+    timeout-minutes: 20
+    env:
+      DOTNET_CLI_UI_LANGUAGE: en-US
     if: ${{ github.event_name == 'pull_request' }}
     runs-on: ubuntu-latest
     needs:
       - abi-head
       - abi-base
+      - abi-naming-base
 
     steps:
+      - name: Checkout reviewed gate and manifest
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          repository: ${{ github.event.pull_request.head.repo.full_name }}
+
       - name: Download abi-head
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
@@ -96,64 +144,57 @@ jobs:
           name: abi-base
           path: abi-base
 
-      - name: Setup ApiCompat
+      - name: Download abi-naming-base
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: abi-naming-base
+          path: abi-naming-base
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Setup reviewed ApiCompat version
         run: |
-          dotnet tool install --global Microsoft.DotNet.ApiCompat.Tool
+          dotnet tool install --tool-path .tools/abi/10.0.401 Microsoft.DotNet.ApiCompat.Tool --version 10.0.401
+          mkdir -p abi-report
+          DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1 .tools/abi/10.0.401/apicompat --version > abi-report/tool-version.txt
 
-      - name: Run ApiCompat
-        id: diff
+      - name: Validate ABI guard failure cases
+        run: python3 -B scripts/test_abi_guard.py
+
+      - name: Run ApiCompat and validate reviewed migration contract
         run: |
-          {
-            echo 'body<<EOF'
-            for file in Jellyfin.Data.dll MediaBrowser.Common.dll MediaBrowser.Controller.dll MediaBrowser.Model.dll Emby.Naming.dll Jellyfin.Extensions.dll Jellyfin.MediaEncoding.Keyframes.dll Jellyfin.Database.Implementations.dll; do
-              COMPAT_OUTPUT="$( { apicompat --left ./abi-base/${file} --right ./abi-head/${file}; } 2>&1 || true )"
-              if [ "APICompat ran successfully without finding any breaking changes." != "${COMPAT_OUTPUT}" ]; then
-                printf "\n${file}\n${COMPAT_OUTPUT}\n"
-              fi
-            done
-            echo EOF
-          } >> $GITHUB_OUTPUT
+          mkdir -p abi-report
+          compare() {
+            left_file="$1"
+            right_file="$2"
+            report_name="$3"
+            status=0
+            if [ ! -s "$left_file" ] || [ ! -s "$right_file" ]; then
+              printf 'Missing or empty comparison input: %s / %s\n' "$left_file" "$right_file" > "abi-report/${report_name}.txt"
+              status=125
+            else
+              DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1 .tools/abi/10.0.401/apicompat --left "$left_file" --right "$right_file" > "abi-report/${report_name}.txt" 2>&1 || status=$?
+            fi
+            printf '%s\n' "$status" > "abi-report/${report_name}.exit"
+          }
+          for file in Jellyfin.Data.dll MediaBrowser.Common.dll MediaBrowser.Controller.dll MediaBrowser.Model.dll Jelee.Naming.dll Jellyfin.Extensions.dll Jellyfin.MediaEncoding.Keyframes.dll Jellyfin.Database.Implementations.dll; do
+            base_file="${file}"
+            if [ "${file}" = "Jelee.Naming.dll" ] && [ ! -f "./abi-base/${base_file}" ]; then
+              base_file="Emby.Naming.dll"
+            fi
+            compare "./abi-base/${base_file}" "./abi-head/${file}" "upstream-${file}"
+          done
+          compare './abi-naming-base/Jelee.Naming.dll' './abi-head/Jelee.Naming.dll' 'naming-contract'
+          python3 -B scripts/check-abi-report.py
 
-      - name: Find difference comment
-        uses: peter-evans/find-comment@b30e6a3c0ed37e7c023ccd3f1db5c6c0b0c23aad # v4.0.0
-        id: find-comment
+      - name: Retain ABI report
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          issue-number: ${{ github.event.pull_request.number }}
-          direction: last
-          body-includes: abi-diff-workflow-comment
-
-      - name: Reply or edit difference comment (changed)
-        uses: peter-evans/create-or-update-comment@e8674b075228eee787fea43ef493e45ece1004c9 # v5.0.0
-        if: ${{ steps.diff.outputs.body != '' }}
-        with:
-          issue-number: ${{ github.event.pull_request.number }}
-          comment-id: ${{ steps.find-comment.outputs.comment-id }}
-          edit-mode: replace
-          token: ${{ secrets.JF_BOT_TOKEN }}
-          body: |
-            <!--abi-diff-workflow-comment-->
-            <details>
-            <summary>ABI Difference</summary>
-
-            ```
-            ${{ steps.diff.outputs.body }}
-            ```
-
-            </details>
-
-      - name: Reply or edit difference comment (unchanged)
-        uses: peter-evans/create-or-update-comment@e8674b075228eee787fea43ef493e45ece1004c9 # v5.0.0
-        if: ${{ steps.diff.outputs.body == '' && steps.find-comment.outputs.comment-id != '' }}
-        with:
-          issue-number: ${{ github.event.pull_request.number }}
-          comment-id: ${{ steps.find-comment.outputs.comment-id }}
-          edit-mode: replace
-          token: ${{ secrets.JF_BOT_TOKEN }}
-          body: |
-            <!--abi-diff-workflow-comment-->
-            <details>
-            <summary>ABI Difference</summary>
-
-            No changes to the ABI found. See history of this comment for previous changes.
-
-            </details>
+          name: abi-report
+          retention-days: 14
+          if-no-files-found: error
+          path: abi-report/

@@ -107,31 +107,110 @@ func normalizeKey(key string) string {
 	return strings.NewReplacer("-", "", "_", "", " ", "").Replace(key)
 }
 
-func forbiddenField(key string, value any) bool {
-	key = normalizeKey(key)
-	switch key {
-	case "videocodec", "audiocodec", "maxvideobitrate", "maxaudiobitrate", "maxstreamingbitrate", "videobitrate", "audiobitrate", "transcodereasons", "transcodingreasons", "maxwidth", "maxheight", "width", "height", "framerate", "maxframerate", "videoprofile", "videolevel":
+// Parameter names below keep the upstream spelling so reviews can diff them
+// against the upstream API controllers (video stream, audio stream, dynamic
+// HLS, media info/PlaybackInfo, universal audio), the streaming request DTOs,
+// the encoding job options and the transcoding profile model. Matching is
+// case-insensitive and ignores '-', '_' and spaces (see normalizeKey).
+var (
+	// transformParams only steer the encoder, the remuxer or the segmenter, so
+	// their presence with any value is a request to change the delivered bytes.
+	transformParams = []string{
+		// Codec selection, including "copy", which is remuxing (off by default).
+		"videoCodec", "audioCodec", "subtitleCodec",
+		// Bitrate ceilings and targets.
+		"maxVideoBitrate", "maxAudioBitrate", "maxStreamingBitrate", "videoBitRate", "audioBitRate",
+		// Geometry, frame rate and video encoder constraints.
+		"width", "height", "maxWidth", "maxHeight", "framerate", "maxFramerate",
+		"profile", "level", "videoProfile", "videoLevel", "videoRangeType", "codecTag", "rotation",
+		"maxRefFrames", "maxVideoBitDepth", "videoBitDepth", "requireAvc", "requireNonAnamorphic", "deInterlace",
+		// Audio encoder constraints.
+		"audioSampleRate", "maxAudioSampleRate", "audioChannels", "maxAudioChannels",
+		"maxAudioBitDepth", "audioBitDepth", "transcodingMaxAudioChannels", "transcodingAudioChannels",
+		"enableAudioVbrEncoding",
+		// Muxer and timestamp handling.
+		"copyTimestamps", "breakOnNonKeyFrames", "enableMpegtsM2TsMode", "estimateContentLength", "cpuCoreLimit",
+		// Positional legacy encoder settings ("params" is split on ';').
+		"params",
+		// Segmenting, adaptive streaming and manifest-embedded subtitles.
+		"minSegments", "actualSegmentLengthTicks", "enableAdaptiveBitrateStreaming", "enableSubtitlesInManifest",
+		"alwaysBurnInSubtitleWhenTranscoding",
+		// Transcode bookkeeping.
+		"transcodeReasons", "transcodingReasons",
+	}
+	// directDefaultTrue are switches whose true value (or the upstream default
+	// when omitted/null) means original delivery; any other value disables it.
+	directDefaultTrue = []string{"enableDirectPlay", "enableDirectStream", "allowVideoStreamCopy", "allowAudioStreamCopy", "enableAutoStreamCopy"}
+	// staticParam is false by default upstream, so only an explicit true is direct.
+	staticParam = "static"
+	// streamOptionNames are codec-qualified options ("h264-profile=high") the
+	// upstream request parser forwards from any lower-case query key.
+	streamOptionNames = []string{"profile", "level", "rangeType", "codecTag", "rotation", "maxRefFrames", "videoBitDepth", "audioBitDepth", "audioChannels", "deInterlace"}
+	// forbiddenPrefixes catch whole families such as segmentLength,
+	// segmentContainer, hlsSegmentLength, transcodingProtocol and
+	// transcodingContainer.
+	forbiddenPrefixes = []string{"segment", "hls", "dash", "transcode", "transcoding"}
+
+	transformSet     = normalizedSet(transformParams)
+	directDefaultSet = normalizedSet(directDefaultTrue)
+	streamOptionSet  = normalizedSet(streamOptionNames)
+)
+
+func normalizedSet(names []string) map[string]bool {
+	set := make(map[string]bool, len(names))
+	for _, name := range names {
+		set[normalizeKey(name)] = true
+	}
+	return set
+}
+
+func forbiddenField(rawKey string, value any) bool {
+	key := normalizeKey(rawKey)
+	if transformSet[key] {
 		return true
+	}
+	if directDefaultSet[key] {
+		return !isTrue(value) && !isNullish(value)
+	}
+	if i := strings.LastIndexByte(rawKey, '-'); i > 0 && streamOptionSet[normalizeKey(rawKey[i+1:])] {
+		return true
+	}
+	switch key {
 	case "transcodingprofiles":
 		profiles, ok := value.([]any)
 		return !ok || len(profiles) != 0
-	case "enabletranscoding", "allowvideostreamcopy", "allowaudiostreamcopy":
-		// Explicitly disabling transcoding or permitting stream copy is safe.
-		if key == "enabletranscoding" {
-			return !isFalse(value)
-		}
-		return isFalse(value)
-	case "static":
-		return isFalse(value)
+	case "enabletranscoding":
+		// Explicitly disabling transcoding is safe; the upstream default is on.
+		return !isFalse(value)
+	case staticParam:
+		return !isTrue(value)
 	case "protocol", "streamingprotocol", "container":
 		text, _ := value.(string)
 		text = strings.ToLower(strings.TrimSpace(text))
 		return text == "hls" || text == "dash" || text == "m3u8" || text == "mpd"
 	case "subtitlemethod", "subtitledeliverymethod":
-		text, _ := value.(string)
-		return strings.EqualFold(text, "encode") || strings.EqualFold(text, "burnin") || strings.EqualFold(text, "burn-in")
+		// External sidecar files and tracks already embedded in the original
+		// file are direct; Encode/BurnIn, Hls and Drop need a new output.
+		// Numeric forms are the upstream enum values Embed=1 and External=2.
+		switch v := value.(type) {
+		case nil:
+			return false
+		case string:
+			switch normalizeKey(strings.TrimSpace(v)) {
+			case "", "external", "embed", "1", "2":
+				return false
+			}
+		case float64:
+			return v != 1 && v != 2
+		}
+		return true
 	}
-	return strings.HasPrefix(key, "segment") || strings.HasPrefix(key, "hls") || strings.HasPrefix(key, "dash") || strings.HasPrefix(key, "transcode") || strings.HasPrefix(key, "transcoding")
+	for _, prefix := range forbiddenPrefixes {
+		if strings.HasPrefix(key, prefix) {
+			return true
+		}
+	}
+	return false
 }
 
 func isFalse(value any) bool {
@@ -139,7 +218,27 @@ func isFalse(value any) bool {
 	case bool:
 		return !v
 	case string:
-		return strings.EqualFold(strings.TrimSpace(v), "false") || v == "0"
+		return strings.EqualFold(strings.TrimSpace(v), "false") || strings.TrimSpace(v) == "0"
+	}
+	return false
+}
+
+func isTrue(value any) bool {
+	switch v := value.(type) {
+	case bool:
+		return v
+	case string:
+		return strings.EqualFold(strings.TrimSpace(v), "true") || strings.TrimSpace(v) == "1"
+	}
+	return false
+}
+
+func isNullish(value any) bool {
+	switch v := value.(type) {
+	case nil:
+		return true
+	case string:
+		return strings.TrimSpace(v) == ""
 	}
 	return false
 }

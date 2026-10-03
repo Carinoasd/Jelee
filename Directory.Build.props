@@ -20,8 +20,8 @@
   </ItemGroup>
 
   <!-- Custom Analyzers -->
-  <ItemGroup Condition=" '$(MSBuildProjectName)' != 'Jellyfin.CodeAnalysis' AND '$(Configuration)' == 'Debug' ">
-    <ProjectReference Include="$(MSBuildThisFileDirectory)src/Jellyfin.CodeAnalysis/Jellyfin.CodeAnalysis.csproj" OutputItemType="Analyzer" />
+  <ItemGroup Condition=" '$(MSBuildProjectName)' != 'Jelee.CodeAnalysis' AND '$(Configuration)' == 'Debug' ">
+    <ProjectReference Include="$(MSBuildThisFileDirectory)src/Jelee.CodeAnalysis/Jelee.CodeAnalysis.csproj" OutputItemType="Analyzer" />
   </ItemGroup>
 
 </Project>

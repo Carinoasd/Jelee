@@ -1,0 +1,46 @@
+{
+  "result": "passed",
+  "cases": [
+    {
+      "case": "bad",
+      "exitCode": 1,
+      "expectedBuildSuccess": false,
+      "diagnosticJF0001": true
+    },
+    {
+      "case": "good",
+      "exitCode": 0,
+      "expectedBuildSuccess": true,
+      "diagnosticJF0001": false
+    }
+  ],
+  "sdk": "10.0.400",
+  "moduleBuild": {
+    "exitCode": 0,
+    "warnings": 0,
+    "errors": 0
+  },
+  "solutionDebugBuild": {
+    "exitCode": 0,
+    "warnings": 215,
+    "errors": 0,
+    "seconds": 34.5
+  },
+  "moduleFormat": {
+    "exitCode": 0,
+    "verifyNoChanges": true
+  },
+  "beforeViolations": 15237,
+  "afterViolations": 15233,
+  "fullBrandingGate": "still failing; not waived",
+  "analyzerLogic": "unchanged except namespace",
+  "releaseHistoryAndProjectConfiguration": "byte identical",
+  "protectedHashes": "verified",
+  "sourceHashes": {
+    "Directory.Build.props": "d58c62c639804b83160a13ae8cbf41eb7cfe6e0a998b0ba7831f96c006662c95",
+    "src/Jelee.CodeAnalysis/AsyncDisposalPatternAnalyzer.cs": "8ff34dd1836774963e9ab2afa8c31a0a881297cbd087627df4b5edf3eb0e29cb",
+    "src/Jelee.CodeAnalysis/Jelee.CodeAnalysis.csproj": "d38f9445e15be21c61fda5387e273588e6a8f71f86e5cfee8163696642f374c3",
+    "src/Jelee.CodeAnalysis/AnalyzerReleases.Shipped.md": "576de983d304094529516a3e1bff3eeaaf492cc00439743dfb0873248cabb10e"
+  },
+  "solutionHash": "e3913a8b7d653e3c590cef4fc57642292a07414084571a4beb6656fb69a2fcdb"
+}

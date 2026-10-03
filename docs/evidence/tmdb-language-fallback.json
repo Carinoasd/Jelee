@@ -1,0 +1,56 @@
+{
+  "baseCommit": "029036a252b925e6e40441dfa198f5fad303bc4e",
+  "scope": "Trusted profile language, overview field provenance and bounded four-language detail/empty-search fallback",
+  "sources": {
+    "internal/adapter/http/metadata.go": "ff1ff827c2dc16870d39989ce001805cc701a015f9df30ba4160aa138587b1c9",
+    "internal/adapter/http/metadata_episodes.go": "cd8e83a591a10427626ce1d8881ec2a49869532ed07af66fa3c86363b3a4eced",
+    "internal/adapter/http/metadata_series.go": "d8a43194e791e81ca1ed8d2344c5e3ec9e6d6178edd2f832d0f0e27432e557ab",
+    "internal/adapter/http/metadata_test.go": "d264cbdd27ec40a5e2dd9526be8eb83f7ebb938f98f2d0aa25465cf81bba6dbc",
+    "internal/app/metadata.go": "2a1c91ffc9dfef69f2f9f4c4988791bebaefa5f6de67bf996519a962b28b2136",
+    "internal/app/metadata_episodes.go": "c194d091ec4a5f175e103893125ab83cf33bd8f28cfb46556699de7704c93346",
+    "internal/app/metadata_episodes_test.go": "cff9f06c023d7c5e0601260cce930d80d08e86bcff57b19e8a3db31f8dbd9f3d",
+    "internal/app/metadata_series.go": "bb419807a81cf1424147be6e5ff12af3df309b344762d681f6e0db4f17c0902b",
+    "internal/domain/metadata.go": "f4c02baa986230ddd278e9267460b0f75418c45b1d3fa558b1d1e8e4bc0caa3a",
+    "internal/domain/metadata_episodes.go": "00ca20df081772642b3660dad7259af02e9e54462bfdf3efc2144ab5675e845f",
+    "internal/domain/metadata_series.go": "e7ada4e10ecbca6390690bb8368e26dc954aad5cd074c69eed065cb4fbadfabe",
+    "internal/platform/outbound/episodes_integration_test.go": "6d65cf6ea56079882f824df2f74894ada01baa69aeb4025872e667ba1e1f7a9b",
+    "internal/platform/outbound/movie_integration_test.go": "e9944315a65b68da7113e3449c1ef8ef8b349e562fcf32489d1dd40c51c027b7",
+    "internal/adapter/http/metadata_language.go": "96be67a6c38b62075b888af7194c4511bd56cc76b38f72eaedd3e386bbaa6941",
+    "internal/adapter/http/metadata_language_test.go": "48b8bcc9efcbe796596daa875f9723dfe0c952e0f6ed56e261ad844025ae87be",
+    "internal/app/metadata_language.go": "4132fe9d8b4e88cf0942d625f379ec1ac411917eac0cff505d4cfa8346acd95f",
+    "internal/app/metadata_language_test.go": "af0d1fc73f925e63ad218654f36de8514a041ef3590d309e0809004b0cb1bbfd",
+    "internal/domain/metadata_language.go": "4b6190abc696a2c37d8443ec9d18c3a533cd859dd5e8aa20a9f6e461ca832677",
+    "internal/platform/outbound/language_integration_test.go": "d72efe78422225df6e8c183cd34974a19b77cd98958425436bead7440efa4f8f"
+  },
+  "windowsFullGo": {
+    "passedPackages": 29,
+    "passedTestEventsIncludingParents": 3058,
+    "skippedTestEvents": 435,
+    "failedEvents": 0
+  },
+  "skippedListSource": {
+    "path": "docs/evidence/outbound-tmdb-preflight.json",
+    "sha256": "d9dc00f78f14d500c79b1be8c2490a172ce84e7257034f0cd6ba72c240431882",
+    "jsonField": "windowsFullGo.skippedTests",
+    "comparison": "sorted package/test identities equal"
+  },
+  "linuxRace": {
+    "status": "PASS six packages",
+    "output": "metadata 1.320s; app 1.105s; HTTP 3.668s; runtime 1.210s; outbound 7.322s; i18n cached",
+    "skips": "summary does not report skips; zero skips not claimed"
+  },
+  "fullVet": "PASS",
+  "productionBuild": "PASS cmd/jelee",
+  "negative": {
+    "change": "limit actual application detail fallback loop to first language",
+    "leafFailures": 1,
+    "observed": "actual TLS fallback lacks English overview",
+    "restoredSha256": "4132fe9d8b4e88cf0942d625f379ec1ac411917eac0cff505d4cfa8346acd95f",
+    "relatedFullRegression": "PASS metadata/app/HTTP/outbound after byte-identical restoration"
+  },
+  "limits": [
+    "No library language configuration or picture preferences yet",
+    "Only overview fields and empty search pages fall back; no text-language detection",
+    "No library/NFO/artwork write or all G14 acceptance claim"
+  ]
+}

@@ -14,7 +14,15 @@ docker compose -f deploy/docker-compose.yml up --build -d
 
 Compose 内部网络使用 sslmode=disable，仅用于此隔离网络；远程数据库应使用证书验证。HTTP 默认只向宿主环回发布。启用直投还需要 `JELEE_ENABLE_DIRECT=true` 与有效 native 会话，不能匿名访问媒体。令牌与媒体登记操作使用容器内 `/jelee-cli`。
 
-## 本次验证
+## 可選的執行時記憶體設定
+
+在基礎檔後加入 `-f deploy/docker-compose.memory.yml`，可為 `jelee` 選用 `GOGC=100`、`GOMEMLIMIT=512MiB` 與容器 768 MiB 上限；三者均可覆寫，memory 與 memory+swap 上限保持相同，因此此設定不提供 swap。PostgreSQL 與遷移服務的預算另計。本輪固定混合負載的真容器驗收已通過，`GOGC=50` 比較組也通過；使用方式、實測數據與容量限制見[執行時記憶體設定](runtime-memory.md)。
+
+## 媒體庫語言設定的升級
+
+第19／20版新增以下偏好；當前版本要求乾淨schema29，見[lock-only NFO](nfo-lock-only.md)。先執行資料庫遷移，再啟動新的服務；001–019保持原樣。第19版新增媒體庫文字語言及更新版本，第20版新增有序圖片語言清單。設定有更新時降版會拒絕丟失偏好；介面與回復限制見[媒體庫語言](tmdb-library-language.md)及[圖片語言](tmdb-image-preferences.md)。以下仍是首階段容器的歷史驗證。
+
+## 首階段容器验证
 
 2026-09-30 至 2026-10-01 在现有 WSL Docker 29.7.2 上构建并验证本地 `jelee/jelee:codex-current-test`，源码提交为 `f21d15668477bd5806e7e525149bfb373d9a68bd`，没有推送。构建使用 `docker build --network host`；这仅用于处理本机下载网络问题，不能据此改变部署网络边界。
 
@@ -28,3 +36,25 @@ Compose 内部网络使用 sslmode=disable，仅用于此隔离网络；远程�
 当前证据见[构建与运行日志](evidence/container-current.txt)和[静态镜像检查](evidence/container-current-inspection.txt)。[旧容器日志](evidence/container.txt)保留首轮下载超时、重试和早期镜像的历史记录。静态检查容器已移除；本地测试镜像保留。
 
 未启动 Compose、未创建部署数据库卷、未使用用户媒体目录。HTTP 样本仅为 36 字节传输 fixture，不能证明真实影片可播放或第三方客户端兼容。反向代理、更新/回滚、多架构镜像与完整部署验收仍待完成。正式发布前须补齐媒体探测工具、完整工具清单、完整依赖许可清单及其余部署验证。
+
+## 探索埠與防火牆
+
+現有 Go 容器僅需發布設定的 HTTP 埠，PostgreSQL 保持內部網路；不發布 UDP 1900／7359，不需 SSDP 多播或路由器自動開埠。反向代理連至設定的 HTTP listener，客戶端自行輸入服務網址。防火牆僅允許實際使用的 HTTP／HTTPS 入口；不要為服務新增探索埠規則。
+
+舊 C# 入口的伺服器 UDP 7359 探索 host 已從實作、啟動圖與探索回應模型移除，[驗證](server-discovery-removal.md)包含舊設定true時的正式host／OpenAPI驗收。其餘直播／調諧器 UDP socket factory仍在參考樹，尚未完成全部G05依賴移除或LAN SSDP封包驗收，不應將此階段當成所有舊網路能力都已刪除。
+
+## 網路隱私與公開入口
+
+公開位址、代理、Host、登入限流與HSTS的現況見[網路隱私](network-privacy.md)。客戶端直接連線所使用的公網IP無法對該客戶端隱藏；完整可信代理與公網部署驗收仍待完成。
+
+第21版新增[人工元資料與欄位鎖](item-metadata.md)，保留已有001–020遷移。第21版有人工欄位狀態時降版拒刪；當前binary要求乾淨schema29。第24版新增項目NFO確認觀察，保留紀錄時也拒絕降版；001–023保持，先遷移再啟動。
+
+第25版新增[獨立NFO欄位鎖](nfo-field-lock-intent.md)，缺值欄位亦受保護；001–024保持不變，保留任何獨立鎖時拒絕25→24降版。啟動新binary前先遷移。
+
+第26版擴充[lock-only NFO投影](nfo-lock-only.md)；001–025保持，保留新投影鎖定證明時拒絕26→25降版，既有四文字鎖保持。
+
+第27版新增[排序標題](nfo-sort-title.md)的文字、來源與鎖；001–026保持。含排序標題欄位或新版投影證明時拒絕27→26，人工清空也不能藉降版刪除。
+
+第28版新增[四種文字欄位](nfo-text-fields.md)，九欄來源／獨立鎖／人工patch與同交易套用；001–027保持。保留新欄位或新版投影證明時拒絕28→27，人工空值也保護。
+
+第29版新增[年份有型別保存](nfo-year-fact.md)，年份來源／鎖／人工null清除與文字同交易。001–028保持；保留年份資料或新版proof時拒絕29→28。

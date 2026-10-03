@@ -323,3 +323,9 @@ credentials.json
 # Temporary work and local NFO backups.
 .tmp/
 *.nfo.jelee.bak*
+
+# Downloaded ABI assemblies and generated local compatibility reports.
+/abi-base/
+/abi-head/
+/abi-naming-base/
+/abi-report/

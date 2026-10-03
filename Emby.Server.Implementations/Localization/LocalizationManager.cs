@@ -43,13 +43,7 @@ namespace Emby.Server.Implementations.Localization
         private readonly ConcurrentDictionary<string, CultureDto?> _cultureCache = new(StringComparer.OrdinalIgnoreCase);
         private List<CultureDto> _cultures = [];
 
-        private static readonly (IReadOnlyList<LocalizationOption> Options, FrozenDictionary<string, string> Bcp47ToJellyfinMap) _localizationData = BuildLocalizationData();
-        private static readonly IReadOnlyList<LocalizationOption> _localizationOptions = _localizationData.Options;
-
-        // Maps BCP-47 hyphenated culture codes (set by ASP.NET Core's RequestLocalizationMiddleware
-        // and used as CurrentUICulture.Name) to Jellyfin's underscore-based resource file codes.
-        // Built reflexively from the resource file scan so both directions stay in sync.
-        private static readonly FrozenDictionary<string, string> _bcp47ToJellyfinMap = _localizationData.Bcp47ToJellyfinMap;
+        private static readonly IReadOnlyList<LocalizationOption> _localizationOptions = BuildLocalizationData();
 
         private FrozenDictionary<string, string> _iso6392BtoT = null!;
 
@@ -107,15 +101,28 @@ namespace Emby.Server.Implementations.Localization
             }
         }
 
+        /// <summary>
+        /// Resolves the supported UI culture, using Simplified Chinese by default and English for unknown values.
+        /// </summary>
+        /// <param name="culture">The configured or requested UI culture.</param>
+        /// <returns>The canonical UI culture code.</returns>
+        public static string ResolveUICulture(string? culture)
+        {
+            return culture?.Trim().ToLowerInvariant() switch
+            {
+                null or "" or "zh" or "zh-cn" => "zh-CN",
+                "zh-tw" => "zh-TW",
+                "ja" or "ja-jp" => "ja-JP",
+                "en" or "en-us" => "en-US",
+                _ => "en-US"
+            };
+        }
+
         private static void OnConfigurationUpdated(object? sender, EventArgs e)
         {
             if (sender is IServerConfigurationManager configManager)
             {
-                var uiCulture = configManager.Configuration.UICulture;
-                if (!string.IsNullOrEmpty(uiCulture))
-                {
-                    CultureInfo.DefaultThreadCurrentUICulture = new CultureInfo(uiCulture);
-                }
+                CultureInfo.DefaultThreadCurrentUICulture = CultureInfo.GetCultureInfo(ResolveUICulture(configManager.Configuration.UICulture));
             }
         }
 
@@ -610,16 +617,7 @@ namespace Emby.Server.Implementations.Localization
                 culture = _configurationManager.Configuration.UICulture;
             }
 
-            if (string.IsNullOrEmpty(culture))
-            {
-                culture = DefaultCulture;
-            }
-
-            // Normalize BCP-47 hyphenated codes to Jellyfin's underscore-based codes
-            if (_bcp47ToJellyfinMap.TryGetValue(culture, out var mapped))
-            {
-                culture = mapped;
-            }
+            culture = ResolveUICulture(culture);
 
             var dictionary = GetLocalizationDictionary(culture);
 
@@ -700,10 +698,9 @@ namespace Emby.Server.Implementations.Localization
             return _localizationOptions;
         }
 
-        private static (IReadOnlyList<LocalizationOption> Options, FrozenDictionary<string, string> Bcp47ToJellyfinMap) BuildLocalizationData()
+        private static IReadOnlyList<LocalizationOption> BuildLocalizationData()
         {
             var options = new List<LocalizationOption>();
-            var bcp47Map = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             var prefix = CoreResourcePrefix;
 
             foreach (var resource in _assembly.GetManifestResourceNames())
@@ -716,12 +713,6 @@ namespace Emby.Server.Implementations.Localization
 
                 // Extract culture code from resource name: "...Core.de.json" -> "de", "...Core.pt-BR.json" -> "pt-BR"
                 var code = resource[prefix.Length..^5];
-
-                // Record the BCP-47 → Jellyfin mapping for any resource file using underscores.
-                if (code.Contains('_', StringComparison.Ordinal))
-                {
-                    bcp47Map[code.Replace('_', '-')] = code;
-                }
 
                 // Skip the base language file — en-US is added explicitly below
                 if (code.Equals(DefaultCulture, StringComparison.OrdinalIgnoreCase))
@@ -737,7 +728,7 @@ namespace Emby.Server.Implementations.Localization
             options.Add(new LocalizationOption("English", DefaultCulture));
 
             options.Sort((a, b) => string.Compare(a.Name, b.Name, StringComparison.OrdinalIgnoreCase));
-            return (options, bcp47Map.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase));
+            return options;
         }
 
         private static string GetDisplayName(string cultureCode)

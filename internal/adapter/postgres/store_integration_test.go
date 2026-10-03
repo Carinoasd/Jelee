@@ -68,10 +68,16 @@ func TestPostgresIntegration(t *testing.T) {
 	isolatedDSN := u.String()
 	t.Logf("PostgreSQL integration RUNNING: dedicated jelee_test database, isolated schema %s", schema)
 
-	for _, step := range []struct {
+	type migrationStep struct {
 		action  string
 		version uint
-	}{{"up", SchemaVersion}, {"status", SchemaVersion}, {"down", 17}, {"down", 16}, {"down", 15}, {"down", 14}, {"down", 13}, {"down", 12}, {"down", 11}, {"down", 10}, {"down", 9}, {"down", 8}, {"down", 7}, {"down", 6}, {"down", 5}, {"down", 4}, {"down", 3}, {"down", 2}, {"down", 1}, {"down", 0}, {"up", SchemaVersion}, {"up", SchemaVersion}} {
+	}
+	steps := []migrationStep{{"up", SchemaVersion}, {"status", SchemaVersion}}
+	for version := SchemaVersion; version > 0; version-- {
+		steps = append(steps, migrationStep{"down", uint(version - 1)})
+	}
+	steps = append(steps, migrationStep{"up", SchemaVersion}, migrationStep{"up", SchemaVersion})
+	for _, step := range steps {
 		version, dirty, err := Migrate(ctx, isolatedDSN, step.action)
 		if err != nil || dirty || version != step.version {
 			t.Fatalf("migration %s: version=%d dirty=%t failed=%t", step.action, version, dirty, err != nil)

@@ -18,3 +18,166 @@
 `make brand-scan` 扫描受跟踪与新增未忽略文本，白名单以精确文件路径配置。许可证/来源文档和扫描器规则本身有明确例外；没有给整个旧项目目录豁免。
 
 `make brand-scan-incremental` 使用 `--new`，只检查新服务目录及其文档，适合作为增量修改的检查。**完整扫描目前仍会失败，G00 的全仓库纯净性未完成。** 后续每个模块需单独替换、编译和回归后再更新该映射。
+
+## 倉庫管理與 OpenAPI 產物工作流程
+
+移除原專用 commands、issue-stale、project-automation、pull-request-conflict 工作流程：它們使用上游專用 bot／token、看板 action、聯絡網站或限定來源倉庫條件，沒有本倉庫可驗證的管理服務。這些不是服務端功能契約或 CI 測試門禁。原始檔仍可由 Git 歷史恢復。
+
+openapi-merge 保留 master／版本 push 的 OpenAPI reusable workflow 與產物生成，移除綁定上游伺服器的 SCP／SSH 發布 job。Jelee 部署與正式發布需另行驗收；未發布至其他系統。ci-tests、ci-format、ci-compat、ci-codeql-analysis、jelee 完整工作流程及 OpenAPI 生成器保持。
+
+## 程式碼分析器模組
+
+`src/Jellyfin.CodeAnalysis`、同名 csproj／程序集／namespace → `src/Jelee.CodeAnalysis` 與 `Jelee.CodeAnalysis`。根建置屬性的分析器載入／自引用排除、solution 專案名稱／路徑同步更新。診斷 JF0001 與原發布紀錄保持；編譯器正反例、完整 Debug 建置與模組格式檢查通過。[證據](analyzer-brand-rename.md)。
+
+## 媒體檔名解析模組
+
+Emby.Naming（含原套件 Jellyfin.Naming）→ Jelee.Naming；tests/Jellyfin.Naming.Tests → tests/Jelee.Naming.Tests。完整模組／引用／solution／版本腳本與 ABI base/head 路徑一起更新。原 Authors 與 AssemblyCopyright 分離到精確法律歸屬檔，內容保留；不豁免整個解析模組。命名701測試／完整17套件4098pass、21NotExecuted、0fail，源碼等價核對／Debug build／變更檔格式通過。[證據與尚未完成邊界](naming-brand-rename.md)。
+
+## 網路模組
+
+src/Jellyfin.Networking 與 tests/Jellyfin.Networking.Tests → src/Jelee.Networking／tests/Jelee.Networking.Tests，namespace／程序集／solution 與 consumer 引用同步；一般 log 與示例命名一併調整。舊探索 request 與舊配置 key 在精確 Compatibility/LegacyNetworkNames.cs 隔離；原 MIT 標頭保持。147 模組測試／完整4098pass、21NotExecuted通過，格式／source對應核對通過。[驗證及未完成 G05 邊界](networking-brand-rename.md)。
+
+### 四語資源來源索引
+
+以下角色對應四語階段的確切來源路徑；摘要保存於 `docs/evidence/ui-four-locales.json`。舊來源名稱集中在本既有改名映射文件，並未擴大程式碼或證據檔豁免。
+
+| 證據角色 | 來源路徑 |
+| --- | --- |
+| localizationManager | `Emby.Server.Implementations/Localization/LocalizationManager.cs` |
+| serverStartup | `Jellyfin.Server/Startup.cs` |
+| serverConfiguration | `MediaBrowser.Model/Configuration/ServerConfiguration.cs` |
+| localizationManagerTests | `tests/Jellyfin.Server.Implementations.Tests/Localization/LocalizationManagerTests.cs` |
+| catalogGate | `scripts/check-ui-locales.py` |
+| foundationWorkflow | `.github/workflows/jelee.yml` |
+| makefile | `Makefile` |
+| englishCatalog | `Emby.Server.Implementations/Localization/Core/en-US.json` |
+| japaneseCatalog | `Emby.Server.Implementations/Localization/Core/ja-JP.json` |
+| simplifiedChineseCatalog | `Emby.Server.Implementations/Localization/Core/zh-CN.json` |
+| traditionalChineseCatalog | `Emby.Server.Implementations/Localization/Core/zh-TW.json` |
+
+### 四語 HTTP 來源索引
+
+| 證據角色 | 來源路徑 |
+| --- | --- |
+| startup | `Jellyfin.Server/Startup.cs` |
+| headerProvider | `Jellyfin.Server/Localization/FourLocaleRequestCultureProvider.cs` |
+| httpTests | `tests/Jellyfin.Server.Integration.Tests/Middleware/FourLocaleRequestCultureTests.cs` |
+
+### 伺服器 UDP 探索裁剪來源索引
+
+| 證據角色 | 來源路徑 |
+| --- | --- |
+| startup | `Jellyfin.Server/Startup.cs` |
+| schemaFilter | `Jellyfin.Server/Filters/AdditionalModelFilter.cs` |
+| retiredConfiguration | `MediaBrowser.Common/Net/NetworkConfiguration.cs` |
+| legacyEnvironmentBoundary | `src/Jelee.Networking/Compatibility/LegacyNetworkNames.cs` |
+| discoveryRemovalTests | `tests/Jellyfin.Server.Integration.Tests/DiscoveryRemovalTests.cs` |
+| autoDiscoveryHost | `src/Jelee.Networking/AutoDiscoveryHost.cs` |
+| discoveryResponseModel | `MediaBrowser.Model/ApiClient/ServerDiscoveryInfo.cs` |
+
+### 錄製啟動裁剪來源索引
+
+| 證據角色 | 來源路徑 |
+| --- | --- |
+| startup | `Jellyfin.Server/Startup.cs` |
+| recordingsManager | `src/Jellyfin.LiveTv/Recordings/RecordingsManager.cs` |
+| regressionTests | `tests/Jellyfin.Server.Integration.Tests/RecordingStartupRemovalTests.cs` |
+| recordingsHost | `src/Jellyfin.LiveTv/Recordings/RecordingsHost.cs` |
+| recordingNotifier | `src/Jellyfin.LiveTv/Recordings/RecordingNotifier.cs` |
+
+### 舊 HTTP 直播與頻道入口裁剪來源索引
+
+| 證據角色 | 來源路徑 |
+| --- | --- |
+| startup | `Jellyfin.Server/Startup.cs` |
+| compatibilityMiddleware | `Jellyfin.Api/Compatibility/RemovedFeaturesMiddleware.cs` |
+| httpTests | `tests/Jellyfin.Server.Integration.Tests/Controllers/RemovedFeaturesTests.cs` |
+| englishCatalog | `Emby.Server.Implementations/Localization/Core/en-US.json` |
+| japaneseCatalog | `Emby.Server.Implementations/Localization/Core/ja-JP.json` |
+| simplifiedChineseCatalog | `Emby.Server.Implementations/Localization/Core/zh-CN.json` |
+| traditionalChineseCatalog | `Emby.Server.Implementations/Localization/Core/zh-TW.json` |
+| liveTvController | `Jellyfin.Api/Controllers/LiveTvController.cs` |
+| channelsController | `Jellyfin.Api/Controllers/ChannelsController.cs` |
+| programsDto | `Jellyfin.Api/Models/LiveTvDtos/GetProgramsDto.cs` |
+| channelMappingDto | `Jellyfin.Api/Models/LiveTvDtos/SetChannelMappingDto.cs` |
+| oldEnablingTests | `tests/Jellyfin.Server.Integration.Tests/Controllers/LiveTvControllerTests.cs` |
+
+
+### 直播與頻道自動工作裁剪來源索引
+
+| 證據角色 | 來源路徑 |
+| --- | --- |
+| tunerHostManager | `src/Jellyfin.LiveTv/TunerHosts/TunerHostManager.cs` |
+| listingsManager | `src/Jellyfin.LiveTv/Listings/ListingsManager.cs` |
+| tunerInterface | `MediaBrowser.Controller/LiveTv/ITunerHostManager.cs` |
+| existingListingsTests | `tests/Jellyfin.LiveTv.Tests/Listings/ListingsManagerTests.cs` |
+| actorRemovalTests | `tests/Jellyfin.Server.Integration.Tests/LiveFeatureActorsRemovalTests.cs` |
+| englishCatalog | `Emby.Server.Implementations/Localization/Core/en-US.json` |
+| japaneseCatalog | `Emby.Server.Implementations/Localization/Core/ja-JP.json` |
+| simplifiedChineseCatalog | `Emby.Server.Implementations/Localization/Core/zh-CN.json` |
+| traditionalChineseCatalog | `Emby.Server.Implementations/Localization/Core/zh-TW.json` |
+| guideTask | `src/Jellyfin.LiveTv/Guide/RefreshGuideScheduledTask.cs` |
+| channelTask | `src/Jellyfin.LiveTv/Channels/RefreshChannelsScheduledTask.cs` |
+| channelCleanup | `src/Jellyfin.LiveTv/Channels/ChannelPostScanTask.cs` |
+| liveMediaProvider | `src/Jellyfin.LiveTv/LiveTvMediaSourceProvider.cs` |
+| channelMediaProvider | `src/Jellyfin.LiveTv/Channels/ChannelDynamicMediaSourceProvider.cs` |
+| channelImageProvider | `src/Jellyfin.LiveTv/Channels/ChannelImageProvider.cs` |
+
+### DTO直播相依解耦來源索引
+
+| 證據角色 | 來源路徑 |
+| --- | --- |
+| generalDto | `Emby.Server.Implementations/Dto/DtoService.cs` |
+| dtoTests | `tests/Jellyfin.Server.Implementations.Tests/Dto/DtoServiceTests.cs` |
+| imageInheritanceTests | `tests/Jellyfin.Server.Implementations.Tests/Dto/DtoServiceImageInheritanceTests.cs` |
+| viewManager | `Emby.Server.Implementations/Library/UserViewManager.cs` |
+| dependencyRegistration | `Emby.Server.Implementations/ApplicationHost.cs` |
+| partsAssembly | `Jellyfin.Server/CoreAppHost.cs` |
+| featureRegistry | `src/Jellyfin.LiveTv/Extensions/LiveTvServiceCollectionExtensions.cs` |
+
+### 使用者視圖直播相依解耦來源索引
+
+| 證據角色 | 來源路徑 |
+| --- | --- |
+| viewManager | `Emby.Server.Implementations/Library/UserViewManager.cs` |
+| viewApi | `Jellyfin.Api/Controllers/UserViewsController.cs` |
+| localViewTests | `tests/Jellyfin.Server.Implementations.Tests/Library/UserViewManagerRetirementTests.cs` |
+| httpViewTests | `tests/Jellyfin.Server.Integration.Tests/Controllers/UserViewRetirementTests.cs` |
+| dependencyRegistration | `Emby.Server.Implementations/ApplicationHost.cs` |
+| partsAssembly | `Jellyfin.Server/CoreAppHost.cs` |
+| featureRegistry | `src/Jellyfin.LiveTv/Extensions/LiveTvServiceCollectionExtensions.cs` |
+
+## G05 核心註冊解耦來源索引
+
+- dependencyRegistration: `Emby.Server.Implementations/ApplicationHost.cs`
+- partsAssembly: `Jellyfin.Server/CoreAppHost.cs`
+- featureRegistry: `src/Jellyfin.LiveTv/Extensions/LiveTvServiceCollectionExtensions.cs`
+- startupTests: `tests/Jellyfin.Server.Integration.Tests/LiveCoreRegistrationRemovalTests.cs`
+
+## G05 指南核心裁剪來源索引
+
+- guideImplementation: `src/Jellyfin.LiveTv/Guide/GuideManager.cs`
+- guideInterface: `MediaBrowser.Controller/LiveTv/IGuideManager.cs`
+- retainedListingSource: `src/Jellyfin.LiveTv/Listings/SchedulesDirect.cs`
+- etagEncodingComment: `src/Jellyfin.LiveTv/Listings/XmlTvProgramEtag.cs`
+- etagRegressionComment: `tests/Jellyfin.LiveTv.Tests/Listings/XmlTvProgramEtagTests.cs`
+- compiledCoreAndStartupTests: `tests/Jellyfin.Server.Integration.Tests/LiveCoreRegistrationRemovalTests.cs`
+
+## G11 出站請求來源索引
+
+- namedHttpRegistration: `Jellyfin.Server/Startup.cs`
+- hostnameSocketConnect: `src/Jelee.Networking/HappyEyeballs/HttpClientExtension.cs`
+- sdkMetadataClient: `MediaBrowser.Providers/Plugins/Tmdb/TmdbClientManager.cs`
+- imageDownloader: `MediaBrowser.Providers/Manager/ProviderManager.cs`
+- packageDownloader: `Emby.Server.Implementations/Updates/InstallationManager.cs`
+- localTunerClient: `src/Jellyfin.LiveTv/TunerHosts/HdHomerun/HdHomerunHost.cs`
+- playlistClient: `src/Jellyfin.LiveTv/TunerHosts/M3uParser.cs`
+- jobsControlClient: `cmd/jelee-cli/jobs.go`
+- nfoControlClient: `cmd/jelee-cli/nfo_jobs.go`
+- dependencyVersions: `Directory.Packages.props`
+
+## ABI 遷移契約的精確來源身份
+
+`tools/abi/expected-breaks.json` 只記錄舊程序集與公開符號在遷移比較中的精確身份，以及G00／G05／G11.5／G28對應；`scripts/fixtures/abi-legacy-report.json` 保留來源CI輸出作門禁反例。兩者按精確檔名加入品牌掃描白名單，不豁免任何實作目錄。
+
+命名模組增加固定的真實Jelee基準：`202b813a955cfc64ab87992484bf00b8aa72221a`，原八組比較與52條歷史差異仍完整保留。後續未核准的Jelee命名API差異依新組件比較失敗；詳見[ABI門禁](abi-report-check.md)。

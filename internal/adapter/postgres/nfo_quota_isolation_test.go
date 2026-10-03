@@ -1,0 +1,326 @@
+package postgres
+
+import (
+	"errors"
+	"fmt"
+	"testing"
+
+	"github.com/MoYuanCN/Jelee/internal/domain"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
+)
+
+const cloneQuotaPreparation = `INSERT INTO nfo_write_preparations SELECT (jsonb_populate_record(NULL::nfo_write_preparations,to_jsonb(p)||jsonb_build_object('id',gen_random_uuid(),'idempotency_key',$2::text))).* FROM nfo_write_preparations p WHERE id=$1::uuid`
+
+func TestNFOQuotaConcurrentSnapshotsCannotExceedActorLimit(t *testing.T) {
+	for _, isolation := range []pgx.TxIsoLevel{pgx.ReadCommitted, pgx.RepeatableRead, pgx.Serializable} {
+		t.Run(string(isolation), func(t *testing.T) {
+			f, service, _, request := nfoWritePreparationFixture(t)
+			saved, _, err := service.Prepare(f.ctx, f.a, "quota-source", request)
+			if err != nil {
+				t.Fatal(err)
+			}
+			for i := 0; i < 30; i++ {
+				if _, err := f.s.Pool.Exec(f.ctx, cloneQuotaPreparation, saved.ID, fmt.Sprintf("seed-%d", i)); err != nil {
+					t.Fatal("seed below actor capacity", err)
+				}
+			}
+			first, err := f.s.Pool.BeginTx(f.ctx, pgx.TxOptions{IsoLevel: isolation})
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer first.Rollback(f.ctx)
+			second, err := f.s.Pool.BeginTx(f.ctx, pgx.TxOptions{IsoLevel: isolation})
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer second.Rollback(f.ctx)
+			for _, tx := range []pgx.Tx{first, second} {
+				var count int
+				if err := tx.QueryRow(f.ctx, `SELECT count(*) FROM nfo_write_preparations`).Scan(&count); err != nil || count != 31 {
+					t.Fatal("concurrent snapshots were not established", err)
+				}
+			}
+			if _, err := first.Exec(f.ctx, cloneQuotaPreparation, saved.ID, "first-last-slot"); err != nil {
+				t.Fatal("first writer rejected below capacity", err)
+			}
+			if err := first.Commit(f.ctx); err != nil {
+				t.Fatal(err)
+			}
+			_, err = second.Exec(f.ctx, cloneQuotaPreparation, saved.ID, "second-last-slot")
+			if err == nil {
+				err = second.Commit(f.ctx)
+			}
+			if err == nil {
+				t.Fatal("concurrent snapshot exceeded the 32-row actor limit")
+			}
+			var pgErr *pgconn.PgError
+			if !errors.As(err, &pgErr) || pgErr.Code != "23514" && pgErr.Code != "40001" {
+				t.Fatal("quota refused for unrelated failure", err)
+			}
+			_ = second.Rollback(f.ctx)
+			var count int
+			if err := f.s.Pool.QueryRow(f.ctx, `SELECT count(*) FROM nfo_write_preparations`).Scan(&count); err != nil || count != 32 {
+				t.Fatal("failed transaction retained excess rows", err)
+			}
+		})
+	}
+}
+
+// These SQL fixtures exercise storage quotas, not writer admission. Their
+// terminal jobs avoid the active-library uniqueness constraint.
+func cloneQuotaJob(t *testing.T, f jobFixture, tx pgx.Tx, base, key string, total int) string {
+	t.Helper()
+	var id string
+	if err := tx.QueryRow(f.ctx, `INSERT INTO jobs SELECT (jsonb_populate_record(NULL::jobs,to_jsonb(j)||jsonb_build_object('id',gen_random_uuid(),'idempotency_key',$2::text))).* FROM jobs j WHERE id=$1::uuid RETURNING id::text`, base, key).Scan(&id); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := tx.Exec(f.ctx, `INSERT INTO nfo_write_requests SELECT $1::uuid,library_id,generation,$3,intent_digest FROM nfo_write_requests WHERE job_id=$2::uuid`, id, base, total); err != nil {
+		t.Fatal(err)
+	}
+	return id
+}
+
+func TestNFOQuotaJobConcurrentSnapshotsAndGlobalRows(t *testing.T) {
+	for _, isolation := range []pgx.TxIsoLevel{pgx.ReadCommitted, pgx.RepeatableRead, pgx.Serializable} {
+		t.Run(string(isolation), func(t *testing.T) {
+			f, service, _, request := nfoWritePreparationFixture(t)
+			saved, _, err := service.Prepare(f.ctx, f.a, "quota-job-source", request)
+			if err != nil {
+				t.Fatal(err)
+			}
+			j := nfoWriteJobFixture(t, f, saved, "quota-job", domain.JobPriorityManual)
+			if _, err := f.s.CancelJob(f.ctx, f.a, j.ID); err != nil {
+				t.Fatal(err)
+			}
+			for i := 0; i < 11; i++ {
+				total := 100
+				if i == 10 {
+					total = 22
+				}
+				tx, err := f.s.Pool.Begin(f.ctx)
+				if err != nil {
+					t.Fatal(err)
+				}
+				id := cloneQuotaJob(t, f, tx, j.ID, fmt.Sprintf("seed-job-%d", i), total)
+				if err := cloneNativeQuotaEntries(f, tx, id, j.ID, total, 0); err != nil {
+					_ = tx.Rollback(f.ctx)
+					t.Fatal(err)
+				}
+				if err := tx.Commit(f.ctx); err != nil {
+					t.Fatal(err)
+				}
+			}
+			first, err := f.s.Pool.BeginTx(f.ctx, pgx.TxOptions{IsoLevel: isolation})
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer first.Rollback(f.ctx)
+			second, err := f.s.Pool.BeginTx(f.ctx, pgx.TxOptions{IsoLevel: isolation})
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer second.Rollback(f.ctx)
+			for _, tx := range []pgx.Tx{first, second} {
+				var count int
+				if err := tx.QueryRow(f.ctx, `SELECT count(*) FROM nfo_write_entries`).Scan(&count); err != nil || count != 1023 {
+					t.Fatal("global row snapshot", err, count)
+				}
+			}
+			id := cloneQuotaJob(t, f, first, j.ID, "first-final-slot", 1)
+			if err := cloneNativeQuotaEntries(f, first, id, j.ID, 1, 0); err != nil {
+				t.Fatal(err)
+			}
+			if err := first.Commit(f.ctx); err != nil {
+				t.Fatal(err)
+			}
+			err = second.QueryRow(f.ctx, `INSERT INTO jobs SELECT (jsonb_populate_record(NULL::jobs,to_jsonb(j)||jsonb_build_object('id',gen_random_uuid(),'idempotency_key','second-final-slot'))).* FROM jobs j WHERE id=$1::uuid RETURNING id::text`, j.ID).Scan(&id)
+			if err == nil {
+				_, err = second.Exec(f.ctx, `INSERT INTO nfo_write_requests SELECT $1::uuid,library_id,generation,1,intent_digest FROM nfo_write_requests WHERE job_id=$2::uuid`, id, j.ID)
+			}
+			if err == nil {
+				err = cloneNativeQuotaEntries(f, second, id, j.ID, 1, 0)
+			}
+			if err == nil {
+				err = second.Commit(f.ctx)
+			}
+			var pgErr *pgconn.PgError
+			if !errors.As(err, &pgErr) || pgErr.Code != "40001" && (pgErr.Code != "23514" || pgErr.Message != "nfo write intent capacity reached") {
+				t.Fatal("global quota exceeded or unrelated refusal", err)
+			}
+			_ = second.Rollback(f.ctx)
+			var count, requests int
+			if err := f.s.Pool.QueryRow(f.ctx, `SELECT (SELECT count(*) FROM nfo_write_entries),(SELECT count(*) FROM nfo_write_requests)`).Scan(&count, &requests); err != nil || count != 1024 || requests != 13 {
+				t.Fatal("failed admission retained partial data", err, count, requests)
+			}
+		})
+	}
+}
+
+func TestNFOQuotaFenceMigrationAndMissingRow(t *testing.T) {
+	t.Run("empty round trip", func(t *testing.T) {
+		f := newJobFixture(t)
+		before := jobMetricMigrationStorage(t, f)
+		jobMetricMigration(t, f, "down", 47)
+		jobMetricMigration(t, f, "up", SchemaVersion)
+		var count int
+		if err := f.s.Pool.QueryRow(f.ctx, `SELECT count(*) FROM nfo_write_quota_fences`).Scan(&count); err != nil || count != 2 || jobMetricMigrationStorage(t, f) != before {
+			t.Fatal("fence round trip changed metrics", err)
+		}
+	})
+	t.Run("retained preparation", func(t *testing.T) {
+		f, _, _, request := nfoWritePreparationFixture(t)
+		legacyNFOWritePreparationFixture(t, f, request, "retained-fence", 48)
+		if _, _, err := Migrate(f.ctx, f.s.Pool.Config().ConnString(), "down"); err == nil {
+			t.Fatal("removed retained fence")
+		}
+		version, dirty, err := Migrate(f.ctx, f.s.Pool.Config().ConnString(), "status")
+		if err != nil || version != 47 || !dirty || f.s.Ready(f.ctx) == nil {
+			t.Fatal("retained refusal lost dirty state", err)
+		}
+		var count int
+		if err := f.s.Pool.QueryRow(f.ctx, `SELECT count(*) FROM nfo_write_preparations`).Scan(&count); err != nil || count != 1 {
+			t.Fatal("lost retained data", err)
+		}
+	})
+	t.Run("missing fence fails closed", func(t *testing.T) {
+		f, service, _, request := nfoWritePreparationFixture(t)
+		saved, _, err := service.Prepare(f.ctx, f.a, "missing-fence", request)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := f.s.Pool.Exec(f.ctx, `DELETE FROM nfo_write_quota_fences WHERE scope='preparation'`); err != nil {
+			t.Fatal(err)
+		}
+		_, err = f.s.Pool.Exec(f.ctx, cloneQuotaPreparation, saved.ID, "must-refuse")
+		var pgErr *pgconn.PgError
+		if !errors.As(err, &pgErr) || pgErr.Code != "23514" || pgErr.Message != "nfo quota fence is missing" {
+			t.Fatal("missing fence admitted data", err)
+		}
+	})
+}
+
+func TestNFOQuotaJobGlobalBytesRollBackAdmission(t *testing.T) {
+	f, service, _, request := nfoWritePreparationFixture(t)
+	saved, _, err := service.Prepare(f.ctx, f.a, "global-bytes-source", request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	j := nfoWriteJobFixture(t, f, saved, "global-bytes-base", domain.JobPriorityManual)
+	if _, err := f.s.CancelJob(f.ctx, f.a, j.ID); err != nil {
+		t.Fatal(err)
+	}
+	// Logical byte sizes are measured before TOAST compression. Every individual
+	// job is below 128 MiB, so only the global 512 MiB guard can refuse job eight.
+
+	for i := 0; i < 8; i++ {
+		tx, err := f.s.Pool.Begin(f.ctx)
+		if err != nil {
+			t.Fatal(err)
+		}
+		id := cloneQuotaJob(t, f, tx, j.ID, fmt.Sprintf("global-bytes-%d", i), 1)
+		err = cloneNativeQuotaEntries(f, tx, id, j.ID, 1, 33554432)
+		if i < 7 {
+			if err != nil {
+				_ = tx.Rollback(f.ctx)
+				t.Fatal("rejected below global capacity", err)
+			}
+			if err := tx.Commit(f.ctx); err != nil {
+				t.Fatal(err)
+			}
+			continue
+		}
+		var pgErr *pgconn.PgError
+		if !errors.As(err, &pgErr) || pgErr.Code != "23514" || pgErr.Message != "nfo write intent capacity reached" {
+			_ = tx.Rollback(f.ctx)
+			t.Fatal("global bytes guard refused for unrelated reason", err)
+		}
+		_ = tx.Rollback(f.ctx)
+		var entries, requests, jobs int
+		var size int64
+		if err := f.s.Pool.QueryRow(f.ctx, `SELECT count(*),sum(octet_length(request_bytes)::bigint+octet_length(original_bytes)+octet_length(replacement_bytes)),(SELECT count(*) FROM nfo_write_requests),(SELECT count(*) FROM jobs WHERE kind='nfo_write') FROM nfo_write_entries`).Scan(&entries, &size, &requests, &jobs); err != nil || entries != 8 || requests != 8 || jobs != 8 || size <= 7*67108864 || size > 536870912 {
+			t.Fatal("excess admission retained partial data", err, entries, requests, jobs, size)
+		}
+	}
+}
+
+func TestNFOQuotaFenceRetainedJobAndMissingIntentFence(t *testing.T) {
+	for _, missing := range []bool{false, true} {
+		t.Run(fmt.Sprintf("missing=%t", missing), func(t *testing.T) {
+			f, service, _, request := nfoWritePreparationFixture(t)
+			var saved domain.NFOWritePreparation
+			if !missing {
+				saved = legacyNFOWritePreparationFixture(t, f, request, "intent-fence-source", 48)
+			} else {
+				var err error
+				saved, _, err = service.Prepare(f.ctx, f.a, "intent-fence-source", request)
+				if err != nil {
+					t.Fatal(err)
+				}
+			}
+			j := nfoWriteJobFixture(t, f, saved, "intent-fence-base", domain.JobPriorityManual)
+			if _, err := f.s.CancelJob(f.ctx, f.a, j.ID); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := f.s.Pool.Exec(f.ctx, `DELETE FROM nfo_write_preparations`); err != nil {
+				t.Fatal(err)
+			}
+			if !missing {
+				if _, _, err := Migrate(f.ctx, f.s.Pool.Config().ConnString(), "down"); err == nil {
+					t.Fatal("removed fence with retained job bytes")
+				}
+				version, dirty, err := Migrate(f.ctx, f.s.Pool.Config().ConnString(), "status")
+				if err != nil || version != 47 || !dirty || f.s.Ready(f.ctx) == nil {
+					t.Fatal("retained intent refusal lost dirty state", err)
+				}
+			} else {
+				if _, err := f.s.Pool.Exec(f.ctx, `DELETE FROM nfo_write_quota_fences WHERE scope='job_intent'`); err != nil {
+					t.Fatal(err)
+				}
+				tx, err := f.s.Pool.Begin(f.ctx)
+				if err != nil {
+					t.Fatal(err)
+				}
+				defer tx.Rollback(f.ctx)
+				id := cloneQuotaJob(t, f, tx, j.ID, "missing-intent-fence", 1)
+				err = cloneNativeQuotaEntries(f, tx, id, j.ID, 1, 0)
+				var pgErr *pgconn.PgError
+				if !errors.As(err, &pgErr) || pgErr.Code != "23514" || pgErr.Message != "nfo quota fence is missing" {
+					t.Fatal("missing intent fence admitted data", err)
+				}
+				_ = tx.Rollback(f.ctx)
+			}
+			var count int
+			if err := f.s.Pool.QueryRow(f.ctx, `SELECT count(*) FROM nfo_write_entries`).Scan(&count); err != nil || count != 1 {
+				t.Fatal("lost retained intent", err)
+			}
+		})
+	}
+}
+
+// The owned storage fixture keeps every entry bound to a matching preparation.
+// Large payloads stay in bytea columns; the first-observation guard is preserved.
+func cloneNativeQuotaEntries(f jobFixture, tx pgx.Tx, job, base string, total, maximum int) error {
+	for sequence := 1; sequence <= total; sequence++ {
+		var item, preparation string
+		if err := tx.QueryRow(f.ctx, `INSERT INTO items SELECT (jsonb_populate_record(NULL::items,to_jsonb(i)||jsonb_build_object('id',gen_random_uuid()))).* FROM items i JOIN nfo_write_entries e ON e.item_id=i.id WHERE e.job_id=$1::uuid AND e.sequence=1 RETURNING id::text`, base).Scan(&item); err != nil {
+			return err
+		}
+		query := `WITH recipe AS MATERIALIZED (SELECT e.*,j.actor_id,CASE WHEN $3::integer=0 THEN max_bytes ELSE $3::integer END AS requested_max FROM nfo_write_entries e JOIN jobs j ON j.id=e.job_id WHERE e.job_id=$1::uuid AND sequence=1),
+ encoded AS MATERIALIZED (SELECT recipe.*,convert_to((convert_from(request_bytes,'UTF8')::jsonb||jsonb_build_object('itemId',$2::uuid,'maxBytes',requested_max))::text,'UTF8') AS encoded_request FROM recipe),
+ payload AS MATERIALIZED (SELECT CASE WHEN $3::integer=0 THEN original_bytes ELSE convert_to(rpad('<movie/>',$3::integer,' '),'UTF8') END AS original,CASE WHEN $3::integer=0 THEN replacement_bytes ELSE convert_to(rpad('<movie/>',$3::integer,' '),'UTF8') END AS replacement FROM encoded)
+ INSERT INTO nfo_write_preparations(actor_id,idempotency_key,version,request_bytes,request_digest,library_id,item_id,source_id,root_id,kind,revision,generation,root_generation,root_path,relative_path,media_path,directory_path,max_bytes,modified_unix_nano,original_bytes,original_sha256,replacement_bytes,replacement_sha256,native_receipt)
+ SELECT actor_id,'quota-clone-'||$2::uuid::text,version,encoded_request,encode(sha256(encoded_request),'hex'),library_id,$2::uuid,source_id,root_id,kind,revision,generation,root_generation,root_path,relative_path,media_path,directory_path,requested_max,modified_unix_nano,original,encode(sha256(original),'hex'),replacement,encode(sha256(replacement),'hex'),native_receipt FROM encoded CROSS JOIN payload RETURNING id::text`
+		if err := tx.QueryRow(f.ctx, query, base, item, maximum).Scan(&preparation); err != nil {
+			return err
+		}
+		if _, err := tx.Exec(f.ctx, `INSERT INTO nfo_write_entries(job_id,sequence,preparation_id,version,request_bytes,request_digest,library_id,item_id,source_id,root_id,kind,revision,generation,root_generation,root_path,relative_path,media_path,directory_path,max_bytes,modified_unix_nano,original_bytes,original_sha256,replacement_bytes,replacement_sha256,native_receipt)
+ SELECT $1::uuid,$2,id,version,request_bytes,request_digest,library_id,item_id,source_id,root_id,kind,revision,generation,root_generation,root_path,relative_path,media_path,directory_path,max_bytes,modified_unix_nano,original_bytes,original_sha256,replacement_bytes,replacement_sha256,native_receipt FROM nfo_write_preparations WHERE id=$3::uuid`, job, sequence, preparation); err != nil {
+			return err
+		}
+		if _, err := tx.Exec(f.ctx, `DELETE FROM nfo_write_preparations WHERE id=$1::uuid`, preparation); err != nil {
+			return err
+		}
+	}
+	return nil
+}

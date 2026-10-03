@@ -1,0 +1,303 @@
+package nfo
+
+import (
+	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
+	"os"
+	"path/filepath"
+	"reflect"
+	"strings"
+
+	"github.com/MoYuanCN/Jelee/internal/app"
+	"github.com/MoYuanCN/Jelee/internal/domain"
+)
+
+// StageCommitFiles reconstructs an immutable controlled intent, binds the held
+// source, and uses the fenced repository ports for plan/ready persistence.
+// Runtime has no caller. It neither renames the target nor grants policy,
+// catalog/media authorization, recovery or successful-job completion.
+func (w *Writer) StageCommitFiles(ctx context.Context, source *Source, lease domain.JobLease, record domain.NFOWriteCommitRecord, repository app.NFOWriteCommitFilesRepository) error {
+	return w.stageCommitFiles(ctx, source, lease, record, repository, nativeNFOWriteOperations())
+}
+
+func (w *Writer) stageCommitFiles(ctx context.Context, source *Source, lease domain.JobLease, record domain.NFOWriteCommitRecord, repository app.NFOWriteCommitFilesRepository, ops nfoWriteOperations) error {
+	if w == nil || w.budget == nil || ctx == nil || source == nil || !source.ready || source.rootInfo == nil || source.parentInfo == nil || source.fileInfo == nil || repository == nil || !domain.ValidID(record.Token) || record.JobID != lease.Job.ID || record.Owner != lease.Owner && lease.RecoveryEpoch == 0 || record.Generation != lease.Generation || record.Sequence < 1 || record.Sequence > 100 {
+		return ErrInvalidInput
+	}
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	// Capture the repository in the operation closure, keeping its identity alive
+	// for the whole flight. Non-pointer implementations execute independently.
+	value := reflect.ValueOf(repository)
+	var repositoryID uint64
+	if value.Kind() == reflect.Pointer {
+		if value.IsNil() {
+			return ErrInvalidInput
+		}
+		repositoryID = uint64(value.Pointer())
+	} else {
+		w.mu.Lock()
+		w.sequence++
+		repositoryID = w.sequence
+		w.mu.Unlock()
+	}
+	if len(source.rootPath) > 32768 || len(source.relative) > domain.ScanPathMaxBytes || len(lease.Owner) > 1024 {
+		return ErrInvalidInput
+	}
+	encoded, err := json.Marshal(struct {
+		RepositoryType      string
+		RepositoryID        uint64
+		JobID, Owner, Token string
+		Generation          int64
+		RecoveryEpoch       int64
+		Sequence            int
+		Root, Relative      string
+		Stamp               SourceStamp
+		MaxBytes            int64
+	}{value.Type().String(), repositoryID, lease.Job.ID, lease.Owner, record.Token, lease.Generation, lease.RecoveryEpoch, record.Sequence, source.rootPath, source.relative, source.stamp, source.maxBytes})
+	if err != nil {
+		return ErrInvalidInput
+	}
+	digest := sha256.Sum256(encoded)
+	return w.runIntent(ctx, "stage:"+hex.EncodeToString(digest[:]), source, ops, func() error {
+		return w.stageCommitFilesOwned(ctx, source, lease, record, repository, ops)
+	})
+}
+
+func (w *Writer) stageCommitFilesOwned(ctx context.Context, source *Source, lease domain.JobLease, record domain.NFOWriteCommitRecord, repository app.NFOWriteCommitFilesRepository, ops nfoWriteOperations) error {
+	payload, ok := w.budget.(app.PayloadBudget)
+	if !ok {
+		return ErrInvalidInput
+	}
+	// SQL bounds each original/replacement/request payload by NFOMaxSourceBytes.
+	// Reserve the complete worst case before reading, never trusting a caller's
+	// source cap to size another job's stored payload. Hold through stage cleanup.
+	releasePayload, err := payload.ReservePayloadBytes(ctx, 3*domain.NFOMaxSourceBytes)
+	if err != nil {
+		return err
+	}
+	defer releasePayload()
+	releaseRead, err := w.budget.Acquire(ctx, app.WorkIO)
+	if err != nil {
+		return err
+	}
+	task, err := repository.GetNFOWriteTask(ctx, lease, record.Sequence)
+	var evidence domain.NFOWriteCommitFileEvidence
+	if err == nil {
+		evidence, err = repository.GetNFOWriteCommitFiles(ctx, lease, record.Sequence, record.Token)
+	}
+	releaseRead()
+	if err != nil {
+		return err
+	}
+	if task.JobID != record.JobID || task.Sequence != record.Sequence || task.Preparation.Scope.RootGeneration < 1 || task.Preparation.NativeObservation.Empty() {
+		return ErrInvalidInput
+	}
+	if evidence.Record.JobID != record.JobID || evidence.Record.Sequence != record.Sequence || evidence.Record.Owner != record.Owner || evidence.Record.Generation != record.Generation || evidence.Record.Token != record.Token || evidence.ReadyRecorded && !evidence.PlanRecorded {
+		return ErrChanged
+	}
+	if evidence.CheckpointRecorded {
+		checkpoint := evidence.Checkpoint
+		if !evidence.PlanRecorded || domain.ValidateNFOWriteCommitFileCheckpoint(checkpoint) != nil || checkpoint.OutputIdentity[1] != evidence.Plan.TargetIdentity[1] || checkpoint.OutputIdentity == evidence.Plan.TargetIdentity || checkpoint.RollbackIdentity == evidence.Plan.TargetIdentity || evidence.ReadyRecorded && (checkpoint.Phase != 2 || checkpoint.OutputIdentity != evidence.Ready.OutputIdentity || checkpoint.RollbackIdentity != evidence.Ready.RollbackIdentity) {
+			return ErrChanged
+		}
+	}
+	// Only the job-owned immutable intent can drive reconstruction. A caller's
+	// unrelated preparation, even with the same basename, is never accepted.
+	replacement, err := w.rebuildPrepared(ctx, source, task.Preparation)
+	if err != nil {
+		return err
+	}
+	releaseCPU, err := w.budget.Acquire(ctx, app.WorkCPU)
+	if err != nil {
+		return err
+	}
+	original, err := source.Parse(ctx)
+	releaseCPU()
+	if err != nil {
+		return err
+	}
+	releaseIO, err := w.budget.Acquire(ctx, app.WorkIO)
+	if err != nil {
+		return err
+	}
+	defer releaseIO()
+	root, err := os.OpenRoot(source.rootPath + string(os.PathSeparator) + ".")
+	if err != nil {
+		return ErrChanged
+	}
+	defer root.Close()
+	parent := filepath.Dir(filepath.FromSlash(source.relative))
+	directory, err := root.OpenRoot(parent)
+	if err != nil {
+		return ErrChanged
+	}
+	defer directory.Close()
+	filename := filepath.Base(filepath.FromSlash(source.relative))
+	check := func(checkCtx context.Context) error {
+		if err := checkCtx.Err(); err != nil {
+			return err
+		}
+		if err := verifyNativePreparationScope(checkCtx, task.Preparation.Scope, task.Preparation.NativeObservation); err != nil {
+			return err
+		}
+		current, err := os.OpenRoot(source.rootPath + string(os.PathSeparator) + ".")
+		if err != nil {
+			return ErrChanged
+		}
+		defer current.Close()
+		pathInfo, err := os.Lstat(source.rootPath)
+		if err != nil || !pathInfo.IsDir() || pathInfo.Mode()&os.ModeSymlink != 0 {
+			return ErrChanged
+		}
+		for _, observed := range []*os.Root{root, current} {
+			info, err := observed.Stat(".")
+			if err != nil || !os.SameFile(source.rootInfo, info) {
+				return ErrChanged
+			}
+			parts := strings.Split(source.relative, "/")
+			for i := range parts {
+				info, err := observed.Lstat(filepath.FromSlash(strings.Join(parts[:i+1], "/")))
+				if err != nil || info.Mode()&os.ModeSymlink != 0 || i < len(parts)-1 && !info.IsDir() || i == len(parts)-1 && !regularNFOFile(info) {
+					return ErrChanged
+				}
+			}
+			info, err = observed.Stat(parent)
+			if err != nil || !os.SameFile(source.parentInfo, info) {
+				return ErrChanged
+			}
+		}
+		info, err := directory.Stat(".")
+		if err != nil || !os.SameFile(source.parentInfo, info) {
+			return ErrChanged
+		}
+		_, err = verifyNFOOriginal(checkCtx, directory, filename, source.original, source.fileInfo)
+		return err
+	}
+	if err := check(ctx); err != nil {
+		return err
+	}
+	var token [16]byte
+	decoded, err := hex.DecodeString(strings.ReplaceAll(record.Token, "-", ""))
+	if err != nil || len(decoded) != len(token) {
+		return ErrInvalidInput
+	}
+	copy(token[:], decoded)
+	ops.documentsValidated, ops.checkSource = true, check
+	if attempts, ok := repository.(app.NFOWriteCommitAttemptStageRepository); ok {
+		return stageNFOCommitAttempts(ctx, directory, filename, original, replacement, token, lease, record, evidence, attempts, check, ops)
+	}
+	return stageLegacyNFOCommitFiles(ctx, directory, filename, original, replacement, token, lease, record, evidence, repository, check, ops)
+}
+
+// stageLegacyNFOCommitFiles continues the schema55 names (attempt 0). It never
+// allocates or inspects a later namespace.
+func stageLegacyNFOCommitFiles(ctx context.Context, directory *os.Root, filename string, original, replacement *Document, token [16]byte, lease domain.JobLease, record domain.NFOWriteCommitRecord, evidence domain.NFOWriteCommitFileEvidence, repository app.NFOWriteCommitFilesRepository, check func(context.Context) error, ops nfoWriteOperations) error {
+	if evidence.ReadyRecorded {
+		return resumeNFOCommitFiles(ctx, directory, filename, original, replacement, lease, record, evidence, repository, check)
+	}
+	ports := nfoCommitFilePersistence{
+		plan: func(ctx context.Context, plan nfoCommitFilePlan) error {
+			if err := check(ctx); err != nil {
+				return err
+			}
+			value := domain.NFOWriteCommitFilePlan{Version: plan.version, TargetName: plan.filename, ParentIdentity: plan.parent.record, TargetIdentity: plan.target.record}
+			saved, err := repository.SaveNFOWriteCommitFilePlan(ctx, lease, record.Sequence, record.Token, value)
+			if err != nil {
+				return err
+			}
+			if saved != value {
+				return ErrChanged
+			}
+			return nil
+		},
+		ready: func(ctx context.Context, files nfoCommitFiles) error {
+			if err := check(ctx); err != nil {
+				return err
+			}
+			value := domain.NFOWriteCommitFilesReady{OutputIdentity: files.output.record, RollbackIdentity: files.rollback.record}
+			saved, err := repository.SaveNFOWriteCommitFilesReady(ctx, lease, record.Sequence, record.Token, value)
+			if err != nil {
+				return err
+			}
+			if saved != value {
+				return ErrChanged
+			}
+			return nil
+		},
+	}
+	if checkpoints, ok := repository.(app.NFOWriteCommitCheckpointRepository); ok {
+		ports.progress = func(ctx context.Context, files nfoCommitFiles) error {
+			if err := check(ctx); err != nil {
+				return err
+			}
+			value := domain.NFOWriteCommitFileCheckpoint{Phase: 1, OutputIdentity: files.output.record}
+			if files.rollback != (nfoNativeIdentity{}) {
+				value.Phase = 2
+				value.RollbackIdentity = files.rollback.record
+			}
+			saved, err := checkpoints.SaveNFOWriteCommitFileCheckpoint(ctx, lease, record.Sequence, record.Token, value)
+			if err != nil {
+				return err
+			}
+			if saved != value {
+				return ErrChanged
+			}
+			return nil
+		}
+		if evidence.CheckpointRecorded {
+			if !evidence.PlanRecorded || domain.ValidateNFOWriteCommitFileCheckpoint(evidence.Checkpoint) != nil {
+				return ErrChanged
+			}
+			ports.resume = &nfoCommitFiles{
+				plan:   nfoCommitFilePlan{version: evidence.Plan.Version, token: token, filename: evidence.Plan.TargetName, parent: nfoNativeIdentity{evidence.Plan.ParentIdentity}, target: nfoNativeIdentity{evidence.Plan.TargetIdentity}},
+				output: nfoNativeIdentity{evidence.Checkpoint.OutputIdentity}, rollback: nfoNativeIdentity{evidence.Checkpoint.RollbackIdentity},
+			}
+		}
+	} else if evidence.CheckpointRecorded {
+		return ErrChanged
+	}
+	_, err := prepareNFOCommitFiles(ctx, directory, filename, original, replacement, token, ports, ops)
+	return err
+}
+
+func resumeNFOCommitFiles(ctx context.Context, directory *os.Root, filename string, original, replacement *Document, lease domain.JobLease, record domain.NFOWriteCommitRecord, evidence domain.NFOWriteCommitFileEvidence, repository app.NFOWriteCommitFilesRepository, check func(context.Context) error) error {
+	if evidence.Plan.TargetName != filename {
+		return ErrChanged
+	}
+	lock, err := lockNFOFile(ctx, directory, filename)
+	if err != nil {
+		return err
+	}
+	defer lock.Close()
+	verify := func() error {
+		if err := check(ctx); err != nil {
+			return err
+		}
+		if !lock.check() {
+			return ErrFileLock
+		}
+		return VerifyCommitFiles(ctx, directory, record.Token, evidence.Plan, evidence.Ready, original.original, replacement.original)
+	}
+	if err := verify(); err != nil {
+		return err
+	}
+	plan, err := repository.SaveNFOWriteCommitFilePlan(ctx, lease, record.Sequence, record.Token, evidence.Plan)
+	if err != nil {
+		return err
+	}
+	if plan != evidence.Plan {
+		return ErrChanged
+	}
+	ready, err := repository.SaveNFOWriteCommitFilesReady(ctx, lease, record.Sequence, record.Token, evidence.Ready)
+	if err != nil {
+		return err
+	}
+	if ready != evidence.Ready {
+		return ErrChanged
+	}
+	return verify()
+}

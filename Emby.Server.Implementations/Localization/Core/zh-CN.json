@@ -64,12 +64,9 @@
     "VersionNumber": "版本 {0}",
     "TaskUpdatePluginsDescription": "为已设置为自动更新的插件下载和安装更新。",
     "TaskRefreshPeople": "刷新演职人员",
-    "TasksChannelsCategory": "互联网频道",
     "TasksLibraryCategory": "媒体库",
     "TaskDownloadMissingSubtitlesDescription": "根据元数据设置在互联网上搜索缺少的字幕。",
     "TaskDownloadMissingSubtitles": "下载缺少的字幕",
-    "TaskRefreshChannelsDescription": "刷新互联网频道信息。",
-    "TaskRefreshChannels": "刷新频道",
     "TaskCleanTranscodeDescription": "删除存在超过 1 天的转码文件。",
     "TaskCleanTranscode": "清理转码目录",
     "TaskUpdatePlugins": "更新插件",
@@ -121,5 +118,6 @@
     "NameExtraThemeSong": "主题曲",
     "NameExtraThemeVideo": "主题视频",
     "NameExtraTrailer": "预告片",
-    "NameExtraUnknown": "额外内容"
+    "NameExtraUnknown": "额外内容",
+    "FeatureRemoved": "不支持设备发现、直播电视、录制和频道。"
 }

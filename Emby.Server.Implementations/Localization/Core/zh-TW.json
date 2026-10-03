@@ -64,7 +64,6 @@
     "SubtitleDownloadFailureFromForItem": "無法從 {0} 下載 {1} 的字幕",
     "TaskDownloadMissingSubtitlesDescription": "透過媒體資訊從網路上搜尋遺失的字幕。",
     "TaskDownloadMissingSubtitles": "下載遺失的字幕",
-    "TaskRefreshChannels": "重新整理頻道",
     "TaskUpdatePlugins": "更新擴充功能",
     "TaskRefreshPeople": "更新人物",
     "TaskCleanLogsDescription": "刪除超過 {0} 天的日誌文件。",
@@ -75,13 +74,11 @@
     "TaskCleanCacheDescription": "刪除系統已不需要的快取。",
     "TaskCleanCache": "清除快取資料夾",
     "TasksLibraryCategory": "媒體庫",
-    "TaskRefreshChannelsDescription": "重新整理網路頻道資料。",
     "TaskCleanTranscodeDescription": "刪除超過一天的轉檔。",
     "TaskCleanTranscode": "清除轉檔資料夾",
     "TaskUpdatePluginsDescription": "下載並更新已啟用自動更新的擴充功能。",
     "TaskRefreshPeopleDescription": "更新媒體庫中演員和導演的資訊。",
     "TaskRefreshChapterImagesDescription": "為有章節的影片建立縮圖。",
-    "TasksChannelsCategory": "網路頻道",
     "TasksApplicationCategory": "應用程式",
     "TasksMaintenanceCategory": "維護",
     "TaskCleanActivityLogDescription": "刪除超過所設時間的活動紀錄。",
@@ -121,5 +118,6 @@
     "NameExtraThemeSong": "主題曲",
     "NameExtraThemeVideo": "主題影片",
     "NameExtraTrailer": "預告片",
-    "NameExtraUnknown": "額外內容"
+    "NameExtraUnknown": "額外內容",
+    "FeatureRemoved": "不支援裝置探索、直播電視、錄製與頻道。"
 }

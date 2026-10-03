@@ -10,7 +10,9 @@ import (
 	"sync"
 	"time"
 
+	"github.com/MoYuanCN/Jelee/internal/adapter/calendar"
 	httpapi "github.com/MoYuanCN/Jelee/internal/adapter/http"
+	imageadapter "github.com/MoYuanCN/Jelee/internal/adapter/images"
 	"github.com/MoYuanCN/Jelee/internal/adapter/nfo"
 	"github.com/MoYuanCN/Jelee/internal/adapter/postgres"
 	"github.com/MoYuanCN/Jelee/internal/adapter/scan"
@@ -19,12 +21,31 @@ import (
 	"github.com/MoYuanCN/Jelee/internal/platform/config"
 	jobworker "github.com/MoYuanCN/Jelee/internal/platform/jobs"
 	"github.com/MoYuanCN/Jelee/internal/platform/password"
+	"github.com/MoYuanCN/Jelee/internal/platform/resources"
+	"github.com/MoYuanCN/Jelee/internal/platform/telemetry"
 	"go.uber.org/fx"
 )
 
 func New(cfg config.Config, logger *slog.Logger) *fx.App {
-	lifetime := newLifetime(logger)
-	return build(lifetime, fx.NopLogger, fx.Supply(cfg, logger), fx.Provide(
+	return newWithLifetime(cfg, logger, newLifetime(logger))
+}
+
+func newWithLifetime(cfg config.Config, logger *slog.Logger, lifetime *lifetime) *fx.App {
+	if err := cfg.Resources.Validate(); err != nil {
+		return build(lifetime, fx.NopLogger, fx.Error(err))
+	}
+	budget, err := resources.New(resources.Limits{CPU: cfg.Resources.CPULimit(), IO: cfg.Resources.IO, Total: cfg.Resources.Total, Queue: cfg.Resources.Queue})
+	if err != nil {
+		return build(lifetime, fx.NopLogger, fx.Error(err))
+	}
+	metadataService, err := prepareMetadataWithBudget(cfg.TMDBAPIKey, lifetime, budget)
+	if err != nil {
+		return build(lifetime, fx.NopLogger, fx.Error(err))
+	}
+	return build(lifetime, fx.NopLogger, fx.Supply(cfg, logger, budget), fx.Provide(
+		func(store *postgres.Store) (*app.Metadata, error) {
+			return bindMetadata(metadataService, store)
+		},
 		func(c config.Config) (*postgres.Store, error) {
 			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 			defer cancel()
@@ -36,7 +57,48 @@ func New(cfg config.Config, logger *slog.Logger) *fx.App {
 			return store, nil
 		},
 		func(store *postgres.Store) *app.Catalog { return app.NewCatalog(store) },
-		func(c config.Config, store *postgres.Store, l *slog.Logger) (*app.Jobs, error) {
+		func(c config.Config, budget *resources.Budget) (*imageadapter.Processor, error) {
+			if !c.EnableImages {
+				return nil, nil
+			}
+			if err := c.Validate(); err != nil {
+				return nil, err
+			}
+			p := c.Images
+			processor, err := imageadapter.New(lifetime.ctx, imageadapter.Options{
+				Budget:   budget,
+				TempRoot: p.TempRoot, MaxConcurrent: p.MaxConcurrent,
+				MaxImageBytes: p.MaxImageBytes, MaxSourceBytes: p.MaxSourceBytes,
+				MaxOutputBytes: p.MaxOutputBytes, MaxOutputDimension: p.MaxOutputDimension,
+				CacheBytes: p.CacheBytes, CacheEntries: p.CacheEntries,
+				Timeout:  time.Duration(p.TimeoutSeconds) * time.Second,
+				CacheTTL: time.Duration(p.CacheTTLSeconds) * time.Second, DefaultQuality: p.DefaultQuality,
+			})
+			if err != nil {
+				return nil, err
+			}
+			lifetime.closeImages = processor.Shutdown
+			lifetime.imageStats = processor.Stats
+			return processor, nil
+		},
+		func(c config.Config, store *postgres.Store, processor *imageadapter.Processor) (*app.Images, error) {
+			if !c.EnableImages {
+				return nil, nil
+			}
+			return app.NewImages(store, processor)
+		},
+		func(c config.Config, store *postgres.Store, budget *resources.Budget) (*telemetry.Metrics, error) {
+			if !c.EnableMetrics {
+				return nil, nil
+			}
+			metrics, err := telemetry.NewWithResources(store, store, budget)
+			if err != nil {
+				return nil, err
+			}
+			lifetime.closeTelemetry = metrics.Shutdown
+			return metrics, nil
+		},
+		func(c config.Config, store *postgres.Store, budget *resources.Budget, l *slog.Logger) (*app.Jobs, error) {
 			if !c.EnableJobs {
 				return nil, nil
 			}
@@ -45,6 +107,12 @@ func New(cfg config.Config, logger *slog.Logger) *fx.App {
 			}
 			startup, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 			defer cancel()
+			ignoring, err := newFamilyIgnoreService(startup, c.EnableFamilyIgnore, prepareProductionFamilyIgnore)
+			if err != nil {
+				return nil, err
+			}
+			lifetime.ignoreService = ignoring
+			lifetime.closeIgnore = ignoring.Close
 			probing, err := newProbeService(startup, c.EnableProbe, store, prepareProductionProbe)
 			if err != nil {
 				return nil, err
@@ -61,18 +129,43 @@ func New(cfg config.Config, logger *slog.Logger) *fx.App {
 			}
 			validation.logger = l
 			service, err := app.NewJobsWithScanStages(store, c.Jobs.Policy(), store, app.ScanServices{
-				IgnoreAvailable: func() bool { return goruntime.GOOS == "linux" || goruntime.GOOS == "windows" },
-				Probes:          store, ProbeIdentity: probing.identity, ProbeCapability: probing.Capability,
+				CancellationNotifier:  lifetime,
+				FamilyIgnoreAvailable: ignoring.Available,
+				IgnoreAvailable:       func() bool { return goruntime.GOOS == "linux" || goruntime.GOOS == "windows" },
+				Probes:                store, ProbeIdentity: probing.identity, ProbeCapability: probing.Capability,
 				NFOAdmin: store, NFOQueries: store, Images: store, NFOIdentity: validation.identity, NFOAvailable: validation.Available,
 			})
 			if err != nil {
 				return nil, err
 			}
+			service, err = app.NewJobsWithInventoryImport(service, store, scan.New())
+			if err != nil {
+				return nil, err
+			}
+			service, err = app.NewJobsWithSchedules(service, store, calendar.Calendar{})
+			if err != nil {
+				return nil, err
+			}
+			service, err = app.NewJobsWithWatch(service, store)
+			if err != nil {
+				return nil, err
+			}
 			p := c.Jobs
-			opts := jobworker.Options{Workers: p.Workers, PollInterval: time.Duration(p.PollMilliseconds) * time.Millisecond, LeaseDuration: time.Duration(p.LeaseSeconds) * time.Second, DBOperationTimeout: time.Duration(p.DatabaseTimeoutSeconds) * time.Second, MaxJobRuntime: time.Duration(p.MaxRuntimeSeconds) * time.Second}
+			opts := jobworker.Options{Budget: budget, Workers: p.Workers, PollInterval: time.Duration(p.PollMilliseconds) * time.Millisecond, LeaseDuration: time.Duration(p.LeaseSeconds) * time.Second, DBOperationTimeout: time.Duration(p.DatabaseTimeoutSeconds) * time.Second, MaxJobRuntime: time.Duration(p.MaxRuntimeSeconds) * time.Second}
+			window, err := calendar.ParseDailyWindow(p.WindowStart, p.WindowEnd, p.WindowTimezone)
+			if err != nil {
+				return nil, err
+			}
+			if window != nil {
+				opts.Window = window
+			}
+			opts.CatalogImport = &jobworker.CatalogImportOptions{Repository: store, Verifier: scan.New()}
 			if goruntime.GOOS == "linux" || goruntime.GOOS == "windows" {
 				ignoreScanner := scan.NewIgnoreScanner()
 				opts.Ignore = &jobworker.IgnoreOptions{Repository: store, Scanner: ignoreScanner, Observer: ignoreScanner}
+			}
+			if ignoring.Available() {
+				opts.FamilyIgnore = &jobworker.FamilyIgnoreOptions{Repository: store, Scanner: scan.NewFamilyIgnoreScanner(ignoring), Available: ignoring.Available}
 			}
 			if validation.Available() {
 				opts.NFO = &jobworker.NFOOptions{Repository: store, Reader: validation, MaxConcurrent: 2, Available: validation.Available, OnRuntimeUnavailable: validation.Disable}
@@ -84,12 +177,22 @@ func New(cfg config.Config, logger *slog.Logger) *fx.App {
 			if err != nil {
 				return nil, err
 			}
-			lifetime.worker = &probeWorker{worker: runner, probe: probing, nfo: validation}
+			watchOptions := scan.DefaultWatchOptions()
+			watchOptions.Budget = budget
+			observer, err := scan.NewDirectoryWatcher(watchOptions)
+			if err != nil {
+				return nil, err
+			}
+			watchRunner, err := jobworker.NewWatchRunnerWithWindow(store, observer, service, l, opts.Window)
+			if err != nil {
+				return nil, err
+			}
+			lifetime.worker = &watchGroup{worker: &scheduledWorker{worker: &probeWorker{worker: runner, probe: probing, nfo: validation}, dispatch: service, logger: l}, watch: watchRunner}
 			return service, nil
 		},
-		func(c config.Config, store *postgres.Store, catalog *app.Catalog, jobs *app.Jobs, l *slog.Logger) (http.Handler, error) {
+		func(c config.Config, store *postgres.Store, catalog *app.Catalog, jobs *app.Jobs, metadata *app.Metadata, metrics *telemetry.Metrics, pictures *app.Images, budget *resources.Budget, l *slog.Logger) (http.Handler, error) {
 			if !c.EnableAccounts {
-				return httpapi.New(c, store, catalog, store, l)
+				return httpapi.NewWithResources(c, store, catalog, store, l, nil, nil, nil, nil, nil, budget)
 			}
 			if err := c.Accounts.Validate(); err != nil {
 				return nil, err
@@ -103,7 +206,11 @@ func New(cfg config.Config, logger *slog.Logger) *fx.App {
 			if err != nil {
 				return nil, err
 			}
-			return httpapi.NewWithJobs(c, store, catalog, store, l, accounts, jobs)
+			var metricsHandler http.Handler
+			if metrics != nil {
+				metricsHandler = metrics.Handler()
+			}
+			return httpapi.NewWithResources(c, store, catalog, store, l, accounts, jobs, metadata, metricsHandler, pictures, budget)
 		},
 	), fx.Invoke(func(lc fx.Lifecycle, cfg config.Config, handler http.Handler, shutdown fx.Shutdowner) {
 		lifetime.server = &http.Server{Addr: cfg.Listen, Handler: handler, ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 15 * time.Second, IdleTimeout: 60 * time.Second, MaxHeaderBytes: 16 << 10}
@@ -120,6 +227,9 @@ type serviceWorker interface {
 // One Fx hook owns all resources. Separate hooks would allow an HTTP drain
 // deadline to make Fx skip worker cancellation and pool cleanup entirely.
 type lifetime struct {
+	prepareTMDB     func(context.Context) error
+	closeTMDB       func()
+	ignoreService   *familyIgnoreService
 	ctx             context.Context
 	cancel          context.CancelFunc
 	worker          serviceWorker
@@ -129,11 +239,16 @@ type lifetime struct {
 	requestShutdown func() error
 	closeStore      func()
 	closeProbe      func() error
+	closeIgnore     func() error
+	closeTelemetry  func(context.Context) error
+	closeImages     func(context.Context) error
 	closeOnce       sync.Once
 	stopOnce        sync.Once
 	exited          chan struct{}
 	stopped         chan struct{}
 	stopErr         error
+	// Observe the same processor used by HTTP without replacing its dependencies.
+	imageStats func() imageadapter.Stats
 }
 
 func newLifetime(logger *slog.Logger) *lifetime {
@@ -153,10 +268,44 @@ func build(l *lifetime, options ...fx.Option) *fx.App {
 
 func (l *lifetime) closePool() {
 	l.closeOnce.Do(func() {
+		if l.closeTMDB != nil {
+			l.closeTMDB()
+		}
+		if l.closeIgnore != nil {
+			if err := l.closeIgnore(); err != nil {
+				l.stopErr = errors.Join(l.stopErr, errors.New("ignore helper temporary cleanup failed"))
+				l.logger.Error("ignore helper temporary cleanup failed", "component", "ignore", "code", "ignore_unavailable")
+			}
+		}
 		if l.closeProbe != nil {
 			if err := l.closeProbe(); err != nil {
 				l.stopErr = errors.Join(l.stopErr, errors.New("probe temporary cleanup failed"))
 				l.logger.Error("probe temporary cleanup failed", "component", "probe", "code", "probe_runtime_unavailable")
+			}
+		}
+		// Metrics scrapes may prefetch shared database snapshots. Stop admitted
+		// scrapes before releasing the pool, including Fx startup failures.
+		if l.closeTelemetry != nil {
+			ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+			err := l.closeTelemetry(ctx)
+			cancel()
+			if err != nil {
+				// Like worker cleanup, collection ownership outlives a caller's
+				// deadline. Keep the pool until its last snapshot has joined.
+				l.logger.Warn("waiting for metrics cleanup", "component", "metrics")
+				if err := l.closeTelemetry(context.Background()); err != nil {
+					l.stopErr = errors.Join(l.stopErr, errors.New("metrics shutdown failed"))
+					l.logger.Error("metrics shutdown failed; pool retained", "component", "metrics")
+					return
+				}
+			}
+		}
+		// Image requests recheck catalog access after decoding. Keep the pool
+		// alive until cancelled decoding and held response bodies have joined.
+		if l.closeImages != nil {
+			if err := l.closeImages(context.Background()); err != nil {
+				l.stopErr = errors.Join(l.stopErr, errors.New("image shutdown failed"))
+				return
 			}
 		}
 		if l.closeStore != nil {
@@ -166,6 +315,13 @@ func (l *lifetime) closePool() {
 }
 
 func (l *lifetime) start(ctx context.Context) error {
+	if l.prepareTMDB != nil {
+		if err := l.prepareTMDB(ctx); err != nil {
+			l.cancel()
+			l.closePool()
+			return err
+		}
+	}
 	listener, err := l.listen(ctx, "tcp", l.server.Addr)
 	if err != nil {
 		l.cancel()
@@ -246,4 +402,10 @@ func (l *lifetime) shutdown(ctx context.Context) {
 		return // Do not close a store that workers may still be using.
 	}
 	l.closePool()
+}
+
+func (l *lifetime) NotifyJobCancellation(id string) {
+	if notifier, ok := l.worker.(app.JobCancellationNotifier); ok {
+		notifier.NotifyJobCancellation(id)
+	}
 }

@@ -9,11 +9,11 @@ import (
 )
 
 // A heartbeat updates the parent twice in one transaction. A concurrent API
-// read must wait for the jobs lock without holding the submitting user's row:
+// cancellation must wait for the jobs lock without holding the submitting user's row:
 // PostgreSQL may check the unchanged actor foreign key on the second update.
-func TestJobsLockOrderHeartbeatAndAuthorizedRead(t *testing.T) {
+func TestJobsLockOrderHeartbeatAndAuthorizedCancellation(t *testing.T) {
 	f := newJobFixture(t)
-	j := f.submit(t, "heartbeat-read-order")
+	j := f.submit(t, "heartbeat-cancel-order")
 	l := f.claim(t, "heartbeat-owner")
 	ctx, cancel := context.WithTimeout(f.ctx, 8*time.Second)
 	defer cancel()
@@ -32,11 +32,11 @@ func TestJobsLockOrderHeartbeatAndAuthorizedRead(t *testing.T) {
 		job domain.Job
 		err error
 	}
-	read := make(chan result, 1)
+	cancellation := make(chan result, 1)
 	joined := false
 	go func() {
-		job, err := f.s.GetJob(ctx, f.a, j.ID)
-		read <- result{job, err}
+		job, err := f.s.CancelJob(ctx, f.a, j.ID)
+		cancellation <- result{job, err}
 	}()
 	defer func() {
 		cancel()
@@ -45,9 +45,9 @@ func TestJobsLockOrderHeartbeatAndAuthorizedRead(t *testing.T) {
 		_ = tx.Rollback(cleanup)
 		if !joined {
 			select {
-			case <-read:
+			case <-cancellation:
 			case <-cleanup.Done():
-				t.Error("authorized read did not join")
+				t.Error("authorized cancellation did not join")
 			}
 		}
 	}()
@@ -67,10 +67,10 @@ func TestJobsLockOrderHeartbeatAndAuthorizedRead(t *testing.T) {
 		}
 		select {
 		case <-barrier.Done():
-			t.Fatal("authorized read never reached the jobs lock")
-		case got := <-read:
+			t.Fatal("authorized cancellation never reached the jobs lock")
+		case got := <-cancellation:
 			joined = true
-			t.Fatal("authorized read returned before heartbeat released its lock", got.err)
+			t.Fatal("authorized cancellation returned before heartbeat released its lock", got.err)
 		case <-ticker.C:
 		}
 	}
@@ -82,16 +82,16 @@ func TestJobsLockOrderHeartbeatAndAuthorizedRead(t *testing.T) {
 	}
 	var got result
 	select {
-	case got = <-read:
+	case got = <-cancellation:
 		joined = true
 	case <-ctx.Done():
-		t.Fatal("authorized read did not complete after heartbeat", ctx.Err())
+		t.Fatal("authorized cancellation did not complete after heartbeat", ctx.Err())
 	}
 	if heartbeatErr != nil || got.err != nil {
-		t.Fatalf("heartbeat and authorized read must both succeed: heartbeat=%v read=%v", heartbeatErr, got.err)
+		t.Fatalf("heartbeat and authorized cancellation must both succeed: heartbeat=%v cancellation=%v", heartbeatErr, got.err)
 	}
-	if got.job.ID != j.ID || got.job.State != domain.JobRunning {
-		t.Fatal("authorized read returned a different parent or state")
+	if got.job.ID != j.ID || got.job.State != domain.JobRunning || !got.job.CancelRequested {
+		t.Fatal("authorized cancellation returned a different parent or state")
 	}
-	t.Log("observed own-schema jobs lock waiter; heartbeat second update and authorized read completed; reader joined")
+	t.Log("observed own-schema jobs lock waiter; heartbeat second update and authorized cancellation completed; reader joined")
 }

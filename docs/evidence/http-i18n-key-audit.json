@@ -1,0 +1,69 @@
+{
+  "scope": "G03 Go HTTP static translation key audit; not complete frontend/UI usage validation",
+  "baseCommit": "5381ee390cff6effd334d44bdd0b3098a171844e",
+  "source": "internal/adapter/http/i18n_contract_test.go",
+  "sourceSha256": "e5c1a17a6780741161e16de48236b542b7f40a21781eb78bb313a233fa7f8acb",
+  "productionFilesAudited": [
+    "internal/adapter/http/accounts.go",
+    "internal/adapter/http/accounts_openapi.go",
+    "internal/adapter/http/ignore_openapi.go",
+    "internal/adapter/http/jobs.go",
+    "internal/adapter/http/jobs_openapi.go",
+    "internal/adapter/http/login_limiter.go",
+    "internal/adapter/http/nfo_jobs.go",
+    "internal/adapter/http/nfo_openapi.go",
+    "internal/adapter/http/openapi.go",
+    "internal/adapter/http/server.go",
+    "internal/adapter/http/strict_json.go"
+  ],
+  "algorithm": "Go AST across every production source in HTTP package, exclude test files; compare extracted static code set to English catalog and verify four locales",
+  "fixtureCases": 8,
+  "keyDifferenceNegativeCase": "Both missing and unused keys must be detected",
+  "windows": {
+    "github.com/MoYuanCN/Jelee/internal/platform/i18n": {
+      "elapsedSeconds": 0.18,
+      "testPassEvents": 41
+    },
+    "github.com/MoYuanCN/Jelee/internal/adapter/http": {
+      "elapsedSeconds": 2.156,
+      "testPassEvents": 193
+    }
+  },
+  "vet": "PASS",
+  "linuxRace": {
+    "github.com/MoYuanCN/Jelee/internal/platform/i18n": {
+      "testPassEvents": 41,
+      "elapsedSeconds": 1.069
+    },
+    "github.com/MoYuanCN/Jelee/internal/adapter/http": {
+      "testPassEvents": 193,
+      "elapsedSeconds": 3.598
+    }
+  },
+  "productBehaviorChanged": false,
+  "catalogsChanged": false,
+  "liveCoreDeletionApplied": false,
+  "limitations": [
+    "Static references do not prove runtime branch reachability",
+    "Legacy UI key usage and frontend hardcoded text gate remain incomplete",
+    "Full branding/ABI failures retained"
+  ],
+  "gates": {
+    "incrementalBrandGate": {
+      "violations": 0,
+      "allowed": 175,
+      "status": "PASS"
+    },
+    "fullBrandGate": {
+      "violations": 14735,
+      "allowed": 180,
+      "status": "FAIL retained"
+    },
+    "gitignoreGate": {
+      "violations": 0,
+      "status": "PASS"
+    },
+    "stagedDiffCheck": "PASS"
+  },
+  "liveCoreAndProtectedFilesByteIdenticalToBase": true
+}

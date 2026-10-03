@@ -1,0 +1,136 @@
+{
+  "sourceBaseCommit": "1f8c693ddd3a968b168cb2304f7529f4bc0abb5d",
+  "schemaVersion": 49,
+  "changedSourceManifest": {
+    "internal/adapter/postgres/inventory_scope_test.go": "124dbd9e7ab0970de302e8150180924339b325840fe70ea870fa7afcf7b3eebf",
+    "internal/adapter/postgres/jobs_execution.go": "4590b77ccc1fee7b86ceade2b2c011f7a0d934ef8a02b8fa7d069137ab2ddae1",
+    "internal/adapter/postgres/jobs.go": "abd215d76ef11be017cf50559ce8727ba1a233611312f1f5b75955eb4b96f6b9",
+    "internal/adapter/postgres/migrations/000049_nfo_write_commit_journal.down.sql": "641b92efc863cd9a782d0618ea01bad5bc4ba7996c61da16b71174ae5a238c3f",
+    "internal/adapter/postgres/migrations/000049_nfo_write_commit_journal.up.sql": "4b1d46114f51aa4a9ecba5d545bea4fa5d48c68457d022dd7700bb6a861587a5",
+    "internal/adapter/postgres/nfo_quota_isolation_test.go": "e77b77341c973e41f6014eeceaf7c4e75371a11c6bc953eceabc2026b9d5482d",
+    "internal/adapter/postgres/nfo_write_commit_journal_test.go": "7b339c03b7299ac08579aa2737be2795bd052874845efece8ddf2fc7d47cf54c",
+    "internal/adapter/postgres/nfo_write_commit_journal.go": "c917a48c688652a1e4b2bf197f6fa976a3cdbe133b349ebeb114e0feecdb9f49",
+    "internal/adapter/postgres/store.go": "eb12d0afb3ca3910a1d57898b0db12a79cb6f21d6adeeed6ef94670cd6b2e893"
+  },
+  "publishedSQLFilesUnchanged": 96,
+  "frozenSourceFiles": 946,
+  "frozenSourceManifestSHA256": "2c8970c1847197c2ec713732d1f997453a132098193e4cee327a1e69c84ffe99",
+  "frozenSourceUnchanged": true,
+  "fullRegressionMethod": "four balanced invocations of one logical PostgreSQL package; all 424 compiled test roots run and pass exactly once",
+  "fullRegressionCoverage": {
+    "compiledRoots": 424,
+    "rootsRunExactlyOnce": true,
+    "rootsPassedExactlyOnce": true,
+    "failedTests": [],
+    "skippedTests": [],
+    "exitCodes": {
+      "2": 0,
+      "3": 0,
+      "1": 0,
+      "0": 0
+    },
+    "testManifestSHA256": "b767634facd0afb51ffa0f8dc0c136d9eba031bdc6088eef15a2284b9385521e",
+    "passed": true
+  },
+  "initialFullRegression": {
+    "passed": false,
+    "repair": "fixture flushes deferred constraints after UPDATE before ALTER ENABLE; published SQL unchanged",
+    "sqlState": "55006",
+    "failedRoot": "TestInventoryScopeLegacyJobCannotBindCurrentEpoch",
+    "elapsedSeconds": 1538.997,
+    "counts": {
+      "packagesPassed": 0,
+      "testsPassed": 1132,
+      "testsSkipped": 0,
+      "failureEvents": 2
+    },
+    "sourceManifestSHA256": "b688b29d86f41dd251bd1a69f098f3ade49a58f71d6081909b8f010f8d1c3911"
+  },
+  "windows": {
+    "packagesPassed": 8,
+    "testsPassed": 1557,
+    "testsSkipped": 705,
+    "failureEvents": 0
+  },
+  "postgresFullRace": {
+    "packagesPassed": 4,
+    "testsPassed": 1133,
+    "testsSkipped": 0,
+    "failureEvents": 0
+  },
+  "postgresJournalSelectedRace": {
+    "packagesPassed": 1,
+    "testsPassed": 30,
+    "testsSkipped": 0,
+    "failureEvents": 0
+  },
+  "postgresRuntimeMetricsRace": {
+    "packagesPassed": 1,
+    "testsPassed": 1,
+    "testsSkipped": 0,
+    "failureEvents": 0
+  },
+  "linuxRace": {
+    "race": true,
+    "packagesPassed": 3
+  },
+  "windowsInitialRetry": {
+    "diagnosticOverlayPassed": 40,
+    "fixtureFixOverlayPassed": 100,
+    "diagnosticOverlayFailed": 10,
+    "fixtureFixOverlayFailed": 0,
+    "rootCauseVerified": true,
+    "logSHA256": "59b86213f34d3640bf06e05aecde30415493ee70bfc01f1f453ccf082711cc45",
+    "failedRoot": "TestImagesColdHTTPFailureRetainsStatistics",
+    "counts": {
+      "packagesPassed": 7,
+      "testsPassed": 1556,
+      "testsSkipped": 705,
+      "failureEvents": 2
+    },
+    "assertion": "failure discarded phase evidence",
+    "rootCause": "Windows clock tick can exceed a local HTTP request; diagnostic overlay observed start=finish=elapsed=0 with before=after=9 and get200=0",
+    "fixtureFixInFrozenSource": false,
+    "sourceChangedBeforeRetry": false
+  },
+  "buildTag": "jelee_probe_tests",
+  "initialRed": {
+    "reason": "SQL row lock did not invalidate a stale snapshot; journal insertion now also touches the job MVCC version",
+    "initialLogSHA256": "d8a3263a07c4863cef14ede76f8cfc288f201295f06de8137416e025a7670c3a",
+    "tests": [
+      "TestNFOWriteCommitJournalStaleSnapshotsCannotTransferLease/repeatable_read",
+      "TestNFOWriteCommitJournalStaleSnapshotsCannotTransferLease/serializable"
+    ]
+  },
+  "verified": [
+    "private_immutable_journal_replay_and_reopen",
+    "job_owned_bytes_survive_preparation_cleanup",
+    "true_kind_owner_generation_lease_actor_cancel_entry_binding",
+    "transaction_end_expiry_actor_cancel_rollback",
+    "all_three_isolation_levels_reject_stale_lease_transfer",
+    "pending_journal_protects_job_and_full_intent",
+    "stopping_retains_unresolved_data_without_success",
+    "ordinary_history_retention_excludes_journal_jobs",
+    "generic_release_pause_reject_actual_nfo_kind_even_without_journal",
+    "current_schema_missing_journal_fails_closed",
+    "empty_round_trip_preserves_metrics_and_retained_journal_refuses_downgrade",
+    "full_postgres_regression_at_frozen_source"
+  ],
+  "checks": {
+    "gitignoreViolations": 0,
+    "format": true,
+    "brandAllowed": 339,
+    "incrementalBrandViolations": 0,
+    "diffCheck": true,
+    "vet": true
+  },
+  "journalTenRecordCapacityBoundaryTested": false,
+  "filesystemStageIdentityPersisted": false,
+  "nativeCommitBoundaryConnected": false,
+  "journalResolutionImplemented": false,
+  "automaticRecoveryVerified": false,
+  "runtimeWriteWorkerEnabled": false,
+  "writeAdmissionEnabled": false,
+  "formal24hSourceIncludesThisChange": false,
+  "requirementsComplete": false
+}

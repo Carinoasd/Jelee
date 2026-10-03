@@ -1,0 +1,117 @@
+{
+  "baseCommit": "1d92628f70fd26e03db170afeebefac25fab3814",
+  "schemaVersion": 22,
+  "sources": {
+    "internal/adapter/http/item_metadata.go": "a8ccb1623c2d4db968481516e59de871e4623c8d20cc545b26ae092a602424e7",
+    "internal/adapter/http/openapi.go": "dc568370b3f82fd65a5a44e579c26fbe645b68ab09dbc17c6074fc6bc57d60a8",
+    "internal/adapter/postgres/accounts_integration_test.go": "ab7e07dd8d67a7c49a745e6315727656c8330f58885e3802f2d6be22d25ecce9",
+    "internal/adapter/postgres/ignore_baseline_test.go": "4fa08bf0fc42e1830f2615b1cb8f13e51fdeb8af95cfc041afe865db36aa813b",
+    "internal/adapter/postgres/ignore_family_comparison_test.go": "9e6edd8ea0605eb6085dcdd76f7fa60f3983dcaaa785be2277578b261607b2c0",
+    "internal/adapter/postgres/ignore_family_scan_test.go": "c86d402bb04683e8565b6eecb999c9e3f73f4e29de76f9e907bbd52dd1f41199",
+    "internal/adapter/postgres/ignore_legacy_baseline_test.go": "b5b4646426172e50e97f62dc7ceff962d96b2da1f098625a9f8ae12680fdc349",
+    "internal/adapter/postgres/ignore_legacy_baseline_verification_test.go": "be097c67b4e2c18deb71022b3eb21b28ea1ef4d2abc3ec8fdbea7883cc759ac2",
+    "internal/adapter/postgres/ignore_legacy_migration_test.go": "4539a48137abbc3c54d7bb4effaeb7c538ab466ab7ddff81f4ee62908df7d8eb",
+    "internal/adapter/postgres/ignore_legacy_verification_test.go": "af4282cc198685d34029cc6df245ccf2edfd26cb843792a97bdeb8e04e7359e6",
+    "internal/adapter/postgres/ignore_manifest_test.go": "5e4b83381a8d9a90b5ebf5efe8753569f95e1c5abb9a42324147d4ace9fea0d3",
+    "internal/adapter/postgres/ignore_migration_test.go": "a001a61005ef59f3fc86b50fa1178126cae6a1047fcaa4e7846702a9eeb2dec5",
+    "internal/adapter/postgres/ignore_scan_test.go": "7fc4f7baf0f2fd11f7b7cfc3e9b4fca7a0cb367748b4867d76a1a5f431584961",
+    "internal/adapter/postgres/ignore_verification_test.go": "e1dbd4e2f5f4021fffdd536ea24b2b0c35cf328cb98a3b968be461cafa96ba0c",
+    "internal/adapter/postgres/item_metadata.go": "d806241a1a5ecf2e83bab4fbbe7f54d287d060ff67292a028f27d44f6d88beaa",
+    "internal/adapter/postgres/item_metadata_test.go": "7e0f16dcbb870cd5cae634c189d4d025b4c92e11fcb300016c209c093ae2fc09",
+    "internal/adapter/postgres/jobs_integration_test.go": "ac4cfa79450534d4d5ebda4d8b349420dc3d3effdaf8f6564c6a1191ded1a9bf",
+    "internal/adapter/postgres/metadata_image_preferences_test.go": "66eabb8ffba3d57231883155e444d24b9478bbaa7403fb15f72d9a9f3c5bd9df",
+    "internal/adapter/postgres/metadata_preferences_test.go": "433ea3e589fbcc101bbbcf4082595832d6f420c70a9f51d4577a5cb0db4fc0ed",
+    "internal/adapter/postgres/nfo_integration_test.go": "d6442e1a86e7f2ccfcc0eec1e5e764cf39125fd6a2368e3b16eb528a06693332",
+    "internal/adapter/postgres/nfo_worker_migration_test.go": "d5e8901eeaf7d23a5cf095c5251522d0d6aaaeca52cf043bad06085be3a73ea8",
+    "internal/adapter/postgres/probe_integration_test.go": "8de1f02853a529dedf1270fd97a1c7cb736eeef8d8e3773dde42f3b2590d1ed4",
+    "internal/adapter/postgres/probe_requests_test.go": "694fa88af4733747d28489623ec0d32c660a1e62c6171026c1c3de34b90a92d1",
+    "internal/adapter/postgres/store.go": "cd0d1ed5c13f569927a64c2a9166c5ad34e183411b9d00f44b9d230c0d3dce36",
+    "internal/adapter/postgres/store_integration_test.go": "971964fca50d3fea5ae221c1c193271c1c21a94b6d82a456b122152cfdcdfcdd",
+    "internal/domain/item_metadata.go": "fb8b11b3402dc801454c402e59970553c15ca164103d0a9c3114e4585524b64a",
+    "internal/adapter/http/metadata_apply.go": "57b29aa6bd3b1fa13c6e8327e5b16af4a3ec524118bb9af6eff1398bd503eb5d",
+    "internal/adapter/postgres/metadata_apply.go": "8fb88ad761e11378261d48f6a45137d7396ecd7ea1ee391a65feb3d14a4633bf",
+    "internal/adapter/postgres/metadata_apply_test.go": "69f8097695141eb910baba1caedbb916cb0e9f42421f7ba3b7bcc176cf3c015a",
+    "internal/adapter/postgres/migrations/000022_tmdb_metadata_origin.down.sql": "542cee894db5e16986fc1cc210fdf82d00c922bcbe8c3b11947dd5d73da1fb58",
+    "internal/adapter/postgres/migrations/000022_tmdb_metadata_origin.up.sql": "6a0b14be7b9162dc034a506fb466212ea1c55630b2f6ff24e74993caa46610d5",
+    "internal/app/metadata_apply.go": "981041efbf718d0ed46168fa5478310009b30749ec5b5d02e0be0651c6ef6154",
+    "internal/app/metadata_apply_test.go": "408d273c357b6d5c7c3e91641699ab4fcf7c88b6287e49a8975041565b3ded6c",
+    "internal/domain/metadata_apply.go": "e987dc21e93a709733cd0343f147452a12e90a25b715abf94c70b80731ebebb6",
+    "internal/domain/metadata_apply_test.go": "2b81a00c5c3f45fd5347a021c94699d0dbcb2e943cf2bdc5da381119301cd21a",
+    "internal/platform/outbound/metadata_apply_integration_test.go": "bc1623264946b347acd73d123734e91b394741d8d9fa887b00a4100032b8f409"
+  },
+  "scope": "Explicitly confirmed TMDB movie/series field writes through governed TLS, actual HTTP and PostgreSQL; protected manual/locked fields and atomic audit/catalog updates",
+  "windowsFullGo": {
+    "passedPackages": 29,
+    "passedTestEventsIncludingParents": 3129,
+    "skippedTestEvents": 448,
+    "failedEvents": 0
+  },
+  "windowsSkips": {
+    "original435": "same identities retained",
+    "addedDatabaseTests": [
+      "TestItemMetadataActualHTTPAndPostgres",
+      "TestItemMetadataAuthorizationCancellationAndMigration",
+      "TestItemMetadataPersistenceConflictAndAudit",
+      "TestItemMetadataSQLConstraints",
+      "TestMetadataImagePreferenceMigrationAndConstraints",
+      "TestMetadataImagePreferencePersistenceAndLegacyUpdates",
+      "TestMetadataPreferencesActualHTTPAndPostgres",
+      "TestMetadataPreferencesAuthorizationAndValidation",
+      "TestMetadataPreferencesMigrationDefaultAndCleanRollback",
+      "TestMetadataPreferencesPersistenceConflictAndAudit",
+      "TestTMDBMetadataMigrationConstraintsAndAtomicFailure",
+      "TestTMDBMetadataPersistencePriorityAndManualTakeover"
+    ],
+    "addedOutboundTest": "TestTMDBMetadataThroughTLSHTTPAndPostgres",
+    "reason": "dedicated PostgreSQL URL unset; all thirteen added skips actually passed in the separate database and TLS/HTTP/database runs"
+  },
+  "postgresRace": {
+    "passedPackages": 1,
+    "passedTestEventsIncludingParents": 721,
+    "skippedTestEvents": 0,
+    "failedEvents": 0,
+    "elapsedSeconds": 356.806
+  },
+  "restoredTLSHTTPPostgresRace": {
+    "passedPackages": 1,
+    "passedTestEventsIncludingParents": 1,
+    "skippedTestEvents": 0,
+    "failedEvents": 0,
+    "elapsedSeconds": 64.484
+  },
+  "syntheticMatrix": {
+    "movies": 100,
+    "series": 20,
+    "exactTitleAndYearMatches": 120,
+    "confirmedWrites": 120,
+    "writeFailures": 0,
+    "limit": "Original-media inventory worker and hierarchy ingestion are outside this fixture matrix"
+  },
+  "negative": {
+    "change": "disable actual domain locked-field protection",
+    "leafFailures": 1,
+    "observed": "HTTP TMDB overwrote locked or manual field",
+    "restoredSha256": "e987dc21e93a709733cd0343f147452a12e90a25b715abf94c70b80731ebebb6",
+    "restoredActualMatrix": "PASS without skips"
+  },
+  "linuxRace": {
+    "status": "PASS domain/app/HTTP/outbound/runtime",
+    "skips": "ordinary summary does not enumerate skips",
+    "initialCommandError": "internal/runtime path absent; corrected internal/platform/runtime passed"
+  },
+  "firstWindowsRun": {
+    "failure": "TestNFOValidateCancelsUnreadOutputPipe exceeded its 2-second cancellation bound",
+    "repeat": "full Windows suite passed without product/test changes"
+  },
+  "firstYearAssertion": {
+    "failure": "new integration assertion used year instead of movie primary_release_year",
+    "correction": "movie primary_release_year and series first_air_date_year checked by restored successful full matrix"
+  },
+  "fullVet": "PASS",
+  "productionBuild": "PASS cmd/jelee",
+  "limits": [
+    "Read-only NFO libraries temporarily return 503 until trusted field extraction and priority are integrated",
+    "No automatic inventory/worker metadata write, fuzzy or IMDB/TVDB matching, external metadata removal or frontend",
+    "Full branding and ABI gates still fail"
+  ]
+}

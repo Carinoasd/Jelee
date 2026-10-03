@@ -174,7 +174,7 @@ func TestInventoryScopeLegacyJobCannotBindCurrentEpoch(t *testing.T) {
 	l := startImageInventory(t, f, "legacy", all[:1], true, 0)
 	// A pre-007 job has no frozen epoch. Disable only the immutable-update
 	// trigger inside this isolated fixture to reproduce its persisted shape.
-	if _, err := f.s.Pool.Exec(f.ctx, `ALTER TABLE jobs DISABLE TRIGGER job_inventory_generation_immutable; UPDATE jobs SET inventory_generation=NULL WHERE state='running'; ALTER TABLE jobs ENABLE TRIGGER job_inventory_generation_immutable`); err != nil {
+	if _, err := f.s.Pool.Exec(f.ctx, `ALTER TABLE jobs DISABLE TRIGGER job_inventory_generation_immutable; UPDATE jobs SET inventory_generation=NULL WHERE state='running'; SET CONSTRAINTS ALL IMMEDIATE; ALTER TABLE jobs ENABLE TRIGGER job_inventory_generation_immutable`); err != nil {
 		t.Fatal(err)
 	}
 	p := finishImageInventory(t, f, l, domain.JobSucceeded, "")

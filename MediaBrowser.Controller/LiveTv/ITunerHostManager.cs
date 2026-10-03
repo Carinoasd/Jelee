@@ -26,9 +26,8 @@ public interface ITunerHostManager
     /// Saves the tuner host.
     /// </summary>
     /// <param name="info">Turner host to save.</param>
-    /// <param name="dataSourceChanged">Option to specify that data source has changed.</param>
     /// <returns>Tuner host information wrapped in a task.</returns>
-    Task<TunerHostInfo> SaveTunerHost(TunerHostInfo info, bool dataSourceChanged = true);
+    Task<TunerHostInfo> SaveTunerHost(TunerHostInfo info);
 
     /// <summary>
     /// Discovers the available tuners.

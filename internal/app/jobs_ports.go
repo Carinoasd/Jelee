@@ -34,3 +34,23 @@ type JobExecutionRepository interface {
 type InventoryScanner interface {
 	ScanDirectory(context.Context, domain.ScanDirectory, func(domain.ScanBatch) error) error
 }
+
+// JobCancellationNotifier promptly signals local work after the repository has
+// committed an authorized cancellation. Durable flags and lease fences remain
+// authoritative when the owner is elsewhere or no local execution exists.
+type JobCancellationNotifier interface {
+	NotifyJobCancellation(string)
+}
+
+// JobCancellationReader provides a bounded, read-only check of the committed
+// flag for the exact live owner/generation. It never renews a lease.
+type JobCancellationReader interface {
+	ReadJobCancellation(context.Context, domain.JobLease) (bool, error)
+}
+
+// JobPauseRepository returns a live lease to the queue for a planned window
+// closure. Completed checkpoints remain; this claim does not consume a failure
+// attempt. Persisted cancellation wins. Stale or expired leases cannot pause.
+type JobPauseRepository interface {
+	PauseJob(context.Context, domain.JobLease) error
+}

@@ -242,3 +242,9 @@ func (w *probeWorker) Stop(ctx context.Context) error {
 	}
 	return errors.Join(w.probe.stopMaintenance(ctx), w.nfo.stopMaintenance(ctx))
 }
+
+func (w *probeWorker) NotifyJobCancellation(id string) {
+	if notifier, ok := w.worker.(app.JobCancellationNotifier); ok {
+		notifier.NotifyJobCancellation(id)
+	}
+}

@@ -1,0 +1,110 @@
+{
+  "baseCommit": "f6e8d70c82b3043f19ed86a009882fd87f306d8b",
+  "scope": "Admin-only TMDB movie candidate preview with bounded in-memory cache, owned runtime adapter and shared request governance",
+  "sources": {
+    "internal/domain/metadata.go": "fff26f9b134baccd7b50caea54594b93e255ec30a2d78f1cdddb013b5afb44da",
+    "internal/app/metadata.go": "31f58aad637bfc9a402847827d2e0d6494cb22f85d98a98cd634eb39cc5def15",
+    "internal/app/metadata_test.go": "078e4988286be5999d494bdef13005c8e7cdef37c59c26385f4fb3b3a096fe65",
+    "internal/adapter/metadata/movie.go": "6635b67ff90fe7d554e7d94b0d15501de69134e207d920a118ff712ea43568cf",
+    "internal/adapter/metadata/movie_cache.go": "63aa3c0dfe0e8948f9c7850ca32de69a87d1dcc7d09d3b6185bf4fec766c1c27",
+    "internal/adapter/metadata/movie_test.go": "d6ad7258d065d344a8b3277c76177158be0916edf231a1b90e691c873024bd04",
+    "internal/adapter/metadata/retry.go": "e3b0e4b07b2f2dc55eb0aaa2ff909977cf271f04bde9d2b7195e41ee991deece",
+    "internal/adapter/metadata/tmdb.go": "d124ba4ee6c17573d6cce3851ee1e28d8a7cc765d6288903f926eedba00d2d8e",
+    "internal/adapter/http/metadata.go": "64b782d6d3f4cd48d6334a426d3c9212e4f30c3b67dd01a88b4543b03593ffc5",
+    "internal/adapter/http/metadata_test.go": "d44e59933178eb8c5af88ede4aa8d2f83ff5d540f5a85f045227efafd1bb32fc",
+    "internal/adapter/http/server.go": "07afd4e54764a7fd9dcee09df90586c432b0a60a1506ec55d7c87b6ff0225f24",
+    "internal/adapter/http/openapi.go": "1d2e334d72d893ca12e524f9ba2509267e1e636a49d31d327a7cdf4f449dfc4b",
+    "internal/platform/runtime/runtime.go": "6be72fd6567b7b1ac8e7086182a75e64a8a19cf7c8f39e27946f98dbfc479b19",
+    "internal/platform/runtime/tmdb.go": "8dbfeaf05770aa0ea801cc3626c5901536a6f7c50dda7009ab35b765de052da5",
+    "internal/platform/runtime/tmdb_test.go": "ea7a5851a154a85c2aba2a0150338d89b5580055dc0fe82fa973d8f3b38c30a7",
+    "internal/platform/outbound/movie_integration_test.go": "92a343c33409a612fed41c6c2615b3ea8b27044584db5e3810bf106e3b42c4a4",
+    "internal/platform/i18n/messages.go": "81a576926d44b4dda355f641daac957c25861d4d28c0d0dac4503129d63da0cf"
+  },
+  "windowsFullGo": {
+    "passedPackages": 29,
+    "passedTestEventsIncludingParents": 2906,
+    "skippedTestEvents": 435,
+    "failedEvents": 0
+  },
+  "skippedListSource": {
+    "path": "docs/evidence/outbound-tmdb-preflight.json",
+    "sha256": "d9dc00f78f14d500c79b1be8c2490a172ce84e7257034f0cd6ba72c240431882",
+    "jsonField": "windowsFullGo.skippedTests",
+    "comparison": "sorted package/test identities equal"
+  },
+  "linuxRace": {
+    "status": "PASS six packages",
+    "output": "ok  \tgithub.com/MoYuanCN/Jelee/internal/adapter/metadata\t1.276s\nok  \tgithub.com/MoYuanCN/Jelee/internal/app\t1.083s\nok  \tgithub.com/MoYuanCN/Jelee/internal/adapter/http\t3.610s\nok  \tgithub.com/MoYuanCN/Jelee/internal/platform/runtime\t1.205s\nok  \tgithub.com/MoYuanCN/Jelee/internal/platform/outbound\t4.882s\nok  \tgithub.com/MoYuanCN/Jelee/internal/platform/i18n\t1.072s",
+    "skips": "summary does not report skips; zero skips not claimed"
+  },
+  "fullVet": "PASS",
+  "productionBuild": "PASS cmd/jelee",
+  "negative": {
+    "change": "disable actual cache hit in Movie, run actual TLS plus application consumer",
+    "leafFailures": 1,
+    "observed": "movie=2 authentication=2",
+    "restoredMovieSha256": "6635b67ff90fe7d554e7d94b0d15501de69134e207d920a118ff712ea43568cf",
+    "relatedFullRegression": "PASS metadata and outbound packages after byte-identical restoration"
+  },
+  "policy": {
+    "cacheEntries": 256,
+    "ttlSeconds": 86400,
+    "key": [
+      "movieID",
+      "language"
+    ],
+    "bodyBytes": 1048576,
+    "titleBytes": 1024,
+    "originalTitleBytes": 1024,
+    "overviewBytes": 16384,
+    "ttlRefreshOnHit": false,
+    "authenticationCached": false,
+    "errorsCached": false,
+    "concurrentMissCoalescing": false,
+    "backgroundWorkers": 0,
+    "persistentCache": false,
+    "rollout": "EnableAccounts and configured TMDB credential; required Metadata dependency",
+    "sourceApplication": "read-only candidate; no library, field lock, NFO or image modification"
+  },
+  "initialTestFailure": "new TLS fixture constructor signature corrected before final regression",
+  "missing": [
+    "name/year matching",
+    "TV/season/episode",
+    "provider and local NFO priority",
+    "field locks and manual values",
+    "metadata persistence and jobs",
+    "language fallback chain",
+    "remote artwork fetch",
+    "full frontend attribution and provider terms acceptance",
+    "100 movie/20 series matrix",
+    "real external credentials/quota"
+  ],
+  "officialSources": [
+    "https://developer.themoviedb.org/reference/movie-details",
+    "https://developer.themoviedb.org/docs/faq",
+    "https://www.themoviedb.org/about/logos-attribution"
+  ],
+  "gates": {
+    "incrementalBrand": {
+      "violations": 0,
+      "allowed": 181
+    },
+    "fullBrand": {
+      "violations": 14735,
+      "allowed": 186,
+      "status": "FAIL retained"
+    },
+    "gitignoreViolations": 0,
+    "sources": "verified SHA256",
+    "protectedHashes": "PASS",
+    "fiveCoreFiles": "byte-identical to base commit",
+    "csOrMigrationsChanged": false,
+    "localLinks": "PASS",
+    "traceability": {
+      "done": 4,
+      "partial": 180,
+      "blocked": 152
+    },
+    "allowlistChanged": false
+  }
+}

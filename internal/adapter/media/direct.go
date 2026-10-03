@@ -12,9 +12,12 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/MoYuanCN/Jelee/internal/access"
+	"github.com/MoYuanCN/Jelee/internal/app"
+	"github.com/MoYuanCN/Jelee/internal/domain"
 )
 
 // Source is returned by a trusted repository after applying its ACL in SQL.
@@ -35,6 +38,7 @@ type Resolver interface {
 }
 
 type Options struct {
+	Budget        app.WorkBudget
 	MaxConcurrent int
 	LookupTimeout time.Duration
 	WriteTimeout  time.Duration
@@ -45,6 +49,7 @@ type Handler struct {
 	resolver Resolver
 	slots    chan struct{}
 	options  Options
+	buffers  sync.Pool
 }
 
 func NewHandler(resolver Resolver, options Options) (*Handler, error) {
@@ -54,7 +59,9 @@ func NewHandler(resolver Resolver, options Options) (*Handler, error) {
 	if options.LookupTimeout == 0 {
 		options.LookupTimeout = 5 * time.Second
 	}
-	return &Handler{resolver: resolver, slots: make(chan struct{}, options.MaxConcurrent), options: options}, nil
+	return &Handler{resolver: resolver, slots: make(chan struct{}, options.MaxConcurrent), options: options,
+		buffers: sync.Pool{New: func() any { return new([32 << 10]byte) }},
+	}, nil
 }
 
 // ServeSource accepts an opaque identifier already validated by the HTTP route.
@@ -115,6 +122,24 @@ func (h *Handler) ServeSource(w http.ResponseWriter, r *http.Request, sourceID s
 	if r.Context().Err() != nil {
 		return
 	}
+	if h.options.Budget != nil {
+		waitCtx, cancelWait := context.WithTimeout(r.Context(), h.options.LookupTimeout)
+		release, budgetErr := h.options.Budget.Acquire(waitCtx, app.WorkIO)
+		cancelWait()
+		if budgetErr != nil {
+			if r.Context().Err() != nil {
+				return
+			}
+			if errors.Is(budgetErr, domain.ErrResourceBusy) || errors.Is(budgetErr, context.DeadlineExceeded) {
+				w.Header().Set("Retry-After", "1")
+				h.options.WriteError(w, r, ErrBusy)
+			} else {
+				h.options.WriteError(w, r, ErrIO)
+			}
+			return
+		}
+		defer release()
+	}
 	file, err := openSource(source)
 	if err != nil {
 		h.options.WriteError(w, r, err)
@@ -161,7 +186,7 @@ func (h *Handler) ServeSource(w http.ResponseWriter, r *http.Request, sourceID s
 		}
 		_ = controller.SetWriteDeadline(time.Time{})
 	}()
-	writer := &streamWriter{ResponseWriter: w, request: r, controller: controller, timeout: h.options.WriteTimeout, writeError: h.options.WriteError}
+	writer := &streamWriter{buffers: &h.buffers, ResponseWriter: w, request: r, controller: controller, timeout: h.options.WriteTimeout, writeError: h.options.WriteError}
 	reader := &contextFile{ctx: r.Context(), file: file}
 	http.ServeContent(writer, r, "", info.ModTime(), reader)
 }
@@ -224,6 +249,7 @@ type streamWriter struct {
 	timeout    time.Duration
 	writeError func(http.ResponseWriter, *http.Request, error)
 	rejected   bool
+	buffers    *sync.Pool
 }
 
 func (w *streamWriter) Unwrap() http.ResponseWriter { return w.ResponseWriter }
@@ -270,8 +296,13 @@ func (w *streamWriter) Write(data []byte) (int, error) {
 func (w *streamWriter) ReadFrom(reader io.Reader) (int64, error) {
 	// Hide optional copy interfaces to retain cancellation/deadline checks and a
 	// predictable per-stream copy buffer, including multipart Range responses.
-	buffer := make([]byte, 32<<10)
-	return io.CopyBuffer(struct{ io.Writer }{w}, struct{ io.Reader }{reader}, buffer)
+	buffer := w.buffers.Get().(*[32 << 10]byte)
+	defer func() {
+		// Release media bytes before another request can borrow the buffer.
+		clear(buffer[:])
+		w.buffers.Put(buffer)
+	}()
+	return io.CopyBuffer(struct{ io.Writer }{w}, struct{ io.Reader }{reader}, buffer[:])
 }
 
 var _ io.ReadSeeker = (*contextFile)(nil)

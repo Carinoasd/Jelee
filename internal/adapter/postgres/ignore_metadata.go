@@ -10,7 +10,7 @@ import (
 // Metadata may consume enabled inventory only after comparison has frozen and
 // classified the complete scan. This does not authorize baseline publication.
 func requireMetadataInventory(ctx context.Context, tx pgx.Tx, id string) error {
-	request, err := loadIgnoreRequest(ctx, tx, id)
+	request, err := loadExecutionIgnoreRequest(ctx, tx, id, true)
 	if err != nil {
 		return err
 	}
@@ -32,7 +32,7 @@ func requireMetadataInventory(ctx context.Context, tx pgx.Tx, id string) error {
 		return domain.ErrInventoryInvalidated
 	}
 	var valid bool
-	err = tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM job_ignore_comparisons c JOIN job_ignore_manifests m ON m.job_id=c.job_id JOIN jobs j ON j.id=c.job_id JOIN libraries b ON b.id=j.library_id WHERE c.job_id=$1::uuid AND c.completed AND c.inventory_generation=$2 AND m.inventory_generation=$2 AND NOT m.invalidated AND c.baseline_revision=b.inventory_baseline_revision)`, id, live).Scan(&valid)
+	err = tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM job_ignore_comparisons c JOIN job_ignore_manifests m ON m.job_id=c.job_id JOIN jobs j ON j.id=c.job_id JOIN libraries b ON b.id=j.library_id WHERE c.job_id=$1::uuid AND c.completed AND c.inventory_generation=$2 AND m.inventory_generation=$2 AND NOT m.invalidated AND c.baseline_revision=b.inventory_baseline_revision AND (NOT $3 OR EXISTS(SELECT 1 FROM job_ignore_legacy_manifests n WHERE n.job_id=c.job_id AND n.inventory_generation=$2 AND NOT n.invalidated)))`, id, live, request.Intent.Mode == domain.IgnoreModeFamily).Scan(&valid)
 	if err != nil {
 		return storageError(err)
 	}

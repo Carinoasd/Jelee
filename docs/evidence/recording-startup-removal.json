@@ -1,0 +1,53 @@
+{
+  "scope": "G05 removal of recording hosted services and configuration-update producer; other feature paths remain partial",
+  "baseCommit": "d7ac92e8508468aa9b2b139f6700deafc3cc565a",
+  "removed": [
+    "startup recording timer restoration host",
+    "recording notification hosted service",
+    "configuration-update recording-folder callback and subscription"
+  ],
+  "sourceIndex": "../branding-rename-map.md",
+  "sourceHashes": {
+    "startup": "12da1592e07fbc8409441dbc7cac33f7e3d4f7669dd3f3bc6ecbb728f784b643",
+    "recordingsManager": "c75409780774d9f76996c552077babca1fc057590d566a9f0f4f1d540a947974",
+    "regressionTests": "c61ed316abdb44c9bc896af02697a1c7529b1bfe04fc26fa7f62e6078564056f"
+  },
+  "removedSourceHashesAtBase": {
+    "recordingsHost": "1dadea150616d35b1fe2ca94ed3356fd7a26d22239be3f407acd993dbbf1b471",
+    "recordingNotifier": "1a0dc69a2aed86985942fab51476a8041945798ec631638f8413ec910e8b3b40"
+  },
+  "tests": {
+    "focused": {
+      "Passed": 3,
+      "Failed": 0,
+      "Skipped": 0
+    },
+    "negativeOriginalImplementation": {
+      "Passed": 0,
+      "Failed": 3,
+      "Skipped": 0
+    },
+    "restoration": "all four production sources restored byte-for-byte, including absence of deleted files",
+    "fullSolution": {
+      "suites": 17,
+      "Passed": 4159,
+      "NotExecuted": 21,
+      "Failed": 0
+    },
+    "format": "verify-no-changes PASS with workspace-load warning"
+  },
+  "existingMigrationsChanged": false,
+  "protectedHashesUnchanged": true,
+  "limitations": [
+    "Old controllers, explicit recording operations, guide/channel scheduled tasks, tuner services and dependencies remain; this does not prove all recording paths disabled",
+    "Stored timers and immutable migrations retained; no production data or source media modified",
+    "No LAN packet capture or real client handshake acceptance",
+    "Public host type deletions are intentional ABI changes; ABI gate retained"
+  ],
+  "gates": {
+    "fullBrandGate": "FAIL retained",
+    "fullBrandViolations": 14807,
+    "incrementalBrandViolations": 0,
+    "gitignoreViolations": 0
+  }
+}

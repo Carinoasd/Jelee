@@ -294,7 +294,7 @@ namespace MediaBrowser.Providers.Plugins.Tmdb.TV
 
             series.RunTimeTicks = seriesResult.EpisodeRunTime?.Select(i => TimeSpan.FromMinutes(i).Ticks).FirstOrDefault();
 
-            if (Emby.Naming.TV.TvParserHelpers.TryParseSeriesStatus(seriesResult.Status, out var seriesStatus))
+            if (Jelee.Naming.TV.TvParserHelpers.TryParseSeriesStatus(seriesResult.Status, out var seriesStatus))
             {
                 series.Status = seriesStatus;
             }

@@ -9,11 +9,13 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	"net/netip"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/MoYuanCN/Jelee/internal/access"
+	"github.com/MoYuanCN/Jelee/internal/adapter/compat"
 	"github.com/MoYuanCN/Jelee/internal/adapter/media"
 	"github.com/MoYuanCN/Jelee/internal/app"
 	"github.com/MoYuanCN/Jelee/internal/domain"
@@ -30,6 +32,7 @@ type Backend interface {
 }
 
 type Server struct {
+	trustedProxies  []netip.Prefix
 	cfg             config.Config
 	backend         Backend
 	catalog         *app.Catalog
@@ -41,6 +44,11 @@ type Server struct {
 	accountSlots    chan struct{}
 	jobs            *app.Jobs
 	jobSlots        chan struct{}
+	metadata        *app.Metadata
+	metrics         http.Handler
+	metricsSlots    chan struct{}
+	images          *app.Images
+	imageSlots      chan struct{}
 }
 
 func New(cfg config.Config, backend Backend, catalog *app.Catalog, resolver media.Resolver, logger *slog.Logger, accounts ...*app.Accounts) (http.Handler, error) {
@@ -53,18 +61,56 @@ func New(cfg config.Config, backend Backend, catalog *app.Catalog, resolver medi
 	return NewWithJobs(cfg, backend, catalog, resolver, logger, account, nil)
 }
 
-func NewWithJobs(cfg config.Config, backend Backend, catalog *app.Catalog, resolver media.Resolver, logger *slog.Logger, account *app.Accounts, jobs *app.Jobs) (http.Handler, error) {
+func NewWithJobs(cfg config.Config, backend Backend, catalog *app.Catalog, resolver media.Resolver, logger *slog.Logger, account *app.Accounts, jobs *app.Jobs, metadataServices ...*app.Metadata) (http.Handler, error) {
+	if len(metadataServices) > 1 {
+		return nil, errors.New("only one metadata service may be provided")
+	}
+	var metadata *app.Metadata
+	if len(metadataServices) == 1 {
+		metadata = metadataServices[0]
+	}
+	return newServer(cfg, backend, catalog, resolver, logger, account, jobs, metadata, nil, nil, nil)
+}
+
+func NewWithTelemetry(cfg config.Config, backend Backend, catalog *app.Catalog, resolver media.Resolver, logger *slog.Logger, account *app.Accounts, jobs *app.Jobs, metadata *app.Metadata, metrics http.Handler) (http.Handler, error) {
+	return NewWithImages(cfg, backend, catalog, resolver, logger, account, jobs, metadata, metrics, nil)
+}
+
+func NewWithImages(cfg config.Config, backend Backend, catalog *app.Catalog, resolver media.Resolver, logger *slog.Logger, account *app.Accounts, jobs *app.Jobs, metadata *app.Metadata, metrics http.Handler, images *app.Images) (http.Handler, error) {
+	return newServer(cfg, backend, catalog, resolver, logger, account, jobs, metadata, metrics, images, nil)
+}
+
+func NewWithResources(cfg config.Config, backend Backend, catalog *app.Catalog, resolver media.Resolver, logger *slog.Logger, account *app.Accounts, jobs *app.Jobs, metadata *app.Metadata, metrics http.Handler, images *app.Images, budget app.WorkBudget) (http.Handler, error) {
+	if budget == nil {
+		return nil, errors.New("shared resource budget must be provided")
+	}
+	return newServer(cfg, backend, catalog, resolver, logger, account, jobs, metadata, metrics, images, budget)
+}
+
+func newServer(cfg config.Config, backend Backend, catalog *app.Catalog, resolver media.Resolver, logger *slog.Logger, account *app.Accounts, jobs *app.Jobs, metadata *app.Metadata, metrics http.Handler, images *app.Images, budget app.WorkBudget) (http.Handler, error) {
 	if err := cfg.Validate(); err != nil {
 		return nil, err
 	}
 	if backend == nil || catalog == nil || logger == nil {
 		return nil, errors.New("HTTP dependencies must be provided")
 	}
-	delivery, err := media.NewHandler(resolver, media.Options{MaxConcurrent: cfg.MaxStreams, WriteTimeout: 30 * time.Second, LookupTimeout: cfg.RequestTimeout(), WriteError: WriteError})
+	delivery, err := media.NewHandler(resolver, media.Options{Budget: budget, MaxConcurrent: cfg.MaxStreams, WriteTimeout: 30 * time.Second, LookupTimeout: cfg.RequestTimeout(), WriteError: WriteError})
 	if err != nil {
 		return nil, err
 	}
-	s := &Server{cfg: cfg, backend: backend, catalog: catalog, delivery: delivery, logger: logger}
+	prefixes, err := cfg.TrustedProxyPrefixes()
+	if err != nil {
+		return nil, err
+	}
+	s := &Server{cfg: cfg, backend: backend, catalog: catalog, delivery: delivery, logger: logger, trustedProxies: prefixes}
+	if cfg.EnableAccounts {
+		s.metadata = metadata
+	}
+	if cfg.EnableAccounts && cfg.TMDBAPIKey != "" {
+		if !metadata.HasProvider() {
+			return nil, errors.New("metadata service must be provided")
+		}
+	}
 	if cfg.EnableAccounts {
 		if account == nil {
 			return nil, errors.New("account service must be provided")
@@ -87,6 +133,20 @@ func NewWithJobs(cfg config.Config, backend Backend, catalog *app.Catalog, resol
 		s.jobs = jobs
 		s.jobSlots = make(chan struct{}, cfg.Jobs.Workers*2+2)
 	}
+	if cfg.EnableMetrics {
+		if metrics == nil {
+			return nil, errors.New("metrics handler must be provided")
+		}
+		s.metrics = metrics
+		s.metricsSlots = make(chan struct{}, 2)
+	}
+	if cfg.EnableImages {
+		if images == nil {
+			return nil, errors.New("image service must be provided")
+		}
+		s.images = images
+		s.imageSlots = make(chan struct{}, cfg.Images.MaxConcurrent)
+	}
 	r := chi.NewRouter()
 	r.Use(s.boundary)
 	r.Get("/healthz", func(w http.ResponseWriter, r *http.Request) {
@@ -103,15 +163,32 @@ func NewWithJobs(cfg config.Config, backend Backend, catalog *app.Catalog, resol
 	})
 	r.Get("/api/v1/system", func(w http.ResponseWriter, r *http.Request) {
 		probe := s.jobs.ProbeCapability()
-		writeJSON(w, 200, map[string]any{"data": map[string]any{"name": "Jelee", "devMode": false, "probe": probe, "capabilities": map[string]any{"transcoding": false, "hls": false, "dash": false, "remux": false, "downloads": false, "directDelivery": cfg.EnableDirect, "catalog": cfg.EnableCatalog, "accounts": cfg.EnableAccounts, "inventoryScan": cfg.EnableJobs, "probe": probe.Available}}})
+		writeJSON(w, 200, map[string]any{"data": map[string]any{"name": "Jelee", "devMode": false, "probe": probe, "capabilities": map[string]any{"transcoding": false, "hls": false, "dash": false, "remux": false, "downloads": false, "dlna": false, "discovery": false, "liveTv": false, "epg": false, "tuners": false, "recordings": false, "channels": false, "directDelivery": cfg.EnableDirect, "catalog": cfg.EnableCatalog, "accounts": cfg.EnableAccounts, "inventoryScan": cfg.EnableJobs, "probe": probe.Available}}})
 	})
 	r.Get("/api-docs", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		_, _ = w.Write([]byte(`<!doctype html><html lang="en"><meta charset="utf-8"><title>Jelee API</title><h1>Jelee API</h1><p>Experimental catalog and direct delivery API.</p><a href="/api/v1/openapi.json">OpenAPI 3.1 specification</a></html>`))
+		page := `<!doctype html><html lang="en"><meta charset="utf-8"><title>Jelee API</title><h1>Jelee API</h1><p>Experimental catalog and direct delivery API.</p><a href="/api/v1/openapi.json">OpenAPI 3.1 specification</a>`
+		if cfg.TMDBAPIKey != "" {
+			w.Header().Set("Content-Security-Policy", "default-src 'none'; img-src https://www.themoviedb.org; frame-ancestors 'none'; base-uri 'none'")
+			page += `<section aria-label="Credits"><h2>Credits</h2><a href="https://www.themoviedb.org"><img width="64" alt="TMDB" src="https://www.themoviedb.org/assets/v4/logos/v2/blue_short-8e7b30f73a4020692ccca9c88bafe5dcb6f8a62a4c6bc55cd9ba82bb2cd95f6c.svg"></a><p>This product uses the TMDB API but is not endorsed or certified by TMDB.</p></section>`
+		}
+		_, _ = w.Write([]byte(page + "</html>"))
 	})
 	r.Get("/api/v1/openapi.json", func(w http.ResponseWriter, r *http.Request) { writeJSON(w, 200, Specification(cfg)) })
 	if cfg.EnableAccounts {
 		s.accountRoutes(r)
+	}
+	if cfg.EnableMetrics {
+		s.metricsRoutes(r)
+	}
+	if cfg.EnableImages {
+		s.imageRoutes(r)
+	}
+	if s.metadata != nil && cfg.TMDBAPIKey != "" {
+		s.metadataRoutes(r)
+	}
+	if cfg.EnableAccounts {
+		s.itemMetadataRoutes(r)
 	}
 	if cfg.EnableJobs {
 		s.jobRoutes(r)
@@ -156,6 +233,7 @@ func (s *Server) boundary(next http.Handler) http.Handler {
 			}
 			s.logger.Info("request completed", "component", "http", "requestId", w.Header().Get("X-Request-ID"), "method", logging.SafeMethod(r.Method), "durationMs", time.Since(start).Milliseconds())
 		}()
+		r = s.withClientAddress(r, w.Header().Get("X-Request-ID"))
 		host, valid := requestHost(r.Host)
 		allowed := false
 		for _, h := range s.cfg.AllowedHosts {
@@ -175,6 +253,10 @@ func (s *Server) boundary(next http.Handler) http.Handler {
 		}
 		if strings.Contains(strings.ToLower(r.URL.Path), "/debug/") {
 			WriteError(w, r, domain.ErrNotFound)
+			return
+		}
+		if compat.RemovedFeaturePath(r.URL.Path) {
+			writeProblem(w, r, 501, "feature_removed", "Discovery, live TV, recordings and channels are not supported.")
 			return
 		}
 		next.ServeHTTP(w, r)
@@ -339,6 +421,17 @@ func WriteError(w http.ResponseWriter, r *http.Request, err error) {
 		status, code, message = 429, "auth_rate_limited", "Too many authentication attempts. Try again later."
 	case errors.Is(err, domain.ErrDatabase):
 		status, code, message = 503, "not_ready", "Service is not ready."
+	case errors.Is(err, domain.ErrMetadataUnavailable):
+		status, code, message = 503, "metadata_unavailable", "Metadata provider is unavailable. Try again later."
+	case errors.Is(err, domain.ErrImageBusy):
+		status, code, message = 503, "image_busy", "Image processing is busy. Try again later."
+		w.Header().Set("Retry-After", "1")
+	case errors.Is(err, domain.ErrImageUnavailable):
+		status, code, message = 404, "image_unavailable", "Image is unavailable."
+	case errors.Is(err, domain.ErrImageTooLarge):
+		status, code, message = 413, "image_too_large", "Image exceeds the processing limit."
+	case errors.Is(err, domain.ErrImageUnsupported):
+		status, code, message = 415, "image_unsupported", "Image format is not supported."
 	case errors.Is(err, context.DeadlineExceeded), errors.Is(err, context.Canceled):
 		status, code, message = 408, "request_timeout", "Request was cancelled or timed out."
 	case errors.Is(err, media.ErrPlaybackDenied):

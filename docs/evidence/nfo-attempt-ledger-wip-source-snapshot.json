@@ -1,0 +1,78 @@
+{
+  "recordedAt": "2026-10-04T01:15:38.6859729+08:00",
+  "head": "53796aa1472af5c4006988162db625fb10289451",
+  "branch": "feat/jelee-ignore-family-worker",
+  "schema": 56,
+  "committed": false,
+  "currentFullRegressionProven": false,
+  "latestLegacyGuardsRetested": false,
+  "sourceFileCount": 13,
+  "files": [
+    {
+      "path": "internal/domain/nfo_commit_attempt.go",
+      "sha256": "eef17970d20e7173b7dc55f2a88e04c213ddc21f0f46def6f56f26ee4ec6379b",
+      "bytes": 2106
+    },
+    {
+      "path": "internal/domain/nfo_commit_attempt_test.go",
+      "sha256": "cb20d2b88fba07f9b09b0fbb00e48d3f8fcbcabc19ec5c4cc8ea1b8d1bc065b0",
+      "bytes": 1210
+    },
+    {
+      "path": "internal/app/nfo_commit_attempt.go",
+      "sha256": "fcedb75529dd3202a22e2b5c4100443333a039101f613d05f06e7afd581ab7a7",
+      "bytes": 1005
+    },
+    {
+      "path": "internal/adapter/postgres/nfo_commit_attempts.go",
+      "sha256": "ef9c3bada69c60d16d43934d5a5895148f86645a94e6699f0130dcee7d572b62",
+      "bytes": 11521
+    },
+    {
+      "path": "internal/adapter/postgres/nfo_commit_attempts_test.go",
+      "sha256": "9c92b6cf201edd2714b5fd2ddfa3c8395467ab93a3b02c9d322e11eb8b766936",
+      "bytes": 13854
+    },
+    {
+      "path": "internal/adapter/postgres/nfo_commit_attempt_quota_test.go",
+      "sha256": "d1b316b89784da2ff36f551c731363afe898696742854b052469da081f107660",
+      "bytes": 11274
+    },
+    {
+      "path": "internal/adapter/postgres/migrations/000056_nfo_commit_attempts.up.sql",
+      "sha256": "dfe0d6b6707ea7ffc75de36aaebbed836cda5815f3d4507d5cd27e69c9289a6c",
+      "bytes": 22303
+    },
+    {
+      "path": "internal/adapter/postgres/migrations/000056_nfo_commit_attempts.down.sql",
+      "sha256": "62cb383418161bbbd840df5a2343dde6a4885d2737feb10ba75232c31ef515af",
+      "bytes": 2846
+    },
+    {
+      "path": "internal/adapter/postgres/store.go",
+      "sha256": "d03f9711fc76b22899579800eaa7d5b24e400e38041be5d938cefd97161694b5",
+      "bytes": 7022
+    },
+    {
+      "path": "internal/adapter/postgres/nfo_commit_files.go",
+      "sha256": "cb63f180b7edc5c398938cfd6dd79e9cfd4c728e7ec25c1f99dd762ee54ad0ad",
+      "bytes": 12249
+    },
+    {
+      "path": "internal/adapter/postgres/nfo_commit_checkpoints_test.go",
+      "sha256": "08f90cd571bd702045d02de4379e27ca76caf001400a8c6f196bbb0bd62375a4",
+      "bytes": 21122
+    },
+    {
+      "path": "internal/adapter/nfo/commit_attempt.go",
+      "sha256": "91aa5ea337bd72e0a05876b7e6bbfaf57da5a7e377ecb1e0d71c5ce1f8588493",
+      "bytes": 3434
+    },
+    {
+      "path": "internal/adapter/nfo/commit_attempt_test.go",
+      "sha256": "aa28f92fa152695b07f1cef22cc4a6fe7e3e8134326da20d69f9251fa4ab7dd7",
+      "bytes": 12172
+    }
+  ],
+  "publicationPurpose": "WIP handoff requested by user; no functional acceptance"
+}

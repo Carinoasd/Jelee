@@ -1,0 +1,57 @@
+{
+  "schemaVersion": 46,
+  "sourceBaseCommit": "6a150ee52232b32e61daa9eb28125076074fb288",
+  "changedSourceManifest": {
+    "internal/adapter/nfo/prepare_write.go": "9716f066f8fb28447adc30df9a774e80662e6aa337eb21318235e63f4d62f7a8",
+    "internal/adapter/nfo/prepare_write_test.go": "3868ff0fa731835f922a1cc4ace74a035aa2b78e644e5b623096ec4b67ab01c7",
+    "internal/adapter/postgres/ignore_http_test.go": "25166f6fcb5143601476562ec93d2697f1f2f60f694b5d9e377c24e62959a89b",
+    "internal/adapter/postgres/inventory_import_http_test.go": "e6a2627b057b20ef62af8afd168c15701799fb4bc0ad2de444bb7d1bd820a4b3",
+    "internal/adapter/postgres/job_metrics_migration_test.go": "107800c02bc8f63947829a07c158ff26fe91bd542f1f213476e0dfaaba787c2d",
+    "internal/adapter/postgres/legacy_migration_fixture_test.go": "ea12e3d31d07a6faf433344109348b490fc32cca2caf6a1007db42ecc042ab86",
+    "internal/adapter/postgres/migrations/000046_nfo_write_preparations.down.sql": "649ed0be72aca3fb5a6ee312a3681d4c8a97129e7d56b494fc14760dc200bd9a",
+    "internal/adapter/postgres/migrations/000046_nfo_write_preparations.up.sql": "a3000f7359585b0037dac84825471f18ee48c99ef2cbe1237163349053958455",
+    "internal/adapter/postgres/nfo_write_preparations.go": "75af0f25e040caa3086c3014392315cf67f69970e927559e4273c013adeaaef4",
+    "internal/adapter/postgres/nfo_write_preparations_test.go": "53a79b8d877124496fba033bf3e3b33bc21ae09c3d18f4c96b0db07a08117d58",
+    "internal/adapter/postgres/schedules_http_test.go": "59bd796e25d7c66d969e15ea8d4b7254a468b06eb9348d6fa48dca51eb8c2d84",
+    "internal/adapter/postgres/store.go": "888eadde20b63cea45e1a86a3a67d945acd615a74beb3715e4f46dd0c04c958d",
+    "internal/adapter/postgres/store_integration_test.go": "f73c2686cb9f183e2604556a0fedf8453ed7d8a73b03c8dfca8a4b794333e53e",
+    "internal/app/nfo_write_preparation.go": "dfb6bd1e41577f9ea2993556c89ae3554f9b5f67267eb5a6ac1898de80b8b1eb",
+    "internal/domain/nfo_write_preparation.go": "b12b31cb1dbd5ff18a8fceb4cc0759a6acd7b2ae655feb9b3a176cba7bf02417",
+    "internal/domain/nfo_write_preparation_test.go": "6562b6a6ee1ee9dc9d09bb285c227dbd7eb2ae6bb232ae52659e6d8a1598701a"
+  },
+  "changedSourceDigest": "99355172be10288bedc4017e35e9580fac5f225787b48222f5cf824aea3df589",
+  "publishedSQLFilesUnchanged": 90,
+  "windows": {
+    "packagesPassed": 34,
+    "testsPassed": 3742,
+    "testsSkipped": 661,
+    "failureEvents": 0
+  },
+  "windowsInitialSandbox": {
+    "failedPackages": 2,
+    "reason": "owned_fixture_acl_access_denied",
+    "rerun": "only_failed_packages_unsandboxed"
+  },
+  "postgresFullRace": {
+    "packagesPassed": 1,
+    "testsPassed": 1071,
+    "testsSkipped": 0,
+    "failureEvents": 0
+  },
+  "postgresFixtureCorrections": {
+    "initialFailedTests": [
+      "TestIgnoreHTTPPostgresNativeReport",
+      "TestInventoryImportActualTLS",
+      "TestPostgresIntegration",
+      "TestScheduleActualTLS"
+    ],
+    "reason": "explicit_default_resources_config_and_complete_migration_steps",
+    "composition": "full suite plus final preparation and corrected fixture reruns"
+  },
+  "runtimePostgres": {
+    "metrics": "passed",
+    "productionNFOWorker": "not_run_requires_nonroot_production_profile"
+  },
+  "formal24hSourceIncludesThisChange": false,
+  "requirementsComplete": false
+}

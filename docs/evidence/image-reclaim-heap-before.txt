@@ -1,0 +1,15 @@
+File: repro
+Build ID: 5de63282ca77d9957732e4f65c05e75a1d56c21b
+Type: inuse_space
+Time: 2026-10-03 14:36:28 CST
+Showing nodes accounting for 162.05MB, 100% of 162.05MB total
+      flat  flat%   sum%        cum   cum%
+     160MB 98.74% 98.74%      160MB 98.74%  image.NewRGBA64
+    2.05MB  1.26%   100%   162.05MB   100%  github.com/MoYuanCN/Jelee/internal/adapter/images.(*Processor).Render
+         0     0%   100%      160MB 98.74%  github.com/MoYuanCN/Jelee/internal/adapter/images.decodeImage
+         0     0%   100%      160MB 98.74%  image/png.(*decoder).decode
+         0     0%   100%      160MB 98.74%  image/png.(*decoder).parseChunk
+         0     0%   100%      160MB 98.74%  image/png.(*decoder).parseIDAT
+         0     0%   100%      160MB 98.74%  image/png.(*decoder).readImagePass
+         0     0%   100%      160MB 98.74%  image/png.Decode
+         0     0%   100%   162.05MB   100%  main.main.func3

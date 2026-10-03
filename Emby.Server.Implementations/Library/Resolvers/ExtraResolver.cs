@@ -1,15 +1,15 @@
 using System;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
-using Emby.Naming.Common;
-using Emby.Naming.Video;
+using Jelee.Naming.Common;
+using Jelee.Naming.Video;
 using MediaBrowser.Controller.Entities;
 using MediaBrowser.Controller.Library;
 using MediaBrowser.Controller.Providers;
 using MediaBrowser.Controller.Resolvers;
 using MediaBrowser.Model.Entities;
 using Microsoft.Extensions.Logging;
-using static Emby.Naming.Video.ExtraRuleResolver;
+using static Jelee.Naming.Video.ExtraRuleResolver;
 
 namespace Emby.Server.Implementations.Library.Resolvers
 {

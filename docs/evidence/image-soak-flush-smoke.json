@@ -1,0 +1,73 @@
+{
+  "version": 1,
+  "sourceCommit": "c61c12b00715eb616df68d4e2b0d57537daf03dc",
+  "sourceTree": "0faa8eedca1320881da699d6414b1268ad18b452",
+  "sourceDigest": "438c3e6ea8294e9934575904f941ecd16aef364ca462a66fea4d30786c4efaa3",
+  "budgetSha256": "01c3fda397247da4092d6afea4da318a01c6d9582cb2a085770238015be19539",
+  "testBinarySha256": "408a1d660ea5deecb57f28d27f1f47a89e8e0afff8bd833509bb4206d685bac5",
+  "testImage": "sha256:ea2e793cc6ba9a39ab1a3256afb1bc2aae1c18aac55b35218a0bc55298d34a4b",
+  "fixtureItems": 1000,
+  "fixtureCounts": {
+    "jpeg": 900,
+    "png": 36,
+    "png16": 64
+  },
+  "receipt": {
+    "rawBytes": 129991,
+    "rawSha256": "9effc72a355289185f0b4cb9cf82cd6ef6ff6577b8f08572fe4ed0af5a35befe",
+    "lines": 20,
+    "maxReceiptGapSeconds": 60.00084304402117,
+    "elapsedSeconds": 604.3778472000267,
+    "heartbeatLimitSeconds": 70
+  },
+  "containerExit": {
+    "status": "exited",
+    "exitCode": 0,
+    "oomKilled": false,
+    "running": false
+  },
+  "sourceUnchanged": true,
+  "originalSamplesUnchanged": true,
+  "testArtifactsCleaned": true,
+  "launcherArtifactsCleaned": true,
+  "snapshotVerified": true,
+  "scope": "600-second-smoke-only",
+  "finalAcceptance": false,
+  "runId": "2a0923d1359749be9d55a040d486eeec",
+  "completedRounds": 2,
+  "workDurationNanos": 600000954770,
+  "samples": {
+    "sampleCount": 618,
+    "blockCount": 11,
+    "firstSampleNanos": 685999,
+    "lastSampleNanos": 602735000464,
+    "rssPeakBytes": 400412672,
+    "heapPeakBytes": 261264216,
+    "processorMaxima": {
+      "maxActive": 2,
+      "maxReservedBytes": 201326592,
+      "maxEstimatedImageBytes": 92099262,
+      "maxCacheEntries": 128,
+      "maxCacheBytes": 1655776
+    }
+  },
+  "workGC": {
+    "passed": true,
+    "observedPauses": 1532,
+    "maxPauseUpperNanos": 1572864,
+    "histogramPauseUpperNanos": 67713792,
+    "histogramIntervalNanos": 600000814591,
+    "counterDelta": {
+      "totalAllocBytes": 13857260144,
+      "numGC": 766,
+      "pauseTotalNs": 61792239
+    },
+    "counterIntervalNanos": 600000755827
+  },
+  "privateResultSha256": "a0ae9ab4e40202f66e86a31197b69dad7c72e0e7dfdabda26ac3226b4381f2d9",
+  "limitations": [
+    "Two five-minute rounds; not a 24-hour soak or hourly steady-state proof.",
+    "1000 image paths from three templates, plus negative fixtures.",
+    "Original image preservation uses bounded hash samples."
+  ]
+}
