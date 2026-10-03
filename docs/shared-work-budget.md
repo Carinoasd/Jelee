@@ -86,3 +86,13 @@ Family baseline success/unavailable/failure/short/wrong-path/root-failure矩陣�
 WatchOptions.Budget 使用runtime同一實例。build 的遍歷／註冊及失敗清理持 I/O；建置完成即釋放，重建重新取得。每5秒的根身分檢查另取得短期I/O。常駐原生事件輪詢不持有共享名額。佇列滿時既有有限數量的watch worker每250ms重試，等待可被關窗／取消／停止中斷，不新增背景goroutine。
 
 測試涵蓋 queue0 退避及 queue1 等待取消、建置目錄上限失敗回收，真原生監看新增子目錄後重建再次取得I/O且dirty callback時無持有。Windows scan/runtime/architecture與vet通過；[Linux race](evidence/resources-watch-race-linux.txt)及[真PG runtime時間窗／watch](evidence/resources-watch-runtime.txt)通過。這不是全部混合負載或不同核心數調校驗收。
+
+## 共用資源指標
+
+正式 runtime 使用 `NewWithResources`，傳入與 HTTP、jobs、images、watch 相同的 Budget。管理員端點另增加八個無 labels 的 gauge：`jelee_resources_cpu_active`、`io_active`、`total_active`、`waiting`、`cpu_limit`、`io_limit`、`total_limit`、`queue_limit`（各名稱均使用 `jelee_resources_` 前綴）。active 表示持有配額的操作，waiting 表示已進入共用等待佇列的操作；佇列滿時在既有 worker 退避的操作不計入 waiting。
+
+每次 callback 只讀一次鎖內 Stats 快照，CPU＋I/O＝total；限額讀取不可變配置的副本。收集不取得工作配額、不執行 I/O、不建立 goroutine。每個程序獨立計數，多副本不能當作全域總量。正式端點共30家族／171系列；原有New與NewWithJobs保留15與22家族契約。
+
+本批 Windows telemetry/resources/runtime/architecture 測試及 vet 通過；[Linux race](evidence/resources-metrics-race-linux.txt) 覆蓋 telemetry/resources/jobs/runtime；[真 PostgreSQL HTTP race](evidence/resources-metrics-runtime.txt) 執行 TestMetricsRuntimePostgresIntegration，核對配置限額及匿名／一般帳戶不得洩漏資源指標。真 budget 的滿載、排隊、取消與回收測試核對30家族、無動態labels及64KiB回應上限。這些驗證未涵蓋完整混合壓測或資源等待時間分布。
+
+G41.8 原有工作等待／耗時統計只涵蓋 inventory_scan、catalog_import。其他需求中的任務類型尚未全部實作與觀測；本批八個gauge不能補足此缺口，G41.8回復部分完成。G41.3、G41.9與G41.10也仍未完成。

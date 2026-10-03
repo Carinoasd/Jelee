@@ -26,6 +26,9 @@ type Budget struct {
 	pending list.List
 }
 
+// Limits returns a copy of the immutable admission limits.
+func (b *Budget) Limits() Limits { return b.limits }
+
 func New(l Limits) (*Budget, error) {
 	if l.CPU < 1 || l.CPU > 256 || l.IO < 1 || l.IO > 1024 || l.Total < 1 || l.Total > 1024 || l.Queue < 0 || l.Queue > 4096 {
 		return nil, domain.ErrInvalid

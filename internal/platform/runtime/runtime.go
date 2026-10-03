@@ -86,11 +86,11 @@ func newWithLifetime(cfg config.Config, logger *slog.Logger, lifetime *lifetime)
 			}
 			return app.NewImages(store, processor)
 		},
-		func(c config.Config, store *postgres.Store) (*telemetry.Metrics, error) {
+		func(c config.Config, store *postgres.Store, budget *resources.Budget) (*telemetry.Metrics, error) {
 			if !c.EnableMetrics {
 				return nil, nil
 			}
-			metrics, err := telemetry.NewWithJobs(store, store)
+			metrics, err := telemetry.NewWithResources(store, store, budget)
 			if err != nil {
 				return nil, err
 			}

@@ -216,7 +216,7 @@ func TestMetricsRuntimePostgresIntegration(t *testing.T) {
 			if !strings.HasPrefix(response.Header.Get("Content-Type"), "text/plain") || response.Header.Get("Cache-Control") != "no-store" {
 				t.Fatal("metrics exposition headers are missing")
 			}
-		} else if strings.Contains(string(body), "jelee_runtime_") || strings.Contains(string(body), "jelee_db_pool_") {
+		} else if strings.Contains(string(body), "jelee_runtime_") || strings.Contains(string(body), "jelee_db_pool_") || strings.Contains(string(body), "jelee_resources_") {
 			t.Fatal("unauthorized response exposed metrics")
 		}
 		return string(body)
@@ -224,6 +224,14 @@ func TestMetricsRuntimePostgresIntegration(t *testing.T) {
 	scrape("", http.StatusUnauthorized)
 	scrape(regular.Token, http.StatusForbidden)
 	body := scrape(admin.Token, http.StatusOK)
+	for name, want := range map[string]int{
+		"cpu_limit": cfg.Resources.CPULimit(), "io_limit": cfg.Resources.IO,
+		"total_limit": cfg.Resources.Total, "queue_limit": cfg.Resources.Queue,
+	} {
+		if metricsIntegrationValue(t, body, "jelee_resources_"+name, "gauge") != float64(want) {
+			t.Fatalf("resource metric %s differs from runtime configuration", name)
+		}
+	}
 	if metricsIntegrationValue(t, body, "jelee_db_pool_connections_max", "gauge") != float64(cfg.MaxConnections) {
 		t.Fatal("exporter was not wired to the configured production pool")
 	}

@@ -30,7 +30,7 @@
 
 ## 共享工作指標
 
-正式服務透過 `NewWithJobs` 增加以下 7 個指標家族。工作功能在本副本關閉時仍可監測同一資料庫中的其他 worker。每次抓取直接輸出資料庫絕對值；不重播歷史事件、不在程序內再次累加。舊 `New` 建構器保留上述 15 個本機系列。
+`NewWithJobs` 增加以下 7 個指標家族；正式服務使用 `NewWithResources`，另增加[共用資源契約](shared-work-budget.md#共用資源指標)中的八個 gauge。工作功能在本副本關閉時仍可監測同一資料庫中的其他 worker。每次抓取直接輸出資料庫絕對值；不重播歷史事件、不在程序內再次累加。舊 `New` 建構器保留上述 15 個本機系列。
 
 | Prometheus 名稱 | 型別 | 意義 |
 | --- | --- | --- |
@@ -62,7 +62,7 @@ Fx 的單一資源擁有者在 HTTP／worker 結束後關閉 metrics，再關閉
 
 固定 OTel API／SDK `v1.47.0`、Prometheus exporter `v0.69.0`、client_golang `v1.24.1`，組合依上游 exporter 的 go.mod 選定；相依由 go.mod／go.sum 記錄。OTel 與 client_golang 採 Apache-2.0，來源見 [OTel release](https://github.com/open-telemetry/opentelemetry-go/releases/tag/v1.47.0)、[exporter go.mod](https://github.com/open-telemetry/opentelemetry-go/blob/exporters/prometheus/v0.69.0/exporters/prometheus/go.mod)、[OTel 授權](https://github.com/open-telemetry/opentelemetry-go/blob/v1.47.0/LICENSE)及 [Prometheus client 授權](https://github.com/prometheus/client_golang/blob/v1.24.1/LICENSE)。原專案 LICENSE 保留。
 
-原本 runtime／pool 段驗證：Windows 576 個通過事件、Linux race 570、真 PostgreSQL race 5。Windows 略過 7 個依賴原生環境／DB 的案例；Linux race 略過 1 個 DB 案例，該案另由真 PG 執行通過。事件數含父測試。vet、三個命令 build、模組 checksum、增量品牌、gitignore 與格式檢查通過；全量品牌仍失敗。見[執行證據與來源雜湊](evidence/metrics.json)。工作系列已接入同一端點，G41.8 要求的指標均已暴露。後續 G42.8 的可覆寫配置與容器 OOM 驗收見[執行時記憶體設定](runtime-memory.md)，G42.9 的固定 RSS 基線、預算及獨立門禁見[常駐記憶體預算](resident-memory.md)。Tracing 及 24h 驗收仍未完成。
+原本 runtime／pool 段驗證：Windows 576 個通過事件、Linux race 570、真 PostgreSQL race 5。Windows 略過 7 個依賴原生環境／DB 的案例；Linux race 略過 1 個 DB 案例，該案另由真 PG 執行通過。事件數含父測試。vet、三個命令 build、模組 checksum、增量品牌、gitignore 與格式檢查通過；全量品牌仍失敗。見[執行證據與來源雜湊](evidence/metrics.json)。工作系列已接入同一端點；目前等待與耗時只涵蓋兩種工作，其他需求中的任務尚未全部實作及觀測，G41.8 保持部分完成。後續 G42.8 的可覆寫配置與容器 OOM 驗收見[執行時記憶體設定](runtime-memory.md)，G42.9 的固定 RSS 基線、預算及獨立門禁見[常駐記憶體預算](resident-memory.md)。Tracing 及 24h 驗收仍未完成。
 
 ## 共享工作端點驗證
 

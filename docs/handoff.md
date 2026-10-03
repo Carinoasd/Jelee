@@ -1,3 +1,56 @@
+## 2026-10-03 新對話接續：資源指標驗證通過
+
+已讀交接、需求追蹤與適用規範。HEAD4e1bf2e68a與未提交檔案吻合。Linux telemetry/resources/jobs/runtime race及真PG TestMetricsRuntimePostgresIntegration race退出0，Windows受影響套件vet退出0；證據已放docs/evidence/resources-metrics-*。指標測試import分組整理；Windows telemetry/resources/runtime/architecture重驗、vet、增量品牌（0違規／339白名單）及gitignore（0違規）通過。沿用PR46提交推送，不merge。
+
+G41.8追蹤表原先已完成僅能证明兩種job的統計；其他任務覆蓋及資源等待分布仍缺，改回部分完成，統計7完成／195部分／134阻塞。docs/metrics.md及shared-work-budget.md已說明。
+
+長測PID726258/start31439656/boot4a5d9c5c-4482-4c3e-8978-30156b1ce92f實核吻合，容器running/OOMfalse。保留source38a47082e9，不重啟。遠端4e1bf2e68a：兩Windows及兩Linux foundation、三平台Tests、format、ABI已success；兩品牌fail，兩PG與CodeQL仍in_progress。不能宣稱全綠或全案完成。
+
+---
+
+## 2026-10-03 換模型／新對話交接：已停止開發，資源指標尚未提交
+
+使用者要求「等等準備換模型了跟開新的對話繼續了，寫交接」。本次到此停止，不自動繼續。新對話收到繼續指示後，先核對 git 狀態及下列活躍長測，不重啟仍存活的工作。
+
+### 範圍與 Git
+
+- 全部 G00–G51 仍是目標，以 requirements-source.md／requirements-traceability.md 為準。全案及第三階段未完成；舊約80%估算未重算，勿當最新百分比。
+- Repo https://github.com/Carinoasd/Jelee；本機目錄為本文件所在 docs 的上一層 outputs/Jelee。
+- HEAD 4e1bf2e68a；分支 feat/jelee-ignore-family-worker；現有普通 PR46 https://github.com/Carinoasd/Jelee/pull/46。沿用此 PR，勿因子批次另開重複 PR。
+- 最新持續目標禁止 merge、release、tag、force-push、改既有 migrations 或 Git 身份設定；保護授權與原媒體。先前允許 merge 的歷史訊息不適用目前目標。
+- 提交作者僅命令級：git -c user.name=Carinoasd -c user.email=46304809+Carinoasd@users.noreply.github.com commit ...。PR／提交說明用繁中。
+- 最新 developer 禁止主動派子代理；除非使用者／適用指令明確要求。
+
+### 本次未提交變更與驗證
+
+五個程式檔：internal/platform/resources/budget.go（immutable Limits getter）、internal/platform/telemetry/resources.go（新增 NewWithResources 及八個 gauge）、resources_test.go（新增真配額滿載／排隊／取消／回復測試）、internal/platform/runtime/runtime.go（同 fx Budget 注入 metrics）、metrics_integration_test.go（正式 HTTP 檢查配置限額、未授權不得洩漏資源指標）。另本交接文件修改。
+
+指標前綴 jelee_resources_：cpu_active/io_active/total_active/waiting/cpu_limit/io_limit/total_limit/queue_limit，無動態標籤。每次 callback 只讀一次 Stats，不取得工作配額、不做 I/O、不新增 goroutine。使用既有管理員 metrics endpoint。
+
+Windows 最新執行 scripts/run-go.ps1 test ./internal/platform/telemetry ./internal/platform/resources ./internal/platform/runtime ./internal/architecture 全通過。首次測試失敗是重用了固定22 families的舊 helper；新增八項後改成新測試自己解析並驗30 families，未放寬舊測試。已 gofmt。Linux race、真 PG HTTP 整合、vet 尚未執行；不能把 Windows runtime 套件通過宣稱為已跑真 PG 整合。
+
+下一步：審查上述差異，執行 .testdata/run-resources-metrics-race.py 和 .testdata/run-resources-metrics-runtime.py（本次從 watch scripts 產生，尚未執行）；核輸出 .testdata/resources-metrics-race-linux.txt／resources-metrics-runtime.log。後者指定 TestMetricsRuntimePostgresIntegration、讀私密 scale-database-url，不可輸出連線字串。Linux透過 WSL Ubuntu、固定 Go1.27.1、gcc15、/var/tmp native TMP。補 vet、docs/shared-work-budget.md／必要 traceability／安全 evidence，再提交推送 PR46並 attach。不要把 G41.8 因八個 gauge 就標完成：等待時長、其他任務、完整混合負載等仍缺。
+
+### 活躍正式24h長測：不要重啟
+
+run af2530314062427bb16da7d2f11961b4；PID726258；startTicks31439656；bootId4a5d9c5c-4482-4c3e-8978-30156b1ce92f。2026-10-03 本回合最後核實 process_identity 完全相符，容器 running=true、oomKilled=false。換模型不需停止此隔離工作。
+
+worker容器 jelee-image-memory-af2530314062427bb16da7d2f11961b4；開始UTC2026-10-03T02:34:00.370709+00:00；來源38a47082e951573947cbfdd6445919d178443b21，包含長測失敗診斷修正，不包含後續 probe/images/ignore/watch 資源配額，更不含本次未提交 metrics。不可把將來通過歸到最新 HEAD。
+
+快照 /var/tmp/jelee-soak-snapshot-af2530314062427bb16da7d2f11961b4；證據 .testdata/soak-launch-af2530314062427bb16da7d2f11961b4/。核程序用 scripts/start_images_soak.py 的 process_identity(726258)，容器用 runtime_memory_acceptance.container_state(...)。若handle消失再讀result.json，只印安全摘要，不因觀察逾時重啟。固定288×300秒24h；matching600s煙測127a0...已pass、finalAcceptance=false。
+
+之前正式033822...在約35分鐘 cold_image_processing_failed，根因尚未定。新來源保留 failedRound/FailureCode/FailedRequest(status,index)，monitor不再用soak_event_invalid遮蔽worker錯誤；若這次失敗先查這些證據，勿猜測已修。
+
+### 後續大項及 CI
+
+共用配額已接直投、inventory/NFO、probe、images、ignore baseline/verification、watch建置/重建/根檢查；索引、metadata下載等仍需稽核。完整 G41.9 混合負載必須含 NFO 寫回（尚未實作），不可用唯讀代替；不同核數/記憶體調校 G41.10 未完成。G41.3/G13.5仍部分。
+
+最後歷史CI觀察 f00661198f：品牌兩fail、多數功能pending；本回合未查遠端最新CI，不能宣稱全綠。品牌殘留舊記錄14735/344，未重掃。gh 位於 C:/projects/tools/gh/bin/gh.exe，命令需 --repo Carinoasd/Jelee；push可用既有 gh credential helper，不改Git設定。
+
+全案 traceability 前次統計8完成／194部分／134阻塞（共336），本回合未重算。保留完整目標；新對話先完成未提交指標驗證，再接其餘需求。
+
+---
+
 ## 最新接續：原生目錄監看建置／重建／根檢查已接共用 I/O
 
 scan.WatchOptions.Budget由runtime同fx實例注入。build取得I/O至建置/錯誤清理返回，Observe常駐Poll不持配額；health checkRoots另短期取得。queuefull由既有watch goroutine250ms重試，可ctx取消。新增queue0/1取消與buildlimit回收測試；真RebuildIncludesNewChildren加入budget記錄，dirtycallback配額0、rebuild至少再次取得。
