@@ -1,3 +1,16 @@
+## 2026-10-03 提交前檔案計畫／witness已驗，仍待資料庫與提交接線
+
+已發布HEAD99980e8f1b584ee5ae6d3eb23ff3db0d4619c752／PR46 OPEN。本批新增私有commit_files.go及測試：版本1／固定非零16-byte token推導五個有界stage／rollback／pin名稱，plan port先成功才建native鎖sidecar與檔案；完整輸出與獨立rollback EXCL建立／32KiB寫／file.Sync，原文與兩副本各持hardlink pin，核完整bytes及原生身分、directory sync後ready port。只準備，不Rename原target／不輪替backup。兩個port目前是測試callback，未接SQL／journal／Writer／worker，不授權FS提交／結算／恢復。
+
+ready開始前即保留全部五名，ready錯誤／取消不因未知commit結果刪掉witness；較早故障只刪已觀察自有且仍同實體的物件，身分不明保留，native lock不刪。新增bytes核對返回FileInfo綁後續原生身分觀察，拒絕兩次讀不同實體。owned fixture落檔再子程序重開；plan前零副作用、EXCL碰撞保持、source／witness換實體、來源原地改動而獨立rollback保持、七種故障／取消／未知保存結果、缺stage不猜commit均驗。
+
+Windows NFO／architecture327PASS／2既有symlink條件skip；Linux同两套件race342PASS／1Windows專屬skip，零fail；新增準備16PASS／零skip。vet兩平台／Darwin amd64交叉編譯／格式／增量品牌0／339／gitignore／diff通過，98份已發布SQL與模組／需求原文／LICENSE保持。所有本批測試handle已terminal0，沒有PG重跑。安全報告docs/evidence/nfo-commit-files.json，方法docs/nfo-commit-files.md；本批待提交推送同分支PR46。
+
+下一步需新migration持久計畫及ready原生證據，綁schema49固定journal token／owner／generation／entry並保留未知結果；完整root／媒體／revision／policy／actor／lease與native鎖／owner join、backup計畫、target Rename／rollback／可驗證結算及同實體未解決排除仍缺。Windowsdirectory sync仍是既有stub，未證斷電metadata耐久性；不能啟用正式read-write。
+
+正式24h保持run329073a5d193446383327ab217aba147／PID1026300／startTicks33072456／bootId4a5d9c5c-4482-4c3e-8978-30156b1ce92f，來源24caf7d45f不含後續本批；本輪實核身分吻合、container running／OOMfalse。先核同handle不重啟，完整24h尚未通過。全G00–G51仍7完成／198部分／131阻塞，完整品牌門禁保持。不merge／release／tag／force-push、不改已發布SQL／Git身份設定，原媒體／圖片／授權保持。下方為歷史狀態。
+
+---
 ## 2026-10-03 原生身分觀察已驗，正式24h同handle仍執行
 
 已發布來源152d3cbb1091707573e8ef96ebd074f55ae2cc08，PR46 OPEN。新增私有nfoNativeIdentity／observeNFONativeIdentity及固定48-byte codec；Windows完整FileIdInfo／volume／native creation ticks，Linux held-descriptor statx device／inode／birth，要求TYPE／INO／BTIME回傳mask。其他平台明確拒絕，尚未接Source／DB準備／journal／Writer／worker，不授權FS也不啟用恢復。
