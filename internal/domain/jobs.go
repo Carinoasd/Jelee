@@ -65,6 +65,9 @@ type JobLease struct {
 	Generation int64
 	ExpiresAt  time.Time
 	Policy     JobPolicy
+	// RecoveryEpoch is zero for the original job lease. A positive value names a
+	// NFO commit recovery lease on the stopped job; Owner is then its holder.
+	RecoveryEpoch int64
 }
 
 type ScanDirectory struct {

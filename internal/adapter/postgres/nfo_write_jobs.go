@@ -68,14 +68,14 @@ func (s *Store) GetNFOWriteTask(ctx context.Context, lease domain.JobLease, sequ
 		return domain.NFOWriteTask{}, err
 	}
 	defer tx.Rollback(ctx)
-	current, err := fencedJob(ctx, tx, lease)
+	current, err := fencedNFOCommitLease(ctx, tx, lease)
 	if err != nil {
 		return domain.NFOWriteTask{}, err
 	}
 	if current.Job.Kind != domain.JobNFOWrite {
 		return domain.NFOWriteTask{}, domain.ErrInvalid
 	}
-	if current.Job.CancelRequested {
+	if current.Job.CancelRequested && lease.RecoveryEpoch == 0 {
 		return domain.NFOWriteTask{}, context.Canceled
 	}
 	var actor string
@@ -111,12 +111,8 @@ func (s *Store) GetNFOWriteTask(ctx context.Context, lease domain.JobLease, sequ
 	if actual != digest {
 		return domain.NFOWriteTask{}, domain.ErrDatabase
 	}
-	var live bool
-	if err = tx.QueryRow(ctx, `SELECT state='running' AND owner=$2 AND generation=$3 AND lease_until>clock_timestamp() AND NOT cancel_requested FROM jobs WHERE id=$1::uuid`, lease.Job.ID, lease.Owner, lease.Generation).Scan(&live); err != nil {
-		return domain.NFOWriteTask{}, storageError(err)
-	}
-	if !live {
-		return domain.NFOWriteTask{}, domain.ErrJobLeaseLost
+	if err = nfoCommitLeaseLive(ctx, tx, current); err != nil {
+		return domain.NFOWriteTask{}, err
 	}
 	if err = tx.Commit(ctx); err != nil {
 		return domain.NFOWriteTask{}, storageError(err)

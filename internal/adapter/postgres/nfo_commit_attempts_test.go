@@ -238,8 +238,8 @@ func TestNFOCommitAttemptMigrationRetainsLegacyCapacity(t *testing.T) {
 		t.Fatal("retained attempt capacity downgraded")
 	}
 	version, dirty, err := Migrate(f.ctx, f.s.Pool.Config().ConnString(), "status")
-	if err != nil || version != 55 || !dirty {
-		t.Fatal("retained attempt downgrade lost dirty55")
+	if err != nil || version != SchemaVersion-1 || !dirty {
+		t.Fatal("retained attempt downgrade lost dirty status")
 	}
 }
 

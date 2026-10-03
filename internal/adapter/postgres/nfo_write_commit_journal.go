@@ -27,14 +27,15 @@ func recordNFOWriteCommit(ctx context.Context, tx pgx.Tx, lease domain.JobLease,
 	if ctx == nil || sequence < 1 || sequence > 100 {
 		return nfoWriteCommitRecord{}, domain.ErrInvalid
 	}
-	current, err := fencedJob(ctx, tx, lease)
+	current, err := fencedNFOCommitLease(ctx, tx, lease)
 	if err != nil {
 		return nfoWriteCommitRecord{}, err
 	}
 	if current.Job.Kind != domain.JobNFOWrite {
 		return nfoWriteCommitRecord{}, domain.ErrInvalid
 	}
-	if current.Job.CancelRequested {
+	// A recovery lease exists to settle stopped work, including cancelled jobs.
+	if current.Job.CancelRequested && lease.RecoveryEpoch == 0 {
 		return nfoWriteCommitRecord{}, context.Canceled
 	}
 	var actor string
@@ -44,12 +45,19 @@ func recordNFOWriteCommit(ctx context.Context, tx pgx.Tx, lease domain.JobLease,
 		}
 		return nfoWriteCommitRecord{}, storageError(err)
 	}
-	r, err := scanNFOWriteCommitRecord(tx.QueryRow(ctx, `SELECT `+nfoWriteCommitColumns+` FROM nfo_write_commit_journal WHERE job_id=$1::uuid AND sequence=$2 AND generation=$3`, lease.Job.ID, sequence, lease.Generation))
-	if errors.Is(err, pgx.ErrNoRows) {
+	r, err := scanNFOWriteCommitRecord(tx.QueryRow(ctx, `SELECT `+nfoWriteCommitColumns+` FROM nfo_write_commit_journal WHERE job_id=$1::uuid AND sequence=$2 AND generation=$3`, lease.Job.ID, sequence, current.Generation))
+	if errors.Is(err, pgx.ErrNoRows) && lease.RecoveryEpoch == 0 {
 		r, err = scanNFOWriteCommitRecord(tx.QueryRow(ctx, `INSERT INTO nfo_write_commit_journal(job_id,sequence,generation,owner) VALUES($1::uuid,$2,$3,$4) RETURNING `+nfoWriteCommitColumns, lease.Job.ID, sequence, lease.Generation, lease.Owner))
 	}
 	if err != nil {
 		return nfoWriteCommitRecord{}, storageError(err)
+	}
+	if lease.RecoveryEpoch != 0 {
+		// Recovery continues the existing token and never opens a new journal.
+		if _, err := tx.Exec(ctx, `UPDATE jobs SET generation=generation WHERE id=$1::uuid`, lease.Job.ID); err != nil {
+			return nfoWriteCommitRecord{}, storageError(err)
+		}
+		return r, nil
 	}
 	if r.Owner != lease.Owner {
 		return nfoWriteCommitRecord{}, domain.ErrJobLeaseLost

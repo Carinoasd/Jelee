@@ -1,3 +1,22 @@
+## 2026-10-04 Claude 接續：schema57 NFO 寫回恢復租約
+
+設計見 [nfo-commit-recovery-lease.md](nfo-commit-recovery-lease.md)。schema49 讓有 journal 的 job 只能停止，原本當機後永遠無法續作；057 讓已停止的 job 取得有界的恢復租約，以 epoch 接手過期租約，續作同一個 token，不開新 journal。
+
+主要變更：
+- 050／056 的守衛與 054 的 claim 判斷改經 `nfo_commit_live_lease`。
+- 已取消的 job 在恢復模式下不能新增 evidence。
+- 過期且有 journal 的 nfo_write 會由 ClaimJob 回收成 failed（`job_timeout`）。
+- 057 down 在有恢復租約或 journal 時拒絕。
+
+只讀審查子代理找出的兩個中級、兩個低級問題已修。Linux 真 PG、race：NFO commit／Stage／recovery／migration 相關 406 PASS／0 fail／0 skip。
+
+仍缺：
+- worker 自動取得與續約恢復租約。
+- actor 失效後的系統回滾出口。
+- 結算後 job 的最終狀態。
+
+---
+
 ## 2026-10-04 Claude 接續：schema56 守衛審查與歷史超額升級測試
 
 逐項對照交接第 3 步。lease／actor／提前 flush／首次輸出 FK 已有測試涵蓋。新增歷史超額升級測試：schema55 留 1120MiB 歷史 plan 後升級，升級被拒絕，不留 schema56 物件，歷史不變，狀態停在 56 dirty。Linux 真 PG、race：PASS。SQL 允許有 checkpoint 後再分配下一個 attempt，屬既有設計；目前由 Stage 保證不輪替，放棄協議時再決定是否收緊。

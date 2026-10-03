@@ -23,14 +23,14 @@ func (s *Store) GetNFOWriteCommitFiles(ctx context.Context, lease domain.JobLeas
 		return zero, err
 	}
 	defer tx.Rollback(ctx)
-	current, err := fencedJob(ctx, tx, lease)
+	current, err := fencedNFOCommitLease(ctx, tx, lease)
 	if err != nil {
 		return zero, err
 	}
 	if current.Job.Kind != domain.JobNFOWrite {
 		return zero, domain.ErrInvalid
 	}
-	if current.Job.CancelRequested {
+	if current.Job.CancelRequested && lease.RecoveryEpoch == 0 {
 		return zero, context.Canceled
 	}
 	var actor string
@@ -42,7 +42,7 @@ func (s *Store) GetNFOWriteCommitFiles(ctx context.Context, lease domain.JobLeas
 	}
 	var value domain.NFOWriteCommitFileEvidence
 	var parent, target, output, rollback []byte
-	err = tx.QueryRow(ctx, `SELECT w.job_id::text,w.sequence,w.generation,w.token::text,w.owner,w.recorded_at,w.lease_until,p.token IS NOT NULL,r.token IS NOT NULL,COALESCE(p.version,0),COALESCE(p.target_name,''),p.parent_identity,p.target_identity,r.output_identity,r.rollback_identity FROM nfo_write_commit_journal w LEFT JOIN nfo_write_commit_file_plans p ON p.token=w.token LEFT JOIN nfo_write_commit_files_ready r ON r.token=w.token WHERE w.token=$1::uuid AND w.job_id=$2::uuid AND w.sequence=$3 AND w.generation=$4 AND w.owner=$5`, token, lease.Job.ID, sequence, lease.Generation, lease.Owner).Scan(&value.Record.JobID, &value.Record.Sequence, &value.Record.Generation, &value.Record.Token, &value.Record.Owner, &value.Record.RecordedAt, &value.Record.LeaseUntil, &value.PlanRecorded, &value.ReadyRecorded, &value.Plan.Version, &value.Plan.TargetName, &parent, &target, &output, &rollback)
+	err = tx.QueryRow(ctx, `SELECT w.job_id::text,w.sequence,w.generation,w.token::text,w.owner,w.recorded_at,w.lease_until,p.token IS NOT NULL,r.token IS NOT NULL,COALESCE(p.version,0),COALESCE(p.target_name,''),p.parent_identity,p.target_identity,r.output_identity,r.rollback_identity FROM nfo_write_commit_journal w LEFT JOIN nfo_write_commit_file_plans p ON p.token=w.token LEFT JOIN nfo_write_commit_files_ready r ON r.token=w.token WHERE w.token=$1::uuid AND w.job_id=$2::uuid AND w.sequence=$3 AND w.generation=$4 AND (w.owner=$5 OR $6)`, token, lease.Job.ID, sequence, current.Generation, lease.Owner, lease.RecoveryEpoch != 0).Scan(&value.Record.JobID, &value.Record.Sequence, &value.Record.Generation, &value.Record.Token, &value.Record.Owner, &value.Record.RecordedAt, &value.Record.LeaseUntil, &value.PlanRecorded, &value.ReadyRecorded, &value.Plan.Version, &value.Plan.TargetName, &parent, &target, &output, &rollback)
 	if err != nil {
 		return zero, storageError(err)
 	}
@@ -69,12 +69,8 @@ func (s *Store) GetNFOWriteCommitFiles(ctx context.Context, lease domain.JobLeas
 	if err := readNFOCommitCheckpoint(ctx, tx, token, &value); err != nil {
 		return zero, err
 	}
-	var live bool
-	if err := tx.QueryRow(ctx, `SELECT state='running' AND owner=$2 AND generation=$3 AND lease_until>clock_timestamp() AND NOT cancel_requested FROM jobs WHERE id=$1::uuid`, lease.Job.ID, lease.Owner, lease.Generation).Scan(&live); err != nil {
-		return zero, storageError(err)
-	}
-	if !live {
-		return zero, domain.ErrJobLeaseLost
+	if err := nfoCommitLeaseLive(ctx, tx, current); err != nil {
+		return zero, err
 	}
 	if err := tx.Commit(ctx); err != nil {
 		return zero, storageError(err)
@@ -206,7 +202,7 @@ func checkNFOCommitFileToken(ctx context.Context, tx pgx.Tx, lease domain.JobLea
 		return domain.ErrConflict
 	}
 	var existing string
-	if err := tx.QueryRow(ctx, `SELECT token::text FROM nfo_write_commit_journal WHERE token=$1::uuid AND job_id=$2::uuid AND sequence=$3 AND generation=$4 AND owner=$5`, token, lease.Job.ID, sequence, lease.Generation, lease.Owner).Scan(&existing); err != nil {
+	if err := tx.QueryRow(ctx, `SELECT token::text FROM nfo_write_commit_journal WHERE token=$1::uuid AND job_id=$2::uuid AND sequence=$3 AND generation=$4 AND (owner=$5 OR $6)`, token, lease.Job.ID, sequence, record.Generation, lease.Owner, lease.RecoveryEpoch != 0).Scan(&existing); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return domain.ErrJobLeaseLost
 		}

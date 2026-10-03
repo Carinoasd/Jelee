@@ -23,7 +23,7 @@ func (w *Writer) StageCommitFiles(ctx context.Context, source *Source, lease dom
 }
 
 func (w *Writer) stageCommitFiles(ctx context.Context, source *Source, lease domain.JobLease, record domain.NFOWriteCommitRecord, repository app.NFOWriteCommitFilesRepository, ops nfoWriteOperations) error {
-	if w == nil || w.budget == nil || ctx == nil || source == nil || !source.ready || source.rootInfo == nil || source.parentInfo == nil || source.fileInfo == nil || repository == nil || !domain.ValidID(record.Token) || record.JobID != lease.Job.ID || record.Owner != lease.Owner || record.Generation != lease.Generation || record.Sequence < 1 || record.Sequence > 100 {
+	if w == nil || w.budget == nil || ctx == nil || source == nil || !source.ready || source.rootInfo == nil || source.parentInfo == nil || source.fileInfo == nil || repository == nil || !domain.ValidID(record.Token) || record.JobID != lease.Job.ID || record.Owner != lease.Owner && lease.RecoveryEpoch == 0 || record.Generation != lease.Generation || record.Sequence < 1 || record.Sequence > 100 {
 		return ErrInvalidInput
 	}
 	if err := ctx.Err(); err != nil {
@@ -52,11 +52,12 @@ func (w *Writer) stageCommitFiles(ctx context.Context, source *Source, lease dom
 		RepositoryID        uint64
 		JobID, Owner, Token string
 		Generation          int64
+		RecoveryEpoch       int64
 		Sequence            int
 		Root, Relative      string
 		Stamp               SourceStamp
 		MaxBytes            int64
-	}{value.Type().String(), repositoryID, lease.Job.ID, lease.Owner, record.Token, lease.Generation, record.Sequence, source.rootPath, source.relative, source.stamp, source.maxBytes})
+	}{value.Type().String(), repositoryID, lease.Job.ID, lease.Owner, record.Token, lease.Generation, lease.RecoveryEpoch, record.Sequence, source.rootPath, source.relative, source.stamp, source.maxBytes})
 	if err != nil {
 		return ErrInvalidInput
 	}

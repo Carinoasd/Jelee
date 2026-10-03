@@ -55,7 +55,7 @@ func finishNFOCommitAttempt(ctx context.Context, tx pgx.Tx, lease domain.JobLeas
 	if err := checkNFOCommitCatalogScope(ctx, tx, lease.Job.ID, sequence); err != nil {
 		return err
 	}
-	if _, err := fencedJob(ctx, tx, lease); err != nil {
+	if _, err := fencedNFOCommitLease(ctx, tx, lease); err != nil {
 		return err
 	}
 	return storageError(tx.Commit(ctx))
