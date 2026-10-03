@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"unicode"
@@ -22,12 +23,19 @@ type ImagesConfig struct {
 	TimeoutSeconds     int    `json:"timeoutSeconds"`
 	CacheTTLSeconds    int    `json:"cacheTTLSeconds"`
 	DefaultQuality     int    `json:"defaultQuality"`
+	// The persistent original/variant store is optional until it is wired
+	// into the request path. Byte limits and the index bound are per class.
+	StoreRoot          string `json:"storeRoot"`
+	StoreOriginalBytes int64  `json:"storeOriginalBytes"`
+	StoreVariantBytes  int64  `json:"storeVariantBytes"`
+	StoreEntries       int    `json:"storeEntries"`
 }
 
 // TempRoot must be explicitly set to an existing private directory when
 // images are enabled. The adapter also refuses overlap with media roots.
 func DefaultImagesConfig() ImagesConfig {
-	return ImagesConfig{MaxConcurrent: 2, MaxImageBytes: 96 << 20, MaxSourceBytes: 16 << 20, MaxOutputBytes: 2 << 20, MaxOutputDimension: 1024, CacheBytes: 32 << 20, CacheEntries: 128, TimeoutSeconds: 15, CacheTTLSeconds: 300, DefaultQuality: 85}
+	return ImagesConfig{MaxConcurrent: 2, MaxImageBytes: 96 << 20, MaxSourceBytes: 16 << 20, MaxOutputBytes: 2 << 20, MaxOutputDimension: 1024, CacheBytes: 32 << 20, CacheEntries: 128, TimeoutSeconds: 15, CacheTTLSeconds: 300, DefaultQuality: 85,
+		StoreOriginalBytes: 4 << 30, StoreVariantBytes: 1 << 30, StoreEntries: 131072}
 }
 
 func (c ImagesConfig) Validate() error {
@@ -40,6 +48,20 @@ func (c ImagesConfig) Validate() error {
 	if c.CacheBytes < c.MaxOutputBytes || c.CacheBytes > 256<<20 || c.CacheEntries < 1 || c.CacheEntries > 4096 || c.TimeoutSeconds < 1 || c.TimeoutSeconds > 120 || c.CacheTTLSeconds < 1 || c.CacheTTLSeconds > 86400 || c.DefaultQuality < 1 || c.DefaultQuality > 100 {
 		return errors.New("image cache or timing limits are outside supported bounds")
 	}
+	// Store minimums exceed the largest source and output object limits.
+	if c.StoreOriginalBytes < 64<<20 || c.StoreOriginalBytes > 4<<40 || c.StoreVariantBytes < 16<<20 || c.StoreVariantBytes > 1<<40 || c.StoreEntries < 1024 || c.StoreEntries > 1<<21 {
+		return errors.New("image store limits are outside supported bounds")
+	}
+	if c.StoreRoot != "" {
+		// The adapter rejects media-root overlap and symlink aliases on open.
+		if len(c.StoreRoot) > 4096 || !utf8.ValidString(c.StoreRoot) || strings.ContainsFunc(c.StoreRoot, unicode.IsControl) || !filepath.IsAbs(c.StoreRoot) {
+			return errors.New("images storeRoot must be an absolute private directory")
+		}
+		store, temp := filepath.Clean(c.StoreRoot), filepath.Clean(c.TempRoot)
+		if imageConfigPathInside(store, temp) || imageConfigPathInside(temp, store) {
+			return errors.New("images storeRoot must not overlap tempRoot")
+		}
+	}
 	// Per-field bounds above make this arithmetic safe before conversion.
 	if int64(c.MaxConcurrent)*c.MaxImageBytes+c.CacheBytes > 1<<30 || c.MaxOutputBytes >= c.MaxImageBytes {
 		return errors.New("image aggregate memory budget exceeds supported limits")
@@ -51,6 +73,9 @@ func (c *ImagesConfig) loadEnvironment(lookup func(string) (string, bool)) error
 	if value, ok := lookup("JELEE_IMAGE_TEMP_ROOT"); ok {
 		c.TempRoot = value
 	}
+	if value, ok := lookup("JELEE_IMAGE_STORE_ROOT"); ok {
+		c.StoreRoot = value
+	}
 	for name, target := range map[string]*int{
 		"JELEE_IMAGE_MAX_CONCURRENT":       &c.MaxConcurrent,
 		"JELEE_IMAGE_MAX_OUTPUT_DIMENSION": &c.MaxOutputDimension,
@@ -58,6 +83,7 @@ func (c *ImagesConfig) loadEnvironment(lookup func(string) (string, bool)) error
 		"JELEE_IMAGE_TIMEOUT_SECONDS":      &c.TimeoutSeconds,
 		"JELEE_IMAGE_CACHE_TTL_SECONDS":    &c.CacheTTLSeconds,
 		"JELEE_IMAGE_DEFAULT_QUALITY":      &c.DefaultQuality,
+		"JELEE_IMAGE_STORE_ENTRIES":        &c.StoreEntries,
 	} {
 		if value, ok := lookup(name); ok {
 			n, err := strconv.Atoi(value)
@@ -68,10 +94,12 @@ func (c *ImagesConfig) loadEnvironment(lookup func(string) (string, bool)) error
 		}
 	}
 	for name, target := range map[string]*int64{
-		"JELEE_IMAGE_MAX_WORKING_BYTES": &c.MaxImageBytes,
-		"JELEE_IMAGE_MAX_SOURCE_BYTES":  &c.MaxSourceBytes,
-		"JELEE_IMAGE_MAX_OUTPUT_BYTES":  &c.MaxOutputBytes,
-		"JELEE_IMAGE_CACHE_BYTES":       &c.CacheBytes,
+		"JELEE_IMAGE_MAX_WORKING_BYTES":    &c.MaxImageBytes,
+		"JELEE_IMAGE_MAX_SOURCE_BYTES":     &c.MaxSourceBytes,
+		"JELEE_IMAGE_MAX_OUTPUT_BYTES":     &c.MaxOutputBytes,
+		"JELEE_IMAGE_CACHE_BYTES":          &c.CacheBytes,
+		"JELEE_IMAGE_STORE_ORIGINAL_BYTES": &c.StoreOriginalBytes,
+		"JELEE_IMAGE_STORE_VARIANT_BYTES":  &c.StoreVariantBytes,
 	} {
 		if value, ok := lookup(name); ok {
 			n, err := strconv.ParseInt(value, 10, 64)
@@ -82,4 +110,12 @@ func (c *ImagesConfig) loadEnvironment(lookup func(string) (string, bool)) error
 		}
 	}
 	return nil
+}
+
+func imageConfigPathInside(parent, child string) bool {
+	if runtime.GOOS == "windows" {
+		parent, child = strings.ToLower(parent), strings.ToLower(child)
+	}
+	relative, err := filepath.Rel(parent, child)
+	return err == nil && (relative == "." || filepath.IsLocal(relative))
 }

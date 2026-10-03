@@ -32,6 +32,19 @@ JELEE_IMAGE_TEMP_ROOT=/var/lib/jelee/image-work
 
 總配置另限制「並發數 × 每筆預算 ＋ 快取」不超過 1 GiB。每筆預算是依固定解碼器與縮放器配置路徑作尺寸預檢的保守估計，包含壓縮來源、像素、解碼工作區及輸出；它不是作業系統 RSS 硬限制。Go 執行期、其他功能及 GC 尚未回收的頁面仍須由容器設定與實際負載驗收檢查。
 
+### 持久原圖／變體存放區（尚未接入請求）
+
+`internal/adapter/images/store.go` 提供內容定址存放區，目前尚未接到 app 層或 HTTP，設定後也不會改變上述請求行為。
+
+| 設定 | 預設 |
+| --- | ---: |
+| `JELEE_IMAGE_STORE_ROOT` | 空（停用） |
+| `JELEE_IMAGE_STORE_ORIGINAL_BYTES` | 4294967296（4 GiB，64 MiB–4 TiB） |
+| `JELEE_IMAGE_STORE_VARIANT_BYTES` | 1073741824（1 GiB，16 MiB–1 TiB） |
+| `JELEE_IMAGE_STORE_ENTRIES` | 131072（每類索引筆數，1024–2097152） |
+
+存放區根目錄的規則與 `image-work` 相同：已存在、私有、無符號連結別名、不在媒體根目錄內也不是其祖先，且不得與 `image-work` 重疊。版面為 `originals/<sha256 前兩碼>/<sha256>`、`variants/<來源 sha256>/<變體 key>` 與私有 `tmp/`；寫入先寫 `tmp`、fsync 後原子 rename。原圖與變體各自有位元組與筆數上限，以記憶體 LRU 淘汰，最近使用時間以檔案 mtime（至多每分鐘更新一次）保存，重啟時以固定批次讀目錄重建索引。讀取一律核對大小，變體另核對標頭內的 SHA-256，原圖可選擇重算雜湊；損壞視為未命中並只刪除該檔。`variants` 可整個清空並按需重建。存放區只刪除自己命名格式的檔案，其他檔案只計數不處理，也從不碰媒體根目錄。
+
 ## API
 
 ```text
