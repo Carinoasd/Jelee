@@ -1494,6 +1494,288 @@ export type paths = {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/items/{id}/playback": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Describe the original resources of an item
+         * @description Native sessions only. Lists every media source of the item with container, size, duration, bit rate, version labels, embedded video, audio and subtitle streams from the current probe result, and external subtitle and audio files. Sources without a current probe result are listed with probed=false. No query parameters are accepted; transformation parameters are rejected with 409 before anything else.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description HTTP 200 */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                delivery: components["schemas"]["PlaybackDelivery"];
+                                /** Format: uuid */
+                                itemId: string;
+                                sources: components["schemas"]["PlaybackSource"][];
+                            };
+                        };
+                    };
+                };
+                /** @description HTTP 400 */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 401 */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description web_playback_disabled for a web session; forbidden when hidden content is configured as 403. */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description The item is missing or not visible to the caller; both are answered alike. */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 408 */
+                408: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description transcode_disabled: the query or body carries a transformation parameter (G10.3). */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 413 */
+                413: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 415 */
+                415: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 503 */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Jelee error envelope with code, message, details and traceId; see the Error schema. */
+                default: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/items/{id}/playback/check": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Decide direct play against declared client capabilities
+         * @description Native sessions only. Decides for every source of the item whether the client can play the original as it is (G10.5): the container, the primary video codec and at least one embedded audio codec must be declared, and a known bit rate must not exceed maxBitrate. A source without a current probe result is never confirmed (source_not_probed). Subtitles and external audio never change the source verdict; each unreadable track is reported in tracks. The response is 200 even when nothing is playable; the server never offers a conversion.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["ClientCapabilities"];
+                };
+            };
+            responses: {
+                /** @description HTTP 200 */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                decisions: components["schemas"]["PlaybackDecision"][];
+                                delivery: components["schemas"]["PlaybackDelivery"];
+                                /** @description True when at least one source is direct playable. */
+                                directPlayable: boolean;
+                                /** Format: uuid */
+                                itemId: string;
+                            };
+                        };
+                    };
+                };
+                /** @description HTTP 400 */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 401 */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description web_playback_disabled for a web session; forbidden when hidden content is configured as 403. */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description The item is missing or not visible to the caller; both are answered alike. */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 408 */
+                408: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description transcode_disabled: the query or body carries a transformation parameter (G10.3). */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 413 */
+                413: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 415 */
+                415: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 503 */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Jelee error envelope with code, message, details and traceId; see the Error schema. */
+                default: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/items/{id}/probe/rebuild": {
         parameters: {
             query?: never;
@@ -9968,6 +10250,19 @@ export type components = {
         CatalogSyncSettingsInput: {
             auto: boolean;
         };
+        /** @description What the client can decode. These are declarations, not conversion requests: the server never converts, so a source the client cannot decode is only reported. Field names differ from the upstream transformation parameters, which stay rejected with 409 transcode_disabled anywhere in this body. Tokens are case-insensitive; common aliases are accepted (matroska→mkv, h265/hvc1→hevc, avc→h264, ec3→eac3, dca→dts, subrip→srt, vtt→webvtt, sup→pgs, idx→vobsub). An omitted or empty list declares nothing. */
+        ClientCapabilities: {
+            /** @description Audio codecs, for example aac, ac3, eac3, dts, truehd, flac, opus; pcm covers every PCM sample format. */
+            audioCodecs?: string[];
+            /** @description Containers, for example mp4, mkv, webm, mov, avi, mpegts. */
+            containers?: string[];
+            /** @description Highest average bit rate the client sustains, in bits per second; 0 or omitted declares no ceiling. Only used to report bitrate_exceeds_client. */
+            maxBitrate?: number;
+            /** @description Subtitle formats, for example srt, ass, ssa, webvtt, ttml, sami, pgs, vobsub, dvb, mov_text. */
+            subtitleFormats?: string[];
+            /** @description Video codecs in probe vocabulary, for example h264, hevc, av1, vp9. */
+            videoCodecs?: string[];
+        };
         CreateUser: {
             admin?: boolean;
             disabled?: boolean;
@@ -10642,6 +10937,116 @@ export type components = {
             newPassword: string;
             /** @description Unmodified UTF-8. New passwords must contain 12–1024 bytes; passwords are never trimmed or normalized. */
             oldPassword: string;
+        };
+        PlaybackDecision: {
+            /**
+             * @description Present exactly when directPlay is false.
+             * @enum {string}
+             */
+            code?: "direct_play_unsupported";
+            directPlay: boolean;
+            /** @description Empty exactly when directPlay is true, otherwise in the listed enum order. No conversion is ever suggested. */
+            reasons: ("container_unsupported" | "source_not_probed" | "video_codec_unsupported" | "audio_codec_unsupported" | "bitrate_exceeds_client")[];
+            /** Format: uuid */
+            sourceId: string;
+            tracks: {
+                external: boolean;
+                /** Format: uuid */
+                id?: string;
+                index?: number;
+                /** @enum {string} */
+                kind: "audio" | "subtitle";
+                /** @enum {string} */
+                reason?: "audio_codec_unsupported" | "subtitle_format_unsupported" | "track_not_probed";
+                supported: boolean;
+            }[];
+        };
+        PlaybackDelivery: {
+            /** @constant */
+            dash: false;
+            /** @constant */
+            directPlay: true;
+            /** @constant */
+            hls: false;
+            /** @constant */
+            remux: false;
+            /** @constant */
+            transcoding: false;
+        };
+        PlaybackSource: {
+            audioTracks: {
+                atmos: boolean;
+                bitRate?: number;
+                channelLayout?: string;
+                channels?: number;
+                codec?: string;
+                default: boolean;
+                forced: boolean;
+                index: number;
+                language?: string;
+                profile?: string;
+                sampleRate?: number;
+            }[];
+            /** @description Bits per second as probed, or size × 8 ÷ duration when the container states none. */
+            bitRate?: number;
+            /**
+             * @description Container token derived from the stored content type.
+             * @enum {string}
+             */
+            container: "mp4" | "mkv" | "webm" | "mov" | "avi" | "mpegts";
+            contentType: string;
+            durationMicros?: number;
+            externalTracks: {
+                charset?: string;
+                /** @description Canonical subtitle format or audio codec implied by the extension; absent for mka, m4a, ogg, oga and .sub, which only probing can tell. */
+                codec?: string;
+                commentary: boolean;
+                default: boolean;
+                forced: boolean;
+                /** @description File extension of the sidecar file. */
+                format: string;
+                /** Format: uuid */
+                id: string;
+                /** @enum {string} */
+                kind: "subtitle" | "audio";
+                language?: string;
+                languages?: string[];
+                sdh: boolean;
+                sizeBytes: number;
+                title?: string;
+            }[];
+            /** Format: uuid */
+            id: string;
+            /** @description False when no current probe result exists (never probed, failed, expired, or the file changed since). Stream lists are then empty and the version labels come from the file name only. */
+            probed: boolean;
+            sizeBytes?: number;
+            subtitleTracks: {
+                codec?: string;
+                default: boolean;
+                forced: boolean;
+                /** @description Canonical format clients declare: srt, ass, ssa, webvtt, mov_text, pgs, vobsub, dvb, eia_608 or text. */
+                format?: string;
+                index: number;
+                language?: string;
+            }[];
+            /** @description G20.2 version labels with qualityScore and displayName; sources are listed by qualityScore descending. */
+            version: Record<string, never>;
+            videoTracks: {
+                bitRate?: number;
+                codec?: string;
+                default: boolean;
+                frameRate?: {
+                    denominator: number;
+                    numerator: number;
+                };
+                height?: number;
+                index: number;
+                level?: number;
+                /** @description The stream the direct play decision checks. Cover art is not listed. */
+                primary: boolean;
+                profile?: string;
+                width?: number;
+            }[];
         };
         ProbeJobSummary: {
             /** Format: int64 */
