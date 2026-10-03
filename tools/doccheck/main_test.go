@@ -229,3 +229,15 @@ func TestRepositoryDocuments(t *testing.T) {
 		t.Fatalf("doccheck failed on the repository:\n%s", stderr.String())
 	}
 }
+
+func TestNotHTTPFenceSkipsJSONCodes(t *testing.T) {
+	codes := map[string][]int{"known": {400}}
+	audited := parseDocument("```json\n{\"code\": \"made_up\"}\n```\n")
+	if len(checkErrorCodes("a.md", audited, codes)) != 1 {
+		t.Fatal("plain JSON fence must audit error codes")
+	}
+	skipped := parseDocument("```json not-http\n{\"code\": \"made_up\"}\n```\n")
+	if len(checkErrorCodes("a.md", skipped, codes)) != 0 {
+		t.Fatal("not-http fence must not audit error codes")
+	}
+}

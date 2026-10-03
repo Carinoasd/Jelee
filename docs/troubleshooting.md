@@ -29,7 +29,7 @@ jelee-cli doctor tools           # 原有：项目内固定 ffprobe 身份诊断
 
 ### JSON 格式（format 1）
 
-```json
+```json not-http
 {
   "format": 1,
   "generatedAt": "2026-10-04T12:00:00Z",

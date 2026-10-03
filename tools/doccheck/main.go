@@ -414,7 +414,8 @@ var (
 
 // parseDocument extracts links, heading anchors and error code mentions.
 // Links inside fenced code blocks and code spans are ignored; JSON error
-// examples inside fenced blocks are still audited.
+// examples inside fenced blocks are still audited unless the fence's info
+// string contains "not-http".
 func parseDocument(content string) *document {
 	doc := &document{anchors: map[string]bool{}, codeSpans: map[string]bool{}}
 	slugs := map[string]int{}
@@ -430,6 +431,9 @@ func parseDocument(content string) *document {
 	scanner := bufio.NewScanner(strings.NewReader(content))
 	scanner.Buffer(make([]byte, 0, 64*1024), 4*1024*1024)
 	var fence, previous string
+	// A fence whose info string contains "not-http" holds non-HTTP JSON (for
+	// example doctor output); its "code" fields are not HTTP error claims.
+	auditFence := false
 	lineNo := 0
 	for scanner.Scan() {
 		lineNo++
@@ -437,7 +441,7 @@ func parseDocument(content string) *document {
 		if fence != "" {
 			if trimmed := strings.TrimLeft(line, " "); strings.HasPrefix(trimmed, fence) && strings.Trim(trimmed, fence[:1]+" \t") == "" {
 				fence = ""
-			} else {
+			} else if auditFence {
 				doc.addJSONCodes(lineNo, line)
 			}
 			previous = ""
@@ -445,6 +449,7 @@ func parseDocument(content string) *document {
 		}
 		if m := fenceOpen.FindStringSubmatch(line); m != nil {
 			fence = m[1]
+			auditFence = !strings.Contains(strings.TrimSpace(line[len(m[0]):]), "not-http")
 			previous = ""
 			continue
 		}
