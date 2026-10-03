@@ -151,3 +151,18 @@ func TestImagesSoakCollectorRejectsDuplicateBeginAndInvalidHour(t *testing.T) {
 		t.Fatal("duplicate begin left consumer running")
 	}
 }
+
+func TestImagesSoakCollectorRetainsRejectedObservation(t *testing.T) {
+	p, _, _ := collectorFixture(t)
+	if p.observe(func() imageadapter.Stats { return imageadapter.Stats{Active: 3} }) != nil {
+		t.Fatal("attach observer")
+	}
+	if _, err := p.phase(p.ctx, "cold"); err == nil {
+		t.Fatal("invalid observation accepted")
+	}
+	p.abort()
+	report := p.failedSummary()
+	if report.Complete || report.CollectorFailureCode != "sampler_failed" || report.SamplerFailure == nil || report.SamplerFailure.Code != "processor_budget_invalid" || report.SamplerFailure.Processor.Active != 3 {
+		t.Fatalf("failure evidence lost: %+v", report)
+	}
+}

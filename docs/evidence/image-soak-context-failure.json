@@ -1,0 +1,23 @@
+{
+  "runId": "af2530314062427bb16da7d2f11961b4",
+  "sourceCommit": "38a47082e951573947cbfdd6445919d178443b21",
+  "result": "failed",
+  "finalAcceptance": false,
+  "workerErrorCode": "cold_image_processing_failed",
+  "completedRounds": 4,
+  "failedRoundIndex": 4,
+  "coldFailureCode": "context_finished",
+  "failedRequest": {
+    "index": 186,
+    "status": 0
+  },
+  "failedRoundFinishedNanos": 1209007325569,
+  "workerExitCode": 1,
+  "oomKilled": false,
+  "testArtifactsCleaned": true,
+  "launcherArtifactsCleaned": true,
+  "snapshotVerified": false,
+  "rootCause": "unproven",
+  "diagnosticGap": "collector and rejected sampler observation absent in original report",
+  "transcriptSha256": "9c48a1feae7ec889b88c9d89c7d57a4d7ed595852b60f553dc018004ab8095db"
+}

@@ -24,6 +24,8 @@ type imagesSoakCollectorRequest struct {
 }
 
 type imagesSoakMemorySummary struct {
+	SamplerFailure          *imagesSoakSampleFailure    `json:"samplerFailure,omitempty"`
+	CollectorFailureCode    string                      `json:"collectorFailureCode,omitempty"`
 	Runtime                 memoryRuntimeSettings       `json:"runtime"`
 	CgroupBefore            memoryCgroupSnapshot        `json:"cgroupBefore"`
 	CgroupAfter             memoryCgroupSnapshot        `json:"cgroupAfter"`
@@ -281,3 +283,18 @@ func (p *imagesSoakCollector) finish() (imagesSoakMemorySummary, error) {
 }
 
 func (p *imagesSoakCollector) abort() { p.cancel(); <-p.done }
+
+// Both goroutines have joined before their failure observations are read.
+// Preserve collected partial evidence without marking it complete.
+func (p *imagesSoakCollector) failedSummary() imagesSoakMemorySummary {
+	<-p.done
+	<-p.sampler.done
+	report := p.report
+	report.SamplerFailure = p.sampler.failure
+	if p.err == errImagesSoakSampler {
+		report.CollectorFailureCode = "sampler_failed"
+	} else if p.err != nil {
+		report.CollectorFailureCode = "stream_or_context_failed"
+	}
+	return report
+}

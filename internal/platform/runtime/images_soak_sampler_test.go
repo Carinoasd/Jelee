@@ -25,6 +25,16 @@ type imagesSoakSampleCommand struct {
 	reply chan residentSample
 }
 
+// Only fixed codes and numeric observations are retained; reader errors may
+// contain private paths and must never be copied into the acceptance report.
+type imagesSoakSampleFailure struct {
+	Code        string             `json:"code"`
+	SampleIndex uint64             `json:"sampleIndex"`
+	Previous    residentSample     `json:"previous"`
+	Rejected    residentSample     `json:"rejected"`
+	Processor   imageadapter.Stats `json:"processor"`
+}
+
 // One goroutine owns sampling and its fixed-size block. A single stream writer
 // drains blocks; backpressure is bounded to four blocks and five seconds.
 // Runtime/cgroup/GC boundaries and whole-run acceptance belong to the caller.
@@ -34,6 +44,7 @@ type imagesSoakSampler struct {
 	done     chan struct{}
 	err      error // read only after done
 	count    uint64
+	failure  *imagesSoakSampleFailure // read only after done
 }
 
 func startImagesSoakSampler(ctx context.Context, started time.Time, observe func() imageadapter.Stats) *imagesSoakSampler {
@@ -50,6 +61,11 @@ func newImagesSoakSampler(ctx context.Context, started time.Time, now func() tim
 		phase := "startup"
 		block := imagesSoakSampleBlock{Samples: make([]residentSample, 0, 60)}
 		var previous residentSample
+		reject := func(code string, value residentSample, stats imageadapter.Stats) bool {
+			s.failure = &imagesSoakSampleFailure{Code: code, SampleIndex: s.count, Previous: previous, Rejected: value, Processor: stats}
+			s.err = errImagesSoakSampler
+			return false
+		}
 		flush := func() bool {
 			if len(block.Samples) == 0 {
 				return true
@@ -64,30 +80,37 @@ func newImagesSoakSampler(ctx context.Context, started time.Time, now func() tim
 			case <-ctx.Done():
 			case <-timer.C:
 			}
-			s.err = errImagesSoakSampler
-			return false
+			if ctx.Err() != nil {
+				return reject("context_finished", previous, imageadapter.Stats{})
+			}
+			return reject("block_queue_timeout", previous, imageadapter.Stats{})
 		}
 		capture := func() bool {
-			if ctx.Err() != nil || observe == nil || s.count >= 90000 {
-				s.err = errImagesSoakSampler
-				return false
+			if ctx.Err() != nil {
+				return reject("context_finished", previous, imageadapter.Stats{})
+			}
+			if observe == nil || s.count >= 90000 {
+				return reject("sampler_configuration_invalid", previous, imageadapter.Stats{})
 			}
 			value, err := read()
 			value.ElapsedNanos, value.Phase = now().Sub(started).Nanoseconds(), phase
-			if err != nil || value.RSSBytes == 0 || value.RSSBytes > 464<<20 || value.Goroutines < 1 ||
-				value.ElapsedNanos < 0 || value.ElapsedNanos > int64(25*time.Hour) ||
+			if err != nil {
+				return reject("resident_read_failed", value, imageadapter.Stats{})
+			}
+			if value.RSSBytes == 0 || value.RSSBytes > 464<<20 {
+				return reject("rss_budget_invalid", value, imageadapter.Stats{})
+			}
+			if value.Goroutines < 1 || value.ElapsedNanos < 0 || value.ElapsedNanos > int64(25*time.Hour) ||
 				(s.count == 0 && value.ElapsedNanos > int64(time.Second)) ||
 				(s.count > 0 && (value.ElapsedNanos <= previous.ElapsedNanos || value.ElapsedNanos-previous.ElapsedNanos > int64(5*time.Second) ||
 					value.TotalAllocBytes < previous.TotalAllocBytes || value.NumGC < previous.NumGC || value.PauseTotalNS < previous.PauseTotalNS)) {
-				s.err = errImagesSoakSampler
-				return false
+				return reject("resident_sequence_invalid", value, imageadapter.Stats{})
 			}
 			stats := observe()
 			if stats.Active < 0 || stats.Active > 2 || stats.ReservedBytes < 0 || stats.ReservedBytes > 192<<20 ||
 				stats.MaxEstimatedImageBytes < 0 || stats.MaxEstimatedImageBytes > 96<<20 ||
 				stats.CacheEntries < 0 || stats.CacheEntries > 128 || stats.CacheBytes < 0 || stats.CacheBytes > 32<<20 {
-				s.err = errImagesSoakSampler
-				return false
+				return reject("processor_budget_invalid", value, stats)
 			}
 			maxima := &block.ProcessorMaxima
 			maxima.Observations++
@@ -107,11 +130,11 @@ func newImagesSoakSampler(ctx context.Context, started time.Time, now func() tim
 		for {
 			select {
 			case <-ctx.Done():
-				s.err = errImagesSoakSampler
+				reject("context_finished", previous, imageadapter.Stats{})
 				return
 			case _, open := <-ticks:
 				if !open {
-					s.err = errImagesSoakSampler
+					reject("tick_source_closed", previous, imageadapter.Stats{})
 					return
 				}
 				if !capture() {
@@ -119,7 +142,7 @@ func newImagesSoakSampler(ctx context.Context, started time.Time, now func() tim
 				}
 			case command := <-s.commands:
 				if !imagesSoakPhaseValid(command.phase) || command.stop && command.phase != "stopped" {
-					s.err = errImagesSoakSampler
+					reject("phase_command_invalid", previous, imageadapter.Stats{})
 					return
 				}
 				phase = command.phase

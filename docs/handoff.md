@@ -1,3 +1,15 @@
+## 2026-10-03 接續：正式長測終止，採樣失敗證據修補
+
+原run af2530314062427bb16da7d2f11961b4已failed。PID726258的/proc身分不存在；result.json終態failed，workerErrorCode cold_image_processing_failed，worker exit1/OOMfalse，testArtifactsCleaned與launcherArtifactsCleaned皆true，snapshotVerified false。沒有仍活躍的正式24h。來源38a47082e9，只完成4輪；failedRound index4/cold failureCode context_finished/首失敗request index186 status0/約1209秒，不能判定原圖片故障已修。安全摘要docs/evidence/image-soak-context-failure.json。
+
+診斷發現collector取消work context後，被拒绝採樣及partial memory summary原本丟失。新增固定原因碼與數值失敗觀測（前值、拒絕值、sample index、processor stats）；abort/join後把partial summary保存到失敗report，Complete仍false。保留464MiB RSS／所有時間和配額門檻。Windows tagged TestImagesSoak/TestImagesCold與vet、Linux同選測race通過；證據soak-sampler-diagnostics-race-linux.txt。診斷修補不是原始故障修復。
+
+下一步從已提交診斷版本啟完整600秒smoke，核registry的PID/startTicks/bootId並觀察。若再failed先看memorySummary.samplerFailure與collectorFailureCode。smoke成功且snapshot/雙層cleanup皆true後，同來源commit才可啟正式24h；不把舊來源結果歸新HEAD。PR46沿用，不merge。
+
+NFO寫回已核原文G39.7–10，尚未開始程式：保留未知XML/屬性/註解/縮排順序，编码BOM策略、備份/fsync/rename/回滾、flock/LockFileEx/singleflight及ID不覆蓋均必須接正式read-write工作流程；不能只做序列化helper就關需求。全案仍7完成／195部分／134阻塞。
+
+---
+
 ## 2026-10-03 接續：元資料外連接入共用 I/O
 
 基於212e19f6a2接續；runtime先建立單一budget再準備TMDB，fx.Supply同實例。outbound.Fetch在URL檢查後/DNS前AcquireIO，15秒共用等待與網路期限，Body.Close後release。provider限流/RetryAfter不持共享配額；queuefull走既有安全Unavailable，不使用provider response retry、不寫cache。詳見docs/shared-work-budget.md。

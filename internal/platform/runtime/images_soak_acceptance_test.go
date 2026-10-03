@@ -91,6 +91,9 @@ func TestImagesSoakAcceptance(t *testing.T) {
 	defer func() {
 		if collector != nil {
 			collector.abort()
+			if !report.MemorySummary.Complete {
+				report.MemorySummary = collector.failedSummary()
+			}
 			finalStream = collector.stream
 		}
 		report.Configuration, report.Fixtures = base.Configuration, base.Fixtures

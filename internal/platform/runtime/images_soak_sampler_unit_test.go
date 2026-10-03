@@ -4,7 +4,9 @@ package runtime
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -77,6 +79,9 @@ func TestImagesSoakSamplerBackpressureIsBounded(t *testing.T) {
 	if s.err == nil || len(s.blocks) != 4 || s.count != 300 || !stopped.Load() {
 		t.Fatal("backpressure did not fail at the bounded queue")
 	}
+	if s.failure == nil || s.failure.Code != "block_queue_timeout" {
+		t.Fatal("backpressure diagnosis lost")
+	}
 }
 
 func TestImagesSoakSamplerCancellationJoins(t *testing.T) {
@@ -104,6 +109,17 @@ func TestImagesSoakSamplerBadReadAndBudgetFail(t *testing.T) {
 			awaitSoakSampler(t, s)
 			if s.err != errImagesSoakSampler || s.count != 0 {
 				t.Fatal("invalid observation accepted or private error exposed")
+			}
+			want := map[string]string{"read": "resident_read_failed", "rss": "rss_budget_invalid", "processor": "processor_budget_invalid"}[tc.name]
+			if s.failure == nil || s.failure.Code != want || s.failure.SampleIndex != 0 {
+				t.Fatalf("lost failed observation: %+v", s.failure)
+			}
+			if tc.name == "rss" && s.failure.Rejected.RSSBytes != (464<<20)+1 || tc.name == "processor" && s.failure.Processor.Active != 3 {
+				t.Fatal("failure discarded observed over-budget value")
+			}
+			encoded, err := json.Marshal(s.failure)
+			if err != nil || strings.Contains(string(encoded), "private") {
+				t.Fatal("failure serialized a private reader error")
 			}
 		})
 	}
