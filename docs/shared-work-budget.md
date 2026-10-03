@@ -1,6 +1,6 @@
 # 共用 CPU／I/O 配額：底層實作
 
-目前新增 `app.WorkBudget` 介面與 `platform/resources.Budget`。正式 runtime 已建立單一實例，HTTP 直投使用共享 I/O／總量配額；目錄掃描與 NFO 讀取／解析亦已接入；探測的 Inspect／Probe 亦已接入；圖片處理亦已接入；忽略目錄掃描亦已接入；忽略基線比對與複核亦已接入；目錄監看建置／重建／根檢查亦已接入；索引與其他下載等操作仍須逐一稽核。G41.3 與 G13.5 保持部分完成。
+目前新增 `app.WorkBudget` 介面與 `platform/resources.Budget`。正式 runtime 已建立單一實例，HTTP 直投使用共享 I/O／總量配額；目錄掃描與 NFO 讀取／解析亦已接入；探測的 Inspect／Probe 亦已接入；圖片處理亦已接入；忽略目錄掃描亦已接入；忽略基線比對與複核亦已接入；目錄監看建置／重建／根檢查亦已接入；TMDB元資料API外連亦已接入；索引與其他下載等操作仍須逐一稽核。G41.3 與 G13.5 保持部分完成。
 
 ## 已實作
 
@@ -96,3 +96,13 @@ WatchOptions.Budget 使用runtime同一實例。build 的遍歷／註冊及失�
 本批 Windows telemetry/resources/runtime/architecture 測試及 vet 通過；[Linux race](evidence/resources-metrics-race-linux.txt) 覆蓋 telemetry/resources/jobs/runtime；[真 PostgreSQL HTTP race](evidence/resources-metrics-runtime.txt) 執行 TestMetricsRuntimePostgresIntegration，核對配置限額及匿名／一般帳戶不得洩漏資源指標。真 budget 的滿載、排隊、取消與回收測試核對30家族、無動態labels及64KiB回應上限。這些驗證未涵蓋完整混合壓測或資源等待時間分布。
 
 G41.8 原有工作等待／耗時統計只涵蓋 inventory_scan、catalog_import。其他需求中的任務類型尚未全部實作與觀測；本批八個gauge不能補足此缺口，G41.8回復部分完成。G41.3、G41.9與G41.10也仍未完成。
+
+## 元資料外連共用 I/O
+
+正式 runtime 在準備 TMDB client 前建立單一 resources.Budget，再將同一實例供應給 Fx 既有 HTTP／jobs／images／watch／metrics consumer。NewTMDBWithBudget 透過 outbound.NewWithBudget 接入；既有獨立建構器保留給既有呼叫者。
+
+Fetch 完成 URL／host／port 驗證後、DNS與開連線前取得 I/O，持有至有界 body 讀取及 Close 完成。取得與網路操作共享最多15秒期限，且受較短的caller期限約束。佇列滿立即回 ErrResourceBusy；metadata現有安全錯誤轉換將其回報為暫時不可用，不消耗provider回應重試、不產生快取結果。等待支援取消，沒有新goroutine。原有provider governor先通過本地限流再Fetch；限流／cooldown／Retry-After等待不持共享配額。共享配額等待時間會延後已通過本地限流的實際網路開始時間，並未另提供全域網路速率保證。
+
+Windows outbound/metadata/runtime/architecture與vet通過；[Linux race](evidence/resources-metadata-race-linux.txt)涵蓋上述與resources。真HTTP測試驗證CPU占滿total時queue0拒絕／queue1取消且無dial，釋放後恰好恢復；body讀取持IO，取消後歸零。真TLS的成功、憑證拒絕、429、非法回應、私有DNS、redirect及Retry-After矩陣均加入total1配額並驗歸零；Retry-After期間另一CPU操作可取得唯一total配額。正式預檢建構測試以滿queue0 budget驗證網路前拒絕。
+
+[真PG HTTP runtime race](evidence/resources-metadata-runtime.txt)核實單一budget供應後Fx服務與metrics配置仍正確；該PG案例未配置TMDB，元資料網路驗證由上述受控TLS服務完成。未使用真API key或外部TMDB服務。尚未實作的遠端圖片內容抓取與索引等不能由此宣稱已完成，G41.3及完整混合驗收仍待接續。

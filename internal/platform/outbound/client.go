@@ -12,6 +12,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/MoYuanCN/Jelee/internal/app"
 )
 
 var (
@@ -31,6 +33,7 @@ type Client struct {
 	hosts     map[string]bool
 	lookup    lookupFunc
 	dial      dialFunc
+	budget    app.WorkBudget
 }
 
 type Response struct {
@@ -43,6 +46,18 @@ type Response struct {
 // capability-specific adapters should supply their own restricted list.
 func New(hosts []string) (*Client, error) {
 	return newClient(hosts, net.DefaultResolver.LookupNetIP, (&net.Dialer{Timeout: 5 * time.Second}).DialContext)
+}
+
+// NewWithBudget uses the instance's shared I/O admission for each fetch.
+func NewWithBudget(hosts []string, budget app.WorkBudget) (*Client, error) {
+	if budget == nil {
+		return nil, ErrDenied
+	}
+	c, err := New(hosts)
+	if err == nil {
+		c.budget = budget
+	}
+	return c, err
 }
 
 func newClient(hosts []string, lookup lookupFunc, dial dialFunc) (*Client, error) {
@@ -122,6 +137,17 @@ func (c *Client) Fetch(ctx context.Context, rawURL string, maxBytes int64) (Resp
 	u, err := url.Parse(rawURL)
 	if err != nil || c.validate(u) != nil {
 		return Response{}, ErrDenied
+	}
+	// Admission and network work share one total deadline. Keep the permit
+	// until body closure; rate-limit and provider retry waits happen outside.
+	ctx, cancel := context.WithTimeout(ctx, 15*time.Second)
+	defer cancel()
+	if c.budget != nil {
+		release, err := c.budget.Acquire(ctx, app.WorkIO)
+		if err != nil {
+			return Response{}, err
+		}
+		defer release()
 	}
 	r, err := http.NewRequestWithContext(ctx, http.MethodGet, u.String(), nil)
 	if err != nil {

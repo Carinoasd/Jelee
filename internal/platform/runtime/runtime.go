@@ -31,17 +31,18 @@ func New(cfg config.Config, logger *slog.Logger) *fx.App {
 }
 
 func newWithLifetime(cfg config.Config, logger *slog.Logger, lifetime *lifetime) *fx.App {
-	metadataService, err := prepareMetadata(cfg.TMDBAPIKey, lifetime)
+	if err := cfg.Resources.Validate(); err != nil {
+		return build(lifetime, fx.NopLogger, fx.Error(err))
+	}
+	budget, err := resources.New(resources.Limits{CPU: cfg.Resources.CPULimit(), IO: cfg.Resources.IO, Total: cfg.Resources.Total, Queue: cfg.Resources.Queue})
 	if err != nil {
 		return build(lifetime, fx.NopLogger, fx.Error(err))
 	}
-	return build(lifetime, fx.NopLogger, fx.Supply(cfg, logger), fx.Provide(
-		func(c config.Config) (*resources.Budget, error) {
-			if err := c.Resources.Validate(); err != nil {
-				return nil, err
-			}
-			return resources.New(resources.Limits{CPU: c.Resources.CPULimit(), IO: c.Resources.IO, Total: c.Resources.Total, Queue: c.Resources.Queue})
-		},
+	metadataService, err := prepareMetadataWithBudget(cfg.TMDBAPIKey, lifetime, budget)
+	if err != nil {
+		return build(lifetime, fx.NopLogger, fx.Error(err))
+	}
+	return build(lifetime, fx.NopLogger, fx.Supply(cfg, logger, budget), fx.Provide(
 		func(store *postgres.Store) (*app.Metadata, error) {
 			return bindMetadata(metadataService, store)
 		},

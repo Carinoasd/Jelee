@@ -6,6 +6,8 @@ import (
 	"crypto/x509"
 	"net"
 	"net/netip"
+
+	"github.com/MoYuanCN/Jelee/internal/app"
 )
 
 // NewMappedTestClient exists only in the augmented test binary. Production
@@ -17,4 +19,12 @@ func NewMappedTestClient(lookup func(context.Context, string, string) ([]netip.A
 	}
 	c.transport.TLSClientConfig = &tls.Config{RootCAs: roots, MinVersion: tls.VersionTLS12}
 	return c, nil
+}
+
+func NewMappedTestClientWithBudget(lookup func(context.Context, string, string) ([]netip.Addr, error), dial func(context.Context, string, string) (net.Conn, error), roots *x509.CertPool, budget app.WorkBudget) (*Client, error) {
+	c, err := NewMappedTestClient(lookup, dial, roots)
+	if err == nil {
+		c.budget = budget
+	}
+	return c, err
 }

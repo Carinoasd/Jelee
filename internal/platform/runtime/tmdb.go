@@ -34,10 +34,20 @@ func bindMetadata(service *app.Metadata, repository interface {
 }
 
 func prepareMetadata(key string, l *lifetime) (*app.Metadata, error) {
+	return prepareMetadataWithBudget(key, l, nil)
+}
+
+func prepareMetadataWithBudget(key string, l *lifetime, budget app.WorkBudget) (*app.Metadata, error) {
 	if key == "" {
 		return nil, nil
 	}
-	client, err := metadata.NewTMDB(key)
+	var client *metadata.TMDB
+	var err error
+	if budget == nil {
+		client, err = metadata.NewTMDB(key)
+	} else {
+		client, err = metadata.NewTMDBWithBudget(key, budget)
+	}
 	if err != nil {
 		return nil, err
 	}

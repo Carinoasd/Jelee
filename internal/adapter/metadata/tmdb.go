@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"time"
 
+	"github.com/MoYuanCN/Jelee/internal/app"
 	"github.com/MoYuanCN/Jelee/internal/platform/outbound"
 )
 
@@ -33,10 +34,28 @@ type TMDB struct {
 }
 
 func NewTMDB(key string) (*TMDB, error) {
+	return newTMDB(key, nil)
+}
+
+// NewTMDBWithBudget shares outbound I/O admission with the runtime.
+func NewTMDBWithBudget(key string, budget app.WorkBudget) (*TMDB, error) {
+	if budget == nil {
+		return nil, ErrUnavailable
+	}
+	return newTMDB(key, budget)
+}
+
+func newTMDB(key string, budget app.WorkBudget) (*TMDB, error) {
 	if !ValidTMDBKey(key) {
 		return nil, ErrCredentials
 	}
-	c, err := outbound.New([]string{"api.themoviedb.org"})
+	var c *outbound.Client
+	var err error
+	if budget == nil {
+		c, err = outbound.New([]string{"api.themoviedb.org"})
+	} else {
+		c, err = outbound.NewWithBudget([]string{"api.themoviedb.org"}, budget)
+	}
 	if err != nil {
 		return nil, ErrUnavailable
 	}

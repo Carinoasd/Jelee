@@ -1,3 +1,13 @@
+## 2026-10-03 接續：元資料外連接入共用 I/O
+
+基於212e19f6a2接續；runtime先建立單一budget再準備TMDB，fx.Supply同實例。outbound.Fetch在URL檢查後/DNS前AcquireIO，15秒共用等待與網路期限，Body.Close後release。provider限流/RetryAfter不持共享配額；queuefull走既有安全Unavailable，不使用provider response retry、不寫cache。詳見docs/shared-work-budget.md。
+
+Windows outbound/metadata/runtime/architecture與vet、Linux race（另含resources）、真PG TestMetricsRuntimePostgresIntegration race通過；真TLS七矩陣含total1及退避釋放驗證；queue0/1、cancel、body持有與回收通過。證據resources-metadata-*。真PG案例未配置TMDB；不將它稱為真TMDB/PG聯測。
+
+同正式長測PID726258/start31439656/boot4a5d9c5c-4482-4c3e-8978-30156b1ce92f重核吻合，container running/OOMfalse，source38a47082e9保持。遠端212e19f6a2兩平台foundation/format/ABI成功，兩品牌失敗，PG/三平台Tests/CodeQL當時仍在執行。全案7完成/195部分/134阻塞，PR46沿用且禁止merge。下一步繼續稽核索引、NFO寫回與其他工作，補混合race/資源等待指標/不同配置調校；原媒體與授權、既有SQL保持。
+
+---
+
 ## 2026-10-03 新對話接續：資源指標驗證通過
 
 已讀交接、需求追蹤與適用規範。HEAD4e1bf2e68a與未提交檔案吻合。Linux telemetry/resources/jobs/runtime race及真PG TestMetricsRuntimePostgresIntegration race退出0，Windows受影響套件vet退出0；證據已放docs/evidence/resources-metrics-*。指標測試import分組整理；Windows telemetry/resources/runtime/architecture重驗、vet、增量品牌（0違規／339白名單）及gitignore（0違規）通過。沿用PR46提交推送，不merge。

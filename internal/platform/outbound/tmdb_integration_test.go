@@ -20,7 +20,9 @@ import (
 	"time"
 
 	"github.com/MoYuanCN/Jelee/internal/adapter/metadata"
+	"github.com/MoYuanCN/Jelee/internal/app"
 	"github.com/MoYuanCN/Jelee/internal/platform/outbound"
+	"github.com/MoYuanCN/Jelee/internal/platform/resources"
 )
 
 func providerCertificate(t *testing.T) (tls.Certificate, *x509.CertPool) {
@@ -61,11 +63,18 @@ func TestTMDBActualAdapterThroughGuardedTLS(t *testing.T) {
 		{"retry_after", 429, `{"success":true,"status_code":1}`, false, nil},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
+			budget, err := resources.New(resources.Limits{CPU: 1, IO: 1, Total: 1, Queue: 1})
+			if err != nil {
+				t.Fatal(err)
+			}
 			requests := new(atomic.Int32)
 			dials := new(atomic.Int32)
 			key := strings.Repeat("a", 32)
 			srv := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				n := requests.Add(1)
+				if s := budget.Stats(); s.IO != 1 || s.Total != 1 {
+					t.Errorf("TLS request without shared I/O: %+v", s)
+				}
 				if r.Host != "api.themoviedb.org" || r.URL.Path != "/3/authentication" || r.URL.Query().Get("api_key") != key || r.TLS == nil {
 					t.Error("real provider request contract differs")
 				}
@@ -86,7 +95,7 @@ func TestTMDBActualAdapterThroughGuardedTLS(t *testing.T) {
 			srv.TLS = &tls.Config{Certificates: []tls.Certificate{cert}, MinVersion: tls.VersionTLS12}
 			srv.StartTLS()
 			defer srv.Close()
-			c, err := outbound.NewMappedTestClient(func(context.Context, string, string) ([]netip.Addr, error) {
+			c, err := outbound.NewMappedTestClientWithBudget(func(context.Context, string, string) ([]netip.Addr, error) {
 				if tc.dnsPrivate {
 					return []netip.Addr{netip.MustParseAddr("93.184.216.34"), netip.MustParseAddr("127.0.0.1")}, nil
 				}
@@ -97,7 +106,7 @@ func TestTMDBActualAdapterThroughGuardedTLS(t *testing.T) {
 				}
 				dials.Add(1)
 				return (&net.Dialer{}).DialContext(ctx, "tcp", srv.Listener.Addr().String())
-			}, roots)
+			}, roots, budget)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -107,7 +116,33 @@ func TestTMDBActualAdapterThroughGuardedTLS(t *testing.T) {
 			}
 			defer adapter.Close()
 			started := time.Now()
-			err = adapter.ValidateCredentials(context.Background())
+			if tc.name == "retry_after" {
+				ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+				defer cancel()
+				done := make(chan error, 1)
+				go func() { done <- adapter.ValidateCredentials(ctx) }()
+				for requests.Load() == 0 {
+					if ctx.Err() != nil {
+						t.Fatal("retry request did not start")
+					}
+					time.Sleep(time.Millisecond)
+				}
+				// During the server's one-second Retry-After, unrelated CPU
+				// work must be able to borrow the only total permit.
+				acquireCtx, stop := context.WithTimeout(ctx, 500*time.Millisecond)
+				release, acquireErr := budget.Acquire(acquireCtx, app.WorkCPU)
+				stop()
+				if acquireErr != nil {
+					t.Fatalf("retry retained I/O permit: %v", acquireErr)
+				}
+				release()
+				err = <-done
+			} else {
+				err = adapter.ValidateCredentials(context.Background())
+			}
+			if s := budget.Stats(); s != (resources.Stats{}) {
+				t.Fatalf("provider leaked shared permit: %+v", s)
+			}
 			if !errors.Is(err, tc.want) {
 				t.Fatalf("adapter error=%v", err)
 			}

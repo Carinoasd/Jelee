@@ -1,0 +1,5 @@
+ok  	github.com/MoYuanCN/Jelee/internal/platform/outbound	7.494s
+ok  	github.com/MoYuanCN/Jelee/internal/adapter/metadata	1.309s
+ok  	github.com/MoYuanCN/Jelee/internal/platform/resources	1.222s
+ok  	github.com/MoYuanCN/Jelee/internal/platform/runtime	1.095s
+ok  	github.com/MoYuanCN/Jelee/internal/architecture	1.240s
