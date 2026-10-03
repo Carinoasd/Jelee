@@ -90,7 +90,7 @@ Go 包装器将 `GOCACHE`、`GOPATH`、`GOMODCACHE`、`GOTMPDIR`、临时目录�
 | `doc-check` | 离线文档门禁：`README.md` 与 `docs/**/*.md` 的相对链接／锚点、外部链接格式（不联网）、文档中带 HTTP 状态的错误码与错误码表一致 |
 | `dev` | 以 `go run ./cmd/jelee` 启动开发服务；必须先设置 `JELEE_DATABASE_URL`（或 `_FILE`／`JELEE_CONFIG`）并执行 `migrate` |
 | `nfo` | 不需数据库。设置 `NFO_ROOT`（绝对根目录）与 `NFO_FILE`（相对路径）时只读验证该文件，否则运行离线 NFO 测试 |
-| `diag` | 依次执行 `jelee-cli doctor tools`、`doctor probe`、`doctor`，全部输出后汇总失败；`diag export` 诊断包（G50.2）尚未实现 |
+| `diag` | 执行 `jelee-cli diag export`，输出到 `DIAG_OUT`（默认 `.testdata/jelee-diag.zip`，已存在时拒绝覆盖） |
 | `tools-clean` | 删除 `.tools/`、`.bin/`、`.testfixtures/`、`.testdata/` |
 
 `doc-check` 的实现在 `tools/doccheck`，只用标准库。错误码只检查明确声明为 HTTP 错误的写法（如 `` `job_busy`/409 ``、`HTTP 501，`…、JSON `"code":"…"`），需求原文与追溯表不检查；`go run ./tools/doccheck -undocumented` 另列出尚无文档提及的错误码（仅提示）。目前没有已知坏链接；若将来需要分批清理，可用 `-update-baseline` 生成 `tools/doccheck/baseline.txt`，门禁只容许清单内的旧问题，已修复但仍留在清单的条目也会失败。

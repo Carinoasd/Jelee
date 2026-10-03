@@ -142,15 +142,9 @@ nfo:
 		"$(GO)" test -count=1 ./internal/adapter/nfo && \
 		"$(GO)" test -count=1 -run 'NFO|Nfo' ./internal/domain ./internal/app ./cmd/jelee-cli; \
 	fi
-# Diagnostics entry (G50). `jelee-cli diag export` is not implemented yet, so
-# this runs every existing doctor check and reports all sections before
-# failing: pinned media tools, probe sandbox, then configuration/database.
+DIAG_OUT ?= .testdata/jelee-diag.zip
 diag:
-	@status=0; \
-	echo '== jelee-cli doctor tools'; "$(GO)" run ./cmd/jelee-cli doctor tools || status=1; \
-	echo '== jelee-cli doctor probe'; "$(GO)" run ./cmd/jelee-cli doctor probe || status=1; \
-	echo '== jelee-cli doctor'; "$(GO)" run ./cmd/jelee-cli doctor || status=1; \
-	exit $$status
+	"$(GO)" run ./cmd/jelee-cli diag export --out "$(DIAG_OUT)"
 
 i18n-check:
 	$(PYTHON) scripts/check-ui-locales.py

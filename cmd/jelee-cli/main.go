@@ -23,7 +23,7 @@ func run() int {
 		return proberuntime.Helper(os.Args[2:])
 	}
 	if len(os.Args) < 2 {
-		fmt.Fprintln(os.Stderr, "usage: jelee-cli doctor|provision|import-video|import-directory|import-inventory|nfo|account|library|jobs")
+		fmt.Fprintln(os.Stderr, "usage: jelee-cli doctor|diag|provision|import-video|import-directory|import-inventory|nfo|account|library|jobs")
 		return 2
 	}
 	command := os.Args[1]
@@ -51,6 +51,17 @@ func run() int {
 		defer cancel()
 		return runMediaToolsWithOutputCancellation(ctx, os.Args[3:], os.Stdout, os.Stderr)
 	}
+	if command == "doctor" || command == "diag" {
+		ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
+		defer stop()
+		// Each check has its own deadline; this bounds the whole run.
+		ctx, cancel := context.WithTimeout(ctx, 3*time.Minute)
+		defer cancel()
+		if command == "diag" {
+			return runDiag(ctx, os.Args[2:], os.Stdout, os.Stderr)
+		}
+		return runDoctor(ctx, os.Args[2:], os.Stdout, os.Stderr)
+	}
 	if command == "library" || command == "jobs" {
 		ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 		defer stop()
@@ -75,7 +86,7 @@ func run() int {
 		defer cancel()
 		return runNFOCLIWithOutputCancellation(ctx, os.Args[2:], os.Stdin, os.Stdout, os.Stderr)
 	}
-	if command != "doctor" && command != "provision" && command != "import-video" && command != "import-directory" {
+	if command != "provision" && command != "import-video" && command != "import-directory" {
 		fmt.Fprintln(os.Stderr, "unsupported command")
 		return 2
 	}
@@ -132,9 +143,6 @@ func run() int {
 			return 1
 		}
 		fmt.Printf("Registered item %s; original directory unchanged.\n", id)
-		return 0
-	case "doctor":
-		fmt.Printf("configuration: valid\nPostgreSQL: connected\nschema: %d clean\nproduction restrictions: enabled\ndeveloper mode: unavailable\nRemaining diagnostics: see docs/requirements-traceability.md\n", postgres.SchemaVersion)
 		return 0
 	case "provision":
 		kind := access.ClientWeb

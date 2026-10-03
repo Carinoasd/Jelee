@@ -75,7 +75,7 @@ export JELEE_ALLOWED_HOSTS=localhost,127.0.0.1,::1
 .\bin\jelee-cli.exe doctor
 ```
 
-Linux 使用 `./bin/jelee-migrate` 和 `./bin/jelee-cli`。doctor 当前检查配置、PostgreSQL 与 schema 状态，不代表全部 G50 磁盘、媒体、网络与自愈检查已实现。
+Linux 使用 `./bin/jelee-migrate` 和 `./bin/jelee-cli`。doctor 检查配置、PostgreSQL 连接与迁移状态、媒体库根、固定 ffprobe 哈希、磁盘与 inode、监听与可信代理、暂存／日志目录权限、隐私开关与开发者模式；任一项 fail 时结束码非 0，`--json` 输出机器可读格式。需要回报问题时用 `jelee-cli diag export --out jelee-diag.zip` 导出脱敏诊断包。错误码与修复步骤见[故障排查](troubleshooting.md)；一致性检查与自愈（G50.3–G50.4）尚未实现。
 
 本段 binary 要求 clean schema 4；快取数据库契约已加入，扫描仍只盘点。升级与降版限制见[快取说明](probe-cache.md#升级与回滚)。
 

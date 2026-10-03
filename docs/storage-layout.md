@@ -24,6 +24,8 @@
 | 外部工具暂存 | `$TMPDIR/jelee-service-*`、`$TMPDIR/jelee-probe-check-*` | probe／ignore 服务 | 服务关闭时删除；启动清扫 | 停机时可删 |
 | 工具与授权文件 | 容器内 `/usr/lib/jelee/ffprobe`、`/lib`、`/lib64`、`/licenses` | 镜像 | — | 不可改，身份与 SHA-256 都会校验 |
 | CLI 诊断暂存 | `<项目>/.testdata/tool-doctor-*` | `jelee-cli doctor tools` | 命令结束时删除 | 可删 |
+| doctor 可写性探针 | 暂存、图片与日志目录内的 `.jelee-doctor-*` | `jelee-cli doctor` | 建立后立即删除；崩溃时只留空文件 | 可删 |
+| 诊断包 | `jelee-cli diag export --out` 指定的 `.zip`（0600，不覆盖已有文件） | 运维 | 运维 | 可删；内容已脱敏，分享前仍应检查，见[故障排查](troubleshooting.md#diag-export) |
 | 开发产物 | `.tools/`、`.cache/`、`.bin/`、`.testfixtures/`、`.testdata/` | 开发脚本 | 手动 | 可删可重建，都已被 Git 忽略 |
 
 ## 数据库（schema 1–58）

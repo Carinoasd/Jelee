@@ -117,14 +117,6 @@ try {
                 & "$PSScriptRoot/run-go.ps1" test -count=1 -run 'NFO|Nfo' ./internal/domain ./internal/app ./cmd/jelee-cli
             }
         }
-        'diag' {
-            # `jelee-cli diag export` (G50.2) is not implemented; run every existing doctor check, then fail if any did.
-            $failed = @()
-            foreach ($check in @(@('doctor','tools'), @('doctor','probe'), @('doctor'))) {
-                Write-Host "== jelee-cli $($check -join ' ')"
-                try { & "$PSScriptRoot/run-go.ps1" run ./cmd/jelee-cli @check } catch { $failed += ($check -join ' ') }
-            }
-            if ($failed.Count) { throw "Diagnostics failed: $($failed -join ', ')" }
-        }
+        'diag' { & "$PSScriptRoot/run-go.ps1" run ./cmd/jelee-cli diag export --out .testdata/jelee-diag.zip }
     }
 } finally { Pop-Location }
