@@ -99,7 +99,8 @@ type fixture struct {
 
 func validConfig() config.Config {
 	return config.Config{
-		Listen: "127.0.0.1:8097", AllowedHosts: []string{"localhost", "127.0.0.1", "::1"},
+		Resources: config.DefaultResourcesConfig(),
+		Listen:    "127.0.0.1:8097", AllowedHosts: []string{"localhost", "127.0.0.1", "::1"},
 		DatabaseURL: "postgres://localhost/jelee", MaxConnections: 2, MaxStreams: 2,
 		RequestTimeoutSeconds: 1,
 	}

@@ -69,7 +69,7 @@ func NewWithJobs(cfg config.Config, backend Backend, catalog *app.Catalog, resol
 	if len(metadataServices) == 1 {
 		metadata = metadataServices[0]
 	}
-	return newServer(cfg, backend, catalog, resolver, logger, account, jobs, metadata, nil, nil)
+	return newServer(cfg, backend, catalog, resolver, logger, account, jobs, metadata, nil, nil, nil)
 }
 
 func NewWithTelemetry(cfg config.Config, backend Backend, catalog *app.Catalog, resolver media.Resolver, logger *slog.Logger, account *app.Accounts, jobs *app.Jobs, metadata *app.Metadata, metrics http.Handler) (http.Handler, error) {
@@ -77,17 +77,24 @@ func NewWithTelemetry(cfg config.Config, backend Backend, catalog *app.Catalog, 
 }
 
 func NewWithImages(cfg config.Config, backend Backend, catalog *app.Catalog, resolver media.Resolver, logger *slog.Logger, account *app.Accounts, jobs *app.Jobs, metadata *app.Metadata, metrics http.Handler, images *app.Images) (http.Handler, error) {
-	return newServer(cfg, backend, catalog, resolver, logger, account, jobs, metadata, metrics, images)
+	return newServer(cfg, backend, catalog, resolver, logger, account, jobs, metadata, metrics, images, nil)
 }
 
-func newServer(cfg config.Config, backend Backend, catalog *app.Catalog, resolver media.Resolver, logger *slog.Logger, account *app.Accounts, jobs *app.Jobs, metadata *app.Metadata, metrics http.Handler, images *app.Images) (http.Handler, error) {
+func NewWithResources(cfg config.Config, backend Backend, catalog *app.Catalog, resolver media.Resolver, logger *slog.Logger, account *app.Accounts, jobs *app.Jobs, metadata *app.Metadata, metrics http.Handler, images *app.Images, budget app.WorkBudget) (http.Handler, error) {
+	if budget == nil {
+		return nil, errors.New("shared resource budget must be provided")
+	}
+	return newServer(cfg, backend, catalog, resolver, logger, account, jobs, metadata, metrics, images, budget)
+}
+
+func newServer(cfg config.Config, backend Backend, catalog *app.Catalog, resolver media.Resolver, logger *slog.Logger, account *app.Accounts, jobs *app.Jobs, metadata *app.Metadata, metrics http.Handler, images *app.Images, budget app.WorkBudget) (http.Handler, error) {
 	if err := cfg.Validate(); err != nil {
 		return nil, err
 	}
 	if backend == nil || catalog == nil || logger == nil {
 		return nil, errors.New("HTTP dependencies must be provided")
 	}
-	delivery, err := media.NewHandler(resolver, media.Options{MaxConcurrent: cfg.MaxStreams, WriteTimeout: 30 * time.Second, LookupTimeout: cfg.RequestTimeout(), WriteError: WriteError})
+	delivery, err := media.NewHandler(resolver, media.Options{Budget: budget, MaxConcurrent: cfg.MaxStreams, WriteTimeout: 30 * time.Second, LookupTimeout: cfg.RequestTimeout(), WriteError: WriteError})
 	if err != nil {
 		return nil, err
 	}

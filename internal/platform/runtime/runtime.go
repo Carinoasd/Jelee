@@ -21,6 +21,7 @@ import (
 	"github.com/MoYuanCN/Jelee/internal/platform/config"
 	jobworker "github.com/MoYuanCN/Jelee/internal/platform/jobs"
 	"github.com/MoYuanCN/Jelee/internal/platform/password"
+	"github.com/MoYuanCN/Jelee/internal/platform/resources"
 	"github.com/MoYuanCN/Jelee/internal/platform/telemetry"
 	"go.uber.org/fx"
 )
@@ -35,6 +36,12 @@ func newWithLifetime(cfg config.Config, logger *slog.Logger, lifetime *lifetime)
 		return build(lifetime, fx.NopLogger, fx.Error(err))
 	}
 	return build(lifetime, fx.NopLogger, fx.Supply(cfg, logger), fx.Provide(
+		func(c config.Config) (*resources.Budget, error) {
+			if err := c.Resources.Validate(); err != nil {
+				return nil, err
+			}
+			return resources.New(resources.Limits{CPU: c.Resources.CPULimit(), IO: c.Resources.IO, Total: c.Resources.Total, Queue: c.Resources.Queue})
+		},
 		func(store *postgres.Store) (*app.Metadata, error) {
 			return bindMetadata(metadataService, store)
 		},
@@ -179,9 +186,9 @@ func newWithLifetime(cfg config.Config, logger *slog.Logger, lifetime *lifetime)
 			lifetime.worker = &watchGroup{worker: &scheduledWorker{worker: &probeWorker{worker: runner, probe: probing, nfo: validation}, dispatch: service, logger: l}, watch: watchRunner}
 			return service, nil
 		},
-		func(c config.Config, store *postgres.Store, catalog *app.Catalog, jobs *app.Jobs, metadata *app.Metadata, metrics *telemetry.Metrics, pictures *app.Images, l *slog.Logger) (http.Handler, error) {
+		func(c config.Config, store *postgres.Store, catalog *app.Catalog, jobs *app.Jobs, metadata *app.Metadata, metrics *telemetry.Metrics, pictures *app.Images, budget *resources.Budget, l *slog.Logger) (http.Handler, error) {
 			if !c.EnableAccounts {
-				return httpapi.New(c, store, catalog, store, l)
+				return httpapi.NewWithResources(c, store, catalog, store, l, nil, nil, nil, nil, nil, budget)
 			}
 			if err := c.Accounts.Validate(); err != nil {
 				return nil, err
@@ -199,7 +206,7 @@ func newWithLifetime(cfg config.Config, logger *slog.Logger, lifetime *lifetime)
 			if metrics != nil {
 				metricsHandler = metrics.Handler()
 			}
-			return httpapi.NewWithImages(c, store, catalog, store, l, accounts, jobs, metadata, metricsHandler, pictures)
+			return httpapi.NewWithResources(c, store, catalog, store, l, accounts, jobs, metadata, metricsHandler, pictures, budget)
 		},
 	), fx.Invoke(func(lc fx.Lifecycle, cfg config.Config, handler http.Handler, shutdown fx.Shutdowner) {
 		lifetime.server = &http.Server{Addr: cfg.Listen, Handler: handler, ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 15 * time.Second, IdleTimeout: 60 * time.Second, MaxHeaderBytes: 16 << 10}

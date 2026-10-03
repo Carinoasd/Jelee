@@ -1,3 +1,11 @@
+## 最新接續：資源配置與正式直投已接共用配額
+
+新增 ResourcesConfig（CPUFactor1、IO16、Total32、Queue128，JSON/env/Validate），runtime fx 單一resources.Budget傳入所有帳號模式的HTTP建構。直投在ACL lookup後開檔前AcquireIO，等候最多RequestTimeout；queue滿/timeout→429+RetryAfter，cancel無body；傳輸與檔案/回呼清理後release。文件 docs/shared-work-budget.md 有配置表與限制。
+
+Windows受影響套件與vet、Linux race及真PG Fx runtime通過。internal廣泛回歸images/toolidentity因沙箱ACL失敗，正常權限各自重跑通過。CI前一HEAD兩個Windows foundation成功、品牌門禁失敗、其餘仍有pending。尚未接scan/probe/NFO/images/索引/download，CPU配額目前不約束那些模組；G41.3/G13.5部分完成。下一步將同一fx budget傳到背景操作，背壓須不消耗故障重試或被分類壞媒體，防巢狀等待。
+
+長測仍沿用run033822f3aecf4b6491406594c8687cfd/PID645523/start31097741/boot4a5d9c5c-4482-4c3e-8978-30156b1ce92f。未合併，PR46繼續。
+
 ## 最新接續：共用資源限額器底層已驗證，尚未接 runtime
 
 新增 app.WorkBudget/domain.ErrResourceBusy/platform/resources.Budget；同鎖取得 CPU或I/O+total，bounded queue，oldest eligible派發，取消退款/idempotent release。Windows資源與architecture測試、vet，Linux race通過；詳見 docs/shared-work-budget.md。沒有正式consumer注入，不得宣稱全域配額生效，G41.3/G13.5仍部分完成。

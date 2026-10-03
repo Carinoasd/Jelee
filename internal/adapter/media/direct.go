@@ -16,6 +16,8 @@ import (
 	"time"
 
 	"github.com/MoYuanCN/Jelee/internal/access"
+	"github.com/MoYuanCN/Jelee/internal/app"
+	"github.com/MoYuanCN/Jelee/internal/domain"
 )
 
 // Source is returned by a trusted repository after applying its ACL in SQL.
@@ -36,6 +38,7 @@ type Resolver interface {
 }
 
 type Options struct {
+	Budget        app.WorkBudget
 	MaxConcurrent int
 	LookupTimeout time.Duration
 	WriteTimeout  time.Duration
@@ -118,6 +121,24 @@ func (h *Handler) ServeSource(w http.ResponseWriter, r *http.Request, sourceID s
 	}
 	if r.Context().Err() != nil {
 		return
+	}
+	if h.options.Budget != nil {
+		waitCtx, cancelWait := context.WithTimeout(r.Context(), h.options.LookupTimeout)
+		release, budgetErr := h.options.Budget.Acquire(waitCtx, app.WorkIO)
+		cancelWait()
+		if budgetErr != nil {
+			if r.Context().Err() != nil {
+				return
+			}
+			if errors.Is(budgetErr, domain.ErrResourceBusy) || errors.Is(budgetErr, context.DeadlineExceeded) {
+				w.Header().Set("Retry-After", "1")
+				h.options.WriteError(w, r, ErrBusy)
+			} else {
+				h.options.WriteError(w, r, ErrIO)
+			}
+			return
+		}
+		defer release()
 	}
 	file, err := openSource(source)
 	if err != nil {

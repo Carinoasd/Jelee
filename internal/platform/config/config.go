@@ -15,32 +15,33 @@ import (
 )
 
 type Config struct {
-	Listen                string         `json:"listen"`
-	AllowedHosts          []string       `json:"allowedHosts"`
-	TrustedProxies        []string       `json:"trustedProxies"`
-	DatabaseURL           string         `json:"-"`
-	TMDBAPIKey            string         `json:"-"`
-	MaxConnections        int32          `json:"maxConnections"`
-	MaxStreams            int            `json:"maxStreams"`
-	RequestTimeoutSeconds int            `json:"requestTimeoutSeconds"`
-	EnableCatalog         bool           `json:"enableCatalog"`
-	EnableDirect          bool           `json:"enableDirect"`
-	EnableAccounts        bool           `json:"enableAccounts"`
-	EnableMetrics         bool           `json:"enableMetrics"`
-	EnableImages          bool           `json:"enableImages"`
-	Images                ImagesConfig   `json:"images"`
-	Accounts              AccountsConfig `json:"accounts"`
-	EnableJobs            bool           `json:"enableJobs"`
-	Jobs                  JobsConfig     `json:"jobs"`
-	EnableProbe           bool           `json:"enableProbe"`
-	EnableFamilyIgnore    bool           `json:"enableFamilyIgnore"`
+	Resources             ResourcesConfig `json:"resources"`
+	Listen                string          `json:"listen"`
+	AllowedHosts          []string        `json:"allowedHosts"`
+	TrustedProxies        []string        `json:"trustedProxies"`
+	DatabaseURL           string          `json:"-"`
+	TMDBAPIKey            string          `json:"-"`
+	MaxConnections        int32           `json:"maxConnections"`
+	MaxStreams            int             `json:"maxStreams"`
+	RequestTimeoutSeconds int             `json:"requestTimeoutSeconds"`
+	EnableCatalog         bool            `json:"enableCatalog"`
+	EnableDirect          bool            `json:"enableDirect"`
+	EnableAccounts        bool            `json:"enableAccounts"`
+	EnableMetrics         bool            `json:"enableMetrics"`
+	EnableImages          bool            `json:"enableImages"`
+	Images                ImagesConfig    `json:"images"`
+	Accounts              AccountsConfig  `json:"accounts"`
+	EnableJobs            bool            `json:"enableJobs"`
+	Jobs                  JobsConfig      `json:"jobs"`
+	EnableProbe           bool            `json:"enableProbe"`
+	EnableFamilyIgnore    bool            `json:"enableFamilyIgnore"`
 }
 
 func Load() (Config, error) { return LoadWith(os.LookupEnv) }
 
 // LoadWith keeps environment lookup injectable and never includes values in errors.
 func LoadWith(lookup func(string) (string, bool)) (Config, error) {
-	c := Config{Listen: "127.0.0.1:8097", AllowedHosts: []string{"localhost", "127.0.0.1", "::1"}, MaxConnections: 8, MaxStreams: 8, RequestTimeoutSeconds: 15, Accounts: DefaultAccountsConfig(), Jobs: DefaultJobsConfig(), Images: DefaultImagesConfig()}
+	c := Config{Resources: DefaultResourcesConfig(), Listen: "127.0.0.1:8097", AllowedHosts: []string{"localhost", "127.0.0.1", "::1"}, MaxConnections: 8, MaxStreams: 8, RequestTimeoutSeconds: 15, Accounts: DefaultAccountsConfig(), Jobs: DefaultJobsConfig(), Images: DefaultImagesConfig()}
 	if path, ok := lookup("JELEE_CONFIG"); ok && path != "" {
 		f, err := os.Open(path)
 		if err != nil {
@@ -131,10 +132,16 @@ func LoadWith(lookup func(string) (string, bool)) (Config, error) {
 	if err := c.Images.loadEnvironment(lookup); err != nil {
 		return c, err
 	}
+	if err := c.Resources.loadEnvironment(lookup); err != nil {
+		return c, err
+	}
 	return c, c.Validate()
 }
 
 func (c Config) Validate() error {
+	if err := c.Resources.Validate(); err != nil {
+		return err
+	}
 	u, err := url.Parse(c.DatabaseURL)
 	if err != nil || u == nil || (u.Scheme != "postgres" && u.Scheme != "postgresql") || u.Host == "" || strings.Trim(u.Path, "/") == "" {
 		return errors.New("JELEE_DATABASE_URL must identify a PostgreSQL database")
