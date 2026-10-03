@@ -28,6 +28,13 @@ func TestJobMetricsIntegrationFixedStorage(t *testing.T) {
 func jobMetricMigration(t *testing.T, f jobFixture, action string, want uint) {
 	t.Helper()
 	version, dirty, err := Migrate(f.ctx, f.s.Pool.Config().ConnString(), action)
+	for action == "down" && err == nil && !dirty && version > want {
+		previous := version
+		version, dirty, err = Migrate(f.ctx, f.s.Pool.Config().ConnString(), action)
+		if err == nil && !dirty && version+1 != previous {
+			t.Fatal("downgrade did not advance exactly one schema")
+		}
+	}
 	if err != nil || dirty || version != want {
 		t.Fatalf("metrics migration %s: version=%d dirty=%t error=%v", action, version, dirty, err)
 	}

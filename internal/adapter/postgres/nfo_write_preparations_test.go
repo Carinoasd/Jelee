@@ -287,11 +287,11 @@ func TestNFOWritePreparationMigrationEmptyRoundTripAndRetainedRefusal(t *testing
 	})
 	t.Run("retained", func(t *testing.T) {
 		f, service, _, request := nfoWritePreparationFixture(t)
+		jobMetricMigration(t, f, "down", 46)
 		prepared, _, err := service.Prepare(f.ctx, f.a, "retained", request)
 		if err != nil {
 			t.Fatal("prepare retained output")
 		}
-		jobMetricMigration(t, f, "down", 46)
 		if _, _, err := Migrate(f.ctx, f.s.Pool.Config().ConnString(), "down"); err == nil {
 			t.Fatal("downgrade discarded prepared output")
 		}

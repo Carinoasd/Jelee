@@ -1,3 +1,14 @@
+## 2026-10-03 接續：schema48 修復 NFO 配額快照漏洞
+
+基於252dc740708500fd47c756bf073034b2a633a8d7，真PG紅測試重現兩筆Repeatable Read都看到31列、依序取advisory鎖後仍插到33列，突破actor32上限。新migration48加入兩列固定quota fence；BEFORE INSERT先同schema原advisory鎖、再更新固定列、最後跑原容量守衛。過期RR/Serializable快照回報40001，須整筆交易回滾／重試；缺防護列23514拒絕。準備與工作意圖各自固定scope，沒有無界事件。94份001–047已發布SQL逐一Git內容雜湊保持。
+
+Windows domain/app/postgres/nfo/telemetry/jobs/runtime/architecture八套件1381通過事件／671條件跳過，vet、格式、增量品牌0/339、gitignore、diff檢查通過。真PG相關race選測139通過／零跳過失敗／179.936秒：三隔離層級actor32與工作全域1024列、全域512MiB由七個各約64MiB工作成功後拒第八個並完整回滾、兩scope缺防護列拒絕、準備或工作bytes保留拒48→47／dirty Ready拒絕、空降升保持epoch；準備／工作／metrics／完整升降版案例回歸通過。首輪只有Serializable在job INSERT已40001而測試提前Fatal，修正接受整筆准入任何步驟的序列化拒絕，最終核無部分資料。所有本批handle已終端，不當完整PG套件重跑。見docs/nfo-write-quota-fences.md及docs/evidence/nfo-write-quota-fences.json。
+
+全案保持7完成/198部分/131阻塞。準備全域256列/256MiB獨立邊界尚未補，完整PG regression仍待擴驗。接續正式提交journal/恢復保留、generation/revision/媒體/root/檔案實體與lease提交邊界、read-write政策與capability准入、API/CLI/runtime共用budget worker及三種完整批次操作。不能依bytes相等推斷已提交；不只放寬mode或claim。原worker仍不執行nfo_write。
+
+正式24h同run9a0c8d956e3f4fbea9e844e3fc59bc26／PID788902/start31680373/boot4a5d9c5c-4482-4c3e-8978-30156b1ce92f本回合實核吻合，容器running/OOMfalse，source9a74a8932a不含後續NFO；不重啟活躍工作。保持原媒體/圖片/授權、完整品牌門禁，禁止merge/release/tag/force-push/Git身份設定變更/改已發布SQL。沿用分支及OPEN PR46，本批按同分支驗證、提交與推送流程接續。
+
+---
 ## 2026-10-03 接續：schema47 NFO 工作所屬意圖與固定統計已驗證
 
 81629dc172979386e086ce7dea36eb65a233cf72已推PR46。本批schema47新增nfo_write種類及requests/entries持久契約，每批1–100，從schema46同actor/library/generation且未到期準備列複製完整請求/原文/固定輸出/UUID，與job生命週期綁定，不受準備TTL清理影響；歷史preparedId無外鍵。payload沿用schema46大小/雜湊/請求綁定CHECK，requests/entries不可改，deferred trigger要求工作種類/library與完整連續批次，不允許缺request、部分批次、單筆刪除或改kind。全域1024列/512MiB與每job128MiB SQL配額；全域兩界限尚未獨立跑边界矩陣。

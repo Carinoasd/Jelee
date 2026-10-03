@@ -10,7 +10,7 @@ schema47新增`nfo_write`工作種類、`nfo_write_requests`及`nfo_write_entrie
 
 request與entry內容不可更新。同交易提交時，deferred constraint trigger核工作種類、library與完整批次：必須恰有total筆、sequence連續1至total。缺request、部分批次、刪除單筆或將kind改成其他種類都拒絕；整筆工作刪除時照原歷史生命週期連帶移除意圖。正式journal接入前，仍需處理未完成提交／待恢復資料的保留，不能讓history trim清掉它們。
 
-意圖儲存全域最多1024條、512MiB，每工作最多128MiB，以請求/原文/輸出三份實際bytes計費；SQL trigger取得同schema固定advisory鎖後檢查。不依赖caller search_path，沒有無界過期事件表。
+意圖儲存全域最多1024條、512MiB，每工作最多128MiB，以請求/原文/輸出三份實際bytes計費。schema48在原同schema固定advisory鎖及容量檢查前加入固定列更新，防止Repeatable Read使用過期快照超量插入；交易失敗須整筆回滾。見[交易快照防護](nfo-write-quota-fences.md)。不依赖caller search_path，沒有無界過期事件表。
 
 ## 租約觀察與 worker 邊界
 
@@ -30,6 +30,6 @@ Windows domain/app/postgres/nfo/telemetry/jobs/runtime/architecture八套件通�
 
 首次Windows exporter重驗發現舊四組位圖仍使用uint16；修正為六組與18個outcomes的uint32完整集合，保留缺失/重複/未知維度拒絕。首次PG回歸僅舊總列數斷言仍預期109；修正為163後重驗該案例與全部新任務案例。證據按初次完整選測及最終重驗合併，不當作完整postgres套件重跑。
 
-已驗準備列清理/重開pool後的工作bytes與固定UUID、工作意圖到原生Writer、租約/取消/actor拒絕且無部分輸出、舊worker不claim或回收、真實kind防偽通用Finish、不完整批次/不可變內容、每工作128MiB容量回滾、指標epoch保持、保留工作或清理歷史後累計值拒降版。全域1024條/512MiB由SQL守衛限制，尚未獨立執行其邊界矩陣。
+schema47已驗準備列清理/重開pool後的工作bytes與固定UUID、工作意圖到原生Writer、租約/取消/actor拒絕且無部分輸出、舊worker不claim或回收、真實kind防偽通用Finish、不完整批次/不可變內容、每工作128MiB容量回滾、指標epoch保持、保留工作或清理歷史後累計值拒降版。schema47當時未獨立執行全域1024條/512MiB邊界；schema48追加驗證與快照漏洞修補另見[配額證據](nfo-write-quota-fences.md)。
 
 詳見[安全證據](evidence/nfo-write-jobs.json)與[Linux race](evidence/nfo-write-jobs-race-linux.txt)。92份已發布SQL保持。測試使用私有SQL夾具建立完整工作，不代表公開read-write操作已啟用；正式24h仍屬9a74a8932a來源，不含本批。全案與G39/G41狀態保持部分完成。

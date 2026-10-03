@@ -198,6 +198,7 @@ func TestNFOWriteJobsMigrationPreservesEpochAndRefusesRetainedData(t *testing.T)
 	})
 	t.Run("retained", func(t *testing.T) {
 		f, service, _, request := nfoWritePreparationFixture(t)
+		jobMetricMigration(t, f, "down", 47)
 		saved, _, err := service.Prepare(f.ctx, f.a, "retained-job", request)
 		if err != nil {
 			t.Fatal(err)
@@ -218,6 +219,7 @@ func TestNFOWriteJobsMigrationPreservesEpochAndRefusesRetainedData(t *testing.T)
 	})
 	t.Run("metrics only", func(t *testing.T) {
 		f, service, _, request := nfoWritePreparationFixture(t)
+		jobMetricMigration(t, f, "down", 47)
 		saved, _, err := service.Prepare(f.ctx, f.a, "retained-metrics", request)
 		if err != nil {
 			t.Fatal(err)
