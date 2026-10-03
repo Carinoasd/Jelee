@@ -1,3 +1,11 @@
+## 活躍真短測：不要重啟
+
+dc7725b567固定快照的run 5a70b541fa654dd6ad6da1e8ef39b932目前仍活著；PID602883/startTicks30952947/bootId4a5d9c5c-4482-4c3e-8978-30156b1ce92f。最近實際docker inspect running/OOM false，controller status elapsed300/rawBytes56560，尚無result.json。registry與結果在.testdata/soak-launch-5a70b541fa654dd6ad6da1e8ef39b932；細部在cases/image-soak-5a70b541fa654dd6ad6da1e8ef39b932。下一步核實同handle/終態，不能因status每5分鐘才更新或raw未刷出而重啟。
+
+Docker --tail1診斷已見seq4/samples/172秒，原raw仍0是Python在DrvFS的大緩衝。工作區已修Receipt.feed每chunk flush並加真1MiB buffer可見性/後續失敗保留測試；Windows6通過3略過，Linux9通過。這兩個Python修改已驗證並與本段交接一同提交，沒有變動活躍snapshot。現有輪跑完後需核完整replay/cleanup；之後從flush新commit跑smoke，再同commit formal，不能把舊snapshot結果歸給新commit。
+
+本機全品牌重新測得14735違規/344allow，log.testdata/branding-latest.txt；新增範圍既有0/339。dc7725遠端兩品牌fail，其他CI多數仍running，不能宣稱全綠。完整24h未啟動，phase3粗估80%不变。
+
 ## 第三輪短測 stdout 期限失敗已修正
 
 1783af0d1d7b497789c83e4bc6d4a41b進入worker但3.43秒退出，無start event、只有soak_final_write_failed；OOM false，全部owned資源清理true，PID591106已不存在。最小非root/readonly/無網路Docker probe實測stdout為FIFO且原os.Stdout deadline不支援；以/proc/self/fd/1及O_NONBLOCK重開同FIFO後deadline及write成功。

@@ -52,6 +52,9 @@ class Receipt:
         if self.total + len(body) > BUDGET["maxRawBytes"]:
             raise MonitorFailure("soak_raw_limit")
         self.output.write(body)
+        # DrvFS can select a large Python file buffer. Publish each received
+        # chunk so a live observer (or a failed controller) retains raw evidence.
+        self.output.flush()
         self.checksum.update(body)
         self.total += len(body)
         self.last_read = now

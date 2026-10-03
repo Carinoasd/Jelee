@@ -31,6 +31,18 @@ class ReceiptTests(unittest.TestCase):
         self.assertEqual(item.pending, b"")
         self.assertEqual(result["rawBytes"], len(EVENT + READY + FINAL + b"PASS\n"))
 
+    def test_received_evidence_visible_before_finish_with_large_file_buffer(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "raw"
+            with path.open("wb", buffering=1024 * 1024) as stream:
+                item = monitor.Receipt(stream, 0)
+                item.feed(EVENT, 1)
+                self.assertEqual(path.read_bytes(), EVENT)
+                # A later failure must not remove earlier received evidence.
+                with self.assertRaises(monitor.MonitorFailure):
+                    item.check_time(72)
+                self.assertEqual(path.read_bytes(), EVENT)
+
     def test_partial_or_arbitrary_lines_do_not_refresh_heartbeat(self):
         for body in (b"waiting\n", EVENT[:5]):
             with self.subTest(body=body):
