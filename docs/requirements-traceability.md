@@ -23,9 +23,9 @@
 | 状态 | 子项数 | 占比 |
 | --- | --- | --- |
 | 已完成 | 22 | 6.5% |
-| 部分完成 | 305 | 90.8% |
+| 部分完成 | 306 | 91.1% |
 | 阻塞 | 4 | 1.2% |
-| 未开始 | 5 | 1.5% |
+| 未开始 | 4 | 1.2% |
 | 合计 | 336 | 100% |
 
 | G 群组 | 子项 | 已完成 | 部分完成 | 阻塞 | 未开始 | 已完成比例 | 有实现比例（已完成＋部分完成） |
@@ -76,7 +76,7 @@
 | G46 | 10 | 0 | 10 | 0 | 0 | 0% | 100% |
 | G47 | 10 | 0 | 10 | 0 | 0 | 0% | 100% |
 | G48 | 10 | 0 | 10 | 0 | 0 | 0% | 100% |
-| G49 | 9 | 0 | 8 | 0 | 1 | 0% | 89% |
+| G49 | 9 | 0 | 9 | 0 | 0 | 0% | 100% |
 | G50 | 7 | 0 | 7 | 0 | 0 | 0% | 100% |
 | G51 | 15 | 1 | 14 | 0 | 0 | 7% | 100% |
 
@@ -89,7 +89,7 @@
 | 数据库、部署与交付 | G36–G38 | 14 | 0 | 13 | 1 | 0 |
 | NFO 与图片资产 | G39–G40 | 28 | 0 | 26 | 1 | 1 |
 | 并发与内存 | G41–G42 | 20 | 2 | 18 | 0 | 0 |
-| 开发者模式、日志、管控、权限、API、诊断、工具链 | G45–G51 | 70 | 1 | 68 | 0 | 1 |
+| 开发者模式、日志、管控、权限、API、诊断、工具链 | G45–G51 | 70 | 1 | 69 | 0 | 0 |
 
 本节不统计 G01.4 逐组清单与“性能与全局约束”节（二者为附加验收清单，状态未随本次重核更新）。
 
@@ -759,7 +759,7 @@
 | **G49.1** 规范统一：全部自有 API 使用统一响应信封（数据/分页/错误/元信息）、统一错误码表（全局唯一、带 HTTP 映射与说明）、统一分页（cursor 优先 + offset 兼容）、统一排序/过滤白名单、统一时间与 ID 表示（RFC3339、字符串 ID）。 | internal/adapter/http/; api/; tools/openapi/; web/src/api/; docs/ | 各能力同源 schema；不重复定义接口数据 | Plan-G49.1：OpenAPI/路由/错误码同步；全部接口合同；TS/Go/curl 示例；文档链接；简中管理员文档；须单独覆盖本行全部约束 | 部分完成：错误信封统一为 code/message/details/traceId，45 个错误码与 HTTP 状态集中在 `openapi_contract.go` 的 errorCodeStatuses 并由 TestOpenAPIDescribesErrorEnvelopeAndCodes 以 AST 对照源码；列表统一 cursor+limit 与 pagination.nextCursor（账户、会话、任务、Webhook 投递），条目浏览另有 offset 形式与 sort/order 白名单（strictQuery 拒绝未知参数）；ID 为字符串 UUID；缺：统一的 data/meta 成功信封（多数接口仍按资源名返回）、错误码表的说明栏、其余列表的 offset 兼容与过滤白名单、RFC3339 时间表示的统一断言；[OpenAPI 门禁](../internal/adapter/http/openapi_contract_test.go)；[条目浏览](catalog-api.md) | `f8ab226411`（错误码表与信封 schema）／`e7926e946c`（条目浏览 offset 与排序白名单）／`403cc21b27`／`c77863e445`（早期子集） |
 | **G49.2** 版本与弃用：`/api/v1`；弃用头与公告；`docs/api-deprecations.md` 记录时间线与替代方案；破坏性变更走 v2 并保留过渡期。 | internal/adapter/http/; api/; tools/openapi/; web/src/api/; docs/ | 各能力同源 schema；不重复定义接口数据 | Plan-G49.2：OpenAPI/路由/错误码同步；全部接口合同；TS/Go/curl 示例；文档链接；简中管理员文档；须单独覆盖本行全部约束 | 部分完成：全部自有接口位于 `/api/v1`，未知版本路径（如 `/api/v2/items`）由 webapp_test 断言返回 404；缺：Deprecation/Sunset 弃用头与公告机制、`docs/api-deprecations.md` 时间线文件、v2 过渡策略，代码与文档均无实现；[实际证据](verification-report.md) | `403cc21b27`／`c77863e445`（/api/v1 基础） |
 | **G49.3** OpenAPI：3.1 规范由代码生成，CI 校验与实现一致；提供可浏览文档页与导出文件；示例请求/响应齐全（含错误示例）。 | internal/adapter/http/; api/; tools/openapi/; web/src/api/; docs/ | 各能力同源 schema；不重复定义接口数据 | Plan-G49.3：OpenAPI/路由/错误码同步；全部接口合同；TS/Go/curl 示例；文档链接；简中管理员文档；须单独覆盖本行全部约束 | 部分完成：OpenAPI 3.1 由路由代码生成，`tools/openapi` 导出 `api/openapi.json` 并以 `-check` 检测过期，`make lint` 含 openapi-check 且接入 CI；TestOpenAPIDocumentsEveryRegisteredRouteForEveryRollout 在 23 种 rollout 下核对路由与规格双向一致，TestServedOpenAPIMatchesCommittedSpecification、TestCommittedOpenAPIIsCurrent 覆盖导出一致；缺：`/api-docs` 只是指向 JSON 的链接页而非可浏览文档、规格中无任何请求/响应示例（含错误示例）、门禁通过的远端 CI 记录未回填；[生成器](../tools/openapi/main.go)；[工具链](toolchain.md) | `f8ab226411`（导出、过期门禁、全路由一致性）／`4ad5c2570c`（Windows 生成修正）／`403cc21b27` |
-| **G49.4** 调试台：开发者模式下提供 API 控制台（构造请求、查看响应、复制 cURL、查看 traceId），生产模式不可用。 | internal/adapter/http/; api/; tools/openapi/; web/src/api/; docs/ | 各能力同源 schema；不重复定义接口数据 | Plan-G49.4：OpenAPI/路由/错误码同步；全部接口合同；TS/Go/curl 示例；文档链接；简中管理员文档；须单独覆盖本行全部约束 | 未开始：仓库内无 API 控制台（构造请求、复制 cURL、查看 traceId）的代码或页面；开发者模式只有 `internal/platform/devmode` 纯函数状态机，尚未接到 CLI/HTTP，`/api/v1/system` 的 devMode 固定为 false；缺：控制台本身、开发者模式接线与生产不可用断言（依赖 G45 接线，C9 亦待其完成） | 无 |
+| **G49.4** 调试台：开发者模式下提供 API 控制台（构造请求、查看响应、复制 cURL、查看 traceId），生产模式不可用。 | internal/adapter/http/; api/; tools/openapi/; web/src/api/; docs/ | 各能力同源 schema；不重复定义接口数据 | Plan-G49.4：OpenAPI/路由/错误码同步；全部接口合同；TS/Go/curl 示例；文档链接；简中管理员文档；须单独覆盖本行全部约束 | 部分完成：开发者模式 API 控制台 `web/src/features/devconsole/`（从运行实例 OpenAPI 列路由并排除直投／播放路由、依 schema 构造请求、显示状态码／耗时／traceId、敏感头与 JSON 字段遮罩、cURL 只含占位符、写入两段确认、危险操作需勾选）；仅管理员且开发者模式开启时可达（路由守卫＋`GET /api/v1/dev`，生产态 404 由 `TestDevModeUnreachableInProduction` 断言）；见 [开发者模式](developer-mode.md)。缺真实浏览器与可开发实例走查（D23） | 467c986103 |
 | **G49.5** SDK 与示例：生成/维护至少 TypeScript 客户端类型与一个 Go 示例；提供 curl 示例集；所有示例有 CI 校验（关键示例可跑通）。 | internal/adapter/http/; api/; tools/openapi/; web/src/api/; docs/ | 各能力同源 schema；不重复定义接口数据 | Plan-G49.5：OpenAPI/路由/错误码同步；全部接口合同；TS/Go/curl 示例；文档链接；简中管理员文档；须单独覆盖本行全部约束 | 部分完成：前端以 openapi-typescript 从 `api/openapi.json` 生成 `web/src/api/schema.d.ts`，`web-types` 先跑 api:check 过期检查，Linux CI 执行 web-install/web-types/web-lint/web-test/web-build；缺：Go 示例、curl 示例集、示例可跑通的 CI 校验，前端门禁本机实跑待 D7；[前端 ADR](frontend-adr.md)；[生成型别](../web/src/api/schema.d.ts) | `b57dd61161`（TS 型别生成与门禁）／`709720a559`（重新生成型别） |
 | **G49.6** 覆盖面：补齐 G00-G48 引入的全部能力接口——系统信息、用户与权限、库与条目、NFO 读写与校验、图片资产、字幕/音轨、播放信息（直投）、流式、会话与进度、统计、任务、Webhook、客户端策略、库 ACL、开发者模式状态、诊断与日志查询。所有接口必须有契约测试。 | internal/adapter/http/; api/; tools/openapi/; web/src/api/; docs/ | 各能力同源 schema；不重复定义接口数据 | Plan-G49.6：OpenAPI/路由/错误码同步；全部接口合同；TS/Go/curl 示例；文档链接；简中管理员文档；须单独覆盖本行全部约束 | 部分完成：已提供系统信息、用户与会话、库与条目浏览/详情、NFO 校验与写回任务、TMDB 元数据、条目图片路由、字幕/音轨直投、播放信息与直投、播放会话与进度、观看统计、任务、Webhook、库 ACL 与条目内容规则（content-access）等 96 个路径，全部登记于 OpenAPI 并有路由一致性测试，各处理器有对应 *_test.go；缺：图片资产管理 API（owner-dev-tasks 任务二）、NFO 三种批次操作（任务三）、客户端策略（G47 规则引擎未接 HTTP，C7 待接）、开发者模式状态、诊断与日志查询接口；[OpenAPI](../api/openapi.json)；[存取控制](access-control.md) | `f8ab226411`（全路由契约）／`e7926e946c`／`1c37bea412`（播放会话与进度）／`2472db160b`（观看统计）／`88c4814321`（Webhook）／`cbdd2f4250`（内容规则）／`403cc21b27` |
 | **G49.7** 文档体系：`README.md`、`docs/quickstart.md`、`docs/architecture.md` + ADR 集、`docs/domain-model.md`、`docs/nfo-compatibility.md`、`docs/image-assets.md`、`docs/api-reference.md`、`docs/permission-matrix.md`、`docs/compat-matrix.md`、`docs/developer-mode.md`、`docs/logging.md`、`docs/troubleshooting.md`、`docs/backup-restore.md`、`docs/perf-report.md`、`docs/security-model.md`、`docs/contributing.md`。 | internal/adapter/http/; api/; tools/openapi/; web/src/api/; docs/ | 各能力同源 schema；不重复定义接口数据 | Plan-G49.7：OpenAPI/路由/错误码同步；全部接口合同；TS/Go/curl 示例；文档链接；简中管理员文档；须单独覆盖本行全部约束 | 部分完成：已有 README.md、quickstart.md、architecture.md、ADR（adr/0001-external-process-start.md、frontend-adr.md）、nfo-compatibility.md、compat-matrix.md、troubleshooting.md、perf-report.md、security-model.md；缺：domain-model.md、image-assets.md、api-reference.md、permission-matrix.md（access-control.md 仅部分替代）、developer-mode.md、logging.md、backup-restore.md、contributing.md，ADR 集仍只有一篇编号 ADR；[快速开始](quickstart.md)；[架构](architecture.md)；[故障排查](troubleshooting.md) | `a512674643`／`c77863e445`／`f21d156684`／`d7ac92e850`（compat-matrix）／`38e21a94dc`（ADR 0001）／`11efcb27c0`（troubleshooting）／`b57dd61161`（frontend ADR） |
