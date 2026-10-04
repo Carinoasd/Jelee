@@ -315,7 +315,7 @@ func newWithLifetime(cfg config.Config, logger *slog.Logger, lifetime *lifetime)
 			if err != nil {
 				return nil, err
 			}
-			accounts, err := app.NewAccounts(store, hasher, app.AccountOptions{SessionTTL: time.Duration(p.SessionHours) * time.Hour, MaxSessions: p.MaxSessions, LockAfter: p.LockAfter, LockFor: time.Duration(p.LockSeconds) * time.Second})
+			accounts, err := app.NewAccounts(store, hasher, app.AccountOptions{SessionTTL: time.Duration(p.SessionHours) * time.Hour, MaxSessions: p.MaxSessions, LockAfter: p.LockAfter, LockFor: time.Duration(p.LockSeconds) * time.Second, Box: twoFactorBox(c, l)})
 			if err != nil {
 				return nil, err
 			}

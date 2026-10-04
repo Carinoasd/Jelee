@@ -229,6 +229,18 @@ func leakRouteTable() map[string]leakRoute {
 		"PUT /api/v1/users/{id}/delivery-limits":         admin(selfParam),
 		"GET /api/v1/sessions":                           admin(noParams),
 		"PUT /api/v1/users/{id}/libraries":               admin(selfParam),
+		// Second factor and application passwords (G07.8): credentials of the
+		// caller's own account; no media identifiers in or out.
+		"POST /api/v1/auth/login/second-factor":                   exempt("second login step; takes a challenge and a code, returns only a session grant"),
+		"GET /api/v1/users/{id}/two-factor":                       noMedia(selfParam, "caller's own second factor state"),
+		"DELETE /api/v1/users/{id}/two-factor":                    admin(selfParam),
+		"POST /api/v1/users/me/two-factor/enroll":                 exempt("starts the caller's own enrollment; carries no media identifiers"),
+		"POST /api/v1/users/me/two-factor/confirm":                exempt("confirms the caller's own enrollment; carries no media identifiers"),
+		"POST /api/v1/users/me/two-factor/recovery-codes":         exempt("replaces the caller's own recovery codes; carries no media identifiers"),
+		"POST /api/v1/users/me/two-factor/disable":                exempt("disables the caller's own second factor; carries no media identifiers"),
+		"GET /api/v1/users/{id}/app-passwords":                    noMedia(selfParam, "caller's own application password labels"),
+		"POST /api/v1/users/me/app-passwords":                     exempt("creates the caller's own application password; carries no media identifiers"),
+		"DELETE /api/v1/users/{id}/app-passwords/{appPasswordId}": exempt("revokes one of the caller's application passwords; carries no media identifiers"),
 		// Content access administration (G48.1, G48.4).
 		"GET /api/v1/users/{id}/content-access":                   admin(selfParam),
 		"PUT /api/v1/users/{id}/content-access":                   admin(selfParam),
@@ -412,7 +424,14 @@ type leakImageRenderer interface {
 // image renderer.
 func leakHandlerWithRenderer(t *testing.T, store *postgres.Store, cfg config.Config, passwords *httpAccountPasswords, progress *app.Progress, renderer leakImageRenderer) http.Handler {
 	t.Helper()
-	accounts, err := app.NewAccounts(store, passwords, app.AccountOptions{SessionTTL: time.Hour, MaxSessions: 8, LockAfter: 5, LockFor: time.Minute})
+	return leakHandlerWithAccounts(t, store, cfg, passwords, progress, renderer, app.AccountOptions{SessionTTL: time.Hour, MaxSessions: 8, LockAfter: 5, LockFor: time.Minute})
+}
+
+// leakHandlerWithAccounts is leakHandlerWithRenderer with the caller's
+// account options, such as a second factor key and clock.
+func leakHandlerWithAccounts(t *testing.T, store *postgres.Store, cfg config.Config, passwords *httpAccountPasswords, progress *app.Progress, renderer leakImageRenderer, accountOptions app.AccountOptions) http.Handler {
+	t.Helper()
+	accounts, err := app.NewAccounts(store, passwords, accountOptions)
 	if err != nil {
 		t.Fatal(err)
 	}

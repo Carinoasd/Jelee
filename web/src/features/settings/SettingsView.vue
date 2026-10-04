@@ -17,7 +17,9 @@ import { themes, usePreferencesStore, type Theme } from "@/stores/preferences";
 import { useSettingsStore } from "@/stores/settings";
 import { useToastStore } from "@/stores/toasts";
 import { passwordMaxBytes, passwordMinBytes, utf8Length } from "./api";
+import AppPasswordsSettings from "./AppPasswordsSettings.vue";
 import LayoutSettings from "./LayoutSettings.vue";
+import TwoFactorSettings from "./TwoFactorSettings.vue";
 
 const { t } = useI18n();
 const router = useRouter();
@@ -217,6 +219,11 @@ async function changePassword() {
         <UiButton type="submit" :busy="settings.changingPassword">{{ t("settings.password.submit") }}</UiButton>
       </div>
     </form>
+
+    <template v-if="auth.user">
+      <TwoFactorSettings :user-id="auth.user.id" :account="auth.user.name" />
+      <AppPasswordsSettings :user-id="auth.user.id" />
+    </template>
 
     <LayoutSettings />
 

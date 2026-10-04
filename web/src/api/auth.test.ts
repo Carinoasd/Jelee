@@ -1,8 +1,17 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createFakeServer } from "@/test/fakeServer";
-import { createCookieCsrfAuth, createMemoryBearerAuth, csrfHeader } from "./auth";
+import { createCookieCsrfAuth, createMemoryBearerAuth, csrfHeader, type SessionGrant } from "./auth";
 import { call, callNoContent } from "./call";
 import { createApiClient } from "./client";
+import type { components } from "./schema";
+
+/** The fake server's accounts have no second factor, so login grants a session. */
+function sessionOf(data: SessionGrant | components["schemas"]["SecondFactorChallenge"]): SessionGrant {
+  if ("secondFactorRequired" in data) {
+    throw new Error("unexpected second factor challenge");
+  }
+  return data;
+}
 
 afterEach(() => {
   localStorage.clear();
@@ -21,7 +30,7 @@ describe("memory bearer auth", () => {
     const grant = await call(
       client.POST("/api/v1/auth/login", { body: { name: "admin", password: "correct horse battery" } }),
     );
-    auth.establish(grant.data);
+    auth.establish(sessionOf(grant.data));
     await call(client.GET("/api/v1/libraries", { params: { query: { limit: 50 } } }));
 
     const last = server.requests.at(-1)!;
@@ -78,7 +87,7 @@ describe("cookie + CSRF auth", () => {
     const grant = await call(
       client.POST("/api/v1/auth/login", { body: { name: "admin", password: "correct horse battery" } }),
     );
-    auth.establish(grant.data);
+    auth.establish(sessionOf(grant.data));
     await call(client.GET("/api/v1/libraries", { params: { query: { limit: 50 } } }));
 
     const read = server.requests.at(-1)!;

@@ -9,7 +9,9 @@ interface Catalog {
 // Each file is web/src/i18n/<locale>/<namespace>.json and holds a single
 // top-level key equal to its namespace; scripts/check-i18n.mjs enforces this.
 // The file name core.json is reserved (see docs/frontend-adr.md).
-const files = import.meta.glob<Catalog>("./*/*.json", { eager: true, import: "default" });
+// twoFactor.json is left out: it loads with the screens that use it (see
+// twoFactor.ts), which keeps it out of the entry bundle (G35.4).
+const files = import.meta.glob<Catalog>(["./*/*.json", "!./*/twoFactor.json"], { eager: true, import: "default" });
 
 export function buildMessages(source: Record<string, Catalog>): Record<Locale, Catalog> {
   const messages = Object.fromEntries(supportedLocales.map((locale) => [locale, {}])) as Record<Locale, Catalog>;

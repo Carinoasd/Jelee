@@ -5,11 +5,13 @@ import type { components } from "@/api/schema";
 
 export type SessionGrant = components["schemas"]["SessionGrant"];
 export type User = components["schemas"]["User"];
+export type SecondFactorChallenge = components["schemas"]["SecondFactorChallenge"];
 
 /** Sessions created through this endpoint are always "web" sessions server-side. */
 export const webDeviceName = "Jelee Web";
 
-export async function login(client: ApiClient, name: string, password: string): Promise<SessionGrant> {
+/** A session, or for an account with a second factor the challenge of the next step (G07.8). */
+export async function login(client: ApiClient, name: string, password: string): Promise<SessionGrant | SecondFactorChallenge> {
   const body = await call(client.POST("/api/v1/auth/login", { body: { name, password, deviceName: webDeviceName } }));
   return body.data;
 }

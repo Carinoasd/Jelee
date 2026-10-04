@@ -17,6 +17,7 @@ import UserNativeSection from "./UserNativeSection.vue";
 import UserRulesSection from "./UserRulesSection.vue";
 import UserSessionsSection from "./UserSessionsSection.vue";
 import UserSettingsSection from "./UserSettingsSection.vue";
+import UserTwoFactorSection from "./UserTwoFactorSection.vue";
 
 const props = defineProps<{ userId: string }>();
 const { t } = useI18n();
@@ -99,6 +100,7 @@ watch(
             </section>
             <UserDeliverySection />
             <UserSessionsSection />
+            <UserTwoFactorSection :key="user.id" :user="user" />
           </template>
           <UserLifecycleSection :user="user" />
         </div>

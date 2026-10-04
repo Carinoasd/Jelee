@@ -529,8 +529,16 @@ func TestWebhookMigrationRoundTrip(t *testing.T) {
 	if syncCount(t, f, `SELECT count(*) FROM audit_logs WHERE event IN ('webhook.created','webhook.deleted')`) != 2 {
 		t.Fatal("downgrade removed audit history")
 	}
-	// Without the outbox, producers keep working while events are off.
-	accountLogin(t, f.ctx, f.s, "job-admin")
+	// Without the outbox, producers keep working while events are off. A
+	// failed login produces user.login_failed; a successful one needs the
+	// second factor tables of a later schema.
+	c, err := f.s.Credentials(f.ctx, "job-admin")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = f.s.CommitLogin(f.ctx, accountLoginInput(c, false)); !errors.Is(err, domain.ErrUnauthenticated) {
+		t.Fatalf("failed login without the outbox: %v", err)
+	}
 	if version, dirty, err = Migrate(f.ctx, dsn, "up"); err != nil || dirty || version != SchemaVersion {
 		t.Fatalf("upgrade: %d %t %v", version, dirty, err)
 	}

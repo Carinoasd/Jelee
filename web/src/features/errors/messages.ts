@@ -24,6 +24,15 @@ export function errorMessageKey(error: ApiError): string {
       return "errors.clientRateLimited";
     case "invalid_password":
       return "settings.password.wrongCurrent";
+    // The twoFactor catalog loads with the screens that can meet these codes.
+    case "invalid_two_factor_code":
+      return "twoFactor.errors.wrongCode";
+    case "login_challenge_invalid":
+      return "twoFactor.errors.challengeInvalid";
+    case "two_factor_unavailable":
+      return "twoFactor.errors.unavailable";
+    case "app_password_required":
+      return "twoFactor.errors.appPasswordRequired";
     case "custom_css_rejected":
       return "appearance.serverRejected";
     case "auth_rate_limited":

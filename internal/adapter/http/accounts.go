@@ -130,6 +130,12 @@ func (s *Server) login(w http.ResponseWriter, r *http.Request) {
 		WriteError(w, r, err)
 		return
 	}
+	if grant.Challenge != nil {
+		// G07.8: the password verified but the account has a second factor.
+		// No session exists yet and no cookie is set.
+		writeJSON(w, 200, map[string]any{"data": secondFactorChallenge{Required: true, LoginChallenge: *grant.Challenge}})
+		return
+	}
 	writeJSON(w, 200, map[string]any{"data": issueWebGrant(w, grant)})
 }
 
@@ -235,6 +241,7 @@ func emptyAccountInput(w http.ResponseWriter, r *http.Request) error {
 func (s *Server) accountRoutes(r chi.Router) {
 	r.With(s.accountBudget).Post("/api/v1/auth/login", s.login)
 	r.With(s.accountBudget).Post("/api/v1/auth/login/native", s.nativeLogin)
+	r.With(s.accountBudget).Post("/api/v1/auth/login/second-factor", s.secondFactorLogin)
 	r.Group(func(r chi.Router) {
 		r.Use(s.accountBudget)
 		r.Use(s.authenticate)
@@ -442,6 +449,7 @@ func (s *Server) accountRoutes(r chi.Router) {
 		}))
 		s.contentAccessRoutes(r)
 		s.siteSettingsRoutes(r)
+		s.twoFactorRoutes(r)
 	})
 }
 

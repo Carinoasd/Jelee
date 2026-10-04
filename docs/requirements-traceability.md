@@ -23,9 +23,9 @@
 | 状态 | 子项数 | 占比 |
 | --- | --- | --- |
 | 已完成 | 22 | 6.5% |
-| 部分完成 | 298 | 88.7% |
+| 部分完成 | 299 | 89.0% |
 | 阻塞 | 4 | 1.2% |
-| 未开始 | 12 | 3.6% |
+| 未开始 | 11 | 3.3% |
 | 合计 | 336 | 100% |
 
 | G 群组 | 子项 | 已完成 | 部分完成 | 阻塞 | 未开始 | 已完成比例 | 有实现比例（已完成＋部分完成） |
@@ -37,7 +37,7 @@
 | G04 | 8 | 1 | 6 | 0 | 1 | 12% | 88% |
 | G05 | 4 | 2 | 2 | 0 | 0 | 50% | 100% |
 | G06 | 4 | 4 | 0 | 0 | 0 | 100% | 100% |
-| G07 | 8 | 1 | 6 | 0 | 1 | 12% | 88% |
+| G07 | 8 | 1 | 7 | 0 | 0 | 12% | 100% |
 | G08 | 7 | 1 | 6 | 0 | 0 | 14% | 100% |
 | G09 | 6 | 0 | 5 | 1 | 0 | 0% | 83% |
 | G10 | 11 | 0 | 11 | 0 | 0 | 0% | 100% |
@@ -82,7 +82,7 @@
 
 | 阶段 | 群组 | 子项 | 已完成 | 部分完成 | 阻塞 | 未开始 |
 | --- | --- | --- | --- | --- | --- | --- |
-| 基础、范围与账户 | G00–G08 | 54 | 13 | 39 | 0 | 2 |
+| 基础、范围与账户 | G00–G08 | 54 | 13 | 40 | 0 | 1 |
 | 媒体处理、直投与扫描 | G09–G23 | 86 | 6 | 75 | 2 | 3 |
 | 兼容、性能与 Go 质量 | G24–G30 | 36 | 0 | 36 | 0 | 0 |
 | 前端 | G31–G35 | 28 | 0 | 27 | 0 | 1 |
@@ -232,7 +232,7 @@
 | **G07.5** 授权：媒体库可见性、内容分级、管理操作最小权限、隐藏用户。 | internal/app/; internal/access/; internal/adapter/http/; internal/adapter/postgres/; web/src/features/users/ | users/sessions/devices/user_data/audit_logs | Plan-G07.5：角色×操作授权矩阵；密码/令牌/锁定/撤销/并发集成；直接 API 绕过 UI 仍被拒；须单独覆盖本行全部约束 | 部分完成：库 ACL、隐藏用户、事务内角色／会话重验已验证；迁移 069 加入条目显式允许／隐藏、分级上限、标签封鎖与统一过滤器，TestContentAccessMatrixPostgres、TestAccessLeakHiddenContentPostgres 等覆盖全路由；缺：管理操作只有 is_admin 一级、无细分最小权限，E12（管理员默认不受限、未分级策略、分级表）待决定，10 万条目开销 C22 与受限账号经相容层实测 D18 未跑；[访问控制](access-control.md) | `d906f9183e`／`0beb2f17dc`（ACL）／`294cf76ced`（述词单一来源）／`cbdd2f4250`（分级与条目规则，迁移 069） |
 | **G07.6** 审计：用户相关管理操作写审计日志（操作者、目标、前后值、IP、时间）。 | internal/app/; internal/access/; internal/adapter/http/; internal/adapter/postgres/; web/src/features/users/ | users/sessions/devices/user_data/audit_logs | Plan-G07.6：角色×操作授权矩阵；密码/令牌/锁定/撤销/并发集成；直接 API 绕过 UI 仍被拒；须单独覆盖本行全部约束 | 部分完成：账户、权限、播放历史清除等管理操作写审计（操作者、目标、安全前后值、IP、时间），迁移 060 起审计只增不改、分类与保留期清理，TestAuditIntegrationAppendOnly、TestAuditIntegrationRetentionAndPurge 等真 PG 通过；缺：`ListAudit` 仓储没有接到 HTTP 或 CLI，审计无法查询，本地 CLI 运维操作者身份未定，大量数据下 purge／查询效能未测（C8）；[测试](../internal/adapter/postgres/audit_integration_test.go) | `d906f9183e`／`0beb2f17dc`（账户审计）／`71e1b711b7`（只增不改与保留期） |
 | **G07.7** 数据权利：导出与删除用户数据（含播放记录），删除后不可恢复且级联处理。 | internal/app/; internal/access/; internal/adapter/http/; internal/adapter/postgres/; web/src/features/users/ | users/sessions/devices/user_data/audit_logs | Plan-G07.7：角色×操作授权矩阵；密码/令牌/锁定/撤销/并发集成；直接 API 绕过 UI 仍被拒；须单独覆盖本行全部约束 | 部分完成：软删除用户时同一事务删除其播放会话、样本与进度且恢复不会带回，`DELETE /api/v1/users/me/playback-history` 可自行清除并写审计（TestPlaybackProgressDeleteUserAndClearHistoryPostgres）；缺：没有个人数据导出（统计导出仅管理员），账户本身只有可恢复的软删除，没有“不可恢复”的永久删除与完整级联（会话、设备、审计中的个人数据处置）；[播放进度](playback-progress.md)／[测试](../internal/adapter/postgres/progress_test.go) | `1c37bea412`（播放数据删除与清除历史） |
-| **G07.8** 可选：TOTP 双因素（不得破坏第三方客户端登录路径，需提供无 2FA 设备令牌流程说明）。 | internal/app/; internal/access/; internal/adapter/http/; internal/adapter/postgres/; web/src/features/users/ | users/sessions/devices/user_data/audit_logs | Plan-G07.8：角色×操作授权矩阵；密码/令牌/锁定/撤销/并发集成；直接 API 绕过 UI 仍被拒；须单独覆盖本行全部约束 | 未开始：没有 TOTP 双因素的 schema、API 或 UI，也没有无 2FA 设备令牌流程说明（原文为可选项） | 无 |
+| **G07.8** 可选：TOTP 双因素（不得破坏第三方客户端登录路径，需提供无 2FA 设备令牌流程说明）。 | internal/app/; internal/access/; internal/adapter/http/; internal/adapter/postgres/; web/src/features/users/ | users/sessions/devices/user_data/audit_logs | Plan-G07.8：角色×操作授权矩阵；密码/令牌/锁定/撤销/并发集成；直接 API 绕过 UI 仍被拒；须单独覆盖本行全部约束 | 部分完成：迁移 `000077_two_factor`（`user_totp` 以主密钥 AES-GCM 封存并绑定用户与用途、`user_recovery_codes` 摘要、`login_challenges`、`app_passwords`、`sessions.app_password_id`；仍有已启用双因素时拒绝降级）；RFC 6238／4226 以标准库实现，RFC 附录测试向量全过；±1 时间步、记录最后时间步防重放（并发同码只一个成功）；网页登录第二步 `POST /auth/login/second-factor`（挑战 5 分钟、单次、最多 5 次错码，`auth_version` 变更即失效），错码与错误密码共用失败计数与锁定、另有独立限速；10 组一次性复原码只显示一次；自助启用／确认／重产／停用（密码＋验证码或复原码）只接受 web 会话，管理员重设与 `jelee-cli account reset-two-factor` 救援；**无 2FA 设备令牌流程**＝应用程序密码（网页完成 2FA 后建立、只显示一次、撤销连带撤销其会话），启用双因素后原生与兼容层以账户密码登录一律 `403 app_password_required`（兼容层附 `X-Jelee-Error` 与说明），应用程序密码可用；新错误码四语、审计事件、OpenAPI、元数据备份不导出（见文件）；前端登录第二步、设置页双因素与应用程序密码、管理员重设、纯 TS QR；测试：domain／app／HTTP 单元、真 PG（存储、HTTP 端到端、迁移 up/down/up 与拒绝降级）、access leak、Vitest。缺：真实验证器 App 扫码与真实浏览器验证未做、CI 未跑；[双因素验证](two-factor.md) | claude/totp 分支 |
 
 ## G08 Jelee 自有 API
 

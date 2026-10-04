@@ -21,6 +21,7 @@ import (
 type accountCLIStore interface {
 	BootstrapAdmin(context.Context, domain.UserInput) (domain.User, error)
 	SetLocalPassword(context.Context, string, string) (domain.User, error)
+	ResetLocalTwoFactor(context.Context, string) (domain.User, bool, error)
 }
 
 type accountCLIHasher interface {
@@ -53,11 +54,15 @@ func runAccountCLIWith(ctx context.Context, argv []string, stdin io.Reader, stdo
 	usage := func() int {
 		fmt.Fprintln(stderr, "usage: jelee-cli account bootstrap --name NAME [--display-name TEXT] [--locale zh-CN] --password-stdin")
 		fmt.Fprintln(stderr, "       jelee-cli account set-password --name NAME --password-stdin")
+		_, _ = fmt.Fprintln(stderr, "       jelee-cli account reset-two-factor --name NAME")
 		return 2
 	}
 	if ctx == nil {
 		fmt.Fprintln(stderr, "account_invalid_context")
 		return 1
+	}
+	if len(argv) > 0 && argv[0] == "reset-two-factor" {
+		return runResetTwoFactor(ctx, argv[1:], stdout, stderr, dependencies, usage)
 	}
 	if len(argv) == 0 || argv[0] != "bootstrap" && argv[0] != "set-password" {
 		return usage()
@@ -132,6 +137,47 @@ func runAccountCLIWith(ctx context.Context, argv []string, stdin io.Reader, stdo
 	stopOutputCancellation := accountCloseOnCancellation(ctx, stdout)
 	defer stopOutputCancellation()
 	if err = json.NewEncoder(stdout).Encode(user); err != nil {
+		return fail(err, "account_output_failed")
+	}
+	return 0
+}
+
+// runResetTwoFactor removes an account's second factor and recovery codes
+// (G07.8): the operator recovery for an account, such as the only
+// administrator, that lost its authenticator and recovery codes and so
+// cannot reach the web reset. It needs no password; database access is the
+// authority, as for set-password.
+func runResetTwoFactor(ctx context.Context, argv []string, stdout, stderr io.Writer, dependencies accountCLIDependencies, usage func() int) int {
+	flags := flag.NewFlagSet("account reset-two-factor", flag.ContinueOnError)
+	flags.SetOutput(io.Discard)
+	name := flags.String("name", "", "account name")
+	if err := flags.Parse(argv); err != nil || flags.NArg() != 0 || !app.ValidUserName(*name) {
+		return usage()
+	}
+	fail := func(err error, fallback string) int {
+		if ctx.Err() != nil {
+			err = ctx.Err()
+		}
+		code, exit := accountCLIFailure(err, fallback)
+		_, _ = fmt.Fprintln(stderr, code)
+		return exit
+	}
+	cfg, err := dependencies.load()
+	if err != nil {
+		return fail(err, "account_configuration_invalid")
+	}
+	store, closeStore, err := dependencies.open(ctx, cfg)
+	if err != nil {
+		return fail(err, "account_database_unavailable")
+	}
+	defer closeStore()
+	user, reset, err := store.ResetLocalTwoFactor(ctx, *name)
+	if err != nil {
+		return fail(err, "account_operation_failed")
+	}
+	stopOutputCancellation := accountCloseOnCancellation(ctx, stdout)
+	defer stopOutputCancellation()
+	if err = json.NewEncoder(stdout).Encode(map[string]any{"user": user, "twoFactorReset": reset}); err != nil {
 		return fail(err, "account_output_failed")
 	}
 	return 0

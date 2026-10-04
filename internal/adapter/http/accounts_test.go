@@ -660,7 +660,7 @@ func TestAccountHTTPOpenAPIMatchesRoutesAndHasValidRequiredArrays(t *testing.T) 
 			for method, raw := range methods.(map[string]any) {
 				documentedRoutes[method+" "+path] = true
 				op := raw.(map[string]any)
-				if path == "/api/v1/auth/login" || path == "/api/v1/auth/login/native" {
+				if path == "/api/v1/auth/login" || path == "/api/v1/auth/login/native" || path == "/api/v1/auth/login/second-factor" {
 					if _, exists := op["security"]; exists {
 						t.Fatal("public login documented as authenticated")
 					}
@@ -677,7 +677,7 @@ func TestAccountHTTPOpenAPIMatchesRoutesAndHasValidRequiredArrays(t *testing.T) 
 		if !reflect.DeepEqual(routerRoutes, documentedRoutes) {
 			t.Fatalf("documented account routes differ: router=%v spec=%v", routerRoutes, documentedRoutes)
 		}
-		if enabled && len(routerRoutes) != 33 || !enabled && len(routerRoutes) != 0 {
+		if enabled && len(routerRoutes) != 43 || !enabled && len(routerRoutes) != 0 {
 			t.Fatalf("unexpected rollout route count %d", len(routerRoutes))
 		}
 		data, err := json.Marshal(spec)

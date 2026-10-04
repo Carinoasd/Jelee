@@ -92,6 +92,7 @@ G05仍部分完成：舊C#的直播與Channel控制器已刪除並提供[明確�
 
 - **決策 (c)**：相容登入直接呼叫伺服器的原生登入 `LoginNative`，簽發 native 工作階段，需要帳號已由管理員開啟 `allowNative`。限速（同一張 IP／名稱限速表）、密碼驗證與虛擬驗證、失敗計數與鎖定、同時工作階段上限、審計（`login.failed`、`login.native_denied`、`session.created`）、帳號名額（密碼並發 ×4、不排隊）全部共用原生登入那一套，相容層沒有自己的帳號邏輯；換入口不會多出嘗試次數。
 - **回應**：帳號不存在、密碼錯、停用、軟刪除、鎖定一律 401 空主體（無法分辨帳號是否存在）；密碼正確但未開 `allowNative` 回 403 空主體——上游對被拒帳號（停用）同樣在密碼驗證後回 403，且此判斷只在密碼正確後發生，不會向未持有密碼者洩漏設定；缺少 `Client`／`DeviceId`、欄位超長或含控制字元、主體缺 `Username`／`Pw` 或非 JSON 回 400；限速回 429 空主體與 `Retry-After`；工作階段數已滿回 429 空主體；帳號名額滿回 503 空主體與 `Retry-After: 1`；資料庫不可用回 503。
+- **雙因素（G07.8）**：上游客戶端無法輸入第二因素。啟用雙因素的帳號以**帳號密碼**登入時，在密碼驗證通過後回 403、標頭 `X-Jelee-Error: app_password_required`、純文字主體說明改用應用程式密碼（稽核 `login.app_password_required`，不計失敗）；在密碼欄改填網頁上建立的**應用程式密碼**即可照常登入，簽發的 native 工作階段隨該應用程式密碼撤銷而撤銷。流程見 [two-factor.md](two-factor.md#第三方客戶端無-2fa-裝置權杖流程應用程式密碼)。
 - 帶 `Origin`（層邊界）、`Sec-Fetch-Site` 或 `Sec-Fetch-Mode` 的登入一律 403，在讀密碼前拒絕，與原生登入的「拒絕瀏覽器」規則一致。token 只在主體 `AccessToken` 回傳，不設 Cookie。
 - `AuthenticationResult`：`User`（同下方 UserDto）、`SessionInfo`（精簡）、`AccessToken`、`ServerId`。`SessionInfo` 只含新工作階段的 `Id`、`UserId`、`UserName`、`Client`、`DeviceName`、`DeviceId`、`ApplicationVersion`、`LastActivityDate`（建立時間，UTC 七位小數）、`ServerId`，以及上游不可為 null 的成員（`PlayableMediaTypes`／`SupportedCommands` 空陣列、`LastPlaybackCheckIn` 為最小時間、`IsActive`=true、`SupportsMediaControl`／`SupportsRemoteControl`／`HasCustomDeviceName`=false）。**不回傳 `RemoteEndPoint`**（用戶端位址）及播放狀態、佇列、能力等成員。
 

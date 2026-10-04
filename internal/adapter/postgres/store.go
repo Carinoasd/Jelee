@@ -27,7 +27,7 @@ type Store struct {
 
 // SchemaVersion is the only clean schema accepted by this binary. Adjacent
 // releases cannot serve against different cache and job lifecycle contracts.
-const SchemaVersion = 76
+const SchemaVersion = 77
 
 func Open(ctx context.Context, dsn string, maxConnections int32) (*Store, error) {
 	return open(ctx, dsn, maxConnections, nil)

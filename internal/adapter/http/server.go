@@ -50,18 +50,21 @@ type Server struct {
 	accounts        *app.Accounts
 	loginLimiter    *LoginLimiter
 	passwordLimiter *LoginLimiter
-	accountSlots    chan struct{}
-	jobs            *app.Jobs
-	jobSlots        chan struct{}
-	metadata        *app.Metadata
-	metrics         http.Handler
-	metricsSlots    chan struct{}
-	images          *app.Images
-	imageSlots      chan struct{}
-	web             *webApp
-	compat          http.Handler
-	webhooks        *app.Webhooks
-	clients         *ClientControl
+	// secondFactorLimiter bounds authenticator and recovery code attempts,
+	// separately from the password budgets (G07.8).
+	secondFactorLimiter *LoginLimiter
+	accountSlots        chan struct{}
+	jobs                *app.Jobs
+	jobSlots            chan struct{}
+	metadata            *app.Metadata
+	metrics             http.Handler
+	metricsSlots        chan struct{}
+	images              *app.Images
+	imageSlots          chan struct{}
+	web                 *webApp
+	compat              http.Handler
+	webhooks            *app.Webhooks
+	clients             *ClientControl
 	// setup is the G18 wizard and request gate; nil when not wired.
 	setup *setupGate
 	// router answers whether an API route claims a path (setup gate).
@@ -185,6 +188,10 @@ func newServer(cfg config.Config, backend Backend, catalog *app.Catalog, resolve
 			return nil, err
 		}
 		s.passwordLimiter, err = NewLoginLimiter(LoginLimiterOptions{Window: time.Duration(cfg.Accounts.LoginWindowSeconds) * time.Second, IPLimit: cfg.Accounts.LoginIPLimit, UserLimit: cfg.Accounts.LoginUserLimit, MaxEntries: cfg.Accounts.LoginMaxEntries})
+		if err != nil {
+			return nil, err
+		}
+		s.secondFactorLimiter, err = NewLoginLimiter(LoginLimiterOptions{Window: time.Duration(cfg.Accounts.LoginWindowSeconds) * time.Second, IPLimit: cfg.Accounts.LoginIPLimit, UserLimit: cfg.Accounts.LoginUserLimit, MaxEntries: cfg.Accounts.LoginMaxEntries})
 		if err != nil {
 			return nil, err
 		}
@@ -765,6 +772,14 @@ func WriteError(w http.ResponseWriter, r *http.Request, err error) {
 		status, code, message = 409, "last_admin", "An active administrator must remain."
 	case errors.Is(err, domain.ErrNativeLoginDisabled):
 		status, code, message = 403, "native_login_disabled", "Native device login is not enabled for this account."
+	case errors.Is(err, domain.ErrSecondFactorRequired):
+		status, code, message = 403, "app_password_required", "Two-factor authentication is enabled for this account. Sign in on this device with an application password created in the web interface."
+	case errors.Is(err, domain.ErrSecondFactorMismatch):
+		status, code, message = 400, "invalid_two_factor_code", "The verification code or recovery code is incorrect or was already used."
+	case errors.Is(err, domain.ErrChallengeInvalid):
+		status, code, message = 401, "login_challenge_invalid", "The sign-in step expired or was already used. Sign in again with your password."
+	case errors.Is(err, domain.ErrSecondFactorUnavailable):
+		status, code, message = 409, "two_factor_unavailable", "Two-factor authentication is unavailable: the server has no master key configured."
 	case errors.Is(err, domain.ErrSessionLimit):
 		status, code, message = 429, "session_limit", "Active session limit reached."
 	case errors.Is(err, domain.ErrPasswordMismatch):

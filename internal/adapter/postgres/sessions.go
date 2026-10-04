@@ -66,23 +66,88 @@ func validNativeClient(c domain.NativeClient) bool {
 }
 
 // newSession stores the client labels as NULL when absent. Web sessions carry
-// none of them.
-func newSession(ctx context.Context, tx pgx.Tx, userID, kind, device string, client domain.NativeClient, ttl time.Duration) (domain.Session, string, error) {
+// none of them. appPassword names the application password that issued a
+// native session, so revoking that password revokes the session.
+func newSession(ctx context.Context, tx pgx.Tx, userID, kind, device string, client domain.NativeClient, ttl time.Duration, appPassword string) (domain.Session, string, error) {
 	secret := make([]byte, 32)
 	if _, err := rand.Read(secret); err != nil {
 		return domain.Session{}, "", domain.ErrDatabase
 	}
 	token := base64.RawURLEncoding.EncodeToString(secret)
 	hash := sha256.Sum256([]byte(token))
-	session, err := scanSession(tx.QueryRow(ctx, `INSERT INTO sessions(user_id,token_hash,client_kind,device_name,client_name,device_id,client_version,expires_at) VALUES($1::uuid,$2,$3,$4,NULLIF($5,''),NULLIF($6,''),NULLIF($7,''),now()+$8*interval '1 second') RETURNING `+sessionColumns, userID, hash[:], kind, device, client.Name, client.DeviceID, client.Version, int64(ttl/time.Second)))
+	session, err := scanSession(tx.QueryRow(ctx, `INSERT INTO sessions(user_id,token_hash,client_kind,device_name,client_name,device_id,client_version,expires_at,app_password_id) VALUES($1::uuid,$2,$3,$4,NULLIF($5,''),NULLIF($6,''),NULLIF($7,''),now()+$8*interval '1 second',NULLIF($9,'')::uuid) RETURNING `+sessionColumns, userID, hash[:], kind, device, client.Name, client.DeviceID, client.Version, int64(ttl/time.Second), appPassword))
 	return session, token, err
+}
+
+// recordLoginFailure counts a failed login factor against the shared
+// failure counter and lock (G07.3): wrong passwords and wrong second factor
+// codes lock the account together. event names the audit record.
+func (s *Store) recordLoginFailure(ctx context.Context, tx pgx.Tx, userID string, actor domain.Actor, now time.Time, lockAfter int, lockFor time.Duration, event string) error {
+	var failures int
+	var locked *time.Time
+	err := tx.QueryRow(ctx, `UPDATE users SET failed_login=CASE WHEN locked_until IS NOT NULL AND locked_until<=clock_timestamp() THEN 1 ELSE LEAST(failed_login,2147483646)+1 END, locked_until=CASE WHEN (CASE WHEN locked_until IS NOT NULL AND locked_until<=clock_timestamp() THEN 1 ELSE LEAST(failed_login,2147483646)+1 END)>=$2 THEN clock_timestamp()+$3*interval '1 second' ELSE NULL END WHERE id=$1::uuid RETURNING failed_login,locked_until`, userID, lockAfter, int64(lockFor/time.Second)).Scan(&failures, &locked)
+	if err != nil {
+		return storageError(err)
+	}
+	if err = auditAccount(ctx, tx, actor, event, userID, nil, map[string]any{"failedLogin": failures, "lockedUntil": locked}); err != nil {
+		return err
+	}
+	user := domain.WebhookSubject{Kind: domain.WebhookSubjectUser, ID: userID}
+	if err = appendWebhook(ctx, tx, s.webhooksOn(), domain.WebhookUserLoginFailed, now, user, map[string]any{"failedLogins": failures}); err != nil {
+		return err
+	}
+	// A locked account refuses logins before counting them, so a lock
+	// is reported exactly once, by the failure that set it.
+	if locked != nil {
+		return appendWebhook(ctx, tx, s.webhooksOn(), domain.WebhookUserLocked, now, user, map[string]any{"failedLogins": failures, "lockedUntil": locked.UTC().Format(time.RFC3339)})
+	}
+	return nil
+}
+
+// issueLoginSession is the common end of a successful login: the session
+// limit, the failure counter reset, the session, its audit and webhook.
+func (s *Store) issueLoginSession(ctx context.Context, tx pgx.Tx, userID, kind, device string, client domain.NativeClient, appPassword string, actor domain.Actor, now time.Time, maxSessions int, ttl time.Duration) (domain.SessionGrant, error) {
+	var count int
+	if err := tx.QueryRow(ctx, `SELECT count(*) FROM sessions WHERE user_id=$1::uuid AND revoked_at IS NULL AND expires_at>now()`, userID).Scan(&count); err != nil {
+		return domain.SessionGrant{}, storageError(err)
+	}
+	if count >= maxSessions {
+		return domain.SessionGrant{}, domain.ErrSessionLimit
+	}
+	if _, err := tx.Exec(ctx, `UPDATE users SET failed_login=0,locked_until=NULL WHERE id=$1::uuid`, userID); err != nil {
+		return domain.SessionGrant{}, storageError(err)
+	}
+	session, token, err := newSession(ctx, tx, userID, kind, device, client, ttl, appPassword)
+	if err != nil {
+		return domain.SessionGrant{}, err
+	}
+	u, err := scanUser(tx.QueryRow(ctx, `SELECT `+userColumns+` FROM users WHERE id=$1::uuid`, userID))
+	if err != nil {
+		return domain.SessionGrant{}, err
+	}
+	if err = auditAccount(ctx, tx, actor, "session.created", session.ID, nil, session); err != nil {
+		return domain.SessionGrant{}, err
+	}
+	if appPassword != "" {
+		if _, err = tx.Exec(ctx, `UPDATE app_passwords SET last_used_at=clock_timestamp() WHERE id=$1::uuid`, appPassword); err != nil {
+			return domain.SessionGrant{}, storageError(err)
+		}
+		if err = auditAccount(ctx, tx, actor, "login.app_password_used", userID, nil, map[string]string{"appPasswordId": appPassword, "sessionId": session.ID}); err != nil {
+			return domain.SessionGrant{}, err
+		}
+	}
+	if err = appendWebhook(ctx, tx, s.webhooksOn(), domain.WebhookUserLogin, now, domain.WebhookSubject{Kind: domain.WebhookSubjectUser, ID: userID},
+		map[string]any{"clientKind": kind}); err != nil {
+		return domain.SessionGrant{}, err
+	}
+	return domain.SessionGrant{User: u, Session: session, Token: token}, nil
 }
 
 func (s *Store) CommitLogin(ctx context.Context, in domain.LoginInput) (domain.SessionGrant, error) {
 	if !domain.ValidID(in.Credentials.UserID) {
 		return domain.SessionGrant{}, domain.ErrUnauthenticated
 	}
-	if in.Native && !validNativeClient(in.Client) || !in.Native && in.Client != (domain.NativeClient{}) {
+	if in.Native && !validNativeClient(in.Client) || !in.Native && (in.Client != (domain.NativeClient{}) || in.AppPasswordDigest != nil) || in.AppPasswordDigest != nil && len(in.AppPasswordDigest) != sha256.Size {
 		return domain.SessionGrant{}, domain.ErrInvalid
 	}
 	if !validText(in.DeviceName, 128, true) || in.MaxSessions < 1 || in.MaxSessions > 100 || !validTTL(in.SessionTTL) || in.LockAfter < 1 || in.LockAfter > 100 || in.LockFor < time.Second || in.LockFor > 24*time.Hour {
@@ -108,26 +173,21 @@ func (s *Store) CommitLogin(ctx context.Context, in domain.LoginInput) (domain.S
 		return domain.SessionGrant{}, domain.ErrUnauthenticated
 	}
 	actor := domain.Actor{UserID: current.UserID, IP: in.IP}
-	if !in.PasswordOK || current.PasswordHash == "" {
-		var failures int
-		var locked *time.Time
-		err = tx.QueryRow(ctx, `UPDATE users SET failed_login=CASE WHEN locked_until IS NOT NULL AND locked_until<=clock_timestamp() THEN 1 ELSE LEAST(failed_login,2147483646)+1 END, locked_until=CASE WHEN (CASE WHEN locked_until IS NOT NULL AND locked_until<=clock_timestamp() THEN 1 ELSE LEAST(failed_login,2147483646)+1 END)>=$2 THEN clock_timestamp()+$3*interval '1 second' ELSE NULL END WHERE id=$1::uuid RETURNING failed_login,locked_until`, current.UserID, in.LockAfter, int64(in.LockFor/time.Second)).Scan(&failures, &locked)
-		if err != nil {
+	passwordOK := in.PasswordOK && current.PasswordHash != ""
+	// The second factor state is read under the user row lock, so enabling
+	// or resetting it takes effect for logins whose password was verified
+	// before the change. A login with neither factor needs none of it.
+	var secondFactor bool
+	var appPassword string
+	if passwordOK || in.AppPasswordDigest != nil {
+		if err = tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM user_totp WHERE user_id=$1::uuid AND enabled_at IS NOT NULL),
+ COALESCE((SELECT id::text FROM app_passwords WHERE user_id=$1::uuid AND digest=$2 AND $2 IS NOT NULL),'')`, current.UserID, in.AppPasswordDigest).Scan(&secondFactor, &appPassword); err != nil {
 			return domain.SessionGrant{}, storageError(err)
 		}
-		if err = auditAccount(ctx, tx, actor, "login.failed", current.UserID, nil, map[string]any{"failedLogin": failures, "lockedUntil": locked}); err != nil {
+	}
+	if !passwordOK && appPassword == "" {
+		if err = s.recordLoginFailure(ctx, tx, current.UserID, actor, now, in.LockAfter, in.LockFor, "login.failed"); err != nil {
 			return domain.SessionGrant{}, err
-		}
-		user := domain.WebhookSubject{Kind: domain.WebhookSubjectUser, ID: current.UserID}
-		if err = appendWebhook(ctx, tx, s.webhooksOn(), domain.WebhookUserLoginFailed, now, user, map[string]any{"failedLogins": failures}); err != nil {
-			return domain.SessionGrant{}, err
-		}
-		// A locked account refuses logins before counting them, so a lock
-		// is reported exactly once, by the failure that set it.
-		if locked != nil {
-			if err = appendWebhook(ctx, tx, s.webhooksOn(), domain.WebhookUserLocked, now, user, map[string]any{"failedLogins": failures, "lockedUntil": locked.UTC().Format(time.RFC3339)}); err != nil {
-				return domain.SessionGrant{}, err
-			}
 		}
 		if err = tx.Commit(ctx); err != nil {
 			return domain.SessionGrant{}, storageError(err)
@@ -151,37 +211,42 @@ func (s *Store) CommitLogin(ctx context.Context, in domain.LoginInput) (domain.S
 			}
 			return domain.SessionGrant{}, domain.ErrNativeLoginDisabled
 		}
+		// A native client cannot ask for a code: an account with a second
+		// factor signs in natively only with an application password. The
+		// counters stay as they are, like a refused native login.
+		if secondFactor && appPassword == "" {
+			if err = auditAccount(ctx, tx, actor, "login.app_password_required", current.UserID, nil, map[string]string{"client": in.Client.Name, "deviceId": in.Client.DeviceID, "version": in.Client.Version, "deviceName": in.DeviceName}); err != nil {
+				return domain.SessionGrant{}, err
+			}
+			if err = tx.Commit(ctx); err != nil {
+				return domain.SessionGrant{}, storageError(err)
+			}
+			return domain.SessionGrant{}, domain.ErrSecondFactorRequired
+		}
 		kind = string(access.ClientNative)
+	} else if secondFactor {
+		// The password alone resets nothing: the failure counter is reset only
+		// by a completed second step, so passwords and codes share one lock.
+		challenge, err := issueLoginChallenge(ctx, tx, current, in.DeviceName, now)
+		if err != nil {
+			return domain.SessionGrant{}, err
+		}
+		if err = auditAccount(ctx, tx, actor, "login.second_factor_challenged", current.UserID, nil, map[string]any{"expiresAt": challenge.ExpiresAt}); err != nil {
+			return domain.SessionGrant{}, err
+		}
+		if err = tx.Commit(ctx); err != nil {
+			return domain.SessionGrant{}, storageError(err)
+		}
+		return domain.SessionGrant{Challenge: &challenge}, nil
 	}
-	var count int
-	if err = tx.QueryRow(ctx, `SELECT count(*) FROM sessions WHERE user_id=$1::uuid AND revoked_at IS NULL AND expires_at>now()`, current.UserID).Scan(&count); err != nil {
-		return domain.SessionGrant{}, storageError(err)
-	}
-	if count >= in.MaxSessions {
-		return domain.SessionGrant{}, domain.ErrSessionLimit
-	}
-	if _, err = tx.Exec(ctx, `UPDATE users SET failed_login=0,locked_until=NULL WHERE id=$1::uuid`, current.UserID); err != nil {
-		return domain.SessionGrant{}, storageError(err)
-	}
-	session, token, err := newSession(ctx, tx, current.UserID, kind, in.DeviceName, in.Client, in.SessionTTL)
+	grant, err := s.issueLoginSession(ctx, tx, current.UserID, kind, in.DeviceName, in.Client, appPassword, actor, now, in.MaxSessions, in.SessionTTL)
 	if err != nil {
-		return domain.SessionGrant{}, err
-	}
-	u, err := scanUser(tx.QueryRow(ctx, `SELECT `+userColumns+` FROM users WHERE id=$1::uuid`, current.UserID))
-	if err != nil {
-		return domain.SessionGrant{}, err
-	}
-	if err = auditAccount(ctx, tx, actor, "session.created", session.ID, nil, session); err != nil {
-		return domain.SessionGrant{}, err
-	}
-	if err = appendWebhook(ctx, tx, s.webhooksOn(), domain.WebhookUserLogin, now, domain.WebhookSubject{Kind: domain.WebhookSubjectUser, ID: current.UserID},
-		map[string]any{"clientKind": kind}); err != nil {
 		return domain.SessionGrant{}, err
 	}
 	if err = tx.Commit(ctx); err != nil {
 		return domain.SessionGrant{}, storageError(err)
 	}
-	return domain.SessionGrant{User: u, Session: session, Token: token}, nil
+	return grant, nil
 }
 
 func revokeAll(ctx context.Context, tx pgx.Tx, userID string) error {
@@ -347,10 +412,13 @@ func (s *Store) RotateSession(ctx context.Context, actor domain.Actor, device st
 	// The replacement keeps the reported client identity; only the device
 	// label may change on rotation.
 	client := domain.NativeClient{Name: old.Client, Device: device, DeviceID: old.DeviceID, Version: old.Version}
-	if _, err = tx.Exec(ctx, `UPDATE sessions SET revoked_at=now() WHERE id=$1::uuid`, actor.SessionID); err != nil {
+	// The replacement stays tied to the application password that issued
+	// the original, so revoking the password still reaches it.
+	var appPassword string
+	if err = tx.QueryRow(ctx, `UPDATE sessions SET revoked_at=now() WHERE id=$1::uuid RETURNING COALESCE(app_password_id::text,'')`, actor.SessionID).Scan(&appPassword); err != nil {
 		return domain.SessionGrant{}, storageError(err)
 	}
-	session, token, err := newSession(ctx, tx, actor.UserID, old.ClientKind, device, client, ttl)
+	session, token, err := newSession(ctx, tx, actor.UserID, old.ClientKind, device, client, ttl, appPassword)
 	if err != nil {
 		return domain.SessionGrant{}, err
 	}

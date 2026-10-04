@@ -206,6 +206,9 @@ func (rt *router) account(h http.HandlerFunc) http.HandlerFunc {
 //   - correct password but native devices not allowed: 403 (upstream answers
 //     a refused account with 403 too); the decision is made only after the
 //     password matched, so it reveals nothing to a caller without it;
+//   - the account password of an account with a second factor: 403 with
+//     X-Jelee-Error: app_password_required and a plain text explanation;
+//     an application password signs in instead (G07.8);
 //   - missing or invalid client identity or body: 400;
 //   - shared rate limit exhausted or session limit reached: 429.
 func (rt *router) authenticateByName(w http.ResponseWriter, r *http.Request) {
@@ -263,6 +266,23 @@ func (rt *router) authenticateByName(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, authenticationResult{User: user, SessionInfo: session, AccessToken: grant.Token, ServerID: rt.opts.ServerID})
+}
+
+// appPasswordRequiredText is shown by clients that display the body of a
+// failed login. Upstream clients cannot ask for a second factor, so an
+// account with one signs in here with an application password (G07.8).
+const appPasswordRequiredText = "Two-factor authentication is enabled for this account. Sign in with an application password created in the web interface (Settings, Application passwords) instead of the account password."
+
+// writeAppPasswordRequired refuses the account password of an account with
+// a second factor: 403 like a refused account, with the stable code in
+// X-Jelee-Error and an explanation in the body.
+func writeAppPasswordRequired(w http.ResponseWriter) {
+	h := w.Header()
+	h.Set("Content-Type", "text/plain; charset=utf-8")
+	h.Set("Content-Length", strconv.Itoa(len(appPasswordRequiredText)))
+	h.Set("X-Jelee-Error", "app_password_required")
+	w.WriteHeader(http.StatusForbidden)
+	_, _ = io.WriteString(w, appPasswordRequiredText)
 }
 
 // publicUsers always answers an empty list. Upstream lists visible accounts
@@ -436,6 +456,8 @@ func decodeJSON(r *http.Request, v any) bool {
 // Nothing about the account or the cause reaches the body.
 func writeAccountError(w http.ResponseWriter, err error) {
 	switch {
+	case errors.Is(err, domain.ErrSecondFactorRequired):
+		writeAppPasswordRequired(w)
 	case errors.Is(err, domain.ErrUnauthenticated):
 		writeError(w, http.StatusUnauthorized)
 	case errors.Is(err, domain.ErrNativeLoginDisabled), errors.Is(err, domain.ErrForbidden):

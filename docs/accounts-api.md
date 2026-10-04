@@ -15,8 +15,9 @@
 
 | 方法与路径 | 权限 | 请求与结果 |
 | --- | --- | --- |
-| POST `/auth/login` | 公开 | `name,password,deviceName?`；返回 user、session、token、csrf；只能签发 web 会话，并设置 HttpOnly 会话 Cookie |
+| POST `/auth/login` | 公开 | `name,password,deviceName?`；返回 user、session、token、csrf；只能签发 web 会话，并设置 HttpOnly 会话 Cookie。已启用双因素（G07.8）的账户在密码正确后改为返回 `{secondFactorRequired:true,challenge,expiresAt}`，不签发会话、不设 Cookie |
 | POST `/auth/login/native` | 公开（仅非浏览器） | `name,password,client,deviceId,device?,version?`；返回 user、session、token；仅当管理员为该用户开启 `allowNative` 时签发可直投的 native 会话，否则在密码验证通过后返回 `403 native_login_disabled`。不设 Cookie、不返回 csrf；带 `Origin`、`Sec-Fetch-Site` 或 `Sec-Fetch-Mode` 的请求一律 `403 forbidden`。详见[原生设备登录](#原生设备登录g074g242) |
+| POST `/auth/login/second-factor` | 公开 | `challenge` 与 `code`（验证器 6 位数）或 `recoveryCode` 二择一；完成已启用双因素账户的网页登录第二步，成功同 `/auth/login`（web 会话、Cookie、csrf）；错码 `400 invalid_two_factor_code`，挑战失效 `401 login_challenge_invalid`。详见[双因素验证](two-factor.md) |
 | POST `/auth/logout` | 自己 | `{}`；撤销当前会话；请求携带的会话 Cookie 被清除 |
 | POST `/auth/rotate` | 自己 | `deviceName?`；原子撤销旧令牌并返回新令牌，保留服务端会话类型；web 会话同时替换 Cookie 并返回新 csrf |
 | GET `/auth/csrf` | 自己 | 返回当前凭据对应的 `csrf`，供页面重载后取回 |
@@ -34,6 +35,10 @@
 | PUT `/users/{id}/native` | 管理员 | `{"allowNative":true}` 或 `false`；开启或撤回原生设备登录；撤回时同时撤销该用户全部有效 native 会话；写审计 `user.native_access_changed`；值未变时不写审计 |
 | GET `/users/{id}/delivery-limits` | 管理员 | 该用户的直投覆写值；省略的字段表示跟随全局设置 |
 | PUT `/users/{id}/delivery-limits` | 管理员 | `{"maxStreams":0..128,"maxKbps":0..10000000}`，两项皆可省略；省略即恢复跟随全局，`0` 表示该用户不受此项限制；只影响之后开始的串流；写审计 `user.delivery_limits_changed`（前后值含 null）；值未变时不写审计。详见[直投限制](direct-delivery.md#撤销即断流并发播放与带宽上限g074g454) |
+| GET `/users/{id}/two-factor` | 自己或管理员 | 双因素状态 `available,enabled,enabledAt?,pending,recoveryCodesRemaining` |
+| POST `/users/me/two-factor/enroll`、`/confirm`、`/recovery-codes`、`/disable` | 自己（仅 web 会话） | 启用（返回一次密钥与 otpauth URI）、以验证码确认（返回 10 组复原码，撤销其他会话）、重产复原码、以密码＋验证码或复原码停用；无主密钥 `409 two_factor_unavailable`。详见[双因素验证](two-factor.md) |
+| DELETE `/users/{id}/two-factor` | 管理员（仅 web 会话） | 重设该用户的双因素与复原码；写审计 `user.two_factor_reset` |
+| GET `/users/{id}/app-passwords`、POST `/users/me/app-passwords`、DELETE `/users/{id}/app-passwords/{appPasswordId}` | 自己或管理员；创建与本人撤销仅 web 会话 | 应用程序密码：供无法输入第二因素的原生与兼容层客户端登录；创建时只返回一次，最多 20 组；撤销同时撤销其签发的会话 |
 | GET `/sessions` | 管理员 | 全部用户的有效会话；`cursor?,limit=1..100`，按会话 ID 游标分页；data.sessions 与 data.pagination |
 | GET `/users/{id}/sessions` | 自己或管理员 | 有效会话列表；返回会话 ID、类型、设备名、client/deviceId/version、最后使用时间与地址，不返回令牌 |
 | DELETE `/users/{id}/sessions` | 自己或管理员 | 撤销目标全部会话 |
@@ -85,4 +90,4 @@ schema 63（`000063_native_session_devices`）为 users 增加 `allow_native`，
 
 schema 64（`000064_user_delivery_limits`）为 users 增加可空的 `max_streams`（0–128）与 `max_kbps`（0–10000000）。NULL 表示跟随全局设置。down 删除这两列，所有用户回到全局限制；再次 up 后覆写值均为 NULL，需要时重新设置。
 
-本阶段未实现头像、内容分级、可疑登录通知、永久删除与个人数据导出、管理 UI、MFA、分布式限速及完整安全验收。web 会话依旧禁止播放；第三方原生客户端协议适配在后续阶段完成。
+本阶段未实现头像、内容分级、可疑登录通知、永久删除与个人数据导出、管理 UI、分布式限速及完整安全验收。选配的 TOTP 双因素与应用程序密码（G07.8，schema 77）见[双因素验证](two-factor.md)：启用双因素的账户以账户密码走 `/auth/login/native` 时在密码验证通过后返回 `403 app_password_required`，改用应用程序密码登录。web 会话依旧禁止播放；第三方原生客户端协议适配在后续阶段完成。

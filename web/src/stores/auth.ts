@@ -6,6 +6,8 @@ import {
   login as loginRequest,
   logout as logoutRequest,
   readCsrf,
+  type SecondFactorChallenge,
+  type SessionGrant,
   type User,
 } from "@/features/auth/api";
 
@@ -41,8 +43,14 @@ export const useAuthStore = defineStore("auth", () => {
     return restoring;
   }
 
-  async function login(name: string, password: string): Promise<User> {
-    const grant = await loginRequest(client, name, password);
+  /** Signs in, or returns the challenge when the account has a second factor (G07.8). */
+  async function login(name: string, password: string): Promise<User | SecondFactorChallenge> {
+    const result = await loginRequest(client, name, password);
+    return "secondFactorRequired" in result ? result : establish(result);
+  }
+
+  /** Takes over a session granted by the password login or its second step. */
+  function establish(grant: SessionGrant): User {
     auth.establish(grant);
     restoring = Promise.resolve();
     user.value = grant.user;
@@ -68,5 +76,5 @@ export const useAuthStore = defineStore("auth", () => {
     sessionId.value = null;
   }
 
-  return { user, sessionId, isAuthenticated, isAdmin, restore, login, logout, expire };
+  return { user, sessionId, isAuthenticated, isAdmin, restore, login, establish, logout, expire };
 });

@@ -21,6 +21,7 @@ type accountStoreStub struct {
 	user                       domain.User
 	err                        error
 	bootstraps, resets, closed int
+	twoFactorResets            int
 	input                      domain.UserInput
 	name, hash                 string
 	ctx                        context.Context
@@ -36,6 +37,12 @@ func (s *accountStoreStub) SetLocalPassword(ctx context.Context, name, hash stri
 	s.resets++
 	s.ctx, s.name, s.hash = ctx, name, hash
 	return s.user, s.err
+}
+
+func (s *accountStoreStub) ResetLocalTwoFactor(ctx context.Context, name string) (domain.User, bool, error) {
+	s.twoFactorResets++
+	s.ctx, s.name = ctx, name
+	return s.user, s.err == nil, s.err
 }
 
 type accountHashFunc func(context.Context, string) (string, error)
@@ -120,6 +127,35 @@ func TestAccountCLICommandRoutingAndPrivateSummary(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestAccountCLIResetTwoFactor(t *testing.T) {
+	f := newAccountCLIFixture()
+	var out, diagnostics bytes.Buffer
+	if exit := runAccountCLIWith(context.Background(), []string{"reset-two-factor", "--name", "admin"}, strings.NewReader("unused"), &out, &diagnostics, f.dependencies); exit != 0 {
+		t.Fatalf("exit=%d diagnostics=%s", exit, &diagnostics)
+	}
+	var got struct {
+		User  domain.User `json:"user"`
+		Reset bool        `json:"twoFactorReset"`
+	}
+	if err := json.Unmarshal(out.Bytes(), &got); err != nil || got.User != f.store.user || !got.Reset || f.store.twoFactorResets != 1 || f.store.name != "admin" || f.hashed != 0 || f.store.closed != 1 {
+		t.Fatalf("reset: %s %v", out.String(), err)
+	}
+	if strings.Contains(out.String()+diagnostics.String(), f.config.DatabaseURL) {
+		t.Fatal("connection information emitted")
+	}
+	for _, args := range [][]string{{"reset-two-factor"}, {"reset-two-factor", "--name", " admin"}, {"reset-two-factor", "--name", "admin", "extra"}, {"reset-two-factor", "--name", "admin", "--password-stdin"}} {
+		diagnostics.Reset()
+		if exit := runAccountCLIWith(context.Background(), args, strings.NewReader(""), &out, &diagnostics, f.dependencies); exit != 2 || !strings.Contains(diagnostics.String(), "reset-two-factor") {
+			t.Fatalf("%v: exit=%d", args, exit)
+		}
+	}
+	f.store.err = domain.ErrNotFound
+	diagnostics.Reset()
+	if exit := runAccountCLIWith(context.Background(), []string{"reset-two-factor", "--name", "nobody"}, strings.NewReader(""), &out, &diagnostics, f.dependencies); exit != 1 || strings.TrimSpace(diagnostics.String()) != "account_not_found" {
+		t.Fatalf("missing account: %s", diagnostics.String())
 	}
 }
 

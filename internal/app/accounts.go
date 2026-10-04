@@ -66,19 +66,29 @@ type AccountOptions struct {
 	MaxSessions int
 	LockAfter   int
 	LockFor     time.Duration
+	// Box seals authenticator secrets (G07.8). Without it the second factor
+	// cannot be enrolled and authenticator codes cannot be checked; enrolled
+	// accounts still need their second step, which recovery codes complete.
+	Box SecretBox
+	// Now is the clock of authenticator codes; nil is time.Now.
+	Now func() time.Time
 }
 
 type Accounts struct {
 	repository AccountRepository
 	passwords  PasswordHasher
 	options    AccountOptions
+	// twoFactor is the repository's second factor storage, when it has one.
+	twoFactor TwoFactorRepository
 }
 
 func NewAccounts(repository AccountRepository, passwords PasswordHasher, options AccountOptions) (*Accounts, error) {
 	if repository == nil || passwords == nil || options.SessionTTL < time.Hour || options.SessionTTL > 30*24*time.Hour || options.MaxSessions < 1 || options.MaxSessions > 100 || options.LockAfter < 3 || options.LockAfter > 100 || options.LockFor < time.Minute || options.LockFor > 24*time.Hour {
 		return nil, domain.ErrInvalid
 	}
-	return &Accounts{repository: repository, passwords: passwords, options: options}, nil
+	a := &Accounts{repository: repository, passwords: passwords, options: options}
+	a.twoFactor, _ = repository.(TwoFactorRepository)
+	return a, nil
 }
 
 func validText(value string, max int, allowEmpty bool) bool {
@@ -186,6 +196,12 @@ func (a *Accounts) login(ctx context.Context, name, password, ip string, input d
 		return domain.SessionGrant{}, err
 	}
 	input.Credentials, input.PasswordOK, input.IP = credentials, matched, ip
+	if input.Native {
+		// Application passwords authenticate native devices of accounts with
+		// a second factor (G07.8). The digest is checked in the transaction;
+		// the KDF above ran either way, so the cost does not reveal a match.
+		input.AppPasswordDigest = domain.AppPasswordDigest(credentials.UserID, password)
+	}
 	input.MaxSessions, input.SessionTTL, input.LockAfter, input.LockFor = a.options.MaxSessions, a.options.SessionTTL, a.options.LockAfter, a.options.LockFor
 	grant, err := a.repository.CommitLogin(ctx, input)
 	if err != nil {
@@ -276,25 +292,9 @@ func (a *Accounts) ChangePassword(ctx context.Context, actor domain.Actor, oldPa
 	if !validActor(actor) || !utf8.ValidString(oldPassword) || len(oldPassword) > 1024 {
 		return domain.ErrInvalid
 	}
-	credentials, err := a.repository.CredentialsFor(ctx, actor, actor.UserID)
+	credentials, err := a.verifyOwnPassword(ctx, actor, oldPassword)
 	if err != nil {
-		return fmt.Errorf("read own credentials: %w", err)
-	}
-	if credentials.PasswordHash == "" {
-		if err = a.passwords.DummyVerify(ctx, oldPassword); err != nil {
-			return err
-		}
-		return domain.ErrPasswordMismatch
-	}
-	matched, err := a.passwords.Verify(ctx, oldPassword, credentials.PasswordHash)
-	if err != nil {
-		if ctx.Err() != nil {
-			return ctx.Err()
-		}
-		return domain.ErrPasswordMismatch
-	}
-	if !matched {
-		return domain.ErrPasswordMismatch
+		return err
 	}
 	hash, err := a.passwords.Hash(ctx, newPassword)
 	if err != nil {

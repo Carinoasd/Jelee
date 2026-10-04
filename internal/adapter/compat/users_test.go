@@ -4,11 +4,13 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -277,6 +279,13 @@ func TestAuthenticateByNameErrors(t *testing.T) {
 	} {
 		h.accounts.loginErr = err
 		assertEmpty(t, err.Error(), h.login(header, "application/json", body), status)
+	}
+	// The account password of an account with a second factor: a refusal
+	// that names the application password route (G07.8).
+	h.accounts.loginErr = fmt.Errorf("complete login: %w", domain.ErrSecondFactorRequired)
+	if w := h.login(header, "application/json", body); w.Code != http.StatusForbidden || w.Header().Get("X-Jelee-Error") != "app_password_required" ||
+		!strings.HasPrefix(w.Header().Get("Content-Type"), "text/plain") || !strings.Contains(w.Body.String(), "application password") || w.Header().Get("Content-Length") != strconv.Itoa(w.Body.Len()) {
+		t.Fatalf("second factor refusal: %d %v %q", w.Code, w.Header(), w.Body.String())
 	}
 	h.accounts.loginErr = errors.New("boom 10.0.0.5 /var/lib/jelee")
 	assertGeneric(t, "internal", h.login(header, "application/json", body), http.StatusInternalServerError)

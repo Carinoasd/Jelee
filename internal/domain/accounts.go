@@ -106,6 +106,10 @@ type SessionGrant struct {
 	User    User    `json:"user"`
 	Session Session `json:"session"`
 	Token   string  `json:"token"`
+	// Challenge replaces the session when a web login needs its second
+	// step (G07.8): no session was issued and User, Session and Token are
+	// empty.
+	Challenge *LoginChallenge `json:"-"`
 }
 
 // LoginInput carries the result of an external password KDF. The transaction
@@ -116,13 +120,19 @@ type LoginInput struct {
 	DeviceName  string
 	// Native requests a native session; Client is stored with it. The store
 	// issues one only when the user is allowed native devices.
-	Native      bool
-	Client      NativeClient
-	IP          string
-	MaxSessions int
-	SessionTTL  time.Duration
-	LockAfter   int
-	LockFor     time.Duration
+	Native bool
+	Client NativeClient
+	// AppPasswordDigest is the application password digest of the
+	// presented password (native logins only; nil when it cannot be one).
+	// A matching application password authenticates like the account
+	// password and is the only way an account with a second factor signs
+	// in natively.
+	AppPasswordDigest []byte
+	IP                string
+	MaxSessions       int
+	SessionTTL        time.Duration
+	LockAfter         int
+	LockFor           time.Duration
 }
 
 type LibraryGrant struct {
