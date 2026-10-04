@@ -51,7 +51,8 @@ func (w *streamWriter) zeroCopy(reader io.Reader) (written int64, handled bool, 
 	if err != nil {
 		return 0, true, err
 	}
-	if err := w.controller.SetWriteDeadline(time.Now().Add(w.timeout)); err != nil {
+	watch := newProgressWatch(w.timeout, start)
+	if err := w.controller.SetWriteDeadline(watch.deadline(time.Now())); err != nil {
 		if errors.Is(err, http.ErrNotSupported) {
 			return 0, false, nil
 		}
@@ -71,23 +72,57 @@ func (w *streamWriter) zeroCopy(reader io.Reader) (written int64, handled bool, 
 	if err := w.controller.Flush(); err != nil {
 		return 0, true, err
 	}
-	stop := w.watchProgress(ctx, source.file, start)
+	stop := w.watchProgress(ctx, source.file, watch)
 	written, err = to.ReadFrom(&io.LimitedReader{R: source.file, N: limited.N})
 	stop()
 	limited.N -= written
 	return written, true, err
 }
 
+// progressWatch decides the write deadline of one zero-copy transfer from the
+// file offset, which Linux sendfile advances as the kernel accepts bytes.
+type progressWatch struct {
+	timeout  time.Duration
+	interval time.Duration
+	last     int64
+}
+
+func newProgressWatch(timeout time.Duration, offset int64) *progressWatch {
+	return &progressWatch{timeout: timeout, interval: max(timeout/4, minProgressInterval), last: offset}
+}
+
+// deadline is the write deadline for progress observed at now. The offset is
+// only polled every interval, so progress is seen up to one interval after
+// the kernel accepted the bytes; the deadline keeps that interval as headroom.
+// Without it, progress made shortly before the previous deadline was noticed
+// only after the deadline had cut the transfer, and a client was cut after
+// three quarters of the write timeout without progress instead of the full
+// timeout the buffered path allows.
+func (p *progressWatch) deadline(now time.Time) time.Time {
+	return now.Add(p.timeout + p.interval)
+}
+
+// poll records the offset seen at now and reports the extended deadline when
+// the offset advanced since the previous poll.
+func (p *progressWatch) poll(now time.Time, offset int64) (time.Time, bool) {
+	if offset == p.last {
+		return time.Time{}, false
+	}
+	p.last = offset
+	return p.deadline(now), true
+}
+
 // watchProgress extends the write deadline whenever the file offset has
 // advanced since the previous poll, so one long sendfile call is cut only
-// after the client has made no progress for about the write timeout. The
-// returned function stops the watchdog and waits for it.
-func (w *streamWriter) watchProgress(ctx context.Context, file *os.File, last int64) func() {
+// after the client has made no progress for at least the write timeout (and
+// at most one poll interval more). The returned function stops the watchdog
+// and waits for it.
+func (w *streamWriter) watchProgress(ctx context.Context, file *os.File, watch *progressWatch) func() {
 	quit := make(chan struct{})
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
-		ticker := time.NewTicker(max(w.timeout/4, minProgressInterval))
+		ticker := time.NewTicker(watch.interval)
 		defer ticker.Stop()
 		for {
 			select {
@@ -102,11 +137,11 @@ func (w *streamWriter) watchProgress(ctx context.Context, file *os.File, last in
 				// The file was closed because the stream ended.
 				return
 			}
-			if offset == last {
+			deadline, advanced := watch.poll(time.Now(), offset)
+			if !advanced {
 				continue
 			}
-			last = offset
-			_ = w.controller.SetWriteDeadline(time.Now().Add(w.timeout))
+			_ = w.controller.SetWriteDeadline(deadline)
 			// If the stream ended around the refresh, expire the deadline
 			// again so the refresh cannot undo the cancellation.
 			if ctx.Err() != nil {

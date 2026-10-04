@@ -112,7 +112,8 @@ func validAccept(v string) bool {
 }
 
 // streamBody enforces the byte bound while reading: the first byte past the
-// limit fails the read and nothing more is pulled from the connection.
+// limit fails the read and nothing more is pulled from the connection. A body
+// only ends with io.EOF while the request context is still live.
 type streamBody struct {
 	ctx   context.Context
 	body  io.ReadCloser
@@ -142,6 +143,12 @@ func (b *streamBody) Read(p []byte) (int, error) {
 	if err != nil {
 		if err != io.EOF {
 			err = safeError(b.ctx, err)
+		} else if ctxErr := b.ctx.Err(); ctxErr != nil {
+			// Ending the context closes the connection, and a peer that stops
+			// on that signal can still terminate the body cleanly before the
+			// close lands. An EOF observed after the deadline or cancellation
+			// therefore does not prove the source sent a complete body.
+			err = ctxErr
 		}
 		b.err = err
 	}

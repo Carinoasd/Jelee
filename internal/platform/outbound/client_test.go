@@ -241,3 +241,58 @@ func TestResolverCancellationAndSafeErrors(t *testing.T) {
 		t.Fatalf("unsafe resolver error=%v", err)
 	}
 }
+
+// cancelAtEOFBody plays a peer that answers the client's cancellation by
+// terminating the body cleanly: the context ends during the read that
+// returns io.EOF, before the caller can observe it.
+type cancelAtEOFBody struct {
+	data   []byte
+	cancel context.CancelFunc
+}
+
+func (b *cancelAtEOFBody) Read(p []byte) (int, error) {
+	if len(b.data) > 0 {
+		n := copy(p, b.data)
+		b.data = b.data[n:]
+		return n, nil
+	}
+	if b.cancel != nil {
+		b.cancel()
+	}
+	return 0, io.EOF
+}
+
+func (b *cancelAtEOFBody) Close() error { return nil }
+
+func TestStreamBodyEOFAfterCancellationIsNotCompletion(t *testing.T) {
+	// The cancellation lands while the final read is in flight.
+	cancelled, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	// The attempt deadline has already passed when the peer ends the body.
+	expired, stop := context.WithDeadline(context.Background(), time.Now())
+	defer stop()
+	for _, tc := range []struct {
+		name string
+		ctx  context.Context
+		peer *cancelAtEOFBody
+		want error
+	}{
+		{"cancelled during read", cancelled, &cancelAtEOFBody{data: []byte("partial"), cancel: cancel}, context.Canceled},
+		{"deadline passed", expired, &cancelAtEOFBody{data: []byte("partial")}, context.DeadlineExceeded},
+	} {
+		body := &streamBody{ctx: tc.ctx, body: tc.peer, limit: 64, done: func() {}}
+		data, err := io.ReadAll(body)
+		if !errors.Is(err, tc.want) || string(data) != "partial" {
+			t.Fatalf("%s: data=%q error=%v want %v", tc.name, data, err, tc.want)
+		}
+		// The failure sticks: a later read cannot turn into a clean end.
+		if _, err := body.Read(make([]byte, 8)); !errors.Is(err, tc.want) {
+			t.Fatalf("%s: second read error=%v", tc.name, err)
+		}
+	}
+	// A body that ends while the context is live still reports io.EOF.
+	body := &streamBody{ctx: context.Background(), body: &cancelAtEOFBody{data: []byte("complete")}, limit: 64, done: func() {}}
+	if data, err := io.ReadAll(body); err != nil || string(data) != "complete" {
+		t.Fatalf("data=%q error=%v", data, err)
+	}
+}
