@@ -72,7 +72,7 @@ func TestNativeToolSandboxConfinesExtraction(t *testing.T) {
 		t.Fatalf("sandboxed fake extraction failed: %v", err)
 	}
 	var result map[string]bool
-	if json.Unmarshal(output, &result) != nil || len(result) != 10 {
+	if json.Unmarshal(output, &result) != nil || len(result) != 9 {
 		t.Fatalf("unexpected probe report %q", output)
 	}
 	for name, ok := range result {

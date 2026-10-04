@@ -109,7 +109,7 @@ E1（[ADR 0001](adr/0001-external-process-start.md)）照舊：以 `os.StartProc
 
 - 安裝器：`scripts/test_matroska_tools.py`（8 項，含 mksquashfs 生成的 gzip／zstd 映像、跳出連結、截斷映像、zip 成員篡改、多餘檔案、壞快取刪除、`toolchain.py --tool` 委派）。實際下載三種 Linux 歸檔與 Windows 兩個 zip 並以清單校驗（Windows 版本檢查需在 Windows 執行）。
 - 夾具：`tools/gen-fixtures` 新增 `subtitles-fonts.mkv`（SRT＋ASS 軌、軌名、章節、字型附件佔位檔）與 `styled.ass`、`JeleeSyntheticSans.ttf`，全部自建、不提交。
-- 沙箱：`TestRealMatroskaToolsInSandboxWithExplicitHostRuntime`（需 `JELEE_MATROSKA_HOST_RUNTIME=true` 與 `JELEE_MATROSKA_FIXTURE`，以宿主 glibc 加專案固定檔案組成明示的開發政策）在 Landlock＋seccomp 下實跑三個工具，原檔 SHA 不變；`TestNativeToolSandboxConfinesExtraction` 以假 mkvextract 驗證只可寫私有目錄、讀不到其他檔、不能開 socket、FSIZE 上限（需專屬 UID 的執行緒預算，共用 UID 時跳過）。
+- 沙箱：`TestRealMatroskaToolsInSandboxWithExplicitHostRuntime`（需 `JELEE_MATROSKA_HOST_RUNTIME=true` 與 `JELEE_MATROSKA_FIXTURE`，以宿主 glibc 加專案固定檔案組成明示的開發政策）在 Landlock＋seccomp 下實跑三個工具，原檔 SHA 不變；`TestNativeToolSandboxConfinesExtraction` 以假 mkvextract 驗證只可寫私有目錄、讀不到其他檔、不能開 socket、FSIZE 上限（需專屬 UID 的執行緒預算，共用 UID 時跳過；2026-10-04 以靜態測試二進位在 `--network none`、UID 54321 的拋棄式容器中通過，ffprobe 既有的 `TestNativeSandboxDeniesAmbientAccessAndPreservesFDInput` 同場通過，確認共用沙箱重構未改變其行為）。
 - 容器：[證據](evidence/matroska-runtime-image.txt)。生產映像（UID 65532、唯讀根）中三個工具 `verified`；以 `tools/matroska-smoke`（建置標籤 `jelee_matroska_tests`，只放拋棄式測試映像）從唯讀掛載的夾具擷取 SRT、ASS 與字型，字型雜湊等於原附件，原檔 SHA 不變；換掉一個函式庫後 mkvmerge／mkvextract 拒絕註冊，以 root 執行全部拒絕；`doctor --checks matroska_tools` 三項 ok；映像內無 ffmpeg、mkvpropedit、shell。
 - 反向驗證：拿掉 Landlock 對輸入檔的規則後，真工具測試的 mkvmerge 與 mkvextract 失敗（讀不到媒體）；拿掉 `matroskaService` 的授權查詢後「未授權不觸達擷取」失敗；`ServeExtracted` 不覆寫 Content-Type 後路由測試失敗。
 
