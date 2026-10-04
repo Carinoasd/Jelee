@@ -14,6 +14,8 @@ export interface SessionView {
   readonly isAdmin: boolean;
   /** A share guest: a restricted session that only browses its share. */
   readonly isGuest?: boolean;
+  /** Developer mode is on; only read for routes with meta.devMode. */
+  readonly devMode?: boolean;
 }
 
 /**
@@ -35,6 +37,10 @@ export function navigationGuard(to: GuardTarget, session: SessionView): true | R
   }
   if (to.meta.admin === true && !session.isAdmin) {
     return { name: "forbidden" };
+  }
+  if (to.meta.devMode === true && session.devMode !== true) {
+    // Outside developer mode the page does not exist (G45.8).
+    return { name: "not-found", params: { pathMatch: to.fullPath.split(/[?#]/)[0]?.split("/").filter((segment) => segment !== "") ?? [] } };
   }
   return true;
 }

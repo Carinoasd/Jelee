@@ -12,6 +12,11 @@ declare module "vue-router" {
      * link); the guard sends guests from every other route to their page.
      */
     guest?: boolean;
+    /**
+     * Route exists only while developer mode is on (G45, G49.4); otherwise
+     * it resolves to the 404 view. The server re-checks every request.
+     */
+    devMode?: boolean;
   }
 }
 
@@ -159,6 +164,14 @@ export const routes: RouteRecordRaw[] = [
         path: "appearance",
         name: "admin-appearance",
         component: () => import("@/features/admin/AppearanceAdminView.vue"),
+      },
+      {
+        // Developer mode API console (G49.4): its own lazy chunk and lazy
+        // message namespace, never part of the initial bundle.
+        path: "dev-console",
+        name: "admin-dev-console",
+        component: () => import("@/features/devconsole/DevConsoleView.vue"),
+        meta: { devMode: true },
       },
     ],
   },

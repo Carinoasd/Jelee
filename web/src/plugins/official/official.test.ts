@@ -76,6 +76,16 @@ function enable(...ids: string[]) {
 const tokenCss = () => sheets.map((sheet) => [...sheet.cssRules].map((rule) => rule.cssText).join("\n")).join("\n");
 
 describe("item facts example", () => {
+  // The item page loads its version panels lazily; they ask for the
+  // versions (the fake server answers 404) at a moment that depends on the
+  // load. Waiting for that request keeps it out of the assertions below.
+  async function versionPanelsSettled() {
+    await vi.waitFor(() => {
+      expect(server.requests.some((request) => new URL(request.url).pathname.endsWith("/versions"))).toBe(true);
+    });
+    await flushPromises();
+  }
+
   it("adds a facts tab that reads the file summary through the restricted API on request", async () => {
     const { wrapper } = await mountView("/items/" + movieId, { fetch: server.fetch, user: server.user, plugins: [providePlugins(officialPlugins())] });
     await vi.waitFor(() => {
@@ -84,6 +94,7 @@ describe("item facts example", () => {
     await vi.waitFor(() => {
       expect(wrapper.text()).toContain("5 of 6 present");
     });
+    await versionPanelsSettled();
     // External links are opt-in; nothing leaves the site by default.
     expect(wrapper.findAll('[role="tabpanel"] a')).toHaveLength(0);
     const before = server.requests.length;
@@ -117,16 +128,20 @@ describe("item facts example", () => {
     await vi.waitFor(() => {
       expect(wrapper.find('[role="group"] button').text()).toBe("Copy item ID");
     });
+    await versionPanelsSettled();
     await wrapper.find('[role="group"] button').trigger("click");
     await flushPromises();
     expect(writeText).toHaveBeenCalledWith(movieId);
     const toasts = useToastStore(pinia);
-    expect(toasts.toasts.at(-1)).toMatchObject({ key: "plugins.notice", tone: "success", params: { message: "Item ID copied." } });
+    // The lazily loaded version panels may add their own toasts (the fake
+    // server has no version routes) at any moment; look at the plugin's only.
+    const pluginToasts = () => toasts.toasts.filter((toast) => toast.key.startsWith("plugins."));
+    expect(pluginToasts().at(-1)).toMatchObject({ key: "plugins.notice", tone: "success", params: { message: "Item ID copied." } });
 
     Object.defineProperty(navigator, "clipboard", { configurable: true, value: undefined });
     await wrapper.find('[role="group"] button').trigger("click");
     await flushPromises();
-    expect(toasts.toasts.at(-1)).toMatchObject({ key: "plugins.actionFailed", tone: "danger" });
+    expect(pluginToasts().at(-1)).toMatchObject({ key: "plugins.actionFailed", tone: "danger" });
     Reflect.deleteProperty(navigator, "clipboard");
   });
 

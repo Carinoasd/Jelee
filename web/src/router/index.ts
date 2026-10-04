@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory, type RouterHistory } from "vue-router";
 import { useApi } from "@/api";
+import { readDevMode } from "@/features/devmode/api";
 import { needsSetup } from "@/features/setup/gate";
 import { useAuthStore } from "@/stores/auth";
 import { navigationGuard } from "./guards";
@@ -22,7 +23,9 @@ export function createAppRouter(history: RouterHistory = createWebHistory(import
     // The first navigation waits for a cookie session to be resumed, so a
     // reload keeps the user on the page they were viewing.
     await auth.restore();
-    return navigationGuard(to, { isAuthenticated: auth.isAuthenticated, isAdmin: auth.isAdmin, isGuest: auth.isGuest });
+    // Developer-mode-only routes ask the server whether the mode is on.
+    const devMode = to.meta.devMode === true && auth.isAdmin ? (await readDevMode(useApi().client)).active : false;
+    return navigationGuard(to, { isAuthenticated: auth.isAuthenticated, isAdmin: auth.isAdmin, isGuest: auth.isGuest, devMode });
   });
   return router;
 }

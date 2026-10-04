@@ -9,7 +9,7 @@
 - HTTP：`internal/adapter/http/devmode.go`（路由、pprof）、`devbody.go`（請求／回應體日誌）、`devmode_openapi.go`；邊界中介層 `server.go` 的 `boundary`。
 - 執行期：`internal/platform/runtime/devmode.go`（控制器、日誌層級、SQL 日誌、背景重新整理）。
 - CLI：`jelee-cli devmode enable|disable|status`（`cmd/jelee-cli/devmode.go`）。
-- 前端：`web/src/features/devmode/`（頂部常駐橫幅，四語）。
+- 前端：`web/src/features/devmode/`（頂部常駐橫幅，四語）；`web/src/features/devconsole/`（API 控制台，G49.4，見下文）。
 
 ## 開啟流程（G45.1、G45.2）
 
@@ -133,6 +133,42 @@ HTTP **永遠不能**開啟開發者模式：沒有任何網址能直接開啟�
 
 錯誤碼（四語訊息）：`devmode_inactive`（409）、`devmode_toggle_unavailable`（409）、`confirmation_required`（400）。
 
+## API 控制台（G49.4）
+
+開發者模式啟用期間，管理員可在網頁前端「管理 → API 控制台」（`/admin/dev-console`）構造請求、檢視回應、複製 cURL 與 traceId。程式在 `web/src/features/devconsole/`（`spec.ts` 純邏輯、`api.ts` 網路、`DevConsoleView.vue` 頁面），測試 `devconsole.test.ts`。
+
+**何時出現（多層檢查）**
+
+1. 導覽：管理頁的分頁列只在 `GET /api/v1/system` 回 `devMode: true` 時才列出「API 控制台」。
+2. 路由守衛：路由帶 `meta.devMode`（並繼承管理頁的 `meta.admin`）。非管理員導向 403 頁；管理員在開發者模式未啟用時看到 404 頁——頁面等同不存在。
+3. 伺服器檢查：頁面載入後先呼叫 `GET /api/v1/dev`。這條路由只在可開發實例註冊、只給管理員，而且回應必須是 `active: true`；任何其他結果（生產或缺門檻組態的 404、非管理員的 403、未啟用）都只顯示「不可用」，不讀 OpenAPI、不送任何請求。生產態 `GET /api/v1/dev` 回 404 已由 `TestDevModeUnreachableInProduction` 斷言。
+4. 控制台送出的每個請求仍由伺服器照常授權。
+
+控制台**沒有新增任何伺服器端點**：操作清單直接讀執行中實例的 `/api/v1/openapi.json`（可開發實例會含開發者路由並標 `x-jelee-dev-only`，頁面以「僅限開發者模式」標示）。
+
+**列出哪些操作**
+
+- 排除播放與直投路由，規則與禁播門禁（`web/scripts/check-no-playback.mjs`）的路徑段一致：任何路徑段為 `play`、`playback`、`stream`、`subtitles`、`audio`、`cast` 等，以及整個 `/api/v1/sources/` 前綴。另外排除只給環回、供 CLI 兌換的 `POST /api/v1/dev/token`。測試以提交的 `api/openapi.json` 斷言：被排除的只有這些路由，其他全部列出。
+- 送出前再檢查一次實際路徑；路徑參數以 `encodeURIComponent` 編成單一路徑段，並拒絕 `.` 與 `..`，所以參數值無法把請求移到其他路由。
+- 參數表單依 schema 產生（路徑、查詢；標頭只開放 `Idempotency-Key`、`If-None-Match`、`If-Match`，`Cookie`、`Authorization`、CSRF、引導權杖一律不能自行填）；有 `enum` 的參數用下拉選單。JSON 主體預先依請求 schema 產生骨架（`$ref`、`allOf`、`oneOf` 皆解析），可自由編輯，送出前驗證是否為合法 JSON。`iUnderstand` 一律預填 `false`。
+
+**憑證不外露**
+
+- 請求經由網頁前端共用的 API 用戶端送出：瀏覽器自己附 HttpOnly 工作階段 Cookie，用戶端在不安全方法上附 `X-Jelee-CSRF`，401 照常登出。控制台本身拿不到也不保存任何權杖。
+- 回應標頭表中 `Set-Cookie`、`Cookie`、`Authorization`、`Proxy-Authorization`、`X-Jelee-CSRF`、`X-Jelee-Setup-Token` 的值一律顯示為 `[redacted]`。
+- JSON 回應主體中，鍵名符合伺服器主體日誌規則（`devbody.go`：password、token、secret、apiKey、key、csrf、cookie、authorization、credential 等）以及 `recoveryCodes`、`otpauthUri` 的值換成 `[redacted]`。因此用控制台建立應用程式密碼或 Webhook 時，一次性祕密**不會**顯示，請改用正式頁面。
+- 「複製為 cURL」的指令用佔位符 `Cookie: __Host-jelee_session=<SESSION_COOKIE>` 與 `X-Jelee-CSRF: <CSRF_TOKEN>`（只在寫入方法），主體中的憑證欄位同樣換成 `[redacted]`；剪貼簿永遠不會收到真實憑證。
+
+**寫入與危險操作**
+
+- 讀取（GET、HEAD）按「送出」或在欄位按 Enter 即送出。
+- 寫入（POST、PUT、PATCH、DELETE）一律兩段確認：第一次按「送出 POST」只展開確認，第二次按「確認 POST」才送出；Enter 不會送出寫入。
+- 危險操作另外要先勾選「我了解這是危險操作」才能按第一段，每次送出後自動取消勾選。危險的判定：DELETE、所有開發者路由（`/api/v1/dev/…`，包括開關與關閉）、請求主體含 `iUnderstand` 的操作，以及探測重建、站台設定匯入／重設、登出與輪替、改密碼、停用雙重驗證、輪替 Webhook 祕密、客戶端封鎖／踢出、客戶端與內容存取原則。伺服器端原有的 `iUnderstand` 確認（G45.6）不受影響，控制台不替使用者填 `true`。
+
+**回應顯示**：狀態碼、耗時（毫秒，瀏覽器量測）、traceId（即 `X-Request-ID`，可一鍵複製，對應日誌的 `requestId`，見 [observability.md](observability.md)）、遮罩後的回應標頭、格式化後的 JSON 主體（文字主體原樣；二進位只顯示大小；顯示上限 512 KiB）。
+
+**i18n、可及性與體積**：文字在懶載入命名空間 `devconsole`（四語），頁面本身是獨立的懶載入 chunk，不計入首屏預算（G35.4）。表單控制項都有標籤與說明（`aria-describedby`），主體錯誤標 `aria-invalid`，回應區為 `aria-live="polite"`，確認按鈕沿用 `UiConfirmButton`（焦點移到確認鈕，Esc 取消）。
+
 ## 測試隔離（G45.8）
 
 所有測試預設在開發者模式關閉態執行（沒有設定 `JELEE_DEV_MODE` 與 `dev.enabled`）。斷言：
@@ -140,6 +176,7 @@ HTTP **永遠不能**開啟開發者模式：沒有任何網址能直接開啟�
 - `TestDevModeUnreachableInProduction`：先從可開發實例自動走訪出全部開發者路由，再對預設、生產（含大小寫與空白變形）、只設環境變數、只設設定檔四種組態——即使傳入一個會套用「已開啟、含 `relax_host_strict` 與 `debug_pprof`」共用工作階段的控制器——斷言：不註冊任何開發者路由；每條開發者路由以管理員權杖、從環回請求都回 404；**自動走訪所有已註冊路由**，回應一律 `X-Jelee-Dev-Mode: false` 且外來 Host 一律 400；系統資訊 `devMode:false`；規格不含開發者路徑。
 - `TestDevModeOpenAPIMatchesRoutes`：可開發實例的規格與路由一一對應，全部標記 `x-jelee-dev-only`。
 - `TestAccessLeakRouteTableIsComplete`／`TestAccessLeakHiddenContentPostgres`：走訪時含開發者路由（可開發但未開啟），每條都已登記。
+- 前端 `web/src/features/devconsole/devconsole.test.ts`：非管理員、非開發者模式看不到控制台（路由守衛與伺服器檢查兩層）、直投路由被排除、cURL 不含真實憑證、敏感標頭與欄位遮罩、寫入需兩段確認、危險操作需勾選、traceId 顯示。
 - 門檻、權杖、到期、重啟、混合部署：`internal/platform/devmode/controller_test.go`、`internal/adapter/postgres/devmode_test.go`、`cmd/jelee-cli/devmode_test.go`、`internal/platform/runtime/devmode_integration_test.go`。
 
 ## 後續（未接線的開關）
@@ -153,3 +190,4 @@ HTTP **永遠不能**開啟開發者模式：沒有任何網址能直接開啟�
 ## 擁有者驗證
 
 - C9：在真實時鐘下開啟一次預設 12 小時的工作階段，確認 12 小時後標頭、系統資訊、前端橫幅與所有放寬自動消失，稽核出現一筆 `devmode.expired`，期間每 5 分鐘有 WARN 提醒。自動測試以注入時鐘覆蓋到期邏輯。
+- D23：在真實瀏覽器與可開發實例上走一次 API 控制台（讀取與寫入各一次、traceId 對到日誌 `requestId`、標頭遮罩、cURL 只有佔位符），並確認非管理員、未啟用與生產組態下沒有入口、直接輸入網址得到 404 頁面。自動測試以假伺服器覆蓋這些行為。

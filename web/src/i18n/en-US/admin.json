@@ -9,7 +9,8 @@
       "webhooks": "Webhooks",
       "stats": "Watch statistics",
       "plugins": "Plugins",
-      "appearance": "Custom CSS"
+      "appearance": "Custom CSS",
+      "devConsole": "API console"
     }
   }
 }

@@ -87,6 +87,7 @@
 | D20 | 初始引導：真實瀏覽器走完前端向導；Compose 容器內 `jelee-cli setup --non-interactive` 一鍵初始化；反向代理後完成引導（一次性引導權杖從日誌或 `JELEE_SETUP_TOKEN_FILE` 取得） | `docs/setup-wizard.md` | 待跑 |
 | D21 | 預設告警規則：以實際 Prometheus（及其 `promtool check rules deploy/prometheus/jelee-alerts.yml`）載入 `deploy/prometheus/` 範例，抓取真實服務；分別製造資料庫停止、磁碟接近滿、Webhook 接收端離線、開發者模式開啟、一致性檢查發現，確認對應告警在預期時間觸發與解除，並把 Alertmanager 路由與 runbook 連結接上 | `docs/runbook.md` | 待跑 |
 | D22 | 舊庫遷移：以真實 Jellyfin 10.11 `jellyfin.db`（停機後複製，含 `-wal`）跑 `jelee-cli legacy-import --preflight`、匯入、掃描、再匯入。確認 GUID 文字大小寫、`DateTime` 格式、CollectionFolder `Data` JSON 的 `PhysicalLocationsList`／`CollectionType`；10.10 升級上來的庫的 `UserData`（`CustomDataKey` 多列、`RetentionDate`、佔位條目）；Windows／NAS 路徑對照；多版本、分段檔、附加影片的分類與對應率；10 萬條目以上、多使用者的耗時與記憶體；改寫前 C# Jelee 的實際資料庫 | `docs/legacy-import.md`「需要以真實資料庫驗證的項目」 | 待跑 |
+| D23 | API 控制台（G49.4）：在可開發實例以真實瀏覽器開啟開發者模式，管理員進入「管理 → API 控制台」，對一個讀取與一個寫入操作各送一次，確認狀態碼、耗時、traceId 與日誌中的 `requestId` 一致、`Set-Cookie` 被遮罩、複製的 cURL 只有佔位符；換成非管理員、關閉開發者模式、生產組態各試一次，確認導覽沒有入口且直接輸入網址得到 404 頁面 | `docs/developer-mode.md`「API 控制台」 | 待跑 |
 
 ## E. 需要擁有者決定
 

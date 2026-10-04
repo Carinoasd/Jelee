@@ -9,7 +9,8 @@
       "webhooks": "Webhook",
       "stats": "視聴統計",
       "plugins": "プラグイン",
-      "appearance": "カスタム CSS"
+      "appearance": "カスタム CSS",
+      "devConsole": "API コンソール"
     }
   }
 }

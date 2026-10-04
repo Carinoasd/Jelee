@@ -9,7 +9,8 @@
       "webhooks": "Webhook",
       "stats": "观看统计",
       "plugins": "插件",
-      "appearance": "自定义 CSS"
+      "appearance": "自定义 CSS",
+      "devConsole": "API 控制台"
     }
   }
 }

@@ -14,16 +14,17 @@ interface Catalog {
 // they are split into one chunk per locale and merged into the running i18n
 // instances by loadNamespace() (awaited by lazy route loaders, see lazyView in
 // router/routes.ts) or loadLazyMessages() (for lazy components inside an
-// eager page). The two globs must name the same files. twoFactor.json is
+// eager page). The two globs must name the same files. devconsole.json belongs
+// to the developer mode API console (G49.4). twoFactor.json is
 // loaded by twoFactor.ts with the screens that use it.
-export const lazyNamespaces = ["versions", "clients", "shares", "networkRules"] as const;
+export const lazyNamespaces = ["versions", "clients", "shares", "networkRules", "devconsole"] as const;
 export type LazyNamespace = (typeof lazyNamespaces)[number];
 
 const files = import.meta.glob<Catalog>(
-  ["./*/*.json", "!./*/twoFactor.json", "!./*/versions.json", "!./*/clients.json", "!./*/shares.json", "!./*/networkRules.json"],
+  ["./*/*.json", "!./*/twoFactor.json", "!./*/versions.json", "!./*/clients.json", "!./*/shares.json", "!./*/networkRules.json", "!./*/devconsole.json"],
   { eager: true, import: "default" },
 );
-const lazyFiles = import.meta.glob<Catalog>(["./*/versions.json", "./*/clients.json", "./*/shares.json", "./*/networkRules.json"], { import: "default" });
+const lazyFiles = import.meta.glob<Catalog>(["./*/versions.json", "./*/clients.json", "./*/shares.json", "./*/networkRules.json", "./*/devconsole.json"], { import: "default" });
 
 export function buildMessages(source: Record<string, Catalog>): Record<Locale, Catalog> {
   const messages = Object.fromEntries(supportedLocales.map((locale) => [locale, {}])) as Record<Locale, Catalog>;
