@@ -141,6 +141,12 @@ func leakRouteTable() map[string]leakRoute {
 		"GET /compat/Users/{id}/Items/{itemId}/UserData": {mode: leakByID, params: map[string]string{"id": "self", "itemId": "item"}},
 		"GET /compat/UserItems/Resume":                   {mode: leakList, params: noParams, control: true},
 		"GET /compat/Users/{id}/Items/Resume":            {mode: leakList, params: selfParam},
+		// Third-party client compatibility layer (image module). Images go
+		// through the /images pipeline with the caller's own grant.
+		"GET /compat/Items/{itemId}/Images/{imageType}":               {mode: leakByID, params: map[string]string{"itemId": "item", "imageType": "image-type"}, control: true},
+		"HEAD /compat/Items/{itemId}/Images/{imageType}":              {mode: leakByID, params: map[string]string{"itemId": "item", "imageType": "image-type"}, control: true},
+		"GET /compat/Items/{itemId}/Images/{imageType}/{imageIndex}":  {mode: leakByID, params: map[string]string{"itemId": "item", "imageType": "image-type", "imageIndex": "compat-zero"}, control: true},
+		"HEAD /compat/Items/{itemId}/Images/{imageType}/{imageIndex}": {mode: leakByID, params: map[string]string{"itemId": "item", "imageType": "image-type", "imageIndex": "compat-zero"}, control: true},
 
 		// Catalog and delivery: the direct media surfaces.
 		"GET /api/v1/items":                             {mode: leakList, params: noParams, control: true},
@@ -311,6 +317,19 @@ func leakHandlerWith(t *testing.T, store *postgres.Store, cfg config.Config, pas
 // buffer, so a test can flush it.
 func leakHandlerWithProgress(t *testing.T, store *postgres.Store, cfg config.Config, passwords *httpAccountPasswords, progress *app.Progress) http.Handler {
 	t.Helper()
+	return leakHandlerWithRenderer(t, store, cfg, passwords, progress, leakRenderer{})
+}
+
+// leakImageRenderer renders local posters and item_images rows.
+type leakImageRenderer interface {
+	app.ImageRenderer
+	app.ItemImageRenderer
+}
+
+// leakHandlerWithRenderer is leakHandlerWithProgress with the caller's
+// image renderer.
+func leakHandlerWithRenderer(t *testing.T, store *postgres.Store, cfg config.Config, passwords *httpAccountPasswords, progress *app.Progress, renderer leakImageRenderer) http.Handler {
+	t.Helper()
 	accounts, err := app.NewAccounts(store, passwords, app.AccountOptions{SessionTTL: time.Hour, MaxSessions: 8, LockAfter: 5, LockFor: time.Minute})
 	if err != nil {
 		t.Fatal(err)
@@ -329,9 +348,12 @@ func leakHandlerWithProgress(t *testing.T, store *postgres.Store, cfg config.Con
 	if err != nil {
 		t.Fatal(err)
 	}
-	images, err := app.NewImages(store, leakRenderer{})
+	images, err := app.NewImages(store, renderer)
 	if err == nil {
-		images, err = images.WithAssets(store, leakRenderer{})
+		images, err = images.WithAssets(store, renderer)
+	}
+	if err == nil {
+		images, err = images.WithSummaries(store)
 	}
 	if err != nil {
 		t.Fatal(err)

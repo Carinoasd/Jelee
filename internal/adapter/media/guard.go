@@ -82,6 +82,25 @@ func GuardPlaybackInfo(r *http.Request) error { return guard(r, playbackInfoDecl
 // routes only.
 func GuardPlaybackReport(r *http.Request) error { return guardMode(r, nil, inspectSyntax) }
 
+// GuardImage is GuardProduction for the upstream item image routes. Their
+// documented size, quality and format members (imageDeclarations) resize a
+// poster or backdrop in the image pipeline (G40.6, G40.8); they never reach
+// a video encoder, so they are not transformation parameters there. Every
+// other member, including every video transformation parameter (videoCodec,
+// maxStreamingBitrate, segmentContainer, static=false, ...), the path and a
+// body, is inspected exactly as GuardProduction does. Mount it on the image
+// routes only: on every stream route width, height, maxWidth and maxHeight
+// remain transformation requests (409).
+func GuardImage(r *http.Request) error { return guard(r, imageDeclarations) }
+
+// imageDeclarations are the query members of the upstream item image
+// controller (GetItemImage, GetItemImageByIndex) that only shape the
+// delivered picture or its cache validation.
+var imageDeclarations = normalizedSet([]string{
+	"maxWidth", "maxHeight", "width", "height", "fillWidth", "fillHeight", "quality", "format", "tag",
+	"imageIndex", "percentPlayed", "unplayedCount", "blur", "backgroundColor", "foregroundLayer",
+})
+
 // playbackInfoDeclarations are the members of the upstream PlaybackInfo
 // query and request body (media info controller, PlaybackInfoDto) that are
 // declarations, not requests: upstream itself only uses them to choose a

@@ -208,3 +208,46 @@ func TestGuardCoversUpstreamControllerParameters(t *testing.T) {
 		}
 	}
 }
+
+// GuardImage reads exactly the documented image members as declarations:
+// each of them passes there in every spelling, while GuardProduction keeps
+// refusing the size members, and every other transformation parameter is
+// still refused by GuardImage itself.
+func TestImageGuardReadsOnlyImageMembers(t *testing.T) {
+	image := func(key, value string) error {
+		return GuardImage(httptest.NewRequest("GET", "/Items/id/Images/Primary?"+url.QueryEscape(key)+"="+url.QueryEscape(value), nil))
+	}
+	sizes := []string{"width", "height", "maxWidth", "maxHeight"}
+	for _, name := range []string{"maxWidth", "maxHeight", "width", "height", "fillWidth", "fillHeight", "quality", "format", "tag", "imageIndex", "percentPlayed", "unplayedCount", "blur", "backgroundColor", "foregroundLayer"} {
+		for _, key := range keyVariants(name) {
+			if err := image(key, "320"); err != nil {
+				t.Errorf("image %s: %v", key, err)
+			}
+		}
+	}
+	for _, name := range sizes {
+		for _, key := range keyVariants(name) {
+			if err := guardQuery(t, key, "320"); !errors.Is(err, ErrTranscodeDisabled) {
+				t.Errorf("stream %s: %v", key, err)
+			}
+		}
+	}
+	for _, name := range transformParams {
+		if normalizedSet(sizes)[normalizeKey(name)] {
+			continue
+		}
+		for _, key := range keyVariants(name) {
+			if err := image(key, "1"); !errors.Is(err, ErrTranscodeDisabled) {
+				t.Errorf("image %s: %v", key, err)
+			}
+		}
+	}
+	for _, query := range []string{"static=false", "segmentContainer=ts", "transcodingProtocol=hls", "h264-level=40", "enableDirectStream=false", "protocol=hls"} {
+		if err := GuardImage(httptest.NewRequest("GET", "/Items/id/Images/Primary?maxWidth=1&"+query, nil)); !errors.Is(err, ErrTranscodeDisabled) {
+			t.Errorf("image %s: %v", query, err)
+		}
+	}
+	if err := GuardImage(httptest.NewRequest("GET", "/Items/id/Images/hls/0", nil)); !errors.Is(err, ErrTranscodeDisabled) {
+		t.Errorf("image path segment: %v", err)
+	}
+}

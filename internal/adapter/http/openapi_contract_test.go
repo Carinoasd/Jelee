@@ -71,6 +71,10 @@ var undocumentedRoutes = map[string]string{
 	"GET /compat/Users/{id}/Items/{itemId}/UserData":                                                      compatExemption,
 	"GET /compat/UserItems/Resume":                                                                        compatExemption,
 	"GET /compat/Users/{id}/Items/Resume":                                                                 compatExemption,
+	"GET /compat/Items/{itemId}/Images/{imageType}":                                                       compatExemption,
+	"HEAD /compat/Items/{itemId}/Images/{imageType}":                                                      compatExemption,
+	"GET /compat/Items/{itemId}/Images/{imageType}/{imageIndex}":                                          compatExemption,
+	"HEAD /compat/Items/{itemId}/Images/{imageType}/{imageIndex}":                                         compatExemption,
 }
 
 // compatExemption: the /compat layer reproduces a third-party wire protocol

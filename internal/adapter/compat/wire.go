@@ -77,6 +77,8 @@ const (
 	fieldSortName     = "sortname"
 	fieldParentID     = "parentid"
 	fieldMediaSources = "mediasources"
+	// fieldPrimaryImageAspectRatio asks for PrimaryImageAspectRatio.
+	fieldPrimaryImageAspectRatio = "primaryimageaspectratio"
 
 	sortBySortName       = "sortname"
 	sortByName           = "name"
@@ -124,4 +126,28 @@ const (
 
 	dlnaProfileTypeVideo       profileType = "Video"
 	dlnaProfileTypeVideoNumber             = 1
+)
+
+// Image module behavioural reference: upstream
+// Jellyfin.Api/Controllers/ImageController.cs (GetItemImage,
+// GetItemImageByIndex, GetImageResult), Emby.Server.Implementations/Dto/
+// DtoService.cs (image tags, backdrop tags, GetPrimaryImageAspectRatio),
+// MediaBrowser.Controller/Dto/DtoOptions.cs (GetImageLimit),
+// MediaBrowser.Model/Entities/ImageType.cs and
+// MediaBrowser.Model/Drawing/ImageFormat.cs. The values below are upstream
+// ImageType names, which are also the ImageTags keys.
+const (
+	imageTypePrimary    = "Primary"
+	imageTypeArt        = "Art"
+	imageTypeBackdrop   = "Backdrop"
+	imageTypeBanner     = "Banner"
+	imageTypeLogo       = "Logo"
+	imageTypeThumb      = "Thumb"
+	imageTypeDisc       = "Disc"
+	imageTypeBox        = "Box"
+	imageTypeScreenshot = "Screenshot"
+	imageTypeMenu       = "Menu"
+	imageTypeChapter    = "Chapter"
+	imageTypeBoxRear    = "BoxRear"
+	imageTypeProfile    = "Profile"
 )

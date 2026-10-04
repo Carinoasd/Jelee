@@ -134,7 +134,10 @@ func newWithLifetime(cfg config.Config, logger *slog.Logger, lifetime *lifetime)
 			if err != nil {
 				return nil, err
 			}
-			return images.WithAssets(store, processor)
+			if images, err = images.WithAssets(store, processor); err != nil {
+				return nil, err
+			}
+			return images.WithSummaries(store)
 		},
 		func(c config.Config, store *postgres.Store, budget *resources.Budget, processor *imageadapter.Processor) (*telemetry.Metrics, error) {
 			if !c.EnableMetrics {

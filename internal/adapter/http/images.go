@@ -10,6 +10,8 @@ import (
 	"time"
 
 	"github.com/MoYuanCN/Jelee/internal/access"
+	"github.com/MoYuanCN/Jelee/internal/adapter/compat"
+	"github.com/MoYuanCN/Jelee/internal/app"
 	"github.com/MoYuanCN/Jelee/internal/domain"
 	"github.com/go-chi/chi/v5"
 )
@@ -90,7 +92,7 @@ func (s *Server) image(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	actor := domain.Actor{UserID: principal.UserID, SessionID: principal.SessionID, IP: requestClientIP(r)}
-	result, err := s.images.Get(r.Context(), actor, chi.URLParam(r, "id"), request)
+	result, err := s.renderImage(r.Context(), actor, chi.URLParam(r, "id"), request)
 	if result.Body != nil {
 		defer result.Body.Close()
 	}
@@ -98,16 +100,29 @@ func (s *Server) image(w http.ResponseWriter, r *http.Request) {
 		WriteError(w, r, s.hiddenContentError(err))
 		return
 	}
+	writeImage(w, r, result, tag, tagged, "Authorization, Cookie")
+}
+
+// renderImage runs the shared image pipeline for an authenticated actor and
+// checks the representation against the configured limits. The caller
+// closes a non-nil result.Body, also on error.
+func (s *Server) renderImage(ctx context.Context, actor domain.Actor, itemID string, request domain.ImageRequest) (app.ImageResult, error) {
+	result, err := s.images.Get(ctx, actor, itemID, request)
+	if err != nil {
+		return result, err
+	}
 	if result.Body == nil || result.ContentType != "image/jpeg" || result.Size <= 0 || result.Size > s.cfg.Images.MaxOutputBytes ||
 		result.Width <= 0 || result.Height <= 0 || result.Width > s.cfg.Images.MaxOutputDimension || result.Height > s.cfg.Images.MaxOutputDimension ||
 		!validImageETag(result.ETag) {
-		WriteError(w, r, domain.ErrImageUnavailable)
-		return
+		return result, domain.ErrImageUnavailable
 	}
-	if err := r.Context().Err(); err != nil {
-		WriteError(w, r, err)
-		return
-	}
+	return result, ctx.Err()
+}
+
+// writeImage writes a checked representation: validators, cache policy, a
+// 304 for a matching If-None-Match, and the body unless the method is HEAD.
+// vary names the request headers that carry the caller's credentials.
+func writeImage(w http.ResponseWriter, r *http.Request, result app.ImageResult, tag string, tagged bool, vary string) {
 	w.Header().Set("ETag", result.ETag)
 	// A tag that names the original's content digest makes the URL change
 	// whenever the image does, so it may be cached for a year (G40.8). Any
@@ -118,7 +133,7 @@ func (s *Server) image(w http.ResponseWriter, r *http.Request) {
 	} else {
 		w.Header().Set("Cache-Control", "private, no-cache, must-revalidate")
 	}
-	w.Header().Add("Vary", "Authorization, Cookie")
+	w.Header().Add("Vary", vary)
 	if imageNotModified(r.Header.Values("If-None-Match"), result.ETag) {
 		w.WriteHeader(http.StatusNotModified)
 		return
@@ -132,6 +147,42 @@ func (s *Server) image(w http.ResponseWriter, r *http.Request) {
 		// failed write ends this response and still releases the held body.
 		_, _ = io.CopyN(w, result.Body, result.Size)
 	}
+}
+
+// compatImages lets the compatibility layer serve item images through the
+// same pipeline, admission and deadline as /images. The layer parses its own
+// parameters and writes its own errors; nothing here is duplicated there.
+type compatImages struct{ s *Server }
+
+func (c compatImages) ServeImage(w http.ResponseWriter, r *http.Request, actor domain.Actor, image compat.ImageDelivery) error {
+	s := c.s
+	ctx, cancel := context.WithTimeout(r.Context(), time.Duration(s.cfg.Images.TimeoutSeconds)*time.Second)
+	defer cancel()
+	r = r.WithContext(ctx)
+	deadline, _ := ctx.Deadline()
+	_ = http.NewResponseController(w).SetWriteDeadline(deadline)
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	select {
+	case s.imageSlots <- struct{}{}:
+		defer func() { <-s.imageSlots }()
+	default:
+		return domain.ErrImageBusy
+	}
+	result, err := s.renderImage(ctx, actor, image.ItemID, image.Request)
+	if result.Body != nil {
+		defer result.Body.Close()
+	}
+	if err != nil {
+		return err
+	}
+	writeImage(w, r, result, image.Tag, image.Tag != "", image.Vary)
+	return nil
+}
+
+func (c compatImages) ImageSummaries(ctx context.Context, userID string, itemIDs []string) (map[string][]domain.ItemImageSummary, error) {
+	return c.s.images.Summaries(ctx, userID, itemIDs)
 }
 
 // validImageTag accepts 1–128 hexadecimal digits in either case; only the

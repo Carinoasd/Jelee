@@ -83,6 +83,14 @@ GET /images/Backdrop/{itemID}?index=2&width=1280&tag=<原圖 SHA-256>
 
 淘汰：變體用量達上限 90%（位元組或筆數）時喚醒單一背景工作，依 `ListOldestImageVariants` 由舊到新，`DeleteImageVariant` 回 true（列出後未被使用）才刪除對應檔案，降到 80% 停止；被觸碰過的列保留，檔案已不存在的過期列一併刪除。列刪除後即使停止中也完成刪檔。存放區自身的 LRU 仍是硬上限保險；索引缺列的孤兒檔由它處理。原圖不在此淘汰範圍內。停止時先等此工作結束，再關閉存放區與資料庫連線池。
 
+## 相容層圖片路由（G24.2／G40.8）
+
+第三方客戶端相容層的 `GET`／`HEAD /compat/Items/{itemId}/Images/{imageType}[/{imageIndex}]` 與本頁 `/images` 共用同一條管線，沒有第二套解碼或縮放：相容層只把上游參數（`Width`／`MaxWidth`／`FillWidth` 等取最小值當上限、超過 2048 降為 2048，`Quality`，輸出固定 JPEG）轉成 `domain.ImageRequest`，再由伺服器以同一個准入槽、同一個逾時、`app.Images.Get`（處理前後重驗權限與來源綁定）、同一套輸出檢查與 `ETag`／304／`Cache-Control` 規則回應。差別只有：驗證方式是相容層的 native 工作階段（含 `api_key`），錯誤用相容層格式（空主體、隱藏狀態），`Vary` 列出相容層的憑證標頭而不是 Cookie。上游類型名稱對應、參數細節與驗證取捨見[相容性矩陣](compat-matrix.md#圖片模組g242g408g483)。
+
+相容層的影音轉碼守衛不因此放寬：只有圖片路由的 GET／HEAD 改用 `GuardImage`，它只把上游圖片 API 的尺寸／品質／格式成員當圖片參數，其他轉換參數照樣 409；串流路由上的 `Width`／`MaxWidth` 仍是轉換請求。
+
+列表的圖片 tag 由 `app.Images.Summaries` 提供：`ItemImageSummaries` 以一條 SQL 對一頁條目選出每個槽的 G40.10 勝出列（不含 `Chapter`，背景圖只取 index 0–31），授權與停用帳號檢查在同一句內。tag 是原圖內容 SHA-256（已讀取時，等同 `/images` 的 `tag` 長快取條件），否則是該列 ID、更新時間與檔案屬性的摘要；不含路徑或 URL。只有寫入 `item_images` 的圖片會有 tag。
+
 ## 來源與快取
 
 本段只接受具有唯一影片來源的項目，同目錄候選依固定優先序選擇 `<影片基名>-poster.jpg`、`.jpeg`、`.png`，其次為 `poster.jpg`、`.jpeg`、`.png`。檔名比對不區分大小寫，同一候選的大小寫碰撞一律拒絕，即使它的順位較低。
@@ -110,4 +118,4 @@ GET /images/Backdrop/{itemID}?index=2&width=1280&tag=<原圖 SHA-256>
 
 ## 尚未涵蓋
 
-掃描入庫（命名辨識寫入 `item_images`）、遠端抓取與內嵌抽取的 image_refresh 任務、鎖定／更換的管理 API、WebP／AVIF 輸出、裁切、相容圖片路由、前端與圖片重建工作尚未完成。十萬圖片處理、混合並發與至少 24h 的驗收另行執行。本段不能據此將 G40 或 G42.10 標為完成。
+掃描入庫（命名辨識寫入 `item_images`）、遠端抓取與內嵌抽取的 image_refresh 任務、鎖定／更換的管理 API、WebP／AVIF 輸出、裁切（相容層的 `FillWidth`／`FillHeight` 因此只當上限）、相容層的舊式長路由（`/Items/{id}/Images/{type}/{index}/{tag}/{format}/…`）與人物／類型／工作室圖片、播放進度疊加與模糊效果、前端與圖片重建工作尚未完成。相容圖片路由已提供，但尚未用真實客戶端驗證。十萬圖片處理、混合並發與至少 24h 的驗收另行執行。本段不能據此將 G40 或 G42.10 標為完成。

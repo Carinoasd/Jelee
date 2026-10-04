@@ -91,6 +91,9 @@ func NewRouter(opts Options) (*chi.Mux, error) {
 		if opts.Library.Playstate != nil {
 			rt.playstateRoutes()
 		}
+		if opts.Library.Images != nil {
+			rt.imageRoutes()
+		}
 	}
 	return rt.mux, nil
 }
@@ -156,7 +159,8 @@ func (rt *router) handle(method, pattern string, authenticated bool, h http.Hand
 //     (on PlaybackInfo, the variant that reads the client's capability
 //     declaration as data and still rejects every other parameter; on the
 //     playback reports, the variant that reads the JSON body as the
-//     client's state);
+//     client's state; on GET and HEAD of the item image routes, the variant
+//     that reads the documented image size members as such);
 //  3. the path below Prefix is matched case-insensitively and rewritten to
 //     the registered spelling for the router.
 func (rt *router) boundary(next http.Handler) http.Handler {
@@ -174,6 +178,10 @@ func (rt *router) boundary(next http.Handler) http.Handler {
 			// Report bodies describe the client's state; see
 			// media.GuardPlaybackReport.
 			guard = media.GuardPlaybackReport
+		} else if ok && (r.Method == http.MethodGet || r.Method == http.MethodHead) && isImagePath(rest) {
+			// Image sizes are not media transformations; see
+			// media.GuardImage. Only the image routes read them so.
+			guard = media.GuardImage
 		}
 		if err := guard(r); err != nil {
 			switch {

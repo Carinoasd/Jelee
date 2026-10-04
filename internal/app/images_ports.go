@@ -22,6 +22,14 @@ type ItemImageResolver interface {
 	ResolveItemImageSources(ctx context.Context, actor domain.Actor, item, imageType string, index int) ([]domain.ItemImage, error)
 }
 
+// ItemImageSummaryReader is the listing side of the image assets: the
+// selected source of every slot of a page of items in one read, for the
+// image tags of the compatibility layer (G24.2). Visibility is userID's
+// library grant; invisible and missing items are absent.
+type ItemImageSummaryReader interface {
+	ItemImageSummaries(ctx context.Context, userID string, itemIDs []string, galleryMax int) (map[string][]domain.ItemImageSummary, error)
+}
+
 // ItemImageRepository stores G40 image references. Reads recheck the live
 // session and library grant in the same statement; an invisible item is
 // ErrNotFound. Writes require a live administrator and audit manual

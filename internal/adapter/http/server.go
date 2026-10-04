@@ -298,6 +298,10 @@ func (s *Server) newCompat(cfg config.Config, backend Backend) (http.Handler, er
 		if cfg.EnableDirect {
 			opts.Library.Delivery = s.delivery
 		}
+		// Item images use the /images pipeline, admission and deadline.
+		if cfg.EnableImages && s.images != nil {
+			opts.Library.Images = compatImages{s: s}
+		}
 	}
 	return compat.NewRouter(opts)
 }

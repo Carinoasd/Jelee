@@ -38,6 +38,9 @@ type LibraryOptions struct {
 	DirectPlay bool
 	// ClientIP returns the client address as the server derived it.
 	ClientIP func(*http.Request) string
+	// Images is the server's image pipeline. Nil leaves the image routes
+	// unregistered and every item without image tags.
+	Images Images
 	// Delivery is the server's direct delivery handler. Nil leaves the
 	// stream and subtitle routes unregistered and external subtitles
 	// unlisted; set it only with direct delivery enabled.
@@ -78,26 +81,30 @@ type queryResult struct {
 // without one (image tags beyond the empty maps, people, genres, provider
 // identifiers, series links, child counts, dates the catalog does not keep)
 // are omitted, which is the same as null on the wire. ImageTags and
-// BackdropImageTags are empty because the layer has no image route yet.
+// BackdropImageTags list the item's image slots (see attachImages); they are
+// null (omitted) when the request turns images off, as upstream.
 type baseItemDto struct {
-	Name              string            `json:"Name"`
-	ServerID          string            `json:"ServerId"`
-	ID                string            `json:"Id"`
-	SortName          string            `json:"SortName,omitempty"`
-	PremiereDate      string            `json:"PremiereDate,omitempty"`
-	MediaSources      []mediaSourceInfo `json:"MediaSources,omitempty"`
-	Overview          string            `json:"Overview,omitempty"`
-	RunTimeTicks      *int64            `json:"RunTimeTicks,omitempty"`
-	ProductionYear    int               `json:"ProductionYear,omitempty"`
-	IsFolder          bool              `json:"IsFolder"`
-	ParentID          string            `json:"ParentId,omitempty"`
-	Type              string            `json:"Type"`
-	UserData          userItemData      `json:"UserData"`
-	CollectionType    string            `json:"CollectionType,omitempty"`
-	ImageTags         map[string]string `json:"ImageTags"`
-	BackdropImageTags []string          `json:"BackdropImageTags"`
-	LocationType      string            `json:"LocationType"`
-	MediaType         string            `json:"MediaType"`
+	Name           string            `json:"Name"`
+	ServerID       string            `json:"ServerId"`
+	ID             string            `json:"Id"`
+	SortName       string            `json:"SortName,omitempty"`
+	PremiereDate   string            `json:"PremiereDate,omitempty"`
+	MediaSources   []mediaSourceInfo `json:"MediaSources,omitempty"`
+	Overview       string            `json:"Overview,omitempty"`
+	RunTimeTicks   *int64            `json:"RunTimeTicks,omitempty"`
+	ProductionYear int               `json:"ProductionYear,omitempty"`
+	IsFolder       bool              `json:"IsFolder"`
+	ParentID       string            `json:"ParentId,omitempty"`
+	Type           string            `json:"Type"`
+	UserData       userItemData      `json:"UserData"`
+	CollectionType string            `json:"CollectionType,omitempty"`
+	// PrimaryImageAspectRatio is width over height of the primary image,
+	// sent when asked for in Fields and the size is known.
+	PrimaryImageAspectRatio *float64          `json:"PrimaryImageAspectRatio,omitempty"`
+	ImageTags               map[string]string `json:"ImageTags,omitzero"`
+	BackdropImageTags       []string          `json:"BackdropImageTags,omitzero"`
+	LocationType            string            `json:"LocationType"`
+	MediaType               string            `json:"MediaType"`
 }
 
 // mediaSourceInfo describes one original resource for direct delivery only
@@ -341,6 +348,7 @@ type itemsRequest struct {
 	limit          int
 	fields         map[string]bool
 	ids            []string
+	images         imageOptions
 }
 
 func parseItemsRequest(q browseQuery) (itemsRequest, error) {
@@ -435,6 +443,9 @@ func parseItemsRequest(q browseQuery) (itemsRequest, error) {
 	}
 	for _, field := range q.list("fields") {
 		req.fields[strings.ToLower(field)] = true
+	}
+	if req.images, err = parseImageOptions(q); err != nil {
+		return req, err
 	}
 	if len(q.list("ids")) > itemIDsMax {
 		return req, errBadQuery
@@ -550,6 +561,10 @@ func (rt *router) items(w http.ResponseWriter, r *http.Request) {
 		rt.writeLibraryError(w, err)
 		return
 	}
+	if err := rt.attachImages(ctx, userID, result.Items, ids, req.images, req.fields[fieldPrimaryImageAspectRatio]); err != nil {
+		rt.writeLibraryError(w, err)
+		return
+	}
 	writeJSON(w, result)
 }
 
@@ -625,6 +640,10 @@ func (rt *router) itemsByIDs(w http.ResponseWriter, r *http.Request, userID stri
 		rt.writeLibraryError(w, err)
 		return
 	}
+	if err := rt.attachImages(r.Context(), userID, result.Items, ids, req.images, req.fields[fieldPrimaryImageAspectRatio]); err != nil {
+		rt.writeLibraryError(w, err)
+		return
+	}
 	writeJSON(w, result)
 }
 
@@ -648,7 +667,7 @@ func (rt *router) itemByID(w http.ResponseWriter, r *http.Request) {
 		rt.writeLibraryError(w, err)
 		return
 	}
-	all := map[string]bool{fieldOverview: true, fieldSortName: true, fieldParentID: true, fieldMediaSources: true}
+	all := map[string]bool{fieldOverview: true, fieldSortName: true, fieldParentID: true, fieldMediaSources: true, fieldPrimaryImageAspectRatio: true}
 	dto, err := rt.browseDto(item, all)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError)
@@ -675,6 +694,10 @@ func (rt *router) itemByID(w http.ResponseWriter, r *http.Request) {
 	}
 	single := []baseItemDto{dto}
 	if err := rt.attachUserData(r.Context(), userID, single, []string{item.ID}); err != nil {
+		rt.writeLibraryError(w, err)
+		return
+	}
+	if err := rt.attachImages(r.Context(), userID, single, []string{item.ID}, defaultImageOptions(), true); err != nil {
 		rt.writeLibraryError(w, err)
 		return
 	}

@@ -322,6 +322,7 @@ func (rt *router) resumeItems(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	result.TotalRecordCount = page.Total
+	var ids []string
 	if req.limit > 0 {
 		for _, entry := range page.Items {
 			dto, err := rt.itemDto(entry.Item, req.fields)
@@ -335,7 +336,12 @@ func (rt *router) resumeItems(w http.ResponseWriter, r *http.Request) {
 				dto.RunTimeTicks = &runtime
 			}
 			result.Items = append(result.Items, dto)
+			ids = append(ids, entry.Item.ID)
 		}
+	}
+	if err := rt.attachImages(r.Context(), userID, result.Items, ids, req.images, req.fields[fieldPrimaryImageAspectRatio]); err != nil {
+		rt.writeLibraryError(w, err)
+		return
 	}
 	writeJSON(w, result)
 }

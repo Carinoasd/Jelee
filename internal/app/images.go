@@ -15,6 +15,8 @@ type Images struct {
 	// next to the media file is served.
 	assets      ItemImageResolver
 	assetRender ItemImageRenderer
+	// Optional listing summaries; without them no slot is summarized.
+	summaries ItemImageSummaryReader
 }
 
 func NewImages(repository ImageSourceRepository, renderer ImageRenderer) (*Images, error) {
@@ -33,6 +35,37 @@ func (s *Images) WithAssets(assets ItemImageResolver, renderer ItemImageRenderer
 	next := *s
 	next.assets, next.assetRender = assets, renderer
 	return &next, nil
+}
+
+// WithSummaries adds the batched listing read used for image tags.
+func (s *Images) WithSummaries(reader ItemImageSummaryReader) (*Images, error) {
+	if s == nil || reader == nil {
+		return nil, domain.ErrInvalid
+	}
+	next := *s
+	next.summaries = reader
+	return &next, nil
+}
+
+// Summaries returns the selected source of every image slot of the visible
+// items among itemIDs, read for userID in one statement. Without a summary
+// reader the result is empty: no slot is advertised.
+func (s *Images) Summaries(ctx context.Context, userID string, itemIDs []string) (map[string][]domain.ItemImageSummary, error) {
+	if s == nil || ctx == nil || !domain.ValidID(userID) || len(itemIDs) > domain.ItemImageSummaryItemsMax {
+		return nil, domain.ErrInvalid
+	}
+	for _, id := range itemIDs {
+		if !domain.ValidID(id) {
+			return nil, domain.ErrInvalid
+		}
+	}
+	if s.summaries == nil || len(itemIDs) == 0 {
+		return map[string][]domain.ItemImageSummary{}, nil
+	}
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	return s.summaries.ItemImageSummaries(ctx, userID, itemIDs, domain.ItemImageSummaryGalleryMax)
 }
 
 // errNoAsset means the slot has no usable asset row; the caller may fall

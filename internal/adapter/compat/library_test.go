@@ -138,7 +138,17 @@ func newLibraryHarness(t *testing.T, hidden int, direct bool) *libraryHarness {
 
 func newLibraryHarnessWith(t *testing.T, hidden int, direct bool, delivery Delivery) *libraryHarness {
 	t.Helper()
+	return newLibraryHarnessConfig(t, hidden, func(o *LibraryOptions) { o.DirectPlay, o.Delivery = direct, delivery })
+}
+
+// newLibraryHarnessConfig builds the library harness and lets the caller
+// complete the library options.
+func newLibraryHarnessConfig(t *testing.T, hidden int, configure func(*LibraryOptions)) *libraryHarness {
+	t.Helper()
+	library := &LibraryOptions{HiddenStatus: hidden, ClientIP: func(*http.Request) string { return testClientIP }}
+	configure(library)
 	h := &libraryHarness{catalog: &fakeCatalog{page: domain.BrowsePage{Items: []domain.BrowseItem{testMovie}, Total: 41}}}
+	library.Catalog = h.catalog
 	handler, err := NewRouter(Options{
 		Authenticate: func(_ context.Context, token string) (access.Principal, error) {
 			h.authCalls++
@@ -160,7 +170,7 @@ func newLibraryHarnessWith(t *testing.T, hidden int, direct bool, delivery Deliv
 		},
 		ServerID: testServerID,
 		Timeout:  time.Second,
-		Library:  &LibraryOptions{Catalog: h.catalog, HiddenStatus: hidden, DirectPlay: direct, ClientIP: func(*http.Request) string { return testClientIP }, Delivery: delivery},
+		Library:  library,
 	})
 	if err != nil {
 		t.Fatal(err)

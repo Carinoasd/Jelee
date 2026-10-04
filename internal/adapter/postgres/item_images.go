@@ -13,8 +13,9 @@ import (
 )
 
 var (
-	_ app.ItemImageRepository = (*Store)(nil)
-	_ app.ImageVariantIndex   = (*Store)(nil)
+	_ app.ItemImageRepository    = (*Store)(nil)
+	_ app.ImageVariantIndex      = (*Store)(nil)
+	_ app.ItemImageSummaryReader = (*Store)(nil)
 )
 
 const itemImageColumns = `g.id::text,g.item_id::text,g.library_id::text,g.image_type,g.image_index,g.source_kind,
@@ -216,6 +217,56 @@ func (s *Store) ResolveItemImageSources(parent context.Context, actor domain.Act
 		return nil, domain.ErrNotFound
 	}
 	return result, nil
+}
+
+// ItemImageSummaries returns, for every visible item among itemIDs, the
+// selected usable source of each image slot in one statement, so a listing
+// page costs a single read (no per-item queries). Visibility is userID's
+// library grant, evaluated in the same statement as the image rows like the
+// catalog listings; invisible and missing items are absent. Chapter slots
+// and gallery indexes from galleryMax on are left out.
+func (s *Store) ItemImageSummaries(ctx context.Context, userID string, itemIDs []string, galleryMax int) (map[string][]domain.ItemImageSummary, error) {
+	if ctx == nil || !domain.ValidID(userID) || len(itemIDs) > domain.ItemImageSummaryItemsMax ||
+		galleryMax < 1 || galleryMax > domain.ItemImageSummaryGalleryMax {
+		return nil, domain.ErrInvalid
+	}
+	for _, id := range itemIDs {
+		if !domain.ValidID(id) {
+			return nil, domain.ErrInvalid
+		}
+	}
+	out := make(map[string][]domain.ItemImageSummary, len(itemIDs))
+	if len(itemIDs) == 0 {
+		return out, nil
+	}
+	rows, err := s.Pool.Query(ctx, browsePrincipalSQL+`
+SELECT DISTINCT ON (g.item_id,g.image_type,g.image_index) g.item_id::text,g.image_type,g.image_index,g.id::text,g.updated_at,
+ g.content_sha256,g.width,g.height,g.source_mtime_unix_nano,g.source_size
+ FROM principal u JOIN items i ON i.id=ANY(@ids::uuid[])
+ JOIN item_images g ON g.item_id=i.id AND g.library_id=i.library_id AND g.image_type<>'Chapter' AND g.image_index<@gallery
+  AND (g.root_id IS NOT NULL OR g.content_sha256 IS NOT NULL)
+ WHERE `+libraryVisibleSQL("i.library_id")+`
+ ORDER BY g.item_id,g.image_type,g.image_index,`+itemImagePriority, pgx.NamedArgs{"user": userID, "ids": itemIDs, "gallery": galleryMax})
+	if err != nil {
+		return nil, storageError(err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var v domain.ItemImageSummary
+		var width, height *int32
+		if err := rows.Scan(&v.ItemID, &v.Type, &v.Index, &v.ImageID, &v.UpdatedAt, &v.ContentSHA256, &width, &height, &v.SourceModifiedUnixNano, &v.SourceSize); err != nil {
+			return nil, storageError(err)
+		}
+		v.UpdatedAt = v.UpdatedAt.UTC()
+		if width != nil && height != nil {
+			v.Width, v.Height = int(*width), int(*height)
+		}
+		out[v.ItemID] = append(out[v.ItemID], v)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, storageError(err)
+	}
+	return out, nil
 }
 
 func readItemImageSlot(ctx context.Context, tx pgx.Tx, item, imageType string, index int, kind string, lock bool) (domain.ItemImage, error) {

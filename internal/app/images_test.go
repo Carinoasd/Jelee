@@ -95,3 +95,64 @@ func TestImagesRejectBeforeRendering(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+type imageSummaryFunc func(context.Context, string, []string, int) (map[string][]domain.ItemImageSummary, error)
+
+func (f imageSummaryFunc) ItemImageSummaries(ctx context.Context, userID string, ids []string, gallery int) (map[string][]domain.ItemImageSummary, error) {
+	return f(ctx, userID, ids, gallery)
+}
+
+func TestImagesSummariesValidateAndBatch(t *testing.T) {
+	user, item := "10000000-0000-4000-8000-000000000001", "10000000-0000-4000-8000-000000000002"
+	base, err := NewImages(imageRepoFunc(func(context.Context, domain.Actor, string) (domain.LocalImageSource, error) {
+		return domain.LocalImageSource{}, domain.ErrNotFound
+	}), imageRenderFunc(func(context.Context, domain.LocalImageSource, domain.ImageRequest) (ImageResult, error) {
+		return ImageResult{}, domain.ErrNotFound
+	}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Without a reader nothing is advertised and nothing is read.
+	if got, err := base.Summaries(context.Background(), user, []string{item}); err != nil || got == nil || len(got) != 0 {
+		t.Fatal("summaries without reader", got, err)
+	}
+	if _, err := base.WithSummaries(nil); err != domain.ErrInvalid {
+		t.Fatal("nil reader accepted", err)
+	}
+	calls := 0
+	images, err := base.WithSummaries(imageSummaryFunc(func(_ context.Context, u string, ids []string, gallery int) (map[string][]domain.ItemImageSummary, error) {
+		calls++
+		if u != user || len(ids) != 2 || gallery != domain.ItemImageSummaryGalleryMax {
+			t.Fatalf("reader got %s %v %d", u, ids, gallery)
+		}
+		return map[string][]domain.ItemImageSummary{item: {{ItemID: item, Type: "Primary"}}}, nil
+	}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, err := images.Summaries(context.Background(), user, []string{item, item}); err != nil || len(got[item]) != 1 || calls != 1 {
+		t.Fatal("batched summaries", got, err, calls)
+	}
+	if got, err := images.Summaries(context.Background(), user, nil); err != nil || len(got) != 0 || calls != 1 {
+		t.Fatal("empty request read the store", got, err)
+	}
+	tooMany := make([]string, domain.ItemImageSummaryItemsMax+1)
+	for i := range tooMany {
+		tooMany[i] = item
+	}
+	cancelled, cancel := context.WithCancel(context.Background())
+	cancel()
+	for name, call := range map[string]func() error{
+		"bad user":  func() error { _, err := images.Summaries(context.Background(), "x", []string{item}); return err },
+		"bad item":  func() error { _, err := images.Summaries(context.Background(), user, []string{"x"}); return err },
+		"too many":  func() error { _, err := images.Summaries(context.Background(), user, tooMany); return err },
+		"cancelled": func() error { _, err := images.Summaries(cancelled, user, []string{item}); return err },
+	} {
+		if err := call(); err == nil {
+			t.Fatalf("%s accepted", name)
+		}
+	}
+	if calls != 1 {
+		t.Fatal("rejected requests reached the reader")
+	}
+}

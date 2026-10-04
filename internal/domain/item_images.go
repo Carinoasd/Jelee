@@ -1,6 +1,9 @@
 package domain
 
 import (
+	"crypto/sha256"
+	"encoding/binary"
+	"encoding/hex"
 	"path"
 	"strings"
 	"time"
@@ -108,6 +111,56 @@ type ItemImage struct {
 
 func (ItemImage) String() string   { return "item image (redacted)" }
 func (ItemImage) GoString() string { return "item image (redacted)" }
+
+// Listing bounds for ItemImageSummaries: one page of items, and the
+// gallery indexes 0 .. ItemImageSummaryGalleryMax-1 of each.
+const (
+	ItemImageSummaryItemsMax   = BrowseLimitMax
+	ItemImageSummaryGalleryMax = 32
+)
+
+// ItemImageSummary is the selected usable source of one image slot (G40.10
+// order), as listings need it: enough to name a version and an aspect ratio,
+// never a path or URL. Chapter slots are not summarized.
+type ItemImageSummary struct {
+	ItemID, Type string
+	Index        int
+	// ImageID and UpdatedAt identify the selected row and its version.
+	ImageID   string
+	UpdatedAt time.Time
+	// ContentSHA256 is nil until the content has been read; Width and
+	// Height are zero when unknown.
+	ContentSHA256          []byte
+	Width, Height          int
+	SourceModifiedUnixNano *int64
+	SourceSize             *int64
+}
+
+// Tag is a stable version tag of the selected source: the lowercase SHA-256
+// of the original content when it is known (the /images immutable cache
+// tag), else a digest of the row identity and version, which changes
+// whenever the row or the observed file changes. Both are 64 hex digits and
+// reveal neither a path nor a URL.
+func (s ItemImageSummary) Tag() string {
+	if len(s.ContentSHA256) == sha256.Size {
+		return hex.EncodeToString(s.ContentSHA256)
+	}
+	h := sha256.New()
+	h.Write([]byte("jelee-item-image-version-v1\x00" + s.ItemID + "\x00" + s.Type + "\x00" + s.ImageID + "\x00"))
+	var buf [8]byte
+	for _, v := range []*int64{ptrInt64(int64(s.Index)), ptrInt64(s.UpdatedAt.UnixNano()), s.SourceModifiedUnixNano, s.SourceSize} {
+		if v == nil {
+			h.Write([]byte{0})
+			continue
+		}
+		binary.BigEndian.PutUint64(buf[:], uint64(*v))
+		h.Write([]byte{1})
+		h.Write(buf[:])
+	}
+	return hex.EncodeToString(h.Sum(nil))
+}
+
+func ptrInt64(v int64) *int64 { return &v }
 
 // ItemImageUpsert reports whether the stored row changed. A locked row that
 // rejected a non-manual refresh is returned unchanged with Skipped set.

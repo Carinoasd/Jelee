@@ -614,3 +614,105 @@ func itemImagesMigrationFile(t *testing.T, direction string) string {
 	t.Helper()
 	return fmt.Sprintf("%06d_item_images.%s.sql", migrationVersion(t, "item_images"), direction)
 }
+
+// ItemImageSummaries reads the G40.10 winner of every slot of a page of
+// items in one statement, for the reading user's grant only.
+func TestItemImageSummariesSelectAndAuthorize(t *testing.T) {
+	f, item := itemImageFixture(t)
+	second := metadataItem(t, f)
+	bare := metadataItem(t, f)
+	// Primary: remote and NFO with content lose to an unread local file.
+	remote := itemImageRemote(item, domain.ImageSourceRemote, "https://example.com/p.jpg")
+	remote.Content = itemImageContent("remote")
+	itemImageUpsert(t, f, remote)
+	local := itemImageUpsert(t, f, itemImageLocal(f, item, "poster.jpg")).Image
+	// Backdrops 0 and 40 (beyond the gallery bound), a URL without content
+	// (unusable), and a chapter image (never summarized).
+	for _, in := range []domain.ItemImageInput{
+		{ItemID: item, Type: "Backdrop", Index: 0, SourceKind: domain.ImageSourceRemote, RemoteURL: "https://example.com/b0.jpg", Content: itemImageContent("b0")},
+		{ItemID: item, Type: "Backdrop", Index: 40, SourceKind: domain.ImageSourceRemote, RemoteURL: "https://example.com/b40.jpg", Content: itemImageContent("b40")},
+		{ItemID: item, Type: "Logo", SourceKind: domain.ImageSourceRemote, RemoteURL: "https://example.com/logo.png"},
+		{ItemID: item, Type: "Chapter", Index: 1, SourceKind: domain.ImageSourceRemote, RemoteURL: "https://example.com/c1.jpg", Content: itemImageContent("c1")},
+		{ItemID: second, Type: "Primary", SourceKind: domain.ImageSourceRemote, RemoteURL: "https://example.com/p2.jpg", Content: itemImageContent("second")},
+	} {
+		itemImageUpsert(t, f, in)
+	}
+	slots := func(got map[string][]domain.ItemImageSummary, id string) map[string]domain.ItemImageSummary {
+		out := map[string]domain.ItemImageSummary{}
+		for _, s := range got[id] {
+			if s.ItemID != id {
+				t.Fatalf("summary of %s listed under %s", s.ItemID, id)
+			}
+			out[fmt.Sprintf("%s/%d", s.Type, s.Index)] = s
+		}
+		return out
+	}
+	var adminID string
+	if err := f.s.Pool.QueryRow(f.ctx, `SELECT user_id::text FROM sessions WHERE id=$1::uuid`, f.a.SessionID).Scan(&adminID); err != nil {
+		t.Fatal(err)
+	}
+	missing := "10000000-0000-4000-8000-000000000099"
+	got, err := f.s.ItemImageSummaries(f.ctx, adminID, []string{item, second, bare, missing}, domain.ItemImageSummaryGalleryMax)
+	if err != nil {
+		t.Fatal(err)
+	}
+	first := slots(got, item)
+	if len(first) != 2 || first["Primary/0"].ImageID != local.ID || first["Primary/0"].ContentSHA256 != nil || first["Primary/0"].SourceSize == nil ||
+		!bytes.Equal(first["Backdrop/0"].ContentSHA256, itemImageDigest("b0")) || first["Backdrop/0"].Width != 640 || first["Backdrop/0"].Height != 960 {
+		t.Fatalf("summaries %+v", first)
+	}
+	if s := slots(got, second); len(s) != 1 || !bytes.Equal(s["Primary/0"].ContentSHA256, itemImageDigest("second")) {
+		t.Fatalf("second item %+v", s)
+	}
+	if _, ok := got[bare]; ok {
+		t.Fatal("item without images summarized")
+	}
+	if _, ok := got[missing]; ok {
+		t.Fatal("missing item summarized")
+	}
+	// A tighter gallery bound drops nothing else; a lock overrides the
+	// source order.
+	imageRepositoryExec(t, f, `UPDATE item_images SET locked=true WHERE item_id=$1::uuid AND image_type='Primary' AND source_kind='remote'`, item)
+	got, err = f.s.ItemImageSummaries(f.ctx, adminID, []string{item}, 1)
+	if err != nil || !bytes.Equal(slots(got, item)["Primary/0"].ContentSHA256, itemImageDigest("remote")) {
+		t.Fatalf("locked row not selected: %+v %v", got, err)
+	}
+
+	// Another user sees nothing until granted; a disabled user nothing.
+	reader := imageRepositoryActor(t, f, "item-image-summary", access.ClientNative)
+	if got, err := f.s.ItemImageSummaries(f.ctx, reader.UserID, []string{item, second}, domain.ItemImageSummaryGalleryMax); err != nil || len(got) != 0 {
+		t.Fatalf("ungranted reader got %+v %v", got, err)
+	}
+	imageRepositoryExec(t, f, `INSERT INTO library_acl(user_id,library_id) VALUES($1::uuid,$2::uuid)`, reader.UserID, f.registration.Library.ID)
+	if got, err := f.s.ItemImageSummaries(f.ctx, reader.UserID, []string{item, second}, domain.ItemImageSummaryGalleryMax); err != nil || len(got) != 2 {
+		t.Fatalf("granted reader got %+v %v", got, err)
+	}
+	imageRepositoryExec(t, f, `UPDATE users SET disabled=true WHERE id=$1::uuid`, reader.UserID)
+	if got, err := f.s.ItemImageSummaries(f.ctx, reader.UserID, []string{item}, domain.ItemImageSummaryGalleryMax); err != nil || len(got) != 0 {
+		t.Fatalf("disabled reader got %+v %v", got, err)
+	}
+
+	// Bounds and input checks.
+	if got, err := f.s.ItemImageSummaries(f.ctx, adminID, nil, 1); err != nil || got == nil || len(got) != 0 {
+		t.Fatal("empty request", got, err)
+	}
+	tooMany := make([]string, domain.ItemImageSummaryItemsMax+1)
+	for i := range tooMany {
+		tooMany[i] = item
+	}
+	for name, call := range map[string]func() error{
+		"nil context": func() error { _, err := f.s.ItemImageSummaries(nil, adminID, []string{item}, 1); return err },
+		"bad user":    func() error { _, err := f.s.ItemImageSummaries(f.ctx, "x", []string{item}, 1); return err },
+		"bad item":    func() error { _, err := f.s.ItemImageSummaries(f.ctx, adminID, []string{"x"}, 1); return err },
+		"too many":    func() error { _, err := f.s.ItemImageSummaries(f.ctx, adminID, tooMany, 1); return err },
+		"gallery 0":   func() error { _, err := f.s.ItemImageSummaries(f.ctx, adminID, []string{item}, 0); return err },
+		"gallery max": func() error {
+			_, err := f.s.ItemImageSummaries(f.ctx, adminID, []string{item}, domain.ItemImageSummaryGalleryMax+1)
+			return err
+		},
+	} {
+		if err := call(); err != domain.ErrInvalid {
+			t.Fatalf("%s: %v", name, err)
+		}
+	}
+}

@@ -27,7 +27,7 @@ G05仍部分完成：舊C#的直播與Channel控制器已刪除並提供[明確�
 
 ## 第三方客戶端相容層（`/compat`，G24.1～G24.4、G10.4）
 
-目前有骨架、系統模組、使用者／登入模組、媒體庫瀏覽模組（只讀）與播放模組（播放資訊、原檔直投串流、外掛字幕原樣直投）；圖片、進度回報、收藏等模組尚未提供，下表以外的路由一律回 404。尚未做真實客戶端驗收（G24.5），不能宣稱任何客戶端已可使用。
+目前有骨架、系統模組、使用者／登入模組、媒體庫瀏覽模組（只讀）、播放模組（播放資訊、原檔直投串流、外掛字幕原樣直投）、播放狀態模組與圖片模組（條目海報／背景圖與列表圖片 tag）；收藏等模組尚未提供，下表以外的路由一律回 404。尚未做真實客戶端驗收（G24.5），不能宣稱任何客戶端已可使用。
 
 ### 掛載與開關
 
@@ -39,7 +39,7 @@ G05仍部分完成：舊C#的直播與Channel控制器已刪除並提供[明確�
 
 1. 伺服器既有邊界（不因相容層改變）：Host 驗證 400 → 路徑型轉換／HLS／DASH 409 `transcode_disabled` → debug 404 → 已移除功能 501 `feature_removed`。這幾項沿用自有 API 的錯誤 envelope。
 2. 相容層邊界：帶 `Origin` 標頭（任何值，包括空字串與 `null`）一律 403、空主體，且從不送出任何 `Access-Control-*` 標頭，所以 CORS 預檢也被拒絕。任何瀏覽器頁面（含同源）都無法經相容層取得原生能力。
-3. 轉碼守衛：`GuardProduction` 檢查**所有**相容路由的路徑、query 與 JSON／表單主體；轉換參數回 409 `transcode_disabled`（自有 envelope，全域統一，G10.3）。例外有二：`/Items/{itemId}/PlaybackInfo` 改用 `GuardPlaybackInfo`，只把上游 PlaybackInfo 文件化的能力聲明成員（見下方「播放模組」）當資料讀，其餘所有參數（query、表單、JSON 任何層級）照 `GuardProduction` 的規則檢查；`POST /Sessions/Playing`、`/Sessions/Playing/Progress`、`/Sessions/Playing/Stopped` 三個播放回報改用 `GuardPlaybackReport`：JSON 主體是客戶端的播放狀態描述（位置、暫停、它顯示的條目、佇列、它以為的播放方式），不決定伺服器送出什麼，所以只檢查語法、深度與大小；路徑、query 與表單主體仍照 `GuardProduction`（見下方「播放狀態模組」）。`GuardProduction` 本身沒有任何放寬。
+3. 轉碼守衛：`GuardProduction` 檢查**所有**相容路由的路徑、query 與 JSON／表單主體；轉換參數回 409 `transcode_disabled`（自有 envelope，全域統一，G10.3）。例外有二：`/Items/{itemId}/PlaybackInfo` 改用 `GuardPlaybackInfo`，只把上游 PlaybackInfo 文件化的能力聲明成員（見下方「播放模組」）當資料讀，其餘所有參數（query、表單、JSON 任何層級）照 `GuardProduction` 的規則檢查；`POST /Sessions/Playing`、`/Sessions/Playing/Progress`、`/Sessions/Playing/Stopped` 三個播放回報改用 `GuardPlaybackReport`：JSON 主體是客戶端的播放狀態描述（位置、暫停、它顯示的條目、佇列、它以為的播放方式），不決定伺服器送出什麼，所以只檢查語法、深度與大小；路徑、query 與表單主體仍照 `GuardProduction`（見下方「播放狀態模組」）；`GET`／`HEAD /Items/{itemId}/Images/{imageType}[/{imageIndex}]` 改用 `GuardImage`：只把上游圖片 API 文件化的成員（`MaxWidth`、`MaxHeight`、`Width`、`Height`、`FillWidth`、`FillHeight`、`Quality`、`Format`、`Tag`、`ImageIndex`、`PercentPlayed`、`UnplayedCount`、`Blur`、`BackgroundColor`、`ForegroundLayer`）當圖片參數，其餘一切（`VideoCodec`、`MaxStreamingBitrate`、`Static=false`、`SegmentContainer`…）與路徑仍照 `GuardProduction` 回 409（見下方「圖片模組」）。`GuardProduction` 本身沒有任何放寬：串流路由、PlaybackInfo、單一條目路由與圖片路徑上的非 GET／HEAD 請求帶 `Width`／`MaxWidth` 仍是 409。
 4. 路由比對：前綴與路徑的字面段都大小寫不敏感，忽略一個結尾斜線；字面段優先於參數段；空段、`%2F` 編碼斜線、多一段或少一段都回 404。
 
 ### 驗證
@@ -76,6 +76,7 @@ G05仍部分完成：舊C#的直播與Channel控制器已刪除並提供[明確�
 | `POST`、`DELETE /compat/UserPlayedItems/{itemId}`、`/compat/Users/{userId}/PlayedItems/{itemId}` | 同上；自己或管理員 | 標記已播放／未播放，回 `UserItemDataDto` |
 | `GET /compat/UserItems/{itemId}/UserData`、`/compat/Users/{userId}/Items/{itemId}/UserData` | 同上；自己或管理員 | `UserItemDataDto` |
 | `GET /compat/UserItems/Resume`、`/compat/Users/{userId}/Items/Resume` | 同上；自己或管理員 | 繼續觀看的 `QueryResult<BaseItemDto>` |
+| `GET`、`HEAD /compat/Items/{itemId}/Images/{imageType}`、`…/{imageType}/{imageIndex}` | native 工作階段（目錄與圖片功能都開啟時才掛載；上游允許匿名，見「圖片模組」） | 經 `/images` 同一條管線產生的 JPEG；隱藏狀態同其他條目路由 |
 
 - JSON 為上游預設格式：PascalCase、null 成員省略、`application/json; charset=utf-8`。尚未支援 `profile="CamelCase"` 的 Accept 協商。
 - `Version` 是相容層模擬的上游協定版本線，不是 Jelee 建置版本；客戶端依它判斷功能。是否需要調整待真實客戶端驗收確認。
@@ -153,7 +154,9 @@ G05仍部分完成：舊C#的直播與Channel控制器已刪除並提供[明確�
 
 **`UserData`** 是讀取身分（自己，或管理員指定的使用者）對該條目的真實進度：`PlaybackPositionTicks`（續播點）、`PlayCount`、`Played`、`LastPlayedDate`（有播放過才有）、`PlayedPercentage`（續播點／`RunTimeTicks`，兩者皆有才有）、`IsFavorite`=false（尚未記錄收藏）、`Key`／`ItemId`=條目 ID。列表一頁只多一次批次查詢；影集與季沒有位置，維持未播放。看不到的條目沒有 UserData（列表本來就不含它）。見[播放進度](playback-progress.md)。
 
-**省略**（上游的 null）：圖片（`ImageTags` 為空物件、`BackdropImageTags` 為空陣列，因為相容層還沒有圖片路由）、`SeriesId`／`SeasonId`／`SeriesName`、`IndexNumber`／`ParentIndexNumber`、`ChildCount`、`DateCreated`、人物、類型、片商、外部 ID、評分、`Path`。列表不提供 `RunTimeTicks`。
+**圖片欄位**：`ImageTags`、`BackdropImageTags`、`PrimaryImageAspectRatio`（`Fields` 要求時；單一條目一律），見「圖片模組」。圖片功能未開啟時 `ImageTags` 為空物件、`BackdropImageTags` 為空陣列。
+
+**省略**（上游的 null）：`SeriesId`／`SeasonId`／`SeriesName`、`IndexNumber`／`ParentIndexNumber`、`ChildCount`、`DateCreated`、人物、類型、片商、外部 ID、評分、`Path`。列表不提供 `RunTimeTicks`。
 
 ### 播放模組（G24.2、G10.4）
 
@@ -201,24 +204,50 @@ PlaybackInfo 隨媒體庫模組掛載；串流、字幕與音訊路由只在直�
 - **`GET /UserItems/Resume`**（及 `/Users/{userId}/Items/Resume`）：有續播點且未播完的電影、劇集、家庭影片，最近播放的在前；支援 `StartIndex`、`Limit`（上限 500）、`IncludeItemTypes`／`ExcludeItemTypes`、`Fields`；`ParentId`、`MediaTypes`、`SearchTerm` 等其他篩選目前忽略。`RunTimeTicks` 取該使用者最近一次播放版本的時長（未探測則省略），`UserData.PlayedPercentage` 據此計算。**收回媒體庫授權後該條目立刻不再出現**（SQL 內套用授權，G48.3），恢復授權後續播點仍在。
 - 播放中的進度最多延遲一個 flush 間隔才寫入資料庫；同一實例上的 `UserData` 讀取會疊加尚未 flush 的位置（只疊加到 SQL 判定可見的條目上），繼續觀看清單則在下次 flush 後更新。
 
+### 圖片模組（G24.2、G40.8、G48.3）
+
+隨媒體庫模組掛載，且需要圖片功能（`JELEE_ENABLE_IMAGES`）；否則圖片路由回 404、所有條目的圖片 tag 為空。相容層不自己解碼、縮放或快取：解析參數後交給伺服器的圖片管線（`app.Images.Get`，與 `GET /images/{type}/{id}` 共用），處理上限、准入槽（滿載 503＋`Retry-After`）、逾時、處理前後兩次權限查驗、ETag、`If-None-Match` 304 都與 `/images` 相同，詳見[本地圖片](local-images.md#相容層圖片路由g242g408)。
+
+**`GET`／`HEAD /Items/{itemId}/Images/{imageType}`、`/Items/{itemId}/Images/{imageType}/{imageIndex}`**
+
+- `imageType`：上游 `ImageType` 名稱，大小寫不敏感。`Primary`、`Backdrop`、`Banner`、`Disc`、`Box`、`BoxRear`、`Menu`、`Chapter`、`Profile` 直接對應同名的 Jelee 圖片槽；`Logo`、`Art`、`Thumb` 先找同名槽，沒有可用圖片再找 `ClearLogo`、`ClearArt`、`Landscape`（上游把這三種存成前者，Jelee 依 G40.1 分開存）。`Screenshot` 沒有對應，視同沒有該圖。未知名稱（含 Jelee 的 `Fanart` 別名、數字）400。
+- `imageIndex`：路徑或 query `ImageIndex`，非負十進位整數，否則 400；只有 `Backdrop`／`Chapter` 有非 0 的槽，其他類型帶非 0 或超過 9999 視同沒有該圖。
+- 參數（名稱大小寫不敏感）：`Width`、`MaxWidth`、`FillWidth` 取其中最小的正值為寬度上限（高度同理），保持比例、不放大、不裁切，超過 2048 降為 2048，之後仍受設定的輸出上限（預設 1024）約束；0 或空值視同未給，負數或非整數 400。`Quality` 0 為預設、超過 100 以 100 計。`Format` 必須是上游 `ImageFormat`（`Bmp`、`Gif`、`Jpg`、`Png`、`Webp`、`Svg`）否則 400，但輸出一律 JPEG，以 `Content-Type` 為準。`PercentPlayed`、`UnplayedCount`、`Blur`、`BackgroundColor`、`ForegroundLayer` 只檢查數值格式後忽略（不疊加播放進度、不模糊）。`Tag` 為 1–128 位 hex 時交給管線比對；其他形式忽略。未列出的參數比照上游忽略，但轉換參數在邊界就是 409。
+- 回應：與 `/images` 相同的 `image/jpeg`、`Content-Length`、強 `ETag`、`Accept-Ranges: none`；`Tag` 等於原圖內容 SHA-256（即列表給出的 tag）時 `Cache-Control: private, max-age=31536000, immutable`，否則 `private, no-cache, must-revalidate`。上游為 `public`；這裡因為圖片需要驗證，一律 `private`，共用快取不得保存。`Vary` 列出相容層讀取憑證的四個標頭（`Authorization` 與三個舊標頭）；`api_key` 在 URL 裡，本身就是快取鍵的一部分。
+- 錯誤：條目不存在、看不到、或可見但沒有該圖片，一律回隱藏狀態（預設 404，設定 403 時 403），空主體且標頭相同；管線無法使用的圖片 404、超過處理預算 413、格式不支援 415、滿載 503＋`Retry-After: 1`、資料庫或逾時 503。
+- **驗證的取捨**：上游 `GetItemImage` 不要求登入，任何知道條目 ID 的人都能取圖。Jelee 要求 native 工作階段（標頭或 `api_key`／`ApiKey` query 皆可），並以呼叫者自己的工作階段與媒體庫授權讀取。理由：G48.3 要求不可見條目的圖片不得外洩，而條目 ID 會出現在日誌、分享連結與客戶端快取裡，不能當成存取憑證；海報本身也可能透露受限媒體庫的內容。代價：用一般圖片載入器、不帶驗證標頭也不在 URL 加 `api_key` 的客戶端會拿到 401、顯示不出圖。這需要真實客戶端驗證；若確實常見，後續可考慮短效簽章圖片 URL，而不是放寬成匿名。
+
+**列表的圖片 tag**
+
+- `ImageTags`：每個上游類型（`Backdrop`、`Chapter` 除外）若有可用圖片，給一個 tag；`Logo`／`Art`／`Thumb` 依上面的回退順序取。`BackdropImageTags`：從 index 0 起連續存在的背景圖（遇到缺號即停，上限 32 張），客戶端以位置當 index，與 Jelee 的 index 一致。只列 Jelee 的 G40.1 類型中上游也有名稱者，不會出現上游客戶端無法解析的鍵。
+- tag 取自 G40.10 選出的那一列：已讀取內容時是原圖 SHA-256（64 位小寫 hex，也是 `Tag` 長快取的條件）；尚未讀取內容的本地檔，是該列 ID、更新時間與檔案大小／修改時間的摘要。兩者都不含路徑或 URL，內容或來源一變 tag 就變。
+- `PrimaryImageAspectRatio`：`Fields` 含 `PrimaryImageAspectRatio` 時（單一條目一律），以 Primary 圖已知的寬高計算；寬高未知時省略。
+- `EnableImages=false` 時省略 `ImageTags`；`ImageTypeLimit`（每類型張數，0 代表都不要）與 `EnableImageTypes`（限定類型）比照上游 `DtoOptions.GetImageLimit`，背景圖張數為 0 時省略 `BackdropImageTags`。格式錯誤 400。
+- **不會 N+1**：每次列表（`/Items`、`Ids`、`/UserItems/Resume`、單一條目）只對當頁的條目做一次批次讀取 `ItemImageSummaries`：一條 SQL 以 `DISTINCT ON` 選出每個槽的勝出列，授權（讀取身分的媒體庫授權、停用帳號）在同一條 SQL 內。媒體庫資料夾不查。
+- **限制**：tag 只來自 `item_images` 資料表。目前掃描尚未把同目錄海報寫入 `item_images`（見 [本地圖片](local-images.md#尚未涵蓋)），只靠「媒體檔旁海報」回退的條目不會有 `Primary` tag，客戶端因此不會去要圖；直接要求 `Primary` 仍會經回退取得。
+
 ### 對客戶端的已知影響（G10.4）
 
 能力宣告明確表示不轉碼、不提供 HLS／DASH、不提供 remux，`EncoderLocation`=`NotFound`。依賴伺服器轉碼的客戶端在無法直投的格式上會失敗，而不是降級；這是 G10 鐵律的預期結果。
 
 ### 契約與測試
 
-- 黃金檔：`internal/adapter/compat/testdata/golden/`（`system_info_public.json`、`system_info.json`、`system_ping.json`、`users_authenticate_by_name.json`、`users_me.json`、`users_by_id_admin.json`、`library_user_views.json`、`library_user_views_admin.json`、`library_items.json`、`library_items_root.json`、`library_item_detail.json`、`library_item_folder.json`、`playback_info.json`、`playback_info_no_compatible.json`），以 `go test ./internal/adapter/compat -run 'TestGoldenResponses|TestAuthenticateByName$|TestCurrentUser|TestUserByID|TestUserViews|TestItems|TestItemByID|TestPlaybackInfoAcceptsCapabilityDeclarations|TestPlaybackInfoRefusals' -update` 重產。`playback_info.json` 同時是「帶真實客戶端形狀的 DeviceProfile（含 TranscodingProfiles、CodecProfiles、編碼清單）的 POST」、「GET」與「空主體 POST」三種請求的預期回應。
+- 黃金檔：`internal/adapter/compat/testdata/golden/`（`system_info_public.json`、`system_info.json`、`system_ping.json`、`users_authenticate_by_name.json`、`users_me.json`、`users_by_id_admin.json`、`library_user_views.json`、`library_user_views_admin.json`、`library_items.json`、`library_items_root.json`、`library_item_detail.json`、`library_item_folder.json`、`playback_info.json`、`playback_info_no_compatible.json`、`library_items_images.json`、`library_item_detail_images.json`），以 `go test ./internal/adapter/compat -run 'TestGoldenResponses|TestAuthenticateByName$|TestCurrentUser|TestUserByID|TestUserViews|TestItems|TestItemByID|TestItemImageTags|TestPlaybackInfoAcceptsCapabilityDeclarations|TestPlaybackInfoRefusals' -update` 重產。`playback_info.json` 同時是「帶真實客戶端形狀的 DeviceProfile（含 TranscodingProfiles、CodecProfiles、編碼清單）的 POST」、「GET」與「空主體 POST」三種請求的預期回應。
 - 播放模組單元測試（`playback_test.go`，用真的 `media.Handler` 與暫存檔）：能力聲明不觸發 409、而同一聲明在串流路由與 `GuardProduction` 上仍是 409；PlaybackInfo 上真正的轉換參數（query、主體頂層、巢狀）409 且不查目錄；直投判定逐項（容器、編碼、別名、數值型別、位元率三個來源與優先順序、`EnableDirectPlay`、`MediaSourceId`、未探測來源）；`Static` 直投 SHA-256 一致、`api_key`、Range 206 精確位元組、HEAD；串流與字幕的每一種轉換要求 409 且沒進直投模組；字幕格式／時間位移／內嵌字幕 409；音訊 404；沒有直投模組時路由不存在。`internal/adapter/media` 的 `TestPlaybackInfoGuardSeparatesDeclarations` 對 `transformParams` 每一項（不在聲明清單者）逐一驗證 query、主體頂層、巢狀與宣告成員底下都仍被拒。
+- 圖片模組單元測試（`images_test.go`）：參數解析（最小上限、2048 上限、0 視同未給、品質範圍、`Format` 名稱、`Tag` 形式、效果參數語法）；經管線的請求內容與 actor、大小寫、HEAD、`api_key`、`Logo`→`ClearLogo` 回退、最終錯誤不再嘗試下一槽、各錯誤對應；看不到、不存在、不可能存在的槽三者回應與標頭相同（404 與 403 兩種設定）；**守衛分離**：圖片路由的尺寸參數不觸發 409，但 `VideoCodec`、`MaxStreamingBitrate`、`SegmentContainer`、`Static=false`、`<codec>-level`… 仍 409，而影片／音訊串流、PlaybackInfo、單一條目與圖片路徑的 POST 帶 `Width`／`MaxWidth`／`MaxHeight` 仍 409；列表 tag 的黃金檔、每次列表一次批次讀取、`EnableImages`／`ImageTypeLimit`／`EnableImageTypes`、資料夾不查、讀取身分。`internal/adapter/media` 的 `TestImageGuardReadsOnlyImageMembers` 對每個圖片成員的各種拼法驗證只在 `GuardImage` 放行、`GuardProduction` 仍拒絕尺寸成員，並對 `transformParams` 其餘每一項驗證 `GuardImage` 仍拒絕。
+- 真 PG：`TestCompatImagesPostgres` 以真實 `item_images` 與授權驗證：五部電影的列表只執行一條讀 `item_images` 的 SQL（以 pgx tracer 計數）、各自的 `Primary` tag 正確、本地列勝過遠端列、背景圖與 `ClearLogo` 回退、長寬比；B 的系列圖片 tag 不出現在 A 的任何回應；有權限可取圖且尺寸參數送到管線、HEAD＋`api_key`、304；無權限、不存在、可見但無此圖三者回應相同（404 與 403 設定）；匿名與 web 工作階段 401；串流帶 `MaxWidth` 仍 409、圖片帶 `VideoCodec` 409；更新原圖內容後列表 tag 變、ETag 變、舊 ETag 不再 304、舊 tag 失去長快取；收回授權後圖片與 tag 立即消失。`internal/adapter/postgres` 的 `TestItemImageSummariesSelectAndAuthorize` 驗證選列順序（鎖定 > local > NFO > remote、未讀內容的本地檔可用、無內容的 URL 不可用）、`Chapter` 與超過上限的背景圖不列、未授權與停用帳號看不到、輸入檢查。
 - OpenAPI：相容路由不屬於自有 API，在 `openapi_contract_test.go` 的 `undocumentedRoutes` 以理由豁免，不寫入 `api/openapi.json`；`leakRouteTable` 已逐條登記。
 - 真 PG：`TestCompatSessionKindsPostgres` 驗證 native 可用、web（標頭、query、cookie）與已撤銷的 native 都回 401。
 - 真 PG：`TestCompatUsersPostgres` 驗證未開 `allowNative` 時 403 並寫 `login.native_denied`、不簽發；密碼錯與帳號不存在回應相同；開啟後登入簽發 native 工作階段（寫 `session.created`、自有 API 可列出 client 標籤並可直投）；`/Users/Me`、`/Users/{id}` 自己／他人／管理員；`/Users/Public` 為 `[]`；Logout 只撤銷目前工作階段、舊 token 在兩邊皆 401；相容入口五次失敗後兩個入口都被鎖定且失敗審計含用戶端位址。`TestCompatLoginSharesRateLimitPostgres` 驗證相容登入與原生登入雙向共用名稱限速桶。
 - 真 PG：`TestCompatLibraryPostgres` 用兩個使用者、兩個不同授權的媒體庫驗證：各自只看到自己的庫；以 parent、Ids、類型、搜尋或單筆查詢都碰不到對方的庫與條目（不存在與無權限回應相同）；分頁串接等於完整排序、超出結尾保留總數；名稱／年份／上映日期排序與空值位置；搜尋萬用字元按字面；影集／季的子項與遞迴；詳情的直投來源（`SupportsTranscoding`／`SupportsDirectStream` 為 false、不含路徑）；收回授權立即生效；設定 403 時隱藏與不存在皆 403。
-- 存取外洩：`leakRouteTable` 已登記六條媒體庫路由與播放模組全部 16 條路由（PlaybackInfo、影片串流、字幕以 ID 查詢模式；音訊以無媒體模式），三種隱藏狀態都跑，外洩標記同時比對帶連字號與相容層 32 位 hex 兩種 ID 形態。
+- 存取外洩：`leakRouteTable` 已登記六條媒體庫路由、播放模組全部 16 條路由（PlaybackInfo、影片串流、字幕以 ID 查詢模式；音訊以無媒體模式）與圖片模組 4 條路由（ID 查詢模式，含管理員對照），三種隱藏狀態都跑，外洩標記同時比對帶連字號與相容層 32 位 hex 兩種 ID 形態。
 - 播放狀態：`internal/adapter/media` 的 `TestPlaybackReportGuardReadsBodyAsState` 鎖住回報主體只做語法檢查、而路徑／query／表單與 `GuardProduction` 不變；真 PG `TestProgressHTTPPostgres` 以真實客戶端形狀的主體（含 `MaxStreamingBitrate`、`PlayMethod`、`NowPlayingQueue`）走開始 → 進度 → Ping → `Items/{id}` 的 UserData（含未 flush 的位置）→ 停止 → `UserItems/Resume`、舊式 Resume 與 `Items` 列表的續播點 → 看不到的條目回報 204 但不記錄、UserData 與標記回隱藏狀態 → 標記已播放／未播放；存取外洩表登記全部 12 條播放狀態路由（回報以理由豁免，其餘以 ID 查詢與列表模式跑三種隱藏狀態，續播清單的固定資料同時含看得到與看不到的條目）。
 - 真 PG：`TestCompatPlaybackPostgres` 走完整流程：相容登入 → 瀏覽 → 帶 DeviceProfile 的 PlaybackInfo（只列直投、無轉碼欄位、外掛字幕 `DeliveryUrl`）→ 不可直投回 `NoCompatibleStream` → 串流 4 MiB 原檔 SHA-256 一致（標頭與 `api_key` 兩種憑證）、Range、HEAD → 字幕原樣 → 各種轉換要求 409 `transcode_disabled` → web 工作階段（標頭與 `api_key`）401 → 真 TCP 上限速播放中登出，串流在數秒內被切斷且未送完、舊 token 401、另一個工作階段不受影響。
 
 ### 需要真實客戶端驗證（G24.5）
 
 以下尚未用真實客戶端驗證，不能宣稱可用：Findroid、Swiftfin、Infuse、官方 Web 與 Android 客戶端能否在 `/compat` 登入後起播、Seek（Range）是否順暢、外掛字幕能否載入（`DeliveryUrl` 不含 token，若客戶端取字幕不帶驗證標頭會 401）、各客戶端送的 DeviceProfile 是否被判為可直投（未評估 CodecProfiles 可能造成「判可直投但客戶端解不了」）、`NoCompatibleStream` 的錯誤呈現、以及 `MaxStreamingBitrate` 低於來源位元率時的行為。官方 Web 在瀏覽器中執行，請求會帶 `Origin`，依層邊界規則一律 403，預期無法使用。
+
+圖片同樣尚未用真實客戶端驗證：各客戶端取圖時是否帶驗證標頭或 `api_key`（不帶就會 401、海報空白，這是要求驗證的主要風險）；是否接受 64 位 hex 的 tag 與 JPEG 回應（即使要求 `Format=Webp`）；`Logo`／`Thumb` 回退後的顯示；以位置取背景圖是否正確；`PrimaryImageAspectRatio` 缺少時的版面；`private` 長快取在客戶端的實際命中；以及只有「媒體檔旁海報」、尚未寫入 `item_images` 的條目在客戶端沒有海報的情況。
 
 播放狀態同樣尚未用真實客戶端驗證：各客戶端是否帶 `PlaySessionId`／`ItemId`、回報頻率、停止後客戶端畫面上的續播點與「已播放」是否立即更新、「繼續觀看」列是否出現且進度條正確（`PlayedPercentage` 依賴已探測的時長）、斷線後重連是否接回同一工作階段、Seek 後的進度是否正確。
