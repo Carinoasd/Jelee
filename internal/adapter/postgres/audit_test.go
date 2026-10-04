@@ -18,7 +18,7 @@ func TestAuditEventWhitelistCoversSourceAndSingleWriter(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	literal := regexp.MustCompile(`(?:auditAccount\([^,]+,[^,]+,[^,]+,\s*|Event:\s*|event\s*:?=\s*)"([a-z_.]+)"`)
+	literal := regexp.MustCompile(`(?:(?:auditAccount|auditClientControl)\([^,]+,[^,]+,[^,]+,\s*|Event:\s*|event\s*:?=\s*)"([a-z_.]+)"`)
 	insert := regexp.MustCompile(`(?i)INSERT\s+INTO\s+audit_logs`)
 	seen := 0
 	for _, name := range files {

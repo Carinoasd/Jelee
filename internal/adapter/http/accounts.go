@@ -114,6 +114,12 @@ func (s *Server) login(w http.ResponseWriter, r *http.Request) {
 		WriteError(w, r, domain.ErrInvalid)
 		return
 	}
+	if s.clients != nil {
+		if err := s.clients.admitLogin(r, clientLabels{deviceName: input.DeviceName}); err != nil {
+			WriteError(w, r, err)
+			return
+		}
+	}
 	ip := requestClientIP(r)
 	if !s.allowLogin(w, r, ip, input.Name) {
 		return
@@ -189,6 +195,12 @@ func (s *Server) nativeLogin(w http.ResponseWriter, r *http.Request) {
 	if input.Password == nil {
 		WriteError(w, r, domain.ErrInvalid)
 		return
+	}
+	if s.clients != nil {
+		if err := s.clients.admitLogin(r, clientLabels{app: input.Client, version: input.Version, deviceID: input.DeviceID, deviceName: input.Device}); err != nil {
+			WriteError(w, r, err)
+			return
+		}
 	}
 	ip := requestClientIP(r)
 	if !s.allowLogin(w, r, ip, input.Name) {

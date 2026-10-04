@@ -544,7 +544,7 @@ func TestContentAccessMigrationRoundTrip(t *testing.T) {
 	if _, err := f.s.SetItemAccessRule(f.ctx, f.a, viewer, f.items["movie-g"], domain.ItemAccessHide); err != nil {
 		t.Fatal(err)
 	}
-	want := migrationVersion(t, "content_access")
+	want := downgradeAboveMigration(t, f.jobFixture, "content_access")
 	if _, _, err := Migrate(f.ctx, dsn, "down"); err == nil {
 		t.Fatal("configured content rules downgraded")
 	}

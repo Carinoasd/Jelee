@@ -103,8 +103,12 @@ type dimIndex struct {
 	prefixFold lenIndex[string]
 	cidr       lenIndex[netip.Prefix]
 	scan       []*compiledRule
-	absent     []*compiledRule
-	anyFold    bool
+	// litRaw and litFold file glob and regex rules under the literals they
+	// require, searched in the value and in the lower-cased value.
+	litRaw  literalIndex
+	litFold literalIndex
+	absent  []*compiledRule
+	anyFold bool
 }
 
 // Snapshot is an immutable compiled rule set. It is safe for concurrent use.
@@ -116,6 +120,17 @@ type Snapshot struct {
 
 // Options returns the options the snapshot was compiled with.
 func (s *Snapshot) Options() Options { return s.opts }
+
+// Uses reports whether an enabled rule inspects dim, so a caller can skip
+// computing a costly value no rule reads.
+func (s *Snapshot) Uses(dim Dimension) bool {
+	for _, idx := range s.dims {
+		if idx.key.dim == dim {
+			return true
+		}
+	}
+	return false
+}
 
 // Len returns the number of enabled rules in the snapshot.
 func (s *Snapshot) Len() int { return s.rules }
@@ -243,8 +258,34 @@ func Compile(rules []Rule, opts Options) (*Snapshot, error) {
 			if c.fold {
 				idx.anyFold = true
 			}
-			idx.scan = append(idx.scan, c)
+			var lits []string
+			folded, ok := false, false
+			if c.glob != nil {
+				var lit string
+				if lit, ok = globLiteral(c.glob); ok {
+					lits, folded = []string{lit}, c.fold
+				}
+			} else if c.re != nil {
+				lits, folded, ok = regexLiterals(c.re.String())
+			}
+			switch {
+			case !ok:
+				idx.scan = append(idx.scan, c)
+			case folded:
+				idx.anyFold = true
+				for _, lit := range lits {
+					idx.litFold.add(lit, c)
+				}
+			default:
+				for _, lit := range lits {
+					idx.litRaw.add(lit, c)
+				}
+			}
 		}
+	}
+	for _, idx := range s.dims {
+		idx.litRaw.build()
+		idx.litFold.build()
 	}
 	return s, nil
 }

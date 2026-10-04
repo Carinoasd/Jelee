@@ -14,6 +14,14 @@ export function errorMessageKey(error: ApiError): string {
       return "errors.forbidden";
     case "csrf_failed":
       return "errors.csrf";
+    case "client_blocked":
+      return "errors.clientBlocked";
+    case "client_pending_approval":
+      return "errors.clientPending";
+    case "client_read_only":
+      return "errors.clientReadOnly";
+    case "client_rate_limited":
+      return "errors.clientRateLimited";
     case "auth_rate_limited":
       return "auth.rateLimited";
     case "session_limit":

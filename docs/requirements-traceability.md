@@ -23,9 +23,9 @@
 | 状态 | 子项数 | 占比 |
 | --- | --- | --- |
 | 已完成 | 22 | 6.5% |
-| 部分完成 | 281 | 83.6% |
+| 部分完成 | 283 | 84.2% |
 | 阻塞 | 4 | 1.2% |
-| 未开始 | 29 | 8.6% |
+| 未开始 | 27 | 8.0% |
 | 合计 | 336 | 100% |
 
 | G 群组 | 子项 | 已完成 | 部分完成 | 阻塞 | 未开始 | 已完成比例 | 有实现比例（已完成＋部分完成） |
@@ -74,7 +74,7 @@
 | G42 | 10 | 2 | 8 | 0 | 0 | 20% | 100% |
 | G45 | 9 | 0 | 8 | 0 | 1 | 0% | 89% |
 | G46 | 10 | 0 | 9 | 0 | 1 | 0% | 90% |
-| G47 | 10 | 0 | 8 | 0 | 2 | 0% | 80% |
+| G47 | 10 | 0 | 10 | 0 | 0 | 0% | 100% |
 | G48 | 10 | 0 | 8 | 0 | 2 | 0% | 80% |
 | G49 | 9 | 0 | 8 | 0 | 1 | 0% | 89% |
 | G50 | 7 | 0 | 5 | 0 | 2 | 0% | 71% |
@@ -89,7 +89,7 @@
 | 数据库、部署与交付 | G36–G38 | 14 | 0 | 12 | 1 | 1 |
 | NFO 与图片资产 | G39–G40 | 28 | 0 | 26 | 1 | 1 |
 | 并发与内存 | G41–G42 | 20 | 2 | 17 | 0 | 1 |
-| 开发者模式、日志、管控、权限、API、诊断、工具链 | G45–G51 | 70 | 1 | 60 | 0 | 9 |
+| 开发者模式、日志、管控、权限、API、诊断、工具链 | G45–G51 | 70 | 1 | 62 | 0 | 7 |
 
 本节不统计 G01.4 逐组清单与“性能与全局约束”节（二者为附加验收清单，状态未随本次重核更新）。
 
@@ -722,16 +722,16 @@
 
 | 子项 / 约束与工作 | 计划落盘文件 | 迁移 / 数据 | 测试计划与验收 | 状态 / 证据 | 实现提交 |
 | --- | --- | --- | --- | --- | --- |
-| **G47.1** 识别维度：User-Agent、客户端应用名/版本（兼容层与自有 API 上报）、设备 ID、设备名、设备类型、IP/CIDR、API Key、请求头特征、可选 TLS/JA3 指纹（若实现需说明依赖与局限）。 | internal/access/; internal/adapter/http/; cmd/jelee-cli/; web/src/features/access/ | client_policies/client_blocks/devices/audit_logs | Plan-G47.1：全部匹配/动作/作用域；观察转拦截；CLI 紧急恢复；UA 可伪造边界；匹配基准；须单独覆盖本行全部约束 | 部分完成：规则引擎 `internal/access/rules.go` 定义九种识别维度（UA、应用名/版本、设备 ID/名/类型、IP/CIDR、API Key 指纹、请求头），`TestMatchKindsPerDimension`、`TestIPAndCIDR`；原生会话已记录 device_id/client_name/client_version/last_ip（迁移 000063）；缺：引擎未接入 HTTP 与兼容层（无 `NewEngine` 调用点），TLS/JA3 未做也未写依赖说明，规则无持久化；[测试](../internal/access/rules_test.go) | `a20def1ace`（规则引擎）／`f638d3f91d`（会话设备识别） |
-| **G47.2** 规则模型：白名单/黑名单/优先级；精确匹配、前缀、通配、正则（正则需 ReDoS 审查与超时保护）、大小写策略；规则支持备注、生效时间窗、命中动作与命中计数。 | internal/access/; internal/adapter/http/; cmd/jelee-cli/; web/src/features/access/ | client_policies/client_blocks/devices/audit_logs | Plan-G47.2：全部匹配/动作/作用域；观察转拦截；CLI 紧急恢复；UA 可伪造边界；匹配基准；须单独覆盖本行全部约束 | 部分完成：引擎支持 allow/deny 与优先级、exact/prefix/glob/regex/cidr/absent、大小写策略、备注、含时区的生效时间窗；regex 限 RE2 并有长度、数量、指令数上限，glob 自编译无回溯（`TestGlobIsNotExponential`、`TestCaseFolding`、`TestWindowDailyTimeZoneAndWrap`、`TestPriorityAndConflicts`、`TestCompileCountLimits`）；缺：命中计数、规则持久化表与管理 API，未接入请求路径；[测试](../internal/access/rules_test.go) | `a20def1ace`（规则引擎） |
-| **G47.3** 命中动作：拒绝（返回明确错误码如 `client_blocked`，HTTP 403）、只读、限制库访问、限速、强制重新认证、仅记录不拦截（观察模式）、影子记录。观察模式需可在 UI 评估影响后再切拦截。 | internal/access/; internal/adapter/http/; cmd/jelee-cli/; web/src/features/access/ | client_policies/client_blocks/devices/audit_logs | Plan-G47.3：全部匹配/动作/作用域；观察转拦截；CLI 紧急恢复；UA 可伪造边界；匹配基准；须单独覆盖本行全部约束 | 部分完成：引擎定义 deny（`client_blocked`）、read_only、restrict_libraries、rate_limit、force_relogin、observe、shadow 动作并给出模拟结果（`TestObserveAndShadow`）；缺：HTTP 层 403 返回与各动作的实际执行，观察模式的 UI 影响评估与切换；[测试](../internal/access/rules_test.go) | `a20def1ace`（规则引擎） |
-| **G47.4** 粒度：全局、按用户/用户组、按库、按客户端类型分别配置；规则冲突时优先级与合并策略明确（文档化并测试）。 | internal/access/; internal/adapter/http/; cmd/jelee-cli/; web/src/features/access/ | client_policies/client_blocks/devices/audit_logs | Plan-G47.4：全部匹配/动作/作用域；观察转拦截；CLI 紧急恢复；UA 可伪造边界；匹配基准；须单独覆盖本行全部约束 | 部分完成：作用域 global/user/group/library/client_kind 与分层合并（同层拒绝优先、allow 遮蔽低层、限制取交集）在引擎中实现并测试（`TestScopes`、`TestPriorityAndConflicts`）；缺：用户组数据模型、合并策略文档、接入后的端到端测试；[测试](../internal/access/rules_test.go) | `a20def1ace`（规则引擎） |
-| **G47.5** 已知客户端管理：识别到的客户端列表（名称、版本、UA、设备、最后活跃、最后 IP）可在管理页查看；支持重命名、标记可信、加入屏蔽、踢下线。 | internal/access/; internal/adapter/http/; cmd/jelee-cli/; web/src/features/access/ | client_policies/client_blocks/devices/audit_logs | Plan-G47.5：全部匹配/动作/作用域；观察转拦截；CLI 紧急恢复；UA 可伪造边界；匹配基准；须单独覆盖本行全部约束 | 部分完成：管理员可列出全部会话（`GET /api/v1/sessions`，含客户端名、版本、设备 ID、最后活跃、最后 IP）并踢下线（`DELETE /api/v1/users/{id}/sessions/{sessionID}`），前端账户页可撤销本人会话；缺：按客户端聚合的已知客户端列表、UA 记录、重命名、标记可信、加入屏蔽、管理页；[账户 API](accounts-api.md) | `f638d3f91d`（会话设备与最后使用记录） |
-| **G47.6** 伪装与绕过：明确 UA 可伪造，规则应结合设备 ID/API Key/令牌；文档说明防护边界；提供“未知客户端默认策略”（允许/只读/拒绝/需管理员批准）。 | internal/access/; internal/adapter/http/; cmd/jelee-cli/; web/src/features/access/ | client_policies/client_blocks/devices/audit_logs | Plan-G47.6：全部匹配/动作/作用域；观察转拦截；CLI 紧急恢复；UA 可伪造边界；匹配基准；须单独覆盖本行全部约束 | 部分完成：引擎提供未知客户端默认策略 allow/read_only/deny/pending_approval（`TestUnknownClientPolicy`），API Key 只按指纹匹配，会话迁移注释写明设备字段是客户端自报标签；缺：UA 可伪造与防护边界的文档、待批准流程与管理员批准入口、接入请求路径；[测试](../internal/access/rules_test.go) | `a20def1ace`（规则引擎） |
-| **G47.7** 管理员保护：管理员自身会话与本地环回诊断默认不受屏蔽影响（可配置）；防止规则误配导致全员无法登录（提供紧急恢复 CLI：`jelee-cli access reset-policies`）。 | internal/access/; internal/adapter/http/; cmd/jelee-cli/; web/src/features/access/ | client_policies/client_blocks/devices/audit_logs | Plan-G47.7：全部匹配/动作/作用域；观察转拦截；CLI 紧急恢复；UA 可伪造边界；匹配基准；须单独覆盖本行全部约束 | 部分完成：引擎默认豁免管理员与环回（`DefaultOptions`，`TestExemptions`），超长值拒绝（`TestOversizedValuesFailClosed`），编译失败保留旧快照（`TestEngineSwapsAtomically`）；缺：`jelee-cli access reset-policies` 未实现，豁免未接入真实请求；[测试](../internal/access/rules_test.go) | `a20def1ace`（规则引擎） |
-| **G47.8** 可观测：命中记录写入安全日志与统计（命中次数、Top UA、Top IP）；可导出命中明细；提供告警规则（异常 UA 暴增、批量被拒）。 | internal/access/; internal/adapter/http/; cmd/jelee-cli/; web/src/features/access/ | client_policies/client_blocks/devices/audit_logs | Plan-G47.8：全部匹配/动作/作用域；观察转拦截；CLI 紧急恢复；UA 可伪造边界；匹配基准；须单独覆盖本行全部约束 | 未开始：引擎只返回命中列表，命中未写安全日志，无命中统计（次数、Top UA、Top IP）、命中明细导出与告警规则；缺：整项，依赖引擎先接入 HTTP | 无 |
-| **G47.9** 隐私：被屏蔽请求的日志需脱敏；不得因屏蔽逻辑泄露其他用户信息或完整路径。 | internal/access/; internal/adapter/http/; cmd/jelee-cli/; web/src/features/access/ | client_policies/client_blocks/devices/audit_logs | Plan-G47.9：全部匹配/动作/作用域；观察转拦截；CLI 紧急恢复；UA 可伪造边界；匹配基准；须单独覆盖本行全部约束 | 未开始：屏蔽逻辑尚未接入请求路径，没有被屏蔽请求的日志；通用日志脱敏（G46.5）可作为基础但未针对本项验收；缺：整项 | 无 |
-| **G47.10** 验收：每种匹配方式与动作均有测试；观察模式→拦截切换可评估；误配后紧急恢复成功；管理页可查看与操作；性能上规则匹配有缓存/编译，热路径开销可测（有基准）。 | internal/access/; internal/adapter/http/; cmd/jelee-cli/; web/src/features/access/ | client_policies/client_blocks/devices/audit_logs | Plan-G47.10：全部匹配/动作/作用域；观察转拦截；CLI 紧急恢复；UA 可伪造边界；匹配基准；须单独覆盖本行全部约束 | 部分完成：每种匹配方式、动作、作用域、时间窗、豁免、上限均有单测，规则编译为不可变快照并有 1k／10k 评估与编译基准（`BenchmarkEvaluate1k`、`BenchmarkEvaluate10k`、`BenchmarkCompile10k`）；缺：基准结果未记录，观察→拦截切换评估、紧急恢复 CLI、管理页均未实现，接入 HTTP 后的开销对比待 C7；[验证清单](owner-verification-queue.md)、[基准](../internal/access/bench_test.go) | `a20def1ace`（规则引擎与基准） |
+| **G47.1** 识别维度：User-Agent、客户端应用名/版本（兼容层与自有 API 上报）、设备 ID、设备名、设备类型、IP/CIDR、API Key、请求头特征、可选 TLS/JA3 指纹（若实现需说明依赖与局限）。 | internal/access/; internal/adapter/http/; cmd/jelee-cli/; web/src/features/access/ | client_control_policy/client_rules/known_clients/known_client_sessions/client_control_hits/audit_logs（000070） | Plan-G47.1：全部匹配/动作/作用域；观察转拦截；CLI 紧急恢复；UA 可伪造边界；匹配基准；须单独覆盖本行全部约束 | 部分完成：UA、应用名/版本、设备 ID、设备名、IP/CIDR、API Key 指纹、请求头已接入自有 API 与兼容层（会话登录时记录的标签优先）；设备类型无客户端上报（维度保留）；TLS/JA3 未实现（TLS 终止于反代时拿不到 ClientHello）。见 [客户端管控](client-control.md) | G47 客户端管控（分支 claude/g47-clients） |
+| **G47.2** 规则模型：白名单/黑名单/优先级；精确匹配、前缀、通配、正则（正则需 ReDoS 审查与超时保护）、大小写策略；规则支持备注、生效时间窗、命中动作与命中计数。 | internal/access/; internal/adapter/http/; cmd/jelee-cli/; web/src/features/access/ | client_control_policy/client_rules/known_clients/known_client_sessions/client_control_hits/audit_logs（000070） | Plan-G47.2：全部匹配/动作/作用域；观察转拦截；CLI 紧急恢复；UA 可伪造边界；匹配基准；须单独覆盖本行全部约束 | 部分完成（实现与测试齐全，待 CI 全绿记录）：白/黑名单与优先级、精确/前缀/通配/正则（RE2＋指令上限＋值长度上限）/CIDR/缺失、大小写、备注、时间窗、动作、命中计数；字面量预筛使 1 万条规则评估约 0.3 µs | G47 客户端管控（分支 claude/g47-clients） |
+| **G47.3** 命中动作：拒绝（返回明确错误码如 `client_blocked`，HTTP 403）、只读、限制库访问、限速、强制重新认证、仅记录不拦截（观察模式）、影子记录。观察模式需可在 UI 评估影响后再切拦截。 | internal/access/; internal/adapter/http/; cmd/jelee-cli/; web/src/features/access/ | client_control_policy/client_rules/known_clients/known_client_sessions/client_control_hits/audit_logs（000070） | Plan-G47.3：全部匹配/动作/作用域；观察转拦截；CLI 紧急恢复；UA 可伪造边界；匹配基准；须单独覆盖本行全部约束 | 部分完成：拒绝、只读、限速、强制重新认证、观察、影子已接入请求路径，观察↔拦截切换 API；限制库访问未接（存储拒绝，待统一述词支持每请求库限制）；管理页 UI 未做 | G47 客户端管控（分支 claude/g47-clients） |
+| **G47.4** 粒度：全局、按用户/用户组、按库、按客户端类型分别配置；规则冲突时优先级与合并策略明确（文档化并测试）。 | internal/access/; internal/adapter/http/; cmd/jelee-cli/; web/src/features/access/ | client_control_policy/client_rules/known_clients/known_client_sessions/client_control_hits/audit_logs（000070） | Plan-G47.4：全部匹配/动作/作用域；观察转拦截；CLI 紧急恢复；UA 可伪造边界；匹配基准；须单独覆盖本行全部约束 | 部分完成：全局、按用户、按客户端类型；用户组（无组模型）与按库未做，存储拒绝；冲突合并策略已文档化并测试 | G47 客户端管控（分支 claude/g47-clients） |
+| **G47.5** 已知客户端管理：识别到的客户端列表（名称、版本、UA、设备、最后活跃、最后 IP）可在管理页查看；支持重命名、标记可信、加入屏蔽、踢下线。 | internal/access/; internal/adapter/http/; cmd/jelee-cli/; web/src/features/access/ | client_control_policy/client_rules/known_clients/known_client_sessions/client_control_hits/audit_logs（000070） | Plan-G47.5：全部匹配/动作/作用域；观察转拦截；CLI 紧急恢复；UA 可伪造边界；匹配基准；须单独覆盖本行全部约束 | 部分完成：已知客户端列表、重命名、标记可信、加入屏蔽、踢下线 API 已完成；管理页 UI 未做 | G47 客户端管控（分支 claude/g47-clients） |
+| **G47.6** 伪装与绕过：明确 UA 可伪造，规则应结合设备 ID/API Key/令牌；文档说明防护边界；提供“未知客户端默认策略”（允许/只读/拒绝/需管理员批准）。 | internal/access/; internal/adapter/http/; cmd/jelee-cli/; web/src/features/access/ | client_control_policy/client_rules/known_clients/known_client_sessions/client_control_hits/audit_logs（000070） | Plan-G47.6：全部匹配/动作/作用域；观察转拦截；CLI 紧急恢复；UA 可伪造边界；匹配基准；须单独覆盖本行全部约束 | 部分完成（实现与测试齐全，待 CI 全绿记录）：防护边界文档化；未知客户端默认策略（允许/只读/拒绝/需管理员批准） | G47 客户端管控（分支 claude/g47-clients） |
+| **G47.7** 管理员保护：管理员自身会话与本地环回诊断默认不受屏蔽影响（可配置）；防止规则误配导致全员无法登录（提供紧急恢复 CLI：`jelee-cli access reset-policies`）。 | internal/access/; internal/adapter/http/; cmd/jelee-cli/; web/src/features/access/ | client_control_policy/client_rules/known_clients/known_client_sessions/client_control_hits/audit_logs（000070） | Plan-G47.7：全部匹配/动作/作用域；观察转拦截；CLI 紧急恢复；UA 可伪造边界；匹配基准；须单独覆盖本行全部约束 | 部分完成（实现与测试齐全，待 CI 全绿记录）：管理员会话与环回（无转发头）默认豁免，可配置；`jelee-cli access reset-policies` 真 PG 测试恢复全员锁死 | G47 客户端管控（分支 claude/g47-clients） |
+| **G47.8** 可观测：命中记录写入安全日志与统计（命中次数、Top UA、Top IP）；可导出命中明细；提供告警规则（异常 UA 暴增、批量被拒）。 | internal/access/; internal/adapter/http/; cmd/jelee-cli/; web/src/features/access/ | client_control_policy/client_rules/known_clients/known_client_sessions/client_control_hits/audit_logs（000070） | Plan-G47.8：全部匹配/动作/作用域；观察转拦截；CLI 紧急恢复；UA 可伪造边界；匹配基准；须单独覆盖本行全部约束 | 部分完成：命中记录（按分钟聚合）、统计（Top UA/IP/规则）、导出、安全日志与批量被拒告警；异常 UA 暴增告警未做 | G47 客户端管控（分支 claude/g47-clients） |
+| **G47.9** 隐私：被屏蔽请求的日志需脱敏；不得因屏蔽逻辑泄露其他用户信息或完整路径。 | internal/access/; internal/adapter/http/; cmd/jelee-cli/; web/src/features/access/ | client_control_policy/client_rules/known_clients/known_client_sessions/client_control_hits/audit_logs（000070） | Plan-G47.9：全部匹配/动作/作用域；观察转拦截；CLI 紧急恢复；UA 可伪造边界；匹配基准；须单独覆盖本行全部约束 | 部分完成（实现与测试齐全，待 CI 全绿记录）：列表/导出地址遮罩为 /24、/48，UA 截断，不记录路径/查询/凭证；日志只含规则 ID 与次数 | G47 客户端管控（分支 claude/g47-clients） |
+| **G47.10** 验收：每种匹配方式与动作均有测试；观察模式→拦截切换可评估；误配后紧急恢复成功；管理页可查看与操作；性能上规则匹配有缓存/编译，热路径开销可测（有基准）。 | internal/access/; internal/adapter/http/; cmd/jelee-cli/; web/src/features/access/ | client_control_policy/client_rules/known_clients/known_client_sessions/client_control_hits/audit_logs（000070） | Plan-G47.10：全部匹配/动作/作用域；观察转拦截；CLI 紧急恢复；UA 可伪造边界；匹配基准；须单独覆盖本行全部约束 | 部分完成：每种匹配与动作均有测试；观察→拦截切换；误配后 CLI 恢复；规则编译与基准（C7 比值 0.98）；管理页 UI 未做 | G47 客户端管控（分支 claude/g47-clients） |
 
 ## G48 媒体库访问与查看权限管理
 

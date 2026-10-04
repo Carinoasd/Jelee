@@ -308,6 +308,9 @@ func (rt *router) authenticate(next http.Handler) http.Handler {
 		case errors.Is(err, domain.ErrDatabase):
 			writeError(w, http.StatusServiceUnavailable)
 			return
+		case clientControlError(err):
+			writeClientControlError(w, err)
+			return
 		case err != nil:
 			writeError(w, http.StatusInternalServerError)
 			return
@@ -317,6 +320,37 @@ func (rt *router) authenticate(next http.Handler) http.Handler {
 		}
 		next.ServeHTTP(w, r.WithContext(access.WithPrincipal(r.Context(), principal)))
 	})
+}
+
+// clientControlError reports a refusal by the server's client control (G47).
+func clientControlError(err error) bool {
+	return errors.Is(err, domain.ErrClientBlocked) || errors.Is(err, domain.ErrClientPending) ||
+		errors.Is(err, domain.ErrClientReadOnly) || errors.Is(err, domain.ErrClientRateLimited)
+}
+
+// writeClientControlError answers a client control refusal the way upstream
+// answers an authorization or throttling failure: 403 or 429 without a body,
+// with Retry-After when the refusal carries one. Any other error is a
+// service failure.
+func writeClientControlError(w http.ResponseWriter, err error) {
+	switch {
+	case errors.Is(err, domain.ErrClientRateLimited):
+		var retry interface{ RetryAfter() time.Duration }
+		seconds := int64(1)
+		if errors.As(err, &retry) {
+			if s := int64((retry.RetryAfter() + time.Second - 1) / time.Second); s > 1 {
+				seconds = s
+			}
+		}
+		w.Header().Set("Retry-After", strconv.FormatInt(seconds, 10))
+		writeError(w, http.StatusTooManyRequests)
+	case clientControlError(err):
+		writeError(w, http.StatusForbidden)
+	case errors.Is(err, domain.ErrUnauthenticated):
+		writeError(w, http.StatusUnauthorized)
+	default:
+		writeError(w, http.StatusServiceUnavailable)
+	}
 }
 
 // writeError is the single error writer of the layer. Like the upstream

@@ -16,6 +16,10 @@
     "timeout": "The server took too long to respond. Please try again.",
     "notReady": "The server is still starting. Please try again shortly.",
     "busy": "The server is busy. Please try again shortly.",
-    "server": "The server ran into an error. Please try again later."
+    "server": "The server ran into an error. Please try again later.",
+    "clientBlocked": "This app or device is not allowed to access the server. Contact your administrator.",
+    "clientPending": "This app or device is waiting for administrator approval.",
+    "clientReadOnly": "This app or device may only view content.",
+    "clientRateLimited": "Too many requests from this app or device. Please try again later."
   }
 }

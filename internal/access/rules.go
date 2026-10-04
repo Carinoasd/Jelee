@@ -156,6 +156,10 @@ type Request struct {
 	// Known reports whether the client is already registered or trusted (G47.5).
 	// Unknown clients that no allow rule covers get Options.UnknownClients.
 	Known bool
+	// Proxied reports that the request carried forwarding headers. A
+	// loopback IP is then a local proxy's address rather than a local
+	// diagnostic client, so ExemptLoopback does not apply.
+	Proxied bool
 	// Time is the evaluation instant; zero means time.Now().
 	Time time.Time
 }

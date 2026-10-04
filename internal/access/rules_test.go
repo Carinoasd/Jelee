@@ -469,6 +469,12 @@ func TestExemptions(t *testing.T) {
 	if verdict(t, def, baseRequest()) != VerdictDeny {
 		t.Fatal("non-exempt request not denied")
 	}
+	// Behind an untrusted local proxy the loopback address is the proxy's.
+	proxied := local
+	proxied.Proxied = true
+	if d := def.Evaluate(proxied); d.Verdict != VerdictDeny || d.Exempt != ExemptNone {
+		t.Errorf("proxied loopback exempted: %+v", d)
+	}
 
 	off := mustCompile(t, testOptions(), rule)
 	for name, req := range map[string]Request{"admin": admin, "loopback": local} {
@@ -723,5 +729,12 @@ func TestZeroTimeUsesClock(t *testing.T) {
 	req.Time = time.Time{}
 	if verdict(t, mustCompile(t, testOptions(), r), req) != VerdictAllow {
 		t.Fatal("future window applied to a zero-time request")
+	}
+}
+
+func TestSnapshotUses(t *testing.T) {
+	s := mustCompile(t, testOptions(), deny("a", DimAPIKey, MatchExact, "sha256:1"), Rule{ID: "b", Dimension: DimUserAgent, Match: MatchExact, Pattern: "x", Action: ActionDeny})
+	if !s.Uses(DimAPIKey) || s.Uses(DimUserAgent) || s.Uses(DimIP) {
+		t.Fatal("Uses must report only enabled rule dimensions")
 	}
 }

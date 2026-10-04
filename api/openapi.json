@@ -749,6 +749,692 @@
         },
         "type": "object"
       },
+      "ClientHit": {
+        "additionalProperties": false,
+        "properties": {
+          "action": {
+            "description": "Action applied or, for observe and shadow, intended.",
+            "enum": [
+              "allow",
+              "deny",
+              "read_only",
+              "rate_limit",
+              "force_relogin",
+              "pending_approval"
+            ],
+            "type": "string"
+          },
+          "appName": {
+            "maxLength": 256,
+            "type": "string"
+          },
+          "bucket": {
+            "description": "Start of the minute the hits are aggregated in.",
+            "format": "date-time",
+            "type": "string"
+          },
+          "hits": {
+            "minimum": 1,
+            "type": "integer"
+          },
+          "id": {
+            "type": "integer"
+          },
+          "mode": {
+            "description": "enforced (applied), exempt (matched an exempt administrator or loopback request), observe, shadow, or default (the unknown-client policy).",
+            "enum": [
+              "enforced",
+              "exempt",
+              "observe",
+              "shadow",
+              "default"
+            ],
+            "type": "string"
+          },
+          "network": {
+            "description": "Client address masked to its /24 (IPv4) or /48 (IPv6) network.",
+            "type": "string"
+          },
+          "ruleId": {
+            "description": "Absent for the unknown-client policy and for deleted rules.",
+            "format": "uuid",
+            "type": "string"
+          },
+          "surface": {
+            "description": "API that received the requests.",
+            "enum": [
+              "native",
+              "compat"
+            ],
+            "type": "string"
+          },
+          "userAgent": {
+            "description": "Truncated user agent; no path, query or credential is recorded.",
+            "maxLength": 256,
+            "type": "string"
+          },
+          "userId": {
+            "format": "uuid",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "bucket",
+          "mode",
+          "action",
+          "surface",
+          "hits"
+        ],
+        "type": "object"
+      },
+      "ClientHitExport": {
+        "additionalProperties": false,
+        "properties": {
+          "count": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "hits": {
+            "items": {
+              "$ref": "#/components/schemas/ClientHit"
+            },
+            "maxItems": 10000,
+            "type": "array"
+          }
+        },
+        "required": [
+          "hits",
+          "count"
+        ],
+        "type": "object"
+      },
+      "ClientHitPage": {
+        "additionalProperties": false,
+        "properties": {
+          "hits": {
+            "items": {
+              "$ref": "#/components/schemas/ClientHit"
+            },
+            "maxItems": 100,
+            "type": "array"
+          },
+          "pagination": {
+            "additionalProperties": false,
+            "properties": {
+              "limit": {
+                "maximum": 100,
+                "minimum": 1,
+                "type": "integer"
+              },
+              "nextCursor": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "nextCursor",
+              "limit"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "hits",
+          "pagination"
+        ],
+        "type": "object"
+      },
+      "ClientHitStats": {
+        "additionalProperties": false,
+        "properties": {
+          "blocked": {
+            "type": "integer"
+          },
+          "byAction": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "hits": {
+                  "type": "integer"
+                },
+                "value": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "value",
+                "hits"
+              ],
+              "type": "object"
+            },
+            "maxItems": 50,
+            "type": "array"
+          },
+          "observed": {
+            "type": "integer"
+          },
+          "since": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "topIps": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "hits": {
+                  "type": "integer"
+                },
+                "value": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "value",
+                "hits"
+              ],
+              "type": "object"
+            },
+            "maxItems": 50,
+            "type": "array"
+          },
+          "topRules": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "hits": {
+                  "type": "integer"
+                },
+                "value": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "value",
+                "hits"
+              ],
+              "type": "object"
+            },
+            "maxItems": 50,
+            "type": "array"
+          },
+          "topUserAgents": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "hits": {
+                  "type": "integer"
+                },
+                "value": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "value",
+                "hits"
+              ],
+              "type": "object"
+            },
+            "maxItems": 50,
+            "type": "array"
+          },
+          "total": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "since",
+          "total",
+          "blocked",
+          "observed",
+          "byAction",
+          "topUserAgents",
+          "topIps",
+          "topRules"
+        ],
+        "type": "object"
+      },
+      "ClientKickResult": {
+        "additionalProperties": false,
+        "properties": {
+          "sessionsRevoked": {
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "sessionsRevoked"
+        ],
+        "type": "object"
+      },
+      "ClientPolicy": {
+        "additionalProperties": false,
+        "properties": {
+          "exemptAdmins": {
+            "description": "Administrator sessions are never refused; hits are still recorded.",
+            "type": "boolean"
+          },
+          "exemptLoopback": {
+            "description": "Loopback clients without forwarding headers are never refused.",
+            "type": "boolean"
+          },
+          "unknownClients": {
+            "description": "Authenticated requests of clients that are not trusted and that no allow rule covers: allow, read_only, deny (403 client_blocked) or pending_approval (403 client_pending_approval until an administrator trusts the client). Logins are not subject to it, so a new client can log in and appear in the known clients.",
+            "enum": [
+              "allow",
+              "read_only",
+              "deny",
+              "pending_approval"
+            ],
+            "type": "string"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "version": {
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "unknownClients",
+          "exemptAdmins",
+          "exemptLoopback",
+          "version",
+          "updatedAt"
+        ],
+        "type": "object"
+      },
+      "ClientPolicyInput": {
+        "additionalProperties": false,
+        "properties": {
+          "exemptAdmins": {
+            "description": "Administrator sessions are never refused; hits are still recorded.",
+            "type": "boolean"
+          },
+          "exemptLoopback": {
+            "description": "Loopback clients without forwarding headers are never refused.",
+            "type": "boolean"
+          },
+          "unknownClients": {
+            "description": "Authenticated requests of clients that are not trusted and that no allow rule covers: allow, read_only, deny (403 client_blocked) or pending_approval (403 client_pending_approval until an administrator trusts the client). Logins are not subject to it, so a new client can log in and appear in the known clients.",
+            "enum": [
+              "allow",
+              "read_only",
+              "deny",
+              "pending_approval"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "unknownClients",
+          "exemptAdmins",
+          "exemptLoopback"
+        ],
+        "type": "object"
+      },
+      "ClientRule": {
+        "additionalProperties": false,
+        "properties": {
+          "action": {
+            "description": "allow (allow list), deny (403 client_blocked), read_only (unsafe methods get 403 client_read_only, except logout, rotate and read-shaped POSTs), rate_limit (429 client_rate_limited with Retry-After), force_relogin (revokes sessions issued before the rule last changed; 401), observe (records hits in statistics, never enforces) or shadow (records hits only in the hit log).",
+            "enum": [
+              "allow",
+              "deny",
+              "read_only",
+              "rate_limit",
+              "force_relogin",
+              "observe",
+              "shadow"
+            ],
+            "type": "string"
+          },
+          "caseFold": {
+            "description": "Compare case-insensitively.",
+            "type": "boolean"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "dimension": {
+            "description": "Request attribute the rule inspects. Everything except ip and api_key_fingerprint is reported by the client and can be forged; app_name, app_version, device_id and device_name prefer the labels recorded with the session at login over the request's own headers.",
+            "enum": [
+              "user_agent",
+              "app_name",
+              "app_version",
+              "device_id",
+              "device_name",
+              "device_type",
+              "ip",
+              "api_key_fingerprint",
+              "header"
+            ],
+            "type": "string"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "header": {
+            "description": "Header name; required for and only valid with the header dimension.",
+            "maxLength": 256,
+            "type": "string"
+          },
+          "hitCount": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "intent": {
+            "description": "For observe and shadow rules only (required there): the action the rule enforces after POST .../enforce.",
+            "enum": [
+              "allow",
+              "deny",
+              "read_only",
+              "rate_limit",
+              "force_relogin"
+            ],
+            "type": "string"
+          },
+          "lastHitAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "match": {
+            "description": "exact, prefix, glob (* and ?, backslash escapes, whole value), regex (RE2, unanchored, at most 4000 compiled instructions, at most 1000 enabled regex rules), cidr (ip only) or absent (matches when the value is missing; pattern must be empty).",
+            "enum": [
+              "exact",
+              "prefix",
+              "glob",
+              "regex",
+              "cidr",
+              "absent"
+            ],
+            "type": "string"
+          },
+          "note": {
+            "maxLength": 2048,
+            "type": "string"
+          },
+          "pattern": {
+            "maxLength": 1024,
+            "type": "string"
+          },
+          "priority": {
+            "description": "Larger wins. Within one priority a deny beats an allow; an allow stops lower priorities; restrictions of the same or higher priority still apply.",
+            "maximum": 1000000,
+            "minimum": -1000000,
+            "type": "integer"
+          },
+          "rateLimit": {
+            "additionalProperties": false,
+            "properties": {
+              "periodSeconds": {
+                "maximum": 86400,
+                "minimum": 1,
+                "type": "integer"
+              },
+              "requests": {
+                "maximum": 1000000,
+                "minimum": 1,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "requests",
+              "periodSeconds"
+            ],
+            "type": "object"
+          },
+          "scopeKind": {
+            "description": "global (default), user (scopeValues are user IDs) or client_kind (web or native, the server-issued session kind).",
+            "enum": [
+              "global",
+              "user",
+              "client_kind"
+            ],
+            "type": "string"
+          },
+          "scopeValues": {
+            "items": {
+              "maxLength": 256,
+              "minLength": 1,
+              "type": "string"
+            },
+            "maxItems": 1000,
+            "type": "array"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "window": {
+            "additionalProperties": false,
+            "properties": {
+              "dailyEnd": {
+                "pattern": "^[0-2][0-9]:[0-5][0-9]$",
+                "type": "string"
+              },
+              "dailyStart": {
+                "description": "HH:MM in timeZone; with dailyEnd (exclusive, 24:00 allowed). A start after the end wraps past midnight.",
+                "pattern": "^[0-2][0-9]:[0-5][0-9]$",
+                "type": "string"
+              },
+              "from": {
+                "format": "date-time",
+                "type": "string"
+              },
+              "timeZone": {
+                "description": "IANA name; empty means UTC. Only with a daily window.",
+                "maxLength": 64,
+                "type": "string"
+              },
+              "until": {
+                "format": "date-time",
+                "type": "string"
+              },
+              "weekdays": {
+                "description": "0 is Sunday; the day the daily window opened.",
+                "items": {
+                  "maximum": 6,
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "maxItems": 7,
+                "type": "array"
+              }
+            },
+            "type": "object"
+          }
+        },
+        "required": [
+          "id",
+          "dimension",
+          "match",
+          "pattern",
+          "caseFold",
+          "priority",
+          "action",
+          "scopeKind",
+          "scopeValues",
+          "enabled",
+          "note",
+          "hitCount",
+          "createdAt",
+          "updatedAt"
+        ],
+        "type": "object"
+      },
+      "ClientRuleInput": {
+        "additionalProperties": false,
+        "properties": {
+          "action": {
+            "description": "allow (allow list), deny (403 client_blocked), read_only (unsafe methods get 403 client_read_only, except logout, rotate and read-shaped POSTs), rate_limit (429 client_rate_limited with Retry-After), force_relogin (revokes sessions issued before the rule last changed; 401), observe (records hits in statistics, never enforces) or shadow (records hits only in the hit log).",
+            "enum": [
+              "allow",
+              "deny",
+              "read_only",
+              "rate_limit",
+              "force_relogin",
+              "observe",
+              "shadow"
+            ],
+            "type": "string"
+          },
+          "caseFold": {
+            "description": "Compare case-insensitively.",
+            "type": "boolean"
+          },
+          "dimension": {
+            "description": "Request attribute the rule inspects. Everything except ip and api_key_fingerprint is reported by the client and can be forged; app_name, app_version, device_id and device_name prefer the labels recorded with the session at login over the request's own headers.",
+            "enum": [
+              "user_agent",
+              "app_name",
+              "app_version",
+              "device_id",
+              "device_name",
+              "device_type",
+              "ip",
+              "api_key_fingerprint",
+              "header"
+            ],
+            "type": "string"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "header": {
+            "description": "Header name; required for and only valid with the header dimension.",
+            "maxLength": 256,
+            "type": "string"
+          },
+          "intent": {
+            "description": "For observe and shadow rules only (required there): the action the rule enforces after POST .../enforce.",
+            "enum": [
+              "allow",
+              "deny",
+              "read_only",
+              "rate_limit",
+              "force_relogin"
+            ],
+            "type": "string"
+          },
+          "match": {
+            "description": "exact, prefix, glob (* and ?, backslash escapes, whole value), regex (RE2, unanchored, at most 4000 compiled instructions, at most 1000 enabled regex rules), cidr (ip only) or absent (matches when the value is missing; pattern must be empty).",
+            "enum": [
+              "exact",
+              "prefix",
+              "glob",
+              "regex",
+              "cidr",
+              "absent"
+            ],
+            "type": "string"
+          },
+          "note": {
+            "maxLength": 2048,
+            "type": "string"
+          },
+          "pattern": {
+            "maxLength": 1024,
+            "type": "string"
+          },
+          "priority": {
+            "description": "Larger wins. Within one priority a deny beats an allow; an allow stops lower priorities; restrictions of the same or higher priority still apply.",
+            "maximum": 1000000,
+            "minimum": -1000000,
+            "type": "integer"
+          },
+          "rateLimit": {
+            "additionalProperties": false,
+            "properties": {
+              "periodSeconds": {
+                "maximum": 86400,
+                "minimum": 1,
+                "type": "integer"
+              },
+              "requests": {
+                "maximum": 1000000,
+                "minimum": 1,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "requests",
+              "periodSeconds"
+            ],
+            "type": "object"
+          },
+          "scopeKind": {
+            "description": "global (default), user (scopeValues are user IDs) or client_kind (web or native, the server-issued session kind).",
+            "enum": [
+              "global",
+              "user",
+              "client_kind"
+            ],
+            "type": "string"
+          },
+          "scopeValues": {
+            "items": {
+              "maxLength": 256,
+              "minLength": 1,
+              "type": "string"
+            },
+            "maxItems": 1000,
+            "type": "array"
+          },
+          "window": {
+            "additionalProperties": false,
+            "properties": {
+              "dailyEnd": {
+                "pattern": "^[0-2][0-9]:[0-5][0-9]$",
+                "type": "string"
+              },
+              "dailyStart": {
+                "description": "HH:MM in timeZone; with dailyEnd (exclusive, 24:00 allowed). A start after the end wraps past midnight.",
+                "pattern": "^[0-2][0-9]:[0-5][0-9]$",
+                "type": "string"
+              },
+              "from": {
+                "format": "date-time",
+                "type": "string"
+              },
+              "timeZone": {
+                "description": "IANA name; empty means UTC. Only with a daily window.",
+                "maxLength": 64,
+                "type": "string"
+              },
+              "until": {
+                "format": "date-time",
+                "type": "string"
+              },
+              "weekdays": {
+                "description": "0 is Sunday; the day the daily window opened.",
+                "items": {
+                  "maximum": 6,
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "maxItems": 7,
+                "type": "array"
+              }
+            },
+            "type": "object"
+          }
+        },
+        "required": [
+          "dimension",
+          "match",
+          "pattern",
+          "action",
+          "enabled"
+        ],
+        "type": "object"
+      },
       "ContentAccess": {
         "additionalProperties": false,
         "properties": {
@@ -1002,6 +1688,10 @@
           "auth_rate_limited",
           "authentication_required",
           "body_too_large",
+          "client_blocked",
+          "client_pending_approval",
+          "client_rate_limited",
+          "client_read_only",
           "conflict",
           "csrf_failed",
           "device_stream_limit",
@@ -1064,6 +1754,18 @@
           ],
           "body_too_large": [
             "413"
+          ],
+          "client_blocked": [
+            "403"
+          ],
+          "client_pending_approval": [
+            "403"
+          ],
+          "client_rate_limited": [
+            "429"
+          ],
+          "client_read_only": [
+            "403"
           ],
           "conflict": [
             "409"
@@ -2536,6 +3238,123 @@
           "jobs",
           "pagination"
         ],
+        "type": "object"
+      },
+      "KnownClient": {
+        "additionalProperties": false,
+        "properties": {
+          "activeSessions": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "alias": {
+            "maxLength": 128,
+            "type": "string"
+          },
+          "appName": {
+            "type": "string"
+          },
+          "appVersion": {
+            "type": "string"
+          },
+          "clientKind": {
+            "description": "Session kind it was last seen with.",
+            "enum": [
+              "web",
+              "native"
+            ],
+            "type": "string"
+          },
+          "deviceId": {
+            "type": "string"
+          },
+          "deviceName": {
+            "type": "string"
+          },
+          "firstSeenAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "lastIp": {
+            "type": "string"
+          },
+          "lastSeenAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "lastUserId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "trusted": {
+            "description": "Approved by an administrator; escapes the unknown-client policy.",
+            "type": "boolean"
+          },
+          "userAgent": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "trusted",
+          "firstSeenAt",
+          "lastSeenAt",
+          "activeSessions"
+        ],
+        "type": "object"
+      },
+      "KnownClientPage": {
+        "additionalProperties": false,
+        "properties": {
+          "clients": {
+            "items": {
+              "$ref": "#/components/schemas/KnownClient"
+            },
+            "maxItems": 100,
+            "type": "array"
+          },
+          "pagination": {
+            "additionalProperties": false,
+            "properties": {
+              "limit": {
+                "maximum": 100,
+                "minimum": 1,
+                "type": "integer"
+              },
+              "nextCursor": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "nextCursor",
+              "limit"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "clients",
+          "pagination"
+        ],
+        "type": "object"
+      },
+      "KnownClientUpdate": {
+        "additionalProperties": false,
+        "properties": {
+          "alias": {
+            "description": "Empty removes the alias; omitted keeps it.",
+            "maxLength": 128,
+            "type": "string"
+          },
+          "trusted": {
+            "description": "Omitted keeps it.",
+            "type": "boolean"
+          }
+        },
         "type": "object"
       },
       "LastConfirmedNFOObservation": {
@@ -7609,6 +8428,2424 @@
           }
         ],
         "summary": "Atomically replace the current token and preserve its client kind; a web session's cookie and CSRF token move to the replacement"
+      }
+    },
+    "/api/v1/client-control/clients": {
+      "get": {
+        "parameters": [
+          {
+            "in": "query",
+            "name": "cursor",
+            "schema": {
+              "maxLength": 64,
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "default": 50,
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/KnownClientPage"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful response; Cache-Control: no-store"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 400"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 401"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 403"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 404"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 409"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 413"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 415"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 429"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 503"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Jelee error envelope with code, message, details and traceId; see the Error schema."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "webSession": []
+          }
+        ],
+        "summary": "Page the clients seen on authenticated requests, most recently seen first",
+        "x-jelee-role": "administrator"
+      }
+    },
+    "/api/v1/client-control/clients/{id}": {
+      "patch": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/KnownClientUpdate"
+              }
+            }
+          },
+          "description": "Maximum 64 KiB; exactly one object; unknown or duplicate keys rejected.",
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/KnownClient"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful response; Cache-Control: no-store"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 400"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 401"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 403"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 404"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 409"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 413"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 415"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 429"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 503"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Jelee error envelope with code, message, details and traceId; see the Error schema."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "webSession": []
+          }
+        ],
+        "summary": "Rename a known client or change its trust; trust takes effect on the next request; audited as client_control.client_updated unless unchanged",
+        "x-jelee-role": "administrator"
+      }
+    },
+    "/api/v1/client-control/clients/{id}/block": {
+      "post": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ClientRule"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful response; Cache-Control: no-store"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 400"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 401"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 403"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 404"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 409"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 413"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 415"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 429"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 503"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Jelee error envelope with code, message, details and traceId; see the Error schema."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "webSession": []
+          }
+        ],
+        "summary": "Add an exact deny rule for the client's device ID, or its user agent when it reports none, at priority 100000; audited as client_control.client_blocked; body {}",
+        "x-jelee-role": "administrator"
+      }
+    },
+    "/api/v1/client-control/clients/{id}/kick": {
+      "post": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ClientKickResult"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful response; Cache-Control: no-store"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 400"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 401"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 403"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 404"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 409"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 413"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 415"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 429"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 503"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Jelee error envelope with code, message, details and traceId; see the Error schema."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "webSession": []
+          }
+        ],
+        "summary": "Revoke every active session the client used; it may log in again unless blocked; audited as client_control.client_kicked; body {}",
+        "x-jelee-role": "administrator"
+      }
+    },
+    "/api/v1/client-control/hits": {
+      "get": {
+        "parameters": [
+          {
+            "in": "query",
+            "name": "ruleId",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "mode",
+            "schema": {
+              "description": "enforced (applied), exempt (matched an exempt administrator or loopback request), observe, shadow, or default (the unknown-client policy).",
+              "enum": [
+                "enforced",
+                "exempt",
+                "observe",
+                "shadow",
+                "default"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "description": "RFC 3339; inclusive.",
+            "in": "query",
+            "name": "since",
+            "schema": {
+              "format": "date-time",
+              "type": "string"
+            }
+          },
+          {
+            "description": "RFC 3339; exclusive.",
+            "in": "query",
+            "name": "until",
+            "schema": {
+              "format": "date-time",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "schema": {
+              "maxLength": 64,
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "default": 50,
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ClientHitPage"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful response; Cache-Control: no-store"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 400"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 401"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 403"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 404"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 409"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 413"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 415"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 429"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 503"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Jelee error envelope with code, message, details and traceId; see the Error schema."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "webSession": []
+          }
+        ],
+        "summary": "Page aggregated hit records newest first; addresses masked to /24 or /48, user agents truncated, no paths",
+        "x-jelee-role": "administrator"
+      }
+    },
+    "/api/v1/client-control/hits/export": {
+      "get": {
+        "parameters": [
+          {
+            "in": "query",
+            "name": "ruleId",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "mode",
+            "schema": {
+              "description": "enforced (applied), exempt (matched an exempt administrator or loopback request), observe, shadow, or default (the unknown-client policy).",
+              "enum": [
+                "enforced",
+                "exempt",
+                "observe",
+                "shadow",
+                "default"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "description": "RFC 3339; inclusive.",
+            "in": "query",
+            "name": "since",
+            "schema": {
+              "format": "date-time",
+              "type": "string"
+            }
+          },
+          {
+            "description": "RFC 3339; exclusive.",
+            "in": "query",
+            "name": "until",
+            "schema": {
+              "format": "date-time",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ClientHitExport"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful response; Cache-Control: no-store"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 400"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 401"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 403"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 404"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 409"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 413"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 415"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 429"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 503"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Jelee error envelope with code, message, details and traceId; see the Error schema."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "webSession": []
+          }
+        ],
+        "summary": "Export at most 10000 masked hit records newest first as a JSON attachment; more is refused with 409 stats_export_limit; audited as client_control.hits_exported",
+        "x-jelee-role": "administrator"
+      }
+    },
+    "/api/v1/client-control/policy": {
+      "get": {
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ClientPolicy"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful response; Cache-Control: no-store"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 400"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 401"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 403"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 404"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 409"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 413"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 415"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 429"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 503"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Jelee error envelope with code, message, details and traceId; see the Error schema."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "webSession": []
+          }
+        ],
+        "summary": "Read the client control policy",
+        "x-jelee-role": "administrator"
+      },
+      "put": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ClientPolicyInput"
+              }
+            }
+          },
+          "description": "Maximum 64 KiB; exactly one object; unknown or duplicate keys rejected.",
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ClientPolicy"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful response; Cache-Control: no-store"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 400"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 401"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 403"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 404"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 409"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 413"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 415"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 429"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 503"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Jelee error envelope with code, message, details and traceId; see the Error schema."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "webSession": []
+          }
+        ],
+        "summary": "Replace the client control policy; takes effect on the next request; audited as client_control.policy_changed unless unchanged",
+        "x-jelee-role": "administrator"
+      }
+    },
+    "/api/v1/client-control/rules": {
+      "get": {
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "items": {
+                        "$ref": "#/components/schemas/ClientRule"
+                      },
+                      "maxItems": 10000,
+                      "type": "array"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful response; Cache-Control: no-store"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 400"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 401"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 403"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 404"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 409"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 413"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 415"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 429"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 503"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Jelee error envelope with code, message, details and traceId; see the Error schema."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "webSession": []
+          }
+        ],
+        "summary": "List every client rule, enabled or not, in precedence order (priority descending, then ID)",
+        "x-jelee-role": "administrator"
+      },
+      "post": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ClientRuleInput"
+              }
+            }
+          },
+          "description": "Maximum 64 KiB; exactly one object; unknown or duplicate keys rejected.",
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ClientRule"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful response; Cache-Control: no-store"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 400"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 401"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 403"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 404"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 409"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 413"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 415"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 429"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 503"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Jelee error envelope with code, message, details and traceId; see the Error schema."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "webSession": []
+          }
+        ],
+        "summary": "Create a client rule; the rule is compiled before it is stored (400 invalid_request when it cannot be enforced); at most 10000 rules and 1000 enabled regex rules (409 conflict); audited as client_control.rule_created",
+        "x-jelee-role": "administrator"
+      }
+    },
+    "/api/v1/client-control/rules/{id}": {
+      "delete": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "HTTP 204"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 400"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 401"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 403"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 404"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 409"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 413"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 415"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 429"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 503"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Jelee error envelope with code, message, details and traceId; see the Error schema."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "webSession": []
+          }
+        ],
+        "summary": "Delete a client rule; its hit records stay without the rule; audited as client_control.rule_deleted; empty body",
+        "x-jelee-role": "administrator"
+      },
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ClientRule"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful response; Cache-Control: no-store"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 400"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 401"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 403"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 404"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 409"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 413"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 415"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 429"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 503"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Jelee error envelope with code, message, details and traceId; see the Error schema."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "webSession": []
+          }
+        ],
+        "summary": "Read a client rule with its hit count",
+        "x-jelee-role": "administrator"
+      },
+      "put": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ClientRuleInput"
+              }
+            }
+          },
+          "description": "Maximum 64 KiB; exactly one object; unknown or duplicate keys rejected.",
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ClientRule"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful response; Cache-Control: no-store"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 400"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 401"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 403"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 404"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 409"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 413"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 415"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 429"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 503"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Jelee error envelope with code, message, details and traceId; see the Error schema."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "webSession": []
+          }
+        ],
+        "summary": "Replace a client rule's settings; hit counters are kept; audited as client_control.rule_updated unless unchanged",
+        "x-jelee-role": "administrator"
+      }
+    },
+    "/api/v1/client-control/rules/{id}/enforce": {
+      "post": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ClientRule"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful response; Cache-Control: no-store"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 400"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 401"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 403"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 404"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 409"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 413"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 415"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 429"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 503"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Jelee error envelope with code, message, details and traceId; see the Error schema."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "webSession": []
+          }
+        ],
+        "summary": "Switch an observe or shadow rule to enforcing its intent; no-op for an enforcing rule; audited as client_control.rule_mode_changed; body {}",
+        "x-jelee-role": "administrator"
+      }
+    },
+    "/api/v1/client-control/rules/{id}/observe": {
+      "post": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ClientRule"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful response; Cache-Control: no-store"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 400"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 401"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 403"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 404"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 409"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 413"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 415"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 429"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 503"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Jelee error envelope with code, message, details and traceId; see the Error schema."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "webSession": []
+          }
+        ],
+        "summary": "Switch an enforcing rule to observing its action; no-op for an observe or shadow rule; audited as client_control.rule_mode_changed; body {}",
+        "x-jelee-role": "administrator"
+      }
+    },
+    "/api/v1/client-control/stats": {
+      "get": {
+        "parameters": [
+          {
+            "in": "query",
+            "name": "hours",
+            "schema": {
+              "default": 24,
+              "maximum": 720,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "top",
+            "schema": {
+              "default": 10,
+              "maximum": 50,
+              "minimum": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ClientHitStats"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful response; Cache-Control: no-store"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 400"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 401"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 403"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 404"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 409"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 413"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 415"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 429"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 503"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Jelee error envelope with code, message, details and traceId; see the Error schema."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "webSession": []
+          }
+        ],
+        "summary": "Hit statistics: totals, by mode and action, top user agents, top addresses and top rules; shadow hits are excluded",
+        "x-jelee-role": "administrator"
       }
     },
     "/api/v1/items": {

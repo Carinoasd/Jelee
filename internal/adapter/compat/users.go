@@ -39,6 +39,10 @@ type UserOptions struct {
 	// ClientIP returns the client address as the server derived it from the
 	// connection and its trusted proxy settings.
 	ClientIP func(*http.Request) string
+	// AdmitClient, when set, applies the server's client control rules to a
+	// login before the body is read (G47). Its errors are the domain client
+	// control errors, answered like the authenticated routes answer them.
+	AdmitClient func(*http.Request) error
 }
 
 func (o *UserOptions) valid() bool {
@@ -215,6 +219,12 @@ func (rt *router) authenticateByName(w http.ResponseWriter, r *http.Request) {
 	if errors.Is(err, ErrMalformedAuth) {
 		writeError(w, http.StatusBadRequest)
 		return
+	}
+	if admit := rt.opts.Users.AdmitClient; admit != nil {
+		if err := admit(r); err != nil {
+			writeClientControlError(w, err)
+			return
+		}
 	}
 	// A stale or foreign token next to the login is ignored, as upstream
 	// ignores it; the client fields parsed before it are kept.

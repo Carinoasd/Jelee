@@ -30,8 +30,9 @@ import (
 //  4. A dimension value longer than Limits.MaxValueLen (or more header values
 //     than MaxHeaderValues) is not matched and denies the request: an attacker
 //     must not dodge a rule, or burn CPU, by padding a value.
-//  5. Exempt administrators (Principal.Admin) and loopback peers are allowed
-//     unconditionally when the options say so; matches are still reported.
+//  5. Exempt administrators (Principal.Admin) and loopback peers (not
+//     Proxied) are allowed unconditionally when the options say so; matches
+//     are still reported.
 //  6. observe and shadow rules never change the outcome. They are reported in
 //     Observed/Shadowed, and Simulated shows the outcome if they enforced
 //     their Intent alongside the real rules.
@@ -119,7 +120,7 @@ func (s *Snapshot) Evaluate(req Request) Decision {
 	switch {
 	case s.opts.ExemptAdmins && req.Principal.Admin:
 		d.Exempt = ExemptAdmin
-	case s.opts.ExemptLoopback && addr.IsValid() && addr.IsLoopback():
+	case s.opts.ExemptLoopback && !req.Proxied && addr.IsValid() && addr.IsLoopback():
 		d.Exempt = ExemptLoopback
 	}
 	if d.Exempt != ExemptNone {
@@ -168,22 +169,42 @@ func (idx *dimIndex) matchValue(v string, hits []*compiledRule) []*compiledRule 
 	}
 	hits = matchPrefixes(&idx.prefix, v, hits)
 	for _, c := range idx.scan {
-		in := v
-		if c.fold {
-			in = folded
-		}
-		var ok bool
-		switch {
-		case c.re != nil:
-			ok = c.re.MatchString(v) // case folding is compiled into the regex
-		case c.glob != nil:
-			ok = c.glob.match(in)
-		}
-		if ok {
+		if c.matchScan(v, folded) {
 			hits = append(hits, c)
 		}
 	}
+	// Prefiltered rules run only when a literal they require occurs. A rule
+	// can be reported once per occurrence; it is checked and added once.
+	start := len(hits)
+	var checked []*compiledRule
+	verify := func(c *compiledRule) {
+		if !slices.Contains(hits[start:], c) && !slices.Contains(checked, c) {
+			if c.matchScan(v, folded) {
+				hits = append(hits, c)
+			} else {
+				checked = append(checked, c)
+			}
+		}
+	}
+	idx.litRaw.each(v, verify)
+	if idx.anyFold {
+		idx.litFold.each(folded, verify)
+	}
 	return hits
+}
+
+// matchScan runs a glob or regex rule's full matcher.
+func (c *compiledRule) matchScan(v, folded string) bool {
+	switch {
+	case c.re != nil:
+		return c.re.MatchString(v) // case folding is compiled into the regex
+	case c.glob != nil:
+		if c.fold {
+			return c.glob.match(folded)
+		}
+		return c.glob.match(v)
+	}
+	return false
 }
 
 func matchPrefixes(x *lenIndex[string], v string, hits []*compiledRule) []*compiledRule {

@@ -46,6 +46,7 @@ func Specification(cfg config.Config) map[string]any {
 			metadataApplySpecification(paths, schemas)
 		}
 		accountSpecification(paths)
+		clientControlSpecification(paths, schemas)
 	}
 	if cfg.EnableAccounts && cfg.TMDBAPIKey != "" {
 		metadataSpecification(paths, schemas)

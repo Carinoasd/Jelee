@@ -59,6 +59,7 @@ type Server struct {
 	web             *webApp
 	compat          http.Handler
 	webhooks        *app.Webhooks
+	clients         *ClientControl
 }
 
 func New(cfg config.Config, backend Backend, catalog *app.Catalog, resolver media.Resolver, logger *slog.Logger, accounts ...*app.Accounts) (http.Handler, error) {
@@ -125,6 +126,14 @@ func newServer(cfg config.Config, backend Backend, catalog *app.Catalog, resolve
 	}
 	if cfg.EnableWebhooks && s.webhooks == nil {
 		return nil, errors.New("webhook service must be provided")
+	}
+	if s.clients != nil {
+		if !cfg.EnableAccounts {
+			return nil, errors.New("client control needs the account service")
+		}
+		if _, ok := backend.(clientAuthenticator); !ok {
+			return nil, errors.New("client control needs a backend that reports session clients")
+		}
 	}
 	if s.web, err = newWebApp(cfg.WebDir); err != nil {
 		return nil, err
@@ -222,6 +231,9 @@ func newServer(cfg config.Config, backend Backend, catalog *app.Catalog, resolve
 	if cfg.EnableWebhooks {
 		s.webhookRoutes(r)
 	}
+	if cfg.EnableAccounts {
+		s.clientControlRoutes(r)
+	}
 	if cfg.EnableCompat {
 		if s.compat, err = s.newCompat(cfg, backend); err != nil {
 			return nil, err
@@ -283,7 +295,24 @@ func (s *Server) newCompat(cfg config.Config, backend Backend) (http.Handler, er
 		id = compat.DeriveServerID(cfg.AllowedHosts...)
 	}
 	authenticate := backend.Authenticate
-	if tracker, ok := backend.(sessionUseTracker); ok {
+	if gate, ok := backend.(clientAuthenticator); ok && s.clients != nil {
+		// Record last use like the native API does, and apply client control
+		// (G47) to native sessions. The layer refuses any other session kind
+		// itself, so those are not gated or recorded here.
+		authenticate = func(ctx context.Context, token string) (access.Principal, error) {
+			address, _ := ctx.Value(clientAddressKey{}).(string)
+			p, client, version, err := gate.AuthenticateClient(ctx, token, address)
+			if err != nil || p.Kind != access.ClientNative {
+				return p, err
+			}
+			if req := clientRequestFrom(ctx); req != nil {
+				if err = s.clients.check(ctx, req, gateInput{principal: p, session: client, version: version, token: token, authenticated: true}); err != nil {
+					return access.Principal{}, err
+				}
+			}
+			return p, nil
+		}
+	} else if tracker, ok := backend.(sessionUseTracker); ok {
 		// Record last use like the native API does. The boundary middleware
 		// already stored the proxy-aware client address in the request context
 		// the compat layer derives its lookup context from.
@@ -295,6 +324,15 @@ func (s *Server) newCompat(cfg config.Config, backend Backend) (http.Handler, er
 	opts := compat.Options{Authenticate: authenticate, WriteRejection: WriteError, ServerID: id, Timeout: cfg.RequestTimeout()}
 	if s.accounts != nil {
 		opts.Users = &compat.UserOptions{Accounts: s.accounts, Admit: s.admitAccount, AllowLogin: s.loginLimiter.Allow, ClientIP: requestClientIP}
+		if s.clients != nil {
+			opts.Users.AdmitClient = func(r *http.Request) error {
+				var labels clientLabels
+				if auth, err := compat.ParseClientAuth(r.Header, nil); err == nil {
+					labels = clientLabels{app: auth.Client, version: auth.Version, deviceID: auth.DeviceID, deviceName: auth.Device}
+				}
+				return s.clients.admitLogin(r, labels)
+			}
+		}
 	}
 	// The library module reads only through the catalog service, which
 	// applies the library grants in storage like the native catalog routes.
@@ -342,6 +380,11 @@ func (s *Server) boundary(next http.Handler) http.Handler {
 			s.logger.Info("request completed", "component", "http", "requestId", w.Header().Get("X-Request-ID"), "method", logging.SafeMethod(r.Method), "durationMs", time.Since(start).Milliseconds())
 		}()
 		r = s.withClientAddress(r, w.Header().Get("X-Request-ID"))
+		if s.clients != nil && compat.HasPrefix(r.URL.Path) {
+			// The compatibility layer hands the client control gate only a
+			// context; the native API passes the request itself.
+			r = r.WithContext(context.WithValue(r.Context(), clientRequestKey{}, newClientRequest(r)))
+		}
 		host, valid := requestHost(r.Host)
 		allowed := false
 		for _, h := range s.cfg.AllowedHosts {
@@ -397,20 +440,38 @@ func (s *Server) authenticate(next http.Handler) http.Handler {
 		ctx, cancel := context.WithTimeout(r.Context(), s.cfg.RequestTimeout())
 		var p access.Principal
 		var err error
-		if tracker, ok := s.backend.(sessionUseTracker); ok {
+		var client access.SessionClient
+		var version int64
+		gate, gated := s.backend.(clientAuthenticator)
+		gated = gated && s.clients != nil
+		if gated {
+			p, client, version, err = gate.AuthenticateClient(ctx, method.token, requestClientIP(r))
+		} else if tracker, ok := s.backend.(sessionUseTracker); ok {
 			p, err = tracker.AuthenticateFrom(ctx, method.token, requestClientIP(r))
 		} else {
 			p, err = s.backend.Authenticate(ctx, method.token)
 		}
-		cancel()
 		if method.cookie && (errors.Is(err, domain.ErrUnauthenticated) || err == nil && p.Kind != access.ClientWeb) {
 			// Only web sessions may ride on a cookie. A native credential in the
 			// cookie is refused exactly like an unknown one, and a stale cookie is
 			// expired so the browser stops sending it.
+			cancel()
 			clearSessionCookie(w)
 			WriteError(w, r, domain.ErrUnauthenticated)
 			return
 		}
+		if err == nil && gated {
+			req := clientRequestFrom(r.Context())
+			if req == nil {
+				req = newClientRequest(r)
+			}
+			err = s.clients.check(ctx, req, gateInput{principal: p, session: client, version: version, token: method.token, authenticated: true})
+			if method.cookie && errors.Is(err, domain.ErrUnauthenticated) {
+				// A forced relogin revoked the session behind the cookie.
+				clearSessionCookie(w)
+			}
+		}
+		cancel()
 		if err != nil {
 			WriteError(w, r, err)
 			return
@@ -567,6 +628,22 @@ func WriteError(w http.ResponseWriter, r *http.Request, err error) {
 		status, code, message = 401, "authentication_required", "Authentication is required."
 	case errors.Is(err, domain.ErrInvalid), errors.Is(err, media.ErrInvalidRequest), errors.Is(err, password.ErrInvalidPassword):
 		status, code, message = 400, "invalid_request", "Request is invalid."
+	case errors.Is(err, domain.ErrClientBlocked):
+		status, code, message = 403, "client_blocked", "This client is not allowed to access the server."
+	case errors.Is(err, domain.ErrClientPending):
+		status, code, message = 403, "client_pending_approval", "This client is waiting for administrator approval."
+	case errors.Is(err, domain.ErrClientReadOnly):
+		status, code, message = 403, "client_read_only", "This client may only read."
+	case errors.Is(err, domain.ErrClientRateLimited):
+		status, code, message = 429, "client_rate_limited", "Too many requests from this client. Try again later."
+		seconds := int64(1)
+		var retry clientRetryError
+		if errors.As(err, &retry) {
+			if n := int64((retry.retry + time.Second - 1) / time.Second); n > 1 {
+				seconds = n
+			}
+		}
+		w.Header().Set("Retry-After", strconv.FormatInt(seconds, 10))
 	case errors.Is(err, domain.ErrForbidden):
 		status, code, message = 403, "forbidden", "Operation is not permitted."
 	case errors.Is(err, domain.ErrConflict):

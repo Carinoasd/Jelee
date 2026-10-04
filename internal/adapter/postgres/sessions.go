@@ -451,10 +451,19 @@ const sessionTouchInterval = 60 * time.Second
 // last use and client address, at most once per sessionTouchInterval. The
 // bookkeeping is best effort: failing to record it never fails the request.
 func (s *Store) AuthenticateFrom(ctx context.Context, token, ip string) (access.Principal, error) {
-	p, stale, err := s.authenticate(ctx, token)
-	if err != nil || !stale {
-		return p, err
+	p, _, _, err := s.AuthenticateClient(ctx, token, ip)
+	return p, err
+}
+
+// AuthenticateClient is AuthenticateFrom that also returns the client labels
+// recorded with the session and the current client control version (G47),
+// read by the same statement so the request gate costs no extra round trip.
+func (s *Store) AuthenticateClient(ctx context.Context, token, ip string) (access.Principal, access.SessionClient, int64, error) {
+	a, err := s.authenticate(ctx, token)
+	if err != nil || !a.stale {
+		return a.principal, a.client, a.version, err
 	}
+	p := a.principal
 	var address *string
 	if parsed, perr := netip.ParseAddr(ip); perr == nil {
 		normalized := parsed.Unmap().WithZone("").String()
@@ -464,5 +473,5 @@ func (s *Store) AuthenticateFrom(ctx context.Context, token, ip string) (access.
 	// SKIP LOCKED keeps a request from waiting behind an account transaction
 	// that holds the session row; that use is recorded by a later request.
 	_, _ = s.Pool.Exec(ctx, `UPDATE sessions SET last_seen_at=clock_timestamp(),last_ip=COALESCE($2,last_ip) WHERE id=(SELECT id FROM sessions WHERE id=$1::uuid AND (last_seen_at IS NULL OR last_seen_at<=clock_timestamp()-$3*interval '1 second') FOR UPDATE SKIP LOCKED)`, p.SessionID, address, int64(sessionTouchInterval/time.Second))
-	return p, nil
+	return p, a.client, a.version, nil
 }

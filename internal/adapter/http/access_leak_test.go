@@ -216,16 +216,34 @@ func leakRouteTable() map[string]leakRoute {
 		"PUT /api/v1/users/{id}/content-access/items/{itemId}":    admin(map[string]string{"id": "self", "itemId": "item"}),
 		"DELETE /api/v1/users/{id}/content-access/items/{itemId}": admin(map[string]string{"id": "self", "itemId": "item"}),
 		"GET /api/v1/access/policy":                               admin(noParams),
-		"PUT /api/v1/access/policy":                               admin(noParams),
-		"GET /api/v1/access/parental-ratings":                     admin(noParams),
-		"GET /metrics":                                            admin(noParams),
-		"GET /api/v1/items/{id}/metadata":                         admin(itemParam),
-		"PUT /api/v1/items/{id}/metadata":                         admin(itemParam),
-		"POST /api/v1/items/{id}/metadata/nfo":                    admin(itemParam),
-		"POST /api/v1/items/{id}/metadata/tmdb":                   admin(itemParam),
-		"DELETE /api/v1/items/{id}/metadata/external":             admin(itemParam),
-		"GET /api/v1/libraries/{id}/metadata-preferences":         admin(libParam),
-		"PUT /api/v1/libraries/{id}/metadata-preferences":         admin(libParam),
+		// Client control administration (G47): rules, policy, hits and known
+		// clients name clients, never media.
+		"GET /api/v1/client-control/policy":               admin(noParams),
+		"PUT /api/v1/client-control/policy":               admin(noParams),
+		"GET /api/v1/client-control/rules":                admin(noParams),
+		"POST /api/v1/client-control/rules":               admin(noParams),
+		"GET /api/v1/client-control/rules/{id}":           admin(webhookParam),
+		"PUT /api/v1/client-control/rules/{id}":           admin(webhookParam),
+		"DELETE /api/v1/client-control/rules/{id}":        admin(webhookParam),
+		"POST /api/v1/client-control/rules/{id}/enforce":  admin(webhookParam),
+		"POST /api/v1/client-control/rules/{id}/observe":  admin(webhookParam),
+		"GET /api/v1/client-control/hits":                 admin(noParams),
+		"GET /api/v1/client-control/hits/export":          admin(noParams),
+		"GET /api/v1/client-control/stats":                admin(noParams),
+		"GET /api/v1/client-control/clients":              admin(noParams),
+		"PATCH /api/v1/client-control/clients/{id}":       admin(webhookParam),
+		"POST /api/v1/client-control/clients/{id}/block":  admin(webhookParam),
+		"POST /api/v1/client-control/clients/{id}/kick":   admin(webhookParam),
+		"PUT /api/v1/access/policy":                       admin(noParams),
+		"GET /api/v1/access/parental-ratings":             admin(noParams),
+		"GET /metrics":                                    admin(noParams),
+		"GET /api/v1/items/{id}/metadata":                 admin(itemParam),
+		"PUT /api/v1/items/{id}/metadata":                 admin(itemParam),
+		"POST /api/v1/items/{id}/metadata/nfo":            admin(itemParam),
+		"POST /api/v1/items/{id}/metadata/tmdb":           admin(itemParam),
+		"DELETE /api/v1/items/{id}/metadata/external":     admin(itemParam),
+		"GET /api/v1/libraries/{id}/metadata-preferences": admin(libParam),
+		"PUT /api/v1/libraries/{id}/metadata-preferences": admin(libParam),
 
 		// TMDB lookups are administrator-only and keyed by provider IDs.
 		"GET /api/v1/metadata/tmdb/movies":                                          admin(noParams),
@@ -411,7 +429,13 @@ func leakHandlerWithRenderer(t *testing.T, store *postgres.Store, cfg config.Con
 	if catalog, err = catalog.WithWatchStats(stats); err != nil {
 		t.Fatal(err)
 	}
-	handler, err := NewWithImages(cfg, store, catalog, store, slog.New(slog.NewTextHandler(io.Discard, nil)), accounts, jobs, metadata, metrics, images, WithWebhooks(httpWebhooks(t, store)))
+	options := []Option{WithWebhooks(httpWebhooks(t, store))}
+	if store.Pool != nil {
+		// The traversal runs behind the client control gate with no rules,
+		// as production does by default.
+		options = append(options, WithClientControl(httpClientControl(t, store)))
+	}
+	handler, err := NewWithImages(cfg, store, catalog, store, slog.New(slog.NewTextHandler(io.Discard, nil)), accounts, jobs, metadata, metrics, images, options...)
 	if err != nil {
 		t.Fatal(err)
 	}

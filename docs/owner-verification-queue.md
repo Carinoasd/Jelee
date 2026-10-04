@@ -42,7 +42,7 @@
 | C4 | 50 萬條目掃描（首掃＋重掃）與 GOMAXPROCS=2／4 | 等掃描→條目同步合入後再跑 | 待跑 |
 | C5 | 掃描＋探測＋NFO＋ignore＋自動同步的混合負載 24h | 等掃描→條目同步與 NFO worker 合入後再跑 | 待跑 |
 | C6 | 日誌高 QPS 下 INFO 與 DEBUG 對 P95 的影響、丟棄計數、輪轉不阻塞 | G46.8 | 待跑 |
-| C7 | 權限規則開銷 ≤10%（無規則基線對比） | 等 C3 客戶端管控接上 HTTP 後再跑 | 待跑 |
+| C7 | 權限規則開銷 ≤10%（無規則基線對比） | 客戶端管控已接上 HTTP。開發機單次樣本：真 PG `GET /api/v1/users/me` 無規則對 10,000 條規則比值 0.98；記憶體後端 +0.5～0.8 µs。請在目標硬體以 `TestClientControlOverheadPostgres`（`-v` 看比值）與 `BenchmarkClientGate*` 重跑並在高並發下確認，見 `docs/client-control.md`「效能」 | 待跑 |
 | C8 | 稽核表大量資料時 `purge_audit_logs` 與 `ListAudit` 的效能 | 等 L4 合入後再跑 | 待跑 |
 | C9 | 開發者模式在真實時鐘下 12 小時到期 | 等 D2 接上 CLI 與 HTTP 後再跑 | 待跑 |
 | C10 | fuzz 長跑：`FuzzParsePath`（命名解析）、`FuzzProductionGuard`（轉碼守衛）、相容層認證 | 各跑數小時，或排進夜間 CI | 待跑 |

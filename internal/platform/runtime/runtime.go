@@ -301,6 +301,21 @@ func newWithLifetime(cfg config.Config, logger *slog.Logger, lifetime *lifetime)
 			if webhooks != nil {
 				options = append(options, httpapi.WithWebhooks(webhooks))
 			}
+			// Client control (G47) gates every authenticated and login request
+			// with the rules in storage; its background writer is closed with
+			// the pool after HTTP has drained.
+			clientService, err := app.NewClientControl(store, httpapi.ValidateClientRule)
+			if err != nil {
+				return nil, err
+			}
+			startup, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			clients, err := httpapi.NewClientControl(startup, store, clientService, l, httpapi.ClientControlOptions{})
+			cancel()
+			if err != nil {
+				return nil, err
+			}
+			lifetime.closeClientControl = clients.Close
+			options = append(options, httpapi.WithClientControl(clients))
 			return httpapi.NewWithResources(c, store, catalog, store, l, accounts, jobs, metadata, metricsHandler, pictures, budget, options...)
 		},
 	), fx.Invoke(func(lc fx.Lifecycle, cfg config.Config, handler http.Handler, shutdown fx.Shutdowner) {
@@ -333,6 +348,8 @@ type lifetime struct {
 	closeIgnore     func() error
 	closeTelemetry  func(context.Context) error
 	closeImages     func(context.Context) error
+	// closeClientControl writes buffered client control hits and activity.
+	closeClientControl func(context.Context) error
 	// progress buffers playback reports; it runs with the workers and is
 	// flushed once more after HTTP has drained (G23.2).
 	progress     *app.Progress
@@ -410,6 +427,13 @@ func (l *lifetime) closePool() {
 				l.stopErr = errors.Join(l.stopErr, errors.New("image shutdown failed"))
 				return
 			}
+		}
+		if l.closeClientControl != nil {
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			if err := l.closeClientControl(ctx); err != nil {
+				l.logger.Warn("client control records not written at shutdown", "component", "client_control")
+			}
+			cancel()
 		}
 		if l.closeStore != nil {
 			l.closeStore()

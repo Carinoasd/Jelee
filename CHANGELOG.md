@@ -2,6 +2,8 @@
 
 ## Unreleased — Go foundation
 
+- 客戶端管控接上請求路徑（G47.1–G47.10 子集）：遷移 000070 新增規則、策略（未知客戶端預設策略、管理員與環回豁免）、已知客戶端與按分鐘聚合的命中紀錄；自有 API 與相容層的已驗證請求及三種登入都經過閘門，動作支援拒絕（403 `client_blocked`）、唯讀（403 `client_read_only`）、限速（429 `client_rate_limited`）、強制重新認證、待核准（403 `client_pending_approval`）、觀察與影子。規則依版本編譯快取，版本號附在工作階段查詢中，變更後下一個請求生效（含多實例）；引擎新增字面量預篩，1 萬條規則評估約 0.3 µs。管理員 API `/api/v1/client-control/…`（規則 CRUD、觀察↔攔截、命中紀錄與匯出（遮罩）、統計、已知客戶端改名／可信／屏蔽／踢下線），變更寫稽核；緊急恢復 `jelee-cli access reset-policies`。限制庫存取、按庫與群組範圍列為後續。詳見 `docs/client-control.md`。
+
 - 存取控制統一過濾器（G48.1–G48.4、G48.8、G48.10 子集）：媒體庫授權述詞收斂到 `internal/adapter/postgres/visibility.go` 單一來源，守門測試禁止其他查詢再讀授權表。遷移 000069 新增條目／子樹顯式允許或隱藏（最近者勝）、使用者分級上限（取自 `mpaa`／`certification`，內建美、英、日、德、台分級代碼表）、未分級預設策略、標籤／類型封鎖、管理員是否受限的全域策略；列表、搜尋、詳情、圖片、外掛軌、直投、播放資訊、繼續觀看、統計、相容層全部自動生效。管理員 API `/api/v1/users/{id}/content-access…`、`/api/v1/access/policy`、`/api/v1/access/parental-ratings`，變更寫稽核。仍有規則時拒絕降級。詳見 `docs/access-control.md`。
 
 - Webhook（G12.1–G12.6）：遷移 000068 新增 `webhooks`、`webhook_outbox`、`webhook_deliveries`、`webhook_delivery_attempts`；事件在產生變更的同一交易寫入 outbox，背景投遞器以租約領取、HMAC-SHA256 簽章（`X-Jelee-Signature`／`X-Jelee-Timestamp`）、經 SSRF 防護的出站客戶端送出，至少一次、指數退避加抖動、最大重試與死信、手動重放、投遞日誌可查。端點密鑰與自訂標頭值以 `JELEE_WEBHOOK_MASTER_KEY` 經 AES-GCM 封存；沒有主鑰時不能啟用。管理員 API `/api/v1/webhooks…`、錯誤碼 `webhook_target_denied`（400）。已接上登入成功／失敗／鎖定、掃描完成／失敗、播放開始／停止、NFO 寫回、目錄同步的媒體新增／刪除；其餘事件見 `docs/webhooks.md`。
