@@ -4,7 +4,7 @@
 
 `internal/adapter/media` 只读取并传输原始文件，不启动子进程，没有转码、重编码、烧录字幕、HLS、DASH 或 Remux 实现。HTTP 层必须先验证凭据，再通过 `ServeSource` 传入不透明资源 ID。是否注册公开播放入口由应用层功能开关控制。
 
-这是直投安全基础模块。第三方客户端兼容协商、按用户/设备限制、播放会话统计、ffprobe、字幕/音轨提取、Remux、实际播放器验证与部署性能验收仍需各自实现和验收。本模块测试通过不能代替这些验收。
+这是直投安全基础模块。按用户/设备的并发与带宽限制及撤销即断流见下文；第三方客户端兼容协商、播放会话统计、ffprobe、字幕/音轨提取、Remux、实际播放器验证与部署性能验收仍需各自实现和验收。本模块测试通过不能代替这些验收。
 
 ## 接口和信任边界
 
@@ -19,7 +19,7 @@ Web 禁止播放的承诺基于**服务端签发时绑定的会话类型**。原
 
 ## HTTP 行为
 
-`net/http.ServeContent` 负责完整响应、HEAD、单段/后缀/开放结尾/多段 Range、条件请求和 `If-Range`。传入已打开的文件句柄，不使用公开文件服务目录。所有响应移除 `Content-Disposition`，不会产生附件下载接口。
+`net/http.ServeContent` 负责完整响应、HEAD、单段/后缀/开放结尾/多段 Range、条件请求和 `If-Range`。传入已打开的文件句柄，不使用公开文件服务目录。所有响应移除 `Content-Disposition`，不会产生附件下载接口。成功响应（含 HEAD 与 206）另加 `Content-Security-Policy: sandbox; default-src 'none'`：即使资源被登记为 `text/html` 或 SVG 并被直接打开，也不能在本源执行脚本（CodeQL 反射型 XSS 的纵深防御，`nosniff` 与明确的 `Content-Type` 之外再加一层）；412、416 等错误响应保留进入直投前的策略。
 
 默认使用文件的 `Last-Modified` 处理条件请求。仓储可提供正确引用的强 ETag，但必须代表当前文件内容版本；不能把未经校验的路径、大小或修改时间冒充强内容指纹。未提供 ETag 时不合成它。
 
@@ -28,6 +28,52 @@ Web 禁止播放的承诺基于**服务端签发时绑定的会话类型**。原
 读取包装器检查请求取消，`io.CopyBuffer` 为每个流显式分配 32 KiB 缓冲。Range 请求头最多 4096 字节、最多 16 段，超出返回 416，避免攻击者构造大量分段增加解析和 MIME 开销。当前未声明 sendfile 零拷贝路径，也没有上传整部媒体到内存。超大文件不会因文件大小分配等量缓冲。
 
 `Options.WriteError` 必须注入统一 HTTP 错误映射。包括标准库生成的 412、416 在内，错误通过该回调输出，禁止回显底层绝对路径或数据库错误。媒体已开始发送后的连接/读取错误通过终止流处理，不能在媒体字节后追加 JSON 错误。
+
+## 撤销即断流、并发播放与带宽上限（G07.4、G45.4）
+
+### 撤销即断流
+
+资源查询本身已在 SQL 内确认会话有效，但长时间的下载在开始后不会再经过认证。因此每个 GET 串流在打开文件后启动一个检查协程，每隔 `streaming.revokeCheckSeconds`（默认 5 秒，范围 1–300，不能关闭）调用 `SessionChecker.SessionActive`。正式实现是 PostgreSQL 仓储的 `Store.SessionActive`：会话未撤销、未过期，且用户未禁用、未软删除。它直接查库，所以经任何实例撤销会话（登出、管理员撤销、改密、禁用、删除、撤回原生权限）都会在一个检查间隔内切断所有实例上的串流。
+
+查询失败不立即断流，避免一次数据库抖动中断全部播放；连续 3 次无法确认（约 3 个间隔）才按已撤销处理。查询期限沿用 `LookupTimeout`。
+
+切断的方式与客户端取消相同：结束串流上下文，关闭文件并把网络写截止时间设为现在，阻塞中的读、写和限速等待都会立即返回。此时响应已经开始，不能再追加 JSON 错误；写截止时间保持过期，连接不会被复用，客户端看到的是提前结束的响应（短于 `Content-Length`）。HEAD 不启动检查。
+
+### 并发播放上限
+
+`internal/adapter/media/limits.go` 按用户计算**不同播放**的数量：同一会话对同一资源的多个请求（播放器的重叠 Range 请求与拖动）只算一个，因此不会因 seek 误判超限。超过时在开文件和取共享 I/O 配额之前拒绝：
+
+| 错误码 | 状态 | 含义 |
+| --- | --- | --- |
+| `user_stream_limit` | 429 | 该用户同时播放的不同资源数已达上限 |
+| `device_stream_limit` | 429 | 该设备（native 登录上报的 `deviceId`；未上报时以会话为单位）已达上限 |
+| `stream_limit` | 429 | 原有的全进程 `JELEE_MAX_STREAMS` 请求上限，与以上两项相互独立 |
+
+用户上限可由管理员经 `PUT /api/v1/users/{id}/delivery-limits` 的 `maxStreams` 覆写（省略＝跟随全局，`0`＝不限），设备上限只有全局值。HEAD 不发送媒体，不计数也不限速。计数在进程内存中：多实例部署时每个实例各自执行上限，同一用户分散到多个实例时总数可能超过设定值；撤销检查则是跨实例的。
+
+### 带宽上限
+
+令牌桶按用户共享（`bandwidthScope=device` 时按设备）：同一用户的全部串流共用 `maxKbpsPerUser`（千比特每秒，1 kbps＝125 字节/秒），可由管理员以 `maxKbps` 覆写。桶容量为 250 毫秒的流量（至少 16 KiB），每次网络写最多 16 KiB；预约可以透支，等待时间按透支量计算，因此并发串流按到达顺序分享速率。最后一个使用者结束后桶被释放；串流进行中改变覆写值，会在该用户下一次开始串流时生效；共享的桶随之改速，同一用户仍在进行的串流也一起改变。
+
+未开带宽限制或用户不受限时，`streamWriter.throttle` 为 nil，写入路径与以前完全相同。这是将来零拷贝（sendfile）快速路径唯一可用的情形：撤销检查不依赖写入路径，它通过关闭文件与写截止时间生效。
+
+时间来源是可注入的 `media.Clock`（`Options.Clock`，默认系统时钟），检查间隔与限速等待都经由它，单元测试以假时钟驱动。
+
+### 设置与开关
+
+每项限制单独开关（G45.4）；关闭的限制同时忽略全局值与所有用户覆写。配置文件 `streaming` 段与环境变量：
+
+| 配置文件字段 | 环境变量 | 默认 | 范围 |
+| --- | --- | --- | --- |
+| `revokeCheckSeconds` | `JELEE_STREAM_REVOKE_CHECK_SECONDS` | 5 | 1–300（配置文件写 0 视为默认） |
+| `enableStreamLimit` | `JELEE_STREAM_LIMIT_ENABLED` | true | 布尔 |
+| `maxStreamsPerUser` | `JELEE_STREAM_MAX_PER_USER` | 4 | 0–128，0＝无全局上限 |
+| `maxStreamsPerDevice` | `JELEE_STREAM_MAX_PER_DEVICE` | 0 | 0–128，0＝不限设备 |
+| `enableBandwidthLimit` | `JELEE_BANDWIDTH_LIMIT_ENABLED` | true | 布尔 |
+| `maxKbpsPerUser` | `JELEE_BANDWIDTH_MAX_KBPS_PER_USER` | 0 | 0–10000000，0＝无全局速率 |
+| `bandwidthScope` | `JELEE_BANDWIDTH_SCOPE` | `user` | `user` 或 `device` |
+
+默认值的含义：每个用户最多同时播放 4 个不同资源；带宽开关打开但没有全局速率，所以只有被管理员设置了 `maxKbps` 的用户会被限速。超出范围的值在启动时拒绝。用户覆写的取值范围相同，由数据库 CHECK 约束与应用层双重校验。
 
 ## 播放信息与直投判定（G10.4、G10.5、G15.2、G16.3）
 

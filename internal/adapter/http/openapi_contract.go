@@ -19,6 +19,7 @@ var errorCodeStatuses = map[string][]int{
 	"body_too_large":            {413},
 	"conflict":                  {409},
 	"csrf_failed":               {403},
+	"device_stream_limit":       {429},
 	"feature_removed":           {501},
 	"forbidden":                 {403},
 	"ignore_unavailable":        {503},
@@ -59,6 +60,7 @@ var errorCodeStatuses = map[string][]int{
 	"stream_limit":              {429},
 	"transcode_disabled":        {409},
 	"unsupported_media_type":    {415},
+	"user_stream_limit":         {429},
 	"web_playback_disabled":     {403},
 }
 

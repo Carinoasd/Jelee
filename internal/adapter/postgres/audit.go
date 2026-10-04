@@ -79,6 +79,7 @@ var auditEvents = map[string]string{
 	"user.deleted":                         domain.AuditCategoryAudit,
 	"user.library_access_replaced":         domain.AuditCategoryAudit,
 	"user.native_access_changed":           domain.AuditCategoryAudit,
+	"user.delivery_limits_changed":         domain.AuditCategoryAudit,
 	"user.password_changed":                domain.AuditCategoryAudit,
 	"user.password_reset_local":            domain.AuditCategoryAudit,
 	"user.profile_changed":                 domain.AuditCategoryAudit,

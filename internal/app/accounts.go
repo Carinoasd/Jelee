@@ -33,6 +33,8 @@ type AccountRepository interface {
 	RotateSession(context.Context, domain.Actor, string, time.Duration) (domain.SessionGrant, error)
 	ListAllSessions(context.Context, domain.Actor, string, int) ([]domain.Session, error)
 	SetNativeAccess(context.Context, domain.Actor, string, bool) (domain.User, error)
+	GetDeliveryLimits(context.Context, domain.Actor, string) (domain.DeliveryLimits, error)
+	SetDeliveryLimits(context.Context, domain.Actor, string, domain.DeliveryLimits) (domain.DeliveryLimits, error)
 	GetLibraryAccess(context.Context, domain.Actor, string) ([]domain.LibraryGrant, error)
 	ReplaceLibraryAccess(context.Context, domain.Actor, string, []string) error
 }
@@ -306,6 +308,27 @@ func (a *Accounts) SetNativeAccess(ctx context.Context, actor domain.Actor, id s
 		return domain.User{}, domain.ErrNotFound
 	}
 	return a.repository.SetNativeAccess(ctx, actor, id, allow)
+}
+
+// DeliveryLimits reads a user's direct delivery overrides (administrator only).
+func (a *Accounts) DeliveryLimits(ctx context.Context, actor domain.Actor, id string) (domain.DeliveryLimits, error) {
+	if !validTarget(actor, id) {
+		return domain.DeliveryLimits{}, domain.ErrNotFound
+	}
+	return a.repository.GetDeliveryLimits(ctx, actor, id)
+}
+
+// SetDeliveryLimits replaces a user's direct delivery overrides (G07.4). The
+// new values govern streams that start afterwards; streams already running
+// keep the limits they were admitted with.
+func (a *Accounts) SetDeliveryLimits(ctx context.Context, actor domain.Actor, id string, limits domain.DeliveryLimits) (domain.DeliveryLimits, error) {
+	if !validTarget(actor, id) {
+		return domain.DeliveryLimits{}, domain.ErrNotFound
+	}
+	if !limits.Valid() {
+		return domain.DeliveryLimits{}, domain.ErrInvalid
+	}
+	return a.repository.SetDeliveryLimits(ctx, actor, id, limits)
 }
 
 func (a *Accounts) Rotate(ctx context.Context, actor domain.Actor, deviceName string) (domain.SessionGrant, error) {

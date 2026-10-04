@@ -31,6 +31,8 @@
 | POST `/users/{id}/restore` | 管理员 | `{}`；恢复资料，原令牌保持撤销 |
 | POST `/users/{id}/unlock` | 管理员 | `{}`；重置失败计数和锁定时间 |
 | PUT `/users/{id}/native` | 管理员 | `{"allowNative":true}` 或 `false`；开启或撤回原生设备登录；撤回时同时撤销该用户全部有效 native 会话；写审计 `user.native_access_changed`；值未变时不写审计 |
+| GET `/users/{id}/delivery-limits` | 管理员 | 该用户的直投覆写值；省略的字段表示跟随全局设置 |
+| PUT `/users/{id}/delivery-limits` | 管理员 | `{"maxStreams":0..128,"maxKbps":0..10000000}`，两项皆可省略；省略即恢复跟随全局，`0` 表示该用户不受此项限制；只影响之后开始的串流；写审计 `user.delivery_limits_changed`（前后值含 null）；值未变时不写审计。详见[直投限制](direct-delivery.md#撤销即断流并发播放与带宽上限g074g454) |
 | GET `/sessions` | 管理员 | 全部用户的有效会话；`cursor?,limit=1..100`，按会话 ID 游标分页；data.sessions 与 data.pagination |
 | GET `/users/{id}/sessions` | 自己或管理员 | 有效会话列表；返回会话 ID、类型、设备名、client/deviceId/version、最后使用时间与地址，不返回令牌 |
 | DELETE `/users/{id}/sessions` | 自己或管理员 | 撤销目标全部会话 |
@@ -73,4 +75,6 @@ PUT 中遗漏的可选字符串/布尔字段会重置为空/false；它不是 PA
 
 schema 63（`000063_native_session_devices`）为 users 增加 `allow_native`，为 sessions 增加可空且有长度/字符约束的 `device_id`、`client_name`、`client_version`、`last_seen_at`、`last_ip`。down 删除这些列：原生登录权限随之收回（失败即关闭），已签发的 native 会话在 schema 62 下仍按 CLI 签发的 native 会话一样有效且可撤销，只丢失客户端标签与最后使用记录；再次 up 后所有用户的 `allowNative` 回到 false。
 
-本阶段未实现头像、内容分级、可疑登录通知、用户/设备带宽与播放并发预算、永久删除与个人数据导出、管理 UI、MFA、分布式限速及完整安全验收。web 会话依旧禁止播放；第三方原生客户端协议适配在后续阶段完成。
+schema 64（`000064_user_delivery_limits`）为 users 增加可空的 `max_streams`（0–128）与 `max_kbps`（0–10000000）。NULL 表示跟随全局设置。down 删除这两列，所有用户回到全局限制；再次 up 后覆写值均为 NULL，需要时重新设置。
+
+本阶段未实现头像、内容分级、可疑登录通知、永久删除与个人数据导出、管理 UI、MFA、分布式限速及完整安全验收。web 会话依旧禁止播放；第三方原生客户端协议适配在后续阶段完成。

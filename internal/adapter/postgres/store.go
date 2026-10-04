@@ -20,7 +20,7 @@ type Store struct{ Pool *pgxpool.Pool }
 
 // SchemaVersion is the only clean schema accepted by this binary. Adjacent
 // releases cannot serve against different cache and job lifecycle contracts.
-const SchemaVersion = 63
+const SchemaVersion = 64
 
 func Open(ctx context.Context, dsn string, maxConnections int32) (*Store, error) {
 	cfg, err := pgxpool.ParseConfig(dsn)
@@ -135,7 +135,8 @@ func (s *Store) Resolve(ctx context.Context, p access.Principal, sourceID string
 	}
 	var source media.Source
 	// Recheck the live session and ACL in the same query immediately before opening.
-	err := s.Pool.QueryRow(ctx, `SELECT r.path,m.relative_path,m.content_type FROM media_sources m JOIN library_roots r ON r.id=m.root_id JOIN users u ON u.id=$1::uuid AND NOT u.disabled AND u.deleted_at IS NULL JOIN sessions s ON s.id=$2::uuid AND s.user_id=u.id AND s.client_kind='native' AND s.revoked_at IS NULL AND s.expires_at>now() WHERE m.id=$3::uuid AND (u.is_admin OR EXISTS(SELECT 1 FROM library_acl a WHERE a.user_id=u.id AND a.library_id=m.library_id))`, p.UserID, p.SessionID, sourceID).Scan(&source.Root, &source.RelativePath, &source.ContentType)
+	// It also returns the session's device and the user's delivery overrides for stream limits.
+	err := s.Pool.QueryRow(ctx, `SELECT r.path,m.relative_path,m.content_type,COALESCE(s.device_id,''),u.max_streams,u.max_kbps FROM media_sources m JOIN library_roots r ON r.id=m.root_id JOIN users u ON u.id=$1::uuid AND NOT u.disabled AND u.deleted_at IS NULL JOIN sessions s ON s.id=$2::uuid AND s.user_id=u.id AND s.client_kind='native' AND s.revoked_at IS NULL AND s.expires_at>now() WHERE m.id=$3::uuid AND (u.is_admin OR EXISTS(SELECT 1 FROM library_acl a WHERE a.user_id=u.id AND a.library_id=m.library_id))`, p.UserID, p.SessionID, sourceID).Scan(&source.Root, &source.RelativePath, &source.ContentType, &source.DeviceID, &source.Limits.MaxStreams, &source.Limits.MaxKbps)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return source, media.ErrNotFound
 	}

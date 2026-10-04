@@ -123,6 +123,8 @@ func leakRouteTable() map[string]leakRoute {
 		"POST /api/v1/users/{id}/restore":                 admin(selfParam),
 		"POST /api/v1/users/{id}/unlock":                  admin(selfParam),
 		"PUT /api/v1/users/{id}/native":                   admin(selfParam),
+		"GET /api/v1/users/{id}/delivery-limits":          admin(selfParam),
+		"PUT /api/v1/users/{id}/delivery-limits":          admin(selfParam),
 		"GET /api/v1/sessions":                            admin(noParams),
 		"PUT /api/v1/users/{id}/libraries":                admin(selfParam),
 		"GET /metrics":                                    admin(noParams),

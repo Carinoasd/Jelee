@@ -504,3 +504,39 @@ func TestStreamCopyClearsBufferAfterReadFailure(t *testing.T) {
 		t.Fatal("failed copy retained media bytes")
 	}
 }
+
+// CodeQL reflected XSS defense: media is sandboxed even when the stored type
+// is a document type, while error responses keep the policy set before.
+func TestMediaResponsesAreSandboxed(t *testing.T) {
+	source, _ := fixture(t)
+	source.ContentType = "text/html; charset=utf-8"
+	const boundaryPolicy = "default-src 'none'; frame-ancestors 'none'; base-uri 'none'"
+	handler := testHandler(t, resolveFunc(func(_ context.Context, _ access.Principal, id string) (Source, error) {
+		if id == "missing" {
+			return Source{}, ErrNotFound
+		}
+		return source, nil
+	}), 2)
+	for _, tc := range []struct {
+		method, id, ranges string
+		status             int
+		policy             string
+	}{
+		{"GET", "source", "", 200, mediaContentSecurityPolicy},
+		{"HEAD", "source", "", 200, mediaContentSecurityPolicy},
+		{"GET", "source", "bytes=0-9", 206, mediaContentSecurityPolicy},
+		{"GET", "source", "bytes=99999999-", 416, boundaryPolicy},
+		{"GET", "missing", "", 404, boundaryPolicy},
+	} {
+		r := nativeRequest(tc.method, "/stream")
+		if tc.ranges != "" {
+			r.Header.Set("Range", tc.ranges)
+		}
+		w := httptest.NewRecorder()
+		w.Header().Set("Content-Security-Policy", boundaryPolicy)
+		handler.ServeSource(w, r, tc.id)
+		if w.Code != tc.status || len(w.Header().Values("Content-Security-Policy")) != 1 || w.Header().Get("Content-Security-Policy") != tc.policy {
+			t.Fatalf("%s %s %q: status=%d policy=%q", tc.method, tc.id, tc.ranges, w.Code, w.Header().Values("Content-Security-Policy"))
+		}
+	}
+}

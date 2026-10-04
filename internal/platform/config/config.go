@@ -18,6 +18,7 @@ import (
 type Config struct {
 	Resources             ResourcesConfig `json:"resources"`
 	Access                AccessConfig    `json:"access"`
+	Streaming             StreamingConfig `json:"streaming"`
 	Listen                string          `json:"listen"`
 	AllowedHosts          []string        `json:"allowedHosts"`
 	TrustedProxies        []string        `json:"trustedProxies"`
@@ -57,7 +58,7 @@ func Load() (Config, error) { return LoadWith(os.LookupEnv) }
 
 // LoadWith keeps environment lookup injectable and never includes values in errors.
 func LoadWith(lookup func(string) (string, bool)) (Config, error) {
-	c := Config{Resources: DefaultResourcesConfig(), Access: DefaultAccessConfig(), Listen: "127.0.0.1:8097", AllowedHosts: []string{"localhost", "127.0.0.1", "::1"}, MaxConnections: 8, MaxStreams: 8, RequestTimeoutSeconds: 15, Accounts: DefaultAccountsConfig(), Jobs: DefaultJobsConfig(), Images: DefaultImagesConfig(), Logging: DefaultLoggingConfig()}
+	c := Config{Resources: DefaultResourcesConfig(), Access: DefaultAccessConfig(), Streaming: DefaultStreamingConfig(), Listen: "127.0.0.1:8097", AllowedHosts: []string{"localhost", "127.0.0.1", "::1"}, MaxConnections: 8, MaxStreams: 8, RequestTimeoutSeconds: 15, Accounts: DefaultAccountsConfig(), Jobs: DefaultJobsConfig(), Images: DefaultImagesConfig(), Logging: DefaultLoggingConfig()}
 	if path, ok := lookup("JELEE_CONFIG"); ok && path != "" {
 		f, err := os.Open(path)
 		if err != nil {
@@ -160,6 +161,9 @@ func LoadWith(lookup func(string) (string, bool)) (Config, error) {
 	if err := c.Access.loadEnvironment(lookup); err != nil {
 		return c, err
 	}
+	if err := c.Streaming.loadEnvironment(lookup); err != nil {
+		return c, err
+	}
 	if err := c.Logging.loadEnvironment(lookup); err != nil {
 		return c, err
 	}
@@ -171,6 +175,9 @@ func (c Config) Validate() error {
 		return err
 	}
 	if err := c.Access.Validate(); err != nil {
+		return err
+	}
+	if err := c.Streaming.Validate(); err != nil {
 		return err
 	}
 	if err := c.Logging.Validate(); err != nil {

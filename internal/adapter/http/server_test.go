@@ -448,6 +448,7 @@ func TestCentralErrorMapping(t *testing.T) {
 		{domain.ErrInvalid, 400, "invalid_request"}, {media.ErrInvalidRequest, 400, "invalid_request"},
 		{media.ErrPlaybackDenied, 403, "web_playback_disabled"}, {media.ErrTranscodeDisabled, 409, "transcode_disabled"},
 		{media.ErrBusy, 429, "stream_limit"}, {media.ErrMethodNotAllowed, 405, "method_not_allowed"},
+		{media.ErrUserStreamLimit, 429, "user_stream_limit"}, {media.ErrDeviceStreamLimit, 429, "device_stream_limit"},
 		{media.ErrLookupTimeout, 504, "lookup_timeout"},
 		{media.ErrInvalidRange, 416, "invalid_range"}, {media.ErrPreconditionFailed, 412, "precondition_failed"},
 		{media.ErrBodyTooLarge, 413, "body_too_large"}, {media.ErrUnsupportedMediaType, 415, "unsupported_media_type"},

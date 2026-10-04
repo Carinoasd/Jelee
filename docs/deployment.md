@@ -104,7 +104,7 @@ Compose 内部网络使用 sslmode=disable，仅用于此隔离网络；远程�
 
 | 现象 | 优先检查 |
 | --- | --- |
-| 播放卡顿、无法拖动 | 代理是否关闭了响应缓冲、是否原样转发 `Range`；代理或 CDN 是否压缩／缓存媒体；`JELEE_MAX_STREAMS` 是否过小（返回 `stream_limit`，429）；客户端是否为 native 会话（web 会话播放返回 `web_playback_disabled`，403）。Jelee 不转码，客户端不支持的编码无法靠服务端解决 |
+| 播放卡顿、无法拖动 | 代理是否关闭了响应缓冲、是否原样转发 `Range`；代理或 CDN 是否压缩／缓存媒体；`JELEE_MAX_STREAMS` 是否过小（返回 `stream_limit`，429）；是否触及每用户／每设备播放上限（`user_stream_limit`／`device_stream_limit`，429）或该用户被设置了带宽上限，见[直投限制](direct-delivery.md#撤销即断流并发播放与带宽上限g074g454)；客户端是否为 native 会话（web 会话播放返回 `web_playback_disabled`，403）。Jelee 不转码，客户端不支持的编码无法靠服务端解决 |
 | 所有请求 400 | `invalid_host`：把代理传入的公开域名加入 `JELEE_ALLOWED_HOSTS` |
 | 登录限流把所有用户算作同一人 | `JELEE_TRUSTED_PROXIES` 未覆盖代理实际源地址；日志出现 `untrusted_peer` 即为此原因 |
 | 代理 502／504 | Jelee 是否在运行、代理连接的地址与 `JELEE_LISTEN` 是否一致；Compose 只向宿主环回发布 8097 |

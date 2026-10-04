@@ -29,6 +29,11 @@ type Source struct {
 	// ETag may contain a quoted strong content revision from the probe/index.
 	// Leave empty when no reliable content revision has been calculated.
 	ETag string
+	// DeviceID is the device reported by the session's native login; empty
+	// when none was reported. It only groups streams for device limits.
+	DeviceID string
+	// Limits are the user's delivery overrides; nil fields follow Options.Limits.
+	Limits domain.DeliveryLimits
 }
 
 // Resolver must apply authorization in its lookup, check enabled users and
@@ -43,6 +48,14 @@ type Options struct {
 	LookupTimeout time.Duration
 	WriteTimeout  time.Duration
 	WriteError    func(http.ResponseWriter, *http.Request, error)
+	// Sessions, when set, is polled every SessionCheckInterval (default 5s)
+	// while a stream runs; a revoked session cuts the stream (G07.4).
+	Sessions             SessionChecker
+	SessionCheckInterval time.Duration
+	// Limits are the concurrent playback and bandwidth limits (G07.4, G45.4).
+	Limits Limits
+	// Clock defaults to the system clock.
+	Clock Clock
 }
 
 type Handler struct {
@@ -50,16 +63,31 @@ type Handler struct {
 	slots    chan struct{}
 	options  Options
 	buffers  sync.Pool
+	clock    Clock
+	limiter  *limiter
 }
 
 func NewHandler(resolver Resolver, options Options) (*Handler, error) {
 	if resolver == nil || options.WriteError == nil || options.MaxConcurrent < 1 || options.WriteTimeout <= 0 || options.LookupTimeout < 0 {
 		return nil, fmt.Errorf("direct delivery options: %w", ErrInvalidRequest)
 	}
+	if options.SessionCheckInterval < 0 {
+		return nil, fmt.Errorf("direct delivery session check interval: %w", ErrInvalidRequest)
+	}
+	if err := options.Limits.validate(); err != nil {
+		return nil, err
+	}
 	if options.LookupTimeout == 0 {
 		options.LookupTimeout = 5 * time.Second
 	}
-	return &Handler{resolver: resolver, slots: make(chan struct{}, options.MaxConcurrent), options: options,
+	if options.SessionCheckInterval == 0 {
+		options.SessionCheckInterval = DefaultSessionCheckInterval
+	}
+	clock := options.Clock
+	if clock == nil {
+		clock = systemClock{}
+	}
+	return &Handler{resolver: resolver, slots: make(chan struct{}, options.MaxConcurrent), options: options, clock: clock, limiter: newLimiter(options.Limits, clock),
 		buffers: sync.Pool{New: func() any { return new([32 << 10]byte) }},
 	}, nil
 }
@@ -122,6 +150,15 @@ func (h *Handler) ServeSource(w http.ResponseWriter, r *http.Request, sourceID s
 	if r.Context().Err() != nil {
 		return
 	}
+	// HEAD sends no media, so it is neither counted nor throttled.
+	var admitted *admission
+	if r.Method == http.MethodGet {
+		if admitted, err = h.limiter.admit(principal, sourceID, source); err != nil {
+			h.options.WriteError(w, r, err)
+			return
+		}
+		defer admitted.release()
+	}
 	if h.options.Budget != nil {
 		waitCtx, cancelWait := context.WithTimeout(r.Context(), h.options.LookupTimeout)
 		release, budgetErr := h.options.Budget.Acquire(waitCtx, app.WorkIO)
@@ -170,12 +207,30 @@ func (h *Handler) ServeSource(w http.ResponseWriter, r *http.Request, sourceID s
 	w.Header().Set("Content-Type", contentType)
 	w.Header().Set("X-Content-Type-Options", "nosniff")
 	w.Header().Set("Cache-Control", "private, no-store")
+	// Defense in depth (CodeQL reflected XSS): a source labelled text/html or
+	// SVG must not run script in this origin if a client renders it. Error
+	// responses written later restore the policy that was set before.
+	errorPolicy := w.Header().Values("Content-Security-Policy")
+	w.Header().Set("Content-Security-Policy", mediaContentSecurityPolicy)
 	if source.ETag != "" {
 		w.Header().Set("ETag", source.ETag)
 	}
 	controller := http.NewResponseController(w)
+	// The stream context ends with the request or when the session watcher
+	// finds the session revoked. Ending it closes the file and expires the
+	// write deadline, so blocked reads, writes and throttle waits all stop.
+	streamCtx, cancelStream := context.WithCancelCause(r.Context())
+	defer cancelStream(nil)
+	if h.options.Sessions != nil && r.Method == http.MethodGet {
+		watcherDone := make(chan struct{})
+		go h.watchSession(streamCtx, cancelStream, principal, watcherDone)
+		defer func() {
+			cancelStream(nil)
+			<-watcherDone
+		}()
+	}
 	callbackDone := make(chan struct{})
-	stop := context.AfterFunc(r.Context(), func() {
+	stop := context.AfterFunc(streamCtx, func() {
 		defer close(callbackDone)
 		_ = controller.SetWriteDeadline(time.Now())
 		_ = file.Close()
@@ -184,12 +239,24 @@ func (h *Handler) ServeSource(w http.ResponseWriter, r *http.Request, sourceID s
 		if !stop() {
 			<-callbackDone
 		}
-		_ = controller.SetWriteDeadline(time.Time{})
+		// A revoked stream keeps the expired deadline: the response is cut
+		// short and the connection must not be reused or flushed further.
+		if !errors.Is(context.Cause(streamCtx), ErrSessionRevoked) {
+			_ = controller.SetWriteDeadline(time.Time{})
+		}
 	}()
-	writer := &streamWriter{buffers: &h.buffers, ResponseWriter: w, request: r, controller: controller, timeout: h.options.WriteTimeout, writeError: h.options.WriteError}
-	reader := &contextFile{ctx: r.Context(), file: file}
+	// throttle is nil without a bandwidth limit. That is the only case in
+	// which a future zero-copy path may bypass the copy loop: revocation does
+	// not depend on the write path, since ending streamCtx closes the file and
+	// expires the write deadline.
+	writer := &streamWriter{buffers: &h.buffers, ResponseWriter: w, request: r, ctx: streamCtx, controller: controller, timeout: h.options.WriteTimeout, writeError: h.options.WriteError, throttle: admitted.throttle(), errorPolicy: errorPolicy}
+	reader := &contextFile{ctx: streamCtx, file: file}
 	http.ServeContent(writer, r, "", info.ModTime(), reader)
 }
+
+// mediaContentSecurityPolicy sandboxes original media responses so content
+// served with a document type cannot script the API origin.
+const mediaContentSecurityPolicy = "sandbox; default-src 'none'"
 
 func openSource(source Source) (*os.File, error) {
 	if !filepath.IsAbs(source.Root) || !fs.ValidPath(source.RelativePath) || source.RelativePath == "." || strings.ContainsAny(source.RelativePath, "\\:\x00") {
@@ -244,15 +311,28 @@ func (f *contextFile) Seek(offset int64, whence int) (int64, error) {
 
 type streamWriter struct {
 	http.ResponseWriter
-	request    *http.Request
+	request *http.Request
+	// ctx is the stream context; nil means the request context.
+	ctx        context.Context
+	throttle   *throttle
 	controller *http.ResponseController
 	timeout    time.Duration
 	writeError func(http.ResponseWriter, *http.Request, error)
-	rejected   bool
-	buffers    *sync.Pool
+	// errorPolicy is the Content-Security-Policy in force before the media
+	// policy was set; error responses keep it.
+	errorPolicy []string
+	rejected    bool
+	buffers     *sync.Pool
 }
 
 func (w *streamWriter) Unwrap() http.ResponseWriter { return w.ResponseWriter }
+
+func (w *streamWriter) context() context.Context {
+	if w.ctx != nil {
+		return w.ctx
+	}
+	return w.request.Context()
+}
 
 func (w *streamWriter) WriteHeader(status int) {
 	w.Header().Del("Content-Disposition")
@@ -264,6 +344,10 @@ func (w *streamWriter) WriteHeader(status int) {
 	w.Header().Del("Content-Length")
 	w.Header().Del("Content-Type")
 	w.Header().Set("Cache-Control", "private, no-store")
+	w.Header().Del("Content-Security-Policy")
+	for _, value := range w.errorPolicy {
+		w.Header().Add("Content-Security-Policy", value)
+	}
 	err := ErrIO
 	switch status {
 	case http.StatusRequestedRangeNotSatisfiable:
@@ -278,7 +362,28 @@ func (w *streamWriter) Write(data []byte) (int, error) {
 	if w.rejected {
 		return len(data), nil
 	}
-	if err := w.request.Context().Err(); err != nil {
+	if w.throttle == nil {
+		return w.write(data)
+	}
+	written := 0
+	for len(data) > 0 {
+		piece := data[:min(len(data), throttleChunk)]
+		if err := w.throttle.wait(w.context(), len(piece)); err != nil {
+			return written, err
+		}
+		n, err := w.write(piece)
+		written += n
+		if err != nil {
+			return written, err
+		}
+		data = data[n:]
+	}
+	return written, nil
+}
+
+func (w *streamWriter) write(data []byte) (int, error) {
+	ctx := w.context()
+	if err := ctx.Err(); err != nil {
 		return 0, err
 	}
 	w.Header().Del("Content-Disposition")
@@ -287,7 +392,7 @@ func (w *streamWriter) Write(data []byte) (int, error) {
 	}
 	// Cancellation may have expired the deadline just before the refresh above.
 	// Recheck before writing so the refresh cannot undo an earlier cancellation.
-	if err := w.request.Context().Err(); err != nil {
+	if err := ctx.Err(); err != nil {
 		return 0, err
 	}
 	return w.ResponseWriter.Write(data)

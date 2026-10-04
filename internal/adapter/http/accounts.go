@@ -332,6 +332,23 @@ func (s *Server) accountRoutes(r chi.Router) {
 			user, err := s.accounts.SetNativeAccess(r.Context(), a, chi.URLParam(r, "id"), *input.AllowNative)
 			return user, 200, err
 		}))
+		r.Get("/api/v1/users/{id}/delivery-limits", s.accountEndpoint(true, false, func(w http.ResponseWriter, r *http.Request, a domain.Actor) (any, int, error) {
+			limits, err := s.accounts.DeliveryLimits(r.Context(), a, chi.URLParam(r, "id"))
+			return limits, 200, err
+		}))
+		// Omitted fields follow the server-wide setting, like the other account
+		// replacements; zero exempts the user from that limit.
+		r.Put("/api/v1/users/{id}/delivery-limits", s.accountEndpoint(true, false, func(w http.ResponseWriter, r *http.Request, a domain.Actor) (any, int, error) {
+			var input struct {
+				MaxStreams *int   `json:"maxStreams"`
+				MaxKbps    *int64 `json:"maxKbps"`
+			}
+			if err := DecodeJSON(w, r, &input, accountBodyLimit); err != nil {
+				return nil, 0, err
+			}
+			limits, err := s.accounts.SetDeliveryLimits(r.Context(), a, chi.URLParam(r, "id"), domain.DeliveryLimits{MaxStreams: input.MaxStreams, MaxKbps: input.MaxKbps})
+			return limits, 200, err
+		}))
 		r.Get("/api/v1/sessions", s.accountEndpoint(true, true, s.listAllSessions))
 		r.Get("/api/v1/users/{id}/sessions", s.accountEndpoint(false, false, func(w http.ResponseWriter, r *http.Request, a domain.Actor) (any, int, error) {
 			sessions, err := s.accounts.Sessions(r.Context(), a, chi.URLParam(r, "id"))

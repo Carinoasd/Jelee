@@ -103,10 +103,14 @@ func newServer(cfg config.Config, backend Backend, catalog *app.Catalog, resolve
 	if backend == nil || catalog == nil || logger == nil {
 		return nil, errors.New("HTTP dependencies must be provided")
 	}
+	// A resolver backed by shared storage also rechecks sessions of running
+	// streams, so revocation through any instance cuts them (G07.4).
+	sessions, _ := resolver.(media.SessionChecker)
 	if resolver != nil && cfg.Access.HiddenContentStatus() == http.StatusForbidden {
 		resolver = hiddenContentResolver{resolver}
 	}
-	delivery, err := media.NewHandler(resolver, media.Options{Budget: budget, MaxConcurrent: cfg.MaxStreams, WriteTimeout: 30 * time.Second, LookupTimeout: cfg.RequestTimeout(), WriteError: WriteError})
+	delivery, err := media.NewHandler(resolver, media.Options{Budget: budget, MaxConcurrent: cfg.MaxStreams, WriteTimeout: 30 * time.Second, LookupTimeout: cfg.RequestTimeout(), WriteError: WriteError,
+		Sessions: sessions, SessionCheckInterval: cfg.Streaming.RevokeCheckInterval(), Limits: deliveryLimits(cfg.Streaming)})
 	if err != nil {
 		return nil, err
 	}
@@ -435,6 +439,12 @@ func (s *Server) stream(w http.ResponseWriter, r *http.Request) {
 	s.delivery.ServeSource(w, r, id)
 }
 
+// deliveryLimits maps the per-limit switches of G45.4 onto the delivery handler.
+func deliveryLimits(c config.StreamingConfig) media.Limits {
+	return media.Limits{StreamLimit: c.EnableStreamLimit, MaxStreamsPerUser: c.MaxStreamsPerUser, MaxStreamsPerDevice: c.MaxStreamsPerDevice,
+		BandwidthLimit: c.EnableBandwidthLimit, MaxKbpsPerUser: c.MaxKbpsPerUser, BandwidthPerDevice: c.BandwidthScope == "device"}
+}
+
 // hiddenContentError maps a direct media lookup miss to the configured
 // hidden-content status (G48.3). Lookups apply authorization in SQL and cannot
 // tell a missing ID from an invisible one, so both get the same answer and the
@@ -553,6 +563,10 @@ func WriteError(w http.ResponseWriter, r *http.Request, err error) {
 		status, code, message = 409, "transcode_disabled", "Only original direct delivery is supported."
 	case errors.Is(err, media.ErrBusy):
 		status, code, message = 429, "stream_limit", "Stream concurrency limit reached."
+	case errors.Is(err, media.ErrUserStreamLimit):
+		status, code, message = 429, "user_stream_limit", "Concurrent playback limit for this account reached."
+	case errors.Is(err, media.ErrDeviceStreamLimit):
+		status, code, message = 429, "device_stream_limit", "Concurrent playback limit for this device reached."
 	case errors.Is(err, media.ErrLookupTimeout):
 		status, code, message = 504, "lookup_timeout", "Media lookup timed out."
 	case errors.Is(err, media.ErrMethodNotAllowed):
