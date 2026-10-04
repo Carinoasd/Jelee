@@ -60,8 +60,11 @@ func TestNFOItemPersistenceManualPriorityAndSeparateLocks(t *testing.T) {
 	if title.Source != "nfo" || title.Locked || title.NFOOrigin == nil || !title.NFOOrigin.Locked || title.NFOOrigin.SourceID != scope.SourceID || title.NFOOrigin.SHA256 != fields.Stamp.SHA256 || title.ProviderOrigin != nil {
 		t.Fatal("NFO origin not persisted")
 	}
-	if catalog, err := f.s.GetItem(f.ctx, f.a.UserID, scope.ItemID); err != nil || catalog.Title != "NFO title" {
-		t.Fatal("NFO catalog differs", err)
+	// Read the catalog row directly: GetItem's visibility predicate needs
+	// columns newer than the schema-44 fixture this test runs on.
+	var catalogTitle string
+	if err := f.s.Pool.QueryRow(f.ctx, `SELECT title FROM items WHERE id=$1::uuid`, scope.ItemID).Scan(&catalogTitle); err != nil || catalogTitle != "NFO title" {
+		t.Fatal("NFO catalog differs", err, catalogTitle)
 	}
 	unlock := false
 	value, err := f.s.UpdateItemMetadata(f.ctx, f.a, scope.ItemID, 3, []domain.ItemMetadataPatch{{Field: "title", Locked: &unlock}})
