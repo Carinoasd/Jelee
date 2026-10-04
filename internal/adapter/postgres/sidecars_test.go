@@ -464,7 +464,7 @@ func TestSidecarMigrationRoundTrip(t *testing.T) {
 	jobMetricMigration(t, f.jobFixture, "down", downgradeAboveMigration(t, f.jobFixture, "media_sidecar_tracks")-1)
 	var removed bool
 	if err := f.s.Pool.QueryRow(f.ctx, `SELECT to_regclass('media_sidecar_tracks') IS NULL AND NOT EXISTS(
- SELECT 1 FROM pg_constraint WHERE conname='media_sources_id_library_key')`).Scan(&removed); err != nil || !removed {
+ SELECT 1 FROM pg_constraint WHERE conname='media_sources_id_library_key' AND conrelid=to_regclass('media_sources'))`).Scan(&removed); err != nil || !removed {
 		t.Fatal("downgrade left sidecar objects", err)
 	}
 	if n := sidecarCount(t, f.jobFixture, `SELECT count(*) FROM audit_logs WHERE event='media.sidecars_changed'`); n != 2 {
