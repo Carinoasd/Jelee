@@ -285,7 +285,7 @@ func TestPostgresIntegration(t *testing.T) {
 		if err != nil || len(nextPage) != 50 || nextPage[0].ID <= adminPage[len(adminPage)-1].ID {
 			t.Fatal("cursor page overlaps or is not in stable UUID order")
 		}
-		const explain = "EXPLAIN (ANALYZE,BUFFERS,FORMAT JSON) " + listItemsSQL
+		explain := "EXPLAIN (ANALYZE,BUFFERS,FORMAT JSON) " + listItemsSQL
 		var rawPlan []byte
 		if err := store.Pool.QueryRow(ctx, explain, native.UserID, "", 50).Scan(&rawPlan); err != nil {
 			t.Fatal("collect SQL permission-filter query plan")

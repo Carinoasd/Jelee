@@ -10,19 +10,11 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
-// libraryVisibleSQL is the library grant predicate shared by the user-facing
-// catalog reads: u is the live user row (enabled, not deleted) and column
-// names the library being checked. Administrators see every library; anyone
-// else only the libraries granted in library_acl.
-func libraryVisibleSQL(column string) string {
-	return `(u.is_admin OR EXISTS(SELECT 1 FROM library_acl a WHERE a.user_id=u.id AND a.library_id=` + column + `))`
-}
-
 // browsePrincipalSQL resolves the live user once per statement. A disabled
 // or deleted user (or an unknown ID) yields no row, so every join on it is
 // empty.
 const browsePrincipalSQL = `WITH principal AS MATERIALIZED (
- SELECT id,is_admin FROM users WHERE id=@user::uuid AND NOT disabled AND deleted_at IS NULL
+ SELECT ` + visibilityUserColumns + ` FROM users WHERE id=@user::uuid AND NOT disabled AND deleted_at IS NULL
 )`
 
 // browseMetadataSQL joins the display metadata of an item i: the sort
@@ -70,7 +62,7 @@ func (s *Store) GetBrowseItem(ctx context.Context, userID, id string) (domain.Br
 	err := s.Pool.QueryRow(ctx, browsePrincipalSQL+`
 SELECT i.id::text,i.library_id::text,COALESCE(p.parent_id,i.library_id)::text,i.kind,i.title,COALESCE(fs.value,''),COALESCE(fo.value,''),COALESCE(NULLIF(fd.value,''),''),COALESCE(`+browseYearSQL+`,0),'{}'::text[]
  FROM principal u JOIN items i ON i.id=@id::uuid`+browseMetadataSQL+`
- WHERE `+libraryVisibleSQL("i.library_id")+`
+ WHERE `+itemVisibleSQL("i.library_id", "i.id")+`
 UNION ALL
 SELECT l.id::text,l.id::text,'',@library,l.name,'','','',0,`+libraryKindsSQL("l.id")+` FROM principal u JOIN libraries l ON l.id=@id::uuid WHERE `+libraryVisibleSQL("l.id")+`
 LIMIT 1`, pgx.NamedArgs{"user": userID, "id": id, "library": domain.BrowseKindLibrary}).Scan(
@@ -122,7 +114,7 @@ func (s *Store) BrowseItems(ctx context.Context, userID string, q domain.BrowseQ
 		err := s.Pool.QueryRow(ctx, browsePrincipalSQL+`
 SELECT 'library' FROM principal u JOIN libraries l ON l.id=@parent::uuid WHERE `+libraryVisibleSQL("l.id")+`
 UNION ALL
-SELECT 'item' FROM principal u JOIN items i ON i.id=@parent::uuid WHERE `+libraryVisibleSQL("i.library_id")+`
+SELECT 'item' FROM principal u JOIN items i ON i.id=@parent::uuid WHERE `+itemVisibleSQL("i.library_id", "i.id")+`
 LIMIT 1`, args).Scan(&kind)
 		if errors.Is(err, pgx.ErrNoRows) {
 			// A missing and an invisible parent look the same: nothing.
@@ -145,7 +137,7 @@ LIMIT 1`, args).Scan(&kind)
 	}
 	matched := browsePrincipalSQL + `, matched AS (
  SELECT i.id,i.library_id,i.title,i.kind FROM principal u JOIN items i ON ` + scope + `
- WHERE ` + libraryVisibleSQL("i.library_id") + `
+ WHERE ` + itemVisibleSQL("i.library_id", "i.id") + `
   AND (@library::text='' OR i.library_id=NULLIF(@library::text,'')::uuid)
   AND (cardinality(@kinds::text[])=0 OR i.kind=ANY(@kinds::text[]))
   AND (@search::text='' OR i.title ILIKE @search::text ESCAPE '\')
@@ -222,7 +214,7 @@ SELECT i.id::text,i.library_id::text,COALESCE(p.parent_id,i.library_id)::text,i.
  ARRAY(SELECT f.field FROM item_metadata_fields f WHERE f.item_id=i.id AND f.source='nfo' AND f.value<>'' AND f.field=ANY(@public::text[])
   UNION SELECT f.field FROM item_metadata_facts f WHERE f.item_id=i.id AND f.source='nfo' AND f.value<>'null'::jsonb AND f.field=ANY(@public::text[]))
  FROM principal u JOIN items i ON i.id=@id::uuid`+browseMetadataSQL+`
- WHERE `+libraryVisibleSQL("i.library_id"), pgx.NamedArgs{"user": userID, "id": id, "public": domain.ItemDetailsNFOFieldNames()}).Scan(
+ WHERE `+itemVisibleSQL("i.library_id", "i.id"), pgx.NamedArgs{"user": userID, "id": id, "public": domain.ItemDetailsNFOFieldNames()}).Scan(
 		&item.ID, &item.LibraryID, &item.ParentID, &item.Kind, &item.Title, &item.SortTitle, &item.Overview, &item.PremiereDate, &item.Year,
 		&r.OriginalTitle, &r.Tagline, &r.Genres, &r.UniqueIDs, &observation, &r.Revision, &r.NFOFields)
 	if errors.Is(err, pgx.ErrNoRows) {

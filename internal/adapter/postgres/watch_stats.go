@@ -306,11 +306,11 @@ func watchStatsViewer(ctx context.Context, q interface {
 }
 
 // watchStatsScope selects the daily rows of a report: the day range, the
-// subject when there is one, and only libraries the viewer can see (G48.3).
-// Administrators see every library.
+// subject when there is one, and only items the viewer can see (G48.3),
+// through the unified filter.
 func watchStatsScope(subject bool) string {
 	scope := ` FROM watch_stats_daily d WHERE d.day BETWEEN @from::date AND @to::date
- AND (@admin::boolean OR EXISTS(SELECT 1 FROM library_acl a WHERE a.user_id=@viewer::uuid AND a.library_id=d.library_id))`
+ AND EXISTS(SELECT 1 FROM users u WHERE u.id=@viewer::uuid AND ` + itemVisibleSQL("d.library_id", "d.item_id") + `)`
 	if subject {
 		scope += ` AND d.user_id=@subject::uuid`
 	}

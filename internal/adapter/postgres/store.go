@@ -87,10 +87,10 @@ func (s *Store) authenticate(ctx context.Context, token string) (access.Principa
 // Split the administrator path from library ACL lookup so an invisible large
 // library does not force a full ordered scan. Each allowed library contributes
 // at most one bounded page before the final stable merge.
-const listItemsSQL = `WITH principal AS MATERIALIZED (
- SELECT id,is_admin FROM users WHERE id=$1::uuid AND NOT disabled AND deleted_at IS NULL
+var listItemsSQL = `WITH principal AS MATERIALIZED (
+ SELECT ` + visibilityUserColumns + ` FROM users WHERE id=$1::uuid AND NOT disabled AND deleted_at IS NULL
 ), visible AS (
- SELECT i.* FROM principal u JOIN library_acl a ON a.user_id=u.id
+ SELECT i.* FROM principal u JOIN LATERAL (` + grantedLibrariesSQL("u") + `) a ON true
  JOIN LATERAL (
   SELECT id,library_id,title,kind FROM items
   WHERE library_id=a.library_id AND id>COALESCE(NULLIF($2,'')::uuid,'00000000-0000-0000-0000-000000000000'::uuid)
@@ -126,7 +126,7 @@ func (s *Store) ListItems(ctx context.Context, userID, cursor string, limit int)
 
 func (s *Store) GetItem(ctx context.Context, userID, id string) (domain.Item, error) {
 	var item domain.Item
-	err := s.Pool.QueryRow(ctx, `SELECT i.id::text,i.library_id::text,i.title,i.kind,COALESCE((SELECT parent_id::text FROM item_parent_links p WHERE p.item_id=i.id),'') FROM items i JOIN users u ON u.id=$1::uuid AND NOT u.disabled AND u.deleted_at IS NULL WHERE i.id=$2::uuid AND `+libraryVisibleSQL("i.library_id"), userID, id).Scan(&item.ID, &item.LibraryID, &item.Title, &item.Kind, &item.ParentID)
+	err := s.Pool.QueryRow(ctx, `SELECT i.id::text,i.library_id::text,i.title,i.kind,COALESCE((SELECT parent_id::text FROM item_parent_links p WHERE p.item_id=i.id),'') FROM items i JOIN users u ON u.id=$1::uuid AND NOT u.disabled AND u.deleted_at IS NULL WHERE i.id=$2::uuid AND `+itemVisibleSQL("i.library_id", "i.id"), userID, id).Scan(&item.ID, &item.LibraryID, &item.Title, &item.Kind, &item.ParentID)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return item, domain.ErrNotFound
 	}
@@ -143,7 +143,7 @@ func (s *Store) Resolve(ctx context.Context, p access.Principal, sourceID string
 	var source media.Source
 	// Recheck the live session and ACL in the same query immediately before opening.
 	// It also returns the session's device and the user's delivery overrides for stream limits.
-	err := s.Pool.QueryRow(ctx, `SELECT r.path,m.relative_path,m.content_type,COALESCE(s.device_id,''),u.max_streams,u.max_kbps FROM media_sources m JOIN library_roots r ON r.id=m.root_id JOIN users u ON u.id=$1::uuid AND NOT u.disabled AND u.deleted_at IS NULL JOIN sessions s ON s.id=$2::uuid AND s.user_id=u.id AND s.client_kind='native' AND s.revoked_at IS NULL AND s.expires_at>now() WHERE m.id=$3::uuid AND (u.is_admin OR EXISTS(SELECT 1 FROM library_acl a WHERE a.user_id=u.id AND a.library_id=m.library_id))`, p.UserID, p.SessionID, sourceID).Scan(&source.Root, &source.RelativePath, &source.ContentType, &source.DeviceID, &source.Limits.MaxStreams, &source.Limits.MaxKbps)
+	err := s.Pool.QueryRow(ctx, `SELECT r.path,m.relative_path,m.content_type,COALESCE(s.device_id,''),u.max_streams,u.max_kbps FROM media_sources m JOIN library_roots r ON r.id=m.root_id JOIN users u ON u.id=$1::uuid AND NOT u.disabled AND u.deleted_at IS NULL JOIN sessions s ON s.id=$2::uuid AND s.user_id=u.id AND s.client_kind='native' AND s.revoked_at IS NULL AND s.expires_at>now() WHERE m.id=$3::uuid AND `+itemVisibleSQL("m.library_id", "m.item_id"), p.UserID, p.SessionID, sourceID).Scan(&source.Root, &source.RelativePath, &source.ContentType, &source.DeviceID, &source.Limits.MaxStreams, &source.Limits.MaxKbps)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return source, media.ErrNotFound
 	}
@@ -170,7 +170,7 @@ func (s *Store) ResolveTrack(ctx context.Context, p access.Principal, sourceID s
  JOIN users u ON u.id=$1::uuid AND NOT u.disabled AND u.deleted_at IS NULL
  JOIN sessions s ON s.id=$2::uuid AND s.user_id=u.id AND s.client_kind='native' AND s.revoked_at IS NULL AND s.expires_at>now()
  WHERE t.id=$4::uuid AND t.source_id=$3::uuid AND t.kind=$5
-  AND (u.is_admin OR EXISTS(SELECT 1 FROM library_acl a WHERE a.user_id=u.id AND a.library_id=m.library_id))`,
+  AND `+itemVisibleSQL("m.library_id", "m.item_id"),
 		p.UserID, p.SessionID, sourceID, trackID, string(kind)).Scan(&source.Root, &source.RelativePath, &source.Charset, &source.DeviceID, &source.Limits.MaxStreams, &source.Limits.MaxKbps)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return media.Source{}, media.ErrNotFound

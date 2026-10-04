@@ -34,8 +34,7 @@ const itemImageVisibleItem = `FROM items i
  JOIN sessions s ON s.id=$2::uuid AND s.user_id=u.id AND s.client_kind IN ('web','native')
   AND s.revoked_at IS NULL AND s.expires_at>clock_timestamp()`
 
-const itemImageVisibleWhere = `i.id=$3::uuid AND (u.is_admin OR EXISTS(
-  SELECT 1 FROM library_acl a WHERE a.user_id=u.id AND a.library_id=i.library_id))`
+var itemImageVisibleWhere = `i.id=$3::uuid AND ` + itemVisibleSQL("i.library_id", "i.id")
 
 // itemImageRow holds nullable scan targets so the LEFT JOIN listing and the
 // direct reads share one decoder.
@@ -245,7 +244,7 @@ SELECT DISTINCT ON (g.item_id,g.image_type,g.image_index) g.item_id::text,g.imag
  FROM principal u JOIN items i ON i.id=ANY(@ids::uuid[])
  JOIN item_images g ON g.item_id=i.id AND g.library_id=i.library_id AND g.image_type<>'Chapter' AND g.image_index<@gallery
   AND (g.root_id IS NOT NULL OR g.content_sha256 IS NOT NULL)
- WHERE `+libraryVisibleSQL("i.library_id")+`
+ WHERE `+itemVisibleSQL("i.library_id", "i.id")+`
  ORDER BY g.item_id,g.image_type,g.image_index,`+itemImagePriority, pgx.NamedArgs{"user": userID, "ids": itemIDs, "gallery": galleryMax})
 	if err != nil {
 		return nil, storageError(err)
