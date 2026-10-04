@@ -1,6 +1,6 @@
 # 存储布局
 
-本文以当前代码为准（schema 000058，`internal/adapter/postgres/store.go` 的 `SchemaVersion = 58`），列出 Jelee 在本机会读写的全部资产：每一项写明由谁建立、由谁清理、能否删除后重建。G09.1 要求媒体、字幕、音轨、NFO、图片、封面、章节、探测缓存都位于本地卷；本文是这份目录结构的定义。
+本文以当前代码为准（schema 000069，`internal/adapter/postgres/store.go` 的 `SchemaVersion = 69`，2026-10-04 更新），列出 Jelee 在本机会读写的全部资产：每一项写明由谁建立、由谁清理、能否删除后重建。G09.1 要求媒体、字幕、音轨、NFO、图片、封面、章节、探测缓存都位于本地卷；本文是这份目录结构的定义。
 
 总原则：
 
@@ -28,9 +28,9 @@
 | 诊断包 | `jelee-cli diag export --out` 指定的 `.zip`（0600，不覆盖已有文件） | 运维 | 运维 | 可删；内容已脱敏，分享前仍应检查，见[故障排查](troubleshooting.md#diag-export) |
 | 开发产物 | `.tools/`、`.cache/`、`.bin/`、`.testfixtures/`、`.testdata/` | 开发脚本 | 手动 | 可删可重建，都已被 Git 忽略 |
 
-## 数据库（schema 1–58）
+## 数据库（schema 1–69）
 
-当前二进制只接受 clean schema 58；版本低一、高一，或 `dirty` 都会拒绝启动，要先执行 `jelee-migrate up`。所有迁移都没有 DROP TABLE。依功能分组：
+当前二进制只接受 clean schema 69；版本低一、高一，或 `dirty` 都会拒绝启动，要先执行 `jelee-migrate up`。所有迁移都没有 DROP TABLE。依功能分组：
 
 | 迁移 | 内容 |
 | --- | --- |
@@ -43,7 +43,18 @@
 | 023–039 | NFO 观测、字段锁、`item_metadata_facts`、目录 NFO（`item_directory_sources`、`item_parent_links`）；其中多数迁移只放宽 CHECK |
 | 040–045 | `catalog_import_*`、`scan_schedules`、`scan_watch_state`、盘点快照（`library_inventory_baseline` 改为 view，数据在 `library_inventory_baseline_data`）、ignore 快照栏位、任务指标 |
 | 046–057 | NFO 写入流程：preparations、`nfo_write_requests`／`entries`、quota fence、commit journal、commit 文件计划与 checkpoint、native receipt／claims、commit attempts，以及 057 的 `nfo_write_commit_recovery_leases` |
-| 058 | 目录同步：`catalog_sync` 任务种类与指标列、`job_directories` 目录认领栏、`catalog_sync_requests`、`inventory_missing_acceptances`、`catalog_scan_items`／`sources`／`pending`、`libraries.catalog_sync_auto`、元数据来源 `scan`；见 [目录同步](catalog-sync.md) |
+| 058 | `item_images`：条目图片槽、锁定与来源（图片管理；入库与刷新见擁有者任務二） |
+| 059 | `nfo_commit_settlements`：NFO commit 结算记录 |
+| 060 | 审计表只可追加（append-only 触发器） |
+| 061 | 目录同步：`catalog_sync` 任务种类与指标列、`job_directories` 目录认领栏、`catalog_sync_requests`、`inventory_missing_acceptances`、`catalog_scan_items`／`sources`／`pending`、`libraries.catalog_sync_auto`、元数据来源 `scan`；见 [目录同步](catalog-sync.md) |
+| 062 | `media_sidecar_tracks`：外挂字幕／音轨（`media_sources` 加 `UNIQUE(id,library_id)`） |
+| 063 | 原生会话：`users.allow_native`，`sessions` 的设备、客户端、最后使用时间与地址 |
+| 064 | `users.max_streams`／`max_kbps`：每用户投递上限覆写；见 [直投](direct-delivery.md) |
+| 065 | 扫描配对外挂轨：`inventory_sidecar_owner` 函数与部分索引 |
+| 066 | 播放进度：`playback_sessions`、`playback_samples`、`user_item_data`；见 [播放进度](playback-progress.md) |
+| 067 | 观看统计：`watch_stats_daily` 等日汇总；见 [观看统计](watch-statistics.md) |
+| 068 | Webhook：`webhooks`、`webhook_outbox`、`webhook_deliveries`（密钥以主钥 AES-GCM 封存）；见 [Webhook](webhooks.md) |
+| 069 | 内容访问：条目规则、分级上限、标签封锁、`users.content_filtered`；见 [访问控制](access-control.md) |
 
 数据量上限、回收与降级的细节分别写在 [探测缓存](probe-cache.md)、[NFO 缓存](nfo-cache.md)、[任务](jobs-worker.md)、[ignore 存储](ignore-family-storage.md)、[NFO commit 恢复租约](nfo-commit-recovery-lease.md)。回滚说明在各迁移对应的文档里；降级会丢失该迁移之后的状态，但不会改动媒体目录。
 
@@ -54,7 +65,7 @@
 
 ### NFO 旁车文件
 
-正式服务目前**只读 NFO**。NFO 写入和 commit 的代码虽然在 `internal/adapter/nfo`，但 runtime 和 CLI 都没有调用，`nfo_write` 任务也还不会被领取。下面这些名称是这段代码接上以后会出现的文件，现在列出来，方便运维辨认：
+NFO 写回在开启 `JELEE_ENABLE_NFO_WRITE`（`enableNFOWrite`）时由任务 runner 领取 `nfo_write` 任务执行（`internal/platform/runtime/runtime.go`）；未开启时只读。已知限制：写回保留记录只增不减，累积到上限后新写回会被拒，清理协议是擁有者任務一（`docs/owner-dev-tasks.md`）。写回时会在 NFO 所在目录出现下列文件，列出来方便运维辨认：
 
 | 名称 | 用途 | 清理 | 手动删除 |
 | --- | --- | --- | --- |
@@ -71,8 +82,8 @@
   - 每个请求会把来源复制到 `image-o<pid>-<启动标识>-<32hex>.partial`（0600，`O_EXCL`），处理完就删除。
   - 输出缓存只在内存里：`JELEE_IMAGE_CACHE_BYTES` 默认 32 MiB，`JELEE_IMAGE_CACHE_ENTRIES` 默认 128，`JELEE_IMAGE_CACHE_TTL_SECONDS` 默认 300。
 - **持久存放区**（`JELEE_IMAGE_STORE_ROOT`，`internal/adapter/images/store.go`）：
-  - 配置项会被验证，但请求路径还没有调用 `OpenStore`，所以目前不会在该目录建立任何东西。
-  - 接上以后的布局：
+  - 设置后由 runtime 在启动时调用 `OpenStore`（`internal/platform/runtime/runtime.go`），图片请求读写这个目录。
+  - 布局：
     - `originals/<sha256[:2]>/<sha256>`：按内容寻址的原图
     - `variants/<世代 16hex>/<来源 sha256>/<key>`：48 字节标头 `JLVAR01\n` 加衍生图。只有编号最大的世代是现役；较旧的世代和旧版没有世代层的 `variants/<来源 sha256>/` 都是已清除的内容，只会被删除，绝不会被收录
     - `tmp/put-<64hex>.partial`：写入暂存

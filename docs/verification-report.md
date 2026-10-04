@@ -1,5 +1,7 @@
 # 本次工作与验证报告
 
+> **2026-10-04 注**：以下全文是 2026-10-01 的历史快照，计数（147 项部分完成、189 项阻塞）已过时；当前状态见[追溯矩阵](requirements-traceability.md)的“进度统计”一节与[进度摘要](progress-summary.md)。
+
 本文保留为**第一阶段提交前的历史验证快照**。此后 8 个提交已经推送并建立[草稿 PR #1](https://github.com/MoYuanCN/Jelee/pull/1)；当前账户功能与后续验证见[第 2 阶段报告](accounts-verification.md)。下文“尚未推送”与计数仅描述当时状态。
 
 工作与验证日期：2026-09-30 至 2026-10-01，Asia/Taipei。基线提交 `52a680c578f1af888ebb74cefcb89b736f9c5738`，分支 `feat/jelee-go-foundation`。
