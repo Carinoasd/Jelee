@@ -404,6 +404,7 @@ func (s *Server) accountRoutes(r chi.Router) {
 			}
 			return nil, 204, s.accounts.SetLibraries(r.Context(), a, chi.URLParam(r, "id"), input.LibraryIDs)
 		}))
+		s.contentAccessRoutes(r)
 	})
 }
 

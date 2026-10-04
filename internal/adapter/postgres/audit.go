@@ -31,6 +31,7 @@ type AuditEntry struct {
 // category that decides their retention. Unknown events are rejected so a
 // typo cannot create an unqueryable or wrongly retained stream.
 var auditEvents = map[string]string{
+	"access.policy_changed":                domain.AuditCategoryAudit,
 	"audit.retention_changed":              domain.AuditCategoryAudit,
 	"audit.retention_purged":               domain.AuditCategoryAudit,
 	"catalog_import.finished":              domain.AuditCategoryAudit,
@@ -76,8 +77,11 @@ var auditEvents = map[string]string{
 	"session.rotated":                      domain.AuditCategoryAudit,
 	"sessions.revoked":                     domain.AuditCategoryAudit,
 	"user.bootstrapped":                    domain.AuditCategoryAudit,
+	"user.content_access_changed":          domain.AuditCategoryAudit,
 	"user.created":                         domain.AuditCategoryAudit,
 	"user.deleted":                         domain.AuditCategoryAudit,
+	"user.item_access_rule_removed":        domain.AuditCategoryAudit,
+	"user.item_access_rule_set":            domain.AuditCategoryAudit,
 	"user.library_access_replaced":         domain.AuditCategoryAudit,
 	"user.native_access_changed":           domain.AuditCategoryAudit,
 	"user.delivery_limits_changed":         domain.AuditCategoryAudit,

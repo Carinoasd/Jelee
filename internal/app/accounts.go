@@ -37,6 +37,13 @@ type AccountRepository interface {
 	SetDeliveryLimits(context.Context, domain.Actor, string, domain.DeliveryLimits) (domain.DeliveryLimits, error)
 	GetLibraryAccess(context.Context, domain.Actor, string) ([]domain.LibraryGrant, error)
 	ReplaceLibraryAccess(context.Context, domain.Actor, string, []string) error
+	GetContentAccess(context.Context, domain.Actor, string) (domain.ContentAccessView, error)
+	SetContentAccess(context.Context, domain.Actor, string, domain.ContentAccess) (domain.ContentAccessView, error)
+	SetItemAccessRule(context.Context, domain.Actor, string, string, domain.ItemAccessEffect) (domain.ItemAccessRule, error)
+	DeleteItemAccessRule(context.Context, domain.Actor, string, string) error
+	GetAccessPolicy(context.Context, domain.Actor) (domain.AccessPolicy, error)
+	SetAccessPolicy(context.Context, domain.Actor, domain.AccessPolicy) (domain.AccessPolicy, error)
+	ListParentalRatings(context.Context, domain.Actor) ([]domain.ParentalRating, error)
 }
 
 type PasswordHasher interface {

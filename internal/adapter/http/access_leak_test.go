@@ -186,38 +186,46 @@ func leakRouteTable() map[string]leakRoute {
 		"HEAD /images/{type}/{id}":           {mode: leakByID, params: map[string]string{"type": "image-type", "id": "item"}, control: true},
 
 		// Accounts.
-		"POST /api/v1/auth/login":                         exempt("credential exchange; takes no media identifiers and returns only a session grant"),
-		"POST /api/v1/auth/login/native":                  exempt("native credential exchange; takes no media identifiers and returns only a session grant"),
-		"POST /api/v1/auth/logout":                        exempt("revokes the caller's own session; carries no media identifiers"),
-		"POST /api/v1/auth/rotate":                        exempt("rotates the caller's own token; carries no media identifiers"),
-		"GET /api/v1/auth/csrf":                           noMedia(noParams, "returns only a token derived from the caller's own credential"),
-		"PUT /api/v1/users/me/profile":                    exempt("mutates the caller's own profile; carries no media identifiers"),
-		"PUT /api/v1/users/me/password":                   exempt("mutates the caller's own password; carries no media identifiers"),
-		"DELETE /api/v1/users/{id}/sessions":              exempt("revokes the caller's own sessions; carries no media identifiers"),
-		"DELETE /api/v1/users/{id}/sessions/{sessionID}":  exempt("revokes one of the caller's sessions; carries no media identifiers"),
-		"GET /api/v1/users/me":                            noMedia(noParams, "caller's own account"),
-		"GET /api/v1/users/{id}":                          noMedia(selfParam, "caller's own account"),
-		"GET /api/v1/users/{id}/sessions":                 noMedia(selfParam, "caller's own sessions"),
-		"GET /api/v1/users/{id}/libraries":                {mode: leakList, params: selfParam},
-		"GET /api/v1/users":                               admin(noParams),
-		"POST /api/v1/users":                              admin(noParams),
-		"PUT /api/v1/users/{id}":                          admin(selfParam),
-		"DELETE /api/v1/users/{id}":                       admin(selfParam),
-		"POST /api/v1/users/{id}/restore":                 admin(selfParam),
-		"POST /api/v1/users/{id}/unlock":                  admin(selfParam),
-		"PUT /api/v1/users/{id}/native":                   admin(selfParam),
-		"GET /api/v1/users/{id}/delivery-limits":          admin(selfParam),
-		"PUT /api/v1/users/{id}/delivery-limits":          admin(selfParam),
-		"GET /api/v1/sessions":                            admin(noParams),
-		"PUT /api/v1/users/{id}/libraries":                admin(selfParam),
-		"GET /metrics":                                    admin(noParams),
-		"GET /api/v1/items/{id}/metadata":                 admin(itemParam),
-		"PUT /api/v1/items/{id}/metadata":                 admin(itemParam),
-		"POST /api/v1/items/{id}/metadata/nfo":            admin(itemParam),
-		"POST /api/v1/items/{id}/metadata/tmdb":           admin(itemParam),
-		"DELETE /api/v1/items/{id}/metadata/external":     admin(itemParam),
-		"GET /api/v1/libraries/{id}/metadata-preferences": admin(libParam),
-		"PUT /api/v1/libraries/{id}/metadata-preferences": admin(libParam),
+		"POST /api/v1/auth/login":                        exempt("credential exchange; takes no media identifiers and returns only a session grant"),
+		"POST /api/v1/auth/login/native":                 exempt("native credential exchange; takes no media identifiers and returns only a session grant"),
+		"POST /api/v1/auth/logout":                       exempt("revokes the caller's own session; carries no media identifiers"),
+		"POST /api/v1/auth/rotate":                       exempt("rotates the caller's own token; carries no media identifiers"),
+		"GET /api/v1/auth/csrf":                          noMedia(noParams, "returns only a token derived from the caller's own credential"),
+		"PUT /api/v1/users/me/profile":                   exempt("mutates the caller's own profile; carries no media identifiers"),
+		"PUT /api/v1/users/me/password":                  exempt("mutates the caller's own password; carries no media identifiers"),
+		"DELETE /api/v1/users/{id}/sessions":             exempt("revokes the caller's own sessions; carries no media identifiers"),
+		"DELETE /api/v1/users/{id}/sessions/{sessionID}": exempt("revokes one of the caller's sessions; carries no media identifiers"),
+		"GET /api/v1/users/me":                           noMedia(noParams, "caller's own account"),
+		"GET /api/v1/users/{id}":                         noMedia(selfParam, "caller's own account"),
+		"GET /api/v1/users/{id}/sessions":                noMedia(selfParam, "caller's own sessions"),
+		"GET /api/v1/users/{id}/libraries":               {mode: leakList, params: selfParam},
+		"GET /api/v1/users":                              admin(noParams),
+		"POST /api/v1/users":                             admin(noParams),
+		"PUT /api/v1/users/{id}":                         admin(selfParam),
+		"DELETE /api/v1/users/{id}":                      admin(selfParam),
+		"POST /api/v1/users/{id}/restore":                admin(selfParam),
+		"POST /api/v1/users/{id}/unlock":                 admin(selfParam),
+		"PUT /api/v1/users/{id}/native":                  admin(selfParam),
+		"GET /api/v1/users/{id}/delivery-limits":         admin(selfParam),
+		"PUT /api/v1/users/{id}/delivery-limits":         admin(selfParam),
+		"GET /api/v1/sessions":                           admin(noParams),
+		"PUT /api/v1/users/{id}/libraries":               admin(selfParam),
+		// Content access administration (G48.1, G48.4).
+		"GET /api/v1/users/{id}/content-access":                   admin(selfParam),
+		"PUT /api/v1/users/{id}/content-access":                   admin(selfParam),
+		"PUT /api/v1/users/{id}/content-access/items/{itemId}":    admin(map[string]string{"id": "self", "itemId": "item"}),
+		"DELETE /api/v1/users/{id}/content-access/items/{itemId}": admin(map[string]string{"id": "self", "itemId": "item"}),
+		"GET /api/v1/access/policy":                               admin(noParams),
+		"PUT /api/v1/access/policy":                               admin(noParams),
+		"GET /api/v1/access/parental-ratings":                     admin(noParams),
+		"GET /metrics":                                            admin(noParams),
+		"GET /api/v1/items/{id}/metadata":                         admin(itemParam),
+		"PUT /api/v1/items/{id}/metadata":                         admin(itemParam),
+		"POST /api/v1/items/{id}/metadata/nfo":                    admin(itemParam),
+		"POST /api/v1/items/{id}/metadata/tmdb":                   admin(itemParam),
+		"DELETE /api/v1/items/{id}/metadata/external":             admin(itemParam),
+		"GET /api/v1/libraries/{id}/metadata-preferences":         admin(libParam),
+		"PUT /api/v1/libraries/{id}/metadata-preferences":         admin(libParam),
 
 		// TMDB lookups are administrator-only and keyed by provider IDs.
 		"GET /api/v1/metadata/tmdb/movies":                                          admin(noParams),
@@ -475,7 +483,11 @@ type leakIDs struct {
 	item, source, library, job      [3]string // visible, hidden, missing
 	subtitle, audio                 [3]string // sidecar tracks of the sources above
 	markers                         []string
-	visibleItem, visibleLibrary     string
+	// itemMarkers are the item-level markers of the hidden fixture, for
+	// mechanisms that hide the item inside a granted library.
+	itemMarkers                 []string
+	visibleItem, visibleLibrary string
+	admin                       domain.Actor
 	// seedProgress restores the resume points listing routes expect; the
 	// played routes change them.
 	seedProgress func(*testing.T)
@@ -668,14 +680,19 @@ func leakFixture(t *testing.T, ctx context.Context, store *postgres.Store) leakI
 		if scenario == leakHidden {
 			f.markers = []string{f.item[scenario], f.source[scenario], f.library[scenario], rootID, job.ID, spec.library, spec.root, spec.title, spec.file, root,
 				f.subtitle[scenario], f.audio[scenario], base + ".en.srt", base + ".en.ac3"}
+			f.itemMarkers = []string{f.item[scenario], f.source[scenario], spec.title, spec.file, f.subtitle[scenario], f.audio[scenario], base + ".en.srt", base + ".en.ac3"}
 			// The compatibility layer writes identifiers without dashes.
 			for _, id := range []string{f.item[scenario], f.source[scenario], f.library[scenario], rootID, f.subtitle[scenario], f.audio[scenario]} {
 				f.markers = append(f.markers, leakWire(id))
+			}
+			for _, id := range []string{f.item[scenario], f.source[scenario], f.subtitle[scenario], f.audio[scenario]} {
+				f.itemMarkers = append(f.itemMarkers, leakWire(id))
 			}
 		} else {
 			f.visibleItem, f.visibleLibrary = f.item[scenario], f.library[scenario]
 		}
 	}
+	f.admin = domain.Actor{UserID: adminID, SessionID: adminSession, IP: "127.0.0.1"}
 	if _, err = store.Pool.Exec(ctx, `INSERT INTO library_acl(user_id,library_id) VALUES($1::uuid,$2::uuid)`, f.viewer, f.library[leakVisible]); err != nil {
 		t.Fatal(err)
 	}
@@ -759,9 +776,60 @@ func (f leakIDs) assertNoMarkers(t *testing.T, route string, response leakRespon
 	}
 }
 
+// leakMechanisms are the ways the fixture's hidden item is hidden from the
+// viewer (G48.1, G48.4). Every mechanism goes through the unified filter, so
+// the same traversal must find zero leaks for each.
+var leakMechanisms = []string{"library_grant", "item_rule", "parental_rating", "blocked_tag"}
+
+// leakHideBy hides the fixture's hidden item from the viewer by mechanism.
+// Except for the library grant, the viewer is granted the hidden library,
+// so only the item-level markers must stay out of responses.
+func leakHideBy(t *testing.T, ctx context.Context, store *postgres.Store, f *leakIDs, mechanism string) {
+	t.Helper()
+	if mechanism == "library_grant" {
+		return
+	}
+	if _, err := store.Pool.Exec(ctx, `INSERT INTO library_acl(user_id,library_id) VALUES($1::uuid,$2::uuid)`, f.viewer, f.library[leakHidden]); err != nil {
+		t.Fatal(err)
+	}
+	f.markers = f.itemMarkers
+	var err error
+	switch mechanism {
+	case "item_rule":
+		_, err = store.SetItemAccessRule(ctx, f.admin, f.viewer, f.item[leakHidden], domain.ItemAccessHide)
+	case "parental_rating":
+		rated := "NC-17"
+		if _, err = store.UpdateItemMetadata(ctx, f.admin, f.item[leakHidden], 1, []domain.ItemMetadataPatch{{Field: "mpaa", Value: &rated}}); err == nil {
+			ceiling := 13
+			_, err = store.SetContentAccess(ctx, f.admin, f.viewer, domain.ContentAccess{ParentalRatingMax: &ceiling, BlockedTags: []string{}})
+		}
+	case "blocked_tag":
+		if _, err = store.UpdateItemMetadataWithFacts(ctx, f.admin, f.item[leakHidden], 1, nil, []domain.ItemMetadataFactPatch{{Field: "tags", Value: json.RawMessage(`["Leak Blocked"]`)}}); err == nil {
+			_, err = store.SetContentAccess(ctx, f.admin, f.viewer, domain.ContentAccess{BlockedTags: []string{"leak blocked"}})
+		}
+	default:
+		t.Fatalf("unknown mechanism %s", mechanism)
+	}
+	if err != nil {
+		t.Fatalf("hide by %s: %v", mechanism, err)
+	}
+}
+
 func TestAccessLeakHiddenContentPostgres(t *testing.T) {
-	ctx, store, dsn := leakStore(t)
-	f := leakFixture(t, ctx, store)
+	for _, mechanism := range leakMechanisms {
+		t.Run(mechanism, func(t *testing.T) {
+			ctx, store, dsn := leakStore(t)
+			f := leakFixture(t, ctx, store)
+			leakHideBy(t, ctx, store, &f, mechanism)
+			leakTraverse(t, store, dsn, f)
+		})
+	}
+}
+
+// leakTraverse requests every registered route in the three hidden status
+// modes and asserts zero leaks of f's hidden markers.
+func leakTraverse(t *testing.T, store *postgres.Store, dsn string, f leakIDs) {
+	t.Helper()
 	for _, mode := range []struct {
 		name   string
 		status int

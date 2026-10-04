@@ -432,9 +432,11 @@ func TestWatchStatsConstraintsPostgres(t *testing.T) {
 func TestWatchStatsMigrationRoundTrip(t *testing.T) {
 	f := newWatchStatsFixture(t)
 	dsn := f.s.Pool.Config().ConnString()
-	want := downgradeAboveMigration(t, f.jobFixture, "watch_statistics")
+	// Playback runs the current statements, so it happens on the current
+	// schema before stepping down.
 	f.play(t, f.viewer, "m", f.item, 0, 3*time.Minute, false)
 	f.aggregate(t)
+	want := downgradeAboveMigration(t, f.jobFixture, "watch_statistics")
 	if _, _, err := Migrate(f.ctx, dsn, "down"); err == nil {
 		t.Fatal("retained statistics downgraded")
 	}
@@ -452,7 +454,11 @@ func TestWatchStatsMigrationRoundTrip(t *testing.T) {
 		t.Fatal(err)
 	}
 	// Sessions without statistics remain; schema 66 keeps them.
+	if _, _, err = Migrate(f.ctx, dsn, "up"); err != nil {
+		t.Fatal(err)
+	}
 	f.play(t, f.viewer, "kept", f.item, 0, 3*time.Minute, false)
+	downgradeAboveMigration(t, f.jobFixture, "watch_statistics")
 	if version, dirty, err = Migrate(f.ctx, dsn, "down"); err != nil || dirty || version != want-1 {
 		t.Fatalf("downgrade: %d %t %v", version, dirty, err)
 	}

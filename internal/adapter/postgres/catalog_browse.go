@@ -29,10 +29,11 @@ const browseMetadataSQL = ` LEFT JOIN item_parent_links p ON p.item_id=i.id
 // release date.
 const browseYearSQL = `CASE WHEN jsonb_typeof(fy.value)='number' THEN (fy.value::text)::int WHEN fd.value ~ '^[0-9]{4}-' THEN left(fd.value,4)::int END`
 
-// libraryKindsSQL lists which top-level kinds the library in column holds.
-// Each probe stops at the first matching item.
+// libraryKindsSQL lists which top-level kinds the library in column holds
+// among the items the principal u can see. Each probe stops at the first
+// matching visible item.
 func libraryKindsSQL(column string) string {
-	return `ARRAY(SELECT k FROM unnest(ARRAY['Movie','Series','Episode','HomeVideo']) WITH ORDINALITY AS t(k,n) WHERE EXISTS(SELECT 1 FROM items c WHERE c.library_id=` + column + ` AND c.kind=t.k) ORDER BY t.n)`
+	return `ARRAY(SELECT k FROM unnest(ARRAY['Movie','Series','Episode','HomeVideo']) WITH ORDINALITY AS t(k,n) WHERE EXISTS(SELECT 1 FROM items c WHERE c.library_id=` + column + ` AND c.kind=t.k AND ` + contentVisibleSQL("c.id") + `) ORDER BY t.n)`
 }
 
 func (s *Store) ListLibraryViews(ctx context.Context, userID string) ([]domain.LibraryView, error) {

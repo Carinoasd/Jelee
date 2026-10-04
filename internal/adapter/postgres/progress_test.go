@@ -366,8 +366,10 @@ func TestPlaybackProgressConstraintsPostgres(t *testing.T) {
 func TestPlaybackProgressMigrationRoundTrip(t *testing.T) {
 	f := newProgressFixture(t)
 	dsn := f.s.Pool.Config().ConnString()
-	want := downgradeAboveMigration(t, f.jobFixture, "playback_progress")
+	// Reports run the current statements, so they are made on the current
+	// schema before stepping down.
 	f.report(t, f.viewer, domain.PlaybackReportStart, "m", f.item, 0)
+	want := downgradeAboveMigration(t, f.jobFixture, "playback_progress")
 	if _, _, err := Migrate(f.ctx, dsn, "down"); err == nil {
 		t.Fatal("retained playback history downgraded")
 	}

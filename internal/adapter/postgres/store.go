@@ -27,7 +27,7 @@ type Store struct {
 
 // SchemaVersion is the only clean schema accepted by this binary. Adjacent
 // releases cannot serve against different cache and job lifecycle contracts.
-const SchemaVersion = 68
+const SchemaVersion = 69
 
 func Open(ctx context.Context, dsn string, maxConnections int32) (*Store, error) {
 	cfg, err := pgxpool.ParseConfig(dsn)
@@ -86,21 +86,24 @@ func (s *Store) authenticate(ctx context.Context, token string) (access.Principa
 
 // Split the administrator path from library ACL lookup so an invisible large
 // library does not force a full ordered scan. Each allowed library contributes
-// at most one bounded page before the final stable merge.
+// at most one bounded page before the final stable merge. The content rules
+// apply inside each bounded page, so a hidden item never takes a slot.
 var listItemsSQL = `WITH principal AS MATERIALIZED (
  SELECT ` + visibilityUserColumns + ` FROM users WHERE id=$1::uuid AND NOT disabled AND deleted_at IS NULL
 ), visible AS (
  SELECT i.* FROM principal u JOIN LATERAL (` + grantedLibrariesSQL("u") + `) a ON true
  JOIN LATERAL (
-  SELECT id,library_id,title,kind FROM items
-  WHERE library_id=a.library_id AND id>COALESCE(NULLIF($2,'')::uuid,'00000000-0000-0000-0000-000000000000'::uuid)
-  ORDER BY id LIMIT $3
+  SELECT it.id,it.library_id,it.title,it.kind FROM items it
+  WHERE it.library_id=a.library_id AND it.id>COALESCE(NULLIF($2,'')::uuid,'00000000-0000-0000-0000-000000000000'::uuid)
+   AND ` + contentVisibleSQL("it.id") + `
+  ORDER BY it.id LIMIT $3
  ) i ON true WHERE NOT u.is_admin
  UNION ALL
  SELECT i.* FROM principal u JOIN LATERAL (
-  SELECT id,library_id,title,kind FROM items
-  WHERE id>COALESCE(NULLIF($2,'')::uuid,'00000000-0000-0000-0000-000000000000'::uuid)
-  ORDER BY id LIMIT $3
+  SELECT it.id,it.library_id,it.title,it.kind FROM items it
+  WHERE it.id>COALESCE(NULLIF($2,'')::uuid,'00000000-0000-0000-0000-000000000000'::uuid)
+   AND ` + contentVisibleSQL("it.id") + `
+  ORDER BY it.id LIMIT $3
  ) i ON true WHERE u.is_admin
 ) SELECT id::text,library_id::text,title,kind,COALESCE((SELECT parent_id::text FROM item_parent_links p WHERE p.item_id=visible.id),'') FROM visible ORDER BY id LIMIT $3`
 

@@ -35,6 +35,7 @@ func accountSchemas() map[string]any {
 		create[k] = v
 	}
 	create["password"] = password
+	itemAccessEffect := map[string]any{"type": "string", "enum": []string{"allow", "hide"}, "description": "hide hides the item and its descendants; allow shows them despite blocked tags and the rating ceiling, within the library grants. The nearest rule on the item or an ancestor wins."}
 	csrf := map[string]any{"type": "string", "minLength": 43, "maxLength": 43, "description": "Present for web sessions. Send it as the X-Jelee-CSRF header on every POST, PUT, PATCH or DELETE authenticated by the session cookie; it changes when the session is rotated."}
 	return map[string]any{
 		"Login":          objectSchema(map[string]any{"name": stringSchema(128), "password": password, "deviceName": stringSchema(128)}, "name", "password"),
@@ -61,11 +62,25 @@ func accountSchemas() map[string]any {
 			"maxStreams": map[string]any{"type": "integer", "minimum": 0, "maximum": 128, "description": "Distinct simultaneous playbacks of the user. Omitted follows the server-wide streaming.maxStreamsPerUser; 0 exempts the user. Applies only while streaming.enableStreamLimit is on."},
 			"maxKbps":    map[string]any{"type": "integer", "minimum": 0, "maximum": 10000000, "description": "Bandwidth in kilobits per second shared by the user's streams. Omitted follows the server-wide streaming.maxKbpsPerUser; 0 exempts the user. Applies only while streaming.enableBandwidthLimit is on."},
 		}),
-		"SessionPage":  objectSchema(map[string]any{"sessions": map[string]any{"type": "array", "maxItems": 100, "items": schemaRef("Session")}, "pagination": objectSchema(map[string]any{"nextCursor": map[string]any{"type": "string"}, "limit": map[string]any{"type": "integer", "minimum": 1, "maximum": 100}}, "nextCursor", "limit")}, "sessions", "pagination"),
-		"SessionGrant": objectSchema(map[string]any{"user": schemaRef("User"), "session": schemaRef("Session"), "token": map[string]any{"type": "string", "minLength": 43, "maxLength": 43, "description": "One-time returned opaque bearer credential. Store securely; never log."}, "csrf": csrf}, "user", "session", "token"),
-		"CSRFToken":    objectSchema(map[string]any{"csrf": csrf}, "csrf"),
-		"LibraryGrant": objectSchema(map[string]any{"libraryId": uuid, "name": map[string]any{"type": "string"}}, "libraryId", "name"),
-		"UserPage":     objectSchema(map[string]any{"users": map[string]any{"type": "array", "maxItems": 100, "items": schemaRef("User")}, "pagination": objectSchema(map[string]any{"nextCursor": map[string]any{"type": "string"}, "limit": map[string]any{"type": "integer", "minimum": 1, "maximum": 100}}, "nextCursor", "limit")}, "users", "pagination"),
+		"SessionPage":   objectSchema(map[string]any{"sessions": map[string]any{"type": "array", "maxItems": 100, "items": schemaRef("Session")}, "pagination": objectSchema(map[string]any{"nextCursor": map[string]any{"type": "string"}, "limit": map[string]any{"type": "integer", "minimum": 1, "maximum": 100}}, "nextCursor", "limit")}, "sessions", "pagination"),
+		"SessionGrant":  objectSchema(map[string]any{"user": schemaRef("User"), "session": schemaRef("Session"), "token": map[string]any{"type": "string", "minLength": 43, "maxLength": 43, "description": "One-time returned opaque bearer credential. Store securely; never log."}, "csrf": csrf}, "user", "session", "token"),
+		"CSRFToken":     objectSchema(map[string]any{"csrf": csrf}, "csrf"),
+		"LibraryGrant":  objectSchema(map[string]any{"libraryId": uuid, "name": map[string]any{"type": "string"}}, "libraryId", "name"),
+		"ContentAccess": objectSchema(contentAccessProperties(), "blockedTags"),
+		"ContentAccessView": objectSchema(func() map[string]any {
+			p := contentAccessProperties()
+			p["rules"] = map[string]any{"type": "array", "maxItems": 1000, "items": schemaRef("ItemAccessRule"), "description": "Explicit item rules in creation order."}
+			return p
+		}(), "blockedTags", "rules"),
+		"ItemAccessRuleInput": objectSchema(map[string]any{"effect": itemAccessEffect}, "effect"),
+		"ItemAccessRule": objectSchema(map[string]any{"itemId": uuid, "libraryId": uuid, "kind": map[string]any{"type": "string"}, "title": map[string]any{"type": "string"},
+			"effect": itemAccessEffect, "createdAt": instant}, "itemId", "libraryId", "kind", "title", "effect", "createdAt"),
+		"AccessPolicy": objectSchema(map[string]any{
+			"restrictAdmins": map[string]any{"type": "boolean", "description": "Apply rating ceilings, blocked tags and item rules to administrators too. Library grants never restrict administrators."},
+			"blockUnrated":   map[string]any{"type": "boolean", "description": "Default for items without a recognized rating, for users with a ceiling whose own blockUnrated is null."},
+		}, "restrictAdmins", "blockUnrated"),
+		"ParentalRating": objectSchema(map[string]any{"code": map[string]any{"type": "string", "maxLength": 32}, "level": map[string]any{"type": "integer", "minimum": 0, "maximum": 21}}, "code", "level"),
+		"UserPage":       objectSchema(map[string]any{"users": map[string]any{"type": "array", "maxItems": 100, "items": schemaRef("User")}, "pagination": objectSchema(map[string]any{"nextCursor": map[string]any{"type": "string"}, "limit": map[string]any{"type": "integer", "minimum": 1, "maximum": 100}}, "nextCursor", "limit")}, "users", "pagination"),
 	}
 }
 
@@ -100,6 +115,13 @@ func accountSpecification(paths map[string]any) {
 		{"/users/{id}/sessions/{sessionID}", "delete", "Revoke target session; self or administrator; empty body", "", "", "204", false},
 		{"/users/{id}/libraries", "get", "Read explicit library grants for self or as administrator; max 1000", "", "LibraryGrant[]", "200", false},
 		{"/users/{id}/libraries", "put", "Atomically replace explicit library grants; empty array removes grants", "LibraryAccess", "", "204", true},
+		{"/users/{id}/content-access", "get", "Read a user's rating ceiling, unrated override, blocked tags and item rules", "", "ContentAccessView", "200", true},
+		{"/users/{id}/content-access", "put", "Replace a user's rating ceiling, unrated override and blocked tags; item rules are kept; applies to the user's next request; audited as user.content_access_changed unless unchanged", "ContentAccess", "ContentAccessView", "200", true},
+		{"/users/{id}/content-access/items/{itemId}", "put", "Create or replace a user's rule on an item and its descendants; at most 1000 rules per user (409 conflict); audited as user.item_access_rule_set unless unchanged", "ItemAccessRuleInput", "ItemAccessRule", "200", true},
+		{"/users/{id}/content-access/items/{itemId}", "delete", "Remove a user's rule on an item; 404 when there is none; audited as user.item_access_rule_removed; empty body", "", "", "204", true},
+		{"/access/policy", "get", "Read the server-wide content access policy", "", "AccessPolicy", "200", true},
+		{"/access/policy", "put", "Replace the server-wide content access policy; audited as access.policy_changed unless unchanged", "AccessPolicy", "AccessPolicy", "200", true},
+		{"/access/parental-ratings", "get", "List the recognized parental rating codes and the level (minimum age) each stands for; a bare age such as 16 or 16+ is also recognized", "", "ParentalRating[]", "200", true},
 	}
 	for _, route := range routes {
 		path := "/api/v1" + route.path
@@ -113,6 +135,11 @@ func accountSpecification(paths map[string]any) {
 		params := []any{}
 		if strings.Contains(path, "{id}") {
 			params = append(params, idParameter())
+		}
+		if strings.Contains(path, "{itemId}") {
+			p := idParameter()
+			p["name"] = "itemId"
+			params = append(params, p)
 		}
 		if strings.Contains(path, "{sessionID}") {
 			p := idParameter()
@@ -152,5 +179,15 @@ func accountSpecification(paths map[string]any) {
 			paths[path] = item
 		}
 		item[route.method] = op
+	}
+}
+
+// contentAccessProperties are the replaceable per-user content restrictions.
+func contentAccessProperties() map[string]any {
+	return map[string]any{
+		"parentalRatingMax": map[string]any{"type": "integer", "minimum": 0, "maximum": 21, "description": "Highest allowed rating level, a minimum age; omitted means no ceiling. See GET /api/v1/access/parental-ratings."},
+		"blockUnrated":      map[string]any{"type": "boolean", "description": "Under a ceiling, whether items without a recognized rating are hidden; omitted follows the server-wide policy."},
+		"blockedTags": map[string]any{"type": "array", "maxItems": 100, "items": map[string]any{"type": "string", "minLength": 1, "maxLength": 128},
+			"description": "Tags and genres that hide an item when the item or an ancestor carries one; compared trimmed and case-insensitively; empty array removes the blocks."},
 	}
 }

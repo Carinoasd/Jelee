@@ -39,6 +39,9 @@
 | DELETE `/users/{id}/sessions/{sessionID}` | 自己或管理员 | 撤销目标单个会话 |
 | GET `/users/{id}/libraries` | 自己或管理员 | 显式库授权列表；管理员实际仍可访问全部库 |
 | PUT `/users/{id}/libraries` | 管理员 | `{"libraryIds":[UUID,...]}`；原子替换，空数组清除，最多 1000 个唯一 ID |
+| GET/PUT `/users/{id}/content-access` | 管理员 | 分级上限、未分级覆写、封锁标签（PUT 整组替换，`blockedTags` 必填）；GET 另含条目规则；写审计 `user.content_access_changed`。详见[存取控制](access-control.md) |
+| PUT/DELETE `/users/{id}/content-access/items/{itemId}` | 管理员 | `{"effect":"allow"\|"hide"}`；条目及其子树的显式规则；写审计 `user.item_access_rule_set`／`user.item_access_rule_removed` |
+| GET/PUT `/access/policy`、GET `/access/parental-ratings` | 管理员 | 全域策略 `restrictAdmins`、`blockUnrated`（写审计 `access.policy_changed`）；可辨识分级代码表 |
 
 PUT 中遗漏的可选字符串/布尔字段会重置为空/false；它不是 PATCH。创建用户默认 locale 为 `zh-CN`。会话及库授权读取最多返回 1000 条，超量明确返回 409，避免悄悄截断管理结果。用户列表采用 UUID 游标，每页最多 100 条。
 

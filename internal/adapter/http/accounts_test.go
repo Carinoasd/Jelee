@@ -635,7 +635,7 @@ func TestAccountHTTPOpenAPIMatchesRoutesAndHasValidRequiredArrays(t *testing.T) 
 		paths := spec["paths"].(map[string]any)
 		routerRoutes := map[string]bool{}
 		if err := chi.Walk(f.handler.(chi.Router), func(method, path string, _ http.Handler, _ ...func(http.Handler) http.Handler) error {
-			if strings.HasPrefix(path, "/api/v1/auth/") || strings.HasPrefix(path, "/api/v1/users") || path == "/api/v1/sessions" {
+			if strings.HasPrefix(path, "/api/v1/auth/") || strings.HasPrefix(path, "/api/v1/users") || strings.HasPrefix(path, "/api/v1/access/") || path == "/api/v1/sessions" {
 				routerRoutes[strings.ToLower(method)+" "+path] = true
 			}
 			return nil
@@ -644,7 +644,7 @@ func TestAccountHTTPOpenAPIMatchesRoutesAndHasValidRequiredArrays(t *testing.T) 
 		}
 		documentedRoutes := map[string]bool{}
 		for path, methods := range paths {
-			if !strings.HasPrefix(path, "/api/v1/auth/") && !strings.HasPrefix(path, "/api/v1/users") && path != "/api/v1/sessions" {
+			if !strings.HasPrefix(path, "/api/v1/auth/") && !strings.HasPrefix(path, "/api/v1/users") && !strings.HasPrefix(path, "/api/v1/access/") && path != "/api/v1/sessions" {
 				continue
 			}
 			for method, raw := range methods.(map[string]any) {
@@ -667,7 +667,7 @@ func TestAccountHTTPOpenAPIMatchesRoutesAndHasValidRequiredArrays(t *testing.T) 
 		if !reflect.DeepEqual(routerRoutes, documentedRoutes) {
 			t.Fatalf("documented account routes differ: router=%v spec=%v", routerRoutes, documentedRoutes)
 		}
-		if enabled && len(routerRoutes) != 24 || !enabled && len(routerRoutes) != 0 {
+		if enabled && len(routerRoutes) != 31 || !enabled && len(routerRoutes) != 0 {
 			t.Fatalf("unexpected rollout route count %d", len(routerRoutes))
 		}
 		data, err := json.Marshal(spec)

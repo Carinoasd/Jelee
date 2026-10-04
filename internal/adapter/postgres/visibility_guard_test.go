@@ -11,8 +11,9 @@ import (
 
 // visibilityGuardedTables are the authorization tables only the unified
 // filter may read (G48.2). Each maps a non-test file to the exact
-// management statements it may contain instead; every other occurrence in
-// a non-test source of this package fails.
+// management statements it may contain instead, or to visibilityWholeFile
+// for the file that administers the table; every other occurrence in a
+// non-test source of this package fails.
 var visibilityGuardedTables = map[string]map[string][]string{
 	"library_acl": {
 		// Account administration writes and lists the grants themselves.
@@ -22,7 +23,15 @@ var visibilityGuardedTables = map[string]map[string][]string{
 			`SELECT l.id::text,l.name FROM library_acl a JOIN libraries l ON l.id=a.library_id WHERE a.user_id=`,
 		},
 	},
+	"user_item_access_rules": {"content_access.go": {visibilityWholeFile}},
+	"user_blocked_tags":      {"content_access.go": {visibilityWholeFile}},
+	"access_policy":          {"content_access.go": {visibilityWholeFile}},
+	"parental_ratings":       {"content_access.go": {visibilityWholeFile}},
+	"parental_rating_max":    {"content_access.go": {visibilityWholeFile}},
 }
+
+// visibilityWholeFile allows every occurrence in the administering file.
+const visibilityWholeFile = "*"
 
 // visibilitySourceFile is the single source of the authorization predicates.
 const visibilitySourceFile = "visibility.go"
@@ -55,10 +64,14 @@ func visibilityGuardProblems(t *testing.T, dir string) []string {
 		sources++
 		text := string(data)
 		for table, allowed := range visibilityGuardedTables {
+			rest := text
 			for _, statement := range allowed[name] {
-				text = strings.ReplaceAll(text, statement, "")
+				if statement == visibilityWholeFile {
+					rest = ""
+				}
+				rest = strings.ReplaceAll(rest, statement, "")
 			}
-			if n := strings.Count(text, table); n > 0 {
+			if n := strings.Count(rest, table); n > 0 {
 				problems = append(problems, name+": "+table+" appears "+strconv.Itoa(n)+" time(s) outside "+visibilitySourceFile+"; use the unified visibility predicates instead of reading the grant table")
 			}
 		}
