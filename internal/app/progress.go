@@ -73,6 +73,9 @@ type ProgressOptions struct {
 	MaxSessions int
 	Rules       domain.WatchStatsRules
 	Logger      *slog.Logger
+	// OnEnded is called (without blocking) after sessions ended in storage,
+	// so the statistics roll-up can aggregate them soon (G23.5).
+	OnEnded func()
 }
 
 const (
@@ -295,6 +298,7 @@ func (p *Progress) Report(ctx context.Context, actor domain.Actor, report domain
 			return err
 		}
 		p.stats.stopWrites.Add(1)
+		p.ended()
 		return nil
 	default:
 		if s.dirty {
@@ -570,7 +574,19 @@ func (p *Progress) Flush(ctx context.Context) (domain.PlaybackFlushResult, error
 		return result, err
 	}
 	p.stats.flushes.Add(1)
+	for _, e := range entries {
+		if e.End != nil {
+			p.ended()
+			break
+		}
+	}
 	return result, nil
+}
+
+func (p *Progress) ended() {
+	if p.opts.OnEnded != nil {
+		p.opts.OnEnded()
+	}
 }
 
 // Maintain closes stored sessions no instance reports for (a restart or a
@@ -607,6 +623,7 @@ func (p *Progress) Maintain(ctx context.Context) error {
 			return err
 		}
 		p.stats.timedOut.Add(int64(len(entries)))
+		p.ended()
 	}
 	if p.opts.Retention > 0 && now.Sub(p.lastPurge) >= purgeEvery {
 		for {

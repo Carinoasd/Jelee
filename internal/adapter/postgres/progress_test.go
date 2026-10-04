@@ -319,7 +319,13 @@ func TestPlaybackProgressTimeoutSweepAndRetentionPostgres(t *testing.T) {
 	}
 	// Retention: ended sessions older than 30 days go, with their samples.
 	imageRepositoryExec(t, f.jobFixture, `UPDATE playback_sessions SET ended_at=$1::timestamptz,started_at=$1::timestamptz,last_report_at=$1::timestamptz WHERE play_key='orphan'`, f.clock.Now().Add(-40*24*time.Hour))
+	// Sessions the statistics roll-up has not aggregated are kept until it has.
 	purged, err := f.s.PurgePlaybackHistory(f.ctx, f.clock.Now().Add(-30*24*time.Hour), 10)
+	if err != nil || purged != 0 {
+		t.Fatal("purged an unaggregated session", purged, err)
+	}
+	imageRepositoryExec(t, f.jobFixture, `UPDATE playback_sessions SET stats_through=ended_at WHERE play_key='orphan'`)
+	purged, err = f.s.PurgePlaybackHistory(f.ctx, f.clock.Now().Add(-30*24*time.Hour), 10)
 	if err != nil || purged != 1 || f.count(t, `SELECT count(*) FROM playback_sessions WHERE play_key='orphan'`) != 0 {
 		t.Fatal("retention purge", purged, err)
 	}
@@ -376,9 +382,14 @@ func TestPlaybackProgressMigrationRoundTrip(t *testing.T) {
 	if _, err = f.s.Pool.Exec(f.ctx, `UPDATE schema_migrations SET version=$1,dirty=false`, want); err != nil {
 		t.Fatal(err)
 	}
+	// Clearing runs on the current schema, which also clears statistics.
+	if _, _, err = Migrate(f.ctx, dsn, "up"); err != nil {
+		t.Fatal(err)
+	}
 	if err = f.progress.ClearHistory(f.ctx, f.viewer); err != nil {
 		t.Fatal(err)
 	}
+	downgradeAboveMigration(t, f.jobFixture, "playback_progress")
 	if version, dirty, err = Migrate(f.ctx, dsn, "down"); err != nil || dirty || version != want-1 {
 		t.Fatalf("downgrade: %d %t %v", version, dirty, err)
 	}

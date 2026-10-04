@@ -958,6 +958,7 @@
           "scan_limit",
           "scan_unavailable",
           "session_limit",
+          "stats_export_limit",
           "stream_limit",
           "transcode_disabled",
           "unsupported_media_type",
@@ -1100,6 +1101,9 @@
           ],
           "session_limit": [
             "429"
+          ],
+          "stats_export_limit": [
+            "409"
           ],
           "stream_limit": [
             "429"
@@ -5312,6 +5316,423 @@
         "required": [
           "name",
           "locale"
+        ],
+        "type": "object"
+      },
+      "WatchStatsReport": {
+        "additionalProperties": false,
+        "properties": {
+          "from": {
+            "format": "date",
+            "type": "string"
+          },
+          "kinds": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "completionRate": {
+                  "description": "Average completion rate of the counted sessions; 0 without sessions.",
+                  "maximum": 1,
+                  "minimum": 0,
+                  "type": "number"
+                },
+                "completions": {
+                  "description": "Counted sessions that covered the completion share of the runtime.",
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "effectiveSeconds": {
+                  "description": "Effective watch time: played wall time without pauses, stalls, seeks and fast-forward, counted once across devices (docs/watch-statistics.md).",
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "firstPlays": {
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "kind": {
+                  "type": "string"
+                },
+                "rewatches": {
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "sessions": {
+                  "description": "Playback sessions that reached the view threshold.",
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "views": {
+                  "description": "Watch-throughs: first plays plus re-watches.",
+                  "minimum": 0,
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "kind",
+                "effectiveSeconds",
+                "sessions",
+                "views",
+                "firstPlays",
+                "rewatches",
+                "completions",
+                "completionRate"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "libraries": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "completionRate": {
+                  "description": "Average completion rate of the counted sessions; 0 without sessions.",
+                  "maximum": 1,
+                  "minimum": 0,
+                  "type": "number"
+                },
+                "completions": {
+                  "description": "Counted sessions that covered the completion share of the runtime.",
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "effectiveSeconds": {
+                  "description": "Effective watch time: played wall time without pauses, stalls, seeks and fast-forward, counted once across devices (docs/watch-statistics.md).",
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "firstPlays": {
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "libraryId": {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "rewatches": {
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "sessions": {
+                  "description": "Playback sessions that reached the view threshold.",
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "views": {
+                  "description": "Watch-throughs: first plays plus re-watches.",
+                  "minimum": 0,
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "libraryId",
+                "name",
+                "effectiveSeconds",
+                "sessions",
+                "views",
+                "firstPlays",
+                "rewatches",
+                "completions",
+                "completionRate"
+              ],
+              "type": "object"
+            },
+            "maxItems": 200,
+            "type": "array"
+          },
+          "period": {
+            "enum": [
+              "day",
+              "week",
+              "month",
+              "year"
+            ],
+            "type": "string"
+          },
+          "periods": {
+            "description": "One entry per period with data, oldest first; start is the first day of the period.",
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "completionRate": {
+                  "description": "Average completion rate of the counted sessions; 0 without sessions.",
+                  "maximum": 1,
+                  "minimum": 0,
+                  "type": "number"
+                },
+                "completions": {
+                  "description": "Counted sessions that covered the completion share of the runtime.",
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "effectiveSeconds": {
+                  "description": "Effective watch time: played wall time without pauses, stalls, seeks and fast-forward, counted once across devices (docs/watch-statistics.md).",
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "firstPlays": {
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "rewatches": {
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "sessions": {
+                  "description": "Playback sessions that reached the view threshold.",
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "start": {
+                  "format": "date",
+                  "type": "string"
+                },
+                "views": {
+                  "description": "Watch-throughs: first plays plus re-watches.",
+                  "minimum": 0,
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "start",
+                "effectiveSeconds",
+                "sessions",
+                "views",
+                "firstPlays",
+                "rewatches",
+                "completions",
+                "completionRate"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "timeZone": {
+            "description": "IANA zone whose midnight cuts days (stats.timeZone).",
+            "type": "string"
+          },
+          "to": {
+            "format": "date",
+            "type": "string"
+          },
+          "topItems": {
+            "description": "Items with the most effective time.",
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "completionRate": {
+                  "description": "Average completion rate of the counted sessions; 0 without sessions.",
+                  "maximum": 1,
+                  "minimum": 0,
+                  "type": "number"
+                },
+                "completions": {
+                  "description": "Counted sessions that covered the completion share of the runtime.",
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "effectiveSeconds": {
+                  "description": "Effective watch time: played wall time without pauses, stalls, seeks and fast-forward, counted once across devices (docs/watch-statistics.md).",
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "firstPlays": {
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "itemId": {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                "kind": {
+                  "type": "string"
+                },
+                "libraryId": {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                "rewatches": {
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "sessions": {
+                  "description": "Playback sessions that reached the view threshold.",
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "title": {
+                  "type": "string"
+                },
+                "userData": {
+                  "$ref": "#/components/schemas/UserItemData"
+                },
+                "views": {
+                  "description": "Watch-throughs: first plays plus re-watches.",
+                  "minimum": 0,
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "itemId",
+                "libraryId",
+                "kind",
+                "title",
+                "effectiveSeconds",
+                "sessions",
+                "views",
+                "firstPlays",
+                "rewatches",
+                "completions",
+                "completionRate"
+              ],
+              "type": "object"
+            },
+            "maxItems": 100,
+            "type": "array"
+          },
+          "topUsers": {
+            "description": "Statistics of every user only: users with the most effective time.",
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "completionRate": {
+                  "description": "Average completion rate of the counted sessions; 0 without sessions.",
+                  "maximum": 1,
+                  "minimum": 0,
+                  "type": "number"
+                },
+                "completions": {
+                  "description": "Counted sessions that covered the completion share of the runtime.",
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "effectiveSeconds": {
+                  "description": "Effective watch time: played wall time without pauses, stalls, seeks and fast-forward, counted once across devices (docs/watch-statistics.md).",
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "firstPlays": {
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "rewatches": {
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "sessions": {
+                  "description": "Playback sessions that reached the view threshold.",
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "userId": {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                "userName": {
+                  "type": "string"
+                },
+                "views": {
+                  "description": "Watch-throughs: first plays plus re-watches.",
+                  "minimum": 0,
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "userId",
+                "userName",
+                "effectiveSeconds",
+                "sessions",
+                "views",
+                "firstPlays",
+                "rewatches",
+                "completions",
+                "completionRate"
+              ],
+              "type": "object"
+            },
+            "maxItems": 100,
+            "type": "array"
+          },
+          "totals": {
+            "$ref": "#/components/schemas/WatchStatsTotals"
+          },
+          "userId": {
+            "description": "The user the statistics belong to; absent for statistics of every user.",
+            "format": "uuid",
+            "type": "string"
+          },
+          "weekStart": {
+            "enum": [
+              "monday",
+              "sunday"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "from",
+          "to",
+          "period",
+          "timeZone",
+          "weekStart",
+          "totals",
+          "periods",
+          "topItems",
+          "libraries",
+          "kinds"
+        ],
+        "type": "object"
+      },
+      "WatchStatsTotals": {
+        "additionalProperties": false,
+        "properties": {
+          "completionRate": {
+            "description": "Average completion rate of the counted sessions; 0 without sessions.",
+            "maximum": 1,
+            "minimum": 0,
+            "type": "number"
+          },
+          "completions": {
+            "description": "Counted sessions that covered the completion share of the runtime.",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "effectiveSeconds": {
+            "description": "Effective watch time: played wall time without pauses, stalls, seeks and fast-forward, counted once across devices (docs/watch-statistics.md).",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "firstPlays": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "rewatches": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "sessions": {
+            "description": "Playback sessions that reached the view threshold.",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "views": {
+            "description": "Watch-throughs: first plays plus re-watches.",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "effectiveSeconds",
+          "sessions",
+          "views",
+          "firstPlays",
+          "rewatches",
+          "completions",
+          "completionRate"
         ],
         "type": "object"
       },
@@ -17284,7 +17705,7 @@
     },
     "/api/v1/users/me/playback-history": {
       "delete": {
-        "description": "Deletes every playback session, stored sample, resume point, played state and play count of the caller (G23.4) and records the audit event playback.history_cleared with counts only. No body. Sessions still playing start a new history with their next report.",
+        "description": "Deletes every playback session, stored sample, resume point, played state, play count and watch statistics of the caller (G23.4) and records the audit event playback.history_cleared with counts only. No body. Sessions still playing start a new history with their next report.",
         "responses": {
           "204": {
             "description": "HTTP 204"
@@ -17665,6 +18086,135 @@
           }
         ],
         "summary": "List items to continue watching"
+      }
+    },
+    "/api/v1/users/me/watch-stats": {
+      "get": {
+        "description": "Totals, periods, top items with the caller's current progress, and per library and kind breakdowns of the caller's own viewing (G23.3, G23.4). Items in libraries the caller can no longer see are left out of every figure (G48.3). Read from the daily roll-up only; sessions are counted after they end and the next aggregation (stats.aggregateSeconds). No response carries a delivery URL.",
+        "parameters": [
+          {
+            "description": "First day (inclusive) in the reporting time zone; defaults to 29 days before to.",
+            "in": "query",
+            "name": "from",
+            "schema": {
+              "format": "date",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Last day (inclusive); defaults to today in the reporting time zone. At most 3660 days, 400 per day.",
+            "in": "query",
+            "name": "to",
+            "schema": {
+              "format": "date",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "period",
+            "schema": {
+              "default": "day",
+              "enum": [
+                "day",
+                "week",
+                "month",
+                "year"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "top",
+            "schema": {
+              "default": 10,
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/WatchStatsReport"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "HTTP 200"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 400"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 401"
+          },
+          "408": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 408"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 503"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Jelee error envelope with code, message, details and traceId; see the Error schema."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "webSession": []
+          }
+        ],
+        "summary": "Read the caller's watch statistics"
       }
     },
     "/api/v1/users/{id}": {
@@ -19550,6 +20100,550 @@
           }
         ],
         "summary": "Reset login failure count and lock",
+        "x-jelee-role": "administrator"
+      }
+    },
+    "/api/v1/users/{id}/watch-stats": {
+      "get": {
+        "description": "Administrators only. The user's statistics as an administrator sees them: every library, including libraries the user can no longer see. Read from the daily roll-up only; sessions are counted after they end and the next aggregation (stats.aggregateSeconds). No response carries a delivery URL.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "description": "First day (inclusive) in the reporting time zone; defaults to 29 days before to.",
+            "in": "query",
+            "name": "from",
+            "schema": {
+              "format": "date",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Last day (inclusive); defaults to today in the reporting time zone. At most 3660 days, 400 per day.",
+            "in": "query",
+            "name": "to",
+            "schema": {
+              "format": "date",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "period",
+            "schema": {
+              "default": "day",
+              "enum": [
+                "day",
+                "week",
+                "month",
+                "year"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "top",
+            "schema": {
+              "default": 10,
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/WatchStatsReport"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "HTTP 200"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 400"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 401"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 403"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 404"
+          },
+          "408": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 408"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 503"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Jelee error envelope with code, message, details and traceId; see the Error schema."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "webSession": []
+          }
+        ],
+        "summary": "Read a user's watch statistics",
+        "x-jelee-role": "administrator"
+      }
+    },
+    "/api/v1/watch-stats": {
+      "get": {
+        "description": "Administrators only. Statistics of every user, with the users with the most effective time. Read from the daily roll-up only; sessions are counted after they end and the next aggregation (stats.aggregateSeconds). No response carries a delivery URL.",
+        "parameters": [
+          {
+            "description": "First day (inclusive) in the reporting time zone; defaults to 29 days before to.",
+            "in": "query",
+            "name": "from",
+            "schema": {
+              "format": "date",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Last day (inclusive); defaults to today in the reporting time zone. At most 3660 days, 400 per day.",
+            "in": "query",
+            "name": "to",
+            "schema": {
+              "format": "date",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "period",
+            "schema": {
+              "default": "day",
+              "enum": [
+                "day",
+                "week",
+                "month",
+                "year"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "top",
+            "schema": {
+              "default": 10,
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/WatchStatsReport"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "HTTP 200"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 400"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 401"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 403"
+          },
+          "408": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 408"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 503"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Jelee error envelope with code, message, details and traceId; see the Error schema."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "webSession": []
+          }
+        ],
+        "summary": "Read the watch statistics of every user",
+        "x-jelee-role": "administrator"
+      }
+    },
+    "/api/v1/watch-stats/export": {
+      "get": {
+        "description": "Administrators only (G23.4). Streams the daily rows (day, user, item) of a range in day, user and item order, as CSV (default) or NDJSON. The export is counted before anything is sent: more rows than limit (at most stats.exportMaxRows) is refused with 409 stats_export_limit; otherwise the audit event watch_stats.exported (range, format, rows, user) is recorded first. X-Jelee-Export-Rows announces the row count and the X-Jelee-Export-Complete trailer reports whether every row was sent. CSV text cells starting with =, +, -, @, tab or carriage return are prefixed with an apostrophe.",
+        "parameters": [
+          {
+            "description": "First day (inclusive); defaults to 29 days before to.",
+            "in": "query",
+            "name": "from",
+            "schema": {
+              "format": "date",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Last day (inclusive); defaults to today. At most 3660 days.",
+            "in": "query",
+            "name": "to",
+            "schema": {
+              "format": "date",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "format",
+            "schema": {
+              "default": "csv",
+              "enum": [
+                "csv",
+                "ndjson"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "description": "Lowers the row limit; at most stats.exportMaxRows (default 100000).",
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Export only this user's rows.",
+            "in": "query",
+            "name": "userId",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/x-ndjson": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "completionRate": {
+                      "maximum": 1,
+                      "minimum": 0,
+                      "type": "number"
+                    },
+                    "completions": {
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "day": {
+                      "format": "date",
+                      "type": "string"
+                    },
+                    "effectiveMillis": {
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "firstPlays": {
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "itemId": {
+                      "format": "uuid",
+                      "type": "string"
+                    },
+                    "kind": {
+                      "type": "string"
+                    },
+                    "libraryId": {
+                      "format": "uuid",
+                      "type": "string"
+                    },
+                    "rewatches": {
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "sessions": {
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "userId": {
+                      "format": "uuid",
+                      "type": "string"
+                    },
+                    "userName": {
+                      "type": "string"
+                    },
+                    "views": {
+                      "minimum": 0,
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "day",
+                    "userId",
+                    "userName",
+                    "itemId",
+                    "libraryId",
+                    "kind",
+                    "title",
+                    "effectiveMillis",
+                    "sessions",
+                    "views",
+                    "firstPlays",
+                    "rewatches",
+                    "completions",
+                    "completionRate"
+                  ],
+                  "type": "object"
+                }
+              },
+              "text/csv": {
+                "schema": {
+                  "description": "Header row day,user_id,user_name,item_id,library_id,item_kind,item_title,effective_seconds,sessions,views,first_plays,rewatches,completions,completion_rate.",
+                  "type": "string"
+                }
+              }
+            },
+            "description": "The rows, streamed.",
+            "headers": {
+              "X-Jelee-Export-Complete": {
+                "description": "Trailer: false when the stream ended early.",
+                "schema": {
+                  "enum": [
+                    "true",
+                    "false"
+                  ],
+                  "type": "string"
+                }
+              },
+              "X-Jelee-Export-Rows": {
+                "description": "Rows the export holds.",
+                "schema": {
+                  "minimum": 0,
+                  "type": "integer"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 400"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 401"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 403"
+          },
+          "408": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 408"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "stats_export_limit: the range holds more rows than the limit; narrow it."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 503"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Jelee error envelope with code, message, details and traceId; see the Error schema."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "webSession": []
+          }
+        ],
+        "summary": "Export the watch statistics roll-up",
         "x-jelee-role": "administrator"
       }
     },

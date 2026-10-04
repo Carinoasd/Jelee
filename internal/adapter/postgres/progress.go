@@ -236,8 +236,10 @@ func (s *Store) PurgePlaybackHistory(parent context.Context, cutoff time.Time, l
 	}
 	ctx, cancel := context.WithTimeout(parent, progressTimeout)
 	defer cancel()
+	// Sessions the statistics roll-up has not aggregated yet are kept until
+	// it has, so retention never loses statistics (G23.5).
 	tag, err := s.Pool.Exec(ctx, `DELETE FROM playback_sessions WHERE id IN (
- SELECT id FROM playback_sessions WHERE ended_at<$1 ORDER BY ended_at LIMIT $2)`, cutoff, limit)
+ SELECT id FROM playback_sessions WHERE ended_at<$1 AND stats_through>=ended_at ORDER BY ended_at LIMIT $2)`, cutoff, limit)
 	if err != nil {
 		return 0, storageError(err)
 	}
@@ -384,8 +386,11 @@ func (s *Store) ClearPlaybackHistory(ctx context.Context, actor domain.Actor) er
 	return storageError(tx.Commit(ctx))
 }
 
-// deletePlaybackData removes every playback row of a user; samples follow
-// their sessions.
+// deletePlaybackData removes every playback row of a user, including the
+// watch statistics computed from them (G23.4); samples follow their
+// sessions. Sessions go first: an aggregation that already locked them
+// commits before the statistics rows are deleted, and one that has not
+// finds them gone and writes nothing.
 func deletePlaybackData(ctx context.Context, tx pgx.Tx, userID string) (sessions, data int64, err error) {
 	tag, err := tx.Exec(ctx, `DELETE FROM playback_sessions WHERE user_id=$1::uuid`, userID)
 	if err != nil {
@@ -395,7 +400,14 @@ func deletePlaybackData(ctx context.Context, tx pgx.Tx, userID string) (sessions
 	if tag, err = tx.Exec(ctx, `DELETE FROM user_item_data WHERE user_id=$1::uuid`, userID); err != nil {
 		return 0, 0, storageError(err)
 	}
-	return sessions, tag.RowsAffected(), nil
+	data = tag.RowsAffected()
+	if _, err = tx.Exec(ctx, `DELETE FROM watch_stats_daily WHERE user_id=$1::uuid`, userID); err != nil {
+		return 0, 0, storageError(err)
+	}
+	if _, err = tx.Exec(ctx, `DELETE FROM watch_stats_history WHERE user_id=$1::uuid`, userID); err != nil {
+		return 0, 0, storageError(err)
+	}
+	return sessions, data, nil
 }
 
 func (s *Store) ListActivePlayback(ctx context.Context, actor domain.Actor, limit int) ([]domain.ActivePlayback, error) {

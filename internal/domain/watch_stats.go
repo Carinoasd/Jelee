@@ -7,7 +7,7 @@ import (
 )
 
 // G23.3 watch statistics. These pure functions define the counting rules;
-// docs/watch-stats.md restates them for operators and API consumers, and
+// docs/watch-statistics.md restates them for operators and API consumers, and
 // the SQL roll-ups (G23.5) aggregate the per-day rows produced here.
 //
 // Input is the ordered sample stream of one playback session as the server

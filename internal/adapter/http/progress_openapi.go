@@ -108,6 +108,6 @@ func progressSpecification(paths, schemas map[string]any) {
 
 	clear := operation("Clear the caller's playback history", "204", "400", "401", "408", "503")
 	clear["security"] = bearer
-	clear["description"] = "Deletes every playback session, stored sample, resume point, played state and play count of the caller (G23.4) and records the audit event playback.history_cleared with counts only. No body. Sessions still playing start a new history with their next report."
+	clear["description"] = "Deletes every playback session, stored sample, resume point, played state, play count and watch statistics of the caller (G23.4) and records the audit event playback.history_cleared with counts only. No body. Sessions still playing start a new history with their next report."
 	paths["/api/v1/users/me/playback-history"] = map[string]any{"delete": clear}
 }

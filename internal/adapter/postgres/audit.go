@@ -88,6 +88,7 @@ var auditEvents = map[string]string{
 	"user.restored":                        domain.AuditCategoryAudit,
 	"user.unlocked":                        domain.AuditCategoryAudit,
 	"user.updated":                         domain.AuditCategoryAudit,
+	"watch_stats.exported":                 domain.AuditCategoryAudit,
 }
 
 // auditStateLimit bounds each encoded before/after state. Larger states are

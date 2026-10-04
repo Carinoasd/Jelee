@@ -1,6 +1,6 @@
 # 播放會話與觀看進度（G23.1、G23.2、G23.4、G20.4、G48.3、G07.7）
 
-本文說明播放會話、續播點、已播放狀態的資料模型、寫入方式、自有 API 與相容層，以及「並發進度上報不造成寫放大」的實測證據。統計聚合（G23.3、G23.5）不在此範圍；`docs/watch-stats.md` 的計算規則直接讀本文的樣本表。
+本文說明播放會話、續播點、已播放狀態的資料模型、寫入方式、自有 API 與相容層，以及「並發進度上報不造成寫放大」的實測證據。統計聚合（G23.3、G23.5）不在此範圍；計算規則與彙總見 [`watch-statistics.md`](watch-statistics.md)，直接讀本文的樣本表。
 
 ## 資料模型（遷移 000066）
 
@@ -27,9 +27,9 @@
 | 停止 | 立即寫 1 個語句（同上，單一會話），讓客戶端停止後馬上讀得到續播點；寫入失敗則保留到下次 flush 重試。重複的停止不寫 |
 | 逾時（`playback.sessionTimeoutSeconds`，預設 300 秒沒有回報） | 由下次 flush 關閉為 `timed_out`，依停止規則計算續播點／已播放 |
 | 其他實例遺留的 active 會話 | 每 6 次 flush 查一次逾時的 active 會話（部分索引），本實例沒有持有的就以儲存的位置關閉 |
-| 保留期（`playback.retentionDays`，預設 365，0＝不自動刪） | 每小時最多一次，分批刪除 `ended_at` 早於保留期的會話（樣本級聯）。續播點與已播放屬於使用者資料，不受保留期影響 |
+| 保留期（`playback.retentionDays`，預設 365，0＝不自動刪） | 每小時最多一次，分批刪除 `ended_at` 早於保留期的會話（樣本級聯）；統計彙總尚未處理的會話先保留到彙總之後（見 [`watch-statistics.md`](watch-statistics.md)）。續播點與已播放屬於使用者資料，不受保留期影響 |
 
-停止規則（與 `docs/watch-stats.md` 相同門檻，`domain.ResolvePlaybackEnd`）：位置達到已知時長的 90% → 已播放、播放次數 +1、續播點清零；否則續播點＝位置，但小於 30 秒時不留續播點。時長未知（來源未探測）時不會因位置判定播完。失敗的播放不算看完。
+停止規則（與 [`watch-statistics.md`](watch-statistics.md) 相同門檻，門檻可由 `stats.*` 設定，`domain.ResolvePlaybackEnd`）：位置達到已知時長的 90% → 已播放、播放次數 +1、續播點清零；否則續播點＝位置，但小於 30 秒時不留續播點。時長未知（來源未探測）時不會因位置判定播完。失敗的播放不算看完。
 
 同一使用者在同一批次裡用兩個裝置播同一條目時，進度合併成一列：最新回報決定續播點，每個播完的會話各算一次。
 
@@ -88,7 +88,7 @@
 | `GET /api/v1/items/{id}/user-data` | 任何工作階段 | 續播點、已播放、次數、最後播放時間；看不到的條目 404 |
 | `PUT`／`DELETE /api/v1/items/{id}/played` | 任何工作階段 | 標記已播放（次數 +1、清續播點）／未播放（次數歸零、清續播點）；PUT 主體 `{}` |
 | `GET /api/v1/users/me/resume?offset&limit` | 任何工作階段 | 繼續觀看（最近播放在前，`limit` 1–500，預設 50） |
-| `DELETE /api/v1/users/me/playback-history` | 任何工作階段 | 清除自己的會話、樣本、續播點、已播放與次數；寫審計 `playback.history_cleared`（只記筆數） |
+| `DELETE /api/v1/users/me/playback-history` | 任何工作階段 | 清除自己的會話、樣本、續播點、已播放、次數與觀看統計；寫審計 `playback.history_cleared`（只記筆數） |
 | `GET /api/v1/playback/sessions` | 管理員 | 進行中的會話（最多 500），含本實例尚未 flush 的位置 |
 
 回報路由先過 `GuardProduction`（轉換參數 409 `transcode_disabled`），不接受 query。新錯誤碼 `playback_busy`（503）已加入錯誤碼表與四種語系。

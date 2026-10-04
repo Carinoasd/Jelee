@@ -226,6 +226,7 @@ func newServer(cfg config.Config, backend Backend, catalog *app.Catalog, resolve
 			r.Get("/api/v1/items/{id}/details", s.itemDetails)
 			r.Get("/api/v1/items/{id}/sources", s.itemSources)
 			s.progressRoutes(r)
+			s.watchStatsRoutes(r)
 			if cfg.EnableDirect {
 				r.Get("/api/v1/sources/{id}/stream", s.stream)
 				r.Head("/api/v1/sources/{id}/stream", s.stream)
@@ -602,6 +603,8 @@ func WriteError(w http.ResponseWriter, r *http.Request, err error) {
 	case errors.Is(err, domain.ErrPlaybackBusy):
 		status, code, message = 503, "playback_busy", "Playback reporting is busy. Try again later."
 		w.Header().Set("Retry-After", "5")
+	case errors.Is(err, domain.ErrWatchStatsExportLimit):
+		status, code, message = 409, "stats_export_limit", "Export exceeds the row limit. Narrow the range."
 	case errors.Is(err, domain.ErrDatabase):
 		status, code, message = 503, "not_ready", "Service is not ready."
 	case errors.Is(err, domain.ErrMetadataUnavailable):

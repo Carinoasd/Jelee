@@ -59,6 +59,7 @@ var errorCodeStatuses = map[string][]int{
 	"scan_limit":                {409},
 	"scan_unavailable":          {503},
 	"session_limit":             {429},
+	"stats_export_limit":        {409},
 	"stream_limit":              {429},
 	"transcode_disabled":        {409},
 	"unsupported_media_type":    {415},

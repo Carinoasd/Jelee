@@ -173,8 +173,15 @@ func leakRouteTable() map[string]leakRoute {
 		"DELETE /api/v1/items/{id}/played":         {mode: leakByID, params: itemParam, control: true},
 		"GET /api/v1/users/me/resume":              {mode: leakList, params: noParams, control: true},
 		"DELETE /api/v1/users/me/playback-history": exempt("deletes the caller's own playback history; carries no media identifiers"),
-		"GET /images/{type}/{id}":                  {mode: leakByID, params: map[string]string{"type": "image-type", "id": "item"}, control: true},
-		"HEAD /images/{type}/{id}":                 {mode: leakByID, params: map[string]string{"type": "image-type", "id": "item"}, control: true},
+		// Watch statistics (G23.3, G48.3): the daily roll-up read with the
+		// viewer's library grants; the fixture seeds rows for both users on
+		// both items.
+		"GET /api/v1/users/me/watch-stats":   {mode: leakList, params: noParams, control: true},
+		"GET /api/v1/users/{id}/watch-stats": admin(selfParam),
+		"GET /api/v1/watch-stats":            admin(noParams),
+		"GET /api/v1/watch-stats/export":     admin(noParams),
+		"GET /images/{type}/{id}":            {mode: leakByID, params: map[string]string{"type": "image-type", "id": "item"}, control: true},
+		"HEAD /images/{type}/{id}":           {mode: leakByID, params: map[string]string{"type": "image-type", "id": "item"}, control: true},
 
 		// Accounts.
 		"POST /api/v1/auth/login":                         exempt("credential exchange; takes no media identifiers and returns only a session grant"),
@@ -370,6 +377,13 @@ func leakHandlerWithRenderer(t *testing.T, store *postgres.Store, cfg config.Con
 		t.Fatal(err)
 	}
 	if catalog, err = catalog.WithProgress(progress); err != nil {
+		t.Fatal(err)
+	}
+	stats, err := app.NewWatchStats(store, app.WatchStatsOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if catalog, err = catalog.WithWatchStats(stats); err != nil {
 		t.Fatal(err)
 	}
 	handler, err := NewWithImages(cfg, store, catalog, store, slog.New(slog.NewTextHandler(io.Discard, nil)), accounts, jobs, metadata, metrics, images)
@@ -660,6 +674,12 @@ func leakFixture(t *testing.T, ctx context.Context, store *postgres.Store) leakI
  SELECT u,i,6000000000,false,0,now(),now() FROM unnest($1::uuid[]) u CROSS JOIN unnest($2::uuid[]) i
  ON CONFLICT (user_id,item_id) DO UPDATE SET resume_ticks=EXCLUDED.resume_ticks,played=false,play_count=0`,
 			[]string{f.viewer, adminID}, []string{f.item[leakVisible], f.item[leakHidden]}); err != nil {
+			t.Fatal(err)
+		}
+		// Watch statistics of today on both items for both users.
+		if _, err := store.Pool.Exec(ctx, `INSERT INTO watch_stats_daily(user_id,day,item_id,library_id,effective_ms,sessions,views,first_plays)
+ SELECT u,(now() AT TIME ZONE 'UTC')::date,i.id,i.library_id,600000,1,1,1 FROM unnest($1::uuid[]) u CROSS JOIN items i WHERE i.id=ANY($2::uuid[])
+ ON CONFLICT (user_id,day,item_id) DO NOTHING`, []string{f.viewer, adminID}, []string{f.item[leakVisible], f.item[leakHidden]}); err != nil {
 			t.Fatal(err)
 		}
 	}

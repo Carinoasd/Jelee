@@ -10968,6 +10968,119 @@ export type paths = {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/users/{id}/watch-stats": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read a user's watch statistics
+         * @description Administrators only. The user's statistics as an administrator sees them: every library, including libraries the user can no longer see. Read from the daily roll-up only; sessions are counted after they end and the next aggregation (stats.aggregateSeconds). No response carries a delivery URL.
+         */
+        get: {
+            parameters: {
+                query?: {
+                    /** @description First day (inclusive) in the reporting time zone; defaults to 29 days before to. */
+                    from?: string;
+                    period?: "day" | "week" | "month" | "year";
+                    /** @description Last day (inclusive); defaults to today in the reporting time zone. At most 3660 days, 400 per day. */
+                    to?: string;
+                    top?: number;
+                };
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description HTTP 200 */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["WatchStatsReport"];
+                        };
+                    };
+                };
+                /** @description HTTP 400 */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 401 */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 403 */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 404 */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 408 */
+                408: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 503 */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Jelee error envelope with code, message, details and traceId; see the Error schema. */
+                default: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/users/me": {
         parameters: {
             query?: never;
@@ -11237,7 +11350,7 @@ export type paths = {
         post?: never;
         /**
          * Clear the caller's playback history
-         * @description Deletes every playback session, stored sample, resume point, played state and play count of the caller (G23.4) and records the audit event playback.history_cleared with counts only. No body. Sessions still playing start a new history with their next report.
+         * @description Deletes every playback session, stored sample, resume point, played state, play count and watch statistics of the caller (G23.4) and records the audit event playback.history_cleared with counts only. No body. Sessions still playing start a new history with their next report.
          */
         delete: {
             parameters: {
@@ -11510,6 +11623,337 @@ export type paths = {
                 };
                 /** @description HTTP 408 */
                 408: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 503 */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Jelee error envelope with code, message, details and traceId; see the Error schema. */
+                default: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/users/me/watch-stats": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read the caller's watch statistics
+         * @description Totals, periods, top items with the caller's current progress, and per library and kind breakdowns of the caller's own viewing (G23.3, G23.4). Items in libraries the caller can no longer see are left out of every figure (G48.3). Read from the daily roll-up only; sessions are counted after they end and the next aggregation (stats.aggregateSeconds). No response carries a delivery URL.
+         */
+        get: {
+            parameters: {
+                query?: {
+                    /** @description First day (inclusive) in the reporting time zone; defaults to 29 days before to. */
+                    from?: string;
+                    period?: "day" | "week" | "month" | "year";
+                    /** @description Last day (inclusive); defaults to today in the reporting time zone. At most 3660 days, 400 per day. */
+                    to?: string;
+                    top?: number;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description HTTP 200 */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["WatchStatsReport"];
+                        };
+                    };
+                };
+                /** @description HTTP 400 */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 401 */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 408 */
+                408: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 503 */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Jelee error envelope with code, message, details and traceId; see the Error schema. */
+                default: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/watch-stats": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read the watch statistics of every user
+         * @description Administrators only. Statistics of every user, with the users with the most effective time. Read from the daily roll-up only; sessions are counted after they end and the next aggregation (stats.aggregateSeconds). No response carries a delivery URL.
+         */
+        get: {
+            parameters: {
+                query?: {
+                    /** @description First day (inclusive) in the reporting time zone; defaults to 29 days before to. */
+                    from?: string;
+                    period?: "day" | "week" | "month" | "year";
+                    /** @description Last day (inclusive); defaults to today in the reporting time zone. At most 3660 days, 400 per day. */
+                    to?: string;
+                    top?: number;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description HTTP 200 */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["WatchStatsReport"];
+                        };
+                    };
+                };
+                /** @description HTTP 400 */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 401 */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 403 */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 408 */
+                408: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 503 */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Jelee error envelope with code, message, details and traceId; see the Error schema. */
+                default: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/watch-stats/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Export the watch statistics roll-up
+         * @description Administrators only (G23.4). Streams the daily rows (day, user, item) of a range in day, user and item order, as CSV (default) or NDJSON. The export is counted before anything is sent: more rows than limit (at most stats.exportMaxRows) is refused with 409 stats_export_limit; otherwise the audit event watch_stats.exported (range, format, rows, user) is recorded first. X-Jelee-Export-Rows announces the row count and the X-Jelee-Export-Complete trailer reports whether every row was sent. CSV text cells starting with =, +, -, @, tab or carriage return are prefixed with an apostrophe.
+         */
+        get: {
+            parameters: {
+                query?: {
+                    format?: "csv" | "ndjson";
+                    /** @description First day (inclusive); defaults to 29 days before to. */
+                    from?: string;
+                    /** @description Lowers the row limit; at most stats.exportMaxRows (default 100000). */
+                    limit?: number;
+                    /** @description Last day (inclusive); defaults to today. At most 3660 days. */
+                    to?: string;
+                    /** @description Export only this user's rows. */
+                    userId?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description The rows, streamed. */
+                200: {
+                    headers: {
+                        /** @description Trailer: false when the stream ended early. */
+                        "X-Jelee-Export-Complete"?: "true" | "false";
+                        /** @description Rows the export holds. */
+                        "X-Jelee-Export-Rows"?: number;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/x-ndjson": {
+                            completionRate: number;
+                            completions: number;
+                            /** Format: date */
+                            day: string;
+                            effectiveMillis: number;
+                            firstPlays: number;
+                            /** Format: uuid */
+                            itemId: string;
+                            kind: string;
+                            /** Format: uuid */
+                            libraryId: string;
+                            rewatches: number;
+                            sessions: number;
+                            title: string;
+                            /** Format: uuid */
+                            userId: string;
+                            userName: string;
+                            views: number;
+                        };
+                        "text/csv": string;
+                    };
+                };
+                /** @description HTTP 400 */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 401 */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 403 */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 408 */
+                408: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description stats_export_limit: the range holds more rows than the limit; narrow it. */
+                409: {
                     headers: {
                         [name: string]: unknown;
                     };
@@ -12290,7 +12734,7 @@ export type components = {
          * @description Stable machine-readable error code. x-jelee-statuses lists the HTTP status codes each value is sent with.
          * @enum {string}
          */
-        ErrorCode: "account_busy" | "auth_rate_limited" | "authentication_required" | "body_too_large" | "conflict" | "csrf_failed" | "device_stream_limit" | "feature_removed" | "forbidden" | "ignore_unavailable" | "image_busy" | "image_too_large" | "image_unavailable" | "image_unsupported" | "internal_error" | "invalid_host" | "invalid_range" | "invalid_request" | "job_busy" | "job_queue_full" | "jobs_busy" | "last_admin" | "lookup_timeout" | "metadata_unavailable" | "method_not_allowed" | "metrics_busy" | "native_login_disabled" | "nfo_cache_capacity" | "nfo_disabled" | "nfo_identity_mismatch" | "nfo_invalidated" | "nfo_reader_unavailable" | "not_found" | "not_ready" | "playback_busy" | "precondition_failed" | "probe_cache_capacity" | "probe_disabled" | "probe_identity_mismatch" | "probe_invalidated" | "probe_runtime_unavailable" | "request_timeout" | "scan_limit" | "scan_unavailable" | "session_limit" | "stream_limit" | "transcode_disabled" | "unsupported_media_type" | "user_stream_limit" | "web_playback_disabled";
+        ErrorCode: "account_busy" | "auth_rate_limited" | "authentication_required" | "body_too_large" | "conflict" | "csrf_failed" | "device_stream_limit" | "feature_removed" | "forbidden" | "ignore_unavailable" | "image_busy" | "image_too_large" | "image_unavailable" | "image_unsupported" | "internal_error" | "invalid_host" | "invalid_range" | "invalid_request" | "job_busy" | "job_queue_full" | "jobs_busy" | "last_admin" | "lookup_timeout" | "metadata_unavailable" | "method_not_allowed" | "metrics_busy" | "native_login_disabled" | "nfo_cache_capacity" | "nfo_disabled" | "nfo_identity_mismatch" | "nfo_invalidated" | "nfo_reader_unavailable" | "not_found" | "not_ready" | "playback_busy" | "precondition_failed" | "probe_cache_capacity" | "probe_disabled" | "probe_identity_mismatch" | "probe_invalidated" | "probe_runtime_unavailable" | "request_timeout" | "scan_limit" | "scan_unavailable" | "session_limit" | "stats_export_limit" | "stream_limit" | "transcode_disabled" | "unsupported_media_type" | "user_stream_limit" | "web_playback_disabled";
         IgnoreIntent: {
             /** @enum {string} */
             caseMode: "sensitive" | "ascii-insensitive";
@@ -13392,6 +13836,127 @@ export type components = {
             locale: "zh-CN" | "zh-TW" | "ja-JP" | "en-US";
             /** @description The server also enforces the stated maximum in UTF-8 bytes. */
             name: string;
+        };
+        WatchStatsReport: {
+            /** Format: date */
+            from: string;
+            kinds: {
+                /** @description Average completion rate of the counted sessions; 0 without sessions. */
+                completionRate: number;
+                /** @description Counted sessions that covered the completion share of the runtime. */
+                completions: number;
+                /** @description Effective watch time: played wall time without pauses, stalls, seeks and fast-forward, counted once across devices (docs/watch-statistics.md). */
+                effectiveSeconds: number;
+                firstPlays: number;
+                kind: string;
+                rewatches: number;
+                /** @description Playback sessions that reached the view threshold. */
+                sessions: number;
+                /** @description Watch-throughs: first plays plus re-watches. */
+                views: number;
+            }[];
+            libraries: {
+                /** @description Average completion rate of the counted sessions; 0 without sessions. */
+                completionRate: number;
+                /** @description Counted sessions that covered the completion share of the runtime. */
+                completions: number;
+                /** @description Effective watch time: played wall time without pauses, stalls, seeks and fast-forward, counted once across devices (docs/watch-statistics.md). */
+                effectiveSeconds: number;
+                firstPlays: number;
+                /** Format: uuid */
+                libraryId: string;
+                name: string;
+                rewatches: number;
+                /** @description Playback sessions that reached the view threshold. */
+                sessions: number;
+                /** @description Watch-throughs: first plays plus re-watches. */
+                views: number;
+            }[];
+            /** @enum {string} */
+            period: "day" | "week" | "month" | "year";
+            /** @description One entry per period with data, oldest first; start is the first day of the period. */
+            periods: {
+                /** @description Average completion rate of the counted sessions; 0 without sessions. */
+                completionRate: number;
+                /** @description Counted sessions that covered the completion share of the runtime. */
+                completions: number;
+                /** @description Effective watch time: played wall time without pauses, stalls, seeks and fast-forward, counted once across devices (docs/watch-statistics.md). */
+                effectiveSeconds: number;
+                firstPlays: number;
+                rewatches: number;
+                /** @description Playback sessions that reached the view threshold. */
+                sessions: number;
+                /** Format: date */
+                start: string;
+                /** @description Watch-throughs: first plays plus re-watches. */
+                views: number;
+            }[];
+            /** @description IANA zone whose midnight cuts days (stats.timeZone). */
+            timeZone: string;
+            /** Format: date */
+            to: string;
+            /** @description Items with the most effective time. */
+            topItems: {
+                /** @description Average completion rate of the counted sessions; 0 without sessions. */
+                completionRate: number;
+                /** @description Counted sessions that covered the completion share of the runtime. */
+                completions: number;
+                /** @description Effective watch time: played wall time without pauses, stalls, seeks and fast-forward, counted once across devices (docs/watch-statistics.md). */
+                effectiveSeconds: number;
+                firstPlays: number;
+                /** Format: uuid */
+                itemId: string;
+                kind: string;
+                /** Format: uuid */
+                libraryId: string;
+                rewatches: number;
+                /** @description Playback sessions that reached the view threshold. */
+                sessions: number;
+                title: string;
+                userData?: components["schemas"]["UserItemData"];
+                /** @description Watch-throughs: first plays plus re-watches. */
+                views: number;
+            }[];
+            /** @description Statistics of every user only: users with the most effective time. */
+            topUsers?: {
+                /** @description Average completion rate of the counted sessions; 0 without sessions. */
+                completionRate: number;
+                /** @description Counted sessions that covered the completion share of the runtime. */
+                completions: number;
+                /** @description Effective watch time: played wall time without pauses, stalls, seeks and fast-forward, counted once across devices (docs/watch-statistics.md). */
+                effectiveSeconds: number;
+                firstPlays: number;
+                rewatches: number;
+                /** @description Playback sessions that reached the view threshold. */
+                sessions: number;
+                /** Format: uuid */
+                userId: string;
+                userName: string;
+                /** @description Watch-throughs: first plays plus re-watches. */
+                views: number;
+            }[];
+            totals: components["schemas"]["WatchStatsTotals"];
+            /**
+             * Format: uuid
+             * @description The user the statistics belong to; absent for statistics of every user.
+             */
+            userId?: string;
+            /** @enum {string} */
+            weekStart: "monday" | "sunday";
+        };
+        WatchStatsTotals: {
+            /** @description Average completion rate of the counted sessions; 0 without sessions. */
+            completionRate: number;
+            /** @description Counted sessions that covered the completion share of the runtime. */
+            completions: number;
+            /** @description Effective watch time: played wall time without pauses, stalls, seeks and fast-forward, counted once across devices (docs/watch-statistics.md). */
+            effectiveSeconds: number;
+            firstPlays: number;
+            rewatches: number;
+            /** @description Playback sessions that reached the view threshold. */
+            sessions: number;
+            /** @description Watch-throughs: first plays plus re-watches. */
+            views: number;
         };
         WatchStatus: {
             enabled: boolean;

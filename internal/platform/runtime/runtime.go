@@ -72,14 +72,30 @@ func newWithLifetime(cfg config.Config, logger *slog.Logger, lifetime *lifetime)
 			if err = c.Playback.Validate(); err != nil {
 				return nil, err
 			}
-			p := c.Playback
-			progress, err := app.NewProgress(store, store, app.ProgressOptions{FlushInterval: p.FlushInterval(), SessionTimeout: p.SessionTimeout(),
-				ReportInterval: p.ReportInterval(), SampleInterval: p.SampleInterval(), Retention: p.Retention(), MaxBatch: p.Batch(), MaxSessions: p.Sessions(), Logger: l})
+			if err = c.Stats.Validate(); err != nil {
+				return nil, err
+			}
+			location, err := c.Stats.Location()
 			if err != nil {
 				return nil, err
 			}
-			lifetime.progress = progress
-			return catalog.WithProgress(progress)
+			stats, err := app.NewWatchStats(store, app.WatchStatsOptions{Location: location, SundayWeeks: c.Stats.SundayWeeks(), Interval: c.Stats.AggregateInterval(),
+				ExportMaxRows: c.Stats.ExportRows(), Retention: c.Stats.Retention(), Rules: c.Stats.Rules(), Logger: l})
+			if err != nil {
+				return nil, err
+			}
+			p := c.Playback
+			progress, err := app.NewProgress(store, store, app.ProgressOptions{FlushInterval: p.FlushInterval(), SessionTimeout: p.SessionTimeout(),
+				ReportInterval: p.ReportInterval(), SampleInterval: p.SampleInterval(), Retention: p.Retention(), MaxBatch: p.Batch(), MaxSessions: p.Sessions(),
+				Rules: c.Stats.Rules(), Logger: l, OnEnded: stats.Wake})
+			if err != nil {
+				return nil, err
+			}
+			lifetime.progress, lifetime.stats = progress, stats
+			if catalog, err = catalog.WithProgress(progress); err != nil {
+				return nil, err
+			}
+			return catalog.WithWatchStats(stats)
 		},
 		func(c config.Config, store *postgres.Store, budget *resources.Budget) (*imageadapter.Processor, error) {
 			if !c.EnableImages {
@@ -314,11 +330,14 @@ type lifetime struct {
 	// flushed once more after HTTP has drained (G23.2).
 	progress     *app.Progress
 	progressDone chan struct{}
-	closeOnce    sync.Once
-	stopOnce     sync.Once
-	exited       chan struct{}
-	stopped      chan struct{}
-	stopErr      error
+	// stats rolls ended sessions up into the daily statistics (G23.5).
+	stats     *app.WatchStats
+	statsDone chan struct{}
+	closeOnce sync.Once
+	stopOnce  sync.Once
+	exited    chan struct{}
+	stopped   chan struct{}
+	stopErr   error
 	// Observe the same processor used by HTTP without replacing its dependencies.
 	imageStats func() imageadapter.Stats
 }
@@ -430,6 +449,13 @@ func (l *lifetime) start(ctx context.Context) error {
 			l.progress.Run(l.ctx)
 		}()
 	}
+	if l.stats != nil {
+		l.statsDone = make(chan struct{})
+		go func() {
+			defer close(l.statsDone)
+			l.stats.Run(l.ctx)
+		}()
+	}
 	go func() {
 		defer close(l.exited)
 		if err := l.server.Serve(listener); err != nil && !errors.Is(err, http.ErrServerClosed) {
@@ -477,6 +503,9 @@ func (l *lifetime) shutdown(ctx context.Context) {
 	}
 	<-l.exited
 	l.flushProgress()
+	if l.statsDone != nil {
+		<-l.statsDone
+	}
 	if err := <-workerDone; err != nil {
 		l.stopErr = errors.Join(l.stopErr, errors.New("inventory workers did not stop"))
 		return // Do not close a store that workers may still be using.
