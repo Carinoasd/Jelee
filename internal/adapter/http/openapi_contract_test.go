@@ -101,7 +101,7 @@ func (httpBrowseRepository) GetBrowseItem(context.Context, string, string) (doma
 
 // contractRouter builds the real router with every service present so that
 // only the rollout flags in cfg decide which routes are registered.
-func contractRouter(t *testing.T, cfg config.Config) http.Handler {
+func contractRouter(t *testing.T, cfg config.Config, options ...Option) http.Handler {
 	t.Helper()
 	jobs, err := app.NewJobs(httpJobRepo{}, config.DefaultJobsConfig().Policy())
 	if err != nil {
@@ -123,7 +123,7 @@ func contractRouter(t *testing.T, cfg config.Config) http.Handler {
 	if err != nil {
 		t.Fatal(err)
 	}
-	handler, err := newServer(cfg, &fakeBackend{}, catalog, &fakeResolver{}, slog.New(slog.NewTextHandler(io.Discard, nil)), metricsAccounts(t), jobs, metadata, http.NotFoundHandler(), images, nil, []Option{WithWebhooks(httpWebhooks(t, stubWebhookRepository{}))})
+	handler, err := newServer(cfg, &fakeBackend{}, catalog, &fakeResolver{}, slog.New(slog.NewTextHandler(io.Discard, nil)), metricsAccounts(t), jobs, metadata, http.NotFoundHandler(), images, nil, append([]Option{WithWebhooks(httpWebhooks(t, stubWebhookRepository{})), WithSetup(completedSetupWizard(), "")}, options...))
 	if err != nil {
 		t.Fatal(err)
 	}

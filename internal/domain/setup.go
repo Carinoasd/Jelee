@@ -1,6 +1,7 @@
 package domain
 
 import (
+	"context"
 	"errors"
 	"strings"
 	"time"
@@ -244,8 +245,8 @@ const (
 	SetupGateAllow SetupGate = iota
 	// SetupGateRequired: answer 503 with problem code "setup_required".
 	SetupGateRequired
-	// SetupGateCompleted: wizard mutation after completion; answer 409 with
-	// problem code "setup_completed".
+	// SetupGateCompleted: any wizard request after completion; answer 410
+	// with problem code "setup_completed". The wizard is gone for good.
 	SetupGateCompleted
 )
 
@@ -269,7 +270,7 @@ func SetupGateFor(completed bool, method, path string) SetupGate {
 	wizard := path == SetupAPIPrefix || strings.HasPrefix(path, SetupAPIPrefix+"/")
 	canonical := strings.HasPrefix(path, "/") && !strings.Contains(path, "//") && !strings.Contains(path, "/./") && !strings.Contains(path, "/../") && !strings.HasSuffix(path, "/.") && !strings.HasSuffix(path, "/..") && !strings.Contains(path, "\\") && !strings.Contains(path, "%")
 	if completed {
-		if wizard && method != "GET" && method != "HEAD" {
+		if wizard {
 			return SetupGateCompleted
 		}
 		return SetupGateAllow
@@ -288,4 +289,24 @@ type SetupListenAddress struct {
 	Port     uint16
 	Loopback bool
 	Zoned    bool
+}
+
+// SetupOrigin describes who drove a wizard change, for the audit log. It
+// travels in the request context so the repository port stays unchanged.
+type SetupOrigin struct {
+	// Channel is "http" or "cli".
+	Channel   string
+	IP        string
+	RequestID string
+}
+
+type setupOriginKey struct{}
+
+func WithSetupOrigin(ctx context.Context, origin SetupOrigin) context.Context {
+	return context.WithValue(ctx, setupOriginKey{}, origin)
+}
+
+func SetupOriginFrom(ctx context.Context) SetupOrigin {
+	origin, _ := ctx.Value(setupOriginKey{}).(SetupOrigin)
+	return origin
 }

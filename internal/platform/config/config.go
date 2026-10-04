@@ -58,6 +58,10 @@ type Config struct {
 	// administration API (G12). It requires accounts and a master key.
 	EnableWebhooks bool           `json:"enableWebhooks"`
 	Webhooks       WebhooksConfig `json:"webhooks"`
+	// SetupTokenFile receives the one-time setup wizard token (G18) when
+	// setup is incomplete at startup, with mode 0600. Empty prints the token
+	// to standard error instead.
+	SetupTokenFile string `json:"setupTokenFile"`
 }
 
 func Load() (Config, error) { return LoadWith(os.LookupEnv) }
@@ -119,6 +123,9 @@ func LoadWith(lookup func(string) (string, bool)) (Config, error) {
 	}
 	if value, ok := lookup("JELEE_WEB_DIR"); ok {
 		c.WebDir = value
+	}
+	if value, ok := lookup("JELEE_SETUP_TOKEN_FILE"); ok {
+		c.SetupTokenFile = value
 	}
 	if value, ok := lookup("JELEE_TRUSTED_PROXIES"); ok {
 		c.TrustedProxies = nil
@@ -232,6 +239,9 @@ func (c Config) Validate() error {
 	}
 	if c.WebDir != "" && (!filepath.IsAbs(c.WebDir) || filepath.Clean(c.WebDir) != c.WebDir || strings.ContainsRune(c.WebDir, 0)) {
 		return errors.New("webDir must be a clean absolute path")
+	}
+	if c.SetupTokenFile != "" && (!filepath.IsAbs(c.SetupTokenFile) || filepath.Clean(c.SetupTokenFile) != c.SetupTokenFile || strings.ContainsRune(c.SetupTokenFile, 0)) {
+		return errors.New("setupTokenFile must be a clean absolute path")
 	}
 	if c.MaxConnections < 1 || c.MaxConnections > 128 || c.MaxStreams < 1 || c.MaxStreams > 128 || c.RequestTimeoutSeconds < 1 || c.RequestTimeoutSeconds > 120 {
 		return errors.New("concurrency or timeout is outside the supported range")

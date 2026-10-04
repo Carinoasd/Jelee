@@ -23,6 +23,7 @@ import (
 	jobworker "github.com/MoYuanCN/Jelee/internal/platform/jobs"
 	"github.com/MoYuanCN/Jelee/internal/platform/password"
 	"github.com/MoYuanCN/Jelee/internal/platform/resources"
+	"github.com/MoYuanCN/Jelee/internal/platform/setupenv"
 	"github.com/MoYuanCN/Jelee/internal/platform/telemetry"
 	"go.uber.org/fx"
 )
@@ -316,6 +317,19 @@ func newWithLifetime(cfg config.Config, logger *slog.Logger, lifetime *lifetime)
 			}
 			lifetime.closeClientControl = clients.Close
 			options = append(options, httpapi.WithClientControl(clients))
+			// G18: the wizard and its gate. An incomplete setup issues the
+			// one-time setup token now; a complete one never reopens.
+			setup, err := setupenv.NewPostgresSetup(c, store, hasher)
+			if err != nil {
+				return nil, err
+			}
+			startup, cancel = context.WithTimeout(context.Background(), 10*time.Second)
+			token, err := prepareSetup(startup, c, setup, l)
+			cancel()
+			if err != nil {
+				return nil, err
+			}
+			options = append(options, httpapi.WithSetup(setup, token))
 			return httpapi.NewWithResources(c, store, catalog, store, l, accounts, jobs, metadata, metricsHandler, pictures, budget, options...)
 		},
 	), fx.Invoke(func(lc fx.Lifecycle, cfg config.Config, handler http.Handler, shutdown fx.Shutdowner) {

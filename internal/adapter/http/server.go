@@ -60,6 +60,10 @@ type Server struct {
 	compat          http.Handler
 	webhooks        *app.Webhooks
 	clients         *ClientControl
+	// setup is the G18 wizard and request gate; nil when not wired.
+	setup *setupGate
+	// router answers whether an API route claims a path (setup gate).
+	router *chi.Mux
 }
 
 func New(cfg config.Config, backend Backend, catalog *app.Catalog, resolver media.Resolver, logger *slog.Logger, accounts ...*app.Accounts) (http.Handler, error) {
@@ -124,6 +128,10 @@ func newServer(cfg config.Config, backend Backend, catalog *app.Catalog, resolve
 	for _, option := range options {
 		option(s)
 	}
+	if !cfg.EnableAccounts {
+		// The wizard creates the administrator, which needs accounts.
+		s.setup = nil
+	}
 	if cfg.EnableWebhooks && s.webhooks == nil {
 		return nil, errors.New("webhook service must be provided")
 	}
@@ -183,6 +191,7 @@ func newServer(cfg config.Config, backend Backend, catalog *app.Catalog, resolve
 		s.imageSlots = make(chan struct{}, cfg.Images.MaxConcurrent)
 	}
 	r := chi.NewRouter()
+	s.router = r
 	r.Use(s.boundary)
 	r.Get("/healthz", func(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusOK, map[string]any{"data": map[string]string{"status": "ok"}})
@@ -194,7 +203,22 @@ func newServer(cfg config.Config, backend Backend, catalog *app.Catalog, resolve
 			writeProblem(w, r, 503, "not_ready", "Service is not ready.")
 			return
 		}
-		writeJSON(w, 200, map[string]any{"data": map[string]string{"status": "ready"}})
+		data := map[string]string{"status": "ready"}
+		// An instance waiting for setup is ready: it must receive traffic so
+		// the wizard is reachable. setup tells orchestrators and clients why
+		// everything else answers 503 setup_required.
+		if s.setup != nil {
+			completed, err := s.setup.isCompleted(ctx)
+			if err != nil {
+				writeProblem(w, r, 503, "not_ready", "Service is not ready.")
+				return
+			}
+			data["setup"] = "required"
+			if completed {
+				data["setup"] = "completed"
+			}
+		}
+		writeJSON(w, 200, map[string]any{"data": data})
 	})
 	r.Get("/api/v1/system", func(w http.ResponseWriter, r *http.Request) {
 		probe := s.jobs.ProbeCapability()
@@ -212,6 +236,9 @@ func newServer(cfg config.Config, backend Backend, catalog *app.Catalog, resolve
 	r.Get("/api/v1/openapi.json", openAPIHandler(cfg))
 	if cfg.EnableAccounts {
 		s.accountRoutes(r)
+		// Without a wizard the instance counts as set up: the wizard paths
+		// exist with the account rollout and answer 410 like after setup.
+		s.setupRoutes(r)
 	}
 	if cfg.EnableMetrics {
 		s.metricsRoutes(r)
@@ -408,6 +435,10 @@ func (s *Server) boundary(next http.Handler) http.Handler {
 		}
 		if compat.RemovedFeaturePath(r.URL.Path) {
 			writeProblem(w, r, 501, "feature_removed", "Discovery, live TV, recordings and channels are not supported.")
+			return
+		}
+		// G18.4: a half-initialised instance serves nothing but the wizard.
+		if s.setup != nil && !s.setupAllows(w, r) {
 			return
 		}
 		next.ServeHTTP(w, r)
@@ -736,10 +767,16 @@ func WriteError(w http.ResponseWriter, r *http.Request, err error) {
 }
 
 func writeProblem(w http.ResponseWriter, r *http.Request, status int, code, message string) {
+	writeProblemDetails(w, r, status, code, message, map[string]any{})
+}
+
+// writeProblemDetails writes the error envelope with structured details.
+// Details hold fixed codes and field paths only, never request values.
+func writeProblemDetails(w http.ResponseWriter, r *http.Request, status int, code, message string, details map[string]any) {
 	w.Header().Set("Content-Language", i18n.Locale(r.Header.Get("Accept-Language")))
 	w.Header().Add("Vary", "Accept-Language")
 	message = i18n.Message(code, r.Header.Get("Accept-Language"), message)
-	writeJSON(w, status, map[string]any{"error": map[string]any{"code": code, "message": message, "details": map[string]any{}, "traceId": w.Header().Get("X-Request-ID")}})
+	writeJSON(w, status, map[string]any{"error": map[string]any{"code": code, "message": message, "details": details, "traceId": w.Header().Get("X-Request-ID")}})
 }
 
 func requestHost(value string) (string, bool) {

@@ -10975,6 +10975,573 @@ export type paths = {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/setup": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read setup progress
+         * @description Available only while initial setup is incomplete; afterwards every wizard path answers 410 setup_completed. Returns the stored wizard state; it never contains a password, hash or credential.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header: {
+                    /** @description One-time setup token printed by the server at startup (or written to setupTokenFile). Without the exact value every wizard call is 401 setup_token_invalid. */
+                    "X-Jelee-Setup-Token": string;
+                };
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description HTTP 200 */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["SetupState"];
+                        };
+                    };
+                };
+                /** @description setup_validation_failed with details.step and details.issues, or invalid_request. */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 401 */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 408 */
+                408: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 410 */
+                410: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 503 */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Jelee error envelope with code, message, details and traceId; see the Error schema. */
+                default: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/setup/back": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Return to the previous setup step
+         * @description Available only while initial setup is incomplete; afterwards every wizard path answers 410 setup_completed. Keeps the data already entered. No body.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header: {
+                    /** @description One-time setup token printed by the server at startup (or written to setupTokenFile). Without the exact value every wizard call is 401 setup_token_invalid. */
+                    "X-Jelee-Setup-Token": string;
+                };
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description HTTP 200 */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["SetupState"];
+                        };
+                    };
+                };
+                /** @description setup_validation_failed with details.step and details.issues, or invalid_request. */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 401 */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 408 */
+                408: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 409 */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 410 */
+                410: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 503 */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Jelee error envelope with code, message, details and traceId; see the Error schema. */
+                default: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/setup/complete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Complete initial setup
+         * @description Available only while initial setup is incomplete; afterwards every wizard path answers 410 setup_completed. Rechecks the database and media directories, then in one transaction creates the libraries with the chosen NFO and metadata language policy and marks setup complete; any failure rolls everything back and the wizard stays at the complete step. Records library.registered and setup.completed. No body.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header: {
+                    /** @description One-time setup token printed by the server at startup (or written to setupTokenFile). Without the exact value every wizard call is 401 setup_token_invalid. */
+                    "X-Jelee-Setup-Token": string;
+                };
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description HTTP 200 */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["SetupState"];
+                        };
+                    };
+                };
+                /** @description setup_validation_failed with details.step and details.issues, or invalid_request. */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 401 */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 408 */
+                408: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 409 */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 410 */
+                410: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 503 */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Jelee error envelope with code, message, details and traceId; see the Error schema. */
+                default: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/setup/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Ask whether initial setup is required
+         * @description Public. 200 while setup is incomplete, 410 setup_completed afterwards. The frontend uses it to decide whether to show the wizard.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description HTTP 200 */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                /** @constant */
+                                setupRequired: true;
+                                tokenRequired: boolean;
+                            };
+                        };
+                    };
+                };
+                /** @description HTTP 400 */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 410 */
+                410: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Jelee error envelope with code, message, details and traceId; see the Error schema. */
+                default: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/setup/steps/{step}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Submit the current setup step
+         * @description Available only while initial setup is incomplete; afterwards every wizard path answers 410 setup_completed. The step must be the current one (409 setup_step_order otherwise). Every step is validated live and the state is stored with a version check, so an interrupted wizard resumes where it stopped. Bodies by step: language {locale}; admin {name, displayName, password} (password 12..1024 UTF-8 bytes, at least 4 distinct characters, not containing the name; the administrator is created once, re-entering after back only rechecks the name); database: no body; media {libraries:[{name, path}]}; tmdb {enabled, language} (the key itself only comes from TMDB_API_KEY/TMDB_API_KEY_FILE); toolchain {acceptDegraded}; metadata-policy {nfoRead, nfoWrite, imageFetch, imageWriteBack}; network {mode, listen, allowedHosts, trustedProxies, privacyAcknowledged}. Records setup.step_saved, and setup.admin_created for the administrator.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header: {
+                    /** @description One-time setup token printed by the server at startup (or written to setupTokenFile). Without the exact value every wizard call is 401 setup_token_invalid. */
+                    "X-Jelee-Setup-Token": string;
+                };
+                path: {
+                    step: "language" | "admin" | "database" | "media" | "tmdb" | "toolchain" | "metadata-policy" | "network";
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": {
+                        /** @enum {string} */
+                        locale: "zh-CN" | "zh-TW" | "ja-JP" | "en-US";
+                    } | {
+                        /** @description The server also enforces the stated maximum in UTF-8 bytes. */
+                        displayName?: string;
+                        /** @description The server also enforces the stated maximum in UTF-8 bytes. */
+                        name: string;
+                        password: string;
+                    } | {
+                        libraries?: {
+                            /** @description The server also enforces the stated maximum in UTF-8 bytes. */
+                            name: string;
+                            /** @description Absolute, clean server path; must exist and be readable by the service account. */
+                            path: string;
+                        }[];
+                    } | {
+                        enabled: boolean;
+                        /** @enum {string} */
+                        language?: "zh-CN" | "zh-TW" | "ja-JP" | "en-US";
+                    } | {
+                        acceptDegraded?: boolean;
+                    } | {
+                        /** @description Requires TMDB. */
+                        imageFetch: boolean;
+                        imageWriteBack: boolean;
+                        /** @enum {string} */
+                        nfoRead: "off" | "read-only";
+                        /**
+                         * @description write-back requires nfoRead read-only.
+                         * @enum {string}
+                         */
+                        nfoWrite: "off" | "write-back";
+                    } | {
+                        allowedHosts: string[];
+                        /** @description IP:port. local needs a loopback address, lan a non-loopback one. A port held by another program is refused; this server's own configured address is always accepted. */
+                        listen: string;
+                        /** @enum {string} */
+                        mode: "local" | "lan" | "reverse-proxy";
+                        /** @description Required for lan and reverse-proxy: clients learn the server address (docs/network-privacy.md). */
+                        privacyAcknowledged: boolean;
+                        /** @description Required for reverse-proxy. */
+                        trustedProxies?: string[];
+                    };
+                };
+            };
+            responses: {
+                /** @description HTTP 200 */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["SetupState"];
+                        };
+                    };
+                };
+                /** @description setup_validation_failed with details.step and details.issues, or invalid_request. */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 401 */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 404 */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 408 */
+                408: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description setup_step_order, or conflict when another writer changed the state first. */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 410 */
+                410: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 413 */
+                413: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 415 */
+                415: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 503 */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Jelee error envelope with code, message, details and traceId; see the Error schema. */
+                default: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/sources/{id}/audio/{trackId}": {
         parameters: {
             query?: never;
@@ -17000,7 +17567,7 @@ export type components = {
         Error: {
             error: {
                 code: components["schemas"]["ErrorCode"];
-                /** @description Reserved for structured details; currently always empty. */
+                /** @description Structured details. Empty except for setup_validation_failed, which carries step (wizard step name) and issues (array of {field, code}: a fixed input path and a stable machine code; input values are never echoed). */
                 details: Record<string, never>;
                 /** @description Human-readable message localized from Accept-Language or the authenticated user's locale; see Content-Language. */
                 message: string;
@@ -17012,7 +17579,7 @@ export type components = {
          * @description Stable machine-readable error code. x-jelee-statuses lists the HTTP status codes each value is sent with.
          * @enum {string}
          */
-        ErrorCode: "account_busy" | "auth_rate_limited" | "authentication_required" | "body_too_large" | "client_blocked" | "client_pending_approval" | "client_rate_limited" | "client_read_only" | "conflict" | "csrf_failed" | "device_stream_limit" | "feature_removed" | "forbidden" | "ignore_unavailable" | "image_busy" | "image_too_large" | "image_unavailable" | "image_unsupported" | "internal_error" | "invalid_host" | "invalid_range" | "invalid_request" | "job_busy" | "job_queue_full" | "jobs_busy" | "last_admin" | "lookup_timeout" | "metadata_unavailable" | "method_not_allowed" | "metrics_busy" | "native_login_disabled" | "nfo_cache_capacity" | "nfo_disabled" | "nfo_identity_mismatch" | "nfo_invalidated" | "nfo_reader_unavailable" | "not_found" | "not_ready" | "playback_busy" | "precondition_failed" | "probe_cache_capacity" | "probe_disabled" | "probe_identity_mismatch" | "probe_invalidated" | "probe_runtime_unavailable" | "request_timeout" | "scan_limit" | "scan_unavailable" | "session_limit" | "stats_export_limit" | "stream_limit" | "transcode_disabled" | "unsupported_media_type" | "user_stream_limit" | "web_playback_disabled" | "webhook_target_denied";
+        ErrorCode: "account_busy" | "auth_rate_limited" | "authentication_required" | "body_too_large" | "client_blocked" | "client_pending_approval" | "client_rate_limited" | "client_read_only" | "conflict" | "csrf_failed" | "device_stream_limit" | "feature_removed" | "forbidden" | "ignore_unavailable" | "image_busy" | "image_too_large" | "image_unavailable" | "image_unsupported" | "internal_error" | "invalid_host" | "invalid_range" | "invalid_request" | "job_busy" | "job_queue_full" | "jobs_busy" | "last_admin" | "lookup_timeout" | "metadata_unavailable" | "method_not_allowed" | "metrics_busy" | "native_login_disabled" | "nfo_cache_capacity" | "nfo_disabled" | "nfo_identity_mismatch" | "nfo_invalidated" | "nfo_reader_unavailable" | "not_found" | "not_ready" | "playback_busy" | "precondition_failed" | "probe_cache_capacity" | "probe_disabled" | "probe_identity_mismatch" | "probe_invalidated" | "probe_runtime_unavailable" | "request_timeout" | "scan_limit" | "scan_unavailable" | "session_limit" | "setup_completed" | "setup_required" | "setup_step_order" | "setup_token_invalid" | "setup_validation_failed" | "stats_export_limit" | "stream_limit" | "transcode_disabled" | "unsupported_media_type" | "user_stream_limit" | "web_playback_disabled" | "webhook_target_denied";
         IgnoreIntent: {
             /** @enum {string} */
             caseMode: "sensitive" | "ascii-insensitive";
@@ -18130,6 +18697,56 @@ export type components = {
                 nextCursor: string;
             };
             sessions: components["schemas"]["Session"][];
+        };
+        SetupState: {
+            admin: {
+                /** @description The server also enforces the stated maximum in UTF-8 bytes. */
+                displayName?: string;
+                /** @description The server also enforces the stated maximum in UTF-8 bytes. */
+                name?: string;
+                /** Format: uuid */
+                userId?: string;
+            };
+            /** Format: date-time */
+            completedAt?: string;
+            /** @enum {string} */
+            current: "language" | "admin" | "database" | "media" | "tmdb" | "toolchain" | "metadata-policy" | "network" | "complete";
+            database: {
+                schemaVersion?: number;
+            };
+            /** @enum {string} */
+            locale?: "zh-CN" | "zh-TW" | "ja-JP" | "en-US";
+            media?: {
+                /** @description The server also enforces the stated maximum in UTF-8 bytes. */
+                name: string;
+                /** @description Absolute, clean server path; must exist and be readable by the service account. */
+                path: string;
+            }[];
+            metadataPolicy: {
+                imageFetch: boolean;
+                imageWriteBack: boolean;
+                nfoRead?: string;
+                nfoWrite?: string;
+            };
+            network: {
+                allowedHosts?: string[];
+                listen?: string;
+                mode?: string;
+                privacyAcknowledged: boolean;
+                trustedProxies?: string[];
+            };
+            tmdb: {
+                enabled: boolean;
+                /** @enum {string} */
+                language?: "zh-CN" | "zh-TW" | "ja-JP" | "en-US";
+            };
+            toolchain: {
+                acceptDegraded: boolean;
+                available?: string[];
+                missing?: string[];
+            };
+            /** Format: int64 */
+            version: number;
         };
         User: {
             admin: boolean;

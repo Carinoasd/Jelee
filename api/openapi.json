@@ -1655,7 +1655,7 @@
                 "$ref": "#/components/schemas/ErrorCode"
               },
               "details": {
-                "description": "Reserved for structured details; currently always empty.",
+                "description": "Structured details. Empty except for setup_validation_failed, which carries step (wizard step name) and issues (array of {field, code}: a fixed input path and a stable machine code; input values are never echoed).",
                 "type": "object"
               },
               "message": {
@@ -1733,6 +1733,11 @@
           "scan_limit",
           "scan_unavailable",
           "session_limit",
+          "setup_completed",
+          "setup_required",
+          "setup_step_order",
+          "setup_token_invalid",
+          "setup_validation_failed",
           "stats_export_limit",
           "stream_limit",
           "transcode_disabled",
@@ -1889,6 +1894,21 @@
           ],
           "session_limit": [
             "429"
+          ],
+          "setup_completed": [
+            "410"
+          ],
+          "setup_required": [
+            "503"
+          ],
+          "setup_step_order": [
+            "409"
+          ],
+          "setup_token_invalid": [
+            "401"
+          ],
+          "setup_validation_failed": [
+            "400"
           ],
           "stats_export_limit": [
             "409"
@@ -6133,6 +6153,209 @@
         "required": [
           "sessions",
           "pagination"
+        ],
+        "type": "object"
+      },
+      "SetupState": {
+        "additionalProperties": false,
+        "properties": {
+          "admin": {
+            "additionalProperties": false,
+            "properties": {
+              "displayName": {
+                "description": "The server also enforces the stated maximum in UTF-8 bytes.",
+                "maxLength": 128,
+                "type": "string"
+              },
+              "name": {
+                "description": "The server also enforces the stated maximum in UTF-8 bytes.",
+                "maxLength": 128,
+                "type": "string"
+              },
+              "userId": {
+                "format": "uuid",
+                "type": "string"
+              }
+            },
+            "type": "object"
+          },
+          "completedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "current": {
+            "enum": [
+              "language",
+              "admin",
+              "database",
+              "media",
+              "tmdb",
+              "toolchain",
+              "metadata-policy",
+              "network",
+              "complete"
+            ],
+            "type": "string"
+          },
+          "database": {
+            "additionalProperties": false,
+            "properties": {
+              "schemaVersion": {
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "type": "object"
+          },
+          "locale": {
+            "enum": [
+              "zh-CN",
+              "zh-TW",
+              "ja-JP",
+              "en-US"
+            ],
+            "type": "string"
+          },
+          "media": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "name": {
+                  "description": "The server also enforces the stated maximum in UTF-8 bytes.",
+                  "maxLength": 128,
+                  "type": "string"
+                },
+                "path": {
+                  "description": "Absolute, clean server path; must exist and be readable by the service account.",
+                  "maxLength": 4096,
+                  "type": "string"
+                }
+              },
+              "required": [
+                "name",
+                "path"
+              ],
+              "type": "object"
+            },
+            "maxItems": 64,
+            "type": "array"
+          },
+          "metadataPolicy": {
+            "additionalProperties": false,
+            "properties": {
+              "imageFetch": {
+                "type": "boolean"
+              },
+              "imageWriteBack": {
+                "type": "boolean"
+              },
+              "nfoRead": {
+                "type": "string"
+              },
+              "nfoWrite": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "imageFetch",
+              "imageWriteBack"
+            ],
+            "type": "object"
+          },
+          "network": {
+            "additionalProperties": false,
+            "properties": {
+              "allowedHosts": {
+                "items": {
+                  "type": "string"
+                },
+                "maxItems": 32,
+                "type": "array"
+              },
+              "listen": {
+                "type": "string"
+              },
+              "mode": {
+                "type": "string"
+              },
+              "privacyAcknowledged": {
+                "type": "boolean"
+              },
+              "trustedProxies": {
+                "items": {
+                  "type": "string"
+                },
+                "maxItems": 64,
+                "type": "array"
+              }
+            },
+            "required": [
+              "privacyAcknowledged"
+            ],
+            "type": "object"
+          },
+          "tmdb": {
+            "additionalProperties": false,
+            "properties": {
+              "enabled": {
+                "type": "boolean"
+              },
+              "language": {
+                "enum": [
+                  "zh-CN",
+                  "zh-TW",
+                  "ja-JP",
+                  "en-US"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "enabled"
+            ],
+            "type": "object"
+          },
+          "toolchain": {
+            "additionalProperties": false,
+            "properties": {
+              "acceptDegraded": {
+                "type": "boolean"
+              },
+              "available": {
+                "items": {
+                  "type": "string"
+                },
+                "maxItems": 16,
+                "type": "array"
+              },
+              "missing": {
+                "items": {
+                  "type": "string"
+                },
+                "maxItems": 16,
+                "type": "array"
+              }
+            },
+            "required": [
+              "acceptDegraded"
+            ],
+            "type": "object"
+          },
+          "version": {
+            "format": "int64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "version",
+          "current",
+          "admin",
+          "database",
+          "tmdb",
+          "toolchain",
+          "metadataPolicy",
+          "network"
         ],
         "type": "object"
       },
@@ -20858,6 +21081,744 @@
         ],
         "summary": "List active sessions of all users with client, device and last use; cursor pagination by session ID",
         "x-jelee-role": "administrator"
+      }
+    },
+    "/api/v1/setup": {
+      "get": {
+        "description": "Available only while initial setup is incomplete; afterwards every wizard path answers 410 setup_completed. Returns the stored wizard state; it never contains a password, hash or credential.",
+        "parameters": [
+          {
+            "description": "One-time setup token printed by the server at startup (or written to setupTokenFile). Without the exact value every wizard call is 401 setup_token_invalid.",
+            "in": "header",
+            "name": "X-Jelee-Setup-Token",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/SetupState"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "HTTP 200"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "setup_validation_failed with details.step and details.issues, or invalid_request."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 401"
+          },
+          "408": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 408"
+          },
+          "410": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 410"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 503"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Jelee error envelope with code, message, details and traceId; see the Error schema."
+          }
+        },
+        "summary": "Read setup progress",
+        "x-jelee-setup": "token"
+      }
+    },
+    "/api/v1/setup/back": {
+      "post": {
+        "description": "Available only while initial setup is incomplete; afterwards every wizard path answers 410 setup_completed. Keeps the data already entered. No body.",
+        "parameters": [
+          {
+            "description": "One-time setup token printed by the server at startup (or written to setupTokenFile). Without the exact value every wizard call is 401 setup_token_invalid.",
+            "in": "header",
+            "name": "X-Jelee-Setup-Token",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/SetupState"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "HTTP 200"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "setup_validation_failed with details.step and details.issues, or invalid_request."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 401"
+          },
+          "408": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 408"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 409"
+          },
+          "410": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 410"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 503"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Jelee error envelope with code, message, details and traceId; see the Error schema."
+          }
+        },
+        "summary": "Return to the previous setup step",
+        "x-jelee-setup": "token"
+      }
+    },
+    "/api/v1/setup/complete": {
+      "post": {
+        "description": "Available only while initial setup is incomplete; afterwards every wizard path answers 410 setup_completed. Rechecks the database and media directories, then in one transaction creates the libraries with the chosen NFO and metadata language policy and marks setup complete; any failure rolls everything back and the wizard stays at the complete step. Records library.registered and setup.completed. No body.",
+        "parameters": [
+          {
+            "description": "One-time setup token printed by the server at startup (or written to setupTokenFile). Without the exact value every wizard call is 401 setup_token_invalid.",
+            "in": "header",
+            "name": "X-Jelee-Setup-Token",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/SetupState"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "HTTP 200"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "setup_validation_failed with details.step and details.issues, or invalid_request."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 401"
+          },
+          "408": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 408"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 409"
+          },
+          "410": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 410"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 503"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Jelee error envelope with code, message, details and traceId; see the Error schema."
+          }
+        },
+        "summary": "Complete initial setup",
+        "x-jelee-setup": "token"
+      }
+    },
+    "/api/v1/setup/status": {
+      "get": {
+        "description": "Public. 200 while setup is incomplete, 410 setup_completed afterwards. The frontend uses it to decide whether to show the wizard.",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "setupRequired": {
+                          "const": true,
+                          "type": "boolean"
+                        },
+                        "tokenRequired": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "setupRequired",
+                        "tokenRequired"
+                      ],
+                      "type": "object"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "HTTP 200"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 400"
+          },
+          "410": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 410"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Jelee error envelope with code, message, details and traceId; see the Error schema."
+          }
+        },
+        "summary": "Ask whether initial setup is required"
+      }
+    },
+    "/api/v1/setup/steps/{step}": {
+      "post": {
+        "description": "Available only while initial setup is incomplete; afterwards every wizard path answers 410 setup_completed. The step must be the current one (409 setup_step_order otherwise). Every step is validated live and the state is stored with a version check, so an interrupted wizard resumes where it stopped. Bodies by step: language {locale}; admin {name, displayName, password} (password 12..1024 UTF-8 bytes, at least 4 distinct characters, not containing the name; the administrator is created once, re-entering after back only rechecks the name); database: no body; media {libraries:[{name, path}]}; tmdb {enabled, language} (the key itself only comes from TMDB_API_KEY/TMDB_API_KEY_FILE); toolchain {acceptDegraded}; metadata-policy {nfoRead, nfoWrite, imageFetch, imageWriteBack}; network {mode, listen, allowedHosts, trustedProxies, privacyAcknowledged}. Records setup.step_saved, and setup.admin_created for the administrator.",
+        "parameters": [
+          {
+            "description": "One-time setup token printed by the server at startup (or written to setupTokenFile). Without the exact value every wizard call is 401 setup_token_invalid.",
+            "in": "header",
+            "name": "X-Jelee-Setup-Token",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "step",
+            "required": true,
+            "schema": {
+              "enum": [
+                "language",
+                "admin",
+                "database",
+                "media",
+                "tmdb",
+                "toolchain",
+                "metadata-policy",
+                "network"
+              ],
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "locale": {
+                        "enum": [
+                          "zh-CN",
+                          "zh-TW",
+                          "ja-JP",
+                          "en-US"
+                        ],
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "locale"
+                    ],
+                    "type": "object"
+                  },
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "displayName": {
+                        "description": "The server also enforces the stated maximum in UTF-8 bytes.",
+                        "maxLength": 128,
+                        "type": "string"
+                      },
+                      "name": {
+                        "description": "The server also enforces the stated maximum in UTF-8 bytes.",
+                        "maxLength": 128,
+                        "type": "string"
+                      },
+                      "password": {
+                        "maxLength": 1024,
+                        "minLength": 12,
+                        "type": "string",
+                        "writeOnly": true
+                      }
+                    },
+                    "required": [
+                      "name",
+                      "password"
+                    ],
+                    "type": "object"
+                  },
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "libraries": {
+                        "items": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "name": {
+                              "description": "The server also enforces the stated maximum in UTF-8 bytes.",
+                              "maxLength": 128,
+                              "type": "string"
+                            },
+                            "path": {
+                              "description": "Absolute, clean server path; must exist and be readable by the service account.",
+                              "maxLength": 4096,
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "name",
+                            "path"
+                          ],
+                          "type": "object"
+                        },
+                        "maxItems": 64,
+                        "type": "array"
+                      }
+                    },
+                    "type": "object"
+                  },
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "enabled": {
+                        "type": "boolean"
+                      },
+                      "language": {
+                        "enum": [
+                          "zh-CN",
+                          "zh-TW",
+                          "ja-JP",
+                          "en-US"
+                        ],
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "enabled"
+                    ],
+                    "type": "object"
+                  },
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "acceptDegraded": {
+                        "type": "boolean"
+                      }
+                    },
+                    "type": "object"
+                  },
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "imageFetch": {
+                        "description": "Requires TMDB.",
+                        "type": "boolean"
+                      },
+                      "imageWriteBack": {
+                        "type": "boolean"
+                      },
+                      "nfoRead": {
+                        "enum": [
+                          "off",
+                          "read-only"
+                        ],
+                        "type": "string"
+                      },
+                      "nfoWrite": {
+                        "description": "write-back requires nfoRead read-only.",
+                        "enum": [
+                          "off",
+                          "write-back"
+                        ],
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "nfoRead",
+                      "nfoWrite",
+                      "imageFetch",
+                      "imageWriteBack"
+                    ],
+                    "type": "object"
+                  },
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "allowedHosts": {
+                        "items": {
+                          "type": "string"
+                        },
+                        "maxItems": 32,
+                        "type": "array"
+                      },
+                      "listen": {
+                        "description": "IP:port. local needs a loopback address, lan a non-loopback one. A port held by another program is refused; this server's own configured address is always accepted.",
+                        "type": "string"
+                      },
+                      "mode": {
+                        "enum": [
+                          "local",
+                          "lan",
+                          "reverse-proxy"
+                        ],
+                        "type": "string"
+                      },
+                      "privacyAcknowledged": {
+                        "description": "Required for lan and reverse-proxy: clients learn the server address (docs/network-privacy.md).",
+                        "type": "boolean"
+                      },
+                      "trustedProxies": {
+                        "description": "Required for reverse-proxy.",
+                        "items": {
+                          "description": "CIDR prefix.",
+                          "type": "string"
+                        },
+                        "maxItems": 64,
+                        "type": "array"
+                      }
+                    },
+                    "required": [
+                      "mode",
+                      "listen",
+                      "allowedHosts",
+                      "privacyAcknowledged"
+                    ],
+                    "type": "object"
+                  }
+                ]
+              }
+            }
+          },
+          "required": false
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/SetupState"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "HTTP 200"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "setup_validation_failed with details.step and details.issues, or invalid_request."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 401"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 404"
+          },
+          "408": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 408"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "setup_step_order, or conflict when another writer changed the state first."
+          },
+          "410": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 410"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 413"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 415"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 503"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Jelee error envelope with code, message, details and traceId; see the Error schema."
+          }
+        },
+        "summary": "Submit the current setup step",
+        "x-jelee-setup": "token"
       }
     },
     "/api/v1/sources/{id}/audio/{trackId}": {

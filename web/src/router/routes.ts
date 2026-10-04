@@ -20,6 +20,12 @@ export const routes: RouteRecordRaw[] = [
     meta: { public: true },
   },
   {
+    path: "/setup",
+    name: "setup",
+    component: () => import("@/features/setup/SetupView.vue"),
+    meta: { public: true },
+  },
+  {
     path: "/libraries",
     name: "libraries",
     component: () => import("@/features/libraries/LibrariesView.vue"),

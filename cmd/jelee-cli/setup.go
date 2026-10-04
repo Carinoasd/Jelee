@@ -6,16 +6,19 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"github.com/MoYuanCN/Jelee/internal/platform/netaddr"
 	"io"
 	"os"
 	"os/signal"
 	"strings"
 	"time"
 
+	"github.com/MoYuanCN/Jelee/internal/adapter/postgres"
 	"github.com/MoYuanCN/Jelee/internal/app"
 	"github.com/MoYuanCN/Jelee/internal/domain"
+	"github.com/MoYuanCN/Jelee/internal/platform/config"
+	"github.com/MoYuanCN/Jelee/internal/platform/netaddr"
 	"github.com/MoYuanCN/Jelee/internal/platform/password"
+	"github.com/MoYuanCN/Jelee/internal/platform/setupenv"
 )
 
 const setupUsage = "usage: jelee-cli setup --non-interactive --admin-name NAME --password-stdin [--locale zh-CN] [--admin-display-name TEXT]\n" +
@@ -24,10 +27,9 @@ const setupUsage = "usage: jelee-cli setup --non-interactive --admin-name NAME -
 	"       [--network-mode local|lan|reverse-proxy] [--listen IP:PORT] [--allowed-host HOST]... [--trusted-proxy CIDR]... [--accept-privacy-notice]"
 
 var (
-	errSetupUsage = errors.New("setup usage")
-	// errSetupNotImplemented is returned by the placeholder ports until the
-	// PostgreSQL setup_state repository and environment probes are wired.
-	errSetupNotImplemented = errors.New("setup storage is not implemented")
+	errSetupUsage         = errors.New("setup usage")
+	errSetupConfiguration = errors.New("setup configuration invalid")
+	errSetupDatabase      = errors.New("setup database unavailable")
 )
 
 // setupCLIRunner is the app.Setup surface the command needs.
@@ -39,62 +41,57 @@ type setupCLIDependencies struct {
 	open func(context.Context) (setupCLIRunner, func(), error)
 }
 
-// runSetupMain is the os-level entry used by main's command dispatch.
+// runSetupMain is the os-level entry used by main's command dispatch. The
+// deadline covers password hashing, the toolchain health check and the
+// completion transaction.
 func runSetupMain(argv []string) int {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stop()
-	ctx, cancel := context.WithTimeout(ctx, 15*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 2*time.Minute)
 	defer cancel()
 	return runSetupCLI(ctx, argv, os.Stdin, os.Stdout, os.Stderr)
 }
 
 func runSetupCLI(ctx context.Context, argv []string, stdin io.Reader, stdout, stderr io.Writer) int {
-	return runSetupCLIWith(ctx, argv, stdin, stdout, stderr, setupCLIDependencies{open: openUnimplementedSetup})
+	return runSetupCLIWith(ctx, argv, stdin, stdout, stderr, setupCLIDependencies{open: openPostgresSetup(config.Load)})
 }
 
-// openUnimplementedSetup wires app.Setup to ports that report
-// errSetupNotImplemented. The PostgreSQL adapter will replace them.
-func openUnimplementedSetup(context.Context) (setupCLIRunner, func(), error) {
-	ports := setupUnimplementedPorts{}
-	setup, err := app.NewSetup(ports, ports, ports, time.Now)
-	if err != nil {
-		return nil, nil, err
+// openPostgresSetup wires app.Setup to the same PostgreSQL repository and
+// environment checks the server uses (G18.5), so a container can initialise
+// itself before the server first starts.
+func openPostgresSetup(load func() (config.Config, error)) func(context.Context) (setupCLIRunner, func(), error) {
+	return func(ctx context.Context) (setupCLIRunner, func(), error) {
+		cfg, err := load()
+		if err != nil {
+			return nil, nil, errSetupConfiguration
+		}
+		if !cfg.EnableAccounts {
+			// The server mounts the wizard and its gate only with accounts;
+			// an administrator created here could never sign in otherwise.
+			return nil, nil, errSetupConfiguration
+		}
+		work, err := accountPasswordConfig(cfg.Accounts)
+		if err != nil {
+			return nil, nil, errSetupConfiguration
+		}
+		hasher, err := password.New(work)
+		if err != nil {
+			return nil, nil, errSetupConfiguration
+		}
+		store, err := postgres.Open(ctx, cfg.DatabaseURL, cfg.MaxConnections)
+		if err != nil {
+			if ctx.Err() != nil {
+				return nil, nil, ctx.Err()
+			}
+			return nil, nil, errSetupDatabase
+		}
+		setup, err := setupenv.NewPostgresSetup(cfg, store, hasher)
+		if err != nil {
+			store.Pool.Close()
+			return nil, nil, err
+		}
+		return setup, store.Pool.Close, nil
 	}
-	return setup, func() {}, nil
-}
-
-type setupUnimplementedPorts struct{ netaddr.Setup }
-
-func (setupUnimplementedPorts) LoadSetupState(context.Context) (domain.SetupState, error) {
-	return domain.SetupState{}, errSetupNotImplemented
-}
-func (setupUnimplementedPorts) HasActiveAdmin(context.Context) (bool, error) {
-	return false, errSetupNotImplemented
-}
-func (setupUnimplementedPorts) SaveSetupState(context.Context, domain.SetupState) (domain.SetupState, error) {
-	return domain.SetupState{}, errSetupNotImplemented
-}
-func (setupUnimplementedPorts) CreateSetupAdmin(context.Context, domain.UserInput, domain.SetupState) (domain.SetupState, error) {
-	return domain.SetupState{}, errSetupNotImplemented
-}
-func (setupUnimplementedPorts) CompleteSetup(context.Context, domain.SetupState) (domain.SetupState, error) {
-	return domain.SetupState{}, errSetupNotImplemented
-}
-func (setupUnimplementedPorts) DatabaseStatus(context.Context) (app.SetupDatabaseStatus, error) {
-	return app.SetupDatabaseStatus{}, errSetupNotImplemented
-}
-func (setupUnimplementedPorts) InspectDirectory(context.Context, string) (app.SetupDirectoryStatus, error) {
-	return app.SetupDirectoryStatus{}, errSetupNotImplemented
-}
-func (setupUnimplementedPorts) ListenAvailable(context.Context, string) (bool, error) {
-	return false, errSetupNotImplemented
-}
-func (setupUnimplementedPorts) DetectTools(context.Context) (app.SetupToolReport, error) {
-	return app.SetupToolReport{}, errSetupNotImplemented
-}
-func (setupUnimplementedPorts) TMDBCredentialConfigured() bool { return false }
-func (setupUnimplementedPorts) Hash(context.Context, string) (string, error) {
-	return "", errSetupNotImplemented
 }
 
 type setupStringList []string
@@ -198,7 +195,7 @@ func runSetupCLIWith(ctx context.Context, argv []string, stdin io.Reader, stdout
 		return fail(err)
 	}
 	defer closeRunner()
-	state, err := runner.RunHeadless(ctx, plan, secret)
+	state, err := runner.RunHeadless(domain.WithSetupOrigin(ctx, domain.SetupOrigin{Channel: "cli"}), plan, secret)
 	var invalid *app.SetupValidationError
 	if errors.As(err, &invalid) {
 		writeSetupIssues(stderr, invalid.Issues)
@@ -224,15 +221,15 @@ func setupCLIFailure(err error) (string, int) {
 		return "setup_cancelled", 130
 	case errors.Is(err, context.DeadlineExceeded):
 		return "setup_timeout", 124
-	case errors.Is(err, errSetupNotImplemented):
-		return "setup_not_implemented", 1
+	case errors.Is(err, errSetupConfiguration):
+		return "setup_configuration_invalid", 1
 	case errors.Is(err, errSetupOutput):
 		return "setup_output_failed", 1
 	case errors.Is(err, domain.ErrSetupCompleted):
 		return "setup_already_completed", 1
 	case errors.Is(err, domain.ErrConflict), errors.Is(err, domain.ErrSetupStepOrder):
 		return "setup_conflict", 1
-	case errors.Is(err, domain.ErrDatabase):
+	case errors.Is(err, domain.ErrDatabase), errors.Is(err, errSetupDatabase):
 		return "setup_database_unavailable", 1
 	default:
 		return "setup_failed", 1

@@ -87,6 +87,13 @@ func leakRouteTable() map[string]leakRoute {
 		"GET /api/v1/system":       noMedia(noParams, "public capability flags"),
 		"GET /api-docs":            noMedia(noParams, "static documentation page"),
 		"GET /api/v1/openapi.json": noMedia(noParams, "generated specification"),
+		// G18 setup wizard. Once setup is complete every wizard path answers
+		// 410 before any handler runs; the wizard never names media.
+		"GET /api/v1/setup/status":        noMedia(noParams, "setup wizard availability; 410 after setup"),
+		"GET /api/v1/setup":               noMedia(noParams, "setup wizard state; 410 after setup"),
+		"POST /api/v1/setup/steps/{step}": exempt("setup wizard step; token protected, 410 after setup, carries no media identifiers"),
+		"POST /api/v1/setup/back":         exempt("setup wizard navigation; token protected, 410 after setup"),
+		"POST /api/v1/setup/complete":     exempt("setup wizard completion; token protected, 410 after setup"),
 
 		// Third-party client compatibility layer (system module).
 		"GET /compat/System/Info/Public": noMedia(noParams, "public compatibility server identity"),
@@ -429,7 +436,7 @@ func leakHandlerWithRenderer(t *testing.T, store *postgres.Store, cfg config.Con
 	if catalog, err = catalog.WithWatchStats(stats); err != nil {
 		t.Fatal(err)
 	}
-	options := []Option{WithWebhooks(httpWebhooks(t, store))}
+	options := []Option{WithWebhooks(httpWebhooks(t, store)), WithSetup(completedSetupWizard(), "")}
 	if store.Pool != nil {
 		// The traversal runs behind the client control gate with no rules,
 		// as production does by default.

@@ -138,3 +138,22 @@ func TestCompatEnvironment(t *testing.T) {
 		}
 	}
 }
+
+func TestSetupTokenFileEnvironment(t *testing.T) {
+	load := func(values map[string]string) (Config, error) {
+		values["JELEE_DATABASE_URL"] = "postgres://localhost/jelee"
+		return LoadWith(func(key string) (string, bool) { v, ok := values[key]; return v, ok })
+	}
+	if c, err := load(map[string]string{}); err != nil || c.SetupTokenFile != "" {
+		t.Fatalf("setup token file must default to standard error: %v", err)
+	}
+	valid := filepath.Join(t.TempDir(), "setup-token")
+	if c, err := load(map[string]string{"JELEE_SETUP_TOKEN_FILE": valid}); err != nil || c.SetupTokenFile != valid {
+		t.Fatalf("valid setup token file rejected: %v", err)
+	}
+	for _, value := range []string{"relative/token", valid + string(filepath.Separator) + ".." + string(filepath.Separator) + "token"} {
+		if _, err := load(map[string]string{"JELEE_SETUP_TOKEN_FILE": value}); err == nil {
+			t.Fatalf("invalid setup token file accepted: %q", value)
+		}
+	}
+}

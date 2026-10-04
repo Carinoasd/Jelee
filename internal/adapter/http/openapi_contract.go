@@ -63,6 +63,11 @@ var errorCodeStatuses = map[string][]int{
 	"scan_limit":                {409},
 	"scan_unavailable":          {503},
 	"session_limit":             {429},
+	"setup_completed":           {410},
+	"setup_required":            {503},
+	"setup_step_order":          {409},
+	"setup_token_invalid":       {401},
+	"setup_validation_failed":   {400},
 	"stats_export_limit":        {409},
 	"stream_limit":              {429},
 	"transcode_disabled":        {409},
@@ -90,7 +95,7 @@ func errorSpecification(paths, schemas map[string]any) {
 	schemas["Error"] = objectSchema(map[string]any{"error": objectSchema(map[string]any{
 		"code":    schemaRef("ErrorCode"),
 		"message": map[string]any{"type": "string", "description": "Human-readable message localized from Accept-Language or the authenticated user's locale; see Content-Language."},
-		"details": map[string]any{"type": "object", "description": "Reserved for structured details; currently always empty."},
+		"details": map[string]any{"type": "object", "description": "Structured details. Empty except for setup_validation_failed, which carries step (wizard step name) and issues (array of {field, code}: a fixed input path and a stable machine code; input values are never echoed)."},
 		"traceId": map[string]any{"type": "string", "description": "Same value as the X-Request-ID response header."},
 	}, "code", "message", "details", "traceId")}, "error")
 	content := map[string]any{"application/json": map[string]any{"schema": schemaRef("Error")}}

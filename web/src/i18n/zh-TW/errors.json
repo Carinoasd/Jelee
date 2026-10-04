@@ -20,6 +20,7 @@
     "clientBlocked": "此應用程式或裝置不允許存取伺服器，請聯絡管理員。",
     "clientPending": "此應用程式或裝置正在等待管理員核准。",
     "clientReadOnly": "此應用程式或裝置只能瀏覽內容。",
-    "clientRateLimited": "此應用程式或裝置的請求過於頻繁，請稍後再試。"
+    "clientRateLimited": "此應用程式或裝置的請求過於頻繁，請稍後再試。",
+    "setupRequired": "尚未完成初始引導。"
   }
 }

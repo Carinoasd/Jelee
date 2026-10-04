@@ -14,6 +14,18 @@ docker compose -f deploy/docker-compose.yml up --build -d
 
 Compose 内部网络使用 sslmode=disable，仅用于此隔离网络；远程数据库应使用证书验证。HTTP 默认只向宿主环回发布。启用直投还需要 `JELEE_ENABLE_DIRECT=true` 与有效 native 会话，不能匿名访问媒体。令牌与媒体登记操作使用容器内 `/jelee-cli`。
 
+## 初始化（G18）
+
+啟用帳號（`JELEE_ENABLE_ACCOUNTS=true`）的新安裝在完成初始引導前只開放引導 API、`/healthz`、`/readyz`、探索路由與前端外殼，其餘一律回 503 `setup_required`。`/healthz` 是存活檢查；`/readyz` 在資料庫可用時即回 200，並以 `data.setup` 標示 `required`／`completed`，因此等待引導的實例仍會接收流量。完整說明見[初始引導](setup-wizard.md)。
+
+1. 先執行遷移（`jelee-migrate up`；Compose 的 `migrate` 服務已處理）。遷移 `000071` 會把已有使用者或媒體庫的既有部署直接標為已完成，升級不會被鎖。
+2. 擇一完成引導：
+   - **瀏覽器**：啟動服務後，從 `docker compose logs jelee`（標準錯誤）取得一次性引導權杖，或設定 `JELEE_SETUP_TOKEN_FILE=/絕對路徑` 讓服務以 0600 寫入該檔；開啟網頁介面輸入權杖並逐步完成。每次重啟都換新權杖。
+   - **無頭**：在服務第一次啟動前執行 `jelee-cli setup --non-interactive --password-stdin --admin-name NAME [--library 名稱=/media/路徑]...`，密碼從標準輸入讀。已完成時以 `setup_already_completed` 結束（exit 1），可安全放在每次啟動前。例如 `printf '%s\n' "$ADMIN_PASSWORD" | docker compose run --rm -T --entrypoint /jelee-cli jelee setup --non-interactive --password-stdin --admin-name admin --library Movies=/media --accept-degraded-tools`。
+3. 多實例部署請在引導期間只啟動一個實例或改用 CLI；完成後其他實例最多 1 秒內放行。
+
+未啟用帳號的部署沒有引導，也不受閘門影響。
+
 ## 可選的執行時記憶體設定
 
 在基礎檔後加入 `-f deploy/docker-compose.memory.yml`，可為 `jelee` 選用 `GOGC=100`、`GOMEMLIMIT=512MiB` 與容器 768 MiB 上限；三者均可覆寫，memory 與 memory+swap 上限保持相同，因此此設定不提供 swap。PostgreSQL 與遷移服務的預算另計。本輪固定混合負載的真容器驗收已通過，`GOGC=50` 比較組也通過；使用方式、實測數據與容量限制見[執行時記憶體設定](runtime-memory.md)。

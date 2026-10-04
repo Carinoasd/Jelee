@@ -22,10 +22,11 @@ func legacyMigrationStoreAt44(t *testing.T, ctx context.Context, store *Store) {
 		t.Fatal("legacy migration fixture requires the latest clean schema before downgrading", version, dirty, err)
 	}
 	for version > 44 {
+		// Versions may skip numbers while parallel branches merge.
 		actual, dirty, err := Migrate(ctx, store.Pool.Config().ConnString(), "down")
-		if err != nil || dirty || actual != uint(version-1) {
+		if err != nil || dirty || int(actual) >= version || actual < 44 {
 			t.Fatal("legacy migration fixture cannot discard retained data", actual, dirty, err)
 		}
-		version--
+		version = int(actual)
 	}
 }

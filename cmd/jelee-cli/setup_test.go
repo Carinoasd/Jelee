@@ -13,6 +13,7 @@ import (
 
 	"github.com/MoYuanCN/Jelee/internal/app"
 	"github.com/MoYuanCN/Jelee/internal/domain"
+	"github.com/MoYuanCN/Jelee/internal/platform/config"
 	"github.com/MoYuanCN/Jelee/internal/platform/password"
 	"path/filepath"
 	"runtime"
@@ -188,13 +189,23 @@ func TestSetupCLIRunnerErrors(t *testing.T) {
 	}
 }
 
-// The registered command reaches the app ports, which report that storage
-// is not wired yet, instead of pretending success.
-func TestSetupCLIDefaultPortsAreUnimplemented(t *testing.T) {
+// The registered command loads the server configuration and refuses to
+// touch storage when it is unusable, without echoing any value.
+func TestSetupCLIDefaultDependenciesNeedConfiguration(t *testing.T) {
+	t.Setenv("JELEE_CONFIG", "")
+	t.Setenv("JELEE_DATABASE_URL", "not-a-database-url")
 	var stdout, stderr bytes.Buffer
 	code := runSetupCLI(context.Background(), setupBaseArgs(), strings.NewReader(setupCLIPassword), &stdout, &stderr)
-	if code != 1 || stderr.String() != "setup_not_implemented\n" || stdout.Len() != 0 {
+	if code != 1 || stderr.String() != "setup_configuration_invalid\n" || stdout.Len() != 0 {
 		t.Fatalf("code=%d stderr=%q", code, stderr.String())
+	}
+	// Without accounts the server never mounts the wizard; refuse as well.
+	open := openPostgresSetup(func() (config.Config, error) {
+		cfg := config.Config{EnableAccounts: false}
+		return cfg, nil
+	})
+	if _, _, err := open(context.Background()); !errors.Is(err, errSetupConfiguration) {
+		t.Fatalf("accounts disabled: %v", err)
 	}
 }
 

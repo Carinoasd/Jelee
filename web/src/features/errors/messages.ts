@@ -35,6 +35,8 @@ export function errorMessageKey(error: ApiError): string {
       return "errors.timeout";
     case "not_ready":
       return "errors.notReady";
+    case "setup_required":
+      return "errors.setupRequired";
     case "account_busy":
     case "image_busy":
     case "jobs_busy":

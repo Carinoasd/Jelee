@@ -198,8 +198,10 @@ func TestSetupGateFor(t *testing.T) {
 		{false, "GET", "/healthz/", SetupGateRequired},
 		{true, "GET", "/api/v1/items", SetupGateAllow},
 		{true, "POST", "/api/v1/auth/login", SetupGateAllow},
-		{true, "GET", "/api/v1/setup", SetupGateAllow},
-		{true, "HEAD", "/api/v1/setup", SetupGateAllow},
+		{true, "GET", "/api/v1/setup", SetupGateCompleted},
+		{true, "HEAD", "/api/v1/setup", SetupGateCompleted},
+		{true, "GET", "/api/v1/setup/status", SetupGateCompleted},
+		{true, "GET", "/healthz", SetupGateAllow},
 		{true, "POST", "/api/v1/setup/steps/admin", SetupGateCompleted},
 		{true, "PUT", "/api/v1/setup", SetupGateCompleted},
 	}
