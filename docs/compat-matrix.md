@@ -27,7 +27,7 @@ G05仍部分完成：舊C#的直播與Channel控制器已刪除並提供[明確�
 
 ## 第三方客戶端相容層（`/compat`，G24.1～G24.4、G10.4）
 
-目前有骨架、系統模組與使用者／登入模組；媒體庫、Items、播放資訊等模組尚未提供，下表以外的路由一律回 404。尚未做真實客戶端驗收（G24.5），不能宣稱任何客戶端已可使用。
+目前有骨架、系統模組、使用者／登入模組與媒體庫瀏覽模組（只讀）；圖片、播放資訊、串流、進度、收藏等模組尚未提供，下表以外的路由一律回 404。尚未做真實客戶端驗收（G24.5），不能宣稱任何客戶端已可使用。
 
 ### 掛載與開關
 
@@ -64,6 +64,9 @@ G05仍部分完成：舊C#的直播與Channel控制器已刪除並提供[明確�
 | `GET /compat/Users/Me` | native 工作階段 | 目前使用者的 `UserDto` |
 | `GET /compat/Users/{id}` | native 工作階段；自己或管理員 | `UserDto`；`{id}` 接受 32 位 hex 或帶連字號 UUID（大小寫皆可） |
 | `POST /compat/Sessions/Logout` | native 工作階段 | 撤銷目前這一個工作階段，204 空主體 |
+| `GET /compat/UserViews`、`GET /compat/Users/{userId}/Views` | native 工作階段（目錄開啟時才掛載） | 可見媒體庫的 `QueryResult`（`CollectionFolder`） |
+| `GET /compat/Items`、`GET /compat/Users/{userId}/Items` | 同上 | 篩選／排序／分頁後的 `QueryResult<BaseItemDto>` |
+| `GET /compat/Items/{itemId}`、`GET /compat/Users/{userId}/Items/{itemId}` | 同上 | 單一條目或媒體庫的 `BaseItemDto`；可播放條目附直投 `MediaSources` |
 
 - JSON 為上游預設格式：PascalCase、null 成員省略、`application/json; charset=utf-8`。尚未支援 `profile="CamelCase"` 的 Accept 協商。
 - `Version` 是相容層模擬的上游協定版本線，不是 Jelee 建置版本；客戶端依它判斷功能。是否需要調整待真實客戶端驗收確認。
@@ -107,13 +110,51 @@ G05仍部分完成：舊C#的直播與Channel控制器已刪除並提供[明確�
 
 **`POST /Sessions/Logout`**：撤銷驗證本次請求的那一個工作階段（`Accounts.Revoke`，寫 `session.revoked` 審計），同帳號其他工作階段不受影響；回 204 空主體。撤銷後舊 token 在相容層與自有 API 都是 401，進行中的直投串流依撤銷即斷流規則中止。
 
+### 媒體庫瀏覽模組（G24.2，只讀）
+
+只在目錄（`enableCatalog`）開啟且目錄服務接上瀏覽查詢時掛載；否則這些路由回 404。
+
+**資料來源與權限**：相容層不 import postgres，只呼叫目錄服務 `app.Catalog` 的 `LibraryViews`／`Browse`／`BrowseItem`／`PlaybackSources`。儲存層每一條查詢都在同一個 SQL 裡解析即時使用者（停用、軟刪除即看不到任何東西）並套用媒體庫授權；授權判斷是與自有 API `GET /api/v1/items/{id}` 共用的同一個片段 `libraryVisibleSQL`（管理員全部可見，其他人只看 `library_acl` 授權的庫）。授權即時生效，收回後下一個請求就看不到。
+
+**讀取身分（`{userId}`）**：路徑 `{userId}` 或 query `userId` 必須等於目前使用者，或呼叫者是管理員，否則 403 空主體（在任何目錄查詢前判定，不論該帳號是否存在）。省略或全 0 代表目前使用者（上游同樣把空 ID 視為自己）。格式錯誤 400。管理員指定其他使用者時，以該使用者的授權讀取（看到的就是對方看到的）；直投來源仍以管理員自己的工作階段查詢。
+
+**`GET /UserViews`**：依名稱排序的可見媒體庫，`Type`=`CollectionFolder`、`IsFolder`=true。`CollectionType` 依內容推得：只有電影 `movies`、只有劇集／單集 `tvshows`、只有家庭影片 `homevideos`；混合或空庫省略（上游的 null，代表混合內容）。上限 1000 個庫。`includeExternalContent`、`presetViews`、`includeHidden` 忽略。
+
+**`GET /Items`** 支援的參數（名稱大小寫不敏感；未列出的參數忽略，結果可能比上游多）：
+
+| 參數 | 行為 |
+| --- | --- |
+| `ParentId` | 媒體庫：非遞迴為頂層條目（沒有上層連結者），遞迴為全庫；影集／季：非遞迴為直接子項，遞迴含孫項（季底下的單集）。不存在與無權限的 parent 一律回空結果（`TotalRecordCount`=0），兩者無法分辨 |
+| 無 `ParentId` | 非遞迴：上游列使用者根資料夾的子項，即媒體庫資料夾（依名稱排序，可用 `SearchTerm` 過濾）；遞迴：所有可見條目 |
+| `Recursive` | `true`／`false`（大小寫不敏感），其他值 400。未指定且 `ParentId` 是媒體庫並有 `IncludeItemTypes` 時，比照上游預設遞迴 |
+| `IncludeItemTypes`、`ExcludeItemTypes` | `Movie`、`Series`、`Season`、`Episode`、`Video`（Jelee 的 HomeVideo）、`CollectionFolder`；其他合法名稱（`Audio`、`BoxSet`、`Folder`…）不匹配任何條目；非英數字 400 |
+| `SortBy` | `SortName`／`Name`（排序標題，否則標題；不分大小寫）、`PremiereDate`、`ProductionYear`（年份事實，否則上映日期的年）；可多個，ID 為最後的穩定排序。`DateCreated`、`Random` 等 Jelee 沒有資料的鍵忽略。預設依 `SortName` 升冪 |
+| `SortOrder` | `Ascending`／`Descending`，逐鍵對應；不足者沿用第一個（上游 `GetOrderBy` 規則）。升冪時無值者在前、降冪時在後 |
+| `StartIndex` | ≥0，上限 1,000,000；超出結尾回空 `Items` 但保留 `TotalRecordCount` |
+| `Limit` | 未指定或大於 500 一律以 500 計（上游無上限）；`0` 只回 `TotalRecordCount` |
+| `SearchTerm` | 標題不分大小寫的子字串比對，`%`、`_`、`\` 按字面比對；最多 128 字元，否則 400 |
+| `Fields` | `Overview`、`SortName`、`ParentId` 依上游只在要求時輸出；其他值忽略。列表不輸出 `MediaSources` |
+| `Ids` | 最多 100 個；只回可見者（依要求順序，仍套用類型過濾），不存在與無權限者同樣略過 |
+
+回應 `QueryResult`：`Items`、`TotalRecordCount`（符合條件的總數，不受分頁影響）、`StartIndex`。
+
+**`GET /Items/{itemId}`**：比照上游單一條目回傳全部欄位：`Name`、`ServerId`、`Id`、`Type`（Movie／Series／Season／Episode／Video，或媒體庫的 `CollectionFolder`）、`IsFolder`、`ParentId`（上層影集／季，否則所在媒體庫）、`SortName`、`Overview`、`PremiereDate`（UTC 七位小數）、`ProductionYear`、`RunTimeTicks`（最佳來源的探測時長）、`UserData`、`MediaType`（`Video`／`Unknown`）、`LocationType`=`FileSystem`。不存在與無權限一律回設定的隱藏狀態（預設 404，`access.hiddenStatus=403` 時 403），空主體，兩者無法分辨。
+
+**`MediaSources`（只限直投）**：只有可播放條目（電影、單集、家庭影片）才有，來源與自有 API 播放資訊相同（`PlaybackSources`，同樣要求 native 工作階段與授權，最佳版本在前）。`Protocol`=`File`、`Type`=`Default`、`Id`、`Container`、`Size`、`Bitrate`、`RunTimeTicks`、`MediaStreams`（已探測的內嵌影像／音訊／字幕軌）。**`SupportsTranscoding` 一律 false**；`SupportsDirectStream` 一律 false（上游客戶端以 DirectStream 要求重新封裝容器，Jelee 不做）；`SupportsDirectPlay` 等於伺服器是否開啟直投（`enableDirect`）。不輸出 `Path`、檔名、外掛字幕檔與任何轉碼欄位（`TranscodingUrl` 等）。
+
+**`UserData`** 是最小集合：`PlaybackPositionTicks`=0、`PlayCount`=0、`IsFavorite`=false、`Played`=false、`Key`／`ItemId`=條目 ID。Jelee 尚未記錄進度、播放次數與收藏，所以一律呈現「未播放」。
+
+**省略**（上游的 null）：圖片（`ImageTags` 為空物件、`BackdropImageTags` 為空陣列，因為相容層還沒有圖片路由）、`SeriesId`／`SeasonId`／`SeriesName`、`IndexNumber`／`ParentIndexNumber`、`ChildCount`、`DateCreated`、人物、類型、片商、外部 ID、評分、`Path`。列表不提供 `RunTimeTicks`。
+
 ### 對客戶端的已知影響（G10.4）
 
 能力宣告明確表示不轉碼、不提供 HLS／DASH、不提供 remux，`EncoderLocation`=`NotFound`。依賴伺服器轉碼的客戶端在無法直投的格式上會失敗，而不是降級；這是 G10 鐵律的預期結果。
 
 ### 契約與測試
 
-- 黃金檔：`internal/adapter/compat/testdata/golden/`（`system_info_public.json`、`system_info.json`、`system_ping.json`、`users_authenticate_by_name.json`、`users_me.json`、`users_by_id_admin.json`），以 `go test ./internal/adapter/compat -run 'TestGoldenResponses|TestAuthenticateByName$|TestCurrentUser|TestUserByID' -update` 重產。
+- 黃金檔：`internal/adapter/compat/testdata/golden/`（`system_info_public.json`、`system_info.json`、`system_ping.json`、`users_authenticate_by_name.json`、`users_me.json`、`users_by_id_admin.json`、`library_user_views.json`、`library_user_views_admin.json`、`library_items.json`、`library_items_root.json`、`library_item_detail.json`、`library_item_folder.json`），以 `go test ./internal/adapter/compat -run 'TestGoldenResponses|TestAuthenticateByName$|TestCurrentUser|TestUserByID|TestUserViews|TestItems|TestItemByID' -update` 重產。
 - OpenAPI：相容路由不屬於自有 API，在 `openapi_contract_test.go` 的 `undocumentedRoutes` 以理由豁免，不寫入 `api/openapi.json`；`leakRouteTable` 已逐條登記。
 - 真 PG：`TestCompatSessionKindsPostgres` 驗證 native 可用、web（標頭、query、cookie）與已撤銷的 native 都回 401。
 - 真 PG：`TestCompatUsersPostgres` 驗證未開 `allowNative` 時 403 並寫 `login.native_denied`、不簽發；密碼錯與帳號不存在回應相同；開啟後登入簽發 native 工作階段（寫 `session.created`、自有 API 可列出 client 標籤並可直投）；`/Users/Me`、`/Users/{id}` 自己／他人／管理員；`/Users/Public` 為 `[]`；Logout 只撤銷目前工作階段、舊 token 在兩邊皆 401；相容入口五次失敗後兩個入口都被鎖定且失敗審計含用戶端位址。`TestCompatLoginSharesRateLimitPostgres` 驗證相容登入與原生登入雙向共用名稱限速桶。
+- 真 PG：`TestCompatLibraryPostgres` 用兩個使用者、兩個不同授權的媒體庫驗證：各自只看到自己的庫；以 parent、Ids、類型、搜尋或單筆查詢都碰不到對方的庫與條目（不存在與無權限回應相同）；分頁串接等於完整排序、超出結尾保留總數；名稱／年份／上映日期排序與空值位置；搜尋萬用字元按字面；影集／季的子項與遞迴；詳情的直投來源（`SupportsTranscoding`／`SupportsDirectStream` 為 false、不含路徑）；收回授權立即生效；設定 403 時隱藏與不存在皆 403。
+- 存取外洩：`leakRouteTable` 已登記六條媒體庫路由（列表與以 ID 查詢兩種模式，三種隱藏狀態都跑），外洩標記同時比對帶連字號與相容層 32 位 hex 兩種 ID 形態。

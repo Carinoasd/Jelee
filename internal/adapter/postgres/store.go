@@ -119,7 +119,7 @@ func (s *Store) ListItems(ctx context.Context, userID, cursor string, limit int)
 
 func (s *Store) GetItem(ctx context.Context, userID, id string) (domain.Item, error) {
 	var item domain.Item
-	err := s.Pool.QueryRow(ctx, `SELECT i.id::text,i.library_id::text,i.title,i.kind,COALESCE((SELECT parent_id::text FROM item_parent_links p WHERE p.item_id=i.id),'') FROM items i JOIN users u ON u.id=$1::uuid AND NOT u.disabled AND u.deleted_at IS NULL WHERE i.id=$2::uuid AND (u.is_admin OR EXISTS(SELECT 1 FROM library_acl a WHERE a.user_id=u.id AND a.library_id=i.library_id))`, userID, id).Scan(&item.ID, &item.LibraryID, &item.Title, &item.Kind, &item.ParentID)
+	err := s.Pool.QueryRow(ctx, `SELECT i.id::text,i.library_id::text,i.title,i.kind,COALESCE((SELECT parent_id::text FROM item_parent_links p WHERE p.item_id=i.id),'') FROM items i JOIN users u ON u.id=$1::uuid AND NOT u.disabled AND u.deleted_at IS NULL WHERE i.id=$2::uuid AND `+libraryVisibleSQL("i.library_id"), userID, id).Scan(&item.ID, &item.LibraryID, &item.Title, &item.Kind, &item.ParentID)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return item, domain.ErrNotFound
 	}

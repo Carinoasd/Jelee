@@ -97,6 +97,16 @@ func leakRouteTable() map[string]leakRoute {
 		"GET /compat/Users/Me":                  noMedia(noParams, "caller's own account"),
 		"GET /compat/Users/{id}":                noMedia(selfParam, "caller's own account"),
 		"POST /compat/Sessions/Logout":          exempt("revokes the caller's own session; carries no media identifiers"),
+		// Third-party client compatibility layer (library module). The
+		// {id} member names the user a request reads as; the viewer uses its
+		// own. Administrator controls run only where the administrator reads
+		// as itself.
+		"GET /compat/UserViews":                 {mode: leakList, params: noParams, control: true},
+		"GET /compat/Users/{id}/Views":          {mode: leakList, params: selfParam},
+		"GET /compat/Items":                     {mode: leakList, params: noParams, control: true},
+		"GET /compat/Users/{id}/Items":          {mode: leakList, params: selfParam},
+		"GET /compat/Items/{itemId}":            {mode: leakByID, params: map[string]string{"itemId": "item"}, control: true},
+		"GET /compat/Users/{id}/Items/{itemId}": {mode: leakByID, params: map[string]string{"id": "self", "itemId": "item"}},
 
 		// Catalog and delivery: the direct media surfaces.
 		"GET /api/v1/items":                             {mode: leakList, params: noParams, control: true},
@@ -269,6 +279,9 @@ func leakHandlerWith(t *testing.T, store *postgres.Store, cfg config.Config, pas
 	}
 	metrics := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { _, _ = io.WriteString(w, "# metrics\n") })
 	catalog, err := app.NewCatalog(store).WithPlayback(store)
+	if err == nil {
+		catalog, err = catalog.WithBrowse(store)
+	}
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -377,6 +390,20 @@ func (f leakIDs) value(kind string, scenario int) string {
 		return "00000000-0000-4000-8000-000000000001"
 	}
 	panic("unknown leak fixture kind " + kind)
+}
+
+// leakWire is the dashless identifier form the compatibility layer writes.
+func leakWire(id string) string { return strings.ReplaceAll(id, "-", "") }
+
+// leakContainsAny reports whether text holds any of the identifiers in
+// either form.
+func leakContainsAny(text string, ids ...string) bool {
+	for _, id := range ids {
+		if strings.Contains(text, id) || strings.Contains(text, leakWire(id)) {
+			return true
+		}
+	}
+	return false
 }
 
 func leakUUID(t *testing.T) string {
@@ -509,6 +536,10 @@ func leakFixture(t *testing.T, ctx context.Context, store *postgres.Store) leakI
 		if scenario == leakHidden {
 			f.markers = []string{f.item[scenario], f.source[scenario], f.library[scenario], rootID, job.ID, spec.library, spec.root, spec.title, spec.file, root,
 				f.subtitle[scenario], f.audio[scenario], base + ".en.srt", base + ".en.ac3"}
+			// The compatibility layer writes identifiers without dashes.
+			for _, id := range []string{f.item[scenario], f.source[scenario], f.library[scenario], rootID, f.subtitle[scenario], f.audio[scenario]} {
+				f.markers = append(f.markers, leakWire(id))
+			}
 		} else {
 			f.visibleItem, f.visibleLibrary = f.item[scenario], f.library[scenario]
 		}
@@ -614,12 +645,14 @@ func TestAccessLeakHiddenContentPostgres(t *testing.T) {
 				case leakList:
 					path := leakPath(pattern, spec, f, leakHidden)
 					response := leakRequest(t, handler, method, path, f.viewerToken)
-					if response.status != http.StatusOK || !strings.Contains(response.text, f.visibleItem) && !strings.Contains(response.text, f.visibleLibrary) {
+					if response.status != http.StatusOK || !leakContainsAny(response.text, f.visibleItem, f.visibleLibrary) {
 						t.Errorf("%s: viewer listing lost visible content (status %d)", route, response.status)
 					}
 					f.assertNoMarkers(t, route, response)
 					if spec.control {
-						if control := leakRequest(t, handler, method, path, f.adminToken); control.status != http.StatusOK || !strings.Contains(control.text, f.item[leakHidden]) {
+						// A library folder listing names the hidden library
+						// rather than its item.
+						if control := leakRequest(t, handler, method, path, f.adminToken); control.status != http.StatusOK || !leakContainsAny(control.text, f.item[leakHidden], f.library[leakHidden]) {
 							t.Errorf("%s: administrator control does not see the hidden fixture (status %d)", route, control.status)
 						}
 					}
@@ -637,7 +670,13 @@ func TestAccessLeakHiddenContentPostgres(t *testing.T) {
 					}
 					hidden := leakRequest(t, handler, method, leakPath(pattern, spec, f, leakHidden), f.viewerToken)
 					missing := leakRequest(t, handler, method, leakPath(pattern, spec, f, leakMissing), f.viewerToken)
-					if hidden.status != want || missing.status != want || (method != http.MethodHead && (hidden.code != mode.code || missing.code != mode.code)) {
+					// The compatibility layer answers with an empty body,
+					// so it has no error code to compare.
+					code := mode.code
+					if strings.HasPrefix(pattern, "/compat/") {
+						code = ""
+					}
+					if hidden.status != want || missing.status != want || (method != http.MethodHead && (hidden.code != code || missing.code != code)) {
 						t.Errorf("%s: hidden=%d/%s missing=%d/%s, want %d/%s for both", route, hidden.status, hidden.code, missing.status, missing.code, want, mode.code)
 					}
 					f.assertNoMarkers(t, route, hidden)

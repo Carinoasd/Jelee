@@ -14,6 +14,7 @@ type CatalogRepository interface {
 type Catalog struct {
 	repository CatalogRepository
 	playback   PlaybackRepository
+	browse     CatalogBrowseRepository
 }
 
 func NewCatalog(repository CatalogRepository) *Catalog { return &Catalog{repository: repository} }

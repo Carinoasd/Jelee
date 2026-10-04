@@ -32,7 +32,8 @@ const genericError = "Error processing request."
 // never a second implementation.
 type Authenticator func(context.Context, string) (access.Principal, error)
 
-// Options configures NewRouter. Every field is required except Users.
+// Options configures NewRouter. Every field is required except Users and
+// Library.
 type Options struct {
 	Authenticate Authenticator
 	// WriteRejection writes the server's own error envelope for a request to
@@ -45,6 +46,9 @@ type Options struct {
 	// Users enables the user module. Nil leaves its routes unregistered, for a
 	// server without the account service.
 	Users *UserOptions
+	// Library enables the library module. Nil leaves its routes
+	// unregistered, for a server without the catalog.
+	Library *LibraryOptions
 }
 
 type router struct {
@@ -70,6 +74,9 @@ func NewRouter(opts Options) (*chi.Mux, error) {
 	if opts.Users != nil && !opts.Users.valid() {
 		return nil, errors.New("compat: user module needs accounts, admission, login limiter and client address")
 	}
+	if opts.Library != nil && !opts.Library.valid() {
+		return nil, errors.New("compat: library module needs a catalog, client address and a 403 or 404 hidden status")
+	}
 	rt := &router{opts: opts, mux: chi.NewRouter()}
 	rt.mux.Use(rt.boundary)
 	rt.mux.NotFound(func(w http.ResponseWriter, _ *http.Request) { writeError(w, http.StatusNotFound) })
@@ -77,6 +84,9 @@ func NewRouter(opts Options) (*chi.Mux, error) {
 	rt.systemRoutes()
 	if opts.Users != nil {
 		rt.userRoutes()
+	}
+	if opts.Library != nil {
+		rt.libraryRoutes()
 	}
 	return rt.mux, nil
 }

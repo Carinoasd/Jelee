@@ -39,6 +39,12 @@ var undocumentedRoutes = map[string]string{
 	"GET /compat/Users/Me":                  compatExemption,
 	"GET /compat/Users/{id}":                compatExemption,
 	"POST /compat/Sessions/Logout":          compatExemption,
+	"GET /compat/UserViews":                 compatExemption,
+	"GET /compat/Users/{id}/Views":          compatExemption,
+	"GET /compat/Items":                     compatExemption,
+	"GET /compat/Users/{id}/Items":          compatExemption,
+	"GET /compat/Items/{itemId}":            compatExemption,
+	"GET /compat/Users/{id}/Items/{itemId}": compatExemption,
 }
 
 // compatExemption: the /compat layer reproduces a third-party wire protocol
@@ -47,6 +53,21 @@ var undocumentedRoutes = map[string]string{
 // contract lives in docs/compat-matrix.md and the golden files under
 // internal/adapter/compat/testdata/golden.
 const compatExemption = "third-party client compatibility protocol, not the Jelee API; contract in docs/compat-matrix.md and compat golden files"
+
+// httpBrowseRepository is an empty catalog for route registration.
+type httpBrowseRepository struct{}
+
+func (httpBrowseRepository) ListLibraryViews(context.Context, string) ([]domain.LibraryView, error) {
+	return []domain.LibraryView{}, nil
+}
+
+func (httpBrowseRepository) BrowseItems(context.Context, string, domain.BrowseQuery) (domain.BrowsePage, error) {
+	return domain.BrowsePage{Items: []domain.BrowseItem{}}, nil
+}
+
+func (httpBrowseRepository) GetBrowseItem(context.Context, string, string) (domain.BrowseItem, error) {
+	return domain.BrowseItem{}, domain.ErrNotFound
+}
 
 // contractRouter builds the real router with every service present so that
 // only the rollout flags in cfg decide which routes are registered.
@@ -68,7 +89,11 @@ func contractRouter(t *testing.T, cfg config.Config) http.Handler {
 	if err != nil {
 		t.Fatal(err)
 	}
-	handler, err := newServer(cfg, &fakeBackend{}, app.NewCatalog(&fakeRepository{}), &fakeResolver{}, slog.New(slog.NewTextHandler(io.Discard, nil)), metricsAccounts(t), jobs, metadata, http.NotFoundHandler(), images, nil)
+	catalog, err := app.NewCatalog(&fakeRepository{}).WithBrowse(httpBrowseRepository{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	handler, err := newServer(cfg, &fakeBackend{}, catalog, &fakeResolver{}, slog.New(slog.NewTextHandler(io.Discard, nil)), metricsAccounts(t), jobs, metadata, http.NotFoundHandler(), images, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -190,13 +190,7 @@ func (rt *router) account(h http.HandlerFunc) http.HandlerFunc {
 			return
 		}
 		defer release()
-		deadline := time.Now().Add(rt.opts.Timeout)
-		controller := http.NewResponseController(w)
-		_ = controller.SetReadDeadline(deadline)
-		_ = controller.SetWriteDeadline(deadline)
-		ctx, cancel := context.WithDeadline(r.Context(), deadline)
-		defer cancel()
-		h(w, r.WithContext(ctx))
+		rt.bounded(h)(w, r)
 	}
 }
 

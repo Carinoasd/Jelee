@@ -282,6 +282,11 @@ func (s *Server) newCompat(cfg config.Config, backend Backend) (http.Handler, er
 	if s.accounts != nil {
 		opts.Users = &compat.UserOptions{Accounts: s.accounts, Admit: s.admitAccount, AllowLogin: s.loginLimiter.Allow, ClientIP: requestClientIP}
 	}
+	// The library module reads only through the catalog service, which
+	// applies the library grants in storage like the native catalog routes.
+	if cfg.EnableCatalog && s.catalog.CanBrowse() {
+		opts.Library = &compat.LibraryOptions{Catalog: s.catalog, HiddenStatus: cfg.Access.HiddenContentStatus(), DirectPlay: cfg.EnableDirect, ClientIP: requestClientIP}
+	}
 	return compat.NewRouter(opts)
 }
 

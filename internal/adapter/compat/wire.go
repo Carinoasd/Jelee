@@ -46,3 +46,62 @@ const (
 // enum values (SubtitleMode "Default", SyncPlayAccess "None") carry no
 // upstream brand. The policy provider identifiers are Jelee names (see
 // users.go), not the upstream provider type names.
+
+// Library module behavioural reference: upstream
+// Jellyfin.Api/Controllers/UserViewsController.cs (GetUserViews and its
+// legacy route), Jellyfin.Api/Controllers/ItemsController.cs (GetItems and
+// GetItemsByUserIdLegacy), Jellyfin.Api/Controllers/UserLibraryController.cs
+// (GetItem and its legacy route), Jellyfin.Api/Helpers/RequestHelpers.cs
+// (GetOrderBy, GetUserId), Emby.Server.Implementations/Dto/DtoService.cs
+// (which members depend on Fields), MediaBrowser.Model/Dto/BaseItemDto.cs,
+// MediaBrowser.Model/Dto/UserItemDataDto.cs,
+// MediaBrowser.Model/Dto/MediaSourceInfo.cs,
+// MediaBrowser.Model/Entities/MediaStream.cs and
+// MediaBrowser.Model/Querying/QueryResult.cs. The values below are upstream
+// enum names (BaseItemKind, CollectionType, ItemFields, ItemSortBy,
+// SortOrder, LocationType, MediaType, MediaProtocol, MediaSourceType,
+// MediaStreamType); none carries an upstream brand.
+const (
+	itemTypeMovie            = "Movie"
+	itemTypeSeries           = "Series"
+	itemTypeSeason           = "Season"
+	itemTypeEpisode          = "Episode"
+	itemTypeVideo            = "Video"
+	itemTypeCollectionFolder = "CollectionFolder"
+
+	collectionTypeMovies     = "movies"
+	collectionTypeTvShows    = "tvshows"
+	collectionTypeHomeVideos = "homevideos"
+
+	fieldOverview     = "overview"
+	fieldSortName     = "sortname"
+	fieldParentID     = "parentid"
+	fieldMediaSources = "mediasources"
+
+	sortBySortName       = "sortname"
+	sortByName           = "name"
+	sortByPremiereDate   = "premieredate"
+	sortByProductionYear = "productionyear"
+
+	sortOrderAscending  = "ascending"
+	sortOrderDescending = "descending"
+
+	locationFileSystem  = "FileSystem"
+	mediaTypeVideo      = "Video"
+	mediaTypeUnknown    = "Unknown"
+	mediaProtocolFile   = "File"
+	mediaSourceDefault  = "Default"
+	mediaStreamVideo    = "Video"
+	mediaStreamAudio    = "Audio"
+	mediaStreamSubtitle = "Subtitle"
+)
+
+// itemTypeByKind maps catalog kinds to upstream item types. A home video is
+// the generic upstream video type.
+var itemTypeByKind = map[string]string{
+	"Movie":     itemTypeMovie,
+	"Series":    itemTypeSeries,
+	"Season":    itemTypeSeason,
+	"Episode":   itemTypeEpisode,
+	"HomeVideo": itemTypeVideo,
+}
