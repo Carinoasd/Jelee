@@ -485,7 +485,7 @@ func TestMetadataBackupRejectsDamagedFilesPostgres(t *testing.T) {
 		{"trailer removed", cut, domain.ErrMetadataBackupTruncated},
 		{"cut mid line", midLine, domain.ErrMetadataBackupTruncated},
 		{"data after trailer", append(append([]byte{}, doc...), []byte("{}\n")...), domain.ErrMetadataBackupCorrupt},
-		{"newer schema", bytes.Replace(doc, []byte(`"schemaVersion":71`), []byte(`"schemaVersion":72`), 1), domain.ErrMetadataBackupUnsupported},
+		{"newer schema", bytes.Replace(doc, []byte(fmt.Sprintf(`"schemaVersion":%d`, SchemaVersion)), []byte(fmt.Sprintf(`"schemaVersion":%d`, SchemaVersion+1)), 1), domain.ErrMetadataBackupUnsupported},
 	}
 	for _, c := range cases {
 		report, err := importMetadataDoc(ctx, target, c.data, domain.MetadataImportOptions{})

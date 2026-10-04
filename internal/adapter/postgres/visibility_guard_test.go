@@ -30,6 +30,18 @@ var visibilityGuardedTables = map[string]map[string][]string{
 	"parental_rating_max":    {"content_access.go": {visibilityWholeFile}},
 }
 
+// Metadata backup copies the grant and rule rows verbatim as data (G36.4);
+// it never decides visibility, so both files may name every guarded table.
+var visibilityBackupFiles = []string{"metadata_backup.go", "metadata_import.go"}
+
+func init() {
+	for _, files := range visibilityGuardedTables {
+		for _, name := range visibilityBackupFiles {
+			files[name] = []string{visibilityWholeFile}
+		}
+	}
+}
+
 // visibilityWholeFile allows every occurrence in the administering file.
 const visibilityWholeFile = "*"
 
