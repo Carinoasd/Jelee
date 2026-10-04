@@ -6,6 +6,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 	"testing"
@@ -62,7 +63,10 @@ func assertMode(t *testing.T, path string, want fs.FileMode) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if info.Mode().Perm() != want {
+	// Windows has no POSIX permission bits (Go reports 0666/0777 from the
+	// read-only attribute); privacy there comes from the directory's ACL,
+	// tracked as an owner verification item rather than asserted here.
+	if runtime.GOOS != "windows" && info.Mode().Perm() != want {
 		t.Fatalf("%s mode=%v want=%v", filepath.Base(path), info.Mode().Perm(), want)
 	}
 }

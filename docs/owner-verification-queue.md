@@ -26,10 +26,11 @@
 |---|---|---|---|
 | B1 | 啟動暫存清掃的存活判斷（程序建立時間）| `internal/platform/scratch/owner_windows.go` | 待跑 |
 | B2 | NFO 結算原語：開啟中的檔案能否 rename、目錄 sync 是 no-op | `internal/adapter/nfo/settle_commit_files.go` | 待跑 |
-| B3 | 圖片持久存放區：開啟中的檔案無法刪除時，`ClearVariants` 與淘汰的行為 | `internal/adapter/images/store.go` | 待跑 |
+| B3 | 圖片持久存放區：開啟中的檔案無法刪除時，`ClearVariants` 與淘汰的行為。**2026-10-04 Windows CI 已證實**：有變體正被讀取時，`ClearVariants` 因 Windows 不允許改名含開啟檔案的目錄而失敗；修正中，修好後請實機複驗 | `internal/adapter/images/store.go` | 修正中 |
 | B4 | 新解碼格式（WebP、GIF、BMP、TIFF）與 EXIF 方向 | `internal/adapter/images/decode_formats.go` | 待跑 |
 | B5 | doctor 的 Windows 磁碟降級路徑（無 inode） | `internal/diag/` | 待跑 |
 | B6 | 直投在 Windows 走緩衝備援路徑（無 sendfile）：實機跑 `go test ./internal/adapter/media/`，並實際播放、拖動一次 | `docs/direct-delivery.md`「零拷贝直投」 | 待跑 |
+| B7 | 日誌檔與暫存目錄在 Windows 沒有 POSIX 權限位元，隱私完全依賴所在目錄繼承的 ACL；請確認預設安裝位置（服務帳號、ProgramData）下其他使用者讀不到 `jelee.log` 與暫存目錄，若讀得到需決定是否明確設定 ACL | `internal/platform/logging/rotate.go`、`internal/platform/scratch/` | 待跑 |
 
 ## C. 長時間、規模、效能
 

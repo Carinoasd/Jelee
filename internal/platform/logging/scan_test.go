@@ -126,7 +126,7 @@ func TestSensitiveSampleScanFindsNothing(t *testing.T) {
 	targets := []target{
 		{name: "json", opts: Options{Level: slog.LevelDebug}},
 		{name: "console", opts: Options{Level: slog.LevelDebug, Format: FormatConsole}},
-		{name: "json+mask+relative", opts: Options{Level: slog.LevelDebug, IPMode: IPMask, PathMode: PathRelative, PathRoots: []string{"/srv/media", `C:\Users`}}, modes: true},
+		{name: "json+mask+relative", opts: Options{Level: slog.LevelDebug, IPMode: IPMask, PathMode: PathRelative, PathRoots: []string{"/srv/media", `C:\Users\someone`}}, modes: true},
 		{name: "console+mask+relative", opts: Options{Level: slog.LevelDebug, Format: FormatConsole, IPMode: IPMask, PathMode: PathRelative, PathRoots: []string{"/srv/media"}}, modes: true},
 	}
 	for _, tc := range targets {

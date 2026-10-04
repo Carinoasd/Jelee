@@ -5,6 +5,7 @@ import (
 	"io/fs"
 	"net/http"
 	"os"
+	"path"
 	"regexp"
 	"strings"
 
@@ -103,7 +104,34 @@ func (a *webApp) write(w http.ResponseWriter, r *http.Request, name string, info
 	default:
 		header.Set("Cache-Control", "no-cache")
 	}
+	if contentType, ok := frontendTypes[strings.ToLower(path.Ext(name))]; ok {
+		// ServeContent would otherwise consult the OS MIME table, which differs
+		// by platform (Windows maps .js to application/javascript from the
+		// registry); with nosniff the browser trusts this header for modules.
+		header.Set("Content-Type", contentType)
+	}
 	http.ServeContent(w, r, name, info.ModTime(), file)
+}
+
+// frontendTypes fixes the media types of the files a frontend build ships.
+// Other extensions fall back to ServeContent's detection.
+var frontendTypes = map[string]string{
+	".html":        "text/html; charset=utf-8",
+	".js":          "text/javascript; charset=utf-8",
+	".mjs":         "text/javascript; charset=utf-8",
+	".css":         "text/css; charset=utf-8",
+	".json":        "application/json",
+	".map":         "application/json",
+	".svg":         "image/svg+xml",
+	".png":         "image/png",
+	".jpg":         "image/jpeg",
+	".jpeg":        "image/jpeg",
+	".webp":        "image/webp",
+	".ico":         "image/x-icon",
+	".woff":        "font/woff",
+	".woff2":       "font/woff2",
+	".txt":         "text/plain; charset=utf-8",
+	".webmanifest": "application/manifest+json",
 }
 
 // openRegular opens name inside root and accepts only regular files. A

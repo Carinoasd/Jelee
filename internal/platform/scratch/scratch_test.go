@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"testing"
@@ -63,7 +64,8 @@ func TestNameRoundTripAndPrivateDirectory(t *testing.T) {
 		t.Fatal(err)
 	}
 	info, err := os.Lstat(dir)
-	if err != nil || !info.IsDir() || info.Mode().Perm() != 0700 {
+	// POSIX mode bits only; Windows privacy rests on the parent's ACL.
+	if err != nil || !info.IsDir() || runtime.GOOS != "windows" && info.Mode().Perm() != 0700 {
 		t.Fatalf("directory is not private: %v", err)
 	}
 	if _, err := MkdirOwned(t.TempDir(), ImageStage); !errors.Is(err, ErrInvalid) {

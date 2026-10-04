@@ -7,7 +7,9 @@ import (
 	"testing"
 	"time"
 
+	"encoding/json"
 	"github.com/MoYuanCN/Jelee/internal/platform/logging"
+	"runtime"
 )
 
 func TestLoggingDefaults(t *testing.T) {
@@ -34,9 +36,9 @@ func TestLoggingDefaults(t *testing.T) {
 func TestLoggingFileAndEnvironmentOverrides(t *testing.T) {
 	values := map[string]string{
 		"JELEE_DATABASE_URL": "postgres://localhost/jelee",
-		"JELEE_CONFIG":       accountConfigFile(t, `{"logging":{"level":"warn","format":"console","components":{"scan":"debug","ignore":"info"},"file":{"maxBackups":3},"pathMode":"relative","pathRoots":["/srv/media"]}}`),
+		"JELEE_CONFIG":       accountConfigFile(t, `{"logging":{"level":"warn","format":"console","components":{"scan":"debug","ignore":"info"},"file":{"maxBackups":3},"pathMode":"relative","pathRoots":[`+jsonString(testAbsPath("/srv/media"))+`]}}`),
 		"JELEE_LOG_OUTPUT":   "both",
-		"JELEE_LOG_FILE":     "/var/log/jelee/jelee.log",
+		"JELEE_LOG_FILE":     testAbsPath("/var/log/jelee/jelee.log"),
 		"JELEE_LOG_IP_MODE":  "mask",
 		"JELEE_LOG_COMPRESS": "false",
 	}
@@ -48,7 +50,7 @@ func TestLoggingFileAndEnvironmentOverrides(t *testing.T) {
 	if opts.Level != slog.LevelWarn || opts.Format != logging.FormatConsole || opts.Output != logging.OutputBoth || opts.IPMode != logging.IPMask || opts.PathMode != logging.PathRelative || len(opts.PathRoots) != 1 {
 		t.Fatalf("overrides: %+v", opts)
 	}
-	if opts.File.Path != "/var/log/jelee/jelee.log" || opts.File.MaxBackups != 3 || opts.File.Compress || opts.File.MaxBytes != 100<<20 {
+	if opts.File.Path != testAbsPath("/var/log/jelee/jelee.log") || opts.File.MaxBackups != 3 || opts.File.Compress || opts.File.MaxBytes != 100<<20 {
 		t.Fatalf("file overrides: %+v", opts.File)
 	}
 	if opts.Components["scan"] != slog.LevelDebug || opts.Components["ignore"] != slog.LevelInfo {
@@ -114,4 +116,18 @@ func TestLoggingRejectsInvalidSettingsWithoutEchoingValues(t *testing.T) {
 			}
 		})
 	}
+}
+
+// testAbsPath turns a slash path into an absolute path on the running OS:
+// Windows needs a volume, so the tests use C: there.
+func testAbsPath(p string) string {
+	if runtime.GOOS == "windows" {
+		return `C:` + filepath.FromSlash(p)
+	}
+	return p
+}
+
+func jsonString(s string) string {
+	b, _ := json.Marshal(s)
+	return string(b)
 }

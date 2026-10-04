@@ -3,6 +3,7 @@ package httpapi
 import (
 	"io"
 	"log/slog"
+	"mime"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -12,6 +13,7 @@ import (
 
 	"github.com/MoYuanCN/Jelee/internal/app"
 	"github.com/MoYuanCN/Jelee/internal/platform/config"
+	"runtime"
 )
 
 const (
@@ -190,8 +192,8 @@ func TestWebDirConfiguration(t *testing.T) {
 	if err != nil || cfg.WebDir != "" {
 		t.Fatalf("default web dir: %q %v", cfg.WebDir, err)
 	}
-	cfg, err = config.LoadWith(lookup(map[string]string{"JELEE_WEB_DIR": "/srv/jelee/web/dist"}))
-	if err != nil || cfg.WebDir != "/srv/jelee/web/dist" {
+	cfg, err = config.LoadWith(lookup(map[string]string{"JELEE_WEB_DIR": testAbsPath("/srv/jelee/web/dist")}))
+	if err != nil || cfg.WebDir != testAbsPath("/srv/jelee/web/dist") {
 		t.Fatalf("absolute web dir: %q %v", cfg.WebDir, err)
 	}
 	for _, bad := range []string{"web/dist", "./dist", "/srv/../etc", "/srv/web/", "/srv/a\x00b"} {
@@ -217,4 +219,27 @@ func TestFrontendNameAndHashedAssets(t *testing.T) {
 			t.Errorf("%s hashed=%v", name, !hashed)
 		}
 	}
+}
+
+// The Windows registry maps .js to application/javascript; frontend assets
+// must not depend on the platform MIME table. Simulate that table here.
+func TestWebAppTypesIgnorePlatformMIMETable(t *testing.T) {
+	previous := mime.TypeByExtension(".js")
+	if err := mime.AddExtensionType(".js", "application/javascript"); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = mime.AddExtensionType(".js", previous) })
+	w := webGet(webHandler(t, webFixture(t)), "GET", "/assets/index-B3x_9kQd.js")
+	if w.Code != 200 || w.Header().Get("Content-Type") != "text/javascript; charset=utf-8" {
+		t.Fatalf("%d %q", w.Code, w.Header().Get("Content-Type"))
+	}
+}
+
+// testAbsPath turns a slash path into an absolute path on the running OS:
+// Windows needs a volume, so the tests use C: there.
+func testAbsPath(p string) string {
+	if runtime.GOOS == "windows" {
+		return `C:` + filepath.FromSlash(p)
+	}
+	return p
 }

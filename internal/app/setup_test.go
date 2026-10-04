@@ -13,6 +13,8 @@ import (
 	"time"
 
 	"github.com/MoYuanCN/Jelee/internal/domain"
+	"path/filepath"
+	"runtime"
 )
 
 const setupTestPassword = "correct horse battery"
@@ -120,7 +122,7 @@ type setupFakeEnvironment struct {
 func newSetupFakeEnvironment() *setupFakeEnvironment {
 	return &setupFakeEnvironment{
 		db:      SetupDatabaseStatus{ServerVersion: 170000, MinServerVersion: 150000, SchemaVersion: 4, RequiredSchema: 4, Clean: true},
-		dirs:    map[string]SetupDirectoryStatus{"/media/movies": {true, true, true}, "/media/shows": {true, true, true}},
+		dirs:    map[string]SetupDirectoryStatus{testAbsPath("/media/movies"): {true, true, true}, testAbsPath("/media/shows"): {true, true, true}},
 		busy:    map[string]bool{},
 		tools:   SetupToolReport{Available: []string{"ffprobe", "mkvmerge", "mediainfo"}},
 		tmdbKey: true,
@@ -178,7 +180,7 @@ func setupTestPlan() SetupPlan {
 	return SetupPlan{
 		Locale:         "zh-CN",
 		Admin:          SetupAdminInput{Name: "admin", DisplayName: "管理员"},
-		Media:          []domain.SetupLibrary{{Name: "Movies", Path: "/media/movies"}, {Name: "Shows", Path: "/media/shows"}},
+		Media:          []domain.SetupLibrary{{Name: "Movies", Path: testAbsPath("/media/movies")}, {Name: "Shows", Path: testAbsPath("/media/shows")}},
 		TMDB:           domain.SetupTMDB{Enabled: true, Language: "zh-CN"},
 		MetadataPolicy: domain.SetupMetadataPolicy{NFORead: domain.NFOModeReadOnly, NFOWrite: domain.SetupNFOWriteOff, ImageFetch: true},
 		Network:        domain.SetupNetwork{Mode: domain.SetupNetworkLocal, Listen: "127.0.0.1:8097", AllowedHosts: []string{"localhost"}},
@@ -404,10 +406,10 @@ func TestSetupStaticValidation(t *testing.T) {
 		{"password simple", ValidateSetupPassword("admin", "aaaaaaaaaaab"), "password_too_simple"},
 		{"password name", ValidateSetupPassword("operator", "my-OPERATOR-pass"), "password_contains_name"},
 		{"media relative", ValidateSetupMedia([]domain.SetupLibrary{{Name: "A", Path: "media/a"}}), "media_path_not_absolute"},
-		{"media unclean", ValidateSetupMedia([]domain.SetupLibrary{{Name: "A", Path: "/media/a/../b"}}), "media_path_not_absolute"},
-		{"media dup name", ValidateSetupMedia([]domain.SetupLibrary{{Name: "A", Path: "/a"}, {Name: "a", Path: "/b"}}), "media_name_duplicate"},
-		{"media dup path", ValidateSetupMedia([]domain.SetupLibrary{{Name: "A", Path: "/a"}, {Name: "B", Path: "/a"}}), "media_path_duplicate"},
-		{"media nested", ValidateSetupMedia([]domain.SetupLibrary{{Name: "A", Path: "/media/a"}, {Name: "B", Path: "/media"}}), "media_path_nested"},
+		{"media unclean", ValidateSetupMedia([]domain.SetupLibrary{{Name: "A", Path: testAbsPath("/media/a/../b")}}), "media_path_not_absolute"},
+		{"media dup name", ValidateSetupMedia([]domain.SetupLibrary{{Name: "A", Path: testAbsPath("/a")}, {Name: "a", Path: testAbsPath("/b")}}), "media_name_duplicate"},
+		{"media dup path", ValidateSetupMedia([]domain.SetupLibrary{{Name: "A", Path: testAbsPath("/a")}, {Name: "B", Path: testAbsPath("/a")}}), "media_path_duplicate"},
+		{"media nested", ValidateSetupMedia([]domain.SetupLibrary{{Name: "A", Path: testAbsPath("/media/a")}, {Name: "B", Path: testAbsPath("/media")}}), "media_path_nested"},
 		{"media too many", ValidateSetupMedia(make([]domain.SetupLibrary, 65)), "media_too_many"},
 		{"tmdb language", ValidateSetupTMDB(domain.SetupTMDB{Enabled: true, Language: "de-DE"}), "tmdb_language_invalid"},
 		{"tmdb disabled language", ValidateSetupTMDB(domain.SetupTMDB{Language: "zh-CN"}), "tmdb_language_invalid"},
@@ -456,7 +458,7 @@ func TestSetupStaticValidation(t *testing.T) {
 			t.Errorf("valid network %+v rejected: %+v", network, issues)
 		}
 	}
-	if issues := ValidateSetupMedia([]domain.SetupLibrary{{Name: "A", Path: "/media/a"}, {Name: "B", Path: "/media/ab"}}); len(issues) != 0 {
+	if issues := ValidateSetupMedia([]domain.SetupLibrary{{Name: "A", Path: testAbsPath("/media/a")}, {Name: "B", Path: testAbsPath("/media/ab")}}); len(issues) != 0 {
 		t.Fatalf("sibling prefix paths treated as nested: %+v", issues)
 	}
 }
@@ -512,7 +514,7 @@ func TestSetupLiveChecks(t *testing.T) {
 		} {
 			f := newSetupFixture(t)
 			advanceTo(t, f, domain.SetupStepMedia)
-			f.env.dirs["/media/shows"] = status
+			f.env.dirs[testAbsPath("/media/shows")] = status
 			_, err := f.setup.SubmitMedia(ctx, plan.Media)
 			wantSetupIssue(t, err, code)
 		}
@@ -554,10 +556,10 @@ func TestSetupLiveChecks(t *testing.T) {
 	t.Run("finish rechecks and rolls back", func(t *testing.T) {
 		f := newSetupFixture(t)
 		advanceTo(t, f, domain.SetupStepComplete)
-		f.env.dirs["/media/movies"] = SetupDirectoryStatus{Exists: true, Directory: true}
+		f.env.dirs[testAbsPath("/media/movies")] = SetupDirectoryStatus{Exists: true, Directory: true}
 		_, err := f.setup.Finish(ctx)
 		wantSetupIssue(t, err, "media_directory_unreadable")
-		f.env.dirs["/media/movies"] = SetupDirectoryStatus{true, true, true}
+		f.env.dirs[testAbsPath("/media/movies")] = SetupDirectoryStatus{true, true, true}
 		f.repo.failFinish = domain.ErrDatabase
 		if _, err := f.setup.Finish(ctx); !errors.Is(err, domain.ErrDatabase) {
 			t.Fatalf("finish failure: %v", err)
@@ -606,4 +608,13 @@ func TestNewSetupRequiresDependencies(t *testing.T) {
 	if _, err := NewSetup(nil, newSetupFakeEnvironment(), &setupCountingHasher{}, time.Now); !errors.Is(err, domain.ErrInvalid) {
 		t.Fatal("nil repository accepted")
 	}
+}
+
+// testAbsPath turns a slash path into an absolute path on the running OS:
+// Windows needs a volume, so the tests use C: there.
+func testAbsPath(p string) string {
+	if runtime.GOOS == "windows" {
+		return `C:` + filepath.FromSlash(p)
+	}
+	return p
 }

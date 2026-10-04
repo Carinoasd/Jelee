@@ -14,6 +14,8 @@ import (
 	"github.com/MoYuanCN/Jelee/internal/app"
 	"github.com/MoYuanCN/Jelee/internal/domain"
 	"github.com/MoYuanCN/Jelee/internal/platform/password"
+	"path/filepath"
+	"runtime"
 )
 
 const setupCLIPassword = "correct horse battery"
@@ -73,7 +75,7 @@ func TestParseSetupCLIDefaultsAndRepeatables(t *testing.T) {
 	}
 	plan, err = parseSetupCLI(setupBaseArgs(
 		"--locale", "ja-JP", "--admin-display-name", "管理者",
-		"--library", "Movies=/srv/media/movies", "--library", "Odd=/srv/a=b",
+		"--library", "Movies="+testAbsPath("/srv/media/movies"), "--library", "Odd="+testAbsPath("/srv/a=b"),
 		"--tmdb", "--accept-degraded-tools", "--nfo-write", "write-back", "--image-fetch", "--image-write-back",
 		"--network-mode", "reverse-proxy", "--listen", "0.0.0.0:8097",
 		"--allowed-host", "media.example", "--allowed-host", "localhost",
@@ -81,7 +83,7 @@ func TestParseSetupCLIDefaultsAndRepeatables(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := []domain.SetupLibrary{{Name: "Movies", Path: "/srv/media/movies"}, {Name: "Odd", Path: "/srv/a=b"}}
+	want := []domain.SetupLibrary{{Name: "Movies", Path: testAbsPath("/srv/media/movies")}, {Name: "Odd", Path: testAbsPath("/srv/a=b")}}
 	if !slices.Equal(plan.Media, want) || plan.TMDB != (domain.SetupTMDB{Enabled: true, Language: "ja-JP"}) || !plan.AcceptDegradedTools ||
 		plan.MetadataPolicy != (domain.SetupMetadataPolicy{NFORead: "read-only", NFOWrite: "write-back", ImageFetch: true, ImageWriteBack: true}) ||
 		!slices.Equal(plan.Network.AllowedHosts, []string{"media.example", "localhost"}) || !slices.Equal(plan.Network.TrustedProxies, []string{"172.18.0.0/16"}) ||
@@ -99,7 +101,7 @@ func TestParseSetupCLIUsageErrors(t *testing.T) {
 		"no password-stdin":  {"--non-interactive", "--admin-name", "admin"},
 		"password flag":      setupBaseArgs("--password", "x"),
 		"positional":         setupBaseArgs("extra"),
-		"library no equals":  setupBaseArgs("--library", "/srv/media"),
+		"library no equals":  setupBaseArgs("--library", testAbsPath("/srv/media")),
 		"unknown flag":       setupBaseArgs("--admin-password", "x"),
 	} {
 		if _, err := parseSetupCLI(argv); !errors.Is(err, errSetupUsage) {
@@ -107,7 +109,7 @@ func TestParseSetupCLIUsageErrors(t *testing.T) {
 		}
 		runner := &setupRunnerStub{}
 		code, _, stderr, opened, stdin := runSetupForTest(t, context.Background(), argv, setupCLIPassword, runner)
-		if code != 2 || !strings.HasPrefix(stderr, "usage: jelee-cli setup") || opened != 0 || stdin.reads != 0 || strings.Contains(stderr, "/srv") {
+		if code != 2 || !strings.HasPrefix(stderr, "usage: jelee-cli setup") || opened != 0 || stdin.reads != 0 || strings.Contains(stderr, "srv") {
 			t.Errorf("%s: code=%d opened=%d reads=%d stderr=%q", name, code, opened, stdin.reads, stderr)
 		}
 	}
@@ -147,8 +149,8 @@ func TestSetupCLIPasswordFromStdin(t *testing.T) {
 		}
 	}
 	runner := &setupRunnerStub{state: domain.SetupState{Version: 9, Current: domain.SetupStepComplete}}
-	code, stdout, stderr, opened, _ := runSetupForTest(t, context.Background(), setupBaseArgs("--library", "Movies=/srv/movies"), setupCLIPassword+"\r\n", runner)
-	if code != 0 || opened != 1 || runner.calls != 1 || runner.password != setupCLIPassword || runner.plan.Admin.Name != "admin" || runner.plan.Media[0].Path != "/srv/movies" || stderr != "" {
+	code, stdout, stderr, opened, _ := runSetupForTest(t, context.Background(), setupBaseArgs("--library", "Movies="+testAbsPath("/srv/movies")), setupCLIPassword+"\r\n", runner)
+	if code != 0 || opened != 1 || runner.calls != 1 || runner.password != setupCLIPassword || runner.plan.Admin.Name != "admin" || runner.plan.Media[0].Path != testAbsPath("/srv/movies") || stderr != "" {
 		t.Fatalf("success: code=%d opened=%d calls=%d stderr=%q", code, opened, runner.calls, stderr)
 	}
 	var out domain.SetupState
@@ -200,4 +202,13 @@ func TestSetupPasswordBoundsMatchPasswordPackage(t *testing.T) {
 	if app.SetupMinPasswordBytes != password.MinPasswordBytes || app.SetupMaxPasswordBytes != password.MaxPasswordBytes {
 		t.Fatal("setup password bounds drifted from platform/password")
 	}
+}
+
+// testAbsPath turns a slash path into an absolute path on the running OS:
+// Windows needs a volume, so the tests use C: there.
+func testAbsPath(p string) string {
+	if runtime.GOOS == "windows" {
+		return `C:` + filepath.FromSlash(p)
+	}
+	return p
 }
