@@ -17,7 +17,7 @@ BENCHGATE_FLAGS ?=
 NPM := $(CURDIR)/.bin/npm
 WEB := --workspace @jelee/web
 
-.PHONY: image-memory-test image-memory-smoke-test scan-memory-test scan-memory-smoke-test runtime-memory-test runtime-memory-worker-test memory-contract-test i18n-check family-ignore-sustained-worker-test ignore-sustained-test init bootstrap bootstrap-media bootstrap-runtime runtime-tools-verify runtime-toolchain-test probe-runtime-test probe-worker-test nfo-worker-test family-ignore-worker-test ignore-oracle-test sandbox-test tools-verify media-tools-verify tools-clean fixtures fixtures-test build test test-race test-integration coverage fmt fmt-check lint toolchain-test media-toolchain-test brand-scan brand-scan-incremental gitignore-check openapi openapi-check migrate doctor bench bench-check benchgate-test doc-check dev nfo diag web-install web-build web-test web-lint web-types
+.PHONY: image-memory-test image-memory-smoke-test scan-memory-test scan-memory-smoke-test runtime-memory-test runtime-memory-worker-test memory-contract-test i18n-check family-ignore-sustained-worker-test ignore-sustained-test init bootstrap bootstrap-media bootstrap-runtime runtime-tools-verify runtime-toolchain-test probe-runtime-test probe-worker-test nfo-worker-test family-ignore-worker-test ignore-oracle-test sandbox-test tools-verify media-tools-verify tools-clean fixtures fixtures-test build test test-race test-integration coverage fmt fmt-check lint toolchain-test media-toolchain-test brand-scan brand-scan-incremental gitignore-check openapi openapi-check migrate doctor bench bench-check benchgate-test doc-check dev nfo diag web-install web-build web-test web-lint web-types test-race-nonpostgres test-race-postgres-shard go-test-shard-test
 init: bootstrap
 bootstrap:
 	sh scripts/bootstrap-tools
@@ -83,6 +83,16 @@ ignore-sustained-test:
 	$(PYTHON) scripts/test_ignore_sustained.py
 test-race:
 	"$(GO)" test -race -count=1 -timeout=45m ./...
+# CI splits the PostgreSQL repository package across jobs: it no longer fits a
+# single 45-minute race run against a real database. SHARD is I/N.
+POSTGRES_PKG := ./internal/adapter/postgres
+test-race-nonpostgres:
+	"$(GO)" test -race -count=1 -timeout=45m $$("$(GO)" list ./... | grep -v '/internal/adapter/postgres$$')
+test-race-postgres-shard:
+	@test -n "$(SHARD)" || { echo 'SHARD must be I/N, for example SHARD=1/4' >&2; exit 2; }
+	$(PYTHON) -B scripts/go_test_shard.py --go "$(GO)" --package $(POSTGRES_PKG) --shard $(SHARD) -- -race -count=1 -timeout=45m
+go-test-shard-test:
+	$(PYTHON) -B scripts/test_go_test_shard.py
 test-integration:
 	@test -n "$$JELEE_TEST_DATABASE_URL" || { echo 'JELEE_TEST_DATABASE_URL must name an isolated test database' >&2; exit 1; }
 	"$(GO)" test ./internal/adapter/postgres -run Integration -v -count=1

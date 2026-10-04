@@ -100,6 +100,39 @@ jobs:
           set -o pipefail
           { echo '```'; make --no-print-directory brand-scan; echo '```'; } | tee -a "$GITHUB_STEP_SUMMARY"
 
+  postgres-race:
+    name: PostgreSQL repository race (shard ${{ matrix.shard }}/4)
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres@sha256:cf78e76683b9ca8c5733cbbdce6c9262b45b6767934dd0a95e671f9a0fc20685
+        env:
+          POSTGRES_USER: jelee
+          POSTGRES_PASSWORD: ci-only
+          POSTGRES_DB: jelee_test
+        ports:
+          - 127.0.0.1:5432:5432
+        options: >-
+          --health-cmd "pg_isready -U jelee -d jelee_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      JELEE_TEST_DATABASE_URL: postgres://jelee:ci-only@localhost:5432/jelee_test?sslmode=disable
+      JELEE_REQUIRE_INTEGRATION: 'true'
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+        with:
+          path: .tools
+          key: jelee-${{ runner.os }}-${{ runner.arch }}-go1.27.1-${{ hashFiles('tools/manifest.json', 'go.sum') }}
+      - run: make bootstrap tools-verify
+      - run: make test-race-postgres-shard SHARD=${{ matrix.shard }}/4
+
   postgres-integration:
     name: PostgreSQL migration and repository integration
     runs-on: ubuntu-latest
@@ -126,7 +159,7 @@ jobs:
         with:
           path: .tools
           key: jelee-${{ runner.os }}-${{ runner.arch }}-go1.27.1-${{ hashFiles('tools/manifest.json', 'go.sum') }}
-      - run: make bootstrap tools-verify test-integration test-race
+      - run: make bootstrap tools-verify go-test-shard-test test-integration test-race-nonpostgres
       - name: Native family ignore storage acceptance
         run: .bin/go test -count=1 -timeout=90s -run '^TestFamily(IgnoreNativeStorage|RunnerNative.*)$' ./internal/adapter/postgres
       - name: Native family ignore production runtime acceptance
