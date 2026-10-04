@@ -83,6 +83,8 @@ var auditEvents = map[string]string{
 	"login.failed":                         domain.AuditCategorySecurity,
 	"login.native_denied":                  domain.AuditCategorySecurity,
 	"media.registered":                     domain.AuditCategoryAudit,
+	"metadata.exported":                    domain.AuditCategorySecurity,
+	"metadata.imported":                    domain.AuditCategorySecurity,
 	"media.sidecars_changed":               domain.AuditCategoryAudit,
 	"nfo.policy_changed":                   domain.AuditCategoryAudit,
 	"nfo.write_prepared":                   domain.AuditCategoryAudit,

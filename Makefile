@@ -17,7 +17,7 @@ BENCHGATE_FLAGS ?=
 NPM := $(CURDIR)/.bin/npm
 WEB := --workspace @jelee/web
 
-.PHONY: image-memory-test image-memory-smoke-test scan-memory-test scan-memory-smoke-test runtime-memory-test runtime-memory-worker-test memory-contract-test i18n-check family-ignore-sustained-worker-test ignore-sustained-test init bootstrap bootstrap-media bootstrap-runtime runtime-tools-verify runtime-toolchain-test probe-runtime-test probe-worker-test nfo-worker-test family-ignore-worker-test ignore-oracle-test sandbox-test tools-verify media-tools-verify tools-clean fixtures fixtures-test build test test-race test-integration coverage fmt fmt-check lint toolchain-test media-toolchain-test brand-scan brand-scan-incremental gitignore-check openapi openapi-check migrate doctor bench bench-check benchgate-test doc-check dev nfo diag web-install web-build web-test web-lint web-types test-race-nonpostgres test-race-postgres-shard go-test-shard-test
+.PHONY: backup-drill backup-scale image-memory-test image-memory-smoke-test scan-memory-test scan-memory-smoke-test runtime-memory-test runtime-memory-worker-test memory-contract-test i18n-check family-ignore-sustained-worker-test ignore-sustained-test init bootstrap bootstrap-media bootstrap-runtime runtime-tools-verify runtime-toolchain-test probe-runtime-test probe-worker-test nfo-worker-test family-ignore-worker-test ignore-oracle-test sandbox-test tools-verify media-tools-verify tools-clean fixtures fixtures-test build test test-race test-integration coverage fmt fmt-check lint toolchain-test media-toolchain-test brand-scan brand-scan-incremental gitignore-check openapi openapi-check migrate doctor bench bench-check benchgate-test doc-check dev nfo diag web-install web-build web-test web-lint web-types test-race-nonpostgres test-race-postgres-shard go-test-shard-test
 init: bootstrap
 bootstrap:
 	sh scripts/bootstrap-tools
@@ -132,6 +132,24 @@ openapi-check:
 	"$(GO)" test -count=1 -run OpenAPI ./tools/openapi ./internal/adapter/http
 migrate:
 	"$(GO)" run ./cmd/jelee-migrate up
+# G36.4 backup drill against the dedicated jelee_test database: export,
+# restore into a fresh schema, compare every record, import again, plus the
+# refusal, mapping and CLI cases. BACKUP_DRILL_REPORT receives a run record
+# without connection details (docs/backup-restore.md).
+BACKUP_DRILL_REPORT ?= .testdata/backup-drill.txt
+backup-drill:
+	@test -n "$$JELEE_TEST_DATABASE_URL" || { echo 'JELEE_TEST_DATABASE_URL must name an isolated jelee_test database' >&2; exit 1; }
+	mkdir -p "$(dir $(BACKUP_DRILL_REPORT))"
+	JELEE_REQUIRE_INTEGRATION=true JELEE_BACKUP_DRILL_REPORT="$(abspath $(BACKUP_DRILL_REPORT))" "$(GO)" test -p 1 -parallel 2 -count=1 -v -timeout 30m \
+		-run '^TestMetadataBackup(DrillPostgres|PasswordHashesOptInPostgres|MapsExistingCatalogPostgres|ConflictPreflightPostgres|RejectsDamagedFilesPostgres)$$' ./internal/adapter/postgres
+	JELEE_REQUIRE_INTEGRATION=true "$(GO)" test -p 1 -parallel 2 -count=1 -run '^TestMetadataCLI' ./cmd/jelee-cli
+	"$(GO)" test -count=1 -run '^TestMetadataBackup' ./internal/domain
+	@echo "backup drill record: $(BACKUP_DRILL_REPORT)"
+# 100,000-item export and import with the heap bound (G36.4 scale check).
+backup-scale:
+	@test -n "$$JELEE_TEST_DATABASE_URL" || { echo 'JELEE_TEST_DATABASE_URL must name an isolated jelee_test database' >&2; exit 1; }
+	JELEE_REQUIRE_INTEGRATION=true JELEE_BACKUP_SCALE_ITEMS=100000 "$(GO)" test -p 1 -parallel 2 -count=1 -v -timeout 60m \
+		-run '^TestMetadataBackupLargeCatalogMemoryPostgres$$' ./internal/adapter/postgres
 doctor:
 	"$(GO)" run ./cmd/jelee-cli doctor
 # Offline documentation gate (G49.8): relative links and anchors in README.md

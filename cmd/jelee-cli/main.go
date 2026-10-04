@@ -23,7 +23,7 @@ func run() int {
 		return proberuntime.Helper(os.Args[2:])
 	}
 	if len(os.Args) < 2 {
-		fmt.Fprintln(os.Stderr, "usage: jelee-cli doctor|diag|provision|import-video|import-directory|import-inventory|nfo|account|access|devmode|library|jobs")
+		fmt.Fprintln(os.Stderr, "usage: jelee-cli doctor|diag|provision|import-video|import-directory|import-inventory|nfo|account|access|devmode|library|jobs|metadata")
 		return 2
 	}
 	command := os.Args[1]
@@ -92,6 +92,13 @@ func run() int {
 		ctx, cancel := context.WithTimeout(ctx, 15*time.Second)
 		defer cancel()
 		return runDevmodeCLI(ctx, os.Args[2:], os.Stdout, os.Stderr)
+	}
+	if command == "metadata" {
+		// The command applies its own --timeout; exports and imports of large
+		// catalogs take minutes.
+		ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
+		defer stop()
+		return runMetadataCLI(ctx, os.Args[2:], os.Stdin, os.Stdout, os.Stderr)
 	}
 	if command == "nfo" {
 		ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)

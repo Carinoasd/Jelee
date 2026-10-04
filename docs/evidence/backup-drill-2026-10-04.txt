@@ -1,0 +1,100 @@
+Jelee metadata backup drill (G36.4)
+date: 2026-10-04T06:58:10Z
+go: go1.27.1 linux/amd64; schema: 71; format: jelee.metadata v1
+database: dedicated jelee_test database, two freshly migrated owned schemas (connection details omitted)
+seed: fixture rows of every record kind + 2000 generated episodes with files, scan state, progress and manual titles
+
+[1] export (password hashes included): 16076 records, 4611368 bytes, 76ms, sha256 972199933058f8ec93d434de47295a94fcab1fb1aea039669d96f130766bd9e5
+    access_policy                 1
+    catalog_scan_item          2001
+    catalog_scan_source        2001
+    client_control_policy         1
+    client_rule                   2
+    item                       2004
+    item_directory_source         2
+    item_image                    1
+    item_metadata_fact            1
+    item_metadata_field        2004
+    item_metadata_state        2002
+    item_nfo_field_lock           1
+    item_parent_link           2002
+    library                       2
+    library_acl                   1
+    library_root                  2
+    media_source               2002
+    parental_rating              37
+    scan_schedule                 1
+    user                          3
+    user_blocked_tag              1
+    user_item_access_rule         1
+    user_item_data             2002
+    webhook                       1
+
+[2] dry run into the empty schema: would insert 16038 rows; rolled back, target still empty
+
+[3] import into the empty schema: inserted 16038, updated 2, unchanged 36, skipped 0, 5.752s
+
+[4] re-export of the restored schema compared record by record:
+    library                       2  identical
+    library_root                  2  identical
+    user                          3  identical
+    library_acl                   1  identical
+    item                       2004  identical
+    media_source               2002  identical
+    item_directory_source         2  identical
+    item_parent_link           2002  identical
+    catalog_scan_item          2001  identical
+    catalog_scan_source        2001  identical
+    item_metadata_state        2002  identical
+    item_metadata_field        2004  identical
+    item_metadata_fact            1  identical
+    item_nfo_field_lock           1  identical
+    item_image                    1  identical
+    user_item_data             2002  identical
+    access_policy                 1  identical
+    parental_rating              37  identical
+    user_item_access_rule         1  identical
+    user_blocked_tag              1  identical
+    client_control_policy         1  identical
+    client_rule                   2  identical
+    webhook                       1  identical
+    scan_schedule                 1  identical
+
+[5] second import of the same file: inserted 0, updated 0, unchanged 16076, skipped 0
+
+[6] restored server checks:
+    sessions not restored                0 (want 0)
+    setup marked complete (adopted)      1 (want 1)
+    admin password hash restored         1 (want 1)
+    watch state for watched schedule     1 (want 1)
+    client rule hit counters restart     2 (want 2)
+    metadata.imported audit rows         2 (want 2)
+
+RESULT: PASS
+
+----------------------------------------------------------------------
+Same run (make backup-drill, 2026-10-04): the other drill cases
+
+  TestMetadataBackupPasswordHashesOptInPostgres   PASS  no password hash without --include-password-hashes; imported accounts have no password; a later file with hashes fills in missing passwords, never replaces one
+  TestMetadataBackupMapsExistingCatalogPostgres   PASS  target that already scanned the same root: library by name, user by case-insensitive name, item by media file; progress lands on the target IDs; NFO lock with foreign provenance skipped (nfo_origin_not_portable); second import no-op
+  TestMetadataBackupConflictPreflightPostgres     PASS  root under another library + user name taken: refused with metadata_backup_conflict, target row counts and audit unchanged; --skip-conflicts imports the rest and reports each skip
+  TestMetadataBackupRejectsDamagedFilesPostgres   PASS  checksum mismatch -> corrupt; trailer removed / cut mid-line -> truncated; data after trailer -> corrupt; newer schema -> unsupported; nothing written
+  TestMetadataCLI* (cmd/jelee-cli)                PASS  file 0600, no overwrite, no partial file on failure, stable error codes without connection details, CLI export -> import -> import again against two real schemas
+  TestMetadataBackup* (internal/domain)           PASS  writer/reader framing, order, size limit, damage cases without a database
+
+----------------------------------------------------------------------
+Scale run (make backup-scale, JELEE_BACKUP_SCALE_ITEMS=100000, 2026-10-04)
+
+  export: 800076 records, 231035536 bytes, Go heap peak +2608 KiB over baseline, 2.581s
+  import into a fresh schema: inserted 800038 (the other 38 rows already existed from migrations: 36 seeded parental ratings unchanged, 2 single-row policies updated), skipped 0, Go heap peak +2590 KiB, 4m44.562s
+  heap limit asserted: 16 MiB (document is about 14x the limit)
+  import cost is dominated by per-row catalog triggers on items, media_sources and item_metadata_state (about 2.8 ms per new item)
+
+----------------------------------------------------------------------
+Reverse verification (each change reverted after the run)
+
+  reader without the SHA-256 comparison      -> domain test "flipped byte" FAILS (err <nil>)
+  metadata field upsert without change filter -> drill step [5] FAILS (second import was not a no-op)
+  import that never aborts on conflicts       -> preflight test FAILS (conflicting import committed)
+
+Not covered here (owner, production): see docs/backup-restore.md, section 備份演練.
