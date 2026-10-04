@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "goos": "linux",
-  "total": 2050,
+  "total": 2048,
   "entries": [
     {
       "linter": "errcheck",
@@ -13045,13 +13045,6 @@
       "count": 1
     },
     {
-      "linter": "gosec",
-      "file": "internal/platform/sandbox/helper_linux_amd64.go",
-      "text": "G115: integer overflow conversion uintptr -\u003e int32",
-      "source": "0c2475e1a51d",
-      "count": 1
-    },
-    {
       "linter": "errcheck",
       "file": "internal/platform/sandbox/integration_linux_amd64_test.go",
       "text": "Error return value of `extra.Close` is not checked",
@@ -13609,13 +13602,6 @@
       "file": "tools/media.go",
       "text": "exported: exported type LicenseFile should have comment or be unexported",
       "source": "1da1d416ae43",
-      "count": 1
-    },
-    {
-      "linter": "revive",
-      "file": "tools/media.go",
-      "text": "package-comments: should have a package comment",
-      "source": "5f3e76994684",
       "count": 1
     },
     {

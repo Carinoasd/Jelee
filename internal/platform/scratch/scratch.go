@@ -46,6 +46,7 @@ var (
 	// Service-lifetime runner roots below os.TempDir().
 	ServiceProbe  = Kind{prefix: "jelee-service-probe-", dir: true}
 	ServiceIgnore = Kind{prefix: "jelee-service-ignore-", dir: true}
+	ServiceMKV    = Kind{prefix: "jelee-service-mkv-", dir: true}
 	// Startup/CLI health-check root below os.TempDir().
 	ProbeCheck = Kind{prefix: "jelee-probe-check-", dir: true}
 	// Staged local image copies below the configured image temp root.

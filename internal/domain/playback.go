@@ -84,6 +84,9 @@ type PlaybackSource struct {
 	Audio          []PlaybackAudioTrack    `json:"audioTracks"`
 	Subtitles      []PlaybackSubtitleTrack `json:"subtitleTracks"`
 	External       []PlaybackExternalTrack `json:"externalTracks"`
+	// Attachments are the Matroska attachments the MediaInfo supplement
+	// listed (G15.7); empty without the supplement.
+	Attachments []PlaybackAttachment `json:"attachments,omitempty"`
 	// Primary marks the administrator's main version; it is listed first.
 	Primary bool `json:"primary"`
 	// DefaultTracks is the audio and subtitle the user's preferences pick
@@ -129,6 +132,35 @@ type PlaybackSubtitleTrack struct {
 	Language string `json:"language,omitempty"`
 	Default  bool   `json:"default"`
 	Forced   bool   `json:"forced"`
+	// Title is the Matroska track name from the MediaInfo supplement.
+	Title string `json:"title,omitempty"`
+	// Extractable marks a text subtitle inside a Matroska/WebM source that
+	// mkvextract can copy to the rebuildable cache unconverted (G15.5).
+	Extractable bool `json:"extractable"`
+	// URL is set by the API layer when extraction is available.
+	URL string `json:"url,omitempty"`
+}
+
+// PlaybackAttachment is one Matroska attachment of a source. ID is the
+// 1-based attachment ID; StreamIndex is the probe stream index of the same
+// attachment when the probe listed exactly as many attachment streams.
+type PlaybackAttachment struct {
+	ID          int    `json:"id"`
+	StreamIndex *int   `json:"streamIndex,omitempty"`
+	FileName    string `json:"fileName"`
+	Font        bool   `json:"font"`
+	// URL is set by the API layer for fonts when extraction is available.
+	URL string `json:"url,omitempty"`
+}
+
+// ExtractableSubtitleCodecs are the embedded text subtitle codecs that are
+// extracted as they are (G15.5), keyed by probe codec, with the file
+// extension the extracted text keeps.
+var ExtractableSubtitleCodecs = map[string]string{"subrip": "srt", "ass": "ass", "ssa": "ssa", "webvtt": "vtt"}
+
+// IsMatroskaMetadata reports whether the probe identified Matroska or WebM.
+func IsMatroskaMetadata(meta MediaMetadata) bool {
+	return slices.Contains(meta.Format.Names, "matroska") || slices.Contains(meta.Format.Names, "webm")
 }
 
 // PlaybackExternalTrack is a sidecar file delivered as it is. Format is the
@@ -324,10 +356,13 @@ func BuildPlaybackSource(r PlaybackSourceRecord) PlaybackSource {
 				s.Audio = append(s.Audio, track)
 			case "subtitle":
 				codec := playbackText(stream.Codec)
+				_, text := ExtractableSubtitleCodecs[codec]
 				s.Subtitles = append(s.Subtitles, PlaybackSubtitleTrack{Index: stream.Index, Codec: codec, Format: playbackSubtitleCodecs[codec],
-					Language: playbackText(stream.Language), Default: playbackFlag(stream.Default), Forced: playbackFlag(stream.Forced)})
+					Language: playbackText(stream.Language), Default: playbackFlag(stream.Default), Forced: playbackFlag(stream.Forced),
+					Title: streamTitle(meta.Matroska, stream.Index), Extractable: text && IsMatroskaMetadata(meta)})
 			}
 		}
+		s.Attachments = playbackAttachments(meta)
 	}
 	for _, sidecar := range r.Sidecars {
 		t := sidecar.Track
@@ -341,6 +376,42 @@ func BuildPlaybackSource(r PlaybackSourceRecord) PlaybackSource {
 		s.External = append(s.External, track)
 	}
 	return s
+}
+
+func streamTitle(m *MediaMatroska, index int) string {
+	if m == nil {
+		return ""
+	}
+	for _, t := range m.StreamTitles {
+		if t.Index == index {
+			return t.Title
+		}
+	}
+	return ""
+}
+
+// playbackAttachments pairs the supplement's attachments with the probe's
+// attachment streams by position when both list the same number.
+func playbackAttachments(meta MediaMetadata) []PlaybackAttachment {
+	if meta.Matroska == nil || len(meta.Matroska.Attachments) == 0 {
+		return nil
+	}
+	var streams []int
+	for _, stream := range meta.Streams {
+		if stream.Kind == "attachment" {
+			streams = append(streams, stream.Index)
+		}
+	}
+	out := make([]PlaybackAttachment, 0, len(meta.Matroska.Attachments))
+	for i, a := range meta.Matroska.Attachments {
+		attachment := PlaybackAttachment{ID: a.ID, FileName: a.FileName, Font: a.Font}
+		if len(streams) == len(meta.Matroska.Attachments) {
+			index := streams[i]
+			attachment.StreamIndex = &index
+		}
+		out = append(out, attachment)
+	}
+	return out
 }
 
 // averageBitRate derives bits per second from size and duration when the

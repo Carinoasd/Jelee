@@ -48,13 +48,15 @@ type manifest struct {
 }
 
 type expected struct {
-	Width     int  `json:"width,omitempty"`
-	Height    int  `json:"height,omitempty"`
-	Video     int  `json:"videoStreams,omitempty"`
-	Audio     int  `json:"audioStreams,omitempty"`
-	Subtitles int  `json:"subtitleStreams,omitempty"`
-	Chapters  int  `json:"chapters,omitempty"`
-	Invalid   bool `json:"invalid,omitempty"`
+	Width     int `json:"width,omitempty"`
+	Height    int `json:"height,omitempty"`
+	Video     int `json:"videoStreams,omitempty"`
+	Audio     int `json:"audioStreams,omitempty"`
+	Subtitles int `json:"subtitleStreams,omitempty"`
+	Chapters  int `json:"chapters,omitempty"`
+	// Attachments counts Matroska attachments (font placeholder).
+	Attachments int  `json:"attachments,omitempty"`
+	Invalid     bool `json:"invalid,omitempty"`
 	// CoverSHA256 is the digest of the picture embedded as an attached_pic
 	// stream (G40.4); extraction must return exactly these bytes.
 	CoverSHA256 string `json:"coverSHA256,omitempty"`
@@ -244,6 +246,10 @@ func generate(ctx context.Context, project string) (output string, returnErr err
 		{"english.srt", "1\n00:00:00,000 --> 00:00:00,750\nJelee synthetic subtitle\n"},
 		{"chinese.srt", "1\n00:00:00,000 --> 00:00:00,750\nJelee 自建字幕\n"},
 		{"chapters.ffmetadata", ";FFMETADATA1\ntitle=Jelee synthetic test\n[CHAPTER]\nTIMEBASE=1/1000\nSTART=0\nEND=500\ntitle=Part one\n[CHAPTER]\nTIMEBASE=1/1000\nSTART=500\nEND=1000\ntitle=Part two\n"},
+		{"styled.ass", "[Script Info]\nTitle: Jelee synthetic styled subtitle\nScriptType: v4.00+\n\n[V4+ Styles]\nFormat: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding\nStyle: Default,Jelee Synthetic Sans,20,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,1,0,2,10,10,10,1\n\n[Events]\nFormat: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\nDialogue: 0,0:00:00.00,0:00:00.75,Default,,0,0,0,,Jelee 样式字幕\n"},
+		// Not a usable font: original placeholder bytes that are stored and
+		// extracted as a Matroska font attachment, never rendered.
+		{"JeleeSyntheticSans.ttf", "Jelee synthetic font attachment placeholder; original test bytes, not a font\n"},
 		{"corrupt.mkv", "Jelee deliberately invalid synthetic media\x00\x01"},
 		{"movie.nfo", "<?xml version=\"1.0\" encoding=\"UTF-8\"?><movie><title>Jelee 自建测试</title><year>2026</year><plot>Original generated fixture.</plot></movie>\n"},
 		{"invalid.nfo", "<movie><title>Jelee invalid fixture</movie>\n"},
@@ -301,6 +307,13 @@ func generate(ctx context.Context, project string) (output string, returnErr err
 		}
 		expectations[name] = expected{Width: 320, Height: 180, Video: 2, CoverSHA256: hash}
 	}
+	// Embedded text subtitles, a font attachment, chapters and track names
+	// for the optional mkvtoolnix/MediaInfo paths (E4, G15.5, G15.7, G19.1).
+	args = append(append([]string(nil), common...), "-f", "lavfi", "-i", "testsrc2=size=160x90:rate=24", "-i", filepath.Join(output, "english.srt"), "-i", filepath.Join(output, "styled.ass"), "-f", "ffmetadata", "-i", filepath.Join(output, "chapters.ffmetadata"), "-t", "1", "-map", "0:v", "-map", "1:s", "-map", "2:s", "-map_metadata", "3", "-map_chapters", "3", "-c:v", "libx264", "-threads", "1", "-preset", "ultrafast", "-pix_fmt", "yuv420p", "-c:s", "copy", "-attach", filepath.Join(output, "JeleeSyntheticSans.ttf"), "-metadata:s:t:0", "mimetype=font/ttf", "-metadata:s:s:0", "language=eng", "-metadata:s:s:0", "title=English SubRip", "-metadata:s:s:1", "language=zho", "-metadata:s:s:1", "title=Styled ASS", filepath.Join(output, "subtitles-fonts.mkv"))
+	if _, err := runTool(ctx, toolPath, temp, "generate-video", args); err != nil {
+		return "", err
+	}
+	expectations["subtitles-fonts.mkv"] = expected{Width: 160, Height: 90, Video: 1, Subtitles: 2, Chapters: 2, Attachments: 1}
 	audio := append(append([]string(nil), common...), "-f", "lavfi", "-i", "sine=frequency=440:sample_rate=48000", "-t", "1", "-c:a", "flac", filepath.Join(output, "audio.flac"))
 	if _, err := runTool(ctx, toolPath, temp, "generate-audio", audio); err != nil {
 		return "", err

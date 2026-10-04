@@ -46,6 +46,9 @@ func (rt *router) playbackRoutes() {
 		rt.handle(method, "/Videos/{itemId}/stream.{container}", true, rt.videoStream)
 		rt.handle(method, "/Videos/{itemId}/{mediaSourceId}/Subtitles/{index}/Stream.{format}", true, rt.subtitleStream)
 		rt.handle(method, "/Videos/{itemId}/{mediaSourceId}/Subtitles/{index}/{startPositionTicks}/Stream.{format}", true, rt.subtitleStream)
+		if rt.opts.Library.Extracted != nil {
+			rt.handle(method, "/Videos/{itemId}/{mediaSourceId}/Attachments/{index}", true, rt.attachmentStream)
+		}
 		// The catalog has no audio items, so every audio stream is a
 		// missing item.
 		rt.handle(method, "/Audio/{itemId}/stream", true, rt.audioStream)
@@ -541,11 +544,64 @@ func (rt *router) subtitleStream(w http.ResponseWriter, r *http.Request) {
 		rt.opts.Library.Delivery.ServeTrack(w, r, source.ID, media.TrackSubtitle, sub.track.ID)
 		return
 	}
-	if slices.ContainsFunc(source.Subtitles, func(s domain.PlaybackSubtitleTrack) bool { return s.Index == index }) {
+	for _, sub := range source.Subtitles {
+		if sub.Index != index {
+			continue
+		}
+		// An extractable embedded text track in its own format is the
+		// cached copy (G15.5); anything else would need a conversion.
+		if extension, ok := domain.ExtractableSubtitleCodecs[sub.Codec]; ok && sub.Extractable && rt.extractionAvailable() && sameSubtitleFormat(format, extension) {
+			rt.opts.Library.Delivery.ServeExtracted(w, r, rt.opts.Library.Extracted, source.ID, media.ExtractedSubtitle, index)
+			return
+		}
 		rt.opts.WriteRejection(w, r, media.ErrTranscodeDisabled)
 		return
 	}
 	writeError(w, rt.opts.Library.HiddenStatus)
+}
+
+// extractionAvailable reports whether embedded items can be delivered.
+func (rt *router) extractionAvailable() bool {
+	extracted := rt.opts.Library.Extracted
+	if extracted == nil || rt.opts.Library.Delivery == nil {
+		return false
+	}
+	if available, ok := extracted.(interface{ Available() bool }); ok {
+		return available.Available()
+	}
+	return true
+}
+
+// attachmentURL is the upstream form of an attachment URL.
+func attachmentURL(itemID, sourceID string, index int) string {
+	return fmt.Sprintf("/Videos/%s/%s/Attachments/%d", itemID, sourceID, index)
+}
+
+// attachmentStream serves GET and HEAD of a font attachment copied out of a
+// Matroska source as it is (G15.7). Index is the attachment's probe stream
+// index, as MediaAttachments lists it.
+func (rt *router) attachmentStream(w http.ResponseWriter, r *http.Request) {
+	itemID, err := ParseID(chi.URLParam(r, "itemId"))
+	if err != nil {
+		writeError(w, http.StatusBadRequest)
+		return
+	}
+	sourceID, err := ParseID(chi.URLParam(r, "mediaSourceId"))
+	if err != nil {
+		writeError(w, http.StatusBadRequest)
+		return
+	}
+	raw := chi.URLParam(r, "index")
+	index, err := strconv.Atoi(raw)
+	if err != nil || index < 0 || index > 4096 || strconv.Itoa(index) != raw {
+		writeError(w, http.StatusBadRequest)
+		return
+	}
+	source, ok := rt.findSource(w, r, itemID, sourceID)
+	if !ok {
+		return
+	}
+	rt.opts.Library.Delivery.ServeExtracted(w, r, rt.opts.Library.Extracted, source.ID, media.ExtractedAttachmentStream, index)
 }
 
 // sameSubtitleFormat accepts the file extension itself or another name of

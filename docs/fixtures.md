@@ -4,12 +4,13 @@ Windows 执行 `scripts/make.ps1 fixtures`；Linux 执行 `make fixtures`。命�
 
 每次生成到全新的 `.testfixtures/media-<平台>-<随机值>/`，没有输入或输出路径参数。所有媒体 argv 都在代码中固定；FFmpeg 使用 `-n`，文件写入使用独占创建，已有文件不被替换。工具先按清单验证二进制/许可证 SHA256，再经有界 runner 校验完整供应商版本并生成媒体。项目工作区及工具文件必须由受信任的开发者控制。
 
-## 13 个小型原创文件
+## 16 个小型原创文件
 
 - 1秒 H.264/AAC MP4，320×180 和640×360两个分辨率。
 - 1秒 MKV：H.264、两路 AAC、英/中文字幕与两章。
 - 1秒 FLAC 音频、故意损坏的 MKV、16×16 PNG。
 - 两个原创 SRT、章节点元数据、movie/tvshow/episode NFO 与故意损坏的 NFO。
+- E4：1秒 `subtitles-fonts.mkv`（H.264、SRT 與 ASS 內嵌字幕含軌名、兩章、`font/ttf` 附件）及其來源 `styled.ass`、`JeleeSyntheticSans.ttf`（自建佔位位元組，不是真字型，只作附件擷取的位元組比對）。供 mkvtoolnix／MediaInfo 真工具測試使用，見 [mkvtoolnix 與 MediaInfo](matroska-tools.md)。
 
 `fixtures.json` 保存平台、工具版本/哈希、每个文件的字节数、SHA256及预期媒体结构。它记录本次实际生成结果；不同供应商构建的二进制哈希不要求相同。
 

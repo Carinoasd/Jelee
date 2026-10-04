@@ -3876,6 +3876,36 @@
       "MediaSourceInfo": {
         "additionalProperties": false,
         "properties": {
+          "attachments": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "fileName": {
+                  "type": "string"
+                },
+                "font": {
+                  "type": "boolean"
+                },
+                "id": {
+                  "description": "1-based Matroska attachment ID.",
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                "streamIndex": {
+                  "description": "Probe stream index of the same attachment, when the probe listed exactly as many attachment streams.",
+                  "minimum": 0,
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "id",
+                "fileName",
+                "font"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
           "audioTracks": {
             "items": {
               "additionalProperties": false,
@@ -4045,6 +4075,10 @@
                 "default": {
                   "type": "boolean"
                 },
+                "extractable": {
+                  "description": "A SubRip, ASS, SSA or WebVTT track inside a Matroska/WebM source that the optional mkvtoolnix runtime can copy unconverted (G15.5).",
+                  "type": "boolean"
+                },
                 "forced": {
                   "type": "boolean"
                 },
@@ -4057,6 +4091,10 @@
                   "type": "integer"
                 },
                 "language": {
+                  "type": "string"
+                },
+                "title": {
+                  "description": "Matroska track name from the optional MediaInfo supplement.",
                   "type": "string"
                 }
               },
@@ -5678,6 +5716,40 @@
       "PlaybackSource": {
         "additionalProperties": false,
         "properties": {
+          "attachments": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "fileName": {
+                  "type": "string"
+                },
+                "font": {
+                  "type": "boolean"
+                },
+                "id": {
+                  "description": "1-based Matroska attachment ID.",
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                "streamIndex": {
+                  "description": "Probe stream index of the same attachment, when the probe listed exactly as many attachment streams.",
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "url": {
+                  "description": "Present for fonts when extraction is enabled and available: /api/v1/sources/{id}/attachments/{attachmentId}. Native sessions only.",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "fileName",
+                "font"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
           "audioTracks": {
             "items": {
               "additionalProperties": false,
@@ -5942,6 +6014,10 @@
                 "default": {
                   "type": "boolean"
                 },
+                "extractable": {
+                  "description": "A SubRip, ASS, SSA or WebVTT track inside a Matroska/WebM source that the optional mkvtoolnix runtime can copy unconverted (G15.5).",
+                  "type": "boolean"
+                },
                 "forced": {
                   "type": "boolean"
                 },
@@ -5954,6 +6030,14 @@
                   "type": "integer"
                 },
                 "language": {
+                  "type": "string"
+                },
+                "title": {
+                  "description": "Matroska track name from the optional MediaInfo supplement.",
+                  "type": "string"
+                },
+                "url": {
+                  "description": "Present when extraction is enabled and available: /api/v1/sources/{id}/embedded-subtitles/{index}. Native sessions only.",
                   "type": "string"
                 }
               },
@@ -28378,6 +28462,260 @@
         "x-jelee-role": "administrator"
       }
     },
+    "/api/v1/sources/{id}/attachments/{attachmentId}": {
+      "get": {
+        "description": "Native sessions only; web sessions get 403 web_playback_disabled. The 1-based Matroska attachment ID of a font listed with a url under attachments of GET /api/v1/items/{id}/playback. On first use the isolated mkvextract copies the font, unconverted, into a rebuildable cache (G15.7); clients use it to render ASS subtitles themselves. Content-Type comes from a fixed table keyed by the font extension. Nothing is rendered, burned in, re-encoded or remuxed, and the original file is never written. A missing, invisible or non-extractable item, or one whose tool is not installed, is answered like a missing source. Range, HEAD, conditional requests, playback and bandwidth limits and revocation behave as for /api/v1/sources/{id}/stream. Responses carry X-Content-Type-Options: nosniff and a sandbox Content-Security-Policy.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "attachmentId",
+            "required": true,
+            "schema": {
+              "maximum": 4096,
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Range",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "If-Range",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "HTTP 200"
+          },
+          "206": {
+            "description": "HTTP 206"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 403"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 404"
+          },
+          "408": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 408"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 409"
+          },
+          "416": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 416"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 503"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Jelee error envelope with code, message, details and traceId; see the Error schema."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "webSession": []
+          }
+        ],
+        "summary": "Read a font attachment copied out of a Matroska source",
+        "x-jelee-session": "native"
+      },
+      "head": {
+        "description": "Native sessions only; web sessions get 403 web_playback_disabled. The 1-based Matroska attachment ID of a font listed with a url under attachments of GET /api/v1/items/{id}/playback. On first use the isolated mkvextract copies the font, unconverted, into a rebuildable cache (G15.7); clients use it to render ASS subtitles themselves. Content-Type comes from a fixed table keyed by the font extension. Nothing is rendered, burned in, re-encoded or remuxed, and the original file is never written. A missing, invisible or non-extractable item, or one whose tool is not installed, is answered like a missing source. Range, HEAD, conditional requests, playback and bandwidth limits and revocation behave as for /api/v1/sources/{id}/stream. Responses carry X-Content-Type-Options: nosniff and a sandbox Content-Security-Policy.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "attachmentId",
+            "required": true,
+            "schema": {
+              "maximum": 4096,
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Range",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "If-Range",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "HTTP 200"
+          },
+          "206": {
+            "description": "HTTP 206"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 403"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 404"
+          },
+          "408": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 408"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 409"
+          },
+          "416": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 416"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 503"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Jelee error envelope with code, message, details and traceId; see the Error schema."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "webSession": []
+          }
+        ],
+        "summary": "Read a font attachment copied out of a Matroska source",
+        "x-jelee-session": "native"
+      }
+    },
     "/api/v1/sources/{id}/audio/{trackId}": {
       "get": {
         "description": "Native sessions only; web sessions get 403 web_playback_disabled. Delivers the external audio file listed under externalTracks of GET /api/v1/items/{id}/playback byte for byte (G10.9): no burn-in, re-encoding, remuxing or charset conversion. The track must belong to the source and the source must be visible to the caller; a missing, invisible or foreign track is answered like a missing source. Range, HEAD, conditional requests, playback and bandwidth limits and revocation behave as for /api/v1/sources/{id}/stream, and a track counts as part of its source's playback. Content-Type comes from a fixed table keyed by the file extension (application/octet-stream when unknown); a detected subtitle charset is only reported as its charset parameter. Responses carry X-Content-Type-Options: nosniff and a sandbox Content-Security-Policy.",
@@ -28587,6 +28925,260 @@
           }
         ],
         "summary": "Read an unmodified external audio file of a source",
+        "x-jelee-session": "native"
+      }
+    },
+    "/api/v1/sources/{id}/embedded-subtitles/{index}": {
+      "get": {
+        "description": "Native sessions only; web sessions get 403 web_playback_disabled. The probe stream index of an embedded SubRip, ASS, SSA or WebVTT (S_TEXT/WEBVTT) subtitle listed with extractable true and a url under subtitleTracks of GET /api/v1/items/{id}/playback. On first use the isolated mkvextract copies the track, unconverted, into a rebuildable cache (G15.5); Content-Type is the format's fixed type with charset=UTF-8, as Matroska stores text subtitles. Bitmap subtitles and D_WEBVTT tracks are not extracted. Nothing is rendered, burned in, re-encoded or remuxed, and the original file is never written. A missing, invisible or non-extractable item, or one whose tool is not installed, is answered like a missing source. Range, HEAD, conditional requests, playback and bandwidth limits and revocation behave as for /api/v1/sources/{id}/stream. Responses carry X-Content-Type-Options: nosniff and a sandbox Content-Security-Policy.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "index",
+            "required": true,
+            "schema": {
+              "maximum": 4096,
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Range",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "If-Range",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "HTTP 200"
+          },
+          "206": {
+            "description": "HTTP 206"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 403"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 404"
+          },
+          "408": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 408"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 409"
+          },
+          "416": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 416"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 503"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Jelee error envelope with code, message, details and traceId; see the Error schema."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "webSession": []
+          }
+        ],
+        "summary": "Read an embedded text subtitle copied out of a Matroska source",
+        "x-jelee-session": "native"
+      },
+      "head": {
+        "description": "Native sessions only; web sessions get 403 web_playback_disabled. The probe stream index of an embedded SubRip, ASS, SSA or WebVTT (S_TEXT/WEBVTT) subtitle listed with extractable true and a url under subtitleTracks of GET /api/v1/items/{id}/playback. On first use the isolated mkvextract copies the track, unconverted, into a rebuildable cache (G15.5); Content-Type is the format's fixed type with charset=UTF-8, as Matroska stores text subtitles. Bitmap subtitles and D_WEBVTT tracks are not extracted. Nothing is rendered, burned in, re-encoded or remuxed, and the original file is never written. A missing, invisible or non-extractable item, or one whose tool is not installed, is answered like a missing source. Range, HEAD, conditional requests, playback and bandwidth limits and revocation behave as for /api/v1/sources/{id}/stream. Responses carry X-Content-Type-Options: nosniff and a sandbox Content-Security-Policy.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "index",
+            "required": true,
+            "schema": {
+              "maximum": 4096,
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Range",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "If-Range",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "HTTP 200"
+          },
+          "206": {
+            "description": "HTTP 206"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 403"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 404"
+          },
+          "408": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 408"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 409"
+          },
+          "416": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 416"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 503"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Jelee error envelope with code, message, details and traceId; see the Error schema."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "webSession": []
+          }
+        ],
+        "summary": "Read an embedded text subtitle copied out of a Matroska source",
         "x-jelee-session": "native"
       }
     },

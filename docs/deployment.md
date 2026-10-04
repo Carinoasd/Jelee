@@ -74,7 +74,7 @@ Jelee 不需要 Redis：快取都在各實例的記憶體內，以版本號、�
 | --- | --- | --- | --- |
 | `enableEmbeddedCovers` | `JELEE_ENABLE_EMBEDDED_COVERS` | `false` | catalog sync 結束時把已探測媒體的內嵌封面（`attached_pic`）原樣複製到圖片存放區 |
 
-開啟時必須同時開啟 `JELEE_ENABLE_PROBE`（因此也需要 jobs／accounts 與已驗證的 Linux amd64 正式映像）、`JELEE_ENABLE_IMAGES` 並設定 `JELEE_IMAGE_STORE_ROOT`，否則啟動時設定驗證失敗。執行時探測能力不可用或存放區沒開時只記 WARN（`embedded_cover_prerequisite_unavailable`／`embedded_cover_runtime_unavailable`）並跳過這一段，服務照常啟動。它只用映像內已固定雜湊的 ffprobe 與既有沙箱，不需要也不會呼叫 ffmpeg（G37.1：正式映像不含 ffmpeg，本功能也沒有把它加進 Dockerfile）；`jelee-cli doctor` 在開關開啟時回報 `embedded_covers_ready`／`embedded_covers_tool_missing`；子行程同時 1 個、20 秒逾時、輸出 16 MiB、單張封面 3 MiB，每次 catalog sync 最多 512 次。schema 升到 79（新增 `item_embedded_cover_attempts`）；探測 parser 升為 `media-metadata-v2`，升級後既有探測快取會在下次探測時重算。細節、優先序與界限見[本地圖片：內嵌封面擷取](local-images.md#內嵌封面擷取g404schema-79)。
+開啟時必須同時開啟 `JELEE_ENABLE_PROBE`（因此也需要 jobs／accounts 與已驗證的 Linux amd64 正式映像）、`JELEE_ENABLE_IMAGES` 並設定 `JELEE_IMAGE_STORE_ROOT`，否則啟動時設定驗證失敗。執行時探測能力不可用或存放區沒開時只記 WARN（`embedded_cover_prerequisite_unavailable`／`embedded_cover_runtime_unavailable`）並跳過這一段，服務照常啟動。它只用映像內已固定雜湊的 ffprobe 與既有沙箱，不需要也不會呼叫 ffmpeg（G37.1：正式映像不含 ffmpeg，本功能也沒有把它加進 Dockerfile）；`jelee-cli doctor` 在開關開啟時回報 `embedded_covers_ready`／`embedded_covers_tool_missing`；子行程同時 1 個、20 秒逾時、輸出 16 MiB、單張封面 3 MiB，每次 catalog sync 最多 512 次。schema 升到 79（新增 `item_embedded_cover_attempts`）；探測 parser 升為 `media-metadata-v3`（探測資料 schema 2，與 E4 的 MediaInfo 補充合併後的格式），升級後既有探測快取會在下次探測時重算。細節、優先序與界限見[本地圖片：內嵌封面擷取](local-images.md#內嵌封面擷取g404schema-79)。
 
 ## 媒體庫語言設定的升級
 
@@ -94,6 +94,8 @@ Jelee 不需要 Redis：快取都在各實例的記憶體內，以版本號、�
 当前证据见[构建与运行日志](evidence/container-current.txt)和[静态镜像检查](evidence/container-current-inspection.txt)。[旧容器日志](evidence/container.txt)保留首轮下载超时、重试和早期镜像的历史记录。静态检查容器已移除；本地测试镜像保留。
 
 未启动 Compose、未创建部署数据库卷、未使用用户媒体目录。HTTP 样本仅为 36 字节传输 fixture，不能证明真实影片可播放或第三方客户端兼容。反向代理、更新/回滚、多架构镜像与完整部署验收仍待完成。正式发布前须补齐媒体探测工具、完整工具清单、完整依赖许可清单及其余部署验证。
+
+**E4（2026-10-04）**：映像另含固定的 mkvtoolnix 102.0（只有 mkvmerge、mkvextract 與 22 個隨附函式庫）、MediaInfo 26.05 與 Debian libstdc++6／zlib1g／libgmp10，建置前需 `make bootstrap-matroska`；`tools/runtime-image` 在建置時逐位元組核對全部 49 個固定檔案。正式映像仍不含 ffmpeg、mkvpropedit 或 shell。擷取預設關閉，以 `JELEE_ENABLE_MATROSKA_EXTRACTION=true` 與私有的 `JELEE_MATROSKA_CACHE_ROOT` 開啟。本地實測（非 root、唯讀根）見[證據](evidence/matroska-runtime-image.txt)與 [mkvtoolnix 與 MediaInfo](matroska-tools.md)。
 
 ## 探索埠與防火牆
 

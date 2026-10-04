@@ -24,6 +24,7 @@ PostgreSQL 是唯一的持久狀態（服務不寫本機狀態檔），所以「
 | `JELEE_IMAGE_TEMP_ROOT`、`$TMPDIR/jelee-service-*`、`jelee-probe-check-*`、Compose 的 `/tmp` tmpfs | 不備份 | — | 暫存，啟動清掃會清掉殘留 |
 | `.jelee-nfo-*.lock`、`.jelee-nfo-stage-*`、`.jelee-nfo-commit-*` | 不單獨備份 | 隨媒體備份即可 | 見[儲存佈局 NFO 旁車檔](storage-layout.md#nfo-旁车文件) |
 | 資料庫內的探測快取、NFO 快取、盤點、任務、統計 | 隨 `pg_dump` | — | 可重建：重新掃描與探測即可（耗時） |
+| `JELEE_MATROSKA_CACHE_ROOT` | 不需要 | — | 只是內嵌字幕與字型的擷取快取，刪除後下次請求重新擷取 |
 
 ## PostgreSQL 備份
 

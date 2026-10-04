@@ -73,6 +73,9 @@ type Options struct {
 	Limits Limits
 	// Clock defaults to the system clock.
 	Clock Clock
+	// ExtractTimeout bounds a lookup that may extract an embedded item
+	// (ServeExtracted); zero means DefaultExtractTimeout.
+	ExtractTimeout time.Duration
 }
 
 type Handler struct {
@@ -140,12 +143,18 @@ func (h *Handler) ServeTrack(w http.ResponseWriter, r *http.Request, sourceID st
 // serve runs one delivery in its own span (G46.6): a child of the request
 // span, so lookups, revocation and the copy share the request trace.
 func (h *Handler) serve(w http.ResponseWriter, r *http.Request, sourceID string, resolve func(context.Context, access.Principal) (Source, error)) {
-	ctx, span := tracing.Default().Start(r.Context(), "media.direct", "media")
-	defer span.End("")
-	h.deliver(w, r.WithContext(ctx), sourceID, resolve) //nolint:contextcheck // ctx is r.Context() with the delivery span added
+	h.serveWithin(w, r, sourceID, h.options.LookupTimeout, resolve)
 }
 
-func (h *Handler) deliver(w http.ResponseWriter, r *http.Request, sourceID string, resolve func(context.Context, access.Principal) (Source, error)) {
+// serveWithin is serve with an explicit lookup bound; only extraction, which
+// may copy a track out of a whole source, uses a longer one.
+func (h *Handler) serveWithin(w http.ResponseWriter, r *http.Request, sourceID string, lookup time.Duration, resolve func(context.Context, access.Principal) (Source, error)) {
+	ctx, span := tracing.Default().Start(r.Context(), "media.direct", "media")
+	defer span.End("")
+	h.deliver(w, r.WithContext(ctx), sourceID, lookup, resolve) //nolint:contextcheck // ctx is r.Context() with the delivery span added
+}
+
+func (h *Handler) deliver(w http.ResponseWriter, r *http.Request, sourceID string, lookup time.Duration, resolve func(context.Context, access.Principal) (Source, error)) {
 	w.Header().Del("Content-Disposition")
 	principal, authenticated := access.PrincipalFromContext(r.Context())
 	if !authenticated {
@@ -184,7 +193,7 @@ func (h *Handler) deliver(w http.ResponseWriter, r *http.Request, sourceID strin
 		h.options.WriteError(w, r, ErrBusy)
 		return
 	}
-	lookupCtx, cancelLookup := context.WithTimeout(r.Context(), h.options.LookupTimeout)
+	lookupCtx, cancelLookup := context.WithTimeout(r.Context(), lookup)
 	source, err := resolve(lookupCtx, principal)
 	lookupErr := lookupCtx.Err()
 	cancelLookup()

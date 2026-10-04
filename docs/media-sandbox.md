@@ -6,6 +6,10 @@
 
 Successful `New` means the supplied identity policy and ELF dependency closure were verified. It does not enable a capability. Production must use the embedded executable/runtime manifests, `RequireProtectedFiles=true`, early helper dispatch, and a read-only runtime image. The application registrar owns the final capability check. A development policy with protection disabled is not eligible for production registration.
 
+## Matroska and MediaInfo tool modes (E4)
+
+`sandbox.NewTool` / `RunToolHelper` reuse the same verification, Landlock, seccomp allowlist and `execveat` path for three fixed modes behind a separate `--internal-media-tool-helper` entry, so the ffprobe descriptor and `linux-metadata-sandbox-v1` policy are unchanged. Tool modes additionally grant READ_FILE on the stdin file object (the tools reopen `/proc/self/fd/0`); only `mkvextract` may create files, in the runner's private working directory, with `RLIMIT_FSIZE` 64 MiB and CPU 600 s. Descriptors carry only the mode, the fixed path and ascending integer IDs. Details: [mkvtoolnix and MediaInfo](matroska-tools.md).
+
 ## Registration and helper contract
 
 ```go

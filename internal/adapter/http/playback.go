@@ -61,6 +61,7 @@ func (s *Server) playbackInfo(w http.ResponseWriter, r *http.Request) {
 			track := &sources[i].External[j]
 			track.URL = trackURL(sources[i].ID, track.Kind, track.ID)
 		}
+		s.decorateExtracted(&sources[i])
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"data": map[string]any{"itemId": id, "delivery": playbackDelivery, "sources": sources}})
 }

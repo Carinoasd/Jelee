@@ -113,7 +113,7 @@ GET /images/Backdrop/{itemID}?index=2&width=1280&tag=<原圖 SHA-256>
 
 **界限（G29.4／G42.7／G40.12）。** 專用子行程准入：同時最多 1 個、每次 20 秒逾時、stdout 上限 16 MiB（十六進位傾印約為原圖的 4.3 倍）、stderr 64 KiB 且不保留；暫存在私有 scratch 目錄。單張封面上限 3 MiB（`domain.EmbeddedCoverMaxBytes`），宣告超過或輸出超限都視為過大；記憶體上限約為一份傾印加一份原圖。每次擷取另受作業 IO 工作預算與 30 秒單檔逾時，每個 catalog sync 最多啟動 512 次擷取，每頁 16 個候選。
 
-**何時做、何時不做。** 候選是：只有單一媒體檔的條目、該檔的探測快取為 ready 且 metadata 記有 `attachedPic`（探測 parser 版本因此升為 `media-metadata-v2`，舊快取會在下次探測時重算）、Primary 槽沒有鎖定列，也沒有可用的更高優先來源（local、NFO、已抓取內容的 remote）。擷取前後都在同一個唯讀 FD 上核對探測時的大小、mtime 與邊緣指紋，並重開註冊路徑確認未被替換；不符就放棄（不記錄，下次再試）。記錄時在同一交易內重鎖 item、重驗媒體檔與探測戳記、鎖定與優先序：鎖定列存在回 `skipped_locked`，出現更高優先圖片回 `skipped_priority`，戳記不同回 `changed`，三者都不寫入。成功（`stored`）與確定性的拒絕（`absent`、`invalid`、`too_large`）寫入 `item_embedded_cover_attempts`，以 (根、相對路徑、大小、mtime、指紋) 記住「這個檔案已處理」；檔案沒變就不再啟動子行程，檔案改變（探測戳記改變）才重新擷取並更新同一列。逾時、工具忙碌或不可用、檔案變動等暫時性結果不記住；工具不可用時本段立即結束。
+**何時做、何時不做。** 候選是：只有單一媒體檔的條目、該檔的探測快取為 ready 且 metadata 記有 `attachedPic`（探測 parser 版本因此升為 `media-metadata-v3`／探測資料 schema 2——與 E4 MediaInfo 補充合併後的版本，舊快取會在下次探測時重算）、Primary 槽沒有鎖定列，也沒有可用的更高優先來源（local、NFO、已抓取內容的 remote）。擷取前後都在同一個唯讀 FD 上核對探測時的大小、mtime 與邊緣指紋，並重開註冊路徑確認未被替換；不符就放棄（不記錄，下次再試）。記錄時在同一交易內重鎖 item、重驗媒體檔與探測戳記、鎖定與優先序：鎖定列存在回 `skipped_locked`，出現更高優先圖片回 `skipped_priority`，戳記不同回 `changed`，三者都不寫入。成功（`stored`）與確定性的拒絕（`absent`、`invalid`、`too_large`）寫入 `item_embedded_cover_attempts`，以 (根、相對路徑、大小、mtime、指紋) 記住「這個檔案已處理」；檔案沒變就不再啟動子行程，檔案改變（探測戳記改變）才重新擷取並更新同一列。逾時、工具忙碌或不可用、檔案變動等暫時性結果不記住；工具不可用時本段立即結束。
 
 **優先序（G40.10）。** 內嵌封面放在最後：鎖定 > 本機旁車圖片（local）> NFO > 外部抓取（remote）> embedded。理由：它是媒體檔附帶的圖，品質與比例不保證，使用者另外放的旁車圖片或 NFO 指定圖都應優先；remote 只有在已抓取內容後才參與選圖。內嵌列一律非鎖定寫入，不會改動已鎖定的列，也不會覆蓋其他來源的列（每個來源各自一列）。
 

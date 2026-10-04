@@ -235,6 +235,24 @@ func (r *Runner) run(ctx context.Context, request Request, exitError func(int) e
 	if !ok {
 		return Result{}, ErrInvalid
 	}
+	return r.runWith(ctx, request, arguments, exitError, nil)
+}
+
+// runWith runs a registered tool with the given argv. Only run (registered
+// operations) and the sealed isolated tool runner (helper descriptor argv)
+// call it. collect, when set, reads the private working directory after a
+// successful exit and before it is removed; its error is returned as is.
+func (r *Runner) runWith(ctx context.Context, request Request, arguments []string, exitError func(int) error, collect func(string) error) (result Result, resultErr error) {
+	if ctx == nil {
+		return Result{}, ErrInvalid
+	}
+	if ctx.Err() != nil {
+		return Result{}, contextError(ctx)
+	}
+	tool, ok := r.tools[request.Tool]
+	if !ok {
+		return Result{}, ErrInvalid
+	}
 	if request.Stdin != nil && !validInput(request.Stdin) {
 		return Result{}, ErrInvalid
 	}
@@ -360,6 +378,13 @@ func (r *Runner) run(ctx context.Context, request Request, exitError func(int) e
 		resultErr = ErrExit
 		if exitError != nil {
 			resultErr = exitError(code)
+		}
+	}
+	if resultErr == nil && collect != nil {
+		if ctx.Err() != nil {
+			resultErr = contextError(ctx)
+		} else if err := collect(dir); err != nil {
+			resultErr = err
 		}
 	}
 	if resultErr != nil {

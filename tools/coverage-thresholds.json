@@ -84,6 +84,17 @@
       "minimum": 93
     },
     {
+      "path": "internal/adapter/matroska",
+      "tier": "core",
+      "minimum": 86
+    },
+    {
+      "path": "internal/platform/mkvruntime",
+      "tier": "core",
+      "minimum": 78,
+      "reason": "measured 78.1% on 2026-10-04: success paths need the protected image files and run in the container smoke (docs/evidence/matroska-runtime-image.txt)"
+    },
+    {
       "path": "internal/adapter/scan",
       "tier": "core",
       "minimum": 79

@@ -7,6 +7,8 @@ type MediaMetadata struct {
 	Format   MediaFormat    `json:"format"`
 	Streams  []MediaStream  `json:"streams"`
 	Chapters []MediaChapter `json:"chapters"`
+	// Matroska is the optional MediaInfo supplement (metadata schema 2).
+	Matroska *MediaMatroska `json:"matroska,omitempty"`
 }
 
 type MediaFormat struct {

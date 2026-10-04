@@ -28,6 +28,9 @@ func Specification(cfg config.Config) map[string]any {
 			op["parameters"] = []any{idParameter(), map[string]any{"name": "trackId", "in": "path", "required": true, "schema": map[string]any{"type": "string", "format": "uuid"}}, map[string]any{"name": "Range", "in": "header", "schema": map[string]any{"type": "string"}}, map[string]any{"name": "If-Range", "in": "header", "schema": map[string]any{"type": "string"}}}
 			paths[route] = map[string]any{"get": op, "head": op}
 		}
+		if cfg.Matroska.EnableExtraction {
+			extractedSpecification(paths)
+		}
 	}
 	schemas := accountSchemas()
 	siteSettingsSchemas(schemas)

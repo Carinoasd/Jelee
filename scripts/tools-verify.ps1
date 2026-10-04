@@ -48,3 +48,10 @@ if (-not $lintVersion.StartsWith("golangci-lint has version $($lint.Tool.version
     throw "Unexpected golangci-lint version: $lintVersion"
 }
 Write-Host "Verified golangci-lint $($lint.Tool.version); archive SHA256 and installed binary match"
+# E4 optional mkvtoolnix/MediaInfo: verified when installed, reported otherwise.
+if (Get-Command python -ErrorAction SilentlyContinue) {
+    & python (Join-Path $PSScriptRoot 'matroska-tools.py') verify --if-installed
+    if ($LASTEXITCODE -ne 0) { throw 'Optional matroska tools differ from tools/manifest.json' }
+} else {
+    Write-Host 'Skipped optional mkvtoolnix/mediainfo verification: python is not on PATH'
+}

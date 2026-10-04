@@ -30,7 +30,7 @@ func sweepStartupTemporaries(ctx context.Context, cfg config.Config, logger *slo
 		}
 		logger.Info("startup temporary sweep removed leftovers", attributes...)
 	}
-	sweep("process", os.TempDir(), scratch.ServiceProbe, scratch.ServiceIgnore, scratch.ProbeCheck)
+	sweep("process", os.TempDir(), scratch.ServiceProbe, scratch.ServiceIgnore, scratch.ServiceMKV, scratch.ProbeCheck)
 	if cfg.EnableImages && cfg.Images.TempRoot != "" {
 		sweep("images", cfg.Images.TempRoot, scratch.ImageStage)
 	}

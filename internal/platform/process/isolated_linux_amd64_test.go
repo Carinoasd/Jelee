@@ -128,3 +128,59 @@ func TestIsolatedCoverFactoryRegistersOnlySealedCoverReads(t *testing.T) {
 		t.Fatal("cover operation names")
 	}
 }
+
+func TestIsolatedToolFactoryAcceptsOnlyTheSealedLauncher(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "mkvextract")
+	command := exec.Command(filepath.Join(runtime.GOROOT(), "bin", "go"), "build", "-trimpath", "-o", path, "../sandbox/testdata/helper") //nolint:staticcheck // SA1019: test helpers build with the toolchain running the test; project wrappers export GOROOT
+	command.Env = append(os.Environ(), "CGO_ENABLED=0", "GOTOOLCHAIN=local")
+	if output, err := command.CombinedOutput(); err != nil {
+		t.Fatalf("build sealed launcher fixture: %v; %s", err, output)
+	}
+	file, err := os.Open(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	hash := sha256.New()
+	_, err = io.Copy(hash, file)
+	_ = file.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+	launcher, err := sandbox.NewTool(context.Background(), sandbox.ToolProfile{Mode: sandbox.ToolExtract, Path: path}, sandbox.ToolPolicy{ExecutableSHA256: hex.EncodeToString(hash.Sum(nil))})
+	if err != nil {
+		t.Fatal(err)
+	}
+	config := Config{MaxConcurrent: 1, Timeout: time.Second, MaxStdoutBytes: 1024, MaxStderrBytes: 1024, TempRoot: t.TempDir()}
+	runner, err := NewIsolatedTool(config, launcher)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tool := runner.runner.tools["mkvextract"]
+	if len(runner.runner.tools) != 1 || len(tool.Operations) != 1 || tool.Path != launcher.Executable() || tool.Operations["run"][0] != sandbox.ToolHelperCommand {
+		t.Fatal("factory registry differed from the sealed launcher")
+	}
+	input, err := os.Open(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = input.Close() }()
+	collect := func(string) error { return nil }
+	for name, request := range map[string]ToolRequest{
+		"no stdin":         {Extraction: sandbox.Extraction{Tracks: []int{1}}, Collect: collect},
+		"no collect":       {Stdin: input, Extraction: sandbox.Extraction{Tracks: []int{1}}},
+		"empty extraction": {Stdin: input, Collect: collect},
+		"unsorted":         {Stdin: input, Extraction: sandbox.Extraction{Tracks: []int{2, 1}}, Collect: collect},
+		"track bound":      {Stdin: input, Extraction: sandbox.Extraction{Tracks: []int{sandbox.MaxExtractTrackID + 1}}, Collect: collect},
+	} {
+		if _, err := runner.Run(context.Background(), request); err != ErrInvalid {
+			t.Fatalf("%s accepted: %v", name, err)
+		}
+	}
+	if runner.Stats().Started != 0 {
+		t.Fatal("a refused request started a process")
+	}
+	config.MaxConcurrent = 0
+	if _, err := NewIsolatedTool(config, launcher); err != ErrInvalid {
+		t.Fatal("sealed factory bypassed configuration bounds")
+	}
+}

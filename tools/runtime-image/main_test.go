@@ -29,20 +29,27 @@ func fixture(t *testing.T) (string, map[string]pin, string) {
 
 func TestImagePinsEmbeddedExactClosure(t *testing.T) {
 	pins, err := imagePins()
-	if err != nil || len(pins) != 16 {
-		t.Fatal("image closure is not 8 libraries, 6 runtime notices, ffprobe and its license")
+	// 16 ffprobe/glibc files plus 33 E4 files: mkvmerge, mkvextract,
+	// mediainfo, 22 bundled and 3 Debian libraries, 5 notices.
+	if err != nil || len(pins) != 49 {
+		t.Fatal("image closure is not 8 libraries, 6 runtime notices, ffprobe and its license plus the E4 tools")
+	}
+	for _, name := range []string{"usr/lib/jelee/mkvtoolnix/mkvmerge", "usr/lib/jelee/mkvtoolnix/mkvextract", "usr/lib/jelee/mediainfo", "licenses/mkvtoolnix/COPYING", "licenses/mediainfo/LICENSE"} {
+		if _, ok := pins[filepath.FromSlash(name)]; !ok {
+			t.Fatal("missing E4 image pin " + name)
+		}
 	}
 	if pins[filepath.FromSlash("usr/lib/jelee/ffprobe")].digest != "a5bd5e9f8d74ab2c6d7d9e2e2738ff6d67bf9613e7143e143ba8ebe9b06385fb" {
 		t.Fatal("wrong ffprobe pin")
 	}
 	for name := range pins {
-		if strings.Contains(name, "ffmpeg") {
-			t.Fatal("ffmpeg entered runtime image")
+		if strings.Contains(name, "ffmpeg") || strings.Contains(name, "mkvpropedit") {
+			t.Fatal("ffmpeg or mkvpropedit entered runtime image")
 		}
 	}
 	delete(pins, filepath.FromSlash("usr/lib/jelee/ffprobe"))
 	again, _ := imagePins()
-	if len(again) != 16 {
+	if len(again) != 49 {
 		t.Fatal("mutable embedded pin map")
 	}
 }

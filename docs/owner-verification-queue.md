@@ -31,6 +31,7 @@
 | B5 | doctor 的 Windows 磁碟降級路徑（無 inode） | `internal/diag/` | 待跑 |
 | B6 | 直投在 Windows 走緩衝備援路徑（無 sendfile）：實機跑 `go test ./internal/adapter/media/`，並實際播放、拖動一次 | `docs/direct-delivery.md`「零拷贝直投」 | 待跑 |
 | B7 | 日誌檔與暫存目錄在 Windows 沒有 POSIX 權限位元，隱私完全依賴所在目錄繼承的 ACL；請確認預設安裝位置（服務帳號、ProgramData）下其他使用者讀不到 `jelee.log` 與暫存目錄，若讀得到需決定是否明確設定 ACL | `internal/platform/logging/rotate.go`、`internal/platform/scratch/` | 待跑 |
+| B8 | Windows 上的 mkvtoolnix／MediaInfo（E4）：`scripts/make.ps1 bootstrap-matroska` 後 `scripts/make.ps1 tools-verify`，確認兩個 zip 只取出清單列出的檔案、`--version` 版本字串相符，並以 `.tools/matroska/mkvtoolnix/102.0/windows-amd64/mkvtoolnix/mkvextract.exe` 手動擷取 `.testfixtures` 的 `subtitles-fonts.mkv`。Windows 正式服務的擷取與補充仍停用（沙箱只在 linux-amd64） | `docs/matroska-tools.md` | 待跑 |
 
 ## C. 長時間、規模、效能
 
@@ -88,6 +89,7 @@
 | D21 | 預設告警規則：以實際 Prometheus（及其 `promtool check rules deploy/prometheus/jelee-alerts.yml`）載入 `deploy/prometheus/` 範例，抓取真實服務；分別製造資料庫停止、磁碟接近滿、Webhook 接收端離線、開發者模式開啟、一致性檢查發現，確認對應告警在預期時間觸發與解除，並把 Alertmanager 路由與 runbook 連結接上 | `docs/runbook.md` | 待跑 |
 | D22 | 舊庫遷移：以真實 Jellyfin 10.11 `jellyfin.db`（停機後複製，含 `-wal`）跑 `jelee-cli legacy-import --preflight`、匯入、掃描、再匯入。確認 GUID 文字大小寫、`DateTime` 格式、CollectionFolder `Data` JSON 的 `PhysicalLocationsList`／`CollectionType`；10.10 升級上來的庫的 `UserData`（`CustomDataKey` 多列、`RetentionDate`、佔位條目）；Windows／NAS 路徑對照；多版本、分段檔、附加影片的分類與對應率；10 萬條目以上、多使用者的耗時與記憶體；改寫前 C# Jelee 的實際資料庫 | `docs/legacy-import.md`「需要以真實資料庫驗證的項目」 | 待跑 |
 | D23 | API 控制台（G49.4）：在可開發實例以真實瀏覽器開啟開發者模式，管理員進入「管理 → API 控制台」，對一個讀取與一個寫入操作各送一次，確認狀態碼、耗時、traceId 與日誌中的 `requestId` 一致、`Set-Cookie` 被遮罩、複製的 cURL 只有佔位符；換成非管理員、關閉開發者模式、生產組態各試一次，確認導覽沒有入口且直接輸入網址得到 404 頁面 | `docs/developer-mode.md`「API 控制台」 | 待跑 |
+| D24 | Matroska 擷取與 MediaInfo 補充（E4，G15.5、G15.7、G19.1）：在正式映像（`make bootstrap-matroska` 後建置）以真實 MKV 庫開啟 `JELEE_ENABLE_MATROSKA_EXTRACTION`，用真客戶端（Jellyfin 相容 App、mpv 等）播放含 ASS 內嵌字幕與字型附件的影片，確認字幕與字型正確顯示、原檔雜湊不變、快取上限與淘汰合理、大檔（數十 GB）首次擷取時間可接受；同時確認探測後章節名稱、軌名與附件出現在播放資訊，且 Web 端拿不到任何字幕或字型位元組 | `docs/matroska-tools.md`；容器實測 `docs/evidence/matroska-runtime-image.txt` | 待跑 |
 
 ## E. 需要擁有者決定
 
@@ -98,7 +100,7 @@
 | E1 | 外部工具用 `os.StartProcess`／Windows Job，而不是 `os/exec` | `docs/adr/0001-external-process-start.md` | 已決定（2026-10-05）：採用：維持 `os.StartProcess`／Windows Job（ADR 0001），理由是需要行程群組、資源限制與沙箱，`os/exec` 做不到；同樣只用參數陣列、不經 shell |
 | E2 | 兩種上游舊品牌忽略檔的語義（G22.2 列出的兩個檔名） | 上游原始碼找不到入口，暫記為阻塞 | 已決定（2026-10-05）：採用：兩種舊忽略檔作為 `.jeleeignore` 的別名，語義與 `.jeleeignore` 相同（gitignore 語法），同目錄同時存在時以 `.jeleeignore` 為準；已實作（2026-10-05，``）：入口 `internal/adapter/media/ignore/rule_names.go` 的 `OpenRule`，兩個別名依原文順序排在 `.jeleeignore` 之後，兩種任務模式皆生效，見 [忽略規則來源](ignore-source.md) |
 | E3 | TMDB 資料使用條款：保存期限、24 小時快取是否合規、署名位置 | `docs/tmdb-external-metadata-removal.md` | 已決定（2026-10-05）：接受：TMDB 資料 24 小時快取、只隨條目保存、條目刪除即清除；署名放在「關於」頁與 API 文件，並遵守其非商業條款 |
-| E4 | 外部工具 MediaInfo、mkvtoolnix 的下載與授權核准（G19.1、G51） | 尚未引入 | 已決定（2026-10-05）：核准：MediaInfo 與 mkvtoolnix 依 G30.6 納入 `tools/manifest.json`（固定版本、官方來源、SHA256、授權記錄），預設不強制安裝；待實作 |
+| E4 | 外部工具 MediaInfo、mkvtoolnix 的下載與授權核准（G19.1、G51） | `tools/manifest.json` 的 `matroskaTools`；`docs/matroska-tools.md` | 已決定（2026-10-05）：核准：MediaInfo 與 mkvtoolnix 依 G30.6 納入 `tools/manifest.json`（固定版本、官方來源、SHA256、授權記錄），預設不強制安裝；**已實作（2026-10-04）**：mkvtoolnix 102.0、MediaInfo 26.05（Linux／Windows amd64）固定與可選引導、`tools-verify` 校驗；Linux 沙箱執行、映像、MediaInfo 探測補充、內嵌文字字幕與字型附件擷取（自有 API＋相容層）；mkvpropedit 只固定不使用。實機項目見 B8、D24 |
 | E5 | 刪除 C# 樹後，只靠 Git 歷史與 tag `upstream-csharp-final` 提供舊原始碼，是否滿足 GPL 義務（含倉庫轉私有、遷移、被 fork 的情況） | `docs/LICENSE-COMPLIANCE.md` | 已決定（2026-10-05）：接受：發佈的二進位與映像一律附原始碼位置（含 tag `upstream-csharp-final` 與對應提交），符合 GPL v2 第 3 條；寫進發佈流程 |
 | E6 | Go 程式中是否有逐段移植自上游 C# 的部分，需要帶上原檔版權頭 | 同上 | 已決定（2026-10-05）：決定：不逐行移植，Go 程式不加上游版權頭；若日後有逐段移植，該檔需加註來源與原版權 |
 | E7 | 根目錄 `LICENSE` 是 GPL v2，上游套件元資料寫 GPL-3.0-only，Jelee 對外宣告哪一版 | 同上 | 已決定（2026-10-05）：決定：Jelee 對外宣告 GPL-2.0-only，與根目錄 `LICENSE` 一致 |

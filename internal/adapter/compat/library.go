@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"path"
 	"slices"
 	"strconv"
 	"strings"
@@ -45,6 +46,11 @@ type LibraryOptions struct {
 	// stream and subtitle routes unregistered and external subtitles
 	// unlisted; set it only with direct delivery enabled.
 	Delivery Delivery
+	// Extracted serves embedded text subtitles and font attachments copied
+	// unconverted out of Matroska sources (G15.5, G15.7). Nil keeps embedded
+	// subtitles Embed-only and lists no attachments; set it only with
+	// Delivery.
+	Extracted media.ExtractedResolver
 	// Playstate is the server's progress service. Nil leaves the report,
 	// played and resume routes unregistered and every item unplayed.
 	Playstate Playstate
@@ -56,6 +62,7 @@ type LibraryOptions struct {
 type Delivery interface {
 	ServeSource(w http.ResponseWriter, r *http.Request, sourceID string)
 	ServeTrack(w http.ResponseWriter, r *http.Request, sourceID string, kind media.TrackKind, trackID string)
+	ServeExtracted(w http.ResponseWriter, r *http.Request, resolver media.ExtractedResolver, sourceID string, kind media.ExtractedKind, index int)
 }
 
 func (o *LibraryOptions) valid() bool {
@@ -144,6 +151,18 @@ type mediaSourceInfo struct {
 	// preference information.
 	DefaultSubtitleStreamIndex *int `json:"DefaultSubtitleStreamIndex,omitempty"`
 	HasSegments                bool `json:"HasSegments"`
+	// MediaAttachments lists Matroska attachments known from the MediaInfo
+	// supplement, with a DeliveryUrl for fonts when extraction is wired.
+	MediaAttachments []mediaAttachment `json:"MediaAttachments,omitempty"`
+}
+
+// mediaAttachment mirrors the upstream MediaAttachment. Index is the probe
+// stream index of the attachment.
+type mediaAttachment struct {
+	Index       int    `json:"Index"`
+	FileName    string `json:"FileName,omitempty"`
+	MimeType    string `json:"MimeType,omitempty"`
+	DeliveryURL string `json:"DeliveryUrl,omitempty"`
 }
 
 // mediaStream is one embedded stream of a probed source or, with direct
@@ -824,13 +843,34 @@ func (rt *router) mediaSource(itemID string, source domain.PlaybackSource, name 
 		index := audio.Index
 		info.DefaultAudioStreamIndex = &index
 	}
+	extracted := delivery && rt.extractionAvailable()
 	for _, s := range source.Subtitles {
-		stream := mediaStream{Codec: s.Format, Language: s.Language, IsDefault: s.Default, IsForced: s.Forced, Type: mediaStreamSubtitle, Index: s.Index}
+		stream := mediaStream{Codec: s.Format, Language: s.Language, Title: s.Title, IsDefault: s.Default, IsForced: s.Forced, Type: mediaStreamSubtitle, Index: s.Index}
 		if delivery {
 			stream.DeliveryMethod = subtitleDeliveryEmbed
 			stream.IsTextSubtitleStream = textSubtitleFormats[s.Format]
+			// An extractable embedded text track is delivered as the copy
+			// the server keeps in its cache, byte for byte (G15.5).
+			if extension, ok := domain.ExtractableSubtitleCodecs[s.Codec]; extracted && s.Extractable && ok {
+				stream.DeliveryMethod = subtitleDeliveryExternal
+				stream.SupportsExternalStream = true
+				stream.DeliveryURL = subtitleURL(itemID, id, s.Index, extension)
+			}
 		}
 		info.MediaStreams = append(info.MediaStreams, stream)
+	}
+	for _, a := range source.Attachments {
+		if a.StreamIndex == nil {
+			continue
+		}
+		attachment := mediaAttachment{Index: *a.StreamIndex, FileName: a.FileName}
+		if a.Font {
+			attachment.MimeType = media.ExtractedContentType(media.ExtractedAttachment, path.Ext(a.FileName))
+			if extracted {
+				attachment.DeliveryURL = attachmentURL(itemID, id, *a.StreamIndex)
+			}
+		}
+		info.MediaAttachments = append(info.MediaAttachments, attachment)
 	}
 	info.DefaultSubtitleStreamIndex = defaultSubtitleIndex(source, delivery)
 	if !delivery {

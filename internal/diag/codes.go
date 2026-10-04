@@ -49,13 +49,20 @@ const (
 	// cover pass, which reads covers with ffprobe only.
 	CodeEmbeddedCoversReady  = "embedded_covers_ready"
 	CodeEmbeddedCoversNoTool = "embedded_covers_tool_missing"
-	CodeDiskOK               = "disk_ok"
-	CodeDiskSpaceLow         = "disk_space_low"
-	CodeDiskSpaceCritical    = "disk_space_critical"
-	CodeDiskInodesLow        = "disk_inodes_low"
-	CodeDiskInodesCrit       = "disk_inodes_critical"
-	CodeDiskUnavailable      = "disk_stat_unavailable"
-	CodeDiskNoInodes         = "disk_inodes_not_applicable"
+	// CodeMatroskaVerified and the codes below report the optional
+	// mkvtoolnix/MediaInfo runtime (E4).
+	CodeMatroskaVerified    = "matroska_tool_verified"
+	CodeMatroskaMissing     = "matroska_tool_missing"
+	CodeMatroskaMismatch    = "matroska_tool_hash_mismatch"
+	CodeMatroskaUnreadable  = "matroska_tool_unreadable"
+	CodeMatroskaUnsupported = "matroska_tool_platform_unsupported"
+	CodeDiskOK              = "disk_ok"
+	CodeDiskSpaceLow        = "disk_space_low"
+	CodeDiskSpaceCritical   = "disk_space_critical"
+	CodeDiskInodesLow       = "disk_inodes_low"
+	CodeDiskInodesCrit      = "disk_inodes_critical"
+	CodeDiskUnavailable     = "disk_stat_unavailable"
+	CodeDiskNoInodes        = "disk_inodes_not_applicable"
 
 	CodeNetOK           = "net_ok"
 	CodeNetListen       = "net_listen_invalid"
@@ -144,6 +151,11 @@ var codes = map[string]codeInfo{
 	CodeToolManifest:         {"embedded tool manifest is invalid", "Rebuild jelee-cli from a clean checkout."},
 	CodeEmbeddedCoversReady:  {"embedded cover extraction is enabled and its pinned ffprobe is verified (ffmpeg is not used)", ""},
 	CodeEmbeddedCoversNoTool: {"embedded cover extraction is enabled but no verified pinned ffprobe exists; the pass stays off", "Use the official runtime image (it ships ffprobe, never ffmpeg) or set JELEE_ENABLE_EMBEDDED_COVERS=false."},
+	CodeMatroskaVerified:     {"optional mkvtoolnix/MediaInfo tool matches the manifest hash", ""},
+	CodeMatroskaMissing:      {"optional mkvtoolnix/MediaInfo tool is not installed; its feature stays off", "Container: use the official runtime image. Development: make bootstrap-matroska (scripts/make.ps1 bootstrap-matroska). Required only for Matroska subtitle/font extraction and the MediaInfo probe supplement."},
+	CodeMatroskaMismatch:     {"mkvtoolnix/MediaInfo tool does not match the pinned SHA-256 in tools/manifest.json", "Reinstall the pinned tool (remove .tools/matroska, make bootstrap-matroska) or rebuild the runtime image; never replace it with a system copy."},
+	CodeMatroskaUnreadable:   {"mkvtoolnix/MediaInfo tool exists but cannot be read", "Make the tool file a regular file readable by the service account."},
+	CodeMatroskaUnsupported:  {"no pinned mkvtoolnix/MediaInfo exists for this platform", "The tools are pinned for linux-amd64 and windows-amd64; the sandboxed runtime runs on linux-amd64 only."},
 	CodeDiskOK:               {"free space and inodes are sufficient", ""},
 	CodeDiskSpaceLow:         {"free disk space is low", "Free space on this volume or move the directory to a larger volume."},
 	CodeDiskSpaceCritical:    {"free disk space is critically low", "Free space now; temporary files and logs will fail to write."},

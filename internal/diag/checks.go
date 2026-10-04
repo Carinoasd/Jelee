@@ -289,6 +289,67 @@ func (s *Session) checkTools(ctx context.Context) Result {
 	return r
 }
 
+// checkMatroskaTools reports the optional mkvtoolnix/MediaInfo executables
+// (E4) by hash, without executing them. A missing tool is a warning: its
+// feature stays off. With extraction enabled, a missing mkvmerge or
+// mkvextract fails the check.
+func (s *Session) checkMatroskaTools(ctx context.Context) Result {
+	lookup := s.env.MatroskaSpec
+	if lookup == nil {
+		lookup = func(name string) (tools.MatroskaToolSpecification, error) {
+			return tools.MatroskaToolSpec(runtime.GOOS+"-"+runtime.GOARCH, name)
+		}
+	}
+	var findings []Finding
+	facts := map[string]string{}
+	for _, name := range []string{"mkvmerge", "mkvextract", "mediainfo"} {
+		spec, err := lookup(name)
+		if err != nil {
+			if err.Error() == "tool_platform_unsupported" {
+				findings = append(findings, warnf(name, CodeMatroskaUnsupported))
+			} else {
+				findings = append(findings, failf(name, CodeToolManifest))
+			}
+			continue
+		}
+		facts[name+".version"] = spec.Version
+		var candidates []ToolCandidate
+		if spec.Executable.ContainerPath != "" {
+			candidates = append(candidates, ToolCandidate{Label: "runtime", Path: spec.Executable.ContainerPath})
+		}
+		if s.env.Project != "" && filepath.IsAbs(s.env.Project) {
+			candidates = append(candidates, ToolCandidate{Label: "project", Path: filepath.Join(s.env.Project, filepath.FromSlash(spec.Executable.Path))})
+		}
+		found := false
+		for _, candidate := range candidates {
+			code, exists := verifyTool(ctx, candidate.Path, spec.Executable.SHA256)
+			if !exists {
+				continue
+			}
+			found = true
+			subject := name + ":" + candidate.Label
+			switch code {
+			case CodeToolVerified:
+				findings = append(findings, okf(subject, CodeMatroskaVerified))
+			case CodeToolHashMismatch:
+				findings = append(findings, failf(subject, CodeMatroskaMismatch))
+			default:
+				findings = append(findings, failf(subject, CodeMatroskaUnreadable))
+			}
+		}
+		if !found {
+			if s.env.Config.Matroska.EnableExtraction && name != "mediainfo" {
+				findings = append(findings, failf(name, CodeMatroskaMissing))
+			} else {
+				findings = append(findings, warnf(name, CodeMatroskaMissing))
+			}
+		}
+	}
+	r := newResult("matroska_tools", findings...)
+	r.Facts = facts
+	return r
+}
+
 // verifyTool hashes a candidate without executing it. found is false when
 // nothing exists at the path.
 func verifyTool(ctx context.Context, path, want string) (code string, found bool) {

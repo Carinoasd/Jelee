@@ -33,7 +33,7 @@ COVER_PKGS = $(shell $(PYTHON) -c 'import json; print(" ".join("./" + p["path"] 
 NPM := $(CURDIR)/.bin/npm
 WEB := --workspace @jelee/web
 
-.PHONY: backup-drill backup-scale image-memory-test image-memory-smoke-test scan-memory-test scan-memory-smoke-test runtime-memory-test runtime-memory-worker-test memory-contract-test i18n-check family-ignore-sustained-worker-test ignore-sustained-test init bootstrap bootstrap-media bootstrap-runtime runtime-tools-verify runtime-toolchain-test probe-runtime-test probe-worker-test nfo-worker-test family-ignore-worker-test ignore-oracle-test sandbox-test tools-verify media-tools-verify tools-clean fixtures fixtures-test build test test-race test-integration coverage fmt fmt-check lint toolchain-test media-toolchain-test brand-scan brand-scan-incremental gitignore-check openapi openapi-check migrate doctor bench bench-check benchgate-test doc-check dev nfo diag web-install web-build web-budget web-test web-lint web-types bootstrap-playwright playwright-verify web-e2e web-visual web-visual-update test-race-nonpostgres test-race-postgres-shard go-test-shard-test golangci-lint lint-baseline-prune coverage-check coverage-ratchet bench-compare quality-gates-test
+.PHONY: backup-drill backup-scale image-memory-test image-memory-smoke-test scan-memory-test scan-memory-smoke-test runtime-memory-test runtime-memory-worker-test memory-contract-test i18n-check family-ignore-sustained-worker-test ignore-sustained-test init bootstrap bootstrap-media bootstrap-matroska matroska-tools-verify matroska-toolchain-test bootstrap-runtime runtime-tools-verify runtime-toolchain-test probe-runtime-test probe-worker-test nfo-worker-test family-ignore-worker-test ignore-oracle-test sandbox-test tools-verify media-tools-verify tools-clean fixtures fixtures-test build test test-race test-integration coverage fmt fmt-check lint toolchain-test media-toolchain-test brand-scan brand-scan-incremental gitignore-check openapi openapi-check migrate doctor bench bench-check benchgate-test doc-check dev nfo diag web-install web-build web-budget web-test web-lint web-types bootstrap-playwright playwright-verify web-e2e web-visual web-visual-update test-race-nonpostgres test-race-postgres-shard go-test-shard-test golangci-lint lint-baseline-prune coverage-check coverage-ratchet bench-compare quality-gates-test
 init: bootstrap
 bootstrap:
 	sh scripts/bootstrap-tools
@@ -41,6 +41,13 @@ bootstrap-media:
 	sh scripts/bootstrap-media-tools
 media-tools-verify:
 	$(PYTHON) scripts/media-tools.py verify
+# E4 optional runtime tools (mkvtoolnix, MediaInfo); never part of bootstrap.
+bootstrap-matroska:
+	$(PYTHON) scripts/matroska-tools.py bootstrap
+matroska-tools-verify:
+	$(PYTHON) scripts/matroska-tools.py verify
+matroska-toolchain-test:
+	$(PYTHON) -B scripts/test_matroska_tools.py
 media-toolchain-test:
 	$(PYTHON) -B scripts/test_media_tools.py
 bootstrap-runtime:

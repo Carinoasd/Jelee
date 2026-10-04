@@ -98,7 +98,7 @@ func TestRealFixtureProbeMetadataAndSourcePreservation(t *testing.T) {
 				if err := json.Unmarshal(result.Stdout, &metadata); err != nil {
 					t.Fatal("probe returned invalid JSON")
 				}
-				var video, audio, subtitles, covers int
+				var video, audio, subtitles, attachments, covers int
 				for _, stream := range metadata.Streams {
 					switch stream.CodecType {
 					case "video":
@@ -120,15 +120,17 @@ func TestRealFixtureProbeMetadataAndSourcePreservation(t *testing.T) {
 						}
 					case "subtitle":
 						subtitles++
-						if stream.CodecName != "subrip" {
+						if stream.CodecName != "subrip" && stream.CodecName != "ass" {
 							t.Fatal("wrong subtitle codec")
 						}
+					case "attachment":
+						attachments++
 					}
 				}
 				if (covers == 1) != (entry.Expected.CoverSHA256 != "") || covers > 1 {
 					t.Fatal("embedded cover expectation differs")
 				}
-				if video != entry.Expected.Video || audio != entry.Expected.Audio || subtitles != entry.Expected.Subtitles || len(metadata.Chapters) != entry.Expected.Chapters {
+				if video != entry.Expected.Video || audio != entry.Expected.Audio || subtitles != entry.Expected.Subtitles || attachments != entry.Expected.Attachments || len(metadata.Chapters) != entry.Expected.Chapters {
 					t.Fatal("wrong stream/chapter counts")
 				}
 				duration, err := strconv.ParseFloat(metadata.Format.Duration, 64)

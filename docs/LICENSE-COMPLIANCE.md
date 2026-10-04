@@ -100,3 +100,13 @@ Jelee 本仓库派生自 [Jellyfin](https://github.com/jellyfin/jellyfin)。审�
 `@playwright/test`、`playwright`、`playwright-core` 1.63.0 以 Apache-2.0 授權，版權屬 Microsoft Corporation 與 Playwright 貢獻者；它們是 `web/` 的 npm 開發相依，版本與 integrity 雜湊鎖在 `package-lock.json`，授權文字隨套件保留在 `node_modules`。測試只在開發機與 CI 執行（`make web-e2e`、`make web-visual`），不被前端產物匯入：`web/dist` 由 Vite 從 `web/src` 建置，不含任何 Playwright 程式碼。
 
 瀏覽器只下載 Chrome Headless Shell 153.0.8010.12（Chrome for Testing 建置，Chromium 授權為 BSD-3-Clause，The Chromium Authors），壓縮包內的 `LICENSE.headless_shell` 列出所含第三方元件與其授權，安裝到被忽略的 `.tools/playwright/` 後與已校驗壓縮包逐位元組比對。它只被執行、不被連結，也不進入任何建置產物、容器映像或發行包，因此不構成 Jelee 的分發內容。不下載 Playwright 的 ffmpeg（錄影用）、完整 Chromium、Firefox 或 WebKit。官方 HTTPS 來源與 SHA256 固定在 `tools/manifest.json`，來源細節見 `docs/THIRD-PARTY-TOOLS.md`。
+
+## mkvtoolnix 與 MediaInfo（E4）
+
+依 E4 引入的兩項工具是**可選運行依賴**，以獨立行程在沙箱中執行，不被 Jelee 程式連結：
+
+- **MKVToolNix 102.0**：GPL-2.0（`COPYING`），版權屬 Moritz Bunkus 與貢獻者；隨附元件授權列於上游 README。映像只放 mkvmerge、mkvextract 與 AppImage 內 22 個函式庫（Qt 6 LGPL-3.0、ICU、GLib／GnuTLS／libtasn1 LGPL-2.1+、Nettle／libidn2／libunistring LGPL-3.0+ 或 GPL-2.0+、Boost BSL-1.0、FLAC／Ogg／Vorbis／PCRE／cmark BSD 類、p11-kit BSD-3、libffi MIT、libdvdread GPL-2.0+），授權文字在 `/licenses/mkvtoolnix/`。
+- **MediaInfo CLI 26.05**：BSD-2-Clause，MediaArea.net SARL（`/licenses/mediainfo/LICENSE`）。依其授權，二進位分發須重現版權聲明，該 LICENSE 原文隨映像保留。
+- **Debian libstdc++6、zlib1g、libgmp10**：各包 `copyright` 在 `/licenses/runtime/`（libstdc++ 的 notice 即既有 gcc-14-base copyright）。
+
+分發這些 GPL／LGPL 二進位時須提供對應原始碼。MKVToolNix 原始碼位置記於清單（`https://mkvtoolnix.download/sources/mkvtoolnix-102.0.tar.xz`）；Debian 套件的原始碼可由對應 `.dsc` 取得但尚未下載收存；AppImage 內第三方函式庫的完整對應原始碼尚未收集。因此與 BtbN ffprobe 相同，目前只用於本地與實驗容器，**未發布公共映像**；發布前須補齊上述原始碼材料。來源、版本與 SHA256 見 `tools/manifest.json` 的 `matroskaTools` 與 [mkvtoolnix 與 MediaInfo](matroska-tools.md)。

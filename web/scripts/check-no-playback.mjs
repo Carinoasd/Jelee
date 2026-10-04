@@ -50,10 +50,11 @@ export const bannedSourcePatterns = [
 
 /**
  * Path segments that would denote a playback route, the stream endpoint or
- * the external subtitle and audio track delivery endpoints.
+ * the external subtitle and audio track and the extracted embedded subtitle
+ * and font attachment delivery endpoints.
  */
 const playbackSegment =
-  /^(?:play|player|playback|playing|now-playing|stream|streams|subtitles|audio|cast|pip|picture-in-picture|theater)$/i;
+  /^(?:play|player|playback|playing|now-playing|stream|streams|subtitles|embedded-subtitles|attachments|audio|cast|pip|picture-in-picture|theater)$/i;
 const pathLiteral = /["'`](\/[A-Za-z0-9_:{}()*./-]*)["'`]/g;
 
 const sourceExtensions = new Set([".ts", ".vue", ".js", ".mjs", ".html", ".css"]);

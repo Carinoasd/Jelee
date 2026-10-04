@@ -39,6 +39,9 @@ func MarshalProbeMetadata(v MediaMetadata) ([]byte, error) {
 		}
 		chapters[c.ID] = true
 	}
+	if !validMatroska(v.Matroska, v.Format.DurationMicros, indices) {
+		return nil, ErrInvalid
+	}
 	encoded, err := json.Marshal(v)
 	if err != nil || len(encoded) > ProbeMetadataMaxBytes {
 		return nil, ErrInvalid

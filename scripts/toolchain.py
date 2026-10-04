@@ -234,6 +234,15 @@ def fetch(spec, offline):
 
 
 ALL_TOOLS = ("go", "node", GOLANGCI)
+# E4: pinned in tools/manifest.json "matroskaTools", never installed by default.
+OPTIONAL_TOOLS = ("mkvtoolnix", "mediainfo")
+
+
+def matroska(arguments, tools):
+    command = [sys.executable, str(ROOT / "scripts/matroska-tools.py")] + arguments
+    for tool in tools:
+        command += ["--tool", tool]
+    subprocess.run(command, check=True)
 
 
 def bootstrap(offline=False, tools=ALL_TOOLS):
@@ -681,14 +690,24 @@ def main():
     parser.add_argument("command", choices=["bootstrap", "verify", "clean"])
     parser.add_argument("--offline", action="store_true")
     # Playwright's browser (about 120 MB) is opt-in: make bootstrap-playwright.
-    parser.add_argument("--tool", action="append", choices=list(ALL_TOOLS) + [PLAYWRIGHT],
-                        help="limit bootstrap or verify to this tool (repeatable; default: all but playwright)")
+    # mkvtoolnix and MediaInfo (E4) are opt-in too: make bootstrap-matroska.
+    parser.add_argument("--tool", action="append", choices=list(ALL_TOOLS) + [PLAYWRIGHT] + list(OPTIONAL_TOOLS),
+                        help="limit bootstrap or verify to this tool (repeatable; default: all required tools; "
+                             "playwright, mkvtoolnix and mediainfo are optional and installed only when named)")
     args = parser.parse_args()
     tools = tuple(args.tool or ALL_TOOLS)
+    optional = tuple(tool for tool in tools if tool in OPTIONAL_TOOLS)
     if args.command == "bootstrap":
         bootstrap(args.offline, tools)
+        if optional:
+            matroska(["bootstrap"] + (["--offline"] if args.offline else []), optional)
     elif args.command == "verify":
         verify(tools)
+        if optional:
+            matroska(["verify"], optional)
+        elif not args.tool:
+            # Optional tools are verified when installed and reported otherwise.
+            matroska(["verify", "--if-installed"], OPTIONAL_TOOLS)
     else:
         for name in (".tools", ".bin", ".testfixtures", ".testdata"):
             remove_tree(ROOT / name)

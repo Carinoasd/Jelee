@@ -152,6 +152,9 @@ func ReferenceConfig() config.Config {
 			images.TempRoot = referenceImageTempRoot()
 			return images
 		}(),
+		// The optional extraction routes (E4) are part of the reference
+		// document; the cache root only has to pass validation.
+		Matroska: config.MatroskaConfig{EnableExtraction: true, CacheRoot: referenceImageTempRoot(), CacheMaxBytes: 1 << 30},
 	}
 }
 

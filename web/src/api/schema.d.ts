@@ -15350,6 +15350,216 @@ export type paths = {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/sources/{id}/attachments/{attachmentId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read a font attachment copied out of a Matroska source
+         * @description Native sessions only; web sessions get 403 web_playback_disabled. The 1-based Matroska attachment ID of a font listed with a url under attachments of GET /api/v1/items/{id}/playback. On first use the isolated mkvextract copies the font, unconverted, into a rebuildable cache (G15.7); clients use it to render ASS subtitles themselves. Content-Type comes from a fixed table keyed by the font extension. Nothing is rendered, burned in, re-encoded or remuxed, and the original file is never written. A missing, invisible or non-extractable item, or one whose tool is not installed, is answered like a missing source. Range, HEAD, conditional requests, playback and bandwidth limits and revocation behave as for /api/v1/sources/{id}/stream. Responses carry X-Content-Type-Options: nosniff and a sandbox Content-Security-Policy.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: {
+                    "If-Range"?: string;
+                    Range?: string;
+                };
+                path: {
+                    attachmentId: number;
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description HTTP 200 */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description HTTP 206 */
+                206: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description HTTP 403 */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 404 */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 408 */
+                408: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 409 */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 416 */
+                416: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 503 */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Jelee error envelope with code, message, details and traceId; see the Error schema. */
+                default: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        /**
+         * Read a font attachment copied out of a Matroska source
+         * @description Native sessions only; web sessions get 403 web_playback_disabled. The 1-based Matroska attachment ID of a font listed with a url under attachments of GET /api/v1/items/{id}/playback. On first use the isolated mkvextract copies the font, unconverted, into a rebuildable cache (G15.7); clients use it to render ASS subtitles themselves. Content-Type comes from a fixed table keyed by the font extension. Nothing is rendered, burned in, re-encoded or remuxed, and the original file is never written. A missing, invisible or non-extractable item, or one whose tool is not installed, is answered like a missing source. Range, HEAD, conditional requests, playback and bandwidth limits and revocation behave as for /api/v1/sources/{id}/stream. Responses carry X-Content-Type-Options: nosniff and a sandbox Content-Security-Policy.
+         */
+        head: {
+            parameters: {
+                query?: never;
+                header?: {
+                    "If-Range"?: string;
+                    Range?: string;
+                };
+                path: {
+                    attachmentId: number;
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description HTTP 200 */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description HTTP 206 */
+                206: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description HTTP 403 */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 404 */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 408 */
+                408: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 409 */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 416 */
+                416: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 503 */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Jelee error envelope with code, message, details and traceId; see the Error schema. */
+                default: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/sources/{id}/audio/{trackId}": {
         parameters: {
             query?: never;
@@ -15503,6 +15713,216 @@ export type paths = {
                 };
                 /** @description HTTP 416 */
                 416: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Jelee error envelope with code, message, details and traceId; see the Error schema. */
+                default: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/sources/{id}/embedded-subtitles/{index}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read an embedded text subtitle copied out of a Matroska source
+         * @description Native sessions only; web sessions get 403 web_playback_disabled. The probe stream index of an embedded SubRip, ASS, SSA or WebVTT (S_TEXT/WEBVTT) subtitle listed with extractable true and a url under subtitleTracks of GET /api/v1/items/{id}/playback. On first use the isolated mkvextract copies the track, unconverted, into a rebuildable cache (G15.5); Content-Type is the format's fixed type with charset=UTF-8, as Matroska stores text subtitles. Bitmap subtitles and D_WEBVTT tracks are not extracted. Nothing is rendered, burned in, re-encoded or remuxed, and the original file is never written. A missing, invisible or non-extractable item, or one whose tool is not installed, is answered like a missing source. Range, HEAD, conditional requests, playback and bandwidth limits and revocation behave as for /api/v1/sources/{id}/stream. Responses carry X-Content-Type-Options: nosniff and a sandbox Content-Security-Policy.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: {
+                    "If-Range"?: string;
+                    Range?: string;
+                };
+                path: {
+                    id: string;
+                    index: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description HTTP 200 */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description HTTP 206 */
+                206: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description HTTP 403 */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 404 */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 408 */
+                408: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 409 */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 416 */
+                416: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 503 */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Jelee error envelope with code, message, details and traceId; see the Error schema. */
+                default: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        /**
+         * Read an embedded text subtitle copied out of a Matroska source
+         * @description Native sessions only; web sessions get 403 web_playback_disabled. The probe stream index of an embedded SubRip, ASS, SSA or WebVTT (S_TEXT/WEBVTT) subtitle listed with extractable true and a url under subtitleTracks of GET /api/v1/items/{id}/playback. On first use the isolated mkvextract copies the track, unconverted, into a rebuildable cache (G15.5); Content-Type is the format's fixed type with charset=UTF-8, as Matroska stores text subtitles. Bitmap subtitles and D_WEBVTT tracks are not extracted. Nothing is rendered, burned in, re-encoded or remuxed, and the original file is never written. A missing, invisible or non-extractable item, or one whose tool is not installed, is answered like a missing source. Range, HEAD, conditional requests, playback and bandwidth limits and revocation behave as for /api/v1/sources/{id}/stream. Responses carry X-Content-Type-Options: nosniff and a sandbox Content-Security-Policy.
+         */
+        head: {
+            parameters: {
+                query?: never;
+                header?: {
+                    "If-Range"?: string;
+                    Range?: string;
+                };
+                path: {
+                    id: string;
+                    index: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description HTTP 200 */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description HTTP 206 */
+                206: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description HTTP 403 */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 404 */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 408 */
+                408: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 409 */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 416 */
+                416: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 503 */
+                503: {
                     headers: {
                         [name: string]: unknown;
                     };
@@ -23630,6 +24050,14 @@ export type components = {
             password: string;
         };
         MediaSourceInfo: {
+            attachments?: {
+                fileName: string;
+                font: boolean;
+                /** @description 1-based Matroska attachment ID. */
+                id: number;
+                /** @description Probe stream index of the same attachment, when the probe listed exactly as many attachment streams. */
+                streamIndex?: number;
+            }[];
             audioTracks: {
                 atmos: boolean;
                 bitRate?: number;
@@ -23682,11 +24110,15 @@ export type components = {
             subtitleTracks: {
                 codec?: string;
                 default: boolean;
+                /** @description A SubRip, ASS, SSA or WebVTT track inside a Matroska/WebM source that the optional mkvtoolnix runtime can copy unconverted (G15.5). */
+                extractable?: boolean;
                 forced: boolean;
                 /** @description Canonical format clients declare: srt, ass, ssa, webvtt, mov_text, pgs, vobsub, dvb, eia_608 or text. */
                 format?: string;
                 index: number;
                 language?: string;
+                /** @description Matroska track name from the optional MediaInfo supplement. */
+                title?: string;
             }[];
             /** @description G20.2 version labels with qualityScore and displayName; sources are listed by qualityScore descending. Other label fields may be added. */
             version: {
@@ -24127,6 +24559,16 @@ export type components = {
             sourceId?: string;
         };
         PlaybackSource: {
+            attachments?: {
+                fileName: string;
+                font: boolean;
+                /** @description 1-based Matroska attachment ID. */
+                id: number;
+                /** @description Probe stream index of the same attachment, when the probe listed exactly as many attachment streams. */
+                streamIndex?: number;
+                /** @description Present for fonts when extraction is enabled and available: /api/v1/sources/{id}/attachments/{attachmentId}. Native sessions only. */
+                url?: string;
+            }[];
             audioTracks: {
                 atmos: boolean;
                 bitRate?: number;
@@ -24212,11 +24654,17 @@ export type components = {
             subtitleTracks: {
                 codec?: string;
                 default: boolean;
+                /** @description A SubRip, ASS, SSA or WebVTT track inside a Matroska/WebM source that the optional mkvtoolnix runtime can copy unconverted (G15.5). */
+                extractable?: boolean;
                 forced: boolean;
                 /** @description Canonical format clients declare: srt, ass, ssa, webvtt, mov_text, pgs, vobsub, dvb, eia_608 or text. */
                 format?: string;
                 index: number;
                 language?: string;
+                /** @description Matroska track name from the optional MediaInfo supplement. */
+                title?: string;
+                /** @description Present when extraction is enabled and available: /api/v1/sources/{id}/embedded-subtitles/{index}. Native sessions only. */
+                url?: string;
             }[];
             /** @description G20.2 version labels with qualityScore and displayName; sources are listed by qualityScore descending. Other label fields may be added. */
             version: {

@@ -69,7 +69,8 @@ G05仍部分完成：舊C#的直播與Channel控制器已刪除並提供[明確�
 | `GET /compat/Items/{itemId}`、`GET /compat/Users/{userId}/Items/{itemId}` | 同上 | 單一條目或媒體庫的 `BaseItemDto`；可播放條目附直投 `MediaSources` |
 | `GET`、`POST /compat/Items/{itemId}/PlaybackInfo` | 同上 | `PlaybackInfoResponse`：只列客戶端可直投的來源；沒有則 `ErrorCode`=`NoCompatibleStream` |
 | `GET`、`HEAD /compat/Videos/{itemId}/stream`、`…/stream.{container}` | native 工作階段（直投開啟時才掛載） | 原檔位元組（交給伺服器的直投模組，Range／HEAD／限流／撤銷斷流同自有 API） |
-| `GET`、`HEAD /compat/Videos/{itemId}/{mediaSourceId}/Subtitles/{index}/Stream.{format}`、`…/{index}/{startPositionTicks}/Stream.{format}` | 同上 | 外掛字幕原檔位元組（`format` 必須是原檔格式） |
+| `GET`、`HEAD /compat/Videos/{itemId}/{mediaSourceId}/Subtitles/{index}/Stream.{format}`、`…/{index}/{startPositionTicks}/Stream.{format}` | 同上 | 外掛字幕原檔位元組（`format` 必須是原檔格式）；擷取開啟且可用時，Matroska 內嵌文字字幕為擷取快取的原樣副本（E4） |
+| `GET`、`HEAD /compat/Videos/{itemId}/{mediaSourceId}/Attachments/{index}` | 同上（只在擷取開啟時掛載） | Matroska 字型附件的原樣副本，`index` 為附件的探測串流索引（G15.7，見 [mkvtoolnix 與 MediaInfo](matroska-tools.md)） |
 | `GET`、`HEAD /compat/Audio/{itemId}/stream`、`…/stream.{container}` | 同上 | 目錄沒有音訊條目，驗證後一律回隱藏狀態（預設 404） |
 | `POST /compat/Sessions/Playing`、`…/Playing/Progress`、`…/Playing/Stopped` | native 工作階段（目錄開啟時才掛載） | 播放開始／進度／停止回報，一律 204 空主體（見「播放狀態模組」） |
 | `POST /compat/Sessions/Playing/Ping?playSessionId=` | 同上 | 讓播放工作階段保持活著；204 |
@@ -190,7 +191,7 @@ PlaybackInfo 隨媒體庫模組掛載；串流、字幕與音訊路由只在直�
 **外掛字幕**
 
 - 直投開啟時，`MediaSources[].MediaStreams` 列出外掛字幕：`Type`=`Subtitle`、`IsExternal`=true、`DeliveryMethod`=`External`、`SupportsExternalStream`=true、`Codec`=副檔名、`Language`、`Title`、`IsDefault`、`IsForced`、`IsHearingImpaired`（SDH）、`IsTextSubtitleStream`，`DeliveryUrl` 為上游格式 `/Videos/{itemId}/{mediaSourceId}/Subtitles/{index}/0/Stream.{副檔名}`（相對於客戶端設定的伺服器網址，**不含 token**）。`Index` 依上游接在所有內嵌流之後，按儲存層固定順序編號。內嵌字幕標 `DeliveryMethod`=`Embed`。外掛音軌不列（上游沒有投遞外掛音軌的路由）。
-- `GET`／`HEAD …/Subtitles/{index}/Stream.{format}`（及含 `{startPositionTicks}` 的形式）經 `ServeTrack` 原樣直投。`format`（或上游已過時的 query `format`）必須等於原檔副檔名或同一格式的別名（`vtt`／`webvtt`、`srt`／`subrip`），否則 409，不轉換字幕格式。`startPositionTicks` 或 query `StartPositionTicks` 非 0、`EndPositionTicks`、`AddVttTimeMap=true`（皆需改寫字幕時間）409；`index` 指向內嵌字幕（需從容器抽出）409；不存在的索引回隱藏狀態。
+- `GET`／`HEAD …/Subtitles/{index}/Stream.{format}`（及含 `{startPositionTicks}` 的形式）經 `ServeTrack` 原樣直投。`format`（或上游已過時的 query `format`）必須等於原檔副檔名或同一格式的別名（`vtt`／`webvtt`、`srt`／`subrip`），否則 409，不轉換字幕格式。`startPositionTicks` 或 query `StartPositionTicks` 非 0、`EndPositionTicks`、`AddVttTimeMap=true`（皆需改寫字幕時間）409；`index` 指向內嵌字幕時 409，除非擷取開啟且可用、該軌為 Matroska 內嵌 SubRip／ASS／SSA／WebVTT 且 `format` 是其自身格式，此時經 `ServeExtracted` 直投擷取快取的原樣副本（PlaybackInfo 對這些軌標 `DeliveryMethod`=`External` 並給 `DeliveryUrl`；`MediaAttachments` 列出附件與字型 `DeliveryUrl`）；不存在的索引回隱藏狀態。
 
 **音訊**：`/Audio/{itemId}/stream` 與 `.{container}` 已註冊，但目錄沒有音訊條目，驗證身分後一律回隱藏狀態（預設 404）；轉換參數仍先回 409。
 

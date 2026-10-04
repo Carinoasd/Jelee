@@ -421,6 +421,561 @@
       }
     }
   },
+  "matroskaTools": {
+    "schemaVersion": 1,
+    "optional": true,
+    "decision": "E4 in docs/owner-verification-queue.md (2026-10-05): MediaInfo and mkvtoolnix approved under G30.6 with pinned versions, official sources, SHA256 and license records; never installed by default (scripts/matroska-tools.py, make bootstrap-matroska)",
+    "verifiedOn": "2026-10-04",
+    "runtimePlatform": "linux-amd64",
+    "productionIntegration": "Linux amd64 only, through the Landlock/seccomp helper (internal/platform/mkvruntime) with exactly these files at containerPath; Windows installs are for developer use and the runtime capability reports platform_unsupported there. mkvpropedit is pinned and verified but never shipped in the image nor registered: Jelee never writes into original media",
+    "runtimePackages": [
+      {
+        "name": "libstdc++6",
+        "version": "14.2.0-19",
+        "architecture": "amd64",
+        "sourcePackage": "gcc-14",
+        "sourceVersion": "14.2.0-19",
+        "url": "https://deb.debian.org/debian/pool/main/g/gcc-14/libstdc++6_14.2.0-19_amd64.deb",
+        "sha256": "ab1fa05837aa7a92aae748fd07a18a35f7d18bb4a71c4724fe2bbf0e32089de0",
+        "sizeBytes": 713628,
+        "metadataURL": "https://packages.debian.org/trixie/amd64/libstdc++6/download",
+        "archive": "deb-ar",
+        "license": "GPL-3.0-or-later WITH GCC-exception-3.1; notice is the gcc-14-base copyright already pinned in mediaRuntime",
+        "attribution": "Free Software Foundation, GCC contributors and Debian GCC Maintainers",
+        "files": [
+          {
+            "source": "usr/lib/x86_64-linux-gnu/libstdc++.so.6.0.33",
+            "destination": "lib/x86_64-linux-gnu/libstdc++.so.6",
+            "kind": "elf",
+            "sha256": "972bb2a18b71140dab0240f8a1f68ab3fb1d56bcd4c4f824a91b70888faf5a00",
+            "sizeBytes": 2497768,
+            "containerPath": "/lib/x86_64-linux-gnu/libstdc++.so.6"
+          }
+        ]
+      },
+      {
+        "name": "zlib1g",
+        "version": "1:1.3.dfsg+really1.3.1-1+b1",
+        "architecture": "amd64",
+        "sourcePackage": "zlib",
+        "sourceVersion": "1:1.3.dfsg+really1.3.1-1",
+        "url": "https://deb.debian.org/debian/pool/main/z/zlib/zlib1g_1.3.dfsg+really1.3.1-1+b1_amd64.deb",
+        "sha256": "015be740d6236ad114582dea500c1d907f29e16d6db00566ca32fb68d71ac90d",
+        "sizeBytes": 88892,
+        "metadataURL": "https://packages.debian.org/trixie/amd64/zlib1g/download",
+        "archive": "deb-ar",
+        "license": "Zlib",
+        "attribution": "Jean-loup Gailly, Mark Adler and Debian zlib maintainers",
+        "files": [
+          {
+            "source": "usr/lib/x86_64-linux-gnu/libz.so.1.3.1",
+            "destination": "lib/x86_64-linux-gnu/libz.so.1",
+            "kind": "elf",
+            "sha256": "85590dd58edf5445e18bc7193e5ebc01ac5841f1ae187e97705a662e90c6421e",
+            "sizeBytes": 125376,
+            "containerPath": "/lib/x86_64-linux-gnu/libz.so.1"
+          },
+          {
+            "source": "usr/share/doc/zlib1g/copyright",
+            "destination": "licenses/zlib1g/copyright",
+            "kind": "notice",
+            "sha256": "9e5b96d63773a5d177ba264254390f792be07e41748ebd94730981c6cac31cc6",
+            "sizeBytes": 2927,
+            "containerPath": "/licenses/runtime/zlib1g/copyright"
+          }
+        ]
+      },
+      {
+        "name": "libgmp10",
+        "version": "2:6.3.0+dfsg-3",
+        "architecture": "amd64",
+        "sourcePackage": "gmp",
+        "sourceVersion": "2:6.3.0+dfsg-3",
+        "url": "https://deb.debian.org/debian/pool/main/g/gmp/libgmp10_6.3.0+dfsg-3_amd64.deb",
+        "sha256": "d0d0265eb01770f17afd0f7c8c0622f80479dcfbbe13653a0debeec61464e622",
+        "sizeBytes": 560220,
+        "metadataURL": "https://packages.debian.org/trixie/amd64/libgmp10/download",
+        "archive": "deb-ar",
+        "license": "LGPL-3.0-or-later OR GPL-2.0-or-later",
+        "attribution": "Free Software Foundation, GMP contributors and Debian GMP maintainers",
+        "files": [
+          {
+            "source": "usr/lib/x86_64-linux-gnu/libgmp.so.10.5.0",
+            "destination": "lib/x86_64-linux-gnu/libgmp.so.10",
+            "kind": "elf",
+            "sha256": "d15e1585c6c267296459570c8ac217ca9123044bcd4e896d2f686b32333445d2",
+            "sizeBytes": 566080,
+            "containerPath": "/lib/x86_64-linux-gnu/libgmp.so.10"
+          },
+          {
+            "source": "usr/share/doc/libgmp10/copyright",
+            "destination": "licenses/libgmp10/copyright",
+            "kind": "notice",
+            "sha256": "7d366aef5ba325150246de1d7820c4c9926cd27ca61a69948492b26cd3b61601",
+            "sizeBytes": 4153,
+            "containerPath": "/licenses/runtime/libgmp10/copyright"
+          }
+        ]
+      }
+    ],
+    "tools": {
+      "mkvtoolnix": {
+        "version": "102.0",
+        "purpose": "Identify Matroska tracks/attachments (mkvmerge --identify) and copy embedded text subtitles and font attachments unconverted into a rebuildable cache (mkvextract); G09.2, G15.5, G15.7, G19.1. Optional runtime dependency",
+        "license": "GPL-2.0-only (MKVToolNix; COPYING). Bundled libraries retain their own licenses as listed in the release README (Qt 6 LGPL-3.0, ICU, GLib/GnuTLS/libtasn1 LGPL-2.1+, Nettle/GMP/libidn2/libunistring LGPL-3.0+ or GPL-2.0+, Boost BSL-1.0, FLAC/Ogg/Vorbis/PCRE/cmark BSD-style, p11-kit BSD-3, libffi MIT, libdvdread GPL-2.0+)",
+        "attribution": "Moritz Bunkus and MKVToolNix contributors",
+        "homepage": "https://mkvtoolnix.download/",
+        "sourceURL": "https://mkvtoolnix.download/sources/mkvtoolnix-102.0.tar.xz",
+        "sourceRepository": "https://codeberg.org/mbunkus/mkvtoolnix/src/tag/release-102.0",
+        "sourceCompleteness": "MKVToolNix source is published upstream at the URL above. Complete corresponding sources of the AppImage-bundled third-party libraries have not been collected; like the BtbN FFprobe build, the Linux files are for local and experimental container use only, without public image publication",
+        "platforms": {
+          "linux-amd64": {
+            "vendor": "MKVToolNix official AppImage",
+            "url": "https://mkvtoolnix.download/appimage/MKVToolNix_GUI-102.0-x86_64.AppImage",
+            "sha256": "c66345b30d6d5fd640ea982ab5e202a99b9f541a20e42aa19edd90f3ddd5dc9b",
+            "sizeBytes": 62746600,
+            "checksumURL": "https://mkvtoolnix.download/appimage/MKVToolNix_GUI-102.0-x86_64.AppImage.zsync",
+            "checksumVerification": "Upstream publishes no SHA256 for AppImages. The zsync control file states SHA-1 ccfb9bb167b50ef4cb433a697e17b33d507daefd and length 62746600; the HTTPS download matched both on 2026-10-04 and its SHA256 was then calculated and pinned here",
+            "archive": "appimage-squashfs",
+            "squashfsOffset": 188392,
+            "installPath": "matroska/mkvtoolnix/102.0/linux-amd64",
+            "extraction": "Selected regular files are read by scripts/squashfs_reader.py (pure Python, bounded); the AppImage runtime, AppRun and FUSE are never executed",
+            "runtimeRequirements": "glibc >= 2.28; libstdc++, zlib and GMP are not bundled and come from runtimePackages; glibc from mediaRuntime",
+            "versionArguments": [
+              "--version"
+            ],
+            "versionLine": "{name} v102.0 ('Little Houses') 64-bit",
+            "executables": {
+              "mkvmerge": {
+                "path": "usr/bin/mkvmerge",
+                "sha256": "cf8ae0449177b3bcc401491f61c0378dfb155215cb8f294fc48e8f2b0f34b34e",
+                "sizeBytes": 6989368,
+                "productionAllowed": true,
+                "containerPath": "/usr/lib/jelee/mkvtoolnix/mkvmerge",
+                "closure": [
+                  "/lib/x86_64-linux-gnu/libc.so.6",
+                  "/lib/x86_64-linux-gnu/libdl.so.2",
+                  "/lib/x86_64-linux-gnu/libgcc_s.so.1",
+                  "/lib/x86_64-linux-gnu/libgmp.so.10",
+                  "/lib/x86_64-linux-gnu/libm.so.6",
+                  "/lib/x86_64-linux-gnu/libpthread.so.0",
+                  "/lib/x86_64-linux-gnu/librt.so.1",
+                  "/lib/x86_64-linux-gnu/libstdc++.so.6",
+                  "/lib/x86_64-linux-gnu/libz.so.1",
+                  "/lib64/ld-linux-x86-64.so.2",
+                  "/usr/lib/jelee/mkvtoolnix/lib/libFLAC.so.8",
+                  "/usr/lib/jelee/mkvtoolnix/lib/libQt6Core.so.6",
+                  "/usr/lib/jelee/mkvtoolnix/lib/libboost_atomic.so.1.85.0",
+                  "/usr/lib/jelee/mkvtoolnix/lib/libboost_filesystem.so.1.85.0",
+                  "/usr/lib/jelee/mkvtoolnix/lib/libcmark.so.0.28.3",
+                  "/usr/lib/jelee/mkvtoolnix/lib/libdvdread.so.4",
+                  "/usr/lib/jelee/mkvtoolnix/lib/libffi.so.6",
+                  "/usr/lib/jelee/mkvtoolnix/lib/libglib-2.0.so.0",
+                  "/usr/lib/jelee/mkvtoolnix/lib/libgnutls.so.30",
+                  "/usr/lib/jelee/mkvtoolnix/lib/libgthread-2.0.so.0",
+                  "/usr/lib/jelee/mkvtoolnix/lib/libhogweed.so.4",
+                  "/usr/lib/jelee/mkvtoolnix/lib/libicudata.so.56",
+                  "/usr/lib/jelee/mkvtoolnix/lib/libicui18n.so.56",
+                  "/usr/lib/jelee/mkvtoolnix/lib/libicuuc.so.56",
+                  "/usr/lib/jelee/mkvtoolnix/lib/libidn2.so.0",
+                  "/usr/lib/jelee/mkvtoolnix/lib/libnettle.so.6",
+                  "/usr/lib/jelee/mkvtoolnix/lib/libogg.so.0",
+                  "/usr/lib/jelee/mkvtoolnix/lib/libp11-kit.so.0",
+                  "/usr/lib/jelee/mkvtoolnix/lib/libpcre.so.1",
+                  "/usr/lib/jelee/mkvtoolnix/lib/libtasn1.so.6",
+                  "/usr/lib/jelee/mkvtoolnix/lib/libunistring.so.2",
+                  "/usr/lib/jelee/mkvtoolnix/lib/libvorbis.so.0"
+                ]
+              },
+              "mkvextract": {
+                "path": "usr/bin/mkvextract",
+                "sha256": "4138ca0dcfe48a0adc80d6b822fe8c987dd01bc86bd687d80728e3108b0cbbf8",
+                "sizeBytes": 4010776,
+                "productionAllowed": true,
+                "containerPath": "/usr/lib/jelee/mkvtoolnix/mkvextract",
+                "closure": [
+                  "/lib/x86_64-linux-gnu/libc.so.6",
+                  "/lib/x86_64-linux-gnu/libdl.so.2",
+                  "/lib/x86_64-linux-gnu/libgcc_s.so.1",
+                  "/lib/x86_64-linux-gnu/libgmp.so.10",
+                  "/lib/x86_64-linux-gnu/libm.so.6",
+                  "/lib/x86_64-linux-gnu/libpthread.so.0",
+                  "/lib/x86_64-linux-gnu/librt.so.1",
+                  "/lib/x86_64-linux-gnu/libstdc++.so.6",
+                  "/lib/x86_64-linux-gnu/libz.so.1",
+                  "/lib64/ld-linux-x86-64.so.2",
+                  "/usr/lib/jelee/mkvtoolnix/lib/libFLAC.so.8",
+                  "/usr/lib/jelee/mkvtoolnix/lib/libQt6Core.so.6",
+                  "/usr/lib/jelee/mkvtoolnix/lib/libboost_atomic.so.1.85.0",
+                  "/usr/lib/jelee/mkvtoolnix/lib/libboost_filesystem.so.1.85.0",
+                  "/usr/lib/jelee/mkvtoolnix/lib/libcmark.so.0.28.3",
+                  "/usr/lib/jelee/mkvtoolnix/lib/libdvdread.so.4",
+                  "/usr/lib/jelee/mkvtoolnix/lib/libffi.so.6",
+                  "/usr/lib/jelee/mkvtoolnix/lib/libglib-2.0.so.0",
+                  "/usr/lib/jelee/mkvtoolnix/lib/libgnutls.so.30",
+                  "/usr/lib/jelee/mkvtoolnix/lib/libgthread-2.0.so.0",
+                  "/usr/lib/jelee/mkvtoolnix/lib/libhogweed.so.4",
+                  "/usr/lib/jelee/mkvtoolnix/lib/libicudata.so.56",
+                  "/usr/lib/jelee/mkvtoolnix/lib/libicui18n.so.56",
+                  "/usr/lib/jelee/mkvtoolnix/lib/libicuuc.so.56",
+                  "/usr/lib/jelee/mkvtoolnix/lib/libidn2.so.0",
+                  "/usr/lib/jelee/mkvtoolnix/lib/libnettle.so.6",
+                  "/usr/lib/jelee/mkvtoolnix/lib/libogg.so.0",
+                  "/usr/lib/jelee/mkvtoolnix/lib/libp11-kit.so.0",
+                  "/usr/lib/jelee/mkvtoolnix/lib/libpcre.so.1",
+                  "/usr/lib/jelee/mkvtoolnix/lib/libtasn1.so.6",
+                  "/usr/lib/jelee/mkvtoolnix/lib/libunistring.so.2",
+                  "/usr/lib/jelee/mkvtoolnix/lib/libvorbis.so.0"
+                ]
+              },
+              "mkvpropedit": {
+                "path": "usr/bin/mkvpropedit",
+                "sha256": "8319ce069852c67b741bd24463d73e1b0175ccddc36836f0b8856c89ee340b14",
+                "sizeBytes": 3355128,
+                "productionAllowed": false,
+                "closure": [
+                  "/lib/x86_64-linux-gnu/libc.so.6",
+                  "/lib/x86_64-linux-gnu/libdl.so.2",
+                  "/lib/x86_64-linux-gnu/libgcc_s.so.1",
+                  "/lib/x86_64-linux-gnu/libgmp.so.10",
+                  "/lib/x86_64-linux-gnu/libm.so.6",
+                  "/lib/x86_64-linux-gnu/libpthread.so.0",
+                  "/lib/x86_64-linux-gnu/librt.so.1",
+                  "/lib/x86_64-linux-gnu/libstdc++.so.6",
+                  "/lib/x86_64-linux-gnu/libz.so.1",
+                  "/lib64/ld-linux-x86-64.so.2",
+                  "/usr/lib/jelee/mkvtoolnix/lib/libFLAC.so.8",
+                  "/usr/lib/jelee/mkvtoolnix/lib/libQt6Core.so.6",
+                  "/usr/lib/jelee/mkvtoolnix/lib/libboost_atomic.so.1.85.0",
+                  "/usr/lib/jelee/mkvtoolnix/lib/libboost_filesystem.so.1.85.0",
+                  "/usr/lib/jelee/mkvtoolnix/lib/libcmark.so.0.28.3",
+                  "/usr/lib/jelee/mkvtoolnix/lib/libdvdread.so.4",
+                  "/usr/lib/jelee/mkvtoolnix/lib/libffi.so.6",
+                  "/usr/lib/jelee/mkvtoolnix/lib/libglib-2.0.so.0",
+                  "/usr/lib/jelee/mkvtoolnix/lib/libgnutls.so.30",
+                  "/usr/lib/jelee/mkvtoolnix/lib/libgthread-2.0.so.0",
+                  "/usr/lib/jelee/mkvtoolnix/lib/libhogweed.so.4",
+                  "/usr/lib/jelee/mkvtoolnix/lib/libicudata.so.56",
+                  "/usr/lib/jelee/mkvtoolnix/lib/libicui18n.so.56",
+                  "/usr/lib/jelee/mkvtoolnix/lib/libicuuc.so.56",
+                  "/usr/lib/jelee/mkvtoolnix/lib/libidn2.so.0",
+                  "/usr/lib/jelee/mkvtoolnix/lib/libnettle.so.6",
+                  "/usr/lib/jelee/mkvtoolnix/lib/libogg.so.0",
+                  "/usr/lib/jelee/mkvtoolnix/lib/libp11-kit.so.0",
+                  "/usr/lib/jelee/mkvtoolnix/lib/libpcre.so.1",
+                  "/usr/lib/jelee/mkvtoolnix/lib/libtasn1.so.6",
+                  "/usr/lib/jelee/mkvtoolnix/lib/libunistring.so.2"
+                ]
+              }
+            },
+            "libraries": [
+              {
+                "path": "usr/lib/libboost_filesystem.so.1.85.0",
+                "sha256": "d932c9cf01d5a17411572b611fb86e9f8730bd95f51a1e2f291716e62540b0cd",
+                "sizeBytes": 203136,
+                "containerPath": "/usr/lib/jelee/mkvtoolnix/lib/libboost_filesystem.so.1.85.0"
+              },
+              {
+                "path": "usr/lib/libboost_atomic.so.1.85.0",
+                "sha256": "831518b70605b60f3743023484a30982bebe2ab96072b5c1f311a70b6623b965",
+                "sizeBytes": 25480,
+                "containerPath": "/usr/lib/jelee/mkvtoolnix/lib/libboost_atomic.so.1.85.0"
+              },
+              {
+                "path": "usr/lib/libFLAC.so.8",
+                "sha256": "fe38be45263368b5103c2d32f879c64cb6c410a7d4e935e6e4a373e86749d358",
+                "sizeBytes": 372016,
+                "containerPath": "/usr/lib/jelee/mkvtoolnix/lib/libFLAC.so.8"
+              },
+              {
+                "path": "usr/lib/libQt6Core.so.6",
+                "sha256": "1bf4d869aebd556e51eee1832f7ce534c219bfd5405b6a2e7999a4cd9293c134",
+                "sizeBytes": 7069680,
+                "containerPath": "/usr/lib/jelee/mkvtoolnix/lib/libQt6Core.so.6"
+              },
+              {
+                "path": "usr/lib/libcmark.so.0.28.3",
+                "sha256": "b656b217a5b319c220198e73b82241b33c1cb2636cc5fa61bb89f0ee8a9cf4d5",
+                "sizeBytes": 358840,
+                "containerPath": "/usr/lib/jelee/mkvtoolnix/lib/libcmark.so.0.28.3"
+              },
+              {
+                "path": "usr/lib/libdvdread.so.4",
+                "sha256": "64e80fd6fc92a92ca62bab6a9f14a1923a590d3638fb3bd1b1e2525ac97ab1f4",
+                "sizeBytes": 131296,
+                "containerPath": "/usr/lib/jelee/mkvtoolnix/lib/libdvdread.so.4"
+              },
+              {
+                "path": "usr/lib/libvorbis.so.0",
+                "sha256": "96eafd6a4d71a8f104f499002c84362d9dafd69b1987679e7a3a66633c674899",
+                "sizeBytes": 193208,
+                "containerPath": "/usr/lib/jelee/mkvtoolnix/lib/libvorbis.so.0"
+              },
+              {
+                "path": "usr/lib/libogg.so.0",
+                "sha256": "f16c849e3c2ac5e2f5893bae5354fd2a1c89869068edb84063281f98dbf98a6c",
+                "sizeBytes": 29360,
+                "containerPath": "/usr/lib/jelee/mkvtoolnix/lib/libogg.so.0"
+              },
+              {
+                "path": "usr/lib/libicui18n.so.56",
+                "sha256": "5ecff006af5dfa3c0fce2fa29e2e579aa4439085753f18b927a0e44155827ab6",
+                "sizeBytes": 3368288,
+                "containerPath": "/usr/lib/jelee/mkvtoolnix/lib/libicui18n.so.56"
+              },
+              {
+                "path": "usr/lib/libicuuc.so.56",
+                "sha256": "9ee010e3cfda386831f158630ae53c57a311541800dc7e03151cd299713f6383",
+                "sizeBytes": 2069136,
+                "containerPath": "/usr/lib/jelee/mkvtoolnix/lib/libicuuc.so.56"
+              },
+              {
+                "path": "usr/lib/libicudata.so.56",
+                "sha256": "2860f210ddd5363c13aa941c4ff4838bcbfa35b4f3afde5cfc424406dd712d4e",
+                "sizeBytes": 25048256,
+                "containerPath": "/usr/lib/jelee/mkvtoolnix/lib/libicudata.so.56"
+              },
+              {
+                "path": "usr/lib/libglib-2.0.so.0",
+                "sha256": "91d8e59db911051b9fca6d708a111524b06230a700e228fc1ba1775620b297ae",
+                "sizeBytes": 1171920,
+                "containerPath": "/usr/lib/jelee/mkvtoolnix/lib/libglib-2.0.so.0"
+              },
+              {
+                "path": "usr/lib/libgthread-2.0.so.0",
+                "sha256": "4f442672d6ddd19cedee66da96921ba226e208234b4c77de962b0123dea7dd62",
+                "sizeBytes": 7640,
+                "containerPath": "/usr/lib/jelee/mkvtoolnix/lib/libgthread-2.0.so.0"
+              },
+              {
+                "path": "usr/lib/libgnutls.so.30",
+                "sha256": "d61e6c0a2296e71384b947448bc545e4c1cd82e7c8b40b7b63bc58f758534fab",
+                "sizeBytes": 2060016,
+                "containerPath": "/usr/lib/jelee/mkvtoolnix/lib/libgnutls.so.30"
+              },
+              {
+                "path": "usr/lib/libpcre.so.1",
+                "sha256": "0dd207b5a53568bd542da93dc1816f6fd1aca35817692467ac697b662512c616",
+                "sizeBytes": 464840,
+                "containerPath": "/usr/lib/jelee/mkvtoolnix/lib/libpcre.so.1"
+              },
+              {
+                "path": "usr/lib/libp11-kit.so.0",
+                "sha256": "ac9dcd7e6ab7452bf8ee4ecfd36bd927a5812e7aa408fc766936ef02ad379610",
+                "sizeBytes": 1259544,
+                "containerPath": "/usr/lib/jelee/mkvtoolnix/lib/libp11-kit.so.0"
+              },
+              {
+                "path": "usr/lib/libidn2.so.0",
+                "sha256": "2f4a5893128a6142cc1c88442154ba2e2bf82f383bd25c91afbd1509837cf1ce",
+                "sizeBytes": 131568,
+                "containerPath": "/usr/lib/jelee/mkvtoolnix/lib/libidn2.so.0"
+              },
+              {
+                "path": "usr/lib/libunistring.so.2",
+                "sha256": "05abdd40665a0f8759c91d19e0e5f4aa437002ab76aa9f9a3a790cdf47a34802",
+                "sizeBytes": 1805368,
+                "containerPath": "/usr/lib/jelee/mkvtoolnix/lib/libunistring.so.2"
+              },
+              {
+                "path": "usr/lib/libtasn1.so.6",
+                "sha256": "ca03aa5eacd1e157e0a5c7e5d87789225bc6b3095ca0e180f2aba2452990974c",
+                "sizeBytes": 78832,
+                "containerPath": "/usr/lib/jelee/mkvtoolnix/lib/libtasn1.so.6"
+              },
+              {
+                "path": "usr/lib/libnettle.so.6",
+                "sha256": "37944285dc38aa729c0cbfa08c5b94e301701152db772e1577bc784501f15538",
+                "sizeBytes": 239352,
+                "containerPath": "/usr/lib/jelee/mkvtoolnix/lib/libnettle.so.6"
+              },
+              {
+                "path": "usr/lib/libhogweed.so.4",
+                "sha256": "cd4c53becbaddeebc0b6794084cb46449a98cd1dc7089c4a457b533e810d8401",
+                "sizeBytes": 197704,
+                "containerPath": "/usr/lib/jelee/mkvtoolnix/lib/libhogweed.so.4"
+              },
+              {
+                "path": "usr/lib/libffi.so.6",
+                "sha256": "3a37023ae042c3a8c49f4f6bd2c3ab8a1977138ecd93c30bcc0f5edf78d15532",
+                "sizeBytes": 37248,
+                "containerPath": "/usr/lib/jelee/mkvtoolnix/lib/libffi.so.6"
+              }
+            ],
+            "licenseTexts": [
+              {
+                "name": "MKVToolNix COPYING (GPL-2.0)",
+                "url": "https://codeberg.org/mbunkus/mkvtoolnix/raw/tag/release-102.0/COPYING",
+                "cacheName": "mkvtoolnix-102.0-COPYING",
+                "sha256": "8177f97513213526df2cf6184d8ff986c675afb514d4e68a404010521b880643",
+                "sizeBytes": 18092,
+                "destination": "licenses/COPYING",
+                "containerPath": "/licenses/mkvtoolnix/COPYING"
+              },
+              {
+                "name": "MKVToolNix README (third-party components and licenses)",
+                "url": "https://codeberg.org/mbunkus/mkvtoolnix/raw/tag/release-102.0/README.md",
+                "cacheName": "mkvtoolnix-102.0-README.md",
+                "sha256": "551eac112b8a2423838b16342be58a5ffe425d76d1681eafe1406f8061b9db12",
+                "sizeBytes": 18086,
+                "destination": "licenses/README.md",
+                "containerPath": "/licenses/mkvtoolnix/README.md"
+              }
+            ],
+            "runtimePackages": [
+              "libstdc++6",
+              "zlib1g",
+              "libgmp10"
+            ]
+          },
+          "windows-amd64": {
+            "vendor": "MKVToolNix official portable archive",
+            "url": "https://mkvtoolnix.download/windows/releases/102.0/mkvtoolnix-64-bit-102.0.zip",
+            "sha256": "c02e918900f6d945d9307b426237e456378b79a200589ac6928de39064409a44",
+            "sizeBytes": 88657289,
+            "checksumURL": "https://mkvtoolnix.download/windows/releases/102.0/sha256sums.txt",
+            "checksumVerification": "SHA256 copied from the official sha256sums.txt on 2026-10-04; the downloaded archive re-hashed to the same value",
+            "archive": "zip",
+            "installPath": "matroska/mkvtoolnix/102.0/windows-amd64",
+            "runtimeRequirements": "Windows 10 or later; statically linked executables",
+            "versionArguments": [
+              "--version"
+            ],
+            "versionLine": "{name} v102.0 ('Little Houses') 64-bit",
+            "executables": {
+              "mkvmerge": {
+                "path": "mkvtoolnix/mkvmerge.exe",
+                "sha256": "b56ffd0ed62224cf24c640f418e21538026ed444e143ddd5175e3aa7d7539196",
+                "sizeBytes": 23072056,
+                "productionAllowed": true
+              },
+              "mkvextract": {
+                "path": "mkvtoolnix/mkvextract.exe",
+                "sha256": "bd79d648762787226e8aee23f003c0825b4ff17bc515adaa9d61facceda52346",
+                "sizeBytes": 18413368,
+                "productionAllowed": true
+              },
+              "mkvpropedit": {
+                "path": "mkvtoolnix/mkvpropedit.exe",
+                "sha256": "7cfad6fe2f370a02305b2956a0818e3f44a8277495193e7602a083cf32a3402b",
+                "sizeBytes": 17244984,
+                "productionAllowed": false
+              }
+            },
+            "libraries": [],
+            "licenseFiles": [
+              {
+                "path": "mkvtoolnix/doc/COPYING.txt",
+                "sha256": "8177f97513213526df2cf6184d8ff986c675afb514d4e68a404010521b880643",
+                "sizeBytes": 18092
+              },
+              {
+                "path": "mkvtoolnix/doc/README.txt",
+                "sha256": "551eac112b8a2423838b16342be58a5ffe425d76d1681eafe1406f8061b9db12",
+                "sizeBytes": 18086
+              }
+            ]
+          }
+        }
+      },
+      "mediainfo": {
+        "version": "26.05",
+        "purpose": "Supplement Matroska/WebM probes with chapter titles, attachments and container tags (G19.1). Optional runtime dependency",
+        "license": "BSD-2-Clause (MediaInfo and MediaInfoLib, LICENSE); the Windows archive's LIBCURL.DLL is curl (MIT-style curl license)",
+        "attribution": "MediaArea.net SARL",
+        "homepage": "https://mediaarea.net/en/MediaInfo",
+        "sourceURL": "https://mediaarea.net/download/binary/mediainfo/26.05/MediaInfo_CLI_26.05_GNU_FromSource.tar.xz",
+        "checksumVerification": "MediaArea publishes no checksum files for these archives. Both were downloaded over HTTPS from mediaarea.net on 2026-10-04 and their SHA256 calculated and pinned here; the license text is byte-identical in both",
+        "platforms": {
+          "linux-amd64": {
+            "vendor": "MediaArea official CLI build for AWS Lambda (glibc, libcurl and libmediainfo linked statically)",
+            "url": "https://mediaarea.net/download/binary/mediainfo/26.05/MediaInfo_CLI_26.05_Lambda_x86_64.zip",
+            "sha256": "1ae3744a78c93492b69f0b38bb2d1de1433c3eae04030ff1ea82ee1f60ac9a99",
+            "sizeBytes": 6573795,
+            "archive": "zip",
+            "installPath": "matroska/mediainfo/26.05/linux-amd64",
+            "runtimeRequirements": "glibc; libstdc++ and zlib come from runtimePackages",
+            "versionArguments": [
+              "--Version"
+            ],
+            "versionLine": "MediaInfoLib - v26.05",
+            "executables": {
+              "mediainfo": {
+                "path": "bin/mediainfo",
+                "sha256": "90f25643d43aa4bf7fa14d13f363588edfc27449c97259d376f72f55fbf1e62a",
+                "sizeBytes": 16689472,
+                "productionAllowed": true,
+                "containerPath": "/usr/lib/jelee/mediainfo",
+                "closure": [
+                  "/lib/x86_64-linux-gnu/libc.so.6",
+                  "/lib/x86_64-linux-gnu/libdl.so.2",
+                  "/lib/x86_64-linux-gnu/libgcc_s.so.1",
+                  "/lib/x86_64-linux-gnu/libm.so.6",
+                  "/lib/x86_64-linux-gnu/libpthread.so.0",
+                  "/lib/x86_64-linux-gnu/libstdc++.so.6",
+                  "/lib/x86_64-linux-gnu/libz.so.1",
+                  "/lib64/ld-linux-x86-64.so.2"
+                ]
+              }
+            },
+            "libraries": [],
+            "licenseFiles": [
+              {
+                "path": "LICENSE",
+                "sha256": "a8f0db97f62dbcff8e30edd5cac0f48a4b702bfa55f52b71214f9639133358af",
+                "sizeBytes": 1328,
+                "containerPath": "/licenses/mediainfo/LICENSE"
+              }
+            ],
+            "runtimePackages": [
+              "libstdc++6",
+              "zlib1g"
+            ]
+          },
+          "windows-amd64": {
+            "vendor": "MediaArea official CLI archive",
+            "url": "https://mediaarea.net/download/binary/mediainfo/26.05/MediaInfo_CLI_26.05_Windows_x64.zip",
+            "sha256": "f7f80620ce6d14f4995f0de6f98e3ef18ad29496db01899571152ee3311229f9",
+            "sizeBytes": 4136659,
+            "archive": "zip",
+            "installPath": "matroska/mediainfo/26.05/windows-amd64",
+            "runtimeRequirements": "Windows 10 or later",
+            "versionArguments": [
+              "--Version"
+            ],
+            "versionLine": "MediaInfoLib - v26.05",
+            "executables": {
+              "mediainfo": {
+                "path": "MediaInfo.exe",
+                "sha256": "30f2828a45a1895b033c3cd7784581033327e7b393033c55f4a03bb15cab0d89",
+                "sizeBytes": 9293720,
+                "productionAllowed": true
+              }
+            },
+            "libraries": [
+              {
+                "path": "LIBCURL.DLL",
+                "sha256": "22b972f008ab8bb5bc225889a8be60683b2bf7546b8e0d699b5b4186bdbb7cc1",
+                "sizeBytes": 817664
+              }
+            ],
+            "licenseFiles": [
+              {
+                "path": "LICENSE",
+                "sha256": "a8f0db97f62dbcff8e30edd5cac0f48a4b702bfa55f52b71214f9639133358af",
+                "sizeBytes": 1328
+              },
+              {
+                "path": "License.html",
+                "sha256": "d68413f8d2002897e0b5d1be77490b14cfbfb6a47544093e20ebced0e8beed18",
+                "sizeBytes": 4729
+              }
+            ]
+          }
+        }
+      }
+    }
+  },
   "tools": [
     {
       "name": "go",

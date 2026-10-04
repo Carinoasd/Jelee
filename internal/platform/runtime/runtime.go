@@ -333,8 +333,14 @@ func newWithLifetime(cfg config.Config, logger *slog.Logger, lifetime *lifetime)
 			return newWebhooks(c, store, budget, l, lifetime)
 		},
 		func(c config.Config, store *postgres.Store, catalog *app.Catalog, jobs *app.Jobs, metadata *app.Metadata, metrics *telemetry.Metrics, pictures *app.Images, webhooks *app.Webhooks, budget *resources.Budget, l *slog.Logger, dev *devmode.Controller) (http.Handler, error) {
+			var options []httpapi.Option
+			if c.Matroska.EnableExtraction {
+				extraction := newMatroskaService(c, store, l)
+				lifetime.closeMatroska = extraction.Close
+				options = append(options, httpapi.WithExtracted(extraction))
+			}
 			if !c.EnableAccounts {
-				return httpapi.NewWithResources(c, store, catalog, store, l, nil, nil, nil, nil, nil, budget)
+				return httpapi.NewWithResources(c, store, catalog, store, l, nil, nil, nil, nil, nil, budget, options...)
 			}
 			if err := c.Accounts.Validate(); err != nil {
 				return nil, err
@@ -352,7 +358,6 @@ func newWithLifetime(cfg config.Config, logger *slog.Logger, lifetime *lifetime)
 			if metrics != nil {
 				metricsHandler = metrics.Handler()
 			}
-			var options []httpapi.Option
 			if webhooks != nil {
 				options = append(options, httpapi.WithWebhooks(webhooks))
 			}
@@ -418,9 +423,11 @@ type lifetime struct {
 	requestShutdown func() error
 	closeStore      func()
 	closeProbe      func() error
-	closeIgnore     func() error
-	closeTelemetry  func(context.Context) error
-	closeImages     func(context.Context) error
+	// closeMatroska removes the extraction runners' private scratch root.
+	closeMatroska  func() error
+	closeIgnore    func() error
+	closeTelemetry func(context.Context) error
+	closeImages    func(context.Context) error
 	// closeClientControl writes buffered client control hits and activity.
 	closeClientControl func(context.Context) error
 	// progress buffers playback reports; it runs with the workers and is
@@ -480,6 +487,12 @@ func (l *lifetime) closePool() {
 			if err := l.closeIgnore(); err != nil {
 				l.stopErr = errors.Join(l.stopErr, errors.New("ignore helper temporary cleanup failed"))
 				l.logger.Error("ignore helper temporary cleanup failed", "component", "ignore", "code", "ignore_unavailable")
+			}
+		}
+		if l.closeMatroska != nil {
+			if err := l.closeMatroska(); err != nil {
+				l.stopErr = errors.Join(l.stopErr, errors.New("matroska temporary cleanup failed"))
+				l.logger.Error("matroska temporary cleanup failed", "component", "matroska", "code", "matroska_runtime_unavailable")
 			}
 		}
 		if l.closeProbe != nil {

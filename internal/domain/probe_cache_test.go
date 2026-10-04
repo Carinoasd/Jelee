@@ -55,8 +55,8 @@ func TestProbeIdentityPinsAndBounds(t *testing.T) {
 	if err != nil || len(digest) != 64 {
 		t.Fatal("valid identity rejected", err)
 	}
-	// media-metadata-v2 (attached_pic disposition, G40.4) changed this value.
-	if digest != "1739172f794721157e008bd26e1ed951146401721f951b072089afa779cc3dc9" {
+	// media-metadata-v3/schema 2 (attached_pic G40.4 + Matroska supplement G19.1) changed this value.
+	if digest != "710cfe5f97d139fbcaf9cb98d27559e40c1357a3c174b33fea0be62e8202708d" {
 		t.Fatal("versioned identity encoding changed")
 	}
 	// Every current identity field either changes the key or fails validation;

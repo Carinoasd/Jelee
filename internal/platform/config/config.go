@@ -35,12 +35,14 @@ type Config struct {
 	EnableMetrics         bool            `json:"enableMetrics"`
 	EnableImages          bool            `json:"enableImages"`
 	Images                ImagesConfig    `json:"images"`
-	Accounts              AccountsConfig  `json:"accounts"`
-	EnableJobs            bool            `json:"enableJobs"`
-	Jobs                  JobsConfig      `json:"jobs"`
-	EnableProbe           bool            `json:"enableProbe"`
-	EnableFamilyIgnore    bool            `json:"enableFamilyIgnore"`
-	Logging               LoggingConfig   `json:"logging"`
+	// Matroska is the optional embedded subtitle and font extraction (E4).
+	Matroska           MatroskaConfig `json:"matroska"`
+	Accounts           AccountsConfig `json:"accounts"`
+	EnableJobs         bool           `json:"enableJobs"`
+	Jobs               JobsConfig     `json:"jobs"`
+	EnableProbe        bool           `json:"enableProbe"`
+	EnableFamilyIgnore bool           `json:"enableFamilyIgnore"`
+	Logging            LoggingConfig  `json:"logging"`
 	// EnableNFOWrite lets job workers claim nfo_write jobs and run NFO commit
 	// recovery. It is off by default and requires job rollout.
 	EnableNFOWrite bool `json:"enableNFOWrite"`
@@ -74,7 +76,7 @@ func Load() (Config, error) { return LoadWith(os.LookupEnv) }
 
 // LoadWith keeps environment lookup injectable and never includes values in errors.
 func LoadWith(lookup func(string) (string, bool)) (Config, error) {
-	c := Config{Resources: DefaultResourcesConfig(), Access: DefaultAccessConfig(), Streaming: DefaultStreamingConfig(), Playback: DefaultPlaybackConfig(), Stats: DefaultStatsConfig(), Listen: "127.0.0.1:8097", AllowedHosts: []string{"localhost", "127.0.0.1", "::1"}, MaxConnections: 8, MaxStreams: 8, RequestTimeoutSeconds: 15, Accounts: DefaultAccountsConfig(), Jobs: DefaultJobsConfig(), Images: DefaultImagesConfig(), Logging: DefaultLoggingConfig(), Webhooks: DefaultWebhooksConfig()}
+	c := Config{Resources: DefaultResourcesConfig(), Access: DefaultAccessConfig(), Streaming: DefaultStreamingConfig(), Playback: DefaultPlaybackConfig(), Stats: DefaultStatsConfig(), Listen: "127.0.0.1:8097", AllowedHosts: []string{"localhost", "127.0.0.1", "::1"}, MaxConnections: 8, MaxStreams: 8, RequestTimeoutSeconds: 15, Accounts: DefaultAccountsConfig(), Jobs: DefaultJobsConfig(), Images: DefaultImagesConfig(), Matroska: DefaultMatroskaConfig(), Logging: DefaultLoggingConfig(), Webhooks: DefaultWebhooksConfig()}
 	if path, ok := lookup("JELEE_CONFIG"); ok && path != "" {
 		f, err := os.Open(path) //nolint:gosec // G304: the operator names the configuration file
 		if err != nil {
@@ -174,6 +176,9 @@ func LoadWith(lookup func(string) (string, bool)) (Config, error) {
 	if err := c.Images.loadEnvironment(lookup); err != nil {
 		return c, err
 	}
+	if err := c.Matroska.loadEnvironment(lookup); err != nil {
+		return c, err
+	}
 	if err := c.Resources.loadEnvironment(lookup); err != nil {
 		return c, err
 	}
@@ -268,6 +273,14 @@ func (c Config) Validate() error {
 	}
 	if c.EnableMetrics && !c.EnableAccounts {
 		return errors.New("metrics require account rollout")
+	}
+	if c.Matroska.EnableExtraction {
+		if !c.EnableCatalog || !c.EnableDirect {
+			return errors.New("matroska extraction requires catalog and direct delivery rollout")
+		}
+		if err := c.Matroska.Validate(); err != nil {
+			return err
+		}
 	}
 	if c.EnableImages {
 		if !c.EnableAccounts || !c.EnableCatalog {

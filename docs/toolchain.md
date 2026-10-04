@@ -209,7 +209,7 @@ Windows 的 `.bin/ffmpeg.cmd` 和 `.bin/ffprobe.cmd` 也可调用；含复杂引
 
 ## 构建测试依赖与运行依赖
 
-Go、gofmt、vet、coverage 是构建测试工具，不随服务端产物分发。ffmpeg 仅用于合成测试素材和开发调试，不得进入生产镜像或生产执行路径。清单中的 `productionAllowed` 是后续分发策略声明，只有 ffprobe 为 true；3B1 尚未接入任何生产媒体子进程。允许的其他媒体运行依赖仅为按需启用的 mkvtoolnix、mediainfo，目前尚未固定或引导这两项。供应商二进制归属与许可证说明见 [第三方工具表](THIRD-PARTY-TOOLS.md)。
+Go、gofmt、vet、coverage 是构建测试工具，不随服务端产物分发。ffmpeg 仅用于合成测试素材和开发调试，不得进入生产镜像或生产执行路径。清单中的 `productionAllowed` 是后续分发策略声明，媒體工具中只有 ffprobe 為 true。其他媒體運行依賴僅為按需啟用的 mkvtoolnix（mkvmerge、mkvextract 為 true；mkvpropedit 為 false，只固定與校驗，不進映像）與 mediainfo，已依 E4 固定在 `matroskaTools`，以 `make bootstrap-matroska` 或 `scripts/toolchain.py bootstrap --tool mkvtoolnix|mediainfo` 明確安裝，預設不安裝；`tools-verify` 校驗已安裝者並對未安裝者明示跳過。詳見 [mkvtoolnix 與 MediaInfo](matroska-tools.md)。供应商二进制归属与许可证说明见 [第三方工具表](THIRD-PARTY-TOOLS.md)。
 
 ## Linux amd64 实验运行库（3C1）
 
@@ -260,8 +260,8 @@ pwsh -NoProfile -File scripts/runtime-tools.ps1 -Command sources -Offline
 | Node LTS、包管理器 | Node 24.21.0（含 npm 11.19.0）已固定、引导（Linux）并接入 CI 前端门禁 |
 | Playwright 浏览器 | 1.63.0 与 Chrome Headless Shell 153.0.8010.12 已固定、按需引导（Linux）、校验并接入 Linux CI；Firefox／WebKit 不采用 |
 | ffmpeg/ffprobe | Windows/Linux amd64本地引导与验证已实现；Linux amd64受保护隔离探测、持久worker和默认关闭开关已接通；Windows正式探测仍关闭 |
-| mkvtoolnix、mediainfo | 尚未加入工具清单 |
-| 合成多轨媒体、章节、损坏素材、`make fixtures` | 3B2生成13个小型自建文件及SHA/结构清单；双平台真实工具和FD探测测试通过，见[素材说明](fixtures.md) |
+| mkvtoolnix、mediainfo | E4：mkvtoolnix 102.0、MediaInfo 26.05 已固定（Linux／Windows amd64，官方 HTTPS、SHA256、授權），可選引導與 `tools-verify` 校驗已實作；Linux amd64 生產沙箱與映像已接通，Windows 只作開發工具（[說明](matroska-tools.md)） |
+| 合成多轨媒体、章节、损坏素材、`make fixtures` | 3B2生成13个小型自建文件及SHA/结构清单，E4 增至 16 個（內嵌字幕與字型附件 MKV）；双平台真实工具和FD探测测试通过，见[素材说明](fixtures.md) |
 | Testcontainers / 嵌入式 PostgreSQL 回退 | 尚未实现；当前使用已有隔离测试容器 |
 | 链接检查、shellcheck、actionlint | 尚未加入工具清单 |
 | 完整工具链 CI 与 G51.15 全新克隆验收 | 未完成 |

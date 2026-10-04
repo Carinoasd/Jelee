@@ -10,6 +10,7 @@ import (
 	"io"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"runtime/coverage"
 	"strings"
 	"time"
@@ -36,6 +37,21 @@ func main() {
 				return
 			}
 		}
+	}
+	if len(os.Args) > 1 && os.Args[1] == "--test-tool-helper" {
+		var registration struct {
+			Profile sandbox.ToolProfile
+			Policy  sandbox.ToolPolicy
+		}
+		if json.Unmarshal([]byte(os.Getenv("JELEE_TEST_TOOL_POLICY")), &registration) != nil {
+			os.Exit(60)
+		}
+		os.Exit(sandbox.RunToolHelper(os.Args[2:], func(mode sandbox.ToolMode) (sandbox.ToolProfile, sandbox.ToolPolicy, bool) {
+			return registration.Profile, registration.Policy, mode == registration.Profile.Mode
+		}))
+	}
+	if len(os.Args) > 0 && filepath.Base(os.Args[0]) == "mkvextract" {
+		os.Exit(extractionProbe())
 	}
 	if len(os.Args) > 1 && (os.Args[1] == "--test-helper" || os.Args[1] == "--test-helper-coverage") {
 		collect := os.Args[1] == "--test-helper-coverage"
@@ -130,4 +146,48 @@ func main() {
 
 func permission(err error) bool {
 	return errors.Is(err, unix.EACCES) || errors.Is(err, unix.EPERM)
+}
+
+// extractionProbe runs as a fake "mkvextract" inside the tool sandbox and
+// reports which accesses the extraction policy allowed.
+func extractionProbe() int {
+	var request struct {
+		OutsideFile string
+		WriteFile   string
+	}
+	result := make(map[string]bool)
+	result["argv_fixed"] = len(os.Args) == 5 && os.Args[1] == "/proc/self/fd/0" && os.Args[2] == "tracks" && os.Args[3] == "0:t0" && os.Args[4] == "--quiet"
+	input, err := os.Open("/proc/self/fd/0")
+	result["input_reopened"] = err == nil
+	if err == nil {
+		if json.NewDecoder(io.LimitReader(input, 8192)).Decode(&request) != nil {
+			return 62
+		}
+		_ = input.Close()
+	}
+	_, err = os.ReadFile(request.OutsideFile)
+	result["outside_read_denied"] = permission(err)
+	file, err := os.OpenFile(request.WriteFile, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0600)
+	result["outside_write_denied"] = permission(err)
+	if err == nil {
+		_ = file.Close()
+	}
+	output, err := os.OpenFile("t0", os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0600)
+	result["output_created"] = err == nil
+	if err == nil {
+		_, err = output.Write([]byte("extracted"))
+		result["output_written"] = err == nil
+		_ = output.Close()
+	}
+	_, err = os.ReadDir("..")
+	result["parent_listing_denied"] = permission(err)
+	fd, err := unix.Socket(unix.AF_INET, unix.SOCK_STREAM, 0)
+	result["socket_denied"] = errors.Is(err, unix.EPERM)
+	if err == nil {
+		_ = unix.Close(fd)
+	}
+	var size unix.Rlimit
+	result["file_size_bounded"] = unix.Getrlimit(unix.RLIMIT_FSIZE, &size) == nil && size.Cur == sandbox.ExtractFileLimit && size.Max == sandbox.ExtractFileLimit
+	_ = json.NewEncoder(os.Stdout).Encode(result)
+	return 0
 }

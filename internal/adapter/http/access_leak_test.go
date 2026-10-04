@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"github.com/MoYuanCN/Jelee/internal/access"
+	"github.com/MoYuanCN/Jelee/internal/adapter/media"
 	"github.com/MoYuanCN/Jelee/internal/adapter/postgres"
 	"github.com/MoYuanCN/Jelee/internal/app"
 	"github.com/MoYuanCN/Jelee/internal/domain"
@@ -180,8 +181,16 @@ func leakRouteTable() map[string]leakRoute {
 		"HEAD /api/v1/sources/{id}/subtitles/{trackId}": {mode: leakByID, params: map[string]string{"id": "source", "trackId": "subtitle-track"}, control: true},
 		"GET /api/v1/sources/{id}/audio/{trackId}":      {mode: leakByID, params: map[string]string{"id": "source", "trackId": "audio-track"}, control: true},
 		"HEAD /api/v1/sources/{id}/audio/{trackId}":     {mode: leakByID, params: map[string]string{"id": "source", "trackId": "audio-track"}, control: true},
-		"GET /api/v1/items/{id}/playback":               {mode: leakByID, params: itemParam, control: true},
-		"POST /api/v1/items/{id}/playback/check":        {mode: leakByID, params: itemParam, control: true},
+		// Embedded items copied out of Matroska sources (G15.5, G15.7). The
+		// fixture resolver authorizes through the same store lookup.
+		"GET /api/v1/sources/{id}/embedded-subtitles/{index}":              {mode: leakByID, params: map[string]string{"id": "source", "index": "compat-zero"}, control: true},
+		"HEAD /api/v1/sources/{id}/embedded-subtitles/{index}":             {mode: leakByID, params: map[string]string{"id": "source", "index": "compat-zero"}, control: true},
+		"GET /api/v1/sources/{id}/attachments/{attachmentId}":              {mode: leakByID, params: map[string]string{"id": "source", "attachmentId": "attachment-id"}, control: true},
+		"HEAD /api/v1/sources/{id}/attachments/{attachmentId}":             {mode: leakByID, params: map[string]string{"id": "source", "attachmentId": "attachment-id"}, control: true},
+		"GET /compat/Videos/{itemId}/{mediaSourceId}/Attachments/{index}":  {mode: leakByID, params: map[string]string{"itemId": "item", "mediaSourceId": "source", "index": "compat-zero"}, control: true},
+		"HEAD /compat/Videos/{itemId}/{mediaSourceId}/Attachments/{index}": {mode: leakByID, params: map[string]string{"itemId": "item", "mediaSourceId": "source", "index": "compat-zero"}, control: true},
+		"GET /api/v1/items/{id}/playback":                                  {mode: leakByID, params: itemParam, control: true},
+		"POST /api/v1/items/{id}/playback/check":                           {mode: leakByID, params: itemParam, control: true},
 		// Playback progress (G23, G48.3). Reports name the item in the body;
 		// TestProgressHTTPPostgres checks hidden items are refused like
 		// missing ones.
@@ -407,7 +416,32 @@ func leakConfig(t *testing.T, dsn string, hiddenStatus int) config.Config {
 	// A developer capable instance with no active session, so the
 	// developer routes are walked too.
 	cfg.Dev = config.DevConfig{EnvFlag: true, Enabled: true}
+	cfg.Matroska = config.MatroskaConfig{EnableExtraction: true, CacheRoot: t.TempDir(), CacheMaxBytes: 1 << 30}
 	return cfg
+}
+
+// leakExtracted authorizes through the store's source lookup, like the
+// runtime extraction resolver, and serves one fixed cached file.
+type leakExtracted struct {
+	store *postgres.Store
+	root  string
+}
+
+func (l leakExtracted) ResolveExtracted(ctx context.Context, p access.Principal, sourceID string, _ media.ExtractedKind, _ int) (media.Source, error) {
+	source, err := l.store.Resolve(ctx, p, sourceID)
+	if err != nil {
+		return media.Source{}, err
+	}
+	return media.Source{Root: l.root, RelativePath: "extracted.srt", DeviceID: source.DeviceID, Limits: source.Limits, ShareStreams: source.ShareStreams}, nil
+}
+
+func newLeakExtracted(t *testing.T, store *postgres.Store) leakExtracted {
+	t.Helper()
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, "extracted.srt"), []byte("1\n00:00:00,000 --> 00:00:01,000\nextracted\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	return leakExtracted{store: store, root: root}
 }
 
 type leakRenderer struct{}
@@ -511,7 +545,7 @@ func leakHandlerWithAccounts(t *testing.T, store *postgres.Store, cfg config.Con
 	if catalog, err = catalog.WithWatchStats(stats); err != nil {
 		t.Fatal(err)
 	}
-	options := []Option{WithWebhooks(httpWebhooks(t, store)), WithSetup(completedSetupWizard(), "")}
+	options := []Option{WithWebhooks(httpWebhooks(t, store)), WithSetup(completedSetupWizard(), ""), WithExtracted(newLeakExtracted(t, store))}
 	if cfg.Dev.Capable() {
 		// The developer routes exist but no session is active (G45.8).
 		dev, err := devmode.NewController(devmode.ControllerOptions{Store: store, Local: cfg.Dev.Inputs()})
@@ -651,6 +685,8 @@ func (f leakIDs) value(kind string, scenario int) string {
 		return "srt"
 	case "compat-zero":
 		return "0"
+	case "attachment-id":
+		return "1"
 	}
 	panic("unknown leak fixture kind " + kind)
 }

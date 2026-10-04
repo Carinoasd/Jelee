@@ -94,6 +94,21 @@ func mediaSourceSchema(withURL bool) map[string]any {
 		external["url"] = map[string]any{"type": "string", "description": "Direct delivery route of the original file: /api/v1/sources/{id}/subtitles/{trackId} or /api/v1/sources/{id}/audio/{trackId}. Native sessions only."}
 		externalRequired = append(externalRequired, "url")
 	}
+	subtitleTrack := map[string]any{
+		"index": nonNegative, "codec": str, "format": map[string]any{"type": "string", "description": "Canonical format clients declare: srt, ass, ssa, webvtt, mov_text, pgs, vobsub, dvb, eia_608 or text."},
+		"language": str, "default": boolean, "forced": boolean,
+		"title":       map[string]any{"type": "string", "description": "Matroska track name from the optional MediaInfo supplement."},
+		"extractable": map[string]any{"type": "boolean", "description": "A SubRip, ASS, SSA or WebVTT track inside a Matroska/WebM source that the optional mkvtoolnix runtime can copy unconverted (G15.5)."},
+	}
+	attachment := map[string]any{
+		"id":          map[string]any{"type": "integer", "minimum": 1, "description": "1-based Matroska attachment ID."},
+		"streamIndex": map[string]any{"type": "integer", "minimum": 0, "description": "Probe stream index of the same attachment, when the probe listed exactly as many attachment streams."},
+		"fileName":    str, "font": boolean,
+	}
+	if withURL {
+		subtitleTrack["url"] = map[string]any{"type": "string", "description": "Present when extraction is enabled and available: /api/v1/sources/{id}/embedded-subtitles/{index}. Native sessions only."}
+		attachment["url"] = map[string]any{"type": "string", "description": "Present for fonts when extraction is enabled and available: /api/v1/sources/{id}/attachments/{attachmentId}. Native sessions only."}
+	}
 	properties := map[string]any{
 		"id":             uuid,
 		"container":      map[string]any{"type": "string", "enum": []string{"mp4", "mkv", "webm", "mov", "avi", "mpegts"}, "description": "Container token derived from the stored content type."},
@@ -113,10 +128,8 @@ func mediaSourceSchema(withURL bool) map[string]any {
 			"index": nonNegative, "codec": str, "profile": str, "language": str, "channels": integer, "channelLayout": str,
 			"sampleRate": integer, "bitRate": integer, "default": boolean, "forced": boolean, "atmos": boolean,
 		}, "index", "default", "forced", "atmos")),
-		"subtitleTracks": array(objectSchema(map[string]any{
-			"index": nonNegative, "codec": str, "format": map[string]any{"type": "string", "description": "Canonical format clients declare: srt, ass, ssa, webvtt, mov_text, pgs, vobsub, dvb, eia_608 or text."},
-			"language": str, "default": boolean, "forced": boolean,
-		}, "index", "default", "forced")),
+		"subtitleTracks": array(objectSchema(subtitleTrack, "index", "default", "forced")),
+		"attachments":    array(objectSchema(attachment, "id", "fileName", "font")),
 		"externalTracks": array(objectSchema(external, externalRequired...)),
 		"primary":        map[string]any{"type": "boolean", "description": "The administrator's main version (G20.3); listed first, then by qualityScore."},
 	}

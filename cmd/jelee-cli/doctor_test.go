@@ -54,6 +54,9 @@ func useDiagEnvironment(t *testing.T, db *cliFakeDB) {
 			ToolSpec: func() (tools.FFprobeSpecification, error) {
 				return tools.FFprobeSpecification{}, errors.New("tool_platform_unsupported")
 			},
+			MatroskaSpec: func(string) (tools.MatroskaToolSpecification, error) {
+				return tools.MatroskaToolSpecification{}, errors.New("tool_platform_unsupported")
+			},
 			OpenDB: func(context.Context, string) (diag.Database, error) { return db, nil },
 			Statfs: func(string) (diag.DiskUsage, error) {
 				return diag.DiskUsage{TotalBytes: 1 << 40, FreeBytes: 1 << 39}, nil
@@ -74,7 +77,7 @@ func TestDoctorJSONAndExitCode(t *testing.T) {
 		t.Fatalf("doctor --json is not JSON: %v", err)
 	}
 	// The unsupported tool platform is a warning, which keeps exit 0.
-	if report.Status != diag.StatusWarn || report.Summary.Fail != 0 || len(report.Results) != 10 {
+	if report.Status != diag.StatusWarn || report.Summary.Fail != 0 || len(report.Results) != 11 {
 		t.Fatalf("report = %+v", report)
 	}
 	db.dirty = true

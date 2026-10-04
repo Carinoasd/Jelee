@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "goos": "windows",
-  "total": 2010,
+  "total": 2009,
   "entries": [
     {
       "linter": "errcheck",
@@ -13420,13 +13420,6 @@
       "file": "tools/media.go",
       "text": "exported: exported type LicenseFile should have comment or be unexported",
       "source": "1da1d416ae43",
-      "count": 1
-    },
-    {
-      "linter": "revive",
-      "file": "tools/media.go",
-      "text": "package-comments: should have a package comment",
-      "source": "5f3e76994684",
       "count": 1
     },
     {

@@ -41,6 +41,19 @@ func imagePins() (map[string]pin, error) {
 	for _, license := range runtime.Licenses {
 		pins[filepath.FromSlash(license.ContainerPath[1:])] = pin{license.SHA256, 4 << 20}
 	}
+	// E4: the production mkvtoolnix/MediaInfo executables, their non-glibc
+	// libraries and notices. mkvpropedit is never copied into the image.
+	matroska, err := tools.MatroskaImageFiles()
+	if err != nil {
+		return nil, errInvalid
+	}
+	for _, file := range matroska {
+		name := filepath.FromSlash(file.ContainerPath[1:])
+		if _, duplicate := pins[name]; duplicate {
+			return nil, errInvalid
+		}
+		pins[name] = pin{file.SHA256, 64 << 20}
+	}
 	return pins, nil
 }
 
@@ -49,7 +62,7 @@ func verify(root string, pins map[string]pin) error {
 }
 
 func verifyWithOpen(root string, pins map[string]pin, open func(string) (*os.File, error)) error {
-	if len(pins) == 0 || len(pins) > 32 {
+	if len(pins) == 0 || len(pins) > 128 {
 		return errInvalid
 	}
 	directories := map[string]bool{".": true}

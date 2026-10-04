@@ -43,11 +43,14 @@ type sessionUseTracker interface {
 }
 
 type Server struct {
-	trustedProxies  []netip.Prefix
-	cfg             config.Config
-	backend         Backend
-	catalog         *app.Catalog
-	delivery        *media.Handler
+	trustedProxies []netip.Prefix
+	cfg            config.Config
+	backend        Backend
+	catalog        *app.Catalog
+	delivery       *media.Handler
+	// extracted serves embedded subtitles and fonts (G15.5, G15.7); nil
+	// when mkvtoolnix extraction is not available or not enabled.
+	extracted       media.ExtractedResolver
 	logger          *slog.Logger
 	accounts        *app.Accounts
 	loginLimiter    *LoginLimiter
@@ -158,6 +161,14 @@ func newServer(cfg config.Config, backend Backend, catalog *app.Catalog, resolve
 	}
 	if cfg.EnableWebhooks && s.webhooks == nil {
 		return nil, errors.New("webhook service must be provided")
+	}
+	switch {
+	case !cfg.Matroska.EnableExtraction:
+		s.extracted = nil
+	case s.extracted == nil:
+		// Configured routes keep their meaning without a runtime: every
+		// embedded item is answered like a missing one.
+		s.extracted = unavailableExtracted{}
 	}
 	if s.clients != nil {
 		if !cfg.EnableAccounts {
@@ -330,6 +341,12 @@ func newServer(cfg config.Config, backend Backend, catalog *app.Catalog, resolve
 				r.Head(subtitleTrackRoute, s.track(media.TrackSubtitle))
 				r.Get(audioTrackRoute, s.track(media.TrackAudio))
 				r.Head(audioTrackRoute, s.track(media.TrackAudio))
+				if cfg.Matroska.EnableExtraction {
+					r.Get(embeddedSubtitleRoute, s.extractedRoute(media.ExtractedSubtitle, "index"))
+					r.Head(embeddedSubtitleRoute, s.extractedRoute(media.ExtractedSubtitle, "index"))
+					r.Get(attachmentRoute, s.extractedRoute(media.ExtractedAttachment, "attachmentId"))
+					r.Head(attachmentRoute, s.extractedRoute(media.ExtractedAttachment, "attachmentId"))
+				}
 				r.Get("/api/v1/items/{id}/playback", s.playbackInfo)
 				r.Post("/api/v1/items/{id}/playback/check", s.playbackCheck)
 			}
@@ -442,6 +459,9 @@ func (s *Server) newCompat(cfg config.Config, backend Backend) (http.Handler, er
 		// handling are shared rather than duplicated.
 		if cfg.EnableDirect {
 			opts.Library.Delivery = s.delivery
+			if s.extracted != nil {
+				opts.Library.Extracted = s.extractedResolver()
+			}
 		}
 		// Item images use the /images pipeline, admission and deadline.
 		if cfg.EnableImages && s.images != nil {

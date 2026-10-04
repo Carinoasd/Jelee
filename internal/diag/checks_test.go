@@ -90,7 +90,75 @@ func healthyEnv(t *testing.T) (Environment, *fakeDB) {
 		TempDir: tempDir, Tools: []ToolCandidate{{Label: "runtime", Path: toolPath}}, ToolSpec: fakeSpec,
 		Statfs: plentyDisk, Now: func() time.Time { return time.Date(2026, 10, 4, 12, 0, 0, 0, time.UTC) },
 	}
+	env.MatroskaSpec = fakeMatroska(toolPath)
 	return env, db
+}
+
+// fakeMatroska points every optional tool at one verified stand-in file.
+func fakeMatroska(path string) func(string) (tools.MatroskaToolSpecification, error) {
+	sum := sha256.Sum256(fakeToolBytes)
+	return func(name string) (tools.MatroskaToolSpecification, error) {
+		return tools.MatroskaToolSpecification{Name: name, Version: "1-test", Executable: tools.RuntimeFile{Path: ".tools/none/" + name, ContainerPath: path, SHA256: hex.EncodeToString(sum[:])}}, nil
+	}
+}
+
+func TestMatroskaToolFaults(t *testing.T) {
+	t.Run("verified", func(t *testing.T) {
+		env, _ := healthyEnv(t)
+		r := runCheck(t, env, "matroska_tools")
+		expect(t, r, StatusOK, CodeMatroskaVerified)
+		if len(r.Findings) != 3 || r.Facts["mkvextract.version"] != "1-test" {
+			t.Fatalf("result = %+v", r)
+		}
+	})
+	t.Run("missing is optional unless extraction is enabled", func(t *testing.T) {
+		env, _ := healthyEnv(t)
+		env.MatroskaSpec = fakeMatroska(filepath.Join(t.TempDir(), "none"))
+		expect(t, runCheck(t, env, "matroska_tools"), StatusWarn, CodeMatroskaMissing)
+		env.Config.Matroska.EnableExtraction = true
+		r := runCheck(t, env, "matroska_tools")
+		expect(t, r, StatusFail, CodeMatroskaMissing)
+		for _, f := range r.Findings {
+			if (f.Subject == "mediainfo") != (f.Status == StatusWarn) {
+				t.Fatalf("finding %+v", f)
+			}
+		}
+	})
+	t.Run("hash mismatch and unreadable", func(t *testing.T) {
+		env, _ := healthyEnv(t)
+		bad := filepath.Join(t.TempDir(), "tampered")
+		if err := os.WriteFile(bad, []byte("tampered"), 0o700); err != nil {
+			t.Fatal(err)
+		}
+		env.MatroskaSpec = fakeMatroska(bad)
+		r := runCheck(t, env, "matroska_tools")
+		expect(t, r, StatusFail, CodeMatroskaMismatch)
+		if r.Findings[0].Subject != "mkvmerge:runtime" {
+			t.Fatalf("subject = %q", r.Findings[0].Subject)
+		}
+		env.MatroskaSpec = fakeMatroska(t.TempDir())
+		expect(t, runCheck(t, env, "matroska_tools"), StatusFail, CodeMatroskaUnreadable)
+	})
+	t.Run("unsupported platform and broken manifest", func(t *testing.T) {
+		env, _ := healthyEnv(t)
+		env.MatroskaSpec = func(string) (tools.MatroskaToolSpecification, error) {
+			return tools.MatroskaToolSpecification{}, errors.New("tool_platform_unsupported")
+		}
+		expect(t, runCheck(t, env, "matroska_tools"), StatusWarn, CodeMatroskaUnsupported)
+		env.MatroskaSpec = func(string) (tools.MatroskaToolSpecification, error) {
+			return tools.MatroskaToolSpecification{}, errors.New("tool_manifest_invalid")
+		}
+		expect(t, runCheck(t, env, "matroska_tools"), StatusFail, CodeToolManifest)
+	})
+	t.Run("embedded manifest", func(t *testing.T) {
+		env, _ := healthyEnv(t)
+		env.MatroskaSpec = nil
+		env.Project = t.TempDir()
+		r := runCheck(t, env, "matroska_tools")
+		if r.Status == StatusFail {
+			t.Fatalf("an absent optional tool failed doctor: %+v", r)
+		}
+	})
 }
 
 func runCheck(t *testing.T, env Environment, name string) Result {
@@ -632,10 +700,10 @@ func TestReportJSONShape(t *testing.T) {
 	if err := json.Unmarshal(data, &decoded); err != nil {
 		t.Fatal(err)
 	}
-	if decoded.Format != ReportFormat || decoded.Status != "fail" || decoded.Summary.Fail != 1 || len(decoded.Results) != 10 || decoded.GeneratedAt.IsZero() {
+	if decoded.Format != ReportFormat || decoded.Status != "fail" || decoded.Summary.Fail != 1 || len(decoded.Results) != 11 || decoded.GeneratedAt.IsZero() {
 		t.Fatalf("decoded = %+v", decoded)
 	}
-	names := []string{"config", "database", "migrations", "library_roots", "tools", "disk", "network", "directories", "privacy", "devmode"}
+	names := []string{"config", "database", "migrations", "library_roots", "tools", "matroska_tools", "disk", "network", "directories", "privacy", "devmode"}
 	for i, r := range decoded.Results {
 		if r.Check != names[i] || len(r.Findings) == 0 || r.Status == "" || r.Code == "" {
 			t.Fatalf("result %d = %+v", i, r)
