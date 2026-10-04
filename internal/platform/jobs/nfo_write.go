@@ -72,7 +72,7 @@ func (r *Runner) finishNFOWrite(ctx context.Context, lease domain.JobLease, stat
 	}
 	resolved, err := options.Repository.FinishNFOWriteJob(ctx, lease, state, code)
 	if err == nil && !resolved {
-		r.logger.Info("nfo write job awaits recovery", "component", "jobs", "taskId", lease.Job.ID, "state", state)
+		r.logger.InfoContext(ctx, "nfo write job awaits recovery", "component", "jobs", "taskId", lease.Job.ID, "state", state)
 	}
 	return err
 }

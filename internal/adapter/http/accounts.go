@@ -127,6 +127,9 @@ func (s *Server) login(w http.ResponseWriter, r *http.Request) {
 	}
 	grant, err := s.accounts.Login(ctx, input.Name, *input.Password, input.DeviceName, ip)
 	if err != nil {
+		// A failed login is a security event: its trace is never dropped
+		// by sampling (G46.6).
+		domain.ForceTraceSampling(ctx)
 		WriteError(w, r, err)
 		return
 	}
@@ -147,6 +150,7 @@ func (s *Server) allowLogin(w http.ResponseWriter, r *http.Request, ip, name str
 	if allowed {
 		return true
 	}
+	domain.ForceTraceSampling(r.Context())
 	seconds := int64((retry + time.Second - 1) / time.Second)
 	if seconds < 1 {
 		seconds = 1
@@ -216,6 +220,7 @@ func (s *Server) nativeLogin(w http.ResponseWriter, r *http.Request) {
 	client := domain.NativeClient{Name: input.Client, Device: input.Device, DeviceID: input.DeviceID, Version: input.Version}
 	grant, err := s.accounts.LoginNative(ctx, input.Name, *input.Password, client, ip)
 	if err != nil {
+		domain.ForceTraceSampling(ctx)
 		WriteError(w, r, err)
 		return
 	}

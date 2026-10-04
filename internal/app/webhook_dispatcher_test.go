@@ -373,3 +373,30 @@ func TestWebhookDispatcherOptions(t *testing.T) {
 		t.Fatal("missing repository accepted")
 	}
 }
+
+// Every delivery attempt runs in its own span (G46.6), started for the
+// event it carries and ended with the recorded delivery state.
+func TestWebhookDispatcherDeliverySpans(t *testing.T) {
+	policy := domain.WebhookRetryPolicy{MaxAttempts: 1, BaseDelay: time.Second, MaxDelay: time.Second}
+	d, _, _, _ := dispatcherFixture(t, policy, domain.WebhookOutcome{Kind: domain.WebhookOutcomeHTTP, StatusCode: 500})
+	var mu sync.Mutex
+	var events, outcomes []string
+	d.opts.Spans = func(ctx context.Context, eventID string) (context.Context, func(string)) {
+		mu.Lock()
+		events = append(events, eventID)
+		mu.Unlock()
+		return ctx, func(outcome string) {
+			mu.Lock()
+			outcomes = append(outcomes, outcome)
+			mu.Unlock()
+		}
+	}
+	if round, err := d.RunOnce(context.Background()); err != nil || round.Dead != 1 {
+		t.Fatalf("round %+v %v", round, err)
+	}
+	mu.Lock()
+	defer mu.Unlock()
+	if len(events) != 1 || events[0] != "evt-1" || len(outcomes) != 1 || outcomes[0] != string(domain.WebhookDeliveryDead) {
+		t.Fatalf("spans: events %v outcomes %v", events, outcomes)
+	}
+}

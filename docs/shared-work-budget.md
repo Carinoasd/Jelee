@@ -91,7 +91,9 @@ WatchOptions.Budget 使用runtime同一實例。build 的遍歷／註冊及失�
 
 正式 runtime 使用 `NewWithResources`，傳入與 HTTP、jobs、images、watch 相同的 Budget。管理員端點另增加八個無 labels 的 gauge：`jelee_resources_cpu_active`、`io_active`、`total_active`、`waiting`、`cpu_limit`、`io_limit`、`total_limit`、`queue_limit`（各名稱均使用 `jelee_resources_` 前綴）。active 表示持有配額的操作，waiting 表示已進入共用等待佇列的操作；佇列滿時在既有 worker 退避的操作不計入 waiting。
 
-每次 callback 只讀一次鎖內 Stats 快照，CPU＋I/O＝total；限額讀取不可變配置的副本。收集不取得工作配額、不執行 I/O、不建立 goroutine。每個程序獨立計數，多副本不能當作全域總量。正式端點共30家族；schema47後包含nfo_write的六組工作維度，共245系列。原有New與NewWithJobs保留15與22家族契約。
+G41.7 起另有三個 gauge `jelee_resources_cpu_effective`、`io_effective`、`total_effective`（目前生效的上限；未啟用自適應或系統平穩時等於對應 limit），以及帶 `source` label（`load`、`cpu_throttle`、`memory_pressure`、`memory_usage`，固定四個值）的 `jelee_resources_adaptive_pressure`：正把上限壓低的來源為 1，其餘為 0。控制器見[自適應並發](deployment.md#自適應並發g417)。
+
+每次 callback 只讀一次鎖內 Stats 快照，CPU＋I/O＝total；限額讀取不可變配置的副本。收集不取得工作配額、不執行 I/O、不建立 goroutine。每個程序獨立計數，多副本不能當作全域總量。正式端點共34家族（G41.7 前為30）；schema47後包含nfo_write的六組工作維度，共245系列。原有New與NewWithJobs保留15與22家族契約。
 
 本批 Windows telemetry/resources/runtime/architecture 測試及 vet 通過；[Linux race](evidence/resources-metrics-race-linux.txt) 覆蓋 telemetry/resources/jobs/runtime；[真 PostgreSQL HTTP race](evidence/resources-metrics-runtime.txt) 執行 TestMetricsRuntimePostgresIntegration，核對配置限額及匿名／一般帳戶不得洩漏資源指標。真 budget 的滿載、排隊、取消與回收測試核對30家族、無動態labels及64KiB回應上限。這些驗證未涵蓋完整混合壓測或資源等待時間分布。
 

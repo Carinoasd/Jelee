@@ -154,7 +154,7 @@ func (s *Server) logBodies(next http.Handler, w http.ResponseWriter, r *http.Req
 	if rc := chi.RouteContext(r.Context()); rc != nil {
 		route = rc.RoutePattern()
 	}
-	s.logger.Info("developer mode body log", "component", "http", "code", "devmode_body_log", "requestId", w.Header().Get("X-Request-ID"),
+	s.logger.InfoContext(r.Context(), "developer mode body log", "component", "http", "code", "devmode_body_log", "requestId", w.Header().Get("X-Request-ID"),
 		"method", logging.SafeMethod(r.Method), "route", route, "status", rec.status,
 		"requestBody", devBodySummary(requestType, captured, max(counter.n, int64(len(captured))), len(captured) <= devBodyLimit),
 		"responseBody", devBodySummary(rec.Header().Get("Content-Type"), rec.buf.Bytes(), rec.size, rec.buf.Len() <= devBodyLimit))

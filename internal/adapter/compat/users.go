@@ -241,6 +241,7 @@ func (rt *router) authenticateByName(w http.ResponseWriter, r *http.Request) {
 	}
 	ip := rt.opts.Users.ClientIP(r)
 	if allowed, retry := rt.opts.Users.AllowLogin(ip, *input.Username); !allowed {
+		domain.ForceTraceSampling(r.Context())
 		seconds := int64((retry + time.Second - 1) / time.Second)
 		if seconds < 1 {
 			seconds = 1
@@ -252,6 +253,8 @@ func (rt *router) authenticateByName(w http.ResponseWriter, r *http.Request) {
 	native := domain.NativeClient{Name: client.Client, Device: client.Device, DeviceID: client.DeviceID, Version: client.Version}
 	grant, err := rt.opts.Users.Accounts.LoginNative(r.Context(), *input.Username, *input.Pw, native, ip)
 	if err != nil {
+		// A failed login is a security event (G46.6).
+		domain.ForceTraceSampling(r.Context())
 		writeAccountError(w, err)
 		return
 	}

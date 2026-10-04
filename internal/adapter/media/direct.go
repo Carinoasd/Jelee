@@ -19,6 +19,7 @@ import (
 	"github.com/MoYuanCN/Jelee/internal/access"
 	"github.com/MoYuanCN/Jelee/internal/app"
 	"github.com/MoYuanCN/Jelee/internal/domain"
+	"github.com/MoYuanCN/Jelee/internal/platform/tracing"
 )
 
 // Source is returned by a trusted repository after applying its ACL in SQL.
@@ -132,7 +133,15 @@ func (h *Handler) ServeTrack(w http.ResponseWriter, r *http.Request, sourceID st
 	})
 }
 
+// serve runs one delivery in its own span (G46.6): a child of the request
+// span, so lookups, revocation and the copy share the request trace.
 func (h *Handler) serve(w http.ResponseWriter, r *http.Request, sourceID string, resolve func(context.Context, access.Principal) (Source, error)) {
+	ctx, span := tracing.Default().Start(r.Context(), "media.direct", "media")
+	defer span.End("")
+	h.deliver(w, r.WithContext(ctx), sourceID, resolve) //nolint:contextcheck // ctx is r.Context() with the delivery span added
+}
+
+func (h *Handler) deliver(w http.ResponseWriter, r *http.Request, sourceID string, resolve func(context.Context, access.Principal) (Source, error)) {
 	w.Header().Del("Content-Disposition")
 	principal, authenticated := access.PrincipalFromContext(r.Context())
 	if !authenticated {

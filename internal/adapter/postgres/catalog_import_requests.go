@@ -8,6 +8,7 @@ import (
 	"errors"
 
 	"github.com/MoYuanCN/Jelee/internal/domain"
+	"github.com/MoYuanCN/Jelee/internal/platform/tracing"
 )
 
 func (s *Store) SubmitCatalogImport(ctx context.Context, actor domain.Actor, sourceJob, key, priority string, items []domain.CatalogImportSelection, policy domain.JobPolicy) (domain.Job, bool, error) {
@@ -67,6 +68,7 @@ func (s *Store) SubmitCatalogImport(ctx context.Context, actor domain.Actor, sou
 	if err != nil {
 		return domain.Job{}, false, err
 	}
+	tracing.Remember(ctx, tracing.LinkJob, job.ID)
 	if _, err = tx.Exec(ctx, `INSERT INTO catalog_import_requests(job_id,source_job_id,intent_digest,inventory_generation,baseline_revision,total) VALUES($1,$2,$3,$4,$5,$6)`, job.ID, sourceJob, digest[:], first.Generation, first.BaselineRevision, len(items)); err != nil {
 		return domain.Job{}, false, storageError(err)
 	}

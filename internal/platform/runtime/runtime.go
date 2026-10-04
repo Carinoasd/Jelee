@@ -27,6 +27,7 @@ import (
 	"github.com/MoYuanCN/Jelee/internal/platform/resources"
 	"github.com/MoYuanCN/Jelee/internal/platform/setupenv"
 	"github.com/MoYuanCN/Jelee/internal/platform/telemetry"
+	"github.com/MoYuanCN/Jelee/internal/platform/tracing"
 	"go.uber.org/fx"
 )
 
@@ -45,6 +46,25 @@ func newWithLifetime(cfg config.Config, logger *slog.Logger, lifetime *lifetime)
 	budget, err := resources.New(resources.Limits{CPU: cfg.Resources.CPULimit(), IO: cfg.Resources.IO, Total: cfg.Resources.Total, Queue: cfg.Resources.Queue})
 	if err != nil {
 		return build(lifetime, fx.NopLogger, fx.Error(err))
+	}
+	// G46.6: one process tracer writes span records through the log router.
+	tracer, err := tracing.New(tracing.Options{SampleRate: cfg.Logging.TraceSampleRate, Logger: logger})
+	if err != nil {
+		return build(lifetime, fx.NopLogger, fx.Error(err))
+	}
+	tracing.SetDefault(tracer)
+	// G41.7: optional load adaptive limits, off unless configured.
+	if a := cfg.Resources.Adaptive; a.Enabled {
+		controller, err := resources.NewAdaptive(budget, resources.AdaptiveOptions{Source: resources.NewSystemSource(),
+			Interval: time.Duration(a.IntervalSeconds) * time.Second, Dwell: time.Duration(a.DwellSeconds) * time.Second, Cooldown: time.Duration(a.CooldownSeconds) * time.Second,
+			MinPercent: a.MinPercent, StepPercent: a.StepPercent,
+			Load: resources.Thresholds{High: a.LoadHigh, Low: a.LoadLow}, Throttle: resources.Thresholds{High: a.ThrottleHigh, Low: a.ThrottleLow},
+			MemoryPressure: resources.Thresholds{High: a.MemoryPressureHigh, Low: a.MemoryPressureLow}, MemoryUsage: resources.Thresholds{High: a.MemoryUsageHigh, Low: a.MemoryUsageLow},
+			Logger: logger})
+		if err != nil {
+			return build(lifetime, fx.NopLogger, fx.Error(err))
+		}
+		lifetime.adaptive = controller
 	}
 	metadataService, err := prepareMetadataWithBudget(cfg.TMDBAPIKey, lifetime, budget)
 	if err != nil {
@@ -424,6 +444,10 @@ type lifetime struct {
 	stopErr   error
 	// Observe the same processor used by HTTP without replacing its dependencies.
 	imageStats func() imageadapter.Stats
+	// adaptive lowers the resource budget under system pressure (G41.7);
+	// adaptiveDone joins its loop.
+	adaptive     *resources.Adaptive
+	adaptiveDone chan struct{}
 }
 
 func newLifetime(logger *slog.Logger) *lifetime {
@@ -554,6 +578,13 @@ func (l *lifetime) start(ctx context.Context) error {
 			l.dev.Run(l.ctx)
 		}()
 	}
+	if l.adaptive != nil {
+		l.adaptiveDone = make(chan struct{})
+		go func() {
+			defer close(l.adaptiveDone)
+			l.adaptive.Run(l.ctx)
+		}()
+	}
 	if l.webhooks != nil {
 		l.webhooksDone = make(chan struct{})
 		go func() {
@@ -614,6 +645,9 @@ func (l *lifetime) shutdown(ctx context.Context) {
 	l.joinWebhooks()
 	if l.devDone != nil {
 		<-l.devDone
+	}
+	if l.adaptiveDone != nil {
+		<-l.adaptiveDone
 	}
 	if err := <-workerDone; err != nil {
 		l.stopErr = errors.Join(l.stopErr, errors.New("inventory workers did not stop"))

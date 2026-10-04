@@ -162,7 +162,7 @@ func (s *Server) watchStatsExport(w http.ResponseWriter, r *http.Request) {
 	complete := "true"
 	if err != nil {
 		complete = "false"
-		s.logger.Warn("watch statistics export ended early", "component", "watch_stats", "requestId", w.Header().Get("X-Request-ID"))
+		s.logger.WarnContext(ctx, "watch statistics export ended early", "component", "watch_stats", "requestId", w.Header().Get("X-Request-ID"))
 	}
 	w.Header().Set("X-Jelee-Export-Complete", complete)
 }

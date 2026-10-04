@@ -7,6 +7,15 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
+
+	"github.com/MoYuanCN/Jelee/internal/domain"
+)
+
+// traceKey and spanKey are the G46.4 correlation fields. traceId has the same
+// value as X-Request-ID and the error envelope traceId for HTTP requests.
+const (
+	traceKey = "traceId"
+	spanKey  = "spanId"
 )
 
 // Components are the independently configurable level scopes from G46.2.
@@ -155,13 +164,16 @@ func (h *levelHandler) Enabled(ctx context.Context, level slog.Level) bool {
 }
 
 func (h *levelHandler) Handle(ctx context.Context, r slog.Record) error {
-	component, unsafe := h.component, false
+	component, unsafe, traced := h.component, false, false
 	r.Attrs(func(a slog.Attr) bool {
 		if component == "" && a.Key == "component" && a.Value.Kind() == slog.KindString {
 			component = a.Value.String()
 		}
 		if !unsafe && needsKeyGuard(a) {
 			unsafe = true
+		}
+		if a.Key == traceKey {
+			traced = true
 		}
 		return true
 	})
@@ -175,6 +187,14 @@ func (h *levelHandler) Handle(ctx context.Context, r slog.Record) error {
 			return true
 		})
 		r = clean
+	}
+	// G46.6: a record logged with a span context carries its identifiers.
+	// An explicit traceId attribute wins over the context.
+	if sc, ok := domain.SpanFromContext(ctx); ok && !traced {
+		if !unsafe {
+			r = r.Clone()
+		}
+		r.AddAttrs(slog.String(traceKey, sc.TraceHex()), slog.String(spanKey, sc.SpanHex()))
 	}
 	return h.next.Handle(ctx, r)
 }

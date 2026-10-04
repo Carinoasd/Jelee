@@ -12,6 +12,7 @@ import (
 
 	"github.com/MoYuanCN/Jelee/internal/app"
 	"github.com/MoYuanCN/Jelee/internal/domain"
+	"github.com/MoYuanCN/Jelee/internal/platform/tracing"
 	"github.com/jackc/pgx/v5"
 )
 
@@ -64,7 +65,10 @@ func insertWebhookEvent(ctx context.Context, tx pgx.Tx, e domain.WebhookEvent) e
 		}
 		data = raw
 	}
-	_, err := tx.Exec(ctx, insertWebhookEventSQL, e.EventID, string(e.Type), e.Version, e.OccurredAt, string(e.Subject.Kind), e.Subject.ID, data)
+	tag, err := tx.Exec(ctx, insertWebhookEventSQL, e.EventID, string(e.Type), e.Version, e.OccurredAt, string(e.Subject.Kind), e.Subject.ID, data)
+	if err == nil && tag.RowsAffected() > 0 {
+		tracing.Remember(ctx, tracing.LinkWebhookEvent, e.EventID)
+	}
 	return storageError(err)
 }
 

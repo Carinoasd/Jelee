@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/MoYuanCN/Jelee/internal/platform/logging"
+	"github.com/MoYuanCN/Jelee/internal/platform/tracing"
 )
 
 // LoggingConfig implements G46.1/G46.2/G46.5 settings. Empty or zero fields
@@ -30,6 +31,10 @@ type LoggingConfig struct {
 	IPMode    string   `json:"ipMode"`
 	PathMode  string   `json:"pathMode"`
 	PathRoots []string `json:"pathRoots"`
+	// TraceSampleRate is the share of traces whose span records are kept
+	// (G46.6). Ordinary log records are never sampled, and a security event
+	// forces its trace to be kept.
+	TraceSampleRate float64 `json:"traceSampleRate"`
 }
 
 type LogFileConfig struct {
@@ -41,7 +46,7 @@ type LogFileConfig struct {
 }
 
 func DefaultLoggingConfig() LoggingConfig {
-	return LoggingConfig{Level: "info", Format: "json", Output: "stdout", BufferEntries: logging.DefaultBufferEntries, IPMode: "redact", PathMode: "redact", File: LogFileConfig{MaxSizeMB: 100, RotateHours: 24, MaxBackups: 7, Compress: true}}
+	return LoggingConfig{Level: "info", Format: "json", Output: "stdout", BufferEntries: logging.DefaultBufferEntries, IPMode: "redact", PathMode: "redact", TraceSampleRate: tracing.DefaultSampleRate, File: LogFileConfig{MaxSizeMB: 100, RotateHours: 24, MaxBackups: 7, Compress: true}}
 }
 
 // Validate never includes configured values in its errors.
@@ -91,6 +96,9 @@ func (c LoggingConfig) Validate() error {
 	case "", "redact", "relative":
 	default:
 		return errors.New("logging path mode must be redact or relative")
+	}
+	if !tracing.ValidSampleRate(c.TraceSampleRate) {
+		return errors.New("trace sample rate must be between 0 and 1")
 	}
 	if len(c.PathRoots) > 64 {
 		return errors.New("too many logging path roots")
@@ -149,6 +157,13 @@ func (c *LoggingConfig) loadEnvironment(lookup func(string) (string, bool)) erro
 			}
 			*target = n
 		}
+	}
+	if value, ok := lookup("JELEE_TRACE_SAMPLE_RATE"); ok {
+		rate, err := strconv.ParseFloat(value, 64)
+		if err != nil {
+			return errors.New("invalid JELEE_TRACE_SAMPLE_RATE")
+		}
+		c.TraceSampleRate = rate
 	}
 	if value, ok := lookup("JELEE_LOG_COMPRESS"); ok {
 		b, err := strconv.ParseBool(value)

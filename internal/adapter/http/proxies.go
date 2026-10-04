@@ -86,7 +86,7 @@ func proxyClientIP(r *http.Request, prefixes []netip.Prefix) (ip, reason string)
 func (s *Server) withClientAddress(r *http.Request, requestID string) *http.Request {
 	address, reason := proxyClientIP(r, s.trustedProxies)
 	if reason != "" {
-		s.logger.Warn("forwarding headers ignored", "component", "http", "requestId", requestID, "reason", reason)
+		s.logger.WarnContext(r.Context(), "forwarding headers ignored", "component", "http", "requestId", requestID, "reason", reason)
 	}
 	return r.WithContext(context.WithValue(r.Context(), clientAddressKey{}, address))
 }

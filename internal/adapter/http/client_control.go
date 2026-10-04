@@ -417,6 +417,9 @@ func (c *ClientControl) check(ctx context.Context, req *clientRequest, in gateIn
 		// Developer mode (G45.4): blocking and approval are suspended; hits
 		// are still recorded above, every other action still applies.
 	case d.Verdict == access.VerdictDeny:
+		// A blocked client is a security event: its trace is never
+		// dropped by sampling (G46.6).
+		domain.ForceTraceSampling(ctx)
 		return domain.ErrClientBlocked
 	case d.Verdict == access.VerdictPending:
 		return domain.ErrClientPending
@@ -424,6 +427,7 @@ func (c *ClientControl) check(ctx context.Context, req *clientRequest, in gateIn
 	if d.Libraries != nil {
 		// Storage refuses restrict_libraries rules; fail closed should one
 		// ever reach a compiled set.
+		domain.ForceTraceSampling(ctx)
 		return domain.ErrClientBlocked
 	}
 	if d.ForceRelogin && in.authenticated {

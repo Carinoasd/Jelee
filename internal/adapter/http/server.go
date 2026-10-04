@@ -25,6 +25,7 @@ import (
 	"github.com/MoYuanCN/Jelee/internal/platform/i18n"
 	"github.com/MoYuanCN/Jelee/internal/platform/logging"
 	"github.com/MoYuanCN/Jelee/internal/platform/password"
+	"github.com/MoYuanCN/Jelee/internal/platform/tracing"
 	"github.com/go-chi/chi/v5"
 )
 
@@ -441,12 +442,19 @@ func (s *Server) boundary(next http.Handler) http.Handler {
 		if r.TLS != nil {
 			w.Header().Set("Strict-Transport-Security", "max-age=31536000")
 		}
+		// G46.6: the request ID is the trace ID of the request's root span,
+		// so logs, the error envelope and audit rows share one value.
+		traceCtx, span := tracing.Default().StartRequest(r.Context(), w.Header().Get("X-Request-ID"), "http.request", "http")
+		r = r.WithContext(traceCtx)
 		defer func() {
+			outcome := "ok"
 			if recover() != nil {
-				s.logger.Error("request panic", "component", "http", "requestId", w.Header().Get("X-Request-ID"))
+				outcome = "panic"
+				s.logger.ErrorContext(traceCtx, "request panic", "component", "http", "requestId", w.Header().Get("X-Request-ID"))
 				writeProblem(w, r, 500, "internal_error", "Request could not be completed.")
 			}
-			s.logger.Info("request completed", "component", "http", "requestId", w.Header().Get("X-Request-ID"), "method", logging.SafeMethod(r.Method), "durationMs", time.Since(start).Milliseconds())
+			s.logger.InfoContext(traceCtx, "request completed", "component", "http", "requestId", w.Header().Get("X-Request-ID"), "method", logging.SafeMethod(r.Method), "durationMs", time.Since(start).Milliseconds())
+			span.End(outcome)
 		}()
 		r = s.withClientAddress(r, w.Header().Get("X-Request-ID"))
 		if s.clients != nil && compat.HasPrefix(r.URL.Path) {

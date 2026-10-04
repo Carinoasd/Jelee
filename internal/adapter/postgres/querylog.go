@@ -56,7 +56,7 @@ func (q *QueryLog) TraceQueryEnd(ctx context.Context, _ *pgx.Conn, data pgx.Trac
 	if len(text) > queryLogText {
 		text = text[:queryLogText] + "…"
 	}
-	q.logger.Info("developer mode SQL log", "component", "db", "code", "devmode_sql_log", "statement", text,
+	q.logger.InfoContext(ctx, "developer mode SQL log", "component", "db", "code", "devmode_sql_log", "statement", text,
 		"durationMicros", time.Since(start.at).Microseconds(), "rows", data.CommandTag.RowsAffected(), "failed", data.Err != nil)
 }
 

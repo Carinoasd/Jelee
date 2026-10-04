@@ -6,6 +6,7 @@ import (
 
 	"github.com/MoYuanCN/Jelee/internal/app"
 	"github.com/MoYuanCN/Jelee/internal/domain"
+	"github.com/MoYuanCN/Jelee/internal/platform/tracing"
 	"github.com/jackc/pgx/v5"
 )
 
@@ -49,6 +50,7 @@ func insertCatalogSyncJob(ctx context.Context, tx pgx.Tx, library string, actor 
 	if err != nil {
 		return domain.Job{}, err
 	}
+	tracing.Remember(ctx, tracing.LinkJob, job.ID)
 	phase := "sources"
 	var target, targetRevision *int64
 	if mode == domain.CatalogSyncModeAccept {

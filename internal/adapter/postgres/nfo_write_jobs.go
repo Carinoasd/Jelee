@@ -9,6 +9,7 @@ import (
 
 	"github.com/MoYuanCN/Jelee/internal/app"
 	"github.com/MoYuanCN/Jelee/internal/domain"
+	"github.com/MoYuanCN/Jelee/internal/platform/tracing"
 	"github.com/jackc/pgx/v5"
 )
 
@@ -175,6 +176,7 @@ func (s *Store) SubmitNFOWriteJob(ctx context.Context, actor domain.Actor, libra
 	if err != nil {
 		return domain.Job{}, false, err
 	}
+	tracing.Remember(ctx, tracing.LinkJob, job.ID)
 	if err = copyNFOWriteIntents(ctx, tx, job.ID, preparations); err != nil {
 		if errors.Is(err, domain.ErrNotFound) {
 			err = domain.ErrConflict

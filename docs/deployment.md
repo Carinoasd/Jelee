@@ -30,6 +30,33 @@ Compose 内部网络使用 sslmode=disable，仅用于此隔离网络；远程�
 
 在基礎檔後加入 `-f deploy/docker-compose.memory.yml`，可為 `jelee` 選用 `GOGC=100`、`GOMEMLIMIT=512MiB` 與容器 768 MiB 上限；三者均可覆寫，memory 與 memory+swap 上限保持相同，因此此設定不提供 swap。PostgreSQL 與遷移服務的預算另計。本輪固定混合負載的真容器驗收已通過，`GOGC=50` 比較組也通過；使用方式、實測數據與容量限制見[執行時記憶體設定](runtime-memory.md)。
 
+## 自適應並發（G41.7）
+
+預設關閉。開啟後，控制器每隔一段時間讀取系統壓力，在壓力大時把共用資源預算（CPU、I/O、總並發；見[共用工作預算](shared-work-budget.md)）的**生效上限**往下調，平穩後再逐步恢復。它只會往下調：`resources.cpuFactor`／`io`／`total` 是上限，永遠不會超過；佇列上限不變。下調不收回已取得的配額，執行中的工作照常完成，只是新工作要等。
+
+| 設定（`resources.adaptive.*`） | 環境變數 | 預設 | 說明 |
+| --- | --- | --- | --- |
+| `enabled` | `JELEE_RESOURCE_ADAPTIVE` | `false` | 開關 |
+| `intervalSeconds` | `JELEE_RESOURCE_ADAPTIVE_INTERVAL_SECONDS` | 10 | 讀取間隔（1～3600） |
+| `dwellSeconds` | `JELEE_RESOURCE_ADAPTIVE_DWELL_SECONDS` | 30 | 兩次調整之間的最短停留時間 |
+| `cooldownSeconds` | `JELEE_RESOURCE_ADAPTIVE_COOLDOWN_SECONDS` | 120 | 每一步恢復前，所有訊號須持續平穩的時間 |
+| `minPercent` | `JELEE_RESOURCE_ADAPTIVE_MIN_PERCENT` | 25 | 生效上限的下限（設定值的百分比，至少 1 個並發） |
+| `stepPercent` | — | 25 | 每次調整的幅度 |
+| `loadHigh`／`loadLow` | — | 1.5／0.9 | 每顆 CPU 的 1 分鐘 load average |
+| `throttleHigh`／`throttleLow` | — | 0.3／0.05 | cgroup CPU 被節流的週期比例（兩次讀取之間） |
+| `memoryPressureHigh`／`memoryPressureLow` | — | 20／5 | PSI 記憶體 `some avg10`（%） |
+| `memoryUsageHigh`／`memoryUsageLow` | — | 0.92／0.8 | 工作集（`memory.current − inactive_file`）÷ `memory.max` |
+
+**滯後規則。** 每個訊號有一組上下門檻：任一訊號達到上門檻就算「有壓力」，所有可用訊號都在下門檻以下才算「平穩」，介於兩者之間則維持現狀（並重新計算平穩時間）。有壓力時每次下調 `stepPercent`，兩次調整至少相隔 `dwellSeconds`；平穩持續 `cooldownSeconds` 才上調一步，下一步需要再一段完整的冷卻。因此在門檻附近來回擺動的負載不會讓上限抖動。設定不合法（例如下門檻不小於上門檻）時服務拒絕啟動，即使開關是關的也會檢查。
+
+**讀數。** Linux 讀取 `/proc/loadavg`，以及本程序所在 cgroup v2 目錄（由 `/proc/self/cgroup` 的 `0::` 行決定）下的 `cpu.max`、`cpu.stat`、`memory.pressure`、`memory.current`、`memory.max`、`memory.stat`；cgroup 沒有 `memory.pressure` 時改讀主機的 `/proc/pressure/memory`。每個檔案最多讀 8 KiB；每次讀取帶期限（間隔的一半，上限 2 秒），逾期即視為失敗。單一訊號缺失只是不參與判斷；讀取失敗或完全沒有訊號時**維持目前上限**，每 10 分鐘最多記一次 WARN。
+
+**在容器中。** 以 `docker run --cpus=2 --memory=4g` 或 Kubernetes `limits` 執行時，cgroup v2 的 `cpu.max` 會把用於 load 比較的 CPU 數降為配額（例如 2，而不是主機的 64 核），`cpu.stat` 的節流比例反映配額是否用滿，`memory.max` 讓工作集比例生效（無限制時 `max` 不產生此訊號）。主機的 load average 在容器內看到的是整台主機的值，因此在共用主機上建議主要依賴節流與記憶體訊號，必要時調高 `loadHigh`。cgroup v1 或非 Linux 時沒有 cgroup 訊號，只用 load 與主機 PSI。
+
+**Windows 與其他平台。** 沒有 load average、cgroup 或 PSI 可在不新增相依的情況下讀取；開關開了也只記一筆 INFO（`adaptive concurrency unavailable on this platform`）並維持設定的上限。Windows 上請以 `resources.*` 的固定值與作業系統的工作物件／容器限制控制並發。
+
+**觀察。** 每次調整寫一筆 INFO（`adaptive concurrency lowered`／`recovering`／`restored`，含 `source`、`percent`、`cpuLimit`、`ioLimit`、`totalLimit`）。`/metrics` 的 `jelee_resources_{cpu,io,total}_effective` 是目前生效的上限，`jelee_resources_adaptive_pressure{source=...}` 指出是哪個訊號壓低了上限（見[共用資源指標](shared-work-budget.md#共用資源指標)）。追蹤欄位與採樣見[日誌與追蹤串聯](observability.md)。
+
 ## 媒體庫語言設定的升級
 
 第19／20版新增以下偏好；當前版本要求乾淨schema29，見[lock-only NFO](nfo-lock-only.md)。先執行資料庫遷移，再啟動新的服務；001–019保持原樣。第19版新增媒體庫文字語言及更新版本，第20版新增有序圖片語言清單。設定有更新時降版會拒絕丟失偏好；介面與回復限制見[媒體庫語言](tmdb-library-language.md)及[圖片語言](tmdb-image-preferences.md)。以下仍是首階段容器的歷史驗證。

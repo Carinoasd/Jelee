@@ -132,6 +132,11 @@
       "path": "internal/platform/resources",
       "tier": "core",
       "minimum": 94
+    },
+    {
+      "path": "internal/platform/tracing",
+      "tier": "core",
+      "minimum": 90
     }
   ]
 }

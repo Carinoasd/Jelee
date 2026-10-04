@@ -192,7 +192,7 @@ func (s *Server) setupRoutes(r chi.Router) {
 		state, err := s.setup.wizard.Finish(ctx)
 		if err == nil {
 			s.setup.completed.Store(true)
-			s.logger.Info("initial setup completed", "component", "setup")
+			s.logger.InfoContext(ctx, "initial setup completed", "component", "setup")
 		}
 		return state, err
 	}))
@@ -215,7 +215,7 @@ func (s *Server) setupEndpoint(operation func(context.Context, http.ResponseWrit
 			return
 		}
 		if !s.setup.validToken(r) {
-			s.logger.Warn("setup token rejected", "component", "setup", "clientIp", requestClientIP(r))
+			s.logger.WarnContext(r.Context(), "setup token rejected", "component", "setup", "clientIp", requestClientIP(r))
 			writeProblem(w, r, 401, "setup_token_invalid", "Setup token is missing or invalid.")
 			return
 		}

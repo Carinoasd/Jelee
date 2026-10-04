@@ -14,6 +14,7 @@ import (
 
 	"github.com/MoYuanCN/Jelee/internal/app"
 	"github.com/MoYuanCN/Jelee/internal/domain"
+	"github.com/MoYuanCN/Jelee/internal/platform/tracing"
 )
 
 // Clock controls worker timers. Database lease expiry always uses the database
@@ -402,7 +403,32 @@ func (r *Runner) monitor(ctx context.Context, lease domain.JobLease, cancelJob c
 	}
 }
 
+const inventoryScanKind = "inventory_scan"
+
+// jobComponent maps a job kind onto its G46.2 log scope.
+func jobComponent(kind string) string {
+	switch kind {
+	case "", inventoryScanKind, domain.JobCatalogImport, domain.JobCatalogSync:
+		return "scan"
+	case domain.JobNFOWrite:
+		return "nfo"
+	}
+	return "jobs"
+}
+
 func (r *Runner) run(serviceCtx context.Context, lease domain.JobLease) {
+	// G46.6: a claimed job continues the trace of the request that submitted
+	// it when this process remembers it, and starts a linked root otherwise.
+	// Every record below and every context derived from serviceCtx carries
+	// the job span, including stage spans and cleanup after cancellation.
+	kind := lease.Job.Kind
+	if kind == "" {
+		kind = inventoryScanKind
+	}
+	serviceCtx, span := tracing.Default().StartLinked(serviceCtx, "job."+kind, jobComponent(kind), tracing.LinkJob, lease.Job.ID)
+	outcome := "released"
+	defer func() { span.End(outcome) }()
+	r.logger.InfoContext(serviceCtx, "job started", "component", "jobs", "taskId", lease.Job.ID)
 	ctx, cancelJob := context.WithCancelCause(serviceCtx)
 	defer cancelJob(nil)
 	defer r.registerCancellation(lease, cancelJob)()
@@ -421,7 +447,8 @@ func (r *Runner) run(serviceCtx context.Context, lease domain.JobLease) {
 	<-monitored
 	cause := context.Cause(ctx)
 	if errors.Is(err, domain.ErrJobLeaseLost) || errors.Is(err, domain.ErrProbeLeaseLost) || errors.Is(cause, domain.ErrJobLeaseLost) || errors.Is(cause, errHeartbeatFailed) {
-		r.logger.Warn("job ownership could not be retained", "component", "jobs", "taskId", lease.Job.ID, "code", "job_lease_lost")
+		outcome = "lease_lost"
+		r.logger.WarnContext(serviceCtx, "job ownership could not be retained", "component", "jobs", "taskId", lease.Job.ID, "code", "job_lease_lost")
 		return
 	}
 	// A planned closure refunds the current claim only after work and monitor
@@ -430,7 +457,7 @@ func (r *Runner) run(serviceCtx context.Context, lease domain.JobLease) {
 		dbCtx, cancelDB := context.WithTimeout(context.WithoutCancel(serviceCtx), r.options.DBOperationTimeout)
 		defer cancelDB()
 		if err := r.repository.(app.JobPauseRepository).PauseJob(dbCtx, lease); err != nil {
-			r.logPersistenceFailure(lease)
+			r.logPersistenceFailure(serviceCtx, lease)
 		}
 		return
 	}
@@ -439,7 +466,7 @@ func (r *Runner) run(serviceCtx context.Context, lease domain.JobLease) {
 		dbCtx, cancelDB := context.WithTimeout(context.WithoutCancel(serviceCtx), r.options.DBOperationTimeout)
 		defer cancelDB()
 		if err := r.repository.ReleaseJob(dbCtx, lease); err != nil {
-			r.logPersistenceFailure(lease)
+			r.logPersistenceFailure(serviceCtx, lease)
 		}
 		return
 	}
@@ -453,7 +480,7 @@ func (r *Runner) run(serviceCtx context.Context, lease domain.JobLease) {
 		if errors.Is(abortErr, context.Canceled) {
 			cause = errCancelRequested
 		} else if abortErr != nil {
-			r.logPersistenceFailure(lease)
+			r.logPersistenceFailure(serviceCtx, lease)
 			return
 		}
 	}
@@ -464,7 +491,7 @@ func (r *Runner) run(serviceCtx context.Context, lease domain.JobLease) {
 		if errors.Is(abortErr, context.Canceled) {
 			cause = errCancelRequested
 		} else if abortErr != nil {
-			r.logPersistenceFailure(lease)
+			r.logPersistenceFailure(serviceCtx, lease)
 			return
 		}
 	}
@@ -525,7 +552,7 @@ func (r *Runner) run(serviceCtx context.Context, lease domain.JobLease) {
 		requested, err := r.repository.HeartbeatJob(checkCtx, lease, r.options.LeaseDuration)
 		cancelCheck()
 		if err != nil || !requested {
-			r.logPersistenceFailure(lease)
+			r.logPersistenceFailure(serviceCtx, lease)
 			return
 		}
 		state = domain.JobCancelled
@@ -534,17 +561,20 @@ func (r *Runner) run(serviceCtx context.Context, lease domain.JobLease) {
 		cancelFinish()
 	}
 	if finishErr != nil {
-		r.logPersistenceFailure(lease)
+		r.logPersistenceFailure(serviceCtx, lease)
 		return
 	}
-	r.logger.Info("inventory job completed", "component", "jobs", "taskId", lease.Job.ID, "state", state, "code", code)
+	outcome = state
+	r.logger.InfoContext(serviceCtx, "inventory job completed", "component", "jobs", "taskId", lease.Job.ID, "state", state, "code", code)
 }
 
-func (r *Runner) logPersistenceFailure(lease domain.JobLease) {
-	r.logger.Warn("job state could not be persisted", "component", "jobs", "taskId", lease.Job.ID, "code", "scan_unavailable")
+func (r *Runner) logPersistenceFailure(ctx context.Context, lease domain.JobLease) {
+	r.logger.WarnContext(ctx, "job state could not be persisted", "component", "jobs", "taskId", lease.Job.ID, "code", "scan_unavailable")
 }
 
 func (r *Runner) executeInventory(ctx context.Context, lease domain.JobLease) (result error, repositoryError bool) {
+	ctx, span := tracing.Default().Start(ctx, "scan.inventory", "scan")
+	defer func() { span.End(spanOutcome(result)) }()
 	// Scanner bugs cannot strand the monitor or expose panic payloads in logs.
 	defer func() {
 		if recover() != nil {
@@ -699,4 +729,15 @@ func (r *Runner) prepareInventoryPublication(ctx context.Context, l domain.JobLe
 			return nil
 		}
 	}
+}
+
+// spanOutcome is the span record outcome of a stage result.
+func spanOutcome(err error) string {
+	switch {
+	case err == nil:
+		return "ok"
+	case errors.Is(err, context.Canceled):
+		return "cancelled"
+	}
+	return "failed"
 }

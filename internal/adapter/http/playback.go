@@ -106,7 +106,7 @@ func (s *Server) playbackCheck(w http.ResponseWriter, r *http.Request) {
 		// G10.5: undecodable sources must be traceable in logs. Only fixed
 		// reason codes and counts are logged, never names or paths.
 		slices.Sort(reasons)
-		s.logger.Info("direct play unsupported", "component", "playback", "requestId", w.Header().Get("X-Request-ID"),
+		s.logger.InfoContext(r.Context(), "direct play unsupported", "component", "playback", "requestId", w.Header().Get("X-Request-ID"),
 			"sources", len(decisions), "unsupported", unsupported, "reasons", reasons)
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"data": map[string]any{"itemId": id, "delivery": playbackDelivery, "directPlayable": playable, "decisions": decisions}})

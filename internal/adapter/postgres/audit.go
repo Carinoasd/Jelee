@@ -267,6 +267,11 @@ func appendAudit(ctx context.Context, tx pgx.Tx, e AuditEntry) error {
 	if !ok || e.TargetID != "" && e.TargetRef != "" || e.TargetRef != "" && !validAuditTargetRef(e.TargetRef) {
 		return domain.ErrDatabase
 	}
+	if category == domain.AuditCategorySecurity {
+		// Security rows (failed logins, denied native logins, developer
+		// mode changes...) force their trace to be kept (G46.6).
+		domain.ForceTraceSampling(ctx)
+	}
 	before, err := auditState(e.Before)
 	if err != nil {
 		return err

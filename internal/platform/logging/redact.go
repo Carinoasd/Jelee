@@ -83,6 +83,39 @@ func (r *redactor) replace(groups []string, a slog.Attr) slog.Attr {
 		if a.Value.Kind() == slog.KindString && knownComponent(a.Value.String()) {
 			return a
 		}
+	case traceKey, "linkTraceId":
+		if a.Value.Kind() == slog.KindString && hexID(a.Value.String(), 32) {
+			return a
+		}
+	case spanKey, "parentSpanId":
+		if a.Value.Kind() == slog.KindString && hexID(a.Value.String(), 16) {
+			return a
+		}
+	case "span":
+		if a.Value.Kind() == slog.KindString && safeToken(a.Value.String(), 64, "._") {
+			return a
+		}
+	case "forced", "linked":
+		if a.Value.Kind() == slog.KindBool {
+			return a
+		}
+	case "linkKind", "outcome", "source":
+		if a.Value.Kind() == slog.KindString && safeLowerIdent(a.Value.String()) {
+			return a
+		}
+	case "eventId":
+		if a.Value.Kind() == slog.KindString && safeToken(a.Value.String(), 64, "_-") {
+			return a
+		}
+	case "deliveryId", "webhookId":
+		if a.Value.Kind() == slog.KindString && domain.ValidID(a.Value.String()) {
+			return a
+		}
+	case "cpuLimit", "ioLimit", "totalLimit", "percent", "pressure":
+		switch a.Value.Kind() {
+		case slog.KindInt64, slog.KindUint64, slog.KindFloat64:
+			return a
+		}
 	case "requestId":
 		if a.Value.Kind() == slog.KindString && safeToken(a.Value.String(), 64, "-") {
 			return a
@@ -198,6 +231,19 @@ func safeToken(s string, max int, extra string) bool {
 	}
 	for _, c := range s {
 		if !(c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c >= '0' && c <= '9' || strings.ContainsRune(extra, c)) {
+			return false
+		}
+	}
+	return true
+}
+
+// hexID accepts exactly n lowercase hexadecimal digits.
+func hexID(s string, n int) bool {
+	if len(s) != n {
+		return false
+	}
+	for i := 0; i < len(s); i++ {
+		if c := s[i]; !(c >= '0' && c <= '9' || c >= 'a' && c <= 'f') {
 			return false
 		}
 	}

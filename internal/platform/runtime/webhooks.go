@@ -1,6 +1,7 @@
 package runtime
 
 import (
+	"context"
 	"errors"
 	"log/slog"
 	"strings"
@@ -13,6 +14,7 @@ import (
 	"github.com/MoYuanCN/Jelee/internal/platform/outbound"
 	"github.com/MoYuanCN/Jelee/internal/platform/resources"
 	"github.com/MoYuanCN/Jelee/internal/platform/secretbox"
+	"github.com/MoYuanCN/Jelee/internal/platform/tracing"
 )
 
 // newWebhooks builds the G12 administration service and the background
@@ -59,6 +61,7 @@ func newWebhooks(c config.Config, store *postgres.Store, budget *resources.Budge
 	p := c.Webhooks
 	dispatcher, err := app.NewWebhookDispatcher(store, store, box, deliverer, app.WebhookDispatcherOptions{
 		Batch: p.BatchSize(), Concurrency: p.Workers(), Lease: p.Lease(), PollInterval: p.PollInterval(), Retention: p.Retention(), Logger: l,
+		Spans: webhookSpans,
 	})
 	if err != nil {
 		return nil, err
@@ -68,6 +71,13 @@ func newWebhooks(c config.Config, store *postgres.Store, budget *resources.Budge
 	// Producers append events only from here on.
 	store.EnableWebhookEvents(true)
 	return service, nil
+}
+
+// webhookSpans starts the span of one delivery attempt (G46.6). It joins the
+// trace of the change that raised the event when this process remembers it.
+func webhookSpans(ctx context.Context, eventID string) (context.Context, func(string)) {
+	ctx, span := tracing.Default().StartLinked(ctx, "webhook.deliver", "webhook", tracing.LinkWebhookEvent, eventID)
+	return ctx, span.End
 }
 
 // twoFactorBox seals authenticator secrets (G07.8) with the same master key

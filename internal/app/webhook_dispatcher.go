@@ -32,6 +32,9 @@ type WebhookDispatcherOptions struct {
 	// context is cancelled before they are cancelled too.
 	StopGrace time.Duration
 	Logger    *slog.Logger
+	// Spans starts the span of one delivery attempt for an event and
+	// returns its end function (G46.6). Nil starts none.
+	Spans func(ctx context.Context, eventID string) (context.Context, func(outcome string))
 }
 
 // WebhookDispatcher fans outbox events out to subscribed endpoints and
@@ -243,6 +246,20 @@ func (d *WebhookDispatcher) deliverAll(ctx context.Context, claimed []WebhookDel
 // deliverOne sends one claimed delivery and records the attempt. It reports
 // false when nothing was recorded.
 func (d *WebhookDispatcher) deliverOne(ctx context.Context, cache *webhookEndpointCache, delivery WebhookDelivery) (domain.WebhookDeliveryState, bool) {
+	outcome := "skipped"
+	if d.opts.Spans != nil {
+		var end func(string)
+		ctx, end = d.opts.Spans(ctx, delivery.Event.EventID)
+		defer func() { end(outcome) }()
+	}
+	state, recorded := d.attempt(ctx, cache, delivery)
+	if recorded {
+		outcome = string(state)
+	}
+	return state, recorded
+}
+
+func (d *WebhookDispatcher) attempt(ctx context.Context, cache *webhookEndpointCache, delivery WebhookDelivery) (domain.WebhookDeliveryState, bool) {
 	endpoint, keys, err := d.loadEndpoint(ctx, cache, delivery.EndpointID)
 	if errors.Is(err, domain.ErrNotFound) {
 		// Deleted while claimed: its deliveries went with it.
@@ -252,7 +269,7 @@ func (d *WebhookDispatcher) deliverOne(ctx context.Context, cache *webhookEndpoi
 		if ErrWebhookSealed(err) {
 			d.warnSealed()
 		} else {
-			d.opts.Logger.Warn("webhook endpoint unavailable", "component", "webhooks", "webhookId", delivery.EndpointID)
+			d.opts.Logger.WarnContext(ctx, "webhook endpoint unavailable", "component", "webhook", "webhookId", delivery.EndpointID)
 		}
 		return "", false
 	}
@@ -281,12 +298,12 @@ func (d *WebhookDispatcher) deliverOne(ctx context.Context, cache *webhookEndpoi
 	defer cancel()
 	if err := d.store.RecordAttempt(recordCtx, record); err != nil {
 		if !errors.Is(err, domain.ErrConflict) {
-			d.opts.Logger.Warn("webhook attempt not recorded", "component", "webhooks", "deliveryId", delivery.ID)
+			d.opts.Logger.WarnContext(ctx, "webhook attempt not recorded", "component", "webhook", "deliveryId", delivery.ID)
 		}
 		return "", false
 	}
 	if record.Decision.State == domain.WebhookDeliveryDead {
-		d.opts.Logger.Info("webhook delivery dead-lettered", "component", "webhooks", "webhookId", delivery.EndpointID, "deliveryId", delivery.ID, "eventId", delivery.Event.EventID, "outcome", string(outcome.Kind), "status", outcome.StatusCode)
+		d.opts.Logger.InfoContext(ctx, "webhook delivery dead-lettered", "component", "webhook", "webhookId", delivery.EndpointID, "deliveryId", delivery.ID, "eventId", delivery.Event.EventID, "outcome", string(outcome.Kind), "status", outcome.StatusCode)
 	}
 	return record.Decision.State, true
 }

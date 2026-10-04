@@ -228,8 +228,8 @@ func TestImageMetricsFollowProcessorAndStoreStats(t *testing.T) {
 		source.set(scale)
 		processor, store := imageTestStats(scale)
 		families := scrapeImageMetrics(t, m)
-		if len(families) != 30+len(expectations) {
-			t.Fatalf("metric families: %d, want %d", len(families), 30+len(expectations))
+		if len(families) != 34+len(expectations) {
+			t.Fatalf("metric families: %d, want %d", len(families), 34+len(expectations))
 		}
 		assertImageFamilies(t, families, expectations, processor, store)
 	}
@@ -241,8 +241,8 @@ func TestImageMetricsOmitDisabledStore(t *testing.T) {
 	m := newImageTestExporter(t, source)
 	processor, _ := imageTestStats(2)
 	families := scrapeImageMetrics(t, m)
-	if len(families) != 30+len(imageProcessorExpectations()) {
-		t.Fatalf("metric families: %d, want %d", len(families), 30+len(imageProcessorExpectations()))
+	if len(families) != 34+len(imageProcessorExpectations()) {
+		t.Fatalf("metric families: %d, want %d", len(families), 34+len(imageProcessorExpectations()))
 	}
 	for name := range families {
 		if strings.HasPrefix(name, "jelee_images_store_") || strings.HasPrefix(name, "jelee_images_index_") {
@@ -254,8 +254,8 @@ func TestImageMetricsOmitDisabledStore(t *testing.T) {
 
 func TestImageMetricsNilSourceRegistersNothing(t *testing.T) {
 	families := scrapeImageMetrics(t, newImageTestExporter(t, nil))
-	if len(families) != 30 {
-		t.Fatalf("metric families: %d, want 30", len(families))
+	if len(families) != 34 {
+		t.Fatalf("metric families: %d, want 34", len(families))
 	}
 	for name := range families {
 		if strings.HasPrefix(name, "jelee_images_") {

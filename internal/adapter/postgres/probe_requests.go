@@ -6,6 +6,7 @@ import (
 
 	"github.com/MoYuanCN/Jelee/internal/app"
 	"github.com/MoYuanCN/Jelee/internal/domain"
+	"github.com/MoYuanCN/Jelee/internal/platform/tracing"
 	"github.com/jackc/pgx/v5"
 )
 
@@ -287,6 +288,7 @@ func (s *Store) submitScanInTransaction(ctx context.Context, tx pgx.Tx, a domain
 	if err != nil {
 		return domain.Job{}, false, err
 	}
+	tracing.Remember(ctx, tracing.LinkJob, j.ID)
 	if _, err = tx.Exec(ctx, `INSERT INTO job_directories(job_id,root_id,path) SELECT $1::uuid,id,'.' FROM library_roots WHERE library_id=$2::uuid`, j.ID, libraryID); err != nil {
 		return domain.Job{}, false, storageError(err)
 	}

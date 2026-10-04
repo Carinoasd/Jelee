@@ -6,6 +6,7 @@ import (
 
 	"github.com/MoYuanCN/Jelee/internal/app"
 	"github.com/MoYuanCN/Jelee/internal/domain"
+	"github.com/MoYuanCN/Jelee/internal/platform/tracing"
 )
 
 type IgnoreOptions struct {
@@ -30,7 +31,11 @@ func (r *Runner) execute(ctx context.Context, l domain.JobLease) (result error, 
 		return r.executeCatalogImport(ctx, l)
 	}
 	if l.Job.Kind == domain.JobNFOWrite {
-		return r.executeNFOWrite(ctx, l)
+		// G46.6: the write itself is a span below the job span.
+		writeCtx, span := tracing.Default().Start(ctx, "nfo.write", "nfo")
+		result, storage = r.executeNFOWrite(writeCtx, l)
+		span.End(spanOutcome(result))
+		return result, storage
 	}
 	if l.Job.Kind == domain.JobCatalogSync {
 		return r.executeCatalogSync(ctx, l)

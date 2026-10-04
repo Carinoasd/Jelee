@@ -8,6 +8,7 @@ import (
 
 	"github.com/MoYuanCN/Jelee/internal/app"
 	"github.com/MoYuanCN/Jelee/internal/domain"
+	"github.com/MoYuanCN/Jelee/internal/platform/tracing"
 	"github.com/jackc/pgx/v5"
 )
 
@@ -236,6 +237,7 @@ func insertConsistencyJob(ctx context.Context, tx pgx.Tx, library, priority stri
 	if err != nil {
 		return domain.Job{}, err
 	}
+	tracing.Remember(ctx, tracing.LinkJob, job.ID)
 	if err = auditAccount(ctx, tx, domain.Actor{}, "consistency.submitted", job.ID, nil, map[string]any{"libraryId": library, "priority": priority}); err != nil {
 		return domain.Job{}, err
 	}
