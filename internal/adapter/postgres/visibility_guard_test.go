@@ -30,9 +30,10 @@ var visibilityGuardedTables = map[string]map[string][]string{
 	"parental_rating_max":    {"content_access.go": {visibilityWholeFile}},
 }
 
-// Metadata backup copies the grant and rule rows verbatim as data (G36.4);
-// it never decides visibility, so both files may name every guarded table.
-var visibilityBackupFiles = []string{"metadata_backup.go", "metadata_import.go"}
+// Metadata backup (G36.4) and the legacy import (G04.6) copy grant and rule
+// rows as data; they never decide visibility, so these files may name every
+// guarded table.
+var visibilityBackupFiles = []string{"metadata_backup.go", "metadata_import.go", "legacy_import.go", "legacy_import_phases.go"}
 
 func init() {
 	for _, files := range visibilityGuardedTables {
