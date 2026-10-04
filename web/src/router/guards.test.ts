@@ -41,6 +41,30 @@ describe("navigation guard", () => {
     expect(resolve("/items/abc").params).toEqual({ itemId: "abc" });
   });
 
+  it("guards every administration page by the merged admin meta", () => {
+    const regular = { isAuthenticated: true, isAdmin: false };
+    const admin = { isAuthenticated: true, isAdmin: true };
+    const anonymous = { isAuthenticated: false, isAdmin: false };
+    const paths = ["/admin", "/admin/users", "/admin/users/u1", "/admin/access", "/admin/clients", "/admin/webhooks", "/admin/webhooks/w1", "/admin/stats"];
+    for (const path of paths) {
+      const target = resolve(path);
+      expect(target.meta.admin, path).toBe(true);
+      expect(navigationGuard(target, regular), path).toEqual({ name: "forbidden" });
+      expect(navigationGuard(target, admin), path).toBe(true);
+      expect(navigationGuard(target, anonymous), path).toEqual({ name: "login", query: { redirect: path } });
+    }
+    expect(resolve("/admin/users/u1").params).toEqual({ userId: "u1" });
+  });
+
+  it("lets every signed-in user search, see their statistics and settings", () => {
+    for (const path of ["/search?q=x", "/stats", "/settings"]) {
+      const target = resolve(path);
+      expect(target.meta.admin, path).toBeUndefined();
+      expect(navigationGuard(target, { isAuthenticated: true, isAdmin: false }), path).toBe(true);
+      expect(navigationGuard(target, { isAuthenticated: false, isAdmin: false }), path).toEqual({ name: "login", query: { redirect: path } });
+    }
+  });
+
   it("resolves unknown paths to the 404 view", () => {
     expect(resolve("/nothing/here").name).toBe("not-found");
   });
@@ -62,11 +86,20 @@ describe("safeRedirect", () => {
 });
 
 describe("routes", () => {
-  it("lazy-loads every view", () => {
-    for (const route of routes) {
+  it("lazy-loads every view, nested ones included", () => {
+    const all = routes.flatMap((route) => [route, ...(route.children ?? [])]);
+    expect(all.length).toBeGreaterThan(routes.length);
+    for (const route of all) {
       if ("component" in route && route.component !== undefined) {
         expect(typeof route.component).toBe("function");
       }
+    }
+  });
+
+  it("has no playback route", () => {
+    const all = routes.flatMap((route) => [route, ...(route.children ?? [])]);
+    for (const route of all) {
+      expect(route.path).not.toMatch(/play|stream|cast|pip|player/i);
     }
   });
 });

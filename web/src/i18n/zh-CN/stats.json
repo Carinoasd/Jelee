@@ -1,0 +1,60 @@
+{
+  "stats": {
+    "title": "我的观看统计",
+    "allTitle": "所有用户的观看统计",
+    "intro": "数字来自每日汇总：观看会话结束且下一次汇总运行后才会计入，因此最近几小时可能尚未出现。",
+    "empty": "此期间没有观看记录",
+    "allEmpty": "此期间没有任何用户的观看记录",
+    "emptyHint": "在原生应用中观看内容后，统计会出现在这里。",
+    "range": "{from} 至 {to}",
+    "topLabel": "排行榜",
+    "topN": "前 {n} 名",
+    "period": {
+      "label": "分组方式",
+      "day": "按日（最近 30 天）",
+      "week": "按周（最近 12 周）",
+      "month": "按月（最近 12 个月）",
+      "year": "按年（最近 5 年）"
+    },
+    "totals": {
+      "heading": "总计",
+      "time": "观看时长",
+      "views": "观看次数",
+      "sessions": "观看会话",
+      "completion": "平均完成率",
+      "firstViews": "首次观看",
+      "rewatches": "重看"
+    },
+    "timeZone": "按 {zone} 时区划分日期。观看时长不含暂停、跳转与快进。",
+    "chart": {
+      "periods": "观看时长走势",
+      "period": "期间"
+    },
+    "topItems": "最常观看",
+    "topUsers": "最活跃的用户",
+    "finished": "已看完",
+    "byLibrary": "按媒体库",
+    "byKind": "按类型",
+    "column": {
+      "rank": "名次",
+      "title": "标题",
+      "kind": "类型",
+      "library": "媒体库",
+      "user": "用户"
+    },
+    "export": {
+      "heading": "导出",
+      "hint": "下载当前范围的每日数据行（日期、用户、条目）。范围过大可能被拒绝；每次导出都会写入审计记录。",
+      "csv": "下载 CSV",
+      "ndjson": "下载 NDJSON"
+    },
+    "clear": {
+      "heading": "观看记录",
+      "hint": "只有你和管理员能看到你的统计。清除后，所有设备上的进度、已看完标记、次数与统计都会删除。",
+      "button": "清除我的观看记录",
+      "confirm": "是，全部清除",
+      "prompt": "此操作无法撤销。",
+      "done": "已清除你的观看记录。"
+    }
+  }
+}

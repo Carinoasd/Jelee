@@ -24,6 +24,10 @@
     "setupRequired": "尚未完成初始引導。",
     "confirmationRequired": "這是危險操作，需要明確確認後才能繼續。",
     "devModeInactive": "開發者模式未開啟。",
-    "devModeToggleUnavailable": "此版本不提供這個開發者模式選項。"
+    "devModeToggleUnavailable": "此版本不提供這個開發者模式選項。",
+    "conflict": "此項目已在其他地方變更或已存在。請重新載入後再試。",
+    "lastAdmin": "無法移除、停用或降級最後一位管理員。",
+    "exportLimit": "匯出的資料列過多，請縮小日期範圍。",
+    "webhookTargetDenied": "此位址不允許作為 Webhook 目標。"
   }
 }

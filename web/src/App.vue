@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import { computed, nextTick, watch } from "vue";
 import { useI18n } from "vue-i18n";
-import { useRouter } from "vue-router";
+import { useRoute, useRouter } from "vue-router";
 import LocaleSwitcher from "@/components/LocaleSwitcher.vue";
 import UiButton from "@/components/ui/UiButton.vue";
 import UiToastRegion from "@/components/ui/UiToastRegion.vue";
 import DevModeBanner from "@/features/devmode/DevModeBanner.vue";
+import SearchBox from "@/features/search/SearchBox.vue";
 import { useLocaleSync } from "@/i18n/useLocaleSync";
 import { useAuthStore } from "@/stores/auth";
 import { useToastStore } from "@/stores/toasts";
@@ -14,6 +15,8 @@ const { t } = useI18n();
 const auth = useAuthStore();
 const toastStore = useToastStore();
 const router = useRouter();
+const route = useRoute();
+const inAdmin = computed(() => route.meta.admin === true);
 const { applyUserLocale } = useLocaleSync();
 
 const toasts = computed(() =>
@@ -58,9 +61,20 @@ async function signOut() {
     <RouterLink class="jl-header__brand" :to="{ name: 'libraries' }">{{ t("common.appName") }}</RouterLink>
     <nav v-if="auth.isAuthenticated" :aria-label="t('common.mainNavigation')" class="jl-header__nav">
       <RouterLink :to="{ name: 'libraries' }">{{ t("libraries.title") }}</RouterLink>
+      <RouterLink :to="{ name: 'stats' }">{{ t("common.stats") }}</RouterLink>
       <RouterLink :to="{ name: 'account' }">{{ t("account.title") }}</RouterLink>
+      <RouterLink :to="{ name: 'settings' }">{{ t("common.settings") }}</RouterLink>
+      <RouterLink
+        v-if="auth.isAdmin"
+        :to="{ name: 'admin-users' }"
+        :class="{ 'router-link-active': inAdmin }"
+        data-testid="admin-link"
+      >
+        {{ t("common.admin") }}
+      </RouterLink>
     </nav>
     <span class="jl-header__spacer" />
+    <SearchBox v-if="auth.isAuthenticated" class="jl-header__search" />
     <LocaleSwitcher />
     <template v-if="auth.user">
       <span class="jl-header__user">{{ t("common.signedInAs", { name: auth.user.displayName || auth.user.name }) }}</span>
@@ -96,7 +110,12 @@ async function signOut() {
 
 .jl-header__nav {
   display: flex;
+  flex-wrap: wrap;
   gap: var(--jl-space-1);
+}
+
+.jl-header__search {
+  flex: 0 1 18rem;
 }
 
 .jl-header__nav a {

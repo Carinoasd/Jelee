@@ -18,6 +18,16 @@
     "notifications": "通知",
     "dismiss": "閉じる",
     "cancel": "キャンセル",
-    "breadcrumbs": "パンくずリスト"
+    "breadcrumbs": "パンくずリスト",
+    "save": "保存",
+    "delete": "削除",
+    "edit": "編集",
+    "actions": "操作",
+    "yes": "はい",
+    "no": "いいえ",
+    "search": "検索",
+    "admin": "管理",
+    "settings": "設定",
+    "stats": "自分の統計"
   }
 }

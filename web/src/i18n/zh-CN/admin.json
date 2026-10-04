@@ -1,0 +1,12 @@
+{
+  "admin": {
+    "navigation": "管理分区",
+    "nav": {
+      "users": "用户",
+      "access": "内容访问",
+      "clients": "客户端管控",
+      "webhooks": "Webhook",
+      "stats": "观看统计"
+    }
+  }
+}

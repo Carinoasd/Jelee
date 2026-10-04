@@ -3,7 +3,9 @@ import { computed, useId } from "vue";
 
 const props = defineProps<{
   label: string;
-  type?: "text" | "password";
+  type?: "text" | "password" | "search" | "url" | "date";
+  /** Virtual keyboard hint, e.g. "numeric" for number entry kept as text. */
+  inputmode?: "text" | "numeric" | "decimal" | "search" | "url";
   autocomplete?: string;
   required?: boolean;
   maxlength?: number;
@@ -31,6 +33,7 @@ const describedBy = computed(() => {
       class="jl-field__input"
       :class="{ 'jl-field__input--invalid': error }"
       :type="type ?? 'text'"
+      :inputmode="inputmode"
       :autocomplete="autocomplete"
       :required="required"
       :aria-required="required ? 'true' : undefined"

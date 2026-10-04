@@ -1,0 +1,60 @@
+{
+  "stats": {
+    "title": "我的觀看統計",
+    "allTitle": "所有使用者的觀看統計",
+    "intro": "數字來自每日彙總：觀看工作階段結束且下一次彙總執行後才會計入，因此最近幾小時可能尚未出現。",
+    "empty": "此期間沒有觀看紀錄",
+    "allEmpty": "此期間沒有任何使用者的觀看紀錄",
+    "emptyHint": "在原生應用程式觀看內容後，統計會出現在這裡。",
+    "range": "{from} 至 {to}",
+    "topLabel": "排行榜",
+    "topN": "前 {n} 名",
+    "period": {
+      "label": "分組方式",
+      "day": "按日（最近 30 天）",
+      "week": "按週（最近 12 週）",
+      "month": "按月（最近 12 個月）",
+      "year": "按年（最近 5 年）"
+    },
+    "totals": {
+      "heading": "總計",
+      "time": "觀看時長",
+      "views": "觀看次數",
+      "sessions": "觀看工作階段",
+      "completion": "平均完成率",
+      "firstViews": "首次觀看",
+      "rewatches": "重看"
+    },
+    "timeZone": "以 {zone} 時區劃分日期。觀看時長不含暫停、跳轉與快轉。",
+    "chart": {
+      "periods": "觀看時長走勢",
+      "period": "期間"
+    },
+    "topItems": "最常觀看",
+    "topUsers": "最活躍的使用者",
+    "finished": "已看完",
+    "byLibrary": "按媒體庫",
+    "byKind": "按類型",
+    "column": {
+      "rank": "名次",
+      "title": "標題",
+      "kind": "類型",
+      "library": "媒體庫",
+      "user": "使用者"
+    },
+    "export": {
+      "heading": "匯出",
+      "hint": "下載目前範圍的每日資料列（日期、使用者、條目）。範圍過大可能被拒絕；每次匯出都會寫入稽核紀錄。",
+      "csv": "下載 CSV",
+      "ndjson": "下載 NDJSON"
+    },
+    "clear": {
+      "heading": "觀看紀錄",
+      "hint": "只有你與管理員看得到你的統計。清除後，所有裝置上的進度、已看完標記、次數與統計都會刪除。",
+      "button": "清除我的觀看紀錄",
+      "confirm": "是，全部清除",
+      "prompt": "此操作無法復原。",
+      "done": "已清除你的觀看紀錄。"
+    }
+  }
+}

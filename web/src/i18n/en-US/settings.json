@@ -1,0 +1,41 @@
+{
+  "settings": {
+    "title": "Settings",
+    "appearance": "Display",
+    "language": {
+      "label": "Interface language",
+      "hint": "Saved to your account and used on your other devices too.",
+      "saved": "Language saved."
+    },
+    "theme": {
+      "label": "Theme",
+      "system": "Match system",
+      "light": "Light",
+      "dark": "Dark",
+      "hint": "Applies to this browser tab until it is reloaded; saving it to your account is not available yet."
+    },
+    "profile": {
+      "heading": "Profile",
+      "name": "Display name",
+      "nameHint": "Shown instead of your user name. Leave empty to use the user name.",
+      "hidden": "Hide my account from public user lists",
+      "hiddenHint": "Apps that list accounts on their sign-in screen will not show you.",
+      "saved": "Profile saved."
+    },
+    "password": {
+      "heading": "Change password",
+      "hint": "After the change every device, including this one, is signed out.",
+      "current": "Current password",
+      "new": "New password",
+      "confirm": "Repeat new password",
+      "rule": "At least {min} bytes; nothing is trimmed.",
+      "required": "Enter your current password.",
+      "tooShort": "The new password must be at least {min} bytes long.",
+      "tooLong": "The new password must be at most {max} bytes long.",
+      "mismatch": "The passwords do not match.",
+      "wrongCurrent": "The current password is not correct.",
+      "submit": "Change password",
+      "changed": "Password changed. Sign in again with the new password."
+    }
+  }
+}

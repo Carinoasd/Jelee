@@ -1,0 +1,12 @@
+{
+  "admin": {
+    "navigation": "管理分區",
+    "nav": {
+      "users": "使用者",
+      "access": "內容存取",
+      "clients": "客戶端管控",
+      "webhooks": "Webhook",
+      "stats": "觀看統計"
+    }
+  }
+}

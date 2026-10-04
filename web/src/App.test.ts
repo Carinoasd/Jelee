@@ -184,7 +184,7 @@ describe("sign-in flow", () => {
     const { wrapper, router, server } = await boot("/libraries", (s) => {
       s.cookie = true;
     });
-    await wrapper.find(".jl-header button").trigger("click");
+    await wrapper.findAll(".jl-header button").find((button) => button.text() === "ログアウト")!.trigger("click");
     await flushPromises();
     const logout = server.requests.find((request) => request.url.endsWith("/api/v1/auth/logout"))!;
     expect(logout.headers.get("X-Jelee-CSRF")).toBe(server.csrf);
@@ -379,5 +379,39 @@ describe("account", () => {
     await flushPromises();
     expect(router.currentRoute.value.name).toBe("login");
     expect(server.cookie).toBe(false);
+  });
+});
+
+describe("administration entry and route guard", () => {
+  it("hides the administration link from regular users and answers 403 on deep links", async () => {
+    const { wrapper, router, server } = await boot("/admin/clients", (fake) => {
+      fake.user = { ...fake.user, admin: false, locale: "en-US" };
+    });
+    await signIn(wrapper);
+    await vi.waitFor(() => {
+      expect(router.currentRoute.value.name).toBe("forbidden");
+    });
+    expect(wrapper.find("[data-testid=admin-link]").exists()).toBe(false);
+    expect(wrapper.find(".jl-header__nav").text()).toContain("My statistics");
+    expect(wrapper.find("form[role=search]").exists()).toBe(true);
+    await vi.waitFor(() => {
+      expect(wrapper.find("h1").text()).toBe("Access denied");
+    });
+    // The guard stopped the navigation before any administration request.
+    expect(server.requests.some((request) => new URL(request.url).pathname.startsWith("/api/v1/client-control"))).toBe(false);
+    assertNoPlayback(wrapper.html());
+  });
+
+  it("shows the administration link to administrators", async () => {
+    const { wrapper, router } = await boot("/libraries", (fake) => {
+      fake.user = { ...fake.user, locale: "en-US" };
+    });
+    await signIn(wrapper);
+    await vi.waitFor(() => {
+      expect(router.currentRoute.value.name).toBe("libraries");
+    });
+    const link = wrapper.find("[data-testid=admin-link]");
+    expect(link.text()).toBe("Administration");
+    expect(link.attributes("href")).toBe("/admin/users");
   });
 });

@@ -1,0 +1,12 @@
+{
+  "admin": {
+    "navigation": "Administration sections",
+    "nav": {
+      "users": "Users",
+      "access": "Content access",
+      "clients": "Client control",
+      "webhooks": "Webhooks",
+      "stats": "Watch statistics"
+    }
+  }
+}

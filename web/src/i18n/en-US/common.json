@@ -18,6 +18,16 @@
     "notifications": "Notifications",
     "dismiss": "Dismiss",
     "cancel": "Cancel",
-    "breadcrumbs": "Breadcrumbs"
+    "breadcrumbs": "Breadcrumbs",
+    "save": "Save",
+    "delete": "Delete",
+    "edit": "Edit",
+    "actions": "Actions",
+    "yes": "Yes",
+    "no": "No",
+    "search": "Search",
+    "admin": "Administration",
+    "settings": "Settings",
+    "stats": "My statistics"
   }
 }

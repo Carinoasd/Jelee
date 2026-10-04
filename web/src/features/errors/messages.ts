@@ -29,7 +29,17 @@ export function errorMessageKey(error: ApiError): string {
     case "not_found":
       return "errors.notFound";
     case "invalid_request":
+    case "body_too_large":
       return "errors.invalidRequest";
+    case "conflict":
+    case "precondition_failed":
+      return "errors.conflict";
+    case "last_admin":
+      return "errors.lastAdmin";
+    case "stats_export_limit":
+      return "errors.exportLimit";
+    case "webhook_target_denied":
+      return "errors.webhookTargetDenied";
     case "request_timeout":
     case "lookup_timeout":
       return "errors.timeout";

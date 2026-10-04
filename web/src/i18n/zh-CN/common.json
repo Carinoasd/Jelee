@@ -18,6 +18,16 @@
     "notifications": "通知",
     "dismiss": "关闭",
     "cancel": "取消",
-    "breadcrumbs": "导航路径"
+    "breadcrumbs": "导航路径",
+    "save": "保存",
+    "delete": "删除",
+    "edit": "编辑",
+    "actions": "操作",
+    "yes": "是",
+    "no": "否",
+    "search": "搜索",
+    "admin": "管理",
+    "settings": "设置",
+    "stats": "我的统计"
   }
 }

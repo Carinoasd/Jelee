@@ -1,0 +1,81 @@
+/* Shared layout of the administration cards (users and access pages). Used
+   with <style scoped src>, so every rule stays local to its component. */
+.jl-card {
+  display: grid;
+  gap: var(--jl-space-4);
+  padding: var(--jl-space-6);
+  background: var(--jl-color-surface);
+  border: 1px solid var(--jl-color-border);
+  border-radius: var(--jl-radius-md);
+}
+
+.jl-card > h2 {
+  margin: 0;
+  font-size: var(--jl-font-size-lg);
+}
+
+.jl-card__impact {
+  margin: 0;
+  padding: var(--jl-space-3) var(--jl-space-4);
+  border-left: 3px solid var(--jl-color-primary);
+  background: var(--jl-color-info-bg);
+  border-radius: var(--jl-radius-sm);
+  font-size: var(--jl-font-size-sm);
+}
+
+.jl-card__impact p,
+.jl-card__impact ul,
+.jl-card__impact ol {
+  margin: 0;
+}
+
+.jl-card__impact > * + * {
+  margin-top: var(--jl-space-2);
+}
+
+.jl-card__muted {
+  margin: 0;
+  color: var(--jl-color-text-muted);
+  font-size: var(--jl-font-size-sm);
+}
+
+.jl-card__fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr));
+  gap: var(--jl-space-4);
+}
+
+.jl-card__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--jl-space-2);
+}
+
+.jl-table-wrap {
+  overflow-x: auto;
+}
+
+.jl-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--jl-font-size-sm);
+}
+
+.jl-table th,
+.jl-table td {
+  padding: var(--jl-space-2) var(--jl-space-3);
+  border-bottom: 1px solid var(--jl-color-border);
+  text-align: start;
+  vertical-align: middle;
+  overflow-wrap: anywhere;
+}
+
+.jl-table thead th {
+  color: var(--jl-color-text-muted);
+  font-weight: 600;
+}
+
+.jl-skeleton-row {
+  margin-bottom: var(--jl-space-2);
+}

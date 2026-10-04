@@ -1,0 +1,35 @@
+{
+  "access": {
+    "title": "Content access",
+    "intro": "Server-wide defaults for content restrictions. Restrictions for one person are set on their account page.",
+    "policy": {
+      "title": "Server policy",
+      "blockUnrated": "Hide unrated items under a rating ceiling",
+      "blockUnratedImpact": "Applies to accounts with a rating ceiling whose own setting is \"Follow the server policy\". Accounts without a ceiling are not affected.",
+      "restrictAdmins": "Apply restrictions to administrators too",
+      "restrictAdminsImpact": "When on, an administrator's own rating ceiling, blocked tags and item rules hide content from them as well. Library grants never restrict administrators.",
+      "impact": "Policy changes apply to every account's next request and are written to the audit log.",
+      "confirm": "Apply to all accounts",
+      "saved": "Content access policy saved."
+    },
+    "order": {
+      "title": "How visibility is decided",
+      "libraries": "Library grants: a non-administrator never sees a library that is not granted. Nothing below widens this.",
+      "unrestricted": "Accounts without restrictions, and administrators while the policy above is off, see everything granted.",
+      "rules": "The nearest item rule on the item, its season or its series decides: hide hides, allow shows.",
+      "tags": "A blocked tag or genre on the item or a parent hides it.",
+      "rating": "Under a rating ceiling, a higher rating hides the item; items without a rating follow the unrated setting.",
+      "perUser": "Ceilings, blocked tags and item rules are set per account:",
+      "usersLink": "open the user list"
+    },
+    "ratings": {
+      "title": "Rating codes",
+      "intro": "Ratings are read from the items' metadata. A bare age such as 16 or 16+ is also recognized; anything else counts as unrated.",
+      "caption": "Recognized rating codes by level",
+      "level": "Level (minimum age)",
+      "codes": "Codes",
+      "age": "Age {level}",
+      "empty": "No rating codes are defined"
+    }
+  }
+}

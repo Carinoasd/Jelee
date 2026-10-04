@@ -1,0 +1,14 @@
+{
+  "search": {
+    "label": "搜尋媒體庫",
+    "placeholder": "搜尋標題…（按 /）",
+    "title": "搜尋",
+    "titleFor": "「{query}」的搜尋結果",
+    "kind": "類型",
+    "kindAll": "所有類型",
+    "hint": "在上方搜尋框輸入標題，即可搜尋你有權存取的所有媒體庫。",
+    "count": "顯示 {count} 項，共 {total} 項",
+    "empty": "找不到符合「{query}」的結果",
+    "emptyHint": "請檢查拼字、減少關鍵字，或改選所有類型。"
+  }
+}

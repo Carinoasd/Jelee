@@ -24,6 +24,10 @@
     "setupRequired": "Initial setup has not been completed yet.",
     "confirmationRequired": "This is a dangerous operation. Confirm it explicitly to continue.",
     "devModeInactive": "Developer mode is not active.",
-    "devModeToggleUnavailable": "This developer mode option is not available in this version."
+    "devModeToggleUnavailable": "This developer mode option is not available in this version.",
+    "conflict": "This was changed elsewhere or already exists. Reload and try again.",
+    "lastAdmin": "The last administrator cannot be removed, disabled or demoted.",
+    "exportLimit": "Too many rows to export. Narrow the date range.",
+    "webhookTargetDenied": "This address is not allowed as a webhook target."
   }
 }

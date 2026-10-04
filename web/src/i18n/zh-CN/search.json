@@ -1,0 +1,14 @@
+{
+  "search": {
+    "label": "搜索媒体库",
+    "placeholder": "搜索标题…（按 /）",
+    "title": "搜索",
+    "titleFor": "“{query}”的搜索结果",
+    "kind": "类型",
+    "kindAll": "所有类型",
+    "hint": "在上方搜索框输入标题，即可搜索你有权访问的所有媒体库。",
+    "count": "显示 {count} 项，共 {total} 项",
+    "empty": "找不到与“{query}”匹配的结果",
+    "emptyHint": "请检查拼写、减少关键词，或改选所有类型。"
+  }
+}

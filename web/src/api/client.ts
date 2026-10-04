@@ -10,6 +10,14 @@ import type { paths } from "./schema";
  */
 export type WebPaths = Omit<paths, Extract<keyof paths, `${string}/stream` | `/api/v1/sources/${string}`>>;
 
+/**
+ * Endpoints whose 401 answers a wrong credential typed by the user rather
+ * than an expired session: the server reports a wrong current password on
+ * PUT /api/v1/users/me/password as authentication_required. Treating it as
+ * expiry would sign the user out for a typo, so the caller handles it.
+ */
+const credentialCheckPaths: ReadonlySet<string> = new Set(["/api/v1/users/me/password"]);
+
 export interface ApiClientOptions {
   baseUrl?: string;
   auth?: AuthStrategy;
@@ -38,8 +46,8 @@ export function createApiClient(options: ApiClientOptions = {}) {
       }
       return auth.authorize(request);
     },
-    onResponse({ response }) {
-      if (response.status === 401 && auth.hasCredential()) {
+    onResponse({ response, schemaPath }) {
+      if (response.status === 401 && auth.hasCredential() && !credentialCheckPaths.has(schemaPath)) {
         auth.clear();
         options.onUnauthorized?.();
       }

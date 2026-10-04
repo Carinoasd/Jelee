@@ -1,0 +1,111 @@
+/* Layout shared by the clients views; every value comes from theme tokens. */
+.jl-cc-card {
+  display: grid;
+  gap: var(--jl-space-4);
+  min-width: 0;
+  padding: var(--jl-space-6);
+  background: var(--jl-color-surface);
+  border: 1px solid var(--jl-color-border);
+  border-radius: var(--jl-radius-md);
+}
+
+.jl-cc-card h2,
+.jl-cc-card h3 {
+  margin: 0;
+}
+
+.jl-cc-card h2 {
+  font-size: var(--jl-font-size-lg);
+}
+
+.jl-cc-card h3 {
+  font-size: var(--jl-font-size-md);
+}
+
+.jl-cc-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--jl-space-3);
+}
+
+.jl-cc-muted {
+  margin: 0;
+  color: var(--jl-color-text-muted);
+  font-size: var(--jl-font-size-sm);
+}
+
+.jl-cc-table-wrap {
+  overflow-x: auto;
+}
+
+.jl-cc-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--jl-font-size-sm);
+}
+
+.jl-cc-table caption {
+  text-align: start;
+  font-weight: 600;
+  padding-bottom: var(--jl-space-2);
+}
+
+.jl-cc-table th,
+.jl-cc-table td {
+  padding: var(--jl-space-2) var(--jl-space-3);
+  border-bottom: 1px solid var(--jl-color-border);
+  text-align: start;
+  vertical-align: top;
+}
+
+.jl-cc-table thead th {
+  color: var(--jl-color-text-muted);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.jl-cc-num {
+  font-variant-numeric: tabular-nums;
+  text-align: end;
+  white-space: nowrap;
+}
+
+.jl-cc-code {
+  font-family: ui-monospace, monospace;
+  overflow-wrap: anywhere;
+}
+
+.jl-cc-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--jl-space-2);
+}
+
+.jl-cc-form {
+  display: grid;
+  gap: var(--jl-space-4);
+}
+
+.jl-cc-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  gap: var(--jl-space-4);
+}
+
+.jl-cc-fieldset {
+  display: grid;
+  gap: var(--jl-space-2);
+  margin: 0;
+  padding: var(--jl-space-3) var(--jl-space-4);
+  border: 1px solid var(--jl-color-border);
+  border-radius: var(--jl-radius-sm);
+}
+
+.jl-cc-fieldset legend {
+  padding: 0 var(--jl-space-1);
+  font-size: var(--jl-font-size-sm);
+  color: var(--jl-color-text-muted);
+}

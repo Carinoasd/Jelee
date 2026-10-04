@@ -18,6 +18,16 @@
     "notifications": "通知",
     "dismiss": "關閉",
     "cancel": "取消",
-    "breadcrumbs": "導覽路徑"
+    "breadcrumbs": "導覽路徑",
+    "save": "儲存",
+    "delete": "刪除",
+    "edit": "編輯",
+    "actions": "操作",
+    "yes": "是",
+    "no": "否",
+    "search": "搜尋",
+    "admin": "管理",
+    "settings": "設定",
+    "stats": "我的統計"
   }
 }

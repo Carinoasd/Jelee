@@ -1,0 +1,12 @@
+{
+  "admin": {
+    "navigation": "管理セクション",
+    "nav": {
+      "users": "ユーザー",
+      "access": "コンテンツのアクセス",
+      "clients": "クライアント管理",
+      "webhooks": "Webhook",
+      "stats": "視聴統計"
+    }
+  }
+}

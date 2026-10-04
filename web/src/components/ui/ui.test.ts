@@ -110,3 +110,50 @@ describe("ui components", () => {
     expect(store.toasts.map((toast) => toast.tone)).toEqual(["danger"]);
   });
 });
+
+describe("charts and confirmation", () => {
+  const rows = [
+    { key: "a", label: "Alpha", value: 50, display: "50 min" },
+    { key: "b", label: "Beta", value: 100, display: "100 min" },
+    { key: "c", label: "Gamma", value: 0, display: "0 min" },
+  ];
+
+  it("UiBarChart keeps the figures in a table and scales decorative bars", async () => {
+    const { default: UiBarChart } = await import("./UiBarChart.vue");
+    const wrapper = mount(UiBarChart, { props: { caption: "Time", rows, labelHeader: "Name", valueHeader: "Time" } });
+    expect(wrapper.find("caption").text()).toBe("Time");
+    expect(wrapper.findAll("th[scope=row]").map((th) => th.text())).toEqual(["Alpha", "Beta", "Gamma"]);
+    const bars = wrapper.findAll(".jl-bars__bar").map((bar) => (bar.element as HTMLElement).style.width);
+    expect(bars).toEqual(["50%", "100%", "1%"]);
+    expect(wrapper.find(".jl-bars__track").attributes("aria-hidden")).toBe("true");
+  });
+
+  it("UiColumnChart hides the SVG from assistive technology and lists the values", async () => {
+    const { default: UiColumnChart } = await import("./UiColumnChart.vue");
+    const wrapper = mount(UiColumnChart, { props: { caption: "Per day", rows, labelHeader: "Day", valueHeader: "Time" } });
+    expect(wrapper.find("svg").attributes("aria-hidden")).toBe("true");
+    const heights = wrapper.findAll("rect").map((rect) => Number(rect.attributes("height")));
+    expect(heights).toEqual([60, 120, 0]);
+    expect(wrapper.find("table").text()).toContain("Beta100 min");
+  });
+
+  it("UiConfirmButton emits only on the second, explicit press", async () => {
+    const { default: UiConfirmButton } = await import("./UiConfirmButton.vue");
+    const onConfirm = vi.fn();
+    const wrapper = mount(UiConfirmButton, {
+      props: { label: "Delete", confirmLabel: "Really delete", prompt: "Gone for good", onConfirm },
+      global,
+      attachTo: document.body,
+    });
+    await wrapper.find("button").trigger("click");
+    expect(onConfirm).not.toHaveBeenCalled();
+    expect(wrapper.find("[role=alert]").text()).toBe("Gone for good");
+    const buttons = wrapper.findAll("button");
+    expect(buttons.map((button) => button.text())).toEqual(["Really delete", "Cancel"]);
+    expect(document.activeElement).toBe(buttons[0]!.element);
+    await buttons[0]!.trigger("click");
+    expect(onConfirm).toHaveBeenCalledOnce();
+    expect(wrapper.find("button").text()).toBe("Delete");
+    wrapper.unmount();
+  });
+});
