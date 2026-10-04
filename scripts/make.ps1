@@ -1,6 +1,6 @@
 #requires -Version 7.2
 [CmdletBinding()]
-param([ValidateSet('init','bootstrap','bootstrap-media','bootstrap-runtime','runtime-tools-verify','tools-verify','media-tools-verify','media-toolchain-test','ignore-oracle-test','tools-clean','fixtures','fixtures-test','build','test','test-race','test-integration','coverage','fmt','fmt-check','lint','toolchain-test','brand-scan','brand-scan-incremental','gitignore-check','openapi','openapi-check','migrate','doctor','bench','bench-check','benchgate-test','test','doc-check','dev','nfo','diag')
+param([ValidateSet('init','bootstrap','bootstrap-media','bootstrap-runtime','runtime-tools-verify','tools-verify','media-tools-verify','media-toolchain-test','ignore-oracle-test','tools-clean','fixtures','fixtures-test','build','test','test-race','test-integration','coverage','fmt','fmt-check','lint','toolchain-test','brand-scan','brand-scan-incremental','gitignore-check','openapi','openapi-check','migrate','doctor','bench','bench-check','benchgate-test','doc-check','dev','nfo','diag')][string]$Target = 'test')
 . "$PSScriptRoot/toolchain-lib.ps1"
 $root = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 Push-Location $root

@@ -42,6 +42,7 @@ jobs:
         languages: ${{ matrix.language }}
         build-mode: manual
         queries: +security-extended
+        config-file: ./.github/codeql/codeql-config.yml
 
     # Build with the pinned project-local Go toolchain so CodeQL traces the
     # same compiler version that CI and releases use.
