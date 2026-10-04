@@ -1349,7 +1349,7 @@ export type paths = {
         };
         get?: never;
         put?: never;
-        /** Add an exact deny rule for the client's device ID, or its user agent when it reports none, at priority 100000; audited as client_control.client_blocked; body {} */
+        /** Add an exact deny rule for the client's device ID, or its user agent when it reports none, at priority 100000; audited as client_control.client_blocked */
         post: {
             parameters: {
                 query?: never;
@@ -1359,7 +1359,12 @@ export type paths = {
                 };
                 cookie?: never;
             };
-            requestBody?: never;
+            /** @description Maximum 64 KiB; exactly one object; unknown or duplicate keys rejected. */
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["Empty"];
+                };
+            };
             responses: {
                 /** @description Successful response; Cache-Control: no-store */
                 201: {
@@ -1479,7 +1484,7 @@ export type paths = {
         };
         get?: never;
         put?: never;
-        /** Revoke every active session the client used; it may log in again unless blocked; audited as client_control.client_kicked; body {} */
+        /** Revoke every active session the client used; it may log in again unless blocked; audited as client_control.client_kicked */
         post: {
             parameters: {
                 query?: never;
@@ -1489,7 +1494,12 @@ export type paths = {
                 };
                 cookie?: never;
             };
-            requestBody?: never;
+            /** @description Maximum 64 KiB; exactly one object; unknown or duplicate keys rejected. */
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["Empty"];
+                };
+            };
             responses: {
                 /** @description Successful response; Cache-Control: no-store */
                 200: {
@@ -2730,7 +2740,7 @@ export type paths = {
         };
         get?: never;
         put?: never;
-        /** Switch an observe or shadow rule to enforcing its intent; no-op for an enforcing rule; audited as client_control.rule_mode_changed; body {} */
+        /** Switch an observe or shadow rule to enforcing its intent; no-op for an enforcing rule; audited as client_control.rule_mode_changed */
         post: {
             parameters: {
                 query?: never;
@@ -2740,7 +2750,12 @@ export type paths = {
                 };
                 cookie?: never;
             };
-            requestBody?: never;
+            /** @description Maximum 64 KiB; exactly one object; unknown or duplicate keys rejected. */
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["Empty"];
+                };
+            };
             responses: {
                 /** @description Successful response; Cache-Control: no-store */
                 200: {
@@ -2860,7 +2875,7 @@ export type paths = {
         };
         get?: never;
         put?: never;
-        /** Switch an enforcing rule to observing its action; no-op for an observe or shadow rule; audited as client_control.rule_mode_changed; body {} */
+        /** Switch an enforcing rule to observing its action; no-op for an observe or shadow rule; audited as client_control.rule_mode_changed */
         post: {
             parameters: {
                 query?: never;
@@ -2870,7 +2885,12 @@ export type paths = {
                 };
                 cookie?: never;
             };
-            requestBody?: never;
+            /** @description Maximum 64 KiB; exactly one object; unknown or duplicate keys rejected. */
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["Empty"];
+                };
+            };
             responses: {
                 /** @description Successful response; Cache-Control: no-store */
                 200: {
@@ -14691,7 +14711,7 @@ export type paths = {
             cookie?: never;
         };
         get?: never;
-        /** Verify old password, replace password and revoke all sessions */
+        /** Verify old password, replace password and revoke all sessions. A wrong old password is 400 invalid_password (the session stays valid, unlike 401); every attempt first draws from the per-user and per-address password-change budget (429 auth_rate_limited) */
         put: {
             parameters: {
                 query?: never;
@@ -14889,6 +14909,251 @@ export type paths = {
                 };
             };
         };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/users/me/preferences": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read own interface preferences (G33.3); defaults until first saved */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Successful response; Cache-Control: no-store */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["UserPreferences"];
+                        };
+                    };
+                };
+                /** @description HTTP 400 */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 401 */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 403 */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 404 */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 409 */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 413 */
+                413: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 415 */
+                415: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 429 */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 503 */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Jelee error envelope with code, message, details and traceId; see the Error schema. */
+                default: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        /** Replace own interface preferences; every field is required; presentation only, not audited */
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            /** @description Maximum 64 KiB; exactly one object; unknown or duplicate keys rejected. */
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["UserPreferences"];
+                };
+            };
+            responses: {
+                /** @description Successful response; Cache-Control: no-store */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["UserPreferences"];
+                        };
+                    };
+                };
+                /** @description HTTP 400 */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 401 */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 403 */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 404 */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 409 */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 413 */
+                413: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 415 */
+                415: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 429 */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 503 */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Jelee error envelope with code, message, details and traceId; see the Error schema. */
+                default: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -17579,7 +17844,7 @@ export type components = {
          * @description Stable machine-readable error code. x-jelee-statuses lists the HTTP status codes each value is sent with.
          * @enum {string}
          */
-        ErrorCode: "account_busy" | "auth_rate_limited" | "authentication_required" | "body_too_large" | "client_blocked" | "client_pending_approval" | "client_rate_limited" | "client_read_only" | "confirmation_required" | "conflict" | "csrf_failed" | "device_stream_limit" | "devmode_inactive" | "devmode_toggle_unavailable" | "feature_removed" | "forbidden" | "ignore_unavailable" | "image_busy" | "image_too_large" | "image_unavailable" | "image_unsupported" | "internal_error" | "invalid_host" | "invalid_range" | "invalid_request" | "job_busy" | "job_queue_full" | "jobs_busy" | "last_admin" | "lookup_timeout" | "metadata_unavailable" | "method_not_allowed" | "metrics_busy" | "native_login_disabled" | "nfo_cache_capacity" | "nfo_disabled" | "nfo_identity_mismatch" | "nfo_invalidated" | "nfo_reader_unavailable" | "not_found" | "not_ready" | "playback_busy" | "precondition_failed" | "probe_cache_capacity" | "probe_disabled" | "probe_identity_mismatch" | "probe_invalidated" | "probe_runtime_unavailable" | "request_timeout" | "scan_limit" | "scan_unavailable" | "session_limit" | "setup_completed" | "setup_required" | "setup_step_order" | "setup_token_invalid" | "setup_validation_failed" | "stats_export_limit" | "stream_limit" | "transcode_disabled" | "unsupported_media_type" | "user_stream_limit" | "web_playback_disabled" | "webhook_target_denied";
+        ErrorCode: "account_busy" | "auth_rate_limited" | "authentication_required" | "body_too_large" | "client_blocked" | "client_pending_approval" | "client_rate_limited" | "client_read_only" | "confirmation_required" | "conflict" | "csrf_failed" | "device_stream_limit" | "devmode_inactive" | "devmode_toggle_unavailable" | "feature_removed" | "forbidden" | "ignore_unavailable" | "image_busy" | "image_too_large" | "image_unavailable" | "image_unsupported" | "internal_error" | "invalid_host" | "invalid_password" | "invalid_range" | "invalid_request" | "job_busy" | "job_queue_full" | "jobs_busy" | "last_admin" | "lookup_timeout" | "metadata_unavailable" | "method_not_allowed" | "metrics_busy" | "native_login_disabled" | "nfo_cache_capacity" | "nfo_disabled" | "nfo_identity_mismatch" | "nfo_invalidated" | "nfo_reader_unavailable" | "not_found" | "not_ready" | "playback_busy" | "precondition_failed" | "probe_cache_capacity" | "probe_disabled" | "probe_identity_mismatch" | "probe_invalidated" | "probe_runtime_unavailable" | "request_timeout" | "scan_limit" | "scan_unavailable" | "session_limit" | "setup_completed" | "setup_required" | "setup_step_order" | "setup_token_invalid" | "setup_validation_failed" | "stats_export_limit" | "stream_limit" | "transcode_disabled" | "unsupported_media_type" | "user_stream_limit" | "web_playback_disabled" | "webhook_target_denied";
         IgnoreIntent: {
             /** @enum {string} */
             caseMode: "sensitive" | "ascii-insensitive";
@@ -17888,6 +18153,13 @@ export type components = {
             alias?: string;
             appName?: string;
             appVersion?: string;
+            /** @description An enabled, global deny rule without a time window matches the identity POST .../block uses: the exact device ID, or the user agent when the client reports none. Deny rules on other attributes (address, regex, header) are not reflected. */
+            blocked: boolean;
+            /**
+             * Format: uuid
+             * @description Highest-priority such rule when blocked; deleting or disabling it unblocks the client.
+             */
+            blockRuleId?: string;
             /**
              * @description Session kind it was last seen with.
              * @enum {string}
@@ -18786,6 +19058,18 @@ export type components = {
                 nextCursor: string;
             };
             users: components["schemas"]["User"][];
+        };
+        UserPreferences: {
+            /**
+             * @description Reserved layout density of the web client.
+             * @enum {string}
+             */
+            density: "comfortable" | "compact";
+            /**
+             * @description system follows the browser's color scheme.
+             * @enum {string}
+             */
+            theme: "system" | "light" | "dark";
         };
         UserSettings: {
             admin?: boolean;

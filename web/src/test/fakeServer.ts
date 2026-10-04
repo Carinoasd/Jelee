@@ -10,6 +10,7 @@ type ItemDetails = components["schemas"]["CatalogItemDetails"];
 type MediaSourceInfo = components["schemas"]["MediaSourceInfo"];
 type Session = components["schemas"]["Session"];
 type User = components["schemas"]["User"];
+type UserPreferences = components["schemas"]["UserPreferences"];
 
 export interface FakeServer {
   fetch: typeof globalThis.fetch;
@@ -33,6 +34,8 @@ export interface FakeServer {
   csrf: string;
   /** Developer mode as GET /api/v1/system reports it (G45.3). */
   devMode: { active: boolean; expiresAt: string };
+  /** The signed-in user's stored interface preferences (G33.3). */
+  preferences: UserPreferences;
 }
 
 const json = (status: number, body: unknown) =>
@@ -70,6 +73,7 @@ export function createFakeServer(): FakeServer {
     token: "t".repeat(43),
     csrf: "c".repeat(43),
     devMode: { active: false, expiresAt: "" },
+    preferences: { theme: "system", density: "comfortable" },
     user: {
       id: userId,
       name: "admin",
@@ -131,6 +135,13 @@ export function createFakeServer(): FakeServer {
       }
       if (path === "/api/v1/users/me" && method === "GET") {
         return json(200, { data: server.user });
+      }
+      if (path === "/api/v1/users/me/preferences" && method === "GET") {
+        return json(200, { data: server.preferences });
+      }
+      if (path === "/api/v1/users/me/preferences" && method === "PUT") {
+        server.preferences = (await request.json()) as UserPreferences;
+        return json(200, { data: server.preferences });
       }
       if (path === "/api/v1/libraries" && method === "GET") {
         if (server.failLibraries) {

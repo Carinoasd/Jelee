@@ -22,7 +22,8 @@
 | GET `/auth/csrf` | 自己 | 返回当前凭据对应的 `csrf`，供页面重载后取回 |
 | GET `/users/me` | 自己 | 当前用户资料 |
 | PUT `/users/me/profile` | 自己 | `displayName,locale,hidden`；不能修改角色或密码 |
-| PUT `/users/me/password` | 自己 | `oldPassword,newPassword`；成功后撤销所有会话，需重新登录 |
+| GET/PUT `/users/me/preferences` | 自己 | 界面偏好 `theme`（system/light/dark）、`density`（comfortable/compact，预留）；从未保存时读到默认值；PUT 必须带齐全部字段（迁移 000073 `user_preferences`）；只影响显示，不写审计、不进元数据备份，降级时直接丢弃 |
+| PUT `/users/me/password` | 自己 | `oldPassword,newPassword`；成功后撤销所有会话，需重新登录；旧密码错误返回 `400 invalid_password`（会话仍有效，与会话失效的 401 区分） |
 | GET `/users` | 管理员 | `cursor?,limit=1..100,includeDeleted=true/false`；data.users 与 data.pagination |
 | POST `/users` | 管理员 | `name,password,displayName?,locale?,hidden?,admin?,disabled?`；要求 Idempotency-Key；201 或回放 200 |
 | GET `/users/{id}` | 自己或管理员 | 用户资料；普通用户无全体用户发现接口 |
@@ -55,7 +56,7 @@ PUT 中遗漏的可选字符串/布尔字段会重置为空/false；它不是 PA
 
 全部账户路由的同时处理请求数限制为密码并发数的 4 倍，默认 8 个，包含读取正文和等待密码计算的请求。准入时不排队；满时返回 `503 account_busy` 与 `Retry-After: 1`。这使密码工作队列有固定上限，请求期限同时限制等待时间；已经开始的 Argon2 计算仍需完成后才能返回取消。
 
-改密验证另有独立的 IP/用户 ID 限速表，沿用相同额度和容量上限。它采用认证后的不可变用户 ID，改名或伪造转发头不能绕过。错误旧密码不增加登录锁定计数，也不消耗登录限速表，避免持有被盗会话的人阻止合法用户登录并撤销该会话。响应写入同样有期限，停止读取响应的客户端不能无限占用账户名额。
+改密验证另有独立的 IP/用户 ID 限速表，沿用相同额度和容量上限。它采用认证后的不可变用户 ID，改名或伪造转发头不能绕过。错误旧密码返回 `400 invalid_password` 而非 401：会话本身有效，客户端不应把它当作登出；每次尝试（无论对错）照旧先消耗改密限速表，额度与 429 行为不变。错误旧密码不增加登录锁定计数，也不消耗登录限速表，避免持有被盗会话的人阻止合法用户登录并撤销该会话。响应写入同样有期限，停止读取响应的客户端不能无限占用账户名额。
 
 默认每个用户最多 8 个有效会话、24 小时有效期。达到上限返回 `429 session_limit`；这与并发播放预算是不同限制。并发登录在用户行锁内计数。密码验证在数据库事务外运行，签发令牌前以密码哈希与版本再次比较；改密、禁用、删除和角色变化不会让过时验证结果绕过新状态。最后一名启用管理员不能被禁用、降权或删除，并发修改使用事务锁保护。
 

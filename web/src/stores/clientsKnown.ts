@@ -65,8 +65,13 @@ export const useKnownClientsStore = defineStore("clientsKnown", () => {
     });
   }
 
+  /** Adds the block rule; the client then reports itself blocked by it. */
   function block(id: string): Promise<ClientRule> {
-    return withPending(id, () => blockKnownClient(client, id));
+    return withPending(id, async () => {
+      const rule = await blockKnownClient(client, id);
+      clients.value = clients.value.map((entry) => (entry.id === id ? { ...entry, blocked: true, blockRuleId: rule.id } : entry));
+      return rule;
+    });
   }
 
   /** Revokes the client's sessions; resolves to the number revoked. */

@@ -9,6 +9,7 @@ import DevModeBanner from "@/features/devmode/DevModeBanner.vue";
 import SearchBox from "@/features/search/SearchBox.vue";
 import { useLocaleSync } from "@/i18n/useLocaleSync";
 import { useAuthStore } from "@/stores/auth";
+import { usePreferencesStore } from "@/stores/preferences";
 import { useToastStore } from "@/stores/toasts";
 
 const { t } = useI18n();
@@ -18,6 +19,8 @@ const router = useRouter();
 const route = useRoute();
 const inAdmin = computed(() => route.meta.admin === true);
 const { applyUserLocale } = useLocaleSync();
+// Loads the signed-in user's stored theme whenever a user becomes known.
+usePreferencesStore();
 
 const toasts = computed(() =>
   toastStore.toasts.map((toast) => ({ id: toast.id, tone: toast.tone, message: t(toast.key, toast.params) })),

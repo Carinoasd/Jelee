@@ -12,7 +12,8 @@
       "system": "Match system",
       "light": "Light",
       "dark": "Dark",
-      "hint": "Applies to this browser tab until it is reloaded; saving it to your account is not available yet."
+      "hint": "Applies at once and is saved to your account, so it follows you to other devices.",
+      "saved": "Theme saved."
     },
     "profile": {
       "heading": "Profile",

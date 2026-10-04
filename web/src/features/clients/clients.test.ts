@@ -4,6 +4,7 @@ import type { components } from "@/api/schema";
 import en from "@/i18n/en-US/clients.json";
 import errorsEn from "@/i18n/en-US/errors.json";
 import { useToastStore } from "@/stores/toasts";
+import { captureDownloads } from "@/test/downloads";
 import { mountView, unmountAll } from "@/test/mountView";
 import { adminUser, apiError, createRouteFetch, data, expectNoPlaybackMarkup, noContent, type RouteFetch } from "@/test/routeFetch";
 
@@ -55,6 +56,7 @@ const knownClient: KnownClient = {
   firstSeenAt: "2026-09-01T00:00:00Z",
   lastSeenAt: "2026-10-03T00:00:00Z",
   trusted: false,
+  blocked: false,
   clientKind: "native",
 };
 
@@ -325,9 +327,26 @@ describe("client control: known clients", () => {
     await button(wrapper, text.known.block).trigger("click");
     await flushPromises();
     expect(server.calls("POST", `${base}/clients/${knownClient.id}/block`)).toHaveLength(0);
+    expect(wrapper.text()).not.toContain(text.known.blockedBadge);
     await button(wrapper, text.known.blockConfirm).trigger("click");
     await flushPromises();
-    expect(server.calls("POST", `${base}/clients/${knownClient.id}/block`)).toHaveLength(1);
+    const calls = server.calls("POST", `${base}/clients/${knownClient.id}/block`);
+    expect(calls).toHaveLength(1);
+    expect(calls[0]?.body).toEqual({});
+    // The client now reports itself blocked and offers no second block.
+    expect(wrapper.text()).toContain(text.known.blockedBadge);
+    expect(wrapper.text()).toContain(text.known.blockedHint);
+    expect(wrapper.findAll("button").some((candidate) => candidate.text() === text.known.block)).toBe(false);
+  });
+
+  it("shows the blocked state the server reports", async () => {
+    const blocked = { ...knownClient, blocked: true, blockRuleId: observeRule.id };
+    const server = routes().on("GET", base + "/clients", () => data({ clients: [blocked], pagination: { limit: 50, nextCursor: "" } }));
+    const { wrapper } = await open(server, "known");
+    expect(wrapper.text()).toContain(text.known.blockedBadge);
+    expect(wrapper.findAll("button").some((candidate) => candidate.text() === text.known.block)).toBe(false);
+    // Kicking stays available for a blocked client.
+    expect(wrapper.findAll("button").some((candidate) => candidate.text() === text.known.kick)).toBe(true);
   });
 
   it("renames and trusts a client", async () => {
@@ -366,26 +385,51 @@ describe("client control: known clients", () => {
 });
 
 describe("client control: hits", () => {
-  it("shows statistics, the hit log, the filter and the export link", async () => {
-    const server = routes();
-    const { wrapper } = await open(server, "hits");
-    expect(wrapper.text()).toContain(text.hits.total);
-    expect(wrapper.text()).toContain("BadBot/1.0");
-    // The top-rules chart names the rule instead of its ID.
-    expect(wrapper.text()).toContain("User agent: BadBot/");
-    expect(wrapper.findAll("table caption").map((caption) => caption.text())).toContain(text.hits.topRules);
-    const link = wrapper.find("a[download]");
-    expect(link.attributes("href")).toBe("/api/v1/client-control/hits/export");
+  it("shows statistics, the hit log, the filter and exports the filtered log", async () => {
+    const capture = captureDownloads();
+    try {
+      const server = routes().on("GET", base + "/hits/export", () => data({ hits: [], count: 0 }));
+      const { wrapper } = await open(server, "hits");
+      expect(wrapper.text()).toContain(text.hits.total);
+      expect(wrapper.text()).toContain("BadBot/1.0");
+      // The top-rules chart names the rule instead of its ID.
+      expect(wrapper.text()).toContain("User agent: BadBot/");
+      expect(wrapper.findAll("table caption").map((caption) => caption.text())).toContain(text.hits.topRules);
+      // No plain download link: an error answer would be saved as the file.
+      expect(wrapper.findAll("a[download]")).toHaveLength(0);
+      await button(wrapper, text.hits.export).trigger("click");
+      await flushPromises();
 
-    await field(wrapper, text.hits.period).setValue("168");
-    await flushPromises();
-    expect(server.calls("GET", base + "/stats").map((request) => request.url.searchParams.get("hours"))).toEqual(["24", "168"]);
+      await field(wrapper, text.hits.period).setValue("168");
+      await flushPromises();
+      expect(server.calls("GET", base + "/stats").map((request) => request.url.searchParams.get("hours"))).toEqual(["24", "168"]);
 
-    await field(wrapper, text.hits.mode).setValue("shadow");
-    await flushPromises();
-    expect(server.calls("GET", base + "/hits").at(-1)?.url.searchParams.get("mode")).toBe("shadow");
-    expect(wrapper.find("a[download]").attributes("href")).toBe("/api/v1/client-control/hits/export?mode=shadow");
-    expectNoPlaybackMarkup(wrapper.html());
+      await field(wrapper, text.hits.mode).setValue("shadow");
+      await flushPromises();
+      expect(server.calls("GET", base + "/hits").at(-1)?.url.searchParams.get("mode")).toBe("shadow");
+      await button(wrapper, text.hits.export).trigger("click");
+      await flushPromises();
+      expect(server.calls("GET", base + "/hits/export").map((request) => request.url.search)).toEqual(["", "?mode=shadow"]);
+      expect(capture.downloads.map((entry) => entry.fileName)).toEqual(["client-control-hits.json", "client-control-hits.json"]);
+      expect(JSON.parse(await capture.downloads[1]!.blob.text())).toEqual({ data: { hits: [], count: 0 } });
+      expectNoPlaybackMarkup(wrapper.html());
+    } finally {
+      capture.restore();
+    }
+  });
+
+  it("shows a refused hit export as a localized message instead of saving it", async () => {
+    const capture = captureDownloads();
+    try {
+      const server = routes().on("GET", base + "/hits/export", () => apiError(409, "stats_export_limit"));
+      const { wrapper } = await open(server, "hits");
+      await button(wrapper, text.hits.export).trigger("click");
+      await flushPromises();
+      expect(capture.downloads).toHaveLength(0);
+      expect(useToastStore().toasts).toContainEqual(expect.objectContaining({ key: "errors.exportLimit", tone: "danger" }));
+    } finally {
+      capture.restore();
+    }
   });
 
   it("shows an error for the statistics without server text", async () => {

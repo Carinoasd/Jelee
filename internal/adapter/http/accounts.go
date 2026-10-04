@@ -285,6 +285,26 @@ func (s *Server) accountRoutes(r chi.Router) {
 			user, err := s.accounts.Profile(r.Context(), a, domain.ProfileInput{DisplayName: input.DisplayName, Locale: input.Locale, Hidden: input.Hidden})
 			return user, 200, err
 		}))
+		r.Get("/api/v1/users/me/preferences", s.accountEndpoint(false, false, func(_ http.ResponseWriter, r *http.Request, a domain.Actor) (any, int, error) {
+			preferences, err := s.accounts.Preferences(r.Context(), a)
+			return preferences, 200, err
+		}))
+		r.Put("/api/v1/users/me/preferences", s.accountEndpoint(false, false, func(w http.ResponseWriter, r *http.Request, a domain.Actor) (any, int, error) {
+			var input struct {
+				Theme   *string `json:"theme"`
+				Density *string `json:"density"`
+			}
+			if err := DecodeJSON(w, r, &input, accountBodyLimit); err != nil {
+				return nil, 0, err
+			}
+			// A replacement names every field, so a client that does not know
+			// a later field cannot silently reset it.
+			if input.Theme == nil || input.Density == nil {
+				return nil, 0, domain.ErrInvalid
+			}
+			preferences, err := s.accounts.SetPreferences(r.Context(), a, domain.UserPreferences{Theme: *input.Theme, Density: *input.Density})
+			return preferences, 200, err
+		}))
 		r.Put("/api/v1/users/me/password", s.accountEndpoint(false, false, func(w http.ResponseWriter, r *http.Request, a domain.Actor) (any, int, error) {
 			var input struct {
 				OldPassword *string `json:"oldPassword"`

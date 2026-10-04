@@ -264,6 +264,12 @@ type KnownClient struct {
 	LastUserID  string    `json:"lastUserId,omitempty"`
 	// ActiveSessions counts the unrevoked, unexpired sessions it used.
 	ActiveSessions int `json:"activeSessions"`
+	// Blocked reports an enabled, global, always-on deny rule on the same
+	// identity the block action matches (the device ID, or the user agent
+	// when the client reports none); BlockRuleID names the highest-priority
+	// such rule. Other deny rules that may also match are not reflected.
+	Blocked     bool   `json:"blocked"`
+	BlockRuleID string `json:"blockRuleId,omitempty"`
 }
 
 // KnownClientUpdate changes the administrator fields of a known client;

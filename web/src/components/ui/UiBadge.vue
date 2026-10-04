@@ -1,5 +1,5 @@
 <script setup lang="ts">
-withDefaults(defineProps<{ tone?: "neutral" | "accent" }>(), { tone: "neutral" });
+withDefaults(defineProps<{ tone?: "neutral" | "accent" | "danger" }>(), { tone: "neutral" });
 </script>
 
 <template>
@@ -25,5 +25,11 @@ withDefaults(defineProps<{ tone?: "neutral" | "accent" }>(), { tone: "neutral" }
   background: var(--jl-color-info-bg);
   color: var(--jl-color-primary);
   border: 1px solid var(--jl-color-primary);
+}
+
+.jl-badge--danger {
+  background: var(--jl-color-danger-bg);
+  color: var(--jl-color-danger);
+  border: 1px solid var(--jl-color-danger);
 }
 </style>

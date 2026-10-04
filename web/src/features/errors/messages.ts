@@ -22,6 +22,8 @@ export function errorMessageKey(error: ApiError): string {
       return "errors.clientReadOnly";
     case "client_rate_limited":
       return "errors.clientRateLimited";
+    case "invalid_password":
+      return "settings.password.wrongCurrent";
     case "auth_rate_limited":
       return "auth.rateLimited";
     case "session_limit":

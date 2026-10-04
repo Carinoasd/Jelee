@@ -23,9 +23,9 @@
 | 状态 | 子项数 | 占比 |
 | --- | --- | --- |
 | 已完成 | 22 | 6.5% |
-| 部分完成 | 285 | 84.8% |
+| 部分完成 | 286 | 85.1% |
 | 阻塞 | 4 | 1.2% |
-| 未开始 | 25 | 7.4% |
+| 未开始 | 24 | 7.1% |
 | 合计 | 336 | 100% |
 
 | G 群组 | 子项 | 已完成 | 部分完成 | 阻塞 | 未开始 | 已完成比例 | 有实现比例（已完成＋部分完成） |
@@ -62,7 +62,7 @@
 | G30 | 6 | 0 | 6 | 0 | 0 | 0% | 100% |
 | G31 | 5 | 0 | 5 | 0 | 0 | 0% | 100% |
 | G32 | 6 | 0 | 0 | 0 | 6 | 0% | 0% |
-| G33 | 6 | 0 | 3 | 0 | 3 | 0% | 50% |
+| G33 | 6 | 0 | 4 | 0 | 2 | 0% | 67% |
 | G34 | 6 | 0 | 5 | 0 | 1 | 0% | 83% |
 | G35 | 5 | 0 | 4 | 0 | 1 | 0% | 80% |
 | G36 | 5 | 0 | 5 | 0 | 0 | 0% | 100% |
@@ -85,7 +85,7 @@
 | 基础、范围与账户 | G00–G08 | 54 | 13 | 38 | 0 | 3 |
 | 媒体处理、直投与扫描 | G09–G23 | 86 | 6 | 75 | 2 | 3 |
 | 兼容、性能与 Go 质量 | G24–G30 | 36 | 0 | 36 | 0 | 0 |
-| 前端 | G31–G35 | 28 | 0 | 17 | 0 | 11 |
+| 前端 | G31–G35 | 28 | 0 | 18 | 0 | 10 |
 | 数据库、部署与交付 | G36–G38 | 14 | 0 | 13 | 1 | 0 |
 | NFO 与图片资产 | G39–G40 | 28 | 0 | 26 | 1 | 1 |
 | 并发与内存 | G41–G42 | 20 | 2 | 17 | 0 | 1 |
@@ -550,7 +550,7 @@
 | --- | --- | --- | --- | --- | --- |
 | **G33.1** Token：设计 token 单一来源（颜色、间距、圆角、阴影、字号、层级、动效时长），编译为 CSS 变量，运行时可覆盖。 | web/src/theme/; web/src/features/settings/; internal/adapter/http/ | theme_configs | Plan-G33.1：三套主题亮暗/system；CSS XSS 防护；配置 JSON 往返；触控目标与对比度；须单独覆盖本行全部约束 | 部分完成：`web/src/theme/tokens.css` 以 `--jl-*` CSS 变量集中定义颜色、4/8px 间距、圆角、阴影、字号、z 层级、动效时长与缓动，暗色以 `prefers-color-scheme` 覆盖，组件只取 token；缺：token 不是“单一来源编译为 CSS 变量”（手写 CSS，无 JSON/TS 源与编译步骤），运行时覆盖接口（管理员/用户配置写入变量）未实现；[tokens](../web/src/theme/tokens.css)、[前端 ADR](frontend-adr.md) | `b57dd61161`／`cbad7870ab`（设计 token） |
 | **G33.2** 主题：light/dark/system + 至少 3 套预设；管理员可配主色、强调色、圆角、密度、字体、背景、海报比例、列表密度、卡片/列表视图、首页版块。 | web/src/theme/; web/src/features/settings/; internal/adapter/http/ | theme_configs | Plan-G33.2：三套主题亮暗/system；CSS XSS 防护；配置 JSON 往返；触控目标与对比度；须单独覆盖本行全部约束 | 部分完成：只有跟随系统的亮/暗色（tokens.css 的 `prefers-color-scheme: dark`）；缺：手动 light/dark/system 切换、至少 3 套预设、管理员可配主色/强调色/圆角/密度/字体/背景/海报比例/列表密度/视图/首页版块均未实现，无 `theme_configs` 表与 API；[tokens](../web/src/theme/tokens.css) | `b57dd61161`（系统亮暗 token） |
-| **G33.3** 持久化：用户级与全局级配置分别存服务端；支持导入/导出 JSON；可重置默认。 | web/src/theme/; web/src/features/settings/; internal/adapter/http/ | theme_configs | Plan-G33.3：三套主题亮暗/system；CSS XSS 防护；配置 JSON 往返；触控目标与对比度；须单独覆盖本行全部约束 | 未开始：无用户级/全局级主题配置的服务端存储（迁移中无 `theme_configs`），无导入/导出 JSON 与重置；目前仅界面语言随账号 locale 保存，不属本项 | 无 |
+| **G33.3** 持久化：用户级与全局级配置分别存服务端；支持导入/导出 JSON；可重置默认。 | web/src/theme/; web/src/features/settings/; internal/adapter/http/ | theme_configs | Plan-G33.3：三套主题亮暗/system；CSS XSS 防护；配置 JSON 往返；触控目标与对比度；须单独覆盖本行全部约束 | 部分完成：用户级界面偏好已存服务端——迁移 `000073_user_preferences`（`user_preferences` 表：主题 system/light/dark、预留密度），`GET/PUT /api/v1/users/me/preferences`，前端 `stores/preferences.ts` 登录或恢复会话时加载、切换即保存，未登录只存于分页内存；真 PG 与前端测试覆盖；缺：全局级（管理员）配置、导入/导出 JSON、重置默认（目前只能手动选回“跟随系统”）；[前端 ADR](frontend-adr.md) | `claude/api-gaps` 分支（用户偏好，待合并） |
 | **G33.4** 自定义 CSS：允许管理员注入，必须转义与限制（禁止 `<script>`、`expression`、`javascript:`、外部字体默认禁用可开白名单），防 XSS。 | web/src/theme/; web/src/features/settings/; internal/adapter/http/ | theme_configs | Plan-G33.4：三套主题亮暗/system；CSS XSS 防护；配置 JSON 往返；触控目标与对比度；须单独覆盖本行全部约束 | 未开始：没有管理员自定义 CSS 注入功能，也没有对应的转义/白名单过滤；现有前端 CSP（`style-src 'self'`，webapp.go）会拒绝行内样式，但这不是本项要求的受控注入；无外部阻塞 | 无 |
 | **G33.5** 布局：首页版块拖拽排序与显隐；详情页面板可配置；布局预设保存/切换。 | web/src/theme/; web/src/features/settings/; internal/adapter/http/ | theme_configs | Plan-G33.5：三套主题亮暗/system；CSS XSS 防护；配置 JSON 往返；触控目标与对比度；须单独覆盖本行全部约束 | 未开始：首页版块拖拽排序/显隐、详情页面板配置、布局预设保存与切换均无实现 | 无 |
 | **G33.6** 可访问性：主题切换保证对比度达标；高密度模式不破坏触控目标尺寸。 | web/src/theme/; web/src/features/settings/; internal/adapter/http/ | theme_configs | Plan-G33.6：三套主题亮暗/system；CSS XSS 防护；配置 JSON 往返；触控目标与对比度；须单独覆盖本行全部约束 | 部分完成：token 定义 `--jl-touch-target: 44px`，按钮等控件以其为最小尺寸，亮暗两套颜色手工选取；缺：无自动对比度检查（axe）与主题切换对比度测试，高密度模式尚不存在故无法验证触控目标；浏览器对比与读屏验证缺 D14；[前端 ADR](frontend-adr.md) | `cbad7870ab`（触控目标与亮暗 token） |

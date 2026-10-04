@@ -760,11 +760,24 @@ func (s *Store) ClientHitStats(ctx context.Context, actor domain.Actor, since ti
 
 const knownClientColumns = `k.id::text,COALESCE(k.app_name,''),COALESCE(k.app_version,''),COALESCE(k.user_agent,''),COALESCE(k.device_id,''),COALESCE(k.device_name,''),COALESCE(k.client_kind,''),
  COALESCE(k.alias,''),k.trusted,k.first_seen_at,k.last_seen_at,COALESCE(host(k.last_ip),''),COALESCE(k.last_user_id::text,''),
- (SELECT count(*) FROM known_client_sessions l JOIN sessions s ON s.id=l.session_id WHERE l.client_id=k.id AND s.revoked_at IS NULL AND s.expires_at>now())`
+ (SELECT count(*) FROM known_client_sessions l JOIN sessions s ON s.id=l.session_id WHERE l.client_id=k.id AND s.revoked_at IS NULL AND s.expires_at>now()),
+ COALESCE(` + knownClientBlockRuleSQL + `,'')`
+
+// knownClientBlockRuleSQL finds an enabled, global deny rule without a time
+// window on the identity BlockKnownClient matches: the exact device ID, or
+// the user agent (prefix when the stored value was clipped at 512 bytes)
+// when the client reports no device ID. client_rules_block_lookup_idx
+// serves it; keep it in step with BlockKnownClient.
+const knownClientBlockRuleSQL = `(SELECT r.id::text FROM client_rules r WHERE r.enabled AND r.action='deny' AND r.scope_kind='global'
+ AND r.window_from IS NULL AND r.window_until IS NULL AND r.daily_start IS NULL AND cardinality(r.weekdays)=0
+ AND ((r.dimension='device_id' AND r.match_kind='exact' AND r.pattern=k.device_id)
+  OR (k.device_id IS NULL AND r.dimension='user_agent' AND r.pattern=k.user_agent AND r.match_kind=CASE WHEN octet_length(k.user_agent)>=512 THEN 'prefix' ELSE 'exact' END))
+ ORDER BY r.priority DESC,r.id LIMIT 1)`
 
 func scanKnownClient(row pgx.Row) (domain.KnownClient, error) {
 	var c domain.KnownClient
-	err := row.Scan(&c.ID, &c.AppName, &c.AppVersion, &c.UserAgent, &c.DeviceID, &c.DeviceName, &c.ClientKind, &c.Alias, &c.Trusted, &c.FirstSeenAt, &c.LastSeenAt, &c.LastIP, &c.LastUserID, &c.ActiveSessions)
+	err := row.Scan(&c.ID, &c.AppName, &c.AppVersion, &c.UserAgent, &c.DeviceID, &c.DeviceName, &c.ClientKind, &c.Alias, &c.Trusted, &c.FirstSeenAt, &c.LastSeenAt, &c.LastIP, &c.LastUserID, &c.ActiveSessions, &c.BlockRuleID)
+	c.Blocked = c.BlockRuleID != ""
 	c.FirstSeenAt, c.LastSeenAt = c.FirstSeenAt.UTC(), c.LastSeenAt.UTC()
 	return c, storageError(err)
 }

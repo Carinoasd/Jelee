@@ -1,17 +1,22 @@
 <script setup lang="ts">
-import { computed, onMounted } from "vue";
+import { computed, onMounted, shallowRef } from "vue";
 import { useI18n } from "vue-i18n";
+import { useApi } from "@/api";
+import { ApiError, networkError } from "@/api/errors";
 import RequestStatus from "@/components/ui/RequestStatus.vue";
+import UiButton from "@/components/ui/UiButton.vue";
 import UiEmptyState from "@/components/ui/UiEmptyState.vue";
 import UiSkeleton from "@/components/ui/UiSkeleton.vue";
+import { errorMessageKey } from "@/features/errors/messages";
 import { formatDuration, formatNumber } from "@/i18n/format";
+import { useToastStore } from "@/stores/toasts";
 import { useAllWatchStatsStore } from "@/stores/watchStats";
-import { exportUrl, type WatchPeriod } from "./api";
+import { downloadExport, type ExportFormat, type WatchPeriod } from "./api";
 import StatsControls from "./StatsControls.vue";
 import WatchStatsSummary from "./WatchStatsSummary.vue";
 
 // Statistics of every user (administrators; the server re-checks) with the
-// top users and download links for the daily roll-up of the shown range.
+// top users and downloads of the daily roll-up of the shown range.
 const { t, locale } = useI18n();
 const store = useAllWatchStatsStore();
 
@@ -23,8 +28,22 @@ const top = computed({
   get: () => store.top,
   set: (value: number) => void store.load(store.period, value),
 });
-const csvUrl = computed(() => exportUrl(store.range, "csv"));
-const ndjsonUrl = computed(() => exportUrl(store.range, "ndjson"));
+const { client } = useApi();
+const toasts = useToastStore();
+
+// Fetched rather than linked, so a refused export (over the row limit,
+// expired session) shows a localized message instead of being saved.
+const exporting = shallowRef<ExportFormat | null>(null);
+async function exportRange(format: ExportFormat) {
+  exporting.value = format;
+  try {
+    await downloadExport(client, store.range, format);
+  } catch (error: unknown) {
+    toasts.push(errorMessageKey(error instanceof ApiError ? error : networkError(error)), "danger");
+  } finally {
+    exporting.value = null;
+  }
+}
 
 onMounted(() => {
   void store.load();
@@ -41,8 +60,12 @@ onMounted(() => {
       <h2 id="stats-export">{{ t("stats.export.heading") }}</h2>
       <p class="jl-stats__intro">{{ t("stats.export.hint") }}</p>
       <p class="jl-stats__links">
-        <a :href="csvUrl" download>{{ t("stats.export.csv") }}</a>
-        <a :href="ndjsonUrl" download>{{ t("stats.export.ndjson") }}</a>
+        <UiButton variant="secondary" :busy="exporting === 'csv'" :disabled="exporting !== null" @click="exportRange('csv')">
+          {{ t("stats.export.csv") }}
+        </UiButton>
+        <UiButton variant="secondary" :busy="exporting === 'ndjson'" :disabled="exporting !== null" @click="exportRange('ndjson')">
+          {{ t("stats.export.ndjson") }}
+        </UiButton>
       </p>
     </section>
 
@@ -129,12 +152,6 @@ onMounted(() => {
   flex-wrap: wrap;
   gap: var(--jl-space-4);
   margin: var(--jl-space-3) 0 0;
-}
-
-.jl-stats__links a {
-  display: inline-flex;
-  align-items: center;
-  min-height: var(--jl-touch-target);
 }
 
 .jl-stats__table {

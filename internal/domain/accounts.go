@@ -14,6 +14,10 @@ var (
 	// ErrNativeLoginDisabled is returned only after the password was verified,
 	// so it never reveals the setting of an account to an unauthenticated caller.
 	ErrNativeLoginDisabled = errors.New("native login disabled for user")
+	// ErrPasswordMismatch rejects a password change whose current password
+	// does not verify. It is distinct from ErrUnauthenticated: the session is
+	// valid, only the typed value is wrong.
+	ErrPasswordMismatch = errors.New("current password does not match")
 )
 
 // Actor contains identity verified by HTTP authentication. Stores recheck the

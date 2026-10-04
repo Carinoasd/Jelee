@@ -69,6 +69,18 @@ async function saveLanguage(value: Locale) {
   }
 }
 
+// The theme applies at once; signed in, it is also stored with the account.
+async function saveTheme(value: Theme) {
+  try {
+    await preferences.setTheme(value);
+    if (auth.user !== null) {
+      toasts.push("settings.theme.saved", "success");
+    }
+  } catch (error: unknown) {
+    toasts.push(errorMessageKey(failure(error)), "danger");
+  }
+}
+
 // Profile form, refilled whenever the account changes.
 const profileName = shallowRef("");
 const hidden = shallowRef(false);
@@ -125,10 +137,8 @@ async function changePassword() {
   try {
     await settings.changePassword(oldPassword.value, newPassword.value);
   } catch (error: unknown) {
-    const apiError = failure(error);
-    // A wrong current password is answered as authentication_required.
-    passwordError.value =
-      apiError.code === "authentication_required" ? t("settings.password.wrongCurrent") : t(errorMessageKey(apiError));
+    // A wrong current password is 400 invalid_password; the session stays.
+    passwordError.value = t(errorMessageKey(failure(error)));
     return;
   } finally {
     oldPassword.value = "";
@@ -155,7 +165,7 @@ async function changePassword() {
             :name="themeName"
             :value="option"
             :checked="preferences.theme === option"
-            @change="preferences.setTheme(option)"
+            @change="saveTheme(option)"
           />
           {{ t(themeKey[option]) }}
         </label>

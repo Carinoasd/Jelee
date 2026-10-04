@@ -759,6 +759,8 @@ func WriteError(w http.ResponseWriter, r *http.Request, err error) {
 		status, code, message = 403, "native_login_disabled", "Native device login is not enabled for this account."
 	case errors.Is(err, domain.ErrSessionLimit):
 		status, code, message = 429, "session_limit", "Active session limit reached."
+	case errors.Is(err, domain.ErrPasswordMismatch):
+		status, code, message = 400, "invalid_password", "Current password is incorrect."
 	case errors.Is(err, errAuthRateLimited):
 		status, code, message = 429, "auth_rate_limited", "Too many authentication attempts. Try again later."
 	case errors.Is(err, domain.ErrWebhookTargetDenied):

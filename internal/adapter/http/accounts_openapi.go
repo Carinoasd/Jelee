@@ -38,12 +38,16 @@ func accountSchemas() map[string]any {
 	itemAccessEffect := map[string]any{"type": "string", "enum": []string{"allow", "hide"}, "description": "hide hides the item and its descendants; allow shows them despite blocked tags and the rating ceiling, within the library grants. The nearest rule on the item or an ancestor wins."}
 	csrf := map[string]any{"type": "string", "minLength": 43, "maxLength": 43, "description": "Present for web sessions. Send it as the X-Jelee-CSRF header on every POST, PUT, PATCH or DELETE authenticated by the session cookie; it changes when the session is rotated."}
 	return map[string]any{
-		"Login":          objectSchema(map[string]any{"name": stringSchema(128), "password": password, "deviceName": stringSchema(128)}, "name", "password"),
-		"Rotate":         objectSchema(map[string]any{"deviceName": stringSchema(128)}),
-		"Empty":          objectSchema(map[string]any{}),
-		"CreateUser":     objectSchema(create, "name", "password"),
-		"UserSettings":   objectSchema(settings, "name", "locale"),
-		"Profile":        objectSchema(map[string]any{"displayName": stringSchema(128), "locale": locale, "hidden": boolean}, "locale"),
+		"Login":        objectSchema(map[string]any{"name": stringSchema(128), "password": password, "deviceName": stringSchema(128)}, "name", "password"),
+		"Rotate":       objectSchema(map[string]any{"deviceName": stringSchema(128)}),
+		"Empty":        objectSchema(map[string]any{}),
+		"CreateUser":   objectSchema(create, "name", "password"),
+		"UserSettings": objectSchema(settings, "name", "locale"),
+		"Profile":      objectSchema(map[string]any{"displayName": stringSchema(128), "locale": locale, "hidden": boolean}, "locale"),
+		"UserPreferences": objectSchema(map[string]any{
+			"theme":   map[string]any{"type": "string", "enum": []string{"system", "light", "dark"}, "description": "system follows the browser's color scheme."},
+			"density": map[string]any{"type": "string", "enum": []string{"comfortable", "compact"}, "description": "Reserved layout density of the web client."},
+		}, "theme", "density"),
 		"PasswordChange": objectSchema(map[string]any{"oldPassword": password, "newPassword": password}, "oldPassword", "newPassword"),
 		"LibraryAccess":  objectSchema(map[string]any{"libraryIds": map[string]any{"type": "array", "items": uuid, "maxItems": 1000, "uniqueItems": true}}, "libraryIds"),
 		"User":           objectSchema(map[string]any{"id": uuid, "name": stringSchema(128), "displayName": stringSchema(128), "locale": locale, "hidden": boolean, "admin": boolean, "disabled": boolean, "allowNative": map[string]any{"type": "boolean", "description": "Whether POST /api/v1/auth/login/native may issue native sessions to this user. Changed only through PUT /api/v1/users/{id}/native."}, "createdAt": instant, "deletedAt": instant}, "id", "name", "displayName", "locale", "hidden", "admin", "disabled", "allowNative", "createdAt"),
@@ -98,7 +102,9 @@ func accountSpecification(paths map[string]any) {
 		{"/auth/csrf", "get", "Read the CSRF token of the authenticating session, for example after a page reload", "", "CSRFToken", "200", false},
 		{"/users/me", "get", "Read own account", "", "User", "200", false},
 		{"/users/me/profile", "put", "Replace own profile fields; omitted optional fields reset", "Profile", "User", "200", false},
-		{"/users/me/password", "put", "Verify old password, replace password and revoke all sessions", "PasswordChange", "", "204", false},
+		{"/users/me/preferences", "get", "Read own interface preferences (G33.3); defaults until first saved", "", "UserPreferences", "200", false},
+		{"/users/me/preferences", "put", "Replace own interface preferences; every field is required; presentation only, not audited", "UserPreferences", "UserPreferences", "200", false},
+		{"/users/me/password", "put", "Verify old password, replace password and revoke all sessions. A wrong old password is 400 invalid_password (the session stays valid, unlike 401); every attempt first draws from the per-user and per-address password-change budget (429 auth_rate_limited)", "PasswordChange", "", "204", false},
 		{"/users", "get", "List accounts, including hidden accounts; cursor pagination", "", "UserPage", "200", true},
 		{"/users", "post", "Create account; same actor/key replays original result even if payload differs", "CreateUser", "User", "201", true},
 		{"/users/{id}", "get", "Read own account or any account as administrator", "", "User", "200", false},

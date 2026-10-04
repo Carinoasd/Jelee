@@ -37,6 +37,7 @@ var errorCodeStatuses = map[string][]int{
 	"image_unsupported":          {415},
 	"internal_error":             {500},
 	"invalid_host":               {400},
+	"invalid_password":           {400},
 	"invalid_range":              {416},
 	"invalid_request":            {400},
 	"job_busy":                   {409},

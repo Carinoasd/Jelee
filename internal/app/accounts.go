@@ -23,6 +23,8 @@ type AccountRepository interface {
 	CreateUser(context.Context, domain.Actor, domain.UserInput, string) (domain.User, bool, error)
 	UpdateUser(context.Context, domain.Actor, string, domain.UserInput) (domain.User, error)
 	UpdateProfile(context.Context, domain.Actor, domain.ProfileInput) (domain.User, error)
+	GetPreferences(context.Context, domain.Actor) (domain.UserPreferences, error)
+	SetPreferences(context.Context, domain.Actor, domain.UserPreferences) (domain.UserPreferences, error)
 	DeleteUser(context.Context, domain.Actor, string) error
 	RestoreUser(context.Context, domain.Actor, string) (domain.User, error)
 	UnlockUser(context.Context, domain.Actor, string) error
@@ -226,6 +228,22 @@ func (a *Accounts) Profile(ctx context.Context, actor domain.Actor, input domain
 	return a.repository.UpdateProfile(ctx, actor, input)
 }
 
+// Preferences reads the caller's interface preferences (G33.3).
+func (a *Accounts) Preferences(ctx context.Context, actor domain.Actor) (domain.UserPreferences, error) {
+	if !validActor(actor) {
+		return domain.UserPreferences{}, domain.ErrInvalid
+	}
+	return a.repository.GetPreferences(ctx, actor)
+}
+
+// SetPreferences replaces the caller's interface preferences.
+func (a *Accounts) SetPreferences(ctx context.Context, actor domain.Actor, preferences domain.UserPreferences) (domain.UserPreferences, error) {
+	if !validActor(actor) || !preferences.Valid() {
+		return domain.UserPreferences{}, domain.ErrInvalid
+	}
+	return a.repository.SetPreferences(ctx, actor, preferences)
+}
+
 func (a *Accounts) Delete(ctx context.Context, actor domain.Actor, id string) error {
 	if !validTarget(actor, id) {
 		return domain.ErrNotFound
@@ -259,17 +277,17 @@ func (a *Accounts) ChangePassword(ctx context.Context, actor domain.Actor, oldPa
 		if err = a.passwords.DummyVerify(ctx, oldPassword); err != nil {
 			return err
 		}
-		return domain.ErrUnauthenticated
+		return domain.ErrPasswordMismatch
 	}
 	matched, err := a.passwords.Verify(ctx, oldPassword, credentials.PasswordHash)
 	if err != nil {
 		if ctx.Err() != nil {
 			return ctx.Err()
 		}
-		return domain.ErrUnauthenticated
+		return domain.ErrPasswordMismatch
 	}
 	if !matched {
-		return domain.ErrUnauthenticated
+		return domain.ErrPasswordMismatch
 	}
 	hash, err := a.passwords.Hash(ctx, newPassword)
 	if err != nil {

@@ -1,5 +1,6 @@
 import type { ApiClient } from "@/api/client";
 import { call, callNoContent } from "@/api/call";
+import { downloadAttachment } from "@/api/download";
 import type { components } from "@/api/schema";
 
 export type WatchStatsReport = components["schemas"]["WatchStatsReport"];
@@ -65,11 +66,14 @@ export async function clearMyHistory(client: ApiClient): Promise<void> {
 export type ExportFormat = "csv" | "ndjson";
 
 /**
- * Same-origin download link of the daily roll-up (administrators only). The
- * browser sends the session cookie with the GET; the server checks the role,
- * audits the export and refuses ranges over its row limit.
+ * Downloads the daily roll-up of a range (administrators only) through the
+ * API client: the server checks the role, audits the export and refuses
+ * ranges over its row limit (409 stats_export_limit), which is thrown as an
+ * ApiError instead of being saved as the file.
  */
-export function exportUrl(range: { from: string; to: string }, format: ExportFormat): string {
-  const query = new URLSearchParams({ from: range.from, to: range.to, format });
-  return `/api/v1/watch-stats/export?${query.toString()}`;
+export async function downloadExport(client: ApiClient, range: { from: string; to: string }, format: ExportFormat): Promise<void> {
+  await downloadAttachment(
+    client.GET("/api/v1/watch-stats/export", { params: { query: { from: range.from, to: range.to, format } }, parseAs: "blob" }),
+    `watch-stats-${range.from}_${range.to}.${format}`,
+  );
 }

@@ -104,14 +104,14 @@ web/
 | 頁首搜尋框 | `role="search"`；`/` 鍵聚焦、Esc 清除；在搜尋頁輸入時去抖 300 ms 更新 `?q=`（`router.replace`，同路徑不搶焦點），其他頁按 Enter 才前往搜尋頁 | — |
 | `/search?q=&type=` | 搜尋結果（伺服器比對、依存取權過濾與計數）、類型篩選、「顯示 n 項，共 m 項」（`role="status"`）、載入更多、未輸入提示、空結果、錯誤＋重試 | `GET /items?q=…&type=…&sort=name&offset=…&limit=40` |
 | `/stats` | 我的觀看統計：總計（有效時長、次數、工作階段、完成率、首看／重看）、按日／週／月／年走勢（SVG 長條，另附隱藏資料表）、Top N（連到條目詳情）、按庫／按類型（CSS 長條表格）；清除自己的觀看紀錄（兩段確認） | `GET /users/me/watch-stats?period=&top=&from=&to=`、`DELETE /users/me/playback-history` |
-| `/settings` | 介面語言（立即套用並存入帳號）、主題（跟隨系統／淺色／深色）、個人資料（顯示名稱、在公開清單隱藏）、變更密碼（12–1024 位元組檢查、確認欄；成功後所有工作階段失效、回登入頁） | `PUT /users/me/profile`、`PUT /users/me/password` |
+| `/settings` | 介面語言（立即套用並存入帳號）、主題（跟隨系統／淺色／深色，存入帳號）、個人資料（顯示名稱、在公開清單隱藏）、變更密碼（12–1024 位元組檢查、確認欄；成功後所有工作階段失效、回登入頁） | `PUT /users/me/profile`、`GET/PUT /users/me/preferences`、`PUT /users/me/password` |
 | `/admin/users` | 使用者列表（游標分頁、可含已刪除）、建立使用者（`Idempotency-Key`，重送同一筆沿用同一鍵） | `GET/POST /users` |
 | `/admin/users/:userId` | 帳號設定（停用需兩段確認）、原生登入權限 allowNative（撤銷需確認）、投遞上限（留空＝跟隨伺服器、0＝不限）、解鎖、軟刪除／還原、工作階段與全部撤銷、媒體庫授權勾選、內容存取（分級上限、未分級三態、標籤封鎖、條目 hide/allow 規則：以搜尋挑條目），每區附變更影響說明 | `GET/PUT/DELETE /users/{id}`、`PUT /users/{id}/native`、`GET/PUT /users/{id}/delivery-limits`、`POST /users/{id}/unlock`、`POST /users/{id}/restore`、`GET/DELETE /users/{id}/sessions`、`GET /libraries`、`GET/PUT /users/{id}/libraries`、`GET/PUT /users/{id}/content-access`、`PUT/DELETE /users/{id}/content-access/items/{itemId}`、`GET /access/parental-ratings`、`GET /items?q=` |
 | `/admin/access` | 全站內容存取政策（未分級預設、管理員是否受限；變更需確認並說明影響）、分級代碼對照表、規則優先順序說明 | `GET/PUT /access/policy`、`GET /access/parental-ratings` |
-| `/admin/clients` | 未知客戶端預設策略（兩段確認，提示 `jelee-cli access reset-policies`）；規則列表與新增／編輯／刪除、觀察→攔截切換（兩段確認並顯示目前命中數）；已知客戶端（重新命名、可信、加入屏蔽、踢下線）；命中統計（Top UA／IP／規則）、命中明細與匯出連結 | `/client-control/policy`、`/client-control/rules[/{id}[/enforce\|/observe]]`、`/client-control/clients[/{id}[/block\|/kick]]`、`/client-control/stats`、`/client-control/hits[/export]` |
+| `/admin/clients` | 未知客戶端預設策略（兩段確認，提示 `jelee-cli access reset-policies`）；規則列表與新增／編輯／刪除、觀察→攔截切換（兩段確認並顯示目前命中數）；已知客戶端（重新命名、可信、加入屏蔽、踢下線）；命中統計（Top UA／IP／規則）、命中明細與匯出（fetch 後存檔，錯誤顯示本地化訊息） | `/client-control/policy`、`/client-control/rules[/{id}[/enforce\|/observe]]`、`/client-control/clients[/{id}[/block\|/kick]]`、`/client-control/stats`、`/client-control/hits[/export]` |
 | `/admin/webhooks` | 端點列表、建立（事件取自伺服器 `events` 目錄）、啟用／停用、刪除、送測試事件、輪替密鑰；密鑰只顯示一次（提示框＋複製，按「我已保存」後自記憶體清除） | `GET/POST /webhooks`、`PUT/DELETE /webhooks/{id}`、`POST /webhooks/{id}/test`、`POST /webhooks/{id}/rotate-secret` |
 | `/admin/webhooks/:webhookId` | 設定編輯、投遞日誌（依狀態篩選、游標分頁）、單筆嘗試歷史、死信／已送達重放（兩段確認） | `GET/PUT /webhooks/{id}`、`GET /webhooks/{id}/deliveries[/{deliveryId}]`、`POST …/replay` |
-| `/admin/stats` | 全站觀看統計（同上圖表＋最活躍使用者）、目前範圍的 CSV／NDJSON 匯出連結（同源 Cookie 授權，伺服器檢查角色、寫稽核、超過列數回 `stats_export_limit`） | `GET /watch-stats`、`GET /watch-stats/export` |
+| `/admin/stats` | 全站觀看統計（同上圖表＋最活躍使用者）、目前範圍的 CSV／NDJSON 匯出（以 API client 取得後存檔；伺服器檢查角色、寫稽核、超過列數回 `stats_export_limit`，顯示為本地化訊息而不會存成檔案） | `GET /watch-stats`、`GET /watch-stats/export` |
 
 管理頁全部掛在 `/admin` 之下，`meta.admin` 由 vue-router 合併到每個子路由，守衛對非管理員一律導向 403；頁首的「管理」入口只對管理員渲染。伺服器對每個管理 API 仍會再檢查（G35.2）。危險操作一律用 `UiConfirmButton`（第一次按下只顯示提示與確認鈕並移交焦點，Esc／取消返回觸發鈕，第二次按下才送出）。
 
@@ -119,8 +119,11 @@ web/
 
 | 項目 | 狀態 | 目前做法 |
 | --- | --- | --- |
-| 使用者偏好（主題等）沒有伺服器 API（G33.3） | 缺 | 主題只存在分頁記憶體（`stores/preferences.ts`，`<html data-theme>`），重新整理後回到跟隨系統；瀏覽器儲存依 G35.1 政策不用。語言已透過 `PUT /users/me/profile` 存入帳號 |
-| 密碼錯誤時 `PUT /users/me/password` 回 `401 authentication_required` | 行為疑點 | 與「工作階段過期」同碼，前端會誤以為已登出。`api/client.ts` 對此路徑豁免 401 過期處理，畫面顯示「目前密碼不正確」。建議伺服器改用專用錯誤碼（例如 400 `invalid_password`） |
+| 使用者偏好（主題等）沒有伺服器 API（G33.3） | 已解除 | 遷移 `000073_user_preferences` 與 `GET/PUT /users/me/preferences`（主題 system／light／dark，預留 `density`；PUT 須帶齊全部欄位、不寫稽核、不進元資料備份）。`stores/preferences.ts` 在登入或恢復工作階段時載入並套用，切換即存（失敗時本分頁仍套用並顯示錯誤）；未登入只存分頁記憶體，登出後沿用目前主題。全域級主題、匯入／匯出 JSON 仍缺 |
+| 密碼錯誤時 `PUT /users/me/password` 回 `401 authentication_required` | 已解除 | 伺服器改回 `400 invalid_password`（工作階段有效、只是輸入值錯，與 `invalid_request` 同屬 400 輸入錯誤；不用 403 以免和權限、CSRF、客戶端管控的 403 混淆）；改密限速、429 與「不計入登入鎖定」照舊。`api/client.ts` 的路徑豁免已移除，任何 401 都視為工作階段失效 |
+| 客戶端管控 `rules/{id}/enforce`、`/observe`、`clients/{id}/block`、`/kick` 要 `{}` 卻沒宣告 requestBody | 已解除 | OpenAPI 比照 logout 宣告 `Empty`；`features/clients/api.ts` 的 `emptyBody = {} as never` 已移除，直接傳 `{}`。契約測試要求每個 POST／PUT／PATCH 都宣告 requestBody（只豁免不讀正文的 setup back／complete） |
+| `KnownClient` 看不出是否已被屏蔽 | 已解除 | 回應新增 `blocked` 與 `blockRuleId`：存在與「加入屏蔽」相同識別（裝置 ID，沒有時 UA；UA 被截斷時前綴）的啟用、全域、無時間窗 `deny` 規則即為已屏蔽；其他屬性（IP、正則、標頭）的拒絕規則不反映。面板顯示「已屏蔽」標記與解除說明，已屏蔽者不再提供「加入屏蔽」 |
+| 統計匯出、命中匯出用 `<a download>`，409／401 會被存成檔案 | 已解除 | 改由前端以 API client 取得 blob 再存檔（`api/download.ts`）：錯誤走一般錯誤正規化顯示本地化訊息，401 走工作階段失效流程。未採預檢端點：預檢與下載之間列數可能改變，且要多跑一次計數查詢與權限檢查。代價是整份匯出先緩衝在瀏覽器記憶體（上限由 `stats.exportMaxRows` 與命中匯出 10,000 筆約束），且讀不到 `X-Jelee-Export-Complete` trailer |
 | G48.7 授權矩陣（使用者 × 庫批量勾選）、模板、變更預覽（影響條目數／使用者數） | 缺 | 只有逐一使用者的 `PUT /users/{id}/libraries` 與 content-access；畫面以文字說明影響與「立即生效、寫入稽核」，沒有數字預覽，也沒有批量或模板 |
 | 使用者群組（G48.1／G47.4） | 缺 | 只能逐一使用者設定 |
 | 客戶端規則的 scope（使用者／客戶端類型）與生效時間窗 | 前端未做編輯 | 表單只建立全域、無時間窗規則；編輯既有規則時原樣保留其 scope 與 window |
@@ -157,5 +160,5 @@ base-uri 'none'; form-action 'self'; frame-ancestors 'none'
 - G33／G34：主題預設、更多 UI 元件、響應式與 axe 檢查、Playwright 視覺回歸（manifest 已預留 Playwright 1.63.0）。
 - G35.4：主 bundle gzip 預算門禁；評估 vue-i18n 預編譯訊息以縮小 chunk。
 - 伺服器為 `GET /api/v1/items` 加上媒體庫篩選與排序後，移除前端逐頁篩選；網頁可用的檔案資訊 API。
-- 第二批管理頁的 API 缺口（使用者偏好、授權矩陣與變更預覽、群組、密碼錯誤碼）見上方表格。
+- 第二批管理頁的 API 缺口（授權矩陣與變更預覽、群組）見上方表格；使用者偏好、密碼錯誤碼、客戶端管控請求正文、已屏蔽狀態與匯出下載已解除。
 - Windows 的 PowerShell 引導與 `make.ps1` 尚未安裝 Node（清單已有 Windows 雜湊）。

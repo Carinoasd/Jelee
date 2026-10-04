@@ -1,8 +1,10 @@
 import { flushPromises } from "@vue/test-utils";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { mountView, unmountAll } from "@/test/mountView";
+import { useToastStore } from "@/stores/toasts";
+import { captureDownloads } from "@/test/downloads";
 import { adminUser, apiError, createRouteFetch, data, expectNoPlaybackMarkup, noContent, regularUser } from "@/test/routeFetch";
-import { exportUrl, isEmptyReport, rangeFor, type WatchStatsReport } from "./api";
+import { isEmptyReport, rangeFor, type WatchStatsReport } from "./api";
 
 afterEach(unmountAll);
 
@@ -56,8 +58,7 @@ describe("statistics helpers", () => {
     expect(rangeFor("year", today).from).toBe("2021-10-05");
   });
 
-  it("builds same-origin export links and detects empty reports", () => {
-    expect(exportUrl({ from: "2026-01-01", to: "2026-01-31" }, "csv")).toBe("/api/v1/watch-stats/export?from=2026-01-01&to=2026-01-31&format=csv");
+  it("detects empty reports", () => {
     expect(isEmptyReport(report())).toBe(false);
     expect(isEmptyReport(report({ totals: { ...figures, sessions: 0, effectiveSeconds: 0 }, periods: [] }))).toBe(true);
   });
@@ -163,23 +164,57 @@ describe("my watch statistics", () => {
 });
 
 describe("statistics of every user", () => {
-  it("lists top users and offers export links for the shown range", async () => {
-    const server = createRouteFetch().on("GET", "/api/v1/watch-stats", () =>
-      data(report({ topUsers: [{ ...figures, userId: regularUser.id, userName: "kid" }] })),
-    );
-    const { wrapper } = await mountView("/admin/stats", { fetch: server.fetch, user: adminUser });
-    expect(wrapper.find("h1").text()).toBe("Watch statistics of all users");
-    expect(wrapper.find(`a[href='/admin/users/${regularUser.id}']`).text()).toBe("kid");
-    const { from, to } = rangeFor("day");
-    const links = wrapper.findAll("a[download]").map((anchor) => anchor.attributes("href"));
-    expect(links).toEqual([
-      `/api/v1/watch-stats/export?from=${from}&to=${to}&format=csv`,
-      `/api/v1/watch-stats/export?from=${from}&to=${to}&format=ndjson`,
-    ]);
-    await wrapper.findAll("select")[0]!.setValue("year");
-    await flushPromises();
-    expect(wrapper.find("a[download]").attributes("href")).toContain(`from=${rangeFor("year").from}`);
-    expectNoPlaybackMarkup(wrapper.html());
+  it("lists top users and downloads the shown range", async () => {
+    const capture = captureDownloads();
+    try {
+      const server = createRouteFetch()
+        .on("GET", "/api/v1/watch-stats", () => data(report({ topUsers: [{ ...figures, userId: regularUser.id, userName: "kid" }] })))
+        .on("GET", "/api/v1/watch-stats/export", () => new Response("day,user\n", { status: 200, headers: { "Content-Type": "text/csv" } }));
+      const { wrapper } = await mountView("/admin/stats", { fetch: server.fetch, user: adminUser });
+      expect(wrapper.find("h1").text()).toBe("Watch statistics of all users");
+      expect(wrapper.find(`a[href='/admin/users/${regularUser.id}']`).text()).toBe("kid");
+      // No plain download links: an error answer would be saved as the file.
+      expect(wrapper.findAll("a[download]")).toHaveLength(0);
+      const { from, to } = rangeFor("day");
+      await button(wrapper, "Download CSV").trigger("click");
+      await flushPromises();
+      await button(wrapper, "Download NDJSON").trigger("click");
+      await flushPromises();
+      expect(server.calls("GET", "/api/v1/watch-stats/export").map((request) => request.url.search)).toEqual([
+        `?from=${from}&to=${to}&format=csv`,
+        `?from=${from}&to=${to}&format=ndjson`,
+      ]);
+      expect(capture.downloads.map((entry) => entry.fileName)).toEqual([`watch-stats-${from}_${to}.csv`, `watch-stats-${from}_${to}.ndjson`]);
+      expect(await capture.downloads[0]!.blob.text()).toBe("day,user\n");
+      await vi.waitFor(() => {
+        expect(capture.revoked).toHaveLength(2);
+      });
+      await wrapper.findAll("select")[0]!.setValue("year");
+      await flushPromises();
+      await button(wrapper, "Download CSV").trigger("click");
+      await flushPromises();
+      expect(server.calls("GET", "/api/v1/watch-stats/export").at(-1)?.url.searchParams.get("from")).toBe(rangeFor("year").from);
+      expectNoPlaybackMarkup(wrapper.html());
+    } finally {
+      capture.restore();
+    }
+  });
+
+  it("shows a refused export as a localized message instead of saving it", async () => {
+    const capture = captureDownloads();
+    try {
+      const server = createRouteFetch()
+        .on("GET", "/api/v1/watch-stats", () => data(report()))
+        .on("GET", "/api/v1/watch-stats/export", () => apiError(409, "stats_export_limit"));
+      const { wrapper } = await mountView("/admin/stats", { fetch: server.fetch, user: adminUser });
+      await button(wrapper, "Download CSV").trigger("click");
+      await flushPromises();
+      expect(capture.downloads).toHaveLength(0);
+      expect(useToastStore().toasts).toContainEqual(expect.objectContaining({ key: "errors.exportLimit", tone: "danger" }));
+      expect(button(wrapper, "Download CSV").attributes("disabled")).toBeUndefined();
+    } finally {
+      capture.restore();
+    }
   });
 
   it("shows the server's refusal as a localized error", async () => {

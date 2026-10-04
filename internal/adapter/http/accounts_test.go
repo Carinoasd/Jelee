@@ -37,6 +37,7 @@ type httpAccountRepository struct {
 	revoke      func(context.Context, domain.Actor, string, string) error
 	profile     func(context.Context, domain.Actor, domain.ProfileInput) (domain.User, error)
 	libraries   func(context.Context, domain.Actor, string, []string) error
+	preferences func(context.Context, domain.Actor, *domain.UserPreferences) (domain.UserPreferences, error)
 }
 
 func (f httpAccountRepository) Credentials(ctx context.Context, name string) (domain.Credentials, error) {
@@ -68,6 +69,13 @@ func (f httpAccountRepository) UpdateProfile(ctx context.Context, a domain.Actor
 }
 func (f httpAccountRepository) ReplaceLibraryAccess(ctx context.Context, a domain.Actor, id string, ids []string) error {
 	return f.libraries(ctx, a, id, ids)
+}
+
+func (f httpAccountRepository) GetPreferences(ctx context.Context, a domain.Actor) (domain.UserPreferences, error) {
+	return f.preferences(ctx, a, nil)
+}
+func (f httpAccountRepository) SetPreferences(ctx context.Context, a domain.Actor, p domain.UserPreferences) (domain.UserPreferences, error) {
+	return f.preferences(ctx, a, &p)
 }
 
 type httpAccountPasswords struct {
@@ -667,7 +675,7 @@ func TestAccountHTTPOpenAPIMatchesRoutesAndHasValidRequiredArrays(t *testing.T) 
 		if !reflect.DeepEqual(routerRoutes, documentedRoutes) {
 			t.Fatalf("documented account routes differ: router=%v spec=%v", routerRoutes, documentedRoutes)
 		}
-		if enabled && len(routerRoutes) != 31 || !enabled && len(routerRoutes) != 0 {
+		if enabled && len(routerRoutes) != 33 || !enabled && len(routerRoutes) != 0 {
 			t.Fatalf("unexpected rollout route count %d", len(routerRoutes))
 		}
 		data, err := json.Marshal(spec)

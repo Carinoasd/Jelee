@@ -210,6 +210,8 @@ func leakRouteTable() map[string]leakRoute {
 		"GET /api/v1/auth/csrf":                          noMedia(noParams, "returns only a token derived from the caller's own credential"),
 		"PUT /api/v1/users/me/profile":                   exempt("mutates the caller's own profile; carries no media identifiers"),
 		"PUT /api/v1/users/me/password":                  exempt("mutates the caller's own password; carries no media identifiers"),
+		"PUT /api/v1/users/me/preferences":               exempt("replaces the caller's own interface preferences; carries no media identifiers"),
+		"GET /api/v1/users/me/preferences":               noMedia(noParams, "caller's own interface preferences"),
 		"DELETE /api/v1/users/{id}/sessions":             exempt("revokes the caller's own sessions; carries no media identifiers"),
 		"DELETE /api/v1/users/{id}/sessions/{sessionID}": exempt("revokes one of the caller's sessions; carries no media identifiers"),
 		"GET /api/v1/users/me":                           noMedia(noParams, "caller's own account"),

@@ -1707,6 +1707,7 @@
           "image_unsupported",
           "internal_error",
           "invalid_host",
+          "invalid_password",
           "invalid_range",
           "invalid_request",
           "job_busy",
@@ -1818,6 +1819,9 @@
             "500"
           ],
           "invalid_host": [
+            "400"
+          ],
+          "invalid_password": [
             "400"
           ],
           "invalid_range": [
@@ -3289,6 +3293,15 @@
           "appVersion": {
             "type": "string"
           },
+          "blockRuleId": {
+            "description": "Highest-priority such rule when blocked; deleting or disabling it unblocks the client.",
+            "format": "uuid",
+            "type": "string"
+          },
+          "blocked": {
+            "description": "An enabled, global deny rule without a time window matches the identity POST .../block uses: the exact device ID, or the user agent when the client reports none. Deny rules on other attributes (address, regex, header) are not reflected.",
+            "type": "boolean"
+          },
           "clientKind": {
             "description": "Session kind it was last seen with.",
             "enum": [
@@ -3335,7 +3348,8 @@
           "trusted",
           "firstSeenAt",
           "lastSeenAt",
-          "activeSessions"
+          "activeSessions",
+          "blocked"
         ],
         "type": "object"
       },
@@ -6504,6 +6518,33 @@
         ],
         "type": "object"
       },
+      "UserPreferences": {
+        "additionalProperties": false,
+        "properties": {
+          "density": {
+            "description": "Reserved layout density of the web client.",
+            "enum": [
+              "comfortable",
+              "compact"
+            ],
+            "type": "string"
+          },
+          "theme": {
+            "description": "system follows the browser's color scheme.",
+            "enum": [
+              "system",
+              "light",
+              "dark"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "theme",
+          "density"
+        ],
+        "type": "object"
+      },
       "UserSettings": {
         "additionalProperties": false,
         "properties": {
@@ -8994,6 +9035,17 @@
             }
           }
         ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Empty"
+              }
+            }
+          },
+          "description": "Maximum 64 KiB; exactly one object; unknown or duplicate keys rejected.",
+          "required": true
+        },
         "responses": {
           "201": {
             "content": {
@@ -9123,7 +9175,7 @@
             "webSession": []
           }
         ],
-        "summary": "Add an exact deny rule for the client's device ID, or its user agent when it reports none, at priority 100000; audited as client_control.client_blocked; body {}",
+        "summary": "Add an exact deny rule for the client's device ID, or its user agent when it reports none, at priority 100000; audited as client_control.client_blocked",
         "x-jelee-role": "administrator"
       }
     },
@@ -9140,6 +9192,17 @@
             }
           }
         ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Empty"
+              }
+            }
+          },
+          "description": "Maximum 64 KiB; exactly one object; unknown or duplicate keys rejected.",
+          "required": true
+        },
         "responses": {
           "200": {
             "content": {
@@ -9269,7 +9332,7 @@
             "webSession": []
           }
         ],
-        "summary": "Revoke every active session the client used; it may log in again unless blocked; audited as client_control.client_kicked; body {}",
+        "summary": "Revoke every active session the client used; it may log in again unless blocked; audited as client_control.client_kicked",
         "x-jelee-role": "administrator"
       }
     },
@@ -10651,6 +10714,17 @@
             }
           }
         ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Empty"
+              }
+            }
+          },
+          "description": "Maximum 64 KiB; exactly one object; unknown or duplicate keys rejected.",
+          "required": true
+        },
         "responses": {
           "200": {
             "content": {
@@ -10780,7 +10854,7 @@
             "webSession": []
           }
         ],
-        "summary": "Switch an observe or shadow rule to enforcing its intent; no-op for an enforcing rule; audited as client_control.rule_mode_changed; body {}",
+        "summary": "Switch an observe or shadow rule to enforcing its intent; no-op for an enforcing rule; audited as client_control.rule_mode_changed",
         "x-jelee-role": "administrator"
       }
     },
@@ -10797,6 +10871,17 @@
             }
           }
         ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Empty"
+              }
+            }
+          },
+          "description": "Maximum 64 KiB; exactly one object; unknown or duplicate keys rejected.",
+          "required": true
+        },
         "responses": {
           "200": {
             "content": {
@@ -10926,7 +11011,7 @@
             "webSession": []
           }
         ],
-        "summary": "Switch an enforcing rule to observing its action; no-op for an observe or shadow rule; audited as client_control.rule_mode_changed; body {}",
+        "summary": "Switch an enforcing rule to observing its action; no-op for an observe or shadow rule; audited as client_control.rule_mode_changed",
         "x-jelee-role": "administrator"
       }
     },
@@ -23028,7 +23113,7 @@
             "webSession": []
           }
         ],
-        "summary": "Verify old password, replace password and revoke all sessions"
+        "summary": "Verify old password, replace password and revoke all sessions. A wrong old password is 400 invalid_password (the session stays valid, unlike 401); every attempt first draws from the per-user and per-address password-change budget (429 auth_rate_limited)"
       }
     },
     "/api/v1/users/me/playback-history": {
@@ -23098,6 +23183,283 @@
           }
         ],
         "summary": "Clear the caller's playback history"
+      }
+    },
+    "/api/v1/users/me/preferences": {
+      "get": {
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/UserPreferences"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful response; Cache-Control: no-store"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 400"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 401"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 403"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 404"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 409"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 413"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 415"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 429"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 503"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Jelee error envelope with code, message, details and traceId; see the Error schema."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "webSession": []
+          }
+        ],
+        "summary": "Read own interface preferences (G33.3); defaults until first saved"
+      },
+      "put": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserPreferences"
+              }
+            }
+          },
+          "description": "Maximum 64 KiB; exactly one object; unknown or duplicate keys rejected.",
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/UserPreferences"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful response; Cache-Control: no-store"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 400"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 401"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 403"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 404"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 409"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 413"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 415"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 429"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 503"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Jelee error envelope with code, message, details and traceId; see the Error schema."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "webSession": []
+          }
+        ],
+        "summary": "Replace own interface preferences; every field is required; presentation only, not audited"
       }
     },
     "/api/v1/users/me/profile": {

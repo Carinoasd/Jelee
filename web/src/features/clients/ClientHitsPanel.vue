@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted } from "vue";
+import { computed, onMounted, shallowRef } from "vue";
 import { useI18n } from "vue-i18n";
 import RequestStatus from "@/components/ui/RequestStatus.vue";
 import UiBarChart from "@/components/ui/UiBarChart.vue";
@@ -9,15 +9,20 @@ import UiButton from "@/components/ui/UiButton.vue";
 import UiSelectField from "@/components/ui/UiSelectField.vue";
 import UiSkeleton from "@/components/ui/UiSkeleton.vue";
 import type { BarRow } from "@/components/ui/types";
+import { useApi } from "@/api";
+import { errorMessageKey } from "@/features/errors/messages";
 import { formatDateTime } from "@/i18n/format";
 import { useClientHitsStore } from "@/stores/clientsHits";
 import { useClientRulesStore } from "@/stores/clientsRules";
-import { hitsExportHref, statsPeriods, type ClientHit, type ClientHitStats, type HitMode, type StatsPeriod } from "./api";
-import { actionKeys, codeLabel, dimensionKeys, modeKeys, surfaceKeys } from "./labels";
+import { useToastStore } from "@/stores/toasts";
+import { downloadHits, statsPeriods, type ClientHit, type ClientHitStats, type HitMode, type StatsPeriod } from "./api";
+import { actionKeys, asApiError, codeLabel, dimensionKeys, modeKeys, surfaceKeys } from "./labels";
 
 const { t, locale } = useI18n();
 const store = useClientHitsStore();
 const rules = useClientRulesStore();
+const { client } = useApi();
+const toasts = useToastStore();
 
 const periodKeys: Readonly<Record<StatsPeriod, string>> = {
   1: "clients.hits.periods.hour",
@@ -58,7 +63,19 @@ const mode = computed({
   },
 });
 
-const exportHref = computed(() => hitsExportHref(store.mode));
+// Fetched rather than linked, so a refused export (over the limit, expired
+// session) shows a localized message instead of being saved as the file.
+const exporting = shallowRef(false);
+async function exportHits() {
+  exporting.value = true;
+  try {
+    await downloadHits(client, store.mode);
+  } catch (error: unknown) {
+    toasts.push(errorMessageKey(asApiError(error)), "danger");
+  } finally {
+    exporting.value = false;
+  }
+}
 const tr = (key: string) => t(key);
 
 function ruleName(id: string | undefined): string {
@@ -143,9 +160,9 @@ function charts(stats: ClientHitStats) {
         <h2 id="clients-log-title">{{ t("clients.hits.logTitle") }}</h2>
         <div class="jl-cc-actions">
           <UiSelectField v-model="mode" :label="t('clients.hits.mode')" :options="modeOptions" />
-          <a class="jl-hits__export" :href="exportHref" download="client-control-hits.json" aria-describedby="clients-export-hint">
+          <UiButton class="jl-hits__export" variant="secondary" :busy="exporting" aria-describedby="clients-export-hint" @click="exportHits">
             {{ t("clients.hits.export") }}
-          </a>
+          </UiButton>
         </div>
       </div>
       <p id="clients-export-hint" class="jl-cc-muted">{{ t("clients.hits.exportHint") }}</p>
@@ -236,10 +253,6 @@ function charts(stats: ClientHitStats) {
 }
 
 .jl-hits__export {
-  display: inline-flex;
-  align-items: center;
-  min-height: var(--jl-touch-target);
-  padding: 0 var(--jl-space-3);
   align-self: end;
 }
 </style>

@@ -192,10 +192,8 @@ func TestDevModePermissionRelaxPostgres(t *testing.T) {
 func TestDevModeMigrationRoundTrip(t *testing.T) {
 	f := newJobFixture(t)
 	dsn := f.s.Pool.Config().ConnString()
-	want := migrationVersion(t, "dev_mode")
-	if want != SchemaVersion {
-		t.Fatalf("developer mode is migration %d, schema %d", want, SchemaVersion)
-	}
+	// Later schemas hold no data of their own.
+	want := downgradeAboveMigration(t, f, "dev_mode")
 	c, _ := devTestController(t, f.s, devmode.Inputs{EnvFlag: true, ConfigEnabled: true}, time.Hour)
 	devEnable(t, f.ctx, c)
 	// An active session never blocks the downgrade: the older schema simply

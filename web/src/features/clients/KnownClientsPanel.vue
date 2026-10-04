@@ -99,6 +99,7 @@ function kick(client: KnownClient) {
           <li v-for="client in store.clients" :id="`known-${client.id}`" :key="client.id" class="jl-known__item">
             <p class="jl-known__name">
               <span :id="`known-name-${client.id}`">{{ clientName(client) }}</span>
+              <UiBadge v-if="client.blocked" tone="danger">{{ t("clients.known.blockedBadge") }}</UiBadge>
               <UiBadge v-if="client.trusted" tone="accent">{{ t("clients.known.trustedBadge") }}</UiBadge>
               <UiBadge v-if="client.clientKind">{{ t(clientKindKeys[client.clientKind]) }}</UiBadge>
             </p>
@@ -116,6 +117,7 @@ function kick(client: KnownClient) {
               <dt>{{ t("clients.known.sessions") }}</dt>
               <dd>{{ client.activeSessions }}</dd>
             </dl>
+            <p v-if="client.blocked" class="jl-cc-muted">{{ t("clients.known.blockedHint") }}</p>
 
             <form v-if="renaming === client.id" class="jl-known__rename" @submit.prevent="rename(client)">
               <UiTextField v-model="aliasDraft" :label="t('clients.known.alias')" :hint="t('clients.known.aliasHint')" :maxlength="128" />
@@ -144,6 +146,7 @@ function kick(client: KnownClient) {
                 @confirm="kick(client)"
               />
               <UiConfirmButton
+                v-if="!client.blocked"
                 :label="t('clients.known.block')"
                 :confirm-label="t('clients.known.blockConfirm')"
                 :prompt="t('clients.known.blockPrompt', { name: clientName(client) })"

@@ -180,6 +180,35 @@ describe("sign-in flow", () => {
     expect(server.requests.map((request) => new URL(request.url).pathname)).toContain("/api/v1/auth/csrf");
   });
 
+  it("applies the account's stored theme on sign-in and on a resumed session, and keeps it after sign-out", async () => {
+    document.documentElement.removeAttribute("data-theme");
+    const resumed = await boot("/libraries", (s) => {
+      s.cookie = true;
+      s.preferences = { theme: "dark", density: "comfortable" };
+    });
+    await vi.waitFor(() => {
+      expect(document.documentElement.dataset.theme).toBe("dark");
+    });
+    resumed.wrapper.unmount();
+    mounted.splice(0);
+    document.documentElement.removeAttribute("data-theme");
+
+    const { wrapper, server } = await boot("/libraries", (s) => {
+      s.preferences = { theme: "light", density: "compact" };
+    });
+    expect(document.documentElement.hasAttribute("data-theme")).toBe(false);
+    await signIn(wrapper);
+    await vi.waitFor(() => {
+      expect(document.documentElement.dataset.theme).toBe("light");
+    });
+    expect(server.requests.filter((request) => new URL(request.url).pathname === "/api/v1/users/me/preferences")).toHaveLength(1);
+    await wrapper.findAll(".jl-header button").find((button) => button.text() === "ログアウト")!.trigger("click");
+    await flushPromises();
+    // Signed out, the tab keeps the theme in memory.
+    expect(document.documentElement.dataset.theme).toBe("light");
+    document.documentElement.removeAttribute("data-theme");
+  });
+
   it("signs out with the CSRF header and returns to login", async () => {
     const { wrapper, router, server } = await boot("/libraries", (s) => {
       s.cookie = true;

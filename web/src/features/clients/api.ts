@@ -1,5 +1,6 @@
 import type { ApiClient } from "@/api/client";
 import { call, callNoContent } from "@/api/call";
+import { downloadAttachment } from "@/api/download";
 import type { components } from "@/api/schema";
 
 export type ClientPolicy = components["schemas"]["ClientPolicy"];
@@ -26,15 +27,6 @@ export const statsTop = 10;
 /** Periods the statistics offer, in hours. */
 export const statsPeriods = [1, 24, 168, 720] as const;
 export type StatsPeriod = (typeof statsPeriods)[number];
-
-/** Same-origin download of the masked hit log; the session cookie authorizes it. */
-export const hitsExportPath = "/api/v1/client-control/hits/export";
-
-// The endpoints below require an empty JSON object as their body (the server
-// decodes strictly and refuses a missing Content-Type), but the OpenAPI
-// document declares no request body for them, so the generated types only
-// allow an absent body. The cast is confined to this one constant.
-const emptyBody = {} as never;
 
 /** Observe and shadow rules record hits but do not enforce their intent. */
 export function isObserving(rule: Pick<ClientRule, "action">): boolean {
@@ -73,13 +65,13 @@ export async function deleteRule(client: ApiClient, id: string): Promise<void> {
 
 /** Switches an observe or shadow rule to enforcing its intent. */
 export async function enforceRule(client: ApiClient, id: string): Promise<ClientRule> {
-  const body = await call(client.POST("/api/v1/client-control/rules/{id}/enforce", { params: { path: { id } }, body: emptyBody }));
+  const body = await call(client.POST("/api/v1/client-control/rules/{id}/enforce", { params: { path: { id } }, body: {} }));
   return body.data;
 }
 
 /** Switches an enforcing rule back to observing its action. */
 export async function observeRule(client: ApiClient, id: string): Promise<ClientRule> {
-  const body = await call(client.POST("/api/v1/client-control/rules/{id}/observe", { params: { path: { id } }, body: emptyBody }));
+  const body = await call(client.POST("/api/v1/client-control/rules/{id}/observe", { params: { path: { id } }, body: {} }));
   return body.data;
 }
 
@@ -96,13 +88,13 @@ export async function updateKnownClient(client: ApiClient, id: string, update: K
 
 /** Adds an exact deny rule for the client's device ID (or user agent). */
 export async function blockKnownClient(client: ApiClient, id: string): Promise<ClientRule> {
-  const body = await call(client.POST("/api/v1/client-control/clients/{id}/block", { params: { path: { id } }, body: emptyBody }));
+  const body = await call(client.POST("/api/v1/client-control/clients/{id}/block", { params: { path: { id } }, body: {} }));
   return body.data;
 }
 
 /** Revokes every active session of the client; returns how many. */
 export async function kickKnownClient(client: ApiClient, id: string): Promise<number> {
-  const body = await call(client.POST("/api/v1/client-control/clients/{id}/kick", { params: { path: { id } }, body: emptyBody }));
+  const body = await call(client.POST("/api/v1/client-control/clients/{id}/kick", { params: { path: { id } }, body: {} }));
   return body.data.sessionsRevoked;
 }
 
@@ -123,7 +115,12 @@ export async function listHits(client: ApiClient, mode: HitMode | "", cursor = "
   return body.data;
 }
 
-/** Link target of the hit export for the same filter as the list. */
-export function hitsExportHref(mode: HitMode | ""): string {
-  return mode === "" ? hitsExportPath : `${hitsExportPath}?${new URLSearchParams({ mode }).toString()}`;
+/**
+ * Downloads the masked hit log for the same filter as the list. An answer
+ * over the export limit (409 stats_export_limit) is thrown as an ApiError
+ * instead of being saved as the file.
+ */
+export async function downloadHits(client: ApiClient, mode: HitMode | ""): Promise<void> {
+  const query = mode === "" ? {} : { mode };
+  await downloadAttachment(client.GET("/api/v1/client-control/hits/export", { params: { query }, parseAs: "blob" }), "client-control-hits.json");
 }

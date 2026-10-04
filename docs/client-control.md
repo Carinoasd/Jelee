@@ -5,7 +5,7 @@
 - 規則引擎：`internal/access/`（`rules.go` 模型、`compile.go` 編譯與索引、`prefilter.go` 字面量預篩、`evaluate.go` 評估）。
 - 請求閘門：`internal/adapter/http/client_control.go`；管理 API：`client_control_routes.go`、`client_control_openapi.go`。
 - 儲存：`internal/adapter/postgres/client_control.go`；應用服務 `internal/app/client_control.go`；契約 `internal/domain/client_control.go`。
-- 遷移：`000070_client_control`（`client_control_policy`、`client_rules`、`known_clients`、`known_client_sessions`、`client_control_hits`）。
+- 遷移：`000070_client_control`（`client_control_policy`、`client_rules`、`known_clients`、`known_client_sessions`、`client_control_hits`）；`000073_user_preferences` 另加部分索引 `client_rules_block_lookup_idx`（`dimension,pattern` WHERE 啟用的 `deny`），供已知客戶端列表判斷是否已屏蔽。
 - 緊急恢復：`jelee-cli access reset-policies --i-understand`（`cmd/jelee-cli/access.go`；G45.6 危險操作，必須帶確認旗標）。
 
 ## 規則模型
@@ -84,14 +84,14 @@
 | --- | --- | --- |
 | `GET/PUT /policy` | 未知客戶端預設策略、管理員豁免、環回豁免 | `client_control.policy_changed` |
 | `GET/POST /rules`、`GET/PUT/DELETE /rules/{id}` | 規則 CRUD；建立／修改前先用引擎編譯（無效樣式、正則過大、時間窗錯誤回 400）；上限 10,000 條規則、1,000 條啟用中的正則（409） | `client_control.rule_created`／`rule_updated`／`rule_deleted` |
-| `POST /rules/{id}/enforce`、`/observe` | 觀察 ↔ 攔截切換 | `client_control.rule_mode_changed` |
+| `POST /rules/{id}/enforce`、`/observe` | 觀察 ↔ 攔截切換；正文 `{}`（OpenAPI `Empty`） | `client_control.rule_mode_changed` |
 | `GET /hits` | 命中紀錄（遮罩後），可依規則、模式、時間篩選，游標分頁 | — |
 | `GET /hits/export` | 匯出最多 10,000 筆（遮罩後，JSON 附件）；超過回 409 `stats_export_limit` | `client_control.hits_exported` |
 | `GET /stats?hours=&top=` | 總數、被擋數、觀察數、依模式與動作、Top UA、Top IP、Top 規則（不含 `shadow`） | — |
-| `GET /clients` | 已知客戶端：名稱、版本、UA、裝置、種類、最後活躍、最後 IP、最後使用者、使用中的工作階段數 | — |
+| `GET /clients` | 已知客戶端：名稱、版本、UA、裝置、種類、最後活躍、最後 IP、最後使用者、使用中的工作階段數，以及 `blocked`／`blockRuleId`（存在與 `block` 相同識別的啟用、全域、無時間窗 `deny` 規則時為已屏蔽；其他屬性的拒絕規則不反映） | — |
 | `PATCH /clients/{id}` | 重新命名（`alias`）、標記可信（`trusted`） | `client_control.client_updated` |
-| `POST /clients/{id}/block` | 以裝置 ID（沒有時用 UA）建立精確比對的 `deny` 規則，優先序 100000 | `client_control.client_blocked` |
-| `POST /clients/{id}/kick` | 撤銷該客戶端用過的所有使用中工作階段（不阻止重新登入） | `client_control.client_kicked` |
+| `POST /clients/{id}/block` | 以裝置 ID（沒有時用 UA）建立精確比對的 `deny` 規則，優先序 100000；正文 `{}` | `client_control.client_blocked` |
+| `POST /clients/{id}/kick` | 撤銷該客戶端用過的所有使用中工作階段（不阻止重新登入）；正文 `{}` | `client_control.client_kicked` |
 
 已知客戶端的識別：有裝置 ID 時為「應用名＋裝置 ID」，否則為 UA；存成 SHA-256 摘要。只記錄**已驗證**請求，每個工作階段與識別每分鐘最多寫一次，表上限 100,000 筆（超過後只更新既有客戶端）。
 

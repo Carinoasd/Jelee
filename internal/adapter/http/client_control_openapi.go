@@ -91,7 +91,9 @@ func clientControlSpecification(paths, schemas map[string]any) {
 		"alias": map[string]any{"type": "string", "maxLength": 128}, "trusted": map[string]any{"type": "boolean", "description": "Approved by an administrator; escapes the unknown-client policy."},
 		"firstSeenAt": instant, "lastSeenAt": instant, "lastIp": map[string]any{"type": "string"}, "lastUserId": uuid,
 		"activeSessions": map[string]any{"type": "integer", "minimum": 0},
-	}, "id", "trusted", "firstSeenAt", "lastSeenAt", "activeSessions")
+		"blocked":        map[string]any{"type": "boolean", "description": "An enabled, global deny rule without a time window matches the identity POST .../block uses: the exact device ID, or the user agent when the client reports none. Deny rules on other attributes (address, regex, header) are not reflected."},
+		"blockRuleId":    map[string]any{"type": "string", "format": "uuid", "description": "Highest-priority such rule when blocked; deleting or disabling it unblocks the client."},
+	}, "id", "trusted", "firstSeenAt", "lastSeenAt", "activeSessions", "blocked")
 	schemas["KnownClientPage"] = objectSchema(map[string]any{"clients": map[string]any{"type": "array", "maxItems": 100, "items": schemaRef("KnownClient")}, "pagination": pagination}, "clients", "pagination")
 	schemas["KnownClientUpdate"] = objectSchema(map[string]any{
 		"alias":   map[string]any{"type": "string", "maxLength": 128, "description": "Empty removes the alias; omitted keeps it."},
@@ -118,8 +120,8 @@ func clientControlSpecification(paths, schemas map[string]any) {
 		{"/rules/{id}", "get", "Read a client rule with its hit count", "", "ClientRule", "200", nil},
 		{"/rules/{id}", "put", "Replace a client rule's settings; hit counters are kept; audited as client_control.rule_updated unless unchanged", "ClientRuleInput", "ClientRule", "200", nil},
 		{"/rules/{id}", "delete", "Delete a client rule; its hit records stay without the rule; audited as client_control.rule_deleted; empty body", "", "", "204", nil},
-		{"/rules/{id}/enforce", "post", "Switch an observe or shadow rule to enforcing its intent; no-op for an enforcing rule; audited as client_control.rule_mode_changed; body {}", "", "ClientRule", "200", nil},
-		{"/rules/{id}/observe", "post", "Switch an enforcing rule to observing its action; no-op for an observe or shadow rule; audited as client_control.rule_mode_changed; body {}", "", "ClientRule", "200", nil},
+		{"/rules/{id}/enforce", "post", "Switch an observe or shadow rule to enforcing its intent; no-op for an enforcing rule; audited as client_control.rule_mode_changed", "Empty", "ClientRule", "200", nil},
+		{"/rules/{id}/observe", "post", "Switch an enforcing rule to observing its action; no-op for an observe or shadow rule; audited as client_control.rule_mode_changed", "Empty", "ClientRule", "200", nil},
 		{"/hits", "get", "Page aggregated hit records newest first; addresses masked to /24 or /48, user agents truncated, no paths", "", "ClientHitPage", "200", append(append([]any{}, hitFilter...), cursor, limit)},
 		{"/hits/export", "get", "Export at most 10000 masked hit records newest first as a JSON attachment; more is refused with 409 stats_export_limit; audited as client_control.hits_exported", "", "ClientHitExport", "200", hitFilter},
 		{"/stats", "get", "Hit statistics: totals, by mode and action, top user agents, top addresses and top rules; shadow hits are excluded", "", "ClientHitStats", "200", []any{
@@ -128,8 +130,8 @@ func clientControlSpecification(paths, schemas map[string]any) {
 		}},
 		{"/clients", "get", "Page the clients seen on authenticated requests, most recently seen first", "", "KnownClientPage", "200", []any{cursor, limit}},
 		{"/clients/{id}", "patch", "Rename a known client or change its trust; trust takes effect on the next request; audited as client_control.client_updated unless unchanged", "KnownClientUpdate", "KnownClient", "200", nil},
-		{"/clients/{id}/block", "post", "Add an exact deny rule for the client's device ID, or its user agent when it reports none, at priority 100000; audited as client_control.client_blocked; body {}", "", "ClientRule", "201", nil},
-		{"/clients/{id}/kick", "post", "Revoke every active session the client used; it may log in again unless blocked; audited as client_control.client_kicked; body {}", "", "ClientKickResult", "200", nil},
+		{"/clients/{id}/block", "post", "Add an exact deny rule for the client's device ID, or its user agent when it reports none, at priority 100000; audited as client_control.client_blocked", "Empty", "ClientRule", "201", nil},
+		{"/clients/{id}/kick", "post", "Revoke every active session the client used; it may log in again unless blocked; audited as client_control.client_kicked", "Empty", "ClientKickResult", "200", nil},
 	}
 	for _, route := range routes {
 		path := "/api/v1/client-control" + route.path

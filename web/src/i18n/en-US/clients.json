@@ -146,6 +146,8 @@
       "hint": "Clients seen on signed-in requests, most recent first. Trusted clients are not subject to the unknown-client policy.",
       "empty": "No clients seen yet",
       "unnamed": "Unnamed client",
+      "blockedBadge": "Blocked",
+      "blockedHint": "A deny rule blocks this client. To unblock it, disable or delete that rule under Rules.",
       "trustedBadge": "Trusted",
       "version": "App and version",
       "device": "Device",

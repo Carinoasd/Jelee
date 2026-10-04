@@ -26,3 +26,17 @@ export async function updateProfile(client: ApiClient, profile: Profile): Promis
 export async function changePassword(client: ApiClient, oldPassword: string, newPassword: string): Promise<void> {
   await callNoContent(client.PUT("/api/v1/users/me/password", { body: { oldPassword, newPassword } }));
 }
+
+export type UserPreferences = components["schemas"]["UserPreferences"];
+
+/** The caller's stored interface preferences; defaults until first saved. */
+export async function getPreferences(client: ApiClient): Promise<UserPreferences> {
+  const body = await call(client.GET("/api/v1/users/me/preferences", {}));
+  return body.data;
+}
+
+/** Replaces the caller's interface preferences; every field is required. */
+export async function savePreferences(client: ApiClient, preferences: UserPreferences): Promise<UserPreferences> {
+  const body = await call(client.PUT("/api/v1/users/me/preferences", { body: preferences }));
+  return body.data;
+}

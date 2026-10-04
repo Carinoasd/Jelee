@@ -247,6 +247,48 @@ func TestServedOpenAPIMatchesCommittedSpecification(t *testing.T) {
 	}
 }
 
+// Handlers decode bodies strictly: an operation that wants {} must declare
+// it, or generated clients cannot send it. Only operations that read no body
+// at all may omit requestBody.
+func TestOpenAPIDeclaresRequestBodyForEveryWritingOperation(t *testing.T) {
+	bodiless := map[string]string{
+		"post /api/v1/setup/back":     "wizard navigation reads no body",
+		"post /api/v1/setup/complete": "wizard completion reads no body",
+	}
+	spec := Specification(ReferenceConfig())
+	seen := map[string]bool{}
+	for path, raw := range spec["paths"].(map[string]any) {
+		for method, op := range raw.(map[string]any) {
+			if method != "post" && method != "put" && method != "patch" {
+				continue
+			}
+			key := method + " " + path
+			if _, declared := op.(map[string]any)["requestBody"]; declared {
+				if _, listed := bodiless[key]; listed {
+					t.Errorf("%s declares a body but is listed as bodiless", key)
+				}
+				continue
+			}
+			if bodiless[key] == "" {
+				t.Errorf("%s declares no requestBody; declare Empty for {} bodies", key)
+			}
+			seen[key] = true
+		}
+	}
+	for key := range bodiless {
+		if !seen[key] {
+			t.Errorf("stale bodiless exemption %s", key)
+		}
+	}
+	for _, path := range []string{"/rules/{id}/enforce", "/rules/{id}/observe", "/clients/{id}/block", "/clients/{id}/kick"} {
+		op := spec["paths"].(map[string]any)["/api/v1/client-control"+path].(map[string]any)["post"].(map[string]any)
+		schema := op["requestBody"].(map[string]any)["content"].(map[string]any)["application/json"].(map[string]any)["schema"]
+		if !reflect.DeepEqual(schema, schemaRef("Empty")) {
+			t.Errorf("%s body = %v, want Empty", path, schema)
+		}
+	}
+}
+
 func TestOpenAPIDescribesErrorEnvelopeAndCodes(t *testing.T) {
 	spec := Specification(ReferenceConfig())
 	schemas := spec["components"].(map[string]any)["schemas"].(map[string]any)
