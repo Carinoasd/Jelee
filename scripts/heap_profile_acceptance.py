@@ -22,18 +22,28 @@ MAX_PROFILE_BYTES = 8 * 1024 * 1024
 MAX_EXPANDED_BYTES = 64 * 1024 * 1024
 MAX_RAW_BYTES = 16 * 1024 * 1024
 MAX_TOP_BYTES = 64 * 1024
+# Upper bound for the redacted top-report excerpt kept in the state file.
+MAX_EXCERPT_CHARS = 8 * 1024
 _MAX_UINT64 = (1 << 64) - 1
 _MAX_INT64 = (1 << 63) - 1
 _STAGES = ("before", "after")
 
 
 class Rejected(ValueError):
-    """A fixed code, never an input value, filename, or child error."""
+    """A fixed code, never an input value, filename, or child error.
+
+    ``reason`` is an optional fixed token naming the failed check; it is safe
+    to publish because it never contains input text.
+    """
+
+    def __init__(self, code, reason=None):
+        super().__init__(code)
+        self.reason = reason
 
 
-def _need(condition):
+def _need(condition, reason=None):
     if not condition:
-        raise Rejected(INVALID_EVIDENCE)
+        raise Rejected(INVALID_EVIDENCE, reason)
 
 
 def _integer(value, minimum=0, maximum=_MAX_UINT64):
@@ -108,20 +118,57 @@ def validate_heap_file(path, metadata):
 
 
 def _private_text(body, limit, forbidden_prefixes, secret_markers):
-    _need(type(body) is bytes and 0 < len(body) <= limit)
+    _need(type(body) is bytes and 0 < len(body) <= limit, "text_size")
     try:
         text = body.decode("utf-8", errors="strict")
     except UnicodeError:
-        raise Rejected(INVALID_EVIDENCE) from None
-    _need(all(c in "\n\r\t" or ord(c) >= 32 for c in text))
+        raise Rejected(INVALID_EVIDENCE, "text_encoding") from None
+    _need(all(c in "\n\r\t" or ord(c) >= 32 for c in text), "text_control")
     normalized = text.replace("\\", "/").casefold()
-    defaults = ("c:/users/", "/mnt/c/users/", "/home/", "/users/", "postgres://", "postgresql://")
-    for values in (forbidden_prefixes, secret_markers):
-        _need(type(values) in (list, tuple) and len(values) <= 128)
-        _need(all(type(value) is str and 0 < len(value) <= 4096 for value in values))
-    for value in (*defaults, *forbidden_prefixes, *secret_markers):
-        _need(value.replace("\\", "/").casefold() not in normalized)
+    for value in _private_markers(forbidden_prefixes, secret_markers):
+        _need(value.replace("\\", "/").casefold() not in normalized, "text_private_marker")
     return text
+
+
+_DEFAULT_PRIVATE = ("c:/users/", "/mnt/c/users/", "/home/", "/users/", "postgres://", "postgresql://")
+
+
+def _private_markers(forbidden_prefixes, secret_markers):
+    for values in (forbidden_prefixes, secret_markers):
+        _need(type(values) in (list, tuple) and len(values) <= 128, "marker_list")
+        _need(all(type(value) is str and 0 < len(value) <= 4096 for value in values), "marker_list")
+    return (*_DEFAULT_PRIVATE, *forbidden_prefixes, *secret_markers)
+
+
+def _redacted_excerpt(body, forbidden_prefixes, secret_markers):
+    """Return a bounded, redacted copy of a top report for failure evidence.
+
+    Only complete lines are kept, every private marker is replaced together
+    with the rest of its token, and the result is re-checked with the same
+    rule as _private_text. Returns None when anything cannot be made safe.
+    """
+    try:
+        markers = _private_markers(forbidden_prefixes, secret_markers)
+        _need(type(body) is bytes and 0 < len(body) <= MAX_TOP_BYTES)
+        # A partial output may end inside a token; drop the incomplete line.
+        body = body[:body.rfind(b"\n") + 1]
+        text = body.decode("utf-8", errors="replace")
+        text = "".join(c if c in "\n\t" or 32 <= ord(c) != 127 else "?" for c in text)
+        for marker in sorted(markers, key=len, reverse=True):
+            pattern = "".join("[\\\\/]" if c in "\\/" else re.escape(c) for c in marker)
+            text = re.sub(pattern + r"[^\s\"]*", "[redacted]", text, flags=re.IGNORECASE)
+        # Absolute and drive-qualified paths are never needed for diagnosis.
+        text = re.sub(r'(?<![^\s"])/[^\s"]*', "[redacted]", text)
+        text = re.sub(_DRIVE_PATH.pattern + r'[^\s"]*', "[redacted]", text)
+        truncated = len(text) > MAX_EXCERPT_CHARS
+        if truncated:
+            text = text[:text.rfind("\n", 0, MAX_EXCERPT_CHARS) + 1]
+        normalized = text.replace("\\", "/").casefold()
+        if not text or any(m.replace("\\", "/").casefold() in normalized for m in markers):
+            return None
+        return {"outputExcerpt": text, "outputExcerptTruncated": truncated}
+    except (Rejected, TypeError, ValueError, re.error):
+        return None
 
 
 def validate_heap_raw(body, metadata, forbidden_prefixes=(), secret_markers=()):
@@ -156,43 +203,51 @@ def validate_heap_raw(body, metadata, forbidden_prefixes=(), secret_markers=()):
 
 
 def _bytes_token(value):
-    _need(len(value) <= 32)
+    _need(len(value) <= 32, "top_bytes")
     if value == "0":
         return 0
-    _need(re.fullmatch(r"-?\d+(?:\.\d{1,2})?B", value) is not None)
+    _need(re.fullmatch(r"-?\d+(?:\.\d{1,2})?B", value) is not None, "top_bytes")
     number = Decimal(value[:-1])
-    _need(number == number.to_integral_value() and abs(number) <= _MAX_INT64)
+    _need(number == number.to_integral_value() and abs(number) <= _MAX_INT64, "top_bytes")
     return int(number)
 
 
 def _percentage(value):
-    _need(value.endswith("%") and len(value) <= 32)
+    _need(value.endswith("%") and len(value) <= 32, "top_percentage")
     try:
         number = Decimal(value[:-1])
     except InvalidOperation:
-        raise Rejected(INVALID_EVIDENCE) from None
-    _need(number.is_finite())
+        raise Rejected(INVALID_EVIDENCE, "top_percentage") from None
+    _need(number.is_finite(), "top_percentage")
+
+
+# A drive-qualified path such as C:\ or C:/ (also its Go-quoted form C:\\).
+# A letter, colon, backslash and quote is instead the escaped struct tag key
+# that Go prints inside generic shape names, e.g. go.shape.struct { ID string
+# "json:\"id\"" }; it is a type name, not a path.
+_DRIVE_PATH = re.compile(r'[A-Za-z]:(?:/|\\(?!"))')
 
 
 def summarize_heap_top(body, forbidden_prefixes=(), secret_markers=()):
     text = _private_text(body, MAX_TOP_BYTES, forbidden_prefixes, secret_markers)
     lines = text.splitlines()
-    _need(lines.count("Type: inuse_space") == 1)
+    _need(lines.count("Type: inuse_space") == 1, "top_type")
     headers = [index for index, line in enumerate(lines) if line.split() == ["flat", "flat%", "sum%", "cum", "cum%"]]
-    _need(len(headers) == 1)
+    _need(len(headers) == 1, "top_header")
     totals = [re.fullmatch(r"Showing nodes accounting for (\S+), (\S+) of (\S+) total", line) for line in lines]
     totals = [match for match in totals if match is not None]
-    _need(len(totals) == 1)
-    _bytes_token(totals[0].group(1))
+    _need(len(totals) == 1, "top_total")
+    shown = _bytes_token(totals[0].group(1))
     _percentage(totals[0].group(2))
     magnitude = _bytes_token(totals[0].group(3))
-    _need(magnitude >= 0)
+    _need(magnitude >= 0, "top_total")
     functions = []
     for line in lines[headers[0] + 1:]:
         if not line.strip():
             continue
         fields = line.split(maxsplit=5)
-        _need(len(fields) == 6 and len(functions) < 20)
+        _need(len(fields) == 6, "top_row_fields")
+        _need(len(functions) < 20, "top_row_count")
         flat, cumulative = _bytes_token(fields[0]), _bytes_token(fields[3])
         for index in (1, 2, 4):
             _percentage(fields[index])
@@ -200,12 +255,15 @@ def summarize_heap_top(body, forbidden_prefixes=(), secret_markers=()):
         inline = name.endswith(" (inline)")
         if inline:
             name = name.removesuffix(" (inline)")
-        _need(0 < len(name) <= 1024 and all(32 <= ord(c) < 127 for c in name))
-        _need(not name.startswith(("/", "\\")) and "://" not in name and re.search(r"[A-Za-z]:[\\/]", name) is None)
+        _need(0 < len(name) <= 1024 and all(32 <= ord(c) < 127 for c in name), "top_function_name")
+        _need(not name.startswith(("/", "\\")) and "://" not in name and _DRIVE_PATH.search(name) is None,
+              "top_function_name")
         functions.append({"function": name, "flatBytes": flat, "cumulativeBytes": cumulative, "inline": inline})
     # pprof's diff report total is the sum of absolute sample values, not its
     # signed net change. The latter is computed from the two raw profiles.
-    return {"sampleType": "inuse_space", "unit": "bytes", "totalMagnitudeBytes": magnitude, "functions": functions}
+    # The shown sum is signed in a diff and may be negative or zero.
+    return {"sampleType": "inuse_space", "unit": "bytes", "totalMagnitudeBytes": magnitude,
+            "shownBytes": shown, "functions": functions}
 
 
 def _run_bounded(argv, cwd, env, output_path, max_stdout, timeout=30):
@@ -247,16 +305,21 @@ def _run_bounded(argv, cwd, env, output_path, max_stdout, timeout=30):
                     process.wait(timeout=min(0.05, max(0.001, deadline - time.monotonic())))
                 except subprocess.TimeoutExpired:
                     pass
-            if process.poll() is None:
+            timed_out = process.poll() is None
+            if timed_out:
                 failed.set()
                 process.kill()
             process.wait()
             for reader in readers:
                 reader.join()
-            _need(not failed.is_set() and process.returncode == 0)
+            _need(not timed_out, "child_timeout")
+            _need(not failed.is_set(), "child_output")
+            _need(process.returncode == 0, "child_exit")
         return {"stdoutBytes": counts[0], "stderrBytes": counts[1], "exitCode": 0}
+    except Rejected:
+        raise
     except (OSError, ValueError, subprocess.SubprocessError):
-        raise Rejected(INVALID_EVIDENCE) from None
+        raise Rejected(INVALID_EVIDENCE, "child_start") from None
     finally:
         if process is not None:
             if process.poll() is None:
@@ -316,22 +379,45 @@ def analyze_heap_profiles(pprof_tool, before_path, after_path, metadata, private
             state["steps"].append(step)
             _write_state(directory, state)
             output = directory / (name + ".private.txt")
-            outcome = _run_bounded([str(tool), *arguments], directory, env, output, limit)
-            body = _regular_bytes(output, limit)
-            if name.endswith("-raw"):
-                raw_summaries.append(validate_heap_raw(body, records[len(raw_summaries)], forbidden_prefixes, secret_markers))
-            else:
-                tops[name.removesuffix("-top")] = summarize_heap_top(body, forbidden_prefixes, secret_markers)
-            step.update(status="passed", **outcome)
+            try:
+                outcome = _run_bounded([str(tool), *arguments], directory, env, output, limit)
+                step.update(phase="validation", **outcome)
+                body = _regular_bytes(output, limit)
+                if name.endswith("-raw"):
+                    raw_summaries.append(validate_heap_raw(body, records[len(raw_summaries)], forbidden_prefixes, secret_markers))
+                else:
+                    tops[name.removesuffix("-top")] = summarize_heap_top(body, forbidden_prefixes, secret_markers)
+            except Rejected as error:
+                if error.reason is not None:
+                    step["reason"] = error.reason
+                # Top reports hold only labels and function names; keep a
+                # redacted, bounded copy so a failure can be diagnosed from
+                # the published state. Raw reports may hold source paths and
+                # are never excerpted.
+                if name.endswith("-top"):
+                    try:
+                        flags = os.O_RDONLY | getattr(os, "O_BINARY", 0) | getattr(os, "O_NOFOLLOW", 0)
+                        with os.fdopen(os.open(output, flags), "rb") as stream:
+                            excerpt = _redacted_excerpt(stream.read(MAX_TOP_BYTES), forbidden_prefixes, secret_markers)
+                    except OSError:
+                        excerpt = None
+                    step.update(excerpt or {"outputExcerptWithheld": True})
+                raise
+            del step["phase"]
+            step.update(status="passed")
             _write_state(directory, state)
         # Detect files changed during analysis; do not publish mixed artifacts.
         for path, record in zip(paths, records):
             validate_heap_file(path, record)
+        net = raw_summaries[1]["sampledInuseBytes"] - raw_summaries[0]["sampledInuseBytes"]
         result = {"version": 1, "result": "passed", "sampleType": "inuse_space", "unit": "bytes",
                   "sampled": True, "privacyChecked": True, "profiles": files,
                   "before": {**raw_summaries[0], **tops["before"]},
                   "after": {**raw_summaries[1], **tops["after"]},
-                  "diff": {**tops["diff"], "netDeltaBytes": raw_summaries[1]["sampledInuseBytes"] - raw_summaries[0]["sampledInuseBytes"]}}
+                  "diff": {**tops["diff"], "netDeltaBytes": net,
+                           # A shrinking or unchanged heap is a valid outcome,
+                           # recorded rather than treated as a failure.
+                           "netDirection": "increased" if net > 0 else "decreased" if net < 0 else "unchanged"}}
         state.update(result="passed", stage="complete")
         _write_state(directory, state)
         return result
