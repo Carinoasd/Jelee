@@ -26,7 +26,7 @@
 |---|---|---|---|
 | B1 | 啟動暫存清掃的存活判斷（程序建立時間）| `internal/platform/scratch/owner_windows.go` | 待跑 |
 | B2 | NFO 結算原語：開啟中的檔案能否 rename、目錄 sync 是 no-op | `internal/adapter/nfo/settle_commit_files.go` | 待跑 |
-| B3 | 圖片持久存放區：開啟中的檔案無法刪除時，`ClearVariants` 與淘汰的行為。**2026-10-04 Windows CI 已證實**：有變體正被讀取時，`ClearVariants` 因 Windows 不允許改名含開啟檔案的目錄而失敗；修正中，修好後請實機複驗 | `internal/adapter/images/store.go` | 修正中 |
+| B3 | 圖片持久存放區：開啟中的檔案無法刪除時，`ClearVariants` 與淘汰的行為。**2026-10-04 Windows CI 已證實**：有變體正被讀取時，舊版 `ClearVariants` 把整個 `variants` 改名到 `tmp/trash-*`，因 Windows 不允許改名含開啟檔案的目錄而失敗。**修法**：版面改為 `variants/<世代>/<來源>/<key>`；清除改成建立下一個世代目錄（持久提交點）並同時切換現役世代、清空索引，再逐檔刪除舊世代，全程不改名目錄。刪不掉的檔案留在舊世代、之後的清除與每次啟動重試；重啟只收錄編號最大的世代，舊變體不會復活。Linux 上以注入的「拒絕改名目錄、釘住檔案」規則模擬並測過。實機請跑 `go test -p 1 -count=1 -run "Store" ./internal/adapter/images/`（含 `TestStoreClearVariantsKeepsOriginalsAndRebuilds`，Windows 上已不再豁免讀取者內容比對），再實際在讀取變體時呼叫清除快取 | `internal/adapter/images/store.go` | 待實機複驗 |
 | B4 | 新解碼格式（WebP、GIF、BMP、TIFF）與 EXIF 方向 | `internal/adapter/images/decode_formats.go` | 待跑 |
 | B5 | doctor 的 Windows 磁碟降級路徑（無 inode） | `internal/diag/` | 待跑 |
 | B6 | 直投在 Windows 走緩衝備援路徑（無 sendfile）：實機跑 `go test ./internal/adapter/media/`，並實際播放、拖動一次 | `docs/direct-delivery.md`「零拷贝直投」 | 待跑 |

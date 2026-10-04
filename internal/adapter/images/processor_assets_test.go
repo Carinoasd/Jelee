@@ -360,7 +360,7 @@ func TestImageEvictVariantsFollowsIndex(t *testing.T) {
 	}
 	for i, key := range keys {
 		_, inIndex := index.rows[fakeVariantID(content, key)]
-		_, statErr := os.Stat(filepath.Join(storeRoot, storeVariantPath(content, key)))
+		_, statErr := os.Stat(filepath.Join(storeRoot, storeVariantPath(store, content, key)))
 		evicted := i == 0 || i == 2 || i == 3
 		if inIndex == evicted || (statErr == nil) == evicted {
 			t.Fatalf("variant %d index=%v file=%v evicted=%v", i, inIndex, statErr == nil, evicted)
@@ -420,7 +420,7 @@ func TestImageProcessorEvictsThroughIndexAboveHighWater(t *testing.T) {
 	index.mu.Lock()
 	defer index.mu.Unlock()
 	for _, row := range index.rows {
-		if _, err := os.Stat(filepath.Join(root, storeVariantPath(row.ContentSHA256, row.VariantKey))); err != nil {
+		if _, err := os.Stat(filepath.Join(root, storeVariantPath(store, row.ContentSHA256, row.VariantKey))); err != nil {
 			t.Fatal("index names a removed variant")
 		}
 	}

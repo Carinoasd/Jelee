@@ -88,8 +88,9 @@ func storeRead(t *testing.T, object *StoreObject) []byte {
 	return data
 }
 
-func storeVariantPath(source, variant [32]byte) string {
-	return "variants/" + hex.EncodeToString(source[:]) + "/" + hex.EncodeToString(variant[:])
+// storeVariantPath names a variant in the store's live generation.
+func storeVariantPath(store *Store, source, variant [32]byte) string {
+	return "variants/" + storeGenerationName(store.generation.Load()) + "/" + hex.EncodeToString(source[:]) + "/" + hex.EncodeToString(variant[:])
 }
 
 func TestStoreOriginalsAreContentAddressedAndDeduplicated(t *testing.T) {
@@ -146,7 +147,7 @@ func TestStoreVariantsRoundTripAndKeysBindParameters(t *testing.T) {
 		t.Fatal("variant round trip", err)
 	}
 	files := storeFiles(t, fixture.root)
-	if !slices.Equal(files, []string{storeVariantPath(source, large), storeVariantPath(source, small)}) && !slices.Equal(files, []string{storeVariantPath(source, small), storeVariantPath(source, large)}) {
+	if !slices.Equal(files, []string{storeVariantPath(store, source, large), storeVariantPath(store, source, small)}) && !slices.Equal(files, []string{storeVariantPath(store, source, small), storeVariantPath(store, source, large)}) {
 		t.Fatal("unexpected variant layout", files)
 	}
 	if store.Stats().VariantBytes != 2*storeHeaderBytes+11 {
@@ -291,7 +292,7 @@ func TestStoreCorruptObjectsMissAndRebuild(t *testing.T) {
 			if _, err := store.PutVariant(context.Background(), source, key, bytes.NewReader(content), 1024); err != nil {
 				t.Fatal(err)
 			}
-			path := filepath.Join(fixture.root, filepath.FromSlash(storeVariantPath(source, key)))
+			path := filepath.Join(fixture.root, filepath.FromSlash(storeVariantPath(store, source, key)))
 			storeCorrupt(t, path, change)
 			before := store.Stats().Corrupt
 			if _, err := store.OpenVariant(context.Background(), source, key); !errors.Is(err, domain.ErrNotFound) {
@@ -345,7 +346,7 @@ func TestStoreCorruptObjectsMissAndRebuild(t *testing.T) {
 	if err := store.Close(context.Background()); err != nil {
 		t.Fatal(err)
 	}
-	storeCorrupt(t, filepath.Join(fixture.root, filepath.FromSlash(storeVariantPath(source, key))), func(data []byte) []byte { data[len(data)-1] ^= 1; return data })
+	storeCorrupt(t, filepath.Join(fixture.root, filepath.FromSlash(storeVariantPath(store, source, key))), func(data []byte) []byte { data[len(data)-1] ^= 1; return data })
 	reopened := openTestStore(t, fixture.options(1<<20, 1<<20, 16))
 	if _, err := reopened.OpenVariant(context.Background(), source, key); !errors.Is(err, domain.ErrNotFound) {
 		t.Fatal("corrupt variant served after restart", err)
@@ -397,7 +398,7 @@ func TestStoreEvictsLeastRecentlyUsedWithinBounds(t *testing.T) {
 	if _, err := store.OpenVariant(context.Background(), source, keys[1]); !errors.Is(err, domain.ErrNotFound) {
 		t.Fatal("least recently used variant kept", err)
 	}
-	if _, err := os.Stat(filepath.Join(fixture.root, filepath.FromSlash(storeVariantPath(source, keys[1])))); !errors.Is(err, fs.ErrNotExist) {
+	if _, err := os.Stat(filepath.Join(fixture.root, filepath.FromSlash(storeVariantPath(store, source, keys[1])))); !errors.Is(err, fs.ErrNotExist) {
 		t.Fatal("evicted file kept", err)
 	}
 	if !bytes.Equal(storeRead(t, held), bytes.Repeat([]byte{0}, 10)) {
@@ -465,7 +466,7 @@ func TestStoreClearVariantsKeepsOriginalsAndRebuilds(t *testing.T) {
 	if _, err := store.PutVariant(context.Background(), digest, key, bytes.NewReader([]byte("variant")), 1024); err != nil {
 		t.Fatal(err)
 	}
-	foreign := filepath.Join(fixture.root, "variants", hex.EncodeToString(digest[:]), "operator-note")
+	foreign := filepath.Join(fixture.root, filepath.Dir(filepath.FromSlash(storeVariantPath(store, digest, key))), "operator-note")
 	if err := os.WriteFile(foreign, []byte("keep"), 0600); err != nil {
 		t.Fatal(err)
 	}
@@ -476,7 +477,9 @@ func TestStoreClearVariantsKeepsOriginalsAndRebuilds(t *testing.T) {
 	if err := store.ClearVariants(context.Background()); err != nil {
 		t.Fatal(err)
 	}
-	if runtime.GOOS != "windows" && !bytes.Equal(storeRead(t, held), []byte("variant")) {
+	// Clearing removes the file under the reader on every platform: os.Root
+	// opens with FILE_SHARE_DELETE and removes with POSIX semantics on NTFS.
+	if !bytes.Equal(storeRead(t, held), []byte("variant")) {
 		t.Fatal("held variant changed during clear")
 	}
 	if _, err := store.OpenVariant(context.Background(), digest, key); !errors.Is(err, domain.ErrNotFound) {
@@ -658,7 +661,7 @@ func TestStoreConcurrentWritersKeepOneCopy(t *testing.T) {
 		t.Fatal(err)
 	}
 	name := hex.EncodeToString(source[:])
-	want := []string{"originals/" + name[:2] + "/" + name, storeVariantPath(source, key)}
+	want := []string{"originals/" + name[:2] + "/" + name, storeVariantPath(store, source, key)}
 	if files := storeFiles(t, fixture.root); !slices.Equal(files, want) {
 		t.Fatal("concurrent writers left extra files", files)
 	}
@@ -741,9 +744,22 @@ func TestStoreCancellationAndClose(t *testing.T) {
 }
 
 func TestStoreConcurrentEvictionAndClearStayConsistent(t *testing.T) {
+	storeConcurrentEvictionAndClear(t, nil)
+}
+
+// Directory renames are refused as on Windows while readers hold variants.
+func TestStoreConcurrentEvictionAndClearUnderWindowsRules(t *testing.T) {
+	storeConcurrentEvictionAndClear(t, newStoreWindowsRules().install)
+}
+
+func storeConcurrentEvictionAndClear(t *testing.T, configure func(*Store)) {
 	fixture := newStoreFixture(t)
 	object := storeHeaderBytes + 64
-	store := openTestStore(t, fixture.options(1<<20, 8*object, 6))
+	store, err := openStoreWith(context.Background(), fixture.options(1<<20, 8*object, 6), configure)
+	if err != nil {
+		t.Fatal("open store", err)
+	}
+	t.Cleanup(func() { _ = store.Close(context.Background()) })
 	sources := [3][32]byte{{1}, {2}, {3}}
 	var wait sync.WaitGroup
 	errs := make(chan error, 64)
@@ -789,7 +805,7 @@ func TestStoreConcurrentEvictionAndClearStayConsistent(t *testing.T) {
 	indexed := len(store.classes[storeVariants].entries)
 	bytesIndexed := store.classes[storeVariants].bytes
 	for key := range store.classes[storeVariants].entries {
-		if !slices.Contains(files, storeVariantPath(key.source, key.variant)) {
+		if !slices.Contains(files, storeVariantPath(store, key.source, key.variant)) {
 			t.Error("indexed variant missing on disk")
 		}
 	}

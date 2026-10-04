@@ -74,14 +74,17 @@
   - 配置项会被验证，但请求路径还没有调用 `OpenStore`，所以目前不会在该目录建立任何东西。
   - 接上以后的布局：
     - `originals/<sha256[:2]>/<sha256>`：按内容寻址的原图
-    - `variants/<来源 sha256>/<key>`：48 字节标头 `JLVAR01\n` 加衍生图
+    - `variants/<世代 16hex>/<来源 sha256>/<key>`：48 字节标头 `JLVAR01\n` 加衍生图。只有编号最大的世代是现役；较旧的世代和旧版没有世代层的 `variants/<来源 sha256>/` 都是已清除的内容，只会被删除，绝不会被收录
     - `tmp/put-<64hex>.partial`：写入暂存
-    - `tmp/trash-<64hex>/`：正在清空的 variants 树
+    - `tmp/trash-<64hex>/`：旧版清空 variants 时留下的分离树，只做清理
   - 上限：`JELEE_IMAGE_STORE_ORIGINAL_BYTES` 默认 4 GiB、`JELEE_IMAGE_STORE_VARIANT_BYTES` 默认 1 GiB，`JELEE_IMAGE_STORE_ENTRIES` 默认每类 131072。
   - `OpenStore` 会：
+    - 选编号最大的世代为现役（没有就建立第 1 世代）；
     - 清掉 `tmp/` 里自己命名的残留，每次最多 128 个 trash 树；
     - 从文件 metadata 重建内存索引，LRU 顺序就是文件 mtime；
-    - 删除损坏、超量的条目。
+    - 删除损坏、超量的条目；
+    - 删除旧世代里自己命名的文件，删不掉的（例如在 Windows 上被其他程序以不共享删除的方式开着）留到下次清除或启动再试。
+  - `ClearVariants` 不改名目录：先建立下一个世代目录作为持久提交点，再同时切换现役世代、清空索引，最后逐文件删除旧世代。Windows 不允许改名里面有开启中文件的目录，所以旧做法（整个 `variants` 改名到 `tmp/trash-*`）在有变体正被读取时会失败。
   - 其他名称一律视为外来文件，只计数、不碰。整个目录可以在停机时删除，只会损失缓存。
 
 ## 暂存与崩溃残留
