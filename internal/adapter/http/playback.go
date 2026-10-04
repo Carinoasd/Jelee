@@ -62,6 +62,9 @@ func (s *Server) playbackInfo(w http.ResponseWriter, r *http.Request) {
 			track.URL = trackURL(sources[i].ID, track.Kind, track.ID)
 		}
 		s.decorateExtracted(&sources[i])
+		if principal, ok := access.PrincipalFromContext(r.Context()); ok {
+			s.decorateOCR(ctx, principal, &sources[i])
+		}
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"data": map[string]any{"itemId": id, "delivery": playbackDelivery, "sources": sources}})
 }

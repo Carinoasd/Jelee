@@ -142,6 +142,22 @@ vet、三命令 build、模組 checksum、格式、增量品牌與 gitignore 通
 | `jelee_storage_available_bytes{volume}` | gauge | 設定目錄所在檔案系統可供服務使用的 bytes |
 | `jelee_storage_size_bytes{volume}` | gauge | 該檔案系統總 bytes |
 
+字幕 OCR（G15.6，預設關閉）啟用且 Tesseract 執行環境驗證通過時另有下列指標，同樣從記憶體讀取（見[字幕 OCR](subtitle-ocr.md)）：
+
+| Prometheus 名稱 | 型別 | 意義 |
+| --- | --- | --- |
+| `jelee_subtitle_ocr_queued` | gauge | 等待 OCR 的來源數 |
+| `jelee_subtitle_ocr_running` | gauge | 正在 OCR 的來源數（0 或 1） |
+| `jelee_subtitle_ocr_jobs_completed_total` | counter | 完成的 OCR 工作（來源）數 |
+| `jelee_subtitle_ocr_jobs_failed_total` | counter | 失敗的 OCR 工作數（同一修訂 10 分鐘內不重排） |
+| `jelee_subtitle_ocr_jobs_dropped_total` | counter | 佇列滿而丟棄的請求數（下次查詢會再排） |
+| `jelee_subtitle_ocr_pictures_total` | counter | 解碼出的點陣字幕圖片數 |
+| `jelee_subtitle_ocr_recognized_total` | counter | 實際交給 Tesseract 辨識的圖片數 |
+| `jelee_subtitle_ocr_reused_total` | counter | 與同軌先前圖片完全相同、沿用結果的圖片數 |
+| `jelee_subtitle_ocr_rejected_total` | counter | Tesseract 拒絕或逾時的圖片數（該句略過） |
+| `jelee_subtitle_ocr_skipped_total` | counter | 解碼器判為損壞而略過的圖片數 |
+| `jelee_subtitle_ocr_throttled_total` | counter | 因每分鐘上限而等待的圖片數 |
+
 `volume` 是設定鍵名而非路徑，與 `jelee-cli doctor` 的磁碟檢查一致：`tempdir`、`images.tempRoot`、`images.storeRoot`、`logging.file`（只列出已設定者）。檔案系統讀數在收集之外的背景更新，每個目錄最多每 30 秒讀一次、同時只有一個讀取在進行；檔案系統卡住時抓取照常回應、沿用上次讀數，讀不到的目錄不輸出。
 
 工作指標的 `kind` 標籤增加 `consistency_check`（遷移 000074），共用工作指標固定 10 組 kind／priority、30 個 outcome 點；測試中的工作 exposition 為 22 families／385 series、約 39 KiB，仍在 64 KiB 上限內。

@@ -97,6 +97,20 @@ Jelee 不需要 Redis：快取都在各實例的記憶體內，以版本號、�
 
 **E4（2026-10-04）**：映像另含固定的 mkvtoolnix 102.0（只有 mkvmerge、mkvextract 與 22 個隨附函式庫）、MediaInfo 26.05 與 Debian libstdc++6／zlib1g／libgmp10，建置前需 `make bootstrap-matroska`；`tools/runtime-image` 在建置時逐位元組核對全部 49 個固定檔案。正式映像仍不含 ffmpeg、mkvpropedit 或 shell。擷取預設關閉，以 `JELEE_ENABLE_MATROSKA_EXTRACTION=true` 與私有的 `JELEE_MATROSKA_CACHE_ROOT` 開啟。本地實測（非 root、唯讀根）見[證據](evidence/matroska-runtime-image.txt)與 [mkvtoolnix 與 MediaInfo](matroska-tools.md)。
 
+**字幕 OCR（G15.6，2026-10-05，預設關閉）**：把 Matroska 內的 PGS／VobSub 點陣字幕辨識成額外的 SRT 軌（原點陣軌照舊原樣直投，原檔不改）。需要 OCR 層映像：`make bootstrap-ocr` 後先建預設映像，再 `docker build -f deploy/ocr/Dockerfile --build-arg JELEE_IMAGE=jelee:local -t jelee:ocr .`（建置時 `tools/runtime-image -ocr` 逐位元組核對 110 個檔案；預設映像不含 Tesseract）。設定：
+
+| 環境變數 | 預設 | 說明 |
+| --- | --- | --- |
+| `JELEE_ENABLE_SUBTITLE_OCR` | `false` | 開啟；需同時 `JELEE_ENABLE_MATROSKA_EXTRACTION=true` 與 `JELEE_MATROSKA_CACHE_ROOT` |
+| `JELEE_SUBTITLE_OCR_CACHE_ROOT` | — | 必填；私有（0700）絕對目錄，不可與 Matroska 快取相同或互相包含 |
+| `JELEE_SUBTITLE_OCR_CACHE_MAX_BYTES` | 268435456 | 16 MiB–1 TiB |
+| `JELEE_SUBTITLE_OCR_LANGUAGES` | `eng` | 逗號分隔：`eng`、`chi_tra`、`chi_sim`、`jpn` |
+| `JELEE_SUBTITLE_OCR_PICTURES_PER_MINUTE` | 60 | 1–6000，任一滾動 60 秒內的上限 |
+| `JELEE_SUBTITLE_OCR_CONCURRENCY` | 1 | 1–4 個同時的 Tesseract 行程（每個單執行緒、峰值約 100–175 MiB） |
+| `JELEE_SUBTITLE_OCR_QUEUE_SIZE` | 16 | 等待中的來源數上限 |
+
+原生用戶端讀播放資訊時排入背景辨識，完成後自有 API 的字幕軌多一個 `ocr` 物件、相容層多一條標題加註「(OCR)」的外掛 SRT。工具缺席或被改時 OCR 停用並記 `subtitle_ocr_runtime_unavailable`，`jelee-cli doctor --checks subtitle_ocr` 回報狀態。準確率、資源開銷與限制見 [字幕 OCR](subtitle-ocr.md)，容器實測見[證據](evidence/ocr-runtime-image.txt)。
+
 ## 探索埠與防火牆
 
 現有 Go 容器僅需發布設定的 HTTP 埠，PostgreSQL 保持內部網路；不發布 UDP 1900／7359，不需 SSDP 多播或路由器自動開埠。反向代理連至設定的 HTTP listener，客戶端自行輸入服務網址。防火牆僅允許實際使用的 HTTP／HTTPS 入口；不要為服務新增探索埠規則。

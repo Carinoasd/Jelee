@@ -15944,6 +15944,216 @@ export type paths = {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/sources/{id}/ocr-subtitles/{index}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read a SubRip subtitle recognized from a bitmap subtitle by OCR
+         * @description Native sessions only; web sessions get 403 web_playback_disabled. index is the probe stream index of a PGS or VobSub track of a Matroska source listed with an ocr object under subtitleTracks of GET /api/v1/items/{id}/playback. Subtitle OCR (G15.6, off by default) recognizes the track's pictures in the background with the optional, sandboxed Tesseract runtime, rate limited and with bounded concurrency, and keeps the result as an additional SRT in a rebuildable cache; the bitmap track and the original file are never changed or replaced, and the bitmap track is still delivered only as it is. Until the result exists, and for a missing, invisible or non-bitmap track, the answer is that of a missing source. Content-Type is application/x-subrip; charset=UTF-8. Range, HEAD, conditional requests, playback and bandwidth limits and revocation behave as for /api/v1/sources/{id}/stream. Responses carry X-Content-Type-Options: nosniff and a sandbox Content-Security-Policy.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: {
+                    "If-Range"?: string;
+                    Range?: string;
+                };
+                path: {
+                    id: string;
+                    index: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description HTTP 200 */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description HTTP 206 */
+                206: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description HTTP 403 */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 404 */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 408 */
+                408: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 409 */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 416 */
+                416: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 503 */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Jelee error envelope with code, message, details and traceId; see the Error schema. */
+                default: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        /**
+         * Read a SubRip subtitle recognized from a bitmap subtitle by OCR
+         * @description Native sessions only; web sessions get 403 web_playback_disabled. index is the probe stream index of a PGS or VobSub track of a Matroska source listed with an ocr object under subtitleTracks of GET /api/v1/items/{id}/playback. Subtitle OCR (G15.6, off by default) recognizes the track's pictures in the background with the optional, sandboxed Tesseract runtime, rate limited and with bounded concurrency, and keeps the result as an additional SRT in a rebuildable cache; the bitmap track and the original file are never changed or replaced, and the bitmap track is still delivered only as it is. Until the result exists, and for a missing, invisible or non-bitmap track, the answer is that of a missing source. Content-Type is application/x-subrip; charset=UTF-8. Range, HEAD, conditional requests, playback and bandwidth limits and revocation behave as for /api/v1/sources/{id}/stream. Responses carry X-Content-Type-Options: nosniff and a sandbox Content-Security-Policy.
+         */
+        head: {
+            parameters: {
+                query?: never;
+                header?: {
+                    "If-Range"?: string;
+                    Range?: string;
+                };
+                path: {
+                    id: string;
+                    index: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description HTTP 200 */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description HTTP 206 */
+                206: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description HTTP 403 */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 404 */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 408 */
+                408: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 409 */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 416 */
+                416: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 503 */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Jelee error envelope with code, message, details and traceId; see the Error schema. */
+                default: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/sources/{id}/stream": {
         parameters: {
             query?: never;
@@ -24661,6 +24871,15 @@ export type components = {
                 format?: string;
                 index: number;
                 language?: string;
+                /** @description Present on a PGS or VobSub track of a Matroska source once subtitle OCR (G15.6, off by default) has derived an additional SRT from it. Listing playback info queues the source for OCR; the bitmap track itself is unchanged and still delivered as it is. */
+                ocr?: {
+                    /** @enum {string} */
+                    format: "srt";
+                    /** @description The bitmap track's title or language followed by " (OCR)", marking the text as recognized, not authored. */
+                    title: string;
+                    /** @description /api/v1/sources/{id}/ocr-subtitles/{index}. Native sessions only. */
+                    url: string;
+                };
                 /** @description Matroska track name from the optional MediaInfo supplement. */
                 title?: string;
                 /** @description Present when extraction is enabled and available: /api/v1/sources/{id}/embedded-subtitles/{index}. Native sessions only. */

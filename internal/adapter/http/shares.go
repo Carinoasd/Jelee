@@ -49,6 +49,8 @@ var guestRoutes = map[string]bool{
 	"HEAD " + embeddedSubtitleRoute:          false,
 	"GET " + attachmentRoute:                 false,
 	"HEAD " + attachmentRoute:                false,
+	"GET " + ocrSubtitleRoute:                false,
+	"HEAD " + ocrSubtitleRoute:               false,
 	"GET /images/{type}/{id}":                false,
 	"HEAD /images/{type}/{id}":               false,
 	"POST /api/v1/playback/start":            true,

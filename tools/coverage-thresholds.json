@@ -34,6 +34,11 @@
       "minimum": 85
     },
     {
+      "path": "internal/adapter/bitmapsub",
+      "tier": "critical",
+      "minimum": 98
+    },
+    {
       "path": "internal/platform/ignore",
       "tier": "critical",
       "minimum": 90
@@ -93,6 +98,17 @@
       "tier": "core",
       "minimum": 78,
       "reason": "measured 78.1% on 2026-10-04: success paths need the protected image files and run in the container smoke (docs/evidence/matroska-runtime-image.txt)"
+    },
+    {
+      "path": "internal/adapter/subtitleocr",
+      "tier": "core",
+      "minimum": 87
+    },
+    {
+      "path": "internal/platform/ocrruntime",
+      "tier": "core",
+      "minimum": 72,
+      "reason": "measured 72.9% on 2026-10-05: success paths need the protected image files or the explicit host runtime (JELEE_OCR_HOST_RUNTIME=true), which the gate does not set"
     },
     {
       "path": "internal/adapter/scan",

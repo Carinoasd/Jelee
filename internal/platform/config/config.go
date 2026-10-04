@@ -36,13 +36,16 @@ type Config struct {
 	EnableImages          bool            `json:"enableImages"`
 	Images                ImagesConfig    `json:"images"`
 	// Matroska is the optional embedded subtitle and font extraction (E4).
-	Matroska           MatroskaConfig `json:"matroska"`
-	Accounts           AccountsConfig `json:"accounts"`
-	EnableJobs         bool           `json:"enableJobs"`
-	Jobs               JobsConfig     `json:"jobs"`
-	EnableProbe        bool           `json:"enableProbe"`
-	EnableFamilyIgnore bool           `json:"enableFamilyIgnore"`
-	Logging            LoggingConfig  `json:"logging"`
+	Matroska MatroskaConfig `json:"matroska"`
+	// SubtitleOCR derives SRT tracks from bitmap subtitles (G15.6); off by
+	// default and only together with Matroska extraction.
+	SubtitleOCR        SubtitleOCRConfig `json:"subtitleOcr"`
+	Accounts           AccountsConfig    `json:"accounts"`
+	EnableJobs         bool              `json:"enableJobs"`
+	Jobs               JobsConfig        `json:"jobs"`
+	EnableProbe        bool              `json:"enableProbe"`
+	EnableFamilyIgnore bool              `json:"enableFamilyIgnore"`
+	Logging            LoggingConfig     `json:"logging"`
 	// EnableNFOWrite lets job workers claim nfo_write jobs and run NFO commit
 	// recovery. It is off by default and requires job rollout.
 	EnableNFOWrite bool `json:"enableNFOWrite"`
@@ -76,7 +79,7 @@ func Load() (Config, error) { return LoadWith(os.LookupEnv) }
 
 // LoadWith keeps environment lookup injectable and never includes values in errors.
 func LoadWith(lookup func(string) (string, bool)) (Config, error) {
-	c := Config{Resources: DefaultResourcesConfig(), Access: DefaultAccessConfig(), Streaming: DefaultStreamingConfig(), Playback: DefaultPlaybackConfig(), Stats: DefaultStatsConfig(), Listen: "127.0.0.1:8097", AllowedHosts: []string{"localhost", "127.0.0.1", "::1"}, MaxConnections: 8, MaxStreams: 8, RequestTimeoutSeconds: 15, Accounts: DefaultAccountsConfig(), Jobs: DefaultJobsConfig(), Images: DefaultImagesConfig(), Matroska: DefaultMatroskaConfig(), Logging: DefaultLoggingConfig(), Webhooks: DefaultWebhooksConfig()}
+	c := Config{Resources: DefaultResourcesConfig(), Access: DefaultAccessConfig(), Streaming: DefaultStreamingConfig(), Playback: DefaultPlaybackConfig(), Stats: DefaultStatsConfig(), Listen: "127.0.0.1:8097", AllowedHosts: []string{"localhost", "127.0.0.1", "::1"}, MaxConnections: 8, MaxStreams: 8, RequestTimeoutSeconds: 15, Accounts: DefaultAccountsConfig(), Jobs: DefaultJobsConfig(), Images: DefaultImagesConfig(), Matroska: DefaultMatroskaConfig(), SubtitleOCR: DefaultSubtitleOCRConfig(), Logging: DefaultLoggingConfig(), Webhooks: DefaultWebhooksConfig()}
 	if path, ok := lookup("JELEE_CONFIG"); ok && path != "" {
 		f, err := os.Open(path) //nolint:gosec // G304: the operator names the configuration file
 		if err != nil {
@@ -177,6 +180,9 @@ func LoadWith(lookup func(string) (string, bool)) (Config, error) {
 		return c, err
 	}
 	if err := c.Matroska.loadEnvironment(lookup); err != nil {
+		return c, err
+	}
+	if err := c.SubtitleOCR.loadEnvironment(lookup); err != nil {
 		return c, err
 	}
 	if err := c.Resources.loadEnvironment(lookup); err != nil {
@@ -280,6 +286,18 @@ func (c Config) Validate() error {
 		}
 		if err := c.Matroska.Validate(); err != nil {
 			return err
+		}
+	}
+	if c.SubtitleOCR.Enable {
+		if !c.Matroska.EnableExtraction {
+			return errors.New("subtitle OCR requires matroska extraction")
+		}
+		if err := c.SubtitleOCR.Validate(); err != nil {
+			return err
+		}
+		// The two caches enforce their own bounds and must never share files.
+		if within(c.SubtitleOCR.CacheRoot, c.Matroska.CacheRoot) || within(c.Matroska.CacheRoot, c.SubtitleOCR.CacheRoot) {
+			return errors.New("subtitle OCR cacheRoot must be separate from the matroska cacheRoot")
 		}
 	}
 	if c.EnableImages {

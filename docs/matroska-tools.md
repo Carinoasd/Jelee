@@ -79,7 +79,7 @@ E1（[ADR 0001](adr/0001-external-process-start.md)）照舊：以 `os.StartProc
 | `JELEE_MATROSKA_CACHE_ROOT` | `matroska.cacheRoot` | 既有、私有（0700）的絕對目錄，不放其他東西 |
 | `JELEE_MATROSKA_CACHE_MAX_BYTES` | `matroska.cacheMaxBytes` | 快取總上限，預設 1 GiB（256 MiB–1 TiB） |
 
-第一次要用到某來源時，先以 mkvmerge 識別，再一次擷取該來源全部可擷取項目：`S_TEXT/UTF8`（srt）、`S_TEXT/ASS`、`S_TEXT/SSA`、`S_TEXT/WEBVTT`（vtt）文字字幕至多 32 軌；字型附件（副檔名 ttf/otf/ttc/otc/woff/woff2 或字型 MIME）每個 ≤32 MiB、合計 ≤128 MiB、至多 64 個。位圖字幕（PGS、VobSub、DVB）與 `D_WEBVTT/SUBTITLES`（WebM 形式，mkvextract 102.0 不支援）不擷取；位圖字幕仍只能隨原檔直投。
+第一次要用到某來源時，先以 mkvmerge 識別，再一次擷取該來源全部可擷取項目：`S_TEXT/UTF8`（srt）、`S_TEXT/ASS`、`S_TEXT/SSA`、`S_TEXT/WEBVTT`（vtt）文字字幕至多 32 軌；字型附件（副檔名 ttf/otf/ttc/otc/woff/woff2 或字型 MIME）每個 ≤32 MiB、合計 ≤128 MiB、至多 64 個。位圖字幕（PGS、VobSub、DVB）與 `D_WEBVTT/SUBTITLES`（WebM 形式，mkvextract 102.0 不支援）不擷取；位圖字幕仍只能隨原檔直投。開啟[字幕 OCR](subtitle-ocr.md)（G15.6）時，OCR 背景工作另以同一個 mkvextract 模式把 PGS／VobSub 軌抽到私有工作目錄、辨識成額外的 SRT 軌後即刪除，不進本快取、不取代原軌。
 
 - **原樣**：mkvextract 依 Matroska 內儲存的內容寫出（文字字幕為 UTF-8，含 BOM），不渲染、不燒錄、不轉碼、不轉檔，也不改原媒體；快取檔與內嵌位元組一致（字型逐位元組相同，見實測）。
 - **快取版本**：`<cacheRoot>/<sourceID>/<修訂>/`，修訂由來源 ID、大小與修改時間雜湊；檔案改變就是新修訂，舊修訂刪除。擷取期間來源被改寫或替換即放棄結果。

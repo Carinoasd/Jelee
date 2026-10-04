@@ -6032,6 +6032,32 @@
                 "language": {
                   "type": "string"
                 },
+                "ocr": {
+                  "additionalProperties": false,
+                  "description": "Present on a PGS or VobSub track of a Matroska source once subtitle OCR (G15.6, off by default) has derived an additional SRT from it. Listing playback info queues the source for OCR; the bitmap track itself is unchanged and still delivered as it is.",
+                  "properties": {
+                    "format": {
+                      "enum": [
+                        "srt"
+                      ],
+                      "type": "string"
+                    },
+                    "title": {
+                      "description": "The bitmap track's title or language followed by \" (OCR)\", marking the text as recognized, not authored.",
+                      "type": "string"
+                    },
+                    "url": {
+                      "description": "/api/v1/sources/{id}/ocr-subtitles/{index}. Native sessions only.",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "format",
+                    "title",
+                    "url"
+                  ],
+                  "type": "object"
+                },
                 "title": {
                   "description": "Matroska track name from the optional MediaInfo supplement.",
                   "type": "string"
@@ -29179,6 +29205,260 @@
           }
         ],
         "summary": "Read an embedded text subtitle copied out of a Matroska source",
+        "x-jelee-session": "native"
+      }
+    },
+    "/api/v1/sources/{id}/ocr-subtitles/{index}": {
+      "get": {
+        "description": "Native sessions only; web sessions get 403 web_playback_disabled. index is the probe stream index of a PGS or VobSub track of a Matroska source listed with an ocr object under subtitleTracks of GET /api/v1/items/{id}/playback. Subtitle OCR (G15.6, off by default) recognizes the track's pictures in the background with the optional, sandboxed Tesseract runtime, rate limited and with bounded concurrency, and keeps the result as an additional SRT in a rebuildable cache; the bitmap track and the original file are never changed or replaced, and the bitmap track is still delivered only as it is. Until the result exists, and for a missing, invisible or non-bitmap track, the answer is that of a missing source. Content-Type is application/x-subrip; charset=UTF-8. Range, HEAD, conditional requests, playback and bandwidth limits and revocation behave as for /api/v1/sources/{id}/stream. Responses carry X-Content-Type-Options: nosniff and a sandbox Content-Security-Policy.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "index",
+            "required": true,
+            "schema": {
+              "maximum": 4096,
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Range",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "If-Range",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "HTTP 200"
+          },
+          "206": {
+            "description": "HTTP 206"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 403"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 404"
+          },
+          "408": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 408"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 409"
+          },
+          "416": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 416"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 503"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Jelee error envelope with code, message, details and traceId; see the Error schema."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "webSession": []
+          }
+        ],
+        "summary": "Read a SubRip subtitle recognized from a bitmap subtitle by OCR",
+        "x-jelee-session": "native"
+      },
+      "head": {
+        "description": "Native sessions only; web sessions get 403 web_playback_disabled. index is the probe stream index of a PGS or VobSub track of a Matroska source listed with an ocr object under subtitleTracks of GET /api/v1/items/{id}/playback. Subtitle OCR (G15.6, off by default) recognizes the track's pictures in the background with the optional, sandboxed Tesseract runtime, rate limited and with bounded concurrency, and keeps the result as an additional SRT in a rebuildable cache; the bitmap track and the original file are never changed or replaced, and the bitmap track is still delivered only as it is. Until the result exists, and for a missing, invisible or non-bitmap track, the answer is that of a missing source. Content-Type is application/x-subrip; charset=UTF-8. Range, HEAD, conditional requests, playback and bandwidth limits and revocation behave as for /api/v1/sources/{id}/stream. Responses carry X-Content-Type-Options: nosniff and a sandbox Content-Security-Policy.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "index",
+            "required": true,
+            "schema": {
+              "maximum": 4096,
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Range",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "If-Range",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "HTTP 200"
+          },
+          "206": {
+            "description": "HTTP 206"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 403"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 404"
+          },
+          "408": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 408"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 409"
+          },
+          "416": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 416"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 503"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Jelee error envelope with code, message, details and traceId; see the Error schema."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "webSession": []
+          }
+        ],
+        "summary": "Read a SubRip subtitle recognized from a bitmap subtitle by OCR",
         "x-jelee-session": "native"
       }
     },

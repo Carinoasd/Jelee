@@ -122,6 +122,11 @@ doctor 只计算 SHA-256，不执行工具。候选位置为运行镜像的固�
 | `matroska_tool_hash_mismatch` | fail | 工具与 tools/manifest.json 固定的 SHA256 不符 | 删除 `.tools/matroska` 后重新 `make bootstrap-matroska`，或重建运行镜像；不得换成系统副本 |
 | `matroska_tool_unreadable` | fail | 工具存在但不可读 | 让该文件成为服务账户可读的普通文件 |
 | `matroska_tool_platform_unsupported` | warn | 本平台没有固定的 mkvtoolnix／MediaInfo | 清单固定 linux-amd64 与 windows-amd64；沙箱运行只在 linux-amd64 |
+| `ocr_tool_verified` | ok | 可选 Tesseract（字幕 OCR，G15.6）的执行档或语言数据与清单 SHA256 一致 | — |
+| `ocr_tool_missing` | warn（启用 OCR 时执行档与所配置语言的数据为 fail） | 可选 OCR 运行时未安装，字幕 OCR 保持关闭 | 开发环境 `make bootstrap-ocr`；容器用 `deploy/ocr/Dockerfile` 的 OCR 镜像；见 [字幕 OCR](subtitle-ocr.md) |
+| `ocr_tool_hash_mismatch` | fail | 文件与 tools/manifest.json 固定的 SHA256 不符 | 删除 `.tools/ocr` 后重新 `make bootstrap-ocr`，或重建 OCR 镜像；不得换成系统副本 |
+| `ocr_tool_unreadable` | fail | 文件存在但不可读 | 让该文件成为服务账户可读的普通文件 |
+| `ocr_tool_platform_unsupported` | warn（启用 OCR 时为 fail） | 本平台没有固定的 Tesseract | 字幕 OCR 只在 linux-amd64 运行；其他平台设 `JELEE_ENABLE_SUBTITLE_OCR=false` |
 
 完整的执行级检查仍用 `jelee-cli doctor probe`（隔离 helper）与 `jelee-cli doctor tools`（项目快照执行 `-version`）。
 

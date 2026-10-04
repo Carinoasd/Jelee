@@ -19,6 +19,9 @@ import (
 const (
 	embeddedSubtitleRoute = "/api/v1/sources/{id}/embedded-subtitles/{index}"
 	attachmentRoute       = "/api/v1/sources/{id}/attachments/{attachmentId}"
+	// ocrSubtitleRoute serves the SRT derived by subtitle OCR from a bitmap
+	// subtitle (G15.6); it exists only when OCR is enabled as well.
+	ocrSubtitleRoute = "/api/v1/sources/{id}/ocr-subtitles/{index}"
 )
 
 // maxExtractedIndex bounds the numeric path segments; Matroska stream
@@ -32,6 +35,10 @@ func WithExtracted(resolver media.ExtractedResolver) Option {
 
 func embeddedSubtitleURL(sourceID string, index int) string {
 	return "/api/v1/sources/" + sourceID + "/embedded-subtitles/" + strconv.Itoa(index)
+}
+
+func ocrSubtitleURL(sourceID string, index int) string {
+	return "/api/v1/sources/" + sourceID + "/ocr-subtitles/" + strconv.Itoa(index)
 }
 
 func attachmentURL(sourceID string, id int) string {
@@ -95,6 +102,18 @@ type hiddenExtracted struct{ media.ExtractedResolver }
 
 func (h hiddenExtracted) Available() bool { return extractionAvailable(h.ExtractedResolver) }
 
+func (h hiddenExtracted) OCRAvailable() bool { return ocrAvailable(h.ExtractedResolver) }
+
+// ocrAvailable asks a resolver whether OCR-derived subtitles can be served.
+// A resolver that does not report it has no OCR.
+func ocrAvailable(resolver media.ExtractedResolver) bool {
+	if !extractionAvailable(resolver) {
+		return false
+	}
+	available, ok := resolver.(interface{ OCRAvailable() bool })
+	return ok && available.OCRAvailable()
+}
+
 // extractionAvailable asks a resolver that reports its runtime state.
 func extractionAvailable(resolver media.ExtractedResolver) bool {
 	if resolver == nil {
@@ -130,6 +149,36 @@ func (s *Server) decorateExtracted(source *domain.PlaybackSource) {
 			attachment.URL = attachmentURL(source.ID, attachment.ID)
 		}
 	}
+}
+
+// decorateOCR lists the SRT derived from each bitmap subtitle of a
+// Matroska source once OCR has produced it (G15.6). Asking is what queues a
+// source for OCR, through the same authorized lookup as delivery; the
+// bitmap track itself keeps being delivered as it is. Only playback info of
+// native sessions reaches this.
+func (s *Server) decorateOCR(ctx context.Context, principal access.Principal, source *domain.PlaybackSource) {
+	if !s.cfg.SubtitleOCR.Enable || !ocrAvailable(s.extracted) {
+		return
+	}
+	for i := range source.Subtitles {
+		track := &source.Subtitles[i]
+		if !track.OCRSource {
+			continue
+		}
+		if _, err := s.extracted.ResolveExtracted(ctx, principal, source.ID, media.ExtractedOCRSubtitle, track.Index); err == nil {
+			track.OCR = &domain.PlaybackOCRTrack{Format: "srt", Title: domain.OCRTrackTitle(*track), URL: ocrSubtitleURL(source.ID, track.Index)}
+		}
+	}
+}
+
+// ocrSpecification documents the OCR-derived subtitle route.
+func ocrSpecification(paths map[string]any) {
+	op := operation("Read a SubRip subtitle recognized from a bitmap subtitle by OCR", "200", "206", "403", "404", "408", "409", "416", "503")
+	op["description"] = "Native sessions only; web sessions get 403 web_playback_disabled. index is the probe stream index of a PGS or VobSub track of a Matroska source listed with an ocr object under subtitleTracks of GET /api/v1/items/{id}/playback. Subtitle OCR (G15.6, off by default) recognizes the track's pictures in the background with the optional, sandboxed Tesseract runtime, rate limited and with bounded concurrency, and keeps the result as an additional SRT in a rebuildable cache; the bitmap track and the original file are never changed or replaced, and the bitmap track is still delivered only as it is. Until the result exists, and for a missing, invisible or non-bitmap track, the answer is that of a missing source. Content-Type is application/x-subrip; charset=UTF-8. Range, HEAD, conditional requests, playback and bandwidth limits and revocation behave as for /api/v1/sources/{id}/stream. Responses carry X-Content-Type-Options: nosniff and a sandbox Content-Security-Policy."
+	op["security"] = []any{map[string]any{"bearer": []string{}}}
+	op["x-jelee-session"] = "native"
+	op["parameters"] = []any{idParameter(), map[string]any{"name": "index", "in": "path", "required": true, "schema": map[string]any{"type": "integer", "minimum": 0, "maximum": maxExtractedIndex}}, map[string]any{"name": "Range", "in": "header", "schema": map[string]any{"type": "string"}}, map[string]any{"name": "If-Range", "in": "header", "schema": map[string]any{"type": "string"}}}
+	paths[ocrSubtitleRoute] = map[string]any{"get": op, "head": op}
 }
 
 // extractedSpecification documents the embedded item routes.

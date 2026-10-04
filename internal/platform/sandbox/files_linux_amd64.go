@@ -123,17 +123,19 @@ func prepare(ctx context.Context, profile Profile, policy Policy) (_ *prepared, 
 	return p, nil
 }
 
-func openPinnedELF(ctx context.Context, pin PinnedFile) (_ pinnedELF, resultErr error) {
+// openPinnedFile opens one canonical regular file without following links
+// and verifies its digest. The returned descriptor is the verified object.
+func openPinnedFile(ctx context.Context, pin PinnedFile) (_ *os.File, resultErr error) {
 	if err := ctx.Err(); err != nil {
-		return pinnedELF{}, err
+		return nil, err
 	}
 	canonical, err := filepath.EvalSymlinks(pin.Path)
 	if err != nil || canonical != pin.Path {
-		return pinnedELF{}, ErrUnavailable
+		return nil, ErrUnavailable
 	}
 	fd, err := unix.Open(pin.Path, unix.O_RDONLY|unix.O_CLOEXEC|unix.O_NOFOLLOW|unix.O_NONBLOCK, 0)
 	if err != nil {
-		return pinnedELF{}, ErrUnavailable
+		return nil, ErrUnavailable
 	}
 	file := os.NewFile(uintptr(fd), "approved media tool file")
 	defer func() {
@@ -143,20 +145,20 @@ func openPinnedELF(ctx context.Context, pin PinnedFile) (_ pinnedELF, resultErr 
 	}()
 	info, err := file.Stat()
 	if err != nil || !info.Mode().IsRegular() || info.Size() < 1 || info.Size() > maxPinnedFileBytes {
-		return pinnedELF{}, ErrUnavailable
+		return nil, ErrUnavailable
 	}
 	hash := sha256.New()
 	buffer := make([]byte, 32<<10)
 	var total int64
 	for {
 		if err := ctx.Err(); err != nil {
-			return pinnedELF{}, err
+			return nil, err
 		}
 		n, readErr := file.Read(buffer)
 		if n > 0 {
 			total += int64(n)
 			if total > maxPinnedFileBytes {
-				return pinnedELF{}, ErrUnavailable
+				return nil, ErrUnavailable
 			}
 			_, _ = hash.Write(buffer[:n])
 		}
@@ -164,13 +166,60 @@ func openPinnedELF(ctx context.Context, pin PinnedFile) (_ pinnedELF, resultErr 
 			break
 		}
 		if readErr != nil {
-			return pinnedELF{}, ErrUnavailable
+			return nil, ErrUnavailable
 		}
 	}
 	after, err := file.Stat()
 	if err != nil || total != info.Size() || after.Size() != info.Size() || !after.ModTime().Equal(info.ModTime()) || hex.EncodeToString(hash.Sum(nil)) != pin.SHA256 {
-		return pinnedELF{}, ErrUnavailable
+		return nil, ErrUnavailable
 	}
+	return file, nil
+}
+
+// openDataFiles opens and verifies the OCR language data grants. Each is a
+// pinned regular file; production also requires protected ownership.
+func openDataFiles(ctx context.Context, pins []PinnedFile, protected bool) (_ []*os.File, resultErr error) {
+	var files []*os.File
+	defer func() {
+		if resultErr != nil {
+			closeFiles(files)
+		}
+	}()
+	for _, pin := range pins {
+		file, err := openPinnedFile(ctx, pin)
+		if err != nil {
+			return nil, err
+		}
+		files = append(files, file)
+		if protected && verifyProtectedFile(pinnedELF{file: file, path: pin.Path}) != nil {
+			return nil, ErrUnavailable
+		}
+	}
+	return files, nil
+}
+
+func closeFiles(files []*os.File) {
+	for _, file := range files {
+		_ = file.Close()
+	}
+}
+
+func verifyDataFiles(ctx context.Context, pins []PinnedFile, protected bool) error {
+	files, err := openDataFiles(ctx, pins, protected)
+	closeFiles(files)
+	return err
+}
+
+func openPinnedELF(ctx context.Context, pin PinnedFile) (_ pinnedELF, resultErr error) {
+	file, err := openPinnedFile(ctx, pin)
+	if err != nil {
+		return pinnedELF{}, err
+	}
+	defer func() {
+		if resultErr != nil {
+			_ = file.Close()
+		}
+	}()
 	parsed, err := elf.NewFile(file)
 	if err != nil || parsed.Class != elf.ELFCLASS64 || parsed.Machine != elf.EM_X86_64 || (parsed.Type != elf.ET_EXEC && parsed.Type != elf.ET_DYN) {
 		return pinnedELF{}, ErrUnavailable

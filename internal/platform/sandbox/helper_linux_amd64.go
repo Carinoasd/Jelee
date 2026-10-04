@@ -22,13 +22,16 @@ const (
 // plans (metadata and the embedded cover read) read only their inherited
 // descriptor; tool plans also reopen that same file object through
 // /proc/self/fd/0, and only extraction may create files, in the private
-// working directory, each bounded by RLIMIT_FSIZE.
+// working directory, each bounded by RLIMIT_FSIZE. The OCR plan also reads
+// its verified language data files and runs OpenMP single-threaded.
 type execPlan struct {
 	args     []string
 	input    bool
 	output   bool
 	fileSize uint64
 	cpu      uint64
+	data     []PinnedFile
+	env      []string
 }
 
 // ffprobePlan is the single ffprobe plan. arguments is the fixed argv of one
@@ -45,15 +48,31 @@ func executeHelper(profile Profile, policy Policy, arguments []string) error {
 	return execute(profile, policy, ffprobePlan(arguments))
 }
 
-func executeTool(profile ToolProfile, policy Policy, extraction Extraction) error {
+func executeTool(profile ToolProfile, policy ToolPolicy, extraction Extraction) error {
 	plan := execPlan{args: toolArguments(profile.Mode, extraction), input: true, cpu: 60}
-	if profile.Mode == ToolExtract {
+	switch profile.Mode {
+	case ToolExtract:
 		plan.output, plan.fileSize, plan.cpu = true, ExtractFileLimit, 600
+	case ToolOCR:
+		// Only the requested languages' data files are granted.
+		for _, language := range extraction.Languages {
+			for _, file := range policy.DataFiles {
+				if filepath.Base(file.Path) == language+OCRDataSuffix {
+					plan.data = append(plan.data, file)
+				}
+			}
+		}
+		if len(plan.data) != len(extraction.Languages) {
+			return ErrInvalid
+		}
+		plan.args = ocrArguments(tessdataDirectory(policy.DataFiles), extraction.Languages)
+		plan.cpu = 30
+		plan.env = []string{"OMP_THREAD_LIMIT=1"}
 	}
 	if len(plan.args) == 0 {
 		return ErrInvalid
 	}
-	return execute(Profile{FFprobePath: profile.Path}, policy, plan)
+	return execute(Profile{FFprobePath: profile.Path}, toolSandboxPolicy(policy), plan)
 }
 
 func execute(profile Profile, policy Policy, plan execPlan) error {
@@ -90,6 +109,13 @@ func execute(profile Profile, policy Policy, plan execPlan) error {
 		return err
 	}
 	defer p.close()
+	// Data files are verified here, after the closure and before policy,
+	// and granted as these same file objects.
+	data, err := openDataFiles(context.Background(), plan.data, policy.RequireProtectedFiles)
+	if err != nil {
+		return err
+	}
+	defer closeFiles(data)
 	if err := unix.Dup3(int(p.tool.file.Fd()), executableFD, unix.O_CLOEXEC); err != nil {
 		return ErrUnavailable
 	}
@@ -102,7 +128,7 @@ func execute(profile Profile, policy Policy, plan execPlan) error {
 	if unix.Capset(&header, &capabilities[0]) != nil {
 		return ErrUnavailable
 	}
-	if err := restrictFilesystem(p, plan); err != nil {
+	if err := restrictFilesystem(p, plan, data); err != nil {
 		return err
 	}
 	for resource, limit := range map[int]unix.Rlimit{
@@ -124,7 +150,7 @@ func execute(profile Profile, policy Policy, plan execPlan) error {
 		return ErrUnavailable
 	}
 	args := plan.args
-	environment := []string{"LANG=C", "LC_ALL=C", "TZ=UTC"}
+	environment := append([]string{"LANG=C", "LC_ALL=C", "TZ=UTC"}, plan.env...)
 	directories := make(map[string]bool)
 	for _, library := range p.libraries {
 		directories[filepath.Dir(library.path)] = true
@@ -164,7 +190,7 @@ func execute(profile Profile, policy Policy, plan execPlan) error {
 	return ErrUnavailable
 }
 
-func restrictFilesystem(p *prepared, plan execPlan) error {
+func restrictFilesystem(p *prepared, plan execPlan, data []*os.File) error {
 	abi, _, errno := unix.RawSyscall(unix.SYS_LANDLOCK_CREATE_RULESET, 0, 0, unix.LANDLOCK_CREATE_RULESET_VERSION)
 	if errno != 0 || abi < 3 {
 		return ErrUnavailable
@@ -199,6 +225,12 @@ func restrictFilesystem(p *prepared, plan execPlan) error {
 			access |= unix.LANDLOCK_ACCESS_FS_EXECUTE
 		}
 		if !add(library.file, access) {
+			return ErrUnavailable
+		}
+	}
+	for _, file := range data {
+		// Each verified language data file; its directory stays unreadable.
+		if !add(file, unix.LANDLOCK_ACCESS_FS_READ_FILE) {
 			return ErrUnavailable
 		}
 	}

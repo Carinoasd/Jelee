@@ -221,8 +221,12 @@ func validProfile(profile Profile) bool {
 	return validPath(profile.FFprobePath) && filepath.Base(profile.FFprobePath) == "ffprobe"
 }
 
-func validPolicy(policy Policy) bool {
-	if !validDigest(policy.FFprobeSHA256) || len(policy.Libraries) > 32 {
+func validPolicy(policy Policy) bool { return validPolicyWithin(policy, 32) }
+
+// validPolicyWithin checks a policy whose closure may hold up to
+// maxLibraries files; only the OCR tool mode raises it above 32.
+func validPolicyWithin(policy Policy, maxLibraries int) bool {
+	if !validDigest(policy.FFprobeSHA256) || len(policy.Libraries) > maxLibraries {
 		return false
 	}
 	seen := make(map[string]bool, len(policy.Libraries))

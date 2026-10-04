@@ -32,6 +32,8 @@ type fakeTool struct {
 	block    chan struct{}
 	onRun    func()
 	skipFile string
+	// extra names are written in addition to t<id>/a<id> (VobSub pairs).
+	extra []string
 }
 
 func (f *fakeTool) Run(ctx context.Context, request process.ToolRequest) (process.Result, error) {
@@ -78,6 +80,9 @@ func (f *fakeTool) Run(ctx context.Context, request process.ToolRequest) (proces
 	}
 	for _, id := range request.Extraction.Attachments {
 		write(sandbox.ExtractAttachmentName(id))
+	}
+	for _, name := range f.extra {
+		write(name)
 	}
 	if err := request.Collect(directory); err != nil {
 		return process.Result{}, err

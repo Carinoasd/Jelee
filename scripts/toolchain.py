@@ -236,6 +236,9 @@ def fetch(spec, offline):
 ALL_TOOLS = ("go", "node", GOLANGCI)
 # E4: pinned in tools/manifest.json "matroskaTools", never installed by default.
 OPTIONAL_TOOLS = ("mkvtoolnix", "mediainfo")
+# G15.6: Tesseract for subtitle OCR, pinned in "ocrTools"; never installed by
+# default and Linux amd64 only.
+OCR_TOOL = "tesseract"
 
 
 def matroska(arguments, tools):
@@ -243,6 +246,10 @@ def matroska(arguments, tools):
     for tool in tools:
         command += ["--tool", tool]
     subprocess.run(command, check=True)
+
+
+def ocr(arguments):
+    subprocess.run([sys.executable, str(ROOT / "scripts/ocr-tools.py")] + arguments, check=True)
 
 
 def bootstrap(offline=False, tools=ALL_TOOLS):
@@ -691,9 +698,9 @@ def main():
     parser.add_argument("--offline", action="store_true")
     # Playwright's browser (about 120 MB) is opt-in: make bootstrap-playwright.
     # mkvtoolnix and MediaInfo (E4) are opt-in too: make bootstrap-matroska.
-    parser.add_argument("--tool", action="append", choices=list(ALL_TOOLS) + [PLAYWRIGHT] + list(OPTIONAL_TOOLS),
+    parser.add_argument("--tool", action="append", choices=list(ALL_TOOLS) + [PLAYWRIGHT] + list(OPTIONAL_TOOLS) + [OCR_TOOL],
                         help="limit bootstrap or verify to this tool (repeatable; default: all required tools; "
-                             "playwright, mkvtoolnix and mediainfo are optional and installed only when named)")
+                             "playwright, mkvtoolnix, mediainfo and tesseract are optional and installed only when named)")
     args = parser.parse_args()
     tools = tuple(args.tool or ALL_TOOLS)
     optional = tuple(tool for tool in tools if tool in OPTIONAL_TOOLS)
@@ -701,13 +708,18 @@ def main():
         bootstrap(args.offline, tools)
         if optional:
             matroska(["bootstrap"] + (["--offline"] if args.offline else []), optional)
+        if OCR_TOOL in tools:
+            ocr(["bootstrap"] + (["--offline"] if args.offline else []))
     elif args.command == "verify":
         verify(tools)
         if optional:
             matroska(["verify"], optional)
-        elif not args.tool:
+        if OCR_TOOL in tools:
+            ocr(["verify"])
+        if not args.tool:
             # Optional tools are verified when installed and reported otherwise.
             matroska(["verify", "--if-installed"], OPTIONAL_TOOLS)
+            ocr(["verify", "--if-installed"])
     else:
         for name in (".tools", ".bin", ".testfixtures", ".testdata"):
             remove_tree(ROOT / name)

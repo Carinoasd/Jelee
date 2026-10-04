@@ -139,6 +139,38 @@ type PlaybackSubtitleTrack struct {
 	Extractable bool `json:"extractable"`
 	// URL is set by the API layer when extraction is available.
 	URL string `json:"url,omitempty"`
+	// OCRSource marks a PGS or VobSub track inside a Matroska/WebM source
+	// whose text subtitle OCR can derive (G15.6). The track itself is still
+	// only delivered as it is.
+	OCRSource bool `json:"-"`
+	// OCR is the derived SRT track, set by the API layer once it exists.
+	OCR *PlaybackOCRTrack `json:"ocr,omitempty"`
+}
+
+// PlaybackOCRTrack is an additional SubRip track recognized from a bitmap
+// subtitle by subtitle OCR (G15.6). It is derived data in a rebuildable
+// cache, never a replacement of the original track.
+type PlaybackOCRTrack struct {
+	Format string `json:"format"`
+	// Title names the source track and marks the text as OCR-derived.
+	Title string `json:"title"`
+	URL   string `json:"url"`
+}
+
+// OCRSubtitleCodecs are the probed bitmap codecs subtitle OCR reads.
+var OCRSubtitleCodecs = map[string]bool{"hdmv_pgs_subtitle": true, "dvd_subtitle": true}
+
+// OCRTrackTitle is the display title of a derived OCR track: the source
+// track's title or language, followed by the OCR marker.
+func OCRTrackTitle(track PlaybackSubtitleTrack) string {
+	base := track.Title
+	if base == "" {
+		base = track.Language
+	}
+	if base == "" {
+		return "OCR"
+	}
+	return base + " (OCR)"
 }
 
 // PlaybackAttachment is one Matroska attachment of a source. ID is the
@@ -359,7 +391,8 @@ func BuildPlaybackSource(r PlaybackSourceRecord) PlaybackSource {
 				_, text := ExtractableSubtitleCodecs[codec]
 				s.Subtitles = append(s.Subtitles, PlaybackSubtitleTrack{Index: stream.Index, Codec: codec, Format: playbackSubtitleCodecs[codec],
 					Language: playbackText(stream.Language), Default: playbackFlag(stream.Default), Forced: playbackFlag(stream.Forced),
-					Title: streamTitle(meta.Matroska, stream.Index), Extractable: text && IsMatroskaMetadata(meta)})
+					Title: streamTitle(meta.Matroska, stream.Index), Extractable: text && IsMatroskaMetadata(meta),
+					OCRSource: OCRSubtitleCodecs[codec] && IsMatroskaMetadata(meta)})
 			}
 		}
 		s.Attachments = playbackAttachments(meta)

@@ -346,6 +346,10 @@ func newServer(cfg config.Config, backend Backend, catalog *app.Catalog, resolve
 					r.Head(embeddedSubtitleRoute, s.extractedRoute(media.ExtractedSubtitle, "index"))
 					r.Get(attachmentRoute, s.extractedRoute(media.ExtractedAttachment, "attachmentId"))
 					r.Head(attachmentRoute, s.extractedRoute(media.ExtractedAttachment, "attachmentId"))
+					if cfg.SubtitleOCR.Enable {
+						r.Get(ocrSubtitleRoute, s.extractedRoute(media.ExtractedOCRSubtitle, "index"))
+						r.Head(ocrSubtitleRoute, s.extractedRoute(media.ExtractedOCRSubtitle, "index"))
+					}
 				}
 				r.Get("/api/v1/items/{id}/playback", s.playbackInfo)
 				r.Post("/api/v1/items/{id}/playback/check", s.playbackCheck)

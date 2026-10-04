@@ -10,6 +10,7 @@ import (
 	"github.com/MoYuanCN/Jelee/internal/access"
 	"github.com/MoYuanCN/Jelee/internal/adapter/matroska"
 	"github.com/MoYuanCN/Jelee/internal/adapter/media"
+	"github.com/MoYuanCN/Jelee/internal/app"
 	"github.com/MoYuanCN/Jelee/internal/domain"
 	"github.com/MoYuanCN/Jelee/internal/platform/config"
 	"github.com/MoYuanCN/Jelee/internal/platform/mkvruntime"
@@ -36,6 +37,10 @@ type matroskaService struct {
 	cacheRoot string
 	reason    string
 	cleanup   func() error
+	// ocr derives SRT tracks from bitmap subtitles (G15.6) when enabled and
+	// the Tesseract runtime verified; nil otherwise.
+	ocr     ocrLocator
+	ocrRoot string
 }
 
 var _ media.ExtractedResolver = (*matroskaService)(nil)
@@ -53,6 +58,9 @@ func (m *matroskaService) ResolveExtracted(ctx context.Context, principal access
 	}
 	if !m.Available() || !matroskaContainers[source.ContentType] {
 		return media.Source{}, media.ErrNotFound
+	}
+	if kind == media.ExtractedOCRSubtitle {
+		return m.resolveOCR(ctx, sourceID, source, index)
 	}
 	kinds := map[media.ExtractedKind]matroska.Kind{media.ExtractedSubtitle: matroska.KindSubtitle, media.ExtractedAttachment: matroska.KindAttachment, media.ExtractedAttachmentStream: matroska.KindAttachmentStream}
 	selected, ok := kinds[kind]
@@ -77,7 +85,14 @@ func (m *matroskaService) ResolveExtracted(ctx context.Context, principal access
 }
 
 func (m *matroskaService) Close() error {
-	if m == nil || m.cleanup == nil {
+	if m == nil {
+		return nil
+	}
+	if m.ocr != nil {
+		// Stops the background OCR job before its scratch directory goes.
+		_ = m.ocr.Close()
+	}
+	if m.cleanup == nil {
 		return nil
 	}
 	return m.cleanup()
@@ -86,7 +101,7 @@ func (m *matroskaService) Close() error {
 // newMatroskaService registers the isolated identification and extraction
 // runners. A missing tool, an unusable cache root or an unsupported
 // platform disables only this capability, with a fixed reason.
-func newMatroskaService(c config.Config, sources sourceResolver, logger *slog.Logger) *matroskaService {
+func newMatroskaService(c config.Config, sources sourceResolver, budget app.WorkBudget, logger *slog.Logger) *matroskaService {
 	service := &matroskaService{sources: sources, cacheRoot: c.Matroska.CacheRoot, reason: "runtime_unavailable"}
 	defer func() {
 		if service.extractor == nil {
@@ -115,5 +130,9 @@ func newMatroskaService(c config.Config, sources sourceResolver, logger *slog.Lo
 		return service
 	}
 	service.extractor, service.reason = extractor, ""
+	if c.SubtitleOCR.Enable {
+		service.ocr = newOCRService(ctx, c.SubtitleOCR, extractor, directory, budget, logger)
+		service.ocrRoot = c.SubtitleOCR.CacheRoot
+	}
 	return service
 }

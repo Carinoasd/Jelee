@@ -30,6 +30,9 @@ func Specification(cfg config.Config) map[string]any {
 		}
 		if cfg.Matroska.EnableExtraction {
 			extractedSpecification(paths)
+			if cfg.SubtitleOCR.Enable {
+				ocrSpecification(paths)
+			}
 		}
 	}
 	schemas := accountSchemas()

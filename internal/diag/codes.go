@@ -56,13 +56,20 @@ const (
 	CodeMatroskaMismatch    = "matroska_tool_hash_mismatch"
 	CodeMatroskaUnreadable  = "matroska_tool_unreadable"
 	CodeMatroskaUnsupported = "matroska_tool_platform_unsupported"
-	CodeDiskOK              = "disk_ok"
-	CodeDiskSpaceLow        = "disk_space_low"
-	CodeDiskSpaceCritical   = "disk_space_critical"
-	CodeDiskInodesLow       = "disk_inodes_low"
-	CodeDiskInodesCrit      = "disk_inodes_critical"
-	CodeDiskUnavailable     = "disk_stat_unavailable"
-	CodeDiskNoInodes        = "disk_inodes_not_applicable"
+	// CodeOCRVerified and the codes below report the optional Tesseract
+	// runtime of subtitle OCR (G15.6).
+	CodeOCRVerified       = "ocr_tool_verified"
+	CodeOCRMissing        = "ocr_tool_missing"
+	CodeOCRMismatch       = "ocr_tool_hash_mismatch"
+	CodeOCRUnreadable     = "ocr_tool_unreadable"
+	CodeOCRUnsupported    = "ocr_tool_platform_unsupported"
+	CodeDiskOK            = "disk_ok"
+	CodeDiskSpaceLow      = "disk_space_low"
+	CodeDiskSpaceCritical = "disk_space_critical"
+	CodeDiskInodesLow     = "disk_inodes_low"
+	CodeDiskInodesCrit    = "disk_inodes_critical"
+	CodeDiskUnavailable   = "disk_stat_unavailable"
+	CodeDiskNoInodes      = "disk_inodes_not_applicable"
 
 	CodeNetOK           = "net_ok"
 	CodeNetListen       = "net_listen_invalid"
@@ -156,6 +163,11 @@ var codes = map[string]codeInfo{
 	CodeMatroskaMismatch:     {"mkvtoolnix/MediaInfo tool does not match the pinned SHA-256 in tools/manifest.json", "Reinstall the pinned tool (remove .tools/matroska, make bootstrap-matroska) or rebuild the runtime image; never replace it with a system copy."},
 	CodeMatroskaUnreadable:   {"mkvtoolnix/MediaInfo tool exists but cannot be read", "Make the tool file a regular file readable by the service account."},
 	CodeMatroskaUnsupported:  {"no pinned mkvtoolnix/MediaInfo exists for this platform", "The tools are pinned for linux-amd64 and windows-amd64; the sandboxed runtime runs on linux-amd64 only."},
+	CodeOCRVerified:          {"optional Tesseract OCR file matches the manifest hash", ""},
+	CodeOCRMissing:           {"optional Tesseract OCR file is not installed; subtitle OCR stays off", "Development: make bootstrap-ocr. Container: build the OCR image stage (deploy/ocr/Dockerfile). Needed only with JELEE_ENABLE_SUBTITLE_OCR=true; a configured language needs its tessdata file."},
+	CodeOCRMismatch:          {"Tesseract OCR file does not match the pinned SHA-256 in tools/manifest.json", "Reinstall the pinned runtime (remove .tools/ocr, make bootstrap-ocr) or rebuild the OCR image; never replace it with a system copy."},
+	CodeOCRUnreadable:        {"Tesseract OCR file exists but cannot be read", "Make the file a regular file readable by the service account."},
+	CodeOCRUnsupported:       {"no pinned Tesseract OCR runtime exists for this platform", "Subtitle OCR runs on linux-amd64 only; set JELEE_ENABLE_SUBTITLE_OCR=false elsewhere."},
 	CodeDiskOK:               {"free space and inodes are sufficient", ""},
 	CodeDiskSpaceLow:         {"free disk space is low", "Free space on this volume or move the directory to a larger volume."},
 	CodeDiskSpaceCritical:    {"free disk space is critically low", "Free space now; temporary files and logs will fail to write."},

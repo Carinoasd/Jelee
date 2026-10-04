@@ -110,3 +110,12 @@ Jelee 本仓库派生自 [Jellyfin](https://github.com/jellyfin/jellyfin)。审�
 - **Debian libstdc++6、zlib1g、libgmp10**：各包 `copyright` 在 `/licenses/runtime/`（libstdc++ 的 notice 即既有 gcc-14-base copyright）。
 
 分發這些 GPL／LGPL 二進位時須提供對應原始碼。MKVToolNix 原始碼位置記於清單（`https://mkvtoolnix.download/sources/mkvtoolnix-102.0.tar.xz`）；Debian 套件的原始碼可由對應 `.dsc` 取得但尚未下載收存；AppImage 內第三方函式庫的完整對應原始碼尚未收集。因此與 BtbN ffprobe 相同，目前只用於本地與實驗容器，**未發布公共映像**；發布前須補齊上述原始碼材料。來源、版本與 SHA256 見 `tools/manifest.json` 的 `matroskaTools` 與 [mkvtoolnix 與 MediaInfo](matroska-tools.md)。
+
+## Tesseract OCR（E16，G15.6）
+
+字幕 OCR 的 Tesseract 是**可選運行依賴**，以獨立行程在沙箱中執行，不被 Jelee 程式連結，預設不安裝、不進預設映像（只在 `deploy/ocr/Dockerfile` 疊加的 OCR 層）：
+
+- **Tesseract 5.5.0** 與 **tessdata_fast 4.1.0**（eng、chi_tra、chi_sim、jpn）：Apache-2.0；Debian 套件 `copyright` 在 `/licenses/tesseract/tesseract-ocr/`、`/licenses/tesseract/tesseract-ocr-*/`。Apache-2.0 要求分發時附授權與 NOTICE（上游無 NOTICE 檔）。
+- **Leptonica 1.84.1**：BSD-2-Clause；其餘 Debian 函式庫（libcurl、libarchive、GnuTLS／Nettle／GMP、OpenSSL、MIT Kerberos、OpenLDAP、libxml2、libpng／libjpeg／libtiff／libwebp／openjpeg、zstd／xz／bzip2／lz4 等）保留各自授權，各包 `copyright` 在 `/licenses/tesseract/<套件>/`；libstdc++、libgomp 的聲明即既有 gcc-14-base copyright，libresolv 的即既有 libc6 copyright。
+
+其中有 LGPL／GPL 授權的函式庫（GnuTLS、Nettle、GMP、libidn2、libunistring 等），分發二進位時須提供對應原始碼。各套件的 Debian 原始碼套件記於清單（`sourcePackage`／`sourceVersion`），尚未下載收存，因此與 BtbN ffprobe、mkvtoolnix 相同，目前只用於本地與實驗容器，**未發布公共映像**。見 [字幕 OCR](subtitle-ocr.md)。

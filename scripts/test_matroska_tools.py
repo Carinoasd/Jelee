@@ -200,15 +200,22 @@ class ToolchainDelegationTest(unittest.TestCase):
         with mock.patch.object(toolchain, "bootstrap"), mock.patch.object(toolchain, "verify"), \
                 mock.patch.object(toolchain.subprocess, "run", side_effect=lambda command, check: calls.append(command)):
             for argv in (["toolchain.py", "bootstrap"], ["toolchain.py", "verify"], ["toolchain.py", "bootstrap", "--tool", "mkvtoolnix", "--offline"],
-                         ["toolchain.py", "verify", "--tool", "mediainfo"]):
+                         ["toolchain.py", "verify", "--tool", "mediainfo"], ["toolchain.py", "bootstrap", "--tool", "tesseract", "--offline"],
+                         ["toolchain.py", "verify", "--tool", "tesseract"]):
                 with mock.patch.object(sys, "argv", argv):
                     toolchain.main()
-        self.assertEqual(len(calls), 3)
+        # A plain verify checks both optional families when installed (G15.6
+        # added the OCR runtime); a named tool is delegated alone.
+        self.assertEqual(len(calls), 6)
         self.assertIn("--if-installed", calls[0])
-        self.assertIn("bootstrap", calls[1])
-        self.assertIn("--offline", calls[1])
-        self.assertEqual(calls[1][-2:], ["--tool", "mkvtoolnix"])
-        self.assertEqual(calls[2][-3:], ["verify", "--tool", "mediainfo"])
+        self.assertTrue(calls[0][1].endswith("matroska-tools.py"))
+        self.assertTrue(calls[1][1].endswith("ocr-tools.py") and calls[1][-2:] == ["verify", "--if-installed"])
+        self.assertIn("bootstrap", calls[2])
+        self.assertIn("--offline", calls[2])
+        self.assertEqual(calls[2][-2:], ["--tool", "mkvtoolnix"])
+        self.assertEqual(calls[3][-3:], ["verify", "--tool", "mediainfo"])
+        self.assertTrue(calls[4][1].endswith("ocr-tools.py") and calls[4][-2:] == ["bootstrap", "--offline"])
+        self.assertTrue(calls[5][1].endswith("ocr-tools.py") and calls[5][-1:] == ["verify"])
 
 
 if __name__ == "__main__":

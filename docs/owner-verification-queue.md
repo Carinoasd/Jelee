@@ -90,6 +90,7 @@
 | D22 | 舊庫遷移：以真實 Jellyfin 10.11 `jellyfin.db`（停機後複製，含 `-wal`）跑 `jelee-cli legacy-import --preflight`、匯入、掃描、再匯入。確認 GUID 文字大小寫、`DateTime` 格式、CollectionFolder `Data` JSON 的 `PhysicalLocationsList`／`CollectionType`；10.10 升級上來的庫的 `UserData`（`CustomDataKey` 多列、`RetentionDate`、佔位條目）；Windows／NAS 路徑對照；多版本、分段檔、附加影片的分類與對應率；10 萬條目以上、多使用者的耗時與記憶體；改寫前 C# Jelee 的實際資料庫 | `docs/legacy-import.md`「需要以真實資料庫驗證的項目」 | 待跑 |
 | D23 | API 控制台（G49.4）：在可開發實例以真實瀏覽器開啟開發者模式，管理員進入「管理 → API 控制台」，對一個讀取與一個寫入操作各送一次，確認狀態碼、耗時、traceId 與日誌中的 `requestId` 一致、`Set-Cookie` 被遮罩、複製的 cURL 只有佔位符；換成非管理員、關閉開發者模式、生產組態各試一次，確認導覽沒有入口且直接輸入網址得到 404 頁面 | `docs/developer-mode.md`「API 控制台」 | 待跑 |
 | D24 | Matroska 擷取與 MediaInfo 補充（E4，G15.5、G15.7、G19.1）：在正式映像（`make bootstrap-matroska` 後建置）以真實 MKV 庫開啟 `JELEE_ENABLE_MATROSKA_EXTRACTION`，用真客戶端（Jellyfin 相容 App、mpv 等）播放含 ASS 內嵌字幕與字型附件的影片，確認字幕與字型正確顯示、原檔雜湊不變、快取上限與淘汰合理、大檔（數十 GB）首次擷取時間可接受；同時確認探測後章節名稱、軌名與附件出現在播放資訊，且 Web 端拿不到任何字幕或字型位元組 | `docs/matroska-tools.md`；容器實測 `docs/evidence/matroska-runtime-image.txt` | 待跑 |
+| D25 | 字幕 OCR 真實點陣字幕準確率（G15.6）：在 OCR 層映像（`make bootstrap-ocr`、`deploy/ocr/Dockerfile`）開啟 `JELEE_ENABLE_SUBTITLE_OCR`，以真實藍光 PGS（1080p／4K，含粗描邊、斜體、雙行、強制字幕）與 DVD VobSub（720×480、各種調色盤）各至少一部英文與一部中文（繁、簡）、一部日文片，人工比對抽樣 100 句以上的字元正確率與時間軸，記錄每部片的辨識耗時、Tesseract 峰值記憶體與 CPU、快取大小；確認原檔 SHA 不變、原點陣軌仍可直投、Web 端拿不到 SRT、真客戶端（Jellyfin 相容 App、mpv）能選到「(OCR)」軌並正常顯示；與 [字幕 OCR](subtitle-ocr.md) 的合成樣本數據對照 | `docs/subtitle-ocr.md`；合成樣本 `TestRealOCRAccuracyAndCost`；容器實測 `docs/evidence/ocr-runtime-image.txt` | 待跑 |
 
 ## E. 需要擁有者決定
 
@@ -112,6 +113,7 @@
 | E13 | 舊庫遷移工具（G04.6：Jellyfin SQLite → PostgreSQL）需要讀 SQLite，go.mod 目前沒有 SQLite 驅動。是否核准新增純 Go 的 `modernc.org/sqlite`（BSD 授權）？未核准前此項維持阻塞 | `docs/requirements-traceability.md` G04.6 | 已決定（2026-10-05）：核准：新增純 Go 的 `modernc.org/sqlite`（BSD 授權）供舊庫遷移工具使用，授權記錄進 LICENSE-COMPLIANCE；已實作：`modernc.org/sqlite v1.60.1` 只連結進 `jelee-cli legacy-import`（[舊庫遷移](legacy-import.md)），真實資料驗證見 D22 |
 | E14 | 初始引導選用「一次性引導權杖」而非來源位址白名單（理由：Docker 連接埠映射與反向代理後合法引導者本來就不是 loopback）；多實例部署請在引導期間只開一個實例或改用 CLI。是否接受 | `docs/setup-wizard.md` | 已決定（2026-10-05）：接受：一次性引導權杖 |
 | E15 | G04.7 快取邊界：不引入 Redis；接受三處跨實例只靠時間的延遲（CSP 字型白名單 30 秒、開發者模式 2／10 秒、初始設定閘門 1 秒，只延後生效、不讀錯資料）；登入限速、客戶端限流、串流並發與頻寬維持各實例計數，多實例時以實例數倍放寬 | `docs/adr/0002-no-redis-cache-boundary.md`、`docs/cache-boundaries.md` | 已決定（2026-10-05）：三點全部接受；若日後實例數增加或需要全域精確限流，依 ADR 0002 改用 LISTEN/NOTIFY 或引入 Redis |
+| E16 | 外部工具 Tesseract OCR 的下載與授權核准（G15.6、G30.6、G51） | `tools/manifest.json` 的 `ocrTools`；`docs/subtitle-ocr.md` | 已決定（2026-10-05）：核准：Tesseract（Apache-2.0）作為選用外部工具，依 G30.6 納入清單（固定版本、可信 HTTPS 來源、SHA256、授權記錄），語言資料同樣固定版本與雜湊；預設不安裝、不進正式映像的預設階段。上游不發 Linux 可攜二進位，改固定 Debian 13 套件（比照 mkvtoolnix 補函式庫的做法）；**已實作（2026-10-05）**：Tesseract 5.5.0、eng／chi_tra／chi_sim／jpn（tessdata_fast）固定與可選引導、`tools-verify` 校驗；沙箱 `tesseract-ocr` 模式、可選 OCR 映像層、PGS／VobSub 解碼、背景限流與並發、衍生 SRT 軌（自有 API＋相容層）、doctor 與指標。實機項目見 D25 |
 
 ## F. 一次性維運
 

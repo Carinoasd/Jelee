@@ -33,6 +33,9 @@ type Track struct {
 	ID      int
 	Type    string
 	CodecID string
+	// Language is the track's ISO 639-2 code when it is a plain lowercase
+	// code of two or three letters; otherwise empty.
+	Language string
 }
 
 // Attachment is one Matroska attachment. ID is mkvmerge's 1-based ID.
@@ -53,6 +56,17 @@ type Container struct {
 // they are, with the extension of the written file. D_WEBVTT/SUBTITLES (the
 // WebM form) is not extractable by mkvextract 102.0 and is not listed.
 var textCodecs = map[string]string{"S_TEXT/UTF8": "srt", "S_TEXT/ASS": "ass", "S_TEXT/SSA": "ssa", "S_TEXT/WEBVTT": "vtt"}
+
+// bitmapCodecs are the Matroska bitmap subtitle codec IDs that subtitle OCR
+// reads (G15.6), with the format name of the extracted track. DVB bitmap
+// subtitles are not decoded. The tracks themselves stay direct-play only.
+var bitmapCodecs = map[string]string{"S_HDMV/PGS": BitmapPGS, "S_VOBSUB": BitmapVobSub}
+
+// Bitmap subtitle formats.
+const (
+	BitmapPGS    = "pgs"
+	BitmapVobSub = "vobsub"
+)
 
 // fontTypes are attachment MIME types treated as fonts in addition to font
 // file name extensions.
@@ -77,7 +91,8 @@ func ParseIdentify(data []byte) (Container, error) {
 			ID         *int   `json:"id"`
 			Type       string `json:"type"`
 			Properties struct {
-				CodecID string `json:"codec_id"`
+				CodecID  string `json:"codec_id"`
+				Language string `json:"language"`
 			} `json:"properties"`
 		} `json:"tracks"`
 		Attachments []struct {
@@ -101,7 +116,7 @@ func ParseIdentify(data []byte) (Container, error) {
 		if track.ID == nil || *track.ID != index || len(track.Type) > 32 || len(track.Properties.CodecID) > 64 {
 			return Container{}, ErrInvalid
 		}
-		result.Tracks = append(result.Tracks, Track{ID: index, Type: track.Type, CodecID: track.Properties.CodecID})
+		result.Tracks = append(result.Tracks, Track{ID: index, Type: track.Type, CodecID: track.Properties.CodecID, Language: languageCode(track.Properties.Language)})
 	}
 	for index, attachment := range document.Attachments {
 		if attachment.ID == nil || *attachment.ID != index+1 || attachment.Size == nil || *attachment.Size < 0 || len(attachment.ContentType) > 128 {
@@ -124,4 +139,26 @@ func (t Track) TextFormat() (string, bool) {
 // Font reports whether an attachment is a font with a usable file name.
 func (a Attachment) Font() bool {
 	return domain.ValidAttachmentFileName(a.FileName) && (domain.IsFontFileName(a.FileName) || fontTypes[a.ContentType])
+}
+
+// BitmapFormat returns the bitmap subtitle format OCR can read.
+func (t Track) BitmapFormat() (string, bool) {
+	if t.Type != "subtitles" {
+		return "", false
+	}
+	format, ok := bitmapCodecs[t.CodecID]
+	return format, ok
+}
+
+// languageCode keeps a plain lowercase two- or three-letter language code.
+func languageCode(value string) string {
+	if len(value) < 2 || len(value) > 3 {
+		return ""
+	}
+	for _, c := range value {
+		if c < 'a' || c > 'z' {
+			return ""
+		}
+	}
+	return value
 }

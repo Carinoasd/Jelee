@@ -8,7 +8,7 @@ import (
 	"github.com/MoYuanCN/Jelee/internal/platform/sandbox"
 )
 
-// IsolatedToolRunner runs one sandboxed Matroska or MediaInfo mode. It
+// IsolatedToolRunner runs one sandboxed Matroska, MediaInfo or OCR mode. It
 // cannot be constructed from an arbitrary executable, operation or argv:
 // the only argv is the helper descriptor its verified launcher encodes.
 type IsolatedToolRunner struct {
@@ -18,7 +18,7 @@ type IsolatedToolRunner struct {
 }
 
 // ToolRequest is one run. Stdin is borrowed like Request.Stdin. Extraction
-// is empty except for the extraction mode. Collect, required for extraction
+// is empty except for the extraction mode (IDs) and the OCR mode (languages). Collect, required for extraction
 // and refused otherwise, reads the private directory after a successful exit
 // and before its removal; it must not retain the path.
 type ToolRequest struct {
@@ -41,7 +41,7 @@ func NewIsolatedTool(config Config, launcher *sandbox.ToolLauncher) (*IsolatedTo
 		return nil, ErrInvalid
 	}
 	id := string(launcher.Mode())
-	probe, err := launcher.HelperArguments(probeExtraction(launcher.Mode()))
+	probe, err := launcher.HelperArguments(probeExtraction(launcher))
 	maximum := base64.RawURLEncoding.EncodedLen(sandbox.MaxDescriptor)
 	if err != nil || len(probe) != 2 || probe[0] != sandbox.ToolHelperCommand || !validName(id) {
 		return nil, ErrInvalid
@@ -55,9 +55,14 @@ func NewIsolatedTool(config Config, launcher *sandbox.ToolLauncher) (*IsolatedTo
 	return &IsolatedToolRunner{runner: runner, launcher: launcher, id: id}, nil
 }
 
-func probeExtraction(mode sandbox.ToolMode) sandbox.Extraction {
-	if mode == sandbox.ToolExtract {
+func probeExtraction(launcher *sandbox.ToolLauncher) sandbox.Extraction {
+	switch launcher.Mode() {
+	case sandbox.ToolExtract:
 		return sandbox.Extraction{Tracks: []int{0}}
+	case sandbox.ToolOCR:
+		if languages := launcher.Languages(); len(languages) > 0 {
+			return sandbox.Extraction{Languages: languages[:1]}
+		}
 	}
 	return sandbox.Extraction{}
 }
@@ -75,7 +80,7 @@ func (r *IsolatedToolRunner) Run(ctx context.Context, request ToolRequest) (Resu
 		return Result{}, ErrInvalid
 	}
 	exitError := isolatedExitError
-	if r.launcher.Mode() != sandbox.ToolMediaInfo {
+	if mode := r.launcher.Mode(); mode == sandbox.ToolIdentify || mode == sandbox.ToolExtract {
 		// mkvtoolnix exits 1 after warnings with complete output, 2 on errors.
 		exitError = func(code int) error {
 			switch code {

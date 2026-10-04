@@ -183,10 +183,13 @@ func leakRouteTable() map[string]leakRoute {
 		"HEAD /api/v1/sources/{id}/audio/{trackId}":     {mode: leakByID, params: map[string]string{"id": "source", "trackId": "audio-track"}, control: true},
 		// Embedded items copied out of Matroska sources (G15.5, G15.7). The
 		// fixture resolver authorizes through the same store lookup.
-		"GET /api/v1/sources/{id}/embedded-subtitles/{index}":              {mode: leakByID, params: map[string]string{"id": "source", "index": "compat-zero"}, control: true},
-		"HEAD /api/v1/sources/{id}/embedded-subtitles/{index}":             {mode: leakByID, params: map[string]string{"id": "source", "index": "compat-zero"}, control: true},
-		"GET /api/v1/sources/{id}/attachments/{attachmentId}":              {mode: leakByID, params: map[string]string{"id": "source", "attachmentId": "attachment-id"}, control: true},
-		"HEAD /api/v1/sources/{id}/attachments/{attachmentId}":             {mode: leakByID, params: map[string]string{"id": "source", "attachmentId": "attachment-id"}, control: true},
+		"GET /api/v1/sources/{id}/embedded-subtitles/{index}":  {mode: leakByID, params: map[string]string{"id": "source", "index": "compat-zero"}, control: true},
+		"HEAD /api/v1/sources/{id}/embedded-subtitles/{index}": {mode: leakByID, params: map[string]string{"id": "source", "index": "compat-zero"}, control: true},
+		"GET /api/v1/sources/{id}/attachments/{attachmentId}":  {mode: leakByID, params: map[string]string{"id": "source", "attachmentId": "attachment-id"}, control: true},
+		"HEAD /api/v1/sources/{id}/attachments/{attachmentId}": {mode: leakByID, params: map[string]string{"id": "source", "attachmentId": "attachment-id"}, control: true},
+		// SRT derived by subtitle OCR (G15.6), through the same resolver.
+		"GET /api/v1/sources/{id}/ocr-subtitles/{index}":                   {mode: leakByID, params: map[string]string{"id": "source", "index": "compat-zero"}, control: true},
+		"HEAD /api/v1/sources/{id}/ocr-subtitles/{index}":                  {mode: leakByID, params: map[string]string{"id": "source", "index": "compat-zero"}, control: true},
 		"GET /compat/Videos/{itemId}/{mediaSourceId}/Attachments/{index}":  {mode: leakByID, params: map[string]string{"itemId": "item", "mediaSourceId": "source", "index": "compat-zero"}, control: true},
 		"HEAD /compat/Videos/{itemId}/{mediaSourceId}/Attachments/{index}": {mode: leakByID, params: map[string]string{"itemId": "item", "mediaSourceId": "source", "index": "compat-zero"}, control: true},
 		"GET /api/v1/items/{id}/playback":                                  {mode: leakByID, params: itemParam, control: true},
@@ -417,6 +420,8 @@ func leakConfig(t *testing.T, dsn string, hiddenStatus int) config.Config {
 	// developer routes are walked too.
 	cfg.Dev = config.DevConfig{EnvFlag: true, Enabled: true}
 	cfg.Matroska = config.MatroskaConfig{EnableExtraction: true, CacheRoot: t.TempDir(), CacheMaxBytes: 1 << 30}
+	cfg.SubtitleOCR = config.DefaultSubtitleOCRConfig()
+	cfg.SubtitleOCR.Enable, cfg.SubtitleOCR.CacheRoot = true, t.TempDir()
 	return cfg
 }
 

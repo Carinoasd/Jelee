@@ -3,12 +3,21 @@ package sandbox
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"image"
+	"image/draw"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
+
+	"golang.org/x/image/font"
+	"golang.org/x/image/font/gofont/goregular"
+	"golang.org/x/image/font/opentype"
+	"golang.org/x/image/math/fixed"
 
 	"github.com/MoYuanCN/Jelee/tools"
 )
@@ -190,5 +199,124 @@ func TestRealMatroskaToolsInSandboxWithExplicitHostRuntime(t *testing.T) {
 	}
 	if fileDigest(t, source) != before {
 		t.Fatal("a tool changed the source bytes")
+	}
+}
+
+// ocrToolsRoot is the directory whose .tools holds the bootstrapped OCR
+// runtime: JELEE_OCR_TOOLS_ROOT, or the repository root.
+func ocrToolsRoot(t *testing.T) string {
+	t.Helper()
+	if root := os.Getenv("JELEE_OCR_TOOLS_ROOT"); root != "" {
+		return root
+	}
+	root, err := filepath.Abs(filepath.Join("..", "..", ".."))
+	if err != nil {
+		t.Fatal(err)
+	}
+	return root
+}
+
+// hostOCRPolicy builds an explicit developer policy for Tesseract: the
+// project's pinned files plus this host's glibc and libresolv, hashed now.
+// It is used only when JELEE_OCR_HOST_RUNTIME=true.
+func hostOCRPolicy(t *testing.T, root string, languages ...string) (ToolProfile, ToolPolicy) {
+	t.Helper()
+	spec, err := tools.OCRToolSpec("linux-amd64")
+	if err != nil {
+		t.Fatal(err)
+	}
+	executable := filepath.Join(root, filepath.FromSlash(spec.Executable.Path))
+	if _, err := os.Stat(executable); err != nil {
+		if os.Getenv("JELEE_REQUIRE_MEDIA_TOOL_TESTS") == "true" {
+			t.Fatal("tesseract is not installed (make bootstrap-ocr)")
+		}
+		t.Skip("tesseract is not installed; run make bootstrap-ocr")
+	}
+	policy := ToolPolicy{ExecutableSHA256: spec.Executable.SHA256}
+	glibc := map[string]bool{"ld-linux-x86-64.so.2": true, "libc.so.6": true, "libm.so.6": true, "libgcc_s.so.1": true, "libresolv.so.2": true}
+	for _, library := range spec.Libraries {
+		base := filepath.Base(library.ContainerPath)
+		path := filepath.Join(root, filepath.FromSlash(library.Path))
+		if glibc[base] {
+			path = "/usr/lib/x86_64-linux-gnu/" + base
+			if base == "ld-linux-x86-64.so.2" {
+				path, err = filepath.EvalSymlinks("/lib64/ld-linux-x86-64.so.2")
+				if err != nil {
+					t.Fatal(err)
+				}
+			}
+		}
+		policy.Libraries = append(policy.Libraries, PinnedFile{Path: path, SHA256: fileDigest(t, path)})
+	}
+	for _, language := range languages {
+		file := spec.Languages[language]
+		policy.DataFiles = append(policy.DataFiles, PinnedFile{Path: filepath.Join(root, filepath.FromSlash(file.Path)), SHA256: file.SHA256})
+	}
+	return ToolProfile{Mode: ToolOCR, Path: executable}, policy
+}
+
+// writeTextPGM renders black text on white as a binary PGM.
+func writeTextPGM(t *testing.T, path, text string) {
+	t.Helper()
+	parsed, err := opentype.Parse(goregular.TTF)
+	if err != nil {
+		t.Fatal(err)
+	}
+	face, err := opentype.NewFace(parsed, &opentype.FaceOptions{Size: 40, DPI: 72, Hinting: font.HintingFull})
+	if err != nil {
+		t.Fatal(err)
+	}
+	canvas := image.NewGray(image.Rect(0, 0, 32+font.MeasureString(face, text).Ceil(), 80))
+	draw.Draw(canvas, canvas.Bounds(), image.White, image.Point{}, draw.Src)
+	drawer := font.Drawer{Dst: canvas, Src: image.Black, Face: face, Dot: fixed.P(16, 54)}
+	drawer.DrawString(text)
+	header := fmt.Sprintf("P5\n%d %d\n255\n", canvas.Bounds().Dx(), canvas.Bounds().Dy())
+	if err := os.WriteFile(path, append([]byte(header), canvas.Pix...), 0o600); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestRealTesseractInSandboxWithExplicitHostRuntime(t *testing.T) {
+	if os.Getenv("JELEE_OCR_HOST_RUNTIME") != "true" {
+		t.Skip("real Tesseract needs JELEE_OCR_HOST_RUNTIME=true; host glibc is never trusted implicitly")
+	}
+	requireNative(t)
+	helper := fixtureHelper(t)
+	root := ocrToolsRoot(t)
+	profile, policy := hostOCRPolicy(t, root, "eng", "chi_tra")
+	launcher, err := NewTool(context.Background(), profile, policy)
+	if err != nil {
+		t.Fatalf("real tesseract verification failed: %v", err)
+	}
+	if got := launcher.Languages(); !slices.Equal(got, []string{"eng", "chi_tra"}) {
+		t.Fatalf("languages %q", got)
+	}
+	input := filepath.Join(t.TempDir(), "picture.pgm")
+	writeTextPGM(t, input, "Jelee reads 42 subtitles")
+	before := fileDigest(t, input)
+	work := t.TempDir()
+	output, err := runToolHelper(t, helper, launcher, policy, Extraction{Languages: []string{"eng"}}, input, work)
+	if err != nil {
+		t.Fatalf("real tesseract in sandbox failed: %v", err)
+	}
+	if got := strings.TrimSpace(string(output)); got != "Jelee reads 42 subtitles" {
+		t.Fatalf("recognized %q", got)
+	}
+	if fileDigest(t, input) != before {
+		t.Fatal("tesseract changed its input")
+	}
+	if entries, err := os.ReadDir(work); err != nil || len(entries) != 0 {
+		t.Fatal("tesseract wrote into its working directory")
+	}
+	// A language whose data is not granted is refused before exec.
+	if _, err := launcher.HelperArguments(Extraction{Languages: []string{"jpn"}}); err != ErrInvalid {
+		t.Fatal("ungranted language accepted")
+	}
+	// A changed language data digest is refused by the helper itself.
+	wrong := policy
+	wrong.DataFiles = slices.Clone(policy.DataFiles)
+	wrong.DataFiles[0].SHA256 = strings.Repeat("0", 64)
+	if _, err := runToolHelper(t, helper, launcher, wrong, Extraction{Languages: []string{"eng"}}, input, t.TempDir()); err == nil {
+		t.Fatal("helper accepted language data whose digest differs from its policy")
 	}
 }

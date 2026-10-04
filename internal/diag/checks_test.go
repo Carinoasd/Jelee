@@ -91,7 +91,88 @@ func healthyEnv(t *testing.T) (Environment, *fakeDB) {
 		Statfs: plentyDisk, Now: func() time.Time { return time.Date(2026, 10, 4, 12, 0, 0, 0, time.UTC) },
 	}
 	env.MatroskaSpec = fakeMatroska(toolPath)
+	env.OCRSpec = fakeOCR(toolPath)
 	return env, db
+}
+
+// fakeOCR points the OCR executable and every language at one stand-in.
+func fakeOCR(path string) func() (tools.OCRToolSpecification, error) {
+	sum := sha256.Sum256(fakeToolBytes)
+	file := tools.RuntimeFile{Path: ".tools/none/tesseract", ContainerPath: path, SHA256: hex.EncodeToString(sum[:])}
+	return func() (tools.OCRToolSpecification, error) {
+		languages := map[string]tools.RuntimeFile{}
+		for _, code := range tools.OCRLanguages {
+			languages[code] = file
+		}
+		return tools.OCRToolSpecification{Version: "5-test", Executable: file, Languages: languages}, nil
+	}
+}
+
+func TestSubtitleOCRToolFaults(t *testing.T) {
+	t.Run("verified", func(t *testing.T) {
+		env, _ := healthyEnv(t)
+		r := runCheck(t, env, "subtitle_ocr")
+		expect(t, r, StatusOK, CodeOCRVerified)
+		if len(r.Findings) != 1+len(tools.OCRLanguages) || r.Facts["version"] != "5-test" || r.Facts["enabled"] != "false" {
+			t.Fatalf("result = %+v", r)
+		}
+	})
+	t.Run("missing is optional unless OCR is enabled", func(t *testing.T) {
+		env, _ := healthyEnv(t)
+		env.OCRSpec = fakeOCR(filepath.Join(t.TempDir(), "none"))
+		expect(t, runCheck(t, env, "subtitle_ocr"), StatusWarn, CodeOCRMissing)
+		env.Config.SubtitleOCR = config.DefaultSubtitleOCRConfig()
+		env.Config.SubtitleOCR.Enable = true
+		env.Config.SubtitleOCR.Languages = []string{"chi_tra", "eng"}
+		r := runCheck(t, env, "subtitle_ocr")
+		expect(t, r, StatusFail, CodeOCRMissing)
+		required := map[string]bool{"tesseract": true, "tessdata/eng": true, "tessdata/chi_tra": true}
+		for _, f := range r.Findings {
+			if required[f.Subject] != (f.Status == StatusFail) {
+				t.Fatalf("finding %+v", f)
+			}
+		}
+		if r.Facts["languages"] != "chi_tra+eng" || r.Facts["concurrency"] != "1" || r.Facts["pictures_per_minute"] != "60" {
+			t.Fatalf("facts %+v", r.Facts)
+		}
+	})
+	t.Run("hash mismatch and unreadable", func(t *testing.T) {
+		env, _ := healthyEnv(t)
+		bad := filepath.Join(t.TempDir(), "tampered")
+		if err := os.WriteFile(bad, []byte("tampered"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		env.OCRSpec = fakeOCR(bad)
+		r := runCheck(t, env, "subtitle_ocr")
+		expect(t, r, StatusFail, CodeOCRMismatch)
+		if r.Findings[0].Subject != "tesseract:runtime" {
+			t.Fatalf("subject = %q", r.Findings[0].Subject)
+		}
+		env.OCRSpec = fakeOCR(t.TempDir())
+		expect(t, runCheck(t, env, "subtitle_ocr"), StatusFail, CodeOCRUnreadable)
+	})
+	t.Run("unsupported platform and broken manifest", func(t *testing.T) {
+		env, _ := healthyEnv(t)
+		env.OCRSpec = func() (tools.OCRToolSpecification, error) {
+			return tools.OCRToolSpecification{}, errors.New("tool_platform_unsupported")
+		}
+		expect(t, runCheck(t, env, "subtitle_ocr"), StatusWarn, CodeOCRUnsupported)
+		env.Config.SubtitleOCR.Enable = true
+		expect(t, runCheck(t, env, "subtitle_ocr"), StatusFail, CodeOCRUnsupported)
+		env.OCRSpec = func() (tools.OCRToolSpecification, error) {
+			return tools.OCRToolSpecification{}, errors.New("tool_manifest_invalid")
+		}
+		expect(t, runCheck(t, env, "subtitle_ocr"), StatusFail, CodeToolManifest)
+	})
+	t.Run("embedded manifest and project install", func(t *testing.T) {
+		env, _ := healthyEnv(t)
+		env.OCRSpec = nil
+		env.Project = t.TempDir()
+		r := runCheck(t, env, "subtitle_ocr")
+		if r.Status == StatusFail {
+			t.Fatalf("an absent optional runtime failed doctor: %+v", r)
+		}
+	})
 }
 
 // fakeMatroska points every optional tool at one verified stand-in file.
@@ -700,10 +781,10 @@ func TestReportJSONShape(t *testing.T) {
 	if err := json.Unmarshal(data, &decoded); err != nil {
 		t.Fatal(err)
 	}
-	if decoded.Format != ReportFormat || decoded.Status != "fail" || decoded.Summary.Fail != 1 || len(decoded.Results) != 11 || decoded.GeneratedAt.IsZero() {
+	if decoded.Format != ReportFormat || decoded.Status != "fail" || decoded.Summary.Fail != 1 || len(decoded.Results) != 12 || decoded.GeneratedAt.IsZero() {
 		t.Fatalf("decoded = %+v", decoded)
 	}
-	names := []string{"config", "database", "migrations", "library_roots", "tools", "matroska_tools", "disk", "network", "directories", "privacy", "devmode"}
+	names := []string{"config", "database", "migrations", "library_roots", "tools", "matroska_tools", "subtitle_ocr", "disk", "network", "directories", "privacy", "devmode"}
 	for i, r := range decoded.Results {
 		if r.Check != names[i] || len(r.Findings) == 0 || r.Status == "" || r.Code == "" {
 			t.Fatalf("result %d = %+v", i, r)

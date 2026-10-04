@@ -20,11 +20,14 @@ import (
 type fakeExtracted struct {
 	root      string
 	available bool
+	ocr       bool
 	calls     int
 	kinds     []media.ExtractedKind
 }
 
 func (f *fakeExtracted) Available() bool { return f.available }
+
+func (f *fakeExtracted) OCRAvailable() bool { return f.ocr }
 
 func (f *fakeExtracted) ResolveExtracted(_ context.Context, p access.Principal, source string, kind media.ExtractedKind, index int) (media.Source, error) {
 	f.calls++
@@ -37,17 +40,28 @@ func (f *fakeExtracted) ResolveExtracted(_ context.Context, p access.Principal, 
 		return media.Source{Root: f.root, RelativePath: sourceID + "/rev/t2.ass", ContentType: "text/html", ETag: `"ignored"`}, nil
 	case kind == media.ExtractedAttachment && index == 1:
 		return media.Source{Root: f.root, RelativePath: sourceID + "/rev/a1.ttf"}, nil
+	case kind == media.ExtractedOCRSubtitle && index == 5:
+		return media.Source{Root: f.root, RelativePath: sourceID + "/ocr/s5.srt", ContentType: "text/html"}, nil
 	}
 	return media.Source{}, media.ErrNotFound
 }
 
 func extractedFixture(t *testing.T, enabled bool, extracted *fakeExtracted) *fixture {
 	t.Helper()
+	return extractedFixtureWith(t, enabled, false, extracted)
+}
+
+func extractedFixtureWith(t *testing.T, enabled, ocr bool, extracted *fakeExtracted) *fixture {
+	t.Helper()
 	f := &fixture{backend: &fakeBackend{}, repository: &fakeRepository{}, resolver: &fakeResolver{}}
 	cfg := validConfig()
 	cfg.EnableCatalog, cfg.EnableDirect = true, true
 	if enabled {
 		cfg.Matroska = configMatroska(t)
+	}
+	if ocr {
+		cfg.SubtitleOCR = config.DefaultSubtitleOCRConfig()
+		cfg.SubtitleOCR.Enable, cfg.SubtitleOCR.CacheRoot = true, t.TempDir()
 	}
 	var options []Option
 	if extracted != nil {
@@ -166,4 +180,83 @@ func TestPlaybackDecoratesOnlyAvailableExtraction(t *testing.T) {
 func configMatroska(t *testing.T) config.MatroskaConfig {
 	t.Helper()
 	return config.MatroskaConfig{EnableExtraction: true, CacheRoot: t.TempDir(), CacheMaxBytes: 1 << 30}
+}
+
+func TestOCRSubtitleRouteDeliversDerivedSRTToNativeSessionsOnly(t *testing.T) {
+	root := t.TempDir()
+	directory := filepath.Join(root, sourceID, "ocr")
+	if err := os.MkdirAll(directory, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	srt := []byte("1\n00:00:01,000 --> 00:00:02,000\n<b>recognized</b>\n\n")
+	if err := os.WriteFile(filepath.Join(directory, "s5.srt"), srt, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	extracted := &fakeExtracted{root: root, available: true, ocr: true}
+	f := extractedFixtureWith(t, true, true, extracted)
+	native := strings.Repeat("n", 43)
+	path := "/api/v1/sources/" + sourceID + "/ocr-subtitles/5"
+	w := f.request(http.MethodGet, path, native)
+	h := w.Header()
+	if w.Code != 200 || w.Body.String() != string(srt) || h.Get("Content-Type") != "application/x-subrip; charset=UTF-8" || h.Get("X-Content-Type-Options") != "nosniff" || h.Get("Content-Security-Policy") != "sandbox; default-src 'none'" {
+		t.Fatalf("%d %q %v", w.Code, w.Body.String(), h)
+	}
+	if extracted.kinds[len(extracted.kinds)-1] != media.ExtractedOCRSubtitle {
+		t.Fatal("route did not ask for the OCR kind")
+	}
+	calls := extracted.calls
+	assertProblem(t, f.request(http.MethodGet, path, webToken), 403, "web_playback_disabled")
+	assertProblem(t, f.request(http.MethodGet, path, ""), 401, "authentication_required")
+	assertProblem(t, f.request(http.MethodGet, path+"?subtitleCodec=webvtt", native), 409, "transcode_disabled")
+	assertProblem(t, f.request(http.MethodGet, "/api/v1/sources/"+sourceID+"/ocr-subtitles/05", native), 404, "not_found")
+	if extracted.calls != calls {
+		t.Fatal("a refused request reached the resolver")
+	}
+	// Pending, missing and non-bitmap indices look alike.
+	assertProblem(t, f.request(http.MethodGet, "/api/v1/sources/"+sourceID+"/ocr-subtitles/4", native), 404, "not_found")
+	// OCR not enabled: no route, even with an OCR-capable resolver.
+	disabled := extractedFixtureWith(t, true, false, &fakeExtracted{root: root, available: true, ocr: true})
+	assertProblem(t, disabled.request(http.MethodGet, path, native), 404, "not_found")
+}
+
+func TestPlaybackListsOCRTracksOnlyWhenTheirTextExists(t *testing.T) {
+	principal := access.Principal{Kind: access.ClientNative, UserID: "u"}
+	build := func() domain.PlaybackSource {
+		return domain.PlaybackSource{ID: sourceID, Subtitles: []domain.PlaybackSubtitleTrack{
+			{Index: 5, Format: "pgs", Title: "Director", OCRSource: true}, {Index: 6, Format: "vobsub", Language: "eng", OCRSource: true}, {Index: 2, Extractable: true}}}
+	}
+	extracted := &fakeExtracted{available: true, ocr: true}
+	s := &Server{extracted: extracted}
+	s.cfg.SubtitleOCR.Enable = true
+	source := build()
+	s.decorateOCR(context.Background(), principal, &source)
+	if got := source.Subtitles[0].OCR; got == nil || got.Format != "srt" || got.Title != "Director (OCR)" || got.URL != "/api/v1/sources/"+sourceID+"/ocr-subtitles/5" {
+		t.Fatalf("ready track %+v", got)
+	}
+	if source.Subtitles[1].OCR != nil || source.Subtitles[2].OCR != nil {
+		t.Fatal("pending or text track listed an OCR result")
+	}
+	if extracted.calls != 2 {
+		t.Fatalf("asked %d times; only bitmap tracks are looked up", extracted.calls)
+	}
+	for name, server := range map[string]*Server{
+		"no OCR runtime": {extracted: &fakeExtracted{available: true}},
+		"no extraction":  {extracted: &fakeExtracted{available: false, ocr: true}},
+		"not enabled":    {extracted: &fakeExtracted{available: true, ocr: true}},
+	} {
+		if name != "not enabled" {
+			server.cfg.SubtitleOCR.Enable = true
+		}
+		source := build()
+		server.decorateOCR(context.Background(), principal, &source)
+		if source.Subtitles[0].OCR != nil {
+			t.Fatalf("%s listed OCR", name)
+		}
+	}
+	if !(hiddenExtracted{&fakeExtracted{available: true, ocr: true}}).OCRAvailable() || (hiddenExtracted{unavailableExtracted{}}).OCRAvailable() {
+		t.Fatal("hidden status wrapper changed OCR availability")
+	}
+	if domain.OCRTrackTitle(domain.PlaybackSubtitleTrack{}) != "OCR" || domain.OCRTrackTitle(domain.PlaybackSubtitleTrack{Language: "jpn"}) != "jpn (OCR)" {
+		t.Fatal("titles")
+	}
 }

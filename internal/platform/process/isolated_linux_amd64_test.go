@@ -184,3 +184,62 @@ func TestIsolatedToolFactoryAcceptsOnlyTheSealedLauncher(t *testing.T) {
 		t.Fatal("sealed factory bypassed configuration bounds")
 	}
 }
+
+func TestIsolatedOCRToolRunnerSealsLanguagesAndExitCodes(t *testing.T) {
+	path := os.Getenv("JELEE_SANDBOX_TEST_HELPER")
+	if path == "" {
+		path = filepath.Join(t.TempDir(), "ffprobe")
+		command := exec.Command(filepath.Join(runtime.GOROOT(), "bin", "go"), "build", "-trimpath", "-o", path, "../sandbox/testdata/helper") //nolint:staticcheck // SA1019: test helpers build with the toolchain running the test; project wrappers export GOROOT
+		command.Env = append(os.Environ(), "CGO_ENABLED=0", "GOTOOLCHAIN=local")
+		if output, err := command.CombinedOutput(); err != nil {
+			t.Fatalf("build sealed launcher fixture: %v; %s", err, output)
+		}
+	}
+	directory := t.TempDir()
+	tool := filepath.Join(directory, "tesseract")
+	data := filepath.Join(directory, "eng.traineddata")
+	digest := func(source, target string, mode os.FileMode) string {
+		content, err := os.ReadFile(source)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(target, content, mode); err != nil {
+			t.Fatal(err)
+		}
+		sum := sha256.Sum256(content)
+		return hex.EncodeToString(sum[:])
+	}
+	policy := sandbox.ToolPolicy{ExecutableSHA256: digest(path, tool, 0o755)}
+	if err := os.WriteFile(filepath.Join(directory, "model"), []byte("synthetic model"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	policy.DataFiles = []sandbox.PinnedFile{{Path: data, SHA256: digest(filepath.Join(directory, "model"), data, 0o444)}}
+	launcher, err := sandbox.NewTool(context.Background(), sandbox.ToolProfile{Mode: sandbox.ToolOCR, Path: tool}, policy)
+	if err != nil {
+		t.Fatal(err)
+	}
+	config := Config{MaxConcurrent: 2, Timeout: time.Second, MaxStdoutBytes: 1024, MaxStderrBytes: 1024, TempRoot: t.TempDir()}
+	runner, err := NewIsolatedTool(config, launcher)
+	if err != nil {
+		t.Fatal(err)
+	}
+	registered := runner.runner.tools[string(sandbox.ToolOCR)]
+	if len(runner.runner.tools) != 1 || registered.Path != launcher.Executable() || registered.Operations["run"][0] != sandbox.ToolHelperCommand {
+		t.Fatal("OCR registry differs from the sealed launcher")
+	}
+	stdin, err := os.Open(data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = stdin.Close() }()
+	for name, request := range map[string]ToolRequest{
+		"no languages": {Stdin: stdin},
+		"ungranted":    {Stdin: stdin, Extraction: sandbox.Extraction{Languages: []string{"jpn"}}},
+		"collect":      {Stdin: stdin, Extraction: sandbox.Extraction{Languages: []string{"eng"}}, Collect: func(string) error { return nil }},
+		"no stdin":     {Extraction: sandbox.Extraction{Languages: []string{"eng"}}},
+	} {
+		if _, err := runner.Run(context.Background(), request); err != ErrInvalid {
+			t.Errorf("%s accepted: %v", name, err)
+		}
+	}
+}

@@ -27,6 +27,7 @@ func TestExtractedContentTypesComeFromFixedTables(t *testing.T) {
 		{ExtractedSubtitle, ".srt", "application/x-subrip; charset=UTF-8"},
 		{ExtractedSubtitle, "ass", "text/x-ssa; charset=UTF-8"},
 		{ExtractedSubtitle, ".VTT", "text/vtt; charset=UTF-8"},
+		{ExtractedOCRSubtitle, ".srt", "application/x-subrip; charset=UTF-8"},
 		{ExtractedAttachment, ".ttf", "font/ttf"},
 		{ExtractedAttachmentStream, ".woff2", "font/woff2"},
 		{ExtractedAttachment, ".otc", "font/collection"},

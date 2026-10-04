@@ -1,0 +1,61 @@
+{
+ "date": "2026-10-05",
+ "image": "sha256:5cf07baa9d7999200f7bff326ebccc8b5836acc2f035523dfbc2c37291dc6fc0 (disposable test image, removed)",
+ "build": "deploy/ocr/Dockerfile with JELEE_IMAGE set to a disposable base of the pinned mediaRuntime glibc (scripts/runtime-tools bootstrap) and the static tools/ocr-smoke binary (build tag jelee_ocr_tests); the default runtime image was not built because this workstation lacks the pinned ffprobe and mkvtoolnix",
+ "runtimeImageVerifier": "tools/runtime-image -ocr passed during docker build: OCR image stage: exact manifest hashes verified; no OCR program executed (110 files: tesseract, 52 libraries plus libresolv, 4 traineddata, 52 notices)",
+ "docker": "29.7.2, default seccomp profile",
+ "user": "65532:65532",
+ "readOnlyRoot": true,
+ "network": "none",
+ "smoke": {
+  "diagnose": [
+   {
+    "name": "tesseract",
+    "version": "5.5.0",
+    "state": "verified"
+   },
+   {
+    "name": "tessdata/eng",
+    "version": "5.5.0",
+    "state": "verified"
+   },
+   {
+    "name": "tessdata/chi_tra",
+    "version": "5.5.0",
+    "state": "verified"
+   },
+   {
+    "name": "tessdata/chi_sim",
+    "version": "5.5.0",
+    "state": "verified"
+   },
+   {
+    "name": "tessdata/jpn",
+    "version": "5.5.0",
+    "state": "verified"
+   }
+  ],
+  "seconds": 0.143674568,
+  "srt": "1\n00:00:01,000 --> 00:00:02,000\nThe bridge is closed tonight.\n\n2\n00:00:04,000 --> 00:00:05,000\nTake the north road instead.\n\n3\n00:00:07,000 --> 00:00:08,000\nThe bridge is closed tonight.\n\n",
+  "stats": {
+   "Queued": 0,
+   "Running": 0,
+   "Completed": 1,
+   "Failed": 0,
+   "Dropped": 0,
+   "Pictures": 3,
+   "Recognized": 2,
+   "Reused": 1,
+   "Rejected": 0,
+   "Skipped": 0,
+   "Throttled": 0
+  }
+ },
+ "negative": {
+  "rootUser": "--user 0:0: registration refused (ocr_runtime_unavailable), tesseract reported invalid",
+  "alteredLanguageData": "jpn.traineddata replaced: tessdata/jpn invalid, registration refused (every pinned language is part of the policy)",
+  "alteredLibrary": "one byte appended to libgif.so.7: tesseract invalid, registration refused"
+ },
+ "testImagesRemoved": true,
+ "argv": "tesseract /proc/self/fd/0 stdout --tessdata-dir /usr/lib/jelee/tesseract/tessdata -l eng --oem 1 --psm 6 -c thresholding_method=1"
+}

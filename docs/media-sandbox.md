@@ -10,6 +10,10 @@ Successful `New` means the supplied identity policy and ELF dependency closure w
 
 `sandbox.NewTool` / `RunToolHelper` reuse the same verification, Landlock, seccomp allowlist and `execveat` path for three fixed modes behind a separate `--internal-media-tool-helper` entry, so the ffprobe descriptor and `linux-metadata-sandbox-v1` policy are unchanged. Tool modes additionally grant READ_FILE on the stdin file object (the tools reopen `/proc/self/fd/0`); only `mkvextract` may create files, in the runner's private working directory, with `RLIMIT_FSIZE` 64 MiB and CPU 600 s. Descriptors carry only the mode, the fixed path and ascending integer IDs. Details: [mkvtoolnix and MediaInfo](matroska-tools.md).
 
+## Tesseract OCR mode (G15.6)
+
+A fourth tool mode, `tesseract-ocr`, runs the pinned Tesseract on one decoded subtitle picture (a private PGM file passed as the verified read-only stdin). Its policy adds `DataFiles`: the pinned `<language>.traineddata` files, all in one directory, hashed (and, in production, ownership-checked) at registration and again in the helper, and granted READ_FILE as those same file objects — only the languages of the run. The descriptor carries 1–4 language codes that must be pinned by the policy. Its exact closure may hold up to 64 libraries (`MaxOCRLibraries`; Debian's build links libcurl and libarchive); the other modes keep the 32-file bound. It creates no file (FSIZE 0), runs with CPU 30 s and `OMP_THREAD_LIMIT=1`, and has its own `OCRPolicyVersion`, so `ToolPolicyVersion` and the MediaInfo probe identity are unchanged. Details: [subtitle OCR](subtitle-ocr.md).
+
 ## Registration and helper contract
 
 ```go

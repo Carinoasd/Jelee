@@ -169,3 +169,32 @@ func TestImageMainRejectsArgumentsWithFixedOutput(t *testing.T) {
 		t.Fatalf("unsafe checker main response: %v", err)
 	}
 }
+
+func TestOCRPinsStayOutOfTheDefaultImage(t *testing.T) {
+	pins, err := ocrPins()
+	if err != nil || len(pins) < 100 || len(pins) > 128 {
+		t.Fatalf("OCR pins %v %d", err, len(pins))
+	}
+	for _, name := range []string{"usr/lib/jelee/tesseract/tesseract", "usr/lib/jelee/tesseract/lib/libtesseract.so.5", "usr/lib/jelee/tesseract/tessdata/chi_tra.traineddata", "lib/x86_64-linux-gnu/libresolv.so.2", "licenses/tesseract/tesseract-ocr/copyright"} {
+		if _, ok := pins[filepath.FromSlash(name)]; !ok {
+			t.Fatal("missing OCR pin " + name)
+		}
+	}
+	base, _ := imagePins()
+	for name := range pins {
+		if _, shared := base[name]; shared {
+			t.Fatalf("%s is pinned by both trees", name)
+		}
+		if strings.Contains(name, "tesseract") {
+			continue
+		}
+		if !strings.HasPrefix(name, filepath.FromSlash("usr/lib/jelee/tesseract/")) && name != filepath.FromSlash("lib/x86_64-linux-gnu/libresolv.so.2") && !strings.HasPrefix(name, filepath.FromSlash("licenses/tesseract/")) {
+			t.Fatalf("OCR file outside its directories: %s", name)
+		}
+	}
+	for name := range base {
+		if strings.Contains(name, "tesseract") || strings.Contains(name, "tessdata") {
+			t.Fatal("OCR file in the default runtime image: " + name)
+		}
+	}
+}

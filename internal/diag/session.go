@@ -89,9 +89,11 @@ type Environment struct {
 	ToolSpec func() (tools.FFprobeSpecification, error)
 	// MatroskaSpec overrides the embedded mkvtoolnix/MediaInfo lookup.
 	MatroskaSpec func(name string) (tools.MatroskaToolSpecification, error)
-	Statfs       func(path string) (DiskUsage, error)
-	Disk         DiskThresholds
-	MaxRoots     int
+	// OCRSpec overrides the embedded Tesseract lookup (G15.6).
+	OCRSpec  func() (tools.OCRToolSpecification, error)
+	Statfs   func(path string) (DiskUsage, error)
+	Disk     DiskThresholds
+	MaxRoots int
 	// External enables the TMDB probe; TMDB performs it.
 	External bool
 	TMDB     func(ctx context.Context) ExternalOutcome
@@ -175,6 +177,7 @@ func (s *Session) Checks() []Check {
 		CheckFunc{"library_roots", s.checkRoots},
 		CheckFunc{"tools", s.checkTools},
 		CheckFunc{"matroska_tools", s.checkMatroskaTools},
+		CheckFunc{"subtitle_ocr", s.checkSubtitleOCR},
 		CheckFunc{"disk", s.checkDisk},
 		CheckFunc{"network", s.checkNetwork},
 		CheckFunc{"directories", s.checkDirectories},

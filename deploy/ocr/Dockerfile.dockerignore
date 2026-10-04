@@ -1,0 +1,17 @@
+# Context of deploy/ocr/Dockerfile: the manifest verifier and the pinned
+# Tesseract files only (BuildKit reads this file instead of .dockerignore).
+*
+!go.mod
+!go.sum
+!tools/media.go
+!tools/runtime.go
+!tools/matroska.go
+!tools/ocr.go
+!tools/manifest.json
+!tools/runtime-image/
+tools/runtime-image/*_test.go
+!.tools/
+.tools/*
+!.tools/ocr/
+.tools/ocr/*
+!.tools/ocr/tesseract/

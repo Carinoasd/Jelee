@@ -335,9 +335,20 @@ func newWithLifetime(cfg config.Config, logger *slog.Logger, lifetime *lifetime)
 		func(c config.Config, store *postgres.Store, catalog *app.Catalog, jobs *app.Jobs, metadata *app.Metadata, metrics *telemetry.Metrics, pictures *app.Images, webhooks *app.Webhooks, budget *resources.Budget, l *slog.Logger, dev *devmode.Controller) (http.Handler, error) {
 			var options []httpapi.Option
 			if c.Matroska.EnableExtraction {
-				extraction := newMatroskaService(c, store, l)
+				// A nil budget must stay a nil interface for OCR's admission.
+				var work app.WorkBudget
+				if budget != nil {
+					work = budget
+				}
+				extraction := newMatroskaService(c, store, work, l)
 				lifetime.closeMatroska = extraction.Close
 				options = append(options, httpapi.WithExtracted(extraction))
+				// Subtitle OCR counters (G15.6), when OCR runs.
+				if stats, ok := extraction.ocr.(telemetry.SubtitleOCRStats); ok && metrics != nil {
+					if err := metrics.RegisterSubtitleOCR(stats); err != nil {
+						return nil, err
+					}
+				}
 			}
 			if !c.EnableAccounts {
 				return httpapi.NewWithResources(c, store, catalog, store, l, nil, nil, nil, nil, nil, budget, options...)

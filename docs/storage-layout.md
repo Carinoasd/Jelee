@@ -22,8 +22,9 @@
 | 图片暂存 | `JELEE_IMAGE_TEMP_ROOT/image-…partial` | 图片请求 | 请求结束时删除；启动清扫 | 停机时可删 |
 | 图片持久存放区 | `JELEE_IMAGE_STORE_ROOT` | 目前没有接入 | — | 见 [图片](#图片) |
 | 外部工具暂存 | `$TMPDIR/jelee-service-*`、`$TMPDIR/jelee-probe-check-*` | probe／ignore／mkv 服务 | 服务关闭时删除；启动清扫 | 停机时可删 |
-| 工具与授权文件 | 容器内 `/usr/lib/jelee/ffprobe`、`/usr/lib/jelee/mediainfo`、`/usr/lib/jelee/mkvtoolnix/`、`/lib`、`/lib64`、`/licenses` | 镜像 | — | 不可改，身份与 SHA-256 都会校验 |
+| 工具与授权文件 | 容器内 `/usr/lib/jelee/ffprobe`、`/usr/lib/jelee/mediainfo`、`/usr/lib/jelee/mkvtoolnix/`、（OCR 層）`/usr/lib/jelee/tesseract/`、`/lib`、`/lib64`、`/licenses` | 镜像 | — | 不可改，身份与 SHA-256 都会校验 |
 | Matroska 擷取快取 | `JELEE_MATROSKA_CACHE_ROOT/<sourceID>/<修訂>/`（內嵌文字字幕與字型附件的原樣副本） | 擷取請求（E4，預設關閉） | 新修訂取代舊修訂；超過 `JELEE_MATROSKA_CACHE_MAX_BYTES` 依最近使用淘汰；staging 殘留一小時後清除 | 可隨時刪除，下次請求重新擷取；不需備份，見 [mkvtoolnix 與 MediaInfo](matroska-tools.md) |
+| 字幕 OCR 快取 | `JELEE_SUBTITLE_OCR_CACHE_ROOT/<sourceID>/<修訂>/s<索引>.srt`（由點陣字幕辨識出的額外 SRT，G15.6） | OCR 背景工作（預設關閉） | 新修訂取代舊修訂；超過 `JELEE_SUBTITLE_OCR_CACHE_MAX_BYTES` 依最近使用淘汰；staging 殘留一小時後清除；抽出的點陣軌與圖片只在服務 scratch 內、工作結束即刪 | 可隨時刪除，下次查詢重新排隊辨識；不需備份，見 [字幕 OCR](subtitle-ocr.md) |
 | CLI 诊断暂存 | `<项目>/.testdata/tool-doctor-*` | `jelee-cli doctor tools` | 命令结束时删除 | 可删 |
 | doctor 可写性探针 | 暂存、图片与日志目录内的 `.jelee-doctor-*` | `jelee-cli doctor` | 建立后立即删除；崩溃时只留空文件 | 可删 |
 | 诊断包 | `jelee-cli diag export --out` 指定的 `.zip`（0600，不覆盖已有文件） | 运维 | 运维 | 可删；内容已脱敏，分享前仍应检查，见[故障排查](troubleshooting.md#diag-export) |

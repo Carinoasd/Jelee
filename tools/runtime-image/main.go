@@ -57,6 +57,26 @@ func imagePins() (map[string]pin, error) {
 	return pins, nil
 }
 
+// ocrPins are the files of the optional OCR image stage (G15.6,
+// deploy/ocr/Dockerfile): Tesseract, its non-glibc closure, the pinned
+// language data and the notices. They are verified as their own tree and
+// never enter the default runtime image.
+func ocrPins() (map[string]pin, error) {
+	files, err := tools.OCRImageFiles()
+	if err != nil {
+		return nil, errInvalid
+	}
+	pins := make(map[string]pin, len(files))
+	for _, file := range files {
+		name := filepath.FromSlash(file.ContainerPath[1:])
+		if _, duplicate := pins[name]; duplicate {
+			return nil, errInvalid
+		}
+		pins[name] = pin{file.SHA256, 64 << 20}
+	}
+	return pins, nil
+}
+
 func verify(root string, pins map[string]pin) error {
 	return verifyWithOpen(root, pins, os.Open)
 }
@@ -125,6 +145,16 @@ func verifyWithOpen(root string, pins map[string]pin, open func(string) (*os.Fil
 }
 
 func main() {
+	// -ocr verifies the optional OCR stage's tree instead of the default one.
+	if len(os.Args) == 2 && os.Args[1] == "-ocr" {
+		pins, err := ocrPins()
+		if err != nil || verify("/runtime-ocr", pins) != nil {
+			fmt.Fprintln(os.Stderr, "runtime_image_invalid")
+			os.Exit(1)
+		}
+		fmt.Println("OCR image stage: exact manifest hashes verified; no OCR program executed")
+		return
+	}
 	pins, err := imagePins()
 	if err != nil || len(os.Args) != 1 || verify("/runtime", pins) != nil {
 		fmt.Fprintln(os.Stderr, "runtime_image_invalid")

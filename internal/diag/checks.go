@@ -12,6 +12,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -346,6 +347,88 @@ func (s *Session) checkMatroskaTools(ctx context.Context) Result {
 		}
 	}
 	r := newResult("matroska_tools", findings...)
+	r.Facts = facts
+	return r
+}
+
+// checkSubtitleOCR reports the optional Tesseract runtime of subtitle OCR
+// (G15.6) by hash, without executing it: the executable and every pinned
+// language data file, in the image and in the project's .tools. A missing
+// runtime is a warning (OCR stays off); with OCR enabled, a missing
+// executable or a missing configured language fails the check.
+func (s *Session) checkSubtitleOCR(ctx context.Context) Result {
+	lookup := s.env.OCRSpec
+	if lookup == nil {
+		lookup = func() (tools.OCRToolSpecification, error) {
+			return tools.OCRToolSpec(runtime.GOOS + "-" + runtime.GOARCH)
+		}
+	}
+	ocr := s.env.Config.SubtitleOCR
+	facts := map[string]string{"enabled": strconv.FormatBool(ocr.Enable)}
+	if ocr.Enable {
+		facts["languages"] = strings.Join(ocr.Languages, "+")
+		facts["pictures_per_minute"] = strconv.Itoa(ocr.PicturesPerMinute)
+		facts["concurrency"] = strconv.Itoa(ocr.Concurrency)
+	}
+	spec, err := lookup()
+	if err != nil {
+		code := CodeToolManifest
+		status := failf("tesseract", code)
+		if err.Error() == "tool_platform_unsupported" {
+			status = warnf("tesseract", CodeOCRUnsupported)
+			if ocr.Enable {
+				status = failf("tesseract", CodeOCRUnsupported)
+			}
+		}
+		r := newResult("subtitle_ocr", status)
+		r.Facts = facts
+		return r
+	}
+	facts["version"] = spec.Version
+	type pinned struct {
+		subject  string
+		file     tools.RuntimeFile
+		required bool
+	}
+	files := []pinned{{"tesseract", spec.Executable, ocr.Enable}}
+	for _, code := range tools.OCRLanguages {
+		files = append(files, pinned{"tessdata/" + code, spec.Languages[code], ocr.Enable && slices.Contains(ocr.Languages, code)})
+	}
+	var findings []Finding
+	for _, item := range files {
+		var candidates []ToolCandidate
+		if item.file.ContainerPath != "" {
+			candidates = append(candidates, ToolCandidate{Label: "runtime", Path: item.file.ContainerPath})
+		}
+		if s.env.Project != "" && filepath.IsAbs(s.env.Project) {
+			candidates = append(candidates, ToolCandidate{Label: "project", Path: filepath.Join(s.env.Project, filepath.FromSlash(item.file.Path))})
+		}
+		found := false
+		for _, candidate := range candidates {
+			code, exists := verifyTool(ctx, candidate.Path, item.file.SHA256)
+			if !exists {
+				continue
+			}
+			found = true
+			subject := item.subject + ":" + candidate.Label
+			switch code {
+			case CodeToolVerified:
+				findings = append(findings, okf(subject, CodeOCRVerified))
+			case CodeToolHashMismatch:
+				findings = append(findings, failf(subject, CodeOCRMismatch))
+			default:
+				findings = append(findings, failf(subject, CodeOCRUnreadable))
+			}
+		}
+		if !found {
+			if item.required {
+				findings = append(findings, failf(item.subject, CodeOCRMissing))
+			} else {
+				findings = append(findings, warnf(item.subject, CodeOCRMissing))
+			}
+		}
+	}
+	r := newResult("subtitle_ocr", findings...)
 	r.Facts = facts
 	return r
 }

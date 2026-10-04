@@ -3,6 +3,7 @@ package httpapi
 import (
 	"bytes"
 	"encoding/json"
+	"path/filepath"
 	"runtime"
 	"sort"
 	"strconv"
@@ -155,7 +156,20 @@ func ReferenceConfig() config.Config {
 		// The optional extraction routes (E4) are part of the reference
 		// document; the cache root only has to pass validation.
 		Matroska: config.MatroskaConfig{EnableExtraction: true, CacheRoot: referenceImageTempRoot(), CacheMaxBytes: 1 << 30},
+		// The optional OCR-derived subtitle route (G15.6) as well; its cache
+		// root only has to pass validation and differ from the one above.
+		SubtitleOCR: func() config.SubtitleOCRConfig {
+			ocr := config.DefaultSubtitleOCRConfig()
+			ocr.Enable, ocr.CacheRoot = true, referenceOCRCacheRoot()
+			return ocr
+		}(),
 	}
+}
+
+// referenceOCRCacheRoot is the OCR counterpart of referenceImageTempRoot,
+// distinct from it as configuration validation requires.
+func referenceOCRCacheRoot() string {
+	return filepath.Join(filepath.Dir(referenceImageTempRoot()), "jelee-openapi-ocr")
 }
 
 // referenceImageTempRoot only has to pass configuration validation, which

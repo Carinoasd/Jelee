@@ -21,10 +21,14 @@ const (
 	// ExtractedAttachmentStream is a font attachment by probe stream index,
 	// the numbering the compatibility layer uses.
 	ExtractedAttachmentStream ExtractedKind = "attachment_stream"
+	// ExtractedOCRSubtitle is the SubRip text subtitle OCR derived from a
+	// bitmap subtitle (G15.6), by the bitmap track's probe stream index. It
+	// is an additional track; the bitmap track itself is unchanged.
+	ExtractedOCRSubtitle ExtractedKind = "ocr_subtitle"
 )
 
 func (k ExtractedKind) valid() bool {
-	return k == ExtractedSubtitle || k == ExtractedAttachment || k == ExtractedAttachmentStream
+	return k == ExtractedSubtitle || k == ExtractedAttachment || k == ExtractedAttachmentStream || k == ExtractedOCRSubtitle
 }
 
 // ExtractedResolver is implemented outside the delivery packages, which can
@@ -48,7 +52,7 @@ var fontTypes = map[string]string{"ttf": "font/ttf", "otf": "font/otf", "ttc": "
 // specification and mkvextract writes them as they are stored.
 func ExtractedContentType(kind ExtractedKind, extension string) string {
 	ext := strings.ToLower(strings.TrimPrefix(extension, "."))
-	if kind == ExtractedSubtitle {
+	if kind == ExtractedSubtitle || kind == ExtractedOCRSubtitle {
 		return TrackContentType(TrackSubtitle, ext, "UTF-8")
 	}
 	if contentType, ok := fontTypes[ext]; ok {

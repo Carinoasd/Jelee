@@ -13,23 +13,26 @@ import (
 	"path/filepath"
 	"slices"
 	"strconv"
+	"strings"
 )
 
-// ToolHelperCommand dispatches the Matroska and MediaInfo helper. It is a
-// separate entry from HelperCommand so the ffprobe descriptor, policy and
-// cache identity stay byte-for-byte unchanged.
+// ToolHelperCommand dispatches the Matroska, MediaInfo and Tesseract helper.
+// It is a separate entry from HelperCommand so the ffprobe descriptor,
+// policy and cache identity stay byte-for-byte unchanged.
 const ToolHelperCommand = "--internal-media-tool-helper"
 
 // ToolMode is one fixed operation. Each mode has a fixed executable name,
 // fixed argv and fixed resource bounds; only extraction carries numeric IDs.
 type ToolMode string
 
-// The registered modes: MediaInfo JSON, mkvmerge identification JSON and
-// mkvextract extraction into the working directory.
+// The registered modes: MediaInfo JSON, mkvmerge identification JSON,
+// mkvextract extraction into the working directory and Tesseract text
+// recognition of one subtitle picture (G15.6).
 const (
 	ToolMediaInfo ToolMode = "mediainfo"
 	ToolIdentify  ToolMode = "mkvmerge-identify"
 	ToolExtract   ToolMode = "mkvextract"
+	ToolOCR       ToolMode = "tesseract-ocr"
 )
 
 // Extraction bounds. Track and attachment IDs come from the tool's own
@@ -45,9 +48,25 @@ const (
 	ExtractFileLimit = 64 << 20
 )
 
+// OCR bounds. Debian's Tesseract build links libcurl and libarchive with
+// their TLS, Kerberos and LDAP stacks, so its exact closure is larger than
+// the other tools'. Language data files are read-only grants of their own.
+const (
+	MaxOCRLibraries = 64
+	MaxOCRDataFiles = 8
+	MaxOCRLanguages = 4
+	// OCRDataSuffix is the only accepted language data file name suffix.
+	OCRDataSuffix = ".traineddata"
+)
+
 // ToolPolicyVersion must change when tool file grants, syscall permissions,
-// argv or resource bounds change.
+// argv or resource bounds of the Matroska and MediaInfo modes change. It is
+// part of the MediaInfo probe identity, so the OCR mode has its own version.
 const ToolPolicyVersion = "linux-media-tool-sandbox-v1"
+
+// OCRPolicyVersion must change when the OCR mode's grants, argv or bounds
+// change; it is part of the OCR cache identity.
+const OCRPolicyVersion = "linux-ocr-tool-sandbox-v1"
 
 // ToolProfile names the shipped executable for one mode.
 type ToolProfile struct {
@@ -58,24 +77,31 @@ type ToolProfile struct {
 // ToolPolicy comes from shipped trusted identity data; never from the
 // descriptor or a request. Libraries must be the exact dependency closure.
 type ToolPolicy struct {
-	ExecutableSHA256      string
-	Libraries             []PinnedFile
+	ExecutableSHA256 string
+	Libraries        []PinnedFile
+	// DataFiles are the OCR mode's language data files, all in one
+	// directory and named <language>.traineddata; empty for other modes.
+	DataFiles             []PinnedFile
 	RequireProtectedFiles bool
 }
 
-// Extraction lists the identified Matroska track and attachment IDs to
-// extract. Both lists are strictly ascending.
+// Extraction holds the per-run parameters: the identified Matroska track
+// and attachment IDs to extract (strictly ascending), or for the OCR mode
+// the language codes to recognize, in priority order. Every other field
+// stays empty.
 type Extraction struct {
 	Tracks      []int
 	Attachments []int
+	Languages   []string
 }
 
 type toolDescriptor struct {
-	Version     int    `json:"version"`
-	Mode        string `json:"mode"`
-	Path        string `json:"path"`
-	Tracks      []int  `json:"tracks,omitempty"`
-	Attachments []int  `json:"attachments,omitempty"`
+	Version     int      `json:"version"`
+	Mode        string   `json:"mode"`
+	Path        string   `json:"path"`
+	Tracks      []int    `json:"tracks,omitempty"`
+	Attachments []int    `json:"attachments,omitempty"`
+	Languages   []string `json:"languages,omitempty"`
 }
 
 // ToolLauncher contains only immutable registration data for one mode.
@@ -83,17 +109,62 @@ type ToolLauncher struct {
 	executable string
 	profile    ToolProfile
 	protected  bool
+	// languages are the OCR languages whose data the policy pins.
+	languages []string
 }
 
-var toolNames = map[ToolMode]string{ToolMediaInfo: "mediainfo", ToolIdentify: "mkvmerge", ToolExtract: "mkvextract"}
+var toolNames = map[ToolMode]string{ToolMediaInfo: "mediainfo", ToolIdentify: "mkvmerge", ToolExtract: "mkvextract", ToolOCR: "tesseract"}
 
 func validToolProfile(profile ToolProfile) bool {
 	name, ok := toolNames[profile.Mode]
 	return ok && validPath(profile.Path) && filepath.Base(profile.Path) == name
 }
 
-func validToolPolicy(policy ToolPolicy) bool {
-	return validPolicy(Policy{FFprobeSHA256: policy.ExecutableSHA256, Libraries: policy.Libraries})
+func validToolPolicy(mode ToolMode, policy ToolPolicy) bool {
+	if mode != ToolOCR {
+		return len(policy.DataFiles) == 0 && validPolicy(Policy{FFprobeSHA256: policy.ExecutableSHA256, Libraries: policy.Libraries})
+	}
+	_, ok := dataLanguages(policy.DataFiles)
+	return ok && validPolicyWithin(Policy{FFprobeSHA256: policy.ExecutableSHA256, Libraries: policy.Libraries}, MaxOCRLibraries)
+}
+
+// validLanguage accepts a Tesseract language code such as eng or chi_tra.
+func validLanguage(value string) bool {
+	if len(value) < 3 || len(value) > 8 {
+		return false
+	}
+	for index, c := range value {
+		if !(c >= 'a' && c <= 'z' || index == 3 && c == '_' && len(value) > 4) {
+			return false
+		}
+	}
+	return true
+}
+
+// dataLanguages checks the OCR data grants: 1..MaxOCRDataFiles distinct
+// <language>.traineddata files in one directory. It returns their codes.
+func dataLanguages(files []PinnedFile) ([]string, bool) {
+	if len(files) < 1 || len(files) > MaxOCRDataFiles {
+		return nil, false
+	}
+	languages := make([]string, 0, len(files))
+	for _, file := range files {
+		name := filepath.Base(file.Path)
+		code, found := strings.CutSuffix(name, OCRDataSuffix)
+		if !validPath(file.Path) || !validDigest(file.SHA256) || !found || !validLanguage(code) || filepath.Dir(file.Path) != filepath.Dir(files[0].Path) || slices.Contains(languages, code) {
+			return nil, false
+		}
+		languages = append(languages, code)
+	}
+	return languages, true
+}
+
+// tessdataDirectory is the one directory of the pinned language data.
+func tessdataDirectory(files []PinnedFile) string {
+	if len(files) == 0 {
+		return ""
+	}
+	return filepath.Dir(files[0].Path)
 }
 
 func ascending(values []int, minimum, maximum, count int) bool {
@@ -109,6 +180,20 @@ func ascending(values []int, minimum, maximum, count int) bool {
 }
 
 func validExtraction(mode ToolMode, extraction Extraction) bool {
+	if mode == ToolOCR {
+		if len(extraction.Tracks)+len(extraction.Attachments) != 0 || len(extraction.Languages) < 1 || len(extraction.Languages) > MaxOCRLanguages {
+			return false
+		}
+		for index, language := range extraction.Languages {
+			if !validLanguage(language) || slices.Contains(extraction.Languages[:index], language) {
+				return false
+			}
+		}
+		return true
+	}
+	if len(extraction.Languages) != 0 {
+		return false
+	}
 	if mode != ToolExtract {
 		return len(extraction.Tracks) == 0 && len(extraction.Attachments) == 0
 	}
@@ -129,10 +214,13 @@ func NewTool(ctx context.Context, profile ToolProfile, policy ToolPolicy) (*Tool
 	if !supportedBuild {
 		return nil, ErrUnsupported
 	}
-	if !validToolProfile(profile) || !validToolPolicy(policy) {
+	if !validToolProfile(profile) || !validToolPolicy(profile.Mode, policy) {
 		return nil, ErrInvalid
 	}
 	if err := verifyProfile(ctx, Profile{FFprobePath: profile.Path}, toolSandboxPolicy(policy)); err != nil {
+		return nil, err
+	}
+	if err := verifyDataFiles(ctx, policy.DataFiles, policy.RequireProtectedFiles); err != nil {
 		return nil, err
 	}
 	executable, err := os.Executable()
@@ -142,7 +230,8 @@ func NewTool(ctx context.Context, profile ToolProfile, policy ToolPolicy) (*Tool
 	if policy.RequireProtectedFiles && verifyHelperExecutable(executable) != nil {
 		return nil, ErrUnavailable
 	}
-	return &ToolLauncher{executable: executable, profile: profile, protected: policy.RequireProtectedFiles}, nil
+	languages, _ := dataLanguages(policy.DataFiles)
+	return &ToolLauncher{executable: executable, profile: profile, protected: policy.RequireProtectedFiles, languages: languages}, nil
 }
 
 func toolSandboxPolicy(policy ToolPolicy) Policy {
@@ -157,6 +246,15 @@ func (l *ToolLauncher) Mode() ToolMode {
 	return l.profile.Mode
 }
 
+// Languages returns the OCR languages whose data the verified policy pins,
+// in policy order; nil for other modes.
+func (l *ToolLauncher) Languages() []string {
+	if l == nil {
+		return nil
+	}
+	return slices.Clone(l.languages)
+}
+
 // ProtectedFilesRequired reports the production ownership requirement.
 func (l *ToolLauncher) ProtectedFilesRequired() bool { return l != nil && l.protected }
 
@@ -169,12 +267,18 @@ func (l *ToolLauncher) Executable() string {
 }
 
 // HelperArguments returns a fresh helper argv for one run. Only extraction
-// accepts IDs; every other mode requires an empty Extraction.
+// accepts IDs and only OCR accepts languages, each of which must be pinned
+// by the verified policy; every other mode requires an empty Extraction.
 func (l *ToolLauncher) HelperArguments(extraction Extraction) ([]string, error) {
 	if l == nil || !validExtraction(l.profile.Mode, extraction) {
 		return nil, ErrInvalid
 	}
-	data, err := json.Marshal(toolDescriptor{Version: 1, Mode: string(l.profile.Mode), Path: l.profile.Path, Tracks: extraction.Tracks, Attachments: extraction.Attachments})
+	for _, language := range extraction.Languages {
+		if !slices.Contains(l.languages, language) {
+			return nil, ErrInvalid
+		}
+	}
+	data, err := json.Marshal(toolDescriptor{Version: 1, Mode: string(l.profile.Mode), Path: l.profile.Path, Tracks: extraction.Tracks, Attachments: extraction.Attachments, Languages: extraction.Languages})
 	if err != nil || len(data) > MaxDescriptor {
 		return nil, ErrInvalid
 	}
@@ -199,11 +303,19 @@ func RunToolHelper(argv []string, resolve ToolResolver) int {
 		return ExitInvalid
 	}
 	profile, policy, ok := resolve(ToolMode(value.Mode))
-	if !ok || profile.Path != value.Path || !validToolProfile(profile) || !validToolPolicy(policy) {
+	if !ok || profile.Path != value.Path || !validToolProfile(profile) || !validToolPolicy(profile.Mode, policy) {
 		_, _ = io.WriteString(os.Stderr, "media_sandbox_invalid\n")
 		return ExitInvalid
 	}
-	if executeTool(profile, toolSandboxPolicy(policy), Extraction{Tracks: value.Tracks, Attachments: value.Attachments}) != nil {
+	extraction := Extraction{Tracks: value.Tracks, Attachments: value.Attachments, Languages: value.Languages}
+	languages, _ := dataLanguages(policy.DataFiles)
+	for _, language := range extraction.Languages {
+		if !slices.Contains(languages, language) {
+			_, _ = io.WriteString(os.Stderr, "media_sandbox_invalid\n")
+			return ExitInvalid
+		}
+	}
+	if executeTool(profile, policy, extraction) != nil {
 		_, _ = io.WriteString(os.Stderr, "media_sandbox_unavailable\n")
 		return ExitUnavailable
 	}
@@ -229,7 +341,7 @@ func decodeToolDescriptor(argv []string) (toolDescriptor, error) {
 		return toolDescriptor{}, ErrInvalid
 	}
 	mode := ToolMode(value.Mode)
-	if !validToolProfile(ToolProfile{Mode: mode, Path: value.Path}) || !validExtraction(mode, Extraction{Tracks: value.Tracks, Attachments: value.Attachments}) {
+	if !validToolProfile(ToolProfile{Mode: mode, Path: value.Path}) || !validExtraction(mode, Extraction{Tracks: value.Tracks, Attachments: value.Attachments, Languages: value.Languages}) {
 		return toolDescriptor{}, ErrInvalid
 	}
 	return value, nil
@@ -267,6 +379,17 @@ func toolArguments(mode ToolMode, extraction Extraction) []string {
 	return nil
 }
 
+// ocrArguments is the fixed Tesseract argv: the verified picture on stdin
+// (a PNM file the runner wrote), plain text on stdout, the pinned language
+// data directory, the LSTM engine, one uniform block of text and
+// Leptonica's tiled Otsu binarization, which on 2026-10-05 removed the empty
+// results the global threshold gave for some large outlined CJK lines
+// (docs/subtitle-ocr.md). Language codes come from configuration validated
+// against the pinned data files.
+func ocrArguments(tessdata string, languages []string) []string {
+	return []string{"tesseract", toolInput, "stdout", "--tessdata-dir", tessdata, "-l", strings.Join(languages, "+"), "--oem", "1", "--psm", "6", "-c", "thresholding_method=1"}
+}
+
 // ExtractTrackName is a track's output file name in the private directory.
 func ExtractTrackName(id int) string { return "t" + strconv.Itoa(id) }
 
@@ -277,10 +400,17 @@ func ExtractAttachmentName(id int) string { return "a" + strconv.Itoa(id) }
 // policy version, for identity records that must change with them.
 func ToolArgumentsDigest(mode ToolMode) string {
 	hash := sha256.New()
-	_, _ = hash.Write([]byte("jelee-media-tool-argv-v1\x00" + ToolPolicyVersion + "\x00"))
+	version := ToolPolicyVersion
+	if mode == ToolOCR {
+		version = OCRPolicyVersion
+	}
+	_, _ = hash.Write([]byte("jelee-media-tool-argv-v1\x00" + version + "\x00"))
 	arguments := toolArguments(mode, Extraction{})
-	if mode == ToolExtract {
+	switch mode {
+	case ToolExtract:
 		arguments = []string{"mkvextract", toolInput, "tracks", "<id>:t<id>", "attachments", "<id>:a<id>", "--quiet"}
+	case ToolOCR:
+		arguments = ocrArguments("<tessdata>", []string{"<languages>"})
 	}
 	for _, argument := range slices.Concat([]string{string(mode)}, arguments) {
 		var length [8]byte

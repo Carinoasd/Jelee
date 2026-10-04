@@ -20,6 +20,7 @@
 | MKVToolNix（mkvmerge、mkvextract；mkvpropedit 只固定不使用） | 102.0（Linux 官方 AppImage／Windows 官方 64 位 zip） | GPL-2.0，Moritz Bunkus 與 MKVToolNix 貢獻者；`COPYING` 與列出隨附元件授權的 README 保留；AppImage 內 22 個函式庫（Qt 6 LGPL-3.0、ICU、GLib／GnuTLS LGPL-2.1+、Nettle／GMP 等）保留各自授權 | E4 可選運行依賴：Matroska 識別與內嵌文字字幕／字型附件原樣擷取（G15.5、G15.7） | 只在明確 `bootstrap-matroska` 後安裝；Linux 檔案進本地實驗映像（不含 mkvpropedit），未發布公共映像 |
 | MediaInfo CLI | 26.05（Linux 官方 Lambda 版／Windows 官方 x64 zip） | BSD-2-Clause，MediaArea.net SARL；`LICENSE` 保留；Windows 版的 `LIBCURL.DLL` 為 curl 授權 | E4 可選運行依賴：Matroska 探測補充（G19.1） | 同上 |
 | Debian libstdc++6 / zlib1g / libgmp10 amd64 | `14.2.0-19` / `1:1.3.dfsg+really1.3.1-1+b1` / `2:6.3.0+dfsg-3` | libstdc++ 為 GPL-3.0-or-later WITH GCC-exception-3.1（notice 即 gcc-14-base copyright）；zlib 為 Zlib；GMP 為 LGPL-3.0-or-later 或 GPL-2.0-or-later；保留各包 `copyright` | 補足 mkvtoolnix／MediaInfo 的 Linux 依賴閉包 | 同上 |
+| Tesseract OCR（只用 `tesseract` CLI）與 tessdata_fast 語言資料 eng／chi_tra／chi_sim／jpn | Debian `5.5.0-1+b1`（tesseract-ocr、libtesseract5）、`1:4.1.0-2`（tesseract-lang）；Linux amd64 only | Apache-2.0，Tesseract OCR 貢獻者（原 Hewlett-Packard 與 Google）、Debian Tesseract 維護者；Leptonica 1.84.1 為 BSD-2-Clause；Debian 版本連結的 libcurl、libarchive、GnuTLS、OpenSSL、Kerberos、OpenLDAP 等 49 個函式庫套件保留各自授權（各包 `copyright` 隨 OCR 層放在 `/licenses/tesseract/`） | G15.6 可選運行依賴：點陣字幕（PGS、VobSub）辨識為額外的 SRT 軌；預設不安裝、不在預設映像（`make bootstrap-ocr`、`deploy/ocr/Dockerfile`） | 清單 `ocrTools`：55 個 Debian 套件以版本、pool URL、大小、SHA256 固定，逐檔 SHA256；見 [字幕 OCR](subtitle-ocr.md) |
 | WSL GCC / cc1 / collect2 | Ubuntu `15.2.0-16ubuntu1` | GPL-3.0-or-later；运行库组件另含 GCC Runtime Library Exception 3.1，完整组件条款见宿主 `gcc-15-base/copyright` | Go race/cgo 的 SDK 外部编译与链接 | 既有 Ubuntu 26.04 amd64 工具，只盘点，不安装、不分发 |
 | WSL GNU binutils ld.bfd / as | Ubuntu `2.46-3ubuntu2` | GPL-3.0-or-later，Free Software Foundation；文档适用 GFDL-1.3-or-later | 上述 GCC 调用的链接器与汇编器 | 同上 |
 | Git for Windows / Ubuntu Git | `2.55.0.windows.3` / `2.53.0`（Ubuntu package `1:2.53.0-1ubuntu1`） | Git主要为GPL-2.0-only，文件级例外与发行组件保留各自条款；Linus Torvalds、Git贡献者及平台维护者，宿主许可证路径/hash见manifest | 仅在隔离临时repo用已有Git作忽略规则差分测试；生产matcher无外部程序依赖 | 已存在工具，未下载/安装/分发；两平台版本分别记录 |
@@ -30,7 +31,7 @@
 
 此前 Linux race 测试的实际结果保留，但当时宿主 C 编译器尚未登记；2026-10-01 补登记后，再进行最终 Linux race 复验。不得将历史测试描述为已满足 manifest-first。Windows 未找到可用 race 编译器的结果仍为不可用，没有安装新编译器。盘点证据见 `docs/evidence/host-compiler.txt`。
 
-Playwright 只启用 Chromium 的无头外壳；Firefox、WebKit 未加入清单。mkvtoolnix 102.0 與 MediaInfo 26.05 已依 E4 加入清單（`matroskaTools`，來源、校驗取得方式與執行邊界見 [mkvtoolnix 與 MediaInfo](matroska-tools.md)）。其余扫描工具尚未加入清单；不可据此表宣称 G51 工具集合已完整。完整状态见 `docs/toolchain.md`。将来新增工具须先记录来源、精确版本、平台、SHA256、许可证与归属，再允许下载。
+Playwright 只启用 Chromium 的无头外壳；Firefox、WebKit 未加入清单。mkvtoolnix 102.0 與 MediaInfo 26.05 已依 E4 加入清單（`matroskaTools`，來源、校驗取得方式與執行邊界見 [mkvtoolnix 與 MediaInfo](matroska-tools.md)）。Tesseract 5.5.0 與四種語言資料已依 E16 加入清單（`ocrTools`，Debian 套件固定，見 [字幕 OCR](subtitle-ocr.md)）。其余扫描工具尚未加入清单；不可据此表宣称 G51 工具集合已完整。完整状态见 `docs/toolchain.md`。将来新增工具须先记录来源、精确版本、平台、SHA256、许可证与归属，再允许下载。
 
 ## 媒体构建来源与许可
 

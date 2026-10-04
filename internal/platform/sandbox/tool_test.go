@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -124,5 +125,119 @@ func TestToolRegistrationRefusesInvalidInputs(t *testing.T) {
 	}
 	if RunToolHelper(encodeTool(`{"version":1,"mode":"mediainfo","path":"/usr/lib/jelee/mediainfo"}`), other) != ExitInvalid {
 		t.Fatal("descriptor path differing from the registration accepted")
+	}
+}
+
+func TestOCRDescriptorAndPolicyBounds(t *testing.T) {
+	valid := `{"version":1,"mode":"tesseract-ocr","path":"/usr/lib/jelee/tesseract/tesseract","languages":["chi_tra","eng"]}`
+	value, err := decodeToolDescriptor(encodeTool(valid))
+	if err != nil || !slices.Equal(value.Languages, []string{"chi_tra", "eng"}) {
+		t.Fatalf("valid OCR descriptor: %v %+v", err, value)
+	}
+	for name, data := range map[string]string{
+		"no languages":     `{"version":1,"mode":"tesseract-ocr","path":"/usr/lib/jelee/tesseract/tesseract"}`,
+		"ids on ocr":       `{"version":1,"mode":"tesseract-ocr","path":"/usr/lib/jelee/tesseract/tesseract","tracks":[1],"languages":["eng"]}`,
+		"languages on mkv": `{"version":1,"mode":"mkvmerge-identify","path":"/usr/lib/jelee/mkvtoolnix/mkvmerge","languages":["eng"]}`,
+		"duplicate":        `{"version":1,"mode":"tesseract-ocr","path":"/usr/lib/jelee/tesseract/tesseract","languages":["eng","eng"]}`,
+		"too many":         `{"version":1,"mode":"tesseract-ocr","path":"/usr/lib/jelee/tesseract/tesseract","languages":["eng","fra","deu","ita","spa"]}`,
+		"traversal":        `{"version":1,"mode":"tesseract-ocr","path":"/usr/lib/jelee/tesseract/tesseract","languages":["../eng"]}`,
+		"plus":             `{"version":1,"mode":"tesseract-ocr","path":"/usr/lib/jelee/tesseract/tesseract","languages":["eng+jpn"]}`,
+		"upper":            `{"version":1,"mode":"tesseract-ocr","path":"/usr/lib/jelee/tesseract/tesseract","languages":["ENG"]}`,
+		"name":             `{"version":1,"mode":"tesseract-ocr","path":"/usr/lib/jelee/tesseract/ffprobe","languages":["eng"]}`,
+	} {
+		if _, err := decodeToolDescriptor(encodeTool(data)); err != ErrInvalid {
+			t.Errorf("%s accepted", name)
+		}
+	}
+	for _, code := range []string{"eng", "chi_tra", "chi_sim", "jpn", "osd"} {
+		if !validLanguage(code) {
+			t.Errorf("%s refused", code)
+		}
+	}
+	for _, code := range []string{"", "en", "e_g", "chi_", "chi_traditional", "eng.", "Eng", "eng\x00"} {
+		if validLanguage(code) {
+			t.Errorf("%q accepted", code)
+		}
+	}
+	digest := strings.Repeat("b", 64)
+	data := func(paths ...string) []PinnedFile {
+		var files []PinnedFile
+		for _, path := range paths {
+			files = append(files, PinnedFile{Path: path, SHA256: digest})
+		}
+		return files
+	}
+	if languages, ok := dataLanguages(data("/t/eng.traineddata", "/t/chi_tra.traineddata")); !ok || !slices.Equal(languages, []string{"eng", "chi_tra"}) {
+		t.Fatal("valid data grants refused")
+	}
+	for name, files := range map[string][]PinnedFile{
+		"none":       nil,
+		"two dirs":   data("/t/eng.traineddata", "/u/jpn.traineddata"),
+		"suffix":     data("/t/eng.txt"),
+		"duplicate":  data("/t/eng.traineddata", "/t/eng.traineddata"),
+		"bad code":   data("/t/x.traineddata"),
+		"relative":   data("t/eng.traineddata"),
+		"over bound": data("/t/aaa.traineddata", "/t/bbb.traineddata", "/t/ccc.traineddata", "/t/ddd.traineddata", "/t/eee.traineddata", "/t/fff.traineddata", "/t/ggg.traineddata", "/t/hhh.traineddata", "/t/iii.traineddata"),
+	} {
+		if _, ok := dataLanguages(files); ok {
+			t.Errorf("%s data grants accepted", name)
+		}
+	}
+	libraries := func(count int) []PinnedFile {
+		var files []PinnedFile
+		for i := range count {
+			files = append(files, PinnedFile{Path: "/lib/l" + strconv.Itoa(i) + ".so", SHA256: digest})
+		}
+		return files
+	}
+	ocr := ToolPolicy{ExecutableSHA256: digest, Libraries: libraries(MaxOCRLibraries), DataFiles: data("/t/eng.traineddata")}
+	if !validToolPolicy(ToolOCR, ocr) {
+		t.Fatal("OCR closure bound refused")
+	}
+	ocr.Libraries = libraries(MaxOCRLibraries + 1)
+	if validToolPolicy(ToolOCR, ocr) {
+		t.Fatal("OCR closure above its bound accepted")
+	}
+	// The other modes keep the 32-file bound and never take data files.
+	if validToolPolicy(ToolIdentify, ToolPolicy{ExecutableSHA256: digest, Libraries: libraries(33)}) ||
+		validToolPolicy(ToolIdentify, ToolPolicy{ExecutableSHA256: digest, DataFiles: data("/t/eng.traineddata")}) ||
+		validToolPolicy(ToolOCR, ToolPolicy{ExecutableSHA256: digest}) {
+		t.Fatal("policy bounds are not per mode")
+	}
+}
+
+func TestOCRArgumentsAndIdentityAreFixed(t *testing.T) {
+	got := ocrArguments("/usr/lib/jelee/tesseract/tessdata", []string{"eng", "chi_tra"})
+	if !slices.Equal(got, []string{"tesseract", "/proc/self/fd/0", "stdout", "--tessdata-dir", "/usr/lib/jelee/tesseract/tessdata", "-l", "eng+chi_tra", "--oem", "1", "--psm", "6", "-c", "thresholding_method=1"}) {
+		t.Fatalf("ocr argv %q", got)
+	}
+	if toolArguments(ToolOCR, Extraction{Languages: []string{"eng"}}) != nil {
+		t.Fatal("OCR argv must come from the verified policy's data directory")
+	}
+	digest := ToolArgumentsDigest(ToolOCR)
+	for _, mode := range []ToolMode{ToolMediaInfo, ToolIdentify, ToolExtract} {
+		if ToolArgumentsDigest(mode) == digest {
+			t.Fatal("OCR digest collides")
+		}
+	}
+	// The MediaInfo digest is part of the probe identity; OCR must not move it.
+	if ToolPolicyVersion != "linux-media-tool-sandbox-v1" {
+		t.Fatal("tool policy version changed")
+	}
+	var launcher ToolLauncher
+	launcher.profile = ToolProfile{Mode: ToolOCR, Path: "/usr/lib/jelee/tesseract/tesseract"}
+	launcher.languages = []string{"eng"}
+	if _, err := launcher.HelperArguments(Extraction{Languages: []string{"eng"}}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := launcher.HelperArguments(Extraction{Languages: []string{"jpn"}}); err != ErrInvalid {
+		t.Fatal("ungranted language accepted")
+	}
+	if got := launcher.Languages(); !slices.Equal(got, []string{"eng"}) {
+		t.Fatal("languages")
+	}
+	var absent *ToolLauncher
+	if absent.Languages() != nil {
+		t.Fatal("nil launcher languages")
 	}
 }

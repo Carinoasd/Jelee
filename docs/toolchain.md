@@ -261,6 +261,7 @@ pwsh -NoProfile -File scripts/runtime-tools.ps1 -Command sources -Offline
 | Playwright 浏览器 | 1.63.0 与 Chrome Headless Shell 153.0.8010.12 已固定、按需引导（Linux）、校验并接入 Linux CI；Firefox／WebKit 不采用 |
 | ffmpeg/ffprobe | Windows/Linux amd64本地引导与验证已实现；Linux amd64受保护隔离探测、持久worker和默认关闭开关已接通；Windows正式探测仍关闭 |
 | mkvtoolnix、mediainfo | E4：mkvtoolnix 102.0、MediaInfo 26.05 已固定（Linux／Windows amd64，官方 HTTPS、SHA256、授權），可選引導與 `tools-verify` 校驗已實作；Linux amd64 生產沙箱與映像已接通，Windows 只作開發工具（[說明](matroska-tools.md)） |
+| Tesseract OCR（G15.6） | E16：Tesseract 5.5.0（Debian 5.5.0-1+b1）與 eng／chi_tra／chi_sim／jpn 語言資料以 55 個 Debian 套件固定（版本、pool URL、SHA256、授權），`make bootstrap-ocr` 可選引導、`tools-verify` 校驗已安裝者；只支援 Linux amd64，不在預設映像（`deploy/ocr/Dockerfile`）（[說明](subtitle-ocr.md)） |
 | 合成多轨媒体、章节、损坏素材、`make fixtures` | 3B2生成13个小型自建文件及SHA/结构清单，E4 增至 16 個（內嵌字幕與字型附件 MKV）；双平台真实工具和FD探测测试通过，见[素材说明](fixtures.md) |
 | Testcontainers / 嵌入式 PostgreSQL 回退 | 尚未实现；当前使用已有隔离测试容器 |
 | 链接检查、shellcheck、actionlint | 尚未加入工具清单 |
