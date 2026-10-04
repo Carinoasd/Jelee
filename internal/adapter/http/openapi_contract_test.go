@@ -335,3 +335,11 @@ func publicErrorStatuses(folder string) (map[string]map[int]bool, error) {
 	}
 	return result, nil
 }
+
+// The reference configuration renders the specification on every developer
+// and CI platform, so its paths must be absolute on the running OS.
+func TestReferenceConfigValidatesOnThisPlatform(t *testing.T) {
+	if err := ReferenceConfig().Images.Validate(); err != nil {
+		t.Fatal(err)
+	}
+}

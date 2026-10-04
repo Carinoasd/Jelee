@@ -3,6 +3,7 @@ package httpapi
 import (
 	"bytes"
 	"encoding/json"
+	"runtime"
 	"sort"
 	"strconv"
 
@@ -113,10 +114,20 @@ func ReferenceConfig() config.Config {
 		Accounts: config.DefaultAccountsConfig(), Jobs: config.DefaultJobsConfig(),
 		Images: func() config.ImagesConfig {
 			images := config.DefaultImagesConfig()
-			images.TempRoot = "/var/lib/jelee/image-tmp"
+			images.TempRoot = referenceImageTempRoot()
 			return images
 		}(),
 	}
+}
+
+// referenceImageTempRoot only has to pass configuration validation, which
+// requires an absolute path on the running platform; it never appears in the
+// document, so the rendered specification is identical on every OS.
+func referenceImageTempRoot() string {
+	if runtime.GOOS == "windows" {
+		return `C:\ProgramData\jelee\image-tmp`
+	}
+	return "/var/lib/jelee/image-tmp"
 }
 
 // MarshalSpecification renders Specification(cfg) deterministically: object
