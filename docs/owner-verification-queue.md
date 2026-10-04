@@ -58,6 +58,7 @@
 | C20 | 觀看統計：多日運作下排程彙總與兩種保留期的交互、夏令時間切日、多實例彙總鎖輪替；日表數百萬列時全站一年報表的耗時；從 066 升級時已有數百萬會話的補算交易長度與對播放寫入的影響 | `docs/watch-statistics.md` | 待跑 |
 | C21 | Webhook：大量事件下 outbox 清理（每小時、每批 1000）能否跟上與資料表膨脹；持續高流量與多實例下首次投遞延遲、慢端點是否拖住其他端點；播放 flush 與登入多出的 outbox 寫入成本；送出後記錄前強制終止，確認租約到期後以同一 `eventId` 重送 | `docs/webhooks.md` | 待跑 |
 | C22 | 統一權限過濾器：受限使用者在 10 萬條目以上的庫，瀏覽總數、庫清單內容種類探查（某種類全被隱藏時）的耗時，以及 G48 要求的 ≤10% 開銷與 P95 | `docs/access-control.md` | 待跑 |
+| C23 | 客戶端管控：目標硬體與高並發下重跑 C7 的 P95；多實例長時間的規則版本失效與命中寫入延遲；命中表 30 天保留的大小與清除速度、已知客戶端接近 10 萬筆上限 | `docs/client-control.md` | 待跑 |
 
 ## D. 真實資料／真金鑰／真客戶端
 
@@ -81,6 +82,8 @@
 | D16 | 相容層圖片：客戶端取圖是否帶驗證標頭或 `api_key`（不帶會 401、海報空白；Jelee 刻意不允許匿名取圖）、64 位 hex tag、要求 WebP 拿到 JPEG、Logo／Thumb 回退、背景圖索引、缺 `PrimaryImageAspectRatio` 的版面。注意：只有媒體檔旁海報的條目要等「圖片入庫」（擁有者任務二）完成後列表才會有 Primary tag | `docs/compat-matrix.md` | 待跑 |
 | D17 | Webhook：在真實 HTTPS 接收端（不同憑證鏈、自簽 CA 用 `JELEE_WEBHOOK_CA_FILE`）驗證簽章、時間窗與 `eventId` 去重；需設定 `JELEE_WEBHOOK_MASTER_KEY` | `docs/webhooks.md` | 待跑 |
 | D18 | 受限帳號（條目隱藏、分級上限、標籤封鎖）經相容層的實際體驗：被隱藏的父項底下有允許的子項時的瀏覽、分級上限下的海報與繼續觀看 | `docs/access-control.md` | 待跑 |
+| D19 | 客戶端管控：真實第三方客戶端遇到相容層無內容 403／429 時是否卡住或不斷重試；唯讀動作下播放進度回報被拒的影響；反向代理部署下可信代理與環回豁免的組合 | `docs/client-control.md` | 待跑 |
+| D20 | 初始引導：真實瀏覽器走完前端向導；Compose 容器內 `jelee-cli setup --non-interactive` 一鍵初始化；反向代理後完成引導（一次性引導權杖從日誌或 `JELEE_SETUP_TOKEN_FILE` 取得） | `docs/setup-wizard.md` | 待跑 |
 
 ## E. 需要擁有者決定
 
@@ -98,6 +101,8 @@
 | E10 | 並發計數只存在單一行程記憶體，多實例部署時同一使用者分散到多台可超過上限；撤銷檢查則跨實例。是否需要跨實例計數 | `docs/direct-delivery.md` | 待確認 |
 | E11 | 相容層刻意比上游嚴格：`GET /Users/{id}` 只允許本人或管理員、`/Users/Public` 不列出帳號；若某客戶端依賴舊行為是否接受 | `docs/compat-matrix.md` | 待確認 |
 | E12 | 權限規則預設：管理員預設不受條目規則、分級、標籤限制（`restrict_admins` 可開）；未分級條目的全域預設策略；內建分級代碼表（美、英、日、德、台）是否足夠 | `docs/access-control.md` | 待確認 |
+| E13 | 舊庫遷移工具（G04.6：Jellyfin SQLite → PostgreSQL）需要讀 SQLite，go.mod 目前沒有 SQLite 驅動。是否核准新增純 Go 的 `modernc.org/sqlite`（BSD 授權）？未核准前此項維持阻塞 | `docs/requirements-traceability.md` G04.6 | 待確認 |
+| E14 | 初始引導選用「一次性引導權杖」而非來源位址白名單（理由：Docker 連接埠映射與反向代理後合法引導者本來就不是 loopback）；多實例部署請在引導期間只開一個實例或改用 CLI。是否接受 | `docs/setup-wizard.md` | 待確認 |
 
 ## F. 一次性維運
 
