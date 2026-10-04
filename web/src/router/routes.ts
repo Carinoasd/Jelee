@@ -25,6 +25,23 @@ export const routes: RouteRecordRaw[] = [
     component: () => import("@/features/libraries/LibrariesView.vue"),
   },
   {
+    path: "/libraries/:libraryId",
+    name: "library",
+    component: () => import("@/features/items/LibraryItemsView.vue"),
+    props: true,
+  },
+  {
+    path: "/items/:itemId",
+    name: "item",
+    component: () => import("@/features/items/ItemDetailView.vue"),
+    props: true,
+  },
+  {
+    path: "/account",
+    name: "account",
+    component: () => import("@/features/account/AccountView.vue"),
+  },
+  {
     path: "/forbidden",
     name: "forbidden",
     component: () => import("@/features/errors/ForbiddenView.vue"),

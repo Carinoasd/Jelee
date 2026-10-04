@@ -1,0 +1,31 @@
+{
+  "account": {
+    "title": "個人帳號",
+    "profile": "個人資料",
+    "profileName": "顯示名稱",
+    "name": "使用者名稱",
+    "role": "角色",
+    "roleAdmin": "管理員",
+    "roleUser": "一般使用者",
+    "language": "語言",
+    "createdAt": "建立時間",
+    "sessions": "已登入的裝置",
+    "sessionsHint": "如有不認得的工作階段請撤銷，撤銷後該裝置會立即登出。",
+    "clientWeb": "網頁",
+    "clientNative": "原生應用程式",
+    "current": "目前裝置",
+    "signedIn": "登入於 {date}",
+    "lastSeen": "最近使用 {date}",
+    "expires": "到期 {date}",
+    "lastIp": "IP {ip}",
+    "revoke": "撤銷",
+    "revokeCurrent": "登出此裝置",
+    "empty": "沒有使用中的工作階段。",
+    "revokeAllHint": "在所有裝置上登出會結束全部工作階段，包括目前這個。",
+    "revokeAll": "在所有裝置上登出",
+    "revokeAllConfirm": "確認在所有裝置上登出",
+    "revoked": "已撤銷「{name}」的工作階段。",
+    "signedOutHere": "此裝置已登出。",
+    "signedOutEverywhere": "已在所有裝置上登出。"
+  }
+}

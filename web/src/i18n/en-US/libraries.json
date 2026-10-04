@@ -2,6 +2,9 @@
   "libraries": {
     "title": "Libraries",
     "roots": "Root folders: {count}",
-    "empty": "No libraries are available to you yet."
+    "empty": "No libraries are available to you yet.",
+    "emptyHint": "An administrator can add libraries or grant you access.",
+    "library": "Library",
+    "back": "Back to all libraries"
   }
 }

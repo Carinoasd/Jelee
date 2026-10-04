@@ -1,5 +1,5 @@
 <script setup lang="ts">
-withDefaults(defineProps<{ tone?: "info" | "danger" }>(), { tone: "info" });
+withDefaults(defineProps<{ tone?: "info" | "danger" | "success" }>(), { tone: "info" });
 </script>
 
 <template>
@@ -15,9 +15,27 @@ withDefaults(defineProps<{ tone?: "info" | "danger" }>(), { tone: "info" });
   border: 1px solid var(--jl-color-border);
 }
 
+.jl-alert > :deep(:first-child) {
+  margin-top: 0;
+}
+
+.jl-alert > :deep(:last-child) {
+  margin-bottom: 0;
+}
+
+.jl-alert--info {
+  background: var(--jl-color-info-bg);
+}
+
 .jl-alert--danger {
   border-color: var(--jl-color-danger);
   background: var(--jl-color-danger-bg);
   color: var(--jl-color-danger);
+}
+
+.jl-alert--success {
+  border-color: var(--jl-color-success);
+  background: var(--jl-color-success-bg);
+  color: var(--jl-color-success);
 }
 </style>

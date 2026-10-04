@@ -9,6 +9,13 @@
     "notFoundBody": "找不到你要造訪的頁面。",
     "forbiddenTitle": "無權存取",
     "forbiddenBody": "你的帳號無權檢視此頁面。",
-    "backHome": "返回媒體庫"
+    "backHome": "返回媒體庫",
+    "csrf": "安全權杖已失效，請重新載入頁面後重試。",
+    "notFound": "內容不存在，或你無權存取。",
+    "invalidRequest": "請求無效，請檢查網址後重試。",
+    "timeout": "伺服器回應逾時，請重試。",
+    "notReady": "伺服器仍在啟動，請稍後重試。",
+    "busy": "伺服器忙碌中，請稍後重試。",
+    "server": "伺服器發生錯誤，請稍後重試。"
   }
 }

@@ -1,0 +1,50 @@
+{
+  "items": {
+    "view": {
+      "label": "视图",
+      "poster": "海报墙",
+      "list": "列表"
+    },
+    "count": "已加载条目：{count}",
+    "noneYet": "目前读取的目录范围内还没有找到此媒体库的条目。",
+    "listCaption": "{name} 中的条目",
+    "column": {
+      "poster": "海报",
+      "title": "标题",
+      "kind": "类型"
+    },
+    "kind": {
+      "movie": "电影",
+      "homeVideo": "家庭视频",
+      "series": "剧集",
+      "season": "季",
+      "episode": "单集"
+    },
+    "empty": "此媒体库还没有条目。",
+    "emptyHint": "媒体库扫描完成后，条目会显示在这里。",
+    "detail": {
+      "parent": "上一级",
+      "yearValue": "{year} 年",
+      "originalTitle": "原始标题",
+      "nfoBadge": "NFO",
+      "overview": "简介",
+      "noOverview": "暂无简介。",
+      "genres": "类型标签",
+      "externalIds": "外部 ID",
+      "defaultId": "默认",
+      "noExternalIds": "没有外部 ID。",
+      "nfoSource": "NFO 来源",
+      "nfoValid": "元数据已从有效的 NFO 文件读取。",
+      "nfoMissing": "未找到此条目的 NFO 文件。",
+      "nfoInvalid": "此条目的 NFO 文件无法使用。",
+      "nfoReadAt": "（读取于 {date}）",
+      "nfoNone": "此条目尚未审核过 NFO 文件。",
+      "metadataAdminOnly": "详细元数据（简介、外部 ID、NFO 来源）目前仅管理员可见。",
+      "metadataUnavailable": "目前无法加载详细元数据。",
+      "files": "文件信息",
+      "filesUnavailable": "网页界面暂不提供文件详情，可在原生客户端中查看。",
+      "nativeTitle": "请使用原生客户端观看",
+      "nativeBody": "Jelee 网页界面只用于浏览与管理。要观看此条目，请在 Jelee 原生客户端中打开。"
+    }
+  }
+}

@@ -26,3 +26,47 @@ body {
   clip-path: inset(50%);
   white-space: nowrap;
 }
+
+a {
+  color: var(--jl-color-primary);
+}
+
+h1,
+h2,
+h3 {
+  line-height: 1.25;
+}
+
+/* Headings receive focus after navigation (App.vue); the move is announced
+   by screen readers without drawing a ring around the title. */
+h1[tabindex="-1"]:focus {
+  outline: none;
+}
+
+.jl-skip-link {
+  position: absolute;
+  top: var(--jl-space-2);
+  left: var(--jl-space-2);
+  z-index: var(--jl-z-toast);
+  padding: var(--jl-space-2) var(--jl-space-4);
+  background: var(--jl-color-surface);
+  color: var(--jl-color-text);
+  border-radius: var(--jl-radius-md);
+  box-shadow: var(--jl-shadow-2);
+  transform: translateY(-200%);
+}
+
+.jl-skip-link:focus {
+  transform: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

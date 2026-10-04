@@ -31,6 +31,16 @@ describe("navigation guard", () => {
     expect(navigationGuard(adminRoute, { isAuthenticated: true, isAdmin: true })).toBe(true);
   });
 
+  it("protects the browsing and account pages and keeps deep links", () => {
+    const anonymous = { isAuthenticated: false, isAdmin: false };
+    for (const path of ["/libraries/abc", "/items/abc?x=1", "/account"]) {
+      expect(navigationGuard(resolve(path), anonymous)).toEqual({ name: "login", query: { redirect: path } });
+      expect(navigationGuard(resolve(path), { isAuthenticated: true, isAdmin: false })).toBe(true);
+    }
+    expect(resolve("/libraries/abc").name).toBe("library");
+    expect(resolve("/items/abc").params).toEqual({ itemId: "abc" });
+  });
+
   it("resolves unknown paths to the 404 view", () => {
     expect(resolve("/nothing/here").name).toBe("not-found");
   });

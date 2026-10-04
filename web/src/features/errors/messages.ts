@@ -1,6 +1,9 @@
 import type { ApiError } from "@/api/errors";
 
-/** Maps a normalized API error to a catalog key; never shows raw server text. */
+/**
+ * Maps a normalized API error to a catalog key by its stable code; the UI
+ * never shows raw server text.
+ */
 export function errorMessageKey(error: ApiError): string {
   switch (error.code) {
     case "network_error":
@@ -9,8 +12,27 @@ export function errorMessageKey(error: ApiError): string {
       return "errors.sessionExpired";
     case "forbidden":
       return "errors.forbidden";
+    case "csrf_failed":
+      return "errors.csrf";
     case "auth_rate_limited":
       return "auth.rateLimited";
+    case "session_limit":
+      return "auth.sessionLimit";
+    case "not_found":
+      return "errors.notFound";
+    case "invalid_request":
+      return "errors.invalidRequest";
+    case "request_timeout":
+    case "lookup_timeout":
+      return "errors.timeout";
+    case "not_ready":
+      return "errors.notReady";
+    case "account_busy":
+    case "image_busy":
+    case "jobs_busy":
+      return "errors.busy";
+    case "internal_error":
+      return "errors.server";
     default:
       return "errors.generic";
   }

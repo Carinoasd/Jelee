@@ -1,5 +1,5 @@
 import createClient, { type Middleware } from "openapi-fetch";
-import { createMemoryBearerAuth, type AuthStrategy } from "./auth";
+import { createCookieCsrfAuth, type AuthStrategy } from "./auth";
 import type { paths } from "./schema";
 
 /**
@@ -21,13 +21,13 @@ export interface ApiClientOptions {
 }
 
 export function createApiClient(options: ApiClientOptions = {}) {
-  const auth = options.auth ?? createMemoryBearerAuth();
+  const auth = options.auth ?? createCookieCsrfAuth();
   const client = createClient<WebPaths>({
     // Same-origin API by default; an absolute base keeps Request construction
     // valid outside browsers (tests) as well.
     baseUrl: options.baseUrl ?? globalThis.location.origin,
-    // Cookies are not used for authentication yet; never send ambient
-    // credentials cross-origin.
+    // The session cookie is same-origin only; never send ambient credentials
+    // cross-origin.
     credentials: "same-origin",
     ...(options.fetch ? { fetch: options.fetch } : {}),
   });

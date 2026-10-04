@@ -3,6 +3,7 @@ import { shallowRef } from "vue";
 import { useApi } from "@/api";
 import { useRequest } from "@/api/requestState";
 import { listLibraries, type LibraryPage, type LibrarySummary } from "@/features/libraries/api";
+import { resetOnUserChange } from "./userScoped";
 
 export const useLibrariesStore = defineStore("libraries", () => {
   const { client } = useApi();
@@ -28,8 +29,23 @@ export const useLibrariesStore = defineStore("libraries", () => {
     morePages.reset();
   }
 
+  function find(id: string): LibrarySummary | undefined {
+    return libraries.value.find((library) => library.id === id);
+  }
+
+  /** Loads the first page unless it is already on screen. */
+  async function ensureLoaded() {
+    if (firstPage.state.value.status === "idle" || firstPage.state.value.status === "error") {
+      await firstPage.run();
+    }
+  }
+
+  resetOnUserChange(reset);
+
   return {
     libraries,
+    find,
+    ensureLoaded,
     nextCursor,
     state: firstPage.state,
     moreState: morePages.state,

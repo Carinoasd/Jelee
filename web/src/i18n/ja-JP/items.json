@@ -1,0 +1,50 @@
+{
+  "items": {
+    "view": {
+      "label": "表示",
+      "poster": "ポスター",
+      "list": "リスト"
+    },
+    "count": "読み込んだアイテム：{count}",
+    "noneYet": "これまでに読み込んだカタログの範囲には、このライブラリのアイテムがありません。",
+    "listCaption": "{name} のアイテム",
+    "column": {
+      "poster": "ポスター",
+      "title": "タイトル",
+      "kind": "種類"
+    },
+    "kind": {
+      "movie": "映画",
+      "homeVideo": "ホームビデオ",
+      "series": "シリーズ",
+      "season": "シーズン",
+      "episode": "エピソード"
+    },
+    "empty": "このライブラリにはまだアイテムがありません。",
+    "emptyHint": "ライブラリのスキャンが終わると、ここにアイテムが表示されます。",
+    "detail": {
+      "parent": "親アイテム",
+      "yearValue": "{year} 年",
+      "originalTitle": "原題",
+      "nfoBadge": "NFO",
+      "overview": "あらすじ",
+      "noOverview": "あらすじはまだありません。",
+      "genres": "ジャンル",
+      "externalIds": "外部 ID",
+      "defaultId": "既定",
+      "noExternalIds": "外部 ID はありません。",
+      "nfoSource": "NFO ソース",
+      "nfoValid": "メタデータは有効な NFO ファイルから読み込まれました。",
+      "nfoMissing": "このアイテムの NFO ファイルは見つかりませんでした。",
+      "nfoInvalid": "このアイテムの NFO ファイルは使用できませんでした。",
+      "nfoReadAt": "（{date} に読み込み）",
+      "nfoNone": "このアイテムの NFO ファイルはまだ確認されていません。",
+      "metadataAdminOnly": "詳細なメタデータ（あらすじ、外部 ID、NFO ソース）は現在、管理者のみ表示できます。",
+      "metadataUnavailable": "詳細なメタデータを現在読み込めません。",
+      "files": "ファイル情報",
+      "filesUnavailable": "ファイルの詳細は Web 画面ではまだ表示できません。ネイティブクライアントで確認できます。",
+      "nativeTitle": "ネイティブクライアントで視聴",
+      "nativeBody": "Jelee の Web 画面は閲覧と管理専用です。このアイテムを視聴するには、Jelee のネイティブクライアントで開いてください。"
+    }
+  }
+}

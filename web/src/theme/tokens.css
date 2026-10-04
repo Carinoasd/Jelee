@@ -13,15 +13,25 @@
   --jl-color-danger: #b42318;
   --jl-color-danger-bg: #fdecea;
   --jl-color-focus: #1d4ed8;
+  --jl-color-success: #146c2e;
+  --jl-color-success-bg: #e6f4ea;
+  --jl-color-info-bg: #eef2fc;
+  --jl-color-skeleton: #e3e6ec;
+  --jl-color-skeleton-highlight: #f1f3f6;
+  --jl-color-badge-bg: #e9ecf2;
+  --jl-color-overlay: rgb(0 0 0 / 55%);
   --jl-space-1: 4px;
   --jl-space-2: 8px;
   --jl-space-3: 12px;
   --jl-space-4: 16px;
   --jl-space-6: 24px;
   --jl-space-8: 32px;
+  --jl-space-12: 48px;
   --jl-radius-sm: 4px;
   --jl-radius-md: 8px;
+  --jl-radius-pill: 999px;
   --jl-shadow-1: 0 1px 2px rgb(0 0 0 / 8%), 0 1px 3px rgb(0 0 0 / 6%);
+  --jl-shadow-2: 0 4px 12px rgb(0 0 0 / 14%), 0 2px 4px rgb(0 0 0 / 8%);
   --jl-font-family: system-ui, -apple-system, "Segoe UI", "Noto Sans", "Hiragino Sans", "Microsoft JhengHei",
     "Microsoft YaHei", sans-serif;
   --jl-font-size-sm: 0.875rem;
@@ -29,9 +39,13 @@
   --jl-font-size-lg: 1.25rem;
   --jl-font-size-xl: 1.5rem;
   --jl-z-header: 10;
+  --jl-z-toast: 50;
   --jl-motion-duration: 200ms;
   --jl-motion-easing: cubic-bezier(0.2, 0, 0, 1);
   --jl-touch-target: 44px;
+  --jl-poster-ratio: 2 / 3;
+  --jl-poster-min-width: 150px;
+  --jl-content-max-width: 1200px;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -46,6 +60,12 @@
     --jl-color-danger: #ffb4ab;
     --jl-color-danger-bg: #3b1512;
     --jl-color-focus: #a8c1ff;
+    --jl-color-success: #8fd9a0;
+    --jl-color-success-bg: #12301b;
+    --jl-color-info-bg: #1a2338;
+    --jl-color-skeleton: #262a33;
+    --jl-color-skeleton-highlight: #303541;
+    --jl-color-badge-bg: #2a2f3a;
   }
 }
 

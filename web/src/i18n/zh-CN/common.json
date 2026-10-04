@@ -13,6 +13,11 @@
     "loadMore": "加载更多",
     "logout": "退出登录",
     "mainNavigation": "主导航",
-    "signedInAs": "当前用户：{name}"
+    "signedInAs": "当前用户：{name}",
+    "skipToContent": "跳到主要内容",
+    "notifications": "通知",
+    "dismiss": "关闭",
+    "cancel": "取消",
+    "breadcrumbs": "导航路径"
   }
 }

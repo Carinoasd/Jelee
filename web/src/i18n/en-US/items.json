@@ -1,0 +1,50 @@
+{
+  "items": {
+    "view": {
+      "label": "View",
+      "poster": "Poster wall",
+      "list": "List"
+    },
+    "count": "Items loaded: {count}",
+    "noneYet": "No items from this library were found in the part of the catalog read so far.",
+    "listCaption": "Items in {name}",
+    "column": {
+      "poster": "Poster",
+      "title": "Title",
+      "kind": "Type"
+    },
+    "kind": {
+      "movie": "Movie",
+      "homeVideo": "Home video",
+      "series": "Series",
+      "season": "Season",
+      "episode": "Episode"
+    },
+    "empty": "This library has no items yet.",
+    "emptyHint": "Items appear here after the library has been scanned.",
+    "detail": {
+      "parent": "Parent item",
+      "yearValue": "{year}",
+      "originalTitle": "Original title",
+      "nfoBadge": "NFO",
+      "overview": "Overview",
+      "noOverview": "No overview yet.",
+      "genres": "Genres",
+      "externalIds": "External IDs",
+      "defaultId": "Default",
+      "noExternalIds": "No external IDs.",
+      "nfoSource": "NFO source",
+      "nfoValid": "Metadata was read from a valid NFO file.",
+      "nfoMissing": "No NFO file was found for this item.",
+      "nfoInvalid": "The NFO file for this item could not be used.",
+      "nfoReadAt": "(read {date})",
+      "nfoNone": "No NFO file has been reviewed for this item.",
+      "metadataAdminOnly": "Detailed metadata (overview, external IDs, NFO source) is currently visible to administrators only.",
+      "metadataUnavailable": "Detailed metadata could not be loaded right now.",
+      "files": "File information",
+      "filesUnavailable": "File details are not available in the web interface yet. Native client apps show them.",
+      "nativeTitle": "Watch in a native client",
+      "nativeBody": "The Jelee web interface is for browsing and management only. To watch this item, open it in a native Jelee client app."
+    }
+  }
+}

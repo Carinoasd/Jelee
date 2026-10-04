@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createFakeServer } from "@/test/fakeServer";
-import { createMemoryBearerAuth } from "./auth";
-import { call } from "./call";
+import { createCookieCsrfAuth, createMemoryBearerAuth, csrfHeader } from "./auth";
+import { call, callNoContent } from "./call";
 import { createApiClient } from "./client";
 
 afterEach(() => {
@@ -13,7 +13,11 @@ describe("memory bearer auth", () => {
   it("keeps the token in memory only and attaches it to requests", async () => {
     const setItem = vi.spyOn(Storage.prototype, "setItem");
     const server = createFakeServer();
-    const { client, auth } = createApiClient({ fetch: server.fetch, locale: () => "zh-TW" });
+    const { client, auth } = createApiClient({
+      fetch: server.fetch,
+      locale: () => "zh-TW",
+      auth: createMemoryBearerAuth(),
+    });
     const grant = await call(
       client.POST("/api/v1/auth/login", { body: { name: "admin", password: "correct horse battery" } }),
     );
@@ -43,6 +47,14 @@ describe("memory bearer auth", () => {
     expect(onUnauthorized).toHaveBeenCalledOnce();
   });
 
+  it("cannot resume after a reload", () => {
+    const auth = createMemoryBearerAuth();
+    expect(auth.survivesReload).toBe(false);
+    expect(() => {
+      auth.resume({ csrf: "c".repeat(43) });
+    }).toThrow(TypeError);
+  });
+
   it("rejects a grant without a token", () => {
     const auth = createMemoryBearerAuth();
     expect(() => {
@@ -54,5 +66,74 @@ describe("memory bearer auth", () => {
   it("maps fetch failures to network_error", async () => {
     const { client } = createApiClient({ fetch: () => Promise.reject(new TypeError("offline")) });
     await expect(call(client.GET("/api/v1/libraries", {}))).rejects.toMatchObject({ code: "network_error" });
+  });
+});
+
+describe("cookie + CSRF auth", () => {
+  it("is the default, never sends the bearer token and keeps nothing in storage", async () => {
+    const setItem = vi.spyOn(Storage.prototype, "setItem");
+    const server = createFakeServer();
+    const { client, auth } = createApiClient({ fetch: server.fetch });
+    expect(auth.kind).toBe("cookie-csrf");
+    const grant = await call(
+      client.POST("/api/v1/auth/login", { body: { name: "admin", password: "correct horse battery" } }),
+    );
+    auth.establish(grant.data);
+    await call(client.GET("/api/v1/libraries", { params: { query: { limit: 50 } } }));
+
+    const read = server.requests.at(-1)!;
+    expect(read.headers.get("Authorization")).toBeNull();
+    // Safe methods never carry the CSRF token.
+    expect(read.headers.get(csrfHeader)).toBeNull();
+    expect(read.credentials).toBe("same-origin");
+
+    await call(client.DELETE("/api/v1/users/{id}/sessions/{sessionID}", {
+      params: { path: { id: server.user.id, sessionID: "00000000-0000-4000-8000-0000000000ff" } },
+    })).catch(() => undefined);
+    const write = server.requests.at(-1)!;
+    expect(write.method).toBe("DELETE");
+    expect(write.headers.get(csrfHeader)).toBe(server.csrf);
+    expect(write.headers.get("Authorization")).toBeNull();
+
+    expect(setItem).not.toHaveBeenCalled();
+    expect(localStorage.length + sessionStorage.length).toBe(0);
+    expect(document.cookie).toBe("");
+    expect(JSON.stringify(auth)).not.toContain(server.token);
+    expect(JSON.stringify(auth)).not.toContain(server.csrf);
+  });
+
+  it("is rejected by the server without the CSRF header", async () => {
+    const server = createFakeServer();
+    server.cookie = true;
+    const { client } = createApiClient({ fetch: server.fetch, auth: createCookieCsrfAuth() });
+    await expect(callNoContent(client.POST("/api/v1/auth/logout", { body: {} }))).rejects.toMatchObject({
+      code: "csrf_failed",
+      status: 403,
+    });
+  });
+
+  it("resumes with a fresh CSRF token and clears on 401", async () => {
+    const server = createFakeServer();
+    const onUnauthorized = vi.fn();
+    const auth = createCookieCsrfAuth();
+    const { client } = createApiClient({ fetch: server.fetch, auth, onUnauthorized });
+    expect(auth.survivesReload).toBe(true);
+    auth.resume({ csrf: server.csrf });
+    expect(auth.hasCredential()).toBe(true);
+    // The browser no longer holds a valid cookie.
+    await expect(call(client.GET("/api/v1/users/me", {}))).rejects.toMatchObject({ status: 401 });
+    expect(auth.hasCredential()).toBe(false);
+    expect(onUnauthorized).toHaveBeenCalledOnce();
+  });
+
+  it("rejects grants and responses without a CSRF token", () => {
+    const auth = createCookieCsrfAuth();
+    expect(() => {
+      auth.establish({ token: "x".repeat(43) } as Parameters<typeof auth.establish>[0]);
+    }).toThrow(TypeError);
+    expect(() => {
+      auth.resume({ csrf: "" });
+    }).toThrow(TypeError);
+    expect(auth.hasCredential()).toBe(false);
   });
 });

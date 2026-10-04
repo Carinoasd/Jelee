@@ -1,0 +1,31 @@
+{
+  "account": {
+    "title": "个人账户",
+    "profile": "个人资料",
+    "profileName": "显示名称",
+    "name": "用户名",
+    "role": "角色",
+    "roleAdmin": "管理员",
+    "roleUser": "普通用户",
+    "language": "语言",
+    "createdAt": "创建时间",
+    "sessions": "已登录的设备",
+    "sessionsHint": "如有不认识的会话请撤销，撤销后该设备会立即退出登录。",
+    "clientWeb": "网页",
+    "clientNative": "原生应用",
+    "current": "当前设备",
+    "signedIn": "登录于 {date}",
+    "lastSeen": "最近使用 {date}",
+    "expires": "到期 {date}",
+    "lastIp": "IP {ip}",
+    "revoke": "撤销",
+    "revokeCurrent": "退出此设备",
+    "empty": "没有活动会话。",
+    "revokeAllHint": "在所有设备上退出将结束全部会话，包括当前会话。",
+    "revokeAll": "在所有设备上退出",
+    "revokeAllConfirm": "确认在所有设备上退出",
+    "revoked": "已撤销“{name}”的会话。",
+    "signedOutHere": "此设备已退出登录。",
+    "signedOutEverywhere": "已在所有设备上退出登录。"
+  }
+}

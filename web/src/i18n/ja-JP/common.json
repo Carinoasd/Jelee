@@ -13,6 +13,11 @@
     "loadMore": "さらに読み込む",
     "logout": "ログアウト",
     "mainNavigation": "メインナビゲーション",
-    "signedInAs": "{name} としてログインしています"
+    "signedInAs": "{name} としてログインしています",
+    "skipToContent": "メインコンテンツへスキップ",
+    "notifications": "通知",
+    "dismiss": "閉じる",
+    "cancel": "キャンセル",
+    "breadcrumbs": "パンくずリスト"
   }
 }

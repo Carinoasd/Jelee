@@ -12,7 +12,7 @@
 - **外掛體系（G32）**：Vue 的 `app.use`、`provide/inject`、`defineAsyncComponent` 與 `onErrorCaptured` 直接對應「懶載入插件元件、錯誤邊界降級、插件拿不到令牌」的要求，不必自建執行期。
 - **型別檢查**：`vue-tsc --noEmit` 對 SFC 做完整型別檢查，可以作為 G31 驗收的 `tsc --noEmit` 門禁；泛型元件（`<script setup generic>`）讓請求狀態元件保有資料型別。
 - **安全預設**：模板一律轉義，唯一的原始 HTML 出口 `v-html` 可用 lint 全面禁止（`vue/no-v-html: error`），符合 G35.1。
-- **體積**：Vue runtime 與 Svelte 編譯產物在本專案規模差異不大；目前首頁主 chunk gzip 約 25 KB，vue-i18n chunk 約 41 KB（尚未設 bundle 預算，見「後續」）。
+- **體積**：Vue runtime 與 Svelte 編譯產物在本專案規模差異不大；第一批頁面後主 chunk gzip 約 37 KB（含四語訊息目錄），vue-i18n chunk 約 41 KB（尚未設 bundle 預算，見「後續」）。
 
 ### 版本取捨
 
@@ -37,7 +37,7 @@ web/
   src/
     api/                產生的契約型別、openapi-fetch 用戶端、驗證策略、錯誤正規化、請求狀態機
     stores/             Pinia store（只放狀態與動作，不放畫面）
-    features/<domain>/  各領域的 API 呼叫與頁面（auth、libraries、errors）
+    features/<domain>/  各領域的 API 呼叫與頁面（auth、libraries、items、account、errors）
     components/ui/      無業務邏輯的基礎元件（按鈕、輸入、提示、請求狀態）
     theme/              設計 token（CSS 變數，含深色與 reduced-motion）與基礎樣式
     plugins/            Vue app 外掛的組合根；之後 G32 插件 SDK 的宿主也在這裡註冊
@@ -67,14 +67,34 @@ web/
 
 ## 驗證與令牌（G35.1）
 
-目前伺服器的 `POST /api/v1/auth/login` 回傳一次性的 opaque bearer 令牌，並把該 session 記為 `web` 類型（伺服器據此拒絕網頁端的直投播放，G27.3）。前端的處理：
+伺服器的 `POST /api/v1/auth/login` 對 web session 設定 `__Host-jelee_session` Cookie（HttpOnly、Secure、SameSite=Strict），回應正文另含一次性 bearer 令牌與 `csrf`（見 [security-model.md](security-model.md)）。前端預設採用 `cookie-csrf` 策略（`api/auth.ts` 的 `createCookieCsrfAuth()`）：
 
-- 令牌只存在 `api/auth.ts` 的 `createMemoryBearerAuth()` 閉包變數中，由 openapi-fetch middleware 加上 `Authorization` 標頭。不寫入 localStorage、sessionStorage、IndexedDB 或 script 可讀的 Cookie，也不放進 Pinia（devtools 看不到）。ESLint 以 `no-restricted-globals`／`no-restricted-properties` 禁止 `localStorage`、`sessionStorage`、`document.cookie`、`eval`，測試以 spy 驗證登入過程沒有任何 storage 寫入。
-- 代價：重新整理頁面即登出（登入頁有說明）。
-- 收到 401 時清除令牌與使用者狀態，導向 `/login?reason=expired`。
-- 用戶端預設 `credentials: "same-origin"`，不對跨來源帶 Cookie。
+- **令牌只在 httpOnly Cookie**：script 讀不到 session 令牌；登入回應裡的 bearer 令牌直接丟棄，不保存、也不送回。所有請求都不帶 `Authorization`，由瀏覽器自動附上同源 Cookie（`credentials: "same-origin"`，不對跨來源帶 Cookie）。
+- **CSRF**：`csrf` 值只存在策略的閉包變數中（不進 Pinia、localStorage、sessionStorage、IndexedDB 或 script 可寫的 Cookie），只在非安全方法（GET／HEAD／OPTIONS／TRACE 以外）加上 `X-Jelee-CSRF`。
+- **重新整理後恢復**：第一次導覽前，路由守衛等待 `auth.restore()`：`GET /api/v1/users/me` 成功就以 `GET /api/v1/auth/csrf` 取回 CSRF 並恢復登入狀態，因此深層連結在重新整理後仍停在原頁；失敗則視為未登入。
+- 收到 401 時清除 CSRF 與使用者狀態，導向 `/login?reason=expired&redirect=<原路徑>`。登出、撤銷目前裝置或「在所有裝置上登出」後，伺服器清除 Cookie，前端同時清空各 store 的使用者快取（`stores/userScoped.ts`）。
+- ESLint 以 `no-restricted-globals`／`no-restricted-properties` 禁止 `localStorage`、`sessionStorage`、`document.cookie`、`eval`；測試以 spy 驗證登入過程沒有任何 storage 寫入、請求沒有 `Authorization`、只有寫入請求帶 CSRF。
+- 圖片（`/images/Primary/{id}`）以 `<img>` 同源載入，由同一個 Cookie 授權；這也是改用 Cookie 的必要條件（bearer 無法加在 `<img>` 請求上）。
 
-**可替換設計**：`AuthStrategy` 介面（`authorize`／`establish`／`clear`／`hasCredential`）是唯一接觸憑證的地方。伺服器實作 httpOnly + `SameSite=Strict` session Cookie 與 CSRF 後，新增 `cookie-csrf` 策略：`establish` 不保存任何令牌、`authorize` 為非安全方法加上 CSRF 標頭（值由伺服器以非 Cookie 管道提供或 double-submit），並在 `createApiClient` 換用；呼叫端、store 與頁面不需修改。在此之前網頁端沒有 Cookie 驗證，因此也沒有 CSRF 面。
+`AuthStrategy` 介面（`authorize`／`establish`／`resume`／`clear`／`hasCredential`、`survivesReload`）是唯一接觸憑證的地方。`createMemoryBearerAuth()` 保留給不接受環回明文 HTTP 上 `Secure` Cookie 的開發瀏覽器（例如部分 Safari）：令牌只在記憶體，重新整理即登出，且海報圖無法載入。
+
+## 頁面（G34.3 第一批）
+
+| 路由 | 頁面 | API |
+| --- | --- | --- |
+| `/login` | 登入；欄位驗證、錯誤碼對照訊息、登入後回 `redirect` | `POST /auth/login` |
+| `/libraries` | 媒體庫卡片列表、游標分頁 | `GET /libraries` |
+| `/libraries/:libraryId` | 條目海報牆／列表（`?view=list`，可深層連結）、骨架屏、空狀態、錯誤態 | `GET /items` |
+| `/items/:itemId` | 條目詳情：標題、類型、年份、原始標題、簡介、類型標籤、外部 ID、NFO 來源標記；「請使用原生用戶端觀看」說明 | `GET /items/{id}`、管理員另讀 `GET /items/{id}/metadata` |
+| `/account` | 個人資料、自己的工作階段列表、單一撤銷（樂觀更新可回滾）、在所有裝置上登出 | `GET /users/me`、`GET/DELETE /users/{id}/sessions[/{sessionID}]` |
+
+API 限制與對應做法：
+
+- `GET /api/v1/items` 只接受 `cursor`、`limit`，沒有媒體庫篩選或排序。條目頁沿全域目錄順序逐頁讀取（每頁 100、單次最多 10 頁），保留該媒體庫、沒有 `parentId` 的條目，回傳的游標可繼續「載入更多」。因此不提供排序；伺服器加上 `libraryId`／排序參數後只需改 `features/items/api.ts`。
+- 簡介、年份、外部 ID、NFO 來源只有管理員 API 提供；一般使用者看到「目前僅管理員可見」的說明。
+- 檔案資訊目前沒有網頁可用的 API（直投與探測端點不對網頁開放），詳情頁只顯示說明。
+
+共用元件（`components/ui/`）：`UiButton`（primary／secondary／danger／ghost、`pressed` 切換、`busy`）、`UiTextField`（label／hint／error 以 `aria-describedby` 連結、`aria-invalid`）、`UiSkeleton`（`aria-hidden`、固定版面尺寸、reduced-motion 時停用動畫）、`UiEmptyState`、`UiErrorState`（錯誤碼對照訊息＋traceId＋重試）、`UiAlert`、`UiBadge`、`UiToastRegion`（`aria-live`，錯誤用 `role="alert"` 且不自動消失）、`RequestStatus`（可插入骨架屏）。可及性：skip link、導覽後焦點移到頁面 `h1`、`RouterLink` 的 `aria-current`、觸控目標 44px、`:focus-visible` 外框，亮／暗色全部取自 token。
 
 ## CSP 規劃（G35.1）
 
@@ -104,5 +124,5 @@ base-uri 'none'; form-action 'self'; frame-ancestors 'none'
 
 - G33／G34：主題預設、更多 UI 元件、響應式與 axe 檢查、Playwright 視覺回歸（manifest 已預留 Playwright 1.63.0）。
 - G35.4：主 bundle gzip 預算門禁；評估 vue-i18n 預編譯訊息以縮小 chunk。
-- 伺服器以 Cookie + CSRF 取代 bearer 後，換上 `cookie-csrf` 策略並移除重新整理即登出的限制。
+- 伺服器為 `GET /api/v1/items` 加上媒體庫篩選與排序後，移除前端逐頁篩選；網頁可用的檔案資訊 API。
 - Windows 的 PowerShell 引導與 `make.ps1` 尚未安裝 Node（清單已有 Windows 雜湊）。
