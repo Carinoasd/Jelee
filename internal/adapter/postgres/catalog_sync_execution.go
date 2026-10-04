@@ -258,15 +258,32 @@ func syncCatalogSourcesBatch(ctx context.Context, tx pgx.Tx, current domain.JobL
 	if err != nil {
 		return storageError(err)
 	}
+	sidecars, err := readSidecarBatch(ctx, tx, *r, candidates)
+	if err != nil {
+		return err
+	}
 	w := catalogWriter{tx: tx, library: r.library, snapshot: *r.targetSnapshot, now: time.Now().UTC()}
-	writes, processed := 0, 0
+	writes, processed, sidecarSources := 0, 0, 0
 	for _, c := range candidates {
 		if writes >= catalogSyncWriteLimit {
 			break
 		}
-		changed, err := w.syncCandidate(ctx, c, r)
+		changed, source, err := w.syncCandidate(ctx, c, r)
 		if err != nil {
 			return err
+		}
+		// Sidecars follow every scan source, including one whose video is
+		// unchanged: a subtitle added, removed or renamed next to it is a
+		// write of this batch as well.
+		if source != "" {
+			written, err := syncSourceSidecars(ctx, tx, source, sidecars.wanted[sidecarKey{c.root, c.path}], sidecars.existing[source])
+			if err != nil {
+				return err
+			}
+			if written {
+				sidecarSources++
+				changed = true
+			}
 		}
 		if changed {
 			writes++
@@ -280,7 +297,11 @@ func syncCatalogSourcesBatch(ctx context.Context, tx pgx.Tx, current domain.JobL
 		r.phase, r.cursorRoot, r.cursorPath, r.missingCursor = "missing", nil, nil, nil
 	}
 	if writes > 0 {
-		return auditAccount(ctx, tx, domain.Actor{}, "catalog_sync.batch", current.Job.ID, nil, map[string]any{"libraryId": r.library, "written": writes})
+		details := map[string]any{"libraryId": r.library, "written": writes}
+		if sidecarSources > 0 {
+			details["sidecarSources"] = sidecarSources
+		}
+		return auditAccount(ctx, tx, domain.Actor{}, "catalog_sync.batch", current.Job.ID, nil, details)
 	}
 	return nil
 }
@@ -293,8 +314,23 @@ type catalogWriter struct {
 }
 
 // syncCandidate applies one baseline video. It reports whether the catalog
-// or the pending list changed; untouched files only advance the cursor.
-func (w catalogWriter) syncCandidate(ctx context.Context, c syncCandidate, r *catalogSyncRequest) (bool, error) {
+// or the pending list changed; untouched files only advance the cursor. The
+// returned source is the scan source the file is registered as, or empty
+// for an explicit import or a pending file, whose tracks sync leaves alone.
+func (w catalogWriter) syncCandidate(ctx context.Context, c syncCandidate, r *catalogSyncRequest) (bool, string, error) {
+	created := ""
+	changed, err := w.applyCandidate(ctx, c, r, &created)
+	switch {
+	case err != nil:
+		return false, "", err
+	case c.trackedSource != nil:
+		return changed, *c.trackedSource, nil
+	default:
+		return changed, created, nil
+	}
+}
+
+func (w catalogWriter) applyCandidate(ctx context.Context, c syncCandidate, r *catalogSyncRequest, created *string) (bool, error) {
 	version := domain.CatalogSyncParserVersion
 	switch {
 	case c.trackedSource != nil:
@@ -343,7 +379,7 @@ func (w catalogWriter) syncCandidate(ctx context.Context, c syncCandidate, r *ca
 		return false, storageError(err)
 	}
 	inner := catalogWriter{tx: savepoint, library: w.library, snapshot: w.snapshot, now: w.now}
-	err = inner.create(ctx, c, plan)
+	source, err := inner.create(ctx, c, plan)
 	if errors.Is(err, errCatalogConflict) {
 		if rollback := savepoint.Rollback(ctx); rollback != nil {
 			return false, storageError(rollback)
@@ -359,6 +395,7 @@ func (w catalogWriter) syncCandidate(ctx context.Context, c syncCandidate, r *ca
 		return false, storageError(err)
 	}
 	r.created++
+	*created = source
 	return true, nil
 }
 
@@ -443,7 +480,7 @@ func (w catalogWriter) applyScanTitle(ctx context.Context, item, title string) (
 	return false, writeItemMetadataField(ctx, w.tx, item, domain.ItemMetadataField{Field: "title", Value: title, Source: "scan"}, w.now)
 }
 
-func (w catalogWriter) create(ctx context.Context, c syncCandidate, plan app.CatalogScanPlan) error {
+func (w catalogWriter) create(ctx context.Context, c syncCandidate, plan app.CatalogScanPlan) (string, error) {
 	var item string
 	var err error
 	switch plan.Kind {
@@ -453,24 +490,24 @@ func (w catalogWriter) create(ctx context.Context, c syncCandidate, plan app.Cat
 		var season string
 		season, err = w.season(ctx, c, plan)
 		if err != nil {
-			return err
+			return "", err
 		}
 		item, err = w.groupItem(ctx, c, "Episode", domain.CatalogGroupDigest("episode", season, plan.Directory, strconv.Itoa(plan.Episode), strconv.Itoa(plan.EpisodeEnd)), scanItem{title: plan.Title, season: &plan.Season, episode: &plan.Episode, episodeEnd: &plan.EpisodeEnd, parent: season, parentKind: "Season", childRoot: c.root, childPath: c.path})
 	default:
-		return errCatalogConflict
+		return "", errCatalogConflict
 	}
 	if err != nil {
-		return err
+		return "", err
 	}
 	var source string
 	if err = w.tx.QueryRow(ctx, `INSERT INTO media_sources(item_id,library_id,root_id,relative_path,content_type) VALUES($1::uuid,$2::uuid,$3::uuid,$4,$5) RETURNING id::text`, item, w.library, c.root, c.path, plan.ContentType).Scan(&source); err != nil {
-		return storageError(err)
+		return "", storageError(err)
 	}
 	if _, err = w.tx.Exec(ctx, `INSERT INTO catalog_scan_sources(source_id,library_id,item_id,root_id,relative_path,size,modified_unix_nano,parser_version) VALUES($1::uuid,$2::uuid,$3::uuid,$4::uuid,$5,$6,$7,$8)`, source, w.library, item, c.root, c.path, c.size, c.modified, domain.CatalogSyncParserVersion); err != nil {
-		return storageError(err)
+		return "", storageError(err)
 	}
 	_, err = w.tx.Exec(ctx, `DELETE FROM catalog_scan_pending WHERE root_id=$1::uuid AND relative_path=$2`, c.root, c.path)
-	return storageError(err)
+	return source, storageError(err)
 }
 
 type scanItem struct {
@@ -691,6 +728,12 @@ func syncCatalogMissingBatch(ctx context.Context, tx pgx.Tx, current domain.JobL
 	if err != nil {
 		return storageError(err)
 	}
+	withTracks, err := sourcesWithSidecars(ctx, tx, batch, func(t tracked) (string, bool) {
+		return t.source, !t.observed && !t.marked && r.mode != domain.CatalogSyncModeAccept
+	})
+	if err != nil {
+		return err
+	}
 	removed := 0
 	for _, t := range batch {
 		if t.observed {
@@ -705,6 +748,13 @@ func syncCatalogMissingBatch(ctx context.Context, tx pgx.Tx, current domain.JobL
 					return storageError(err)
 				}
 				r.markedMissing++
+				// The video's folder no longer yields it, so no file can be
+				// paired with it either. Accepted removals cascade instead.
+				if withTracks[t.source] {
+					if _, err = UpsertSidecarTracks(ctx, tx, t.source, nil); err != nil {
+						return err
+					}
+				}
 			}
 			continue
 		}
@@ -728,6 +778,34 @@ func syncCatalogMissingBatch(ctx context.Context, tx pgx.Tx, current domain.JobL
 		return auditAccount(ctx, tx, domain.Actor{}, "catalog_sync.removed", current.Job.ID, nil, map[string]any{"libraryId": r.library, "removed": removed})
 	}
 	return nil
+}
+
+// sourcesWithSidecars reports, with one statement, which of the selected
+// sources hold sidecar rows.
+func sourcesWithSidecars[T any](ctx context.Context, tx pgx.Tx, batch []T, selected func(T) (string, bool)) (map[string]bool, error) {
+	var ids []string
+	for _, v := range batch {
+		if id, ok := selected(v); ok {
+			ids = append(ids, id)
+		}
+	}
+	found := map[string]bool{}
+	if len(ids) == 0 {
+		return found, nil
+	}
+	rows, err := tx.Query(ctx, `SELECT DISTINCT source_id::text FROM media_sidecar_tracks WHERE source_id=ANY($1::uuid[])`, ids)
+	if err != nil {
+		return nil, storageError(err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var id string
+		if err = rows.Scan(&id); err != nil {
+			return nil, storageError(err)
+		}
+		found[id] = true
+	}
+	return found, storageError(rows.Err())
 }
 
 // pruneScanItem deletes scan-created items that no longer hold media or

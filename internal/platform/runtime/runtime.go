@@ -201,7 +201,7 @@ func newWithLifetime(cfg config.Config, logger *slog.Logger, lifetime *lifetime)
 				opts.Window = window
 			}
 			opts.CatalogImport = &jobworker.CatalogImportOptions{Repository: store, Verifier: scan.New()}
-			opts.CatalogSync = &jobworker.CatalogSyncOptions{Repository: store}
+			opts.CatalogSync = &jobworker.CatalogSyncOptions{Repository: store, Sidecars: store, Inspector: scan.SidecarInspector{}}
 			if goruntime.GOOS == "linux" || goruntime.GOOS == "windows" {
 				ignoreScanner := scan.NewIgnoreScanner()
 				opts.Ignore = &jobworker.IgnoreOptions{Repository: store, Scanner: ignoreScanner, Observer: ignoreScanner}

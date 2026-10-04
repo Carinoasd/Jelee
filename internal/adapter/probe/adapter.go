@@ -153,6 +153,13 @@ func classifyProcessError(err error) error {
 	}
 }
 
+// EdgeFingerprint is the bounded content fingerprint of a media file: its
+// size and at most the first and last 64 KiB, never the whole file. Scans
+// reuse it for external subtitle and audio files. The result is hex SHA-256.
+func EdgeFingerprint(ctx context.Context, file *os.File, size int64) (string, error) {
+	return edgeFingerprint(ctx, file, size)
+}
+
 func edgeFingerprint(ctx context.Context, file *os.File, size int64) (string, error) {
 	if size < 0 {
 		return "", ErrInvalidInput

@@ -117,6 +117,8 @@ Web 禁止播放的承诺基于**服务端签发时绑定的会话类型**。原
 
 `{trackId}` 是 `media_sidecar_tracks` 的行 ID，由播放信息的 `externalTracks[].url` 给出。文件按字节原样发送：不烧录、不重编码、不 Remux，字幕也不转换字符编码（G10.9；位图字幕 `.sup`/`.idx`+`.sub` 同样只传原文件，G15.5）。内嵌轨提取不在此范围。
 
+**数据来源。** 轨道行由扫描→条目同步写入（W10-8，见 `catalog-sync.md`“外挂字幕／音轨配对”）：同步为每个扫描登记的资源配对同目录及 `Subs/`、`Audio/` 等子目录中的外挂文件，与资源在同一事务中写入；重扫时外挂文件的新增、删除、改名随之反映，视频被标记缺失或删除时轨道一并清除。字符集与边缘指纹由同一任务结束前的有界读取补上，在此之前 `charset` 为空，响应不带 `charset` 参数。
+
 **同一条直投路径。** HTTP 层只做与 `stream` 相同的前置检查（`GuardProduction` → 不接受任何查询参数 → 两个 ID 都必须是 UUID，否则 404），然后调用 `Handler.ServeTrack`。`ServeTrack` 与 `ServeSource` 共用同一个 `serve`：会话类型（只有原生会话，Web 会话无论 bearer 还是 cookie 都是 403 `web_playback_disabled`，且不触达查库）、方法限制、Range 头上限、全进程并发额度、查库超时、并发播放与带宽上限、共享 I/O 配额、`os.OpenRoot` 打开、`ServeContent`（Range、HEAD、条件请求）、撤销即断流、零拷贝与缓冲复制路径、CSP 和错误映射全部沿用，没有另写一套串流。
 
 **授权。** `media.Resolver` 新增 `ResolveTrack(ctx, principal, sourceID, kind, trackID)`。PostgreSQL 实现（`Store.ResolveTrack`）在一条 SQL 中同时确认：用户未停用未删除、会话为未撤销未过期的原生会话、用户是管理员或拥有该资源所在媒体库的授权、轨道的 `source_id` 等于路径中的资源 ID、轨道 `kind` 与路由一致。看不到资源、轨道属于别的资源、字幕 ID 走音轨路由、ID 不存在，答复都相同（默认 404，按 G48.3 配置为 403），不泄露存在性。仓储只返回库根目录、相对路径、字符集、设备 ID 与用户覆写上限，路径不进入响应或日志。

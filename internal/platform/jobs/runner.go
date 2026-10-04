@@ -130,7 +130,7 @@ func New(repository app.JobExecutionRepository, scanner app.InventoryScanner, op
 		opts.CatalogImport = &value
 	}
 	if opts.CatalogSync != nil {
-		if _, ok := repository.(stagesClaimer); !ok || opts.CatalogSync.Repository == nil {
+		if _, ok := repository.(stagesClaimer); !ok || opts.CatalogSync.Repository == nil || (opts.CatalogSync.Sidecars == nil) != (opts.CatalogSync.Inspector == nil) {
 			return nil, domain.ErrInvalid
 		}
 		value := *opts.CatalogSync

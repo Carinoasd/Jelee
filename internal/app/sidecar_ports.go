@@ -20,3 +20,19 @@ type SidecarTrackRepository interface {
 	// unmodified delivery.
 	ResolveSidecarTrack(ctx context.Context, actor domain.Actor, trackID string) (domain.SidecarTrackLocation, error)
 }
+
+// SidecarInspectionRepository pages, under a catalog sync lease, the tracks
+// whose charset and edge fingerprint are still unknown, and records what a
+// bounded read found. A result applies only while the row's size and
+// modification time still equal the ones that were read.
+type SidecarInspectionRepository interface {
+	NextSidecarInspections(ctx context.Context, lease domain.JobLease, after string, limit int) ([]domain.SidecarInspectionTarget, error)
+	RecordSidecarInspections(ctx context.Context, lease domain.JobLease, results []domain.SidecarInspection) (int, error)
+}
+
+// SidecarInspector reads a bounded part of one sidecar file without
+// changing it: an edge fingerprint and, for a text subtitle, the detected
+// charset. A file that is gone, replaced or changed since the scan fails.
+type SidecarInspector interface {
+	InspectSidecar(ctx context.Context, target domain.SidecarInspectionTarget) (domain.SidecarInspection, error)
+}

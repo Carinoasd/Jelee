@@ -53,6 +53,7 @@
 | C15 | 撤銷斷流與限速在 HTTP/2、反向代理（Nginx／Caddy 緩衝）下的表現：撤銷後幾秒斷線、客戶端實測速率與設定值的偏差 | `docs/direct-delivery.md` | 待跑 |
 | C16 | 零拷貝直投：多串流並發的 CPU 與吞吐、極小 Range 請求的固定開銷、正式 WriteTimeout 30 秒下低碼率客戶端的容忍度、TLS 代理與 HTTP/2 部署確實回到緩衝路徑 | `docs/direct-delivery.md` | 待跑 |
 | C17 | 相容層瀏覽：在 scale 資料庫（大媒體庫）上量 `/compat/Items` 總數計算與名稱排序的延遲，以及 `/compat/UserViews` 推導 CollectionType 的成本 | `internal/adapter/postgres/catalog_browse.go` | 待跑 |
+| C18 | 外掛軌配對的額外成本：50 萬條目（含大量外掛檔）首掃與重掃時 sources 階段每批多出的兩條查詢、`library_inventory_sidecar_owner_idx` 讓每次基準發布多寫的索引量與 WAL；遷移 065 在既有大型基準上建索引的時間與鎖表；首次同步後的字元集／指紋檢查頁（每檔頭尾 128 KiB＋字幕至多 1 MiB）在 NAS／網路掛載上的總時間 | `docs/catalog-sync.md` | 待跑 |
 
 ## D. 真實資料／真金鑰／真客戶端
 
