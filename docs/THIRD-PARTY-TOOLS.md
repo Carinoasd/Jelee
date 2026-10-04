@@ -1,6 +1,6 @@
 # 第三方开发与测试工具
 
-实际下载的工具与精确平台哈希见 `tools/manifest.json`。Go 下载来源为 [Go 官方下载页](https://go.dev/dl/)；校验信息为 [官方下载元数据](https://go.dev/dl/?mode=json)。golangci-lint 下载来源为 [官方 GitHub release v2.14.0](https://github.com/golangci/golangci-lint/releases/tag/v2.14.0)，SHA256 取自该 release 的 [checksums 文件](https://github.com/golangci/golangci-lint/releases/download/v2.14.0/golangci-lint-2.14.0-checksums.txt)，并于 2026-10-04 重新下载 linux-amd64、windows-amd64 压缩包核对一致。
+实际下载的工具与精确平台哈希见 `tools/manifest.json`。Go 下载来源为 [Go 官方下载页](https://go.dev/dl/)；校验信息为 [官方下载元数据](https://go.dev/dl/?mode=json)。golangci-lint 下载来源为 [官方 GitHub release v2.14.0](https://github.com/golangci/golangci-lint/releases/tag/v2.14.0)，SHA256 取自该 release 的 [checksums 文件](https://github.com/golangci/golangci-lint/releases/download/v2.14.0/golangci-lint-2.14.0-checksums.txt)，并于 2026-10-04 重新下载 linux-amd64、windows-amd64 压缩包核对一致。Playwright 的 npm 包来自 npm registry（版本与 integrity 锁在 `package-lock.json`）；浏览器只取 Chrome Headless Shell，下载来源为 Playwright 自己使用的 `https://cdn.playwright.dev/builds/cft/153.0.8010.12/`。Playwright 与 [Chrome for Testing](https://googlechromelabs.github.io/chrome-for-testing/) 都不发布压缩包校验和：2026-10-04 分别从 cdn.playwright.dev 与 Google 的 `chrome-for-testing-public` 存储桶（[known-good-versions-with-downloads.json](https://googlechromelabs.github.io/chrome-for-testing/known-good-versions-with-downloads.json) 列出的地址）下载 linux64、linux-arm64、win64 三个压缩包，两个来源逐一得到相同的 SHA256，固定在清单中。
 
 | 名称 | 版本 | 许可证与归属 | 用途 | 分发范围 |
 | --- | --- | --- | --- | --- |
@@ -8,7 +8,8 @@
 | Node.js（含 npm 11.19.0） | 24.21.0 | MIT，Node.js contributors / OpenJS Foundation；捆绑组件许可列于发行包 `LICENSE` | 前端安装、型别检查、lint、测试与构建 | 仅项目本地工具；不随 Go 服务端或容器镜像分发 |
 | npm 前端开发依赖（Vite、vue-tsc、ESLint、Vitest、openapi-typescript 等） | 见 `package-lock.json` | 各包自身许可（以 MIT/Apache-2.0/BSD 为主），版本与完整性哈希锁在 lockfile | 前端构建与检查 | 构建期依赖；产物只包含 Vue、vue-router、Pinia、vue-i18n、openapi-fetch 的运行代码 |
 | golangci-lint | 2.14.0 | GPL-3.0，golangci-lint 作者与贡献者；发行包内 `LICENSE` 保留并与已校验压缩包逐字节比对；所含各 linter 保留各自许可 | Go 静态分析门禁（G30.1，见 `docs/quality-gates.md`） | 仅项目本地开发与 CI 工具；只执行、不链接，不随 Go 服务端、容器镜像或任何发行包分发 |
-| Playwright | 1.63.0（仅预留） | Apache-2.0，Microsoft Corporation 与贡献者 | 未来 E2E / 视觉回归 | 尚未安装、未下载浏览器 |
+| Playwright（`@playwright/test`、`playwright`、`playwright-core`） | 1.63.0 | Apache-2.0，Microsoft Corporation 与 Playwright 贡献者；许可文本随 npm 包保留在 `node_modules` | Web 端到端与视觉回归（G27.4、G34.5、G34.6，见 `docs/frontend-adr.md`） | npm 开发依赖；只在开发机与 CI 执行，不进入 `web/dist`、Go 服务端或容器镜像 |
+| Chrome Headless Shell（Chrome for Testing） | 153.0.8010.12（Playwright 浏览器修订 1243） | Chromium，BSD-3-Clause，The Chromium Authors；压缩包内 `LICENSE.headless_shell` 列出全部第三方组件许可，安装后与已校验压缩包逐字节比对 | Playwright 的无头浏览器 | 仅 `make bootstrap-playwright` 时下载到被忽略的 `.tools/playwright/`；不下载完整 Chromium、Firefox、WebKit 与 Playwright 的 ffmpeg；不分发 |
 | Gyan Windows amd64 ffmpeg / ffprobe | `9.0.2-essentials_build-www.gyan.dev` | GPL-3.0-or-later，FFmpeg developers、Gyan Doshi 与所链接依赖作者；保留发行包 `LICENSE`、README 与文档 | 可选开发工具；ffmpeg 仅用于合成测试素材/调试，ffprobe 用于开发验证 | 本地被忽略目录，不进入本阶段生产镜像 |
 | BtbN Linux amd64 ffmpeg / ffprobe | `n9.0.2-17-g2a571b6068-20260930` | GPL-3.0-or-later，FFmpeg developers、BtbN 与所链接依赖作者；保留发行包 `LICENSE.txt` 及文档 | 同上；glibc 2.28+、Linux 4.18+ | 本地被忽略目录，不进入本阶段生产镜像 |
 | Debian libc6 amd64（七个 ELF） | `2.41-12+deb13u4` | LGPL-2.1-or-later 与文件级条款；完整包版权文件保留，glibc contributors / Free Software Foundation / Debian GNU Libc Maintainers | 实验 Linux ffprobe 的加载器与 glibc 闭包 | 仅本地实验镜像；未发布公共镜像 |
@@ -26,7 +27,7 @@
 
 此前 Linux race 测试的实际结果保留，但当时宿主 C 编译器尚未登记；2026-10-01 补登记后，再进行最终 Linux race 复验。不得将历史测试描述为已满足 manifest-first。Windows 未找到可用 race 编译器的结果仍为不可用，没有安装新编译器。盘点证据见 `docs/evidence/host-compiler.txt`。
 
-浏览器驱动（Playwright 仅预留）、mkvtoolnix、mediainfo 与其余扫描工具尚未加入清单；不可据此表宣称 G51 工具集合已完整。完整状态见 `docs/toolchain.md`。将来新增工具须先记录来源、精确版本、平台、SHA256、许可证与归属，再允许下载。
+Playwright 只启用 Chromium 的无头外壳；Firefox、WebKit 未加入清单。mkvtoolnix、mediainfo 与其余扫描工具尚未加入清单；不可据此表宣称 G51 工具集合已完整。完整状态见 `docs/toolchain.md`。将来新增工具须先记录来源、精确版本、平台、SHA256、许可证与归属，再允许下载。
 
 ## 媒体构建来源与许可
 

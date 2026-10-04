@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Project-local Linux Go, Node and golangci-lint bootstrap; only Python's standard library is required."""
+"""Project-local Linux Go, Node, golangci-lint and Playwright browser bootstrap; only Python's standard library is required."""
 import argparse
 import hashlib
 import json
@@ -8,9 +8,11 @@ from pathlib import Path, PurePosixPath
 import platform
 import re
 import shutil
+import stat
 import subprocess
 import sys
 import tarfile
+import zipfile
 from datetime import datetime, timezone
 from urllib.parse import urlparse
 from urllib.request import HTTPRedirectHandler, build_opener
@@ -195,7 +197,9 @@ def remove_tree(path):
 
 
 def paths(spec):
-    name = Path(urlparse(spec["url"]).path).name
+    # downloadName keeps archives whose upstream file name carries no version
+    # (Chrome for Testing) apart in the shared download cache.
+    name = spec.get("downloadName") or Path(urlparse(spec["url"]).path).name
     return (local_path(ROOT, ROOT / ".tools/downloads" / name),
             local_path(ROOT, ROOT / ".tools" / spec["installPath"]))
 
@@ -239,6 +243,8 @@ def bootstrap(offline=False, tools=ALL_TOOLS):
         bootstrap_node(offline)
     if GOLANGCI in tools:
         bootstrap_golangci(offline)
+    if PLAYWRIGHT in tools:
+        bootstrap_playwright(offline)
 
 
 def bootstrap_go(offline=False):
@@ -443,6 +449,145 @@ def verify_golangci():
     print("Verified golangci-lint " + tool["version"] + "; archive SHA256 and installed binary match")
 
 
+PLAYWRIGHT = "playwright"
+PLAYWRIGHT_CDN = "https://cdn.playwright.dev/builds/cft/"
+PLAYWRIGHT_MIRROR = "https://storage.googleapis.com/chrome-for-testing-public/"
+
+
+def playwright_selected():
+    """The pinned Chrome Headless Shell for the host, laid out as Playwright expects.
+
+    Only the headless shell is ever installed: no full Chromium, Firefox,
+    WebKit or ffmpeg. PLAYWRIGHT_BROWSERS_PATH points at browsersPath, so
+    Playwright never reads or writes the user's global browser cache.
+    """
+    tool = manifest_tool(PLAYWRIGHT)
+    target = linux_target()
+    spec = tool["platforms"][target]
+    browser = tool["browser"]
+    cft = {"linux-amd64": "linux64", "linux-arm64": "linux-arm64"}[target]
+    root = "chrome-headless-shell-" + cft
+    base = "playwright/" + tool["version"] + "/" + target
+    suffix = browser["version"] + "/" + cft + "/" + root + ".zip"
+    if (tool.get("status") != "active" or not re.fullmatch(r"[a-f0-9]{64}", spec["sha256"])
+            or not re.fullmatch(r"\d+", browser["revision"]) or not re.fullmatch(r"[\d.]+", browser["version"])
+            or browser["name"] != "chromium-headless-shell"
+            or browser["directory"] != "chromium_headless_shell-" + browser["revision"]
+            or spec["url"] != PLAYWRIGHT_CDN + suffix or spec["mirrorUrl"] != PLAYWRIGHT_MIRROR + suffix
+            or spec["archive"] != "zip" or spec["archiveRoot"] != root
+            or spec["downloadName"] != "playwright-" + tool["version"] + "-chromium-headless-shell-"
+            + browser["revision"] + "-" + target + ".zip"
+            or spec["browsersPath"] != base or spec["installPath"] != base + "/" + browser["directory"]
+            or spec["executable"] != root + "/chrome-headless-shell"
+            or spec["licenseFile"] != root + "/LICENSE.headless_shell"
+            or tool.get("installPath") != "playwright/" + tool["version"]):
+        raise ValueError("invalid Playwright browser source, hash or installation layout")
+    return tool, spec, target
+
+
+def safe_extract_zip(archive, destination):
+    """Extract a zip of regular files and directories; any link fails it all."""
+    destination = local_path(ROOT, destination)
+    if any(destination.iterdir()):
+        raise ValueError("extraction staging directory must be empty")
+    total = 0
+    with zipfile.ZipFile(archive) as bundle:
+        for count, member in enumerate(bundle.infolist()):
+            name = member.filename
+            mode = member.external_attr >> 16
+            kind = stat.S_IFMT(mode)
+            parts = name.rstrip("/").split("/")
+            if (name.startswith("/") or "\\" in name or ":" in name or ".." in parts or "." in parts
+                    or kind not in (0, stat.S_IFREG, stat.S_IFDIR)):
+                raise ValueError("unsafe archive entry: " + name)
+            total += member.file_size
+            if total > 2 * 1024**3 or count >= 100000:
+                raise ValueError("archive resource limit exceeded")
+            target = destination / PurePosixPath(name)
+            if member.is_dir():
+                target.mkdir(parents=True, exist_ok=True)
+                continue
+            target.parent.mkdir(parents=True, exist_ok=True)
+            with bundle.open(member) as source, target.open("xb") as output:
+                shutil.copyfileobj(source, output)
+            target.chmod(0o755 if mode & 0o111 else 0o644)
+
+
+def assert_zip_files(archive, install, names):
+    remaining = set(names)
+    with zipfile.ZipFile(archive) as bundle:
+        for name in sorted(remaining):
+            expected = hashlib.sha256()
+            with bundle.open(name) as stream:
+                for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+                    expected.update(chunk)
+            assert_hash(local_path(ROOT, install / name), expected.hexdigest())
+
+
+def bootstrap_playwright(offline=False):
+    tool, spec, target = playwright_selected()
+    archive, install = fetch(spec, offline)
+    files = {spec["executable"], spec["licenseFile"]}
+    if not (install / "INSTALLATION_COMPLETE").is_file():
+        stage = local_path(ROOT, install.with_name(install.name + ".staging"))
+        remove_tree(stage)
+        stage.mkdir(parents=True)
+        try:
+            safe_extract_zip(archive, stage)
+            for name in files:
+                if not (stage / name).is_file():
+                    raise ValueError("Playwright browser file absent from archive: " + name)
+            # Playwright treats a browser directory without this marker as
+            # a partial download.
+            (stage / "INSTALLATION_COMPLETE").write_text("", encoding="utf-8")
+            remove_tree(install)
+            stage.replace(install)
+        finally:
+            remove_tree(stage)
+    assert_zip_files(archive, install, files)
+    installed = read_installed()
+    installed["tools"].setdefault(PLAYWRIGHT, {})[target] = {
+        "schemaVersion": 1, "name": PLAYWRIGHT, "version": tool["version"], "platform": target,
+        "browserRevision": tool["browser"]["revision"], "archiveSHA256": spec["sha256"],
+        "executableSHA256": digest(install / spec["executable"]),
+        "installedAt": datetime.now(timezone.utc).isoformat()}
+    write_installed(installed)
+    verify_playwright()
+
+
+def verify_playwright():
+    tool, spec, target = playwright_selected()
+    archive, install = paths(spec)
+    assert_hash(archive, spec["sha256"])
+    try:
+        record = read_installed()["tools"][PLAYWRIGHT][target]
+    except (KeyError, OSError, ValueError):
+        raise ValueError("Playwright browser is not installed; run make bootstrap-playwright") from None
+    if (record["version"] != tool["version"] or record["platform"] != target
+            or record["browserRevision"] != tool["browser"]["revision"]
+            or record["archiveSHA256"] != spec["sha256"]):
+        raise ValueError("installed Playwright record does not match manifest; bootstrap again")
+    assert_hash(local_path(ROOT, install / spec["executable"]), record["executableSHA256"])
+    assert_zip_files(archive, install, {spec["executable"], spec["licenseFile"]})
+    # The npm packages must be the manifest's version and expect this browser.
+    package = json.loads((ROOT / "web/package.json").read_text(encoding="utf-8"))
+    for name, version in tool["npmPackages"].items():
+        if name == "@playwright/test" and package["devDependencies"].get(name) != version:
+            raise ValueError("web/package.json pins " + name + " differently from tools/manifest.json")
+    lock = json.loads((ROOT / "package-lock.json").read_text(encoding="utf-8"))
+    for name, version in tool["npmPackages"].items():
+        if lock["packages"].get("node_modules/" + name, {}).get("version") != version:
+            raise ValueError("package-lock.json resolves " + name + " differently from tools/manifest.json")
+    browsers = ROOT / "node_modules/playwright-core/browsers.json"
+    if browsers.is_file():
+        entry, = [entry for entry in json.loads(browsers.read_text(encoding="utf-8"))["browsers"]
+                  if entry["name"] == tool["browser"]["name"]]
+        if entry["revision"] != tool["browser"]["revision"] or entry["browserVersion"] != tool["browser"]["version"]:
+            raise ValueError("installed playwright-core expects another browser build than tools/manifest.json")
+    print("Verified Playwright " + tool["version"] + " Chrome Headless Shell " + tool["browser"]["version"]
+          + "; archive SHA256 and installed binary match")
+
+
 def go_environment(spec):
     cache = local_path(ROOT, ROOT / ".tools/cache")
     env = dict(os.environ)
@@ -472,6 +617,8 @@ def verify(tools=ALL_TOOLS):
         verify_node()
     if GOLANGCI in tools:
         verify_golangci()
+    if PLAYWRIGHT in tools:
+        verify_playwright()
 
 
 def verify_node():
@@ -533,8 +680,9 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("command", choices=["bootstrap", "verify", "clean"])
     parser.add_argument("--offline", action="store_true")
-    parser.add_argument("--tool", action="append", choices=list(ALL_TOOLS),
-                        help="limit bootstrap or verify to this tool (repeatable; default: all)")
+    # Playwright's browser (about 120 MB) is opt-in: make bootstrap-playwright.
+    parser.add_argument("--tool", action="append", choices=list(ALL_TOOLS) + [PLAYWRIGHT],
+                        help="limit bootstrap or verify to this tool (repeatable; default: all but playwright)")
     args = parser.parse_args()
     tools = tuple(args.tool or ALL_TOOLS)
     if args.command == "bootstrap":

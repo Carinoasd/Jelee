@@ -23,9 +23,9 @@
 | 状态 | 子项数 | 占比 |
 | --- | --- | --- |
 | 已完成 | 22 | 6.5% |
-| 部分完成 | 307 | 91.4% |
+| 部分完成 | 308 | 91.7% |
 | 阻塞 | 4 | 1.2% |
-| 未开始 | 3 | 0.9% |
+| 未开始 | 2 | 0.6% |
 | 合计 | 336 | 100% |
 
 | G 群组 | 子项 | 已完成 | 部分完成 | 阻塞 | 未开始 | 已完成比例 | 有实现比例（已完成＋部分完成） |
@@ -63,7 +63,7 @@
 | G31 | 5 | 0 | 5 | 0 | 0 | 0% | 100% |
 | G32 | 6 | 0 | 6 | 0 | 0 | 0% | 100% |
 | G33 | 6 | 0 | 6 | 0 | 0 | 0% | 100% |
-| G34 | 6 | 0 | 5 | 0 | 1 | 0% | 83% |
+| G34 | 6 | 0 | 6 | 0 | 0 | 0% | 100% |
 | G35 | 5 | 0 | 5 | 0 | 0 | 0% | 100% |
 | G36 | 5 | 0 | 5 | 0 | 0 | 0% | 100% |
 | G37 | 5 | 0 | 4 | 1 | 0 | 0% | 80% |
@@ -85,7 +85,7 @@
 | 基础、范围与账户 | G00–G08 | 54 | 13 | 40 | 0 | 1 |
 | 媒体处理、直投与扫描 | G09–G23 | 86 | 6 | 77 | 2 | 1 |
 | 兼容、性能与 Go 质量 | G24–G30 | 36 | 0 | 36 | 0 | 0 |
-| 前端 | G31–G35 | 28 | 0 | 27 | 0 | 1 |
+| 前端 | G31–G35 | 28 | 0 | 28 | 0 | 0 |
 | 数据库、部署与交付 | G36–G38 | 14 | 0 | 13 | 1 | 0 |
 | NFO 与图片资产 | G39–G40 | 28 | 0 | 27 | 1 | 0 |
 | 并发与内存 | G41–G42 | 20 | 2 | 18 | 0 | 0 |
@@ -477,7 +477,7 @@
 | **G27.1** 前端删除：播放器组件、播放路由、播放按钮/入口、播放状态机、媒体会话、HLS/DASH 播放依赖、画中画、投屏、播放快捷键与相关翻译键/资源。 | web/src/; web/package.json; internal/access/; internal/adapter/http/ | sessions 的服务端客户端类型与播放资格 | Plan-G27.1：静态无播放依赖/入口；E2E 全点击；Web 会话换 UA 仍拒绝；第三方授权直投；须单独覆盖本行全部约束 | 部分完成：新 Vue 前端从零重写，未带入任何播放器组件、播放路由、HLS／DASH 依赖、画中画、投屏或媒体会话；`web/scripts/check-no-playback.mjs` 检查 package.json／lockfile 的播放器包、源码中的 `<video>`／`<audio>`／MediaSource／PiP／mediaSession／RemotePlayback、路径段与翻译键，CSP `media-src 'none'`；提交信息记录 lint／types／test／build 全绿与反向验证；缺：无保存的门禁执行日志，前端实机验证未跑（D7、D14）；[前端 ADR](frontend-adr.md)、[门禁脚本](../web/scripts/check-no-playback.mjs) | `b57dd61161`（前端骨架与禁播门禁）／`cbad7870ab`（第一批页面）／`3becaad029`（CSP） |
 | **G27.2** 保留：登录、浏览、搜索、详情、图片、观看记录/统计、个人资料、安全与偏好设置；管理员的用户、媒体库、任务、Webhook、NFO/图片策略、系统页面。 | web/src/; web/package.json; internal/access/; internal/adapter/http/ | sessions 的服务端客户端类型与播放资格 | Plan-G27.2：静态无播放依赖/入口；E2E 全点击；Web 会话换 UA 仍拒绝；第三方授权直投；须单独覆盖本行全部约束 | 部分完成：已提供登录、媒体库列表、库内条目（海报墙／列表）、条目详情、个人页（会话列表与撤销）；后端已有观看统计、Webhook、用户与库管理 API；缺：前端搜索、观看记录／统计、安全与偏好设置页，以及管理员的用户、媒体库、任务、Webhook、NFO／图片策略、系统页面均未实现，浏览器实测未跑（D7、D14）；[前端 ADR](frontend-adr.md)、[路由表](../web/src/router/routes.ts) | `b57dd61161`／`cbad7870ab`（登录与浏览页面）；管理页面无实现提交 |
 | **G27.3** 服务端：播放/流接口保留给授权第三方客户端；Web 会话不得具备播放能力（服务端显式拒绝来自 Web 客户端的播放请求）。 | web/src/; web/package.json; internal/access/; internal/adapter/http/ | sessions 的服务端客户端类型与播放资格 | Plan-G27.3：静态无播放依赖/入口；E2E 全点击；Web 会话换 UA 仍拒绝；第三方授权直投；须单独覆盖本行全部约束 | 部分完成：服务器持久化会话类型，Web 会话调用直投／字幕／音轨端点一律 403 `web_playback_disabled`，伪造 native UA／头仍拒绝（`TestWebCannotSpoofNativePlaybackAndNativeRangePreservesBytes`，容器冒烟亦通过）；兼容层只收 native 会话、带 Origin 一律 403；native 会话可原字节直投（`TestCompatPlaybackPostgres` 4MiB SHA-256 一致）；缺：授权第三方客户端真实起播未验证（D8、D13）；[直投](direct-delivery.md)、[容器证据](evidence/container-current.txt) | `c77863e445`（Web 会话拒绝与原字节直投）／`632005d430`／`403cc21b27`／`e6a57474de`（兼容层直投） |
-| **G27.4** 门禁：前端构建期断言无播放依赖与播放路由；E2E 断言 Web 端无播放入口。 | web/src/; web/package.json; internal/access/; internal/adapter/http/ | sessions 的服务端客户端类型与播放资格 | Plan-G27.4：静态无播放依赖/入口；E2E 全点击；Web 会话换 UA 仍拒绝；第三方授权直投；须单独覆盖本行全部约束 | 部分完成：构建期门禁已接入——`web-lint` 运行 `check-no-playback.mjs`，`web-build` 以 `--require-dist` 再扫描产物，CI Linux 步骤执行 `make web-install web-types web-lint web-test web-build`；Vitest 集成测试断言登录后页面无 `<video>`／`<audio>` 与播放路由；缺：E2E 全点击遍历未实现（Playwright 仅在清单预留），CI 门禁通过记录未保存；[前端 ADR](frontend-adr.md)、[门禁测试](../web/scripts/checks.test.ts) | `b57dd61161`（禁播门禁与 CI 步骤）；E2E 无实现提交 |
+| **G27.4** 门禁：前端构建期断言无播放依赖与播放路由；E2E 断言 Web 端无播放入口。 | web/src/; web/package.json; internal/access/; internal/adapter/http/ | sessions 的服务端客户端类型与播放资格 | Plan-G27.4：静态无播放依赖/入口；E2E 全点击；Web 会话换 UA 仍拒绝；第三方授权直投；须单独覆盖本行全部约束 | 部分完成：构建期门禁已接入——`web-lint` 运行 `check-no-playback.mjs`，`web-build` 以 `--require-dist` 再扫描产物，CI Linux 步骤执行 `make web-install web-types web-lint web-test web-build`；Vitest 集成测试断言登录后页面无 `<video>`／`<audio>` 与播放路由；Playwright E2E（`make web-e2e`，CI Linux 步骤）在真实浏览器对 16 个关键页面亮／暗断言 DOM（含 shadow root）无 `<video>`／`<audio>`、无播放链接，并在每个测试全程断言没有播放／串流／字幕音轨递送路径或媒体资源请求（反向验证：注入 `<video>` 与 `/videos/…/stream` 请求均失败）；缺：E2E 全点击遍历未实现（只走固定流程与页面载入），Web 会话换 UA 与第三方授权直投的组合未在 E2E 覆盖，CI 门禁通过记录未保存；[前端 ADR](frontend-adr.md)、[门禁测试](../web/scripts/checks.test.ts)、[E2E](../web/e2e/flows.spec.ts) | `b57dd61161`（禁播门禁与 CI 步骤）；`claude/visual-regression` 分支提交（Playwright E2E 禁播断言） |
 
 ## G28 Go 服务端重写
 
@@ -565,8 +565,8 @@
 | **G34.2** 组件库：按钮、输入、选择器、弹层、抽屉、表格、标签、头像、评分、进度、骨架屏、空状态、错误态、Toast、Tooltip、分页、虚拟列表。 | web/src/components/ui/; web/src/features/; web/tests/visual/ | 无 | Plan-G34.2：响应式/键盘/ARIA/axe 无严重问题；亮暗截图；减少动效；人工视觉确认；须单独覆盖本行全部约束 | 部分完成：`components/ui/` 已有 UiButton、UiTextField、UiSkeleton、UiEmptyState、UiErrorState、UiAlert、UiBadge（标签）、UiToastRegion、RequestStatus，ui.test.ts 7 项覆盖 ARIA 与转义；缺：选择器、弹层、抽屉、表格组件、头像、评分、进度、Tooltip、分页、虚拟列表未实现；[UI 测试](../web/src/components/ui/ui.test.ts)、[前端 ADR](frontend-adr.md) | `b57dd61161`／`cbad7870ab`（基础组件） |
 | **G34.3** 页面：海报墙（多尺寸/悬停信息）、列表视图、详情页（演职员、版本、字幕音轨、章节、文件信息、NFO 来源标记）、搜索（筛选/排序/即时反馈）、设置页分区。 | web/src/components/ui/; web/src/features/; web/tests/visual/ | 无 | Plan-G34.3：响应式/键盘/ARIA/axe 无严重问题；亮暗截图；减少动效；人工视觉确认；须单独覆盖本行全部约束 | 部分完成：海报墙/列表切换（`?view=list`）、服务端排序、载入更多、骨架/空/错误态；详情页含外部 ID、NFO 读取状态与来源标记、版本文件信息（容器/编码/内嵌与外挂字幕音轨）；后端 `GET /api/v1/items` 位移形式（libraryId/parentId/type/sort/q/offset）与 `/items/{id}/details`、`/sources`；App.test.ts 覆盖；缺：海报多尺寸与悬停信息、演职员、章节、前端搜索页（筛选/即时反馈，API 已支持 q）、设置页分区；浏览器实测缺 D14；[前端 ADR](frontend-adr.md)、[条目 API](catalog-api.md) | `cbad7870ab`（第一批页面）／`e7926e946c`（浏览筛选排序与详情/文件信息 API） |
 | **G34.4** 动效：默认 ≤250ms、统一缓动、尊重 `prefers-reduced-motion`；骨架屏避免布局抖动；避免滥用毛玻璃影响性能。 | web/src/components/ui/; web/src/features/; web/tests/visual/ | 无 | Plan-G34.4：响应式/键盘/ARIA/axe 无严重问题；亮暗截图；减少动效；人工视觉确认；须单独覆盖本行全部约束 | 部分完成：`--jl-motion-duration: 200ms`（≤250ms）与统一 `--jl-motion-easing`；`prefers-reduced-motion` 时 token 归零且 base.css 全局压缩动画；UiSkeleton 固定版面尺寸避免抖动；未使用毛玻璃；缺：无自动化动效/布局偏移测量，减少动态的浏览器验证缺 D14；[tokens](../web/src/theme/tokens.css) | `b57dd61161`／`cbad7870ab` |
-| **G34.5** 响应式与可达性：移动/平板/桌面断点；键盘导航、焦点可见、ARIA、对比度达 WCAG 2.1 AA。 | web/src/components/ui/; web/src/features/; web/tests/visual/ | 无 | Plan-G34.5：响应式/键盘/ARIA/axe 无严重问题；亮暗截图；减少动效；人工视觉确认；须单独覆盖本行全部约束 | 部分完成：skip link、导航后焦点移到 h1、`aria-current`、`:focus-visible`、TextField `aria-describedby`/`aria-invalid`、Toast `aria-live`，ui.test.ts 与 App.test.ts 覆盖部分 ARIA；缺：仅详情页一处 `@media (max-width:640px)`，无系统的移动/平板/桌面断点，无 axe 扫描与 WCAG 2.1 AA 对比度证据；缺 D14（键盘、NVDA/VoiceOver、axe、三种尺寸）；[前端 ADR](frontend-adr.md) | `cbad7870ab`（可及性基础） |
-| **G34.6** 视觉回归：关键页面亮/暗截图对比 + Playwright 视觉回归；变更需人工确认。 | web/src/components/ui/; web/src/features/; web/tests/visual/ | 无 | Plan-G34.6：响应式/键盘/ARIA/axe 无严重问题；亮暗截图；减少动效；人工视觉确认；须单独覆盖本行全部约束 | 未开始：没有 Playwright 测试或 `web/tests/visual/` 基线，CI 无视觉回归步骤；tools/manifest 只预留 Playwright 版本。D14 的人工亮暗与版面检查也未执行；[前端 ADR](frontend-adr.md) | 无 |
+| **G34.5** 响应式与可达性：移动/平板/桌面断点；键盘导航、焦点可见、ARIA、对比度达 WCAG 2.1 AA。 | web/src/components/ui/; web/src/features/; web/tests/visual/ | 无 | Plan-G34.5：响应式/键盘/ARIA/axe 无严重问题；亮暗截图；减少动效；人工视觉确认；须单独覆盖本行全部约束 | 部分完成：skip link、导航后焦点移到 h1、`aria-current`、`:focus-visible`、TextField `aria-describedby`/`aria-invalid`、Toast `aria-live`，ui.test.ts 与 App.test.ts 覆盖部分 ARIA；Playwright E2E 以纯键盘走完登录→媒体库→条目→返回并检查焦点指示可见、两段确认的焦点移交与 Escape；16 个关键页面亮／暗自动检查 WCAG 2.1 AA 文字对比度（4.5:1／3:1）、表单标签、控件名称、图片 alt、重复 id；手机宽度 390 的截图基线；发现缺陷：条目详情标题随数据载入，导航后焦点未移到 h1（以 `test.fail()` 记录）；缺：无系统的移动/平板/桌面断点，无 axe 扫描（未新增依赖），平板宽度未截图；缺 D14（NVDA/VoiceOver、三种尺寸人工检查）；[前端 ADR](frontend-adr.md#端對端與視覺回歸g274g345g346) | `cbad7870ab`（可及性基础）；`claude/visual-regression` 分支提交（键盘与对比度 E2E） |
+| **G34.6** 视觉回归：关键页面亮/暗截图对比 + Playwright 视觉回归；变更需人工确认。 | web/e2e/; web/playwright.config.ts; web/scripts/run-playwright.mjs; tools/manifest.json; Makefile; .github/workflows/jelee.yml | 无 | Plan-G34.6：响应式/键盘/ARIA/axe 无严重问题；亮暗截图；减少动效；人工视觉确认；须单独覆盖本行全部约束 | 部分完成：Playwright 1.63.0 与 Chrome Headless Shell 已按 URL+SHA256 入清单（`make bootstrap-playwright`，浏览器只在 `.tools/playwright`）；16 个关键页面（登录、初始引导、媒体库、条目海报墙／列表、条目详情、搜索、观看统计、设置、管理页用户／内容访问／客户端管控／Webhook／外观／插件、开发者模式横幅）× 亮／暗 × 桌面 1280／手机 390 共 64 张基线在 `web/e2e/__screenshots__/`；API 以请求拦截回固定假数据，固定时间、时区、字体（DejaVu Sans）并关闭动画；`make web-visual` 与 CI Linux 步骤只比对（`updateSnapshots: none`），更新只能 `make web-visual-update`，CI 失败上传差异图；反向验证：只改 `--jl-radius-md` 即 64 张全部失败；缺：基线由代理生成并逐张查看，仓库拥有者的人工确认记录（D14）未做；CI 上尚未实际跑过（未推送），跨机器渲染差异未验证；[前端 ADR](frontend-adr.md#端對端與視覺回歸g274g345g346)、[工具链](toolchain.md#playwrightg274g345g346) | `claude/visual-regression` 分支提交（Playwright 启用与视觉回归） |
 
 ## G35 前端安全与性能
 

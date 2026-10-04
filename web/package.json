@@ -12,11 +12,14 @@
     "preview": "vite preview",
     "api:generate": "node scripts/api-types.mjs",
     "api:check": "node scripts/api-types.mjs --check",
-    "types": "node scripts/api-types.mjs --check && vue-tsc --noEmit -p tsconfig.app.json && vue-tsc --noEmit -p tsconfig.node.json",
+    "types": "node scripts/api-types.mjs --check && vue-tsc --noEmit -p tsconfig.app.json && vue-tsc --noEmit -p tsconfig.node.json && vue-tsc --noEmit -p tsconfig.e2e.json",
     "i18n:check": "node scripts/check-i18n.mjs",
     "check:no-playback": "node scripts/check-no-playback.mjs",
     "lint": "eslint --max-warnings=0 . && node scripts/check-i18n.mjs && node scripts/check-no-playback.mjs",
-    "test": "vitest run"
+    "test": "vitest run",
+    "e2e": "node scripts/run-playwright.mjs --project=e2e",
+    "visual": "node scripts/run-playwright.mjs --project=desktop --project=mobile",
+    "visual:update": "node scripts/run-playwright.mjs --project=desktop --project=mobile --update-snapshots=changed"
   },
   "dependencies": {
     "openapi-fetch": "0.17.0",
@@ -28,6 +31,7 @@
   "devDependencies": {
     "@eslint/js": "10.0.1",
     "@intlify/eslint-plugin-vue-i18n": "4.5.1",
+    "@playwright/test": "1.63.0",
     "@types/node": "24.19.1",
     "@vitejs/plugin-vue": "6.0.9",
     "@vue/test-utils": "2.5.1",

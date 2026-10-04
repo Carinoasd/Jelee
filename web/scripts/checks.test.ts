@@ -8,6 +8,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { budgetKeys, checkBudget, compareBudget, initialAssets, measureBundle, parseBudget } from "./check-bundle-budget.mjs";
 import { checkCatalogs, parseStrictJSON, placeholders, scriptMixing } from "./check-i18n.mjs";
 import { checkWorkspace, lockfileViolations, manifestViolations, textViolations } from "./check-no-playback.mjs";
+import { playwrightBrowser } from "./run-playwright.mjs";
 
 const webRoot = fileURLToPath(new URL("..", import.meta.url));
 const temporary: string[] = [];
@@ -214,5 +215,37 @@ describe("bundle budget gate (G35.4)", () => {
   it("keeps the repository budget well-formed", () => {
     const budget = parseBudget(JSON.parse(readFileSync(join(webRoot, "bundle-budget.json"), "utf8")));
     expect(Object.keys(budget).sort()).toEqual([...budgetKeys].sort());
+  });
+});
+
+describe("Playwright runner (G30.6)", () => {
+  const manifest = JSON.parse(readFileSync(join(webRoot, "../tools/manifest.json"), "utf8")) as {
+    tools: { name: string; version: string; status?: string; platforms: Record<string, unknown> }[];
+  };
+  const lock = JSON.parse(readFileSync(join(webRoot, "../package-lock.json"), "utf8")) as { packages: Record<string, { version?: string }> };
+  const pkg = JSON.parse(readFileSync(join(webRoot, "package.json"), "utf8")) as { devDependencies: Record<string, string> };
+
+  it("uses the manifest's project-local browser and the pinned npm version", () => {
+    const { tool, spec, target } = playwrightBrowser(manifest, "linux", "x64");
+    expect(target).toBe("linux-amd64");
+    expect(spec.browsersPath).toBe("playwright/" + tool.version + "/linux-amd64");
+    expect(spec.installPath.startsWith(spec.browsersPath + "/chromium_headless_shell-")).toBe(true);
+    expect(spec.sha256).toMatch(/^[a-f0-9]{64}$/);
+    expect(spec.url.startsWith("https://")).toBe(true);
+    expect(pkg.devDependencies["@playwright/test"]).toBe(tool.version);
+    for (const name of ["@playwright/test", "playwright", "playwright-core"]) {
+      expect(lock.packages["node_modules/" + name]?.version, name).toBe(tool.version);
+    }
+  });
+
+  it("refuses hosts without a pinned browser and an inactive entry", () => {
+    expect(() => playwrightBrowser(manifest, "win32", "x64")).toThrow(/Linux/);
+    expect(() => playwrightBrowser(manifest, "linux", "riscv64")).toThrow(/no pinned/);
+    const reserved = { tools: manifest.tools.map((tool) => (tool.name === "playwright" ? { ...tool, status: "reserved" } : tool)) };
+    expect(() => playwrightBrowser(reserved, "linux", "x64")).toThrow(/no active playwright/);
+  });
+
+  it("keeps Playwright and its dependencies out of the no-playback gate's reach", () => {
+    expect(lockfileViolations(lock)).toEqual([]);
   });
 });

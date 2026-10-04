@@ -39,6 +39,27 @@ jobs:
         # the gzip budget in web/bundle-budget.json (G27, G35.4); web-budget
         # prints the measured sizes against the budget.
         run: make web-install web-types web-lint web-test web-build web-budget
+      - name: Web end-to-end and visual regression on Linux
+        id: web-e2e
+        if: runner.os == 'Linux'
+        # Chrome Headless Shell pinned by URL and SHA256 in tools/manifest.json,
+        # installed into .tools/playwright; the .tools cache above is keyed on
+        # the manifest, so a browser change downloads again (G30.6). Visual
+        # regression only compares: baselines change through
+        # make web-visual-update and a reviewed commit (G34.6).
+        run: |
+          fc-list : family | grep -qx 'DejaVu Sans' || { echo 'DejaVu Sans is required for the visual baselines' >&2; exit 1; }
+          make bootstrap-playwright playwright-verify web-e2e web-visual
+      - name: Retain web e2e and visual diffs
+        if: failure() && runner.os == 'Linux' && steps.web-e2e.outcome == 'failure'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: web-e2e-${{ github.run_id }}
+          # actual/expected/diff images and the HTML report for review.
+          path: .testdata/playwright/
+          retention-days: 14
+          if-no-files-found: ignore
+          include-hidden-files: true
       - name: Windows bootstrap and verification
         if: runner.os == 'Windows'
         shell: pwsh

@@ -585,14 +585,68 @@
     {
       "name": "playwright",
       "version": "1.63.0",
-      "status": "reserved",
-      "purpose": "Future end-to-end and visual regression tests of the web frontend (G27.4, G34.6); browsers will be downloaded into .tools/playwright",
+      "status": "active",
+      "purpose": "End-to-end and visual regression tests of the web frontend (G27.4, G34.5, G34.6): web/playwright.config.ts drives the built client in a headless Chromium with a mocked API; never a runtime dependency of Jelee",
       "required": false,
-      "license": "Apache-2.0",
-      "attribution": "Microsoft Corporation and Playwright contributors",
+      "license": "Apache-2.0 (npm packages @playwright/test, playwright and playwright-core); the Chrome Headless Shell archive is Chromium, BSD-3-Clause, with its third-party notices in LICENSE.headless_shell inside the archive. Development tool only: executed locally and in CI, never linked into or distributed with Jelee",
+      "attribution": "Microsoft Corporation and Playwright contributors; Chrome Headless Shell by The Chromium Authors (Chrome for Testing builds published by Google)",
       "homepage": "https://playwright.dev/",
+      "npmPackages": {
+        "@playwright/test": "1.63.0",
+        "playwright": "1.63.0",
+        "playwright-core": "1.63.0"
+      },
+      "browser": {
+        "name": "chromium-headless-shell",
+        "revision": "1243",
+        "version": "153.0.8010.12",
+        "directory": "chromium_headless_shell-1243"
+      },
+      "notDownloaded": "Firefox, WebKit, the full Chromium build and Playwright's ffmpeg (video recording) are never downloaded; tests run headless only and record no video",
+      "metadataSource": "playwright-core 1.63.0 browsers.json (revision 1243, Chrome for Testing 153.0.8010.12) and its download table, which fetches chromium-headless-shell from https://cdn.playwright.dev/builds/cft/<version>/",
+      "checksumVerification": "Neither Playwright nor Chrome for Testing publishes archive checksums. On 2026-10-04 each archive was downloaded from cdn.playwright.dev and again from Google's chrome-for-testing-public bucket (the URL listed in https://googlechromelabs.github.io/chrome-for-testing/known-good-versions-with-downloads.json); both copies hashed to the SHA256 values pinned here",
+      "verifiedOn": "2026-10-04",
       "installPath": "playwright/1.63.0",
-      "registration": "Reserved entry only: no npm package is installed and no browser is downloaded until browser archive URLs and SHA256 values are pinned here"
+      "browsersPathEnv": "PLAYWRIGHT_BROWSERS_PATH",
+      "platforms": {
+        "linux-amd64": {
+          "url": "https://cdn.playwright.dev/builds/cft/153.0.8010.12/linux64/chrome-headless-shell-linux64.zip",
+          "mirrorUrl": "https://storage.googleapis.com/chrome-for-testing-public/153.0.8010.12/linux64/chrome-headless-shell-linux64.zip",
+          "sha256": "a9da028861a0cf789ff25c2fed45f5f1aaf969ed9247835b6a7821a4f7af9d1d",
+          "archive": "zip",
+          "downloadName": "playwright-1.63.0-chromium-headless-shell-1243-linux-amd64.zip",
+          "browsersPath": "playwright/1.63.0/linux-amd64",
+          "installPath": "playwright/1.63.0/linux-amd64/chromium_headless_shell-1243",
+          "archiveRoot": "chrome-headless-shell-linux64",
+          "executable": "chrome-headless-shell-linux64/chrome-headless-shell",
+          "licenseFile": "chrome-headless-shell-linux64/LICENSE.headless_shell"
+        },
+        "linux-arm64": {
+          "url": "https://cdn.playwright.dev/builds/cft/153.0.8010.12/linux-arm64/chrome-headless-shell-linux-arm64.zip",
+          "mirrorUrl": "https://storage.googleapis.com/chrome-for-testing-public/153.0.8010.12/linux-arm64/chrome-headless-shell-linux-arm64.zip",
+          "sha256": "d433c45172c7836e38124fe545f767b02210bfb43a6262f08a297473a8e91c99",
+          "archive": "zip",
+          "downloadName": "playwright-1.63.0-chromium-headless-shell-1243-linux-arm64.zip",
+          "browsersPath": "playwright/1.63.0/linux-arm64",
+          "installPath": "playwright/1.63.0/linux-arm64/chromium_headless_shell-1243",
+          "archiveRoot": "chrome-headless-shell-linux-arm64",
+          "executable": "chrome-headless-shell-linux-arm64/chrome-headless-shell",
+          "licenseFile": "chrome-headless-shell-linux-arm64/LICENSE.headless_shell"
+        },
+        "windows-amd64": {
+          "url": "https://cdn.playwright.dev/builds/cft/153.0.8010.12/win64/chrome-headless-shell-win64.zip",
+          "mirrorUrl": "https://storage.googleapis.com/chrome-for-testing-public/153.0.8010.12/win64/chrome-headless-shell-win64.zip",
+          "sha256": "7aec872f3090e639c4237467624ea863c20fe2878914c93a6556bdbb52aa6c4c",
+          "archive": "zip",
+          "downloadName": "playwright-1.63.0-chromium-headless-shell-1243-windows-amd64.zip",
+          "browsersPath": "playwright/1.63.0/windows-amd64",
+          "installPath": "playwright/1.63.0/windows-amd64/chromium_headless_shell-1243",
+          "archiveRoot": "chrome-headless-shell-win64",
+          "executable": "chrome-headless-shell-win64/chrome-headless-shell.exe",
+          "licenseFile": "chrome-headless-shell-win64/LICENSE.headless_shell",
+          "bootstrapStatus": "Recorded for a future Windows bootstrap; the web end-to-end and visual gates run on Linux only, and scripts/bootstrap-tools.ps1 does not install browsers"
+        }
+      }
     }
   ]
 }

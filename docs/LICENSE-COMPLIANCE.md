@@ -94,3 +94,9 @@ Jelee 本仓库派生自 [Jellyfin](https://github.com/jellyfin/jellyfin)。审�
 ## 靜態分析工具（golangci-lint）
 
 `golangci-lint` 2.14.0 以 GPL-3.0 授權，版權屬 golangci-lint 作者與貢獻者；所含各 linter 保留各自授權。它只在開發機與 CI 中被執行（`make lint`／`scripts/make.ps1 lint`），不被 Jelee 程式匯入或連結，也不進入任何建置產物、容器映像或發行包，因此不構成 Jelee 的分發內容。官方發行包中的完整 `LICENSE` 隨安裝保留在被忽略的 `.tools/golangci-lint/` 目錄，並在 `tools-verify` 時與已校驗壓縮包逐位元組比對。版本、官方 HTTPS 來源與 SHA256 固定在 `tools/manifest.json`，來源細節見 `docs/THIRD-PARTY-TOOLS.md`。
+
+## 端到端與視覺回歸工具（Playwright）
+
+`@playwright/test`、`playwright`、`playwright-core` 1.63.0 以 Apache-2.0 授權，版權屬 Microsoft Corporation 與 Playwright 貢獻者；它們是 `web/` 的 npm 開發相依，版本與 integrity 雜湊鎖在 `package-lock.json`，授權文字隨套件保留在 `node_modules`。測試只在開發機與 CI 執行（`make web-e2e`、`make web-visual`），不被前端產物匯入：`web/dist` 由 Vite 從 `web/src` 建置，不含任何 Playwright 程式碼。
+
+瀏覽器只下載 Chrome Headless Shell 153.0.8010.12（Chrome for Testing 建置，Chromium 授權為 BSD-3-Clause，The Chromium Authors），壓縮包內的 `LICENSE.headless_shell` 列出所含第三方元件與其授權，安裝到被忽略的 `.tools/playwright/` 後與已校驗壓縮包逐位元組比對。它只被執行、不被連結，也不進入任何建置產物、容器映像或發行包，因此不構成 Jelee 的分發內容。不下載 Playwright 的 ffmpeg（錄影用）、完整 Chromium、Firefox 或 WebKit。官方 HTTPS 來源與 SHA256 固定在 `tools/manifest.json`，來源細節見 `docs/THIRD-PARTY-TOOLS.md`。

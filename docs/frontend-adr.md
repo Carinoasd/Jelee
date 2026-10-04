@@ -230,11 +230,34 @@ base-uri 'none'; form-action 'self'; frame-ancestors 'none'
    - `web/src`、`index.html` 與 `web/dist` 不得出現 `<video`、`<audio`、`MediaSource`、`HTMLMediaElement` 類型、`createElement("video")`、`requestPictureInPicture`、`mediaSession`／`MediaMetadata`、`RemotePlayback`／`PresentationRequest`、EME。
    - 原始碼中的路徑字串不得含 `play`、`player`、`playback`、`stream`、`cast`、`pip` 等區段（產生的 `schema.d.ts` 只豁免此項）；翻譯鍵不得含播放字彙。
    - 測試檔（`*.test.ts`、`src/test/`）不掃描，因為它們需要寫出這些字樣來斷言不存在；實際出貨的內容由 dist 掃描涵蓋。
-5. **測試**：整合測試在登入後的頁面斷言沒有 `<video>`／`<audio>`、沒有播放相關路由；E2E 全點擊遍歷待 Playwright 啟用後補上（G27.4）。
+5. **測試**：整合測試在登入後的頁面斷言沒有 `<video>`／`<audio>`、沒有播放相關路由；Playwright 端對端測試在真實瀏覽器中對 16 個關鍵頁面（亮／暗）斷言 DOM（含開放的 shadow root）沒有 `<video>`／`<audio>`、沒有指向播放的連結，且每個測試全程沒有對播放、串流、字幕／音軌遞送路徑或媒體資源的請求（見下節）。尚未做的是「全點擊遍歷」：目前只走固定流程與頁面載入，不自動點遍每個控制項。
+
+## 端對端與視覺回歸（G27.4、G34.5、G34.6）
+
+工具與來源紀律見 [工具鏈](toolchain.md#playwrightg274g345g346)：Playwright 1.63.0 與清單固定的 Chrome Headless Shell，經 `web/scripts/run-playwright.mjs` 執行，瀏覽器只放在 `.tools/playwright`。
+
+**測試對象**：`vite build` 的產物由 `vite preview` 提供，不用開發伺服器，測到的就是出貨的程式碼。後端以 Playwright 的請求攔截回答（`web/e2e/fixtures/api.ts`），假資料在 `fixtures/data.ts`，型別取自產生的 `src/api/schema.d.ts`，契約改變時 `web-types` 會先失敗。假伺服器沒有回答的 API 請求會被記錄並讓測試失敗，所以頁面開始呼叫新端點時不會默默拍到錯誤畫面；預覽伺服器的 `/api` 代理指向不可連的埠，不會碰到本機正在跑的 Jelee。封面圖由攔截產生固定的 SVG。
+
+**頁面清單**（`fixtures/pages.ts`，視覺與端對端共用）：登入、初始引導（權杖步驟）、媒體庫列表、條目列表（海報牆與列表兩種）、條目詳情、搜尋、我的觀看統計、設定、管理頁（使用者、內容存取、客戶端管控、Webhook、外觀〔自訂 CSS〕、插件）、開發者模式橫幅。
+
+**穩定性**：固定瀏覽器時間（`page.clock.setFixedTime`，與假資料同一時刻）、`timezoneId: UTC`、`locale: en-US`（假資料只用 ASCII，畫面不依賴 CJK 字型）、`reducedMotion: reduce` 並以注入樣式關閉所有轉場、動畫與游標閃爍；字型以注入樣式固定為 DejaVu Sans（`system-ui` 在不同發行版解析不同，DejaVu Sans 隨 fontconfig 出現在所有 Debian／Ubuntu 映像，CI 步驟先確認它存在）。專案不內附字型檔，以免新增需要授權登記的資產。`deviceScaleFactor: 1`、只截可視區域（桌面 1280×800、手機 390×844），基線維持在合理大小。
+
+**視覺回歸**：每頁 × 亮／暗 × 桌面／手機，共 64 張基線，存於 `web/e2e/__screenshots__/<desktop|mobile>/`。比對容忍度：逐像素顏色門檻 0.2（吸收反鋸齒），超過門檻的像素最多 10 個。2026-10-04 實測：只把 `--jl-radius-md` 從 8px 改成 0，每張圖就有 18 到 370 個像素不同，64 張全部失敗；未改動時連續三次全數通過。
+
+**變更需人工確認**：設定檔 `updateSnapshots: "none"`，`make web-visual` 與 CI 只比對、從不寫入，缺少基線也算失敗。更新基線只能明確執行 `make web-visual-update`（`--update-snapshots=changed`，只改寫有差異或缺少的圖），由人看過新圖後連同造成變化的程式一起提交；審查者在 PR 的圖片差異中再確認一次。CI 失敗時上傳實際圖、基線與差異圖（`.testdata/playwright`）供比對。基線只在 Linux 產生；若 CI 主機的渲染與本機不同，應從 CI 構件取得實際圖、人工確認後提交，而不是放寬容忍度。
+
+**端對端**（`e2e/flows.spec.ts`）：
+- 鍵盤主流程：登入（Tab 到欄位、輸入、Enter）→ 媒體庫 → 條目列表 → 條目詳情 → 以麵包屑返回 → 瀏覽器返回；檢查焦點指示可見、導覽後焦點移到 `h1`。跳到主內容連結。
+- 兩段確認：刪除 Webhook 第一次按只出現提示並把焦點移到確認鈕，Escape 與「取消」都退回並把焦點還給觸發鈕，期間沒有任何 DELETE；第二次確認才送出請求。
+- 每個關鍵頁面（亮／暗）：無 `<video>`／`<audio>`、無播放連結；不依賴 axe 的基本可及性掃描（`html[lang]`、主內容恰一個 `h1`、表單控制項有標籤、按鈕與連結有名稱、圖片有 `alt`、無重複 `id`）；文字對比度依 WCAG 2.1 AA（一般文字 4.5:1、大字 3:1，背景沿祖先疊色計算，略過圖片／漸層背景與停用元件）。
+- axe-core 沒有加入：它是新的 npm 相依，需另行核准並登記；上面的掃描涵蓋其中最常見的幾項規則，但不能取代 axe（例如 ARIA 屬性合法性、地標結構）。
+
+**已知缺口（測試標為預期失敗）**：`App.vue` 在導覽後一個 tick 把焦點移到 `#main h1`，但條目詳情的標題要等資料載入後才出現，所以從條目列表進入詳情時焦點留在文件上。`known gaps` 測試以 `test.fail()` 記錄這點，修正後 Playwright 會回報意外通過，屆時移除標記。
 
 ## 後續
 
-- G33／G34：主題預設、更多 UI 元件、響應式與 axe 檢查、Playwright 視覺回歸（manifest 已預留 Playwright 1.63.0）。
+- G33／G34：主題預設、更多 UI 元件、響應式斷點、axe 掃描（需核准新相依）、條目詳情載入後的焦點；視覺基線的人工確認紀錄（D14）。
+- G27.4：E2E 全點擊遍歷。
 - G35.4：預算門禁已上線；評估 vue-i18n 預編譯訊息以縮小首屏 JS；首屏可交互 P95 需要真實瀏覽器量測。
 - G32／G33：上表的後端缺口；命令面板 UI 與 Webhook 頁使用插件標籤；第三方插件的真正隔離（iframe／獨立來源）。
 - 伺服器為 `GET /api/v1/items` 加上媒體庫篩選與排序後，移除前端逐頁篩選；網頁可用的檔案資訊 API。

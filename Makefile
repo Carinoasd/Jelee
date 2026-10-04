@@ -33,7 +33,7 @@ COVER_PKGS = $(shell $(PYTHON) -c 'import json; print(" ".join("./" + p["path"] 
 NPM := $(CURDIR)/.bin/npm
 WEB := --workspace @jelee/web
 
-.PHONY: backup-drill backup-scale image-memory-test image-memory-smoke-test scan-memory-test scan-memory-smoke-test runtime-memory-test runtime-memory-worker-test memory-contract-test i18n-check family-ignore-sustained-worker-test ignore-sustained-test init bootstrap bootstrap-media bootstrap-runtime runtime-tools-verify runtime-toolchain-test probe-runtime-test probe-worker-test nfo-worker-test family-ignore-worker-test ignore-oracle-test sandbox-test tools-verify media-tools-verify tools-clean fixtures fixtures-test build test test-race test-integration coverage fmt fmt-check lint toolchain-test media-toolchain-test brand-scan brand-scan-incremental gitignore-check openapi openapi-check migrate doctor bench bench-check benchgate-test doc-check dev nfo diag web-install web-build web-budget web-test web-lint web-types test-race-nonpostgres test-race-postgres-shard go-test-shard-test golangci-lint lint-baseline-prune coverage-check coverage-ratchet bench-compare quality-gates-test
+.PHONY: backup-drill backup-scale image-memory-test image-memory-smoke-test scan-memory-test scan-memory-smoke-test runtime-memory-test runtime-memory-worker-test memory-contract-test i18n-check family-ignore-sustained-worker-test ignore-sustained-test init bootstrap bootstrap-media bootstrap-runtime runtime-tools-verify runtime-toolchain-test probe-runtime-test probe-worker-test nfo-worker-test family-ignore-worker-test ignore-oracle-test sandbox-test tools-verify media-tools-verify tools-clean fixtures fixtures-test build test test-race test-integration coverage fmt fmt-check lint toolchain-test media-toolchain-test brand-scan brand-scan-incremental gitignore-check openapi openapi-check migrate doctor bench bench-check benchgate-test doc-check dev nfo diag web-install web-build web-budget web-test web-lint web-types bootstrap-playwright playwright-verify web-e2e web-visual web-visual-update test-race-nonpostgres test-race-postgres-shard go-test-shard-test golangci-lint lint-baseline-prune coverage-check coverage-ratchet bench-compare quality-gates-test
 init: bootstrap
 bootstrap:
 	sh scripts/bootstrap-tools
@@ -241,3 +241,18 @@ web-build:
 	"$(NPM)" run $(WEB) build
 web-budget:
 	"$(NPM)" run $(WEB) budget
+# End-to-end and visual regression tests (G27.4, G34.5, G34.6), Linux only.
+# The Chrome Headless Shell pinned in tools/manifest.json is opt-in (about
+# 120 MB) and lives in .tools/playwright; nothing goes to ~/.cache.
+# web-visual only compares with web/e2e/__screenshots__; baselines change
+# only through web-visual-update, after a person reviewed the new images.
+bootstrap-playwright:
+	$(PYTHON) scripts/toolchain.py bootstrap --tool playwright
+playwright-verify:
+	$(PYTHON) scripts/toolchain.py verify --tool playwright
+web-e2e:
+	"$(NPM)" run $(WEB) e2e
+web-visual:
+	"$(NPM)" run $(WEB) visual
+web-visual-update:
+	"$(NPM)" run $(WEB) visual:update

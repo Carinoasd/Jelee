@@ -68,7 +68,7 @@ Go 包装器将 `GOCACHE`、`GOPATH`、`GOMODCACHE`、`GOTMPDIR`、临时目录�
 
 ## Node 与前端工具（15.1）
 
-`tools/manifest.json` 的 `node` 条目固定 Node 24.21.0（24.x Active LTS，内含 npm 11.19.0），记录 Linux/Windows amd64、arm64 四个官方压缩包的 HTTPS URL 与 SHA256。哈希取自官方 `SHASUMS256.txt`；2026-10-04 另以 `gpgv` 对照 Node 发布者公钥环验证该文件签名（签名者指纹记录在清单），引导时只强制比对固定的 SHA256。`playwright` 条目只预留版本与安装路径，目前不安装 npm 包、不下载浏览器。
+`tools/manifest.json` 的 `node` 条目固定 Node 24.21.0（24.x Active LTS，内含 npm 11.19.0），记录 Linux/Windows amd64、arm64 四个官方压缩包的 HTTPS URL 与 SHA256。哈希取自官方 `SHASUMS256.txt`；2026-10-04 另以 `gpgv` 对照 Node 发布者公钥环验证该文件签名（签名者指纹记录在清单），引导时只强制比对固定的 SHA256。`playwright` 条目见下方「Playwright」一节。
 
 Linux `make bootstrap`（`sh scripts/bootstrap-tools`）先装 Go，再装 Node；`--tool node` 或 `--tool go` 可只处理其一，`--offline` 只用 `.tools/downloads/` 缓存。Node 压缩包是 tar.xz，沿用同一个安全解压器：只有清单 `skippedLinks` 列出的三个符号链接（`bin/npm`、`bin/npx`、`bin/corepack`，名称与目标都必须完全相符）被略过不建立，其他链接或特殊文件一律使整次解压失败。安装到 `.tools/node/<版本>/<平台>/`，`bin/node` 与 npm CLI 的字节和已校验压缩包逐一比对。记录写在 `.tools/.installed.json` 的 `tools.node.<平台>`，原本 Go 使用的 `platforms` 结构不变。
 
@@ -83,8 +83,30 @@ Linux `make bootstrap`（`sh scripts/bootstrap-tools`）先装 Go，再装 Node�
 | `web-lint` | ESLint（零警告）+ i18n 检查 + 禁播门禁 |
 | `web-test` | `vitest run` |
 | `web-build` | `vite build`，再以 `--require-dist` 扫描产物 |
+| `web-e2e` / `web-visual` / `web-visual-update` | Playwright 端到端、视觉回归比对、经人工确认后更新基线（见下方「Playwright」） |
 
 Windows：`scripts/bootstrap-tools.ps1` 目前仍只安装 Go；清单已记录 Windows Node 压缩包与哈希（`bootstrapStatus` 字段注明），PowerShell 安装流程与 `make.ps1` 的 web 目标留待后续，CI 的前端门禁目前只在 Linux 执行。
+
+## Playwright（G27.4、G34.5、G34.6）
+
+`tools/manifest.json` 的 `playwright` 条目（`status: active`）固定 Playwright 1.63.0：npm 开发依赖 `@playwright/test` 精确版本写在 `web/package.json`，`playwright`、`playwright-core` 由 `package-lock.json` 锁定（integrity 哈希），清单 `npmPackages` 记录三者版本。浏览器只用 `playwright-core` 的 `browsers.json` 指定的 Chrome Headless Shell（修订 1243，Chrome for Testing 153.0.8010.12）：清单记录 linux-amd64、linux-arm64、windows-amd64 三个压缩包的 HTTPS URL（Playwright 自己的 `cdn.playwright.dev`，另记 Google 存储桶镜像地址）与 SHA256。两个来源都不发布校验和，2026-10-04 从两处各下载一次、哈希相同后固定（见 [THIRD-PARTY-TOOLS](THIRD-PARTY-TOOLS.md)）。
+
+- 下载是选用的（约 120 MB 压缩、270 MB 解压）：`make bootstrap` 不含它，`make bootstrap-playwright`（`scripts/toolchain.py bootstrap --tool playwright`）才下载；沿用同一 HTTPS 下载与 SHA256 校验，ZIP 由 `safe_extract_zip` 解压（拒绝链接、绝对路径、`..`、超过 2 GiB／100000 项），先进 staging 目录。安装到 `.tools/playwright/<版本>/<平台>/chromium_headless_shell-<修订>/`，即 Playwright 期望的目录布局（含 `INSTALLATION_COMPLETE` 标记）；下载缓存文件名带版本与修订（`downloadName`）。
+- `make playwright-verify` 校验压缩包、安装记录（`.tools/.installed.json` 的 `tools.playwright.<平台>`）、执行档与 `LICENSE.headless_shell` 与压缩包逐字节相同，并核对 `web/package.json`、`package-lock.json` 与已安装 `playwright-core` 的 `browsers.json` 都和清单一致——升级 Playwright 时三处与清单必须一起改。
+- `web/scripts/run-playwright.mjs` 是唯一入口：在 Playwright 载入前把 `PLAYWRIGHT_BROWSERS_PATH` 设为清单的 `.tools/playwright/<版本>/<平台>`，并设 `PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1`、`PLAYWRIGHT_SKIP_BROWSER_GC=1`，因此不读取、不下载到也不清理使用者的 `~/.cache/ms-playwright`。浏览器缺失时提示执行 `make bootstrap-playwright`。
+- 只选 Chromium：Firefox 压缩包约 90 MB、字体渲染与 Chromium 不同，两套基线会让图片数量翻倍；G34.6 要求的是同一浏览器下的亮暗对比，跨浏览器兼容不在本项要求内，需要时再加清单条目。完整 Chromium（headed）、WebKit 与 Playwright 的 ffmpeg（录影）都不下载，配置固定 `video: "off"`。
+- 只在 Linux 执行（amd64；arm64 已有固定哈希）；Windows 哈希已记录（`bootstrapStatus`），但 `bootstrap-tools.ps1` 不装浏览器，`make.ps1` 也没有这些目标。
+- 禁播门禁：Playwright 与其依赖不在播放器名单内，`check-no-playback.mjs` 未触发，门禁规则未改；`web/scripts/checks.test.ts` 断言实际 lockfile 无违规。
+
+| 目标 | 行为 |
+| --- | --- |
+| `bootstrap-playwright` | 下载、校验、安装固定的 Chrome Headless Shell |
+| `playwright-verify` | 校验压缩包、安装记录、执行档与 npm 版本一致 |
+| `web-e2e` | `playwright test --project=e2e`：键盘主流程、两段确认、所有关键页面无播放与可及性检查 |
+| `web-visual` | 关键页面亮／暗 × 桌面／手机截图与 `web/e2e/__screenshots__` 比对，只比对不写入 |
+| `web-visual-update` | `--update-snapshots=changed`：只改写有差异或缺少的基线；提交前必须人工查看新图 |
+
+测试先以 `vite build` 构建到 `.testdata/playwright/dist`，再用 `vite preview` 提供；API 全部由 `web/e2e/fixtures/api.ts` 拦截回答，不需要 Jelee 服务或数据库，预览服务器的 `/api` 代理指向不可连的端口，漏网请求不会碰到本机正在运行的服务。结果与差异图在 `.testdata/playwright/results`；CI 失败时上传为构件。设计与基线规则见 [前端 ADR](frontend-adr.md#端對端與視覺回歸g274g345g346)。
 
 ## golangci-lint（G30.1）
 
@@ -235,7 +257,8 @@ pwsh -NoProfile -File scripts/runtime-tools.ps1 -Command sources -Offline
 | gofumpt、漏洞扫描（govulncheck 等） | 尚未固定、引导与接入 |
 | 外部 migrate/Atlas CLI、sqlc | 尚未加入工具清单；当前项目通过 golang-migrate 库提供迁移命令 |
 | OpenAPI 生成器、buf（如采用 protobuf） | 尚未加入工具清单 |
-| Node LTS、包管理器、Playwright 浏览器 | 尚未加入工具清单 |
+| Node LTS、包管理器 | Node 24.21.0（含 npm 11.19.0）已固定、引导（Linux）并接入 CI 前端门禁 |
+| Playwright 浏览器 | 1.63.0 与 Chrome Headless Shell 153.0.8010.12 已固定、按需引导（Linux）、校验并接入 Linux CI；Firefox／WebKit 不采用 |
 | ffmpeg/ffprobe | Windows/Linux amd64本地引导与验证已实现；Linux amd64受保护隔离探测、持久worker和默认关闭开关已接通；Windows正式探测仍关闭 |
 | mkvtoolnix、mediainfo | 尚未加入工具清单 |
 | 合成多轨媒体、章节、损坏素材、`make fixtures` | 3B2生成13个小型自建文件及SHA/结构清单；双平台真实工具和FD探测测试通过，见[素材说明](fixtures.md) |

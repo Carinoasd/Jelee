@@ -3,13 +3,15 @@ import io
 from pathlib import Path
 import tarfile
 import shutil
+import stat
 import uuid
 import unittest
+import zipfile
 from unittest.mock import patch
 import sys
 sys.dont_write_bytecode = True
 import toolchain
-from toolchain import ROOT, assert_hash, local_path, safe_extract
+from toolchain import ROOT, assert_hash, local_path, safe_extract, safe_extract_zip
 
 
 class BootstrapSecurityTest(unittest.TestCase):
@@ -164,6 +166,66 @@ class BootstrapSecurityTest(unittest.TestCase):
         self.assertTrue(env["PATH"].startswith(str(go_root) + toolchain.os.pathsep))
         for key in ("GOCACHE", "GOPATH", "GOMODCACHE", "XDG_CONFIG_HOME"):
             self.assertTrue(env[key].startswith(str(self.root / ".tools")), key)
+
+    def zip_archive(self, entries):
+        path = self.root / ("sample-" + uuid.uuid4().hex + ".zip")
+        with zipfile.ZipFile(path, "w") as archive:
+            for name, mode, data in entries:
+                info = zipfile.ZipInfo(name)
+                info.external_attr = mode << 16
+                archive.writestr(info, data)
+        return path
+
+    def test_zip_extract_keeps_modes(self):
+        out = self.root / "zip-ok"
+        out.mkdir()
+        safe_extract_zip(self.zip_archive([("shell/", stat.S_IFDIR | 0o755, b""),
+                                           ("shell/chrome-headless-shell", stat.S_IFREG | 0o755, b"elf"),
+                                           ("shell/LICENSE.headless_shell", stat.S_IFREG | 0o644, b"text")]), out)
+        self.assertEqual((out / "shell/chrome-headless-shell").read_bytes(), b"elf")
+        self.assertTrue((out / "shell/chrome-headless-shell").stat().st_mode & 0o100)
+        self.assertFalse((out / "shell/LICENSE.headless_shell").stat().st_mode & 0o111)
+
+    def test_zip_unsafe_entries(self):
+        for name, mode in [("../escape", stat.S_IFREG | 0o644), ("/escape", stat.S_IFREG | 0o644),
+                           ("C:/escape", stat.S_IFREG | 0o644), ("shell/./bad", stat.S_IFREG | 0o644),
+                           ("shell\\bad", stat.S_IFREG | 0o644), ("shell/link", stat.S_IFLNK | 0o777)]:
+            with self.subTest(name=name):
+                out = self.root / ("zip-bad-" + uuid.uuid4().hex)
+                out.mkdir()
+                with self.assertRaises(ValueError):
+                    safe_extract_zip(self.zip_archive([(name, mode, b"x")]), out)
+
+    def test_playwright_bootstrap_removes_bad_cache(self):
+        tool, spec, target = toolchain.playwright_selected()
+        archive = self.root / ".tools/downloads" / spec["downloadName"]
+        archive.parent.mkdir(parents=True)
+        archive.write_bytes(b"untrusted archive bytes")
+        with patch.object(toolchain, "ROOT", self.root), \
+                patch.object(toolchain, "playwright_selected", return_value=(tool, spec, target)):
+            with self.assertRaisesRegex(ValueError, "SHA256 mismatch"):
+                toolchain.bootstrap(offline=True, tools=("playwright",))
+        self.assertFalse(archive.exists(), "failed bootstrap must remove corrupt cache")
+        self.assertFalse((self.root / ".tools" / spec["installPath"]).exists(), "nothing may be installed from an unverified archive")
+
+    def test_playwright_manifest_layout(self):
+        tool, spec, target = toolchain.playwright_selected()
+        self.assertNotIn(toolchain.PLAYWRIGHT, toolchain.ALL_TOOLS, "the browser download must stay opt-in")
+        self.assertTrue(spec["url"].startswith("https://cdn.playwright.dev/builds/cft/" + tool["browser"]["version"] + "/"))
+        self.assertTrue(spec["installPath"].startswith(spec["browsersPath"] + "/"))
+        for field, value in (("installPath", "../escape"), ("url", "http://cdn.playwright.dev/x.zip"),
+                             ("browsersPath", "/home/user/.cache/ms-playwright"), ("sha256", "0" * 63),
+                             ("executable", "chrome"), ("downloadName", "chrome-headless-shell-linux64.zip")):
+            with self.subTest(field=field):
+                broken = dict(spec, **{field: value})
+                manifest = {"schemaVersion": 1, "tools": [dict(tool, platforms={target: broken})]}
+                with patch.object(toolchain.Path, "read_text", return_value=__import__("json").dumps(manifest)):
+                    with self.assertRaisesRegex(ValueError, "invalid Playwright"):
+                        toolchain.playwright_selected()
+        reserved = {"schemaVersion": 1, "tools": [dict(tool, status="reserved")]}
+        with patch.object(toolchain.Path, "read_text", return_value=__import__("json").dumps(reserved)):
+            with self.assertRaisesRegex(ValueError, "invalid Playwright"):
+                toolchain.playwright_selected()
 
     def test_path_escape(self):
         with self.assertRaises(ValueError):
