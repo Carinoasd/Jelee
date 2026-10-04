@@ -225,6 +225,7 @@ func newServer(cfg config.Config, backend Backend, catalog *app.Catalog, resolve
 			r.Get("/api/v1/items/{id}", s.item)
 			r.Get("/api/v1/items/{id}/details", s.itemDetails)
 			r.Get("/api/v1/items/{id}/sources", s.itemSources)
+			s.progressRoutes(r)
 			if cfg.EnableDirect {
 				r.Get("/api/v1/sources/{id}/stream", s.stream)
 				r.Head("/api/v1/sources/{id}/stream", s.stream)
@@ -288,6 +289,9 @@ func (s *Server) newCompat(cfg config.Config, backend Backend) (http.Handler, er
 	// applies the library grants in storage like the native catalog routes.
 	if cfg.EnableCatalog && s.catalog.CanBrowse() {
 		opts.Library = &compat.LibraryOptions{Catalog: s.catalog, HiddenStatus: cfg.Access.HiddenContentStatus(), DirectPlay: cfg.EnableDirect, ClientIP: requestClientIP}
+		// Playback reports, played marks and user data use the catalog's
+		// progress buffer, which answers 503 until it is wired.
+		opts.Library.Playstate = s.catalog
 		// The playback module streams through the same delivery handler as
 		// the native stream routes, so limits, revocation and Range
 		// handling are shared rather than duplicated.
@@ -591,6 +595,9 @@ func WriteError(w http.ResponseWriter, r *http.Request, err error) {
 		status, code, message = 429, "session_limit", "Active session limit reached."
 	case errors.Is(err, errAuthRateLimited):
 		status, code, message = 429, "auth_rate_limited", "Too many authentication attempts. Try again later."
+	case errors.Is(err, domain.ErrPlaybackBusy):
+		status, code, message = 503, "playback_busy", "Playback reporting is busy. Try again later."
+		w.Header().Set("Retry-After", "5")
 	case errors.Is(err, domain.ErrDatabase):
 		status, code, message = 503, "not_ready", "Service is not ready."
 	case errors.Is(err, domain.ErrMetadataUnavailable):

@@ -203,3 +203,46 @@ func TestPlaybackInfoDeclarationsAreFixed(t *testing.T) {
 		}
 	}
 }
+
+// GuardPlaybackReport reads a report body as a description of the client's
+// state; the path, the query and form bodies keep the production rules.
+func TestPlaybackReportGuardReadsBodyAsState(t *testing.T) {
+	report := `{"ItemId":"x","PositionTicks":10,"IsPaused":false,"PlayMethod":"Transcode","MaxStreamingBitrate":140000000,"AudioStreamIndex":1,
+"Item":{"MediaSources":[{"TranscodingUrl":"/x/master.m3u8","TranscodingSubProtocol":"hls","SupportsTranscoding":true}]},"NowPlayingQueue":[{"Id":"x"}]}`
+	post := func(target, contentType, body string) *http.Request {
+		r := httptest.NewRequest("POST", target, strings.NewReader(body))
+		r.Header.Set("Content-Type", contentType)
+		return r
+	}
+	r := post("/Sessions/Playing/Progress", "application/json", report)
+	if err := GuardPlaybackReport(r); err != nil {
+		t.Fatalf("report refused: %v", err)
+	}
+	if body, _ := io.ReadAll(r.Body); string(body) != report {
+		t.Fatal("body not restored")
+	}
+	if err := GuardProduction(post("/Sessions/Playing/Progress", "application/json", report)); !errors.Is(err, ErrTranscodeDisabled) {
+		t.Fatalf("production guard changed: %v", err)
+	}
+	for _, r := range []*http.Request{
+		post("/Sessions/Playing/Progress?videoCodec=h264", "application/json", `{}`),
+		post("/Sessions/Playing/Progress?static=false", "application/json", `{}`),
+		post("/Sessions/Playing/hls/Progress", "application/json", `{}`),
+		post("/Sessions/Playing/Progress", "application/x-www-form-urlencoded", "MaxStreamingBitrate=1"),
+	} {
+		if err := GuardPlaybackReport(r); !errors.Is(err, ErrTranscodeDisabled) {
+			t.Errorf("%s: %v", r.URL, err)
+		}
+	}
+	for _, body := range []string{strings.Repeat("[", 40) + strings.Repeat("]", 40), `{"a":}`, `{} x`} {
+		if err := GuardPlaybackReport(post("/Sessions/Playing", "application/json", body)); !errors.Is(err, ErrInvalidRequest) {
+			t.Errorf("%s: %v", body, err)
+		}
+	}
+	if err := GuardPlaybackReport(post("/Sessions/Playing", "application/json", `{"a":"`+strings.Repeat("a", maxPlaybackBody)+`"}`)); !errors.Is(err, ErrBodyTooLarge) {
+		t.Fatalf("oversized: %v", err)
+	}
+	if err := GuardPlaybackReport(post("/Sessions/Playing", "text/plain", `{}`)); !errors.Is(err, ErrUnsupportedMediaType) {
+		t.Fatalf("content type: %v", err)
+	}
+}

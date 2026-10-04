@@ -71,6 +71,17 @@ func GuardProduction(r *http.Request) error { return guard(r, nil) }
 // keep GuardProduction.
 func GuardPlaybackInfo(r *http.Request) error { return guard(r, playbackInfoDeclarations) }
 
+// GuardPlaybackReport is GuardProduction for the upstream playback state
+// reports (playing, progress, stopped). Their JSON body only describes what
+// the client is doing (position, pause state, the item it shows, its queue,
+// the method it believes it uses) and never selects what the server
+// delivers, so it is checked for syntax, depth and size only; upstream
+// clients include members such as MaxStreamingBitrate and whole item
+// descriptions with transcoding fields there. The path, the query and a form
+// body are inspected exactly as GuardProduction does. Mount it on the report
+// routes only.
+func GuardPlaybackReport(r *http.Request) error { return guardMode(r, nil, inspectSyntax) }
+
 // playbackInfoDeclarations are the members of the upstream PlaybackInfo
 // query and request body (media info controller, PlaybackInfoDto) that are
 // declarations, not requests: upstream itself only uses them to choose a
@@ -85,6 +96,11 @@ var playbackInfoDeclarations = normalizedSet([]string{
 const deviceProfileKey = "deviceProfile"
 
 func guard(r *http.Request, declarations map[string]bool) error {
+	return guardMode(r, declarations, inspectAll)
+}
+
+// guardMode is guard with the inspection applied to a JSON body.
+func guardMode(r *http.Request, declarations map[string]bool, jsonMode inspectMode) error {
 	if IsForbiddenDeliveryRoute(r.URL.EscapedPath()) {
 		return ErrTranscodeDisabled
 	}
@@ -119,7 +135,7 @@ func guard(r *http.Request, declarations map[string]bool) error {
 	}
 	switch strings.ToLower(contentType) {
 	case "application/json":
-		return inspectJSON(body, inspectAll, declarations)
+		return inspectJSON(body, jsonMode, declarations)
 	case "application/x-www-form-urlencoded":
 		values, err := url.ParseQuery(string(body))
 		if err != nil {

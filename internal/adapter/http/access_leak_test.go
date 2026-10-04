@@ -124,6 +124,23 @@ func leakRouteTable() map[string]leakRoute {
 		"HEAD /compat/Videos/{itemId}/{mediaSourceId}/Subtitles/{index}/{startPositionTicks}/Stream.{format}": {mode: leakByID, params: map[string]string{"itemId": "item", "mediaSourceId": "source", "index": "compat-subtitle-index", "format": "compat-subtitle-format", "startPositionTicks": "compat-zero"}, control: true},
 		"HEAD /compat/Audio/{itemId}/stream":                                                                  noMedia(map[string]string{"itemId": "item"}, "the catalog has no audio items; every identifier is answered as missing"),
 		"HEAD /compat/Audio/{itemId}/stream.{container}":                                                      noMedia(map[string]string{"itemId": "item", "container": "compat-container"}, "the catalog has no audio items; every identifier is answered as missing"),
+		// Third-party client compatibility layer (playstate module). Reports
+		// name the item in the body and are answered 204 for visible, hidden
+		// and missing items alike; TestProgressHTTPPostgres checks that a
+		// hidden item records nothing. User data and the resume list read
+		// with the library grants of the user a request reads as.
+		"POST /compat/Sessions/Playing":                  exempt("playback report; the item is in the body and every outcome is an empty 204"),
+		"POST /compat/Sessions/Playing/Progress":         exempt("playback report; the item is in the body and every outcome is an empty 204"),
+		"POST /compat/Sessions/Playing/Stopped":          exempt("playback report; the item is in the body and every outcome is an empty 204"),
+		"POST /compat/Sessions/Playing/Ping":             exempt("keeps the caller's own play session alive; carries no media identifiers and returns an empty 204"),
+		"POST /compat/UserPlayedItems/{itemId}":          {mode: leakByID, params: map[string]string{"itemId": "item"}, control: true},
+		"DELETE /compat/UserPlayedItems/{itemId}":        {mode: leakByID, params: map[string]string{"itemId": "item"}, control: true},
+		"POST /compat/Users/{id}/PlayedItems/{itemId}":   {mode: leakByID, params: map[string]string{"id": "self", "itemId": "item"}},
+		"DELETE /compat/Users/{id}/PlayedItems/{itemId}": {mode: leakByID, params: map[string]string{"id": "self", "itemId": "item"}},
+		"GET /compat/UserItems/{itemId}/UserData":        {mode: leakByID, params: map[string]string{"itemId": "item"}, control: true},
+		"GET /compat/Users/{id}/Items/{itemId}/UserData": {mode: leakByID, params: map[string]string{"id": "self", "itemId": "item"}},
+		"GET /compat/UserItems/Resume":                   {mode: leakList, params: noParams, control: true},
+		"GET /compat/Users/{id}/Items/Resume":            {mode: leakList, params: selfParam},
 
 		// Catalog and delivery: the direct media surfaces.
 		"GET /api/v1/items":                             {mode: leakList, params: noParams, control: true},
@@ -138,8 +155,20 @@ func leakRouteTable() map[string]leakRoute {
 		"HEAD /api/v1/sources/{id}/audio/{trackId}":     {mode: leakByID, params: map[string]string{"id": "source", "trackId": "audio-track"}, control: true},
 		"GET /api/v1/items/{id}/playback":               {mode: leakByID, params: itemParam, control: true},
 		"POST /api/v1/items/{id}/playback/check":        {mode: leakByID, params: itemParam, control: true},
-		"GET /images/{type}/{id}":                       {mode: leakByID, params: map[string]string{"type": "image-type", "id": "item"}, control: true},
-		"HEAD /images/{type}/{id}":                      {mode: leakByID, params: map[string]string{"type": "image-type", "id": "item"}, control: true},
+		// Playback progress (G23, G48.3). Reports name the item in the body;
+		// TestProgressHTTPPostgres checks hidden items are refused like
+		// missing ones.
+		"POST /api/v1/playback/start":              exempt("native playback report; the item is in the body and hidden items are answered like missing ones (TestProgressHTTPPostgres)"),
+		"POST /api/v1/playback/progress":           exempt("native playback report; the item is in the body and hidden items are answered like missing ones (TestProgressHTTPPostgres)"),
+		"POST /api/v1/playback/stop":               exempt("native playback report; the item is in the body and hidden items are answered like missing ones (TestProgressHTTPPostgres)"),
+		"GET /api/v1/playback/sessions":            admin(noParams),
+		"GET /api/v1/items/{id}/user-data":         {mode: leakByID, params: itemParam, control: true},
+		"PUT /api/v1/items/{id}/played":            {mode: leakByID, params: itemParam, control: true},
+		"DELETE /api/v1/items/{id}/played":         {mode: leakByID, params: itemParam, control: true},
+		"GET /api/v1/users/me/resume":              {mode: leakList, params: noParams, control: true},
+		"DELETE /api/v1/users/me/playback-history": exempt("deletes the caller's own playback history; carries no media identifiers"),
+		"GET /images/{type}/{id}":                  {mode: leakByID, params: map[string]string{"type": "image-type", "id": "item"}, control: true},
+		"HEAD /images/{type}/{id}":                 {mode: leakByID, params: map[string]string{"type": "image-type", "id": "item"}, control: true},
 
 		// Accounts.
 		"POST /api/v1/auth/login":                         exempt("credential exchange; takes no media identifiers and returns only a session grant"),
@@ -271,6 +300,17 @@ func leakHandler(t *testing.T, store *postgres.Store, cfg config.Config) http.Ha
 
 func leakHandlerWith(t *testing.T, store *postgres.Store, cfg config.Config, passwords *httpAccountPasswords) http.Handler {
 	t.Helper()
+	progress, err := app.NewProgress(store, store, app.ProgressOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return leakHandlerWithProgress(t, store, cfg, passwords, progress)
+}
+
+// leakHandlerWithProgress is leakHandlerWith with the caller's progress
+// buffer, so a test can flush it.
+func leakHandlerWithProgress(t *testing.T, store *postgres.Store, cfg config.Config, passwords *httpAccountPasswords, progress *app.Progress) http.Handler {
+	t.Helper()
 	accounts, err := app.NewAccounts(store, passwords, app.AccountOptions{SessionTTL: time.Hour, MaxSessions: 8, LockAfter: 5, LockFor: time.Minute})
 	if err != nil {
 		t.Fatal(err)
@@ -305,6 +345,9 @@ func leakHandlerWith(t *testing.T, store *postgres.Store, cfg config.Config, pas
 		catalog, err = catalog.WithDetails(store)
 	}
 	if err != nil {
+		t.Fatal(err)
+	}
+	if catalog, err = catalog.WithProgress(progress); err != nil {
 		t.Fatal(err)
 	}
 	handler, err := NewWithImages(cfg, store, catalog, store, slog.New(slog.NewTextHandler(io.Discard, nil)), accounts, jobs, metadata, metrics, images)
@@ -380,6 +423,9 @@ type leakIDs struct {
 	subtitle, audio                 [3]string // sidecar tracks of the sources above
 	markers                         []string
 	visibleItem, visibleLibrary     string
+	// seedProgress restores the resume points listing routes expect; the
+	// played routes change them.
+	seedProgress func(*testing.T)
 }
 
 const (
@@ -583,6 +629,19 @@ func leakFixture(t *testing.T, ctx context.Context, store *postgres.Store) leakI
 	for _, slot := range []*[3]string{&f.item, &f.source, &f.library, &f.job, &f.subtitle, &f.audio} {
 		slot[leakMissing] = leakUUID(t)
 	}
+	// Both users have a resume point on both items, so the continue
+	// watching lists must filter the viewer's hidden one (G48.3) while the
+	// administrator control lists it.
+	f.seedProgress = func(t *testing.T) {
+		t.Helper()
+		if _, err := store.Pool.Exec(ctx, `INSERT INTO user_item_data(user_id,item_id,resume_ticks,played,play_count,last_played_at,updated_at)
+ SELECT u,i,6000000000,false,0,now(),now() FROM unnest($1::uuid[]) u CROSS JOIN unnest($2::uuid[]) i
+ ON CONFLICT (user_id,item_id) DO UPDATE SET resume_ticks=EXCLUDED.resume_ticks,played=false,play_count=0`,
+			[]string{f.viewer, adminID}, []string{f.item[leakVisible], f.item[leakHidden]}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	f.seedProgress(t)
 	return f
 }
 
@@ -677,6 +736,7 @@ func TestAccessLeakHiddenContentPostgres(t *testing.T) {
 					}
 					f.assertNoMarkers(t, route, response)
 				case leakList:
+					f.seedProgress(t)
 					path := leakPath(pattern, spec, f, leakHidden)
 					response := leakRequest(t, handler, method, path, f.viewerToken)
 					if response.status != http.StatusOK || !leakContainsAny(response.text, f.visibleItem, f.visibleLibrary) {

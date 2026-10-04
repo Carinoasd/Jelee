@@ -59,6 +59,18 @@ var undocumentedRoutes = map[string]string{
 	"HEAD /compat/Videos/{itemId}/{mediaSourceId}/Subtitles/{index}/{startPositionTicks}/Stream.{format}": compatExemption,
 	"HEAD /compat/Audio/{itemId}/stream":                                                                  compatExemption,
 	"HEAD /compat/Audio/{itemId}/stream.{container}":                                                      compatExemption,
+	"POST /compat/Sessions/Playing":                                                                       compatExemption,
+	"POST /compat/Sessions/Playing/Progress":                                                              compatExemption,
+	"POST /compat/Sessions/Playing/Stopped":                                                               compatExemption,
+	"POST /compat/Sessions/Playing/Ping":                                                                  compatExemption,
+	"POST /compat/UserPlayedItems/{itemId}":                                                               compatExemption,
+	"DELETE /compat/UserPlayedItems/{itemId}":                                                             compatExemption,
+	"POST /compat/Users/{id}/PlayedItems/{itemId}":                                                        compatExemption,
+	"DELETE /compat/Users/{id}/PlayedItems/{itemId}":                                                      compatExemption,
+	"GET /compat/UserItems/{itemId}/UserData":                                                             compatExemption,
+	"GET /compat/Users/{id}/Items/{itemId}/UserData":                                                      compatExemption,
+	"GET /compat/UserItems/Resume":                                                                        compatExemption,
+	"GET /compat/Users/{id}/Items/Resume":                                                                 compatExemption,
 }
 
 // compatExemption: the /compat layer reproduces a third-party wire protocol

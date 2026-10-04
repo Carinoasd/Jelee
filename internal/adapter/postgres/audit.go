@@ -67,6 +67,7 @@ var auditEvents = map[string]string{
 	"media.sidecars_changed":               domain.AuditCategoryAudit,
 	"nfo.policy_changed":                   domain.AuditCategoryAudit,
 	"nfo.write_prepared":                   domain.AuditCategoryAudit,
+	"playback.history_cleared":             domain.AuditCategoryAudit,
 	"probe.item_invalidated":               domain.AuditCategoryAudit,
 	"probe.library_invalidated":            domain.AuditCategoryAudit,
 	"schedule.updated":                     domain.AuditCategoryAudit,

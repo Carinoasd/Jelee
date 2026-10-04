@@ -88,6 +88,9 @@ func NewRouter(opts Options) (*chi.Mux, error) {
 	if opts.Library != nil {
 		rt.libraryRoutes()
 		rt.playbackRoutes()
+		if opts.Library.Playstate != nil {
+			rt.playstateRoutes()
+		}
 	}
 	return rt.mux, nil
 }
@@ -151,7 +154,9 @@ func (rt *router) handle(method, pattern string, authenticated bool, h http.Hand
 //     answers preflight requests with a refusal;
 //  2. the production transformation guard inspects path, query and body
 //     (on PlaybackInfo, the variant that reads the client's capability
-//     declaration as data and still rejects every other parameter);
+//     declaration as data and still rejects every other parameter; on the
+//     playback reports, the variant that reads the JSON body as the
+//     client's state);
 //  3. the path below Prefix is matched case-insensitively and rewritten to
 //     the registered spelling for the router.
 func (rt *router) boundary(next http.Handler) http.Handler {
@@ -165,6 +170,10 @@ func (rt *router) boundary(next http.Handler) http.Handler {
 		guard := media.GuardProduction
 		if rest, ok := trimPrefix(r.URL.Path); ok && isPlaybackInfoPath(rest) {
 			guard = media.GuardPlaybackInfo
+		} else if ok && r.Method == http.MethodPost && isPlaybackReportPath(rest) {
+			// Report bodies describe the client's state; see
+			// media.GuardPlaybackReport.
+			guard = media.GuardPlaybackReport
 		}
 		if err := guard(r); err != nil {
 			switch {

@@ -355,6 +355,11 @@ func (s *Store) DeleteUser(ctx context.Context, actor domain.Actor, userID strin
 	if err = revokeAll(ctx, tx, userID); err != nil {
 		return err
 	}
+	// G07.7: playback history and user data go with the user and do not
+	// come back on restore.
+	if _, _, err = deletePlaybackData(ctx, tx, userID); err != nil {
+		return err
+	}
 	if err = auditAccount(ctx, tx, actor, "user.deleted", userID, old, u); err != nil {
 		return err
 	}

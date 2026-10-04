@@ -58,7 +58,7 @@ func newWithLifetime(cfg config.Config, logger *slog.Logger, lifetime *lifetime)
 			lifetime.closeStore = store.Pool.Close
 			return store, nil
 		},
-		func(store *postgres.Store) (*app.Catalog, error) {
+		func(c config.Config, store *postgres.Store, l *slog.Logger) (*app.Catalog, error) {
 			catalog, err := app.NewCatalog(store).WithPlayback(store)
 			if err != nil {
 				return nil, err
@@ -66,7 +66,20 @@ func newWithLifetime(cfg config.Config, logger *slog.Logger, lifetime *lifetime)
 			if catalog, err = catalog.WithBrowse(store); err != nil {
 				return nil, err
 			}
-			return catalog.WithDetails(store)
+			if catalog, err = catalog.WithDetails(store); err != nil || !c.EnableCatalog {
+				return catalog, err
+			}
+			if err = c.Playback.Validate(); err != nil {
+				return nil, err
+			}
+			p := c.Playback
+			progress, err := app.NewProgress(store, store, app.ProgressOptions{FlushInterval: p.FlushInterval(), SessionTimeout: p.SessionTimeout(),
+				ReportInterval: p.ReportInterval(), SampleInterval: p.SampleInterval(), Retention: p.Retention(), MaxBatch: p.Batch(), MaxSessions: p.Sessions(), Logger: l})
+			if err != nil {
+				return nil, err
+			}
+			lifetime.progress = progress
+			return catalog.WithProgress(progress)
 		},
 		func(c config.Config, store *postgres.Store, budget *resources.Budget) (*imageadapter.Processor, error) {
 			if !c.EnableImages {
@@ -294,11 +307,15 @@ type lifetime struct {
 	closeIgnore     func() error
 	closeTelemetry  func(context.Context) error
 	closeImages     func(context.Context) error
-	closeOnce       sync.Once
-	stopOnce        sync.Once
-	exited          chan struct{}
-	stopped         chan struct{}
-	stopErr         error
+	// progress buffers playback reports; it runs with the workers and is
+	// flushed once more after HTTP has drained (G23.2).
+	progress     *app.Progress
+	progressDone chan struct{}
+	closeOnce    sync.Once
+	stopOnce     sync.Once
+	exited       chan struct{}
+	stopped      chan struct{}
+	stopErr      error
 	// Observe the same processor used by HTTP without replacing its dependencies.
 	imageStats func() imageadapter.Stats
 }
@@ -403,6 +420,13 @@ func (l *lifetime) start(ctx context.Context) error {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
+	if l.progress != nil {
+		l.progressDone = make(chan struct{})
+		go func() {
+			defer close(l.progressDone)
+			l.progress.Run(l.ctx)
+		}()
+	}
 	go func() {
 		defer close(l.exited)
 		if err := l.server.Serve(listener); err != nil && !errors.Is(err, http.ErrServerClosed) {
@@ -449,11 +473,30 @@ func (l *lifetime) shutdown(ctx context.Context) {
 		}
 	}
 	<-l.exited
+	l.flushProgress()
 	if err := <-workerDone; err != nil {
 		l.stopErr = errors.Join(l.stopErr, errors.New("inventory workers did not stop"))
 		return // Do not close a store that workers may still be using.
 	}
 	l.closePool()
+}
+
+// flushProgress writes the reports buffered since the last flush once no
+// request can add more. Sessions stay active in storage: clients that keep
+// reporting rejoin them after a restart, the others time out.
+func (l *lifetime) flushProgress() {
+	if l.progress == nil {
+		return
+	}
+	if l.progressDone != nil {
+		<-l.progressDone
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	if _, err := l.progress.Flush(ctx); err != nil {
+		l.stopErr = errors.Join(l.stopErr, errors.New("playback progress flush failed"))
+		l.logger.Error("playback progress flush failed at shutdown", "component", "playback")
+	}
 }
 
 func (l *lifetime) NotifyJobCancellation(id string) {

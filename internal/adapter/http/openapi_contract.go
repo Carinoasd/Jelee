@@ -48,6 +48,7 @@ var errorCodeStatuses = map[string][]int{
 	"nfo_reader_unavailable":    {503},
 	"not_found":                 {404},
 	"not_ready":                 {503},
+	"playback_busy":             {503},
 	"precondition_failed":       {412},
 	"probe_cache_capacity":      {409},
 	"probe_disabled":            {409},

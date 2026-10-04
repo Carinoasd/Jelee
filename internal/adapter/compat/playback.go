@@ -248,7 +248,7 @@ func (rt *router) playbackInfo(w http.ResponseWriter, r *http.Request) {
 }
 
 // newPlaySessionID returns a random upstream-style play session identifier.
-// Jelee keeps no playback session state; clients only echo it.
+// Clients echo it in their playback reports, where it keys the session.
 var newPlaySessionID = func() (string, error) {
 	var b [16]byte
 	if _, err := rand.Read(b[:]); err != nil {

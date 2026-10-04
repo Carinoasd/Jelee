@@ -42,6 +42,9 @@ type LibraryOptions struct {
 	// stream and subtitle routes unregistered and external subtitles
 	// unlisted; set it only with direct delivery enabled.
 	Delivery Delivery
+	// Playstate is the server's progress service. Nil leaves the report,
+	// played and resume routes unregistered and every item unplayed.
+	Playstate Playstate
 }
 
 // Delivery is the server's one direct delivery handler (media.Handler):
@@ -95,17 +98,6 @@ type baseItemDto struct {
 	BackdropImageTags []string          `json:"BackdropImageTags"`
 	LocationType      string            `json:"LocationType"`
 	MediaType         string            `json:"MediaType"`
-}
-
-// userItemData is the minimal user data: Jelee records no playback
-// progress, play counts or favourites yet, so every item reads as unplayed.
-type userItemData struct {
-	PlaybackPositionTicks int64  `json:"PlaybackPositionTicks"`
-	PlayCount             int    `json:"PlayCount"`
-	IsFavorite            bool   `json:"IsFavorite"`
-	Played                bool   `json:"Played"`
-	Key                   string `json:"Key"`
-	ItemID                string `json:"ItemId"`
 }
 
 // mediaSourceInfo describes one original resource for direct delivery only
@@ -542,6 +534,7 @@ func (rt *router) items(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	result.TotalRecordCount = page.Total
+	var ids []string
 	if req.limit > 0 {
 		for _, item := range page.Items {
 			dto, err := rt.itemDto(item, req.fields)
@@ -550,7 +543,12 @@ func (rt *router) items(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			result.Items = append(result.Items, dto)
+			ids = append(ids, item.ID)
 		}
+	}
+	if err := rt.attachUserData(ctx, userID, result.Items, ids); err != nil {
+		rt.writeLibraryError(w, err)
+		return
 	}
 	writeJSON(w, result)
 }
@@ -613,6 +611,7 @@ func (rt *router) itemsByIDs(w http.ResponseWriter, r *http.Request, userID stri
 		}
 	}
 	result.TotalRecordCount = len(found)
+	var ids []string
 	for i := req.offset; i < len(found) && i < req.offset+req.limit; i++ {
 		dto, err := rt.browseDto(found[i], req.fields)
 		if err != nil {
@@ -620,6 +619,11 @@ func (rt *router) itemsByIDs(w http.ResponseWriter, r *http.Request, userID stri
 			return
 		}
 		result.Items = append(result.Items, dto)
+		ids = append(ids, found[i].ID)
+	}
+	if err := rt.attachUserData(r.Context(), userID, result.Items, ids); err != nil {
+		rt.writeLibraryError(w, err)
+		return
 	}
 	writeJSON(w, result)
 }
@@ -669,7 +673,12 @@ func (rt *router) itemByID(w http.ResponseWriter, r *http.Request) {
 			dto.RunTimeTicks = ticks(sources[0].DurationMicros)
 		}
 	}
-	writeJSON(w, dto)
+	single := []baseItemDto{dto}
+	if err := rt.attachUserData(r.Context(), userID, single, []string{item.ID}); err != nil {
+		rt.writeLibraryError(w, err)
+		return
+	}
+	writeJSON(w, single[0])
 }
 
 // playbackActor is the caller's own session: sources are always looked up

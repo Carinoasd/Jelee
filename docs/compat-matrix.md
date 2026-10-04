@@ -39,7 +39,7 @@ G05仍部分完成：舊C#的直播與Channel控制器已刪除並提供[明確�
 
 1. 伺服器既有邊界（不因相容層改變）：Host 驗證 400 → 路徑型轉換／HLS／DASH 409 `transcode_disabled` → debug 404 → 已移除功能 501 `feature_removed`。這幾項沿用自有 API 的錯誤 envelope。
 2. 相容層邊界：帶 `Origin` 標頭（任何值，包括空字串與 `null`）一律 403、空主體，且從不送出任何 `Access-Control-*` 標頭，所以 CORS 預檢也被拒絕。任何瀏覽器頁面（含同源）都無法經相容層取得原生能力。
-3. 轉碼守衛：`GuardProduction` 檢查**所有**相容路由的路徑、query 與 JSON／表單主體；轉換參數回 409 `transcode_disabled`（自有 envelope，全域統一，G10.3）。唯一的例外是 `/Items/{itemId}/PlaybackInfo`：改用 `GuardPlaybackInfo`，只把上游 PlaybackInfo 文件化的能力聲明成員（見下方「播放模組」）當資料讀，其餘所有參數（query、表單、JSON 任何層級）照 `GuardProduction` 的規則檢查；`GuardProduction` 本身沒有任何放寬。
+3. 轉碼守衛：`GuardProduction` 檢查**所有**相容路由的路徑、query 與 JSON／表單主體；轉換參數回 409 `transcode_disabled`（自有 envelope，全域統一，G10.3）。例外有二：`/Items/{itemId}/PlaybackInfo` 改用 `GuardPlaybackInfo`，只把上游 PlaybackInfo 文件化的能力聲明成員（見下方「播放模組」）當資料讀，其餘所有參數（query、表單、JSON 任何層級）照 `GuardProduction` 的規則檢查；`POST /Sessions/Playing`、`/Sessions/Playing/Progress`、`/Sessions/Playing/Stopped` 三個播放回報改用 `GuardPlaybackReport`：JSON 主體是客戶端的播放狀態描述（位置、暫停、它顯示的條目、佇列、它以為的播放方式），不決定伺服器送出什麼，所以只檢查語法、深度與大小；路徑、query 與表單主體仍照 `GuardProduction`（見下方「播放狀態模組」）。`GuardProduction` 本身沒有任何放寬。
 4. 路由比對：前綴與路徑的字面段都大小寫不敏感，忽略一個結尾斜線；字面段優先於參數段；空段、`%2F` 編碼斜線、多一段或少一段都回 404。
 
 ### 驗證
@@ -71,6 +71,11 @@ G05仍部分完成：舊C#的直播與Channel控制器已刪除並提供[明確�
 | `GET`、`HEAD /compat/Videos/{itemId}/stream`、`…/stream.{container}` | native 工作階段（直投開啟時才掛載） | 原檔位元組（交給伺服器的直投模組，Range／HEAD／限流／撤銷斷流同自有 API） |
 | `GET`、`HEAD /compat/Videos/{itemId}/{mediaSourceId}/Subtitles/{index}/Stream.{format}`、`…/{index}/{startPositionTicks}/Stream.{format}` | 同上 | 外掛字幕原檔位元組（`format` 必須是原檔格式） |
 | `GET`、`HEAD /compat/Audio/{itemId}/stream`、`…/stream.{container}` | 同上 | 目錄沒有音訊條目，驗證後一律回隱藏狀態（預設 404） |
+| `POST /compat/Sessions/Playing`、`…/Playing/Progress`、`…/Playing/Stopped` | native 工作階段（目錄開啟時才掛載） | 播放開始／進度／停止回報，一律 204 空主體（見「播放狀態模組」） |
+| `POST /compat/Sessions/Playing/Ping?playSessionId=` | 同上 | 讓播放工作階段保持活著；204 |
+| `POST`、`DELETE /compat/UserPlayedItems/{itemId}`、`/compat/Users/{userId}/PlayedItems/{itemId}` | 同上；自己或管理員 | 標記已播放／未播放，回 `UserItemDataDto` |
+| `GET /compat/UserItems/{itemId}/UserData`、`/compat/Users/{userId}/Items/{itemId}/UserData` | 同上；自己或管理員 | `UserItemDataDto` |
+| `GET /compat/UserItems/Resume`、`/compat/Users/{userId}/Items/Resume` | 同上；自己或管理員 | 繼續觀看的 `QueryResult<BaseItemDto>` |
 
 - JSON 為上游預設格式：PascalCase、null 成員省略、`application/json; charset=utf-8`。尚未支援 `profile="CamelCase"` 的 Accept 協商。
 - `Version` 是相容層模擬的上游協定版本線，不是 Jelee 建置版本；客戶端依它判斷功能。是否需要調整待真實客戶端驗收確認。
@@ -146,7 +151,7 @@ G05仍部分完成：舊C#的直播與Channel控制器已刪除並提供[明確�
 
 **`MediaSources`（只限直投）**：只有可播放條目（電影、單集、家庭影片）才有，來源與自有 API 播放資訊相同（`PlaybackSources`，同樣要求 native 工作階段與授權，最佳版本在前）。`Protocol`=`File`、`Type`=`Default`、`Id`、`Container`、`Size`、`Bitrate`、`RunTimeTicks`、`DefaultAudioStreamIndex`（預設音軌，否則第一條）、`MediaStreams`（已探測的內嵌影像／音訊／字幕軌；直投開啟時另列外掛字幕，見「播放模組」）。**`SupportsTranscoding` 一律 false**；`SupportsDirectStream` 一律 false（上游客戶端以 DirectStream 要求重新封裝容器，Jelee 不做）；`SupportsDirectPlay` 等於伺服器是否開啟直投（`enableDirect`）。不輸出 `Path`、檔名與任何轉碼欄位（`TranscodingUrl`、`TranscodingContainer`、`TranscodingSubProtocol`、`TranscodeReasons`；結構體根本沒有這些欄位）。
 
-**`UserData`** 是最小集合：`PlaybackPositionTicks`=0、`PlayCount`=0、`IsFavorite`=false、`Played`=false、`Key`／`ItemId`=條目 ID。Jelee 尚未記錄進度、播放次數與收藏，所以一律呈現「未播放」。
+**`UserData`** 是讀取身分（自己，或管理員指定的使用者）對該條目的真實進度：`PlaybackPositionTicks`（續播點）、`PlayCount`、`Played`、`LastPlayedDate`（有播放過才有）、`PlayedPercentage`（續播點／`RunTimeTicks`，兩者皆有才有）、`IsFavorite`=false（尚未記錄收藏）、`Key`／`ItemId`=條目 ID。列表一頁只多一次批次查詢；影集與季沒有位置，維持未播放。看不到的條目沒有 UserData（列表本來就不含它）。見[播放進度](playback-progress.md)。
 
 **省略**（上游的 null）：圖片（`ImageTags` 為空物件、`BackdropImageTags` 為空陣列，因為相容層還沒有圖片路由）、`SeriesId`／`SeasonId`／`SeriesName`、`IndexNumber`／`ParentIndexNumber`、`ChildCount`、`DateCreated`、人物、類型、片商、外部 ID、評分、`Path`。列表不提供 `RunTimeTicks`。
 
@@ -167,7 +172,7 @@ PlaybackInfo 隨媒體庫模組掛載；串流、字幕與音訊路由只在直�
   - `MediaSourceId`：只考慮該來源。
   - 伺服器不知道的值（未探測來源的編碼、未知位元率、未知容器）不據以拒絕；客戶端可以嘗試，拿到的永遠是原檔。
   - `CodecProfiles`、`ContainerProfiles` 的條件（解析度、Level、位元深度等）與 `SubtitleProfiles` **目前不評估**；`TranscodingProfiles`、`MaxAudioChannels`、串流索引、`StartTimeTicks`、`LiveStreamId` 等只關乎轉換的成員接受但忽略。
-- **回應**：`MediaSources` 只含可直投的來源（`SupportsDirectPlay`=true，`SupportsTranscoding`／`SupportsDirectStream`=false，沒有任何轉碼欄位），`PlaySessionId` 為 32 位 hex 隨機值（Jelee 不保存播放工作階段，客戶端只是回傳它）。**沒有可直投來源時**（條目沒有來源、不是可播放條目、客戶端聲明無法解碼、超出位元率、直投關閉或 `EnableDirectPlay=false`）回 200、`{"MediaSources":[],"ErrorCode":"NoCompatibleStream"}`，不提供任何轉碼替代；上游只在沒有來源時這樣回答，其他情況會改給轉碼網址，這裡刻意不做（G10）。
+- **回應**：`MediaSources` 只含可直投的來源（`SupportsDirectPlay`=true，`SupportsTranscoding`／`SupportsDirectStream`=false，沒有任何轉碼欄位），`PlaySessionId` 為 32 位 hex 隨機值；客戶端在播放回報中帶回它，伺服器以（使用者，`PlaySessionId`）識別同一個播放工作階段並去重。**沒有可直投來源時**（條目沒有來源、不是可播放條目、客戶端聲明無法解碼、超出位元率、直投關閉或 `EnableDirectPlay=false`）回 200、`{"MediaSources":[],"ErrorCode":"NoCompatibleStream"}`，不提供任何轉碼替代；上游只在沒有來源時這樣回答，其他情況會改給轉碼網址，這裡刻意不做（G10）。
 
 **`GET`／`HEAD /Videos/{itemId}/stream`、`/Videos/{itemId}/stream.{container}`**
 
@@ -185,6 +190,17 @@ PlaybackInfo 隨媒體庫模組掛載；串流、字幕與音訊路由只在直�
 
 **音訊**：`/Audio/{itemId}/stream` 與 `.{container}` 已註冊，但目錄沒有音訊條目，驗證身分後一律回隱藏狀態（預設 404）；轉換參數仍先回 409。
 
+### 播放狀態模組（G24.2、G23.2、G48.3）
+
+隨媒體庫模組掛載。回報交給伺服器自己的進度緩衝（`app.Progress`，詳見[播放進度](playback-progress.md)）：不是每次回報寫一次資料庫，而是同一工作階段在兩次 flush 之間只保留最新狀態，每個 flush 間隔一個批次語句寫完。
+
+- **`POST /Sessions/Playing`**（`PlaybackStartInfo`）、**`/Sessions/Playing/Progress`**（`PlaybackProgressInfo`）、**`/Sessions/Playing/Stopped`**（`PlaybackStopInfo`）：讀 `ItemId`、`MediaSourceId`（只在開始時、且是 ID 形態才用來選版本）、`PositionTicks`、`IsPaused`、`PlaySessionId`、`Failed`（停止時）；其他成員（串流索引、音量、佇列、`Item`、`PlayMethod`、`MaxStreamingBitrate`…）忽略，投遞方式一律記為 direct。工作階段鍵是（使用者，`PlaySessionId`）；沒帶或格式不合時改用（目前 native 工作階段，`ItemId`）。重複的開始回報併入同一工作階段，重複的停止不再寫入。主體必須是 `application/json`（否則 415），`ItemId` 格式錯誤 400。**看不到的條目、不存在的條目、已結束的工作階段一律回 204 且不記錄**，所以這三條路由無法用來探測條目是否存在。緩衝已滿（`playback.maxSessions`）或資料庫不可用回 503。
+- **`POST /Sessions/Playing/Ping?playSessionId=`**：更新最後回報時間，避免逾時關閉；缺 `playSessionId` 400，未知工作階段 204 不動作。
+- **`POST`／`DELETE /UserPlayedItems/{itemId}`**（及舊式 `/Users/{userId}/PlayedItems/{itemId}`）：比照上游：標記已播放＝播放次數 +1、清除續播點、`LastPlayedDate`＝`datePlayed`（ISO 8601 或舊式 `yyyyMMddHHmmss`，UTC）或現在；標記未播放＝播放次數歸零、清除續播點。`userId` 規則同媒體庫模組（自己，或管理員代他人）。看不到或不存在回隱藏狀態。
+- **`GET /UserItems/{itemId}/UserData`**（及 `/Users/{userId}/Items/{itemId}/UserData`）：單一條目的 `UserItemDataDto`；看不到回隱藏狀態。
+- **`GET /UserItems/Resume`**（及 `/Users/{userId}/Items/Resume`）：有續播點且未播完的電影、劇集、家庭影片，最近播放的在前；支援 `StartIndex`、`Limit`（上限 500）、`IncludeItemTypes`／`ExcludeItemTypes`、`Fields`；`ParentId`、`MediaTypes`、`SearchTerm` 等其他篩選目前忽略。`RunTimeTicks` 取該使用者最近一次播放版本的時長（未探測則省略），`UserData.PlayedPercentage` 據此計算。**收回媒體庫授權後該條目立刻不再出現**（SQL 內套用授權，G48.3），恢復授權後續播點仍在。
+- 播放中的進度最多延遲一個 flush 間隔才寫入資料庫；同一實例上的 `UserData` 讀取會疊加尚未 flush 的位置（只疊加到 SQL 判定可見的條目上），繼續觀看清單則在下次 flush 後更新。
+
 ### 對客戶端的已知影響（G10.4）
 
 能力宣告明確表示不轉碼、不提供 HLS／DASH、不提供 remux，`EncoderLocation`=`NotFound`。依賴伺服器轉碼的客戶端在無法直投的格式上會失敗，而不是降級；這是 G10 鐵律的預期結果。
@@ -198,8 +214,11 @@ PlaybackInfo 隨媒體庫模組掛載；串流、字幕與音訊路由只在直�
 - 真 PG：`TestCompatUsersPostgres` 驗證未開 `allowNative` 時 403 並寫 `login.native_denied`、不簽發；密碼錯與帳號不存在回應相同；開啟後登入簽發 native 工作階段（寫 `session.created`、自有 API 可列出 client 標籤並可直投）；`/Users/Me`、`/Users/{id}` 自己／他人／管理員；`/Users/Public` 為 `[]`；Logout 只撤銷目前工作階段、舊 token 在兩邊皆 401；相容入口五次失敗後兩個入口都被鎖定且失敗審計含用戶端位址。`TestCompatLoginSharesRateLimitPostgres` 驗證相容登入與原生登入雙向共用名稱限速桶。
 - 真 PG：`TestCompatLibraryPostgres` 用兩個使用者、兩個不同授權的媒體庫驗證：各自只看到自己的庫；以 parent、Ids、類型、搜尋或單筆查詢都碰不到對方的庫與條目（不存在與無權限回應相同）；分頁串接等於完整排序、超出結尾保留總數；名稱／年份／上映日期排序與空值位置；搜尋萬用字元按字面；影集／季的子項與遞迴；詳情的直投來源（`SupportsTranscoding`／`SupportsDirectStream` 為 false、不含路徑）；收回授權立即生效；設定 403 時隱藏與不存在皆 403。
 - 存取外洩：`leakRouteTable` 已登記六條媒體庫路由與播放模組全部 16 條路由（PlaybackInfo、影片串流、字幕以 ID 查詢模式；音訊以無媒體模式），三種隱藏狀態都跑，外洩標記同時比對帶連字號與相容層 32 位 hex 兩種 ID 形態。
+- 播放狀態：`internal/adapter/media` 的 `TestPlaybackReportGuardReadsBodyAsState` 鎖住回報主體只做語法檢查、而路徑／query／表單與 `GuardProduction` 不變；真 PG `TestProgressHTTPPostgres` 以真實客戶端形狀的主體（含 `MaxStreamingBitrate`、`PlayMethod`、`NowPlayingQueue`）走開始 → 進度 → Ping → `Items/{id}` 的 UserData（含未 flush 的位置）→ 停止 → `UserItems/Resume`、舊式 Resume 與 `Items` 列表的續播點 → 看不到的條目回報 204 但不記錄、UserData 與標記回隱藏狀態 → 標記已播放／未播放；存取外洩表登記全部 12 條播放狀態路由（回報以理由豁免，其餘以 ID 查詢與列表模式跑三種隱藏狀態，續播清單的固定資料同時含看得到與看不到的條目）。
 - 真 PG：`TestCompatPlaybackPostgres` 走完整流程：相容登入 → 瀏覽 → 帶 DeviceProfile 的 PlaybackInfo（只列直投、無轉碼欄位、外掛字幕 `DeliveryUrl`）→ 不可直投回 `NoCompatibleStream` → 串流 4 MiB 原檔 SHA-256 一致（標頭與 `api_key` 兩種憑證）、Range、HEAD → 字幕原樣 → 各種轉換要求 409 `transcode_disabled` → web 工作階段（標頭與 `api_key`）401 → 真 TCP 上限速播放中登出，串流在數秒內被切斷且未送完、舊 token 401、另一個工作階段不受影響。
 
 ### 需要真實客戶端驗證（G24.5）
 
 以下尚未用真實客戶端驗證，不能宣稱可用：Findroid、Swiftfin、Infuse、官方 Web 與 Android 客戶端能否在 `/compat` 登入後起播、Seek（Range）是否順暢、外掛字幕能否載入（`DeliveryUrl` 不含 token，若客戶端取字幕不帶驗證標頭會 401）、各客戶端送的 DeviceProfile 是否被判為可直投（未評估 CodecProfiles 可能造成「判可直投但客戶端解不了」）、`NoCompatibleStream` 的錯誤呈現、以及 `MaxStreamingBitrate` 低於來源位元率時的行為。官方 Web 在瀏覽器中執行，請求會帶 `Origin`，依層邊界規則一律 403，預期無法使用。
+
+播放狀態同樣尚未用真實客戶端驗證：各客戶端是否帶 `PlaySessionId`／`ItemId`、回報頻率、停止後客戶端畫面上的續播點與「已播放」是否立即更新、「繼續觀看」列是否出現且進度條正確（`PlayedPercentage` 依賴已探測的時長）、斷線後重連是否接回同一工作階段、Seek 後的進度是否正確。
