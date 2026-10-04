@@ -529,18 +529,21 @@ func TestWebhookMigrationRoundTrip(t *testing.T) {
 	if syncCount(t, f, `SELECT count(*) FROM audit_logs WHERE event IN ('webhook.created','webhook.deleted')`) != 2 {
 		t.Fatal("downgrade removed audit history")
 	}
-	// Without the outbox, producers keep working while events are off. A
-	// failed login produces user.login_failed; a successful one needs the
-	// second factor tables of a later schema.
+	if version, dirty, err = Migrate(f.ctx, dsn, "up"); err != nil || dirty || version != SchemaVersion {
+		t.Fatalf("upgrade: %d %t %v", version, dirty, err)
+	}
+	// With no endpoint subscribed, producers keep working and nothing piles up
+	// in the outbox. (Account reads use columns of later schemas, so this runs
+	// after the upgrade rather than on the downgraded schema.)
 	c, err := f.s.Credentials(f.ctx, "job-admin")
 	if err != nil {
 		t.Fatal(err)
 	}
 	if _, err = f.s.CommitLogin(f.ctx, accountLoginInput(c, false)); !errors.Is(err, domain.ErrUnauthenticated) {
-		t.Fatalf("failed login without the outbox: %v", err)
+		t.Fatalf("failed login without endpoints: %v", err)
 	}
-	if version, dirty, err = Migrate(f.ctx, dsn, "up"); err != nil || dirty || version != SchemaVersion {
-		t.Fatalf("upgrade: %d %t %v", version, dirty, err)
+	if syncCount(t, f, `SELECT count(*) FROM webhook_outbox`) != 0 {
+		t.Fatal("events accumulated without a subscribed endpoint")
 	}
 	if err = f.s.Ready(f.ctx); err != nil {
 		t.Fatal(err)

@@ -5,6 +5,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/MoYuanCN/Jelee/internal/access"
 	"github.com/MoYuanCN/Jelee/internal/app"
@@ -333,8 +334,19 @@ func TestItemVersionMergeBoundariesPostgres(t *testing.T) {
 	if _, err = f.s.MergeItems(f.ctx, f.a, a1, a1b); err != nil {
 		t.Fatal("same episode of the same series", err)
 	}
-	// Agreeing identities merge.
+	// Agreeing identities merge, but not while a live share link targets the
+	// absorbed item (G48.6): it would vanish with the item.
 	setIDs(f.otherItem, `[{"type":"tmdb","value":"949"}]`)
+	grant, err := f.s.CreateShare(f.ctx, f.a, domain.ShareInput{ItemID: f.otherItem, ExpiresAt: time.Now().Add(time.Hour), MaxStreams: 1})
+	if err != nil {
+		t.Fatal("share on the absorbed item", err)
+	}
+	if _, err = f.s.MergeItems(f.ctx, f.a, f.item, f.otherItem); !errors.Is(err, domain.ErrVersionItemBusy) {
+		t.Fatal("merge away a shared item", err)
+	}
+	if _, err = f.s.RevokeShare(f.ctx, f.a, grant.Share.ID); err != nil {
+		t.Fatal("revoke share", err)
+	}
 	if _, err = f.s.MergeItems(f.ctx, f.a, f.item, f.otherItem); err != nil {
 		t.Fatal("matching external IDs", err)
 	}
