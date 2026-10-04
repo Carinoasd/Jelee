@@ -26,6 +26,15 @@ Compose 内部网络使用 sslmode=disable，仅用于此隔离网络；远程�
 
 未啟用帳號的部署沒有引導，也不受閘門影響。
 
+## 多實例與快取（G04.7）
+
+Jelee 不需要 Redis：快取都在各實例的記憶體內，以版本號、寫入事件或內容定址失效；跨實例協調用 PostgreSQL 的 advisory lock、任務租約和版本欄位。資料庫暫時讀不到時，各快取沿用上次的值。多個實例只要連到同一個資料庫即可，但要注意：
+
+- 登入限速、客戶端 `rate_limit` 規則、串流並發與頻寬上限，都是各實例自己計數，請依實例數換算設定值，並對串流請求啟用工作階段黏著。
+- 字型白名單（CSP）在其他實例最多延遲 30 秒生效，開發者模式最多延遲 10 秒。
+
+完整盤點、各項保證與限制見 [快取邊界](cache-boundaries.md)；決策見 [ADR 0002](adr/0002-no-redis-cache-boundary.md)。
+
 ## 可選的執行時記憶體設定
 
 在基礎檔後加入 `-f deploy/docker-compose.memory.yml`，可為 `jelee` 選用 `GOGC=100`、`GOMEMLIMIT=512MiB` 與容器 768 MiB 上限；三者均可覆寫，memory 與 memory+swap 上限保持相同，因此此設定不提供 swap。PostgreSQL 與遷移服務的預算另計。本輪固定混合負載的真容器驗收已通過，`GOGC=50` 比較組也通過；使用方式、實測數據與容量限制見[執行時記憶體設定](runtime-memory.md)。

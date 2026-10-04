@@ -22,15 +22,17 @@ import (
 
 // gateStore is an in-memory ClientControlStore.
 type gateStore struct {
-	mu       sync.Mutex
-	state    domain.ClientControlState
-	loadErr  error
-	loads    atomic.Int64
-	acts     []domain.ClientActivity
-	hits     []domain.ClientHit
-	counts   []domain.ClientRuleCount
-	revoked  []string
-	recordFn func()
+	mu      sync.Mutex
+	state   domain.ClientControlState
+	loadErr error
+	// versionErr fails only the version query admitLogin makes.
+	versionErr error
+	loads      atomic.Int64
+	acts       []domain.ClientActivity
+	hits       []domain.ClientHit
+	counts     []domain.ClientRuleCount
+	revoked    []string
+	recordFn   func()
 }
 
 func (g *gateStore) ClientControlState(context.Context) (domain.ClientControlState, error) {
@@ -46,6 +48,9 @@ func (g *gateStore) ClientControlState(context.Context) (domain.ClientControlSta
 func (g *gateStore) ClientControlVersion(context.Context) (int64, error) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
+	if g.versionErr != nil {
+		return 0, g.versionErr
+	}
 	return g.state.Policy.Version, nil
 }
 
@@ -201,6 +206,37 @@ func TestClientGateKeepsLastVersionWhenReloadFails(t *testing.T) {
 	clock.Add(int64(2 * time.Second))
 	if w := gateRequest(h, http.MethodGet, "Bad/1"); w.Code != http.StatusNoContent {
 		t.Fatalf("recovered reload: %d", w.Code)
+	}
+}
+
+// A login whose version query fails is still gated by the compiled rules
+// (G04.7): the failure degrades to the last version instead of failing the
+// login or skipping the gate, and recovery picks up the newer version.
+func TestClientGateLoginUsesCompiledRulesWhenVersionUnavailable(t *testing.T) {
+	store := &gateStore{}
+	store.set(1, "allow", gateRule("11111111-1111-4111-8111-111111111111", "deny", "Bad/1"))
+	gate := newGate(t, store, nil, ClientControlOptions{})
+	login := func() error {
+		r := httptest.NewRequest(http.MethodPost, "http://localhost/api/v1/auth/login", nil)
+		r.Header.Set("User-Agent", "Bad/1")
+		return gate.admitLogin(r, clientLabels{})
+	}
+	store.set(2, "allow")
+	store.mu.Lock()
+	store.versionErr = errors.New("database down")
+	store.mu.Unlock()
+	loads := store.loads.Load()
+	if err := login(); !errors.Is(err, domain.ErrClientBlocked) {
+		t.Fatalf("login with unreadable version must keep the compiled rules: %v", err)
+	}
+	if store.loads.Load() != loads {
+		t.Fatal("unreadable version triggered a reload")
+	}
+	store.mu.Lock()
+	store.versionErr = nil
+	store.mu.Unlock()
+	if err := login(); err != nil {
+		t.Fatalf("recovered version not applied: %v", err)
 	}
 }
 

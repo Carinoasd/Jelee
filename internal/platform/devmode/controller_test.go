@@ -226,3 +226,77 @@ func TestControllerIncapableInstanceSwitchesSharedSessionOff(t *testing.T) {
 		t.Fatalf("shared session survived a production instance: %v", err)
 	}
 }
+
+// unreachableStore is a MemoryStore whose reads and writes fail while down,
+// like a database outage seen by one instance.
+type unreachableStore struct {
+	*MemoryStore
+	down bool
+}
+
+var errStoreDown = errors.New("store down")
+
+func (s *unreachableStore) LoadDevSession(ctx context.Context) (Record, error) {
+	if s.down {
+		return Record{}, errStoreDown
+	}
+	return s.MemoryStore.LoadDevSession(ctx)
+}
+
+func (s *unreachableStore) UpdateDevSession(ctx context.Context, actor Actor, fn Mutation) (Record, error) {
+	if s.down {
+		return Record{}, errStoreDown
+	}
+	return s.MemoryStore.UpdateDevSession(ctx, actor, fn)
+}
+
+// An instance that cannot reach shared storage keeps its last record
+// instead of failing (G04.7), but the record still ends at its deadline by
+// the local clock, and a change made elsewhere applies once storage is back.
+func TestControllerRefreshFailureKeepsLastRecordUntilDeadline(t *testing.T) {
+	ctx := context.Background()
+	shared, clock := NewMemoryStore(), newFakeClock()
+	view := &unreachableStore{MemoryStore: shared}
+	peer := newController(t, shared, clock, capableLocal(), func(o *ControllerOptions) { o.TTL = time.Hour })
+	server := newController(t, view, clock, capableLocal())
+	if _, err := peer.Enable(ctx, Actor{}, issue(t, peer), "cli", "", 0); err != nil { //nolint:contextcheck // test helper issues a token with its own background context
+		t.Fatal(err)
+	}
+	if _, err := peer.SetToggle(ctx, Actor{}, RelaxLoginRateLimit, true, Confirmation{}, "api"); err != nil {
+		t.Fatal(err)
+	}
+	if err := server.Refresh(ctx); err != nil || !server.Effective(RelaxLoginRateLimit) {
+		t.Fatalf("initial view: %t %v", server.Effective(RelaxLoginRateLimit), err)
+	}
+	view.down = true
+	if err := peer.Disable(ctx, Actor{}, "cli", "done"); err != nil {
+		t.Fatal(err)
+	}
+	if err := server.Refresh(ctx); !errors.Is(err, errStoreDown) {
+		t.Fatalf("refresh during outage: %v", err)
+	}
+	// Stale but bounded: the last record stays until storage answers again.
+	if !server.Active() || !server.Effective(RelaxLoginRateLimit) {
+		t.Fatal("outage dropped the last known record")
+	}
+	view.down = false
+	if err := server.Refresh(ctx); err != nil || server.Active() {
+		t.Fatalf("change made during the outage not applied: %t %v", server.Active(), err)
+	}
+
+	if _, err := peer.Enable(ctx, Actor{}, issue(t, peer), "cli", "", 0); err != nil { //nolint:contextcheck // test helper issues a token with its own background context
+		t.Fatal(err)
+	}
+	if err := server.Refresh(ctx); err != nil || !server.Active() {
+		t.Fatalf("second session: %t %v", server.Active(), err)
+	}
+	view.down = true
+	clock.Advance(time.Hour)
+	// The deadline needs no storage round trip, even while storage is down.
+	if server.Active() || server.Effective(RelaxLoginRateLimit) {
+		t.Fatal("record outlived its deadline during an outage")
+	}
+	if err := server.Refresh(ctx); !errors.Is(err, errStoreDown) || server.Active() {
+		t.Fatalf("expired record during outage: %t %v", server.Active(), err)
+	}
+}
