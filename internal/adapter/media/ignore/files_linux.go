@@ -118,14 +118,6 @@ func (f *nativeFile) OpenDirectory(name string) (directory, error) {
 	return opened, nil
 }
 
-func (f *nativeFile) OpenRule() (sourceFile, error) {
-	opened, err := f.open(".jeleeignore", false, true)
-	if err != nil {
-		return nil, err
-	}
-	return opened, nil
-}
-
 func (f *nativeFile) Stat() (fileState, error) {
 	if f == nil || f.file == nil {
 		return fileState{}, ErrRead

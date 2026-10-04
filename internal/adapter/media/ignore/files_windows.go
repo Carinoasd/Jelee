@@ -141,14 +141,6 @@ func (f *nativeFile) OpenDirectory(name string) (directory, error) {
 	return opened, nil
 }
 
-func (f *nativeFile) OpenRule() (sourceFile, error) {
-	opened, err := f.open(".jeleeignore", false, true)
-	if err != nil {
-		return nil, err
-	}
-	return opened, nil
-}
-
 // FileIdInfo contains a 64-bit volume serial and the full 128-bit file ID.
 // GetFileInformationByHandle's older 64-bit file index is not a substitute.
 type nativeIDInfo struct {

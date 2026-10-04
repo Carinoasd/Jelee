@@ -19,3 +19,4 @@ docs/legal/upstream/naming-copyright.cs.txt # Verbatim original assembly copyrig
 # Directory entries (ending in "/") exempt a whole protocol boundary where legacy names are part of the wire contract.
 internal/adapter/compat/ # Third-party client protocol: routes, headers, DTO fields and client identification strings.
 internal/adapter/legacydb/ # Legacy database import (G04.6): reads the upstream SQLite format, whose file, table and type names are the format itself.
+internal/adapter/media/ignore/rule_names.go # Protocol-compatible ignore file names (owner decision E2, G22.2): the two upstream rule file names are aliases of .jeleeignore, same nature as the compat boundary.
