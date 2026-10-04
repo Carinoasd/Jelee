@@ -20,6 +20,7 @@ import (
 	"github.com/MoYuanCN/Jelee/internal/domain"
 	"github.com/MoYuanCN/Jelee/internal/platform/cache"
 	"github.com/MoYuanCN/Jelee/internal/platform/config"
+	"github.com/MoYuanCN/Jelee/internal/platform/devmode"
 	jobworker "github.com/MoYuanCN/Jelee/internal/platform/jobs"
 	"github.com/MoYuanCN/Jelee/internal/platform/password"
 	"github.com/MoYuanCN/Jelee/internal/platform/resources"
@@ -37,6 +38,9 @@ func newWithLifetime(cfg config.Config, logger *slog.Logger, lifetime *lifetime)
 	if err := cfg.Resources.Validate(); err != nil {
 		return build(lifetime, fx.NopLogger, fx.Error(err))
 	}
+	if cfg.Dev.Capable() {
+		lifetime.queryLog = postgres.NewQueryLog(logger)
+	}
 	budget, err := resources.New(resources.Limits{CPU: cfg.Resources.CPULimit(), IO: cfg.Resources.IO, Total: cfg.Resources.Total, Queue: cfg.Resources.Queue})
 	if err != nil {
 		return build(lifetime, fx.NopLogger, fx.Error(err))
@@ -52,7 +56,9 @@ func newWithLifetime(cfg config.Config, logger *slog.Logger, lifetime *lifetime)
 		func(c config.Config) (*postgres.Store, error) {
 			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 			defer cancel()
-			store, err := postgres.Open(ctx, c.DatabaseURL, c.MaxConnections)
+			// Only a developer capable instance attaches the SQL log tracer
+			// (G45.5); production pays nothing for it.
+			store, err := postgres.OpenWithQueryLog(ctx, c.DatabaseURL, c.MaxConnections, lifetime.queryLog)
 			if err != nil {
 				return nil, err
 			}
@@ -275,10 +281,15 @@ func newWithLifetime(cfg config.Config, logger *slog.Logger, lifetime *lifetime)
 			lifetime.worker = &watchGroup{worker: &scheduledWorker{worker: &probeWorker{worker: runner, probe: probing, nfo: validation}, dispatch: service, logger: l}, watch: watchRunner}
 			return service, nil
 		},
-		func(c config.Config, store *postgres.Store, budget *resources.Budget, l *slog.Logger) (*app.Webhooks, error) {
+		func(c config.Config, store *postgres.Store, l *slog.Logger) (*devmode.Controller, error) {
+			return newDevController(c, store, l, lifetime)
+		},
+		// The controller comes first so the webhook client can follow
+		// relax_ssrf_strict.
+		func(c config.Config, store *postgres.Store, budget *resources.Budget, l *slog.Logger, _ *devmode.Controller) (*app.Webhooks, error) {
 			return newWebhooks(c, store, budget, l, lifetime)
 		},
-		func(c config.Config, store *postgres.Store, catalog *app.Catalog, jobs *app.Jobs, metadata *app.Metadata, metrics *telemetry.Metrics, pictures *app.Images, webhooks *app.Webhooks, budget *resources.Budget, l *slog.Logger) (http.Handler, error) {
+		func(c config.Config, store *postgres.Store, catalog *app.Catalog, jobs *app.Jobs, metadata *app.Metadata, metrics *telemetry.Metrics, pictures *app.Images, webhooks *app.Webhooks, budget *resources.Budget, l *slog.Logger, dev *devmode.Controller) (http.Handler, error) {
 			if !c.EnableAccounts {
 				return httpapi.NewWithResources(c, store, catalog, store, l, nil, nil, nil, nil, nil, budget)
 			}
@@ -329,7 +340,7 @@ func newWithLifetime(cfg config.Config, logger *slog.Logger, lifetime *lifetime)
 			if err != nil {
 				return nil, err
 			}
-			options = append(options, httpapi.WithSetup(setup, token))
+			options = append(options, httpapi.WithSetup(setup, token), httpapi.WithDevMode(dev))
 			return httpapi.NewWithResources(c, store, catalog, store, l, accounts, jobs, metadata, metricsHandler, pictures, budget, options...)
 		},
 	), fx.Invoke(func(lc fx.Lifecycle, cfg config.Config, handler http.Handler, shutdown fx.Shutdowner) {
@@ -376,11 +387,19 @@ type lifetime struct {
 	webhooks           *app.WebhookDispatcher
 	webhooksDone       chan struct{}
 	closeWebhookClient func()
-	closeOnce          sync.Once
-	stopOnce           sync.Once
-	exited             chan struct{}
-	stopped            chan struct{}
-	stopErr            error
+	// dev is the developer mode controller (G45); devDone joins its
+	// refresh loop, queryLog is the SQL log of a capable instance and
+	// levels the log router verbose logging raises.
+	dev       *devmode.Controller
+	devDone   chan struct{}
+	queryLog  *postgres.QueryLog
+	levels    logLevels
+	baseLevel slog.Level
+	closeOnce sync.Once
+	stopOnce  sync.Once
+	exited    chan struct{}
+	stopped   chan struct{}
+	stopErr   error
 	// Observe the same processor used by HTTP without replacing its dependencies.
 	imageStats func() imageadapter.Stats
 }
@@ -506,6 +525,13 @@ func (l *lifetime) start(ctx context.Context) error {
 			l.stats.Run(l.ctx)
 		}()
 	}
+	if l.dev != nil {
+		l.devDone = make(chan struct{})
+		go func() {
+			defer close(l.devDone)
+			l.dev.Run(l.ctx)
+		}()
+	}
 	if l.webhooks != nil {
 		l.webhooksDone = make(chan struct{})
 		go func() {
@@ -564,6 +590,9 @@ func (l *lifetime) shutdown(ctx context.Context) {
 		<-l.statsDone
 	}
 	l.joinWebhooks()
+	if l.devDone != nil {
+		<-l.devDone
+	}
 	if err := <-workerDone; err != nil {
 		l.stopErr = errors.Join(l.stopErr, errors.New("inventory workers did not stop"))
 		return // Do not close a store that workers may still be using.

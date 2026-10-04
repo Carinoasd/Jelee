@@ -28,7 +28,7 @@ func TestProbeCLIUsesFixedAuthenticatedRoutesAndOptInBody(t *testing.T) {
 		{"scan", "POST", "/api/v1/libraries/" + jobsTestID + "/scan", nil, map[string]any{"priority": "manual"}},
 		{"scan", "POST", "/api/v1/libraries/" + jobsTestID + "/scan", []string{"--ignore", "jeleeignore", "--ignore-case", "sensitive"}, map[string]any{"priority": "manual", "ignore": map[string]any{"mode": "jeleeignore", "caseMode": "sensitive"}}},
 		{"scan", "POST", "/api/v1/libraries/" + jobsTestID + "/scan", []string{"--ignore", "jeleeignore-legacy-v1", "--ignore-case", "sensitive"}, map[string]any{"priority": "manual", "ignore": map[string]any{"mode": "jeleeignore-legacy-v1", "caseMode": "sensitive"}}},
-		{"scan", "POST", "/api/v1/libraries/" + jobsTestID + "/scan", []string{"--nfo", "--probe", "--ignore", "jeleeignore-legacy-v1", "--ignore-case", "ascii-insensitive"}, map[string]any{"priority": "manual", "nfo": true, "probe": true, "ignore": map[string]any{"mode": "jeleeignore-legacy-v1", "caseMode": "ascii-insensitive"}}}, {"probe-rebuild-library", "POST", "/api/v1/libraries/" + jobsTestID + "/probe/rebuild", []string{"--priority", "background"}, map[string]any{"priority": "background"}},
+		{"scan", "POST", "/api/v1/libraries/" + jobsTestID + "/scan", []string{"--nfo", "--probe", "--ignore", "jeleeignore-legacy-v1", "--ignore-case", "ascii-insensitive"}, map[string]any{"priority": "manual", "nfo": true, "probe": true, "ignore": map[string]any{"mode": "jeleeignore-legacy-v1", "caseMode": "ascii-insensitive"}}}, {"probe-rebuild-library", "POST", "/api/v1/libraries/" + jobsTestID + "/probe/rebuild", []string{"--priority", "background", "--i-understand"}, map[string]any{"priority": "background", "iUnderstand": true}},
 		{"probe-rebuild-item", "POST", "/api/v1/items/" + jobsTestID + "/probe/rebuild", nil, map[string]any{"priority": "manual"}},
 		{"probe", "GET", "/api/v1/jobs/" + jobsTestID + "/probe", nil, nil},
 	} {
@@ -192,6 +192,16 @@ func TestProbeCLISummaryValidStatesScopesAndFixedErrors(t *testing.T) {
 		}
 		copy[key] = value
 		rejectJobsCLIReply(t, "probe", jobsCLIJSON(t, copy))
+	}
+}
+
+// G45.6: a library rebuild is refused before any credential is read unless
+// it is confirmed.
+func TestProbeCLILibraryRebuildNeedsConfirmation(t *testing.T) {
+	var out, errs bytes.Buffer
+	status := runJobsCLI(context.Background(), []string{"probe-rebuild-library", "--id", jobsTestID, "--key", "k", "--token-stdin"}, unreadProbeToken{t}, &out, &errs)
+	if status != 2 || out.Len() != 0 || !strings.HasPrefix(errs.String(), "jobs_confirmation_required") {
+		t.Fatalf("unconfirmed rebuild: %d %q", status, errs.String())
 	}
 }
 

@@ -173,10 +173,17 @@ func (s *Server) rebuildItemProbe(w http.ResponseWriter, r *http.Request, a doma
 }
 func (s *Server) rebuildProbe(w http.ResponseWriter, r *http.Request, a domain.Actor, item bool) (any, int, error) {
 	var input struct {
-		Priority string `json:"priority"`
+		Priority    string `json:"priority"`
+		IUnderstand bool   `json:"iUnderstand"`
 	}
 	if err := DecodeJSON(w, r, &input, accountBodyLimit); err != nil {
 		return nil, 0, err
+	}
+	// G45.6: rebuilding a whole library discards every probe result of it
+	// and needs an explicit acknowledgement; the invalidation itself is
+	// audited as probe.library_invalidated.
+	if !item && !input.IUnderstand {
+		return nil, 0, errConfirmationRequired
 	}
 	key, err := jobKey(r)
 	if err != nil {

@@ -103,6 +103,21 @@ func (httpBrowseRepository) GetBrowseItem(context.Context, string, string) (doma
 // only the rollout flags in cfg decide which routes are registered.
 func contractRouter(t *testing.T, cfg config.Config, options ...Option) http.Handler {
 	t.Helper()
+	return contractRouterWith(t, cfg, &fakeBackend{}, slog.New(slog.NewTextHandler(io.Discard, nil)), options...)
+}
+
+// contractRouterWith is contractRouter with the caller's backend and logger.
+func contractRouterWith(t *testing.T, cfg config.Config, backend Backend, logger *slog.Logger, options ...Option) http.Handler {
+	t.Helper()
+	handler, err := contractServer(t, cfg, backend, logger, options...)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return handler
+}
+
+func contractServer(t *testing.T, cfg config.Config, backend Backend, logger *slog.Logger, options ...Option) (http.Handler, error) {
+	t.Helper()
 	jobs, err := app.NewJobs(httpJobRepo{}, config.DefaultJobsConfig().Policy())
 	if err != nil {
 		t.Fatal(err)
@@ -123,11 +138,7 @@ func contractRouter(t *testing.T, cfg config.Config, options ...Option) http.Han
 	if err != nil {
 		t.Fatal(err)
 	}
-	handler, err := newServer(cfg, &fakeBackend{}, catalog, &fakeResolver{}, slog.New(slog.NewTextHandler(io.Discard, nil)), metricsAccounts(t), jobs, metadata, http.NotFoundHandler(), images, nil, append([]Option{WithWebhooks(httpWebhooks(t, stubWebhookRepository{})), WithSetup(completedSetupWizard(), "")}, options...))
-	if err != nil {
-		t.Fatal(err)
-	}
-	return handler
+	return newServer(cfg, backend, catalog, &fakeResolver{}, logger, metricsAccounts(t), jobs, metadata, http.NotFoundHandler(), images, nil, append([]Option{WithWebhooks(httpWebhooks(t, stubWebhookRepository{})), WithSetup(completedSetupWizard(), "")}, options...))
 }
 
 func registeredRoutes(t *testing.T, handler http.Handler) map[string]bool {

@@ -178,9 +178,12 @@ doctor 只计算 SHA-256，不执行工具。候选位置为运行镜像的固�
 
 | 错误码 | 状态 | 含义 | 修复步骤 |
 | --- | --- | --- | --- |
-| `devmode_disabled` | ok | 开发者模式关闭；本生产构建不提供 | — |
-| `devmode_env_set` | fail | 设置了 `JELEE_DEV_MODE`（非空且不是 false），本构建会拒绝启动 | 取消 `JELEE_DEV_MODE` 或设为 false |
+| `devmode_disabled` | ok | 开发者模式关闭：`JELEE_DEV_MODE=true` 与 `dev.enabled` 未同时设置 | — |
+| `devmode_env_set` | warn | 两项开关只设了一项，开发者模式仍关闭 | 若不是在准备开发实例，删掉残留设置；见 [开发者模式](developer-mode.md) |
+| `devmode_env_invalid` | fail | `JELEE_DEV_MODE` 不是 true/false，服务会拒绝启动 | 设为 true 或 false，或取消 |
+| `devmode_capable` | warn | 本实例可开启开发者模式（两项开关都已设置；实际开启还需一次性令牌） | 生产环境绝不可这样配置：取消 `JELEE_DEV_MODE` 或把 `dev.enabled` 设为 false |
 | `devmode_production_environment` | ok | `JELEE_ENV=production` 强制关闭开发者模式 | — |
+| `devmode_production_ignored` | warn | 有开发者设置，但因 `JELEE_ENV=production` 被忽略 | 从生产部署中删除 `JELEE_DEV_MODE` 与 `dev.enabled` |
 
 ### external：外部源连通性（仅 `--external`）
 

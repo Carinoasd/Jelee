@@ -44,7 +44,7 @@
 | C6 | 日誌高 QPS 下 INFO 與 DEBUG 對 P95 的影響、丟棄計數、輪轉不阻塞 | G46.8 | 待跑 |
 | C7 | 權限規則開銷 ≤10%（無規則基線對比） | 客戶端管控已接上 HTTP。開發機單次樣本：真 PG `GET /api/v1/users/me` 無規則對 10,000 條規則比值 0.98；記憶體後端 +0.5～0.8 µs。請在目標硬體以 `TestClientControlOverheadPostgres`（`-v` 看比值）與 `BenchmarkClientGate*` 重跑並在高並發下確認，見 `docs/client-control.md`「效能」 | 待跑 |
 | C8 | 稽核表大量資料時 `purge_audit_logs` 與 `ListAudit` 的效能 | 等 L4 合入後再跑 | 待跑 |
-| C9 | 開發者模式在真實時鐘下 12 小時到期 | 等 D2 接上 CLI 與 HTTP 後再跑 | 待跑 |
+| C9 | 開發者模式在真實時鐘下 12 小時到期 | 已接上 CLI 與 HTTP（`claude/devmode`）：依 [開發者模式](developer-mode.md)「擁有者驗證」開一次預設 12 小時工作階段，確認到期後標頭、系統資訊、橫幅與放寬全部消失、稽核恰一筆 `devmode.expired`、期間每 5 分鐘 WARN | 待跑 |
 | C10 | fuzz 長跑：`FuzzParsePath`（命名解析）、`FuzzProductionGuard`（轉碼守衛）、相容層認證 | 各跑數小時，或排進夜間 CI | 待跑 |
 | C11 | 正式效能基準線：在固定、閒置的硬體上以 `make bench` 重產 `docs/evidence/bench-baseline.txt` | 目前的基準是開發機產生，只供參考 | 待跑 |
 | C12 | 掃描→條目同步：50 萬條目首掃與重掃（目錄並發 1／2／4 × GOMAXPROCS 2／4）、accept 模式發布 50 萬列的時間 | `docs/catalog-sync.md` | 待跑 |

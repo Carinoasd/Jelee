@@ -247,10 +247,8 @@ func TestClientControlMigrationRoundTrip(t *testing.T) {
 	if _, err := f.s.CreateClientRule(f.ctx, f.a, clientDenyRule("Kept/1")); err != nil {
 		t.Fatal(err)
 	}
-	want := migrationVersion(t, "client_control")
-	if want != SchemaVersion {
-		t.Fatalf("client control is migration %d, schema %d", want, SchemaVersion)
-	}
+	// Later schemas hold no data of their own.
+	want := downgradeAboveMigration(t, f, "client_control")
 	if _, _, err := Migrate(f.ctx, dsn, "down"); err == nil {
 		t.Fatal("an enforcing client rule was dropped by a downgrade")
 	}

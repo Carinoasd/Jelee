@@ -1,7 +1,9 @@
-// Package devmode owns the developer-mode state machine described by G45. It is
-// pure in-memory policy: it does not read HTTP requests, run CLI commands or
-// touch the database. Adapters translate their own facts into Inputs and route
-// Observer events into audit records and WARN logs.
+// Package devmode owns the developer-mode state machine described by G45. The
+// State machine is pure in-memory policy; the Controller shares one session
+// between every instance and the CLI through a Store (PostgreSQL in
+// production) and never reads HTTP requests or runs commands itself.
+// Adapters translate their own facts into Inputs, and Stores turn events into
+// audit records. See docs/developer-mode.md.
 package devmode
 
 import "strings"

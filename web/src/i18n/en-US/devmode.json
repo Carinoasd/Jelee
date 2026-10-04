@@ -1,0 +1,7 @@
+{
+  "devmode": {
+    "title": "Developer mode is on",
+    "warning": "Production restrictions may be relaxed and extra data may be logged. Never use developer mode in production.",
+    "expires": "Turns off automatically at {time}."
+  }
+}

@@ -20,6 +20,7 @@ import (
 	"github.com/MoYuanCN/Jelee/internal/adapter/compat"
 	"github.com/MoYuanCN/Jelee/internal/app"
 	"github.com/MoYuanCN/Jelee/internal/domain"
+	"github.com/MoYuanCN/Jelee/internal/platform/devmode"
 )
 
 // Client control request gate (G47). Rules are compiled once per policy
@@ -75,6 +76,9 @@ type ClientControl struct {
 	seed       maphash.Seed
 	activityMu sync.Mutex
 	recent     map[uint64]time.Time
+
+	// dev answers developer mode relaxations (G45.4); nil in production.
+	dev *devmode.Controller
 
 	rec       clientRecorder
 	stop      chan struct{}
@@ -139,6 +143,9 @@ func NewClientControl(ctx context.Context, store ClientControlStore, service *ap
 func WithClientControl(c *ClientControl) Option { return func(s *Server) { s.clients = c } }
 
 // Close stops the background writer and writes what is still buffered.
+// relaxed reports whether the developer mode toggle t suspends a check.
+func (c *ClientControl) relaxed(t devmode.Toggle) bool { return c.dev != nil && c.dev.Effective(t) }
+
 func (c *ClientControl) Close(ctx context.Context) error {
 	c.closeOnce.Do(func() { close(c.stop) })
 	select {
@@ -405,10 +412,13 @@ func (c *ClientControl) check(ctx context.Context, req *clientRequest, in gateIn
 	if d.Exempt != access.ExemptNone {
 		return nil
 	}
-	switch d.Verdict {
-	case access.VerdictDeny:
+	switch {
+	case (d.Verdict == access.VerdictDeny || d.Verdict == access.VerdictPending) && c.relaxed(devmode.RelaxClientUABlock):
+		// Developer mode (G45.4): blocking and approval are suspended; hits
+		// are still recorded above, every other action still applies.
+	case d.Verdict == access.VerdictDeny:
 		return domain.ErrClientBlocked
-	case access.VerdictPending:
+	case d.Verdict == access.VerdictPending:
 		return domain.ErrClientPending
 	}
 	if d.Libraries != nil {
@@ -430,7 +440,7 @@ func (c *ClientControl) check(ctx context.Context, req *clientRequest, in gateIn
 			return domain.ErrUnauthenticated
 		}
 	}
-	if d.RateLimit != nil {
+	if d.RateLimit != nil && !c.relaxed(devmode.RelaxAPIRateLimit) {
 		if allowed, retry := c.allowRate(*d.RateLimit, req, labels, userAgent, in.principal.UserID); !allowed {
 			return clientRetryError{retry: retry}
 		}

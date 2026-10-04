@@ -523,12 +523,27 @@ func TestPrivacyAndDevMode(t *testing.T) {
 	})
 	t.Run("developer mode requested", func(t *testing.T) {
 		env, _ := healthyEnv(t)
+		env.Lookup = lookupMap(map[string]string{"JELEE_DEV_MODE": "yes"})
+		expect(t, runCheck(t, env, "devmode"), StatusFail, CodeDevEnvInvalid)
 		env.Lookup = lookupMap(map[string]string{"JELEE_DEV_MODE": "true"})
-		expect(t, runCheck(t, env, "devmode"), StatusFail, CodeDevEnvSet)
-		env.Lookup = lookupMap(map[string]string{"JELEE_DEV_MODE": "false", "JELEE_ENV": "production"})
+		expect(t, runCheck(t, env, "devmode"), StatusWarn, CodeDevEnvSet)
+		env.Config.Dev.Enabled = true
 		r := runCheck(t, env, "devmode")
-		expect(t, r, StatusOK, CodeDevDisabled)
+		expect(t, r, StatusWarn, CodeDevCapable)
+		if r.Facts["devMode"] != "capable" {
+			t.Fatalf("result = %+v", r)
+		}
+		env.Lookup = lookupMap(map[string]string{"JELEE_DEV_MODE": "true", "JELEE_ENV": "production"})
+		r = runCheck(t, env, "devmode")
+		expect(t, r, StatusWarn, CodeDevProductionIgnored)
 		if !hasFinding(r, StatusOK, CodeDevProduction) || r.Facts["devMode"] != "off" {
+			t.Fatalf("result = %+v", r)
+		}
+		env.Config.Dev.Enabled = false
+		env.Lookup = lookupMap(map[string]string{"JELEE_DEV_MODE": "false", "JELEE_ENV": "production"})
+		r = runCheck(t, env, "devmode")
+		expect(t, r, StatusOK, CodeDevProduction)
+		if hasFinding(r, StatusWarn, CodeDevProductionIgnored) || r.Facts["devMode"] != "off" {
 			t.Fatalf("result = %+v", r)
 		}
 	})

@@ -37,6 +37,12 @@ export function errorMessageKey(error: ApiError): string {
       return "errors.notReady";
     case "setup_required":
       return "errors.setupRequired";
+    case "confirmation_required":
+      return "errors.confirmationRequired";
+    case "devmode_inactive":
+      return "errors.devModeInactive";
+    case "devmode_toggle_unavailable":
+      return "errors.devModeToggleUnavailable";
     case "account_busy":
     case "image_busy":
     case "jobs_busy":

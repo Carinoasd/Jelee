@@ -21,6 +21,9 @@
     "clientPending": "This app or device is waiting for administrator approval.",
     "clientReadOnly": "This app or device may only view content.",
     "clientRateLimited": "Too many requests from this app or device. Please try again later.",
-    "setupRequired": "Initial setup has not been completed yet."
+    "setupRequired": "Initial setup has not been completed yet.",
+    "confirmationRequired": "This is a dangerous operation. Confirm it explicitly to continue.",
+    "devModeInactive": "Developer mode is not active.",
+    "devModeToggleUnavailable": "This developer mode option is not available in this version."
   }
 }

@@ -62,6 +62,8 @@ type Config struct {
 	// setup is incomplete at startup, with mode 0600. Empty prints the token
 	// to standard error instead.
 	SetupTokenFile string `json:"setupTokenFile"`
+	// Dev is the developer mode section (G45); see DevConfig.
+	Dev DevConfig `json:"dev"`
 }
 
 func Load() (Config, error) { return LoadWith(os.LookupEnv) }
@@ -142,8 +144,8 @@ func LoadWith(lookup func(string) (string, bool)) (Config, error) {
 			*target = b
 		}
 	}
-	if value, ok := lookup("JELEE_DEV_MODE"); ok && value != "" && value != "false" {
-		return c, errors.New("developer mode is unavailable in this production build")
+	if err := c.Dev.loadEnvironment(lookup); err != nil {
+		return c, err
 	}
 	if value, ok := lookup("JELEE_MAX_CONNECTIONS"); ok {
 		n, err := strconv.Atoi(value)
@@ -209,6 +211,9 @@ func (c Config) Validate() error {
 		return err
 	}
 	if err := c.Logging.Validate(); err != nil {
+		return err
+	}
+	if err := c.Dev.Validate(); err != nil {
 		return err
 	}
 	u, err := url.Parse(c.DatabaseURL)

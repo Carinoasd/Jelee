@@ -56,6 +56,9 @@ func jobsCLIReply(t *testing.T, command string, payload []byte, status int) (int
 	if command == "scan" || command == "retry" || command == "probe-rebuild-library" || command == "probe-rebuild-item" {
 		args = append(args, "--key", "response-test")
 	}
+	if command == "probe-rebuild-library" {
+		args = append(args, "--i-understand")
+	}
 	if command == "list" || command == "entries" || command == "libraries" {
 		args = append(args, "--limit", "2")
 	}

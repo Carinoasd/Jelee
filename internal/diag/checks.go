@@ -599,16 +599,27 @@ func (s *Session) checkPrivacy(context.Context) Result {
 
 func (s *Session) checkDevMode(context.Context) Result {
 	in := devmode.ReadEnvironment(s.env.Lookup)
+	in.ConfigEnabled = s.env.Config.Dev.Enabled
 	r := Result{Facts: map[string]string{"devMode": "off"}}
-	// Mirrors config.LoadWith: any value other than empty or "false" aborts
-	// startup of this production build.
-	if raw, ok := s.env.Lookup(devmode.EnvDevMode); ok && raw != "" && raw != "false" {
-		r.Findings = append(r.Findings, failf(devmode.EnvDevMode, CodeDevEnvSet))
-	} else {
-		r.Findings = append(r.Findings, okf("", CodeDevDisabled))
-	}
-	if in.IsProduction() {
+	// Mirrors config.LoadWith: only empty, true and false are accepted.
+	raw, _ := s.env.Lookup(devmode.EnvDevMode)
+	switch v := strings.ToLower(strings.TrimSpace(raw)); {
+	case v != "" && v != "true" && v != "false":
+		r.Findings = append(r.Findings, failf(devmode.EnvDevMode, CodeDevEnvInvalid))
+	case in.IsProduction():
 		r.Findings = append(r.Findings, okf(devmode.EnvEnvironment, CodeDevProduction))
+		if in.EnvFlag || in.ConfigEnabled {
+			r.Findings = append(r.Findings, warnf(devmode.EnvEnvironment, CodeDevProductionIgnored))
+		}
+	case in.EnvFlag && in.ConfigEnabled:
+		// The session itself lives in the database and needs a one-time
+		// token; doctor only reports that this instance could open one.
+		r.Facts["devMode"] = "capable"
+		r.Findings = append(r.Findings, warnf(devmode.EnvDevMode, CodeDevCapable))
+	case in.EnvFlag || in.ConfigEnabled:
+		r.Findings = append(r.Findings, okf("", CodeDevDisabled), warnf(devmode.EnvDevMode, CodeDevEnvSet))
+	default:
+		r.Findings = append(r.Findings, okf("", CodeDevDisabled))
 	}
 	r.Check = "devmode"
 	return finish(r)

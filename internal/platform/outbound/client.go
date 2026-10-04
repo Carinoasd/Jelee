@@ -11,6 +11,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/MoYuanCN/Jelee/internal/app"
@@ -34,6 +35,9 @@ type Client struct {
 	lookup    lookupFunc
 	dial      dialFunc
 	budget    app.WorkBudget
+	// private, when set and true, also admits private and loopback targets:
+	// the developer mode relax_ssrf_strict toggle (G45.4).
+	private atomic.Pointer[func() bool]
 }
 
 type Response struct {
@@ -119,7 +123,7 @@ func (c *Client) validate(u *url.URL) error {
 			return ErrDenied
 		}
 	}
-	if a, err := netip.ParseAddr(h); err == nil && !publicAddress(a) {
+	if a, err := netip.ParseAddr(h); err == nil && !c.addressAllowed(a) {
 		return ErrDenied
 	}
 	return nil
@@ -215,7 +219,7 @@ func (c *Client) connect(ctx context.Context, network, address string) (net.Conn
 		return nil, ErrDenied
 	}
 	for _, a := range addresses {
-		if !publicAddress(a) {
+		if !c.addressAllowed(a) {
 			return nil, ErrDenied
 		}
 	}
@@ -233,6 +237,33 @@ func (c *Client) connect(ctx context.Context, network, address string) (net.Conn
 }
 
 func (c *Client) CloseIdleConnections() { c.transport.CloseIdleConnections() }
+
+// AllowPrivateTargets installs the developer mode switch (relax_ssrf_strict).
+// While it returns true, private (RFC 1918, unique local), shared (CGNAT) and
+// loopback addresses are admitted besides public ones. Link-local addresses,
+// which include cloud metadata endpoints, unspecified, multicast and other
+// special-purpose ranges stay refused. Host allow lists still apply.
+func (c *Client) AllowPrivateTargets(allowed func() bool) { c.private.Store(&allowed) }
+
+func (c *Client) addressAllowed(a netip.Addr) bool {
+	if publicAddress(a) {
+		return true
+	}
+	f := c.private.Load()
+	return f != nil && (*f)() && developerAddress(a)
+}
+
+// developerAddress is the extra range relax_ssrf_strict admits.
+func developerAddress(a netip.Addr) bool {
+	if !a.IsValid() || a.Zone() != "" {
+		return false
+	}
+	a = a.Unmap()
+	if a.IsLinkLocalUnicast() || a.IsUnspecified() || a.IsMulticast() {
+		return false
+	}
+	return a.IsPrivate() || a.IsLoopback() || netip.MustParsePrefix("100.64.0.0/10").Contains(a)
+}
 
 // Conservative fetch policy, checked against IANA special-purpose registries.
 // Special assignments are excluded even where a more specific public-purpose

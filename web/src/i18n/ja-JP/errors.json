@@ -21,6 +21,9 @@
     "clientPending": "このアプリまたはデバイスは管理者の承認を待っています。",
     "clientReadOnly": "このアプリまたはデバイスはコンテンツの閲覧のみ可能です。",
     "clientRateLimited": "このアプリまたはデバイスからのリクエストが多すぎます。しばらくしてから再試行してください。",
-    "setupRequired": "初期セットアップがまだ完了していません。"
+    "setupRequired": "初期セットアップがまだ完了していません。",
+    "confirmationRequired": "危険な操作です。続行するには明示的に確認してください。",
+    "devModeInactive": "開発者モードは有効になっていません。",
+    "devModeToggleUnavailable": "この開発者モードのオプションはこのバージョンでは利用できません。"
   }
 }

@@ -8,6 +8,7 @@ import (
 	"github.com/MoYuanCN/Jelee/internal/adapter/postgres"
 	"github.com/MoYuanCN/Jelee/internal/app"
 	"github.com/MoYuanCN/Jelee/internal/platform/config"
+	"github.com/MoYuanCN/Jelee/internal/platform/devmode"
 	"github.com/MoYuanCN/Jelee/internal/platform/outbound"
 	"github.com/MoYuanCN/Jelee/internal/platform/resources"
 	"github.com/MoYuanCN/Jelee/internal/platform/secretbox"
@@ -40,6 +41,11 @@ func newWebhooks(c config.Config, store *postgres.Store, budget *resources.Budge
 	client, err := outbound.NewWebhookClient(c.Webhooks.AllowedHosts, roots, budget)
 	if err != nil {
 		return nil, errors.New("cannot build the webhook client")
+	}
+	if dev := lifetime.dev; dev != nil && dev.Capable() {
+		// G45.4 relax_ssrf_strict: private and loopback receivers while the
+		// toggle is on, for local test endpoints.
+		client.AllowPrivateTargets(func() bool { return dev.Effective(devmode.RelaxSSRFStrict) })
 	}
 	deliverer, err := events.NewDeliverer(client)
 	if err != nil {

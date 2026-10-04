@@ -48,7 +48,7 @@ func TestAccessCLIResetPolicies(t *testing.T) {
 	store := &accessStoreStub{result: domain.ClientPolicyReset{RulesDisabled: 3, Policy: domain.ClientPolicy{UnknownClients: "allow", ExemptAdmins: true, ExemptLoopback: true, Version: 9}}}
 	closed := 0
 	var out, errs bytes.Buffer
-	if code := runAccessCLIWith(context.Background(), []string{"reset-policies"}, &out, &errs, accessDeps(store, nil, &closed)); code != 0 || store.resets != 1 || closed != 1 || errs.Len() != 0 {
+	if code := runAccessCLIWith(context.Background(), []string{"reset-policies", "--i-understand"}, &out, &errs, accessDeps(store, nil, &closed)); code != 0 || store.resets != 1 || closed != 1 || errs.Len() != 0 {
 		t.Fatalf("code=%d resets=%d closed=%d stderr=%q", code, store.resets, closed, errs.String())
 	}
 	var printed domain.ClientPolicyReset
@@ -58,19 +58,25 @@ func TestAccessCLIResetPolicies(t *testing.T) {
 }
 
 func TestAccessCLIRejectsUsageAndHidesFailures(t *testing.T) {
-	for _, argv := range [][]string{nil, {"reset"}, {"reset-policies", "extra"}, {"reset-policies", "--force"}} {
+	for _, argv := range [][]string{nil, {"reset"}, {"reset-policies", "--i-understand", "extra"}, {"reset-policies", "--force"}} {
 		var out, errs bytes.Buffer
 		if code := runAccessCLIWith(context.Background(), argv, &out, &errs, accessDeps(&accessStoreStub{}, nil, new(int))); code != 2 || out.Len() != 0 || !strings.HasPrefix(errs.String(), "usage:") {
 			t.Errorf("%v: code=%d stderr=%q", argv, code, errs.String())
 		}
 	}
+	// G45.6: without the confirmation nothing is opened or changed.
+	unconfirmed := &accessStoreStub{}
 	var out, errs bytes.Buffer
-	if code := runAccessCLIWith(context.Background(), []string{"reset-policies"}, &out, &errs, accessDeps(nil, errors.New("dial postgres://private:secret@localhost"), new(int))); code != 1 || strings.Contains(errs.String(), "secret") || strings.TrimSpace(errs.String()) != "access_database_unavailable" {
+	if code := runAccessCLIWith(context.Background(), []string{"reset-policies"}, &out, &errs, accessDeps(unconfirmed, nil, new(int))); code != 2 || unconfirmed.resets != 0 || !strings.HasPrefix(errs.String(), "access_confirmation_required") {
+		t.Fatalf("unconfirmed reset: code=%d stderr=%q", code, errs.String())
+	}
+	errs.Reset()
+	if code := runAccessCLIWith(context.Background(), []string{"reset-policies", "--i-understand"}, &out, &errs, accessDeps(nil, errors.New("dial postgres://private:secret@localhost"), new(int))); code != 1 || strings.Contains(errs.String(), "secret") || strings.TrimSpace(errs.String()) != "access_database_unavailable" {
 		t.Fatalf("open failure: code=%d stderr=%q", code, errs.String())
 	}
 	errs.Reset()
 	store := &accessStoreStub{err: errors.New("relation client_rules: private detail")}
-	if code := runAccessCLIWith(context.Background(), []string{"reset-policies"}, &out, &errs, accessDeps(store, nil, new(int))); code != 1 || strings.TrimSpace(errs.String()) != "access_reset_failed" {
+	if code := runAccessCLIWith(context.Background(), []string{"reset-policies", "--i-understand"}, &out, &errs, accessDeps(store, nil, new(int))); code != 1 || strings.TrimSpace(errs.String()) != "access_reset_failed" {
 		t.Fatalf("reset failure: code=%d stderr=%q", code, errs.String())
 	}
 }
@@ -129,7 +135,7 @@ func TestAccessCLIResetPoliciesPostgres(t *testing.T) {
 		load: func() (config.Config, error) { return config.Config{}, nil },
 		open: func(context.Context, config.Config) (accessCLIStore, func(), error) { return store, func() {}, nil },
 	}
-	if code := runAccessCLIWith(ctx, []string{"reset-policies"}, &out, &errs, deps); code != 0 {
+	if code := runAccessCLIWith(ctx, []string{"reset-policies", "--i-understand"}, &out, &errs, deps); code != 0 {
 		t.Fatalf("reset exited %d: %s", code, errs.String())
 	}
 	state, err := store.ClientControlState(ctx)

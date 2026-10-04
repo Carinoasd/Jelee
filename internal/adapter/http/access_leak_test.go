@@ -25,6 +25,7 @@ import (
 	"github.com/MoYuanCN/Jelee/internal/app"
 	"github.com/MoYuanCN/Jelee/internal/domain"
 	"github.com/MoYuanCN/Jelee/internal/platform/config"
+	"github.com/MoYuanCN/Jelee/internal/platform/devmode"
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5"
 )
@@ -94,6 +95,15 @@ func leakRouteTable() map[string]leakRoute {
 		"POST /api/v1/setup/steps/{step}": exempt("setup wizard step; token protected, 410 after setup, carries no media identifiers"),
 		"POST /api/v1/setup/back":         exempt("setup wizard navigation; token protected, 410 after setup"),
 		"POST /api/v1/setup/complete":     exempt("setup wizard completion; token protected, 410 after setup"),
+
+		// G45 developer mode routes, registered on a developer capable
+		// instance only. None takes or returns media identifiers.
+		"POST /api/v1/dev/token":           exempt("loopback-only one-time developer mode token; 404 to any other peer, carries no media identifiers"),
+		"GET /api/v1/dev":                  admin(noParams),
+		"PUT /api/v1/dev/toggles/{toggle}": exempt("administrator-only developer mode toggle switch; names a catalogue toggle, never media"),
+		"POST /api/v1/dev/disable":         admin(noParams),
+		"GET /debug/pprof/*":               exempt("developer mode runtime profiles; 404 unless a session and debug_pprof are on, then loopback or administrators only"),
+		"POST /debug/pprof/symbol":         exempt("developer mode symbol lookup; 404 unless a session and debug_pprof are on, then loopback or administrators only"),
 
 		// Third-party client compatibility layer (system module).
 		"GET /compat/System/Info/Public": noMedia(noParams, "public compatibility server identity"),
@@ -342,6 +352,9 @@ func leakConfig(t *testing.T, dsn string, hiddenStatus int) config.Config {
 	cfg.EnableCompat = true
 	cfg.EnableWebhooks, cfg.Webhooks = true, config.DefaultWebhooksConfig()
 	cfg.Webhooks.MasterKey = testWebhookMasterKey
+	// A developer capable instance with no active session, so the
+	// developer routes are walked too.
+	cfg.Dev = config.DevConfig{EnvFlag: true, Enabled: true}
 	return cfg
 }
 
@@ -437,6 +450,14 @@ func leakHandlerWithRenderer(t *testing.T, store *postgres.Store, cfg config.Con
 		t.Fatal(err)
 	}
 	options := []Option{WithWebhooks(httpWebhooks(t, store)), WithSetup(completedSetupWizard(), "")}
+	if cfg.Dev.Capable() {
+		// The developer routes exist but no session is active (G45.8).
+		dev, err := devmode.NewController(devmode.ControllerOptions{Store: store, Local: cfg.Dev.Inputs()})
+		if err != nil {
+			t.Fatal(err)
+		}
+		options = append(options, WithDevMode(dev))
+	}
 	if store.Pool != nil {
 		// The traversal runs behind the client control gate with no rules,
 		// as production does by default.

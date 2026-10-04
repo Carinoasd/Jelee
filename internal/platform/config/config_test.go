@@ -16,7 +16,7 @@ func TestConfigurationFailsClosed(t *testing.T) {
 		{"missing", nil, "PostgreSQL"},
 		{"sqlite", map[string]string{"JELEE_DATABASE_URL": "sqlite:///secret/location"}, "PostgreSQL"},
 		{"malformed", map[string]string{"JELEE_DATABASE_URL": "postgres://user:secret@%zz/db"}, "PostgreSQL"},
-		{"dev", map[string]string{"JELEE_DATABASE_URL": "postgres://localhost/jelee", "JELEE_DEV_MODE": "true"}, "developer mode"},
+		{"dev", map[string]string{"JELEE_DATABASE_URL": "postgres://localhost/jelee", "JELEE_DEV_MODE": "yes"}, "JELEE_DEV_MODE"},
 		{"wild host", map[string]string{"JELEE_DATABASE_URL": "postgres://localhost/jelee", "JELEE_ALLOWED_HOSTS": ""}, "allowedHosts"},
 		{"direct rollout", map[string]string{"JELEE_DATABASE_URL": "postgres://localhost/jelee", "JELEE_ENABLE_DIRECT": "true"}, "catalog"},
 	}

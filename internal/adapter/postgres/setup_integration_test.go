@@ -334,9 +334,17 @@ func TestSetupMigrationAdoptsExistingDeploymentUpDownUp(t *testing.T) {
 	if _, err = s.RegisterLibrary(ctx, "Existing", t.TempDir()); err != nil {
 		t.Fatal(err)
 	}
-	down := func() (uint, bool, error) { return Migrate(ctx, dsn, "down") }
+	// Later schemas hold no data of their own; step below the setup schema.
+	setupVersion := migrationVersion(t, "setup_state")
+	down := func() (uint, bool, error) {
+		version, dirty, err := Migrate(ctx, dsn, "down")
+		for err == nil && !dirty && version >= setupVersion {
+			version, dirty, err = Migrate(ctx, dsn, "down")
+		}
+		return version, dirty, err
+	}
 	version, dirty, err := down()
-	if err != nil || dirty || version >= SchemaVersion {
+	if err != nil || dirty || version >= setupVersion {
 		t.Fatalf("down: version=%d dirty=%t err=%v", version, dirty, err)
 	}
 	if setupCount(t, ctx, s, `SELECT count(*) FROM pg_class WHERE relname='setup_state' AND relnamespace=current_schema()::regnamespace`) != 0 {
@@ -374,11 +382,19 @@ func TestSetupMigrationRefusesDowngradeOfUnfinishedWizard(t *testing.T) {
 	if _, err := s.SaveSetupState(ctx, domain.SetupState{Current: domain.SetupStepAdmin, Locale: "en-US"}); err != nil {
 		t.Fatal(err)
 	}
+	setupVersion := migrationVersion(t, "setup_state")
+	version, dirty, err := Migrate(ctx, dsn, "status")
+	for err == nil && !dirty && version > setupVersion {
+		version, dirty, err = Migrate(ctx, dsn, "down")
+	}
+	if err != nil || dirty || version != setupVersion {
+		t.Fatalf("downgrade to the setup schema: version=%d dirty=%t err=%v", version, dirty, err)
+	}
 	if _, _, err := Migrate(ctx, dsn, "down"); err == nil {
 		t.Fatal("unfinished wizard downgraded")
 	}
-	version, dirty, err := Migrate(ctx, dsn, "status")
-	if err != nil || !dirty || version >= SchemaVersion {
+	version, dirty, err = Migrate(ctx, dsn, "status")
+	if err != nil || !dirty || version >= setupVersion {
 		t.Fatalf("refused downgrade state: version=%d dirty=%t err=%v", version, dirty, err)
 	}
 	if setupCount(t, ctx, s, `SELECT count(*) FROM setup_state WHERE completed_at IS NULL`) != 1 {

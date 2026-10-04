@@ -5,6 +5,7 @@ import { useRouter } from "vue-router";
 import LocaleSwitcher from "@/components/LocaleSwitcher.vue";
 import UiButton from "@/components/ui/UiButton.vue";
 import UiToastRegion from "@/components/ui/UiToastRegion.vue";
+import DevModeBanner from "@/features/devmode/DevModeBanner.vue";
 import { useLocaleSync } from "@/i18n/useLocaleSync";
 import { useAuthStore } from "@/stores/auth";
 import { useToastStore } from "@/stores/toasts";
@@ -52,6 +53,7 @@ async function signOut() {
 
 <template>
   <a class="jl-skip-link" href="#main">{{ t("common.skipToContent") }}</a>
+  <DevModeBanner />
   <header class="jl-header">
     <RouterLink class="jl-header__brand" :to="{ name: 'libraries' }">{{ t("common.appName") }}</RouterLink>
     <nav v-if="auth.isAuthenticated" :aria-label="t('common.mainNavigation')" class="jl-header__nav">

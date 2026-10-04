@@ -43,7 +43,7 @@ func runAccessCLI(ctx context.Context, argv []string, stdout, stderr io.Writer) 
 // their next request. Known clients, their trust and hit records are kept.
 func runAccessCLIWith(ctx context.Context, argv []string, stdout, stderr io.Writer, deps accessCLIDependencies) int {
 	usage := func() int {
-		fmt.Fprintln(stderr, "usage: jelee-cli access reset-policies")
+		fmt.Fprintln(stderr, "usage: jelee-cli access reset-policies --i-understand")
 		return 2
 	}
 	if len(argv) == 0 || argv[0] != "reset-policies" {
@@ -51,8 +51,14 @@ func runAccessCLIWith(ctx context.Context, argv []string, stdout, stderr io.Writ
 	}
 	flags := flag.NewFlagSet("access reset-policies", flag.ContinueOnError)
 	flags.SetOutput(io.Discard)
+	iUnderstand := flags.Bool("i-understand", false, "confirm disabling every client control rule")
 	if err := flags.Parse(argv[1:]); err != nil || flags.NArg() != 0 {
 		return usage()
+	}
+	if !*iUnderstand {
+		// G45.6: disabling every protection rule is a dangerous operation.
+		fmt.Fprintln(stderr, "access_confirmation_required: reset-policies disables every client control rule; add --i-understand")
+		return 2
 	}
 	cfg, err := deps.load()
 	if err != nil {

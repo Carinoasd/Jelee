@@ -1692,9 +1692,12 @@
           "client_pending_approval",
           "client_rate_limited",
           "client_read_only",
+          "confirmation_required",
           "conflict",
           "csrf_failed",
           "device_stream_limit",
+          "devmode_inactive",
+          "devmode_toggle_unavailable",
           "feature_removed",
           "forbidden",
           "ignore_unavailable",
@@ -1772,6 +1775,9 @@
           "client_read_only": [
             "403"
           ],
+          "confirmation_required": [
+            "400"
+          ],
           "conflict": [
             "409"
           ],
@@ -1780,6 +1786,12 @@
           ],
           "device_stream_limit": [
             "429"
+          ],
+          "devmode_inactive": [
+            "409"
+          ],
+          "devmode_toggle_unavailable": [
+            "409"
           ],
           "feature_removed": [
             "501"
@@ -5588,6 +5600,10 @@
       "ProbeRebuildRequest": {
         "additionalProperties": false,
         "properties": {
+          "iUnderstand": {
+            "description": "Required true for a library rebuild, which discards every probe result of the library (G45.6); otherwise 400 confirmation_required. Ignored for an item rebuild.",
+            "type": "boolean"
+          },
           "priority": {
             "default": "manual",
             "enum": [
@@ -18392,7 +18408,7 @@
             "webSession": []
           }
         ],
-        "summary": "Atomically invalidate library metadata and queue a scan/probe job; identical replay does not invalidate again",
+        "summary": "Atomically invalidate library metadata and queue a scan/probe job; dangerous: needs iUnderstand true (400 confirmation_required); identical replay does not invalidate again",
         "x-jelee-role": "administrator"
       }
     },

@@ -20,6 +20,7 @@ import (
 	"github.com/MoYuanCN/Jelee/internal/app"
 	"github.com/MoYuanCN/Jelee/internal/domain"
 	"github.com/MoYuanCN/Jelee/internal/platform/config"
+	"github.com/MoYuanCN/Jelee/internal/platform/devmode"
 	"github.com/MoYuanCN/Jelee/internal/platform/i18n"
 	"github.com/MoYuanCN/Jelee/internal/platform/logging"
 	"github.com/MoYuanCN/Jelee/internal/platform/password"
@@ -64,6 +65,10 @@ type Server struct {
 	setup *setupGate
 	// router answers whether an API route claims a path (setup gate).
 	router *chi.Mux
+	// dev is the developer mode controller (G45); nil unless this instance
+	// meets its own developer mode thresholds, so production never mounts a
+	// developer route or applies a relaxation.
+	dev *devmode.Controller
 }
 
 func New(cfg config.Config, backend Backend, catalog *app.Catalog, resolver media.Resolver, logger *slog.Logger, accounts ...*app.Accounts) (http.Handler, error) {
@@ -115,18 +120,25 @@ func newServer(cfg config.Config, backend Backend, catalog *app.Catalog, resolve
 	if resolver != nil && cfg.Access.HiddenContentStatus() == http.StatusForbidden {
 		resolver = hiddenContentResolver{resolver}
 	}
-	delivery, err := media.NewHandler(resolver, media.Options{Budget: budget, MaxConcurrent: cfg.MaxStreams, WriteTimeout: 30 * time.Second, LookupTimeout: cfg.RequestTimeout(), WriteError: WriteError,
-		Sessions: sessions, SessionCheckInterval: cfg.Streaming.RevokeCheckInterval(), Limits: deliveryLimits(cfg.Streaming)})
-	if err != nil {
-		return nil, err
-	}
 	prefixes, err := cfg.TrustedProxyPrefixes()
 	if err != nil {
 		return nil, err
 	}
-	s := &Server{cfg: cfg, backend: backend, catalog: catalog, delivery: delivery, logger: logger, trustedProxies: prefixes}
+	s := &Server{cfg: cfg, backend: backend, catalog: catalog, logger: logger, trustedProxies: prefixes}
 	for _, option := range options {
 		option(s)
+	}
+	if err = s.configureDevMode(); err != nil {
+		return nil, err
+	}
+	limits := deliveryLimits(cfg.Streaming)
+	if s.dev != nil {
+		limits.RelaxStreams = func() bool { return s.dev.Effective(devmode.RelaxPlaybackConcurrency) }
+		limits.RelaxBandwidth = func() bool { return s.dev.Effective(devmode.RelaxBandwidthLimit) }
+	}
+	if s.delivery, err = media.NewHandler(resolver, media.Options{Budget: budget, MaxConcurrent: cfg.MaxStreams, WriteTimeout: 30 * time.Second, LookupTimeout: cfg.RequestTimeout(), WriteError: WriteError,
+		Sessions: sessions, SessionCheckInterval: cfg.Streaming.RevokeCheckInterval(), Limits: limits}); err != nil {
+		return nil, err
 	}
 	if !cfg.EnableAccounts {
 		// The wizard creates the administrator, which needs accounts.
@@ -160,7 +172,11 @@ func newServer(cfg config.Config, backend Backend, catalog *app.Catalog, resolve
 		}
 		s.accounts = account
 		s.accountSlots = make(chan struct{}, cfg.Accounts.PasswordConcurrency*4)
-		s.loginLimiter, err = NewLoginLimiter(LoginLimiterOptions{Window: time.Duration(cfg.Accounts.LoginWindowSeconds) * time.Second, IPLimit: cfg.Accounts.LoginIPLimit, UserLimit: cfg.Accounts.LoginUserLimit, MaxEntries: cfg.Accounts.LoginMaxEntries})
+		loginOptions := LoginLimiterOptions{Window: time.Duration(cfg.Accounts.LoginWindowSeconds) * time.Second, IPLimit: cfg.Accounts.LoginIPLimit, UserLimit: cfg.Accounts.LoginUserLimit, MaxEntries: cfg.Accounts.LoginMaxEntries}
+		if s.dev != nil {
+			loginOptions.Relaxed = func() bool { return s.dev.Effective(devmode.RelaxLoginRateLimit) }
+		}
+		s.loginLimiter, err = NewLoginLimiter(loginOptions)
 		if err != nil {
 			return nil, err
 		}
@@ -222,7 +238,13 @@ func newServer(cfg config.Config, backend Backend, catalog *app.Catalog, resolve
 	})
 	r.Get("/api/v1/system", func(w http.ResponseWriter, r *http.Request) {
 		probe := s.jobs.ProbeCapability()
-		writeJSON(w, 200, map[string]any{"data": map[string]any{"name": "Jelee", "devMode": false, "probe": probe, "capabilities": map[string]any{"transcoding": false, "hls": false, "dash": false, "remux": false, "downloads": false, "dlna": false, "discovery": false, "liveTv": false, "epg": false, "tuners": false, "recordings": false, "channels": false, "directDelivery": cfg.EnableDirect, "catalog": cfg.EnableCatalog, "accounts": cfg.EnableAccounts, "inventoryScan": cfg.EnableJobs, "probe": probe.Available}}})
+		data := map[string]any{"name": "Jelee", "devMode": false, "probe": probe, "capabilities": map[string]any{"transcoding": false, "hls": false, "dash": false, "remux": false, "downloads": false, "dlna": false, "discovery": false, "liveTv": false, "epg": false, "tuners": false, "recordings": false, "channels": false, "directDelivery": cfg.EnableDirect, "catalog": cfg.EnableCatalog, "accounts": cfg.EnableAccounts, "inventoryScan": cfg.EnableJobs, "probe": probe.Available}}
+		// G45.3: the session and its deadline are public, like the header,
+		// so every client can warn its user. Toggles stay administrator-only.
+		if st := s.devStatus(); st.Active {
+			data["devMode"], data["devModeExpiresAt"] = true, st.ExpiresAt.UTC().Format(time.RFC3339)
+		}
+		writeJSON(w, 200, map[string]any{"data": data})
 	})
 	r.Get("/api-docs", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
@@ -260,6 +282,9 @@ func newServer(cfg config.Config, backend Backend, catalog *app.Catalog, resolve
 	}
 	if cfg.EnableAccounts {
 		s.clientControlRoutes(r)
+	}
+	if s.dev != nil {
+		s.devRoutes(r)
 	}
 	if cfg.EnableCompat {
 		if s.compat, err = s.newCompat(cfg, backend); err != nil {
@@ -395,7 +420,8 @@ func (s *Server) boundary(next http.Handler) http.Handler {
 		w.Header().Set("Referrer-Policy", "no-referrer")
 		w.Header().Set("Content-Security-Policy", "default-src 'none'; frame-ancestors 'none'; base-uri 'none'")
 		w.Header().Set("Cache-Control", "no-store")
-		w.Header().Set("X-Jelee-Dev-Mode", "false")
+		devActive := s.dev != nil && s.dev.Active()
+		w.Header().Set("X-Jelee-Dev-Mode", strconv.FormatBool(devActive))
 		if r.TLS != nil {
 			w.Header().Set("Strict-Transport-Security", "max-age=31536000")
 		}
@@ -420,6 +446,10 @@ func (s *Server) boundary(next http.Handler) http.Handler {
 				break
 			}
 		}
+		if !allowed && valid && devActive && s.dev.Effective(devmode.RelaxHostStrict) {
+			// G45.4 relax_host_strict: any well-formed Host is served.
+			allowed = true
+		}
 		if !allowed {
 			writeProblem(w, r, 400, "invalid_host", "Host is not allowed.")
 			return
@@ -429,7 +459,10 @@ func (s *Server) boundary(next http.Handler) http.Handler {
 			WriteError(w, r, media.ErrTranscodeDisabled)
 			return
 		}
-		if strings.Contains(strings.ToLower(r.URL.Path), "/debug/") {
+		// Only the exact pprof prefix of a developer capable instance reaches
+		// a handler, which answers 404 itself unless the session, the
+		// debug_pprof toggle and the caller allow it (G45.5).
+		if strings.Contains(strings.ToLower(r.URL.Path), "/debug/") && (s.dev == nil || !strings.HasPrefix(r.URL.Path, devPprofPrefix)) {
 			WriteError(w, r, domain.ErrNotFound)
 			return
 		}
@@ -439,6 +472,10 @@ func (s *Server) boundary(next http.Handler) http.Handler {
 		}
 		// G18.4: a half-initialised instance serves nothing but the wizard.
 		if s.setup != nil && !s.setupAllows(w, r) {
+			return
+		}
+		if devActive && s.dev.Effective(devmode.DebugBodyLogging) {
+			s.logBodies(next, w, r)
 			return
 		}
 		next.ServeHTTP(w, r)
@@ -675,6 +712,12 @@ func WriteError(w http.ResponseWriter, r *http.Request, err error) {
 			}
 		}
 		w.Header().Set("Retry-After", strconv.FormatInt(seconds, 10))
+	case errors.Is(err, errDevInactive):
+		status, code, message = 409, "devmode_inactive", "Developer mode is not active."
+	case errors.Is(err, errDevToggleUnavailable):
+		status, code, message = 409, "devmode_toggle_unavailable", "This developer mode option is not available in this build."
+	case errors.Is(err, errConfirmationRequired):
+		status, code, message = 400, "confirmation_required", "This operation is dangerous and needs an explicit confirmation."
 	case errors.Is(err, domain.ErrForbidden):
 		status, code, message = 403, "forbidden", "Operation is not permitted."
 	case errors.Is(err, domain.ErrConflict):

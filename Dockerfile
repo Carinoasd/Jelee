@@ -29,5 +29,9 @@ COPY --chmod=0444 internal/adapter/images/LICENSE.x-image /licenses/x-image/LICE
 USER 65532:65532
 EXPOSE 8097
 ENV JELEE_LISTEN=0.0.0.0:8097
+# Production image: developer mode (G45) stays off whatever else is set.
+# Only a deliberate override of JELEE_ENV re-enables the developer gate.
+ENV JELEE_ENV=production
+LABEL org.jelee.channel="production"
 HEALTHCHECK --interval=30s --timeout=20s --retries=3 CMD ["/jelee-cli", "doctor", "--checks", "config,database,migrations"]
 ENTRYPOINT ["/jelee"]

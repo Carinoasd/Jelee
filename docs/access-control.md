@@ -49,6 +49,7 @@
 - 反過來「允許整部劇但隱藏某一集」：劇集 `allow`、該集 `hide`，只有該集隱藏。
 - 不同使用者的規則互不影響；矩陣測試以第二個使用者驗證。
 - 管理員的規則預設不生效（管理員看得到一切，用於管理）；開 `restrict_admins` 後才套用。這是可設定的建議預設。
+- 開發者模式（G48.9）：開發者開關 `relax_permission_strict` 生效期間暫停 `restrict_admins`，管理員回到看得到一切；非管理員的授權與規則完全不變，所以不會多看到任何內容。開關在 `devPermissionRelaxedSQL`（同一個 `visibility.go`）以 `dev_mode_state` 的到期時間判斷，工作階段結束即恢復。見 [開發者模式](developer-mode.md)。
 
 ## 統一過濾器與守門（G48.2）
 

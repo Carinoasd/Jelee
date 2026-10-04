@@ -114,7 +114,7 @@ func readJobsToken(ctx context.Context, input io.Reader) (string, error) {
 
 func runJobsCLI(ctx context.Context, argv []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	usage := func() int {
-		fmt.Fprintln(stderr, "usage: jelee-cli jobs scan|ignore|probe|probe-rebuild-library|probe-rebuild-item|list|libraries|get|entries|cancel|retry --token-stdin [--url http://127.0.0.1:8097] [--id UUID] [--key ASCII] [--priority manual|background] [--probe] [--nfo] [--ignore jeleeignore|jeleeignore-legacy-v1 --ignore-case sensitive|ascii-insensitive] [--cursor CURSOR] [--limit 50] [--state STATE]")
+		fmt.Fprintln(stderr, "usage: jelee-cli jobs scan|ignore|probe|probe-rebuild-library|probe-rebuild-item|list|libraries|get|entries|cancel|retry --token-stdin [--url http://127.0.0.1:8097] [--id UUID] [--key ASCII] [--priority manual|background] [--i-understand (probe-rebuild-library)] [--probe] [--nfo] [--ignore jeleeignore|jeleeignore-legacy-v1 --ignore-case sensitive|ascii-insensitive] [--cursor CURSOR] [--limit 50] [--state STATE]")
 		return 2
 	}
 	if len(argv) == 0 {
@@ -126,7 +126,7 @@ func runJobsCLI(ctx context.Context, argv []string, stdin io.Reader, stdout, std
 	base := flags.String("url", "http://127.0.0.1:8097", "service origin")
 	fromStdin := flags.Bool("token-stdin", false, "read bearer token from stdin")
 	var id, key, priority, cursor, state string
-	var enableProbe, enableNFO bool
+	var enableProbe, enableNFO, iUnderstand bool
 	var ignoreMode, ignoreCase string
 	limit := 50
 	switch command {
@@ -138,6 +138,9 @@ func runJobsCLI(ctx context.Context, argv []string, stdin io.Reader, stdout, std
 		fallthrough
 	case "probe-rebuild-library", "probe-rebuild-item":
 		flags.StringVar(&priority, "priority", "manual", "queue priority")
+		if command == "probe-rebuild-library" {
+			flags.BoolVar(&iUnderstand, "i-understand", false, "confirm discarding every probe result of the library")
+		}
 		fallthrough
 	case "retry":
 		flags.StringVar(&key, "key", "", "idempotency key")
@@ -188,6 +191,11 @@ func runJobsCLI(ctx context.Context, argv []string, stdin io.Reader, stdout, std
 	if enqueue && priority != "manual" && priority != "background" {
 		return usage()
 	}
+	if command == "probe-rebuild-library" && !iUnderstand {
+		// G45.6: a dangerous operation needs explicit confirmation.
+		fmt.Fprintln(stderr, "jobs_confirmation_required: probe-rebuild-library discards every probe result of the library; add --i-understand")
+		return 2
+	}
 	if state != "" && state != "queued" && state != "running" && state != "succeeded" && state != "failed" && state != "cancelled" {
 		return usage()
 	}
@@ -220,7 +228,11 @@ func runJobsCLI(ctx context.Context, argv []string, stdin io.Reader, stdout, std
 		}
 		u.Path = "/api/v1/" + target + "/" + id + "/probe/rebuild"
 		method = http.MethodPost
-		data, _ := json.Marshal(map[string]string{"priority": priority})
+		input := map[string]any{"priority": priority}
+		if iUnderstand {
+			input["iUnderstand"] = true
+		}
+		data, _ := json.Marshal(input)
 		body = string(data)
 	case "probe":
 		u.Path = "/api/v1/jobs/" + id + "/probe"

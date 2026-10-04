@@ -2,6 +2,8 @@
 
 ## Unreleased — Go foundation
 
+- 開發者模式接上設定、CLI、HTTP、各子系統與前端（G45.1–G45.9、G48.9）：遷移 000072 新增共用工作階段單列 `dev_mode_state` 與一次性權杖 `dev_mode_tokens`。開啟需 `JELEE_DEV_MODE=true`＋設定檔 `dev.enabled`＋伺服器環回入口 `POST /api/v1/dev/token` 簽發、`jelee-cli devmode enable --token` 兌換的一次性權杖，缺一不開；`JELEE_ENV=production`（容器映像預設）一律忽略並告警，不滿足門檻的實例會關閉共用工作階段；重啟預設不繼承。啟用時回應標頭 `X-Jelee-Dev-Mode: true`、系統資訊 `devMode`、啟動與每 5 分鐘 WARN、網頁頂部四語橫幅。已接開關：登入限速、客戶端管控限速與屏蔽、並發播放、頻寬、權限嚴格模式（只暫停管理員的 `restrict_admins`）、Host 校驗、Webhook SSRF、DEBUG 日誌、SQL 日誌（不含參數）、脫敏請求／回應體日誌、pprof（環回或管理員）；危險開關需 `iUnderstand`。預設 12 小時（上限 24 小時）到期自動恢復，`jelee-cli devmode disable`／`POST /api/v1/dev/disable` 手動關閉，全程寫安全稽核。危險操作二次確認：整庫探測重建需 `"iUnderstand": true`／`--i-understand`，`jelee-cli access reset-policies` 需 `--i-understand`。`jelee-cli doctor` 的 devmode 檢查改為回報可開發／被忽略狀態。詳見 `docs/developer-mode.md`。
+
 - 客戶端管控接上請求路徑（G47.1–G47.10 子集）：遷移 000070 新增規則、策略（未知客戶端預設策略、管理員與環回豁免）、已知客戶端與按分鐘聚合的命中紀錄；自有 API 與相容層的已驗證請求及三種登入都經過閘門，動作支援拒絕（403 `client_blocked`）、唯讀（403 `client_read_only`）、限速（429 `client_rate_limited`）、強制重新認證、待核准（403 `client_pending_approval`）、觀察與影子。規則依版本編譯快取，版本號附在工作階段查詢中，變更後下一個請求生效（含多實例）；引擎新增字面量預篩，1 萬條規則評估約 0.3 µs。管理員 API `/api/v1/client-control/…`（規則 CRUD、觀察↔攔截、命中紀錄與匯出（遮罩）、統計、已知客戶端改名／可信／屏蔽／踢下線），變更寫稽核；緊急恢復 `jelee-cli access reset-policies`。限制庫存取、按庫與群組範圍列為後續。詳見 `docs/client-control.md`。
 
 - 存取控制統一過濾器（G48.1–G48.4、G48.8、G48.10 子集）：媒體庫授權述詞收斂到 `internal/adapter/postgres/visibility.go` 單一來源，守門測試禁止其他查詢再讀授權表。遷移 000069 新增條目／子樹顯式允許或隱藏（最近者勝）、使用者分級上限（取自 `mpaa`／`certification`，內建美、英、日、德、台分級代碼表）、未分級預設策略、標籤／類型封鎖、管理員是否受限的全域策略；列表、搜尋、詳情、圖片、外掛軌、直投、播放資訊、繼續觀看、統計、相容層全部自動生效。管理員 API `/api/v1/users/{id}/content-access…`、`/api/v1/access/policy`、`/api/v1/access/parental-ratings`，變更寫稽核。仍有規則時拒絕降級。詳見 `docs/access-control.md`。

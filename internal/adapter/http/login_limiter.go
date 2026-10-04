@@ -22,6 +22,10 @@ type LoginLimiterOptions struct {
 	UserLimit  int
 	MaxEntries int
 	Now        func() time.Time
+	// Relaxed, when set and true, admits every well-formed attempt without
+	// counting it: the developer mode relax_login_rate_limit toggle (G45.4).
+	// Account lockout after failed passwords still applies.
+	Relaxed func() bool
 }
 
 // LoginLimiter limits password work before a KDF runs. It is process-local and
@@ -84,6 +88,9 @@ func (l *LoginLimiter) Allow(ip, name string) (allowed bool, retry time.Duration
 	addr, err := netip.ParseAddr(ip)
 	if err != nil || addr.Zone() != "" || addr.Unmap().String() != ip {
 		return false, l.opts.Window
+	}
+	if l.opts.Relaxed != nil && l.opts.Relaxed() {
+		return true, 0
 	}
 	keys := [2]loginBucketKey{
 		{kind: 'i', digest: sha256.Sum256([]byte(ip))},

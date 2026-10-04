@@ -26,7 +26,7 @@ JELEE_ENABLE_PROBE=true
 | --- | --- | --- |
 | 一般盘点 | `POST /api/v1/libraries/{id}/scan` | `{}` 或 `{"probe":false}` |
 | 盘点后增量探测 | 同上 | `{"probe":true}` |
-| 整库重建 | `POST /api/v1/libraries/{id}/probe/rebuild` | `{}` |
+| 整库重建 | `POST /api/v1/libraries/{id}/probe/rebuild` | `{"iUnderstand":true}`（G45.6 危险操作确认，缺少时 400 `confirmation_required`） |
 | 单条目重建 | `POST /api/v1/items/{id}/probe/rebuild` | `{}` |
 | 探测进度 | `GET /api/v1/jobs/{id}/probe` | 无 |
 | 取消 / 重试 | `POST /api/v1/jobs/{id}/cancel` 或 `/retry` | `{}` |
@@ -43,7 +43,7 @@ CLI通过相同HTTP API操作，token从stdin传入：
 
 ```text
 jelee-cli jobs scan --id <library-id> --key scan-1 --probe --token-stdin
-jelee-cli jobs probe-rebuild-library --id <library-id> --key rebuild-1 --token-stdin
+jelee-cli jobs probe-rebuild-library --id <library-id> --key rebuild-1 --i-understand --token-stdin
 jelee-cli jobs probe-rebuild-item --id <item-id> --key rebuild-2 --token-stdin
 jelee-cli jobs probe --id <job-id> --token-stdin
 jelee-cli jobs retry --id <job-id> --key retry-1 --token-stdin

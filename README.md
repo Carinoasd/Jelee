@@ -1,5 +1,7 @@
 # Jelee
 
+> **警告：生产环境严禁启用开发者模式。** Jelee 的开发者模式（`JELEE_DEV_MODE`、`dev.enabled`、`jelee-cli devmode`）会放宽登录限速、权限严格模式、Host 校验与 SSRF 拦截等保护，并记录额外数据，只供开发调试。生产部署请设置 `JELEE_ENV=production`（官方容器镜像默认如此），此时所有开发者设置一律被忽略。详见[开发者模式](docs/developer-mode.md)。
+
 Jelee 正在以独立 Go 服务逐步接管视频目录与原文件直投。本仓库已实现 Go 基础服务、账户 API、持久只读盘点、固定工具与素材、Linux 隔离探测与扫描快取，以及按库 NFO 验证和图片属性比较；尚未达到完整媒体服务器替代版本的验收条件。
 
 ## 当前实现

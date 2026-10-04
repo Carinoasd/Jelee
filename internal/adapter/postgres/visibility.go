@@ -14,7 +14,8 @@ package postgres
 //  1. The library grant. Administrators see every library; nothing below
 //     widens it.
 //  2. Content rules apply to users with any restriction (content_filtered)
-//     and to administrators only while access_policy.restrict_admins is on.
+//     and to administrators only while access_policy.restrict_admins is on
+//     and no developer mode session relaxes it (G48.9, see below).
 //  3. The nearest explicit item rule on the item or an ancestor decides:
 //     hide hides, allow shows despite 4 and 5.
 //  4. A blocked tag or genre on the item or an ancestor hides it.
@@ -53,7 +54,7 @@ func itemVisibleSQL(library, item string) string {
 func contentVisibleSQL(item string) string {
 	chain := itemChainSQL(item)
 	return `(NOT u.content_filtered
- OR (u.is_admin AND NOT COALESCE((SELECT vz_p.restrict_admins FROM access_policy vz_p),false))
+ OR (u.is_admin AND (NOT COALESCE((SELECT vz_p.restrict_admins FROM access_policy vz_p),false) OR ` + devPermissionRelaxedSQL + `))
  OR COALESCE(
   (SELECT vz_r.effect='allow' FROM (` + chain + `) vz_c JOIN user_item_access_rules vz_r ON vz_r.user_id=u.id AND vz_r.item_id=vz_c.id
    ORDER BY vz_c.depth LIMIT 1),
@@ -69,6 +70,14 @@ func contentVisibleSQL(item string) string {
     LEFT JOIN parental_ratings vz_l ON vz_l.code=vz_n.code)<=u.parental_rating_max,
    NOT COALESCE(u.block_unrated,(SELECT vz_p.block_unrated FROM access_policy vz_p),false)))))`
 }
+
+// devPermissionRelaxedSQL is true while a developer mode session has
+// relax_permission_strict on (G48.9). It only suspends restrict_admins for
+// administrators: library grants and every rule of other users stay in force,
+// so the relaxation can never show a non-administrator anything new. The
+// session row expires by its own deadline here, and the runtime switches it
+// off on every instance that does not meet the developer mode thresholds.
+const devPermissionRelaxedSQL = `EXISTS(SELECT 1 FROM dev_mode_state vz_d WHERE vz_d.active AND vz_d.expires_at>now() AND 'relax_permission_strict'=ANY(vz_d.toggles))`
 
 // itemChainSQL selects the item and its ancestors with their distance:
 // item_parent_links nest at most two levels (episode, season, series).

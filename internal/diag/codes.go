@@ -78,9 +78,12 @@ const (
 	CodePrivacyRelPath  = "privacy_paths_relative"
 	CodePrivacyTMDB     = "privacy_tmdb_outbound"
 
-	CodeDevDisabled   = "devmode_disabled"
-	CodeDevEnvSet     = "devmode_env_set"
-	CodeDevProduction = "devmode_production_environment"
+	CodeDevDisabled          = "devmode_disabled"
+	CodeDevEnvSet            = "devmode_env_set"
+	CodeDevEnvInvalid        = "devmode_env_invalid"
+	CodeDevCapable           = "devmode_capable"
+	CodeDevProduction        = "devmode_production_environment"
+	CodeDevProductionIgnored = "devmode_production_ignored"
 
 	CodeExternalOK            = "external_tmdb_ok"
 	CodeExternalNotConfigured = "external_tmdb_not_configured"
@@ -168,9 +171,12 @@ var codes = map[string]codeInfo{
 	CodePrivacyRelPath:  {"log paths keep the part below configured roots", ""},
 	CodePrivacyTMDB:     {"TMDB credentials are configured; metadata requests go to TMDB", ""},
 
-	CodeDevDisabled:   {"developer mode is off and unavailable in this build", ""},
-	CodeDevEnvSet:     {"JELEE_DEV_MODE is set; this production build refuses to start", "Unset JELEE_DEV_MODE (or set it to false)."},
-	CodeDevProduction: {"JELEE_ENV=production forces developer mode off", ""},
+	CodeDevDisabled:          {"developer mode is off: JELEE_DEV_MODE=true and dev.enabled are not both set", ""},
+	CodeDevEnvSet:            {"only one of JELEE_DEV_MODE=true and dev.enabled is set; developer mode stays off", "Remove the leftover setting unless you are preparing a development instance; see docs/developer-mode.md."},
+	CodeDevEnvInvalid:        {"JELEE_DEV_MODE is neither true nor false; the server refuses to start", "Set JELEE_DEV_MODE to true or false, or unset it."},
+	CodeDevCapable:           {"developer mode can be enabled on this instance (JELEE_DEV_MODE=true and dev.enabled)", "Never run this configuration in production: unset JELEE_DEV_MODE or set dev.enabled to false; see docs/developer-mode.md."},
+	CodeDevProduction:        {"JELEE_ENV=production forces developer mode off", ""},
+	CodeDevProductionIgnored: {"developer settings are present but ignored because JELEE_ENV=production", "Remove JELEE_DEV_MODE and dev.enabled from the production deployment."},
 
 	CodeExternalOK:            {"TMDB accepted the configured credentials", ""},
 	CodeExternalNotConfigured: {"TMDB is not configured; the server runs in local mode", ""},

@@ -27,12 +27,19 @@ type Store struct {
 
 // SchemaVersion is the only clean schema accepted by this binary. Adjacent
 // releases cannot serve against different cache and job lifecycle contracts.
-const SchemaVersion = 71
+const SchemaVersion = 72
 
 func Open(ctx context.Context, dsn string, maxConnections int32) (*Store, error) {
+	return open(ctx, dsn, maxConnections, nil)
+}
+
+func open(ctx context.Context, dsn string, maxConnections int32, log *QueryLog) (*Store, error) {
 	cfg, err := pgxpool.ParseConfig(dsn)
 	if err != nil {
 		return nil, errors.New("invalid PostgreSQL configuration")
+	}
+	if log != nil {
+		cfg.ConnConfig.Tracer = log
 	}
 	cfg.MaxConns = maxConnections
 	cfg.ConnConfig.ConnectTimeout = 5 * time.Second

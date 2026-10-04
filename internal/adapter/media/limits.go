@@ -52,6 +52,12 @@ type Limits struct {
 	// BandwidthPerDevice gives each device of a user its own rate instead of
 	// one rate shared by all of the user's devices.
 	BandwidthPerDevice bool
+	// RelaxStreams and RelaxBandwidth, when set, suspend the concurrency and
+	// bandwidth limits for playbacks admitted while they return true: the
+	// developer mode toggles (G45.4). A playback keeps what it was admitted
+	// with; limits apply again to the next admission after they end.
+	RelaxStreams   func() bool
+	RelaxBandwidth func() bool
 }
 
 func (l Limits) validate() error {
@@ -111,20 +117,21 @@ func newLimiter(limits Limits, clock Clock) *limiter {
 // stream, if any. A nil admission means no limit applies.
 func (l *limiter) admit(p access.Principal, sourceID string, source Source) (*admission, error) {
 	streamLimit, kbps := 0, int64(0)
-	if l.limits.StreamLimit {
+	streams := l.limits.StreamLimit && (l.limits.RelaxStreams == nil || !l.limits.RelaxStreams())
+	if streams {
 		streamLimit = l.limits.MaxStreamsPerUser
 		if source.Limits.MaxStreams != nil {
 			streamLimit = *source.Limits.MaxStreams
 		}
 	}
-	if l.limits.BandwidthLimit {
+	if l.limits.BandwidthLimit && (l.limits.RelaxBandwidth == nil || !l.limits.RelaxBandwidth()) {
 		kbps = l.limits.MaxKbpsPerUser
 		if source.Limits.MaxKbps != nil {
 			kbps = *source.Limits.MaxKbps
 		}
 	}
 	deviceLimit := 0
-	if l.limits.StreamLimit {
+	if streams {
 		deviceLimit = l.limits.MaxStreamsPerDevice
 	}
 	if streamLimit == 0 && deviceLimit == 0 && kbps == 0 {

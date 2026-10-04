@@ -31,6 +31,8 @@ export interface FakeServer {
   user: User;
   token: string;
   csrf: string;
+  /** Developer mode as GET /api/v1/system reports it (G45.3). */
+  devMode: { active: boolean; expiresAt: string };
 }
 
 const json = (status: number, body: unknown) =>
@@ -67,6 +69,7 @@ export function createFakeServer(): FakeServer {
     cookie: false,
     token: "t".repeat(43),
     csrf: "c".repeat(43),
+    devMode: { active: false, expiresAt: "" },
     user: {
       id: userId,
       name: "admin",
@@ -90,6 +93,13 @@ export function createFakeServer(): FakeServer {
       const authorized = bearer || viaCookie;
       const unsafe = !["GET", "HEAD"].includes(method);
 
+      if (path === "/api/v1/system" && method === "GET") {
+        const dev = server.devMode.active ? { devMode: true, devModeExpiresAt: server.devMode.expiresAt } : { devMode: false };
+        return new Response(JSON.stringify({ data: { name: "Jelee", ...dev } }), {
+          status: 200,
+          headers: { "Content-Type": "application/json", "X-Jelee-Dev-Mode": String(server.devMode.active) },
+        });
+      }
       if (path === "/api/v1/auth/login" && method === "POST") {
         const body = (await request.json()) as { name: string; password: string };
         if (body.name !== "admin" || body.password !== "correct horse battery") {

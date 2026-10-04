@@ -6,7 +6,7 @@
 - 請求閘門：`internal/adapter/http/client_control.go`；管理 API：`client_control_routes.go`、`client_control_openapi.go`。
 - 儲存：`internal/adapter/postgres/client_control.go`；應用服務 `internal/app/client_control.go`；契約 `internal/domain/client_control.go`。
 - 遷移：`000070_client_control`（`client_control_policy`、`client_rules`、`known_clients`、`known_client_sessions`、`client_control_hits`）。
-- 緊急恢復：`jelee-cli access reset-policies`（`cmd/jelee-cli/access.go`）。
+- 緊急恢復：`jelee-cli access reset-policies --i-understand`（`cmd/jelee-cli/access.go`；G45.6 危險操作，必須帶確認旗標）。
 
 ## 規則模型
 
@@ -98,7 +98,7 @@
 ## 緊急恢復（G47.7）
 
 ```
-jelee-cli access reset-policies
+jelee-cli access reset-policies --i-understand
 ```
 
 在一個交易內停用所有規則（保留不刪）、把策略恢復為預設（未知客戶端允許、管理員與環回豁免）、版本加一，並寫入安全類稽核 `client_control.policies_reset`（無操作者）。執行中的伺服器在下一個請求就套用。輸出為 JSON：`{"rulesDisabled":N,"policy":{…}}`；失敗只印固定代碼（`access_database_unavailable`、`access_reset_failed`），不印連線字串。

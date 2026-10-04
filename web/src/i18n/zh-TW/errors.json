@@ -21,6 +21,9 @@
     "clientPending": "此應用程式或裝置正在等待管理員核准。",
     "clientReadOnly": "此應用程式或裝置只能瀏覽內容。",
     "clientRateLimited": "此應用程式或裝置的請求過於頻繁，請稍後再試。",
-    "setupRequired": "尚未完成初始引導。"
+    "setupRequired": "尚未完成初始引導。",
+    "confirmationRequired": "這是危險操作，需要明確確認後才能繼續。",
+    "devModeInactive": "開發者模式未開啟。",
+    "devModeToggleUnavailable": "此版本不提供這個開發者模式選項。"
   }
 }
