@@ -54,7 +54,7 @@ const { t, api, settings } = usePlugin();
 | `name`、`description` | 四種語言都要有非空文字（名稱 ≤80、描述 ≤400 字元） |
 | `version` | 嚴格語意化版本 `MAJOR.MINOR.PATCH[-pre][+build]` |
 | `sdkVersion` | 版本範圍：`^1.0.0`、`~1.2.0`、`1.x`、`>=1.0.0 <2.0.0`、`a || b`、`*` |
-| `minJeleeVersion` | 最低網頁端版本（語意化版本，與 `web/package.json` 的 `version` 比較） |
+| `minJeleeVersion` | 最低 Jelee 版本（語意化版本），與伺服器 `GET /api/v1/system` 回報的 `version` 比較（伺服器建置版本，等於 OpenAPI `info.version`）；讀不到時改比網頁端 `web/package.json` 的 `version`（兩者隨同一個映像發佈） |
 | `permissions` | 不重複的權限陣列，見下表；未知權限拒絕 |
 | `hooks` | 會用到的 Hook，不重複、非空；未知 Hook 拒絕；`register()` 未宣告的 Hook 會讓 setup 失敗 |
 | `dependencies` | `{ "<插件 ID>": "<版本範圍>" }`；依賴必須存在、版本符合且已啟用，否則插件為「依賴未滿足」 |
@@ -106,7 +106,14 @@ const { t, api, settings } = usePlugin();
 
 ## 設定命名空間（G32.4）
 
-`settings.get(key, fallback)` 回傳反應式的值（元件讀取後，`set()` 會觸發重繪）；型別與 fallback 不同的已存值不會交給插件。鍵為 `^[A-Za-z][A-Za-z0-9_.-]{0,63}$`，值必須是 JSON，單一插件最多 64 個鍵、16 KiB。資料存在本瀏覽器 `localStorage` 的 `jelee.ui.v1.plugin-settings.<插件 ID>`（伺服器尚無插件設定 API，見 ADR 缺口表），每個插件只能透過自己的上下文存取自己的命名空間。管理頁可「清除插件設定」，清除後插件會重新啟動。
+`settings.get(key, fallback)` 回傳反應式的值（元件讀取後，`set()` 會觸發重繪）；型別與 fallback 不同的已存值不會交給插件。鍵為 `^[A-Za-z][A-Za-z0-9_.-]{0,63}$`，值必須是 JSON（巢狀最多 8 層，可含 `null`），單一插件最多 64 個鍵、16 KiB；伺服器以相同上限再驗一次。每個插件只能透過自己的上下文存取自己的命名空間。
+
+命名空間分兩層：
+
+- **全站值**：存在伺服器 `/api/v1/site/plugins` 的 `settings.<插件 ID>`，所有已登入使用者讀得到（停用中的插件除外）。管理員在設定頁呼叫 `set()`／`remove()` 時寫入這一層，對所有人生效；寫入帶版本號，被其他管理員搶先時宿主會顯示錯誤並重新載入伺服器上的值。**全站值對每個使用者可讀，絕對不要存密鑰或憑證。**
+- **瀏覽器值**：一般使用者的 `set()`，以及未登入或讀不到伺服器時任何人的 `set()`，存在本瀏覽器 `localStorage` 的 `jelee.ui.v1.plugin-settings.<插件 ID>`，只在該瀏覽器覆蓋全站值。
+
+`get()` 先看瀏覽器值，再看全站值，`keys()` 為兩者聯集。管理頁「清除插件設定」同時清除全站值與本瀏覽器的值，清除後插件會重新啟動。啟用狀態與順序同樣存在伺服器（管理員變更即對所有人生效），讀不到伺服器時沿用本瀏覽器的副本。
 
 ## 隔離與失敗（G32.3）
 

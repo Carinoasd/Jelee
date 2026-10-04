@@ -11,7 +11,7 @@
     },
     "title": "插件",
     "intro": "插件 SDK {sdk}，Jelee 网页端 {version}。启用、停用与排序立即生效。",
-    "storageNote": "服务器还没有插件设置 API：启用状态、顺序与插件设置只保存在这个浏览器中，不会同步到其他设备或用户。",
+    "storageNote": "目前读不到服务器的插件设置：启用状态、顺序与插件设置只保存在这个浏览器中。",
     "empty": "没有可用的插件。",
     "order": "插件顺序",
     "orderHint": "顺序决定各插件内容在页面中出现的先后。",
@@ -36,7 +36,7 @@
     "restart": "重新启动",
     "clearSettings": "清除插件设置",
     "clearSettingsConfirm": "确认清除",
-    "clearSettingsPrompt": "将删除“{name}”在此浏览器中保存的全部设置。",
+    "clearSettingsPrompt": "将删除“{name}”保存的全部设置：全站设置与此浏览器中的设置。",
     "enabledToast": "已启用 {name}。",
     "disabledToast": "已停用 {name}。",
     "settingsCleared": "已清除 {name} 的设置。",
@@ -51,7 +51,7 @@
     "permissions": {
       "catalogRead": "读取当前用户可见的条目详情、文件摘要与媒体库列表（只读）。",
       "userRead": "读取当前用户的名称、显示名称、语言与是否为管理员。",
-      "settingsStorage": "在此浏览器中保存自己的设置（独立命名空间）。",
+      "settingsStorage": "在独立命名空间保存自己的设置：管理员为所有人设置，其他用户的更改只留在自己的浏览器。",
       "uiRoutes": "在 /x/插件 ID/ 下注册页面。",
       "uiTheme": "覆盖设计 token（颜色、圆角、字体）。"
     },
@@ -82,6 +82,8 @@
       "loadFailed": "无法加载插件代码：{error}",
       "invalidDefinition": "入口没有导出有效的插件定义（setup 与四种语言的消息）。",
       "setupFailed": "setup 出错，插件未启动：{error}"
-    }
+    },
+    "storageServer": "启用状态、顺序与插件设置保存在服务器上，对所有用户与设备生效。",
+    "saveFailed": "插件设置无法保存，已重新加载服务器当前的设置。"
   }
 }

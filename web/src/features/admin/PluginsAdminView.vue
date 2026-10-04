@@ -8,7 +8,7 @@ import UiButton from "@/components/ui/UiButton.vue";
 import UiConfirmButton from "@/components/ui/UiConfirmButton.vue";
 import UiEmptyState from "@/components/ui/UiEmptyState.vue";
 import UiReorderList from "@/components/ui/UiReorderList.vue";
-import { jeleeVersion, usePluginStore, type PluginView } from "@/plugins/host/store";
+import { usePluginStore, type PluginView } from "@/plugins/host/store";
 import { useToastStore } from "@/stores/toasts";
 import { issueKey, permissionKey, problemKey, statusKey, statusTone } from "./pluginLabels";
 
@@ -62,8 +62,8 @@ function dependencies(plugin: PluginView): string {
 <template>
   <section class="jl-plugins" aria-labelledby="plugins-title">
     <h1 id="plugins-title" tabindex="-1">{{ t("plugins.title") }}</h1>
-    <p class="jl-plugins__muted">{{ t("plugins.intro", { sdk: SDK_VERSION, version: jeleeVersion }) }}</p>
-    <UiAlert tone="info">{{ t("plugins.storageNote") }}</UiAlert>
+    <p class="jl-plugins__muted">{{ t("plugins.intro", { sdk: SDK_VERSION, version: store.version }) }}</p>
+    <UiAlert tone="info">{{ t(store.source === "server" ? "plugins.storageServer" : "plugins.storageNote") }}</UiAlert>
 
     <UiEmptyState v-if="store.plugins.length === 0" :title="t('plugins.empty')" />
     <template v-else>

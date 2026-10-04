@@ -38,6 +38,8 @@ type httpAccountRepository struct {
 	profile     func(context.Context, domain.Actor, domain.ProfileInput) (domain.User, error)
 	libraries   func(context.Context, domain.Actor, string, []string) error
 	preferences func(context.Context, domain.Actor, *domain.UserPreferences) (domain.UserPreferences, error)
+	// site holds site settings (site_settings_test.go); nil serves defaults.
+	site *siteStore
 }
 
 func (f httpAccountRepository) Credentials(ctx context.Context, name string) (domain.Credentials, error) {

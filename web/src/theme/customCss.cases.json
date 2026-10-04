@@ -1,0 +1,974 @@
+{
+ "comment": "Shared cases for the custom CSS sanitizers: web/src/theme/customCss.ts and internal/domain/customcss.go must both produce these results. Regenerate expectations from the web client only after reviewing both implementations.",
+ "css": [
+  {
+   "input": "\n      /* brand */\n      .jl-header { background: var(--jl-color-surface); border-bottom: 2px solid #2f5bd3 !important }\n      a > span, h1:hover { color: rgb(10 20 30 / 50%) }\n      @media (max-width: 640px) { .jl-main { padding: 8px } }\n      @keyframes pulse { from { opacity: 0.5 } 50% { opacity: 1 } to { opacity: 0.5 } }\n      body { background-image: url(\"/images/Primary/abc?width=300\"); }\n      input[type=\"search\"] { border-radius: 4px; }\n    ",
+   "css": ".jl-header{background:var(--jl-color-surface);border-bottom:2px solid #2f5bd3 !important}\na > span, h1:hover{color:rgb(10 20 30 / 50%)}\n@media (max-width: 640px){.jl-main{padding:8px}}\n@keyframes pulse{from{opacity:0.5}50%{opacity:1}to{opacity:0.5}}\nbody{background-image:url(\"/images/Primary/abc?width=300\")}\ninput[type=\"search\"]{border-radius:4px}",
+   "rejected": false,
+   "issues": []
+  },
+  {
+   "input": "</style><script>alert(1)</script>",
+   "css": "",
+   "rejected": true,
+   "issues": [
+    "markup"
+   ]
+  },
+  {
+   "input": "body { content: \"<script>alert(1)</script>\" }",
+   "css": "",
+   "rejected": true,
+   "issues": [
+    "markup"
+   ]
+  },
+  {
+   "input": "<!-- body{} -->",
+   "css": "",
+   "rejected": true,
+   "issues": [
+    "markup"
+   ]
+  },
+  {
+   "input": "div { width: \\65 xpression(alert(1)) }",
+   "css": "",
+   "rejected": true,
+   "issues": [
+    "escape"
+   ]
+  },
+  {
+   "input": "div { background: \\75rl(https://evil.example/x) }",
+   "css": "",
+   "rejected": true,
+   "issues": [
+    "escape"
+   ]
+  },
+  {
+   "input": "div { color: red\u0000 }",
+   "css": "",
+   "rejected": true,
+   "issues": [
+    "control_char"
+   ]
+  },
+  {
+   "input": "div { color: red  }",
+   "css": "",
+   "rejected": true,
+   "issues": [
+    "control_char"
+   ]
+  },
+  {
+   "input": "div { color: red\u000b }",
+   "css": "",
+   "rejected": true,
+   "issues": [
+    "control_char"
+   ]
+  },
+  {
+   "input": "div {\tcolor:\fred\r\n}",
+   "css": "div{color:red}",
+   "rejected": false,
+   "issues": []
+  },
+  {
+   "input": "div { color: red } /* body { background: url(https://evil.example) }",
+   "css": "",
+   "rejected": true,
+   "issues": [
+    "unterminated_comment"
+   ]
+  },
+  {
+   "input": "a { color: red } } body { background: url(https://evil.example/x) }",
+   "css": "",
+   "rejected": true,
+   "issues": [
+    "unbalanced"
+   ]
+  },
+  {
+   "input": "a { color: red",
+   "css": "",
+   "rejected": true,
+   "issues": [
+    "unbalanced"
+   ]
+  },
+  {
+   "input": "a { content: \"x }",
+   "css": "",
+   "rejected": true,
+   "issues": [
+    "unbalanced"
+   ]
+  },
+  {
+   "input": "a { content: \"x\ny\" }",
+   "css": "",
+   "rejected": true,
+   "issues": [
+    "unbalanced"
+   ]
+  },
+  {
+   "input": "a { width: calc(1px + (2px) }",
+   "css": "",
+   "rejected": true,
+   "issues": [
+    "unbalanced"
+   ]
+  },
+  {
+   "input": "a { width: 1px) }",
+   "css": "",
+   "rejected": true,
+   "issues": [
+    "unbalanced"
+   ]
+  },
+  {
+   "input": "div { width: expression(alert(1)); color: red }",
+   "css": "div{color:red}",
+   "rejected": false,
+   "issues": [
+    "expression"
+   ]
+  },
+  {
+   "input": "div { width: EXPRESSION (alert(1)); color: red }",
+   "css": "div{color:red}",
+   "rejected": false,
+   "issues": [
+    "expression"
+   ]
+  },
+  {
+   "input": "div { width: expression (alert(1)); color: red }",
+   "css": "div{color:red}",
+   "rejected": false,
+   "issues": [
+    "expression"
+   ]
+  },
+  {
+   "input": "div { width: expression﻿(alert(1)); color: red }",
+   "css": "div{color:red}",
+   "rejected": false,
+   "issues": [
+    "expression"
+   ]
+  },
+  {
+   "input": "div { background: url(javascript:alert(1)); color: red }",
+   "css": "div{color:red}",
+   "rejected": false,
+   "issues": [
+    "script_url"
+   ]
+  },
+  {
+   "input": "div { background: url('JavaScript:alert(1)'); color: red }",
+   "css": "div{color:red}",
+   "rejected": false,
+   "issues": [
+    "script_url"
+   ]
+  },
+  {
+   "input": "div { background: url(javascrİpt:alert(1)); color: red }",
+   "css": "div{color:red}",
+   "rejected": false,
+   "issues": [
+    "external_url"
+   ]
+  },
+  {
+   "input": "div { background: url(vbscript:msgbox(1)); color: red }",
+   "css": "div{color:red}",
+   "rejected": false,
+   "issues": [
+    "script_url"
+   ]
+  },
+  {
+   "input": "div { background: url(livescript　:x); color: red }",
+   "css": "div{color:red}",
+   "rejected": false,
+   "issues": [
+    "script_url"
+   ]
+  },
+  {
+   "input": "div { background: url(https://evil.example/x.png); color: red }",
+   "css": "div{color:red}",
+   "rejected": false,
+   "issues": [
+    "external_url"
+   ]
+  },
+  {
+   "input": "div { background: url(//evil.example/x.png); color: red }",
+   "css": "div{color:red}",
+   "rejected": false,
+   "issues": [
+    "external_url"
+   ]
+  },
+  {
+   "input": "div { background: url(data:image/svg+xml;base64,PHN2Zz4=); color: red }",
+   "css": "div{color:red}",
+   "rejected": false,
+   "issues": [
+    "external_url"
+   ]
+  },
+  {
+   "input": "div { background: url(/a b.png); color: red }",
+   "css": "div{color:red}",
+   "rejected": false,
+   "issues": [
+    "external_url"
+   ]
+  },
+  {
+   "input": "div { background: url( \"/ok.png\" ); color: red }",
+   "css": "div{background:url( \"/ok.png\" );color:red}",
+   "rejected": false,
+   "issues": []
+  },
+  {
+   "input": "div { background: URL(#frag); color: red }",
+   "css": "div{background:URL(#frag);color:red}",
+   "rejected": false,
+   "issues": []
+  },
+  {
+   "input": "input[value^=\"a\"] { background: url(https://evil.example/?a); color: red }",
+   "css": "input[value^=\"a\"]{color:red}",
+   "rejected": false,
+   "issues": [
+    "external_url"
+   ]
+  },
+  {
+   "input": "div { background-image: image-set(\"https://evil.example/x.png\" 1x); color: red }",
+   "css": "div{color:red}",
+   "rejected": false,
+   "issues": [
+    "blocked_function"
+   ]
+  },
+  {
+   "input": "div { background-image: -webkit-image-set(\"https://evil.example/x.png\" 1x); color: red }",
+   "css": "div{color:red}",
+   "rejected": false,
+   "issues": [
+    "blocked_function"
+   ]
+  },
+  {
+   "input": "div { background-image: src(\"https://evil.example/x.png\"); color: red }",
+   "css": "div{color:red}",
+   "rejected": false,
+   "issues": [
+    "blocked_function"
+   ]
+  },
+  {
+   "input": "div { background-image: element(#x); paint: paint(foo); color: red }",
+   "css": "div{color:red}",
+   "rejected": false,
+   "issues": [
+    "blocked_function",
+    "blocked_function"
+   ]
+  },
+  {
+   "input": "div { background-image: attr(data-x url); color: red }",
+   "css": "div{color:red}",
+   "rejected": false,
+   "issues": [
+    "blocked_function"
+   ]
+  },
+  {
+   "input": "div { behavior: url(/x.htc); color: red }",
+   "css": "div{color:red}",
+   "rejected": false,
+   "issues": [
+    "binding"
+   ]
+  },
+  {
+   "input": "div { -moz-binding: url(/x.xml#xss); color: red }",
+   "css": "div{color:red}",
+   "rejected": false,
+   "issues": [
+    "binding"
+   ]
+  },
+  {
+   "input": "div { BEHAVIOR: x; color: red }",
+   "css": "div{color:red}",
+   "rejected": false,
+   "issues": [
+    "binding"
+   ]
+  },
+  {
+   "input": "div { color: red; span { color: blue } }",
+   "css": "div{color:red}",
+   "rejected": false,
+   "issues": [
+    "nesting_unsupported"
+   ]
+  },
+  {
+   "input": "@import url(https://evil.example/x.css); a { color: red }",
+   "css": "a{color:red}",
+   "rejected": false,
+   "issues": [
+    "import_blocked"
+   ]
+  },
+  {
+   "input": "@import \"/local.css\"; a { color: red }",
+   "css": "a{color:red}",
+   "rejected": false,
+   "issues": [
+    "import_blocked"
+   ]
+  },
+  {
+   "input": "@IMPORT url(x.css); a { color: red }",
+   "css": "a{color:red}",
+   "rejected": false,
+   "issues": [
+    "import_blocked"
+   ]
+  },
+  {
+   "input": "@charset \"utf-8\"; a { color: red }",
+   "css": "a{color:red}",
+   "rejected": false,
+   "issues": [
+    "at_rule_blocked"
+   ]
+  },
+  {
+   "input": "@namespace svg url(http://www.w3.org/2000/svg); a { color: red }",
+   "css": "a{color:red}",
+   "rejected": false,
+   "issues": [
+    "at_rule_blocked"
+   ]
+  },
+  {
+   "input": "@document url(https://evil.example) { a { color: blue } } a { color: red }",
+   "css": "a{color:red}",
+   "rejected": false,
+   "issues": [
+    "at_rule_blocked"
+   ]
+  },
+  {
+   "input": "@media (min-width: url(x)) { a { color: blue } } a { color: red }",
+   "css": "a{color:red}",
+   "rejected": false,
+   "issues": [
+    "at_rule_blocked"
+   ]
+  },
+  {
+   "input": "@media screen { @supports (display: grid) { @container (min-width: 1px) { @layer x { a { color: red } } } } }",
+   "css": "",
+   "rejected": false,
+   "issues": [
+    "too_deep"
+   ]
+  },
+  {
+   "input": "@media a { @media b { @media c { @media d { a { color: red } } } } }",
+   "css": "",
+   "rejected": false,
+   "issues": [
+    "too_deep"
+   ]
+  },
+  {
+   "input": "@layer base, theme; @layer base { a { color: red } }",
+   "css": "@layer base, theme;\n@layer base{a{color:red}}",
+   "rejected": false,
+   "issues": []
+  },
+  {
+   "input": "@layer a;b { color: red }",
+   "css": "@layer a;\nb{color:red}",
+   "rejected": false,
+   "issues": []
+  },
+  {
+   "input": "@-webkit-keyframes spin { 0% { opacity: 0 } 100.5% { opacity: 1 } bad { opacity: 1 } }",
+   "css": "@-webkit-keyframes spin{0%{opacity:0}100.5%{opacity:1}}",
+   "rejected": false,
+   "issues": [
+    "invalid_selector"
+   ]
+  },
+  {
+   "input": "@keyframes bad name { from { opacity: 0 } }",
+   "css": "",
+   "rejected": false,
+   "issues": [
+    "at_rule_blocked"
+   ]
+  },
+  {
+   "input": "@keyframes x { from, to { opacity: 0 } 10%,20% { opacity: 1 } }",
+   "css": "@keyframes x{from, to{opacity:0}10%,20%{opacity:1}}",
+   "rejected": false,
+   "issues": []
+  },
+  {
+   "input": "div { width: expr/**/ession(alert(1)) }",
+   "css": "div{width:expr ession(alert(1))}",
+   "rejected": false,
+   "issues": []
+  },
+  {
+   "input": "a;b { color: red }",
+   "css": "b{color:red}",
+   "rejected": false,
+   "issues": [
+    "invalid_selector"
+   ]
+  },
+  {
+   "input": "@x { } a@b { color: red }",
+   "css": "",
+   "rejected": false,
+   "issues": [
+    "at_rule_blocked",
+    "invalid_selector"
+   ]
+  },
+  {
+   "input": "{ color: red }",
+   "css": "",
+   "rejected": false,
+   "issues": [
+    "invalid_selector"
+   ]
+  },
+  {
+   "input": "a { color red; : x; --brand-color: #fff; Color: Blue }",
+   "css": "a{--brand-color:#fff;color:Blue}",
+   "rejected": false,
+   "issues": [
+    "invalid_declaration",
+    "invalid_declaration"
+   ]
+  },
+  {
+   "input": "a { İnherit: x; color: red }",
+   "css": "a{color:red}",
+   "rejected": false,
+   "issues": [
+    "invalid_declaration"
+   ]
+  },
+  {
+   "repeat": {
+    "prefix": "a { color: ",
+    "unit": "x",
+    "times": 2049,
+    "suffix": " }"
+   },
+   "css": "",
+   "rejected": false,
+   "issues": [
+    "invalid_declaration"
+   ]
+  },
+  {
+   "repeat": {
+    "prefix": "a { color: ",
+    "unit": "x",
+    "times": 2048,
+    "suffix": " }"
+   },
+   "cssLength": 2057,
+   "rejected": false,
+   "issues": []
+  },
+  {
+   "repeat": {
+    "prefix": "",
+    "unit": "a",
+    "times": 1025,
+    "suffix": " { color: red }"
+   },
+   "css": "",
+   "rejected": false,
+   "issues": [
+    "invalid_selector"
+   ]
+  },
+  {
+   "repeat": {
+    "prefix": "a { color: ",
+    "unit": "😀",
+    "times": 1025,
+    "suffix": " }"
+   },
+   "css": "",
+   "rejected": false,
+   "issues": [
+    "invalid_declaration"
+   ]
+  },
+  {
+   "input": "été { color: red }",
+   "css": "",
+   "rejected": false,
+   "issues": [
+    "invalid_selector"
+   ]
+  },
+  {
+   "input": "a { content: '😀'; color: red }",
+   "css": "a{content:'😀';color:red}",
+   "rejected": false,
+   "issues": []
+  },
+  {
+   "repeat": {
+    "prefix": "",
+    "unit": "a{color:red}",
+    "times": 7000,
+    "suffix": ""
+   },
+   "css": "",
+   "rejected": true,
+   "issues": [
+    "too_long"
+   ]
+  },
+  {
+   "repeat": {
+    "prefix": "",
+    "unit": "😀",
+    "times": 32768,
+    "suffix": "a"
+   },
+   "css": "",
+   "rejected": true,
+   "issues": [
+    "too_long"
+   ]
+  },
+  {
+   "repeat": {
+    "prefix": "a{content:'",
+    "unit": "😀",
+    "times": 32760,
+    "suffix": "'}"
+   },
+   "css": "",
+   "rejected": false,
+   "issues": [
+    "invalid_declaration"
+   ]
+  },
+  {
+   "input": "@font-face { font-family: Brand; src: url(https://fonts.example.com/brand.woff2) format('woff2') }",
+   "css": "@font-face{font-family:Brand}",
+   "rejected": false,
+   "issues": [
+    "external_font"
+   ]
+  },
+  {
+   "input": "@font-face { font-family: Brand; src: url(https://fonts.example.com/brand.woff2) format('woff2') }",
+   "policy": {
+    "allowExternalFonts": true,
+    "fontHosts": [
+     "fonts.example.com"
+    ]
+   },
+   "css": "@font-face{font-family:Brand;src:url(https://fonts.example.com/brand.woff2) format('woff2')}",
+   "rejected": false,
+   "issues": []
+  },
+  {
+   "input": "@font-face { font-family: Brand; src: url(https://FONTS.Example.com/brand.woff2) }",
+   "policy": {
+    "allowExternalFonts": true,
+    "fontHosts": [
+     "fonts.example.com"
+    ]
+   },
+   "css": "@font-face{font-family:Brand;src:url(https://FONTS.Example.com/brand.woff2)}",
+   "rejected": false,
+   "issues": []
+  },
+  {
+   "input": "@font-face { font-family: Brand; src: url(\"https://fonts.example.com/a.woff2\") }",
+   "policy": {
+    "allowExternalFonts": true,
+    "fontHosts": [
+     "fonts.example.com"
+    ]
+   },
+   "css": "@font-face{font-family:Brand;src:url(\"https://fonts.example.com/a.woff2\")}",
+   "rejected": false,
+   "issues": []
+  },
+  {
+   "input": "@font-face { font-family: Brand; src: url(https://fonts.example.com/brand.woff2) format('woff2') }",
+   "policy": {
+    "allowExternalFonts": false,
+    "fontHosts": [
+     "fonts.example.com"
+    ]
+   },
+   "css": "@font-face{font-family:Brand}",
+   "rejected": false,
+   "issues": [
+    "external_font"
+   ]
+  },
+  {
+   "input": "@font-face { font-family: B; src: url(https://evil.example/x.woff2) }",
+   "policy": {
+    "allowExternalFonts": true,
+    "fontHosts": [
+     "fonts.example.com"
+    ]
+   },
+   "css": "@font-face{font-family:B}",
+   "rejected": false,
+   "issues": [
+    "external_font"
+   ]
+  },
+  {
+   "input": "@font-face { font-family: B; src: url(http://fonts.example.com/x.woff2) }",
+   "policy": {
+    "allowExternalFonts": true,
+    "fontHosts": [
+     "fonts.example.com"
+    ]
+   },
+   "css": "@font-face{font-family:B}",
+   "rejected": false,
+   "issues": [
+    "external_font"
+   ]
+  },
+  {
+   "input": "@font-face { font-family: B; src: url(https://user@fonts.example.com/x.woff2) }",
+   "policy": {
+    "allowExternalFonts": true,
+    "fontHosts": [
+     "fonts.example.com"
+    ]
+   },
+   "css": "@font-face{font-family:B}",
+   "rejected": false,
+   "issues": [
+    "external_font"
+   ]
+  },
+  {
+   "input": "@font-face { font-family: B; src: url(https://fonts.example.com:8443/x.woff2) }",
+   "policy": {
+    "allowExternalFonts": true,
+    "fontHosts": [
+     "fonts.example.com"
+    ]
+   },
+   "css": "@font-face{font-family:B}",
+   "rejected": false,
+   "issues": [
+    "external_font"
+   ]
+  },
+  {
+   "input": "@font-face { font-family: B; src: url(https://fonts.example.com.evil.example/x.woff2) }",
+   "policy": {
+    "allowExternalFonts": true,
+    "fontHosts": [
+     "fonts.example.com"
+    ]
+   },
+   "css": "@font-face{font-family:B}",
+   "rejected": false,
+   "issues": [
+    "external_font"
+   ]
+  },
+  {
+   "input": "@font-face { font-family: B; src: url(https://fonts.example.com) }",
+   "policy": {
+    "allowExternalFonts": true,
+    "fontHosts": [
+     "fonts.example.com"
+    ]
+   },
+   "css": "@font-face{font-family:B;src:url(https://fonts.example.com)}",
+   "rejected": false,
+   "issues": []
+  },
+  {
+   "input": "@font-face { font-family: B; src: url(https://fonts.example.com?x) }",
+   "policy": {
+    "allowExternalFonts": true,
+    "fontHosts": [
+     "fonts.example.com"
+    ]
+   },
+   "css": "@font-face{font-family:B;src:url(https://fonts.example.com?x)}",
+   "rejected": false,
+   "issues": []
+  },
+  {
+   "input": "@font-face x { font-family: B }",
+   "policy": {
+    "allowExternalFonts": true,
+    "fontHosts": [
+     "fonts.example.com"
+    ]
+   },
+   "css": "",
+   "rejected": false,
+   "issues": [
+    "at_rule_blocked"
+   ]
+  },
+  {
+   "input": "@font-face;",
+   "policy": {
+    "allowExternalFonts": true,
+    "fontHosts": [
+     "fonts.example.com"
+    ]
+   },
+   "css": "",
+   "rejected": false,
+   "issues": [
+    "at_rule_blocked"
+   ]
+  },
+  {
+   "input": "body { background: url(https://fonts.example.com/x.png) }",
+   "policy": {
+    "allowExternalFonts": true,
+    "fontHosts": [
+     "fonts.example.com"
+    ]
+   },
+   "css": "",
+   "rejected": false,
+   "issues": [
+    "external_url"
+   ]
+  },
+  {
+   "input": "a { color: red } b { color: blue }   \n  ;; c { margin: 0 }",
+   "css": "a{color:red}\nb{color:blue}\nc{margin:0}",
+   "rejected": false,
+   "issues": []
+  },
+  {
+   "input": "a { color: red; }; garbage",
+   "css": "a{color:red}",
+   "rejected": false,
+   "issues": [
+    "invalid_selector"
+   ]
+  }
+ ],
+ "tokens": [
+  {
+   "value": "#0f766e",
+   "allowQuotes": false,
+   "result": "#0f766e"
+  },
+  {
+   "value": " 14px ",
+   "allowQuotes": false,
+   "result": "14px"
+  },
+  {
+   "value": "\"Noto Sans\", sans-serif",
+   "allowQuotes": true,
+   "result": "\"Noto Sans\", sans-serif"
+  },
+  {
+   "value": "\"Noto Sans\", sans-serif",
+   "allowQuotes": false,
+   "result": null
+  },
+  {
+   "value": "red; } body { display: none",
+   "allowQuotes": false,
+   "result": null
+  },
+  {
+   "value": "url(/x.png)",
+   "allowQuotes": false,
+   "result": null
+  },
+  {
+   "value": "URL (x)",
+   "allowQuotes": false,
+   "result": null
+  },
+  {
+   "value": "expression(alert(1))",
+   "allowQuotes": false,
+   "result": null
+  },
+  {
+   "value": "javascript:alert(1)",
+   "allowQuotes": false,
+   "result": null
+  },
+  {
+   "value": "\"x\"",
+   "allowQuotes": false,
+   "result": null
+  },
+  {
+   "value": "a<b",
+   "allowQuotes": false,
+   "result": null
+  },
+  {
+   "value": "\\65",
+   "allowQuotes": false,
+   "result": null
+  },
+  {
+   "value": "",
+   "allowQuotes": false,
+   "result": null
+  },
+  {
+   "value": "image-set('x' 1x)",
+   "allowQuotes": true,
+   "result": null
+  },
+  {
+   "value": "rgb(1 2 3 / 50%)",
+   "allowQuotes": false,
+   "result": "rgb(1 2 3 / 50%)"
+  },
+  {
+   "value": "calc(100% - 4px)",
+   "allowQuotes": false,
+   "result": "calc(100% - 4px)"
+  },
+  {
+   "value": "@x",
+   "allowQuotes": false,
+   "result": null
+  },
+  {
+   "value": "a\tb",
+   "allowQuotes": false,
+   "result": null
+  },
+  {
+   "value": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "allowQuotes": false,
+   "result": null
+  },
+  {
+   "value": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "allowQuotes": false,
+   "result": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+  },
+  {
+   "value": "  ",
+   "allowQuotes": false,
+   "result": null
+  },
+  {
+   "value": "paint(x)",
+   "allowQuotes": false,
+   "result": null
+  },
+  {
+   "value": "8px",
+   "allowQuotes": false,
+   "result": "8px"
+  }
+ ],
+ "hosts": [
+  {
+   "value": " Fonts.Example.COM ",
+   "result": "fonts.example.com"
+  },
+  {
+   "value": "https://fonts.example.com",
+   "result": null
+  },
+  {
+   "value": "fonts.example.com/x",
+   "result": null
+  },
+  {
+   "value": "localhost",
+   "result": null
+  },
+  {
+   "value": "*.example.com",
+   "result": null
+  },
+  {
+   "value": "fonts..example.com",
+   "result": null
+  },
+  {
+   "value": "1.2.3.4",
+   "result": null
+  },
+  {
+   "value": "fonts.example.123",
+   "result": null
+  },
+  {
+   "value": "a-.example.com",
+   "result": null
+  },
+  {
+   "value": "fonts.example.com.",
+   "result": null
+  },
+  {
+   "value": "xn--bcher-kva.example",
+   "result": "xn--bcher-kva.example"
+  },
+  {
+   "value": "-a.example.com",
+   "result": null
+  },
+  {
+   "value": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.com",
+   "result": null
+  },
+  {
+   "value": "fonts_example.com",
+   "result": null
+  }
+ ]
+}

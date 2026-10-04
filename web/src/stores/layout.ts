@@ -1,13 +1,20 @@
 import { defineStore } from "pinia";
 import { shallowRef, watch } from "vue";
+import type { UserLayout } from "@/features/site/api";
 import { useAuthStore } from "./auth";
 import { readPersisted, writePersisted } from "./persist";
+import { usePreferencesStore } from "./preferences";
+import { useSiteAppearanceStore } from "./siteAppearance";
 
 // Layout customization (G33.5): order and visibility of the home page blocks
 // and the item page panels, with built-in presets and up to ten named
-// presets of the user's own. The server's preferences schema has no layout
-// field yet, so layouts are kept per account in this browser (see
-// docs/frontend-adr.md); nothing is written until the user changes something.
+// presets of the user's own. A signed-in user's layout is part of the
+// server preferences (layout member of /api/v1/users/me/preferences), so it
+// follows the account to other devices; until the user customizes it, the
+// administrator's site default layout applies (GET /api/v1/site/appearance),
+// else the built-in standard one. Every change is also cached per account in
+// this browser, which is what applies while signed out or when the server
+// cannot be read. Nothing is written until the user changes something.
 
 export const homeBlockIds = ["welcome", "libraries", "latest"] as const;
 export type HomeBlockId = (typeof homeBlockIds)[number];
@@ -101,43 +108,97 @@ interface Stored {
 
 const storageKey = "page-layout";
 
-function readStored(scope: string): Stored {
-  const raw = readPersisted(storageKey, scope);
-  const record = typeof raw === "object" && raw !== null ? (raw as Record<string, unknown>) : {};
+/** Repairs untrusted presets: invalid entries dropped, at most ten kept. */
+function normalizePresets(raw: unknown): CustomPreset[] {
   const presets: CustomPreset[] = [];
-  if (Array.isArray(record.presets)) {
-    for (const entry of (record.presets as unknown[]).slice(0, customPresetLimit)) {
+  if (Array.isArray(raw)) {
+    for (const entry of (raw as unknown[]).slice(0, customPresetLimit)) {
       if (typeof entry !== "object" || entry === null) {
         continue;
       }
       const preset = entry as Record<string, unknown>;
-      if (typeof preset.id === "string" && /^custom-\d{1,6}$/.test(preset.id) && typeof preset.name === "string" && preset.name.trim() !== "") {
-        presets.push({ id: preset.id, name: preset.name.slice(0, presetNameMaxLength), layout: normalizeLayout(preset.layout) });
+      const name = typeof preset.name === "string" ? preset.name.trim().slice(0, presetNameMaxLength).trim() : "";
+      if (typeof preset.id === "string" && /^custom-\d{1,6}$/.test(preset.id) && name !== "" && !presets.some((known) => known.id === preset.id)) {
+        presets.push({ id: preset.id, name, layout: normalizeLayout(preset.layout) });
       }
     }
   }
-  return { layout: normalizeLayout(record.layout ?? builtInPresets.standard), presets };
+  return presets;
+}
+
+/** The browser cache of one account's layout; null when nothing is stored. */
+function readStored(scope: string): Stored | null {
+  const raw = readPersisted(storageKey, scope);
+  if (typeof raw !== "object" || raw === null) {
+    return null;
+  }
+  const record = raw as Record<string, unknown>;
+  return { layout: normalizeLayout(record.layout ?? builtInPresets.standard), presets: normalizePresets(record.presets) };
+}
+
+/** The server form of a layout (UserLayout). */
+export function toUserLayout(layout: Layout, presets: readonly CustomPreset[]): UserLayout {
+  const area = <T extends string>(entries: readonly LayoutEntry<T>[]) => entries.map((entry) => ({ id: entry.id, visible: entry.visible }));
+  return {
+    current: { home: area(layout.home), detail: area(layout.detail) },
+    presets: presets.map((preset) => ({ id: preset.id, name: preset.name, layout: { home: area(preset.layout.home), detail: area(preset.layout.detail) } })),
+  };
 }
 
 export const useLayoutStore = defineStore("layout", () => {
   const auth = useAuthStore();
+  const preferences = usePreferencesStore();
+  const site = useSiteAppearanceStore();
   const layout = shallowRef<Layout>(builtInPresets.standard);
   const presets = shallowRef<readonly CustomPreset[]>([]);
-  // One layout per account in this browser; "guest" before sign-in.
+  /** Where the current layout comes from. */
+  const source = shallowRef<"server" | "browser" | "site" | "standard">("standard");
+  // One cached layout per account in this browser; "guest" before sign-in.
   let scope = "guest";
+
+  /** The administrator's default layout, or the built-in standard one. */
+  function defaultLayout(): Layout {
+    const fallback = site.view?.defaultLayout;
+    return fallback === null || fallback === undefined ? builtInPresets.standard : normalizeLayout(fallback);
+  }
 
   function load(): void {
     scope = auth.user?.id ?? "guest";
+    const server = auth.user !== null && preferences.loadedFor === auth.user.id ? preferences.layout : null;
+    if (server !== null && typeof server === "object") {
+      layout.value = normalizeLayout(server.current);
+      presets.value = normalizePresets(server.presets);
+      source.value = "server";
+      return;
+    }
     const stored = readStored(scope);
-    layout.value = stored.layout;
-    presets.value = stored.presets;
+    if (stored !== null) {
+      layout.value = stored.layout;
+      presets.value = stored.presets;
+      source.value = "browser";
+      return;
+    }
+    layout.value = defaultLayout();
+    presets.value = [];
+    source.value = site.view?.defaultLayout ? "site" : "standard";
   }
 
   function persist(): void {
     writePersisted(storageKey, { layout: layout.value, presets: presets.value }, scope);
+    source.value = "browser";
+    // The account copy; while signed out or before the preferences were
+    // read the browser copy is all there is. A failed save keeps it too.
+    preferences.saveLayout(toUserLayout(layout.value, presets.value)).then(
+      (saved) => {
+        if (saved) {
+          source.value = "server";
+        }
+      },
+      () => undefined,
+    );
   }
 
-  watch(() => auth.user?.id, load, { immediate: true });
+  watch(() => [auth.user?.id, preferences.loadedFor, preferences.layout, site.view?.defaultLayout], load, { immediate: true });
 
   /** Preset the current layout equals, or null after individual changes. */
   function activePreset(): string | null {
@@ -201,9 +262,10 @@ export const useLayoutStore = defineStore("layout", () => {
     return layout.value[area].filter((entry) => entry.visible).map((entry) => entry.id);
   }
 
+  /** Restores the site default layout (else the standard one); presets stay. */
   function reset(): void {
-    update(builtInPresets.standard);
+    update(defaultLayout());
   }
 
-  return { layout, presets, activePreset, move, setVisible, applyPreset, savePreset, deletePreset, visibleIds, reset };
+  return { layout, presets, source, activePreset, move, setVisible, applyPreset, savePreset, deletePreset, visibleIds, reset };
 });

@@ -22,7 +22,7 @@
 | GET `/auth/csrf` | 自己 | 返回当前凭据对应的 `csrf`，供页面重载后取回 |
 | GET `/users/me` | 自己 | 当前用户资料 |
 | PUT `/users/me/profile` | 自己 | `displayName,locale,hidden`；不能修改角色或密码 |
-| GET/PUT `/users/me/preferences` | 自己 | 界面偏好 `theme`（system/light/dark）、`density`（comfortable/compact，预留）；从未保存时读到默认值；PUT 必须带齐全部字段（迁移 000073 `user_preferences`）；只影响显示，不写审计、不进元数据备份，降级时直接丢弃 |
+| GET/PUT `/users/me/preferences` | 自己 | 界面偏好 `theme`（system/light/dark）、`density`（comfortable/compact，预留）、`layout`（页面布局与自定义预设 `{current,presets}`，未自定义时为 `null`；16 KiB、每区最多 32 个区块、最多 10 个预设）；从未保存时读到全站默认主题（`/site/appearance` 的 `defaultTheme`）；PUT 必须带齐全部字段（`layout` 可为 `null`；迁移 000073 `user_preferences`、000074 加 `layout`）；只影响显示，不写审计、不进元数据备份，降级时直接丢弃 |
 | PUT `/users/me/password` | 自己 | `oldPassword,newPassword`；成功后撤销所有会话，需重新登录；旧密码错误返回 `400 invalid_password`（会话仍有效，与会话失效的 401 区分） |
 | GET `/users` | 管理员 | `cursor?,limit=1..100,includeDeleted=true/false`；data.users 与 data.pagination |
 | POST `/users` | 管理员 | `name,password,displayName?,locale?,hidden?,admin?,disabled?`；要求 Idempotency-Key；201 或回放 200 |
@@ -43,6 +43,10 @@
 | GET/PUT `/users/{id}/content-access` | 管理员 | 分级上限、未分级覆写、封锁标签（PUT 整组替换，`blockedTags` 必填）；GET 另含条目规则；写审计 `user.content_access_changed`。详见[存取控制](access-control.md) |
 | PUT/DELETE `/users/{id}/content-access/items/{itemId}` | 管理员 | `{"effect":"allow"\|"hide"}`；条目及其子树的显式规则；写审计 `user.item_access_rule_set`／`user.item_access_rule_removed` |
 | GET/PUT `/access/policy`、GET `/access/parental-ratings` | 管理员 | 全域策略 `restrictAdmins`、`blockUnrated`（写审计 `access.policy_changed`）；可辨识分级代码表 |
+| GET `/site/appearance`、GET `/site/plugins` | 已登录用户 | 生效的全站外观（默认主题、token 覆写、服务器清洗后的 CSS、生效的字体主机、默认布局）与插件配置（顺序、启用、未停用插件的设置）；不含原始 CSS、版本号与清洗报告（G32.4、G33.2–G33.5，迁移 000074） |
+| GET `/site/appearance/config`、PUT `/site/appearance`、POST `/site/appearance/reset` | 管理员 | 存储的外观文档（原始 `customCss`、`cssIssues`、`revision`）；PUT 必须带齐全部字段与读到的 `revision`（过期 `409 conflict`）；CSS 由服务器按与网页端相同的规则清洗，结构问题整份拒绝 `400 custom_css_rejected`；外部字体开启时网页端 CSP 加入 `font-src`；写审计 `site.appearance_changed`（安全类，未变不写） |
+| GET `/site/plugins/config`、PUT `/site/plugins`、POST `/site/plugins/reset` | 管理员 | 插件清单（顺序即列表顺序）与按插件 ID 分的设置命名空间（最多 64 个、每个 64 键 16 KiB）；PUT 带 `revision`；写审计 `site.plugins_changed`（只记清单与每个命名空间的 SHA-256） |
+| GET `/site/export`、POST `/site/import` | 管理员 | 导出／导入 `{"format":"jelee.site-settings","version":1,"appearance":…,"plugins":…}`；导入在同一事务替换两份文档、不检查版本号，校验与清洗同 PUT |
 
 PUT 中遗漏的可选字符串/布尔字段会重置为空/false；它不是 PATCH。创建用户默认 locale 为 `zh-CN`。会话及库授权读取最多返回 1000 条，超量明确返回 409，避免悄悄截断管理结果。用户列表采用 UUID 游标，每页最多 100 条。
 

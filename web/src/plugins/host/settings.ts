@@ -1,8 +1,13 @@
-// Per-plugin settings namespace (G32.4): stored under
-// "plugin-settings.<id>" in this browser (no server API yet, see
-// docs/frontend-adr.md), reactive, size-limited, and reachable only through
-// the owning plugin's context. A plugin without settings.storage reads
-// fallbacks and cannot write.
+// Per-plugin settings namespace (G32.4), reachable only through the owning
+// plugin's context. Two layers, both reactive and size-limited:
+// - site values: the administrator's settings for every user, stored on the
+//   server (settings.<plugin ID> of /api/v1/site/plugins). An administrator's
+//   set() and remove() write here when the server is available.
+// - browser values: "plugin-settings.<id>" in this browser. Other users'
+//   changes, and everyone's while signed out or when the server cannot be
+//   read, stay here and take precedence over the site values in this
+//   browser only.
+// A plugin without settings.storage reads fallbacks and cannot write.
 import { PluginPermissionError, type PluginSettingValue, type PluginSettings } from "@jelee/plugin-sdk";
 import { shallowRef } from "vue";
 import { readPersisted, removePersisted, writePersisted } from "@/stores/persist";
@@ -11,7 +16,19 @@ export const pluginSettingsMaxBytes = 16 * 1024;
 const maxKeys = 64;
 const settingKey = /^[A-Za-z][A-Za-z0-9_.-]{0,63}$/;
 
-type Values = Readonly<Record<string, PluginSettingValue>>;
+export type PluginSettingValues = Readonly<Record<string, PluginSettingValue>>;
+
+/** Where site-wide values come from and, for administrators, go to. */
+export interface PluginSettingsBackend {
+  /** The plugin's site-wide values (reactive); empty when there are none. */
+  site(): Readonly<Record<string, unknown>>;
+  /** Whether set() and remove() write the site-wide values. */
+  writesSite(): boolean;
+  /** Replaces the plugin's site-wide values; applies them at once. */
+  saveSite(values: PluginSettingValues): void;
+}
+
+const browserOnly: PluginSettingsBackend = { site: () => ({}), writesSite: () => false, saveSite: () => undefined };
 
 const storageKey = "plugin-settings";
 
@@ -34,8 +51,8 @@ function isSettingValue(value: unknown, depth = 0): value is PluginSettingValue 
   return false;
 }
 
-function load(pluginId: string): Values {
-  const stored = readPersisted(storageKey, pluginId);
+/** Keeps the valid entries of an untrusted namespace (storage or server). */
+export function validSettings(stored: unknown): PluginSettingValues {
   if (typeof stored !== "object" || stored === null || Array.isArray(stored)) {
     return {};
   }
@@ -48,8 +65,16 @@ function load(pluginId: string): Values {
   return values;
 }
 
-export function createPluginSettings(pluginId: string, granted: boolean): PluginSettings {
-  const values = shallowRef<Values>(granted ? load(pluginId) : {});
+function checkSize(next: PluginSettingValues): void {
+  const size = new TextEncoder().encode(JSON.stringify(next)).length;
+  if (size > pluginSettingsMaxBytes || Object.keys(next).length > maxKeys) {
+    throw new RangeError(`plugin settings exceed ${pluginSettingsMaxBytes} bytes or ${maxKeys} keys`);
+  }
+}
+
+export function createPluginSettings(pluginId: string, granted: boolean, backend: PluginSettingsBackend = browserOnly): PluginSettings {
+  const local = shallowRef<PluginSettingValues>(granted ? validSettings(readPersisted(storageKey, pluginId)) : {});
+  const site = (): PluginSettingValues => (granted ? validSettings(backend.site()) : {});
   const need = () => {
     if (!granted) {
       throw new PluginPermissionError("settings.storage");
@@ -60,18 +85,33 @@ export function createPluginSettings(pluginId: string, granted: boolean): Plugin
       throw new TypeError("invalid plugin setting key: " + key);
     }
   };
-  const save = (next: Values) => {
-    const size = new TextEncoder().encode(JSON.stringify(next)).length;
-    if (size > pluginSettingsMaxBytes || Object.keys(next).length > maxKeys) {
-      throw new RangeError(`plugin settings exceed ${pluginSettingsMaxBytes} bytes or ${maxKeys} keys`);
+  const saveLocal = (next: PluginSettingValues) => {
+    checkSize(next);
+    local.value = next;
+    if (Object.keys(next).length === 0) {
+      removePersisted(storageKey, pluginId);
+    } else {
+      writePersisted(storageKey, next, pluginId);
     }
-    values.value = next;
-    writePersisted(storageKey, next, pluginId);
+  };
+  const without = (values: PluginSettingValues, key: string) => Object.fromEntries(Object.entries(values).filter(([existing]) => existing !== key));
+  const change = (key: string, value: PluginSettingValue | undefined) => {
+    if (backend.writesSite()) {
+      const next = value === undefined ? without(site(), key) : { ...site(), [key]: value };
+      checkSize(next);
+      backend.saveSite(next);
+      // A browser value would hide the site-wide one from this administrator.
+      if (key in local.value) {
+        saveLocal(without(local.value, key));
+      }
+      return;
+    }
+    saveLocal(value === undefined ? without(local.value, key) : { ...local.value, [key]: value });
   };
   return Object.freeze({
     get<T extends PluginSettingValue>(key: string, fallback: T): T {
       check(key);
-      const value = values.value[key];
+      const value = key in local.value ? local.value[key] : site()[key];
       // A stored value of another type (edited storage, older plugin
       // version) falls back instead of reaching the plugin.
       if (value === undefined || typeof value !== typeof fallback || Array.isArray(value) !== Array.isArray(fallback)) {
@@ -85,20 +125,20 @@ export function createPluginSettings(pluginId: string, granted: boolean): Plugin
       if (!isSettingValue(value)) {
         throw new TypeError("plugin setting values must be JSON");
       }
-      save({ ...values.value, [key]: value });
+      change(key, value);
     },
     remove(key: string) {
       need();
       check(key);
-      save(Object.fromEntries(Object.entries(values.value).filter(([existing]) => existing !== key)));
+      change(key, undefined);
     },
     keys() {
-      return Object.keys(values.value);
+      return [...new Set([...Object.keys(site()), ...Object.keys(local.value)])];
     },
   });
 }
 
-/** Removes every stored setting of a plugin (administration page). */
+/** Removes every setting of a plugin stored in this browser (administration page). */
 export function clearPluginSettings(pluginId: string): void {
   removePersisted(storageKey, pluginId);
 }

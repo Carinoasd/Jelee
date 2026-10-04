@@ -25,6 +25,13 @@ type AccountRepository interface {
 	UpdateProfile(context.Context, domain.Actor, domain.ProfileInput) (domain.User, error)
 	GetPreferences(context.Context, domain.Actor) (domain.UserPreferences, error)
 	SetPreferences(context.Context, domain.Actor, domain.UserPreferences) (domain.UserPreferences, error)
+	GetSiteAppearance(context.Context, domain.Actor, bool) (domain.SiteAppearanceRecord, error)
+	SetSiteAppearance(context.Context, domain.Actor, domain.SiteAppearance, int64, string) (domain.SiteAppearanceRecord, error)
+	GetSitePlugins(context.Context, domain.Actor, bool) (domain.SitePluginsRecord, error)
+	SetSitePlugins(context.Context, domain.Actor, domain.SitePlugins, int64, string) (domain.SitePluginsRecord, error)
+	GetSiteSettings(context.Context, domain.Actor) (domain.SiteAppearanceRecord, domain.SitePluginsRecord, error)
+	ImportSiteSettings(context.Context, domain.Actor, domain.SiteAppearance, domain.SitePlugins) (domain.SiteAppearanceRecord, domain.SitePluginsRecord, error)
+	SiteFontHosts(context.Context) ([]string, error)
 	DeleteUser(context.Context, domain.Actor, string) error
 	RestoreUser(context.Context, domain.Actor, string) (domain.User, error)
 	UnlockUser(context.Context, domain.Actor, string) error

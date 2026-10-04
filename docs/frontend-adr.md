@@ -126,7 +126,7 @@ web/
 
 | 項目 | 狀態 | 目前做法 |
 | --- | --- | --- |
-| 使用者偏好（主題等）沒有伺服器 API（G33.3） | 已解除 | 遷移 `000073_user_preferences` 與 `GET/PUT /users/me/preferences`（主題 system／light／dark，預留 `density`；PUT 須帶齊全部欄位、不寫稽核、不進元資料備份）。`stores/preferences.ts` 在登入或恢復工作階段時載入並套用，切換即存（失敗時本分頁仍套用並顯示錯誤）；未登入只存分頁記憶體，登出後沿用目前主題。全域級主題、匯入／匯出 JSON 仍缺 |
+| 使用者偏好（主題等）沒有伺服器 API（G33.3） | 已解除 | 遷移 `000073_user_preferences` 與 `GET/PUT /users/me/preferences`（主題 system／light／dark，預留 `density`，遷移 074 加 `layout`；PUT 須帶齊全部欄位、不寫稽核、不進元資料備份）。`stores/preferences.ts` 在登入或恢復工作階段時載入並套用，切換即存（失敗時本分頁仍套用並顯示錯誤）；未登入只存分頁記憶體，登出後沿用目前主題。從未存過主題的使用者讀到全站預設主題；全站設定的匯入／匯出 JSON 與重置見下方 G32／G33 表 |
 | 密碼錯誤時 `PUT /users/me/password` 回 `401 authentication_required` | 已解除 | 伺服器改回 `400 invalid_password`（工作階段有效、只是輸入值錯，與 `invalid_request` 同屬 400 輸入錯誤；不用 403 以免和權限、CSRF、客戶端管控的 403 混淆）；改密限速、429 與「不計入登入鎖定」照舊。`api/client.ts` 的路徑豁免已移除，任何 401 都視為工作階段失效 |
 | 客戶端管控 `rules/{id}/enforce`、`/observe`、`clients/{id}/block`、`/kick` 要 `{}` 卻沒宣告 requestBody | 已解除 | OpenAPI 比照 logout 宣告 `Empty`；`features/clients/api.ts` 的 `emptyBody = {} as never` 已移除，直接傳 `{}`。契約測試要求每個 POST／PUT／PATCH 都宣告 requestBody（只豁免不讀正文的 setup back／complete） |
 | `KnownClient` 看不出是否已被屏蔽 | 已解除 | 回應新增 `blocked` 與 `blockRuleId`：存在與「加入屏蔽」相同識別（裝置 ID，沒有時 UA；UA 被截斷時前綴）的啟用、全域、無時間窗 `deny` 規則即為已屏蔽；其他屬性（IP、正則、標頭）的拒絕規則不反映。面板顯示「已屏蔽」標記與解除說明，已屏蔽者不再提供「加入屏蔽」 |
@@ -165,8 +165,10 @@ web/
   - **整段拒絕**：任何 `<`（不可能出現 `<script>` 或 `</style>`）、反斜線跳脫（可拼出被禁字詞）、控制字元與 U+2028/2029、未閉合的註解、大括號、括號或引號、超過 64 KiB。註解先換成空白，`expr/**/ession(` 無法重新拼回。
   - **逐條移除**：`@import`（任何形式）與 `@media`／`@supports`／`@container`／`@layer`／`@font-face`／`@keyframes` 以外的 at 規則；`expression(`；`javascript:`／`vbscript:`；`behavior`、`-moz-binding`；`image-set()`、`-webkit-image-set()`、`src()`、`element()`、`paint()` 與當作網址的 `attr()`；所有不是本站路徑（`/…`，不含 `//`）或 `#片段` 的 `url()`；巢狀規則；不合法的選擇器與宣告；超過三層的巢狀 at 規則。
   - **外部字型**：預設禁用；開啟後只有 `@font-face` 的 `src` 可以指向白名單主機（完全相符，最多 10 個）的 `https` 網址，不得帶帳密或連接埠。
-- **套用方式**：以 `CSSStyleSheet.replaceSync` 建立構造樣式表並加入 `document.adoptedStyleSheets`（`theme/styleSheets.ts`）。CSSOM 不受 CSP `style-src` 管轄，所以在目前的 `style-src 'self'` 下不需要 `'unsafe-inline'`，也不產生任何 `<style>` 元素。不支援構造樣式表的瀏覽器不套用（行內 `<style>` 反正會被 CSP 擋），管理頁顯示提示。順序為：打包的樣式 → 插件 token（`plugin-tokens`）→ 管理員 CSS（`custom-css`，最後套用、優先）。
-- 存放：伺服器尚無全域外觀設定 API，原文與白名單存在管理員瀏覽器的 `localStorage`，**只對該瀏覽器生效**；每次載入都重新清洗，不信任已存內容。
+- **套用方式**：以 `CSSStyleSheet.replaceSync` 建立構造樣式表並加入 `document.adoptedStyleSheets`（`theme/styleSheets.ts`）。CSSOM 不受 CSP `style-src` 管轄，所以在目前的 `style-src 'self'` 下不需要 `'unsafe-inline'`，也不產生任何 `<style>` 元素；伺服器的 `style-src` 因此維持 `'self'`，不放寬。不支援構造樣式表的瀏覽器不套用（行內 `<style>` 反正會被 CSP 擋），管理頁顯示提示。順序為：打包的樣式 → 插件 token（`plugin-tokens`）→ 全站 token 覆寫（`site-tokens`）→ 管理員 CSS（`custom-css`，最後套用、優先）。
+- **伺服器端清洗**：`internal/domain/customcss.go` 是 `theme/customCss.ts` 的移植（JavaScript 字串語意：UTF-16 長度、ECMAScript 空白、`toLowerCase` 的 U+0130），兩邊的測試讀同一份 `web/src/theme/customCss.cases.json`（88 筆 CSS、23 筆 token、14 筆主機），結果必須逐筆相同。`PUT /api/v1/site/appearance` 與匯入遇到結構問題（`<`、反斜線、控制字元、未閉合結構、過長）整份拒絕為 `400 custom_css_rejected`；逐條移除的部分照存原文，管理員讀 `/site/appearance/config` 看到 `cssIssues`；其他使用者的 `GET /site/appearance` 只拿到**每次讀取時重新清洗**的 `css`，看不到原文。字型主機在伺服器也只接受純 DNS 名稱（最後一段不可全為數字，所以拒絕 IP），前端 `normalizeFontHost` 同步改為相同規則。
+- **CSP font-src**：外部字型開啟且白名單非空時，伺服器在網頁端回應的 CSP 末尾加上 `font-src 'self' https://<主機>…`（主機再驗一次、最多 10 個），其他指令逐字不變；未設定時維持原 CSP。結果在每個實例快取 30 秒，本實例寫入後立即失效，讀不到設定時沿用上次的值（從未讀到則不加 font-src）。API 回應的 CSP 不受影響。
+- 存放：已登入時以伺服器全站設定為準（`/api/v1/site/appearance`，對所有使用者與裝置生效）；未登入或讀不到伺服器時，沿用管理員先前存在本瀏覽器 `localStorage` 的副本，每次載入都重新清洗。
 
 ### 版面
 
@@ -174,11 +176,11 @@ web/
 - 條目詳情頁的面板（簡介、類型、外部 ID、NFO 來源、檔案資訊、插件面板、插件頁籤）可排序與顯隱。
 - 版面預設：內建「標準」「精簡」「元資料檢查」三套，可把目前版面存成最多 10 個自訂預設、切換、刪除與恢復預設；設定頁「版面」區塊集中管理。
 - 排序元件 `components/ui/UiReorderList.vue`：每列有「上移／下移」按鈕（`aria-label` 含項目名稱、`aria-keyshortcuts`），焦點在列內任一控制項時 Alt+↑／Alt+↓ 也能移動；移動後焦點留在被移動的列（到頂或到底時移到另一個仍可用的按鈕），`role="status"` 朗讀新位置；滑鼠拖曳只是額外方式。插件管理頁的排序也用同一元件。
-- 存放：伺服器的 `UserPreferences` 只有 `theme` 與 `density`（`additionalProperties: false`），沒有版面欄位，所以版面與自訂預設按帳號（使用者 ID）存在本瀏覽器；讀回時修復未知或缺少的區塊。
+- 存放：已登入時版面與自訂預設存在伺服器偏好的 `layout`（`{current, presets}`，16 KiB、每區最多 32 個區塊、最多 10 個預設；PUT 與主題一起帶齊全部欄位），跟著帳號到其他裝置；尚未自訂（`layout: null`）時套用管理員的全站預設版面，再沒有就用內建「標準」。每次變更也寫入本瀏覽器的按帳號副本，未登入或讀不到伺服器時用它；讀回時修復未知或缺少的區塊。「恢復預設版面」恢復全站預設版面。
 
 ### 瀏覽器儲存例外
 
-`stores/persist.ts` 是唯一碰 `localStorage` 的模組（ESLint 只對它解除限制），鍵一律以 `jelee.ui.v1.` 開頭，存放沒有伺服器 API 的呈現狀態：插件啟用與順序（`plugin-host.state`）、插件設定（`plugin-settings.<插件 ID>`）、管理員 CSS（`admin-css.custom`）、版面（`page-layout.<使用者 ID>`）。固定鍵名不得含憑證相關字詞、範圍部分只接受 ID 字元，值為 JSON 且有大小上限；讀回的內容一律當成不可信輸入處理。憑證、CSRF、工作階段資料仍然只在記憶體或 HttpOnly Cookie（G35.1 不變）。只在使用者實際變更時才寫入，登入流程依舊沒有任何 storage 寫入。
+`stores/persist.ts` 是唯一碰 `localStorage` 的模組（ESLint 只對它解除限制），鍵一律以 `jelee.ui.v1.` 開頭，存放呈現狀態的瀏覽器副本：插件啟用與順序（`plugin-host.state`）、插件設定（`plugin-settings.<插件 ID>`）、管理員 CSS（`admin-css.custom`）、版面（`page-layout.<使用者 ID>`）。伺服器已有對應 API（G32／G33 表），這些副本只在未登入、讀不到伺服器，或一般使用者自己覆蓋插件設定時生效。固定鍵名不得含憑證相關字詞、範圍部分只接受 ID 字元，值為 JSON 且有大小上限；讀回的內容一律當成不可信輸入處理。憑證、CSRF、工作階段資料仍然只在記憶體或 HttpOnly Cookie（G35.1 不變）。只在使用者實際變更時才寫入，登入流程依舊沒有任何 storage 寫入。
 
 ## Bundle 預算（G35.4）
 
@@ -190,16 +192,17 @@ web/
 
 ## G32／G33.4／G33.5 的後端缺口
 
-依指示本階段不改後端，以下以前端可運作的最小方案處理：
+前端插件體系與外觀自訂完成時記錄的後端缺口，遷移 `000075_site_settings` 起逐項處理如下：
 
-| 缺口 | 影響 | 目前做法 | 需要的後端工作 |
-| --- | --- | --- | --- |
-| 沒有插件設定 API（全域啟用清單、順序、插件設定） | 管理員的啟停與排序只影響他自己的瀏覽器；插件設定是每個瀏覽器各一份 | `localStorage`（`plugin-host.state`、`plugin-settings.*`） | `GET/PUT /api/v1/web/plugins`（管理員寫、所有人讀，含版本號防覆寫）與插件設定的使用者級儲存；需求矩陣原規劃的 `plugin_configs` |
-| 沒有全域外觀設定 API | 自訂 CSS 只在管理員自己的瀏覽器生效，其他使用者看不到 | `localStorage`（`admin-css.custom`），每次載入重新清洗 | `GET/PUT /api/v1/web/appearance`（伺服器端也要做同樣的清洗與大小限制）與 `theme_configs` |
-| `frontendCSP` 沒有 `font-src` 白名單 | 開啟外部字型並加入白名單後，瀏覽器仍會因 `default-src 'self'` 擋下字型 | 管理頁明示此限制 | 伺服器依外觀設定的字型白名單動態加入 `font-src`；`style-src 'self'` 不需調整（構造樣式表不受其管轄） |
-| `UserPreferences` 沒有版面欄位 | 版面與預設不會跟著帳號到其他裝置 | 按使用者 ID 存在本瀏覽器 | 在偏好設定加入 `layout`（首頁區塊、詳情面板、自訂預設）或另開端點 |
-| 伺服器不回報版本 | `minJeleeVersion` 比較的是網頁端 `web/package.json` 的版本（兩者隨同一個映像發佈） | 建置時注入 `__JELEE_VERSION__` | `GET /api/v1/system` 回傳伺服器版本 |
-| 沒有插件專屬的伺服器授權範圍 | 插件的請求等同使用者本人的請求 | 受限客戶端只開放固定唯讀端點 | 若要支援第三方插件：插件權杖或 iframe 隔離加伺服器端範圍 |
+| 缺口 | 狀態 | 現在的做法 |
+| --- | --- | --- |
+| 沒有插件設定 API（全域啟用清單、順序、插件設定） | 已解除 | `site_plugins` 單列表與 `GET /api/v1/site/plugins`（任何已登入使用者：清單、順序、未停用插件的設定）、`GET /site/plugins/config`（管理員，含 `revision`）、`PUT /site/plugins`（管理員，帶齊欄位與 `revision`，過期為 `409 conflict`）、`POST /site/plugins/reset`。設定依插件 ID 分命名空間（最多 64 個插件、每個 64 鍵 16 KiB、巢狀 8 層），寫入稽核 `site.plugins_changed`（只記清單與每個命名空間的摘要，不抄設定內容）。`plugins/host/store.ts` 已登入時以伺服器為準，管理員的變更依序寫回並帶最新版本號，失敗時提示並重新載入；未登入或讀不到時沿用本瀏覽器副本 |
+| 沒有全域外觀設定 API | 已解除 | `site_appearance` 單列表與 `GET /api/v1/site/appearance`（任何已登入使用者：預設主題、token 覆寫、清洗後的 CSS、生效的字型主機、預設版面，不含原文與版本）、`GET /site/appearance/config`（管理員：原文、`cssIssues`、`revision`）、`PUT /site/appearance`、`POST /site/appearance/reset`。伺服器端清洗與前端同級（共用案例檔，見上方「伺服器端清洗」）；token 只接受 SDK 的 14 個名稱與安全值；寫入稽核 `site.appearance_changed`（安全類，CSS 以位元組數與 SHA-256 記錄）。匯出／匯入：`GET /api/v1/site/export`、`POST /api/v1/site/import`（`format: jelee.site-settings`、`version: 1`，外觀與插件同一交易取代，不檢查版本號）；管理頁 `/admin/appearance` 新增全站預設（主題、token、版面）、設定檔匯出／匯入與「恢復預設外觀」 |
+| `frontendCSP` 沒有 `font-src` 白名單 | 已解除 | 見上方「CSP font-src」：只在開啟外部字型時加入 `font-src 'self' https://<主機>…`，其他指令不變；`style-src 'self'` 不放寬 |
+| `UserPreferences` 沒有版面欄位 | 已解除 | 偏好加 `layout`（可為 `null`），PUT 仍須帶齊全部欄位；見上方「版面」的存放說明 |
+| 伺服器不回報版本 | 已解除 | `GET /api/v1/system` 回傳 `version`（`internal/platform/buildinfo`：發行建置以 `-ldflags -X …buildinfo.version=` 或 Dockerfile `--build-arg JELEE_VERSION` 指定，未指定或格式不對時為與 `web/package.json` 相同的預設版本，測試確保兩者一致），與 OpenAPI `info.version` 相同；插件宿主啟動前讀取並用它比較 `minJeleeVersion`，讀不到時才用網頁端版本 |
+| 沒有插件專屬的伺服器授權範圍 | 缺 | 插件的請求等同使用者本人的請求；受限客戶端只開放固定唯讀端點。若要支援第三方插件：插件權杖或 iframe 隔離加伺服器端範圍 |
+| 未登入頁面（登入頁）不套用全站外觀 | 限制 | 全站外觀與插件設定的讀取都需要工作階段，登入頁只用打包樣式與本瀏覽器副本 |
 
 ## CSP 規劃（G35.1）
 
@@ -211,7 +214,9 @@ connect-src 'self'; object-src 'none'; media-src 'none'; frame-src 'none';
 base-uri 'none'; form-action 'self'; frame-ancestors 'none'
 ```
 
-前端為此做的配合：`index.html` 無行內腳本與樣式；管理員 CSS 與插件 token 以構造樣式表（CSSOM）套用，不需要放寬 `style-src`；Vite 關閉 modulepreload polyfill（避免行內腳本）、`assetsInlineLimit: 0`、不輸出 sourcemap；Vue 使用 runtime-only 建置（SFC 預先編譯，不需 `unsafe-eval`）；vue-i18n 11 預設以 JIT/AST 解譯訊息而非 `new Function`；ESLint 禁止 `eval` 與 `new Function`。`media-src 'none'` 同時是禁播的瀏覽器層防線。`img-src` 未來配合 G40 影像服務再調整。開發伺服器（`npm run dev`）把 `/api` 代理到 `JELEE_DEV_API`（預設 `http://127.0.0.1:8097`）。
+伺服器目前實際送出的是 `internal/adapter/http/webapp.go` 的 `frontendCSP`；全站外觀開啟外部字型時再於末尾加上 `font-src 'self' https://<白名單主機>…`（其他指令不變，測試逐條比對）。
+
+前端為此做的配合：`index.html` 無行內腳本與樣式；管理員 CSS、全站 token 覆寫與插件 token 以構造樣式表（CSSOM）套用，不需要放寬 `style-src`；Vite 關閉 modulepreload polyfill（避免行內腳本）、`assetsInlineLimit: 0`、不輸出 sourcemap；Vue 使用 runtime-only 建置（SFC 預先編譯，不需 `unsafe-eval`）；vue-i18n 11 預設以 JIT/AST 解譯訊息而非 `new Function`；ESLint 禁止 `eval` 與 `new Function`。`media-src 'none'` 同時是禁播的瀏覽器層防線。`img-src` 未來配合 G40 影像服務再調整。開發伺服器（`npm run dev`）把 `/api` 代理到 `JELEE_DEV_API`（預設 `http://127.0.0.1:8097`）。
 
 ## 禁播策略（G27、G35.5）
 

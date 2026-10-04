@@ -2,6 +2,7 @@ package httpapi
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"io"
 	"net/http"
@@ -291,18 +292,21 @@ func (s *Server) accountRoutes(r chi.Router) {
 		}))
 		r.Put("/api/v1/users/me/preferences", s.accountEndpoint(false, false, func(w http.ResponseWriter, r *http.Request, a domain.Actor) (any, int, error) {
 			var input struct {
-				Theme   *string `json:"theme"`
-				Density *string `json:"density"`
+				Theme   *string         `json:"theme"`
+				Density *string         `json:"density"`
+				Layout  json.RawMessage `json:"layout"`
 			}
-			if err := DecodeJSON(w, r, &input, accountBodyLimit); err != nil {
+			if err := decodeJSONNullable(w, r, &input, accountBodyLimit, func(path string) bool { return path == "/LAYOUT" }); err != nil {
 				return nil, 0, err
 			}
 			// A replacement names every field, so a client that does not know
-			// a later field cannot silently reset it.
-			if input.Theme == nil || input.Density == nil {
+			// a later field cannot silently reset it. layout is null until the
+			// user customizes it.
+			layout, ok := userLayoutFrom(input.Layout)
+			if input.Theme == nil || input.Density == nil || !ok {
 				return nil, 0, domain.ErrInvalid
 			}
-			preferences, err := s.accounts.SetPreferences(r.Context(), a, domain.UserPreferences{Theme: *input.Theme, Density: *input.Density})
+			preferences, err := s.accounts.SetPreferences(r.Context(), a, domain.UserPreferences{Theme: *input.Theme, Density: *input.Density, Layout: layout})
 			return preferences, 200, err
 		}))
 		r.Put("/api/v1/users/me/password", s.accountEndpoint(false, false, func(w http.ResponseWriter, r *http.Request, a domain.Actor) (any, int, error) {
@@ -437,6 +441,7 @@ func (s *Server) accountRoutes(r chi.Router) {
 			return nil, 204, s.accounts.SetLibraries(r.Context(), a, chi.URLParam(r, "id"), input.LibraryIDs)
 		}))
 		s.contentAccessRoutes(r)
+		s.siteSettingsRoutes(r)
 	})
 }
 

@@ -47,7 +47,8 @@ func accountSchemas() map[string]any {
 		"UserPreferences": objectSchema(map[string]any{
 			"theme":   map[string]any{"type": "string", "enum": []string{"system", "light", "dark"}, "description": "system follows the browser's color scheme."},
 			"density": map[string]any{"type": "string", "enum": []string{"comfortable", "compact"}, "description": "Reserved layout density of the web client."},
-		}, "theme", "density"),
+			"layout":  map[string]any{"oneOf": []any{schemaRef("UserLayout"), map[string]any{"type": "null"}}, "description": "Page layout and saved presets (G33.5); null until customized, when the site default layout applies. Required on replacement like every field."},
+		}, "theme", "density", "layout"),
 		"PasswordChange": objectSchema(map[string]any{"oldPassword": password, "newPassword": password}, "oldPassword", "newPassword"),
 		"LibraryAccess":  objectSchema(map[string]any{"libraryIds": map[string]any{"type": "array", "items": uuid, "maxItems": 1000, "uniqueItems": true}}, "libraryIds"),
 		"User":           objectSchema(map[string]any{"id": uuid, "name": stringSchema(128), "displayName": stringSchema(128), "locale": locale, "hidden": boolean, "admin": boolean, "disabled": boolean, "allowNative": map[string]any{"type": "boolean", "description": "Whether POST /api/v1/auth/login/native may issue native sessions to this user. Changed only through PUT /api/v1/users/{id}/native."}, "createdAt": instant, "deletedAt": instant}, "id", "name", "displayName", "locale", "hidden", "admin", "disabled", "allowNative", "createdAt"),
@@ -102,7 +103,7 @@ func accountSpecification(paths map[string]any) {
 		{"/auth/csrf", "get", "Read the CSRF token of the authenticating session, for example after a page reload", "", "CSRFToken", "200", false},
 		{"/users/me", "get", "Read own account", "", "User", "200", false},
 		{"/users/me/profile", "put", "Replace own profile fields; omitted optional fields reset", "Profile", "User", "200", false},
-		{"/users/me/preferences", "get", "Read own interface preferences (G33.3); defaults until first saved", "", "UserPreferences", "200", false},
+		{"/users/me/preferences", "get", "Read own interface preferences (G33.3, G33.5); until first saved: the site default theme, comfortable density and no layout", "", "UserPreferences", "200", false},
 		{"/users/me/preferences", "put", "Replace own interface preferences; every field is required; presentation only, not audited", "UserPreferences", "UserPreferences", "200", false},
 		{"/users/me/password", "put", "Verify old password, replace password and revoke all sessions. A wrong old password is 400 invalid_password (the session stays valid, unlike 401); every attempt first draws from the per-user and per-address password-change budget (429 auth_rate_limited)", "PasswordChange", "", "204", false},
 		{"/users", "get", "List accounts, including hidden accounts; cursor pagination", "", "UserPage", "200", true},

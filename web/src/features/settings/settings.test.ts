@@ -48,11 +48,11 @@ describe("settings", () => {
     await radios[0]!.setValue(true);
     expect(document.documentElement.hasAttribute("data-theme")).toBe(false);
     await flushPromises();
-    // The whole record is sent; the stored density is kept.
+    // The whole record is sent; the stored density and layout are kept.
     expect(server.calls("PUT", "/api/v1/users/me/preferences").map((request) => request.body)).toEqual([
-      { theme: "dark", density: "compact" },
-      { theme: "light", density: "compact" },
-      { theme: "system", density: "compact" },
+      { theme: "dark", density: "compact", layout: null },
+      { theme: "light", density: "compact", layout: null },
+      { theme: "system", density: "compact", layout: null },
     ]);
     expect(useToastStore().toasts).toContainEqual(expect.objectContaining({ key: "settings.theme.saved" }));
     expectNoPlaybackMarkup(wrapper.html());

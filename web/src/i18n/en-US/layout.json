@@ -1,7 +1,7 @@
 {
   "layout": {
     "title": "Layout",
-    "storageNote": "Server preferences have no layout field yet: layouts and your presets are kept per account in this browser.",
+    "storageNote": "Signed in, your layout and presets are saved with your account and follow you to other devices; until you change them, the site's default layout applies. Signed out, they stay in this browser.",
     "reset": "Restore default layout",
     "keyboardHint": "Reorder with the move up and move down buttons or Alt+Up and Alt+Down; dragging with a mouse also works.",
     "moved": "{name} moved to position {position} of {total}.",

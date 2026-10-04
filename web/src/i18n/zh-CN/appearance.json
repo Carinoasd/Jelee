@@ -6,9 +6,9 @@
       "markup": "整段拒绝：任何小于号（因此无法写出 script 或 style 标签）、反斜线转义、控制字符、未闭合的注释或大括号。",
       "urls": "逐条移除：CSS 导入规则、expression()、javascript: 与 vbscript: 网址、behavior 与 -moz-binding、image-set() 等可加载资源的函数，以及指向外部来源的 url()（只允许本站路径）。",
       "fonts": "外部字体默认禁用；启用后只接受白名单主机上的 https 字体文件。",
-      "csp": "CSS 以构造样式表套用，符合 style-src 'self' 的 CSP；外部字体还需要服务器 CSP 的 font-src 放行，目前尚未提供。"
+      "csp": "CSS 以构造样式表套用，符合 style-src 'self' 的 CSP；开启外部字体时，服务器会把白名单主机加入 CSP 的 font-src。"
     },
-    "storageNote": "服务器还没有全局外观设置 API：自定义 CSS 只保存在这个浏览器中，只对此浏览器生效。",
+    "storageNote": "目前读不到服务器的全站设置：自定义 CSS 只保存在这个浏览器中，只对此浏览器生效。",
     "unsupported": "此浏览器不支持构造样式表，无法在严格 CSP 下套用自定义 CSS。",
     "cssLabel": "CSS",
     "cssHint": "最多 {max} 个字符。可使用设计 token，例如 var(--jl-color-primary)。",
@@ -51,6 +51,42 @@
       "blockedFunction": "不允许可加载外部资源的函数（如 image-set()）。",
       "externalUrl": "url() 只能指向本站路径。",
       "externalFont": "外部字体未启用，或主机不在白名单中。"
+    },
+    "storageServer": "保存在服务器上，对所有已登录的用户与设备生效。服务器会再次清洗 CSS，有结构问题时整段拒绝。未登录的页面仍沿用先前保存在此浏览器的副本。",
+    "savedServer": "自定义 CSS 已套用，并为所有用户保存。",
+    "serverRejected": "服务器整段拒绝了这段 CSS：其中含有标记、转义、控制字符或未闭合的区块，或超出长度上限。",
+    "defaults": {
+      "title": "全站默认",
+      "intro": "对所有用户生效：未自选主题者的主题、设计 token 覆盖，以及未自定义版面者的版面。",
+      "theme": "默认主题",
+      "themeHint": "已自选主题的用户保持自己的选择。",
+      "tokensLight": "Token 覆盖（亮色）",
+      "tokensDark": "Token 覆盖（暗色）",
+      "tokensHint": "每行一项，格式为“名称: 值”，例如 color-primary: #0f766e。可用名称：{names}。不得含 url()、大括号或分号；只有 font-family 可用引号。",
+      "invalidTokens": "未知名称、不安全或重复的值：{tokens}",
+      "layout": "默认版面",
+      "layoutHint": "用于尚未自定义首页与条目页版面的用户。",
+      "layouts": {
+        "standard": "标准",
+        "focused": "精简",
+        "metadata": "元数据检查",
+        "mine": "我当前的版面",
+        "keep": "保持当前的全站默认"
+      },
+      "save": "保存全站默认",
+      "saved": "全站默认已保存。"
+    },
+    "file": {
+      "title": "设置文件",
+      "intro": "将全站外观与插件设置导出或导入为同一个 JSON 文件，或恢复默认。导入会同时替换两者。",
+      "export": "导出 JSON",
+      "import": "导入 JSON",
+      "imported": "全站设置已导入。",
+      "invalid": "文件不是有效的 JSON。",
+      "reset": "恢复默认外观",
+      "resetConfirm": "恢复默认",
+      "resetPrompt": "将为所有用户移除自定义 CSS、token 覆盖、默认主题、默认版面与字体白名单。",
+      "resetDone": "已恢复默认外观。"
     }
   }
 }

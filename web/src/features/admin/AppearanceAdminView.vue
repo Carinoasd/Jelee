@@ -1,27 +1,67 @@
 <script setup lang="ts">
-import { computed, shallowRef, useId } from "vue";
+import { themeTokenNames } from "@jelee/plugin-sdk";
+import { computed, shallowRef, useId, watch } from "vue";
 import { useI18n } from "vue-i18n";
+import { useApi } from "@/api";
+import { saveBlob } from "@/api/download";
+import { ApiError, networkError } from "@/api/errors";
 import UiAlert from "@/components/ui/UiAlert.vue";
 import UiButton from "@/components/ui/UiButton.vue";
 import UiCheckbox from "@/components/ui/UiCheckbox.vue";
 import UiConfirmButton from "@/components/ui/UiConfirmButton.vue";
+import UiSelectField from "@/components/ui/UiSelectField.vue";
+import { errorMessageKey } from "@/features/errors/messages";
+import { exportSiteSettings, importSiteSettings, type PageLayout, type SiteSettingsDocument } from "@/features/site/api";
 import { useAppearanceStore } from "@/stores/appearance";
+import { builtInPresets, normalizeLayout, toUserLayout, useLayoutStore } from "@/stores/layout";
+import { themes, type Theme } from "@/stores/preferences";
+import { useSiteAppearanceStore } from "@/stores/siteAppearance";
 import { useToastStore } from "@/stores/toasts";
-import { customCssMaxLength, fontHostLimit, normalizeFontHost, type CssIssueCode, type CssPolicy, type SanitizedCss } from "@/theme/customCss";
+import {
+  customCssMaxLength,
+  fontHostLimit,
+  normalizeFontHost,
+  sanitizeTokenValue,
+  type CssIssueCode,
+  type CssPolicy,
+  type SanitizedCss,
+} from "@/theme/customCss";
 
-// Administrator CSS (G33.4). Checking shows what the sanitizer drops and
-// why; saving applies the sanitized result at once. The raw text is kept so
-// the administrator can fix it, and it is sanitized again on every load.
+// Site appearance (G33.2–G33.5). Checking shows what the sanitizer drops
+// and why; saving applies the sanitized result at once. With the server's
+// site settings, saving replaces them for every user (the server sanitizes
+// again and refuses structural problems), and the defaults, the settings
+// file and the reset are available; otherwise the CSS stays in this
+// browser. The raw text is kept so the administrator can fix it.
 const { t } = useI18n();
+const { client } = useApi();
 const store = useAppearanceStore();
+const site = useSiteAppearanceStore();
+const layoutStore = useLayoutStore();
 const toasts = useToastStore();
 const cssId = useId();
 const hostsId = useId();
+const lightId = useId();
+const darkId = useId();
+const fileId = useId();
 
-const css = shallowRef(store.settings.css);
-const allowExternalFonts = shallowRef(store.settings.policy.allowExternalFonts);
-const hostsText = shallowRef(store.settings.policy.fontHosts.join("\n"));
+const css = shallowRef("");
+const allowExternalFonts = shallowRef(false);
+const hostsText = shallowRef("");
 const verdict = shallowRef<SanitizedCss | null>(null);
+const busy = shallowRef(false);
+const server = computed(() => store.config !== null);
+
+// The editor follows the stored settings whenever they are (re)loaded.
+watch(
+  () => store.settings,
+  (settings) => {
+    css.value = settings.css;
+    allowExternalFonts.value = settings.policy.allowExternalFonts;
+    hostsText.value = settings.policy.fontHosts.join("\n");
+  },
+  { immediate: true },
+);
 
 const hostEntries = computed(() => hostsText.value.split(/[\s,]+/).filter((entry) => entry !== ""));
 const invalidHosts = computed(() => hostEntries.value.filter((entry) => normalizeFontHost(entry) === null));
@@ -35,7 +75,7 @@ const hostError = computed(() => {
 function policy(): CssPolicy {
   return {
     allowExternalFonts: allowExternalFonts.value,
-    fontHosts: hostEntries.value.map(normalizeFontHost).filter((host): host is string => host !== null),
+    fontHosts: [...new Set(hostEntries.value.map(normalizeFontHost).filter((host): host is string => host !== null))],
   };
 }
 
@@ -60,23 +100,203 @@ const issueKey: Readonly<Record<CssIssueCode, string>> = {
   external_font: "appearance.issues.externalFont",
 };
 
+function failed(error: unknown) {
+  toasts.push(errorMessageKey(error instanceof ApiError ? error : networkError(error)), "danger");
+}
+
 function check() {
   verdict.value = store.check(css.value, policy());
 }
 
-function save() {
-  if (hostError.value !== null) {
+async function save() {
+  if (hostError.value !== null || busy.value) {
     return;
   }
-  verdict.value = store.save(css.value, policy());
-  toasts.push(verdict.value.rejected ? "appearance.savedRejected" : "appearance.saved", verdict.value.rejected ? "danger" : "success");
+  busy.value = true;
+  try {
+    verdict.value = await store.save(css.value, policy());
+    toasts.push(verdict.value.rejected ? "appearance.savedRejected" : server.value ? "appearance.savedServer" : "appearance.saved", verdict.value.rejected ? "danger" : "success");
+  } catch (error: unknown) {
+    verdict.value = store.check(css.value, policy());
+    failed(error);
+  } finally {
+    busy.value = false;
+  }
 }
 
-function clear() {
-  store.clear();
-  css.value = "";
-  verdict.value = null;
-  toasts.push("appearance.cleared", "success");
+async function clear() {
+  try {
+    await store.clear();
+    css.value = "";
+    verdict.value = null;
+    toasts.push("appearance.cleared", "success");
+  } catch (error: unknown) {
+    failed(error);
+  }
+}
+
+// Site defaults (server only): default theme, token overrides, default layout.
+const themeKey: Readonly<Record<Theme, string>> = { system: "settings.theme.system", light: "settings.theme.light", dark: "settings.theme.dark" };
+const themeOptions = computed(() => themes.map((value) => ({ value, label: t(themeKey[value]) })));
+const defaultTheme = shallowRef<Theme>("system");
+const lightTokens = shallowRef("");
+const darkTokens = shallowRef("");
+const tokenNames: ReadonlySet<string> = new Set<string>(themeTokenNames);
+
+type LayoutChoice = "standard" | "focused" | "metadata" | "mine" | "keep";
+const layoutChoice = shallowRef<LayoutChoice>("standard");
+const layoutKey: Readonly<Record<LayoutChoice, string>> = {
+  standard: "appearance.defaults.layouts.standard",
+  focused: "appearance.defaults.layouts.focused",
+  metadata: "appearance.defaults.layouts.metadata",
+  mine: "appearance.defaults.layouts.mine",
+  keep: "appearance.defaults.layouts.keep",
+};
+const sameLayout = (a: unknown, b: unknown) => JSON.stringify(normalizeLayout(a)) === JSON.stringify(normalizeLayout(b));
+const layoutOptions = computed(() => {
+  const choices: LayoutChoice[] = ["standard", "focused", "metadata", "mine"];
+  if (layoutChoice.value === "keep") {
+    choices.push("keep");
+  }
+  return choices.map((value) => ({ value, label: t(layoutKey[value]) }));
+});
+
+function tokenText(tokens: Readonly<Record<string, string>>): string {
+  return Object.entries(tokens)
+    .map(([name, value]) => name + ": " + value)
+    .join("\n");
+}
+
+watch(
+  () => store.config,
+  (config) => {
+    if (config === null) {
+      return;
+    }
+    defaultTheme.value = config.defaultTheme;
+    lightTokens.value = tokenText(config.tokens.light);
+    darkTokens.value = tokenText(config.tokens.dark);
+    const stored = config.defaultLayout;
+    layoutChoice.value =
+      stored === null
+        ? "standard"
+        : sameLayout(stored, builtInPresets.focused)
+          ? "focused"
+          : sameLayout(stored, builtInPresets.metadata)
+            ? "metadata"
+            : "keep";
+  },
+  { immediate: true },
+);
+
+interface ParsedTokens {
+  readonly tokens: Record<string, string>;
+  readonly invalid: string[];
+}
+
+function parseTokens(text: string): ParsedTokens {
+  const tokens: Record<string, string> = {};
+  const invalid: string[] = [];
+  for (const line of text.split("\n")) {
+    const trimmed = line.trim();
+    if (trimmed === "") {
+      continue;
+    }
+    const colon = trimmed.indexOf(":");
+    const name = colon < 0 ? trimmed : trimmed.slice(0, colon).trim().replace(/^--jl-/, "");
+    const value = colon < 0 ? null : sanitizeTokenValue(trimmed.slice(colon + 1), name === "font-family");
+    if (!tokenNames.has(name) || value === null || name in tokens) {
+      invalid.push(trimmed.length > 40 ? trimmed.slice(0, 37) + "..." : trimmed);
+    } else {
+      tokens[name] = value;
+    }
+  }
+  return { tokens, invalid };
+}
+
+const parsedLight = computed(() => parseTokens(lightTokens.value));
+const parsedDark = computed(() => parseTokens(darkTokens.value));
+const tokenError = computed(() => {
+  const invalid = [...parsedLight.value.invalid, ...parsedDark.value.invalid];
+  return invalid.length === 0 ? null : t("appearance.defaults.invalidTokens", { tokens: invalid.join(", ") });
+});
+
+function chosenLayout(): PageLayout | null {
+  switch (layoutChoice.value) {
+    case "standard":
+      return null;
+    case "focused":
+    case "metadata":
+      return toUserLayout(builtInPresets[layoutChoice.value], []).current;
+    case "mine":
+      return toUserLayout(layoutStore.layout, []).current;
+    case "keep":
+      return store.config?.defaultLayout ?? null;
+  }
+}
+
+async function saveDefaults() {
+  if (tokenError.value !== null || busy.value) {
+    return;
+  }
+  busy.value = true;
+  try {
+    await store.saveDocument({
+      defaultTheme: defaultTheme.value,
+      tokens: { light: parsedLight.value.tokens, dark: parsedDark.value.tokens },
+      defaultLayout: chosenLayout(),
+    });
+    toasts.push("appearance.defaults.saved", "success");
+  } catch (error: unknown) {
+    failed(error);
+  } finally {
+    busy.value = false;
+  }
+}
+
+// Settings file (G33.3): appearance and plugins together.
+async function exportFile() {
+  try {
+    const document = await exportSiteSettings(client);
+    saveBlob(new Blob([JSON.stringify(document, null, 2) + "\n"], { type: "application/json" }), "jelee-site-settings.json");
+  } catch (error: unknown) {
+    failed(error);
+  }
+}
+
+async function importFile(event: Event) {
+  const input = event.target as HTMLInputElement;
+  const file = input.files?.[0];
+  input.value = "";
+  if (file === undefined) {
+    return;
+  }
+  let document: SiteSettingsDocument;
+  try {
+    document = JSON.parse(await file.text()) as SiteSettingsDocument;
+  } catch {
+    toasts.push("appearance.file.invalid", "danger");
+    return;
+  }
+  try {
+    const result = await importSiteSettings(client, document);
+    store.imported(result.appearance);
+    site.pluginsChanged();
+    verdict.value = null;
+    toasts.push("appearance.file.imported", "success");
+  } catch (error: unknown) {
+    failed(error);
+  }
+}
+
+async function resetAll() {
+  try {
+    await store.reset();
+    verdict.value = null;
+    toasts.push("appearance.file.resetDone", "success");
+  } catch (error: unknown) {
+    failed(error);
+  }
 }
 </script>
 
@@ -90,7 +310,7 @@ function clear() {
       <li>{{ t("appearance.rules.fonts") }}</li>
       <li>{{ t("appearance.rules.csp") }}</li>
     </ul>
-    <UiAlert tone="info">{{ t("appearance.storageNote") }}</UiAlert>
+    <UiAlert tone="info">{{ t(server ? "appearance.storageServer" : "appearance.storageNote") }}</UiAlert>
     <UiAlert v-if="!store.supported" tone="danger">{{ t("appearance.unsupported") }}</UiAlert>
 
     <form class="jl-appearance__form" novalidate @submit.prevent="save">
@@ -131,10 +351,57 @@ function clear() {
 
       <div class="jl-appearance__actions">
         <UiButton variant="secondary" @click="check">{{ t("appearance.check") }}</UiButton>
-        <UiButton type="submit" :disabled="hostError !== null">{{ t("appearance.save") }}</UiButton>
+        <UiButton type="submit" :disabled="hostError !== null" :busy="busy">{{ t("appearance.save") }}</UiButton>
         <UiConfirmButton :label="t('appearance.clear')" :confirm-label="t('appearance.clearConfirm')" :prompt="t('appearance.clearPrompt')" @confirm="clear" />
       </div>
     </form>
+
+    <section v-if="server" class="jl-appearance__section" aria-labelledby="appearance-defaults">
+      <h2 id="appearance-defaults">{{ t("appearance.defaults.title") }}</h2>
+      <p class="jl-appearance__muted">{{ t("appearance.defaults.intro") }}</p>
+      <form class="jl-appearance__form" novalidate @submit.prevent="saveDefaults">
+        <UiSelectField v-model="defaultTheme" :label="t('appearance.defaults.theme')" :options="themeOptions" :hint="t('appearance.defaults.themeHint')" />
+        <div class="jl-appearance__field">
+          <label :for="lightId">{{ t("appearance.defaults.tokensLight") }}</label>
+          <textarea
+            :id="lightId"
+            v-model="lightTokens"
+            class="jl-appearance__textarea"
+            rows="4"
+            spellcheck="false"
+            :aria-describedby="lightId + '-hint'"
+          />
+          <p :id="lightId + '-hint'" class="jl-appearance__muted">{{ t("appearance.defaults.tokensHint", { names: themeTokenNames.join(", ") }) }}</p>
+        </div>
+        <div class="jl-appearance__field">
+          <label :for="darkId">{{ t("appearance.defaults.tokensDark") }}</label>
+          <textarea :id="darkId" v-model="darkTokens" class="jl-appearance__textarea" rows="4" spellcheck="false" />
+        </div>
+        <p v-if="tokenError" class="jl-appearance__error" role="alert">{{ tokenError }}</p>
+        <UiSelectField v-model="layoutChoice" :label="t('appearance.defaults.layout')" :options="layoutOptions" :hint="t('appearance.defaults.layoutHint')" />
+        <div class="jl-appearance__actions">
+          <UiButton type="submit" :disabled="tokenError !== null" :busy="busy">{{ t("appearance.defaults.save") }}</UiButton>
+        </div>
+      </form>
+    </section>
+
+    <section v-if="server" class="jl-appearance__section" aria-labelledby="appearance-file">
+      <h2 id="appearance-file">{{ t("appearance.file.title") }}</h2>
+      <p class="jl-appearance__muted">{{ t("appearance.file.intro") }}</p>
+      <div class="jl-appearance__actions">
+        <UiButton variant="secondary" @click="exportFile">{{ t("appearance.file.export") }}</UiButton>
+        <label class="jl-appearance__file" :for="fileId">
+          {{ t("appearance.file.import") }}
+          <input :id="fileId" type="file" accept="application/json,.json" @change="importFile" />
+        </label>
+        <UiConfirmButton
+          :label="t('appearance.file.reset')"
+          :confirm-label="t('appearance.file.resetConfirm')"
+          :prompt="t('appearance.file.resetPrompt')"
+          @confirm="resetAll"
+        />
+      </div>
+    </section>
 
     <section v-if="verdict" class="jl-appearance__result" aria-labelledby="appearance-result" aria-live="polite">
       <h2 id="appearance-result">{{ t("appearance.result") }}</h2>
@@ -232,5 +499,22 @@ function clear() {
 
 .jl-appearance__issues code {
   overflow-wrap: anywhere;
+}
+
+.jl-appearance__section {
+  display: grid;
+  gap: var(--jl-space-3);
+  padding-top: var(--jl-space-4);
+  border-top: 1px solid var(--jl-color-border);
+}
+
+.jl-appearance__file {
+  display: inline-grid;
+  gap: var(--jl-space-1);
+  font-weight: 600;
+}
+
+.jl-appearance__file input {
+  min-height: var(--jl-touch-target);
 }
 </style>

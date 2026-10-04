@@ -27,6 +27,7 @@ var errorCodeStatuses = map[string][]int{
 	"devmode_inactive":           {409},
 	"devmode_toggle_unavailable": {409},
 	"csrf_failed":                {403},
+	"custom_css_rejected":        {400},
 	"device_stream_limit":        {429},
 	"feature_removed":            {501},
 	"forbidden":                  {403},

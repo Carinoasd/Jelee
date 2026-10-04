@@ -32,9 +32,13 @@ export function unmountAll(): void {
 
 export async function mountView(
   path: string,
-  options: { fetch: typeof globalThis.fetch; user?: User | null; locale?: Locale; header?: Component; plugins?: readonly Plugin[] },
+  options: { fetch: typeof globalThis.fetch; user?: User | null; locale?: Locale; header?: Component; plugins?: readonly Plugin[]; csrf?: string },
 ): Promise<MountedView> {
   const api = createApiClient({ fetch: options.fetch, baseUrl: "http://localhost" });
+  if (options.csrf !== undefined) {
+    // A resumed cookie session, so unsafe requests carry the CSRF header.
+    api.auth.resume({ csrf: options.csrf });
+  }
   const pinia = createPinia();
   const i18n = createAppI18n(options.locale ?? "en-US");
   const router = createRouter({ history: createMemoryHistory(), routes });

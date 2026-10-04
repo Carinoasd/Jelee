@@ -13,7 +13,10 @@ COPY --chmod=0444 .tools/media-runtime/linux-amd64/debian13-glibc2.41-12deb13u4-
 COPY --chmod=0555 .tools/media-runtime/linux-amd64/debian13-glibc2.41-12deb13u4-gcc14.2.0-19/lib64/ /runtime/lib64/
 COPY --chmod=0444 .tools/media-runtime/linux-amd64/debian13-glibc2.41-12deb13u4-gcc14.2.0-19/licenses/ /runtime/licenses/
 RUN find /runtime -type d -exec chmod 0555 {} + && go run ./tools/runtime-image
-RUN go build -trimpath -o /out/jelee ./cmd/jelee && \
+# Release builds pass --build-arg JELEE_VERSION=x.y.z; an empty or invalid
+# value reports buildinfo.DefaultVersion (GET /api/v1/system, OpenAPI).
+ARG JELEE_VERSION=
+RUN go build -trimpath -ldflags "-X github.com/MoYuanCN/Jelee/internal/platform/buildinfo.version=${JELEE_VERSION}" -o /out/jelee ./cmd/jelee && \
     go build -trimpath -o /out/jelee-cli ./cmd/jelee-cli && \
     go build -trimpath -o /out/jelee-migrate ./cmd/jelee-migrate
 

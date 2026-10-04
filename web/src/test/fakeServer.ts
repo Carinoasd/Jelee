@@ -4,6 +4,7 @@
 // HttpOnly session cookie, so requests without an Authorization header are
 // cookie-authenticated and unsafe methods must carry the CSRF header.
 import type { components } from "@/api/schema";
+import { normalizeFontHost, sanitizeCustomCss } from "@/theme/customCss";
 
 type CatalogItem = components["schemas"]["CatalogItem"];
 type ItemDetails = components["schemas"]["CatalogItemDetails"];
@@ -11,6 +12,27 @@ type MediaSourceInfo = components["schemas"]["MediaSourceInfo"];
 type Session = components["schemas"]["Session"];
 type User = components["schemas"]["User"];
 type UserPreferences = components["schemas"]["UserPreferences"];
+type SiteAppearanceConfig = components["schemas"]["SiteAppearanceConfig"];
+type SiteAppearanceInput = components["schemas"]["SiteAppearanceInput"];
+type SitePluginsConfig = components["schemas"]["SitePluginsConfig"];
+type SitePluginsInput = components["schemas"]["SitePluginsInput"];
+type SiteSettingsDocument = components["schemas"]["SiteSettingsDocument"];
+
+/** Site-wide settings as the server stores them (G32.4, G33.2–G33.5). */
+export interface FakeSite {
+  appearance: SiteAppearanceConfig;
+  plugins: SitePluginsConfig;
+  /** Requests that changed site settings, as "<document>:<operation>". */
+  writes: string[];
+}
+
+export function defaultSiteAppearance(): SiteAppearanceConfig {
+  return { defaultTheme: "system", tokens: { light: {}, dark: {} }, customCss: "", allowExternalFonts: false, fontHosts: [], defaultLayout: null, revision: 0, updatedAt: "2026-10-01T00:00:00Z", cssIssues: [] };
+}
+
+export function createFakeSite(): FakeSite {
+  return { appearance: defaultSiteAppearance(), plugins: { plugins: [], settings: {}, revision: 0, updatedAt: "2026-10-01T00:00:00Z" }, writes: [] };
+}
 
 export interface FakeServer {
   fetch: typeof globalThis.fetch;
@@ -34,8 +56,12 @@ export interface FakeServer {
   csrf: string;
   /** Developer mode as GET /api/v1/system reports it (G45.3). */
   devMode: { active: boolean; expiresAt: string };
+  /** Server version reported by GET /api/v1/system; omitted when empty. */
+  version: string;
   /** The signed-in user's stored interface preferences (G33.3). */
   preferences: UserPreferences;
+  /** Site settings; null answers 404 like a server without them. */
+  site: FakeSite | null;
 }
 
 const json = (status: number, body: unknown) =>
@@ -73,7 +99,9 @@ export function createFakeServer(): FakeServer {
     token: "t".repeat(43),
     csrf: "c".repeat(43),
     devMode: { active: false, expiresAt: "" },
-    preferences: { theme: "system", density: "comfortable" },
+    version: "",
+    preferences: { theme: "system", density: "comfortable", layout: null },
+    site: null,
     user: {
       id: userId,
       name: "admin",
@@ -99,7 +127,8 @@ export function createFakeServer(): FakeServer {
 
       if (path === "/api/v1/system" && method === "GET") {
         const dev = server.devMode.active ? { devMode: true, devModeExpiresAt: server.devMode.expiresAt } : { devMode: false };
-        return new Response(JSON.stringify({ data: { name: "Jelee", ...dev } }), {
+        const version = server.version === "" ? {} : { version: server.version };
+        return new Response(JSON.stringify({ data: { name: "Jelee", ...version, ...dev } }), {
           status: 200,
           headers: { "Content-Type": "application/json", "X-Jelee-Dev-Mode": String(server.devMode.active) },
         });
@@ -142,6 +171,9 @@ export function createFakeServer(): FakeServer {
       if (path === "/api/v1/users/me/preferences" && method === "PUT") {
         server.preferences = (await request.json()) as UserPreferences;
         return json(200, { data: server.preferences });
+      }
+      if (path.startsWith("/api/v1/site/") && server.site !== null) {
+        return siteRoute(server.site, server.user.admin, method, path, request);
       }
       if (path === "/api/v1/libraries" && method === "GET") {
         if (server.failLibraries) {
@@ -219,4 +251,104 @@ export function createFakeServer(): FakeServer {
     },
   };
   return server;
+}
+
+/** The document members of a stored or submitted appearance. */
+function appearanceDocument(from: SiteAppearanceInput | SiteAppearanceConfig): Omit<SiteAppearanceInput, "revision"> {
+  return {
+    defaultTheme: from.defaultTheme,
+    tokens: from.tokens,
+    customCss: from.customCss,
+    allowExternalFonts: from.allowExternalFonts,
+    fontHosts: from.fontHosts,
+    defaultLayout: from.defaultLayout,
+  };
+}
+
+function storedAppearance(input: Omit<SiteAppearanceInput, "revision">, revision: number): SiteAppearanceConfig {
+  const fontHosts = input.fontHosts.map((host) => normalizeFontHost(host) ?? host);
+  const result = sanitizeCustomCss(input.customCss, { allowExternalFonts: input.allowExternalFonts, fontHosts });
+  return { ...input, fontHosts, revision, updatedAt: "2026-10-02T00:00:00Z", cssIssues: result.issues.map((issue) => ({ ...issue })) };
+}
+
+/** The site settings endpoints, with the server's revision and CSS rules. */
+async function siteRoute(site: FakeSite, admin: boolean, method: string, path: string, request: Request): Promise<Response> {
+  const adminOnly = !(method === "GET" && (path === "/api/v1/site/appearance" || path === "/api/v1/site/plugins"));
+  if (adminOnly && !admin) {
+    return json(403, errorBody("forbidden"));
+  }
+  const appearance = site.appearance;
+  const policy = { allowExternalFonts: appearance.allowExternalFonts, fontHosts: appearance.fontHosts };
+  const setAppearance = (input: Omit<SiteAppearanceInput, "revision">, operation: string) => {
+    if (sanitizeCustomCss(input.customCss, { allowExternalFonts: input.allowExternalFonts, fontHosts: input.fontHosts }).rejected) {
+      return json(400, errorBody("custom_css_rejected"));
+    }
+    site.appearance = storedAppearance(input, appearance.revision + 1);
+    site.writes.push("appearance:" + operation);
+    return null;
+  };
+  const setPlugins = (input: Omit<SitePluginsInput, "revision">, operation: string) => {
+    site.plugins = { plugins: input.plugins, settings: input.settings, revision: site.plugins.revision + 1, updatedAt: "2026-10-02T00:00:00Z" };
+    site.writes.push("plugins:" + operation);
+  };
+  switch (method + " " + path) {
+    case "GET /api/v1/site/appearance":
+      return json(200, {
+        data: {
+          defaultTheme: appearance.defaultTheme,
+          tokens: appearance.tokens,
+          css: sanitizeCustomCss(appearance.customCss, policy).css,
+          fontHosts: appearance.allowExternalFonts ? appearance.fontHosts : [],
+          defaultLayout: appearance.defaultLayout,
+        },
+      });
+    case "GET /api/v1/site/appearance/config":
+      return json(200, { data: appearance });
+    case "PUT /api/v1/site/appearance": {
+      const input = (await request.json()) as SiteAppearanceInput;
+      if (input.revision !== appearance.revision) {
+        return json(409, errorBody("conflict"));
+      }
+      return setAppearance(appearanceDocument(input), "update") ?? json(200, { data: site.appearance });
+    }
+    case "POST /api/v1/site/appearance/reset": {
+      return setAppearance(appearanceDocument(defaultSiteAppearance()), "reset") ?? json(200, { data: site.appearance });
+    }
+    case "GET /api/v1/site/plugins": {
+      const disabled = new Set(site.plugins.plugins.filter((entry) => !entry.enabled).map((entry) => entry.id));
+      const settings = Object.fromEntries(Object.entries(site.plugins.settings).filter(([id]) => !disabled.has(id)));
+      return json(200, { data: { plugins: site.plugins.plugins, settings } });
+    }
+    case "GET /api/v1/site/plugins/config":
+      return json(200, { data: site.plugins });
+    case "PUT /api/v1/site/plugins": {
+      const input = (await request.json()) as SitePluginsInput;
+      if (input.revision !== site.plugins.revision) {
+        return json(409, errorBody("conflict"));
+      }
+      setPlugins(input, "update");
+      return json(200, { data: site.plugins });
+    }
+    case "POST /api/v1/site/plugins/reset":
+      setPlugins({ plugins: [], settings: {} }, "reset");
+      return json(200, { data: site.plugins });
+    case "GET /api/v1/site/export": {
+      const plugins = { plugins: site.plugins.plugins, settings: site.plugins.settings };
+      return json(200, { data: { format: "jelee.site-settings", version: 1, exportedAt: "2026-10-02T00:00:00Z", appearance: appearanceDocument(appearance), plugins } });
+    }
+    case "POST /api/v1/site/import": {
+      const raw = (await request.json()) as Record<string, unknown>;
+      if (raw.format !== "jelee.site-settings" || raw.version !== 1) {
+        return json(400, errorBody("invalid_request"));
+      }
+      const document = raw as unknown as SiteSettingsDocument;
+      const refused = setAppearance(document.appearance, "import");
+      if (refused !== null) {
+        return refused;
+      }
+      setPlugins(document.plugins, "import");
+      return json(200, { data: { appearance: site.appearance, plugins: site.plugins } });
+    }
+  }
+  return json(404, errorBody("not_found"));
 }

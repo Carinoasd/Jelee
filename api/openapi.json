@@ -124,6 +124,43 @@
         ],
         "type": "object"
       },
+      "CSSIssue": {
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "enum": [
+              "too_long",
+              "markup",
+              "escape",
+              "control_char",
+              "unterminated_comment",
+              "unbalanced",
+              "too_deep",
+              "import_blocked",
+              "at_rule_blocked",
+              "invalid_selector",
+              "invalid_declaration",
+              "nesting_unsupported",
+              "expression",
+              "script_url",
+              "binding",
+              "blocked_function",
+              "external_url",
+              "external_font"
+            ],
+            "type": "string"
+          },
+          "excerpt": {
+            "maxLength": 80,
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "excerpt"
+        ],
+        "type": "object"
+      },
       "CatalogImportReport": {
         "additionalProperties": false,
         "properties": {
@@ -1695,6 +1732,7 @@
           "confirmation_required",
           "conflict",
           "csrf_failed",
+          "custom_css_rejected",
           "device_stream_limit",
           "devmode_inactive",
           "devmode_toggle_unavailable",
@@ -1784,6 +1822,9 @@
           ],
           "csrf_failed": [
             "403"
+          ],
+          "custom_css_rejected": [
+            "400"
           ],
           "device_stream_limit": [
             "429"
@@ -3508,6 +3549,47 @@
         ],
         "type": "object"
       },
+      "LayoutEntry": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "pattern": "^[A-Za-z][A-Za-z0-9_.-]{0,63}$",
+            "type": "string"
+          },
+          "visible": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "visible"
+        ],
+        "type": "object"
+      },
+      "LayoutPreset": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "pattern": "^custom-[0-9]{1,6}$",
+            "type": "string"
+          },
+          "layout": {
+            "$ref": "#/components/schemas/PageLayout"
+          },
+          "name": {
+            "description": "At most 40 characters, no surrounding spaces or control characters.",
+            "maxLength": 40,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "layout"
+        ],
+        "type": "object"
+      },
       "LibraryAccess": {
         "additionalProperties": false,
         "properties": {
@@ -5021,6 +5103,32 @@
         ],
         "type": "object"
       },
+      "PageLayout": {
+        "additionalProperties": false,
+        "properties": {
+          "detail": {
+            "description": "Blocks in display order; IDs unique. IDs belong to the web client, which drops unknown ones and appends missing ones.",
+            "items": {
+              "$ref": "#/components/schemas/LayoutEntry"
+            },
+            "maxItems": 32,
+            "type": "array"
+          },
+          "home": {
+            "description": "Blocks in display order; IDs unique. IDs belong to the web client, which drops unknown ones and appends missing ones.",
+            "items": {
+              "$ref": "#/components/schemas/LayoutEntry"
+            },
+            "maxItems": 32,
+            "type": "array"
+          }
+        },
+        "required": [
+          "home",
+          "detail"
+        ],
+        "type": "object"
+      },
       "ParentalRating": {
         "additionalProperties": false,
         "properties": {
@@ -6390,6 +6498,699 @@
         ],
         "type": "object"
       },
+      "SiteAppearance": {
+        "additionalProperties": false,
+        "properties": {
+          "css": {
+            "description": "Sanitized administrator CSS, ready for a constructed stylesheet; the raw text is administrator-only.",
+            "type": "string"
+          },
+          "defaultLayout": {
+            "description": "Layout for users who never saved one; null keeps the standard layout.",
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/PageLayout"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "defaultTheme": {
+            "enum": [
+              "system",
+              "light",
+              "dark"
+            ],
+            "type": "string"
+          },
+          "fontHosts": {
+            "description": "Hosts external fonts may load from; empty while external fonts are off.",
+            "items": {
+              "description": "A DNS host name, lower case after trimming; a numeric last label (an IP address) is refused.",
+              "maxLength": 253,
+              "pattern": "^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+$",
+              "type": "string"
+            },
+            "maxItems": 10,
+            "type": "array"
+          },
+          "tokens": {
+            "additionalProperties": false,
+            "properties": {
+              "dark": {
+                "additionalProperties": {
+                  "description": "A CSS value without url(), blocks, statements, escapes or markup; quotes only in font-family.",
+                  "maxLength": 256,
+                  "type": "string"
+                },
+                "maxProperties": 14,
+                "propertyNames": {
+                  "enum": [
+                    "color-bg",
+                    "color-surface",
+                    "color-text",
+                    "color-text-muted",
+                    "color-border",
+                    "color-primary",
+                    "color-primary-text",
+                    "color-focus",
+                    "color-badge-bg",
+                    "color-info-bg",
+                    "color-chart",
+                    "radius-sm",
+                    "radius-md",
+                    "font-family"
+                  ]
+                },
+                "type": "object"
+              },
+              "light": {
+                "additionalProperties": {
+                  "description": "A CSS value without url(), blocks, statements, escapes or markup; quotes only in font-family.",
+                  "maxLength": 256,
+                  "type": "string"
+                },
+                "maxProperties": 14,
+                "propertyNames": {
+                  "enum": [
+                    "color-bg",
+                    "color-surface",
+                    "color-text",
+                    "color-text-muted",
+                    "color-border",
+                    "color-primary",
+                    "color-primary-text",
+                    "color-focus",
+                    "color-badge-bg",
+                    "color-info-bg",
+                    "color-chart",
+                    "radius-sm",
+                    "radius-md",
+                    "font-family"
+                  ]
+                },
+                "type": "object"
+              }
+            },
+            "required": [
+              "light",
+              "dark"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "defaultTheme",
+          "tokens",
+          "css",
+          "fontHosts",
+          "defaultLayout"
+        ],
+        "type": "object"
+      },
+      "SiteAppearanceConfig": {
+        "additionalProperties": false,
+        "properties": {
+          "allowExternalFonts": {
+            "description": "Allow @font-face sources on fontHosts over https and add them to the web client's CSP font-src.",
+            "type": "boolean"
+          },
+          "cssIssues": {
+            "description": "What the sanitizer removed from customCss under the current settings.",
+            "items": {
+              "$ref": "#/components/schemas/CSSIssue"
+            },
+            "type": "array"
+          },
+          "customCss": {
+            "description": "Administrator CSS as entered, at most 65536 UTF-16 code units. The server sanitizes it like the web client (G33.4): markup, backslash escapes, control characters, unterminated comments and unbalanced blocks refuse the whole text with 400 custom_css_rejected; @import, unknown at-rules, expression(), script URLs, bindings, image-set()/src()/element()/paint(), attr() URLs and every url() that is not a same-origin path or fragment are removed and listed in cssIssues. Only the sanitized text reaches other users.",
+            "maxLength": 65536,
+            "type": "string"
+          },
+          "defaultLayout": {
+            "description": "Layout for users who never saved one; null keeps the web client's standard layout.",
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/PageLayout"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "defaultTheme": {
+            "enum": [
+              "system",
+              "light",
+              "dark"
+            ],
+            "type": "string"
+          },
+          "fontHosts": {
+            "items": {
+              "description": "A DNS host name, lower case after trimming; a numeric last label (an IP address) is refused.",
+              "maxLength": 253,
+              "pattern": "^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+$",
+              "type": "string"
+            },
+            "maxItems": 10,
+            "type": "array",
+            "uniqueItems": true
+          },
+          "revision": {
+            "description": "Increases with every change. A replacement must send the revision it read; another value is 409 conflict.",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "tokens": {
+            "additionalProperties": false,
+            "properties": {
+              "dark": {
+                "additionalProperties": {
+                  "description": "A CSS value without url(), blocks, statements, escapes or markup; quotes only in font-family.",
+                  "maxLength": 256,
+                  "type": "string"
+                },
+                "maxProperties": 14,
+                "propertyNames": {
+                  "enum": [
+                    "color-bg",
+                    "color-surface",
+                    "color-text",
+                    "color-text-muted",
+                    "color-border",
+                    "color-primary",
+                    "color-primary-text",
+                    "color-focus",
+                    "color-badge-bg",
+                    "color-info-bg",
+                    "color-chart",
+                    "radius-sm",
+                    "radius-md",
+                    "font-family"
+                  ]
+                },
+                "type": "object"
+              },
+              "light": {
+                "additionalProperties": {
+                  "description": "A CSS value without url(), blocks, statements, escapes or markup; quotes only in font-family.",
+                  "maxLength": 256,
+                  "type": "string"
+                },
+                "maxProperties": 14,
+                "propertyNames": {
+                  "enum": [
+                    "color-bg",
+                    "color-surface",
+                    "color-text",
+                    "color-text-muted",
+                    "color-border",
+                    "color-primary",
+                    "color-primary-text",
+                    "color-focus",
+                    "color-badge-bg",
+                    "color-info-bg",
+                    "color-chart",
+                    "radius-sm",
+                    "radius-md",
+                    "font-family"
+                  ]
+                },
+                "type": "object"
+              }
+            },
+            "required": [
+              "light",
+              "dark"
+            ],
+            "type": "object"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "defaultTheme",
+          "tokens",
+          "customCss",
+          "allowExternalFonts",
+          "fontHosts",
+          "defaultLayout",
+          "revision",
+          "updatedAt",
+          "cssIssues"
+        ],
+        "type": "object"
+      },
+      "SiteAppearanceDocument": {
+        "additionalProperties": false,
+        "properties": {
+          "allowExternalFonts": {
+            "description": "Allow @font-face sources on fontHosts over https and add them to the web client's CSP font-src.",
+            "type": "boolean"
+          },
+          "customCss": {
+            "description": "Administrator CSS as entered, at most 65536 UTF-16 code units. The server sanitizes it like the web client (G33.4): markup, backslash escapes, control characters, unterminated comments and unbalanced blocks refuse the whole text with 400 custom_css_rejected; @import, unknown at-rules, expression(), script URLs, bindings, image-set()/src()/element()/paint(), attr() URLs and every url() that is not a same-origin path or fragment are removed and listed in cssIssues. Only the sanitized text reaches other users.",
+            "maxLength": 65536,
+            "type": "string"
+          },
+          "defaultLayout": {
+            "description": "Layout for users who never saved one; null keeps the web client's standard layout.",
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/PageLayout"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "defaultTheme": {
+            "enum": [
+              "system",
+              "light",
+              "dark"
+            ],
+            "type": "string"
+          },
+          "fontHosts": {
+            "items": {
+              "description": "A DNS host name, lower case after trimming; a numeric last label (an IP address) is refused.",
+              "maxLength": 253,
+              "pattern": "^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+$",
+              "type": "string"
+            },
+            "maxItems": 10,
+            "type": "array",
+            "uniqueItems": true
+          },
+          "tokens": {
+            "additionalProperties": false,
+            "properties": {
+              "dark": {
+                "additionalProperties": {
+                  "description": "A CSS value without url(), blocks, statements, escapes or markup; quotes only in font-family.",
+                  "maxLength": 256,
+                  "type": "string"
+                },
+                "maxProperties": 14,
+                "propertyNames": {
+                  "enum": [
+                    "color-bg",
+                    "color-surface",
+                    "color-text",
+                    "color-text-muted",
+                    "color-border",
+                    "color-primary",
+                    "color-primary-text",
+                    "color-focus",
+                    "color-badge-bg",
+                    "color-info-bg",
+                    "color-chart",
+                    "radius-sm",
+                    "radius-md",
+                    "font-family"
+                  ]
+                },
+                "type": "object"
+              },
+              "light": {
+                "additionalProperties": {
+                  "description": "A CSS value without url(), blocks, statements, escapes or markup; quotes only in font-family.",
+                  "maxLength": 256,
+                  "type": "string"
+                },
+                "maxProperties": 14,
+                "propertyNames": {
+                  "enum": [
+                    "color-bg",
+                    "color-surface",
+                    "color-text",
+                    "color-text-muted",
+                    "color-border",
+                    "color-primary",
+                    "color-primary-text",
+                    "color-focus",
+                    "color-badge-bg",
+                    "color-info-bg",
+                    "color-chart",
+                    "radius-sm",
+                    "radius-md",
+                    "font-family"
+                  ]
+                },
+                "type": "object"
+              }
+            },
+            "required": [
+              "light",
+              "dark"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "defaultTheme",
+          "tokens",
+          "customCss",
+          "allowExternalFonts",
+          "fontHosts",
+          "defaultLayout"
+        ],
+        "type": "object"
+      },
+      "SiteAppearanceInput": {
+        "additionalProperties": false,
+        "properties": {
+          "allowExternalFonts": {
+            "description": "Allow @font-face sources on fontHosts over https and add them to the web client's CSP font-src.",
+            "type": "boolean"
+          },
+          "customCss": {
+            "description": "Administrator CSS as entered, at most 65536 UTF-16 code units. The server sanitizes it like the web client (G33.4): markup, backslash escapes, control characters, unterminated comments and unbalanced blocks refuse the whole text with 400 custom_css_rejected; @import, unknown at-rules, expression(), script URLs, bindings, image-set()/src()/element()/paint(), attr() URLs and every url() that is not a same-origin path or fragment are removed and listed in cssIssues. Only the sanitized text reaches other users.",
+            "maxLength": 65536,
+            "type": "string"
+          },
+          "defaultLayout": {
+            "description": "Layout for users who never saved one; null keeps the web client's standard layout.",
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/PageLayout"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "defaultTheme": {
+            "enum": [
+              "system",
+              "light",
+              "dark"
+            ],
+            "type": "string"
+          },
+          "fontHosts": {
+            "items": {
+              "description": "A DNS host name, lower case after trimming; a numeric last label (an IP address) is refused.",
+              "maxLength": 253,
+              "pattern": "^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+$",
+              "type": "string"
+            },
+            "maxItems": 10,
+            "type": "array",
+            "uniqueItems": true
+          },
+          "revision": {
+            "description": "Increases with every change. A replacement must send the revision it read; another value is 409 conflict.",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "tokens": {
+            "additionalProperties": false,
+            "properties": {
+              "dark": {
+                "additionalProperties": {
+                  "description": "A CSS value without url(), blocks, statements, escapes or markup; quotes only in font-family.",
+                  "maxLength": 256,
+                  "type": "string"
+                },
+                "maxProperties": 14,
+                "propertyNames": {
+                  "enum": [
+                    "color-bg",
+                    "color-surface",
+                    "color-text",
+                    "color-text-muted",
+                    "color-border",
+                    "color-primary",
+                    "color-primary-text",
+                    "color-focus",
+                    "color-badge-bg",
+                    "color-info-bg",
+                    "color-chart",
+                    "radius-sm",
+                    "radius-md",
+                    "font-family"
+                  ]
+                },
+                "type": "object"
+              },
+              "light": {
+                "additionalProperties": {
+                  "description": "A CSS value without url(), blocks, statements, escapes or markup; quotes only in font-family.",
+                  "maxLength": 256,
+                  "type": "string"
+                },
+                "maxProperties": 14,
+                "propertyNames": {
+                  "enum": [
+                    "color-bg",
+                    "color-surface",
+                    "color-text",
+                    "color-text-muted",
+                    "color-border",
+                    "color-primary",
+                    "color-primary-text",
+                    "color-focus",
+                    "color-badge-bg",
+                    "color-info-bg",
+                    "color-chart",
+                    "radius-sm",
+                    "radius-md",
+                    "font-family"
+                  ]
+                },
+                "type": "object"
+              }
+            },
+            "required": [
+              "light",
+              "dark"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "defaultTheme",
+          "tokens",
+          "customCss",
+          "allowExternalFonts",
+          "fontHosts",
+          "defaultLayout",
+          "revision"
+        ],
+        "type": "object"
+      },
+      "SitePluginState": {
+        "additionalProperties": false,
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          },
+          "id": {
+            "pattern": "^[a-z][a-z0-9-]{0,31}(?:\\.[a-z][a-z0-9-]{0,31}){1,3}$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "enabled"
+        ],
+        "type": "object"
+      },
+      "SitePlugins": {
+        "additionalProperties": false,
+        "properties": {
+          "plugins": {
+            "description": "Plugins in the administrator's order; IDs unique. Plugins not listed keep their bundled default and follow the listed ones.",
+            "items": {
+              "$ref": "#/components/schemas/SitePluginState"
+            },
+            "maxItems": 64,
+            "type": "array"
+          },
+          "settings": {
+            "additionalProperties": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "description": "Settings namespaces of plugins that are not disabled.",
+            "type": "object"
+          }
+        },
+        "required": [
+          "plugins",
+          "settings"
+        ],
+        "type": "object"
+      },
+      "SitePluginsConfig": {
+        "additionalProperties": false,
+        "properties": {
+          "plugins": {
+            "description": "Plugins in the administrator's order; IDs unique. Plugins not listed keep their bundled default and follow the listed ones.",
+            "items": {
+              "$ref": "#/components/schemas/SitePluginState"
+            },
+            "maxItems": 64,
+            "type": "array"
+          },
+          "revision": {
+            "description": "Increases with every change. A replacement must send the revision it read; another value is 409 conflict.",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "settings": {
+            "additionalProperties": {
+              "additionalProperties": true,
+              "description": "One plugin's settings namespace: keys match ^[A-Za-z][A-Za-z0-9_.-]{0,63}$, values are JSON (null allowed) at most eight levels deep, at most 16 KiB compact. Readable by every signed-in user: never store secrets.",
+              "maxProperties": 64,
+              "type": "object"
+            },
+            "description": "Settings namespace per plugin ID (G32.4).",
+            "maxProperties": 64,
+            "propertyNames": {
+              "pattern": "^[a-z][a-z0-9-]{0,31}(?:\\.[a-z][a-z0-9-]{0,31}){1,3}$",
+              "type": "string"
+            },
+            "type": "object"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "plugins",
+          "settings",
+          "revision",
+          "updatedAt"
+        ],
+        "type": "object"
+      },
+      "SitePluginsDocument": {
+        "additionalProperties": false,
+        "properties": {
+          "plugins": {
+            "description": "Plugins in the administrator's order; IDs unique. Plugins not listed keep their bundled default and follow the listed ones.",
+            "items": {
+              "$ref": "#/components/schemas/SitePluginState"
+            },
+            "maxItems": 64,
+            "type": "array"
+          },
+          "settings": {
+            "additionalProperties": {
+              "additionalProperties": true,
+              "description": "One plugin's settings namespace: keys match ^[A-Za-z][A-Za-z0-9_.-]{0,63}$, values are JSON (null allowed) at most eight levels deep, at most 16 KiB compact. Readable by every signed-in user: never store secrets.",
+              "maxProperties": 64,
+              "type": "object"
+            },
+            "description": "Settings namespace per plugin ID (G32.4).",
+            "maxProperties": 64,
+            "propertyNames": {
+              "pattern": "^[a-z][a-z0-9-]{0,31}(?:\\.[a-z][a-z0-9-]{0,31}){1,3}$",
+              "type": "string"
+            },
+            "type": "object"
+          }
+        },
+        "required": [
+          "plugins",
+          "settings"
+        ],
+        "type": "object"
+      },
+      "SitePluginsInput": {
+        "additionalProperties": false,
+        "properties": {
+          "plugins": {
+            "description": "Plugins in the administrator's order; IDs unique. Plugins not listed keep their bundled default and follow the listed ones.",
+            "items": {
+              "$ref": "#/components/schemas/SitePluginState"
+            },
+            "maxItems": 64,
+            "type": "array"
+          },
+          "revision": {
+            "description": "Increases with every change. A replacement must send the revision it read; another value is 409 conflict.",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "settings": {
+            "additionalProperties": {
+              "additionalProperties": true,
+              "description": "One plugin's settings namespace: keys match ^[A-Za-z][A-Za-z0-9_.-]{0,63}$, values are JSON (null allowed) at most eight levels deep, at most 16 KiB compact. Readable by every signed-in user: never store secrets.",
+              "maxProperties": 64,
+              "type": "object"
+            },
+            "description": "Settings namespace per plugin ID (G32.4).",
+            "maxProperties": 64,
+            "propertyNames": {
+              "pattern": "^[a-z][a-z0-9-]{0,31}(?:\\.[a-z][a-z0-9-]{0,31}){1,3}$",
+              "type": "string"
+            },
+            "type": "object"
+          }
+        },
+        "required": [
+          "plugins",
+          "settings",
+          "revision"
+        ],
+        "type": "object"
+      },
+      "SiteSettingsDocument": {
+        "additionalProperties": false,
+        "properties": {
+          "appearance": {
+            "$ref": "#/components/schemas/SiteAppearanceDocument"
+          },
+          "exportedAt": {
+            "description": "Informational; ignored on import.",
+            "format": "date-time",
+            "type": "string"
+          },
+          "format": {
+            "const": "jelee.site-settings",
+            "type": "string"
+          },
+          "plugins": {
+            "$ref": "#/components/schemas/SitePluginsDocument"
+          },
+          "version": {
+            "const": 1,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "format",
+          "version",
+          "appearance",
+          "plugins"
+        ],
+        "type": "object"
+      },
+      "SiteSettingsImport": {
+        "additionalProperties": false,
+        "properties": {
+          "appearance": {
+            "$ref": "#/components/schemas/SiteAppearanceConfig"
+          },
+          "plugins": {
+            "$ref": "#/components/schemas/SitePluginsConfig"
+          }
+        },
+        "required": [
+          "appearance",
+          "plugins"
+        ],
+        "type": "object"
+      },
       "User": {
         "additionalProperties": false,
         "properties": {
@@ -6484,6 +7285,28 @@
         ],
         "type": "object"
       },
+      "UserLayout": {
+        "additionalProperties": false,
+        "description": "A user's page layout (G33.5): at most 16 KiB encoded.",
+        "properties": {
+          "current": {
+            "$ref": "#/components/schemas/PageLayout"
+          },
+          "presets": {
+            "description": "Saved presets; IDs unique.",
+            "items": {
+              "$ref": "#/components/schemas/LayoutPreset"
+            },
+            "maxItems": 10,
+            "type": "array"
+          }
+        },
+        "required": [
+          "current",
+          "presets"
+        ],
+        "type": "object"
+      },
       "UserPage": {
         "additionalProperties": false,
         "properties": {
@@ -6530,6 +7353,17 @@
             ],
             "type": "string"
           },
+          "layout": {
+            "description": "Page layout and saved presets (G33.5); null until customized, when the site default layout applies. Required on replacement like every field.",
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/UserLayout"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "theme": {
             "description": "system follows the browser's color scheme.",
             "enum": [
@@ -6542,7 +7376,8 @@
         },
         "required": [
           "theme",
-          "density"
+          "density",
+          "layout"
         ],
         "type": "object"
       },
@@ -7587,7 +8422,7 @@
   "info": {
     "description": "Experimental foundation. Full feature parity is not yet available.",
     "title": "Jelee API",
-    "version": "0.1.0-dev"
+    "version": "0.1.0"
   },
   "openapi": "3.1.0",
   "paths": {
@@ -21923,6 +22758,1308 @@
         "x-jelee-setup": "token"
       }
     },
+    "/api/v1/site/appearance": {
+      "get": {
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/SiteAppearance"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful response; Cache-Control: no-store"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 400"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 401"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 403"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 409"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 413"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 415"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 429"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 503"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Jelee error envelope with code, message, details and traceId; see the Error schema."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "webSession": []
+          }
+        ],
+        "summary": "Read the effective site appearance (G33.2–G33.5): default theme, token overrides, sanitized custom CSS, effective font hosts and default layout; any signed-in user"
+      },
+      "put": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SiteAppearanceInput"
+              }
+            }
+          },
+          "description": "Maximum 2 MiB; exactly one object; unknown or duplicate keys rejected; null only where the schema allows it.",
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/SiteAppearanceConfig"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful response; Cache-Control: no-store"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 400"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 401"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 403"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 409"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 413"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 415"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 429"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 503"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Jelee error envelope with code, message, details and traceId; see the Error schema."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "webSession": []
+          }
+        ],
+        "summary": "Replace the site appearance; every field is required and revision must be current (409 conflict otherwise); the CSS is sanitized on the server (400 custom_css_rejected for structural problems); the frontend CSP adds font-src for fontHosts while allowExternalFonts is on; audited as site.appearance_changed unless unchanged",
+        "x-jelee-role": "administrator"
+      }
+    },
+    "/api/v1/site/appearance/config": {
+      "get": {
+        "description": "Administrator only; other users get 403 forbidden.",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/SiteAppearanceConfig"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful response; Cache-Control: no-store"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 400"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 401"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 403"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 409"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 413"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 415"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 429"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 503"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Jelee error envelope with code, message, details and traceId; see the Error schema."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "webSession": []
+          }
+        ],
+        "summary": "Read the stored site appearance with the raw CSS, the sanitizer's findings and the revision",
+        "x-jelee-role": "administrator"
+      }
+    },
+    "/api/v1/site/appearance/reset": {
+      "post": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Empty"
+              }
+            }
+          },
+          "description": "Maximum 64 KiB; exactly one object; unknown or duplicate keys rejected; null only where the schema allows it.",
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/SiteAppearanceConfig"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful response; Cache-Control: no-store"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 400"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 401"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 403"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 409"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 413"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 415"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 429"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 503"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Jelee error envelope with code, message, details and traceId; see the Error schema."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "webSession": []
+          }
+        ],
+        "summary": "Restore the default site appearance; audited as site.appearance_changed unless unchanged",
+        "x-jelee-role": "administrator"
+      }
+    },
+    "/api/v1/site/export": {
+      "get": {
+        "description": "Administrator only; other users get 403 forbidden.",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/SiteSettingsDocument"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful response; Cache-Control: no-store"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 400"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 401"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 403"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 409"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 413"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 415"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 429"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 503"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Jelee error envelope with code, message, details and traceId; see the Error schema."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "webSession": []
+          }
+        ],
+        "summary": "Export the site appearance and plugin configuration as one importable document (G33.3)",
+        "x-jelee-role": "administrator"
+      }
+    },
+    "/api/v1/site/import": {
+      "post": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SiteSettingsDocument"
+              }
+            }
+          },
+          "description": "Maximum 2 MiB; exactly one object; unknown or duplicate keys rejected; null only where the schema allows it.",
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/SiteSettingsImport"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful response; Cache-Control: no-store"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 400"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 401"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 403"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 409"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 413"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 415"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 429"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 503"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Jelee error envelope with code, message, details and traceId; see the Error schema."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "webSession": []
+          }
+        ],
+        "summary": "Replace the site appearance and plugin configuration from an exported document in one transaction, regardless of revisions; validated and sanitized like the replacements; audited per document",
+        "x-jelee-role": "administrator"
+      }
+    },
+    "/api/v1/site/plugins": {
+      "get": {
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/SitePlugins"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful response; Cache-Control: no-store"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 400"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 401"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 403"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 409"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 413"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 415"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 429"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 503"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Jelee error envelope with code, message, details and traceId; see the Error schema."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "webSession": []
+          }
+        ],
+        "summary": "Read the effective plugin configuration (G32.4): plugin order and enablement, and settings of plugins that are not disabled; any signed-in user"
+      },
+      "put": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SitePluginsInput"
+              }
+            }
+          },
+          "description": "Maximum 2 MiB; exactly one object; unknown or duplicate keys rejected; null only where the schema allows it.",
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/SitePluginsConfig"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful response; Cache-Control: no-store"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 400"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 401"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 403"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 409"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 413"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 415"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 429"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 503"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Jelee error envelope with code, message, details and traceId; see the Error schema."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "webSession": []
+          }
+        ],
+        "summary": "Replace the plugin configuration; every field is required and revision must be current (409 conflict otherwise); audited as site.plugins_changed unless unchanged",
+        "x-jelee-role": "administrator"
+      }
+    },
+    "/api/v1/site/plugins/config": {
+      "get": {
+        "description": "Administrator only; other users get 403 forbidden.",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/SitePluginsConfig"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful response; Cache-Control: no-store"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 400"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 401"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 403"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 409"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 413"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 415"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 429"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 503"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Jelee error envelope with code, message, details and traceId; see the Error schema."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "webSession": []
+          }
+        ],
+        "summary": "Read the stored plugin configuration with its revision",
+        "x-jelee-role": "administrator"
+      }
+    },
+    "/api/v1/site/plugins/reset": {
+      "post": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Empty"
+              }
+            }
+          },
+          "description": "Maximum 64 KiB; exactly one object; unknown or duplicate keys rejected; null only where the schema allows it.",
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/SitePluginsConfig"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful response; Cache-Control: no-store"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 400"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 401"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 403"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 409"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 413"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 415"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 429"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 503"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Jelee error envelope with code, message, details and traceId; see the Error schema."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "webSession": []
+          }
+        ],
+        "summary": "Restore every plugin's bundled default and remove all plugin settings; audited as site.plugins_changed unless unchanged",
+        "x-jelee-role": "administrator"
+      }
+    },
     "/api/v1/sources/{id}/audio/{trackId}": {
       "get": {
         "description": "Native sessions only; web sessions get 403 web_playback_disabled. Delivers the external audio file listed under externalTracks of GET /api/v1/items/{id}/playback byte for byte (G10.9): no burn-in, re-encoding, remuxing or charset conversion. The track must belong to the source and the source must be visible to the caller; a missing, invisible or foreign track is answered like a missing source. Range, HEAD, conditional requests, playback and bandwidth limits and revocation behave as for /api/v1/sources/{id}/stream, and a track counts as part of its source's playback. Content-Type comes from a fixed table keyed by the file extension (application/octet-stream when unknown); a detected subtitle charset is only reported as its charset parameter. Responses carry X-Content-Type-Options: nosniff and a sandbox Content-Security-Policy.",
@@ -22499,6 +24636,7 @@
     },
     "/api/v1/system": {
       "get": {
+        "description": "Public service information: name, version (the server build, equal to info.version of this document; plugins compare minJeleeVersion against it), developer mode state and capabilities.",
         "responses": {
           "200": {
             "description": "HTTP 200"
@@ -23317,7 +25455,7 @@
             "webSession": []
           }
         ],
-        "summary": "Read own interface preferences (G33.3); defaults until first saved"
+        "summary": "Read own interface preferences (G33.3, G33.5); until first saved: the site default theme, comfortable density and no layout"
       },
       "put": {
         "requestBody": {

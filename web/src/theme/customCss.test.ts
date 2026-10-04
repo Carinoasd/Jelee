@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { normalizeFontHost, sanitizeCustomCss, sanitizeTokenValue, type CssIssueCode } from "./customCss";
+import { normalizeFontHost, sanitizeCustomCss, sanitizeTokenValue, tokenStyleSheet, type CssIssueCode } from "./customCss";
 import { applyStyleLayer } from "./styleSheets";
 
 function issueCodes(input: string, policy?: Parameters<typeof sanitizeCustomCss>[1]): CssIssueCode[] {
@@ -158,5 +158,58 @@ describe("constructed style sheets", () => {
     expect(applyStyleLayer("custom-css", "a{color:red}", {})).toBe(false);
     expect(applyStyleLayer("custom-css", "a{color:red}", document)).toBe("adoptedStyleSheets" in document);
     expect(document.head.innerHTML).toBe(before);
+  });
+});
+
+describe("shared cases with the server sanitizer", () => {
+  // internal/domain/customcss.go reads the same file: both sides must agree.
+  it("matches every recorded result", async () => {
+    const { default: cases } = (await import("./customCss.cases.json")) as unknown as {
+      default: {
+        css: {
+          input?: string;
+          repeat?: { prefix: string; unit: string; times: number; suffix: string };
+          policy?: { allowExternalFonts: boolean; fontHosts: string[] };
+          css?: string;
+          cssLength?: number;
+          rejected: boolean;
+          issues: string[];
+        }[];
+        tokens: { value: string; allowQuotes: boolean; result: string | null }[];
+        hosts: { value: string; result: string | null }[];
+      };
+    };
+    expect(cases.css.length).toBeGreaterThan(80);
+    for (const entry of cases.css) {
+      const input = entry.input ?? (entry.repeat ? entry.repeat.prefix + entry.repeat.unit.repeat(entry.repeat.times) + entry.repeat.suffix : "");
+      const result = sanitizeCustomCss(input, entry.policy);
+      expect({ rejected: result.rejected, issues: result.issues.map((issue) => issue.code) }, input.slice(0, 80)).toEqual({ rejected: entry.rejected, issues: entry.issues });
+      if (entry.css !== undefined) {
+        expect(result.css, input.slice(0, 80)).toBe(entry.css);
+      } else {
+        expect(result.css.length).toBe(entry.cssLength);
+      }
+    }
+    for (const entry of cases.tokens) {
+      expect(sanitizeTokenValue(entry.value, entry.allowQuotes), entry.value).toBe(entry.result);
+    }
+    for (const entry of cases.hosts) {
+      expect(normalizeFontHost(entry.value), entry.value).toBe(entry.result);
+    }
+  });
+
+  it("refuses IP addresses as font hosts, like the server's CSP builder", () => {
+    expect(normalizeFontHost("10.0.0.1")).toBeNull();
+    expect(normalizeFontHost("fonts.example.123")).toBeNull();
+  });
+
+  it("builds token sheets from known names and safe values only", () => {
+    const names = new Set(["color-primary", "font-family"]);
+    expect(tokenStyleSheet({}, {}, names)).toBe("");
+    const css = tokenStyleSheet({ "color-primary": " #0f766e ", unknown: "red", "font-family": '"Noto Sans", serif' }, { "color-primary": "url(/x)" }, names);
+    expect(css).toContain(':root{--jl-color-primary:#0f766e;--jl-font-family:"Noto Sans", serif}');
+    expect(css).not.toContain("unknown");
+    expect(css).not.toContain("url(");
+    expect(css).toContain(':root[data-theme="dark"]{}');
   });
 });

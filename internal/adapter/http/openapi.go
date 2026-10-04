@@ -1,6 +1,7 @@
 package httpapi
 
 import (
+	"github.com/MoYuanCN/Jelee/internal/platform/buildinfo"
 	"github.com/MoYuanCN/Jelee/internal/platform/config"
 	"net/url"
 )
@@ -13,6 +14,7 @@ func Specification(cfg config.Config) map[string]any {
 	for _, path := range []string{"/healthz", "/readyz", "/api/v1/system", "/api/v1/openapi.json", "/api-docs"} {
 		paths[path] = map[string]any{"get": operation("Inspect service", "200")}
 	}
+	paths["/api/v1/system"].(map[string]any)["get"].(map[string]any)["description"] = "Public service information: name, version (the server build, equal to info.version of this document; plugins compare minJeleeVersion against it), developer mode state and capabilities."
 	if cfg.EnableCatalog && cfg.EnableDirect {
 		op := operation("Read the unmodified original resource", "200", "206", "409", "416")
 		op["security"] = []any{map[string]any{"bearer": []string{}}}
@@ -28,6 +30,7 @@ func Specification(cfg config.Config) map[string]any {
 		}
 	}
 	schemas := accountSchemas()
+	siteSettingsSchemas(schemas)
 	if cfg.EnableCatalog && cfg.EnableDirect {
 		playbackSpecification(paths, schemas)
 	}
@@ -46,6 +49,7 @@ func Specification(cfg config.Config) map[string]any {
 			metadataApplySpecification(paths, schemas)
 		}
 		accountSpecification(paths)
+		siteSettingsSpecification(paths)
 		clientControlSpecification(paths, schemas)
 		setupSpecification(paths, schemas)
 		if cfg.Dev.Capable() {
@@ -75,7 +79,7 @@ func Specification(cfg config.Config) map[string]any {
 	}
 	errorSpecification(paths, schemas)
 	webSessionSpecification(paths)
-	return map[string]any{"openapi": "3.1.0", "info": map[string]any{"title": "Jelee API", "version": "0.1.0-dev", "description": "Experimental foundation. Full feature parity is not yet available."}, "paths": paths, "x-jelee-removed-features": map[string]any{"pathRoots": []string{"/LiveTv", "/Channels", "/Dlna"}, "status": 501, "code": "feature_removed", "description": "All methods and descendant paths return a localized unsupported-feature error; transformation routes retain their 409 guard."}, "components": map[string]any{"schemas": schemas, "securitySchemes": map[string]any{"bearer": map[string]any{"type": "http", "scheme": "bearer"}, "webSession": webSessionScheme()}}}
+	return map[string]any{"openapi": "3.1.0", "info": map[string]any{"title": "Jelee API", "version": buildinfo.Version(), "description": "Experimental foundation. Full feature parity is not yet available."}, "paths": paths, "x-jelee-removed-features": map[string]any{"pathRoots": []string{"/LiveTv", "/Channels", "/Dlna"}, "status": 501, "code": "feature_removed", "description": "All methods and descendant paths return a localized unsupported-feature error; transformation routes retain their 409 guard."}, "components": map[string]any{"schemas": schemas, "securitySchemes": map[string]any{"bearer": map[string]any{"type": "http", "scheme": "bearer"}, "webSession": webSessionScheme()}}}
 }
 func idParameter() map[string]any {
 	return map[string]any{"name": "id", "in": "path", "required": true, "schema": map[string]any{"type": "string", "format": "uuid"}}

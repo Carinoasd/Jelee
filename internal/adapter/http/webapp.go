@@ -13,7 +13,10 @@ import (
 )
 
 // frontendCSP applies to the single-page frontend only. API responses keep
-// the boundary's default-src 'none' policy.
+// the boundary's default-src 'none' policy. The site appearance's external
+// font allowlist adds a font-src directive (frontendCSPWithFonts); custom
+// CSS needs no relaxation because the web client applies it as a
+// constructed stylesheet, which style-src does not govern.
 const frontendCSP = "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; object-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'"
 
 const (
@@ -28,7 +31,11 @@ var hashedAssetName = regexp.MustCompile(`[-.][A-Za-z0-9_-]{8,}\.[A-Za-z0-9]+$`)
 // through os.Root, which refuses absolute names, ".." and symlinks that leave
 // the directory, so a request can never read outside it. The root is opened
 // per request so a redeployed directory is picked up without a restart.
-type webApp struct{ dir string }
+type webApp struct {
+	dir string
+	// policy supplies the Content-Security-Policy; nil uses frontendCSP.
+	policy *frontendPolicy
+}
 
 func newWebApp(dir string) (*webApp, error) {
 	if dir == "" {
@@ -95,7 +102,11 @@ func (a *webApp) serve(w http.ResponseWriter, r *http.Request) {
 
 func (a *webApp) write(w http.ResponseWriter, r *http.Request, name string, info fs.FileInfo, file *os.File) {
 	header := w.Header()
-	header.Set("Content-Security-Policy", frontendCSP)
+	csp := frontendCSP
+	if a.policy != nil {
+		csp = a.policy.header(r.Context())
+	}
+	header.Set("Content-Security-Policy", csp)
 	switch {
 	case name == frontendIndex:
 		header.Set("Cache-Control", "no-store")

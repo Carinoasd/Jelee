@@ -1,8 +1,8 @@
 package domain
 
-// User interface preferences (G33.3). They only change how the web client
-// presents itself, never what a user may see or do, so they carry no audit
-// trail and are not part of metadata backups.
+// User interface preferences (G33.3, G33.5). They only change how the web
+// client presents itself, never what a user may see or do, so they carry no
+// audit trail and are not part of metadata backups.
 
 // Known themes and layout densities.
 const (
@@ -21,9 +21,13 @@ type UserPreferences struct {
 	Theme string `json:"theme"`
 	// Density is reserved for the web client's layout density.
 	Density string `json:"density"`
+	// Layout is the user's page layout and saved presets; nil until the
+	// user customizes it, when the site default layout applies.
+	Layout *UserLayout `json:"layout"`
 }
 
-// DefaultUserPreferences follow the browser and the regular layout.
+// DefaultUserPreferences follow the browser and the regular layout. A
+// user without stored preferences reads the site's default theme instead.
 func DefaultUserPreferences() UserPreferences {
 	return UserPreferences{Theme: ThemeSystem, Density: DensityComfortable}
 }
@@ -35,5 +39,8 @@ func (p UserPreferences) Valid() bool {
 	default:
 		return false
 	}
-	return p.Density == DensityComfortable || p.Density == DensityCompact
+	if p.Density != DensityComfortable && p.Density != DensityCompact {
+		return false
+	}
+	return p.Layout == nil || p.Layout.Valid()
 }

@@ -4,9 +4,16 @@
 // fails to load, throws in setup or registers something invalid is marked
 // failed and contributes nothing; render errors are caught by
 // PluginBoundary.vue. Enable, disable and reorder take effect at once.
+//
+// With a signed-in user the choices and the plugins' settings namespaces come
+// from the server (GET /api/v1/site/plugins; administrators read and write
+// /api/v1/site/plugins/config with its revision), so they apply to every user
+// and device. Signed out, or when the server cannot be read, the browser copy
+// applies as before (plugin-host.state, plugin-settings.<id>).
 import {
   contributionIdPattern,
   isPluginRoutePath,
+  pluginIdPattern,
   pluginLocales,
   satisfies,
   SDK_VERSION,
@@ -27,14 +34,17 @@ import { defineStore } from "pinia";
 import { computed, inject, shallowRef, watch, watchEffect, type InjectionKey } from "vue";
 import { routerKey } from "vue-router";
 import { useApi } from "@/api";
+import { getSitePlugins, getSitePluginsConfig, saveSitePlugins, type SitePluginsConfig } from "@/features/site/api";
 import { currentLocaleKey } from "@/i18n";
+import { useAuthStore } from "@/stores/auth";
+import { useSiteAppearanceStore } from "@/stores/siteAppearance";
 import { readPersisted, writePersisted } from "@/stores/persist";
 import { useToastStore } from "@/stores/toasts";
 import { sanitizeTokenValue } from "@/theme/customCss";
 import { applyStyleLayer } from "@/theme/styleSheets";
 import { officialPlugins, type PluginBundle } from "./catalog";
 import { createPluginApi } from "./restrictedApi";
-import { clearPluginSettings, createPluginSettings } from "./settings";
+import { clearPluginSettings, createPluginSettings, type PluginSettingValues } from "./settings";
 
 export interface PluginHostOptions {
   readonly bundles?: readonly PluginBundle[];
@@ -44,8 +54,14 @@ export interface PluginHostOptions {
 /** Lets tests and embedders replace the bundled plugin list. */
 export const pluginHostKey: InjectionKey<PluginHostOptions> = Symbol("jelee.pluginHost");
 
-/** Version of this web client, compared with manifests' minJeleeVersion. */
+/** Version of this web client; the fallback when the server's is unknown. */
 export const jeleeVersion: string = __JELEE_VERSION__;
+
+/**
+ * The server's version from GET /api/v1/system, provided by startExtensions
+ * before the store exists; manifests' minJeleeVersion is compared with it.
+ */
+export const serverVersionKey: InjectionKey<string> = Symbol("jelee.serverVersion");
 
 export type PluginStatus = "rejected" | "disabled" | "blocked" | "loading" | "active" | "failed";
 
@@ -98,6 +114,12 @@ interface Runtime {
 interface Persisted {
   readonly enabled: Readonly<Record<string, boolean>>;
   readonly order: readonly string[];
+}
+
+/** The server's plugin document as this host uses it. */
+interface SiteState {
+  readonly plugins: readonly { readonly id: string; readonly enabled: boolean }[];
+  readonly settings: Readonly<Record<string, Readonly<Record<string, unknown>>>>;
 }
 
 const stateKey = "plugin-host.state";
@@ -213,8 +235,10 @@ function checkContribution(hook: HookName, value: unknown): string {
 export const usePluginStore = defineStore("plugins", () => {
   const options = inject(pluginHostKey, {});
   const bundles = options.bundles ?? officialPlugins();
-  const version = options.jeleeVersion ?? jeleeVersion;
+  const version = options.jeleeVersion ?? inject(serverVersionKey, jeleeVersion);
   const { client } = useApi();
+  const auth = useAuthStore();
+  const siteSignals = useSiteAppearanceStore();
   const currentLocale = inject(currentLocaleKey, () => "en-US");
   const router = inject(routerKey, null);
   const toasts = useToastStore();
@@ -235,7 +259,18 @@ export const usePluginStore = defineStore("plugins", () => {
   });
   const byKey = new Map(records.map((record) => [record.key, record]));
 
-  const persisted = shallowRef<Persisted>(readState());
+  const local = shallowRef<Persisted>(readState());
+  /** The server's document; null while signed out or when it cannot be read. */
+  const site = shallowRef<SiteState | null>(null);
+  /** The stored document with its revision, for administrators. */
+  const siteConfig = shallowRef<SitePluginsConfig | null>(null);
+  const persisted = computed<Persisted>(() => {
+    if (site.value === null) {
+      return local.value;
+    }
+    return { enabled: Object.fromEntries(site.value.plugins.map((entry) => [entry.id, entry.enabled])), order: site.value.plugins.map((entry) => entry.id) };
+  });
+  const source = computed<"server" | "browser">(() => (site.value === null ? "browser" : "server"));
   const runtime = shallowRef<Readonly<Record<string, Runtime>>>({});
   const failures = shallowRef<Readonly<Record<string, { count: number; last: string }>>>({});
   const generations = new Map<string, number>();
@@ -315,7 +350,13 @@ export const usePluginStore = defineStore("plugins", () => {
       sdkVersion: SDK_VERSION,
       jeleeVersion: version,
       api: createPluginApi(client, manifest.permissions),
-      settings: createPluginSettings(manifest.id, manifest.permissions.includes("settings.storage")),
+      settings: createPluginSettings(manifest.id, manifest.permissions.includes("settings.storage"), {
+        site: () => site.value?.settings[manifest.id] ?? {},
+        writesSite: () => siteConfig.value !== null,
+        saveSite: (values) => {
+          saveSiteSettings(manifest.id, values);
+        },
+      }),
       ui,
       locale,
       t,
@@ -474,10 +515,105 @@ export const usePluginStore = defineStore("plugins", () => {
     }),
   );
 
+  let siteGeneration = 0;
+  /** Reads the server's document: the stored one for administrators. */
+  async function loadSite(): Promise<void> {
+    const current = ++siteGeneration;
+    const user = auth.user;
+    if (user === null) {
+      site.value = null;
+      siteConfig.value = null;
+      return;
+    }
+    try {
+      if (user.admin) {
+        const config = await getSitePluginsConfig(client);
+        if (current === siteGeneration) {
+          siteConfig.value = config;
+          site.value = { plugins: config.plugins, settings: config.settings };
+        }
+      } else {
+        const view = await getSitePlugins(client);
+        if (current === siteGeneration) {
+          siteConfig.value = null;
+          site.value = view;
+        }
+      }
+    } catch {
+      if (current === siteGeneration) {
+        site.value = null;
+        siteConfig.value = null;
+      }
+    }
+  }
+
+  // Administrator changes apply at once and are written in order; each write
+  // sends the latest state with the latest revision. A failed write reloads
+  // the server's document, so this tab never shows what was not stored.
+  let writes: Promise<void> = Promise.resolve();
+  function commitSite(next: SiteState): void {
+    site.value = next;
+    const task = writes
+      .then(async () => {
+        const config = siteConfig.value;
+        const latest = site.value;
+        if (config === null || latest === null) {
+          return;
+        }
+        const saved = await saveSitePlugins(client, { plugins: [...latest.plugins], settings: { ...latest.settings }, revision: config.revision });
+        siteConfig.value = saved;
+      })
+      .catch(async () => {
+        toasts.push("plugins.saveFailed", "danger");
+        siteGeneration++;
+        await loadSite();
+      });
+    writes = task;
+    pending.add(task);
+    void task.finally(() => pending.delete(task));
+  }
+
+  function saveSiteSettings(pluginId: string, values: PluginSettingValues): void {
+    const current = site.value;
+    if (current === null) {
+      return;
+    }
+    // An empty namespace is removed rather than stored.
+    const others = Object.fromEntries(Object.entries(current.settings).filter(([id]) => id !== pluginId));
+    commitSite({ plugins: current.plugins, settings: Object.keys(values).length === 0 ? others : { ...others, [pluginId]: values } });
+  }
+
+  /** The server list for a new browser-side state: known plugins in order, then entries this build does not know. */
+  function siteList(next: Persisted): SiteState["plugins"] {
+    const listed = next.order.filter((key) => byKey.has(key));
+    const keys = [...listed, ...records.map((record) => record.key).filter((key) => !listed.includes(key))];
+    const list = keys.filter((key) => pluginIdPattern.test(key)).map((id) => ({ id, enabled: next.enabled[id] ?? byKey.get(id)?.bundle.enabledByDefault ?? false }));
+    for (const entry of site.value?.plugins ?? []) {
+      if (!list.some((known) => known.id === entry.id)) {
+        list.push(entry);
+      }
+    }
+    return list;
+  }
+
   function save(next: Persisted): void {
-    persisted.value = next;
+    if (siteConfig.value !== null && site.value !== null) {
+      commitSite({ plugins: siteList(next), settings: site.value.settings });
+      return;
+    }
+    local.value = next;
     writePersisted(stateKey, next);
   }
+
+  watch(
+    () => [auth.user?.id, auth.user?.admin, siteSignals.pluginsRevision],
+    () => {
+      const task = loadSite();
+      pending.add(task);
+      void task.finally(() => pending.delete(task));
+    },
+    { immediate: true },
+  );
 
   function setEnabled(key: string, enabled: boolean): void {
     if (byKey.has(key)) {
@@ -502,11 +638,14 @@ export const usePluginStore = defineStore("plugins", () => {
     }
   }
 
-  /** Deletes a plugin's settings namespace and restarts it. */
+  /** Deletes a plugin's settings namespace (site-wide too, for administrators) and restarts it. */
   function clearSettings(key: string): void {
     const manifest = manifestOf(key);
     if (manifest !== null) {
       clearPluginSettings(manifest.id);
+      if (siteConfig.value !== null && site.value?.settings[manifest.id] !== undefined) {
+        saveSiteSettings(manifest.id, {});
+      }
       restart(key);
     }
   }
@@ -569,7 +708,7 @@ export const usePluginStore = defineStore("plugins", () => {
     );
   }
 
-  return { plugins, order, contributions, settled, setEnabled, setOrder, restart, clearSettings, reportFailure, locale };
+  return { version, plugins, order, source, contributions, settled, setEnabled, setOrder, restart, clearSettings, reportFailure, locale, loadSite };
 });
 
 const themeTokenSet: ReadonlySet<string> = new Set<string>(themeTokenNames);

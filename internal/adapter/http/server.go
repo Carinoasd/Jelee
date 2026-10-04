@@ -19,6 +19,7 @@ import (
 	"github.com/MoYuanCN/Jelee/internal/adapter/media"
 	"github.com/MoYuanCN/Jelee/internal/app"
 	"github.com/MoYuanCN/Jelee/internal/domain"
+	"github.com/MoYuanCN/Jelee/internal/platform/buildinfo"
 	"github.com/MoYuanCN/Jelee/internal/platform/config"
 	"github.com/MoYuanCN/Jelee/internal/platform/devmode"
 	"github.com/MoYuanCN/Jelee/internal/platform/i18n"
@@ -65,6 +66,9 @@ type Server struct {
 	setup *setupGate
 	// router answers whether an API route claims a path (setup gate).
 	router *chi.Mux
+	// fontPolicy builds the frontend CSP from the site's external font
+	// allowlist; nil without accounts.
+	fontPolicy *frontendPolicy
 	// dev is the developer mode controller (G45); nil unless this instance
 	// meets its own developer mode thresholds, so production never mounts a
 	// developer route or applies a relaxation.
@@ -184,6 +188,10 @@ func newServer(cfg config.Config, backend Backend, catalog *app.Catalog, resolve
 		if err != nil {
 			return nil, err
 		}
+		s.fontPolicy = newFrontendPolicy(account.SiteFontHosts)
+		if s.web != nil {
+			s.web.policy = s.fontPolicy
+		}
 	}
 	if cfg.EnableJobs {
 		if jobs == nil {
@@ -238,7 +246,7 @@ func newServer(cfg config.Config, backend Backend, catalog *app.Catalog, resolve
 	})
 	r.Get("/api/v1/system", func(w http.ResponseWriter, r *http.Request) {
 		probe := s.jobs.ProbeCapability()
-		data := map[string]any{"name": "Jelee", "devMode": false, "probe": probe, "capabilities": map[string]any{"transcoding": false, "hls": false, "dash": false, "remux": false, "downloads": false, "dlna": false, "discovery": false, "liveTv": false, "epg": false, "tuners": false, "recordings": false, "channels": false, "directDelivery": cfg.EnableDirect, "catalog": cfg.EnableCatalog, "accounts": cfg.EnableAccounts, "inventoryScan": cfg.EnableJobs, "probe": probe.Available}}
+		data := map[string]any{"name": "Jelee", "version": buildinfo.Version(), "devMode": false, "probe": probe, "capabilities": map[string]any{"transcoding": false, "hls": false, "dash": false, "remux": false, "downloads": false, "dlna": false, "discovery": false, "liveTv": false, "epg": false, "tuners": false, "recordings": false, "channels": false, "directDelivery": cfg.EnableDirect, "catalog": cfg.EnableCatalog, "accounts": cfg.EnableAccounts, "inventoryScan": cfg.EnableJobs, "probe": probe.Available}}
 		// G45.3: the session and its deadline are public, like the header,
 		// so every client can warn its user. Toggles stay administrator-only.
 		if st := s.devStatus(); st.Active {
@@ -761,6 +769,8 @@ func WriteError(w http.ResponseWriter, r *http.Request, err error) {
 		status, code, message = 429, "session_limit", "Active session limit reached."
 	case errors.Is(err, domain.ErrPasswordMismatch):
 		status, code, message = 400, "invalid_password", "Current password is incorrect."
+	case errors.Is(err, domain.ErrCustomCSSRejected):
+		status, code, message = 400, "custom_css_rejected", "Custom CSS was refused: it contains markup, escapes, control characters or unbalanced blocks, or is too long."
 	case errors.Is(err, errAuthRateLimited):
 		status, code, message = 429, "auth_rate_limited", "Too many authentication attempts. Try again later."
 	case errors.Is(err, domain.ErrWebhookTargetDenied):

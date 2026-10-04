@@ -268,13 +268,13 @@ func run(args []string, stdout, stderr io.Writer) int {
 	if *acceptPath != "" {
 		accepted, err := readAccepted(*acceptPath)
 		if err != nil {
-			fmt.Fprintf(stderr, "benchgate: accept %s: %v\n", *acceptPath, err)
+			_, _ = fmt.Fprintf(stderr, "benchgate: accept %s: %v\n", *acceptPath, err)
 			return 2
 		}
 		var kept []Delta
 		for _, d := range regressions {
 			if a, ok := accepted.covers(d); ok {
-				fmt.Fprintf(stdout, "  accepted %s %s: %s -> %s (%s) within ceiling %s: %s\n", d.Name, d.Unit, formatValue(d.Base), formatValue(d.Current), formatPercent(d.Percent), formatValue(a.Max), a.Reason)
+				_, _ = fmt.Fprintf(stdout, "  accepted %s %s: %s -> %s (%s) within ceiling %s: %s\n", d.Name, d.Unit, formatValue(d.Base), formatValue(d.Current), formatPercent(d.Percent), formatValue(a.Max), a.Reason)
 				continue
 			}
 			kept = append(kept, d)

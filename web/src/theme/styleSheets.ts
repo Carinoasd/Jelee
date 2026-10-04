@@ -6,7 +6,7 @@
 // Every caller passes text it has already sanitized.
 
 /** Sheets in cascade order: later layers win. */
-export const styleLayers = ["plugin-tokens", "custom-css"] as const;
+export const styleLayers = ["plugin-tokens", "site-tokens", "custom-css"] as const;
 export type StyleLayer = (typeof styleLayers)[number];
 
 export interface StyleTarget {

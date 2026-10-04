@@ -11,7 +11,7 @@
     },
     "title": "Plugins",
     "intro": "Plugin SDK {sdk}, Jelee web {version}. Enabling, disabling and reordering take effect at once.",
-    "storageNote": "The server has no plugin settings API yet: enablement, order and plugin settings are kept in this browser only and do not reach other devices or users.",
+    "storageNote": "The server's plugin settings cannot be read now, so enablement, order and plugin settings are kept in this browser only.",
     "empty": "No plugins are available.",
     "order": "Plugin order",
     "orderHint": "The order decides where each plugin's contributions appear on a page.",
@@ -36,7 +36,7 @@
     "restart": "Restart",
     "clearSettings": "Clear plugin settings",
     "clearSettingsConfirm": "Clear settings",
-    "clearSettingsPrompt": "Deletes every setting \"{name}\" stored in this browser.",
+    "clearSettingsPrompt": "Deletes every stored setting of \"{name}\": the site-wide ones and those in this browser.",
     "enabledToast": "{name} enabled.",
     "disabledToast": "{name} disabled.",
     "settingsCleared": "Settings of {name} cleared.",
@@ -51,7 +51,7 @@
     "permissions": {
       "catalogRead": "Read item details, file summaries and the library list the current user may see (read only).",
       "userRead": "Read the current user's name, shown name, language and administrator flag.",
-      "settingsStorage": "Keep its own settings in this browser (separate namespace).",
+      "settingsStorage": "Keep its own settings in a separate namespace: administrators set them for everyone, other users' changes stay in their browser.",
       "uiRoutes": "Register pages under /x/ followed by the plugin ID.",
       "uiTheme": "Override design tokens (colors, corner radius, font)."
     },
@@ -82,6 +82,8 @@
       "loadFailed": "Could not load the plugin code: {error}",
       "invalidDefinition": "The entry does not export a valid plugin definition (setup and messages in four languages).",
       "setupFailed": "setup failed, so the plugin did not start: {error}"
-    }
+    },
+    "storageServer": "Enablement, order and plugin settings are saved on the server and apply to every user and device.",
+    "saveFailed": "Plugin settings could not be saved; the server's current settings were loaded again."
   }
 }

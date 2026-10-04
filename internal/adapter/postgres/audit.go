@@ -98,6 +98,8 @@ var auditEvents = map[string]string{
 	"schedule.updated":                     domain.AuditCategoryAudit,
 	"session.created":                      domain.AuditCategoryAudit,
 	"setup.admin_created":                  domain.AuditCategoryAudit,
+	"site.appearance_changed":              domain.AuditCategorySecurity,
+	"site.plugins_changed":                 domain.AuditCategoryAudit,
 	"setup.completed":                      domain.AuditCategoryAudit,
 	"setup.step_saved":                     domain.AuditCategoryAudit,
 	"session.revoked":                      domain.AuditCategoryAudit,

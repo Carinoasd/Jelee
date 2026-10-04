@@ -60,10 +60,14 @@ export const defaultCssPolicy: CssPolicy = { allowExternalFonts: false, fontHost
 
 const hostPattern = /^(?=.{1,253}$)[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+$/;
 
-/** Normalizes an allowlist entry; null when it is not a plain host name. */
+/**
+ * Normalizes an allowlist entry; null when it is not a plain DNS host name.
+ * IP addresses (a numeric last label) are refused like on the server, which
+ * places the entries in the CSP font-src directive.
+ */
 export function normalizeFontHost(value: string): string | null {
   const host = value.trim().toLowerCase();
-  return hostPattern.test(host) ? host : null;
+  return hostPattern.test(host) && !/\.\d+$/.test(host) ? host : null;
 }
 
 function excerpt(text: string): string {
@@ -373,4 +377,28 @@ export function sanitizeTokenValue(value: string, allowQuotes = false): string |
     return null;
   }
   return valueIssue(text, false, defaultCssPolicy) === null ? text : null;
+}
+
+/**
+ * Builds a token override sheet: light values on :root, dark values for the
+ * dark scheme (system or chosen). Unknown names and unsafe values are
+ * dropped; an empty result means nothing to apply.
+ */
+export function tokenStyleSheet(
+  light: Readonly<Record<string, unknown>>,
+  dark: Readonly<Record<string, unknown>>,
+  names: ReadonlySet<string>,
+): string {
+  const declarations = (tokens: Readonly<Record<string, unknown>>) =>
+    Object.entries(tokens).flatMap(([name, value]) => {
+      const safe = typeof value === "string" && names.has(name) ? sanitizeTokenValue(value, name === "font-family") : null;
+      return safe === null ? [] : ["--jl-" + name + ":" + safe];
+    });
+  const lightRules = declarations(light);
+  const darkRules = declarations(dark);
+  if (lightRules.length === 0 && darkRules.length === 0) {
+    return "";
+  }
+  const darkBlock = darkRules.join(";");
+  return `:root{${lightRules.join(";")}}\n@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){${darkBlock}}}\n:root[data-theme="dark"]{${darkBlock}}`;
 }

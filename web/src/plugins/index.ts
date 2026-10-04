@@ -46,7 +46,7 @@ export function installAppPlugins(app: App, options: AppPluginOptions = {}) {
       app.provide(pluginHostKey, options.plugins);
     }
     const { startExtensions } = await import("./host/start");
-    return startExtensions(app);
+    return startExtensions(app, api.client);
   });
   // A deep link to a plugin page resolves to 404 until plugins have loaded
   // and registered their routes; retry it once they have.

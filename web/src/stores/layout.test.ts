@@ -72,8 +72,8 @@ describe("home page and layout editing", () => {
     const { wrapper } = await mountView("/", { fetch: fake.fetch, user: fake.user });
     await flushPromises();
     expect(wrapper.findAll(".jl-home__block h2").map((heading) => heading.text())).toEqual(["Latest premieres", "Welcome back, Admin"]);
-    // Hidden blocks load nothing.
-    expect(fake.requests.map((request) => new URL(request.url).pathname)).toEqual(["/api/v1/items"]);
+    // Hidden blocks load nothing (the layout itself comes with the preferences and site appearance).
+    expect(fake.requests.map((request) => new URL(request.url).pathname).filter((path) => !path.startsWith("/api/v1/users/me/preferences") && !path.startsWith("/api/v1/site/"))).toEqual(["/api/v1/items"]);
     expect(wrapper.find(".jl-home__poster").text()).toContain("Arrival");
   });
 
