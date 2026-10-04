@@ -107,6 +107,23 @@ func leakRouteTable() map[string]leakRoute {
 		"GET /compat/Users/{id}/Items":          {mode: leakList, params: selfParam},
 		"GET /compat/Items/{itemId}":            {mode: leakByID, params: map[string]string{"itemId": "item"}, control: true},
 		"GET /compat/Users/{id}/Items/{itemId}": {mode: leakByID, params: map[string]string{"id": "self", "itemId": "item"}},
+		// Third-party client compatibility layer (playback module). Streams
+		// and subtitles resolve the item with the caller's session before
+		// the shared delivery handler runs.
+		"GET /compat/Items/{itemId}/PlaybackInfo":                                                             {mode: leakByID, params: map[string]string{"itemId": "item"}, control: true},
+		"POST /compat/Items/{itemId}/PlaybackInfo":                                                            {mode: leakByID, params: map[string]string{"itemId": "item"}, control: true},
+		"GET /compat/Videos/{itemId}/stream":                                                                  {mode: leakByID, params: map[string]string{"itemId": "item"}, control: true},
+		"GET /compat/Videos/{itemId}/stream.{container}":                                                      {mode: leakByID, params: map[string]string{"itemId": "item", "container": "compat-container"}, control: true},
+		"GET /compat/Videos/{itemId}/{mediaSourceId}/Subtitles/{index}/Stream.{format}":                       {mode: leakByID, params: map[string]string{"itemId": "item", "mediaSourceId": "source", "index": "compat-subtitle-index", "format": "compat-subtitle-format"}, control: true},
+		"GET /compat/Videos/{itemId}/{mediaSourceId}/Subtitles/{index}/{startPositionTicks}/Stream.{format}":  {mode: leakByID, params: map[string]string{"itemId": "item", "mediaSourceId": "source", "index": "compat-subtitle-index", "format": "compat-subtitle-format", "startPositionTicks": "compat-zero"}, control: true},
+		"GET /compat/Audio/{itemId}/stream":                                                                   noMedia(map[string]string{"itemId": "item"}, "the catalog has no audio items; every identifier is answered as missing"),
+		"GET /compat/Audio/{itemId}/stream.{container}":                                                       noMedia(map[string]string{"itemId": "item", "container": "compat-container"}, "the catalog has no audio items; every identifier is answered as missing"),
+		"HEAD /compat/Videos/{itemId}/stream":                                                                 {mode: leakByID, params: map[string]string{"itemId": "item"}, control: true},
+		"HEAD /compat/Videos/{itemId}/stream.{container}":                                                     {mode: leakByID, params: map[string]string{"itemId": "item", "container": "compat-container"}, control: true},
+		"HEAD /compat/Videos/{itemId}/{mediaSourceId}/Subtitles/{index}/Stream.{format}":                      {mode: leakByID, params: map[string]string{"itemId": "item", "mediaSourceId": "source", "index": "compat-subtitle-index", "format": "compat-subtitle-format"}, control: true},
+		"HEAD /compat/Videos/{itemId}/{mediaSourceId}/Subtitles/{index}/{startPositionTicks}/Stream.{format}": {mode: leakByID, params: map[string]string{"itemId": "item", "mediaSourceId": "source", "index": "compat-subtitle-index", "format": "compat-subtitle-format", "startPositionTicks": "compat-zero"}, control: true},
+		"HEAD /compat/Audio/{itemId}/stream":                                                                  noMedia(map[string]string{"itemId": "item"}, "the catalog has no audio items; every identifier is answered as missing"),
+		"HEAD /compat/Audio/{itemId}/stream.{container}":                                                      noMedia(map[string]string{"itemId": "item", "container": "compat-container"}, "the catalog has no audio items; every identifier is answered as missing"),
 
 		// Catalog and delivery: the direct media surfaces.
 		"GET /api/v1/items":                             {mode: leakList, params: noParams, control: true},
@@ -388,6 +405,17 @@ func (f leakIDs) value(kind string, scenario int) string {
 		return "12"
 	case "opaque":
 		return "00000000-0000-4000-8000-000000000001"
+	case "compat-container":
+		// Every fixture source is a Matroska file.
+		return "mkv"
+	case "compat-subtitle-index":
+		// The fixture sources are unprobed, so their only external
+		// subtitle is the first stream.
+		return "0"
+	case "compat-subtitle-format":
+		return "srt"
+	case "compat-zero":
+		return "0"
 	}
 	panic("unknown leak fixture kind " + kind)
 }
@@ -571,8 +599,9 @@ func leakRequest(t *testing.T, handler http.Handler, method, path, token string)
 	}
 	r.Header.Set("Idempotency-Key", "leak-probe")
 	if strings.HasPrefix(path, "/compat/") {
-		// The compatibility layer does not accept bearer tokens.
-		r.URL.RawQuery = url.Values{"ApiKey": {token}}.Encode()
+		// The compatibility layer does not accept bearer tokens. Streams
+		// are asked for as originals.
+		r.URL.RawQuery = url.Values{"ApiKey": {token}, "static": {"true"}}.Encode()
 	} else {
 		r.Header.Set("Authorization", "Bearer "+token)
 	}

@@ -23,6 +23,8 @@ const (
 	testSeriesID   = "d0000000-0000-4000-8000-00000000000d"
 	testSourceID   = "e0000000-0000-4000-8000-00000000000e"
 	testOtherToken = "otherotherotherotherotherotherotherotherotw"
+	testAssTrackID = "f1000000-0000-4000-8000-000000000001"
+	testSrtTrackID = "f1000000-0000-4000-8000-000000000002"
 )
 
 func wire(id string) string { return strings.ReplaceAll(id, "-", "") }
@@ -45,6 +47,8 @@ type fakeCatalog struct {
 	page      domain.BrowsePage
 	err       error
 	sourceErr error
+	// sources replaces the movie's sources when set.
+	sources []domain.PlaybackSource
 }
 
 func (f *fakeCatalog) libraries(userID string) []domain.LibraryView {
@@ -106,13 +110,20 @@ func (f *fakeCatalog) PlaybackSources(_ context.Context, actor domain.Actor, ite
 	if itemID != testMovieID {
 		return []domain.PlaybackSource{}, nil
 	}
+	if f.sources != nil {
+		return f.sources, nil
+	}
 	return []domain.PlaybackSource{{
 		ID: testSourceID, Container: "mkv", ContentType: "video/x-matroska", Probed: true,
 		SizeBytes: int64p(4_000_000_000), DurationMicros: int64p(6_960_000_000), BitRate: int64p(4_597_701),
 		Video:     []domain.PlaybackVideoTrack{{Index: 0, Codec: "hevc", Profile: "Main 10", Width: int64p(3840), Height: int64p(1608), Default: true, Primary: true}},
 		Audio:     []domain.PlaybackAudioTrack{{Index: 1, Codec: "eac3", Language: "eng", Channels: int64p(6), SampleRate: int64p(48000), Default: true}},
 		Subtitles: []domain.PlaybackSubtitleTrack{{Index: 2, Codec: "subrip", Format: "srt", Language: "chi", Forced: true}},
-		External:  []domain.PlaybackExternalTrack{{ID: "f1000000-0000-4000-8000-000000000001", Kind: "subtitle", Format: "ass", SizeBytes: 10}},
+		External: []domain.PlaybackExternalTrack{
+			{ID: testAssTrackID, Kind: "subtitle", Format: "ass", Codec: "ass", Language: "zho", Title: "Signs", Default: true, SizeBytes: 10},
+			{ID: testSrtTrackID, Kind: "subtitle", Format: "srt", Codec: "srt", Language: "eng", SDH: true, SizeBytes: 10},
+			{ID: "f1000000-0000-4000-8000-000000000003", Kind: "audio", Format: "ac3", Codec: "ac3", Language: "jpn", SizeBytes: 10},
+		},
 	}}, nil
 }
 
@@ -122,6 +133,10 @@ type libraryHarness struct {
 }
 
 func newLibraryHarness(t *testing.T, hidden int, direct bool) *libraryHarness {
+	return newLibraryHarnessWith(t, hidden, direct, nil)
+}
+
+func newLibraryHarnessWith(t *testing.T, hidden int, direct bool, delivery Delivery) *libraryHarness {
 	t.Helper()
 	h := &libraryHarness{catalog: &fakeCatalog{page: domain.BrowsePage{Items: []domain.BrowseItem{testMovie}, Total: 41}}}
 	handler, err := NewRouter(Options{
@@ -139,10 +154,13 @@ func newLibraryHarness(t *testing.T, hidden int, direct bool) *libraryHarness {
 			}
 			return access.Principal{}, domain.ErrUnauthenticated
 		},
-		WriteRejection: func(w http.ResponseWriter, _ *http.Request, _ error) { w.WriteHeader(http.StatusConflict) },
-		ServerID:       testServerID,
-		Timeout:        time.Second,
-		Library:        &LibraryOptions{Catalog: h.catalog, HiddenStatus: hidden, DirectPlay: direct, ClientIP: func(*http.Request) string { return testClientIP }},
+		WriteRejection: func(w http.ResponseWriter, _ *http.Request, _ error) {
+			h.rejections++
+			w.WriteHeader(http.StatusConflict)
+		},
+		ServerID: testServerID,
+		Timeout:  time.Second,
+		Library:  &LibraryOptions{Catalog: h.catalog, HiddenStatus: hidden, DirectPlay: direct, ClientIP: func(*http.Request) string { return testClientIP }, Delivery: delivery},
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -197,12 +215,14 @@ func TestLibraryRoutesAreWalkable(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
-	for _, route := range []string{"GET /UserViews", "GET /Users/{id}/Views", "GET /Items", "GET /Users/{id}/Items", "GET /Items/{itemId}", "GET /Users/{id}/Items/{itemId}"} {
+	for _, route := range []string{"GET /UserViews", "GET /Users/{id}/Views", "GET /Items", "GET /Users/{id}/Items", "GET /Items/{itemId}", "GET /Users/{id}/Items/{itemId}",
+		"GET /Items/{itemId}/PlaybackInfo", "POST /Items/{itemId}/PlaybackInfo"} {
 		if !seen[route] {
 			t.Fatalf("route %s not walkable: %v", route, seen)
 		}
 	}
-	if len(seen) != 10 {
+	// Without a delivery handler no stream route is registered.
+	if len(seen) != 12 {
 		t.Fatalf("unexpected routes %v", seen)
 	}
 }

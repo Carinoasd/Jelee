@@ -105,3 +105,23 @@ var itemTypeByKind = map[string]string{
 	"Episode":   itemTypeEpisode,
 	"HomeVideo": itemTypeVideo,
 }
+
+// Playback module behavioural reference: upstream
+// Jellyfin.Api/Controllers/MediaInfoController.cs (GetPlaybackInfo,
+// GetPostedPlaybackInfo), Jellyfin.Api/Helpers/MediaInfoHelper.cs
+// (GetPlaybackInfo, SetDeviceSpecificData),
+// Jellyfin.Api/Controllers/VideosController.cs (GetVideoStream and its
+// container route), Jellyfin.Api/Controllers/AudioController.cs,
+// Jellyfin.Api/Controllers/SubtitleController.cs (GetSubtitle and its start
+// position route), MediaBrowser.Model/MediaInfo/PlaybackInfoResponse.cs,
+// MediaBrowser.Model/Dlna/PlaybackErrorCode.cs, DlnaProfileType.cs,
+// SubtitleDeliveryMethod.cs, DirectPlayProfile.cs and StreamInfo.cs (the
+// subtitle URL form). The values below are upstream enum names.
+const (
+	playbackErrorNoCompatibleStream = "NoCompatibleStream"
+	subtitleDeliveryEmbed           = "Embed"
+	subtitleDeliveryExternal        = "External"
+
+	dlnaProfileTypeVideo       profileType = "Video"
+	dlnaProfileTypeVideoNumber             = 1
+)

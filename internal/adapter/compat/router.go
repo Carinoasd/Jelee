@@ -87,6 +87,7 @@ func NewRouter(opts Options) (*chi.Mux, error) {
 	}
 	if opts.Library != nil {
 		rt.libraryRoutes()
+		rt.playbackRoutes()
 	}
 	return rt.mux, nil
 }
@@ -148,7 +149,9 @@ func (rt *router) handle(method, pattern string, authenticated bool, h http.Hand
 //     browser page (cross-origin or same-origin) can use native credentials
 //     through this layer; no CORS response header is ever sent, which also
 //     answers preflight requests with a refusal;
-//  2. the production transformation guard inspects path, query and body;
+//  2. the production transformation guard inspects path, query and body
+//     (on PlaybackInfo, the variant that reads the client's capability
+//     declaration as data and still rejects every other parameter);
 //  3. the path below Prefix is matched case-insensitively and rewritten to
 //     the registered spelling for the router.
 func (rt *router) boundary(next http.Handler) http.Handler {
@@ -157,7 +160,13 @@ func (rt *router) boundary(next http.Handler) http.Handler {
 			writeError(w, http.StatusForbidden)
 			return
 		}
-		if err := media.GuardProduction(r); err != nil {
+		// PlaybackInfo carries the client's capability declaration, which
+		// is not a transformation request; see media.GuardPlaybackInfo.
+		guard := media.GuardProduction
+		if rest, ok := trimPrefix(r.URL.Path); ok && isPlaybackInfoPath(rest) {
+			guard = media.GuardPlaybackInfo
+		}
+		if err := guard(r); err != nil {
 			switch {
 			case errors.Is(err, media.ErrTranscodeDisabled):
 				rt.opts.WriteRejection(w, r, err)
@@ -209,11 +218,18 @@ func (rt *router) canonical(rest string) string {
 		}
 		literals, match := 0, true
 		for i := 1; i < len(pattern) && match; i++ {
-			if strings.HasPrefix(pattern[i], "{") {
+			literal, param := splitSegment(pattern[i])
+			switch {
+			case literal == "":
 				match = segments[i] != ""
 				continue
+			case param:
+				// A literal prefix followed by a parameter
+				// ("stream.{container}") needs a non-empty value.
+				match = len(segments[i]) > len(literal) && strings.EqualFold(literal, segments[i][:len(literal)])
+			default:
+				match = strings.EqualFold(literal, segments[i])
 			}
-			match = strings.EqualFold(pattern[i], segments[i])
 			literals++
 		}
 		if match && literals > bestLiterals {
@@ -225,11 +241,32 @@ func (rt *router) canonical(rest string) string {
 	}
 	out := append([]string(nil), segments...)
 	for i := 1; i < len(best); i++ {
-		if !strings.HasPrefix(best[i], "{") {
-			out[i] = best[i]
+		if literal, param := splitSegment(best[i]); param {
+			out[i] = literal + out[i][len(literal):]
+		} else if literal != "" {
+			out[i] = literal
 		}
 	}
 	return strings.Join(out, "/")
+}
+
+// splitSegment returns the literal part of a pattern segment and whether a
+// parameter follows it. A pure parameter segment has no literal part.
+func splitSegment(segment string) (literal string, param bool) {
+	i := strings.IndexByte(segment, '{')
+	if i < 0 {
+		return segment, false
+	}
+	return segment[:i], true
+}
+
+// isPlaybackInfoPath reports whether the path below Prefix names the
+// PlaybackInfo route, compared like routing (letter case, one trailing
+// slash).
+func isPlaybackInfoPath(rest string) bool {
+	rest = strings.TrimSuffix(rest, "/")
+	segments := strings.Split(rest, "/")
+	return len(segments) == 4 && segments[0] == "" && strings.EqualFold(segments[1], "Items") && segments[2] != "" && strings.EqualFold(segments[3], "PlaybackInfo")
 }
 
 // authenticate accepts only native sessions. A web session token is refused

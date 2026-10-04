@@ -55,7 +55,36 @@ func decodeRoute(value string) (string, error) {
 // GuardProduction rejects requests for transformations on a playback surface.
 // Do not mount it on metadata or search endpoints: codec fields there are data.
 // Accepted JSON/form bodies are restored byte for byte for the next handler.
-func GuardProduction(r *http.Request) error {
+func GuardProduction(r *http.Request) error { return guard(r, nil) }
+
+// GuardPlaybackInfo is GuardProduction for the upstream PlaybackInfo request,
+// whose documented members (playbackInfoDeclarations) state what the client
+// can play or would accept: a bit rate ceiling, stream preferences, the
+// direct/transcode switches and the DeviceProfile. They decide only whether
+// an original can be offered, never what is delivered, so they are not
+// inspected as transformation parameters; the DeviceProfile subtree is still
+// parsed for syntax, depth and size. Every other member, in the query, the
+// form or the JSON body (nested included), is inspected exactly as
+// GuardProduction does, so a real transformation request (videoCodec,
+// segmentContainer, static=false, transcodingProtocol, ...) on PlaybackInfo
+// is still 409. Mount it on the PlaybackInfo route only; the stream routes
+// keep GuardProduction.
+func GuardPlaybackInfo(r *http.Request) error { return guard(r, playbackInfoDeclarations) }
+
+// playbackInfoDeclarations are the members of the upstream PlaybackInfo
+// query and request body (media info controller, PlaybackInfoDto) that are
+// declarations, not requests: upstream itself only uses them to choose a
+// play method, and this server only to decide direct play.
+var playbackInfoDeclarations = normalizedSet([]string{
+	"userId", "mediaSourceId", "liveStreamId", "autoOpenLiveStream", "startTimeTicks",
+	"audioStreamIndex", "subtitleStreamIndex", "maxStreamingBitrate", "maxAudioChannels",
+	"enableDirectPlay", "enableDirectStream", "enableTranscoding", "allowVideoStreamCopy", "allowAudioStreamCopy",
+	"alwaysBurnInSubtitleWhenTranscoding", deviceProfileKey,
+})
+
+const deviceProfileKey = "deviceProfile"
+
+func guard(r *http.Request, declarations map[string]bool) error {
 	if IsForbiddenDeliveryRoute(r.URL.EscapedPath()) {
 		return ErrTranscodeDisabled
 	}
@@ -63,7 +92,7 @@ func GuardProduction(r *http.Request) error {
 	if err != nil {
 		return ErrInvalidRequest
 	}
-	if err := inspectValues(values); err != nil {
+	if err := inspectValues(values, declarations); err != nil {
 		return err
 	}
 	if r.Body == nil || r.Body == http.NoBody {
@@ -90,13 +119,13 @@ func GuardProduction(r *http.Request) error {
 	}
 	switch strings.ToLower(contentType) {
 	case "application/json":
-		return inspectJSON(body)
+		return inspectJSON(body, inspectAll, declarations)
 	case "application/x-www-form-urlencoded":
 		values, err := url.ParseQuery(string(body))
 		if err != nil {
 			return ErrInvalidRequest
 		}
-		return inspectValues(values)
+		return inspectValues(values, declarations)
 	default:
 		return ErrUnsupportedMediaType
 	}
@@ -243,14 +272,23 @@ func isNullish(value any) bool {
 	return false
 }
 
-func inspectValues(values url.Values) error {
+// inspectValues checks query or form members. A member named in
+// declarations is not a transformation parameter; a DeviceProfile value is
+// then still parsed, as data.
+func inspectValues(values url.Values, declarations map[string]bool) error {
 	for key, entries := range values {
+		normalized := normalizeKey(key)
+		declared := declarations[normalized]
 		for _, value := range entries {
-			if forbiddenField(key, value) {
+			if !declared && forbiddenField(key, value) {
 				return ErrTranscodeDisabled
 			}
-			if normalizeKey(key) == "deviceprofile" {
-				if err := inspectJSON([]byte(value)); err != nil {
+			if normalized == "deviceprofile" {
+				mode := inspectAll
+				if declared {
+					mode = inspectSyntax
+				}
+				if err := inspectJSON([]byte(value), mode, nil); err != nil {
 					return err
 				}
 			}
@@ -259,12 +297,28 @@ func inspectValues(values url.Values) error {
 	return nil
 }
 
-func inspectJSON(body []byte) error {
+// inspectMode selects which JSON members are checked for transformation
+// parameters.
+type inspectMode int
+
+const (
+	// inspectAll checks every member at every depth.
+	inspectAll inspectMode = iota
+	// inspectSyntax checks only syntax, depth and duplicate-safe decoding:
+	// the value is a declaration (a DeviceProfile on PlaybackInfo).
+	inspectSyntax
+)
+
+// inspectJSON checks a document. With declarations, members of the top-level
+// object named there are declarations: they are not transformation
+// parameters, the DeviceProfile subtree is checked for syntax only, and any
+// other nested value is still checked in full.
+func inspectJSON(body []byte, mode inspectMode, declarations map[string]bool) error {
 	// Decode tokens instead of maps so repeated JSON keys cannot hide an earlier
 	// transformation request. Limit both nesting and total document bytes.
 	decoder := json.NewDecoder(bytes.NewReader(body))
 	decoder.UseNumber()
-	if err := inspectJSONValue(decoder, 0); err != nil {
+	if err := inspectJSONValue(decoder, 0, mode, declarations); err != nil {
 		return err
 	}
 	if _, err := decoder.Token(); err != io.EOF {
@@ -273,7 +327,9 @@ func inspectJSON(body []byte) error {
 	return nil
 }
 
-func inspectJSONValue(decoder *json.Decoder, depth int) error {
+// inspectJSONValue checks one value. declarations applies to the members of
+// this object only and is never passed to children.
+func inspectJSONValue(decoder *json.Decoder, depth int, mode inspectMode, declarations map[string]bool) error {
 	if depth > 32 {
 		return ErrInvalidRequest
 	}
@@ -304,18 +360,22 @@ func inspectJSONValue(decoder *json.Decoder, depth int) error {
 			if err := json.Unmarshal(raw, &value); err != nil {
 				return ErrInvalidRequest
 			}
-			if forbiddenField(key, value) {
+			childMode, declared := mode, declarations[normalizeKey(key)]
+			if mode == inspectAll && !declared && forbiddenField(key, value) {
 				return ErrTranscodeDisabled
+			}
+			if declared && normalizeKey(key) == "deviceprofile" {
+				childMode = inspectSyntax
 			}
 			child := json.NewDecoder(bytes.NewReader(raw))
 			child.UseNumber()
-			if err := inspectJSONValue(child, depth+1); err != nil {
+			if err := inspectJSONValue(child, depth+1, childMode, nil); err != nil {
 				return err
 			}
 		}
 	case '[':
 		for decoder.More() {
-			if err := inspectJSONValue(decoder, depth+1); err != nil {
+			if err := inspectJSONValue(decoder, depth+1, mode, nil); err != nil {
 				return err
 			}
 		}

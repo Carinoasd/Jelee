@@ -11,6 +11,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/MoYuanCN/Jelee/internal/access"
+	"github.com/MoYuanCN/Jelee/internal/adapter/media"
 	"github.com/MoYuanCN/Jelee/internal/domain"
 	"github.com/go-chi/chi/v5"
 )
@@ -37,6 +38,18 @@ type LibraryOptions struct {
 	DirectPlay bool
 	// ClientIP returns the client address as the server derived it.
 	ClientIP func(*http.Request) string
+	// Delivery is the server's direct delivery handler. Nil leaves the
+	// stream and subtitle routes unregistered and external subtitles
+	// unlisted; set it only with direct delivery enabled.
+	Delivery Delivery
+}
+
+// Delivery is the server's one direct delivery handler (media.Handler):
+// authorization, revocation, concurrency and bandwidth limits, Range and
+// HEAD all happen there. The layer never streams on its own.
+type Delivery interface {
+	ServeSource(w http.ResponseWriter, r *http.Request, sourceID string)
+	ServeTrack(w http.ResponseWriter, r *http.Request, sourceID string, kind media.TrackKind, trackID string)
 }
 
 func (o *LibraryOptions) valid() bool {
@@ -99,7 +112,8 @@ type userItemData struct {
 // (G10.4). SupportsTranscoding is always false. SupportsDirectStream is
 // false too: upstream clients use direct streaming to ask for a remuxed
 // container, which this server never produces. Path, file names and every
-// transcoding member are omitted.
+// transcoding member (TranscodingUrl, TranscodingContainer, ...) are omitted;
+// the struct deliberately has no field for them.
 type mediaSourceInfo struct {
 	Protocol              string        `json:"Protocol"`
 	ID                    string        `json:"Id"`
@@ -123,11 +137,15 @@ type mediaSourceInfo struct {
 	SupportsProbing       bool          `json:"SupportsProbing"`
 	MediaStreams          []mediaStream `json:"MediaStreams"`
 	Bitrate               *int64        `json:"Bitrate,omitempty"`
-	HasSegments           bool          `json:"HasSegments"`
+	// DefaultAudioStreamIndex is the default embedded audio stream, else
+	// the first one.
+	DefaultAudioStreamIndex *int `json:"DefaultAudioStreamIndex,omitempty"`
+	HasSegments             bool `json:"HasSegments"`
 }
 
-// mediaStream is one embedded stream of a probed source. External tracks
-// are not listed: the layer has no route to deliver them yet.
+// mediaStream is one embedded stream of a probed source or, with direct
+// delivery, one external subtitle file. External audio files are not
+// listed: upstream has no route that delivers them.
 type mediaStream struct {
 	Codec      string `json:"Codec,omitempty"`
 	Language   string `json:"Language,omitempty"`
@@ -142,6 +160,15 @@ type mediaStream struct {
 	Type       string `json:"Type"`
 	Index      int    `json:"Index"`
 	IsExternal bool   `json:"IsExternal"`
+	// Subtitle members, set only with direct delivery. DeliveryMethod is
+	// Embed for a track inside the original file and External for a
+	// sidecar file, whose DeliveryUrl serves it as it is.
+	Title                  string `json:"Title,omitempty"`
+	IsHearingImpaired      bool   `json:"IsHearingImpaired,omitempty"`
+	IsTextSubtitleStream   bool   `json:"IsTextSubtitleStream,omitempty"`
+	SupportsExternalStream bool   `json:"SupportsExternalStream,omitempty"`
+	DeliveryMethod         string `json:"DeliveryMethod,omitempty"`
+	DeliveryURL            string `json:"DeliveryUrl,omitempty"`
 }
 
 func (rt *router) libraryRoutes() {
@@ -251,14 +278,20 @@ func identifier(s string) bool {
 // administrator; otherwise 403 before any catalog read. An absent or
 // all-zero identifier means the caller, as upstream treats an empty one.
 func (rt *router) libraryUser(w http.ResponseWriter, r *http.Request, q browseQuery) (access.Principal, string, bool) {
+	raw := chi.URLParam(r, "id")
+	if raw == "" {
+		raw = q.get("userid")
+	}
+	return rt.readAs(w, r, raw)
+}
+
+// readAs applies the libraryUser rule to an identifier taken from the path,
+// the query or a request body.
+func (rt *router) readAs(w http.ResponseWriter, r *http.Request, raw string) (access.Principal, string, bool) {
 	principal, ok := access.PrincipalFromContext(r.Context())
 	if !ok || principal.Kind != access.ClientNative {
 		writeError(w, http.StatusUnauthorized)
 		return principal, "", false
-	}
-	raw := chi.URLParam(r, "id")
-	if raw == "" {
-		raw = q.get("userid")
 	}
 	if raw == "" || (len(raw) == 32 || len(raw) == 36) && isNilID(raw) {
 		return principal, principal.UserID, true
@@ -618,15 +651,14 @@ func (rt *router) itemByID(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if dto.MediaType == mediaTypeVideo {
-		actor := domain.Actor{UserID: principal.UserID, SessionID: principal.SessionID, IP: rt.opts.Library.ClientIP(r)}
-		sources, err := catalog.PlaybackSources(r.Context(), actor, item.ID)
+		sources, err := catalog.PlaybackSources(r.Context(), rt.playbackActor(r, principal), item.ID)
 		if err != nil {
 			rt.writeLibraryError(w, err)
 			return
 		}
 		dto.MediaSources = make([]mediaSourceInfo, 0, len(sources))
 		for _, source := range sources {
-			info, err := rt.mediaSource(source, item.Title)
+			info, err := rt.mediaSource(dto.ID, source, item.Title)
 			if err != nil {
 				writeError(w, http.StatusInternalServerError)
 				return
@@ -638,6 +670,12 @@ func (rt *router) itemByID(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	writeJSON(w, dto)
+}
+
+// playbackActor is the caller's own session: sources are always looked up
+// with it, also when an administrator reads as another user.
+func (rt *router) playbackActor(r *http.Request, principal access.Principal) domain.Actor {
+	return domain.Actor{UserID: principal.UserID, SessionID: principal.SessionID, IP: rt.opts.Library.ClientIP(r)}
 }
 
 func (rt *router) browseDto(item domain.BrowseItem, fields map[string]bool) (baseItemDto, error) {
@@ -721,11 +759,13 @@ func (rt *router) baseDto(id, name string) baseItemDto {
 	}
 }
 
-func (rt *router) mediaSource(source domain.PlaybackSource, name string) (mediaSourceInfo, error) {
+// mediaSource describes one source of the item with wire identifier itemID.
+func (rt *router) mediaSource(itemID string, source domain.PlaybackSource, name string) (mediaSourceInfo, error) {
 	id, err := FormatID(source.ID)
 	if err != nil {
 		return mediaSourceInfo{}, err
 	}
+	delivery := rt.opts.Library.Delivery != nil
 	info := mediaSourceInfo{
 		Protocol:           mediaProtocolFile,
 		ID:                 id,
@@ -744,8 +784,29 @@ func (rt *router) mediaSource(source domain.PlaybackSource, name string) (mediaS
 	for _, a := range source.Audio {
 		info.MediaStreams = append(info.MediaStreams, mediaStream{Codec: a.Codec, Language: a.Language, BitRate: a.BitRate, Channels: a.Channels, SampleRate: a.SampleRate, IsDefault: a.Default, IsForced: a.Forced, Profile: a.Profile, Type: mediaStreamAudio, Index: a.Index})
 	}
+	if audio, ok := defaultAudio(source); ok {
+		index := audio.Index
+		info.DefaultAudioStreamIndex = &index
+	}
 	for _, s := range source.Subtitles {
-		info.MediaStreams = append(info.MediaStreams, mediaStream{Codec: s.Format, Language: s.Language, IsDefault: s.Default, IsForced: s.Forced, Type: mediaStreamSubtitle, Index: s.Index})
+		stream := mediaStream{Codec: s.Format, Language: s.Language, IsDefault: s.Default, IsForced: s.Forced, Type: mediaStreamSubtitle, Index: s.Index}
+		if delivery {
+			stream.DeliveryMethod = subtitleDeliveryEmbed
+			stream.IsTextSubtitleStream = textSubtitleFormats[s.Format]
+		}
+		info.MediaStreams = append(info.MediaStreams, stream)
+	}
+	if !delivery {
+		return info, nil
+	}
+	for _, sub := range externalSubtitles(source) {
+		t := sub.track
+		info.MediaStreams = append(info.MediaStreams, mediaStream{
+			Codec: t.Format, Language: t.Language, Title: t.Title, IsDefault: t.Default, IsForced: t.Forced, IsHearingImpaired: t.SDH,
+			Type: mediaStreamSubtitle, Index: sub.index, IsExternal: true, IsTextSubtitleStream: textSubtitleFormats[t.Codec],
+			SupportsExternalStream: true, DeliveryMethod: subtitleDeliveryExternal,
+			DeliveryURL: subtitleURL(itemID, id, sub.index, t.Format),
+		})
 	}
 	return info, nil
 }

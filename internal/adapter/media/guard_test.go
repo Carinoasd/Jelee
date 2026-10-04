@@ -3,6 +3,7 @@ package media
 import (
 	"errors"
 	"io"
+	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
@@ -114,4 +115,91 @@ func FuzzProductionGuard(f *testing.F) {
 		r.Header.Set("Content-Type", "application/json")
 		_ = GuardProduction(r)
 	})
+}
+
+// GuardPlaybackInfo reads the documented PlaybackInfo members and the
+// DeviceProfile as the client's declaration, and nothing else.
+func TestPlaybackInfoGuardSeparatesDeclarations(t *testing.T) {
+	declaration := `{"UserId":"u","MaxStreamingBitrate":140000000,"StartTimeTicks":0,"AudioStreamIndex":1,"SubtitleStreamIndex":2,"MaxAudioChannels":6,
+"MediaSourceId":"s","LiveStreamId":null,"AutoOpenLiveStream":true,"EnableDirectPlay":false,"EnableDirectStream":false,"EnableTranscoding":true,
+"AllowVideoStreamCopy":false,"AllowAudioStreamCopy":false,"AlwaysBurnInSubtitleWhenTranscoding":true,
+"DeviceProfile":{"MaxStreamingBitrate":1,"DirectPlayProfiles":[{"Container":"mkv","Type":"Video","VideoCodec":"hevc","AudioCodec":"eac3"}],
+"TranscodingProfiles":[{"Container":"ts","Protocol":"hls","VideoCodec":"h264","AudioCodec":"aac","SegmentLength":6,"BreakOnNonKeyFrames":true}],
+"SubtitleProfiles":[{"Format":"ass","Method":"Encode"}],"CodecProfiles":[{"Codec":"h264","Conditions":[{"Property":"Width","Value":"1920"}]}]}}`
+	post := func(target, body string) *http.Request {
+		r := httptest.NewRequest("POST", target, strings.NewReader(body))
+		r.Header.Set("Content-Type", "application/json")
+		return r
+	}
+	query := "?MaxStreamingBitrate=1&EnableTranscoding=true&AllowVideoStreamCopy=false&EnableDirectPlay=false&AlwaysBurnInSubtitleWhenTranscoding=true&MaxAudioChannels=2"
+	if err := GuardPlaybackInfo(post("/Items/x/PlaybackInfo"+query, declaration)); err != nil {
+		t.Fatalf("declaration refused: %v", err)
+	}
+	r := post("/Items/x/PlaybackInfo", declaration)
+	if err := GuardPlaybackInfo(r); err != nil {
+		t.Fatal(err)
+	}
+	if body, _ := io.ReadAll(r.Body); string(body) != declaration {
+		t.Fatal("body not restored")
+	}
+	// The production guard itself is unchanged.
+	if err := GuardProduction(post("/Items/x/PlaybackInfo", declaration)); !errors.Is(err, ErrTranscodeDisabled) {
+		t.Fatalf("production guard: %v", err)
+	}
+	if err := GuardProduction(httptest.NewRequest("GET", "/stream"+query, nil)); !errors.Is(err, ErrTranscodeDisabled) {
+		t.Fatalf("production guard query: %v", err)
+	}
+	// Every transformation parameter outside the declaration is refused,
+	// in the query and at any position of the body except the profile.
+	for _, name := range append(append([]string{}, transformParams...), "segmentContainer", "transcodingProtocol", "hlsSegmentLength", "h264-profile") {
+		if playbackInfoDeclarations[normalizeKey(name)] {
+			continue
+		}
+		if err := GuardPlaybackInfo(httptest.NewRequest("GET", "/Items/x/PlaybackInfo?"+name+"=1", nil)); !errors.Is(err, ErrTranscodeDisabled) {
+			t.Errorf("query %s: %v", name, err)
+		}
+		for _, body := range []string{`{"` + name + `":1}`, `{"Options":{"` + name + `":1}}`, `{"MaxStreamingBitrate":{"` + name + `":1}}`, `[{"` + name + `":1}]`} {
+			if err := GuardPlaybackInfo(post("/Items/x/PlaybackInfo", body)); !errors.Is(err, ErrTranscodeDisabled) {
+				t.Errorf("body %s: %v", body, err)
+			}
+		}
+	}
+	for _, target := range []string{"/Items/x/PlaybackInfo?Static=false", "/Items/x/PlaybackInfo?Container=hls", "/Items/x/PlaybackInfo?SubtitleMethod=Encode",
+		"/Items/x/PlaybackInfo?EnableAutoStreamCopy=false", "/Items/x/master.m3u8", "/Items/x/hls/PlaybackInfo"} {
+		if err := GuardPlaybackInfo(httptest.NewRequest("GET", target, nil)); !errors.Is(err, ErrTranscodeDisabled) {
+			t.Errorf("%s: %v", target, err)
+		}
+	}
+	// The profile is data but still parsed: syntax, depth and size hold.
+	for _, body := range []string{`{"DeviceProfile":` + strings.Repeat("[", 40) + strings.Repeat("]", 40) + `}`, `{"DeviceProfile":{"a":}}`, `{"DeviceProfile":{}} x`} {
+		if err := GuardPlaybackInfo(post("/Items/x/PlaybackInfo", body)); !errors.Is(err, ErrInvalidRequest) {
+			t.Errorf("%s: %v", body, err)
+		}
+	}
+	big := post("/Items/x/PlaybackInfo", `{"DeviceProfile":"`+strings.Repeat("a", maxPlaybackBody)+`"}`)
+	if err := GuardPlaybackInfo(big); !errors.Is(err, ErrBodyTooLarge) {
+		t.Fatalf("oversized: %v", err)
+	}
+	if err := GuardPlaybackInfo(httptest.NewRequest("GET", "/Items/x/PlaybackInfo?DeviceProfile=%7B%22TranscodingProfiles%22%3A%5B%7B%7D%5D%7D", nil)); err != nil {
+		t.Fatalf("query profile: %v", err)
+	}
+	if err := GuardPlaybackInfo(httptest.NewRequest("GET", "/Items/x/PlaybackInfo?DeviceProfile=%7B", nil)); !errors.Is(err, ErrInvalidRequest) {
+		t.Fatalf("malformed query profile: %v", err)
+	}
+}
+
+// The declaration list is reviewed: adding a member widens what
+// PlaybackInfo accepts and must be a deliberate change here.
+func TestPlaybackInfoDeclarationsAreFixed(t *testing.T) {
+	want := []string{"allowaudiostreamcopy", "allowvideostreamcopy", "alwaysburninsubtitlewhentranscoding", "audiostreamindex", "autoopenlivestream", "deviceprofile",
+		"enabledirectplay", "enabledirectstream", "enabletranscoding", "livestreamid", "maxaudiochannels", "maxstreamingbitrate", "mediasourceid", "starttimeticks",
+		"subtitlestreamindex", "userid"}
+	if len(playbackInfoDeclarations) != len(want) {
+		t.Fatalf("declarations %v", playbackInfoDeclarations)
+	}
+	for _, name := range want {
+		if !playbackInfoDeclarations[name] {
+			t.Fatalf("missing %s in %v", name, playbackInfoDeclarations)
+		}
+	}
 }

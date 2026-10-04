@@ -4,7 +4,7 @@
 
 `internal/adapter/media` 只读取并传输原始文件，不启动子进程，没有转码、重编码、烧录字幕、HLS、DASH 或 Remux 实现。HTTP 层必须先验证凭据，再通过 `ServeSource` 传入不透明资源 ID。是否注册公开播放入口由应用层功能开关控制。
 
-这是直投安全基础模块。按用户/设备的并发与带宽限制及撤销即断流、外挂字幕/音轨直投见下文；第三方客户端兼容协商、播放会话统计、ffprobe、内嵌字幕/音轨提取（mkvextract）、Remux、实际播放器验证与部署性能验收仍需各自实现和验收。本模块测试通过不能代替这些验收。
+这是直投安全基础模块。按用户/设备的并发与带宽限制及撤销即断流、外挂字幕/音轨直投及兼容层直投见下文；第三方客户端实际起播验收、播放会话统计、ffprobe、内嵌字幕/音轨提取（mkvextract）、Remux、实际播放器验证与部署性能验收仍需各自实现和验收。本模块测试通过不能代替这些验收。
 
 ## 接口和信任边界
 
@@ -235,7 +235,15 @@ Web 禁止播放的承诺基于**服务端签发时绑定的会话类型**。原
 
 明确可通过、只表示直投或定位的参数：`static=true`、`enableDirectPlay=true`、`enableDirectStream=true`、`enableTranscoding=false`、流复制开关为 `true`、`subtitleMethod=External/Embed`、`mediaSourceId`、`startTimeTicks`、`audioStreamIndex`、`subtitleStreamIndex`、`videoStreamIndex`、`liveStreamId`、`playSessionId`、`deviceId`、`userId`、`tag`、`context`、`enableRedirection`、`enableRemoteMedia`、`autoOpenLiveStream`。
 
-已知影响：上游客户端在 PlaybackInfo 中常带 `MaxStreamingBitrate`、`MaxAudioChannels`，其设备能力 `DirectPlayProfiles` 中也含 `VideoCodec`/`AudioCodec` 字段；通用音频地址常带 `transcodingContainer`/`transcodingProtocol`。这些请求目前一律按 G10.3 拒绝；若兼容层需要接受它们，必须在兼容层把“能力声明”与“转换请求”分开解析，不能放宽本拦截器。
+已知影响：上游客户端在 PlaybackInfo 中常带 `MaxStreamingBitrate`、`MaxAudioChannels`，其设备能力 `DirectPlayProfiles` 中也含 `VideoCodec`/`AudioCodec` 字段；通用音频地址常带 `transcodingContainer`/`transcodingProtocol`。这些请求在本拦截器上一律按 G10.3 拒绝。兼容层的 PlaybackInfo 改用下一节的 `GuardPlaybackInfo` 把能力声明与转换请求分开解析，本拦截器没有任何放宽。
+
+### 兼容层（`/compat`）的播放信息与直投
+
+兼容层（[兼容矩阵](compat-matrix.md)“播放模組”）不另写串流：
+
+- `GuardPlaybackInfo` 只挂在 `/compat/Items/{itemId}/PlaybackInfo`。它与 `GuardProduction` 共用同一套检查（路径、查询串、64 KiB 表单/JSON、重复键、嵌套、深度），差别只有：上游 PlaybackInfo 文档化的声明成员（`UserId`、`MediaSourceId`、`LiveStreamId`、`AutoOpenLiveStream`、`StartTimeTicks`、`AudioStreamIndex`、`SubtitleStreamIndex`、`MaxStreamingBitrate`、`MaxAudioChannels`、`EnableDirectPlay`、`EnableDirectStream`、`EnableTranscoding`、`AllowVideoStreamCopy`、`AllowAudioStreamCopy`、`AlwaysBurnInSubtitleWhenTranscoding`、`DeviceProfile`）在请求顶层出现时不当转换参数；`DeviceProfile` 子树只做语法、深度与大小检查。其他任何参数，包括这些成员之下嵌套的非 DeviceProfile 值，仍按上表拒绝。声明清单由 `TestPlaybackInfoDeclarationsAreFixed` 锁定。这些成员只决定是否列出原始资源，响应从不含 `TranscodingUrl` 等字段；没有可直投资源时回 `ErrorCode=NoCompatibleStream`，不提供转码替代。
+- `/compat/Videos/{itemId}/stream[.{container}]` 与外挂字幕路由仍走未修改的 `GuardProduction`，先以调用者会话通过目录查出条目的资源（库授权在 SQL 内），再调用同一个 `media.Handler` 的 `ServeSource`/`ServeTrack`。因此本文的 Range、HEAD、CSP、零拷贝、并发与带宽上限、撤销即断流全部适用且共用额度；`serve` 进入前会再执行一次 `GuardProduction`。另外两条兼容层规则：未带 `static=true` 时只接受不改变字节的标识参数（`MediaSourceId`、`DeviceId`、`PlaySessionId`、`Tag`、`Container`、`api_key`/`ApiKey`），其他一律 409；路径扩展名或 `Container` 与原始容器不同即 remux 请求，409。字幕请求格式必须是原文件格式（或同格式别名），时间偏移、结束位置、VTT 时间映射与内嵌字幕都是 409。
+- 凭据：兼容层只接受原生会话；`api_key`/`ApiKey` 查询参数可携带令牌，但仍是同一个原生会话查询，Web 会话 401。
 
 ## 生产路径不可达编码器（G10.11）
 

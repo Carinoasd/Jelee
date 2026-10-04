@@ -286,6 +286,12 @@ func (s *Server) newCompat(cfg config.Config, backend Backend) (http.Handler, er
 	// applies the library grants in storage like the native catalog routes.
 	if cfg.EnableCatalog && s.catalog.CanBrowse() {
 		opts.Library = &compat.LibraryOptions{Catalog: s.catalog, HiddenStatus: cfg.Access.HiddenContentStatus(), DirectPlay: cfg.EnableDirect, ClientIP: requestClientIP}
+		// The playback module streams through the same delivery handler as
+		// the native stream routes, so limits, revocation and Range
+		// handling are shared rather than duplicated.
+		if cfg.EnableDirect {
+			opts.Library.Delivery = s.delivery
+		}
 	}
 	return compat.NewRouter(opts)
 }
