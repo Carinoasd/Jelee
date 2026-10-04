@@ -55,6 +55,8 @@ jobs:
           path: .testdata/ignore-helper.txt
           if-no-files-found: error
           retention-days: 7
+          # .testdata is hidden; uploads whose paths share a wider root would drop it.
+          include-hidden-files: true
       - name: Required Git ignore semantics on Linux
         if: runner.os == 'Linux'
         run: |
@@ -72,6 +74,8 @@ jobs:
           path: .testdata/ignore-oracle.txt
           if-no-files-found: ignore
           retention-days: 7
+          # .testdata is hidden; uploads whose paths share a wider root would drop it.
+          include-hidden-files: true
       - name: Retain native sandbox diagnostics
         if: always() && runner.os == 'Linux'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -80,6 +84,8 @@ jobs:
           path: .testdata/sandbox-native.txt
           if-no-files-found: ignore
           retention-days: 7
+          # .testdata is hidden; uploads whose paths share a wider root would drop it.
+          include-hidden-files: true
 
   full-branding:
     name: Branding report (informational)
@@ -175,6 +181,8 @@ jobs:
           path: .testdata/ignore-family-runtime.txt
           if-no-files-found: error
           retention-days: 7
+          # .testdata is hidden; uploads whose paths share a wider root would drop it.
+          include-hidden-files: true
       - name: Five-minute native ignore service sustained acceptance
         id: ignore-sustained
         run: make ignore-sustained-test
@@ -188,6 +196,8 @@ jobs:
             .testdata/ignore-sustained-summary.json
           if-no-files-found: error
           retention-days: 7
+          # .testdata is hidden; uploads whose paths share a wider root would drop it.
+          include-hidden-files: true
       - name: Real media scan and probe cache acceptance
         run: make bootstrap-media media-tools-verify bootstrap-runtime runtime-tools-verify fixtures probe-worker-test
       - name: Real mixed NFO, video and image incremental acceptance
@@ -205,6 +215,8 @@ jobs:
             .testdata/family-ignore-worker-summary.json
           if-no-files-found: error
           retention-days: 7
+          # .testdata is hidden; uploads whose paths share a wider root would drop it.
+          include-hidden-files: true
       - name: Runtime memory evidence and configuration contracts
         id: runtime-memory-contracts
         # Invoke directly so the original child exit code is not replaced by
@@ -228,6 +240,8 @@ jobs:
             docs/evidence/resident-memory-baseline.json
           if-no-files-found: error
           retention-days: 7
+          # .testdata is hidden; uploads whose paths share a wider root would drop it.
+          include-hidden-files: true
       - name: Retain probe worker acceptance evidence
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -238,6 +252,8 @@ jobs:
             .testdata/probe-worker-summary.json
           if-no-files-found: ignore
           retention-days: 7
+          # .testdata is hidden; uploads whose paths share a wider root would drop it.
+          include-hidden-files: true
       - name: Retain NFO worker acceptance evidence
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -248,3 +264,5 @@ jobs:
             .testdata/nfo-worker-summary.json
           if-no-files-found: ignore
           retention-days: 7
+          # .testdata is hidden; uploads whose paths share a wider root would drop it.
+          include-hidden-files: true
