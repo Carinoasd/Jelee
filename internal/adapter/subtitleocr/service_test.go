@@ -1,3 +1,8 @@
+//go:build !windows
+
+// These tests need private cache and work directories, which Windows
+// cannot prove; platform_windows_test.go checks that OCR stays off there.
+
 package subtitleocr
 
 import (
@@ -213,6 +218,17 @@ func (e env) locate(t *testing.T, index int) (Item, error) {
 	}
 }
 
+// settled waits until the dispatcher has accounted for n finished jobs and
+// returns the counters then. A job publishes its result before it returns
+// (its work directory is removed on return) and before the dispatcher
+// counts it, so a test that has just seen the result must not read the
+// counters or the work directory until this point.
+func (e env) settled(t *testing.T, n uint64) Stats {
+	t.Helper()
+	waitFor(t, func() bool { s := e.service.Stats(); return s.Completed+s.Failed >= n && s.Running == 0 })
+	return e.service.Stats()
+}
+
 func digest(t *testing.T, path string) [32]byte {
 	t.Helper()
 	data, err := os.ReadFile(path)
@@ -242,7 +258,7 @@ func TestServiceQueuesRecognizesAndServesAnSRT(t *testing.T) {
 		t.Fatalf("srt:\n%s", data)
 	}
 	// The repeated picture was recognized once.
-	stats := e.service.Stats()
+	stats := e.settled(t, 1)
 	if e.recognizer.calls.Load() != 2 || stats.Reused != 1 || stats.Pictures != 3 || stats.Recognized != 2 || stats.Completed != 1 || stats.Queued != 0 {
 		t.Fatalf("calls %d stats %+v", e.recognizer.calls.Load(), stats)
 	}
@@ -459,7 +475,7 @@ func TestServiceRetriesABusyExtractorAndSkipsRejectedPictures(t *testing.T) {
 	if _, err := e.locate(t, 3); err != ErrNotFound {
 		t.Fatalf("%v", err)
 	}
-	if stats := e.service.Stats(); stats.Rejected != 2 || stats.Completed != 1 || e.extractor.calls.Load() != 2 {
+	if stats := e.settled(t, 1); stats.Rejected != 2 || stats.Completed != 1 || stats.Failed != 0 || e.extractor.calls.Load() != 2 {
 		t.Fatalf("stats %+v calls %d", stats, e.extractor.calls.Load())
 	}
 }

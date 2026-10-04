@@ -64,29 +64,31 @@ runtime-tools-verify:
 	sh scripts/runtime-tools verify
 runtime-toolchain-test:
 	$(PYTHON) -B scripts/test_runtime_tools.py
-probe-runtime-test:
+# Targets that build the production image (Dockerfile) need the pinned
+# matroska tools it copies: run make bootstrap-matroska first.
+probe-runtime-test: matroska-tools-verify
 	$(PYTHON) -B scripts/test_probe_runtime.py
-probe-worker-test:
+probe-worker-test: matroska-tools-verify
 	$(PYTHON) -B scripts/test_probe_worker.py
-nfo-worker-test:
+nfo-worker-test: matroska-tools-verify
 	$(PYTHON) -B scripts/test_nfo_worker.py
-family-ignore-worker-test:
+family-ignore-worker-test: matroska-tools-verify
 	JELEE_FAMILY_IGNORE_ACCEPTANCE=true $(PYTHON) -B scripts/test_nfo_worker.py
-family-ignore-sustained-worker-test:
+family-ignore-sustained-worker-test: matroska-tools-verify
 	JELEE_FAMILY_IGNORE_ACCEPTANCE=true JELEE_FAMILY_IGNORE_SUSTAINED_ACCEPTANCE=true $(PYTHON) -B scripts/test_nfo_worker.py
 memory-contract-test:
 	$(PYTHON) -B scripts/runtime_memory_contracts.py
 runtime-memory-test: memory-contract-test
 	$(MAKE) runtime-memory-worker-test
-runtime-memory-worker-test:
+runtime-memory-worker-test: matroska-tools-verify
 	JELEE_MEMORY_PROFILE_ACCEPTANCE=true JELEE_FAMILY_IGNORE_ACCEPTANCE=true JELEE_FAMILY_IGNORE_SUSTAINED_ACCEPTANCE=true $(PYTHON) -B scripts/test_nfo_worker.py
-scan-memory-test:
+scan-memory-test: matroska-tools-verify
 	$(PYTHON) -B scripts/test_scan_memory.py
-scan-memory-smoke-test:
+scan-memory-smoke-test: matroska-tools-verify
 	$(PYTHON) -B scripts/test_scan_memory.py --smoke
-image-memory-test:
+image-memory-test: matroska-tools-verify
 	$(PYTHON) -B scripts/test_image_memory.py
-image-memory-smoke-test:
+image-memory-smoke-test: matroska-tools-verify
 	$(PYTHON) -B scripts/test_image_memory.py --smoke
 ignore-oracle-test:
 	JELEE_REQUIRE_IGNORE_ORACLE=true "$(GO)" test -count=1 -v -run '^TestGitOracle' ./internal/platform/ignore

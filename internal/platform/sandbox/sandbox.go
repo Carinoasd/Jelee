@@ -13,7 +13,7 @@ import (
 	"errors"
 	"io"
 	"os"
-	"path/filepath"
+	"path"
 	"strconv"
 	"strings"
 	"unicode"
@@ -204,8 +204,11 @@ func decodeDescriptor(argv []string) (invocation, error) {
 	return invocation{profile: profile, arguments: arguments}, nil
 }
 
+// validPath accepts a clean absolute path inside the Linux runtime image.
+// Descriptors always name Linux paths, so slash semantics apply on every
+// build; the host separator must not change what a descriptor means.
 func validPath(value string) bool {
-	return len(value) > 0 && len(value) <= 4096 && utf8.ValidString(value) && filepath.IsAbs(value) && filepath.Clean(value) == value &&
+	return len(value) > 0 && len(value) <= 4096 && utf8.ValidString(value) && path.IsAbs(value) && path.Clean(value) == value &&
 		!strings.ContainsAny(value, ":\x00") && !strings.ContainsFunc(value, unicode.IsControl)
 }
 
@@ -218,7 +221,7 @@ func validDigest(value string) bool {
 }
 
 func validProfile(profile Profile) bool {
-	return validPath(profile.FFprobePath) && filepath.Base(profile.FFprobePath) == "ffprobe"
+	return validPath(profile.FFprobePath) && path.Base(profile.FFprobePath) == "ffprobe"
 }
 
 func validPolicy(policy Policy) bool { return validPolicyWithin(policy, 32) }

@@ -14,7 +14,7 @@ func TestRunWithCollectsThePrivateDirectoryBeforeRemovingIt(t *testing.T) {
 	var seen string
 	collect := func(directory string) error {
 		data, err := os.ReadFile(filepath.Join(directory, "t0"))
-		if err != nil || string(data) != "extracted output" || filepath.Dir(directory) != runner.config.TempRoot {
+		if err != nil || string(data) != "extracted output" || filepath.Dir(directory) != filepath.Clean(runner.config.TempRoot) {
 			return errors.New("unexpected output")
 		}
 		seen = directory

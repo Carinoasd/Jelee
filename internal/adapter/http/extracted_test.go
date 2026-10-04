@@ -61,7 +61,7 @@ func extractedFixtureWith(t *testing.T, enabled, ocr bool, extracted *fakeExtrac
 	}
 	if ocr {
 		cfg.SubtitleOCR = config.DefaultSubtitleOCRConfig()
-		cfg.SubtitleOCR.Enable, cfg.SubtitleOCR.CacheRoot = true, t.TempDir()
+		cfg.SubtitleOCR.Enable, cfg.SubtitleOCR.CacheRoot = true, filepath.Clean(t.TempDir())
 	}
 	var options []Option
 	if extracted != nil {
@@ -179,7 +179,9 @@ func TestPlaybackDecoratesOnlyAvailableExtraction(t *testing.T) {
 
 func configMatroska(t *testing.T) config.MatroskaConfig {
 	t.Helper()
-	return config.MatroskaConfig{EnableExtraction: true, CacheRoot: t.TempDir(), CacheMaxBytes: 1 << 30}
+	// Configuration requires a clean root; a host TMP with mixed separators
+	// (the Windows runner) would otherwise fail validation.
+	return config.MatroskaConfig{EnableExtraction: true, CacheRoot: filepath.Clean(t.TempDir()), CacheMaxBytes: 1 << 30}
 }
 
 func TestOCRSubtitleRouteDeliversDerivedSRTToNativeSessionsOnly(t *testing.T) {

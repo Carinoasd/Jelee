@@ -5,7 +5,9 @@ COPY go.mod go.sum ./
 RUN go mod download
 COPY cmd ./cmd
 COPY internal ./internal
-COPY tools/media.go tools/runtime.go tools/matroska.go tools/manifest.json ./tools/
+# tools/ocr.go is Go source only: tools/runtime-image and the OCR runtime
+# registration compile against it; no Tesseract file enters this image.
+COPY tools/media.go tools/runtime.go tools/matroska.go tools/ocr.go tools/manifest.json ./tools/
 COPY tools/runtime-image ./tools/runtime-image/
 COPY --chmod=0555 .tools/media/linux-amd64/btbn-20260930-9.0/ffmpeg-n9.0.2-17-g2a571b6068-linux64-gpl-9.0/bin/ffprobe /runtime/usr/lib/jelee/ffprobe
 COPY --chmod=0444 .tools/media/linux-amd64/btbn-20260930-9.0/ffmpeg-n9.0.2-17-g2a571b6068-linux64-gpl-9.0/LICENSE.txt /runtime/licenses/ffprobe/LICENSE.txt

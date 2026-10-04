@@ -10,7 +10,7 @@ import (
 	"encoding/json"
 	"io"
 	"os"
-	"path/filepath"
+	"path"
 	"slices"
 	"strconv"
 	"strings"
@@ -117,7 +117,7 @@ var toolNames = map[ToolMode]string{ToolMediaInfo: "mediainfo", ToolIdentify: "m
 
 func validToolProfile(profile ToolProfile) bool {
 	name, ok := toolNames[profile.Mode]
-	return ok && validPath(profile.Path) && filepath.Base(profile.Path) == name
+	return ok && validPath(profile.Path) && path.Base(profile.Path) == name
 }
 
 func validToolPolicy(mode ToolMode, policy ToolPolicy) bool {
@@ -149,9 +149,9 @@ func dataLanguages(files []PinnedFile) ([]string, bool) {
 	}
 	languages := make([]string, 0, len(files))
 	for _, file := range files {
-		name := filepath.Base(file.Path)
+		name := path.Base(file.Path)
 		code, found := strings.CutSuffix(name, OCRDataSuffix)
-		if !validPath(file.Path) || !validDigest(file.SHA256) || !found || !validLanguage(code) || filepath.Dir(file.Path) != filepath.Dir(files[0].Path) || slices.Contains(languages, code) {
+		if !validPath(file.Path) || !validDigest(file.SHA256) || !found || !validLanguage(code) || path.Dir(file.Path) != path.Dir(files[0].Path) || slices.Contains(languages, code) {
 			return nil, false
 		}
 		languages = append(languages, code)
@@ -164,7 +164,7 @@ func tessdataDirectory(files []PinnedFile) string {
 	if len(files) == 0 {
 		return ""
 	}
-	return filepath.Dir(files[0].Path)
+	return path.Dir(files[0].Path)
 }
 
 func ascending(values []int, minimum, maximum, count int) bool {

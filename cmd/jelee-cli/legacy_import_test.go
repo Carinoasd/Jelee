@@ -80,11 +80,21 @@ func completedLegacyReport() domain.LegacyImportReport {
 	return r
 }
 
+// targetPath returns a slash path as an absolute path of the host: path-map
+// targets name the Jelee host's library roots, so a Windows host needs a
+// drive-letter target and refuses a POSIX one.
+func targetPath(slash string) string {
+	if runtime.GOOS == "windows" {
+		return `C:` + filepath.FromSlash(slash)
+	}
+	return slash
+}
+
 func TestLegacyCLIRunsAndReports(t *testing.T) {
 	store := &legacyStoreStub{report: completedLegacyReport()}
 	report := filepath.Join(t.TempDir(), "report.json")
 	var out, errs bytes.Buffer
-	code := runLegacyImportCLIWith(context.Background(), []string{"--source", "x.db", "--path-map", `D:\Media=/srv/media`, "--path-map", "/a=/b", "--merge-users",
+	code := runLegacyImportCLIWith(context.Background(), []string{"--source", "x.db", "--path-map", `D:\Media=` + targetPath("/srv/media"), "--path-map", "/a=" + targetPath("/b"), "--merge-users",
 		"--skip-conflicts", "--restart", "--batch-size", "50", "--max-batches", "4", "--report", report}, &out, &errs, legacyDeps(store, nil))
 	if code != 0 || errs.Len() != 0 {
 		t.Fatalf("code=%d stderr=%q", code, errs.String())
@@ -184,8 +194,16 @@ func TestLegacyCLIRejectsUsage(t *testing.T) {
 		}
 	}
 	var rules pathRules
-	if rules.Set("/a=/b") != nil || rules.String() != "1" {
+	if rules.Set("/a="+targetPath("/b")) != nil || rules.String() != "1" {
 		t.Fatal("path rule flag")
+	}
+	// A target that is not absolute on this host is refused.
+	foreign := "/a=" + `C:\b`
+	if runtime.GOOS == "windows" {
+		foreign = "/a=/b"
+	}
+	if rules.Set(foreign) == nil || rules.String() != "1" {
+		t.Fatal("foreign target accepted")
 	}
 }
 

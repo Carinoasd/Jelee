@@ -2,6 +2,7 @@
 # the pinned Tesseract runtime on top of a runtime image built from the same
 # checkout. Build from the repository root:
 #
+#   make bootstrap-media bootstrap-runtime bootstrap-matroska
 #   make bootstrap-ocr
 #   docker build -t jelee:local .
 #   docker build -f deploy/ocr/Dockerfile --build-arg JELEE_IMAGE=jelee:local -t jelee:ocr .

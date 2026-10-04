@@ -6,7 +6,8 @@ import (
 )
 
 func TestMatroskaExtractionConfiguration(t *testing.T) {
-	root := t.TempDir()
+	// Validation requires a clean root; the Windows runner's TMP mixes separators.
+	root := filepath.Clean(t.TempDir())
 	base := map[string]string{"JELEE_DATABASE_URL": "postgres://localhost/jelee", "JELEE_ENABLE_CATALOG": "true", "JELEE_ENABLE_DIRECT": "true"}
 	load := func(extra map[string]string) (Config, error) {
 		values := map[string]string{}

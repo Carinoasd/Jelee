@@ -83,7 +83,7 @@ def main():
     if source_root.is_symlink():
         raise RuntimeError("acceptance fixture root must not be a symlink")
     source_record = json.loads((source_root / "fixtures.json").read_text())
-    if source_record.get("platform") != "linux-amd64" or source_record.get("toolVersion") != media["vendorVersion"] or source_record.get("toolSHA256") != media["executables"]["ffmpeg"]["sha256"] or len(source_record.get("files", [])) != 13:
+    if source_record.get("platform") != "linux-amd64" or source_record.get("toolVersion") != media["vendorVersion"] or source_record.get("toolSHA256") != media["executables"]["ffmpeg"]["sha256"] or not 2 <= len(source_record.get("files", [])) <= 64:
         raise RuntimeError("original fixture generator identity differs from manifest")
     # The generator's record contains only its original tiny files.
     originals = {}
@@ -93,6 +93,13 @@ def main():
         if not name or name in (".", "..") or Path(name).name != name or name in originals or file.is_symlink() or not file.is_file() or file.stat().st_size > 4 << 20 or file.stat().st_size != record["bytes"] or digest(file) != record["sha256"]:
             raise RuntimeError("original fixture does not match its verified record")
         originals[name] = record["sha256"]
+    # The generator's inventory grows with new fixtures (cover art, Matroska
+    # subtitles), so it is checked against the directory instead of a fixed
+    # count: the record lists exactly the generated files, every one verified
+    # above, and includes the four this acceptance copies.
+    present = {path.name for path in source_root.iterdir() if path.name != "fixtures.json"}
+    if set(originals) != present or not {"video-180p.mp4", "video-360p.mp4", "multi.mkv", "corrupt.mkv"} <= present:
+        raise RuntimeError("original fixture inventory differs from its record")
     pins = {"usr/lib/jelee/ffprobe": media["executables"]["ffprobe"]["sha256"],
             "licenses/ffprobe/LICENSE.txt": media["licenseFiles"][0]["sha256"]}
     for package in runtime["packages"]:

@@ -7,7 +7,8 @@ import (
 )
 
 func TestSubtitleOCRConfiguration(t *testing.T) {
-	matroska, ocr := t.TempDir(), t.TempDir()
+	// Validation requires clean roots; the Windows runner's TMP mixes separators.
+	matroska, ocr := filepath.Clean(t.TempDir()), filepath.Clean(t.TempDir())
 	base := map[string]string{"JELEE_DATABASE_URL": "postgres://localhost/jelee", "JELEE_ENABLE_CATALOG": "true", "JELEE_ENABLE_DIRECT": "true",
 		"JELEE_ENABLE_MATROSKA_EXTRACTION": "true", "JELEE_MATROSKA_CACHE_ROOT": matroska}
 	load := func(extra map[string]string) (Config, error) {

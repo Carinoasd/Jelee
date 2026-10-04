@@ -44,6 +44,7 @@ make ocr-toolchain-test            # 離線合成 .deb 的安裝器測試（6 �
 預設的 `Dockerfile` 完全不變。OCR 是另一層：`deploy/ocr/Dockerfile`（BuildKit 使用旁邊的 `Dockerfile.dockerignore`，只送入驗證器與 `.tools/ocr`）：
 
 ```sh
+make bootstrap-media bootstrap-runtime bootstrap-matroska   # 預設映像複製的固定檔案
 make bootstrap-ocr
 docker build -t jelee:local .
 docker build -f deploy/ocr/Dockerfile --build-arg JELEE_IMAGE=jelee:local -t jelee:ocr .

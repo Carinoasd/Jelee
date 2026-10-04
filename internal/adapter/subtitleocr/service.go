@@ -147,7 +147,7 @@ type Service struct {
 
 // New validates the configuration and starts the background dispatcher.
 func New(extractor Extractor, recognizer PictureRecognizer, config Config) (*Service, error) {
-	if extractor == nil || recognizer == nil || !privateDirectory(config.CacheRoot) || !privateDirectory(config.WorkRoot) || config.Identity == "" ||
+	if !supportedPlatform || extractor == nil || recognizer == nil || !privateDirectory(config.CacheRoot) || !privateDirectory(config.WorkRoot) || config.Identity == "" ||
 		len(config.Languages) == 0 || config.Concurrency < 1 || config.Concurrency > MaxConcurrency || config.QueueSize < 1 || config.QueueSize > MaxQueue {
 		return nil, ErrUnavailable
 	}

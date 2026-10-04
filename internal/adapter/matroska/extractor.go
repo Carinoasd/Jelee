@@ -110,7 +110,7 @@ type flight struct {
 // New registers the isolated identification and extraction runners over an
 // existing private cache root.
 func New(identify, extract Runner, config Config) (*Extractor, error) {
-	if identify == nil || extract == nil || !filepath.IsAbs(config.CacheRoot) || filepath.Clean(config.CacheRoot) != config.CacheRoot {
+	if !supportedPlatform || identify == nil || extract == nil || !filepath.IsAbs(config.CacheRoot) || filepath.Clean(config.CacheRoot) != config.CacheRoot {
 		return nil, ErrUnavailable
 	}
 	info, err := os.Lstat(config.CacheRoot)

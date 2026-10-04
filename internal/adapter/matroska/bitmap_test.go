@@ -1,3 +1,8 @@
+//go:build !windows
+
+// These tests need a private cache directory, which Windows cannot prove;
+// platform_windows_test.go checks that extraction stays off there.
+
 package matroska
 
 import (

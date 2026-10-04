@@ -419,9 +419,9 @@ func leakConfig(t *testing.T, dsn string, hiddenStatus int) config.Config {
 	// A developer capable instance with no active session, so the
 	// developer routes are walked too.
 	cfg.Dev = config.DevConfig{EnvFlag: true, Enabled: true}
-	cfg.Matroska = config.MatroskaConfig{EnableExtraction: true, CacheRoot: t.TempDir(), CacheMaxBytes: 1 << 30}
+	cfg.Matroska = config.MatroskaConfig{EnableExtraction: true, CacheRoot: filepath.Clean(t.TempDir()), CacheMaxBytes: 1 << 30}
 	cfg.SubtitleOCR = config.DefaultSubtitleOCRConfig()
-	cfg.SubtitleOCR.Enable, cfg.SubtitleOCR.CacheRoot = true, t.TempDir()
+	cfg.SubtitleOCR.Enable, cfg.SubtitleOCR.CacheRoot = true, filepath.Clean(t.TempDir())
 	return cfg
 }
 

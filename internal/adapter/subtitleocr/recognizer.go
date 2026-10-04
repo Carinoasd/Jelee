@@ -42,7 +42,7 @@ type Recognizer struct {
 // NewRecognizer binds the runner to a private picture directory.
 func NewRecognizer(runner Runner, directory string) (*Recognizer, error) {
 	info, err := os.Lstat(directory)
-	if runner == nil || err != nil || !info.IsDir() || info.Mode().Perm()&0o077 != 0 {
+	if !supportedPlatform || runner == nil || err != nil || !info.IsDir() || info.Mode().Perm()&0o077 != 0 {
 		return nil, ErrUnavailable
 	}
 	return &Recognizer{runner: runner, directory: directory}, nil

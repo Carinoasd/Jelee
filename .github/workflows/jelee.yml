@@ -32,7 +32,10 @@ jobs:
         # lint = gofmt, openapi/doc checks, go vet and golangci-lint against
         # tools/lint-baseline/linux.json; coverage-check enforces the
         # per-package ratchet in tools/coverage-thresholds.json (G30.1).
-        run: make bootstrap tools-verify bootstrap-media media-tools-verify bootstrap-runtime runtime-tools-verify runtime-toolchain-test fixtures fixtures-test toolchain-test media-toolchain-test quality-gates-test lint build test-race coverage-check sandbox-test probe-runtime-test gitignore-check brand-scan-incremental
+        # The production image (probe-runtime-test) copies the pinned
+        # mkvtoolnix and MediaInfo files; they are installed and verified
+        # before any step can build it (cached with the manifest key).
+        run: make bootstrap tools-verify bootstrap-media media-tools-verify bootstrap-runtime runtime-tools-verify bootstrap-matroska matroska-tools-verify runtime-toolchain-test fixtures fixtures-test toolchain-test media-toolchain-test quality-gates-test lint build test-race coverage-check sandbox-test probe-runtime-test gitignore-check brand-scan-incremental
       - name: Web frontend gates on Linux
         if: runner.os == 'Linux'
         # web-build fails on playback in the bundle and on a main bundle over
@@ -271,7 +274,10 @@ jobs:
           # .testdata is hidden; uploads whose paths share a wider root would drop it.
           include-hidden-files: true
       - name: Real media scan and probe cache acceptance
-        run: make bootstrap-media media-tools-verify bootstrap-runtime runtime-tools-verify fixtures probe-worker-test
+        # Every later step here builds the production image, which copies
+        # the pinned mkvtoolnix and MediaInfo files: install and verify them
+        # first (the .tools cache key already covers tools/manifest.json).
+        run: make bootstrap-media media-tools-verify bootstrap-runtime runtime-tools-verify bootstrap-matroska matroska-tools-verify fixtures probe-worker-test
       - name: Real mixed NFO, video and image incremental acceptance
         run: make nfo-worker-test
       - name: Real family ignore, NFO, video and image acceptance
