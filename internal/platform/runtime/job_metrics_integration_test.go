@@ -173,9 +173,9 @@ func (f jobMetricsRuntimeFixture) request(t *testing.T, ctx context.Context, tok
 func sharedMetricsPoint(t *testing.T, families map[string]*dto.MetricFamily, name, kind, priority, outcome string, typ dto.MetricType) *dto.Metric {
 	t.Helper()
 	family := families[name]
-	wantLabels, wantPoints := 2, 8
+	wantLabels, wantPoints := 2, 10
 	if outcome != "" {
-		wantLabels, wantPoints = 3, 24
+		wantLabels, wantPoints = 3, 30
 	}
 	if family == nil || family.GetType() != typ || len(family.Metric) != wantPoints {
 		t.Fatal("missing fixed shared metrics family", name)
@@ -209,10 +209,17 @@ func scrapeSharedMetricsSnapshot(t *testing.T, ctx context.Context, store *postg
 	if err != nil {
 		t.Fatal("parse production metrics exposition")
 	}
-	// 30 runtime, pool, job, and resource families plus 7 cache families for
-	// the HTTP server's OpenAPI cache in the process-wide cache registry.
-	if len(families) != 37 {
-		t.Fatalf("production metrics exposed %d families, want 37", len(families))
+	// 30 runtime, pool, job, and resource families, 7 cache families for the
+	// HTTP server's OpenAPI cache in the process-wide cache registry, and the
+	// 12 operational families of the default alert rules (G50.6): 8 shared,
+	// memory limit, client control and two storage gauges.
+	if len(families) != 49 {
+		t.Fatalf("production metrics exposed %d families, want 49", len(families))
+	}
+	for _, name := range []string{"jelee_webhooks_deliveries_dead", "jelee_scan_consecutive_failures", "jelee_devmode_active", "jelee_consistency_findings", "jelee_client_control_blocked_total", "jelee_runtime_memory_limit_bytes", "jelee_storage_available_bytes"} {
+		if families[name] == nil {
+			t.Fatalf("production metrics lack %s", name)
+		}
 	}
 	for _, name := range []string{"jelee_cache_hits_total", "jelee_cache_misses_total", "jelee_cache_evictions_total", "jelee_cache_expirations_total", "jelee_cache_entries", "jelee_cache_size_bytes", "jelee_cache_hit_ratio"} {
 		family := families[name]
@@ -330,25 +337,25 @@ func TestJobMetricsRuntimePostgresLifecycleAndInstances(t *testing.T) {
 	}
 	first := submit("shared-metrics-first", domain.JobPriorityManual)
 	queued, _ := scrapeSharedMetricsSnapshot(t, ctx, store, one, admin.Token, 4)
-	if group := queued.Groups[5]; group.Queued != 1 || group.Running != 0 || group.Wait.Count != 0 {
+	if group := queued.Groups[7]; group.Queued != 1 || group.Running != 0 || group.Wait.Count != 0 {
 		t.Fatal("submitted job did not appear as queued before its first claim")
 	}
 	lease := claim("shared-metrics-first-owner")
 	running, _ := scrapeSharedMetricsSnapshot(t, ctx, store, two, admin.Token, 7)
-	if group := running.Groups[5]; group.Queued != 0 || group.Running != 1 || group.Wait.Count != 1 || group.Duration.Count != 0 {
+	if group := running.Groups[7]; group.Queued != 0 || group.Running != 1 || group.Wait.Count != 1 || group.Duration.Count != 0 {
 		t.Fatal("first claim did not expose exactly one initial wait")
 	}
 	if err := store.ReleaseJob(ctx, lease); err != nil {
 		t.Fatal("release shared metrics job for another owner")
 	}
 	requeued, _ := scrapeSharedMetricsSnapshot(t, ctx, store, one, admin.Token, 4)
-	if group := requeued.Groups[5]; group.Queued != 1 || group.Running != 0 || group.Wait != running.Groups[5].Wait {
+	if group := requeued.Groups[7]; group.Queued != 1 || group.Running != 0 || group.Wait != running.Groups[7].Wait {
 		t.Fatal("release replayed an initial wait sample")
 	}
 	lease = claim("shared-metrics-next-owner")
 	finish(lease)
 	finished, _ := scrapeSharedMetricsSnapshot(t, ctx, store, two, admin.Token, 7)
-	if group := finished.Groups[5]; group.Queued != 0 || group.Running != 0 || group.Succeeded != 1 || group.Wait != running.Groups[5].Wait || group.Duration.Count != 1 {
+	if group := finished.Groups[7]; group.Queued != 0 || group.Running != 0 || group.Succeeded != 1 || group.Wait != running.Groups[7].Wait || group.Duration.Count != 1 {
 		t.Fatal("successful reclaim did not expose one completion and one duration")
 	}
 	submit("shared-metrics-second", domain.JobPriorityManual)
@@ -362,10 +369,10 @@ func TestJobMetricsRuntimePostgresLifecycleAndInstances(t *testing.T) {
 		t.Fatal("cancel never-started shared metrics job")
 	}
 	final, body := scrapeSharedMetricsSnapshot(t, ctx, store, one, admin.Token, 4)
-	if group := final.Groups[5]; group.Succeeded != 2 || group.Wait.Count != 2 || group.Duration.Count != 2 {
+	if group := final.Groups[7]; group.Succeeded != 2 || group.Wait.Count != 2 || group.Duration.Count != 2 {
 		t.Fatal("history trimming reduced shared counters or histograms")
 	}
-	if group := final.Groups[4]; group.Cancelled != 1 || group.Wait.Count != 0 || group.Duration.Count != 0 {
+	if group := final.Groups[6]; group.Cancelled != 1 || group.Wait.Count != 0 || group.Duration.Count != 0 {
 		t.Fatal("never-started cancellation invented timing samples")
 	}
 	if !final.StartedAt.Equal(initial.StartedAt) {

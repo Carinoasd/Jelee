@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"log/slog"
+	"path/filepath"
 	"sort"
 	"time"
 )
@@ -126,4 +127,15 @@ func lineAttr(key string, value any, top bool) slog.Attr {
 	}
 	// Arrays, null and over-deep groups are never whitelisted.
 	return slog.String(key, redacted)
+}
+
+// RenderPath applies Path to a file below a library root, given as the root
+// and a slash-separated root-relative path. The result is the path relative
+// to a configured logging root in the relative mode, Redacted otherwise; it
+// is never absolute.
+func (r *Redactor) RenderPath(root, relative string) string {
+	if root == "" || relative == "" || !filepath.IsAbs(root) {
+		return redacted
+	}
+	return r.Path(filepath.Join(root, filepath.FromSlash(relative)))
 }

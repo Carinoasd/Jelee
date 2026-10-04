@@ -124,3 +124,28 @@ Compose 内部网络使用 sslmode=disable，仅用于此隔离网络；远程�
 | 数据库连接失败 | `jelee-cli doctor` 与 `jelee-migrate status`；服务在 schema 不匹配时拒绝启动，先执行迁移；远程数据库使用证书验证的 `sslmode` |
 | NFO 权限或读取失败 | NFO 目前只读，不需要写权限；用 `make nfo NFO_ROOT=<绝对根目录> NFO_FILE=<相对路径>` 离线验证单个文件；详见 [NFO 工作流程](nfo-worker.md) |
 | 图片取得失败 | 本地图片见[本地海报](local-images.md)；外部抓取受 SSRF 策略限制，私网／环回地址会被拦截，见[出站请求盘点](outbound-request-audit.md)与 [TMDB 重试](tmdb-retry.md) |
+| 告警触发 | 依告警名称查 [Runbook](runbook.md) 对应小节：每条告警都写明意义、确认、处置与回复验证 |
+| 目录与文件对不上 | `jelee-cli consistency check --library 名称` 检查孤儿条目／文件、版本计数、播放统计漂移、图片／NFO／外挂轨与实际文件、探测与图片快取、约束状态，见[资料一致性检查](consistency.md) |
+
+## 維運：監控、告警與一致性檢查（G50.3、G50.6）
+
+**監控與告警。** 啟用 `JELEE_ENABLE_ACCOUNTS=true` 與 `JELEE_ENABLE_METRICS=true`，以管理員工作階段權杖讓 Prometheus 抓取 `GET /metrics`。[`deploy/prometheus/prometheus.example.yml`](../deploy/prometheus/prometheus.example.yml) 是抓取設定範例（job 名稱必須是 `jelee`，權杖放 0600 憑證檔並在工作階段到期前更換），[`deploy/prometheus/jelee-alerts.yml`](../deploy/prometheus/jelee-alerts.yml) 是預設告警規則：
+
+| 告警 | 嚴重度 | 依據 |
+| --- | --- | --- |
+| `JeleeScrapeFailed` | critical | `up` 為 0：服務停止或資料庫不可達（`/metrics` 每次向資料庫驗證） |
+| `JeleeDatabasePoolSaturated` | warning | 連線池用滿且有取得被取消 |
+| `JeleeDiskSpaceLow`／`JeleeDiskSpaceCritical`／`JeleeDiskWillFillIn24h` | warning／critical／warning | 暫存、圖片存放區與日誌目錄所在檔案系統的可用空間與趨勢 |
+| `JeleeMemoryNearLimit` | warning | heap 超過 `GOMEMLIMIT` 的 90% |
+| `JeleeScanConsecutiveFailures` | warning | 任一媒體庫連續 3 次掃描失敗 |
+| `JeleeJobLeasesExpired` | warning | 工作租約過期而無 worker 接手 |
+| `JeleeWebhookDeadLetters`／`JeleeWebhookDeadLettersHigh` | warning／critical | Webhook 死信增加／累積達 100 |
+| `JeleeClientBlockBurst` | warning | 客戶端控制每分鐘拒絕超過 100 個請求（G47.8） |
+| `JeleeDevModeActive`／`JeleeDevModeLongRunning` | warning／critical | 開發者模式開啟 30 分鐘／超過 8 小時 |
+| `JeleeConsistencyFindings`／`JeleeConsistencyCheckStale` | warning／info | 一致性檢查有發現／超過 8 天沒有完成的檢查 |
+
+每條告警的處置步驟見 [Runbook](runbook.md)，指標定義見[指標契約](metrics.md#維運告警指標g506)。版本內沒有固定 `promtool`；規則語法與指標存在性由 `internal/platform/telemetry/alerts_test.go` 檢查，部署端有 `promtool` 時可再跑 `promtool check rules`。
+
+**資料一致性檢查。** `jelee-cli consistency check [--library 名稱]` 在服務主機上直接檢查（預設只報告，結束碼 3 表示有發現）；`--fix` 只修正可逆的參照與統計計數，寫入修正日誌與稽核，`jelee-cli consistency revert --run RUN_ID` 還原。定期檢查以 `JELEE_JOB_CONSISTENCY_INTERVAL_HOURS`（例如 `168`＝每週）啟用，任務在任務清單中可觀察與取消。完整說明、報告格式與限制見[資料一致性檢查](consistency.md)。
+
+**建議的例行作業。** 每週一致性檢查；每次升級前 `jelee-cli doctor` 與備份；告警觸發時先依 Runbook 確認，再視需要以 `jelee-cli diag export --out …` 收集診斷包。

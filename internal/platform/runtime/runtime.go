@@ -20,6 +20,7 @@ import (
 	"github.com/MoYuanCN/Jelee/internal/domain"
 	"github.com/MoYuanCN/Jelee/internal/platform/cache"
 	"github.com/MoYuanCN/Jelee/internal/platform/config"
+	"github.com/MoYuanCN/Jelee/internal/platform/consistency"
 	"github.com/MoYuanCN/Jelee/internal/platform/devmode"
 	jobworker "github.com/MoYuanCN/Jelee/internal/platform/jobs"
 	"github.com/MoYuanCN/Jelee/internal/platform/password"
@@ -178,6 +179,9 @@ func newWithLifetime(cfg config.Config, logger *slog.Logger, lifetime *lifetime)
 			if err := metrics.RegisterCaches(cache.Default()); err != nil {
 				return nil, errors.Join(err, metrics.Shutdown(context.Background()))
 			}
+			if err := registerOpsMetrics(c, store, metrics); err != nil {
+				return nil, errors.Join(err, metrics.Shutdown(context.Background()))
+			}
 			lifetime.closeTelemetry = metrics.Shutdown
 			return metrics, nil
 		},
@@ -233,6 +237,11 @@ func newWithLifetime(cfg config.Config, logger *slog.Logger, lifetime *lifetime)
 			if err != nil {
 				return nil, err
 			}
+			if interval := c.Jobs.ConsistencyInterval(); interval > 0 {
+				if service, err = app.NewJobsWithConsistencySchedule(service, store, interval); err != nil {
+					return nil, err
+				}
+			}
 			p := c.Jobs
 			opts := jobworker.Options{Budget: budget, Workers: p.Workers, PollInterval: time.Duration(p.PollMilliseconds) * time.Millisecond, LeaseDuration: time.Duration(p.LeaseSeconds) * time.Second, DBOperationTimeout: time.Duration(p.DatabaseTimeoutSeconds) * time.Second, MaxJobRuntime: time.Duration(p.MaxRuntimeSeconds) * time.Second, ScanConcurrency: p.ScanConcurrency}
 			window, err := calendar.ParseDailyWindow(p.WindowStart, p.WindowEnd, p.WindowTimezone)
@@ -261,6 +270,11 @@ func newWithLifetime(cfg config.Config, logger *slog.Logger, lifetime *lifetime)
 				}
 				opts.NFOWrite = &jobworker.NFOWriteOptions{Repository: store, Committer: writer}
 			}
+			checker, err := consistency.NewChecker(c, store)
+			if err != nil {
+				return nil, err
+			}
+			opts.Consistency = &jobworker.ConsistencyOptions{Checker: checker, Repository: store, Template: consistency.Template(c)}
 			if probing.Available() {
 				opts.Probe = &jobworker.ProbeOptions{Repository: store, Prober: probing, LeaseDuration: domain.DefaultProbeCachePolicy().LeaseDuration, MaxConcurrent: 2, Available: probing.Available, OnRuntimeUnavailable: probing.Disable}
 			}
@@ -327,6 +341,11 @@ func newWithLifetime(cfg config.Config, logger *slog.Logger, lifetime *lifetime)
 				return nil, err
 			}
 			lifetime.closeClientControl = clients.Close
+			if metrics != nil {
+				if err := metrics.RegisterClientControl(clients); err != nil {
+					return nil, err
+				}
+			}
 			options = append(options, httpapi.WithClientControl(clients))
 			// G18: the wizard and its gate. An incomplete setup issues the
 			// one-time setup token now; a complete one never reopens.

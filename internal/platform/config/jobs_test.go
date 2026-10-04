@@ -72,3 +72,32 @@ func TestJobsWorkWindowConfiguration(t *testing.T) {
 		}
 	}
 }
+
+func TestJobsConsistencyScheduleAndBounds(t *testing.T) {
+	values := map[string]string{"JELEE_DATABASE_URL": "postgres://localhost/jelee", "JELEE_ENABLE_JOBS": "true", "JELEE_ENABLE_ACCOUNTS": "true",
+		"JELEE_JOB_CONSISTENCY_INTERVAL_HOURS": "168", "JELEE_JOB_CONSISTENCY_STAT_BUDGET": "250", "JELEE_JOB_CONSISTENCY_WATCH_SAMPLE": "40"}
+	c, err := LoadWith(accountConfigLookup(values))
+	if err != nil || c.Jobs.ConsistencyInterval().Hours() != 168 || c.Jobs.ConsistencyStatBudget != 250 || c.Jobs.ConsistencyWatchSample != 40 {
+		t.Fatalf("consistency settings: %+v %v", c.Jobs, err)
+	}
+	if DefaultJobsConfig().ConsistencyInterval() != 0 || DefaultJobsConfig().Validate() != nil {
+		t.Fatal("the periodic check must default to off")
+	}
+	values["JELEE_JOB_CONSISTENCY_WATCH_SAMPLE"] = "many"
+	if _, err = LoadWith(accountConfigLookup(values)); err == nil || !strings.Contains(err.Error(), "JELEE_JOB_CONSISTENCY_WATCH_SAMPLE") {
+		t.Fatal("non-numeric sample accepted", err)
+	}
+	for _, mutate := range []func(*JobsConfig){
+		func(c *JobsConfig) { c.ConsistencyIntervalHours = -1 },
+		func(c *JobsConfig) { c.ConsistencyIntervalHours = 8761 },
+		func(c *JobsConfig) { c.ConsistencyStatBudget = -1 },
+		func(c *JobsConfig) { c.ConsistencyStatBudget = 100001 },
+		func(c *JobsConfig) { c.ConsistencyWatchSample = 10001 },
+	} {
+		c := DefaultJobsConfig()
+		mutate(&c)
+		if c.Validate() == nil {
+			t.Fatalf("out of range consistency setting accepted: %+v", c)
+		}
+	}
+}

@@ -53,12 +53,12 @@ func collectJobSDK(t *testing.T, reader *sdkmetric.ManualReader) map[string]metr
 func assertJobSDK(t *testing.T, got map[string]metricdata.Metrics, want app.JobMetricsSnapshot) {
 	t.Helper()
 	queued, ok := got["jelee.jobs.shared.queued"].Data.(metricdata.Gauge[int64])
-	if !ok || len(queued.DataPoints) != 8 {
-		t.Fatal("SDK queued gauge lost its eight groups")
+	if !ok || len(queued.DataPoints) != 10 {
+		t.Fatal("SDK queued gauge lost its ten groups")
 	}
 	oldest, ok := got["jelee.jobs.shared.oldest_queued_age"].Data.(metricdata.Gauge[float64])
-	if !ok || len(oldest.DataPoints) != 8 {
-		t.Fatal("SDK age gauge lost its eight groups")
+	if !ok || len(oldest.DataPoints) != 10 {
+		t.Fatal("SDK age gauge lost its ten groups")
 	}
 	for i, group := range want.Groups {
 		if queued.DataPoints[i].Value != group.Queued || oldest.DataPoints[i].Value != group.OldestQueuedAgeSeconds ||
@@ -67,7 +67,7 @@ func assertJobSDK(t *testing.T, got map[string]metricdata.Metrics, want app.JobM
 		}
 	}
 	sum, ok := got["jelee.jobs.shared.outcomes"].Data.(metricdata.Sum[int64])
-	if !ok || !sum.IsMonotonic || sum.Temporality != metricdata.CumulativeTemporality || len(sum.DataPoints) != 24 {
+	if !ok || !sum.IsMonotonic || sum.Temporality != metricdata.CumulativeTemporality || len(sum.DataPoints) != 30 {
 		t.Fatal("outcomes must reach the SDK as a cumulative monotonic sum")
 	}
 	for _, point := range sum.DataPoints {
@@ -102,7 +102,7 @@ func assertJobSDK(t *testing.T, got map[string]metricdata.Metrics, want app.JobM
 	} {
 		m := got[measure.name]
 		hist, ok := m.Data.(metricdata.Histogram[float64])
-		if !ok || m.Unit != "s" || hist.Temporality != metricdata.CumulativeTemporality || len(hist.DataPoints) != 8 {
+		if !ok || m.Unit != "s" || hist.Temporality != metricdata.CumulativeTemporality || len(hist.DataPoints) != 10 {
 			t.Fatal("SDK histogram type, units or temporality changed", measure.name)
 		}
 		for i, point := range hist.DataPoints {

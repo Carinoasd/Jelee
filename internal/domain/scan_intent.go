@@ -18,6 +18,9 @@ type ScanCapabilities struct {
 	FamilyIgnore  bool
 	// NFOWrite lets a worker with a configured writer claim nfo_write jobs.
 	NFOWrite bool
+	// ConsistencyCheck lets a worker with a configured checker claim
+	// consistency_check jobs.
+	ConsistencyCheck bool
 }
 
 func ValidateScanIntent(v ScanIntent) error {

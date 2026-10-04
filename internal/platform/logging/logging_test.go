@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"log/slog"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -111,5 +112,24 @@ func TestJobCorrelationOnlyAcceptsValidatedFields(t *testing.T) {
 		if strings.Contains(out.String(), secret) {
 			t.Fatal("unvalidated job log field leaked")
 		}
+	}
+}
+
+func TestRedactorRenderPath(t *testing.T) {
+	root := filepath.Join(t.TempDir(), "media")
+	relative := NewRedactor(IPRedact, PathRelative, []string{root})
+	if got := relative.RenderPath(root, "Movie/a.mkv"); got != "Movie/a.mkv" {
+		t.Fatalf("relative mode rendered %q", got)
+	}
+	if got := relative.RenderPath(filepath.Join(t.TempDir(), "other"), "a.mkv"); got != Redacted {
+		t.Fatalf("a path outside the logging roots rendered %q", got)
+	}
+	for _, args := range [][2]string{{"", "a.mkv"}, {root, ""}, {"relative", "a.mkv"}} {
+		if got := relative.RenderPath(args[0], args[1]); got != Redacted {
+			t.Fatalf("invalid input %v rendered %q", args, got)
+		}
+	}
+	if got := NewRedactor(IPRedact, PathRedact, []string{root}).RenderPath(root, "Movie/a.mkv"); got != Redacted {
+		t.Fatalf("redact mode rendered %q", got)
 	}
 }

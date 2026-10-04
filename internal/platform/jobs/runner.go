@@ -50,6 +50,7 @@ type Options struct {
 	NFO                *NFOOptions
 	NFOWrite           *NFOWriteOptions
 	CatalogSync        *CatalogSyncOptions
+	Consistency        *ConsistencyOptions
 	// ScanConcurrency bounds directories scanned at once by one inventory job.
 	// Zero or one keeps the sequential loop.
 	ScanConcurrency int
@@ -135,6 +136,13 @@ func New(repository app.JobExecutionRepository, scanner app.InventoryScanner, op
 		}
 		value := *opts.CatalogSync
 		opts.CatalogSync = &value
+	}
+	if opts.Consistency != nil {
+		if _, ok := repository.(stagesClaimer); !ok || opts.Consistency.Checker == nil || opts.Consistency.Repository == nil {
+			return nil, domain.ErrInvalid
+		}
+		value := *opts.Consistency
+		opts.Consistency = &value
 	}
 	if opts.Ignore != nil {
 		if _, ok := repository.(app.IgnoreExecutionRepository); !ok {
@@ -256,9 +264,9 @@ func (r *Runner) work(ctx context.Context) {
 		var lease domain.JobLease
 		var err error
 		if r.nfoRepository != nil {
-			lease, err = r.nfoRepository.ClaimJobWithCapabilities(dbCtx, r.options.Owner, turn%4 == 3, r.options.LeaseDuration, domain.ScanCapabilities{CatalogImport: r.options.CatalogImport != nil, CatalogSync: r.options.CatalogSync != nil, Probe: r.probeAvailable(), NFO: r.nfoAvailable(), Ignore: r.options.Ignore != nil, FamilyIgnore: r.familyIgnoreAvailable(), NFOWrite: r.options.NFOWrite != nil})
+			lease, err = r.nfoRepository.ClaimJobWithCapabilities(dbCtx, r.options.Owner, turn%4 == 3, r.options.LeaseDuration, domain.ScanCapabilities{CatalogImport: r.options.CatalogImport != nil, CatalogSync: r.options.CatalogSync != nil, ConsistencyCheck: r.options.Consistency != nil, Probe: r.probeAvailable(), NFO: r.nfoAvailable(), Ignore: r.options.Ignore != nil, FamilyIgnore: r.familyIgnoreAvailable(), NFOWrite: r.options.NFOWrite != nil})
 		} else if capable, ok := r.repository.(stagesClaimer); ok {
-			lease, err = capable.ClaimJobWithCapabilities(dbCtx, r.options.Owner, turn%4 == 3, r.options.LeaseDuration, domain.ScanCapabilities{CatalogImport: r.options.CatalogImport != nil, CatalogSync: r.options.CatalogSync != nil, Probe: r.probeAvailable(), Ignore: r.options.Ignore != nil, FamilyIgnore: r.familyIgnoreAvailable(), NFOWrite: r.options.NFOWrite != nil})
+			lease, err = capable.ClaimJobWithCapabilities(dbCtx, r.options.Owner, turn%4 == 3, r.options.LeaseDuration, domain.ScanCapabilities{CatalogImport: r.options.CatalogImport != nil, CatalogSync: r.options.CatalogSync != nil, ConsistencyCheck: r.options.Consistency != nil, Probe: r.probeAvailable(), Ignore: r.options.Ignore != nil, FamilyIgnore: r.familyIgnoreAvailable(), NFOWrite: r.options.NFOWrite != nil})
 		} else if r.probeRepository != nil {
 			lease, err = r.probeRepository.ClaimJobWithProbe(dbCtx, r.options.Owner, turn%4 == 3, r.options.LeaseDuration, r.probeAvailable())
 		} else if capable, ok := r.repository.(probeClaimer); ok {
@@ -492,6 +500,9 @@ func (r *Runner) run(serviceCtx context.Context, lease domain.JobLease) {
 	}
 	if lease.Job.Kind == domain.JobCatalogSync && state == domain.JobFailed && code != "job_timeout" {
 		code = "catalog_sync_failed"
+	}
+	if lease.Job.Kind == domain.JobConsistencyCheck && state == domain.JobFailed && code != "job_timeout" {
+		code = "consistency_check_failed"
 	}
 	dbCtx, cancelDB := context.WithTimeout(context.WithoutCancel(serviceCtx), r.options.DBOperationTimeout)
 	defer cancelDB()

@@ -35,6 +35,10 @@ func (r *Runner) execute(ctx context.Context, l domain.JobLease) (result error, 
 	if l.Job.Kind == domain.JobCatalogSync {
 		return r.executeCatalogSync(ctx, l)
 	}
+	if l.Job.Kind == domain.JobConsistencyCheck {
+		storage, err := r.executeConsistency(ctx, l)
+		return err, storage
+	}
 	repository, ok := r.repository.(app.IgnoreExecutionRepository)
 	if !ok {
 		return r.executeStages(ctx, l, false)
@@ -262,6 +266,12 @@ func (r *Runner) finishJob(ctx context.Context, l domain.JobLease, state, code s
 			return domain.ErrInvalid
 		}
 		return r.options.CatalogSync.Repository.FinishCatalogSync(ctx, l, state, code)
+	}
+	if l.Job.Kind == domain.JobConsistencyCheck {
+		if r.options.Consistency == nil {
+			return domain.ErrInvalid
+		}
+		return r.options.Consistency.Repository.FinishConsistencyCheck(ctx, l, state, code)
 	}
 	if state == domain.JobSucceeded {
 		if repo, ok := r.repository.(app.IgnoreExecutionRepository); ok {

@@ -3179,7 +3179,8 @@
             "enum": [
               "inventory_scan",
               "catalog_import",
-              "catalog_sync"
+              "catalog_sync",
+              "consistency_check"
             ],
             "type": "string"
           },

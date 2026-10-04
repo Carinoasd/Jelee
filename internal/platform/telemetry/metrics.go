@@ -36,6 +36,10 @@ type Metrics struct {
 	shutdownGate chan struct{}
 	shutdownDone bool
 	shutdownErr  error
+	// ops is the shared operational source registered before serving;
+	// opsActive holds the snapshot prefetched for the gather in progress.
+	ops       atomic.Pointer[opsSource]
+	opsActive atomic.Pointer[app.OpsMetricsSnapshot]
 }
 
 type runtimeSnapshot struct {
@@ -146,8 +150,10 @@ func newMetricsWithJobs(pool app.PoolStatsSource, jobs app.JobMetricsSource, rea
 			return
 		default:
 		}
+		// Database prefetches share one two-second budget.
+		prefetchDeadline := time.Now().Add(2 * time.Second)
 		if jobs != nil {
-			prefetchCtx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
+			prefetchCtx, cancel := context.WithDeadline(r.Context(), prefetchDeadline)
 			snapshot, err := jobs.JobMetrics(prefetchCtx)
 			contextErr := prefetchCtx.Err()
 			cancel()
@@ -166,6 +172,15 @@ func newMetricsWithJobs(pool app.PoolStatsSource, jobs app.JobMetricsSource, rea
 			}
 			producer.active.Store(&jobMetricCollection{snapshot: snapshot, requestContext: r.Context()})
 			defer producer.active.Store(nil)
+		}
+		if source := m.ops.Load(); source != nil {
+			snapshot, ok := source.prefetch(r.Context(), prefetchDeadline)
+			if !ok || r.Context().Err() != nil {
+				http.Error(w, "metrics unavailable", http.StatusServiceUnavailable)
+				return
+			}
+			m.opsActive.Store(&snapshot)
+			defer m.opsActive.Store(nil)
 		}
 		serve.ServeHTTP(w, r)
 	})

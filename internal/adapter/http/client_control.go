@@ -624,6 +624,10 @@ func (c *ClientControl) Flush(ctx context.Context) error {
 	return errors.Join(errs...)
 }
 
+// BlockedTotal is the number of requests enforced rules denied or held for
+// approval since the process started (G47.8, G50.6). It reads memory only.
+func (c *ClientControl) BlockedTotal() int64 { return c.rec.total.Load() }
+
 // alert writes the security log line for blocked requests and the burst
 // warning (G47.8). Only rule IDs and counts are logged, never a user agent,
 // address or path (G47.9).
@@ -657,6 +661,9 @@ type clientRecorder struct {
 	minute   time.Time
 	inMinute int64
 	alerted  time.Time
+	// total counts blocked requests since start for the metrics endpoint;
+	// unlike blocked it is never drained.
+	total atomic.Int64
 }
 
 func (r *clientRecorder) init() {
@@ -671,6 +678,7 @@ func (r *clientRecorder) hit(h domain.ClientHit) {
 	defer r.mu.Unlock()
 	if (h.Mode == "enforced" || h.Mode == "default") && (h.Action == string(access.ActionDeny) || h.Action == string(access.VerdictPending)) {
 		r.blocked[h.RuleID] += n
+		r.total.Add(n)
 	}
 	if _, ok := r.hits[h]; !ok && len(r.hits) >= clientHitBucketMax {
 		r.dropped += n

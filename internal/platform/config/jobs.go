@@ -28,6 +28,14 @@ type JobsConfig struct {
 	MissingPercentLimit    int    `json:"missingPercentLimit"`
 	// ScanConcurrency bounds directories one inventory job reads at once.
 	ScanConcurrency int `json:"scanConcurrency"`
+	// ConsistencyIntervalHours queues a background consistency check of
+	// every library this often (G50.3); zero, the default, disables it.
+	ConsistencyIntervalHours int `json:"consistencyIntervalHours"`
+	// ConsistencyStatBudget bounds the file probes of one check run and
+	// ConsistencyWatchSample the statistics rows it recounts per library;
+	// zero selects the checker defaults.
+	ConsistencyStatBudget  int `json:"consistencyStatBudget"`
+	ConsistencyWatchSample int `json:"consistencyWatchSample"`
 }
 
 func DefaultJobsConfig() JobsConfig {
@@ -48,7 +56,15 @@ func (c JobsConfig) Validate() error {
 	if c.QueueLimit < 1 || c.QueueLimit > 1000 || c.HistoryLimit < 1 || c.HistoryLimit > 100 || c.MaxEntries < 100 || c.MaxEntries > 500000 || c.MaxDirectories < 1 || c.MaxDirectories > 100000 || c.MaxAttempts < 1 || c.MaxAttempts > 10 || c.MissingCountLimit < 1 || c.MissingCountLimit > 500000 || c.MissingPercentLimit < 1 || c.MissingPercentLimit > 100 {
 		return errors.New("job capacity or comparison policy is outside supported limits")
 	}
+	if c.ConsistencyIntervalHours < 0 || c.ConsistencyIntervalHours > 8760 || c.ConsistencyStatBudget < 0 || c.ConsistencyStatBudget > domain.ConsistencyMaxStatBudget || c.ConsistencyWatchSample < 0 || c.ConsistencyWatchSample > domain.ConsistencyMaxWatchSample {
+		return errors.New("consistency check schedule or bounds are outside supported limits")
+	}
 	return nil
+}
+
+// ConsistencyInterval is zero when the periodic consistency check is off.
+func (c JobsConfig) ConsistencyInterval() time.Duration {
+	return time.Duration(c.ConsistencyIntervalHours) * time.Hour
 }
 
 func (c *JobsConfig) loadEnvironment(lookup func(string) (string, bool)) error {
@@ -59,6 +75,7 @@ func (c *JobsConfig) loadEnvironment(lookup func(string) (string, bool)) error {
 	}
 	for name, target := range map[string]*int{
 		"JELEE_JOB_WORKERS": &c.Workers, "JELEE_JOB_POLL_MILLISECONDS": &c.PollMilliseconds, "JELEE_JOB_LEASE_SECONDS": &c.LeaseSeconds, "JELEE_JOB_DATABASE_TIMEOUT_SECONDS": &c.DatabaseTimeoutSeconds, "JELEE_JOB_MAX_RUNTIME_SECONDS": &c.MaxRuntimeSeconds, "JELEE_JOB_QUEUE_LIMIT": &c.QueueLimit, "JELEE_JOB_HISTORY_LIMIT": &c.HistoryLimit, "JELEE_SCAN_MAX_ENTRIES": &c.MaxEntries, "JELEE_SCAN_MAX_DIRECTORIES": &c.MaxDirectories, "JELEE_JOB_MAX_ATTEMPTS": &c.MaxAttempts, "JELEE_SCAN_MISSING_COUNT_LIMIT": &c.MissingCountLimit, "JELEE_SCAN_MISSING_PERCENT_LIMIT": &c.MissingPercentLimit, "JELEE_SCAN_DIRECTORY_CONCURRENCY": &c.ScanConcurrency,
+		"JELEE_JOB_CONSISTENCY_INTERVAL_HOURS": &c.ConsistencyIntervalHours, "JELEE_JOB_CONSISTENCY_STAT_BUDGET": &c.ConsistencyStatBudget, "JELEE_JOB_CONSISTENCY_WATCH_SAMPLE": &c.ConsistencyWatchSample,
 	} {
 		if value, ok := lookup(name); ok {
 			n, err := strconv.Atoi(value)

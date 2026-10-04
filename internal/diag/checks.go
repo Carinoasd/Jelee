@@ -643,3 +643,7 @@ func (s *Session) checkExternal(ctx context.Context) Result {
 }
 
 var errDiskUnavailable = errors.New("disk usage unavailable")
+
+// ReadDisk reads the filesystem usage of path, as the disk check does. It
+// is shared with the storage metrics of the default alert rules (G50.6).
+func ReadDisk(path string) (DiskUsage, error) { return statfs(path) }

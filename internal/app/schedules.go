@@ -46,7 +46,11 @@ func (j *Jobs) DispatchSchedule(ctx context.Context) (bool, error) {
 	}
 	probe, _ := j.currentProbeIdentity()
 	nfo, _ := j.currentNFOIdentity()
-	return j.schedules.DispatchScanSchedule(ctx, j.policy, j.calendar, probe, nfo, j.currentIgnoreCapabilities())
+	worked, err := j.schedules.DispatchScanSchedule(ctx, j.policy, j.calendar, probe, nfo, j.currentIgnoreCapabilities())
+	if err != nil || worked || j.consistency == nil {
+		return worked, err
+	}
+	return j.consistency.dispatch(ctx, j.policy)
 }
 
 // RunSchedule snapshots the stored options under live administrator authority.

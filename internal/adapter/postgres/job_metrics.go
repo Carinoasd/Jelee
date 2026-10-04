@@ -58,7 +58,7 @@ func (s *Store) JobMetrics(ctx context.Context) (app.JobMetricsSnapshot, error) 
 	}
 	defer rows.Close()
 	var result app.JobMetricsSnapshot
-	expected := [8][2]string{{"catalog_import", "background"}, {"catalog_import", "manual"}, {"catalog_sync", "background"}, {"catalog_sync", "manual"}, {"inventory_scan", "background"}, {"inventory_scan", "manual"}, {"nfo_write", "background"}, {"nfo_write", "manual"}}
+	expected := [10][2]string{{"catalog_import", "background"}, {"catalog_import", "manual"}, {"catalog_sync", "background"}, {"catalog_sync", "manual"}, {"consistency_check", "background"}, {"consistency_check", "manual"}, {"inventory_scan", "background"}, {"inventory_scan", "manual"}, {"nfo_write", "background"}, {"nfo_write", "manual"}}
 	index := 0
 	for rows.Next() {
 		if index >= len(result.Groups) {

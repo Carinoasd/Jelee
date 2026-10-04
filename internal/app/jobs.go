@@ -26,6 +26,7 @@ type Jobs struct {
 	imageQueries          ImageQueryRepository
 	nfoIdentity           *domain.NFOIdentity
 	nfoAvailable          func() bool
+	consistency           *consistencySchedule
 }
 
 func NewJobs(repository JobRepository, policy domain.JobPolicy) (*Jobs, error) {

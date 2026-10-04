@@ -115,3 +115,35 @@ vet、三命令 build、模組 checksum、格式、增量品牌與 gitignore 通
 | `jelee_images_index_evictions_total` | counter | 經索引淘汰的變體 |
 
 沒有路徑、內容摘要、項目、使用者或媒體庫 labels。圖片與存放區全開時正式端點共 56 個 families（原 30 個加 26 個）；只開圖片不開存放區時為 42 個。
+
+## 維運告警指標（G50.6）
+
+正式端點另外註冊預設告警（[`deploy/prometheus/jelee-alerts.yml`](../deploy/prometheus/jelee-alerts.yml)，處置見 [Runbook](runbook.md)）所需的指標。
+
+共用資料庫的值與工作指標一起在每次通過認證的抓取時預讀：同一條 SQL、與工作預讀共用兩秒期限；讀取失敗、逾時或數值不合理時整個抓取回 503，不輸出舊值。每個副本輸出相同值，告警規則以 `max()` 彙總。
+
+| Prometheus 名稱 | 型別 | 意義 |
+| --- | --- | --- |
+| `jelee_webhooks_deliveries_dead` | gauge | 用完重試、等待手動重放的 Webhook 投遞（死信）數 |
+| `jelee_webhooks_deliveries_pending` | gauge | 等待下一次嘗試的投遞數 |
+| `jelee_scan_consecutive_failures` | gauge | 各媒體庫保留歷史結尾連續失敗的盤點掃描次數之最大值 |
+| `jelee_scan_failing_libraries` | gauge | 最近一次完成的掃描為失敗的媒體庫數 |
+| `jelee_devmode_active` | gauge | 開發者模式工作階段開啟且未到期時為 1 |
+| `jelee_devmode_active_duration_seconds` | gauge | 目前開發者模式工作階段已開啟的秒數；關閉時為 0 |
+| `jelee_consistency_findings{check}` | gauge | 每個媒體庫最新一次完成的一致性檢查之發現數總和，`check` 為十個固定檢查名稱之一（見[資料一致性檢查](consistency.md)） |
+| `jelee_consistency_last_completed_timestamp_seconds` | gauge | 最新一次完成的一致性檢查的 Unix 時間；從未執行時為 0 |
+
+程序本機的值在收集時從記憶體讀取：
+
+| Prometheus 名稱 | 型別 | 意義 |
+| --- | --- | --- |
+| `jelee_client_control_blocked_total` | counter | 程序啟動後被強制規則拒絕或擱置待核准的請求數（G47.8） |
+| `jelee_runtime_memory_limit_bytes` | gauge | Go soft memory limit（`GOMEMLIMIT`）；未設定時為 0 |
+| `jelee_storage_available_bytes{volume}` | gauge | 設定目錄所在檔案系統可供服務使用的 bytes |
+| `jelee_storage_size_bytes{volume}` | gauge | 該檔案系統總 bytes |
+
+`volume` 是設定鍵名而非路徑，與 `jelee-cli doctor` 的磁碟檢查一致：`tempdir`、`images.tempRoot`、`images.storeRoot`、`logging.file`（只列出已設定者）。檔案系統讀數在收集之外的背景更新，每個目錄最多每 30 秒讀一次、同時只有一個讀取在進行；檔案系統卡住時抓取照常回應、沿用上次讀數，讀不到的目錄不輸出。
+
+工作指標的 `kind` 標籤增加 `consistency_check`（遷移 000074），共用工作指標固定 10 組 kind／priority、30 個 outcome 點；測試中的工作 exposition 為 22 families／385 series、約 39 KiB，仍在 64 KiB 上限內。
+
+`internal/platform/telemetry/alerts_test.go` 以與正式端點相同的註冊組合抓取一次 `/metrics`，確認規則檔中每個指標名稱、`by` 分組標籤與註解中引用的標籤都存在。

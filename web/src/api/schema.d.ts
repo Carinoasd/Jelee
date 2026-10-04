@@ -18123,7 +18123,7 @@ export type components = {
             /** Format: uuid */
             id: string;
             /** @enum {string} */
-            kind: "inventory_scan" | "catalog_import" | "catalog_sync";
+            kind: "inventory_scan" | "catalog_import" | "catalog_sync" | "consistency_check";
             /** Format: uuid */
             libraryId: string;
             /** Format: int64 */
