@@ -83,8 +83,16 @@ func (c *fakeClock) waitPending(t *testing.T, n int) {
 	t.Helper()
 	deadline := time.Now().Add(2 * time.Second)
 	for {
+		// Stopped timers stay listed until the next fire; count only armed
+		// ones, or a finished request's timer satisfies the wait before the
+		// stream under test has armed its own.
 		c.mu.Lock()
-		count := len(c.timers)
+		count := 0
+		for _, timer := range c.timers {
+			if !timer.finished {
+				count++
+			}
+		}
 		c.mu.Unlock()
 		if count >= n {
 			return
