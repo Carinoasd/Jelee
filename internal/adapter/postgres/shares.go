@@ -361,3 +361,16 @@ func (s *Store) ListShareAccess(ctx context.Context, actor domain.Actor, id, cur
 	}
 	return out, next, nil
 }
+
+// liveShareOnItem refuses removing an item a live (unrevoked, unexpired)
+// share link targets.
+func liveShareOnItem(ctx context.Context, tx pgx.Tx, item string) error {
+	var live bool
+	if err := tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM share_links WHERE item_id=$1::uuid AND revoked_at IS NULL AND expires_at>clock_timestamp())`, item).Scan(&live); err != nil {
+		return storageError(err)
+	}
+	if live {
+		return domain.ErrVersionItemBusy
+	}
+	return nil
+}
