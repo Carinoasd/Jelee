@@ -58,6 +58,7 @@ type Server struct {
 	imageSlots      chan struct{}
 	web             *webApp
 	compat          http.Handler
+	webhooks        *app.Webhooks
 }
 
 func New(cfg config.Config, backend Backend, catalog *app.Catalog, resolver media.Resolver, logger *slog.Logger, accounts ...*app.Accounts) (http.Handler, error) {
@@ -78,25 +79,25 @@ func NewWithJobs(cfg config.Config, backend Backend, catalog *app.Catalog, resol
 	if len(metadataServices) == 1 {
 		metadata = metadataServices[0]
 	}
-	return newServer(cfg, backend, catalog, resolver, logger, account, jobs, metadata, nil, nil, nil)
+	return newServer(cfg, backend, catalog, resolver, logger, account, jobs, metadata, nil, nil, nil, nil)
 }
 
 func NewWithTelemetry(cfg config.Config, backend Backend, catalog *app.Catalog, resolver media.Resolver, logger *slog.Logger, account *app.Accounts, jobs *app.Jobs, metadata *app.Metadata, metrics http.Handler) (http.Handler, error) {
 	return NewWithImages(cfg, backend, catalog, resolver, logger, account, jobs, metadata, metrics, nil)
 }
 
-func NewWithImages(cfg config.Config, backend Backend, catalog *app.Catalog, resolver media.Resolver, logger *slog.Logger, account *app.Accounts, jobs *app.Jobs, metadata *app.Metadata, metrics http.Handler, images *app.Images) (http.Handler, error) {
-	return newServer(cfg, backend, catalog, resolver, logger, account, jobs, metadata, metrics, images, nil)
+func NewWithImages(cfg config.Config, backend Backend, catalog *app.Catalog, resolver media.Resolver, logger *slog.Logger, account *app.Accounts, jobs *app.Jobs, metadata *app.Metadata, metrics http.Handler, images *app.Images, options ...Option) (http.Handler, error) {
+	return newServer(cfg, backend, catalog, resolver, logger, account, jobs, metadata, metrics, images, nil, options)
 }
 
-func NewWithResources(cfg config.Config, backend Backend, catalog *app.Catalog, resolver media.Resolver, logger *slog.Logger, account *app.Accounts, jobs *app.Jobs, metadata *app.Metadata, metrics http.Handler, images *app.Images, budget app.WorkBudget) (http.Handler, error) {
+func NewWithResources(cfg config.Config, backend Backend, catalog *app.Catalog, resolver media.Resolver, logger *slog.Logger, account *app.Accounts, jobs *app.Jobs, metadata *app.Metadata, metrics http.Handler, images *app.Images, budget app.WorkBudget, options ...Option) (http.Handler, error) {
 	if budget == nil {
 		return nil, errors.New("shared resource budget must be provided")
 	}
-	return newServer(cfg, backend, catalog, resolver, logger, account, jobs, metadata, metrics, images, budget)
+	return newServer(cfg, backend, catalog, resolver, logger, account, jobs, metadata, metrics, images, budget, options)
 }
 
-func newServer(cfg config.Config, backend Backend, catalog *app.Catalog, resolver media.Resolver, logger *slog.Logger, account *app.Accounts, jobs *app.Jobs, metadata *app.Metadata, metrics http.Handler, images *app.Images, budget app.WorkBudget) (http.Handler, error) {
+func newServer(cfg config.Config, backend Backend, catalog *app.Catalog, resolver media.Resolver, logger *slog.Logger, account *app.Accounts, jobs *app.Jobs, metadata *app.Metadata, metrics http.Handler, images *app.Images, budget app.WorkBudget, options []Option) (http.Handler, error) {
 	if err := cfg.Validate(); err != nil {
 		return nil, err
 	}
@@ -119,6 +120,12 @@ func newServer(cfg config.Config, backend Backend, catalog *app.Catalog, resolve
 		return nil, err
 	}
 	s := &Server{cfg: cfg, backend: backend, catalog: catalog, delivery: delivery, logger: logger, trustedProxies: prefixes}
+	for _, option := range options {
+		option(s)
+	}
+	if cfg.EnableWebhooks && s.webhooks == nil {
+		return nil, errors.New("webhook service must be provided")
+	}
 	if s.web, err = newWebApp(cfg.WebDir); err != nil {
 		return nil, err
 	}
@@ -211,6 +218,9 @@ func newServer(cfg config.Config, backend Backend, catalog *app.Catalog, resolve
 	}
 	if cfg.EnableJobs {
 		s.jobRoutes(r)
+	}
+	if cfg.EnableWebhooks {
+		s.webhookRoutes(r)
 	}
 	if cfg.EnableCompat {
 		if s.compat, err = s.newCompat(cfg, backend); err != nil {
@@ -600,6 +610,8 @@ func WriteError(w http.ResponseWriter, r *http.Request, err error) {
 		status, code, message = 429, "session_limit", "Active session limit reached."
 	case errors.Is(err, errAuthRateLimited):
 		status, code, message = 429, "auth_rate_limited", "Too many authentication attempts. Try again later."
+	case errors.Is(err, domain.ErrWebhookTargetDenied):
+		status, code, message = 400, "webhook_target_denied", "Webhook URL must be HTTPS to an allowed public host."
 	case errors.Is(err, domain.ErrPlaybackBusy):
 		status, code, message = 503, "playback_busy", "Playback reporting is busy. Try again later."
 		w.Header().Set("Retry-After", "5")

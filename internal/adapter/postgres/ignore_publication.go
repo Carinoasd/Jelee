@@ -183,6 +183,9 @@ func (s *Store) finishIgnoreJob(ctx context.Context, l domain.JobLease, family b
 	if err = auditAccount(ctx, tx, domain.Actor{}, "job.finished", l.Job.ID, nil, map[string]any{"state": domain.JobSucceeded, "errorCode": "", "missing": result.Missing, "reviewRequired": result.ReviewRequired}); err != nil {
 		return err
 	}
+	if err = appendScanFinished(ctx, tx, s.webhooksOn(), current.Job, domain.JobSucceeded, "", result.Missing, result.ReviewRequired); err != nil {
+		return err
+	}
 	if err = trimJobs(ctx, tx, current.Policy.HistoryLimit); err != nil {
 		return err
 	}

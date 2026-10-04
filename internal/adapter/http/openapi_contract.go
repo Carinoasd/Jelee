@@ -65,6 +65,7 @@ var errorCodeStatuses = map[string][]int{
 	"unsupported_media_type":    {415},
 	"user_stream_limit":         {429},
 	"web_playback_disabled":     {403},
+	"webhook_target_denied":     {400},
 }
 
 // errorSpecification documents the single error envelope written by
@@ -112,7 +113,13 @@ func ReferenceConfig() config.Config {
 		Resources: config.DefaultResourcesConfig(), Listen: "127.0.0.1:8097", AllowedHosts: []string{"localhost", "127.0.0.1", "::1"},
 		DatabaseURL: "postgres://localhost/jelee", TMDBAPIKey: "00000000000000000000000000000000",
 		MaxConnections: 8, MaxStreams: 8, RequestTimeoutSeconds: 15,
-		EnableCatalog: true, EnableDirect: true, EnableAccounts: true, EnableMetrics: true, EnableImages: true, EnableJobs: true, EnableProbe: true, EnableFamilyIgnore: true, EnableCompat: true,
+		EnableCatalog: true, EnableDirect: true, EnableAccounts: true, EnableMetrics: true, EnableImages: true, EnableJobs: true, EnableProbe: true, EnableFamilyIgnore: true, EnableCompat: true, EnableWebhooks: true,
+		Webhooks: func() config.WebhooksConfig {
+			webhooks := config.DefaultWebhooksConfig()
+			// Placeholder key: rendering validates the configuration only.
+			webhooks.MasterKey = "0000000000000000000000000000000000000000000000000000000000000000"
+			return webhooks
+		}(),
 		Accounts: config.DefaultAccountsConfig(), Jobs: config.DefaultJobsConfig(),
 		Images: func() config.ImagesConfig {
 			images := config.DefaultImagesConfig()

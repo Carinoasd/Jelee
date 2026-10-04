@@ -89,6 +89,11 @@ var auditEvents = map[string]string{
 	"user.unlocked":                        domain.AuditCategoryAudit,
 	"user.updated":                         domain.AuditCategoryAudit,
 	"watch_stats.exported":                 domain.AuditCategoryAudit,
+	"webhook.created":                      domain.AuditCategoryAudit,
+	"webhook.deleted":                      domain.AuditCategoryAudit,
+	"webhook.delivery_replayed":            domain.AuditCategoryAudit,
+	"webhook.secret_rotated":               domain.AuditCategoryAudit,
+	"webhook.updated":                      domain.AuditCategoryAudit,
 }
 
 // auditStateLimit bounds each encoded before/after state. Larger states are

@@ -963,7 +963,8 @@
           "transcode_disabled",
           "unsupported_media_type",
           "user_stream_limit",
-          "web_playback_disabled"
+          "web_playback_disabled",
+          "webhook_target_denied"
         ],
         "type": "string",
         "x-jelee-statuses": {
@@ -1119,6 +1120,9 @@
           ],
           "web_playback_disabled": [
             "403"
+          ],
+          "webhook_target_denied": [
+            "400"
           ]
         }
       },
@@ -5771,6 +5775,537 @@
           "enabled",
           "observing",
           "pending"
+        ],
+        "type": "object"
+      },
+      "Webhook": {
+        "additionalProperties": false,
+        "properties": {
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "dead": {
+            "format": "int64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "events": {
+            "description": "Empty means every event.",
+            "items": {
+              "enum": [
+                "media.added",
+                "media.updated",
+                "media.deleted",
+                "scan.started",
+                "scan.completed",
+                "scan.failed",
+                "playback.started",
+                "playback.paused",
+                "playback.progress",
+                "playback.stopped",
+                "user.login",
+                "user.login_failed",
+                "user.locked",
+                "session.created",
+                "session.ended",
+                "nfo.written",
+                "images.fetched",
+                "system.alert"
+              ],
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "headerNames": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 16,
+            "type": "array"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "name": {
+            "description": "The server also enforces the stated maximum in UTF-8 bytes.",
+            "maxLength": 128,
+            "type": "string"
+          },
+          "pending": {
+            "format": "int64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "previousSecretUntil": {
+            "description": "Present while the previous secret still signs deliveries after a rotation.",
+            "format": "date-time",
+            "type": "string"
+          },
+          "retry": {
+            "$ref": "#/components/schemas/WebhookRetry"
+          },
+          "timeoutSeconds": {
+            "maximum": 30,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "url",
+          "enabled",
+          "events",
+          "headerNames",
+          "timeoutSeconds",
+          "retry",
+          "pending",
+          "dead",
+          "createdAt",
+          "updatedAt"
+        ],
+        "type": "object"
+      },
+      "WebhookAttempt": {
+        "additionalProperties": false,
+        "properties": {
+          "attempt": {
+            "maximum": 20,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "finishedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "nextAttemptAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "outcome": {
+            "description": "delivered: 2xx. http: another status; 408, 425, 429 and 5xx are retried, other statuses dead-letter at once. timeout and network are retried. blocked (target refused by the SSRF policy or allow list), tls (certificate rejected) and invalid (event or endpoint no longer valid) dead-letter at once.",
+            "enum": [
+              "delivered",
+              "http",
+              "timeout",
+              "network",
+              "blocked",
+              "tls",
+              "invalid"
+            ],
+            "type": "string"
+          },
+          "round": {
+            "minimum": 1,
+            "type": "integer"
+          },
+          "startedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "statusCode": {
+            "maximum": 599,
+            "minimum": 100,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "round",
+          "attempt",
+          "startedAt",
+          "finishedAt",
+          "outcome"
+        ],
+        "type": "object"
+      },
+      "WebhookDelivery": {
+        "additionalProperties": false,
+        "properties": {
+          "attempts": {
+            "description": "Attempts since the last replay.",
+            "maximum": 20,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "eventId": {
+            "maxLength": 64,
+            "type": "string"
+          },
+          "eventType": {
+            "enum": [
+              "media.added",
+              "media.updated",
+              "media.deleted",
+              "scan.started",
+              "scan.completed",
+              "scan.failed",
+              "playback.started",
+              "playback.paused",
+              "playback.progress",
+              "playback.stopped",
+              "user.login",
+              "user.login_failed",
+              "user.locked",
+              "session.created",
+              "session.ended",
+              "nfo.written",
+              "images.fetched",
+              "system.alert"
+            ],
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "lastAttemptAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "lastOutcome": {
+            "description": "delivered: 2xx. http: another status; 408, 425, 429 and 5xx are retried, other statuses dead-letter at once. timeout and network are retried. blocked (target refused by the SSRF policy or allow list), tls (certificate rejected) and invalid (event or endpoint no longer valid) dead-letter at once.",
+            "enum": [
+              "delivered",
+              "http",
+              "timeout",
+              "network",
+              "blocked",
+              "tls",
+              "invalid"
+            ],
+            "type": "string"
+          },
+          "lastStatus": {
+            "maximum": 599,
+            "minimum": 100,
+            "type": "integer"
+          },
+          "nextAttemptAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "occurredAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "replays": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "state": {
+            "enum": [
+              "pending",
+              "delivered",
+              "dead"
+            ],
+            "type": "string"
+          },
+          "webhookId": {
+            "format": "uuid",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "webhookId",
+          "eventId",
+          "eventType",
+          "occurredAt",
+          "state",
+          "attempts",
+          "replays",
+          "createdAt"
+        ],
+        "type": "object"
+      },
+      "WebhookDeliveryDetail": {
+        "additionalProperties": false,
+        "properties": {
+          "attempts": {
+            "description": "Attempts since the last replay.",
+            "maximum": 20,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "eventId": {
+            "maxLength": 64,
+            "type": "string"
+          },
+          "eventType": {
+            "enum": [
+              "media.added",
+              "media.updated",
+              "media.deleted",
+              "scan.started",
+              "scan.completed",
+              "scan.failed",
+              "playback.started",
+              "playback.paused",
+              "playback.progress",
+              "playback.stopped",
+              "user.login",
+              "user.login_failed",
+              "user.locked",
+              "session.created",
+              "session.ended",
+              "nfo.written",
+              "images.fetched",
+              "system.alert"
+            ],
+            "type": "string"
+          },
+          "history": {
+            "description": "Most recent attempts first.",
+            "items": {
+              "$ref": "#/components/schemas/WebhookAttempt"
+            },
+            "maxItems": 100,
+            "type": "array"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "lastAttemptAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "lastOutcome": {
+            "description": "delivered: 2xx. http: another status; 408, 425, 429 and 5xx are retried, other statuses dead-letter at once. timeout and network are retried. blocked (target refused by the SSRF policy or allow list), tls (certificate rejected) and invalid (event or endpoint no longer valid) dead-letter at once.",
+            "enum": [
+              "delivered",
+              "http",
+              "timeout",
+              "network",
+              "blocked",
+              "tls",
+              "invalid"
+            ],
+            "type": "string"
+          },
+          "lastStatus": {
+            "maximum": 599,
+            "minimum": 100,
+            "type": "integer"
+          },
+          "nextAttemptAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "occurredAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "replays": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "state": {
+            "enum": [
+              "pending",
+              "delivered",
+              "dead"
+            ],
+            "type": "string"
+          },
+          "webhookId": {
+            "format": "uuid",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "webhookId",
+          "eventId",
+          "eventType",
+          "occurredAt",
+          "state",
+          "attempts",
+          "replays",
+          "createdAt",
+          "history"
+        ],
+        "type": "object"
+      },
+      "WebhookInput": {
+        "additionalProperties": false,
+        "properties": {
+          "enabled": {
+            "default": true,
+            "type": "boolean"
+          },
+          "events": {
+            "description": "Subscribed event types; empty or omitted subscribes to every event.",
+            "items": {
+              "enum": [
+                "media.added",
+                "media.updated",
+                "media.deleted",
+                "scan.started",
+                "scan.completed",
+                "scan.failed",
+                "playback.started",
+                "playback.paused",
+                "playback.progress",
+                "playback.stopped",
+                "user.login",
+                "user.login_failed",
+                "user.locked",
+                "session.created",
+                "session.ended",
+                "nfo.written",
+                "images.fetched",
+                "system.alert"
+              ],
+              "type": "string"
+            },
+            "maxItems": 64,
+            "type": "array"
+          },
+          "headers": {
+            "additionalProperties": {
+              "maxLength": 1024,
+              "type": "string"
+            },
+            "description": "Custom request headers. Values are stored sealed and never returned. Reserved names (Content-Type, Host, Cookie, User-Agent, X-Jelee-* and hop-by-hop headers) are refused. On replace, omitting headers keeps the stored ones and {} removes them.",
+            "maxProperties": 16,
+            "type": "object"
+          },
+          "name": {
+            "description": "The server also enforces the stated maximum in UTF-8 bytes.",
+            "maxLength": 128,
+            "type": "string"
+          },
+          "retry": {
+            "$ref": "#/components/schemas/WebhookRetry"
+          },
+          "timeoutSeconds": {
+            "default": 10,
+            "maximum": 30,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "url": {
+            "description": "HTTPS only, without credentials or fragment. The host must be on the configured allow list when one is set, and must resolve to public addresses only: private, loopback, link-local and other special-purpose addresses are refused at every connection (G12.5).",
+            "maxLength": 2048,
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "url"
+        ],
+        "type": "object"
+      },
+      "WebhookRetry": {
+        "additionalProperties": false,
+        "properties": {
+          "baseDelaySeconds": {
+            "default": 10,
+            "description": "Delay after the first failed attempt; doubled after each further failure.",
+            "maximum": 86400,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "jitter": {
+            "default": 0.2,
+            "description": "Each delay is scaled by a factor drawn uniformly from [1-jitter, 1+jitter].",
+            "maximum": 1,
+            "minimum": 0,
+            "type": "number"
+          },
+          "maxAttempts": {
+            "default": 8,
+            "maximum": 20,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "maxDelaySeconds": {
+            "default": 3600,
+            "description": "Cap of every delay, including a Retry-After hint. At least baseDelaySeconds.",
+            "maximum": 86400,
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "maxAttempts",
+          "baseDelaySeconds",
+          "maxDelaySeconds",
+          "jitter"
+        ],
+        "type": "object"
+      },
+      "WebhookTestResult": {
+        "additionalProperties": false,
+        "properties": {
+          "durationMs": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "eventId": {
+            "type": "string"
+          },
+          "outcome": {
+            "description": "delivered: 2xx. http: another status; 408, 425, 429 and 5xx are retried, other statuses dead-letter at once. timeout and network are retried. blocked (target refused by the SSRF policy or allow list), tls (certificate rejected) and invalid (event or endpoint no longer valid) dead-letter at once.",
+            "enum": [
+              "delivered",
+              "http",
+              "timeout",
+              "network",
+              "blocked",
+              "tls",
+              "invalid"
+            ],
+            "type": "string"
+          },
+          "statusCode": {
+            "maximum": 599,
+            "minimum": 100,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "eventId",
+          "outcome",
+          "durationMs"
+        ],
+        "type": "object"
+      },
+      "WebhookWithSecret": {
+        "additionalProperties": false,
+        "properties": {
+          "secret": {
+            "description": "The signing secret, returned only by create and rotate-secret. The whole string, whsec_ prefix included, is the HMAC-SHA256 key.",
+            "type": "string"
+          },
+          "webhook": {
+            "$ref": "#/components/schemas/Webhook"
+          }
+        },
+        "required": [
+          "webhook",
+          "secret"
         ],
         "type": "object"
       }
@@ -20644,6 +21179,1412 @@
           }
         ],
         "summary": "Export the watch statistics roll-up",
+        "x-jelee-role": "administrator"
+      }
+    },
+    "/api/v1/webhooks": {
+      "get": {
+        "description": "Administrators only. At most 64 endpoints, oldest first, with their pending and dead-letter counts, and the event catalogue (G12.1). Secrets and header values are never returned.",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "events": {
+                          "items": {
+                            "enum": [
+                              "media.added",
+                              "media.updated",
+                              "media.deleted",
+                              "scan.started",
+                              "scan.completed",
+                              "scan.failed",
+                              "playback.started",
+                              "playback.paused",
+                              "playback.progress",
+                              "playback.stopped",
+                              "user.login",
+                              "user.login_failed",
+                              "user.locked",
+                              "session.created",
+                              "session.ended",
+                              "nfo.written",
+                              "images.fetched",
+                              "system.alert"
+                            ],
+                            "type": "string"
+                          },
+                          "type": "array"
+                        },
+                        "webhooks": {
+                          "items": {
+                            "$ref": "#/components/schemas/Webhook"
+                          },
+                          "maxItems": 64,
+                          "type": "array"
+                        }
+                      },
+                      "required": [
+                        "webhooks",
+                        "events"
+                      ],
+                      "type": "object"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "HTTP 200"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 400"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 401"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 403"
+          },
+          "408": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 408"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 503"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Jelee error envelope with code, message, details and traceId; see the Error schema."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "webSession": []
+          }
+        ],
+        "summary": "List webhook endpoints",
+        "x-jelee-role": "administrator"
+      },
+      "post": {
+        "description": "Administrators only. Generates the endpoint's signing secret and returns it once; it is stored sealed with the server master key and cannot be read again. Records the audit event webhook.created.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WebhookInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/WebhookWithSecret"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "HTTP 201"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "invalid_request, or webhook_target_denied when the URL breaks the target policy."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 401"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 403"
+          },
+          "408": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 408"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "conflict: 64 endpoints are configured."
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 413"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 415"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 503"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Jelee error envelope with code, message, details and traceId; see the Error schema."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "webSession": []
+          }
+        ],
+        "summary": "Create a webhook endpoint",
+        "x-jelee-role": "administrator"
+      }
+    },
+    "/api/v1/webhooks/{id}": {
+      "delete": {
+        "description": "Administrators only. Deletes the endpoint with its deliveries and delivery log. No body. Records webhook.deleted.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "HTTP 204"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 400"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 401"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 403"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 404"
+          },
+          "408": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 408"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 503"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Jelee error envelope with code, message, details and traceId; see the Error schema."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "webSession": []
+          }
+        ],
+        "summary": "Delete a webhook endpoint",
+        "x-jelee-role": "administrator"
+      },
+      "get": {
+        "description": "Administrators only. ",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/Webhook"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "HTTP 200"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 400"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 401"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 403"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 404"
+          },
+          "408": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 408"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 503"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Jelee error envelope with code, message, details and traceId; see the Error schema."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "webSession": []
+          }
+        ],
+        "summary": "Read a webhook endpoint",
+        "x-jelee-role": "administrator"
+      },
+      "put": {
+        "description": "Administrators only. Replaces the configuration, including enabled. A disabled endpoint receives no new events and its pending deliveries wait until it is enabled again. Records webhook.updated with the URL host only.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WebhookInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/Webhook"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "HTTP 200"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "invalid_request, or webhook_target_denied when the URL breaks the target policy."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 401"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 403"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 404"
+          },
+          "408": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 408"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 413"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 415"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 503"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Jelee error envelope with code, message, details and traceId; see the Error schema."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "webSession": []
+          }
+        ],
+        "summary": "Replace a webhook endpoint",
+        "x-jelee-role": "administrator"
+      }
+    },
+    "/api/v1/webhooks/{id}/deliveries": {
+      "get": {
+        "description": "Administrators only. The delivery log (G12.3), newest first. state filters by pending, delivered or dead. Pass pagination.nextCursor as cursor for the next page; an empty nextCursor ends the listing. Settled events are deleted after the configured retention.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "state",
+            "schema": {
+              "enum": [
+                "pending",
+                "delivered",
+                "dead"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "default": 50,
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "deliveries": {
+                          "items": {
+                            "$ref": "#/components/schemas/WebhookDelivery"
+                          },
+                          "maxItems": 100,
+                          "type": "array"
+                        },
+                        "pagination": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "limit": {
+                              "maximum": 100,
+                              "minimum": 1,
+                              "type": "integer"
+                            },
+                            "nextCursor": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "nextCursor",
+                            "limit"
+                          ],
+                          "type": "object"
+                        }
+                      },
+                      "required": [
+                        "deliveries",
+                        "pagination"
+                      ],
+                      "type": "object"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "HTTP 200"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 400"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 401"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 403"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 404"
+          },
+          "408": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 408"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 503"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Jelee error envelope with code, message, details and traceId; see the Error schema."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "webSession": []
+          }
+        ],
+        "summary": "List webhook deliveries",
+        "x-jelee-role": "administrator"
+      }
+    },
+    "/api/v1/webhooks/{id}/deliveries/{deliveryId}": {
+      "get": {
+        "description": "Administrators only. A delivery with its 100 most recent attempts.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "deliveryId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/WebhookDeliveryDetail"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "HTTP 200"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 400"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 401"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 403"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 404"
+          },
+          "408": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 408"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 503"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Jelee error envelope with code, message, details and traceId; see the Error schema."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "webSession": []
+          }
+        ],
+        "summary": "Read a webhook delivery",
+        "x-jelee-role": "administrator"
+      }
+    },
+    "/api/v1/webhooks/{id}/deliveries/{deliveryId}/replay": {
+      "post": {
+        "description": "Administrators only. Moves a dead or delivered delivery back to pending, due now, with a fresh attempt budget (G12.3). The consumer receives the same eventId again and deduplicates on it (G12.6). A pending delivery is 409. The body must be an empty JSON object. Records webhook.delivery_replayed.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "deliveryId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/WebhookDelivery"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "HTTP 202"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 400"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 401"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 403"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 404"
+          },
+          "408": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 408"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 409"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 413"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 415"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 503"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Jelee error envelope with code, message, details and traceId; see the Error schema."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "webSession": []
+          }
+        ],
+        "summary": "Replay a webhook delivery",
+        "x-jelee-role": "administrator"
+      }
+    },
+    "/api/v1/webhooks/{id}/rotate-secret": {
+      "post": {
+        "description": "Administrators only. Issues a new secret and returns it once. For graceSeconds (default 86400, at most 604800; 0 drops it at once) the previous secret keeps signing too, so X-Jelee-Signature carries one v1 entry per secret (G12.4). Records webhook.secret_rotated without any secret.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "graceSeconds": {
+                    "default": 86400,
+                    "maximum": 604800,
+                    "minimum": 0,
+                    "type": "integer"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/WebhookWithSecret"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "HTTP 200"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 400"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 401"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 403"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 404"
+          },
+          "408": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 408"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 413"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 415"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 503"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Jelee error envelope with code, message, details and traceId; see the Error schema."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "webSession": []
+          }
+        ],
+        "summary": "Rotate a webhook signing secret",
+        "x-jelee-role": "administrator"
+      }
+    },
+    "/api/v1/webhooks/{id}/test": {
+      "post": {
+        "description": "Administrators only. Sends one signed system.alert event with data {\"test\": true} directly, disabled endpoints included. It is not retried and not logged as a delivery; the outcome is returned. The request deadline applies, so an endpoint slower than it is reported as timeout. The body must be an empty JSON object.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/WebhookTestResult"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "HTTP 200"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 400"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 401"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 403"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 404"
+          },
+          "408": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 408"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 413"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 415"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 503"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Jelee error envelope with code, message, details and traceId; see the Error schema."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "webSession": []
+          }
+        ],
+        "summary": "Send a test event",
         "x-jelee-role": "administrator"
       }
     },

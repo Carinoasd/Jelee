@@ -485,6 +485,10 @@ var (
 	ErrWebhookSignatureMalformed = errors.New("webhook signature malformed")
 	ErrWebhookSignatureMismatch  = errors.New("webhook signature mismatch")
 	ErrWebhookTimestampExpired   = errors.New("webhook timestamp outside replay window")
+	// ErrWebhookTargetDenied refuses an endpoint URL that the G12.5 target
+	// policy forbids: not HTTPS, credentials in the URL, a host outside the
+	// configured allow list or a literal non-public address.
+	ErrWebhookTargetDenied = errors.New("webhook target denied")
 )
 
 // WebhookSecret is an endpoint signing secret. It never prints.

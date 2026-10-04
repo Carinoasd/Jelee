@@ -58,6 +58,9 @@ func Specification(cfg config.Config) map[string]any {
 		op["responses"].(map[string]any)["200"].(map[string]any)["content"] = map[string]any{"text/plain": map[string]any{"schema": map[string]any{"type": "string"}}}
 		paths["/metrics"] = map[string]any{"get": op}
 	}
+	if cfg.EnableAccounts && cfg.EnableWebhooks {
+		webhookSpecification(paths, schemas)
+	}
 	if cfg.EnableJobs {
 		jobSpecification(paths, schemas)
 		nfoSpecification(paths, schemas)

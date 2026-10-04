@@ -95,9 +95,9 @@ func (s *Store) AdvanceCatalogSync(ctx context.Context, l domain.JobLease) (bool
 	case "publish":
 		err = publishAcceptedBaselineBatch(ctx, tx, current, &r)
 	case "sources":
-		err = syncCatalogSourcesBatch(ctx, tx, current, &r)
+		err = syncCatalogSourcesBatch(ctx, tx, current, &r, s.webhooksOn())
 	case "missing":
-		err = syncCatalogMissingBatch(ctx, tx, current, &r)
+		err = syncCatalogMissingBatch(ctx, tx, current, &r, s.webhooksOn())
 	case "pending":
 		err = syncCatalogPendingBatch(ctx, tx, current, &r)
 	case "done":
@@ -226,7 +226,7 @@ type syncCandidate struct {
 	pendingVersion               *string
 }
 
-func syncCatalogSourcesBatch(ctx context.Context, tx pgx.Tx, current domain.JobLease, r *catalogSyncRequest) error {
+func syncCatalogSourcesBatch(ctx context.Context, tx pgx.Tx, current domain.JobLease, r *catalogSyncRequest, events bool) error {
 	if err := checkSyncTarget(ctx, tx, *r); err != nil {
 		return err
 	}
@@ -262,7 +262,7 @@ func syncCatalogSourcesBatch(ctx context.Context, tx pgx.Tx, current domain.JobL
 	if err != nil {
 		return err
 	}
-	w := catalogWriter{tx: tx, library: r.library, snapshot: *r.targetSnapshot, now: time.Now().UTC()}
+	w := catalogWriter{tx: tx, library: r.library, snapshot: *r.targetSnapshot, now: time.Now().UTC(), events: events}
 	writes, processed, sidecarSources := 0, 0, 0
 	for _, c := range candidates {
 		if writes >= catalogSyncWriteLimit {
@@ -311,6 +311,8 @@ type catalogWriter struct {
 	library  string
 	snapshot int64
 	now      time.Time
+	// events raises media.added for items this writer creates (G12.1).
+	events bool
 }
 
 // syncCandidate applies one baseline video. It reports whether the catalog
@@ -378,7 +380,7 @@ func (w catalogWriter) applyCandidate(ctx context.Context, c syncCandidate, r *c
 	if err != nil {
 		return false, storageError(err)
 	}
-	inner := catalogWriter{tx: savepoint, library: w.library, snapshot: w.snapshot, now: w.now}
+	inner := catalogWriter{tx: savepoint, library: w.library, snapshot: w.snapshot, now: w.now, events: w.events}
 	source, err := inner.create(ctx, c, plan)
 	if errors.Is(err, errCatalogConflict) {
 		if rollback := savepoint.Rollback(ctx); rollback != nil {
@@ -593,6 +595,12 @@ func (w catalogWriter) createScanItem(ctx context.Context, kind string, digest [
 			return "", err
 		}
 	}
+	// Raised inside the savepoint of the file that created the item, so a
+	// conflict that rolls the item back rolls the event back too.
+	if err := appendWebhook(ctx, w.tx, w.events, domain.WebhookMediaAdded, w.now, domain.WebhookSubject{Kind: domain.WebhookSubjectItem, ID: item},
+		map[string]any{"libraryId": w.library, "kind": kind, "title": spec.title}); err != nil {
+		return "", err
+	}
 	return item, nil
 }
 
@@ -702,7 +710,7 @@ func (w catalogWriter) season(ctx context.Context, c syncCandidate, plan app.Cat
 	return w.createScanItem(ctx, "Season", digest, spec)
 }
 
-func syncCatalogMissingBatch(ctx context.Context, tx pgx.Tx, current domain.JobLease, r *catalogSyncRequest) error {
+func syncCatalogMissingBatch(ctx context.Context, tx pgx.Tx, current domain.JobLease, r *catalogSyncRequest, events bool) error {
 	if err := checkSyncTarget(ctx, tx, *r); err != nil {
 		return err
 	}
@@ -761,7 +769,7 @@ func syncCatalogMissingBatch(ctx context.Context, tx pgx.Tx, current domain.JobL
 		if _, err = tx.Exec(ctx, `DELETE FROM media_sources WHERE id=$1::uuid AND library_id=$2::uuid`, t.source, r.library); err != nil {
 			return storageError(err)
 		}
-		if err = pruneScanItem(ctx, tx, r.library, t.item); err != nil {
+		if err = pruneScanItem(ctx, tx, r.library, t.item, events); err != nil {
 			return err
 		}
 		r.removed++
@@ -811,7 +819,7 @@ func sourcesWithSidecars[T any](ctx context.Context, tx pgx.Tx, batch []T, selec
 // pruneScanItem deletes scan-created items that no longer hold media or
 // children, walking up to the season and series. Items carrying any value
 // from a person, NFO or TMDB, any lock, or any fact are kept.
-func pruneScanItem(ctx context.Context, tx pgx.Tx, library, item string) error {
+func pruneScanItem(ctx context.Context, tx pgx.Tx, library, item string, events bool) error {
 	for depth := 0; depth < 3 && item != ""; depth++ {
 		var removable bool
 		var parent *string
@@ -830,6 +838,9 @@ func pruneScanItem(ctx context.Context, tx pgx.Tx, library, item string) error {
 		}
 		if _, err = tx.Exec(ctx, `DELETE FROM items WHERE id=$1::uuid AND library_id=$2::uuid`, item, library); err != nil {
 			return storageError(err)
+		}
+		if err = appendWebhook(ctx, tx, events, domain.WebhookMediaDeleted, time.Now(), domain.WebhookSubject{Kind: domain.WebhookSubjectItem, ID: item}, map[string]any{"libraryId": library}); err != nil {
+			return err
 		}
 		item = ""
 		if parent != nil {

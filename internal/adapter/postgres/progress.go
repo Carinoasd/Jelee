@@ -3,6 +3,7 @@ package postgres
 import (
 	"context"
 	"errors"
+	"strings"
 	"time"
 
 	"github.com/MoYuanCN/Jelee/internal/app"
@@ -41,6 +42,26 @@ ON CONFLICT (user_id,play_key) DO UPDATE SET state='active',ended_at=NULL,failur
  WHERE p.item_id=EXCLUDED.item_id AND p.state IN ('active','timed_out')
 RETURNING p.id::text,p.xmax=0,p.user_id::text,p.item_id::text,COALESCE(p.source_id::text,''),p.started_at,p.last_report_at,p.position_ticks,COALESCE(p.runtime_ticks,0),p.paused,p.sample_count`
 
+// startPlaybackEventSQL is startPlaybackSQL that also raises
+// playback.started (G12.1) in the same statement, and so the same
+// transaction, when it inserted a new session. Rejoining a session raises
+// nothing.
+var startPlaybackEventSQL = func() string {
+	insert := strings.Index(startPlaybackSQL, "\nINSERT INTO playback_sessions")
+	returning := strings.LastIndex(startPlaybackSQL, "\nRETURNING ")
+	if insert < 0 || returning < insert {
+		panic("startPlaybackSQL shape changed")
+	}
+	return startPlaybackSQL[:insert] + `, started AS (` + startPlaybackSQL[insert:returning] + `
+RETURNING p.id::text AS id,p.xmax=0 AS created,p.user_id::text AS user_id,p.item_id::text AS item_id,COALESCE(p.source_id::text,'') AS source_id,p.started_at,p.last_report_at,p.position_ticks,COALESCE(p.runtime_ticks,0) AS runtime_ticks,p.paused,p.sample_count
+), event AS (
+ INSERT INTO webhook_outbox(event_type,occurred_at,subject_kind,subject_id,data)
+ SELECT 'playback.started',s.started_at,'session',s.id,jsonb_strip_nulls(jsonb_build_object('userId',s.user_id,'itemId',s.item_id,'sourceId',NULLIF(s.source_id,''),'positionTicks',s.position_ticks,'paused',s.paused))
+ FROM started s WHERE s.created AND ` + webhookSubscribedSQL("'playback.started'") + `
+)
+SELECT id,created,user_id,item_id,source_id,started_at,last_report_at,position_ticks,runtime_ticks,paused,sample_count FROM started`
+}()
+
 func scanPlaybackSession(row pgx.Row, created *bool) (domain.PlaybackSessionRecord, error) {
 	var r domain.PlaybackSessionRecord
 	targets := []any{&r.ID}
@@ -63,7 +84,11 @@ func (s *Store) StartPlayback(parent context.Context, start domain.PlaybackStart
 	}
 	defer cancel()
 	var created bool
-	record, err := scanPlaybackSession(s.Pool.QueryRow(ctx, startPlaybackSQL, pgx.NamedArgs{
+	statement := startPlaybackSQL
+	if s.webhooksOn() {
+		statement = startPlaybackEventSQL
+	}
+	record, err := scanPlaybackSession(s.Pool.QueryRow(ctx, statement, pgx.NamedArgs{
 		"user": start.Actor.UserID, "session": start.Actor.SessionID, "item": start.ItemID, "source": start.SourceID, "key": start.PlayKey,
 		"at": start.At, "position": start.PositionTicks, "known": start.PositionKnown, "runtime": start.RuntimeTicks, "paused": start.Paused,
 	}), &created)
@@ -122,6 +147,24 @@ const flushPlaybackSQL = `WITH v AS (
  ON CONFLICT DO NOTHING RETURNING 1
 )
 SELECT (SELECT count(*) FROM upd),(SELECT count(*) FROM ud),(SELECT count(*) FROM ins)`
+
+// flushPlaybackEventSQL is flushPlaybackSQL that also raises
+// playback.stopped (G12.1) for every session the batch ends, in the same
+// statement. Only rows the batch actually moved out of active count, so a
+// session that ended elsewhere raises nothing twice.
+var flushPlaybackEventSQL = func() string {
+	tail := "\nSELECT (SELECT count(*) FROM upd)"
+	at := strings.LastIndex(flushPlaybackSQL, tail)
+	if at < 0 {
+		panic("flushPlaybackSQL shape changed")
+	}
+	return flushPlaybackSQL[:at] + `, event AS (
+ INSERT INTO webhook_outbox(event_type,occurred_at,subject_kind,subject_id,data)
+ SELECT 'playback.stopped',v.ended,'session',upd.id::text,jsonb_build_object('userId',upd.user_id::text,'itemId',upd.item_id::text,'state',v.state,'positionTicks',v.pos,'completed',v.completed)
+ FROM upd JOIN v ON v.id=upd.id WHERE v.state IS NOT NULL AND ` + webhookSubscribedSQL("'playback.stopped'") + `
+ RETURNING 1
+)` + flushPlaybackSQL[at:]
+}()
 
 func (s *Store) FlushPlayback(parent context.Context, entries []domain.PlaybackFlush) (domain.PlaybackFlushResult, error) {
 	if parent == nil {
@@ -189,7 +232,11 @@ func (s *Store) FlushPlayback(parent context.Context, entries []domain.PlaybackF
 	ctx, cancel := context.WithTimeout(parent, progressTimeout)
 	defer cancel()
 	result := domain.PlaybackFlushResult{Statements: 1}
-	err := s.Pool.QueryRow(ctx, flushPlaybackSQL, pgx.NamedArgs{
+	statement := flushPlaybackSQL
+	if s.webhooksOn() {
+		statement = flushPlaybackEventSQL
+	}
+	err := s.Pool.QueryRow(ctx, statement, pgx.NamedArgs{
 		"id": ids, "pos": positions, "paused": paused, "at": ats, "reports": reports, "state": stateValues, "ended": ended, "reason": reasonValues,
 		"resume": resumes, "completed": completed, "source": sources,
 		"sid": emptyIfNil(sid), "seq": seqs, "sat": sats, "kind": emptyIfNil(kinds), "spos": spos, "spaused": spaused,

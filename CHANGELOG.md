@@ -2,6 +2,8 @@
 
 ## Unreleased — Go foundation
 
+- Webhook（G12.1–G12.6）：遷移 000068 新增 `webhooks`、`webhook_outbox`、`webhook_deliveries`、`webhook_delivery_attempts`；事件在產生變更的同一交易寫入 outbox，背景投遞器以租約領取、HMAC-SHA256 簽章（`X-Jelee-Signature`／`X-Jelee-Timestamp`）、經 SSRF 防護的出站客戶端送出，至少一次、指數退避加抖動、最大重試與死信、手動重放、投遞日誌可查。端點密鑰與自訂標頭值以 `JELEE_WEBHOOK_MASTER_KEY` 經 AES-GCM 封存；沒有主鑰時不能啟用。管理員 API `/api/v1/webhooks…`、錯誤碼 `webhook_target_denied`（400）。已接上登入成功／失敗／鎖定、掃描完成／失敗、播放開始／停止、NFO 寫回、目錄同步的媒體新增／刪除；其餘事件見 `docs/webhooks.md`。
+
 - 自有 API 條目瀏覽補齊（G34.3）：`GET /api/v1/items` 新增位移形式（`libraryId`、`parentId`、`type`、`sort`＋`order`、`q`、`offset`，回 `total`），游標形式不變；新增一般使用者可讀的 `GET /api/v1/items/{id}/details` 與不含路徑及直投網址的 `GET /api/v1/items/{id}/sources`。網頁條目頁改由伺服器篩選排序，詳情頁改用新 API 並顯示檔案資訊。詳見 `docs/catalog-api.md`。
 
 - 移除工作树中的上游 C# 源码树、.NET 专用 CI、ABI 门禁与开发容器设定；四语 UI 字串移至 `web/src/i18n/<locale>/core.json` 并去除旧产品名，独立版权／归属声明原文移至 `docs/legal/upstream/`。旧源码以 Git 标签 `upstream-csharp-final` 保留，完整品牌扫描零非白名单命中。取代理由与授权待确认事项见 `docs/requirements-clarifications.md`、`docs/LICENSE-COMPLIANCE.md`。

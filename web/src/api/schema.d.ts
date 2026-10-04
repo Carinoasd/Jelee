@@ -11989,6 +11989,1138 @@ export type paths = {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/webhooks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List webhook endpoints
+         * @description Administrators only. At most 64 endpoints, oldest first, with their pending and dead-letter counts, and the event catalogue (G12.1). Secrets and header values are never returned.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description HTTP 200 */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                events: ("media.added" | "media.updated" | "media.deleted" | "scan.started" | "scan.completed" | "scan.failed" | "playback.started" | "playback.paused" | "playback.progress" | "playback.stopped" | "user.login" | "user.login_failed" | "user.locked" | "session.created" | "session.ended" | "nfo.written" | "images.fetched" | "system.alert")[];
+                                webhooks: components["schemas"]["Webhook"][];
+                            };
+                        };
+                    };
+                };
+                /** @description HTTP 400 */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 401 */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 403 */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 408 */
+                408: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 503 */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Jelee error envelope with code, message, details and traceId; see the Error schema. */
+                default: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        /**
+         * Create a webhook endpoint
+         * @description Administrators only. Generates the endpoint's signing secret and returns it once; it is stored sealed with the server master key and cannot be read again. Records the audit event webhook.created.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["WebhookInput"];
+                };
+            };
+            responses: {
+                /** @description HTTP 201 */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["WebhookWithSecret"];
+                        };
+                    };
+                };
+                /** @description invalid_request, or webhook_target_denied when the URL breaks the target policy. */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 401 */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 403 */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 408 */
+                408: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description conflict: 64 endpoints are configured. */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 413 */
+                413: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 415 */
+                415: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 503 */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Jelee error envelope with code, message, details and traceId; see the Error schema. */
+                default: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/webhooks/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read a webhook endpoint
+         * @description Administrators only.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description HTTP 200 */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["Webhook"];
+                        };
+                    };
+                };
+                /** @description HTTP 400 */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 401 */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 403 */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 404 */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 408 */
+                408: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 503 */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Jelee error envelope with code, message, details and traceId; see the Error schema. */
+                default: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        /**
+         * Replace a webhook endpoint
+         * @description Administrators only. Replaces the configuration, including enabled. A disabled endpoint receives no new events and its pending deliveries wait until it is enabled again. Records webhook.updated with the URL host only.
+         */
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["WebhookInput"];
+                };
+            };
+            responses: {
+                /** @description HTTP 200 */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["Webhook"];
+                        };
+                    };
+                };
+                /** @description invalid_request, or webhook_target_denied when the URL breaks the target policy. */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 401 */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 403 */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 404 */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 408 */
+                408: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 413 */
+                413: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 415 */
+                415: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 503 */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Jelee error envelope with code, message, details and traceId; see the Error schema. */
+                default: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        /**
+         * Delete a webhook endpoint
+         * @description Administrators only. Deletes the endpoint with its deliveries and delivery log. No body. Records webhook.deleted.
+         */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description HTTP 204 */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description HTTP 400 */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 401 */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 403 */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 404 */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 408 */
+                408: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 503 */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Jelee error envelope with code, message, details and traceId; see the Error schema. */
+                default: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/webhooks/{id}/deliveries": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List webhook deliveries
+         * @description Administrators only. The delivery log (G12.3), newest first. state filters by pending, delivered or dead. Pass pagination.nextCursor as cursor for the next page; an empty nextCursor ends the listing. Settled events are deleted after the configured retention.
+         */
+        get: {
+            parameters: {
+                query?: {
+                    cursor?: string;
+                    limit?: number;
+                    state?: "pending" | "delivered" | "dead";
+                };
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description HTTP 200 */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                deliveries: components["schemas"]["WebhookDelivery"][];
+                                pagination: {
+                                    limit: number;
+                                    nextCursor: string;
+                                };
+                            };
+                        };
+                    };
+                };
+                /** @description HTTP 400 */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 401 */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 403 */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 404 */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 408 */
+                408: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 503 */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Jelee error envelope with code, message, details and traceId; see the Error schema. */
+                default: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/webhooks/{id}/deliveries/{deliveryId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read a webhook delivery
+         * @description Administrators only. A delivery with its 100 most recent attempts.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    deliveryId: string;
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description HTTP 200 */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["WebhookDeliveryDetail"];
+                        };
+                    };
+                };
+                /** @description HTTP 400 */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 401 */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 403 */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 404 */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 408 */
+                408: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 503 */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Jelee error envelope with code, message, details and traceId; see the Error schema. */
+                default: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/webhooks/{id}/deliveries/{deliveryId}/replay": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Replay a webhook delivery
+         * @description Administrators only. Moves a dead or delivered delivery back to pending, due now, with a fresh attempt budget (G12.3). The consumer receives the same eventId again and deduplicates on it (G12.6). A pending delivery is 409. The body must be an empty JSON object. Records webhook.delivery_replayed.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    deliveryId: string;
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+            responses: {
+                /** @description HTTP 202 */
+                202: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["WebhookDelivery"];
+                        };
+                    };
+                };
+                /** @description HTTP 400 */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 401 */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 403 */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 404 */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 408 */
+                408: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 409 */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 413 */
+                413: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 415 */
+                415: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 503 */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Jelee error envelope with code, message, details and traceId; see the Error schema. */
+                default: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/webhooks/{id}/rotate-secret": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Rotate a webhook signing secret
+         * @description Administrators only. Issues a new secret and returns it once. For graceSeconds (default 86400, at most 604800; 0 drops it at once) the previous secret keeps signing too, so X-Jelee-Signature carries one v1 entry per secret (G12.4). Records webhook.secret_rotated without any secret.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        /** @default 86400 */
+                        graceSeconds?: number;
+                    };
+                };
+            };
+            responses: {
+                /** @description HTTP 200 */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["WebhookWithSecret"];
+                        };
+                    };
+                };
+                /** @description HTTP 400 */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 401 */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 403 */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 404 */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 408 */
+                408: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 413 */
+                413: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 415 */
+                415: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 503 */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Jelee error envelope with code, message, details and traceId; see the Error schema. */
+                default: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/webhooks/{id}/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Send a test event
+         * @description Administrators only. Sends one signed system.alert event with data {"test": true} directly, disabled endpoints included. It is not retried and not logged as a delivery; the outcome is returned. The request deadline applies, so an endpoint slower than it is reported as timeout. The body must be an empty JSON object.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+            responses: {
+                /** @description HTTP 200 */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["WebhookTestResult"];
+                        };
+                    };
+                };
+                /** @description HTTP 400 */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 401 */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 403 */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 404 */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 408 */
+                408: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 413 */
+                413: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 415 */
+                415: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 503 */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Jelee error envelope with code, message, details and traceId; see the Error schema. */
+                default: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/healthz": {
         parameters: {
             query?: never;
@@ -12734,7 +13866,7 @@ export type components = {
          * @description Stable machine-readable error code. x-jelee-statuses lists the HTTP status codes each value is sent with.
          * @enum {string}
          */
-        ErrorCode: "account_busy" | "auth_rate_limited" | "authentication_required" | "body_too_large" | "conflict" | "csrf_failed" | "device_stream_limit" | "feature_removed" | "forbidden" | "ignore_unavailable" | "image_busy" | "image_too_large" | "image_unavailable" | "image_unsupported" | "internal_error" | "invalid_host" | "invalid_range" | "invalid_request" | "job_busy" | "job_queue_full" | "jobs_busy" | "last_admin" | "lookup_timeout" | "metadata_unavailable" | "method_not_allowed" | "metrics_busy" | "native_login_disabled" | "nfo_cache_capacity" | "nfo_disabled" | "nfo_identity_mismatch" | "nfo_invalidated" | "nfo_reader_unavailable" | "not_found" | "not_ready" | "playback_busy" | "precondition_failed" | "probe_cache_capacity" | "probe_disabled" | "probe_identity_mismatch" | "probe_invalidated" | "probe_runtime_unavailable" | "request_timeout" | "scan_limit" | "scan_unavailable" | "session_limit" | "stats_export_limit" | "stream_limit" | "transcode_disabled" | "unsupported_media_type" | "user_stream_limit" | "web_playback_disabled";
+        ErrorCode: "account_busy" | "auth_rate_limited" | "authentication_required" | "body_too_large" | "conflict" | "csrf_failed" | "device_stream_limit" | "feature_removed" | "forbidden" | "ignore_unavailable" | "image_busy" | "image_too_large" | "image_unavailable" | "image_unsupported" | "internal_error" | "invalid_host" | "invalid_range" | "invalid_request" | "job_busy" | "job_queue_full" | "jobs_busy" | "last_admin" | "lookup_timeout" | "metadata_unavailable" | "method_not_allowed" | "metrics_busy" | "native_login_disabled" | "nfo_cache_capacity" | "nfo_disabled" | "nfo_identity_mismatch" | "nfo_invalidated" | "nfo_reader_unavailable" | "not_found" | "not_ready" | "playback_busy" | "precondition_failed" | "probe_cache_capacity" | "probe_disabled" | "probe_identity_mismatch" | "probe_invalidated" | "probe_runtime_unavailable" | "request_timeout" | "scan_limit" | "scan_unavailable" | "session_limit" | "stats_export_limit" | "stream_limit" | "transcode_disabled" | "unsupported_media_type" | "user_stream_limit" | "web_playback_disabled" | "webhook_target_denied";
         IgnoreIntent: {
             /** @enum {string} */
             caseMode: "sensitive" | "ascii-insensitive";
@@ -13968,6 +15100,157 @@ export type components = {
             libraryId: string;
             observing: boolean;
             pending: boolean;
+        };
+        Webhook: {
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: int64 */
+            dead: number;
+            enabled: boolean;
+            /** @description Empty means every event. */
+            events: ("media.added" | "media.updated" | "media.deleted" | "scan.started" | "scan.completed" | "scan.failed" | "playback.started" | "playback.paused" | "playback.progress" | "playback.stopped" | "user.login" | "user.login_failed" | "user.locked" | "session.created" | "session.ended" | "nfo.written" | "images.fetched" | "system.alert")[];
+            headerNames: string[];
+            /** Format: uuid */
+            id: string;
+            /** @description The server also enforces the stated maximum in UTF-8 bytes. */
+            name: string;
+            /** Format: int64 */
+            pending: number;
+            /**
+             * Format: date-time
+             * @description Present while the previous secret still signs deliveries after a rotation.
+             */
+            previousSecretUntil?: string;
+            retry: components["schemas"]["WebhookRetry"];
+            timeoutSeconds: number;
+            /** Format: date-time */
+            updatedAt: string;
+            url: string;
+        };
+        WebhookAttempt: {
+            attempt: number;
+            /** Format: date-time */
+            finishedAt: string;
+            /** Format: date-time */
+            nextAttemptAt?: string;
+            /**
+             * @description delivered: 2xx. http: another status; 408, 425, 429 and 5xx are retried, other statuses dead-letter at once. timeout and network are retried. blocked (target refused by the SSRF policy or allow list), tls (certificate rejected) and invalid (event or endpoint no longer valid) dead-letter at once.
+             * @enum {string}
+             */
+            outcome: "delivered" | "http" | "timeout" | "network" | "blocked" | "tls" | "invalid";
+            round: number;
+            /** Format: date-time */
+            startedAt: string;
+            statusCode?: number;
+        };
+        WebhookDelivery: {
+            /** @description Attempts since the last replay. */
+            attempts: number;
+            /** Format: date-time */
+            createdAt: string;
+            eventId: string;
+            /** @enum {string} */
+            eventType: "media.added" | "media.updated" | "media.deleted" | "scan.started" | "scan.completed" | "scan.failed" | "playback.started" | "playback.paused" | "playback.progress" | "playback.stopped" | "user.login" | "user.login_failed" | "user.locked" | "session.created" | "session.ended" | "nfo.written" | "images.fetched" | "system.alert";
+            /** Format: uuid */
+            id: string;
+            /** Format: date-time */
+            lastAttemptAt?: string;
+            /**
+             * @description delivered: 2xx. http: another status; 408, 425, 429 and 5xx are retried, other statuses dead-letter at once. timeout and network are retried. blocked (target refused by the SSRF policy or allow list), tls (certificate rejected) and invalid (event or endpoint no longer valid) dead-letter at once.
+             * @enum {string}
+             */
+            lastOutcome?: "delivered" | "http" | "timeout" | "network" | "blocked" | "tls" | "invalid";
+            lastStatus?: number;
+            /** Format: date-time */
+            nextAttemptAt?: string;
+            /** Format: date-time */
+            occurredAt: string;
+            replays: number;
+            /** @enum {string} */
+            state: "pending" | "delivered" | "dead";
+            /** Format: uuid */
+            webhookId: string;
+        };
+        WebhookDeliveryDetail: {
+            /** @description Attempts since the last replay. */
+            attempts: number;
+            /** Format: date-time */
+            createdAt: string;
+            eventId: string;
+            /** @enum {string} */
+            eventType: "media.added" | "media.updated" | "media.deleted" | "scan.started" | "scan.completed" | "scan.failed" | "playback.started" | "playback.paused" | "playback.progress" | "playback.stopped" | "user.login" | "user.login_failed" | "user.locked" | "session.created" | "session.ended" | "nfo.written" | "images.fetched" | "system.alert";
+            /** @description Most recent attempts first. */
+            history: components["schemas"]["WebhookAttempt"][];
+            /** Format: uuid */
+            id: string;
+            /** Format: date-time */
+            lastAttemptAt?: string;
+            /**
+             * @description delivered: 2xx. http: another status; 408, 425, 429 and 5xx are retried, other statuses dead-letter at once. timeout and network are retried. blocked (target refused by the SSRF policy or allow list), tls (certificate rejected) and invalid (event or endpoint no longer valid) dead-letter at once.
+             * @enum {string}
+             */
+            lastOutcome?: "delivered" | "http" | "timeout" | "network" | "blocked" | "tls" | "invalid";
+            lastStatus?: number;
+            /** Format: date-time */
+            nextAttemptAt?: string;
+            /** Format: date-time */
+            occurredAt: string;
+            replays: number;
+            /** @enum {string} */
+            state: "pending" | "delivered" | "dead";
+            /** Format: uuid */
+            webhookId: string;
+        };
+        WebhookInput: {
+            /** @default true */
+            enabled: boolean;
+            /** @description Subscribed event types; empty or omitted subscribes to every event. */
+            events?: ("media.added" | "media.updated" | "media.deleted" | "scan.started" | "scan.completed" | "scan.failed" | "playback.started" | "playback.paused" | "playback.progress" | "playback.stopped" | "user.login" | "user.login_failed" | "user.locked" | "session.created" | "session.ended" | "nfo.written" | "images.fetched" | "system.alert")[];
+            /** @description Custom request headers. Values are stored sealed and never returned. Reserved names (Content-Type, Host, Cookie, User-Agent, X-Jelee-* and hop-by-hop headers) are refused. On replace, omitting headers keeps the stored ones and {} removes them. */
+            headers?: {
+                [key: string]: string;
+            };
+            /** @description The server also enforces the stated maximum in UTF-8 bytes. */
+            name: string;
+            retry?: components["schemas"]["WebhookRetry"];
+            /** @default 10 */
+            timeoutSeconds: number;
+            /** @description HTTPS only, without credentials or fragment. The host must be on the configured allow list when one is set, and must resolve to public addresses only: private, loopback, link-local and other special-purpose addresses are refused at every connection (G12.5). */
+            url: string;
+        };
+        WebhookRetry: {
+            /**
+             * @description Delay after the first failed attempt; doubled after each further failure.
+             * @default 10
+             */
+            baseDelaySeconds: number;
+            /**
+             * @description Each delay is scaled by a factor drawn uniformly from [1-jitter, 1+jitter].
+             * @default 0.2
+             */
+            jitter: number;
+            /** @default 8 */
+            maxAttempts: number;
+            /**
+             * @description Cap of every delay, including a Retry-After hint. At least baseDelaySeconds.
+             * @default 3600
+             */
+            maxDelaySeconds: number;
+        };
+        WebhookTestResult: {
+            durationMs: number;
+            eventId: string;
+            /**
+             * @description delivered: 2xx. http: another status; 408, 425, 429 and 5xx are retried, other statuses dead-letter at once. timeout and network are retried. blocked (target refused by the SSRF policy or allow list), tls (certificate rejected) and invalid (event or endpoint no longer valid) dead-letter at once.
+             * @enum {string}
+             */
+            outcome: "delivered" | "http" | "timeout" | "network" | "blocked" | "tls" | "invalid";
+            statusCode?: number;
+        };
+        WebhookWithSecret: {
+            /** @description The signing secret, returned only by create and rotate-secret. The whole string, whsec_ prefix included, is the HMAC-SHA256 key. */
+            secret: string;
+            webhook: components["schemas"]["Webhook"];
         };
     };
     responses: never;

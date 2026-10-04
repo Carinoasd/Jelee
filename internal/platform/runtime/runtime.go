@@ -274,7 +274,10 @@ func newWithLifetime(cfg config.Config, logger *slog.Logger, lifetime *lifetime)
 			lifetime.worker = &watchGroup{worker: &scheduledWorker{worker: &probeWorker{worker: runner, probe: probing, nfo: validation}, dispatch: service, logger: l}, watch: watchRunner}
 			return service, nil
 		},
-		func(c config.Config, store *postgres.Store, catalog *app.Catalog, jobs *app.Jobs, metadata *app.Metadata, metrics *telemetry.Metrics, pictures *app.Images, budget *resources.Budget, l *slog.Logger) (http.Handler, error) {
+		func(c config.Config, store *postgres.Store, budget *resources.Budget, l *slog.Logger) (*app.Webhooks, error) {
+			return newWebhooks(c, store, budget, l, lifetime)
+		},
+		func(c config.Config, store *postgres.Store, catalog *app.Catalog, jobs *app.Jobs, metadata *app.Metadata, metrics *telemetry.Metrics, pictures *app.Images, webhooks *app.Webhooks, budget *resources.Budget, l *slog.Logger) (http.Handler, error) {
 			if !c.EnableAccounts {
 				return httpapi.NewWithResources(c, store, catalog, store, l, nil, nil, nil, nil, nil, budget)
 			}
@@ -294,7 +297,11 @@ func newWithLifetime(cfg config.Config, logger *slog.Logger, lifetime *lifetime)
 			if metrics != nil {
 				metricsHandler = metrics.Handler()
 			}
-			return httpapi.NewWithResources(c, store, catalog, store, l, accounts, jobs, metadata, metricsHandler, pictures, budget)
+			var options []httpapi.Option
+			if webhooks != nil {
+				options = append(options, httpapi.WithWebhooks(webhooks))
+			}
+			return httpapi.NewWithResources(c, store, catalog, store, l, accounts, jobs, metadata, metricsHandler, pictures, budget, options...)
 		},
 	), fx.Invoke(func(lc fx.Lifecycle, cfg config.Config, handler http.Handler, shutdown fx.Shutdowner) {
 		lifetime.server = &http.Server{Addr: cfg.Listen, Handler: handler, ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 15 * time.Second, IdleTimeout: 60 * time.Second, MaxHeaderBytes: 16 << 10}
@@ -333,11 +340,16 @@ type lifetime struct {
 	// stats rolls ended sessions up into the daily statistics (G23.5).
 	stats     *app.WatchStats
 	statsDone chan struct{}
-	closeOnce sync.Once
-	stopOnce  sync.Once
-	exited    chan struct{}
-	stopped   chan struct{}
-	stopErr   error
+	// webhooks delivers outbox events (G12.3). It stops claiming at
+	// cancellation and joins its in-flight attempts before the pool closes.
+	webhooks           *app.WebhookDispatcher
+	webhooksDone       chan struct{}
+	closeWebhookClient func()
+	closeOnce          sync.Once
+	stopOnce           sync.Once
+	exited             chan struct{}
+	stopped            chan struct{}
+	stopErr            error
 	// Observe the same processor used by HTTP without replacing its dependencies.
 	imageStats func() imageadapter.Stats
 }
@@ -456,6 +468,13 @@ func (l *lifetime) start(ctx context.Context) error {
 			l.stats.Run(l.ctx)
 		}()
 	}
+	if l.webhooks != nil {
+		l.webhooksDone = make(chan struct{})
+		go func() {
+			defer close(l.webhooksDone)
+			l.webhooks.Run(l.ctx)
+		}()
+	}
 	go func() {
 		defer close(l.exited)
 		if err := l.server.Serve(listener); err != nil && !errors.Is(err, http.ErrServerClosed) {
@@ -506,11 +525,24 @@ func (l *lifetime) shutdown(ctx context.Context) {
 	if l.statsDone != nil {
 		<-l.statsDone
 	}
+	l.joinWebhooks()
 	if err := <-workerDone; err != nil {
 		l.stopErr = errors.Join(l.stopErr, errors.New("inventory workers did not stop"))
 		return // Do not close a store that workers may still be using.
 	}
 	l.closePool()
+}
+
+// joinWebhooks waits for the deliverer, which was cancelled with the
+// lifetime context and finishes or abandons its in-flight attempts within
+// its stop grace. Abandoned attempts are re-sent after their lease expires.
+func (l *lifetime) joinWebhooks() {
+	if l.webhooksDone != nil {
+		<-l.webhooksDone
+	}
+	if l.closeWebhookClient != nil {
+		l.closeWebhookClient()
+	}
 }
 
 // flushProgress writes the reports buffered since the last flush once no

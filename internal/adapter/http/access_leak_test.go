@@ -69,7 +69,9 @@ var (
 	jobParam    = map[string]string{"id": "job"}
 	selfParam   = map[string]string{"id": "self"}
 	tmdbParam   = map[string]string{"id": "tmdb"}
-	noParams    = map[string]string{}
+	// webhookParam names a webhook endpoint, never media.
+	webhookParam = map[string]string{"id": "opaque"}
+	noParams     = map[string]string{}
 )
 
 func leakRouteTable() map[string]leakRoute {
@@ -259,6 +261,19 @@ func leakRouteTable() map[string]leakRoute {
 		"GET /api/v1/jobs/{id}/images":                                              admin(jobParam),
 		"POST /api/v1/jobs/{id}/cancel":                                             admin(jobParam),
 		"POST /api/v1/jobs/{id}/retry":                                              admin(jobParam),
+
+		// Webhook administration (G12) carries no media identifiers and is
+		// administrator-only; viewers are refused before any lookup.
+		"GET /api/v1/webhooks":                                      admin(noParams),
+		"POST /api/v1/webhooks":                                     admin(noParams),
+		"GET /api/v1/webhooks/{id}":                                 admin(webhookParam),
+		"PUT /api/v1/webhooks/{id}":                                 admin(webhookParam),
+		"DELETE /api/v1/webhooks/{id}":                              admin(webhookParam),
+		"POST /api/v1/webhooks/{id}/rotate-secret":                  admin(webhookParam),
+		"POST /api/v1/webhooks/{id}/test":                           admin(webhookParam),
+		"GET /api/v1/webhooks/{id}/deliveries":                      admin(webhookParam),
+		"GET /api/v1/webhooks/{id}/deliveries/{deliveryId}":         admin(map[string]string{"id": "opaque", "deliveryId": "opaque"}),
+		"POST /api/v1/webhooks/{id}/deliveries/{deliveryId}/replay": admin(map[string]string{"id": "opaque", "deliveryId": "opaque"}),
 	}
 }
 
@@ -292,6 +307,8 @@ func leakConfig(t *testing.T, dsn string, hiddenStatus int) config.Config {
 	cfg.TMDBAPIKey = strings.Repeat("a", 32)
 	cfg.Access.HiddenStatus = hiddenStatus
 	cfg.EnableCompat = true
+	cfg.EnableWebhooks, cfg.Webhooks = true, config.DefaultWebhooksConfig()
+	cfg.Webhooks.MasterKey = testWebhookMasterKey
 	return cfg
 }
 
@@ -386,7 +403,7 @@ func leakHandlerWithRenderer(t *testing.T, store *postgres.Store, cfg config.Con
 	if catalog, err = catalog.WithWatchStats(stats); err != nil {
 		t.Fatal(err)
 	}
-	handler, err := NewWithImages(cfg, store, catalog, store, slog.New(slog.NewTextHandler(io.Discard, nil)), accounts, jobs, metadata, metrics, images)
+	handler, err := NewWithImages(cfg, store, catalog, store, slog.New(slog.NewTextHandler(io.Discard, nil)), accounts, jobs, metadata, metrics, images, WithWebhooks(httpWebhooks(t, store)))
 	if err != nil {
 		t.Fatal(err)
 	}

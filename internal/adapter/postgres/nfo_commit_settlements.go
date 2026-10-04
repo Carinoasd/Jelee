@@ -299,6 +299,11 @@ func (s *Store) FinishNFOWriteJob(ctx context.Context, lease domain.JobLease, st
 	if err := auditAccount(ctx, tx, domain.Actor{}, "job.finished", lease.Job.ID, nil, map[string]any{"state": state, "errorCode": code, "resolved": resolved}); err != nil {
 		return false, err
 	}
+	if state == domain.JobSucceeded {
+		if err := appendNFOWritten(ctx, tx, s.webhooksOn(), lease.Job.ID); err != nil {
+			return false, err
+		}
+	}
 	if err := trimJobs(ctx, tx, current.Policy.HistoryLimit); err != nil {
 		return false, err
 	}
@@ -383,4 +388,38 @@ func (s *Store) CompleteNFOWriteCommitRecovery(ctx context.Context, lease domain
 		return "", storageError(err)
 	}
 	return state, nil
+}
+
+// appendNFOWritten raises nfo.written (G12.1) for every item of a succeeded
+// NFO write job, in the transaction that finishes it. Paths are never part
+// of the event.
+func appendNFOWritten(ctx context.Context, tx pgx.Tx, enabled bool, job string) error {
+	if !enabled {
+		return nil
+	}
+	rows, err := tx.Query(ctx, `SELECT item_id::text,library_id::text FROM nfo_write_entries WHERE job_id=$1::uuid ORDER BY sequence`, job)
+	if err != nil {
+		return storageError(err)
+	}
+	type entry struct{ item, library string }
+	var entries []entry
+	for rows.Next() {
+		var e entry
+		if err = rows.Scan(&e.item, &e.library); err != nil {
+			rows.Close()
+			return storageError(err)
+		}
+		entries = append(entries, e)
+	}
+	rows.Close()
+	if err = rows.Err(); err != nil {
+		return storageError(err)
+	}
+	now := time.Now()
+	for _, e := range entries {
+		if err = appendWebhook(ctx, tx, true, domain.WebhookNFOWritten, now, domain.WebhookSubject{Kind: domain.WebhookSubjectItem, ID: e.item}, map[string]any{"jobId": job, "libraryId": e.library}); err != nil {
+			return err
+		}
+	}
+	return nil
 }

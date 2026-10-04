@@ -11,9 +11,9 @@ import (
 )
 
 // G12 webhook ports. The PostgreSQL adapter implements the repositories
-// (tables outbox/webhooks/webhook_deliveries), internal/adapter/events the
-// HTTP deliverer behind the G11.4/G12.5 outbound client. This file only
-// fixes the contracts and the pure steps the background deliverer composes:
+// (tables webhook_outbox/webhooks/webhook_deliveries), internal/adapter/events
+// the HTTP deliverer behind the G11.4/G12.5 outbound client. This file fixes
+// the contracts and the pure steps the background deliverer composes:
 //
 //	producer tx: WebhookOutbox.Append (same transaction as the change)
 //	fan-out:     PlanWebhookFanout -> WebhookDeliveryStore.CreateDeliveries
@@ -65,12 +65,31 @@ func ValidateWebhookEndpoint(e WebhookEndpoint) error {
 	return e.Retry.Validate()
 }
 
+// WebhookSealedKeys are an endpoint's signing secrets as stored: sealed by
+// the WebhookSecretBox under WebhookSecretContext(endpointID). Storage never
+// holds or returns them in plain text.
+type WebhookSealedKeys struct {
+	Current       []byte
+	Previous      []byte
+	PreviousUntil time.Time
+}
+
+// WebhookSealedEndpoint is an endpoint as the deliverer loads it. Endpoint
+// carries no headers; Headers is the sealed JSON object of custom header
+// values (nil when there are none), sealed under
+// WebhookHeadersContext(endpointID).
+type WebhookSealedEndpoint struct {
+	Endpoint WebhookEndpoint
+	Keys     WebhookSealedKeys
+	Headers  []byte
+}
+
 // WebhookRepository reads endpoint configuration.
 type WebhookRepository interface {
-	// ListDeliveryEndpoints returns enabled endpoints only.
+	// ListDeliveryEndpoints returns enabled endpoints only, without headers.
 	ListDeliveryEndpoints(context.Context) ([]WebhookEndpoint, error)
-	// SigningKeys returns domain.ErrNotFound for a deleted endpoint.
-	SigningKeys(ctx context.Context, endpointID string) (domain.WebhookSigningKeys, error)
+	// LoadWebhookEndpoint returns domain.ErrNotFound for a deleted endpoint.
+	LoadWebhookEndpoint(ctx context.Context, endpointID string) (WebhookSealedEndpoint, error)
 }
 
 // WebhookDelivery is one claimed (event, endpoint) pair.
@@ -78,14 +97,18 @@ type WebhookDelivery struct {
 	ID         string
 	EndpointID string
 	Event      domain.WebhookEvent
-	// Attempts already recorded before this claim.
+	// Attempts already recorded before this claim (since the last replay).
 	Attempts int
+	// LeaseToken fences RecordAttempt: a claim whose lease expired and was
+	// taken over can no longer record.
+	LeaseToken string
 }
 
 // WebhookAttemptRecord is appended to the queryable delivery log and moves
 // the delivery to Decision.State.
 type WebhookAttemptRecord struct {
 	DeliveryID string
+	LeaseToken string
 	Attempt    int
 	StartedAt  time.Time
 	FinishedAt time.Time
@@ -97,20 +120,25 @@ type WebhookAttemptRecord struct {
 type WebhookDeliveryStore interface {
 	// FetchUnplanned returns outbox events not yet fanned out, oldest first.
 	FetchUnplanned(ctx context.Context, limit int) ([]domain.WebhookEvent, error)
-	// CreateDeliveries inserts the pending deliveries for event and marks
-	// it planned in one transaction; repeating it for the same event is a
-	// no-op (unique on eventId, endpointId).
-	CreateDeliveries(ctx context.Context, event domain.WebhookEvent, endpointIDs []string) error
+	// CreateDeliveries inserts the pending deliveries for event, due at
+	// due, and marks it planned in one transaction; repeating it for the
+	// same event is a no-op (unique on eventId, endpointId).
+	CreateDeliveries(ctx context.Context, event domain.WebhookEvent, endpointIDs []string, due time.Time) error
 	// ClaimDue leases up to limit pending deliveries with NextAt <= now
 	// until leaseUntil. An expired lease makes a delivery claimable again.
 	ClaimDue(ctx context.Context, now, leaseUntil time.Time, limit int) ([]WebhookDelivery, error)
 	// RecordAttempt stores the attempt and the decision atomically and
-	// releases the lease.
+	// releases the lease. A lease that is no longer held is
+	// domain.ErrConflict and records nothing.
 	RecordAttempt(context.Context, WebhookAttemptRecord) error
-	// Replay moves a dead or delivered delivery back to pending with a
-	// fresh attempt budget; the eventId is unchanged (G12.3 manual replay).
-	Replay(ctx context.Context, deliveryID string, now time.Time) error
+	// PurgeWebhookHistory deletes at most limit events created before cutoff
+	// that have no pending delivery, with their deliveries and attempt log,
+	// and reports how many it deleted.
+	PurgeWebhookHistory(ctx context.Context, cutoff time.Time, limit int) (int, error)
 }
+
+// Manual replay (G12.3) is an administrator operation with an audit entry,
+// so it lives on WebhookAdminRepository.ReplayWebhookDelivery.
 
 // WebhookRequest is a fully signed request ready for the network.
 type WebhookRequest struct {
@@ -194,6 +222,7 @@ func ResolveWebhookAttempt(delivery WebhookDelivery, policy domain.WebhookRetryP
 	attempt := delivery.Attempts + 1
 	return WebhookAttemptRecord{
 		DeliveryID: delivery.ID,
+		LeaseToken: delivery.LeaseToken,
 		Attempt:    attempt,
 		StartedAt:  startedAt,
 		FinishedAt: finishedAt,

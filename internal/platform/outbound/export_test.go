@@ -28,3 +28,13 @@ func NewMappedTestClientWithBudget(lookup func(context.Context, string, string) 
 	}
 	return c, err
 }
+
+// NewMappedWebhookTestClient is NewWebhookClient with a test resolver and
+// dialer. Only the augmented test binary can replace either.
+func NewMappedWebhookTestClient(hosts []string, lookup func(context.Context, string, string) ([]netip.Addr, error), dial func(context.Context, string, string) (net.Conn, error), extraRoots []byte) (*Client, error) {
+	c, err := newClient(hosts, lookup, dial)
+	if err != nil {
+		return nil, err
+	}
+	return c, c.configureWebhook(extraRoots)
+}

@@ -605,6 +605,9 @@ func (s *Store) FinishJob(ctx context.Context, l domain.JobLease, state, code st
 	if err = auditAccount(ctx, tx, domain.Actor{}, "job.finished", l.Job.ID, nil, map[string]any{"state": state, "errorCode": code, "missing": missing, "reviewRequired": review}); err != nil {
 		return err
 	}
+	if err = appendScanFinished(ctx, tx, s.webhooksOn(), current.Job, state, code, missing, review); err != nil {
+		return err
+	}
 	// The scan is terminal now, so an opted-in library can queue the catalog
 	// synchronisation of exactly the baseline this transaction publishes.
 	if state == domain.JobSucceeded && !review && epoch != nil {
@@ -619,4 +622,18 @@ func (s *Store) FinishJob(ctx context.Context, l domain.JobLease, state, code st
 		return err
 	}
 	return storageError(tx.Commit(ctx))
+}
+
+// appendScanFinished raises scan.completed or scan.failed (G12.1) in the
+// transaction that makes an inventory scan terminal. A cancelled scan raises
+// nothing.
+func appendScanFinished(ctx context.Context, tx pgx.Tx, enabled bool, job domain.Job, state, code string, missing int64, review bool) error {
+	library := domain.WebhookSubject{Kind: domain.WebhookSubjectLibrary, ID: job.LibraryID}
+	switch state {
+	case domain.JobSucceeded:
+		return appendWebhook(ctx, tx, enabled, domain.WebhookScanCompleted, time.Now(), library, map[string]any{"jobId": job.ID, "missing": missing, "reviewRequired": review})
+	case domain.JobFailed:
+		return appendWebhook(ctx, tx, enabled, domain.WebhookScanFailed, time.Now(), library, map[string]any{"jobId": job.ID, "errorCode": code})
+	}
+	return nil
 }

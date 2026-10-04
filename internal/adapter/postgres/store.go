@@ -6,7 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"errors"
-
+	"sync/atomic"
 	"time"
 
 	"github.com/MoYuanCN/Jelee/internal/access"
@@ -16,11 +16,18 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-type Store struct{ Pool *pgxpool.Pool }
+type Store struct {
+	Pool *pgxpool.Pool
+	// webhookEvents makes producers append webhook events to the outbox
+	// (G12.3). It is off unless the webhook deliverer is configured, so a
+	// deployment without webhooks never accumulates events and statements
+	// keep working against schemas without the outbox.
+	webhookEvents atomic.Bool
+}
 
 // SchemaVersion is the only clean schema accepted by this binary. Adjacent
 // releases cannot serve against different cache and job lifecycle contracts.
-const SchemaVersion = 67
+const SchemaVersion = 68
 
 func Open(ctx context.Context, dsn string, maxConnections int32) (*Store, error) {
 	cfg, err := pgxpool.ParseConfig(dsn)

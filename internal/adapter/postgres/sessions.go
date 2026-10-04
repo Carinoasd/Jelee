@@ -118,6 +118,17 @@ func (s *Store) CommitLogin(ctx context.Context, in domain.LoginInput) (domain.S
 		if err = auditAccount(ctx, tx, actor, "login.failed", current.UserID, nil, map[string]any{"failedLogin": failures, "lockedUntil": locked}); err != nil {
 			return domain.SessionGrant{}, err
 		}
+		user := domain.WebhookSubject{Kind: domain.WebhookSubjectUser, ID: current.UserID}
+		if err = appendWebhook(ctx, tx, s.webhooksOn(), domain.WebhookUserLoginFailed, now, user, map[string]any{"failedLogins": failures}); err != nil {
+			return domain.SessionGrant{}, err
+		}
+		// A locked account refuses logins before counting them, so a lock
+		// is reported exactly once, by the failure that set it.
+		if locked != nil {
+			if err = appendWebhook(ctx, tx, s.webhooksOn(), domain.WebhookUserLocked, now, user, map[string]any{"failedLogins": failures, "lockedUntil": locked.UTC().Format(time.RFC3339)}); err != nil {
+				return domain.SessionGrant{}, err
+			}
+		}
 		if err = tx.Commit(ctx); err != nil {
 			return domain.SessionGrant{}, storageError(err)
 		}
@@ -161,6 +172,10 @@ func (s *Store) CommitLogin(ctx context.Context, in domain.LoginInput) (domain.S
 		return domain.SessionGrant{}, err
 	}
 	if err = auditAccount(ctx, tx, actor, "session.created", session.ID, nil, session); err != nil {
+		return domain.SessionGrant{}, err
+	}
+	if err = appendWebhook(ctx, tx, s.webhooksOn(), domain.WebhookUserLogin, now, domain.WebhookSubject{Kind: domain.WebhookSubjectUser, ID: current.UserID},
+		map[string]any{"clientKind": kind}); err != nil {
 		return domain.SessionGrant{}, err
 	}
 	if err = tx.Commit(ctx); err != nil {

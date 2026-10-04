@@ -123,7 +123,7 @@ func contractRouter(t *testing.T, cfg config.Config) http.Handler {
 	if err != nil {
 		t.Fatal(err)
 	}
-	handler, err := newServer(cfg, &fakeBackend{}, catalog, &fakeResolver{}, slog.New(slog.NewTextHandler(io.Discard, nil)), metricsAccounts(t), jobs, metadata, http.NotFoundHandler(), images, nil)
+	handler, err := newServer(cfg, &fakeBackend{}, catalog, &fakeResolver{}, slog.New(slog.NewTextHandler(io.Discard, nil)), metricsAccounts(t), jobs, metadata, http.NotFoundHandler(), images, nil, []Option{WithWebhooks(httpWebhooks(t, stubWebhookRepository{}))})
 	if err != nil {
 		t.Fatal(err)
 	}

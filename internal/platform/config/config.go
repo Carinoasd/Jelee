@@ -54,13 +54,17 @@ type Config struct {
 	// layer (32 lowercase hex digits). Empty derives a stable value from
 	// allowedHosts.
 	CompatServerID string `json:"compatServerId"`
+	// EnableWebhooks runs the webhook deliverer and mounts its
+	// administration API (G12). It requires accounts and a master key.
+	EnableWebhooks bool           `json:"enableWebhooks"`
+	Webhooks       WebhooksConfig `json:"webhooks"`
 }
 
 func Load() (Config, error) { return LoadWith(os.LookupEnv) }
 
 // LoadWith keeps environment lookup injectable and never includes values in errors.
 func LoadWith(lookup func(string) (string, bool)) (Config, error) {
-	c := Config{Resources: DefaultResourcesConfig(), Access: DefaultAccessConfig(), Streaming: DefaultStreamingConfig(), Playback: DefaultPlaybackConfig(), Stats: DefaultStatsConfig(), Listen: "127.0.0.1:8097", AllowedHosts: []string{"localhost", "127.0.0.1", "::1"}, MaxConnections: 8, MaxStreams: 8, RequestTimeoutSeconds: 15, Accounts: DefaultAccountsConfig(), Jobs: DefaultJobsConfig(), Images: DefaultImagesConfig(), Logging: DefaultLoggingConfig()}
+	c := Config{Resources: DefaultResourcesConfig(), Access: DefaultAccessConfig(), Streaming: DefaultStreamingConfig(), Playback: DefaultPlaybackConfig(), Stats: DefaultStatsConfig(), Listen: "127.0.0.1:8097", AllowedHosts: []string{"localhost", "127.0.0.1", "::1"}, MaxConnections: 8, MaxStreams: 8, RequestTimeoutSeconds: 15, Accounts: DefaultAccountsConfig(), Jobs: DefaultJobsConfig(), Images: DefaultImagesConfig(), Logging: DefaultLoggingConfig(), Webhooks: DefaultWebhooksConfig()}
 	if path, ok := lookup("JELEE_CONFIG"); ok && path != "" {
 		f, err := os.Open(path)
 		if err != nil {
@@ -122,7 +126,7 @@ func LoadWith(lookup func(string) (string, bool)) (Config, error) {
 			c.TrustedProxies = strings.Split(value, ",")
 		}
 	}
-	for name, target := range map[string]*bool{"JELEE_ENABLE_CATALOG": &c.EnableCatalog, "JELEE_ENABLE_DIRECT": &c.EnableDirect, "JELEE_ENABLE_ACCOUNTS": &c.EnableAccounts, "JELEE_ENABLE_METRICS": &c.EnableMetrics, "JELEE_ENABLE_IMAGES": &c.EnableImages, "JELEE_ENABLE_JOBS": &c.EnableJobs, "JELEE_ENABLE_PROBE": &c.EnableProbe, "JELEE_ENABLE_FAMILY_IGNORE": &c.EnableFamilyIgnore, "JELEE_ENABLE_NFO_WRITE": &c.EnableNFOWrite, "JELEE_COMPAT_ENABLED": &c.EnableCompat} {
+	for name, target := range map[string]*bool{"JELEE_ENABLE_CATALOG": &c.EnableCatalog, "JELEE_ENABLE_DIRECT": &c.EnableDirect, "JELEE_ENABLE_ACCOUNTS": &c.EnableAccounts, "JELEE_ENABLE_METRICS": &c.EnableMetrics, "JELEE_ENABLE_IMAGES": &c.EnableImages, "JELEE_ENABLE_JOBS": &c.EnableJobs, "JELEE_ENABLE_PROBE": &c.EnableProbe, "JELEE_ENABLE_FAMILY_IGNORE": &c.EnableFamilyIgnore, "JELEE_ENABLE_NFO_WRITE": &c.EnableNFOWrite, "JELEE_COMPAT_ENABLED": &c.EnableCompat, "JELEE_ENABLE_WEBHOOKS": &c.EnableWebhooks} {
 		if value, ok := lookup(name); ok {
 			b, err := strconv.ParseBool(value)
 			if err != nil {
@@ -173,6 +177,9 @@ func LoadWith(lookup func(string) (string, bool)) (Config, error) {
 		return c, err
 	}
 	if err := c.Logging.loadEnvironment(lookup); err != nil {
+		return c, err
+	}
+	if err := c.Webhooks.loadEnvironment(lookup); err != nil {
 		return c, err
 	}
 	return c, c.Validate()
@@ -272,6 +279,14 @@ func (c Config) Validate() error {
 		// The recovery loop and its lease renewal need a connection of their own.
 		if int(c.MaxConnections) < c.Jobs.Workers+3 {
 			return errors.New("nfo write requires at least workers plus three database connections")
+		}
+	}
+	if c.EnableWebhooks {
+		if !c.EnableAccounts {
+			return errors.New("webhooks require account rollout")
+		}
+		if err := c.Webhooks.Validate(); err != nil {
+			return err
 		}
 	}
 	if c.EnableProbe {
