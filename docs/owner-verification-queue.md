@@ -51,6 +51,7 @@
 | C14 | 會話 `last_seen_at` 每 60 秒節流寫入：數百個並行 native 會話持續請求時的 DB 寫入量與鎖等待 | `docs/accounts-api.md` | 待跑 |
 | C15 | 撤銷斷流與限速在 HTTP/2、反向代理（Nginx／Caddy 緩衝）下的表現：撤銷後幾秒斷線、客戶端實測速率與設定值的偏差 | `docs/direct-delivery.md` | 待跑 |
 | C16 | 零拷貝直投：多串流並發的 CPU 與吞吐、極小 Range 請求的固定開銷、正式 WriteTimeout 30 秒下低碼率客戶端的容忍度、TLS 代理與 HTTP/2 部署確實回到緩衝路徑 | `docs/direct-delivery.md` | 待跑 |
+| C17 | 相容層瀏覽：在 scale 資料庫（大媒體庫）上量 `/compat/Items` 總數計算與名稱排序的延遲，以及 `/compat/UserViews` 推導 CollectionType 的成本 | `internal/adapter/postgres/catalog_browse.go` | 待跑 |
 
 ## D. 真實資料／真金鑰／真客戶端
 
@@ -66,6 +67,8 @@
 | D8 | 原生登入：管理員以 `PUT /users/{id}/native` 開啟後，用真實非瀏覽器客戶端（或 curl）走 `POST /api/v1/auth/login/native`、直投、輪換、撤回權限後 native 會話立即失效 | `docs/accounts-api.md`「原生设备登录」 | 待跑 |
 | D9 | 並發播放上限：真實播放器拖動、多段 Range、預載時是否被誤判為超限（429 `user_stream_limit`） | `docs/direct-delivery.md` | 待跑 |
 | D10 | 相容層登入：Findroid、Swiftfin、Infuse、官方 Web／Android 客戶端能否用 `/compat` 登入並解析精簡版 UserDto／SessionInfo；`/Users/Public` 回空陣列時是否改成手動輸入帳號；未開 allowNative 時 403 的顯示是否可理解 | `docs/compat-matrix.md` | 待跑 |
+| D11 | 外掛字幕／音軌直投：原生播放器載入 srt／ass（含 Shift_JIS、GB18030、Big5 等非 UTF-8）、PGS `.sup`、VobSub `.idx`＋`.sub`、外掛 mka／eac3／truehd／dts 音軌的同步與拖動 | `docs/direct-delivery.md` | 待跑 |
+| D12 | 相容層瀏覽：混合媒體庫省略 CollectionType 時是否被隱藏、500 筆上限下是否依 TotalRecordCount 翻頁、ImageTags 為空、UserData 一律未播放、被忽略的篩選參數（Filters、Genres）回出較多結果時客戶端是否正常 | `docs/compat-matrix.md` | 待跑 |
 
 ## E. 需要擁有者決定
 
