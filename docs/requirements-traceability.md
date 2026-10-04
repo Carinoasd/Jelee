@@ -18,14 +18,14 @@
 
 ## 进度统计（截至 2026-10-04）
 
-截至提交 `9ae51a575d`（2026-10-04），对全部 336 个有编号子项逐行重新核对代码、测试、迁移、文档与提交。“已完成”只在原文全部动作都有实现、测试和执行证据（验证文档、docs/evidence 日志或 CI 运行记录，如 [CI 37175937881](https://github.com/Carinoasd/Jelee/actions/runs/37175937881)，提交 `5c6624ad39`）时标记；需要长测、真实客户端、Windows 实机或真实密钥而尚未执行的，一律为“部分完成”。“有实现比例”只表示已有可核对的实现，不代表接近验收。给拥有者的摘要见 [进度摘要](progress-summary.md)。下列三张总表由 `python3 scripts/traceability_stats.py` 依各行状态栏重算，`--check` 只核对不改写；修改任何一行状态后须重跑，不手算。G50.3／G50.6 于 2026-10-04 由未开始改为部分完成。G40.4 于 2026-10-05 由未开始改为部分完成。2026-10-04 E4（mkvtoolnix／MediaInfo，提交 `b9372fc6de`）实作后：G09.2 由阻塞改为已完成，G15.7、G37.1 由阻塞改为部分完成，G15.5、G19.1、G42.7 补充证据与缺口。
+截至提交 `9ae51a575d`（2026-10-04），对全部 336 个有编号子项逐行重新核对代码、测试、迁移、文档与提交。“已完成”只在原文全部动作都有实现、测试和执行证据（验证文档、docs/evidence 日志或 CI 运行记录，如 [CI 37175937881](https://github.com/Carinoasd/Jelee/actions/runs/37175937881)，提交 `5c6624ad39`）时标记；需要长测、真实客户端、Windows 实机或真实密钥而尚未执行的，一律为“部分完成”。“有实现比例”只表示已有可核对的实现，不代表接近验收。给拥有者的摘要见 [进度摘要](progress-summary.md)。下列三张总表由 `python3 scripts/traceability_stats.py` 依各行状态栏重算，`--check` 只核对不改写；修改任何一行状态后须重跑，不手算。G50.3／G50.6 于 2026-10-04 由未开始改为部分完成。G40.4 于 2026-10-05 由未开始改为部分完成。2026-10-04 E4（mkvtoolnix／MediaInfo，提交 `b9372fc6de`）实作后：G09.2 由阻塞改为已完成，G15.7、G37.1 由阻塞改为部分完成，G15.5、G19.1、G42.7 补充证据与缺口。2026-10-05 E16（Tesseract 字幕 OCR，提交 `d513488510`）实作后：G15.6 由未开始改为部分完成。
 
 | 状态 | 子项数 | 占比 |
 | --- | --- | --- |
 | 已完成 | 23 | 6.8% |
-| 部分完成 | 311 | 92.6% |
+| 部分完成 | 312 | 92.9% |
 | 阻塞 | 1 | 0.3% |
-| 未开始 | 1 | 0.3% |
+| 未开始 | 0 | 0.0% |
 | 合计 | 336 | 100% |
 
 | G 群组 | 子项 | 已完成 | 部分完成 | 阻塞 | 未开始 | 已完成比例 | 有实现比例（已完成＋部分完成） |
@@ -45,7 +45,7 @@
 | G12 | 6 | 0 | 6 | 0 | 0 | 0% | 100% |
 | G13 | 6 | 0 | 6 | 0 | 0 | 0% | 100% |
 | G14 | 7 | 0 | 7 | 0 | 0 | 0% | 100% |
-| G15 | 7 | 0 | 6 | 0 | 1 | 0% | 86% |
+| G15 | 7 | 0 | 7 | 0 | 0 | 0% | 100% |
 | G16 | 5 | 0 | 5 | 0 | 0 | 0% | 100% |
 | G18 | 5 | 0 | 5 | 0 | 0 | 0% | 100% |
 | G19 | 5 | 2 | 3 | 0 | 0 | 40% | 100% |
@@ -83,7 +83,7 @@
 | 阶段 | 群组 | 子项 | 已完成 | 部分完成 | 阻塞 | 未开始 |
 | --- | --- | --- | --- | --- | --- | --- |
 | 基础、范围与账户 | G00–G08 | 54 | 13 | 41 | 0 | 0 |
-| 媒体处理、直投与扫描 | G09–G23 | 86 | 7 | 78 | 0 | 1 |
+| 媒体处理、直投与扫描 | G09–G23 | 86 | 7 | 79 | 0 | 0 |
 | 兼容、性能与 Go 质量 | G24–G30 | 36 | 0 | 36 | 0 | 0 |
 | 前端 | G31–G35 | 28 | 0 | 28 | 0 | 0 |
 | 数据库、部署与交付 | G36–G38 | 14 | 0 | 14 | 0 | 0 |
@@ -345,7 +345,7 @@
 | **G15.3** 命名：外挂字幕命名规则（`名称.语言[.forced][.sdh][.default].ext`、同名多轨、`Subs/` 子目录）并有解析器测试。 | internal/adapter/media/; internal/adapter/compat/; docs/subtitles.md | media_streams/subtitle_preferences | Plan-G15.3：每类格式/编码合成样本；外挂/内嵌优先级；原字幕 hash 不变；提取能力实测；须单独覆盖本行全部约束 | 部分完成：`ParseSidecarName`／`SelectSidecarVideo`／`PairSidecarFiles` 实现 `名称.语言[.forced][.sdh 或 .cc][.default][.commentary].ext`、同名多轨（最长基名归属、歧义不配）与 Subs/Subtitles 子目录；单元测试 TestParseSidecarNameFlagsAndTitle、TestParseSidecarNameSubdirs、TestPairSidecarFilesRules，真 PG TestCatalogSyncPairsSidecarTracksAndFollowsRescans；缺：测试通过结果入档、真实库命名误判率（D3）、外挂配对规模成本（C18）、明确导入来源不配对；[同步配对](catalog-sync.md)、[测试](../internal/domain/sidecar_test.go) | `46508cac2c`（命名解析）／`a7363fbf07`（扫描配对，迁移065） |
 | **G15.4** 编码：UTF-8/UTF-16/GBK/Shift_JIS/BIG5 检测与转换；BOM 处理；乱码回退策略。 | internal/adapter/media/; internal/adapter/compat/; docs/subtitles.md | media_streams/subtitle_preferences | Plan-G15.4：每类格式/编码合成样本；外挂/内嵌优先级；原字幕 hash 不变；提取能力实测；须单独覆盖本行全部约束 | 部分完成：`internal/adapter/subtitles` 的 DetectCharset（BOM、无 BOM UTF-16、UTF-8 验证、GB18030/Big5/Shift_JIS/EUC-JP/EUC-KR/windows-1252 评分、低置信与次佳候选）与 ToUTF8 串流转换（去 BOM、非法序列替换计数）；TestDetectAccuracyTable（1452 合成样本）、TestDetectHeldOutSingleLines、TestToUTF8RoundTrip；扫描同步已记录字符集；缺：真实字幕库正确率入档（D2）、UTF-8 衍生缓存与对外提供未接线（直投只报 charset 不转码）、乱码回退策略未进业务路径；[检测实现](../internal/adapter/subtitles/detect.go)、[同步](catalog-sync.md) | `badad0beab`（编码检测与转换）／`a7363fbf07`（扫描接入字符集检测） |
 | **G15.5** 提取与直投：ffprobe 识别、mkvmerge 提取内嵌文本字幕到可重建缓存并原样直投给客户端；位图字幕（VobSub/PGS/DVB）直投原轨，不烧录、不转换；明确能力边界并写入文档。 | internal/adapter/media/; internal/adapter/compat/; docs/subtitles.md | media_streams/subtitle_preferences | Plan-G15.5：每类格式/编码合成样本；外挂/内嵌优先级；原字幕 hash 不变；提取能力实测；须单独覆盖本行全部约束 | 部分完成：ffprobe 识别内嵌字幕编码（第3C1）；外挂文本与位图字幕原样直投（TestExternalTrackRoutes 等）；E4：mkvmerge 识别、mkvextract 把 Matroska 内嵌 SubRip／ASS／SSA／WebVTT（S_TEXT）原样抽取到可重建缓存（修订、上限、LRU、staging 清理），经 `/api/v1/sources/{id}/embedded-subtitles/{index}` 与相容层 `Subtitles/{index}/Stream.{fmt}`（DeliveryMethod External）直投，只限原生会话、授权先于抽取、Web 取不到（TestExtractorCachesTextSubtitlesAndFontsOnce、TestExtractedRoutesDeliverCachedItemsUnconvertedToNativeSessionsOnly、TestCompatDeliversExtractedSubtitlesAndFonts、leakRouteTable 真 PG 遍历、容器实测原档 SHA 不变）；能力边界写入文档；缺：内嵌位图轨（PGS／VobSub／DVB）直投、D_WEBVTT 轨（mkvextract 不支持）、真实客户端（D11、D13、D24）；[mkvtoolnix 与 MediaInfo](matroska-tools.md) | `27f66b1eb3`（ffprobe 探测）／`cf5ca60fd4`（外挂直投）／`e6a57474de`（相容层直投）／`b9372fc6de`（E4 mkvtoolnix／MediaInfo） |
-| **G15.6** OCR：默认关闭，显式开启后可运行；需限流、并发受限，并说明准确率与资源开销。 | internal/adapter/media/; internal/adapter/compat/; docs/subtitles.md | media_streams/subtitle_preferences | Plan-G15.6：每类格式/编码合成样本；外挂/内嵌优先级；原字幕 hash 不变；提取能力实测；须单独覆盖本行全部约束 | 未开始：代码与文档中没有 OCR 实现、开关、限流或准确率说明；缺：默认关闭的显式开关、并发与限流、准确率与资源开销文档及测试；OCR 工具引入需走 G51 工具授权。 | 无 |
+| **G15.6** OCR：默认关闭，显式开启后可运行；需限流、并发受限，并说明准确率与资源开销。 | internal/adapter/bitmapsub/; internal/adapter/subtitleocr/; internal/platform/ocrruntime/; internal/adapter/media/; internal/adapter/compat/; docs/subtitle-ocr.md | media_streams/subtitle_preferences | Plan-G15.6：每类格式/编码合成样本；外挂/内嵌优先级；原字幕 hash 不变；提取能力实测；须单独覆盖本行全部约束 | 部分完成：E16 核准 Tesseract（Apache-2.0）为选用工具，固定 Debian 13 套件 5.5.0-1+b1 与 tessdata_fast eng／chi_tra／chi_sim／jpn（`ocrTools`，SHA256、授权），预设不安装、不在预设映像（`deploy/ocr/Dockerfile`）；默认关闭（`JELEE_ENABLE_SUBTITLE_OCR`，需 Matroska 抽取与独立私有缓存根）；Matroska 内 PGS／VobSub 由 Go 自行解码（上限与恶意输入测试、fuzz），沙箱 `tesseract-ocr` 模式辨识，背景有界队列、可取消、每分钟张数上限（滚动 60 秒，假时钟测试）、并发 1–4（峰值测试）、实例 CPU 预算，结果为额外 SRT 轨（可重建缓存），经自有 API `/api/v1/sources/{id}/ocr-subtitles/{index}` 与相容层 PlaybackInfo（标题加注“(OCR)”）直投，只限原生会话、授权先于 OCR、Web 取不到，原点阵轨照旧原样直投、原档 SHA 不变；doctor `subtitle_ocr`、指标 `jelee_subtitle_ocr_*`；准确率（英文 99.2–100%、繁中 95.8–100%、简中 96.6%、日文 99.3%）与资源开销（每张 130–250 ms、单行程峰值约 100–175 MiB）写入文档（TestRealOCRAccuracyAndCost、TestRealOCRPipelineFromMatroska、TestRealTesseractInSandboxWithExplicitHostRuntime、容器实测 `docs/evidence/ocr-runtime-image.txt`）；缺：真实蓝光／DVD 点阵字幕的准确率与耗时实测与真客户端（D25）、DVB 点阵字幕与外挂 `.sup`／`.idx` 的 OCR；[字幕 OCR](subtitle-ocr.md) | `d513488510`（字幕 OCR） |
 | **G15.7** 附件：ASS 字体附件提取到缓存目录并在渲染/转换时提供。 | internal/adapter/media/; internal/adapter/compat/; docs/subtitles.md | media_streams/subtitle_preferences | Plan-G15.7：每类格式/编码合成样本；外挂/内嵌优先级；原字幕 hash 不变；提取能力实测；须单独覆盖本行全部约束 | 部分完成：E4：Matroska 字体附件（字体扩展名或字体 MIME，单个 ≤32 MiB）由 mkvextract 原样抽取到可重建缓存；Jelee 不渲染不转码，“在渲染时提供”解读为经自有 API `/api/v1/sources/{id}/attachments/{attachmentId}`、相容层 `MediaAttachments` 与 `Videos/{itemId}/{sourceId}/Attachments/{index}` 原样提供给客户端自行渲染，只限原生会话（TestExtractorCachesTextSubtitlesAndFontsOnce、TestCompatDeliversExtractedSubtitlesAndFonts、容器实测字体字节与原附件一致）；缺：真实客户端以抽取字体渲染 ASS 的实测（D24）；[mkvtoolnix 与 MediaInfo](matroska-tools.md) | `b9372fc6de`（E4 mkvtoolnix／MediaInfo） |
 
 ## G16 外挂音轨
