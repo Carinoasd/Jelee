@@ -79,7 +79,7 @@ func privateImageDescriptor(descriptor *windows.SECURITY_DESCRIPTOR, trusted ...
 		if ace.Header.AceType != windows.ACCESS_ALLOWED_ACE_TYPE && ace.Header.AceType != windows.ACCESS_DENIED_ACE_TYPE {
 			return false // Object/callback grants need different layouts/semantics.
 		}
-		sid := (*windows.SID)(unsafe.Pointer(&ace.SidStart))
+		sid := (*windows.SID)(unsafe.Pointer(&ace.SidStart)) //nolint:gosec // G103: the Windows API takes a raw pointer to this fixed-layout value
 		if !sid.IsValid() || uintptr(sid.Len())+unsafe.Offsetof(ace.SidStart) > uintptr(ace.Header.AceSize) {
 			return false
 		}

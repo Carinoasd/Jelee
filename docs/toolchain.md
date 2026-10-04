@@ -86,14 +86,25 @@ Linux `make bootstrap`（`sh scripts/bootstrap-tools`）先装 Go，再装 Node�
 
 Windows：`scripts/bootstrap-tools.ps1` 目前仍只安装 Go；清单已记录 Windows Node 压缩包与哈希（`bootstrapStatus` 字段注明），PowerShell 安装流程与 `make.ps1` 的 web 目标留待后续，CI 的前端门禁目前只在 Linux 执行。
 
+## golangci-lint（G30.1）
+
+`tools/manifest.json` 的 `golangci-lint` 条目固定 2.14.0（官方构建，`golangci-lint version` 显示以 go1.27.0 编译），记录 Linux/Windows amd64、arm64 四个[官方 GitHub release](https://github.com/golangci/golangci-lint/releases/tag/v2.14.0) 压缩包的 HTTPS URL 与 SHA256。哈希取自同一 release 的 `golangci-lint-2.14.0-checksums.txt`；2026-10-04 另下载 linux-amd64 与 windows-amd64 压缩包重算，结果一致。许可证 GPL-3.0，仅作开发与 CI 工具执行，不链接、不随 Jelee 分发（见 [THIRD-PARTY-TOOLS](THIRD-PARTY-TOOLS.md)）。
+
+- Linux：`make bootstrap` 在 Go、Node 之后安装（`--tool golangci-lint` 可单独处理）；沿用同一 HTTPS 下载、SHA256 与安全解压器，安装到 `.tools/golangci-lint/<版本>/<平台>/`，执行档与 `LICENSE` 和已校验压缩包逐字节比对，记录在 `.tools/.installed.json` 的 `tools.golangci-lint.<平台>`。`.bin/golangci-lint` 包装脚本经 `scripts/toolchain.py golangci-lint` 执行。
+- Windows：`scripts/bootstrap-tools.ps1` 在 Go 之后安装 ZIP（同一 `Expand-SafeZip`）；`scripts/run-golangci-lint.ps1` 为执行入口，`tools-verify.ps1` 校验压缩包、安装记录、执行档、`LICENSE` 与版本输出。
+- 两平台都以固定 Go 的环境执行：`PATH` 前置固定 `GOROOT/bin`（golangci-lint 通过它调用 `go list`），`GOCACHE`／`GOMODCACHE`／`GOPATH` 等沿用 `.tools/cache/`，`GOLANGCI_LINT_CACHE` 为 `.tools/cache/golangci-lint`；不写入使用者家目录或全局配置，Windows 调用后恢复进程环境变量。
+- `tools-verify` 一并校验 golangci-lint；`toolchain-test` 覆盖坏缓存清除、清单布局篡改与环境隔离。
+
+配置、基线与覆盖率／基准门禁的规则见 [质量门禁](quality-gates.md)。
+
 ## 命令
 
 以下名称同时适用于 `make <目标>` 与 `pwsh -File scripts/make.ps1 <目标>`：
 
 | 目标 | 行为 |
 | --- | --- |
-| `init` / `bootstrap` | 安装清单中的本地 Go 与 Node（Linux；Windows 仅 Go） |
-| `tools-verify` | 校验 Go 与 Node 的固定版本与完整性 |
+| `init` / `bootstrap` | 安装清单中的本地 Go、Node 与 golangci-lint（Linux；Windows 为 Go 与 golangci-lint） |
+| `tools-verify` | 校验 Go、Node（Linux）与 golangci-lint 的固定版本与完整性 |
 | `toolchain-test` | 校验和、恶意归档、边界测试 |
 | `build` | 生成 `bin/jelee`、`bin/jelee-cli`、`bin/jelee-migrate`，Windows 带 `.exe` |
 | `test` | `go test -count=1 ./...` |
@@ -101,7 +112,13 @@ Windows：`scripts/bootstrap-tools.ps1` 目前仍只安装 Go；清单已记录 
 | `test-integration` | 必须设置 `JELEE_TEST_DATABASE_URL`，执行 PostgreSQL Integration 测试 |
 | `coverage` | 生成被忽略的 `coverage.out` |
 | `fmt` / `fmt-check` | 格式化 / 检查 Go 源码 |
-| `lint` | 格式检查、OpenAPI 检查、`doc-check` 与 `go vet` |
+| `lint` | 格式检查、OpenAPI 检查、`doc-check`、`go vet` 与 `golangci-lint` 门禁 |
+| `golangci-lint` | 以 `.golangci.yml` 执行 golangci-lint，再以 `tools/lintgate` 对照 `tools/lint-baseline/<goos>.json`；基线外的新问题或已修复仍留在基线的条目都失败 |
+| `lint-baseline-prune` | 仅 Linux：对 linux 与 windows（交叉检查）重跑并从基线移除已修复条目，从不新增 |
+| `coverage-check` | 仅 Linux：按 `tools/coverage-thresholds.json` 测量核心／关键包覆盖率，低于棘轮最低值失败 |
+| `coverage-ratchet` | 仅 Linux：补测试后把最低值提高到实测值（向下取整），从不降低 |
+| `bench-compare` | 仅 Linux：`BENCH_BASE_REF=<提交>`，同机交替执行基准提交与工作树的热路径基准并以 benchgate 判定 |
+| `quality-gates-test` | lintgate、covergate、benchgate 单元测试（Linux 另含 bench-compare 脚本测试） |
 | `brand-scan` | 全仓库品牌门禁 |
 | `brand-scan-incremental` | 新增代码品牌检查 |
 | `gitignore-check` | 检查被跟踪的生成物与禁止文件 |
@@ -213,8 +230,9 @@ pwsh -NoProfile -File scripts/runtime-tools.ps1 -Command sources -Offline
 
 | 工具/能力 | 当前状态 |
 | --- | --- |
-| Go / gofmt / vet / coverage | 已固定并提供入口；尚未设置全项目覆盖率阈值 |
-| 独立 golangci-lint、gofumpt、gosec、漏洞扫描 | 尚未固定、引导与接入 |
+| Go / gofmt / vet / coverage | 已固定并提供入口；核心／关键包覆盖率棘轮门禁已接入 CI（[质量门禁](quality-gates.md)），PostgreSQL 包尚未纳入 |
+| golangci-lint（含 errcheck、staticcheck、govet、revive、gosec、bodyclose、contextcheck） | 2.14.0 已固定、引导、校验并接入 Linux／Windows CI；既有问题以只减不增的基线管理 |
+| gofumpt、漏洞扫描（govulncheck 等） | 尚未固定、引导与接入 |
 | 外部 migrate/Atlas CLI、sqlc | 尚未加入工具清单；当前项目通过 golang-migrate 库提供迁移命令 |
 | OpenAPI 生成器、buf（如采用 protobuf） | 尚未加入工具清单 |
 | Node LTS、包管理器、Playwright 浏览器 | 尚未加入工具清单 |

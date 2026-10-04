@@ -121,6 +121,50 @@ class BootstrapSecurityTest(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "invalid Node"):
                 toolchain.node_selected()
 
+    def test_golangci_bootstrap_removes_bad_cache(self):
+        root = "golangci-lint-2.14.0-linux-amd64"
+        spec = {"url": "https://example.invalid/" + root + ".tar.gz", "sha256": "0" * 64,
+                "installPath": "golangci-lint/2.14.0/linux-amd64", "archiveRoot": root,
+                "executable": root + "/golangci-lint", "licenseFile": root + "/LICENSE"}
+        archive = self.root / ".tools/downloads" / (root + ".tar.gz")
+        archive.parent.mkdir(parents=True)
+        archive.write_bytes(b"untrusted archive bytes")
+        tool = {"name": "golangci-lint", "version": "2.14.0", "cache": "cache/golangci-lint"}
+        with patch.object(toolchain, "ROOT", self.root), patch.object(toolchain, "golangci_selected", return_value=(tool, spec, "linux-amd64")):
+            with self.assertRaisesRegex(ValueError, "SHA256 mismatch"):
+                toolchain.bootstrap(offline=True, tools=("golangci-lint",))
+        self.assertFalse(archive.exists(), "failed bootstrap must remove corrupt cache")
+        self.assertFalse((self.root / ".bin").exists(), "no wrapper may be written for an unverified archive")
+
+    def test_golangci_manifest_layout(self):
+        tool, spec, target = toolchain.golangci_selected()
+        self.assertRegex(spec["sha256"], "^[a-f0-9]{64}$")
+        self.assertTrue(spec["url"].startswith("https://github.com/golangci/golangci-lint/releases/download/v" + tool["version"] + "/"))
+        self.assertEqual(spec["installPath"], "golangci-lint/" + tool["version"] + "/" + target)
+        for field, value in (("installPath", "../escape"), ("url", "http://github.com/x.tar.gz"),
+                             ("executable", "golangci-lint"), ("sha256", "0" * 63)):
+            with self.subTest(field=field):
+                broken = dict(spec, **{field: value})
+                manifest = {"schemaVersion": 1, "tools": [dict(tool, platforms={target: broken})]}
+                with patch.object(toolchain.Path, "read_text", return_value=__import__("json").dumps(manifest)):
+                    with self.assertRaisesRegex(ValueError, "invalid golangci-lint"):
+                        toolchain.golangci_selected()
+
+    def test_golangci_environment_is_project_local(self):
+        go_root = self.root / ".tools/go/1.27.1/linux-amd64/go/bin"
+        go_root.mkdir(parents=True)
+        (go_root / "go").write_text("", encoding="utf-8")
+        go_spec = {"installPath": "go/1.27.1/linux-amd64"}
+        tool = {"name": "golangci-lint", "version": "2.14.0", "cache": "cache/golangci-lint"}
+        with patch.object(toolchain, "ROOT", self.root), \
+                patch.object(toolchain, "selected", return_value=({"version": "1.27.1"}, go_spec, "linux-amd64")), \
+                patch.object(toolchain, "golangci_selected", return_value=(tool, {}, "linux-amd64")):
+            env = toolchain.golangci_environment()
+        self.assertEqual(env["GOLANGCI_LINT_CACHE"], str(self.root / ".tools/cache/golangci-lint"))
+        self.assertTrue(env["PATH"].startswith(str(go_root) + toolchain.os.pathsep))
+        for key in ("GOCACHE", "GOPATH", "GOMODCACHE", "XDG_CONFIG_HOME"):
+            self.assertTrue(env[key].startswith(str(self.root / ".tools")), key)
+
     def test_path_escape(self):
         with self.assertRaises(ValueError):
             local_path(self.root, self.root.parent / "outside")

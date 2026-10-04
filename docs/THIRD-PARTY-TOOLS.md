@@ -1,12 +1,13 @@
 # 第三方开发与测试工具
 
-实际下载的工具与精确平台哈希见 `tools/manifest.json`。Go 下载来源为 [Go 官方下载页](https://go.dev/dl/)；校验信息为 [官方下载元数据](https://go.dev/dl/?mode=json)。
+实际下载的工具与精确平台哈希见 `tools/manifest.json`。Go 下载来源为 [Go 官方下载页](https://go.dev/dl/)；校验信息为 [官方下载元数据](https://go.dev/dl/?mode=json)。golangci-lint 下载来源为 [官方 GitHub release v2.14.0](https://github.com/golangci/golangci-lint/releases/tag/v2.14.0)，SHA256 取自该 release 的 [checksums 文件](https://github.com/golangci/golangci-lint/releases/download/v2.14.0/golangci-lint-2.14.0-checksums.txt)，并于 2026-10-04 重新下载 linux-amd64、windows-amd64 压缩包核对一致。
 
 | 名称 | 版本 | 许可证与归属 | 用途 | 分发范围 |
 | --- | --- | --- | --- | --- |
 | Go（包含 gofmt、vet、coverage） | 1.27.1 | BSD-3-Clause，The Go Authors；发行包内 `go/LICENSE` 与 `go/PATENTS` 保留 | 构建、检查、测试 | 仅项目本地工具；工具链不随应用二进制分发 |
 | Node.js（含 npm 11.19.0） | 24.21.0 | MIT，Node.js contributors / OpenJS Foundation；捆绑组件许可列于发行包 `LICENSE` | 前端安装、型别检查、lint、测试与构建 | 仅项目本地工具；不随 Go 服务端或容器镜像分发 |
 | npm 前端开发依赖（Vite、vue-tsc、ESLint、Vitest、openapi-typescript 等） | 见 `package-lock.json` | 各包自身许可（以 MIT/Apache-2.0/BSD 为主），版本与完整性哈希锁在 lockfile | 前端构建与检查 | 构建期依赖；产物只包含 Vue、vue-router、Pinia、vue-i18n、openapi-fetch 的运行代码 |
+| golangci-lint | 2.14.0 | GPL-3.0，golangci-lint 作者与贡献者；发行包内 `LICENSE` 保留并与已校验压缩包逐字节比对；所含各 linter 保留各自许可 | Go 静态分析门禁（G30.1，见 `docs/quality-gates.md`） | 仅项目本地开发与 CI 工具；只执行、不链接，不随 Go 服务端、容器镜像或任何发行包分发 |
 | Playwright | 1.63.0（仅预留） | Apache-2.0，Microsoft Corporation 与贡献者 | 未来 E2E / 视觉回归 | 尚未安装、未下载浏览器 |
 | Gyan Windows amd64 ffmpeg / ffprobe | `9.0.2-essentials_build-www.gyan.dev` | GPL-3.0-or-later，FFmpeg developers、Gyan Doshi 与所链接依赖作者；保留发行包 `LICENSE`、README 与文档 | 可选开发工具；ffmpeg 仅用于合成测试素材/调试，ffprobe 用于开发验证 | 本地被忽略目录，不进入本阶段生产镜像 |
 | BtbN Linux amd64 ffmpeg / ffprobe | `n9.0.2-17-g2a571b6068-20260930` | GPL-3.0-or-later，FFmpeg developers、BtbN 与所链接依赖作者；保留发行包 `LICENSE.txt` 及文档 | 同上；glibc 2.28+、Linux 4.18+ | 本地被忽略目录，不进入本阶段生产镜像 |

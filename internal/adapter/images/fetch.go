@@ -295,7 +295,7 @@ func (f *RemoteFetcher) contextError(caller context.Context, status, attempts in
 
 func (f *RemoteFetcher) backoff(attempt int) time.Duration {
 	base := f.options.BackoffBase << (attempt - 1)
-	return base + time.Duration(rand.Int64N(int64(base)/4+1))
+	return base + time.Duration(rand.Int64N(int64(base)/4+1)) //nolint:gosec // G404: retry jitter, not a secret
 }
 
 type fetchOutcome struct {

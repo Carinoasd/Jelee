@@ -15,7 +15,7 @@ const (
 	CodeConfigOK              = "config_ok"
 	CodeConfigInvalid         = "config_invalid"
 	CodeConfigDatabaseMissing = "config_database_missing"
-	CodeConfigSecretFileMode  = "config_secret_file_permissions"
+	CodeConfigSecretFileMode  = "config_secret_file_permissions" //nolint:gosec // G101: a diagnostic code, not a credential
 
 	CodeDBConnected     = "db_connected"
 	CodeDBNotConfigured = "db_not_configured"
@@ -87,7 +87,7 @@ const (
 
 	CodeExternalOK            = "external_tmdb_ok"
 	CodeExternalNotConfigured = "external_tmdb_not_configured"
-	CodeExternalCredentials   = "external_tmdb_credentials"
+	CodeExternalCredentials   = "external_tmdb_credentials" //nolint:gosec // G101: a diagnostic code, not a credential
 	CodeExternalRateLimited   = "external_tmdb_rate_limited"
 	CodeExternalUnreachable   = "external_tmdb_unreachable"
 

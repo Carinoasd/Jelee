@@ -36,7 +36,7 @@ func observeNFONativeIdentity(file *os.File) (nfoNativeIdentity, error) {
 			Volume uint64
 			FileID [16]byte
 		}
-		if windows.GetFileInformationByHandleEx(handle, windows.FileIdInfo, (*byte)(unsafe.Pointer(&id)), uint32(unsafe.Sizeof(id))) != nil {
+		if windows.GetFileInformationByHandleEx(handle, windows.FileIdInfo, (*byte)(unsafe.Pointer(&id)), uint32(unsafe.Sizeof(id))) != nil { //nolint:gosec // G103: the Windows API takes a raw pointer to this fixed-layout value
 			observationErr = errNativeIdentity
 			return
 		}

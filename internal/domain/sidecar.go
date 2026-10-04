@@ -151,9 +151,9 @@ func SelectSidecarVideo(videoBases []string, candidate string, inSubdir string) 
 			continue
 		}
 		switch {
-		case best < 0 || len(base) > len(videoBases[best]):
+		case best < 0 || len(base) > len(videoBases[best]): //nolint:gosec // G602: best is -1 or an earlier index of videoBases
 			best, track, ambiguous = i, parsed, false
-		case len(base) == len(videoBases[best]):
+		case len(base) == len(videoBases[best]): //nolint:gosec // G602: best is -1 or an earlier index of videoBases
 			ambiguous = true
 		}
 	}
@@ -173,7 +173,7 @@ func validSidecarSegment(s string) bool {
 			return false
 		case unicode.IsControl(r):
 			return false
-		case r == '‎' || r == '‏' || (r >= '‪' && r <= '‮') || (r >= '⁦' && r <= '⁩'):
+		case r == '\u200e' || r == '\u200f' || (r >= '\u202a' && r <= '\u202e') || (r >= '\u2066' && r <= '\u2069'):
 			// Bidi controls can disguise the real extension.
 			return false
 		}

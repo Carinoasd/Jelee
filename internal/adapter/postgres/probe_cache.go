@@ -67,7 +67,7 @@ func (s *Store) LookupProbeBatch(parent context.Context, l domain.JobLease, toke
 		c, err := readCachedProbe(ctx, tx, e.Inventory.RootID, e.Inventory.Path)
 		kind := domain.ProbeLookupMiss
 		if err == nil {
-			kind = lookupKind(c, p, e, candidates[i].Stamp)
+			kind = lookupKind(c, p, e, candidates[i].Stamp) //nolint:gosec // G602: checkProbePrefix returns exactly len(candidates) entries
 		} else if !errors.Is(err, domain.ErrNotFound) {
 			return nil, err
 		}

@@ -70,7 +70,42 @@ if (Test-Path -LiteralPath $recordPath) {
     if ($prior.ContainsKey('platforms')) { $installed = $prior }
 }
 $installed.platforms[$selected.Platform] = $record
-$installed | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $recordPath -Encoding utf8NoBOM
+$installed | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $recordPath -Encoding utf8NoBOM
 & "$PSScriptRoot/run-go.ps1" telemetry off
 if ($LASTEXITCODE -ne 0) { throw 'Failed to disable local toolchain telemetry' }
+
+# golangci-lint (G30.1): same download, hash and safe-extraction rules as Go.
+$lint = Get-GolangciSpec $root
+$lintSpec = $lint.Spec
+$lintArchive = Get-VerifiedArchive $toolsDir $lintSpec -Offline:$Offline
+$lintInstall = Assert-LocalPath $toolsDir (Join-Path $toolsDir $lintSpec.installPath)
+$lintExe = Assert-LocalPath $toolsDir (Join-Path $lintInstall $lintSpec.executable)
+if (-not (Test-Path -LiteralPath $lintExe)) {
+    $stage = Assert-LocalPath $toolsDir ($lintInstall + '.staging')
+    Remove-LocalTree $toolsDir $stage
+    [IO.Directory]::CreateDirectory($stage) | Out-Null
+    try {
+        Expand-SafeZip $lintArchive $stage
+        foreach ($name in @($lintSpec.executable, $lintSpec.licenseFile)) {
+            if (-not (Test-Path -LiteralPath (Join-Path $stage $name))) { throw "golangci-lint file absent from archive: $name" }
+        }
+        Remove-LocalTree $toolsDir $lintInstall
+        [IO.Directory]::CreateDirectory((Split-Path -Parent $lintInstall)) | Out-Null
+        Move-Item -LiteralPath $stage -Destination $lintInstall
+    } finally { Remove-LocalTree $toolsDir $stage }
+}
+Assert-ZipEntryHashes $lintArchive $lintInstall @($lintSpec.executable, $lintSpec.licenseFile)
+$installed = Get-Content -LiteralPath $recordPath -Raw | ConvertFrom-Json -AsHashtable
+if (-not $installed.ContainsKey('tools')) { $installed.tools = @{} }
+if (-not $installed.tools.ContainsKey('golangci-lint')) { $installed.tools['golangci-lint'] = @{} }
+$installed.tools['golangci-lint'][$lint.Platform] = @{
+    schemaVersion = 1
+    name = 'golangci-lint'
+    version = $lint.Tool.version
+    platform = $lint.Platform
+    archiveSHA256 = $lintSpec.sha256
+    executableSHA256 = (Get-FileHash -LiteralPath $lintExe -Algorithm SHA256).Hash.ToLowerInvariant()
+    installedAt = [DateTime]::UtcNow.ToString('o')
+}
+$installed | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $recordPath -Encoding utf8NoBOM
 & "$PSScriptRoot/tools-verify.ps1"

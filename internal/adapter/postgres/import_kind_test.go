@@ -23,7 +23,7 @@ func TestImportVideoCLIKindAndNFO(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		binary += ".exe"
 	}
-	build := exec.CommandContext(ctx, filepath.Join(runtime.GOROOT(), "bin", "go"), "build", "-o", binary, "../../../cmd/jelee-cli")
+	build := exec.CommandContext(ctx, filepath.Join(runtime.GOROOT(), "bin", "go"), "build", "-o", binary, "../../../cmd/jelee-cli") //nolint:staticcheck // SA1019: test helpers build with the toolchain running the test; project wrappers export GOROOT
 	if output, err := build.CombinedOutput(); err != nil {
 		t.Fatalf("build actual import CLI: %v: %s", err, output)
 	}

@@ -23,7 +23,7 @@ const (
 	// DimIP matches the server-observed peer address against an IP or CIDR.
 	DimIP Dimension = "ip"
 	// DimAPIKey matches a fingerprint of the presented API key, never the key itself.
-	DimAPIKey Dimension = "api_key_fingerprint"
+	DimAPIKey Dimension = "api_key_fingerprint" //nolint:gosec // G101: a dimension name, not a credential
 	// DimHeader matches the values of the request header named by Rule.Header.
 	DimHeader Dimension = "header"
 )

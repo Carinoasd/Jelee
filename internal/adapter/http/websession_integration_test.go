@@ -63,7 +63,7 @@ func (c pgCookieClient) login() pgCookieResponse {
 // the very next request because every request re-reads the session row.
 func TestWebSessionCookiePostgres(t *testing.T) {
 	ctx, store, dsn := leakStore(t)
-	native, err := store.Provision(ctx, "cookie-user", access.ClientNative, false)
+	_, err := store.Provision(ctx, "cookie-user", access.ClientNative, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -71,7 +71,8 @@ func TestWebSessionCookiePostgres(t *testing.T) {
 		t.Fatal(err)
 	}
 	// Resetting the password revoked the provisioned session; issue a fresh one.
-	if native, err = store.Provision(ctx, "cookie-native", access.ClientNative, false); err != nil {
+	native, err := store.Provision(ctx, "cookie-native", access.ClientNative, false)
+	if err != nil {
 		t.Fatal(err)
 	}
 	c := pgCookieClient{t: t, handler: leakHandler(t, store, leakConfig(t, dsn, 0))}

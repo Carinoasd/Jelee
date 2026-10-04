@@ -1,0 +1,132 @@
+{
+  "schemaVersion": 1,
+  "module": "github.com/MoYuanCN/Jelee",
+  "targets": {
+    "core": 70,
+    "critical": 85
+  },
+  "packages": [
+    {
+      "path": "internal/access",
+      "tier": "critical",
+      "minimum": 96
+    },
+    {
+      "path": "internal/adapter/compat",
+      "tier": "critical",
+      "minimum": 80,
+      "reason": "measured 80.3% on 2026-10-04 without PostgreSQL; ratchet until tests close the 4.7-point gap to the critical target"
+    },
+    {
+      "path": "internal/adapter/http",
+      "tier": "critical",
+      "minimum": 83,
+      "reason": "measured 83.1% on 2026-10-04 without PostgreSQL; ratchet until tests close the 1.9-point gap to the critical target"
+    },
+    {
+      "path": "internal/adapter/media",
+      "tier": "critical",
+      "minimum": 92
+    },
+    {
+      "path": "internal/adapter/media/ignore",
+      "tier": "critical",
+      "minimum": 85
+    },
+    {
+      "path": "internal/platform/ignore",
+      "tier": "critical",
+      "minimum": 90
+    },
+    {
+      "path": "internal/platform/netaddr",
+      "tier": "critical",
+      "minimum": 100
+    },
+    {
+      "path": "internal/platform/outbound",
+      "tier": "critical",
+      "minimum": 87
+    },
+    {
+      "path": "internal/platform/password",
+      "tier": "critical",
+      "minimum": 95
+    },
+    {
+      "path": "internal/platform/secretbox",
+      "tier": "critical",
+      "minimum": 90
+    },
+    {
+      "path": "internal/adapter/images",
+      "tier": "core",
+      "minimum": 85
+    },
+    {
+      "path": "internal/adapter/metadata",
+      "tier": "core",
+      "minimum": 93
+    },
+    {
+      "path": "internal/adapter/nfo",
+      "tier": "core",
+      "minimum": 84
+    },
+    {
+      "path": "internal/adapter/probe",
+      "tier": "core",
+      "minimum": 93
+    },
+    {
+      "path": "internal/adapter/scan",
+      "tier": "core",
+      "minimum": 79
+    },
+    {
+      "path": "internal/adapter/subtitles",
+      "tier": "core",
+      "minimum": 90
+    },
+    {
+      "path": "internal/app",
+      "tier": "core",
+      "minimum": 71
+    },
+    {
+      "path": "internal/domain",
+      "tier": "core",
+      "minimum": 75
+    },
+    {
+      "path": "internal/domain/medianame",
+      "tier": "core",
+      "minimum": 97
+    },
+    {
+      "path": "internal/platform/config",
+      "tier": "core",
+      "minimum": 91
+    },
+    {
+      "path": "internal/platform/jobs",
+      "tier": "core",
+      "minimum": 71
+    },
+    {
+      "path": "internal/platform/legacyignore",
+      "tier": "core",
+      "minimum": 92
+    },
+    {
+      "path": "internal/platform/logging",
+      "tier": "core",
+      "minimum": 90
+    },
+    {
+      "path": "internal/platform/resources",
+      "tier": "core",
+      "minimum": 94
+    }
+  ]
+}

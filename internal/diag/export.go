@@ -173,7 +173,7 @@ func (s *Session) Export(ctx context.Context, opts ExportOptions) (err error) {
 	if collectHook != nil {
 		entries = collectHook(entries)
 	}
-	file, err := os.OpenFile(out, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
+	file, err := os.OpenFile(out, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600) //nolint:gosec // G304: the operator names the export file; O_EXCL refuses existing paths
 	if errors.Is(err, fs.ErrExist) {
 		return exportErr(CodeExportExists)
 	}
@@ -361,7 +361,7 @@ func VerifyBundle(path string, scanner *Scanner) (err error) {
 // inside the window, keeping at most maxBytes of output. Rotated backups are
 // not read. The returned status is a fixed word for the manifest.
 func readLogTail(path string, since time.Time, maxBytes int64, red *logging.Redactor) ([]byte, string) {
-	file, err := os.Open(path)
+	file, err := os.Open(path) //nolint:gosec // G304: path comes from the fixed diagnostic file list
 	if err != nil {
 		return nil, "log_file_unavailable"
 	}

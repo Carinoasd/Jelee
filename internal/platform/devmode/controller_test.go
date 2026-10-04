@@ -84,7 +84,7 @@ func TestControllerTokens(t *testing.T) {
 	}
 
 	t.Run("one use only", func(t *testing.T) {
-		token := issue(t, server)
+		token := issue(t, server) //nolint:contextcheck // test helper issues a token with its own background context
 		if _, err := server.Enable(ctx, Actor{}, token, "cli", "", 0); err != nil {
 			t.Fatal(err)
 		}
@@ -96,14 +96,14 @@ func TestControllerTokens(t *testing.T) {
 		}
 	})
 	t.Run("expires", func(t *testing.T) {
-		token := issue(t, server)
+		token := issue(t, server) //nolint:contextcheck // test helper issues a token with its own background context
 		clock.Advance(TokenTTL)
 		if _, err := server.Enable(ctx, Actor{}, token, "cli", "", 0); !errors.Is(err, ErrDenied) {
 			t.Fatalf("expired token accepted: %v", err)
 		}
 	})
 	t.Run("consumed by a refused attempt", func(t *testing.T) {
-		token := issue(t, server)
+		token := issue(t, server) //nolint:contextcheck // test helper issues a token with its own background context
 		if _, err := server.Enable(ctx, Actor{}, token, "cli", "", MaxTTL+time.Hour); !errors.Is(err, ErrInvalidTTL) {
 			t.Fatalf("invalid ttl: %v", err)
 		}
@@ -193,7 +193,7 @@ func TestControllerStartupDoesNotInherit(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			store, clock := NewMemoryStore(), newFakeClock()
 			first := newController(t, store, clock, capableLocal())
-			if _, err := first.Enable(ctx, Actor{}, issue(t, first), "cli", "", 0); err != nil {
+			if _, err := first.Enable(ctx, Actor{}, issue(t, first), "cli", "", 0); err != nil { //nolint:contextcheck // test helper issues a token with its own background context
 				t.Fatal(err)
 			}
 			next := newController(t, store, clock, tc.local, func(o *ControllerOptions) { o.Persist = tc.persist })

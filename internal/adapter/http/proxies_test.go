@@ -168,8 +168,8 @@ func TestTrustedProxyRealHTTPContextWiring(t *testing.T) {
 	defer origin.Close()
 	target := httptest.NewRequest("GET", origin.URL, nil).URL
 	proxy := httputil.NewSingleHostReverseProxy(target)
-	oldDirector := proxy.Director
-	proxy.Director = func(r *http.Request) {
+	oldDirector := proxy.Director            //nolint:staticcheck // SA1019: reproduces the Director proxy chain deployed proxies still send
+	proxy.Director = func(r *http.Request) { //nolint:staticcheck // SA1019: reproduces the Director proxy chain deployed proxies still send
 		oldDirector(r)
 		r.Header.Set("X-Forwarded-For", "203.0.113.10")
 	}

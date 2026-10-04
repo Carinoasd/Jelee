@@ -37,7 +37,7 @@ func validInput(file *os.File) bool {
 	var status windows.IO_STATUS_BLOCK
 	var access uint32
 	// FileAccessInformation returns the existing handle's granted access.
-	if windows.NtQueryInformationFile(windows.Handle(file.Fd()), &status, (*byte)(unsafe.Pointer(&access)), uint32(unsafe.Sizeof(access)), 8) != nil || access&windows.FILE_READ_DATA == 0 || access&(windows.FILE_WRITE_DATA|windows.FILE_APPEND_DATA|windows.FILE_WRITE_EA|windows.FILE_WRITE_ATTRIBUTES|windows.DELETE|windows.WRITE_DAC|windows.WRITE_OWNER) != 0 {
+	if windows.NtQueryInformationFile(windows.Handle(file.Fd()), &status, (*byte)(unsafe.Pointer(&access)), uint32(unsafe.Sizeof(access)), 8) != nil || access&windows.FILE_READ_DATA == 0 || access&(windows.FILE_WRITE_DATA|windows.FILE_APPEND_DATA|windows.FILE_WRITE_EA|windows.FILE_WRITE_ATTRIBUTES|windows.DELETE|windows.WRITE_DAC|windows.WRITE_OWNER) != 0 { //nolint:gosec // G103: the Windows API takes a raw pointer to this fixed-layout value
 		return false
 	}
 	_, err = file.Seek(0, io.SeekCurrent)
@@ -56,7 +56,7 @@ func startChild(path string, args []string, dir string, env []string, stdin, std
 	}()
 	limits := windows.JOBOBJECT_EXTENDED_LIMIT_INFORMATION{}
 	limits.BasicLimitInformation.LimitFlags = windows.JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE
-	if _, err := windows.SetInformationJobObject(job, windows.JobObjectExtendedLimitInformation, uintptr(unsafe.Pointer(&limits)), uint32(unsafe.Sizeof(limits))); err != nil {
+	if _, err := windows.SetInformationJobObject(job, windows.JobObjectExtendedLimitInformation, uintptr(unsafe.Pointer(&limits)), uint32(unsafe.Sizeof(limits))); err != nil { //nolint:gosec // G103: the Windows API takes a raw pointer to this fixed-layout value
 		return nil, err
 	}
 	attributes, err := windows.NewProcThreadAttributeList(2)
@@ -67,7 +67,7 @@ func startChild(path string, args []string, dir string, env []string, stdin, std
 	// PROC_THREAD_ATTRIBUTE_JOB_LIST (Windows 10 / Server 2016+) atomically
 	// assigns the job before the first instruction. No start/assign race.
 	const jobList = 0x0002000d
-	if err := attributes.Update(jobList, unsafe.Pointer(&job), unsafe.Sizeof(job)); err != nil {
+	if err := attributes.Update(jobList, unsafe.Pointer(&job), unsafe.Sizeof(job)); err != nil { //nolint:gosec // G103: the Windows API takes a raw pointer to this fixed-layout value
 		return nil, ErrUnsupported
 	}
 	var handles [3]windows.Handle
@@ -78,7 +78,7 @@ func startChild(path string, args []string, dir string, env []string, stdin, std
 		}
 		defer windows.CloseHandle(handles[i])
 	}
-	if err := attributes.Update(windows.PROC_THREAD_ATTRIBUTE_HANDLE_LIST, unsafe.Pointer(&handles[0]), unsafe.Sizeof(handles)); err != nil {
+	if err := attributes.Update(windows.PROC_THREAD_ATTRIBUTE_HANDLE_LIST, unsafe.Pointer(&handles[0]), unsafe.Sizeof(handles)); err != nil { //nolint:gosec // G103: the Windows API takes a raw pointer to this fixed-layout value
 		return nil, err
 	}
 	startup := windows.StartupInfoEx{}
@@ -128,7 +128,7 @@ func (p *windowsChild) kill() error {
 			TotalUserTime, TotalKernelTime, PeriodUserTime, PeriodKernelTime int64
 			PageFaults, TotalProcesses, ActiveProcesses, TerminatedProcesses uint32
 		}
-		if err := windows.QueryInformationJobObject(p.job, windows.JobObjectBasicAccountingInformation, uintptr(unsafe.Pointer(&accounting)), uint32(unsafe.Sizeof(accounting)), nil); err != nil {
+		if err := windows.QueryInformationJobObject(p.job, windows.JobObjectBasicAccountingInformation, uintptr(unsafe.Pointer(&accounting)), uint32(unsafe.Sizeof(accounting)), nil); err != nil { //nolint:gosec // G103: the Windows API takes a raw pointer to this fixed-layout value
 			return err
 		}
 		if accounting.ActiveProcesses == 0 {

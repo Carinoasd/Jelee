@@ -24,3 +24,27 @@ if ((Test-Path -LiteralPath $goMod) -and (Get-Content -LiteralPath $goMod -Raw) 
     throw 'go.mod version differs from tools/manifest.json'
 }
 Write-Host "Verified $actual; archive SHA256 and installed binary match"
+
+$lint = Get-GolangciSpec $root
+$lintSpec = $lint.Spec
+$lintName = [IO.Path]::GetFileName(([Uri]$lintSpec.url).AbsolutePath)
+$lintArchive = Assert-LocalPath $root (Join-Path $root ".tools/downloads/$lintName")
+Assert-ArchiveHash $lintArchive $lintSpec.sha256
+$lintRecord = $null
+if ($installed.PSObject.Properties.Name -contains 'tools' -and $installed.tools.PSObject.Properties.Name -contains 'golangci-lint') {
+    $lintRecords = $installed.tools.'golangci-lint'
+    if ($lintRecords.PSObject.Properties.Name -contains $lint.Platform) { $lintRecord = $lintRecords.($lint.Platform) }
+}
+if ($null -eq $lintRecord) { throw 'golangci-lint is not installed; run scripts/bootstrap-tools.ps1' }
+if ($lintRecord.version -ne $lint.Tool.version -or $lintRecord.platform -ne $lint.Platform -or $lintRecord.archiveSHA256 -ne $lintSpec.sha256) {
+    throw 'Installed golangci-lint record does not match manifest; bootstrap again'
+}
+$lintInstall = Assert-LocalPath $root (Join-Path $root ".tools/$($lintSpec.installPath)")
+$lintExe = Assert-LocalPath $root (Join-Path $lintInstall $lintSpec.executable)
+Assert-ArchiveHash $lintExe $lintRecord.executableSHA256
+Assert-ZipEntryHashes $lintArchive $lintInstall @($lintSpec.executable, $lintSpec.licenseFile)
+$lintVersion = (& $lintExe version | Out-String).Trim()
+if (-not $lintVersion.StartsWith("golangci-lint has version $($lint.Tool.version) ")) {
+    throw "Unexpected golangci-lint version: $lintVersion"
+}
+Write-Host "Verified golangci-lint $($lint.Tool.version); archive SHA256 and installed binary match"

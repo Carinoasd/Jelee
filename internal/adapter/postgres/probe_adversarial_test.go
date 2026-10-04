@@ -3,7 +3,6 @@ package postgres
 import (
 	"context"
 	"errors"
-	"fmt"
 	"sync"
 	"testing"
 	"time"
@@ -495,7 +494,7 @@ func TestProbeAdversarialBoundedEvictionAtQuotaBoundary(t *testing.T) {
 			if err = f.s.Pool.QueryRow(f.ctx, `SELECT charge_bytes=2048+octet_length(metadata::text) FROM probe_cache WHERE root_id=$1::uuid AND relative_path=$2`, lease.RootID, lease.Path).Scan(&exact); err != nil || !exact {
 				t.Fatal("reservation was not replaced with the exact PostgreSQL JSONB charge")
 			}
-			t.Log(fmt.Sprintf("retained=%d deleted=%d; exact counters and JSONB charge verified", rows+1, deleted))
+			t.Logf("retained=%d deleted=%d; exact counters and JSONB charge verified", rows+1, deleted)
 		})
 	}
 }

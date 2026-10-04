@@ -107,12 +107,12 @@ func executeHelper(profile Profile, policy Policy) error {
 	empty := []byte{0}
 	filter := syscallPolicy(uint32(os.Getpid()))
 	program := unix.SockFprog{Len: uint16(len(filter)), Filter: &filter[0]}
-	if unix.Prctl(unix.PR_SET_SECCOMP, unix.SECCOMP_MODE_FILTER, uintptr(unsafe.Pointer(&program)), 0, 0) != nil {
+	if unix.Prctl(unix.PR_SET_SECCOMP, unix.SECCOMP_MODE_FILTER, uintptr(unsafe.Pointer(&program)), 0, 0) != nil { //nolint:gosec // G103: raw prctl(PR_SET_SECCOMP) has no safe wrapper
 		return ErrUnavailable
 	}
 	// Raw execveat stays on the locked, restricted thread and executes the
 	// verified file object. No pathname is reopened after digest verification.
-	_, _, errno := unix.RawSyscall6(unix.SYS_EXECVEAT, executableFD, uintptr(unsafe.Pointer(&empty[0])), uintptr(unsafe.Pointer(&argv[0])), uintptr(unsafe.Pointer(&envp[0])), unix.AT_EMPTY_PATH, 0)
+	_, _, errno := unix.RawSyscall6(unix.SYS_EXECVEAT, executableFD, uintptr(unsafe.Pointer(&empty[0])), uintptr(unsafe.Pointer(&argv[0])), uintptr(unsafe.Pointer(&envp[0])), unix.AT_EMPTY_PATH, 0) //nolint:gosec // G103: raw execveat has no safe wrapper
 	runtime.KeepAlive(argv)
 	runtime.KeepAlive(envp)
 	runtime.KeepAlive(empty)
@@ -134,14 +134,14 @@ func restrictFilesystem(p *prepared) error {
 	}
 	// Only the v1/v3 filesystem field is needed; network is denied by the
 	// architecture-checked seccomp allowlist, including non-TCP transports.
-	ruleset, _, errno := unix.RawSyscall(unix.SYS_LANDLOCK_CREATE_RULESET, uintptr(unsafe.Pointer(&rights)), unsafe.Sizeof(rights), 0)
+	ruleset, _, errno := unix.RawSyscall(unix.SYS_LANDLOCK_CREATE_RULESET, uintptr(unsafe.Pointer(&rights)), unsafe.Sizeof(rights), 0) //nolint:gosec // G103: raw landlock_create_ruleset has no safe wrapper
 	if errno != 0 {
 		return ErrUnavailable
 	}
 	defer unix.Close(int(ruleset))
 	add := func(file *os.File, access uint64) bool {
 		rule := unix.LandlockPathBeneathAttr{Allowed_access: access, Parent_fd: int32(file.Fd())}
-		_, _, errno := unix.RawSyscall6(unix.SYS_LANDLOCK_ADD_RULE, ruleset, unix.LANDLOCK_RULE_PATH_BENEATH, uintptr(unsafe.Pointer(&rule)), 0, 0, 0)
+		_, _, errno := unix.RawSyscall6(unix.SYS_LANDLOCK_ADD_RULE, ruleset, unix.LANDLOCK_RULE_PATH_BENEATH, uintptr(unsafe.Pointer(&rule)), 0, 0, 0) //nolint:gosec // G103: raw landlock_add_rule has no safe wrapper
 		runtime.KeepAlive(file)
 		return errno == 0
 	}

@@ -48,7 +48,7 @@ func TestJobWindowProductionRuntimeConfiguration(t *testing.T) {
 		life.listen = func(c context.Context, network, _ string) (net.Listener, error) {
 			return (&net.ListenConfig{}).Listen(c, network, "127.0.0.1:0")
 		}
-		application := newWithLifetime(c, logger, life)
+		application := newWithLifetime(c, logger, life) //nolint:contextcheck // production constructor under test owns its lifetime context
 		if application.Err() != nil {
 			t.Fatal("construct production job window runtime")
 		}
@@ -59,7 +59,7 @@ func TestJobWindowProductionRuntimeConfiguration(t *testing.T) {
 			t.Fatal("start production job window runtime")
 		}
 		stopped := false
-		stop := func() {
+		stop := func() { //nolint:contextcheck // test cleanup stops the runtime with its own deadline
 			if stopped {
 				return
 			}

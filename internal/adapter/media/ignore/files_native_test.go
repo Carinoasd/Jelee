@@ -58,7 +58,7 @@ func TestNativeHandleIdentityReadonlyAndAbsence(t *testing.T) {
 	if err != nil || before != after {
 		t.Fatal("readonly operation changed source identity or metadata")
 	}
-	if f.Close() != nil || f.Close() != nil {
+	if f.Close() != nil || f.Close() != nil { //nolint:staticcheck // SA4000: the second call proves Close is idempotent
 		t.Fatal("source close was not idempotent")
 	}
 	if state, err := f.Stat(); err != ErrRead || state != (fileState{}) {
@@ -84,7 +84,7 @@ func TestNativeHandleIdentityReadonlyAndAbsence(t *testing.T) {
 	if invalid, err := child.OpenRule(); err != ErrUnsafe || invalid != nil {
 		t.Fatal("directory accepted as regular rule")
 	}
-	if d.Close() != nil || d.Close() != nil {
+	if d.Close() != nil || d.Close() != nil { //nolint:staticcheck // SA4000: the second call proves Close is idempotent
 		t.Fatal("directory close was not idempotent")
 	}
 	if opened, err := d.OpenRule(); err != ErrRead || opened != nil {

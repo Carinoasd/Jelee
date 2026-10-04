@@ -199,5 +199,5 @@ func TestNFOCommitFilesAbruptPartialHelper(t *testing.T) {
 		},
 		ready: func(context.Context, nfoCommitFiles) error { t.Fatal("abrupt helper reached ready"); return nil },
 	}, ops)
-	t.Fatal("abrupt helper returned before crash boundary")
+	t.Fatalf("abrupt helper returned before crash boundary: %v", err)
 }

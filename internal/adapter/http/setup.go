@@ -31,7 +31,7 @@ import (
 // token file can drive the wizard.
 
 // SetupTokenHeader carries the one-time setup token.
-const SetupTokenHeader = "X-Jelee-Setup-Token"
+const SetupTokenHeader = "X-Jelee-Setup-Token" //nolint:gosec // G101: a header name, not a credential
 
 const (
 	setupBodyLimit = 64 << 10

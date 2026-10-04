@@ -261,7 +261,7 @@ func runJobsCLI(ctx context.Context, argv []string, stdin io.Reader, stdout, std
 		}
 		u.RawQuery = q.Encode()
 	}
-	request, err := http.NewRequestWithContext(ctx, method, u.String(), strings.NewReader(body))
+	request, err := http.NewRequestWithContext(ctx, method, u.String(), strings.NewReader(body)) //nolint:gosec // G704: the operator names the Jelee server URL on the command line
 	if err != nil {
 		fmt.Fprintln(stderr, "jobs_request_failed")
 		return 1
@@ -276,7 +276,7 @@ func runJobsCLI(ctx context.Context, argv []string, stdin io.Reader, stdout, std
 	transport := &http.Transport{DialContext: (&net.Dialer{Timeout: 5 * time.Second}).DialContext, TLSHandshakeTimeout: 5 * time.Second, ResponseHeaderTimeout: 10 * time.Second, MaxConnsPerHost: 1, DisableKeepAlives: true}
 	defer transport.CloseIdleConnections()
 	client := &http.Client{Transport: transport, Timeout: 15 * time.Second, CheckRedirect: func(*http.Request, []*http.Request) error { return errors.New("redirect rejected") }}
-	response, err := client.Do(request)
+	response, err := client.Do(request) //nolint:gosec // G704: the operator names the Jelee server URL on the command line
 	if err != nil {
 		fmt.Fprintln(stderr, "jobs_service_unavailable")
 		return 1

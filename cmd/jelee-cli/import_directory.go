@@ -12,7 +12,7 @@ func validImportDirectory(rootPath, relative string) bool {
 	if !filepath.IsAbs(rootPath) || !domain.ValidDirectorySourcePath(relative) {
 		return false
 	}
-	info, err := os.Lstat(filepath.Clean(rootPath))
+	info, err := os.Lstat(filepath.Clean(rootPath)) //nolint:gosec // G703: the operator names the directory on the command line
 	if err != nil || !info.IsDir() || info.Mode()&os.ModeSymlink != 0 {
 		return false
 	}

@@ -13,7 +13,7 @@ func applyLimits() error {
 	limits := windows.JOBOBJECT_EXTENDED_LIMIT_INFORMATION{}
 	limits.BasicLimitInformation.LimitFlags = windows.JOB_OBJECT_LIMIT_PROCESS_MEMORY
 	limits.ProcessMemoryLimit = MemoryBytes
-	if _, err := windows.SetInformationJobObject(job, windows.JobObjectExtendedLimitInformation, uintptr(unsafe.Pointer(&limits)), uint32(unsafe.Sizeof(limits))); err != nil {
+	if _, err := windows.SetInformationJobObject(job, windows.JobObjectExtendedLimitInformation, uintptr(unsafe.Pointer(&limits)), uint32(unsafe.Sizeof(limits))); err != nil { //nolint:gosec // G103: the Windows API takes a raw pointer to this fixed-layout value
 		windows.CloseHandle(job)
 		return err
 	}

@@ -20,8 +20,8 @@ const (
 	// headerLegacyAuthorization is consulted only when Authorization is empty.
 	headerLegacyAuthorization = "X-Emby-Authorization"
 	// headerLegacyToken and headerLegacyTokenAlt carry a bare access token.
-	headerLegacyToken    = "X-Emby-Token"
-	headerLegacyTokenAlt = "X-MediaBrowser-Token"
+	headerLegacyToken    = "X-Emby-Token"         //nolint:gosec // G101: a header name, not a credential
+	headerLegacyTokenAlt = "X-MediaBrowser-Token" //nolint:gosec // G101: a header name, not a credential
 )
 
 // System module behavioural reference (field names and casing): upstream
@@ -124,9 +124,12 @@ const (
 	subtitleDeliveryEmbed           = "Embed"
 	subtitleDeliveryExternal        = "External"
 
-	dlnaProfileTypeVideo       profileType = "Video"
-	dlnaProfileTypeVideoNumber             = 1
+	dlnaProfileTypeVideo profileType = "Video"
 )
+
+// dlnaProfileTypeVideoNumber is the numeric form some clients send; it is
+// deliberately an untyped integer, not a profileType.
+const dlnaProfileTypeVideoNumber = 1
 
 // Image module behavioural reference: upstream
 // Jellyfin.Api/Controllers/ImageController.cs (GetItemImage,

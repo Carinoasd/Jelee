@@ -153,7 +153,7 @@ func (c *WebhooksConfig) loadEnvironment(lookup func(string) (string, bool)) err
 		return errors.New("set only one webhook master key source")
 	}
 	if filePresent {
-		f, err := os.Open(path)
+		f, err := os.Open(path) //nolint:gosec // G304: the operator names the secret file
 		if err != nil {
 			return errors.New("cannot read webhook master key file")
 		}

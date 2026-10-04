@@ -478,18 +478,18 @@ func (l *lifetime) start(ctx context.Context) error {
 	if l.prepareTMDB != nil {
 		if err := l.prepareTMDB(ctx); err != nil {
 			l.cancel()
-			l.closePool()
+			l.closePool() //nolint:contextcheck // the pool is closed even when the start context failed
 			return err
 		}
 	}
 	listener, err := l.listen(ctx, "tcp", l.server.Addr)
 	if err != nil {
 		l.cancel()
-		l.closePool()
+		l.closePool() //nolint:contextcheck // the pool is closed even when the start context failed
 		return errors.New("cannot bind Jelee listener")
 	}
 	started := false
-	defer func() {
+	defer func() { //nolint:contextcheck // a failed start must release workers and the pool regardless of the start context
 		if !started {
 			// A failing OnStart hook is not included in Fx's rollback hooks.
 			l.cancel()
@@ -504,7 +504,7 @@ func (l *lifetime) start(ctx context.Context) error {
 		return err
 	}
 	if l.worker != nil {
-		if err := l.worker.Start(l.ctx); err != nil {
+		if err := l.worker.Start(l.ctx); err != nil { //nolint:contextcheck // workers live for the process lifetime, not for the OnStart hook
 			return errors.New("cannot start inventory workers")
 		}
 	}
@@ -569,7 +569,7 @@ func (l *lifetime) stop(ctx context.Context) error {
 func (l *lifetime) shutdown(ctx context.Context) {
 	defer close(l.stopped)
 	workerDone := make(chan error, 1)
-	go func() {
+	go func() { //nolint:gosec,contextcheck // G118: worker shutdown must join every goroutine even after the stop deadline
 		if l.worker == nil {
 			workerDone <- nil
 			return
@@ -585,7 +585,7 @@ func (l *lifetime) shutdown(ctx context.Context) {
 		}
 	}
 	<-l.exited
-	l.flushProgress()
+	l.flushProgress() //nolint:contextcheck // final progress flush runs after the stop deadline by design
 	if l.statsDone != nil {
 		<-l.statsDone
 	}
@@ -597,7 +597,7 @@ func (l *lifetime) shutdown(ctx context.Context) {
 		l.stopErr = errors.Join(l.stopErr, errors.New("inventory workers did not stop"))
 		return // Do not close a store that workers may still be using.
 	}
-	l.closePool()
+	l.closePool() //nolint:contextcheck // shutdown closes the pool after the stop deadline by design
 }
 
 // joinWebhooks waits for the deliverer, which was cancelled with the

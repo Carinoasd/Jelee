@@ -52,7 +52,7 @@ func (r *settlementRepository) GetNFOWriteCommitFiles(ctx context.Context, l dom
 }
 
 func (r *settlementRepository) GetNFOWriteCommitSettlement(context.Context, domain.JobLease, int, string) (domain.NFOWriteCommitSettlement, error) {
-	ready, attempt, value := r.selected()
+	ready, attempt, value := r.selected() //nolint:contextcheck // test fake reads fixed state; no I/O
 	r.smu.Lock()
 	defer r.smu.Unlock()
 	result := domain.NFOWriteCommitSettlement{ReadyRecorded: ready, ReadyAttempt: attempt, Ready: value}
@@ -68,7 +68,7 @@ func (r *settlementRepository) SaveNFOWriteCommitSettlement(ctx context.Context,
 			return domain.NFOWriteCommitSettlement{}, err
 		}
 	}
-	ready, selected, _ := r.selected()
+	ready, selected, _ := r.selected() //nolint:contextcheck // test fake reads fixed state; no I/O
 	r.smu.Lock()
 	if !ready || selected != attempt || len(r.phases) > 0 && r.attempt != attempt {
 		r.smu.Unlock()

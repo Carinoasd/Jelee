@@ -29,7 +29,10 @@ jobs:
         run: python scripts/check-ui-locales.py
       - name: Linux bootstrap and verification
         if: runner.os == 'Linux'
-        run: make bootstrap tools-verify bootstrap-media media-tools-verify bootstrap-runtime runtime-tools-verify runtime-toolchain-test fixtures fixtures-test toolchain-test media-toolchain-test lint build test-race sandbox-test probe-runtime-test gitignore-check brand-scan-incremental
+        # lint = gofmt, openapi/doc checks, go vet and golangci-lint against
+        # tools/lint-baseline/linux.json; coverage-check enforces the
+        # per-package ratchet in tools/coverage-thresholds.json (G30.1).
+        run: make bootstrap tools-verify bootstrap-media media-tools-verify bootstrap-runtime runtime-tools-verify runtime-toolchain-test fixtures fixtures-test toolchain-test media-toolchain-test quality-gates-test lint build test-race coverage-check sandbox-test probe-runtime-test gitignore-check brand-scan-incremental
       - name: Web frontend gates on Linux
         if: runner.os == 'Linux'
         run: make web-install web-types web-lint web-test web-build
@@ -37,7 +40,8 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          foreach ($target in @('bootstrap','tools-verify','bootstrap-media','media-tools-verify','fixtures','fixtures-test','toolchain-test','media-toolchain-test','lint','build','test','gitignore-check','brand-scan-incremental')) {
+          # lint includes golangci-lint against tools/lint-baseline/windows.json.
+          foreach ($target in @('bootstrap','tools-verify','bootstrap-media','media-tools-verify','fixtures','fixtures-test','toolchain-test','media-toolchain-test','quality-gates-test','lint','build','test','gitignore-check','brand-scan-incremental')) {
             & ./scripts/make.ps1 $target
           }
       - name: Required native legacy helper lifecycle on Linux
@@ -84,6 +88,50 @@ jobs:
           path: .testdata/sandbox-native.txt
           if-no-files-found: ignore
           retention-days: 7
+          # .testdata is hidden; uploads whose paths share a wider root would drop it.
+          include-hidden-files: true
+
+  bench-regression:
+    # G26.4 / G38.1 performance gate. Base and head run alternately on this
+    # one runner, so hosted-runner hardware differences cancel out; the
+    # committed docs/evidence/bench-baseline.txt is a workstation reference
+    # and is never compared against CI numbers. Separate from the PostgreSQL
+    # jobs so database load does not disturb the timings.
+    name: Benchmark regression (same-runner base vs head)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+      - uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+        with:
+          path: .tools
+          key: jelee-${{ runner.os }}-${{ runner.arch }}-go1.27.1-${{ hashFiles('tools/manifest.json', 'go.sum') }}
+      - run: make bootstrap tools-verify
+      - name: Select the base commit
+        id: base
+        env:
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+          PUSH_BEFORE: ${{ github.event.before }}
+        run: |
+          base="${PR_BASE:-$PUSH_BEFORE}"
+          if [ -z "$base" ] || [ "$base" = 0000000000000000000000000000000000000000 ] || ! git cat-file -e "$base^{commit}" 2>/dev/null; then
+            base=$(git rev-parse --verify --quiet HEAD^ || true)
+          fi
+          echo "sha=$base" >> "$GITHUB_OUTPUT"
+      - name: Compare hot-path benchmarks
+        if: steps.base.outputs.sha != ''
+        run: make bench-compare BENCH_BASE_REF=${{ steps.base.outputs.sha }}
+      - name: Retain benchmark comparison
+        if: always() && steps.base.outputs.sha != ''
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: bench-compare
+          path: |
+            .testdata/bench-compare/base.txt
+            .testdata/bench-compare/head.txt
+          if-no-files-found: ignore
+          retention-days: 14
           # .testdata is hidden; uploads whose paths share a wider root would drop it.
           include-hidden-files: true
 

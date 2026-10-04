@@ -132,15 +132,15 @@ func settleNFOCommitFiles(ctx context.Context, directory *os.Root, files nfoComm
 		if idErr != nil || current != files.output {
 			return nfoSettleIndeterminate, ErrRollback
 		}
-		return rollbackNFOSettle(directory, files, original, replacement, ops)
+		return rollbackNFOSettle(directory, files, original, replacement, ops) //nolint:contextcheck // cleanup after an irrevocable step must finish even when the caller's context is cancelled
 	}
 	// After rename, cancellation cannot skip durable commit or rollback.
 	committed = true
 	if err := ops.syncDirectory(directory); err != nil {
-		return rollbackNFOSettle(directory, files, original, replacement, ops)
+		return rollbackNFOSettle(directory, files, original, replacement, ops) //nolint:contextcheck // cleanup after an irrevocable step must finish even when the caller's context is cancelled
 	}
-	if err := verifyNFOSettled(context.Background(), directory, files, original, replacement); err != nil {
-		return rollbackNFOSettle(directory, files, original, replacement, ops)
+	if err := verifyNFOSettled(context.Background(), directory, files, original, replacement); err != nil { //nolint:contextcheck // cleanup after an irrevocable step must finish even when the caller's context is cancelled
+		return rollbackNFOSettle(directory, files, original, replacement, ops) //nolint:contextcheck // cleanup after an irrevocable step must finish even when the caller's context is cancelled
 	}
 	if progress != nil {
 		if err := progress(ctx, nfoSettleReplaced); err != nil {
@@ -425,7 +425,7 @@ func abortNFOCommitFiles(ctx context.Context, directory *os.Root, files nfoCommi
 		if err := verifyNFOSettled(ctx, directory, files, original, replacement); err != nil {
 			return nfoSettleIndeterminate, err
 		}
-		if phase, err := rollbackNFOSettle(directory, files, original, replacement, ops); phase != nfoSettleRolledBack {
+		if phase, err := rollbackNFOSettle(directory, files, original, replacement, ops); phase != nfoSettleRolledBack { //nolint:contextcheck // cleanup after an irrevocable step must finish even when the caller's context is cancelled
 			return phase, err
 		}
 		return nfoSettleRolledBack, nil

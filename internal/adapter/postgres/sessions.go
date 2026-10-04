@@ -14,7 +14,7 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
-const credentialColumns = `id::text,name,COALESCE(password_hash,''),auth_version,disabled,deleted_at IS NOT NULL,locked_until`
+const credentialColumns = `id::text,name,COALESCE(password_hash,''),auth_version,disabled,deleted_at IS NOT NULL,locked_until` //nolint:gosec // G101: SQL column list, not a credential
 const sessionColumns = `id::text,user_id::text,client_kind,device_name,COALESCE(client_name,''),COALESCE(device_id,''),COALESCE(client_version,''),created_at,expires_at,last_seen_at,COALESCE(last_ip,''),revoked_at`
 
 func scanSession(row pgx.Row) (domain.Session, error) {

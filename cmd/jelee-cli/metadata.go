@@ -126,7 +126,7 @@ func runMetadataExport(ctx context.Context, path string, hashes bool, stdout, st
 		return 1
 	}
 	defer closeStore()
-	var w io.Writer = stdout
+	w := stdout
 	report := stdout
 	if out != nil {
 		w = out
@@ -179,7 +179,7 @@ func publishMetadataFile(partial, path string) error {
 func runMetadataImport(ctx context.Context, path string, opts domain.MetadataImportOptions, stdout, stderr io.Writer, cfg config.Config, deps metadataCLIDependencies) int {
 	in := deps.stdin
 	if path != "-" {
-		file, err := os.Open(path)
+		file, err := os.Open(path) //nolint:gosec // G304: the operator names the import file on the command line
 		if err != nil {
 			fmt.Fprintln(stderr, "metadata_input_unavailable")
 			return 1

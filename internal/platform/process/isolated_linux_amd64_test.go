@@ -19,7 +19,7 @@ func TestIsolatedFactoryAcceptsOnlyTheSealedLauncherRegistration(t *testing.T) {
 	path := os.Getenv("JELEE_SANDBOX_TEST_HELPER")
 	if path == "" {
 		path = filepath.Join(t.TempDir(), "ffprobe")
-		command := exec.Command(filepath.Join(runtime.GOROOT(), "bin", "go"), "build", "-trimpath", "-o", path, "../sandbox/testdata/helper")
+		command := exec.Command(filepath.Join(runtime.GOROOT(), "bin", "go"), "build", "-trimpath", "-o", path, "../sandbox/testdata/helper") //nolint:staticcheck // SA1019: test helpers build with the toolchain running the test; project wrappers export GOROOT
 		command.Env = append(os.Environ(), "CGO_ENABLED=0", "GOTOOLCHAIN=local")
 		if output, err := command.CombinedOutput(); err != nil {
 			t.Fatalf("build sealed launcher fixture: %v; %s", err, output)

@@ -72,7 +72,7 @@ func Load() (Config, error) { return LoadWith(os.LookupEnv) }
 func LoadWith(lookup func(string) (string, bool)) (Config, error) {
 	c := Config{Resources: DefaultResourcesConfig(), Access: DefaultAccessConfig(), Streaming: DefaultStreamingConfig(), Playback: DefaultPlaybackConfig(), Stats: DefaultStatsConfig(), Listen: "127.0.0.1:8097", AllowedHosts: []string{"localhost", "127.0.0.1", "::1"}, MaxConnections: 8, MaxStreams: 8, RequestTimeoutSeconds: 15, Accounts: DefaultAccountsConfig(), Jobs: DefaultJobsConfig(), Images: DefaultImagesConfig(), Logging: DefaultLoggingConfig(), Webhooks: DefaultWebhooksConfig()}
 	if path, ok := lookup("JELEE_CONFIG"); ok && path != "" {
-		f, err := os.Open(path)
+		f, err := os.Open(path) //nolint:gosec // G304: the operator names the configuration file
 		if err != nil {
 			return c, errors.New("cannot read JELEE_CONFIG")
 		}
@@ -103,7 +103,7 @@ func LoadWith(lookup func(string) (string, bool)) (Config, error) {
 		if c.DatabaseURL != "" {
 			return c, errors.New("set only one database credential source")
 		}
-		f, err := os.Open(value)
+		f, err := os.Open(value) //nolint:gosec // G304: the operator names the secret file
 		if err != nil {
 			return c, errors.New("cannot read database credential file")
 		}
@@ -148,7 +148,7 @@ func LoadWith(lookup func(string) (string, bool)) (Config, error) {
 		return c, err
 	}
 	if value, ok := lookup("JELEE_MAX_CONNECTIONS"); ok {
-		n, err := strconv.Atoi(value)
+		n, err := strconv.ParseInt(value, 10, 32)
 		if err != nil || n < 1 || n > 128 {
 			return c, errors.New("invalid JELEE_MAX_CONNECTIONS")
 		}

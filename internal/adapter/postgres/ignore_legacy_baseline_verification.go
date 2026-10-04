@@ -159,7 +159,7 @@ func (s *Store) CommitLegacyIgnoreBaselineVerificationPage(ctx context.Context, 
 		return domain.ErrConflict
 	}
 	for i, o := range expected {
-		got := observed[i]
+		got := observed[i] //nolint:gosec // G602: lengths are compared just above
 		if o.LookupDirectory != got.LookupDirectory || o.Source.Proofs[0].RootID != got.Source.Proofs[0].RootID {
 			return domain.ErrConflict
 		}

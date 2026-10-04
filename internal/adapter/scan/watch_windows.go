@@ -84,7 +84,7 @@ func (b *directoryWatchBackend) Add(file *os.File) error {
 
 func armDirectoryWatch(slot *directoryWatchSlot) error {
 	mask := uint32(windows.FILE_NOTIFY_CHANGE_FILE_NAME | windows.FILE_NOTIFY_CHANGE_DIR_NAME | windows.FILE_NOTIFY_CHANGE_ATTRIBUTES | windows.FILE_NOTIFY_CHANGE_SIZE | windows.FILE_NOTIFY_CHANGE_LAST_WRITE | windows.FILE_NOTIFY_CHANGE_CREATION)
-	err := windows.ReadDirectoryChanges(slot.handle, (*byte)(unsafe.Pointer(&slot.buffer[0])), 4096, false, mask, nil, &slot.overlapped, 0)
+	err := windows.ReadDirectoryChanges(slot.handle, (*byte)(unsafe.Pointer(&slot.buffer[0])), 4096, false, mask, nil, &slot.overlapped, 0) //nolint:gosec // G103: the Windows API takes a raw pointer to this fixed-layout value
 	if err != nil && !errors.Is(err, windows.ERROR_IO_PENDING) {
 		return domain.ErrScanUnavailable
 	}
@@ -123,7 +123,7 @@ func (b *directoryWatchBackend) Poll(ctx context.Context, wait time.Duration) (b
 	// requests reconciliation; no event-supplied pathname is used for file I/O.
 	structure := size == 0 || err != nil || size > 4096
 	if !structure {
-		data := unsafe.Slice((*byte)(unsafe.Pointer(&slot.buffer[0])), int(size))
+		data := unsafe.Slice((*byte)(unsafe.Pointer(&slot.buffer[0])), int(size)) //nolint:gosec // G103: the Windows API takes a raw pointer to this fixed-layout value
 		for offset := uint32(0); offset < size; {
 			if size-offset < 12 {
 				structure = true

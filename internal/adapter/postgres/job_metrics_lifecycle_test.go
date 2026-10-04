@@ -11,7 +11,6 @@ import (
 	"github.com/MoYuanCN/Jelee/internal/adapter/scan"
 	"github.com/MoYuanCN/Jelee/internal/app"
 	"github.com/MoYuanCN/Jelee/internal/domain"
-	"github.com/jackc/pgx/v5"
 )
 
 func lifecycleMetrics(t *testing.T, f jobFixture) app.JobMetricsSnapshot {
@@ -386,7 +385,7 @@ func TestJobMetricsTransactionAndSavepointRollback(t *testing.T) {
 				t.Fatal(err)
 			}
 			defer outer.Rollback(context.Background())
-			var tx pgx.Tx = outer
+			tx := outer
 			if savepoint {
 				tx, err = outer.Begin(f.ctx)
 				if err != nil {

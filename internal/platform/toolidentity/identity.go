@@ -84,7 +84,7 @@ func diagnose(ctx context.Context, project string, spec tools.FFprobeSpecificati
 		return fail("unsafe_path")
 	}
 	project = filepath.Clean(project)
-	before, err := os.Lstat(project)
+	before, err := os.Lstat(project) //nolint:gosec // G703: the project root comes from configuration
 	if err != nil || !safeFileInfo(before, true) {
 		return fail("unsafe_path")
 	}

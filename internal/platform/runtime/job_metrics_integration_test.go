@@ -59,7 +59,7 @@ func startJobMetricsRuntime(t *testing.T, ctx context.Context, observer *pgx.Con
 		}
 		return listener, err
 	}
-	application := newWithLifetime(cfg, logger, life)
+	application := newWithLifetime(cfg, logger, life) //nolint:contextcheck // production constructor under test owns its lifetime context
 	if application.Err() != nil {
 		t.Fatal("build production shared metrics runtime")
 	}
@@ -78,7 +78,7 @@ func startJobMetricsRuntime(t *testing.T, ctx context.Context, observer *pgx.Con
 		"total_limit": float64(cfg.Resources.Total), "queue_limit": float64(cfg.Resources.Queue),
 	}
 	stopped := false
-	fixture.stop = func() {
+	fixture.stop = func() { //nolint:contextcheck // test cleanup stops the runtime with its own deadline
 		if stopped {
 			return
 		}

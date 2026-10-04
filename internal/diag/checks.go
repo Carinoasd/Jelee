@@ -207,7 +207,7 @@ func inspectRoot(path string) string {
 	case !info.IsDir():
 		return CodeRootNotDirectory
 	}
-	dir, err := os.Open(path)
+	dir, err := os.Open(path) //nolint:gosec // G304: path comes from validated server configuration
 	if err != nil {
 		return CodeRootUnreadable
 	}
@@ -285,7 +285,7 @@ func verifyTool(ctx context.Context, path, want string) (code string, found bool
 	if err != nil || !info.Mode().IsRegular() || info.Size() > maxToolBytes {
 		return CodeToolUnreadable, true
 	}
-	file, err := os.Open(path)
+	file, err := os.Open(path) //nolint:gosec // G304: path comes from validated server configuration
 	if err != nil {
 		return CodeToolUnreadable, true
 	}

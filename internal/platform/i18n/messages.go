@@ -16,7 +16,7 @@ func Message(code, acceptLanguage, fallback string) string {
 // The catalog is package-private and is never modified after initialization.
 // Keep complete phrases together so their grammar is not assembled at runtime.
 var messages = map[string]map[string]string{
-	"en-US": {
+	"en-US": { //nolint:gosec // G101: translated messages, not credentials
 		"image_busy":                 "Image processing is busy. Try again later.",
 		"image_unavailable":          "Image is unavailable.",
 		"image_too_large":            "Image exceeds the processing limit.",
@@ -82,7 +82,7 @@ var messages = map[string]map[string]string{
 		"body_too_large":             "Request body exceeds the limit.",
 		"unsupported_media_type":     "Request content type is not supported.",
 	},
-	"zh-CN": {
+	"zh-CN": { //nolint:gosec // G101: translated messages, not credentials
 		"image_busy":                 "图片处理繁忙，请稍后重试。",
 		"image_unavailable":          "图片暂时不可用。",
 		"image_too_large":            "图片超过处理上限。",
@@ -148,7 +148,7 @@ var messages = map[string]map[string]string{
 		"body_too_large":             "请求正文超出大小限制。",
 		"unsupported_media_type":     "不支持此请求内容类型。",
 	},
-	"zh-TW": {
+	"zh-TW": { //nolint:gosec // G101: translated messages, not credentials
 		"image_busy":                 "圖片處理繁忙，請稍後重試。",
 		"image_unavailable":          "圖片暫時無法使用。",
 		"image_too_large":            "圖片超過處理上限。",
@@ -214,7 +214,7 @@ var messages = map[string]map[string]string{
 		"body_too_large":             "請求本文超出大小限制。",
 		"unsupported_media_type":     "不支援此請求內容類型。",
 	},
-	"ja-JP": {
+	"ja-JP": { //nolint:gosec // G101: translated messages, not credentials
 		"image_busy":                 "画像処理が混み合っています。しばらくしてから再試行してください。",
 		"image_unavailable":          "画像を利用できません。",
 		"image_too_large":            "画像が処理上限を超えています。",

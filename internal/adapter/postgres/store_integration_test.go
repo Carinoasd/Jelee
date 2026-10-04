@@ -105,7 +105,7 @@ func TestPostgresIntegration(t *testing.T) {
 			t.Fatal("acquire test migration lock")
 		}
 		var unlockOnce sync.Once
-		unlock := func() {
+		unlock := func() { //nolint:contextcheck // test cleanup unlocks with its own deadline after the test context ends
 			unlockOnce.Do(func() {
 				unlockCtx, stop := context.WithTimeout(context.Background(), 3*time.Second)
 				defer stop()

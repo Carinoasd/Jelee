@@ -180,12 +180,12 @@ func (f *RotatingFile) backupName() (string, error) {
 }
 
 func compressFile(path string) error {
-	in, err := os.Open(path)
+	in, err := os.Open(path) //nolint:gosec // G304: a rotated file inside the configured log directory
 	if err != nil {
 		return errors.New("cannot read rotated log file")
 	}
 	defer in.Close()
-	out, err := os.OpenFile(path+".gz", os.O_WRONLY|os.O_CREATE|os.O_EXCL, logFileMode)
+	out, err := os.OpenFile(path+".gz", os.O_WRONLY|os.O_CREATE|os.O_EXCL, logFileMode) //nolint:gosec // G304: a rotated file inside the configured log directory
 	if err != nil {
 		return errors.New("cannot create compressed log file")
 	}

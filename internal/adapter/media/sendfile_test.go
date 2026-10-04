@@ -236,7 +236,7 @@ func TestZeroCopyLoopbackCancellationRevocationAndTimeout(t *testing.T) {
 	t.Run("request cancelled", func(t *testing.T) {
 		calls := countZeroCopy(t)
 		server := newTrackedServer(t, zeroCopyHandler(t, source, Options{}))
-		response, cancel := stalledDownload(t, server, content)
+		response, cancel := stalledDownload(t, server, content) //nolint:bodyclose // stalledDownload closes the body in t.Cleanup
 		cancelled := time.Now()
 		cancel()
 		cut := server.waitDone(t, 2*time.Second).Sub(cancelled)
@@ -254,7 +254,7 @@ func TestZeroCopyLoopbackCancellationRevocationAndTimeout(t *testing.T) {
 		sessions := &fakeSessions{}
 		sessions.active.Store(true)
 		server := newTrackedServer(t, zeroCopyHandler(t, source, Options{Sessions: sessions, SessionCheckInterval: 200 * time.Millisecond}))
-		response, _ := stalledDownload(t, server, content)
+		response, _ := stalledDownload(t, server, content) //nolint:bodyclose // stalledDownload closes the body in t.Cleanup
 		sessions.active.Store(false)
 		revoked := time.Now()
 		cut := server.waitDone(t, 3*time.Second).Sub(revoked)
@@ -271,7 +271,7 @@ func TestZeroCopyLoopbackCancellationRevocationAndTimeout(t *testing.T) {
 	t.Run("client stalled past write timeout", func(t *testing.T) {
 		server := newTrackedServer(t, zeroCopyHandler(t, source, Options{WriteTimeout: 600 * time.Millisecond}))
 		started := time.Now()
-		response, _ := stalledDownload(t, server, content)
+		response, _ := stalledDownload(t, server, content) //nolint:bodyclose // stalledDownload closes the body in t.Cleanup
 		elapsed := server.waitDone(t, 3*time.Second).Sub(started)
 		t.Logf("stalled stream ended %v after start", elapsed)
 		if elapsed < 600*time.Millisecond {

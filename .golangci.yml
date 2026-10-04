@@ -1,0 +1,79 @@
+# golangci-lint configuration (G30.1). The pinned binary comes from
+# tools/manifest.json; run it through `make lint` or `scripts/make.ps1 lint`.
+#
+# Every linter required by G30.1 is enabled and none of them is switched off
+# globally. The exclusions below each name one false-positive class and the
+# reason it is a false positive; anything else that is not fixed in code is a
+# reviewed line-level `//nolint:<linter> // reason` or an entry in the
+# shrinking baseline tools/lint-baseline.json (see docs/lint.md).
+version: "2"
+
+run:
+  timeout: 15m
+  tests: true
+
+linters:
+  default: none
+  enable:
+    - errcheck
+    - staticcheck
+    - govet
+    - revive
+    - gosec
+    - bodyclose
+    - contextcheck
+  settings:
+    errcheck:
+      exclude-functions:
+        # Deferred Rollback after Commit is the documented pgx idiom: after a
+        # successful Commit it always returns pgx.ErrTxClosed, and on an
+        # error path the original error is what callers must see. Commit
+        # errors themselves stay checked.
+        - (github.com/jackc/pgx/v5.Tx).Rollback
+    staticcheck:
+      checks:
+        - all
+        # Quick-fix (QF*) checks are refactoring suggestions such as
+        # "apply De Morgan's law"; they never report a defect.
+        - -QF*
+        # golangci-lint's own default style exclusions: package comment
+        # form, initialism naming, receiver naming and dot imports.
+        - -ST1000
+        - -ST1003
+        - -ST1016
+        - -ST1020
+        - -ST1021
+        - -ST1022
+    gosec:
+      excludes:
+        # G104 duplicates errcheck (which is enabled with stricter rules);
+        # keeping both double-reports every unchecked error.
+        - G104
+  exclusions:
+    generated: strict
+    warn-unused: true
+    rules:
+      # Test-only false-positive classes. Tests create their inputs under
+      # t.TempDir(), start httptest servers on loopback, use fixed fake
+      # credentials, and run the project's own helper binaries.
+      - path: _test\.go
+        linters: [gosec]
+        text: "^(G101|G112|G115|G117|G122|G124|G204|G301|G302|G304|G306|G404|G602|G702|G703|G705|G710):"
+      # Tests deliberately pass a nil context to prove argument validation.
+      - path: _test\.go
+        linters: [staticcheck]
+        text: "^SA1012:"
+      # Developer tools under tools/ read and write repository files named by
+      # the developer on the command line and run the pinned toolchain; they
+      # never run in the server process or on untrusted input.
+      - path: ^tools/
+        linters: [gosec]
+        text: "^(G204|G301|G304|G306):"
+
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0
+  # Report every finding on a line. With the default (one per line) the
+  # surviving finding depends on linter scheduling, which made the baseline
+  # comparison nondeterministic.
+  uniq-by-line: false

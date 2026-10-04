@@ -48,7 +48,7 @@ func (t *TMDB) providerRequest(ctx context.Context, target string, maxBytes int6
 
 func retryDelay(raw string, now time.Time, attempt int) (time.Duration, bool) {
 	base := 250 * time.Millisecond * time.Duration(1<<attempt)
-	backoff := base + time.Duration(rand.Int64N(int64(base)/4+1))
+	backoff := base + time.Duration(rand.Int64N(int64(base)/4+1)) //nolint:gosec // G404: retry jitter, not a secret
 	if raw == "" {
 		return backoff, true
 	}

@@ -22,8 +22,15 @@ type jobDimensions struct {
 	kind, priority string
 }
 
-func fixedJobDimensions() [8]jobDimensions {
-	return [8]jobDimensions{
+// jobDimensionSet and jobOutcomeSet fix the label sets' sizes; their lengths
+// are compile-time constants.
+type (
+	jobDimensionSet = [8]jobDimensions
+	jobOutcomeSet   = [3]string
+)
+
+func fixedJobDimensions() jobDimensionSet {
+	return jobDimensionSet{
 		{"catalog_import", "background"},
 		{"catalog_import", "manual"},
 		{"catalog_sync", "background"},
@@ -35,7 +42,7 @@ func fixedJobDimensions() [8]jobDimensions {
 	}
 }
 
-func fixedJobOutcomes() [3]string { return [3]string{"succeeded", "failed", "cancelled"} }
+func fixedJobOutcomes() jobOutcomeSet { return jobOutcomeSet{"succeeded", "failed", "cancelled"} }
 
 // The snapshot is a value containing only fixed arrays. It stays immutable
 // after publication; the receipt fields describe this one gather separately.
@@ -219,15 +226,15 @@ func completeJobFamilies(families []*dto.MetricFamily) bool {
 				break
 			}
 		}
-		if index < 0 || seen[index] || family.GetType() != expected[index].kind {
+		if index < 0 || seen[index] || family.GetType() != expected[index].kind { //nolint:gosec // G602: index is -1 or a position in expected
 			return false
 		}
-		seen[index] = true
-		withOutcome := expected[index].kind == dto.MetricType_COUNTER
-		groups := uint(len(fixedJobDimensions()))
+		seen[index] = true                                            //nolint:gosec // G602: index is a position in expected
+		withOutcome := expected[index].kind == dto.MetricType_COUNTER //nolint:gosec // G602: index is a position in expected
+		groups := uint(len(jobDimensionSet{}))
 		want := uint32(1)<<groups - 1
 		if withOutcome {
-			want = uint32(1)<<(groups*uint(len(fixedJobOutcomes()))) - 1
+			want = uint32(1)<<(groups*uint(len(jobOutcomeSet{}))) - 1
 		}
 		var points uint32
 		for _, point := range family.Metric {

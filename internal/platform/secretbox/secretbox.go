@@ -71,7 +71,7 @@ func (b *Box) Seal(context string, plaintext []byte) ([]byte, error) {
 	if _, err := rand.Read(nonce); err != nil {
 		return nil, ErrSealed
 	}
-	return b.aead.Seal(out, nonce, plaintext, b.additional(context, out[:header])), nil
+	return b.aead.Seal(out, nonce, plaintext, b.additional(context, out[:header])), nil //nolint:gosec // G407: nonce is filled by crypto/rand just above
 }
 
 // Open reverses Seal. Every failure, including a different master key, is

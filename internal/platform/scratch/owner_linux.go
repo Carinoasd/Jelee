@@ -52,7 +52,7 @@ func platformStart() (string, bool) {
 // startTicks reads field 22 of /proc/<pid>/stat. The command name may contain
 // spaces or parentheses, so fields are counted after the last ')'.
 func startTicks(pid string) (string, error) {
-	raw, err := os.ReadFile("/proc/" + pid + "/stat")
+	raw, err := os.ReadFile("/proc/" + pid + "/stat") //nolint:gosec // G304: pid is a validated decimal process id
 	if err != nil {
 		return "", err
 	}

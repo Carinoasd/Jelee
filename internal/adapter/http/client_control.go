@@ -135,7 +135,7 @@ func NewClientControl(ctx context.Context, store ClientControlStore, service *ap
 		return nil, err
 	}
 	c.cur.Store(state)
-	go c.run()
+	go c.run() //nolint:gosec,contextcheck // G118: background refresher lives until Close, not for one request
 	return c, nil
 }
 

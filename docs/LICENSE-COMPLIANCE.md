@@ -66,3 +66,7 @@ Jelee 本仓库派生自 [Jellyfin](https://github.com/jellyfin/jellyfin)。审�
 ## 圖片縮放依賴
 
 `golang.org/x/image v0.46.0` 使用 BSD 三條款授權，Copyright (c) 2009 The Go Authors；完整聲明保留於 `internal/adapter/images/LICENSE.x-image`，正式容器另附於 `/licenses/x-image/LICENSE`。版本與校驗值由 go.mod/go.sum 固定；本地圖片縮圖使用 `draw.ApproxBiLinear`（EXIF 方向以同一插值器的仿射 `Transform`），WebP／BMP／TIFF 解碼使用同一固定版本的 `webp`、`bmp`、`tiff` 子套件；JPEG／PNG／GIF 解碼與 JPEG 編碼使用固定 Go SDK。
+
+## 靜態分析工具（golangci-lint）
+
+`golangci-lint` 2.14.0 以 GPL-3.0 授權，版權屬 golangci-lint 作者與貢獻者；所含各 linter 保留各自授權。它只在開發機與 CI 中被執行（`make lint`／`scripts/make.ps1 lint`），不被 Jelee 程式匯入或連結，也不進入任何建置產物、容器映像或發行包，因此不構成 Jelee 的分發內容。官方發行包中的完整 `LICENSE` 隨安裝保留在被忽略的 `.tools/golangci-lint/` 目錄，並在 `tools-verify` 時與已校驗壓縮包逐位元組比對。版本、官方 HTTPS 來源與 SHA256 固定在 `tools/manifest.json`，來源細節見 `docs/THIRD-PARTY-TOOLS.md`。

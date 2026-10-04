@@ -17,7 +17,7 @@ func loadTMDBKey(lookup func(string) (string, bool)) (string, error) {
 		if path == "" {
 			return "", errors.New("cannot read TMDB credential file")
 		}
-		f, err := os.Open(path)
+		f, err := os.Open(path) //nolint:gosec // G304: the operator names the secret file
 		if err != nil {
 			return "", errors.New("cannot read TMDB credential file")
 		}

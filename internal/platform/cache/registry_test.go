@@ -62,7 +62,7 @@ func TestRegistryNamesAndReplacement(t *testing.T) {
 	if len(r.Snapshot()) != 0 {
 		t.Fatal("unregister")
 	}
-	if Default() == nil || Default() != Default() {
+	if Default() == nil || Default() != Default() { //nolint:staticcheck // SA4000: proves Default returns one shared registry
 		t.Fatal("default registry")
 	}
 }

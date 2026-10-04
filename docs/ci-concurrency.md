@@ -19,3 +19,5 @@ GitHub支援根層級concurrency與cancel-in-progress，且建議讓不同workfl
 04a80ad9f9舊head的兩平台Go及真PostgreSQL已通過，整份workflow的failure來自完整品牌門禁。新head仍必須核對自己的CI；這項排程改善沒有清除14,735項品牌殘留或實際ABI差異，也不代表全案通過。
 
 [來源與執行證據](evidence/ci-concurrency.json)。
+
+2026-10-04 起 `jelee.yml` 新增 `bench-regression` job（同機比較基準提交與目前提交的熱路徑基準，見[質量門禁](quality-gates.md)）。它屬於同一份 workflow，沿用上述根層級 concurrency 群組：同一分支的新推送會一併取消舊推送尚在執行的基準比較，被取消的執行不計為通過。

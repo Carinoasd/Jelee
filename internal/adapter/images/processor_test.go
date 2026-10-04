@@ -305,7 +305,7 @@ func TestImageProcessorSlotHeldUntilBodyClose(t *testing.T) {
 	if _, err := p.Render(context.Background(), source, domain.ImageRequest{}); err != domain.ErrImageBusy {
 		t.Fatal("EOF released response reservation")
 	}
-	if result.Body.Close() != nil || result.Body.Close() != nil {
+	if result.Body.Close() != nil || result.Body.Close() != nil { //nolint:staticcheck // SA4000: the second call proves Close is idempotent
 		t.Fatal("close is not idempotent")
 	}
 	if _, err := result.Body.Read(make([]byte, 1)); err != io.ErrClosedPipe {

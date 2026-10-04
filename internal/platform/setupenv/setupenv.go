@@ -85,7 +85,7 @@ func (e *Environment) InspectDirectory(ctx context.Context, path string) (app.Se
 	if !status.Directory {
 		return status, nil
 	}
-	dir, err := os.Open(path)
+	dir, err := os.Open(path) //nolint:gosec // G304: the operator names the setup directory
 	if err != nil {
 		return status, nil
 	}

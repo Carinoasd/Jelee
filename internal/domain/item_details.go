@@ -85,7 +85,7 @@ func BuildItemDetails(r ItemDetailsRecord) ItemDetails {
 		var ids []NFOUniqueID
 		if json.Unmarshal(r.UniqueIDs, &ids) == nil {
 			for _, id := range ids {
-				d.ExternalIDs = append(d.ExternalIDs, ItemExternalID{Type: id.Type, Value: id.Value, Default: id.Default})
+				d.ExternalIDs = append(d.ExternalIDs, ItemExternalID(id))
 			}
 		}
 	}

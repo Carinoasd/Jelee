@@ -89,7 +89,7 @@ func TestAccountCLICommandRoutingAndPrivateSummary(t *testing.T) {
 	for _, command := range []string{"bootstrap", "set-password"} {
 		t.Run(command, func(t *testing.T) {
 			f := newAccountCLIFixture()
-			ctx := context.WithValue(context.Background(), struct{}{}, "caller marker")
+			ctx := context.WithValue(context.Background(), accountTestContextKey{}, "caller marker")
 			args := accountArgs(command)
 			if command == "bootstrap" {
 				args = append(args, "--display-name", "管理员", "--locale", "ja-JP")
@@ -392,3 +392,6 @@ func TestAccountCLIRealConfigFailureDoesNotExposePath(t *testing.T) {
 		t.Fatalf("unsafe config error: %d %s", exit, &diagnostics)
 	}
 }
+
+// accountTestContextKey marks the caller context so tests can see it forwarded.
+type accountTestContextKey struct{}

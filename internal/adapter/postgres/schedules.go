@@ -7,6 +7,7 @@ import (
 	"github.com/MoYuanCN/Jelee/internal/app"
 	"github.com/MoYuanCN/Jelee/internal/domain"
 	"github.com/jackc/pgx/v5"
+	"math"
 	"time"
 )
 
@@ -38,7 +39,7 @@ func (s *Store) GetScanSchedule(ctx context.Context, a domain.Actor, library str
 }
 
 func (s *Store) PutScanSchedule(ctx context.Context, a domain.Actor, library string, input domain.ScanScheduleInput, calendar app.ScheduleCalendar) (domain.ScanSchedule, error) {
-	if ctx == nil || calendar == nil || !domain.ValidID(library) || input.ExpectedRevision < 0 || input.ExpectedRevision >= 9223372036854775807 || domain.ValidateScanIntentWithFamilyIgnore(domain.ScanIntent{Ignore: domain.IgnoreIntent(input.Ignore)}) != nil {
+	if ctx == nil || calendar == nil || !domain.ValidID(library) || input.ExpectedRevision < 0 || input.ExpectedRevision == math.MaxInt64 || domain.ValidateScanIntentWithFamilyIgnore(domain.ScanIntent{Ignore: domain.IgnoreIntent(input.Ignore)}) != nil {
 		return domain.ScanSchedule{}, domain.ErrInvalid
 	}
 	tx, err := s.authorizedJobs(ctx, a)

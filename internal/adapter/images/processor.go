@@ -369,7 +369,7 @@ func (p *Processor) render(ctx context.Context, request domain.ImageRequest, med
 		return result, err
 	}
 	operation, cancel := context.WithTimeout(ctx, p.options.Timeout)
-	stopLifetime := context.AfterFunc(p.lifetime, cancel)
+	stopLifetime := context.AfterFunc(p.lifetime, cancel) //nolint:contextcheck // the processor lifetime also cancels the request-derived operation context
 	var once sync.Once
 	release := func() { once.Do(func() { stopLifetime(); cancel(); p.release() }) }
 	success := false

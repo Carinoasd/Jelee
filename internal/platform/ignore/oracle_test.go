@@ -353,8 +353,8 @@ func TestGitOracle(t *testing.T) {
 			continue
 		}
 		t.Run(tc.Name, func(t *testing.T) {
-			repo := o.fixture(t, index, tc)
-			got := o.check(t, repo, tc.Case, tc.Queries)
+			repo := o.fixture(t, index, tc)              //nolint:contextcheck // Git oracle helpers bound each command with their own timeout
+			got := o.check(t, repo, tc.Case, tc.Queries) //nolint:contextcheck // Git oracle helpers bound each command with their own timeout
 			p, err := ignore.Compile(ctx, tc.Sources, ignore.Options{Case: tc.Case})
 			if err != nil {
 				t.Fatal("matcher rejected oracle corpus", err)

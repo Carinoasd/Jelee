@@ -166,12 +166,12 @@ func replaceNFODocumentWithOperations(ctx context.Context, directory *os.Root, f
 	if err := ops.syncDirectory(directory); err == nil {
 		return nil
 	}
-	current, err := verifyNFOOriginal(context.Background(), directory, filename, replacement.original, stagedInfo)
+	current, err := verifyNFOOriginal(context.Background(), directory, filename, replacement.original, stagedInfo) //nolint:contextcheck // cleanup after an irrevocable step must finish even when the caller's context is cancelled
 	if err != nil || !os.SameFile(stagedInfo, current) {
 		retainRollback = true
 		return ErrRollback
 	}
-	if _, err := verifyNFOOriginal(context.Background(), directory, rollback, original.original, rollbackInfo); err != nil {
+	if _, err := verifyNFOOriginal(context.Background(), directory, rollback, original.original, rollbackInfo); err != nil { //nolint:contextcheck // cleanup after an irrevocable step must finish even when the caller's context is cancelled
 		retainRollback = true
 		return ErrRollback
 	}

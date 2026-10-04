@@ -27,7 +27,7 @@ func progressTableWrites(t *testing.T, ctx context.Context, dsn string) map[stri
 	if err != nil {
 		t.Fatal("connect for statistics")
 	}
-	defer conn.Close(context.Background())
+	defer func() { _ = conn.Close(context.Background()) }() //nolint:contextcheck // cleanup runs after the test context ends
 	rows, err := conn.Query(ctx, `SELECT relname,n_tup_ins,n_tup_upd,n_tup_del FROM pg_stat_user_tables
  WHERE schemaname=current_schema() AND relname IN ('playback_sessions','playback_samples','user_item_data','sessions')`)
 	if err != nil {

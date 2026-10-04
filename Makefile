@@ -13,11 +13,27 @@ BENCH_TIME ?= 500ms
 BENCH_CURRENT ?= .testdata/bench-current.txt
 BENCH_BASELINE ?= docs/evidence/bench-baseline.txt
 BENCHGATE_FLAGS ?=
+# Same-runner regression gate: base commit vs working tree (CI passes the PR
+# base or the previous push); see docs/quality-gates.md.
+BENCH_BASE_REF ?=
+BENCH_COMPARE_FLAGS ?=
+
+# golangci-lint (G30.1). Findings outside tools/lint-baseline/<goos>.json fail;
+# the baseline may only shrink (lint-baseline-prune). CGO is off so every
+# host type-checks the same files.
+GOLANGCI_LINT := $(CURDIR)/.bin/golangci-lint
+LINT_GOOS ?= linux
+LINT_REPORT = .testdata/golangci-lint-$(LINT_GOOS).json
+LINT_BASELINE = tools/lint-baseline/$(LINT_GOOS).json
+# Per-package coverage ratchet (core >=70%, critical >=85%).
+COVER_CONFIG := tools/coverage-thresholds.json
+COVER_PROFILE ?= .testdata/coverage-gate.out
+COVER_PKGS = $(shell $(PYTHON) -c 'import json; print(" ".join("./" + p["path"] for p in json.load(open("$(COVER_CONFIG)"))["packages"]))')
 
 NPM := $(CURDIR)/.bin/npm
 WEB := --workspace @jelee/web
 
-.PHONY: backup-drill backup-scale image-memory-test image-memory-smoke-test scan-memory-test scan-memory-smoke-test runtime-memory-test runtime-memory-worker-test memory-contract-test i18n-check family-ignore-sustained-worker-test ignore-sustained-test init bootstrap bootstrap-media bootstrap-runtime runtime-tools-verify runtime-toolchain-test probe-runtime-test probe-worker-test nfo-worker-test family-ignore-worker-test ignore-oracle-test sandbox-test tools-verify media-tools-verify tools-clean fixtures fixtures-test build test test-race test-integration coverage fmt fmt-check lint toolchain-test media-toolchain-test brand-scan brand-scan-incremental gitignore-check openapi openapi-check migrate doctor bench bench-check benchgate-test doc-check dev nfo diag web-install web-build web-test web-lint web-types test-race-nonpostgres test-race-postgres-shard go-test-shard-test
+.PHONY: backup-drill backup-scale image-memory-test image-memory-smoke-test scan-memory-test scan-memory-smoke-test runtime-memory-test runtime-memory-worker-test memory-contract-test i18n-check family-ignore-sustained-worker-test ignore-sustained-test init bootstrap bootstrap-media bootstrap-runtime runtime-tools-verify runtime-toolchain-test probe-runtime-test probe-worker-test nfo-worker-test family-ignore-worker-test ignore-oracle-test sandbox-test tools-verify media-tools-verify tools-clean fixtures fixtures-test build test test-race test-integration coverage fmt fmt-check lint toolchain-test media-toolchain-test brand-scan brand-scan-incremental gitignore-check openapi openapi-check migrate doctor bench bench-check benchgate-test doc-check dev nfo diag web-install web-build web-test web-lint web-types test-race-nonpostgres test-race-postgres-shard go-test-shard-test golangci-lint lint-baseline-prune coverage-check coverage-ratchet bench-compare quality-gates-test
 init: bootstrap
 bootstrap:
 	sh scripts/bootstrap-tools
@@ -106,14 +122,43 @@ bench-check: bench
 	"$(GO)" run ./tools/benchgate -base "$(BENCH_BASELINE)" -current "$(BENCH_CURRENT)" $(BENCHGATE_FLAGS)
 benchgate-test:
 	"$(GO)" test -count=1 ./tools/benchgate
+# Run on the same runner: base commit and head alternate, medians gated with
+# runner-noise thresholds (-ns 25 -allocs 10 -bytes 20).
+bench-compare:
+	@test -n "$(BENCH_BASE_REF)" || { echo 'BENCH_BASE_REF must name the base commit' >&2; exit 2; }
+	$(PYTHON) -B scripts/bench-compare.py --go "$(GO)" --base-ref "$(BENCH_BASE_REF)" --packages "$(BENCH_PKGS)" --skip '$(BENCH_SKIP)' $(BENCH_COMPARE_FLAGS)
+quality-gates-test:
+	"$(GO)" test -count=1 ./tools/lintgate ./tools/covergate ./tools/benchgate
+	$(PYTHON) -B scripts/test_bench_compare.py
 coverage:
 	"$(GO)" test -count=1 -coverprofile=coverage.out ./...
+coverage-check:
+	mkdir -p .testdata
+	"$(GO)" test -count=1 -coverprofile="$(COVER_PROFILE)" $(COVER_PKGS)
+	"$(GO)" run ./tools/covergate -profile "$(COVER_PROFILE)" -config $(COVER_CONFIG)
+# Raise minimums to the measured coverage after adding tests (never lowers).
+coverage-ratchet:
+	mkdir -p .testdata
+	"$(GO)" test -count=1 -coverprofile="$(COVER_PROFILE)" $(COVER_PKGS)
+	"$(GO)" run ./tools/covergate -profile "$(COVER_PROFILE)" -config $(COVER_CONFIG) -update
 fmt:
 	"$(GO)" fmt ./...
 fmt-check:
 	$(PYTHON) scripts/check-format.py
 lint: fmt-check openapi-check doc-check
 	"$(GO)" vet ./...
+	$(MAKE) --no-print-directory golangci-lint
+golangci-lint:
+	mkdir -p .testdata
+	GOOS=$(LINT_GOOS) CGO_ENABLED=0 "$(GOLANGCI_LINT)" run --issues-exit-code=0 --show-stats=false --output.json.path="$(LINT_REPORT)" ./...
+	"$(GO)" run ./tools/lintgate -report "$(LINT_REPORT)" -baseline "$(LINT_BASELINE)"
+# After fixing baselined findings: drop them from both baselines. Never adds.
+lint-baseline-prune:
+	mkdir -p .testdata
+	for goos in linux windows; do \
+		GOOS=$$goos CGO_ENABLED=0 "$(GOLANGCI_LINT)" run --issues-exit-code=0 --show-stats=false --output.json.path=".testdata/golangci-lint-$$goos.json" ./... && \
+		"$(GO)" run ./tools/lintgate -report ".testdata/golangci-lint-$$goos.json" -baseline "tools/lint-baseline/$$goos.json" -prune || exit $$?; \
+	done
 toolchain-test:
 	$(PYTHON) -B scripts/test_toolchain.py
 brand-scan:

@@ -71,3 +71,5 @@ JPEG 標準庫的 encoder 型別未匯出，現有 `jpeg.Encode` 沒有 encoder 
 例：`make bench-check BENCHGATE_FLAGS='-ns 20 -bytes 25'`；也可以直接 `go run ./tools/benchgate -base A.txt -current B.txt`。
 
 目前提交的基線是在開發機（Ryzen 7 9850X3D、WSL2、go1.27.1、同時有其他負載）上產生，只供參考。同機連跑兩次的 ns/op 中位數差距最多約 11%，已接近 15% 門檻，所以正式基線必須在固定且閒置的 CI 硬體上用 `make bench` 重產並替換，門禁才有判斷力。每個優化提交仍應附 benchstat 前後數據（G26.4）；本工具是回歸門禁，不取代 benchstat 的統計檢定。
+
+CI 不拿這份開發機基線比對：`bench-regression` job 以 `make bench-compare` 在同一台 runner 上交替執行基準提交（PR base 或前一次 push）與目前提交的同一組基準，再用 benchgate 判定（ns/op +25%、allocs/op +10%、B/op +20%）。做法、門檻取捨與反向驗證見 [質量門禁](quality-gates.md#基準回歸同機比較)。

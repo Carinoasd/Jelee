@@ -472,7 +472,7 @@ func (s *Store) PutVariant(ctx context.Context, source, variant [32]byte, input 
 	defer staged.discard(s)
 	victims, err := s.publish(key, staged)
 	unlock()
-	s.removeVictims(victims)
+	s.removeVictims(victims) //nolint:contextcheck // evicting already-unpublished entries must not be skipped when the request ends
 	if err != nil {
 		return 0, err
 	}
@@ -558,7 +558,7 @@ func (s *Store) commit(ctx context.Context, key storeKey, staged *storeStaged) e
 	}
 	victims, err := s.publish(key, staged)
 	unlock()
-	s.removeVictims(victims)
+	s.removeVictims(victims) //nolint:contextcheck // evicting already-unpublished entries must not be skipped when the request ends
 	return err
 }
 
@@ -892,7 +892,7 @@ func (s *Store) open(ctx context.Context, key storeKey, verify bool) (object *St
 		if err := ctx.Err(); err != nil {
 			return nil, err
 		}
-		s.discardCorrupt(element, opened)
+		s.discardCorrupt(element, opened) //nolint:contextcheck // removing a corrupt entry must not be skipped when the request ends
 		return nil, domain.ErrNotFound
 	}
 	s.hits[key.class].Add(1)

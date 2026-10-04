@@ -81,7 +81,7 @@ func diagnose(ctx context.Context, platform string, factory func(context.Context
 		result.Reason = "temporary_unavailable"
 		return
 	}
-	input, err := os.Open(name)
+	input, err := os.Open(name) //nolint:gosec // G304: a file inside the private diagnostic directory
 	if err != nil {
 		result.Reason = "temporary_unavailable"
 		return

@@ -126,11 +126,11 @@ func (s *Store) LookupNFOBatch(parent context.Context, l domain.JobLease, token 
 	}
 	result := make([]domain.NFOLookup, 0, len(candidates))
 	for i, e := range entries {
-		kind, _, e2 := nfoLookup(ctx, tx, p, e, candidates[i])
+		kind, _, e2 := nfoLookup(ctx, tx, p, e, candidates[i]) //nolint:gosec // G602: checkNFOPrefix returns exactly len(candidates) entries
 		if e2 != nil {
 			return nil, e2
 		}
-		result = append(result, domain.NFOLookup{InventoryID: candidates[i].InventoryID, Kind: kind})
+		result = append(result, domain.NFOLookup{InventoryID: candidates[i].InventoryID, Kind: kind}) //nolint:gosec // G602: checkNFOPrefix returns exactly len(candidates) entries
 	}
 	if _, err = commitNFOPhase(ctx, tx, l, p); err != nil {
 		return nil, err

@@ -325,7 +325,9 @@ func TestNFOCommitFilePersistenceDeferredLeaseAndRollback(t *testing.T) {
 					t.Fatal(err)
 				}
 				if reason == "rollback" {
-					err = tx.Rollback(f.ctx)
+					if err = tx.Rollback(f.ctx); err != nil {
+						t.Fatal(err)
+					}
 				} else {
 					switch reason {
 					case "expiry":

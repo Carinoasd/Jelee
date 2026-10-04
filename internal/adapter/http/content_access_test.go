@@ -96,7 +96,7 @@ func TestContentAccessHTTPPostgres(t *testing.T) {
 	if _, err := store.Pool.Exec(ctx, `INSERT INTO item_metadata_fields(item_id,field,value,source,updated_at) VALUES($1::uuid,'mpaa','TV-MA','manual',now())`, item); err != nil {
 		t.Fatal(err)
 	}
-	status, envelope, body = webhookHTTP(t, handler, http.MethodPut, base, f.adminToken, map[string]any{"parentalRatingMax": 14, "blockedTags": []string{"Horror"}})
+	status, _, body = webhookHTTP(t, handler, http.MethodPut, base, f.adminToken, map[string]any{"parentalRatingMax": 14, "blockedTags": []string{"Horror"}})
 	if status != http.StatusOK || !strings.Contains(body, `"blockedTags":["horror"]`) || !strings.Contains(body, `"parentalRatingMax":14`) {
 		t.Fatalf("set content access %d %s", status, body)
 	}

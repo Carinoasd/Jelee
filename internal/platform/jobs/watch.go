@@ -98,7 +98,7 @@ type activeWatch struct {
 
 func (w *WatchRunner) run(ctx context.Context) {
 	active := make(map[string]*activeWatch)
-	defer func() {
+	defer func() { //nolint:contextcheck // shutdown releases leases with a fresh deadline after the run context is cancelled
 		for _, watch := range active {
 			watch.cancel()
 		}

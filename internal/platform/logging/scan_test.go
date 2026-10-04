@@ -52,7 +52,7 @@ func (s stringer) String() string { return s.s }
 type valuer struct{ s string }
 
 func (v valuer) LogValue() slog.Value {
-	return slog.GroupValue(slog.String("token", v.s), slog.String("path", v.s), slog.Any("nested", valuerString{v.s}))
+	return slog.GroupValue(slog.String("token", v.s), slog.String("path", v.s), slog.Any("nested", valuerString(v)))
 }
 
 type valuerString struct{ s string }

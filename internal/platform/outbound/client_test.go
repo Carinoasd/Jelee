@@ -124,7 +124,7 @@ func TestPinnedDialAndFreshConnectionRebinding(t *testing.T) {
 	c, dials := mappedClient(t, srv, func(context.Context, string, string) ([]netip.Addr, error) {
 		lookups++
 		if lookups == 1 {
-			return publicLookup(nil, "", "")
+			return publicLookup(nil, "", "") //nolint:contextcheck // the fake resolver ignores its context
 		}
 		return []netip.Addr{netip.MustParseAddr("127.0.0.1")}, nil
 	})
@@ -143,7 +143,10 @@ func TestRedirectsNeverContactSecondTarget(t *testing.T) {
 	for _, target := range []string{"http://127.0.0.1/?secret=token", "http://169.254.169.254/", "http://fetch.example/next", "http://other.example/next"} {
 		t.Run(target, func(t *testing.T) {
 			requests := new(atomic.Int32)
-			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { requests.Add(1); http.Redirect(w, r, target, 302) }))
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				requests.Add(1)
+				http.Redirect(w, r, target, http.StatusFound)
+			}))
 			defer srv.Close()
 			c, dials := mappedClient(t, srv, publicLookup)
 			_, err := c.Fetch(context.Background(), "http://fetch.example/?api_key=secret", 128)

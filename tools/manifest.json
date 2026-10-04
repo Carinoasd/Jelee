@@ -530,6 +530,59 @@
       }
     },
     {
+      "name": "golangci-lint",
+      "version": "2.14.0",
+      "builtWith": "go1.27.0 (reported by `golangci-lint version`, commit 114493f9, 2026-09-24)",
+      "purpose": "G30.1 static analysis gate: errcheck, staticcheck, govet, revive, gosec, bodyclose and contextcheck configured in .golangci.yml; never a runtime dependency of the Go server",
+      "required": true,
+      "license": "GPL-3.0 (golangci-lint, LICENSE file in the release archive); the bundled linters retain their own licenses. Development tool only: executed locally and in CI, never linked into or distributed with Jelee",
+      "attribution": "golangci-lint authors and contributors (github.com/golangci/golangci-lint)",
+      "homepage": "https://golangci-lint.run/",
+      "metadataSource": "https://github.com/golangci/golangci-lint/releases/tag/v2.14.0",
+      "checksumURL": "https://github.com/golangci/golangci-lint/releases/download/v2.14.0/golangci-lint-2.14.0-checksums.txt",
+      "checksumVerification": "SHA256 values copied from the official release checksums file on 2026-10-04; the linux-amd64 and windows-amd64 archives were downloaded and re-hashed to the same values",
+      "verifiedOn": "2026-10-04",
+      "cache": "cache/golangci-lint",
+      "platforms": {
+        "windows-amd64": {
+          "url": "https://github.com/golangci/golangci-lint/releases/download/v2.14.0/golangci-lint-2.14.0-windows-amd64.zip",
+          "sha256": "b15f903d1649283a2ab6e8d2f0c317eaf1f9f6b3763950e7e8b7e72a43dd724f",
+          "archive": "zip",
+          "installPath": "golangci-lint/2.14.0/windows-amd64",
+          "archiveRoot": "golangci-lint-2.14.0-windows-amd64",
+          "executable": "golangci-lint-2.14.0-windows-amd64/golangci-lint.exe",
+          "licenseFile": "golangci-lint-2.14.0-windows-amd64/LICENSE"
+        },
+        "windows-arm64": {
+          "url": "https://github.com/golangci/golangci-lint/releases/download/v2.14.0/golangci-lint-2.14.0-windows-arm64.zip",
+          "sha256": "6399496aef883e5d2f77ea93e6e54fdd05bc2695f64071d8de0b0579cad92274",
+          "archive": "zip",
+          "installPath": "golangci-lint/2.14.0/windows-arm64",
+          "archiveRoot": "golangci-lint-2.14.0-windows-arm64",
+          "executable": "golangci-lint-2.14.0-windows-arm64/golangci-lint.exe",
+          "licenseFile": "golangci-lint-2.14.0-windows-arm64/LICENSE"
+        },
+        "linux-amd64": {
+          "url": "https://github.com/golangci/golangci-lint/releases/download/v2.14.0/golangci-lint-2.14.0-linux-amd64.tar.gz",
+          "sha256": "ab90aeb7b066f92a33415b638a50fe5344bbb75a0d32ad30cc248d88f81032ab",
+          "archive": "tar.gz",
+          "installPath": "golangci-lint/2.14.0/linux-amd64",
+          "archiveRoot": "golangci-lint-2.14.0-linux-amd64",
+          "executable": "golangci-lint-2.14.0-linux-amd64/golangci-lint",
+          "licenseFile": "golangci-lint-2.14.0-linux-amd64/LICENSE"
+        },
+        "linux-arm64": {
+          "url": "https://github.com/golangci/golangci-lint/releases/download/v2.14.0/golangci-lint-2.14.0-linux-arm64.tar.gz",
+          "sha256": "ee7ec5f3453d15ddf106fae5a4d6c71737712348a979d1fe9cd52ec7ea299bae",
+          "archive": "tar.gz",
+          "installPath": "golangci-lint/2.14.0/linux-arm64",
+          "archiveRoot": "golangci-lint-2.14.0-linux-arm64",
+          "executable": "golangci-lint-2.14.0-linux-arm64/golangci-lint",
+          "licenseFile": "golangci-lint-2.14.0-linux-arm64/LICENSE"
+        }
+      }
+    },
+    {
       "name": "playwright",
       "version": "1.63.0",
       "status": "reserved",

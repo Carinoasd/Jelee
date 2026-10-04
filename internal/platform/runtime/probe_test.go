@@ -122,7 +122,7 @@ func TestProbeVerifiedIdentityPolicyDisableAndCleanup(t *testing.T) {
 	if backend.calls != 2 || p.probeCalls.Load() != 1 || p.inspectCalls.Load() != 1 || p.Available() {
 		t.Fatal("disable did not stop calls")
 	}
-	if p.Close() != nil || p.Close() != nil || closed != 1 {
+	if p.Close() != nil || p.Close() != nil || closed != 1 { //nolint:staticcheck // SA4000: the second call proves Close is idempotent
 		t.Fatal("close not exactly once")
 	}
 	identity = runtimeIdentity()

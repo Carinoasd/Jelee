@@ -37,7 +37,7 @@ func TestDirectoryImportCLIAndNFO(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		binary += ".exe"
 	}
-	if output, err := exec.CommandContext(ctx, filepath.Join(runtime.GOROOT(), "bin", "go"), "build", "-o", binary, "../../../cmd/jelee-cli").CombinedOutput(); err != nil {
+	if output, err := exec.CommandContext(ctx, filepath.Join(runtime.GOROOT(), "bin", "go"), "build", "-o", binary, "../../../cmd/jelee-cli").CombinedOutput(); err != nil { //nolint:staticcheck // SA1019: test helpers build with the toolchain running the test; project wrappers export GOROOT
 		t.Fatalf("build directory CLI: %v: %s", err, output)
 	}
 	credentialFile := filepath.Join(t.TempDir(), "database-url")

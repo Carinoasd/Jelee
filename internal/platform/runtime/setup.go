@@ -54,7 +54,7 @@ func prepareSetup(ctx context.Context, c config.Config, setup *app.Setup, logger
 func writeSetupToken(path, token string) error {
 	temporary := path + ".tmp"
 	_ = os.Remove(temporary)
-	file, err := os.OpenFile(temporary, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
+	file, err := os.OpenFile(temporary, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600) //nolint:gosec // G304: a temporary file beside the configured setup token
 	if err != nil {
 		return err
 	}

@@ -413,7 +413,7 @@ func (rt *router) attachImages(ctx context.Context, userID string, dtos []baseIt
 				}
 				for _, slot := range kind.slots {
 					if s, ok := slots[slot][0]; ok {
-						dtos[i].ImageTags[kind.name] = s.Tag()
+						dtos[i].ImageTags[kind.name] = s.Tag() //nolint:gosec // G602: i ranges over dtos
 						break
 					}
 				}
@@ -426,11 +426,11 @@ func (rt *router) attachImages(ctx context.Context, userID string, dtos []baseIt
 			if !ok {
 				break
 			}
-			dtos[i].BackdropImageTags = append(dtos[i].BackdropImageTags, s.Tag())
+			dtos[i].BackdropImageTags = append(dtos[i].BackdropImageTags, s.Tag()) //nolint:gosec // G602: i ranges over dtos
 		}
 		if s, ok := slots["Primary"][0]; aspect && ok && s.Width > 0 && s.Height > 0 {
 			ratio := float64(s.Width) / float64(s.Height)
-			dtos[i].PrimaryImageAspectRatio = &ratio
+			dtos[i].PrimaryImageAspectRatio = &ratio //nolint:gosec // G602: i ranges over dtos
 		}
 	}
 	return nil
