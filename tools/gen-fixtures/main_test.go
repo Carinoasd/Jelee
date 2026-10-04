@@ -121,7 +121,7 @@ func TestGenerateRealFixturesAndCancellation(t *testing.T) {
 	if err := json.Unmarshal(raw, &manifest); err != nil {
 		t.Fatal(err)
 	}
-	if manifest.SchemaVersion != 1 || len(manifest.Files) != 16 || manifest.ToolVersion == "" {
+	if manifest.SchemaVersion != 1 || len(manifest.Files) != 19 || manifest.ToolVersion == "" {
 		t.Fatalf("bad fixture manifest: %#v", manifest)
 	}
 	for _, entry := range manifest.Files {

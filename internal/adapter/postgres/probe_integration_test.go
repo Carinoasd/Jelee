@@ -295,6 +295,63 @@ func TestProbePersistAndHitPrefixCheckpoint(t *testing.T) {
 	}
 }
 
+// TestProbeParserUpgradeReprobesOnce pins the upgrade contract of a parser
+// or metadata schema bump: rows written under an earlier identity (here the
+// two unreleased media-metadata-v2 formats that media-metadata-v3 merged)
+// miss once, are probed again under the current identity, then hit.
+func TestProbeParserUpgradeReprobesOnce(t *testing.T) {
+	for index, previous := range []struct {
+		parser string
+		schema int
+	}{{"media-metadata-v2", 1}, {"media-metadata-v2", 2}, {"media-metadata-v1", 1}} {
+		t.Run(fmt.Sprintf("%s_schema%d", previous.parser, previous.schema), func(t *testing.T) {
+			if previous.parser == domain.ProbeParserVersion && previous.schema == domain.ProbeMetadataSchemaVersion {
+				t.Fatal("previous identity equals the current one")
+			}
+			f := newProbeFixture(t)
+			round := func(key string, want string) {
+				t.Helper()
+				l, _ := f.begin(t, key, "a.mkv")
+				page, candidates := f.page(t, l)
+				lookup, err := f.s.LookupProbeBatch(f.ctx, l, page.Token, candidates)
+				if err != nil || len(lookup) != 1 || lookup[0].Kind != want {
+					t.Fatalf("%s: lookup kind %v, want %v (%v)", key, lookup, want, err)
+				}
+				completion := domain.ProbeCompletion{Candidate: candidates[0], Kind: domain.ProbeCompletionHit}
+				if want == domain.ProbeLookupMiss {
+					lease, err := f.s.AcquireProbe(f.ctx, l, page.Token, candidates[0])
+					if err != nil {
+						t.Fatal(err)
+					}
+					completion = domain.ProbeCompletion{Candidate: candidates[0], Kind: domain.ProbeCompletionSucceeded, Lease: &lease, Metadata: probeTestMetadata()}
+				}
+				if _, err := f.s.CommitProbeBatch(f.ctx, l, page.Token, []domain.ProbeCompletion{completion}); err != nil {
+					t.Fatal(key, err)
+				}
+				f.finish(t, l)
+			}
+			round("first", domain.ProbeLookupMiss)
+			// Rewrite the stored row as if an earlier build had probed it. The
+			// old identity cannot be registered through the repository any more
+			// (validation pins the current parser), so it is inserted directly.
+			var old string
+			if err := f.s.Pool.QueryRow(f.ctx, `INSERT INTO tool_versions(identity_digest,platform,vendor_version,upstream_version,source_revision,executable_sha256,runtime_sha256,parser_version,metadata_schema_version,arguments_sha256,sandbox_version,fingerprint_version) SELECT decode(repeat($1,64),'hex'),platform,vendor_version,upstream_version,source_revision,executable_sha256,runtime_sha256,$2,$3,arguments_sha256,sandbox_version,fingerprint_version FROM tool_versions WHERE id=$4::uuid RETURNING id::text`, fmt.Sprint(index+1), previous.parser, previous.schema, f.identity.ID).Scan(&old); err != nil {
+				t.Fatal(err)
+			}
+			tag, err := f.s.Pool.Exec(f.ctx, `UPDATE probe_cache SET tool_version_id=$1::uuid WHERE state='ready'`, old)
+			if err != nil || tag.RowsAffected() != 1 {
+				t.Fatal("seed previous-identity row", err)
+			}
+			round("upgraded", domain.ProbeLookupMiss)
+			round("steady", domain.ProbeLookupHit)
+			var current string
+			if err := f.s.Pool.QueryRow(f.ctx, `SELECT tool_version_id::text FROM probe_cache WHERE state='ready'`).Scan(&current); err != nil || current != f.identity.ID {
+				t.Fatal("re-probed row kept the previous identity", err)
+			}
+		})
+	}
+}
+
 func TestProbeNegativeChangedAndUnavailableOutcomes(t *testing.T) {
 	f := newProbeFixture(t)
 	l, _ := f.begin(t, "negative", "a.mkv", "b.mkv", "c.mkv")
