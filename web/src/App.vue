@@ -40,14 +40,49 @@ watch(
 );
 
 // After each navigation, move focus to the new page's heading so keyboard
-// and screen reader users start at the top of the new content.
+// and screen reader users start at the top of the new content. Pages that
+// render their heading with their data (such as item details) get it once it
+// appears; the wait ends after a few seconds, on the next navigation, or as
+// soon as the user has moved focus elsewhere.
+let stopHeadingWait: (() => void) | null = null;
+function focusHeadingWhenReady(): void {
+  const focusIfPresent = (): boolean => {
+    const heading = document.querySelector<HTMLElement>("#main h1");
+    heading?.focus();
+    return heading !== null;
+  };
+  if (focusIfPresent()) {
+    return;
+  }
+  const main = document.querySelector("#main");
+  if (main === null) {
+    return;
+  }
+  const observer = new MutationObserver(() => {
+    const active = document.activeElement;
+    if (active !== null && active !== document.body) {
+      stop();
+    } else if (focusIfPresent()) {
+      stop();
+    }
+  });
+  const timer = window.setTimeout(() => {
+    stop();
+  }, 3000);
+  function stop(): void {
+    observer.disconnect();
+    window.clearTimeout(timer);
+    stopHeadingWait = null;
+  }
+  observer.observe(main, { childList: true, subtree: true });
+  stopHeadingWait = stop;
+}
 router.afterEach((to, from) => {
+  stopHeadingWait?.();
   if (from.matched.length === 0 || to.path === from.path) {
     return;
   }
-  void nextTick(() => {
-    document.querySelector<HTMLElement>("#main h1")?.focus();
-  });
+  void nextTick(focusHeadingWhenReady);
 });
 
 async function signOut() {

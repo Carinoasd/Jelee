@@ -86,13 +86,10 @@ test.describe("keyboard", () => {
   });
 });
 
-test.describe("known gaps", () => {
-  // G34.5 finding: App.vue focuses "#main h1" one tick after navigation, but
-  // the item detail heading only renders once the item has loaded, so focus
-  // stays on the document. Expected to fail until the focus handling waits
-  // for the heading; Playwright then reports an unexpected pass.
+test.describe("focus after navigation", () => {
+  // The item detail heading only renders once the item has loaded; App.vue
+  // waits for it (G34.5).
   test("focus moves to a heading that renders with its data", async ({ page }) => {
-    test.fail();
     await page.goto("/libraries/" + ids.movies);
     await expect(page.locator("#main h1")).toHaveText("Movies");
     await page.getByRole("link", { name: detailItem.title }).press("Enter");
