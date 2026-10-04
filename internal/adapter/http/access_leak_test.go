@@ -192,6 +192,19 @@ func leakRouteTable() map[string]leakRoute {
 		"DELETE /api/v1/items/{id}/played":         {mode: leakByID, params: itemParam, control: true},
 		"GET /api/v1/users/me/resume":              {mode: leakList, params: noParams, control: true},
 		"DELETE /api/v1/users/me/playback-history": exempt("deletes the caller's own playback history; carries no media identifiers"),
+		// Version decisions (G20.3, G20.5) are administrator-only; track
+		// preferences (G16.5) address the item by ID for every user, and a
+		// "{}" body keeps the visible control a valid replacement.
+		"GET /api/v1/items/{id}/versions":                             admin(itemParam),
+		"POST /api/v1/items/{id}/versions/split":                      admin(itemParam),
+		"POST /api/v1/items/{id}/versions/merge":                      admin(itemParam),
+		"PUT /api/v1/items/{id}/versions/primary":                     admin(itemParam),
+		"DELETE /api/v1/items/{id}/versions/exclusions/{exclusionId}": admin(map[string]string{"id": "item", "exclusionId": "opaque"}),
+		"POST /api/v1/version-operations/{id}/undo":                   admin(webhookParam),
+		"GET /api/v1/items/{id}/track-preferences":                    {mode: leakByID, params: itemParam, control: true},
+		"PUT /api/v1/items/{id}/track-preferences":                    {mode: leakByID, params: itemParam, control: true},
+		"GET /api/v1/users/me/track-preferences":                      noMedia(noParams, "caller's own default track preferences; languages and modes only"),
+		"PUT /api/v1/users/me/track-preferences":                      exempt("replaces the caller's own default track preferences; carries no media identifiers"),
 		// Watch statistics (G23.3, G48.3): the daily roll-up read with the
 		// viewer's library grants; the fixture seeds rows for both users on
 		// both items.
@@ -466,6 +479,9 @@ func leakHandlerWithAccounts(t *testing.T, store *postgres.Store, cfg config.Con
 	}
 	if err == nil {
 		catalog, err = catalog.WithDetails(store)
+	}
+	if err == nil {
+		catalog, err = catalog.WithVersions(store)
 	}
 	if err != nil {
 		t.Fatal(err)

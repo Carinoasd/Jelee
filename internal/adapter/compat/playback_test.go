@@ -493,3 +493,49 @@ func TestCanonicalLiteralPrefix(t *testing.T) {
 		}
 	}
 }
+
+// TestPlaybackInfoDefaultTracksFollowPreferences maps the tracks the user's
+// preferences picked (G16.5) to the upstream default stream indexes: an
+// embedded stream by its index, an external subtitle by its upstream
+// number, and -1 for no subtitle.
+func TestPlaybackInfoDefaultTracksFollowPreferences(t *testing.T) {
+	target := "/compat/Items/" + wire(testMovieID) + "/PlaybackInfo"
+	index := func(i int) *int { return &i }
+	base := func(tracks *domain.DefaultTracks) []domain.PlaybackSource {
+		return []domain.PlaybackSource{{
+			ID: testSourceID, Container: "mkv", ContentType: "video/x-matroska", Probed: true,
+			Video:         []domain.PlaybackVideoTrack{{Index: 0, Codec: "hevc", Primary: true}},
+			Audio:         []domain.PlaybackAudioTrack{{Index: 1, Codec: "eac3", Language: "eng", Default: true}, {Index: 2, Codec: "aac", Language: "jpn"}},
+			Subtitles:     []domain.PlaybackSubtitleTrack{{Index: 3, Codec: "subrip", Format: "srt", Language: "chi"}},
+			External:      []domain.PlaybackExternalTrack{{ID: testSrtTrackID, Kind: "subtitle", Format: "srt", Codec: "srt", Language: "eng"}},
+			DefaultTracks: tracks,
+		}}
+	}
+	for _, tc := range []struct {
+		name            string
+		tracks          *domain.DefaultTracks
+		audio, subtitle string
+	}{
+		{"no preference information", nil, `"DefaultAudioStreamIndex":1`, ""},
+		{"embedded audio and subtitle", &domain.DefaultTracks{Audio: &domain.TrackSelection{Kind: domain.TrackEmbedded, Index: index(2)}, Subtitle: &domain.TrackSelection{Kind: domain.TrackEmbedded, Index: index(3)}},
+			`"DefaultAudioStreamIndex":2`, `"DefaultSubtitleStreamIndex":3`},
+		{"external subtitle numbered after the streams", &domain.DefaultTracks{Subtitle: &domain.TrackSelection{Kind: domain.TrackExternal, ID: testSrtTrackID}},
+			`"DefaultAudioStreamIndex":1`, `"DefaultSubtitleStreamIndex":4`},
+		{"no subtitle", &domain.DefaultTracks{Audio: &domain.TrackSelection{Kind: domain.TrackExternal, ID: "f1000000-0000-4000-8000-000000000003"}},
+			`"DefaultAudioStreamIndex":1`, `"DefaultSubtitleStreamIndex":-1`},
+		{"unknown external subtitle", &domain.DefaultTracks{Subtitle: &domain.TrackSelection{Kind: domain.TrackExternal, ID: testAssTrackID}},
+			`"DefaultAudioStreamIndex":1`, `"DefaultSubtitleStreamIndex":-1`},
+	} {
+		h := newPlaybackHarness(t, http.StatusNotFound)
+		h.catalog.sources = base(tc.tracks)
+		body := h.post(target, nativeToken, "").Body.String()
+		if !strings.Contains(body, tc.audio) || tc.subtitle == "" && strings.Contains(body, "DefaultSubtitleStreamIndex") || tc.subtitle != "" && !strings.Contains(body, tc.subtitle) {
+			t.Fatalf("%s: %s", tc.name, body)
+		}
+	}
+	// Without direct delivery an external subtitle has no stream index.
+	source := base(&domain.DefaultTracks{Subtitle: &domain.TrackSelection{Kind: domain.TrackExternal, ID: testSrtTrackID}})[0]
+	if got := defaultSubtitleIndex(source, false); got == nil || *got != -1 {
+		t.Fatal("external subtitle without delivery", got)
+	}
+}

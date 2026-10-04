@@ -70,6 +70,14 @@ export function errorMessageKey(error: ApiError): string {
     case "image_busy":
     case "jobs_busy":
       return "errors.busy";
+    case "version_identity_conflict":
+      return "versions.errors.identity";
+    case "version_merge_incompatible":
+      return "versions.errors.incompatible";
+    case "version_undo_unavailable":
+      return "versions.errors.undo";
+    case "version_item_busy":
+      return "versions.errors.busy";
     case "internal_error":
       return "errors.server";
     default:

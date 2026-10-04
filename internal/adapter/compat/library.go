@@ -136,10 +136,14 @@ type mediaSourceInfo struct {
 	SupportsProbing       bool          `json:"SupportsProbing"`
 	MediaStreams          []mediaStream `json:"MediaStreams"`
 	Bitrate               *int64        `json:"Bitrate,omitempty"`
-	// DefaultAudioStreamIndex is the default embedded audio stream, else
-	// the first one.
+	// DefaultAudioStreamIndex is the embedded audio stream the user's track
+	// preferences pick (G16.5), else the default one, else the first one.
 	DefaultAudioStreamIndex *int `json:"DefaultAudioStreamIndex,omitempty"`
-	HasSegments             bool `json:"HasSegments"`
+	// DefaultSubtitleStreamIndex is the subtitle stream the preferences
+	// pick, embedded or external, and -1 for none; absent without
+	// preference information.
+	DefaultSubtitleStreamIndex *int `json:"DefaultSubtitleStreamIndex,omitempty"`
+	HasSegments                bool `json:"HasSegments"`
 }
 
 // mediaStream is one embedded stream of a probed source or, with direct
@@ -828,6 +832,7 @@ func (rt *router) mediaSource(itemID string, source domain.PlaybackSource, name 
 		}
 		info.MediaStreams = append(info.MediaStreams, stream)
 	}
+	info.DefaultSubtitleStreamIndex = defaultSubtitleIndex(source, delivery)
 	if !delivery {
 		return info, nil
 	}
@@ -841,6 +846,34 @@ func (rt *router) mediaSource(itemID string, source domain.PlaybackSource, name 
 		})
 	}
 	return info, nil
+}
+
+// defaultSubtitleIndex maps the preferred subtitle to its stream index: an
+// embedded stream by its own index, an external file by its upstream
+// number, which only exists with direct delivery. Without preference
+// information the member stays absent and clients use the stream flags.
+func defaultSubtitleIndex(source domain.PlaybackSource, delivery bool) *int {
+	tracks := source.DefaultTracks
+	if tracks == nil {
+		return nil
+	}
+	none := -1
+	sub := tracks.Subtitle
+	switch {
+	case sub == nil:
+		return &none
+	case sub.Kind == domain.TrackEmbedded && sub.Index != nil:
+		index := *sub.Index
+		return &index
+	case sub.Kind == domain.TrackExternal && delivery:
+		for _, external := range externalSubtitles(source) {
+			if external.track.ID == sub.ID {
+				index := external.index
+				return &index
+			}
+		}
+	}
+	return &none
 }
 
 // ticks converts microseconds to the upstream 100-nanosecond ticks.

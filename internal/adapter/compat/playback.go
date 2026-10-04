@@ -323,11 +323,18 @@ func splitList(value string) []string {
 	return out
 }
 
-// defaultAudio is the embedded audio stream a player starts with: the
-// default one, else the first.
+// defaultAudio is the embedded audio stream a player starts with: the one
+// the user's track preferences pick, else the default one, else the first.
 func defaultAudio(source domain.PlaybackSource) (domain.PlaybackAudioTrack, bool) {
 	if len(source.Audio) == 0 {
 		return domain.PlaybackAudioTrack{}, false
+	}
+	if tracks := source.DefaultTracks; tracks != nil && tracks.Audio != nil && tracks.Audio.Kind == domain.TrackEmbedded && tracks.Audio.Index != nil {
+		for _, audio := range source.Audio {
+			if audio.Index == *tracks.Audio.Index {
+				return audio, true
+			}
+		}
 	}
 	for _, audio := range source.Audio {
 		if audio.Default {

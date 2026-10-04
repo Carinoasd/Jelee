@@ -332,8 +332,7 @@ func (p *Progress) open(ctx context.Context, actor domain.Actor, report domain.P
 		if report.SourceID != "" && candidate.ID != report.SourceID {
 			continue
 		}
-		if source == nil || report.SourceID == "" && (candidate.Version.QualityScore > source.Version.QualityScore ||
-			candidate.Version.QualityScore == source.Version.QualityScore && candidate.ID < source.ID) {
+		if source == nil || report.SourceID == "" && compareVersions(candidate, *source) < 0 {
 			c := candidate
 			source = &c
 		}

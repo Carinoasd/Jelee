@@ -85,6 +85,14 @@ func seedMetadataBackup(t testing.TB, ctx context.Context, s *Store, episodes in
  ('` + bkEpisode + `','` + bkLibShows + `','Episode','` + bkSeason + `','Season')`},
 		{"scan items", `INSERT INTO catalog_scan_items(item_id,library_id,kind,group_digest,parser_version,scan_title,year) VALUES ('` + bkMovie + `','` + bkLibMovies + `','Movie',decode(repeat('11',32),'hex'),'v1','Film',2020)`},
 		{"scan sources", `INSERT INTO catalog_scan_sources(source_id,library_id,item_id,root_id,relative_path,size,modified_unix_nano,parser_version) VALUES ('` + bkSrcMovie + `','` + bkLibMovies + `','` + bkMovie + `','` + bkRootMov + `','Film (2020)/Film.mkv',123456789,1700000000123456789,'v1')`},
+		{"scan alias", `INSERT INTO catalog_scan_item_aliases(library_id,kind,group_digest,item_id) VALUES ('` + bkLibMovies + `','Movie',decode(repeat('22',32),'hex'),'` + bkMovie + `')`},
+		{"manual scan source", `UPDATE catalog_scan_sources SET manual=true WHERE source_id='` + bkSrcMovie + `'`},
+		{"version exclusion", `INSERT INTO item_version_exclusions(item_id,library_id,root_id,relative_path,created_at) VALUES ('` + bkMovie + `','` + bkLibMovies + `','` + bkRootMov + `','Film (2020)/Film.Trailer.mkv','2026-09-01T01:00:00Z')`},
+		{"primary version", `INSERT INTO item_primary_versions(item_id,library_id,source_id,updated_at) VALUES ('` + bkMovie + `','` + bkLibMovies + `','` + bkSrcMovie + `','2026-09-01T02:00:00Z')`},
+		{"track preferences", `INSERT INTO user_track_preferences(user_id,item_id,source_id,audio_language,audio_commentary,audio_track,subtitle_mode,subtitle_language,subtitle_sdh,subtitle_track,updated_at) VALUES
+ ('` + bkKid + `',NULL,NULL,'zh-Hant',NULL,NULL,'auto','zh-Hant',false,NULL,'2026-09-03T00:00:00Z'),
+ ('` + bkKid + `','` + bkEpisode + `',NULL,'ja',true,NULL,NULL,NULL,NULL,NULL,'2026-09-03T00:00:01Z'),
+ ('` + bkKid + `','` + bkEpisode + `','` + bkSrcEp + `',NULL,NULL,'e:1','always',NULL,NULL,'x:b0000000-0000-4000-8000-0000000000aa','2026-09-03T00:00:02Z')`},
 		{"metadata state", `INSERT INTO item_metadata_state(item_id,revision) VALUES ('` + bkMovie + `',5),('` + bkEpisode + `',3)`},
 		{"metadata fields", `INSERT INTO item_metadata_fields(item_id,field,value,source,locked,updated_at) VALUES ('` + bkMovie + `','title','Film 手動','manual',true,'2026-09-01T00:00:00.5Z')`},
 		{"tmdb field", `INSERT INTO item_metadata_fields(item_id,field,value,source,updated_at,provider_resource,provider_id,provider_source_url,provider_language,provider_fetched_at)

@@ -94,7 +94,7 @@ func mediaSourceSchema(withURL bool) map[string]any {
 		external["url"] = map[string]any{"type": "string", "description": "Direct delivery route of the original file: /api/v1/sources/{id}/subtitles/{trackId} or /api/v1/sources/{id}/audio/{trackId}. Native sessions only."}
 		externalRequired = append(externalRequired, "url")
 	}
-	return objectSchema(map[string]any{
+	properties := map[string]any{
 		"id":             uuid,
 		"container":      map[string]any{"type": "string", "enum": []string{"mp4", "mkv", "webm", "mov", "avi", "mpegts"}, "description": "Container token derived from the stored content type."},
 		"contentType":    str,
@@ -118,5 +118,20 @@ func mediaSourceSchema(withURL bool) map[string]any {
 			"language": str, "default": boolean, "forced": boolean,
 		}, "index", "default", "forced")),
 		"externalTracks": array(objectSchema(external, externalRequired...)),
-	}, "id", "container", "contentType", "probed", "version", "videoTracks", "audioTracks", "subtitleTracks", "externalTracks")
+		"primary":        map[string]any{"type": "boolean", "description": "The administrator's main version (G20.3); listed first, then by qualityScore."},
+	}
+	if withURL {
+		selection := map[string]any{"oneOf": []any{objectSchema(map[string]any{
+			"kind":  map[string]any{"type": "string", "enum": []string{"embedded", "external"}},
+			"index": map[string]any{"type": "integer", "minimum": 0, "description": "Stream index of an embedded track."},
+			"id":    map[string]any{"type": "string", "format": "uuid", "description": "ID of an external track (externalTracks)."},
+		}, "kind"), map[string]any{"type": "null"}}}
+		properties["defaultTracks"] = objectSchema(map[string]any{
+			"audio":    selection,
+			"subtitle": map[string]any{"oneOf": selection["oneOf"], "description": "null: start without subtitles."},
+			"basis":    map[string]any{"type": "string", "enum": []string{"version", "item", "user", "locale", "source"}, "description": "The most specific preference level that decided; locale when only the account language applied, source when the file's own default flags did."},
+		}, "audio", "subtitle", "basis")
+		properties["defaultTracks"].(map[string]any)["description"] = "Tracks the caller's preferences pick (G16.5, G20.4). A client may start with others; nothing is converted."
+	}
+	return objectSchema(properties, "id", "container", "contentType", "probed", "version", "videoTracks", "audioTracks", "subtitleTracks", "externalTracks", "primary")
 }

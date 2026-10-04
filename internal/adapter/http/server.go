@@ -316,6 +316,7 @@ func newServer(cfg config.Config, backend Backend, catalog *app.Catalog, resolve
 			r.Get("/api/v1/items/{id}/sources", s.itemSources)
 			s.progressRoutes(r)
 			s.watchStatsRoutes(r)
+			s.versionRoutes(r)
 			if cfg.EnableDirect {
 				r.Get("/api/v1/sources/{id}/stream", s.stream)
 				r.Head("/api/v1/sources/{id}/stream", s.stream)
@@ -784,6 +785,14 @@ func WriteError(w http.ResponseWriter, r *http.Request, err error) {
 		status, code, message = 429, "session_limit", "Active session limit reached."
 	case errors.Is(err, domain.ErrPasswordMismatch):
 		status, code, message = 400, "invalid_password", "Current password is incorrect."
+	case errors.Is(err, domain.ErrVersionIdentityConflict):
+		status, code, message = 409, "version_identity_conflict", "Items name different works: their external IDs or episode numbers disagree."
+	case errors.Is(err, domain.ErrVersionMergeIncompatible):
+		status, code, message = 409, "version_merge_incompatible", "Items cannot be combined: they differ in kind, library or series, hold other items, or the version is the only one."
+	case errors.Is(err, domain.ErrVersionUndoUnavailable):
+		status, code, message = 409, "version_undo_unavailable", "This operation can no longer be undone, or a later one must be undone first."
+	case errors.Is(err, domain.ErrVersionItemBusy):
+		status, code, message = 409, "version_item_busy", "The item is being played or processed. Try again later."
 	case errors.Is(err, domain.ErrCustomCSSRejected):
 		status, code, message = 400, "custom_css_rejected", "Custom CSS was refused: it contains markup, escapes, control characters or unbalanced blocks, or is too long."
 	case errors.Is(err, errAuthRateLimited):

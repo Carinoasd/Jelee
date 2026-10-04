@@ -31,7 +31,7 @@ jelee-cli consistency enqueue --library ID|名稱 [--priority manual|background]
 | --- | --- | --- | --- | --- |
 | `orphan_item` | 孤兒條目（文件不存在） | 每個 `media_sources` 是否在基準中；不在的以 stat 確認 | `source_missing`、`source_missing_unconfirmed` | 否（刪除類） |
 | `orphan_file` | 孤兒文件（未入库） | 基準中的影片是否有對應來源；等待審核的待定檔（`catalog_scan_pending`）只計入 `info.pendingReview` | `video_not_cataloged` | 否 |
-| `version_count` | 版本计数错误 | 影片類條目（Movie／Episode／HomeVideo）至少要有一個版本（媒體來源），Series／Season 不應有；`user_item_data.last_source_id` 與播放工作階段的 `source_id` 只能指向自己條目的版本 | `video_item_without_source`、`container_item_with_source`、`user_data_foreign_source`、`session_foreign_source` | 後兩者：清除錯誤參照 |
+| `version_count` | 版本计数错误 | 影片類條目（Movie／Episode／HomeVideo）至少要有一個版本（媒體來源），Series／Season 不應有；`user_item_data.last_source_id` 與播放工作階段的 `source_id` 只能指向自己條目的版本，或被未撤銷的人工拆分移出此條目的版本（原條目保留它的播放紀錄，[多版本](item-versions.md)） | `video_item_without_source`、`container_item_with_source`、`user_data_foreign_source`、`session_foreign_source` | 後兩者：清除錯誤參照 |
 | `watch_stats_drift` | 播放统计漂移 | 抽樣 `watch_stats_daily`，用已計入工作階段的標記重算 sessions／views／first plays／rewatches／completions／completion milli；再抽樣已計入的工作階段確認日彙總列存在 | `daily_counter_drift`、`daily_row_missing` | 前者：以重算值覆寫計數 |
 | `image_file` | 图片记录与实际文件不一致 | `item_images` 的本地參照（local／nfo／embedded）是否在基準中、大小與修改時間是否與讀取時相同 | `image_source_missing`、`image_source_missing_unconfirmed`、`image_source_changed` | 否 |
 | `image_variant_index` | 缓存与实际不符 | 抽樣 `image_variants` 索引列，確認圖片存放區目前世代目錄中有該變體檔 | `variant_file_missing` | 否（刪除類） |

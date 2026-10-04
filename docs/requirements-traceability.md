@@ -23,9 +23,9 @@
 | 状态 | 子项数 | 占比 |
 | --- | --- | --- |
 | 已完成 | 22 | 6.5% |
-| 部分完成 | 299 | 89.0% |
+| 部分完成 | 301 | 89.6% |
 | 阻塞 | 4 | 1.2% |
-| 未开始 | 11 | 3.3% |
+| 未开始 | 9 | 2.7% |
 | 合计 | 336 | 100% |
 
 | G 群组 | 子项 | 已完成 | 部分完成 | 阻塞 | 未开始 | 已完成比例 | 有实现比例（已完成＋部分完成） |
@@ -46,10 +46,10 @@
 | G13 | 6 | 0 | 6 | 0 | 0 | 0% | 100% |
 | G14 | 7 | 0 | 7 | 0 | 0 | 0% | 100% |
 | G15 | 7 | 0 | 5 | 1 | 1 | 0% | 71% |
-| G16 | 5 | 0 | 4 | 0 | 1 | 0% | 80% |
+| G16 | 5 | 0 | 5 | 0 | 0 | 0% | 100% |
 | G18 | 5 | 0 | 5 | 0 | 0 | 0% | 100% |
 | G19 | 5 | 2 | 3 | 0 | 0 | 40% | 100% |
-| G20 | 5 | 0 | 4 | 0 | 1 | 0% | 80% |
+| G20 | 5 | 0 | 5 | 0 | 0 | 0% | 100% |
 | G21 | 5 | 0 | 5 | 0 | 0 | 0% | 100% |
 | G22 | 5 | 3 | 2 | 0 | 0 | 60% | 100% |
 | G23 | 5 | 0 | 5 | 0 | 0 | 0% | 100% |
@@ -83,7 +83,7 @@
 | 阶段 | 群组 | 子项 | 已完成 | 部分完成 | 阻塞 | 未开始 |
 | --- | --- | --- | --- | --- | --- | --- |
 | 基础、范围与账户 | G00–G08 | 54 | 13 | 40 | 0 | 1 |
-| 媒体处理、直投与扫描 | G09–G23 | 86 | 6 | 75 | 2 | 3 |
+| 媒体处理、直投与扫描 | G09–G23 | 86 | 6 | 77 | 2 | 1 |
 | 兼容、性能与 Go 质量 | G24–G30 | 36 | 0 | 36 | 0 | 0 |
 | 前端 | G31–G35 | 28 | 0 | 27 | 0 | 1 |
 | 数据库、部署与交付 | G36–G38 | 14 | 0 | 13 | 1 | 0 |
@@ -358,7 +358,7 @@
 | **G16.2** 命名与目录：`名称.语言[. commentary][. default][. forced].ext`、同名规则、子目录 `Audio/`，兼容常见第三方约定。 | internal/adapter/media/; internal/adapter/compat/; web/src/features/media/ | media_streams/track_preferences | Plan-G16.2：各格式探测与命名样例；第三方选择音轨；无法解码明确拒绝；不重编码；须单独覆盖本行全部约束 | 部分完成：`名称.语言[.commentary][.default][.forced].ext`、同名规则（最长基名、歧义不配）与 Audio/Audios 子目录已实现，扫描同步配对写入（迁移065）；TestParseSidecarNameSubdirs、TestPairSidecarFilesRules、TestCatalogSyncPairsSidecarTracksAndFollowsRescans；缺：测试通过结果入档、第三方常见约定对照与真实库验证（D3、D11）、规模成本（C18）；[同步配对](catalog-sync.md) | `46508cac2c`（命名解析）／`a7363fbf07`（扫描配对，迁移065） |
 | **G16.3** 元数据：语言、标题、评论音轨、默认/强制、声道数、采样率、码率（按需探测）。 | internal/adapter/media/; internal/adapter/compat/; web/src/features/media/ | media_streams/track_preferences | Plan-G16.3：各格式探测与命名样例；第三方选择音轨；无法解码明确拒绝；不重编码；须单独覆盖本行全部约束 | 部分完成：内嵌音轨返回编码、语言、声道与布局、采样率、码率、default/forced、Atmos（ffprobe 规范化）；外挂音轨返回语言、标题、评论、default/forced；缺：内嵌音轨标题与评论标记、外挂音轨声道/采样率/码率（未探测）及按需探测、真实素材断言（D11）；[播放信息](direct-delivery.md) | `27f66b1eb3`（探测规范化）／`04bd0f48f9`（播放信息）／`a7363fbf07`（外挂配对） |
 | **G16.4** 呈现：在播放信息中作为可选音轨返回（原样直投，不重编码）；客户端无法解码时返回明确“不支持直投该音轨”说明，禁止重编码救场。 | internal/adapter/media/; internal/adapter/compat/; web/src/features/media/ | media_streams/track_preferences | Plan-G16.4：各格式探测与命名样例；第三方选择音轨；无法解码明确拒绝；不重编码；须单独覆盖本行全部约束 | 部分完成：播放信息列出内嵌与外挂音轨，外挂轨附原文件直投 url；`POST /api/v1/items/{id}/playback/check` 对不支持的轨返回 `audio_codec_unsupported` 与 `direct_play_unsupported`，没有任何重编码路径（TestCheckPlaybackTracks、TestDecideDirectPlayMatrix、TestExternalTrackRoutes），相容层播放信息同样只直投；缺：第三方客户端识别与选择音轨（D11、D13）、测试通过结果入档；[直投](direct-delivery.md)、[相容层](compat-matrix.md) | `04bd0f48f9`（播放判定）／`cf5ca60fd4`（外挂直投）／`e6a57474de`（相容层播放信息） |
-| **G16.5** 交互：用户可按条目保存音轨偏好；多版本各自保存偏好。 | internal/adapter/media/; internal/adapter/compat/; web/src/features/media/ | media_streams/track_preferences | Plan-G16.5：各格式探测与命名样例；第三方选择音轨；无法解码明确拒绝；不重编码；须单独覆盖本行全部约束 | 未开始：没有音轨偏好表或 API；user_item_data 只存续播点与 last_source_id，播放会话也不记录所选音轨；缺：按条目与按版本保存音轨偏好的迁移、API 与测试。 | 无 |
+| **G16.5** 交互：用户可按条目保存音轨偏好；多版本各自保存偏好。 | internal/adapter/media/; internal/adapter/compat/; web/src/features/media/ | media_streams/track_preferences | Plan-G16.5：各格式探测与命名样例；第三方选择音轨；无法解码明确拒绝；不重编码；须单独覆盖本行全部约束 | 部分完成：迁移078 `user_track_preferences` 按使用者默认／条目／版本三层保存音轨与字幕偏好（语言、评论音轨、SDH、字幕模式、指定轨道仅版本层），`GET/PUT /api/v1/items/{id}/track-preferences` 与 `/users/me/track-preferences`，无偏好时以帐号语言选字幕；自有播放信息返回 `defaultTracks`，兼容层 PlaybackInfo 填 `DefaultAudioStreamIndex`／`DefaultSubtitleStreamIndex`；前端条目详情偏好表单（无播放 UI）；测试 TestSelectDefaultTracks、TestTrackPreferencesPickDefaultTracksPostgres、TestVersionsAndTrackPreferencesHTTPPostgres、TestPlaybackInfoDefaultTracksFollowPreferences；缺：真实第三方客户端按默认索引选轨验证（D15），兼容层外挂音轨无流索引；[多版本与偏好](item-versions.md) | 本提交（迁移078） |
 
 ## G18 初始引导
 
@@ -392,9 +392,9 @@
 | --- | --- | --- | --- | --- | --- |
 | **G20.1** 聚合规则：同一影片/单集的不同分辨率、HDR/DV、编码、音轨、剪辑版聚合为一个逻辑条目；按文件名、目录、NFO 外部 ID、时长相近度与人工指定综合判定。 | internal/domain/; internal/app/versions/; internal/adapter/http/; web/src/features/media/ | items/item_versions/media_sources/track_preferences | Plan-G20.1：4K/HDR/1080p/剪辑版聚合；防跨影片误合并；拆分撤销；逻辑进度继承；须单独覆盖本行全部约束 | 部分完成：扫描→条目同步以“同目录＋标题＋年份”把多个文件归入同一电影条目，已带 NFO uniqueIds 的条目不并入另有同名 NFO 的新文件；缺：跨目录、分辨率/HDR/剪辑版综合判定，NFO 外部 ID 与时长相近度参与分组，人工指定，4K/HDR/1080p/剪辑版多版本库验收；[同步](catalog-sync.md) | `a545695477`（同步分组第一步） |
 | **G20.2** 版本展示：版本标签（1080p/2160p/HDR/DV/导演剪辑/REMUX）、默认版本选择（设备能力、带宽、用户偏好）。 | internal/domain/; internal/app/versions/; internal/adapter/http/; web/src/features/media/ | items/item_versions/media_sources/track_preferences | Plan-G20.2：4K/HDR/1080p/剪辑版聚合；防跨影片误合并；拆分撤销；逻辑进度继承；须单独覆盖本行全部约束 | 部分完成：`VersionLabelsFromProbe` 推导分辨率级别、HDR10/HDR10+/HLG/DV、编码、REMUX、剪辑版、质量分数与显示名（TestVersionLabelsHDR、TestVersionLabelsReleaseTokens 等），播放信息按质量分数排序并返回标签；缺：按设备能力、带宽、用户偏好选默认版本，真实文件名误判率（D3），测试通过结果入档；[版本标签](../internal/domain/versionlabel.go)、[播放信息](direct-delivery.md) | `922d2145d7`（版本标签）／`04bd0f48f9`（播放信息排序） |
-| **G20.3** 人工干预：合并/拆分、设置主版本、排除误合并；操作写审计。 | internal/domain/; internal/app/versions/; internal/adapter/http/; web/src/features/media/ | items/item_versions/media_sources/track_preferences | Plan-G20.3：4K/HDR/1080p/剪辑版聚合；防跨影片误合并；拆分撤销；逻辑进度继承；须单独覆盖本行全部约束 | 未开始：没有合并/拆分、设置主版本、排除误合并的 API、数据或审计事件；缺：全部实现与测试。 | 无 |
-| **G20.4** 数据归属：观看进度归属逻辑条目；流选择、音轨/字幕偏好可按版本保存。 | internal/domain/; internal/app/versions/; internal/adapter/http/; web/src/features/media/ | items/item_versions/media_sources/track_preferences | Plan-G20.4：4K/HDR/1080p/剪辑版聚合；防跨影片误合并；拆分撤销；逻辑进度继承；须单独覆盖本行全部约束 | 部分完成：迁移066 的 user_item_data 以逻辑条目保存续播点、已播放、次数，last_source_id 记最后版本，同条目所有版本共用（TestPlaybackProgressLifecyclePostgres、TestPlaybackProgressFoldsDevicesPostgres）；缺：按版本保存流选择与音轨/字幕偏好（同 G16.5）、拆分/合并后的进度继承测试、真实客户端（D15）；[播放进度](playback-progress.md) | `1c37bea412`（播放进度，迁移066） |
-| **G20.5** 边界：不得跨不同剧集/影片错误合并（NFO 外部 ID 优先）；误合并可一键撤销。 | internal/domain/; internal/app/versions/; internal/adapter/http/; web/src/features/media/ | items/item_versions/media_sources/track_preferences | Plan-G20.5：4K/HDR/1080p/剪辑版聚合；防跨影片误合并；拆分撤销；逻辑进度继承；须单独覆盖本行全部约束 | 部分完成：同步分组只限同目录同标题同年份，已带 NFO uniqueIds 的条目不并入另有 NFO 的新文件，降低跨影片误合并；缺：以 NFO 外部 ID 为优先的冲突判定与测试、一键撤销误合并（依赖未开始的 G20.3）；[同步](catalog-sync.md) | `a545695477`（同步分组与 NFO 身份优先） |
+| **G20.3** 人工干预：合并/拆分、设置主版本、排除误合并；操作写审计。 | internal/domain/; internal/app/versions/; internal/adapter/http/; web/src/features/media/ | items/item_versions/media_sources/track_preferences | Plan-G20.3：4K/HDR/1080p/剪辑版聚合；防跨影片误合并；拆分撤销；逻辑进度继承；须单独覆盖本行全部约束 | 部分完成：迁移078 与 `/api/v1/items/{id}/versions`（拆分、合并、主版本、解除排除）及 `/api/v1/version-operations/{id}/undo`，管理员限定、经统一可见性过滤，五个审计事件；合并按明确策略转移版本、播放会话、用户数据、访问规则（hide 优先）、观看统计与条目偏好；人工决定不被同步还原（排除→单档群组、合并→群组别名、manual 来源不改标题，TestItemVersionDecisionsSurviveCatalogSyncPostgres 真实扫描）；前端版本区块两段确认；测试 TestItemVersionSplitMergePrimaryAndUndoPostgres、TestItemVersionPermissionsPostgres、access leak；缺：大量版本与大量历史条目的合并耗时实测、真实媒体库操作演练；[多版本](item-versions.md) | 本提交（迁移078） |
+| **G20.4** 数据归属：观看进度归属逻辑条目；流选择、音轨/字幕偏好可按版本保存。 | internal/domain/; internal/app/versions/; internal/adapter/http/; web/src/features/media/ | items/item_versions/media_sources/track_preferences | Plan-G20.4：4K/HDR/1080p/剪辑版聚合；防跨影片误合并；拆分撤销；逻辑进度继承；须单独覆盖本行全部约束 | 部分完成：迁移066 的 user_item_data 以逻辑条目保存续播点、已播放、次数，last_source_id 记最后版本，同条目所有版本共用（TestPlaybackProgressLifecyclePostgres、TestPlaybackProgressFoldsDevicesPostgres）；迁移078 按版本保存音轨/字幕偏好与主版本，合并/拆分时进度与播放历史按策略继承并可撤销（TestItemVersionSplitMergePrimaryAndUndoPostgres）；缺：按版本保存流选择以外的会话级选轨记录、真实客户端（D15）；[播放进度](playback-progress.md)、[多版本](item-versions.md) | `1c37bea412`（播放进度，迁移066）／本提交（迁移078） |
+| **G20.5** 边界：不得跨不同剧集/影片错误合并（NFO 外部 ID 优先）；误合并可一键撤销。 | internal/domain/; internal/app/versions/; internal/adapter/http/; web/src/features/media/ | items/item_versions/media_sources/track_preferences | Plan-G20.5：4K/HDR/1080p/剪辑版聚合；防跨影片误合并；拆分撤销；逻辑进度继承；须单独覆盖本行全部约束 | 部分完成：同步分组只限同目录同标题同年份，已带 NFO uniqueIds 的条目不并入另有 NFO 的新文件；人工合并以外部 ID（uniqueIds）冲突、集数不同、类型／媒体库／剧集不同一律拒绝且无强制选项（TestItemVersionMergeBoundariesPostgres）；拆分与合并可在 30 天内按新到旧一键撤销，撤销保存被吸收条目的完整行并保留合并后的新变动（TestItemVersionSplitMergePrimaryAndUndoPostgres、TestItemVersionSnapshotCoversCascades）；缺：自动聚合阶段以 NFO 外部 ID 跨目录判定（G20.1 的范围）、真实库误合并演练；[同步](catalog-sync.md)、[多版本](item-versions.md) | `a545695477`（同步分组与 NFO 身份优先）／本提交（迁移078） |
 
 ## G21 季度与集数识别
 

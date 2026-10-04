@@ -60,6 +60,8 @@ type PlaybackSourceRecord struct {
 	// ScanSize is the size the catalog scan observed, if any.
 	ScanSize *int64
 	Sidecars []SidecarTrackRecord
+	// Primary marks the administrator's main version of the item (G20.3).
+	Primary bool
 }
 
 func (PlaybackSourceRecord) String() string   { return "playback source (redacted)" }
@@ -82,6 +84,11 @@ type PlaybackSource struct {
 	Audio          []PlaybackAudioTrack    `json:"audioTracks"`
 	Subtitles      []PlaybackSubtitleTrack `json:"subtitleTracks"`
 	External       []PlaybackExternalTrack `json:"externalTracks"`
+	// Primary marks the administrator's main version; it is listed first.
+	Primary bool `json:"primary"`
+	// DefaultTracks is the audio and subtitle the user's preferences pick
+	// (G16.5, G20.4); only playback information fills it.
+	DefaultTracks *DefaultTracks `json:"defaultTracks,omitempty"`
 }
 
 type PlaybackVideoTrack struct {
@@ -283,6 +290,7 @@ func BuildPlaybackSource(r PlaybackSourceRecord) PlaybackSource {
 		Probed: r.Metadata != nil, Version: VersionLabelsFromProbe(meta, r.FileName),
 		Video: []PlaybackVideoTrack{}, Audio: []PlaybackAudioTrack{}, Subtitles: []PlaybackSubtitleTrack{}, External: []PlaybackExternalTrack{}}
 	s.SizeBytes = r.ScanSize
+	s.Primary = r.Primary
 	if s.Probed {
 		if meta.Format.SizeBytes != nil {
 			s.SizeBytes = meta.Format.SizeBytes

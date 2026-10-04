@@ -18,6 +18,7 @@ type Catalog struct {
 	details    CatalogDetailsRepository
 	progress   *Progress
 	stats      *WatchStats
+	versions   VersionRepository
 }
 
 func NewCatalog(repository CatalogRepository) *Catalog { return &Catalog{repository: repository} }

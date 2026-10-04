@@ -1,15 +1,17 @@
 <script setup lang="ts">
-import { computed, watch } from "vue";
+import { computed, defineAsyncComponent, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import RequestStatus from "@/components/ui/RequestStatus.vue";
 import UiAlert from "@/components/ui/UiAlert.vue";
 import UiBadge from "@/components/ui/UiBadge.vue";
 import UiSkeleton from "@/components/ui/UiSkeleton.vue";
+import { loadLazyMessages } from "@/i18n";
 import { formatDateTime } from "@/i18n/format";
 import PluginDetailTabs from "@/plugins/host/PluginDetailTabs.vue";
 import PluginItemActions from "@/plugins/host/PluginItemActions.vue";
 import PluginOutlet from "@/plugins/host/PluginOutlet.vue";
 import { toPluginItem } from "@/plugins/host/restrictedApi";
+import { useAuthStore } from "@/stores/auth";
 import { useItemDetailStore } from "@/stores/itemDetail";
 import { useLayoutStore } from "@/stores/layout";
 import { useLibrariesStore } from "@/stores/libraries";
@@ -23,7 +25,13 @@ import { kindLabelKey, nfoStatusKey } from "./labels";
 // starts one. Watching happens in native clients. File information describes
 // the originals only; the server sends no delivery route to web sessions.
 const props = defineProps<{ itemId: string }>();
+const auth = useAuthStore();
 const { t, locale } = useI18n();
+const i18nGlobal = useI18n({ useScope: "global" });
+// Version decisions and track preferences load with their own chunks, only
+// when an item with versions is shown.
+const ItemVersionsPanel = defineAsyncComponent(async () => (await Promise.all([import("./ItemVersionsPanel.vue"), loadLazyMessages(i18nGlobal, "versions")]))[0]);
+const TrackPreferencesPanel = defineAsyncComponent(async () => (await Promise.all([import("./TrackPreferencesPanel.vue"), loadLazyMessages(i18nGlobal, "versions")]))[0]);
 const store = useItemDetailStore();
 const libraries = useLibrariesStore();
 const layout = useLayoutStore();
@@ -212,6 +220,10 @@ function language(value: string | undefined): string {
                     </ul>
                   </template>
                 </div>
+                <template v-if="data.sources && data.sources.length > 0">
+                  <ItemVersionsPanel v-if="auth.isAdmin" :key="'v' + data.item.id" :item-id="data.item.id" :sources="data.sources" @changed="store.reload" />
+                  <TrackPreferencesPanel :key="data.item.id" :item-id="data.item.id" :sources="data.sources" />
+                </template>
               </section>
               <div v-else-if="panel === 'pluginPanels'" class="jl-detail__plugins">
                 <PluginOutlet hook="metadata.panel" headings :component-props="{ item: pluginItem(data.item) }" />

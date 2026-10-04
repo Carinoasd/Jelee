@@ -1833,6 +1833,10 @@
           "two_factor_unavailable",
           "unsupported_media_type",
           "user_stream_limit",
+          "version_identity_conflict",
+          "version_item_busy",
+          "version_merge_incompatible",
+          "version_undo_unavailable",
           "web_playback_disabled",
           "webhook_target_denied"
         ],
@@ -2041,6 +2045,18 @@
           ],
           "user_stream_limit": [
             "429"
+          ],
+          "version_identity_conflict": [
+            "409"
+          ],
+          "version_item_busy": [
+            "409"
+          ],
+          "version_merge_incompatible": [
+            "409"
+          ],
+          "version_undo_unavailable": [
+            "409"
           ],
           "web_playback_disabled": [
             "403"
@@ -3921,6 +3937,10 @@
             "format": "uuid",
             "type": "string"
           },
+          "primary": {
+            "description": "The administrator's main version (G20.3); listed first, then by qualityScore.",
+            "type": "boolean"
+          },
           "probed": {
             "description": "False when no current probe result exists (never probed, failed, expired, or the file changed since). Stream lists are then empty and the version labels come from the file name only.",
             "type": "boolean"
@@ -4051,7 +4071,22 @@
           "videoTracks",
           "audioTracks",
           "subtitleTracks",
-          "externalTracks"
+          "externalTracks",
+          "primary"
+        ],
+        "type": "object"
+      },
+      "MergeItemsInput": {
+        "additionalProperties": false,
+        "properties": {
+          "sourceItemId": {
+            "description": "The item absorbed into the path item and removed.",
+            "format": "uuid",
+            "type": "string"
+          }
+        },
+        "required": [
+          "sourceItemId"
         ],
         "type": "object"
       },
@@ -5487,6 +5522,96 @@
           "contentType": {
             "type": "string"
           },
+          "defaultTracks": {
+            "additionalProperties": false,
+            "description": "Tracks the caller's preferences pick (G16.5, G20.4). A client may start with others; nothing is converted.",
+            "properties": {
+              "audio": {
+                "oneOf": [
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "id": {
+                        "description": "ID of an external track (externalTracks).",
+                        "format": "uuid",
+                        "type": "string"
+                      },
+                      "index": {
+                        "description": "Stream index of an embedded track.",
+                        "minimum": 0,
+                        "type": "integer"
+                      },
+                      "kind": {
+                        "enum": [
+                          "embedded",
+                          "external"
+                        ],
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "kind"
+                    ],
+                    "type": "object"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "basis": {
+                "description": "The most specific preference level that decided; locale when only the account language applied, source when the file's own default flags did.",
+                "enum": [
+                  "version",
+                  "item",
+                  "user",
+                  "locale",
+                  "source"
+                ],
+                "type": "string"
+              },
+              "subtitle": {
+                "description": "null: start without subtitles.",
+                "oneOf": [
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "id": {
+                        "description": "ID of an external track (externalTracks).",
+                        "format": "uuid",
+                        "type": "string"
+                      },
+                      "index": {
+                        "description": "Stream index of an embedded track.",
+                        "minimum": 0,
+                        "type": "integer"
+                      },
+                      "kind": {
+                        "enum": [
+                          "embedded",
+                          "external"
+                        ],
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "kind"
+                    ],
+                    "type": "object"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "audio",
+              "subtitle",
+              "basis"
+            ],
+            "type": "object"
+          },
           "durationMicros": {
             "minimum": 0,
             "type": "integer"
@@ -5569,6 +5694,10 @@
           "id": {
             "format": "uuid",
             "type": "string"
+          },
+          "primary": {
+            "description": "The administrator's main version (G20.3); listed first, then by qualityScore.",
+            "type": "boolean"
           },
           "probed": {
             "description": "False when no current probe result exists (never probed, failed, expired, or the file changed since). Stream lists are then empty and the version labels come from the file name only.",
@@ -5700,7 +5829,29 @@
           "videoTracks",
           "audioTracks",
           "subtitleTracks",
-          "externalTracks"
+          "externalTracks",
+          "primary"
+        ],
+        "type": "object"
+      },
+      "PrimaryVersionInput": {
+        "additionalProperties": false,
+        "properties": {
+          "sourceId": {
+            "oneOf": [
+              {
+                "description": "A version of the item; null clears the main version.",
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "sourceId"
         ],
         "type": "object"
       },
@@ -7338,6 +7489,289 @@
         ],
         "type": "object"
       },
+      "SplitVersionInput": {
+        "additionalProperties": false,
+        "properties": {
+          "exclude": {
+            "description": "Also mark the file as not a version of this item, so synchronisation never groups it here again (also after it disappears and comes back).",
+            "type": "boolean"
+          },
+          "sourceId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "title": {
+            "description": "Title of the new item; empty keeps the original's title.",
+            "maxLength": 1024,
+            "type": "string"
+          }
+        },
+        "required": [
+          "sourceId"
+        ],
+        "type": "object"
+      },
+      "TrackPreference": {
+        "additionalProperties": false,
+        "description": "One preference level. A null or absent member inherits from the broader level (version, then item, then the user's defaults); the account language stands in for an unset subtitle language. Nothing is converted: preferences only choose among the original tracks.",
+        "properties": {
+          "audioCommentary": {
+            "oneOf": [
+              {
+                "description": "true prefers a commentary track; false or null avoids one.",
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "audioLanguage": {
+            "oneOf": [
+              {
+                "description": "Language tag or code (en, eng, zh-TW, zh-Hant, chs); stored as the canonical BCP 47 tag.",
+                "maxLength": 35,
+                "minLength": 2,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "audioTrack": {
+            "oneOf": [
+              {
+                "description": "One original track of this version: e:<stream index> for an embedded stream, x:<track id> for an external file. Version level only.",
+                "pattern": "^(e:(0|[1-9][0-9]{0,4})|x:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "subtitleLanguage": {
+            "oneOf": [
+              {
+                "description": "Language tag or code (en, eng, zh-TW, zh-Hant, chs); stored as the canonical BCP 47 tag.",
+                "maxLength": 35,
+                "minLength": 2,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "subtitleMode": {
+            "oneOf": [
+              {
+                "description": "auto (default): subtitles in subtitleLanguage when the chosen audio is in another language, else forced subtitles only; always; forced (forced subtitles only); off.",
+                "enum": [
+                  "auto",
+                  "always",
+                  "forced",
+                  "off"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "subtitleSdh": {
+            "oneOf": [
+              {
+                "description": "true prefers subtitles for the deaf and hard of hearing.",
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "subtitleTrack": {
+            "oneOf": [
+              {
+                "description": "One original track of this version: e:<stream index> for an embedded stream, x:<track id> for an external file. Version level only.",
+                "pattern": "^(e:(0|[1-9][0-9]{0,4})|x:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object"
+      },
+      "TrackPreferenceInput": {
+        "additionalProperties": false,
+        "description": "Replaces one level. Members left null or absent inherit; a body without any member removes the level.",
+        "properties": {
+          "audioCommentary": {
+            "oneOf": [
+              {
+                "description": "true prefers a commentary track; false or null avoids one.",
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "audioLanguage": {
+            "oneOf": [
+              {
+                "description": "Language tag or code (en, eng, zh-TW, zh-Hant, chs); stored as the canonical BCP 47 tag.",
+                "maxLength": 35,
+                "minLength": 2,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "audioTrack": {
+            "oneOf": [
+              {
+                "description": "One original track of this version: e:<stream index> for an embedded stream, x:<track id> for an external file. Version level only.",
+                "pattern": "^(e:(0|[1-9][0-9]{0,4})|x:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "sourceId": {
+            "oneOf": [
+              {
+                "description": "A version of this item; null or absent sets the item level.",
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "subtitleLanguage": {
+            "oneOf": [
+              {
+                "description": "Language tag or code (en, eng, zh-TW, zh-Hant, chs); stored as the canonical BCP 47 tag.",
+                "maxLength": 35,
+                "minLength": 2,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "subtitleMode": {
+            "oneOf": [
+              {
+                "description": "auto (default): subtitles in subtitleLanguage when the chosen audio is in another language, else forced subtitles only; always; forced (forced subtitles only); off.",
+                "enum": [
+                  "auto",
+                  "always",
+                  "forced",
+                  "off"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "subtitleSdh": {
+            "oneOf": [
+              {
+                "description": "true prefers subtitles for the deaf and hard of hearing.",
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "subtitleTrack": {
+            "oneOf": [
+              {
+                "description": "One original track of this version: e:<stream index> for an embedded stream, x:<track id> for an external file. Version level only.",
+                "pattern": "^(e:(0|[1-9][0-9]{0,4})|x:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object"
+      },
+      "TrackPreferences": {
+        "additionalProperties": false,
+        "properties": {
+          "item": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/TrackPreference"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "itemId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "user": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/TrackPreference"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "versions": {
+            "description": "Version levels of the item's current versions, by source ID.",
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "preference": {
+                  "$ref": "#/components/schemas/TrackPreference"
+                },
+                "sourceId": {
+                  "format": "uuid",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "sourceId",
+                "preference"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "itemId",
+          "user",
+          "item",
+          "versions"
+        ],
+        "type": "object"
+      },
       "TwoFactorCode": {
         "additionalProperties": false,
         "properties": {
@@ -7654,6 +8088,169 @@
         "required": [
           "name",
           "locale"
+        ],
+        "type": "object"
+      },
+      "UserTrackPreference": {
+        "additionalProperties": false,
+        "properties": {
+          "preference": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/TrackPreference"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "preference"
+        ],
+        "type": "object"
+      },
+      "VersionOperation": {
+        "additionalProperties": false,
+        "properties": {
+          "actorId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "itemId": {
+            "description": "The item that stays: the original of a split, the target of a merge.",
+            "format": "uuid",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "split",
+              "merge",
+              "primary",
+              "unexclude"
+            ],
+            "type": "string"
+          },
+          "libraryId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "otherItemId": {
+            "description": "The item a split created or a merge absorbed.",
+            "format": "uuid",
+            "type": "string"
+          },
+          "sourceIds": {
+            "description": "Versions the operation moved or chose.",
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "undoBlocked": {
+            "description": "Why undo is unavailable; later_operation: a newer split or merge of the same items must be undone first.",
+            "enum": [
+              "undone",
+              "expired",
+              "later_operation"
+            ],
+            "type": "string"
+          },
+          "undoUntil": {
+            "description": "Undo is possible until this time (30 days).",
+            "format": "date-time",
+            "type": "string"
+          },
+          "undoable": {
+            "type": "boolean"
+          },
+          "undoneAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "libraryId",
+          "kind",
+          "itemId",
+          "sourceIds",
+          "createdAt",
+          "undoUntil",
+          "undoable"
+        ],
+        "type": "object"
+      },
+      "VersionOverview": {
+        "additionalProperties": false,
+        "properties": {
+          "exclusions": {
+            "description": "Files synchronisation never groups into this item again.",
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "createdAt": {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                "fileName": {
+                  "description": "File name only; never the root or directory.",
+                  "type": "string"
+                },
+                "id": {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                "itemId": {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                "operationId": {
+                  "format": "uuid",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "itemId",
+                "fileName",
+                "createdAt"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "itemId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "operations": {
+            "description": "Newest first.",
+            "items": {
+              "$ref": "#/components/schemas/VersionOperation"
+            },
+            "maxItems": 50,
+            "type": "array"
+          },
+          "primarySourceId": {
+            "description": "The administrator's main version, if any.",
+            "format": "uuid",
+            "type": "string"
+          }
+        },
+        "required": [
+          "itemId",
+          "exclusions",
+          "operations"
         ],
         "type": "object"
       },
@@ -15009,6 +15606,307 @@
         "summary": "Describe the media files of a visible item"
       }
     },
+    "/api/v1/items/{id}/track-preferences": {
+      "get": {
+        "description": "Any signed-in user; their own preferences only.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/TrackPreferences"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 400"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 401"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 403"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "The item, version, exclusion or operation is missing or not visible to the caller; all are answered alike."
+          },
+          "408": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 408"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 409"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 413"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 415"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 503"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Jelee error envelope with code, message, details and traceId; see the Error schema."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "webSession": []
+          }
+        ],
+        "summary": "Read the caller's track preferences for an item (G16.5, G20.4)"
+      },
+      "put": {
+        "description": "sourceId selects a version level; without it the item level. Named tracks exist on the version level only. Playback information (GET /api/v1/items/{id}/playback, compat PlaybackInfo) starts with the tracks the merged levels pick. Not audited: preferences change which original track a client starts with, nothing else.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TrackPreferenceInput"
+              }
+            }
+          },
+          "description": "Maximum 4 KiB; exactly one object; unknown or duplicate keys rejected; null only where the schema allows it.",
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/TrackPreferences"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 400"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 401"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 403"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "The item, version, exclusion or operation is missing or not visible to the caller; all are answered alike."
+          },
+          "408": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 408"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 409"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 413"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 415"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 503"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Jelee error envelope with code, message, details and traceId; see the Error schema."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "webSession": []
+          }
+        ],
+        "summary": "Replace one level of the caller's track preferences for an item"
+      }
+    },
     "/api/v1/items/{id}/user-data": {
       "get": {
         "description": "Resume point, played state and play count of a visible item. An item the caller cannot see is answered like a missing one, also when it was played before access was withdrawn (G48.3).",
@@ -15123,6 +16021,783 @@
           }
         ],
         "summary": "Read the caller's progress on an item"
+      }
+    },
+    "/api/v1/items/{id}/versions": {
+      "get": {
+        "description": "Administrator only; other users get 403 forbidden. An item the administrator may not see is answered 404 like a missing one. ",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/VersionOverview"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 400"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 401"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 403"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "The item, version, exclusion or operation is missing or not visible to the caller; all are answered alike."
+          },
+          "408": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 408"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 409"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 413"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 415"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 503"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Jelee error envelope with code, message, details and traceId; see the Error schema."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "webSession": []
+          }
+        ],
+        "summary": "Read an item's main version, exclusions and version operations (G20.3)",
+        "x-jelee-role": "administrator"
+      }
+    },
+    "/api/v1/items/{id}/versions/exclusions/{exclusionId}": {
+      "delete": {
+        "description": "Administrator only; other users get 403 forbidden. An item the administrator may not see is answered 404 like a missing one. Synchronisation may group the file into the item again. Audited as item.version_exclusion_removed.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "exclusionId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/VersionOperation"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 400"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 401"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 403"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "The item, version, exclusion or operation is missing or not visible to the caller; all are answered alike."
+          },
+          "408": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 408"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 409"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 413"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 415"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 503"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Jelee error envelope with code, message, details and traceId; see the Error schema."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "webSession": []
+          }
+        ],
+        "summary": "Lift an exclusion",
+        "x-jelee-role": "administrator"
+      }
+    },
+    "/api/v1/items/{id}/versions/merge": {
+      "post": {
+        "description": "Administrator only; other users get 403 forbidden. An item the administrator may not see is answered 404 like a missing one. Moves every version of sourceItemId here, with its playback history, and applies the merge policy: user data (played if either, play counts added, resume point and last version from the later play), access rules (a hide on either hides), watch statistics (added per user and day) and item track preferences (copied where none). The absorbed item is removed and its scan group points here, so its files never recreate it. Refused without override: another kind, library or series, container items, items with children (409 version_merge_incompatible); external IDs or episode numbers that disagree (409 version_identity_conflict, G20.5). 409 version_item_busy while either item is played or a job works on it. Audited as item.versions_merged; undoable for 30 days.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MergeItemsInput"
+              }
+            }
+          },
+          "description": "Maximum 4 KiB; exactly one object; unknown or duplicate keys rejected; null only where the schema allows it.",
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/VersionOperation"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 400"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 401"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 403"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "The item, version, exclusion or operation is missing or not visible to the caller; all are answered alike."
+          },
+          "408": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 408"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 409"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 413"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 415"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 503"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Jelee error envelope with code, message, details and traceId; see the Error schema."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "webSession": []
+          }
+        ],
+        "summary": "Merge another item into this item",
+        "x-jelee-role": "administrator"
+      }
+    },
+    "/api/v1/items/{id}/versions/primary": {
+      "put": {
+        "description": "Administrator only; other users get 403 forbidden. An item the administrator may not see is answered 404 like a missing one. The main version is listed first and used when a client names no version. 409 conflict when unchanged. Audited as item.primary_version_changed.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PrimaryVersionInput"
+              }
+            }
+          },
+          "description": "Maximum 4 KiB; exactly one object; unknown or duplicate keys rejected; null only where the schema allows it.",
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/VersionOperation"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 400"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 401"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 403"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "The item, version, exclusion or operation is missing or not visible to the caller; all are answered alike."
+          },
+          "408": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 408"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 409"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 413"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 415"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 503"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Jelee error envelope with code, message, details and traceId; see the Error schema."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "webSession": []
+          }
+        ],
+        "summary": "Choose or clear the main version",
+        "x-jelee-role": "administrator"
+      }
+    },
+    "/api/v1/items/{id}/versions/split": {
+      "post": {
+        "description": "Administrator only; other users get 403 forbidden. An item the administrator may not see is answered 404 like a missing one. Creates an item of the same kind, library and parent with the given or the original title (a manual title) and moves the version with its scan registration and version track preferences; the playback history stays with the original item. The only version cannot be split (409 version_merge_incompatible). exclude keeps catalog synchronisation from grouping the file into the original item again. Audited as item.version_split; undoable for 30 days.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SplitVersionInput"
+              }
+            }
+          },
+          "description": "Maximum 4 KiB; exactly one object; unknown or duplicate keys rejected; null only where the schema allows it.",
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/VersionOperation"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 400"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 401"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 403"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "The item, version, exclusion or operation is missing or not visible to the caller; all are answered alike."
+          },
+          "408": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 408"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 409"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 413"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 415"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 503"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Jelee error envelope with code, message, details and traceId; see the Error schema."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "webSession": []
+          }
+        ],
+        "summary": "Split one version off into a new item",
+        "x-jelee-role": "administrator"
       }
     },
     "/api/v1/jobs": {
@@ -26444,6 +28119,284 @@
         "summary": "List items to continue watching"
       }
     },
+    "/api/v1/users/me/track-preferences": {
+      "get": {
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/UserTrackPreference"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 400"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 401"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 403"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "The item, version, exclusion or operation is missing or not visible to the caller; all are answered alike."
+          },
+          "408": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 408"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 409"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 413"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 415"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 503"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Jelee error envelope with code, message, details and traceId; see the Error schema."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "webSession": []
+          }
+        ],
+        "summary": "Read the caller's default track preferences"
+      },
+      "put": {
+        "description": "Used for every item without its own level. Named tracks are not allowed here.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TrackPreference"
+              }
+            }
+          },
+          "description": "Maximum 4 KiB; exactly one object; unknown or duplicate keys rejected; null only where the schema allows it.",
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/UserTrackPreference"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 400"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 401"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 403"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "The item, version, exclusion or operation is missing or not visible to the caller; all are answered alike."
+          },
+          "408": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 408"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 409"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 413"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 415"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 503"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Jelee error envelope with code, message, details and traceId; see the Error schema."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "webSession": []
+          }
+        ],
+        "summary": "Replace the caller's default track preferences"
+      }
+    },
     "/api/v1/users/me/two-factor/confirm": {
       "post": {
         "requestBody": {
@@ -30343,6 +32296,164 @@
           }
         ],
         "summary": "Read a user's watch statistics",
+        "x-jelee-role": "administrator"
+      }
+    },
+    "/api/v1/version-operations/{id}/undo": {
+      "post": {
+        "description": "Administrator only; other users get 403 forbidden. An item the administrator may not see is answered 404 like a missing one. Within 30 days. A split or merge waits until every later split or merge of the same items is undone (409 version_undo_unavailable). Undoing a merge recreates the absorbed item with its own rows, moves its versions and playback history back and reverses the transfer where the target's rows were not changed since; undoing a split moves the version back, folds what the new item gathered meanwhile into the original by the merge policy and removes the new item and its exclusion. The administrator must see the item the operation kept. Audited as item.version_operation_undone.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Empty"
+              }
+            }
+          },
+          "description": "Maximum 4 KiB; exactly one object; unknown or duplicate keys rejected; null only where the schema allows it.",
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/VersionOperation"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 400"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 401"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 403"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "The item, version, exclusion or operation is missing or not visible to the caller; all are answered alike."
+          },
+          "408": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 408"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 409"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 413"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 415"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 503"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Jelee error envelope with code, message, details and traceId; see the Error schema."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "webSession": []
+          }
+        ],
+        "summary": "Undo a version operation (G20.5)",
         "x-jelee-role": "administrator"
       }
     },

@@ -33,7 +33,8 @@ func listSourcesSQL(sessionFilter string) string {
  COALESCE((SELECT jsonb_agg(jsonb_build_object('id',t.id::text,'kind',t.kind,'format',t.format,'language',t.language,'languages',t.languages,
   'title',t.title,'forced',t.forced,'sdh',t.sdh,'default',t.is_default,'commentary',t.commentary,'charset',t.charset,'size',t.size)
   ORDER BY t.kind DESC,t.root_id,t.relative_path)
-  FROM media_sidecar_tracks t WHERE t.source_id=m.id AND t.library_id=m.library_id),'[]'::jsonb)
+  FROM media_sidecar_tracks t WHERE t.source_id=m.id AND t.library_id=m.library_id),'[]'::jsonb),
+ EXISTS(SELECT 1 FROM item_primary_versions pv WHERE pv.item_id=i.id AND pv.source_id=m.id)
  FROM items i
  JOIN users u ON u.id=$1::uuid AND NOT u.disabled AND u.deleted_at IS NULL
  JOIN sessions s ON s.id=$2::uuid AND s.user_id=u.id` + sessionFilter + ` AND s.revoked_at IS NULL AND s.expires_at>clock_timestamp()
@@ -100,13 +101,14 @@ func (s *Store) listSources(parent context.Context, query string, actor domain.A
 		var id, contentType, relativePath string
 		var metadata, sidecars []byte
 		var scanSize *int64
-		if err := rows.Scan(&present, &id, &contentType, &relativePath, &metadata, &scanSize, &sidecars); err != nil {
+		var primary bool
+		if err := rows.Scan(&present, &id, &contentType, &relativePath, &metadata, &scanSize, &sidecars, &primary); err != nil {
 			return nil, storageError(err)
 		}
 		if !present {
 			continue
 		}
-		record := domain.PlaybackSourceRecord{ID: id, ContentType: contentType, FileName: path.Base(relativePath), ScanSize: scanSize}
+		record := domain.PlaybackSourceRecord{ID: id, ContentType: contentType, FileName: path.Base(relativePath), ScanSize: scanSize, Primary: primary}
 		if len(metadata) > 0 {
 			var meta domain.MediaMetadata
 			// The cache only stores validated documents; one that no longer

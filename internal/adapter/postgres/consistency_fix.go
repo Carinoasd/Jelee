@@ -123,7 +123,7 @@ func applyConsistencyFix(ctx context.Context, tx pgx.Tx, run string, f domain.Co
 			return false, domain.ErrInvalid
 		}
 		tag, err := tx.Exec(ctx, `UPDATE user_item_data d SET last_source_id=NULL WHERE d.user_id=$1::uuid AND d.item_id=$2::uuid AND d.last_source_id=$3::uuid
- AND EXISTS(SELECT 1 FROM media_sources ms WHERE ms.id=$3::uuid AND ms.item_id<>d.item_id)`, f.UserID, f.ItemID, f.SourceID)
+ AND EXISTS(SELECT 1 FROM media_sources ms WHERE ms.id=$3::uuid AND ms.item_id<>d.item_id AND NOT `+versionSplitFromSQL("d.item_id", "ms.id")+`)`, f.UserID, f.ItemID, f.SourceID)
 		if err != nil || tag.RowsAffected() != 1 {
 			return false, storageError(err)
 		}
@@ -134,7 +134,7 @@ func applyConsistencyFix(ctx context.Context, tx pgx.Tx, run string, f domain.Co
 			return false, domain.ErrInvalid
 		}
 		tag, err := tx.Exec(ctx, `UPDATE playback_sessions p SET source_id=NULL WHERE p.id=$1::uuid AND p.source_id=$2::uuid
- AND EXISTS(SELECT 1 FROM media_sources ms WHERE ms.id=$2::uuid AND ms.item_id<>p.item_id)`, f.Object, f.SourceID)
+ AND EXISTS(SELECT 1 FROM media_sources ms WHERE ms.id=$2::uuid AND ms.item_id<>p.item_id AND NOT `+versionSplitFromSQL("p.item_id", "ms.id")+`)`, f.Object, f.SourceID)
 		if err != nil || tag.RowsAffected() != 1 {
 			return false, storageError(err)
 		}

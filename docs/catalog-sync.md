@@ -41,6 +41,10 @@ POST /api/v1/jobs/REVIEWED_SCAN_ID/accept-missing
 - **字元集與指紋**：寫入時兩者先留空（大小＋mtime 代表內容）。同步各階段完成後、任務結束前，worker 在交易之外逐頁（每頁 64 軌，`media_sidecar_tracks_uninspected_idx`）讀取 `fingerprint IS NULL` 的軌：指紋沿用媒體探測的邊緣指紋（`probe.EdgeFingerprint`：大小＋頭尾各至多 64 KiB 的 SHA-256，不讀整檔），文字字幕再以 `subtitles.DetectCharset` 讀至多 1 MiB 判斷字元集，低信心不記錄。檔案以 `os.OpenRoot` 唯讀開啟，前後比對大小與 mtime，期間被改寫、已消失或已被替換就跳過，下次掃描再處理；寫回時再以大小＋mtime＋`fingerprint IS NULL` 為條件並受租約保護。從不轉碼、改名或改寫原檔。
 - **直投**：寫入的列即 `/api/v1/sources/{id}/subtitles|audio/{trackId}` 的資料來源（見 `direct-delivery.md`）。
 
+## 人工版本決定（G20.3，schema 78）
+
+管理員的拆分、合併與排除不會被同步還原：已登記來源本來就不被搬動，人工放置的來源（`catalog_scan_sources.manual`）不再以檔名改寫標題；新檔案分組時，指向已排除條目的群組改用單檔群組（與 NFO 身分衝突相同），被合併條目的群組經 `catalog_scan_item_aliases` 回到目標條目。詳見[多版本](item-versions.md)。
+
 ## 未涵蓋
 
 待確認項目的人工接受／拒絕、完整多版本聚合、忽略模式發布後的自動同步、NFO 內容直接參與分組（目前只用 NFO 檔存在與條目 uniqueIds facts）、明確匯入來源的外掛軌配對、`.idx`＋`.sub` 成對關係的記錄（兩者各自成軌）。大規模首掃／重掃、GOMAXPROCS=2/4、24 小時混合負載尚待擁有者量測。

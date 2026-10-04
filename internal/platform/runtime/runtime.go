@@ -74,7 +74,10 @@ func newWithLifetime(cfg config.Config, logger *slog.Logger, lifetime *lifetime)
 			if catalog, err = catalog.WithBrowse(store); err != nil {
 				return nil, err
 			}
-			if catalog, err = catalog.WithDetails(store); err != nil || !c.EnableCatalog {
+			if catalog, err = catalog.WithDetails(store); err != nil {
+				return nil, err
+			}
+			if catalog, err = catalog.WithVersions(store); err != nil || !c.EnableCatalog {
 				return catalog, err
 			}
 			if err = c.Playback.Validate(); err != nil {

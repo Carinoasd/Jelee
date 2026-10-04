@@ -445,8 +445,10 @@ func (w catalogWriter) refreshTracked(ctx context.Context, c syncCandidate) (boo
 	if !plan.Auto {
 		return false, nil
 	}
+	// A version an administrator placed never renames its item.
 	var kind, title string
-	err := w.tx.QueryRow(ctx, `SELECT kind,scan_title FROM catalog_scan_items WHERE item_id=$1::uuid AND library_id=$2::uuid FOR UPDATE`, *c.trackedItem, w.library).Scan(&kind, &title)
+	err := w.tx.QueryRow(ctx, `SELECT kind,scan_title FROM catalog_scan_items WHERE item_id=$1::uuid AND library_id=$2::uuid
+ AND NOT EXISTS(SELECT 1 FROM catalog_scan_sources WHERE source_id=$3::uuid AND manual) FOR UPDATE`, *c.trackedItem, w.library, *c.trackedSource).Scan(&kind, &title)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return false, nil
 	}
@@ -526,7 +528,8 @@ type scanItem struct {
 // groupItem returns the item a file version belongs to: same directory and
 // same parsed identity (G20.1 first step). NFO identity wins over the file
 // name: a file with its own NFO is not merged into an item that already
-// carries NFO provider IDs, because its NFO may name a different title.
+// carries NFO provider IDs, because its NFO may name a different title. A
+// manual exclusion keeps a file out of the item the same way.
 func (w catalogWriter) groupItem(ctx context.Context, c syncCandidate, kind string, digest []byte, spec scanItem) (string, error) {
 	item, err := w.findScanItem(ctx, kind, digest)
 	if err != nil {
@@ -536,6 +539,13 @@ func (w catalogWriter) groupItem(ctx context.Context, c syncCandidate, kind stri
 		separate, err := w.nfoIdentityConflict(ctx, item, c)
 		if err != nil {
 			return "", err
+		}
+		if !separate {
+			// An administrator split this file off the item and excluded it
+			// (G20.3): it is kept apart like a file with its own identity.
+			if separate, err = versionExcluded(ctx, w.tx, item, c.root, c.path); err != nil {
+				return "", err
+			}
 		}
 		if !separate {
 			return item, nil
@@ -558,13 +568,16 @@ func (w catalogWriter) nfoIdentityConflict(ctx context.Context, item string, c s
 	return conflict, storageError(err)
 }
 
+// findScanItem returns the item of a scan group. A group whose item an
+// administrator merged into another item names that item (G20.3).
 func (w catalogWriter) findScanItem(ctx context.Context, kind string, digest []byte) (string, error) {
-	var item string
-	err := w.tx.QueryRow(ctx, `SELECT item_id::text FROM catalog_scan_items WHERE library_id=$1::uuid AND kind=$2 AND group_digest=$3`, w.library, kind, digest).Scan(&item)
-	if errors.Is(err, pgx.ErrNoRows) {
-		return "", nil
+	var item *string
+	err := w.tx.QueryRow(ctx, `SELECT COALESCE((SELECT item_id FROM catalog_scan_items WHERE library_id=$1::uuid AND kind=$2 AND group_digest=$3),
+ (SELECT item_id FROM catalog_scan_item_aliases WHERE library_id=$1::uuid AND kind=$2 AND group_digest=$3))::text`, w.library, kind, digest).Scan(&item)
+	if err != nil || item == nil {
+		return "", storageError(err)
 	}
-	return item, storageError(err)
+	return *item, nil
 }
 
 func (w catalogWriter) createScanItem(ctx context.Context, kind string, digest []byte, spec scanItem) (string, error) {

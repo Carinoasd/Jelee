@@ -9,9 +9,15 @@ interface Catalog {
 // Each file is web/src/i18n/<locale>/<namespace>.json and holds a single
 // top-level key equal to its namespace; scripts/check-i18n.mjs enforces this.
 // The file name core.json is reserved (see docs/frontend-adr.md).
-// twoFactor.json is left out: it loads with the screens that use it (see
-// twoFactor.ts), which keeps it out of the entry bundle (G35.4).
-const files = import.meta.glob<Catalog>(["./*/*.json", "!./*/twoFactor.json"], { eager: true, import: "default" });
+//
+// Lazy namespaces stay out of the initial bundle (G35.4): the page that needs
+// one loads it with loadLazyMessages before rendering its text. The gate
+// checks them like every other namespace. twoFactor.json is loaded by
+// twoFactor.ts with the screens that use it.
+export const lazyNamespaces = ["versions"] as const;
+export type LazyNamespace = (typeof lazyNamespaces)[number];
+const files = import.meta.glob<Catalog>(["./*/*.json", "!./*/twoFactor.json", "!./*/versions.json"], { eager: true, import: "default" });
+const lazyFiles = import.meta.glob<Catalog>("./*/versions.json", { import: "default" });
 
 export function buildMessages(source: Record<string, Catalog>): Record<Locale, Catalog> {
   const messages = Object.fromEntries(supportedLocales.map((locale) => [locale, {}])) as Record<Locale, Catalog>;
@@ -54,3 +60,28 @@ export function createAppI18n(locale: Locale = defaultLocale) {
 }
 
 export type AppI18n = ReturnType<typeof createAppI18n>;
+
+/** Something that accepts messages for a locale, such as the global composer. */
+export interface MessageTarget {
+  mergeLocaleMessage(locale: string, messages: Catalog): void;
+}
+
+const loadedNamespaces = new WeakMap<MessageTarget, Set<string>>();
+
+/**
+ * Loads a lazy namespace for every locale into target, once per target, so
+ * a later language switch finds the text as well.
+ */
+export async function loadLazyMessages(target: MessageTarget, namespace: LazyNamespace): Promise<void> {
+  const loaded = loadedNamespaces.get(target) ?? new Set<string>();
+  loadedNamespaces.set(target, loaded);
+  if (loaded.has(namespace)) {
+    return;
+  }
+  const entries = Object.entries(lazyFiles).filter(([path]) => path.endsWith("/" + namespace + ".json"));
+  const catalogs = await Promise.all(entries.map(async ([path, load]) => [path, await load()] as const));
+  for (const [locale, messages] of Object.entries(buildMessages(Object.fromEntries(catalogs)))) {
+    target.mergeLocaleMessage(locale, messages);
+  }
+  loaded.add(namespace);
+}

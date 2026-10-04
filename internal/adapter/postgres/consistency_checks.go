@@ -168,7 +168,9 @@ func (s *Store) consistencyOrphanFiles(ctx context.Context, scope domain.Consist
 // consistencyVersions walks three phases: items, user data and sessions.
 // Versions are the media sources of one logical item (G20); a video item
 // needs at least one, a series or season none, and per-user data and
-// sessions may only point at a version of their own item.
+// sessions may only point at a version of their own item, or at a version
+// an administrator split off that item (G20.3): the history of the original
+// item stays with it and still names the version it played.
 func (s *Store) consistencyVersions(ctx context.Context, scope domain.ConsistencyScope, cursor string) (domain.ConsistencyPage, error) {
 	phase, rest, _ := strings.Cut(cursor, ":")
 	switch phase {
@@ -235,7 +237,7 @@ func (s *Store) consistencyVersionUserData(ctx context.Context, scope domain.Con
 	}
 	// Paging follows the primary key of all user data; the library is a
 	// filter, so a page reads at most PageSize rows of other libraries too.
-	rows, err := s.Pool.Query(ctx, `SELECT d.user_id::text,d.item_id::text,d.last_source_id::text,i.library_id=$1::uuid,COALESCE(ms.item_id=d.item_id,true)
+	rows, err := s.Pool.Query(ctx, `SELECT d.user_id::text,d.item_id::text,d.last_source_id::text,i.library_id=$1::uuid,COALESCE(ms.item_id=d.item_id OR `+versionSplitFromSQL("d.item_id", "ms.id")+`,true)
  FROM (SELECT user_id,item_id,last_source_id FROM user_item_data WHERE (user_id,item_id)>($2::uuid,$3::uuid) AND last_source_id IS NOT NULL ORDER BY user_id,item_id LIMIT $4) d
  JOIN items i ON i.id=d.item_id LEFT JOIN media_sources ms ON ms.id=d.last_source_id ORDER BY d.user_id,d.item_id`, scope.Library.ID, user, item, domain.ConsistencyPageSize)
 	if err != nil {
@@ -276,7 +278,7 @@ func (s *Store) consistencyVersionSessions(ctx context.Context, scope domain.Con
 	if err != nil {
 		return domain.ConsistencyPage{}, err
 	}
-	rows, err := s.Pool.Query(ctx, `SELECT p.id::text,p.user_id::text,p.item_id::text,p.source_id::text,COALESCE(ms.item_id=p.item_id,true)
+	rows, err := s.Pool.Query(ctx, `SELECT p.id::text,p.user_id::text,p.item_id::text,p.source_id::text,COALESCE(ms.item_id=p.item_id OR `+versionSplitFromSQL("p.item_id", "ms.id")+`,true)
  FROM playback_sessions p LEFT JOIN media_sources ms ON ms.id=p.source_id
  WHERE p.library_id=$1::uuid AND p.source_id IS NOT NULL AND p.id>$2::uuid ORDER BY p.id LIMIT $3`, scope.Library.ID, after, domain.ConsistencyPageSize)
 	if err != nil {
@@ -305,6 +307,12 @@ func (s *Store) consistencyVersionSessions(ctx context.Context, scope domain.Con
 		page.Next = "sessions:" + next
 	}
 	return page, nil
+}
+
+// versionSplitFromSQL is true when an active split moved source out of
+// item; it reads the operation log through its item index.
+func versionSplitFromSQL(item, source string) string {
+	return `EXISTS(SELECT 1 FROM item_version_operations vo WHERE vo.item_id=` + item + ` AND vo.kind='split' AND vo.undone_at IS NULL AND ` + source + `=ANY(vo.source_ids))`
 }
 
 // randomID returns a random UUID-shaped key to start a sample at.

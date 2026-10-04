@@ -15,8 +15,8 @@ import (
 // writer, so memory does not grow with the catalog. Records are what a rescan
 // cannot rebuild: accounts and grants, libraries and roots, the catalog
 // identity that per-item user data hangs on, item metadata and locks, locked
-// images, playback progress, access and client control rules, webhooks and
-// scan schedules. Sessions, tokens, user creation keys, caches, jobs,
+// images, playback progress, track preferences, manual version decisions,
+// access and client control rules, webhooks and scan schedules. Sessions, tokens, user creation keys, caches, jobs,
 // inventories, outboxes, statistics and audit rows are never exported.
 
 type metadataExportQuery struct {
@@ -39,7 +39,13 @@ func metadataExportQueries(passwordHashes bool) []metadataExportQuery {
 		{"item_directory_source", `SELECT to_jsonb(x)::text FROM (SELECT id,item_id,library_id,kind,root_id,relative_path FROM item_directory_sources) x ORDER BY x.id`},
 		{"item_parent_link", `SELECT to_jsonb(x)::text FROM (SELECT item_id,library_id,item_kind,parent_id,parent_kind FROM item_parent_links) x ORDER BY x.item_id`},
 		{"catalog_scan_item", `SELECT to_jsonb(x)::text FROM (SELECT item_id,library_id,kind,group_digest,parser_version,scan_title,year,season,episode,episode_end FROM catalog_scan_items) x ORDER BY x.item_id`},
-		{"catalog_scan_source", `SELECT to_jsonb(x)::text FROM (SELECT source_id,library_id,item_id,root_id,relative_path,size,modified_unix_nano,parser_version,missing_since FROM catalog_scan_sources) x ORDER BY x.source_id`},
+		{"catalog_scan_source", `SELECT to_jsonb(x)::text FROM (SELECT source_id,library_id,item_id,root_id,relative_path,size,modified_unix_nano,parser_version,missing_since,manual FROM catalog_scan_sources) x ORDER BY x.source_id`},
+		// Manual version decisions (G20.3): merged scan groups, excluded files
+		// and main versions. The operation log only serves undo within its
+		// window and stays behind, like the audit rows.
+		{"catalog_scan_item_alias", `SELECT to_jsonb(x)::text FROM (SELECT library_id,kind,group_digest,item_id FROM catalog_scan_item_aliases) x ORDER BY x.library_id,x.kind,x.group_digest`},
+		{"item_version_exclusion", `SELECT to_jsonb(x)::text FROM (SELECT item_id,library_id,root_id,relative_path,created_at FROM item_version_exclusions) x ORDER BY x.item_id,x.root_id,x.relative_path COLLATE "C"`},
+		{"item_primary_version", `SELECT to_jsonb(x)::text FROM (SELECT item_id,library_id,source_id,updated_at FROM item_primary_versions) x ORDER BY x.item_id`},
 		{"item_metadata_state", `SELECT to_jsonb(x)::text FROM (SELECT item_id,revision FROM item_metadata_state) x ORDER BY x.item_id`},
 		{"item_metadata_field", `SELECT to_jsonb(x)::text FROM (SELECT item_id,field,value,source,locked,updated_at,provider_resource,provider_id,provider_source_url,provider_language,provider_fetched_at,nfo_origin FROM item_metadata_fields) x ORDER BY x.item_id,x.field`},
 		{"item_metadata_fact", `SELECT to_jsonb(x)::text FROM (SELECT item_id,field,value,source,locked,updated_at,nfo_origin FROM item_metadata_facts) x ORDER BY x.item_id,x.field`},
@@ -48,6 +54,7 @@ func metadataExportQueries(passwordHashes bool) []metadataExportQuery {
 		// administrator's choice and is kept with its source and content facts.
 		{"item_image", `SELECT to_jsonb(x)::text FROM (SELECT id,item_id,library_id,image_type,image_index,source_kind,root_id,relative_path,remote_url,content_sha256,width,height,format,byte_size,average_color,fetched_at,source_mtime_unix_nano,source_size,locked,created_at,updated_at FROM item_images WHERE locked) x ORDER BY x.id`},
 		{"user_item_data", `SELECT to_jsonb(x)::text FROM (SELECT user_id,item_id,resume_ticks,played,play_count,last_played_at,last_source_id,updated_at FROM user_item_data) x ORDER BY x.user_id,x.item_id`},
+		{"user_track_preference", `SELECT to_jsonb(x)::text FROM (SELECT user_id,item_id,source_id,audio_language,audio_commentary,audio_track,subtitle_mode,subtitle_language,subtitle_sdh,subtitle_track,updated_at FROM user_track_preferences) x ORDER BY x.user_id,x.item_id NULLS FIRST,x.source_id NULLS FIRST`},
 		{"access_policy", `SELECT to_jsonb(x)::text FROM (SELECT restrict_admins,block_unrated FROM access_policy WHERE id) x`},
 		{"parental_rating", `SELECT to_jsonb(x)::text FROM (SELECT code,level FROM parental_ratings) x ORDER BY x.code COLLATE "C"`},
 		{"user_item_access_rule", `SELECT to_jsonb(x)::text FROM (SELECT user_id,item_id,effect,created_at FROM user_item_access_rules) x ORDER BY x.user_id,x.item_id`},

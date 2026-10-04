@@ -203,10 +203,25 @@ ins AS (INSERT INTO catalog_scan_items(item_id,library_id,kind,group_digest,pars
  (doc->>'year')::integer,(doc->>'season')::integer,(doc->>'episode')::integer,(doc->>'episode_end')::integer FROM x WHERE state='new' ON CONFLICT DO NOTHING RETURNING 1)
 SELECT (SELECT count(*) FROM x),(SELECT count(*) FROM ins),0,0`},
 	{kind: "catalog_scan_source", sql: `WITH x AS (SELECT m.state,s.doc FROM bk_stage s JOIN bk_map m ON m.kind='media_source' AND m.src=(s.doc->>'source_id')::uuid WHERE s.kind='catalog_scan_source' AND m.state IN ('existing','new')),
-ins AS (INSERT INTO catalog_scan_sources(source_id,library_id,item_id,root_id,relative_path,size,modified_unix_nano,parser_version,missing_since)
+ins AS (INSERT INTO catalog_scan_sources(source_id,library_id,item_id,root_id,relative_path,size,modified_unix_nano,parser_version,missing_since,manual)
  SELECT pg_temp.bk_dst('media_source',doc->>'source_id'),pg_temp.bk_dst('library',doc->>'library_id'),pg_temp.bk_dst('item',doc->>'item_id'),pg_temp.bk_dst('library_root',doc->>'root_id'),doc->>'relative_path',
- (doc->>'size')::bigint,(doc->>'modified_unix_nano')::bigint,doc->>'parser_version',(doc->>'missing_since')::timestamptz FROM x WHERE state='new' ON CONFLICT DO NOTHING RETURNING 1)
+ (doc->>'size')::bigint,(doc->>'modified_unix_nano')::bigint,doc->>'parser_version',(doc->>'missing_since')::timestamptz,COALESCE((doc->>'manual')::boolean,false) FROM x WHERE state='new' ON CONFLICT DO NOTHING RETURNING 1)
 SELECT (SELECT count(*) FROM x),(SELECT count(*) FROM ins),0,0`},
+	// Version decisions (G20.3) are administrator choices, so unlike scan
+	// state they also reach items found in the target; a target that already
+	// decided keeps its own decision.
+	{kind: "catalog_scan_item_alias", sql: `WITH x AS (SELECT s.doc,pg_temp.bk_dst('library',s.doc->>'library_id') l,pg_temp.bk_dst('item',s.doc->>'item_id') i FROM bk_stage s WHERE s.kind='catalog_scan_item_alias'),
+ok AS (SELECT * FROM x WHERE l IS NOT NULL AND i IS NOT NULL AND EXISTS(SELECT 1 FROM items t WHERE t.id=x.i AND t.library_id=x.l AND t.kind=x.doc->>'kind')),
+ins AS (INSERT INTO catalog_scan_item_aliases(library_id,kind,group_digest,item_id) SELECT l,doc->>'kind',(doc->>'group_digest')::bytea,i FROM ok ON CONFLICT DO NOTHING RETURNING 1)
+SELECT (SELECT count(*) FROM ok),(SELECT count(*) FROM ins),0,0`},
+	{kind: "item_version_exclusion", sql: `WITH x AS (SELECT s.doc,pg_temp.bk_dst('library',s.doc->>'library_id') l,pg_temp.bk_dst('item',s.doc->>'item_id') i,pg_temp.bk_dst('library_root',s.doc->>'root_id') r FROM bk_stage s WHERE s.kind='item_version_exclusion'),
+ok AS (SELECT * FROM x WHERE l IS NOT NULL AND i IS NOT NULL AND r IS NOT NULL),
+ins AS (INSERT INTO item_version_exclusions(item_id,library_id,root_id,relative_path,created_at) SELECT i,l,r,doc->>'relative_path',(doc->>'created_at')::timestamptz FROM ok ON CONFLICT DO NOTHING RETURNING 1)
+SELECT (SELECT count(*) FROM ok),(SELECT count(*) FROM ins),0,0`},
+	{kind: "item_primary_version", sql: `WITH x AS (SELECT s.doc,pg_temp.bk_dst('library',s.doc->>'library_id') l,pg_temp.bk_dst('item',s.doc->>'item_id') i,pg_temp.bk_dst('media_source',s.doc->>'source_id') m FROM bk_stage s WHERE s.kind='item_primary_version'),
+ok AS (SELECT * FROM x WHERE l IS NOT NULL AND i IS NOT NULL AND EXISTS(SELECT 1 FROM media_sources t WHERE t.id=x.m AND t.item_id=x.i)),
+ins AS (INSERT INTO item_primary_versions(item_id,library_id,source_id,updated_at) SELECT i,l,m,(doc->>'updated_at')::timestamptz FROM ok ON CONFLICT DO NOTHING RETURNING 1)
+SELECT (SELECT count(*) FROM ok),(SELECT count(*) FROM ins),0,0`},
 	// New items take the exported revision; items found in the target get a
 	// state row when their metadata arrives and one revision bump at the end.
 	{kind: "item_metadata_state", sql: `WITH x AS (SELECT m.dst id,m.state,s.doc FROM bk_stage s JOIN bk_map m ON m.kind='item' AND m.src=(s.doc->>'item_id')::uuid WHERE s.kind='item_metadata_state' AND m.state IN ('existing','new')),
@@ -281,6 +296,24 @@ up AS (INSERT INTO user_item_data(user_id,item_id,resume_ticks,played,play_count
  ON CONFLICT(user_id,item_id) DO UPDATE SET resume_ticks=EXCLUDED.resume_ticks,played=EXCLUDED.played,play_count=EXCLUDED.play_count,last_played_at=EXCLUDED.last_played_at,last_source_id=EXCLUDED.last_source_id,updated_at=EXCLUDED.updated_at
  WHERE EXCLUDED.updated_at>user_item_data.updated_at
  RETURNING (xmax=0) inserted)
+SELECT (SELECT count(*) FROM ok),(SELECT count(*) FROM up WHERE inserted),(SELECT count(*) FROM up WHERE NOT inserted),0`},
+	// Like progress, a preference keeps whichever side was updated last; a
+	// version level needs its version on its item in the target.
+	{kind: "user_track_preference", sql: `WITH x AS (SELECT s.doc,pg_temp.bk_dst('user',s.doc->>'user_id') u,pg_temp.bk_dst('item',s.doc->>'item_id') i,pg_temp.bk_dst('media_source',s.doc->>'source_id') m FROM bk_stage s WHERE s.kind='user_track_preference'),
+ok AS (SELECT * FROM x WHERE u IS NOT NULL AND (doc->>'item_id' IS NULL OR i IS NOT NULL) AND (doc->>'source_id' IS NULL OR EXISTS(SELECT 1 FROM media_sources t WHERE t.id=x.m AND t.item_id=x.i))),
+v AS (SELECT u,CASE WHEN doc->>'item_id' IS NULL THEN NULL ELSE i END i,CASE WHEN doc->>'source_id' IS NULL THEN NULL ELSE m END m,doc->>'audio_language' al,(doc->>'audio_commentary')::boolean ac,doc->>'audio_track' atr,
+ doc->>'subtitle_mode' sm,doc->>'subtitle_language' sl,(doc->>'subtitle_sdh')::boolean ss,doc->>'subtitle_track' st,(doc->>'updated_at')::timestamptz ts FROM ok),
+up_user AS (INSERT INTO user_track_preferences AS p(user_id,item_id,source_id,audio_language,audio_commentary,audio_track,subtitle_mode,subtitle_language,subtitle_sdh,subtitle_track,updated_at)
+ SELECT u,i,m,al,ac,atr,sm,sl,ss,st,ts FROM v WHERE i IS NULL ON CONFLICT(user_id) WHERE item_id IS NULL DO UPDATE SET audio_language=EXCLUDED.audio_language,audio_commentary=EXCLUDED.audio_commentary,
+ subtitle_mode=EXCLUDED.subtitle_mode,subtitle_language=EXCLUDED.subtitle_language,subtitle_sdh=EXCLUDED.subtitle_sdh,updated_at=EXCLUDED.updated_at WHERE EXCLUDED.updated_at>p.updated_at RETURNING (xmax=0) inserted),
+up_item AS (INSERT INTO user_track_preferences AS p(user_id,item_id,source_id,audio_language,audio_commentary,audio_track,subtitle_mode,subtitle_language,subtitle_sdh,subtitle_track,updated_at)
+ SELECT u,i,m,al,ac,atr,sm,sl,ss,st,ts FROM v WHERE i IS NOT NULL AND m IS NULL ON CONFLICT(user_id,item_id) WHERE item_id IS NOT NULL AND source_id IS NULL DO UPDATE SET audio_language=EXCLUDED.audio_language,audio_commentary=EXCLUDED.audio_commentary,
+ subtitle_mode=EXCLUDED.subtitle_mode,subtitle_language=EXCLUDED.subtitle_language,subtitle_sdh=EXCLUDED.subtitle_sdh,updated_at=EXCLUDED.updated_at WHERE EXCLUDED.updated_at>p.updated_at RETURNING (xmax=0) inserted),
+up_version AS (INSERT INTO user_track_preferences AS p(user_id,item_id,source_id,audio_language,audio_commentary,audio_track,subtitle_mode,subtitle_language,subtitle_sdh,subtitle_track,updated_at)
+ SELECT u,i,m,al,ac,atr,sm,sl,ss,st,ts FROM v WHERE m IS NOT NULL ON CONFLICT(user_id,source_id) WHERE source_id IS NOT NULL DO UPDATE SET item_id=EXCLUDED.item_id,audio_language=EXCLUDED.audio_language,audio_commentary=EXCLUDED.audio_commentary,
+ audio_track=EXCLUDED.audio_track,subtitle_mode=EXCLUDED.subtitle_mode,subtitle_language=EXCLUDED.subtitle_language,subtitle_sdh=EXCLUDED.subtitle_sdh,subtitle_track=EXCLUDED.subtitle_track,updated_at=EXCLUDED.updated_at
+ WHERE EXCLUDED.updated_at>p.updated_at RETURNING (xmax=0) inserted),
+up AS (SELECT inserted FROM up_user UNION ALL SELECT inserted FROM up_item UNION ALL SELECT inserted FROM up_version)
 SELECT (SELECT count(*) FROM ok),(SELECT count(*) FROM up WHERE inserted),(SELECT count(*) FROM up WHERE NOT inserted),0`},
 	{kind: "access_policy", sql: `WITH x AS (SELECT s.doc FROM bk_stage s WHERE s.kind='access_policy'),
 upd AS (UPDATE access_policy p SET restrict_admins=(x.doc->>'restrict_admins')::boolean,block_unrated=(x.doc->>'block_unrated')::boolean,updated_at=now() FROM x

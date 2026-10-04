@@ -33,6 +33,7 @@ function seed(server: FakeServer) {
   server.sources[movieId] = [
     {
       id: "40000000-0000-4000-8000-000000000001",
+      primary: false,
       container: "mkv",
       contentType: "video/x-matroska",
       probed: true,
