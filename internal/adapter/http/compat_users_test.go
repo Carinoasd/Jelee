@@ -154,9 +154,17 @@ func TestCompatUsersPostgres(t *testing.T) {
 		t.Fatalf("direct play with compatibility session: %d", w.Code)
 	}
 
+	// Login already recorded a use; clear it so the next request must record its own.
+	if _, err := store.Pool.Exec(ctx, `UPDATE sessions SET last_seen_at=NULL,last_ip=NULL WHERE replace(id::text,'-','')=$1`, result.SessionInfo.ID); err != nil {
+		t.Fatal(err)
+	}
 	// /Users/Me and /Users/{id}: self or administrator only.
 	if w = serve("GET", "/compat/Users/Me", "", compatTokenAuth(token)); w.Code != 200 || !strings.Contains(w.Body.String(), `"Id":"`+viewerWire+`"`) {
 		t.Fatalf("me: %d %s", w.Code, w.Body.String())
+	}
+	// Compat requests record the session's last use like the native API does.
+	if count(`SELECT count(*) FROM sessions WHERE replace(id::text,'-','')=$1 AND user_id=$2::uuid AND last_seen_at IS NOT NULL AND last_ip IS NOT NULL`, result.SessionInfo.ID, f.viewer) != 1 {
+		t.Fatal("compat request did not record session use")
 	}
 	if w = serve("GET", "/compat/Users/"+f.viewer, "", compatTokenAuth(token)); w.Code != 200 || !strings.Contains(w.Body.String(), `"Name":"leak-viewer"`) {
 		t.Fatalf("self by id: %d %s", w.Code, w.Body.String())

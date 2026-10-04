@@ -264,7 +264,17 @@ func (s *Server) newCompat(cfg config.Config, backend Backend) (http.Handler, er
 	if id == "" {
 		id = compat.DeriveServerID(cfg.AllowedHosts...)
 	}
-	opts := compat.Options{Authenticate: backend.Authenticate, WriteRejection: WriteError, ServerID: id, Timeout: cfg.RequestTimeout()}
+	authenticate := backend.Authenticate
+	if tracker, ok := backend.(sessionUseTracker); ok {
+		// Record last use like the native API does. The boundary middleware
+		// already stored the proxy-aware client address in the request context
+		// the compat layer derives its lookup context from.
+		authenticate = func(ctx context.Context, token string) (access.Principal, error) {
+			address, _ := ctx.Value(clientAddressKey{}).(string)
+			return tracker.AuthenticateFrom(ctx, token, address)
+		}
+	}
+	opts := compat.Options{Authenticate: authenticate, WriteRejection: WriteError, ServerID: id, Timeout: cfg.RequestTimeout()}
 	if s.accounts != nil {
 		opts.Users = &compat.UserOptions{Accounts: s.accounts, Admit: s.admitAccount, AllowLogin: s.loginLimiter.Allow, ClientIP: requestClientIP}
 	}
