@@ -223,6 +223,8 @@ func newServer(cfg config.Config, backend Backend, catalog *app.Catalog, resolve
 			r.Use(s.authenticate)
 			r.Get("/api/v1/items", s.list)
 			r.Get("/api/v1/items/{id}", s.item)
+			r.Get("/api/v1/items/{id}/details", s.itemDetails)
+			r.Get("/api/v1/items/{id}/sources", s.itemSources)
 			if cfg.EnableDirect {
 				r.Get("/api/v1/sources/{id}/stream", s.stream)
 				r.Head("/api/v1/sources/{id}/stream", s.stream)
@@ -407,35 +409,6 @@ func (s *Server) authenticate(next http.Handler) http.Handler {
 		}
 		next.ServeHTTP(w, r.WithContext(withAuthMethod(access.WithPrincipal(r.Context(), p), method)))
 	})
-}
-
-func (s *Server) list(w http.ResponseWriter, r *http.Request) {
-	query, err := strictQuery(r, "cursor", "limit")
-	if err != nil {
-		WriteError(w, r, err)
-		return
-	}
-	limit := 50
-	if query["limit"] != "" {
-		limit, err = strconv.Atoi(query["limit"])
-		if err != nil {
-			WriteError(w, r, domain.ErrInvalid)
-			return
-		}
-	}
-	p, _ := access.PrincipalFromContext(r.Context())
-	ctx, cancel := context.WithTimeout(r.Context(), s.cfg.RequestTimeout())
-	defer cancel()
-	items, err := s.catalog.List(ctx, p.UserID, query["cursor"], limit)
-	if err != nil {
-		WriteError(w, r, err)
-		return
-	}
-	next := ""
-	if len(items) == limit {
-		next = items[len(items)-1].ID
-	}
-	writeJSON(w, 200, map[string]any{"data": items, "pagination": map[string]any{"nextCursor": next, "limit": limit}})
 }
 
 func (s *Server) item(w http.ResponseWriter, r *http.Request) {

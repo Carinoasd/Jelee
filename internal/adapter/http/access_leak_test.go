@@ -128,6 +128,8 @@ func leakRouteTable() map[string]leakRoute {
 		// Catalog and delivery: the direct media surfaces.
 		"GET /api/v1/items":                             {mode: leakList, params: noParams, control: true},
 		"GET /api/v1/items/{id}":                        {mode: leakByID, params: itemParam, control: true},
+		"GET /api/v1/items/{id}/details":                {mode: leakByID, params: itemParam, control: true},
+		"GET /api/v1/items/{id}/sources":                {mode: leakByID, params: itemParam, control: true},
 		"GET /api/v1/sources/{id}/stream":               {mode: leakByID, params: sourceParam, control: true},
 		"HEAD /api/v1/sources/{id}/stream":              {mode: leakByID, params: sourceParam, control: true},
 		"GET /api/v1/sources/{id}/subtitles/{trackId}":  {mode: leakByID, params: map[string]string{"id": "source", "trackId": "subtitle-track"}, control: true},
@@ -298,6 +300,9 @@ func leakHandlerWith(t *testing.T, store *postgres.Store, cfg config.Config, pas
 	catalog, err := app.NewCatalog(store).WithPlayback(store)
 	if err == nil {
 		catalog, err = catalog.WithBrowse(store)
+	}
+	if err == nil {
+		catalog, err = catalog.WithDetails(store)
 	}
 	if err != nil {
 		t.Fatal(err)

@@ -2,6 +2,8 @@
 
 ## Unreleased — Go foundation
 
+- 自有 API 條目瀏覽補齊（G34.3）：`GET /api/v1/items` 新增位移形式（`libraryId`、`parentId`、`type`、`sort`＋`order`、`q`、`offset`，回 `total`），游標形式不變；新增一般使用者可讀的 `GET /api/v1/items/{id}/details` 與不含路徑及直投網址的 `GET /api/v1/items/{id}/sources`。網頁條目頁改由伺服器篩選排序，詳情頁改用新 API 並顯示檔案資訊。詳見 `docs/catalog-api.md`。
+
 - 移除工作树中的上游 C# 源码树、.NET 专用 CI、ABI 门禁与开发容器设定；四语 UI 字串移至 `web/src/i18n/<locale>/core.json` 并去除旧产品名，独立版权／归属声明原文移至 `docs/legal/upstream/`。旧源码以 Git 标签 `upstream-csharp-final` 保留，完整品牌扫描零非白名单命中。取代理由与授权待确认事项见 `docs/requirements-clarifications.md`、`docs/LICENSE-COMPLIANCE.md`。
 
 - 第3C3B新增按库默认关闭的NFO只读策略、安全验证摘要及schema6持久快取；正负TTL、行数/字节配额、连续检查点和事务租约核对均有明确上限。库级worker与API仍由3C3C接入，详见 `docs/nfo-cache.md`。

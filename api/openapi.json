@@ -171,6 +171,17 @@
             "format": "uuid",
             "type": "string"
           },
+          "premiereDate": {
+            "description": "Release date; only in the offset form and in details, absent when unknown.",
+            "format": "date",
+            "type": "string"
+          },
+          "productionYear": {
+            "description": "Release year (the year fact, else the year of the release date); only in the offset form and in details, absent when unknown.",
+            "maximum": 9999,
+            "minimum": 1,
+            "type": "integer"
+          },
           "title": {
             "type": "string"
           }
@@ -180,6 +191,148 @@
           "libraryId",
           "title",
           "kind"
+        ],
+        "type": "object"
+      },
+      "CatalogItemDetails": {
+        "additionalProperties": false,
+        "properties": {
+          "externalIds": {
+            "description": "Provider identifiers (for example tmdb, imdb, tvdb) as stored.",
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "default": {
+                  "type": "boolean"
+                },
+                "type": {
+                  "type": "string"
+                },
+                "value": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "type",
+                "value",
+                "default"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "genres": {
+            "description": "Genre labels in stored order, without duplicates.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "Movie",
+              "HomeVideo",
+              "Series",
+              "Season",
+              "Episode"
+            ],
+            "type": "string"
+          },
+          "libraryId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "nfo": {
+            "additionalProperties": false,
+            "properties": {
+              "fields": {
+                "description": "Displayed fields whose current value came from an NFO file.",
+                "items": {
+                  "enum": [
+                    "title",
+                    "originalTitle",
+                    "sortTitle",
+                    "tagline",
+                    "overview",
+                    "date",
+                    "year",
+                    "genres",
+                    "uniqueIds"
+                  ],
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "readAt": {
+                "description": "When the NFO file was last read; absent when unread.",
+                "format": "date-time",
+                "type": "string"
+              },
+              "status": {
+                "description": "Last confirmed NFO read of the item: unread when none was confirmed; missing when no NFO file was found; nfo_invalid when the file failed validation.",
+                "enum": [
+                  "unread",
+                  "valid",
+                  "missing",
+                  "nfo_invalid"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "status",
+              "fields"
+            ],
+            "type": "object"
+          },
+          "originalTitle": {
+            "description": "Original title, absent when none is stored.",
+            "type": "string"
+          },
+          "overview": {
+            "description": "Overview, absent when none is stored.",
+            "type": "string"
+          },
+          "parentId": {
+            "description": "Present for an explicitly linked season or episode in the same library.",
+            "format": "uuid",
+            "type": "string"
+          },
+          "premiereDate": {
+            "description": "Release date; only in the offset form and in details, absent when unknown.",
+            "format": "date",
+            "type": "string"
+          },
+          "productionYear": {
+            "description": "Release year (the year fact, else the year of the release date); only in the offset form and in details, absent when unknown.",
+            "maximum": 9999,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "sortTitle": {
+            "description": "Sort title, absent when none is stored.",
+            "type": "string"
+          },
+          "tagline": {
+            "description": "Tagline, absent when none is stored.",
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "libraryId",
+          "title",
+          "kind",
+          "genres",
+          "externalIds",
+          "nfo"
         ],
         "type": "object"
       },
@@ -2382,6 +2535,290 @@
         ],
         "type": "object"
       },
+      "MediaSourceInfo": {
+        "additionalProperties": false,
+        "properties": {
+          "audioTracks": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "atmos": {
+                  "type": "boolean"
+                },
+                "bitRate": {
+                  "type": "integer"
+                },
+                "channelLayout": {
+                  "type": "string"
+                },
+                "channels": {
+                  "type": "integer"
+                },
+                "codec": {
+                  "type": "string"
+                },
+                "default": {
+                  "type": "boolean"
+                },
+                "forced": {
+                  "type": "boolean"
+                },
+                "index": {
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "language": {
+                  "type": "string"
+                },
+                "profile": {
+                  "type": "string"
+                },
+                "sampleRate": {
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "index",
+                "default",
+                "forced",
+                "atmos"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "bitRate": {
+            "description": "Bits per second as probed, or size × 8 ÷ duration when the container states none.",
+            "minimum": 1,
+            "type": "integer"
+          },
+          "container": {
+            "description": "Container token derived from the stored content type.",
+            "enum": [
+              "mp4",
+              "mkv",
+              "webm",
+              "mov",
+              "avi",
+              "mpegts"
+            ],
+            "type": "string"
+          },
+          "contentType": {
+            "type": "string"
+          },
+          "durationMicros": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "externalTracks": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "charset": {
+                  "description": "Detected charset of a text subtitle. Reported only; the file is delivered unconverted.",
+                  "type": "string"
+                },
+                "codec": {
+                  "description": "Canonical subtitle format or audio codec implied by the extension; absent for mka, m4a, ogg, oga and .sub, which only probing can tell.",
+                  "type": "string"
+                },
+                "commentary": {
+                  "type": "boolean"
+                },
+                "default": {
+                  "type": "boolean"
+                },
+                "forced": {
+                  "type": "boolean"
+                },
+                "format": {
+                  "description": "File extension of the sidecar file.",
+                  "type": "string"
+                },
+                "id": {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                "kind": {
+                  "enum": [
+                    "subtitle",
+                    "audio"
+                  ],
+                  "type": "string"
+                },
+                "language": {
+                  "type": "string"
+                },
+                "languages": {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                "sdh": {
+                  "type": "boolean"
+                },
+                "sizeBytes": {
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "title": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "kind",
+                "format",
+                "forced",
+                "sdh",
+                "default",
+                "commentary",
+                "sizeBytes"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "probed": {
+            "description": "False when no current probe result exists (never probed, failed, expired, or the file changed since). Stream lists are then empty and the version labels come from the file name only.",
+            "type": "boolean"
+          },
+          "sizeBytes": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "subtitleTracks": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "codec": {
+                  "type": "string"
+                },
+                "default": {
+                  "type": "boolean"
+                },
+                "forced": {
+                  "type": "boolean"
+                },
+                "format": {
+                  "description": "Canonical format clients declare: srt, ass, ssa, webvtt, mov_text, pgs, vobsub, dvb, eia_608 or text.",
+                  "type": "string"
+                },
+                "index": {
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "language": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "index",
+                "default",
+                "forced"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "version": {
+            "additionalProperties": true,
+            "description": "G20.2 version labels with qualityScore and displayName; sources are listed by qualityScore descending. Other label fields may be added.",
+            "properties": {
+              "displayName": {
+                "type": "string"
+              },
+              "qualityScore": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "displayName",
+              "qualityScore"
+            ],
+            "type": "object"
+          },
+          "videoTracks": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "bitRate": {
+                  "type": "integer"
+                },
+                "codec": {
+                  "type": "string"
+                },
+                "default": {
+                  "type": "boolean"
+                },
+                "frameRate": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "denominator": {
+                      "minimum": 1,
+                      "type": "integer"
+                    },
+                    "numerator": {
+                      "minimum": 0,
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "numerator",
+                    "denominator"
+                  ],
+                  "type": "object"
+                },
+                "height": {
+                  "type": "integer"
+                },
+                "index": {
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "level": {
+                  "type": "integer"
+                },
+                "primary": {
+                  "description": "The stream the direct play decision checks. Cover art is not listed.",
+                  "type": "boolean"
+                },
+                "profile": {
+                  "type": "string"
+                },
+                "width": {
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "index",
+                "default",
+                "primary"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "container",
+          "contentType",
+          "probed",
+          "version",
+          "videoTracks",
+          "audioTracks",
+          "subtitleTracks",
+          "externalTracks"
+        ],
+        "type": "object"
+      },
       "MetadataApplyResult": {
         "additionalProperties": false,
         "properties": {
@@ -3832,7 +4269,20 @@
             "type": "array"
           },
           "version": {
-            "description": "G20.2 version labels with qualityScore and displayName; sources are listed by qualityScore descending.",
+            "additionalProperties": true,
+            "description": "G20.2 version labels with qualityScore and displayName; sources are listed by qualityScore descending. Other label fields may be added.",
+            "properties": {
+              "displayName": {
+                "type": "string"
+              },
+              "qualityScore": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "displayName",
+              "qualityScore"
+            ],
             "type": "object"
           },
           "videoTracks": {
@@ -5471,8 +5921,10 @@
     },
     "/api/v1/items": {
       "get": {
+        "description": "Two forms share this route. Without browse parameters it is the original keyset listing in item ID order: pass the returned nextCursor as cursor to continue; nextCursor is empty after the last page. Any of offset, libraryId, parentId, type, sort, order or q selects the offset form, which filters and sorts and reports total; continue it with offset+limit while that is below total. A cursor together with a browse parameter is 400 invalid_request. Library grants apply in both forms: a library or parent the caller cannot see yields an empty page with total 0, exactly like one that does not exist.",
         "parameters": [
           {
+            "description": "Keyset cursor of the original form; not allowed with browse parameters.",
             "in": "query",
             "name": "cursor",
             "schema": {
@@ -5481,6 +5933,7 @@
             }
           },
           {
+            "description": "Page size in both forms.",
             "in": "query",
             "name": "limit",
             "schema": {
@@ -5488,6 +5941,88 @@
               "maximum": 100,
               "minimum": 1,
               "type": "integer"
+            }
+          },
+          {
+            "description": "Offset form: items to skip.",
+            "in": "query",
+            "name": "offset",
+            "schema": {
+              "default": 0,
+              "maximum": 1000000,
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Offset form: only items of this library, at any level.",
+            "in": "query",
+            "name": "libraryId",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Offset form: only direct children of this library (its top-level items) or of this series or season (its seasons or episodes).",
+            "in": "query",
+            "name": "parentId",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Offset form: item kinds to include; repeat the parameter or separate kinds with commas. Default every kind.",
+            "explode": true,
+            "in": "query",
+            "name": "type",
+            "schema": {
+              "items": {
+                "enum": [
+                  "Movie",
+                  "HomeVideo",
+                  "Series",
+                  "Season",
+                  "Episode"
+                ],
+                "type": "string"
+              },
+              "maxItems": 5,
+              "type": "array"
+            },
+            "style": "form"
+          },
+          {
+            "description": "Offset form: comma separated sort keys, at most 3 distinct; the item ID breaks remaining ties. name compares the sort title, else the title, case-insensitively.",
+            "in": "query",
+            "name": "sort",
+            "schema": {
+              "default": "name",
+              "pattern": "^(name|premiereDate|productionYear)(,(name|premiereDate|productionYear)){0,2}$",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Offset form: direction of every sort key. Items without a date or year come first ascending and last descending.",
+            "in": "query",
+            "name": "order",
+            "schema": {
+              "default": "asc",
+              "enum": [
+                "asc",
+                "desc"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "description": "Offset form: case-insensitive title substring. % and _ match literally.",
+            "in": "query",
+            "name": "q",
+            "schema": {
+              "maxLength": 128,
+              "type": "string"
             }
           }
         ],
@@ -5514,7 +6049,18 @@
                           "type": "integer"
                         },
                         "nextCursor": {
+                          "description": "Original form only; always empty in the offset form.",
                           "type": "string"
+                        },
+                        "offset": {
+                          "description": "Offset form only.",
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "total": {
+                          "description": "Offset form only: every visible item matching the filters.",
+                          "minimum": 0,
+                          "type": "integer"
                         }
                       },
                       "required": [
@@ -5533,6 +6079,46 @@
               }
             },
             "description": "HTTP 200"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 400"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 401"
+          },
+          "408": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 408"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 503"
           },
           "default": {
             "content": {
@@ -5609,6 +6195,122 @@
           }
         ],
         "summary": "Read a visible video item"
+      }
+    },
+    "/api/v1/items/{id}/details": {
+      "get": {
+        "description": "Any session kind. Overview, release date and year, original title, tagline, genres, external IDs and the NFO read state for every user who may see the item. No file paths, roots, provider origins or NFO file identities are returned; the administrator metadata view stays at /api/v1/items/{id}/metadata. No query parameters are accepted.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/CatalogItemDetails"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "HTTP 200"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 400"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 401"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 403"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "The item is missing or not visible to the caller; both are answered alike (403 forbidden when hidden content is configured as 403)."
+          },
+          "408": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 408"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 503"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Jelee error envelope with code, message, details and traceId; see the Error schema."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "webSession": []
+          }
+        ],
+        "summary": "Read the display metadata of a visible item"
       }
     },
     "/api/v1/items/{id}/metadata": {
@@ -7440,6 +8142,139 @@
         ],
         "summary": "Atomically invalidate item metadata and queue whole-library inventory followed by probing only this item's mapped sources",
         "x-jelee-role": "administrator"
+      }
+    },
+    "/api/v1/items/{id}/sources": {
+      "get": {
+        "description": "Any session kind. File information only: container, size, duration, bit rate, version labels, embedded video, audio and subtitle streams from the current probe result, and external subtitle and audio files (language, flags, format). It carries no file paths and no delivery URLs; delivery stays native-only under /api/v1/items/{id}/playback. Sources without a current probe result are listed with probed=false. No query parameters are accepted.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "itemId": {
+                          "format": "uuid",
+                          "type": "string"
+                        },
+                        "sources": {
+                          "items": {
+                            "$ref": "#/components/schemas/MediaSourceInfo"
+                          },
+                          "type": "array"
+                        }
+                      },
+                      "required": [
+                        "itemId",
+                        "sources"
+                      ],
+                      "type": "object"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "HTTP 200"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 400"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 401"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 403"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "The item is missing or not visible to the caller; both are answered alike (403 forbidden when hidden content is configured as 403)."
+          },
+          "408": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 408"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 503"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Jelee error envelope with code, message, details and traceId; see the Error schema."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "webSession": []
+          }
+        ],
+        "summary": "Describe the media files of a visible item"
       }
     },
     "/api/v1/jobs": {

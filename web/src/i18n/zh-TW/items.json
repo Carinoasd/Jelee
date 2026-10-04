@@ -5,8 +5,13 @@
       "poster": "海報牆",
       "list": "清單"
     },
-    "count": "已載入項目：{count}",
-    "noneYet": "目前讀取的目錄範圍內還沒有找到此媒體庫的項目。",
+    "count": "已顯示 {count}／共 {total} 項",
+    "sort": {
+      "label": "排序",
+      "name": "名稱",
+      "newest": "上映日期（新到舊）",
+      "year": "年份（新到舊）"
+    },
     "listCaption": "{name} 中的項目",
     "column": {
       "poster": "海報",
@@ -39,12 +44,32 @@
       "nfoInvalid": "此項目的 NFO 檔案無法使用。",
       "nfoReadAt": "（讀取於 {date}）",
       "nfoNone": "此項目尚未審核過 NFO 檔案。",
-      "metadataAdminOnly": "詳細中繼資料（簡介、外部 ID、NFO 來源）目前僅管理員可見。",
-      "metadataUnavailable": "目前無法載入詳細中繼資料。",
       "files": "檔案資訊",
-      "filesUnavailable": "網頁介面暫不提供檔案詳情，可在原生用戶端中查看。",
       "nativeTitle": "請使用原生用戶端觀看",
       "nativeBody": "Jelee 網頁介面只用於瀏覽與管理。要觀看此項目，請在 Jelee 原生用戶端中開啟。"
+    },
+    "files": {
+      "version": "版本 {n}",
+      "unprobed": "尚未分析；目前只知道容器、大小與外掛檔案。",
+      "container": "容器",
+      "duration": "時長",
+      "resolution": "解析度",
+      "videoCodec": "視訊編碼",
+      "audioCodecs": "音訊編碼",
+      "bitrate": "位元率",
+      "size": "檔案大小",
+      "embeddedAudio": "音軌",
+      "embeddedSubtitles": "內嵌字幕",
+      "externalFiles": "外掛字幕與音軌檔案",
+      "kindSubtitle": "字幕",
+      "kindAudio": "音軌",
+      "unknownLanguage": "未知語言",
+      "flagDefault": "預設",
+      "flagForced": "強制",
+      "flagSdh": "聽障",
+      "flagCommentary": "評論",
+      "none": "此項目沒有媒體檔案。",
+      "unavailable": "目前無法載入檔案資訊。"
     }
   }
 }

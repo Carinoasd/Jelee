@@ -64,6 +64,9 @@ const (
 type BrowseQuery struct {
 	Scope    BrowseScope
 	ParentID string
+	// LibraryID, when set, additionally restricts the listing to one
+	// library. It narrows the scope; it never widens the grants.
+	LibraryID string
 	// Kinds restricts the item kinds; empty means every kind.
 	Kinds      []string
 	SearchTerm string
@@ -127,6 +130,9 @@ func ValidBrowseQuery(q BrowseQuery) bool {
 			return false
 		}
 	default:
+		return false
+	}
+	if q.LibraryID != "" && !ValidID(q.LibraryID) {
 		return false
 	}
 	if q.Offset < 0 || q.Offset > BrowseOffsetMax || q.Limit < 1 || q.Limit > BrowseLimitMax {

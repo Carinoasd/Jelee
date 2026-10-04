@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { createApiClient } from "@/api/client";
 import { createFakeServer } from "@/test/fakeServer";
-import { listLibraryItems, libraryItemsTarget, maxPagesPerLoad, posterUrl, type ItemMetadata } from "./api";
-import { parseItemView } from "./labels";
-import { summarizeMetadata } from "./metadata";
+import { getItemDetails, getItemSources, libraryItemsPageSize, listLibraryItems, posterUrl, type MediaSourceInfo } from "./api";
+import { codecsOf, formatBitrate, formatBytes, formatDuration, resolutionOf } from "./files";
+import { parseItemView, parseLibrarySort } from "./labels";
 
 const lib = "10000000-0000-4000-8000-00000000000a";
 const other = "10000000-0000-4000-8000-00000000000b";
@@ -13,95 +13,92 @@ function uuid(n: number) {
 }
 
 describe("listLibraryItems", () => {
-  it("keeps top-level items of the library and walks pages until enough are found", async () => {
+  it("asks the server for one sorted page of the library's top level", async () => {
     const server = createFakeServer();
     server.cookie = true;
     server.pageSize = 100;
     server.items = Array.from({ length: 250 }, (_, n) => ({
       id: uuid(n),
-      libraryId: n % 5 === 0 ? lib : other,
+      libraryId: n % 2 === 0 ? lib : other,
       kind: "Movie" as const,
-      title: `Item ${n}`,
-      ...(n === 5 ? { parentId: uuid(0) } : {}),
+      title: `Item ${String(n).padStart(3, "0")}`,
+      productionYear: 1900 + n,
+      ...(n === 4 ? { parentId: uuid(0) } : {}),
     }));
     const { client } = createApiClient({ fetch: server.fetch });
     const page = await listLibraryItems(client, lib);
-    // 50 matching items exist (one is a child); fewer than the target, so the
-    // whole catalog is read and the cursor ends.
-    expect(page.items).toHaveLength(49);
-    expect(page.items.every((item) => item.libraryId === lib && item.parentId === undefined)).toBe(true);
-    expect(page.nextCursor).toBe("");
-    expect(server.requests).toHaveLength(3);
-    expect(libraryItemsTarget).toBeGreaterThan(0);
-  });
+    expect(page.total).toBe(124);
+    expect(page.items).toHaveLength(libraryItemsPageSize);
+    expect(page.items[0]!.title).toBe("Item 000");
+    // One request per page: no client-side walk over the global catalog.
+    expect(server.requests).toHaveLength(1);
+    const query = new URL(server.requests[0]!.url).searchParams;
+    expect(Object.fromEntries(query)).toEqual({ parentId: lib, sort: "name", order: "asc", offset: "0", limit: String(libraryItemsPageSize) });
 
-  it("stops after the page budget and returns a cursor to continue", async () => {
+    const last = await listLibraryItems(client, lib, 120, "year");
+    expect(last.items.map((item) => item.productionYear)).toEqual([1908, 1906, 1902, 1900]);
+    const second = new URL(server.requests[1]!.url).searchParams;
+    expect(second.get("sort")).toBe("productionYear");
+    expect(second.get("order")).toBe("desc");
+    expect(second.get("offset")).toBe("120");
+  });
+});
+
+describe("item details and file information", () => {
+  it("reads the public endpoints", async () => {
     const server = createFakeServer();
     server.cookie = true;
-    server.pageSize = 100;
-    server.items = Array.from({ length: (maxPagesPerLoad + 2) * 100 }, (_, n) => ({
-      id: uuid(n),
-      libraryId: other,
-      kind: "Movie" as const,
-      title: `Item ${n}`,
-    }));
+    server.items = [{ id: uuid(1), libraryId: lib, kind: "Movie", title: "Arrival" }];
+    server.details[uuid(1)] = { overview: "Text", genres: ["Drama"] };
     const { client } = createApiClient({ fetch: server.fetch });
-    const page = await listLibraryItems(client, lib);
-    expect(page.items).toEqual([]);
-    expect(server.requests).toHaveLength(maxPagesPerLoad);
-    expect(page.nextCursor).not.toBe("");
-    const rest = await listLibraryItems(client, lib, page.nextCursor);
-    expect(rest.nextCursor).toBe("");
+    const details = await getItemDetails(client, uuid(1));
+    expect(details.overview).toBe("Text");
+    expect(details.nfo.status).toBe("unread");
+    expect(await getItemSources(client, uuid(1))).toEqual([]);
+    expect(server.requests.map((request) => new URL(request.url).pathname)).toEqual([
+      `/api/v1/items/${uuid(1)}/details`,
+      `/api/v1/items/${uuid(1)}/sources`,
+    ]);
   });
 });
 
 describe("item helpers", () => {
-  it("builds same-origin artwork URLs and parses the view", () => {
+  it("builds same-origin artwork URLs and parses the view and order", () => {
     expect(posterUrl("a/b", 300)).toBe("/images/Primary/a%2Fb?width=300");
     expect(parseItemView("list")).toBe("list");
     expect(parseItemView(["list"])).toBe("poster");
     expect(parseItemView(undefined)).toBe("poster");
+    expect(parseLibrarySort("year")).toBe("year");
+    expect(parseLibrarySort("newest")).toBe("newest");
+    expect(parseLibrarySort("name; drop")).toBe("name");
+    expect(parseLibrarySort(["year"])).toBe("name");
   });
 
-  it("summarizes metadata defensively", () => {
-    const base = { locked: false, updatedAt: null, nfoOrigin: null, nfoLockOrigin: null };
-    const summary = summarizeMetadata({
-      itemId: uuid(1),
-      libraryId: lib,
-      kind: "Movie",
-      revision: 1,
-      fields: [
-        { ...base, field: "overview", value: "  Text  ", source: "nfo", providerOrigin: null },
-        { ...base, field: "date", value: "1999-03-31", source: "manual", providerOrigin: null },
-        { ...base, field: "tagline", value: "", source: "nfo", providerOrigin: null },
+  it("formats file facts and skips unknown values", () => {
+    expect(formatDuration(7_265_000_000)).toBe("2:01:05");
+    expect(formatDuration(65_400_000)).toBe("1:05");
+    expect(formatDuration(undefined)).toBe("");
+    expect(formatDuration(-1)).toBe("");
+    expect(formatBytes(9_000_000_000, "en-US")).toBe("8.4 GB");
+    expect(formatBytes(512, "en-US")).toBe("512 byte");
+    expect(formatBytes(undefined, "en-US")).toBe("");
+    expect(formatBitrate(10_344_827, "en-US")).toBe("10.3 Mb/s");
+    expect(formatBitrate(320_000, "en-US")).toBe("320 kb/s");
+    expect(formatBitrate(0, "en-US")).toBe("");
+    const source = {
+      videoTracks: [
+        { index: 0, width: 640, height: 360, default: false, primary: false, codec: "mjpeg" },
+        { index: 1, width: 3840, height: 2160, default: true, primary: true, codec: "hevc" },
       ],
-      facts: [
-        { ...base, field: "uniqueIds", source: "nfo", value: [{ type: "tmdb", value: "603", default: true }, { bogus: 1 }, "x"] },
-        { ...base, field: "genres", source: "manual", value: ["Action", 3, ""] },
+      audioTracks: [
+        { index: 2, codec: "truehd", default: true, forced: false, atmos: true },
+        { index: 3, codec: "truehd", default: false, forced: false, atmos: false },
+        { index: 4, codec: "ac3", default: false, forced: false, atmos: false },
       ],
-      lastConfirmedNFOObservation: null,
-    } as unknown as ItemMetadata);
-    expect(summary.overview).toBe("Text");
-    expect(summary.year).toBe(1999);
-    expect(summary.tagline).toBe("");
-    expect(summary.externalIds).toEqual([{ type: "tmdb", value: "603", isDefault: true }]);
-    expect(summary.genres).toEqual(["Action"]);
-    expect([...summary.nfoFields].sort()).toEqual(["overview", "uniqueIds"]);
-    expect(summary.nfoStatus).toBeNull();
-  });
-
-  it("prefers the year fact and reports the NFO observation", () => {
-    const summary = summarizeMetadata({
-      itemId: uuid(1),
-      libraryId: lib,
-      kind: "Movie",
-      revision: 1,
-      fields: [],
-      facts: [{ field: "year", value: 2001, source: "existing", locked: false, updatedAt: null, nfoOrigin: null, nfoLockOrigin: null }],
-      lastConfirmedNFOObservation: { status: "valid", readAt: "2026-10-01T00:00:00Z" },
-    } as unknown as ItemMetadata);
-    expect(summary.year).toBe(2001);
-    expect(summary.nfoStatus).toBe("valid");
-    expect(summary.nfoReadAt).toBe("2026-10-01T00:00:00Z");
+    } as unknown as MediaSourceInfo;
+    expect(resolutionOf(source)).toBe("3840×2160");
+    expect(resolutionOf({ videoTracks: [] } as unknown as MediaSourceInfo)).toBe("");
+    expect(codecsOf(source.audioTracks)).toBe("truehd, ac3");
+    expect(codecsOf([{}, { codec: "" }])).toBe("");
   });
 });

@@ -4,7 +4,7 @@
 
 ## 正式API與欄位
 
-啟用帳號服務後提供管理員 `GET /api/v1/items/{id}/metadata`、`PUT /api/v1/items/{id}/metadata`，不需要TMDB金鑰。runtime同一建構函式在有／無供應商時都綁定item repository；有供應商時保留庫偏好與圖片功能。建構回傳新服務，不變更原服務。供應商路由仍要求正式供應商，局部依賴缺失回固定503。
+啟用帳號服務後提供管理員 `GET /api/v1/items/{id}/metadata`、`PUT /api/v1/items/{id}/metadata`，不需要TMDB金鑰。一般使用者可讀的顯示欄位（不含來源識別與路徑）另由 `GET /api/v1/items/{id}/details` 提供，見 `docs/catalog-api.md`。runtime同一建構函式在有／無供應商時都綁定item repository；有供應商時保留庫偏好與圖片功能。建構回傳新服務，不變更原服務。供應商路由仍要求正式供應商，局部依賴缺失回固定503。
 
 ```json
 {"expectedRevision":1,"fields":[{"field":"title","value":"人工標題","locked":true},{"field":"overview","value":""}]}

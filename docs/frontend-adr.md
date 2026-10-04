@@ -84,15 +84,18 @@ web/
 | --- | --- | --- |
 | `/login` | 登入；欄位驗證、錯誤碼對照訊息、登入後回 `redirect` | `POST /auth/login` |
 | `/libraries` | 媒體庫卡片列表、游標分頁 | `GET /libraries` |
-| `/libraries/:libraryId` | 條目海報牆／列表（`?view=list`，可深層連結）、骨架屏、空狀態、錯誤態 | `GET /items` |
-| `/items/:itemId` | 條目詳情：標題、類型、年份、原始標題、簡介、類型標籤、外部 ID、NFO 來源標記；「請使用原生用戶端觀看」說明 | `GET /items/{id}`、管理員另讀 `GET /items/{id}/metadata` |
+| `/libraries/:libraryId` | 條目海報牆／列表（`?view=list`）、伺服器排序（`?sort=newest`／`?sort=year`，皆可深層連結）、「已顯示 n／共 m 項」與載入更多、骨架屏、空狀態、錯誤態 | `GET /items?parentId=…&sort=…&order=…&offset=…&limit=60` |
+| `/items/:itemId` | 條目詳情：標題、類型、年份、原始標題、標語、簡介、類型標籤、外部 ID、NFO 讀取狀態與來源標記；檔案資訊（每個版本的容器、時長、解析度、編碼、位元率、大小、內嵌與外掛字幕／音軌）；「請使用原生用戶端觀看」說明 | `GET /items/{id}/details`、`GET /items/{id}/sources` |
 | `/account` | 個人資料、自己的工作階段列表、單一撤銷（樂觀更新可回滾）、在所有裝置上登出 | `GET /users/me`、`GET/DELETE /users/{id}/sessions[/{sessionID}]` |
 
-API 限制與對應做法：
+頁面與 API 限制（對照表）：
 
-- `GET /api/v1/items` 只接受 `cursor`、`limit`，沒有媒體庫篩選或排序。條目頁沿全域目錄順序逐頁讀取（每頁 100、單次最多 10 頁），保留該媒體庫、沒有 `parentId` 的條目，回傳的游標可繼續「載入更多」。因此不提供排序；伺服器加上 `libraryId`／排序參數後只需改 `features/items/api.ts`。
-- 簡介、年份、外部 ID、NFO 來源只有管理員 API 提供；一般使用者看到「目前僅管理員可見」的說明。
-- 檔案資訊目前沒有網頁可用的 API（直投與探測端點不對網頁開放），詳情頁只顯示說明。
+| 原限制 | 狀態 | 現在的做法 |
+| --- | --- | --- |
+| `GET /api/v1/items` 只接受 `cursor`、`limit`，前端逐頁讀全域目錄再篩媒體庫 | 已解除 | 位移形式新增 `libraryId`、`parentId`、`type`、`sort`＋`order`、`q`、`offset` 並回 `total`（見 `docs/catalog-api.md`）。條目頁一次請求一頁（每頁 60），用 `parentId=<媒體庫>` 取頂層條目，排序由伺服器完成；舊游標形式行為不變 |
+| 簡介、年份、外部 ID、NFO 來源只有管理員 API 提供 | 已解除 | `GET /api/v1/items/{id}/details` 對所有可見該條目的使用者提供；詳情頁不再呼叫管理員 `/metadata`，也不再顯示「目前僅管理員可見」 |
+| 沒有網頁可用的檔案資訊 API | 已解除 | `GET /api/v1/items/{id}/sources` 任何工作階段可讀，不含路徑與任何直投網址；讀取失敗只隱藏檔案資訊區塊 |
+| 網頁不得取得直投路徑 | 維持 | `WebPaths` 仍移除 `/stream` 與 `/api/v1/sources/…`；檔案資訊 schema（`MediaSourceInfo`）沒有 `url` 欄位；`check-no-playback` 仍掃描原始碼路徑字串 |
 
 共用元件（`components/ui/`）：`UiButton`（primary／secondary／danger／ghost、`pressed` 切換、`busy`）、`UiTextField`（label／hint／error 以 `aria-describedby` 連結、`aria-invalid`）、`UiSkeleton`（`aria-hidden`、固定版面尺寸、reduced-motion 時停用動畫）、`UiEmptyState`、`UiErrorState`（錯誤碼對照訊息＋traceId＋重試）、`UiAlert`、`UiBadge`、`UiToastRegion`（`aria-live`，錯誤用 `role="alert"` 且不自動消失）、`RequestStatus`（可插入骨架屏）。可及性：skip link、導覽後焦點移到頁面 `h1`、`RouterLink` 的 `aria-current`、觸控目標 44px、`:focus-visible` 外框，亮／暗色全部取自 token。
 
@@ -111,7 +114,7 @@ base-uri 'none'; form-action 'self'; frame-ancestors 'none'
 ## 禁播策略（G27、G35.5）
 
 1. **不提供入口**：路由表、頁面與翻譯中沒有任何播放、播放器、串流、投放或子母畫面路由／按鈕／字串。
-2. **型別層**：`WebPaths` 移除所有 `/stream` 路徑。
+2. **型別層**：`WebPaths` 移除所有 `/stream` 與 `/api/v1/sources/…` 路徑；網頁可讀的檔案資訊（`GET /api/v1/items/{id}/sources`）的 schema 本身不含直投網址。
 3. **伺服器層**：web session 呼叫直投端點會得到 `403 web_playback_disabled`（既有實作）。
 4. **建置門禁** `web/scripts/check-no-playback.mjs`（接在 `web-lint`，`web-build` 以 `--require-dist` 再掃一次產物）：
    - 根目錄與 `web/` 的 `package.json` 各依賴欄位、`package-lock.json` 任一層的套件，不得出現 hls.js、dashjs、shaka-player、video.js、plyr、mpegts.js、flv.js、media-chrome、vidstack、artplayer、xgplayer、dplayer、clappr 等播放器，以及 `@videojs/`、`videojs-`、`@vidstack/`、`@mux/` 等前綴。

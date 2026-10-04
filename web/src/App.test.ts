@@ -20,38 +20,41 @@ function seed(server: FakeServer) {
     { id: "20000000-0000-4000-8000-000000000002", libraryId: libraryB, kind: "Series", title: "Other Show" },
     { id: "20000000-0000-4000-8000-000000000003", libraryId: libraryA, kind: "HomeVideo", title: "Holiday" },
   ];
-  server.metadata[movieId] = {
-    itemId: movieId,
-    libraryId: libraryA,
-    kind: "Movie",
-    revision: 3,
-    fields: [
-      field("title", "Arrival", "nfo"),
-      field("originalTitle", "Story of Your Life", "nfo"),
-      field("overview", "Linguist <i>meets</i> heptapods.", "nfo"),
-      field("date", "2016-11-11", "existing"),
+  server.details[movieId] = {
+    originalTitle: "Story of Your Life",
+    overview: "Linguist <i>meets</i> heptapods.",
+    premiereDate: "2016-11-11",
+    productionYear: 2016,
+    genres: ["Drama", "Science Fiction"],
+    externalIds: [
+      { type: "tmdb", value: "329865", default: true },
+      { type: "imdb", value: "tt2543164", default: false },
     ],
-    facts: [
-      fact("uniqueIds", [
-        { type: "tmdb", value: "329865", default: true },
-        { type: "imdb", value: "tt2543164" },
-      ]),
-      fact("genres", ["Drama", "Science Fiction"]),
-    ],
-    lastConfirmedNFOObservation: null,
-  } as never;
+    nfo: { status: "valid", readAt: "2026-10-01T00:00:00Z", fields: ["title", "originalTitle", "overview"] },
+  };
+  server.sources[movieId] = [
+    {
+      id: "40000000-0000-4000-8000-000000000001",
+      container: "mkv",
+      contentType: "video/x-matroska",
+      probed: true,
+      sizeBytes: 9_000_000_000,
+      durationMicros: 6_960_000_000,
+      bitRate: 10_344_827,
+      version: { displayName: "2160p · HEVC · TrueHD 7.1", qualityScore: 9 },
+      videoTracks: [{ index: 0, codec: "hevc", width: 3840, height: 2160, default: true, primary: true }],
+      audioTracks: [{ index: 1, codec: "truehd", language: "eng", channelLayout: "7.1", default: true, forced: false, atmos: true }],
+      subtitleTracks: [{ index: 2, codec: "hdmv_pgs_subtitle", format: "pgs", language: "eng", default: false, forced: true }],
+      externalTracks: [
+        { id: "50000000-0000-4000-8000-000000000001", kind: "subtitle", format: "srt", language: "zh", forced: false, sdh: true, default: false, commentary: false, sizeBytes: 10 },
+        { id: "50000000-0000-4000-8000-000000000002", kind: "audio", format: "ac3", language: "ja", forced: false, sdh: false, default: false, commentary: true, sizeBytes: 20 },
+      ],
+    },
+  ];
   server.sessions = [
     session(currentSessionId, "Jelee Web", "web", "2026-10-03T10:00:00Z"),
     session("30000000-0000-4000-8000-000000000001", "Living room TV", "native", "2026-10-04T08:00:00Z"),
   ];
-}
-
-function field(name: string, value: string, source: string) {
-  return { field: name, value, source, locked: false, updatedAt: null, providerOrigin: null, nfoOrigin: null, nfoLockOrigin: null };
-}
-
-function fact(name: string, value: unknown) {
-  return { field: name, value, source: "nfo", locked: false, updatedAt: null, nfoOrigin: null, nfoLockOrigin: null };
 }
 
 function session(id: string, deviceName: string, clientKind: "web" | "native", lastSeenAt: string) {
@@ -229,6 +232,24 @@ describe("library items", () => {
     assertNoPlayback(wrapper.html());
   });
 
+  it("sorts on the server through the URL and counts the whole library", async () => {
+    const { wrapper, router, server } = await boot("/libraries/" + libraryA, (s) => {
+      s.cookie = true;
+      s.user = { ...s.user, locale: "en-US" };
+      s.items = s.items.map((item) => (item.title === "Holiday" ? { ...item, productionYear: 2020 } : item));
+    });
+    expect(wrapper.find(".jl-count").text()).toBe("Showing 2 of 2");
+    const select = wrapper.find("select.jl-sort__select");
+    await select.setValue("year");
+    await flushPromises();
+    expect(router.currentRoute.value.query.sort).toBe("year");
+    expect(wrapper.findAll(".jl-card__title").map((node) => node.text())).toEqual(["Holiday", "Arrival <script>x</script>"]);
+    const last = new URL(server.requests.at(-1)!.url).searchParams;
+    expect(last.get("parentId")).toBe(libraryA);
+    expect(last.get("sort")).toBe("productionYear");
+    expect(last.get("order")).toBe("desc");
+  });
+
   it("shows the empty state and the error state with retry", async () => {
     const emptyLibrary = "10000000-0000-4000-8000-00000000000c";
     const { wrapper, server, router } = await boot("/libraries/" + emptyLibrary, (s) => {
@@ -277,14 +298,37 @@ describe("item detail", () => {
     }
   });
 
-  it("explains that metadata is administrator-only for regular users", async () => {
-    const { wrapper } = await boot("/items/" + movieId, (s) => {
+  it("shows details and file information to regular users without any delivery route", async () => {
+    const { wrapper, server } = await boot("/items/" + movieId, (s) => {
       s.cookie = true;
       s.user = { ...s.user, admin: false, locale: "zh-TW" };
     });
-    expect(wrapper.text()).toContain("目前僅管理員可見");
-    expect(wrapper.text()).toContain("請使用原生用戶端觀看");
+    const text = wrapper.text();
+    expect(text).toContain("Linguist <i>meets</i> heptapods.");
+    expect(text).toContain("中繼資料已從有效的 NFO 檔案讀取。");
+    expect(text).toContain("2160p · HEVC · TrueHD 7.1");
+    expect(text).toContain("3840×2160");
+    expect(text).toContain("1:56:00");
+    expect(text).toContain("truehd");
+    expect(text).toContain("pgs");
+    expect(text).toContain("外掛字幕與音軌檔案");
+    expect(text).toContain("聽障");
+    expect(text).toContain("評論");
+    expect(text).toContain("請使用原生用戶端觀看");
+    expect(wrapper.html()).not.toMatch(/\/api\/v1\/sources|\/subtitles\/|\/audio\//);
+    // The page never touches the administrator metadata endpoint.
+    expect(server.requests.some((request) => new URL(request.url).pathname.endsWith("/metadata"))).toBe(false);
     assertNoPlayback(wrapper.html());
+  });
+
+  it("keeps the details when file information fails", async () => {
+    const { wrapper } = await boot("/items/" + movieId, (s) => {
+      s.cookie = true;
+      s.failSources = true;
+      s.user = { ...s.user, locale: "en-US" };
+    });
+    expect(wrapper.find("#item-title").text()).toBe("Arrival <script>x</script>");
+    expect(wrapper.text()).toContain("File information could not be loaded right now.");
   });
 
   it("shows a localized not-found error for unknown items", async () => {

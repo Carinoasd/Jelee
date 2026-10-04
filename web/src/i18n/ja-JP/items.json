@@ -5,8 +5,13 @@
       "poster": "ポスター",
       "list": "リスト"
     },
-    "count": "読み込んだアイテム：{count}",
-    "noneYet": "これまでに読み込んだカタログの範囲には、このライブラリのアイテムがありません。",
+    "count": "{total} 件中 {count} 件を表示",
+    "sort": {
+      "label": "並べ替え",
+      "name": "名前",
+      "newest": "公開日（新しい順）",
+      "year": "年（新しい順）"
+    },
     "listCaption": "{name} のアイテム",
     "column": {
       "poster": "ポスター",
@@ -39,12 +44,32 @@
       "nfoInvalid": "このアイテムの NFO ファイルは使用できませんでした。",
       "nfoReadAt": "（{date} に読み込み）",
       "nfoNone": "このアイテムの NFO ファイルはまだ確認されていません。",
-      "metadataAdminOnly": "詳細なメタデータ（あらすじ、外部 ID、NFO ソース）は現在、管理者のみ表示できます。",
-      "metadataUnavailable": "詳細なメタデータを現在読み込めません。",
       "files": "ファイル情報",
-      "filesUnavailable": "ファイルの詳細は Web 画面ではまだ表示できません。ネイティブクライアントで確認できます。",
       "nativeTitle": "ネイティブクライアントで視聴",
       "nativeBody": "Jelee の Web 画面は閲覧と管理専用です。このアイテムを視聴するには、Jelee のネイティブクライアントで開いてください。"
+    },
+    "files": {
+      "version": "バージョン {n}",
+      "unprobed": "まだ解析されていません。コンテナー、サイズ、外部ファイルのみ表示しています。",
+      "container": "コンテナー",
+      "duration": "長さ",
+      "resolution": "解像度",
+      "videoCodec": "映像コーデック",
+      "audioCodecs": "音声コーデック",
+      "bitrate": "ビットレート",
+      "size": "ファイルサイズ",
+      "embeddedAudio": "音声トラック",
+      "embeddedSubtitles": "内蔵字幕",
+      "externalFiles": "外部字幕・音声ファイル",
+      "kindSubtitle": "字幕",
+      "kindAudio": "音声",
+      "unknownLanguage": "言語不明",
+      "flagDefault": "既定",
+      "flagForced": "強制",
+      "flagSdh": "SDH",
+      "flagCommentary": "コメンタリー",
+      "none": "このアイテムにはメディアファイルがありません。",
+      "unavailable": "ファイル情報を読み込めませんでした。"
     }
   }
 }

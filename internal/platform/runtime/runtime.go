@@ -63,7 +63,10 @@ func newWithLifetime(cfg config.Config, logger *slog.Logger, lifetime *lifetime)
 			if err != nil {
 				return nil, err
 			}
-			return catalog.WithBrowse(store)
+			if catalog, err = catalog.WithBrowse(store); err != nil {
+				return nil, err
+			}
+			return catalog.WithDetails(store)
 		},
 		func(c config.Config, store *postgres.Store, budget *resources.Budget) (*imageadapter.Processor, error) {
 			if !c.EnableImages {

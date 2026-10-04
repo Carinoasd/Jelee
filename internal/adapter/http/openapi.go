@@ -13,16 +13,6 @@ func Specification(cfg config.Config) map[string]any {
 	for _, path := range []string{"/healthz", "/readyz", "/api/v1/system", "/api/v1/openapi.json", "/api-docs"} {
 		paths[path] = map[string]any{"get": operation("Inspect service", "200")}
 	}
-	if cfg.EnableCatalog {
-		op := operation("List visible video items", "200")
-		op["security"] = []any{map[string]any{"bearer": []string{}}}
-		op["parameters"] = []any{map[string]any{"name": "cursor", "in": "query", "schema": map[string]any{"type": "string", "format": "uuid"}}, map[string]any{"name": "limit", "in": "query", "schema": map[string]any{"type": "integer", "minimum": 1, "maximum": 100, "default": 50}}}
-		paths["/api/v1/items"] = map[string]any{"get": op}
-		op = operation("Read a visible video item", "200")
-		op["security"] = []any{map[string]any{"bearer": []string{}}}
-		op["parameters"] = []any{idParameter()}
-		paths["/api/v1/items/{id}"] = map[string]any{"get": op}
-	}
 	if cfg.EnableCatalog && cfg.EnableDirect {
 		op := operation("Read the unmodified original resource", "200", "206", "409", "416")
 		op["security"] = []any{map[string]any{"bearer": []string{}}}
@@ -42,18 +32,7 @@ func Specification(cfg config.Config) map[string]any {
 		playbackSpecification(paths, schemas)
 	}
 	if cfg.EnableCatalog {
-		schemas["CatalogItem"] = objectSchema(map[string]any{
-			"id": map[string]any{"type": "string", "format": "uuid"}, "libraryId": map[string]any{"type": "string", "format": "uuid"},
-			"title": map[string]any{"type": "string"}, "kind": map[string]any{"type": "string", "enum": []string{"Movie", "HomeVideo", "Series", "Season", "Episode"}},
-			"parentId": map[string]any{"type": "string", "format": "uuid", "description": "Present for an explicitly linked season or episode in the same library."},
-		}, "id", "libraryId", "title", "kind")
-		item := map[string]any{"$ref": "#/components/schemas/CatalogItem"}
-		for route, shape := range map[string]any{
-			"/api/v1/items/{id}": objectSchema(map[string]any{"data": item}, "data"),
-			"/api/v1/items":      objectSchema(map[string]any{"data": map[string]any{"type": "array", "maxItems": 100, "items": item}, "pagination": objectSchema(map[string]any{"nextCursor": map[string]any{"type": "string"}, "limit": map[string]any{"type": "integer", "minimum": 1, "maximum": 100}}, "nextCursor", "limit")}, "data", "pagination"),
-		} {
-			paths[route].(map[string]any)["get"].(map[string]any)["responses"].(map[string]any)["200"].(map[string]any)["content"] = map[string]any{"application/json": map[string]any{"schema": shape}}
-		}
+		catalogSpecification(paths, schemas)
 	}
 	if cfg.EnableAccounts {
 		itemMetadataSpecification(paths, schemas)

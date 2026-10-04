@@ -5,8 +5,13 @@
       "poster": "Poster wall",
       "list": "List"
     },
-    "count": "Items loaded: {count}",
-    "noneYet": "No items from this library were found in the part of the catalog read so far.",
+    "count": "Showing {count} of {total}",
+    "sort": {
+      "label": "Sort by",
+      "name": "Name",
+      "newest": "Release date (newest first)",
+      "year": "Year (newest first)"
+    },
     "listCaption": "Items in {name}",
     "column": {
       "poster": "Poster",
@@ -39,12 +44,32 @@
       "nfoInvalid": "The NFO file for this item could not be used.",
       "nfoReadAt": "(read {date})",
       "nfoNone": "No NFO file has been reviewed for this item.",
-      "metadataAdminOnly": "Detailed metadata (overview, external IDs, NFO source) is currently visible to administrators only.",
-      "metadataUnavailable": "Detailed metadata could not be loaded right now.",
       "files": "File information",
-      "filesUnavailable": "File details are not available in the web interface yet. Native client apps show them.",
       "nativeTitle": "Watch in a native client",
       "nativeBody": "The Jelee web interface is for browsing and management only. To watch this item, open it in a native Jelee client app."
+    },
+    "files": {
+      "version": "Version {n}",
+      "unprobed": "Not analyzed yet; only the container, size and external files are known.",
+      "container": "Container",
+      "duration": "Duration",
+      "resolution": "Resolution",
+      "videoCodec": "Video codec",
+      "audioCodecs": "Audio codecs",
+      "bitrate": "Bit rate",
+      "size": "File size",
+      "embeddedAudio": "Audio tracks",
+      "embeddedSubtitles": "Embedded subtitles",
+      "externalFiles": "External subtitle and audio files",
+      "kindSubtitle": "Subtitle",
+      "kindAudio": "Audio",
+      "unknownLanguage": "Unknown language",
+      "flagDefault": "Default",
+      "flagForced": "Forced",
+      "flagSdh": "SDH",
+      "flagCommentary": "Commentary",
+      "none": "This item has no media files.",
+      "unavailable": "File information could not be loaded right now."
     }
   }
 }

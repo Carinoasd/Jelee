@@ -708,12 +708,31 @@ export type paths = {
             path?: never;
             cookie?: never;
         };
-        /** List visible video items */
+        /**
+         * List visible video items
+         * @description Two forms share this route. Without browse parameters it is the original keyset listing in item ID order: pass the returned nextCursor as cursor to continue; nextCursor is empty after the last page. Any of offset, libraryId, parentId, type, sort, order or q selects the offset form, which filters and sorts and reports total; continue it with offset+limit while that is below total. A cursor together with a browse parameter is 400 invalid_request. Library grants apply in both forms: a library or parent the caller cannot see yields an empty page with total 0, exactly like one that does not exist.
+         */
         get: {
             parameters: {
                 query?: {
+                    /** @description Keyset cursor of the original form; not allowed with browse parameters. */
                     cursor?: string;
+                    /** @description Offset form: only items of this library, at any level. */
+                    libraryId?: string;
+                    /** @description Page size in both forms. */
                     limit?: number;
+                    /** @description Offset form: items to skip. */
+                    offset?: number;
+                    /** @description Offset form: direction of every sort key. Items without a date or year come first ascending and last descending. */
+                    order?: "asc" | "desc";
+                    /** @description Offset form: only direct children of this library (its top-level items) or of this series or season (its seasons or episodes). */
+                    parentId?: string;
+                    /** @description Offset form: case-insensitive title substring. % and _ match literally. */
+                    q?: string;
+                    /** @description Offset form: comma separated sort keys, at most 3 distinct; the item ID breaks remaining ties. name compares the sort title, else the title, case-insensitively. */
+                    sort?: string;
+                    /** @description Offset form: item kinds to include; repeat the parameter or separate kinds with commas. Default every kind. */
+                    type?: ("Movie" | "HomeVideo" | "Series" | "Season" | "Episode")[];
                 };
                 header?: never;
                 path?: never;
@@ -731,9 +750,50 @@ export type paths = {
                             data: components["schemas"]["CatalogItem"][];
                             pagination: {
                                 limit: number;
+                                /** @description Original form only; always empty in the offset form. */
                                 nextCursor: string;
+                                /** @description Offset form only. */
+                                offset?: number;
+                                /** @description Offset form only: every visible item matching the filters. */
+                                total?: number;
                             };
                         };
+                    };
+                };
+                /** @description HTTP 400 */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 401 */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 408 */
+                408: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 503 */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
                     };
                 };
                 /** @description Jelee error envelope with code, message, details and traceId; see the Error schema. */
@@ -783,6 +843,112 @@ export type paths = {
                         "application/json": {
                             data: components["schemas"]["CatalogItem"];
                         };
+                    };
+                };
+                /** @description Jelee error envelope with code, message, details and traceId; see the Error schema. */
+                default: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/items/{id}/details": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read the display metadata of a visible item
+         * @description Any session kind. Overview, release date and year, original title, tagline, genres, external IDs and the NFO read state for every user who may see the item. No file paths, roots, provider origins or NFO file identities are returned; the administrator metadata view stays at /api/v1/items/{id}/metadata. No query parameters are accepted.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description HTTP 200 */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["CatalogItemDetails"];
+                        };
+                    };
+                };
+                /** @description HTTP 400 */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 401 */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 403 */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description The item is missing or not visible to the caller; both are answered alike (403 forbidden when hidden content is configured as 403). */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 408 */
+                408: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 503 */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
                     };
                 };
                 /** @description Jelee error envelope with code, message, details and traceId; see the Error schema. */
@@ -1930,6 +2096,116 @@ export type paths = {
                 };
             };
         };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/items/{id}/sources": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Describe the media files of a visible item
+         * @description Any session kind. File information only: container, size, duration, bit rate, version labels, embedded video, audio and subtitle streams from the current probe result, and external subtitle and audio files (language, flags, format). It carries no file paths and no delivery URLs; delivery stays native-only under /api/v1/items/{id}/playback. Sources without a current probe result are listed with probed=false. No query parameters are accepted.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description HTTP 200 */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                /** Format: uuid */
+                                itemId: string;
+                                sources: components["schemas"]["MediaSourceInfo"][];
+                            };
+                        };
+                    };
+                };
+                /** @description HTTP 400 */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 401 */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 403 */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description The item is missing or not visible to the caller; both are answered alike (403 forbidden when hidden content is configured as 403). */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 408 */
+                408: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 503 */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Jelee error envelope with code, message, details and traceId; see the Error schema. */
+                default: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -10772,6 +11048,64 @@ export type components = {
              * @description Present for an explicitly linked season or episode in the same library.
              */
             parentId?: string;
+            /**
+             * Format: date
+             * @description Release date; only in the offset form and in details, absent when unknown.
+             */
+            premiereDate?: string;
+            /** @description Release year (the year fact, else the year of the release date); only in the offset form and in details, absent when unknown. */
+            productionYear?: number;
+            title: string;
+        };
+        CatalogItemDetails: {
+            /** @description Provider identifiers (for example tmdb, imdb, tvdb) as stored. */
+            externalIds: {
+                default: boolean;
+                type: string;
+                value: string;
+            }[];
+            /** @description Genre labels in stored order, without duplicates. */
+            genres: string[];
+            /** Format: uuid */
+            id: string;
+            /** @enum {string} */
+            kind: "Movie" | "HomeVideo" | "Series" | "Season" | "Episode";
+            /** Format: uuid */
+            libraryId: string;
+            nfo: {
+                /** @description Displayed fields whose current value came from an NFO file. */
+                fields: ("title" | "originalTitle" | "sortTitle" | "tagline" | "overview" | "date" | "year" | "genres" | "uniqueIds")[];
+                /**
+                 * Format: date-time
+                 * @description When the NFO file was last read; absent when unread.
+                 */
+                readAt?: string;
+                /**
+                 * @description Last confirmed NFO read of the item: unread when none was confirmed; missing when no NFO file was found; nfo_invalid when the file failed validation.
+                 * @enum {string}
+                 */
+                status: "unread" | "valid" | "missing" | "nfo_invalid";
+            };
+            /** @description Original title, absent when none is stored. */
+            originalTitle?: string;
+            /** @description Overview, absent when none is stored. */
+            overview?: string;
+            /**
+             * Format: uuid
+             * @description Present for an explicitly linked season or episode in the same library.
+             */
+            parentId?: string;
+            /**
+             * Format: date
+             * @description Release date; only in the offset form and in details, absent when unknown.
+             */
+            premiereDate?: string;
+            /** @description Release year (the year fact, else the year of the release date); only in the offset form and in details, absent when unknown. */
+            productionYear?: number;
+            /** @description Sort title, absent when none is stored. */
+            sortTitle?: string;
+            /** @description Tagline, absent when none is stored. */
+            tagline?: string;
             title: string;
         };
         CatalogPendingEntry: {
@@ -11253,6 +11587,87 @@ export type components = {
             /** @description Unmodified UTF-8. New passwords must contain 12–1024 bytes; passwords are never trimmed or normalized. */
             password: string;
         };
+        MediaSourceInfo: {
+            audioTracks: {
+                atmos: boolean;
+                bitRate?: number;
+                channelLayout?: string;
+                channels?: number;
+                codec?: string;
+                default: boolean;
+                forced: boolean;
+                index: number;
+                language?: string;
+                profile?: string;
+                sampleRate?: number;
+            }[];
+            /** @description Bits per second as probed, or size × 8 ÷ duration when the container states none. */
+            bitRate?: number;
+            /**
+             * @description Container token derived from the stored content type.
+             * @enum {string}
+             */
+            container: "mp4" | "mkv" | "webm" | "mov" | "avi" | "mpegts";
+            contentType: string;
+            durationMicros?: number;
+            externalTracks: {
+                /** @description Detected charset of a text subtitle. Reported only; the file is delivered unconverted. */
+                charset?: string;
+                /** @description Canonical subtitle format or audio codec implied by the extension; absent for mka, m4a, ogg, oga and .sub, which only probing can tell. */
+                codec?: string;
+                commentary: boolean;
+                default: boolean;
+                forced: boolean;
+                /** @description File extension of the sidecar file. */
+                format: string;
+                /** Format: uuid */
+                id: string;
+                /** @enum {string} */
+                kind: "subtitle" | "audio";
+                language?: string;
+                languages?: string[];
+                sdh: boolean;
+                sizeBytes: number;
+                title?: string;
+            }[];
+            /** Format: uuid */
+            id: string;
+            /** @description False when no current probe result exists (never probed, failed, expired, or the file changed since). Stream lists are then empty and the version labels come from the file name only. */
+            probed: boolean;
+            sizeBytes?: number;
+            subtitleTracks: {
+                codec?: string;
+                default: boolean;
+                forced: boolean;
+                /** @description Canonical format clients declare: srt, ass, ssa, webvtt, mov_text, pgs, vobsub, dvb, eia_608 or text. */
+                format?: string;
+                index: number;
+                language?: string;
+            }[];
+            /** @description G20.2 version labels with qualityScore and displayName; sources are listed by qualityScore descending. Other label fields may be added. */
+            version: {
+                displayName: string;
+                qualityScore: number;
+            } & {
+                [key: string]: unknown;
+            };
+            videoTracks: {
+                bitRate?: number;
+                codec?: string;
+                default: boolean;
+                frameRate?: {
+                    denominator: number;
+                    numerator: number;
+                };
+                height?: number;
+                index: number;
+                level?: number;
+                /** @description The stream the direct play decision checks. Cover art is not listed. */
+                primary: boolean;
+                profile?: string;
+                width?: number;
+            }[];
+        };
         MetadataApplyResult: {
             applied: string[];
             metadata: components["schemas"]["ItemMetadata"];
@@ -11642,8 +12057,13 @@ export type components = {
                 index: number;
                 language?: string;
             }[];
-            /** @description G20.2 version labels with qualityScore and displayName; sources are listed by qualityScore descending. */
-            version: Record<string, never>;
+            /** @description G20.2 version labels with qualityScore and displayName; sources are listed by qualityScore descending. Other label fields may be added. */
+            version: {
+                displayName: string;
+                qualityScore: number;
+            } & {
+                [key: string]: unknown;
+            };
             videoTracks: {
                 bitRate?: number;
                 codec?: string;

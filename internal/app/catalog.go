@@ -15,6 +15,7 @@ type Catalog struct {
 	repository CatalogRepository
 	playback   PlaybackRepository
 	browse     CatalogBrowseRepository
+	details    CatalogDetailsRepository
 }
 
 func NewCatalog(repository CatalogRepository) *Catalog { return &Catalog{repository: repository} }

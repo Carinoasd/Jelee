@@ -1,12 +1,9 @@
 package httpapi
 
 func playbackSpecification(paths, schemas map[string]any) {
-	integer := map[string]any{"type": "integer"}
 	nonNegative := map[string]any{"type": "integer", "minimum": 0}
 	boolean := map[string]any{"type": "boolean"}
-	str := map[string]any{"type": "string"}
 	uuid := map[string]any{"type": "string", "format": "uuid"}
-	rational := objectSchema(map[string]any{"numerator": nonNegative, "denominator": map[string]any{"type": "integer", "minimum": 1}}, "numerator", "denominator")
 	array := func(items any) map[string]any { return map[string]any{"type": "array", "items": items} }
 	token := map[string]any{"type": "string", "minLength": 1, "maxLength": 32, "pattern": "^[A-Za-z0-9._-]+$"}
 	list := func(description string) map[string]any {
@@ -19,38 +16,7 @@ func playbackSpecification(paths, schemas map[string]any) {
 		"directPlay": map[string]any{"const": true}, "transcoding": map[string]any{"const": false},
 		"hls": map[string]any{"const": false}, "dash": map[string]any{"const": false}, "remux": map[string]any{"const": false},
 	}, "directPlay", "transcoding", "hls", "dash", "remux")
-	schemas["PlaybackSource"] = objectSchema(map[string]any{
-		"id":             uuid,
-		"container":      map[string]any{"type": "string", "enum": []string{"mp4", "mkv", "webm", "mov", "avi", "mpegts"}, "description": "Container token derived from the stored content type."},
-		"contentType":    str,
-		"probed":         map[string]any{"type": "boolean", "description": "False when no current probe result exists (never probed, failed, expired, or the file changed since). Stream lists are then empty and the version labels come from the file name only."},
-		"sizeBytes":      nonNegative,
-		"durationMicros": nonNegative,
-		"bitRate":        map[string]any{"type": "integer", "minimum": 1, "description": "Bits per second as probed, or size × 8 ÷ duration when the container states none."},
-		"version":        map[string]any{"type": "object", "description": "G20.2 version labels with qualityScore and displayName; sources are listed by qualityScore descending."},
-		"videoTracks": array(objectSchema(map[string]any{
-			"index": nonNegative, "codec": str, "profile": str, "level": integer, "width": integer, "height": integer,
-			"frameRate": rational, "bitRate": integer, "default": boolean,
-			"primary": map[string]any{"type": "boolean", "description": "The stream the direct play decision checks. Cover art is not listed."},
-		}, "index", "default", "primary")),
-		"audioTracks": array(objectSchema(map[string]any{
-			"index": nonNegative, "codec": str, "profile": str, "language": str, "channels": integer, "channelLayout": str,
-			"sampleRate": integer, "bitRate": integer, "default": boolean, "forced": boolean, "atmos": boolean,
-		}, "index", "default", "forced", "atmos")),
-		"subtitleTracks": array(objectSchema(map[string]any{
-			"index": nonNegative, "codec": str, "format": map[string]any{"type": "string", "description": "Canonical format clients declare: srt, ass, ssa, webvtt, mov_text, pgs, vobsub, dvb, eia_608 or text."},
-			"language": str, "default": boolean, "forced": boolean,
-		}, "index", "default", "forced")),
-		"externalTracks": array(objectSchema(map[string]any{
-			"id": uuid, "kind": map[string]any{"type": "string", "enum": []string{"subtitle", "audio"}},
-			"format":   map[string]any{"type": "string", "description": "File extension of the sidecar file."},
-			"codec":    map[string]any{"type": "string", "description": "Canonical subtitle format or audio codec implied by the extension; absent for mka, m4a, ogg, oga and .sub, which only probing can tell."},
-			"language": str, "languages": array(str), "title": str, "forced": boolean, "sdh": boolean, "default": boolean, "commentary": boolean,
-			"charset":   map[string]any{"type": "string", "description": "Detected charset of a text subtitle. Reported only; the file is delivered unconverted."},
-			"sizeBytes": nonNegative,
-			"url":       map[string]any{"type": "string", "description": "Direct delivery route of the original file: /api/v1/sources/{id}/subtitles/{trackId} or /api/v1/sources/{id}/audio/{trackId}. Native sessions only."},
-		}, "id", "kind", "format", "forced", "sdh", "default", "commentary", "sizeBytes", "url")),
-	}, "id", "container", "contentType", "probed", "version", "videoTracks", "audioTracks", "subtitleTracks", "externalTracks")
+	schemas["PlaybackSource"] = mediaSourceSchema(true)
 	schemas["ClientCapabilities"] = map[string]any{
 		"type": "object", "additionalProperties": false,
 		"description": "What the client can decode. These are declarations, not conversion requests: the server never converts, so a source the client cannot decode is only reported. Field names differ from the upstream transformation parameters, which stay rejected with 409 transcode_disabled anywhere in this body. Tokens are case-insensitive; common aliases are accepted (matroska→mkv, h265/hvc1→hevc, avc→h264, ec3→eac3, dca→dts, subrip→srt, vtt→webvtt, sup→pgs, idx→vobsub). An omitted or empty list declares nothing.",
@@ -102,4 +68,55 @@ func playbackSpecification(paths, schemas map[string]any) {
 		"decisions":      array(schemaRef("PlaybackDecision")),
 	}, "itemId", "delivery", "directPlayable", "decisions")}, "data")}}
 	paths["/api/v1/items/{id}/playback/check"] = map[string]any{"post": check}
+}
+
+// mediaSourceSchema describes one original resource. The playback form
+// (withURL) lists the direct delivery route of each external track; the file
+// information form has no URL at all, so a web client cannot obtain one.
+func mediaSourceSchema(withURL bool) map[string]any {
+	integer := map[string]any{"type": "integer"}
+	nonNegative := map[string]any{"type": "integer", "minimum": 0}
+	boolean := map[string]any{"type": "boolean"}
+	str := map[string]any{"type": "string"}
+	uuid := map[string]any{"type": "string", "format": "uuid"}
+	rational := objectSchema(map[string]any{"numerator": nonNegative, "denominator": map[string]any{"type": "integer", "minimum": 1}}, "numerator", "denominator")
+	array := func(items any) map[string]any { return map[string]any{"type": "array", "items": items} }
+	external := map[string]any{
+		"id": uuid, "kind": map[string]any{"type": "string", "enum": []string{"subtitle", "audio"}},
+		"format":   map[string]any{"type": "string", "description": "File extension of the sidecar file."},
+		"codec":    map[string]any{"type": "string", "description": "Canonical subtitle format or audio codec implied by the extension; absent for mka, m4a, ogg, oga and .sub, which only probing can tell."},
+		"language": str, "languages": array(str), "title": str, "forced": boolean, "sdh": boolean, "default": boolean, "commentary": boolean,
+		"charset":   map[string]any{"type": "string", "description": "Detected charset of a text subtitle. Reported only; the file is delivered unconverted."},
+		"sizeBytes": nonNegative,
+	}
+	externalRequired := []string{"id", "kind", "format", "forced", "sdh", "default", "commentary", "sizeBytes"}
+	if withURL {
+		external["url"] = map[string]any{"type": "string", "description": "Direct delivery route of the original file: /api/v1/sources/{id}/subtitles/{trackId} or /api/v1/sources/{id}/audio/{trackId}. Native sessions only."}
+		externalRequired = append(externalRequired, "url")
+	}
+	return objectSchema(map[string]any{
+		"id":             uuid,
+		"container":      map[string]any{"type": "string", "enum": []string{"mp4", "mkv", "webm", "mov", "avi", "mpegts"}, "description": "Container token derived from the stored content type."},
+		"contentType":    str,
+		"probed":         map[string]any{"type": "boolean", "description": "False when no current probe result exists (never probed, failed, expired, or the file changed since). Stream lists are then empty and the version labels come from the file name only."},
+		"sizeBytes":      nonNegative,
+		"durationMicros": nonNegative,
+		"bitRate":        map[string]any{"type": "integer", "minimum": 1, "description": "Bits per second as probed, or size × 8 ÷ duration when the container states none."},
+		"version": map[string]any{"type": "object", "description": "G20.2 version labels with qualityScore and displayName; sources are listed by qualityScore descending. Other label fields may be added.",
+			"properties": map[string]any{"displayName": str, "qualityScore": integer}, "required": []string{"displayName", "qualityScore"}, "additionalProperties": true},
+		"videoTracks": array(objectSchema(map[string]any{
+			"index": nonNegative, "codec": str, "profile": str, "level": integer, "width": integer, "height": integer,
+			"frameRate": rational, "bitRate": integer, "default": boolean,
+			"primary": map[string]any{"type": "boolean", "description": "The stream the direct play decision checks. Cover art is not listed."},
+		}, "index", "default", "primary")),
+		"audioTracks": array(objectSchema(map[string]any{
+			"index": nonNegative, "codec": str, "profile": str, "language": str, "channels": integer, "channelLayout": str,
+			"sampleRate": integer, "bitRate": integer, "default": boolean, "forced": boolean, "atmos": boolean,
+		}, "index", "default", "forced", "atmos")),
+		"subtitleTracks": array(objectSchema(map[string]any{
+			"index": nonNegative, "codec": str, "format": map[string]any{"type": "string", "description": "Canonical format clients declare: srt, ass, ssa, webvtt, mov_text, pgs, vobsub, dvb, eia_608 or text."},
+			"language": str, "default": boolean, "forced": boolean,
+		}, "index", "default", "forced")),
+		"externalTracks": array(objectSchema(external, externalRequired...)),
+	}, "id", "container", "contentType", "probed", "version", "videoTracks", "audioTracks", "subtitleTracks", "externalTracks")
 }

@@ -2,6 +2,7 @@ package postgres
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"strings"
 
@@ -110,7 +111,7 @@ func (s *Store) BrowseItems(ctx context.Context, userID string, q domain.BrowseQ
 	if !domain.ValidBrowseQuery(q) {
 		return domain.BrowsePage{}, domain.ErrInvalid
 	}
-	args := pgx.NamedArgs{"user": userID, "parent": q.ParentID, "kinds": append([]string{}, q.Kinds...), "search": "",
+	args := pgx.NamedArgs{"user": userID, "parent": q.ParentID, "library": q.LibraryID, "kinds": append([]string{}, q.Kinds...), "search": "",
 		"overview": q.WithOverview, "limit": q.Limit, "offset": q.Offset}
 	if q.SearchTerm != "" {
 		args["search"] = "%" + escapeLike(q.SearchTerm) + "%"
@@ -145,6 +146,7 @@ LIMIT 1`, args).Scan(&kind)
 	matched := browsePrincipalSQL + `, matched AS (
  SELECT i.id,i.library_id,i.title,i.kind FROM principal u JOIN items i ON ` + scope + `
  WHERE ` + libraryVisibleSQL("i.library_id") + `
+  AND (@library::text='' OR i.library_id=NULLIF(@library::text,'')::uuid)
   AND (cardinality(@kinds::text[])=0 OR i.kind=ANY(@kinds::text[]))
   AND (@search::text='' OR i.title ILIKE @search::text ESCAPE '\')
 )`
@@ -199,4 +201,43 @@ SELECT id::text,library_id::text,parent::text,kind,title,COALESCE(sort_title,'')
 // search term only ever matches literally.
 func escapeLike(s string) string {
 	return strings.NewReplacer(`\`, `\\`, `%`, `\%`, `_`, `\_`).Replace(s)
+}
+
+// GetItemDetails reads the display metadata of one visible item with the
+// same principal, grant and metadata joins as GetBrowseItem. Only display
+// values leave this statement: no NFO origins, provider origins, roots or
+// paths.
+func (s *Store) GetItemDetails(ctx context.Context, userID, id string) (domain.ItemDetailsRecord, error) {
+	var r domain.ItemDetailsRecord
+	var observation []byte
+	item := &r.Item
+	err := s.Pool.QueryRow(ctx, browsePrincipalSQL+`
+SELECT i.id::text,i.library_id::text,COALESCE(p.parent_id,i.library_id)::text,i.kind,i.title,COALESCE(fs.value,''),COALESCE(fo.value,''),COALESCE(NULLIF(fd.value,''),''),COALESCE(`+browseYearSQL+`,0),
+ COALESCE((SELECT f.value FROM item_metadata_fields f WHERE f.item_id=i.id AND f.field='originalTitle'),''),
+ COALESCE((SELECT f.value FROM item_metadata_fields f WHERE f.item_id=i.id AND f.field='tagline'),''),
+ (SELECT f.value FROM item_metadata_facts f WHERE f.item_id=i.id AND f.field='genres'),
+ (SELECT f.value FROM item_metadata_facts f WHERE f.item_id=i.id AND f.field='uniqueIds'),
+ (SELECT o.observation FROM item_nfo_observations o WHERE o.item_id=i.id),
+ COALESCE((SELECT m.revision FROM item_metadata_state m WHERE m.item_id=i.id),1),
+ ARRAY(SELECT f.field FROM item_metadata_fields f WHERE f.item_id=i.id AND f.source='nfo' AND f.value<>'' AND f.field=ANY(@public::text[])
+  UNION SELECT f.field FROM item_metadata_facts f WHERE f.item_id=i.id AND f.source='nfo' AND f.value<>'null'::jsonb AND f.field=ANY(@public::text[]))
+ FROM principal u JOIN items i ON i.id=@id::uuid`+browseMetadataSQL+`
+ WHERE `+libraryVisibleSQL("i.library_id"), pgx.NamedArgs{"user": userID, "id": id, "public": domain.ItemDetailsNFOFieldNames()}).Scan(
+		&item.ID, &item.LibraryID, &item.ParentID, &item.Kind, &item.Title, &item.SortTitle, &item.Overview, &item.PremiereDate, &item.Year,
+		&r.OriginalTitle, &r.Tagline, &r.Genres, &r.UniqueIDs, &observation, &r.Revision, &r.NFOFields)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return domain.ItemDetailsRecord{}, domain.ErrNotFound
+	}
+	if err != nil {
+		return domain.ItemDetailsRecord{}, storageError(err)
+	}
+	if len(observation) > 0 {
+		var value domain.LastConfirmedNFOObservation
+		// An undecodable observation is reported as unread by the domain
+		// projection rather than failing the whole view.
+		if json.Unmarshal(observation, &value) == nil {
+			r.Observation = &value
+		}
+	}
+	return r, nil
 }

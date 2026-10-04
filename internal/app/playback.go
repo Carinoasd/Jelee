@@ -49,6 +49,11 @@ func (c *Catalog) PlaybackSources(ctx context.Context, actor domain.Actor, itemI
 	if err != nil {
 		return nil, err
 	}
+	return describeSources(records), nil
+}
+
+// describeSources projects storage records, best version first.
+func describeSources(records []domain.PlaybackSourceRecord) []domain.PlaybackSource {
 	sources := make([]domain.PlaybackSource, 0, len(records))
 	for _, record := range records {
 		sources = append(sources, domain.BuildPlaybackSource(record))
@@ -56,7 +61,7 @@ func (c *Catalog) PlaybackSources(ctx context.Context, actor domain.Actor, itemI
 	slices.SortStableFunc(sources, func(a, b domain.PlaybackSource) int {
 		return cmp.Or(cmp.Compare(b.Version.QualityScore, a.Version.QualityScore), cmp.Compare(a.ID, b.ID))
 	})
-	return sources, nil
+	return sources
 }
 
 // CheckPlayback decides direct play for every source of an item against a

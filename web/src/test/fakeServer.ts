@@ -6,7 +6,8 @@
 import type { components } from "@/api/schema";
 
 type CatalogItem = components["schemas"]["CatalogItem"];
-type ItemMetadata = components["schemas"]["ItemMetadata"];
+type ItemDetails = components["schemas"]["CatalogItemDetails"];
+type MediaSourceInfo = components["schemas"]["MediaSourceInfo"];
 type Session = components["schemas"]["Session"];
 type User = components["schemas"]["User"];
 
@@ -15,11 +16,15 @@ export interface FakeServer {
   requests: Request[];
   libraries: { id: string; name: string; roots: number }[];
   items: CatalogItem[];
-  metadata: Record<string, ItemMetadata>;
+  /** Extra detail fields per item; genres, IDs and NFO state default to empty. */
+  details: Record<string, Partial<ItemDetails>>;
+  /** File information per item; an item without an entry has no sources. */
+  sources: Record<string, MediaSourceInfo[]>;
   sessions: Session[];
   pageSize: number;
   failLibraries: boolean;
   failItems: boolean;
+  failSources: boolean;
   failRevoke: boolean;
   /** Whether the simulated browser currently holds the session cookie. */
   cookie: boolean;
@@ -51,11 +56,13 @@ export function createFakeServer(): FakeServer {
     requests: [],
     libraries: [],
     items: [],
-    metadata: {},
+    details: {},
+    sources: {},
     sessions: [],
     pageSize: 50,
     failLibraries: false,
     failItems: false,
+    failSources: false,
     failRevoke: false,
     cookie: false,
     token: "t".repeat(43),
@@ -128,24 +135,40 @@ export function createFakeServer(): FakeServer {
         if (server.failItems) {
           return json(503, errorBody("not_ready"));
         }
-        const { slice, pagination } = page(server.items, url, server.pageSize, (item) => item.id);
-        return json(200, { data: slice, pagination });
+        const parentId = url.searchParams.get("parentId");
+        if (parentId === null) {
+          const { slice, pagination } = page(server.items, url, server.pageSize, (item) => item.id);
+          return json(200, { data: slice, pagination });
+        }
+        // Offset form, as far as the web client uses it: the top level of a
+        // library, sorted by title or year.
+        const sort = url.searchParams.get("sort") ?? "name";
+        const descending = url.searchParams.get("order") === "desc";
+        const matched = server.items
+          .filter((item) => item.libraryId === parentId && item.parentId === undefined)
+          .sort((a, b) => {
+            const order =
+              sort === "name" ? a.title.localeCompare(b.title) : (a.productionYear ?? 0) - (b.productionYear ?? 0) || a.id.localeCompare(b.id);
+            return descending ? -order : order;
+          });
+        const offset = Number(url.searchParams.get("offset") ?? "0");
+        const limit = Math.min(Number(url.searchParams.get("limit") ?? "50"), server.pageSize);
+        return json(200, { data: matched.slice(offset, offset + limit), pagination: { nextCursor: "", limit, offset, total: matched.length } });
       }
-      const itemMatch = /^\/api\/v1\/items\/([^/]+)(\/metadata)?$/.exec(path);
+      const itemMatch = /^\/api\/v1\/items\/([^/]+)(\/details|\/sources)?$/.exec(path);
       if (itemMatch && method === "GET") {
         const id = itemMatch[1] ?? "";
         const item = server.items.find((entry) => entry.id === id);
         if (item === undefined) {
           return json(404, errorBody("not_found"));
         }
-        if (itemMatch[2] === undefined) {
-          return json(200, { data: item });
+        if (itemMatch[2] === "/details") {
+          return json(200, { data: { genres: [], externalIds: [], nfo: { status: "unread", fields: [] }, ...item, ...server.details[id] } });
         }
-        if (!server.user.admin) {
-          return json(403, errorBody("forbidden"));
+        if (itemMatch[2] === "/sources") {
+          return server.failSources ? json(503, errorBody("not_ready")) : json(200, { data: { itemId: id, sources: server.sources[id] ?? [] } });
         }
-        const metadata = server.metadata[id];
-        return metadata === undefined ? json(404, errorBody("not_found")) : json(200, { data: metadata });
+        return json(200, { data: item });
       }
       const sessionsMatch = /^\/api\/v1\/users\/([^/]+)\/sessions(?:\/([^/]+))?$/.exec(path);
       if (sessionsMatch) {

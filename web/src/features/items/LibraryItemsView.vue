@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, watch } from "vue";
+import { computed, useId, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { useRoute, useRouter } from "vue-router";
 import RequestStatus from "@/components/ui/RequestStatus.vue";
@@ -8,8 +8,9 @@ import UiEmptyState from "@/components/ui/UiEmptyState.vue";
 import UiSkeleton from "@/components/ui/UiSkeleton.vue";
 import { useLibrariesStore } from "@/stores/libraries";
 import { useLibraryItemsStore } from "@/stores/libraryItems";
+import type { LibrarySort } from "./api";
 import ItemPoster from "./ItemPoster.vue";
-import { kindLabelKey, parseItemView, type ItemView } from "./labels";
+import { kindLabelKey, parseItemView, parseLibrarySort, sortLabelKey, type ItemView } from "./labels";
 
 const props = defineProps<{ libraryId: string }>();
 const { t } = useI18n();
@@ -18,8 +19,11 @@ const router = useRouter();
 const libraries = useLibrariesStore();
 const store = useLibraryItemsStore();
 const skeletons = 12;
+const sortId = useId();
 
 const view = computed(() => parseItemView(route.query.view));
+const sort = computed(() => parseLibrarySort(route.query.sort));
+const sorts = (Object.keys(sortLabelKey) as LibrarySort[]).map((value) => ({ value, key: sortLabelKey[value] }));
 const libraryName = computed(() => libraries.find(props.libraryId)?.name ?? t("libraries.library"));
 const views: readonly { value: ItemView; key: string }[] = [
   { value: "poster", key: "items.view.poster" },
@@ -33,10 +37,19 @@ function setView(next: ItemView) {
   }
 }
 
+// The order lives in the URL as well; the server sorts, so changing it
+// reloads the first page.
+function setSort(event: Event) {
+  const next = parseLibrarySort((event.target as HTMLSelectElement).value);
+  if (next !== sort.value) {
+    void router.replace({ query: { ...route.query, sort: next === "name" ? undefined : next } });
+  }
+}
+
 watch(
-  () => props.libraryId,
-  (id) => {
-    void store.open(id);
+  [() => props.libraryId, sort],
+  ([id, order]) => {
+    void store.open(id, order);
     void libraries.ensureLoaded();
   },
   { immediate: true },
@@ -50,16 +63,24 @@ watch(
     </nav>
     <div class="jl-toolbar">
       <h1 id="library-title" tabindex="-1" class="jl-toolbar__title">{{ libraryName }}</h1>
-      <div class="jl-toolbar__views" role="group" :aria-label="t('items.view.label')">
-        <UiButton
-          v-for="option in views"
-          :key="option.value"
-          variant="secondary"
-          :pressed="view === option.value"
-          @click="setView(option.value)"
-        >
-          {{ t(option.key) }}
-        </UiButton>
+      <div class="jl-toolbar__controls">
+        <span class="jl-sort">
+          <label :for="sortId">{{ t("items.sort.label") }}</label>
+          <select :id="sortId" class="jl-sort__select" :value="sort" @change="setSort">
+            <option v-for="option in sorts" :key="option.value" :value="option.value">{{ t(option.key) }}</option>
+          </select>
+        </span>
+        <div class="jl-toolbar__views" role="group" :aria-label="t('items.view.label')">
+          <UiButton
+            v-for="option in views"
+            :key="option.value"
+            variant="secondary"
+            :pressed="view === option.value"
+            @click="setView(option.value)"
+          >
+            {{ t(option.key) }}
+          </UiButton>
+        </div>
       </div>
     </div>
 
@@ -76,8 +97,7 @@ watch(
         </div>
       </template>
       <template #default>
-        <p class="jl-count" aria-live="polite">{{ t("items.count", { count: store.items.length }) }}</p>
-        <p v-if="store.items.length === 0" class="jl-count">{{ t("items.noneYet") }}</p>
+        <p class="jl-count" aria-live="polite">{{ t("items.count", { count: store.items.length, total: store.total }) }}</p>
         <ul v-if="view === 'poster'" class="jl-wall">
           <li v-for="item in store.items" :key="item.id">
             <RouterLink class="jl-card" :to="{ name: 'item', params: { itemId: item.id } }">
@@ -110,7 +130,7 @@ watch(
           <template #default />
         </RequestStatus>
         <UiButton
-          v-if="store.nextCursor !== '' && store.moreState.status !== 'loading'"
+          v-if="store.items.length < store.total && store.moreState.status !== 'loading'"
           class="jl-more"
           variant="secondary"
           @click="store.loadMore"
@@ -147,6 +167,29 @@ watch(
 .jl-toolbar__title {
   margin: var(--jl-space-2) 0;
   overflow-wrap: anywhere;
+}
+
+.jl-toolbar__controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--jl-space-4);
+}
+
+.jl-sort {
+  display: flex;
+  align-items: center;
+  gap: var(--jl-space-2);
+}
+
+.jl-sort__select {
+  min-height: var(--jl-touch-target);
+  padding: 0 var(--jl-space-2);
+  border: 1px solid var(--jl-color-border);
+  border-radius: var(--jl-radius-sm);
+  background: var(--jl-color-surface);
+  color: var(--jl-color-text);
+  font: inherit;
 }
 
 .jl-toolbar__views {
