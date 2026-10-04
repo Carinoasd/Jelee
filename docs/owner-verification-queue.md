@@ -109,6 +109,7 @@
 | E12 | 權限規則預設：管理員預設不受條目規則、分級、標籤限制（`restrict_admins` 可開）；未分級條目的全域預設策略；內建分級代碼表（美、英、日、德、台）是否足夠 | `docs/access-control.md` | 已決定（2026-10-05）：接受：管理員預設不受條目規則／分級／標籤限制、未分級預設允許、內建分級表維持現狀 |
 | E13 | 舊庫遷移工具（G04.6：Jellyfin SQLite → PostgreSQL）需要讀 SQLite，go.mod 目前沒有 SQLite 驅動。是否核准新增純 Go 的 `modernc.org/sqlite`（BSD 授權）？未核准前此項維持阻塞 | `docs/requirements-traceability.md` G04.6 | 已決定（2026-10-05）：核准：新增純 Go 的 `modernc.org/sqlite`（BSD 授權）供舊庫遷移工具使用，授權記錄進 LICENSE-COMPLIANCE；已實作：`modernc.org/sqlite v1.60.1` 只連結進 `jelee-cli legacy-import`（[舊庫遷移](legacy-import.md)），真實資料驗證見 D22 |
 | E14 | 初始引導選用「一次性引導權杖」而非來源位址白名單（理由：Docker 連接埠映射與反向代理後合法引導者本來就不是 loopback）；多實例部署請在引導期間只開一個實例或改用 CLI。是否接受 | `docs/setup-wizard.md` | 已決定（2026-10-05）：接受：一次性引導權杖 |
+| E15 | G04.7 快取邊界：不引入 Redis；接受三處跨實例只靠時間的延遲（CSP 字型白名單 30 秒、開發者模式 2／10 秒、初始設定閘門 1 秒，只延後生效、不讀錯資料）；登入限速、客戶端限流、串流並發與頻寬維持各實例計數，多實例時以實例數倍放寬 | `docs/adr/0002-no-redis-cache-boundary.md`、`docs/cache-boundaries.md` | 已決定（2026-10-05）：三點全部接受；若日後實例數增加或需要全域精確限流，依 ADR 0002 改用 LISTEN/NOTIFY 或引入 Redis |
 
 ## F. 一次性維運
 
