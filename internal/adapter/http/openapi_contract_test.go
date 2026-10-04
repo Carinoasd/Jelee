@@ -30,10 +30,15 @@ import (
 // OpenAPI document, keyed by "METHOD /path", with the reason. Keep it empty
 // unless a route is not part of the public API contract.
 var undocumentedRoutes = map[string]string{
-	"GET /compat/System/Info/Public": compatExemption,
-	"GET /compat/System/Info":        compatExemption,
-	"GET /compat/System/Ping":        compatExemption,
-	"POST /compat/System/Ping":       compatExemption,
+	"GET /compat/System/Info/Public":        compatExemption,
+	"GET /compat/System/Info":               compatExemption,
+	"GET /compat/System/Ping":               compatExemption,
+	"POST /compat/System/Ping":              compatExemption,
+	"POST /compat/Users/AuthenticateByName": compatExemption,
+	"GET /compat/Users/Public":              compatExemption,
+	"GET /compat/Users/Me":                  compatExemption,
+	"GET /compat/Users/{id}":                compatExemption,
+	"POST /compat/Sessions/Logout":          compatExemption,
 }
 
 // compatExemption: the /compat layer reproduces a third-party wire protocol

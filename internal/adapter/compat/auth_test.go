@@ -277,3 +277,25 @@ func FuzzParseClientAuth(f *testing.F) {
 		}
 	})
 }
+
+func TestFormatClientAuthRoundTrip(t *testing.T) {
+	for _, in := range []ClientAuth{
+		{},
+		{Client: "Test Player", Device: "Living Room TV", DeviceID: "abc==", Version: "1.2.3"},
+		{Client: `a"b,c=d%e+f`, DeviceID: "Hörbücher 1", Token: tokA},
+		{Token: tokB},
+	} {
+		raw := FormatClientAuth(in)
+		got, err := ParseClientAuth(hdr("Authorization", raw), nil)
+		if err != nil {
+			t.Fatalf("%q: %v", raw, err)
+		}
+		want := in
+		if want.Token != "" {
+			want.Source = TokenSourceAuthorization
+		}
+		if got != want {
+			t.Fatalf("%q: got %+v, want %+v", raw, got, want)
+		}
+	}
+}

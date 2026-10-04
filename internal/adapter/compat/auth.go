@@ -178,6 +178,27 @@ func ParseClientAuthOptions(header http.Header, query url.Values, opts AuthOptio
 	return auth, nil
 }
 
+// FormatClientAuth renders a as a parameterised Authorization header value
+// that ParseClientAuth reads back unchanged: the primary scheme, then the
+// non-empty members in a fixed order, each URL-encoded and quoted. It is the
+// one place outside this package that needs the scheme name (tests and
+// diagnostic tools); the layer itself never sends the header.
+func FormatClientAuth(a ClientAuth) string {
+	var b strings.Builder
+	b.WriteString(schemePrimary)
+	sep := " "
+	for _, member := range [...]struct{ key, value string }{
+		{"Client", a.Client}, {"Device", a.Device}, {"DeviceId", a.DeviceID}, {"Version", a.Version}, {"Token", a.Token},
+	} {
+		if member.value == "" {
+			continue
+		}
+		b.WriteString(sep + member.key + `="` + url.QueryEscape(member.value) + `"`)
+		sep = ", "
+	}
+	return b.String()
+}
+
 // ValidToken reports whether token is exactly the canonical unpadded
 // base64url encoding of 32 bytes, the only token form this system issues.
 func ValidToken(token string) bool {

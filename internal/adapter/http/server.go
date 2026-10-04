@@ -213,7 +213,7 @@ func newServer(cfg config.Config, backend Backend, catalog *app.Catalog, resolve
 		s.jobRoutes(r)
 	}
 	if cfg.EnableCompat {
-		if s.compat, err = newCompat(cfg, backend); err != nil {
+		if s.compat, err = s.newCompat(cfg, backend); err != nil {
 			return nil, err
 		}
 		r.Mount(compat.Prefix, s.compat)
@@ -255,13 +255,20 @@ func newServer(cfg config.Config, backend Backend, catalog *app.Catalog, resolve
 }
 
 // newCompat builds the third-party client compatibility layer. It reuses the
-// server's session lookup and its transcode_disabled envelope.
-func newCompat(cfg config.Config, backend Backend) (http.Handler, error) {
+// server's session lookup and its transcode_disabled envelope and, with the
+// account service enabled, the server's own native login, admission budget,
+// login rate limiter and client address: the layer has no account logic of
+// its own.
+func (s *Server) newCompat(cfg config.Config, backend Backend) (http.Handler, error) {
 	id := cfg.CompatServerID
 	if id == "" {
 		id = compat.DeriveServerID(cfg.AllowedHosts...)
 	}
-	return compat.NewRouter(compat.Options{Authenticate: backend.Authenticate, WriteRejection: WriteError, ServerID: id, Timeout: cfg.RequestTimeout()})
+	opts := compat.Options{Authenticate: backend.Authenticate, WriteRejection: WriteError, ServerID: id, Timeout: cfg.RequestTimeout()}
+	if s.accounts != nil {
+		opts.Users = &compat.UserOptions{Accounts: s.accounts, Admit: s.admitAccount, AllowLogin: s.loginLimiter.Allow, ClientIP: requestClientIP}
+	}
+	return compat.NewRouter(opts)
 }
 
 func (s *Server) boundary(next http.Handler) http.Handler {

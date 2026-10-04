@@ -91,6 +91,12 @@ func leakRouteTable() map[string]leakRoute {
 		"GET /compat/System/Info":        noMedia(noParams, "compatibility server information; no media identifiers"),
 		"GET /compat/System/Ping":        noMedia(noParams, "returns only the product name"),
 		"POST /compat/System/Ping":       exempt("returns only the product name; carries no media identifiers"),
+		// Third-party client compatibility layer (user module).
+		"POST /compat/Users/AuthenticateByName": exempt("native credential exchange through the shared login; takes no media identifiers and returns only a session grant"),
+		"GET /compat/Users/Public":              noMedia(noParams, "always an empty list; publishes no accounts"),
+		"GET /compat/Users/Me":                  noMedia(noParams, "caller's own account"),
+		"GET /compat/Users/{id}":                noMedia(selfParam, "caller's own account"),
+		"POST /compat/Sessions/Logout":          exempt("revokes the caller's own session; carries no media identifiers"),
 
 		// Catalog and delivery: the direct media surfaces.
 		"GET /api/v1/items":                      {mode: leakList, params: noParams, control: true},

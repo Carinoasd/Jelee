@@ -32,7 +32,7 @@ const genericError = "Error processing request."
 // never a second implementation.
 type Authenticator func(context.Context, string) (access.Principal, error)
 
-// Options configures NewRouter. Every field is required.
+// Options configures NewRouter. Every field is required except Users.
 type Options struct {
 	Authenticate Authenticator
 	// WriteRejection writes the server's own error envelope for a request to
@@ -40,8 +40,11 @@ type Options struct {
 	WriteRejection func(http.ResponseWriter, *http.Request, error)
 	// ServerID is the stable server identifier: 32 lowercase hex digits.
 	ServerID string
-	// Timeout bounds each session lookup.
+	// Timeout bounds each session lookup and each user module request.
 	Timeout time.Duration
+	// Users enables the user module. Nil leaves its routes unregistered, for a
+	// server without the account service.
+	Users *UserOptions
 }
 
 type router struct {
@@ -64,11 +67,17 @@ func NewRouter(opts Options) (*chi.Mux, error) {
 	if !validServerID(opts.ServerID) {
 		return nil, errors.New("compat: server identifier must be 32 lowercase hex digits")
 	}
+	if opts.Users != nil && !opts.Users.valid() {
+		return nil, errors.New("compat: user module needs accounts, admission, login limiter and client address")
+	}
 	rt := &router{opts: opts, mux: chi.NewRouter()}
 	rt.mux.Use(rt.boundary)
 	rt.mux.NotFound(func(w http.ResponseWriter, _ *http.Request) { writeError(w, http.StatusNotFound) })
 	rt.mux.MethodNotAllowed(func(w http.ResponseWriter, _ *http.Request) { writeError(w, http.StatusMethodNotAllowed) })
 	rt.systemRoutes()
+	if opts.Users != nil {
+		rt.userRoutes()
+	}
 	return rt.mux, nil
 }
 

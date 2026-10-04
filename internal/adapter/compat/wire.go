@@ -32,3 +32,17 @@ const (
 // src/Jellyfin.Extensions/Json/JsonDefaults.cs and the error behaviour from
 // Jellyfin.Api/Middleware/ExceptionMiddleware.cs. None of the system DTO field
 // names carries an upstream brand, so no wire constant is needed for them.
+
+// User module behavioural reference: upstream
+// Jellyfin.Api/Controllers/UserController.cs (AuthenticateUserByName,
+// GetCurrentUser, GetUserById, GetPublicUsers),
+// Jellyfin.Api/Controllers/SessionController.cs (ReportSessionEnded),
+// MediaBrowser.Model/Dto/UserDto.cs, MediaBrowser.Model/Users/UserPolicy.cs,
+// MediaBrowser.Model/Configuration/UserConfiguration.cs,
+// MediaBrowser.Model/Dto/SessionInfoDto.cs and
+// MediaBrowser.Controller/Authentication/AuthenticationResult.cs; refusal
+// statuses from Jellyfin.Server.Implementations/Users/UserManager.cs
+// (AuthenticateUser) and the exception middleware. The DTO member names and
+// enum values (SubtitleMode "Default", SyncPlayAccess "None") carry no
+// upstream brand. The policy provider identifiers are Jelee names (see
+// users.go), not the upstream provider type names.

@@ -43,6 +43,18 @@ func (s *Server) accountBudget(next http.Handler) http.Handler {
 	})
 }
 
+// admitAccount claims an account admission slot without waiting, for
+// account routes served outside accountBudget (the compatibility layer, which
+// writes its own error forms). It draws from the same budget.
+func (s *Server) admitAccount() (func(), bool) {
+	select {
+	case s.accountSlots <- struct{}{}:
+		return func() { <-s.accountSlots }, true
+	default:
+		return nil, false
+	}
+}
+
 func (s *Server) accountEndpoint(admin, listQuery bool, operation accountOperation) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		principal, ok := access.PrincipalFromContext(r.Context())
