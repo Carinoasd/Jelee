@@ -266,7 +266,7 @@ JSON 結構（本區塊由 `internal/domain` 的測試逐欄對照，未記載�
 | `legacy_database_unavailable`、`legacy_configuration_invalid` | 無法連線或設定錯誤 |
 | `legacy_import_failed`、`legacy_cancelled` | 其他失敗、逾時或中斷（已提交的批次保留，可續傳） |
 
-## 資料表（遷移 000075）
+## 資料表（遷移 000076）
 
 - `legacy_import_runs`：每次執行一列（來源 SHA-256 與大小、選項摘要、狀態 `running`／`completed`／`abandoned`、來源列數、完成時的報告、最後錯誤）。同時最多一個 `running`。
 - `legacy_import_checkpoints`：每次執行每個階段一列（游標、批數、是否完成、累計計數、摘要鏈）。
