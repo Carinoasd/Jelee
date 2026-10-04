@@ -115,6 +115,8 @@ doctor 只计算 SHA-256，不执行工具。候选位置为运行镜像的固�
 | `tool_unreadable` | fail | 文件存在但不是可读的普通文件 | 让服务账户可读，并确认是普通文件 |
 | `tool_platform_unsupported` | warn | 本平台没有固定 ffprobe | 探测只支持 linux-amd64；其他平台不提供媒体探测 |
 | `tool_manifest_invalid` | fail | 编进程序的 manifest 无效 | 从干净的源码重新构建 jelee-cli |
+| `embedded_covers_ready` | ok | 已启用内嵌封面擷取（`JELEE_ENABLE_EMBEDDED_COVERS`），且找到通过哈希校验的固定 ffprobe；该功能只用 ffprobe，不需要也不调用 ffmpeg | — |
+| `embedded_covers_tool_missing` | fail | 已启用内嵌封面擷取，但没有通过校验的固定 ffprobe；服务照常启动，该段保持关闭并记 WARN `embedded_cover_prerequisite_unavailable` | 使用正式运行镜像（内含 ffprobe、绝不含 ffmpeg），或设 `JELEE_ENABLE_EMBEDDED_COVERS=false` |
 
 完整的执行级检查仍用 `jelee-cli doctor probe`（隔离 helper）与 `jelee-cli doctor tools`（项目快照执行 `-version`）。
 

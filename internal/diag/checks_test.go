@@ -316,6 +316,19 @@ func TestToolFaults(t *testing.T) {
 		env.Config.EnableProbe = true
 		expect(t, runCheck(t, env, "tools"), StatusFail, CodeToolMissing)
 	})
+	t.Run("embedded covers need a verified ffprobe only", func(t *testing.T) {
+		env, _ := healthyEnv(t)
+		env.Config.EnableEmbeddedCovers = true
+		r := runCheck(t, env, "tools")
+		if !hasFinding(r, StatusOK, CodeEmbeddedCoversReady) {
+			t.Fatalf("ready cover pass not reported: %+v", r.Findings)
+		}
+		env.Tools = []ToolCandidate{{Label: "runtime", Path: filepath.Join(t.TempDir(), "none")}}
+		r = runCheck(t, env, "tools")
+		if r.Status != StatusFail || !hasFinding(r, StatusFail, CodeEmbeddedCoversNoTool) {
+			t.Fatalf("missing tool not reported for enabled cover pass: %+v", r.Findings)
+		}
+	})
 	t.Run("unsupported platform and broken manifest", func(t *testing.T) {
 		env, _ := healthyEnv(t)
 		env.ToolSpec = func() (tools.FFprobeSpecification, error) {

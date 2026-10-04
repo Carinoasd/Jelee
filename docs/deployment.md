@@ -57,6 +57,16 @@ Compose 内部网络使用 sslmode=disable，仅用于此隔离网络；远程�
 
 **觀察。** 每次調整寫一筆 INFO（`adaptive concurrency lowered`／`recovering`／`restored`，含 `source`、`percent`、`cpuLimit`、`ioLimit`、`totalLimit`）。`/metrics` 的 `jelee_resources_{cpu,io,total}_effective` 是目前生效的上限，`jelee_resources_adaptive_pressure{source=...}` 指出是哪個訊號壓低了上限（見[共用資源指標](shared-work-budget.md#共用資源指標)）。追蹤欄位與採樣見[日誌與追蹤串聯](observability.md)。
 
+## 內嵌封面擷取（G40.4）
+
+預設關閉。
+
+| 設定 | 環境變數 | 預設 | 說明 |
+| --- | --- | --- | --- |
+| `enableEmbeddedCovers` | `JELEE_ENABLE_EMBEDDED_COVERS` | `false` | catalog sync 結束時把已探測媒體的內嵌封面（`attached_pic`）原樣複製到圖片存放區 |
+
+開啟時必須同時開啟 `JELEE_ENABLE_PROBE`（因此也需要 jobs／accounts 與已驗證的 Linux amd64 正式映像）、`JELEE_ENABLE_IMAGES` 並設定 `JELEE_IMAGE_STORE_ROOT`，否則啟動時設定驗證失敗。執行時探測能力不可用或存放區沒開時只記 WARN（`embedded_cover_prerequisite_unavailable`／`embedded_cover_runtime_unavailable`）並跳過這一段，服務照常啟動。它只用映像內已固定雜湊的 ffprobe 與既有沙箱，不需要也不會呼叫 ffmpeg（G37.1：正式映像不含 ffmpeg，本功能也沒有把它加進 Dockerfile）；`jelee-cli doctor` 在開關開啟時回報 `embedded_covers_ready`／`embedded_covers_tool_missing`；子行程同時 1 個、20 秒逾時、輸出 16 MiB、單張封面 3 MiB，每次 catalog sync 最多 512 次。schema 升到 79（新增 `item_embedded_cover_attempts`）；探測 parser 升為 `media-metadata-v2`，升級後既有探測快取會在下次探測時重算。細節、優先序與界限見[本地圖片：內嵌封面擷取](local-images.md#內嵌封面擷取g404schema-79)。
+
 ## 媒體庫語言設定的升級
 
 第19／20版新增以下偏好；當前版本要求乾淨schema29，見[lock-only NFO](nfo-lock-only.md)。先執行資料庫遷移，再啟動新的服務；001–019保持原樣。第19版新增媒體庫文字語言及更新版本，第20版新增有序圖片語言清單。設定有更新時降版會拒絕丟失偏好；介面與回復限制見[媒體庫語言](tmdb-library-language.md)及[圖片語言](tmdb-image-preferences.md)。以下仍是首階段容器的歷史驗證。

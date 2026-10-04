@@ -44,6 +44,10 @@ type Config struct {
 	// EnableNFOWrite lets job workers claim nfo_write jobs and run NFO commit
 	// recovery. It is off by default and requires job rollout.
 	EnableNFOWrite bool `json:"enableNFOWrite"`
+	// EnableEmbeddedCovers copies embedded cover pictures (attached_pic
+	// streams) of probed media into the image store at the end of a catalog
+	// sync (G40.4). Off by default; it needs probe, images and a storeRoot.
+	EnableEmbeddedCovers bool `json:"enableEmbeddedCovers"`
 	// WebDir is the built single-page frontend (for example web/dist). Empty
 	// disables the frontend; the API is unaffected either way.
 	WebDir string `json:"webDir"`
@@ -135,7 +139,7 @@ func LoadWith(lookup func(string) (string, bool)) (Config, error) {
 			c.TrustedProxies = strings.Split(value, ",")
 		}
 	}
-	for name, target := range map[string]*bool{"JELEE_ENABLE_CATALOG": &c.EnableCatalog, "JELEE_ENABLE_DIRECT": &c.EnableDirect, "JELEE_ENABLE_ACCOUNTS": &c.EnableAccounts, "JELEE_ENABLE_METRICS": &c.EnableMetrics, "JELEE_ENABLE_IMAGES": &c.EnableImages, "JELEE_ENABLE_JOBS": &c.EnableJobs, "JELEE_ENABLE_PROBE": &c.EnableProbe, "JELEE_ENABLE_FAMILY_IGNORE": &c.EnableFamilyIgnore, "JELEE_ENABLE_NFO_WRITE": &c.EnableNFOWrite, "JELEE_COMPAT_ENABLED": &c.EnableCompat, "JELEE_ENABLE_WEBHOOKS": &c.EnableWebhooks} {
+	for name, target := range map[string]*bool{"JELEE_ENABLE_CATALOG": &c.EnableCatalog, "JELEE_ENABLE_DIRECT": &c.EnableDirect, "JELEE_ENABLE_ACCOUNTS": &c.EnableAccounts, "JELEE_ENABLE_METRICS": &c.EnableMetrics, "JELEE_ENABLE_IMAGES": &c.EnableImages, "JELEE_ENABLE_JOBS": &c.EnableJobs, "JELEE_ENABLE_PROBE": &c.EnableProbe, "JELEE_ENABLE_EMBEDDED_COVERS": &c.EnableEmbeddedCovers, "JELEE_ENABLE_FAMILY_IGNORE": &c.EnableFamilyIgnore, "JELEE_ENABLE_NFO_WRITE": &c.EnableNFOWrite, "JELEE_COMPAT_ENABLED": &c.EnableCompat, "JELEE_ENABLE_WEBHOOKS": &c.EnableWebhooks} {
 		if value, ok := lookup(name); ok {
 			b, err := strconv.ParseBool(value)
 			if err != nil {
@@ -302,6 +306,11 @@ func (c Config) Validate() error {
 		}
 		if err := c.Webhooks.Validate(); err != nil {
 			return err
+		}
+	}
+	if c.EnableEmbeddedCovers {
+		if !c.EnableProbe || !c.EnableImages || c.Images.StoreRoot == "" {
+			return errors.New("embedded covers require probe, images and an image storeRoot")
 		}
 	}
 	if c.EnableProbe {

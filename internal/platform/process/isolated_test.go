@@ -71,7 +71,7 @@ func isolatedFixture(t *testing.T, mode string, timeout time.Duration) (*Isolate
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { file.Close() })
-	return &IsolatedRunner{runner: core}, file
+	return &IsolatedRunner{runner: core, operations: map[string]bool{"metadata": true}}, file
 }
 
 func TestIsolatedExitClassificationDiscardsEveryFailureOutput(t *testing.T) {
@@ -156,6 +156,9 @@ func TestIsolatedFactoryCannotRegisterAnArbitraryProgram(t *testing.T) {
 	for _, launcher := range []*sandbox.Launcher{nil, {}} {
 		if _, err := NewIsolatedFFprobe(config, launcher); err != ErrInvalid {
 			t.Fatal("unverified launcher accepted")
+		}
+		if _, err := NewIsolatedFFprobeCover(config, launcher); err != ErrInvalid {
+			t.Fatal("unverified cover launcher accepted")
 		}
 	}
 	executable, _ := os.Executable()

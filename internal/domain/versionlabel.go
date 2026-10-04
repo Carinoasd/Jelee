@@ -189,7 +189,7 @@ func primaryVideoStream(meta MediaMetadata) *MediaStream {
 	}
 	for i := range meta.Streams {
 		s := &meta.Streams[i]
-		if s.Kind != "video" || s.Video == nil || s.Codec != nil && versionImageCodecs[*s.Codec] {
+		if s.Kind != "video" || s.Video == nil || s.Codec != nil && versionImageCodecs[*s.Codec] || s.AttachedPic != nil && *s.AttachedPic {
 			continue
 		}
 		if best == nil {

@@ -263,6 +263,20 @@ func (s *Session) checkTools(ctx context.Context) Result {
 			findings = append(findings, failf(subject, code))
 		}
 	}
+	if s.env.Config.EnableEmbeddedCovers {
+		// The cover pass reads attached pictures through the same sandboxed
+		// ffprobe; without a verified one it stays off at runtime.
+		code, verified := CodeEmbeddedCoversNoTool, false
+		for _, f := range findings {
+			verified = verified || f.Code == CodeToolVerified
+		}
+		if verified {
+			code = CodeEmbeddedCoversReady
+			findings = append(findings, okf("embedded-covers", code))
+		} else {
+			findings = append(findings, failf("embedded-covers", code))
+		}
+	}
 	if len(findings) == 0 {
 		if s.env.Config.EnableProbe {
 			findings = append(findings, failf("ffprobe", CodeToolMissing))

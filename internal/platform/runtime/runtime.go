@@ -208,7 +208,7 @@ func newWithLifetime(cfg config.Config, logger *slog.Logger, lifetime *lifetime)
 			lifetime.closeTelemetry = metrics.Shutdown
 			return metrics, nil
 		},
-		func(c config.Config, store *postgres.Store, budget *resources.Budget, l *slog.Logger) (*app.Jobs, error) {
+		func(c config.Config, store *postgres.Store, budget *resources.Budget, processor *imageadapter.Processor, l *slog.Logger) (*app.Jobs, error) {
 			if !c.EnableJobs {
 				return nil, nil
 			}
@@ -276,6 +276,12 @@ func newWithLifetime(cfg config.Config, logger *slog.Logger, lifetime *lifetime)
 			}
 			opts.CatalogImport = &jobworker.CatalogImportOptions{Repository: store, Verifier: scan.New()}
 			opts.CatalogSync = &jobworker.CatalogSyncOptions{Repository: store, Sidecars: store, Inspector: scan.SidecarInspector{}}
+			covers, closeCovers := prepareEmbeddedCovers(startup, c.EnableEmbeddedCovers, probing, processor.OriginalStore(), store, l, prepareProductionCoverExtractor)
+			if closeCovers != nil {
+				closeProbe := lifetime.closeProbe
+				lifetime.closeProbe = func() error { return errors.Join(closeCovers(), closeProbe()) }
+			}
+			opts.CatalogSync.EmbeddedCovers = covers
 			if goruntime.GOOS == "linux" || goruntime.GOOS == "windows" {
 				ignoreScanner := scan.NewIgnoreScanner()
 				opts.Ignore = &jobworker.IgnoreOptions{Repository: store, Scanner: ignoreScanner, Observer: ignoreScanner}

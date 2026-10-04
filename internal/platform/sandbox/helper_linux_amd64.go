@@ -18,10 +18,13 @@ const (
 	supportedBuild = true
 )
 
-func executeHelper(profile Profile, policy Policy) error {
+func executeHelper(profile Profile, policy Policy, arguments []string) error {
 	// The caller is a dedicated helper process. Never unlock this thread after
 	// applying policy; a caller receiving an error must immediately os.Exit.
 	runtime.LockOSThread()
+	if len(arguments) == 0 {
+		return ErrUnavailable
+	}
 	if os.Getuid() == 0 || os.Geteuid() == 0 {
 		return ErrUnavailable
 	}
@@ -82,7 +85,7 @@ func executeHelper(profile Profile, policy Policy) error {
 	if unix.CloseRange(3, ^uint(0), unix.CLOSE_RANGE_UNSHARE|unix.CLOSE_RANGE_CLOEXEC) != nil {
 		return ErrUnavailable
 	}
-	args := append([]string{"ffprobe"}, metadataArguments()...)
+	args := append([]string{"ffprobe"}, arguments...)
 	environment := []string{"LANG=C", "LC_ALL=C", "TZ=UTC"}
 	directories := make(map[string]bool)
 	for _, library := range p.libraries {

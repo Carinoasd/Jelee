@@ -15,7 +15,7 @@ var (
 
 const (
 	ProbeFingerprintVersion    = "edge-sha256-v1"
-	ProbeParserVersion         = "media-metadata-v1"
+	ProbeParserVersion         = "media-metadata-v2"
 	ProbeMetadataSchemaVersion = 1
 	ProbeMetadataMaxBytes      = 128 << 10
 	ProbeRowAllowanceBytes     = 2048

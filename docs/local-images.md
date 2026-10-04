@@ -72,7 +72,7 @@ GET /images/Backdrop/{itemID}?index=2&width=1280&tag=<原圖 SHA-256>
 選圖：app 層以 `ResolveItemImageSources` 在同一句 SQL 內重驗 session 與媒體庫授權，取得該槽可用的列（鎖定優先，其次 local > nfo > remote > embedded；尚未抓取內容的 URL 不列入），依序嘗試：
 
 - local／nfo 且指向媒體庫檔案：以 root＋相對路徑經 `probe.Open`（拒絕符號連結元件、os.Root 邊界）複製到私有暫存區，處理後重新開啟並重算完整雜湊，與 Primary 海報相同。
-- remote／embedded 或 NFO URL：只從持久存放區讀取已存在的原圖（開啟時重算雜湊）。**請求路徑不會發出外部請求，也不會抽取內嵌圖**；存放區沒有內容或未啟用存放區時視為不可用，換下一個來源。實際抓取由之後的 image_refresh 任務負責。
+- remote／embedded 或 NFO URL：只從持久存放區讀取已存在的原圖（開啟時重算雜湊）。**請求路徑不會發出外部請求，也不會抽取內嵌圖**；存放區沒有內容或未啟用存放區時視為不可用，換下一個來源。遠端抓取由之後的 image_refresh 任務負責；內嵌封面由 catalog sync 的[擷取段](#內嵌封面擷取g404schema-79)寫入存放區。
 - 檔案不存在或來源異動（not found／unavailable）時換下一個來源；過大、格式不支援、忙碌等真正的處理結果直接回應，不再嘗試其他來源。
 - 交付前（含快取命中、HEAD、304）再查一次該槽，產生圖片的那一列必須仍可見且綁定相同（列 ID、來源類別、root、路徑、URL、內容雜湊）；否則回 404。
 - 該槽完全沒有可用列、或全部不可用時，Primary／index 0 回退到原本「媒體檔旁海報」的行為；其他類型回 404。
@@ -103,6 +103,22 @@ GET /images/Backdrop/{itemID}?index=2&width=1280&tag=<原圖 SHA-256>
 
 縮放使用固定 [Go x/image v0.46.0](https://pkg.go.dev/golang.org/x/image@v0.46.0/draw) 的 `ApproxBiLinear`，從已解碼來源直接寫入唯一輸出 RGBA。真正縮小時不建立額外全尺寸 RGBA；同尺寸時改為直接編碼或在私有解碼緩衝內合成白底，亦不建立完整副本，見[同尺寸修正及證據](image-same-size.md)。JPEG 的 RGB／CMYK 轉換及尚未驗證的子格式會拒絕；尺寸預檢須包含 progressive 係數與 PNG 16-bit／交錯工作區，不能只算寬 × 高 × 4。
 
+## 內嵌封面擷取（G40.4，schema 79）
+
+預設關閉。`JELEE_ENABLE_EMBEDDED_COVERS=true`（或設定檔 `enableEmbeddedCovers`）後，每次 catalog sync 在批次與外部字幕檢查之後多跑一段：把已探測媒體檔裡**容器本來就存放的封面**（`attached_pic` 串流：MP4 的封面 atom、Matroska 的圖片附件，JPEG 或 PNG）原封不動複製到持久原圖存放區，並在 `item_images` 以 `embedded` 來源記錄。需要同時啟用探測（`JELEE_ENABLE_PROBE`）、圖片與 `JELEE_IMAGE_STORE_ROOT`，否則設定驗證失敗；探測能力不可用、存放區未開啟或沙箱註冊失敗時只記一筆 `embedded_cover_*_unavailable` 警告並關閉這一段，不影響啟動。
+
+**這是擷取，不是轉碼（G10）。** 不呼叫 ffmpeg，也不解碼或重新編碼任何影像：沿用已出貨、已固定雜湊的 ffprobe 與同一套隔離 helper（Landlock、seccomp、rlimit、清空環境、唯讀 FD 0 輸入、僅 `fd:` 協定與既有 demuxer 白名單），新增一個密封的「cover」描述子模式，argv 由程式固定（G09.2 參數陣列）：`-select_streams v:N -read_intervals %+#1 -show_entries …packet=stream_index,size,data,data_hash -show_data -show_data_hash SHA256`。也就是只讀出該串流的第一個封包（attached picture 只有這一個封包），以十六進位傾印加上 ffprobe 自己算的 SHA-256 輸出。N 是該封面在影片串流中的序號，每個 N（0–15）是一個獨立封裝的描述子，不接受呼叫端參數；正式 helper 只接受 `/usr/lib/jelee/ffprobe` 的標準編碼描述子。解析端要求恰好一個串流且其 index、`codec_type=video`、`attached_pic=1`、codec 為 `mjpeg`／`png` 都符合探測結果，恰好一個封包，傾印的偏移連續、欄寬固定、總長等於宣告大小，解出的位元組 SHA-256 必須等於 ffprobe 的 `data_hash`；再檢查 JPEG／PNG 魔術位元組，並只讀影像標頭做尺寸預檢（每邊 ≤ 16384、總像素 ≤ 64 Mi）。實測斷言存放區裡的原圖與嵌入前的圖檔逐位元組相同。
+
+**不需要 ffmpeg（G37.1）。** 正式映像依 G37.1 只含固定雜湊的 ffprobe，預設不含 ffmpeg；本功能因此只用 ffprobe 的沙箱 cover 讀取，Dockerfile 與正式映像都沒有為它加入 ffmpeg，也不依賴尚未合併的 mkvtoolnix（mkvextract）。原文「ffprobe/ffmpeg（如可用）」在這裡就是 ffprobe：工具不存在或探測能力不可用時，服務照常啟動、這一段保持關閉並記 WARN（`embedded_cover_prerequisite_unavailable`／`embedded_cover_runtime_unavailable`）；`jelee-cli doctor` 的 tools 檢查在開關開啟時回報 `embedded_covers_ready` 或 `embedded_covers_tool_missing`（fail），見[故障排查](troubleshooting.md)。開發與測試用的 ffmpeg 只在 `.tools/` 產生夾具（`tools/gen-fixtures` 的 `cover-atom.mp4`、`cover-attachment.mkv`），從不進映像。
+
+**界限（G29.4／G42.7／G40.12）。** 專用子行程准入：同時最多 1 個、每次 20 秒逾時、stdout 上限 16 MiB（十六進位傾印約為原圖的 4.3 倍）、stderr 64 KiB 且不保留；暫存在私有 scratch 目錄。單張封面上限 3 MiB（`domain.EmbeddedCoverMaxBytes`），宣告超過或輸出超限都視為過大；記憶體上限約為一份傾印加一份原圖。每次擷取另受作業 IO 工作預算與 30 秒單檔逾時，每個 catalog sync 最多啟動 512 次擷取，每頁 16 個候選。
+
+**何時做、何時不做。** 候選是：只有單一媒體檔的條目、該檔的探測快取為 ready 且 metadata 記有 `attachedPic`（探測 parser 版本因此升為 `media-metadata-v2`，舊快取會在下次探測時重算）、Primary 槽沒有鎖定列，也沒有可用的更高優先來源（local、NFO、已抓取內容的 remote）。擷取前後都在同一個唯讀 FD 上核對探測時的大小、mtime 與邊緣指紋，並重開註冊路徑確認未被替換；不符就放棄（不記錄，下次再試）。記錄時在同一交易內重鎖 item、重驗媒體檔與探測戳記、鎖定與優先序：鎖定列存在回 `skipped_locked`，出現更高優先圖片回 `skipped_priority`，戳記不同回 `changed`，三者都不寫入。成功（`stored`）與確定性的拒絕（`absent`、`invalid`、`too_large`）寫入 `item_embedded_cover_attempts`，以 (根、相對路徑、大小、mtime、指紋) 記住「這個檔案已處理」；檔案沒變就不再啟動子行程，檔案改變（探測戳記改變）才重新擷取並更新同一列。逾時、工具忙碌或不可用、檔案變動等暫時性結果不記住；工具不可用時本段立即結束。
+
+**優先序（G40.10）。** 內嵌封面放在最後：鎖定 > 本機旁車圖片（local）> NFO > 外部抓取（remote）> embedded。理由：它是媒體檔附帶的圖，品質與比例不保證，使用者另外放的旁車圖片或 NFO 指定圖都應優先；remote 只有在已抓取內容後才參與選圖。內嵌列一律非鎖定寫入，不會改動已鎖定的列，也不會覆蓋其他來源的列（每個來源各自一列）。
+
+**資產（G40.5／G40.11）。** 原圖以內容 SHA-256 存入 `originals/`，與可清理重建的變體分離；`embedded` 列的 root＋相對路徑指向媒體檔本身（僅作來源身分，從不讀成圖片、從不修改或刪除）。請求路徑只從存放區讀已存在的原圖，不會在請求時擷取。降級到 schema 78 只移除擷取紀錄表，已存的 `item_images` 內嵌列保留；之後重新升級會把有封面的條目重新列為候選。
+
 ## 已執行驗證
 
 [來源雜湊與驗證證據](evidence/local-images.json)記錄本段範圍、固定依賴、失敗修正與原始日誌雜湊。測試事件包含父測試及子測試，不能相加解讀成不重複案例數。
@@ -118,4 +134,4 @@ GET /images/Backdrop/{itemID}?index=2&width=1280&tag=<原圖 SHA-256>
 
 ## 尚未涵蓋
 
-掃描入庫（命名辨識寫入 `item_images`）、遠端抓取與內嵌抽取的 image_refresh 任務、鎖定／更換的管理 API、WebP／AVIF 輸出、裁切（相容層的 `FillWidth`／`FillHeight` 因此只當上限）、相容層的舊式長路由（`/Items/{id}/Images/{type}/{index}/{tag}/{format}/…`）與人物／類型／工作室圖片、播放進度疊加與模糊效果、前端與圖片重建工作尚未完成。相容圖片路由已提供，但尚未用真實客戶端驗證。十萬圖片處理、混合並發與至少 24h 的驗收另行執行。本段不能據此將 G40 或 G42.10 標為完成。
+掃描入庫（命名辨識寫入 `item_images`）、遠端抓取的 image_refresh 任務、鎖定／更換的管理 API、WebP／AVIF 輸出、裁切（相容層的 `FillWidth`／`FillHeight` 因此只當上限）、相容層的舊式長路由（`/Items/{id}/Images/{type}/{index}/{tag}/{format}/…`）與人物／類型／工作室圖片、播放進度疊加與模糊效果、前端與圖片重建工作尚未完成。相容圖片路由已提供，但尚未用真實客戶端驗證。十萬圖片處理、混合並發與至少 24h 的驗收另行執行。本段不能據此將 G40 或 G42.10 標為完成。

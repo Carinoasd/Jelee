@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"runtime"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -161,5 +162,45 @@ func TestDiagnosticCancellationFactoryFailureAndInputCloseDisableCapability(t *t
 				t.Fatal("scratch leaked")
 			}
 		})
+	}
+}
+
+func TestHelperAcceptsOnlyCanonicalShippedDescriptors(t *testing.T) {
+	encode := func(text string) string { return base64.RawURLEncoding.EncodeToString([]byte(text)) }
+	if !expectedDescriptor(encode(`{"version":1,"mode":"metadata","ffprobePath":"` + FFprobePath + `"}`)) {
+		t.Fatal("metadata descriptor refused")
+	}
+	for stream := 0; stream <= sandbox.CoverMaxVideoIndex; stream++ {
+		if !expectedDescriptor(encode(`{"version":1,"mode":"cover","ffprobePath":"` + FFprobePath + `","stream":` + strconv.Itoa(stream) + `}`)) {
+			t.Fatal("cover descriptor refused", stream)
+		}
+	}
+	for _, text := range []string{
+		`{"version":1,"mode":"cover","ffprobePath":"` + FFprobePath + `","stream":16}`,
+		`{"version":1,"mode":"cover","ffprobePath":"/other/ffprobe","stream":0}`,
+		`{"version":1,"mode":"cover","ffprobePath":"` + FFprobePath + `","stream":01}`,
+		`{"version":1,"mode":"cover","ffprobePath":"` + FFprobePath + `"}`,
+	} {
+		if expectedDescriptor(encode(text)) {
+			t.Fatal("non-canonical descriptor accepted", text)
+		}
+		want := sandbox.ExitInvalid
+		if runtime.GOOS != "linux" || runtime.GOARCH != "amd64" {
+			want = sandbox.ExitUnavailable
+		}
+		if got := Helper([]string{encode(text)}); got != want {
+			t.Fatalf("helper code %d", got)
+		}
+	}
+}
+
+func TestNewCoverRejectsNilCancelledOrUnregisteredHost(t *testing.T) {
+	if runner, err := NewCover(nil, t.TempDir()); err != ErrUnavailable || runner != nil {
+		t.Fatal("nil context accepted")
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	if runner, err := NewCover(ctx, t.TempDir()); err != ErrUnavailable || runner != nil {
+		t.Fatal("cancelled factory accepted")
 	}
 }

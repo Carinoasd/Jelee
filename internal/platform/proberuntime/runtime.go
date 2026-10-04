@@ -8,6 +8,7 @@ import (
 	"errors"
 	"os"
 	"runtime"
+	"strconv"
 	"time"
 
 	"github.com/MoYuanCN/Jelee/internal/platform/process"
@@ -50,12 +51,52 @@ func Helper(argv []string) int {
 	}
 	// Production accepts only the canonical descriptor for the shipped path.
 	// The sandbox then independently validates its schema, policy and file bytes.
-	expected := base64.RawURLEncoding.EncodeToString([]byte(`{"version":1,"mode":"metadata","ffprobePath":"` + FFprobePath + `"}`))
-	if len(argv) != 1 || argv[0] != expected {
+	if len(argv) != 1 || !expectedDescriptor(argv[0]) {
 		_, _ = os.Stderr.WriteString("probe_runtime_invalid\n")
 		return sandbox.ExitInvalid
 	}
 	return sandbox.RunHelper(argv, policy)
+}
+
+// expectedDescriptor accepts the metadata descriptor and the cover read
+// descriptors of the shipped path only, in their canonical encodings.
+func expectedDescriptor(value string) bool {
+	if value == base64.RawURLEncoding.EncodeToString([]byte(`{"version":1,"mode":"metadata","ffprobePath":"`+FFprobePath+`"}`)) {
+		return true
+	}
+	for stream := 0; stream <= sandbox.CoverMaxVideoIndex; stream++ {
+		if value == base64.RawURLEncoding.EncodeToString([]byte(`{"version":1,"mode":"cover","ffprobePath":"`+FFprobePath+`","stream":`+strconv.Itoa(stream)+`}`)) {
+			return true
+		}
+	}
+	return false
+}
+
+// CoverMaxStdoutBytes bounds one cover read's hex dump. ffprobe prints about
+// 4.3 bytes per payload byte, so this admits pictures somewhat above
+// domain.EmbeddedCoverMaxBytes; anything larger fails as an output limit.
+const CoverMaxStdoutBytes = 16 << 20
+
+// NewCover creates only the embedded cover reads (G40.4) with their own
+// process admission: one child at a time, a short timeout and a bounded
+// output. TempRoot is a caller-owned private scratch directory.
+func NewCover(ctx context.Context, tempRoot string) (*process.IsolatedRunner, error) {
+	policy, err := Policy()
+	if err != nil {
+		return nil, ErrUnavailable
+	}
+	launcher, err := sandbox.New(ctx, sandbox.Profile{FFprobePath: FFprobePath}, policy)
+	if err != nil {
+		return nil, ErrUnavailable
+	}
+	runner, err := process.NewIsolatedFFprobeCover(process.Config{
+		MaxConcurrent: 1, Timeout: 20 * time.Second,
+		MaxStdoutBytes: CoverMaxStdoutBytes, MaxStderrBytes: 64 << 10, TempRoot: tempRoot,
+	}, launcher)
+	if err != nil {
+		return nil, ErrUnavailable
+	}
+	return runner, nil
 }
 
 // New creates only the fixed metadata operation. TempRoot is a caller-owned,

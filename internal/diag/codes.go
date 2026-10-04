@@ -31,27 +31,31 @@ const (
 	CodeMigrationBehind = "db_migration_behind"
 	CodeSchemaNewer     = "db_schema_newer"
 
-	CodeRootsNone         = "library_roots_none"
-	CodeRootOK            = "library_root_ok"
-	CodeRootMissing       = "library_root_missing"
-	CodeRootNotDirectory  = "library_root_not_directory"
-	CodeRootUnreadable    = "library_root_unreadable"
-	CodeRootTimeout       = "library_root_timeout"
-	CodeRootsTruncated    = "library_roots_truncated"
-	CodeRootsUnchecked    = "library_roots_unchecked"
-	CodeToolVerified      = "tool_verified"
-	CodeToolMissing       = "tool_missing"
-	CodeToolHashMismatch  = "tool_hash_mismatch"
-	CodeToolUnreadable    = "tool_unreadable"
-	CodeToolUnsupported   = "tool_platform_unsupported"
-	CodeToolManifest      = "tool_manifest_invalid"
-	CodeDiskOK            = "disk_ok"
-	CodeDiskSpaceLow      = "disk_space_low"
-	CodeDiskSpaceCritical = "disk_space_critical"
-	CodeDiskInodesLow     = "disk_inodes_low"
-	CodeDiskInodesCrit    = "disk_inodes_critical"
-	CodeDiskUnavailable   = "disk_stat_unavailable"
-	CodeDiskNoInodes      = "disk_inodes_not_applicable"
+	CodeRootsNone        = "library_roots_none"
+	CodeRootOK           = "library_root_ok"
+	CodeRootMissing      = "library_root_missing"
+	CodeRootNotDirectory = "library_root_not_directory"
+	CodeRootUnreadable   = "library_root_unreadable"
+	CodeRootTimeout      = "library_root_timeout"
+	CodeRootsTruncated   = "library_roots_truncated"
+	CodeRootsUnchecked   = "library_roots_unchecked"
+	CodeToolVerified     = "tool_verified"
+	CodeToolMissing      = "tool_missing"
+	CodeToolHashMismatch = "tool_hash_mismatch"
+	CodeToolUnreadable   = "tool_unreadable"
+	CodeToolUnsupported  = "tool_platform_unsupported"
+	CodeToolManifest     = "tool_manifest_invalid"
+	// CodeEmbeddedCoversReady and CodeEmbeddedCoversNoTool report the G40.4
+	// cover pass, which reads covers with ffprobe only.
+	CodeEmbeddedCoversReady  = "embedded_covers_ready"
+	CodeEmbeddedCoversNoTool = "embedded_covers_tool_missing"
+	CodeDiskOK               = "disk_ok"
+	CodeDiskSpaceLow         = "disk_space_low"
+	CodeDiskSpaceCritical    = "disk_space_critical"
+	CodeDiskInodesLow        = "disk_inodes_low"
+	CodeDiskInodesCrit       = "disk_inodes_critical"
+	CodeDiskUnavailable      = "disk_stat_unavailable"
+	CodeDiskNoInodes         = "disk_inodes_not_applicable"
 
 	CodeNetOK           = "net_ok"
 	CodeNetListen       = "net_listen_invalid"
@@ -124,27 +128,29 @@ var codes = map[string]codeInfo{
 	CodeMigrationBehind: {"schema is older than this binary requires", "Back up the database, then run: jelee-migrate up"},
 	CodeSchemaNewer:     {"schema is newer than this binary supports", "Run the matching newer Jelee release, or restore the backup taken before the upgrade."},
 
-	CodeRootsNone:         {"no library roots are registered", ""},
-	CodeRootOK:            {"library root exists and is readable", ""},
-	CodeRootMissing:       {"library root does not exist", "Mount the media volume or correct the library root; the server only reads media and never creates roots."},
-	CodeRootNotDirectory:  {"library root is not a directory", "Point the library root at a directory."},
-	CodeRootUnreadable:    {"library root cannot be listed by the service account", "Grant read and execute permission on the root to the service account (read-only mounts are fine)."},
-	CodeRootTimeout:       {"library root did not respond in time", "Check the network or removable filesystem backing this root."},
-	CodeRootsTruncated:    {"more library roots exist than were checked", "Re-run doctor with a larger --max-roots value."},
-	CodeRootsUnchecked:    {"library roots not checked because the database is unavailable", "Fix the database connection first."},
-	CodeToolVerified:      {"pinned ffprobe matches the manifest hash", ""},
-	CodeToolMissing:       {"pinned ffprobe is not installed", "Container: use the official runtime image. Development: run make bootstrap-media (scripts/make.ps1 bootstrap-media on Windows)."},
-	CodeToolHashMismatch:  {"ffprobe does not match the pinned SHA-256 in tools/manifest.json", "Reinstall the pinned tool (make tools-clean bootstrap-media) or rebuild the runtime image; never replace it with a system ffprobe."},
-	CodeToolUnreadable:    {"ffprobe exists but cannot be read", "Make the tool file a regular file readable by the service account."},
-	CodeToolUnsupported:   {"no pinned ffprobe exists for this platform", "Probing is available on linux-amd64 only; other platforms run without media probing."},
-	CodeToolManifest:      {"embedded tool manifest is invalid", "Rebuild jelee-cli from a clean checkout."},
-	CodeDiskOK:            {"free space and inodes are sufficient", ""},
-	CodeDiskSpaceLow:      {"free disk space is low", "Free space on this volume or move the directory to a larger volume."},
-	CodeDiskSpaceCritical: {"free disk space is critically low", "Free space now; temporary files and logs will fail to write."},
-	CodeDiskInodesLow:     {"free inodes are low", "Remove many small files (stale temporary or log files) on this volume."},
-	CodeDiskInodesCrit:    {"free inodes are critically low", "Remove stale small files now; new files cannot be created when inodes run out."},
-	CodeDiskUnavailable:   {"disk usage could not be read", "Check the directory exists; on unsupported platforms check free space manually."},
-	CodeDiskNoInodes:      {"inode counts are not reported on this platform", ""},
+	CodeRootsNone:            {"no library roots are registered", ""},
+	CodeRootOK:               {"library root exists and is readable", ""},
+	CodeRootMissing:          {"library root does not exist", "Mount the media volume or correct the library root; the server only reads media and never creates roots."},
+	CodeRootNotDirectory:     {"library root is not a directory", "Point the library root at a directory."},
+	CodeRootUnreadable:       {"library root cannot be listed by the service account", "Grant read and execute permission on the root to the service account (read-only mounts are fine)."},
+	CodeRootTimeout:          {"library root did not respond in time", "Check the network or removable filesystem backing this root."},
+	CodeRootsTruncated:       {"more library roots exist than were checked", "Re-run doctor with a larger --max-roots value."},
+	CodeRootsUnchecked:       {"library roots not checked because the database is unavailable", "Fix the database connection first."},
+	CodeToolVerified:         {"pinned ffprobe matches the manifest hash", ""},
+	CodeToolMissing:          {"pinned ffprobe is not installed", "Container: use the official runtime image. Development: run make bootstrap-media (scripts/make.ps1 bootstrap-media on Windows)."},
+	CodeToolHashMismatch:     {"ffprobe does not match the pinned SHA-256 in tools/manifest.json", "Reinstall the pinned tool (make tools-clean bootstrap-media) or rebuild the runtime image; never replace it with a system ffprobe."},
+	CodeToolUnreadable:       {"ffprobe exists but cannot be read", "Make the tool file a regular file readable by the service account."},
+	CodeToolUnsupported:      {"no pinned ffprobe exists for this platform", "Probing is available on linux-amd64 only; other platforms run without media probing."},
+	CodeToolManifest:         {"embedded tool manifest is invalid", "Rebuild jelee-cli from a clean checkout."},
+	CodeEmbeddedCoversReady:  {"embedded cover extraction is enabled and its pinned ffprobe is verified (ffmpeg is not used)", ""},
+	CodeEmbeddedCoversNoTool: {"embedded cover extraction is enabled but no verified pinned ffprobe exists; the pass stays off", "Use the official runtime image (it ships ffprobe, never ffmpeg) or set JELEE_ENABLE_EMBEDDED_COVERS=false."},
+	CodeDiskOK:               {"free space and inodes are sufficient", ""},
+	CodeDiskSpaceLow:         {"free disk space is low", "Free space on this volume or move the directory to a larger volume."},
+	CodeDiskSpaceCritical:    {"free disk space is critically low", "Free space now; temporary files and logs will fail to write."},
+	CodeDiskInodesLow:        {"free inodes are low", "Remove many small files (stale temporary or log files) on this volume."},
+	CodeDiskInodesCrit:       {"free inodes are critically low", "Remove stale small files now; new files cannot be created when inodes run out."},
+	CodeDiskUnavailable:      {"disk usage could not be read", "Check the directory exists; on unsupported platforms check free space manually."},
+	CodeDiskNoInodes:         {"inode counts are not reported on this platform", ""},
 
 	CodeNetOK:           {"listen address and proxy settings are valid", ""},
 	CodeNetListen:       {"listen address is not an explicit IP and port", "Set JELEE_LISTEN to IP:port, for example 127.0.0.1:8097."},

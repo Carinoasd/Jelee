@@ -203,6 +203,16 @@ func (p *Processor) StoreStats() (stats StoreStats, ok bool) {
 	return p.options.Store.Stats(), true
 }
 
+// OriginalStore returns the persistent original store, or nil when the
+// processor runs without one. Embedded cover extraction (G40.4) writes the
+// originals it copies there; the processor renders them like fetched images.
+func (p *Processor) OriginalStore() *Store {
+	if p == nil {
+		return nil
+	}
+	return p.options.Store
+}
+
 func (p *Processor) Render(ctx context.Context, source domain.LocalImageSource, request domain.ImageRequest) (result app.ImageResult, err error) {
 	if p == nil || ctx == nil {
 		return result, domain.ErrInvalid

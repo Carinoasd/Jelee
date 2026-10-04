@@ -13,6 +13,7 @@ import (
 	"fmt"
 	"image"
 	"image/color"
+	"image/jpeg"
 	"image/png"
 	"io"
 	"os"
@@ -54,6 +55,9 @@ type expected struct {
 	Subtitles int  `json:"subtitleStreams,omitempty"`
 	Chapters  int  `json:"chapters,omitempty"`
 	Invalid   bool `json:"invalid,omitempty"`
+	// CoverSHA256 is the digest of the picture embedded as an attached_pic
+	// stream (G40.4); extraction must return exactly these bytes.
+	CoverSHA256 string `json:"coverSHA256,omitempty"`
 }
 
 type fixture struct {
@@ -186,7 +190,11 @@ func makeImage(path string) error {
 	if err != nil {
 		return errors.New("fixture_write_failed")
 	}
-	err = png.Encode(f, img)
+	if strings.HasSuffix(path, ".jpg") {
+		err = jpeg.Encode(f, img, &jpeg.Options{Quality: 90})
+	} else {
+		err = png.Encode(f, img)
+	}
 	closeErr := f.Close()
 	if err != nil || closeErr != nil {
 		return errors.New("fixture_write_failed")
@@ -247,8 +255,10 @@ func generate(ctx context.Context, project string) (output string, returnErr err
 			return "", err
 		}
 	}
-	if err := makeImage(filepath.Join(output, "poster.png")); err != nil {
-		return "", err
+	for _, name := range []string{"poster.png", "poster.jpg"} {
+		if err := makeImage(filepath.Join(output, name)); err != nil {
+			return "", err
+		}
 	}
 	common := []string{"-hide_banner", "-loglevel", "error", "-nostdin", "-n", "-filter_threads", "1", "-filter_complex_threads", "1"}
 	expectations := map[string]expected{"corrupt.mkv": {Invalid: true}, "invalid.nfo": {Invalid: true}}
@@ -267,6 +277,30 @@ func generate(ctx context.Context, project string) (output string, returnErr err
 		return "", err
 	}
 	expectations["multi.mkv"] = expected{Width: 320, Height: 180, Video: 1, Audio: 2, Subtitles: 2, Chapters: 2}
+	// Embedded covers (G40.4): an MP4 cover atom holding the JPEG poster as
+	// an attached_pic stream, and a Matroska image attachment of the PNG
+	// poster, which the demuxer exposes as an attached_pic stream as well.
+	// Both posters are copied (-c copy / -attach), never re-encoded.
+	atom := append(append([]string(nil), common...), "-f", "lavfi", "-i", "testsrc2=size=320x180:rate=24", "-i", filepath.Join(output, "poster.jpg"), "-t", "1", "-map", "0:v", "-map", "1:v", "-c:v:0", "libx264", "-threads", "1", "-preset", "ultrafast", "-pix_fmt", "yuv420p", "-c:v:1", "copy", "-disposition:v:1", "attached_pic", filepath.Join(output, "cover-atom.mp4"))
+	if _, err := runTool(ctx, toolPath, temp, "generate-video", atom); err != nil {
+		return "", err
+	}
+	attachment := append(append([]string(nil), common...), "-f", "lavfi", "-i", "testsrc2=size=320x180:rate=24", "-t", "1", "-map", "0:v", "-c:v", "libx264", "-threads", "1", "-preset", "ultrafast", "-pix_fmt", "yuv420p", "-attach", filepath.Join(output, "poster.png"), "-metadata:s:t", "mimetype=image/png", "-metadata:s:t", "filename=cover.png", filepath.Join(output, "cover-attachment.mkv"))
+	if _, err := runTool(ctx, toolPath, temp, "generate-video", attachment); err != nil {
+		return "", err
+	}
+	for name, poster := range map[string]string{"cover-atom.mp4": "poster.jpg", "cover-attachment.mkv": "poster.png"} {
+		f, err := os.Open(filepath.Join(output, poster))
+		if err != nil {
+			return "", errors.New("fixture_read_failed")
+		}
+		hash, err := digest(f)
+		f.Close()
+		if err != nil {
+			return "", errors.New("fixture_read_failed")
+		}
+		expectations[name] = expected{Width: 320, Height: 180, Video: 2, CoverSHA256: hash}
+	}
 	audio := append(append([]string(nil), common...), "-f", "lavfi", "-i", "sine=frequency=440:sample_rate=48000", "-t", "1", "-c:a", "flac", filepath.Join(output, "audio.flac"))
 	if _, err := runTool(ctx, toolPath, temp, "generate-audio", audio); err != nil {
 		return "", err
