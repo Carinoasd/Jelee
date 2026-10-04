@@ -69,6 +69,7 @@ web/
 ### 國際化（G03）
 
 - 只有 `zh-CN`（預設）、`zh-TW`、`ja-JP`、`en-US`（回退）。瀏覽器未表明語言時用 zh-CN；不支援的語言靜默回退 en-US；登入後以使用者帳號的 locale 覆蓋瀏覽器偏好。協商規則與伺服器 `internal/platform/i18n` 相同（zh-Hant／TW／HK／MO → zh-TW，其餘 zh → zh-CN）。API 請求帶 `Accept-Language` 為目前介面語言。
+- 命名空間預設隨入口一次載入；只在單一懶載入頁面使用的命名空間（目前 `clients`、`shares`、`networkRules`）列在 `i18n/index.ts` 的 `lazyNamespaces`，由路由的 `lazyView(namespace, import)` 在進入頁面時與元件一起載入，不計入首屏預算。
 - 每個檔案 `web/src/i18n/<locale>/<namespace>.json` 只有一個與檔名相同的頂層鍵。**`core.json` 保留**給即將由伺服器端 UI 資源移入的字串：允許平面結構（載入時包在 `core` 命名空間下），並暫時豁免「未使用鍵」檢查。
 - 目錄預設隨入口一次載入；**例外 `twoFactor.json`**（G07.8）：入口 bundle 預算（G35.4）只剩約 3 KB，雙因素畫面的訊息改由 `i18n/twoFactor.ts` 的 `useTwoFactorI18n()` 在登入第二步、設定頁、管理員使用者頁懶載入並合併（每個 i18n 實例一次），`index.ts` 的 eager glob 排除它，測試確認入口目錄不含這些鍵。這些畫面以外不應引用 `twoFactor.*` 鍵（四個雙因素錯誤碼只會出現在這些畫面）。
 - `check-i18n.mjs`：四語目錄完全一致、命名空間檔案一致、嚴格 JSON（拒絕重複鍵）、非空字串、缺鍵／多餘鍵、`{name}`／`{0}`／`@:key` 佔位符一致、簡繁混用偵測（語言自稱 `common.localeNames.*` 除外）、原始碼引用的鍵必須存在、目錄中的鍵必須被使用。ESLint 另以 `@intlify/vue-i18n/no-raw-text` 禁止模板硬編碼文字，`no-missing-keys` 檢查模板引用的鍵。

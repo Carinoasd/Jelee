@@ -34,7 +34,10 @@ const itemImageVisibleItem = `FROM items i
  JOIN sessions s ON s.id=$2::uuid AND s.user_id=u.id AND s.client_kind IN ('web','native')
   AND s.revoked_at IS NULL AND s.expires_at>clock_timestamp()`
 
-var itemImageVisibleWhere = `i.id=$3::uuid AND ` + itemVisibleSQL("i.library_id", "i.id")
+// itemImageVisibleWhere binds the item $3; rq names the request parameter.
+func itemImageVisibleWhere(rq string) string {
+	return `i.id=$3::uuid AND ` + itemVisibleSQL(rq, "i.library_id", "i.id")
+}
 
 // itemImageRow holds nullable scan targets so the LEFT JOIN listing and the
 // direct reads share one decoder.
@@ -113,8 +116,8 @@ func (s *Store) ListItemImages(parent context.Context, actor domain.Actor, item 
 	rows, err := s.Pool.Query(ctx, `SELECT i.id IS NOT NULL,g.id IS NOT NULL,`+itemImageColumns+` `+itemImageVisibleItem+`
  LEFT JOIN item_images g ON g.item_id=i.id AND g.library_id=i.library_id
  LEFT JOIN library_roots r ON r.id=g.root_id AND r.library_id=g.library_id
- WHERE `+itemImageVisibleWhere+`
- ORDER BY g.image_type,g.image_index,`+itemImagePriority, actor.UserID, actor.SessionID, item)
+ WHERE `+itemImageVisibleWhere("$4")+`
+ ORDER BY g.image_type,g.image_index,`+itemImagePriority, actor.UserID, actor.SessionID, item, requestScopeArg(ctx))
 	if err != nil {
 		return nil, storageError(err)
 	}
@@ -165,8 +168,8 @@ func (s *Store) ResolveItemImage(parent context.Context, actor domain.Actor, ite
  JOIN item_images g ON g.item_id=i.id AND g.library_id=i.library_id AND g.image_type=$4 AND g.image_index=$5
   AND (g.root_id IS NOT NULL OR g.content_sha256 IS NOT NULL)
  LEFT JOIN library_roots r ON r.id=g.root_id AND r.library_id=g.library_id
- WHERE `+itemImageVisibleWhere+`
- ORDER BY `+itemImagePriority+` LIMIT 1`, actor.UserID, actor.SessionID, item, imageType, index))
+ WHERE `+itemImageVisibleWhere("$6")+`
+ ORDER BY `+itemImagePriority+` LIMIT 1`, actor.UserID, actor.SessionID, item, imageType, index, requestScopeArg(ctx)))
 	if err != nil {
 		return domain.ItemImage{}, storageError(err)
 	}
@@ -192,8 +195,8 @@ func (s *Store) ResolveItemImageSources(parent context.Context, actor domain.Act
  JOIN item_images g ON g.item_id=i.id AND g.library_id=i.library_id AND g.image_type=$4 AND g.image_index=$5
   AND (g.root_id IS NOT NULL OR g.content_sha256 IS NOT NULL)
  LEFT JOIN library_roots r ON r.id=g.root_id AND r.library_id=g.library_id
- WHERE `+itemImageVisibleWhere+`
- ORDER BY `+itemImagePriority+` LIMIT 4`, actor.UserID, actor.SessionID, item, imageType, index)
+ WHERE `+itemImageVisibleWhere("$6")+`
+ ORDER BY `+itemImagePriority+` LIMIT 4`, actor.UserID, actor.SessionID, item, imageType, index, requestScopeArg(ctx))
 	if err != nil {
 		return nil, storageError(err)
 	}
@@ -244,8 +247,8 @@ SELECT DISTINCT ON (g.item_id,g.image_type,g.image_index) g.item_id::text,g.imag
  FROM principal u JOIN items i ON i.id=ANY(@ids::uuid[])
  JOIN item_images g ON g.item_id=i.id AND g.library_id=i.library_id AND g.image_type<>'Chapter' AND g.image_index<@gallery
   AND (g.root_id IS NOT NULL OR g.content_sha256 IS NOT NULL)
- WHERE `+itemVisibleSQL("i.library_id", "i.id")+`
- ORDER BY g.item_id,g.image_type,g.image_index,`+itemImagePriority, pgx.NamedArgs{"user": userID, "ids": itemIDs, "gallery": galleryMax})
+ WHERE `+itemVisibleSQL("@rq", "i.library_id", "i.id")+`
+ ORDER BY g.item_id,g.image_type,g.image_index,`+itemImagePriority, pgx.NamedArgs{"user": userID, "ids": itemIDs, "gallery": galleryMax, "rq": requestScopeArg(ctx)})
 	if err != nil {
 		return nil, storageError(err)
 	}

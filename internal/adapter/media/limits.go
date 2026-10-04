@@ -130,6 +130,9 @@ func (l *limiter) admit(p access.Principal, sourceID string, source Source) (*ad
 			kbps = *source.Limits.MaxKbps
 		}
 	}
+	if source.ShareStreams > 0 && (streamLimit == 0 || source.ShareStreams < streamLimit) {
+		streamLimit = source.ShareStreams
+	}
 	deviceLimit := 0
 	if streams {
 		deviceLimit = l.limits.MaxStreamsPerDevice

@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"hash/maphash"
 	"log/slog"
 	"net"
 	"net/http"
@@ -77,6 +78,8 @@ type Server struct {
 	// meets its own developer mode thresholds, so production never mounts a
 	// developer route or applies a relaxation.
 	dev *devmode.Controller
+	// shareAccess throttles the access records of guest sessions (G48.6).
+	shareAccess shareAccessLog
 }
 
 func New(cfg config.Config, backend Backend, catalog *app.Catalog, resolver media.Resolver, logger *slog.Logger, accounts ...*app.Accounts) (http.Handler, error) {
@@ -133,6 +136,7 @@ func newServer(cfg config.Config, backend Backend, catalog *app.Catalog, resolve
 		return nil, err
 	}
 	s := &Server{cfg: cfg, backend: backend, catalog: catalog, logger: logger, trustedProxies: prefixes}
+	s.shareAccess.seed = maphash.MakeSeed()
 	for _, option := range options {
 		option(s)
 	}
@@ -298,6 +302,7 @@ func newServer(cfg config.Config, backend Backend, catalog *app.Catalog, resolve
 	}
 	if cfg.EnableAccounts {
 		s.clientControlRoutes(r)
+		s.shareRoutes(r)
 	}
 	if s.dev != nil {
 		s.devRoutes(r)
@@ -374,11 +379,13 @@ func (s *Server) newCompat(cfg config.Config, backend Backend) (http.Handler, er
 			if err != nil || p.Kind != access.ClientNative {
 				return p, err
 			}
+			var libraries []string
 			if req := clientRequestFrom(ctx); req != nil {
-				if err = s.clients.check(ctx, req, gateInput{principal: p, session: client, version: version, token: token, authenticated: true}); err != nil {
+				if libraries, err = s.clients.decide(ctx, req, gateInput{principal: p, session: client, version: version, token: token, authenticated: true}); err != nil {
 					return access.Principal{}, err
 				}
 			}
+			p.Request = requestScope(address, p.Kind, libraries)
 			return p, nil
 		}
 	} else if tracker, ok := backend.(sessionUseTracker); ok {
@@ -387,8 +394,28 @@ func (s *Server) newCompat(cfg config.Config, backend Backend) (http.Handler, er
 		// the compat layer derives its lookup context from.
 		authenticate = func(ctx context.Context, token string) (access.Principal, error) {
 			address, _ := ctx.Value(clientAddressKey{}).(string)
-			return tracker.AuthenticateFrom(ctx, token, address)
+			p, err := tracker.AuthenticateFrom(ctx, token, address)
+			p.Request = requestScope(address, p.Kind, nil)
+			return p, err
 		}
+	} else {
+		plain := authenticate
+		authenticate = func(ctx context.Context, token string) (access.Principal, error) {
+			address, _ := ctx.Value(clientAddressKey{}).(string)
+			p, err := plain(ctx, token)
+			p.Request = requestScope(address, p.Kind, nil)
+			return p, err
+		}
+	}
+	// Share guests (G48.6) use the native API only: the layer answers
+	// their credentials like unknown ones.
+	scoped := authenticate
+	authenticate = func(ctx context.Context, token string) (access.Principal, error) {
+		p, err := scoped(ctx, token)
+		if err == nil && p.ShareID != "" {
+			return access.Principal{}, domain.ErrUnauthenticated
+		}
+		return p, err
 	}
 	opts := compat.Options{Authenticate: authenticate, WriteRejection: WriteError, ServerID: id, Timeout: cfg.RequestTimeout()}
 	if s.accounts != nil {
@@ -552,12 +579,13 @@ func (s *Server) authenticate(next http.Handler) http.Handler {
 			WriteError(w, r, domain.ErrUnauthenticated)
 			return
 		}
+		var libraries []string
 		if err == nil && gated {
 			req := clientRequestFrom(r.Context())
 			if req == nil {
 				req = newClientRequest(r)
 			}
-			err = s.clients.check(ctx, req, gateInput{principal: p, session: client, version: version, token: method.token, authenticated: true})
+			libraries, err = s.clients.decide(ctx, req, gateInput{principal: p, session: client, version: version, token: method.token, authenticated: true})
 			if method.cookie && errors.Is(err, domain.ErrUnauthenticated) {
 				// A forced relogin revoked the session behind the cookie.
 				clearSessionCookie(w)
@@ -573,6 +601,12 @@ func (s *Server) authenticate(next http.Handler) http.Handler {
 		// Bearer requests carry an explicit credential and need no token.
 		if method.cookie && !safeMethod(r.Method) && !validCSRF(r, method.token) {
 			writeProblem(w, r, 403, "csrf_failed", "Security token is missing or invalid. Reload the page and try again.")
+			return
+		}
+		// The unified storage filter reads the request's network attributes
+		// and client control library set with the principal (G48.5).
+		p.Request = requestScope(requestClientIP(r), p.Kind, libraries)
+		if p.ShareID != "" && !s.guestGate(w, r, p) {
 			return
 		}
 		if app.ValidLocale(p.Locale) {
@@ -726,6 +760,14 @@ func WriteError(w http.ResponseWriter, r *http.Request, err error) {
 		status, code, message = 403, "client_pending_approval", "This client is waiting for administrator approval."
 	case errors.Is(err, domain.ErrClientReadOnly):
 		status, code, message = 403, "client_read_only", "This client may only read."
+	case errors.Is(err, domain.ErrShareUnavailable):
+		status, code, message = 404, "share_unavailable", "This share link is unknown, revoked or expired."
+	case errors.Is(err, domain.ErrShareForbidden):
+		status, code, message = 403, "share_forbidden", "A share link does not allow this operation."
+	case errors.Is(err, domain.ErrShareReadOnly):
+		status, code, message = 403, "share_read_only", "This share link is read-only."
+	case errors.Is(err, domain.ErrSharePlaybackDisabled):
+		status, code, message = 403, "share_playback_disabled", "This share link does not allow playback."
 	case errors.Is(err, domain.ErrClientRateLimited):
 		status, code, message = 429, "client_rate_limited", "Too many requests from this client. Try again later."
 		seconds := int64(1)

@@ -379,3 +379,30 @@ func BenchmarkClientGateOff(b *testing.B)      { benchmarkGate(b, -1) }
 func BenchmarkClientGateNoRules(b *testing.B)  { benchmarkGate(b, 0) }
 func BenchmarkClientGateRules1k(b *testing.B)  { benchmarkGate(b, 1000) }
 func BenchmarkClientGateRules10k(b *testing.B) { benchmarkGate(b, 10000) }
+
+// A restrict_libraries decision reaches the principal the handler sees, as
+// the request scope the unified storage filter reads (G47, G48.5).
+func TestClientGateRestrictLibrariesReachesRequestScope(t *testing.T) {
+	store := &gateStore{}
+	lib := "55555555-5555-4555-8555-555555555555"
+	rule := gateRule("66666666-6666-4666-8666-666666666666", "restrict_libraries", "Kiosk/1")
+	rule.Libraries = []string{lib}
+	store.set(1, "allow", rule)
+	gate := newGate(t, store, nil, ClientControlOptions{})
+	var seen *access.RequestScope
+	s := &Server{cfg: validConfig(), backend: &gateBackend{store: store}, logger: slog.New(slog.NewTextHandler(io.Discard, nil)), clients: gate}
+	h := s.boundary(s.authenticate(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		p, _ := access.PrincipalFromContext(r.Context())
+		seen = p.Request
+		w.WriteHeader(http.StatusNoContent)
+	})))
+	if w := gateRequest(h, http.MethodGet, "Kiosk/1"); w.Code != http.StatusNoContent || seen == nil || len(seen.Libraries) != 1 || seen.Libraries[0] != lib || seen.IP.String() != "192.0.2.1" || seen.Kind != access.ClientNative {
+		t.Fatalf("restricted request: %d %+v", w.Code, seen)
+	}
+	if w := gateRequest(h, http.MethodGet, "Other/1"); w.Code != http.StatusNoContent || seen == nil || seen.Libraries != nil {
+		t.Fatalf("unrestricted request: %d %+v", w.Code, seen)
+	}
+	if err := ValidateClientRule(domain.ClientRuleInput{Dimension: "user_agent", Match: "exact", Pattern: "x", Action: "restrict_libraries", ScopeKind: "global", Enabled: true}); err == nil {
+		t.Fatal("restrict_libraries without libraries compiled")
+	}
+}

@@ -73,8 +73,15 @@ func TestPostgresIntegration(t *testing.T) {
 		version uint
 	}
 	steps := []migrationStep{{"up", SchemaVersion}, {"status", SchemaVersion}}
-	for version := SchemaVersion; version > 0; version-- {
-		steps = append(steps, migrationStep{"down", uint(version - 1)})
+	// Step down through the embedded versions; numbering may have gaps
+	// while parallel branches hold the numbers in between.
+	versions := embeddedMigrationVersions(t)
+	for i := len(versions) - 1; i >= 0; i-- {
+		previous := uint(0)
+		if i > 0 {
+			previous = versions[i-1]
+		}
+		steps = append(steps, migrationStep{"down", previous})
 	}
 	steps = append(steps, migrationStep{"up", SchemaVersion}, migrationStep{"up", SchemaVersion})
 	for _, step := range steps {
@@ -287,7 +294,7 @@ func TestPostgresIntegration(t *testing.T) {
 		}
 		explain := "EXPLAIN (ANALYZE,BUFFERS,FORMAT JSON) " + listItemsSQL
 		var rawPlan []byte
-		if err := store.Pool.QueryRow(ctx, explain, native.UserID, "", 50).Scan(&rawPlan); err != nil {
+		if err := store.Pool.QueryRow(ctx, explain, native.UserID, "", 50, nil).Scan(&rawPlan); err != nil {
 			t.Fatal("collect SQL permission-filter query plan")
 		}
 		var plan []map[string]any

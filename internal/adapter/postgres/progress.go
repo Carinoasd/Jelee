@@ -29,7 +29,7 @@ var startPlaybackSQL = `WITH principal AS MATERIALIZED (
  WHERE u.id=@user::uuid AND NOT u.disabled AND u.deleted_at IS NULL
 ), item AS (
  SELECT i.id,i.library_id FROM principal u JOIN items i ON i.id=@item::uuid
- WHERE ` + itemVisibleSQL("i.library_id", "i.id") + `
+ WHERE ` + itemVisibleSQL("@rq", "i.library_id", "i.id") + `
   AND (@source::text='' OR EXISTS(SELECT 1 FROM media_sources m WHERE m.id=NULLIF(@source::text,'')::uuid AND m.item_id=i.id AND m.library_id=i.library_id))
 )
 INSERT INTO playback_sessions AS p(user_id,play_key,auth_session_id,device_id,client_name,item_id,library_id,source_id,state,started_at,last_report_at,position_ticks,runtime_ticks,paused)
@@ -91,6 +91,7 @@ func (s *Store) StartPlayback(parent context.Context, start domain.PlaybackStart
 	record, err := scanPlaybackSession(s.Pool.QueryRow(ctx, statement, pgx.NamedArgs{
 		"user": start.Actor.UserID, "session": start.Actor.SessionID, "item": start.ItemID, "source": start.SourceID, "key": start.PlayKey,
 		"at": start.At, "position": start.PositionTicks, "known": start.PositionKnown, "runtime": start.RuntimeTicks, "paused": start.Paused,
+		"rq": requestScopeArg(ctx),
 	}), &created)
 	record.Created = created
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -302,7 +303,7 @@ func (s *Store) UserItemData(ctx context.Context, userID string, itemIDs []strin
 	rows, err := s.Pool.Query(ctx, browsePrincipalSQL+`
 SELECT i.id::text,`+userItemDataColumns+` FROM principal u JOIN items i ON i.id=ANY(@ids::uuid[])
  LEFT JOIN user_item_data d ON d.user_id=u.id AND d.item_id=i.id
- WHERE `+itemVisibleSQL("i.library_id", "i.id"), pgx.NamedArgs{"user": userID, "ids": itemIDs})
+ WHERE `+itemVisibleSQL("@rq", "i.library_id", "i.id"), pgx.NamedArgs{"user": userID, "ids": itemIDs, "rq": requestScopeArg(ctx)})
 	if err != nil {
 		return nil, storageError(err)
 	}
@@ -330,7 +331,7 @@ func (s *Store) SetPlayed(ctx context.Context, userID, itemID string, played boo
 	}
 	var d domain.UserItemData
 	err := s.Pool.QueryRow(ctx, browsePrincipalSQL+`, item AS (
- SELECT i.id FROM principal u JOIN items i ON i.id=@item::uuid WHERE `+itemVisibleSQL("i.library_id", "i.id")+`
+ SELECT i.id FROM principal u JOIN items i ON i.id=@item::uuid WHERE `+itemVisibleSQL("@rq", "i.library_id", "i.id")+`
 )
 INSERT INTO user_item_data AS d(user_id,item_id,resume_ticks,played,play_count,last_played_at,updated_at)
 SELECT @user::uuid,item.id,0,@played,CASE WHEN @played THEN 1 ELSE 0 END,CASE WHEN @played THEN @at::timestamptz END,@at FROM item
@@ -338,7 +339,7 @@ ON CONFLICT (user_id,item_id) DO UPDATE SET resume_ticks=0,played=EXCLUDED.playe
  play_count=CASE WHEN EXCLUDED.played THEN d.play_count+1 ELSE 0 END,
  last_played_at=COALESCE(EXCLUDED.last_played_at,d.last_played_at),updated_at=EXCLUDED.updated_at
 RETURNING d.item_id::text,d.resume_ticks,d.played,d.play_count,d.last_played_at`,
-		pgx.NamedArgs{"user": userID, "item": itemID, "played": played, "at": at}).Scan(&d.ItemID, &d.ResumeTicks, &d.Played, &d.PlayCount, &d.LastPlayedAt)
+		pgx.NamedArgs{"user": userID, "item": itemID, "played": played, "at": at, "rq": requestScopeArg(ctx)}).Scan(&d.ItemID, &d.ResumeTicks, &d.Played, &d.PlayCount, &d.LastPlayedAt)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return domain.UserItemData{}, domain.ErrNotFound
 	}
@@ -369,12 +370,12 @@ func (s *Store) ListResume(ctx context.Context, userID string, q domain.ResumeQu
 			return domain.ResumePage{Items: []domain.ResumeEntry{}}, nil
 		}
 	}
-	args := pgx.NamedArgs{"user": userID, "kinds": kinds, "limit": q.Limit, "offset": q.Offset}
+	args := pgx.NamedArgs{"user": userID, "kinds": kinds, "limit": q.Limit, "offset": q.Offset, "rq": requestScopeArg(ctx)}
 	matched := browsePrincipalSQL + `, matched AS (
  SELECT i.id,i.library_id,i.kind,i.title,d.resume_ticks,d.play_count,d.last_played_at FROM principal u
  JOIN user_item_data d ON d.user_id=u.id AND d.resume_ticks>0 AND NOT d.played
  JOIN items i ON i.id=d.item_id
- WHERE ` + itemVisibleSQL("i.library_id", "i.id") + ` AND i.kind=ANY(@kinds::text[])
+ WHERE ` + itemVisibleSQL("@rq", "i.library_id", "i.id") + ` AND i.kind=ANY(@kinds::text[])
 )`
 	rows, err := s.Pool.Query(ctx, matched+`
 SELECT i.id::text,i.library_id::text,COALESCE(p.parent_id,i.library_id)::text,i.kind,i.title,COALESCE(fs.value,''),COALESCE(fo.value,''),COALESCE(NULLIF(fd.value,''),''),COALESCE(`+browseYearSQL+`,0),

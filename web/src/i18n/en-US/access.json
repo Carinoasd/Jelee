@@ -2,6 +2,11 @@
   "access": {
     "title": "Content access",
     "intro": "Server-wide defaults for content restrictions. Restrictions for one person are set on their account page.",
+    "tabs": {
+      "label": "Content access pages",
+      "policy": "Policy and ratings",
+      "network": "Network rules"
+    },
     "policy": {
       "title": "Server policy",
       "blockUnrated": "Hide unrated items under a rating ceiling",

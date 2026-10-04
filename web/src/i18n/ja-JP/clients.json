@@ -66,7 +66,8 @@
       "deletePrompt": "元に戻せません。ヒット記録は残ります。",
       "deleted": "ルールを削除しました。",
       "created": "ルールを作成しました。",
-      "updated": "ルールを保存しました。"
+      "updated": "ルールを保存しました。",
+      "libraries": "{count} 個のライブラリを表示"
     },
     "ruleForm": {
       "createTitle": "新しいルール",
@@ -85,6 +86,10 @@
       "intentHint": "「ブロックを開始」を選ぶと適用されます。",
       "rateRequests": "許可する回数",
       "ratePeriod": "秒あたり",
+      "libraries": "引き続き見えるライブラリ",
+      "librariesHint": "一致したリクエストはチェックしたライブラリだけを見られます。複数の制限ルールに一致した場合は、すべてのルールでチェックされたライブラリだけが残ります。",
+      "librariesRequired": "ライブラリを 1 つ以上チェックしてください。",
+      "librariesEmpty": "選択できるライブラリがありません。",
       "priority": "優先度",
       "priorityHint": "大きいほど優先。同じ優先度では拒否が許可に勝ちます。",
       "note": "メモ",
@@ -122,6 +127,7 @@
       "read_only": "読み取り専用",
       "rate_limit": "レート制限",
       "force_relogin": "再ログインを強制",
+      "restrict_libraries": "ライブラリを制限",
       "observe": "観察",
       "shadow": "シャドー",
       "pending_approval": "承認待ち"

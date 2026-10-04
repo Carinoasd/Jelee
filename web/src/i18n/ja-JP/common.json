@@ -28,6 +28,8 @@
     "search": "検索",
     "admin": "管理",
     "settings": "設定",
-    "stats": "自分の統計"
+    "stats": "自分の統計",
+    "sharedWithMe": "共有されたコンテンツ",
+    "guestSession": "共有リンクのゲスト"
   }
 }

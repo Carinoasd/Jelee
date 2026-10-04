@@ -16,6 +16,15 @@ export async function login(client: ApiClient, name: string, password: string): 
   return body.data;
 }
 
+/**
+ * Exchanges a share link token for a restricted web guest session. The
+ * answer is a SessionGrant exactly like login's (cookie plus CSRF token).
+ */
+export async function redeemShare(client: ApiClient, token: string): Promise<SessionGrant> {
+  const body = await call(client.POST("/api/v1/shares/redeem", { body: { token, deviceName: webDeviceName } }));
+  return body.data;
+}
+
 export async function logout(client: ApiClient): Promise<void> {
   await callNoContent(client.POST("/api/v1/auth/logout", { body: {} }));
 }

@@ -76,8 +76,8 @@ func (s *Store) ListSidecarTracks(parent context.Context, actor domain.Actor, so
 	rows, err := s.Pool.Query(ctx, `SELECT m.id IS NOT NULL,t.id IS NOT NULL,`+sidecarColumns+` FROM media_sources m
  `+sidecarVisibleActor+`
  LEFT JOIN media_sidecar_tracks t ON t.source_id=m.id AND t.library_id=m.library_id
- WHERE m.id=$3::uuid AND `+itemVisibleSQL("m.library_id", "m.item_id")+`
- ORDER BY t.kind DESC,t.root_id,t.relative_path`, actor.UserID, actor.SessionID, sourceID)
+ WHERE m.id=$3::uuid AND `+itemVisibleSQL("$4", "m.library_id", "m.item_id")+`
+ ORDER BY t.kind DESC,t.root_id,t.relative_path`, actor.UserID, actor.SessionID, sourceID, requestScopeArg(ctx))
 	if err != nil {
 		return nil, storageError(err)
 	}
@@ -127,8 +127,8 @@ func (s *Store) ResolveSidecarTrack(parent context.Context, actor domain.Actor, 
  JOIN media_sources m ON m.id=t.source_id AND m.library_id=t.library_id
  JOIN library_roots r ON r.id=t.root_id AND r.library_id=t.library_id
  `+sidecarVisibleActor+`
- WHERE t.id=$3::uuid AND `+itemVisibleSQL("m.library_id", "m.item_id"),
-		actor.UserID, actor.SessionID, trackID).Scan(&value.ID, &value.SourceID, &value.Kind, &value.Format, &value.RootPath,
+ WHERE t.id=$3::uuid AND `+itemVisibleSQL("$4", "m.library_id", "m.item_id"),
+		actor.UserID, actor.SessionID, trackID, requestScopeArg(ctx)).Scan(&value.ID, &value.SourceID, &value.Kind, &value.Format, &value.RootPath,
 		&value.RelativePath, &value.Charset, &value.Size, &value.ModifiedUnixNano)
 	if err != nil {
 		return domain.SidecarTrackLocation{}, storageError(err)

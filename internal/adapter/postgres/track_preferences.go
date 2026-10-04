@@ -28,7 +28,7 @@ const trackPreferencesSQL = `SELECT COALESCE(u.locale,''),p.id IS NOT NULL,p.ite
  LEFT JOIN user_track_preferences p ON p.user_id=u.id AND (p.item_id IS NULL OR p.item_id=i.id AND (p.source_id IS NULL OR EXISTS(SELECT 1 FROM media_sources m WHERE m.id=p.source_id AND m.item_id=i.id)))
  WHERE i.id=$3::uuid AND `
 
-var trackPreferencesQuery = trackPreferencesSQL + itemVisibleSQL("i.library_id", "i.id") + ` ORDER BY p.item_id NULLS FIRST,p.source_id NULLS FIRST`
+var trackPreferencesQuery = trackPreferencesSQL + itemVisibleSQL("$4", "i.library_id", "i.id") + ` ORDER BY p.item_id NULLS FIRST,p.source_id NULLS FIRST`
 
 type trackRow struct {
 	present, item bool
@@ -46,7 +46,7 @@ func (s *Store) readTrackPreferences(ctx context.Context, q interface {
 	Query(context.Context, string, ...any) (pgx.Rows, error)
 }, actor domain.Actor, itemID string) (domain.TrackPreferenceSet, bool, error) {
 	set := domain.TrackPreferenceSet{Versions: map[string]domain.TrackPreference{}}
-	rows, err := q.Query(ctx, trackPreferencesQuery, actor.UserID, actor.SessionID, itemID)
+	rows, err := q.Query(ctx, trackPreferencesQuery, actor.UserID, actor.SessionID, itemID, requestScopeArg(ctx))
 	if err != nil {
 		return set, false, storageError(err)
 	}
@@ -126,8 +126,8 @@ func (s *Store) SetTrackPreference(ctx context.Context, actor domain.Actor, item
 	// The version must be one of the visible item's own versions; any other
 	// source is answered like a missing item.
 	err = tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM items i JOIN users u ON u.id=$1::uuid AND NOT u.disabled AND u.deleted_at IS NULL
- WHERE i.id=$2::uuid AND ($3::uuid IS NULL OR EXISTS(SELECT 1 FROM media_sources m WHERE m.id=$3::uuid AND m.item_id=i.id)) AND `+itemVisibleSQL("i.library_id", "i.id")+`)`,
-		actor.UserID, itemID, nullableID(sourceID)).Scan(&found)
+ WHERE i.id=$2::uuid AND ($3::uuid IS NULL OR EXISTS(SELECT 1 FROM media_sources m WHERE m.id=$3::uuid AND m.item_id=i.id)) AND `+itemVisibleSQL("$4", "i.library_id", "i.id")+`)`,
+		actor.UserID, itemID, nullableID(sourceID), requestScopeArg(ctx)).Scan(&found)
 	if err != nil {
 		return domain.TrackPreferenceView{}, storageError(err)
 	}

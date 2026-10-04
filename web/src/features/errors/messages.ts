@@ -22,6 +22,14 @@ export function errorMessageKey(error: ApiError): string {
       return "errors.clientReadOnly";
     case "client_rate_limited":
       return "errors.clientRateLimited";
+    case "share_unavailable":
+      return "errors.shareUnavailable";
+    case "share_forbidden":
+      return "errors.shareForbidden";
+    case "share_read_only":
+      return "errors.shareReadOnly";
+    case "share_playback_disabled":
+      return "errors.shareNativeDisabled";
     case "invalid_password":
       return "settings.password.wrongCurrent";
     // The twoFactor catalog loads with the screens that can meet these codes.

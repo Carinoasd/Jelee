@@ -9,6 +9,7 @@ import UiSelectField from "@/components/ui/UiSelectField.vue";
 import UiTextField from "@/components/ui/UiTextField.vue";
 import { errorMessageKey } from "@/features/errors/messages";
 import { useClientRulesStore } from "@/stores/clientsRules";
+import { useLibrariesStore } from "@/stores/libraries";
 import { isObserving, type ClientRule, type ClientRuleInput, type RuleAction, type RuleDimension, type RuleIntent, type RuleMatch } from "./api";
 import { asApiError, dimensionKeys, intentKeys, matchKeys, ruleActionKeys } from "./labels";
 
@@ -19,6 +20,7 @@ const props = defineProps<{ rule: ClientRule | null }>();
 const emit = defineEmits<{ saved: [rule: ClientRule]; cancel: [] }>();
 const { t } = useI18n();
 const store = useClientRulesStore();
+const libraries = useLibrariesStore();
 const root = useTemplateRef<HTMLElement>("root");
 
 interface FormState {
@@ -34,6 +36,7 @@ interface FormState {
   note: string;
   requests: string;
   periodSeconds: string;
+  libraries: string[];
 }
 
 const source = props.rule;
@@ -50,6 +53,7 @@ const form = reactive<FormState>({
   note: source?.note ?? "",
   requests: String(source?.rateLimit?.requests ?? 60),
   periodSeconds: String(source?.rateLimit?.periodSeconds ?? 60),
+  libraries: [...(source?.libraries ?? [])],
 });
 const submitted = shallowRef(false);
 const saving = shallowRef(false);
@@ -67,6 +71,18 @@ const intentOptions = computed(() => options(intentKeys));
 
 const observing = computed(() => isObserving({ action: form.action as RuleAction }));
 const limited = computed(() => form.action === "rate_limit" || (observing.value && form.intent === "rate_limit"));
+const restricting = computed(() => form.action === "restrict_libraries" || (observing.value && form.intent === "restrict_libraries"));
+
+/** Every library, plus chosen IDs the list no longer has (shown by ID). */
+const libraryChoices = computed(() => {
+  const known = libraries.libraries.map((library) => ({ id: library.id, name: library.name }));
+  const missing = form.libraries.filter((id) => !known.some((library) => library.id === id)).map((id) => ({ id, name: id }));
+  return [...known, ...missing];
+});
+
+function toggleLibrary(id: string, on: boolean) {
+  form.libraries = on ? [...form.libraries.filter((entry) => entry !== id), id] : form.libraries.filter((entry) => entry !== id);
+}
 
 function integer(value: string, min: number, max: number): number | null {
   if (!/^-?\d+$/.test(value.trim())) {
@@ -84,6 +100,7 @@ const errors = computed(() => {
     priority: integer(form.priority, -1000000, 1000000) === null ? range(-1000000, 1000000) : null,
     requests: limited.value && integer(form.requests, 1, 1000000) === null ? range(1, 1000000) : null,
     periodSeconds: limited.value && integer(form.periodSeconds, 1, 86400) === null ? range(1, 86400) : null,
+    libraries: restricting.value && form.libraries.length === 0 ? t("clients.ruleForm.librariesRequired") : null,
   };
 });
 const valid = computed(() => Object.values(errors.value).every((message) => message === null));
@@ -110,6 +127,9 @@ function input(): ClientRuleInput {
   }
   if (limited.value) {
     body.rateLimit = { requests: integer(form.requests, 1, 1000000) ?? 1, periodSeconds: integer(form.periodSeconds, 1, 86400) ?? 1 };
+  }
+  if (restricting.value) {
+    body.libraries = [...form.libraries];
   }
   if (source?.window !== undefined) {
     body.window = source.window;
@@ -147,6 +167,7 @@ async function submit() {
 
 onMounted(() => {
   root.value?.querySelector<HTMLElement>("h3")?.focus();
+  void libraries.ensureAll();
 });
 </script>
 
@@ -193,6 +214,19 @@ onMounted(() => {
           :error="shown(errors.periodSeconds)"
         />
       </template>
+      <fieldset v-if="restricting" class="jl-cc-fieldset jl-cc-wide" :aria-describedby="shown(errors.libraries) ? 'clients-rule-libraries-error' : undefined">
+        <legend>{{ t("clients.ruleForm.libraries") }}</legend>
+        <p class="jl-cc-muted">{{ t("clients.ruleForm.librariesHint") }}</p>
+        <UiCheckbox
+          v-for="library in libraryChoices"
+          :key="library.id"
+          :model-value="form.libraries.includes(library.id)"
+          :label="library.name"
+          @update:model-value="toggleLibrary(library.id, $event)"
+        />
+        <p v-if="libraryChoices.length === 0" class="jl-cc-muted">{{ t("clients.ruleForm.librariesEmpty") }}</p>
+        <p v-if="shown(errors.libraries)" id="clients-rule-libraries-error" class="jl-cc-error" role="alert">{{ errors.libraries }}</p>
+      </fieldset>
       <UiTextField
         v-model="form.priority"
         :label="t('clients.ruleForm.priority')"

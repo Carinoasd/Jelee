@@ -1,0 +1,56 @@
+{
+  "networkRules": {
+    "title": "網路規則",
+    "intro": "限制可從哪些網路與哪種客戶端看到某個媒體庫。媒體庫有啟用中的規則時，請求必須符合其中至少一條才看得到它，而且該規則的所有條件都必須成立。沒有規則的媒體庫不受影響。",
+    "adminsNote": "管理員只受包含管理員的規則限制。裝置類型以伺服器核發的工作階段種類（網頁瀏覽器或原生應用程式）判定。",
+    "add": "新增規則",
+    "empty": "沒有網路規則",
+    "emptyHint": "所有媒體庫都可從任何網路看到。",
+    "created": "已建立網路規則。",
+    "updated": "已儲存網路規則。",
+    "deleted": "已刪除網路規則。",
+    "deleteConfirm": "刪除規則",
+    "deletePrompt": "若這是該媒體庫最後一條啟用中的規則，媒體庫將再度可從所有網路看到。",
+    "anyAddress": "任何位址",
+    "anyClient": "任何客戶端",
+    "includesAdmins": "包含管理員",
+    "column": {
+      "library": "媒體庫",
+      "network": "網路",
+      "addresses": "位址",
+      "clients": "客戶端",
+      "enabled": "啟用"
+    },
+    "network": {
+      "any": "任何網路",
+      "lan": "區域網路（LAN）",
+      "wan": "網際網路（WAN）"
+    },
+    "kind": {
+      "web": "網頁瀏覽器",
+      "native": "原生應用程式"
+    },
+    "form": {
+      "createTitle": "新增網路規則",
+      "editTitle": "編輯網路規則",
+      "library": "媒體庫",
+      "libraryNone": "選擇媒體庫",
+      "libraryRequired": "請選擇媒體庫。",
+      "network": "網路",
+      "networkHint": "LAN 指經可信代理判定的客戶端位址為私有位址（RFC 1918）、唯一本地位址（fc00::/7）或迴路位址。WAN 為其他所有位址。",
+      "note": "備註",
+      "cidrs": "位址或前綴",
+      "cidrsHint": "每行一個，例如 192.168.1.0/24、10.0.0.5 或 2001:db8::/32。留空表示任何位址。最多 {max} 個。",
+      "tooMany": "最多 {max} 個位址或前綴。",
+      "tooLong": "有一筆超過 {max} 個字元。",
+      "clientKinds": "客戶端",
+      "clientKindsHint": "都不勾選表示任何客戶端。",
+      "includeAdmins": "也套用到管理員",
+      "includeAdminsHint": "關閉時，管理員不受此規則限制。",
+      "enabled": "啟用",
+      "invalid": "伺服器無法使用此規則。請檢查位址與前綴。",
+      "submitCreate": "建立規則",
+      "submitUpdate": "儲存規則"
+    }
+  }
+}

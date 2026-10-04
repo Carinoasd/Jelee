@@ -14,9 +14,9 @@ func clientControlSpecification(paths, schemas map[string]any) {
 		"user_agent", "app_name", "app_version", "device_id", "device_name", "device_type", "ip", "api_key_fingerprint", "header")
 	match := enum("exact, prefix, glob (* and ?, backslash escapes, whole value), regex (RE2, unanchored, at most 4000 compiled instructions, at most 1000 enabled regex rules), cidr (ip only) or absent (matches when the value is missing; pattern must be empty).",
 		"exact", "prefix", "glob", "regex", "cidr", "absent")
-	action := enum("allow (allow list), deny (403 client_blocked), read_only (unsafe methods get 403 client_read_only, except logout, rotate and read-shaped POSTs), rate_limit (429 client_rate_limited with Retry-After), force_relogin (revokes sessions issued before the rule last changed; 401), observe (records hits in statistics, never enforces) or shadow (records hits only in the hit log).",
-		"allow", "deny", "read_only", "rate_limit", "force_relogin", "observe", "shadow")
-	intent := enum("For observe and shadow rules only (required there): the action the rule enforces after POST .../enforce.", "allow", "deny", "read_only", "rate_limit", "force_relogin")
+	action := enum("allow (allow list), deny (403 client_blocked), read_only (unsafe methods get 403 client_read_only, except logout, rotate and read-shaped POSTs), rate_limit (429 client_rate_limited with Retry-After), force_relogin (revokes sessions issued before the rule last changed; 401), restrict_libraries (the request sees only the listed libraries, through the unified storage filter; intersected across rules), observe (records hits in statistics, never enforces) or shadow (records hits only in the hit log).",
+		"allow", "deny", "read_only", "rate_limit", "force_relogin", "restrict_libraries", "observe", "shadow")
+	intent := enum("For observe and shadow rules only (required there): the action the rule enforces after POST .../enforce.", "allow", "deny", "read_only", "rate_limit", "force_relogin", "restrict_libraries")
 	rate := objectSchema(map[string]any{
 		"requests":      map[string]any{"type": "integer", "minimum": 1, "maximum": 1000000},
 		"periodSeconds": map[string]any{"type": "integer", "minimum": 1, "maximum": 86400},
@@ -39,6 +39,7 @@ func clientControlSpecification(paths, schemas map[string]any) {
 		"action":      action,
 		"intent":      intent,
 		"rateLimit":   rate,
+		"libraries":   map[string]any{"type": "array", "maxItems": 1000, "uniqueItems": true, "items": uuid, "description": "Required for and only valid with restrict_libraries (as action or intent): the library IDs the request may still see."},
 		"scopeKind":   enum("global (default), user (scopeValues are user IDs) or client_kind (web or native, the server-issued session kind).", "global", "user", "client_kind"),
 		"scopeValues": map[string]any{"type": "array", "maxItems": 1000, "items": map[string]any{"type": "string", "minLength": 1, "maxLength": 256}},
 		"window":      window,
@@ -68,7 +69,7 @@ func clientControlSpecification(paths, schemas map[string]any) {
 		"bucket":    map[string]any{"type": "string", "format": "date-time", "description": "Start of the minute the hits are aggregated in."},
 		"ruleId":    map[string]any{"type": "string", "format": "uuid", "description": "Absent for the unknown-client policy and for deleted rules."},
 		"mode":      mode,
-		"action":    enum("Action applied or, for observe and shadow, intended.", "allow", "deny", "read_only", "rate_limit", "force_relogin", "pending_approval"),
+		"action":    enum("Action applied or, for observe and shadow, intended.", "allow", "deny", "read_only", "rate_limit", "force_relogin", "restrict_libraries", "pending_approval"),
 		"surface":   enum("API that received the requests.", "native", "compat"),
 		"userId":    uuid,
 		"network":   map[string]any{"type": "string", "description": "Client address masked to its /24 (IPv4) or /48 (IPv6) network."},

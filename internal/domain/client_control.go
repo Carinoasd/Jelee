@@ -2,6 +2,7 @@ package domain
 
 import (
 	"errors"
+	"slices"
 	"strings"
 	"time"
 	"unicode"
@@ -37,6 +38,8 @@ const (
 	ClientRuleNoteMax = 2048
 	// ClientRuleScopeValuesMax bounds the values of a scoped rule.
 	ClientRuleScopeValuesMax = 1000
+	// ClientRuleLibrariesMax bounds the libraries of a restrict_libraries rule.
+	ClientRuleLibrariesMax = 1000
 	// ClientRulePriorityLimit bounds a priority in both directions.
 	ClientRulePriorityLimit = 1000000
 	// ClientAliasMax bounds an administrator alias of a known client.
@@ -51,10 +54,10 @@ const (
 var (
 	clientRuleDimensions = []string{"user_agent", "app_name", "app_version", "device_id", "device_name", "device_type", "ip", "api_key_fingerprint", "header"}
 	clientRuleMatches    = []string{"exact", "prefix", "glob", "regex", "cidr", "absent"}
-	// restrict_libraries is not offered: the request gate cannot narrow the
-	// storage filter per request yet (docs/client-control.md, follow-ups).
-	clientRuleActions   = []string{"allow", "deny", "read_only", "rate_limit", "force_relogin", "observe", "shadow"}
-	clientRuleIntents   = []string{"allow", "deny", "read_only", "rate_limit", "force_relogin"}
+	// restrict_libraries narrows the libraries of the request through the
+	// unified storage filter (G48.5).
+	clientRuleActions   = []string{"allow", "deny", "read_only", "rate_limit", "force_relogin", "restrict_libraries", "observe", "shadow"}
+	clientRuleIntents   = []string{"allow", "deny", "read_only", "rate_limit", "force_relogin", "restrict_libraries"}
 	clientRuleScopes    = []string{"global", "user", "client_kind"}
 	clientUnknownPolicy = []string{"allow", "read_only", "deny", "pending_approval"}
 )
@@ -101,8 +104,11 @@ type ClientRuleInput struct {
 	Action    string `json:"action"`
 	// Intent is what an observe or shadow rule would enforce once switched
 	// to blocking; required for those actions, refused for the others.
-	Intent      string            `json:"intent,omitempty"`
-	RateLimit   *ClientRuleRate   `json:"rateLimit,omitempty"`
+	Intent    string          `json:"intent,omitempty"`
+	RateLimit *ClientRuleRate `json:"rateLimit,omitempty"`
+	// Libraries are the library IDs a restrict_libraries rule leaves the
+	// request; required for that action, refused for the others.
+	Libraries   []string          `json:"libraries,omitempty"`
 	ScopeKind   string            `json:"scopeKind"`
 	ScopeValues []string          `json:"scopeValues"`
 	Window      *ClientRuleWindow `json:"window,omitempty"`
@@ -137,6 +143,17 @@ func (in ClientRuleInput) Normalize() ClientRuleInput {
 	}
 	if in.ScopeValues == nil {
 		in.ScopeValues = []string{}
+	}
+	if len(in.Libraries) > 0 {
+		// One spelling per library, in a stable order.
+		libraries := make([]string, 0, len(in.Libraries))
+		for _, id := range in.Libraries {
+			libraries = append(libraries, strings.ToLower(id))
+		}
+		slices.Sort(libraries)
+		in.Libraries = slices.Compact(libraries)
+	} else {
+		in.Libraries = nil
 	}
 	if in.Window != nil {
 		w := *in.Window
@@ -185,6 +202,14 @@ func (in ClientRuleInput) Valid() bool {
 	}
 	if (effective == "rate_limit") != (in.RateLimit != nil) {
 		return false
+	}
+	if (effective == "restrict_libraries") != (len(in.Libraries) > 0) || len(in.Libraries) > ClientRuleLibrariesMax {
+		return false
+	}
+	for _, id := range in.Libraries {
+		if !ValidID(id) {
+			return false
+		}
 	}
 	if in.RateLimit != nil && (in.RateLimit.Requests < 1 || in.RateLimit.Requests > 1000000 || in.RateLimit.PeriodSeconds < 1 || in.RateLimit.PeriodSeconds > 86400) {
 		return false

@@ -1,0 +1,56 @@
+{
+  "networkRules": {
+    "title": "Network rules",
+    "intro": "Limit from which networks and kinds of client a library can be seen. While a library has enabled rules, a request sees it only if it matches at least one of them, and every condition of that rule must hold. Libraries without rules are not affected.",
+    "adminsNote": "Administrators are limited only by rules that include administrators. The device type is decided by the session kind (web browser or native app), which the server issues.",
+    "add": "Add rule",
+    "empty": "No network rules",
+    "emptyHint": "Every library can be seen from any network.",
+    "created": "Network rule created.",
+    "updated": "Network rule saved.",
+    "deleted": "Network rule deleted.",
+    "deleteConfirm": "Delete rule",
+    "deletePrompt": "If it was the library's last enabled rule, the library becomes visible from every network again.",
+    "anyAddress": "Any address",
+    "anyClient": "Any client",
+    "includesAdmins": "Includes administrators",
+    "column": {
+      "library": "Library",
+      "network": "Network",
+      "addresses": "Addresses",
+      "clients": "Clients",
+      "enabled": "Enabled"
+    },
+    "network": {
+      "any": "Any network",
+      "lan": "Local network (LAN)",
+      "wan": "Internet (WAN)"
+    },
+    "kind": {
+      "web": "Web browser",
+      "native": "Native app"
+    },
+    "form": {
+      "createTitle": "New network rule",
+      "editTitle": "Edit network rule",
+      "library": "Library",
+      "libraryNone": "Choose a library",
+      "libraryRequired": "Choose a library.",
+      "network": "Network",
+      "networkHint": "LAN means the client address, as resolved through the trusted proxies, is private (RFC 1918), unique local (fc00::/7) or loopback. WAN is every other address.",
+      "note": "Note",
+      "cidrs": "Addresses or prefixes",
+      "cidrsHint": "One per line, such as 192.168.1.0/24, 10.0.0.5 or 2001:db8::/32. Leave empty for any address. At most {max}.",
+      "tooMany": "At most {max} addresses or prefixes.",
+      "tooLong": "An entry is longer than {max} characters.",
+      "clientKinds": "Clients",
+      "clientKindsHint": "Tick none for any client.",
+      "includeAdmins": "Apply to administrators too",
+      "includeAdminsHint": "Off: administrators ignore this rule.",
+      "enabled": "Enabled",
+      "invalid": "The server cannot use this rule. Check the addresses and prefixes.",
+      "submitCreate": "Create rule",
+      "submitUpdate": "Save rule"
+    }
+  }
+}

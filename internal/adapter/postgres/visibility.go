@@ -1,5 +1,14 @@
 package postgres
 
+import (
+	"context"
+	"encoding/json"
+	"slices"
+
+	"github.com/MoYuanCN/Jelee/internal/access"
+	"github.com/MoYuanCN/Jelee/internal/domain"
+)
+
 // The unified authorization filter (G48.2, G48.8). Every user-facing read
 // of catalog content binds its rows to the caller in SQL through the
 // predicates of this file, never by filtering results afterwards. Rules are
@@ -8,11 +17,20 @@ package postgres
 //
 // The predicates read the live user row as u: a statement either joins
 // users u (enabled, not deleted) or selects principalColumnsSQL into a
-// principal CTE and reads it as u.
+// principal CTE and reads it as u. The per-request part (network
+// attributes and the client control library set) arrives as one jsonb
+// statement parameter, named by the rq argument of the predicates and
+// bound with requestScopeArg.
 //
 // Precedence (docs/access-control.md):
-//  1. The library grant. Administrators see every library; nothing below
-//     widens it.
+//  0. The request restriction (G48.5, G47): a library with enabled network
+//     rules is visible only to requests one of them matches (administrators
+//     only answer to rules with include_admins), and a client control
+//     restrict_libraries decision limits the request to its libraries. It
+//     applies to every principal, guests included; nothing below widens it.
+//  1. The library grant. Administrators see every library; a share guest
+//     (G48.6) sees only the live share's library, and for an item share
+//     only that item and its descendants; nothing below widens it.
 //  2. Content rules apply to users with any restriction (content_filtered)
 //     and to administrators only while access_policy.restrict_admins is on
 //     and no developer mode session relaxes it (G48.9, see below).
@@ -24,27 +42,142 @@ package postgres
 //     user's block_unrated, else the policy default, decides.
 
 // visibilityUserColumns are the user columns the predicates read.
-const visibilityUserColumns = `id,is_admin,content_filtered,parental_rating_max,block_unrated`
+const visibilityUserColumns = `id,is_admin,content_filtered,parental_rating_max,block_unrated,share_id`
 
 // principalColumnsSQL lists visibilityUserColumns qualified by alias, for
 // principal CTEs that select from users under that alias.
 func principalColumnsSQL(alias string) string {
-	return alias + `.id,` + alias + `.is_admin,` + alias + `.content_filtered,` + alias + `.parental_rating_max,` + alias + `.block_unrated`
+	return alias + `.id,` + alias + `.is_admin,` + alias + `.content_filtered,` + alias + `.parental_rating_max,` + alias + `.block_unrated,` + alias + `.share_id`
 }
 
-// libraryVisibleSQL is the library grant: administrators see every library,
-// anyone else only the libraries granted in library_acl. column names the
-// library being checked.
-func libraryVisibleSQL(column string) string {
-	return `(u.is_admin OR EXISTS(SELECT 1 FROM library_acl a WHERE a.user_id=u.id AND a.library_id=` + column + `))`
+// libraryVisibleSQL is the visibility of a library itself: the request
+// restriction and the library grant. Administrators see every library,
+// anyone else only the libraries granted in library_acl, and a share guest
+// only the library of a live whole-library share. column names the library
+// being checked; rq names the request parameter (requestScopeArg).
+func libraryVisibleSQL(rq, column string) string {
+	return `(` + libraryGrantSQL(column, true) + ` AND ` + requestLibrarySQL(rq, column) + `)`
+}
+
+// shareLiveSQL holds for a share row vz_s that is neither revoked nor
+// expired. Revoking also revokes the guest's sessions; the filter checks
+// the share itself so an expiry takes effect without any session change.
+const shareLiveSQL = `vz_s.revoked_at IS NULL AND vz_s.expires_at>now()`
+
+// libraryGrantSQL is the library grant of u. A guest has no library_acl
+// rows; its grant is the library of its live share, and with whole only a
+// whole-library share grants the library itself (an item share lists no
+// library).
+func libraryGrantSQL(column string, whole bool) string {
+	scope := ``
+	if whole {
+		scope = ` AND vz_s.item_id IS NULL`
+	}
+	return `(u.is_admin OR (u.share_id IS NULL AND EXISTS(SELECT 1 FROM library_acl a WHERE a.user_id=u.id AND a.library_id=` + column + `))
+ OR EXISTS(SELECT 1 FROM share_links vz_s WHERE vz_s.id=u.share_id AND vz_s.library_id=` + column + scope + ` AND ` + shareLiveSQL + `))`
+}
+
+// shareItemSQL limits a guest of an item share to the item and its
+// descendants; it holds for everyone else. The share's liveness is checked
+// by libraryGrantSQL or grantedLibrariesSQL.
+func shareItemSQL(item string) string {
+	return `(u.share_id IS NULL OR EXISTS(SELECT 1 FROM share_links vz_s WHERE vz_s.id=u.share_id AND (vz_s.item_id IS NULL OR vz_s.item_id IN (SELECT vz_c.id FROM (` + itemChainSQL(item) + `) vz_c))))`
+}
+
+// requestLibrarySQL is the request restriction of the library in column
+// (G48.5, G47). The libraries hidden from the request are an uncorrelated
+// subquery of the request parameter, so PostgreSQL computes them once per
+// statement (InitPlan) and each row only compares its library with that
+// array: the libraries whose network rules the request fails, and with a
+// client control library set every library outside it.
+func requestLibrarySQL(rq, column string) string {
+	return `(` + column + ` <> ALL(CASE WHEN u.is_admin THEN ` + requestHiddenSQL(rq, true) + ` ELSE ` + requestHiddenSQL(rq, false) + ` END))`
+}
+
+// requestHiddenSQL selects the libraries hidden from the request for an
+// administrator (admins) or anyone else.
+func requestHiddenSQL(rq string, admins bool) string {
+	return `ARRAY(` + networkHiddenSQL(rq, admins) + `
+ UNION ALL SELECT vz_b.id FROM libraries vz_b WHERE jsonb_typeof(` + rq + `::jsonb->'libraries')='array' AND NOT (` + rq + `::jsonb->'libraries') ? vz_b.id::text)`
+}
+
+// networkHiddenSQL selects the libraries whose enabled network rules all
+// fail for the request (G48.5). Without a request parameter every condition
+// is unknown and only a rule without conditions matches, so a statement
+// run outside a request fails closed.
+func networkHiddenSQL(rq string, admins bool) string {
+	only := ``
+	if admins {
+		only = ` AND vz_n.include_admins`
+	}
+	return `SELECT vz_n.library_id FROM library_network_rules vz_n WHERE vz_n.enabled` + only + ` GROUP BY vz_n.library_id
+ HAVING NOT COALESCE(bool_or(CASE vz_n.network WHEN 'lan' THEN (` + rq + `::jsonb->>'lan')::boolean WHEN 'wan' THEN NOT (` + rq + `::jsonb->>'lan')::boolean ELSE true END
+  AND (cardinality(vz_n.cidrs)=0 OR (` + rq + `::jsonb->>'ip')::inet <<= ANY(vz_n.cidrs))
+  AND (cardinality(vz_n.client_kinds)=0 OR (` + rq + `::jsonb->>'kind')=ANY(vz_n.client_kinds))),false)`
 }
 
 // itemVisibleSQL is the visibility of one catalog item: library names its
-// library column and item its item ID column. Sources, sidecar tracks,
-// images, user data and statistics rows are visible exactly when their
-// item is.
-func itemVisibleSQL(library, item string) string {
-	return `(` + libraryVisibleSQL(library) + ` AND ` + contentVisibleSQL(item) + `)`
+// library column and item its item ID column, rq the request parameter.
+// Sources, sidecar tracks, images, user data and statistics rows are
+// visible exactly when their item is.
+func itemVisibleSQL(rq, library, item string) string {
+	return `(` + libraryGrantSQL(library, false) + ` AND ` + shareItemSQL(item) + ` AND ` + requestLibrarySQL(rq, library) + ` AND ` + contentVisibleSQL(item) + `)`
+}
+
+// walkedItemVisibleSQL is itemVisibleSQL for a statement that already
+// walks the granted libraries (grantedLibrariesSQL) or is an
+// administrator's: everything but the library grant itself.
+func walkedItemVisibleSQL(rq, library, item string) string {
+	return `(` + shareItemSQL(item) + ` AND ` + requestLibrarySQL(rq, library) + ` AND ` + contentVisibleSQL(item) + `)`
+}
+
+// sharePlaybackSQL refuses direct delivery to a guest whose share does not
+// allow playback. Such a share never issues a native session; this is the
+// storage backstop.
+const sharePlaybackSQL = `(u.share_id IS NULL OR EXISTS(SELECT 1 FROM share_links vz_s WHERE vz_s.id=u.share_id AND vz_s.allow_playback AND ` + shareLiveSQL + `))`
+
+// guestLiveSQL holds for a user u that is no guest, or whose share is
+// live: a guest session ends with its share even before the session row
+// expires or is revoked.
+const guestLiveSQL = `(u.share_id IS NULL OR EXISTS(SELECT 1 FROM share_links vz_s WHERE vz_s.id=u.share_id AND ` + shareLiveSQL + `))`
+
+// guestReadOnlySQL reports a guest u whose share refuses writes.
+const guestReadOnlySQL = `COALESCE((SELECT vz_s.read_only FROM share_links vz_s WHERE vz_s.id=u.share_id),false)`
+
+// shareStreamsSQL is the concurrent playback cap of a guest's share; 0 for
+// everyone else. It applies whatever the server-wide stream limit switch.
+const shareStreamsSQL = `COALESCE((SELECT vz_s.max_streams::int FROM share_links vz_s WHERE vz_s.id=u.share_id),0)`
+
+// requestScopeArg binds the request parameter of the predicates: the
+// network attributes and client control library set the HTTP layer
+// attached to the principal of ctx. Without one it is NULL, and network
+// rules then fail closed.
+func requestScopeArg(ctx context.Context) any {
+	p, ok := access.PrincipalFromContext(ctx)
+	if !ok || p.Request == nil {
+		return nil
+	}
+	scope := map[string]any{"kind": string(p.Request.Kind)}
+	if p.Request.IP.IsValid() {
+		scope["ip"] = p.Request.IP.Unmap().WithZone("").String()
+		scope["lan"] = p.Request.LAN()
+	}
+	if p.Request.Libraries != nil {
+		libraries := make([]string, 0, len(p.Request.Libraries))
+		for _, id := range p.Request.Libraries {
+			if domain.ValidID(id) && !slices.Contains(libraries, id) {
+				libraries = append(libraries, id)
+			}
+		}
+		scope["libraries"] = libraries
+	}
+	data, err := json.Marshal(scope)
+	if err != nil {
+		// A map of strings, booleans and a string slice always encodes;
+		// fail closed rather than unrestricted should it ever not.
+		return `{"libraries":[]}`
+	}
+	return string(data)
 }
 
 // contentVisibleSQL applies the content rules to the item ID expression
@@ -96,7 +229,21 @@ func parentalRatingCodeSQL(value string) string {
 
 // grantedLibrariesSQL selects the library_id of every library granted to the
 // non-administrator user alias, so a listing can walk granted libraries
-// instead of filtering every item.
+// instead of filtering every item: the library_acl grants, or the library
+// of a guest's live whole-library share. Rows walked this way still need
+// walkedItemVisibleSQL. A guest of an item share walks sharedItemsSQL.
 func grantedLibrariesSQL(alias string) string {
-	return `SELECT a.library_id FROM library_acl a WHERE a.user_id=` + alias + `.id`
+	return `SELECT a.library_id FROM library_acl a WHERE a.user_id=` + alias + `.id AND ` + alias + `.share_id IS NULL
+ UNION ALL SELECT vz_s.library_id FROM share_links vz_s WHERE vz_s.id=` + alias + `.share_id AND vz_s.item_id IS NULL AND ` + shareLiveSQL
+}
+
+// sharedItemsSQL selects the item of a guest's live item share and its
+// descendants (item_parent_links nest at most two levels), so a listing
+// walks the shared subtree instead of the whole library. Rows walked this
+// way still need walkedItemVisibleSQL.
+func sharedItemsSQL(alias string) string {
+	return `SELECT vz_d.id FROM share_links vz_s CROSS JOIN LATERAL (SELECT vz_s.item_id AS id
+  UNION ALL SELECT vz_l1.item_id FROM item_parent_links vz_l1 WHERE vz_l1.parent_id=vz_s.item_id
+  UNION ALL SELECT vz_l2.item_id FROM item_parent_links vz_l1 JOIN item_parent_links vz_l2 ON vz_l2.parent_id=vz_l1.item_id WHERE vz_l1.parent_id=vz_s.item_id) vz_d
+ WHERE vz_s.id=` + alias + `.share_id AND vz_s.item_id IS NOT NULL AND ` + shareLiveSQL
 }

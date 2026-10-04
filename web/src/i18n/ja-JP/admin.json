@@ -5,6 +5,7 @@
       "users": "ユーザー",
       "access": "コンテンツのアクセス",
       "clients": "クライアント管理",
+      "shares": "共有リンク",
       "webhooks": "Webhook",
       "stats": "視聴統計",
       "plugins": "プラグイン",

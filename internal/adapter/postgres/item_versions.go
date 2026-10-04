@@ -52,7 +52,7 @@ func lockVersionItem(ctx context.Context, tx pgx.Tx, actor domain.Actor, id stri
 	var it versionItem
 	err := tx.QueryRow(ctx, `SELECT i.id::text,i.library_id::text,i.kind,i.title FROM items i
  JOIN users u ON u.id=$2::uuid AND NOT u.disabled AND u.deleted_at IS NULL
- WHERE i.id=$1::uuid AND `+itemVisibleSQL("i.library_id", "i.id")+` FOR UPDATE OF i`, id, actor.UserID).Scan(&it.id, &it.library, &it.kind, &it.title)
+ WHERE i.id=$1::uuid AND `+itemVisibleSQL("$3", "i.library_id", "i.id")+` FOR UPDATE OF i`, id, actor.UserID, requestScopeArg(ctx)).Scan(&it.id, &it.library, &it.kind, &it.title)
 	return it, storageError(err)
 }
 
@@ -780,7 +780,7 @@ func (s *Store) VersionOverview(ctx context.Context, actor domain.Actor, itemID 
 	}
 	defer tx.Rollback(ctx)
 	var item string
-	err = tx.QueryRow(ctx, `SELECT i.id::text FROM items i JOIN users u ON u.id=$2::uuid AND NOT u.disabled AND u.deleted_at IS NULL WHERE i.id=$1::uuid AND `+itemVisibleSQL("i.library_id", "i.id"), itemID, actor.UserID).Scan(&item)
+	err = tx.QueryRow(ctx, `SELECT i.id::text FROM items i JOIN users u ON u.id=$2::uuid AND NOT u.disabled AND u.deleted_at IS NULL WHERE i.id=$1::uuid AND `+itemVisibleSQL("$3", "i.library_id", "i.id"), itemID, actor.UserID, requestScopeArg(ctx)).Scan(&item)
 	if err != nil {
 		return domain.VersionOverview{}, storageError(err)
 	}

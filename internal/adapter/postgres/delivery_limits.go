@@ -16,7 +16,7 @@ func (s *Store) SessionActive(ctx context.Context, userID, sessionID string) (bo
 	}
 	var active bool
 	err := s.Pool.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM sessions s JOIN users u ON u.id=s.user_id
- WHERE s.id=$2::uuid AND s.user_id=$1::uuid AND s.revoked_at IS NULL AND s.expires_at>now() AND NOT u.disabled AND u.deleted_at IS NULL)`, userID, sessionID).Scan(&active)
+ WHERE s.id=$2::uuid AND s.user_id=$1::uuid AND s.revoked_at IS NULL AND s.expires_at>now() AND NOT u.disabled AND u.deleted_at IS NULL AND `+guestLiveSQL+`)`, userID, sessionID).Scan(&active)
 	if err != nil {
 		return false, storageError(err)
 	}

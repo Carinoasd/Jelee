@@ -102,4 +102,16 @@ describe("routes", () => {
       expect(route.path).not.toMatch(/play|stream|cast|pip|player/i);
     }
   });
+
+  it("keeps share guests on their share and the item pages", () => {
+    const guest = { isAuthenticated: true, isAdmin: false, isGuest: true };
+    for (const path of ["/", "/libraries", "/settings", "/account", "/search", "/admin/users"]) {
+      expect(navigationGuard(resolve(path), guest)).toEqual({ name: "shared" });
+    }
+    expect(navigationGuard(resolve("/shared"), guest)).toBe(true);
+    expect(navigationGuard(resolve("/items/abc"), guest)).toBe(true);
+    expect(navigationGuard(resolve("/share"), guest)).toBe(true);
+    expect(navigationGuard(resolve("/share"), { isAuthenticated: false, isAdmin: false })).toBe(true);
+    expect(navigationGuard(resolve("/shared"), { isAuthenticated: false, isAdmin: false })).toEqual({ name: "login", query: { redirect: "/shared" } });
+  });
 });

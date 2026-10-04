@@ -22,7 +22,7 @@ export function createAppRouter(history: RouterHistory = createWebHistory(import
     // The first navigation waits for a cookie session to be resumed, so a
     // reload keeps the user on the page they were viewing.
     await auth.restore();
-    return navigationGuard(to, { isAuthenticated: auth.isAuthenticated, isAdmin: auth.isAdmin });
+    return navigationGuard(to, { isAuthenticated: auth.isAuthenticated, isAdmin: auth.isAdmin, isGuest: auth.isGuest });
   });
   return router;
 }

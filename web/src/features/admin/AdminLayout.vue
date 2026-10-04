@@ -1,25 +1,40 @@
 <script setup lang="ts">
 import { useI18n } from "vue-i18n";
+import { useRoute } from "vue-router";
 
 // Shell of the administration pages: a section navigation and the child
 // view. Reaching it already required an administrator (route meta.admin);
 // every request below is authorized again by the server (G35.2).
 const { t } = useI18n();
+const route = useRoute();
 const sections = [
   { name: "admin-users", key: "admin.nav.users" },
   { name: "admin-access", key: "admin.nav.access" },
   { name: "admin-clients", key: "admin.nav.clients" },
+  { name: "admin-shares", key: "admin.nav.shares" },
   { name: "admin-webhooks", key: "admin.nav.webhooks" },
   { name: "admin-stats", key: "admin.nav.stats" },
   { name: "admin-plugins", key: "admin.nav.plugins" },
   { name: "admin-appearance", key: "admin.nav.appearance" },
 ] as const;
+
+/** Subpages named "<section>-..." (such as admin-access-network) keep their section marked. */
+function within(name: string): boolean {
+  return typeof route.name === "string" && route.name.startsWith(name + "-");
+}
 </script>
 
 <template>
   <div class="jl-admin">
     <nav class="jl-admin__nav" :aria-label="t('admin.navigation')">
-      <RouterLink v-for="section in sections" :key="section.name" :to="{ name: section.name }">{{ t(section.key) }}</RouterLink>
+      <RouterLink
+        v-for="section in sections"
+        :key="section.name"
+        :to="{ name: section.name }"
+        :class="{ 'router-link-active': within(section.name) }"
+      >
+        {{ t(section.key) }}
+      </RouterLink>
     </nav>
     <div class="jl-admin__content">
       <RouterView />

@@ -22,7 +22,7 @@ import (
 // evaluation, and is audited.
 
 const clientRuleColumns = `id::text,dimension,COALESCE(header_name,''),match_kind,pattern,case_fold,priority,action,COALESCE(intent,''),rate_requests,rate_period_seconds,
- scope_kind,scope_values,window_from,window_until,COALESCE(daily_start,''),COALESCE(daily_end,''),weekdays,time_zone,enabled,note,hit_count,last_hit_at,created_at,updated_at`
+ scope_kind,scope_values,window_from,window_until,COALESCE(daily_start,''),COALESCE(daily_end,''),weekdays,time_zone,enabled,note,hit_count,last_hit_at,created_at,updated_at,libraries::text[]`
 
 const clientPolicyColumns = `unknown_clients,exempt_admins,exempt_loopback,version,updated_at`
 
@@ -43,7 +43,7 @@ func scanClientRule(row pgx.Row) (domain.ClientRule, error) {
 	var w domain.ClientRuleWindow
 	var weekdays []int16
 	err := row.Scan(&r.ID, &r.Dimension, &r.Header, &r.Match, &r.Pattern, &r.CaseFold, &r.Priority, &r.Action, &r.Intent, &rateRequests, &ratePeriod,
-		&r.ScopeKind, &r.ScopeValues, &w.From, &w.Until, &w.DailyStart, &w.DailyEnd, &weekdays, &w.TimeZone, &r.Enabled, &r.Note, &r.HitCount, &r.LastHitAt, &r.CreatedAt, &r.UpdatedAt)
+		&r.ScopeKind, &r.ScopeValues, &w.From, &w.Until, &w.DailyStart, &w.DailyEnd, &weekdays, &w.TimeZone, &r.Enabled, &r.Note, &r.HitCount, &r.LastHitAt, &r.CreatedAt, &r.UpdatedAt, &r.Libraries)
 	if err != nil {
 		return r, storageError(err)
 	}
@@ -66,6 +66,9 @@ func scanClientRule(row pgx.Row) (domain.ClientRule, error) {
 	}
 	if r.ScopeValues == nil {
 		r.ScopeValues = []string{}
+	}
+	if len(r.Libraries) == 0 {
+		r.Libraries = nil
 	}
 	r.CreatedAt, r.UpdatedAt = r.CreatedAt.UTC(), r.UpdatedAt.UTC()
 	if r.LastHitAt != nil {
@@ -117,14 +120,18 @@ func clientRuleArgs(in domain.ClientRuleInput) []any {
 	if scope == nil {
 		scope = []string{}
 	}
+	libraries := in.Libraries
+	if libraries == nil {
+		libraries = []string{}
+	}
 	return []any{in.Dimension, header, in.Match, in.Pattern, in.CaseFold, in.Priority, in.Action, intent, rateRequests, ratePeriod,
-		in.ScopeKind, scope, from, until, dailyStart, dailyEnd, weekdays, timeZone, in.Enabled, in.Note}
+		in.ScopeKind, scope, from, until, dailyStart, dailyEnd, weekdays, timeZone, in.Enabled, in.Note, libraries}
 }
 
 const clientRuleWrite = `dimension,header_name,match_kind,pattern,case_fold,priority,action,intent,rate_requests,rate_period_seconds,
- scope_kind,scope_values,window_from,window_until,daily_start,daily_end,weekdays,time_zone,enabled,note`
+ scope_kind,scope_values,window_from,window_until,daily_start,daily_end,weekdays,time_zone,enabled,note,libraries`
 
-const clientRuleValues = `$1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12::text[],$13,$14,$15,$16,$17::smallint[],$18,$19,$20`
+const clientRuleValues = `$1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12::text[],$13,$14,$15,$16,$17::smallint[],$18,$19,$20,$21::uuid[]`
 
 // lockClientPolicy takes the policy row lock every change serializes on.
 func lockClientPolicy(ctx context.Context, tx pgx.Tx) (domain.ClientPolicy, error) {
@@ -155,7 +162,7 @@ func checkClientRuleLimits(ctx context.Context, tx pgx.Tx) error {
 
 func clientRuleAudit(r domain.ClientRule) map[string]any {
 	return map[string]any{"dimension": r.Dimension, "header": r.Header, "match": r.Match, "pattern": r.Pattern, "caseFold": r.CaseFold, "priority": r.Priority,
-		"action": r.Action, "intent": r.Intent, "rateLimit": r.RateLimit, "scopeKind": r.ScopeKind, "scopeValues": r.ScopeValues, "window": r.Window, "enabled": r.Enabled, "note": r.Note}
+		"action": r.Action, "intent": r.Intent, "rateLimit": r.RateLimit, "scopeKind": r.ScopeKind, "scopeValues": r.ScopeValues, "window": r.Window, "enabled": r.Enabled, "note": r.Note, "libraries": r.Libraries}
 }
 
 func auditClientControl(ctx context.Context, tx pgx.Tx, actor domain.Actor, event, target string, before, after any) error {
@@ -483,7 +490,7 @@ func (s *Store) GetClientRule(ctx context.Context, actor domain.Actor, id string
 // insertClientRule writes a validated rule and enforces the limits.
 func insertClientRule(ctx context.Context, tx pgx.Tx, actor domain.Actor, in domain.ClientRuleInput) (domain.ClientRule, error) {
 	args := append(clientRuleArgs(in), nullableID(actor.UserID))
-	r, err := scanClientRule(tx.QueryRow(ctx, `INSERT INTO client_rules(`+clientRuleWrite+`,created_by) VALUES(`+clientRuleValues+`,$21::uuid) RETURNING `+clientRuleColumns, args...))
+	r, err := scanClientRule(tx.QueryRow(ctx, `INSERT INTO client_rules(`+clientRuleWrite+`,created_by) VALUES(`+clientRuleValues+`,$22::uuid) RETURNING `+clientRuleColumns, args...))
 	if err != nil {
 		return r, err
 	}
@@ -544,7 +551,7 @@ func (s *Store) UpdateClientRule(ctx context.Context, actor domain.Actor, id str
 		return old, storageError(tx.Commit(ctx))
 	}
 	args := append(clientRuleArgs(in), id)
-	r, err := scanClientRule(tx.QueryRow(ctx, `UPDATE client_rules SET (`+clientRuleWrite+`,updated_at)=(`+clientRuleValues+`,now()) WHERE id=$21::uuid RETURNING `+clientRuleColumns, args...))
+	r, err := scanClientRule(tx.QueryRow(ctx, `UPDATE client_rules SET (`+clientRuleWrite+`,updated_at)=(`+clientRuleValues+`,now()) WHERE id=$22::uuid RETURNING `+clientRuleColumns, args...))
 	if err != nil {
 		return r, err
 	}

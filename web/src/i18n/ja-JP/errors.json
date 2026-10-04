@@ -28,6 +28,10 @@
     "conflict": "ほかの場所で変更されたか、すでに存在します。再読み込みしてからやり直してください。",
     "lastAdmin": "最後の管理者は削除・無効化・降格できません。",
     "exportLimit": "エクスポートする行が多すぎます。期間を絞り込んでください。",
-    "webhookTargetDenied": "このアドレスは Webhook の送信先として許可されていません。"
+    "webhookTargetDenied": "このアドレスは Webhook の送信先として許可されていません。",
+    "shareUnavailable": "この共有リンクは存在しないか、取り消されたか、期限切れです。",
+    "shareForbidden": "共有リンクでは共有された内容の閲覧のみできます。",
+    "shareReadOnly": "この共有リンクは読み取り専用です。",
+    "shareNativeDisabled": "この共有リンクではネイティブアプリでのダイレクト再生は許可されていません。"
   }
 }

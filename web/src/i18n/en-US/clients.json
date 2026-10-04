@@ -66,7 +66,8 @@
       "deletePrompt": "This cannot be undone. Its hit records are kept.",
       "deleted": "Rule deleted.",
       "created": "Rule created.",
-      "updated": "Rule saved."
+      "updated": "Rule saved.",
+      "libraries": "Sees {count} libraries"
     },
     "ruleForm": {
       "createTitle": "New rule",
@@ -85,6 +86,10 @@
       "intentHint": "Applied after you choose “Start blocking”.",
       "rateRequests": "Requests allowed",
       "ratePeriod": "Per seconds",
+      "libraries": "Libraries it may still see",
+      "librariesHint": "Matching requests see only the ticked libraries. When several restricting rules match, only libraries ticked in all of them remain.",
+      "librariesRequired": "Tick at least one library.",
+      "librariesEmpty": "There are no libraries to choose from.",
       "priority": "Priority",
       "priorityHint": "Larger wins; within one priority a deny beats an allow.",
       "note": "Note",
@@ -122,6 +127,7 @@
       "read_only": "Read only",
       "rate_limit": "Rate limit",
       "force_relogin": "Force sign-in again",
+      "restrict_libraries": "Restrict libraries",
       "observe": "Observe",
       "shadow": "Shadow",
       "pending_approval": "Wait for approval"

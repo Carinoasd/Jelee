@@ -28,6 +28,10 @@
     "conflict": "此项目已在其他地方更改或已存在。请重新加载后再试。",
     "lastAdmin": "无法删除、停用或降级最后一位管理员。",
     "exportLimit": "导出的数据行过多，请缩小日期范围。",
-    "webhookTargetDenied": "此地址不允许作为 Webhook 目标。"
+    "webhookTargetDenied": "此地址不允许作为 Webhook 目标。",
+    "shareUnavailable": "此分享链接不存在、已被撤销或已过期。",
+    "shareForbidden": "分享链接只能浏览被分享的内容。",
+    "shareReadOnly": "此分享链接为只读。",
+    "shareNativeDisabled": "此分享链接不允许原生应用直接播放。"
   }
 }

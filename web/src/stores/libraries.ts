@@ -40,12 +40,25 @@ export const useLibrariesStore = defineStore("libraries", () => {
     }
   }
 
+  /** Loads every page, for pickers that offer all libraries; stops at a failure. */
+  async function ensureAll() {
+    await ensureLoaded();
+    while (nextCursor.value !== "" && firstPage.state.value.status === "success") {
+      const before = libraries.value.length;
+      await morePages.run();
+      if (morePages.state.value.status !== "success" || libraries.value.length === before) {
+        break;
+      }
+    }
+  }
+
   resetOnUserChange(reset);
 
   return {
     libraries,
     find,
     ensureLoaded,
+    ensureAll,
     nextCursor,
     state: firstPage.state,
     moreState: morePages.state,

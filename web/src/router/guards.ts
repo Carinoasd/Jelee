@@ -12,6 +12,8 @@ export interface GuardTarget {
 export interface SessionView {
   readonly isAuthenticated: boolean;
   readonly isAdmin: boolean;
+  /** A share guest: a restricted session that only browses its share. */
+  readonly isGuest?: boolean;
 }
 
 /**
@@ -27,6 +29,9 @@ export function navigationGuard(to: GuardTarget, session: SessionView): true | R
   }
   if (!session.isAuthenticated) {
     return { name: "login", query: { redirect: to.fullPath } };
+  }
+  if (session.isGuest === true && to.meta.guest !== true) {
+    return { name: "shared" };
   }
   if (to.meta.admin === true && !session.isAdmin) {
     return { name: "forbidden" };

@@ -42,7 +42,7 @@ CREATE OR REPLACE FUNCTION pg_temp.bk_dst(k text,v text) RETURNS uuid LANGUAGE s
 // metadataResolve runs in order after staging. Each statement only reads
 // identities resolved by earlier statements.
 var metadataResolve = []string{
-	`UPDATE bk_stage SET ref=(doc->>'id')::uuid WHERE kind IN ('library','library_root','user','item','media_source','item_directory_source','item_image','client_rule','webhook')`,
+	`UPDATE bk_stage SET ref=(doc->>'id')::uuid WHERE kind IN ('library','library_root','user','item','media_source','item_directory_source','item_image','client_rule','library_network_rule','webhook')`,
 	`CREATE UNIQUE INDEX bk_stage_ref ON bk_stage(kind,ref) WHERE ref IS NOT NULL`,
 	`CREATE INDEX bk_stage_kind ON bk_stage(kind)`,
 	`CREATE INDEX bk_stage_item ON bk_stage(kind,((doc->>'item_id')::uuid)) WHERE kind IN ('media_source','item_directory_source','item_parent_link')`,
@@ -339,21 +339,35 @@ SELECT (SELECT count(*) FROM x),0,(SELECT count(*) FROM upd),0`},
 	// Hit counters start over; the rule author is kept when that account
 	// came along.
 	{kind: "client_rule", sql: `WITH x AS (SELECT s.ref,s.doc FROM bk_stage s WHERE s.kind='client_rule'),
-up AS (INSERT INTO client_rules(id,dimension,header_name,match_kind,pattern,case_fold,priority,action,intent,rate_requests,rate_period_seconds,scope_kind,scope_values,window_from,window_until,daily_start,daily_end,weekdays,time_zone,enabled,note,created_by,created_at,updated_at)
+up AS (INSERT INTO client_rules(id,dimension,header_name,match_kind,pattern,case_fold,priority,action,intent,rate_requests,rate_period_seconds,scope_kind,scope_values,window_from,window_until,daily_start,daily_end,weekdays,time_zone,enabled,note,created_by,created_at,updated_at,libraries)
  SELECT ref,doc->>'dimension',doc->>'header_name',doc->>'match_kind',doc->>'pattern',(doc->>'case_fold')::boolean,(doc->>'priority')::integer,doc->>'action',doc->>'intent',(doc->>'rate_requests')::integer,(doc->>'rate_period_seconds')::integer,
  doc->>'scope_kind',pg_temp.bk_texts(doc->'scope_values'),(doc->>'window_from')::timestamptz,(doc->>'window_until')::timestamptz,doc->>'daily_start',doc->>'daily_end',pg_temp.bk_texts(doc->'weekdays')::smallint[],doc->>'time_zone',
- (doc->>'enabled')::boolean,doc->>'note',pg_temp.bk_dst('user',doc->>'created_by'),(doc->>'created_at')::timestamptz,(doc->>'updated_at')::timestamptz FROM x
+ (doc->>'enabled')::boolean,doc->>'note',pg_temp.bk_dst('user',doc->>'created_by'),(doc->>'created_at')::timestamptz,(doc->>'updated_at')::timestamptz,
+ ARRAY(SELECT COALESCE(pg_temp.bk_dst('library',v),v::uuid) FROM jsonb_array_elements_text(COALESCE(doc->'libraries','[]'::jsonb)) v) FROM x
  ON CONFLICT(id) DO UPDATE SET dimension=EXCLUDED.dimension,header_name=EXCLUDED.header_name,match_kind=EXCLUDED.match_kind,pattern=EXCLUDED.pattern,case_fold=EXCLUDED.case_fold,priority=EXCLUDED.priority,
  action=EXCLUDED.action,intent=EXCLUDED.intent,rate_requests=EXCLUDED.rate_requests,rate_period_seconds=EXCLUDED.rate_period_seconds,scope_kind=EXCLUDED.scope_kind,scope_values=EXCLUDED.scope_values,
  window_from=EXCLUDED.window_from,window_until=EXCLUDED.window_until,daily_start=EXCLUDED.daily_start,daily_end=EXCLUDED.daily_end,weekdays=EXCLUDED.weekdays,time_zone=EXCLUDED.time_zone,
- enabled=EXCLUDED.enabled,note=EXCLUDED.note,updated_at=greatest(EXCLUDED.updated_at,client_rules.created_at)
+ enabled=EXCLUDED.enabled,note=EXCLUDED.note,libraries=EXCLUDED.libraries,updated_at=greatest(EXCLUDED.updated_at,client_rules.created_at)
  WHERE (client_rules.dimension,client_rules.header_name,client_rules.match_kind,client_rules.pattern,client_rules.case_fold,client_rules.priority,client_rules.action,client_rules.intent,client_rules.rate_requests,
  client_rules.rate_period_seconds,client_rules.scope_kind,client_rules.scope_values,client_rules.window_from,client_rules.window_until,client_rules.daily_start,client_rules.daily_end,client_rules.weekdays,
- client_rules.time_zone,client_rules.enabled,client_rules.note)
+ client_rules.time_zone,client_rules.enabled,client_rules.note,client_rules.libraries)
  IS DISTINCT FROM (EXCLUDED.dimension,EXCLUDED.header_name,EXCLUDED.match_kind,EXCLUDED.pattern,EXCLUDED.case_fold,EXCLUDED.priority,EXCLUDED.action,EXCLUDED.intent,EXCLUDED.rate_requests,
- EXCLUDED.rate_period_seconds,EXCLUDED.scope_kind,EXCLUDED.scope_values,EXCLUDED.window_from,EXCLUDED.window_until,EXCLUDED.daily_start,EXCLUDED.daily_end,EXCLUDED.weekdays,EXCLUDED.time_zone,EXCLUDED.enabled,EXCLUDED.note)
+ EXCLUDED.rate_period_seconds,EXCLUDED.scope_kind,EXCLUDED.scope_values,EXCLUDED.window_from,EXCLUDED.window_until,EXCLUDED.daily_start,EXCLUDED.daily_end,EXCLUDED.weekdays,EXCLUDED.time_zone,EXCLUDED.enabled,EXCLUDED.note,EXCLUDED.libraries)
  RETURNING (xmax=0) inserted)
 SELECT (SELECT count(*) FROM x),(SELECT count(*) FROM up WHERE inserted),(SELECT count(*) FROM up WHERE NOT inserted),0`},
+	// A network rule follows its library; a library that did not come along
+	// leaves its rule out (G48.5).
+	{kind: "library_network_rule", sql: `WITH x AS (SELECT s.ref,s.doc,pg_temp.bk_dst('library',s.doc->>'library_id') l FROM bk_stage s WHERE s.kind='library_network_rule'),
+ok AS (SELECT * FROM x WHERE l IS NOT NULL),
+up AS (INSERT INTO library_network_rules(id,library_id,network,cidrs,client_kinds,include_admins,enabled,note,created_by,created_at,updated_at)
+ SELECT ref,l,doc->>'network',pg_temp.bk_texts(doc->'cidrs')::cidr[],pg_temp.bk_texts(doc->'client_kinds'),(doc->>'include_admins')::boolean,(doc->>'enabled')::boolean,doc->>'note',
+ pg_temp.bk_dst('user',doc->>'created_by'),(doc->>'created_at')::timestamptz,(doc->>'updated_at')::timestamptz FROM ok
+ ON CONFLICT(id) DO UPDATE SET library_id=EXCLUDED.library_id,network=EXCLUDED.network,cidrs=EXCLUDED.cidrs,client_kinds=EXCLUDED.client_kinds,include_admins=EXCLUDED.include_admins,
+ enabled=EXCLUDED.enabled,note=EXCLUDED.note,updated_at=greatest(EXCLUDED.updated_at,library_network_rules.created_at)
+ WHERE (library_network_rules.library_id,library_network_rules.network,library_network_rules.cidrs,library_network_rules.client_kinds,library_network_rules.include_admins,library_network_rules.enabled,library_network_rules.note)
+ IS DISTINCT FROM (EXCLUDED.library_id,EXCLUDED.network,EXCLUDED.cidrs,EXCLUDED.client_kinds,EXCLUDED.include_admins,EXCLUDED.enabled,EXCLUDED.note)
+ RETURNING (xmax=0) inserted)
+SELECT (SELECT count(*) FROM ok),(SELECT count(*) FROM up WHERE inserted),(SELECT count(*) FROM up WHERE NOT inserted),(SELECT count(*) FROM x)-(SELECT count(*) FROM ok)`},
 	{kind: "webhook", sql: `WITH x AS (SELECT s.ref,s.doc FROM bk_stage s WHERE s.kind='webhook'),
 up AS (INSERT INTO webhooks(id,name,url,enabled,events,header_names,headers_sealed,timeout_ms,max_attempts,base_delay_ms,max_delay_ms,jitter,secret_sealed,previous_secret_sealed,previous_until,created_at,updated_at)
  SELECT ref,doc->>'name',doc->>'url',(doc->>'enabled')::boolean,pg_temp.bk_texts(doc->'events'),pg_temp.bk_texts(doc->'header_names'),(doc->>'headers_sealed')::bytea,(doc->>'timeout_ms')::integer,

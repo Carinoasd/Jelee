@@ -10,14 +10,20 @@ interface Catalog {
 // top-level key equal to its namespace; scripts/check-i18n.mjs enforces this.
 // The file name core.json is reserved (see docs/frontend-adr.md).
 //
-// Lazy namespaces stay out of the initial bundle (G35.4): the page that needs
-// one loads it with loadLazyMessages before rendering its text. The gate
-// checks them like every other namespace. twoFactor.json is loaded by
-// twoFactor.ts with the screens that use it.
-export const lazyNamespaces = ["versions"] as const;
+// Namespaces listed in lazyNamespaces stay out of the initial bundle (G35.4):
+// they are split into one chunk per locale and merged into the running i18n
+// instances by loadNamespace() (awaited by lazy route loaders, see lazyView in
+// router/routes.ts) or loadLazyMessages() (for lazy components inside an
+// eager page). The two globs must name the same files. twoFactor.json is
+// loaded by twoFactor.ts with the screens that use it.
+export const lazyNamespaces = ["versions", "clients", "shares", "networkRules"] as const;
 export type LazyNamespace = (typeof lazyNamespaces)[number];
-const files = import.meta.glob<Catalog>(["./*/*.json", "!./*/twoFactor.json", "!./*/versions.json"], { eager: true, import: "default" });
-const lazyFiles = import.meta.glob<Catalog>("./*/versions.json", { import: "default" });
+
+const files = import.meta.glob<Catalog>(
+  ["./*/*.json", "!./*/twoFactor.json", "!./*/versions.json", "!./*/clients.json", "!./*/shares.json", "!./*/networkRules.json"],
+  { eager: true, import: "default" },
+);
+const lazyFiles = import.meta.glob<Catalog>(["./*/versions.json", "./*/clients.json", "./*/shares.json", "./*/networkRules.json"], { import: "default" });
 
 export function buildMessages(source: Record<string, Catalog>): Record<Locale, Catalog> {
   const messages = Object.fromEntries(supportedLocales.map((locale) => [locale, {}])) as Record<Locale, Catalog>;
@@ -42,12 +48,50 @@ export function buildMessages(source: Record<string, Catalog>): Record<Locale, C
  */
 export const currentLocaleKey: InjectionKey<() => string> = Symbol("jelee.locale");
 
+/** Lazy catalogs already fetched, by file path; new instances start with them. */
+const lazyLoaded: Record<string, Catalog> = {};
+const lazyPending = new Map<LazyNamespace, Promise<void>>();
+interface MergeTarget {
+  mergeLocaleMessage(locale: string, message: Catalog): void;
+}
+/** Running instances, held weakly; a namespace loaded later is merged into each. */
+const instances = new Set<WeakRef<MergeTarget>>();
+
+/**
+ * Fetches a lazy namespace in all four locales (so switching the language
+ * later needs no further request) and merges it into every i18n instance.
+ * Concurrent calls share one fetch; a failed fetch may be retried.
+ */
+export function loadNamespace(namespace: LazyNamespace): Promise<void> {
+  let pending = lazyPending.get(namespace);
+  if (pending === undefined) {
+    const entries = Object.entries(lazyFiles).filter(([path]) => path.endsWith("/" + namespace + ".json"));
+    pending = Promise.all(entries.map(async ([path, load]) => [path, await load()] as const)).then((loaded) => {
+      for (const [path, catalog] of loaded) {
+        lazyLoaded[path] = catalog;
+        const locale = path.split("/")[1] ?? "";
+        for (const ref of instances) {
+          const instance = ref.deref();
+          if (instance === undefined) {
+            instances.delete(ref);
+          } else {
+            instance.mergeLocaleMessage(locale, catalog);
+          }
+        }
+      }
+    });
+    pending.catch(() => lazyPending.delete(namespace));
+    lazyPending.set(namespace, pending);
+  }
+  return pending;
+}
+
 export function createAppI18n(locale: Locale = defaultLocale) {
   const i18n = createI18n({
     legacy: false,
     locale,
     fallbackLocale,
-    messages: buildMessages(files),
+    messages: buildMessages({ ...files, ...lazyLoaded }),
     missingWarn: import.meta.env.DEV,
     fallbackWarn: import.meta.env.DEV,
   });
@@ -56,6 +100,7 @@ export function createAppI18n(locale: Locale = defaultLocale) {
     install(app, ...options);
     app.provide(currentLocaleKey, () => i18n.global.locale.value);
   };
+  instances.add(new WeakRef<MergeTarget>(i18n.global));
   return i18n;
 }
 

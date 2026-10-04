@@ -72,7 +72,9 @@ var (
 	tmdbParam   = map[string]string{"id": "tmdb"}
 	// webhookParam names a webhook endpoint, never media.
 	webhookParam = map[string]string{"id": "opaque"}
-	noParams     = map[string]string{}
+	// shareParam names a share link or a network rule, never media.
+	shareParam = map[string]string{"id": "opaque"}
+	noParams   = map[string]string{}
 )
 
 func leakRouteTable() map[string]leakRoute {
@@ -262,24 +264,37 @@ func leakRouteTable() map[string]leakRoute {
 		"GET /api/v1/access/policy":                               admin(noParams),
 		// Client control administration (G47): rules, policy, hits and known
 		// clients name clients, never media.
-		"GET /api/v1/client-control/policy":               admin(noParams),
-		"PUT /api/v1/client-control/policy":               admin(noParams),
-		"GET /api/v1/client-control/rules":                admin(noParams),
-		"POST /api/v1/client-control/rules":               admin(noParams),
-		"GET /api/v1/client-control/rules/{id}":           admin(webhookParam),
-		"PUT /api/v1/client-control/rules/{id}":           admin(webhookParam),
-		"DELETE /api/v1/client-control/rules/{id}":        admin(webhookParam),
-		"POST /api/v1/client-control/rules/{id}/enforce":  admin(webhookParam),
-		"POST /api/v1/client-control/rules/{id}/observe":  admin(webhookParam),
-		"GET /api/v1/client-control/hits":                 admin(noParams),
-		"GET /api/v1/client-control/hits/export":          admin(noParams),
-		"GET /api/v1/client-control/stats":                admin(noParams),
-		"GET /api/v1/client-control/clients":              admin(noParams),
-		"PATCH /api/v1/client-control/clients/{id}":       admin(webhookParam),
-		"POST /api/v1/client-control/clients/{id}/block":  admin(webhookParam),
-		"POST /api/v1/client-control/clients/{id}/kick":   admin(webhookParam),
-		"PUT /api/v1/access/policy":                       admin(noParams),
-		"GET /api/v1/access/parental-ratings":             admin(noParams),
+		"GET /api/v1/client-control/policy":              admin(noParams),
+		"PUT /api/v1/client-control/policy":              admin(noParams),
+		"GET /api/v1/client-control/rules":               admin(noParams),
+		"POST /api/v1/client-control/rules":              admin(noParams),
+		"GET /api/v1/client-control/rules/{id}":          admin(webhookParam),
+		"PUT /api/v1/client-control/rules/{id}":          admin(webhookParam),
+		"DELETE /api/v1/client-control/rules/{id}":       admin(webhookParam),
+		"POST /api/v1/client-control/rules/{id}/enforce": admin(webhookParam),
+		"POST /api/v1/client-control/rules/{id}/observe": admin(webhookParam),
+		"GET /api/v1/client-control/hits":                admin(noParams),
+		"GET /api/v1/client-control/hits/export":         admin(noParams),
+		"GET /api/v1/client-control/stats":               admin(noParams),
+		"GET /api/v1/client-control/clients":             admin(noParams),
+		"PATCH /api/v1/client-control/clients/{id}":      admin(webhookParam),
+		"POST /api/v1/client-control/clients/{id}/block": admin(webhookParam),
+		"POST /api/v1/client-control/clients/{id}/kick":  admin(webhookParam),
+		"PUT /api/v1/access/policy":                      admin(noParams),
+		"GET /api/v1/access/parental-ratings":            admin(noParams),
+		// G48.5 network rules and G48.6 share links.
+		"GET /api/v1/access/network-rules":                admin(noParams),
+		"POST /api/v1/access/network-rules":               admin(noParams),
+		"PUT /api/v1/access/network-rules/{id}":           admin(shareParam),
+		"DELETE /api/v1/access/network-rules/{id}":        admin(shareParam),
+		"GET /api/v1/shares":                              admin(noParams),
+		"POST /api/v1/shares":                             admin(noParams),
+		"GET /api/v1/shares/{id}":                         admin(shareParam),
+		"POST /api/v1/shares/{id}/revoke":                 admin(shareParam),
+		"GET /api/v1/shares/{id}/access":                  admin(shareParam),
+		"GET /api/v1/shares/current":                      noMedia(noParams, "the caller's own share; 404 for any session that is not a guest"),
+		"POST /api/v1/shares/redeem":                      exempt("share token exchange; takes no media identifiers and returns only a guest session grant"),
+		"POST /api/v1/shares/redeem/native":               exempt("native share token exchange; takes no media identifiers and returns only a guest session grant"),
 		"GET /api/v1/site/appearance":                     noMedia(noParams, "site-wide appearance with sanitized CSS; no media or administrator data"),
 		"GET /api/v1/site/plugins":                        noMedia(noParams, "site-wide plugin order and settings; no media or administrator data"),
 		"GET /api/v1/site/appearance/config":              admin(noParams),
@@ -590,6 +605,11 @@ type leakIDs struct {
 	// seedProgress restores the resume points listing routes expect; the
 	// played routes change them.
 	seedProgress func(*testing.T)
+	// progressUsers are the users seedProgress seeds.
+	progressUsers *[]string
+	// guest marks a viewer that is a share guest (G48.6): routes outside
+	// the guest routes must refuse it without a marker.
+	guest bool
 }
 
 const (
@@ -801,18 +821,20 @@ func leakFixture(t *testing.T, ctx context.Context, store *postgres.Store) leakI
 	// Both users have a resume point on both items, so the continue
 	// watching lists must filter the viewer's hidden one (G48.3) while the
 	// administrator control lists it.
+	progressUsers := []string{f.viewer, adminID}
+	f.progressUsers = &progressUsers
 	f.seedProgress = func(t *testing.T) {
 		t.Helper()
 		if _, err := store.Pool.Exec(ctx, `INSERT INTO user_item_data(user_id,item_id,resume_ticks,played,play_count,last_played_at,updated_at)
  SELECT u,i,6000000000,false,0,now(),now() FROM unnest($1::uuid[]) u CROSS JOIN unnest($2::uuid[]) i
  ON CONFLICT (user_id,item_id) DO UPDATE SET resume_ticks=EXCLUDED.resume_ticks,played=false,play_count=0`,
-			[]string{f.viewer, adminID}, []string{f.item[leakVisible], f.item[leakHidden]}); err != nil {
+			*f.progressUsers, []string{f.item[leakVisible], f.item[leakHidden]}); err != nil {
 			t.Fatal(err)
 		}
 		// Watch statistics of today on both items for both users.
 		if _, err := store.Pool.Exec(ctx, `INSERT INTO watch_stats_daily(user_id,day,item_id,library_id,effective_ms,sessions,views,first_plays)
  SELECT u,(now() AT TIME ZONE 'UTC')::date,i.id,i.library_id,600000,1,1,1 FROM unnest($1::uuid[]) u CROSS JOIN items i WHERE i.id=ANY($2::uuid[])
- ON CONFLICT (user_id,day,item_id) DO NOTHING`, []string{f.viewer, adminID}, []string{f.item[leakVisible], f.item[leakHidden]}); err != nil {
+ ON CONFLICT (user_id,day,item_id) DO NOTHING`, *f.progressUsers, []string{f.item[leakVisible], f.item[leakHidden]}); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -878,14 +900,48 @@ func (f leakIDs) assertNoMarkers(t *testing.T, route string, response leakRespon
 // leakMechanisms are the ways the fixture's hidden item is hidden from the
 // viewer (G48.1, G48.4). Every mechanism goes through the unified filter, so
 // the same traversal must find zero leaks for each.
-var leakMechanisms = []string{"library_grant", "item_rule", "parental_rating", "blocked_tag"}
+var leakMechanisms = []string{"library_grant", "item_rule", "parental_rating", "blocked_tag", "network_rule", "client_restrict_libraries", "share_scope"}
 
 // leakHideBy hides the fixture's hidden item from the viewer by mechanism.
 // Except for the library grant, the viewer is granted the hidden library,
 // so only the item-level markers must stay out of responses.
 func leakHideBy(t *testing.T, ctx context.Context, store *postgres.Store, f *leakIDs, mechanism string) {
 	t.Helper()
-	if mechanism == "library_grant" {
+	switch mechanism {
+	case "library_grant":
+		return
+	case "network_rule", "client_restrict_libraries":
+		// The viewer is granted the hidden library, which only the request
+		// restriction hides (G48.5): the whole library stays out.
+		if _, err := store.Pool.Exec(ctx, `INSERT INTO library_acl(user_id,library_id) VALUES($1::uuid,$2::uuid)`, f.viewer, f.library[leakHidden]); err != nil {
+			t.Fatal(err)
+		}
+		var err error
+		if mechanism == "network_rule" {
+			// Test requests come from 192.0.2.1, outside any LAN.
+			_, err = store.CreateNetworkRule(ctx, f.admin, domain.NetworkRuleInput{LibraryID: f.library[leakHidden], Network: "lan", CIDRs: []string{}, ClientKinds: []string{}, Enabled: true})
+		} else {
+			_, err = store.CreateClientRule(ctx, f.admin, domain.ClientRuleInput{Dimension: "ip", Match: "cidr", Pattern: "0.0.0.0/0", Action: "restrict_libraries",
+				Libraries: []string{f.library[leakVisible]}, ScopeKind: "user", ScopeValues: []string{f.viewer}, Enabled: true})
+		}
+		if err != nil {
+			t.Fatalf("hide by %s: %v", mechanism, err)
+		}
+		return
+	case "share_scope":
+		// The viewer is a native guest of a share of the visible library
+		// (G48.6); the hidden library is outside the share.
+		g, err := store.CreateShare(ctx, f.admin, domain.ShareInput{LibraryID: f.library[leakVisible], ExpiresAt: time.Now().Add(time.Hour), AllowPlayback: true, MaxStreams: 16})
+		if err != nil {
+			t.Fatal(err)
+		}
+		grant, err := store.RedeemShare(ctx, domain.ShareRedemption{Token: g.Token, Native: true, Client: domain.NativeClient{Name: "leak guest", DeviceID: "leak-guest"}, MaxSessions: 8, SessionTTL: time.Hour})
+		if err != nil {
+			t.Fatal(err)
+		}
+		f.viewer, f.viewerToken, f.guest = grant.User.ID, grant.Token, true
+		*f.progressUsers = append(*f.progressUsers, grant.User.ID)
+		f.seedProgress(t)
 		return
 	}
 	if _, err := store.Pool.Exec(ctx, `INSERT INTO library_acl(user_id,library_id) VALUES($1::uuid,$2::uuid)`, f.viewer, f.library[leakHidden]); err != nil {
@@ -952,6 +1008,22 @@ func leakTraverse(t *testing.T, store *postgres.Store, dsn string, f leakIDs) {
 					continue
 				}
 				method, pattern, _ := strings.Cut(route, " ")
+				if _, allowed := guestRoutes[route]; f.guest && spec.mode != leakExempt && spec.mode != leakNoMedia && !allowed {
+					// Outside the guest routes a guest is refused before any
+					// lookup: 403 share_forbidden, or 401 from the
+					// compatibility layer, which refuses guests. Routes
+					// without media (public ones among them) are scanned
+					// for markers below like for any viewer.
+					response := leakRequest(t, handler, method, leakPath(pattern, spec, f, leakHidden), f.viewerToken)
+					refused := response.status == http.StatusForbidden && response.code == "share_forbidden" ||
+						strings.HasPrefix(pattern, "/compat/") && response.status == http.StatusUnauthorized
+					if !refused {
+						t.Errorf("%s: guest got %d/%s, want a refusal", route, response.status, response.code)
+					}
+					f.assertNoMarkers(t, route, response)
+					checked++
+					continue
+				}
 				switch spec.mode {
 				case leakExempt:
 					continue

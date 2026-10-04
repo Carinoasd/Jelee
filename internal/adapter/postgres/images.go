@@ -32,8 +32,8 @@ func (s *Store) ResolveImageSource(parent context.Context, actor domain.Actor, i
  JOIN users u ON u.id=$1::uuid AND NOT u.disabled AND u.deleted_at IS NULL
  JOIN sessions s ON s.id=$2::uuid AND s.user_id=u.id AND s.client_kind IN ('web','native')
   AND s.revoked_at IS NULL AND s.expires_at>clock_timestamp()
- WHERE i.id=$3::uuid AND `+itemVisibleSQL("i.library_id", "i.id")+`
- ORDER BY m.id LIMIT 2`, actor.UserID, actor.SessionID, item)
+ WHERE i.id=$3::uuid AND `+itemVisibleSQL("$4", "i.library_id", "i.id")+`
+ ORDER BY m.id LIMIT 2`, actor.UserID, actor.SessionID, item, requestScopeArg(ctx))
 	if err != nil {
 		return domain.LocalImageSource{}, storageError(err)
 	}

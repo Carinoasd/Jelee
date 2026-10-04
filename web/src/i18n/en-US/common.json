@@ -28,6 +28,8 @@
     "search": "Search",
     "admin": "Administration",
     "settings": "Settings",
-    "stats": "My statistics"
+    "stats": "My statistics",
+    "sharedWithMe": "Shared with you",
+    "guestSession": "Guest of a share link"
   }
 }

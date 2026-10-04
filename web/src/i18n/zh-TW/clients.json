@@ -66,7 +66,8 @@
       "deletePrompt": "刪除後無法復原；命中紀錄會保留。",
       "deleted": "已刪除規則。",
       "created": "已新增規則。",
-      "updated": "已儲存規則。"
+      "updated": "已儲存規則。",
+      "libraries": "可見 {count} 個媒體庫"
     },
     "ruleForm": {
       "createTitle": "新增規則",
@@ -85,6 +86,10 @@
       "intentHint": "按下「開始攔截」後套用。",
       "rateRequests": "允許次數",
       "ratePeriod": "每幾秒",
+      "libraries": "仍可看到的媒體庫",
+      "librariesHint": "符合的請求只能看到勾選的媒體庫。多條限制規則同時符合時，只保留所有規則都勾選的媒體庫。",
+      "librariesRequired": "請至少勾選一個媒體庫。",
+      "librariesEmpty": "沒有可選擇的媒體庫。",
       "priority": "優先級",
       "priorityHint": "數字越大越優先；同一優先級時拒絕勝過允許。",
       "note": "備註",
@@ -122,6 +127,7 @@
       "read_only": "唯讀",
       "rate_limit": "限速",
       "force_relogin": "強制重新登入",
+      "restrict_libraries": "限制媒體庫",
       "observe": "觀察",
       "shadow": "影子",
       "pending_approval": "等待核准"

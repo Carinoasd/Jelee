@@ -61,8 +61,14 @@ async function signOut() {
   <a class="jl-skip-link" href="#main">{{ t("common.skipToContent") }}</a>
   <DevModeBanner />
   <header class="jl-header">
-    <RouterLink class="jl-header__brand" :to="{ name: 'home' }">{{ t("common.appName") }}</RouterLink>
-    <nav v-if="auth.isAuthenticated" :aria-label="t('common.mainNavigation')" class="jl-header__nav">
+    <RouterLink class="jl-header__brand" :to="{ name: auth.isGuest ? 'shared' : 'home' }">{{ t("common.appName") }}</RouterLink>
+    <!-- A share guest may only browse its share (auth.isGuest, decided by the
+         account name), so it gets none of the account, settings, search or
+         administration entries; the server refuses those routes anyway. -->
+    <nav v-if="auth.isGuest" :aria-label="t('common.mainNavigation')" class="jl-header__nav" data-testid="guest-nav">
+      <RouterLink :to="{ name: 'shared' }">{{ t("common.sharedWithMe") }}</RouterLink>
+    </nav>
+    <nav v-else-if="auth.isAuthenticated" :aria-label="t('common.mainNavigation')" class="jl-header__nav">
       <RouterLink :to="{ name: 'home' }">{{ t("layout.home.title") }}</RouterLink>
       <RouterLink :to="{ name: 'libraries' }">{{ t("libraries.title") }}</RouterLink>
       <RouterLink :to="{ name: 'stats' }">{{ t("common.stats") }}</RouterLink>
@@ -78,10 +84,11 @@ async function signOut() {
       </RouterLink>
     </nav>
     <span class="jl-header__spacer" />
-    <SearchBox v-if="auth.isAuthenticated" class="jl-header__search" />
+    <SearchBox v-if="auth.isAuthenticated && !auth.isGuest" class="jl-header__search" />
     <LocaleSwitcher />
     <template v-if="auth.user">
-      <span class="jl-header__user">{{ t("common.signedInAs", { name: auth.user.displayName || auth.user.name }) }}</span>
+      <span v-if="auth.isGuest" class="jl-header__user">{{ t("common.guestSession") }}</span>
+      <span v-else class="jl-header__user">{{ t("common.signedInAs", { name: auth.user.displayName || auth.user.name }) }}</span>
       <UiButton variant="secondary" @click="signOut">{{ t("common.logout") }}</UiButton>
     </template>
   </header>

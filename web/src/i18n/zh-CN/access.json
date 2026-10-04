@@ -2,6 +2,11 @@
   "access": {
     "title": "内容访问",
     "intro": "内容限制的全服务器默认值；个别用户的限制在其账号页设置。",
+    "tabs": {
+      "label": "内容访问页面",
+      "policy": "策略与分级",
+      "network": "网络规则"
+    },
     "policy": {
       "title": "服务器策略",
       "blockUnrated": "有分级上限时隐藏未分级条目",

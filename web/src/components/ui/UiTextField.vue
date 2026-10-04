@@ -3,7 +3,7 @@ import { computed, useId } from "vue";
 
 const props = defineProps<{
   label: string;
-  type?: "text" | "password" | "search" | "url" | "date";
+  type?: "text" | "password" | "search" | "url" | "date" | "datetime-local";
   /** Virtual keyboard hint, e.g. "numeric" for number entry kept as text. */
   inputmode?: "text" | "numeric" | "decimal" | "search" | "url";
   autocomplete?: string;

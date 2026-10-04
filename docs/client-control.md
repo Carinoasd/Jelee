@@ -5,7 +5,7 @@
 - 規則引擎：`internal/access/`（`rules.go` 模型、`compile.go` 編譯與索引、`prefilter.go` 字面量預篩、`evaluate.go` 評估）。
 - 請求閘門：`internal/adapter/http/client_control.go`；管理 API：`client_control_routes.go`、`client_control_openapi.go`。
 - 儲存：`internal/adapter/postgres/client_control.go`；應用服務 `internal/app/client_control.go`；契約 `internal/domain/client_control.go`。
-- 遷移：`000070_client_control`（`client_control_policy`、`client_rules`、`known_clients`、`known_client_sessions`、`client_control_hits`）；`000073_user_preferences` 另加部分索引 `client_rules_block_lookup_idx`（`dimension,pattern` WHERE 啟用的 `deny`），供已知客戶端列表判斷是否已屏蔽。
+- 遷移：`000079_share_network_access` 允許 `restrict_libraries` 並新增 `client_rules.libraries`；`000070_client_control`（`client_control_policy`、`client_rules`、`known_clients`、`known_client_sessions`、`client_control_hits`）；`000073_user_preferences` 另加部分索引 `client_rules_block_lookup_idx`（`dimension,pattern` WHERE 啟用的 `deny`），供已知客戶端列表判斷是否已屏蔽。
 - 緊急恢復：`jelee-cli access reset-policies --i-understand`（`cmd/jelee-cli/access.go`；G45.6 危險操作，必須帶確認旗標）。
 
 ## 規則模型
@@ -17,8 +17,9 @@
 | 維度 `dimension` | `user_agent`、`app_name`、`app_version`、`device_id`、`device_name`、`device_type`、`ip`、`api_key_fingerprint`、`header`（配 `header` 指定標頭名） |
 | 比對 `match` | `exact`、`prefix`、`glob`（`*`、`?`，反斜線跳脫，比對整個值）、`regex`（RE2，非錨定；用 `^`／`$` 做整段比對）、`cidr`（只限 `ip`）、`absent`（值不存在時命中，`pattern` 須為空） |
 | 大小寫 `caseFold` | `true` 時不分大小寫 |
-| 動作 `action` | `allow`（白名單）、`deny`、`read_only`、`rate_limit`（配 `rateLimit.requests`／`periodSeconds`）、`force_relogin`、`observe`、`shadow` |
+| 動作 `action` | `allow`（白名單）、`deny`、`read_only`、`rate_limit`（配 `rateLimit.requests`／`periodSeconds`）、`force_relogin`、`restrict_libraries`（配 `libraries`）、`observe`、`shadow` |
 | 意圖 `intent` | 只給 `observe`／`shadow`（必填）：切到攔截後要執行的動作 |
+| 媒體庫 `libraries` | 只給 `restrict_libraries`（含作為意圖，必填，最多 1,000 個）：本請求仍看得到的媒體庫 ID |
 | 優先序 `priority` | −1,000,000～1,000,000，大者優先 |
 | 作用範圍 `scopeKind` | `global`、`user`（`scopeValues` 為使用者 ID）、`client_kind`（`web`／`native`，伺服器發出工作階段時決定的種類，不可偽造） |
 | 時間窗 `window` | `from`／`until`（絕對區間）、`dailyStart`／`dailyEnd`（HH:MM，可跨午夜）、`weekdays`（0＝週日）、`timeZone`（IANA） |
@@ -29,7 +30,7 @@
 | --- | --- | --- |
 | `user_agent`、`header` | 請求標頭 | 請求標頭 |
 | `app_name`、`app_version`、`device_id`、`device_name` | 原生登入時記錄在工作階段的標籤（網頁工作階段只有裝置名稱） | 工作階段記錄的標籤優先；沒有時用該請求授權標頭的 `Client`／`Version`／`DeviceId`／`Device` |
-| `device_type` | 目前沒有客戶端回報，永遠為空（只能用 `absent` 命中） | 同左 |
+| `device_type` | 目前沒有客戶端回報，永遠為空（只能用 `absent` 命中）；網路限制（G48.5）以工作階段種類代替裝置類型，見[存取控制](access-control.md#網路限制g485) | 同左 |
 | `ip` | 依可信代理設定算出的客戶端位址（`internal/adapter/http/proxies.go`），從不直接讀轉送標頭 | 同左 |
 | `api_key_fingerprint` | `sha256:` 加上憑證 SHA-256 前 16 位元組的十六進位；只有規則用到此維度時才計算 | 同左 |
 
@@ -42,7 +43,7 @@
 1. 啟用、比對命中、作用範圍涵蓋該請求、時間窗包含當下的規則才是候選。空值不會被任何樣式命中，只有 `absent` 會。
 2. 執行中（非 `observe`／`shadow`）的候選依優先序由高到低、同優先序依 ID 排序，一層一層處理：
    - 該層有 `deny` → 直接拒絕（同優先序 `deny` 勝過 `allow`）；
-   - 否則合併該層的限制：`read_only`、`force_relogin` 取聯集，`rate_limit` 取最嚴格者；
+   - 否則合併該層的限制：`read_only`、`force_relogin` 取聯集，`rate_limit` 取最嚴格者，`restrict_libraries` 的媒體庫取交集；
    - 該層有 `allow` → 停止往下（較低優先序的拒絕與限制不再適用；同層或更高層的限制仍適用）。
 3. 沒有 `allow` 停住、且客戶端未被標記可信時，套用「未知客戶端預設策略」：`allow`（不動作）、`read_only`（加上唯讀）、`deny`（403 `client_blocked`）、待核准（403 `client_pending_approval`，直到管理員把該客戶端標記為可信）。
 4. 任一維度的值超過 8 KiB（或同名標頭超過 32 個）時不比對並拒絕：攻擊者不能靠灌長值躲規則或耗 CPU。
@@ -74,7 +75,7 @@
 | `force_relogin` | 撤銷該工作階段並回 401 | 401 | 只撤銷**在規則最後修改之前**發出的工作階段，重新登入後的新工作階段不受影響（否則等同永久封鎖）；寫入安全稽核 `client_control.session_revoked` |
 | `observe` | 放行 | 放行 | 計入命中紀錄與統計，供評估影響；`POST /rules/{id}/enforce` 切成攔截 |
 | `shadow` | 放行 | 放行 | 只寫入命中紀錄，不進統計與告警 |
-| `restrict_libraries` | — | — | **未實作**：閘門目前無法把「每請求的庫限制」傳進統一權限述詞（`visibility.go`），因此 API 與資料庫 CHECK 都拒絕此動作，避免存在一條默默不生效的規則。見後續 |
+| `restrict_libraries` | 本請求只看得到列出的媒體庫（多條取交集，可能為空），其他庫的內容一律當作不存在 | 同左（相容層的庫清單、條目、播放都經同一述詞） | 閘門把結果掛在 principal 的 `RequestScope.Libraries`，儲存層以統一述詞的請求參數下推到 SQL（`visibility.go` 的 `requestLibrarySQL`，每語句算一次，不增加語句數）；與網路限制（G48.5）同時成立，優先順序見[存取控制](access-control.md#優先順序與合併策略)。豁免（管理員、環回）時不套用；開發者模式不放寬 |
 
 ## 管理 API（僅管理員，G47.3、G47.5、G47.8）
 
@@ -103,7 +104,7 @@ jelee-cli access reset-policies --i-understand
 
 在一個交易內停用所有規則（保留不刪）、把策略恢復為預設（未知客戶端允許、管理員與環回豁免）、版本加一，並寫入安全類稽核 `client_control.policies_reset`（無操作者）。執行中的伺服器在下一個請求就套用。輸出為 JSON：`{"rulesDisabled":N,"policy":{…}}`；失敗只印固定代碼（`access_database_unavailable`、`access_reset_failed`），不印連線字串。
 
-降級遷移 000070 在仍有啟用中的執行規則或嚴格的未知客戶端策略時會拒絕（避免降級後默默放行），先跑此指令即可。
+降級遷移 000070 在仍有啟用中的執行規則或嚴格的未知客戶端策略時會拒絕（避免降級後默默放行），先跑此指令即可。降級遷移 000079 在仍有任何 `restrict_libraries` 規則（啟用與否）時拒絕，需先刪除。
 
 ## 可觀測與隱私（G47.8、G47.9）
 
@@ -154,7 +155,7 @@ JELEE_TEST_DATABASE_URL=… go test -p 1 -run TestClientControlOverheadPostgres 
 
 ## 後續（本次不在範圍）
 
-- `restrict_libraries` 動作與「按庫」作用範圍：需要把每請求的庫限制傳進 `visibility.go` 的統一述詞（例如以請求層級參數或交易內設定傳入），並讓閘門知道請求的目標庫。目前存儲拒絕這兩者。
+- 「按庫」作用範圍（`scopeKind: library`）：閘門在路由前不知道請求的目標庫，存儲仍拒絕。`restrict_libraries` 動作已實作（遷移 000079）。
 - 使用者群組作用範圍（目前沒有群組模型）。
 - 異常 UA 暴增告警（目前只有批量被拒告警）；告警門檻可設定。
 - 管理頁 UI（目前只有 API 與 OpenAPI 型別）。

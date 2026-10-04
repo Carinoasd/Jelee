@@ -53,6 +53,17 @@ type AccountRepository interface {
 	GetAccessPolicy(context.Context, domain.Actor) (domain.AccessPolicy, error)
 	SetAccessPolicy(context.Context, domain.Actor, domain.AccessPolicy) (domain.AccessPolicy, error)
 	ListParentalRatings(context.Context, domain.Actor) ([]domain.ParentalRating, error)
+	ListNetworkRules(context.Context, domain.Actor) ([]domain.NetworkRule, error)
+	CreateNetworkRule(context.Context, domain.Actor, domain.NetworkRuleInput) (domain.NetworkRule, error)
+	UpdateNetworkRule(context.Context, domain.Actor, string, domain.NetworkRuleInput) (domain.NetworkRule, error)
+	DeleteNetworkRule(context.Context, domain.Actor, string) error
+	ListShares(context.Context, domain.Actor) ([]domain.Share, error)
+	GetShare(context.Context, domain.Actor, string) (domain.Share, error)
+	CreateShare(context.Context, domain.Actor, domain.ShareInput) (domain.ShareGrant, error)
+	RevokeShare(context.Context, domain.Actor, string) (domain.Share, error)
+	ListShareAccess(context.Context, domain.Actor, string, string, int) ([]domain.ShareAccessRecord, string, error)
+	RedeemShare(context.Context, domain.ShareRedemption) (domain.SessionGrant, error)
+	CurrentShare(context.Context, domain.Actor) (domain.GuestShare, error)
 }
 
 type PasswordHasher interface {

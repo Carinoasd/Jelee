@@ -113,6 +113,9 @@ async function act(work: () => Promise<unknown>, success: string) {
                     <span class="jl-cc-muted">{{ t("clients.rules.intent", { action: intentLabel(rule) }) }}</span>
                   </template>
                   <template v-else>{{ t(ruleActionKeys[rule.action]) }}</template>
+                  <span v-if="rule.libraries?.length" class="jl-cc-muted">
+                    <br />{{ t("clients.rules.libraries", { count: rule.libraries.length }) }}
+                  </span>
                   <span v-if="rule.rateLimit" class="jl-cc-muted">
                     <br />{{ t("clients.rules.rate", { requests: rule.rateLimit.requests, seconds: rule.rateLimit.periodSeconds }) }}
                   </span>

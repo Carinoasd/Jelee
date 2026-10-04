@@ -594,3 +594,26 @@ func TestLoopbackBandwidthLimit(t *testing.T) {
 		t.Fatalf("disabled bandwidth limit still throttled: %v", unlimited)
 	}
 }
+
+// A share's stream cap (G48.6) applies with the stream limit switched off
+// or relaxed, and never raises a stricter limit.
+func TestLimiterShareStreamsCap(t *testing.T) {
+	p := streamPrincipal("guest", "s")
+	share := Source{ShareStreams: 1}
+	for _, limits := range []Limits{{}, {StreamLimit: true, MaxStreamsPerUser: 4, RelaxStreams: func() bool { return true }}} {
+		l := newLimiter(limits, newFakeClock())
+		held := admitOK(t, l, p, "a", share)
+		if _, err := l.admit(p, "b", share); !errors.Is(err, ErrUserStreamLimit) {
+			t.Fatal("share cap ignored", err)
+		}
+		again := admitOK(t, l, p, "a", share)
+		again.release()
+		held.release()
+	}
+	strict := newLimiter(Limits{StreamLimit: true, MaxStreamsPerUser: 1}, newFakeClock())
+	held := admitOK(t, strict, p, "a", Source{ShareStreams: 3})
+	if _, err := strict.admit(p, "b", Source{ShareStreams: 3}); !errors.Is(err, ErrUserStreamLimit) {
+		t.Fatal("share cap raised a stricter limit", err)
+	}
+	held.release()
+}

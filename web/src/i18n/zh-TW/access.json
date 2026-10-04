@@ -2,6 +2,11 @@
   "access": {
     "title": "內容存取",
     "intro": "內容限制的全伺服器預設值；個別使用者的限制在其帳號頁設定。",
+    "tabs": {
+      "label": "內容存取頁面",
+      "policy": "政策與分級",
+      "network": "網路規則"
+    },
     "policy": {
       "title": "伺服器政策",
       "blockUnrated": "有分級上限時隱藏未分級條目",

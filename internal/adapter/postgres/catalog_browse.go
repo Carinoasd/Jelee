@@ -38,8 +38,8 @@ func libraryKindsSQL(column string) string {
 
 func (s *Store) ListLibraryViews(ctx context.Context, userID string) ([]domain.LibraryView, error) {
 	rows, err := s.Pool.Query(ctx, browsePrincipalSQL+`
-SELECT l.id::text,l.name,`+libraryKindsSQL("l.id")+` FROM principal u JOIN libraries l ON `+libraryVisibleSQL("l.id")+`
-ORDER BY lower(l.name) COLLATE "C",l.id LIMIT @limit`, pgx.NamedArgs{"user": userID, "limit": domain.BrowseViewsMax})
+SELECT l.id::text,l.name,`+libraryKindsSQL("l.id")+` FROM principal u JOIN libraries l ON `+libraryVisibleSQL("@rq", "l.id")+`
+ORDER BY lower(l.name) COLLATE "C",l.id LIMIT @limit`, pgx.NamedArgs{"user": userID, "limit": domain.BrowseViewsMax, "rq": requestScopeArg(ctx)})
 	if err != nil {
 		return nil, storageError(err)
 	}
@@ -63,10 +63,10 @@ func (s *Store) GetBrowseItem(ctx context.Context, userID, id string) (domain.Br
 	err := s.Pool.QueryRow(ctx, browsePrincipalSQL+`
 SELECT i.id::text,i.library_id::text,COALESCE(p.parent_id,i.library_id)::text,i.kind,i.title,COALESCE(fs.value,''),COALESCE(fo.value,''),COALESCE(NULLIF(fd.value,''),''),COALESCE(`+browseYearSQL+`,0),'{}'::text[]
  FROM principal u JOIN items i ON i.id=@id::uuid`+browseMetadataSQL+`
- WHERE `+itemVisibleSQL("i.library_id", "i.id")+`
+ WHERE `+itemVisibleSQL("@rq", "i.library_id", "i.id")+`
 UNION ALL
-SELECT l.id::text,l.id::text,'',@library,l.name,'','','',0,`+libraryKindsSQL("l.id")+` FROM principal u JOIN libraries l ON l.id=@id::uuid WHERE `+libraryVisibleSQL("l.id")+`
-LIMIT 1`, pgx.NamedArgs{"user": userID, "id": id, "library": domain.BrowseKindLibrary}).Scan(
+SELECT l.id::text,l.id::text,'',@library,l.name,'','','',0,`+libraryKindsSQL("l.id")+` FROM principal u JOIN libraries l ON l.id=@id::uuid WHERE `+libraryVisibleSQL("@rq", "l.id")+`
+LIMIT 1`, pgx.NamedArgs{"user": userID, "id": id, "library": domain.BrowseKindLibrary, "rq": requestScopeArg(ctx)}).Scan(
 		&item.ID, &item.LibraryID, &item.ParentID, &item.Kind, &item.Title, &item.SortTitle, &item.Overview, &item.PremiereDate, &item.Year, &item.ContentKinds)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return domain.BrowseItem{}, domain.ErrNotFound
@@ -104,7 +104,7 @@ func (s *Store) BrowseItems(ctx context.Context, userID string, q domain.BrowseQ
 	if !domain.ValidBrowseQuery(q) {
 		return domain.BrowsePage{}, domain.ErrInvalid
 	}
-	args := pgx.NamedArgs{"user": userID, "parent": q.ParentID, "library": q.LibraryID, "kinds": append([]string{}, q.Kinds...), "search": "",
+	args := pgx.NamedArgs{"user": userID, "rq": requestScopeArg(ctx), "parent": q.ParentID, "library": q.LibraryID, "kinds": append([]string{}, q.Kinds...), "search": "",
 		"overview": q.WithOverview, "limit": q.Limit, "offset": q.Offset}
 	if q.SearchTerm != "" {
 		args["search"] = "%" + escapeLike(q.SearchTerm) + "%"
@@ -113,9 +113,9 @@ func (s *Store) BrowseItems(ctx context.Context, userID string, q domain.BrowseQ
 	if q.Scope != domain.BrowseAll {
 		var kind string
 		err := s.Pool.QueryRow(ctx, browsePrincipalSQL+`
-SELECT 'library' FROM principal u JOIN libraries l ON l.id=@parent::uuid WHERE `+libraryVisibleSQL("l.id")+`
+SELECT 'library' FROM principal u JOIN libraries l ON l.id=@parent::uuid WHERE `+libraryVisibleSQL("@rq", "l.id")+`
 UNION ALL
-SELECT 'item' FROM principal u JOIN items i ON i.id=@parent::uuid WHERE `+itemVisibleSQL("i.library_id", "i.id")+`
+SELECT 'item' FROM principal u JOIN items i ON i.id=@parent::uuid WHERE `+itemVisibleSQL("@rq", "i.library_id", "i.id")+`
 LIMIT 1`, args).Scan(&kind)
 		if errors.Is(err, pgx.ErrNoRows) {
 			// A missing and an invisible parent look the same: nothing.
@@ -138,7 +138,7 @@ LIMIT 1`, args).Scan(&kind)
 	}
 	matched := browsePrincipalSQL + `, matched AS (
  SELECT i.id,i.library_id,i.title,i.kind FROM principal u JOIN items i ON ` + scope + `
- WHERE ` + itemVisibleSQL("i.library_id", "i.id") + `
+ WHERE ` + itemVisibleSQL("@rq", "i.library_id", "i.id") + `
   AND (@library::text='' OR i.library_id=NULLIF(@library::text,'')::uuid)
   AND (cardinality(@kinds::text[])=0 OR i.kind=ANY(@kinds::text[]))
   AND (@search::text='' OR i.title ILIKE @search::text ESCAPE '\')
@@ -215,7 +215,7 @@ SELECT i.id::text,i.library_id::text,COALESCE(p.parent_id,i.library_id)::text,i.
  ARRAY(SELECT f.field FROM item_metadata_fields f WHERE f.item_id=i.id AND f.source='nfo' AND f.value<>'' AND f.field=ANY(@public::text[])
   UNION SELECT f.field FROM item_metadata_facts f WHERE f.item_id=i.id AND f.source='nfo' AND f.value<>'null'::jsonb AND f.field=ANY(@public::text[]))
  FROM principal u JOIN items i ON i.id=@id::uuid`+browseMetadataSQL+`
- WHERE `+itemVisibleSQL("i.library_id", "i.id"), pgx.NamedArgs{"user": userID, "id": id, "public": domain.ItemDetailsNFOFieldNames()}).Scan(
+ WHERE `+itemVisibleSQL("@rq", "i.library_id", "i.id"), pgx.NamedArgs{"user": userID, "id": id, "public": domain.ItemDetailsNFOFieldNames(), "rq": requestScopeArg(ctx)}).Scan(
 		&item.ID, &item.LibraryID, &item.ParentID, &item.Kind, &item.Title, &item.SortTitle, &item.Overview, &item.PremiereDate, &item.Year,
 		&r.OriginalTitle, &r.Tagline, &r.Genres, &r.UniqueIDs, &observation, &r.Revision, &r.NFOFields)
 	if errors.Is(err, pgx.ErrNoRows) {

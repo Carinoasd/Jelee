@@ -140,7 +140,7 @@ func TestContentAccessPlanPostgres(t *testing.T) {
 
 	// A bounded listing page: the rules filter inside each granted
 	// library's ordered page, so hidden items cost only their own probes.
-	page, raw := explainContentPlan(t, f, listItemsSQL, viewer, "", 50)
+	page, raw := explainContentPlan(t, f, listItemsSQL, viewer, "", 50, nil)
 	noSeqScan("list page", page)
 	visited := countPlanItemRows(page)
 	if visited < 50 || visited > 400 {
@@ -156,8 +156,8 @@ func TestContentAccessPlanPostgres(t *testing.T) {
 	// item is probed once through the indexes, never by scanning a rule or
 	// metadata table.
 	var visible int
-	count := `SELECT count(*) FROM users u JOIN items i ON i.library_id=$2::uuid WHERE u.id=$1::uuid AND ` + itemVisibleSQL("i.library_id", "i.id")
-	if err = f.s.Pool.QueryRow(f.ctx, count, viewer, f.registration.Library.ID).Scan(&visible); err != nil {
+	count := `SELECT count(*) FROM users u JOIN items i ON i.library_id=$2::uuid WHERE u.id=$1::uuid AND ` + itemVisibleSQL("$3", "i.library_id", "i.id")
+	if err = f.s.Pool.QueryRow(f.ctx, count, viewer, f.registration.Library.ID, nil).Scan(&visible); err != nil {
 		t.Fatal(err)
 	}
 	// Plan items: G and PG-13 rated movies and series trees without the
@@ -176,7 +176,7 @@ func TestContentAccessPlanPostgres(t *testing.T) {
 	if fixture := len(without(f.all(false), "movie-r", "movie-16", "series-ma", "season-ma", "episode-ma", "series-pg", "season-pg", "episode-pg", "episode-pg-tagged", "movie-tagged")); visible != want+fixture {
 		t.Fatalf("visible %d, want %d plan items and %d fixture items", visible, want, fixture)
 	}
-	whole, raw := explainContentPlan(t, f, count, viewer, f.registration.Library.ID)
+	whole, raw := explainContentPlan(t, f, count, viewer, f.registration.Library.ID, nil)
 	planNodes(whole, func(node map[string]any) {
 		relation, _ := node["Relation Name"].(string)
 		// The whole-library count reads every item of the library, so
@@ -197,7 +197,7 @@ func TestContentAccessPlanPostgres(t *testing.T) {
 	if err = f.s.Pool.QueryRow(f.ctx, `SELECT id::text FROM items WHERE title='plan episode 4 2'`).Scan(&episode); err != nil {
 		t.Fatal(err)
 	}
-	detail, raw := explainContentPlan(t, f, `SELECT i.id FROM users u JOIN items i ON i.id=$2::uuid WHERE u.id=$1::uuid AND `+itemVisibleSQL("i.library_id", "i.id"), viewer, episode)
+	detail, raw := explainContentPlan(t, f, `SELECT i.id FROM users u JOIN items i ON i.id=$2::uuid WHERE u.id=$1::uuid AND `+itemVisibleSQL("$3", "i.library_id", "i.id"), viewer, episode, nil)
 	noSeqScan("by id", detail)
 	t.Logf("restricted by-ID lookup: %s", raw)
 }

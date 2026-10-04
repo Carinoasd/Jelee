@@ -6,6 +6,7 @@ import {
   login as loginRequest,
   logout as logoutRequest,
   readCsrf,
+  redeemShare as redeemRequest,
   type SecondFactorChallenge,
   type SessionGrant,
   type User,
@@ -21,6 +22,14 @@ export const useAuthStore = defineStore("auth", () => {
   const sessionId = shallowRef<string | null>(null);
   const isAuthenticated = computed(() => user.value !== null);
   const isAdmin = computed(() => user.value?.admin === true);
+  /**
+   * A share guest. Decided by the account name: the server names every share
+   * guest account "share:<share ID>", and the name is known synchronously
+   * after a reload (GET /users/me), unlike GET /shares/current, which would
+   * need a request before the first navigation. Only shapes the UI: the
+   * server refuses guests everything outside their share (share_forbidden).
+   */
+  const isGuest = computed(() => user.value?.name.startsWith("share:") === true);
   let restoring: Promise<void> | null = null;
 
   /**
@@ -58,6 +67,11 @@ export const useAuthStore = defineStore("auth", () => {
     return grant.user;
   }
 
+  /** Opens a share link: the browser's session becomes the share's guest. */
+  async function redeemShare(token: string): Promise<User> {
+    return establish(await redeemRequest(client, token));
+  }
+
   async function logout(): Promise<void> {
     try {
       if (auth.hasCredential()) {
@@ -76,5 +90,5 @@ export const useAuthStore = defineStore("auth", () => {
     sessionId.value = null;
   }
 
-  return { user, sessionId, isAuthenticated, isAdmin, restore, login, establish, logout, expire };
+  return { user, sessionId, isAuthenticated, isAdmin, isGuest, restore, login, establish, redeemShare, logout, expire };
 });

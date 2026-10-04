@@ -42,7 +42,7 @@ func listSourcesSQL(sessionFilter string) string {
  LEFT JOIN probe_cache p ON p.root_id=m.root_id AND p.relative_path=m.relative_path AND p.library_id=m.library_id
   AND p.state='ready' AND p.expires_at>clock_timestamp()
  LEFT JOIN catalog_scan_sources c ON c.source_id=m.id AND c.library_id=m.library_id
- WHERE i.id=$3::uuid AND ` + itemVisibleSQL("i.library_id", "i.id") + `
+ WHERE i.id=$3::uuid AND ` + itemVisibleSQL("$4", "i.library_id", "i.id") + `
  ORDER BY m.id`
 }
 
@@ -88,7 +88,7 @@ func (s *Store) listSources(parent context.Context, query string, actor domain.A
 		return nil, err
 	}
 	defer cancel()
-	rows, err := s.Pool.Query(ctx, query, actor.UserID, actor.SessionID, itemID)
+	rows, err := s.Pool.Query(ctx, query, actor.UserID, actor.SessionID, itemID, requestScopeArg(ctx))
 	if err != nil {
 		return nil, storageError(err)
 	}

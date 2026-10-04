@@ -1,6 +1,7 @@
 package postgres
 
 import (
+	"context"
 	"errors"
 	"slices"
 	"sort"
@@ -30,6 +31,8 @@ type contentAccessFixture struct {
 type contentAccessUser struct {
 	principal access.Principal
 	actor     domain.Actor
+	// token is the session credential of a share guest.
+	token string
 }
 
 func contentAccessPrincipal(t *testing.T, f jobFixture, name string, admin bool) contentAccessUser {
@@ -158,7 +161,14 @@ func (f contentAccessFixture) toNames(t *testing.T, ids []string) []string {
 // unless each one shows exactly want.
 func (f contentAccessFixture) observe(t *testing.T, label string, u contentAccessUser, want []string) {
 	t.Helper()
-	ctx, s, userID := f.ctx, f.s, u.principal.UserID
+	f.observeIn(f.ctx, t, label, u, want)
+}
+
+// observeIn is observe in ctx, which may carry the principal and its
+// request scope (G48.5) the unified filter reads.
+func (f contentAccessFixture) observeIn(ctx context.Context, t *testing.T, label string, u contentAccessUser, want []string) {
+	t.Helper()
+	s, userID := f.s, u.principal.UserID
 	// SetPlayed below clears resume points; every observation starts from
 	// the same ones.
 	imageRepositoryExec(t, f.jobFixture, `UPDATE user_item_data SET resume_ticks=600000000,played=false,play_count=0`)

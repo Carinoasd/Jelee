@@ -205,6 +205,7 @@ type clientRuleBody struct {
 	Action      string                   `json:"action"`
 	Intent      string                   `json:"intent"`
 	RateLimit   *domain.ClientRuleRate   `json:"rateLimit"`
+	Libraries   []string                 `json:"libraries"`
 	ScopeKind   string                   `json:"scopeKind"`
 	ScopeValues []string                 `json:"scopeValues"`
 	Window      *domain.ClientRuleWindow `json:"window"`
@@ -221,7 +222,7 @@ func decodeClientRule(w http.ResponseWriter, r *http.Request) (domain.ClientRule
 		return domain.ClientRuleInput{}, domain.ErrInvalid
 	}
 	return domain.ClientRuleInput{Dimension: b.Dimension, Header: b.Header, Match: b.Match, Pattern: b.Pattern, CaseFold: b.CaseFold, Priority: b.Priority,
-		Action: b.Action, Intent: b.Intent, RateLimit: b.RateLimit, ScopeKind: b.ScopeKind, ScopeValues: b.ScopeValues, Window: b.Window, Enabled: *b.Enabled, Note: b.Note}, nil
+		Action: b.Action, Intent: b.Intent, RateLimit: b.RateLimit, Libraries: b.Libraries, ScopeKind: b.ScopeKind, ScopeValues: b.ScopeValues, Window: b.Window, Enabled: *b.Enabled, Note: b.Note}, nil
 }
 
 func clientHitFilter(query map[string]string) (domain.ClientHitFilter, error) {

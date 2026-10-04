@@ -8,6 +8,7 @@ import UiEmptyState from "@/components/ui/UiEmptyState.vue";
 import UiSkeleton from "@/components/ui/UiSkeleton.vue";
 import { useAdminFeedback } from "@/features/users/feedback";
 import { useAccessPolicyStore } from "@/stores/accessPolicy";
+import AccessTabs from "./AccessTabs.vue";
 
 const { t } = useI18n();
 const store = useAccessPolicyStore();
@@ -48,6 +49,7 @@ async function save() {
   <section class="jl-access" aria-labelledby="access-title">
     <h1 id="access-title" tabindex="-1">{{ t("access.title") }}</h1>
     <p class="jl-card__muted">{{ t("access.intro") }}</p>
+    <AccessTabs />
 
     <section class="jl-card" aria-labelledby="access-policy-title">
       <h2 id="access-policy-title">{{ t("access.policy.title") }}</h2>

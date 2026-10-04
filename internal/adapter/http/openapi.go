@@ -54,6 +54,7 @@ func Specification(cfg config.Config) map[string]any {
 		siteSettingsSpecification(paths)
 		twoFactorSpecification(paths)
 		clientControlSpecification(paths, schemas)
+		shareSpecification(paths, schemas)
 		setupSpecification(paths, schemas)
 		if cfg.Dev.Capable() {
 			devSpecification(paths, schemas)

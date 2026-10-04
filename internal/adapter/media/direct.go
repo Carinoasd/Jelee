@@ -36,6 +36,10 @@ type Source struct {
 	DeviceID string
 	// Limits are the user's delivery overrides; nil fields follow Options.Limits.
 	Limits domain.DeliveryLimits
+	// ShareStreams is the concurrent playback cap of a share guest (G48.6);
+	// 0 for everyone else. Unlike Limits it is part of the share's grant, so
+	// it applies whatever the stream limit switch and developer mode say.
+	ShareStreams int
 	// Charset is the detected charset of an external text subtitle. It is
 	// only reported as a Content-Type parameter; the bytes are never
 	// converted.

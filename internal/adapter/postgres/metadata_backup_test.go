@@ -39,6 +39,9 @@ const (
 	bkImage     = "b0000000-0000-4000-8000-000000000061"
 	bkRule      = "b0000000-0000-4000-8000-000000000071"
 	bkRule2     = "b0000000-0000-4000-8000-000000000072"
+	bkRule3     = "b0000000-0000-4000-8000-000000000073"
+	bkNetRule   = "b0000000-0000-4000-8000-000000000074"
+	bkShare     = "b0000000-0000-4000-8000-000000000075"
 	bkWebhook   = "b0000000-0000-4000-8000-000000000081"
 )
 
@@ -115,6 +118,15 @@ func seedMetadataBackup(t testing.TB, ctx context.Context, s *Store, episodes in
  VALUES ('` + bkRule + `','user_agent','exact','BadBot/1.0',10,'deny','scraper','` + bkAdmin + `','2026-09-06T00:00:00Z','2026-09-06T00:00:00Z',42)`},
 		{"client rule 2", `INSERT INTO client_rules(id,dimension,header_name,match_kind,pattern,case_fold,action,intent,rate_requests,rate_period_seconds,scope_kind,scope_values,daily_start,daily_end,weekdays,time_zone,created_at,updated_at)
  VALUES ('` + bkRule2 + `','header','X-Client','prefix','legacy',true,'observe','rate_limit',30,60,'user',ARRAY['` + bkKid + `'],'08:00','20:00',ARRAY[1,2,5]::smallint[],'Asia/Taipei','2026-09-06T00:00:00Z','2026-09-07T00:00:00Z')`},
+		{"restrict libraries rule", `INSERT INTO client_rules(id,dimension,match_kind,pattern,action,libraries,created_at,updated_at)
+ VALUES ('` + bkRule3 + `','ip','cidr','0.0.0.0/0','restrict_libraries',ARRAY['` + bkLibMovies + `']::uuid[],'2026-09-06T00:00:00Z','2026-09-06T00:00:00Z')`},
+		{"network rule", `INSERT INTO library_network_rules(id,library_id,network,cidrs,client_kinds,include_admins,note,created_by,created_at,updated_at)
+ VALUES ('` + bkNetRule + `','` + bkLibMovies + `','lan',ARRAY['10.0.0.0/8','2001:db8::/32']::cidr[],ARRAY['native'],true,'home only','` + bkAdmin + `','2026-09-06T00:00:00Z','2026-09-07T00:00:00Z')`},
+		// A share, its guest account and the guest's progress never leave
+		// the instance (G48.6).
+		{"share", `INSERT INTO share_links(id,token_hash,library_id,expires_at,created_by) VALUES ('` + bkShare + `',decode(repeat('ee',32),'hex'),'` + bkLibMovies + `',now()+interval '1 day','` + bkAdmin + `')`},
+		{"guest", `INSERT INTO users(name,hidden,share_id) VALUES ('share:` + bkShare + `',true,'` + bkShare + `')`},
+		{"guest progress", `INSERT INTO user_item_data(user_id,item_id,resume_ticks,played,play_count,updated_at) SELECT id,'` + bkMovie + `',5,false,0,now() FROM users WHERE share_id='` + bkShare + `'`},
 		{"webhook", `INSERT INTO webhooks(id,name,url,events,header_names,headers_sealed,timeout_ms,max_attempts,base_delay_ms,max_delay_ms,jitter,secret_sealed,previous_secret_sealed,previous_until,created_at,updated_at)
  VALUES ('` + bkWebhook + `','notify','https://hooks.example/jelee',ARRAY['media.added','playback.started'],ARRAY['X-Token'],decode(repeat('a1',40),'hex'),5000,5,2000,60000,0.25,
  decode(repeat('b2',48),'hex'),decode(repeat('c3',48),'hex'),'2026-10-10T00:00:00Z','2026-09-08T00:00:00Z','2026-09-09T00:00:00Z')`},
@@ -247,6 +259,9 @@ func TestMetadataBackupDrillPostgres(t *testing.T) {
 			t.Fatalf("fixture does not cover kind %s", kind)
 		}
 	}
+	if bytes.Contains(doc, []byte(bkShare)) || bytes.Contains(doc, []byte("share:")) {
+		t.Fatal("export contains a share link or its guest account")
+	}
 
 	// Dry run first: a full import that leaves nothing behind.
 	dry, err := importMetadataDoc(ctx, target, doc, domain.MetadataImportOptions{DryRun: true})
@@ -316,7 +331,7 @@ func TestMetadataBackupDrillPostgres(t *testing.T) {
 		{"setup marked complete (adopted)", `SELECT count(*) FROM setup_state WHERE adopted AND completed_at IS NOT NULL`, 1},
 		{"admin password hash restored", `SELECT count(*) FROM users WHERE name='admin' AND password_hash IS NOT NULL`, 1},
 		{"watch state for watched schedule", `SELECT count(*) FROM scan_watch_state`, 1},
-		{"client rule hit counters restart", `SELECT count(*) FROM client_rules WHERE hit_count=0`, 2},
+		{"client rule hit counters restart", `SELECT count(*) FROM client_rules WHERE hit_count=0`, 3},
 		{"metadata.imported audit rows", `SELECT count(*) FROM audit_logs WHERE event='metadata.imported' AND target_ref=$1`, 2},
 	}
 	logf("\n[6] restored server checks:")

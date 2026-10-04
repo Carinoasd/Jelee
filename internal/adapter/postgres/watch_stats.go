@@ -310,7 +310,7 @@ func watchStatsViewer(ctx context.Context, q interface {
 // through the unified filter.
 func watchStatsScope(subject bool) string {
 	scope := ` FROM watch_stats_daily d WHERE d.day BETWEEN @from::date AND @to::date
- AND EXISTS(SELECT 1 FROM users u WHERE u.id=@viewer::uuid AND ` + itemVisibleSQL("d.library_id", "d.item_id") + `)`
+ AND EXISTS(SELECT 1 FROM users u WHERE u.id=@viewer::uuid AND ` + itemVisibleSQL("@rq", "d.library_id", "d.item_id") + `)`
 	if subject {
 		scope += ` AND d.user_id=@subject::uuid`
 	}
@@ -371,7 +371,7 @@ func (s *Store) WatchStatsReport(parent context.Context, actor domain.Actor, q d
 	subject := q.SubjectID != ""
 	scope := watchStatsScope(subject)
 	args := pgx.NamedArgs{"from": q.From.Format(time.DateOnly), "to": q.To.Format(time.DateOnly), "admin": admin, "viewer": actor.UserID,
-		"subject": q.SubjectID, "top": q.Top, "wstart": int(q.WeekStart), "libraries": domain.WatchStatsLibrariesMax}
+		"subject": q.SubjectID, "top": q.Top, "wstart": int(q.WeekStart), "libraries": domain.WatchStatsLibrariesMax, "rq": requestScopeArg(ctx)}
 	report := domain.WatchStatsReport{UserID: q.SubjectID, From: q.From.Format(time.DateOnly), To: q.To.Format(time.DateOnly), Period: q.Period,
 		Periods: []domain.WatchStatsPeriodRow{}, TopItems: []domain.WatchStatsItemRow{}, Libraries: []domain.WatchStatsLibraryRow{}, Kinds: []domain.WatchStatsKindRow{}}
 

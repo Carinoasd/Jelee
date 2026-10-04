@@ -1,0 +1,125 @@
+{
+  "shares": {
+    "title": "分享链接",
+    "intro": "分享链接让没有账号的人浏览一个媒体库或一个条目（剧集及其季与集），直到链接过期或被你撤销。每次兑换与使用都会记录。",
+    "created": "已创建分享链接。",
+    "create": {
+      "open": "新建分享链接",
+      "title": "新建分享链接",
+      "scope": "分享内容",
+      "scopeLibrary": "整个媒体库",
+      "scopeItem": "单个条目（含其季与集）",
+      "library": "媒体库",
+      "libraryNone": "选择媒体库",
+      "itemId": "条目 ID",
+      "itemIdHint": "条目页面网址末尾的 ID（/items/…）。",
+      "expires": "到期时间",
+      "customExpiry": "到期日期与时间",
+      "customExpiryHint": "按你的本地时间；需在 5 分钟到 90 天之后。",
+      "note": "备注（仅管理员可见）",
+      "readOnly": "只读",
+      "readOnlyHint": "访客无法写入任何数据，包括已看标记与进度。",
+      "allowNative": "允许原生应用直接播放",
+      "allowNativeHint": "只有原生（App）客户端可以用此链接兑换可直接播放原始文件的会话，并受常规的传输规则限制。网页访客永远只能浏览：网页端从不播放，也不会转码。",
+      "concurrency": "同时播放上限（1–{max}）",
+      "concurrencyHint": "此链接所有原生访客合计。",
+      "webNotice": "在浏览器打开链接的人会获得只能浏览被分享内容的访客会话。任何持有链接的人都能使用，请只发给要分享的对象。",
+      "submit": "创建链接",
+      "invalidLibrary": "请选择媒体库。",
+      "invalidItem": "请输入条目 ID（36 个字符，例如 1b4e28ba-2fa1-11d2-883f-0016d3cca427）。",
+      "invalidExpiry": "请选择 5 分钟到 90 天之后的时间。",
+      "invalidConcurrency": "请输入 1 到 {max} 的整数。",
+      "refused": "服务器无法创建此链接。请检查到期时间与其他字段。",
+      "scopeMissing": "此媒体库或条目不存在。",
+      "lifetime": {
+        "hour": "1 小时后",
+        "day": "1 天后",
+        "week": "7 天后",
+        "month": "30 天后",
+        "longest": "90 天后（最长）",
+        "custom": "指定日期与时间"
+      }
+    },
+    "grant": {
+      "title": "请立即复制新链接",
+      "warning": "此链接只会显示这一次。关闭此框后就无法再看到；如果丢失，请撤销链接并重新创建。",
+      "label": "分享链接",
+      "copy": "复制链接",
+      "copied": "已复制链接。",
+      "copyFailed": "无法自动复制链接。链接已选中，请自行复制。",
+      "close": "关闭，我已复制"
+    },
+    "list": {
+      "title": "链接",
+      "scope": "分享内容",
+      "state": "状态",
+      "expires": "到期或撤销时间",
+      "sessions": "活动会话",
+      "lastUsed": "最后使用",
+      "never": "从未",
+      "empty": "还没有分享链接",
+      "emptyHint": "这里列出最新的 200 个链接。",
+      "readOnly": "只读",
+      "native": "原生直接播放，最多同时 {count} 个",
+      "itemScope": "{title}（位于 {library}）",
+      "libraryScope": "媒体库 {library}",
+      "accessLog": "访问记录",
+      "revoke": "撤销",
+      "revokeConfirm": "撤销链接",
+      "revokePrompt": "链接会立即失效，其 {count} 个活动访客会话也会结束。此操作无法撤回。",
+      "revoked": "已撤销分享链接。"
+    },
+    "state": {
+      "active": "有效",
+      "expired": "已过期",
+      "revoked": "已撤销"
+    },
+    "access": {
+      "title": "访问记录：{scope}",
+      "close": "关闭记录",
+      "caption": "分享链接的事件记录，从新到旧",
+      "time": "时间",
+      "eventColumn": "事件",
+      "who": "设备与地址",
+      "route": "请求",
+      "empty": "没有记录",
+      "event": {
+        "created": "创建链接",
+        "revoked": "撤销链接",
+        "redeemed": "打开链接",
+        "redeemRefused": "拒绝打开",
+        "accessed": "浏览内容",
+        "accessRefused": "拒绝请求"
+      },
+      "reason": {
+        "revoked": "链接已被撤销。",
+        "expired": "链接已过期。",
+        "native": "此链接不允许原生直接播放。",
+        "sessionLimit": "同时的访客会话过多。"
+      },
+      "kind": {
+        "web": "网页",
+        "native": "原生应用"
+      }
+    },
+    "redeem": {
+      "title": "分享链接",
+      "working": "正在打开分享的内容…",
+      "missing": "此网址不含分享链接。请向发送者索取完整的链接。",
+      "signedIn": "你当前以 {name} 登录。以访客身份打开此链接会让此浏览器退出该账号。",
+      "continue": "退出并以访客身份打开",
+      "stay": "保持登录",
+      "failed": "无法打开分享链接。"
+    },
+    "guest": {
+      "title": "分享给你的内容",
+      "item": "分享自媒体库 {library}：",
+      "library": "分享的媒体库：{name}",
+      "expires": "可使用至 {time}",
+      "readOnly": "只读",
+      "browseOnly": "你可以在这里浏览分享的条目。网页浏览器中不会播放任何内容。",
+      "items": "条目",
+      "empty": "目前没有可显示的内容。"
+    }
+  }
+}

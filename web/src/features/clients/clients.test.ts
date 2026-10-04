@@ -267,6 +267,50 @@ describe("client control: rules", () => {
     expect(useToastStore().toasts.map((toast) => toast.key)).toContain("clients.rules.created");
   });
 
+  it("restricts libraries with the ticked library IDs", async () => {
+    const libraryA = "10000000-0000-4000-8000-00000000000a";
+    const libraryB = "10000000-0000-4000-8000-00000000000b";
+    const server = routes()
+      .on("GET", "/api/v1/libraries", () =>
+        data({
+          libraries: [
+            { id: libraryA, name: "Movies", roots: 1 },
+            { id: libraryB, name: "Shows", roots: 1 },
+          ],
+          pagination: { limit: 50, nextCursor: "" },
+        }),
+      )
+      .on("POST", base + "/rules", ({ body }) => data({ ...observeRule, ...(body as object), id: "new" }, 201));
+    const { wrapper } = await open(server, "rules");
+    await button(wrapper, text.rules.add).trigger("click");
+    await flushPromises();
+    expect(wrapper.text()).not.toContain(text.ruleForm.libraries);
+    await field(wrapper, text.ruleForm.pattern).setValue("Kids/");
+    await field(wrapper, text.ruleForm.action).setValue("restrict_libraries");
+    expect(wrapper.text()).toContain(text.ruleForm.librariesHint);
+    await wrapper.find("form").trigger("submit");
+    expect(server.calls("POST", base + "/rules")).toHaveLength(0);
+    expect(wrapper.text()).toContain(text.ruleForm.librariesRequired);
+
+    await field(wrapper, "Shows").setValue(true);
+    await wrapper.find("form").trigger("submit");
+    await flushPromises();
+    expect(server.calls("POST", base + "/rules")[0]?.body).toMatchObject({ action: "restrict_libraries", libraries: [libraryB] });
+    expect(server.calls("POST", base + "/rules")[0]?.body).not.toHaveProperty("intent");
+
+    // As the intent of an observing rule, the libraries are sent as well;
+    // for any other action they are left out.
+    await button(wrapper, text.rules.add).trigger("click");
+    await flushPromises();
+    await field(wrapper, text.ruleForm.pattern).setValue("Kids/");
+    await field(wrapper, text.ruleForm.intent).setValue("restrict_libraries");
+    await field(wrapper, "Movies").setValue(true);
+    await wrapper.find("form").trigger("submit");
+    await flushPromises();
+    expect(server.calls("POST", base + "/rules")[1]?.body).toMatchObject({ action: "observe", intent: "restrict_libraries", libraries: [libraryA] });
+    expect(wrapper.text()).toContain(text.rules.libraries.replace("{count}", "1"));
+  });
+
   it("validates locally and shows the server's refusal without its text", async () => {
     const server = routes().on("POST", base + "/rules", () => apiError(400, "invalid_request"));
     const { wrapper } = await open(server, "rules");

@@ -28,6 +28,8 @@
     "search": "搜尋",
     "admin": "管理",
     "settings": "設定",
-    "stats": "我的統計"
+    "stats": "我的統計",
+    "sharedWithMe": "分享給你的內容",
+    "guestSession": "分享連結訪客"
   }
 }

@@ -16,8 +16,11 @@ import (
 // cannot rebuild: accounts and grants, libraries and roots, the catalog
 // identity that per-item user data hangs on, item metadata and locks, locked
 // images, playback progress, track preferences, manual version decisions,
-// access and client control rules, webhooks and scan schedules. Sessions, tokens, user creation keys, caches, jobs,
-// inventories, outboxes, statistics and audit rows are never exported.
+// access, network and client control rules, webhooks and scan schedules.
+// Sessions, tokens, user creation keys, caches, jobs, inventories, outboxes,
+// statistics and audit rows are never exported, nor are share links (G48.6):
+// a share grants access to whoever holds its token, so restoring one would
+// revive that access; share guest accounts and their data stay out with them.
 
 type metadataExportQuery struct {
 	kind string
@@ -32,8 +35,8 @@ func metadataExportQueries(passwordHashes bool) []metadataExportQuery {
 	return []metadataExportQuery{
 		{"library", `SELECT to_jsonb(x)::text FROM (SELECT id,name,nfo_mode,metadata_language,metadata_image_languages,metadata_preferences_revision,catalog_sync_auto FROM libraries) x ORDER BY x.id`},
 		{"library_root", `SELECT to_jsonb(x)::text FROM (SELECT id,library_id,path FROM library_roots) x ORDER BY x.id`},
-		{"user", `SELECT to_jsonb(x)::text FROM (SELECT id,name,is_admin,disabled,hidden,display_name,locale,created_at,deleted_at,allow_native,max_streams,max_kbps,parental_rating_max,block_unrated,content_filtered` + password + ` FROM users) x ORDER BY x.id`},
-		{"library_acl", `SELECT to_jsonb(x)::text FROM (SELECT user_id,library_id FROM library_acl) x ORDER BY x.user_id,x.library_id`},
+		{"user", `SELECT to_jsonb(x)::text FROM (SELECT id,name,is_admin,disabled,hidden,display_name,locale,created_at,deleted_at,allow_native,max_streams,max_kbps,parental_rating_max,block_unrated,content_filtered` + password + ` FROM users WHERE share_id IS NULL) x ORDER BY x.id`},
+		{"library_acl", `SELECT to_jsonb(x)::text FROM (SELECT user_id,library_id FROM library_acl a WHERE ` + notGuestSQL("a.user_id") + `) x ORDER BY x.user_id,x.library_id`},
 		{"item", `SELECT to_jsonb(x)::text FROM (SELECT id,library_id,kind,title FROM items) x ORDER BY x.id`},
 		{"media_source", `SELECT to_jsonb(x)::text FROM (SELECT id,item_id,library_id,root_id,relative_path,content_type FROM media_sources) x ORDER BY x.id`},
 		{"item_directory_source", `SELECT to_jsonb(x)::text FROM (SELECT id,item_id,library_id,kind,root_id,relative_path FROM item_directory_sources) x ORDER BY x.id`},
@@ -53,20 +56,27 @@ func metadataExportQueries(passwordHashes bool) []metadataExportQuery {
 		// Unlocked image rows are rebuilt by scans and refreshes; a lock is the
 		// administrator's choice and is kept with its source and content facts.
 		{"item_image", `SELECT to_jsonb(x)::text FROM (SELECT id,item_id,library_id,image_type,image_index,source_kind,root_id,relative_path,remote_url,content_sha256,width,height,format,byte_size,average_color,fetched_at,source_mtime_unix_nano,source_size,locked,created_at,updated_at FROM item_images WHERE locked) x ORDER BY x.id`},
-		{"user_item_data", `SELECT to_jsonb(x)::text FROM (SELECT user_id,item_id,resume_ticks,played,play_count,last_played_at,last_source_id,updated_at FROM user_item_data) x ORDER BY x.user_id,x.item_id`},
-		{"user_track_preference", `SELECT to_jsonb(x)::text FROM (SELECT user_id,item_id,source_id,audio_language,audio_commentary,audio_track,subtitle_mode,subtitle_language,subtitle_sdh,subtitle_track,updated_at FROM user_track_preferences) x ORDER BY x.user_id,x.item_id NULLS FIRST,x.source_id NULLS FIRST`},
+		{"user_item_data", `SELECT to_jsonb(x)::text FROM (SELECT user_id,item_id,resume_ticks,played,play_count,last_played_at,last_source_id,updated_at FROM user_item_data d WHERE ` + notGuestSQL("d.user_id") + `) x ORDER BY x.user_id,x.item_id`},
+		{"user_track_preference", `SELECT to_jsonb(x)::text FROM (SELECT user_id,item_id,source_id,audio_language,audio_commentary,audio_track,subtitle_mode,subtitle_language,subtitle_sdh,subtitle_track,updated_at FROM user_track_preferences p WHERE ` + notGuestSQL("p.user_id") + `) x ORDER BY x.user_id,x.item_id NULLS FIRST,x.source_id NULLS FIRST`},
 		{"access_policy", `SELECT to_jsonb(x)::text FROM (SELECT restrict_admins,block_unrated FROM access_policy WHERE id) x`},
 		{"parental_rating", `SELECT to_jsonb(x)::text FROM (SELECT code,level FROM parental_ratings) x ORDER BY x.code COLLATE "C"`},
-		{"user_item_access_rule", `SELECT to_jsonb(x)::text FROM (SELECT user_id,item_id,effect,created_at FROM user_item_access_rules) x ORDER BY x.user_id,x.item_id`},
-		{"user_blocked_tag", `SELECT to_jsonb(x)::text FROM (SELECT user_id,tag FROM user_blocked_tags) x ORDER BY x.user_id,x.tag COLLATE "C"`},
+		{"user_item_access_rule", `SELECT to_jsonb(x)::text FROM (SELECT user_id,item_id,effect,created_at FROM user_item_access_rules r WHERE ` + notGuestSQL("r.user_id") + `) x ORDER BY x.user_id,x.item_id`},
+		{"user_blocked_tag", `SELECT to_jsonb(x)::text FROM (SELECT user_id,tag FROM user_blocked_tags b WHERE ` + notGuestSQL("b.user_id") + `) x ORDER BY x.user_id,x.tag COLLATE "C"`},
 		{"client_control_policy", `SELECT to_jsonb(x)::text FROM (SELECT unknown_clients,exempt_admins,exempt_loopback FROM client_control_policy WHERE id) x`},
 		// Hit counters are observations, not configuration.
-		{"client_rule", `SELECT to_jsonb(x)::text FROM (SELECT id,dimension,header_name,match_kind,pattern,case_fold,priority,action,intent,rate_requests,rate_period_seconds,scope_kind,scope_values,window_from,window_until,daily_start,daily_end,weekdays,time_zone,enabled,note,created_by,created_at,updated_at FROM client_rules) x ORDER BY x.id`},
+		{"client_rule", `SELECT to_jsonb(x)::text FROM (SELECT id,dimension,header_name,match_kind,pattern,case_fold,priority,action,intent,rate_requests,rate_period_seconds,scope_kind,scope_values,window_from,window_until,daily_start,daily_end,weekdays,time_zone,enabled,note,created_by,created_at,updated_at,libraries FROM client_rules) x ORDER BY x.id`},
+		{"library_network_rule", `SELECT to_jsonb(x)::text FROM (SELECT id,library_id,network,cidrs,client_kinds,include_admins,enabled,note,created_by,created_at,updated_at FROM library_network_rules) x ORDER BY x.id`},
 		// Secrets stay sealed with the master key; the seal binds the endpoint
 		// ID, which is why webhooks keep their ID on import.
 		{"webhook", `SELECT to_jsonb(x)::text FROM (SELECT id,name,url,enabled,events,header_names,headers_sealed,timeout_ms,max_attempts,base_delay_ms,max_delay_ms,jitter,secret_sealed,previous_secret_sealed,previous_until,created_at,updated_at FROM webhooks) x ORDER BY x.id`},
 		{"scan_schedule", `SELECT to_jsonb(x)::text FROM (SELECT library_id,owner_id,revision,enabled,mode,interval_seconds,cron,timezone,probe,nfo,ignore_mode,ignore_case,next_due,watch_enabled FROM scan_schedules) x ORDER BY x.library_id`},
 	}
+}
+
+// notGuestSQL holds when the user ID expression column is not a share
+// guest account (G48.6).
+func notGuestSQL(column string) string {
+	return `NOT EXISTS(SELECT 1 FROM users g WHERE g.id=` + column + ` AND g.share_id IS NOT NULL)`
 }
 
 // ExportMetadata streams a metadata backup to w. The audit row is written

@@ -2,6 +2,7 @@ package postgres
 
 import (
 	"io/fs"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -65,4 +66,25 @@ func refuseRetainedDowngrade(t *testing.T, f jobFixture, name, message string) u
 	}
 	t.Fatal(message)
 	return 0
+}
+
+// embeddedMigrationVersions lists the versions of the embedded migrations
+// in ascending order.
+func embeddedMigrationVersions(t *testing.T) []uint {
+	t.Helper()
+	matches, err := fs.Glob(migrationFiles, "migrations/*.up.sql")
+	if err != nil || len(matches) == 0 {
+		t.Fatal("no embedded migrations")
+	}
+	versions := make([]uint, 0, len(matches))
+	for _, m := range matches {
+		number, _, _ := strings.Cut(strings.TrimPrefix(m, "migrations/"), "_")
+		version, err := strconv.ParseUint(number, 10, 32)
+		if err != nil {
+			t.Fatal("embedded migration has no version:", m)
+		}
+		versions = append(versions, uint(version))
+	}
+	slices.Sort(versions)
+	return versions
 }

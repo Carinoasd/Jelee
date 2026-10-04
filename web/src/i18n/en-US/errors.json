@@ -28,6 +28,10 @@
     "conflict": "This was changed elsewhere or already exists. Reload and try again.",
     "lastAdmin": "The last administrator cannot be removed, disabled or demoted.",
     "exportLimit": "Too many rows to export. Narrow the date range.",
-    "webhookTargetDenied": "This address is not allowed as a webhook target."
+    "webhookTargetDenied": "This address is not allowed as a webhook target.",
+    "shareUnavailable": "This share link does not exist, was revoked or has expired.",
+    "shareForbidden": "A shared link only allows browsing what was shared.",
+    "shareReadOnly": "This shared link is read-only.",
+    "shareNativeDisabled": "This shared link does not allow native apps to direct play."
   }
 }

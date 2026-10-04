@@ -193,7 +193,7 @@ func (s *Store) ListUsers(ctx context.Context, actor domain.Actor, cursor string
 		return nil, err
 	}
 	defer tx.Rollback(ctx)
-	rows, err := tx.Query(ctx, `SELECT `+userColumns+` FROM users WHERE ($1 OR deleted_at IS NULL) AND id>COALESCE(NULLIF($2,'')::uuid,'00000000-0000-0000-0000-000000000000'::uuid) ORDER BY id LIMIT $3`, includeDeleted, cursor, limit)
+	rows, err := tx.Query(ctx, `SELECT `+userColumns+` FROM users WHERE ($1 OR deleted_at IS NULL) AND share_id IS NULL AND id>COALESCE(NULLIF($2,'')::uuid,'00000000-0000-0000-0000-000000000000'::uuid) ORDER BY id LIMIT $3`, includeDeleted, cursor, limit)
 	if err != nil {
 		return nil, storageError(err)
 	}

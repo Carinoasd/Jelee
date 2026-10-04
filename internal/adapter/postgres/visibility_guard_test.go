@@ -28,6 +28,10 @@ var visibilityGuardedTables = map[string]map[string][]string{
 	"access_policy":          {"content_access.go": {visibilityWholeFile}},
 	"parental_ratings":       {"content_access.go": {visibilityWholeFile}},
 	"parental_rating_max":    {"content_access.go": {visibilityWholeFile}},
+	// Share links and network rules (G48.5, G48.6) are administered, and
+	// guest sessions issued, by their own files only.
+	"share_links":           {"shares.go": {visibilityWholeFile}},
+	"library_network_rules": {"network_rules.go": {visibilityWholeFile}},
 }
 
 // Metadata backup copies the grant and rule rows verbatim as data (G36.4),

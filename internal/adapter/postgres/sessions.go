@@ -33,7 +33,7 @@ func (s *Store) Credentials(ctx context.Context, name string) (domain.Credential
 	if !validText(name, 128, false) {
 		return domain.Credentials{}, domain.ErrUnauthenticated
 	}
-	c, err := scanCredentials(s.Pool.QueryRow(ctx, `SELECT `+credentialColumns+` FROM users WHERE lower(name)=lower($1)`, name))
+	c, err := scanCredentials(s.Pool.QueryRow(ctx, `SELECT `+credentialColumns+` FROM users WHERE lower(name)=lower($1) AND share_id IS NULL`, name))
 	return c, err
 }
 
@@ -302,7 +302,7 @@ func (s *Store) SetLocalPassword(ctx context.Context, name, newHash string) (dom
 		return domain.User{}, err
 	}
 	defer tx.Rollback(ctx)
-	u, err := scanUser(tx.QueryRow(ctx, `SELECT `+userColumns+` FROM users WHERE lower(name)=lower($1) AND deleted_at IS NULL FOR UPDATE`, name))
+	u, err := scanUser(tx.QueryRow(ctx, `SELECT `+userColumns+` FROM users WHERE lower(name)=lower($1) AND deleted_at IS NULL AND share_id IS NULL FOR UPDATE`, name))
 	if err != nil {
 		return u, err
 	}

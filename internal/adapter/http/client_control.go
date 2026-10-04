@@ -177,7 +177,7 @@ func (c *ClientControl) run() {
 // accessRule maps a stored rule onto the engine's rule.
 func accessRule(id string, in domain.ClientRuleInput) access.Rule {
 	r := access.Rule{ID: id, Dimension: access.Dimension(in.Dimension), Header: in.Header, Match: access.MatchKind(in.Match), Pattern: in.Pattern, CaseFold: in.CaseFold,
-		Priority: in.Priority, Action: access.Action(in.Action), Intent: access.Action(in.Intent), Scope: access.Scope{Kind: access.ScopeKind(in.ScopeKind), Values: in.ScopeValues}, Enabled: in.Enabled, Note: in.Note}
+		Priority: in.Priority, Action: access.Action(in.Action), Intent: access.Action(in.Intent), Libraries: in.Libraries, Scope: access.Scope{Kind: access.ScopeKind(in.ScopeKind), Values: in.ScopeValues}, Enabled: in.Enabled, Note: in.Note}
 	if in.RateLimit != nil {
 		r.RateLimit = &access.RateLimit{Requests: in.RateLimit.Requests, Per: time.Duration(in.RateLimit.PeriodSeconds) * time.Second}
 	}
@@ -380,6 +380,14 @@ type gateInput struct {
 // client control error, domain.ErrUnauthenticated after a forced relogin, or
 // domain.ErrDatabase when a forced revocation could not be stored.
 func (c *ClientControl) check(ctx context.Context, req *clientRequest, in gateInput) error {
+	_, err := c.decide(ctx, req, in)
+	return err
+}
+
+// decide is check that also returns the library set a restrict_libraries
+// decision left the request: nil when unrestricted (G47, G48.5). The caller
+// passes it to the unified storage filter with the request's principal.
+func (c *ClientControl) decide(ctx context.Context, req *clientRequest, in gateInput) ([]string, error) {
 	st := c.state(ctx, in.version)
 	labels := req.labels(in.session)
 	if in.login != nil {
@@ -394,7 +402,7 @@ func (c *ClientControl) check(ctx context.Context, req *clientRequest, in gateIn
 			ClientKind: string(in.principal.Kind), UserID: in.principal.UserID, SessionID: in.principal.SessionID, IP: ipString(req.ip), At: now})
 	}
 	if st.empty {
-		return nil
+		return nil, nil
 	}
 	areq := access.Request{UserAgent: userAgent, AppName: labels.app, AppVersion: labels.version, DeviceID: labels.deviceID, DeviceName: labels.deviceName,
 		IP: req.ip, Headers: req.header, Principal: in.principal, Proxied: req.proxied, Time: now, Known: true}
@@ -410,7 +418,7 @@ func (c *ClientControl) check(ctx context.Context, req *clientRequest, in gateIn
 	d := st.snap.Evaluate(areq)
 	c.recordHits(st, req, in.principal, labels, userAgent, d, now)
 	if d.Exempt != access.ExemptNone {
-		return nil
+		return nil, nil
 	}
 	switch {
 	case (d.Verdict == access.VerdictDeny || d.Verdict == access.VerdictPending) && c.relaxed(devmode.RelaxClientUABlock):
@@ -420,15 +428,9 @@ func (c *ClientControl) check(ctx context.Context, req *clientRequest, in gateIn
 		// A blocked client is a security event: its trace is never
 		// dropped by sampling (G46.6).
 		domain.ForceTraceSampling(ctx)
-		return domain.ErrClientBlocked
+		return nil, domain.ErrClientBlocked
 	case d.Verdict == access.VerdictPending:
-		return domain.ErrClientPending
-	}
-	if d.Libraries != nil {
-		// Storage refuses restrict_libraries rules; fail closed should one
-		// ever reach a compiled set.
-		domain.ForceTraceSampling(ctx)
-		return domain.ErrClientBlocked
+		return nil, domain.ErrClientPending
 	}
 	if d.ForceRelogin && in.authenticated {
 		var rules []string
@@ -439,20 +441,22 @@ func (c *ClientControl) check(ctx context.Context, req *clientRequest, in gateIn
 		}
 		if len(rules) > 0 {
 			if err := c.store.RevokeSessionByClientRule(ctx, in.principal.SessionID, ipString(req.ip), rules); err != nil {
-				return domain.ErrDatabase
+				return nil, domain.ErrDatabase
 			}
-			return domain.ErrUnauthenticated
+			return nil, domain.ErrUnauthenticated
 		}
 	}
 	if d.RateLimit != nil && !c.relaxed(devmode.RelaxAPIRateLimit) {
 		if allowed, retry := c.allowRate(*d.RateLimit, req, labels, userAgent, in.principal.UserID); !allowed {
-			return clientRetryError{retry: retry}
+			return nil, clientRetryError{retry: retry}
 		}
 	}
 	if d.ReadOnly && !safeMethod(req.method) && !readOnlyAllowed(req) {
-		return domain.ErrClientReadOnly
+		return nil, domain.ErrClientReadOnly
 	}
-	return nil
+	// A restrict_libraries decision (possibly an empty set) narrows the
+	// request in storage; developer mode does not relax it.
+	return d.Libraries, nil
 }
 
 func ipString(a netip.Addr) string {

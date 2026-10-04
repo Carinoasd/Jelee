@@ -1,0 +1,125 @@
+{
+  "shares": {
+    "title": "Share links",
+    "intro": "A share link lets someone without an account browse one library or one item (a series with its seasons and episodes) until the link expires or you revoke it. Every redemption and use is recorded.",
+    "created": "Share link created.",
+    "create": {
+      "open": "New share link",
+      "title": "New share link",
+      "scope": "What to share",
+      "scopeLibrary": "A whole library",
+      "scopeItem": "One item with its seasons and episodes",
+      "library": "Library",
+      "libraryNone": "Choose a library",
+      "itemId": "Item ID",
+      "itemIdHint": "The ID at the end of the item page's address (/items/…).",
+      "expires": "Expires",
+      "customExpiry": "Expiry date and time",
+      "customExpiryHint": "In your local time; at least 5 minutes and at most 90 days from now.",
+      "note": "Note (only administrators see it)",
+      "readOnly": "Read-only",
+      "readOnlyHint": "Guests cannot write anything, not even watched marks or progress.",
+      "allowNative": "Allow native apps to direct play",
+      "allowNativeHint": "Only native (app) clients can redeem a session from this link that may direct play the original files, under the usual delivery rules. Web guests can only browse: the web never plays anything and nothing is transcoded.",
+      "concurrency": "Concurrent playbacks (1–{max})",
+      "concurrencyHint": "Counts all native guests of this link together.",
+      "webNotice": "Whoever opens the link in a browser gets a guest session that can only browse the shared items. Anyone who has the link can use it, so send it only to the people it is meant for.",
+      "submit": "Create link",
+      "invalidLibrary": "Choose a library.",
+      "invalidItem": "Enter the item's ID (36 characters, such as 1b4e28ba-2fa1-11d2-883f-0016d3cca427).",
+      "invalidExpiry": "Choose a time at least 5 minutes and at most 90 days from now.",
+      "invalidConcurrency": "Enter a whole number from 1 to {max}.",
+      "refused": "The server cannot create this link. Check the expiry and the other fields.",
+      "scopeMissing": "This library or item does not exist.",
+      "lifetime": {
+        "hour": "In 1 hour",
+        "day": "In 1 day",
+        "week": "In 7 days",
+        "month": "In 30 days",
+        "longest": "In 90 days (the longest)",
+        "custom": "Choose a date and time"
+      }
+    },
+    "grant": {
+      "title": "Copy the new link now",
+      "warning": "This link is shown only this once. After you close this box it cannot be shown again; if it is lost, revoke the link and create a new one.",
+      "label": "Share link",
+      "copy": "Copy link",
+      "copied": "Link copied.",
+      "copyFailed": "The link could not be copied automatically. It is selected; copy it yourself.",
+      "close": "Close, I have copied it"
+    },
+    "list": {
+      "title": "Links",
+      "scope": "Shared content",
+      "state": "Status",
+      "expires": "Expires or revoked",
+      "sessions": "Active sessions",
+      "lastUsed": "Last used",
+      "never": "Never",
+      "empty": "No share links yet",
+      "emptyHint": "The newest 200 links are listed here.",
+      "readOnly": "Read-only",
+      "native": "Native direct play, up to {count} at once",
+      "itemScope": "{title} (in {library})",
+      "libraryScope": "Library {library}",
+      "accessLog": "Access log",
+      "revoke": "Revoke",
+      "revokeConfirm": "Revoke link",
+      "revokePrompt": "The link stops working at once and its {count} active guest sessions end. This cannot be undone.",
+      "revoked": "Share link revoked."
+    },
+    "state": {
+      "active": "Active",
+      "expired": "Expired",
+      "revoked": "Revoked"
+    },
+    "access": {
+      "title": "Access log: {scope}",
+      "close": "Close log",
+      "caption": "Recorded events of the share link, newest first",
+      "time": "Time",
+      "eventColumn": "Event",
+      "who": "Device and address",
+      "route": "Request",
+      "empty": "No recorded events",
+      "event": {
+        "created": "Link created",
+        "revoked": "Link revoked",
+        "redeemed": "Link opened",
+        "redeemRefused": "Opening refused",
+        "accessed": "Content viewed",
+        "accessRefused": "Request refused"
+      },
+      "reason": {
+        "revoked": "The link was revoked.",
+        "expired": "The link had expired.",
+        "native": "The link does not allow native direct play.",
+        "sessionLimit": "Too many guest sessions at once."
+      },
+      "kind": {
+        "web": "Web",
+        "native": "Native app"
+      }
+    },
+    "redeem": {
+      "title": "Shared link",
+      "working": "Opening the shared content…",
+      "missing": "This address contains no share link. Ask the sender for the complete link.",
+      "signedIn": "You are signed in as {name}. Opening the link as a guest signs this browser out of that account.",
+      "continue": "Sign out and open as a guest",
+      "stay": "Stay signed in",
+      "failed": "The shared link could not be opened."
+    },
+    "guest": {
+      "title": "Shared with you",
+      "item": "Shared from the library {library}:",
+      "library": "Shared library: {name}",
+      "expires": "Available until {time}",
+      "readOnly": "Read-only",
+      "browseOnly": "You can browse the shared items here. Nothing plays in the web browser.",
+      "items": "Items",
+      "empty": "There is nothing to show yet."
+    }
+  }
+}

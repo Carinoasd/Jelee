@@ -8,8 +8,16 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
-func libraryAccess(ctx context.Context, tx pgx.Tx, userID string) ([]domain.LibraryGrant, error) {
-	rows, err := tx.Query(ctx, `SELECT l.id::text,l.name FROM library_acl a JOIN libraries l ON l.id=a.library_id WHERE a.user_id=$1::uuid ORDER BY l.id LIMIT 1001`, userID)
+// libraryAccess lists a user's grants. With a request (a user reading its
+// own grants) the libraries hidden from that request (G48.5) are left out,
+// like everywhere else it reads; an administrator managing grants sees all.
+func libraryAccess(ctx context.Context, tx pgx.Tx, userID string, request bool) ([]domain.LibraryGrant, error) {
+	hidden := ``
+	var rq any
+	if request {
+		hidden, rq = ` AND l.id <> ALL(`+requestHiddenSQL("$2", false)+`)`, requestScopeArg(ctx)
+	}
+	rows, err := tx.Query(ctx, `SELECT l.id::text,l.name FROM library_acl a JOIN libraries l ON l.id=a.library_id WHERE a.user_id=$1::uuid AND ($2::jsonb IS NULL OR true)`+hidden+` ORDER BY l.id LIMIT 1001`, userID, rq)
 	if err != nil {
 		return nil, storageError(err)
 	}
@@ -43,7 +51,7 @@ func (s *Store) GetLibraryAccess(ctx context.Context, actor domain.Actor, userID
 	if _, err = userInTransaction(ctx, tx, userID); err != nil {
 		return nil, err
 	}
-	grants, err := libraryAccess(ctx, tx, userID)
+	grants, err := libraryAccess(ctx, tx, userID, !admin)
 	if err != nil {
 		return nil, err
 	}
@@ -83,7 +91,7 @@ func (s *Store) ReplaceLibraryAccess(ctx context.Context, actor domain.Actor, us
 	if count != len(ids) {
 		return domain.ErrNotFound
 	}
-	before, err := libraryAccess(ctx, tx, userID)
+	before, err := libraryAccess(ctx, tx, userID, false)
 	if err != nil {
 		return err
 	}

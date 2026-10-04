@@ -13,6 +13,7 @@ import (
 
 	"github.com/MoYuanCN/Jelee/internal/domain"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 )
 
 // AuditEntry is one audit row to append. TargetID must be a UUID; TargetRef
@@ -32,6 +33,15 @@ type AuditEntry struct {
 // typo cannot create an unqueryable or wrongly retained stream.
 var auditEvents = map[string]string{
 	"access.policy_changed":                domain.AuditCategoryAudit,
+	"access.network_rule_created":          domain.AuditCategoryAudit,
+	"access.network_rule_deleted":          domain.AuditCategoryAudit,
+	"access.network_rule_updated":          domain.AuditCategoryAudit,
+	"share.accessed":                       domain.AuditCategorySecurity,
+	"share.access_refused":                 domain.AuditCategorySecurity,
+	"share.created":                        domain.AuditCategoryAudit,
+	"share.redeem_refused":                 domain.AuditCategorySecurity,
+	"share.redeemed":                       domain.AuditCategorySecurity,
+	"share.revoked":                        domain.AuditCategoryAudit,
 	"audit.retention_changed":              domain.AuditCategoryAudit,
 	"audit.retention_purged":               domain.AuditCategoryAudit,
 	"catalog_import.finished":              domain.AuditCategoryAudit,
@@ -262,7 +272,13 @@ func validAuditTargetRef(ref string) bool {
 
 // appendAudit is the only writer of audit_logs. It runs inside the caller's
 // transaction so the audit row commits or rolls back with the change itself.
-func appendAudit(ctx context.Context, tx pgx.Tx, e AuditEntry) error {
+// auditExecer is a transaction, or the pool for an entry that is a change
+// of its own (a share access record).
+type auditExecer interface {
+	Exec(context.Context, string, ...any) (pgconn.CommandTag, error)
+}
+
+func appendAudit(ctx context.Context, tx auditExecer, e AuditEntry) error {
 	category, ok := auditCategory(e.Event)
 	if !ok || e.TargetID != "" && e.TargetRef != "" || e.TargetRef != "" && !validAuditTargetRef(e.TargetRef) {
 		return domain.ErrDatabase

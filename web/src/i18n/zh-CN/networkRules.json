@@ -1,0 +1,56 @@
+{
+  "networkRules": {
+    "title": "网络规则",
+    "intro": "限制可从哪些网络与哪种客户端看到某个媒体库。媒体库有启用中的规则时，请求必须符合其中至少一条才能看到它，而且该规则的所有条件都必须成立。没有规则的媒体库不受影响。",
+    "adminsNote": "管理员只受包含管理员的规则限制。设备类型按服务器签发的会话种类（网页浏览器或原生应用）判定。",
+    "add": "添加规则",
+    "empty": "没有网络规则",
+    "emptyHint": "所有媒体库都可从任何网络看到。",
+    "created": "已创建网络规则。",
+    "updated": "已保存网络规则。",
+    "deleted": "已删除网络规则。",
+    "deleteConfirm": "删除规则",
+    "deletePrompt": "如果这是该媒体库最后一条启用中的规则，媒体库将再次可从所有网络看到。",
+    "anyAddress": "任何地址",
+    "anyClient": "任何客户端",
+    "includesAdmins": "包含管理员",
+    "column": {
+      "library": "媒体库",
+      "network": "网络",
+      "addresses": "地址",
+      "clients": "客户端",
+      "enabled": "启用"
+    },
+    "network": {
+      "any": "任何网络",
+      "lan": "局域网（LAN）",
+      "wan": "互联网（WAN）"
+    },
+    "kind": {
+      "web": "网页浏览器",
+      "native": "原生应用"
+    },
+    "form": {
+      "createTitle": "新建网络规则",
+      "editTitle": "编辑网络规则",
+      "library": "媒体库",
+      "libraryNone": "选择媒体库",
+      "libraryRequired": "请选择媒体库。",
+      "network": "网络",
+      "networkHint": "LAN 指经可信代理判定的客户端地址为私有地址（RFC 1918）、唯一本地地址（fc00::/7）或环回地址。WAN 为其他所有地址。",
+      "note": "备注",
+      "cidrs": "地址或前缀",
+      "cidrsHint": "每行一个，例如 192.168.1.0/24、10.0.0.5 或 2001:db8::/32。留空表示任何地址。最多 {max} 个。",
+      "tooMany": "最多 {max} 个地址或前缀。",
+      "tooLong": "有一项超过 {max} 个字符。",
+      "clientKinds": "客户端",
+      "clientKindsHint": "都不勾选表示任何客户端。",
+      "includeAdmins": "也应用于管理员",
+      "includeAdminsHint": "关闭时，管理员不受此规则限制。",
+      "enabled": "启用",
+      "invalid": "服务器无法使用此规则。请检查地址与前缀。",
+      "submitCreate": "创建规则",
+      "submitUpdate": "保存规则"
+    }
+  }
+}

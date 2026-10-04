@@ -12,6 +12,7 @@ import PluginItemActions from "@/plugins/host/PluginItemActions.vue";
 import PluginOutlet from "@/plugins/host/PluginOutlet.vue";
 import { toPluginItem } from "@/plugins/host/restrictedApi";
 import { useAuthStore } from "@/stores/auth";
+import { useGuestShareStore } from "@/stores/guestShare";
 import { useItemDetailStore } from "@/stores/itemDetail";
 import { useLayoutStore } from "@/stores/layout";
 import { useLibrariesStore } from "@/stores/libraries";
@@ -34,6 +35,8 @@ const ItemVersionsPanel = defineAsyncComponent(async () => (await Promise.all([i
 const TrackPreferencesPanel = defineAsyncComponent(async () => (await Promise.all([import("./TrackPreferencesPanel.vue"), loadLazyMessages(i18nGlobal, "versions")]))[0]);
 const store = useItemDetailStore();
 const libraries = useLibrariesStore();
+const auth = useAuthStore();
+const guest = useGuestShareStore();
 const layout = useLayoutStore();
 // Panels in the user's order (G33.5); hidden panels are not rendered.
 const panels = computed(() => layout.visibleIds("detail"));
@@ -51,7 +54,13 @@ watch(
   () => props.itemId,
   (id) => {
     void store.open(id);
-    void libraries.ensureLoaded();
+    // A share guest may not list libraries (the server refuses and audits
+    // it), so its breadcrumbs name the share instead.
+    if (auth.isGuest) {
+      void guest.ensure();
+    } else {
+      void libraries.ensureLoaded();
+    }
   },
   { immediate: true },
 );
@@ -60,6 +69,11 @@ const loaded = computed(() => (store.state.status === "success" ? store.state.da
 const libraryName = computed(() => {
   const id = loaded.value?.item.libraryId;
   return id === undefined ? "" : (libraries.find(id)?.name ?? t("libraries.library"));
+});
+/** The share's name for a guest's breadcrumbs: its item, else its library. */
+const shareName = computed(() => {
+  const share = guest.share;
+  return share === null ? t("common.sharedWithMe") : (share.itemTitle ?? share.libraryName);
 });
 const nfoFields = computed(() => new Set<string>(loaded.value?.item.nfo.fields ?? []));
 
@@ -101,7 +115,15 @@ function language(value: string | undefined): string {
         </div>
       </template>
       <template #default="{ data }">
-        <nav class="jl-crumbs" :aria-label="t('common.breadcrumbs')">
+        <nav v-if="auth.isGuest" class="jl-crumbs" :aria-label="t('common.breadcrumbs')" data-testid="guest-crumbs">
+          <RouterLink :to="{ name: 'shared' }">{{ shareName }}</RouterLink>
+          <!-- The shared item's own parent lies outside the share. -->
+          <template v-if="data.item.parentId && data.item.id !== guest.share?.itemId">
+            <span aria-hidden="true">/</span>
+            <RouterLink :to="{ name: 'item', params: { itemId: data.item.parentId } }">{{ t("items.detail.parent") }}</RouterLink>
+          </template>
+        </nav>
+        <nav v-else class="jl-crumbs" :aria-label="t('common.breadcrumbs')">
           <RouterLink :to="{ name: 'libraries' }">{{ t("libraries.title") }}</RouterLink>
           <span aria-hidden="true">/</span>
           <RouterLink :to="{ name: 'library', params: { libraryId: data.item.libraryId } }">{{ libraryName }}</RouterLink>

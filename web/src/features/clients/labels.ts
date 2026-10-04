@@ -30,6 +30,7 @@ export const ruleActionKeys: Readonly<Record<RuleAction, string>> = {
   read_only: "clients.action.read_only",
   rate_limit: "clients.action.rate_limit",
   force_relogin: "clients.action.force_relogin",
+  restrict_libraries: "clients.action.restrict_libraries",
   observe: "clients.action.observe",
   shadow: "clients.action.shadow",
 };
@@ -46,6 +47,7 @@ export const intentKeys: Readonly<Record<RuleIntent, string>> = {
   read_only: "clients.action.read_only",
   rate_limit: "clients.action.rate_limit",
   force_relogin: "clients.action.force_relogin",
+  restrict_libraries: "clients.action.restrict_libraries",
 };
 
 export const unknownClientsKeys: Readonly<Record<UnknownClientsPolicy, { label: string; impact: string }>> = {
