@@ -164,6 +164,12 @@ func (c *Client) Fetch(ctx context.Context, rawURL string, maxBytes int64) (Resp
 	if err != nil {
 		return Response{}, safeError(ctx, err)
 	}
+	// A peer may finish its response cleanly once cancellation closed the
+	// connection; a body that ended after the context did is not complete
+	// (same rule as streamBody.Read).
+	if err := ctx.Err(); err != nil {
+		return Response{}, err
+	}
 	if int64(len(data)) > maxBytes {
 		return Response{}, ErrTooLarge
 	}

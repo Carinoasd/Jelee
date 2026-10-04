@@ -296,3 +296,29 @@ func TestStreamBodyEOFAfterCancellationIsNotCompletion(t *testing.T) {
 		t.Fatalf("data=%q error=%v", data, err)
 	}
 }
+
+type roundTripFunc func(*http.Request) (*http.Response, error)
+
+func (f roundTripFunc) RoundTrip(r *http.Request) (*http.Response, error) { return f(r) }
+
+// Fetch follows the stream rule: a JSON body whose clean end arrives after
+// the context ended is a truncated response, never a completed one.
+func TestFetchEOFAfterCancellationIsNotCompletion(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}))
+	defer srv.Close()
+	c, _ := mappedClient(t, srv, publicLookup)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	c.http.Transport = roundTripFunc(func(r *http.Request) (*http.Response, error) {
+		return &http.Response{StatusCode: 200, Header: http.Header{}, Body: &cancelAtEOFBody{data: []byte(`{"partial"`), cancel: cancel}, Request: r}, nil
+	})
+	if r, err := c.Fetch(ctx, "http://fetch.example/", 128); !errors.Is(err, context.Canceled) {
+		t.Fatalf("response=%q error=%v want context.Canceled", r.Body, err)
+	}
+	c.http.Transport = roundTripFunc(func(r *http.Request) (*http.Response, error) {
+		return &http.Response{StatusCode: 200, Header: http.Header{}, Body: &cancelAtEOFBody{data: []byte(`{}`)}, Request: r}, nil
+	})
+	if r, err := c.Fetch(context.Background(), "http://fetch.example/", 128); err != nil || string(r.Body) != "{}" {
+		t.Fatalf("live context: response=%q error=%v", r.Body, err)
+	}
+}
