@@ -48,8 +48,12 @@ export const bannedSourcePatterns = [
   { name: "Encrypted Media Extensions", pattern: /requestMediaKeySystemAccess/ },
 ];
 
-/** Path segments that would denote a playback route or the stream endpoint. */
-const playbackSegment = /^(?:play|player|playback|playing|now-playing|stream|streams|cast|pip|picture-in-picture|theater)$/i;
+/**
+ * Path segments that would denote a playback route, the stream endpoint or
+ * the external subtitle and audio track delivery endpoints.
+ */
+const playbackSegment =
+  /^(?:play|player|playback|playing|now-playing|stream|streams|subtitles|audio|cast|pip|picture-in-picture|theater)$/i;
 const pathLiteral = /["'`](\/[A-Za-z0-9_:{}()*./-]*)["'`]/g;
 
 const sourceExtensions = new Set([".ts", ".vue", ".js", ".mjs", ".html", ".css"]);
@@ -188,7 +192,8 @@ export function checkWorkspace(repoRoot, { requireDist = false } = {}) {
       continue;
     }
     // The generated contract lists every server path, including the native
-    // stream endpoint; api/client.ts removes it from the web client's type.
+    // stream and track endpoints; api/client.ts removes them from the web
+    // client's type.
     const generated = file.endsWith(join("src", "api", "schema.d.ts"));
     report(file, textViolations(readFileSync(file, "utf8"), { checkRoutes: !generated }));
   }

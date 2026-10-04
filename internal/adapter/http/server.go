@@ -226,6 +226,10 @@ func newServer(cfg config.Config, backend Backend, catalog *app.Catalog, resolve
 			if cfg.EnableDirect {
 				r.Get("/api/v1/sources/{id}/stream", s.stream)
 				r.Head("/api/v1/sources/{id}/stream", s.stream)
+				r.Get(subtitleTrackRoute, s.track(media.TrackSubtitle))
+				r.Head(subtitleTrackRoute, s.track(media.TrackSubtitle))
+				r.Get(audioTrackRoute, s.track(media.TrackAudio))
+				r.Head(audioTrackRoute, s.track(media.TrackAudio))
 				r.Get("/api/v1/items/{id}/playback", s.playbackInfo)
 				r.Post("/api/v1/items/{id}/playback/check", s.playbackCheck)
 			}
@@ -456,6 +460,42 @@ func (s *Server) stream(w http.ResponseWriter, r *http.Request) {
 	s.delivery.ServeSource(w, r, id)
 }
 
+// External track routes (G10.9, G15.5, G16.4). They share the production
+// guard, the native-only rule and the whole direct delivery path of stream.
+const (
+	subtitleTrackRoute = "/api/v1/sources/{id}/subtitles/{trackId}"
+	audioTrackRoute    = "/api/v1/sources/{id}/audio/{trackId}"
+)
+
+// trackURL is the direct delivery URL of one external track, relative to the
+// API origin as clients address every other route.
+func trackURL(sourceID, kind, trackID string) string {
+	segment := "audio"
+	if kind == domain.SidecarKindSubtitle {
+		segment = "subtitles"
+	}
+	return "/api/v1/sources/" + sourceID + "/" + segment + "/" + trackID
+}
+
+func (s *Server) track(kind media.TrackKind) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if err := media.GuardProduction(r); err != nil {
+			WriteError(w, r, err)
+			return
+		}
+		if _, err := strictQuery(r); err != nil {
+			WriteError(w, r, err)
+			return
+		}
+		id, trackID := chi.URLParam(r, "id"), chi.URLParam(r, "trackId")
+		if !domain.ValidID(id) || !domain.ValidID(trackID) {
+			WriteError(w, r, domain.ErrNotFound)
+			return
+		}
+		s.delivery.ServeTrack(w, r, id, kind, trackID)
+	}
+}
+
 // deliveryLimits maps the per-limit switches of G45.4 onto the delivery handler.
 func deliveryLimits(c config.StreamingConfig) media.Limits {
 	return media.Limits{StreamLimit: c.EnableStreamLimit, MaxStreamsPerUser: c.MaxStreamsPerUser, MaxStreamsPerDevice: c.MaxStreamsPerDevice,
@@ -479,6 +519,14 @@ type hiddenContentResolver struct{ media.Resolver }
 
 func (h hiddenContentResolver) Resolve(ctx context.Context, p access.Principal, id string) (media.Source, error) {
 	source, err := h.Resolver.Resolve(ctx, p, id)
+	if errors.Is(err, domain.ErrNotFound) || errors.Is(err, media.ErrNotFound) {
+		return media.Source{}, domain.ErrForbidden
+	}
+	return source, err
+}
+
+func (h hiddenContentResolver) ResolveTrack(ctx context.Context, p access.Principal, sourceID string, kind media.TrackKind, trackID string) (media.Source, error) {
+	source, err := h.Resolver.ResolveTrack(ctx, p, sourceID, kind, trackID)
 	if errors.Is(err, domain.ErrNotFound) || errors.Is(err, media.ErrNotFound) {
 		return media.Source{}, domain.ErrForbidden
 	}

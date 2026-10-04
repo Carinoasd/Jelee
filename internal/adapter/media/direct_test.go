@@ -27,6 +27,12 @@ func (f resolveFunc) Resolve(ctx context.Context, principal access.Principal, id
 	return f(ctx, principal, id)
 }
 
+// ResolveTrack lets the source fixtures double as track fixtures; the track
+// ID reaches the function.
+func (f resolveFunc) ResolveTrack(ctx context.Context, principal access.Principal, _ string, _ TrackKind, trackID string) (Source, error) {
+	return f(ctx, principal, trackID)
+}
+
 func testWriteError(w http.ResponseWriter, _ *http.Request, err error) {
 	status := 500
 	for candidate, code := range map[error]int{ErrUnauthenticated: 401, ErrPlaybackDenied: 403, ErrNotFound: 404, ErrTranscodeDisabled: 409, ErrInvalidRequest: 400, ErrBusy: 429, ErrMethodNotAllowed: 405, ErrInvalidRange: 416, ErrPreconditionFailed: 412, ErrBodyTooLarge: 413, ErrUnsupportedMediaType: 415, ErrLookupTimeout: 504} {

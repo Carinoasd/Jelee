@@ -56,6 +56,12 @@ func (s *Server) playbackInfo(w http.ResponseWriter, r *http.Request) {
 		WriteError(w, r, s.hiddenContentError(err))
 		return
 	}
+	for i := range sources {
+		for j := range sources[i].External {
+			track := &sources[i].External[j]
+			track.URL = trackURL(sources[i].ID, track.Kind, track.ID)
+		}
+	}
 	writeJSON(w, http.StatusOK, map[string]any{"data": map[string]any{"itemId": id, "delivery": playbackDelivery, "sources": sources}})
 }
 
@@ -79,7 +85,13 @@ func (s *Server) playbackCheck(w http.ResponseWriter, r *http.Request) {
 	}
 	playable, unsupported := false, 0
 	reasons := []string{}
-	for _, d := range decisions {
+	for i := range decisions {
+		d := &decisions[i]
+		for j := range d.Tracks {
+			if track := &d.Tracks[j]; track.External {
+				track.URL = trackURL(d.SourceID, track.Kind, track.ID)
+			}
+		}
 		playable = playable || d.DirectPlay
 		if !d.DirectPlay {
 			unsupported++

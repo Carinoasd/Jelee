@@ -10,6 +10,7 @@ import (
 	"mime"
 	"net/http"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -34,12 +35,23 @@ type Source struct {
 	DeviceID string
 	// Limits are the user's delivery overrides; nil fields follow Options.Limits.
 	Limits domain.DeliveryLimits
+	// Charset is the detected charset of an external text subtitle. It is
+	// only reported as a Content-Type parameter; the bytes are never
+	// converted.
+	Charset string
 }
 
 // Resolver must apply authorization in its lookup, check enabled users and
 // sessions, and return ErrNotFound for missing or invisible sources alike.
 type Resolver interface {
 	Resolve(context.Context, access.Principal, string) (Source, error)
+	// ResolveTrack binds one external subtitle or audio file of a source
+	// (G10.9). It applies the same checks as Resolve to the source and also
+	// returns ErrNotFound when the track does not belong to that source or is
+	// of another kind. The handler derives the content type from the file
+	// extension and ignores the returned ContentType. ETag follows the rules
+	// of Source: leave it empty without a verified content revision.
+	ResolveTrack(ctx context.Context, principal access.Principal, sourceID string, kind TrackKind, trackID string) (Source, error)
 }
 
 type Options struct {
@@ -95,6 +107,32 @@ func NewHandler(resolver Resolver, options Options) (*Handler, error) {
 // ServeSource accepts an opaque identifier already validated by the HTTP route.
 // It deliberately accepts no request-supplied filesystem path or root.
 func (h *Handler) ServeSource(w http.ResponseWriter, r *http.Request, sourceID string) {
+	h.serve(w, r, sourceID, func(ctx context.Context, principal access.Principal) (Source, error) {
+		return h.resolver.Resolve(ctx, principal, sourceID)
+	})
+}
+
+// ServeTrack delivers one external subtitle or audio file of a source as it
+// is (G10.9, G15.5, G16.4), through the same checks, limits, revocation and
+// copy paths as ServeSource. A track counts as part of its source's playback:
+// a session fetching the video and its sidecars holds one playback slot.
+func (h *Handler) ServeTrack(w http.ResponseWriter, r *http.Request, sourceID string, kind TrackKind, trackID string) {
+	if !kind.valid() || trackID == "" {
+		// A malformed call is answered like a missing source, after the
+		// authentication and session checks in serve.
+		sourceID = ""
+	}
+	h.serve(w, r, sourceID, func(ctx context.Context, principal access.Principal) (Source, error) {
+		source, err := h.resolver.ResolveTrack(ctx, principal, sourceID, kind, trackID)
+		if err != nil {
+			return Source{}, err
+		}
+		source.ContentType = TrackContentType(kind, path.Ext(source.RelativePath), source.Charset)
+		return source, nil
+	})
+}
+
+func (h *Handler) serve(w http.ResponseWriter, r *http.Request, sourceID string, resolve func(context.Context, access.Principal) (Source, error)) {
 	w.Header().Del("Content-Disposition")
 	principal, authenticated := access.PrincipalFromContext(r.Context())
 	if !authenticated {
@@ -134,7 +172,7 @@ func (h *Handler) ServeSource(w http.ResponseWriter, r *http.Request, sourceID s
 		return
 	}
 	lookupCtx, cancelLookup := context.WithTimeout(r.Context(), h.options.LookupTimeout)
-	source, err := h.resolver.Resolve(lookupCtx, principal, sourceID)
+	source, err := resolve(lookupCtx, principal)
 	lookupErr := lookupCtx.Err()
 	cancelLookup()
 	if errors.Is(lookupErr, context.DeadlineExceeded) && r.Context().Err() == nil {

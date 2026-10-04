@@ -142,6 +142,9 @@ type PlaybackExternalTrack struct {
 	Commentary bool     `json:"commentary"`
 	Charset    string   `json:"charset,omitempty"`
 	SizeBytes  int64    `json:"sizeBytes"`
+	// URL is the direct delivery route of the original file. The HTTP
+	// adapter fills it; this layer does not know routes.
+	URL string `json:"url,omitempty"`
 }
 
 // PlaybackDecision is the direct play verdict for one source. Reasons is
@@ -162,7 +165,14 @@ type PlaybackTrackDecision struct {
 	ID        string `json:"id,omitempty"`
 	External  bool   `json:"external"`
 	Supported bool   `json:"supported"`
-	Reason    string `json:"reason,omitempty"`
+	// Code is PlaybackUnsupportedCode exactly when Supported is false: the
+	// track cannot be direct played by this client and no conversion is
+	// offered in its place.
+	Code   string `json:"code,omitempty"`
+	Reason string `json:"reason,omitempty"`
+	// URL is the direct delivery route of an external track's original
+	// file, filled by the HTTP adapter.
+	URL string `json:"url,omitempty"`
 }
 
 var playbackContainerTypes = map[string]string{
@@ -429,6 +439,8 @@ func CheckPlayback(caps ClientCapabilities, source PlaybackSource) PlaybackDecis
 		}
 		if decision.Supported {
 			decision.Reason = ""
+		} else {
+			decision.Code = PlaybackUnsupportedCode
 		}
 		d.Tracks = append(d.Tracks, decision)
 	}
@@ -438,7 +450,7 @@ func CheckPlayback(caps ClientCapabilities, source PlaybackSource) PlaybackDecis
 func trackDecision(kind string, index *int, supported bool, reason string) PlaybackTrackDecision {
 	d := PlaybackTrackDecision{Kind: kind, Index: index, Supported: supported}
 	if !supported {
-		d.Reason = reason
+		d.Code, d.Reason = PlaybackUnsupportedCode, reason
 	}
 	return d
 }

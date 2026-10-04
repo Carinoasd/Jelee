@@ -3547,6 +3547,13 @@
             "items": {
               "additionalProperties": false,
               "properties": {
+                "code": {
+                  "description": "Present exactly when supported is false: the client cannot direct play this track. No conversion is offered in its place.",
+                  "enum": [
+                    "direct_play_unsupported"
+                  ],
+                  "type": "string"
+                },
                 "external": {
                   "type": "boolean"
                 },
@@ -3575,6 +3582,10 @@
                 },
                 "supported": {
                   "type": "boolean"
+                },
+                "url": {
+                  "description": "Direct delivery route of an external track's original file; absent for embedded streams.",
+                  "type": "string"
                 }
               },
               "required": [
@@ -3704,6 +3715,7 @@
               "additionalProperties": false,
               "properties": {
                 "charset": {
+                  "description": "Detected charset of a text subtitle. Reported only; the file is delivered unconverted.",
                   "type": "string"
                 },
                 "codec": {
@@ -3752,6 +3764,10 @@
                 },
                 "title": {
                   "type": "string"
+                },
+                "url": {
+                  "description": "Direct delivery route of the original file: /api/v1/sources/{id}/subtitles/{trackId} or /api/v1/sources/{id}/audio/{trackId}. Native sessions only.",
+                  "type": "string"
                 }
               },
               "required": [
@@ -3762,7 +3778,8 @@
                 "sdh",
                 "default",
                 "commentary",
-                "sizeBytes"
+                "sizeBytes",
+                "url"
               ],
               "type": "object"
             },
@@ -14174,6 +14191,218 @@
         "x-jelee-role": "administrator"
       }
     },
+    "/api/v1/sources/{id}/audio/{trackId}": {
+      "get": {
+        "description": "Native sessions only; web sessions get 403 web_playback_disabled. Delivers the external audio file listed under externalTracks of GET /api/v1/items/{id}/playback byte for byte (G10.9): no burn-in, re-encoding, remuxing or charset conversion. The track must belong to the source and the source must be visible to the caller; a missing, invisible or foreign track is answered like a missing source. Range, HEAD, conditional requests, playback and bandwidth limits and revocation behave as for /api/v1/sources/{id}/stream, and a track counts as part of its source's playback. Content-Type comes from a fixed table keyed by the file extension (application/octet-stream when unknown); a detected subtitle charset is only reported as its charset parameter. Responses carry X-Content-Type-Options: nosniff and a sandbox Content-Security-Policy.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "trackId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Range",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "If-Range",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "HTTP 200"
+          },
+          "206": {
+            "description": "HTTP 206"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 403"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 404"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 409"
+          },
+          "416": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 416"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Jelee error envelope with code, message, details and traceId; see the Error schema."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "webSession": []
+          }
+        ],
+        "summary": "Read an unmodified external audio file of a source",
+        "x-jelee-session": "native"
+      },
+      "head": {
+        "description": "Native sessions only; web sessions get 403 web_playback_disabled. Delivers the external audio file listed under externalTracks of GET /api/v1/items/{id}/playback byte for byte (G10.9): no burn-in, re-encoding, remuxing or charset conversion. The track must belong to the source and the source must be visible to the caller; a missing, invisible or foreign track is answered like a missing source. Range, HEAD, conditional requests, playback and bandwidth limits and revocation behave as for /api/v1/sources/{id}/stream, and a track counts as part of its source's playback. Content-Type comes from a fixed table keyed by the file extension (application/octet-stream when unknown); a detected subtitle charset is only reported as its charset parameter. Responses carry X-Content-Type-Options: nosniff and a sandbox Content-Security-Policy.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "trackId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Range",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "If-Range",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "HTTP 200"
+          },
+          "206": {
+            "description": "HTTP 206"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 403"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 404"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 409"
+          },
+          "416": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 416"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Jelee error envelope with code, message, details and traceId; see the Error schema."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "webSession": []
+          }
+        ],
+        "summary": "Read an unmodified external audio file of a source",
+        "x-jelee-session": "native"
+      }
+    },
     "/api/v1/sources/{id}/stream": {
       "get": {
         "parameters": [
@@ -14322,6 +14551,218 @@
           }
         ],
         "summary": "Read the unmodified original resource"
+      }
+    },
+    "/api/v1/sources/{id}/subtitles/{trackId}": {
+      "get": {
+        "description": "Native sessions only; web sessions get 403 web_playback_disabled. Delivers the external subtitle file listed under externalTracks of GET /api/v1/items/{id}/playback byte for byte (G10.9): no burn-in, re-encoding, remuxing or charset conversion. The track must belong to the source and the source must be visible to the caller; a missing, invisible or foreign track is answered like a missing source. Range, HEAD, conditional requests, playback and bandwidth limits and revocation behave as for /api/v1/sources/{id}/stream, and a track counts as part of its source's playback. Content-Type comes from a fixed table keyed by the file extension (application/octet-stream when unknown); a detected subtitle charset is only reported as its charset parameter. Responses carry X-Content-Type-Options: nosniff and a sandbox Content-Security-Policy.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "trackId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Range",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "If-Range",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "HTTP 200"
+          },
+          "206": {
+            "description": "HTTP 206"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 403"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 404"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 409"
+          },
+          "416": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 416"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Jelee error envelope with code, message, details and traceId; see the Error schema."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "webSession": []
+          }
+        ],
+        "summary": "Read an unmodified external subtitle file of a source",
+        "x-jelee-session": "native"
+      },
+      "head": {
+        "description": "Native sessions only; web sessions get 403 web_playback_disabled. Delivers the external subtitle file listed under externalTracks of GET /api/v1/items/{id}/playback byte for byte (G10.9): no burn-in, re-encoding, remuxing or charset conversion. The track must belong to the source and the source must be visible to the caller; a missing, invisible or foreign track is answered like a missing source. Range, HEAD, conditional requests, playback and bandwidth limits and revocation behave as for /api/v1/sources/{id}/stream, and a track counts as part of its source's playback. Content-Type comes from a fixed table keyed by the file extension (application/octet-stream when unknown); a detected subtitle charset is only reported as its charset parameter. Responses carry X-Content-Type-Options: nosniff and a sandbox Content-Security-Policy.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "trackId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Range",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "If-Range",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "HTTP 200"
+          },
+          "206": {
+            "description": "HTTP 206"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 403"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 404"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 409"
+          },
+          "416": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 416"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Jelee error envelope with code, message, details and traceId; see the Error schema."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "webSession": []
+          }
+        ],
+        "summary": "Read an unmodified external subtitle file of a source",
+        "x-jelee-session": "native"
       }
     },
     "/api/v1/system": {

@@ -7467,6 +7467,180 @@ export type paths = {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/sources/{id}/audio/{trackId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read an unmodified external audio file of a source
+         * @description Native sessions only; web sessions get 403 web_playback_disabled. Delivers the external audio file listed under externalTracks of GET /api/v1/items/{id}/playback byte for byte (G10.9): no burn-in, re-encoding, remuxing or charset conversion. The track must belong to the source and the source must be visible to the caller; a missing, invisible or foreign track is answered like a missing source. Range, HEAD, conditional requests, playback and bandwidth limits and revocation behave as for /api/v1/sources/{id}/stream, and a track counts as part of its source's playback. Content-Type comes from a fixed table keyed by the file extension (application/octet-stream when unknown); a detected subtitle charset is only reported as its charset parameter. Responses carry X-Content-Type-Options: nosniff and a sandbox Content-Security-Policy.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: {
+                    "If-Range"?: string;
+                    Range?: string;
+                };
+                path: {
+                    id: string;
+                    trackId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description HTTP 200 */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description HTTP 206 */
+                206: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description HTTP 403 */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 404 */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 409 */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 416 */
+                416: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Jelee error envelope with code, message, details and traceId; see the Error schema. */
+                default: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        /**
+         * Read an unmodified external audio file of a source
+         * @description Native sessions only; web sessions get 403 web_playback_disabled. Delivers the external audio file listed under externalTracks of GET /api/v1/items/{id}/playback byte for byte (G10.9): no burn-in, re-encoding, remuxing or charset conversion. The track must belong to the source and the source must be visible to the caller; a missing, invisible or foreign track is answered like a missing source. Range, HEAD, conditional requests, playback and bandwidth limits and revocation behave as for /api/v1/sources/{id}/stream, and a track counts as part of its source's playback. Content-Type comes from a fixed table keyed by the file extension (application/octet-stream when unknown); a detected subtitle charset is only reported as its charset parameter. Responses carry X-Content-Type-Options: nosniff and a sandbox Content-Security-Policy.
+         */
+        head: {
+            parameters: {
+                query?: never;
+                header?: {
+                    "If-Range"?: string;
+                    Range?: string;
+                };
+                path: {
+                    id: string;
+                    trackId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description HTTP 200 */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description HTTP 206 */
+                206: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description HTTP 403 */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 404 */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 409 */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 416 */
+                416: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Jelee error envelope with code, message, details and traceId; see the Error schema. */
+                default: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/sources/{id}/stream": {
         parameters: {
             query?: never;
@@ -7564,6 +7738,180 @@ export type paths = {
                         [name: string]: unknown;
                     };
                     content?: never;
+                };
+                /** @description HTTP 409 */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 416 */
+                416: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Jelee error envelope with code, message, details and traceId; see the Error schema. */
+                default: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/sources/{id}/subtitles/{trackId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read an unmodified external subtitle file of a source
+         * @description Native sessions only; web sessions get 403 web_playback_disabled. Delivers the external subtitle file listed under externalTracks of GET /api/v1/items/{id}/playback byte for byte (G10.9): no burn-in, re-encoding, remuxing or charset conversion. The track must belong to the source and the source must be visible to the caller; a missing, invisible or foreign track is answered like a missing source. Range, HEAD, conditional requests, playback and bandwidth limits and revocation behave as for /api/v1/sources/{id}/stream, and a track counts as part of its source's playback. Content-Type comes from a fixed table keyed by the file extension (application/octet-stream when unknown); a detected subtitle charset is only reported as its charset parameter. Responses carry X-Content-Type-Options: nosniff and a sandbox Content-Security-Policy.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: {
+                    "If-Range"?: string;
+                    Range?: string;
+                };
+                path: {
+                    id: string;
+                    trackId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description HTTP 200 */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description HTTP 206 */
+                206: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description HTTP 403 */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 404 */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 409 */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 416 */
+                416: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Jelee error envelope with code, message, details and traceId; see the Error schema. */
+                default: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        /**
+         * Read an unmodified external subtitle file of a source
+         * @description Native sessions only; web sessions get 403 web_playback_disabled. Delivers the external subtitle file listed under externalTracks of GET /api/v1/items/{id}/playback byte for byte (G10.9): no burn-in, re-encoding, remuxing or charset conversion. The track must belong to the source and the source must be visible to the caller; a missing, invisible or foreign track is answered like a missing source. Range, HEAD, conditional requests, playback and bandwidth limits and revocation behave as for /api/v1/sources/{id}/stream, and a track counts as part of its source's playback. Content-Type comes from a fixed table keyed by the file extension (application/octet-stream when unknown); a detected subtitle charset is only reported as its charset parameter. Responses carry X-Content-Type-Options: nosniff and a sandbox Content-Security-Policy.
+         */
+        head: {
+            parameters: {
+                query?: never;
+                header?: {
+                    "If-Range"?: string;
+                    Range?: string;
+                };
+                path: {
+                    id: string;
+                    trackId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description HTTP 200 */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description HTTP 206 */
+                206: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description HTTP 403 */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 404 */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
                 };
                 /** @description HTTP 409 */
                 409: {
@@ -11205,6 +11553,11 @@ export type components = {
             /** Format: uuid */
             sourceId: string;
             tracks: {
+                /**
+                 * @description Present exactly when supported is false: the client cannot direct play this track. No conversion is offered in its place.
+                 * @enum {string}
+                 */
+                code?: "direct_play_unsupported";
                 external: boolean;
                 /** Format: uuid */
                 id?: string;
@@ -11214,6 +11567,8 @@ export type components = {
                 /** @enum {string} */
                 reason?: "audio_codec_unsupported" | "subtitle_format_unsupported" | "track_not_probed";
                 supported: boolean;
+                /** @description Direct delivery route of an external track's original file; absent for embedded streams. */
+                url?: string;
             }[];
         };
         PlaybackDelivery: {
@@ -11252,6 +11607,7 @@ export type components = {
             contentType: string;
             durationMicros?: number;
             externalTracks: {
+                /** @description Detected charset of a text subtitle. Reported only; the file is delivered unconverted. */
                 charset?: string;
                 /** @description Canonical subtitle format or audio codec implied by the extension; absent for mka, m4a, ogg, oga and .sub, which only probing can tell. */
                 codec?: string;
@@ -11269,6 +11625,8 @@ export type components = {
                 sdh: boolean;
                 sizeBytes: number;
                 title?: string;
+                /** @description Direct delivery route of the original file: /api/v1/sources/{id}/subtitles/{trackId} or /api/v1/sources/{id}/audio/{trackId}. Native sessions only. */
+                url: string;
             }[];
             /** Format: uuid */
             id: string;

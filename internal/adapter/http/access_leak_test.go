@@ -99,14 +99,18 @@ func leakRouteTable() map[string]leakRoute {
 		"POST /compat/Sessions/Logout":          exempt("revokes the caller's own session; carries no media identifiers"),
 
 		// Catalog and delivery: the direct media surfaces.
-		"GET /api/v1/items":                      {mode: leakList, params: noParams, control: true},
-		"GET /api/v1/items/{id}":                 {mode: leakByID, params: itemParam, control: true},
-		"GET /api/v1/sources/{id}/stream":        {mode: leakByID, params: sourceParam, control: true},
-		"HEAD /api/v1/sources/{id}/stream":       {mode: leakByID, params: sourceParam, control: true},
-		"GET /api/v1/items/{id}/playback":        {mode: leakByID, params: itemParam, control: true},
-		"POST /api/v1/items/{id}/playback/check": {mode: leakByID, params: itemParam, control: true},
-		"GET /images/{type}/{id}":                {mode: leakByID, params: map[string]string{"type": "image-type", "id": "item"}, control: true},
-		"HEAD /images/{type}/{id}":               {mode: leakByID, params: map[string]string{"type": "image-type", "id": "item"}, control: true},
+		"GET /api/v1/items":                             {mode: leakList, params: noParams, control: true},
+		"GET /api/v1/items/{id}":                        {mode: leakByID, params: itemParam, control: true},
+		"GET /api/v1/sources/{id}/stream":               {mode: leakByID, params: sourceParam, control: true},
+		"HEAD /api/v1/sources/{id}/stream":              {mode: leakByID, params: sourceParam, control: true},
+		"GET /api/v1/sources/{id}/subtitles/{trackId}":  {mode: leakByID, params: map[string]string{"id": "source", "trackId": "subtitle-track"}, control: true},
+		"HEAD /api/v1/sources/{id}/subtitles/{trackId}": {mode: leakByID, params: map[string]string{"id": "source", "trackId": "subtitle-track"}, control: true},
+		"GET /api/v1/sources/{id}/audio/{trackId}":      {mode: leakByID, params: map[string]string{"id": "source", "trackId": "audio-track"}, control: true},
+		"HEAD /api/v1/sources/{id}/audio/{trackId}":     {mode: leakByID, params: map[string]string{"id": "source", "trackId": "audio-track"}, control: true},
+		"GET /api/v1/items/{id}/playback":               {mode: leakByID, params: itemParam, control: true},
+		"POST /api/v1/items/{id}/playback/check":        {mode: leakByID, params: itemParam, control: true},
+		"GET /images/{type}/{id}":                       {mode: leakByID, params: map[string]string{"type": "image-type", "id": "item"}, control: true},
+		"HEAD /images/{type}/{id}":                      {mode: leakByID, params: map[string]string{"type": "image-type", "id": "item"}, control: true},
 
 		// Accounts.
 		"POST /api/v1/auth/login":                         exempt("credential exchange; takes no media identifiers and returns only a session grant"),
@@ -338,6 +342,7 @@ func TestAccessLeakRouteTableIsComplete(t *testing.T) {
 type leakIDs struct {
 	viewer, adminToken, viewerToken string
 	item, source, library, job      [3]string // visible, hidden, missing
+	subtitle, audio                 [3]string // sidecar tracks of the sources above
 	markers                         []string
 	visibleItem, visibleLibrary     string
 }
@@ -358,6 +363,10 @@ func (f leakIDs) value(kind string, scenario int) string {
 		return f.library[scenario]
 	case "job":
 		return f.job[scenario]
+	case "subtitle-track":
+		return f.subtitle[scenario]
+	case "audio-track":
+		return f.audio[scenario]
 	case "self":
 		return f.viewer
 	case "image-type":
@@ -478,13 +487,28 @@ func leakFixture(t *testing.T, ctx context.Context, store *postgres.Store) leakI
 		if _, err = store.Pool.Exec(ctx, `INSERT INTO item_images(item_id,library_id,image_type,image_index,source_kind,root_id,relative_path) VALUES($1::uuid,$2::uuid,'Primary',0,'local',$3::uuid,$4)`, f.item[scenario], f.library[scenario], rootID, strings.TrimSuffix(spec.file, ".mkv")+"-poster.jpg"); err != nil {
 			t.Fatal(err)
 		}
+		// External tracks exercise the sidecar resolver on the track routes.
+		base := strings.TrimSuffix(spec.file, ".mkv")
+		for _, track := range []struct {
+			slot       *[3]string
+			name, kind string
+			format     string
+		}{{&f.subtitle, base + ".en.srt", "subtitle", "srt"}, {&f.audio, base + ".en.ac3", "audio", "ac3"}} {
+			if err = os.WriteFile(filepath.Join(root, track.name), []byte("Jelee synthetic leak track\n"), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			if err = store.Pool.QueryRow(ctx, `INSERT INTO media_sidecar_tracks(source_id,library_id,root_id,relative_path,kind,format,size,modified_unix_nano) VALUES($1::uuid,$2::uuid,$3::uuid,$4,$5,$6,27,0) RETURNING id::text`, f.source[scenario], f.library[scenario], rootID, track.name, track.kind, track.format).Scan(&track.slot[scenario]); err != nil {
+				t.Fatal(err)
+			}
+		}
 		job, _, err := store.SubmitJob(ctx, domain.Actor{UserID: adminID, SessionID: adminSession, IP: "127.0.0.1"}, f.library[scenario], "leak-"+spec.root, domain.JobPriorityManual, config.DefaultJobsConfig().Policy())
 		if err != nil {
 			t.Fatal(err)
 		}
 		f.job[scenario] = job.ID
 		if scenario == leakHidden {
-			f.markers = []string{f.item[scenario], f.source[scenario], f.library[scenario], rootID, job.ID, spec.library, spec.root, spec.title, spec.file, root}
+			f.markers = []string{f.item[scenario], f.source[scenario], f.library[scenario], rootID, job.ID, spec.library, spec.root, spec.title, spec.file, root,
+				f.subtitle[scenario], f.audio[scenario], base + ".en.srt", base + ".en.ac3"}
 		} else {
 			f.visibleItem, f.visibleLibrary = f.item[scenario], f.library[scenario]
 		}
@@ -492,7 +516,7 @@ func leakFixture(t *testing.T, ctx context.Context, store *postgres.Store) leakI
 	if _, err = store.Pool.Exec(ctx, `INSERT INTO library_acl(user_id,library_id) VALUES($1::uuid,$2::uuid)`, f.viewer, f.library[leakVisible]); err != nil {
 		t.Fatal(err)
 	}
-	for _, slot := range []*[3]string{&f.item, &f.source, &f.library, &f.job} {
+	for _, slot := range []*[3]string{&f.item, &f.source, &f.library, &f.job, &f.subtitle, &f.audio} {
 		slot[leakMissing] = leakUUID(t)
 	}
 	return f

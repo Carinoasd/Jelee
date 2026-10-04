@@ -47,6 +47,8 @@ describe("no-playback gate", () => {
     "const p: HTMLVideoElement = x",
     '{ path: "/items/:id/play" }',
     'client.GET("/api/v1/sources/{id}/stream")',
+    'client.GET("/api/v1/sources/{id}/subtitles/{trackId}")',
+    'client.HEAD("/api/v1/sources/{id}/audio/{trackId}")',
   ])("flags %s", (text) => {
     expect(textViolations(text)).not.toHaveLength(0);
   });

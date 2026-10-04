@@ -140,6 +140,10 @@ func TestCheckPlaybackTracks(t *testing.T) {
 		if track.External != (track.ID != "") {
 			t.Fatalf("external flag differs: %+v", track)
 		}
+		// G16.4: every unsupported track is marked as not direct playable.
+		if (track.Code == PlaybackUnsupportedCode) == track.Supported || track.Code != "" && track.Code != PlaybackUnsupportedCode || track.URL != "" {
+			t.Fatalf("track code differs: %+v", track)
+		}
 		got = append(got, k)
 	}
 	want := []key{
@@ -160,7 +164,7 @@ func TestCheckPlaybackTracks(t *testing.T) {
 		t.Fatalf("unsupported decision lacks the code: %+v", unsupported)
 	}
 	encoded, err := json.Marshal(d)
-	if err != nil || !strings.Contains(string(encoded), `"reasons":[]`) || strings.Contains(string(encoded), `"code"`) {
+	if err != nil || !strings.HasPrefix(string(encoded), `{"sourceId":"s","directPlay":true,"reasons":[],"tracks":[`) {
 		t.Fatalf("decision encoding differs: %s", encoded)
 	}
 }

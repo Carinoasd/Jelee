@@ -28,6 +28,14 @@ func Specification(cfg config.Config) map[string]any {
 		op["security"] = []any{map[string]any{"bearer": []string{}}}
 		op["parameters"] = []any{idParameter(), map[string]any{"name": "Range", "in": "header", "schema": map[string]any{"type": "string"}}, map[string]any{"name": "If-Range", "in": "header", "schema": map[string]any{"type": "string"}}}
 		paths["/api/v1/sources/{id}/stream"] = map[string]any{"get": op, "head": op}
+		for route, kind := range map[string]string{subtitleTrackRoute: "subtitle", audioTrackRoute: "audio"} {
+			op := operation("Read an unmodified external "+kind+" file of a source", "200", "206", "403", "404", "409", "416")
+			op["description"] = "Native sessions only; web sessions get 403 web_playback_disabled. Delivers the external " + kind + " file listed under externalTracks of GET /api/v1/items/{id}/playback byte for byte (G10.9): no burn-in, re-encoding, remuxing or charset conversion. The track must belong to the source and the source must be visible to the caller; a missing, invisible or foreign track is answered like a missing source. Range, HEAD, conditional requests, playback and bandwidth limits and revocation behave as for /api/v1/sources/{id}/stream, and a track counts as part of its source's playback. Content-Type comes from a fixed table keyed by the file extension (application/octet-stream when unknown); a detected subtitle charset is only reported as its charset parameter. Responses carry X-Content-Type-Options: nosniff and a sandbox Content-Security-Policy."
+			op["security"] = []any{map[string]any{"bearer": []string{}}}
+			op["x-jelee-session"] = "native"
+			op["parameters"] = []any{idParameter(), map[string]any{"name": "trackId", "in": "path", "required": true, "schema": map[string]any{"type": "string", "format": "uuid"}}, map[string]any{"name": "Range", "in": "header", "schema": map[string]any{"type": "string"}}, map[string]any{"name": "If-Range", "in": "header", "schema": map[string]any{"type": "string"}}}
+			paths[route] = map[string]any{"get": op, "head": op}
+		}
 	}
 	schemas := accountSchemas()
 	if cfg.EnableCatalog && cfg.EnableDirect {

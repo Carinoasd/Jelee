@@ -4,7 +4,7 @@
 
 `internal/adapter/media` 只读取并传输原始文件，不启动子进程，没有转码、重编码、烧录字幕、HLS、DASH 或 Remux 实现。HTTP 层必须先验证凭据，再通过 `ServeSource` 传入不透明资源 ID。是否注册公开播放入口由应用层功能开关控制。
 
-这是直投安全基础模块。按用户/设备的并发与带宽限制及撤销即断流见下文；第三方客户端兼容协商、播放会话统计、ffprobe、字幕/音轨提取、Remux、实际播放器验证与部署性能验收仍需各自实现和验收。本模块测试通过不能代替这些验收。
+这是直投安全基础模块。按用户/设备的并发与带宽限制及撤销即断流、外挂字幕/音轨直投见下文；第三方客户端兼容协商、播放会话统计、ffprobe、内嵌字幕/音轨提取（mkvextract）、Remux、实际播放器验证与部署性能验收仍需各自实现和验收。本模块测试通过不能代替这些验收。
 
 ## 接口和信任边界
 
@@ -108,6 +108,57 @@ Web 禁止播放的承诺基于**服务端签发时绑定的会话类型**。原
 
 读法：每次下载的进程 CPU 时间降低约 25%～27%，这是零拷贝的主要收益。吞吐量受同进程客户端读取限制，噪声较大：同一台机器另一轮改前测得 1920～2123 MB/s（完整）与 1827～1938 MB/s（Range），改后 2042～2097 与 1948～2113，提升约 2%～6%；不能据此推断真实网络吞吐。每次请求多出约 12 次分配（看门狗协程、计时器、通道与读取包装），与文件大小无关；字节数/op 都在 10～16 KB，没有随媒体大小增长的分配。看门狗与额外的 `Flush` 是固定开销，对很小的 Range 请求可能抵消收益，这里没有单独测量。
 
+## 外挂字幕与音轨直投（G10.9、G15.5、G16.4）
+
+两条路由与 `/api/v1/sources/{id}/stream` 同属播放面，同样只在同时启用目录与直投时注册，GET 与 HEAD 都可用：
+
+- `GET|HEAD /api/v1/sources/{id}/subtitles/{trackId}`
+- `GET|HEAD /api/v1/sources/{id}/audio/{trackId}`
+
+`{trackId}` 是 `media_sidecar_tracks` 的行 ID，由播放信息的 `externalTracks[].url` 给出。文件按字节原样发送：不烧录、不重编码、不 Remux，字幕也不转换字符编码（G10.9；位图字幕 `.sup`/`.idx`+`.sub` 同样只传原文件，G15.5）。内嵌轨提取不在此范围。
+
+**同一条直投路径。** HTTP 层只做与 `stream` 相同的前置检查（`GuardProduction` → 不接受任何查询参数 → 两个 ID 都必须是 UUID，否则 404），然后调用 `Handler.ServeTrack`。`ServeTrack` 与 `ServeSource` 共用同一个 `serve`：会话类型（只有原生会话，Web 会话无论 bearer 还是 cookie 都是 403 `web_playback_disabled`，且不触达查库）、方法限制、Range 头上限、全进程并发额度、查库超时、并发播放与带宽上限、共享 I/O 配额、`os.OpenRoot` 打开、`ServeContent`（Range、HEAD、条件请求）、撤销即断流、零拷贝与缓冲复制路径、CSP 和错误映射全部沿用，没有另写一套串流。
+
+**授权。** `media.Resolver` 新增 `ResolveTrack(ctx, principal, sourceID, kind, trackID)`。PostgreSQL 实现（`Store.ResolveTrack`）在一条 SQL 中同时确认：用户未停用未删除、会话为未撤销未过期的原生会话、用户是管理员或拥有该资源所在媒体库的授权、轨道的 `source_id` 等于路径中的资源 ID、轨道 `kind` 与路由一致。看不到资源、轨道属于别的资源、字幕 ID 走音轨路由、ID 不存在，答复都相同（默认 404，按 G48.3 配置为 403），不泄露存在性。仓储只返回库根目录、相对路径、字符集、设备 ID 与用户覆写上限，路径不进入响应或日志。
+
+**并发计数。** 轨道计入它所属资源的播放：并发上限的计数键是“会话＋资源 ID”，所以同一会话同时拉视频、外挂音轨和字幕只占一个播放名额；换成另一个资源仍按上限拒绝。带宽桶本来就按用户（或设备）共享，轨道与视频一起受限。
+
+**Content-Type。** 由固定对照表按扩展名决定，忽略仓储返回的类型，也不查询系统 MIME 数据库（避免主机配置把字幕映射成文档类型）：
+
+| 扩展名 | Content-Type |
+| --- | --- |
+| `srt` | `application/x-subrip` |
+| `ass`、`ssa` | `text/x-ssa` |
+| `vtt`、`webvtt` | `text/vtt` |
+| `ttml`、`dfxp` | `application/ttml+xml` |
+| `smi`、`sami` | `application/x-sami` |
+| `idx` | `text/plain` |
+| `sub` | 有检测到的字符集时 `text/x-microdvd`（MicroDVD 文本），否则 `application/octet-stream`（可能是 VobSub 数据） |
+| `sup` | `application/x-pgs` |
+| `mka` | `audio/x-matroska` |
+| `ac3` | `audio/ac3` |
+| `eac3`、`ec3` | `audio/eac3` |
+| `dts` / `dtshd` | `audio/vnd.dts` / `audio/vnd.dts.hd` |
+| `thd`、`truehd`、`mlp` | `audio/vnd.dolby.mlp` |
+| `flac` | `audio/flac` |
+| `aac` | `audio/aac` |
+| `m4a` | `audio/mp4` |
+| `opus` | `audio/opus` |
+| `ogg`、`oga` | `audio/ogg` |
+| `mp3` | `audio/mpeg` |
+| `wav` | `audio/wav` |
+| 其他（含 `alac`） | `application/octet-stream` |
+
+文本字幕若扫描记录了字符集（`UTF-8`、`UTF-16LE`、`UTF-16BE`、`GB18030`、`Big5`、`Shift_JIS`、`EUC-JP`、`EUC-KR`、`windows-1252` 之一），只作为 `charset` 参数报告，例如 `application/x-subrip; charset=Shift_JIS`；字节不转码。名单外的值、音轨和位图字幕不带 `charset`。所有成功响应都有 `X-Content-Type-Options: nosniff` 与 `Content-Security-Policy: sandbox; default-src 'none'`，没有 `Content-Disposition`。
+
+**ETag。** 规则与资源相同：只有经过校验、代表当前内容的强 ETag 才能发送。`media_sidecar_tracks.fingerprint` 可能是边缘指纹，且扫描后文件可能已变，因此目前不发 ETag，条件请求按 `Last-Modified` 处理；`ServeTrack` 本身支持仓储提供的有效 ETag（单元测试覆盖 `If-Range`、`If-None-Match`）。
+
+**Web 前端门禁。** 这两条是服务端路由，Web 前端不得引用：`web/src/api/client.ts` 的 `WebPaths` 去掉全部 `/api/v1/sources/...` 路径（调用即编译失败）；`web/scripts/check-no-playback.mjs` 的路径段规则加入 `subtitles`、`audio`，源码中出现这类路径字面量即构建失败（生成的 `schema.d.ts` 仍然豁免）。
+
+**测试。** `internal/adapter/media/tracks_test.go`：完整/单段/后缀/开放结尾 Range、HEAD（含 HEAD+Range）、ETag 的 `If-Range` 与 304、日期 `If-Range`、原文件 SHA-256 不变、忽略仓储给的 `text/html`；匿名 401、Web 管理员与未知会话类型 403、转换参数 409、POST 405、非法类型/空 ID/错类型/别的资源/不存在均 404 且前四种不触达查库、文件消失 404；Content-Type 对照表（含 CRLF 注入的字符集被丢弃）；轨道与视频共用名额、撤销后断流并释放名额；Linux 上完整与单段 Range 走 sendfile。`internal/adapter/http/tracks_test.go`：路由层 206/HEAD、字节不变、Web bearer 与 cookie 403、未认证 401、409、多余查询参数 400、非法路径 404、开关关闭时不注册。`internal/adapter/postgres/sidecar_delivery_test.go`（真 PG）：两个用户分别授权不同媒体库，只能取得自己库的轨道；轨道配错资源、错类型、Web 会话（即使是管理员）、混用会话、撤回授权、停用用户、撤销会话、删除资源后都是 `ErrNotFound`。`access_leak_test.go` 的 `leakRouteTable` 登记了四条路由，真 PG 遍历确认隐藏库的轨道在 404/403 两种配置下与不存在的答复一致且不泄露标记。
+
+反向验证（临时改代码后确认测试失败，再还原）：SQL 去掉 `t.source_id=$3` 条件，“别的资源的轨道”断言失败；去掉 `t.kind=$5`，“字幕当音轨”断言失败；去掉媒体库授权条件，真 PG 的 ACL 测试与泄漏遍历失败；`ServeTrack` 不再覆盖 Content-Type，`text/html` 断言失败；轨道改为单独计数，“同一播放被拒 429”失败；门禁去掉 `subtitles|audio`，两条门禁用例失败；关闭原生会话检查，路由层与 media 层的 Web 拒绝测试都失败。
+
 ## 播放信息与直投判定（G10.4、G10.5、G15.2、G16.3）
 
 两条自有 API 路由与 `/api/v1/sources/{id}/stream` 同属播放面，仅在同时启用目录与直投时注册：
@@ -124,7 +175,7 @@ Web 禁止播放的承诺基于**服务端签发时绑定的会话类型**。原
 
 ### 资源描述
 
-每个资源给出 `id`、由存储的内容类型得出的容器（`mp4`、`mkv`、`webm`、`mov`、`avi`、`mpegts`）、大小、时长、码率、G20.2 版本标签，以及探测得到的视频轨（不含封面图流；`primary` 标出判定所用的主视频流）、内嵌音轨（编码、语言、声道、采样率、码率、默认/强制、Atmos）、内嵌字幕轨（编码与规范化格式、语言、默认/强制），和外挂字幕/音轨（语言、标题、forced、SDH、default、评论音轨、字符集、大小、由扩展名确定的格式）。多个资源按版本质量分数从高到低排列，同分按 ID。
+每个资源给出 `id`、由存储的内容类型得出的容器（`mp4`、`mkv`、`webm`、`mov`、`avi`、`mpegts`）、大小、时长、码率、G20.2 版本标签，以及探测得到的视频轨（不含封面图流；`primary` 标出判定所用的主视频流）、内嵌音轨（编码、语言、声道、采样率、码率、默认/强制、Atmos）、内嵌字幕轨（编码与规范化格式、语言、默认/强制），和外挂字幕/音轨（语言、标题、forced、SDH、default、评论音轨、字符集、大小、由扩展名确定的格式，以及原文件的直投地址 `url`，见上一节）。多个资源按版本质量分数从高到低排列，同分按 ID。
 
 只有当前有效的探测结果才会被使用：探测缓存状态为 ready、未过期，且若该资源由目录同步登记，探测时的大小与修改时间必须与最近一次扫描一致。否则资源仍会列出，但 `probed=false`，流列表为空，版本标签只来自文件名，大小取扫描记录。缓存中无法再通过白名单校验的文档同样按未探测处理。没有码率字段时以 大小×8÷时长 推算。
 
@@ -150,7 +201,7 @@ Web 禁止播放的承诺基于**服务端签发时绑定的会话类型**。原
 | `audio_codec_unsupported` | 没有任何一条内嵌音轨的编码被声明 |
 | `bitrate_exceeds_client` | 已知码率严格大于声明的上限 |
 
-字幕和外挂音轨永不改变资源判定，而是在 `tracks` 中逐条报告：内嵌与外挂音轨不支持时为 `audio_codec_unsupported`，字幕为 `subtitle_format_unsupported`；扩展名不能唯一确定编码的外挂文件（`mka`、`m4a`、`ogg`、`oga` 与可能是 MicroDVD 也可能是 VobSub 的 `.sub`）为 `track_not_probed`。
+字幕和外挂音轨永不改变资源判定，而是在 `tracks` 中逐条报告：内嵌与外挂音轨不支持时为 `audio_codec_unsupported`，字幕为 `subtitle_format_unsupported`；扩展名不能唯一确定编码的外挂文件（`mka`、`m4a`、`ogg`、`oga` 与可能是 MicroDVD 也可能是 VobSub 的 `.sub`）为 `track_not_probed`。不支持的轨道同时带 `code=direct_play_unsupported`，表示“不支持直投该轨道”，服务端不提供任何转码替代（G16.4）；外挂轨道无论是否支持都带原文件的 `url`，客户端可自行决定是否尝试。
 
 判定结果本身不是错误：即使没有任何资源可直投，响应也是 200，`directPlayable=false`。服务端从不建议也不尝试转码、Remux 或烧录字幕救场。存在不可直投资源时记录一条 `direct play unsupported` 日志，只含请求 ID、资源数、不可直投数和原因代码，不含名称或路径（G10.5 可排查）。
 

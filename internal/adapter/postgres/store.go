@@ -146,6 +146,34 @@ func (s *Store) Resolve(ctx context.Context, p access.Principal, sourceID string
 	return source, nil
 }
 
+// ResolveTrack binds one external subtitle or audio file for direct delivery
+// (G10.9). The live native session, the enabled user and the library grant of
+// the source are rechecked in the same statement, like Resolve; the track must
+// belong to that source and have the requested kind. Every miss, including a
+// track of another source, is ErrNotFound.
+func (s *Store) ResolveTrack(ctx context.Context, p access.Principal, sourceID string, kind media.TrackKind, trackID string) (media.Source, error) {
+	if !domain.ValidID(sourceID) || !domain.ValidID(trackID) || (kind != media.TrackSubtitle && kind != media.TrackAudio) {
+		return media.Source{}, media.ErrNotFound
+	}
+	var source media.Source
+	err := s.Pool.QueryRow(ctx, `SELECT r.path,t.relative_path,COALESCE(t.charset,''),COALESCE(s.device_id,''),u.max_streams,u.max_kbps
+ FROM media_sidecar_tracks t
+ JOIN media_sources m ON m.id=t.source_id AND m.library_id=t.library_id
+ JOIN library_roots r ON r.id=t.root_id AND r.library_id=t.library_id
+ JOIN users u ON u.id=$1::uuid AND NOT u.disabled AND u.deleted_at IS NULL
+ JOIN sessions s ON s.id=$2::uuid AND s.user_id=u.id AND s.client_kind='native' AND s.revoked_at IS NULL AND s.expires_at>now()
+ WHERE t.id=$4::uuid AND t.source_id=$3::uuid AND t.kind=$5
+  AND (u.is_admin OR EXISTS(SELECT 1 FROM library_acl a WHERE a.user_id=u.id AND a.library_id=m.library_id))`,
+		p.UserID, p.SessionID, sourceID, trackID, string(kind)).Scan(&source.Root, &source.RelativePath, &source.Charset, &source.DeviceID, &source.Limits.MaxStreams, &source.Limits.MaxKbps)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return media.Source{}, media.ErrNotFound
+	}
+	if err != nil {
+		return media.Source{}, storageError(err)
+	}
+	return source, nil
+}
+
 // Provision is local administrative bootstrap, not a public authentication endpoint.
 func (s *Store) Provision(ctx context.Context, name string, kind access.ClientKind, admin bool) (string, error) {
 	if len(name) < 1 || len(name) > 128 || kind != access.ClientNative && kind != access.ClientWeb {

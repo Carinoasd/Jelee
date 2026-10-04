@@ -114,6 +114,9 @@ func TestPlaybackInfoAndCheckHTTP(t *testing.T) {
 	if source.Container != "mp4" || !source.Probed || len(source.External) != 1 || source.External[0].Codec != "srt" || repo.actor.UserID != userID || repo.actor.SessionID != sessionID {
 		t.Fatalf("source differs: %+v", source)
 	}
+	if want := "/api/v1/sources/" + sourceID + "/subtitles/" + libraryID; source.External[0].URL != want {
+		t.Fatalf("external track URL %q, want %q", source.External[0].URL, want)
+	}
 
 	w = playbackHTTPRequest(handler, "POST", check, `{"containers":["MP4"],"videoCodecs":["avc"],"audioCodecs":["aac"],"subtitleFormats":["subrip"],"maxBitrate":8000000}`, native)
 	var decided struct {
@@ -129,6 +132,12 @@ func TestPlaybackInfoAndCheckHTTP(t *testing.T) {
 	if d.DirectPlay || d.Code != "direct_play_unsupported" || strings.Join(d.Reasons, ",") != "audio_codec_unsupported" || len(d.Tracks) != 2 ||
 		d.Tracks[0].Supported || d.Tracks[0].Reason != "audio_codec_unsupported" || !d.Tracks[1].Supported || !d.Tracks[1].External {
 		t.Fatalf("decision differs: %+v", d)
+	}
+	// G16.4: the unreadable track is marked, nothing replaces it, and only the
+	// external track carries its direct delivery URL.
+	if d.Tracks[0].Code != "direct_play_unsupported" || d.Tracks[0].URL != "" || d.Tracks[1].Code != "" ||
+		d.Tracks[1].URL != "/api/v1/sources/"+sourceID+"/subtitles/"+libraryID {
+		t.Fatalf("track decisions differ: %+v", d.Tracks)
 	}
 	if !strings.Contains(logs.String(), `"msg":"direct play unsupported"`) || !strings.Contains(logs.String(), "audio_codec_unsupported") || strings.Contains(logs.String(), "Film") {
 		t.Fatalf("unsupported decision not traceable in logs: %s", logs.String())

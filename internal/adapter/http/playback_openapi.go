@@ -46,8 +46,10 @@ func playbackSpecification(paths, schemas map[string]any) {
 			"format":   map[string]any{"type": "string", "description": "File extension of the sidecar file."},
 			"codec":    map[string]any{"type": "string", "description": "Canonical subtitle format or audio codec implied by the extension; absent for mka, m4a, ogg, oga and .sub, which only probing can tell."},
 			"language": str, "languages": array(str), "title": str, "forced": boolean, "sdh": boolean, "default": boolean, "commentary": boolean,
-			"charset": str, "sizeBytes": nonNegative,
-		}, "id", "kind", "format", "forced", "sdh", "default", "commentary", "sizeBytes")),
+			"charset":   map[string]any{"type": "string", "description": "Detected charset of a text subtitle. Reported only; the file is delivered unconverted."},
+			"sizeBytes": nonNegative,
+			"url":       map[string]any{"type": "string", "description": "Direct delivery route of the original file: /api/v1/sources/{id}/subtitles/{trackId} or /api/v1/sources/{id}/audio/{trackId}. Native sessions only."},
+		}, "id", "kind", "format", "forced", "sdh", "default", "commentary", "sizeBytes", "url")),
 	}, "id", "container", "contentType", "probed", "version", "videoTracks", "audioTracks", "subtitleTracks", "externalTracks")
 	schemas["ClientCapabilities"] = map[string]any{
 		"type": "object", "additionalProperties": false,
@@ -68,6 +70,8 @@ func playbackSpecification(paths, schemas map[string]any) {
 		"tracks": array(objectSchema(map[string]any{
 			"kind": map[string]any{"type": "string", "enum": []string{"audio", "subtitle"}}, "index": nonNegative, "id": uuid,
 			"external": boolean, "supported": boolean, "reason": trackReason,
+			"code": map[string]any{"type": "string", "enum": []string{"direct_play_unsupported"}, "description": "Present exactly when supported is false: the client cannot direct play this track. No conversion is offered in its place."},
+			"url":  map[string]any{"type": "string", "description": "Direct delivery route of an external track's original file; absent for embedded streams."},
 		}, "kind", "external", "supported")),
 	}, "sourceId", "directPlay", "reasons", "tracks")
 

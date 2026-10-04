@@ -79,6 +79,15 @@ func (r *fakeRepository) GetItem(ctx context.Context, user, id string) (domain.I
 type fakeResolver struct {
 	calls   int
 	resolve func(context.Context, access.Principal, string) (media.Source, error)
+	track   func(context.Context, access.Principal, string, media.TrackKind, string) (media.Source, error)
+}
+
+func (r *fakeResolver) ResolveTrack(ctx context.Context, principal access.Principal, sourceID string, kind media.TrackKind, trackID string) (media.Source, error) {
+	r.calls++
+	if r.track != nil {
+		return r.track(ctx, principal, sourceID, kind, trackID)
+	}
+	return media.Source{}, media.ErrNotFound
 }
 
 func (r *fakeResolver) Resolve(ctx context.Context, principal access.Principal, id string) (media.Source, error) {

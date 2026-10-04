@@ -3,11 +3,12 @@ import { createMemoryBearerAuth, type AuthStrategy } from "./auth";
 import type { paths } from "./schema";
 
 /**
- * Paths the web client may call. Direct-delivery stream endpoints are reserved for
- * authorized native clients (G27.3); removing it here makes any web call to
- * it a compile-time error in addition to the server's explicit rejection.
+ * Paths the web client may call. Direct-delivery endpoints (the source stream
+ * and its external subtitle and audio tracks) are reserved for authorized
+ * native clients (G27.3, G10.9); removing them here makes any web call to them
+ * a compile-time error in addition to the server's explicit rejection.
  */
-export type WebPaths = Omit<paths, Extract<keyof paths, `${string}/stream`>>;
+export type WebPaths = Omit<paths, Extract<keyof paths, `${string}/stream` | `/api/v1/sources/${string}`>>;
 
 export interface ApiClientOptions {
   baseUrl?: string;
