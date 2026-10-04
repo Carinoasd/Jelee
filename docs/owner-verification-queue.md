@@ -86,6 +86,7 @@
 | D19 | 客戶端管控：真實第三方客戶端遇到相容層無內容 403／429 時是否卡住或不斷重試；唯讀動作下播放進度回報被拒的影響；反向代理部署下可信代理與環回豁免的組合 | `docs/client-control.md` | 待跑 |
 | D20 | 初始引導：真實瀏覽器走完前端向導；Compose 容器內 `jelee-cli setup --non-interactive` 一鍵初始化；反向代理後完成引導（一次性引導權杖從日誌或 `JELEE_SETUP_TOKEN_FILE` 取得） | `docs/setup-wizard.md` | 待跑 |
 | D21 | 預設告警規則：以實際 Prometheus（及其 `promtool check rules deploy/prometheus/jelee-alerts.yml`）載入 `deploy/prometheus/` 範例，抓取真實服務；分別製造資料庫停止、磁碟接近滿、Webhook 接收端離線、開發者模式開啟、一致性檢查發現，確認對應告警在預期時間觸發與解除，並把 Alertmanager 路由與 runbook 連結接上 | `docs/runbook.md` | 待跑 |
+| D22 | 舊庫遷移：以真實 Jellyfin 10.11 `jellyfin.db`（停機後複製，含 `-wal`）跑 `jelee-cli legacy-import --preflight`、匯入、掃描、再匯入。確認 GUID 文字大小寫、`DateTime` 格式、CollectionFolder `Data` JSON 的 `PhysicalLocationsList`／`CollectionType`；10.10 升級上來的庫的 `UserData`（`CustomDataKey` 多列、`RetentionDate`、佔位條目）；Windows／NAS 路徑對照；多版本、分段檔、附加影片的分類與對應率；10 萬條目以上、多使用者的耗時與記憶體；改寫前 C# Jelee 的實際資料庫 | `docs/legacy-import.md`「需要以真實資料庫驗證的項目」 | 待跑 |
 
 ## E. 需要擁有者決定
 
@@ -105,7 +106,7 @@
 | E10 | 並發計數只存在單一行程記憶體，多實例部署時同一使用者分散到多台可超過上限；撤銷檢查則跨實例。是否需要跨實例計數 | `docs/direct-delivery.md` | 已決定（2026-10-05）：決定：目前接受單一行程計數並在文件註明；多實例部署建議把同一使用者導向同一實例，跨實例計數列為後續 |
 | E11 | 相容層刻意比上游嚴格：`GET /Users/{id}` 只允許本人或管理員、`/Users/Public` 不列出帳號；若某客戶端依賴舊行為是否接受 | `docs/compat-matrix.md` | 已決定（2026-10-05）：接受：相容層維持較嚴格的行為（隱私優先） |
 | E12 | 權限規則預設：管理員預設不受條目規則、分級、標籤限制（`restrict_admins` 可開）；未分級條目的全域預設策略；內建分級代碼表（美、英、日、德、台）是否足夠 | `docs/access-control.md` | 已決定（2026-10-05）：接受：管理員預設不受條目規則／分級／標籤限制、未分級預設允許、內建分級表維持現狀 |
-| E13 | 舊庫遷移工具（G04.6：Jellyfin SQLite → PostgreSQL）需要讀 SQLite，go.mod 目前沒有 SQLite 驅動。是否核准新增純 Go 的 `modernc.org/sqlite`（BSD 授權）？未核准前此項維持阻塞 | `docs/requirements-traceability.md` G04.6 | 已決定（2026-10-05）：核准：新增純 Go 的 `modernc.org/sqlite`（BSD 授權）供舊庫遷移工具使用，授權記錄進 LICENSE-COMPLIANCE；待實作 |
+| E13 | 舊庫遷移工具（G04.6：Jellyfin SQLite → PostgreSQL）需要讀 SQLite，go.mod 目前沒有 SQLite 驅動。是否核准新增純 Go 的 `modernc.org/sqlite`（BSD 授權）？未核准前此項維持阻塞 | `docs/requirements-traceability.md` G04.6 | 已決定（2026-10-05）：核准：新增純 Go 的 `modernc.org/sqlite`（BSD 授權）供舊庫遷移工具使用，授權記錄進 LICENSE-COMPLIANCE；已實作：`modernc.org/sqlite v1.60.1` 只連結進 `jelee-cli legacy-import`（[舊庫遷移](legacy-import.md)），真實資料驗證見 D22 |
 | E14 | 初始引導選用「一次性引導權杖」而非來源位址白名單（理由：Docker 連接埠映射與反向代理後合法引導者本來就不是 loopback）；多實例部署請在引導期間只開一個實例或改用 CLI。是否接受 | `docs/setup-wizard.md` | 已決定（2026-10-05）：接受：一次性引導權杖 |
 
 ## F. 一次性維運

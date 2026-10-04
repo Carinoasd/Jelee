@@ -82,6 +82,8 @@ var auditEvents = map[string]string{
 	"job.cancel_requested":                 domain.AuditCategoryAudit,
 	"job.finished":                         domain.AuditCategoryAudit,
 	"job.submitted":                        domain.AuditCategoryAudit,
+	"legacy.import_started":                domain.AuditCategorySecurity,
+	"legacy.imported":                      domain.AuditCategorySecurity,
 	"library.metadata_preferences_changed": domain.AuditCategoryAudit,
 	"library.registered":                   domain.AuditCategoryAudit,
 	"login.failed":                         domain.AuditCategorySecurity,

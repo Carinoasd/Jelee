@@ -67,6 +67,30 @@ Jelee 本仓库派生自 [Jellyfin](https://github.com/jellyfin/jellyfin)。审�
 
 `golang.org/x/image v0.46.0` 使用 BSD 三條款授權，Copyright (c) 2009 The Go Authors；完整聲明保留於 `internal/adapter/images/LICENSE.x-image`，正式容器另附於 `/licenses/x-image/LICENSE`。版本與校驗值由 go.mod/go.sum 固定；本地圖片縮圖使用 `draw.ApproxBiLinear`（EXIF 方向以同一插值器的仿射 `Transform`），WebP／BMP／TIFF 解碼使用同一固定版本的 `webp`、`bmp`、`tiff` 子套件；JPEG／PNG／GIF 解碼與 JPEG 編碼使用固定 Go SDK。
 
+## 舊庫遷移的 SQLite 依賴
+
+依[擁有者核對清單](owner-verification-queue.md) E13 的決定，舊庫遷移工具（G04.6，`jelee-cli legacy-import`，見 [legacy-import.md](legacy-import.md)）使用純 Go 的 `modernc.org/sqlite v1.60.1` 讀取上游 SQLite 資料庫。版本與校驗值由 go.mod/go.sum 固定；以 `GOFLAGS=-mod=mod go get modernc.org/sqlite@v1.60.1` 取得、`go mod tidy` 整理，沒有加入其他直接依賴。
+
+- **只連結進 `jelee-cli`**：伺服器 `jelee` 與 `jelee-migrate` 不經任何匯入鏈到達 SQLite（`internal/architecture/sqlite_boundary_test.go` 把關，對應 G04.8「禁止 SQLite 生產回退」），因此伺服器執行檔的授權範圍不變。純 Go、不需要 cgo：`CGO_ENABLED=0` 的 Linux 建置與 `GOOS=windows CGO_ENABLED=0` 交叉編譯均通過。
+- **授權**：`modernc.org/sqlite` 為 BSD 三條款，Copyright (c) 2017 The Sqlite Authors；其中轉譯自 C 的 SQLite 3.53.4 為公共領域。驅動本身附帶的第三方授權總表（逐項列出所有連結進程式的元件與完整授權全文）原樣保留。三份檔案保存在 `internal/adapter/legacydb/`，正式容器另附於 `/licenses/modernc-sqlite/`：
+  - `LICENSE.modernc-sqlite`（原 `LICENSE`）
+  - `LICENSE.public-domain-sqlite`（原 `LICENSE-SQLITE`，SQLite 公共領域聲明）
+  - `LICENSE.modernc-sqlite-third-party.txt`（原 `LICENSE-3RD-PARTY.md`）
+- **間接依賴**（皆由上述總表涵蓋，下表為 go.mod 新增或升級的項目）：
+
+| 模組 | 版本 | 授權 | 是否連結進 `jelee-cli` |
+| --- | --- | --- | --- |
+| `modernc.org/libc` | v1.77.1 | BSD-3-Clause（另含 musl libc MIT、Go BSD-3-Clause、go-netdb MIT、NixOS/nixpkgs MIT 的轉譯部分，見總表） | 是 |
+| `modernc.org/mathutil` | v1.7.1 | BSD-3-Clause | 是 |
+| `modernc.org/memory` | v1.12.1 | BSD-3-Clause（含 Go 與 mmap-go 的 BSD 片段） | 是 |
+| `github.com/dustin/go-humanize` | v1.0.1 | MIT | 是 |
+| `github.com/remyoudompheng/bigfft` | v0.0.0-20230129092748-24d4a6f8daec | BSD-3-Clause | 是 |
+| `github.com/google/uuid` | v1.6.0（既有間接依賴） | BSD-3-Clause | 是（經 libc） |
+| `github.com/mattn/go-isatty` | v0.0.24 | MIT | 否（只在模組圖中） |
+| `github.com/ncruces/go-strftime` | v1.0.0 | MIT | 否（只在模組圖中） |
+
+`go mod tidy` 另把只在模組圖中、不參與任何建置的工具模組（`modernc.org/ccgo/v4`、`modernc.org/cc/v4`、`golang.org/x/tools` 等，驅動的轉譯工具鏈）加入 go.sum 以供校驗；它們不進入任何執行檔。此項不代表其他依賴的整體發行審計已完成。
+
 ## 靜態分析工具（golangci-lint）
 
 `golangci-lint` 2.14.0 以 GPL-3.0 授權，版權屬 golangci-lint 作者與貢獻者；所含各 linter 保留各自授權。它只在開發機與 CI 中被執行（`make lint`／`scripts/make.ps1 lint`），不被 Jelee 程式匯入或連結，也不進入任何建置產物、容器映像或發行包，因此不構成 Jelee 的分發內容。官方發行包中的完整 `LICENSE` 隨安裝保留在被忽略的 `.tools/golangci-lint/` 目錄，並在 `tools-verify` 時與已校驗壓縮包逐位元組比對。版本、官方 HTTPS 來源與 SHA256 固定在 `tools/manifest.json`，來源細節見 `docs/THIRD-PARTY-TOOLS.md`。

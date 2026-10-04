@@ -64,6 +64,11 @@
       "minimum": 85
     },
     {
+      "path": "internal/adapter/legacydb",
+      "tier": "core",
+      "minimum": 88
+    },
+    {
       "path": "internal/adapter/metadata",
       "tier": "core",
       "minimum": 93

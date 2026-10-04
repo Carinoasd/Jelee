@@ -18,3 +18,4 @@ docs/legal/upstream/naming-attribution.props.txt # Verbatim original package aut
 docs/legal/upstream/naming-copyright.cs.txt # Verbatim original assembly copyright statement moved out of the removed legacy tree.
 # Directory entries (ending in "/") exempt a whole protocol boundary where legacy names are part of the wire contract.
 internal/adapter/compat/ # Third-party client protocol: routes, headers, DTO fields and client identification strings.
+internal/adapter/legacydb/ # Legacy database import (G04.6): reads the upstream SQLite format, whose file, table and type names are the format itself.
