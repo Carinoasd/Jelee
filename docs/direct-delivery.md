@@ -23,9 +23,9 @@ Web 禁止播放的承诺基于**服务端签发时绑定的会话类型**。原
 
 默认使用文件的 `Last-Modified` 处理条件请求。仓储可提供正确引用的强 ETag，但必须代表当前文件内容版本；不能把未经校验的路径、大小或修改时间冒充强内容指纹。未提供 ETag 时不合成它。
 
-每个 handler 的 `MaxConcurrent` 限制同时解析和发送的请求数。额度耗尽返回 429 和 `Retry-After: 1`。资源查询使用独立 `LookupTimeout`（默认 5 秒），超时返回 504；不会把该查询期限施加到整个媒体传输。取消请求会关闭文件、立即到期网络写截止时间，并释放额度。每次写入刷新 `WriteTimeout`，长媒体按写入空闲时间控制。自定义 ResponseWriter 必须支持 `http.ResponseController.SetWriteDeadline` 或透传 `Unwrap`；`httptest.ResponseRecorder` 没有该能力，仅用于功能测试。文件系统内核调用本身的停顿仍受操作系统和挂载配置约束。
+每个 handler 的 `MaxConcurrent` 限制同时解析和发送的请求数。额度耗尽返回 429 和 `Retry-After: 1`。资源查询使用独立 `LookupTimeout`（默认 5 秒），超时返回 504；不会把该查询期限施加到整个媒体传输。取消请求会关闭文件、立即到期网络写截止时间，并释放额度。缓冲路径每次写入刷新 `WriteTimeout`，零拷贝路径在传输有进展时延长截止时间；两者都按写入空闲时间控制长媒体。自定义 ResponseWriter 必须支持 `http.ResponseController.SetWriteDeadline` 或透传 `Unwrap`；`httptest.ResponseRecorder` 没有该能力，仅用于功能测试。文件系统内核调用本身的停顿仍受操作系统和挂载配置约束。
 
-读取包装器检查请求取消，`io.CopyBuffer` 为每个流显式分配 32 KiB 缓冲。Range 请求头最多 4096 字节、最多 16 段，超出返回 416，避免攻击者构造大量分段增加解析和 MIME 开销。当前未声明 sendfile 零拷贝路径，也没有上传整部媒体到内存。超大文件不会因文件大小分配等量缓冲。
+读取包装器检查请求取消，缓冲复制路径用 `io.CopyBuffer` 为每个流显式分配 32 KiB 缓冲。完整响应与单段 Range 在未限速时改走零拷贝路径（见下文“零拷贝直投”）。Range 请求头最多 4096 字节、最多 16 段，超出返回 416，避免攻击者构造大量分段增加解析和 MIME 开销。不会把整部媒体读入内存，超大文件不会因文件大小分配等量缓冲。
 
 `Options.WriteError` 必须注入统一 HTTP 错误映射。包括标准库生成的 412、416 在内，错误通过该回调输出，禁止回显底层绝对路径或数据库错误。媒体已开始发送后的连接/读取错误通过终止流处理，不能在媒体字节后追加 JSON 错误。
 
@@ -55,7 +55,7 @@ Web 禁止播放的承诺基于**服务端签发时绑定的会话类型**。原
 
 令牌桶按用户共享（`bandwidthScope=device` 时按设备）：同一用户的全部串流共用 `maxKbpsPerUser`（千比特每秒，1 kbps＝125 字节/秒），可由管理员以 `maxKbps` 覆写。桶容量为 250 毫秒的流量（至少 16 KiB），每次网络写最多 16 KiB；预约可以透支，等待时间按透支量计算，因此并发串流按到达顺序分享速率。最后一个使用者结束后桶被释放；串流进行中改变覆写值，会在该用户下一次开始串流时生效；共享的桶随之改速，同一用户仍在进行的串流也一起改变。
 
-未开带宽限制或用户不受限时，`streamWriter.throttle` 为 nil，写入路径与以前完全相同。这是将来零拷贝（sendfile）快速路径唯一可用的情形：撤销检查不依赖写入路径，它通过关闭文件与写截止时间生效。
+未开带宽限制或用户不受限时，`streamWriter.throttle` 为 nil。这是零拷贝（sendfile）快速路径唯一可用的情形：撤销检查不依赖写入路径，它通过关闭文件与写截止时间生效。
 
 时间来源是可注入的 `media.Clock`（`Options.Clock`，默认系统时钟），检查间隔与限速等待都经由它，单元测试以假时钟驱动。
 
@@ -74,6 +74,39 @@ Web 禁止播放的承诺基于**服务端签发时绑定的会话类型**。原
 | `bandwidthScope` | `JELEE_BANDWIDTH_SCOPE` | `user` | `user` 或 `device` |
 
 默认值的含义：每个用户最多同时播放 4 个不同资源；带宽开关打开但没有全局速率，所以只有被管理员设置了 `maxKbps` 的用户会被限速。超出范围的值在启动时拒绝。用户覆写的取值范围相同，由数据库 CHECK 约束与应用层双重校验。
+
+## 零拷贝直投（G10.8）
+
+`internal/adapter/media/sendfile.go`。`http.ServeContent` 对完整响应和单段 Range 调用 `io.CopyN(w, 文件, 长度)`，`streamWriter.ReadFrom` 收到包着 `contextFile` 的 `*io.LimitedReader`；在以下条件**全部**满足时，把底层 `*os.File`（同一长度上限）交给原始 ResponseWriter 的 `io.ReaderFrom`，Linux 上 net/http 经 `TCPConn.ReadFrom` 调用 sendfile，媒体字节不进入用户态：
+
+- 平台为 Linux（`sendfile_linux.go` 的 `zeroCopySupported`）；
+- `streamWriter.throttle == nil`（未开带宽限制或该用户不受限）；
+- 不是错误响应（412/416 等）、不是 TLS 连接（Go 不做内核 TLS，TLS 下 net/http 会退回它自己的未清零共享缓冲）；
+- 原始 ResponseWriter 实现 `io.ReaderFrom`，且支持 `SetWriteDeadline`。
+
+其余情况——多段 Range（`ServeContent` 经管道写 multipart，读取端不是文件）、限速、HTTP/2、测试用 `httptest.ResponseRecorder`、非 Linux——维持原有 32 KiB 缓冲复制，行为不变。Windows 与 macOS 编译 `sendfile_other.go`，常量为 false，整个程序照常编译、运行，只走缓冲路径。Content-Length、Range、HEAD、ETag、CSP 等标头仍完全由 `ServeContent` 与 `ServeSource` 决定，零拷贝只替换正文的复制方式。进入零拷贝前先 `Flush` 发出响应头，这样 net/http 不会再为内容嗅探把正文前 512 字节复制进它的共享缓冲。
+
+**取消、撤销与写超时。** 取消与撤销沿用同一机制：串流上下文结束时 `context.AfterFunc` 把写截止时间设为现在并关闭文件；阻塞在 sendfile 中的调用因套接字写截止时间到期立即返回。缓冲路径每写一次刷新一次 `WriteTimeout`，而一次 sendfile 调用可能持续整个下载，固定截止时间会误杀读得慢但仍在读的客户端。因此零拷贝期间有一个看门狗协程，每 `WriteTimeout/4`（至少 10 毫秒）读取文件偏移量（Linux sendfile 每次系统调用后推进偏移量）；偏移量前进就把截止时间延长到“现在＋`WriteTimeout`”，延长后若上下文已结束则立即重新到期，避免延长抵消取消。语义从“每次写入不超过 `WriteTimeout`”变为“连续无进展不超过 `WriteTimeout`（最多再加一个轮询间隔）”，对停住不读的客户端效果相同。进展的粒度受内核限制：套接字发送缓冲排空约一半后内核才唤醒写方，偏移量才前进；loopback 上以约 16 MiB/s 读取时实测两次前进之间可隔 200～300 毫秒。缓冲路径的单次 `write` 同样要等这次唤醒，所以两条路径对慢客户端的容忍度一致；`WriteTimeout` 不应设得接近这个粒度（生产为 30 秒）。非 Linux 平台偏移量要到整个调用结束才更新，看门狗无法观察进度，这是那些平台不开零拷贝的原因。
+
+**测试**（`sendfile_test.go`，loopback TCP，非 Linux 上同样执行并验证走缓冲路径）：
+
+| 测试 | 证明 |
+| --- | --- |
+| `TestZeroCopyServesFullAndSingleRangeUnchanged` | 完整、单段、后缀、5 字节 Range 的状态码、字节、`Content-Length`、`Content-Range`、ETag、CSP 不变，且确实走零拷贝；HEAD 不进入复制 |
+| `TestZeroCopySkipsMultipartAndThrottledStreams` | 多段 Range 与限速串流不走零拷贝，内容正确 |
+| `TestZeroCopyLoopbackCancellationRevocationAndTimeout` | 96 MiB 下载在客户端停止读取、sendfile 阻塞时：请求取消后约 0.1 毫秒结束；撤销（检查间隔 200 毫秒）后约 100 毫秒结束；停住不读的客户端在 `WriteTimeout`＋轮询间隔内被断开 |
+| `TestZeroCopySlowReaderOutlivesWriteTimeout` | 以至多约 16 MiB/s 持续慢读 3.2 秒（超过两个 1.5 秒的 `WriteTimeout`）不被断开，96 MiB 内容完整 |
+
+反向验证（临时改代码后确认测试失败，再还原）：去掉 `throttle != nil` 条件强制限速串流走零拷贝，`TestLoopbackBandwidthLimit`（3 MiB 本应约 1.32 秒，实际 5 毫秒）与 `TestZeroCopySkipsMultipartAndThrottledStreams` 失败；去掉取消回调里的写截止时间到期，取消与撤销两个子测试 2～3 秒仍未结束而失败；去掉看门狗，慢读测试在约 1.8 秒（一个 `WriteTimeout` 后）被截断；把 `zeroCopySupported` 改为 false，路径计数断言失败。
+
+**基准**（开发机数据：2026-10-04，WSL2 Ubuntu / Linux amd64，AMD Ryzen 7 9850X3D，Go 1.27.1；`go test -p 1 ./internal/adapter/media -run '^$' -bench LoopbackDownload -benchmem -count 6`，取中位数）。基准经 loopback TCP 下载 64 MiB 完整文件与 32 MiB 单段 Range，客户端在同一进程以 `io.Copy(io.Discard, …)` 读取；`cpu-ns/op` 是进程用户态＋内核态 CPU 时间，含客户端，客户端部分两边相同，差值来自服务端。改前数据用同一基准在父提交上测得。
+
+| 场景 | 改前 MB/s | 改后 MB/s | 改前 CPU ms/次 | 改后 CPU ms/次 | 改前 allocs/op | 改后 allocs/op |
+| --- | --- | --- | --- | --- | --- | --- |
+| 完整 64 MiB | 1640 | 2032 | 62.1 | 45.4 | 120 | 134 |
+| 单段 Range 32 MiB | 1717 | 2008 | 30.5 | 23.1 | 131 | 143 |
+
+读法：每次下载的进程 CPU 时间降低约 25%～27%，这是零拷贝的主要收益。吞吐量受同进程客户端读取限制，噪声较大：同一台机器另一轮改前测得 1920～2123 MB/s（完整）与 1827～1938 MB/s（Range），改后 2042～2097 与 1948～2113，提升约 2%～6%；不能据此推断真实网络吞吐。每次请求多出约 12 次分配（看门狗协程、计时器、通道与读取包装），与文件大小无关；字节数/op 都在 10～16 KB，没有随媒体大小增长的分配。看门狗与额外的 `Flush` 是固定开销，对很小的 Range 请求可能抵消收益，这里没有单独测量。
 
 ## 播放信息与直投判定（G10.4、G10.5、G15.2、G16.3）
 

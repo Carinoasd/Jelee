@@ -246,9 +246,9 @@ func (h *Handler) ServeSource(w http.ResponseWriter, r *http.Request, sourceID s
 		}
 	}()
 	// throttle is nil without a bandwidth limit. That is the only case in
-	// which a future zero-copy path may bypass the copy loop: revocation does
-	// not depend on the write path, since ending streamCtx closes the file and
-	// expires the write deadline.
+	// which the zero-copy path (sendfile.go) may bypass the copy loop:
+	// revocation does not depend on the write path, since ending streamCtx
+	// closes the file and expires the write deadline.
 	writer := &streamWriter{buffers: &h.buffers, ResponseWriter: w, request: r, ctx: streamCtx, controller: controller, timeout: h.options.WriteTimeout, writeError: h.options.WriteError, throttle: admitted.throttle(), errorPolicy: errorPolicy}
 	reader := &contextFile{ctx: streamCtx, file: file}
 	http.ServeContent(writer, r, "", info.ModTime(), reader)
@@ -399,6 +399,9 @@ func (w *streamWriter) write(data []byte) (int, error) {
 }
 
 func (w *streamWriter) ReadFrom(reader io.Reader) (int64, error) {
+	if written, handled, err := w.zeroCopy(reader); handled {
+		return written, err
+	}
 	// Hide optional copy interfaces to retain cancellation/deadline checks and a
 	// predictable per-stream copy buffer, including multipart Range responses.
 	buffer := w.buffers.Get().(*[32 << 10]byte)
