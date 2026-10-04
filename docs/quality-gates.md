@@ -121,6 +121,15 @@
 4. base 有、head 沒有的基準視為失敗（刪除或改名基準不能讓門禁失效，G30.5）；head 新增的基準只列出不擋。
 5. 放在獨立的 `bench-regression` job，不與 PostgreSQL job 同機，避免資料庫負載干擾計時；結果檔上傳為 `bench-compare` 製品。
 
+### 刻意回歸的接受清單
+
+有些改動是刻意用一邊的成本換另一邊（例如 G47 在規則編譯時建立前置篩選，編譯配置數上升、評估時間大幅下降）。這類回歸記在 `tools/bench-accepted.json`，由 `scripts/bench-compare.py` 自動傳給 `benchgate -accept`：
+
+- 每筆必須有 `benchmark`（完整名稱）、`unit`（`ns/op`、`B/op`、`allocs/op` 之一）、`max`（允許的上限，用實測值加少量餘裕）與 `reason`（理由與相關提交）；缺任何一項或有未知欄位，門禁直接以設定錯誤結束。
+- 只放行該基準、該單位，而且只到 `max`；之後再漲超過上限仍是回歸，所以一筆紀錄不會讓某個基準永久失去保護。
+- 被接受的項目會在報告中以 `accepted` 列出，CI 紀錄看得到。
+- 這次加入的唯一一筆：`internal/access.BenchmarkCompile10k` 的 allocs/op（CI 實測 36094 → 43565，上限 45000）。
+
 ## 反向驗證（2026-10-04 本機）
 
 - 新增一個含 `os.Remove(...)` 未檢查錯誤的檔案：`make golangci-lint` 失敗，列出 `errcheck: Error return value of os.Remove is not checked`。

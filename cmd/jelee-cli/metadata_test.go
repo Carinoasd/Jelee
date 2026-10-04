@@ -1,6 +1,7 @@
 package main
 
 import (
+	"runtime"
 	"bytes"
 	"context"
 	"encoding/json"
@@ -65,7 +66,7 @@ func TestMetadataCLIExportWritesPrivateFileOnce(t *testing.T) {
 	}
 	data, err := os.ReadFile(path)
 	info, statErr := os.Stat(path)
-	if err != nil || string(data) != "document\n" || statErr != nil || info.Mode().Perm() != 0o600 {
+	if err != nil || string(data) != "document\n" || statErr != nil || runtime.GOOS != "windows" && info.Mode().Perm() != 0o600 {
 		t.Fatalf("file %q mode %v err %v", data, info.Mode(), err)
 	}
 	var summary domain.MetadataExportSummary

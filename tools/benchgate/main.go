@@ -11,6 +11,7 @@ package main
 
 import (
 	"bufio"
+	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -231,6 +232,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 	bytesLimit := flags.Float64("bytes", -1, "max B/op increase in percent (negative disables; reported either way)")
 	allowMissing := flags.Bool("allow-missing", false, "do not fail when a baseline benchmark is absent from the current run")
 	match := flags.String("match", "", "only compare benchmarks whose qualified name matches this regexp")
+	acceptPath := flags.String("accept", "", "reviewed JSON list of intentional regressions with a ceiling and a reason")
 	if err := flags.Parse(args); err != nil {
 		return 2
 	}
@@ -263,6 +265,22 @@ func run(args []string, stdout, stderr io.Writer) int {
 	}
 	writeReport(stdout, report, base, current)
 	regressions := report.Regressions()
+	if *acceptPath != "" {
+		accepted, err := readAccepted(*acceptPath)
+		if err != nil {
+			fmt.Fprintf(stderr, "benchgate: accept %s: %v\n", *acceptPath, err)
+			return 2
+		}
+		var kept []Delta
+		for _, d := range regressions {
+			if a, ok := accepted.covers(d); ok {
+				fmt.Fprintf(stdout, "  accepted %s %s: %s -> %s (%s) within ceiling %s: %s\n", d.Name, d.Unit, formatValue(d.Base), formatValue(d.Current), formatPercent(d.Percent), formatValue(a.Max), a.Reason)
+				continue
+			}
+			kept = append(kept, d)
+		}
+		regressions = kept
+	}
 	failed := len(regressions) > 0 || (len(report.Missing) > 0 && !*allowMissing)
 	if failed {
 		fmt.Fprintf(stdout, "\nFAIL: %d regression(s), %d missing benchmark(s)\n", len(regressions), len(report.Missing))
@@ -317,4 +335,44 @@ func writeReport(w io.Writer, report Report, base, current Samples) {
 	for _, name := range report.Added {
 		fmt.Fprintf(w, "new (no baseline, not gated): %s\n", name)
 	}
+}
+
+// Accepted is one reviewed, intentional regression: the named benchmark may
+// reach Max in Unit. A later rise above Max is a regression again, so an entry
+// never silences a benchmark wholesale.
+type Accepted struct {
+	Benchmark string  `json:"benchmark"`
+	Unit      string  `json:"unit"`
+	Max       float64 `json:"max"`
+	Reason    string  `json:"reason"`
+}
+
+type acceptList []Accepted
+
+func (l acceptList) covers(d Delta) (Accepted, bool) {
+	for _, a := range l {
+		if a.Benchmark == d.Name && a.Unit == d.Unit && d.Current <= a.Max {
+			return a, true
+		}
+	}
+	return Accepted{}, false
+}
+
+func readAccepted(path string) (acceptList, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	var list acceptList
+	decoder := json.NewDecoder(strings.NewReader(string(data)))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&list); err != nil {
+		return nil, err
+	}
+	for i, a := range list {
+		if a.Benchmark == "" || (a.Unit != unitNs && a.Unit != unitAllocs && a.Unit != unitBytes) || !(a.Max > 0) || strings.TrimSpace(a.Reason) == "" {
+			return nil, fmt.Errorf("entry %d needs benchmark, a known unit, a positive max and a reason", i)
+		}
+	}
+	return list, nil
 }

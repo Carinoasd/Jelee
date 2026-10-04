@@ -192,3 +192,36 @@ func TestRunExitCodes(t *testing.T) {
 		})
 	}
 }
+
+// An accepted regression passes only up to its reviewed ceiling, only for its
+// own benchmark and unit, and every entry must carry a reason.
+func TestRunAcceptsReviewedRegressionsUpToCeiling(t *testing.T) {
+	dir := t.TempDir()
+	base := writeFile(t, dir, "base.txt", "pkg: p\nBenchmarkA-4 10 100 ns/op 8 B/op 10 allocs/op\n")
+	more := writeFile(t, dir, "more.txt", "pkg: p\nBenchmarkA-4 10 100 ns/op 8 B/op 12 allocs/op\n")
+	much := writeFile(t, dir, "much.txt", "pkg: p\nBenchmarkA-4 10 100 ns/op 8 B/op 20 allocs/op\n")
+	ok := writeFile(t, dir, "ok.json", `[{"benchmark":"p.BenchmarkA","unit":"allocs/op","max":13,"reason":"prefilter built at compile time"}]`)
+	otherUnit := writeFile(t, dir, "unit.json", `[{"benchmark":"p.BenchmarkA","unit":"ns/op","max":1000,"reason":"r"}]`)
+	noReason := writeFile(t, dir, "reason.json", `[{"benchmark":"p.BenchmarkA","unit":"allocs/op","max":13,"reason":" "}]`)
+	unknown := writeFile(t, dir, "unknown.json", `[{"benchmark":"p.BenchmarkA","unit":"allocs/op","max":13,"reason":"r","extra":1}]`)
+	for _, tc := range []struct {
+		name string
+		args []string
+		code int
+		out  string
+	}{
+		{"within ceiling", []string{"-base", base, "-current", more, "-accept", ok}, 0, "accepted p.BenchmarkA allocs/op"},
+		{"above ceiling", []string{"-base", base, "-current", much, "-accept", ok}, 1, "regression p.BenchmarkA allocs/op"},
+		{"other unit does not cover", []string{"-base", base, "-current", more, "-accept", otherUnit}, 1, "regression p.BenchmarkA allocs/op"},
+		{"reason required", []string{"-base", base, "-current", more, "-accept", noReason}, 2, ""},
+		{"unknown field", []string{"-base", base, "-current", more, "-accept", unknown}, 2, ""},
+		{"no accept file", []string{"-base", base, "-current", more}, 1, "regression"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var stdout, stderr bytes.Buffer
+			if code := run(tc.args, &stdout, &stderr); code != tc.code || !strings.Contains(stdout.String(), tc.out) {
+				t.Fatalf("exit %d, want %d (%q)\nstdout:\n%s\nstderr:\n%s", code, tc.code, tc.out, stdout.String(), stderr.String())
+			}
+		})
+	}
+}

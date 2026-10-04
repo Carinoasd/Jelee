@@ -86,8 +86,10 @@ def main(argv=None):
                     continue
                 with results[name].open("a", encoding="utf-8") as stream:
                     run(bench_command(go, present, args), tree, stream)
+        accept = ROOT / "tools" / "bench-accepted.json"
+        accepted = ["-accept", str(accept)] if accept.exists() else []
         gate = subprocess.run([go, "run", "./tools/benchgate", "-base", str(results["base"]),
-                               "-current", str(results["head"])] + args.gate.split(), cwd=ROOT)
+                               "-current", str(results["head"])] + accepted + args.gate.split(), cwd=ROOT)
         return gate.returncode
     finally:
         subprocess.run(["git", "worktree", "remove", "--force", str(base_tree)], cwd=ROOT, check=False)
