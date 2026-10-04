@@ -35,7 +35,6 @@ const ItemVersionsPanel = defineAsyncComponent(async () => (await Promise.all([i
 const TrackPreferencesPanel = defineAsyncComponent(async () => (await Promise.all([import("./TrackPreferencesPanel.vue"), loadLazyMessages(i18nGlobal, "versions")]))[0]);
 const store = useItemDetailStore();
 const libraries = useLibrariesStore();
-const auth = useAuthStore();
 const guest = useGuestShareStore();
 const layout = useLayoutStore();
 // Panels in the user's order (G33.5); hidden panels are not rendered.
