@@ -18,6 +18,7 @@ import (
 	"golang.org/x/image/font/gofont/goregular"
 	"golang.org/x/image/font/opentype"
 	"golang.org/x/image/math/fixed"
+	"golang.org/x/sys/unix"
 
 	"github.com/MoYuanCN/Jelee/tools"
 )
@@ -51,12 +52,30 @@ func runToolHelper(t *testing.T, helper string, launcher *ToolLauncher, policy T
 	return []byte(stdout.String()), err
 }
 
+// extractFixture returns the fake mkvextract (the attack helper under the
+// mode's fixed name). The required native container's only writable
+// directory (TMPDIR) is mounted noexec, where the final execveat fails with
+// EACCES after every restriction is applied, so that proof image ships the
+// copy; other runs copy the helper into a temporary directory.
+func extractFixture(t *testing.T, helper string) string {
+	t.Helper()
+	path := os.Getenv("JELEE_SANDBOX_EXTRACT_FIXTURE")
+	if path == "" {
+		path = filepath.Join(t.TempDir(), "mkvextract")
+		copyFixture(t, helper, path)
+	}
+	var mount unix.Statfs_t
+	if err := unix.Statfs(path, &mount); err != nil || mount.Flags&unix.ST_NOEXEC != 0 {
+		t.Fatal("fake mkvextract must be on an exec-capable mount; set JELEE_SANDBOX_EXTRACT_FIXTURE")
+	}
+	return path
+}
+
 func TestNativeToolSandboxConfinesExtraction(t *testing.T) {
 	requireNative(t)
 	helper := fixtureHelper(t)
 	requireNativeThreadBudget(t)
-	fake := filepath.Join(t.TempDir(), "mkvextract")
-	copyFixture(t, helper, fake)
+	fake := extractFixture(t, helper)
 	policy := ToolPolicy{ExecutableSHA256: fileDigest(t, fake)}
 	launcher, err := NewTool(context.Background(), ToolProfile{Mode: ToolExtract, Path: fake}, policy)
 	if err != nil {

@@ -38,7 +38,7 @@ func main() {
 			}
 		}
 	}
-	if len(os.Args) > 1 && os.Args[1] == "--test-tool-helper" {
+	if len(os.Args) > 1 && (os.Args[1] == "--test-tool-helper" || os.Args[1] == "--test-tool-helper-coverage") {
 		var registration struct {
 			Profile sandbox.ToolProfile
 			Policy  sandbox.ToolPolicy
@@ -46,9 +46,13 @@ func main() {
 		if json.Unmarshal([]byte(os.Getenv("JELEE_TEST_TOOL_POLICY")), &registration) != nil {
 			os.Exit(60)
 		}
-		os.Exit(sandbox.RunToolHelper(os.Args[2:], func(mode sandbox.ToolMode) (sandbox.ToolProfile, sandbox.ToolPolicy, bool) {
+		code := sandbox.RunToolHelper(os.Args[2:], func(mode sandbox.ToolMode) (sandbox.ToolProfile, sandbox.ToolPolicy, bool) {
 			return registration.Profile, registration.Policy, mode == registration.Profile.Mode
-		}))
+		})
+		if os.Args[1] == "--test-tool-helper-coverage" {
+			writeCoverage()
+		}
+		os.Exit(code)
 	}
 	if len(os.Args) > 0 && filepath.Base(os.Args[0]) == "mkvextract" {
 		os.Exit(extractionProbe())
@@ -61,18 +65,7 @@ func main() {
 		}
 		code := sandbox.RunHelper(os.Args[2:], policy)
 		if collect {
-			// Only this test wrapper exports coverage, through the inherited pipe.
-			// It runs after a real failed exec; production has no callback or bypass.
-			var meta, counters bytes.Buffer
-			if err := coverage.WriteMeta(&meta); err != nil {
-				fmt.Fprintln(os.Stderr, "test coverage metadata:", err)
-				os.Exit(63)
-			}
-			if err := coverage.WriteCounters(&counters); err != nil {
-				fmt.Fprintln(os.Stderr, "test coverage counters:", err)
-				os.Exit(63)
-			}
-			_ = json.NewEncoder(os.Stdout).Encode(map[string][]byte{"meta": meta.Bytes(), "counters": counters.Bytes()})
+			writeCoverage()
 		}
 		os.Exit(code)
 	}
@@ -142,6 +135,22 @@ func main() {
 	_, err = unix.FcntlInt(1, unix.F_SETFL, unix.O_WRONLY|unix.O_ASYNC)
 	result["fcntl_async_denied"] = errors.Is(err, unix.EPERM)
 	_ = json.NewEncoder(os.Stdout).Encode(result)
+}
+
+// writeCoverage exports this process's coverage through the inherited
+// stdout pipe. Only the test wrappers call it, after a real failed exec;
+// production has no callback or bypass.
+func writeCoverage() {
+	var meta, counters bytes.Buffer
+	if err := coverage.WriteMeta(&meta); err != nil {
+		fmt.Fprintln(os.Stderr, "test coverage metadata:", err)
+		os.Exit(63)
+	}
+	if err := coverage.WriteCounters(&counters); err != nil {
+		fmt.Fprintln(os.Stderr, "test coverage counters:", err)
+		os.Exit(63)
+	}
+	_ = json.NewEncoder(os.Stdout).Encode(map[string][]byte{"meta": meta.Bytes(), "counters": counters.Bytes()})
 }
 
 func permission(err error) bool {

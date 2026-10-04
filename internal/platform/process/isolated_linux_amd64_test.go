@@ -130,11 +130,15 @@ func TestIsolatedCoverFactoryRegistersOnlySealedCoverReads(t *testing.T) {
 }
 
 func TestIsolatedToolFactoryAcceptsOnlyTheSealedLauncher(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "mkvextract")
-	command := exec.Command(filepath.Join(runtime.GOROOT(), "bin", "go"), "build", "-trimpath", "-o", path, "../sandbox/testdata/helper") //nolint:staticcheck // SA1019: test helpers build with the toolchain running the test; project wrappers export GOROOT
-	command.Env = append(os.Environ(), "CGO_ENABLED=0", "GOTOOLCHAIN=local")
-	if output, err := command.CombinedOutput(); err != nil {
-		t.Fatalf("build sealed launcher fixture: %v; %s", err, output)
+	// The native proof image ships this fixture; it has no Go toolchain.
+	path := os.Getenv("JELEE_SANDBOX_EXTRACT_FIXTURE")
+	if path == "" {
+		path = filepath.Join(t.TempDir(), "mkvextract")
+		command := exec.Command(filepath.Join(runtime.GOROOT(), "bin", "go"), "build", "-trimpath", "-o", path, "../sandbox/testdata/helper") //nolint:staticcheck // SA1019: test helpers build with the toolchain running the test; project wrappers export GOROOT
+		command.Env = append(os.Environ(), "CGO_ENABLED=0", "GOTOOLCHAIN=local")
+		if output, err := command.CombinedOutput(); err != nil {
+			t.Fatalf("build sealed launcher fixture: %v; %s", err, output)
+		}
 	}
 	file, err := os.Open(path)
 	if err != nil {

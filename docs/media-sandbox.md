@@ -136,7 +136,8 @@ CGO_ENABLED=0 .bin/go test -cover -covermode=atomic -c \
 CGO_ENABLED=0 .bin/go build -o .testdata/sandbox-covdata cmd/covdata
 # Inside the protected test image, with the fixture environment configured:
 /project/sandbox.test -test.v -test.timeout=3m \
-  '-test.run=Test(Native|Real|Pinned|Protected|New|Descriptor|Launcher|Policy|Syscall)' \
+  '-test.run=Test(Native|Real|Pinned|Protected|New|Descriptor|Launcher|Policy|Syscall|Cover|Tool|OCR)' \
+  '-test.skip=^Test(RealMatroskaToolsInSandboxWithExplicitHostRuntime|RealTesseractInSandboxWithExplicitHostRuntime)$' \
   -test.gocoverdir=/project/.testdata/parent
 /project/covdata percent -i=/project/.testdata/parent
 /project/covdata percent -i=/project/.testdata/child
@@ -145,7 +146,7 @@ CGO_ENABLED=0 .bin/go build -o .testdata/sandbox-covdata cmd/covdata
 /project/covdata percent -i=/project/.testdata/merged
 ```
 
-The SDK coverage tool is compiled before entering the container because its tmpfs is `noexec`. Raw and merged results, the image digest, binary hashes, and source hashes are retained in the native test evidence. Shared-UID WSL runs may explicitly skip synthetic thread tests when the available UID budget is insufficient; the required isolated run sets `JELEE_REQUIRE_SANDBOX_TEST=true` so missing kernel support or thread budget is a failure. The accepted native run has no skipped selected tests, including FIFO checks on native tmpfs. This run uses `CGO_ENABLED=0` and does not claim race-detector coverage.
+The SDK coverage tool is compiled before entering the container because its tmpfs is `noexec`. For the same reason the fake `mkvextract` used by `TestNativeToolSandboxConfinesExtraction` is shipped in the image (`JELEE_SANDBOX_EXTRACT_FIXTURE`): a copy in `TMPDIR` passes registration but the kernel refuses its final `execveat` with `EACCES`, and the helper correctly fails closed with `media_sandbox_unavailable`. The test refuses a fixture on a `noexec` mount with an explicit message. The tool entry (extraction and OCR) also writes late-failure child snapshots, so the merged figure above, measured before that entry existed, is re-established by each run's evidence. The two Matroska/Tesseract host-runtime proofs need an explicit opt-in, this host's glibc and a source checkout, none of which exist in the image, so they are excluded from this suite instead of being counted as skips. Raw and merged results, the image digest, binary hashes, and source hashes are retained in the native test evidence. Shared-UID WSL runs may explicitly skip synthetic thread tests when the available UID budget is insufficient; the required isolated run sets `JELEE_REQUIRE_SANDBOX_TEST=true` so missing kernel support or thread budget is a failure. The accepted native run has no skipped selected tests, including FIFO checks on native tmpfs. This run uses `CGO_ENABLED=0` and does not claim race-detector coverage.
 
 ## Primary references
 
