@@ -89,22 +89,24 @@
 
 ## E. 需要擁有者決定
 
+> 2026-10-05：E1–E14 由本專案（Carinoasd）依需求原文決定，決定內容寫在各列狀態欄；標「待實作」的會接著實作。若擁有者有不同意見，直接在 PR 留言即可調整。
+
 | # | 項目 | 目前做法 | 狀態 |
 |---|---|---|---|
-| E1 | 外部工具用 `os.StartProcess`／Windows Job，而不是 `os/exec` | `docs/adr/0001-external-process-start.md` | 待確認 |
-| E2 | 兩種上游舊品牌忽略檔的語義（G22.2 列出的兩個檔名） | 上游原始碼找不到入口，暫記為阻塞 | 待確認 |
-| E3 | TMDB 資料使用條款：保存期限、24 小時快取是否合規、署名位置 | `docs/tmdb-external-metadata-removal.md` | 待確認 |
-| E4 | 外部工具 MediaInfo、mkvtoolnix 的下載與授權核准（G19.1、G51） | 尚未引入 | 待確認 |
-| E5 | 刪除 C# 樹後，只靠 Git 歷史與 tag `upstream-csharp-final` 提供舊原始碼，是否滿足 GPL 義務（含倉庫轉私有、遷移、被 fork 的情況） | `docs/LICENSE-COMPLIANCE.md` | 待確認 |
-| E6 | Go 程式中是否有逐段移植自上游 C# 的部分，需要帶上原檔版權頭 | 同上 | 待確認 |
-| E7 | 根目錄 `LICENSE` 是 GPL v2，上游套件元資料寫 GPL-3.0-only，Jelee 對外宣告哪一版 | 同上 | 待確認 |
-| E8 | 已不再分發的 ListenBrainz 圖示，其 NOTICE 是否繼續保留（目前保守保留） | `docs/legal/upstream/` | 待確認 |
-| E9 | 預設開啟「每位使用者同時最多 4 個不同播放」會改變既有部署行為；是否改成預設不限（`DefaultStreamingConfig.EnableStreamLimit`） | `internal/platform/config/streaming.go` | 待確認 |
-| E10 | 並發計數只存在單一行程記憶體，多實例部署時同一使用者分散到多台可超過上限；撤銷檢查則跨實例。是否需要跨實例計數 | `docs/direct-delivery.md` | 待確認 |
-| E11 | 相容層刻意比上游嚴格：`GET /Users/{id}` 只允許本人或管理員、`/Users/Public` 不列出帳號；若某客戶端依賴舊行為是否接受 | `docs/compat-matrix.md` | 待確認 |
-| E12 | 權限規則預設：管理員預設不受條目規則、分級、標籤限制（`restrict_admins` 可開）；未分級條目的全域預設策略；內建分級代碼表（美、英、日、德、台）是否足夠 | `docs/access-control.md` | 待確認 |
-| E13 | 舊庫遷移工具（G04.6：Jellyfin SQLite → PostgreSQL）需要讀 SQLite，go.mod 目前沒有 SQLite 驅動。是否核准新增純 Go 的 `modernc.org/sqlite`（BSD 授權）？未核准前此項維持阻塞 | `docs/requirements-traceability.md` G04.6 | 待確認 |
-| E14 | 初始引導選用「一次性引導權杖」而非來源位址白名單（理由：Docker 連接埠映射與反向代理後合法引導者本來就不是 loopback）；多實例部署請在引導期間只開一個實例或改用 CLI。是否接受 | `docs/setup-wizard.md` | 待確認 |
+| E1 | 外部工具用 `os.StartProcess`／Windows Job，而不是 `os/exec` | `docs/adr/0001-external-process-start.md` | 已決定（2026-10-05）：採用：維持 `os.StartProcess`／Windows Job（ADR 0001），理由是需要行程群組、資源限制與沙箱，`os/exec` 做不到；同樣只用參數陣列、不經 shell |
+| E2 | 兩種上游舊品牌忽略檔的語義（G22.2 列出的兩個檔名） | 上游原始碼找不到入口，暫記為阻塞 | 已決定（2026-10-05）：採用：兩種舊忽略檔作為 `.jeleeignore` 的別名，語義與 `.jeleeignore` 相同（gitignore 語法），同目錄同時存在時以 `.jeleeignore` 為準；待實作 |
+| E3 | TMDB 資料使用條款：保存期限、24 小時快取是否合規、署名位置 | `docs/tmdb-external-metadata-removal.md` | 已決定（2026-10-05）：接受：TMDB 資料 24 小時快取、只隨條目保存、條目刪除即清除；署名放在「關於」頁與 API 文件，並遵守其非商業條款 |
+| E4 | 外部工具 MediaInfo、mkvtoolnix 的下載與授權核准（G19.1、G51） | 尚未引入 | 已決定（2026-10-05）：核准：MediaInfo 與 mkvtoolnix 依 G30.6 納入 `tools/manifest.json`（固定版本、官方來源、SHA256、授權記錄），預設不強制安裝；待實作 |
+| E5 | 刪除 C# 樹後，只靠 Git 歷史與 tag `upstream-csharp-final` 提供舊原始碼，是否滿足 GPL 義務（含倉庫轉私有、遷移、被 fork 的情況） | `docs/LICENSE-COMPLIANCE.md` | 已決定（2026-10-05）：接受：發佈的二進位與映像一律附原始碼位置（含 tag `upstream-csharp-final` 與對應提交），符合 GPL v2 第 3 條；寫進發佈流程 |
+| E6 | Go 程式中是否有逐段移植自上游 C# 的部分，需要帶上原檔版權頭 | 同上 | 已決定（2026-10-05）：決定：不逐行移植，Go 程式不加上游版權頭；若日後有逐段移植，該檔需加註來源與原版權 |
+| E7 | 根目錄 `LICENSE` 是 GPL v2，上游套件元資料寫 GPL-3.0-only，Jelee 對外宣告哪一版 | 同上 | 已決定（2026-10-05）：決定：Jelee 對外宣告 GPL-2.0-only，與根目錄 `LICENSE` 一致 |
+| E8 | 已不再分發的 ListenBrainz 圖示，其 NOTICE 是否繼續保留（目前保守保留） | `docs/legal/upstream/` | 已決定（2026-10-05）：決定：繼續保留 NOTICE（成本低、風險為零） |
+| E9 | 預設開啟「每位使用者同時最多 4 個不同播放」會改變既有部署行為；是否改成預設不限（`DefaultStreamingConfig.EnableStreamLimit`） | `internal/platform/config/streaming.go` | 已決定（2026-10-05）：決定：維持預設「每位使用者同時最多 4 個不同播放」，升級說明中註明可關閉 |
+| E10 | 並發計數只存在單一行程記憶體，多實例部署時同一使用者分散到多台可超過上限；撤銷檢查則跨實例。是否需要跨實例計數 | `docs/direct-delivery.md` | 已決定（2026-10-05）：決定：目前接受單一行程計數並在文件註明；多實例部署建議把同一使用者導向同一實例，跨實例計數列為後續 |
+| E11 | 相容層刻意比上游嚴格：`GET /Users/{id}` 只允許本人或管理員、`/Users/Public` 不列出帳號；若某客戶端依賴舊行為是否接受 | `docs/compat-matrix.md` | 已決定（2026-10-05）：接受：相容層維持較嚴格的行為（隱私優先） |
+| E12 | 權限規則預設：管理員預設不受條目規則、分級、標籤限制（`restrict_admins` 可開）；未分級條目的全域預設策略；內建分級代碼表（美、英、日、德、台）是否足夠 | `docs/access-control.md` | 已決定（2026-10-05）：接受：管理員預設不受條目規則／分級／標籤限制、未分級預設允許、內建分級表維持現狀 |
+| E13 | 舊庫遷移工具（G04.6：Jellyfin SQLite → PostgreSQL）需要讀 SQLite，go.mod 目前沒有 SQLite 驅動。是否核准新增純 Go 的 `modernc.org/sqlite`（BSD 授權）？未核准前此項維持阻塞 | `docs/requirements-traceability.md` G04.6 | 已決定（2026-10-05）：核准：新增純 Go 的 `modernc.org/sqlite`（BSD 授權）供舊庫遷移工具使用，授權記錄進 LICENSE-COMPLIANCE；待實作 |
+| E14 | 初始引導選用「一次性引導權杖」而非來源位址白名單（理由：Docker 連接埠映射與反向代理後合法引導者本來就不是 loopback）；多實例部署請在引導期間只開一個實例或改用 CLI。是否接受 | `docs/setup-wizard.md` | 已決定（2026-10-05）：接受：一次性引導權杖 |
 
 ## F. 一次性維運
 
