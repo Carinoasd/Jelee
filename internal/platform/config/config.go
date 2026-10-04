@@ -44,6 +44,13 @@ type Config struct {
 	// WebDir is the built single-page frontend (for example web/dist). Empty
 	// disables the frontend; the API is unaffected either way.
 	WebDir string `json:"webDir"`
+	// EnableCompat mounts the third-party client compatibility layer under
+	// /compat. It is off by default.
+	EnableCompat bool `json:"enableCompat"`
+	// CompatServerID pins the server identifier reported by the compatibility
+	// layer (32 lowercase hex digits). Empty derives a stable value from
+	// allowedHosts.
+	CompatServerID string `json:"compatServerId"`
 }
 
 func Load() (Config, error) { return LoadWith(os.LookupEnv) }
@@ -100,6 +107,9 @@ func LoadWith(lookup func(string) (string, bool)) (Config, error) {
 	if value, ok := lookup("JELEE_ALLOWED_HOSTS"); ok {
 		c.AllowedHosts = strings.Split(value, ",")
 	}
+	if value, ok := lookup("JELEE_COMPAT_SERVER_ID"); ok {
+		c.CompatServerID = value
+	}
 	if value, ok := lookup("JELEE_WEB_DIR"); ok {
 		c.WebDir = value
 	}
@@ -109,7 +119,7 @@ func LoadWith(lookup func(string) (string, bool)) (Config, error) {
 			c.TrustedProxies = strings.Split(value, ",")
 		}
 	}
-	for name, target := range map[string]*bool{"JELEE_ENABLE_CATALOG": &c.EnableCatalog, "JELEE_ENABLE_DIRECT": &c.EnableDirect, "JELEE_ENABLE_ACCOUNTS": &c.EnableAccounts, "JELEE_ENABLE_METRICS": &c.EnableMetrics, "JELEE_ENABLE_IMAGES": &c.EnableImages, "JELEE_ENABLE_JOBS": &c.EnableJobs, "JELEE_ENABLE_PROBE": &c.EnableProbe, "JELEE_ENABLE_FAMILY_IGNORE": &c.EnableFamilyIgnore, "JELEE_ENABLE_NFO_WRITE": &c.EnableNFOWrite} {
+	for name, target := range map[string]*bool{"JELEE_ENABLE_CATALOG": &c.EnableCatalog, "JELEE_ENABLE_DIRECT": &c.EnableDirect, "JELEE_ENABLE_ACCOUNTS": &c.EnableAccounts, "JELEE_ENABLE_METRICS": &c.EnableMetrics, "JELEE_ENABLE_IMAGES": &c.EnableImages, "JELEE_ENABLE_JOBS": &c.EnableJobs, "JELEE_ENABLE_PROBE": &c.EnableProbe, "JELEE_ENABLE_FAMILY_IGNORE": &c.EnableFamilyIgnore, "JELEE_ENABLE_NFO_WRITE": &c.EnableNFOWrite, "JELEE_COMPAT_ENABLED": &c.EnableCompat} {
 		if value, ok := lookup(name); ok {
 			b, err := strconv.ParseBool(value)
 			if err != nil {
@@ -198,6 +208,9 @@ func (c Config) Validate() error {
 	if c.MaxConnections < 1 || c.MaxConnections > 128 || c.MaxStreams < 1 || c.MaxStreams > 128 || c.RequestTimeoutSeconds < 1 || c.RequestTimeoutSeconds > 120 {
 		return errors.New("concurrency or timeout is outside the supported range")
 	}
+	if c.CompatServerID != "" && !validCompatServerID(c.CompatServerID) {
+		return errors.New("compatServerId must be 32 lowercase hex digits and not all zero")
+	}
 	if c.EnableDirect && !c.EnableCatalog {
 		return errors.New("direct delivery requires catalog rollout")
 	}
@@ -253,4 +266,16 @@ func (c Config) Validate() error {
 
 func (c Config) RequestTimeout() time.Duration {
 	return time.Duration(c.RequestTimeoutSeconds) * time.Second
+}
+
+func validCompatServerID(id string) bool {
+	if len(id) != 32 || strings.Trim(id, "0") == "" {
+		return false
+	}
+	for i := 0; i < len(id); i++ {
+		if c := id[i]; !(c >= '0' && c <= '9' || c >= 'a' && c <= 'f') {
+			return false
+		}
+	}
+	return true
 }

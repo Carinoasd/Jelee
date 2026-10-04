@@ -57,6 +57,7 @@ type Server struct {
 	images          *app.Images
 	imageSlots      chan struct{}
 	web             *webApp
+	compat          http.Handler
 }
 
 func New(cfg config.Config, backend Backend, catalog *app.Catalog, resolver media.Resolver, logger *slog.Logger, accounts ...*app.Accounts) (http.Handler, error) {
@@ -207,6 +208,12 @@ func newServer(cfg config.Config, backend Backend, catalog *app.Catalog, resolve
 	if cfg.EnableJobs {
 		s.jobRoutes(r)
 	}
+	if cfg.EnableCompat {
+		if s.compat, err = newCompat(cfg, backend); err != nil {
+			return nil, err
+		}
+		r.Mount(compat.Prefix, s.compat)
+	}
 	if cfg.EnableCatalog {
 		r.Group(func(r chi.Router) {
 			r.Use(s.authenticate)
@@ -223,6 +230,16 @@ func newServer(cfg config.Config, backend Backend, catalog *app.Catalog, resolve
 	// The frontend has no routes of its own: a GET or HEAD outside /api that no
 	// API route claims is answered from the web directory when one is set.
 	r.NotFound(func(w http.ResponseWriter, r *http.Request) {
+		// The compatibility prefix is reserved: a letter-case variant of it is
+		// served by the layer, and nothing below it ever reaches the frontend.
+		if compat.HasPrefix(r.URL.Path) {
+			if s.compat != nil {
+				s.compat.ServeHTTP(w, r)
+				return
+			}
+			WriteError(w, r, domain.ErrNotFound)
+			return
+		}
 		if s.web.handles(r) {
 			s.web.serve(w, r)
 			return
@@ -231,6 +248,16 @@ func newServer(cfg config.Config, backend Backend, catalog *app.Catalog, resolve
 	})
 	r.MethodNotAllowed(func(w http.ResponseWriter, r *http.Request) { WriteError(w, r, media.ErrMethodNotAllowed) })
 	return r, nil
+}
+
+// newCompat builds the third-party client compatibility layer. It reuses the
+// server's session lookup and its transcode_disabled envelope.
+func newCompat(cfg config.Config, backend Backend) (http.Handler, error) {
+	id := cfg.CompatServerID
+	if id == "" {
+		id = compat.DeriveServerID(cfg.AllowedHosts...)
+	}
+	return compat.NewRouter(compat.Options{Authenticate: backend.Authenticate, WriteRejection: WriteError, ServerID: id, Timeout: cfg.RequestTimeout()})
 }
 
 func (s *Server) boundary(next http.Handler) http.Handler {

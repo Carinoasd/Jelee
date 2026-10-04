@@ -29,7 +29,19 @@ import (
 // undocumentedRoutes lists router entries deliberately absent from the
 // OpenAPI document, keyed by "METHOD /path", with the reason. Keep it empty
 // unless a route is not part of the public API contract.
-var undocumentedRoutes = map[string]string{}
+var undocumentedRoutes = map[string]string{
+	"GET /compat/System/Info/Public": compatExemption,
+	"GET /compat/System/Info":        compatExemption,
+	"GET /compat/System/Ping":        compatExemption,
+	"POST /compat/System/Ping":       compatExemption,
+}
+
+// compatExemption: the /compat layer reproduces a third-party wire protocol
+// (PascalCase DTOs, upstream status codes and bodies, case-insensitive paths)
+// that this API's conventions and error envelope do not describe. Its
+// contract lives in docs/compat-matrix.md and the golden files under
+// internal/adapter/compat/testdata/golden.
+const compatExemption = "third-party client compatibility protocol, not the Jelee API; contract in docs/compat-matrix.md and compat golden files"
 
 // contractRouter builds the real router with every service present so that
 // only the rollout flags in cfg decide which routes are registered.

@@ -111,3 +111,30 @@ func TestNumericAndRolloutEnvironmentValidation(t *testing.T) {
 		t.Fatalf("valid configuration rejected: %v", err)
 	}
 }
+
+func TestCompatEnvironment(t *testing.T) {
+	load := func(values map[string]string) (Config, error) {
+		values["JELEE_DATABASE_URL"] = "postgres://localhost/jelee"
+		return LoadWith(func(key string) (string, bool) { v, ok := values[key]; return v, ok })
+	}
+	c, err := load(map[string]string{})
+	if err != nil || c.EnableCompat || c.CompatServerID != "" {
+		t.Fatalf("compatibility layer must default off: %v", err)
+	}
+	c, err = load(map[string]string{"JELEE_COMPAT_ENABLED": "true", "JELEE_COMPAT_SERVER_ID": "0123456789abcdef0123456789abcdef"})
+	if err != nil || !c.EnableCompat || c.CompatServerID != "0123456789abcdef0123456789abcdef" {
+		t.Fatalf("valid compatibility settings rejected: %v", err)
+	}
+	for _, values := range []map[string]string{
+		{"JELEE_COMPAT_ENABLED": "maybe"},
+		{"JELEE_COMPAT_SERVER_ID": "0123456789ABCDEF0123456789ABCDEF"},
+		{"JELEE_COMPAT_SERVER_ID": "0123456789abcdef0123456789abcde"},
+		{"JELEE_COMPAT_SERVER_ID": "01234567-89ab-cdef-0123-456789abcdef"},
+		{"JELEE_COMPAT_SERVER_ID": "0123456789abcdef0123456789abcdeg"},
+		{"JELEE_COMPAT_SERVER_ID": strings.Repeat("0", 32)},
+	} {
+		if _, err := load(values); err == nil {
+			t.Fatalf("invalid compatibility setting accepted: %v", values)
+		}
+	}
+}

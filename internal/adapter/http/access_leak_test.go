@@ -86,6 +86,12 @@ func leakRouteTable() map[string]leakRoute {
 		"GET /api-docs":            noMedia(noParams, "static documentation page"),
 		"GET /api/v1/openapi.json": noMedia(noParams, "generated specification"),
 
+		// Third-party client compatibility layer (system module).
+		"GET /compat/System/Info/Public": noMedia(noParams, "public compatibility server identity"),
+		"GET /compat/System/Info":        noMedia(noParams, "compatibility server information; no media identifiers"),
+		"GET /compat/System/Ping":        noMedia(noParams, "returns only the product name"),
+		"POST /compat/System/Ping":       exempt("returns only the product name; carries no media identifiers"),
+
 		// Catalog and delivery: the direct media surfaces.
 		"GET /api/v1/items":                      {mode: leakList, params: noParams, control: true},
 		"GET /api/v1/items/{id}":                 {mode: leakByID, params: itemParam, control: true},
@@ -202,6 +208,7 @@ func leakConfig(t *testing.T, dsn string, hiddenStatus int) config.Config {
 	cfg.Images.TempRoot = t.TempDir()
 	cfg.TMDBAPIKey = strings.Repeat("a", 32)
 	cfg.Access.HiddenStatus = hiddenStatus
+	cfg.EnableCompat = true
 	return cfg
 }
 
@@ -500,7 +507,12 @@ func leakRequest(t *testing.T, handler http.Handler, method, path, token string)
 		r.Header.Set("Content-Type", "application/json")
 	}
 	r.Header.Set("Idempotency-Key", "leak-probe")
-	r.Header.Set("Authorization", "Bearer "+token)
+	if strings.HasPrefix(path, "/compat/") {
+		// The compatibility layer does not accept bearer tokens.
+		r.URL.RawQuery = url.Values{"ApiKey": {token}}.Encode()
+	} else {
+		r.Header.Set("Authorization", "Bearer "+token)
+	}
 	w := httptest.NewRecorder()
 	handler.ServeHTTP(w, r)
 	var envelope struct {

@@ -107,7 +107,7 @@ func ReferenceConfig() config.Config {
 		Resources: config.DefaultResourcesConfig(), Listen: "127.0.0.1:8097", AllowedHosts: []string{"localhost", "127.0.0.1", "::1"},
 		DatabaseURL: "postgres://localhost/jelee", TMDBAPIKey: "00000000000000000000000000000000",
 		MaxConnections: 8, MaxStreams: 8, RequestTimeoutSeconds: 15,
-		EnableCatalog: true, EnableDirect: true, EnableAccounts: true, EnableMetrics: true, EnableImages: true, EnableJobs: true, EnableProbe: true, EnableFamilyIgnore: true,
+		EnableCatalog: true, EnableDirect: true, EnableAccounts: true, EnableMetrics: true, EnableImages: true, EnableJobs: true, EnableProbe: true, EnableFamilyIgnore: true, EnableCompat: true,
 		Accounts: config.DefaultAccountsConfig(), Jobs: config.DefaultJobsConfig(),
 		Images: func() config.ImagesConfig {
 			images := config.DefaultImagesConfig()

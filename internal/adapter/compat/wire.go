@@ -23,3 +23,12 @@ const (
 	headerLegacyToken    = "X-Emby-Token"
 	headerLegacyTokenAlt = "X-MediaBrowser-Token"
 )
+
+// System module behavioural reference (field names and casing): upstream
+// Jellyfin.Api/Controllers/SystemController.cs (GetSystemInfo,
+// GetPublicSystemInfo, PingSystem), Emby.Server.Implementations/SystemManager.cs
+// and MediaBrowser.Model/System/PublicSystemInfo.cs and SystemInfo.cs. The
+// serializer defaults (PascalCase, null members omitted) come from
+// src/Jellyfin.Extensions/Json/JsonDefaults.cs and the error behaviour from
+// Jellyfin.Api/Middleware/ExceptionMiddleware.cs. None of the system DTO field
+// names carries an upstream brand, so no wire constant is needed for them.
