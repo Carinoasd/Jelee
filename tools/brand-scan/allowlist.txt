@@ -1,4 +1,4 @@
-# Exact files only. Full original source tree is deliberately NOT exempted.
+# Exact files, or directories ending in "/" for protocol boundaries only. The scan outside --new is an informational report.
 tools/brand-scan/main.go # The scanner must name the forbidden patterns.
 docs/00-audit-baseline.md # Immutable upstream provenance and source references.
 docs/requirements-source.md # User-provided source contract, including compatibility naming.
@@ -16,4 +16,5 @@ CONTRIBUTORS.md # Upstream authorship.
 docs/legal/upstream/listenbrainz-logo-NOTICE.md # Verbatim third-party logo attribution notice moved out of the removed legacy tree.
 docs/legal/upstream/naming-attribution.props.txt # Verbatim original package authors and license expression moved out of the removed legacy tree.
 docs/legal/upstream/naming-copyright.cs.txt # Verbatim original assembly copyright statement moved out of the removed legacy tree.
-internal/adapter/compat/wire.go # Exact legacy client authentication header and scheme names at the compatibility boundary only.
+# Directory entries (ending in "/") exempt a whole protocol boundary where legacy names are part of the wire contract.
+internal/adapter/compat/ # Third-party client protocol: routes, headers, DTO fields and client identification strings.

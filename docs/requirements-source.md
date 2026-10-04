@@ -27,7 +27,15 @@
 禁止盲目文本替换；建立可复查的重命名映射 `docs/branding-rename-map.md`，按模块执行，每批修改后编译 + 测试。
 允许保留旧名称的位置（须集中隔离并加入扫描白名单 `tools/brand-scan/allowlist.txt`）：Jellyfin/Emby 协议兼容 DTO、JSON 字段、HTTP 路由、请求头、客户端识别字符串、NFO 标签与文件名、图片资产文件名、旧配置/旧数据库迁移器、旧忽略文件解析器、许可证与版权声明。
 兼容层只做协议适配，不得让旧品牌类型进入 Jelee 核心领域模型；使用显式 Adapter/Mapper 转换。
-自动门禁：白名单外出现 `Jellyfin`、`Emby`、`MediaBrowser` 时 CI 失败。
+自动门禁：~~白名单外出现 `Jellyfin`、`Emby`、`MediaBrowser` 时 CI 失败。~~（2026-10-04 需求调整，见下）
+
+> **2026-10-04 需求调整（缩减品牌改名范围）**：取消“全仓库全面移除或替换旧品牌名称”的要求，优先功能、稳定度与真正影响执行的问题。
+> - 已完成的 Jelee 命名保留（新 Go 服务、可执行文件、`JELEE_` 配置前缀、API 标题、README、既有部署配置），不改回。
+> - 旧 C# 核心、命名空间、程序集、项目文件、测试与兼容协议中的旧名称可以保留；不为品牌一致性做全局替换或额外重构。
+> - 用户直接看到的产品名称以 Jelee 为方向，但不为此阻挡功能开发。
+> - 全仓扫描改为信息报告，既有旧名称不阻挡合并；阻挡性的增量检查只覆盖仍明确要求 Jelee 命名的新服务（`cmd/`、`internal/`、`web/`、`deploy/`）与对外产品标识（`README.md`、`Dockerfile`、`go.mod`、`.env.example`），协议边界目录可整体列入白名单。
+> - LICENSE、NOTICE、上游作者与来源声明一律保留，不得为改名移除。
+> - 本调整只缩减品牌范围；其他功能、安全与测试要求不变，不得借此关闭 CI。
 
 # 三、需求逐条细分
 
@@ -35,9 +43,9 @@
 - G00.1 应用标识：可执行文件 `jelee`、服务名 `jelee`、镜像 `jelee/jelee`、配置前缀 `JELEE_`、默认数据库名 `jelee`、Web 标题 `Jelee`。
 - G00.2 代码层：Go module 名、包名、日志分类、指标前缀、审计事件类型统一为 `jelee`；前端 package 名、路由前缀、favicon、manifest 名称统一。
 - G00.3 文档层：`README.md`、`docs/`、Docker/K8s 元数据统一；`CHANGELOG.md` 记录更名。
-- G00.4 品牌扫描：`tools/brand-scan` 提供 `make brand-scan`，输出残留清单与白命中；CI 强制。
+- G00.4 品牌扫描：`tools/brand-scan` 提供 `make brand-scan`，输出残留清单与白命中；~~CI 强制~~ 全仓扫描为 CI 信息报告，CI 只强制 `make brand-scan-incremental`（新服务与对外产品标识）（2026-10-04 调整）。
 - G00.5 许可证合规：保留 LICENSE/NOTICE/上游版权；新增 `docs/LICENSE-COMPLIANCE.md` 说明派生关系、保留声明位置与分发义务。
-- 验收：`make brand-scan` 零非白命中；容器启动日志与 `/api-docs` 标题均为 Jelee；许可证文件完整未被删改。
+- 验收：~~`make brand-scan` 零非白命中~~ `make brand-scan-incremental` 零非白命中（全仓 `make brand-scan` 仅报告，2026-10-04 调整）；容器启动日志与 `/api-docs` 标题均为 Jelee；许可证文件完整未被删改。
 
 ## G01 Git 规范
 - G01.1 历史与远程：保留上游历史，配置 `upstream`；`docs/git-workflow.md` 说明 fork 同步、分支模型、发布标签。

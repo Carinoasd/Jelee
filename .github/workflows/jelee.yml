@@ -41,12 +41,14 @@ jobs:
             & ./scripts/make.ps1 $target
           }
       - name: Required native legacy helper lifecycle on Linux
+        id: legacy-helper
         if: runner.os == 'Linux'
         run: |
           set -o pipefail
           .bin/go test -count=1 -timeout=60s -run '^Test(IgnoreRunnerLifecycle|HelperProcess|LegacyMatchNativeHelper|FamilyIgnoreNativeHelper|LegacyBaselineNativeHelper|FamilyBaselineNativeHelper)$' ./internal/platform/process ./internal/platform/legacyignorehelper ./internal/adapter/scan 2>&1 | tee .testdata/ignore-helper.txt
       - name: Retain legacy helper evidence
-        if: always() && runner.os == 'Linux'
+        # Only when the helper step ran; a skip after an earlier failure is not a second failure.
+        if: always() && runner.os == 'Linux' && steps.legacy-helper.outcome != 'skipped'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: ignore-helper-${{ runner.os }}
@@ -80,7 +82,7 @@ jobs:
           retention-days: 7
 
   full-branding:
-    name: Full branding gate
+    name: Branding report (informational)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
@@ -88,10 +90,15 @@ jobs:
         with:
           path: .tools
           key: jelee-${{ runner.os }}-${{ runner.arch }}-go1.27.1-${{ hashFiles('tools/manifest.json', 'go.sum') }}
-      - run: make bootstrap tools-verify brand-scan
-      # Full-repository gate over every tracked and new file; only the exact
-      # files in tools/brand-scan/allowlist.txt may contain legacy names. The
-      # incremental gate above is not a replacement for it.
+      - run: make bootstrap tools-verify
+      # Full-repository legacy-name report (G00.4 as revised 2026-10-04):
+      # existing names never block a merge; the list goes to the job summary.
+      # The blocking check is brand-scan-incremental in the foundation job.
+      # Tool or I/O failures of the scanner itself still fail this step.
+      - name: Report legacy names
+        run: |
+          set -o pipefail
+          { echo '```'; make --no-print-directory brand-scan; echo '```'; } | tee -a "$GITHUB_STEP_SUMMARY"
 
   postgres-integration:
     name: PostgreSQL migration and repository integration

@@ -16,7 +16,7 @@ Jelee 本仓库派生自 [Jellyfin](https://github.com/jellyfin/jellyfin)。审�
 
 ## 上游 C# 源码树移出工作树（2026-10-04）
 
-依需求原文零.7（保留许可证、版权、上游 Git 历史与法定归属）、G28.1（C#/.NET 仅作迁移期参考）与 G00.4（全仓品牌门禁零非白名单命中），工作树删除全部上游 C# 项目、测试、fuzz、部署模板及 .NET 专用 CI，取代 [需求澄清](requirements-clarifications.md) 中“保留原 C# 源码作历史比对与回滚”的旧决定。
+依需求原文零.7（保留许可证、版权、上游 Git 历史与法定归属）、G28.1（C#/.NET 仅作迁移期参考）与当时的 G00.4（全仓品牌门禁零非白名单命中；2026-10-04 已调整为信息报告，旧名称可保留），工作树删除全部上游 C# 项目、测试、fuzz、部署模板及 .NET 专用 CI，取代 [需求澄清](requirements-clarifications.md) 中“保留原 C# 源码作历史比对与回滚”的旧决定。
 
 - **历史与回滚**：删除前最后一个完整提交以标签 `upstream-csharp-final` 标记（由主线在合并时建立，指向本次分支起点）；原审计基线 `52a680c578f1af888ebb74cefcb89b736f9c5738` 及全部上游提交保持可达，没有改写历史。取回方式：`git show upstream-csharp-final:<路径>`、`git checkout upstream-csharp-final -- <路径>`，或 `git worktree add <目录> upstream-csharp-final`。
 - **根 LICENSE 未动**：仍为 GPL v2 全文，SHA256 `f371b80469fb235bc500ec29e0e85b682d4a6157a158567d828ff0be544d4f1d`；`CONTRIBUTORS.md` 未动。

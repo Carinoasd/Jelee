@@ -1,4 +1,10 @@
 // brand-scan reports legacy naming outside narrowly documented exceptions.
+//
+// The full-repository scan is an informational report: existing legacy names
+// do not block a merge (G00.4 as revised on 2026-10-04). Only the incremental
+// scan (--new) is a gate, and it covers the new service and the product
+// identifiers that must still read Jelee. --strict restores the old blocking
+// full scan for anyone who wants it locally.
 package main
 
 import (
@@ -16,7 +22,8 @@ import (
 
 func main() { os.Exit(run()) }
 func run() int {
-	incremental := flag.Bool("new", false, "scan only the new Go service and its documentation; not full migration acceptance")
+	incremental := flag.Bool("new", false, "gate: scan only the new Go service and external product identifiers")
+	strict := flag.Bool("strict", false, "fail the full scan on any non-exempt hit (not used by CI)")
 	flag.Parse()
 	data, err := exec.Command("git", "ls-files", "-z", "--cached", "--others", "--exclude-standard").Output()
 	if err != nil {
@@ -28,13 +35,7 @@ func run() int {
 		fmt.Fprintln(os.Stderr, "cannot read brand exceptions")
 		return 2
 	}
-	exceptions := map[string]bool{}
-	for _, line := range strings.Split(string(allow), "\n") {
-		line = strings.TrimSpace(strings.SplitN(line, "#", 2)[0])
-		if line != "" {
-			exceptions[line] = true
-		}
-	}
+	exceptions := parseExceptions(string(allow))
 	pattern := regexp.MustCompile(`(?i)Jellyfin|Emby|MediaBrowser`)
 	seen := map[string]bool{}
 	files := strings.Split(string(data), "\x00")
@@ -62,7 +63,7 @@ func run() int {
 		for lines.Scan() {
 			line++
 			if pattern.Match(lines.Bytes()) {
-				if exceptions[file] {
+				if exceptions.allows(file) {
 					allowed++
 					continue
 				}
@@ -75,20 +76,65 @@ func run() int {
 			return 2
 		}
 	}
-	fmt.Printf("brand scan: mode=new:%t violations=%d allowed=%d\n", *incremental, hits, allowed)
-	if hits > 0 {
+	gate := *incremental || *strict
+	mode := "report"
+	if *incremental {
+		mode = "new"
+	} else if *strict {
+		mode = "strict"
+	}
+	fmt.Printf("brand scan: mode=%s violations=%d allowed=%d\n", mode, hits, allowed)
+	if hits > 0 && gate {
 		return 1
 	}
 	return 0
 }
+
+// exceptions holds exact files and, for entries ending in "/", whole
+// protocol-boundary directories.
+type exceptions struct {
+	files    map[string]bool
+	prefixes []string
+}
+
+func parseExceptions(text string) exceptions {
+	e := exceptions{files: map[string]bool{}}
+	for _, line := range strings.Split(text, "\n") {
+		line = strings.TrimSpace(strings.SplitN(line, "#", 2)[0])
+		switch {
+		case line == "":
+		case strings.HasSuffix(line, "/"):
+			e.prefixes = append(e.prefixes, line)
+		default:
+			e.files[line] = true
+		}
+	}
+	return e
+}
+
+func (e exceptions) allows(file string) bool {
+	if e.files[file] {
+		return true
+	}
+	for _, prefix := range e.prefixes {
+		if strings.HasPrefix(file, prefix) {
+			return true
+		}
+	}
+	return false
+}
+
+// newService lists what the gate still requires to read Jelee: the new Go
+// service, the web client and the deployment and product identity files.
+// Documentation, scripts and tooling are covered by the report only.
 func newService(path string) bool {
-	for _, prefix := range []string{"cmd/", "internal/", "tools/", "scripts/", "web/", "deploy/", "docs/"} {
+	for _, prefix := range []string{"cmd/", "internal/", "web/", "deploy/"} {
 		if strings.HasPrefix(path, prefix) {
 			return true
 		}
 	}
 	switch path {
-	case "README.md", "go.mod", "go.sum", "Makefile", "Dockerfile", ".env.example", ".github/workflows/jelee.yml":
+	case "README.md", "go.mod", "Dockerfile", ".env.example":
 		return true
 	}
 	return false

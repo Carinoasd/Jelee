@@ -1,10 +1,10 @@
 package compat
 
 // Legacy client authentication wire names. These are protocol strings sent by
-// existing third-party clients and must be matched verbatim; they are kept in
-// this single file so the brand scan exception stays narrow (see
-// tools/brand-scan/allowlist.txt). No other identifier in this package may
-// carry these names.
+// existing third-party clients and must be matched verbatim. The whole compat
+// package is a protocol boundary exempt from the brand scan (see
+// tools/brand-scan/allowlist.txt); the wire names are still kept in this one
+// file so they are easy to audit, and new code should reference them here.
 //
 // Behavioural reference (read, not ported line by line):
 // Jellyfin.Server.Implementations/Security/AuthorizationContext.cs
