@@ -229,11 +229,13 @@ func TestInventorySnapshotMigrationAndVisibleDML(t *testing.T) {
 	if v, dirty, err := Migrate(ctx, dsn, "up"); err != nil || dirty || v != SchemaVersion {
 		t.Fatal("snapshot up", v, dirty, err)
 	}
-	legacyMigrationStoreAt44(t, ctx, s)
+	// Account code reads columns newer than schema 44, so the actor is
+	// created on the latest schema before the legacy downgrade.
 	if _, err := s.BootstrapAdmin(ctx, accountInput("snapshot-migration")); err != nil {
 		t.Fatal(err)
 	}
 	a := accountActor(accountLogin(t, ctx, s, "snapshot-migration"))
+	legacyMigrationStoreAt44(t, ctx, s)
 	r, err := s.RegisterLibrary(ctx, "snapshots", t.TempDir())
 	if err != nil {
 		t.Fatal(err)
