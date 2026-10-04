@@ -6,7 +6,9 @@
       "access": "コンテンツのアクセス",
       "clients": "クライアント管理",
       "webhooks": "Webhook",
-      "stats": "視聴統計"
+      "stats": "視聴統計",
+      "plugins": "プラグイン",
+      "appearance": "カスタム CSS"
     }
   }
 }

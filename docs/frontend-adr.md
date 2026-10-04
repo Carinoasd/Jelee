@@ -1,6 +1,6 @@
 # 前端架構決策紀錄（G31／G27／G35）
 
-狀態：已採用（第 15 階段 15.1、15.3、15.4）。日期：2026-10-04。
+狀態：已採用（第 15 階段 15.1、15.3、15.4；插件體系、自訂 CSS、版面與 bundle 預算見後半）。日期：2026-10-04。
 
 ## 決策
 
@@ -12,7 +12,7 @@
 - **外掛體系（G32）**：Vue 的 `app.use`、`provide/inject`、`defineAsyncComponent` 與 `onErrorCaptured` 直接對應「懶載入插件元件、錯誤邊界降級、插件拿不到令牌」的要求，不必自建執行期。
 - **型別檢查**：`vue-tsc --noEmit` 對 SFC 做完整型別檢查，可以作為 G31 驗收的 `tsc --noEmit` 門禁；泛型元件（`<script setup generic>`）讓請求狀態元件保有資料型別。
 - **安全預設**：模板一律轉義，唯一的原始 HTML 出口 `v-html` 可用 lint 全面禁止（`vue/no-v-html: error`），符合 G35.1。
-- **體積**：Vue runtime 與 Svelte 編譯產物在本專案規模差異不大；第一批頁面後主 chunk gzip 約 37 KB（含四語訊息目錄），vue-i18n chunk 約 41 KB（尚未設 bundle 預算，見「後續」）。
+- **體積**：Vue runtime 與 Svelte 編譯產物在本專案規模差異不大；首屏 JS 由 `web/bundle-budget.json` 設預算並在建置時斷言（見「Bundle 預算」）。
 
 ### 版本取捨
 
@@ -40,9 +40,16 @@ web/
     features/<domain>/  各領域的 API 呼叫與頁面（auth、libraries、items、account、errors）
     components/ui/      無業務邏輯的基礎元件（按鈕、輸入、提示、請求狀態）
     theme/              設計 token（CSS 變數，含深色與 reduced-motion）與基礎樣式
-    plugins/            Vue app 外掛的組合根；之後 G32 插件 SDK 的宿主也在這裡註冊
+    plugins/            Vue app 外掛的組合根（index.ts）與 G32 插件體系：
+      sdk/              @jelee/plugin-sdk：型別化 Hook、Manifest 驗證、語意化版本、棄用表（只依賴 vue）
+      host/             插件宿主：清單探索、Pinia store、受限 API、設定命名空間、ErrorBoundary、插槽元件
+      official/<名稱>/   官方範例插件（manifest.json、入口、四語訊息、懶載入元件）
+    features/home/      首頁（可排序與隱藏的區塊）
+    features/admin/     管理頁外殼、插件管理、自訂 CSS
     i18n/<locale>/*.json 四語訊息；locales.ts 為語系協商
     router/             路由表（全部懶載入）、守衛、redirect 驗證
+  bundle-budget.json    首屏 gzip 體積預算（G35.4）
+  scripts/check-bundle-budget.mjs 預算門禁
 ```
 
 業務規則不寫在元件內：元件呼叫 store，store 呼叫 `features/*/api.ts`，後者只透過 `api/` 的型別化用戶端存取伺服器。
@@ -73,7 +80,7 @@ web/
 - **CSRF**：`csrf` 值只存在策略的閉包變數中（不進 Pinia、localStorage、sessionStorage、IndexedDB 或 script 可寫的 Cookie），只在非安全方法（GET／HEAD／OPTIONS／TRACE 以外）加上 `X-Jelee-CSRF`。
 - **重新整理後恢復**：第一次導覽前，路由守衛等待 `auth.restore()`：`GET /api/v1/users/me` 成功就以 `GET /api/v1/auth/csrf` 取回 CSRF 並恢復登入狀態，因此深層連結在重新整理後仍停在原頁；失敗則視為未登入。
 - 收到 401 時清除 CSRF 與使用者狀態，導向 `/login?reason=expired&redirect=<原路徑>`。登出、撤銷目前裝置或「在所有裝置上登出」後，伺服器清除 Cookie，前端同時清空各 store 的使用者快取（`stores/userScoped.ts`）。
-- ESLint 以 `no-restricted-globals`／`no-restricted-properties` 禁止 `localStorage`、`sessionStorage`、`document.cookie`、`eval`；測試以 spy 驗證登入過程沒有任何 storage 寫入、請求沒有 `Authorization`、只有寫入請求帶 CSRF。
+- ESLint 以 `no-restricted-globals`／`no-restricted-properties` 禁止 `localStorage`、`sessionStorage`、`document.cookie`、`eval`；測試以 spy 驗證登入過程沒有任何 storage 寫入、請求沒有 `Authorization`、只有寫入請求帶 CSRF。唯一例外是 `stores/persist.ts`（見「瀏覽器儲存例外」），它只存沒有伺服器 API 的呈現狀態，並拒絕任何名稱含 token、csrf、session、cookie、password、secret、credential、bearer、auth 的鍵。
 - 圖片（`/images/Primary/{id}`）以 `<img>` 同源載入，由同一個 Cookie 授權；這也是改用 Cookie 的必要條件（bearer 無法加在 `<img>` 請求上）。
 
 `AuthStrategy` 介面（`authorize`／`establish`／`resume`／`clear`／`hasCredential`、`survivesReload`）是唯一接觸憑證的地方。`createMemoryBearerAuth()` 保留給不接受環回明文 HTTP 上 `Secure` Cookie 的開發瀏覽器（例如部分 Safari）：令牌只在記憶體，重新整理即登出，且海報圖無法載入。
@@ -131,6 +138,69 @@ web/
 
 共用元件（`components/ui/`）：`UiConfirmButton`（兩段確認）、`UiSelectField`、`UiCheckbox`、`UiBarChart`（CSS 長條，資料保留為表格）、`UiColumnChart`（SVG 走勢，SVG `aria-hidden`、另附隱藏資料表），不新增任何圖表套件；`UiButton`（primary／secondary／danger／ghost、`pressed` 切換、`busy`）、`UiTextField`（label／hint／error 以 `aria-describedby` 連結、`aria-invalid`）、`UiSkeleton`（`aria-hidden`、固定版面尺寸、reduced-motion 時停用動畫）、`UiEmptyState`、`UiErrorState`（錯誤碼對照訊息＋traceId＋重試）、`UiAlert`、`UiBadge`、`UiToastRegion`（`aria-live`，錯誤用 `role="alert"` 且不自動消失）、`RequestStatus`（可插入骨架屏）。可及性：skip link、導覽後焦點移到頁面 `h1`、`RouterLink` 的 `aria-current`、觸控目標 44px、`:focus-visible` 外框，亮／暗色全部取自 token。
 
+## 插件體系（G32）
+
+詳細的開發者文件見 [plugin-development.md](plugin-development.md)。
+
+### 決策
+
+- **SDK 位置**：`@jelee/plugin-sdk` 是樹內套件 `web/src/plugins/sdk/`，以 Vite alias 與 `tsconfig.app.json` 的 `paths` 解析成穩定的 import 名稱；不另建 npm workspace 成員，避免改動 lockfile 與安裝流程。它只依賴 `vue`（ESLint 禁止它 import 宿主），之後要獨立發佈時只需加上 `package.json`。版本為 `SDK_VERSION = 1.0.0`，語意化版本與棄用策略見開發文件。
+- **Hook**：需求列出的九個 Hook 全部有型別（`HookMap`）。宿主已接上 `media.detail.tabs`、`metadata.panel`、`item.action`（條目詳情頁）、`settings.section`（設定頁）、`library.toolbar`（媒體庫頁）、`theme.token`（構造樣式表）、`route.register`（`/x/<插件 ID>/…`）；`command.palette` 與 `webhook.eventType` 可登記、會計數，但宿主尚無命令面板，Webhook 頁也還沒顯示插件標籤。
+- **載入順序**：Manifest（JSON，小）隨主程式讀入並在載入程式碼前驗證；入口與元件全部是獨立 chunk，只有啟用且依賴滿足的插件會被 import，元件在首次顯示時才載入（`defineAsyncComponent`，15 秒逾時）。插件宿主與 CSS 清洗器本身也在 `plugins/index.ts` 以動態 import 啟動，不佔主 bundle。
+- **隔離**：每個插件的每個區塊外包 `PluginBoundary.vue`（`onErrorCaptured` 回傳 `false`），元件 setup／render／watcher／事件處理與懶載入失敗都只把該區塊換成提示與「重試」；`setup()` 拋錯或登記不合法內容時整個插件標為失敗、已登記內容全部丟棄；操作與 token 函式拋錯另行攔截。失敗次數與最後錯誤顯示在管理頁。
+- **受限客戶端**：插件拿到的 `api` 是凍結的閉包物件，只有四個固定的 GET 方法（條目詳情、檔案摘要、媒體庫、自己的帳號摘要），各自需要 Manifest 權限；沒有通用請求、沒有寫入，回傳凍結複本，錯誤只帶錯誤碼。API 用戶端、`AuthStrategy` 與 CSRF 值都不是插件可走訪物件圖上的任何屬性（測試以 `Reflect.ownKeys` 走訪整個上下文驗證），請求本身也不帶 CSRF 或 `Authorization`。
+- **靜態約束**：`src/plugins/official/**` 的 ESLint 規則只允許 import `vue` 與 `@jelee/plugin-sdk`，禁止 `getCurrentInstance`／`inject`／`provide`、宿主模組、`vue-i18n`／`vue-router`／`pinia`／`openapi-fetch`，以及 `fetch`、`XMLHttpRequest`、`WebSocket`、`EventSource`、各種瀏覽器儲存、`document.cookie`、`navigator.sendBeacon`。插件訊息放在插件自己的四語目錄，由宿主的小型格式器處理，不併入 vue-i18n 目錄，所以插件不能覆蓋宿主字串。
+- **禁播**：`route.register` 拒絕 `play`、`stream`、`watch`、`pip`、`cast`、`audio`、`video` 等路徑段；插件原始碼同樣經過 `check-no-playback`。
+
+### 前端做得到與做不到的邊界
+
+插件與網頁端同源、同 realm。上述措施保證「守規矩、經審查的插件」只能用到宣告的能力，並且讓意外的錯誤不會白屏；但前端無法阻止刻意惡意的同源程式碼：它可以直接 `fetch('/api/v1/auth/csrf')` 取得 CSRF 值，或經由 Vue 內部結構找到宿主物件。因此目前只支援與網頁端一起建置、審查的插件，不支援遠端或使用者上傳的插件。真正的隔離需要 iframe sandbox／獨立來源與 postMessage 協定，或伺服器端為插件簽發範圍受限的權杖，列為後續。伺服器對每個請求的授權（G35.2）不受插件影響。
+
+## 外觀自訂：自訂 CSS（G33.4）與版面（G33.5）
+
+### 自訂 CSS
+
+- 管理頁 `/admin/appearance`：輸入 CSS、外部字型開關與主機白名單、「檢查」列出每一處被移除的內容與原因、「套用並儲存」、兩段確認的「清除」。
+- 清洗器 `theme/customCss.ts` 先把輸入解析成規則與宣告，再只序列化通過檢查的部分，所以套用的文字一定是檢查過的文字：
+  - **整段拒絕**：任何 `<`（不可能出現 `<script>` 或 `</style>`）、反斜線跳脫（可拼出被禁字詞）、控制字元與 U+2028/2029、未閉合的註解、大括號、括號或引號、超過 64 KiB。註解先換成空白，`expr/**/ession(` 無法重新拼回。
+  - **逐條移除**：`@import`（任何形式）與 `@media`／`@supports`／`@container`／`@layer`／`@font-face`／`@keyframes` 以外的 at 規則；`expression(`；`javascript:`／`vbscript:`；`behavior`、`-moz-binding`；`image-set()`、`-webkit-image-set()`、`src()`、`element()`、`paint()` 與當作網址的 `attr()`；所有不是本站路徑（`/…`，不含 `//`）或 `#片段` 的 `url()`；巢狀規則；不合法的選擇器與宣告；超過三層的巢狀 at 規則。
+  - **外部字型**：預設禁用；開啟後只有 `@font-face` 的 `src` 可以指向白名單主機（完全相符，最多 10 個）的 `https` 網址，不得帶帳密或連接埠。
+- **套用方式**：以 `CSSStyleSheet.replaceSync` 建立構造樣式表並加入 `document.adoptedStyleSheets`（`theme/styleSheets.ts`）。CSSOM 不受 CSP `style-src` 管轄，所以在目前的 `style-src 'self'` 下不需要 `'unsafe-inline'`，也不產生任何 `<style>` 元素。不支援構造樣式表的瀏覽器不套用（行內 `<style>` 反正會被 CSP 擋），管理頁顯示提示。順序為：打包的樣式 → 插件 token（`plugin-tokens`）→ 管理員 CSS（`custom-css`，最後套用、優先）。
+- 存放：伺服器尚無全域外觀設定 API，原文與白名單存在管理員瀏覽器的 `localStorage`，**只對該瀏覽器生效**；每次載入都重新清洗，不信任已存內容。
+
+### 版面
+
+- 首頁 `/`（原本直接轉到媒體庫）改為區塊頁：歡迎與快速連結、媒體庫、最新首映（`GET /api/v1/items?sort=premiereDate&order=desc&limit=12`）。隱藏的區塊不渲染也不發請求。頁內「自訂首頁」可直接排序與顯隱。
+- 條目詳情頁的面板（簡介、類型、外部 ID、NFO 來源、檔案資訊、插件面板、插件頁籤）可排序與顯隱。
+- 版面預設：內建「標準」「精簡」「元資料檢查」三套，可把目前版面存成最多 10 個自訂預設、切換、刪除與恢復預設；設定頁「版面」區塊集中管理。
+- 排序元件 `components/ui/UiReorderList.vue`：每列有「上移／下移」按鈕（`aria-label` 含項目名稱、`aria-keyshortcuts`），焦點在列內任一控制項時 Alt+↑／Alt+↓ 也能移動；移動後焦點留在被移動的列（到頂或到底時移到另一個仍可用的按鈕），`role="status"` 朗讀新位置；滑鼠拖曳只是額外方式。插件管理頁的排序也用同一元件。
+- 存放：伺服器的 `UserPreferences` 只有 `theme` 與 `density`（`additionalProperties: false`），沒有版面欄位，所以版面與自訂預設按帳號（使用者 ID）存在本瀏覽器；讀回時修復未知或缺少的區塊。
+
+### 瀏覽器儲存例外
+
+`stores/persist.ts` 是唯一碰 `localStorage` 的模組（ESLint 只對它解除限制），鍵一律以 `jelee.ui.v1.` 開頭，存放沒有伺服器 API 的呈現狀態：插件啟用與順序（`plugin-host.state`）、插件設定（`plugin-settings.<插件 ID>`）、管理員 CSS（`admin-css.custom`）、版面（`page-layout.<使用者 ID>`）。固定鍵名不得含憑證相關字詞、範圍部分只接受 ID 字元，值為 JSON 且有大小上限；讀回的內容一律當成不可信輸入處理。憑證、CSRF、工作階段資料仍然只在記憶體或 HttpOnly Cookie（G35.1 不變）。只在使用者實際變更時才寫入，登入流程依舊沒有任何 storage 寫入。
+
+## Bundle 預算（G35.4）
+
+- `web/scripts/check-bundle-budget.mjs` 讀 `dist/index.html`，量測首屏必須下載的檔案（module 入口、它的 `modulepreload` 與 stylesheet），以 gzip level 9 計算：`entryJsGzipBytes`（入口）、`initialJsGzipBytes`（入口加預載）、`initialCssGzipBytes`。懶載入 chunk 不計入。
+- 預算檔 `web/bundle-budget.json` 進版控，任一項超過即失敗並列出超出位元組數；放寬預算是對該檔的審查變更，理由寫在提交訊息。
+- `npm run build`（即 `make web-build`）在 Vite 建置與禁播掃描後執行此門禁；`make web-budget` 可對現有 `dist` 重跑。CI 的 Linux「Web frontend gates」步驟執行 `make … web-build web-budget`。
+- 2026-10-04 量測值：入口 121,154 B、首屏 JS 145,313 B、首屏 CSS 2,313 B；預算分別為 127,000、152,000、2,450 B（約多 5%）。插件工作前的首屏 JS 約 142,900 B：插件宿主、SDK 與 CSS 清洗器都在懶載入 chunk，首屏只多了首頁路由與動態啟動碼。
+- 「首屏可交互 P95 ≤1.5s」需要真實瀏覽器與網路條件量測，尚未做。
+
+## G32／G33.4／G33.5 的後端缺口
+
+依指示本階段不改後端，以下以前端可運作的最小方案處理：
+
+| 缺口 | 影響 | 目前做法 | 需要的後端工作 |
+| --- | --- | --- | --- |
+| 沒有插件設定 API（全域啟用清單、順序、插件設定） | 管理員的啟停與排序只影響他自己的瀏覽器；插件設定是每個瀏覽器各一份 | `localStorage`（`plugin-host.state`、`plugin-settings.*`） | `GET/PUT /api/v1/web/plugins`（管理員寫、所有人讀，含版本號防覆寫）與插件設定的使用者級儲存；需求矩陣原規劃的 `plugin_configs` |
+| 沒有全域外觀設定 API | 自訂 CSS 只在管理員自己的瀏覽器生效，其他使用者看不到 | `localStorage`（`admin-css.custom`），每次載入重新清洗 | `GET/PUT /api/v1/web/appearance`（伺服器端也要做同樣的清洗與大小限制）與 `theme_configs` |
+| `frontendCSP` 沒有 `font-src` 白名單 | 開啟外部字型並加入白名單後，瀏覽器仍會因 `default-src 'self'` 擋下字型 | 管理頁明示此限制 | 伺服器依外觀設定的字型白名單動態加入 `font-src`；`style-src 'self'` 不需調整（構造樣式表不受其管轄） |
+| `UserPreferences` 沒有版面欄位 | 版面與預設不會跟著帳號到其他裝置 | 按使用者 ID 存在本瀏覽器 | 在偏好設定加入 `layout`（首頁區塊、詳情面板、自訂預設）或另開端點 |
+| 伺服器不回報版本 | `minJeleeVersion` 比較的是網頁端 `web/package.json` 的版本（兩者隨同一個映像發佈） | 建置時注入 `__JELEE_VERSION__` | `GET /api/v1/system` 回傳伺服器版本 |
+| 沒有插件專屬的伺服器授權範圍 | 插件的請求等同使用者本人的請求 | 受限客戶端只開放固定唯讀端點 | 若要支援第三方插件：插件權杖或 iframe 隔離加伺服器端範圍 |
+
 ## CSP 規劃（G35.1）
 
 目標標頭（由伺服器提供網頁資產時設定，屬後續伺服器整合工作）：
@@ -141,7 +211,7 @@ connect-src 'self'; object-src 'none'; media-src 'none'; frame-src 'none';
 base-uri 'none'; form-action 'self'; frame-ancestors 'none'
 ```
 
-前端為此做的配合：`index.html` 無行內腳本與樣式；Vite 關閉 modulepreload polyfill（避免行內腳本）、`assetsInlineLimit: 0`、不輸出 sourcemap；Vue 使用 runtime-only 建置（SFC 預先編譯，不需 `unsafe-eval`）；vue-i18n 11 預設以 JIT/AST 解譯訊息而非 `new Function`；ESLint 禁止 `eval` 與 `new Function`。`media-src 'none'` 同時是禁播的瀏覽器層防線。`img-src` 未來配合 G40 影像服務再調整。開發伺服器（`npm run dev`）把 `/api` 代理到 `JELEE_DEV_API`（預設 `http://127.0.0.1:8097`）。
+前端為此做的配合：`index.html` 無行內腳本與樣式；管理員 CSS 與插件 token 以構造樣式表（CSSOM）套用，不需要放寬 `style-src`；Vite 關閉 modulepreload polyfill（避免行內腳本）、`assetsInlineLimit: 0`、不輸出 sourcemap；Vue 使用 runtime-only 建置（SFC 預先編譯，不需 `unsafe-eval`）；vue-i18n 11 預設以 JIT/AST 解譯訊息而非 `new Function`；ESLint 禁止 `eval` 與 `new Function`。`media-src 'none'` 同時是禁播的瀏覽器層防線。`img-src` 未來配合 G40 影像服務再調整。開發伺服器（`npm run dev`）把 `/api` 代理到 `JELEE_DEV_API`（預設 `http://127.0.0.1:8097`）。
 
 ## 禁播策略（G27、G35.5）
 
@@ -158,7 +228,8 @@ base-uri 'none'; form-action 'self'; frame-ancestors 'none'
 ## 後續
 
 - G33／G34：主題預設、更多 UI 元件、響應式與 axe 檢查、Playwright 視覺回歸（manifest 已預留 Playwright 1.63.0）。
-- G35.4：主 bundle gzip 預算門禁；評估 vue-i18n 預編譯訊息以縮小 chunk。
+- G35.4：預算門禁已上線；評估 vue-i18n 預編譯訊息以縮小首屏 JS；首屏可交互 P95 需要真實瀏覽器量測。
+- G32／G33：上表的後端缺口；命令面板 UI 與 Webhook 頁使用插件標籤；第三方插件的真正隔離（iframe／獨立來源）。
 - 伺服器為 `GET /api/v1/items` 加上媒體庫篩選與排序後，移除前端逐頁篩選；網頁可用的檔案資訊 API。
 - 第二批管理頁的 API 缺口（授權矩陣與變更預覽、群組）見上方表格；使用者偏好、密碼錯誤碼、客戶端管控請求正文、已屏蔽狀態與匯出下載已解除。
 - Windows 的 PowerShell 引導與 `make.ps1` 尚未安裝 Node（清單已有 Windows 雜湊）。

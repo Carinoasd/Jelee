@@ -1,0 +1,50 @@
+{
+  "layout": {
+    "title": "版面",
+    "storageNote": "伺服器偏好設定還沒有版面欄位：版面與自訂預設按帳號保存在這個瀏覽器中。",
+    "reset": "恢復預設版面",
+    "keyboardHint": "用「上移」「下移」按鈕或 Alt+↑／Alt+↓ 調整順序，也可以用滑鼠拖曳。",
+    "moved": "{name} 已移到第 {position} 位，共 {total} 項。",
+    "moveUp": "上移 {name}",
+    "moveDown": "下移 {name}",
+    "detailPanels": "條目詳情面板",
+    "blocks": {
+      "welcome": "歡迎與快速連結",
+      "libraries": "媒體庫",
+      "latest": "最新首映"
+    },
+    "panels": {
+      "overview": "簡介",
+      "genres": "類型",
+      "externalIds": "外部 ID",
+      "nfo": "NFO 來源",
+      "files": "檔案資訊",
+      "pluginPanels": "插件面板",
+      "pluginTabs": "插件頁籤"
+    },
+    "presets": {
+      "label": "版面預設",
+      "modified": "自訂（未儲存為預設）",
+      "standard": "標準",
+      "focused": "精簡",
+      "metadata": "中繼資料檢查",
+      "applied": "已套用版面預設。",
+      "delete": "刪除預設 {name}",
+      "name": "新預設名稱",
+      "save": "將目前版面儲存為預設",
+      "saved": "已儲存版面預設。",
+      "nameRequired": "請輸入預設名稱。",
+      "full": "最多只能儲存 {max} 個預設。"
+    },
+    "home": {
+      "title": "首頁",
+      "customize": "自訂首頁",
+      "blocks": "首頁區塊",
+      "moreInSettings": "條目詳情面板與版面預設在「設定」頁調整。",
+      "allHidden": "所有區塊都已隱藏。點「自訂首頁」重新顯示。",
+      "welcome": "歡迎回來，{name}",
+      "searchLink": "搜尋",
+      "latestEmpty": "還沒有帶首映日期的條目。"
+    }
+  }
+}

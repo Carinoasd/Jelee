@@ -7,3 +7,6 @@ declare module "*.vue" {
   const component: DefineComponent;
   export default component;
 }
+
+/** Version of the web client (package.json), injected by vite.config.ts. */
+declare const __JELEE_VERSION__: string;

@@ -6,7 +6,9 @@
       "access": "Content access",
       "clients": "Client control",
       "webhooks": "Webhooks",
-      "stats": "Watch statistics"
+      "stats": "Watch statistics",
+      "plugins": "Plugins",
+      "appearance": "Custom CSS"
     }
   }
 }

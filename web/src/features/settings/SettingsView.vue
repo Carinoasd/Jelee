@@ -9,6 +9,7 @@ import UiCheckbox from "@/components/ui/UiCheckbox.vue";
 import UiSelectField from "@/components/ui/UiSelectField.vue";
 import UiTextField from "@/components/ui/UiTextField.vue";
 import { errorMessageKey } from "@/features/errors/messages";
+import PluginOutlet from "@/plugins/host/PluginOutlet.vue";
 import { isLocale, supportedLocales, type Locale } from "@/i18n/locales";
 import { useLocaleSync } from "@/i18n/useLocaleSync";
 import { useAuthStore } from "@/stores/auth";
@@ -16,6 +17,7 @@ import { themes, usePreferencesStore, type Theme } from "@/stores/preferences";
 import { useSettingsStore } from "@/stores/settings";
 import { useToastStore } from "@/stores/toasts";
 import { passwordMaxBytes, passwordMinBytes, utf8Length } from "./api";
+import LayoutSettings from "./LayoutSettings.vue";
 
 const { t } = useI18n();
 const router = useRouter();
@@ -215,6 +217,12 @@ async function changePassword() {
         <UiButton type="submit" :busy="settings.changingPassword">{{ t("settings.password.submit") }}</UiButton>
       </div>
     </form>
+
+    <LayoutSettings />
+
+    <div class="jl-settings__plugins">
+      <PluginOutlet hook="settings.section" headings />
+    </div>
   </section>
 </template>
 
@@ -238,7 +246,24 @@ async function changePassword() {
   background: var(--jl-color-surface);
 }
 
-.jl-settings__card h2 {
+.jl-settings__plugins {
+  display: grid;
+  gap: var(--jl-space-6);
+}
+
+.jl-settings__plugins:empty {
+  display: none;
+}
+
+.jl-settings__plugins :deep(.jl-plugin-section) {
+  padding: var(--jl-space-6);
+  border: 1px solid var(--jl-color-border);
+  border-radius: var(--jl-radius-md);
+  background: var(--jl-color-surface);
+}
+
+.jl-settings__card h2,
+:deep(.jl-settings__card h2) {
   margin: 0;
   font-size: var(--jl-font-size-lg);
 }

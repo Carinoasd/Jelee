@@ -1,3 +1,4 @@
+import type { InjectionKey } from "vue";
 import { createI18n } from "vue-i18n";
 import { defaultLocale, fallbackLocale, supportedLocales, type Locale } from "./locales";
 
@@ -26,8 +27,15 @@ export function buildMessages(source: Record<string, Catalog>): Record<Locale, C
   return messages;
 }
 
+/**
+ * Reads the current interface language (reactive). Provided wherever the
+ * i18n plugin is installed, for code outside components such as the plugin
+ * host store, which must not depend on vue-i18n's internal injection symbol.
+ */
+export const currentLocaleKey: InjectionKey<() => string> = Symbol("jelee.locale");
+
 export function createAppI18n(locale: Locale = defaultLocale) {
-  return createI18n({
+  const i18n = createI18n({
     legacy: false,
     locale,
     fallbackLocale,
@@ -35,6 +43,12 @@ export function createAppI18n(locale: Locale = defaultLocale) {
     missingWarn: import.meta.env.DEV,
     fallbackWarn: import.meta.env.DEV,
   });
+  const install = i18n.install.bind(i18n);
+  i18n.install = (app, ...options) => {
+    install(app, ...options);
+    app.provide(currentLocaleKey, () => i18n.global.locale.value);
+  };
+  return i18n;
 }
 
 export type AppI18n = ReturnType<typeof createAppI18n>;

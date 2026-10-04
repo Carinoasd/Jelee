@@ -1,0 +1,87 @@
+{
+  "plugins": {
+    "notice": "{message}",
+    "actionFailed": "\"{name}\" failed.",
+    "detailTabs": "Extension tabs",
+    "itemActions": "Plugin actions",
+    "pageUnavailable": "This page is not available",
+    "boundary": {
+      "failed": "The plugin \"{name}\" failed, so this area was turned off. The rest of the page is unaffected.",
+      "retry": "Retry"
+    },
+    "title": "Plugins",
+    "intro": "Plugin SDK {sdk}, Jelee web {version}. Enabling, disabling and reordering take effect at once.",
+    "storageNote": "The server has no plugin settings API yet: enablement, order and plugin settings are kept in this browser only and do not reach other devices or users.",
+    "empty": "No plugins are available.",
+    "order": "Plugin order",
+    "orderHint": "The order decides where each plugin's contributions appear on a page.",
+    "official": "Official",
+    "rejected": "The manifest failed validation, so the plugin is not loaded:",
+    "deprecatedHook": "Hook {hook} is deprecated since SDK {since} and will be removed in {removed}; use {replacement}.",
+    "failures": "{count} errors caught since it started. Latest:",
+    "fields": {
+      "id": "ID",
+      "version": "Version",
+      "sdkVersion": "SDK version range",
+      "minJelee": "Minimum Jelee version",
+      "entry": "Entry",
+      "author": "Author",
+      "dependencies": "Dependencies",
+      "permissions": "Permissions",
+      "hooks": "Hooks"
+    },
+    "none": "None",
+    "contributions": "{count} contributions",
+    "enabled": "Enable {name}",
+    "restart": "Restart",
+    "clearSettings": "Clear plugin settings",
+    "clearSettingsConfirm": "Clear settings",
+    "clearSettingsPrompt": "Deletes every setting \"{name}\" stored in this browser.",
+    "enabledToast": "{name} enabled.",
+    "disabledToast": "{name} disabled.",
+    "settingsCleared": "Settings of {name} cleared.",
+    "status": {
+      "rejected": "Rejected",
+      "disabled": "Disabled",
+      "blocked": "Blocked by dependencies",
+      "loading": "Loading",
+      "active": "Active",
+      "failed": "Failed"
+    },
+    "permissions": {
+      "catalogRead": "Read item details, file summaries and the library list the current user may see (read only).",
+      "userRead": "Read the current user's name, shown name, language and administrator flag.",
+      "settingsStorage": "Keep its own settings in this browser (separate namespace).",
+      "uiRoutes": "Register pages under /x/ followed by the plugin ID.",
+      "uiTheme": "Override design tokens (colors, corner radius, font)."
+    },
+    "issues": {
+      "notObject": "The manifest is not a JSON object.",
+      "unknownField": "Unknown field {field}.",
+      "invalidId": "The ID must be lowercase and dotted, such as vendor.name.",
+      "invalidText": "{field} needs nonempty text in all four languages.",
+      "invalidVersion": "version is not a valid semantic version.",
+      "invalidSdkRange": "sdkVersion is not a valid version range.",
+      "sdkIncompatible": "Needs SDK {required}; this is {current}.",
+      "invalidMinJelee": "minJeleeVersion is not a valid semantic version.",
+      "jeleeTooOld": "Needs Jelee {required} or later; this is {current}.",
+      "invalidPermissions": "permissions must be an array without duplicates.",
+      "unknownPermission": "Unknown permission {permission}.",
+      "invalidHooks": "hooks must be a nonempty array without duplicates.",
+      "unknownHook": "Unknown hook {hook} (it may have been removed in a newer SDK).",
+      "hookNeedsPermission": "Hook {hook} requires the permission {permission}.",
+      "invalidDependencies": "dependencies must map plugin IDs to valid version ranges.",
+      "invalidEntry": "entry must name a module next to the manifest, such as ./index.ts.",
+      "invalidAuthor": "author must be text of 1 to 80 characters."
+    },
+    "problems": {
+      "duplicateId": "Another plugin already uses the ID {id}.",
+      "dependencyMissing": "Missing dependency {dependency} ({range}).",
+      "dependencyVersion": "Dependency {dependency} is {version}, which does not satisfy {range}.",
+      "dependencyInactive": "Dependency {dependency} ({range}) is disabled or cannot run.",
+      "loadFailed": "Could not load the plugin code: {error}",
+      "invalidDefinition": "The entry does not export a valid plugin definition (setup and messages in four languages).",
+      "setupFailed": "setup failed, so the plugin did not start: {error}"
+    }
+  }
+}

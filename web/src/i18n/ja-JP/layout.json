@@ -1,0 +1,50 @@
+{
+  "layout": {
+    "title": "レイアウト",
+    "storageNote": "サーバーの設定にはまだレイアウトの項目がありません。レイアウトと独自のプリセットはアカウントごとにこのブラウザーに保存されます。",
+    "reset": "既定のレイアウトに戻す",
+    "keyboardHint": "「上へ」「下へ」ボタンまたは Alt+↑／Alt+↓ で並べ替えます。マウスでドラッグすることもできます。",
+    "moved": "{name} を {total} 件中 {position} 番目に移動しました。",
+    "moveUp": "{name} を上へ",
+    "moveDown": "{name} を下へ",
+    "detailPanels": "アイテム詳細のパネル",
+    "blocks": {
+      "welcome": "ようこそとショートカット",
+      "libraries": "ライブラリ",
+      "latest": "最近公開の作品"
+    },
+    "panels": {
+      "overview": "あらすじ",
+      "genres": "ジャンル",
+      "externalIds": "外部 ID",
+      "nfo": "NFO の出典",
+      "files": "ファイル情報",
+      "pluginPanels": "プラグインのパネル",
+      "pluginTabs": "プラグインのタブ"
+    },
+    "presets": {
+      "label": "レイアウトのプリセット",
+      "modified": "カスタム（プリセット未保存）",
+      "standard": "標準",
+      "focused": "シンプル",
+      "metadata": "メタデータ確認",
+      "applied": "レイアウトのプリセットを適用しました。",
+      "delete": "プリセット {name} を削除",
+      "name": "新しいプリセット名",
+      "save": "現在のレイアウトをプリセットとして保存",
+      "saved": "レイアウトのプリセットを保存しました。",
+      "nameRequired": "プリセット名を入力してください。",
+      "full": "プリセットは最大 {max} 個まで保存できます。"
+    },
+    "home": {
+      "title": "ホーム",
+      "customize": "ホームをカスタマイズ",
+      "blocks": "ホームのブロック",
+      "moreInSettings": "アイテム詳細のパネルとレイアウトのプリセットは「設定」ページで変更できます。",
+      "allHidden": "すべてのブロックが非表示です。「ホームをカスタマイズ」から再表示できます。",
+      "welcome": "おかえりなさい、{name} さん",
+      "searchLink": "検索",
+      "latestEmpty": "公開日のあるアイテムはまだありません。"
+    }
+  }
+}

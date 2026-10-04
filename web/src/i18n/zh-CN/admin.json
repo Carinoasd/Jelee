@@ -6,7 +6,9 @@
       "access": "内容访问",
       "clients": "客户端管控",
       "webhooks": "Webhook",
-      "stats": "观看统计"
+      "stats": "观看统计",
+      "plugins": "插件",
+      "appearance": "自定义 CSS"
     }
   }
 }

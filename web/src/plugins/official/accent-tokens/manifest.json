@@ -1,0 +1,23 @@
+{
+  "id": "jelee.accent-tokens",
+  "name": {
+    "zh-CN": "强调色主题示例",
+    "zh-TW": "強調色主題範例",
+    "ja-JP": "アクセントカラーのテーマ例",
+    "en-US": "Accent theme example"
+  },
+  "description": {
+    "zh-CN": "通过 theme.token 覆盖主色、焦点色、图表色与圆角，提供三套对比度达标的强调色，并注册一个 token 预览页。",
+    "zh-TW": "透過 theme.token 覆寫主色、焦點色、圖表色與圓角，提供三套對比度達標的強調色，並註冊一個 token 預覽頁。",
+    "ja-JP": "theme.token でメインカラー、フォーカス色、グラフ色、角丸を上書きします。コントラスト基準を満たす 3 種類のアクセントカラーと、トークンのプレビューページを提供します。",
+    "en-US": "Overrides the primary, focus and chart colors and the corner radius through theme.token, offers three accents that meet contrast requirements and registers a token preview page."
+  },
+  "version": "1.0.0",
+  "sdkVersion": "^1.0.0",
+  "minJeleeVersion": "0.1.0",
+  "permissions": ["ui.theme", "ui.routes", "settings.storage"],
+  "hooks": ["theme.token", "settings.section", "route.register"],
+  "dependencies": {},
+  "entry": "./index.ts",
+  "author": "Carinoasd"
+}

@@ -1,0 +1,56 @@
+{
+  "appearance": {
+    "title": "Custom CSS",
+    "intro": "Administrators can add CSS to adjust the look. It is sanitized on save and only rules that pass the checks are applied.",
+    "rules": {
+      "markup": "Refused as a whole: any less-than sign (so no script or style tags), backslash escapes, control characters, unclosed comments or braces.",
+      "urls": "Removed one by one: CSS import rules, expression(), javascript: and vbscript: URLs, behavior and -moz-binding, resource-loading functions such as image-set(), and url() pointing elsewhere (only same-site paths are allowed).",
+      "fonts": "External fonts are off by default; when enabled, only https font files on allowlisted hosts are accepted.",
+      "csp": "CSS is applied as a constructed stylesheet, which works with the CSP style-src 'self'. External fonts also need the server CSP to allow them in font-src, which is not available yet."
+    },
+    "storageNote": "The server has no global appearance API yet: custom CSS is kept in this browser and applies to this browser only.",
+    "unsupported": "This browser lacks constructed stylesheets, so custom CSS cannot be applied under the strict CSP.",
+    "cssLabel": "CSS",
+    "cssHint": "Up to {max} characters. Design tokens such as var(--jl-color-primary) are available.",
+    "fonts": {
+      "legend": "External fonts",
+      "allow": "Allow fonts from allowlisted hosts",
+      "allowHint": "Affects only src in font-face rules; every other url() still allows same-site paths only.",
+      "hosts": "Font host allowlist",
+      "hostsHint": "One host name per line, such as fonts.example.com; at most {max}.",
+      "invalidHosts": "Not valid host names: {hosts}",
+      "tooMany": "At most {max} hosts are allowed."
+    },
+    "check": "Check",
+    "save": "Apply and save",
+    "clear": "Clear custom CSS",
+    "clearConfirm": "Clear CSS",
+    "clearPrompt": "Removes the applied and stored custom CSS.",
+    "result": "Check result",
+    "rejected": "The whole CSS was refused; no rule is applied.",
+    "accepted": "{length} characters of CSS passed; {count} parts were removed.",
+    "saved": "Custom CSS applied and saved.",
+    "savedRejected": "Saved, but the whole CSS was refused and is not applied.",
+    "cleared": "Custom CSS cleared.",
+    "issues": {
+      "tooLong": "The CSS is too long.",
+      "markup": "Contains a less-than sign, which could start HTML or a script tag.",
+      "escape": "Contains a backslash escape, which can hide blocked keywords.",
+      "controlChar": "Contains control characters.",
+      "unterminatedComment": "Has an unclosed comment.",
+      "unbalanced": "Braces, parentheses or quotes are unbalanced.",
+      "tooDeep": "Nested too deeply.",
+      "importBlocked": "CSS import rules are not allowed.",
+      "atRuleBlocked": "Unsupported at-rule.",
+      "invalidSelector": "Invalid or disallowed selector.",
+      "invalidDeclaration": "Invalid declaration.",
+      "nestingUnsupported": "Nested rules are not supported.",
+      "expression": "expression() is not allowed.",
+      "scriptUrl": "javascript: and vbscript: URLs are not allowed.",
+      "binding": "behavior and -moz-binding are not allowed.",
+      "blockedFunction": "Functions that can load resources, such as image-set(), are not allowed.",
+      "externalUrl": "url() may only point to same-site paths.",
+      "externalFont": "External fonts are off or the host is not allowlisted."
+    }
+  }
+}

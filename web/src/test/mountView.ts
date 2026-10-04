@@ -3,7 +3,7 @@
 // guard is not installed here; guard behavior has its own tests.
 import { flushPromises, mount, type VueWrapper } from "@vue/test-utils";
 import { createPinia, type Pinia } from "pinia";
-import { defineComponent, h, type App, type Component } from "vue";
+import { defineComponent, h, type App, type Component, type Plugin } from "vue";
 import { createMemoryHistory, createRouter, RouterView, type Router } from "vue-router";
 import { apiKey } from "@/api";
 import { createApiClient } from "@/api/client";
@@ -32,7 +32,7 @@ export function unmountAll(): void {
 
 export async function mountView(
   path: string,
-  options: { fetch: typeof globalThis.fetch; user?: User | null; locale?: Locale; header?: Component },
+  options: { fetch: typeof globalThis.fetch; user?: User | null; locale?: Locale; header?: Component; plugins?: readonly Plugin[] },
 ): Promise<MountedView> {
   const api = createApiClient({ fetch: options.fetch, baseUrl: "http://localhost" });
   const pinia = createPinia();
@@ -56,7 +56,7 @@ export async function mountView(
   const header = options.header;
   const Host = defineComponent({ render: () => (header ? [h(header), h(RouterView)] : h(RouterView)) });
   const wrapper = mount(Host, {
-    global: { plugins: [provideApi, pinia, i18n, router, signIn] },
+    global: { plugins: [provideApi, pinia, i18n, router, signIn, ...(options.plugins ?? [])] },
     attachTo: document.body,
   });
   mounted.push(wrapper);

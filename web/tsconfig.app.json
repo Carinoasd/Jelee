@@ -19,7 +19,7 @@
     "skipLibCheck": true,
     "noEmit": true,
     "types": ["vite/client"],
-    "paths": { "@/*": ["./src/*"] }
+    "paths": { "@/*": ["./src/*"], "@jelee/plugin-sdk": ["./src/plugins/sdk/index.ts"] }
   },
   "include": ["env.d.ts", "src/**/*.ts", "src/**/*.vue"]
 }

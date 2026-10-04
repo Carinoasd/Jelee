@@ -35,7 +35,10 @@ jobs:
         run: make bootstrap tools-verify bootstrap-media media-tools-verify bootstrap-runtime runtime-tools-verify runtime-toolchain-test fixtures fixtures-test toolchain-test media-toolchain-test quality-gates-test lint build test-race coverage-check sandbox-test probe-runtime-test gitignore-check brand-scan-incremental
       - name: Web frontend gates on Linux
         if: runner.os == 'Linux'
-        run: make web-install web-types web-lint web-test web-build
+        # web-build fails on playback in the bundle and on a main bundle over
+        # the gzip budget in web/bundle-budget.json (G27, G35.4); web-budget
+        # prints the measured sizes against the budget.
+        run: make web-install web-types web-lint web-test web-build web-budget
       - name: Windows bootstrap and verification
         if: runner.os == 'Windows'
         shell: pwsh

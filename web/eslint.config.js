@@ -65,6 +65,63 @@ export default tseslint.config(
     },
   },
   {
+    // The single storage adapter for presentation state without a server
+    // API yet (layouts, plugin state, administrator CSS). It refuses keys
+    // naming credentials; see the file header and docs/frontend-adr.md.
+    files: ["src/stores/persist.ts"],
+    rules: {
+      "no-restricted-globals": ["error", { name: "sessionStorage", message: "Use src/stores/persist.ts." }, { name: "eval", message: "Breaks the strict Content-Security-Policy." }],
+    },
+  },
+  {
+    // @jelee/plugin-sdk stands alone: it may import Vue and nothing of the host.
+    files: ["src/plugins/sdk/**/*.ts"],
+    ignores: ["**/*.test.ts"],
+    rules: {
+      "no-restricted-imports": ["error", { patterns: [{ group: ["@/*", "../host/*", "../official/*"], message: "The SDK must not depend on the host application." }] }],
+    },
+  },
+  {
+    // Plugin sources (G32.3): only "vue" and "@jelee/plugin-sdk". No host
+    // modules, stores, router or i18n internals, no injection tricks, and no
+    // direct network or storage access: data comes from the SDK's restricted
+    // API, settings from the plugin's own namespace.
+    files: ["src/plugins/official/**/*.{ts,vue}"],
+    ignores: ["**/*.test.ts"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: [
+            { name: "vue", importNames: ["getCurrentInstance", "inject", "provide", "createApp"], message: "Use usePlugin() from @jelee/plugin-sdk." },
+            { name: "vue-i18n", message: "Use the plugin context's t()." },
+            { name: "vue-router", message: "Use route.register and RouterLink." },
+            { name: "pinia", message: "Plugins keep state in their settings namespace." },
+            { name: "openapi-fetch", message: "Use the plugin context's api." },
+          ],
+          patterns: [{ group: ["@/*", "**/host/*", "**/sdk/*"], message: "Plugins import only vue and @jelee/plugin-sdk." }],
+        },
+      ],
+      "no-restricted-globals": [
+        "error",
+        ...["localStorage", "sessionStorage", "indexedDB", "caches", "fetch", "XMLHttpRequest", "WebSocket", "EventSource", "eval"].map((name) => ({
+          name,
+          message: "Plugins use the SDK's restricted API and settings namespace (G32.3).",
+        })),
+      ],
+      "no-restricted-properties": [
+        "error",
+        { object: "document", property: "cookie", message: "Plugins never touch cookies (G32.3)." },
+        { object: "window", property: "fetch", message: "Use the plugin context's api." },
+        { object: "window", property: "localStorage", message: "Use the plugin context's settings." },
+        { object: "globalThis", property: "fetch", message: "Use the plugin context's api." },
+        { object: "navigator", property: "sendBeacon", message: "Plugins do not send data out of band." },
+      ],
+      // Plugin messages live in the plugin, not in the host catalogs.
+      "@intlify/vue-i18n/no-missing-keys": "off",
+    },
+  },
+  {
     // Tests inspect browser storage and cookies to prove they stay empty.
     files: ["**/*.test.ts"],
     rules: {

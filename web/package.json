@@ -7,7 +7,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build && node scripts/check-no-playback.mjs --require-dist",
+    "build": "vite build && node scripts/check-no-playback.mjs --require-dist && node scripts/check-bundle-budget.mjs",
+    "budget": "node scripts/check-bundle-budget.mjs",
     "preview": "vite preview",
     "api:generate": "node scripts/api-types.mjs",
     "api:check": "node scripts/api-types.mjs --check",

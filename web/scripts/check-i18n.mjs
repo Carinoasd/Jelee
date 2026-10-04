@@ -165,6 +165,12 @@ function sourceFiles(directory, files = []) {
   return files;
 }
 
+/**
+ * Dotted identifiers of the plugin SDK (a hook and a permission name) that
+ * share a prefix with the settings catalog but are not message keys.
+ */
+export const nonMessageLiterals = new Set(["settings.section", "settings.storage"]);
+
 /** Collects dotted string literals in a namespace that sources reference. */
 export function referencedKeys(sources, namespaces) {
   const used = new Set();
@@ -176,7 +182,7 @@ export function referencedKeys(sources, namespaces) {
     for (const match of text.matchAll(literal)) {
       const key = match[1] ?? "";
       // File names such as "core.json" are not message keys.
-      if (/\.(?:json|ts|vue|css)$/.test(key)) {
+      if (/\.(?:json|ts|vue|css)$/.test(key) || nonMessageLiterals.has(key)) {
         continue;
       }
       if (namespaces.has(key.split(".")[0] ?? "")) {

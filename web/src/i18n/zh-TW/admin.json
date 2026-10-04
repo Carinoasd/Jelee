@@ -6,7 +6,9 @@
       "access": "內容存取",
       "clients": "客戶端管控",
       "webhooks": "Webhook",
-      "stats": "觀看統計"
+      "stats": "觀看統計",
+      "plugins": "插件",
+      "appearance": "自訂 CSS"
     }
   }
 }

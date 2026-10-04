@@ -12,7 +12,11 @@ declare module "vue-router" {
 // All views are lazy-loaded (G31.3, G35.3). No route renders or starts
 // media playback (G27.1); scripts/check-no-playback.mjs guards this file.
 export const routes: RouteRecordRaw[] = [
-  { path: "/", redirect: { name: "libraries" } },
+  {
+    path: "/",
+    name: "home",
+    component: () => import("@/features/home/HomeView.vue"),
+  },
   {
     path: "/login",
     name: "login",
@@ -106,6 +110,16 @@ export const routes: RouteRecordRaw[] = [
         path: "stats",
         name: "admin-stats",
         component: () => import("@/features/stats/AdminStatsView.vue"),
+      },
+      {
+        path: "plugins",
+        name: "admin-plugins",
+        component: () => import("@/features/admin/PluginsAdminView.vue"),
+      },
+      {
+        path: "appearance",
+        name: "admin-appearance",
+        component: () => import("@/features/admin/AppearanceAdminView.vue"),
       },
     ],
   },

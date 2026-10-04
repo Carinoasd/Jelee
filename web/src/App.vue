@@ -61,8 +61,9 @@ async function signOut() {
   <a class="jl-skip-link" href="#main">{{ t("common.skipToContent") }}</a>
   <DevModeBanner />
   <header class="jl-header">
-    <RouterLink class="jl-header__brand" :to="{ name: 'libraries' }">{{ t("common.appName") }}</RouterLink>
+    <RouterLink class="jl-header__brand" :to="{ name: 'home' }">{{ t("common.appName") }}</RouterLink>
     <nav v-if="auth.isAuthenticated" :aria-label="t('common.mainNavigation')" class="jl-header__nav">
+      <RouterLink :to="{ name: 'home' }">{{ t("layout.home.title") }}</RouterLink>
       <RouterLink :to="{ name: 'libraries' }">{{ t("libraries.title") }}</RouterLink>
       <RouterLink :to="{ name: 'stats' }">{{ t("common.stats") }}</RouterLink>
       <RouterLink :to="{ name: 'account' }">{{ t("account.title") }}</RouterLink>

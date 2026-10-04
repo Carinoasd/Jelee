@@ -1,0 +1,87 @@
+{
+  "plugins": {
+    "notice": "{message}",
+    "actionFailed": "「{name}」を実行できませんでした。",
+    "detailTabs": "拡張タブ",
+    "itemActions": "プラグインの操作",
+    "pageUnavailable": "このページは現在使用できません",
+    "boundary": {
+      "failed": "プラグイン「{name}」でエラーが発生したため、この領域を停止しました。ページのほかの部分には影響しません。",
+      "retry": "再試行"
+    },
+    "title": "プラグイン",
+    "intro": "プラグイン SDK {sdk}、Jelee Web {version}。有効化・無効化・並べ替えはすぐに反映されます。",
+    "storageNote": "サーバーにはまだプラグイン設定の API がありません。有効状態、順序、プラグインの設定はこのブラウザーにのみ保存され、ほかの端末やユーザーには同期されません。",
+    "empty": "利用できるプラグインはありません。",
+    "order": "プラグインの順序",
+    "orderHint": "順序は、各プラグインの内容がページに表示される順番を決めます。",
+    "official": "公式",
+    "rejected": "マニフェストが検査に通らなかったため、プラグインは読み込まれません：",
+    "deprecatedHook": "Hook {hook} は SDK {since} で非推奨になり、{removed} で削除されます。代替：{replacement}。",
+    "failures": "起動以降 {count} 件のエラーを捕捉しました。直近のエラー：",
+    "fields": {
+      "id": "ID",
+      "version": "バージョン",
+      "sdkVersion": "SDK バージョン範囲",
+      "minJelee": "最小 Jelee バージョン",
+      "entry": "エントリー",
+      "author": "作者",
+      "dependencies": "依存関係",
+      "permissions": "権限",
+      "hooks": "Hook"
+    },
+    "none": "なし",
+    "contributions": "{count} 件",
+    "enabled": "{name} を有効にする",
+    "restart": "再起動",
+    "clearSettings": "プラグインの設定を消去",
+    "clearSettingsConfirm": "消去する",
+    "clearSettingsPrompt": "「{name}」がこのブラウザーに保存したすべての設定を削除します。",
+    "enabledToast": "{name} を有効にしました。",
+    "disabledToast": "{name} を無効にしました。",
+    "settingsCleared": "{name} の設定を消去しました。",
+    "status": {
+      "rejected": "拒否",
+      "disabled": "無効",
+      "blocked": "依存関係が未解決",
+      "loading": "読み込み中",
+      "active": "有効",
+      "failed": "起動失敗"
+    },
+    "permissions": {
+      "catalogRead": "現在のユーザーが閲覧できるアイテムの詳細、ファイルの概要、ライブラリ一覧を読み取ります（読み取り専用）。",
+      "userRead": "現在のユーザーの名前、表示名、言語、管理者かどうかを読み取ります。",
+      "settingsStorage": "このブラウザーに自分の設定を保存します（独立した名前空間）。",
+      "uiRoutes": "/x/プラグイン ID/ の下にページを登録します。",
+      "uiTheme": "デザイントークン（色、角丸、フォント）を上書きします。"
+    },
+    "issues": {
+      "notObject": "マニフェストが JSON オブジェクトではありません。",
+      "unknownField": "不明なフィールド {field}。",
+      "invalidId": "ID は vendor.name のような小文字のドット区切りにしてください。",
+      "invalidText": "{field} は 4 言語すべての空でないテキストが必要です。",
+      "invalidVersion": "version が有効なセマンティックバージョンではありません。",
+      "invalidSdkRange": "sdkVersion が有効なバージョン範囲ではありません。",
+      "sdkIncompatible": "SDK {required} が必要ですが、現在は {current} です。",
+      "invalidMinJelee": "minJeleeVersion が有効なセマンティックバージョンではありません。",
+      "jeleeTooOld": "Jelee {required} 以降が必要ですが、現在は {current} です。",
+      "invalidPermissions": "permissions は重複のない配列にしてください。",
+      "unknownPermission": "不明な権限 {permission}。",
+      "invalidHooks": "hooks は重複のない空でない配列にしてください。",
+      "unknownHook": "不明な Hook {hook}（新しい SDK で削除された可能性があります）。",
+      "hookNeedsPermission": "Hook {hook} には権限 {permission} の宣言が必要です。",
+      "invalidDependencies": "dependencies はプラグイン ID を有効なバージョン範囲に対応付けてください。",
+      "invalidEntry": "entry はマニフェストと同じ場所のモジュール（例：./index.ts）にしてください。",
+      "invalidAuthor": "author は 1～80 文字のテキストにしてください。"
+    },
+    "problems": {
+      "duplicateId": "ID {id} はほかのプラグインが使用しています。",
+      "dependencyMissing": "依存プラグイン {dependency}（{range}）がありません。",
+      "dependencyVersion": "依存プラグイン {dependency} のバージョン {version} は {range} を満たしません。",
+      "dependencyInactive": "依存プラグイン {dependency}（{range}）が無効か、実行できません。",
+      "loadFailed": "プラグインのコードを読み込めません：{error}",
+      "invalidDefinition": "エントリーが有効なプラグイン定義（setup と 4 言語のメッセージ）をエクスポートしていません。",
+      "setupFailed": "setup でエラーが発生したため、プラグインは起動していません：{error}"
+    }
+  }
+}

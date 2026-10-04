@@ -11,6 +11,8 @@ const sections = [
   { name: "admin-clients", key: "admin.nav.clients" },
   { name: "admin-webhooks", key: "admin.nav.webhooks" },
   { name: "admin-stats", key: "admin.nav.stats" },
+  { name: "admin-plugins", key: "admin.nav.plugins" },
+  { name: "admin-appearance", key: "admin.nav.appearance" },
 ] as const;
 </script>
 

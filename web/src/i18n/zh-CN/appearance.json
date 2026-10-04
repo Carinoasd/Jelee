@@ -1,0 +1,56 @@
+{
+  "appearance": {
+    "title": "自定义 CSS",
+    "intro": "管理员可以补充 CSS 来调整外观。保存时会先经过清洗，只套用通过检查的规则。",
+    "rules": {
+      "markup": "整段拒绝：任何小于号（因此无法写出 script 或 style 标签）、反斜线转义、控制字符、未闭合的注释或大括号。",
+      "urls": "逐条移除：CSS 导入规则、expression()、javascript: 与 vbscript: 网址、behavior 与 -moz-binding、image-set() 等可加载资源的函数，以及指向外部来源的 url()（只允许本站路径）。",
+      "fonts": "外部字体默认禁用；启用后只接受白名单主机上的 https 字体文件。",
+      "csp": "CSS 以构造样式表套用，符合 style-src 'self' 的 CSP；外部字体还需要服务器 CSP 的 font-src 放行，目前尚未提供。"
+    },
+    "storageNote": "服务器还没有全局外观设置 API：自定义 CSS 只保存在这个浏览器中，只对此浏览器生效。",
+    "unsupported": "此浏览器不支持构造样式表，无法在严格 CSP 下套用自定义 CSS。",
+    "cssLabel": "CSS",
+    "cssHint": "最多 {max} 个字符。可使用设计 token，例如 var(--jl-color-primary)。",
+    "fonts": {
+      "legend": "外部字体",
+      "allow": "允许来自白名单主机的字体",
+      "allowHint": "只影响 font-face 规则中的 src；其他 url() 仍只允许本站路径。",
+      "hosts": "字体主机白名单",
+      "hostsHint": "每行一个主机名，例如 fonts.example.com；最多 {max} 个。",
+      "invalidHosts": "不是有效的主机名：{hosts}",
+      "tooMany": "最多只能有 {max} 个主机。"
+    },
+    "check": "检查",
+    "save": "套用并保存",
+    "clear": "清除自定义 CSS",
+    "clearConfirm": "确认清除",
+    "clearPrompt": "将移除已套用与已保存的自定义 CSS。",
+    "result": "检查结果",
+    "rejected": "整段 CSS 被拒绝，没有套用任何规则。",
+    "accepted": "通过检查的 CSS 共 {length} 个字符；移除了 {count} 处。",
+    "saved": "自定义 CSS 已套用并保存。",
+    "savedRejected": "已保存，但整段 CSS 被拒绝，未套用。",
+    "cleared": "自定义 CSS 已清除。",
+    "issues": {
+      "tooLong": "CSS 过长。",
+      "markup": "包含小于号，可能是 HTML 或脚本标签。",
+      "escape": "包含反斜线转义，可能用来隐藏被禁止的关键字。",
+      "controlChar": "包含控制字符。",
+      "unterminatedComment": "有未闭合的注释。",
+      "unbalanced": "大括号、括号或引号不成对。",
+      "tooDeep": "嵌套层级过深。",
+      "importBlocked": "不允许 CSS 导入规则。",
+      "atRuleBlocked": "不支持的 at 规则。",
+      "invalidSelector": "无效或不允许的选择器。",
+      "invalidDeclaration": "无效的声明。",
+      "nestingUnsupported": "不支持在规则中嵌套规则。",
+      "expression": "不允许 expression()。",
+      "scriptUrl": "不允许 javascript: 或 vbscript: 网址。",
+      "binding": "不允许 behavior 或 -moz-binding。",
+      "blockedFunction": "不允许可加载外部资源的函数（如 image-set()）。",
+      "externalUrl": "url() 只能指向本站路径。",
+      "externalFont": "外部字体未启用，或主机不在白名单中。"
+    }
+  }
+}

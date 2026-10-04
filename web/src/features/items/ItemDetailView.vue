@@ -6,9 +6,14 @@ import UiAlert from "@/components/ui/UiAlert.vue";
 import UiBadge from "@/components/ui/UiBadge.vue";
 import UiSkeleton from "@/components/ui/UiSkeleton.vue";
 import { formatDateTime } from "@/i18n/format";
+import PluginDetailTabs from "@/plugins/host/PluginDetailTabs.vue";
+import PluginItemActions from "@/plugins/host/PluginItemActions.vue";
+import PluginOutlet from "@/plugins/host/PluginOutlet.vue";
+import { toPluginItem } from "@/plugins/host/restrictedApi";
 import { useItemDetailStore } from "@/stores/itemDetail";
+import { useLayoutStore } from "@/stores/layout";
 import { useLibrariesStore } from "@/stores/libraries";
-import type { MediaSourceInfo } from "./api";
+import type { ItemDetails, MediaSourceInfo } from "./api";
 import { codecsOf, formatBitrate, formatBytes, formatDuration, resolutionOf } from "./files";
 import ItemPoster from "./ItemPoster.vue";
 import { kindLabelKey, nfoStatusKey } from "./labels";
@@ -21,6 +26,18 @@ const props = defineProps<{ itemId: string }>();
 const { t, locale } = useI18n();
 const store = useItemDetailStore();
 const libraries = useLibrariesStore();
+const layout = useLayoutStore();
+// Panels in the user's order (G33.5); hidden panels are not rendered.
+const panels = computed(() => layout.visibleIds("detail"));
+
+// Plugins see a frozen copy of the display data, never the store's object.
+let pluginItemCache: { source: ItemDetails; item: ReturnType<typeof toPluginItem> } | null = null;
+function pluginItem(details: ItemDetails) {
+  if (pluginItemCache?.source !== details) {
+    pluginItemCache = { source: details, item: toPluginItem(details) };
+  }
+  return pluginItemCache.item;
+}
 
 watch(
   () => props.itemId,
@@ -99,101 +116,108 @@ function language(value: string | undefined): string {
               <UiBadge v-if="nfoFields.has('originalTitle')" tone="accent">{{ t("items.detail.nfoBadge") }}</UiBadge>
             </p>
             <p v-if="data.item.tagline" class="jl-detail__tagline">{{ data.item.tagline }}</p>
+            <PluginItemActions :item="pluginItem(data.item)" />
 
-            <section class="jl-detail__section" aria-labelledby="overview-title">
-              <h2 id="overview-title">
-                {{ t("items.detail.overview") }}
-                <UiBadge v-if="nfoFields.has('overview')" tone="accent">{{ t("items.detail.nfoBadge") }}</UiBadge>
-              </h2>
-              <p v-if="data.item.overview" class="jl-detail__overview">{{ data.item.overview }}</p>
-              <p v-else class="jl-detail__muted">{{ t("items.detail.noOverview") }}</p>
-            </section>
+            <template v-for="panel in panels" :key="panel">
+              <section v-if="panel === 'overview'" class="jl-detail__section" aria-labelledby="overview-title">
+                <h2 id="overview-title">
+                  {{ t("items.detail.overview") }}
+                  <UiBadge v-if="nfoFields.has('overview')" tone="accent">{{ t("items.detail.nfoBadge") }}</UiBadge>
+                </h2>
+                <p v-if="data.item.overview" class="jl-detail__overview">{{ data.item.overview }}</p>
+                <p v-else class="jl-detail__muted">{{ t("items.detail.noOverview") }}</p>
+              </section>
 
-            <section v-if="data.item.genres.length > 0" class="jl-detail__section" aria-labelledby="genres-title">
-              <h2 id="genres-title">
-                {{ t("items.detail.genres") }}
-                <UiBadge v-if="nfoFields.has('genres')" tone="accent">{{ t("items.detail.nfoBadge") }}</UiBadge>
-              </h2>
-              <ul class="jl-detail__tags">
-                <li v-for="genre in data.item.genres" :key="genre"><UiBadge>{{ genre }}</UiBadge></li>
-              </ul>
-            </section>
+              <section v-else-if="panel === 'genres' && data.item.genres.length > 0" class="jl-detail__section" aria-labelledby="genres-title">
+                <h2 id="genres-title">
+                  {{ t("items.detail.genres") }}
+                  <UiBadge v-if="nfoFields.has('genres')" tone="accent">{{ t("items.detail.nfoBadge") }}</UiBadge>
+                </h2>
+                <ul class="jl-detail__tags">
+                  <li v-for="genre in data.item.genres" :key="genre"><UiBadge>{{ genre }}</UiBadge></li>
+                </ul>
+              </section>
 
-            <section class="jl-detail__section" aria-labelledby="ids-title">
-              <h2 id="ids-title">
-                {{ t("items.detail.externalIds") }}
-                <UiBadge v-if="nfoFields.has('uniqueIds')" tone="accent">{{ t("items.detail.nfoBadge") }}</UiBadge>
-              </h2>
-              <dl v-if="data.item.externalIds.length > 0" class="jl-detail__ids">
-                <template v-for="id in data.item.externalIds" :key="id.type + ':' + id.value">
-                  <dt>{{ id.type }}</dt>
-                  <dd>
-                    <code>{{ id.value }}</code>
-                    <UiBadge v-if="id.default">{{ t("items.detail.defaultId") }}</UiBadge>
-                  </dd>
-                </template>
-              </dl>
-              <p v-else class="jl-detail__muted">{{ t("items.detail.noExternalIds") }}</p>
-            </section>
-
-            <section class="jl-detail__section" aria-labelledby="nfo-title">
-              <h2 id="nfo-title">{{ t("items.detail.nfoSource") }}</h2>
-              <p :class="{ 'jl-detail__muted': data.item.nfo.status === 'unread' }">
-                {{ t(nfoStatusKey[data.item.nfo.status]) }}
-                <span v-if="data.item.nfo.readAt" class="jl-detail__muted">
-                  {{ t("items.detail.nfoReadAt", { date: formatDateTime(data.item.nfo.readAt, locale) }) }}
-                </span>
-              </p>
-            </section>
-
-            <section class="jl-detail__section" aria-labelledby="files-title">
-              <h2 id="files-title">{{ t("items.detail.files") }}</h2>
-              <p v-if="data.sources === null" class="jl-detail__muted">{{ t("items.files.unavailable") }}</p>
-              <p v-else-if="data.sources.length === 0" class="jl-detail__muted">{{ t("items.files.none") }}</p>
-              <div v-for="(source, index) in data.sources ?? []" :key="source.id" class="jl-file">
-                <h3 class="jl-file__title">{{ versionName(source, index) }}</h3>
-                <p v-if="!source.probed" class="jl-detail__muted">{{ t("items.files.unprobed") }}</p>
-                <dl class="jl-detail__ids">
-                  <template v-for="row in facts(source)" :key="row.key">
-                    <dt>{{ t(row.key) }}</dt>
-                    <dd>{{ row.value }}</dd>
+              <section v-else-if="panel === 'externalIds'" class="jl-detail__section" aria-labelledby="ids-title">
+                <h2 id="ids-title">
+                  {{ t("items.detail.externalIds") }}
+                  <UiBadge v-if="nfoFields.has('uniqueIds')" tone="accent">{{ t("items.detail.nfoBadge") }}</UiBadge>
+                </h2>
+                <dl v-if="data.item.externalIds.length > 0" class="jl-detail__ids">
+                  <template v-for="id in data.item.externalIds" :key="id.type + ':' + id.value">
+                    <dt>{{ id.type }}</dt>
+                    <dd>
+                      <code>{{ id.value }}</code>
+                      <UiBadge v-if="id.default">{{ t("items.detail.defaultId") }}</UiBadge>
+                    </dd>
                   </template>
                 </dl>
-                <template v-if="source.audioTracks.length > 0">
-                  <h4 class="jl-file__subtitle">{{ t("items.files.embeddedAudio") }}</h4>
-                  <ul class="jl-file__tracks">
-                    <li v-for="track in source.audioTracks" :key="'a' + track.index">
-                      {{ language(track.language) }} · {{ track.codec ?? "" }}<template v-if="track.channelLayout"> · {{ track.channelLayout }}</template>
-                      <UiBadge v-if="track.default">{{ t("items.files.flagDefault") }}</UiBadge>
-                      <UiBadge v-if="track.forced">{{ t("items.files.flagForced") }}</UiBadge>
-                    </li>
-                  </ul>
-                </template>
-                <template v-if="source.subtitleTracks.length > 0">
-                  <h4 class="jl-file__subtitle">{{ t("items.files.embeddedSubtitles") }}</h4>
-                  <ul class="jl-file__tracks">
-                    <li v-for="track in source.subtitleTracks" :key="'s' + track.index">
-                      {{ language(track.language) }} · {{ track.format ?? track.codec ?? "" }}
-                      <UiBadge v-if="track.default">{{ t("items.files.flagDefault") }}</UiBadge>
-                      <UiBadge v-if="track.forced">{{ t("items.files.flagForced") }}</UiBadge>
-                    </li>
-                  </ul>
-                </template>
-                <template v-if="source.externalTracks.length > 0">
-                  <h4 class="jl-file__subtitle">{{ t("items.files.externalFiles") }}</h4>
-                  <ul class="jl-file__tracks">
-                    <li v-for="track in source.externalTracks" :key="track.id">
-                      {{ t(track.kind === "subtitle" ? "items.files.kindSubtitle" : "items.files.kindAudio") }} ·
-                      {{ language(track.language) }} · {{ track.format }}<template v-if="track.title"> · {{ track.title }}</template>
-                      <UiBadge v-if="track.default">{{ t("items.files.flagDefault") }}</UiBadge>
-                      <UiBadge v-if="track.forced">{{ t("items.files.flagForced") }}</UiBadge>
-                      <UiBadge v-if="track.sdh">{{ t("items.files.flagSdh") }}</UiBadge>
-                      <UiBadge v-if="track.commentary">{{ t("items.files.flagCommentary") }}</UiBadge>
-                    </li>
-                  </ul>
-                </template>
+                <p v-else class="jl-detail__muted">{{ t("items.detail.noExternalIds") }}</p>
+              </section>
+
+              <section v-else-if="panel === 'nfo'" class="jl-detail__section" aria-labelledby="nfo-title">
+                <h2 id="nfo-title">{{ t("items.detail.nfoSource") }}</h2>
+                <p :class="{ 'jl-detail__muted': data.item.nfo.status === 'unread' }">
+                  {{ t(nfoStatusKey[data.item.nfo.status]) }}
+                  <span v-if="data.item.nfo.readAt" class="jl-detail__muted">
+                    {{ t("items.detail.nfoReadAt", { date: formatDateTime(data.item.nfo.readAt, locale) }) }}
+                  </span>
+                </p>
+              </section>
+
+              <section v-else-if="panel === 'files'" class="jl-detail__section" aria-labelledby="files-title">
+                <h2 id="files-title">{{ t("items.detail.files") }}</h2>
+                <p v-if="data.sources === null" class="jl-detail__muted">{{ t("items.files.unavailable") }}</p>
+                <p v-else-if="data.sources.length === 0" class="jl-detail__muted">{{ t("items.files.none") }}</p>
+                <div v-for="(source, index) in data.sources ?? []" :key="source.id" class="jl-file">
+                  <h3 class="jl-file__title">{{ versionName(source, index) }}</h3>
+                  <p v-if="!source.probed" class="jl-detail__muted">{{ t("items.files.unprobed") }}</p>
+                  <dl class="jl-detail__ids">
+                    <template v-for="row in facts(source)" :key="row.key">
+                      <dt>{{ t(row.key) }}</dt>
+                      <dd>{{ row.value }}</dd>
+                    </template>
+                  </dl>
+                  <template v-if="source.audioTracks.length > 0">
+                    <h4 class="jl-file__subtitle">{{ t("items.files.embeddedAudio") }}</h4>
+                    <ul class="jl-file__tracks">
+                      <li v-for="track in source.audioTracks" :key="'a' + track.index">
+                        {{ language(track.language) }} · {{ track.codec ?? "" }}<template v-if="track.channelLayout"> · {{ track.channelLayout }}</template>
+                        <UiBadge v-if="track.default">{{ t("items.files.flagDefault") }}</UiBadge>
+                        <UiBadge v-if="track.forced">{{ t("items.files.flagForced") }}</UiBadge>
+                      </li>
+                    </ul>
+                  </template>
+                  <template v-if="source.subtitleTracks.length > 0">
+                    <h4 class="jl-file__subtitle">{{ t("items.files.embeddedSubtitles") }}</h4>
+                    <ul class="jl-file__tracks">
+                      <li v-for="track in source.subtitleTracks" :key="'s' + track.index">
+                        {{ language(track.language) }} · {{ track.format ?? track.codec ?? "" }}
+                        <UiBadge v-if="track.default">{{ t("items.files.flagDefault") }}</UiBadge>
+                        <UiBadge v-if="track.forced">{{ t("items.files.flagForced") }}</UiBadge>
+                      </li>
+                    </ul>
+                  </template>
+                  <template v-if="source.externalTracks.length > 0">
+                    <h4 class="jl-file__subtitle">{{ t("items.files.externalFiles") }}</h4>
+                    <ul class="jl-file__tracks">
+                      <li v-for="track in source.externalTracks" :key="track.id">
+                        {{ t(track.kind === "subtitle" ? "items.files.kindSubtitle" : "items.files.kindAudio") }} ·
+                        {{ language(track.language) }} · {{ track.format }}<template v-if="track.title"> · {{ track.title }}</template>
+                        <UiBadge v-if="track.default">{{ t("items.files.flagDefault") }}</UiBadge>
+                        <UiBadge v-if="track.forced">{{ t("items.files.flagForced") }}</UiBadge>
+                        <UiBadge v-if="track.sdh">{{ t("items.files.flagSdh") }}</UiBadge>
+                        <UiBadge v-if="track.commentary">{{ t("items.files.flagCommentary") }}</UiBadge>
+                      </li>
+                    </ul>
+                  </template>
+                </div>
+              </section>
+              <div v-else-if="panel === 'pluginPanels'" class="jl-detail__plugins">
+                <PluginOutlet hook="metadata.panel" headings :component-props="{ item: pluginItem(data.item) }" />
               </div>
-            </section>
+              <PluginDetailTabs v-else-if="panel === 'pluginTabs'" :item="pluginItem(data.item)" />
+            </template>
 
             <UiAlert tone="info" class="jl-detail__native">
               <p class="jl-detail__native-title">{{ t("items.detail.nativeTitle") }}</p>
@@ -332,6 +356,12 @@ function language(value: string | undefined): string {
   flex-wrap: wrap;
   align-items: center;
   gap: var(--jl-space-1);
+}
+
+.jl-detail__plugins {
+  display: grid;
+  gap: var(--jl-space-6);
+  margin-top: var(--jl-space-6);
 }
 
 .jl-detail__native {

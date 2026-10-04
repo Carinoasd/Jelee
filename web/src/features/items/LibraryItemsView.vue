@@ -6,6 +6,7 @@ import RequestStatus from "@/components/ui/RequestStatus.vue";
 import UiButton from "@/components/ui/UiButton.vue";
 import UiEmptyState from "@/components/ui/UiEmptyState.vue";
 import UiSkeleton from "@/components/ui/UiSkeleton.vue";
+import PluginOutlet from "@/plugins/host/PluginOutlet.vue";
 import { useLibrariesStore } from "@/stores/libraries";
 import { useLibraryItemsStore } from "@/stores/libraryItems";
 import type { LibrarySort } from "./api";
@@ -81,6 +82,7 @@ watch(
             {{ t(option.key) }}
           </UiButton>
         </div>
+        <PluginOutlet hook="library.toolbar" :component-props="{ libraryId }" />
       </div>
     </div>
 

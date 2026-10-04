@@ -1,0 +1,56 @@
+{
+  "appearance": {
+    "title": "カスタム CSS",
+    "intro": "管理者は CSS を追加して外観を調整できます。保存時にサニタイズされ、検査に通ったルールだけが適用されます。",
+    "rules": {
+      "markup": "全体を拒否：小なり記号を含むもの（script や style のタグは書けません）、バックスラッシュのエスケープ、制御文字、閉じていないコメントや波かっこ。",
+      "urls": "個別に削除：CSS のインポート規則、expression()、javascript: と vbscript: の URL、behavior と -moz-binding、image-set() などリソースを読み込む関数、外部を指す url()（同一サイトのパスのみ可）。",
+      "fonts": "外部フォントは既定で無効です。有効にしても、許可リストのホストにある https のフォントファイルだけを受け付けます。",
+      "csp": "CSS は構築済みスタイルシートとして適用され、CSP の style-src 'self' に適合します。外部フォントにはサーバーの CSP で font-src の許可も必要ですが、まだ用意されていません。"
+    },
+    "storageNote": "サーバーにはまだ全体の外観設定 API がありません。カスタム CSS はこのブラウザーにのみ保存され、このブラウザーでのみ有効です。",
+    "unsupported": "このブラウザーは構築済みスタイルシートに対応していないため、厳格な CSP の下でカスタム CSS を適用できません。",
+    "cssLabel": "CSS",
+    "cssHint": "最大 {max} 文字。var(--jl-color-primary) のようにデザイントークンを使えます。",
+    "fonts": {
+      "legend": "外部フォント",
+      "allow": "許可リストのホストからのフォントを許可",
+      "allowHint": "font-face ルールの src のみに影響します。ほかの url() は引き続き同一サイトのパスのみです。",
+      "hosts": "フォントホストの許可リスト",
+      "hostsHint": "1 行に 1 つのホスト名（例：fonts.example.com）、最大 {max} 個。",
+      "invalidHosts": "有効なホスト名ではありません：{hosts}",
+      "tooMany": "ホストは最大 {max} 個です。"
+    },
+    "check": "検査",
+    "save": "適用して保存",
+    "clear": "カスタム CSS を消去",
+    "clearConfirm": "消去する",
+    "clearPrompt": "適用中および保存済みのカスタム CSS を削除します。",
+    "result": "検査結果",
+    "rejected": "CSS 全体が拒否されたため、ルールは適用されていません。",
+    "accepted": "検査に通った CSS は {length} 文字、削除は {count} 件です。",
+    "saved": "カスタム CSS を適用して保存しました。",
+    "savedRejected": "保存しましたが、CSS 全体が拒否されたため適用していません。",
+    "cleared": "カスタム CSS を消去しました。",
+    "issues": {
+      "tooLong": "CSS が長すぎます。",
+      "markup": "小なり記号を含んでいます（HTML やスクリプトタグの可能性）。",
+      "escape": "バックスラッシュのエスケープを含んでいます（禁止語を隠すために使われることがあります）。",
+      "controlChar": "制御文字を含んでいます。",
+      "unterminatedComment": "閉じていないコメントがあります。",
+      "unbalanced": "波かっこ、かっこ、引用符の対応が取れていません。",
+      "tooDeep": "入れ子が深すぎます。",
+      "importBlocked": "CSS のインポート規則は使えません。",
+      "atRuleBlocked": "対応していない at ルールです。",
+      "invalidSelector": "無効または許可されていないセレクターです。",
+      "invalidDeclaration": "無効な宣言です。",
+      "nestingUnsupported": "ルールの入れ子には対応していません。",
+      "expression": "expression() は使えません。",
+      "scriptUrl": "javascript: や vbscript: の URL は使えません。",
+      "binding": "behavior や -moz-binding は使えません。",
+      "blockedFunction": "外部リソースを読み込める関数（image-set() など）は使えません。",
+      "externalUrl": "url() は同一サイトのパスのみ指定できます。",
+      "externalFont": "外部フォントが無効か、ホストが許可リストにありません。"
+    }
+  }
+}

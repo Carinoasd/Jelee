@@ -1,0 +1,87 @@
+{
+  "plugins": {
+    "notice": "{message}",
+    "actionFailed": "「{name}」執行失敗。",
+    "detailTabs": "擴充頁籤",
+    "itemActions": "插件操作",
+    "pageUnavailable": "此頁面目前無法使用",
+    "boundary": {
+      "failed": "插件「{name}」發生錯誤，此區塊已停用；頁面其他內容不受影響。",
+      "retry": "重試"
+    },
+    "title": "插件",
+    "intro": "插件 SDK {sdk}，Jelee 網頁端 {version}。啟用、停用與排序立即生效。",
+    "storageNote": "伺服器還沒有插件設定 API：啟用狀態、順序與插件設定只保存在這個瀏覽器中，不會同步到其他裝置或使用者。",
+    "empty": "沒有可用的插件。",
+    "order": "插件順序",
+    "orderHint": "順序決定各插件內容在頁面中出現的先後。",
+    "official": "官方",
+    "rejected": "清單未通過檢查，插件不會載入：",
+    "deprecatedHook": "Hook {hook} 自 SDK {since} 起已棄用，將在 {removed} 移除；替代：{replacement}。",
+    "failures": "自啟動以來已攔截 {count} 次錯誤。最近一次：",
+    "fields": {
+      "id": "ID",
+      "version": "版本",
+      "sdkVersion": "SDK 版本範圍",
+      "minJelee": "最低 Jelee 版本",
+      "entry": "入口",
+      "author": "作者",
+      "dependencies": "依賴",
+      "permissions": "權限",
+      "hooks": "Hook"
+    },
+    "none": "無",
+    "contributions": "{count} 項內容",
+    "enabled": "啟用 {name}",
+    "restart": "重新啟動",
+    "clearSettings": "清除插件設定",
+    "clearSettingsConfirm": "確認清除",
+    "clearSettingsPrompt": "將刪除「{name}」在此瀏覽器中保存的全部設定。",
+    "enabledToast": "已啟用 {name}。",
+    "disabledToast": "已停用 {name}。",
+    "settingsCleared": "已清除 {name} 的設定。",
+    "status": {
+      "rejected": "已拒絕",
+      "disabled": "已停用",
+      "blocked": "依賴未滿足",
+      "loading": "載入中",
+      "active": "執行中",
+      "failed": "啟動失敗"
+    },
+    "permissions": {
+      "catalogRead": "讀取目前使用者可見的條目詳情、檔案摘要與媒體庫列表（唯讀）。",
+      "userRead": "讀取目前使用者的名稱、顯示名稱、語言與是否為管理員。",
+      "settingsStorage": "在此瀏覽器中保存自己的設定（獨立命名空間）。",
+      "uiRoutes": "在 /x/插件 ID/ 下註冊頁面。",
+      "uiTheme": "覆寫設計 token（顏色、圓角、字型）。"
+    },
+    "issues": {
+      "notObject": "清單不是 JSON 物件。",
+      "unknownField": "未知欄位 {field}。",
+      "invalidId": "ID 必須是小寫的點分格式，例如 vendor.name。",
+      "invalidText": "{field} 必須提供四種語言的非空文字。",
+      "invalidVersion": "version 不是有效的語意化版本。",
+      "invalidSdkRange": "sdkVersion 不是有效的版本範圍。",
+      "sdkIncompatible": "需要 SDK {required}，目前為 {current}。",
+      "invalidMinJelee": "minJeleeVersion 不是有效的語意化版本。",
+      "jeleeTooOld": "需要 Jelee {required} 或更新版本，目前為 {current}。",
+      "invalidPermissions": "permissions 必須是不重複的陣列。",
+      "unknownPermission": "未知權限 {permission}。",
+      "invalidHooks": "hooks 必須是不重複且非空的陣列。",
+      "unknownHook": "未知 Hook {hook}（可能已在新版 SDK 移除）。",
+      "hookNeedsPermission": "Hook {hook} 需要宣告權限 {permission}。",
+      "invalidDependencies": "dependencies 必須把插件 ID 對應到有效的版本範圍。",
+      "invalidEntry": "entry 必須是清單旁的模組，例如 ./index.ts。",
+      "invalidAuthor": "author 必須是 1–80 個字元的文字。"
+    },
+    "problems": {
+      "duplicateId": "已有另一個插件使用 ID {id}。",
+      "dependencyMissing": "缺少依賴 {dependency}（{range}）。",
+      "dependencyVersion": "依賴 {dependency} 的版本 {version} 不符合 {range}。",
+      "dependencyInactive": "依賴 {dependency}（{range}）未啟用或無法執行。",
+      "loadFailed": "無法載入插件程式碼：{error}",
+      "invalidDefinition": "入口沒有匯出有效的插件定義（setup 與四種語言的訊息）。",
+      "setupFailed": "setup 發生錯誤，插件未啟動：{error}"
+    }
+  }
+}
