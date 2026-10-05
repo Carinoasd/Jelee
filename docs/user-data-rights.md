@@ -19,7 +19,7 @@
 每行一個 `{"type": "...", "data": {...}}`：
 
 1. `export`：`format`（`jelee.user-data`）、`version`（1）、`userId`、`userName`、`generatedAt`（快照時間）。
-2. 資料紀錄，依序：`account`、`preferences`、`trackPreference`、`blockedTag`、`libraryAccess`、`itemAccessRule`、`itemData`（播放進度、已播放、次數）、`playbackSession`、`playbackSample`（播放紀錄）、`watchStatsDay`、`watchStatsItem`（觀看統計）、`session`（裝置與工作階段中繼資料：裝置名稱、用戶端、建立／最後使用時間、最後 IP）、`appPassword`（名稱與日期）、`shareLink`（自己建立的分享）、`clientControlHit`、`auditEvent`（以此使用者為操作者或對象的事件：事件名、時間、類別、角色；IP 只在使用者自己是操作者時列出；不含前後狀態，因為狀態可能描述其他使用者）。
+2. 資料紀錄，依序：`account`、`preferences`、`trackPreference`、`playlist`、`playlistItem`（自己的播放清單與目前看得到的條目）、`blockedTag`、`libraryAccess`、`itemAccessRule`、`itemData`（播放進度、已播放、次數）、`playbackSession`、`playbackSample`（播放紀錄）、`watchStatsDay`、`watchStatsItem`（觀看統計）、`session`（裝置與工作階段中繼資料：裝置名稱、用戶端、建立／最後使用時間、最後 IP）、`appPassword`（名稱與日期）、`shareLink`（自己建立的分享）、`clientControlHit`、`auditEvent`（以此使用者為操作者或對象的事件：事件名、時間、類別、角色；IP 只在使用者自己是操作者時列出；不含前後狀態，因為狀態可能描述其他使用者）。
 3. `end`：`records` 為資料紀錄筆數。**沒有 `end` 行代表串流中斷**；回應另有 `X-Jelee-Export-Complete` trailer。
 
 - **秘密一律不匯出**：密碼雜湊、應用程式密碼摘要、TOTP 密鑰、復原碼摘要、工作階段／分享／登入挑戰權杖、Webhook 密鑰。SQL 只選列出的欄位，測試確認輸出不含這些值。

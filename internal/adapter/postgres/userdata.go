@@ -36,6 +36,9 @@ var userDataSections = []userDataSection{
 	{"trackPreference", `SELECT id::text AS "id",item_id::text AS "itemId",source_id::text AS "sourceId",audio_language AS "audioLanguage",audio_commentary AS "audioCommentary",
  audio_track AS "audioTrack",subtitle_mode AS "subtitleMode",subtitle_language AS "subtitleLanguage",subtitle_sdh AS "subtitleSdh",subtitle_track AS "subtitleTrack",
  updated_at AS "updatedAt" FROM user_track_preferences WHERE user_id=$1::uuid AND (item_id IS NULL OR ` + exportItemVisible("item_id") + `)`, `"id"`},
+	{"playlist", `SELECT id::text AS "id",name AS "name",public AS "public",created_at AS "createdAt",updated_at AS "updatedAt" FROM playlists WHERE owner_id=$1::uuid`, `"createdAt","id"`},
+	{"playlistItem", `SELECT i.playlist_id::text AS "playlistId",i.item_id::text AS "itemId",i.position AS "position",i.added_at AS "addedAt"
+ FROM playlist_items i JOIN playlists p ON p.id=i.playlist_id WHERE p.owner_id=$1::uuid AND ` + exportItemVisible("i.item_id"), `"playlistId","position","itemId"`},
 	{"blockedTag", `SELECT tag AS "tag" FROM user_blocked_tags WHERE user_id=$1::uuid`, `"tag"`},
 	{"libraryAccess", `SELECT a.library_id::text AS "libraryId",l.name AS "libraryName" FROM library_acl a JOIN libraries l ON l.id=a.library_id WHERE a.user_id=$1::uuid AND ` + exportLibraryVisible("a.library_id"), `"libraryId"`},
 	{"itemAccessRule", `SELECT r.item_id::text AS "itemId",r.effect AS "effect",r.created_at AS "createdAt"
