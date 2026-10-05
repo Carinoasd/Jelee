@@ -288,6 +288,9 @@ func TestServiceQueuesRecognizesAndServesAnSRT(t *testing.T) {
 	if err != nil || second.RelativePath == item.RelativePath {
 		t.Fatalf("%v %+v", err, second)
 	}
+	// The new revision is visible once renamed into place; the old one is
+	// removed right after, before the job is counted.
+	e.settled(t, 2)
 	if revisions, _ := os.ReadDir(filepath.Join(e.cache, testSource)); len(revisions) != 1 {
 		t.Fatal("old revision kept")
 	}

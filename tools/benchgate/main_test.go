@@ -120,7 +120,7 @@ func TestCompareThresholdsUseMedians(t *testing.T) {
 
 func TestCompareBytesGateAndZeroBaseline(t *testing.T) {
 	base := samplesOf("B", []float64{100}, []float64{0}, []float64{0})
-	current := samplesOf("B", []float64{100}, []float64{16}, []float64{1})
+	current := samplesOf("B", []float64{100}, []float64{128}, []float64{1})
 	report := Compare(base, current, Thresholds{unitNs: 15, unitAllocs: 10, unitBytes: 20})
 	if len(report.Regressions()) != 2 {
 		t.Fatalf("zero-baseline growth must regress: %+v", report.Deltas)
@@ -133,6 +133,22 @@ func TestCompareBytesGateAndZeroBaseline(t *testing.T) {
 	report = Compare(base, base, Thresholds{unitNs: 15, unitAllocs: 10, unitBytes: 20})
 	if len(report.Regressions()) != 0 {
 		t.Fatal("zero to zero is not a regression")
+	}
+}
+
+func TestCompareBytesIgnoresSmallAbsoluteIncrease(t *testing.T) {
+	limits := Thresholds{unitNs: 15, unitAllocs: 10, unitBytes: 20}
+	base := samplesOf("B", []float64{100}, []float64{48}, []float64{2})
+	// The CI case: +22.9% but 11 bytes at an unchanged allocation count.
+	if r := Compare(base, samplesOf("B", []float64{100}, []float64{59}, []float64{2}), limits); len(r.Regressions()) != 0 {
+		t.Fatalf("small B/op increase gated: %+v", r.Regressions())
+	}
+	if r := Compare(base, samplesOf("B", []float64{100}, []float64{48 + minBytesIncrease}, []float64{2}), limits); len(r.Regressions()) != 0 {
+		t.Fatalf("increase at the floor gated: %+v", r.Regressions())
+	}
+	r := Compare(base, samplesOf("B", []float64{100}, []float64{48 + minBytesIncrease + 1}, []float64{2}), limits)
+	if len(r.Regressions()) != 1 || r.Regressions()[0].Unit != unitBytes {
+		t.Fatalf("increase above the floor not gated: %+v", r.Regressions())
 	}
 }
 
