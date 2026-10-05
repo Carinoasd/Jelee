@@ -106,6 +106,8 @@ async function signOut() {
     <nav v-else-if="auth.isAuthenticated" :aria-label="t('common.mainNavigation')" class="jl-header__nav">
       <RouterLink :to="{ name: 'home' }">{{ t("layout.home.title") }}</RouterLink>
       <RouterLink :to="{ name: 'libraries' }">{{ t("libraries.title") }}</RouterLink>
+      <RouterLink :to="{ name: 'collections' }">{{ t("common.collections") }}</RouterLink>
+      <RouterLink :to="{ name: 'lists' }">{{ t("common.lists") }}</RouterLink>
       <RouterLink :to="{ name: 'stats' }">{{ t("common.stats") }}</RouterLink>
       <RouterLink :to="{ name: 'account' }">{{ t("account.title") }}</RouterLink>
       <RouterLink :to="{ name: 'settings' }">{{ t("common.settings") }}</RouterLink>

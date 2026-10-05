@@ -29,6 +29,8 @@
     "admin": "管理",
     "settings": "设置",
     "stats": "我的统计",
+    "collections": "合集",
+    "lists": "片单",
     "sharedWithMe": "分享给你的内容",
     "guestSession": "分享链接访客"
   }

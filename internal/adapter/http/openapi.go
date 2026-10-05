@@ -46,6 +46,7 @@ func Specification(cfg config.Config) map[string]any {
 		progressSpecification(paths, schemas)
 		watchStatsSpecification(paths, schemas)
 		versionsSpecification(paths, schemas)
+		collectionsSpecification(paths, schemas)
 	}
 	if cfg.EnableAccounts {
 		itemMetadataSpecification(paths, schemas)

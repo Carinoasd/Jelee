@@ -32,6 +32,16 @@ var visibilityGuardedTables = map[string]map[string][]string{
 	// guest sessions issued, by their own files only.
 	"share_links":           {"shares.go": {visibilityWholeFile}},
 	"library_network_rules": {"network_rules.go": {visibilityWholeFile}},
+	// Collections and playlists (G02.1) bind their members to the reader
+	// through itemVisibleSQL; only their own files read them, and account
+	// deletion drops the deleted user's playlists (G07.7).
+	"collections":      {"collections.go": {visibilityWholeFile}},
+	"collection_items": {"collections.go": {visibilityWholeFile}},
+	"playlists": {
+		"playlists.go": {visibilityWholeFile},
+		"accounts.go":  {`DELETE FROM playlists WHERE owner_id=`},
+	},
+	"playlist_items": {"playlists.go": {visibilityWholeFile}},
 }
 
 // Metadata backup copies the grant and rule rows verbatim as data (G36.4),

@@ -360,6 +360,11 @@ func (s *Store) DeleteUser(ctx context.Context, actor domain.Actor, userID strin
 	if _, _, err = deletePlaybackData(ctx, tx, userID); err != nil {
 		return err
 	}
+	// So does every playlist the user owns (G02.1); a purged user row
+	// also cascades.
+	if _, err = tx.Exec(ctx, `DELETE FROM playlists WHERE owner_id=$1::uuid`, userID); err != nil {
+		return storageError(err)
+	}
 	if err = auditAccount(ctx, tx, actor, "user.deleted", userID, old, u); err != nil {
 		return err
 	}

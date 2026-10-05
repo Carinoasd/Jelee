@@ -1,0 +1,85 @@
+/* Collections and playlists (G02.1): shared list and form layout. */
+.jl-lists__intro {
+  color: var(--jl-color-text-muted);
+}
+
+.jl-lists__form {
+  display: grid;
+  gap: var(--jl-space-3);
+  max-width: 40rem;
+  margin-bottom: var(--jl-space-5);
+}
+
+.jl-lists__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--jl-space-2);
+}
+
+.jl-lists {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: var(--jl-space-4);
+  margin: 0 0 var(--jl-space-4);
+  padding: 0;
+  list-style: none;
+}
+
+.jl-lists__card {
+  display: grid;
+  gap: var(--jl-space-1);
+  height: 100%;
+  padding: var(--jl-space-3);
+  background: var(--jl-color-surface);
+  border: 1px solid var(--jl-color-border);
+  border-radius: var(--jl-radius-md);
+  color: inherit;
+  text-decoration: none;
+}
+
+.jl-lists__card:hover {
+  border-color: var(--jl-color-primary);
+}
+
+.jl-lists__name {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.jl-lists__meta {
+  color: var(--jl-color-text-muted);
+}
+
+.jl-lists__crumbs {
+  margin-bottom: var(--jl-space-2);
+}
+
+.jl-lists__rows {
+  display: grid;
+  gap: var(--jl-space-2);
+  margin: 0 0 var(--jl-space-4);
+  padding: 0;
+  list-style: none;
+}
+
+.jl-lists__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--jl-space-3);
+  padding: var(--jl-space-2) var(--jl-space-3);
+  background: var(--jl-color-surface);
+  border: 1px solid var(--jl-color-border);
+  border-radius: var(--jl-radius-md);
+}
+
+.jl-lists__row .jl-poster {
+  width: 48px;
+  flex: none;
+}
+
+.jl-lists__title {
+  flex: 1 1 12rem;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}

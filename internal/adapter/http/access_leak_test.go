@@ -222,12 +222,34 @@ func leakRouteTable() map[string]leakRoute {
 		// Watch statistics (G23.3, G48.3): the daily roll-up read with the
 		// viewer's library grants; the fixture seeds rows for both users on
 		// both items.
-		"GET /api/v1/users/me/watch-stats":   {mode: leakList, params: noParams, control: true},
-		"GET /api/v1/users/{id}/watch-stats": admin(selfParam),
-		"GET /api/v1/watch-stats":            admin(noParams),
-		"GET /api/v1/watch-stats/export":     admin(noParams),
-		"GET /images/{type}/{id}":            {mode: leakByID, params: map[string]string{"type": "image-type", "id": "item"}, control: true},
-		"HEAD /images/{type}/{id}":           {mode: leakByID, params: map[string]string{"type": "image-type", "id": "item"}, control: true},
+		// Collections and playlists (G02.1, G48.3). The fixture's mixed
+		// collection and the viewer's public playlist hold the visible and
+		// the hidden item; a second collection holds only the hidden item, so
+		// its name is a marker the viewer's listing must not show. Changes
+		// name items in the body and answer hidden items like missing ones
+		// (TestCollectionsAndPlaylistsHTTPPostgres).
+		"GET /api/v1/collections":                            {mode: leakList, params: noParams, control: true},
+		"POST /api/v1/collections":                           admin(noParams),
+		"POST /api/v1/collections/nfo-sync":                  admin(noParams),
+		"GET /api/v1/collections/{id}":                       {mode: leakList, params: map[string]string{"id": "collection"}, control: true},
+		"PUT /api/v1/collections/{id}":                       admin(map[string]string{"id": "collection"}),
+		"DELETE /api/v1/collections/{id}":                    admin(map[string]string{"id": "collection"}),
+		"POST /api/v1/collections/{id}/items":                admin(map[string]string{"id": "collection"}),
+		"DELETE /api/v1/collections/{id}/items/{itemId}":     admin(map[string]string{"id": "collection", "itemId": "item"}),
+		"GET /api/v1/playlists":                              {mode: leakList, params: noParams, control: true},
+		"POST /api/v1/playlists":                             exempt("creates a playlist of the caller; carries no media identifiers"),
+		"GET /api/v1/playlists/{id}":                         {mode: leakList, params: map[string]string{"id": "playlist"}, control: true},
+		"PUT /api/v1/playlists/{id}":                         exempt("renames the caller's own playlist; the response lists only entries visible to the caller like GET (TestCollectionsAndPlaylistsHTTPPostgres)"),
+		"DELETE /api/v1/playlists/{id}":                      exempt("deletes the caller's own playlist; returns an empty 204"),
+		"POST /api/v1/playlists/{id}/items":                  exempt("appends items named in the body; hidden items are answered like missing ones (TestCollectionsAndPlaylistsHTTPPostgres)"),
+		"DELETE /api/v1/playlists/{id}/entries/{entryId}":    exempt("removes an entry of the caller's own playlist; the response lists only visible entries (TestCollectionsAndPlaylistsHTTPPostgres)"),
+		"POST /api/v1/playlists/{id}/entries/{entryId}/move": exempt("reorders the caller's own playlist; the response lists only visible entries (TestCollectionsAndPlaylistsHTTPPostgres)"),
+		"GET /api/v1/users/me/watch-stats":                   {mode: leakList, params: noParams, control: true},
+		"GET /api/v1/users/{id}/watch-stats":                 admin(selfParam),
+		"GET /api/v1/watch-stats":                            admin(noParams),
+		"GET /api/v1/watch-stats/export":                     admin(noParams),
+		"GET /images/{type}/{id}":                            {mode: leakByID, params: map[string]string{"type": "image-type", "id": "item"}, control: true},
+		"HEAD /images/{type}/{id}":                           {mode: leakByID, params: map[string]string{"type": "image-type", "id": "item"}, control: true},
 
 		// Accounts.
 		"POST /api/v1/auth/login":                        exempt("credential exchange; takes no media identifiers and returns only a session grant"),
@@ -537,6 +559,9 @@ func leakHandlerWithAccounts(t *testing.T, store *postgres.Store, cfg config.Con
 	if err == nil {
 		catalog, err = catalog.WithVersions(store)
 	}
+	if err == nil {
+		catalog, err = catalog.WithCollections(store)
+	}
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -634,8 +659,11 @@ func TestAccessLeakRouteTableIsComplete(t *testing.T) {
 type leakIDs struct {
 	viewer, adminToken, viewerToken string
 	item, source, library, job      [3]string // visible, hidden, missing
-	subtitle, audio                 [3]string // sidecar tracks of the sources above
-	markers                         []string
+	// collection holds the visible and the hidden item; playlist is the
+	// viewer's public playlist of both (G02.1).
+	collection, playlist string
+	subtitle, audio      [3]string // sidecar tracks of the sources above
+	markers              []string
 	// itemMarkers are the item-level markers of the hidden fixture, for
 	// mechanisms that hide the item inside a granted library.
 	itemMarkers                 []string
@@ -673,6 +701,10 @@ func (f leakIDs) value(kind string, scenario int) string {
 		return f.audio[scenario]
 	case "self":
 		return f.viewer
+	case "collection":
+		return f.collection
+	case "playlist":
+		return f.playlist
 	case "image-type":
 		return "Primary"
 	case "tmdb":
@@ -859,6 +891,25 @@ func leakFixture(t *testing.T, ctx context.Context, store *postgres.Store) leakI
 	for _, slot := range []*[3]string{&f.item, &f.source, &f.library, &f.job, &f.subtitle, &f.audio} {
 		slot[leakMissing] = leakUUID(t)
 	}
+	// Collections and playlists (G02.1): the hidden item sorts and plays
+	// first, so the administrator control's cover is the hidden item.
+	if err = store.Pool.QueryRow(ctx, `INSERT INTO collections(name) VALUES('Leak Mixed Collection') RETURNING id::text`).Scan(&f.collection); err != nil {
+		t.Fatal(err)
+	}
+	hiddenOnly := "Hidden Only Collection Qx7"
+	if _, err = store.Pool.Exec(ctx, `WITH c AS (INSERT INTO collections(name) VALUES($3) RETURNING id)
+ INSERT INTO collection_items(collection_id,item_id) SELECT $1::uuid,unnest($2::uuid[]) UNION ALL SELECT c.id,$4::uuid FROM c`,
+		f.collection, []string{f.item[leakVisible], f.item[leakHidden]}, hiddenOnly, f.item[leakHidden]); err != nil {
+		t.Fatal(err)
+	}
+	if err = store.Pool.QueryRow(ctx, `INSERT INTO playlists(owner_id,name,public) VALUES($1::uuid,'Leak Viewer Playlist',true) RETURNING id::text`, f.viewer).Scan(&f.playlist); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = store.Pool.Exec(ctx, `INSERT INTO playlist_items(playlist_id,item_id,position) VALUES($1::uuid,$2::uuid,0),($1::uuid,$3::uuid,1)`, f.playlist, f.item[leakHidden], f.item[leakVisible]); err != nil {
+		t.Fatal(err)
+	}
+	f.markers = append(f.markers, hiddenOnly)
+	f.itemMarkers = append(f.itemMarkers, hiddenOnly)
 	// Both users have a resume point on both items, so the continue
 	// watching lists must filter the viewer's hidden one (G48.3) while the
 	// administrator control lists it.
