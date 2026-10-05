@@ -14,6 +14,19 @@ docker compose -f deploy/docker-compose.yml up --build -d
 
 Compose 内部网络使用 sslmode=disable，仅用于此隔离网络；远程数据库应使用证书验证。HTTP 默认只向宿主环回发布。启用直投还需要 `JELEE_ENABLE_DIRECT=true` 与有效 native 会话，不能匿名访问媒体。令牌与媒体登记操作使用容器内 `/jelee-cli`。
 
+## Linux 快速部署（Compose）
+
+在有 Docker（含 compose 外掛）、`git`、`make`、`python3` 的 Linux amd64 主機上：
+
+1. 取得原始碼並切到分支：`git clone https://github.com/Carinoasd/Jelee.git && cd Jelee && git checkout feat/jelee-ignore-family-worker`
+2. 下載固定版本的工具到專案內 `.tools/`（不需 root，不寫入系統）：`make bootstrap bootstrap-media bootstrap-runtime bootstrap-matroska`
+3. 建置網頁前端（映像本身不含前端，Compose 會把 `web/dist` 唯讀掛到 `/web` 並設 `JELEE_WEB_DIR=/web`）：`make web-install web-build`
+4. 設定並啟動（密碼請用只含英數的強密碼）：
+   `JELEE_POSTGRES_PASSWORD=… JELEE_MEDIA_ROOT=/你的/媒體目錄 JELEE_ENABLE_ACCOUNTS=true JELEE_ENABLE_JOBS=true JELEE_ENABLE_PROBE=true JELEE_ENABLE_DIRECT=true docker compose -f deploy/docker-compose.yml up -d --build`
+5. 從 `docker compose -f deploy/docker-compose.yml logs jelee` 取得一次性引導權杖，瀏覽 `http://127.0.0.1:8097` 完成初始引導（見下一節）。服務只綁在本機 127.0.0.1；要從其他機器連，請透過 SSH 通道或依「反向代理」一節設定，並把對外主機名加入 `JELEE_ALLOWED_HOSTS`。
+
+資料庫資料存於專案目錄外層的 `data/postgres`；媒體目錄一律唯讀掛載，Jelee 不會修改原始檔。
+
 ## 初始化（G18）
 
 啟用帳號（`JELEE_ENABLE_ACCOUNTS=true`）的新安裝在完成初始引導前只開放引導 API、`/healthz`、`/readyz`、探索路由與前端外殼，其餘一律回 503 `setup_required`。`/healthz` 是存活檢查；`/readyz` 在資料庫可用時即回 200，並以 `data.setup` 標示 `required`／`completed`，因此等待引導的實例仍會接收流量。完整說明見[初始引導](setup-wizard.md)。
