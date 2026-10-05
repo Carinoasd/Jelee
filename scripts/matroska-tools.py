@@ -301,13 +301,44 @@ def tool_environment(spec, install_dir):
     return env
 
 
+def runtime_loader():
+    # The pinned Debian 13 glibc from make bootstrap-runtime. The bundled
+    # libstdc++ needs glibc >= 2.38, so a host loader on Debian 12 or Ubuntu
+    # 22.04 cannot start the tools; the image uses this same glibc.
+    source = ROOT / "tools/manifest.json"
+    if os.name != "posix" or not source.is_file():
+        return None
+    manifest = json.loads(source.read_text(encoding="utf-8"))
+    base = ROOT / ".tools" / PurePosixPath(manifest["mediaRuntime"]["installPath"])
+    loader = base / "lib64/ld-linux-x86-64.so.2"
+    if not (base / "installed.json").is_file() or not loader.is_file():
+        return None
+    return loader, base / "lib/x86_64-linux-gnu"
+
+
+def tool_command(spec, install_dir, executable, args):
+    env = tool_environment(spec, install_dir)
+    runtime = runtime_loader()
+    if runtime is None:
+        return [str(executable)] + list(args), env
+    loader, libc_dir = runtime
+    directories = env.pop("LD_LIBRARY_PATH", "").split(":") + [str(libc_dir)]
+    return [str(loader), "--library-path", ":".join(d for d in directories if d), "--argv0", str(executable),
+            str(executable)] + list(args), env
+
+
 def check_version(spec, install_dir, name):
     executable = install_dir / PurePosixPath(spec["executables"][name]["path"])
-    with subprocess.Popen([str(executable)] + list(spec["versionArguments"]), env=tool_environment(spec, install_dir),
-                          stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL) as process:
+    command, env = tool_command(spec, install_dir, executable, spec["versionArguments"])
+    with subprocess.Popen(command, env=env, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
+                          stderr=subprocess.PIPE) as process:
         try:
             output = process.stdout.read(65537)
-            need(len(output) <= 65536 and process.wait(timeout=20) == 0, "version check failed for " + name)
+            status = process.wait(timeout=20)
+            detail = process.stderr.read(4096).decode("utf-8", "replace").strip()
+            hint = "" if runtime_loader() else "; run make bootstrap-runtime first (host glibc may be older than 2.38)"
+            need(len(output) <= 65536 and status == 0,
+                 "version check failed for " + name + (": " + detail if detail else "") + hint)
         finally:
             if process.poll() is None:
                 process.kill()
@@ -384,9 +415,10 @@ def run_tool(name, args):
     executable = str(install_dir / PurePosixPath(spec["executables"][name]["path"]))
     # No shell and no PATH fallback. A developer wrapper, not the production
     # sandbox; the media file is whatever the developer passes.
+    command, env = tool_command(spec, install_dir, executable, args)
     if os.name == "posix":
-        os.execve(executable, [executable] + args, tool_environment(spec, install_dir))
-    sys.exit(subprocess.run([executable] + args, env=tool_environment(spec, install_dir), check=False).returncode)
+        os.execve(command[0], command, env)
+    sys.exit(subprocess.run(command, env=env, check=False).returncode)
 
 
 def lock():
