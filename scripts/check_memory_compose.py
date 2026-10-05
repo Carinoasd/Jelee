@@ -62,10 +62,16 @@ def _check_base(model, media):
     _require(service.get("read_only") is True and service.get("cap_drop") == ["ALL"])
     _require(service.get("security_opt") in (["no-new-privileges:true"], ["no-new-privileges"]))
     volumes = service.get("volumes")
-    _require(isinstance(volumes, list) and len(volumes) == 1)
-    volume = volumes[0]
-    _require(volume.get("type") == "bind" and volume.get("target") == "/media")
-    _require(volume.get("read_only") is True and Path(volume["source"]).resolve() == media.resolve())
+    # Exactly two read-only binds: the media root and the built web client.
+    _require(isinstance(volumes, list) and len(volumes) == 2)
+    by_target = {volume.get("target"): volume for volume in volumes if isinstance(volume, dict)}
+    _require(set(by_target) == {"/media", "/web"})
+    volume = by_target["/media"]
+    _require(volume.get("type") == "bind" and volume.get("read_only") is True and Path(volume["source"]).resolve() == media.resolve())
+    web = by_target["/web"]
+    _require(web.get("type") == "bind" and web.get("read_only") is True)
+    _require(Path(web["source"]).resolve() == (Path(__file__).resolve().parent.parent / "web" / "dist").resolve())
+    _require(service["environment"].get("JELEE_WEB_DIR") == "/web")
     _require(service.get("tmpfs") == ["/tmp:rw,noexec,nosuid,nodev,size=67108864,mode=1777"])
     ports = service.get("ports")
     _require(isinstance(ports, list) and len(ports) == 1)

@@ -37,10 +37,14 @@ services:
       JELEE_ENABLE_EMBEDDED_COVERS: ${JELEE_ENABLE_EMBEDDED_COVERS:-false}
       JELEE_ENABLE_FAMILY_IGNORE: ${JELEE_ENABLE_FAMILY_IGNORE:-false}
       JELEE_ENABLE_NFO_WRITE: ${JELEE_ENABLE_NFO_WRITE:-false}
+      # The web client is served from a mounted build (make web-install
+      # web-build writes web/dist); the image itself carries no frontend.
+      JELEE_WEB_DIR: /web
     ports:
       - 127.0.0.1:8097:8097
     volumes:
       - ${JELEE_MEDIA_ROOT:?Provide an existing media directory}:/media:ro
+      - ../web/dist:/web:ro
     depends_on:
       migrate:
         condition: service_completed_successfully
