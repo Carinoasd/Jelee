@@ -47,9 +47,11 @@ var visibilityGuardedTables = map[string]map[string][]string{
 // Metadata backup copies the grant and rule rows verbatim as data (G36.4),
 // the legacy import writes the grants and restrictions it migrates (G04.6),
 // and a version merge keeps and transfers an absorbed item's rule rows the
-// same way (G20.3, hide wins); none decides visibility, so these files may
-// name every guarded table.
-var visibilityBackupFiles = []string{"metadata_backup.go", "metadata_import.go", "legacy_import.go", "legacy_import_phases.go", "item_versions_rows.go"}
+// same way (G20.3, hide wins), and the personal data export and permanent
+// deletion copy out or remove the user's own rows (G07.7; which items an
+// export names still goes through the unified predicates); none decides
+// visibility, so these files may name every guarded table.
+var visibilityBackupFiles = []string{"metadata_backup.go", "metadata_import.go", "legacy_import.go", "legacy_import_phases.go", "item_versions_rows.go", "userdata.go"}
 
 func init() {
 	for _, files := range visibilityGuardedTables {
