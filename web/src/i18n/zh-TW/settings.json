@@ -37,6 +37,24 @@
       "wrongCurrent": "目前密碼不正確。",
       "submit": "變更密碼",
       "changed": "已變更密碼，請使用新密碼重新登入。"
+    },
+    "dataRights": {
+      "title": "你的資料",
+      "exportTitle": "下載你的資料",
+      "exportHint": "一個 NDJSON 檔案，內含你的帳號、設定、播放進度與紀錄、觀看統計、已登入的裝置、應用程式密碼及你建立的分享。密碼、驗證碼與其他機密一律不包含。下載會記入稽核紀錄。",
+      "export": "下載我的資料",
+      "exported": "已下載你的資料。",
+      "deleteTitle": "永久刪除帳號",
+      "deleteWarning": "這會永久刪除你的帳號與所有資料：播放進度與紀錄、統計、裝置、應用程式密碼與分享。此操作無法復原，管理員也無法還原。",
+      "deleteHint": "如需保留資料，請先下載。請輸入密碼以確認。",
+      "password": "密碼",
+      "passwordRequired": "請輸入密碼。",
+      "acknowledge": "我了解帳號與資料刪除後無法復原。",
+      "acknowledgeRequired": "請確認你了解刪除後無法復原。",
+      "delete": "刪除我的帳號",
+      "confirmDelete": "永久刪除",
+      "confirmPrompt": "現在就刪除你的帳號與所有資料嗎？",
+      "deleted": "你的帳號已刪除。"
     }
   }
 }

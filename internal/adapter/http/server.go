@@ -83,6 +83,9 @@ type Server struct {
 	dev *devmode.Controller
 	// shareAccess throttles the access records of guest sessions (G48.6).
 	shareAccess shareAccessLog
+	// userDataExports bounds the personal data exports streamed at once
+	// (G07.7).
+	userDataExports userDataExportGate
 }
 
 func New(cfg config.Config, backend Backend, catalog *app.Catalog, resolver media.Resolver, logger *slog.Logger, accounts ...*app.Accounts) (http.Handler, error) {

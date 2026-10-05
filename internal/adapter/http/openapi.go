@@ -38,6 +38,7 @@ func Specification(cfg config.Config) map[string]any {
 	schemas := accountSchemas()
 	siteSettingsSchemas(schemas)
 	twoFactorSchemas(schemas)
+	userDataSchemas(schemas)
 	if cfg.EnableCatalog && cfg.EnableDirect {
 		playbackSpecification(paths, schemas)
 	}
@@ -60,6 +61,7 @@ func Specification(cfg config.Config) map[string]any {
 		accountSpecification(paths)
 		siteSettingsSpecification(paths)
 		twoFactorSpecification(paths)
+		userDataSpecification(paths)
 		clientControlSpecification(paths, schemas)
 		shareSpecification(paths, schemas)
 		setupSpecification(paths, schemas)

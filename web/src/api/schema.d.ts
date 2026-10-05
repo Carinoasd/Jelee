@@ -19943,6 +19943,112 @@ export type paths = {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/users/{id}/data-export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Export the personal data of self or, as administrator, of any user including a soft-deleted one (G07.7)
+         * @description Streams NDJSON from one database snapshot, one UserDataRecord per line: first the export record, then the account, preferences, track preferences, blocked tags, library access, item access rules, playback progress and played state (itemData), playback history (playbackSession, playbackSample), watch statistics, sessions and devices, application passwords, shares the user created, client control hits and audit events naming the user (event, time and role only; the address only when the user acted), last the end record. A stream without the end record was cut short. Items are named by ID only, and records about an item or library the exported user cannot see now (G48, including the request restriction) are left out. Secrets are never exported: password and application password digests, authenticator secrets, recovery codes, session, share and challenge tokens, webhook secrets. Rows are streamed, not buffered. The audit event user.data_exported (security category) is recorded before the first byte. At most 2 exports run at once on an instance and one per caller (409 conflict with Retry-After); the stream is bounded by 5m0s.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description The records, streamed as an attachment. */
+                200: {
+                    headers: {
+                        /** @description Trailer: false when the stream ended early. */
+                        "X-Jelee-Export-Complete"?: "true" | "false";
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/x-ndjson": components["schemas"]["UserDataRecord"];
+                    };
+                };
+                /** @description HTTP 400 */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 401 */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 403 */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 404 */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 409 */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 503 */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Jelee error envelope with code, message, details and traceId; see the Error schema. */
+                default: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/users/{id}/delivery-limits": {
         parameters: {
             query?: never;
@@ -20566,6 +20672,131 @@ export type paths = {
             };
         };
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/users/{id}/purge": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Permanently delete another user, active or soft-deleted (G07.7)
+         * @description Empty JSON object body. Requires an administrator web session; the own account is refused with 403 (use /api/v1/users/me/purge). Irreversible: the account, its sessions and devices, application passwords, second factor, preferences, access grants, playback progress and history, watch statistics, client control hits, shares it created (with their guest accounts) and webhook events about it are deleted in one transaction, and nothing can restore them. Scan schedules it owned move to an administrator; jobs and rules it created stay without attribution. Audit events are kept for their retention but de-identified: the user's addresses are removed and states about the user and its sessions, application passwords and shares are replaced by {"redacted":"user_purged"}; the event user.purged is recorded. The last active administrator cannot be deleted (409 last_admin).
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            /** @description Exactly {}. */
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["Empty"];
+                };
+            };
+            responses: {
+                /** @description HTTP 204 */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description HTTP 400 */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 401 */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 403 */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 404 */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 409 */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 413 */
+                413: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 415 */
+                415: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 503 */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Jelee error envelope with code, message, details and traceId; see the Error schema. */
+                default: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
         delete?: never;
         options?: never;
         head?: never;
@@ -22402,6 +22633,129 @@ export type paths = {
             };
         };
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/users/me/purge": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Permanently delete the own account after re-authentication (G07.7)
+         * @description The account password (400 invalid_password) and, when the account has a second factor, exactly one of a current authenticator code or an unused recovery code (400 invalid_two_factor_code). Password and code attempts draw from the second factor budget (429 auth_rate_limited). Requires a web session (403 forbidden for native sessions). Clears the session cookie. Irreversible: the account, its sessions and devices, application passwords, second factor, preferences, access grants, playback progress and history, watch statistics, client control hits, shares it created (with their guest accounts) and webhook events about it are deleted in one transaction, and nothing can restore them. Scan schedules it owned move to an administrator; jobs and rules it created stay without attribution. Audit events are kept for their retention but de-identified: the user's addresses are removed and states about the user and its sessions, application passwords and shares are replaced by {"redacted":"user_purged"}; the event user.purged is recorded. The last active administrator cannot be deleted (409 last_admin).
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            /** @description Maximum 64 KiB; exactly one object; unknown or duplicate keys rejected. */
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["AccountPurge"];
+                };
+            };
+            responses: {
+                /** @description HTTP 204 */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description HTTP 400 */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 401 */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 403 */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 409 */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 413 */
+                413: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 415 */
+                415: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 429 */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 503 */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Jelee error envelope with code, message, details and traceId; see the Error schema. */
+                default: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
         delete?: never;
         options?: never;
         head?: never;
@@ -25359,6 +25713,13 @@ export type components = {
             /** @description Apply rating ceilings, blocked tags and item rules to administrators too. Library grants never restrict administrators. */
             restrictAdmins: boolean;
         };
+        AccountPurge: {
+            /** @description Six digits from the authenticator app; required instead of recoveryCode when the account has a second factor. */
+            code?: string;
+            password: string;
+            /** @description One unused recovery code; required instead of code when the account has a second factor. */
+            recoveryCode?: string;
+        };
         ActivePlayback: {
             /** @description Client-supplied label from the native login, not a proof. */
             clientName?: string;
@@ -27731,6 +28092,12 @@ export type components = {
             locale: "zh-CN" | "zh-TW" | "ja-JP" | "en-US";
             /** @description The server also enforces the stated maximum in UTF-8 bytes. */
             name: string;
+        };
+        UserDataRecord: {
+            /** @description The export record: format jelee.user-data, version, userId, userName and generatedAt (the snapshot time). A data record: the row with camelCase fields; null fields are left out. The end record: records, the number of data records. */
+            data: Record<string, never>;
+            /** @enum {string} */
+            type: "export" | "account" | "preferences" | "trackPreference" | "blockedTag" | "libraryAccess" | "itemAccessRule" | "itemData" | "playbackSession" | "playbackSample" | "watchStatsDay" | "watchStatsItem" | "session" | "appPassword" | "shareLink" | "clientControlHit" | "auditEvent" | "end";
         };
         UserItemData: {
             /** Format: uuid */

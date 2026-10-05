@@ -18,6 +18,7 @@ import { useSettingsStore } from "@/stores/settings";
 import { useToastStore } from "@/stores/toasts";
 import { passwordMaxBytes, passwordMinBytes, utf8Length } from "./api";
 import AppPasswordsSettings from "./AppPasswordsSettings.vue";
+import DataRightsSettings from "./DataRightsSettings.vue";
 import LayoutSettings from "./LayoutSettings.vue";
 import TwoFactorSettings from "./TwoFactorSettings.vue";
 
@@ -223,6 +224,7 @@ async function changePassword() {
     <template v-if="auth.user">
       <TwoFactorSettings :user-id="auth.user.id" :account="auth.user.name" />
       <AppPasswordsSettings :user-id="auth.user.id" />
+      <DataRightsSettings v-if="!auth.isGuest" :user-id="auth.user.id" />
     </template>
 
     <LayoutSettings />

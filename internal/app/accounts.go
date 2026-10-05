@@ -91,6 +91,9 @@ type Accounts struct {
 	options    AccountOptions
 	// twoFactor is the repository's second factor storage, when it has one.
 	twoFactor TwoFactorRepository
+	// userData is the repository's export and permanent deletion, when it
+	// has them (G07.7).
+	userData UserDataRepository
 }
 
 func NewAccounts(repository AccountRepository, passwords PasswordHasher, options AccountOptions) (*Accounts, error) {
@@ -99,6 +102,7 @@ func NewAccounts(repository AccountRepository, passwords PasswordHasher, options
 	}
 	a := &Accounts{repository: repository, passwords: passwords, options: options}
 	a.twoFactor, _ = repository.(TwoFactorRepository)
+	a.userData, _ = repository.(UserDataRepository)
 	return a, nil
 }
 
