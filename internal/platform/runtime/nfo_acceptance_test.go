@@ -14,6 +14,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	goruntime "runtime"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -33,17 +34,23 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
-// The shutdown-only barrier is after a real completed file read. It creates a
-// reproducible in-flight API call; it does not claim to emulate blocked OS I/O.
+// Both acceptance barriers follow a real completed file read. They create a
+// reproducible in-flight API call; they do not claim to emulate blocked OS I/O.
 type acceptanceNFOReader struct {
 	app.NFOReader
 	block   atomic.Bool
 	entered chan struct{}
 	once    sync.Once
+	memory  atomic.Pointer[memoryWorkerBarrier]
 }
 
 func (r *acceptanceNFOReader) Read(ctx context.Context, s domain.NFOSource) (app.NFOReadSource, error) {
 	source, err := r.NFOReader.Read(ctx, s)
+	if barrier := r.memory.Load(); err == nil && barrier != nil {
+		if err = barrier.wait(ctx); err != nil {
+			return nil, err
+		}
+	}
 	if err == nil && r.block.Load() {
 		r.once.Do(func() { close(r.entered) })
 		<-ctx.Done()
@@ -55,12 +62,26 @@ func (r *acceptanceNFOReader) Read(ctx context.Context, s domain.NFOSource) (app
 // Uses the production protected helper, real PostgreSQL and the production Fx
 // lifetime hook/listener. No result or operation count comes from a fake repo.
 func TestProductionNFOWorkerAcceptance(t *testing.T) {
-	withIgnore := os.Getenv("JELEE_NFO_IGNORE_ACCEPTANCE") == "true"
+	withFamily := os.Getenv("JELEE_FAMILY_IGNORE_ACCEPTANCE") == "true"
+	withIgnore := withFamily || os.Getenv("JELEE_NFO_IGNORE_ACCEPTANCE") == "true"
+	withSustained := os.Getenv("JELEE_FAMILY_IGNORE_SUSTAINED_ACCEPTANCE") == "true"
+	if withSustained && !withFamily {
+		t.Fatal("sustained mixed acceptance requires family mode")
+	}
 	if os.Getenv("JELEE_REQUIRE_NFO_WORKER") != "true" {
 		t.Skip("NFO worker acceptance requires controlled production container")
 	}
 	if os.Getuid() != 65532 {
 		t.Fatal("nonroot production profile required")
+	}
+	var memoryProfile *memoryProfileReport
+	if os.Getenv("JELEE_MEMORY_PROFILE_ACCEPTANCE") == "true" {
+		var err error
+		memoryProfile, err = startMemoryProfile()
+		if err != nil {
+			t.Fatal("read required memory profile inputs", err)
+		}
+		defer memoryProfile.finish(t)
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Minute)
 	total, nfoCount, videoCount, imageCount, changedNFO, changedImages, faultCount := int64(1000), int64(400), int64(100), int64(500), int64(17), int64(23), int64(10)
@@ -128,7 +149,12 @@ func TestProductionNFOWorkerAcceptance(t *testing.T) {
 	if err != nil {
 		t.Fatal("config")
 	}
-	hasher, err := password.New(password.Config{MemoryKiB: password.MinMemoryKiB, Iterations: password.MinIterations, Parallelism: 1, MaxConcurrent: 1})
+	passwordConfig := password.Config{MemoryKiB: password.MinMemoryKiB, Iterations: password.MinIterations, Parallelism: 1, MaxConcurrent: 1}
+	if memoryProfile != nil {
+		passwordConfig = password.DefaultConfig()
+		memoryProfile.KDF = memoryKDFReport{MemoryKiB: passwordConfig.MemoryKiB, Iterations: passwordConfig.Iterations, Parallelism: passwordConfig.Parallelism, Concurrency: passwordConfig.MaxConcurrent}
+	}
+	hasher, err := password.New(passwordConfig)
 	if err != nil {
 		t.Fatal("hasher")
 	}
@@ -160,7 +186,18 @@ func TestProductionNFOWorkerAcceptance(t *testing.T) {
 	if err != nil {
 		t.Fatal("stage use cases")
 	}
-	if withIgnore {
+	var ignoring *familyIgnoreService
+	if withFamily {
+		ignoring, err = newFamilyIgnoreService(ctx, true, prepareProductionFamilyIgnore)
+		if err != nil || !ignoring.Available() {
+			t.Fatal("family helper health unavailable")
+		}
+		defer ignoring.Close()
+		jobs, err = app.NewJobsWithScanStages(store, cfg.Jobs.Policy(), store, app.ScanServices{FamilyIgnoreAvailable: ignoring.Available, Probes: store, ProbeIdentity: probing.identity, ProbeCapability: probing.Capability, NFOAdmin: store, NFOQueries: store, Images: store, NFOIdentity: validation.identity, NFOAvailable: validation.Available})
+		if err != nil {
+			t.Fatal("family stage use cases")
+		}
+	} else if withIgnore {
 		jobs, err = app.NewJobsWithScanStages(store, cfg.Jobs.Policy(), store, app.ScanServices{IgnoreAvailable: func() bool { return true }, Probes: store, ProbeIdentity: probing.identity, ProbeCapability: probing.Capability, NFOAdmin: store, NFOQueries: store, Images: store, NFOIdentity: validation.identity, NFOAvailable: validation.Available})
 		if err != nil {
 			t.Fatal("ignore stage use cases")
@@ -174,7 +211,9 @@ func TestProductionNFOWorkerAcceptance(t *testing.T) {
 	options.PollInterval = 100 * time.Millisecond
 	options.Probe = &jobworker.ProbeOptions{Repository: store, Prober: probing, LeaseDuration: 30 * time.Second, MaxConcurrent: 2, Available: probing.Available, OnRuntimeUnavailable: probing.Disable}
 	options.NFO = &jobworker.NFOOptions{Repository: store, Reader: validation, MaxConcurrent: 2, Available: validation.Available, OnRuntimeUnavailable: validation.Disable}
-	if withIgnore {
+	if withFamily {
+		options.FamilyIgnore = &jobworker.FamilyIgnoreOptions{Repository: store, Scanner: scan.NewFamilyIgnoreScanner(ignoring), Available: ignoring.Available}
+	} else if withIgnore {
 		scanner := scan.NewIgnoreScanner()
 		options.Ignore = &jobworker.IgnoreOptions{Repository: store, Scanner: scanner, Observer: scanner}
 	}
@@ -183,7 +222,10 @@ func TestProductionNFOWorkerAcceptance(t *testing.T) {
 		t.Fatal("worker")
 	}
 	worker := &probeWorker{worker: runner, probe: probing, nfo: validation}
-	_, application, closed, address := testLifetime(t, worker, handler)
+	lifetime, application, closed, address := testLifetime(t, worker, handler)
+	if withFamily {
+		lifetime.closeIgnore = ignoring.Close
+	}
 	signals := application.Wait()
 	if err = application.Start(ctx); err != nil {
 		t.Fatal("Fx start")
@@ -240,18 +282,42 @@ func TestProductionNFOWorkerAcceptance(t *testing.T) {
 	}
 	request("PUT", path+"/nfo/policy", fmt.Sprintf(`{"mode":"read-only","expectedGeneration":%d}`, policy.Generation), "enable-nfo")
 	request("GET", "/readyz", "", "")
-	for round := 0; round < 3; round++ {
+	var sustainedStarted time.Time
+	var sustainedRounds int
+	var baselineMemory goruntime.MemStats
+	var peakHeap uint64
+	var baselineGoroutines int
+	for round := 0; round < 3 || withSustained && time.Since(sustainedStarted) < 5*time.Minute; round++ {
+		if round < 3 {
+			memoryProfile.residentPhase(t, []string{"cold", "warm", "changed"}[round])
+		}
 		before := validation.Stats()
 		beforeProbe := probing.probeCalls.Load()
 		beforeProcess := probing.processStats()
 		started := time.Now()
+		var memoryBarrier *memoryWorkerBarrier
+		if memoryProfile != nil && round < 2 {
+			memoryBarrier = newMemoryWorkerBarrier()
+			controlled.memory.Store(memoryBarrier)
+			defer memoryBarrier.close()
+		}
 		var job domain.Job
 		body := `{"nfo":true,"probe":true}`
 		if withIgnore {
 			body = `{"nfo":true,"probe":true,"ignore":{"mode":"jeleeignore","caseMode":"sensitive"}}`
+			if withFamily {
+				body = `{"nfo":true,"probe":true,"ignore":{"mode":"jeleeignore-legacy-v1","caseMode":"sensitive"}}`
+			}
 		}
 		if json.Unmarshal(request("POST", path+"/scan", body, fmt.Sprintf("mixed-%d", round)), &job) != nil || !domain.ValidID(job.ID) {
 			t.Fatal("job admission")
+		}
+		if memoryBarrier != nil {
+			if err := exerciseMemoryKDF(ctx, hasher, secret, hash, memoryBarrier, func() bool { return validation.Stats().ActiveCalls > 0 }, &memoryProfile.KDF); err != nil {
+				t.Fatal("production KDF overlap with worker", err)
+			}
+			memoryBarrier.close()
+			controlled.memory.Store(nil)
 		}
 		for {
 			if json.Unmarshal(request("GET", "/api/v1/jobs/"+job.ID, "", ""), &job) != nil {
@@ -276,6 +342,15 @@ func TestProductionNFOWorkerAcceptance(t *testing.T) {
 				t.Fatal("mixed ignore report differs")
 			}
 			for _, entry := range report.Entries {
+				if withFamily {
+					wantFamily := domain.IgnoreFamilyLegacy
+					if entry.Path == "ignored-video.mp4" {
+						wantFamily = domain.IgnoreFamilyCustom
+					}
+					if entry.Family != wantFamily || entry.Reason != domain.IgnoreReasonRule {
+						t.Fatal("mixed family provenance differs")
+					}
+				}
 				if entry.Source != "scan" || !strings.HasPrefix(entry.Path, "ignored-") || entry.RuleDirectory != "." || entry.RuleLine != 1 || entry.MatchedPath != entry.Path {
 					t.Fatal("mixed ignore provenance differs")
 				}
@@ -292,10 +367,14 @@ func TestProductionNFOWorkerAcceptance(t *testing.T) {
 		}
 		stats := validation.Stats()
 		proc := probing.processStats()
-		wantParse := []uint64{uint64(nfoCount), 0, uint64(changedNFO)}[round]
-		wantHit := []int64{0, nfoCount - 2*faultCount, nfoCount - 2*faultCount - changedNFO}[round]
-		wantNegative := []int64{0, 2 * faultCount, 2 * faultCount}[round]
-		wantProbe := []uint64{uint64(videoCount), 0, 0}[round]
+		assertionRound := round
+		if assertionRound > 2 {
+			assertionRound = 1
+		}
+		wantParse := []uint64{uint64(nfoCount), 0, uint64(changedNFO)}[assertionRound]
+		wantHit := []int64{0, nfoCount - 2*faultCount, nfoCount - 2*faultCount - changedNFO}[assertionRound]
+		wantNegative := []int64{0, 2 * faultCount, 2 * faultCount}[assertionRound]
+		wantProbe := []uint64{uint64(videoCount), 0, 0}[assertionRound]
 		if stats.ReadCalls-before.ReadCalls != uint64(2*nfoCount) || stats.CompletedReads-before.CompletedReads != uint64(2*nfoCount) || stats.HashCompletions-before.HashCompletions != uint64(2*nfoCount) || stats.ParseCalls-before.ParseCalls != wantParse || stats.ActiveCalls != 0 || stats.PeakCalls < 1 || stats.PeakCalls > 2 {
 			t.Fatalf("reader actual counters differ in round %d: %+v", round+1, stats)
 		}
@@ -305,7 +384,7 @@ func TestProductionNFOWorkerAcceptance(t *testing.T) {
 		if probing.probeCalls.Load()-beforeProbe != wantProbe || proc.Started-beforeProcess.Started != wantProbe || proc.Active != 0 || proc.Peak > 2 || probe.Processed != videoCount || probe.Succeeded != int64(wantProbe) || probe.Hits != videoCount-int64(wantProbe) || probe.Failed+probe.Changed+probe.Unavailable+probe.NegativeHits != 0 {
 			t.Fatal("probe actual starts/progress differs")
 		}
-		wantImages := []domain.ImageProgress{{Added: imageCount, ComparisonComplete: true}, {Unchanged: imageCount, ComparisonComplete: true}, {Changed: changedImages, Unchanged: imageCount - changedImages, ComparisonComplete: true}}[round]
+		wantImages := []domain.ImageProgress{{Added: imageCount, ComparisonComplete: true}, {Unchanged: imageCount, ComparisonComplete: true}, {Changed: changedImages, Unchanged: imageCount - changedImages, ComparisonComplete: true}}[assertionRound]
 		if images.ImageProgress != wantImages {
 			t.Fatalf("image attributes differ: %+v", images.ImageProgress)
 		}
@@ -354,7 +433,7 @@ func TestProductionNFOWorkerAcceptance(t *testing.T) {
 			t.Fatal("full-read count/bytes mismatch")
 		}
 		request("GET", path+"/nfo/current-validations?limit=25", "", "")
-		record, _ := json.Marshal(map[string]any{"round": round + 1, "elapsedMillis": time.Since(started).Milliseconds(), "readCalls": stats.ReadCalls - before.ReadCalls, "fullHashes": stats.HashCompletions - before.HashCompletions, "completedReadBytes": stats.CompletedReadBytes - before.CompletedReadBytes, "parseCalls": stats.ParseCalls - before.ParseCalls, "activeNFOCalls": stats.ActiveCalls, "peakNFOCalls": stats.PeakCalls, "metadataProberCalls": probing.probeCalls.Load() - beforeProbe, "metadataChildStarts": proc.Started - beforeProcess.Started, "activeChildLifecycles": proc.Active, "peakChildLifecycles": proc.Peak, "nfo": summary, "images": images, "cacheRows": rows, "cacheBytes": bytes, "persistedInvalidXML": invalid})
+		record, _ := json.Marshal(map[string]any{"round": round + 1, "sustained": withSustained && round >= 3, "elapsedMillis": time.Since(started).Milliseconds(), "readCalls": stats.ReadCalls - before.ReadCalls, "fullHashes": stats.HashCompletions - before.HashCompletions, "completedReadBytes": stats.CompletedReadBytes - before.CompletedReadBytes, "parseCalls": stats.ParseCalls - before.ParseCalls, "activeNFOCalls": stats.ActiveCalls, "peakNFOCalls": stats.PeakCalls, "metadataProberCalls": probing.probeCalls.Load() - beforeProbe, "metadataChildStarts": proc.Started - beforeProcess.Started, "activeChildLifecycles": proc.Active, "peakChildLifecycles": proc.Peak, "nfo": summary, "images": images, "cacheRows": rows, "cacheBytes": bytes, "persistedInvalidXML": invalid})
 		fmt.Println(string(record))
 		if round == 1 {
 			fmt.Println(`{"readyForReplacement":true}`)
@@ -369,7 +448,46 @@ func TestProductionNFOWorkerAcceptance(t *testing.T) {
 				}
 			}
 		}
+		if withSustained && round == 2 {
+			goruntime.GC()
+			goruntime.ReadMemStats(&baselineMemory)
+			peakHeap = baselineMemory.HeapAlloc
+			baselineGoroutines = goruntime.NumGoroutine()
+			if memoryProfile != nil && (validation.Stats().ActiveCalls != 0 || probing.processStats().Active != 0) {
+				t.Fatal("heap profile boundary retained active worker reads or children")
+			}
+			memoryProfile.captureHeap(t, ctx, "/control", "before")
+			memoryProfile.residentPhase(t, "sustained")
+			sustainedStarted = time.Now()
+		} else if withSustained && round >= 3 {
+			sustainedRounds++
+			var sample goruntime.MemStats
+			goruntime.ReadMemStats(&sample)
+			if sample.HeapAlloc > peakHeap {
+				peakHeap = sample.HeapAlloc
+			}
+			if peakHeap > 256<<20 {
+				t.Fatal("mixed parent Go heap exceeded 256MiB sample bound", peakHeap)
+			}
+		}
 	}
+	if withSustained {
+		elapsed := time.Since(sustainedStarted)
+		goruntime.GC()
+		var finalMemory goruntime.MemStats
+		goruntime.ReadMemStats(&finalMemory)
+		finalGoroutines := goruntime.NumGoroutine()
+		if elapsed < 5*time.Minute || sustainedRounds < 5 || finalMemory.HeapAlloc > baselineMemory.HeapAlloc+(64<<20) || finalGoroutines > baselineGoroutines+8 {
+			t.Fatal("mixed sustained coverage or parent resource bound failed", elapsed, sustainedRounds, baselineMemory.HeapAlloc, finalMemory.HeapAlloc, baselineGoroutines, finalGoroutines)
+		}
+		if memoryProfile != nil && (validation.Stats().ActiveCalls != 0 || probing.processStats().Active != 0) {
+			t.Fatal("heap profile boundary retained active worker reads or children")
+		}
+		memoryProfile.captureHeap(t, ctx, "/control", "after")
+		record, _ := json.Marshal(map[string]any{"sustainedAcceptance": "passed", "seconds": elapsed.Seconds(), "rounds": sustainedRounds, "baselineHeap": baselineMemory.HeapAlloc, "finalHeap": finalMemory.HeapAlloc, "peakSampleHeap": peakHeap, "baselineGoroutines": baselineGoroutines, "finalGoroutines": finalGoroutines})
+		fmt.Println(string(record))
+	}
+	memoryProfile.residentPhase(t, "cancellation")
 	// Cancellation is observed after actual directory inventory and a real NFO
 	// read. The previous successful image baseline must survive the failed round.
 	probing.Disable()
@@ -386,6 +504,9 @@ func TestProductionNFOWorkerAcceptance(t *testing.T) {
 	nfoPath, nfoBody := path+"/nfo/validate", `{}`
 	if withIgnore {
 		nfoPath, nfoBody = path+"/scan", `{"nfo":true,"ignore":{"mode":"jeleeignore","caseMode":"sensitive"}}`
+		if withFamily {
+			nfoBody = `{"nfo":true,"ignore":{"mode":"jeleeignore-legacy-v1","caseMode":"sensitive"}}`
+		}
 	}
 	var cancelled domain.Job
 	if json.Unmarshal(request("POST", nfoPath, nfoBody, "cancel-nfo"), &cancelled) != nil {
@@ -449,6 +570,7 @@ func TestProductionNFOWorkerAcceptance(t *testing.T) {
 		t.Fatal("recovery reads/cache/probe counts differ")
 	}
 	fmt.Println(`{"cancellationRecovery":"passed","cancelledMissing":0,"cancelledComparisonComplete":false,"baselineUnchanged":true,"recoveredComparisonComplete":true,"recoveryParses":0,"recoveryChildStarts":0}`)
+	memoryProfile.residentPhase(t, "shutdown")
 	// No read call is active now; rearm the test-only barrier for shutdown.
 	controlled.entered = make(chan struct{})
 	controlled.once = sync.Once{}
@@ -491,5 +613,6 @@ func TestProductionNFOWorkerAcceptance(t *testing.T) {
 		response.Body.Close()
 		t.Fatal("HTTP listener remained open")
 	}
+	memoryProfile.residentPhase(t, "stopped")
 	fmt.Println(`{"shutdown":"passed","signal":"SIGTERM","httpClosed":true,"activeNFOCalls":0,"activeChildLifecycles":0,"activeLeases":0,"readBarrier":"after a real read; cancelled API joined"}`)
 }

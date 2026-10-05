@@ -1,0 +1,31 @@
+{
+  "account": {
+    "title": "アカウント",
+    "profile": "プロフィール",
+    "profileName": "表示名",
+    "name": "ユーザー名",
+    "role": "ロール",
+    "roleAdmin": "管理者",
+    "roleUser": "一般ユーザー",
+    "language": "言語",
+    "createdAt": "作成日時",
+    "sessions": "サインイン中のデバイス",
+    "sessionsHint": "心当たりのないセッションは取り消してください。取り消すとそのデバイスはすぐにサインアウトされます。",
+    "clientWeb": "Web",
+    "clientNative": "ネイティブアプリ",
+    "current": "このデバイス",
+    "signedIn": "{date} にサインイン",
+    "lastSeen": "最終利用 {date}",
+    "expires": "有効期限 {date}",
+    "lastIp": "IP {ip}",
+    "revoke": "取り消す",
+    "revokeCurrent": "このデバイスをサインアウト",
+    "empty": "アクティブなセッションはありません。",
+    "revokeAllHint": "すべてのデバイスでサインアウトすると、このデバイスを含むすべてのセッションが終了します。",
+    "revokeAll": "すべてのデバイスでサインアウト",
+    "revokeAllConfirm": "すべてのデバイスでサインアウトする",
+    "revoked": "「{name}」のセッションを取り消しました。",
+    "signedOutHere": "このデバイスはサインアウトしました。",
+    "signedOutEverywhere": "すべてのデバイスでサインアウトしました。"
+  }
+}

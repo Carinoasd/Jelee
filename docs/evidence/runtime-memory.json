@@ -1,0 +1,957 @@
+{
+  "記錄時間UTC": "2026-10-02T20:03:25.160185+00:00",
+  "基準提交": "3694579e4f5883913834b4312cc283ee42f24921",
+  "範圍": "G42.8：可覆寫 Go GC／soft memory 設定、兩組真混合容器負載、正式入口與受控 OOM 負向；沒有生產 Go 或 SQL 變更。",
+  "平台": {
+    "Windows": {
+      "mode": "windows",
+      "exitCode": 0,
+      "passed": 55,
+      "failed": [],
+      "skipped": [
+        "TestFamilyIgnoreProductionRuntimeHTTP/false",
+        "TestFamilyIgnoreProductionRuntimeHTTP/true",
+        "TestFamilyIgnoreProductionRuntimeActiveChildStop",
+        "TestFamilyIgnoreProductionRuntimeActiveChildHTTPCancel",
+        "TestFamilyIgnoreProductionRuntimeRemoteActiveChildHTTPCancel",
+        "TestIgnoreServiceNativeSustainedSaturation",
+        "TestJobMetricsRuntimePostgresLifecycleAndInstances",
+        "TestJobMetricsRuntimePostgresAuthorizationAndBlockedSource",
+        "TestMemoryProfileSnapshot",
+        "TestMemoryProfileOOMProbe",
+        "TestMetricsRuntimePostgresIntegration",
+        "TestProductionNFOWorkerAcceptance",
+        "TestProductionProbeWorkerAcceptance"
+      ],
+      "logSha256": "367afdd6beb75dfd35380238168e4d1168634f852ba86bfa8ff4d32cb794590a"
+    },
+    "LinuxRace": {
+      "mode": "race",
+      "exitCode": 0,
+      "passed": 49,
+      "failed": [],
+      "skipped": [
+        "TestJobMetricsRuntimePostgresLifecycleAndInstances",
+        "TestJobMetricsRuntimePostgresAuthorizationAndBlockedSource",
+        "TestMemoryProfileSnapshot",
+        "TestMemoryProfileOOMProbe",
+        "TestMetricsRuntimePostgresIntegration",
+        "TestProductionNFOWorkerAcceptance",
+        "TestProductionProbeWorkerAcceptance"
+      ],
+      "logSha256": "dc5c43550bf44d7edde3804ef378017128bbc4375fbe4d2cb5feace41c18d01f"
+    }
+  },
+  "Python": {
+    "WindowsPassed": 19,
+    "LinuxPassed": 19,
+    "containerEvidenceTests": 11,
+    "controllerTests": 8,
+    "scope": "純證據與失敗保存測試，不冒稱真容器量測"
+  },
+  "CIContracts": {
+    "version": 1,
+    "result": "passed",
+    "scope": "memory contracts only",
+    "workloadStarted": false,
+    "childOutputRetained": false,
+    "steps": [
+      {
+        "name": "container-evidence",
+        "status": "passed",
+        "returnCode": 0,
+        "elapsedMillis": 114,
+        "exitCode": 0
+      },
+      {
+        "name": "controller-evidence",
+        "status": "passed",
+        "returnCode": 0,
+        "elapsedMillis": 214,
+        "exitCode": 0
+      },
+      {
+        "name": "compose-configuration",
+        "status": "passed",
+        "returnCode": 0,
+        "elapsedMillis": 1216,
+        "exitCode": 0
+      },
+      {
+        "name": "native-runtime",
+        "status": "passed",
+        "returnCode": 0,
+        "elapsedMillis": 17404,
+        "exitCode": 0
+      }
+    ],
+    "exitCode": 0
+  },
+  "Compose": {
+    "result": "passed",
+    "scope": "docker compose config parsing and merge only",
+    "containersStarted": false,
+    "runtimeLimitsValidated": false,
+    "onlyExpectedJeleeFieldsChanged": true,
+    "otherServicesUnchanged": [
+      "migrate",
+      "postgres"
+    ],
+    "safetySettingsUnchanged": [
+      "read_only",
+      "volumes",
+      "cap_drop",
+      "security_opt",
+      "tmpfs",
+      "networks",
+      "ports"
+    ],
+    "cases": [
+      {
+        "name": "base-only",
+        "memoryOverrideApplied": false
+      },
+      {
+        "name": "memory-default",
+        "memoryOverrideApplied": true,
+        "gogc": "100",
+        "goMemoryLimit": "512MiB",
+        "memoryLimitBytes": 805306368,
+        "memorySwapLimitBytes": 805306368
+      },
+      {
+        "name": "memory-overridden",
+        "memoryOverrideApplied": true,
+        "gogc": "50",
+        "goMemoryLimit": "384MiB",
+        "memoryLimitBytes": 671088640,
+        "memorySwapLimitBytes": 671088640
+      }
+    ]
+  },
+  "負載": [
+    {
+      "sourceDigest": "14a62f94415c3448907f87edae238890200b7f91db34719c614be98c3d1736fc",
+      "productionImage": "sha256:5b2796a45eebe46649dd195765b8716246117e4aedefa796e17bfb2b276f22d4",
+      "fixtureFiles": 1000,
+      "fixtures": {
+        "nfo": 400,
+        "video": 100,
+        "image": 500,
+        "invalidXML": 10,
+        "semanticInvalid": 10,
+        "warningFiles": 10,
+        "multiEpisodeFiles": 10
+      },
+      "memoryValidation": {
+        "validated": true,
+        "before": {
+          "cgroupVersion": 2,
+          "currentBytes": 3567616,
+          "peakBytes": 5222400,
+          "maxBytes": 805306368,
+          "swapMaxBytes": 0,
+          "events": {
+            "high": 0,
+            "low": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_group_kill": 0,
+            "oom_kill": 0
+          }
+        },
+        "after": {
+          "cgroupVersion": 2,
+          "currentBytes": 197500928,
+          "peakBytes": 543342592,
+          "maxBytes": 805306368,
+          "swapMaxBytes": 0,
+          "events": {
+            "high": 0,
+            "low": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_group_kill": 0,
+            "oom_kill": 0
+          }
+        },
+        "eventDelta": {
+          "high": 0,
+          "low": 0,
+          "max": 0,
+          "oom": 0,
+          "oom_group_kill": 0,
+          "oom_kill": 0
+        },
+        "container": {
+          "user": "65532:65532",
+          "readonlyRootfs": true,
+          "privileged": false,
+          "capabilitiesDropped": "ALL",
+          "noNewPrivileges": true,
+          "memoryBytes": 805306368,
+          "memorySwapBytes": 805306368,
+          "nanoCPUs": 2000000000,
+          "pidsLimit": 128,
+          "restartCount": 0,
+          "status": "exited",
+          "exitCode": 0,
+          "oomKilled": false
+        },
+        "version": 1,
+        "elapsedMillis": 401190,
+        "runtime": {
+          "gogcPercent": 100,
+          "goMemoryLimitBytes": 536870912
+        },
+        "runtimeBefore": {
+          "totalAllocBytes": 726352,
+          "numGC": 0,
+          "pauseTotalNs": 0
+        },
+        "runtimeAfter": {
+          "totalAllocBytes": 1626039656,
+          "numGC": 631,
+          "pauseTotalNs": 33360224
+        },
+        "kdf": {
+          "memoryKiB": 65536,
+          "iterations": 3,
+          "parallelism": 2,
+          "concurrency": 2,
+          "peakAdmitted": 2,
+          "hashCompleted": 2,
+          "verifyCompleted": 2,
+          "completed": 4,
+          "workerActiveDuringKDF": true
+        }
+      },
+      "counterDelta": {
+        "totalAllocBytes": 1625313304,
+        "numGC": 631,
+        "pauseTotalNs": 33360224
+      },
+      "baseRounds": [
+        {
+          "activeChildLifecycles": 0,
+          "activeNFOCalls": 0,
+          "cacheBytes": 914930,
+          "cacheRows": 400,
+          "completedReadBytes": 165800,
+          "elapsedMillis": 34582,
+          "fullHashes": 800,
+          "metadataChildStarts": 100,
+          "metadataProberCalls": 100,
+          "parseCalls": 400,
+          "peakChildLifecycles": 1,
+          "peakNFOCalls": 1,
+          "persistedInvalidXML": 10,
+          "readCalls": 800,
+          "round": 1,
+          "sustained": false,
+          "nfo": {
+            "mode": "read-only",
+            "phase": "done",
+            "processed": 400,
+            "hits": 0,
+            "negativeHits": 0,
+            "parsed": 400,
+            "valid": 380,
+            "invalid": 20,
+            "warningFiles": 10,
+            "changed": 0,
+            "unavailable": 0,
+            "rejected": 0
+          },
+          "images": {
+            "added": 500,
+            "changed": 0,
+            "unchanged": 0,
+            "missing": 0,
+            "uncompared": 0,
+            "comparisonComplete": true
+          }
+        },
+        {
+          "activeChildLifecycles": 0,
+          "activeNFOCalls": 0,
+          "cacheBytes": 914930,
+          "cacheRows": 400,
+          "completedReadBytes": 165800,
+          "elapsedMillis": 16750,
+          "fullHashes": 800,
+          "metadataChildStarts": 0,
+          "metadataProberCalls": 0,
+          "parseCalls": 0,
+          "peakChildLifecycles": 1,
+          "peakNFOCalls": 1,
+          "persistedInvalidXML": 10,
+          "readCalls": 800,
+          "round": 2,
+          "sustained": false,
+          "nfo": {
+            "mode": "read-only",
+            "phase": "done",
+            "processed": 400,
+            "hits": 380,
+            "negativeHits": 20,
+            "parsed": 0,
+            "valid": 380,
+            "invalid": 20,
+            "warningFiles": 10,
+            "changed": 0,
+            "unavailable": 0,
+            "rejected": 0
+          },
+          "images": {
+            "added": 0,
+            "changed": 0,
+            "unchanged": 500,
+            "missing": 0,
+            "uncompared": 0,
+            "comparisonComplete": true
+          }
+        },
+        {
+          "activeChildLifecycles": 0,
+          "activeNFOCalls": 0,
+          "cacheBytes": 914930,
+          "cacheRows": 400,
+          "completedReadBytes": 165800,
+          "elapsedMillis": 16437,
+          "fullHashes": 800,
+          "metadataChildStarts": 0,
+          "metadataProberCalls": 0,
+          "parseCalls": 17,
+          "peakChildLifecycles": 1,
+          "peakNFOCalls": 1,
+          "persistedInvalidXML": 10,
+          "readCalls": 800,
+          "round": 3,
+          "sustained": false,
+          "nfo": {
+            "mode": "read-only",
+            "phase": "done",
+            "processed": 400,
+            "hits": 363,
+            "negativeHits": 20,
+            "parsed": 17,
+            "valid": 380,
+            "invalid": 20,
+            "warningFiles": 10,
+            "changed": 0,
+            "unavailable": 0,
+            "rejected": 0
+          },
+          "images": {
+            "added": 0,
+            "changed": 23,
+            "unchanged": 477,
+            "missing": 0,
+            "uncompared": 0,
+            "comparisonComplete": true
+          }
+        }
+      ],
+      "sustained": {
+        "baselineGoroutines": 13,
+        "baselineHeap": 1885656,
+        "finalGoroutines": 13,
+        "finalHeap": 1782904,
+        "peakSampleHeap": 3632616,
+        "rounds": 19,
+        "seconds": 309.065841994,
+        "sustainedAcceptance": "passed"
+      },
+      "warmRoundElapsedMillis": [
+        16142,
+        16243,
+        16212,
+        17480,
+        16233,
+        16071,
+        16216,
+        16125,
+        15936,
+        16092,
+        16225,
+        16178,
+        16111,
+        16224,
+        16522,
+        16455,
+        16194,
+        16256,
+        16137
+      ],
+      "warmCacheAndLifecycleChecksPassed": true,
+      "productionEntry": {
+        "result": "passed",
+        "stage": "complete",
+        "entrypoint": "/jelee",
+        "validated": true,
+        "before": {
+          "cgroupVersion": 2,
+          "currentBytes": 12234752,
+          "peakBytes": 12234752,
+          "maxBytes": 805306368,
+          "swapMaxBytes": 0,
+          "events": {
+            "high": 0,
+            "low": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_group_kill": 0,
+            "oom_kill": 0
+          }
+        },
+        "after": {
+          "cgroupVersion": 2,
+          "currentBytes": 12337152,
+          "peakBytes": 12337152,
+          "maxBytes": 805306368,
+          "swapMaxBytes": 0,
+          "events": {
+            "high": 0,
+            "low": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_group_kill": 0,
+            "oom_kill": 0
+          }
+        },
+        "eventDelta": {
+          "high": 0,
+          "low": 0,
+          "max": 0,
+          "oom": 0,
+          "oom_group_kill": 0,
+          "oom_kill": 0
+        },
+        "container": {
+          "user": "65532:65532",
+          "readonlyRootfs": true,
+          "privileged": false,
+          "capabilitiesDropped": "ALL",
+          "noNewPrivileges": true,
+          "memoryBytes": 805306368,
+          "memorySwapBytes": 805306368,
+          "nanoCPUs": 2000000000,
+          "pidsLimit": 128,
+          "restartCount": 0,
+          "status": "exited",
+          "exitCode": 0,
+          "oomKilled": false
+        },
+        "health": "passed",
+        "readiness": "passed",
+        "stop": "passed",
+        "runtimeSettingsObservedIn": "separate observer process in the same container",
+        "mainStartupEnvironmentVerified": true,
+        "mainRuntimeSettingsDirectlyObserved": false,
+        "stateBeforeCleanup": {
+          "status": "exited",
+          "exitCode": 0,
+          "oomKilled": false,
+          "running": false
+        },
+        "containerRemoved": true
+      },
+      "cancellationRecovery": {
+        "cancellationRecovery": "passed",
+        "cancelledMissing": 0,
+        "cancelledComparisonComplete": false,
+        "baselineUnchanged": true,
+        "recoveredComparisonComplete": true,
+        "recoveryParses": 0,
+        "recoveryChildStarts": 0
+      },
+      "shutdown": {
+        "shutdown": "passed",
+        "signal": "SIGTERM",
+        "httpClosed": true,
+        "activeNFOCalls": 0,
+        "activeChildLifecycles": 0,
+        "activeLeases": 0,
+        "readBarrier": "after a real read; cancelled API joined"
+      },
+      "originalFixtureHashesUnchanged": true,
+      "controlledNFOReplacements": 17,
+      "controlledImageReplacements": 23,
+      "sourceUnchangedDuringWorkload": true,
+      "testArtifactsCleaned": true,
+      "result": "passed",
+      "oomNegative": {
+        "result": "passed",
+        "stage": "complete",
+        "allocationPhaseConfirmed": true,
+        "validated": true,
+        "container": {
+          "user": "65532:65532",
+          "readonlyRootfs": true,
+          "privileged": false,
+          "capabilitiesDropped": "ALL",
+          "noNewPrivileges": true,
+          "memoryBytes": 67108864,
+          "memorySwapBytes": 67108864,
+          "nanoCPUs": 1000000000,
+          "pidsLimit": 32,
+          "restartCount": 0,
+          "status": "exited",
+          "exitCode": 137,
+          "oomKilled": true
+        },
+        "stateBeforeCleanup": {
+          "status": "exited",
+          "exitCode": 137,
+          "oomKilled": true,
+          "running": false
+        },
+        "containerRemoved": true
+      }
+    },
+    {
+      "sourceDigest": "14a62f94415c3448907f87edae238890200b7f91db34719c614be98c3d1736fc",
+      "productionImage": "sha256:cfcd352d1037d37c0a2e535c7615e8fa7afc01f85c2838f5ba9bead64e15310a",
+      "fixtureFiles": 1000,
+      "fixtures": {
+        "nfo": 400,
+        "video": 100,
+        "image": 500,
+        "invalidXML": 10,
+        "semanticInvalid": 10,
+        "warningFiles": 10,
+        "multiEpisodeFiles": 10
+      },
+      "memoryValidation": {
+        "validated": true,
+        "before": {
+          "cgroupVersion": 2,
+          "currentBytes": 7680000,
+          "peakBytes": 7680000,
+          "maxBytes": 805306368,
+          "swapMaxBytes": 0,
+          "events": {
+            "high": 0,
+            "low": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_group_kill": 0,
+            "oom_kill": 0
+          }
+        },
+        "after": {
+          "cgroupVersion": 2,
+          "currentBytes": 15101952,
+          "peakBytes": 285499392,
+          "maxBytes": 805306368,
+          "swapMaxBytes": 0,
+          "events": {
+            "high": 0,
+            "low": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_group_kill": 0,
+            "oom_kill": 0
+          }
+        },
+        "eventDelta": {
+          "high": 0,
+          "low": 0,
+          "max": 0,
+          "oom": 0,
+          "oom_group_kill": 0,
+          "oom_kill": 0
+        },
+        "container": {
+          "user": "65532:65532",
+          "readonlyRootfs": true,
+          "privileged": false,
+          "capabilitiesDropped": "ALL",
+          "noNewPrivileges": true,
+          "memoryBytes": 805306368,
+          "memorySwapBytes": 805306368,
+          "nanoCPUs": 2000000000,
+          "pidsLimit": 128,
+          "restartCount": 0,
+          "status": "exited",
+          "exitCode": 0,
+          "oomKilled": false
+        },
+        "version": 1,
+        "elapsedMillis": 396812,
+        "runtime": {
+          "gogcPercent": 50,
+          "goMemoryLimitBytes": 536870912
+        },
+        "runtimeBefore": {
+          "totalAllocBytes": 763376,
+          "numGC": 0,
+          "pauseTotalNs": 0
+        },
+        "runtimeAfter": {
+          "totalAllocBytes": 1658736688,
+          "numGC": 1708,
+          "pauseTotalNs": 86639246
+        },
+        "kdf": {
+          "memoryKiB": 65536,
+          "iterations": 3,
+          "parallelism": 2,
+          "concurrency": 2,
+          "peakAdmitted": 2,
+          "hashCompleted": 2,
+          "verifyCompleted": 2,
+          "completed": 4,
+          "workerActiveDuringKDF": true
+        }
+      },
+      "counterDelta": {
+        "totalAllocBytes": 1657973312,
+        "numGC": 1708,
+        "pauseTotalNs": 86639246
+      },
+      "baseRounds": [
+        {
+          "activeChildLifecycles": 0,
+          "activeNFOCalls": 0,
+          "cacheBytes": 914930,
+          "cacheRows": 400,
+          "completedReadBytes": 165800,
+          "elapsedMillis": 32896,
+          "fullHashes": 800,
+          "metadataChildStarts": 100,
+          "metadataProberCalls": 100,
+          "parseCalls": 400,
+          "peakChildLifecycles": 1,
+          "peakNFOCalls": 1,
+          "persistedInvalidXML": 10,
+          "readCalls": 800,
+          "round": 1,
+          "sustained": false,
+          "nfo": {
+            "mode": "read-only",
+            "phase": "done",
+            "processed": 400,
+            "hits": 0,
+            "negativeHits": 0,
+            "parsed": 400,
+            "valid": 380,
+            "invalid": 20,
+            "warningFiles": 10,
+            "changed": 0,
+            "unavailable": 0,
+            "rejected": 0
+          },
+          "images": {
+            "added": 500,
+            "changed": 0,
+            "unchanged": 0,
+            "missing": 0,
+            "uncompared": 0,
+            "comparisonComplete": true
+          }
+        },
+        {
+          "activeChildLifecycles": 0,
+          "activeNFOCalls": 0,
+          "cacheBytes": 914930,
+          "cacheRows": 400,
+          "completedReadBytes": 165800,
+          "elapsedMillis": 16299,
+          "fullHashes": 800,
+          "metadataChildStarts": 0,
+          "metadataProberCalls": 0,
+          "parseCalls": 0,
+          "peakChildLifecycles": 1,
+          "peakNFOCalls": 1,
+          "persistedInvalidXML": 10,
+          "readCalls": 800,
+          "round": 2,
+          "sustained": false,
+          "nfo": {
+            "mode": "read-only",
+            "phase": "done",
+            "processed": 400,
+            "hits": 380,
+            "negativeHits": 20,
+            "parsed": 0,
+            "valid": 380,
+            "invalid": 20,
+            "warningFiles": 10,
+            "changed": 0,
+            "unavailable": 0,
+            "rejected": 0
+          },
+          "images": {
+            "added": 0,
+            "changed": 0,
+            "unchanged": 500,
+            "missing": 0,
+            "uncompared": 0,
+            "comparisonComplete": true
+          }
+        },
+        {
+          "activeChildLifecycles": 0,
+          "activeNFOCalls": 0,
+          "cacheBytes": 914930,
+          "cacheRows": 400,
+          "completedReadBytes": 165800,
+          "elapsedMillis": 16081,
+          "fullHashes": 800,
+          "metadataChildStarts": 0,
+          "metadataProberCalls": 0,
+          "parseCalls": 17,
+          "peakChildLifecycles": 1,
+          "peakNFOCalls": 1,
+          "persistedInvalidXML": 10,
+          "readCalls": 800,
+          "round": 3,
+          "sustained": false,
+          "nfo": {
+            "mode": "read-only",
+            "phase": "done",
+            "processed": 400,
+            "hits": 363,
+            "negativeHits": 20,
+            "parsed": 17,
+            "valid": 380,
+            "invalid": 20,
+            "warningFiles": 10,
+            "changed": 0,
+            "unavailable": 0,
+            "rejected": 0
+          },
+          "images": {
+            "added": 0,
+            "changed": 23,
+            "unchanged": 477,
+            "missing": 0,
+            "uncompared": 0,
+            "comparisonComplete": true
+          }
+        }
+      ],
+      "sustained": {
+        "baselineGoroutines": 13,
+        "baselineHeap": 1768640,
+        "finalGoroutines": 13,
+        "finalHeap": 1952976,
+        "peakSampleHeap": 2600240,
+        "rounds": 19,
+        "seconds": 308.579508113,
+        "sustainedAcceptance": "passed"
+      },
+      "warmRoundElapsedMillis": [
+        16140,
+        16247,
+        16264,
+        16436,
+        16191,
+        16254,
+        16117,
+        16104,
+        16210,
+        16826,
+        16299,
+        16011,
+        16178,
+        16142,
+        16333,
+        16088,
+        16358,
+        16196,
+        16174
+      ],
+      "warmCacheAndLifecycleChecksPassed": true,
+      "productionEntry": {
+        "result": "passed",
+        "stage": "complete",
+        "entrypoint": "/jelee",
+        "validated": true,
+        "before": {
+          "cgroupVersion": 2,
+          "currentBytes": 12996608,
+          "peakBytes": 12996608,
+          "maxBytes": 805306368,
+          "swapMaxBytes": 0,
+          "events": {
+            "high": 0,
+            "low": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_group_kill": 0,
+            "oom_kill": 0
+          }
+        },
+        "after": {
+          "cgroupVersion": 2,
+          "currentBytes": 12414976,
+          "peakBytes": 13258752,
+          "maxBytes": 805306368,
+          "swapMaxBytes": 0,
+          "events": {
+            "high": 0,
+            "low": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_group_kill": 0,
+            "oom_kill": 0
+          }
+        },
+        "eventDelta": {
+          "high": 0,
+          "low": 0,
+          "max": 0,
+          "oom": 0,
+          "oom_group_kill": 0,
+          "oom_kill": 0
+        },
+        "container": {
+          "user": "65532:65532",
+          "readonlyRootfs": true,
+          "privileged": false,
+          "capabilitiesDropped": "ALL",
+          "noNewPrivileges": true,
+          "memoryBytes": 805306368,
+          "memorySwapBytes": 805306368,
+          "nanoCPUs": 2000000000,
+          "pidsLimit": 128,
+          "restartCount": 0,
+          "status": "exited",
+          "exitCode": 0,
+          "oomKilled": false
+        },
+        "health": "passed",
+        "readiness": "passed",
+        "stop": "passed",
+        "runtimeSettingsObservedIn": "separate observer process in the same container",
+        "mainStartupEnvironmentVerified": true,
+        "mainRuntimeSettingsDirectlyObserved": false,
+        "stateBeforeCleanup": {
+          "status": "exited",
+          "exitCode": 0,
+          "oomKilled": false,
+          "running": false
+        },
+        "containerRemoved": true
+      },
+      "cancellationRecovery": {
+        "cancellationRecovery": "passed",
+        "cancelledMissing": 0,
+        "cancelledComparisonComplete": false,
+        "baselineUnchanged": true,
+        "recoveredComparisonComplete": true,
+        "recoveryParses": 0,
+        "recoveryChildStarts": 0
+      },
+      "shutdown": {
+        "shutdown": "passed",
+        "signal": "SIGTERM",
+        "httpClosed": true,
+        "activeNFOCalls": 0,
+        "activeChildLifecycles": 0,
+        "activeLeases": 0,
+        "readBarrier": "after a real read; cancelled API joined"
+      },
+      "originalFixtureHashesUnchanged": true,
+      "controlledNFOReplacements": 17,
+      "controlledImageReplacements": 23,
+      "sourceUnchangedDuringWorkload": true,
+      "testArtifactsCleaned": true,
+      "result": "passed"
+    }
+  ],
+  "檢查": [
+    {
+      "name": "vet",
+      "exitCode": 0
+    },
+    {
+      "name": "build",
+      "exitCode": 0
+    },
+    {
+      "name": "modules",
+      "exitCode": 0
+    },
+    {
+      "name": "brand-new",
+      "exitCode": 0
+    },
+    {
+      "name": "gitignore",
+      "exitCode": 0
+    },
+    {
+      "name": "brand-full",
+      "exitCode": 1
+    }
+  ],
+  "保護": {
+    "publishedSQLUnchanged": 90,
+    "liveCoreFilesUnchanged": 5,
+    "licenseAndRequirementsHashesUnchanged": true
+  },
+  "來源": {
+    "nativeFrozenFiles": 856,
+    "finalFrozenFiles": 856,
+    "nativeFreezeSha256": "e61c3691851bd99830f1e6522a1440b27a551d95b7fb635ab2a5de8e48ab7856",
+    "finalFreezeSha256": "048372b9bfd216fca33523ce4668286ac910b060ecab991b94f1d868448e9ba3",
+    "afterNativeChangedFiles": {
+      "scripts/runtime_memory_acceptance.py": {
+        "nativeSHA256": "26c871f9227a28cbcd284590072ddea2da391fe50e4e7d590220aa411a170325",
+        "finalSHA256": "e7dca46f9180bb876f4ffeb1ff40db313b6445eaccd6395f9436fd543c5e9715"
+      },
+      "scripts/test_nfo_worker.py": {
+        "nativeSHA256": "7bdc056f5765e54c5c9e1325282feeaab9bf0b468fae33f78080f703c5762e64",
+        "finalSHA256": "94a377b6e42a76236e382159babeec5272c24037c671cf920d21a44f3c5713a7"
+      },
+      "scripts/test_runtime_memory_acceptance.py": {
+        "nativeSHA256": "2c534d3e3eb57618c8f39ec2938a865e2525aeb4f5977a59db41c19766accb4c",
+        "finalSHA256": "468fb0fc7f9547adf693673466f9cd688d8b26de10bcdc696c82811d8c5d6585"
+      }
+    },
+    "afterNativeChangeScope": "Python 失敗日誌先保存前次成功內容、檢查 fresh read 退出碼及其 mock 回歸；Go、部署與負載成功路徑保持。未重新跑兩組完整負載。",
+    "relevantNativeFileSHA256": {
+      ".env.example": "584f135c8d7f1bbf6facd6cb6cde6982d32a069af5d7cb547138f23200e0fbc2",
+      ".github/workflows/jelee.yml": "c3a38c2a3f948cdd3b3844dad92f800b15deedd1c4a24af7c370fc60102d550f",
+      "Makefile": "1f3c72d01ee2b4b9db14798bce187dbbfde422218b6ae45bc00ed299e9f9157c",
+      "deploy/docker-compose.memory.yml": "27f46c00cdd3fae42cc33504934fab5b02db587c19abf6092fd1ae0029879439",
+      "internal/platform/runtime/memory_profile_acceptance_test.go": "2a2c3cbd287adad3ca33a31f7f9915778f4446fe979ebd032a6d67e5b147d9b4",
+      "internal/platform/runtime/nfo_acceptance_test.go": "a37aad43d771f9e7300f652131f3094a946f15d29882f85b0065c4c46227ea22",
+      "scripts/check_memory_compose.py": "7bdae48fe5401ce436ac7c182cba29d0d79355fcf2216507f47b763e55d6989e",
+      "scripts/container_memory.py": "1897cd84c8484ca25c688aeca0d240831f29de7cea4fdc5fbf0a81236668e683",
+      "scripts/runtime_memory_acceptance.py": "26c871f9227a28cbcd284590072ddea2da391fe50e4e7d590220aa411a170325",
+      "scripts/runtime_memory_contracts.py": "3b02e886cb149d765c69e5ba3be5d1e1104b0305c6b6cdc32a72405ee7f788ae",
+      "scripts/test_container_memory.py": "8f6258b24a5ba0ce04821d9fdba8b3126f312a7b87a10fb07aa9441521bd0044",
+      "scripts/test_nfo_worker.py": "7bdc056f5765e54c5c9e1325282feeaab9bf0b468fae33f78080f703c5762e64",
+      "scripts/test_runtime_memory_acceptance.py": "2c534d3e3eb57618c8f39ec2938a865e2525aeb4f5977a59db41c19766accb4c"
+    }
+  },
+  "原始證據SHA256": {
+    ".testdata/runtime-memory-acceptance.txt": "d31c9237410c148eb1b4c66ad4fe1d2c7c0e59354bbdd586c1e04f2e437eb721",
+    ".testdata/runtime-memory-summary.json": "3cde36316c7a9ced359c149ceec4a32a79532697f5dee3f63c64971603c280e3",
+    ".testdata/runtime-memory-case-1000-gogc100.json": "ef7eb2a22e234956395ff8ba78ca09ad97e6ba3f1d3411c5aced4251741e3ec8",
+    ".testdata/runtime-memory-case-1000-gogc50.json": "7167d0784f1e424540b1979848f18d9ad3ce736c6c198e04e01746fcec8a6448",
+    ".testdata/runtime-memory-contracts.json": "0d0964dba9feae295a4047ee9b99c04d0f65976d11f82c2bc2188b4a28c5debe",
+    ".testdata/runtime-memory-first-contracts.json": "6bbfea7634d0249b1e3f16567a2a6cbffbeca64f77830df11f68d0e33facf1af"
+  },
+  "前置失敗": [
+    "首輪 Compose 驗證將 Docker 回傳的 bytes 字串當作整數；僅對兩個 memory 欄位接受嚴格十進位表示後，三組真 config 合併通過。原失敗報告保留。",
+    "Windows 沙箱不能讀寫 Python 3.14 私人暫存目錄；使用一般使用者權限執行相同 mock 測試後通過，四個自建空目錄已清理。"
+  ],
+  "限制": [
+    "兩組各一次，不由約 4 秒耗時差推論 CPU 或效能改善。",
+    "cgroup peak 包含同容器 helper、cache 與 tmpfs；不是父程序 RSS，PostgreSQL 不在此容器。",
+    "正式 /jelee 入口核對啟動環境與健康／停止；GC 指標來自獨立 observer。worker profile 的有效 GC 值由該 Go 程序自身讀取。",
+    "768 MiB hard limit 不是基線制定的 G42.9 常駐預算；RSS 門禁、十萬圖片與 24h 尚待後續。",
+    "普通 Go 測試略過需專用 PG／原生容器的案例；本段另有兩組真 Docker／PG workload，不把略過算通過。",
+    "全量品牌仍 14735 項，不能宣稱 CI 全綠。"
+  ],
+  "格式檢查": {
+    "command": "python3 -B scripts/check-format.py",
+    "exitCode": 0
+  }
+}

@@ -56,6 +56,9 @@ func jobsCLIReply(t *testing.T, command string, payload []byte, status int) (int
 	if command == "scan" || command == "retry" || command == "probe-rebuild-library" || command == "probe-rebuild-item" {
 		args = append(args, "--key", "response-test")
 	}
+	if command == "probe-rebuild-library" {
+		args = append(args, "--i-understand")
+	}
 	if command == "list" || command == "entries" || command == "libraries" {
 		args = append(args, "--limit", "2")
 	}
@@ -266,7 +269,9 @@ func TestJobsCLIDoesNotForwardTokenOnRedirect(t *testing.T) {
 	targetCalls := 0
 	target := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { targetCalls++ }))
 	defer target.Close()
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { http.Redirect(w, r, target.URL, 307) }))
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, target.URL, http.StatusTemporaryRedirect)
+	}))
 	defer server.Close()
 	var out, errs bytes.Buffer
 	status := runJobsCLI(context.Background(), []string{"list", "--url", server.URL, "--token-stdin"}, strings.NewReader(strings.Repeat("a", 43)), &out, &errs)

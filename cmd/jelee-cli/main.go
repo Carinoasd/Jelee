@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/MoYuanCN/Jelee/internal/access"
 	"github.com/MoYuanCN/Jelee/internal/adapter/postgres"
+	"github.com/MoYuanCN/Jelee/internal/domain"
 	"github.com/MoYuanCN/Jelee/internal/platform/config"
 	"github.com/MoYuanCN/Jelee/internal/platform/proberuntime"
 	"github.com/MoYuanCN/Jelee/internal/platform/sandbox"
@@ -22,10 +23,20 @@ func run() int {
 		return proberuntime.Helper(os.Args[2:])
 	}
 	if len(os.Args) < 2 {
-		fmt.Fprintln(os.Stderr, "usage: jelee-cli doctor|provision|import-video|nfo|account|library|jobs")
+		fmt.Fprintln(os.Stderr, "usage: jelee-cli doctor|diag|provision|import-video|import-directory|import-inventory|nfo|account|access|devmode|library|jobs|metadata|consistency|legacy-import")
 		return 2
 	}
 	command := os.Args[1]
+	if command == "setup" {
+		return runSetupMain(os.Args[2:])
+	}
+	if command == "import-inventory" {
+		ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
+		defer stop()
+		ctx, cancel := context.WithTimeout(ctx, 15*time.Second)
+		defer cancel()
+		return runInventoryImport(ctx, os.Args[2:], os.Stdout, os.Stderr)
+	}
 	if command == "doctor" && len(os.Args) >= 3 && os.Args[2] == "probe" {
 		ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 		defer stop()
@@ -39,6 +50,17 @@ func run() int {
 		ctx, cancel := context.WithTimeout(ctx, 15*time.Second)
 		defer cancel()
 		return runMediaToolsWithOutputCancellation(ctx, os.Args[3:], os.Stdout, os.Stderr)
+	}
+	if command == "doctor" || command == "diag" {
+		ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
+		defer stop()
+		// Each check has its own deadline; this bounds the whole run.
+		ctx, cancel := context.WithTimeout(ctx, 3*time.Minute)
+		defer cancel()
+		if command == "diag" {
+			return runDiag(ctx, os.Args[2:], os.Stdout, os.Stderr)
+		}
+		return runDoctor(ctx, os.Args[2:], os.Stdout, os.Stderr)
 	}
 	if command == "library" || command == "jobs" {
 		ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
@@ -57,6 +79,40 @@ func run() int {
 		defer cancel()
 		return runAccountCLI(ctx, os.Args[2:], os.Stdin, os.Stdout, os.Stderr)
 	}
+	if command == "access" {
+		ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
+		defer stop()
+		ctx, cancel := context.WithTimeout(ctx, 15*time.Second)
+		defer cancel()
+		return runAccessCLI(ctx, os.Args[2:], os.Stdout, os.Stderr)
+	}
+	if command == "devmode" {
+		ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
+		defer stop()
+		ctx, cancel := context.WithTimeout(ctx, 15*time.Second)
+		defer cancel()
+		return runDevmodeCLI(ctx, os.Args[2:], os.Stdout, os.Stderr)
+	}
+	if command == "metadata" {
+		// The command applies its own --timeout; exports and imports of large
+		// catalogs take minutes.
+		ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
+		defer stop()
+		return runMetadataCLI(ctx, os.Args[2:], os.Stdin, os.Stdout, os.Stderr)
+	}
+	if command == "legacy-import" {
+		// The import applies its own --timeout and checkpoints every batch;
+		// an interrupted run continues where it stopped.
+		ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
+		defer stop()
+		return runLegacyImportCLI(ctx, os.Args[2:], os.Stdout, os.Stderr)
+	}
+	if command == "consistency" {
+		// The check applies its own --timeout; a large library takes minutes.
+		ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
+		defer stop()
+		return runConsistencyCLI(ctx, os.Args[2:], os.Stdout, os.Stderr)
+	}
 	if command == "nfo" {
 		ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 		defer stop()
@@ -64,7 +120,7 @@ func run() int {
 		defer cancel()
 		return runNFOCLIWithOutputCancellation(ctx, os.Args[2:], os.Stdin, os.Stdout, os.Stderr)
 	}
-	if command != "doctor" && command != "provision" && command != "import-video" {
+	if command != "provision" && command != "import-video" && command != "import-directory" {
 		fmt.Fprintln(os.Stderr, "unsupported command")
 		return 2
 	}
@@ -76,7 +132,22 @@ func run() int {
 	root := args.String("root", "", "absolute media root")
 	relative := args.String("file", "", "root-relative video path")
 	title := args.String("title", "", "catalog title")
+	itemKind := args.String("kind", "HomeVideo", "video: HomeVideo, Movie or Episode; directory: Series or Season")
+	directory := args.String("directory", "", "root-relative series or season directory")
+	parent := args.String("parent", "", "parent Series or Season item ID")
 	if err := args.Parse(os.Args[2:]); err != nil || args.NArg() != 0 {
+		return 2
+	}
+	if command == "import-video" && !domain.ValidVideoItemKind(*itemKind) {
+		fmt.Fprintln(os.Stderr, "video kind must be HomeVideo, Movie or Episode")
+		return 2
+	}
+	if command == "import-directory" && (*itemKind != "Series" && *itemKind != "Season" || !domain.ValidDirectorySourcePath(filepath.ToSlash(*directory)) || *itemKind == "Season" && !domain.ValidID(*parent) || *itemKind == "Series" && *parent != "") {
+		fmt.Fprintln(os.Stderr, "directory import requires Series or Season and a valid directory; Season requires a parent Series ID")
+		return 2
+	}
+	if command == "import-video" && *parent != "" && (*itemKind != "Episode" || !domain.ValidID(*parent)) {
+		fmt.Fprintln(os.Stderr, "only Episode accepts a parent Series or Season ID")
 		return 2
 	}
 	cfg, err := config.Load()
@@ -95,8 +166,17 @@ func run() int {
 	}
 	defer store.Pool.Close()
 	switch command {
-	case "doctor":
-		fmt.Printf("configuration: valid\nPostgreSQL: connected\nschema: %d clean\nproduction restrictions: enabled\ndeveloper mode: unavailable\nRemaining diagnostics: see docs/requirements-traceability.md\n", postgres.SchemaVersion)
+	case "import-directory":
+		if !validImportDirectory(*root, filepath.ToSlash(*directory)) {
+			fmt.Fprintln(os.Stderr, "directory must exist within an absolute root without symlinks")
+			return 2
+		}
+		id, err := store.ImportDirectory(ctx, *library, filepath.Clean(*root), filepath.ToSlash(*directory), *title, *itemKind, *parent)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "directory registration failed: check parent, duplicate location and database state")
+			return 1
+		}
+		fmt.Printf("Registered item %s; original directory unchanged.\n", id)
 		return 0
 	case "provision":
 		kind := access.ClientWeb
@@ -132,7 +212,7 @@ func run() int {
 			fmt.Fprintln(os.Stderr, "video is not a readable regular file in the root")
 			return 1
 		}
-		id, err := store.ImportVideo(ctx, *library, filepath.Clean(*root), filepath.ToSlash(filepath.Clean(*relative)), *title, contentType)
+		id, err := store.ImportVideoWithParent(ctx, *library, filepath.Clean(*root), filepath.ToSlash(filepath.Clean(*relative)), *title, contentType, *itemKind, *parent)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, "registration failed: check names, duplicate paths and database state")
 			return 1

@@ -27,6 +27,12 @@ func (f resolveFunc) Resolve(ctx context.Context, principal access.Principal, id
 	return f(ctx, principal, id)
 }
 
+// ResolveTrack lets the source fixtures double as track fixtures; the track
+// ID reaches the function.
+func (f resolveFunc) ResolveTrack(ctx context.Context, principal access.Principal, _ string, _ TrackKind, trackID string) (Source, error) {
+	return f(ctx, principal, trackID)
+}
+
 func testWriteError(w http.ResponseWriter, _ *http.Request, err error) {
 	status := 500
 	for candidate, code := range map[error]int{ErrUnauthenticated: 401, ErrPlaybackDenied: 403, ErrNotFound: 404, ErrTranscodeDisabled: 409, ErrInvalidRequest: 400, ErrBusy: 429, ErrMethodNotAllowed: 405, ErrInvalidRange: 416, ErrPreconditionFailed: 412, ErrBodyTooLarge: 413, ErrUnsupportedMediaType: 415, ErrLookupTimeout: 504} {
@@ -461,5 +467,82 @@ func TestCancellationBetweenDeadlineRefreshAndWrite(t *testing.T) {
 	handler.ServeSource(w, r.WithContext(ctx), "source")
 	if w.Body.Len() != 0 {
 		t.Fatal("stream wrote after cancellation during deadline refresh")
+	}
+}
+
+// Concurrent copies use distinct payloads and sizes to detect premature reuse.
+func TestStreamCopyConcurrentIsolation(t *testing.T) {
+	pool := &sync.Pool{New: func() any { return new([32 << 10]byte) }}
+	var wg sync.WaitGroup
+	for worker := 0; worker < 16; worker++ {
+		wg.Go(func() {
+			payload := bytes.Repeat([]byte{byte(worker + 1)}, (32<<10)+worker*137)
+			for round := 0; round < 20; round++ {
+				recorder := httptest.NewRecorder()
+				writer := &streamWriter{ResponseWriter: recorder, request: nativeRequest("GET", "/stream"), controller: http.NewResponseController(recorder), timeout: time.Second, buffers: pool}
+				n, err := writer.ReadFrom(bytes.NewReader(payload))
+				if err != nil || n != int64(len(payload)) || !bytes.Equal(recorder.Body.Bytes(), payload) {
+					t.Errorf("concurrent copy corrupted: worker=%d round=%d bytes=%d err=%v", worker, round, n, err)
+					return
+				}
+			}
+		})
+	}
+	wg.Wait()
+}
+
+type failingCopyReader struct{}
+
+func (failingCopyReader) Read(p []byte) (int, error) {
+	return copy(p, "private media"), io.ErrUnexpectedEOF
+}
+
+func TestStreamCopyClearsBufferAfterReadFailure(t *testing.T) {
+	buffer := new([32 << 10]byte)
+	pool := &sync.Pool{New: func() any { return buffer }}
+	recorder := httptest.NewRecorder()
+	writer := &streamWriter{ResponseWriter: recorder, request: nativeRequest("GET", "/stream"), controller: http.NewResponseController(recorder), timeout: time.Second, buffers: pool}
+	n, err := writer.ReadFrom(failingCopyReader{})
+	if !errors.Is(err, io.ErrUnexpectedEOF) || n != 13 || recorder.Body.String() != "private media" {
+		t.Fatalf("copy lost partial read or error: n=%d err=%v", n, err)
+	}
+	if *buffer != [32 << 10]byte{} {
+		t.Fatal("failed copy retained media bytes")
+	}
+}
+
+// CodeQL reflected XSS defense: media is sandboxed even when the stored type
+// is a document type, while error responses keep the policy set before.
+func TestMediaResponsesAreSandboxed(t *testing.T) {
+	source, _ := fixture(t)
+	source.ContentType = "text/html; charset=utf-8"
+	const boundaryPolicy = "default-src 'none'; frame-ancestors 'none'; base-uri 'none'"
+	handler := testHandler(t, resolveFunc(func(_ context.Context, _ access.Principal, id string) (Source, error) {
+		if id == "missing" {
+			return Source{}, ErrNotFound
+		}
+		return source, nil
+	}), 2)
+	for _, tc := range []struct {
+		method, id, ranges string
+		status             int
+		policy             string
+	}{
+		{"GET", "source", "", 200, mediaContentSecurityPolicy},
+		{"HEAD", "source", "", 200, mediaContentSecurityPolicy},
+		{"GET", "source", "bytes=0-9", 206, mediaContentSecurityPolicy},
+		{"GET", "source", "bytes=99999999-", 416, boundaryPolicy},
+		{"GET", "missing", "", 404, boundaryPolicy},
+	} {
+		r := nativeRequest(tc.method, "/stream")
+		if tc.ranges != "" {
+			r.Header.Set("Range", tc.ranges)
+		}
+		w := httptest.NewRecorder()
+		w.Header().Set("Content-Security-Policy", boundaryPolicy)
+		handler.ServeSource(w, r, tc.id)
+		if w.Code != tc.status || len(w.Header().Values("Content-Security-Policy")) != 1 || w.Header().Get("Content-Security-Policy") != tc.policy {
+			t.Fatalf("%s %s %q: status=%d policy=%q", tc.method, tc.id, tc.ranges, w.Code, w.Header().Values("Content-Security-Policy"))
+		}
 	}
 }

@@ -37,6 +37,9 @@ type httpAccountRepository struct {
 	revoke      func(context.Context, domain.Actor, string, string) error
 	profile     func(context.Context, domain.Actor, domain.ProfileInput) (domain.User, error)
 	libraries   func(context.Context, domain.Actor, string, []string) error
+	preferences func(context.Context, domain.Actor, *domain.UserPreferences) (domain.UserPreferences, error)
+	// site holds site settings (site_settings_test.go); nil serves defaults.
+	site *siteStore
 }
 
 func (f httpAccountRepository) Credentials(ctx context.Context, name string) (domain.Credentials, error) {
@@ -68,6 +71,13 @@ func (f httpAccountRepository) UpdateProfile(ctx context.Context, a domain.Actor
 }
 func (f httpAccountRepository) ReplaceLibraryAccess(ctx context.Context, a domain.Actor, id string, ids []string) error {
 	return f.libraries(ctx, a, id, ids)
+}
+
+func (f httpAccountRepository) GetPreferences(ctx context.Context, a domain.Actor) (domain.UserPreferences, error) {
+	return f.preferences(ctx, a, nil)
+}
+func (f httpAccountRepository) SetPreferences(ctx context.Context, a domain.Actor, p domain.UserPreferences) (domain.UserPreferences, error) {
+	return f.preferences(ctx, a, &p)
 }
 
 type httpAccountPasswords struct {
@@ -156,7 +166,7 @@ func TestAccountHTTPLoginPublicUsesPeerAndCannotSelectNativeKind(t *testing.T) {
 		},
 		login: func(_ context.Context, input domain.LoginInput) (domain.SessionGrant, error) {
 			commits++
-			if !input.PasswordOK || input.IP != "198.51.100.23" || input.DeviceName != "browser" {
+			if !input.PasswordOK || input.IP != "198.51.100.23" || input.DeviceName != "browser" || input.Native || input.Client != (domain.NativeClient{}) {
 				t.Fatal("incorrect verified login input")
 			}
 			for _, field := range []string{"Kind", "ClientKind", "Admin"} {
@@ -635,7 +645,7 @@ func TestAccountHTTPOpenAPIMatchesRoutesAndHasValidRequiredArrays(t *testing.T) 
 		paths := spec["paths"].(map[string]any)
 		routerRoutes := map[string]bool{}
 		if err := chi.Walk(f.handler.(chi.Router), func(method, path string, _ http.Handler, _ ...func(http.Handler) http.Handler) error {
-			if strings.HasPrefix(path, "/api/v1/auth/") || strings.HasPrefix(path, "/api/v1/users") {
+			if strings.HasPrefix(path, "/api/v1/auth/") || strings.HasPrefix(path, "/api/v1/users") || strings.HasPrefix(path, "/api/v1/access/") || path == "/api/v1/sessions" {
 				routerRoutes[strings.ToLower(method)+" "+path] = true
 			}
 			return nil
@@ -644,18 +654,18 @@ func TestAccountHTTPOpenAPIMatchesRoutesAndHasValidRequiredArrays(t *testing.T) 
 		}
 		documentedRoutes := map[string]bool{}
 		for path, methods := range paths {
-			if !strings.HasPrefix(path, "/api/v1/auth/") && !strings.HasPrefix(path, "/api/v1/users") {
+			if !strings.HasPrefix(path, "/api/v1/auth/") && !strings.HasPrefix(path, "/api/v1/users") && !strings.HasPrefix(path, "/api/v1/access/") && path != "/api/v1/sessions" {
 				continue
 			}
 			for method, raw := range methods.(map[string]any) {
 				documentedRoutes[method+" "+path] = true
 				op := raw.(map[string]any)
-				if path == "/api/v1/auth/login" {
+				if path == "/api/v1/auth/login" || path == "/api/v1/auth/login/native" || path == "/api/v1/auth/login/second-factor" {
 					if _, exists := op["security"]; exists {
 						t.Fatal("public login documented as authenticated")
 					}
-				} else if security, ok := op["security"].([]any); !ok || len(security) != 1 {
-					t.Fatal("protected route lacks bearer security")
+				} else if security, ok := op["security"].([]any); !ok || len(security) != 2 {
+					t.Fatal("protected route lacks bearer and web session security")
 				}
 				if method == "delete" {
 					if _, exists := op["requestBody"]; exists {
@@ -667,7 +677,7 @@ func TestAccountHTTPOpenAPIMatchesRoutesAndHasValidRequiredArrays(t *testing.T) 
 		if !reflect.DeepEqual(routerRoutes, documentedRoutes) {
 			t.Fatalf("documented account routes differ: router=%v spec=%v", routerRoutes, documentedRoutes)
 		}
-		if enabled && len(routerRoutes) != 18 || !enabled && len(routerRoutes) != 0 {
+		if enabled && len(routerRoutes) != 47 || !enabled && len(routerRoutes) != 0 {
 			t.Fatalf("unexpected rollout route count %d", len(routerRoutes))
 		}
 		data, err := json.Marshal(spec)

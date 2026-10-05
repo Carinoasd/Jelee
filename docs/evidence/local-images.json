@@ -1,0 +1,259 @@
+{
+  "schemaVersion": 1,
+  "scope": "Local Primary JPEG/PNG image product slice",
+  "baseCommit": "8fbb770aa2cc578c753b2529fd2429f79b13715a",
+  "result": "passed-with-explicit-scope",
+  "wholeG40Complete": false,
+  "acceptance100000Images": false,
+  "acceptance24Hours": false,
+  "source": {
+    "firstFiles": 902,
+    "firstRecordSha256": "7f679abd12467e8cc316b7af40488b3bba3251b2d754a4373616682098432786",
+    "finalFiles": 905,
+    "finalRecordSha256": "2e4b914fb5349e48a85a9dd695e1a17a39b4ea4616a90cbbe0abd3e70128c866",
+    "changesAfterUnitTests": [
+      "internal/platform/runtime/images_fixture_linux_test.go",
+      "internal/platform/runtime/images_fixture_other_test.go",
+      "internal/platform/runtime/images_fixture_windows_test.go",
+      "internal/platform/runtime/images_integration_test.go"
+    ],
+    "changesAreIntegrationFixturesOnly": true,
+    "finalSourcesPreserved": true,
+    "incrementSourceSha256": {
+      ".env.example": "235141a11f21232e140fd5e936a85554aa10d15136ad9312e9b34e143ae71ecc",
+      "go.mod": "40b0d90b29d879c14f3d6200d343248694345ba188c60efcaf7bc51789a6d475",
+      "go.sum": "52c2a25ba21d411a8840aeec050edd5b95d4a64a25ac313bc4b15fdcac8d3228",
+      "internal/adapter/http/images.go": "5661289097f2f36387d85457b06425f830dae2305177bdd96743e6980d5eef58",
+      "internal/adapter/http/images_openapi.go": "c6b227b5015d86ee8fbce18919e590e381ddba0419cb9271f86e3512bb8cf39a",
+      "internal/adapter/http/images_test.go": "7e313e612f354d068e63113943460bf36d2f9c2ce448cce260acfbe6df372f3d",
+      "internal/adapter/http/openapi.go": "826985f4596f75107b1a6b3a794dd4dc8940d9f3a47b22c7d7db03d66f54723f",
+      "internal/adapter/http/server.go": "22f3619f98a3459aa295d485ec625eff0c42120eebd3f4187698113e258f042e",
+      "internal/adapter/images/LICENSE.x-image": "911f8f5782931320f5b8d1160a76365b83aea6447ee6c04fa6d5591467db9dad",
+      "internal/adapter/images/cache.go": "49ce3a412f0ba1ae4d1e33dc52a9ef25e8d266767a50e54a1f11c1f3cf7a296f",
+      "internal/adapter/images/cache_test.go": "51a0e215c5c63e2e04475d25364b800a20a5854c3aff1055ec7f52b20396a0be",
+      "internal/adapter/images/processor.go": "ad36e02241da73f8d3aa804d215b2830a6255512adab1079069f49360ebea876",
+      "internal/adapter/images/processor_test.go": "0ebf4c65d8627e1a26c5c5d086c05d0debeee6ec9b32f4efce21b55cea1bd34c",
+      "internal/adapter/images/source.go": "b571a30bfdb8abdba1dc96cfcf67d0bcb1c648156826ad0b5123f6126d4f8ba2",
+      "internal/adapter/images/source_linux.go": "80ed58c1278c16c2d8efbef9673c4381f79fa0b655488b0d9c62754a916b7c48",
+      "internal/adapter/images/source_linux_test.go": "18a0aa806190833a2ca3fcd4cb3a9b011193eb6f5da0411648063f1392b49130",
+      "internal/adapter/images/source_other.go": "5b246ed47c7a7123f1d880be6f8bfdff7f3267e90db21561511140099c8afbb9",
+      "internal/adapter/images/source_other_test.go": "fa9ab1ba39299e922bbdc629c1d6b2cea1283194f94c969404f44b15705334e7",
+      "internal/adapter/images/source_test.go": "db07be2df769fb5d4f4b0cde6577d35cda0a2d3538bded8bce97bfd00077c504",
+      "internal/adapter/images/source_windows.go": "fc3c619718e4d109ed41b8c16c6bdba0054159ede9538883a68cb7c1e7095659",
+      "internal/adapter/images/source_windows_test.go": "4fd1863e3a55e8819c1a24327edd08cbefdfbb436acc359ecbcc1607f0b64b6b",
+      "internal/adapter/postgres/images.go": "4c12fbc1aae6b31883a221c8602b1b9c70debaf91b8965b3e7143fe20eb86607",
+      "internal/adapter/postgres/images_test.go": "e9e368f942fb2d3c28287ae7df5a0f445855da34c43321e7a5dce5a2b8302e7f",
+      "internal/app/images.go": "24d238fca79d2e15d3967714b3baa365c15acc3d960c5b898379953c12c32528",
+      "internal/app/images_ports.go": "b0cba8693342e85df66cbab56223e4b83a2041e376f77a2dade4d88432dd5651",
+      "internal/app/images_test.go": "d2342c3195e47011dd65d677bd6440b257876f43a42920b172a5ad868fd58f17",
+      "internal/domain/images.go": "ad3790bb3791b66b3c320f2911d647320fc393f7471fdebb8c6262413f6f9ddd",
+      "internal/platform/config/config.go": "a115192c93bf3ba2a945d7f7d8579f1c067eecab6a6cf3db81e53c09bb1c488d",
+      "internal/platform/config/images.go": "3f5c20e99160b8b87604c41198802268cd44cbd3bd39406237774c2373a8fbc5",
+      "internal/platform/config/images_test.go": "eda4c57c6cde3852131f03a1982d3b59a84bc42c6a471f28733d92e8a9d4d145",
+      "internal/platform/i18n/messages.go": "60892290343ec6a674a6c9948a9e639bdd44195742b9718d06f35ba219c9336e",
+      "internal/platform/runtime/images_cleanup_test.go": "922e6d41ba33d182e915ef69cf0b4c1fd4361bce1fcfd8840b5dd74225fc96c5",
+      "internal/platform/runtime/images_fixture_linux_test.go": "93be9f5bad31d07daa8b9151c7e0c21601f281446b3d9cc0ac174a83e1ea5f59",
+      "internal/platform/runtime/images_fixture_other_test.go": "a6b681ad5ced80d01154063a138724844cdfc78fc81f807fe8105db4ec54747c",
+      "internal/platform/runtime/images_fixture_windows_test.go": "39d41a0b00e40ff8eb941edb879daf8251c8bfe77ff95c227452809cd3dd8640",
+      "internal/platform/runtime/images_integration_test.go": "403161b4e2ded1d26988a576522bf56d7f087029ddff87fdbe8714d2d65c85f9",
+      "internal/platform/runtime/runtime.go": "f0266b428eb5b4a98c59ca913c683a86c06fbb5534f7e3a0031995d8a28dc8ea"
+    }
+  },
+  "toolchain": {
+    "go": "1.27.1",
+    "imageModule": "golang.org/x/image v0.46.0"
+  },
+  "checks": {
+    "windows-unit-first": {
+      "mode": "unit",
+      "exitCode": 0,
+      "events": {
+        "pass": 723,
+        "skip": 1,
+        "fail": 0
+      },
+      "failures": [],
+      "logSha256": "eba3613905529e3b23303e266699f4bcf1905d09aea9c44e974ac4a4fac6ea8b"
+    },
+    "linux-unit-first": {
+      "mode": "unit",
+      "exitCode": 0,
+      "events": {
+        "pass": 709,
+        "skip": 0,
+        "fail": 0
+      },
+      "failures": [],
+      "logSha256": "27c81cb98a2748cde6ef9ecc11decc49bd080eaf659bdc95dde7d3c8b022cad0"
+    },
+    "linux-pg-private-fixture": {
+      "mode": "postgres",
+      "exitCode": 0,
+      "events": {
+        "pass": 10,
+        "skip": 0,
+        "fail": 0
+      },
+      "failures": [],
+      "logSha256": "a41a0c18a18e13d79919c95a319d62b2d7d8ad31c27fda8af22d35992ea3f23e"
+    }
+  },
+  "http": {
+    "windowsFull": {
+      "topLevelPass": 101,
+      "passEvents": 444,
+      "skipEvents": 0,
+      "logSha256": "cdb82d110540bf12b030c7f601a91bd8854a8b5004e7f8b43b9b36c2fa7b4afb",
+      "packageCoveragePercent": 89.2
+    },
+    "linuxRaceFocused": {
+      "topLevelPass": 8,
+      "passEvents": 44,
+      "skipEvents": 0,
+      "logSha256": "34b669ca2e44d4b5a8c03196083f7ffa0ce08527a995c70f427ca52154bf2cff"
+    }
+  },
+  "finalChecks": [
+    {
+      "name": "gofmt",
+      "exitCode": 0,
+      "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "vet",
+      "exitCode": 0,
+      "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "architecture",
+      "exitCode": 0,
+      "logSha256": "12e8a8fb1841d207a6855b81dd543b4117a1b2828e7ce7c11f54d7705676d3a6"
+    },
+    {
+      "name": "build-jelee",
+      "exitCode": 0,
+      "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "build-jelee-migrate",
+      "exitCode": 0,
+      "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "build-jelee-cli",
+      "exitCode": 0,
+      "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "module-verify",
+      "exitCode": 0,
+      "logSha256": "b4537ed75f533f993f371954de47e42a793b8e5b0587577de7e27fb3e50696bd"
+    }
+  ],
+  "nativeIntegration": {
+    "platform": "Linux",
+    "race": true,
+    "postgres": "16.15 dedicated owned schema",
+    "realFxHttpPostgres": true,
+    "productionDefaultPasswordHasher": true,
+    "distinctImages": 2,
+    "formats": [
+      "png",
+      "jpeg"
+    ],
+    "sourceDimensions": [
+      128,
+      64
+    ],
+    "outputDimensions": [
+      32,
+      16
+    ],
+    "outputFormat": "jpeg",
+    "verified": [
+      "unauthenticated 401",
+      "missing ACL 404",
+      "granted viewer GET 200",
+      "alpha composited over white",
+      "repeat bytes and ETag stable",
+      "GET 304",
+      "HEAD empty body",
+      "revoked ACL denies conditional GET",
+      "administrator GET 200",
+      "four original file hashes unchanged",
+      "scratch empty",
+      "lifetime cancelled",
+      "HTTP stopped",
+      "runtime database connections zero"
+    ],
+    "limits": [
+      "No scale or RSS measurement in this small integration",
+      "Warm byte equality is not independent cache-hit proof; processor tests check counters",
+      "Normal stop is exercised here; owned-body join is covered by separate unit tests"
+    ]
+  },
+  "defaults": {
+    "maxConcurrent": 2,
+    "workingBytesPerImage": 100663296,
+    "cacheBytes": 33554432,
+    "cacheEntries": 128,
+    "maxSourceBytes": 16777216,
+    "maxOutputBytes": 2097152,
+    "timeoutSeconds": 15,
+    "cacheTTLSeconds": 300,
+    "maxOutputDimension": 1024
+  },
+  "memoryContract": "Conservative decoder allocation estimate and bounded cache; not an OS RSS hard limit",
+  "knownInitialFailures": [
+    {
+      "case": "Linux integration fixture scratch permissions",
+      "report": {
+        "mode": "postgres",
+        "exitCode": 1,
+        "events": {
+          "pass": 9,
+          "skip": 0,
+          "fail": 1
+        },
+        "failures": [
+          {
+            "package": "github.com/MoYuanCN/Jelee/internal/platform/runtime",
+            "test": "TestImagesRuntimePostgresIntegration"
+          },
+          {
+            "package": "github.com/MoYuanCN/Jelee/internal/platform/runtime",
+            "test": null
+          }
+        ],
+        "logSha256": "cbf843a9d14650208a70830c37fd688b8d056fbb6f53c7ef66611d9a2ad953a4"
+      },
+      "fix": "Owned private scratch fixture; production permission checks unchanged"
+    },
+    {
+      "case": "Windows mixed-separator absolute TempDir",
+      "fix": "Accept valid absolute configuration; clean in adapter"
+    },
+    {
+      "case": "Windows restricted token and held-handle replacement fixture",
+      "fix": "Standard token for real ACL tests; fixture opens with share-delete semantics"
+    }
+  ],
+  "skip": "Windows case-collision fixture requires a case-sensitive directory; native Linux covers it",
+  "review": "Source handle ACL and HTTP/runtime boundaries reviewed independently; no blocking findings",
+  "protected": {
+    "publishedSQLFiles": 90,
+    "liveTVCoreFiles": 5,
+    "licenseAndRequirementsUnchanged": true
+  },
+  "remaining": [
+    "other roles and names",
+    "other formats and crop/orientation",
+    "remote/NFO/embedded retrieval",
+    "persistent variant directory",
+    "locks and rebuild jobs",
+    "legacy routes/tag long cache/UI",
+    "100000 image load",
+    "mixed workload",
+    "24 hour stability"
+  ]
+}

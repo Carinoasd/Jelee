@@ -29,20 +29,27 @@ func fixture(t *testing.T) (string, map[string]pin, string) {
 
 func TestImagePinsEmbeddedExactClosure(t *testing.T) {
 	pins, err := imagePins()
-	if err != nil || len(pins) != 16 {
-		t.Fatal("image closure is not 8 libraries, 6 runtime notices, ffprobe and its license")
+	// 16 ffprobe/glibc files plus 33 E4 files: mkvmerge, mkvextract,
+	// mediainfo, 22 bundled and 3 Debian libraries, 5 notices.
+	if err != nil || len(pins) != 49 {
+		t.Fatal("image closure is not 8 libraries, 6 runtime notices, ffprobe and its license plus the E4 tools")
+	}
+	for _, name := range []string{"usr/lib/jelee/mkvtoolnix/mkvmerge", "usr/lib/jelee/mkvtoolnix/mkvextract", "usr/lib/jelee/mediainfo", "licenses/mkvtoolnix/COPYING", "licenses/mediainfo/LICENSE"} {
+		if _, ok := pins[filepath.FromSlash(name)]; !ok {
+			t.Fatal("missing E4 image pin " + name)
+		}
 	}
 	if pins[filepath.FromSlash("usr/lib/jelee/ffprobe")].digest != "a5bd5e9f8d74ab2c6d7d9e2e2738ff6d67bf9613e7143e143ba8ebe9b06385fb" {
 		t.Fatal("wrong ffprobe pin")
 	}
 	for name := range pins {
-		if strings.Contains(name, "ffmpeg") {
-			t.Fatal("ffmpeg entered runtime image")
+		if strings.Contains(name, "ffmpeg") || strings.Contains(name, "mkvpropedit") {
+			t.Fatal("ffmpeg or mkvpropedit entered runtime image")
 		}
 	}
 	delete(pins, filepath.FromSlash("usr/lib/jelee/ffprobe"))
 	again, _ := imagePins()
-	if len(again) != 16 {
+	if len(again) != 49 {
 		t.Fatal("mutable embedded pin map")
 	}
 }
@@ -160,5 +167,34 @@ func TestImageMainRejectsArgumentsWithFixedOutput(t *testing.T) {
 	var failure *exec.ExitError
 	if !errors.As(err, &failure) || failure.ExitCode() != 1 || string(output) != "runtime_image_invalid\n" {
 		t.Fatalf("unsafe checker main response: %v", err)
+	}
+}
+
+func TestOCRPinsStayOutOfTheDefaultImage(t *testing.T) {
+	pins, err := ocrPins()
+	if err != nil || len(pins) < 100 || len(pins) > 128 {
+		t.Fatalf("OCR pins %v %d", err, len(pins))
+	}
+	for _, name := range []string{"usr/lib/jelee/tesseract/tesseract", "usr/lib/jelee/tesseract/lib/libtesseract.so.5", "usr/lib/jelee/tesseract/tessdata/chi_tra.traineddata", "lib/x86_64-linux-gnu/libresolv.so.2", "licenses/tesseract/tesseract-ocr/copyright"} {
+		if _, ok := pins[filepath.FromSlash(name)]; !ok {
+			t.Fatal("missing OCR pin " + name)
+		}
+	}
+	base, _ := imagePins()
+	for name := range pins {
+		if _, shared := base[name]; shared {
+			t.Fatalf("%s is pinned by both trees", name)
+		}
+		if strings.Contains(name, "tesseract") {
+			continue
+		}
+		if !strings.HasPrefix(name, filepath.FromSlash("usr/lib/jelee/tesseract/")) && name != filepath.FromSlash("lib/x86_64-linux-gnu/libresolv.so.2") && !strings.HasPrefix(name, filepath.FromSlash("licenses/tesseract/")) {
+			t.Fatalf("OCR file outside its directories: %s", name)
+		}
+	}
+	for name := range base {
+		if strings.Contains(name, "tesseract") || strings.Contains(name, "tessdata") {
+			t.Fatal("OCR file in the default runtime image: " + name)
+		}
 	}
 }

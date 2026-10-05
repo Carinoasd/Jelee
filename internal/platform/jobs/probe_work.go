@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 
+	"github.com/MoYuanCN/Jelee/internal/app"
 	"github.com/MoYuanCN/Jelee/internal/domain"
 )
 
@@ -208,6 +209,17 @@ func (r *Runner) probeMiss(ctx context.Context, parent domain.JobLease, request 
 	if !r.probeAvailable() {
 		return domain.ProbePhase{}, false, &probeAbort{domain.ProbePhaseRuntimeUnavailable, true}, false
 	}
+	// Queue for CPU before occupying a database child lease. Parent heartbeats
+	// remain active while waiting; no shared I/O permit is held here.
+	releaseCPU, admissionErr := r.acquireWork(ctx, app.WorkCPU)
+	if admissionErr != nil {
+		return domain.ProbePhase{}, false, admissionErr, false
+	}
+	defer func() {
+		if releaseCPU != nil {
+			releaseCPU()
+		}
+	}()
 	dbCtx, cancel := context.WithTimeout(ctx, r.options.DBOperationTimeout)
 	child, err := r.probeRepository.AcquireProbe(dbCtx, parent, token, item.candidate)
 	cancel()
@@ -229,6 +241,8 @@ func (r *Runner) probeMiss(ctx context.Context, parent domain.JobLease, request 
 		return domain.ProbePhase{}, false, &probeAbort{domain.ProbePhaseIdentityMismatch, true}, false
 	}
 	observation, err := r.probe(ctx, item.entry.Source)
+	releaseCPU()
+	releaseCPU = nil
 	if ctx.Err() != nil {
 		return domain.ProbePhase{}, false, ctx.Err(), false
 	}

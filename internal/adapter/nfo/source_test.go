@@ -41,7 +41,7 @@ type mutatingSourceWriter struct{}
 
 func (mutatingSourceWriter) Write(data []byte) (int, error) {
 	for i := range data {
-		data[i] = '!'
+		data[i] = '!' //nolint:staticcheck // SA1023: a hostile writer proves Source copies its bytes
 	}
 	return len(data), nil
 }
@@ -66,7 +66,7 @@ func TestSourcePrivateOriginalHashAndIndependentParse(t *testing.T) {
 	if source.Stamp().SHA256 != sourceDigest(content) {
 		t.Fatal("stamp was not a value copy")
 	}
-	encoded, err := json.Marshal(source)
+	encoded, err := json.Marshal(source) //nolint:staticcheck // SA9005: proves Source marshals to {} and leaks nothing
 	if err != nil || string(encoded) != "{}" {
 		t.Fatal("source exposed its original bytes, stamp or path")
 	}

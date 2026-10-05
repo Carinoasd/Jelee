@@ -1,0 +1,87 @@
+# Jelee reference reverse proxy for Caddy 2.7+ (G37.3, G11).
+#
+# Reference only: syntax was checked with `caddy validate`, but this file has
+# NOT been verified against a real public deployment, real clients or real
+# media. Verify Range seeking, large-file playback, Host checks and logs in
+# your own environment before relying on it (see docs/deployment.md).
+#
+# Replace media.example.com. Caddy obtains certificates automatically and
+# serves HTTP/2 (and HTTP/3) over TLS. Jelee must list the public host name in
+# JELEE_ALLOWED_HOSTS, and JELEE_TRUSTED_PROXIES must contain the address this
+# proxy connects FROM as Jelee sees it, e.g. '127.0.0.1/32,::1/128' when Caddy
+# and Jelee share a host. With the bundled Compose stack the peer is usually
+# the Docker bridge gateway instead; use the narrowest matching CIDR.
+{
+	servers {
+		# Only set trusted_proxies here if a CDN/load balancer sits in front of
+		# Caddy; otherwise Caddy replaces client supplied X-Forwarded-For with
+		# the real peer address, which is what Jelee expects.
+		# trusted_proxies static 203.0.113.0/24
+	}
+}
+
+media.example.com {
+	# Jelee answers HSTS only on direct TLS; TLS terminates here.
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		-Server
+		-Via
+		-X-Powered-By
+	}
+
+	# Largest Jelee JSON body is 2 MiB; Jelee enforces exact per-route limits
+	# and answers body_too_large itself. Caddy applies this cap while the body
+	# is read, so a backend that answers without reading is unaffected.
+	request_body {
+		max_size 4MB
+	}
+
+	# Prometheus metrics need a Jelee admin token already; additionally keep
+	# them off the public edge. Adjust to your scraper address.
+	@metrics_public {
+		path /metrics
+		not remote_ip 127.0.0.1 ::1
+	}
+	respond @metrics_public 403
+
+	# Privacy: access logs contain client addresses; keep retention short.
+	log {
+		output file /var/log/caddy/jelee.access.log {
+			roll_keep 7
+			roll_keep_for 168h
+		}
+	}
+
+	# No `encode` directive: media must not be recompressed.
+	reverse_proxy 127.0.0.1:8097 {
+		# Jelee validates Host against JELEE_ALLOWED_HOSTS; this site only
+		# matches media.example.com, so {host} is that name.
+		header_up Host {host}
+		# Jelee ignores these for addresses, privileges and URLs; drop the
+		# client supplied values.
+		header_up -Forwarded
+		header_up -X-Real-IP
+		header_up -X-Forwarded-Host
+		header_up -X-Forwarded-Proto
+
+		# Stream large files immediately instead of buffering (direct
+		# delivery). Range/If-Range headers are forwarded unchanged.
+		flush_interval -1
+
+		transport http {
+			dial_timeout 5s
+			# Jelee aborts a stream when one write stalls for 30 s; the
+			# response header timeout only covers time to first byte.
+			response_header_timeout 30s
+			keepalive 90s
+		}
+	}
+}
+
+# Plain HTTP for media.example.com is redirected to HTTPS automatically. Any
+# other plain-HTTP Host (including the bare IP) is closed without a response
+# instead of being redirected back to itself; over TLS other names get no
+# certificate. Nothing but media.example.com reaches Jelee.
+http:// {
+	abort
+}

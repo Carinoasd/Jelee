@@ -1,0 +1,43 @@
+{
+  "scope": "G03 legacy HTTP negotiation; frontend remains incomplete",
+  "headerLimitCharacters": 8192,
+  "fallbacks": {
+    "missing": "configured server culture (zh-CN by default)",
+    "unknownMalformedOrAllExcluded": "en-US"
+  },
+  "selection": [
+    "four canonical UI locales",
+    "language aliases and Chinese script/region aliases",
+    "quality weights, specificity and original order",
+    "q=0 exclusion and wildcard"
+  ],
+  "precedence": "replace only the existing header provider; earlier query/cookie providers retained",
+  "tests": {
+    "actualHostHttpCases": 34,
+    "realMiddlewareSilentFallbackCases": 3,
+    "finalFocusedPassed": 37,
+    "finalFocusedFailed": 0,
+    "finalFocusedSkipped": 0,
+    "fullSolutionBeforeThreeLogTests": {
+      "suites": 17,
+      "Passed": 4150,
+      "NotExecuted": 21,
+      "Failed": 0
+    },
+    "productionSourceUnchangedAfterFullSolution": true,
+    "goI18n": "PASS 0.200s",
+    "goHttp": "PASS 2.531s",
+    "format": "verify-no-changes; workspace-load warning"
+  },
+  "sourceIndex": "../branding-rename-map.md",
+  "sourceHashes": {
+    "startup": "74c5f97b826a4609371ebfb36abda9c9f0b5fabec2f10fa8bd9ccdc9fa3f351a",
+    "headerProvider": "0e5a42c0ad73bfa89514b8aa686fa97ef10ab78b43348c6fbd89991594a4a212",
+    "httpTests": "df5a652cd26d5bb85446739e8b46e8c928cc68352466238b95c385de66d3240e"
+  },
+  "limitations": [
+    "G03 frontend language selection, unused-key/hardcoded-text gates, complete writing style and date/number/unit formatting remain unfinished",
+    "No new legacy user preference schema; persisted Go account preference overrides header in its existing implementation/tests",
+    "Complete project and branding acceptance not achieved"
+  ]
+}

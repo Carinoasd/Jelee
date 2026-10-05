@@ -42,7 +42,7 @@ func saveIgnoreImageProgress(ctx context.Context, tx pgx.Tx, l domain.JobLease, 
 		if err := tx.QueryRow(ctx, imageCurrentCountsSQL, l.Job.LibraryID, l.Job.ID, epoch).Scan(&p.Added, &p.Changed, &p.Unchanged, &p.Uncompared); err != nil {
 			return storageError(err)
 		}
-		err := tx.QueryRow(ctx, `SELECT count(*) FROM library_inventory_baseline b LEFT JOIN job_inventory i ON i.job_id=$2::uuid AND i.root_id=b.root_id AND i.path=b.path LEFT JOIN `+ignoreDecisionTable(family)+` d ON d.job_id=$2::uuid AND d.root_id=b.root_id AND d.path=b.path WHERE b.library_id=$1::uuid AND b.kind='image' AND ((i.id IS NOT NULL AND i.kind<>'image') OR (i.id IS NULL AND d.outcome='included_missing'))`, l.Job.LibraryID, l.Job.ID).Scan(&p.Missing)
+		err := tx.QueryRow(ctx, ignoreImageMissingSQL(family), l.Job.LibraryID, l.Job.ID).Scan(&p.Missing)
 		if err != nil {
 			return storageError(err)
 		}
@@ -149,15 +149,29 @@ func (s *Store) finishIgnoreJob(ctx context.Context, l domain.JobLease, family b
 		if count > 500000 || count > int64(current.Policy.MaxEntries) {
 			return domain.ErrScanLimit
 		}
-		// Keep only classified excluded rows from this same scope, untouched:
-		// attributes, source epoch and observed revision remain historical.
-		_, err = tx.Exec(ctx, `DELETE FROM library_inventory_baseline b WHERE b.library_id=$1::uuid AND (NOT $3::boolean OR NOT EXISTS(SELECT 1 FROM `+ignoreDecisionTable(family)+` d WHERE d.job_id=$2::uuid AND d.root_id=b.root_id AND d.path=b.path AND d.outcome='excluded'))`, current.Job.LibraryID, l.Job.ID, c.comparable)
-		if err != nil {
-			return storageError(err)
+		mode := domain.IgnoreModeJeleeignore
+		if family {
+			mode = domain.IgnoreModeFamily
 		}
-		_, err = tx.Exec(ctx, `WITH revision AS (UPDATE libraries SET inventory_baseline_revision=inventory_baseline_revision+1 WHERE id=$1::uuid RETURNING inventory_baseline_revision) INSERT INTO library_inventory_baseline(library_id,root_id,path,attributes_known,kind,size,modified_unix_nano,inventory_generation,observed_revision) SELECT $1::uuid,root_id,path,true,kind,size,modified_unix_nano,$3,revision.inventory_baseline_revision FROM job_inventory CROSS JOIN revision WHERE job_id=$2::uuid`, current.Job.LibraryID, l.Job.ID, epoch)
-		if err != nil {
-			return storageError(err)
+		excluded := int64(0)
+		if c.comparable {
+			excluded = c.counts.Excluded
+		}
+		published, publishErr := publishPreparedInventory(ctx, tx, current, mode, excluded)
+		if publishErr != nil {
+			return publishErr
+		}
+		if !published {
+			// Keep only classified excluded rows from this same scope, untouched:
+			// attributes, source epoch and observed revision remain historical.
+			_, err = tx.Exec(ctx, `DELETE FROM library_inventory_baseline b WHERE b.library_id=$1::uuid AND (NOT $3::boolean OR NOT EXISTS(SELECT 1 FROM `+ignoreDecisionTable(family)+` d WHERE d.job_id=$2::uuid AND d.root_id=b.root_id AND d.path=b.path AND d.outcome='excluded'))`, current.Job.LibraryID, l.Job.ID, c.comparable)
+			if err != nil {
+				return storageError(err)
+			}
+			_, err = tx.Exec(ctx, `WITH revision AS (UPDATE libraries SET inventory_baseline_revision=inventory_baseline_revision+1 WHERE id=$1::uuid RETURNING inventory_baseline_revision) INSERT INTO library_inventory_baseline(library_id,root_id,path,attributes_known,kind,size,modified_unix_nano,inventory_generation,observed_revision) SELECT $1::uuid,root_id,path,true,kind,size,modified_unix_nano,$3,revision.inventory_baseline_revision FROM job_inventory CROSS JOIN revision WHERE job_id=$2::uuid`, current.Job.LibraryID, l.Job.ID, epoch)
+			if err != nil {
+				return storageError(err)
+			}
 		}
 	}
 	if err = releaseParentProbeLeases(ctx, tx, l.Job.ID); err != nil {
@@ -167,6 +181,9 @@ func (s *Store) finishIgnoreJob(ctx context.Context, l domain.JobLease, family b
 		return err
 	}
 	if err = auditAccount(ctx, tx, domain.Actor{}, "job.finished", l.Job.ID, nil, map[string]any{"state": domain.JobSucceeded, "errorCode": "", "missing": result.Missing, "reviewRequired": result.ReviewRequired}); err != nil {
+		return err
+	}
+	if err = appendScanFinished(ctx, tx, s.webhooksOn(), current.Job, domain.JobSucceeded, "", result.Missing, result.ReviewRequired); err != nil {
 		return err
 	}
 	if err = trimJobs(ctx, tx, current.Policy.HistoryLimit); err != nil {
@@ -181,4 +198,18 @@ func (s *Store) finishIgnoreJob(ctx context.Context, l domain.JobLease, family b
 		}
 	}
 	return storageError(tx.Commit(ctx))
+}
+
+func ignoreImageMissingSQL(family bool) string {
+	return `WITH baseline AS MATERIALIZED (
+ SELECT root_id,path FROM library_inventory_baseline_data
+ WHERE library_id=$1::uuid AND snapshot_id=(SELECT active_inventory_snapshot FROM libraries WHERE id=$1::uuid) AND kind='image'),
+ current AS MATERIALIZED (SELECT root_id,path,kind FROM job_inventory WHERE job_id=$2::uuid),
+ missing AS (
+ SELECT root_id,path FROM current WHERE kind<>'image'
+ UNION
+ (SELECT root_id,path FROM ` + ignoreDecisionTable(family) + ` WHERE job_id=$2::uuid AND outcome='included_missing'
+ EXCEPT SELECT root_id,path FROM current)),
+ lost AS (SELECT root_id,path FROM baseline INTERSECT SELECT root_id,path FROM missing)
+ SELECT count(*) FROM lost`
 }

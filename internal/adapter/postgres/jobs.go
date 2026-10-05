@@ -81,7 +81,26 @@ func trimJobs(ctx context.Context, tx pgx.Tx, limit int) error {
 	if _, err := releaseExpiredProbeLeases(ctx, tx, domain.ProbeSweepMax); err != nil {
 		return err
 	}
-	_, err := tx.Exec(ctx, `DELETE FROM jobs WHERE id IN (SELECT id FROM jobs WHERE state IN ('succeeded','failed','cancelled') ORDER BY finished_at DESC,id DESC OFFSET $1)`, limit)
+	var version int
+	var dirty bool
+	if err := tx.QueryRow(ctx, `SELECT version,dirty FROM schema_migrations`).Scan(&version, &dirty); err != nil {
+		return storageError(err)
+	}
+	// Historical migration fixtures exercise older clean schemas. A current or
+	// dirty schema never falls back if its journal table is missing.
+	journal := ""
+	if version >= 49 || dirty {
+		journal = ` AND NOT EXISTS(SELECT 1 FROM nfo_write_commit_journal c WHERE c.job_id=jobs.id)`
+	}
+	// An active catalog synchronisation still reads its accepted source scan.
+	var syncRequests bool
+	if err := tx.QueryRow(ctx, `SELECT to_regclass('catalog_sync_requests') IS NOT NULL`).Scan(&syncRequests); err != nil {
+		return storageError(err)
+	}
+	if syncRequests {
+		journal += ` AND NOT EXISTS(SELECT 1 FROM catalog_sync_requests r JOIN jobs active ON active.id=r.job_id WHERE r.source_job_id=jobs.id AND active.state IN ('queued','running'))`
+	}
+	_, err := tx.Exec(ctx, `DELETE FROM jobs WHERE id IN (SELECT id FROM jobs WHERE state IN ('succeeded','failed','cancelled')`+journal+` AND NOT EXISTS(SELECT 1 FROM catalog_import_requests r JOIN jobs active ON active.id=r.job_id WHERE r.source_job_id=jobs.id AND active.state IN ('queued','running')) ORDER BY finished_at DESC,id DESC OFFSET $1)`, limit)
 	return storageError(err)
 }
 
@@ -95,14 +114,26 @@ func (s *Store) GetJob(ctx context.Context, a domain.Actor, id string) (domain.J
 	if !domain.ValidID(id) {
 		return domain.Job{}, domain.ErrNotFound
 	}
-	tx, err := s.authorizedJobs(ctx, a)
+	if !domain.ValidID(a.UserID) || !domain.ValidID(a.SessionID) {
+		return domain.Job{}, domain.ErrUnauthenticated
+	}
+	// Status reads need only the committed MVCC snapshot. Keep account/session
+	// serialization, but do not wait on the worker's exclusive write lock.
+	// This path takes no job row lock, so it cannot reverse the write lock order.
+	tx, err := s.accountTransaction(ctx)
 	if err != nil {
 		return domain.Job{}, err
 	}
 	defer tx.Rollback(ctx)
+	if _, err = authorizeActorInTransaction(ctx, tx, a, true); err != nil {
+		return domain.Job{}, err
+	}
 	j, err := scanJob(tx.QueryRow(ctx, `SELECT `+jobColumns+` FROM jobs WHERE id=$1::uuid`, id))
 	if err != nil {
 		return j, err
+	}
+	if err = probeAdminStillLive(ctx, tx, a); err != nil {
+		return domain.Job{}, err
 	}
 	return j, storageError(tx.Commit(ctx))
 }

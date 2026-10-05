@@ -11,7 +11,15 @@ type CatalogRepository interface {
 	GetItem(context.Context, string, string) (domain.Item, error)
 }
 
-type Catalog struct{ repository CatalogRepository }
+type Catalog struct {
+	repository CatalogRepository
+	playback   PlaybackRepository
+	browse     CatalogBrowseRepository
+	details    CatalogDetailsRepository
+	progress   *Progress
+	stats      *WatchStats
+	versions   VersionRepository
+}
 
 func NewCatalog(repository CatalogRepository) *Catalog { return &Catalog{repository: repository} }
 func (c *Catalog) List(ctx context.Context, userID, cursor string, limit int) ([]domain.Item, error) {

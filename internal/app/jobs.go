@@ -7,18 +7,26 @@ import (
 )
 
 type Jobs struct {
-	ignoreAvailable func() bool
-	repository      JobRepository
-	policy          domain.JobPolicy
-	probeRepository ProbeJobRepository
-	probeIdentity   *domain.ProbeIdentity
-	probeCapability func() domain.ProbeCapability
-	scanRepository  ScanJobRepository
-	nfoAdmin        NFOAdminRepository
-	nfoQueries      NFOQueryRepository
-	imageQueries    ImageQueryRepository
-	nfoIdentity     *domain.NFOIdentity
-	nfoAvailable    func() bool
+	watchRepository       WatchRepository
+	schedules             ScheduleRepository
+	calendar              ScheduleCalendar
+	importRepository      InventoryImportRepository
+	importVerifier        InventoryImportVerifier
+	cancellationNotifier  JobCancellationNotifier
+	ignoreAvailable       func() bool
+	familyIgnoreAvailable func() bool
+	repository            JobRepository
+	policy                domain.JobPolicy
+	probeRepository       ProbeJobRepository
+	probeIdentity         *domain.ProbeIdentity
+	probeCapability       func() domain.ProbeCapability
+	scanRepository        ScanJobRepository
+	nfoAdmin              NFOAdminRepository
+	nfoQueries            NFOQueryRepository
+	imageQueries          ImageQueryRepository
+	nfoIdentity           *domain.NFOIdentity
+	nfoAvailable          func() bool
+	consistency           *consistencySchedule
 }
 
 func NewJobs(repository JobRepository, policy domain.JobPolicy) (*Jobs, error) {
@@ -56,7 +64,9 @@ func (j *Jobs) Retry(ctx context.Context, actor domain.Actor, id, key string) (d
 		var job domain.Job
 		var replay bool
 		var err error
-		if capable, ok := j.scanRepository.(IgnoreAdmissionRepository); ok {
+		if capable, ok := j.scanRepository.(FamilyIgnoreAdmissionRepository); ok {
+			job, replay, err = capable.RetryScanWithIgnoreFamilies(ctx, actor, id, key, j.policy, probe, nfo, j.currentIgnoreCapabilities())
+		} else if capable, ok := j.scanRepository.(IgnoreAdmissionRepository); ok {
 			job, replay, err = capable.RetryScanWithIgnoreCapability(ctx, actor, id, key, j.policy, probe, nfo, j.ignoreAvailable != nil && j.ignoreAvailable())
 		} else {
 			job, replay, err = j.scanRepository.RetryScanWithStages(ctx, actor, id, key, j.policy, probe, nfo)
@@ -81,7 +91,11 @@ func (j *Jobs) Cancel(ctx context.Context, actor domain.Actor, id string) (domai
 	if err := ctx.Err(); err != nil {
 		return domain.Job{}, err
 	}
-	return j.repository.CancelJob(ctx, actor, id)
+	job, err := j.repository.CancelJob(ctx, actor, id)
+	if err == nil && job.ID == id && job.CancelRequested && job.State == domain.JobRunning && j.cancellationNotifier != nil {
+		j.cancellationNotifier.NotifyJobCancellation(id)
+	}
+	return job, err
 }
 
 func (j *Jobs) Get(ctx context.Context, actor domain.Actor, id string) (domain.Job, error) {

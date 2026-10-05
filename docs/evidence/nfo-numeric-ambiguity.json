@@ -1,0 +1,53 @@
+{
+  "previousCommit": "14cea520474114d1e7a3eb86e4153e3bf213ae3f",
+  "phase": "第三階段：NFO數值單值歧義",
+  "schemaVersion": 28,
+  "verification": {
+    "windows": {
+      "passedPackages": 29,
+      "passedTestEventsIncludingParents": 3252,
+      "skippedTestEvents": 474,
+      "elapsedSeconds": 10.207
+    },
+    "native": {
+      "passedPackages": 5,
+      "passedTestEventsIncludingParents": 1118,
+      "skippedTestEvents": 0,
+      "elapsedSeconds": 3.458
+    },
+    "e2e-restored": {
+      "passedPackages": 1,
+      "passedTestEventsIncludingParents": 1,
+      "skippedTestEvents": 0,
+      "elapsedSeconds": 73.765
+    }
+  },
+  "originalRegressionFailedLeaves": 4,
+  "fullPathNegative": {
+    "negativeLeafFailures": 1,
+    "observed": "HTTP ambiguous year reached provider or write 200",
+    "restoredSources": {
+      "internal/adapter/nfo/item_fields.go": "105f0057313c3b3868f4175754d4c962ad8abae3d1e60526d32d1b2533bde595"
+    },
+    "restoredExitCode": 0
+  },
+  "protectedPublishedMigrationFiles": 56,
+  "sourceSHA256": {
+    "internal/adapter/nfo/item_fields.go": "105f0057313c3b3868f4175754d4c962ad8abae3d1e60526d32d1b2533bde595",
+    "internal/platform/outbound/metadata_apply_integration_test.go": "eea21b03d7db315990cb493a3203ccf5ffc7c81b94c216b429cd7fca2754d282",
+    "internal/adapter/nfo/item_numeric_ambiguity_test.go": "ceb7f799c6eb1e93c03b717e2bc79ff66eeaa8f516651b713c4bf6e6f3275633"
+  },
+  "requirements": {
+    "partial": 184,
+    "blocked": 148,
+    "done": 4
+  },
+  "gates": {
+    "vet": "passed",
+    "productBuild": "passed",
+    "newBrandViolations": 0,
+    "fullBrandViolations": 14735,
+    "gitignoreViolations": 0
+  },
+  "scope": "只補確認投影數值單值守衛；通用解析相容保持，數值持久化尚未開始。沒有DB邏輯或遷移變更；PG驗證本段為完整HTTP路徑，沒有重跑全PG套件。Windows略過身份與前版相同，前版實測證據保持。"
+}

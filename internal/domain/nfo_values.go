@@ -88,7 +88,7 @@ func ValidateNFOCandidateBatch(v []NFOCandidate) error {
 		return ErrInvalid
 	}
 	for i, candidate := range v {
-		if ValidateNFOCandidate(candidate) != nil || i > 0 && candidate.InventoryID <= v[i-1].InventoryID {
+		if ValidateNFOCandidate(candidate) != nil || i > 0 && candidate.InventoryID <= v[i-1].InventoryID { //nolint:gosec // G602: i-1 is guarded by i > 0
 			return ErrInvalid
 		}
 	}

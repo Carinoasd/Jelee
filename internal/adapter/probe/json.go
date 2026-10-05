@@ -88,6 +88,7 @@ func (p *metadataParser) stream(raw object) domain.MediaStream {
 	disposition := p.object(raw["disposition"])
 	stream.Default = p.flag(disposition["default"])
 	stream.Forced = p.flag(disposition["forced"])
+	stream.AttachedPic = p.flag(disposition["attached_pic"])
 	tags := p.object(raw["tags"])
 	if language := p.text(tags["language"]); language != nil && len(*language) <= 35 && languageTag.MatchString(*language) {
 		normalized := strings.ToLower(*language)

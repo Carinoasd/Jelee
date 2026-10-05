@@ -114,7 +114,7 @@ func readJobsToken(ctx context.Context, input io.Reader) (string, error) {
 
 func runJobsCLI(ctx context.Context, argv []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	usage := func() int {
-		fmt.Fprintln(stderr, "usage: jelee-cli jobs scan|ignore|probe|probe-rebuild-library|probe-rebuild-item|list|libraries|get|entries|cancel|retry --token-stdin [--url http://127.0.0.1:8097] [--id UUID] [--key ASCII] [--priority manual|background] [--probe] [--nfo] [--ignore jeleeignore --ignore-case sensitive|ascii-insensitive] [--cursor CURSOR] [--limit 50] [--state STATE]")
+		fmt.Fprintln(stderr, "usage: jelee-cli jobs scan|ignore|probe|probe-rebuild-library|probe-rebuild-item|list|libraries|get|entries|cancel|retry --token-stdin [--url http://127.0.0.1:8097] [--id UUID] [--key ASCII] [--priority manual|background] [--i-understand (probe-rebuild-library)] [--probe] [--nfo] [--ignore jeleeignore|jeleeignore-legacy-v1 --ignore-case sensitive|ascii-insensitive] [--cursor CURSOR] [--limit 50] [--state STATE]")
 		return 2
 	}
 	if len(argv) == 0 {
@@ -126,7 +126,7 @@ func runJobsCLI(ctx context.Context, argv []string, stdin io.Reader, stdout, std
 	base := flags.String("url", "http://127.0.0.1:8097", "service origin")
 	fromStdin := flags.Bool("token-stdin", false, "read bearer token from stdin")
 	var id, key, priority, cursor, state string
-	var enableProbe, enableNFO bool
+	var enableProbe, enableNFO, iUnderstand bool
 	var ignoreMode, ignoreCase string
 	limit := 50
 	switch command {
@@ -138,6 +138,9 @@ func runJobsCLI(ctx context.Context, argv []string, stdin io.Reader, stdout, std
 		fallthrough
 	case "probe-rebuild-library", "probe-rebuild-item":
 		flags.StringVar(&priority, "priority", "manual", "queue priority")
+		if command == "probe-rebuild-library" {
+			flags.BoolVar(&iUnderstand, "i-understand", false, "confirm discarding every probe result of the library")
+		}
 		fallthrough
 	case "retry":
 		flags.StringVar(&key, "key", "", "idempotency key")
@@ -163,7 +166,8 @@ func runJobsCLI(ctx context.Context, argv []string, stdin io.Reader, stdout, std
 	if flags.Parse(argv[1:]) != nil || flags.NArg() != 0 || !*fromStdin {
 		return usage()
 	}
-	if domain.ValidateIgnoreIntent(domain.IgnoreIntent{Mode: ignoreMode, CaseMode: ignoreCase}) != nil {
+	ignoreIntent := domain.IgnoreIntent{Mode: ignoreMode, CaseMode: ignoreCase}
+	if domain.ValidateIgnoreIntent(ignoreIntent) != nil && domain.ValidateFamilyIgnoreIntent(ignoreIntent) != nil {
 		return usage()
 	}
 	u, err := jobsBaseURL(*base)
@@ -186,6 +190,11 @@ func runJobsCLI(ctx context.Context, argv []string, stdin io.Reader, stdout, std
 	}
 	if enqueue && priority != "manual" && priority != "background" {
 		return usage()
+	}
+	if command == "probe-rebuild-library" && !iUnderstand {
+		// G45.6: a dangerous operation needs explicit confirmation.
+		fmt.Fprintln(stderr, "jobs_confirmation_required: probe-rebuild-library discards every probe result of the library; add --i-understand")
+		return 2
 	}
 	if state != "" && state != "queued" && state != "running" && state != "succeeded" && state != "failed" && state != "cancelled" {
 		return usage()
@@ -219,7 +228,11 @@ func runJobsCLI(ctx context.Context, argv []string, stdin io.Reader, stdout, std
 		}
 		u.Path = "/api/v1/" + target + "/" + id + "/probe/rebuild"
 		method = http.MethodPost
-		data, _ := json.Marshal(map[string]string{"priority": priority})
+		input := map[string]any{"priority": priority}
+		if iUnderstand {
+			input["iUnderstand"] = true
+		}
+		data, _ := json.Marshal(input)
 		body = string(data)
 	case "probe":
 		u.Path = "/api/v1/jobs/" + id + "/probe"
@@ -248,7 +261,7 @@ func runJobsCLI(ctx context.Context, argv []string, stdin io.Reader, stdout, std
 		}
 		u.RawQuery = q.Encode()
 	}
-	request, err := http.NewRequestWithContext(ctx, method, u.String(), strings.NewReader(body))
+	request, err := http.NewRequestWithContext(ctx, method, u.String(), strings.NewReader(body)) //nolint:gosec // G704: the operator names the Jelee server URL on the command line
 	if err != nil {
 		fmt.Fprintln(stderr, "jobs_request_failed")
 		return 1
@@ -263,7 +276,7 @@ func runJobsCLI(ctx context.Context, argv []string, stdin io.Reader, stdout, std
 	transport := &http.Transport{DialContext: (&net.Dialer{Timeout: 5 * time.Second}).DialContext, TLSHandshakeTimeout: 5 * time.Second, ResponseHeaderTimeout: 10 * time.Second, MaxConnsPerHost: 1, DisableKeepAlives: true}
 	defer transport.CloseIdleConnections()
 	client := &http.Client{Transport: transport, Timeout: 15 * time.Second, CheckRedirect: func(*http.Request, []*http.Request) error { return errors.New("redirect rejected") }}
-	response, err := client.Do(request)
+	response, err := client.Do(request) //nolint:gosec // G704: the operator names the Jelee server URL on the command line
 	if err != nil {
 		fmt.Fprintln(stderr, "jobs_service_unavailable")
 		return 1

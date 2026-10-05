@@ -121,7 +121,7 @@ func TestGenerateRealFixturesAndCancellation(t *testing.T) {
 	if err := json.Unmarshal(raw, &manifest); err != nil {
 		t.Fatal(err)
 	}
-	if manifest.SchemaVersion != 1 || len(manifest.Files) != 13 || manifest.ToolVersion == "" {
+	if manifest.SchemaVersion != 1 || len(manifest.Files) != 19 || manifest.ToolVersion == "" {
 		t.Fatalf("bad fixture manifest: %#v", manifest)
 	}
 	for _, entry := range manifest.Files {
@@ -154,5 +154,5 @@ func TestGenerateRealFixturesAndCancellation(t *testing.T) {
 	if len(entriesBefore) != len(entriesAfter) {
 		t.Fatal("failed generation leaked an output directory")
 	}
-	t.Logf("PASS: 13 small original fixtures, fixed arguments, checksums, source preservation and cancelled cleanup (%s)", manifest.Platform)
+	t.Logf("PASS: 16 small original fixtures, fixed arguments, checksums, source preservation and cancelled cleanup (%s)", manifest.Platform)
 }

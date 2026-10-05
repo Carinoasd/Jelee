@@ -5,6 +5,7 @@ package scan
 import (
 	"context"
 	"path/filepath"
+	"reflect"
 	"testing"
 	"time"
 
@@ -27,6 +28,8 @@ func TestFamilyBaselineNativeHelper(t *testing.T) {
 		t.Fatal(err)
 	}
 	s := NewFamilyIgnoreScanner(runner)
+	var candidates []domain.IgnoreBaselineCandidate
+	var expected []domain.FamilyBaselineEvaluation
 	for _, tt := range []struct {
 		path, outcome, family, reason, matched string
 		line                                   int
@@ -45,12 +48,18 @@ func TestFamilyBaselineNativeHelper(t *testing.T) {
 			if err != nil || d.Outcome != tt.outcome || d.Family != tt.family || d.Reason != tt.reason || d.MatchedPath != tt.matched || d.RuleLine != tt.line {
 				t.Fatalf("unexpected classification: outcome=%s family=%s reason=%s line=%d error=%v", d.Outcome, d.Family, d.Reason, d.RuleLine, err)
 			}
+			candidates = append(candidates, domain.IgnoreBaselineCandidate{RootID: testRootID, Path: tt.path})
+			expected = append(expected, got)
 			for _, o := range got.LegacyObservations {
 				if domain.ValidateLegacyIgnoreBaselineObservation(o) != nil {
 					t.Fatal("invalid retained evidence")
 				}
 			}
 		})
+	}
+	batched, err := s.EvaluateFamilyIgnoreBaselineBatch(context.Background(), root, candidates, domain.IgnoreIntent{Mode: domain.IgnoreModeFamily, CaseMode: domain.IgnoreCaseSensitive})
+	if err != nil || !reflect.DeepEqual(batched, expected) {
+		t.Fatalf("batch changed native classification or evidence: %v", err)
 	}
 	if runner.Stats().Active != 0 {
 		t.Fatal("helper survived classification")

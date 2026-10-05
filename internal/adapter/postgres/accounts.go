@@ -2,9 +2,7 @@ package postgres
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
-	"net/netip"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -14,7 +12,7 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 )
 
-const userColumns = `id::text,name,display_name,locale,hidden,is_admin,disabled,deleted_at,created_at`
+const userColumns = `id::text,name,display_name,locale,hidden,is_admin,disabled,allow_native,deleted_at,created_at`
 
 func storageError(err error) error {
 	if err == nil {
@@ -43,7 +41,7 @@ func storageError(err error) error {
 
 func scanUser(row pgx.Row) (domain.User, error) {
 	var u domain.User
-	err := row.Scan(&u.ID, &u.Name, &u.DisplayName, &u.Locale, &u.Hidden, &u.Admin, &u.Disabled, &u.DeletedAt, &u.CreatedAt)
+	err := row.Scan(&u.ID, &u.Name, &u.DisplayName, &u.Locale, &u.Hidden, &u.Admin, &u.Disabled, &u.AllowNative, &u.DeletedAt, &u.CreatedAt)
 	return u, storageError(err)
 }
 
@@ -125,27 +123,12 @@ func authorizeActorInTransaction(ctx context.Context, tx pgx.Tx, actor domain.Ac
 	return admin, nil
 }
 
+// auditAccount records a change against a UUID target through appendAudit.
 func auditAccount(ctx context.Context, tx pgx.Tx, actor domain.Actor, event, target string, before, after any) error {
-	if before == nil {
-		before = struct{}{}
+	if target == "" {
+		return domain.ErrInvalid
 	}
-	if after == nil {
-		after = struct{}{}
-	}
-	b, err := json.Marshal(before)
-	if err != nil {
-		return domain.ErrDatabase
-	}
-	a, err := json.Marshal(after)
-	if err != nil {
-		return domain.ErrDatabase
-	}
-	ip := ""
-	if addr, parseErr := netip.ParseAddr(actor.IP); parseErr == nil {
-		ip = addr.Unmap().String()
-	}
-	_, err = tx.Exec(ctx, `INSERT INTO audit_logs(event,target_id,actor_id,actor_ip,before_state,after_state) VALUES($1,$2::uuid,NULLIF($3,'')::uuid,NULLIF($4,'')::inet,$5::jsonb,$6::jsonb)`, event, target, actor.UserID, ip, b, a)
-	return storageError(err)
+	return appendAudit(ctx, tx, AuditEntry{Event: event, Actor: actor, TargetID: target, Before: before, After: after})
 }
 
 func userInTransaction(ctx context.Context, tx pgx.Tx, id string) (domain.User, error) {
@@ -210,7 +193,7 @@ func (s *Store) ListUsers(ctx context.Context, actor domain.Actor, cursor string
 		return nil, err
 	}
 	defer tx.Rollback(ctx)
-	rows, err := tx.Query(ctx, `SELECT `+userColumns+` FROM users WHERE ($1 OR deleted_at IS NULL) AND id>COALESCE(NULLIF($2,'')::uuid,'00000000-0000-0000-0000-000000000000'::uuid) ORDER BY id LIMIT $3`, includeDeleted, cursor, limit)
+	rows, err := tx.Query(ctx, `SELECT `+userColumns+` FROM users WHERE ($1 OR deleted_at IS NULL) AND share_id IS NULL AND id>COALESCE(NULLIF($2,'')::uuid,'00000000-0000-0000-0000-000000000000'::uuid) ORDER BY id LIMIT $3`, includeDeleted, cursor, limit)
 	if err != nil {
 		return nil, storageError(err)
 	}
@@ -370,6 +353,11 @@ func (s *Store) DeleteUser(ctx context.Context, actor domain.Actor, userID strin
 		return err
 	}
 	if err = revokeAll(ctx, tx, userID); err != nil {
+		return err
+	}
+	// G07.7: playback history and user data go with the user and do not
+	// come back on restore.
+	if _, _, err = deletePlaybackData(ctx, tx, userID); err != nil {
 		return err
 	}
 	if err = auditAccount(ctx, tx, actor, "user.deleted", userID, old, u); err != nil {

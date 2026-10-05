@@ -1,6 +1,6 @@
 #requires -Version 7.2
 [CmdletBinding()]
-param([ValidateSet('init','bootstrap','bootstrap-media','bootstrap-runtime','runtime-tools-verify','tools-verify','media-tools-verify','media-toolchain-test','ignore-oracle-test','tools-clean','fixtures','fixtures-test','build','test','test-race','test-integration','coverage','fmt','fmt-check','lint','toolchain-test','brand-scan','brand-scan-incremental','gitignore-check','migrate','doctor')][string]$Target = 'test')
+param([ValidateSet('init','bootstrap','bootstrap-media','bootstrap-matroska','matroska-tools-verify','bootstrap-runtime','runtime-tools-verify','tools-verify','media-tools-verify','media-toolchain-test','ignore-oracle-test','tools-clean','fixtures','fixtures-test','build','test','test-race','test-integration','coverage','fmt','fmt-check','lint','toolchain-test','brand-scan','brand-scan-incremental','gitignore-check','openapi','openapi-check','migrate','doctor','bench','bench-check','benchgate-test','doc-check','dev','nfo','diag','golangci-lint','quality-gates-test')][string]$Target = 'test')
 . "$PSScriptRoot/toolchain-lib.ps1"
 $root = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 Push-Location $root
@@ -8,6 +8,9 @@ try {
     switch ($Target) {
         { $_ -in 'init','bootstrap' } { & "$PSScriptRoot/bootstrap-tools.ps1" }
         'bootstrap-media' { & "$PSScriptRoot/bootstrap-media-tools.ps1" }
+        # E4 optional tools: the same Python installer as Linux (zip archives only on Windows).
+        'bootstrap-matroska' { & python "$PSScriptRoot/matroska-tools.py" bootstrap; if ($LASTEXITCODE -ne 0) { throw 'matroska-tools bootstrap failed' } }
+        'matroska-tools-verify' { & python "$PSScriptRoot/matroska-tools.py" verify; if ($LASTEXITCODE -ne 0) { throw 'matroska-tools verify failed' } }
         'media-tools-verify' { & "$PSScriptRoot/media-tools-verify.ps1" }
         'media-toolchain-test' { & "$PSScriptRoot/test-media-tools.ps1" }
         'bootstrap-runtime' { & "$PSScriptRoot/runtime-tools.ps1" -Command bootstrap }
@@ -39,7 +42,7 @@ try {
             }
         }
         'test' { & "$PSScriptRoot/run-go.ps1" test -count=1 ./... }
-        'test-race' { & "$PSScriptRoot/run-go.ps1" test -race -count=1 -timeout=20m ./... }
+        'test-race' { & "$PSScriptRoot/run-go.ps1" test -race -count=1 -timeout=45m ./... }
         'ignore-oracle-test' {
             $previousRequiredIgnore = $env:JELEE_REQUIRE_IGNORE_ORACLE
             try {
@@ -51,6 +54,22 @@ try {
             if (-not $env:JELEE_TEST_DATABASE_URL) { throw 'JELEE_TEST_DATABASE_URL must name an isolated test database' }
             & "$PSScriptRoot/run-go.ps1" test ./internal/adapter/postgres -run Integration -v -count=1
         }
+        { $_ -in 'bench','bench-check' } {
+            # Mirrors the Makefile bench variables; override through JELEE_BENCH_* environment variables.
+            $benchPackages = @('./internal/access','./internal/domain','./internal/domain/medianame','./internal/adapter/nfo','./internal/adapter/images','./internal/adapter/subtitles','./internal/adapter/http')
+            $pattern = if ($env:JELEE_BENCH) { $env:JELEE_BENCH } else { '.' }
+            $skip = if ($env:JELEE_BENCH_SKIP) { $env:JELEE_BENCH_SKIP } else { 'ObservedHundredFiles' }
+            $count = if ($env:JELEE_BENCH_COUNT) { $env:JELEE_BENCH_COUNT } else { '6' }
+            $benchTime = if ($env:JELEE_BENCH_TIME) { $env:JELEE_BENCH_TIME } else { '500ms' }
+            $current = Assert-LocalPath $root (Join-Path $root '.testdata/bench-current.txt')
+            [IO.Directory]::CreateDirectory((Split-Path -Parent $current)) | Out-Null
+            & "$PSScriptRoot/run-go.ps1" test -run '^$' -bench $pattern -skip $skip -benchmem "-count=$count" "-benchtime=$benchTime" @benchPackages > $current
+            Write-Host "benchmark output written to $current"
+            if ($Target -eq 'bench-check') {
+                & "$PSScriptRoot/run-go.ps1" run ./tools/benchgate -base docs/evidence/bench-baseline.txt -current $current
+            }
+        }
+        'benchgate-test' { & "$PSScriptRoot/run-go.ps1" test -count=1 ./tools/benchgate }
         'coverage' { & "$PSScriptRoot/run-go.ps1" test -count=1 -coverprofile=coverage.out ./... }
         'fmt' { & "$PSScriptRoot/run-go.ps1" fmt ./... }
         'fmt-check' {
@@ -69,13 +88,52 @@ try {
         }
         'lint' {
             & "$PSScriptRoot/make.ps1" fmt-check
+            & "$PSScriptRoot/make.ps1" openapi-check
+            & "$PSScriptRoot/make.ps1" doc-check
             & "$PSScriptRoot/run-go.ps1" vet ./...
+            & "$PSScriptRoot/make.ps1" golangci-lint
         }
+        'golangci-lint' {
+            # Same gate as `make golangci-lint` with the Windows baseline; prune
+            # baselines on Linux with `make lint-baseline-prune` (it cross-lints Windows).
+            $report = Assert-LocalPath $root (Join-Path $root '.testdata/golangci-lint-windows.json')
+            [IO.Directory]::CreateDirectory((Split-Path -Parent $report)) | Out-Null
+            $previousCgo = $env:CGO_ENABLED
+            try {
+                $env:CGO_ENABLED = '0'
+                & "$PSScriptRoot/run-golangci-lint.ps1" run --issues-exit-code=0 --show-stats=false "--output.json.path=$report" ./...
+            } finally { $env:CGO_ENABLED = $previousCgo }
+            & "$PSScriptRoot/run-go.ps1" run ./tools/lintgate -report $report -baseline tools/lint-baseline/windows.json
+        }
+        'quality-gates-test' { & "$PSScriptRoot/run-go.ps1" test -count=1 ./tools/lintgate ./tools/covergate ./tools/benchgate }
         'toolchain-test' { & "$PSScriptRoot/test-toolchain.ps1" }
         'brand-scan' { & "$PSScriptRoot/run-go.ps1" run ./tools/brand-scan }
         'brand-scan-incremental' { & "$PSScriptRoot/run-go.ps1" run ./tools/brand-scan --new }
         'gitignore-check' { & "$PSScriptRoot/run-go.ps1" run ./tools/gitignore-check }
+        'openapi' { & "$PSScriptRoot/run-go.ps1" run ./tools/openapi }
+        'openapi-check' {
+            & "$PSScriptRoot/run-go.ps1" run ./tools/openapi -check
+            & "$PSScriptRoot/run-go.ps1" test -count=1 -run OpenAPI ./tools/openapi ./internal/adapter/http
+        }
         'migrate' { & "$PSScriptRoot/run-go.ps1" run ./cmd/jelee-migrate up }
         'doctor' { & "$PSScriptRoot/run-go.ps1" run ./cmd/jelee-cli doctor }
+        'doc-check' { & "$PSScriptRoot/run-go.ps1" run ./tools/doccheck }
+        'dev' {
+            if (-not ($env:JELEE_DATABASE_URL -or $env:JELEE_DATABASE_URL_FILE -or $env:JELEE_CONFIG)) {
+                throw 'Set JELEE_DATABASE_URL (or JELEE_DATABASE_URL_FILE / JELEE_CONFIG) to a development database, then run scripts/make.ps1 migrate'
+            }
+            & "$PSScriptRoot/run-go.ps1" run ./cmd/jelee
+        }
+        'nfo' {
+            # Same contract as `make nfo`: NFO_ROOT/NFO_FILE validate one file, otherwise offline NFO tests.
+            if ($env:NFO_ROOT -or $env:NFO_FILE) {
+                if (-not ($env:NFO_ROOT -and $env:NFO_FILE)) { throw 'Set both NFO_ROOT and NFO_FILE' }
+                & "$PSScriptRoot/run-go.ps1" run ./cmd/jelee-cli nfo validate --root $env:NFO_ROOT --file $env:NFO_FILE
+            } else {
+                & "$PSScriptRoot/run-go.ps1" test -count=1 ./internal/adapter/nfo
+                & "$PSScriptRoot/run-go.ps1" test -count=1 -run 'NFO|Nfo' ./internal/domain ./internal/app ./cmd/jelee-cli
+            }
+        }
+        'diag' { & "$PSScriptRoot/run-go.ps1" run ./cmd/jelee-cli diag export --out .testdata/jelee-diag.zip }
     }
 } finally { Pop-Location }

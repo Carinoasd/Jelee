@@ -104,7 +104,7 @@ func makeProbeCapacity(ctx context.Context, tx pgx.Tx, library string, rows, byt
 	if err != nil {
 		return err
 	}
-	fits, slot, err = probeCapacityFits(ctx, tx, library, rows, bytes)
+	fits, _, err = probeCapacityFits(ctx, tx, library, rows, bytes)
 	if err != nil {
 		return err
 	}

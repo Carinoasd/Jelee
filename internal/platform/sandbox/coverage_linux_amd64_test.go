@@ -41,6 +41,23 @@ func TestNativeLateExecFailureExportsActualChildCoverage(t *testing.T) {
 	}
 	policy := Policy{FFprobeSHA256: hexDigest(header)}
 	captureLateFailureCoverage(t, helper, destination, path, policy, "1")
+	// The same unexecutable image under the tool entry: extraction adds the
+	// stdin and private-directory grants, OCR adds a pinned data file grant.
+	tools := t.TempDir()
+	extract := filepath.Join(tools, "mkvextract")
+	ocr := filepath.Join(tools, "tesseract")
+	data := filepath.Join(tools, "tessdata", "eng"+OCRDataSuffix)
+	if err := os.Mkdir(filepath.Dir(data), 0700); err != nil {
+		t.Fatal(err)
+	}
+	for name, content := range map[string][]byte{extract: header, ocr: header, data: []byte("synthetic language data")} {
+		if err := os.WriteFile(name, content, 0700); err != nil {
+			t.Fatal(err)
+		}
+	}
+	captureLateToolFailureCoverage(t, helper, destination, ToolProfile{Mode: ToolExtract, Path: extract}, ToolPolicy{ExecutableSHA256: hexDigest(header)}, Extraction{Tracks: []int{0}, Attachments: []int{1}}, "3")
+	ocrPolicy := ToolPolicy{ExecutableSHA256: hexDigest(header), DataFiles: []PinnedFile{{Path: data, SHA256: hexDigest([]byte("synthetic language data"))}}}
+	captureLateToolFailureCoverage(t, helper, destination, ToolProfile{Mode: ToolOCR, Path: ocr}, ocrPolicy, Extraction{Languages: []string{"eng"}}, "4")
 	if profilePath := os.Getenv("JELEE_SANDBOX_REAL_PROFILE"); profilePath != "" {
 		var fixture struct {
 			Profile Profile
@@ -113,9 +130,44 @@ func captureLateFailureCoverage(t *testing.T, helper, destination, path string, 
 	command := exec.CommandContext(ctx, helper, "--test-helper-coverage", base64.RawURLEncoding.EncodeToString(data))
 	command.Env = []string{"JELEE_TEST_SANDBOX_POLICY=" + string(encodedPolicy)}
 	command.Stdin = input
+	captureChildCoverage(t, command, destination, id)
+}
+
+// captureLateToolFailureCoverage runs the instrumented tool entry against an
+// unexecutable verified image, in a private working directory like the
+// process runner's, and keeps the counters it wrote after the refused exec.
+func captureLateToolFailureCoverage(t *testing.T, helper, destination string, profile ToolProfile, policy ToolPolicy, extraction Extraction, id string) {
+	t.Helper()
+	launcher, err := NewTool(context.Background(), profile, policy)
+	if err != nil {
+		t.Fatalf("late-failure tool fixture rejected before execution: %v", err)
+	}
+	arguments, err := launcher.HelperArguments(extraction)
+	if err != nil {
+		t.Fatal(err)
+	}
+	registration, _ := json.Marshal(map[string]any{"Profile": profile, "Policy": policy})
+	input, err := os.Open(profile.Path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = input.Close() }()
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	command := exec.CommandContext(ctx, helper, "--test-tool-helper-coverage", arguments[1])
+	command.Env = []string{"JELEE_TEST_TOOL_POLICY=" + string(registration)}
+	command.Stdin = input
+	command.Dir = t.TempDir()
+	captureChildCoverage(t, command, destination, id)
+}
+
+// captureChildCoverage requires a fail-closed helper exit after the kernel
+// refused the final exec, then stores the child's original counter bytes.
+func captureChildCoverage(t *testing.T, command *exec.Cmd, destination, id string) {
+	t.Helper()
 	var stdout, stderr bytes.Buffer
 	command.Stdout, command.Stderr = &stdout, &stderr
-	err = command.Run()
+	err := command.Run()
 	var status *exec.ExitError
 	if !errors.As(err, &status) || status.ExitCode() != ExitUnavailable || !bytes.Contains(stderr.Bytes(), []byte("media_sandbox_unavailable\n")) {
 		t.Fatalf("late exec did not fail closed: %v; %s", err, stderr.Bytes())

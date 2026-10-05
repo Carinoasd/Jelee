@@ -43,7 +43,7 @@ func openNativeRoot(path string) (directory, error) {
 	if windows.RtlDosPathNameToNtPathName(dos, &name, nil, nil) != nil {
 		return nil, ErrInvalid
 	}
-	defer func() { _, _, _ = nativeFreeUnicode.Call(uintptr(unsafe.Pointer(&name))) }()
+	defer func() { _, _, _ = nativeFreeUnicode.Call(uintptr(unsafe.Pointer(&name))) }() //nolint:gosec // G103: the Windows API takes a raw pointer to this fixed-layout value
 	opened, err := nativeOpen(0, &name, true, false)
 	if err != nil {
 		return nil, err
@@ -141,14 +141,6 @@ func (f *nativeFile) OpenDirectory(name string) (directory, error) {
 	return opened, nil
 }
 
-func (f *nativeFile) OpenRule() (sourceFile, error) {
-	opened, err := f.open(".jeleeignore", false, true)
-	if err != nil {
-		return nil, err
-	}
-	return opened, nil
-}
-
 // FileIdInfo contains a 64-bit volume serial and the full 128-bit file ID.
 // GetFileInformationByHandle's older 64-bit file index is not a substitute.
 type nativeIDInfo struct {
@@ -189,7 +181,7 @@ func nativeStat(handle windows.Handle) (fileState, error) {
 		return fileState{}, ErrUnsafe
 	}
 	var id nativeIDInfo
-	if err := windows.GetFileInformationByHandleEx(handle, windows.FileIdInfo, (*byte)(unsafe.Pointer(&id)), uint32(unsafe.Sizeof(id))); err != nil {
+	if err := windows.GetFileInformationByHandleEx(handle, windows.FileIdInfo, (*byte)(unsafe.Pointer(&id)), uint32(unsafe.Sizeof(id))); err != nil { //nolint:gosec // G103: the Windows API takes a raw pointer to this fixed-layout value
 		if errors.Is(err, windows.ERROR_INVALID_PARAMETER) || errors.Is(err, windows.ERROR_NOT_SUPPORTED) || errors.Is(err, windows.ERROR_INVALID_FUNCTION) || errors.Is(err, windows.ERROR_CALL_NOT_IMPLEMENTED) {
 			return fileState{}, ErrUnavailable
 		}

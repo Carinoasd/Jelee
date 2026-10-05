@@ -1,0 +1,63 @@
+{
+  "scope": "G05 guide implementation/interface removal after DTO/view/DI decoupling",
+  "baseCommit": "04a80ad9f937ceb244fe964f5b935d4bb07bb1ac",
+  "deletedSourceHashes": {
+    "guideImplementation": "a78987ba5b2c9aea75ff926346fa9eac35161c957b66cd7aecdab76351621110",
+    "guideInterface": "25ed61327ee8cefedefe343dd51f29f5371e5ffef5312ba3afcbc8909add05f6"
+  },
+  "sourceIndex": "../branding-rename-map.md",
+  "sourceHashes": {
+    "retainedListingSource": "4ce0e62b7b1bd737da2d6b75d85fccf164f323c00e68b5d56bf4424315bd751c",
+    "etagEncodingComment": "343d125d2083cb313cb99bda93ac0bdd93857456bb766badfbfaca38dc5ef923",
+    "etagRegressionComment": "250d2db6dfbce9d548dcdcc184b5d0b75081df967d13a757200dd4e8aa05900b",
+    "compiledCoreAndStartupTests": "e6647b9cb4c26f92205a1600b056cd2559256b986e0271a8c6ea6b8e27cbb413"
+  },
+  "removedLines": 834,
+  "retainedSourceCacheWindowDays": 2,
+  "tests": {
+    "startupAndCompiledCore": {
+      "Passed": 7,
+      "Failed": 0,
+      "Skipped": 0
+    },
+    "negativeCompiledCore": {
+      "Failed": 2,
+      "Passed": 0,
+      "Skipped": 0,
+      "scope": "Only two deleted sources temporarily restored; compiled type assertions, no old service execution",
+      "finally": "Both restored files deleted again; absence verified"
+    },
+    "fullSolution": {
+      "suites": 17,
+      "Passed": 4821,
+      "NotExecuted": 21,
+      "Failed": 0
+    },
+    "format": "verify-no-changes PASS with workspace warning"
+  },
+  "existingMigrationsChanged": false,
+  "limitations": [
+    "Remaining live/recording/channel/tuner core and persisted data not retired",
+    "No substitute guide service introduced",
+    "Real client/LAN acceptance incomplete",
+    "ABI and full brand failures retained"
+  ],
+  "gates": {
+    "fullBrandGate": {
+      "violations": 14735,
+      "allowed": 180,
+      "status": "FAIL retained"
+    },
+    "gitignoreGate": {
+      "violations": 0,
+      "status": "PASS"
+    },
+    "incrementalBrandGate": {
+      "violations": 0,
+      "allowed": 175,
+      "status": "PASS"
+    },
+    "stagedDiffCheck": "PASS"
+  },
+  "protectedHashesUnchanged": true
+}

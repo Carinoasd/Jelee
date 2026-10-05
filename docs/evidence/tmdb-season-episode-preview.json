@@ -1,0 +1,113 @@
+{
+  "baseCommit": "408eaca0eb1fa71ca74de125f3d072879e256dbc",
+  "scope": "Admin-only season and episode candidates with validated numeric identity, bounded caches and cloned mutable season arrays",
+  "sources": {
+    "internal/domain/metadata_episodes.go": "82da7095c23c83bceb0ca087d7c5fbcbd8cd72576f60405b57f3fef346e0fe31",
+    "internal/adapter/metadata/movie_cache.go": "a0fef19a79cfcdc62d1bb812d0d697dbf6f4e0d7416271a0fa36c72c87d8c27a",
+    "internal/adapter/metadata/tmdb.go": "512a1d6992ced406a61f7abb0c223b4558e903149549cfc1ee6c451009b6a015",
+    "internal/adapter/metadata/episodes.go": "8ea4ea029e0c9e488382273b0a6573078dc96fff8247eae83d2e02e8e834d508",
+    "internal/adapter/metadata/episodes_test.go": "d6fded2890f6bfed3d5c8be521129ac6bb7db16d8ac93b61b094b247d47bf398",
+    "internal/app/metadata.go": "8c05c38aac62baa60c4a9fc1591543ba4bca098b74b18bfde0253ca332e5c827",
+    "internal/app/metadata_episodes.go": "7349a7cfb9d62796f676042d977eea6b83422b9a71657c62a083709431992223",
+    "internal/app/metadata_episodes_test.go": "c7160c45c4ce4a2db9a91a937d7598f312be9e481250236c0823a25bb1ef86e9",
+    "internal/app/metadata_test.go": "15bfe0d9416f9d4a06e7d73f478efb44e1b2aa8c083e41a993e658b798b4e385",
+    "internal/app/metadata_search_test.go": "3949ec0a4555597c1f7929ab98a6476c574a5514e0b685679d3143a8c9ca2d5d",
+    "internal/adapter/http/metadata.go": "2674238137bff5838438b68d289b7c23f6042191b7f60bfc40a24f5ae46f010c",
+    "internal/adapter/http/metadata_episodes.go": "7880e2258cc5d07f5a7709341ccdc976e53bb7c1f685e7cf8e2e4c2c47781a3d",
+    "internal/adapter/http/metadata_episodes_test.go": "5fbccaf9049e0bcdd1496b7956f65b78b5868c56068e620fd0d17458e32f9bbc",
+    "internal/adapter/http/metadata_test.go": "f054a063fe6d4f2b4e72e6d6b5dbda1da341071648fca0b65aab84e81b9b2d54",
+    "internal/platform/outbound/episodes_integration_test.go": "ffaf42e322886ace716baf65e7fa4440e346ac60c648183bbcdac19492c02a32"
+  },
+  "windowsFullGo": {
+    "passedPackages": 29,
+    "passedTestEventsIncludingParents": 3019,
+    "skippedTestEvents": 435,
+    "failedEvents": 0
+  },
+  "skippedListSource": {
+    "path": "docs/evidence/outbound-tmdb-preflight.json",
+    "sha256": "d9dc00f78f14d500c79b1be8c2490a172ce84e7257034f0cd6ba72c240431882",
+    "jsonField": "windowsFullGo.skippedTests",
+    "comparison": "sorted package/test identities equal"
+  },
+  "linuxRace": {
+    "status": "PASS six packages",
+    "output": "ok  \tgithub.com/MoYuanCN/Jelee/internal/adapter/metadata\t(cached)\nok  \tgithub.com/MoYuanCN/Jelee/internal/app\t(cached)\nok  \tgithub.com/MoYuanCN/Jelee/internal/adapter/http\t3.678s\nok  \tgithub.com/MoYuanCN/Jelee/internal/platform/runtime\t1.205s\nok  \tgithub.com/MoYuanCN/Jelee/internal/platform/outbound\t(cached)\nok  \tgithub.com/MoYuanCN/Jelee/internal/platform/i18n\t(cached)",
+    "skips": "summary does not report skips; zero skips not claimed"
+  },
+  "fullVet": "PASS",
+  "productionBuild": "PASS cmd/jelee",
+  "negative": {
+    "change": "remove clone of actual season cache hit",
+    "leafFailures": 1,
+    "observed": "cache hit mutated episode list",
+    "restoredEpisodesSha256": "8ea4ea029e0c9e488382273b0a6573078dc96fff8247eae83d2e02e8e834d508",
+    "relatedFullRegression": "PASS metadata/app/HTTP/outbound after byte-identical restoration"
+  },
+  "policy": {
+    "seasonNumbers": "nonnegative int32 including season zero specials",
+    "episodeNumbers": "positive int32",
+    "canonicalHTTPNumbers": true,
+    "maxSeasonEpisodes": 1000,
+    "bodyBytes": 1048576,
+    "totalTimeoutSeconds": 15,
+    "seasonCacheEntries": 16,
+    "episodeCacheEntries": 256,
+    "cacheTTLSeconds": 86400,
+    "cacheKey": [
+      "series ID",
+      "season number",
+      "episode number",
+      "language"
+    ],
+    "seasonArrayClone": "insertion and every hit",
+    "sharedLRU": "typed key and value, per-cache independent map",
+    "upstreamIdentity": "required season/episode numbers match request; optional show_id checked if present; parent ID otherwise belongs to controlled request route",
+    "errorsCached": false,
+    "seasonSeedsEpisodeDetailCache": false,
+    "automaticMetadataWrite": false,
+    "backgroundWorkers": 0
+  },
+  "actualTLS": "real adapter+app through controlled client: specials season, independent episode details, 3 season reads/1 upstream, 2 episode reads/1 upstream, insertion/hit mutation isolation, mismatched episode number returns safe failure",
+  "missing": [
+    "media filename parsing and automatic season/episode matching",
+    "IMDB/TVDB identity",
+    "fuzzy confidence",
+    "user/library language fallback",
+    "NFO/manual priority and field locks",
+    "library persistence/jobs and removal of external metadata",
+    "miss coalescing and configurable budgets",
+    "remote artwork",
+    "full frontend attribution and TMDB terms/cache acceptance",
+    "full 100 movie/20 series lock/write acceptance",
+    "real external credentials/quota"
+  ],
+  "officialSources": [
+    "https://developer.themoviedb.org/reference/tv-season-details",
+    "https://developer.themoviedb.org/reference/tv-episode-details"
+  ],
+  "finalAuthorityCases": "season and episode routes each explicitly tested for unauthenticated and non-admin rejection; final full Go/vet and Linux race rerun",
+  "gates": {
+    "incrementalBrand": {
+      "violations": 0,
+      "allowed": 181
+    },
+    "fullBrand": {
+      "violations": 14735,
+      "allowed": 186,
+      "status": "FAIL retained"
+    },
+    "gitignoreViolations": 0,
+    "sources": "15 SHA256 verified",
+    "protectedHashes": "PASS",
+    "fiveCoreFiles": "byte-identical to base commit",
+    "csOrMigrationsChanged": false,
+    "localLinks": "PASS",
+    "traceability": {
+      "done": 4,
+      "partial": 182,
+      "blocked": 150
+    },
+    "allowlistChanged": false
+  }
+}

@@ -271,7 +271,7 @@ func fixtureHelper(t *testing.T) string {
 		return configured
 	}
 	path := filepath.Join(t.TempDir(), "ffprobe")
-	command := exec.Command(filepath.Join(runtime.GOROOT(), "bin", "go"), "build", "-trimpath", "-o", path, "./testdata/helper")
+	command := exec.Command(filepath.Join(runtime.GOROOT(), "bin", "go"), "build", "-trimpath", "-o", path, "./testdata/helper") //nolint:staticcheck // SA1019: test helpers build with the toolchain running the test; project wrappers export GOROOT
 	command.Env = append(os.Environ(), "CGO_ENABLED=0", "GOOS=linux", "GOARCH=amd64", "GOTOOLCHAIN=local")
 	if output, err := command.CombinedOutput(); err != nil {
 		t.Fatalf("compile project-local attack fixture: %v; %s", err, output)

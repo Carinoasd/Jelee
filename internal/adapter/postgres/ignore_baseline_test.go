@@ -8,9 +8,9 @@ import (
 	"github.com/MoYuanCN/Jelee/internal/domain"
 )
 
-func baselineComparisonFixture(t *testing.T, total, seen int) (jobFixture, domain.JobLease, domain.IgnoreDirectoryProof) {
+func baselineComparisonFixture(t *testing.T, total, seen int, setup ...func(*testing.T, jobFixture)) (jobFixture, domain.JobLease, domain.IgnoreDirectoryProof) {
 	t.Helper()
-	f, l, root := manifestFixture(t)
+	f, l, root := manifestFixture(t, setup...)
 	_, err := f.s.Pool.Exec(f.ctx, `INSERT INTO library_inventory_baseline(library_id,root_id,path,attributes_known,kind,size,modified_unix_nano,inventory_generation,observed_revision)
  SELECT $1::uuid,$2::uuid,'f-'||lpad(n::text,6,'0')||'.mkv',true,'video',7,1,inventory_generation,inventory_baseline_revision FROM libraries CROSS JOIN generate_series(1,$3::int)n WHERE id=$1::uuid`, f.registration.Library.ID, root.RootID, total)
 	if err != nil {
@@ -60,6 +60,11 @@ func comparisonCounts(t *testing.T, f jobFixture, id string) (domain.IgnoreCompa
 }
 
 func TestIgnoreBaselineRawPagesReplayAndReclaim(t *testing.T) {
+	for _, planned := range []bool{false, true} {
+		t.Run(map[bool]string{false: "recovery", true: "planned-pause"}[planned], func(t *testing.T) { testIgnoreBaselineReclaim(t, planned) })
+	}
+}
+func testIgnoreBaselineReclaim(t *testing.T, planned bool) {
 	f, l, _ := baselineComparisonFixture(t, 260, 128)
 	if err := f.s.BeginIgnoreBaselineComparison(f.ctx, l); err != nil {
 		t.Fatal(err)
@@ -86,8 +91,20 @@ func TestIgnoreBaselineRawPagesReplayAndReclaim(t *testing.T) {
 	if err = f.s.CommitIgnoreBaselinePage(f.ctx, l, second.Token, decisions); err != nil {
 		t.Fatal(err)
 	}
-	if err = f.s.ReleaseJob(f.ctx, l); err != nil {
+	release := f.s.ReleaseJob
+	if planned {
+		release = f.s.PauseJob
+	}
+	before := f.get(t, l.Job.ID).Attempts
+	if err = release(f.ctx, l); err != nil {
 		t.Fatal(err)
+	}
+	expected := before
+	if planned {
+		expected--
+	}
+	if got := f.get(t, l.Job.ID); got.State != domain.JobQueued || got.Attempts != expected {
+		t.Fatal("baseline pause changed attempt budget")
 	}
 	reclaimed := ignoreManufacturedLease(t, f, l.Job.ID)
 	if err = f.s.CommitIgnoreBaselinePage(f.ctx, l, second.Token, decisions); err != domain.ErrJobLeaseLost {
@@ -244,20 +261,20 @@ func TestIgnoreBaselineFencesAndLateExpiry(t *testing.T) {
 
 func TestIgnoreBaselinePrefixPlanBoundsSeenRows(t *testing.T) {
 	f, l, _ := baselineComparisonFixture(t, 10000, 9900)
-	if _, err := f.s.Pool.Exec(f.ctx, `ANALYZE library_inventory_baseline; ANALYZE job_inventory`); err != nil {
+	if _, err := f.s.Pool.Exec(f.ctx, `ANALYZE library_inventory_baseline_data; ANALYZE job_inventory`); err != nil {
 		t.Fatal(err)
 	}
 	plan := nfoWorkerPlan(t, f, ignoreBaselinePageSQL, f.registration.Library.ID, l.Job.ID, "", "")
 	baseline, inventory := float64(0), float64(0)
 	walkNFOWorkerPlan(plan, func(p nfoWorkerPlanNode) {
-		if p.Relation == "library_inventory_baseline" {
+		if p.Relation == "library_inventory_baseline_data" {
 			baseline += (p.Rows + p.Removed) * p.Loops
 		}
 		if p.Relation == "job_inventory" {
 			inventory += (p.Rows + p.Removed) * p.Loops
 		}
 	})
-	if baseline > 128 || inventory > 128 || plan.Rows != 128 {
+	if baseline == 0 || baseline > 128 || inventory > 128 || plan.Rows != 128 {
 		t.Fatalf("page scanned suffix: baseline=%g inventory=%g result=%g", baseline, inventory, plan.Rows)
 	}
 	t.Logf("10,000 baseline / 9,900 current: visited %g baseline and %g current rows for raw page 128", baseline, inventory)
@@ -309,12 +326,38 @@ func TestIgnoreBaselineClassificationNeedsActualProofChain(t *testing.T) {
 }
 
 func TestIgnoreBaselineRevisionAndMigrationGuards(t *testing.T) {
-	f := newJobFixture(t)
+	f := newJobFixture(t, legacyMigrationAt44)
 	f.complete(t, "revision-one", []string{"retained.mkv"}, 0)
 	var revision, observed int64
 	if err := f.s.Pool.QueryRow(f.ctx, `SELECT l.inventory_baseline_revision,b.observed_revision FROM libraries l JOIN library_inventory_baseline b ON b.library_id=l.id WHERE l.id=$1::uuid`, f.registration.Library.ID).Scan(&revision, &observed); err != nil || revision <= 1 || observed != revision {
 		t.Fatal("ordinary publication did not bind observed revision", err)
 	}
+	nfoMigrateVersion(t, f, "down", 43)
+	nfoMigrateVersion(t, f, "down", 42)
+	nfoMigrateVersion(t, f, "down", 41)
+	nfoMigrateVersion(t, f, "down", 40)
+	nfoMigrateVersion(t, f, "down", 39)
+	nfoMigrateVersion(t, f, "down", 38)
+	nfoMigrateVersion(t, f, "down", 37)
+	nfoMigrateVersion(t, f, "down", 36)
+	nfoMigrateVersion(t, f, "down", 35)
+	nfoMigrateVersion(t, f, "down", 34)
+	nfoMigrateVersion(t, f, "down", 33)
+	nfoMigrateVersion(t, f, "down", 32)
+	nfoMigrateVersion(t, f, "down", 31)
+	nfoMigrateVersion(t, f, "down", 30)
+	nfoMigrateVersion(t, f, "down", 29)
+	nfoMigrateVersion(t, f, "down", 28)
+	nfoMigrateVersion(t, f, "down", 27)
+	nfoMigrateVersion(t, f, "down", 26)
+	nfoMigrateVersion(t, f, "down", 25)
+	nfoMigrateVersion(t, f, "down", 24)
+	nfoMigrateVersion(t, f, "down", 23)
+	nfoMigrateVersion(t, f, "down", 22)
+	nfoMigrateVersion(t, f, "down", 21)
+	nfoMigrateVersion(t, f, "down", 20)
+	nfoMigrateVersion(t, f, "down", 19)
+	nfoMigrateVersion(t, f, "down", 18)
 	nfoMigrateVersion(t, f, "down", 17)
 	nfoMigrateVersion(t, f, "down", 16)
 	nfoMigrateVersion(t, f, "down", 15)

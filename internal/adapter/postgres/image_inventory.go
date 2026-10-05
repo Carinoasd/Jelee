@@ -18,13 +18,29 @@ func inventoryEpoch(ctx context.Context, tx pgx.Tx, l domain.JobLease) (*int64, 
 	return frozen, current, storageError(err)
 }
 
-const imageCurrentCountsSQL = `SELECT
- count(*) FILTER(WHERE $3::bigint IS NOT NULL AND (b.root_id IS NULL OR b.attributes_known AND b.inventory_generation=$3 AND b.kind<>'image')),
- count(*) FILTER(WHERE $3::bigint IS NOT NULL AND b.attributes_known AND b.inventory_generation=$3 AND b.kind='image' AND (b.size<>i.size OR b.modified_unix_nano<>i.modified_unix_nano)),
- count(*) FILTER(WHERE $3::bigint IS NOT NULL AND b.attributes_known AND b.inventory_generation=$3 AND b.kind='image' AND b.size=i.size AND b.modified_unix_nano=i.modified_unix_nano),
- count(*) FILTER(WHERE $3::bigint IS NULL OR b.root_id IS NOT NULL AND (NOT b.attributes_known OR b.inventory_generation IS DISTINCT FROM $3))
- FROM job_inventory i LEFT JOIN library_inventory_baseline b ON b.library_id=$1::uuid AND b.root_id=i.root_id AND b.path=i.path WHERE i.job_id=$2::uuid AND i.kind='image'`
-const imageMissingCountsSQL = `SELECT count(*),count(*) FILTER(WHERE ` + baselineUnknownScopeSQL + `),count(*) FILTER(WHERE b.attributes_known AND b.inventory_generation=$3 AND b.kind='image' AND (i.id IS NULL OR i.kind<>'image')) FROM library_inventory_baseline b LEFT JOIN job_inventory i ON i.job_id=$2::uuid AND i.root_id=b.root_id AND i.path=b.path WHERE b.library_id=$1::uuid`
+const imageCurrentCountsSQL = `WITH current AS MATERIALIZED (
+ SELECT root_id,path,size,modified_unix_nano FROM job_inventory WHERE job_id=$2::uuid AND kind='image'),
+ observations AS (
+ SELECT root_id,path,true AS observed,true AS attributes_known,$3::bigint AS inventory_generation,'image'::text AS kind,size,modified_unix_nano FROM current
+ UNION ALL
+ SELECT root_id,path,false,attributes_known,inventory_generation,kind,size,modified_unix_nano FROM library_inventory_baseline_data
+ WHERE library_id=$1::uuid AND snapshot_id=(SELECT active_inventory_snapshot FROM libraries WHERE id=$1::uuid) AND EXISTS(SELECT 1 FROM current)),
+ compared AS (
+ SELECT root_id,path,bool_or(observed) AS observed,bool_or(NOT observed) AS has_baseline,
+ bool_or(attributes_known) FILTER(WHERE NOT observed) AS known,max(inventory_generation) FILTER(WHERE NOT observed) AS epoch,
+ max(kind) FILTER(WHERE NOT observed) AS kind,max(size) FILTER(WHERE observed) AS current_size,max(size) FILTER(WHERE NOT observed) AS baseline_size,
+ max(modified_unix_nano) FILTER(WHERE observed) AS current_mtime,max(modified_unix_nano) FILTER(WHERE NOT observed) AS baseline_mtime
+ FROM observations GROUP BY root_id,path)
+ SELECT count(*) FILTER(WHERE $3::bigint IS NOT NULL AND (NOT has_baseline OR known AND epoch=$3 AND kind<>'image')),
+ count(*) FILTER(WHERE $3::bigint IS NOT NULL AND known AND epoch=$3 AND kind='image' AND (baseline_size<>current_size OR baseline_mtime<>current_mtime)),
+ count(*) FILTER(WHERE $3::bigint IS NOT NULL AND known AND epoch=$3 AND kind='image' AND baseline_size=current_size AND baseline_mtime=current_mtime),
+ count(*) FILTER(WHERE $3::bigint IS NULL OR has_baseline AND (NOT known OR epoch IS DISTINCT FROM $3)) FROM compared WHERE observed`
+const imageMissingCountsSQL = `WITH baseline AS MATERIALIZED (
+ SELECT root_id,path,attributes_known,inventory_generation,kind FROM library_inventory_baseline_data
+ WHERE library_id=$1::uuid AND snapshot_id=(SELECT active_inventory_snapshot FROM libraries WHERE id=$1::uuid)),
+ missing AS (SELECT root_id,path FROM baseline WHERE attributes_known AND inventory_generation=$3 AND kind='image'
+ EXCEPT SELECT root_id,path FROM job_inventory WHERE job_id=$2::uuid AND kind='image')
+ SELECT count(*),count(*) FILTER(WHERE ` + baselineUnknownScopeSQL + `),(SELECT count(*) FROM missing) FROM baseline b`
 
 func saveImageProgress(ctx context.Context, tx pgx.Tx, l domain.JobLease, epoch *int64, complete bool) error {
 	var p domain.ImageProgress

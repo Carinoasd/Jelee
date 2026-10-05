@@ -1,0 +1,60 @@
+{
+  "stats": {
+    "title": "My watch statistics",
+    "allTitle": "Watch statistics of all users",
+    "intro": "Figures come from the daily roll-up: a viewing session is counted after it ends and the next aggregation runs, so the last hours may be missing.",
+    "empty": "No viewing recorded in this period",
+    "allEmpty": "No viewing recorded in this period for any user",
+    "emptyHint": "Statistics appear here after items are watched in a native app.",
+    "range": "From {from} to {to}",
+    "topLabel": "Top list",
+    "topN": "Top {n}",
+    "period": {
+      "label": "Group by",
+      "day": "Day (last 30 days)",
+      "week": "Week (last 12 weeks)",
+      "month": "Month (last 12 months)",
+      "year": "Year (last 5 years)"
+    },
+    "totals": {
+      "heading": "Totals",
+      "time": "Watch time",
+      "views": "Watch-throughs",
+      "sessions": "Viewing sessions",
+      "completion": "Average completion",
+      "firstViews": "First views",
+      "rewatches": "Rewatches"
+    },
+    "timeZone": "Days are counted in the {zone} time zone. Watch time excludes pauses, seeking and fast-forward.",
+    "chart": {
+      "periods": "Watch time over time",
+      "period": "Period"
+    },
+    "topItems": "Most watched",
+    "topUsers": "Most active users",
+    "finished": "Finished",
+    "byLibrary": "By library",
+    "byKind": "By type",
+    "column": {
+      "rank": "Rank",
+      "title": "Title",
+      "kind": "Type",
+      "library": "Library",
+      "user": "User"
+    },
+    "export": {
+      "heading": "Export",
+      "hint": "Downloads the daily rows (day, user, item) of the range shown. Large ranges may be refused; the export is recorded in the audit log.",
+      "csv": "Download CSV",
+      "ndjson": "Download NDJSON"
+    },
+    "clear": {
+      "heading": "Watch history",
+      "hint": "Only you and administrators can see your statistics. Clearing removes your progress, finished marks, counts and statistics on every device.",
+      "button": "Clear my watch history",
+      "confirm": "Yes, clear everything",
+      "prompt": "This cannot be undone.",
+      "done": "Your watch history has been cleared."
+    }
+  }
+}

@@ -17,10 +17,10 @@ func safeFileInfo(info os.FileInfo, directory bool) bool {
 	return info.Mode().IsRegular()
 }
 func makePrivate(path string) error {
-	if err := os.Chmod(path, 0700); err != nil {
+	if err := os.Chmod(path, 0700); err != nil { //nolint:gosec // G302: a private executable must keep its owner execute bit
 		return err
 	}
-	info, err := os.Lstat(path)
+	info, err := os.Lstat(path) //nolint:gosec // G703: path is the project-local tool file being verified
 	if err != nil {
 		return err
 	}

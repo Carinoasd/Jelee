@@ -1,0 +1,16 @@
+{
+  "admin": {
+    "navigation": "Administration sections",
+    "nav": {
+      "users": "Users",
+      "access": "Content access",
+      "clients": "Client control",
+      "shares": "Share links",
+      "webhooks": "Webhooks",
+      "stats": "Watch statistics",
+      "plugins": "Plugins",
+      "appearance": "Custom CSS",
+      "devConsole": "API console"
+    }
+  }
+}

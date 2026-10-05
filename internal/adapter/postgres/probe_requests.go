@@ -6,6 +6,7 @@ import (
 
 	"github.com/MoYuanCN/Jelee/internal/app"
 	"github.com/MoYuanCN/Jelee/internal/domain"
+	"github.com/MoYuanCN/Jelee/internal/platform/tracing"
 	"github.com/jackc/pgx/v5"
 )
 
@@ -53,12 +54,17 @@ func (s *Store) submitScanJob(parentContext context.Context, a domain.Actor, lib
 	return s.submitScanJobWithIgnore(parentContext, a, libraryID, parent, key, priority, scanIntent, p, identity, nfoIdentity, true)
 }
 func (s *Store) submitScanJobWithIgnore(parentContext context.Context, a domain.Actor, libraryID, parent, key, priority string, scanIntent domain.ScanIntent, p domain.JobPolicy, identity *domain.ProbeIdentity, nfoIdentity *domain.NFOIdentity, ignoreAvailable bool) (domain.Job, bool, error) {
-	if parentContext == nil || !validJobPolicy(p) || !validJobKey(key) || domain.ValidateScanIntent(scanIntent) != nil {
+	return s.submitScanJobWithIgnoreFamilies(parentContext, a, libraryID, parent, key, priority, scanIntent, p, identity, nfoIdentity, app.IgnoreAdmissionCapabilities{Custom: ignoreAvailable}, false)
+}
+func (s *Store) submitScanJobWithIgnoreFamilies(parentContext context.Context, a domain.Actor, libraryID, parent, key, priority string, scanIntent domain.ScanIntent, p domain.JobPolicy, identity *domain.ProbeIdentity, nfoIdentity *domain.NFOIdentity, capabilities app.IgnoreAdmissionCapabilities, familyAllowed bool) (domain.Job, bool, error) {
+	validate := domain.ValidateScanIntent
+	if familyAllowed {
+		validate = domain.ValidateScanIntentWithFamilyIgnore
+	}
+	if parentContext == nil || !validJobPolicy(p) || !validJobKey(key) || validate(scanIntent) != nil {
 		return domain.Job{}, false, domain.ErrInvalid
 	}
-	intent, nfoRequested, ignoreIntent := scanIntent.Probe, scanIntent.NFO, scanIntent.Ignore
-	ignoreIdentity := domain.DefaultIgnoreIdentity()
-	if parent == "" && ((priority != domain.JobPriorityManual && priority != domain.JobPriorityBackground) || (libraryID == "" && intent.Scope != domain.ProbeScopeItemRebuild) || (libraryID != "" && !domain.ValidID(libraryID))) {
+	if parent == "" && ((priority != domain.JobPriorityManual && priority != domain.JobPriorityBackground) || (libraryID == "" && scanIntent.Probe.Scope != domain.ProbeScopeItemRebuild) || (libraryID != "" && !domain.ValidID(libraryID))) {
 		return domain.Job{}, false, domain.ErrInvalid
 	}
 	ctx, cancel := context.WithTimeout(parentContext, probeDBTimeout)
@@ -68,6 +74,35 @@ func (s *Store) submitScanJobWithIgnore(parentContext context.Context, a domain.
 		return domain.Job{}, false, err
 	}
 	defer tx.Rollback(ctx)
+	job, replay, err := s.submitScanInTransaction(ctx, tx, a, libraryID, parent, key, priority, scanIntent, p, identity, nfoIdentity, capabilities, familyAllowed, func() error { return probeAdminStillLive(ctx, tx, a) })
+	if err != nil {
+		return domain.Job{}, false, err
+	}
+	if err = tx.Commit(ctx); err != nil {
+		return domain.Job{}, false, storageError(err)
+	}
+	return job, replay, nil
+}
+
+// Caller owns the transaction and supplies its final authority check. Public
+// requests use a live session; scheduling uses the persisted enabled owner.
+func (s *Store) submitScanInTransaction(ctx context.Context, tx pgx.Tx, a domain.Actor, libraryID, parent, key, priority string, scanIntent domain.ScanIntent, p domain.JobPolicy, identity *domain.ProbeIdentity, nfoIdentity *domain.NFOIdentity, capabilities app.IgnoreAdmissionCapabilities, familyAllowed bool, guard func() error) (domain.Job, bool, error) {
+	validateIntent := domain.ValidateScanIntent
+	if familyAllowed {
+		validateIntent = domain.ValidateScanIntentWithFamilyIgnore
+	}
+	if !validJobPolicy(p) || !validJobKey(key) || validateIntent(scanIntent) != nil {
+		return domain.Job{}, false, domain.ErrInvalid
+	}
+	intent, nfoRequested, ignoreIntent := scanIntent.Probe, scanIntent.NFO, scanIntent.Ignore
+	ignoreIdentity := domain.DefaultIgnoreIdentity()
+	if ignoreIntent.Mode == domain.IgnoreModeFamily {
+		ignoreIdentity = domain.DefaultFamilyIgnoreIdentity()
+	}
+	if parent == "" && ((priority != domain.JobPriorityManual && priority != domain.JobPriorityBackground) || (libraryID == "" && intent.Scope != domain.ProbeScopeItemRebuild) || (libraryID != "" && !domain.ValidID(libraryID))) {
+		return domain.Job{}, false, domain.ErrInvalid
+	}
+	var err error
 	if err = trimJobs(ctx, tx, p.HistoryLimit); err != nil {
 		return domain.Job{}, false, err
 	}
@@ -80,6 +115,9 @@ func (s *Store) submitScanJobWithIgnore(parentContext context.Context, a domain.
 	}
 	old, err := scanJob(tx.QueryRow(ctx, `SELECT `+jobColumns+` FROM jobs WHERE actor_id=$1::uuid AND idempotency_key=$2`, a.UserID, key))
 	if err == nil {
+		if old.Kind != "inventory_scan" {
+			return domain.Job{}, false, domain.ErrConflict
+		}
 		var originalParent string
 		if err = tx.QueryRow(ctx, `SELECT COALESCE(parent_id::text,'') FROM jobs WHERE id=$1::uuid`, old.ID).Scan(&originalParent); err != nil {
 			return domain.Job{}, false, storageError(err)
@@ -106,7 +144,7 @@ func (s *Store) submitScanJobWithIgnore(parentContext context.Context, a domain.
 			}
 		}
 		previousNFO := oldNFO != nil && oldNFO.Requested
-		oldIgnore, e := loadIgnoreRequest(ctx, tx, old.ID)
+		oldIgnore, e := loadExecutionIgnoreRequest(ctx, tx, old.ID, familyAllowed)
 		if e != nil {
 			return domain.Job{}, false, e
 		}
@@ -117,11 +155,8 @@ func (s *Store) submitScanJobWithIgnore(parentContext context.Context, a domain.
 		if originalParent != parent || parent == "" && (old.LibraryID != libraryID || old.Priority != priority || previousIntent != intent || previousNFO != nfoRequested || previousIgnore != ignoreIntent) {
 			return domain.Job{}, false, domain.ErrConflict
 		}
-		if err = probeAdminStillLive(ctx, tx, a); err != nil {
+		if err = guard(); err != nil {
 			return domain.Job{}, false, err
-		}
-		if err = tx.Commit(ctx); err != nil {
-			return domain.Job{}, false, storageError(err)
 		}
 		return old, true, nil
 	}
@@ -132,6 +167,9 @@ func (s *Store) submitScanJobWithIgnore(parentContext context.Context, a domain.
 		old, err = scanJob(tx.QueryRow(ctx, `SELECT `+jobColumns+` FROM jobs WHERE id=$1::uuid`, parent))
 		if err != nil {
 			return domain.Job{}, false, err
+		}
+		if old.Kind != "inventory_scan" {
+			return domain.Job{}, false, domain.ErrInvalid
 		}
 		if old.State != domain.JobFailed && old.State != domain.JobCancelled {
 			return domain.Job{}, false, domain.ErrConflict
@@ -159,16 +197,20 @@ func (s *Store) submitScanJobWithIgnore(parentContext context.Context, a domain.
 				return domain.Job{}, false, domain.ErrConflict
 			}
 		}
-		oldIgnore, e := loadIgnoreRequest(ctx, tx, parent)
+		oldIgnore, e := loadExecutionIgnoreRequest(ctx, tx, parent, familyAllowed)
 		if e != nil {
 			return domain.Job{}, false, e
 		}
 		if oldIgnore != nil {
 			ignoreIntent, ignoreIdentity = oldIgnore.Intent, oldIgnore.Identity
 		}
-		if domain.ValidateScanIntent(domain.ScanIntent{Probe: intent, NFO: nfoRequested, Ignore: ignoreIntent}) != nil {
+		if validateIntent(domain.ScanIntent{Probe: intent, NFO: nfoRequested, Ignore: ignoreIntent}) != nil {
 			return domain.Job{}, false, domain.ErrConflict
 		}
+	}
+	ignoreAvailable := capabilities.Custom
+	if ignoreIntent.Mode == domain.IgnoreModeFamily {
+		ignoreAvailable = capabilities.Family
 	}
 	if ignoreIntent.Mode != "" && !ignoreAvailable {
 		return domain.Job{}, false, domain.ErrIgnoreUnavailable
@@ -246,6 +288,7 @@ func (s *Store) submitScanJobWithIgnore(parentContext context.Context, a domain.
 	if err != nil {
 		return domain.Job{}, false, err
 	}
+	tracing.Remember(ctx, tracing.LinkJob, j.ID)
 	if _, err = tx.Exec(ctx, `INSERT INTO job_directories(job_id,root_id,path) SELECT $1::uuid,id,'.' FROM library_roots WHERE library_id=$2::uuid`, j.ID, libraryID); err != nil {
 		return domain.Job{}, false, storageError(err)
 	}
@@ -259,18 +302,15 @@ func (s *Store) submitScanJobWithIgnore(parentContext context.Context, a domain.
 		return domain.Job{}, false, err
 	}
 	if ignoreIntent.Mode != "" {
-		if err = insertIgnoreRequest(ctx, tx, domain.IgnoreRequest{JobID: j.ID, LibraryID: libraryID, Intent: ignoreIntent, Identity: ignoreIdentity}); err != nil {
+		if err = insertAdmissionIgnoreRequest(ctx, tx, domain.IgnoreRequest{JobID: j.ID, LibraryID: libraryID, Intent: ignoreIntent, Identity: ignoreIdentity}, familyAllowed); err != nil {
 			return domain.Job{}, false, err
 		}
 	}
 	if err = auditAccount(ctx, tx, a, "job.submitted", j.ID, nil, map[string]any{"job": j, "probeScope": intent.Scope, "probeTargetItemId": intent.TargetItemID, "nfo": nfoRequested, "ignoreMode": ignoreIntent.Mode, "ignoreCaseMode": ignoreIntent.CaseMode}); err != nil {
 		return domain.Job{}, false, err
 	}
-	if err = probeAdminStillLive(ctx, tx, a); err != nil {
+	if err = guard(); err != nil {
 		return domain.Job{}, false, err
-	}
-	if err = tx.Commit(ctx); err != nil {
-		return domain.Job{}, false, storageError(err)
 	}
 	return j, false, nil
 }

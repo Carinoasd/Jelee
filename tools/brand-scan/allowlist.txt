@@ -1,4 +1,4 @@
-# Exact files only. Full original source tree is deliberately NOT exempted.
+# Exact files, or directories ending in "/" for protocol boundaries only. The scan outside --new is an informational report.
 tools/brand-scan/main.go # The scanner must name the forbidden patterns.
 docs/00-audit-baseline.md # Immutable upstream provenance and source references.
 docs/requirements-source.md # User-provided source contract, including compatibility naming.
@@ -13,3 +13,10 @@ internal/adapter/nfo/read_test.go # Contract fixtures for those exact legacy XML
 docs/nfo-compatibility.md # NFO compatibility evidence and upstream parser source references.
 LICENSE # Legal text.
 CONTRIBUTORS.md # Upstream authorship.
+docs/legal/upstream/listenbrainz-logo-NOTICE.md # Verbatim third-party logo attribution notice moved out of the removed legacy tree.
+docs/legal/upstream/naming-attribution.props.txt # Verbatim original package authors and license expression moved out of the removed legacy tree.
+docs/legal/upstream/naming-copyright.cs.txt # Verbatim original assembly copyright statement moved out of the removed legacy tree.
+# Directory entries (ending in "/") exempt a whole protocol boundary where legacy names are part of the wire contract.
+internal/adapter/compat/ # Third-party client protocol: routes, headers, DTO fields and client identification strings.
+internal/adapter/legacydb/ # Legacy database import (G04.6): reads the upstream SQLite format, whose file, table and type names are the format itself.
+internal/adapter/media/ignore/rule_names.go # Protocol-compatible ignore file names (owner decision E2, G22.2): the two upstream rule file names are aliases of .jeleeignore, same nature as the compat boundary.

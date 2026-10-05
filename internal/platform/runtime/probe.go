@@ -13,8 +13,11 @@ import (
 	"github.com/MoYuanCN/Jelee/internal/adapter/probe"
 	"github.com/MoYuanCN/Jelee/internal/app"
 	"github.com/MoYuanCN/Jelee/internal/domain"
+	"github.com/MoYuanCN/Jelee/internal/platform/mkvruntime"
 	"github.com/MoYuanCN/Jelee/internal/platform/proberuntime"
 	"github.com/MoYuanCN/Jelee/internal/platform/process"
+	"github.com/MoYuanCN/Jelee/internal/platform/sandbox"
+	"github.com/MoYuanCN/Jelee/internal/platform/scratch"
 )
 
 type probeMaintenance interface {
@@ -104,7 +107,7 @@ func prepareProductionProbe(ctx context.Context) (preparedProbe, string, error) 
 	if health := proberuntime.Diagnose(ctx); health.Capability != "available" {
 		return preparedProbe{}, "health_check_failed", domain.ErrProbeRuntimeUnavailable
 	}
-	directory, err := os.MkdirTemp("", "jelee-service-probe-")
+	directory, err := scratch.MkdirOwned("", scratch.ServiceProbe)
 	if err != nil {
 		return preparedProbe{}, "temporary_unavailable", domain.ErrProbeRuntimeUnavailable
 	}
@@ -113,17 +116,43 @@ func prepareProductionProbe(ctx context.Context) (preparedProbe, string, error) 
 	if err != nil {
 		return prepared, "runtime_unavailable", domain.ErrProbeRuntimeUnavailable
 	}
+	// The optional MediaInfo supplement (G19.1, E4) joins only when its
+	// shipped files verify; its presence is part of the identity.
+	supplement := prepareSupplement(ctx, directory, &identity)
+	prepared.identity = identity
 	digest, err := domain.ProbeIdentityDigest(identity)
 	if err != nil {
 		return prepared, "runtime_unavailable", domain.ErrProbeRuntimeUnavailable
 	}
-	adapter, err := probe.NewAdapter(runner, digest)
+	var adapter *probe.Adapter
+	if supplement != nil {
+		adapter, err = probe.NewAdapterWithSupplement(runner, supplement, digest)
+	} else {
+		adapter, err = probe.NewAdapter(runner, digest)
+	}
 	if err != nil {
 		return prepared, "runtime_unavailable", domain.ErrProbeRuntimeUnavailable
 	}
 	prepared.prober, err = probe.NewWorkerBridge(adapter, identity)
 	prepared.stats = runner.Stats
 	return prepared, "runtime_unavailable", err
+}
+
+func prepareSupplement(ctx context.Context, directory string, identity *domain.ProbeIdentity) *process.IsolatedToolRunner {
+	closure, arguments, err := mkvruntime.SupplementIdentity()
+	if err != nil {
+		return nil
+	}
+	supplement, err := mkvruntime.New(ctx, sandbox.ToolMediaInfo, directory)
+	if err != nil {
+		return nil
+	}
+	extended, err := proberuntime.WithSupplement(*identity, closure, arguments)
+	if err != nil {
+		return nil
+	}
+	*identity = extended
+	return supplement
 }
 
 func (p *probeService) Capability() domain.ProbeCapability {
@@ -241,4 +270,10 @@ func (w *probeWorker) Stop(ctx context.Context) error {
 		return err
 	}
 	return errors.Join(w.probe.stopMaintenance(ctx), w.nfo.stopMaintenance(ctx))
+}
+
+func (w *probeWorker) NotifyJobCancellation(id string) {
+	if notifier, ok := w.worker.(app.JobCancellationNotifier); ok {
+		notifier.NotifyJobCancellation(id)
+	}
 }

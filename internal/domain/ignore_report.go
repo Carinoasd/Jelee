@@ -8,6 +8,7 @@ type IgnoreReportEntry struct {
 	Path          string `json:"path"`
 	Kind          string `json:"kind,omitempty"`
 	Outcome       string `json:"outcome"`
+	Family        string `json:"family,omitempty"`
 	RuleDirectory string `json:"ruleDirectory,omitempty"`
 	RuleLine      int    `json:"ruleLine,omitempty"`
 	MatchedPath   string `json:"matchedPath,omitempty"`
@@ -34,6 +35,30 @@ func ValidateIgnoreReportEntry(e IgnoreReportEntry) error {
 		}
 	} else if e.Source != "baseline" || e.Kind != "" {
 		return ErrInvalid
+	}
+	if e.Family != "" {
+		if e.Source == "scan" && e.MatchedPath != e.Path {
+			return ErrInvalid
+		}
+		// A legacy directory lookup may find its own .ignore. Baseline
+		// candidates are files and deliberately reject this shape.
+		if e.Source == "scan" && e.Kind == "directory" && e.Family == IgnoreFamilyLegacy && e.RuleDirectory == e.Path {
+			if !ValidID(e.RootID) || !ValidNFOObservationPath(e.Path) {
+				return ErrInvalid
+			}
+			switch e.Reason {
+			case IgnoreReasonRule:
+				if e.RuleLine >= 1 && e.RuleLine <= 4096 {
+					return nil
+				}
+			case IgnoreReasonBlank, IgnoreReasonInvalid:
+				if e.RuleLine == 0 {
+					return nil
+				}
+			}
+			return ErrInvalid
+		}
+		return ValidateFamilyIgnoreBaselineDecision(FamilyIgnoreBaselineDecision{RootID: e.RootID, Path: e.Path, Outcome: e.Outcome, Family: e.Family, Reason: e.Reason, RuleDirectory: e.RuleDirectory, RuleLine: e.RuleLine, MatchedPath: e.MatchedPath})
 	}
 	return ValidateIgnoreBaselineDecision(IgnoreBaselineDecision{RootID: e.RootID, Path: e.Path, Outcome: e.Outcome, RuleDirectory: e.RuleDirectory, RuleLine: e.RuleLine, MatchedPath: e.MatchedPath, Reason: e.Reason})
 }

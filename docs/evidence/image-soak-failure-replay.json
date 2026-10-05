@@ -1,0 +1,7 @@
+{
+  "scope": "diagnostic-replay",
+  "sourceRun": "033822f3aecf4b6491406594c8687cfd",
+  "failureCode": "soak_worker_failed",
+  "workerErrorCode": "cold_image_processing_failed",
+  "acceptancePassed": false
+}

@@ -1,0 +1,132 @@
+{
+  "previousCommit": "3cbbefdbbba4778b5a295411182a064abf5e203b",
+  "phase": "第三階段：劇集計數、狀態與播出資訊",
+  "schemaVersion": 37,
+  "verification": {
+    "windows": {
+      "passedPackages": 29,
+      "passedTestEventsIncludingParents": 3291,
+      "skippedTestEvents": 503,
+      "elapsedSeconds": 12.265
+    },
+    "native": {
+      "passedPackages": 5,
+      "passedTestEventsIncludingParents": 1155,
+      "skippedTestEvents": 0,
+      "elapsedSeconds": 3.572
+    },
+    "full-pg": {
+      "passedPackages": 1,
+      "passedTestEventsIncludingParents": 840,
+      "skippedTestEvents": 0,
+      "elapsedSeconds": 536.029
+    },
+    "native-pg": {
+      "passedPackages": 1,
+      "passedTestEventsIncludingParents": 11,
+      "skippedTestEvents": 0,
+      "elapsedSeconds": 16.233
+    },
+    "e2e-final": {
+      "passedPackages": 1,
+      "passedTestEventsIncludingParents": 1,
+      "skippedTestEvents": 0,
+      "elapsedSeconds": 76.799
+    }
+  },
+  "initialRedLeaves": 3,
+  "initialFailures": {
+    "initial-red": [
+      "TestTMDBMetadataThroughTLSHTTPAndPostgres"
+    ],
+    "unknown-counts-initial-red": [
+      "TestItemSeriesAcceptsPublishedUnknownCounts"
+    ],
+    "spec-initial-red": [
+      "TestTMDBMetadataThroughTLSHTTPAndPostgres"
+    ]
+  },
+  "fullPathNegative": {
+    "negativeLeafFailures": 1,
+    "mutation": "replace series airtime in formal projection",
+    "restoredSources": {
+      "internal/adapter/nfo/item_fields.go": "25fc1e2dcf8820a05e2432b1a108934e962c6e665148310ec5c3102a871c643f"
+    },
+    "restoredExitCode": 0
+  },
+  "protectedPublishedMigrationFiles": 72,
+  "sourceSHA256AfterVerification": {
+    "internal/adapter/http/item_metadata_fact.go": "d0d56103ea4f44fe23007ef6ed4503ade413f0fadd086c1a0d26c07354a4fea6",
+    "internal/adapter/http/metadata_apply.go": "bd5f9184c00ffd8db599e9c1a5536471299088b84058858b0cac1a72159a9299",
+    "internal/adapter/http/nfo_field_lock.go": "bdb7292801913bada2fd7ad5b773ea173b3028468d872625b5031319e17df66e",
+    "internal/adapter/nfo/document.go": "a8aa35986985d52450e3fc742f1fd8a01a0ba0993f5fa57f8b625997481cf39e",
+    "internal/adapter/nfo/item_fields.go": "25fc1e2dcf8820a05e2432b1a108934e962c6e665148310ec5c3102a871c643f",
+    "internal/adapter/nfo/item_selection.go": "06c8c43c7a7691015957e9e1ef63ab921644e4480e33c4e0c59db3f95798c8bf",
+    "internal/adapter/nfo/metadata.go": "7896933083306a118ccac4367b5cbb99f976745ee9992a2a1724298c80c7ec11",
+    "internal/adapter/postgres/accounts_integration_test.go": "a15cdd766a7c288a2b2f11e7353a41ad4e1da7d2eef2a915ca2e756572693652",
+    "internal/adapter/postgres/ignore_baseline_test.go": "1c9fd9cf42c85418853f49a883a988dc6a9092890d784780a924dd7ad89f1672",
+    "internal/adapter/postgres/ignore_family_comparison_test.go": "4f96a77efc45f1dc5c20f1e3b0ece37cead4c867117dcbe905c9fcfd35080015",
+    "internal/adapter/postgres/ignore_family_scan_test.go": "a79c16fbec0c71f444e7147a92743c9999717bf8abe0f3639f81b095aa5f1119",
+    "internal/adapter/postgres/ignore_legacy_baseline_test.go": "c9fb6ca002a7175285879b23af17d9f0d01cbaeb795c92def3b5d84177b72e9e",
+    "internal/adapter/postgres/ignore_legacy_baseline_verification_test.go": "d8ce8b60027bd08c6c2b8e96e49162e5336ff75b0350de6bd812138c926c2748",
+    "internal/adapter/postgres/ignore_legacy_migration_test.go": "d6fc42bbc0e5c06a9c2cd717a9fad78138b5611de4984a891764f333c3bccaa0",
+    "internal/adapter/postgres/ignore_legacy_verification_test.go": "70b25430f07169d3f8844186e23714ac5e3efdb4adad2bad05b1901f32873b85",
+    "internal/adapter/postgres/ignore_manifest_test.go": "d12a2e72aec78016c5efd89b50ca2d60cdcfdf824ad93ed1f7101553fe5b4da5",
+    "internal/adapter/postgres/ignore_migration_test.go": "34975f342c67674390f72ae9c61aa480cc13f4c4ef61404a0b47869e92536d8d",
+    "internal/adapter/postgres/ignore_scan_test.go": "957850b89b91b9a6441eac0a182b8b7d0a0b4df0bed3503b4d25b5ad58d52037",
+    "internal/adapter/postgres/ignore_verification_test.go": "7ab5f9d9896911a5ea9ecf1b26c2e72fd4bc9ee85b939f12cc711803a6209c82",
+    "internal/adapter/postgres/item_metadata_fact.go": "efa6d23b84c91af3201a5a69ac3d93d7cdadc1e1b27be341cd0a56cee5559c07",
+    "internal/adapter/postgres/item_metadata_test.go": "8ebb53851dc1eec919d5e58d8d3ec99b83e948e1278f75fdb840edb9eb11675a",
+    "internal/adapter/postgres/jobs_integration_test.go": "a70dcb4c0bb00bea56caef1d7b6a94a8a47e5ee509aef0c6c5beed877b0005e3",
+    "internal/adapter/postgres/metadata_apply_test.go": "1ef6a3735bd8761fb13ff165d6de7cc3c18f6772d8511fd22ccce1045758191a",
+    "internal/adapter/postgres/metadata_image_preferences_test.go": "7164db92589e01a5b342bc817ae7a96f21716066b772cb9bf9291f19b20b66b5",
+    "internal/adapter/postgres/metadata_preferences_test.go": "83560d63847597332a8c4f9ad09991539c3086e31b39a14fc8a63a4cc7c0039c",
+    "internal/adapter/postgres/nfo_actor_test.go": "376b409f9cb2365f0299beaa7ab1f038b4109ad4bb91dee9f1aaf7a96ed3620a",
+    "internal/adapter/postgres/nfo_collection_test.go": "fa718234bf4e5fb107f1ace3f6ced4cb8d5beb418871b4e5867043c66d30e5a1",
+    "internal/adapter/postgres/nfo_field_lock.go": "aac8df6e90bd22fc465f4326d1a9756e1c5de8b0bb529d5693a1bd0c5e0a2226",
+    "internal/adapter/postgres/nfo_identifier_test.go": "da9663a4808afcbde9a27a82e1c3293a407d6a1ce3e1f6ec17d58beeedf1e1bd",
+    "internal/adapter/postgres/nfo_integration_test.go": "00640dab159ce3b66e4045cfe138b840df4f9df453654c5713b4ef2ac39cee04",
+    "internal/adapter/postgres/nfo_item_apply_test.go": "57212ee8059480aa8248ce718c498857080cde8a824aa61a07aa7d1b667c3e56",
+    "internal/adapter/postgres/nfo_item_lock_intent_test.go": "2ff0036ace262ddb0c3b67fc009fd42c657c7325cb1aaa53bba395ec9fc04f8a",
+    "internal/adapter/postgres/nfo_item_observation_test.go": "f31c57f1e6bd6da48140897a5a757114079d9ff320573d7061a495bf0a52dd60",
+    "internal/adapter/postgres/nfo_lock_only_test.go": "6290e962ccf3170406db2d7d167606e058572a7928eaf8f45786e9fd0ee10e44",
+    "internal/adapter/postgres/nfo_movie_extras_test.go": "e6f320534d78e1aaee1c884404af3e3f24397534b9634daa8b248fffb4845b35",
+    "internal/adapter/postgres/nfo_numeric_facts_test.go": "3bc84a9c914983720aa4b98ff12d3a3ec2138bce93b9b45dcb709b9d80e7a022",
+    "internal/adapter/postgres/nfo_rating_test.go": "c9304d190add4091714548b464be4836a18920846d9de6df5cebcc09960926fe",
+    "internal/adapter/postgres/nfo_sort_title_test.go": "d07bb6f8b9a45c2c3a4e3506335686c19a59b393c8b28befc1b0d61a288b6b04",
+    "internal/adapter/postgres/nfo_string_lists_test.go": "4308c5e369e2d0e19ca256825a603996945235803827b1768da4daa8564a67ce",
+    "internal/adapter/postgres/nfo_text_fields_test.go": "201ee6a01865c42792f40d79d2d619b7e524be9c1717dcd12cc8b956ad5f6fc7",
+    "internal/adapter/postgres/nfo_worker_migration_test.go": "bd22eb4a0408409e3a128864636768f2758fb7f31b0ff2ea87d32b7fd9a94489",
+    "internal/adapter/postgres/nfo_year_fact_test.go": "c873355d7ca06ae7d162bbbb508ee7c61d68dfc569e0eeab8605c8fb23eee5e8",
+    "internal/adapter/postgres/probe_integration_test.go": "eac71c3364d9b93b6432673634438fbfb1efa63c42f4c8f4b450c0b5c6200f27",
+    "internal/adapter/postgres/probe_requests_test.go": "a70780fba08c2fdef7f1e0b6115576a56f51d944adb338ecb9a7258f3103beda",
+    "internal/adapter/postgres/store.go": "7b13280d8bd029529321816803485f8c17e2a32672119957855321c8b595aca8",
+    "internal/adapter/postgres/store_integration_test.go": "13bb9ef60e3b69fb08851e469b995ee44fa7fa0c8e63f903318e5473b08bf8f1",
+    "internal/app/nfo_item_apply.go": "0edff6b20e2ae7873708623d49eb09aa77f997ef779b813fb627b622338e8b50",
+    "internal/domain/item_metadata_fact.go": "d7929cc11217b7848a1d379de7617fb43b47bb21ccbd66fbe64d4ad3c8102f97",
+    "internal/domain/nfo_field_lock.go": "dc84b9481dec0e77bcadf26ee1464604cc6517a1be3feb135a5a31c2a2481e29",
+    "internal/domain/nfo_item_fields.go": "b6bd6788bc3c31d8ecf59902d4741ea29f377eae3c655c82f5adde198e690770",
+    "internal/domain/nfo_item_observation.go": "47ece402d13aa0a0fc537c556a627f6f10fb7a538cae7c316657e4e388377cba",
+    "internal/domain/nfo_item_origin.go": "331251f3fe784b3fed9196edc98b112a110a8ddc9cbd0a0d7dec839cb13f1b49",
+    "internal/platform/outbound/metadata_apply_integration_test.go": "2ab17907fb367f147367a1835a8e6254ffea361de3590bdd18ccc8ab53282153",
+    "internal/adapter/nfo/item_series_details_test.go": "1d5cecb58e0aa04e3a900359df06660ab9c4e5166a771d8c767e93388654d3e2",
+    "internal/adapter/postgres/migrations/000037_nfo_series_details.down.sql": "4672f7a3c9da32e78ddb847ae54ccd0bff118bd4814d7df074ea66dccd952531",
+    "internal/adapter/postgres/migrations/000037_nfo_series_details.up.sql": "fb793001fd003cb8544d98b82639eb50f897a7907687a5683e1464f9fde91ea1",
+    "internal/adapter/postgres/nfo_series_details_test.go": "24f4b52da19aab6f5e2cadb08174df855a651f32b566aead41d4b87d77f7bd91",
+    "internal/domain/nfo_series_details.go": "90725566344de4e5b63b7d9a0b4645d879510af319901e24bb2f203c9b6d79e0"
+  },
+  "requirements": {
+    "partial": 184,
+    "blocked": 148,
+    "done": 4
+  },
+  "gates": {
+    "vet": "passed",
+    "productBuild": "passed",
+    "newBrandViolations": 0,
+    "fullBrandViolations": 14735,
+    "gitignoreViolations": 0
+  },
+  "scope": "劇集季數與集數、狀態及播出星期／時間，保留未知-1／零／缺省與原文字；人工清除／來源／獨立鎖共交易，33欄／24facts／13API變體，五表回滾、舊電影資料往返、新資料拒降；季集實際來源綁定與匯入、前端和無損回寫仍待完成。",
+  "verificationScopeNote": "正式Go／SQL在全面回歸開始前固定；負向驗收後逐位元復原並完整重跑HTTP。"
+}

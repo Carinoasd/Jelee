@@ -21,6 +21,27 @@ import (
 // treats as the same field. Errors never contain body text or field names.
 // The caller owns the request body and its transport read deadline.
 func DecodeJSON(w http.ResponseWriter, r *http.Request, target any, maxBytes int64) error {
+	return decodeJSON(w, r, target, maxBytes, nil)
+}
+
+// Manual facts allow clears and nullable structured values. Domain validation
+// checks that nullable members belong to the selected fact type.
+func decodeItemMetadataJSON(w http.ResponseWriter, r *http.Request, target any, maxBytes int64) error {
+	return decodeJSON(w, r, target, maxBytes, factNullable)
+}
+
+func factNullable(path string) bool {
+	return path == "/FACTS/*/VALUE" || path == "/FACTS/*/VALUE/*/ORDER" || path == "/FACTS/*/VALUE/*/MAX" || path == "/FACTS/*/VALUE/*/VOTES" || path == "/FACTS/*/VALUE/*/SEASON"
+}
+
+// decodeJSONNullable is DecodeJSON with null accepted where nullable
+// reports true. Paths are slash-separated case-folded keys (upper case for
+// ASCII) with "*" for array elements, for example "/SETTINGS/X.Y/KEY".
+func decodeJSONNullable(w http.ResponseWriter, r *http.Request, target any, maxBytes int64, nullable func(string) bool) error {
+	return decodeJSON(w, r, target, maxBytes, nullable)
+}
+
+func decodeJSON(w http.ResponseWriter, r *http.Request, target any, maxBytes int64, nullable func(string) bool) error {
 	if r == nil || r.Body == nil || target == nil || maxBytes < 1 {
 		return domain.ErrInvalid
 	}
@@ -56,7 +77,7 @@ func DecodeJSON(w http.ResponseWriter, r *http.Request, target any, maxBytes int
 	validator := json.NewDecoder(bytes.NewReader(body))
 	validator.UseNumber()
 	first, err := validator.Token()
-	if err != nil || first != json.Delim('{') || !checkJSONObject(validator, 1) {
+	if err != nil || first != json.Delim('{') || !checkJSONObjectAt(validator, 1, "", nullable) {
 		return domain.ErrInvalid
 	}
 	if _, err := validator.Token(); err != io.EOF {
@@ -71,6 +92,10 @@ func DecodeJSON(w http.ResponseWriter, r *http.Request, target any, maxBytes int
 }
 
 func checkJSONObject(decoder *json.Decoder, depth int) bool {
+	return checkJSONObjectAt(decoder, depth, "", nil)
+}
+
+func checkJSONObjectAt(decoder *json.Decoder, depth int, path string, nullable func(string) bool) bool {
 	if depth > 64 {
 		return false
 	}
@@ -86,7 +111,7 @@ func checkJSONObject(decoder *json.Decoder, depth int) bool {
 			return false
 		}
 		seen[key] = struct{}{}
-		if !checkJSONValue(decoder, depth) {
+		if !checkJSONValueAt(decoder, depth, path+"/"+key, nullable) {
 			return false
 		}
 	}
@@ -95,9 +120,16 @@ func checkJSONObject(decoder *json.Decoder, depth int) bool {
 }
 
 func checkJSONValue(decoder *json.Decoder, parentDepth int) bool {
+	return checkJSONValueAt(decoder, parentDepth, "", nil)
+}
+
+func checkJSONValueAt(decoder *json.Decoder, parentDepth int, path string, nullable func(string) bool) bool {
 	token, err := decoder.Token()
-	if err != nil || token == nil {
+	if err != nil {
 		return false
+	}
+	if token == nil {
+		return nullable != nil && nullable(path)
 	}
 	delim, compound := token.(json.Delim)
 	if !compound {
@@ -109,10 +141,10 @@ func checkJSONValue(decoder *json.Decoder, parentDepth int) bool {
 	}
 	switch delim {
 	case '{':
-		return checkJSONObject(decoder, depth)
+		return checkJSONObjectAt(decoder, depth, path, nullable)
 	case '[':
 		for decoder.More() {
-			if !checkJSONValue(decoder, depth) {
+			if !checkJSONValueAt(decoder, depth, path+"/*", nullable) {
 				return false
 			}
 		}

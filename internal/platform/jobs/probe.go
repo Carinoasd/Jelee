@@ -196,6 +196,11 @@ func (r *Runner) inspect(ctx context.Context, source domain.ProbeSource) (stamp 
 			stamp, result = domain.ProbeStamp{}, domain.ErrProbeRuntimeUnavailable
 		}
 	}()
+	release, err := r.acquireWork(ctx, app.WorkIO)
+	if err != nil {
+		return domain.ProbeStamp{}, err
+	}
+	defer release()
 	fileCtx, cancel := context.WithTimeout(ctx, r.options.Probe.FileTimeout)
 	defer cancel()
 	stamp, result = r.options.Probe.Prober.Inspect(fileCtx, source)

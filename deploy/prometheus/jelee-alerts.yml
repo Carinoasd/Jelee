@@ -1,0 +1,160 @@
+# Jelee default alert rules (G50.6). Load this file from Prometheus
+# `rule_files`; the scrape job must be named "jelee" (see
+# prometheus.example.yml). Every alert links its section of docs/runbook.md.
+# Shared database values (jobs, webhooks, scans, developer mode, consistency)
+# are the same on every replica, so those rules aggregate with max().
+# internal/platform/telemetry/alerts_test.go checks that every metric named
+# here is exposed by GET /metrics and that every alert has a runbook section.
+groups:
+  - name: jelee-availability
+    rules:
+      - alert: JeleeScrapeFailed
+        expr: up{job="jelee"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Jelee metrics cannot be scraped"
+          description: "GET /metrics of {{ $labels.instance }} failed for 2 minutes. /metrics authenticates against PostgreSQL, so an unreachable database fails the scrape as well as a stopped service."
+          runbook: "docs/runbook.md#jeleescrapefailed"
+      - alert: JeleeDatabasePoolSaturated
+        expr: |
+          rate(jelee_db_pool_acquire_canceled_total[5m]) > 0
+          and jelee_db_pool_connections_acquired >= jelee_db_pool_connections_max
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Jelee requests give up waiting for a database connection"
+          description: "Every pool connection of {{ $labels.instance }} is in use and acquisitions are being cancelled."
+          runbook: "docs/runbook.md#jeleedatabasepoolsaturated"
+  - name: jelee-resources
+    rules:
+      - alert: JeleeDiskSpaceLow
+        expr: jelee_storage_available_bytes / jelee_storage_size_bytes < 0.10
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Less than 10% free space for {{ $labels.volume }}"
+          description: "The filesystem holding {{ $labels.volume }} on {{ $labels.instance }} has {{ $value | humanizePercentage }} available."
+          runbook: "docs/runbook.md#jeleediskspacelow"
+      - alert: JeleeDiskSpaceCritical
+        expr: jelee_storage_available_bytes / jelee_storage_size_bytes < 0.02 or jelee_storage_available_bytes < 268435456
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Almost no free space for {{ $labels.volume }}"
+          description: "The filesystem holding {{ $labels.volume }} on {{ $labels.instance }} is below 2% or 256 MiB available; writes of images, staging files or logs will fail."
+          runbook: "docs/runbook.md#jeleediskspacecritical"
+      - alert: JeleeDiskWillFillIn24h
+        expr: predict_linear(jelee_storage_available_bytes[6h], 24 * 3600) < 0
+        for: 30m
+        labels:
+          severity: warning
+        annotations:
+          summary: "{{ $labels.volume }} is on track to fill within 24 hours"
+          description: "At the growth of the last six hours the filesystem holding {{ $labels.volume }} on {{ $labels.instance }} runs out of space within a day."
+          runbook: "docs/runbook.md#jeleediskwillfillin24h"
+      - alert: JeleeMemoryNearLimit
+        expr: |
+          jelee_runtime_heap_bytes / jelee_runtime_memory_limit_bytes > 0.9
+          and jelee_runtime_memory_limit_bytes > 0
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Jelee heap above 90% of its memory limit"
+          description: "The Go heap of {{ $labels.instance }} stayed above 90% of GOMEMLIMIT for 10 minutes; garbage collection is working hard and the container may run out of memory."
+          runbook: "docs/runbook.md#jeleememorynearlimit"
+  - name: jelee-jobs
+    rules:
+      - alert: JeleeScanConsecutiveFailures
+        expr: max(jelee_scan_consecutive_failures) >= 3
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "A library failed its last {{ $value }} inventory scans"
+          description: "At least one library has failed three or more inventory scans in a row; its catalog is no longer updated."
+          runbook: "docs/runbook.md#jeleescanconsecutivefailures"
+      - alert: JeleeJobLeasesExpired
+        expr: max(sum without (kind, priority) (jelee_jobs_shared_expired_running)) > 0
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Running jobs lost their worker"
+          description: "Jobs have held an expired lease for 15 minutes; no worker is claiming work, or every worker stopped."
+          runbook: "docs/runbook.md#jeleejobleasesexpired"
+  - name: jelee-integrations
+    rules:
+      - alert: JeleeWebhookDeadLetters
+        expr: max(jelee_webhooks_deliveries_dead) > 0 and max(delta(jelee_webhooks_deliveries_dead[1h])) > 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Webhook deliveries are being dead-lettered"
+          description: "{{ $value }} webhook deliveries are dead-lettered and the number grew within the last hour."
+          runbook: "docs/runbook.md#jeleewebhookdeadletters"
+      - alert: JeleeWebhookDeadLettersHigh
+        expr: max(jelee_webhooks_deliveries_dead) >= 100
+        for: 15m
+        labels:
+          severity: critical
+        annotations:
+          summary: "{{ $value }} webhook deliveries are waiting in the dead-letter state"
+          description: "Dead-lettered deliveries pile up; receivers are missing events until they are replayed."
+          runbook: "docs/runbook.md#jeleewebhookdeadlettershigh"
+  - name: jelee-security
+    rules:
+      - alert: JeleeClientBlockBurst
+        expr: sum(rate(jelee_client_control_blocked_total[5m])) * 60 > 100
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Client control is refusing more than 100 requests a minute"
+          description: "Enforced client rules refuse {{ $value | humanize }} requests per minute (G47.8 bulk refusal)."
+          runbook: "docs/runbook.md#jeleeclientblockburst"
+      - alert: JeleeDevModeActive
+        expr: max(jelee_devmode_active) == 1
+        for: 30m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Developer mode has been on for 30 minutes"
+          description: "A developer mode session is active (G45); its toggles weaken production safeguards until it is disabled or expires."
+          runbook: "docs/runbook.md#jeleedevmodeactive"
+      - alert: JeleeDevModeLongRunning
+        expr: max(jelee_devmode_active_duration_seconds) > 8 * 3600
+        labels:
+          severity: critical
+        annotations:
+          summary: "Developer mode has been on for more than 8 hours"
+          description: "The developer mode session started {{ $value | humanizeDuration }} ago and was not switched off."
+          runbook: "docs/runbook.md#jeleedevmodelongrunning"
+  - name: jelee-data
+    rules:
+      - alert: JeleeConsistencyFindings
+        expr: max by (check) (jelee_consistency_findings) > 0
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Consistency check {{ $labels.check }} reported {{ $value }} findings"
+          description: "The latest consistency check of at least one library found records that disagree with the files or with each other."
+          runbook: "docs/runbook.md#jeleeconsistencyfindings"
+      - alert: JeleeConsistencyCheckStale
+        expr: |
+          max(jelee_consistency_last_completed_timestamp_seconds) > 0
+          and time() - max(jelee_consistency_last_completed_timestamp_seconds) > 8 * 86400
+        for: 1h
+        labels:
+          severity: info
+        annotations:
+          summary: "No consistency check finished for 8 days"
+          description: "Consistency checks ran before but none finished for more than 8 days; the periodic schedule may be off or its jobs failing."
+          runbook: "docs/runbook.md#jeleeconsistencycheckstale"

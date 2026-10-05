@@ -8,7 +8,7 @@ import (
 func resourceCount() int {
 	var count uint32
 	get := windows.NewLazySystemDLL("kernel32.dll").NewProc("GetProcessHandleCount")
-	ok, _, _ := get.Call(uintptr(windows.CurrentProcess()), uintptr(unsafe.Pointer(&count)))
+	ok, _, _ := get.Call(uintptr(windows.CurrentProcess()), uintptr(unsafe.Pointer(&count))) //nolint:gosec // G103: the Windows API takes a raw pointer to this fixed-layout value
 	if ok == 0 {
 		panic("cannot count process handles")
 	}

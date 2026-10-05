@@ -1,10 +1,15 @@
 # 第三方开发与测试工具
 
-实际下载的工具与精确平台哈希见 `tools/manifest.json`。Go 下载来源为 [Go 官方下载页](https://go.dev/dl/)；校验信息为 [官方下载元数据](https://go.dev/dl/?mode=json)。
+实际下载的工具与精确平台哈希见 `tools/manifest.json`。Go 下载来源为 [Go 官方下载页](https://go.dev/dl/)；校验信息为 [官方下载元数据](https://go.dev/dl/?mode=json)。golangci-lint 下载来源为 [官方 GitHub release v2.14.0](https://github.com/golangci/golangci-lint/releases/tag/v2.14.0)，SHA256 取自该 release 的 [checksums 文件](https://github.com/golangci/golangci-lint/releases/download/v2.14.0/golangci-lint-2.14.0-checksums.txt)，并于 2026-10-04 重新下载 linux-amd64、windows-amd64 压缩包核对一致。Playwright 的 npm 包来自 npm registry（版本与 integrity 锁在 `package-lock.json`）；浏览器只取 Chrome Headless Shell，下载来源为 Playwright 自己使用的 `https://cdn.playwright.dev/builds/cft/153.0.8010.12/`。Playwright 与 [Chrome for Testing](https://googlechromelabs.github.io/chrome-for-testing/) 都不发布压缩包校验和：2026-10-04 分别从 cdn.playwright.dev 与 Google 的 `chrome-for-testing-public` 存储桶（[known-good-versions-with-downloads.json](https://googlechromelabs.github.io/chrome-for-testing/known-good-versions-with-downloads.json) 列出的地址）下载 linux64、linux-arm64、win64 三个压缩包，两个来源逐一得到相同的 SHA256，固定在清单中。
 
 | 名称 | 版本 | 许可证与归属 | 用途 | 分发范围 |
 | --- | --- | --- | --- | --- |
 | Go（包含 gofmt、vet、coverage） | 1.27.1 | BSD-3-Clause，The Go Authors；发行包内 `go/LICENSE` 与 `go/PATENTS` 保留 | 构建、检查、测试 | 仅项目本地工具；工具链不随应用二进制分发 |
+| Node.js（含 npm 11.19.0） | 24.21.0 | MIT，Node.js contributors / OpenJS Foundation；捆绑组件许可列于发行包 `LICENSE` | 前端安装、型别检查、lint、测试与构建 | 仅项目本地工具；不随 Go 服务端或容器镜像分发 |
+| npm 前端开发依赖（Vite、vue-tsc、ESLint、Vitest、openapi-typescript 等） | 见 `package-lock.json` | 各包自身许可（以 MIT/Apache-2.0/BSD 为主），版本与完整性哈希锁在 lockfile | 前端构建与检查 | 构建期依赖；产物只包含 Vue、vue-router、Pinia、vue-i18n、openapi-fetch 的运行代码 |
+| golangci-lint | 2.14.0 | GPL-3.0，golangci-lint 作者与贡献者；发行包内 `LICENSE` 保留并与已校验压缩包逐字节比对；所含各 linter 保留各自许可 | Go 静态分析门禁（G30.1，见 `docs/quality-gates.md`） | 仅项目本地开发与 CI 工具；只执行、不链接，不随 Go 服务端、容器镜像或任何发行包分发 |
+| Playwright（`@playwright/test`、`playwright`、`playwright-core`） | 1.63.0 | Apache-2.0，Microsoft Corporation 与 Playwright 贡献者；许可文本随 npm 包保留在 `node_modules` | Web 端到端与视觉回归（G27.4、G34.5、G34.6，见 `docs/frontend-adr.md`） | npm 开发依赖；只在开发机与 CI 执行，不进入 `web/dist`、Go 服务端或容器镜像 |
+| Chrome Headless Shell（Chrome for Testing） | 153.0.8010.12（Playwright 浏览器修订 1243） | Chromium，BSD-3-Clause，The Chromium Authors；压缩包内 `LICENSE.headless_shell` 列出全部第三方组件许可，安装后与已校验压缩包逐字节比对 | Playwright 的无头浏览器 | 仅 `make bootstrap-playwright` 时下载到被忽略的 `.tools/playwright/`；不下载完整 Chromium、Firefox、WebKit 与 Playwright 的 ffmpeg；不分发 |
 | Gyan Windows amd64 ffmpeg / ffprobe | `9.0.2-essentials_build-www.gyan.dev` | GPL-3.0-or-later，FFmpeg developers、Gyan Doshi 与所链接依赖作者；保留发行包 `LICENSE`、README 与文档 | 可选开发工具；ffmpeg 仅用于合成测试素材/调试，ffprobe 用于开发验证 | 本地被忽略目录，不进入本阶段生产镜像 |
 | BtbN Linux amd64 ffmpeg / ffprobe | `n9.0.2-17-g2a571b6068-20260930` | GPL-3.0-or-later，FFmpeg developers、BtbN 与所链接依赖作者；保留发行包 `LICENSE.txt` 及文档 | 同上；glibc 2.28+、Linux 4.18+ | 本地被忽略目录，不进入本阶段生产镜像 |
 | Debian libc6 amd64（七个 ELF） | `2.41-12+deb13u4` | LGPL-2.1-or-later 与文件级条款；完整包版权文件保留，glibc contributors / Free Software Foundation / Debian GNU Libc Maintainers | 实验 Linux ffprobe 的加载器与 glibc 闭包 | 仅本地实验镜像；未发布公共镜像 |
@@ -12,6 +17,10 @@
 | 官方 Go 容器构建镜像 | 1.27.1-alpine3.24 | Go 为 BSD-3-Clause；Alpine 各包保留各自许可证 | Docker 多阶段构建 | 构建阶段使用，最终 scratch 镜像不含该工具链 |
 | Docker Engine | 29.7.2（已存在的宿主工具） | Apache-2.0，[Moby 项目](https://github.com/moby/moby) | 启动隔离测试数据库 | 引导不安装、不分发 |
 | PostgreSQL 测试镜像 | 16.15 | [PostgreSQL License](https://www.postgresql.org/about/licence/)，PostgreSQL Global Development Group；基础镜像各包保留各自许可证 | 临时集成测试 | 已存在镜像，引导不拉取、不分发 |
+| MKVToolNix（mkvmerge、mkvextract；mkvpropedit 只固定不使用） | 102.0（Linux 官方 AppImage／Windows 官方 64 位 zip） | GPL-2.0，Moritz Bunkus 與 MKVToolNix 貢獻者；`COPYING` 與列出隨附元件授權的 README 保留；AppImage 內 22 個函式庫（Qt 6 LGPL-3.0、ICU、GLib／GnuTLS LGPL-2.1+、Nettle／GMP 等）保留各自授權 | E4 可選運行依賴：Matroska 識別與內嵌文字字幕／字型附件原樣擷取（G15.5、G15.7） | 只在明確 `bootstrap-matroska` 後安裝；Linux 檔案進本地實驗映像（不含 mkvpropedit），未發布公共映像 |
+| MediaInfo CLI | 26.05（Linux 官方 Lambda 版／Windows 官方 x64 zip） | BSD-2-Clause，MediaArea.net SARL；`LICENSE` 保留；Windows 版的 `LIBCURL.DLL` 為 curl 授權 | E4 可選運行依賴：Matroska 探測補充（G19.1） | 同上 |
+| Debian libstdc++6 / zlib1g / libgmp10 amd64 | `14.2.0-19` / `1:1.3.dfsg+really1.3.1-1+b1` / `2:6.3.0+dfsg-3` | libstdc++ 為 GPL-3.0-or-later WITH GCC-exception-3.1（notice 即 gcc-14-base copyright）；zlib 為 Zlib；GMP 為 LGPL-3.0-or-later 或 GPL-2.0-or-later；保留各包 `copyright` | 補足 mkvtoolnix／MediaInfo 的 Linux 依賴閉包 | 同上 |
+| Tesseract OCR（只用 `tesseract` CLI）與 tessdata_fast 語言資料 eng／chi_tra／chi_sim／jpn | Debian `5.5.0-1+b1`（tesseract-ocr、libtesseract5）、`1:4.1.0-2`（tesseract-lang）；Linux amd64 only | Apache-2.0，Tesseract OCR 貢獻者（原 Hewlett-Packard 與 Google）、Debian Tesseract 維護者；Leptonica 1.84.1 為 BSD-2-Clause；Debian 版本連結的 libcurl、libarchive、GnuTLS、OpenSSL、Kerberos、OpenLDAP 等 49 個函式庫套件保留各自授權（各包 `copyright` 隨 OCR 層放在 `/licenses/tesseract/`） | G15.6 可選運行依賴：點陣字幕（PGS、VobSub）辨識為額外的 SRT 軌；預設不安裝、不在預設映像（`make bootstrap-ocr`、`deploy/ocr/Dockerfile`） | 清單 `ocrTools`：55 個 Debian 套件以版本、pool URL、大小、SHA256 固定，逐檔 SHA256；見 [字幕 OCR](subtitle-ocr.md) |
 | WSL GCC / cc1 / collect2 | Ubuntu `15.2.0-16ubuntu1` | GPL-3.0-or-later；运行库组件另含 GCC Runtime Library Exception 3.1，完整组件条款见宿主 `gcc-15-base/copyright` | Go race/cgo 的 SDK 外部编译与链接 | 既有 Ubuntu 26.04 amd64 工具，只盘点，不安装、不分发 |
 | WSL GNU binutils ld.bfd / as | Ubuntu `2.46-3ubuntu2` | GPL-3.0-or-later，Free Software Foundation；文档适用 GFDL-1.3-or-later | 上述 GCC 调用的链接器与汇编器 | 同上 |
 | Git for Windows / Ubuntu Git | `2.55.0.windows.3` / `2.53.0`（Ubuntu package `1:2.53.0-1ubuntu1`） | Git主要为GPL-2.0-only，文件级例外与发行组件保留各自条款；Linus Torvalds、Git贡献者及平台维护者，宿主许可证路径/hash见manifest | 仅在隔离临时repo用已有Git作忽略规则差分测试；生产matcher无外部程序依赖 | 已存在工具，未下载/安装/分发；两平台版本分别记录 |
@@ -22,7 +31,7 @@
 
 此前 Linux race 测试的实际结果保留，但当时宿主 C 编译器尚未登记；2026-10-01 补登记后，再进行最终 Linux race 复验。不得将历史测试描述为已满足 manifest-first。Windows 未找到可用 race 编译器的结果仍为不可用，没有安装新编译器。盘点证据见 `docs/evidence/host-compiler.txt`。
 
-浏览器驱动、Node、mkvtoolnix、mediainfo 与其余扫描工具尚未加入清单；不可据此表宣称 G51 工具集合已完整。完整状态见 `docs/toolchain.md`。将来新增工具须先记录来源、精确版本、平台、SHA256、许可证与归属，再允许下载。
+Playwright 只启用 Chromium 的无头外壳；Firefox、WebKit 未加入清单。mkvtoolnix 102.0 與 MediaInfo 26.05 已依 E4 加入清單（`matroskaTools`，來源、校驗取得方式與執行邊界見 [mkvtoolnix 與 MediaInfo](matroska-tools.md)）。Tesseract 5.5.0 與四種語言資料已依 E16 加入清單（`ocrTools`，Debian 套件固定，見 [字幕 OCR](subtitle-ocr.md)）。其余扫描工具尚未加入清单；不可据此表宣称 G51 工具集合已完整。完整状态见 `docs/toolchain.md`。将来新增工具须先记录来源、精确版本、平台、SHA256、许可证与归属，再允许下载。
 
 ## 媒体构建来源与许可
 

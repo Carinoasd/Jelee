@@ -8,15 +8,15 @@ import (
 	"github.com/MoYuanCN/Jelee/internal/domain"
 )
 
-func legacyBaselineFixture(t *testing.T) (jobFixture, domain.JobLease, domain.LegacyIgnoreBaselineObservation) {
+func legacyBaselineFixture(t *testing.T, setup ...func(*testing.T, jobFixture)) (jobFixture, domain.JobLease, domain.LegacyIgnoreBaselineObservation) {
 	t.Helper()
-	f, l, source := legacyManifestFixture(t)
+	f, l, source := legacyManifestFixture(t, setup...)
 	root := source.Proofs[0]
 	return f, l, domain.LegacyIgnoreBaselineObservation{Version: domain.LegacyIgnoreBaselineProofVersion, LookupDirectory: "gone/deep", Source: source, MissingDirectory: domain.IgnoreDirectoryProof{RootID: root.RootID, Directory: "gone", ParentIdentity: root.Identity, MissingDirectory: true}}
 }
 
 func TestLegacyBaselineStoragePagesReplayAndMigration(t *testing.T) {
-	f, l, o := legacyBaselineFixture(t)
+	f, l, o := legacyBaselineFixture(t, legacyMigrationAt44)
 	var observations []domain.LegacyIgnoreBaselineObservation
 	for i := 0; i < 18; i++ {
 		q := o
@@ -64,6 +64,32 @@ func TestLegacyBaselineStoragePagesReplayAndMigration(t *testing.T) {
 	if _, err := f.s.Pool.Exec(f.ctx, `DELETE FROM jobs WHERE id=$1::uuid`, l.Job.ID); err != nil {
 		t.Fatal("cascade", err)
 	}
+	nfoMigrateVersion(t, f, "down", 43)
+	nfoMigrateVersion(t, f, "down", 42)
+	nfoMigrateVersion(t, f, "down", 41)
+	nfoMigrateVersion(t, f, "down", 40)
+	nfoMigrateVersion(t, f, "down", 39)
+	nfoMigrateVersion(t, f, "down", 38)
+	nfoMigrateVersion(t, f, "down", 37)
+	nfoMigrateVersion(t, f, "down", 36)
+	nfoMigrateVersion(t, f, "down", 35)
+	nfoMigrateVersion(t, f, "down", 34)
+	nfoMigrateVersion(t, f, "down", 33)
+	nfoMigrateVersion(t, f, "down", 32)
+	nfoMigrateVersion(t, f, "down", 31)
+	nfoMigrateVersion(t, f, "down", 30)
+	nfoMigrateVersion(t, f, "down", 29)
+	nfoMigrateVersion(t, f, "down", 28)
+	nfoMigrateVersion(t, f, "down", 27)
+	nfoMigrateVersion(t, f, "down", 26)
+	nfoMigrateVersion(t, f, "down", 25)
+	nfoMigrateVersion(t, f, "down", 24)
+	nfoMigrateVersion(t, f, "down", 23)
+	nfoMigrateVersion(t, f, "down", 22)
+	nfoMigrateVersion(t, f, "down", 21)
+	nfoMigrateVersion(t, f, "down", 20)
+	nfoMigrateVersion(t, f, "down", 19)
+	nfoMigrateVersion(t, f, "down", 18)
 	nfoMigrateVersion(t, f, "down", 17)
 	nfoMigrateVersion(t, f, "down", 16)
 	nfoMigrateVersion(t, f, "down", 15)

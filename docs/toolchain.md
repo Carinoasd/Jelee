@@ -66,14 +66,67 @@ python3 scripts/toolchain.py verify
 
 Go 包装器将 `GOCACHE`、`GOPATH`、`GOMODCACHE`、`GOTMPDIR`、临时目录与 Go 配置放入 `.tools/cache/`；设置 `GOTOOLCHAIN=local`、`GOENV=off`。引导在该项目专用配置目录关闭 Go telemetry。Windows 在调用完成后恢复进程环境变量。不要直接调用 `.tools` 内的裸 Go 二进制，以免绕过这些设置。
 
+## Node 与前端工具（15.1）
+
+`tools/manifest.json` 的 `node` 条目固定 Node 24.21.0（24.x Active LTS，内含 npm 11.19.0），记录 Linux/Windows amd64、arm64 四个官方压缩包的 HTTPS URL 与 SHA256。哈希取自官方 `SHASUMS256.txt`；2026-10-04 另以 `gpgv` 对照 Node 发布者公钥环验证该文件签名（签名者指纹记录在清单），引导时只强制比对固定的 SHA256。`playwright` 条目见下方「Playwright」一节。
+
+Linux `make bootstrap`（`sh scripts/bootstrap-tools`）先装 Go，再装 Node；`--tool node` 或 `--tool go` 可只处理其一，`--offline` 只用 `.tools/downloads/` 缓存。Node 压缩包是 tar.xz，沿用同一个安全解压器：只有清单 `skippedLinks` 列出的三个符号链接（`bin/npm`、`bin/npx`、`bin/corepack`，名称与目标都必须完全相符）被略过不建立，其他链接或特殊文件一律使整次解压失败。安装到 `.tools/node/<版本>/<平台>/`，`bin/node` 与 npm CLI 的字节和已校验压缩包逐一比对。记录写在 `.tools/.installed.json` 的 `tools.node.<平台>`，原本 Go 使用的 `platforms` 结构不变。
+
+`.bin/node`、`.bin/npm`、`.bin/npx` 是生成的 POSIX 包装脚本：直接执行固定版本的 node，并把 npm cache 放在 `.tools/npm-cache`、prefix 放在 `.tools/npm-prefix`，使用不存在的项目内 user/global config，因此不读取也不写入使用者的 `~/.npmrc` 或全局目录；`PATH` 前置 `.bin`，让 npm script 内的 `node`/`npm` 也落在固定版本。`tools-verify` 会检查压缩包、安装记录、node/npm 版本与包装脚本内容。
+
+根目录 `.npmrc` 设 `ignore-scripts=true`、`engine-strict=true`、`save-exact=true`；`package.json` 的 `engines` 限定 Node `>=24.21.0 <25`。依赖版本精确固定在 `package.json`，完整解析结果锁在根目录 `package-lock.json`（npm workspace，成员为 `web/`）。
+
+| 目标 | 行为 |
+| --- | --- |
+| `web-install` | `npm ci --ignore-scripts`（只依 lockfile） |
+| `web-types` | OpenAPI 型别过期检查 + `vue-tsc --noEmit`（应用与 Node 设定两个 tsconfig） |
+| `web-lint` | ESLint（零警告）+ i18n 检查 + 禁播门禁 |
+| `web-test` | `vitest run` |
+| `web-build` | `vite build`，再以 `--require-dist` 扫描产物 |
+| `web-e2e` / `web-visual` / `web-visual-update` | Playwright 端到端、视觉回归比对、经人工确认后更新基线（见下方「Playwright」） |
+
+Windows：`scripts/bootstrap-tools.ps1` 目前仍只安装 Go；清单已记录 Windows Node 压缩包与哈希（`bootstrapStatus` 字段注明），PowerShell 安装流程与 `make.ps1` 的 web 目标留待后续，CI 的前端门禁目前只在 Linux 执行。
+
+## Playwright（G27.4、G34.5、G34.6）
+
+`tools/manifest.json` 的 `playwright` 条目（`status: active`）固定 Playwright 1.63.0：npm 开发依赖 `@playwright/test` 精确版本写在 `web/package.json`，`playwright`、`playwright-core` 由 `package-lock.json` 锁定（integrity 哈希），清单 `npmPackages` 记录三者版本。浏览器只用 `playwright-core` 的 `browsers.json` 指定的 Chrome Headless Shell（修订 1243，Chrome for Testing 153.0.8010.12）：清单记录 linux-amd64、linux-arm64、windows-amd64 三个压缩包的 HTTPS URL（Playwright 自己的 `cdn.playwright.dev`，另记 Google 存储桶镜像地址）与 SHA256。两个来源都不发布校验和，2026-10-04 从两处各下载一次、哈希相同后固定（见 [THIRD-PARTY-TOOLS](THIRD-PARTY-TOOLS.md)）。
+
+- 下载是选用的（约 120 MB 压缩、270 MB 解压）：`make bootstrap` 不含它，`make bootstrap-playwright`（`scripts/toolchain.py bootstrap --tool playwright`）才下载；沿用同一 HTTPS 下载与 SHA256 校验，ZIP 由 `safe_extract_zip` 解压（拒绝链接、绝对路径、`..`、超过 2 GiB／100000 项），先进 staging 目录。安装到 `.tools/playwright/<版本>/<平台>/chromium_headless_shell-<修订>/`，即 Playwright 期望的目录布局（含 `INSTALLATION_COMPLETE` 标记）；下载缓存文件名带版本与修订（`downloadName`）。
+- `make playwright-verify` 校验压缩包、安装记录（`.tools/.installed.json` 的 `tools.playwright.<平台>`）、执行档与 `LICENSE.headless_shell` 与压缩包逐字节相同，并核对 `web/package.json`、`package-lock.json` 与已安装 `playwright-core` 的 `browsers.json` 都和清单一致——升级 Playwright 时三处与清单必须一起改。
+- `web/scripts/run-playwright.mjs` 是唯一入口：在 Playwright 载入前把 `PLAYWRIGHT_BROWSERS_PATH` 设为清单的 `.tools/playwright/<版本>/<平台>`，并设 `PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1`、`PLAYWRIGHT_SKIP_BROWSER_GC=1`，因此不读取、不下载到也不清理使用者的 `~/.cache/ms-playwright`。浏览器缺失时提示执行 `make bootstrap-playwright`。
+- 只选 Chromium：Firefox 压缩包约 90 MB、字体渲染与 Chromium 不同，两套基线会让图片数量翻倍；G34.6 要求的是同一浏览器下的亮暗对比，跨浏览器兼容不在本项要求内，需要时再加清单条目。完整 Chromium（headed）、WebKit 与 Playwright 的 ffmpeg（录影）都不下载，配置固定 `video: "off"`。
+- 只在 Linux 执行（amd64；arm64 已有固定哈希）；Windows 哈希已记录（`bootstrapStatus`），但 `bootstrap-tools.ps1` 不装浏览器，`make.ps1` 也没有这些目标。
+- 禁播门禁：Playwright 与其依赖不在播放器名单内，`check-no-playback.mjs` 未触发，门禁规则未改；`web/scripts/checks.test.ts` 断言实际 lockfile 无违规。
+
+| 目标 | 行为 |
+| --- | --- |
+| `bootstrap-playwright` | 下载、校验、安装固定的 Chrome Headless Shell |
+| `playwright-verify` | 校验压缩包、安装记录、执行档与 npm 版本一致 |
+| `web-e2e` | `playwright test --project=e2e`：键盘主流程、两段确认、所有关键页面无播放与可及性检查 |
+| `web-visual` | 关键页面亮／暗 × 桌面／手机截图与 `web/e2e/__screenshots__` 比对，只比对不写入 |
+| `web-visual-update` | `--update-snapshots=changed`：只改写有差异或缺少的基线；提交前必须人工查看新图 |
+
+测试先以 `vite build` 构建到 `.testdata/playwright/dist`，再用 `vite preview` 提供；API 全部由 `web/e2e/fixtures/api.ts` 拦截回答，不需要 Jelee 服务或数据库，预览服务器的 `/api` 代理指向不可连的端口，漏网请求不会碰到本机正在运行的服务。结果与差异图在 `.testdata/playwright/results`；CI 失败时上传为构件。设计与基线规则见 [前端 ADR](frontend-adr.md#端對端與視覺回歸g274g345g346)。
+
+## golangci-lint（G30.1）
+
+`tools/manifest.json` 的 `golangci-lint` 条目固定 2.14.0（官方构建，`golangci-lint version` 显示以 go1.27.0 编译），记录 Linux/Windows amd64、arm64 四个[官方 GitHub release](https://github.com/golangci/golangci-lint/releases/tag/v2.14.0) 压缩包的 HTTPS URL 与 SHA256。哈希取自同一 release 的 `golangci-lint-2.14.0-checksums.txt`；2026-10-04 另下载 linux-amd64 与 windows-amd64 压缩包重算，结果一致。许可证 GPL-3.0，仅作开发与 CI 工具执行，不链接、不随 Jelee 分发（见 [THIRD-PARTY-TOOLS](THIRD-PARTY-TOOLS.md)）。
+
+- Linux：`make bootstrap` 在 Go、Node 之后安装（`--tool golangci-lint` 可单独处理）；沿用同一 HTTPS 下载、SHA256 与安全解压器，安装到 `.tools/golangci-lint/<版本>/<平台>/`，执行档与 `LICENSE` 和已校验压缩包逐字节比对，记录在 `.tools/.installed.json` 的 `tools.golangci-lint.<平台>`。`.bin/golangci-lint` 包装脚本经 `scripts/toolchain.py golangci-lint` 执行。
+- Windows：`scripts/bootstrap-tools.ps1` 在 Go 之后安装 ZIP（同一 `Expand-SafeZip`）；`scripts/run-golangci-lint.ps1` 为执行入口，`tools-verify.ps1` 校验压缩包、安装记录、执行档、`LICENSE` 与版本输出。
+- 两平台都以固定 Go 的环境执行：`PATH` 前置固定 `GOROOT/bin`（golangci-lint 通过它调用 `go list`），`GOCACHE`／`GOMODCACHE`／`GOPATH` 等沿用 `.tools/cache/`，`GOLANGCI_LINT_CACHE` 为 `.tools/cache/golangci-lint`；不写入使用者家目录或全局配置，Windows 调用后恢复进程环境变量。
+- `tools-verify` 一并校验 golangci-lint；`toolchain-test` 覆盖坏缓存清除、清单布局篡改与环境隔离。
+
+配置、基线与覆盖率／基准门禁的规则见 [质量门禁](quality-gates.md)。
+
 ## 命令
 
 以下名称同时适用于 `make <目标>` 与 `pwsh -File scripts/make.ps1 <目标>`：
 
 | 目标 | 行为 |
 | --- | --- |
-| `init` / `bootstrap` | 安装清单中的本地 Go |
-| `tools-verify` | 校验固定版本与完整性 |
+| `init` / `bootstrap` | 安装清单中的本地 Go、Node 与 golangci-lint（Linux；Windows 为 Go 与 golangci-lint） |
+| `tools-verify` | 校验 Go、Node（Linux）与 golangci-lint 的固定版本与完整性 |
 | `toolchain-test` | 校验和、恶意归档、边界测试 |
 | `build` | 生成 `bin/jelee`、`bin/jelee-cli`、`bin/jelee-migrate`，Windows 带 `.exe` |
 | `test` | `go test -count=1 ./...` |
@@ -81,13 +134,25 @@ Go 包装器将 `GOCACHE`、`GOPATH`、`GOMODCACHE`、`GOTMPDIR`、临时目录�
 | `test-integration` | 必须设置 `JELEE_TEST_DATABASE_URL`，执行 PostgreSQL Integration 测试 |
 | `coverage` | 生成被忽略的 `coverage.out` |
 | `fmt` / `fmt-check` | 格式化 / 检查 Go 源码 |
-| `lint` | 格式检查与 `go vet` |
+| `lint` | 格式检查、OpenAPI 检查、`doc-check`、`go vet` 与 `golangci-lint` 门禁 |
+| `golangci-lint` | 以 `.golangci.yml` 执行 golangci-lint，再以 `tools/lintgate` 对照 `tools/lint-baseline/<goos>.json`；基线外的新问题或已修复仍留在基线的条目都失败 |
+| `lint-baseline-prune` | 仅 Linux：对 linux 与 windows（交叉检查）重跑并从基线移除已修复条目，从不新增 |
+| `coverage-check` | 仅 Linux：按 `tools/coverage-thresholds.json` 测量核心／关键包覆盖率，低于棘轮最低值失败 |
+| `coverage-ratchet` | 仅 Linux：补测试后把最低值提高到实测值（向下取整），从不降低 |
+| `bench-compare` | 仅 Linux：`BENCH_BASE_REF=<提交>`，同机交替执行基准提交与工作树的热路径基准并以 benchgate 判定 |
+| `quality-gates-test` | lintgate、covergate、benchgate 单元测试（Linux 另含 bench-compare 脚本测试） |
 | `brand-scan` | 全仓库品牌门禁 |
 | `brand-scan-incremental` | 新增代码品牌检查 |
 | `gitignore-check` | 检查被跟踪的生成物与禁止文件 |
 | `migrate` | 执行 `jelee-migrate up` |
 | `doctor` | 执行 `jelee-cli doctor` |
+| `doc-check` | 离线文档门禁：`README.md` 与 `docs/**/*.md` 的相对链接／锚点、外部链接格式（不联网）、文档中带 HTTP 状态的错误码与错误码表一致 |
+| `dev` | 以 `go run ./cmd/jelee` 启动开发服务；必须先设置 `JELEE_DATABASE_URL`（或 `_FILE`／`JELEE_CONFIG`）并执行 `migrate` |
+| `nfo` | 不需数据库。设置 `NFO_ROOT`（绝对根目录）与 `NFO_FILE`（相对路径）时只读验证该文件，否则运行离线 NFO 测试 |
+| `diag` | 执行 `jelee-cli diag export`，输出到 `DIAG_OUT`（默认 `.testdata/jelee-diag.zip`，已存在时拒绝覆盖） |
 | `tools-clean` | 删除 `.tools/`、`.bin/`、`.testfixtures/`、`.testdata/` |
+
+`doc-check` 的实现在 `tools/doccheck`，只用标准库。错误码只检查明确声明为 HTTP 错误的写法（如 `` `job_busy`/409 ``、`HTTP 501，`…、JSON `"code":"…"`），需求原文与追溯表不检查；`go run ./tools/doccheck -undocumented` 另列出尚无文档提及的错误码（仅提示）。目前没有已知坏链接；若将来需要分批清理，可用 `-update-baseline` 生成 `tools/doccheck/baseline.txt`，门禁只容许清单内的旧问题，已修复但仍留在清单的条目也会失败。
 
 `tools-clean` 只接受项目内固定目录，并拒绝链接。它会删除缓存和生成的测试数据；重建需重新引导。不会操作原始媒体目录。
 
@@ -144,7 +209,7 @@ Windows 的 `.bin/ffmpeg.cmd` 和 `.bin/ffprobe.cmd` 也可调用；含复杂引
 
 ## 构建测试依赖与运行依赖
 
-Go、gofmt、vet、coverage 是构建测试工具，不随服务端产物分发。ffmpeg 仅用于合成测试素材和开发调试，不得进入生产镜像或生产执行路径。清单中的 `productionAllowed` 是后续分发策略声明，只有 ffprobe 为 true；3B1 尚未接入任何生产媒体子进程。允许的其他媒体运行依赖仅为按需启用的 mkvtoolnix、mediainfo，目前尚未固定或引导这两项。供应商二进制归属与许可证说明见 [第三方工具表](THIRD-PARTY-TOOLS.md)。
+Go、gofmt、vet、coverage 是构建测试工具，不随服务端产物分发。ffmpeg 仅用于合成测试素材和开发调试，不得进入生产镜像或生产执行路径。清单中的 `productionAllowed` 是后续分发策略声明，媒體工具中只有 ffprobe 為 true。其他媒體運行依賴僅為按需啟用的 mkvtoolnix（mkvmerge、mkvextract 為 true；mkvpropedit 為 false，只固定與校驗，不進映像）與 mediainfo，已依 E4 固定在 `matroskaTools`，以 `make bootstrap-matroska` 或 `scripts/toolchain.py bootstrap --tool mkvtoolnix|mediainfo` 明確安裝，預設不安裝；`tools-verify` 校驗已安裝者並對未安裝者明示跳過。詳見 [mkvtoolnix 與 MediaInfo](matroska-tools.md)。供应商二进制归属与许可证说明见 [第三方工具表](THIRD-PARTY-TOOLS.md)。
 
 ## Linux amd64 实验运行库（3C1）
 
@@ -187,14 +252,17 @@ pwsh -NoProfile -File scripts/runtime-tools.ps1 -Command sources -Offline
 
 | 工具/能力 | 当前状态 |
 | --- | --- |
-| Go / gofmt / vet / coverage | 已固定并提供入口；尚未设置全项目覆盖率阈值 |
-| 独立 golangci-lint、gofumpt、gosec、漏洞扫描 | 尚未固定、引导与接入 |
+| Go / gofmt / vet / coverage | 已固定并提供入口；核心／关键包覆盖率棘轮门禁已接入 CI（[质量门禁](quality-gates.md)），PostgreSQL 包尚未纳入 |
+| golangci-lint（含 errcheck、staticcheck、govet、revive、gosec、bodyclose、contextcheck） | 2.14.0 已固定、引导、校验并接入 Linux／Windows CI；既有问题以只减不增的基线管理 |
+| gofumpt、漏洞扫描（govulncheck 等） | 尚未固定、引导与接入 |
 | 外部 migrate/Atlas CLI、sqlc | 尚未加入工具清单；当前项目通过 golang-migrate 库提供迁移命令 |
 | OpenAPI 生成器、buf（如采用 protobuf） | 尚未加入工具清单 |
-| Node LTS、包管理器、Playwright 浏览器 | 尚未加入工具清单 |
+| Node LTS、包管理器 | Node 24.21.0（含 npm 11.19.0）已固定、引导（Linux）并接入 CI 前端门禁 |
+| Playwright 浏览器 | 1.63.0 与 Chrome Headless Shell 153.0.8010.12 已固定、按需引导（Linux）、校验并接入 Linux CI；Firefox／WebKit 不采用 |
 | ffmpeg/ffprobe | Windows/Linux amd64本地引导与验证已实现；Linux amd64受保护隔离探测、持久worker和默认关闭开关已接通；Windows正式探测仍关闭 |
-| mkvtoolnix、mediainfo | 尚未加入工具清单 |
-| 合成多轨媒体、章节、损坏素材、`make fixtures` | 3B2生成13个小型自建文件及SHA/结构清单；双平台真实工具和FD探测测试通过，见[素材说明](fixtures.md) |
+| mkvtoolnix、mediainfo | E4：mkvtoolnix 102.0、MediaInfo 26.05 已固定（Linux／Windows amd64，官方 HTTPS、SHA256、授權），可選引導與 `tools-verify` 校驗已實作；Linux amd64 生產沙箱與映像已接通，Windows 只作開發工具（[說明](matroska-tools.md)） |
+| Tesseract OCR（G15.6） | E16：Tesseract 5.5.0（Debian 5.5.0-1+b1）與 eng／chi_tra／chi_sim／jpn 語言資料以 55 個 Debian 套件固定（版本、pool URL、SHA256、授權），`make bootstrap-ocr` 可選引導、`tools-verify` 校驗已安裝者；只支援 Linux amd64，不在預設映像（`deploy/ocr/Dockerfile`）（[說明](subtitle-ocr.md)） |
+| 合成多轨媒体、章节、损坏素材、`make fixtures` | 3B2生成13个小型自建文件及SHA/结构清单，E4 增至 16 個（內嵌字幕與字型附件 MKV）；双平台真实工具和FD探测测试通过，见[素材说明](fixtures.md) |
 | Testcontainers / 嵌入式 PostgreSQL 回退 | 尚未实现；当前使用已有隔离测试容器 |
 | 链接检查、shellcheck、actionlint | 尚未加入工具清单 |
 | 完整工具链 CI 与 G51.15 全新克隆验收 | 未完成 |
@@ -226,3 +294,9 @@ Windows `fmt-check` 让固定 gofmt 递归检查 cmd/internal/tools，避免长�
 测试默认查找宿主已有 Git；可用 `JELEE_IGNORE_ORACLE_GIT` 指定绝对可执行文件路径。本地验证使用清单中登记的现有二进制；CI 使用 runner 自带版本并在 `IGNORE_ORACLE_REPORT` 记录实际完整路径、版本、SHA256、语料 hash 与平台差异。此记录是来源盘点，不是跨机器固定 Git 分发包，也不会安装工具或修改全局 Git 配置。
 
 测试使用项目 `.testdata` 下新建的私有目录，隔离 system/global config、templates、excludes、HOME 和环境变量，固定参数仅执行 --version、init/check-ignore。候选经 NUL 分隔 stdin 传入，输入/输出有上限；Git 单程序最多5秒，命令与 matcher 共用60秒 context。普通文件 I/O、二进制 hash 与清理不保证可被硬中断，不能把该 context 称为整个测试的硬期限。结束清理本次创建的目录。Windows 无法真实创建的语料单列，仍执行纯值黄金测试；原生 Linux 另行对照。CI 保存两平台 `.testdata/ignore-oracle.txt` 7天。
+
+## ABI 遷移門禁的本機產物
+
+門禁使用固定的ApiCompat `10.0.401`，只安裝在專案的 `.tools/abi/10.0.401`；實際 `--version` 輸出另與核准完整版本核對。工具版本及逐符號契約記錄於 `tools/abi/expected-breaks.json`，用途為開發／CI檢查，不隨產品分發。
+
+根目錄 `/abi-base/`、`/abi-head/`、`/abi-naming-base/` 是下載或建置的組件，`/abi-report/` 是原始診斷、退出碼與驗證結果。四個目錄均以精確根路徑忽略，允許刪除後由CI或驗證流程重建；`scripts/fixtures/` 與 `tools/abi/` 中受審查的文字契約仍納入Git。詳見[ABI門禁](abi-report-check.md)。

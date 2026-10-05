@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Project-local Linux Go bootstrap; only Python's standard library is required."""
+"""Project-local Linux Go, Node, golangci-lint and Playwright browser bootstrap; only Python's standard library is required."""
 import argparse
 import hashlib
 import json
@@ -8,9 +8,11 @@ from pathlib import Path, PurePosixPath
 import platform
 import re
 import shutil
+import stat
 import subprocess
 import sys
 import tarfile
+import zipfile
 from datetime import datetime, timezone
 from urllib.parse import urlparse
 from urllib.request import HTTPRedirectHandler, build_opener
@@ -30,22 +32,69 @@ def local_path(root, path):
     return path
 
 
-def selected():
+def manifest_tool(name):
     manifest = json.loads((ROOT / "tools/manifest.json").read_text(encoding="utf-8"))
     if manifest["schemaVersion"] != 1:
         raise ValueError("unsupported manifest schema")
-    tool, = [tool for tool in manifest["tools"] if tool["name"] == "go"]
+    tool, = [tool for tool in manifest["tools"] if tool["name"] == name]
     if not re.fullmatch(r"\d+\.\d+\.\d+", tool["version"]):
         raise ValueError("invalid version")
+    return tool
+
+
+def linux_target():
     arch = {"x86_64": "amd64", "aarch64": "arm64"}.get(platform.machine())
     if platform.system() != "Linux" or arch is None:
         raise ValueError("POSIX bootstrap supports Linux amd64/arm64; use bootstrap-tools.ps1 on Windows")
-    target = "linux-" + arch
+    return "linux-" + arch
+
+
+def selected():
+    tool = manifest_tool("go")
+    target = linux_target()
     spec = tool["platforms"][target]
     if (urlparse(spec["url"]).scheme != "https" or not re.fullmatch(r"[a-f0-9]{64}", spec["sha256"])
             or spec["archive"] != "tar.gz" or spec["installPath"] != "go/" + tool["version"] + "/" + target
             or spec["executable"] != "go/bin/go"):
         raise ValueError("invalid Go source, hash or installation layout")
+    return tool, spec, target
+
+
+def node_selected():
+    tool = manifest_tool("node")
+    target = linux_target()
+    spec = tool["platforms"][target]
+    root = "node-v" + tool["version"] + "-" + target.replace("amd64", "x64")
+    links = {root + "/bin/npm": "../lib/node_modules/npm/bin/npm-cli.js",
+             root + "/bin/npx": "../lib/node_modules/npm/bin/npx-cli.js",
+             root + "/bin/corepack": "../lib/node_modules/corepack/dist/corepack.js"}
+    if (urlparse(spec["url"]).scheme != "https" or not re.fullmatch(r"[a-f0-9]{64}", spec["sha256"])
+            or not spec["url"].endswith("/v" + tool["version"] + "/" + root + ".tar.xz")
+            or spec["archive"] != "tar.xz" or spec["archiveRoot"] != root
+            or spec["installPath"] != "node/" + tool["version"] + "/" + target
+            or spec["executable"] != root + "/bin/node"
+            or spec["npmCli"] != root + "/lib/node_modules/npm/bin/npm-cli.js"
+            or spec["skippedLinks"] != links or tool.get("npmCache") != "npm-cache"):
+        raise ValueError("invalid Node source, hash or installation layout")
+    return tool, spec, target
+
+
+GOLANGCI = "golangci-lint"
+GOLANGCI_RELEASES = "https://github.com/golangci/golangci-lint/releases/download/"
+
+
+def golangci_selected():
+    tool = manifest_tool(GOLANGCI)
+    target = linux_target()
+    spec = tool["platforms"][target]
+    root = "golangci-lint-" + tool["version"] + "-" + target
+    if (urlparse(spec["url"]).scheme != "https" or not re.fullmatch(r"[a-f0-9]{64}", spec["sha256"])
+            or spec["url"] != GOLANGCI_RELEASES + "v" + tool["version"] + "/" + root + ".tar.gz"
+            or spec["archive"] != "tar.gz" or spec["archiveRoot"] != root
+            or spec["installPath"] != GOLANGCI + "/" + tool["version"] + "/" + target
+            or spec["executable"] != root + "/golangci-lint" or spec["licenseFile"] != root + "/LICENSE"
+            or tool.get("cache") != "cache/golangci-lint"):
+        raise ValueError("invalid golangci-lint source, hash or installation layout")
     return tool, spec, target
 
 
@@ -62,7 +111,14 @@ def assert_hash(path, expected):
         raise ValueError("SHA256 mismatch for " + Path(path).name)
 
 
-def safe_extract(archive, destination, mode="r:gz"):
+def safe_extract(archive, destination, mode="r:gz", skipped_links=None):
+    """Extract regular files and directories only.
+
+    skipped_links maps exact symbolic link names to their exact targets. Such
+    entries are not created (wrappers call the real file instead); any other
+    link or special entry still fails the whole extraction.
+    """
+    skipped_links = skipped_links or {}
     destination = local_path(ROOT, destination)
     if any(destination.iterdir()):
         raise ValueError("extraction staging directory must be empty")
@@ -86,6 +142,8 @@ def safe_extract(archive, destination, mode="r:gz"):
     with tarfile.open(archive, mode) as tar:
         for count, member in enumerate(tar):
             name = member.name
+            if member.issym() and skipped_links.get(name) == member.linkname:
+                continue
             if (name.startswith("/") or "\\" in name or ":" in name
                     or ".." in name.split("/") or "." in name.split("/")
                     or not (member.isdir() or member.isfile())):
@@ -104,8 +162,12 @@ def safe_extract(archive, destination, mode="r:gz"):
 
 
 def assert_go_executables(archive, install):
-    remaining = {"go/bin/go", "go/bin/gofmt"}
-    with tarfile.open(archive, "r:gz") as tar:
+    assert_archive_files(archive, install, {"go/bin/go", "go/bin/gofmt"}, "r:gz")
+
+
+def assert_archive_files(archive, install, names, mode):
+    remaining = set(names)
+    with tarfile.open(archive, mode) as tar:
         for member in tar:
             if member.name in remaining:
                 expected = hashlib.sha256()
@@ -115,7 +177,7 @@ def assert_go_executables(archive, install):
                 assert_hash(local_path(ROOT, install / member.name), expected.hexdigest())
                 remaining.remove(member.name)
     if remaining:
-        raise ValueError("Go executables missing in verified archive")
+        raise ValueError("executables missing in verified archive: " + ", ".join(sorted(remaining)))
 
 
 class HTTPSRedirect(HTTPRedirectHandler):
@@ -135,13 +197,14 @@ def remove_tree(path):
 
 
 def paths(spec):
-    name = Path(urlparse(spec["url"]).path).name
+    # downloadName keeps archives whose upstream file name carries no version
+    # (Chrome for Testing) apart in the shared download cache.
+    name = spec.get("downloadName") or Path(urlparse(spec["url"]).path).name
     return (local_path(ROOT, ROOT / ".tools/downloads" / name),
             local_path(ROOT, ROOT / ".tools" / spec["installPath"]))
 
 
-def bootstrap(offline=False):
-    tool, spec, target = selected()
+def fetch(spec, offline):
     archive, install = paths(spec)
     archive.parent.mkdir(parents=True, exist_ok=True)
     if not archive.exists():
@@ -167,6 +230,42 @@ def bootstrap(offline=False):
     except ValueError:
         archive.unlink()
         raise
+    return archive, install
+
+
+ALL_TOOLS = ("go", "node", GOLANGCI)
+# E4: pinned in tools/manifest.json "matroskaTools", never installed by default.
+OPTIONAL_TOOLS = ("mkvtoolnix", "mediainfo")
+# G15.6: Tesseract for subtitle OCR, pinned in "ocrTools"; never installed by
+# default and Linux amd64 only.
+OCR_TOOL = "tesseract"
+
+
+def matroska(arguments, tools):
+    command = [sys.executable, str(ROOT / "scripts/matroska-tools.py")] + arguments
+    for tool in tools:
+        command += ["--tool", tool]
+    subprocess.run(command, check=True)
+
+
+def ocr(arguments):
+    subprocess.run([sys.executable, str(ROOT / "scripts/ocr-tools.py")] + arguments, check=True)
+
+
+def bootstrap(offline=False, tools=ALL_TOOLS):
+    if "go" in tools:
+        bootstrap_go(offline)
+    if "node" in tools:
+        bootstrap_node(offline)
+    if GOLANGCI in tools:
+        bootstrap_golangci(offline)
+    if PLAYWRIGHT in tools:
+        bootstrap_playwright(offline)
+
+
+def bootstrap_go(offline=False):
+    tool, spec, target = selected()
+    archive, install = fetch(spec, offline)
     executable = local_path(ROOT, install / spec["executable"])
     if not executable.exists():
         stage = local_path(ROOT, install.with_name(install.name + ".staging"))
@@ -190,16 +289,319 @@ def bootstrap(offline=False):
     record = {"schemaVersion": 1, "name": "go", "version": tool["version"], "platform": target,
               "archiveSHA256": spec["sha256"], "executableSHA256": digest(executable),
               "installedAt": datetime.now(timezone.utc).isoformat()}
+    installed = read_installed()
+    installed["platforms"][target] = record
+    write_installed(installed)
+    run_go(["telemetry", "off"])
+    verify_go()
+
+
+def read_installed():
+    # Go records stay under "platforms" for the PowerShell scripts; other
+    # tools are recorded per name under "tools".
     record_path = local_path(ROOT, ROOT / ".tools/.installed.json")
     installed = {"schemaVersion": 1, "platforms": {}}
     if record_path.exists():
         prior = json.loads(record_path.read_text(encoding="utf-8"))
         if "platforms" in prior:
             installed = prior
-    installed["platforms"][target] = record
+    installed.setdefault("tools", {})
+    return installed
+
+
+def write_installed(installed):
+    record_path = local_path(ROOT, ROOT / ".tools/.installed.json")
     record_path.write_text(json.dumps(installed, indent=2) + "\n", encoding="utf-8")
-    run_go(["telemetry", "off"])
-    verify()
+
+
+NODE_WRAPPERS = {
+    "node": 'exec "$node" "$@"\n',
+    "npm": 'exec "$node" "$tool/{npm}" "$@"\n',
+    "npx": 'exec "$node" "$tool/{npx}" "$@"\n',
+}
+
+
+def node_wrapper(spec, body):
+    root = spec["archiveRoot"]
+    return ('#!/bin/sh\n# Generated by scripts/toolchain.py; runs the manifest-pinned Node.\nset -eu\n'
+            'root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)\n'
+            'tool="$root/.tools/' + spec["installPath"] + '"\n'
+            'node="$tool/' + spec["executable"] + '"\n'
+            '[ -x "$node" ] || { echo "run scripts/bootstrap-tools first" >&2; exit 1; }\n'
+            # Package scripts resolve node/npm through PATH; keep these wrappers first.
+            'PATH="$root/.bin:$PATH"\n'
+            # Project-local npm state: no user or global configuration, cache or prefix.
+            'npm_config_cache="$root/.tools/npm-cache"\n'
+            'npm_config_userconfig="$root/.tools/npm-userconfig"\n'
+            'npm_config_globalconfig="$root/.tools/npm-globalconfig"\n'
+            'npm_config_prefix="$root/.tools/npm-prefix"\n'
+            'npm_config_update_notifier=false\nnpm_config_fund=false\n'
+            'export PATH npm_config_cache npm_config_userconfig npm_config_globalconfig npm_config_prefix '
+            'npm_config_update_notifier npm_config_fund\n'
+            + body.format(npm=spec["npmCli"], npx=root + "/lib/node_modules/npm/bin/npx-cli.js"))
+
+
+def bootstrap_node(offline=False):
+    tool, spec, target = node_selected()
+    archive, install = fetch(spec, offline)
+    executable = local_path(ROOT, install / spec["executable"])
+    if not executable.exists():
+        stage = local_path(ROOT, install.with_name(install.name + ".staging"))
+        remove_tree(stage)
+        stage.mkdir(parents=True)
+        try:
+            safe_extract(archive, stage, "r:xz", spec["skippedLinks"])
+            for name in (spec["executable"], spec["npmCli"]):
+                if not (stage / name).is_file():
+                    raise ValueError("Node file absent from archive: " + name)
+            remove_tree(install)
+            stage.replace(install)
+        finally:
+            remove_tree(stage)
+    assert_archive_files(archive, install, {spec["executable"], spec["npmCli"]}, "r:xz")
+    bin_dir = local_path(ROOT, ROOT / ".bin")
+    bin_dir.mkdir(exist_ok=True)
+    for name, body in NODE_WRAPPERS.items():
+        wrapper = bin_dir / name
+        wrapper.write_text(node_wrapper(spec, body), encoding="utf-8")
+        wrapper.chmod(0o755)
+    local_path(ROOT, ROOT / ".tools" / tool["npmCache"]).mkdir(exist_ok=True)
+    installed = read_installed()
+    installed["tools"].setdefault("node", {})[target] = {
+        "schemaVersion": 1, "name": "node", "version": tool["version"], "platform": target,
+        "archiveSHA256": spec["sha256"], "executableSHA256": digest(executable),
+        "installedAt": datetime.now(timezone.utc).isoformat()}
+    write_installed(installed)
+    verify_node()
+
+
+GOLANGCI_WRAPPER = ('#!/bin/sh\n# Generated by scripts/toolchain.py; runs the manifest-pinned golangci-lint.\nset -eu\n'
+                    'root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)\n'
+                    'exec python3 "$root/scripts/toolchain.py" golangci-lint "$@"\n')
+
+
+def bootstrap_golangci(offline=False):
+    tool, spec, target = golangci_selected()
+    archive, install = fetch(spec, offline)
+    executable = local_path(ROOT, install / spec["executable"])
+    files = {spec["executable"], spec["licenseFile"]}
+    if not executable.exists():
+        stage = local_path(ROOT, install.with_name(install.name + ".staging"))
+        remove_tree(stage)
+        stage.mkdir(parents=True)
+        try:
+            safe_extract(archive, stage)
+            for name in files:
+                if not (stage / name).is_file():
+                    raise ValueError("golangci-lint file absent from archive: " + name)
+            remove_tree(install)
+            stage.replace(install)
+        finally:
+            remove_tree(stage)
+    assert_archive_files(archive, install, files, "r:gz")
+    bin_dir = local_path(ROOT, ROOT / ".bin")
+    bin_dir.mkdir(exist_ok=True)
+    wrapper = bin_dir / GOLANGCI
+    wrapper.write_text(GOLANGCI_WRAPPER, encoding="utf-8")
+    wrapper.chmod(0o755)
+    installed = read_installed()
+    installed["tools"].setdefault(GOLANGCI, {})[target] = {
+        "schemaVersion": 1, "name": GOLANGCI, "version": tool["version"], "platform": target,
+        "archiveSHA256": spec["sha256"], "executableSHA256": digest(executable),
+        "installedAt": datetime.now(timezone.utc).isoformat()}
+    write_installed(installed)
+    verify_golangci()
+
+
+def golangci_environment():
+    """Pinned Go environment plus a project-local golangci-lint cache.
+
+    golangci-lint runs `go list` and the type checker through the go command
+    on PATH, so the pinned GOROOT/bin goes first. Nothing is written to the
+    user's home directory or global configuration.
+    """
+    _, go_spec, _ = selected()
+    tool, _, _ = golangci_selected()
+    env = go_environment(go_spec)
+    go_bin = ROOT / ".tools" / go_spec["installPath"] / "go" / "bin"
+    if not (go_bin / "go").is_file():
+        raise ValueError("run scripts/bootstrap-tools first")
+    cache = local_path(ROOT, ROOT / ".tools" / tool["cache"])
+    cache.mkdir(parents=True, exist_ok=True)
+    env.update(PATH=str(go_bin) + os.pathsep + env.get("PATH", ""), GOLANGCI_LINT_CACHE=str(cache))
+    return env
+
+
+def run_golangci(args):
+    _, spec, _ = golangci_selected()
+    _, install = paths(spec)
+    exe = local_path(ROOT, install / spec["executable"])
+    if not exe.is_file():
+        raise ValueError("run scripts/bootstrap-tools first")
+    return subprocess.run([str(exe)] + args, env=golangci_environment()).returncode
+
+
+def verify_golangci():
+    tool, spec, target = golangci_selected()
+    archive, install = paths(spec)
+    assert_hash(archive, spec["sha256"])
+    try:
+        record = read_installed()["tools"][GOLANGCI][target]
+    except (KeyError, OSError, ValueError):
+        raise ValueError("golangci-lint is not installed; run scripts/bootstrap-tools") from None
+    if (record["version"] != tool["version"] or record["platform"] != target
+            or record["archiveSHA256"] != spec["sha256"]):
+        raise ValueError("installed golangci-lint record does not match manifest; bootstrap again")
+    executable = local_path(ROOT, install / spec["executable"])
+    assert_hash(executable, record["executableSHA256"])
+    assert_archive_files(archive, install, {spec["executable"], spec["licenseFile"]}, "r:gz")
+    wrapper = local_path(ROOT, ROOT / ".bin" / GOLANGCI)
+    if not wrapper.is_file() or wrapper.read_text(encoding="utf-8") != GOLANGCI_WRAPPER:
+        raise ValueError("stale .bin/golangci-lint wrapper; bootstrap again")
+    actual = subprocess.run([str(executable), "version"], check=True, text=True,
+                            capture_output=True, env=golangci_environment()).stdout.strip()
+    if not actual.startswith("golangci-lint has version " + tool["version"] + " "):
+        raise ValueError("unexpected golangci-lint version: " + actual)
+    print("Verified golangci-lint " + tool["version"] + "; archive SHA256 and installed binary match")
+
+
+PLAYWRIGHT = "playwright"
+PLAYWRIGHT_CDN = "https://cdn.playwright.dev/builds/cft/"
+PLAYWRIGHT_MIRROR = "https://storage.googleapis.com/chrome-for-testing-public/"
+
+
+def playwright_selected():
+    """The pinned Chrome Headless Shell for the host, laid out as Playwright expects.
+
+    Only the headless shell is ever installed: no full Chromium, Firefox,
+    WebKit or ffmpeg. PLAYWRIGHT_BROWSERS_PATH points at browsersPath, so
+    Playwright never reads or writes the user's global browser cache.
+    """
+    tool = manifest_tool(PLAYWRIGHT)
+    target = linux_target()
+    spec = tool["platforms"][target]
+    browser = tool["browser"]
+    cft = {"linux-amd64": "linux64", "linux-arm64": "linux-arm64"}[target]
+    root = "chrome-headless-shell-" + cft
+    base = "playwright/" + tool["version"] + "/" + target
+    suffix = browser["version"] + "/" + cft + "/" + root + ".zip"
+    if (tool.get("status") != "active" or not re.fullmatch(r"[a-f0-9]{64}", spec["sha256"])
+            or not re.fullmatch(r"\d+", browser["revision"]) or not re.fullmatch(r"[\d.]+", browser["version"])
+            or browser["name"] != "chromium-headless-shell"
+            or browser["directory"] != "chromium_headless_shell-" + browser["revision"]
+            or spec["url"] != PLAYWRIGHT_CDN + suffix or spec["mirrorUrl"] != PLAYWRIGHT_MIRROR + suffix
+            or spec["archive"] != "zip" or spec["archiveRoot"] != root
+            or spec["downloadName"] != "playwright-" + tool["version"] + "-chromium-headless-shell-"
+            + browser["revision"] + "-" + target + ".zip"
+            or spec["browsersPath"] != base or spec["installPath"] != base + "/" + browser["directory"]
+            or spec["executable"] != root + "/chrome-headless-shell"
+            or spec["licenseFile"] != root + "/LICENSE.headless_shell"
+            or tool.get("installPath") != "playwright/" + tool["version"]):
+        raise ValueError("invalid Playwright browser source, hash or installation layout")
+    return tool, spec, target
+
+
+def safe_extract_zip(archive, destination):
+    """Extract a zip of regular files and directories; any link fails it all."""
+    destination = local_path(ROOT, destination)
+    if any(destination.iterdir()):
+        raise ValueError("extraction staging directory must be empty")
+    total = 0
+    with zipfile.ZipFile(archive) as bundle:
+        for count, member in enumerate(bundle.infolist()):
+            name = member.filename
+            mode = member.external_attr >> 16
+            kind = stat.S_IFMT(mode)
+            parts = name.rstrip("/").split("/")
+            if (name.startswith("/") or "\\" in name or ":" in name or ".." in parts or "." in parts
+                    or kind not in (0, stat.S_IFREG, stat.S_IFDIR)):
+                raise ValueError("unsafe archive entry: " + name)
+            total += member.file_size
+            if total > 2 * 1024**3 or count >= 100000:
+                raise ValueError("archive resource limit exceeded")
+            target = destination / PurePosixPath(name)
+            if member.is_dir():
+                target.mkdir(parents=True, exist_ok=True)
+                continue
+            target.parent.mkdir(parents=True, exist_ok=True)
+            with bundle.open(member) as source, target.open("xb") as output:
+                shutil.copyfileobj(source, output)
+            target.chmod(0o755 if mode & 0o111 else 0o644)
+
+
+def assert_zip_files(archive, install, names):
+    remaining = set(names)
+    with zipfile.ZipFile(archive) as bundle:
+        for name in sorted(remaining):
+            expected = hashlib.sha256()
+            with bundle.open(name) as stream:
+                for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+                    expected.update(chunk)
+            assert_hash(local_path(ROOT, install / name), expected.hexdigest())
+
+
+def bootstrap_playwright(offline=False):
+    tool, spec, target = playwright_selected()
+    archive, install = fetch(spec, offline)
+    files = {spec["executable"], spec["licenseFile"]}
+    if not (install / "INSTALLATION_COMPLETE").is_file():
+        stage = local_path(ROOT, install.with_name(install.name + ".staging"))
+        remove_tree(stage)
+        stage.mkdir(parents=True)
+        try:
+            safe_extract_zip(archive, stage)
+            for name in files:
+                if not (stage / name).is_file():
+                    raise ValueError("Playwright browser file absent from archive: " + name)
+            # Playwright treats a browser directory without this marker as
+            # a partial download.
+            (stage / "INSTALLATION_COMPLETE").write_text("", encoding="utf-8")
+            remove_tree(install)
+            stage.replace(install)
+        finally:
+            remove_tree(stage)
+    assert_zip_files(archive, install, files)
+    installed = read_installed()
+    installed["tools"].setdefault(PLAYWRIGHT, {})[target] = {
+        "schemaVersion": 1, "name": PLAYWRIGHT, "version": tool["version"], "platform": target,
+        "browserRevision": tool["browser"]["revision"], "archiveSHA256": spec["sha256"],
+        "executableSHA256": digest(install / spec["executable"]),
+        "installedAt": datetime.now(timezone.utc).isoformat()}
+    write_installed(installed)
+    verify_playwright()
+
+
+def verify_playwright():
+    tool, spec, target = playwright_selected()
+    archive, install = paths(spec)
+    assert_hash(archive, spec["sha256"])
+    try:
+        record = read_installed()["tools"][PLAYWRIGHT][target]
+    except (KeyError, OSError, ValueError):
+        raise ValueError("Playwright browser is not installed; run make bootstrap-playwright") from None
+    if (record["version"] != tool["version"] or record["platform"] != target
+            or record["browserRevision"] != tool["browser"]["revision"]
+            or record["archiveSHA256"] != spec["sha256"]):
+        raise ValueError("installed Playwright record does not match manifest; bootstrap again")
+    assert_hash(local_path(ROOT, install / spec["executable"]), record["executableSHA256"])
+    assert_zip_files(archive, install, {spec["executable"], spec["licenseFile"]})
+    # The npm packages must be the manifest's version and expect this browser.
+    package = json.loads((ROOT / "web/package.json").read_text(encoding="utf-8"))
+    for name, version in tool["npmPackages"].items():
+        if name == "@playwright/test" and package["devDependencies"].get(name) != version:
+            raise ValueError("web/package.json pins " + name + " differently from tools/manifest.json")
+    lock = json.loads((ROOT / "package-lock.json").read_text(encoding="utf-8"))
+    for name, version in tool["npmPackages"].items():
+        if lock["packages"].get("node_modules/" + name, {}).get("version") != version:
+            raise ValueError("package-lock.json resolves " + name + " differently from tools/manifest.json")
+    browsers = ROOT / "node_modules/playwright-core/browsers.json"
+    if browsers.is_file():
+        entry, = [entry for entry in json.loads(browsers.read_text(encoding="utf-8"))["browsers"]
+                  if entry["name"] == tool["browser"]["name"]]
+        if entry["revision"] != tool["browser"]["revision"] or entry["browserVersion"] != tool["browser"]["version"]:
+            raise ValueError("installed playwright-core expects another browser build than tools/manifest.json")
+    print("Verified Playwright " + tool["version"] + " Chrome Headless Shell " + tool["browser"]["version"]
+          + "; archive SHA256 and installed binary match")
 
 
 def go_environment(spec):
@@ -224,7 +626,48 @@ def run_go(args, capture=False):
                           text=True, capture_output=capture)
 
 
-def verify():
+def verify(tools=ALL_TOOLS):
+    if "go" in tools:
+        verify_go()
+    if "node" in tools:
+        verify_node()
+    if GOLANGCI in tools:
+        verify_golangci()
+    if PLAYWRIGHT in tools:
+        verify_playwright()
+
+
+def verify_node():
+    tool, spec, target = node_selected()
+    archive, install = paths(spec)
+    assert_hash(archive, spec["sha256"])
+    try:
+        record = read_installed()["tools"]["node"][target]
+    except (KeyError, OSError, ValueError):
+        raise ValueError("Node is not installed; run scripts/bootstrap-tools") from None
+    if (record["version"] != tool["version"] or record["platform"] != target
+            or record["archiveSHA256"] != spec["sha256"]):
+        raise ValueError("installed Node record does not match manifest; bootstrap again")
+    executable = local_path(ROOT, install / spec["executable"])
+    assert_hash(executable, record["executableSHA256"])
+    assert_archive_files(archive, install, {spec["executable"], spec["npmCli"]}, "r:xz")
+    for name, body in NODE_WRAPPERS.items():
+        wrapper = local_path(ROOT, ROOT / ".bin" / name)
+        if not wrapper.is_file() or wrapper.read_text(encoding="utf-8") != node_wrapper(spec, body):
+            raise ValueError("stale .bin/" + name + " wrapper; bootstrap again")
+    actual = subprocess.run([str(executable), "--version"], check=True, text=True,
+                            capture_output=True).stdout.strip()
+    if actual != "v" + tool["version"]:
+        raise ValueError("unexpected Node version: " + actual)
+    npm = subprocess.run([str(ROOT / ".bin/npm"), "--version"], check=True, text=True,
+                         capture_output=True).stdout.strip()
+    expected_npm = tool.get("bundledPackageManager", "").removeprefix("npm ")
+    if npm != expected_npm:
+        raise ValueError("unexpected npm version: " + npm)
+    print("Verified Node " + actual + " with npm " + npm + "; archive SHA256 and installed binary match")
+
+
+def verify_go():
     tool, spec, target = selected()
     archive, install = paths(spec)
     assert_hash(archive, spec["sha256"])
@@ -248,14 +691,35 @@ def main():
     if len(sys.argv) > 1 and sys.argv[1] == "go":
         run_go(sys.argv[2:])
         return
+    if len(sys.argv) > 1 and sys.argv[1] == GOLANGCI:
+        sys.exit(run_golangci(sys.argv[2:]))
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("command", choices=["bootstrap", "verify", "clean"])
     parser.add_argument("--offline", action="store_true")
+    # Playwright's browser (about 120 MB) is opt-in: make bootstrap-playwright.
+    # mkvtoolnix and MediaInfo (E4) are opt-in too: make bootstrap-matroska.
+    parser.add_argument("--tool", action="append", choices=list(ALL_TOOLS) + [PLAYWRIGHT] + list(OPTIONAL_TOOLS) + [OCR_TOOL],
+                        help="limit bootstrap or verify to this tool (repeatable; default: all required tools; "
+                             "playwright, mkvtoolnix, mediainfo and tesseract are optional and installed only when named)")
     args = parser.parse_args()
+    tools = tuple(args.tool or ALL_TOOLS)
+    optional = tuple(tool for tool in tools if tool in OPTIONAL_TOOLS)
     if args.command == "bootstrap":
-        bootstrap(args.offline)
+        bootstrap(args.offline, tools)
+        if optional:
+            matroska(["bootstrap"] + (["--offline"] if args.offline else []), optional)
+        if OCR_TOOL in tools:
+            ocr(["bootstrap"] + (["--offline"] if args.offline else []))
     elif args.command == "verify":
-        verify()
+        verify(tools)
+        if optional:
+            matroska(["verify"], optional)
+        if OCR_TOOL in tools:
+            ocr(["verify"])
+        if not args.tool:
+            # Optional tools are verified when installed and reported otherwise.
+            matroska(["verify", "--if-installed"], OPTIONAL_TOOLS)
+            ocr(["verify", "--if-installed"])
     else:
         for name in (".tools", ".bin", ".testfixtures", ".testdata"):
             remove_tree(ROOT / name)

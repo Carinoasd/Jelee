@@ -1,5 +1,9 @@
 name: Jelee Go foundation
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
+
 on:
   push:
   pull_request:
@@ -21,29 +25,69 @@ jobs:
         with:
           path: .tools
           key: jelee-${{ runner.os }}-${{ runner.arch }}-go1.27.1-${{ hashFiles('tools/manifest.json', 'go.sum') }}
+      - name: Validate four UI catalogs
+        run: python scripts/check-ui-locales.py
       - name: Linux bootstrap and verification
         if: runner.os == 'Linux'
-        run: make bootstrap tools-verify bootstrap-media media-tools-verify bootstrap-runtime runtime-tools-verify runtime-toolchain-test fixtures fixtures-test toolchain-test media-toolchain-test lint build test-race sandbox-test probe-runtime-test gitignore-check brand-scan-incremental
+        # lint = gofmt, openapi/doc checks, go vet and golangci-lint against
+        # tools/lint-baseline/linux.json; coverage-check enforces the
+        # per-package ratchet in tools/coverage-thresholds.json (G30.1).
+        # The production image (probe-runtime-test) copies the pinned
+        # mkvtoolnix and MediaInfo files; they are installed and verified
+        # before any step can build it (cached with the manifest key).
+        run: make bootstrap tools-verify bootstrap-media media-tools-verify bootstrap-runtime runtime-tools-verify bootstrap-matroska matroska-tools-verify runtime-toolchain-test fixtures fixtures-test toolchain-test media-toolchain-test quality-gates-test lint build test-race coverage-check sandbox-test probe-runtime-test gitignore-check brand-scan-incremental
+      - name: Web frontend gates on Linux
+        if: runner.os == 'Linux'
+        # web-build fails on playback in the bundle and on a main bundle over
+        # the gzip budget in web/bundle-budget.json (G27, G35.4); web-budget
+        # prints the measured sizes against the budget.
+        run: make web-install web-types web-lint web-test web-build web-budget
+      - name: Web end-to-end and visual regression on Linux
+        id: web-e2e
+        if: runner.os == 'Linux'
+        # Chrome Headless Shell pinned by URL and SHA256 in tools/manifest.json,
+        # installed into .tools/playwright; the .tools cache above is keyed on
+        # the manifest, so a browser change downloads again (G30.6). Visual
+        # regression only compares: baselines change through
+        # make web-visual-update and a reviewed commit (G34.6).
+        run: |
+          fc-list : family | grep -qx 'DejaVu Sans' || { echo 'DejaVu Sans is required for the visual baselines' >&2; exit 1; }
+          make bootstrap-playwright playwright-verify web-e2e web-visual
+      - name: Retain web e2e and visual diffs
+        if: failure() && runner.os == 'Linux' && steps.web-e2e.outcome == 'failure'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: web-e2e-${{ github.run_id }}
+          # actual/expected/diff images and the HTML report for review.
+          path: .testdata/playwright/
+          retention-days: 14
+          if-no-files-found: ignore
+          include-hidden-files: true
       - name: Windows bootstrap and verification
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          foreach ($target in @('bootstrap','tools-verify','bootstrap-media','media-tools-verify','fixtures','fixtures-test','toolchain-test','media-toolchain-test','lint','build','test','gitignore-check','brand-scan-incremental')) {
+          # lint includes golangci-lint against tools/lint-baseline/windows.json.
+          foreach ($target in @('bootstrap','tools-verify','bootstrap-media','media-tools-verify','fixtures','fixtures-test','toolchain-test','media-toolchain-test','quality-gates-test','lint','build','test','gitignore-check','brand-scan-incremental')) {
             & ./scripts/make.ps1 $target
           }
       - name: Required native legacy helper lifecycle on Linux
+        id: legacy-helper
         if: runner.os == 'Linux'
         run: |
           set -o pipefail
           .bin/go test -count=1 -timeout=60s -run '^Test(IgnoreRunnerLifecycle|HelperProcess|LegacyMatchNativeHelper|FamilyIgnoreNativeHelper|LegacyBaselineNativeHelper|FamilyBaselineNativeHelper)$' ./internal/platform/process ./internal/platform/legacyignorehelper ./internal/adapter/scan 2>&1 | tee .testdata/ignore-helper.txt
       - name: Retain legacy helper evidence
-        if: always() && runner.os == 'Linux'
+        # Only when the helper step ran; a skip after an earlier failure is not a second failure.
+        if: always() && runner.os == 'Linux' && steps.legacy-helper.outcome != 'skipped'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: ignore-helper-${{ runner.os }}
           path: .testdata/ignore-helper.txt
           if-no-files-found: error
           retention-days: 7
+          # .testdata is hidden; uploads whose paths share a wider root would drop it.
+          include-hidden-files: true
       - name: Required Git ignore semantics on Linux
         if: runner.os == 'Linux'
         run: |
@@ -61,6 +105,8 @@ jobs:
           path: .testdata/ignore-oracle.txt
           if-no-files-found: ignore
           retention-days: 7
+          # .testdata is hidden; uploads whose paths share a wider root would drop it.
+          include-hidden-files: true
       - name: Retain native sandbox diagnostics
         if: always() && runner.os == 'Linux'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -69,9 +115,55 @@ jobs:
           path: .testdata/sandbox-native.txt
           if-no-files-found: ignore
           retention-days: 7
+          # .testdata is hidden; uploads whose paths share a wider root would drop it.
+          include-hidden-files: true
+
+  bench-regression:
+    # G26.4 / G38.1 performance gate. Base and head run alternately on this
+    # one runner, so hosted-runner hardware differences cancel out; the
+    # committed docs/evidence/bench-baseline.txt is a workstation reference
+    # and is never compared against CI numbers. Separate from the PostgreSQL
+    # jobs so database load does not disturb the timings.
+    name: Benchmark regression (same-runner base vs head)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+      - uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+        with:
+          path: .tools
+          key: jelee-${{ runner.os }}-${{ runner.arch }}-go1.27.1-${{ hashFiles('tools/manifest.json', 'go.sum') }}
+      - run: make bootstrap tools-verify
+      - name: Select the base commit
+        id: base
+        env:
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+          PUSH_BEFORE: ${{ github.event.before }}
+        run: |
+          base="${PR_BASE:-$PUSH_BEFORE}"
+          if [ -z "$base" ] || [ "$base" = 0000000000000000000000000000000000000000 ] || ! git cat-file -e "$base^{commit}" 2>/dev/null; then
+            base=$(git rev-parse --verify --quiet HEAD^ || true)
+          fi
+          echo "sha=$base" >> "$GITHUB_OUTPUT"
+      - name: Compare hot-path benchmarks
+        if: steps.base.outputs.sha != ''
+        run: make bench-compare BENCH_BASE_REF=${{ steps.base.outputs.sha }}
+      - name: Retain benchmark comparison
+        if: always() && steps.base.outputs.sha != ''
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: bench-compare
+          path: |
+            .testdata/bench-compare/base.txt
+            .testdata/bench-compare/head.txt
+          if-no-files-found: ignore
+          retention-days: 14
+          # .testdata is hidden; uploads whose paths share a wider root would drop it.
+          include-hidden-files: true
 
   full-branding:
-    name: Full branding gate
+    name: Branding report (informational)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
@@ -79,9 +171,48 @@ jobs:
         with:
           path: .tools
           key: jelee-${{ runner.os }}-${{ runner.arch }}-go1.27.1-${{ hashFiles('tools/manifest.json', 'go.sum') }}
-      - run: make bootstrap tools-verify brand-scan
-      # This gate remains blocking while the preserved legacy source contains old
-      # internal identifiers. The incremental gate is not a replacement for it.
+      - run: make bootstrap tools-verify
+      # Full-repository legacy-name report (G00.4 as revised 2026-10-04):
+      # existing names never block a merge; the list goes to the job summary.
+      # The blocking check is brand-scan-incremental in the foundation job.
+      # Tool or I/O failures of the scanner itself still fail this step.
+      - name: Report legacy names
+        run: |
+          set -o pipefail
+          { echo '```'; make --no-print-directory brand-scan; echo '```'; } | tee -a "$GITHUB_STEP_SUMMARY"
+
+  postgres-race:
+    name: PostgreSQL repository race (shard ${{ matrix.shard }}/4)
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres@sha256:cf78e76683b9ca8c5733cbbdce6c9262b45b6767934dd0a95e671f9a0fc20685
+        env:
+          POSTGRES_USER: jelee
+          POSTGRES_PASSWORD: ci-only
+          POSTGRES_DB: jelee_test
+        ports:
+          - 127.0.0.1:5432:5432
+        options: >-
+          --health-cmd "pg_isready -U jelee -d jelee_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      JELEE_TEST_DATABASE_URL: postgres://jelee:ci-only@localhost:5432/jelee_test?sslmode=disable
+      JELEE_REQUIRE_INTEGRATION: 'true'
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+        with:
+          path: .tools
+          key: jelee-${{ runner.os }}-${{ runner.arch }}-go1.27.1-${{ hashFiles('tools/manifest.json', 'go.sum') }}
+      - run: make bootstrap tools-verify
+      - run: make test-race-postgres-shard SHARD=${{ matrix.shard }}/4
 
   postgres-integration:
     name: PostgreSQL migration and repository integration
@@ -109,13 +240,86 @@ jobs:
         with:
           path: .tools
           key: jelee-${{ runner.os }}-${{ runner.arch }}-go1.27.1-${{ hashFiles('tools/manifest.json', 'go.sum') }}
-      - run: make bootstrap tools-verify test-integration test-race
+      - run: make bootstrap tools-verify go-test-shard-test test-integration test-race-nonpostgres
       - name: Native family ignore storage acceptance
-        run: .bin/go test -count=1 -timeout=90s -run '^TestFamilyIgnoreNativeStorage$' ./internal/adapter/postgres
+        run: .bin/go test -count=1 -timeout=90s -run '^TestFamily(IgnoreNativeStorage|RunnerNative.*)$' ./internal/adapter/postgres
+      - name: Native family ignore production runtime acceptance
+        id: family-ignore-runtime
+        run: |
+          set -o pipefail
+          .bin/go test -count=1 -timeout=90s -run '^TestFamilyIgnore' ./internal/platform/runtime 2>&1 | tee .testdata/ignore-family-runtime.txt
+      - name: Retain family ignore runtime evidence
+        if: always() && steps.family-ignore-runtime.outcome != 'skipped'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ignore-family-runtime
+          path: .testdata/ignore-family-runtime.txt
+          if-no-files-found: error
+          retention-days: 7
+          # .testdata is hidden; uploads whose paths share a wider root would drop it.
+          include-hidden-files: true
+      - name: Five-minute native ignore service sustained acceptance
+        id: ignore-sustained
+        run: make ignore-sustained-test
+      - name: Retain sustained ignore service evidence
+        if: always() && steps.ignore-sustained.outcome != 'skipped'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ignore-sustained-acceptance
+          path: |
+            .testdata/ignore-sustained-acceptance.jsonl
+            .testdata/ignore-sustained-summary.json
+          if-no-files-found: error
+          retention-days: 7
+          # .testdata is hidden; uploads whose paths share a wider root would drop it.
+          include-hidden-files: true
       - name: Real media scan and probe cache acceptance
-        run: make bootstrap-media media-tools-verify bootstrap-runtime runtime-tools-verify fixtures probe-worker-test
+        # Every later step here builds the production image, which copies
+        # the pinned mkvtoolnix and MediaInfo files: install and verify them
+        # first (the .tools cache key already covers tools/manifest.json).
+        run: make bootstrap-media media-tools-verify bootstrap-runtime runtime-tools-verify bootstrap-matroska matroska-tools-verify fixtures probe-worker-test
       - name: Real mixed NFO, video and image incremental acceptance
         run: make nfo-worker-test
+      - name: Real family ignore, NFO, video and image acceptance
+        id: family-ignore-worker
+        run: make family-ignore-worker-test
+      - name: Retain family ignore mixed acceptance evidence
+        if: always() && steps.family-ignore-worker.outcome != 'skipped'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: family-ignore-worker-acceptance
+          path: |
+            .testdata/family-ignore-worker-acceptance.txt
+            .testdata/family-ignore-worker-summary.json
+          if-no-files-found: error
+          retention-days: 7
+          # .testdata is hidden; uploads whose paths share a wider root would drop it.
+          include-hidden-files: true
+      - name: Runtime memory evidence and configuration contracts
+        id: runtime-memory-contracts
+        # Invoke directly so the original child exit code is not replaced by
+        # GNU make's generic failure status. The wrapper always starts a report.
+        run: python3 -B scripts/runtime_memory_contracts.py
+      - name: Fixed RSS budgets and heap comparisons under five-minute mixed media load
+        id: family-ignore-sustained-worker
+        run: make runtime-memory-worker-test
+      - name: Retain memory and mixed sustained acceptance evidence
+        if: always() && (steps.runtime-memory-contracts.outcome != 'skipped' || steps.family-ignore-sustained-worker.outcome != 'skipped')
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: runtime-memory-acceptance
+          path: |
+            .testdata/runtime-memory-contracts.json
+            .testdata/runtime-memory-acceptance.txt
+            .testdata/runtime-memory-summary.json
+            .testdata/runtime-memory-case-*.json
+            .testdata/runtime-memory-heap-gogc*/heap-analysis-state.json
+            tools/resident-memory-budget.json
+            docs/evidence/resident-memory-baseline.json
+          if-no-files-found: error
+          retention-days: 7
+          # .testdata is hidden; uploads whose paths share a wider root would drop it.
+          include-hidden-files: true
       - name: Retain probe worker acceptance evidence
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -126,6 +330,8 @@ jobs:
             .testdata/probe-worker-summary.json
           if-no-files-found: ignore
           retention-days: 7
+          # .testdata is hidden; uploads whose paths share a wider root would drop it.
+          include-hidden-files: true
       - name: Retain NFO worker acceptance evidence
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -136,3 +342,5 @@ jobs:
             .testdata/nfo-worker-summary.json
           if-no-files-found: ignore
           retention-days: 7
+          # .testdata is hidden; uploads whose paths share a wider root would drop it.
+          include-hidden-files: true

@@ -31,6 +31,34 @@ func (s *Server) jobRoutes(router chi.Router) {
 	router.Group(func(r chi.Router) {
 		r.Use(s.jobBudget, s.authenticate)
 		s.nfoRoutes(r)
+		r.Get("/api/v1/libraries/{id}/watch", s.accountEndpoint(true, false, func(_ http.ResponseWriter, r *http.Request, a domain.Actor) (any, int, error) {
+			v, err := s.jobs.WatchStatus(r.Context(), a, chi.URLParam(r, "id"))
+			return v, 200, err
+		}))
+		r.Post("/api/v1/libraries/{id}/schedule/run", s.accountEndpoint(true, false, func(w http.ResponseWriter, r *http.Request, a domain.Actor) (any, int, error) {
+			var input struct{}
+			if err := DecodeJSON(w, r, &input, accountBodyLimit); err != nil {
+				return nil, 0, err
+			}
+			key, err := jobKey(r)
+			if err != nil {
+				return nil, 0, err
+			}
+			job, replay, err := s.jobs.RunSchedule(r.Context(), a, chi.URLParam(r, "id"), key)
+			return acceptedJob(w, job, replay, err)
+		}))
+		r.Get("/api/v1/libraries/{id}/schedule", s.accountEndpoint(true, false, func(_ http.ResponseWriter, r *http.Request, a domain.Actor) (any, int, error) {
+			v, err := s.jobs.GetSchedule(r.Context(), a, chi.URLParam(r, "id"))
+			return v, 200, err
+		}))
+		r.Put("/api/v1/libraries/{id}/schedule", s.accountEndpoint(true, false, func(w http.ResponseWriter, r *http.Request, a domain.Actor) (any, int, error) {
+			var input domain.ScanScheduleInput
+			if err := DecodeJSON(w, r, &input, accountBodyLimit); err != nil {
+				return nil, 0, err
+			}
+			v, err := s.jobs.PutSchedule(r.Context(), a, chi.URLParam(r, "id"), input)
+			return v, 200, err
+		}))
 		r.Get("/api/v1/jobs/{id}/ignore", s.accountEndpoint(true, true, s.ignoreReport))
 		r.Get("/api/v1/libraries", s.accountEndpoint(true, true, s.listJobLibraries))
 		r.Post("/api/v1/libraries/{id}/scan", s.accountEndpoint(true, false, s.submitScan))
@@ -46,6 +74,44 @@ func (s *Server) jobRoutes(router chi.Router) {
 			return j, 200, err
 		}))
 		r.Get("/api/v1/jobs/{id}/entries", s.accountEndpoint(true, true, s.listJobEntries))
+		r.Post("/api/v1/jobs/{id}/imports", s.accountEndpoint(true, false, func(w http.ResponseWriter, r *http.Request, actor domain.Actor) (any, int, error) {
+			var input struct {
+				Priority string                          `json:"priority"`
+				Items    []domain.CatalogImportSelection `json:"items"`
+			}
+			if err := DecodeJSON(w, r, &input, accountBodyLimit); err != nil {
+				return nil, 0, err
+			}
+			if input.Priority == "" {
+				input.Priority = domain.JobPriorityManual
+			}
+			for i := range input.Items {
+				if input.Items[i].Kind == "" {
+					input.Items[i].Kind = "HomeVideo"
+				}
+			}
+			key, err := jobKey(r)
+			if err != nil {
+				return nil, 0, err
+			}
+			job, replay, err := s.jobs.SubmitCatalogImport(r.Context(), actor, chi.URLParam(r, "id"), key, input.Priority, input.Items)
+			return acceptedJob(w, job, replay, err)
+		}))
+		r.Get("/api/v1/jobs/{id}/imports", s.accountEndpoint(true, false, func(_ http.ResponseWriter, r *http.Request, actor domain.Actor) (any, int, error) {
+			value, err := s.jobs.CatalogImportReport(r.Context(), actor, chi.URLParam(r, "id"))
+			return value, 200, err
+		}))
+		r.Put("/api/v1/jobs/{id}/entries/{entry}/item", s.accountEndpoint(true, false, func(w http.ResponseWriter, r *http.Request, actor domain.Actor) (any, int, error) {
+			var input domain.InventoryImportInput
+			if err := DecodeJSON(w, r, &input, accountBodyLimit); err != nil {
+				return nil, 0, err
+			}
+			if input.Kind == "" {
+				input.Kind = "HomeVideo"
+			}
+			result, err := s.jobs.ImportInventory(r.Context(), actor, chi.URLParam(r, "id"), chi.URLParam(r, "entry"), input)
+			return result, 200, err
+		}))
 		r.Post("/api/v1/jobs/{id}/cancel", s.accountEndpoint(true, false, func(w http.ResponseWriter, r *http.Request, a domain.Actor) (any, int, error) {
 			if err := emptyAccountInput(w, r); err != nil {
 				return nil, 0, err
@@ -54,6 +120,7 @@ func (s *Server) jobRoutes(router chi.Router) {
 			return j, 200, err
 		}))
 		r.Post("/api/v1/jobs/{id}/retry", s.accountEndpoint(true, false, s.retryJob))
+		s.catalogSyncRoutes(r)
 	})
 }
 
@@ -90,7 +157,7 @@ func (s *Server) submitScan(w http.ResponseWriter, r *http.Request, a domain.Act
 	ignore := domain.IgnoreIntent{}
 	if input.Ignore != nil {
 		ignore = domain.IgnoreIntent{Mode: input.Ignore.Mode, CaseMode: input.Ignore.CaseMode}
-		if ignore.Mode == "" || domain.ValidateIgnoreIntent(ignore) != nil {
+		if ignore.Mode == "" || (domain.ValidateIgnoreIntent(ignore) != nil && domain.ValidateFamilyIgnoreIntent(ignore) != nil) {
 			return nil, 0, domain.ErrInvalid
 		}
 	}
@@ -106,10 +173,17 @@ func (s *Server) rebuildItemProbe(w http.ResponseWriter, r *http.Request, a doma
 }
 func (s *Server) rebuildProbe(w http.ResponseWriter, r *http.Request, a domain.Actor, item bool) (any, int, error) {
 	var input struct {
-		Priority string `json:"priority"`
+		Priority    string `json:"priority"`
+		IUnderstand bool   `json:"iUnderstand"`
 	}
 	if err := DecodeJSON(w, r, &input, accountBodyLimit); err != nil {
 		return nil, 0, err
+	}
+	// G45.6: rebuilding a whole library discards every probe result of it
+	// and needs an explicit acknowledgement; the invalidation itself is
+	// audited as probe.library_invalidated.
+	if !item && !input.IUnderstand {
+		return nil, 0, errConfirmationRequired
 	}
 	key, err := jobKey(r)
 	if err != nil {

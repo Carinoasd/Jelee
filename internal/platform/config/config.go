@@ -9,34 +9,79 @@ import (
 	"net"
 	"net/url"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
 )
 
 type Config struct {
-	Listen                string         `json:"listen"`
-	AllowedHosts          []string       `json:"allowedHosts"`
-	DatabaseURL           string         `json:"-"`
-	MaxConnections        int32          `json:"maxConnections"`
-	MaxStreams            int            `json:"maxStreams"`
-	RequestTimeoutSeconds int            `json:"requestTimeoutSeconds"`
-	EnableCatalog         bool           `json:"enableCatalog"`
-	EnableDirect          bool           `json:"enableDirect"`
-	EnableAccounts        bool           `json:"enableAccounts"`
-	Accounts              AccountsConfig `json:"accounts"`
-	EnableJobs            bool           `json:"enableJobs"`
-	Jobs                  JobsConfig     `json:"jobs"`
-	EnableProbe           bool           `json:"enableProbe"`
+	Resources             ResourcesConfig `json:"resources"`
+	Access                AccessConfig    `json:"access"`
+	Streaming             StreamingConfig `json:"streaming"`
+	Playback              PlaybackConfig  `json:"playback"`
+	Stats                 StatsConfig     `json:"stats"`
+	Listen                string          `json:"listen"`
+	AllowedHosts          []string        `json:"allowedHosts"`
+	TrustedProxies        []string        `json:"trustedProxies"`
+	DatabaseURL           string          `json:"-"`
+	TMDBAPIKey            string          `json:"-"`
+	MaxConnections        int32           `json:"maxConnections"`
+	MaxStreams            int             `json:"maxStreams"`
+	RequestTimeoutSeconds int             `json:"requestTimeoutSeconds"`
+	EnableCatalog         bool            `json:"enableCatalog"`
+	EnableDirect          bool            `json:"enableDirect"`
+	EnableAccounts        bool            `json:"enableAccounts"`
+	EnableMetrics         bool            `json:"enableMetrics"`
+	EnableImages          bool            `json:"enableImages"`
+	Images                ImagesConfig    `json:"images"`
+	// Matroska is the optional embedded subtitle and font extraction (E4).
+	Matroska MatroskaConfig `json:"matroska"`
+	// SubtitleOCR derives SRT tracks from bitmap subtitles (G15.6); off by
+	// default and only together with Matroska extraction.
+	SubtitleOCR        SubtitleOCRConfig `json:"subtitleOcr"`
+	Accounts           AccountsConfig    `json:"accounts"`
+	EnableJobs         bool              `json:"enableJobs"`
+	Jobs               JobsConfig        `json:"jobs"`
+	EnableProbe        bool              `json:"enableProbe"`
+	EnableFamilyIgnore bool              `json:"enableFamilyIgnore"`
+	Logging            LoggingConfig     `json:"logging"`
+	// EnableNFOWrite lets job workers claim nfo_write jobs and run NFO commit
+	// recovery. It is off by default and requires job rollout.
+	EnableNFOWrite bool `json:"enableNFOWrite"`
+	// EnableEmbeddedCovers copies embedded cover pictures (attached_pic
+	// streams) of probed media into the image store at the end of a catalog
+	// sync (G40.4). Off by default; it needs probe, images and a storeRoot.
+	EnableEmbeddedCovers bool `json:"enableEmbeddedCovers"`
+	// WebDir is the built single-page frontend (for example web/dist). Empty
+	// disables the frontend; the API is unaffected either way.
+	WebDir string `json:"webDir"`
+	// EnableCompat mounts the third-party client compatibility layer under
+	// /compat. It is off by default.
+	EnableCompat bool `json:"enableCompat"`
+	// CompatServerID pins the server identifier reported by the compatibility
+	// layer (32 lowercase hex digits). Empty derives a stable value from
+	// allowedHosts.
+	CompatServerID string `json:"compatServerId"`
+	// EnableWebhooks runs the webhook deliverer and mounts its
+	// administration API (G12). It requires accounts and a master key.
+	EnableWebhooks bool           `json:"enableWebhooks"`
+	Webhooks       WebhooksConfig `json:"webhooks"`
+	// SetupTokenFile receives the one-time setup wizard token (G18) when
+	// setup is incomplete at startup, with mode 0600. Empty prints the token
+	// to standard error instead.
+	SetupTokenFile string `json:"setupTokenFile"`
+	// Dev is the developer mode section (G45); see DevConfig.
+	Dev DevConfig `json:"dev"`
 }
 
 func Load() (Config, error) { return LoadWith(os.LookupEnv) }
 
 // LoadWith keeps environment lookup injectable and never includes values in errors.
 func LoadWith(lookup func(string) (string, bool)) (Config, error) {
-	c := Config{Listen: "127.0.0.1:8097", AllowedHosts: []string{"localhost", "127.0.0.1", "::1"}, MaxConnections: 8, MaxStreams: 8, RequestTimeoutSeconds: 15, Accounts: DefaultAccountsConfig(), Jobs: DefaultJobsConfig()}
+	c := Config{Resources: DefaultResourcesConfig(), Access: DefaultAccessConfig(), Streaming: DefaultStreamingConfig(), Playback: DefaultPlaybackConfig(), Stats: DefaultStatsConfig(), Listen: "127.0.0.1:8097", AllowedHosts: []string{"localhost", "127.0.0.1", "::1"}, MaxConnections: 8, MaxStreams: 8, RequestTimeoutSeconds: 15, Accounts: DefaultAccountsConfig(), Jobs: DefaultJobsConfig(), Images: DefaultImagesConfig(), Matroska: DefaultMatroskaConfig(), SubtitleOCR: DefaultSubtitleOCRConfig(), Logging: DefaultLoggingConfig(), Webhooks: DefaultWebhooksConfig()}
 	if path, ok := lookup("JELEE_CONFIG"); ok && path != "" {
-		f, err := os.Open(path)
+		f, err := os.Open(path) //nolint:gosec // G304: the operator names the configuration file
 		if err != nil {
 			return c, errors.New("cannot read JELEE_CONFIG")
 		}
@@ -58,11 +103,16 @@ func LoadWith(lookup func(string) (string, bool)) (Config, error) {
 	if value, ok := lookup("JELEE_DATABASE_URL"); ok {
 		c.DatabaseURL = value
 	}
+	var tmdbErr error
+	c.TMDBAPIKey, tmdbErr = loadTMDBKey(lookup)
+	if tmdbErr != nil {
+		return c, tmdbErr
+	}
 	if value, ok := lookup("JELEE_DATABASE_URL_FILE"); ok && value != "" {
 		if c.DatabaseURL != "" {
 			return c, errors.New("set only one database credential source")
 		}
-		f, err := os.Open(value)
+		f, err := os.Open(value) //nolint:gosec // G304: the operator names the secret file
 		if err != nil {
 			return c, errors.New("cannot read database credential file")
 		}
@@ -79,7 +129,22 @@ func LoadWith(lookup func(string) (string, bool)) (Config, error) {
 	if value, ok := lookup("JELEE_ALLOWED_HOSTS"); ok {
 		c.AllowedHosts = strings.Split(value, ",")
 	}
-	for name, target := range map[string]*bool{"JELEE_ENABLE_CATALOG": &c.EnableCatalog, "JELEE_ENABLE_DIRECT": &c.EnableDirect, "JELEE_ENABLE_ACCOUNTS": &c.EnableAccounts, "JELEE_ENABLE_JOBS": &c.EnableJobs, "JELEE_ENABLE_PROBE": &c.EnableProbe} {
+	if value, ok := lookup("JELEE_COMPAT_SERVER_ID"); ok {
+		c.CompatServerID = value
+	}
+	if value, ok := lookup("JELEE_WEB_DIR"); ok {
+		c.WebDir = value
+	}
+	if value, ok := lookup("JELEE_SETUP_TOKEN_FILE"); ok {
+		c.SetupTokenFile = value
+	}
+	if value, ok := lookup("JELEE_TRUSTED_PROXIES"); ok {
+		c.TrustedProxies = nil
+		if strings.TrimSpace(value) != "" {
+			c.TrustedProxies = strings.Split(value, ",")
+		}
+	}
+	for name, target := range map[string]*bool{"JELEE_ENABLE_CATALOG": &c.EnableCatalog, "JELEE_ENABLE_DIRECT": &c.EnableDirect, "JELEE_ENABLE_ACCOUNTS": &c.EnableAccounts, "JELEE_ENABLE_METRICS": &c.EnableMetrics, "JELEE_ENABLE_IMAGES": &c.EnableImages, "JELEE_ENABLE_JOBS": &c.EnableJobs, "JELEE_ENABLE_PROBE": &c.EnableProbe, "JELEE_ENABLE_EMBEDDED_COVERS": &c.EnableEmbeddedCovers, "JELEE_ENABLE_FAMILY_IGNORE": &c.EnableFamilyIgnore, "JELEE_ENABLE_NFO_WRITE": &c.EnableNFOWrite, "JELEE_COMPAT_ENABLED": &c.EnableCompat, "JELEE_ENABLE_WEBHOOKS": &c.EnableWebhooks} {
 		if value, ok := lookup(name); ok {
 			b, err := strconv.ParseBool(value)
 			if err != nil {
@@ -88,11 +153,11 @@ func LoadWith(lookup func(string) (string, bool)) (Config, error) {
 			*target = b
 		}
 	}
-	if value, ok := lookup("JELEE_DEV_MODE"); ok && value != "" && value != "false" {
-		return c, errors.New("developer mode is unavailable in this production build")
+	if err := c.Dev.loadEnvironment(lookup); err != nil {
+		return c, err
 	}
 	if value, ok := lookup("JELEE_MAX_CONNECTIONS"); ok {
-		n, err := strconv.Atoi(value)
+		n, err := strconv.ParseInt(value, 10, 32)
 		if err != nil || n < 1 || n > 128 {
 			return c, errors.New("invalid JELEE_MAX_CONNECTIONS")
 		}
@@ -111,10 +176,61 @@ func LoadWith(lookup func(string) (string, bool)) (Config, error) {
 	if err := c.Jobs.loadEnvironment(lookup); err != nil {
 		return c, err
 	}
+	if err := c.Images.loadEnvironment(lookup); err != nil {
+		return c, err
+	}
+	if err := c.Matroska.loadEnvironment(lookup); err != nil {
+		return c, err
+	}
+	if err := c.SubtitleOCR.loadEnvironment(lookup); err != nil {
+		return c, err
+	}
+	if err := c.Resources.loadEnvironment(lookup); err != nil {
+		return c, err
+	}
+	if err := c.Access.loadEnvironment(lookup); err != nil {
+		return c, err
+	}
+	if err := c.Streaming.loadEnvironment(lookup); err != nil {
+		return c, err
+	}
+	if err := c.Playback.loadEnvironment(lookup); err != nil {
+		return c, err
+	}
+	if err := c.Stats.loadEnvironment(lookup); err != nil {
+		return c, err
+	}
+	if err := c.Logging.loadEnvironment(lookup); err != nil {
+		return c, err
+	}
+	if err := c.Webhooks.loadEnvironment(lookup); err != nil {
+		return c, err
+	}
 	return c, c.Validate()
 }
 
 func (c Config) Validate() error {
+	if err := c.Resources.Validate(); err != nil {
+		return err
+	}
+	if err := c.Access.Validate(); err != nil {
+		return err
+	}
+	if err := c.Streaming.Validate(); err != nil {
+		return err
+	}
+	if err := c.Playback.Validate(); err != nil {
+		return err
+	}
+	if err := c.Stats.Validate(); err != nil {
+		return err
+	}
+	if err := c.Logging.Validate(); err != nil {
+		return err
+	}
+	if err := c.Dev.Validate(); err != nil {
+		return err
+	}
 	u, err := url.Parse(c.DatabaseURL)
 	if err != nil || u == nil || (u.Scheme != "postgres" && u.Scheme != "postgresql") || u.Host == "" || strings.Trim(u.Path, "/") == "" {
 		return errors.New("JELEE_DATABASE_URL must identify a PostgreSQL database")
@@ -127,6 +243,12 @@ func (c Config) Validate() error {
 	if err != nil || n < 1 || n > 65535 {
 		return errors.New("invalid listen port")
 	}
+	if _, err := c.TrustedProxyPrefixes(); err != nil {
+		return err
+	}
+	if c.TMDBAPIKey != "" && !validTMDBKey(c.TMDBAPIKey) {
+		return errors.New("invalid TMDB_API_KEY")
+	}
 	if len(c.AllowedHosts) == 0 {
 		return errors.New("allowedHosts cannot be empty")
 	}
@@ -135,14 +257,54 @@ func (c Config) Validate() error {
 			return errors.New("invalid allowedHosts entry")
 		}
 	}
+	if c.WebDir != "" && (!filepath.IsAbs(c.WebDir) || filepath.Clean(c.WebDir) != c.WebDir || strings.ContainsRune(c.WebDir, 0)) {
+		return errors.New("webDir must be a clean absolute path")
+	}
+	if c.SetupTokenFile != "" && (!filepath.IsAbs(c.SetupTokenFile) || filepath.Clean(c.SetupTokenFile) != c.SetupTokenFile || strings.ContainsRune(c.SetupTokenFile, 0)) {
+		return errors.New("setupTokenFile must be a clean absolute path")
+	}
 	if c.MaxConnections < 1 || c.MaxConnections > 128 || c.MaxStreams < 1 || c.MaxStreams > 128 || c.RequestTimeoutSeconds < 1 || c.RequestTimeoutSeconds > 120 {
 		return errors.New("concurrency or timeout is outside the supported range")
+	}
+	if c.CompatServerID != "" && !validCompatServerID(c.CompatServerID) {
+		return errors.New("compatServerId must be 32 lowercase hex digits and not all zero")
 	}
 	if c.EnableDirect && !c.EnableCatalog {
 		return errors.New("direct delivery requires catalog rollout")
 	}
 	if c.EnableAccounts {
 		if err := c.Accounts.Validate(); err != nil {
+			return err
+		}
+	}
+	if c.EnableMetrics && !c.EnableAccounts {
+		return errors.New("metrics require account rollout")
+	}
+	if c.Matroska.EnableExtraction {
+		if !c.EnableCatalog || !c.EnableDirect {
+			return errors.New("matroska extraction requires catalog and direct delivery rollout")
+		}
+		if err := c.Matroska.Validate(); err != nil {
+			return err
+		}
+	}
+	if c.SubtitleOCR.Enable {
+		if !c.Matroska.EnableExtraction {
+			return errors.New("subtitle OCR requires matroska extraction")
+		}
+		if err := c.SubtitleOCR.Validate(); err != nil {
+			return err
+		}
+		// The two caches enforce their own bounds and must never share files.
+		if within(c.SubtitleOCR.CacheRoot, c.Matroska.CacheRoot) || within(c.Matroska.CacheRoot, c.SubtitleOCR.CacheRoot) {
+			return errors.New("subtitle OCR cacheRoot must be separate from the matroska cacheRoot")
+		}
+	}
+	if c.EnableImages {
+		if !c.EnableAccounts || !c.EnableCatalog {
+			return errors.New("images require account and catalog rollout")
+		}
+		if err := c.Images.Validate(); err != nil {
 			return err
 		}
 	}
@@ -155,6 +317,31 @@ func (c Config) Validate() error {
 		}
 		if int(c.MaxConnections) < c.Jobs.Workers+2 {
 			return errors.New("jobs require at least workers plus two database connections")
+		}
+	}
+	if c.EnableFamilyIgnore && !c.EnableJobs {
+		return errors.New("family ignore requires job rollout")
+	}
+	if c.EnableNFOWrite {
+		if !c.EnableJobs {
+			return errors.New("nfo write requires job rollout")
+		}
+		// The recovery loop and its lease renewal need a connection of their own.
+		if int(c.MaxConnections) < c.Jobs.Workers+3 {
+			return errors.New("nfo write requires at least workers plus three database connections")
+		}
+	}
+	if c.EnableWebhooks {
+		if !c.EnableAccounts {
+			return errors.New("webhooks require account rollout")
+		}
+		if err := c.Webhooks.Validate(); err != nil {
+			return err
+		}
+	}
+	if c.EnableEmbeddedCovers {
+		if !c.EnableProbe || !c.EnableImages || c.Images.StoreRoot == "" {
+			return errors.New("embedded covers require probe, images and an image storeRoot")
 		}
 	}
 	if c.EnableProbe {
@@ -170,4 +357,16 @@ func (c Config) Validate() error {
 
 func (c Config) RequestTimeout() time.Duration {
 	return time.Duration(c.RequestTimeoutSeconds) * time.Second
+}
+
+func validCompatServerID(id string) bool {
+	if len(id) != 32 || strings.Trim(id, "0") == "" {
+		return false
+	}
+	for i := 0; i < len(id); i++ {
+		if c := id[i]; !(c >= '0' && c <= '9' || c >= 'a' && c <= 'f') {
+			return false
+		}
+	}
+	return true
 }

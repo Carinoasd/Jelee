@@ -68,10 +68,23 @@ func TestPostgresIntegration(t *testing.T) {
 	isolatedDSN := u.String()
 	t.Logf("PostgreSQL integration RUNNING: dedicated jelee_test database, isolated schema %s", schema)
 
-	for _, step := range []struct {
+	type migrationStep struct {
 		action  string
 		version uint
-	}{{"up", SchemaVersion}, {"status", SchemaVersion}, {"down", 17}, {"down", 16}, {"down", 15}, {"down", 14}, {"down", 13}, {"down", 12}, {"down", 11}, {"down", 10}, {"down", 9}, {"down", 8}, {"down", 7}, {"down", 6}, {"down", 5}, {"down", 4}, {"down", 3}, {"down", 2}, {"down", 1}, {"down", 0}, {"up", SchemaVersion}, {"up", SchemaVersion}} {
+	}
+	steps := []migrationStep{{"up", SchemaVersion}, {"status", SchemaVersion}}
+	// Step down through the embedded versions; numbering may have gaps
+	// while parallel branches hold the numbers in between.
+	versions := embeddedMigrationVersions(t)
+	for i := len(versions) - 1; i >= 0; i-- {
+		previous := uint(0)
+		if i > 0 {
+			previous = versions[i-1]
+		}
+		steps = append(steps, migrationStep{"down", previous})
+	}
+	steps = append(steps, migrationStep{"up", SchemaVersion}, migrationStep{"up", SchemaVersion})
+	for _, step := range steps {
 		version, dirty, err := Migrate(ctx, isolatedDSN, step.action)
 		if err != nil || dirty || version != step.version {
 			t.Fatalf("migration %s: version=%d dirty=%t failed=%t", step.action, version, dirty, err != nil)
@@ -99,7 +112,7 @@ func TestPostgresIntegration(t *testing.T) {
 			t.Fatal("acquire test migration lock")
 		}
 		var unlockOnce sync.Once
-		unlock := func() {
+		unlock := func() { //nolint:contextcheck // test cleanup unlocks with its own deadline after the test context ends
 			unlockOnce.Do(func() {
 				unlockCtx, stop := context.WithTimeout(context.Background(), 3*time.Second)
 				defer stop()
@@ -279,9 +292,9 @@ func TestPostgresIntegration(t *testing.T) {
 		if err != nil || len(nextPage) != 50 || nextPage[0].ID <= adminPage[len(adminPage)-1].ID {
 			t.Fatal("cursor page overlaps or is not in stable UUID order")
 		}
-		const explain = "EXPLAIN (ANALYZE,BUFFERS,FORMAT JSON) " + listItemsSQL
+		explain := "EXPLAIN (ANALYZE,BUFFERS,FORMAT JSON) " + listItemsSQL
 		var rawPlan []byte
-		if err := store.Pool.QueryRow(ctx, explain, native.UserID, "", 50).Scan(&rawPlan); err != nil {
+		if err := store.Pool.QueryRow(ctx, explain, native.UserID, "", 50, nil).Scan(&rawPlan); err != nil {
 			t.Fatal("collect SQL permission-filter query plan")
 		}
 		var plan []map[string]any

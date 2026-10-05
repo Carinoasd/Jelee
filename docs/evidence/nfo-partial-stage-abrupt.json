@@ -1,0 +1,57 @@
+{
+  "scope": "Actual process exit and current partial-stage retention; no automatic partial recovery, PostgreSQL persistence, or power-loss acceptance",
+  "baseCommit": "90c97519b464a35cf6f48c793cea9005ca3cfe7b",
+  "source": "internal/adapter/nfo/commit_files_abrupt_test.go",
+  "sourceSha256": "f07d920aa18a003a7cd394e04a6ec574d59719a10f529c7af4d220be07d6cc31",
+  "logs": [
+    {
+      "skipped": [],
+      "abruptRootAndFourLeavesEachRunAndPassOnce": true,
+      "testPass": 5,
+      "sha256": "3100c94801c3e73eac7585a863a31dc9445eafae962cae212cdeaaa0f99d1ff8",
+      "log": "nfo-partial-stage-formal-windows-v2.jsonl",
+      "failed": 0,
+      "packagePass": 1
+    },
+    {
+      "skipped": [],
+      "abruptRootAndFourLeavesEachRunAndPassOnce": true,
+      "testPass": 5,
+      "sha256": "19f9cede88f8140f90b9b3e5e3153d57bc8188e833e6dc1041c7a066d7083b7d",
+      "log": "nfo-partial-stage-formal-linux-v2.jsonl",
+      "failed": 0,
+      "packagePass": 1
+    },
+    {
+      "skipped": [
+        "TestDirectoryNFODoesNotFollowSymlink",
+        "TestNativePreparationSourceRejectsMissingWrongKindAndLinks/symlink",
+        "TestNativePreparationSourceRejectsMissingWrongKindAndLinks/ancestor_symlink",
+        "TestNativePreparationSourceRejectsMissingWrongKindAndLinks/nfo_symlink",
+        "TestReadFileBoundaryAndOriginalProtection/symlink_escape"
+      ],
+      "abruptRootAndFourLeavesEachRunAndPassOnce": true,
+      "testPass": 383,
+      "sha256": "3b1f6dc4d59c3f78765cd9bfbf5bc8fe18495fbc5473d4f9fd583cc7d15a0376",
+      "log": "nfo-partial-stage-formal-windows-package-v1.jsonl",
+      "failed": 0,
+      "packagePass": 1
+    },
+    {
+      "skipped": [
+        "TestNFOFileLockWindowsCaseAliases"
+      ],
+      "abruptRootAndFourLeavesEachRunAndPassOnce": true,
+      "testPass": 401,
+      "sha256": "76d051f087ac5a90d34f381e2c6d796b10a522ad5d2fe8177e99515f33d4be46",
+      "log": "nfo-partial-stage-formal-linux-package-v1.jsonl",
+      "failed": 0,
+      "packagePass": 1
+    }
+  ],
+  "windowsDirectorySyncIsStub": true,
+  "fileBackedPlanFixtureNotPostgres": true,
+  "partialStageAutomaticRecoveryComplete": false,
+  "targetCommitBackupRollbackSettlementRecoveryComplete": false,
+  "fullG00G51Acceptance": false
+}

@@ -321,7 +321,7 @@ func TestAccountsPasswordChangeVerifiesOldAndPreservesCASSnapshot(t *testing.T) 
 				verify: func(context.Context, string, string) (bool, error) { return false, tc.verifyErr },
 				dummy:  func(context.Context, string) error { dummyCalls++; return nil },
 			}
-			if err := accountService(t, r, p).ChangePassword(context.Background(), actor, "wrong", "replacement"); !errors.Is(err, domain.ErrUnauthenticated) {
+			if err := accountService(t, r, p).ChangePassword(context.Background(), actor, "wrong", "replacement"); !errors.Is(err, domain.ErrPasswordMismatch) {
 				t.Fatalf("unverified old password reached replacement: %v", err)
 			}
 			if (tc.hash == "") != (dummyCalls == 1) {
@@ -353,12 +353,17 @@ func TestAccountsRejectInvalidActorAcrossOperationsBeforeWork(t *testing.T) {
 		"restore":         func(actor domain.Actor) error { _, err := a.Restore(ctx, actor, accountTargetID); return err },
 		"unlock":          func(actor domain.Actor) error { return a.Unlock(ctx, actor, accountTargetID) },
 		"change-password": func(actor domain.Actor) error { return a.ChangePassword(ctx, actor, "old", "new") },
-		"sessions":        func(actor domain.Actor) error { _, err := a.Sessions(ctx, actor, accountTargetID); return err },
-		"revoke":          func(actor domain.Actor) error { return a.Revoke(ctx, actor, accountTargetID, accountSessionID) },
-		"revoke-all":      func(actor domain.Actor) error { return a.RevokeAll(ctx, actor, accountTargetID) },
-		"rotate":          func(actor domain.Actor) error { _, err := a.Rotate(ctx, actor, "device"); return err },
-		"libraries":       func(actor domain.Actor) error { _, err := a.Libraries(ctx, actor, accountTargetID); return err },
-		"set-libraries":   func(actor domain.Actor) error { return a.SetLibraries(ctx, actor, accountTargetID, nil) },
+		"preferences":     func(actor domain.Actor) error { _, err := a.Preferences(ctx, actor); return err },
+		"set-preferences": func(actor domain.Actor) error {
+			_, err := a.SetPreferences(ctx, actor, domain.DefaultUserPreferences())
+			return err
+		},
+		"sessions":      func(actor domain.Actor) error { _, err := a.Sessions(ctx, actor, accountTargetID); return err },
+		"revoke":        func(actor domain.Actor) error { return a.Revoke(ctx, actor, accountTargetID, accountSessionID) },
+		"revoke-all":    func(actor domain.Actor) error { return a.RevokeAll(ctx, actor, accountTargetID) },
+		"rotate":        func(actor domain.Actor) error { _, err := a.Rotate(ctx, actor, "device"); return err },
+		"libraries":     func(actor domain.Actor) error { _, err := a.Libraries(ctx, actor, accountTargetID); return err },
+		"set-libraries": func(actor domain.Actor) error { return a.SetLibraries(ctx, actor, accountTargetID, nil) },
 	}
 	for _, actor := range []domain.Actor{
 		{}, {UserID: accountUserID}, {UserID: "bad", SessionID: accountSessionID},

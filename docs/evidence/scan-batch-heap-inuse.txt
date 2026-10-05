@@ -1,0 +1,83 @@
+## baseline-10000-cpu-2 unchanged before
+
+File: postgres.test
+Build ID: 793e7f66985c7d968e3a747f931e996ded70846b
+Type: inuse_space
+Time: 2026-10-02 20:55:34 CST
+Showing nodes accounting for 1024.98kB, 100% of 1024.98kB total
+      flat  flat%   sum%        cum   cum%
+  512.75kB 50.03% 50.03%   512.75kB 50.03%  golang.org/x/sys/cpu.initOptions
+  512.23kB 49.97%   100%   512.23kB 49.97%  runtime.mallocgc
+         0     0%   100%   512.75kB 50.03%  golang.org/x/sys/cpu.init.0
+         0     0%   100%   512.75kB 50.03%  runtime.doInit (inline)
+         0     0%   100%   512.75kB 50.03%  runtime.doInit1
+         0     0%   100%   512.75kB 50.03%  runtime.main
+         0     0%   100%   512.23kB 49.97%  runtime.malg
+         0     0%   100%   512.23kB 49.97%  runtime.newobject
+         0     0%   100%   512.23kB 49.97%  runtime.newproc.func1
+         0     0%   100%   512.23kB 49.97%  runtime.newproc1
+         0     0%   100%   512.23kB 49.97%  runtime.systemstack
+
+## baseline-10000-cpu-2 unchanged after
+
+File: postgres.test
+Build ID: 793e7f66985c7d968e3a747f931e996ded70846b
+Type: inuse_space
+Time: 2026-10-02 20:55:47 CST
+Showing nodes accounting for 1024.98kB, 100% of 1024.98kB total
+      flat  flat%   sum%        cum   cum%
+  512.75kB 50.03% 50.03%   512.75kB 50.03%  golang.org/x/sys/cpu.initOptions
+  512.23kB 49.97%   100%   512.23kB 49.97%  runtime.mallocgc
+         0     0%   100%   512.75kB 50.03%  golang.org/x/sys/cpu.init.0
+         0     0%   100%   512.75kB 50.03%  runtime.doInit (inline)
+         0     0%   100%   512.75kB 50.03%  runtime.doInit1
+         0     0%   100%   512.75kB 50.03%  runtime.main
+         0     0%   100%   512.23kB 49.97%  runtime.malg
+         0     0%   100%   512.23kB 49.97%  runtime.newobject
+         0     0%   100%   512.23kB 49.97%  runtime.newproc.func1
+         0     0%   100%   512.23kB 49.97%  runtime.newproc1
+         0     0%   100%   512.23kB 49.97%  runtime.systemstack
+
+## 10000-cpu-2 unchanged before
+
+File: postgres.test
+Build ID: 852c45435edb03f502e9a1eaac79acbfa0ff1d16
+Type: inuse_space
+Time: 2026-10-02 21:21:24 CST
+Showing nodes accounting for 1027.02kB, 100% of 1027.02kB total
+Showing top 12 nodes out of 16
+      flat  flat%   sum%        cum   cum%
+     515kB 50.15% 50.15%      515kB 50.15%  regexp/syntax.(*compiler).inst (inline)
+  512.02kB 49.85%   100%   512.02kB 49.85%  github.com/jackc/pgx/v5/internal/stmtcache.NewLRUCache (inline)
+         0     0%   100%      515kB 50.15%  github.com/MoYuanCN/Jelee/internal/adapter/nfo.init
+         0     0%   100%   512.02kB 49.85%  github.com/jackc/pgx/v5.ConnectConfig
+         0     0%   100%   512.02kB 49.85%  github.com/jackc/pgx/v5.connect
+         0     0%   100%   512.02kB 49.85%  github.com/jackc/pgx/v5/pgxpool.NewWithConfig.func3
+         0     0%   100%   512.02kB 49.85%  github.com/jackc/puddle/v2.(*Pool[go.shape.*uint8]).initResourceValue.func1
+         0     0%   100%      515kB 50.15%  regexp.Compile (inline)
+         0     0%   100%      515kB 50.15%  regexp.MustCompile
+         0     0%   100%      515kB 50.15%  regexp.compile
+         0     0%   100%      515kB 50.15%  regexp/syntax.(*compiler).cap (inline)
+         0     0%   100%      515kB 50.15%  regexp/syntax.(*compiler).compile
+
+## 10000-cpu-2 unchanged after
+
+File: postgres.test
+Build ID: 852c45435edb03f502e9a1eaac79acbfa0ff1d16
+Type: inuse_space
+Time: 2026-10-02 21:21:27 CST
+Showing nodes accounting for 1027.02kB, 100% of 1027.02kB total
+Showing top 12 nodes out of 16
+      flat  flat%   sum%        cum   cum%
+     515kB 50.15% 50.15%      515kB 50.15%  regexp/syntax.(*compiler).inst (inline)
+  512.02kB 49.85%   100%   512.02kB 49.85%  github.com/jackc/pgx/v5/internal/stmtcache.NewLRUCache (inline)
+         0     0%   100%      515kB 50.15%  github.com/MoYuanCN/Jelee/internal/adapter/nfo.init
+         0     0%   100%   512.02kB 49.85%  github.com/jackc/pgx/v5.ConnectConfig
+         0     0%   100%   512.02kB 49.85%  github.com/jackc/pgx/v5.connect
+         0     0%   100%   512.02kB 49.85%  github.com/jackc/pgx/v5/pgxpool.NewWithConfig.func3
+         0     0%   100%   512.02kB 49.85%  github.com/jackc/puddle/v2.(*Pool[go.shape.*uint8]).initResourceValue.func1
+         0     0%   100%      515kB 50.15%  regexp.Compile (inline)
+         0     0%   100%      515kB 50.15%  regexp.MustCompile
+         0     0%   100%      515kB 50.15%  regexp.compile
+         0     0%   100%      515kB 50.15%  regexp/syntax.(*compiler).cap (inline)
+         0     0%   100%      515kB 50.15%  regexp/syntax.(*compiler).compile

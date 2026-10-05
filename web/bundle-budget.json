@@ -1,0 +1,6 @@
+{
+  "note": "Gzip level 9 bytes of what index.html loads up front (G35.4): the entry script, the modules it preloads and the initial stylesheets; checked by scripts/check-bundle-budget.mjs after every build (make web-build). Set on 2026-10-04 about 5% above the measured sizes after the plugin host moved to a lazy chunk: entry 121,154 B, initial JS 145,313 B, initial CSS 2,313 B (before the plugin work: initial JS about 142,900 B). Raise a limit only with the reason in the commit message.",
+  "entryJsGzipBytes": 127000,
+  "initialJsGzipBytes": 152000,
+  "initialCssGzipBytes": 2450
+}

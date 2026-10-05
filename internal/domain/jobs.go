@@ -65,12 +65,18 @@ type JobLease struct {
 	Generation int64
 	ExpiresAt  time.Time
 	Policy     JobPolicy
+	// RecoveryEpoch is zero for the original job lease. A positive value names a
+	// NFO commit recovery lease on the stopped job; Owner is then its holder.
+	RecoveryEpoch int64
 }
 
 type ScanDirectory struct {
 	RootID   string
 	RootPath string // Private absolute path from the configured database root.
 	Path     string // Slash-separated root-relative path; dot names the root itself.
+	// ClaimToken identifies the scan slot holding this directory under the
+	// current lease generation. Empty for callers that do not claim.
+	ClaimToken string
 }
 
 type InventoryEntry struct {

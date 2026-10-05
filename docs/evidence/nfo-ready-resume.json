@@ -1,0 +1,119 @@
+{
+  "sourceBaseCommit": "7b952dbec58166b67828f4bb33ec7dfa1e8f4c59",
+  "scope": "Existing journal evidence read under live lease and native ready-stage reopen; preparation observation only",
+  "changedSourceManifest": {
+    "internal/domain/nfo_commit_files.go": "2189793d1e122153e134595c43eb23ae02a731fb9e500b9fd1ff8b27f1d608c3",
+    "internal/app/nfo_commit_files.go": "20633e967ed8dab01afa71a74f8f00afd31e056a826984bd5e0edde128c040a7",
+    "internal/adapter/postgres/nfo_commit_files.go": "22262f6a816cf860464682122adc95cb82ea173db2d6cd8843f242b00325e19d",
+    "internal/adapter/postgres/nfo_commit_files_test.go": "830613c0b1e5822bdac0c60e2a71afc5cbd4e9272771ab65cabf2a90355f0515",
+    "internal/adapter/postgres/nfo_commit_resume_test.go": "5ee1072214485a3d9fccbaa0cb6f515a5f1d22219a0caab2c7493f04b97f926e",
+    "internal/adapter/nfo/stage_commit_files.go": "48795ece0e9ca28627ae8e04f254fe7b7b4938df16315c0f5a7317ea9fc6f243",
+    "internal/adapter/nfo/stage_commit_files_test.go": "01ce7a1dcb00b90e2331804d7844e34dc6f81f52eb68512bc1478b21fca19739",
+    "internal/adapter/nfo/stage_resume_test.go": "6756c689d4e1e801a760b14088cad11f069e50e5a8ca83b1cafc0f4f5414a233"
+  },
+  "windows": {
+    "packagesPassed": 6,
+    "testsPassed": 1113,
+    "testsSkipped": 744,
+    "failureEvents": 0,
+    "readyResumePassedTests": [
+      "TestStageResumeRetainedReadyAndRejectsMissingProof/ready",
+      "TestStageResumeRetainedReadyAndRejectsMissingProof/output_missing",
+      "TestStageResumeRetainedReadyAndRejectsMissingProof/rollback_replaced",
+      "TestStageResumeRetainedReadyAndRejectsMissingProof/target_output",
+      "TestStageResumeRetainedReadyAndRejectsMissingProof/foreign_plan",
+      "TestStageResumeRetainedReadyAndRejectsMissingProof"
+    ],
+    "logSHA256": "f94ca2b70c93066be3ddee864e3f0a538888410466fb08168db359404ffca873"
+  },
+  "linuxRace": {
+    "packagesPassed": 6,
+    "testsPassed": 1121,
+    "testsSkipped": 1,
+    "failureEvents": 0,
+    "readyResumePassedTests": [
+      "TestStageResumeRetainedReadyAndRejectsMissingProof/ready",
+      "TestStageResumeRetainedReadyAndRejectsMissingProof/output_missing",
+      "TestStageResumeRetainedReadyAndRejectsMissingProof/rollback_replaced",
+      "TestStageResumeRetainedReadyAndRejectsMissingProof/target_output",
+      "TestStageResumeRetainedReadyAndRejectsMissingProof/foreign_plan",
+      "TestStageResumeRetainedReadyAndRejectsMissingProof"
+    ],
+    "logSHA256": "3740cd5f52a2cd21caccef1128e8af93c56aba60436633ad3b460c013aadae2e"
+  },
+  "selectedPostgresRace": {
+    "packagesPassed": 1,
+    "testsPassed": 59,
+    "testsSkipped": 0,
+    "failureEvents": 0,
+    "readyResumePassedTests": [],
+    "logSHA256": "bca157624d55aa3a569926361ccfa5ca24bfd275bc511d46f193f64c4e7cce2e",
+    "rootPassedTests": [
+      "TestNFOCommitFilePersistenceReplayAndReopen",
+      "TestNFOCommitFilePersistenceNativeAndChildReopen",
+      "TestNFOCommitFilePersistenceChildHelper",
+      "TestNFOCommitFilePersistenceLeaseAndRetention",
+      "TestNFOCommitFilePersistenceImmutableAndMigration",
+      "TestNFOCommitFilePersistenceDeferredLeaseAndRollback",
+      "TestNFOCommitFilePersistenceStorageCodec",
+      "TestNFOCommitFilePersistenceNativeRejectsOtherSource",
+      "TestNFOCommitFileEvidenceReadFencesAndNoCreation",
+      "TestNFOCommitFileResumeUnknownReadyAndNativeChanges"
+    ]
+  },
+  "redOverlay": {
+    "packagesPassed": 0,
+    "testsPassed": 0,
+    "testsSkipped": 0,
+    "failureEvents": 3,
+    "readyResumePassedTests": [],
+    "logSHA256": "11b66480812bf31dc98ef12fcf41561ebf2a69e1cce8c81314403edc2e0e50a7",
+    "reason": "Removed ready resume branch in isolated overlay; retained-ready retry failed without altering real source"
+  },
+  "verified": [
+    "existing_journal_only_no_creation",
+    "read_fences_and_zero_partial_output",
+    "plan_only_and_ready_distinguished",
+    "private_evidence_redacted",
+    "job_owned_controlled_reconstruction",
+    "native_ready_reopen_with_plan_ready_lease_replay",
+    "database_commit_then_response_loss_retry",
+    "real_linux_pg_child_process_resume",
+    "missing_stage_or_pin_refused",
+    "same_bytes_replacement_refused",
+    "target_output_not_inferred_committed",
+    "remaining_files_unchanged_after_refusal",
+    "payload_and_class_permits_released"
+  ],
+  "helperRootWithoutEnvironmentIsNoOp": true,
+  "nativeWindowsSimulatedPersistenceVerified": true,
+  "nativeWindowsDatabaseVerified": false,
+  "nativeLinuxDatabaseVerified": true,
+  "readyStageReopenVerified": true,
+  "readPortIsFilesystemCommitAuthorization": false,
+  "partialStageAutomaticResumeEnabled": false,
+  "fullRootMediaProofVerified": false,
+  "targetRenameEnabled": false,
+  "settlementEnabled": false,
+  "automaticRecoveryEnabled": false,
+  "productionCallerEnabled": false,
+  "windowsDirectoryMetadataDurabilityVerified": false,
+  "fullHeapOrRSSBoundVerified": false,
+  "fullPostgresRegressionRerun": false,
+  "newMigration": false,
+  "requirementsComplete": false,
+  "checks": {
+    "publishedSQLFilesUnchanged": 100,
+    "protectedSourceUnchanged": true,
+    "windowsVet": true,
+    "linuxVet": true,
+    "darwinAmd64Compiled": true,
+    "darwinExecuted": false,
+    "format": true,
+    "incrementalBrandViolations": 0,
+    "brandAllowed": 339,
+    "gitignoreViolations": 0
+  },
+  "formalSoakSourceCommit": "24caf7d45fb96390689dcc03685033242b7bbfea",
+  "formalSoakIncludesThisChange": false
+}

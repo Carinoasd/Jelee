@@ -18,10 +18,70 @@ const (
 	supportedBuild = true
 )
 
-func executeHelper(profile Profile, policy Policy) error {
+// execPlan is the fixed per-mode part of a helper launch. Both ffprobe
+// plans (metadata and the embedded cover read) read only their inherited
+// descriptor; tool plans also reopen that same file object through
+// /proc/self/fd/0, and only extraction may create files, in the private
+// working directory, each bounded by RLIMIT_FSIZE. The OCR plan also reads
+// its verified language data files and runs OpenMP single-threaded.
+type execPlan struct {
+	args     []string
+	input    bool
+	output   bool
+	fileSize uint64
+	cpu      uint64
+	data     []PinnedFile
+	env      []string
+}
+
+// ffprobePlan is the single ffprobe plan. arguments is the fixed argv of one
+// descriptor mode (metadataArguments or coverArguments), never caller data;
+// every mode shares the same file grants and resource bounds.
+func ffprobePlan(arguments []string) execPlan {
+	return execPlan{args: append([]string{"ffprobe"}, arguments...), cpu: 30}
+}
+
+func executeHelper(profile Profile, policy Policy, arguments []string) error {
+	if len(arguments) == 0 {
+		return ErrUnavailable
+	}
+	return execute(profile, policy, ffprobePlan(arguments))
+}
+
+func executeTool(profile ToolProfile, policy ToolPolicy, extraction Extraction) error {
+	plan := execPlan{args: toolArguments(profile.Mode, extraction), input: true, cpu: 60}
+	switch profile.Mode {
+	case ToolExtract:
+		plan.output, plan.fileSize, plan.cpu = true, ExtractFileLimit, 600
+	case ToolOCR:
+		// Only the requested languages' data files are granted.
+		for _, language := range extraction.Languages {
+			for _, file := range policy.DataFiles {
+				if filepath.Base(file.Path) == language+OCRDataSuffix {
+					plan.data = append(plan.data, file)
+				}
+			}
+		}
+		if len(plan.data) != len(extraction.Languages) {
+			return ErrInvalid
+		}
+		plan.args = ocrArguments(tessdataDirectory(policy.DataFiles), extraction.Languages)
+		plan.cpu = 30
+		plan.env = []string{"OMP_THREAD_LIMIT=1"}
+	}
+	if len(plan.args) == 0 {
+		return ErrInvalid
+	}
+	return execute(Profile{FFprobePath: profile.Path}, toolSandboxPolicy(policy), plan)
+}
+
+func execute(profile Profile, policy Policy, plan execPlan) error {
 	// The caller is a dedicated helper process. Never unlock this thread after
 	// applying policy; a caller receiving an error must immediately os.Exit.
 	runtime.LockOSThread()
+	if len(plan.args) < 2 {
+		return ErrUnavailable
+	}
 	if os.Getuid() == 0 || os.Geteuid() == 0 {
 		return ErrUnavailable
 	}
@@ -49,6 +109,13 @@ func executeHelper(profile Profile, policy Policy) error {
 		return err
 	}
 	defer p.close()
+	// Data files are verified here, after the closure and before policy,
+	// and granted as these same file objects.
+	data, err := openDataFiles(context.Background(), plan.data, policy.RequireProtectedFiles)
+	if err != nil {
+		return err
+	}
+	defer closeFiles(data)
 	if err := unix.Dup3(int(p.tool.file.Fd()), executableFD, unix.O_CLOEXEC); err != nil {
 		return ErrUnavailable
 	}
@@ -61,15 +128,15 @@ func executeHelper(profile Profile, policy Policy) error {
 	if unix.Capset(&header, &capabilities[0]) != nil {
 		return ErrUnavailable
 	}
-	if err := restrictFilesystem(p); err != nil {
+	if err := restrictFilesystem(p, plan, data); err != nil {
 		return err
 	}
 	for resource, limit := range map[int]unix.Rlimit{
 		unix.RLIMIT_NOFILE: {Cur: 128, Max: 128},
 		unix.RLIMIT_NPROC:  {Cur: 128, Max: 128},
 		unix.RLIMIT_AS:     {Cur: 2 << 30, Max: 2 << 30},
-		unix.RLIMIT_CPU:    {Cur: 30, Max: 31},
-		unix.RLIMIT_FSIZE:  {Cur: 0, Max: 0},
+		unix.RLIMIT_CPU:    {Cur: plan.cpu, Max: plan.cpu + 1},
+		unix.RLIMIT_FSIZE:  {Cur: plan.fileSize, Max: plan.fileSize},
 		unix.RLIMIT_CORE:   {Cur: 0, Max: 0},
 	} {
 		if unix.Setrlimit(resource, &limit) != nil {
@@ -82,8 +149,8 @@ func executeHelper(profile Profile, policy Policy) error {
 	if unix.CloseRange(3, ^uint(0), unix.CLOSE_RANGE_UNSHARE|unix.CLOSE_RANGE_CLOEXEC) != nil {
 		return ErrUnavailable
 	}
-	args := append([]string{"ffprobe"}, metadataArguments()...)
-	environment := []string{"LANG=C", "LC_ALL=C", "TZ=UTC"}
+	args := plan.args
+	environment := append([]string{"LANG=C", "LC_ALL=C", "TZ=UTC"}, plan.env...)
 	directories := make(map[string]bool)
 	for _, library := range p.libraries {
 		directories[filepath.Dir(library.path)] = true
@@ -107,12 +174,12 @@ func executeHelper(profile Profile, policy Policy) error {
 	empty := []byte{0}
 	filter := syscallPolicy(uint32(os.Getpid()))
 	program := unix.SockFprog{Len: uint16(len(filter)), Filter: &filter[0]}
-	if unix.Prctl(unix.PR_SET_SECCOMP, unix.SECCOMP_MODE_FILTER, uintptr(unsafe.Pointer(&program)), 0, 0) != nil {
+	if unix.Prctl(unix.PR_SET_SECCOMP, unix.SECCOMP_MODE_FILTER, uintptr(unsafe.Pointer(&program)), 0, 0) != nil { //nolint:gosec // G103: raw prctl(PR_SET_SECCOMP) has no safe wrapper
 		return ErrUnavailable
 	}
 	// Raw execveat stays on the locked, restricted thread and executes the
 	// verified file object. No pathname is reopened after digest verification.
-	_, _, errno := unix.RawSyscall6(unix.SYS_EXECVEAT, executableFD, uintptr(unsafe.Pointer(&empty[0])), uintptr(unsafe.Pointer(&argv[0])), uintptr(unsafe.Pointer(&envp[0])), unix.AT_EMPTY_PATH, 0)
+	_, _, errno := unix.RawSyscall6(unix.SYS_EXECVEAT, executableFD, uintptr(unsafe.Pointer(&empty[0])), uintptr(unsafe.Pointer(&argv[0])), uintptr(unsafe.Pointer(&envp[0])), unix.AT_EMPTY_PATH, 0) //nolint:gosec // G103: raw execveat has no safe wrapper
 	runtime.KeepAlive(argv)
 	runtime.KeepAlive(envp)
 	runtime.KeepAlive(empty)
@@ -123,7 +190,7 @@ func executeHelper(profile Profile, policy Policy) error {
 	return ErrUnavailable
 }
 
-func restrictFilesystem(p *prepared) error {
+func restrictFilesystem(p *prepared, plan execPlan, data []*os.File) error {
 	abi, _, errno := unix.RawSyscall(unix.SYS_LANDLOCK_CREATE_RULESET, 0, 0, unix.LANDLOCK_CREATE_RULESET_VERSION)
 	if errno != 0 || abi < 3 {
 		return ErrUnavailable
@@ -134,16 +201,20 @@ func restrictFilesystem(p *prepared) error {
 	}
 	// Only the v1/v3 filesystem field is needed; network is denied by the
 	// architecture-checked seccomp allowlist, including non-TCP transports.
-	ruleset, _, errno := unix.RawSyscall(unix.SYS_LANDLOCK_CREATE_RULESET, uintptr(unsafe.Pointer(&rights)), unsafe.Sizeof(rights), 0)
+	ruleset, _, errno := unix.RawSyscall(unix.SYS_LANDLOCK_CREATE_RULESET, uintptr(unsafe.Pointer(&rights)), unsafe.Sizeof(rights), 0) //nolint:gosec // G103: raw landlock_create_ruleset has no safe wrapper
 	if errno != 0 {
 		return ErrUnavailable
 	}
 	defer unix.Close(int(ruleset))
-	add := func(file *os.File, access uint64) bool {
-		rule := unix.LandlockPathBeneathAttr{Allowed_access: access, Parent_fd: int32(file.Fd())}
-		_, _, errno := unix.RawSyscall6(unix.SYS_LANDLOCK_ADD_RULE, ruleset, unix.LANDLOCK_RULE_PATH_BENEATH, uintptr(unsafe.Pointer(&rule)), 0, 0, 0)
-		runtime.KeepAlive(file)
+	addFD := func(fd int, access uint64) bool {
+		rule := unix.LandlockPathBeneathAttr{Allowed_access: access, Parent_fd: int32(fd)}                                                             //nolint:gosec // G115: descriptors are small non-negative ints
+		_, _, errno := unix.RawSyscall6(unix.SYS_LANDLOCK_ADD_RULE, ruleset, unix.LANDLOCK_RULE_PATH_BENEATH, uintptr(unsafe.Pointer(&rule)), 0, 0, 0) //nolint:gosec // G103: raw landlock_add_rule has no safe wrapper
 		return errno == 0
+	}
+	add := func(file *os.File, access uint64) bool {
+		added := addFD(int(file.Fd()), access)
+		runtime.KeepAlive(file)
+		return added
 	}
 	if !add(p.tool.file, unix.LANDLOCK_ACCESS_FS_READ_FILE|unix.LANDLOCK_ACCESS_FS_EXECUTE) {
 		return ErrUnavailable
@@ -154,6 +225,30 @@ func restrictFilesystem(p *prepared) error {
 			access |= unix.LANDLOCK_ACCESS_FS_EXECUTE
 		}
 		if !add(library.file, access) {
+			return ErrUnavailable
+		}
+	}
+	for _, file := range data {
+		// Each verified language data file; its directory stays unreadable.
+		if !add(file, unix.LANDLOCK_ACCESS_FS_READ_FILE) {
+			return ErrUnavailable
+		}
+	}
+	if plan.input {
+		// The verified stdin object only; its directory stays inaccessible.
+		if !addFD(0, unix.LANDLOCK_ACCESS_FS_READ_FILE) {
+			return ErrUnavailable
+		}
+	}
+	if plan.output {
+		// The runner's fresh private directory, which is the working directory.
+		directory, err := unix.Open(".", unix.O_PATH|unix.O_DIRECTORY|unix.O_NOFOLLOW|unix.O_CLOEXEC, 0)
+		if err != nil {
+			return ErrUnavailable
+		}
+		added := addFD(directory, unix.LANDLOCK_ACCESS_FS_MAKE_REG|unix.LANDLOCK_ACCESS_FS_WRITE_FILE|unix.LANDLOCK_ACCESS_FS_READ_FILE|unix.LANDLOCK_ACCESS_FS_TRUNCATE|unix.LANDLOCK_ACCESS_FS_REMOVE_FILE|unix.LANDLOCK_ACCESS_FS_READ_DIR)
+		_ = unix.Close(directory)
+		if !added {
 			return ErrUnavailable
 		}
 	}

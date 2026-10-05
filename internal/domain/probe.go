@@ -7,6 +7,8 @@ type MediaMetadata struct {
 	Format   MediaFormat    `json:"format"`
 	Streams  []MediaStream  `json:"streams"`
 	Chapters []MediaChapter `json:"chapters"`
+	// Matroska is the optional MediaInfo supplement (metadata schema 2).
+	Matroska *MediaMatroska `json:"matroska,omitempty"`
 }
 
 type MediaFormat struct {
@@ -22,17 +24,20 @@ type MediaRational struct {
 }
 
 type MediaStream struct {
-	Index          int         `json:"index"`
-	Kind           string      `json:"kind"`
-	Codec          *string     `json:"codec,omitempty"`
-	Profile        *string     `json:"profile,omitempty"`
-	DurationMicros *int64      `json:"durationMicros,omitempty"`
-	BitRate        *int64      `json:"bitRate,omitempty"`
-	Language       *string     `json:"language,omitempty"`
-	Default        *bool       `json:"default,omitempty"`
-	Forced         *bool       `json:"forced,omitempty"`
-	Video          *MediaVideo `json:"video,omitempty"`
-	Audio          *MediaAudio `json:"audio,omitempty"`
+	Index          int     `json:"index"`
+	Kind           string  `json:"kind"`
+	Codec          *string `json:"codec,omitempty"`
+	Profile        *string `json:"profile,omitempty"`
+	DurationMicros *int64  `json:"durationMicros,omitempty"`
+	BitRate        *int64  `json:"bitRate,omitempty"`
+	Language       *string `json:"language,omitempty"`
+	Default        *bool   `json:"default,omitempty"`
+	Forced         *bool   `json:"forced,omitempty"`
+	// AttachedPic is the attached_pic disposition: an embedded cover image
+	// (G40.4), not a playable video track.
+	AttachedPic *bool       `json:"attachedPic,omitempty"`
+	Video       *MediaVideo `json:"video,omitempty"`
+	Audio       *MediaAudio `json:"audio,omitempty"`
 }
 
 type MediaVideo struct {

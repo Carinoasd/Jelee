@@ -24,7 +24,12 @@ import toolchain
 
 ROOT = Path(__file__).resolve().parent.parent
 PACKAGE = "github.com/MoYuanCN/Jelee/internal/platform/sandbox"
-SELECTED = "Test(Native|Real|Pinned|Protected|New|Descriptor|Launcher|Policy|Syscall)"
+SELECTED = "Test(Native|Real|Pinned|Protected|New|Descriptor|Launcher|Policy|Syscall|Cover|Tool|OCR)"
+# Developer proofs that hash this host's glibc and a source checkout's tools
+# only after an explicit JELEE_*_HOST_RUNTIME opt-in. The proof image has
+# neither, so they are outside this suite rather than counted as skips; the
+# zero-skip rule still holds for every selected test.
+HOST_RUNTIME_ONLY = "^Test(RealMatroskaToolsInSandboxWithExplicitHostRuntime|RealTesseractInSandboxWithExplicitHostRuntime)$"
 
 
 def open_regular(path, maximum):
@@ -233,6 +238,8 @@ def execute(temporary, transcript, requested):
         "FFprobeSHA256": tool["sha256"], "Libraries": libraries, "RequireProtectedFiles": True}, "Inputs": inputs}
     (stage / "real-profile.json").write_text(json.dumps(profile), encoding="utf-8")
     transcript.write("VERIFIED PROFILE " + json.dumps(profile, sort_keys=True))
+    # The container's only writable path (TMPDIR) is a noexec tmpfs, so every
+    # fixture that must actually execute is shipped in the image.
     dockerfile = f"""FROM {base}
 COPY --chmod=0555 sandbox.test /project/sandbox.test
 COPY --chmod=0555 process.test /project/process.test
@@ -243,6 +250,7 @@ COPY --chmod=0555 coverage-helper /project/coverage-helper/ffprobe
 COPY --chmod=0555 helper /project/protected/ffprobe
 COPY --chmod=0555 thread /project/protected/other
 COPY --chmod=0555 helper /project/unsafe-parent/ffprobe
+COPY --chmod=0555 helper /project/tool-fixture/mkvextract
 COPY --chmod=0555 runtime/ /
 COPY --chmod=0555 real-ffprobe /project/real-tool/ffprobe
 COPY --chmod=0555 fixtures/ /project/fixtures/
@@ -257,7 +265,7 @@ RUN chmod 0777 /project/unsafe-parent
         transcript.run(["docker", "build", "--pull=false", "--network", "none", "--tag", image, "--file", "-", str(stage)], input=dockerfile)
         command = f"""set -eu
 mkdir -p /project/.testdata/parent /project/.testdata/child /project/.testdata/merged
-/project/sandbox.test -test.v -test.timeout=3m '-test.run={SELECTED}' -test.gocoverdir=/project/.testdata/parent
+/project/sandbox.test -test.v -test.timeout=3m '-test.run={SELECTED}' '-test.skip={HOST_RUNTIME_ONLY}' -test.gocoverdir=/project/.testdata/parent
 echo COVERAGE_PARENT
 /project/covdata percent -i=/project/.testdata/parent
 echo COVERAGE_CHILD
@@ -269,7 +277,7 @@ echo COVERAGE_MERGED
 /project/process.test -test.v -test.timeout=3m
 """
         arguments = ["docker", "run", "--rm", "--name", container, "--network", "none", "--user", "65532:65532", "--read-only", "--cap-drop", "ALL", "--security-opt", "no-new-privileges:true", "--security-opt", "seccomp=unconfined", "--pids-limit", "256", "--memory", "768m", "--cpus", "2", "--tmpfs", "/project/.testdata:rw,nosuid,nodev,noexec,size=268435456,mode=0700,uid=65532,gid=65532", "--workdir", "/project"]
-        for key, value in {"TMPDIR": "/project/.testdata", "JELEE_REQUIRE_SANDBOX_TEST": "true", "JELEE_SANDBOX_TEST_HELPER": "/project/ffprobe", "JELEE_SANDBOX_THREAD_FIXTURE": "/project/thread-fixture/ffprobe", "JELEE_SANDBOX_PROTECTED_TEST_DIR": "/project/protected", "JELEE_SANDBOX_COVERAGE_HELPER": "/project/coverage-helper/ffprobe", "JELEE_SANDBOX_COVERAGE_DIR": "/project/.testdata/child", "JELEE_SANDBOX_REAL_PROFILE": "/project/real-profile.json", "GOCACHE": "/project/.testdata/gocache", "GOMODCACHE": "/project/.testdata/gomodcache", "GOTOOLCHAIN": "local", "GOENV": "off"}.items():
+        for key, value in {"TMPDIR": "/project/.testdata", "JELEE_REQUIRE_SANDBOX_TEST": "true", "JELEE_SANDBOX_TEST_HELPER": "/project/ffprobe", "JELEE_SANDBOX_EXTRACT_FIXTURE": "/project/tool-fixture/mkvextract", "JELEE_SANDBOX_THREAD_FIXTURE": "/project/thread-fixture/ffprobe", "JELEE_SANDBOX_PROTECTED_TEST_DIR": "/project/protected", "JELEE_SANDBOX_COVERAGE_HELPER": "/project/coverage-helper/ffprobe", "JELEE_SANDBOX_COVERAGE_DIR": "/project/.testdata/child", "JELEE_SANDBOX_REAL_PROFILE": "/project/real-profile.json", "GOCACHE": "/project/.testdata/gocache", "GOMODCACHE": "/project/.testdata/gomodcache", "GOTOOLCHAIN": "local", "GOENV": "off"}.items():
             arguments += ["--env", key + "=" + value]
         result = transcript.run(arguments + ["--entrypoint", "/bin/sh", image, "-c", command], timeout=390)
         if "--- SKIP:" in result.stdout or result.stdout.count("\nPASS\n") != 2:

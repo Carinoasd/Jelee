@@ -13,6 +13,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/MoYuanCN/Jelee/internal/platform/config"
+	"github.com/MoYuanCN/Jelee/internal/platform/resources"
+	"github.com/MoYuanCN/Jelee/internal/platform/tracing"
 	"go.uber.org/fx"
 )
 
@@ -73,7 +76,23 @@ func testLifetime(t *testing.T, worker serviceWorker, handler http.Handler) (*li
 	l.worker = worker
 	l.server = &http.Server{Addr: "127.0.0.1:0", Handler: handler}
 	closed := new(atomic.Int32)
-	l.closeStore = func() { closed.Add(1) }
+	metricsClosed := new(atomic.Int32)
+	l.closeTelemetry = func(ctx context.Context) error {
+		deadline, ok := ctx.Deadline()
+		if !ok || ctx.Err() != nil || time.Until(deadline) > 3*time.Second {
+			t.Error("metrics shutdown must have a fresh bounded context")
+		}
+		if metricsClosed.Add(1) != 1 || closed.Load() != 0 {
+			t.Error("metrics must close once before the pool")
+		}
+		return nil
+	}
+	l.closeStore = func() {
+		if metricsClosed.Load() != 1 {
+			t.Error("pool closed before metrics stopped")
+		}
+		closed.Add(1)
+	}
 	address := ""
 	l.listen = func(ctx context.Context, network, addr string) (net.Listener, error) {
 		listener, err := (&net.ListenConfig{}).Listen(ctx, network, addr)
@@ -181,9 +200,18 @@ func TestFxStopDeadlineStillCancelsWorkersAndEventuallyReclaimsPool(t *testing.T
 func TestConstructionAndStartFailuresReclaimStore(t *testing.T) {
 	t.Run("graph construction", func(t *testing.T) {
 		l := newLifetime(slog.New(slog.NewTextHandler(io.Discard, nil)))
-		var closed int
-		a := build(l, fx.NopLogger, fx.Invoke(func() { l.closeStore = func() { closed++ } }), fx.Invoke(func() error { return errors.New("handler initialization failed") }))
-		if a.Err() == nil || closed != 1 || l.ctx.Err() == nil {
+		var closed, metricsClosed int
+		a := build(l, fx.NopLogger, fx.Invoke(func() {
+			l.closeTelemetry = func(ctx context.Context) error {
+				if ctx.Err() != nil || closed != 0 {
+					t.Error("metrics cleanup ran after its store or with a cancelled context")
+				}
+				metricsClosed++
+				return nil
+			}
+			l.closeStore = func() { closed++ }
+		}), fx.Invoke(func() error { return errors.New("handler initialization failed") }))
+		if a.Err() == nil || closed != 1 || metricsClosed != 1 || l.ctx.Err() == nil {
 			t.Fatalf("failed graph leaked resources: err=%v closes=%d", a.Err(), closed)
 		}
 	})
@@ -228,5 +256,53 @@ func TestLifecycleWithoutWorkersStillClosesStore(t *testing.T) {
 	waitChannel(t, l.stopped)
 	if closed.Load() != 1 {
 		t.Fatal("disabled workers prevented store cleanup")
+	}
+}
+
+// TestAdaptiveControllerJoinsOnStop (G41.7): the adaptive loop runs for the
+// process lifetime and has returned before the store closes.
+func TestAdaptiveControllerJoinsOnStop(t *testing.T) {
+	l, a, closed, _ := testLifetime(t, nil, http.NotFoundHandler())
+	budget, err := resources.New(resources.Limits{CPU: 2, IO: 2, Total: 2, Queue: 0})
+	if err != nil {
+		t.Fatal(err)
+	}
+	// An empty tree fails every reading: the limits must stay as configured.
+	if l.adaptive, err = resources.NewAdaptive(budget, resources.AdaptiveOptions{Source: resources.NewFSSource(t.TempDir(), 1), Interval: time.Second}); err != nil {
+		t.Fatal(err)
+	}
+	if err := a.Start(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	if err := a.Stop(ctx); err != nil {
+		t.Fatal(err)
+	}
+	waitChannel(t, l.stopped)
+	waitChannel(t, l.adaptiveDone)
+	if limits, _ := budget.EffectiveLimits(); closed.Load() != 1 || limits != budget.Limits() {
+		t.Fatal("adaptive loop not joined or limits changed without a reading")
+	}
+}
+
+// TestRuntimeRejectsInvalidAdaptiveAndTracing: invalid G41.7 thresholds or
+// G46.6 sample rates fail construction instead of running with defaults.
+func TestRuntimeRejectsInvalidAdaptiveAndTracing(t *testing.T) {
+	cfg := config.Config{Resources: config.DefaultResourcesConfig(), Logging: config.DefaultLoggingConfig()}
+	cfg.Resources.Adaptive.Enabled = true
+	cfg.Resources.Adaptive.LoadLow = cfg.Resources.Adaptive.LoadHigh
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	if err := newWithLifetime(cfg, logger, newLifetime(logger)).Err(); err == nil || !strings.Contains(err.Error(), "adaptive") {
+		t.Fatalf("invalid adaptive thresholds accepted: %v", err)
+	}
+	cfg = config.Config{Resources: config.DefaultResourcesConfig(), Logging: config.DefaultLoggingConfig()}
+	cfg.Logging.TraceSampleRate = 2
+	previous := tracing.Default()
+	if err := newWithLifetime(cfg, logger, newLifetime(logger)).Err(); err == nil || !strings.Contains(err.Error(), "trace sample rate") {
+		t.Fatalf("invalid sample rate accepted: %v", err)
+	}
+	if tracing.Default() != previous {
+		t.Fatal("a rejected configuration replaced the process tracer")
 	}
 }

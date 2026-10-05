@@ -1,4 +1,4 @@
-// Package nfo reads local metadata without modifying user files or fetching URLs.
+// Package nfo reads and edits local metadata without fetching referenced URLs.
 package nfo
 
 import (
@@ -85,6 +85,8 @@ type Metadata struct {
 	MPAA               string     `json:"mpaa,omitempty"`
 	Certification      string     `json:"certification,omitempty"`
 	Status             string     `json:"status,omitempty"`
+	AirsDayOfWeek      string     `json:"airsDayOfWeek,omitempty"`
+	AirsTime           string     `json:"airsTime,omitempty"`
 	ShowTitle          string     `json:"showTitle,omitempty"`
 	Collection         string     `json:"collection,omitempty"`
 	CollectionOverview string     `json:"collectionOverview,omitempty"`
@@ -108,6 +110,8 @@ type Metadata struct {
 }
 
 type Document struct {
+	editBaseHash [32]byte
+	edited       bool
 	Root         string `json:"root"`
 	Encoding     string `json:"encoding"`
 	OriginalSize int64  `json:"originalSize"`

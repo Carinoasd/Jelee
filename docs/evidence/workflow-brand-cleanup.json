@@ -1,0 +1,30 @@
+{
+  "result": "passed",
+  "checks": [
+    "all remaining workflow YAML parsed",
+    "all local uses references resolve",
+    "OpenAPI triggers and artifact generation retained",
+    "eight CI/generator files byte identical",
+    "protected LICENSE and requirements hashes retained"
+  ],
+  "workflows": 12,
+  "localReferences": [
+    [
+      ".github/workflows/openapi-merge.yml",
+      "./.github/workflows/openapi-generate.yml"
+    ],
+    [
+      ".github/workflows/openapi-pull-request.yml",
+      "./.github/workflows/openapi-generate.yml"
+    ],
+    [
+      ".github/workflows/openapi-pull-request.yml",
+      "./.github/workflows/openapi-generate.yml"
+    ]
+  ],
+  "beforeViolations": 15278,
+  "afterViolations": 15237,
+  "removedViolations": 41,
+  "fullBrandingGate": "still failing; not waived",
+  "runtimeCompilation": "no application source changed"
+}

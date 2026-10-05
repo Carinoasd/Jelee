@@ -1,0 +1,67 @@
+{
+  "sourceBaseCommit": "81629dc172979386e086ce7dea36eb65a233cf72",
+  "schemaVersion": 47,
+  "changedSourceManifest": {
+    "internal/adapter/postgres/job_metrics_migration_test.go": "2d8fd22f1541517706b9dc822ed15ef7b37ca23c973dca7c441cbae9384a1449",
+    "internal/adapter/postgres/job_metrics_snapshot_test.go": "72225eae7d000efb4f48bb9cb89eb918933e41cd95e66402a59246c3836fc6af",
+    "internal/adapter/postgres/job_metrics.go": "471d8065834d824490a2b727d590249e171fdfd2c0414515f95f69306fd56dc9",
+    "internal/adapter/postgres/jobs_execution.go": "da60238de2b340c0b4b16ef756bf50e0ecd4b874598280375ec6f71a301a7990",
+    "internal/adapter/postgres/migrations/000047_nfo_write_jobs.down.sql": "1f2867a0ab6264f01fce3ce48aa5473e58d523c99f794aac16b059fb2ab48d92",
+    "internal/adapter/postgres/migrations/000047_nfo_write_jobs.up.sql": "391f3ed1e73acf2db7455740c85232d035fbc54af5e86d71be60125fdad44ac4",
+    "internal/adapter/postgres/nfo_write_jobs_test.go": "2042cd78bb13ec875c83a04995eddb9c276fad26e294af09c7f60e1bd0e9ec20",
+    "internal/adapter/postgres/nfo_write_jobs.go": "3224fd45beae67a87503dda6f440f2d7585a3dbb42c4332ea23242f1d84e5f16",
+    "internal/adapter/postgres/nfo_write_preparations_test.go": "eb7e14b44ca853204b713d47acdfc9e450d6c8bd62dff0188e74e78e9aed112b",
+    "internal/adapter/postgres/store.go": "db5bc6a1084483166b222c2f1dd4e4372a2a9892b67603a73a8b9bb53b5c1668",
+    "internal/app/job_metrics_ports.go": "f0f5211aac4f22c1633e00ec224a26f304a26b2353fed740d751a1a3b2bb85ff",
+    "internal/app/nfo_write_jobs_ports.go": "ec4f483e888320cafbb43c0913c838ce571bf4818947b27ba05becb113564193",
+    "internal/domain/nfo_write_jobs.go": "6498d9d5a39fdc6acb7e04b6e2181b8d60bdd1dba6c9b8e17eabe325f5032bb5",
+    "internal/platform/telemetry/jobs_sdk_test.go": "d8171cc222e1da6010c7a99226ef31266480715516f48f8d492985948044b6db",
+    "internal/platform/telemetry/jobs_test.go": "32cafa120d747dc41a65d4244dc12ac94bb9f3d5030e521eb3d2636f208f8805",
+    "internal/platform/telemetry/jobs.go": "3cfda43d81c02dcfdebb848d144a61ec6dd0fe959f25a8764eb57fa9c84c26e3"
+  },
+  "publishedSQLFilesUnchanged": 92,
+  "windows": {
+    "packagesPassed": 8,
+    "testsPassed": 1377,
+    "testsSkipped": 659,
+    "failureEvents": 0
+  },
+  "postgresJobMetricsMigrationRace": {
+    "packagesPassed": 1,
+    "testsPassed": 115,
+    "testsSkipped": 0,
+    "failureEvents": 0
+  },
+  "postgresRuntimeMetricsRace": {
+    "packagesPassed": 1,
+    "testsPassed": 1,
+    "testsSkipped": 0,
+    "failureEvents": 0
+  },
+  "linuxRace": {
+    "race": true,
+    "packagesPassed": 3
+  },
+  "initialCorrection": {
+    "composition": "initial full selected regressions plus all final write-job cases and corrected test",
+    "test": "TestJobMetricsIntegrationHistogramBoundaries",
+    "reason": "fixed metric row count changed from 109 to 163"
+  },
+  "verifiedContracts": [
+    "job_owned_bytes_survive_preparation_cleanup_and_pool_reopen",
+    "fixed_recipe_to_native_writer",
+    "lease_owner_generation_expiry_cancel_admin_fences",
+    "old_worker_no_claim_or_expired_recovery",
+    "generic_finish_rejects_actual_write_kind",
+    "immutable_complete_batch",
+    "per_job_byte_capacity_rollback",
+    "six_fixed_metric_groups_preserve_epoch",
+    "downgrade_retains_jobs_and_counters_after_history_cleanup"
+  ],
+  "globalRowAndByteQuotaBoundaryTested": false,
+  "runtimeWriteWorkerEnabled": false,
+  "writeAdmissionEnabled": false,
+  "durableCommitRecoveryVerified": false,
+  "formal24hSourceIncludesThisChange": false,
+  "requirementsComplete": false
+}

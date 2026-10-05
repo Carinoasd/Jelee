@@ -1,0 +1,16 @@
+{
+  "admin": {
+    "navigation": "管理分区",
+    "nav": {
+      "users": "用户",
+      "access": "内容访问",
+      "clients": "客户端管控",
+      "shares": "分享链接",
+      "webhooks": "Webhook",
+      "stats": "观看统计",
+      "plugins": "插件",
+      "appearance": "自定义 CSS",
+      "devConsole": "API 控制台"
+    }
+  }
+}

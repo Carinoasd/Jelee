@@ -25,6 +25,11 @@ const changedAccountTestHash = "$argon2id$v=19$m=8192,t=1,p=1$b3RoZXItc2FsdA$b3R
 
 func accountTestStore(t *testing.T) (context.Context, *Store, string) {
 	t.Helper()
+	return accountTestStoreWithTimeout(t, 90*time.Second)
+}
+
+func accountTestStoreWithTimeout(t *testing.T, timeout time.Duration) (context.Context, *Store, string) {
+	t.Helper()
 	dsn := os.Getenv("JELEE_TEST_DATABASE_URL")
 	if dsn == "" {
 		if strings.EqualFold(os.Getenv("JELEE_REQUIRE_INTEGRATION"), "true") {
@@ -36,7 +41,7 @@ func accountTestStore(t *testing.T) (context.Context, *Store, string) {
 	if err != nil || u == nil || (u.Scheme != "postgres" && u.Scheme != "postgresql") || u.Path != "/jelee_test" || u.Hostname() == "" {
 		t.Fatal("account integration requires dedicated jelee_test database")
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	t.Cleanup(cancel)
 	admin, err := pgx.Connect(ctx, dsn)
 	if err != nil {
@@ -579,6 +584,85 @@ func TestAccountIntegration(t *testing.T) {
 
 func TestAccountMigrationRejectsCaseCollisionWithoutRenaming(t *testing.T) {
 	ctx, s, dsn := accountTestStore(t)
+	legacyMigrationStoreAt44(t, ctx, s)
+	if version, dirty, e := Migrate(ctx, dsn, "down"); e != nil || dirty || version != 43 {
+		t.Fatalf("down43 version=%d dirty=%v error=%v", version, dirty, e)
+	}
+	if version, dirty, e := Migrate(ctx, dsn, "down"); e != nil || dirty || version != 42 {
+		t.Fatalf("down38 version=%d dirty=%v error=%v", version, dirty, e)
+	}
+	if version, dirty, e := Migrate(ctx, dsn, "down"); e != nil || dirty || version != 41 {
+		t.Fatalf("down38 version=%d dirty=%v error=%v", version, dirty, e)
+	}
+	if version, dirty, e := Migrate(ctx, dsn, "down"); e != nil || dirty || version != 40 {
+		t.Fatalf("down38 version=%d dirty=%v error=%v", version, dirty, e)
+	}
+	if version, dirty, e := Migrate(ctx, dsn, "down"); e != nil || dirty || version != 39 {
+		t.Fatalf("down38 version=%d dirty=%v error=%v", version, dirty, e)
+	}
+	if version, dirty, e := Migrate(ctx, dsn, "down"); e != nil || dirty || version != 38 {
+		t.Fatalf("down38 version=%d dirty=%v error=%v", version, dirty, e)
+	}
+	if version, dirty, e := Migrate(ctx, dsn, "down"); e != nil || dirty || version != 37 {
+		t.Fatalf("down37 version=%d dirty=%v error=%v", version, dirty, e)
+	}
+	if version, dirty, e := Migrate(ctx, dsn, "down"); e != nil || dirty || version != 36 {
+		t.Fatalf("down36 version=%d dirty=%v error=%v", version, dirty, e)
+	}
+	if version, dirty, e := Migrate(ctx, dsn, "down"); e != nil || dirty || version != 35 {
+		t.Fatalf("down35 version=%d dirty=%v error=%v", version, dirty, e)
+	}
+	if version, dirty, e := Migrate(ctx, dsn, "down"); e != nil || dirty || version != 34 {
+		t.Fatalf("down34 version=%d dirty=%v error=%v", version, dirty, e)
+	}
+	if version, dirty, e := Migrate(ctx, dsn, "down"); e != nil || dirty || version != 33 {
+		t.Fatalf("down33 version=%d dirty=%v error=%v", version, dirty, e)
+	}
+	if version, dirty, e := Migrate(ctx, dsn, "down"); e != nil || dirty || version != 32 {
+		t.Fatalf("down32 version=%d dirty=%v error=%v", version, dirty, e)
+	}
+	if version, dirty, e := Migrate(ctx, dsn, "down"); e != nil || dirty || version != 31 {
+		t.Fatalf("down31 version=%d dirty=%v error=%v", version, dirty, e)
+	}
+	if version, dirty, e := Migrate(ctx, dsn, "down"); e != nil || dirty || version != 30 {
+		t.Fatalf("down30 version=%d dirty=%v error=%v", version, dirty, e)
+	}
+	if version, dirty, e := Migrate(ctx, dsn, "down"); e != nil || dirty || version != 29 {
+		t.Fatalf("down29 version=%d dirty=%v error=%v", version, dirty, e)
+	}
+	if version, dirty, e := Migrate(ctx, dsn, "down"); e != nil || dirty || version != 28 {
+		t.Fatalf("down28 version=%d dirty=%v error=%v", version, dirty, e)
+	}
+	if version, dirty, e := Migrate(ctx, dsn, "down"); e != nil || dirty || version != 27 {
+		t.Fatalf("down28 version=%d dirty=%v error=%v", version, dirty, e)
+	}
+	if version, dirty, e := Migrate(ctx, dsn, "down"); e != nil || dirty || version != 26 {
+		t.Fatalf("down27 version=%d dirty=%v error=%v", version, dirty, e)
+	}
+	if version, dirty, e := Migrate(ctx, dsn, "down"); e != nil || dirty || version != 25 {
+		t.Fatalf("down26 version=%d dirty=%v error=%v", version, dirty, e)
+	}
+	if version, dirty, e := Migrate(ctx, dsn, "down"); e != nil || dirty || version != 24 {
+		t.Fatalf("down25 version=%d dirty=%v error=%v", version, dirty, e)
+	}
+	if version, dirty, e := Migrate(ctx, dsn, "down"); e != nil || dirty || version != 23 {
+		t.Fatalf("down24 version=%d dirty=%v error=%v", version, dirty, e)
+	}
+	if version, dirty, e := Migrate(ctx, dsn, "down"); e != nil || dirty || version != 22 {
+		t.Fatalf("down23 version=%d dirty=%v error=%v", version, dirty, e)
+	}
+	if version, dirty, e := Migrate(ctx, dsn, "down"); e != nil || dirty || version != 21 {
+		t.Fatalf("down22 version=%d dirty=%v error=%v", version, dirty, e)
+	}
+	if version, dirty, e := Migrate(ctx, dsn, "down"); e != nil || dirty || version != 20 {
+		t.Fatalf("down21 version=%d dirty=%v error=%v", version, dirty, e)
+	}
+	if version, dirty, e := Migrate(ctx, dsn, "down"); e != nil || dirty || version != 19 {
+		t.Fatal("image preference downgrade failed", version, dirty, e)
+	}
+	if version, dirty, e := Migrate(ctx, dsn, "down"); e != nil || dirty || version != 18 {
+		t.Fatal("metadata preference downgrade failed", version, dirty, e)
+	}
 	if version, dirty, e := Migrate(ctx, dsn, "down"); e != nil || dirty || version != 17 {
 		t.Fatal("baseline verification downgrade failed", version, dirty, e)
 	}
@@ -647,6 +731,7 @@ func TestAccountMigrationRejectsCaseCollisionWithoutRenaming(t *testing.T) {
 
 func TestAccountMigrationRollbackKeepsDeletedAccountsDisabled(t *testing.T) {
 	ctx, s, dsn := accountTestStore(t)
+	legacyMigrationStoreAt44(t, ctx, s)
 	deletedToken, err := s.Provision(ctx, "DeletedBeforeRollback", access.ClientNative, false)
 	if err != nil {
 		t.Fatal(err)
@@ -657,6 +742,84 @@ func TestAccountMigrationRollbackKeepsDeletedAccountsDisabled(t *testing.T) {
 	}
 	if _, err = s.Pool.Exec(ctx, `UPDATE users SET deleted_at=now() WHERE name='DeletedBeforeRollback'`); err != nil {
 		t.Fatal("prepare deleted account")
+	}
+	if version, dirty, e := Migrate(ctx, dsn, "down"); e != nil || dirty || version != 43 {
+		t.Fatalf("down43 version=%d dirty=%v error=%v", version, dirty, e)
+	}
+	if version, dirty, e := Migrate(ctx, dsn, "down"); e != nil || dirty || version != 42 {
+		t.Fatalf("down38 version=%d dirty=%v error=%v", version, dirty, e)
+	}
+	if version, dirty, e := Migrate(ctx, dsn, "down"); e != nil || dirty || version != 41 {
+		t.Fatalf("down38 version=%d dirty=%v error=%v", version, dirty, e)
+	}
+	if version, dirty, e := Migrate(ctx, dsn, "down"); e != nil || dirty || version != 40 {
+		t.Fatalf("down38 version=%d dirty=%v error=%v", version, dirty, e)
+	}
+	if version, dirty, e := Migrate(ctx, dsn, "down"); e != nil || dirty || version != 39 {
+		t.Fatalf("down38 version=%d dirty=%v error=%v", version, dirty, e)
+	}
+	if version, dirty, e := Migrate(ctx, dsn, "down"); e != nil || dirty || version != 38 {
+		t.Fatalf("down38 version=%d dirty=%v error=%v", version, dirty, e)
+	}
+	if version, dirty, e := Migrate(ctx, dsn, "down"); e != nil || dirty || version != 37 {
+		t.Fatalf("down37 version=%d dirty=%v error=%v", version, dirty, e)
+	}
+	if version, dirty, e := Migrate(ctx, dsn, "down"); e != nil || dirty || version != 36 {
+		t.Fatalf("down36 version=%d dirty=%v error=%v", version, dirty, e)
+	}
+	if version, dirty, e := Migrate(ctx, dsn, "down"); e != nil || dirty || version != 35 {
+		t.Fatalf("down35 version=%d dirty=%v error=%v", version, dirty, e)
+	}
+	if version, dirty, e := Migrate(ctx, dsn, "down"); e != nil || dirty || version != 34 {
+		t.Fatalf("down34 version=%d dirty=%v error=%v", version, dirty, e)
+	}
+	if version, dirty, e := Migrate(ctx, dsn, "down"); e != nil || dirty || version != 33 {
+		t.Fatalf("down33 version=%d dirty=%v error=%v", version, dirty, e)
+	}
+	if version, dirty, e := Migrate(ctx, dsn, "down"); e != nil || dirty || version != 32 {
+		t.Fatalf("down32 version=%d dirty=%v error=%v", version, dirty, e)
+	}
+	if version, dirty, e := Migrate(ctx, dsn, "down"); e != nil || dirty || version != 31 {
+		t.Fatalf("down31 version=%d dirty=%v error=%v", version, dirty, e)
+	}
+	if version, dirty, e := Migrate(ctx, dsn, "down"); e != nil || dirty || version != 30 {
+		t.Fatalf("down30 version=%d dirty=%v error=%v", version, dirty, e)
+	}
+	if version, dirty, e := Migrate(ctx, dsn, "down"); e != nil || dirty || version != 29 {
+		t.Fatalf("down29 version=%d dirty=%v error=%v", version, dirty, e)
+	}
+	if version, dirty, e := Migrate(ctx, dsn, "down"); e != nil || dirty || version != 28 {
+		t.Fatalf("down28 version=%d dirty=%v error=%v", version, dirty, e)
+	}
+	if version, dirty, e := Migrate(ctx, dsn, "down"); e != nil || dirty || version != 27 {
+		t.Fatalf("down28 version=%d dirty=%v error=%v", version, dirty, e)
+	}
+	if version, dirty, e := Migrate(ctx, dsn, "down"); e != nil || dirty || version != 26 {
+		t.Fatalf("down27 version=%d dirty=%v error=%v", version, dirty, e)
+	}
+	if version, dirty, e := Migrate(ctx, dsn, "down"); e != nil || dirty || version != 25 {
+		t.Fatalf("down26 version=%d dirty=%v error=%v", version, dirty, e)
+	}
+	if version, dirty, e := Migrate(ctx, dsn, "down"); e != nil || dirty || version != 24 {
+		t.Fatalf("down25 version=%d dirty=%v error=%v", version, dirty, e)
+	}
+	if version, dirty, e := Migrate(ctx, dsn, "down"); e != nil || dirty || version != 23 {
+		t.Fatalf("down24 version=%d dirty=%v error=%v", version, dirty, e)
+	}
+	if version, dirty, e := Migrate(ctx, dsn, "down"); e != nil || dirty || version != 22 {
+		t.Fatalf("down23 version=%d dirty=%v error=%v", version, dirty, e)
+	}
+	if version, dirty, e := Migrate(ctx, dsn, "down"); e != nil || dirty || version != 21 {
+		t.Fatalf("down22 version=%d dirty=%v error=%v", version, dirty, e)
+	}
+	if version, dirty, e := Migrate(ctx, dsn, "down"); e != nil || dirty || version != 20 {
+		t.Fatalf("down21 version=%d dirty=%v error=%v", version, dirty, e)
+	}
+	if version, dirty, e := Migrate(ctx, dsn, "down"); e != nil || dirty || version != 19 {
+		t.Fatal("image preference downgrade failed", version, dirty, e)
+	}
+	if version, dirty, e := Migrate(ctx, dsn, "down"); e != nil || dirty || version != 18 {
+		t.Fatal("metadata preference downgrade failed", version, dirty, e)
 	}
 	if version, dirty, e := Migrate(ctx, dsn, "down"); e != nil || dirty || version != 17 {
 		t.Fatal("baseline verification downgrade failed", version, dirty, e)

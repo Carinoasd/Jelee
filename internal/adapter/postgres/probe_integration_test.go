@@ -295,6 +295,63 @@ func TestProbePersistAndHitPrefixCheckpoint(t *testing.T) {
 	}
 }
 
+// TestProbeParserUpgradeReprobesOnce pins the upgrade contract of a parser
+// or metadata schema bump: rows written under an earlier identity (here the
+// two unreleased media-metadata-v2 formats that media-metadata-v3 merged)
+// miss once, are probed again under the current identity, then hit.
+func TestProbeParserUpgradeReprobesOnce(t *testing.T) {
+	for index, previous := range []struct {
+		parser string
+		schema int
+	}{{"media-metadata-v2", 1}, {"media-metadata-v2", 2}, {"media-metadata-v1", 1}} {
+		t.Run(fmt.Sprintf("%s_schema%d", previous.parser, previous.schema), func(t *testing.T) {
+			if previous.parser == domain.ProbeParserVersion && previous.schema == domain.ProbeMetadataSchemaVersion {
+				t.Fatal("previous identity equals the current one")
+			}
+			f := newProbeFixture(t)
+			round := func(key string, want string) {
+				t.Helper()
+				l, _ := f.begin(t, key, "a.mkv")
+				page, candidates := f.page(t, l)
+				lookup, err := f.s.LookupProbeBatch(f.ctx, l, page.Token, candidates)
+				if err != nil || len(lookup) != 1 || lookup[0].Kind != want {
+					t.Fatalf("%s: lookup kind %v, want %v (%v)", key, lookup, want, err)
+				}
+				completion := domain.ProbeCompletion{Candidate: candidates[0], Kind: domain.ProbeCompletionHit}
+				if want == domain.ProbeLookupMiss {
+					lease, err := f.s.AcquireProbe(f.ctx, l, page.Token, candidates[0])
+					if err != nil {
+						t.Fatal(err)
+					}
+					completion = domain.ProbeCompletion{Candidate: candidates[0], Kind: domain.ProbeCompletionSucceeded, Lease: &lease, Metadata: probeTestMetadata()}
+				}
+				if _, err := f.s.CommitProbeBatch(f.ctx, l, page.Token, []domain.ProbeCompletion{completion}); err != nil {
+					t.Fatal(key, err)
+				}
+				f.finish(t, l)
+			}
+			round("first", domain.ProbeLookupMiss)
+			// Rewrite the stored row as if an earlier build had probed it. The
+			// old identity cannot be registered through the repository any more
+			// (validation pins the current parser), so it is inserted directly.
+			var old string
+			if err := f.s.Pool.QueryRow(f.ctx, `INSERT INTO tool_versions(identity_digest,platform,vendor_version,upstream_version,source_revision,executable_sha256,runtime_sha256,parser_version,metadata_schema_version,arguments_sha256,sandbox_version,fingerprint_version) SELECT decode(repeat($1,64),'hex'),platform,vendor_version,upstream_version,source_revision,executable_sha256,runtime_sha256,$2,$3,arguments_sha256,sandbox_version,fingerprint_version FROM tool_versions WHERE id=$4::uuid RETURNING id::text`, fmt.Sprint(index+1), previous.parser, previous.schema, f.identity.ID).Scan(&old); err != nil {
+				t.Fatal(err)
+			}
+			tag, err := f.s.Pool.Exec(f.ctx, `UPDATE probe_cache SET tool_version_id=$1::uuid WHERE state='ready'`, old)
+			if err != nil || tag.RowsAffected() != 1 {
+				t.Fatal("seed previous-identity row", err)
+			}
+			round("upgraded", domain.ProbeLookupMiss)
+			round("steady", domain.ProbeLookupHit)
+			var current string
+			if err := f.s.Pool.QueryRow(f.ctx, `SELECT tool_version_id::text FROM probe_cache WHERE state='ready'`).Scan(&current); err != nil || current != f.identity.ID {
+				t.Fatal("re-probed row kept the previous identity", err)
+			}
+		})
+	}
+}
+
 func TestProbeNegativeChangedAndUnavailableOutcomes(t *testing.T) {
 	f := newProbeFixture(t)
 	l, _ := f.begin(t, "negative", "a.mkv", "b.mkv", "c.mkv")
@@ -430,6 +487,7 @@ func TestProbeTransactionExpiryRollsBackMetadataQuotaAndCursor(t *testing.T) {
 
 func TestProbeReleaseRecoveryInvalidationAndMigration(t *testing.T) {
 	f := newProbeFixture(t)
+	legacyMigrationAt44(t, f.jobFixture)
 	f.importItem(t, "a.mkv")
 	f.complete(t, "baseline", []string{"a.mkv"}, 0)
 	l, _ := f.begin(t, "recovery", "a.mkv")
@@ -485,6 +543,84 @@ func TestProbeReleaseRecoveryInvalidationAndMigration(t *testing.T) {
 		t.Fatal(err)
 	}
 	dsn := f.s.Pool.Config().ConnString()
+	if version, dirty, e := Migrate(f.ctx, dsn, "down"); e != nil || dirty || version != 43 {
+		t.Fatalf("down43 version=%d dirty=%v error=%v", version, dirty, e)
+	}
+	if version, dirty, e := Migrate(f.ctx, dsn, "down"); e != nil || dirty || version != 42 {
+		t.Fatalf("down38 version=%d dirty=%v error=%v", version, dirty, e)
+	}
+	if version, dirty, e := Migrate(f.ctx, dsn, "down"); e != nil || dirty || version != 41 {
+		t.Fatalf("down38 version=%d dirty=%v error=%v", version, dirty, e)
+	}
+	if version, dirty, e := Migrate(f.ctx, dsn, "down"); e != nil || dirty || version != 40 {
+		t.Fatalf("down38 version=%d dirty=%v error=%v", version, dirty, e)
+	}
+	if version, dirty, e := Migrate(f.ctx, dsn, "down"); e != nil || dirty || version != 39 {
+		t.Fatalf("down38 version=%d dirty=%v error=%v", version, dirty, e)
+	}
+	if version, dirty, e := Migrate(f.ctx, dsn, "down"); e != nil || dirty || version != 38 {
+		t.Fatalf("down38 version=%d dirty=%v error=%v", version, dirty, e)
+	}
+	if version, dirty, e := Migrate(f.ctx, dsn, "down"); e != nil || dirty || version != 37 {
+		t.Fatalf("down37 version=%d dirty=%v error=%v", version, dirty, e)
+	}
+	if version, dirty, e := Migrate(f.ctx, dsn, "down"); e != nil || dirty || version != 36 {
+		t.Fatalf("down36 version=%d dirty=%v error=%v", version, dirty, e)
+	}
+	if version, dirty, e := Migrate(f.ctx, dsn, "down"); e != nil || dirty || version != 35 {
+		t.Fatalf("down35 version=%d dirty=%v error=%v", version, dirty, e)
+	}
+	if version, dirty, e := Migrate(f.ctx, dsn, "down"); e != nil || dirty || version != 34 {
+		t.Fatalf("down34 version=%d dirty=%v error=%v", version, dirty, e)
+	}
+	if version, dirty, e := Migrate(f.ctx, dsn, "down"); e != nil || dirty || version != 33 {
+		t.Fatalf("down33 version=%d dirty=%v error=%v", version, dirty, e)
+	}
+	if version, dirty, e := Migrate(f.ctx, dsn, "down"); e != nil || dirty || version != 32 {
+		t.Fatalf("down32 version=%d dirty=%v error=%v", version, dirty, e)
+	}
+	if version, dirty, e := Migrate(f.ctx, dsn, "down"); e != nil || dirty || version != 31 {
+		t.Fatalf("down31 version=%d dirty=%v error=%v", version, dirty, e)
+	}
+	if version, dirty, e := Migrate(f.ctx, dsn, "down"); e != nil || dirty || version != 30 {
+		t.Fatalf("down30 version=%d dirty=%v error=%v", version, dirty, e)
+	}
+	if version, dirty, e := Migrate(f.ctx, dsn, "down"); e != nil || dirty || version != 29 {
+		t.Fatalf("down29 version=%d dirty=%v error=%v", version, dirty, e)
+	}
+	if version, dirty, e := Migrate(f.ctx, dsn, "down"); e != nil || dirty || version != 28 {
+		t.Fatalf("down28 version=%d dirty=%v error=%v", version, dirty, e)
+	}
+	if version, dirty, e := Migrate(f.ctx, dsn, "down"); e != nil || dirty || version != 27 {
+		t.Fatalf("down28 version=%d dirty=%v error=%v", version, dirty, e)
+	}
+	if version, dirty, e := Migrate(f.ctx, dsn, "down"); e != nil || dirty || version != 26 {
+		t.Fatalf("down27 version=%d dirty=%v error=%v", version, dirty, e)
+	}
+	if version, dirty, e := Migrate(f.ctx, dsn, "down"); e != nil || dirty || version != 25 {
+		t.Fatalf("down26 version=%d dirty=%v error=%v", version, dirty, e)
+	}
+	if version, dirty, e := Migrate(f.ctx, dsn, "down"); e != nil || dirty || version != 24 {
+		t.Fatalf("down25 version=%d dirty=%v error=%v", version, dirty, e)
+	}
+	if version, dirty, e := Migrate(f.ctx, dsn, "down"); e != nil || dirty || version != 23 {
+		t.Fatalf("down24 version=%d dirty=%v error=%v", version, dirty, e)
+	}
+	if version, dirty, e := Migrate(f.ctx, dsn, "down"); e != nil || dirty || version != 22 {
+		t.Fatalf("down23 version=%d dirty=%v error=%v", version, dirty, e)
+	}
+	if version, dirty, e := Migrate(f.ctx, dsn, "down"); e != nil || dirty || version != 21 {
+		t.Fatalf("down22 version=%d dirty=%v error=%v", version, dirty, e)
+	}
+	if version, dirty, e := Migrate(f.ctx, dsn, "down"); e != nil || dirty || version != 20 {
+		t.Fatalf("down21 version=%d dirty=%v error=%v", version, dirty, e)
+	}
+	if version, dirty, e := Migrate(f.ctx, dsn, "down"); e != nil || dirty || version != 19 {
+		t.Fatal("image preference downgrade failed", version, dirty, e)
+	}
+	if version, dirty, e := Migrate(f.ctx, dsn, "down"); e != nil || dirty || version != 18 {
+		t.Fatal("metadata preference downgrade failed", version, dirty, e)
+	}
 	if version, dirty, e := Migrate(f.ctx, dsn, "down"); e != nil || dirty || version != 17 {
 		t.Fatal("baseline verification downgrade failed", version, dirty, e)
 	}

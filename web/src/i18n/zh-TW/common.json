@@ -1,0 +1,35 @@
+{
+  "common": {
+    "appName": "Jelee",
+    "language": "介面語言",
+    "localeNames": {
+      "zhCN": "简体中文",
+      "zhTW": "繁體中文",
+      "enUS": "English",
+      "jaJP": "日本語"
+    },
+    "loading": "正在載入…",
+    "retry": "重試",
+    "loadMore": "載入更多",
+    "logout": "登出",
+    "mainNavigation": "主導覽",
+    "signedInAs": "目前使用者：{name}",
+    "skipToContent": "跳到主要內容",
+    "notifications": "通知",
+    "dismiss": "關閉",
+    "cancel": "取消",
+    "breadcrumbs": "導覽路徑",
+    "save": "儲存",
+    "delete": "刪除",
+    "edit": "編輯",
+    "actions": "操作",
+    "yes": "是",
+    "no": "否",
+    "search": "搜尋",
+    "admin": "管理",
+    "settings": "設定",
+    "stats": "我的統計",
+    "sharedWithMe": "分享給你的內容",
+    "guestSession": "分享連結訪客"
+  }
+}

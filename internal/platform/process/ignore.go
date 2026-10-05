@@ -77,7 +77,7 @@ func (r *IgnoreRunner) Evaluate(ctx context.Context, batch legacyignore.Batch) (
 		}
 	}()
 	path := filepath.Join(dir, "request.bin")
-	writer, err := os.OpenFile(path, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0600)
+	writer, err := os.OpenFile(path, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0600) //nolint:gosec // G304: a file inside the private scratch directory
 	if err != nil {
 		return result, ErrStart
 	}
@@ -86,7 +86,7 @@ func (r *IgnoreRunner) Evaluate(ctx context.Context, batch legacyignore.Batch) (
 	if writeErr != nil || closeErr != nil {
 		return result, ErrStart
 	}
-	input, err := os.Open(path)
+	input, err := os.Open(path) //nolint:gosec // G304: a file inside the private scratch directory
 	if err != nil {
 		return result, ErrStart
 	}

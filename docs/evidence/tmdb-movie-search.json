@@ -1,0 +1,109 @@
+{
+  "baseCommit": "2b20e9493cf0c4941141655de5f36f4ac8d8e58e",
+  "scope": "Admin-only title and optional primary-release-year movie candidate search with explicit confirmation and subsequent ID selection",
+  "sources": {
+    "internal/domain/metadata_search.go": "823b096d7c5b11074889c4538ff93b5f3377427ab2aa8c5f7c4b88c64ab69664",
+    "internal/app/metadata.go": "76502dd36cc7138499dc05d1eca1a15fe1b30ec9ae76df9c17284d966e673f6e",
+    "internal/app/metadata_search_test.go": "94b308ad48a1dc56a91bf346efe93f3e9501ca4c24035b9ddca1145a8c24748d",
+    "internal/app/metadata_test.go": "f0279d663241ebfc421e17de250dc13521fa3da18f1885bc58ab8b0d4f695035",
+    "internal/adapter/metadata/search.go": "b30a4c432c5154f8fa6441ded8ef56c53fdad9f2f667a77ba984dc369f5ea9ae",
+    "internal/adapter/metadata/search_test.go": "9558647efac16a7a1aef513a3db3877cdeb0ae7b3c8816152db31eeaef6440fd",
+    "internal/adapter/metadata/movie.go": "fdc60f9428167e2c5b7d2fd88e86c420c1867c7e888f2d3570089349c3066c2f",
+    "internal/adapter/http/metadata.go": "24ae0c9a0d25833ce6bd76e74287b609c2090337f2c66e7d135a9738ec0346cb",
+    "internal/adapter/http/metadata_search_test.go": "9f095910420414acbdab171dc112afe7000bdb66ddcba94a8d11eb75098de235",
+    "internal/adapter/http/metadata_test.go": "6e591ab6edab82a873143b29158c41d31bbe5530a131e80589ee73435073dd5a",
+    "internal/platform/outbound/movie_integration_test.go": "7703fe88e59d715d3ea5905d13ebd75bbd9f68aa248fe3e81ab57117c5b7643e"
+  },
+  "windowsFullGo": {
+    "passedPackages": 29,
+    "passedTestEventsIncludingParents": 2961,
+    "skippedTestEvents": 435,
+    "failedEvents": 0
+  },
+  "skippedListSource": {
+    "path": "docs/evidence/outbound-tmdb-preflight.json",
+    "sha256": "d9dc00f78f14d500c79b1be8c2490a172ce84e7257034f0cd6ba72c240431882",
+    "jsonField": "windowsFullGo.skippedTests",
+    "comparison": "sorted package/test identities equal"
+  },
+  "linuxRace": {
+    "status": "PASS six packages",
+    "output": "ok  \tgithub.com/MoYuanCN/Jelee/internal/adapter/metadata\t1.272s\nok  \tgithub.com/MoYuanCN/Jelee/internal/app\t(cached)\nok  \tgithub.com/MoYuanCN/Jelee/internal/adapter/http\t3.621s\nok  \tgithub.com/MoYuanCN/Jelee/internal/platform/runtime\t1.194s\nok  \tgithub.com/MoYuanCN/Jelee/internal/platform/outbound\t5.119s\nok  \tgithub.com/MoYuanCN/Jelee/internal/platform/i18n\t(cached)",
+    "skips": "not reported by summary, zero skips not claimed"
+  },
+  "fullVet": "PASS",
+  "productionBuild": "PASS cmd/jelee",
+  "negative": {
+    "change": "set actual app needsConfirmation to false",
+    "leafFailures": 1,
+    "observed": "confirmation contract differs in actual TLS integration",
+    "restoredAppSha256": "76502dd36cc7138499dc05d1eca1a15fe1b30ec9ae76df9c17284d966e673f6e",
+    "relatedFullRegression": "PASS metadata, app, HTTP and outbound packages after byte-identical restoration"
+  },
+  "policy": {
+    "queryBytes": 256,
+    "queryUnicode": "UTF-8, trim, no interior control characters",
+    "optionalYearRange": [
+      1000,
+      9999
+    ],
+    "providerYearParameter": "primary_release_year",
+    "page": 1,
+    "includeAdult": false,
+    "maxCandidates": 20,
+    "bodyBytes": 1048576,
+    "candidateValidation": "shared with details",
+    "comparison": "case insensitive title/original title equality and supplied release year equality",
+    "allCandidatesNeedConfirmation": true,
+    "automaticSelection": false,
+    "automaticMetadataWrite": false,
+    "searchCached": false,
+    "detailCache": "existing 256 entries / 24h / ID+language",
+    "backgroundWorkers": 0
+  },
+  "syntheticMatchingCases": {
+    "count": 100,
+    "scope": "app-only title/year contract; not full 100 movies / 20 series acceptance"
+  },
+  "actualTLS": "two candidates retain comparisons and confirmation; search performs no details fetch, subsequent explicit ID fetch returns selected movie",
+  "missing": [
+    "TV/season/episode",
+    "IMDB/TVDB identity",
+    "fuzzy confidence and title normalization",
+    "library persistence and jobs",
+    "user/library language fallback",
+    "NFO/manual priority and field locks",
+    "search caching/coalescing",
+    "remove external metadata capability",
+    "complete frontend attribution and TMDB terms/cache acceptance",
+    "full 100 movie/20 series matrix",
+    "real external credentials/quota"
+  ],
+  "officialSources": [
+    "https://developer.themoviedb.org/reference/search-movie"
+  ],
+  "cancellationBeforePublication": "Movie rechecks caller budget after shared candidate validation before inserting into cache; deterministic cancellation test passes",
+  "gates": {
+    "incrementalBrand": {
+      "violations": 0,
+      "allowed": 181
+    },
+    "fullBrand": {
+      "violations": 14735,
+      "allowed": 186,
+      "status": "FAIL retained"
+    },
+    "gitignoreViolations": 0,
+    "sources": "11 SHA256 verified",
+    "protectedHashes": "PASS",
+    "fiveCoreFiles": "byte-identical to base commit",
+    "csOrMigrationsChanged": false,
+    "localLinks": "PASS",
+    "traceability": {
+      "done": 4,
+      "partial": 182,
+      "blocked": 150
+    },
+    "allowlistChanged": false
+  }
+}

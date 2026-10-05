@@ -1,0 +1,86 @@
+{
+  "sourceBaseCommit": "24caf7d45fb96390689dcc03685033242b7bbfea",
+  "changedSourceManifest": {
+    "internal/adapter/postgres/nfo_preparation_global_quota_test.go": "208d756eee69a2ca546aafc9b81cd65f4c0c563fc57d86e469b9cce9192704fa"
+  },
+  "scope": "Preparation SQL storage global row and logical-byte quotas; two concurrent transaction snapshots at each isolation level; no production changes",
+  "isolationLevels": [
+    "read_committed",
+    "repeatable_read",
+    "serializable"
+  ],
+  "linuxPostgresRace": {
+    "packagesPassed": 1,
+    "testsPassed": 8,
+    "testsSkipped": 0,
+    "failureEvents": 0,
+    "passedTests": [
+      "TestNFOQuotaPreparationGlobalRowsConcurrentSnapshots/read_committed",
+      "TestNFOQuotaPreparationGlobalRowsConcurrentSnapshots/repeatable_read",
+      "TestNFOQuotaPreparationGlobalRowsConcurrentSnapshots/serializable",
+      "TestNFOQuotaPreparationGlobalRowsConcurrentSnapshots",
+      "TestNFOQuotaPreparationGlobalBytesConcurrentSnapshots/read_committed",
+      "TestNFOQuotaPreparationGlobalBytesConcurrentSnapshots/repeatable_read",
+      "TestNFOQuotaPreparationGlobalBytesConcurrentSnapshots/serializable",
+      "TestNFOQuotaPreparationGlobalBytesConcurrentSnapshots"
+    ],
+    "elapsedSeconds": 17.916,
+    "logSHA256": "60e3574caf6c08e7305f1ce1b60828f973f69b947920ce0a670e3ce927831eb7"
+  },
+  "windowsConditional": {
+    "packagesPassed": 1,
+    "testsPassed": 2,
+    "testsSkipped": 6,
+    "failureEvents": 0,
+    "passedTests": [
+      "TestNFOQuotaPreparationGlobalRowsConcurrentSnapshots",
+      "TestNFOQuotaPreparationGlobalBytesConcurrentSnapshots"
+    ],
+    "elapsedSeconds": 0.066,
+    "logSHA256": "bcd7681d3e41bf4dfa218bcf8a0212a40f8d2cac89ee14959d1b85e12ecf0558"
+  },
+  "boundaries": {
+    "libraryLogicalBytes": 134217728,
+    "globalLogicalBytes": 268435456,
+    "actorRows": 32,
+    "globalRows": 256
+  },
+  "rowFixture": {
+    "initialRows": 255,
+    "maximumSeedRowsPerActor": 16,
+    "acceptedRows": 256,
+    "rejectedKeyRows": 0,
+    "actors": 18,
+    "totalLogicalBytesBelow": 134217728
+  },
+  "byteFixture": {
+    "requestBytesCounted": true,
+    "rejectedAdditionalPayloadBytes": 33554432,
+    "seedPayloadBytesPerLargePreparation": 67108864,
+    "rejectedKeyRows": 0,
+    "acceptedFinalRows": 5,
+    "actorBelowQuota": true,
+    "librariesBelowQuota": true,
+    "acceptedAdditionalPayloadBytes": 33554432,
+    "largePreparations": 3,
+    "initialRows": 4,
+    "rowsBelowQuota": true
+  },
+  "acceptedRefusal": [
+    "23514: nfo write preparation capacity reached",
+    "40001: stale transaction snapshot"
+  ],
+  "fixtureFilesystemAuthorization": false,
+  "writerLineageVerified": false,
+  "productionAdmissionEnabled": false,
+  "fullPostgresRegressionRerun": false,
+  "requirementsComplete": false,
+  "checks": {
+    "gitignoreViolations": 0,
+    "brandAllowed": 339,
+    "incrementalBrandViolations": 0,
+    "format": true,
+    "publishedSQLFilesUnchanged": 98,
+    "vet": true
+  }
+}

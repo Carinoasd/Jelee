@@ -64,5 +64,18 @@ try {
     }
     if (-not $rejected -or (Test-Path -LiteralPath $badCache)) { throw 'Bootstrap did not reject and remove bad archive' }
     $passed++
-    Write-Host "PASS: $passed bootstrap security cases (valid ZIP, traversal, absolute path, link, checksum, boundary)"
+    # golangci-lint manifest entry: accepted as pinned, rejected once tampered.
+    $lint = Get-GolangciSpec $root
+    if ($lint.Spec.sha256 -notmatch '^[a-f0-9]{64}$') { throw 'golangci-lint spec lacks a SHA256' }
+    $lintFixture = Join-Path $scratch 'golangci-project'
+    [IO.Directory]::CreateDirectory((Join-Path $lintFixture 'tools')) | Out-Null
+    $lintManifest = Get-Content -LiteralPath (Join-Path $root 'tools/manifest.json') -Raw | ConvertFrom-Json
+    $lintEntry = @($lintManifest.tools | Where-Object name -eq 'golangci-lint')[0]
+    $lintEntry.platforms.($lint.Platform).installPath = '../escape'
+    $lintManifest | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath (Join-Path $lintFixture 'tools/manifest.json') -Encoding utf8NoBOM
+    $rejected = $false
+    try { Get-GolangciSpec $lintFixture | Out-Null } catch { $rejected = $true }
+    if (-not $rejected) { throw 'Tampered golangci-lint layout accepted' }
+    $passed++
+    Write-Host "PASS: $passed bootstrap security cases (valid ZIP, traversal, absolute path, link, checksum, boundary, golangci-lint layout)"
 } finally { Remove-LocalTree $root $scratch }

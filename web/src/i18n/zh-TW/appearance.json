@@ -1,0 +1,92 @@
+{
+  "appearance": {
+    "title": "自訂 CSS",
+    "intro": "管理員可以補充 CSS 來調整外觀。儲存時會先經過清洗，只套用通過檢查的規則。",
+    "rules": {
+      "markup": "整段拒絕：任何小於號（因此無法寫出 script 或 style 標籤）、反斜線跳脫、控制字元、未閉合的註解或大括號。",
+      "urls": "逐條移除：CSS 匯入規則、expression()、javascript: 與 vbscript: 網址、behavior 與 -moz-binding、image-set() 等可載入資源的函式，以及指向外部來源的 url()（只允許本站路徑）。",
+      "fonts": "外部字型預設停用；啟用後只接受白名單主機上的 https 字型檔。",
+      "csp": "CSS 以建構樣式表套用，符合 style-src 'self' 的 CSP；開啟外部字型時，伺服器會把白名單主機加入 CSP 的 font-src。"
+    },
+    "storageNote": "目前讀不到伺服器的全站設定：自訂 CSS 只保存在這個瀏覽器中，只對此瀏覽器生效。",
+    "unsupported": "此瀏覽器不支援建構樣式表，無法在嚴格 CSP 下套用自訂 CSS。",
+    "cssLabel": "CSS",
+    "cssHint": "最多 {max} 個字元。可使用設計 token，例如 var(--jl-color-primary)。",
+    "fonts": {
+      "legend": "外部字型",
+      "allow": "允許來自白名單主機的字型",
+      "allowHint": "只影響 font-face 規則中的 src；其他 url() 仍只允許本站路徑。",
+      "hosts": "字型主機白名單",
+      "hostsHint": "每行一個主機名稱，例如 fonts.example.com；最多 {max} 個。",
+      "invalidHosts": "不是有效的主機名稱：{hosts}",
+      "tooMany": "最多只能有 {max} 個主機。"
+    },
+    "check": "檢查",
+    "save": "套用並儲存",
+    "clear": "清除自訂 CSS",
+    "clearConfirm": "確認清除",
+    "clearPrompt": "將移除已套用與已儲存的自訂 CSS。",
+    "result": "檢查結果",
+    "rejected": "整段 CSS 被拒絕，沒有套用任何規則。",
+    "accepted": "通過檢查的 CSS 共 {length} 個字元；移除了 {count} 處。",
+    "saved": "自訂 CSS 已套用並儲存。",
+    "savedRejected": "已儲存，但整段 CSS 被拒絕，未套用。",
+    "cleared": "自訂 CSS 已清除。",
+    "issues": {
+      "tooLong": "CSS 過長。",
+      "markup": "包含小於號，可能是 HTML 或指令碼標籤。",
+      "escape": "包含反斜線跳脫，可能用來隱藏被禁止的關鍵字。",
+      "controlChar": "包含控制字元。",
+      "unterminatedComment": "有未閉合的註解。",
+      "unbalanced": "大括號、括號或引號不成對。",
+      "tooDeep": "巢狀層級過深。",
+      "importBlocked": "不允許 CSS 匯入規則。",
+      "atRuleBlocked": "不支援的 at 規則。",
+      "invalidSelector": "無效或不允許的選擇器。",
+      "invalidDeclaration": "無效的宣告。",
+      "nestingUnsupported": "不支援在規則中巢狀規則。",
+      "expression": "不允許 expression()。",
+      "scriptUrl": "不允許 javascript: 或 vbscript: 網址。",
+      "binding": "不允許 behavior 或 -moz-binding。",
+      "blockedFunction": "不允許可載入外部資源的函式（如 image-set()）。",
+      "externalUrl": "url() 只能指向本站路徑。",
+      "externalFont": "外部字型未啟用，或主機不在白名單中。"
+    },
+    "storageServer": "保存在伺服器上，對所有已登入的使用者與裝置生效。伺服器會再次清洗 CSS，有結構問題時整段拒絕。未登入的頁面仍沿用先前保存在此瀏覽器的副本。",
+    "savedServer": "自訂 CSS 已套用，並為所有使用者儲存。",
+    "serverRejected": "伺服器整段拒絕了這段 CSS：其中含有標記、跳脫、控制字元或未閉合的區塊，或超出長度上限。",
+    "defaults": {
+      "title": "全站預設",
+      "intro": "對所有使用者生效：未自選主題者的主題、設計 token 覆寫，以及未自訂版面者的版面。",
+      "theme": "預設主題",
+      "themeHint": "已自選主題的使用者維持自己的選擇。",
+      "tokensLight": "Token 覆寫（亮色）",
+      "tokensDark": "Token 覆寫（暗色）",
+      "tokensHint": "每行一項，格式為「名稱: 值」，例如 color-primary: #0f766e。可用名稱：{names}。不得含 url()、大括號或分號；只有 font-family 可用引號。",
+      "invalidTokens": "未知名稱、不安全或重複的值：{tokens}",
+      "layout": "預設版面",
+      "layoutHint": "套用於尚未自訂首頁與條目頁版面的使用者。",
+      "layouts": {
+        "standard": "標準",
+        "focused": "精簡",
+        "metadata": "元資料檢查",
+        "mine": "我目前的版面",
+        "keep": "維持目前的全站預設"
+      },
+      "save": "儲存全站預設",
+      "saved": "全站預設已儲存。"
+    },
+    "file": {
+      "title": "設定檔",
+      "intro": "將全站外觀與插件設定匯出或匯入為同一個 JSON 檔，或恢復預設。匯入會同時取代兩者。",
+      "export": "匯出 JSON",
+      "import": "匯入 JSON",
+      "imported": "全站設定已匯入。",
+      "invalid": "檔案不是有效的 JSON。",
+      "reset": "恢復預設外觀",
+      "resetConfirm": "恢復預設",
+      "resetPrompt": "將為所有使用者移除自訂 CSS、token 覆寫、預設主題、預設版面與字型白名單。",
+      "resetDone": "已恢復預設外觀。"
+    }
+  }
+}

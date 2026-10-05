@@ -76,3 +76,33 @@ func runtimeClosureDigest(files []tools.RuntimeFile) (string, error) {
 	}
 	return hex.EncodeToString(hash.Sum(nil)), nil
 }
+
+// WithSupplement extends an identity with the MediaInfo supplement
+// (G19.1): the supplement's executable/closure digest folds into
+// RuntimeSHA256 and its argv digest into ArgumentsSHA256, so results cached
+// with and without the supplement never share an identity.
+func WithSupplement(identity domain.ProbeIdentity, closure, arguments string) (domain.ProbeIdentity, error) {
+	fold := func(label, base, extra string) (string, error) {
+		a, errA := hex.DecodeString(base)
+		b, errB := hex.DecodeString(extra)
+		if errA != nil || errB != nil || len(a) != 32 || len(b) != 32 {
+			return "", ErrUnavailable
+		}
+		hash := sha256.New()
+		_, _ = hash.Write([]byte(label))
+		_, _ = hash.Write(a)
+		_, _ = hash.Write(b)
+		return hex.EncodeToString(hash.Sum(nil)), nil
+	}
+	var err error
+	if identity.RuntimeSHA256, err = fold("jelee-runtime-closure-mediainfo-v1\x00", identity.RuntimeSHA256, closure); err != nil {
+		return domain.ProbeIdentity{}, err
+	}
+	if identity.ArgumentsSHA256, err = fold("jelee-probe-arguments-mediainfo-v1\x00", identity.ArgumentsSHA256, arguments); err != nil {
+		return domain.ProbeIdentity{}, err
+	}
+	if domain.ValidateProbeIdentity(identity) != nil {
+		return domain.ProbeIdentity{}, ErrUnavailable
+	}
+	return identity, nil
+}

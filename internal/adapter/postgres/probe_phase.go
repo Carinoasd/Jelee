@@ -238,7 +238,7 @@ func checkProbePrefix(ctx context.Context, tx pgx.Tx, p domain.ProbePhase, token
 		return nil, domain.ErrConflict
 	}
 	for i, e := range entries {
-		c := candidates[i]
+		c := candidates[i] //nolint:gosec // G602: lengths are compared just above
 		if e.Inventory.ID != c.InventoryID {
 			return nil, domain.ErrConflict
 		}

@@ -1,0 +1,587 @@
+{
+  "parentCommit": "8c9c4cac7634c09962fb1b38e2e9e9dc19678d30",
+  "verifiedAt": "2026-10-02T15:12:44.190924+00:00",
+  "schemaVersion": 43,
+  "productionCodeChanged": false,
+  "databaseStorage": {
+    "type": "native ext4 bind mount",
+    "image": "postgres@sha256:cf78e76683b9ca8c5733cbbdce6c9262b45b6767934dd0a95e671f9a0fc20685",
+    "availableBytesBeforeStart": 895679221760,
+    "minimumPreflightBytes": 21474836480
+  },
+  "excludedEnvironmentFailure": {
+    "storage": "2 GiB tmpfs",
+    "files": 500000,
+    "round": "cleanup",
+    "reason": "PostgreSQL checkpointer PANIC: No space left on device; automatic recovery interrupted status reads",
+    "countedAsPass": false
+  },
+  "sourceFreezeSHA256": {
+    "internal/adapter/postgres/scan_scale_test.go": "74fefd2a7b8ce0e7d4e02a669d1f713b855a1795e6b902cd73025571cb4bea5a"
+  },
+  "publishedSQLUnchanged": 86,
+  "passedScaleRuns": 6,
+  "passedScanRounds": 18,
+  "results": [
+    {
+      "files": 10000,
+      "gomaxprocs": 2,
+      "passes": [
+        {
+          "retainedBaselineRows": 10000,
+          "attempts": 1,
+          "pass": "initial",
+          "files": 10000,
+          "gomaxprocs": 2,
+          "goVersion": "go1.27.1",
+          "seconds": 3.546046199,
+          "filesPerSecond": 2820.0422213393726,
+          "maxBatch": 128,
+          "batches": 80,
+          "peakHeapBytes": 2843048,
+          "peakRSSBytes": 23388160,
+          "afterGC": {
+            "seconds": 3.553675413,
+            "files": 10000,
+            "heapBytes": 1826496,
+            "heapInuseBytes": 3301376,
+            "rssBytes": 23126016,
+            "totalAllocBytes": 30381320,
+            "gcCount": 12,
+            "gcPauseTotalNanoseconds": 628699,
+            "goroutines": 4,
+            "fileDescriptors": 10,
+            "dbAcquired": 0
+          }
+        },
+        {
+          "retainedBaselineRows": 20000,
+          "attempts": 1,
+          "pass": "unchanged",
+          "files": 10000,
+          "gomaxprocs": 2,
+          "goVersion": "go1.27.1",
+          "seconds": 3.762606392,
+          "filesPerSecond": 2657.732156428017,
+          "maxBatch": 128,
+          "batches": 80,
+          "peakHeapBytes": 3531400,
+          "peakRSSBytes": 23732224,
+          "afterGC": {
+            "seconds": 3.774558623,
+            "files": 10000,
+            "heapBytes": 1911704,
+            "heapInuseBytes": 3465216,
+            "rssBytes": 23945216,
+            "totalAllocBytes": 49948432,
+            "gcCount": 20,
+            "gcPauseTotalNanoseconds": 968360,
+            "goroutines": 4,
+            "fileDescriptors": 10,
+            "dbAcquired": 0
+          }
+        },
+        {
+          "retainedBaselineRows": 20000,
+          "attempts": 1,
+          "pass": "cleanup",
+          "files": 10000,
+          "gomaxprocs": 2,
+          "goVersion": "go1.27.1",
+          "seconds": 4.771497294,
+          "filesPerSecond": 2095.7781978781945,
+          "maxBatch": 128,
+          "batches": 80,
+          "peakHeapBytes": 2982120,
+          "peakRSSBytes": 23764992,
+          "afterGC": {
+            "seconds": 4.780850456,
+            "files": 10000,
+            "heapBytes": 1950928,
+            "heapInuseBytes": 3489792,
+            "rssBytes": 23433216,
+            "totalAllocBytes": 69796824,
+            "gcCount": 29,
+            "gcPauseTotalNanoseconds": 1428730,
+            "goroutines": 4,
+            "fileDescriptors": 10,
+            "dbAcquired": 0
+          }
+        }
+      ]
+    },
+    {
+      "files": 100000,
+      "gomaxprocs": 2,
+      "passes": [
+        {
+          "retainedBaselineRows": 100000,
+          "attempts": 1,
+          "pass": "initial",
+          "files": 100000,
+          "gomaxprocs": 2,
+          "goVersion": "go1.27.1",
+          "seconds": 45.552058522,
+          "filesPerSecond": 2195.2904708291853,
+          "maxBatch": 128,
+          "batches": 783,
+          "peakHeapBytes": 3480864,
+          "peakRSSBytes": 23711744,
+          "afterGC": {
+            "seconds": 45.570374363,
+            "files": 100000,
+            "heapBytes": 1904232,
+            "heapInuseBytes": 3457024,
+            "rssBytes": 22310912,
+            "totalAllocBytes": 219473992,
+            "gcCount": 83,
+            "gcPauseTotalNanoseconds": 4644750,
+            "goroutines": 4,
+            "fileDescriptors": 10,
+            "dbAcquired": 0
+          }
+        },
+        {
+          "retainedBaselineRows": 200000,
+          "attempts": 1,
+          "pass": "unchanged",
+          "files": 100000,
+          "gomaxprocs": 2,
+          "goVersion": "go1.27.1",
+          "seconds": 23.762343139,
+          "filesPerSecond": 4208.339195130752,
+          "maxBatch": 128,
+          "batches": 783,
+          "peakHeapBytes": 3291264,
+          "peakRSSBytes": 24285184,
+          "afterGC": {
+            "seconds": 23.798806376,
+            "files": 100000,
+            "heapBytes": 2046904,
+            "heapInuseBytes": 3514368,
+            "rssBytes": 22085632,
+            "totalAllocBytes": 392940144,
+            "gcCount": 154,
+            "gcPauseTotalNanoseconds": 8197561,
+            "goroutines": 4,
+            "fileDescriptors": 10,
+            "dbAcquired": 0
+          }
+        },
+        {
+          "retainedBaselineRows": 200000,
+          "attempts": 1,
+          "pass": "cleanup",
+          "files": 100000,
+          "gomaxprocs": 2,
+          "goVersion": "go1.27.1",
+          "seconds": 24.761938233,
+          "filesPerSecond": 4038.4560796105593,
+          "maxBatch": 128,
+          "batches": 783,
+          "peakHeapBytes": 3212656,
+          "peakRSSBytes": 24522752,
+          "afterGC": {
+            "seconds": 24.797026414,
+            "files": 100000,
+            "heapBytes": 2112544,
+            "heapInuseBytes": 3727360,
+            "rssBytes": 22183936,
+            "totalAllocBytes": 568640088,
+            "gcCount": 225,
+            "gcPauseTotalNanoseconds": 11398339,
+            "goroutines": 4,
+            "fileDescriptors": 10,
+            "dbAcquired": 0
+          }
+        }
+      ]
+    },
+    {
+      "files": 500000,
+      "gomaxprocs": 2,
+      "passes": [
+        {
+          "retainedBaselineRows": 500000,
+          "attempts": 1,
+          "pass": "initial",
+          "files": 500000,
+          "gomaxprocs": 2,
+          "goVersion": "go1.27.1",
+          "seconds": 129.295183856,
+          "filesPerSecond": 3867.1200665669444,
+          "maxBatch": 128,
+          "batches": 3908,
+          "peakHeapBytes": 3570464,
+          "peakRSSBytes": 24240128,
+          "afterGC": {
+            "seconds": 129.367454681,
+            "files": 500000,
+            "heapBytes": 2152360,
+            "heapInuseBytes": 4005888,
+            "rssBytes": 22589440,
+            "totalAllocBytes": 1056328072,
+            "gcCount": 399,
+            "gcPauseTotalNanoseconds": 19096598,
+            "goroutines": 4,
+            "fileDescriptors": 11,
+            "dbAcquired": 0
+          }
+        },
+        {
+          "retainedBaselineRows": 1000000,
+          "attempts": 1,
+          "pass": "unchanged",
+          "files": 500000,
+          "gomaxprocs": 2,
+          "goVersion": "go1.27.1",
+          "seconds": 122.764862083,
+          "filesPerSecond": 4072.826633910568,
+          "maxBatch": 128,
+          "batches": 3908,
+          "peakHeapBytes": 3661536,
+          "peakRSSBytes": 24784896,
+          "afterGC": {
+            "seconds": 122.857725551,
+            "files": 500000,
+            "heapBytes": 2256112,
+            "heapInuseBytes": 4194304,
+            "rssBytes": 22806528,
+            "totalAllocBytes": 1913554880,
+            "gcCount": 759,
+            "gcPauseTotalNanoseconds": 35817442,
+            "goroutines": 4,
+            "fileDescriptors": 11,
+            "dbAcquired": 0
+          }
+        },
+        {
+          "retainedBaselineRows": 1000000,
+          "attempts": 1,
+          "pass": "cleanup",
+          "files": 500000,
+          "gomaxprocs": 2,
+          "goVersion": "go1.27.1",
+          "seconds": 136.764494899,
+          "filesPerSecond": 3655.9196183866866,
+          "maxBatch": 128,
+          "batches": 3908,
+          "peakHeapBytes": 3594688,
+          "peakRSSBytes": 24899584,
+          "afterGC": {
+            "seconds": 136.906509449,
+            "files": 500000,
+            "heapBytes": 2369432,
+            "heapInuseBytes": 4538368,
+            "rssBytes": 23339008,
+            "totalAllocBytes": 2781539504,
+            "gcCount": 1132,
+            "gcPauseTotalNanoseconds": 54703189,
+            "goroutines": 4,
+            "fileDescriptors": 11,
+            "dbAcquired": 0
+          }
+        }
+      ]
+    },
+    {
+      "files": 10000,
+      "gomaxprocs": 4,
+      "passes": [
+        {
+          "retainedBaselineRows": 10000,
+          "attempts": 1,
+          "pass": "initial",
+          "files": 10000,
+          "gomaxprocs": 4,
+          "goVersion": "go1.27.1",
+          "seconds": 3.043183328,
+          "filesPerSecond": 3286.032723691367,
+          "maxBatch": 128,
+          "batches": 80,
+          "peakHeapBytes": 2618568,
+          "peakRSSBytes": 23199744,
+          "afterGC": {
+            "seconds": 3.054100401,
+            "files": 10000,
+            "heapBytes": 1801232,
+            "heapInuseBytes": 3194880,
+            "rssBytes": 21270528,
+            "totalAllocBytes": 30335680,
+            "gcCount": 15,
+            "gcPauseTotalNanoseconds": 917630,
+            "goroutines": 4,
+            "fileDescriptors": 10,
+            "dbAcquired": 0
+          }
+        },
+        {
+          "retainedBaselineRows": 20000,
+          "attempts": 1,
+          "pass": "unchanged",
+          "files": 10000,
+          "gomaxprocs": 4,
+          "goVersion": "go1.27.1",
+          "seconds": 3.267545427,
+          "filesPerSecond": 3060.401216573507,
+          "maxBatch": 128,
+          "batches": 80,
+          "peakHeapBytes": 2298752,
+          "peakRSSBytes": 23654400,
+          "afterGC": {
+            "seconds": 3.2746814730000002,
+            "files": 10000,
+            "heapBytes": 1970392,
+            "heapInuseBytes": 3514368,
+            "rssBytes": 22065152,
+            "totalAllocBytes": 49929248,
+            "gcCount": 25,
+            "gcPauseTotalNanoseconds": 1400802,
+            "goroutines": 4,
+            "fileDescriptors": 10,
+            "dbAcquired": 0
+          }
+        },
+        {
+          "retainedBaselineRows": 20000,
+          "attempts": 1,
+          "pass": "cleanup",
+          "files": 10000,
+          "gomaxprocs": 4,
+          "goVersion": "go1.27.1",
+          "seconds": 3.265323616,
+          "filesPerSecond": 3062.4835930503987,
+          "maxBatch": 128,
+          "batches": 80,
+          "peakHeapBytes": 2847960,
+          "peakRSSBytes": 24276992,
+          "afterGC": {
+            "seconds": 3.272079912,
+            "files": 10000,
+            "heapBytes": 2004960,
+            "heapInuseBytes": 3579904,
+            "rssBytes": 23613440,
+            "totalAllocBytes": 69695200,
+            "gcCount": 34,
+            "gcPauseTotalNanoseconds": 1815127,
+            "goroutines": 4,
+            "fileDescriptors": 10,
+            "dbAcquired": 0
+          }
+        }
+      ]
+    },
+    {
+      "files": 100000,
+      "gomaxprocs": 4,
+      "passes": [
+        {
+          "retainedBaselineRows": 100000,
+          "attempts": 1,
+          "pass": "initial",
+          "files": 100000,
+          "gomaxprocs": 4,
+          "goVersion": "go1.27.1",
+          "seconds": 26.047737424,
+          "filesPerSecond": 3839.1050390373434,
+          "maxBatch": 128,
+          "batches": 783,
+          "peakHeapBytes": 3070232,
+          "peakRSSBytes": 23638016,
+          "afterGC": {
+            "seconds": 26.074200208,
+            "files": 100000,
+            "heapBytes": 1957240,
+            "heapInuseBytes": 3530752,
+            "rssBytes": 23539712,
+            "totalAllocBytes": 219000056,
+            "gcCount": 89,
+            "gcPauseTotalNanoseconds": 4560153,
+            "goroutines": 4,
+            "fileDescriptors": 10,
+            "dbAcquired": 0
+          }
+        },
+        {
+          "retainedBaselineRows": 200000,
+          "attempts": 1,
+          "pass": "unchanged",
+          "files": 100000,
+          "gomaxprocs": 4,
+          "goVersion": "go1.27.1",
+          "seconds": 23.512510522,
+          "filesPerSecond": 4253.054981365464,
+          "maxBatch": 128,
+          "batches": 783,
+          "peakHeapBytes": 3196552,
+          "peakRSSBytes": 24371200,
+          "afterGC": {
+            "seconds": 23.543006283,
+            "files": 100000,
+            "heapBytes": 2126368,
+            "heapInuseBytes": 3768320,
+            "rssBytes": 22511616,
+            "totalAllocBytes": 392593816,
+            "gcCount": 163,
+            "gcPauseTotalNanoseconds": 8210989,
+            "goroutines": 4,
+            "fileDescriptors": 10,
+            "dbAcquired": 0
+          }
+        },
+        {
+          "retainedBaselineRows": 200000,
+          "attempts": 1,
+          "pass": "cleanup",
+          "files": 100000,
+          "gomaxprocs": 4,
+          "goVersion": "go1.27.1",
+          "seconds": 25.512057431,
+          "filesPerSecond": 3919.715227611899,
+          "maxBatch": 128,
+          "batches": 783,
+          "peakHeapBytes": 3344584,
+          "peakRSSBytes": 24477696,
+          "afterGC": {
+            "seconds": 25.537748358,
+            "files": 100000,
+            "heapBytes": 2152864,
+            "heapInuseBytes": 3891200,
+            "rssBytes": 23949312,
+            "totalAllocBytes": 568376800,
+            "gcCount": 237,
+            "gcPauseTotalNanoseconds": 11686903,
+            "goroutines": 4,
+            "fileDescriptors": 10,
+            "dbAcquired": 0
+          }
+        }
+      ]
+    },
+    {
+      "files": 500000,
+      "gomaxprocs": 4,
+      "passes": [
+        {
+          "retainedBaselineRows": 500000,
+          "attempts": 1,
+          "pass": "initial",
+          "files": 500000,
+          "gomaxprocs": 4,
+          "goVersion": "go1.27.1",
+          "seconds": 127.548289707,
+          "filesPerSecond": 3920.083923889412,
+          "maxBatch": 128,
+          "batches": 3908,
+          "peakHeapBytes": 3615392,
+          "peakRSSBytes": 24748032,
+          "afterGC": {
+            "seconds": 127.658486463,
+            "files": 500000,
+            "heapBytes": 2207328,
+            "heapInuseBytes": 4268032,
+            "rssBytes": 23101440,
+            "totalAllocBytes": 1056746840,
+            "gcCount": 422,
+            "gcPauseTotalNanoseconds": 21451610,
+            "goroutines": 4,
+            "fileDescriptors": 11,
+            "dbAcquired": 0
+          }
+        },
+        {
+          "retainedBaselineRows": 1000000,
+          "attempts": 1,
+          "pass": "unchanged",
+          "files": 500000,
+          "gomaxprocs": 4,
+          "goVersion": "go1.27.1",
+          "seconds": 124.278138662,
+          "filesPerSecond": 4023.2337350968296,
+          "maxBatch": 128,
+          "batches": 3908,
+          "peakHeapBytes": 3581880,
+          "peakRSSBytes": 25272320,
+          "afterGC": {
+            "seconds": 124.377081322,
+            "files": 500000,
+            "heapBytes": 2383288,
+            "heapInuseBytes": 4497408,
+            "rssBytes": 23805952,
+            "totalAllocBytes": 1914446176,
+            "gcCount": 814,
+            "gcPauseTotalNanoseconds": 39750789,
+            "goroutines": 4,
+            "fileDescriptors": 11,
+            "dbAcquired": 0
+          }
+        },
+        {
+          "retainedBaselineRows": 1000000,
+          "attempts": 1,
+          "pass": "cleanup",
+          "files": 500000,
+          "gomaxprocs": 4,
+          "goVersion": "go1.27.1",
+          "seconds": 133.765205601,
+          "filesPerSecond": 3737.89280817479,
+          "maxBatch": 128,
+          "batches": 3908,
+          "peakHeapBytes": 3533360,
+          "peakRSSBytes": 25362432,
+          "afterGC": {
+            "seconds": 133.869514446,
+            "files": 500000,
+            "heapBytes": 2475392,
+            "heapInuseBytes": 4653056,
+            "rssBytes": 23912448,
+            "totalAllocBytes": 2782847720,
+            "gcCount": 1224,
+            "gcPauseTotalNanoseconds": 59586548,
+            "goroutines": 4,
+            "fileDescriptors": 11,
+            "dbAcquired": 0
+          }
+        }
+      ]
+    }
+  ],
+  "logs": [
+    {
+      "log": ".testdata/scan-repeated-10000-cpu-2.jsonl",
+      "summary": ".testdata/scan-repeated-10000-cpu-2-summary.json",
+      "summarySHA256": "0237cba193e32d0fea01571c628bfa1d599a94c4cde06b75a27ebb5d07407f21"
+    },
+    {
+      "log": ".testdata/scan-repeated-100000-cpu-2.jsonl",
+      "summary": ".testdata/scan-repeated-100000-cpu-2-summary.json",
+      "summarySHA256": "5d5cdbc4ec012391ae0e8f2e87a6ce077c69fc2485ed4645a79fb66ab5e3323a"
+    },
+    {
+      "log": ".testdata/scan-repeated-500000-cpu-2.jsonl",
+      "summary": ".testdata/scan-repeated-500000-cpu-2-summary.json",
+      "summarySHA256": "895927bd35ae7263a5c996e103d1f3c147817555a39a5dfbc86b00b6622ef691"
+    },
+    {
+      "log": ".testdata/scan-repeated-10000-cpu-4.jsonl",
+      "summary": ".testdata/scan-repeated-10000-cpu-4-summary.json",
+      "summarySHA256": "c2f1a1f16ff239213b15c3a5563a4ca3c87923ba8a64bc8c1d3aae74fbfb26d6"
+    },
+    {
+      "log": ".testdata/scan-repeated-100000-cpu-4.jsonl",
+      "summary": ".testdata/scan-repeated-100000-cpu-4-summary.json",
+      "summarySHA256": "d01483818de5ef964e6561ffdb41955f02d9549ce3fbc5804fedd8a11d641d2b"
+    },
+    {
+      "log": ".testdata/scan-repeated-500000-cpu-4.jsonl",
+      "summary": ".testdata/scan-repeated-500000-cpu-4-summary.json",
+      "summarySHA256": "c1e9048b7fd8df9b199cf21d24b5035bbf7c7a044e0f389ffbe6e12e44d24229"
+    }
+  ],
+  "limitations": [
+    "僅純清單合成檔案，單 worker",
+    "GOMAXPROCS 不是硬體 CPU 配額，未限制 PostgreSQL CPU",
+    "不含忽略歷史合併、圖片、混合 probe/NFO、容器 OOM 或真實二十四小時穩態",
+    "全量品牌及既有 ABI 門禁未解"
+  ]
+}

@@ -1,0 +1,75 @@
+{
+  "items": {
+    "view": {
+      "label": "View",
+      "poster": "Poster wall",
+      "list": "List"
+    },
+    "count": "Showing {count} of {total}",
+    "sort": {
+      "label": "Sort by",
+      "name": "Name",
+      "newest": "Release date (newest first)",
+      "year": "Year (newest first)"
+    },
+    "listCaption": "Items in {name}",
+    "column": {
+      "poster": "Poster",
+      "title": "Title",
+      "kind": "Type"
+    },
+    "kind": {
+      "movie": "Movie",
+      "homeVideo": "Home video",
+      "series": "Series",
+      "season": "Season",
+      "episode": "Episode"
+    },
+    "empty": "This library has no items yet.",
+    "emptyHint": "Items appear here after the library has been scanned.",
+    "detail": {
+      "parent": "Parent item",
+      "yearValue": "{year}",
+      "originalTitle": "Original title",
+      "nfoBadge": "NFO",
+      "overview": "Overview",
+      "noOverview": "No overview yet.",
+      "genres": "Genres",
+      "externalIds": "External IDs",
+      "defaultId": "Default",
+      "noExternalIds": "No external IDs.",
+      "nfoSource": "NFO source",
+      "nfoValid": "Metadata was read from a valid NFO file.",
+      "nfoMissing": "No NFO file was found for this item.",
+      "nfoInvalid": "The NFO file for this item could not be used.",
+      "nfoReadAt": "(read {date})",
+      "nfoNone": "No NFO file has been reviewed for this item.",
+      "files": "File information",
+      "nativeTitle": "Watch in a native client",
+      "nativeBody": "The Jelee web interface is for browsing and management only. To watch this item, open it in a native Jelee client app."
+    },
+    "files": {
+      "version": "Version {n}",
+      "unprobed": "Not analyzed yet; only the container, size and external files are known.",
+      "container": "Container",
+      "duration": "Duration",
+      "resolution": "Resolution",
+      "videoCodec": "Video codec",
+      "audioCodecs": "Audio codecs",
+      "bitrate": "Bit rate",
+      "size": "File size",
+      "embeddedAudio": "Audio tracks",
+      "embeddedSubtitles": "Embedded subtitles",
+      "externalFiles": "External subtitle and audio files",
+      "kindSubtitle": "Subtitle",
+      "kindAudio": "Audio",
+      "unknownLanguage": "Unknown language",
+      "flagDefault": "Default",
+      "flagForced": "Forced",
+      "flagSdh": "SDH",
+      "flagCommentary": "Commentary",
+      "none": "This item has no media files.",
+      "unavailable": "File information could not be loaded right now."
+    }
+  }
+}

@@ -87,9 +87,9 @@ func TestIgnoreVerificationRechecksScopeAndCancellation(t *testing.T) {
 	}
 }
 
-func verificationFixture(t *testing.T, children int) (jobFixture, domain.JobLease) {
+func verificationFixture(t *testing.T, children int, setup ...func(*testing.T, jobFixture)) (jobFixture, domain.JobLease) {
 	t.Helper()
-	f, l, root := baselineComparisonFixture(t, 0, 0)
+	f, l, root := baselineComparisonFixture(t, 0, 0, setup...)
 	for start := 0; start < children; start += 128 {
 		var batch []domain.IgnoreDirectoryProof
 		for i := start; i < min(start+128, children); i++ {
@@ -274,7 +274,7 @@ func TestIgnoreVerificationFixedDeadlinesAndLateRollback(t *testing.T) {
 }
 
 func TestIgnoreVerificationFreezeHeartbeatAndMigration(t *testing.T) {
-	f, l := verificationFixture(t, 0)
+	f, l := verificationFixture(t, 0, legacyMigrationAt44)
 	if err := f.s.BeginIgnoreVerification(f.ctx, l); err != nil {
 		t.Fatal(err)
 	}
@@ -297,6 +297,32 @@ func TestIgnoreVerificationFreezeHeartbeatAndMigration(t *testing.T) {
 	if _, err := f.s.Pool.Exec(f.ctx, `DELETE FROM jobs WHERE id=$1::uuid`, l.Job.ID); err != nil {
 		t.Fatal(err)
 	}
+	nfoMigrateVersion(t, f, "down", 43)
+	nfoMigrateVersion(t, f, "down", 42)
+	nfoMigrateVersion(t, f, "down", 41)
+	nfoMigrateVersion(t, f, "down", 40)
+	nfoMigrateVersion(t, f, "down", 39)
+	nfoMigrateVersion(t, f, "down", 38)
+	nfoMigrateVersion(t, f, "down", 37)
+	nfoMigrateVersion(t, f, "down", 36)
+	nfoMigrateVersion(t, f, "down", 35)
+	nfoMigrateVersion(t, f, "down", 34)
+	nfoMigrateVersion(t, f, "down", 33)
+	nfoMigrateVersion(t, f, "down", 32)
+	nfoMigrateVersion(t, f, "down", 31)
+	nfoMigrateVersion(t, f, "down", 30)
+	nfoMigrateVersion(t, f, "down", 29)
+	nfoMigrateVersion(t, f, "down", 28)
+	nfoMigrateVersion(t, f, "down", 27)
+	nfoMigrateVersion(t, f, "down", 26)
+	nfoMigrateVersion(t, f, "down", 25)
+	nfoMigrateVersion(t, f, "down", 24)
+	nfoMigrateVersion(t, f, "down", 23)
+	nfoMigrateVersion(t, f, "down", 22)
+	nfoMigrateVersion(t, f, "down", 21)
+	nfoMigrateVersion(t, f, "down", 20)
+	nfoMigrateVersion(t, f, "down", 19)
+	nfoMigrateVersion(t, f, "down", 18)
 	nfoMigrateVersion(t, f, "down", 17)
 	nfoMigrateVersion(t, f, "down", 16)
 	nfoMigrateVersion(t, f, "down", 15)

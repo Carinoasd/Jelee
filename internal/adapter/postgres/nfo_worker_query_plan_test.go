@@ -86,7 +86,19 @@ func TestNFOCurrentObservationPlanUsesScopedCursorIndex(t *testing.T) {
 	t.Logf("Current observations: 10,000 cache rows / 2 libraries; matching current-scope page visited %g cache rows for limit 21. Expired/root-stale rows may require more visits, bounded by cache quota and DB deadline.", visited)
 }
 func TestImageComparisonQueriesAggregateBoundedInventories(t *testing.T) {
+	for _, analyzed := range []bool{false, true} {
+		name := "fresh-statistics"
+		if analyzed {
+			name = "analyzed"
+		}
+		t.Run(name, func(t *testing.T) { imageComparisonPlan(t, analyzed) })
+	}
+}
+func imageComparisonPlan(t *testing.T, analyzed bool) {
 	f := newJobFixture(t)
+	if _, err := f.s.Pool.Exec(f.ctx, `ALTER TABLE job_inventory SET (autovacuum_enabled=false); ALTER TABLE library_inventory_baseline_data SET (autovacuum_enabled=false)`); err != nil {
+		t.Fatal(err)
+	}
 	j := f.submit(t, "image-aggregate-plan")
 	var epoch int64
 	if err := f.s.Pool.QueryRow(f.ctx, "SELECT inventory_generation FROM jobs WHERE id=$1::uuid", j.ID).Scan(&epoch); err != nil {
@@ -102,8 +114,10 @@ func TestImageComparisonQueriesAggregateBoundedInventories(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err = f.s.Pool.Exec(f.ctx, "ANALYZE job_inventory; ANALYZE library_inventory_baseline"); err != nil {
-		t.Fatal(err)
+	if analyzed {
+		if _, err = f.s.Pool.Exec(f.ctx, "ANALYZE job_inventory; ANALYZE library_inventory_baseline_data"); err != nil {
+			t.Fatal(err)
+		}
 	}
 	var added, changed, unchanged, uncompared int64
 	if err = f.s.Pool.QueryRow(f.ctx, imageCurrentCountsSQL, f.registration.Library.ID, j.ID, epoch).Scan(&added, &changed, &unchanged, &uncompared); err != nil || added != 100 || changed != 1000 || unchanged != 8500 || uncompared != 0 {
@@ -123,12 +137,12 @@ func TestImageComparisonQueriesAggregateBoundedInventories(t *testing.T) {
 		}
 		visited := float64(0)
 		walkNFOWorkerPlan(plan, func(p nfoWorkerPlanNode) {
-			if p.Relation == "job_inventory" || p.Relation == "library_inventory_baseline" {
+			if p.Relation == "job_inventory" || p.Relation == "library_inventory_baseline_data" {
 				visited += (p.Rows + p.Removed) * p.Loops
 			}
 		})
 		if visited > 3*(10000+9600) {
-			t.Fatalf("comparison revisited inventories excessively: %g", visited)
+			t.Fatalf("%s comparison revisited inventories excessively: %g", name, visited)
 		}
 		t.Logf("Image %s: 10,000 baseline / 9,600 current rows, %g relation rows visited; one aggregate returned. This is a single bounded fixture, not a constant-time or maximum-library performance claim.", name, visited)
 	}

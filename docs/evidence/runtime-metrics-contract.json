@@ -1,0 +1,40 @@
+{
+  "status": "focused-validation-passed",
+  "publishedBase": "2b3cb5b8c69bc11eae7bebc0c29a89eb4b0515b6",
+  "candidateSchema": 52,
+  "sourceManifestSHA256": "dbfd3292dca5172333ee9305bdeccd6d657e081f37afac3ea8509614ca793f1b",
+  "frozenGoSQL": 980,
+  "testSourceSHA256": "7f7f5c455321e75194b7433a036e863e230495d2b4f5dd4fd5d56a5b76055a4b",
+  "productionExporterChanged": false,
+  "productionRuntimeWiringChanged": false,
+  "contract": {
+    "families": 30,
+    "jobKindPriorityGroups": 6,
+    "outcomePoints": 18,
+    "resourceGauges": 8,
+    "resourceLabels": 0,
+    "workerEnabled": false
+  },
+  "linuxPostgresRace": {
+    "roots": [
+      "TestJobMetricsRuntimePostgresLifecycleAndInstances",
+      "TestJobMetricsRuntimePostgresAuthorizationAndBlockedSource",
+      "TestMetricsRuntimePostgresIntegration"
+    ],
+    "passEvents": 8,
+    "skip": 0,
+    "fail": 0,
+    "logSHA256": "a94cb789dc575b5ab8acd09d247a4b411eb7e54d64b9d601700bdd81245f2762"
+  },
+  "reproduction": {
+    "originalFamilyCountAssertionFailed": true,
+    "intermediateJobPointCountAssertionFailed": true
+  },
+  "limits": {
+    "fullPostgresRegressionPassed": false,
+    "publishedCIPassed": false,
+    "windowsPostgresProven": false,
+    "memoryAcceptanceProven": false,
+    "twentyFourHourAcceptanceProven": false
+  }
+}

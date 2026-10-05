@@ -139,14 +139,18 @@ def octal(value):
     return int(value, 8)
 
 
-def selected_files(raw, specs):
+def selected_files(raw, specs, kinds=("elf", "notice")):
+    """Return {source: bytes} for exactly the listed regular members.
+
+    "data" (opt-in through kinds, used for OCR language models) is bounded
+    like an ELF file but has no ELF header check."""
     need(len(raw) <= MAX_TAR, "expanded_limit")
     wanted, destinations = {}, set()
     for spec in specs:
         src, dst = canonical(spec["source"]), canonical(spec["destination"])
         need(src == spec["source"] and dst == spec["destination"], "manifest_path")
         need(src not in wanted and dst not in destinations, "manifest_duplicate")
-        need(spec["kind"] in ("elf", "notice"), "manifest_kind")
+        need(spec["kind"] in kinds and spec["kind"] in ("elf", "notice", "data"), "manifest_kind")
         wanted[src] = spec
         destinations.add(dst)
     need(0 < len(wanted) <= 32, "manifest_files")
@@ -179,7 +183,7 @@ def selected_files(raw, specs):
         if name in wanted:
             need(kind in (b"\x00", b"0"), "selected_not_regular")
             spec = wanted[name]
-            bound = MAX_FILE if spec["kind"] == "elf" else MAX_NOTICE
+            bound = MAX_FILE if spec["kind"] in ("elf", "data") else MAX_NOTICE
             total += size
             need(0 < size <= bound and total <= MAX_SELECTED, "selected_size")
             data = raw[start:end]

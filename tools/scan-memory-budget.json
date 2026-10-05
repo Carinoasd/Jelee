@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "workload": "inventory-scan-500000-v1",
+  "scope": "worker-process",
+  "fixtureFiles": 500000,
+  "fixtureBytesPerFile": 34,
+  "gogcPercent": 100,
+  "gomaxprocs": 2,
+  "goMemoryLimitBytes": 536870912,
+  "processRssBudgetBytes": 486539264,
+  "containerMemoryBytes": 805306368,
+  "sampleEveryMillis": 1000,
+  "maxSamples": 3600,
+  "maxSampleGapNanos": 5000000000,
+  "maxElapsedNanos": 3600000000000,
+  "gcMetric": "/sched/pauses/total/gc:seconds",
+  "maxPauseUpperNanos": 50000000,
+  "pauseRatioNumerator": 1,
+  "pauseRatioDenominator": 100,
+  "basis": "Predeclared engineering targets, not a measured 500000-entry baseline. RSS adopts the existing 464 MiB capacity target; GC requires conservative per-pause histogram upper bounds of at most 50 ms and both completed-cycle counter and histogram upper-sum ratios of at most 1%."
+}

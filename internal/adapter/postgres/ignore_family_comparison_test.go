@@ -6,9 +6,9 @@ import (
 	"github.com/MoYuanCN/Jelee/internal/domain"
 )
 
-func familyComparisonFixture(t *testing.T) (jobFixture, domain.JobLease) {
+func familyComparisonFixture(t *testing.T, setup ...func(*testing.T, jobFixture)) (jobFixture, domain.JobLease) {
 	t.Helper()
-	f, l, d, b := familyScanFixture(t)
+	f, l, d, b := familyScanFixture(t, setup...)
 	b.Inventory.Done = true
 	if err := f.s.SaveFamilyIgnoreScanBatch(f.ctx, l, d, b); err != nil {
 		t.Fatal(err)
@@ -56,7 +56,7 @@ func TestFamilyBaselineComparisonPageAndIsolation(t *testing.T) {
 }
 
 func TestFamilyBaselineComparisonMigration(t *testing.T) {
-	f, l := familyComparisonFixture(t)
+	f, l := familyComparisonFixture(t, legacyMigrationAt44)
 	if err := f.s.BeginFamilyIgnoreBaselineComparison(f.ctx, l); err != nil {
 		t.Fatal(err)
 	}
@@ -83,6 +83,32 @@ func TestFamilyBaselineComparisonMigration(t *testing.T) {
 	if _, err = f.s.Pool.Exec(f.ctx, `DELETE FROM jobs WHERE id=$1::uuid`, l.Job.ID); err != nil {
 		t.Fatal("history cascade", err)
 	}
+	nfoMigrateVersion(t, f, "down", 43)
+	nfoMigrateVersion(t, f, "down", 42)
+	nfoMigrateVersion(t, f, "down", 41)
+	nfoMigrateVersion(t, f, "down", 40)
+	nfoMigrateVersion(t, f, "down", 39)
+	nfoMigrateVersion(t, f, "down", 38)
+	nfoMigrateVersion(t, f, "down", 37)
+	nfoMigrateVersion(t, f, "down", 36)
+	nfoMigrateVersion(t, f, "down", 35)
+	nfoMigrateVersion(t, f, "down", 34)
+	nfoMigrateVersion(t, f, "down", 33)
+	nfoMigrateVersion(t, f, "down", 32)
+	nfoMigrateVersion(t, f, "down", 31)
+	nfoMigrateVersion(t, f, "down", 30)
+	nfoMigrateVersion(t, f, "down", 29)
+	nfoMigrateVersion(t, f, "down", 28)
+	nfoMigrateVersion(t, f, "down", 27)
+	nfoMigrateVersion(t, f, "down", 26)
+	nfoMigrateVersion(t, f, "down", 25)
+	nfoMigrateVersion(t, f, "down", 24)
+	nfoMigrateVersion(t, f, "down", 23)
+	nfoMigrateVersion(t, f, "down", 22)
+	nfoMigrateVersion(t, f, "down", 21)
+	nfoMigrateVersion(t, f, "down", 20)
+	nfoMigrateVersion(t, f, "down", 19)
+	nfoMigrateVersion(t, f, "down", 18)
 	nfoMigrateVersion(t, f, "down", 17)
 	nfoMigrateVersion(t, f, "up", SchemaVersion)
 }

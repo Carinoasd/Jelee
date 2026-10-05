@@ -18,4 +18,12 @@ var (
 	ErrLookupTimeout        = errors.New("media_lookup_timeout")
 	ErrBodyTooLarge         = errors.New("request_too_large")
 	ErrUnsupportedMediaType = errors.New("unsupported_media_type")
+	// ErrUserStreamLimit and ErrDeviceStreamLimit refuse a new playback that
+	// would exceed the user's or the device's concurrent playback limit.
+	ErrUserStreamLimit   = errors.New("user_stream_limit")
+	ErrDeviceStreamLimit = errors.New("device_stream_limit")
+	// ErrSessionRevoked is the cancellation cause of a stream whose session was
+	// revoked, expired or disabled while it ran. It is never written: the
+	// response has started, so the connection is cut instead.
+	ErrSessionRevoked = errors.New("session_revoked")
 )

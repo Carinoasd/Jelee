@@ -126,3 +126,109 @@ function Remove-LocalTree([string]$Root, [string]$Path) {
         Remove-Item -LiteralPath $resolved -Recurse -Force
     }
 }
+
+function Get-GolangciSpec([string]$Root) {
+    $manifest = Get-Content -LiteralPath (Join-Path $Root 'tools/manifest.json') -Raw | ConvertFrom-Json
+    if ($manifest.schemaVersion -ne 1) { throw 'Unsupported manifest schema' }
+    $tool = @($manifest.tools | Where-Object name -eq 'golangci-lint')
+    if ($tool.Count -ne 1 -or $tool[0].version -notmatch '^\d+\.\d+\.\d+$') { throw 'Invalid golangci-lint manifest entry' }
+    $arch = switch ([Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString()) {
+        'X64' { 'amd64' }
+        'Arm64' { 'arm64' }
+        default { throw 'Supported architectures: amd64 and arm64' }
+    }
+    if (-not $IsWindows) { throw 'Use scripts/bootstrap-tools on Linux' }
+    $platform = "windows-$arch"
+    $version = $tool[0].version
+    $spec = $tool[0].platforms.$platform
+    $archiveRoot = "golangci-lint-$version-$platform"
+    if ($spec.url -ne "https://github.com/golangci/golangci-lint/releases/download/v$version/$archiveRoot.zip" -or
+        $spec.sha256 -notmatch '^[a-f0-9]{64}$' -or $spec.archive -ne 'zip' -or $spec.archiveRoot -ne $archiveRoot) {
+        throw 'Invalid golangci-lint HTTPS source, SHA256, or archive type'
+    }
+    if ($spec.installPath -ne "golangci-lint/$version/$platform" -or $spec.executable -ne "$archiveRoot/golangci-lint.exe" -or
+        $spec.licenseFile -ne "$archiveRoot/LICENSE" -or $tool[0].cache -ne 'cache/golangci-lint') {
+        throw 'Unexpected golangci-lint installation layout'
+    }
+    return @{ Tool = $tool[0]; Spec = $spec; Platform = $platform }
+}
+
+# Compare installed files with the same entries of the verified archive.
+function Assert-ZipEntryHashes([string]$Archive, [string]$InstallDir, [string[]]$Names) {
+    Add-Type -AssemblyName System.IO.Compression
+    $zip = [IO.Compression.ZipFile]::OpenRead($Archive)
+    try {
+        foreach ($name in $Names) {
+            $entry = $zip.GetEntry($name)
+            if ($null -eq $entry) { throw "Archive file absent: $name" }
+            $stream = $entry.Open()
+            $hash = [Security.Cryptography.SHA256]::Create()
+            try { $expected = [Convert]::ToHexString($hash.ComputeHash($stream)).ToLowerInvariant() }
+            finally { $hash.Dispose(); $stream.Dispose() }
+            $file = Assert-LocalPath $InstallDir (Join-Path $InstallDir $name)
+            Assert-ArchiveHash $file $expected
+        }
+    } finally { $zip.Dispose() }
+}
+
+# Fetch a manifest archive into .tools/downloads and verify its SHA256.
+function Get-VerifiedArchive([string]$ToolsDir, $Spec, [switch]$Offline) {
+    $downloadDir = Assert-LocalPath $ToolsDir (Join-Path $ToolsDir 'downloads')
+    [IO.Directory]::CreateDirectory($downloadDir) | Out-Null
+    $archiveName = [IO.Path]::GetFileName(([Uri]$Spec.url).AbsolutePath)
+    $archive = Assert-LocalPath $ToolsDir (Join-Path $downloadDir $archiveName)
+    if (-not (Test-Path -LiteralPath $archive)) {
+        if ($Offline) { throw "Offline cache missing: $archiveName" }
+        $uri = $Spec.url
+        if ($env:JELEE_TOOLS_MIRROR) {
+            if ($env:JELEE_TOOLS_MIRROR -notmatch '^https://') { throw 'JELEE_TOOLS_MIRROR must use HTTPS' }
+            $uri = $env:JELEE_TOOLS_MIRROR.TrimEnd('/') + '/' + $archiveName
+        }
+        $partial = Assert-LocalPath $ToolsDir ($archive + '.partial')
+        try {
+            Write-Host "Downloading $archiveName"
+            & curl.exe --fail --location --proto '=https' --proto-redir '=https' --retry 2 --output $partial $uri
+            if ($LASTEXITCODE -ne 0) { throw "Download failed: curl exit $LASTEXITCODE" }
+            Assert-ArchiveHash $partial $Spec.sha256
+            Move-Item -LiteralPath $partial -Destination $archive
+        } finally {
+            if (Test-Path -LiteralPath $partial) { Remove-Item -LiteralPath $partial -Force }
+        }
+    }
+    try { Assert-ArchiveHash $archive $Spec.sha256 } catch {
+        Remove-Item -LiteralPath $archive -Force
+        throw
+    }
+    return $archive
+}
+
+# Run a tool with the pinned Go environment (same boundary as run-go.ps1)
+# plus the project-local golangci-lint cache; restores the process
+# environment afterwards and returns the tool's exit code.
+function Invoke-WithGoEnvironment([string]$Root, [string]$Executable, [string[]]$Arguments) {
+    $selected = Get-GoSpec $Root
+    $goRoot = Assert-LocalPath $Root (Join-Path $Root ".tools/$($selected.Spec.installPath)/go")
+    if (-not (Test-Path -LiteralPath (Join-Path $goRoot 'bin/go.exe'))) { throw 'Run scripts/bootstrap-tools.ps1 first' }
+    $cache = Assert-LocalPath $Root (Join-Path $Root '.tools/cache')
+    $settings = @{
+        GOTOOLCHAIN = 'local'; GOENV = 'off'; GOROOT = $goRoot
+        GOCACHE = "$cache/go-build"; GOPATH = "$cache/gopath"; GOMODCACHE = "$cache/gomod"
+        GOTMPDIR = "$cache/tmp"; TMP = "$cache/tmp"; TEMP = "$cache/tmp"; TMPDIR = "$cache/tmp"
+        APPDATA = "$cache/config"; LOCALAPPDATA = "$cache/local"
+        XDG_CONFIG_HOME = "$cache/config"; GOLANGCI_LINT_CACHE = "$cache/golangci-lint"
+        PATH = (Join-Path $goRoot 'bin') + [IO.Path]::PathSeparator + $env:PATH
+    }
+    $saved = @{}
+    foreach ($name in $settings.Keys) { $saved[$name] = [Environment]::GetEnvironmentVariable($name, 'Process') }
+    try {
+        foreach ($name in $settings.Keys) { [Environment]::SetEnvironmentVariable($name, $settings[$name], 'Process') }
+        foreach ($name in @('GOCACHE','GOPATH','GOMODCACHE','GOTMPDIR','APPDATA','LOCALAPPDATA','GOLANGCI_LINT_CACHE')) {
+            [IO.Directory]::CreateDirectory((Assert-LocalPath $Root $settings[$name])) | Out-Null
+        }
+        & $Executable @Arguments | Out-Host
+        $code = $LASTEXITCODE
+    } finally {
+        foreach ($name in $saved.Keys) { [Environment]::SetEnvironmentVariable($name, $saved[$name], 'Process') }
+    }
+    return $code
+}

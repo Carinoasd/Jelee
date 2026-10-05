@@ -25,6 +25,7 @@ import (
 	"github.com/MoYuanCN/Jelee/internal/domain"
 	"github.com/MoYuanCN/Jelee/internal/platform/config"
 	jobworker "github.com/MoYuanCN/Jelee/internal/platform/jobs"
+	"github.com/MoYuanCN/Jelee/internal/platform/legacyignorehelper"
 	"github.com/MoYuanCN/Jelee/internal/platform/password"
 	"github.com/MoYuanCN/Jelee/internal/platform/proberuntime"
 	"github.com/MoYuanCN/Jelee/internal/platform/sandbox"
@@ -32,6 +33,14 @@ import (
 )
 
 func TestMain(m *testing.M) {
+	for _, arg := range os.Args[1:] {
+		if strings.HasPrefix(arg, heapProfileExportCommand) {
+			os.Exit(heapProfileExportMain(os.Args[1:]))
+		}
+	}
+	if len(os.Args) > 1 && os.Args[1] == legacyignorehelper.Command {
+		os.Exit(legacyignorehelper.Main())
+	}
 	if len(os.Args) > 1 && os.Args[1] == sandbox.HelperCommand {
 		os.Exit(proberuntime.Helper(os.Args[2:]))
 	}

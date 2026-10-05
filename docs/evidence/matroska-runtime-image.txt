@@ -1,0 +1,100 @@
+{
+ "date": "2026-10-04",
+ "image": "sha256:65bc40a1368968fb2bf7143c0a217be3084300ad703c550a4982090c5babb491",
+ "user": "65532:65532",
+ "readOnlyRoot": true,
+ "pinnedFiles": 49,
+ "runtimeImageVerifier": "tools/runtime-image passed during docker build (16 ffprobe/glibc + 33 E4 files)",
+ "imageExcludes": {
+  "ffmpeg": 0,
+  "mkvpropedit": 0,
+  "mkvinfo": 0,
+  "shell": 0
+ },
+ "fixture": {
+  "name": "subtitles-fonts.mkv (tools/gen-fixtures)",
+  "sha256Before": "ef4ac0fc49c645cd7a7a01ba23aa71f70bcb920615e7de364b5f2c41111c5203",
+  "sha256After": "ef4ac0fc49c645cd7a7a01ba23aa71f70bcb920615e7de364b5f2c41111c5203",
+  "mount": "read-only bind"
+ },
+ "smoke": {
+  "diagnose": [
+   {
+    "name": "mediainfo",
+    "version": "26.05",
+    "state": "verified"
+   },
+   {
+    "name": "mkvmerge",
+    "version": "102.0",
+    "state": "verified"
+   },
+   {
+    "name": "mkvextract",
+    "version": "102.0",
+    "state": "verified"
+   }
+  ],
+  "items": {
+   "ass": "ass:b626498a6d74b449",
+   "font": "ttf:155ee4a8c7ab5064",
+   "fontStream": "ttf:155ee4a8c7ab5064",
+   "srt": "srt:0b136cdb05086ce6"
+  },
+  "mediainfo": {
+   "chapters": [
+    {
+     "startMicros": 0,
+     "title": "Part one"
+    },
+    {
+     "startMicros": 500000,
+     "title": "Part two"
+    }
+   ],
+   "attachments": [
+    {
+     "id": 1,
+     "fileName": "JeleeSyntheticSans.ttf",
+     "font": true
+    }
+   ],
+   "tags": [
+    {
+     "name": "Title",
+     "value": "Jelee synthetic test"
+    },
+    {
+     "name": "Movie",
+     "value": "Jelee synthetic test"
+    },
+    {
+     "name": "Encoded_Application",
+     "value": "Lavf63.1.102"
+    },
+    {
+     "name": "Encoded_Library",
+     "value": "Lavf63.1.102"
+    }
+   ],
+   "streamTitles": [
+    {
+     "index": 1,
+     "title": "English SubRip"
+    },
+    {
+     "index": 2,
+     "title": "Styled ASS"
+    }
+   ]
+  },
+  "sourceUnchanged": true
+ },
+ "fontExtractedSha256Prefix": "155ee4a8c7ab5064 (equals the source attachment JeleeSyntheticSans.ttf)",
+ "negative": {
+  "alteredBundledLibrary": "mkvmerge/mkvextract registration refused (matroska_runtime_unavailable); mediainfo unaffected",
+  "rootUser": "every registration refused (matroska_runtime_unavailable)"
+ },
+ "doctor": "jelee-cli doctor --checks matroska_tools: 3 x matroska_tool_verified (runtime)",
+ "testImagesRemoved": true
+}

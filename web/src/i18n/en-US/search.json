@@ -1,0 +1,14 @@
+{
+  "search": {
+    "label": "Search the libraries",
+    "placeholder": "Search titles… (press /)",
+    "title": "Search",
+    "titleFor": "Results for “{query}”",
+    "kind": "Type",
+    "kindAll": "All types",
+    "hint": "Type a title in the search box at the top to search every library you can access.",
+    "count": "Showing {count} of {total}",
+    "empty": "Nothing matches “{query}”",
+    "emptyHint": "Check the spelling, try fewer words, or choose all types."
+  }
+}

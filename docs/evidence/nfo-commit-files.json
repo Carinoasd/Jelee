@@ -1,0 +1,108 @@
+{
+  "sourceBaseCommit": "99980e8f1b584ee5ae6d3eb23ff3db0d4619c752",
+  "changedSourceManifest": {
+    "internal/adapter/nfo/commit_files.go": "ad5c06df06ed842a92b6e79440346dca30a2b4b9d5dc219382d2b8aceb84a50b",
+    "internal/adapter/nfo/commit_files_test.go": "8cf9acf8130b5f07215e1927d7b3bf3d540a2fe707d7315d4b60edc850ebf8bd"
+  },
+  "scope": "Private pre-commit file preparation and read-only verification; owned fixtures and simulated persistence ports; no production caller",
+  "planVersion": 1,
+  "tokenBytes": 16,
+  "retainedNames": 5,
+  "maximumWriteChunkBytes": 32768,
+  "windows": {
+    "packagesPassed": 2,
+    "testsPassed": 327,
+    "testsSkipped": 2,
+    "skippedTests": [
+      "TestDirectoryNFODoesNotFollowSymlink",
+      "TestReadFileBoundaryAndOriginalProtection/symlink_escape"
+    ],
+    "failureEvents": 0,
+    "commitFilesPassedTests": [
+      "TestNFOCommitFilesPlanBeforeSideEffectsAndRetainedWitnesses",
+      "TestNFOCommitFilesFailuresAndUnknownPersistence/plan",
+      "TestNFOCommitFilesFailuresAndUnknownPersistence/cancel_before_files",
+      "TestNFOCommitFilesFailuresAndUnknownPersistence/output_sync",
+      "TestNFOCommitFilesFailuresAndUnknownPersistence/rollback_sync",
+      "TestNFOCommitFilesFailuresAndUnknownPersistence/directory_sync",
+      "TestNFOCommitFilesFailuresAndUnknownPersistence/ready",
+      "TestNFOCommitFilesFailuresAndUnknownPersistence/cancel_after_ready",
+      "TestNFOCommitFilesFailuresAndUnknownPersistence",
+      "TestNFOCommitFilesCollisionAndExternalReplacement/collision",
+      "TestNFOCommitFilesCollisionAndExternalReplacement/target_after_plan",
+      "TestNFOCommitFilesCollisionAndExternalReplacement/witness_after_ready",
+      "TestNFOCommitFilesCollisionAndExternalReplacement/in_place_after_ready",
+      "TestNFOCommitFilesCollisionAndExternalReplacement",
+      "TestNFOCommitFilesProcessHelper",
+      "TestNFOCommitFilesBindBytesAndNativeObservation"
+    ],
+    "logSHA256": "c949269f4627e18eb5587d1bfb4a85663769e964d912ce368cc4329647b44485"
+  },
+  "linuxRace": {
+    "packagesPassed": 2,
+    "testsPassed": 342,
+    "testsSkipped": 1,
+    "skippedTests": [
+      "TestNFOFileLockWindowsCaseAliases"
+    ],
+    "failureEvents": 0,
+    "commitFilesPassedTests": [
+      "TestNFOCommitFilesPlanBeforeSideEffectsAndRetainedWitnesses",
+      "TestNFOCommitFilesFailuresAndUnknownPersistence/plan",
+      "TestNFOCommitFilesFailuresAndUnknownPersistence/cancel_before_files",
+      "TestNFOCommitFilesFailuresAndUnknownPersistence/output_sync",
+      "TestNFOCommitFilesFailuresAndUnknownPersistence/rollback_sync",
+      "TestNFOCommitFilesFailuresAndUnknownPersistence/directory_sync",
+      "TestNFOCommitFilesFailuresAndUnknownPersistence/ready",
+      "TestNFOCommitFilesFailuresAndUnknownPersistence/cancel_after_ready",
+      "TestNFOCommitFilesFailuresAndUnknownPersistence",
+      "TestNFOCommitFilesCollisionAndExternalReplacement/collision",
+      "TestNFOCommitFilesCollisionAndExternalReplacement/target_after_plan",
+      "TestNFOCommitFilesCollisionAndExternalReplacement/witness_after_ready",
+      "TestNFOCommitFilesCollisionAndExternalReplacement/in_place_after_ready",
+      "TestNFOCommitFilesCollisionAndExternalReplacement",
+      "TestNFOCommitFilesProcessHelper",
+      "TestNFOCommitFilesBindBytesAndNativeObservation"
+    ],
+    "logSHA256": "fee141a6b8fdea30cc70e4f40f9c695d26a7f36344a4c10463624a0fb1e1463f"
+  },
+  "verified": [
+    "plan_port_before_any_stage_or_lock_sidecar",
+    "exclusive_creation_and_collision_preserved",
+    "complete_output_and_independent_rollback_copies_synced",
+    "hardlink_witnesses_retained",
+    "bytes_and_native_identity_bound_to_same_object",
+    "directory_sync_before_ready_port",
+    "unknown_ready_persistence_outcome_retains_all_artifacts",
+    "cancellation_after_ready_retains_all_artifacts",
+    "early_failure_cleans_only_observed_owned_objects",
+    "cross_process_reopen_of_retained_evidence",
+    "source_and_witness_replacement_rejected",
+    "in_place_source_change_preserves_independent_rollback",
+    "missing_stage_or_matching_output_does_not_prove_commit"
+  ],
+  "helperRootWithoutEnvironmentIsNoOp": true,
+  "databasePersistenceVerified": false,
+  "productionCallerEnabled": false,
+  "targetRenameEnabled": false,
+  "automaticRecoveryEnabled": false,
+  "settlementEnabled": false,
+  "backupRotationIncluded": false,
+  "newNFOCreationIncluded": false,
+  "windowsDirectoryMetadataDurabilityVerified": false,
+  "fullPostgresRegressionRerun": false,
+  "newMigration": false,
+  "requirementsComplete": false,
+  "checks": {
+    "protectedSourceUnchanged": true,
+    "brandAllowed": 339,
+    "linuxVet": true,
+    "gitignoreViolations": 0,
+    "format": true,
+    "windowsVet": true,
+    "darwinAmd64Compiled": true,
+    "incrementalBrandViolations": 0,
+    "darwinExecuted": false,
+    "publishedSQLFilesUnchanged": 98
+  }
+}

@@ -16,7 +16,7 @@ func TestNativeThreadCreationIsBoundedByKernel(t *testing.T) {
 	tool := os.Getenv("JELEE_SANDBOX_THREAD_FIXTURE")
 	if tool == "" {
 		tool = filepath.Join(t.TempDir(), "ffprobe")
-		command := exec.Command(filepath.Join(runtime.GOROOT(), "bin", "go"), "build", "-trimpath", "-o", tool, "./testdata/threadlimit")
+		command := exec.Command(filepath.Join(runtime.GOROOT(), "bin", "go"), "build", "-trimpath", "-o", tool, "./testdata/threadlimit") //nolint:staticcheck // SA1019: test helpers build with the toolchain running the test; project wrappers export GOROOT
 		command.Env = append(os.Environ(), "CGO_ENABLED=0", "GOOS=linux", "GOARCH=amd64", "GOTOOLCHAIN=local")
 		if output, err := command.CombinedOutput(); err != nil {
 			t.Fatalf("compile isolated thread-boundary fixture using pinned Go: %v; %s", err, output)

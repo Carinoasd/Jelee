@@ -1,0 +1,31 @@
+{
+  "account": {
+    "title": "Account",
+    "profile": "Profile",
+    "profileName": "Display name",
+    "name": "User name",
+    "role": "Role",
+    "roleAdmin": "Administrator",
+    "roleUser": "User",
+    "language": "Language",
+    "createdAt": "Created",
+    "sessions": "Signed-in devices",
+    "sessionsHint": "Revoke any session you do not recognize. Revoking signs that device out immediately.",
+    "clientWeb": "Web",
+    "clientNative": "Native app",
+    "current": "This device",
+    "signedIn": "Signed in {date}",
+    "lastSeen": "Last active {date}",
+    "expires": "Expires {date}",
+    "lastIp": "IP {ip}",
+    "revoke": "Revoke",
+    "revokeCurrent": "Sign out this device",
+    "empty": "No active sessions.",
+    "revokeAllHint": "Signing out everywhere ends every session, including this one.",
+    "revokeAll": "Sign out everywhere",
+    "revokeAllConfirm": "Yes, sign out everywhere",
+    "revoked": "Session on “{name}” revoked.",
+    "signedOutHere": "This device has been signed out.",
+    "signedOutEverywhere": "You have been signed out on all devices."
+  }
+}

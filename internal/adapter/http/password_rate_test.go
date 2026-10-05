@@ -2,6 +2,7 @@ package httpapi
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"strings"
 	"testing"
@@ -36,8 +37,10 @@ func TestPasswordChangeIsThrottledByAuthenticatedUserAndPeerBeforeKDF(t *testing
 			f.passwords.verify = func(context.Context, string, string) (bool, error) { return false, nil }
 			body := `{"oldPassword":"wrong","newPassword":"replacement secret"}`
 			first := f.serve(accountRequest(http.MethodPut, "/api/v1/users/me/password", body, "u"))
-			if first.Code != 401 || f.passwords.verifyCalls != 1 {
-				t.Fatal("old password was not verified once")
+			// A wrong current password is an input error on a valid session, not
+			// an expired credential: 400 invalid_password, never 401.
+			if first.Code != 400 || !strings.Contains(first.Body.String(), `"code":"invalid_password"`) || f.passwords.verifyCalls != 1 {
+				t.Fatalf("old password was not verified once or was misreported: %d %s", first.Code, first.Body.String())
 			}
 			second := accountRequest(http.MethodPut, "/api/v1/users/me/password", body, "u")
 			if dimension == "user" {
@@ -76,5 +79,32 @@ func TestAccountScalarNullCannotResetPermissionsOrProfile(t *testing.T) {
 	}
 	if f.passwords.hashCalls != 0 || f.passwords.verifyCalls != 0 {
 		t.Fatal("null input reached password work")
+	}
+}
+
+func TestPasswordChangeWrongOldPasswordIsNotAnExpiredSession(t *testing.T) {
+	repo := httpAccountRepository{AccountRepository: wrongOldPasswordRepository{}}
+	f := newAccountHTTPFixture(t, repo, nil)
+	f.passwords.verify = func(context.Context, string, string) (bool, error) { return false, nil }
+	for _, locale := range []struct{ tag, message string }{{"en-US", "Current password is incorrect."}, {"zh-TW", "目前密碼不正確。"}} {
+		r := accountRequest(http.MethodPut, "/api/v1/users/me/password", `{"oldPassword":"wrong","newPassword":"replacement secret"}`, "u")
+		r.Header.Set("Accept-Language", locale.tag)
+		w := f.serve(r)
+		assertProblem(t, w, 400, "invalid_password")
+		var body struct {
+			Error struct {
+				Message string `json:"message"`
+			} `json:"error"`
+		}
+		if err := json.Unmarshal(w.Body.Bytes(), &body); err != nil || body.Error.Message != locale.message {
+			t.Fatalf("%s message = %q", locale.tag, body.Error.Message)
+		}
+		// The session is still valid: no cookie is expired.
+		if cookies := w.Result().Cookies(); len(cookies) != 0 {
+			t.Fatalf("wrong old password touched the session cookie: %v", cookies)
+		}
+	}
+	if f.passwords.hashCalls != 0 {
+		t.Fatal("wrong old password reached hashing")
 	}
 }

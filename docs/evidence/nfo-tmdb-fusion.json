@@ -1,0 +1,130 @@
+{
+  "baseCommit": "819cc5914591068c195de1504838e65f06012273",
+  "schemaVersion": 23,
+  "sources": {
+    "internal/adapter/http/metadata_apply.go": "f2ded61dcb814d8f4f2041221aa68de4234ff18589c2c9d63447dd83ce17caf6",
+    "internal/adapter/postgres/metadata_apply.go": "4db61073885e6a93b8afa32c52897f55215a5667e91b76a7b5660943d32505e4",
+    "internal/adapter/postgres/nfo_item_apply.go": "c98a6978ea39ac69e10dbe2d8fc920db3368f799a22004ecd53aef85b92e7bd9",
+    "internal/app/metadata_apply.go": "b718bebd7d47e5ab797d1bdbc0074831a834fd87dda2a357d76b978316f5d2de",
+    "internal/app/nfo_item_apply.go": "dd493e2e3dab5c3a44dc69435a0fb8b739b0d4a7db02b97b59a8462109503e99",
+    "internal/domain/metadata_apply.go": "8b59ebe4df03b270dc1ff025837060025a2535a1b4a41ff761cd9e2c0d6553e9",
+    "internal/platform/outbound/metadata_apply_integration_test.go": "38802e27c0c0cc4509331eb8f7b7849196e40c97f177fee6e20c110180154ed2",
+    "internal/adapter/postgres/metadata_field_apply.go": "f4ed767e081c5139c50d53e2154cbf0118af10f6861c1ba5d82e5eeae55ad4c2",
+    "internal/adapter/postgres/metadata_nfo_fusion.go": "c607ae78782c385b4fead801a7308fff94d3468c3944321ae379011bcac96e55",
+    "internal/adapter/postgres/metadata_nfo_fusion_test.go": "35a1152d181a122f588e66e9ef6317942baed700b4f53545aa631115c317c2b2",
+    "internal/app/metadata_nfo_fusion_test.go": "306968da6df1ed024396f173e9df3d66e182dbafe7e78996d1c1a6505813ba2d"
+  },
+  "scope": "One administrator-confirmed HTTP/TLS/NFO/PostgreSQL apply; NFO first then TMDB in one transaction, one revision and one audit; four fields, manual clear and independent locks protected",
+  "windowsFullGo": {
+    "passedPackages": 29,
+    "passedTestEventsIncludingParents": 3160,
+    "skippedTestEvents": 457,
+    "failedEvents": 0
+  },
+  "windowsSkips": {
+    "original435": "same identities retained",
+    "addedDatabaseTests": [
+      "TestItemMetadataActualHTTPAndPostgres",
+      "TestItemMetadataAuthorizationCancellationAndMigration",
+      "TestItemMetadataPersistenceConflictAndAudit",
+      "TestItemMetadataSQLConstraints",
+      "TestMetadataImagePreferenceMigrationAndConstraints",
+      "TestMetadataImagePreferencePersistenceAndLegacyUpdates",
+      "TestMetadataPreferencesActualHTTPAndPostgres",
+      "TestMetadataPreferencesAuthorizationAndValidation",
+      "TestMetadataPreferencesMigrationDefaultAndCleanRollback",
+      "TestMetadataPreferencesPersistenceConflictAndAudit",
+      "TestNFOFusionAllProtectedReviewAndFinalScopeChecks",
+      "TestNFOFusionMixedSourcesOneRevisionAndAudit",
+      "TestNFOFusionProviderAndAuditFailureRollBackBothSources/audit",
+      "TestNFOFusionProviderAndAuditFailureRollBackBothSources/provider-field",
+      "TestNFOItemActualFilesHTTPAndPostgres",
+      "TestNFOItemAtomicRollbackAndScopeInvalidation",
+      "TestNFOItemPersistenceManualPriorityAndSeparateLocks",
+      "TestNFOItemScopeAuthorizationAndSourceOwnership",
+      "TestNFOItemSourceRemainsAboveTMDBWhenReadingDisabled",
+      "TestTMDBMetadataMigrationConstraintsAndAtomicFailure",
+      "TestTMDBMetadataPersistencePriorityAndManualTakeover"
+    ],
+    "outbound": "TestTMDBMetadataThroughTLSHTTPAndPostgres",
+    "reason": "URL unset on Windows; all added database tests passed in full real PostgreSQL race and the outbound test passed through actual HTTP/TLS/NFO/PostgreSQL"
+  },
+  "postgresRace": {
+    "passedPackages": 1,
+    "passedTestEventsIncludingParents": 731,
+    "skippedTestEvents": 0,
+    "failedEvents": 0,
+    "elapsedSeconds": 366.899
+  },
+  "nativeLinuxRace": {
+    "passedPackages": 5,
+    "passedTestEventsIncludingParents": 1019,
+    "skippedTestEvents": 0,
+    "failedEvents": 0
+  },
+  "nativeLinuxPackages": [
+    "nfo",
+    "domain",
+    "app",
+    "HTTP",
+    "runtime"
+  ],
+  "formalPositive": {
+    "passedPackages": 1,
+    "passedTestEventsIncludingParents": 1,
+    "skippedTestEvents": 0,
+    "failedEvents": 0,
+    "elapsedSeconds": 66.835
+  },
+  "negative": {
+    "change": "disable NFO source priority including conservative unknown-source fallback in the real field decision",
+    "leafFailures": 1,
+    "observed": "HTTP TMDB fusion overwrote NFO or manual fields",
+    "restoredSha256": "8b59ebe4df03b270dc1ff025837060025a2535a1b4a41ff761cd9e2c0d6553e9"
+  },
+  "formalRestored": {
+    "passedPackages": 1,
+    "passedTestEventsIncludingParents": 1,
+    "skippedTestEvents": 0,
+    "failedEvents": 0,
+    "elapsedSeconds": 66.837
+  },
+  "formalCases": [
+    "mixed NFO/TMDB sources",
+    "manual empty overview",
+    "NFO Name lock and unlocked NFO date",
+    "one revision and one TMDB audit, zero separate NFO audits",
+    "HomeVideo classification",
+    "file changed during provider request",
+    "actual concurrent manual HTTP request completes during provider network wait",
+    "NFO generation conflict",
+    "trusted root path conflict",
+    "actual TLS 429 then retry",
+    "actual HTTP and provider cancellation",
+    "invalid provider response",
+    "100 synthetic movie and 20 synthetic series search/confirm/writes"
+  ],
+  "postgresCases": [
+    "all protected accepted review advances once, values/times preserved",
+    "source and generation conflict",
+    "revoked session",
+    "provider-field SQL trigger rolls back both sources, revision and classification",
+    "final audit SQL trigger rolls back all fields and classification",
+    "caller-owned cloned source report arrays"
+  ],
+  "syntheticMatrix": {
+    "movies": 100,
+    "series": 20,
+    "confirmedWrites": 120,
+    "writeFailures": 0,
+    "realInventoryIncluded": false
+  },
+  "fullVet": "PASS",
+  "productionBuild": "PASS cmd/jelee",
+  "filesystemLimit": "Two full observations are not an atomic filesystem snapshot; file changes after the last observation remain possible and blocking open/stat are not hard cancellable",
+  "limits": [
+    "Four text fields, unique same-name adjacent NFO, one movie/tvshow root only",
+    "No missing NFO fallback, other source names, actual media inventory/worker/hierarchy, read-write writeback, external metadata removal, artwork byte writes or frontend",
+    "Full branding and actual ABI differences still fail; full G14/G39/project incomplete"
+  ]
+}

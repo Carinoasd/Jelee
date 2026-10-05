@@ -97,3 +97,25 @@ func TestRuntimeClosureRejectsMissingDuplicateAndMalformedPins(t *testing.T) {
 		})
 	}
 }
+
+func TestSupplementChangesRuntimeAndArgumentsIdentityOnly(t *testing.T) {
+	base, err := embeddedIdentity()
+	if err != nil {
+		t.Fatal(err)
+	}
+	closure, arguments := strings.Repeat("1", 64), strings.Repeat("2", 64)
+	extended, err := WithSupplement(base, closure, arguments)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if extended.RuntimeSHA256 == base.RuntimeSHA256 || extended.ArgumentsSHA256 == base.ArgumentsSHA256 || extended.ExecutableSHA256 != base.ExecutableSHA256 || extended.ParserVersion != base.ParserVersion {
+		t.Fatal("supplement identity folded into the wrong fields")
+	}
+	other, _ := WithSupplement(base, strings.Repeat("3", 64), arguments)
+	if other.RuntimeSHA256 == extended.RuntimeSHA256 {
+		t.Fatal("a different MediaInfo closure kept the identity")
+	}
+	if _, err := WithSupplement(base, "short", arguments); err != ErrUnavailable {
+		t.Fatal("invalid closure digest accepted")
+	}
+}

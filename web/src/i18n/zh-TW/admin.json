@@ -1,0 +1,16 @@
+{
+  "admin": {
+    "navigation": "管理分區",
+    "nav": {
+      "users": "使用者",
+      "access": "內容存取",
+      "clients": "客戶端管控",
+      "shares": "分享連結",
+      "webhooks": "Webhook",
+      "stats": "觀看統計",
+      "plugins": "插件",
+      "appearance": "自訂 CSS",
+      "devConsole": "API 控制台"
+    }
+  }
+}

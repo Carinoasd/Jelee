@@ -1,0 +1,74 @@
+{
+  "sourceBaseCommit": "23a6da45910dc970de5a78ac93938736f8e9f040",
+  "changedSource": "internal/platform/runtime/images_soak_failure_unit_test.go",
+  "changedSourceSHA256": "3804d85f2489826f25e4ae16eb5a152db38db1ec5847bfa92a0a903ec26520af",
+  "initialOriginal": {
+    "packagesPassed": 0,
+    "testsPassed": 33,
+    "testsSkipped": 0,
+    "failureEvents": 18,
+    "logSHA256": "0a5719679fdae587cfcf045f2c20e86455a058213ffe9e357f590e392e229030"
+  },
+  "diagnosticOverlay": {
+    "packagesPassed": 0,
+    "testsPassed": 40,
+    "testsSkipped": 0,
+    "failureEvents": 11,
+    "logSHA256": "31fd25de2499cdc9a0c0a8e305aaa179fef236e5f8c4b4db360c2038e3013df9"
+  },
+  "observedFailure": {
+    "afterAdmitted": 9,
+    "finishedNanos": 0,
+    "elapsedNanos": 0,
+    "get200": 0,
+    "beforeAdmitted": 9,
+    "index": 0,
+    "startedNanos": 0,
+    "status": 503
+  },
+  "repair": "controlled HTTP handler waits for its monotonic clock to advance before returning 503; request context bounds cancellation",
+  "windowsRepeated": {
+    "packagesPassed": 1,
+    "testsPassed": 100,
+    "testsSkipped": 0,
+    "failureEvents": 0,
+    "logSHA256": "e1108a18fd689fa5181bc6c9fedb3ea27d66ca9ddac38f087613876f434cdfdf"
+  },
+  "linuxRaceRepeated": {
+    "packagesPassed": 1,
+    "testsPassed": 100,
+    "testsSkipped": 0,
+    "failureEvents": 0,
+    "logSHA256": "d4f6cda12623c32ff0d3166b67d9b908dbe280db657b15b70ee481fb9b1cb4e1"
+  },
+  "windowsRuntime": {
+    "packagesPassed": 1,
+    "testsPassed": 214,
+    "testsSkipped": 20,
+    "failureEvents": 0,
+    "logSHA256": "1465266ea3e0065fe0d122280e1af926089e11b460dfbe11b59a86f1007f8603"
+  },
+  "linuxRaceRuntime": {
+    "packagesPassed": 1,
+    "testsPassed": 227,
+    "testsSkipped": 13,
+    "failureEvents": 0,
+    "logSHA256": "39b195c86228c2c3cd71cd4018e159eb25c96b2ff1d539e2e1e6c0307a22e4de"
+  },
+  "buildTag": "jelee_probe_tests",
+  "checks": {
+    "gitignoreViolations": 0,
+    "publishedSQLFilesUnchanged": 98,
+    "brandAllowed": 339,
+    "vet": true,
+    "brandViolations": 0,
+    "format": true,
+    "diffCheck": true
+  },
+  "acceptanceAssertionsUnchanged": true,
+  "productionCodeChanged": false,
+  "formalSoakSnapshotEditedByThisChange": false,
+  "formalSoakOriginalFailureRootCauseResolved": false,
+  "formal24hPassed": false,
+  "requirementsComplete": false
+}

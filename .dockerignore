@@ -1,13 +1,8 @@
 .git
 .dockerignore
 Dockerfile
-Dockerfile.arm
-Dockerfile.arm64
 CONTRIBUTORS.md
 README.md
-deployment/*/dist
-deployment/*/pkg-dist
-deployment/collect-dist/
 ci/
 
 # Only the Go service build context belongs in its production image.
@@ -31,6 +26,21 @@ ci/
 !.tools/media-runtime/linux-amd64/
 .tools/media-runtime/linux-amd64/*
 !.tools/media-runtime/linux-amd64/debian13-glibc2.41-12deb13u4-gcc14.2.0-19/
+# E4 optional runtime tools: only the files the image copies.
+!.tools/matroska/
+.tools/matroska/*
+!.tools/matroska/mkvtoolnix/
+.tools/matroska/mkvtoolnix/*
+!.tools/matroska/mkvtoolnix/102.0/
+.tools/matroska/mkvtoolnix/102.0/*
+!.tools/matroska/mkvtoolnix/102.0/linux-amd64/
+.tools/matroska/mkvtoolnix/102.0/linux-amd64/usr/bin/mkvpropedit
+!.tools/matroska/mediainfo/
+.tools/matroska/mediainfo/*
+!.tools/matroska/mediainfo/26.05/
+.tools/matroska/mediainfo/26.05/*
+!.tools/matroska/mediainfo/26.05/linux-amd64/
+.tools/matroska/mediainfo/26.05/linux-amd64/runtime/
 .bin/
 .testdata/
 .testfixtures/

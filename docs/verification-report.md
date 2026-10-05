@@ -1,5 +1,7 @@
 # 本次工作与验证报告
 
+> **2026-10-04 注**：以下全文是 2026-10-01 的历史快照，计数（147 项部分完成、189 项阻塞）已过时；当前状态见[追溯矩阵](requirements-traceability.md)的“进度统计”一节与[进度摘要](progress-summary.md)。
+
 本文保留为**第一阶段提交前的历史验证快照**。此后 8 个提交已经推送并建立[草稿 PR #1](https://github.com/MoYuanCN/Jelee/pull/1)；当前账户功能与后续验证见[第 2 阶段报告](accounts-verification.md)。下文“尚未推送”与计数仅描述当时状态。
 
 工作与验证日期：2026-09-30 至 2026-10-01，Asia/Taipei。基线提交 `52a680c578f1af888ebb74cefcb89b736f9c5738`，分支 `feat/jelee-go-foundation`。
@@ -100,3 +102,210 @@ Jelee schema version=0 dirty=false
 ## 复验
 
 使用 README / quickstart 的本地工具命令。独立 PostgreSQL 测试需库名 `jelee_test`，设置 `JELEE_TEST_DATABASE_URL` 与 `JELEE_REQUIRE_INTEGRATION=true`，执行 `make test-integration test-race`。生产数据不能用于这些测试。证据日志不含令牌、数据库密码或媒体根路径。
+
+## G05 錄製自動啟動來源裁剪
+
+刪除兩個錄製host及註冊，移除設定更新建立錄製媒體庫回呼。focused 3pass，舊實作反驗證3fail並逐位元恢復，完整Debug17套件4159Passed／21NotExecuted／0fail；格式通過（workspace warning）。[合同與證據](recording-startup-removal.md)。直播控制器／排程／調諧器與資料仍待裁剪，G05維持部分完成，ABI與完整品牌失敗保留。
+
+## G05 舊 HTTP 直播與頻道入口裁剪
+
+刪兩個控制器及兩個專用DTO，明確501／feature_removed並保留設定授權／IP限制。643專項pass，舊程序集與OpenAPI反驗證2fail並逐位元恢復，完整Debug17套件4798Passed／21NotExecuted／0fail，格式／Win/Linux四語124鍵門禁通過。[合同與證據](legacy-removed-features.md)。內部服務、排程、設定及資料仍待裁剪，G05部分完成，ABI與完整品牌門禁保留。
+
+## G05 自動工作與提供者裁剪
+
+刪六個實作、五個queue呼叫、兩個排程constructor相依及三個專用四語翻譯鍵。positive10pass，舊實作negative8fail並逐位元恢復，完整Debug17套件4808Passed／21NotExecuted／0fail；格式與Win/Linux四語121鍵門禁通過。[合同與證據](live-feature-actors-removal.md)。G05.4有部分交付，核心服務、設定、資料與其他資源仍待清理。
+
+## G05 一般DTO移除直播／錄製增補相依
+
+DTO單層解耦及兩份既有測試建構參數更新，14項回歸與完整Debug17套件4808Passed／21NotExecuted／0fail、格式通過。[合同與證據](dto-live-decoupling.md)。原七檔跨層批次操作遭自動審查拒絕且未執行，已採獲准的DTO單層替代；其他核心／視圖／DI保持，G05仍部分完成。
+
+## G05 使用者視圖移除直播／頻道增補相依
+
+移除使用者視圖的兩個manager相依與外抓分支。四單元及兩HTTP／六請求pass，完整Debug17套件4814Passed／21NotExecuted／0fail，最後測試行尾修正後HTTP與格式再pass。[合同與證據](user-view-live-decoupling.md)。核心、DI、存量資料與實體相依仍待處理，G05保持部分完成。
+
+## G05 直播核心註冊分層解耦
+
+五項核心／延遲服務註冊移除，程序集探索保留必要媒體庫元件。六項啟動與解析驗收通過；[範圍與證據](live-core-registration-removal.md)。核心程式與存量資料仍待清理。
+
+## G05 指南核心移除
+
+刪除指南實作／介面834行，保留來源的兩天圖片快取常數改為本地持有。七項啟動與程序集整合驗收通過，[範圍與證據](guide-core-removal.md)。反向恢復兩舊來源時兩項程序集驗收全部失敗，finally恢復刪除狀態；完整Debug17套件4821Passed／21NotExecuted／0fail，格式通過，所有測試已結束。
+
+## G03 HTTP 翻譯鍵靜態門禁
+
+所有 HTTP 正式Go來源AST與四語資源對照，缺少／未使用鍵即失敗；八個抽取情境與一個缺失／未使用負例覆蓋驗收。[範圍與證據](http-i18n-key-audit.md)。產品來源與待授權直播核心保持未變。
+
+## G11.8 網路隱私文件與邊界核對
+
+[公開入口與位址隱私](network-privacy.md)已補齊，來源與三項既有回歸核對通過。可信代理／SSRF／完整部署矩陣仍未完成，G11.8維持部分完成。[證據](evidence/network-privacy-documentation.json)。
+
+## G11.2 可信代理設計規格
+
+[設計與後續驗收](specs/2026-10-02-trusted-proxies-design.md)已核對，尚未產生產品行為或測試證據，G11.2保持部分完成。
+
+## G11.2 可信代理CIDR／XFF與帳號入口
+
+[實作與驗收範圍](trusted-proxies.md)包含真HTTP代理經帳號Handler抵達稽核repository。Windows完整Go與vet、Linux受影響race通過；移除boundary注入時兩項負例失敗，finally來源逐位元復原後正式回歸再通過；公網／來源防火牆／URL重建／SSRF／WS仍未完成。
+
+## CI並行控制與舊執行清理
+
+[CI來源與實際清理](ci-concurrency.md)：六份YAML欄位保留、17個舊run取消確認、兩個自然終止，最新head保護。排程改善不表示門禁通過，新head須另驗CI。
+
+## G11.4 出站來源盤點
+
+[盘点與設計](outbound-request-audit.md)已核對正式來源接線與10角色來源hash，範圍為文字稽核；沒有產品改動或runtime安全驗收。G11.4尚未實作，狀態與總計不提升。最終文件門禁見[證據](evidence/outbound-request-audit.json)。
+
+## 受控出站与TMDB啟動預檢
+
+[實作與驗收](outbound-tmdb-preflight.md)已接正式產品路徑；完整Go29包／vet與Linux四包race通過，Windows435略過清單保留，正反恢復證據可覆核。僅G11.4／G14.2子集，完整抓取與配額尚未完成；[證據](evidence/outbound-tmdb-preflight.json)。
+
+## TMDB預檢HTTP重試
+
+[當前重試驗收](tmdb-retry.md)已包含真TLS Retry-After最低等待與拿掉標頭後的負例；來源恢復後相關完整回歸、全Go與vet／Linux race通過。完整G14.3限流與cache尚未實作；略過保持列出。
+
+## TMDB請求限流與共享冷卻
+
+[當前治理驗收](tmdb-governor.md)包含容量／取消／冷卻延長及真TLS跨呼叫等待；移除正式入口的負例可偵測繞過。恢復後相關完整回歸、全Go／vet／產品build與Linux四包race通過，435略過名稱集合另逐項驗證。資料cache與完整刮削未完成，需求狀態不提升為完成。
+
+
+### 第33版：NFO識別碼保存
+
+{"windows": {"passedPackages": 29, "passedTestEventsIncludingParents": 3260, "skippedTestEvents": 487, "elapsedSeconds": 12.369}, "native": {"passedPackages": 5, "passedTestEventsIncludingParents": 1126, "skippedTestEvents": 0, "elapsedSeconds": 3.577}, "full-pg": {"passedPackages": 1, "passedTestEventsIncludingParents": 802, "skippedTestEvents": 0, "elapsedSeconds": 482.614}, "native-pg": {"passedPackages": 1, "passedTestEventsIncludingParents": 11, "skippedTestEvents": 0, "elapsedSeconds": 15.364}, "e2e-final": {"passedPackages": 1, "passedTestEventsIncludingParents": 1, "skippedTestEvents": 0, "elapsedSeconds": 75.705}}。provider-identifiers-v1固定23欄，uniqueIds保存type/value/default與來源順序，owned切片與重核、同供應商不同值拒絕；NFO-only／融合／人工null與空陣列／來源及獨立鎖共交易。四初始red、正式default傳遞停用fullHTTP失敗／finally byte restore／完整PASS。五表寫入失敗全回滾、正鎖重建／缺值ProviderIds鎖、旧actor33→32→33与retained資料含manualnull拒降通過。vet/build/newbrand0/181/gitignore0/fullbrand14735/186，64old SQL／原文件／5core／336與hash保持。見[nfo-identifiers.md](nfo-identifiers.md)／[證據](evidence/nfo-identifiers.json)。仍第三階段4done184partial148blocked；多來源評分／其他欄位、季集、實際匯入／前端／無損回寫與全部G00–51接續。禁merge/release/tag/forcepush/oldmigration/identity config；繁中同PR46推送後繼續，goal active。
+
+
+### 第34版：NFO多來源評分保存
+
+第34版保存多來源評分的 name／value／max／votes／default 與來源順序；缺省尺度和零票数保持區別，人工清除、來源、獨立鎖及確認觀察共交易。固定24欄、15種facts與七種API變體；001–033共66份SQL保持。完整HTTP驗收包含可空max／votes、最大合法混合請求及120筆合成確認寫入。五份初始失敗、票數傳遞停用的實際失敗與逐位元復原後完整通過均保存。Windows全套、Linux race、PG與原生worker、vet／建置及增量品牌通過；全量品牌14735與既有ABI差異仍未解決。 見[契約](nfo-ratings.md)及[證據](evidence/nfo-ratings.json)。
+
+{"windows": {"passedPackages": 29, "passedTestEventsIncludingParents": 3264, "skippedTestEvents": 489, "elapsedSeconds": 8.657}, "native": {"passedPackages": 5, "passedTestEventsIncludingParents": 1130, "skippedTestEvents": 0, "elapsedSeconds": 3.452}, "full-pg": {"passedPackages": 1, "passedTestEventsIncludingParents": 809, "skippedTestEvents": 0, "elapsedSeconds": 474.239}, "native-pg": {"passedPackages": 1, "passedTestEventsIncludingParents": 11, "skippedTestEvents": 0, "elapsedSeconds": 15.685}, "e2e-final": {"passedPackages": 1, "passedTestEventsIncludingParents": 1, "skippedTestEvents": 0, "elapsedSeconds": 76.128}}
+
+所有本地驗證已終端結束。仍第三階段；下一步其他NFO欄位與季集、實際匯入、監看／排程和規模驗收，維持全G00–G51目標。禁止merge／release／tag／force-push／改寫既有SQL／修改Git身份設定，五個未獲具體授權的直播核心仍保持。
+
+
+### 第35版：NFO合集結構保存
+
+第35版保存合集name／overview結構，支援文本set／collection與結構name／overview，來源／獨立鎖及人工null清除共交易。重複別名／子欄位、缺少名稱及混合內容拒絕；名稱Unicode空白與UTF-8界限在API／資料庫保持一致。固定25欄、16種facts與八種API變體；001–034共68份SQL保持。最大合法混合請求、120筆合成確認寫入、五表回滾、舊評分35→34→35及保留新資料拒降通過。五份初始失敗與正式簡介傳遞停用的負例保存，逐位元復原後完整HTTP通過。 見[契約](nfo-collection.md)及[證據](evidence/nfo-collection.json)。
+
+| 驗證 | 套件 | 通過事件（含父測試） | 略過 |
+| --- | ---: | ---: | ---: |
+| Windows全套 | 29 | 3267 | 491 |
+| Linux race | 5 | 1133 | 0 |
+| 完整PostgreSQL | 1 | 816 | 0 |
+| 原生worker | 1 | 11 | 0 |
+| 完整HTTP／TLS／PG | 1 | 1 | 0 |
+
+
+本地驗證均已終端結束。仍全G00–G51目標；下一步其他NFO欄位與季集、實際匯入、監看／排程及規模驗收。禁止merge／release／tag／force-push／改寫既有SQL／修改Git身份設定，五個未獲具體批次授權的直播核心保持。
+
+
+### 第36版：電影日期、預告片與圖片參照
+
+第36版保存 dateAdded 原日期表示、trailers 有序參照，以及 art 的種類、位置、預覽和可選季數。人工清除、來源與獨立鎖共交易；新讀取全域鎖覆蓋28個已支援欄位，歷史投影保持。重複日期、衝突圖片屬性、非法季數與超量資料拒絕。API共11種變體、19個facts，最大混合請求、五表回滾、舊合集36→35→36與新欄位保留時拒降均通過。001–035共70份已發布SQL保持。
+
+| 驗證 | 套件 | 通過事件（含父測試） | 略過 |
+| --- | ---: | ---: | ---: |
+| Windows 全套 | 29 | 3287 | 496 |
+| Linux race | 5 | 1152 | 0 |
+| 完整 PostgreSQL | 1 | 827 | 0 |
+| 原生 worker | 1 | 11 | 0 |
+| 完整 HTTP／TLS／PG | 1 | 1 | 0 |
+
+全部本地測試已結束。見[契約](nfo-movie-extras.md)及[證據](evidence/nfo-movie-extras.json)。下一步繁中PR46提交推送，然後接續季集與實際匯入。仍全G00–G51目標；禁止merge／release／tag／force-push／改寫已發布SQL與Git身份設定，五個未獲具體批次刪除授權的直播核心保持。
+
+
+### 第37版：劇集計數、狀態與播出資訊
+
+第37版保存tvshow的季數、集數、劇集狀態與播出星期／時間，保留原文字及缺省／未知-1／零的區別。人工清除、來源與獨立鎖共交易；新劇集全域鎖涵蓋33欄，電影及歷史投影保持。API共13種變體、24個facts。五表回滾、直接SQL非法值、缺值鎖、舊電影資料37→36→37與保留新資料拒降通過。001–036共72份已發布SQL保持。
+
+| 驗證 | 套件 | 通過事件（含父測試） | 略過 |
+| --- | ---: | ---: | ---: |
+| Windows 全套 | 29 | 3291 | 503 |
+| Linux race | 5 | 1155 | 0 |
+| 完整 PostgreSQL | 1 | 840 | 0 |
+| 原生 worker | 1 | 11 | 0 |
+| 完整 HTTP／TLS／PG | 1 | 1 | 0 |
+
+全部本地驗證已終端結束。見[契約](nfo-series-details.md)與[證據](evidence/nfo-series-details.json)。接續繁中PR46提交推送，再處理季／單集来源與實際匯入；仍全G00–G51、4完成184部分148阻塞。禁止merge／release／tag／force-push／改寫已發布SQL及Git身份設定，五個未獲具體刪除授權的直播核心保持。
+
+
+### 第38版：單集NFO来源與六個欄位
+
+第38版將單集NFO綁定既有Episode真實影片來源，只選同名檔，接受episode及episodedetails單一根元素。保存季數、集數、顯示編號、首播日期與影集名；人工清除、來源及獨立鎖共交易，全域鎖34欄。API為30個facts聯集、16種變體。五表回滾、非法SQL拒絕、缺值鎖、影集資料38→37→38及保留新資料拒降通過；001–037共74份已發布SQL保持。
+
+| 驗證 | 套件 | 通過事件（含父測試） | 略過 |
+| --- | ---: | ---: | ---: |
+| Windows 全套 | 29 | 3298 | 512 |
+| Linux race | 5 | 1161 | 0 |
+| 完整 PostgreSQL | 1 | 855 | 0 |
+| 原生 worker | 1 | 11 | 0 |
+| 完整 HTTP／TLS／PG | 1 | 1 | 0 |
+
+全部本地驗證已結束。接續繁中PR46提交推送，再處理影集／季來源及實際匯入；仍第三階段、全案336項4完成184部分148阻塞。五個未獲具體刪除授權的直播核心保持。見[契約](nfo-episode-details.md)與[證據](evidence/nfo-episode-details.json)。
+
+
+### 影片種類匯入入口
+
+影片匯入可明確指定Movie、Episode或HomeVideo，省略仍為HomeVideo；實際CLI到隔離PG再套用同名NFO通過，拒絕資料夾／非法種類，重複匯入保持原子性及原檔bytes。schema仍38，76份已發布SQL不改；全案4完成184部分148阻塞，仍第三階段。
+
+| 驗證 | 套件 | 通過事件（含父測試） | 略過 |
+| --- | ---: | ---: | ---: |
+| Windows 全套 | 29 | 3298 | 514 |
+| Linux CLI／domain race | 2 | 483 | 0 |
+| 相關 PostgreSQL race | 1 | 38 | 0 |
+
+[契約](import-video-kinds.md)與[證據](evidence/import-video-kinds.json)。本段全部本地程序已結束，待同分支提交推送及繁中PR46更新，再接續資料夾來源與階層。
+
+
+### 第39版：資料夾來源與父子關聯
+
+第39版以獨立資料夾來源登記影集／季，父子關聯限同庫同根且子位置在父資料夾內；CLI支援Series、Season及有父層Episode，目錄API回傳parentId。Series只選tvshow.nfo、Season只選season.nfo，季投影29欄，零值／缺省、人工清除及獨立鎖保持。真實CLI與HTTP、交易回滾、目錄替換、非法父層／混合來源拒絕及降版保護通過；001–038共76份已發布SQL不改。
+
+| 驗證 | 套件 | 通過事件（含父測試） | 略過 |
+| --- | ---: | ---: | ---: |
+| Windows 全套 | 29 | 3303 | 519 |
+| Linux race | 6 | 1329 | 0 |
+| 完整 PostgreSQL | 1 | 870 | 0 |
+| 原生 worker | 1 | 11 | 0 |
+| 完整 HTTP／TLS／PG | 1 | 1 | 0 |
+
+全部本地驗證已結束。待同分支提交推送及繁中PR46更新；仍第三階段，336項4完成184部分148阻塞。下一步實際掃描匯入與增量更新，前端及無損回寫等仍缺。見[契約](directory-nfo-sources.md)及[證據](evidence/directory-nfo-sources.json)。
+
+
+## 掃描候選匯入入口已驗收
+
+`import-inventory --job ID --entry ID --title TITLE --kind Movie` 已接通正式 Scanner 產出的影片候選與 catalog。提交重查最新成功掃描、根世代、基線觀察版本及 size／mtime；重複、覆核、過期與交易故障拒絕。原檔不變，78份既有SQL保持。
+
+Windows 29套件／3312通過事件（含父測試）／536略過；Linux CLI與domain race 2套件／492事件／0略過；專項PG 15事件／0略過。vet、建置、增量品牌與gitignore通過；全量品牌及既有ABI仍未解決。這次未重跑完整PG與HTTP：前一段schema39的完整驗證保留為歷史證據。
+
+[操作與限制](inventory-import.md)、[證據](evidence/inventory-import.json)。仍第三階段，336項的4完成／184部分／148阻塞維持。下一段：已登入管理API與來源核對接線；全庫批次仍待完成。
+
+## 最新接續：掃描候選匯入 API 已驗收
+
+新增管理員 `PUT /api/v1/jobs/{id}/entries/{entry}/item`，來源由DB解析，交易外檔案核對後再查有效身分與候選。相同PUT回傳同一條目，異值409且不覆蓋人工資料。撤權／停權／降權／到期拒絕；六路並行只寫一份條目、來源與稽核。CLI共用檔案核對及交易寫入，保留重複拒絕。
+
+| 驗證 | 套件 | 通過事件（含父測試） | 略過 |
+| --- | ---: | ---: | ---: |
+| Windows全套 | 29 | 3313 | 542 |
+| Linux race | 6 | 1147 | 0 |
+| 專項PG／CLI／TLS | 1 | 22 | 0 |
+| 最終TLS與OpenAPI | 1 | 1 | 0 |
+
+vet、產品建置、增量品牌、gitignore通過；全量品牌與既有ABI仍未解決。本段未重跑完整PG套件，採相關Store／app／CLI／真實TLS整合；78份已發布SQL不改。
+
+[契約](inventory-import.md)／[證據](evidence/inventory-api.json)。仍第三階段，336項4完成184部分148阻塞。下一段批次匯入；全庫自動辨識、監看與排程等未完成。以下為歷史紀錄。
+
+## 最新接續：持久批次影片匯入已驗收
+
+schema40新增catalog_import持久任務與1至100筆明確選取。逐筆檔案核對、item／source／audit與進度同交易；取消保留已提交前綴，owner更換後接續，舊租約不能寫入；活動來源不被歷史清理。相同意圖重播、既有相同條目不重複寫入，原檔不變。
+
+| 驗證 | 套件 | 通過事件（含父測試） | 略過 |
+| --- | ---: | ---: | ---: |
+| Windows全套 | 29 | 3314 | 550 |
+| Linux race | 7 | 1321 | 0 |
+| 完整PostgreSQL race | 1 | 901 | 0 |
+| 原生worker | 1 | 11 | 0 |
+| 完整HTTP／TLS／PG | 1 | 1 | 0 |
+
+全部本地驗證已結束，61份Go／SQL的凍結雜湊已核對。vet、產品建置、增量品牌及gitignore通過；全量品牌仍14735项，既有ABI差異未解決。001–039共78份SQL保持，schema40有資料時拒絕降版。
+
+[契約](catalog-import-jobs.md)／[證據](evidence/catalog-import-jobs.json)。仍第三階段，336項4完成184部分148阻塞。下一段回到原計畫3D的監看、排程與規模驗收；全庫自動辨識與前端等另列未完成。維持同分支繁中PR46，不merge／release／tag／force-push／設定Git身分。以下是歷史紀錄。

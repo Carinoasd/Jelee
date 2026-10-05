@@ -1,0 +1,171 @@
+package main
+
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"io"
+	"os"
+	"path/filepath"
+	"runtime"
+	"runtime/debug"
+	"runtime/metrics"
+	"runtime/pprof"
+	"strconv"
+	"strings"
+	"sync"
+	"sync/atomic"
+	"time"
+
+	imageadapter "github.com/MoYuanCN/Jelee/internal/adapter/images"
+	"github.com/MoYuanCN/Jelee/internal/domain"
+	"github.com/MoYuanCN/Jelee/internal/platform/resources"
+)
+
+func rss() uint64 {
+	b, e := os.ReadFile("/proc/self/statm")
+	if e != nil {
+		panic(e)
+	}
+	values := strings.Fields(string(b))
+	n, e := strconv.ParseUint(values[1], 10, 64)
+	if e != nil {
+		panic(e)
+	}
+	return n * uint64(os.Getpagesize())
+}
+func memory(stage string, origin time.Time, done *atomic.Int64, p *imageadapter.Processor) map[string]any {
+	var m runtime.MemStats
+	runtime.ReadMemStats(&m)
+	samples := []metrics.Sample{{Name: "/gc/heap/live:bytes"}, {Name: "/gc/heap/goal:bytes"}}
+	metrics.Read(samples)
+	return map[string]any{"stage": stage, "elapsedNanos": time.Since(origin).Nanoseconds(), "rssBytes": rss(), "heapAlloc": m.HeapAlloc, "heapInuse": m.HeapInuse, "heapIdle": m.HeapIdle, "heapReleased": m.HeapReleased, "heapSys": m.HeapSys, "sys": m.Sys, "totalAlloc": m.TotalAlloc, "numGC": m.NumGC, "pauseTotalNs": m.PauseTotalNs, "heapLive": samples[0].Value.Uint64(), "heapGoal": samples[1].Value.Uint64(), "completed": done.Load(), "processor": p.Stats()}
+}
+func profile(directory, name string) {
+	f, e := os.Create(filepath.Join(directory, name+".pprof"))
+	if e != nil {
+		panic(e)
+	}
+	if e = pprof.WriteHeapProfile(f); e != nil {
+		panic(e)
+	}
+	if e = f.Close(); e != nil {
+		panic(e)
+	}
+}
+func main() {
+	if len(os.Args) != 4 {
+		panic("expected owned input, scratch and evidence directories")
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
+	defer cancel()
+	budget, e := resources.New(resources.Limits{CPU: 2, IO: 4, Total: 4, Queue: 128})
+	if e != nil {
+		panic(e)
+	}
+	p, e := imageadapter.New(ctx, imageadapter.Options{Budget: budget, TempRoot: os.Args[2], MaxConcurrent: 2, MaxImageBytes: 96 << 20, MaxSourceBytes: 16 << 20, MaxOutputBytes: 2 << 20, CacheBytes: 32 << 20, MaxOutputDimension: 1024, CacheEntries: 128, DefaultQuality: 85, Timeout: 15 * time.Second, CacheTTL: 300 * time.Second})
+	if e != nil {
+		panic(e)
+	}
+	origin := time.Now()
+	var completed atomic.Int64
+	var excess atomic.Bool
+	enc := json.NewEncoder(os.Stdout)
+	var out sync.Mutex
+	emit := func(stage string) {
+		out.Lock()
+		defer out.Unlock()
+		if e := enc.Encode(memory(stage, origin, &completed, p)); e != nil {
+			panic(e)
+		}
+	}
+	emit("begin")
+	sampleDone := make(chan struct{})
+	stopSamples := make(chan struct{})
+	go func() {
+		defer close(sampleDone)
+		tick := time.NewTicker(100 * time.Millisecond)
+		defer tick.Stop()
+		for {
+			select {
+			case <-stopSamples:
+				return
+			case <-tick.C:
+				emit("sample")
+				if rss() > 464<<20 {
+					excess.Store(true)
+					cancel()
+					return
+				}
+			}
+		}
+	}()
+	var firstError string
+	for round := 0; round < 10 && ctx.Err() == nil; round++ {
+		jobs := make(chan int, 32)
+		var workers sync.WaitGroup
+		var errorsMu sync.Mutex
+		for worker := 0; worker < 2; worker++ {
+			workers.Add(1)
+			go func() {
+				defer workers.Done()
+				for index := range jobs {
+					if ctx.Err() != nil {
+						return
+					}
+					source := domain.LocalImageSource{RootPath: os.Args[1], MediaPath: fmt.Sprintf("dir-%05d/clip-%06d.mkv", index/10, index), ItemID: fmt.Sprintf("64000000-0000-4000-8000-%012x", index+1), SourceID: fmt.Sprintf("65000000-0000-4000-8000-%012x", index+1), LibraryID: "66000000-0000-4000-8000-000000000001", RootID: "67000000-0000-4000-8000-000000000001"}
+					w, h := 160, 240
+					if index < 64 {
+						w, h = 1024, 1024
+					}
+					result, e := p.Render(ctx, source, domain.ImageRequest{Width: w, Height: h, Quality: 85})
+					if e == nil {
+						_, e = io.Copy(io.Discard, result.Body)
+						ce := result.Body.Close()
+						if e == nil {
+							e = ce
+						}
+					}
+					if e != nil {
+						errorsMu.Lock()
+						if firstError == "" {
+							firstError = "render_failed"
+						}
+						errorsMu.Unlock()
+						cancel()
+						return
+					}
+					completed.Add(1)
+				}
+			}()
+		}
+	produce:
+		for index := 0; index < 1000; index++ {
+			select {
+			case jobs <- index:
+			case <-ctx.Done():
+				break produce
+			}
+		}
+		close(jobs)
+		workers.Wait()
+		emit("round_end")
+	}
+	close(stopSamples)
+	<-sampleDone
+	cleanup, cancelCleanup := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancelCleanup()
+	if e := p.Shutdown(cleanup); e != nil {
+		panic(e)
+	}
+	emit("before_forced_gc")
+	profile(os.Args[3], "before-forced-gc")
+	runtime.GC()
+	emit("after_forced_gc")
+	profile(os.Args[3], "after-forced-gc")
+	debug.FreeOSMemory()
+	emit("after_free_os_memory")
+	out.Lock()
+	defer out.Unlock()
+	enc.Encode(map[string]any{"scope": "isolated_adapter_diagnostic_not_formal_acceptance", "overBudget": excess.Load(), "completed": completed.Load(), "errorCode": firstError})
+}

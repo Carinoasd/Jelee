@@ -1,0 +1,35 @@
+{
+  "common": {
+    "appName": "Jelee",
+    "language": "表示言語",
+    "localeNames": {
+      "zhCN": "简体中文",
+      "zhTW": "繁體中文",
+      "enUS": "English",
+      "jaJP": "日本語"
+    },
+    "loading": "読み込んでいます…",
+    "retry": "再試行",
+    "loadMore": "さらに読み込む",
+    "logout": "ログアウト",
+    "mainNavigation": "メインナビゲーション",
+    "signedInAs": "{name} としてログインしています",
+    "skipToContent": "メインコンテンツへスキップ",
+    "notifications": "通知",
+    "dismiss": "閉じる",
+    "cancel": "キャンセル",
+    "breadcrumbs": "パンくずリスト",
+    "save": "保存",
+    "delete": "削除",
+    "edit": "編集",
+    "actions": "操作",
+    "yes": "はい",
+    "no": "いいえ",
+    "search": "検索",
+    "admin": "管理",
+    "settings": "設定",
+    "stats": "自分の統計",
+    "sharedWithMe": "共有されたコンテンツ",
+    "guestSession": "共有リンクのゲスト"
+  }
+}

@@ -1,0 +1,50 @@
+{
+  "layout": {
+    "title": "版面",
+    "storageNote": "登录后，版面与自定义预设随账号保存在服务器并同步到其他设备；在你更改之前套用全站默认版面。未登录时只保存在这个浏览器中。",
+    "reset": "恢复默认版面",
+    "keyboardHint": "用“上移”“下移”按钮或 Alt+↑／Alt+↓ 调整顺序，也可以用鼠标拖动。",
+    "moved": "{name} 已移到第 {position} 位，共 {total} 项。",
+    "moveUp": "上移 {name}",
+    "moveDown": "下移 {name}",
+    "detailPanels": "条目详情面板",
+    "blocks": {
+      "welcome": "欢迎与快捷链接",
+      "libraries": "媒体库",
+      "latest": "最新首映"
+    },
+    "panels": {
+      "overview": "简介",
+      "genres": "类型",
+      "externalIds": "外部 ID",
+      "nfo": "NFO 来源",
+      "files": "文件信息",
+      "pluginPanels": "插件面板",
+      "pluginTabs": "插件标签页"
+    },
+    "presets": {
+      "label": "版面预设",
+      "modified": "自定义（未保存为预设）",
+      "standard": "标准",
+      "focused": "精简",
+      "metadata": "元数据检查",
+      "applied": "已套用版面预设。",
+      "delete": "删除预设 {name}",
+      "name": "新预设名称",
+      "save": "将当前版面保存为预设",
+      "saved": "已保存版面预设。",
+      "nameRequired": "请输入预设名称。",
+      "full": "最多只能保存 {max} 个预设。"
+    },
+    "home": {
+      "title": "首页",
+      "customize": "自定义首页",
+      "blocks": "首页区块",
+      "moreInSettings": "条目详情面板与版面预设在“设置”页调整。",
+      "allHidden": "所有区块都已隐藏。点“自定义首页”重新显示。",
+      "welcome": "欢迎回来，{name}",
+      "searchLink": "搜索",
+      "latestEmpty": "还没有带首映日期的条目。"
+    }
+  }
+}

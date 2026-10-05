@@ -1,0 +1,93 @@
+{
+  "baseCommit": "a6b5621f66e26d6d0f95a8288e469e7f36b16bd4",
+  "scope": "Persistent manual item metadata and field locks, optimistic revisions and audit, actual admin HTTP to PostgreSQL and catalog title synchronization",
+  "schemaVersion": 21,
+  "sources": {
+    "internal/adapter/http/openapi.go": "e17dae78026ad3eefa6118f31c2b457de5dba7b480bd0d7d677252141026c446",
+    "internal/adapter/http/server.go": "80d7cbe56f8d86b5c62dbc5bba29e4a042dc2d4fb3139867b1a2e992a9d1fec0",
+    "internal/adapter/postgres/accounts_integration_test.go": "dbf6b0fbdb50dae1573649a62034847670c31aeba4b809427987d6712e483bab",
+    "internal/adapter/postgres/ignore_baseline_test.go": "005de25c936c0413562e632e43f57f0ec3b6e066eab5a399894bc9d22881e6cb",
+    "internal/adapter/postgres/ignore_family_comparison_test.go": "ec4017804fbcbf758c4bc0af82fb9b1b0528afc9513cbe2ea9db0320bbefc2c0",
+    "internal/adapter/postgres/ignore_family_scan_test.go": "261acd70b184805fd6aaddbdf25ad18476d4831da1333a8e193e5f43152d2686",
+    "internal/adapter/postgres/ignore_legacy_baseline_test.go": "9863a95a16d3a8fa2d24b3c70382822d7623468c1852319df6fc85e8b8c26d3c",
+    "internal/adapter/postgres/ignore_legacy_baseline_verification_test.go": "53566e07b95dc4db01a3f88753fdedd6b6dbe9364faadc84517b947668c3815f",
+    "internal/adapter/postgres/ignore_legacy_migration_test.go": "612946d3fc677939043abfd7b74b8cfc1fc4ebc44e2d380d70a6f9255a0f2eab",
+    "internal/adapter/postgres/ignore_legacy_verification_test.go": "bcedf6b6845c3f9ca74d6ccaf8b4ac332ed15a6ed904f9bf3fefb4a6cc97c24e",
+    "internal/adapter/postgres/ignore_manifest_test.go": "d22d7ae77f3f3f367566e60c5728da7463db59d52f56056abe6a213633932cc1",
+    "internal/adapter/postgres/ignore_migration_test.go": "b460284d626f87b7a81b990711e09f6f3c106a79c6a71b1bf5c92179ce7c3c6f",
+    "internal/adapter/postgres/ignore_scan_test.go": "ae64a9754c5a45f1df1840559655f2dc549991151dc24f240ed6041605c2b2d6",
+    "internal/adapter/postgres/ignore_verification_test.go": "7751517dba5169f6336feff8ff9b96bda0171a5fdab2dff89d38cee422190bfa",
+    "internal/adapter/postgres/jobs_integration_test.go": "7d9dbfd66c6d943a9641ea98cbd6d36f07fa97b6760f507771ba5b89d297109b",
+    "internal/adapter/postgres/metadata_image_preferences_test.go": "2ca3c2bf2a44a64d6357c1e457652cf511573f822ccd520a2998ef722c6c2b2a",
+    "internal/adapter/postgres/metadata_preferences_test.go": "5d32cf152ded158e52698eba29415eb0e35ea454708b0110df8081aa5dbb29ef",
+    "internal/adapter/postgres/nfo_integration_test.go": "609eb0df01f14c3f8cb9d3435efcfe812992699048789ca519e22d36e8db9d73",
+    "internal/adapter/postgres/nfo_worker_migration_test.go": "391d19d2b5208934a7e8aaf414e428776851d6820136114ac8abfb921c87f1cc",
+    "internal/adapter/postgres/probe_integration_test.go": "87deaaeb4475ead728686c1b0fb8df4ad3bd983ea76f56136fdf09a051dd5282",
+    "internal/adapter/postgres/probe_requests_test.go": "ad3e43322757641256162846187c70897240278624aef15d8a6b839b82de430f",
+    "internal/adapter/postgres/store.go": "35371ff8dcf617a039ebe702aaac335f2e8c4d9df71073e42d7e39473be346c6",
+    "internal/adapter/postgres/store_integration_test.go": "32a30ac81b3b4796b7217f0a19cac277dec22b4e93d2bce999b68cabf510bfb0",
+    "internal/app/metadata.go": "148b0c9cbc451dc1a6fe2459e8c78f5bfe787326b77a1e081b284703bde793a1",
+    "internal/app/metadata_preferences.go": "0ea0a146f49d1dcbfefa2f73bc48f33190b7fb1119f1bae6232579d3ae0b50ce",
+    "internal/platform/runtime/runtime.go": "6dea175f4f3a66f5a8bfce36c4c08c03bfac235bb51c7761aa20af7032703a54",
+    "internal/platform/runtime/tmdb.go": "d3fe6fb22ba6b3cc9c6bbaaf8c04ea322c8afdd860d23c9482ec490182b6f2e7",
+    "internal/adapter/http/item_metadata.go": "8b416ff8aa6d39c93672b5237c48c24ae66b0ac4349b076dcb56b130413b5b59",
+    "internal/adapter/postgres/item_metadata.go": "1c1822fde48d4a9edb380e59299867a0cf8e38271bc4d2c7789c1cc3067d7567",
+    "internal/adapter/postgres/item_metadata_http_test.go": "c25e9477e4c30c85438da6d0d7b90d3502cd4e32731c38bcdbe2cc29398b3529",
+    "internal/adapter/postgres/item_metadata_test.go": "431757e70eb083679a42dd45627bc70e788756aa1bd0eccb4ec281218ef38fc5",
+    "internal/adapter/postgres/migrations/000021_item_metadata.down.sql": "9597ab935d5c094bd01d272bb36c23df46fa604a4180b50527e5e4bd3667f6de",
+    "internal/adapter/postgres/migrations/000021_item_metadata.up.sql": "17daf9fb3963abfbfb54d3579837076b53e21a94912994f77288d5e3ae075894",
+    "internal/app/item_metadata.go": "18e9b0613b08ba2fbfa84353aad804dc4f7d6c34752ff66a45578c8c47487229",
+    "internal/app/item_metadata_test.go": "d4fed0c7f4733dce86e2b8f9b5e5d4474bbdf2ebda2103e0bda91c4bc8e287e1",
+    "internal/domain/item_metadata.go": "9e42581cf5e56594fdf31b66c4d073ad5c296e32a743c391c4f19a633b4cb386",
+    "internal/domain/item_metadata_test.go": "773194c47b152e6c6ad9b87e041848d4cbcc08a02f10379c9c61b808b72634ee",
+    "internal/platform/runtime/item_metadata_test.go": "ba6d5c9616c6ac6cc76076c0b667d88a3801c295f43760cbbfbfb61c6b2dfda6"
+  },
+  "windowsFullGo": {
+    "passedPackages": 29,
+    "passedTestEventsIncludingParents": 3127,
+    "skippedTestEvents": 445,
+    "failedEvents": 0
+  },
+  "windowsSkips": {
+    "original435": "same identities retained",
+    "addedTen": [
+      "TestItemMetadataActualHTTPAndPostgres",
+      "TestItemMetadataAuthorizationCancellationAndMigration",
+      "TestItemMetadataPersistenceConflictAndAudit",
+      "TestItemMetadataSQLConstraints",
+      "TestMetadataImagePreferenceMigrationAndConstraints",
+      "TestMetadataImagePreferencePersistenceAndLegacyUpdates",
+      "TestMetadataPreferencesActualHTTPAndPostgres",
+      "TestMetadataPreferencesAuthorizationAndValidation",
+      "TestMetadataPreferencesMigrationDefaultAndCleanRollback",
+      "TestMetadataPreferencesPersistenceConflictAndAudit"
+    ],
+    "reason": "dedicated PostgreSQL URL unset; these ten are executed successfully by the separate Linux database run"
+  },
+  "postgresRace": {
+    "passedPackages": 1,
+    "passedTestEventsIncludingParents": 719,
+    "skippedTestEvents": 0,
+    "failedEvents": 0
+  },
+  "linuxRace": {
+    "status": "PASS domain/app/HTTP/runtime",
+    "output": "domain 1.144s; app 1.109s; HTTP 3.714s; runtime 1.214s",
+    "skips": "summary does not report skips"
+  },
+  "fullVet": "PASS",
+  "productionBuild": "PASS cmd/jelee",
+  "negative": {
+    "change": "disable actual repository item revision comparison",
+    "leafFailures": 1,
+    "observed": "HTTP stale item revision overwrote metadata",
+    "restoredSha256": "1c1822fde48d4a9edb380e59299867a0cf8e38271bc4d2c7789c1cc3067d7567",
+    "restoredPostgresRace": "four item metadata tests PASS without skips"
+  },
+  "originalItems": "No original item field is added or reclassified; legacy title is projected as existing, reads do not create state",
+  "limits": [
+    "Automatic TMDB/NFO writes and priority/lock enforcement during such writes not yet wired; frontend and full scraping matrix remain incomplete",
+    "Automatic metadata worker writes, NFO edits and artwork changes remain absent",
+    "Full branding and actual ABI differences remain failing"
+  ]
+}

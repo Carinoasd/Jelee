@@ -65,6 +65,11 @@ func TestProcessHelper(t *testing.T) {
 		for {
 			_, _ = os.Stderr.Write([]byte(strings.Repeat("y", 32768)))
 		}
+	case "write":
+		// Extraction stand-in: an output file in the private working directory.
+		if os.WriteFile("t0", []byte("extracted output"), 0600) != nil {
+			os.Exit(14)
+		}
 	case "sleep":
 		time.Sleep(30 * time.Second)
 	case "failure":

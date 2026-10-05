@@ -84,6 +84,10 @@ func TestRealFixtureProbeMetadataAndSourcePreservation(t *testing.T) {
 						CodecName string `json:"codec_name"`
 						Width     int    `json:"width"`
 						Height    int    `json:"height"`
+						// Disposition marks the embedded cover of the cover fixtures.
+						Disposition struct {
+							AttachedPic int `json:"attached_pic"`
+						} `json:"disposition"`
 					} `json:"streams"`
 					Chapters []json.RawMessage `json:"chapters"`
 					Format   struct {
@@ -94,11 +98,18 @@ func TestRealFixtureProbeMetadataAndSourcePreservation(t *testing.T) {
 				if err := json.Unmarshal(result.Stdout, &metadata); err != nil {
 					t.Fatal("probe returned invalid JSON")
 				}
-				var video, audio, subtitles int
+				var video, audio, subtitles, attachments, covers int
 				for _, stream := range metadata.Streams {
 					switch stream.CodecType {
 					case "video":
 						video++
+						if stream.Disposition.AttachedPic == 1 {
+							covers++
+							if stream.CodecName != "mjpeg" && stream.CodecName != "png" || stream.Width != 16 || stream.Height != 16 {
+								t.Fatal("wrong embedded cover metadata")
+							}
+							continue
+						}
 						if stream.CodecName != "h264" || stream.Width != entry.Expected.Width || stream.Height != entry.Expected.Height {
 							t.Fatal("wrong video metadata")
 						}
@@ -109,12 +120,17 @@ func TestRealFixtureProbeMetadataAndSourcePreservation(t *testing.T) {
 						}
 					case "subtitle":
 						subtitles++
-						if stream.CodecName != "subrip" {
+						if stream.CodecName != "subrip" && stream.CodecName != "ass" {
 							t.Fatal("wrong subtitle codec")
 						}
+					case "attachment":
+						attachments++
 					}
 				}
-				if video != entry.Expected.Video || audio != entry.Expected.Audio || subtitles != entry.Expected.Subtitles || len(metadata.Chapters) != entry.Expected.Chapters {
+				if (covers == 1) != (entry.Expected.CoverSHA256 != "") || covers > 1 {
+					t.Fatal("embedded cover expectation differs")
+				}
+				if video != entry.Expected.Video || audio != entry.Expected.Audio || subtitles != entry.Expected.Subtitles || attachments != entry.Expected.Attachments || len(metadata.Chapters) != entry.Expected.Chapters {
 					t.Fatal("wrong stream/chapter counts")
 				}
 				duration, err := strconv.ParseFloat(metadata.Format.Duration, 64)

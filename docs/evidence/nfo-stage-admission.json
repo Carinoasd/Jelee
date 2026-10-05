@@ -1,0 +1,104 @@
+{
+  "sourceBaseCommit": "d8c3e42b6aa089f40a9d8c0b4bcd21e8e5f18265",
+  "scope": "Internal StageCommitFiles singleflight before job payload read and shared I/O read admission; no runtime activation",
+  "changedSourceManifest": {
+    "internal/adapter/nfo/stage_commit_files.go": "887035056e637db7e4eca3972465e8d44cd7487a69d471d053758d9f11809a1a",
+    "internal/adapter/nfo/stage_commit_files_test.go": "ca03675a44d6e3497f018df76fbdbe812ee00016cdea57211c868bacac31bb49"
+  },
+  "windows": {
+    "packagesPassed": 2,
+    "testsPassed": 340,
+    "testsSkipped": 2,
+    "failureEvents": 0,
+    "stagePassedTests": [
+      "TestStageCommitFilesCoalescesBeforeRead",
+      "TestStageCommitFilesReadAdmission",
+      "TestStageCommitFilesCancellationJoinsOwner",
+      "TestStageCommitFilesDoesNotShareOtherIntent/job",
+      "TestStageCommitFilesDoesNotShareOtherIntent/owner",
+      "TestStageCommitFilesDoesNotShareOtherIntent/generation",
+      "TestStageCommitFilesDoesNotShareOtherIntent/sequence",
+      "TestStageCommitFilesDoesNotShareOtherIntent/token",
+      "TestStageCommitFilesDoesNotShareOtherIntent/repository",
+      "TestStageCommitFilesDoesNotShareOtherIntent/root",
+      "TestStageCommitFilesDoesNotShareOtherIntent/entity",
+      "TestStageCommitFilesDoesNotShareOtherIntent/stamp",
+      "TestStageCommitFilesDoesNotShareOtherIntent"
+    ],
+    "logSHA256": "494b17dc858bd948f55644fd60aba893434bdb4994a9c6bfe9ab2cc8789acdf0"
+  },
+  "linuxRace": {
+    "packagesPassed": 3,
+    "testsPassed": 568,
+    "testsSkipped": 1,
+    "failureEvents": 0,
+    "stagePassedTests": [
+      "TestStageCommitFilesCoalescesBeforeRead",
+      "TestStageCommitFilesReadAdmission",
+      "TestStageCommitFilesCancellationJoinsOwner",
+      "TestStageCommitFilesDoesNotShareOtherIntent/job",
+      "TestStageCommitFilesDoesNotShareOtherIntent/owner",
+      "TestStageCommitFilesDoesNotShareOtherIntent/generation",
+      "TestStageCommitFilesDoesNotShareOtherIntent/sequence",
+      "TestStageCommitFilesDoesNotShareOtherIntent/token",
+      "TestStageCommitFilesDoesNotShareOtherIntent/repository",
+      "TestStageCommitFilesDoesNotShareOtherIntent/root",
+      "TestStageCommitFilesDoesNotShareOtherIntent/entity",
+      "TestStageCommitFilesDoesNotShareOtherIntent/stamp",
+      "TestStageCommitFilesDoesNotShareOtherIntent"
+    ],
+    "logSHA256": "19086bceb2d5b3066764e76cf6521bbfeac5e07669878bf402b754055b1415c1"
+  },
+  "selectedPostgresRace": {
+    "packagesPassed": 1,
+    "testsPassed": 36,
+    "testsSkipped": 0,
+    "failureEvents": 0,
+    "stagePassedTests": [],
+    "logSHA256": "c5d11f0b93f266d329fe83544fd02651bdff9c9899d9776855461e09ee5504c7"
+  },
+  "redOverlay": {
+    "packagesPassed": 0,
+    "testsPassed": 0,
+    "testsSkipped": 0,
+    "failureEvents": 2,
+    "stagePassedTests": [],
+    "logSHA256": "b87a0ed17241bba68487614dd012d4a5dbf2a43b9d5afa8400e6826af7fd6f69",
+    "reason": "Removed pre-read permit only in isolated overlay; busy read reached repository; real source unchanged"
+  },
+  "verified": [
+    "100_identical_calls_one_payload_one_plan_one_ready",
+    "job_lease_token_repository_and_source_identity_separate_flights",
+    "read_admission_before_payload_fetch",
+    "non_nested_cpu_io_total_one",
+    "waiter_cancellation_preserves_owner",
+    "owner_cancellation_joins_read_cleanup",
+    "completed_flights_not_cached",
+    "original_target_unchanged",
+    "real_linux_pg_files_reopened_in_child"
+  ],
+  "helperRootWithoutEnvironmentIsNoOp": true,
+  "fullPostgresRegressionRerun": false,
+  "newMigration": false,
+  "publishedSQLFilesUnchanged": 100,
+  "fullPayloadBytesAdmissionVerified": false,
+  "productionCallerEnabled": false,
+  "targetRenameEnabled": false,
+  "automaticRecoveryEnabled": false,
+  "settlementEnabled": false,
+  "windowsDirectoryMetadataDurabilityVerified": false,
+  "requirementsComplete": false,
+  "checks": {
+    "windowsVet": true,
+    "linuxVet": true,
+    "darwinAmd64Compiled": true,
+    "darwinExecuted": false,
+    "format": true,
+    "incrementalBrandViolations": 0,
+    "brandAllowed": 339,
+    "gitignoreViolations": 0,
+    "protectedSourceUnchanged": true
+  },
+  "formalSoakSourceCommit": "24caf7d45fb96390689dcc03685033242b7bbfea",
+  "formalSoakIncludesThisChange": false
+}

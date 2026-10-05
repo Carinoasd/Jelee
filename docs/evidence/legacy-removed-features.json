@@ -1,0 +1,86 @@
+{
+  "scope": "G05 legacy C# controller retirement and explicit HTTP rejection; remaining service/task/storage removal incomplete",
+  "baseCommit": "109d25337eed511e52e634c8587d01e07b625bba",
+  "removed": [
+    "Live TV controller",
+    "Channel controller",
+    "two controller-only request DTOs"
+  ],
+  "http": {
+    "roots": [
+      "/LiveTv",
+      "/Channels",
+      "/Dlna"
+    ],
+    "status": 501,
+    "code": "feature_removed",
+    "namedConfiguration": "/System/Configuration/livetv; existing authorization retained, authorized requests return 501",
+    "security": "Existing authentication, authorization, HTTPS and IP restrictions retained; denied remote probes keep existing 503",
+    "head": "501 and no body",
+    "headers": "no-store and canonical Content-Language",
+    "localization": "four existing resource catalogs, now 124 keys each"
+  },
+  "tests": {
+    "matrix": {
+      "paths": 15,
+      "methods": 7,
+      "languages": 6,
+      "cases": 630,
+      "configurationUnchanged": true,
+      "namedConfigurationMatrixAuthenticated": true
+    },
+    "focused": {
+      "Passed": 643,
+      "Failed": 0,
+      "Skipped": 0
+    },
+    "additional": "authenticated writes, unauthorized named config, network restrictions, similar prefixes/query, compiled type removal and actual OpenAPI",
+    "negativeOriginalControllers": {
+      "Passed": 0,
+      "Failed": 2,
+      "Skipped": 0,
+      "scope": "compiled types and actual OpenAPI only; no legacy write matrix executed"
+    },
+    "restoration": "all five production sources restored byte-for-byte, including four deleted files remaining absent",
+    "fullSolution": {
+      "suites": 17,
+      "Passed": 4798,
+      "NotExecuted": 21,
+      "Failed": 0
+    },
+    "format": "verify-no-changes PASS with workspace-load warning",
+    "uiCatalogGate": "Windows and Linux PASS; four locales, 124 keys"
+  },
+  "sourceIndex": "../branding-rename-map.md",
+  "sourceHashes": {
+    "startup": "c1765623982a9f5de9bbea16aef48d72ec0b4d7777fcf6e80daf8787ca83ef72",
+    "compatibilityMiddleware": "b4e8577e48a870fb89ec42b67064295dae412c5afefb9f5c9007082c85e45f62",
+    "httpTests": "fbf3a3f675dc0fc3efd817bc0533f1f5e0d997a7db985337b600ad699a6829df",
+    "englishCatalog": "3ae17ec5d7e7aa977087d8ac776768b655d559a3c7bafd1337aa01786e5f3ad1",
+    "japaneseCatalog": "fac5dc57eee794b364b1cad61ce43562f63b5ba744ade703901a7def4c3cd2b7",
+    "simplifiedChineseCatalog": "3fad333c3b9d257c19c2ae0fecb3f1a1af34ed7da7551ec4a1bdd79d5b7b0773",
+    "traditionalChineseCatalog": "0e11c4f01011042d08e4f6ed085dbba5ae62705e115892e2abde5ff64ddc132f"
+  },
+  "removedSourceHashesAtBase": {
+    "liveTvController": "5aad2d34bfdb2351e25f715e78d7eccb7eec3143ffbba6451ba25fdc9832ab33",
+    "channelsController": "f5913fdbc421d1b44aacef1e8706332217beb69259795c8d3dc14cf0650001e6",
+    "programsDto": "b1a38bb3459df6663cd748731ce1fc1bbd3e7a88fcbd501f98b1052ce6ad062c",
+    "channelMappingDto": "e22ffc5cc638bdafcd213dc455b5d6aeb93193a4aa8f71ba3208488c1e3d7afa",
+    "oldEnablingTests": "a536b3baa0369856d85e9297c437949df3c05e7bf5cbde3389cb687f447499cf"
+  },
+  "existingMigrationsChanged": false,
+  "protectedHashesUnchanged": true,
+  "limitations": [
+    "Live TV, guide, tuner, recording, Channel core services and reflection-discovered tasks/providers remain; this is not complete G05 retirement",
+    "Retired configuration factory and stored data remain; no immutable migration rewrite",
+    "No real client handshake or LAN SSDP packet acceptance",
+    "Authentication may access existing account services before rejection; no claim of entirely backend-free legacy requests",
+    "Public type/operation removals intentionally change ABI and OpenAPI; gates retained"
+  ],
+  "gates": {
+    "fullBrandGate": "FAIL retained",
+    "fullBrandViolations": 14761,
+    "incrementalBrandViolations": 0,
+    "gitignoreViolations": 0
+  }
+}

@@ -10,23 +10,23 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 )
 
-// This projection exists at schema 7 and schema 8. Subtract only the new
-// column, so preservation checks still cover every preexisting parent field.
+// Compare fields shared with schema 7. Later additive columns have dedicated
+// migration tests; every preexisting parent field remains in this projection.
 func ignoreLegacySnapshot(t *testing.T, f jobFixture) string {
 	t.Helper()
 	var result string
 	err := f.s.Pool.QueryRow(f.ctx, `SELECT jsonb_build_object(
  'jobs',(SELECT jsonb_agg(to_jsonb(j)-'ignore_requested' ORDER BY id) FROM jobs j),
- 'libraries',(SELECT jsonb_agg(to_jsonb(l)-'inventory_baseline_revision' ORDER BY id) FROM libraries l),
+ 'libraries',(SELECT jsonb_agg(to_jsonb(l)-'inventory_baseline_revision'-'metadata_language'-'metadata_preferences_revision'-'metadata_image_languages'-'active_inventory_snapshot'-'catalog_sync_auto' ORDER BY id) FROM libraries l),
  'roots',(SELECT jsonb_agg(to_jsonb(r) ORDER BY id) FROM library_roots r),
  'inventory',(SELECT jsonb_agg(to_jsonb(i) ORDER BY id) FROM job_inventory i),
- 'directories',(SELECT jsonb_agg(to_jsonb(d) ORDER BY job_id,root_id,path) FROM job_directories d),
+ 'directories',(SELECT jsonb_agg(to_jsonb(d)-'claim_generation'-'claim_token' ORDER BY job_id,root_id,path) FROM job_directories d),
  'baseline',(SELECT jsonb_agg(to_jsonb(b)-'observed_revision' ORDER BY library_id,root_id,path) FROM library_inventory_baseline b),
  'nfo_cache',(SELECT jsonb_agg(to_jsonb(c) ORDER BY root_id,relative_path) FROM nfo_cache c),
  'nfo_phases',(SELECT jsonb_agg(to_jsonb(p) ORDER BY job_id) FROM nfo_job_state p),
  'nfo_requests',(SELECT jsonb_agg(to_jsonb(r) ORDER BY job_id) FROM nfo_job_requests r),
  'images',(SELECT jsonb_agg(to_jsonb(i) ORDER BY job_id) FROM image_job_state i),
- 'audit',(SELECT jsonb_agg(to_jsonb(a) ORDER BY id) FROM audit_logs a))::text`).Scan(&result)
+ 'audit',(SELECT jsonb_agg(to_jsonb(a)-'category'-'request_id'-'target_ref' ORDER BY id) FROM audit_logs a))::text`).Scan(&result)
 	if err != nil {
 		t.Fatal("read private legacy migration snapshot")
 	}
@@ -43,6 +43,10 @@ func ignoreIntentSnapshot(t *testing.T, f jobFixture) string {
 }
 func denyIgnoreDowngrade(t *testing.T, f jobFixture) {
 	t.Helper()
+	beforeVersion, beforeDirty, err := Migrate(f.ctx, f.s.Pool.Config().ConnString(), "status")
+	if err != nil || beforeDirty {
+		t.Fatal("direct guard requires a clean migration version", err)
+	}
 	before := ignoreIntentSnapshot(t, f)
 	legacy := ignoreLegacySnapshot(t, f)
 	body, err := migrationFiles.ReadFile("migrations/000008_ignore_intent.down.sql")
@@ -64,7 +68,7 @@ func denyIgnoreDowngrade(t *testing.T, f jobFixture) {
 		t.Fatal("refused downgrade changed retained intent or existing data")
 	}
 	v, dirty, err := Migrate(f.ctx, f.s.Pool.Config().ConnString(), "status")
-	if err != nil || dirty || v != SchemaVersion {
+	if err != nil || dirty || v != beforeVersion {
 		t.Fatal("direct guard regression dirtied migration version")
 	}
 }
@@ -80,9 +84,36 @@ func submitIgnoreForMigration(t *testing.T, f jobFixture) domain.Job {
 
 func TestIgnoreMigrationLegacySevenRoundTripAndReadiness(t *testing.T) {
 	f := newNFOFixture(t)
+	legacyMigrationAt44(t, f.jobFixture)
 	l, _ := f.start(t, "existing-cache", "retained.nfo")
 	f.parseHead(t, l, nfoValidSummary())
 	f.finish(t, l)
+	nfoMigrateVersion(t, f.jobFixture, "down", 43)
+	nfoMigrateVersion(t, f.jobFixture, "down", 42)
+	nfoMigrateVersion(t, f.jobFixture, "down", 41)
+	nfoMigrateVersion(t, f.jobFixture, "down", 40)
+	nfoMigrateVersion(t, f.jobFixture, "down", 39)
+	nfoMigrateVersion(t, f.jobFixture, "down", 38)
+	nfoMigrateVersion(t, f.jobFixture, "down", 37)
+	nfoMigrateVersion(t, f.jobFixture, "down", 36)
+	nfoMigrateVersion(t, f.jobFixture, "down", 35)
+	nfoMigrateVersion(t, f.jobFixture, "down", 34)
+	nfoMigrateVersion(t, f.jobFixture, "down", 33)
+	nfoMigrateVersion(t, f.jobFixture, "down", 32)
+	nfoMigrateVersion(t, f.jobFixture, "down", 31)
+	nfoMigrateVersion(t, f.jobFixture, "down", 30)
+	nfoMigrateVersion(t, f.jobFixture, "down", 29)
+	nfoMigrateVersion(t, f.jobFixture, "down", 28)
+	nfoMigrateVersion(t, f.jobFixture, "down", 27)
+	nfoMigrateVersion(t, f.jobFixture, "down", 26)
+	nfoMigrateVersion(t, f.jobFixture, "down", 25)
+	nfoMigrateVersion(t, f.jobFixture, "down", 24)
+	nfoMigrateVersion(t, f.jobFixture, "down", 23)
+	nfoMigrateVersion(t, f.jobFixture, "down", 22)
+	nfoMigrateVersion(t, f.jobFixture, "down", 21)
+	nfoMigrateVersion(t, f.jobFixture, "down", 20)
+	nfoMigrateVersion(t, f.jobFixture, "down", 19)
+	nfoMigrateVersion(t, f.jobFixture, "down", 18)
 	nfoMigrateVersion(t, f.jobFixture, "down", 17)
 	nfoMigrateVersion(t, f.jobFixture, "down", 16)
 	nfoMigrateVersion(t, f.jobFixture, "down", 15)
@@ -139,6 +170,33 @@ func TestIgnoreMigrationLegacySevenRoundTripAndReadiness(t *testing.T) {
 	if _, err = f.s.Pool.Exec(f.ctx, `UPDATE schema_migrations SET version=$1,dirty=false`, SchemaVersion); err != nil {
 		t.Fatal("restore private readiness fixture")
 	}
+	legacyMigrationAt44(t, f.jobFixture)
+	nfoMigrateVersion(t, f.jobFixture, "down", 43)
+	nfoMigrateVersion(t, f.jobFixture, "down", 42)
+	nfoMigrateVersion(t, f.jobFixture, "down", 41)
+	nfoMigrateVersion(t, f.jobFixture, "down", 40)
+	nfoMigrateVersion(t, f.jobFixture, "down", 39)
+	nfoMigrateVersion(t, f.jobFixture, "down", 38)
+	nfoMigrateVersion(t, f.jobFixture, "down", 37)
+	nfoMigrateVersion(t, f.jobFixture, "down", 36)
+	nfoMigrateVersion(t, f.jobFixture, "down", 35)
+	nfoMigrateVersion(t, f.jobFixture, "down", 34)
+	nfoMigrateVersion(t, f.jobFixture, "down", 33)
+	nfoMigrateVersion(t, f.jobFixture, "down", 32)
+	nfoMigrateVersion(t, f.jobFixture, "down", 31)
+	nfoMigrateVersion(t, f.jobFixture, "down", 30)
+	nfoMigrateVersion(t, f.jobFixture, "down", 29)
+	nfoMigrateVersion(t, f.jobFixture, "down", 28)
+	nfoMigrateVersion(t, f.jobFixture, "down", 27)
+	nfoMigrateVersion(t, f.jobFixture, "down", 26)
+	nfoMigrateVersion(t, f.jobFixture, "down", 25)
+	nfoMigrateVersion(t, f.jobFixture, "down", 24)
+	nfoMigrateVersion(t, f.jobFixture, "down", 23)
+	nfoMigrateVersion(t, f.jobFixture, "down", 22)
+	nfoMigrateVersion(t, f.jobFixture, "down", 21)
+	nfoMigrateVersion(t, f.jobFixture, "down", 20)
+	nfoMigrateVersion(t, f.jobFixture, "down", 19)
+	nfoMigrateVersion(t, f.jobFixture, "down", 18)
 	nfoMigrateVersion(t, f.jobFixture, "down", 17)
 	nfoMigrateVersion(t, f.jobFixture, "down", 16)
 	nfoMigrateVersion(t, f.jobFixture, "down", 15)
@@ -226,7 +284,7 @@ func TestIgnoreMigrationDownRefusesIncompleteRetainedIntent(t *testing.T) {
 }
 
 func TestIgnoreMigrationHistoryTrimAllowsDowngrade(t *testing.T) {
-	f := newJobFixture(t)
+	f := newJobFixture(t, legacyMigrationAt44)
 	j := submitIgnoreForMigration(t, f)
 	if _, err := f.s.CancelJob(f.ctx, f.a, j.ID); err != nil {
 		t.Fatal("terminate enabled queued fixture")
@@ -239,6 +297,32 @@ func TestIgnoreMigrationHistoryTrimAllowsDowngrade(t *testing.T) {
 		t.Fatal("ordinary terminal history trim did not remove request with parent")
 	}
 	before := ignoreLegacySnapshot(t, f)
+	nfoMigrateVersion(t, f, "down", 43)
+	nfoMigrateVersion(t, f, "down", 42)
+	nfoMigrateVersion(t, f, "down", 41)
+	nfoMigrateVersion(t, f, "down", 40)
+	nfoMigrateVersion(t, f, "down", 39)
+	nfoMigrateVersion(t, f, "down", 38)
+	nfoMigrateVersion(t, f, "down", 37)
+	nfoMigrateVersion(t, f, "down", 36)
+	nfoMigrateVersion(t, f, "down", 35)
+	nfoMigrateVersion(t, f, "down", 34)
+	nfoMigrateVersion(t, f, "down", 33)
+	nfoMigrateVersion(t, f, "down", 32)
+	nfoMigrateVersion(t, f, "down", 31)
+	nfoMigrateVersion(t, f, "down", 30)
+	nfoMigrateVersion(t, f, "down", 29)
+	nfoMigrateVersion(t, f, "down", 28)
+	nfoMigrateVersion(t, f, "down", 27)
+	nfoMigrateVersion(t, f, "down", 26)
+	nfoMigrateVersion(t, f, "down", 25)
+	nfoMigrateVersion(t, f, "down", 24)
+	nfoMigrateVersion(t, f, "down", 23)
+	nfoMigrateVersion(t, f, "down", 22)
+	nfoMigrateVersion(t, f, "down", 21)
+	nfoMigrateVersion(t, f, "down", 20)
+	nfoMigrateVersion(t, f, "down", 19)
+	nfoMigrateVersion(t, f, "down", 18)
 	nfoMigrateVersion(t, f, "down", 17)
 	nfoMigrateVersion(t, f, "down", 16)
 	nfoMigrateVersion(t, f, "down", 15)

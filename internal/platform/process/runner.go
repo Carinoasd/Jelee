@@ -66,12 +66,14 @@ func (Result) String() string   { return "process result (output redacted)" }
 func (Result) GoString() string { return "process result (output redacted)" }
 
 type Runner struct {
-	config  Config
-	tools   map[string]Tool
-	slots   chan struct{}
-	started atomic.Uint64
-	active  atomic.Int64
-	peak    atomic.Int64
+	config    Config
+	tools     map[string]Tool
+	slots     chan struct{}
+	started   atomic.Uint64
+	active    atomic.Int64
+	peak      atomic.Int64
+	cancelled atomic.Uint64
+	timedOut  atomic.Uint64
 }
 
 // Stats contains aggregate process lifecycle counts without paths or output.
@@ -83,13 +85,17 @@ type Stats struct {
 	Started uint64
 	Active  int64
 	Peak    int64
+	// Count context-triggered termination before exit readiness was observed.
+	// They exclude pre-start cancellation and normal exits noticed first.
+	Cancelled uint64
+	TimedOut  uint64
 }
 
 func (r *Runner) Stats() Stats {
 	if r == nil {
 		return Stats{}
 	}
-	return Stats{Started: r.started.Load(), Active: r.active.Load(), Peak: r.peak.Load()}
+	return Stats{Started: r.started.Load(), Active: r.active.Load(), Peak: r.peak.Load(), Cancelled: r.cancelled.Load(), TimedOut: r.timedOut.Load()}
 }
 
 func validName(value string) bool {
@@ -229,6 +235,24 @@ func (r *Runner) run(ctx context.Context, request Request, exitError func(int) e
 	if !ok {
 		return Result{}, ErrInvalid
 	}
+	return r.runWith(ctx, request, arguments, exitError, nil)
+}
+
+// runWith runs a registered tool with the given argv. Only run (registered
+// operations) and the sealed isolated tool runner (helper descriptor argv)
+// call it. collect, when set, reads the private working directory after a
+// successful exit and before it is removed; its error is returned as is.
+func (r *Runner) runWith(ctx context.Context, request Request, arguments []string, exitError func(int) error, collect func(string) error) (result Result, resultErr error) {
+	if ctx == nil {
+		return Result{}, ErrInvalid
+	}
+	if ctx.Err() != nil {
+		return Result{}, contextError(ctx)
+	}
+	tool, ok := r.tools[request.Tool]
+	if !ok {
+		return Result{}, ErrInvalid
+	}
 	if request.Stdin != nil && !validInput(request.Stdin) {
 		return Result{}, ErrInvalid
 	}
@@ -307,6 +331,11 @@ func (r *Runner) run(ctx context.Context, request Request, exitError func(int) e
 	select {
 	case <-ctx.Done():
 		resultErr = contextError(ctx)
+		if errors.Is(ctx.Err(), context.DeadlineExceeded) {
+			r.timedOut.Add(1)
+		} else {
+			r.cancelled.Add(1)
+		}
 	case <-limit:
 		resultErr = ErrOutputLimit
 	case waitError = <-exited:
@@ -349,6 +378,13 @@ func (r *Runner) run(ctx context.Context, request Request, exitError func(int) e
 		resultErr = ErrExit
 		if exitError != nil {
 			resultErr = exitError(code)
+		}
+	}
+	if resultErr == nil && collect != nil {
+		if ctx.Err() != nil {
+			resultErr = contextError(ctx)
+		} else if err := collect(dir); err != nil {
+			resultErr = err
 		}
 	}
 	if resultErr != nil {

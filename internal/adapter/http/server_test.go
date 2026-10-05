@@ -79,6 +79,15 @@ func (r *fakeRepository) GetItem(ctx context.Context, user, id string) (domain.I
 type fakeResolver struct {
 	calls   int
 	resolve func(context.Context, access.Principal, string) (media.Source, error)
+	track   func(context.Context, access.Principal, string, media.TrackKind, string) (media.Source, error)
+}
+
+func (r *fakeResolver) ResolveTrack(ctx context.Context, principal access.Principal, sourceID string, kind media.TrackKind, trackID string) (media.Source, error) {
+	r.calls++
+	if r.track != nil {
+		return r.track(ctx, principal, sourceID, kind, trackID)
+	}
+	return media.Source{}, media.ErrNotFound
 }
 
 func (r *fakeResolver) Resolve(ctx context.Context, principal access.Principal, id string) (media.Source, error) {
@@ -99,7 +108,8 @@ type fixture struct {
 
 func validConfig() config.Config {
 	return config.Config{
-		Listen: "127.0.0.1:8097", AllowedHosts: []string{"localhost", "127.0.0.1", "::1"},
+		Resources: config.DefaultResourcesConfig(),
+		Listen:    "127.0.0.1:8097", AllowedHosts: []string{"localhost", "127.0.0.1", "::1"},
 		DatabaseURL: "postgres://localhost/jelee", MaxConnections: 2, MaxStreams: 2,
 		RequestTimeoutSeconds: 1,
 	}
@@ -251,7 +261,7 @@ func TestRolloutFlagsAndCapabilities(t *testing.T) {
 			if system.Data.Name != "Jelee" || system.Data.DevMode || system.Data.Capabilities["catalog"] != flags.catalog || system.Data.Capabilities["directDelivery"] != flags.direct {
 				t.Fatalf("capabilities mismatch: %+v", system)
 			}
-			for _, capability := range []string{"transcoding", "hls", "dash", "remux", "downloads"} {
+			for _, capability := range []string{"transcoding", "hls", "dash", "remux", "downloads", "dlna", "discovery", "liveTv", "epg", "tuners", "recordings", "channels"} {
 				value, exists := system.Data.Capabilities[capability]
 				if !exists || value {
 					t.Errorf("forbidden capability %q absent or enabled", capability)
@@ -447,6 +457,7 @@ func TestCentralErrorMapping(t *testing.T) {
 		{domain.ErrInvalid, 400, "invalid_request"}, {media.ErrInvalidRequest, 400, "invalid_request"},
 		{media.ErrPlaybackDenied, 403, "web_playback_disabled"}, {media.ErrTranscodeDisabled, 409, "transcode_disabled"},
 		{media.ErrBusy, 429, "stream_limit"}, {media.ErrMethodNotAllowed, 405, "method_not_allowed"},
+		{media.ErrUserStreamLimit, 429, "user_stream_limit"}, {media.ErrDeviceStreamLimit, 429, "device_stream_limit"},
 		{media.ErrLookupTimeout, 504, "lookup_timeout"},
 		{media.ErrInvalidRange, 416, "invalid_range"}, {media.ErrPreconditionFailed, 412, "precondition_failed"},
 		{media.ErrBodyTooLarge, 413, "body_too_large"}, {media.ErrUnsupportedMediaType, 415, "unsupported_media_type"},

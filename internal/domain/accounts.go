@@ -11,6 +11,13 @@ var (
 	ErrLastAdmin    = errors.New("last active administrator required")
 	ErrDatabase     = errors.New("account storage unavailable")
 	ErrSessionLimit = errors.New("session limit reached")
+	// ErrNativeLoginDisabled is returned only after the password was verified,
+	// so it never reveals the setting of an account to an unauthenticated caller.
+	ErrNativeLoginDisabled = errors.New("native login disabled for user")
+	// ErrPasswordMismatch rejects a password change whose current password
+	// does not verify. It is distinct from ErrUnauthenticated: the session is
+	// valid, only the typed value is wrong.
+	ErrPasswordMismatch = errors.New("current password does not match")
 )
 
 // Actor contains identity verified by HTTP authentication. Stores recheck the
@@ -29,6 +36,7 @@ type User struct {
 	Hidden      bool       `json:"hidden"`
 	Admin       bool       `json:"admin"`
 	Disabled    bool       `json:"disabled"`
+	AllowNative bool       `json:"allowNative"`
 	DeletedAt   *time.Time `json:"deletedAt,omitempty"`
 	CreatedAt   time.Time  `json:"createdAt"`
 }
@@ -61,19 +69,47 @@ type ProfileInput struct {
 }
 
 type Session struct {
-	ID         string     `json:"id"`
-	UserID     string     `json:"userId"`
-	ClientKind string     `json:"clientKind"`
-	DeviceName string     `json:"deviceName"`
+	ID         string `json:"id"`
+	UserID     string `json:"userId"`
+	ClientKind string `json:"clientKind"`
+	DeviceName string `json:"deviceName"`
+	// Client, DeviceID and Version are labels reported by a native client at
+	// login. They identify a device for listing and policy, never prove it.
+	Client     string     `json:"client,omitempty"`
+	DeviceID   string     `json:"deviceId,omitempty"`
+	Version    string     `json:"version,omitempty"`
 	CreatedAt  time.Time  `json:"createdAt"`
 	ExpiresAt  time.Time  `json:"expiresAt"`
+	LastSeenAt *time.Time `json:"lastSeenAt,omitempty"`
+	LastIP     string     `json:"lastIp,omitempty"`
 	RevokedAt  *time.Time `json:"revokedAt,omitempty"`
 }
+
+// NativeClient is the client identity a native login reports. Name and
+// DeviceID are required; Device and Version may be empty.
+type NativeClient struct {
+	Name     string
+	Device   string
+	DeviceID string
+	Version  string
+}
+
+// Field limits of NativeClient in UTF-8 bytes, matching the session columns.
+const (
+	NativeClientNameMax    = 128
+	NativeDeviceNameMax    = 128
+	NativeDeviceIDMax      = 256
+	NativeClientVersionMax = 64
+)
 
 type SessionGrant struct {
 	User    User    `json:"user"`
 	Session Session `json:"session"`
 	Token   string  `json:"token"`
+	// Challenge replaces the session when a web login needs its second
+	// step (G07.8): no session was issued and User, Session and Token are
+	// empty.
+	Challenge *LoginChallenge `json:"-"`
 }
 
 // LoginInput carries the result of an external password KDF. The transaction
@@ -82,11 +118,21 @@ type LoginInput struct {
 	Credentials Credentials
 	PasswordOK  bool
 	DeviceName  string
-	IP          string
-	MaxSessions int
-	SessionTTL  time.Duration
-	LockAfter   int
-	LockFor     time.Duration
+	// Native requests a native session; Client is stored with it. The store
+	// issues one only when the user is allowed native devices.
+	Native bool
+	Client NativeClient
+	// AppPasswordDigest is the application password digest of the
+	// presented password (native logins only; nil when it cannot be one).
+	// A matching application password authenticates like the account
+	// password and is the only way an account with a second factor signs
+	// in natively.
+	AppPasswordDigest []byte
+	IP                string
+	MaxSessions       int
+	SessionTTL        time.Duration
+	LockAfter         int
+	LockFor           time.Duration
 }
 
 type LibraryGrant struct {

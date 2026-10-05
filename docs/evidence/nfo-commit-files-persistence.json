@@ -1,0 +1,154 @@
+{
+  "sourceBaseCommit": "c7dda1dc96ec7077075dfd45c43699ef534c7234",
+  "schemaVersion": 50,
+  "scope": "Internal pre-commit file staging with real Linux PostgreSQL persistence; no runtime caller or target commit",
+  "changedSourceManifest": {
+    "internal/adapter/nfo/commit_files.go": "f3ccee069af9d04be86d164a7ea2b23b2ae90f69845173e8df49af0a1e85c079",
+    "internal/adapter/nfo/stage_commit_files.go": "8d5539327b21fbd866ccec807d233d2d087a7e29d8568df5c71104977a06c547",
+    "internal/adapter/nfo/verify_commit_files.go": "b835e145160e449ce48b699e657f31244f26550e74f6685ecde4e7626e71418d",
+    "internal/adapter/postgres/migrations/000050_nfo_commit_files.down.sql": "feabfedc550fb06f1db871450cec6e59377f291020cda5b89efaa2936d71ef43",
+    "internal/adapter/postgres/migrations/000050_nfo_commit_files.up.sql": "14803e5c8402c9f0e0f8dad0332ab6b725b6910fb74904cb581bcee2d663bcf7",
+    "internal/adapter/postgres/nfo_commit_files.go": "2161b7027b0afc97163c245a77bcc016a248c642061367b6e86fe06bb8e90d13",
+    "internal/adapter/postgres/nfo_commit_files_test.go": "c3543d4797c086960e35b827ee043021e643fc451e16556bf61ac6759cafac37",
+    "internal/adapter/postgres/nfo_write_commit_journal.go": "c4575f78939242fb219acb9a42316443bffd15e6dc3a1193f74e91e11d853ea3",
+    "internal/adapter/postgres/nfo_write_commit_journal_test.go": "504b9ef78387aca9dca58a5af7ddcc6155ba49e921fe2a6350b7d313bf54984f",
+    "internal/adapter/postgres/store.go": "fa103650821e1ced3dfe24b1d52f6e389eda32c396434ee1764b3fb2cb0c143f",
+    "internal/app/nfo_commit_files.go": "125df4c097e97d8197c9dfa0fa50810c2fe958d481e2c689748b63ff47dfe92e",
+    "internal/domain/nfo_commit_files.go": "648305fa2e8830f8e65a91f9d420f961e3438320854cf5da85a829fe7cd6b48a",
+    "internal/domain/nfo_commit_files_test.go": "ab69450aab4282acebc73945158128b6d0b6a84e8e95883b3261c6c924fb9e1a"
+  },
+  "frozenSourceFiles": 966,
+  "frozenSourceManifestSHA256": "f6b152c40361375ceb03771b9f8a081764764c5846b95211d57478d0c6147f38",
+  "fullPostgresRace": {
+    "compiledRoots": 434,
+    "rootsRunExactlyOnce": true,
+    "rootsPassedExactlyOnce": true,
+    "failedTests": [],
+    "skippedTests": [],
+    "exitCodes": {
+      "2": 0,
+      "1": 0,
+      "3": 0,
+      "0": 0
+    },
+    "testManifestSHA256": "2863877d3550313d7bd77a1e5e247425b4f921de59c08d5f7e11126babdc3822",
+    "passed": true,
+    "testPassEvents": 1177,
+    "shards": [
+      {
+        "packagesPassed": 1,
+        "testsPassed": 243,
+        "testsSkipped": 0,
+        "failureEvents": 0,
+        "logSHA256": "725c98d3dd8460a7facc4add1a5a5ec7ab102465312fca45b61a92ab7b78f1c6"
+      },
+      {
+        "packagesPassed": 1,
+        "testsPassed": 264,
+        "testsSkipped": 0,
+        "failureEvents": 0,
+        "logSHA256": "a2b1a5c960978723cd9289f07ac502c2f666bf8bcbf5c00b7e1f10d62613b992"
+      },
+      {
+        "packagesPassed": 1,
+        "testsPassed": 223,
+        "testsSkipped": 0,
+        "failureEvents": 0,
+        "logSHA256": "1c0705fcd96963e09da378c9fee4f488a7673dab244d3f8cbfeb645cde82247e"
+      },
+      {
+        "packagesPassed": 1,
+        "testsPassed": 447,
+        "testsSkipped": 0,
+        "failureEvents": 0,
+        "logSHA256": "8ac8704877fce1fb7014ba6f1dd65569776907f98316afad15ce045f3d8f6808"
+      }
+    ]
+  },
+  "selectedPostgresRace": {
+    "packagesPassed": 1,
+    "testsPassed": 86,
+    "testsSkipped": 0,
+    "failureEvents": 0,
+    "logSHA256": "8c126433a2340323f91daa6e83c447a54e59e27d05af7302029c35f71276392f"
+  },
+  "windows": {
+    "packagesPassed": 8,
+    "testsPassed": 1586,
+    "testsSkipped": 743,
+    "failureEvents": 0,
+    "logSHA256": "280291e70182f7aa3fe5a479d2ff6e93672ee76404c9ea43dcbd1c924271b583"
+  },
+  "linuxRace": {
+    "packagesPassed": 6,
+    "testsPassed": 1169,
+    "testsSkipped": 1,
+    "failureEvents": 0,
+    "logSHA256": "cb494ea5b2bdad8c13613597aac68da14afdc7fbec0ff485932c53892e76342b"
+  },
+  "runtimePostgresRace": {
+    "packagesPassed": 1,
+    "testsPassed": 1,
+    "testsSkipped": 0,
+    "failureEvents": 0,
+    "logSHA256": "d087b0016d91bc64eaeb78c2b28bd56a6f6283c017e18b807b909b472c148c38"
+  },
+  "initialSelectedFailure": {
+    "counts": {
+      "packagesPassed": 0,
+      "testsPassed": 66,
+      "testsSkipped": 0,
+      "failureEvents": 2,
+      "logSHA256": "ed359611df1d1278385975c261ec04d77a22404a39e4ec25bfa5a5b5e2e8c94d"
+    },
+    "reason": "Conflicting-ready fixture accidentally made output identity equal rollback; changed only fixture identity, final selected and full suites passed"
+  },
+  "windowsNativeDatabaseAttempt": {
+    "counts": {
+      "packagesPassed": 0,
+      "testsPassed": 0,
+      "testsSkipped": 0,
+      "failureEvents": 3,
+      "logSHA256": "1bd9e0c050a281f97d17625a7729541b974d88a6cb54a5c18e11e31cc2d672e4"
+    },
+    "result": "Connection to existing dedicated database unavailable before native fixtures; not a pass"
+  },
+  "databasePersistenceVerified": true,
+  "nativeLinuxDatabaseVerified": true,
+  "nativeWindowsDatabaseVerified": false,
+  "helperRootWithoutEnvironmentIsNoOp": true,
+  "verified": [
+    "first_and_replayed_transactions_fenced_at_commit",
+    "immutable_token_bound_plan_and_ready",
+    "cross_process_native_files_reopened_from_database",
+    "job_owned_controlled_intent_reconstruction",
+    "unrelated_source_rejected",
+    "retained_evidence_refuses_down_migration",
+    "sql_domain_codec_consistency"
+  ],
+  "fullRootMediaProofVerified": false,
+  "productionCallerEnabled": false,
+  "targetRenameEnabled": false,
+  "settlementEnabled": false,
+  "automaticRecoveryEnabled": false,
+  "backupRotationIncluded": false,
+  "newNFOCreationIncluded": false,
+  "stageSingleflightImplemented": false,
+  "fullPayloadAdmissionVerified": false,
+  "windowsDirectoryMetadataDurabilityVerified": false,
+  "requirementsComplete": false,
+  "checks": {
+    "windowsVet": true,
+    "linuxVet": true,
+    "darwinAmd64Compiled": true,
+    "darwinExecuted": false,
+    "format": true,
+    "incrementalBrandViolations": 0,
+    "brandAllowed": 339,
+    "gitignoreViolations": 0,
+    "publishedSQLFilesUnchanged": 98,
+    "protectedSourceUnchanged": true
+  },
+  "formalSoakSourceCommit": "24caf7d45fb96390689dcc03685033242b7bbfea",
+  "formalSoakIncludesThisChange": false
+}

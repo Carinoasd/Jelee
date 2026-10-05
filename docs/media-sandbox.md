@@ -6,6 +6,14 @@
 
 Successful `New` means the supplied identity policy and ELF dependency closure were verified. It does not enable a capability. Production must use the embedded executable/runtime manifests, `RequireProtectedFiles=true`, early helper dispatch, and a read-only runtime image. The application registrar owns the final capability check. A development policy with protection disabled is not eligible for production registration.
 
+## Matroska and MediaInfo tool modes (E4)
+
+`sandbox.NewTool` / `RunToolHelper` reuse the same verification, Landlock, seccomp allowlist and `execveat` path for three fixed modes behind a separate `--internal-media-tool-helper` entry, so the ffprobe descriptor and `linux-metadata-sandbox-v1` policy are unchanged. Tool modes additionally grant READ_FILE on the stdin file object (the tools reopen `/proc/self/fd/0`); only `mkvextract` may create files, in the runner's private working directory, with `RLIMIT_FSIZE` 64 MiB and CPU 600 s. Descriptors carry only the mode, the fixed path and ascending integer IDs. Details: [mkvtoolnix and MediaInfo](matroska-tools.md).
+
+## Tesseract OCR mode (G15.6)
+
+A fourth tool mode, `tesseract-ocr`, runs the pinned Tesseract on one decoded subtitle picture (a private PGM file passed as the verified read-only stdin). Its policy adds `DataFiles`: the pinned `<language>.traineddata` files, all in one directory, hashed (and, in production, ownership-checked) at registration and again in the helper, and granted READ_FILE as those same file objects — only the languages of the run. The descriptor carries 1–4 language codes that must be pinned by the policy. Its exact closure may hold up to 64 libraries (`MaxOCRLibraries`; Debian's build links libcurl and libarchive); the other modes keep the 32-file bound. It creates no file (FSIZE 0), runs with CPU 30 s and `OMP_THREAD_LIMIT=1`, and has its own `OCRPolicyVersion`, so `ToolPolicyVersion` and the MediaInfo probe identity are unchanged. Details: [subtitle OCR](subtitle-ocr.md).
+
 ## Registration and helper contract
 
 ```go
@@ -128,7 +136,8 @@ CGO_ENABLED=0 .bin/go test -cover -covermode=atomic -c \
 CGO_ENABLED=0 .bin/go build -o .testdata/sandbox-covdata cmd/covdata
 # Inside the protected test image, with the fixture environment configured:
 /project/sandbox.test -test.v -test.timeout=3m \
-  '-test.run=Test(Native|Real|Pinned|Protected|New|Descriptor|Launcher|Policy|Syscall)' \
+  '-test.run=Test(Native|Real|Pinned|Protected|New|Descriptor|Launcher|Policy|Syscall|Cover|Tool|OCR)' \
+  '-test.skip=^Test(RealMatroskaToolsInSandboxWithExplicitHostRuntime|RealTesseractInSandboxWithExplicitHostRuntime)$' \
   -test.gocoverdir=/project/.testdata/parent
 /project/covdata percent -i=/project/.testdata/parent
 /project/covdata percent -i=/project/.testdata/child
@@ -137,7 +146,7 @@ CGO_ENABLED=0 .bin/go build -o .testdata/sandbox-covdata cmd/covdata
 /project/covdata percent -i=/project/.testdata/merged
 ```
 
-The SDK coverage tool is compiled before entering the container because its tmpfs is `noexec`. Raw and merged results, the image digest, binary hashes, and source hashes are retained in the native test evidence. Shared-UID WSL runs may explicitly skip synthetic thread tests when the available UID budget is insufficient; the required isolated run sets `JELEE_REQUIRE_SANDBOX_TEST=true` so missing kernel support or thread budget is a failure. The accepted native run has no skipped selected tests, including FIFO checks on native tmpfs. This run uses `CGO_ENABLED=0` and does not claim race-detector coverage.
+The SDK coverage tool is compiled before entering the container because its tmpfs is `noexec`. For the same reason the fake `mkvextract` used by `TestNativeToolSandboxConfinesExtraction` is shipped in the image (`JELEE_SANDBOX_EXTRACT_FIXTURE`): a copy in `TMPDIR` passes registration but the kernel refuses its final `execveat` with `EACCES`, and the helper correctly fails closed with `media_sandbox_unavailable`. The test refuses a fixture on a `noexec` mount with an explicit message. The tool entry (extraction and OCR) also writes late-failure child snapshots, so the merged figure above, measured before that entry existed, is re-established by each run's evidence. The two Matroska/Tesseract host-runtime proofs need an explicit opt-in, this host's glibc and a source checkout, none of which exist in the image, so they are excluded from this suite instead of being counted as skips. Raw and merged results, the image digest, binary hashes, and source hashes are retained in the native test evidence. Shared-UID WSL runs may explicitly skip synthetic thread tests when the available UID budget is insufficient; the required isolated run sets `JELEE_REQUIRE_SANDBOX_TEST=true` so missing kernel support or thread budget is a failure. The accepted native run has no skipped selected tests, including FIFO checks on native tmpfs. This run uses `CGO_ENABLED=0` and does not claim race-detector coverage.
 
 ## Primary references
 

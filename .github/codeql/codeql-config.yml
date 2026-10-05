@@ -1,0 +1,10 @@
+name: Jelee CodeQL config
+
+# The pinned toolchain (.tools: Go standard library and module cache) and npm
+# dependencies are restored inside the checkout for the traced build. They are
+# third-party code, not Jelee sources, so results there are not reported.
+paths-ignore:
+  - .tools
+  - node_modules
+  - web/node_modules
+  - web/dist

@@ -1,0 +1,23 @@
+{
+  "id": "jelee.item-facts",
+  "name": {
+    "zh-CN": "条目资料概况",
+    "zh-TW": "條目資料概況",
+    "ja-JP": "アイテム情報の概要",
+    "en-US": "Item facts"
+  },
+  "description": {
+    "zh-CN": "在条目详情页增加“资料概况”标签页：元数据完整度、外部数据库链接与文件摘要，并提供复制条目 ID 的操作。",
+    "zh-TW": "在條目詳情頁增加「資料概況」頁籤：中繼資料完整度、外部資料庫連結與檔案摘要，並提供複製條目 ID 的操作。",
+    "ja-JP": "アイテム詳細ページに「情報の概要」タブを追加します。メタデータの充足度、外部データベースへのリンク、ファイルの概要を表示し、アイテム ID をコピーする操作も提供します。",
+    "en-US": "Adds a \"Facts\" tab to the item page with metadata completeness, external database links and a file summary, plus an action that copies the item ID."
+  },
+  "version": "1.0.0",
+  "sdkVersion": "^1.0.0",
+  "minJeleeVersion": "0.1.0",
+  "permissions": ["catalog.read", "settings.storage"],
+  "hooks": ["media.detail.tabs", "item.action", "settings.section"],
+  "dependencies": {},
+  "entry": "./index.ts",
+  "author": "Carinoasd"
+}

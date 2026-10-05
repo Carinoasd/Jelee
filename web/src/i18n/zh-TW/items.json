@@ -1,0 +1,75 @@
+{
+  "items": {
+    "view": {
+      "label": "檢視",
+      "poster": "海報牆",
+      "list": "清單"
+    },
+    "count": "已顯示 {count}／共 {total} 項",
+    "sort": {
+      "label": "排序",
+      "name": "名稱",
+      "newest": "上映日期（新到舊）",
+      "year": "年份（新到舊）"
+    },
+    "listCaption": "{name} 中的項目",
+    "column": {
+      "poster": "海報",
+      "title": "標題",
+      "kind": "類型"
+    },
+    "kind": {
+      "movie": "電影",
+      "homeVideo": "家庭影片",
+      "series": "影集",
+      "season": "季",
+      "episode": "單集"
+    },
+    "empty": "此媒體庫還沒有項目。",
+    "emptyHint": "媒體庫掃描完成後，項目會顯示在這裡。",
+    "detail": {
+      "parent": "上一層",
+      "yearValue": "{year} 年",
+      "originalTitle": "原始標題",
+      "nfoBadge": "NFO",
+      "overview": "簡介",
+      "noOverview": "尚無簡介。",
+      "genres": "類型標籤",
+      "externalIds": "外部 ID",
+      "defaultId": "預設",
+      "noExternalIds": "沒有外部 ID。",
+      "nfoSource": "NFO 來源",
+      "nfoValid": "中繼資料已從有效的 NFO 檔案讀取。",
+      "nfoMissing": "找不到此項目的 NFO 檔案。",
+      "nfoInvalid": "此項目的 NFO 檔案無法使用。",
+      "nfoReadAt": "（讀取於 {date}）",
+      "nfoNone": "此項目尚未審核過 NFO 檔案。",
+      "files": "檔案資訊",
+      "nativeTitle": "請使用原生用戶端觀看",
+      "nativeBody": "Jelee 網頁介面只用於瀏覽與管理。要觀看此項目，請在 Jelee 原生用戶端中開啟。"
+    },
+    "files": {
+      "version": "版本 {n}",
+      "unprobed": "尚未分析；目前只知道容器、大小與外掛檔案。",
+      "container": "容器",
+      "duration": "時長",
+      "resolution": "解析度",
+      "videoCodec": "視訊編碼",
+      "audioCodecs": "音訊編碼",
+      "bitrate": "位元率",
+      "size": "檔案大小",
+      "embeddedAudio": "音軌",
+      "embeddedSubtitles": "內嵌字幕",
+      "externalFiles": "外掛字幕與音軌檔案",
+      "kindSubtitle": "字幕",
+      "kindAudio": "音軌",
+      "unknownLanguage": "未知語言",
+      "flagDefault": "預設",
+      "flagForced": "強制",
+      "flagSdh": "聽障",
+      "flagCommentary": "評論",
+      "none": "此項目沒有媒體檔案。",
+      "unavailable": "目前無法載入檔案資訊。"
+    }
+  }
+}

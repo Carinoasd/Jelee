@@ -85,12 +85,27 @@ func TestProbeRoutesRequireAdminStrictBodyAndOneKey(t *testing.T) {
 	}
 }
 
+// G45.6: rebuilding a whole library needs iUnderstand; nothing is submitted
+// without it. An item rebuild needs no confirmation.
+func TestProbeLibraryRebuildNeedsConfirmation(t *testing.T) {
+	h := newProbeHTTP(t, httpProbeJobs{submit: func(context.Context, domain.Actor, string, string, string, domain.ProbeIntent, domain.JobPolicy, *domain.ProbeIdentity) (domain.Job, bool, error) {
+		t.Fatal("unconfirmed library rebuild reached the repository")
+		return domain.Job{}, false, nil
+	}}, httpAvailableProbe)
+	for _, body := range []string{`{}`, `{"iUnderstand":false}`, `{"priority":"manual"}`} {
+		w := jobRequest(h, "POST", "/api/v1/libraries/"+libraryID+"/probe/rebuild", body, "a", "probe-1")
+		if w.Code != 400 || !strings.Contains(w.Body.String(), `"confirmation_required"`) {
+			t.Fatalf("%s: %d %s", body, w.Code, w.Body)
+		}
+	}
+}
+
 func TestProbeRouteProjectsOnlyPublicIntentAndPreservesReplay(t *testing.T) {
 	for _, tc := range []struct{ name, path, body, library, scope, target, priority string }{
 		{"scan opt-in", "/api/v1/libraries/" + libraryID + "/scan", `{"probe":true}`, libraryID, domain.ProbeScopeIncremental, "", domain.JobPriorityManual},
 		{"scan explicit opt-out", "/api/v1/libraries/" + libraryID + "/scan", `{"probe":false}`, libraryID, "", "", domain.JobPriorityManual},
 		{"scan default", "/api/v1/libraries/" + libraryID + "/scan", `{}`, libraryID, "", "", domain.JobPriorityManual},
-		{"library rebuild", "/api/v1/libraries/" + libraryID + "/probe/rebuild", `{"priority":"background"}`, libraryID, domain.ProbeScopeLibraryRebuild, "", domain.JobPriorityBackground},
+		{"library rebuild", "/api/v1/libraries/" + libraryID + "/probe/rebuild", `{"priority":"background","iUnderstand":true}`, libraryID, domain.ProbeScopeLibraryRebuild, "", domain.JobPriorityBackground},
 		{"item rebuild", "/api/v1/items/" + itemID + "/probe/rebuild", `{}`, "", domain.ProbeScopeItemRebuild, itemID, domain.JobPriorityManual},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -209,7 +224,7 @@ func TestProbeCapabilityChangesAndErrorsRemainSafe(t *testing.T) {
 		h := newProbeHTTP(t, httpProbeJobs{submit: func(context.Context, domain.Actor, string, string, string, domain.ProbeIntent, domain.JobPolicy, *domain.ProbeIdentity) (domain.Job, bool, error) {
 			return domain.Job{}, false, tc.err
 		}}, httpAvailableProbe)
-		w := jobRequest(h, "POST", "/api/v1/libraries/"+libraryID+"/probe/rebuild", "{}", "a", "probe-1")
+		w := jobRequest(h, "POST", "/api/v1/libraries/"+libraryID+"/probe/rebuild", `{"iUnderstand":true}`, "a", "probe-1")
 		if w.Code != tc.status || !strings.Contains(w.Body.String(), tc.code) || strings.Contains(w.Body.String(), "private") || strings.Contains(w.Body.String(), "secret") || w.Header().Get("Content-Language") != "zh-TW" {
 			t.Fatalf("unsafe probe error %d %s", w.Code, w.Body)
 		}
@@ -223,7 +238,7 @@ func TestProbeOpenAPIReflectsRoutesStrictInputsAndAdminRole(t *testing.T) {
 	paths := spec["paths"].(map[string]any)
 	for path, method := range map[string]string{"/api/v1/libraries/{id}/probe/rebuild": "post", "/api/v1/items/{id}/probe/rebuild": "post", "/api/v1/jobs/{id}/probe": "get"} {
 		op := paths[path].(map[string]any)[method].(map[string]any)
-		if op["x-jelee-role"] != "administrator" || len(op["security"].([]any)) != 1 {
+		if op["x-jelee-role"] != "administrator" || len(op["security"].([]any)) != 2 {
 			t.Fatal("probe operation has no admin auth declaration")
 		}
 		if method == "post" {
@@ -244,7 +259,7 @@ func TestProbeOpenAPIReflectsRoutesStrictInputsAndAdminRole(t *testing.T) {
 	if scan["additionalProperties"] != false || scan["properties"].(map[string]any)["probe"].(map[string]any)["default"] != false {
 		t.Fatal("opt-in scan schema is not strict")
 	}
-	if properties := schemas["ProbeRebuildRequest"].(map[string]any)["properties"].(map[string]any); len(properties) != 1 || properties["priority"] == nil {
+	if properties := schemas["ProbeRebuildRequest"].(map[string]any)["properties"].(map[string]any); len(properties) != 2 || properties["priority"] == nil || properties["iUnderstand"] == nil {
 		t.Fatal("rebuild accepts unexpected inputs")
 	}
 	cfg.EnableJobs = false

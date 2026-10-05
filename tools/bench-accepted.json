@@ -1,0 +1,8 @@
+[
+  {
+    "benchmark": "github.com/MoYuanCN/Jelee/internal/access.BenchmarkCompile10k",
+    "unit": "allocs/op",
+    "max": 45000,
+    "reason": "G47 (5c101366d0) builds an Aho-Corasick literal prefilter when a rule set is compiled; compilation runs once per rule version, while evaluation of 10k rules fell from 130 µs to 0.34 µs. Measured 36094 -> 43565 on the CI runner."
+  }
+]

@@ -69,7 +69,7 @@ func TestIgnoreRunnerLifecycle(t *testing.T) {
 	case <-time.After(3 * time.Second):
 		t.Fatal("cancel did not join")
 	}
-	if runner.Stats().Active != 0 {
+	if runner.Stats().Active != 0 || runner.Stats().Cancelled != 1 || runner.Stats().TimedOut != 0 {
 		t.Fatal("child remains active")
 	}
 	entries, err := os.ReadDir(root)
@@ -87,7 +87,7 @@ func TestIgnoreRunnerLifecycle(t *testing.T) {
 	if !errors.Is(err, ErrTimeout) && !errors.Is(err, context.DeadlineExceeded) {
 		t.Fatal("timeout", err)
 	}
-	if len(result.Decisions) != 0 || short.Stats().Active != 0 || short.Stats().Started != 1 {
+	if len(result.Decisions) != 0 || short.Stats().Active != 0 || short.Stats().Started != 1 || short.Stats().TimedOut != 1 || short.Stats().Cancelled != 0 {
 		t.Fatal("timeout leaked results or process")
 	}
 	entries, err = os.ReadDir(root)

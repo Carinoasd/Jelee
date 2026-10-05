@@ -1,0 +1,20 @@
+# Example Prometheus configuration for Jelee (G50.6). Copy it next to
+# jelee-alerts.yml and adjust the target. GET /metrics needs
+# JELEE_ENABLE_METRICS=true and an administrator Bearer session; store that
+# token in the credentials file (mode 0600) and replace it before the
+# session expires (accounts.sessionHours). docs/runbook.md describes every
+# alert.
+global:
+  scrape_interval: 30s
+  evaluation_interval: 30s
+rule_files:
+  - jelee-alerts.yml
+scrape_configs:
+  - job_name: jelee
+    metrics_path: /metrics
+    scheme: http
+    authorization:
+      type: Bearer
+      credentials_file: /etc/prometheus/jelee-token
+    static_configs:
+      - targets: ["127.0.0.1:8097"]

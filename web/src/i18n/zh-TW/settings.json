@@ -1,0 +1,42 @@
+{
+  "settings": {
+    "title": "設定",
+    "appearance": "顯示",
+    "language": {
+      "label": "介面語言",
+      "hint": "會儲存到你的帳號，其他裝置也會套用。",
+      "saved": "已儲存語言。"
+    },
+    "theme": {
+      "label": "主題",
+      "system": "跟隨系統",
+      "light": "淺色",
+      "dark": "深色",
+      "hint": "立即套用並儲存到帳號，在其他裝置上同樣生效。",
+      "saved": "已儲存主題。"
+    },
+    "profile": {
+      "heading": "個人資料",
+      "name": "顯示名稱",
+      "nameHint": "會取代使用者名稱顯示；留空則使用使用者名稱。",
+      "hidden": "在公開的使用者清單中隱藏我的帳號",
+      "hiddenHint": "在登入畫面列出帳號的應用程式將不會顯示你。",
+      "saved": "已儲存個人資料。"
+    },
+    "password": {
+      "heading": "變更密碼",
+      "hint": "變更後，包含此裝置在內的所有裝置都會登出。",
+      "current": "目前密碼",
+      "new": "新密碼",
+      "confirm": "再次輸入新密碼",
+      "rule": "至少 {min} 個位元組；不會去除前後空白。",
+      "required": "請輸入目前密碼。",
+      "tooShort": "新密碼至少需要 {min} 個位元組。",
+      "tooLong": "新密碼最多 {max} 個位元組。",
+      "mismatch": "兩次輸入的密碼不一致。",
+      "wrongCurrent": "目前密碼不正確。",
+      "submit": "變更密碼",
+      "changed": "已變更密碼，請使用新密碼重新登入。"
+    }
+  }
+}

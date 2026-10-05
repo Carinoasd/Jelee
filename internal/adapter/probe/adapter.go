@@ -28,10 +28,17 @@ type executor interface {
 	Run(context.Context, process.Request) (process.Result, error)
 }
 
-// Adapter holds only an isolated runner; production has no unsandboxed fallback.
+type toolExecutor interface {
+	Run(context.Context, process.ToolRequest) (process.Result, error)
+}
+
+// Adapter holds only isolated runners; production has no unsandboxed
+// fallback. supplement, when set, is the isolated MediaInfo runner whose
+// presence is part of the identity the caller registered (G19.1).
 type Adapter struct {
-	runner   executor
-	identity string
+	runner     executor
+	supplement toolExecutor
+	identity   string
 }
 
 // Observation is internal candidate data, not a catalog/cache transaction.
@@ -50,6 +57,19 @@ func NewAdapter(runner *process.IsolatedRunner, identity string) (*Adapter, erro
 		return nil, ErrInvalidInput
 	}
 	return &Adapter{runner: runner, identity: identity}, nil
+}
+
+// NewAdapterWithSupplement also runs the isolated MediaInfo supplement for
+// Matroska and WebM sources. identity must cover the supplement's
+// executable, libraries and argv, so cached results never mix with and
+// without it.
+func NewAdapterWithSupplement(runner *process.IsolatedRunner, supplement *process.IsolatedToolRunner, identity string) (*Adapter, error) {
+	adapter, err := NewAdapter(runner, identity)
+	if err != nil || supplement == nil {
+		return nil, ErrInvalidInput
+	}
+	adapter.supplement = supplement
+	return adapter, nil
 }
 
 // Probe uses one safely opened readonly file. A replaced pathname, changed stat,
@@ -91,6 +111,11 @@ func (a *Adapter) Probe(ctx context.Context, source Source) (observation Observa
 	if err != nil {
 		return Observation{}, err
 	}
+	if a.supplement != nil && domain.IsMatroskaMetadata(metadata) {
+		if err := a.supplementMetadata(ctx, input, &metadata); err != nil {
+			return Observation{}, err
+		}
+	}
 	after, err := input.Stdin().Stat()
 	if err != nil {
 		return Observation{}, inputError(ctx)
@@ -128,6 +153,29 @@ func (a *Adapter) Probe(ctx context.Context, source Source) (observation Observa
 	return Observation{Metadata: metadata, File: input.Metadata(), Fingerprint: fingerprint, FingerprintVersion: FingerprintVersion, ToolIdentity: a.identity}, nil
 }
 
+// supplementMetadata adds the MediaInfo supplement. Cancellation, timeouts,
+// busy runners and sandbox failures fail the probe like ffprobe's own; a
+// MediaInfo failure on this file or unusable output only omits the
+// supplement, so the ffprobe result is still cached.
+func (a *Adapter) supplementMetadata(ctx context.Context, input *Input, metadata *domain.MediaMetadata) error {
+	result, err := a.supplement.Run(ctx, process.ToolRequest{Stdin: input.Stdin()})
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	if err != nil {
+		if classified := classifyProcessError(err); classified != ErrFailed && !errors.Is(err, process.ErrOutputLimit) {
+			return classified
+		}
+		return nil
+	}
+	streams := make(map[int]bool, len(metadata.Streams))
+	for _, stream := range metadata.Streams {
+		streams[stream.Index] = true
+	}
+	metadata.Matroska = ParseMediaInfo(result.Stdout, streams, metadata.Format.DurationMicros)
+	return nil
+}
+
 func matches(info os.FileInfo, metadata Metadata) bool {
 	return info != nil && info.Mode().IsRegular() && info.Size() == metadata.Size && info.ModTime().UnixNano() == metadata.ModifiedUnixNano
 }
@@ -151,6 +199,13 @@ func classifyProcessError(err error) error {
 		// unfamiliar executor failure must not mark healthy media as corrupt.
 		return ErrToolUnavailable
 	}
+}
+
+// EdgeFingerprint is the bounded content fingerprint of a media file: its
+// size and at most the first and last 64 KiB, never the whole file. Scans
+// reuse it for external subtitle and audio files. The result is hex SHA-256.
+func EdgeFingerprint(ctx context.Context, file *os.File, size int64) (string, error) {
+	return edgeFingerprint(ctx, file, size)
 }
 
 func edgeFingerprint(ctx context.Context, file *os.File, size int64) (string, error) {

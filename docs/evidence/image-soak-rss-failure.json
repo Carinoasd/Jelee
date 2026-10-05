@@ -1,0 +1,74 @@
+{
+  "runId": "9a0c8d956e3f4fbea9e844e3fc59bc26",
+  "scope": "formal",
+  "sourceCommit": "9a74a8932a8703b991b8ee2678fb8eb2ec2bdd9b",
+  "sourceTree": "c2525c6d0a1e47c8f14f0a00e3be8c32fc2377f6",
+  "result": "failed",
+  "finalAcceptance": false,
+  "workerErrorCode": "cold_image_processing_failed",
+  "workerStateBeforeCleanup": {
+    "status": "exited",
+    "exitCode": 1,
+    "oomKilled": false,
+    "running": false
+  },
+  "completedRounds": 38,
+  "failedRoundIndex": 38,
+  "failedColdRequest": {
+    "index": 171,
+    "status": 0
+  },
+  "failedColdCode": "context_finished",
+  "failedColdElapsedNanos": 6006416827,
+  "collectorFailureCode": "sampler_failed",
+  "samplerFailure": {
+    "rejected": {
+      "elapsedNanos": 11411000909153,
+      "phase": "cold",
+      "rssBytes": 489373696,
+      "heapBytes": 298269576,
+      "totalAllocBytes": 264770567744,
+      "numGC": 12407,
+      "pauseTotalNs": 971275535,
+      "goroutines": 24
+    },
+    "sampleIndex": 11571,
+    "code": "rss_budget_invalid",
+    "previous": {
+      "elapsedNanos": 11410017868359,
+      "phase": "cold",
+      "rssBytes": 376164352,
+      "heapBytes": 171914408,
+      "totalAllocBytes": 264122705248,
+      "numGC": 12404,
+      "pauseTotalNs": 970953568,
+      "goroutines": 24
+    }
+  },
+  "rssBudgetBytes": 486539264,
+  "rssExcessBytes": 2834432,
+  "runtime": {
+    "gogcPercent": 100,
+    "goMemoryLimitBytes": 536870912
+  },
+  "sampleCount": 11551,
+  "blockCount": 193,
+  "processorMaxima": {
+    "observations": 11551,
+    "maxActive": 2,
+    "maxReservedBytes": 201326592,
+    "maxEstimatedImageBytes": 92099262,
+    "maxCacheEntries": 128,
+    "maxCacheBytes": 1719741
+  },
+  "memorySummaryComplete": false,
+  "snapshotVerified": false,
+  "testArtifactsCleaned": true,
+  "launcherArtifactsCleaned": true,
+  "wrapperSHA256": "02bdbb5cce957797de567af26344ace0a08dd0d197b41ed3781759bbc6f3b754",
+  "eventsSHA256": "9da373d221dd1a43b8a5c9e31846a1523cb2a0a354125b509aa50d293843df00",
+  "underlyingAllocationRootCauseVerified": false,
+  "thresholdRelaxed": false,
+  "restarted": false,
+  "requirementsComplete": false
+}

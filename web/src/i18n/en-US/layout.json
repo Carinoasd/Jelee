@@ -1,0 +1,50 @@
+{
+  "layout": {
+    "title": "Layout",
+    "storageNote": "Signed in, your layout and presets are saved with your account and follow you to other devices; until you change them, the site's default layout applies. Signed out, they stay in this browser.",
+    "reset": "Restore default layout",
+    "keyboardHint": "Reorder with the move up and move down buttons or Alt+Up and Alt+Down; dragging with a mouse also works.",
+    "moved": "{name} moved to position {position} of {total}.",
+    "moveUp": "Move {name} up",
+    "moveDown": "Move {name} down",
+    "detailPanels": "Item page panels",
+    "blocks": {
+      "welcome": "Welcome and shortcuts",
+      "libraries": "Libraries",
+      "latest": "Latest premieres"
+    },
+    "panels": {
+      "overview": "Overview",
+      "genres": "Genres",
+      "externalIds": "External IDs",
+      "nfo": "NFO source",
+      "files": "File information",
+      "pluginPanels": "Plugin panels",
+      "pluginTabs": "Plugin tabs"
+    },
+    "presets": {
+      "label": "Layout preset",
+      "modified": "Custom (not saved as a preset)",
+      "standard": "Standard",
+      "focused": "Focused",
+      "metadata": "Metadata review",
+      "applied": "Layout preset applied.",
+      "delete": "Delete preset {name}",
+      "name": "New preset name",
+      "save": "Save current layout as a preset",
+      "saved": "Layout preset saved.",
+      "nameRequired": "Enter a preset name.",
+      "full": "At most {max} presets can be saved."
+    },
+    "home": {
+      "title": "Home",
+      "customize": "Customize home",
+      "blocks": "Home blocks",
+      "moreInSettings": "Item page panels and layout presets are in Settings.",
+      "allHidden": "Every block is hidden. Use \"Customize home\" to show them again.",
+      "welcome": "Welcome back, {name}",
+      "searchLink": "Search",
+      "latestEmpty": "No items with a premiere date yet."
+    }
+  }
+}

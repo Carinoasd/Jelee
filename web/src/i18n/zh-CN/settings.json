@@ -1,0 +1,42 @@
+{
+  "settings": {
+    "title": "设置",
+    "appearance": "显示",
+    "language": {
+      "label": "界面语言",
+      "hint": "会保存到你的账户，其他设备也会使用。",
+      "saved": "已保存语言。"
+    },
+    "theme": {
+      "label": "主题",
+      "system": "跟随系统",
+      "light": "浅色",
+      "dark": "深色",
+      "hint": "立即应用并保存到账户，在其他设备上同样生效。",
+      "saved": "已保存主题。"
+    },
+    "profile": {
+      "heading": "个人资料",
+      "name": "显示名称",
+      "nameHint": "会代替用户名显示；留空则使用用户名。",
+      "hidden": "在公开的用户列表中隐藏我的账户",
+      "hiddenHint": "在登录界面列出账户的应用将不会显示你。",
+      "saved": "已保存个人资料。"
+    },
+    "password": {
+      "heading": "修改密码",
+      "hint": "修改后，包括此设备在内的所有设备都会退出登录。",
+      "current": "当前密码",
+      "new": "新密码",
+      "confirm": "再次输入新密码",
+      "rule": "至少 {min} 个字节；不会去除首尾空格。",
+      "required": "请输入当前密码。",
+      "tooShort": "新密码至少需要 {min} 个字节。",
+      "tooLong": "新密码最多 {max} 个字节。",
+      "mismatch": "两次输入的密码不一致。",
+      "wrongCurrent": "当前密码不正确。",
+      "submit": "修改密码",
+      "changed": "密码已修改，请使用新密码重新登录。"
+    }
+  }
+}

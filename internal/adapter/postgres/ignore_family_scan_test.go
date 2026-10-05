@@ -7,9 +7,9 @@ import (
 	"github.com/MoYuanCN/Jelee/internal/domain"
 )
 
-func familyScanFixture(t *testing.T) (jobFixture, domain.JobLease, domain.ScanDirectory, domain.FamilyIgnoreScanBatch) {
+func familyScanFixture(t *testing.T, setup ...func(*testing.T, jobFixture)) (jobFixture, domain.JobLease, domain.ScanDirectory, domain.FamilyIgnoreScanBatch) {
 	t.Helper()
-	f, l, legacy := legacyManifestFixture(t)
+	f, l, legacy := legacyManifestFixture(t, setup...)
 	custom := legacy.Proofs[0].IgnoreDirectoryProof
 	legacy.Proofs[0].RuleSize = 0
 	d, err := f.s.NextFamilyIgnoreScanDirectory(f.ctx, l)
@@ -27,7 +27,7 @@ func familyScanFixture(t *testing.T) (jobFixture, domain.JobLease, domain.ScanDi
 }
 
 func TestFamilyIgnoreScanReplayRestartAndMigration(t *testing.T) {
-	f, l, d, b := familyScanFixture(t)
+	f, l, d, b := familyScanFixture(t, legacyMigrationAt44)
 	for i := 0; i < 2; i++ {
 		if err := f.s.SaveFamilyIgnoreScanBatch(f.ctx, l, d, b); err != nil {
 			t.Fatal(err)
@@ -61,6 +61,32 @@ func TestFamilyIgnoreScanReplayRestartAndMigration(t *testing.T) {
 	if _, err = f.s.Pool.Exec(f.ctx, `DELETE FROM jobs WHERE id=$1::uuid`, l.Job.ID); err != nil {
 		t.Fatal("cascade", err)
 	}
+	nfoMigrateVersion(t, f, "down", 43)
+	nfoMigrateVersion(t, f, "down", 42)
+	nfoMigrateVersion(t, f, "down", 41)
+	nfoMigrateVersion(t, f, "down", 40)
+	nfoMigrateVersion(t, f, "down", 39)
+	nfoMigrateVersion(t, f, "down", 38)
+	nfoMigrateVersion(t, f, "down", 37)
+	nfoMigrateVersion(t, f, "down", 36)
+	nfoMigrateVersion(t, f, "down", 35)
+	nfoMigrateVersion(t, f, "down", 34)
+	nfoMigrateVersion(t, f, "down", 33)
+	nfoMigrateVersion(t, f, "down", 32)
+	nfoMigrateVersion(t, f, "down", 31)
+	nfoMigrateVersion(t, f, "down", 30)
+	nfoMigrateVersion(t, f, "down", 29)
+	nfoMigrateVersion(t, f, "down", 28)
+	nfoMigrateVersion(t, f, "down", 27)
+	nfoMigrateVersion(t, f, "down", 26)
+	nfoMigrateVersion(t, f, "down", 25)
+	nfoMigrateVersion(t, f, "down", 24)
+	nfoMigrateVersion(t, f, "down", 23)
+	nfoMigrateVersion(t, f, "down", 22)
+	nfoMigrateVersion(t, f, "down", 21)
+	nfoMigrateVersion(t, f, "down", 20)
+	nfoMigrateVersion(t, f, "down", 19)
+	nfoMigrateVersion(t, f, "down", 18)
 	nfoMigrateVersion(t, f, "down", 17)
 	nfoMigrateVersion(t, f, "down", 16)
 	nfoMigrateVersion(t, f, "down", 15)

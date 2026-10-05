@@ -1,0 +1,75 @@
+{
+  "items": {
+    "view": {
+      "label": "表示",
+      "poster": "ポスター",
+      "list": "リスト"
+    },
+    "count": "{total} 件中 {count} 件を表示",
+    "sort": {
+      "label": "並べ替え",
+      "name": "名前",
+      "newest": "公開日（新しい順）",
+      "year": "年（新しい順）"
+    },
+    "listCaption": "{name} のアイテム",
+    "column": {
+      "poster": "ポスター",
+      "title": "タイトル",
+      "kind": "種類"
+    },
+    "kind": {
+      "movie": "映画",
+      "homeVideo": "ホームビデオ",
+      "series": "シリーズ",
+      "season": "シーズン",
+      "episode": "エピソード"
+    },
+    "empty": "このライブラリにはまだアイテムがありません。",
+    "emptyHint": "ライブラリのスキャンが終わると、ここにアイテムが表示されます。",
+    "detail": {
+      "parent": "親アイテム",
+      "yearValue": "{year} 年",
+      "originalTitle": "原題",
+      "nfoBadge": "NFO",
+      "overview": "あらすじ",
+      "noOverview": "あらすじはまだありません。",
+      "genres": "ジャンル",
+      "externalIds": "外部 ID",
+      "defaultId": "既定",
+      "noExternalIds": "外部 ID はありません。",
+      "nfoSource": "NFO ソース",
+      "nfoValid": "メタデータは有効な NFO ファイルから読み込まれました。",
+      "nfoMissing": "このアイテムの NFO ファイルは見つかりませんでした。",
+      "nfoInvalid": "このアイテムの NFO ファイルは使用できませんでした。",
+      "nfoReadAt": "（{date} に読み込み）",
+      "nfoNone": "このアイテムの NFO ファイルはまだ確認されていません。",
+      "files": "ファイル情報",
+      "nativeTitle": "ネイティブクライアントで視聴",
+      "nativeBody": "Jelee の Web 画面は閲覧と管理専用です。このアイテムを視聴するには、Jelee のネイティブクライアントで開いてください。"
+    },
+    "files": {
+      "version": "バージョン {n}",
+      "unprobed": "まだ解析されていません。コンテナー、サイズ、外部ファイルのみ表示しています。",
+      "container": "コンテナー",
+      "duration": "長さ",
+      "resolution": "解像度",
+      "videoCodec": "映像コーデック",
+      "audioCodecs": "音声コーデック",
+      "bitrate": "ビットレート",
+      "size": "ファイルサイズ",
+      "embeddedAudio": "音声トラック",
+      "embeddedSubtitles": "内蔵字幕",
+      "externalFiles": "外部字幕・音声ファイル",
+      "kindSubtitle": "字幕",
+      "kindAudio": "音声",
+      "unknownLanguage": "言語不明",
+      "flagDefault": "既定",
+      "flagForced": "強制",
+      "flagSdh": "SDH",
+      "flagCommentary": "コメンタリー",
+      "none": "このアイテムにはメディアファイルがありません。",
+      "unavailable": "ファイル情報を読み込めませんでした。"
+    }
+  }
+}

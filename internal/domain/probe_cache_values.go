@@ -110,7 +110,7 @@ func ValidateProbeCandidateBatch(v []ProbeCandidate) error {
 		return ErrInvalid
 	}
 	for i, e := range v {
-		if ValidateProbeCandidate(e) != nil || i > 0 && e.InventoryID <= v[i-1].InventoryID {
+		if ValidateProbeCandidate(e) != nil || i > 0 && e.InventoryID <= v[i-1].InventoryID { //nolint:gosec // G602: i-1 is guarded by i > 0
 			return ErrInvalid
 		}
 	}

@@ -6,6 +6,7 @@ import (
 
 	"github.com/MoYuanCN/Jelee/internal/app"
 	"github.com/MoYuanCN/Jelee/internal/domain"
+	"github.com/MoYuanCN/Jelee/internal/platform/tracing"
 )
 
 type IgnoreOptions struct {
@@ -26,19 +27,54 @@ func (r *Runner) execute(ctx context.Context, l domain.JobLease) (result error, 
 			result, storage = domain.ErrScanIO, false
 		}
 	}()
+	if l.Job.Kind == domain.JobCatalogImport {
+		return r.executeCatalogImport(ctx, l)
+	}
+	if l.Job.Kind == domain.JobNFOWrite {
+		// G46.6: the write itself is a span below the job span.
+		writeCtx, span := tracing.Default().Start(ctx, "nfo.write", "nfo")
+		result, storage = r.executeNFOWrite(writeCtx, l)
+		span.End(spanOutcome(result))
+		return result, storage
+	}
+	if l.Job.Kind == domain.JobCatalogSync {
+		return r.executeCatalogSync(ctx, l)
+	}
+	if l.Job.Kind == domain.JobConsistencyCheck {
+		storage, err := r.executeConsistency(ctx, l)
+		return err, storage
+	}
 	repository, ok := r.repository.(app.IgnoreExecutionRepository)
 	if !ok {
 		return r.executeStages(ctx, l, false)
 	}
 	var request *domain.IgnoreRequest
-	err := r.ignoreDB(ctx, func(c context.Context) error { var e error; request, e = repository.ReadIgnoreRequest(c, l); return e })
+	err := r.ignoreDB(ctx, func(c context.Context) error {
+		var e error
+		request, e = func() (*domain.IgnoreRequest, error) {
+			if reader, ok := r.repository.(app.ExecutionIgnoreRequestReader); ok {
+				return reader.ReadExecutionIgnoreRequest(c, l)
+			}
+			return repository.ReadIgnoreRequest(c, l)
+		}()
+		return e
+	})
 	if err != nil {
 		return err, true
 	}
 	if request == nil {
 		return r.executeStages(ctx, l, false)
 	}
-	if r.options.Ignore == nil || domain.ValidateIgnoreRequest(*request) != nil || request.JobID != l.Job.ID || request.LibraryID != l.Job.LibraryID {
+	if request.JobID != l.Job.ID || request.LibraryID != l.Job.LibraryID {
+		return domain.ErrIgnoreUnavailable, false
+	}
+	if request.Intent.Mode == domain.IgnoreModeFamily {
+		if r.options.FamilyIgnore == nil || domain.ValidateFamilyIgnoreRequest(*request) != nil {
+			return domain.ErrIgnoreUnavailable, false
+		}
+		return r.executeFamilyIgnore(ctx, l, *request)
+	}
+	if r.options.Ignore == nil || domain.ValidateIgnoreRequest(*request) != nil {
 		return domain.ErrIgnoreUnavailable, false
 	}
 	return r.executeIgnore(ctx, l, *request)
@@ -85,7 +121,7 @@ func (r *Runner) executeIgnore(ctx context.Context, l domain.JobLease, request d
 			if err != nil {
 				return err, true
 			}
-			decision, proofs, e := r.options.Ignore.Observer.EvaluateIgnoreBaseline(ctx, root, candidate, request.Intent)
+			decision, proofs, e := r.evaluateIgnoreBaseline(ctx, root, candidate, request.Intent)
 			if e != nil {
 				if ctx.Err() != nil {
 					return ctx.Err(), false
@@ -122,6 +158,9 @@ func (r *Runner) executeIgnore(ctx context.Context, l domain.JobLease, request d
 	if progress.Unknown {
 		return nil, false
 	}
+	if err = r.prepareInventoryPublication(ctx, l); err != nil {
+		return err, true
+	}
 	if err = r.ignoreDB(ctx, func(c context.Context) error { return repo.BeginIgnoreVerification(c, l) }); err != nil {
 		return err, true
 	}
@@ -151,7 +190,9 @@ func (r *Runner) executeIgnore(ctx context.Context, l domain.JobLease, request d
 			if err != nil {
 				return err, true
 			}
-			p, e := r.options.Ignore.Observer.ReobserveIgnoreProof(ctx, root, proof)
+			p, e := withJobIO(r, ctx, func() (domain.IgnoreDirectoryProof, error) {
+				return r.options.Ignore.Observer.ReobserveIgnoreProof(ctx, root, proof)
+			})
 			if e != nil {
 				return e, false
 			}
@@ -184,7 +225,7 @@ func (r *Runner) executeIgnoreInventory(ctx context.Context, l domain.JobLease, 
 		}
 		completed, storage := false, false
 		var callbackErr error
-		err = r.options.Ignore.Scanner.ScanIgnoreDirectory(ctx, directory, intent, func(batch domain.IgnoreScanBatch) error {
+		err = r.scanIgnoreDirectory(ctx, directory, intent, func(batch domain.IgnoreScanBatch) error {
 			if callbackErr != nil {
 				return callbackErr
 			}
@@ -216,13 +257,45 @@ func (r *Runner) executeIgnoreInventory(ctx context.Context, l domain.JobLease, 
 // finishJob keeps failure/cancellation on the existing terminal path and routes
 // enabled success through the repository's verification seal and protected merge.
 func (r *Runner) finishJob(ctx context.Context, l domain.JobLease, state, code string) error {
+	if l.Job.Kind == domain.JobCatalogImport {
+		if r.options.CatalogImport == nil {
+			return domain.ErrInvalid
+		}
+		return r.options.CatalogImport.Repository.FinishCatalogImport(ctx, l, state, code)
+	}
+	if l.Job.Kind == domain.JobNFOWrite {
+		return r.finishNFOWrite(ctx, l, state, code)
+	}
+	if l.Job.Kind == domain.JobCatalogSync {
+		if r.options.CatalogSync == nil {
+			return domain.ErrInvalid
+		}
+		return r.options.CatalogSync.Repository.FinishCatalogSync(ctx, l, state, code)
+	}
+	if l.Job.Kind == domain.JobConsistencyCheck {
+		if r.options.Consistency == nil {
+			return domain.ErrInvalid
+		}
+		return r.options.Consistency.Repository.FinishConsistencyCheck(ctx, l, state, code)
+	}
 	if state == domain.JobSucceeded {
 		if repo, ok := r.repository.(app.IgnoreExecutionRepository); ok {
-			request, err := repo.ReadIgnoreRequest(ctx, l)
+			request, err := func() (*domain.IgnoreRequest, error) {
+				if reader, ok := r.repository.(app.ExecutionIgnoreRequestReader); ok {
+					return reader.ReadExecutionIgnoreRequest(ctx, l)
+				}
+				return repo.ReadIgnoreRequest(ctx, l)
+			}()
 			if err != nil {
 				return err
 			}
 			if request != nil {
+				if request.Intent.Mode == domain.IgnoreModeFamily {
+					if r.options.FamilyIgnore == nil || domain.ValidateFamilyIgnoreRequest(*request) != nil {
+						return domain.ErrIgnoreUnavailable
+					}
+					return r.options.FamilyIgnore.Repository.FinishFamilyIgnoreJob(ctx, l)
+				}
 				if r.options.Ignore == nil {
 					return domain.ErrIgnoreUnavailable
 				}

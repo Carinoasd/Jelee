@@ -1,0 +1,88 @@
+{
+  "baseCommit": "24931eb3ee79d76f4ad09cc61b38b0e95c6628f0",
+  "scope": "Persistent library metadata language, revision conflicts and audit; six query routes resolve validated library preference before provider calls",
+  "schemaVersion": 19,
+  "sources": {
+    "internal/adapter/http/metadata.go": "4cb0bbafe045c205900668f6029e0fdf88bd4e85f35acc4afa651a4d6046f06e",
+    "internal/adapter/http/metadata_episodes.go": "04f6e7164f939a9500456b6075936878ea0f700c38d0e2564641b9aa7e27457c",
+    "internal/adapter/http/metadata_language.go": "da9888dee141c8950624cfafcf289e3946f3e8477813ef3fdbbd96d484fe1351",
+    "internal/adapter/http/metadata_search_test.go": "fa634e9ce69c69ad16b7bfc7a2801e12dc5343c39ec8cd0090893452d03ec281",
+    "internal/adapter/http/metadata_series.go": "7b98c970792de16ecc5571f9785eedd66959a5d8aa6afc78a5cf55126896dad1",
+    "internal/adapter/http/metadata_test.go": "8805356d7b442c7b988ca5a8a8ff569b775f2bd32d984f174c4b3184713618fb",
+    "internal/adapter/postgres/accounts_integration_test.go": "ce873be8307ef08f2fc340c398acc316e06e8eafe0fa23b8e67613c85639f276",
+    "internal/adapter/postgres/ignore_baseline_test.go": "c884fdd2cab56f6726d2c969f5be04eee1a5f97ecd89bf252eeb7cb1ae22d8b7",
+    "internal/adapter/postgres/ignore_family_comparison_test.go": "d65096e5035a49fc9bfbeb8c96e3218c1e1304629d48c78062a4d750fdb62c8c",
+    "internal/adapter/postgres/ignore_family_scan_test.go": "a92e1d92e66fe4c8be56f1d158ed82fe967e6a5f207c0dff76615e7296a44e38",
+    "internal/adapter/postgres/ignore_legacy_baseline_test.go": "40e2e72d8e1eb15dce38db685f936df590dbad2b85ce1a38acb9c2594fe06820",
+    "internal/adapter/postgres/ignore_legacy_baseline_verification_test.go": "83607989e365bf889d1e1eb1726f61bf00964b4de71ffa8044b319f7d3ab1bec",
+    "internal/adapter/postgres/ignore_legacy_migration_test.go": "3a13d0617d06811b9bef8af3af233360270cc49a49d00a800f364e573971c26a",
+    "internal/adapter/postgres/ignore_legacy_verification_test.go": "2e77c5901a1d76de88fcd8d9b140ae5c06dc9ff68e9f520fc29e969a9b85802b",
+    "internal/adapter/postgres/ignore_manifest_test.go": "be74450d6c2b7cad37321a03bc10a086dafdba996dbfa60b06f9ec8f8a338ee6",
+    "internal/adapter/postgres/ignore_migration_test.go": "2985817346dd0c436f56d8240a3b7ff77888aa5847555ca534e9af2ae045c196",
+    "internal/adapter/postgres/ignore_scan_test.go": "3a4de24133e640ba4227bbc94a9458c0502af35dbf953da2d7c1e712e8f86e48",
+    "internal/adapter/postgres/ignore_verification_test.go": "6fccad992d8349ce78df73220739521f0d2dc1299454efd9e5c3a58c0ffaa00e",
+    "internal/adapter/postgres/jobs_integration_test.go": "c95ca895f7b987b16d63dea102ddb78ebdc2e4399f7e073cac13449268b93793",
+    "internal/adapter/postgres/nfo_integration_test.go": "49eed96d14eadcea0e24fff7f032057631cd6874922ce2e5be4072ed7c053480",
+    "internal/adapter/postgres/nfo_worker_migration_test.go": "5b6103d0c2d8efb895f8f925d42f8c10192b6fa0ac1049e063b5008b6c9047ae",
+    "internal/adapter/postgres/probe_integration_test.go": "496c229b588a265cc4cc601dd14ee823d144a1543c35cc6d8565fda4d0b0feb9",
+    "internal/adapter/postgres/probe_requests_test.go": "780e9d3a56becf1a741af6272f47e39c3d3dfe54c5794d6467781d34b16a66f1",
+    "internal/adapter/postgres/store.go": "4a62802e18af8bd6fca6a9cd413ac1fe7bae9b25002f8982a07405f35a39466f",
+    "internal/adapter/postgres/store_integration_test.go": "09b63a350305e8e6493ce3cb6d92c129a9012749eba407353209505db842ada3",
+    "internal/app/metadata.go": "66cc7a1d8bf99c084118103b6a5289bee0c4295a12a2551bcd527df41455018e",
+    "internal/platform/runtime/runtime.go": "78bd5d142e086189d965af51b1db812a140d067ed4019556a4db1ade0cb77d28",
+    "internal/adapter/http/metadata_preferences.go": "cd2f00c51939df4adee451efe058c13b33778d31797c96b76a5ccb85db3f38fc",
+    "internal/adapter/http/metadata_preferences_test.go": "7a939a4a82792284b61b2410104207fd97c1f92c5a5e4a2cf6450fb92f5cef4a",
+    "internal/adapter/postgres/metadata_preferences.go": "1c88305b68290b37963dba7babe2ec070671d780de96bd675ed14dea95755d09",
+    "internal/adapter/postgres/metadata_preferences_http_test.go": "9042adeab13ac114d6f4cccf447de6f09cf606095febd256c1c6c1d2c5d80a37",
+    "internal/adapter/postgres/metadata_preferences_test.go": "dcce7d285c170a6990220163d64a8504cb5ec6bfef70d780334e9bf79c0ea47e",
+    "internal/adapter/postgres/migrations/000019_metadata_language.down.sql": "32d50f5178b4d22d7feb0ca9d533c86de9cf80adb5f58e3f356b61a1b6c50eb9",
+    "internal/adapter/postgres/migrations/000019_metadata_language.up.sql": "9689529069f4d5da259b155c030924f3744be5d70485380d2b6e3a18b7583f49",
+    "internal/app/metadata_preferences.go": "e64bc3aede509da05a519ac444abb97459f399016c85f56f58f890fc603c70fd",
+    "internal/domain/metadata_preferences.go": "53c2213096b2ca0f85669a23e304c9be143c1bac821cc9129568c8ff43e9569e"
+  },
+  "windowsFullGo": {
+    "passedPackages": 29,
+    "passedTestEventsIncludingParents": 3071,
+    "skippedTestEvents": 439,
+    "failedEvents": 0
+  },
+  "windowsSkips": {
+    "original435": "same identities retained",
+    "addedFour": [
+      "TestMetadataPreferencesActualHTTPAndPostgres",
+      "TestMetadataPreferencesAuthorizationAndValidation",
+      "TestMetadataPreferencesMigrationDefaultAndCleanRollback",
+      "TestMetadataPreferencesPersistenceConflictAndAudit"
+    ],
+    "reason": "dedicated PostgreSQL URL unset; these four are executed successfully by the separate Linux database run"
+  },
+  "postgresRace": {
+    "passedPackages": 1,
+    "passedTestEventsIncludingParents": 711,
+    "skippedTestEvents": 0,
+    "failedEvents": 0
+  },
+  "linuxRace": {
+    "status": "PASS metadata/app/HTTP/runtime/outbound/i18n",
+    "output": "metadata 1.371s; app 1.127s; HTTP 3.692s; runtime 1.210s; outbound 7.320s; i18n cached",
+    "skips": "summary does not report skips"
+  },
+  "fullVet": "PASS",
+  "productionBuild": "PASS cmd/jelee",
+  "negative": {
+    "change": "disable actual repository revision comparison",
+    "leafFailures": 1,
+    "observed": "HTTP stale revision overwrote preference",
+    "restoredSha256": "1c88305b68290b37963dba7babe2ec070671d780de96bd675ed14dea95755d09",
+    "restoredPostgresRace": "four tests PASS without skips"
+  },
+  "initialFailuresCorrected": [
+    "Two legacy projections included new metadata columns when comparing schema7 to current; only the two new columns excluded and dedicated new-field migration tests retained",
+    "HTTP fixture needed database URL during config.LoadWith and existing supported password defaults; no production validation relaxed"
+  ],
+  "limits": [
+    "Image language preference and frontend not implemented",
+    "No metadata worker/library field write, NFO edits or artwork changes",
+    "Full branding and actual ABI differences remain failing"
+  ]
+}

@@ -17,3 +17,15 @@ func (s *Store) RetryScanWithIgnoreCapability(ctx context.Context, a domain.Acto
 	}
 	return s.submitScanJobWithIgnore(ctx, a, "", parent, key, "", domain.ScanIntent{}, p, probe, nfo, available)
 }
+
+var _ app.FamilyIgnoreAdmissionRepository = (*Store)(nil)
+
+func (s *Store) SubmitScanWithIgnoreFamilies(ctx context.Context, a domain.Actor, library, key, priority string, intent domain.ScanIntent, p domain.JobPolicy, probe *domain.ProbeIdentity, nfo *domain.NFOIdentity, capabilities app.IgnoreAdmissionCapabilities) (domain.Job, bool, error) {
+	return s.submitScanJobWithIgnoreFamilies(ctx, a, library, "", key, priority, intent, p, probe, nfo, capabilities, true)
+}
+func (s *Store) RetryScanWithIgnoreFamilies(ctx context.Context, a domain.Actor, parent, key string, p domain.JobPolicy, probe *domain.ProbeIdentity, nfo *domain.NFOIdentity, capabilities app.IgnoreAdmissionCapabilities) (domain.Job, bool, error) {
+	if !domain.ValidID(parent) {
+		return domain.Job{}, false, domain.ErrNotFound
+	}
+	return s.submitScanJobWithIgnoreFamilies(ctx, a, "", parent, key, "", domain.ScanIntent{}, p, probe, nfo, capabilities, true)
+}

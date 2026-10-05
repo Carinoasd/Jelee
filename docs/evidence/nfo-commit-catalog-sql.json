@@ -1,0 +1,106 @@
+{
+  "sourceBaseCommit": "a2734f2fd5e9aaba8a26c1e7df0cf408290e99f2",
+  "schemaVersion": 51,
+  "scope": "SQL catalog guards for journal/plan/ready preparation, mutation after constraint flush and subtransactions; no native filesystem commit authorization",
+  "changedSourceManifest": {
+    "internal/adapter/postgres/store.go": "3c0838386d52ea1ba994a46389e1c58e2399653c437187961e7511252ce36394",
+    "internal/adapter/postgres/nfo_commit_files_test.go": "055a9c3dba727b5b45643153c7755d5bbe560e1b979c445aafabf070e33716f4",
+    "internal/adapter/postgres/nfo_write_commit_journal_test.go": "fbe95d69598634d8018825f7756addc1288c1c01762c3de8448f157ab9e69089",
+    "internal/adapter/postgres/nfo_commit_catalog_sql_test.go": "e61aa61ba833684d215e213a3e17cf9f7fbe09e8c9bbded510ab3d688b059bce",
+    "internal/adapter/postgres/nfo_commit_catalog_subtransactions_test.go": "b6ec665bfe7b1cf7325b914bfa9315a238372117f60d327d9e45fe68e961a372",
+    "internal/adapter/postgres/migrations/000051_nfo_commit_catalog.up.sql": "f2de2f0c3a4aea7cb3b06bbf1e9e772a51e85652a8775ad17f935135589a093e",
+    "internal/adapter/postgres/migrations/000051_nfo_commit_catalog.down.sql": "7276b37b64c358a374e8a638d8484fc056b1bb28d9318f68f1e1533aa0ad50f6"
+  },
+  "frozenSourceFiles": 975,
+  "frozenSourceManifestSHA256": "d3497b709fd4754267ac4a8daeeba675f32bcb99f1d5a9bada0d38ab7fb53d19",
+  "fullPostgresRace": {
+    "packagesPassed": 4,
+    "testsPassed": 1400,
+    "testsSkipped": 0,
+    "failureEvents": 0,
+    "compiledRoots": 449,
+    "rootsRunAndPassedExactlyOnce": true,
+    "exitCodes": {
+      "3": 0,
+      "0": 0,
+      "1": 0,
+      "2": 0
+    },
+    "compiledManifestSHA256": "4c1e207f6624a514186169a3c025560a86519695d2f0e99a4de5ac685445726f",
+    "coverageSHA256": "f6fb1f5c49eb9e9ab5d3cbf364a23aa019f26ae1d3bc980beb681f5e0c3a3151",
+    "shardLogSHA256": {
+      "nfo-catalog-v2-schema-full-shard-0.jsonl": "fb00c4f72f2ef4da23909a351197b2492d042f455545a451a71e63332a9799b6",
+      "nfo-catalog-v2-schema-full-shard-1.jsonl": "b68520bc83f60a3fa2cb892fce16cd49fc11dd926fa6d9ce703d49ddd1180c78",
+      "nfo-catalog-v2-schema-full-shard-2.jsonl": "7020cf00145b6c1283f46614e68a24ff79044018a5e8cd1954c970542376aacb",
+      "nfo-catalog-v2-schema-full-shard-3.jsonl": "a131971c8242bdc9ab579d7120eef2e04c940ced9988264c4a1c5a7cf11f3d3f"
+    }
+  },
+  "windows": {
+    "packagesPassed": 2,
+    "testsPassed": 234,
+    "testsSkipped": 930,
+    "failureEvents": 0,
+    "databaseConfigured": false,
+    "logSHA256": "557756050474f8f7c1a0319626694690e6a5eb258fb18820144f10cb1e225bee"
+  },
+  "formalSupplementalPostgresRace": {
+    "packagesPassed": 1,
+    "testsPassed": 26,
+    "testsSkipped": 0,
+    "failureEvents": 0,
+    "logSHA256": "8a6653a4e2c0764188bf4b998d04152279d3a0d5e78dea925c6e22badbbc70df"
+  },
+  "priorFullRunBeforeAdditionalFix": {
+    "compiledRoots": 445,
+    "passed": true,
+    "belongsToFinalSource": false
+  },
+  "redEvidence": {
+    "earlyConstraintFlushFailureEvents": 8,
+    "savepointAndSeriesSwitchFailureEvents": 15,
+    "revisionSnapshotFailureEvents": 3,
+    "sourceChangedOnlyAfterPriorRunTerminal": true
+  },
+  "verified": [
+    "direct_sql_catalog_changes_refused_across_six_write_and_replay_phases",
+    "commit_deferred_scope_check_isolated_in_owned_fixture",
+    "mutation_after_constraint_flush_refused",
+    "three_isolation_levels_source_phantom_and_direct_revision_refused",
+    "active_and_released_savepoints_refused_after_constraint_flush",
+    "rolled_back_savepoint_does_not_freeze_catalog",
+    "72_active_and_released_subtransactions_refused",
+    "series_media_to_directory_source_switch_refused",
+    "empty_migration_preserves_metrics_epoch",
+    "retained_journal_refuses_downgrade_dirty50",
+    "historical_scope_remains_observable_but_cannot_save_plan",
+    "native_stage_and_ready_resume_regressions"
+  ],
+  "catalogSQLGuardAdded": true,
+  "rootGenerationPersisted": false,
+  "nativeRootMediaPersistenceVerified": false,
+  "nativeWindowsDatabaseVerified": false,
+  "actualXIDWraparoundExecuted": false,
+  "targetRenameEnabled": false,
+  "settlementEnabled": false,
+  "automaticRecoveryEnabled": false,
+  "productionCallerEnabled": false,
+  "windowsDirectoryMetadataDurabilityVerified": false,
+  "fullHeapOrRSSBoundVerified": false,
+  "requirementsComplete": false,
+  "protectedFiles": {
+    "publishedSQLUnchanged": 100,
+    "requirementsSourceModSumLicenseUnchanged": true
+  },
+  "checks": {
+    "windowsVet": true,
+    "linuxVet": true,
+    "darwinNFOAmd64Compiled": true,
+    "darwinExecuted": false,
+    "format": true,
+    "incrementalBrandViolations": 0,
+    "brandAllowed": 339,
+    "gitignoreViolations": 0
+  },
+  "formalSoakSourceCommit": "24caf7d45fb96390689dcc03685033242b7bbfea",
+  "formalSoakIncludesThisChange": false
+}

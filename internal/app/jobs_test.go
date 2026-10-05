@@ -84,7 +84,7 @@ func TestJobsPolicySecurityBounds(t *testing.T) {
 }
 
 func TestJobsForwardValidatedContractsAndReplay(t *testing.T) {
-	ctx := context.WithValue(context.Background(), struct{}{}, "request-context")
+	ctx := context.WithValue(context.Background(), jobsTestContextKey{}, "request-context")
 	actor := accountTestActor()
 	policy := jobTestPolicy()
 	calls := 0
@@ -272,3 +272,6 @@ func TestJobsPreserveRepositoryAuthorizationAndCapacityErrors(t *testing.T) {
 		}
 	}
 }
+
+// jobsTestContextKey marks the request context so tests can see it forwarded.
+type jobsTestContextKey struct{}

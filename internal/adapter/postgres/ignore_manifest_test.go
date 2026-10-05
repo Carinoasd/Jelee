@@ -10,9 +10,9 @@ import (
 	"github.com/MoYuanCN/Jelee/internal/domain"
 )
 
-func manifestFixture(t *testing.T) (jobFixture, domain.JobLease, domain.IgnoreDirectoryProof) {
+func manifestFixture(t *testing.T, setup ...func(*testing.T, jobFixture)) (jobFixture, domain.JobLease, domain.IgnoreDirectoryProof) {
 	t.Helper()
-	f := newJobFixture(t)
+	f := newJobFixture(t, setup...)
 	f.policy.MaxDirectories = 1000
 	j := ignoreSubmit(t, f, "manifest")
 	l := ignoreManufacturedLease(t, f, j.ID)
@@ -285,7 +285,7 @@ func TestIgnoreManifestReclaimRetainsProofsAndFreezeNeedsAllRoots(t *testing.T) 
 }
 
 func TestIgnoreManifestMigrationPreservesLedgerOnRefusedDown(t *testing.T) {
-	f, l, root := manifestFixture(t)
+	f, l, root := manifestFixture(t, legacyMigrationAt44)
 	if err := f.s.RecordIgnoreProofs(f.ctx, l, []domain.IgnoreDirectoryProof{root}); err != nil {
 		t.Fatal(err)
 	}
@@ -319,6 +319,32 @@ func TestIgnoreManifestMigrationPreservesLedgerOnRefusedDown(t *testing.T) {
 	if err = f.s.Pool.QueryRow(f.ctx, `SELECT count(*) FROM job_ignore_proofs`).Scan(&rows); err != nil || rows != 0 {
 		t.Fatal("history cleanup orphaned proofs", err)
 	}
+	nfoMigrateVersion(t, f, "down", 43)
+	nfoMigrateVersion(t, f, "down", 42)
+	nfoMigrateVersion(t, f, "down", 41)
+	nfoMigrateVersion(t, f, "down", 40)
+	nfoMigrateVersion(t, f, "down", 39)
+	nfoMigrateVersion(t, f, "down", 38)
+	nfoMigrateVersion(t, f, "down", 37)
+	nfoMigrateVersion(t, f, "down", 36)
+	nfoMigrateVersion(t, f, "down", 35)
+	nfoMigrateVersion(t, f, "down", 34)
+	nfoMigrateVersion(t, f, "down", 33)
+	nfoMigrateVersion(t, f, "down", 32)
+	nfoMigrateVersion(t, f, "down", 31)
+	nfoMigrateVersion(t, f, "down", 30)
+	nfoMigrateVersion(t, f, "down", 29)
+	nfoMigrateVersion(t, f, "down", 28)
+	nfoMigrateVersion(t, f, "down", 27)
+	nfoMigrateVersion(t, f, "down", 26)
+	nfoMigrateVersion(t, f, "down", 25)
+	nfoMigrateVersion(t, f, "down", 24)
+	nfoMigrateVersion(t, f, "down", 23)
+	nfoMigrateVersion(t, f, "down", 22)
+	nfoMigrateVersion(t, f, "down", 21)
+	nfoMigrateVersion(t, f, "down", 20)
+	nfoMigrateVersion(t, f, "down", 19)
+	nfoMigrateVersion(t, f, "down", 18)
 	nfoMigrateVersion(t, f, "down", 17)
 	nfoMigrateVersion(t, f, "down", 16)
 	nfoMigrateVersion(t, f, "down", 15)
