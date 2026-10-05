@@ -86,6 +86,13 @@ type Server struct {
 	// userDataExports bounds the personal data exports streamed at once
 	// (G07.7).
 	userDataExports userDataExportGate
+	// repair runs the self-healing repair actions (G50.4); nil when not
+	// wired. repairTemplate holds the configured bounds.
+	repair         *app.Repairer
+	repairTemplate app.RepairOptions
+	// readiness reports the dependency states of /readyz (G50.5); nil
+	// reports none.
+	readiness func(context.Context) map[string]string
 }
 
 func New(cfg config.Config, backend Backend, catalog *app.Catalog, resolver media.Resolver, logger *slog.Logger, accounts ...*app.Accounts) (http.Handler, error) {
@@ -249,24 +256,30 @@ func newServer(cfg config.Config, backend Backend, catalog *app.Catalog, resolve
 	r.Get("/readyz", func(w http.ResponseWriter, r *http.Request) {
 		ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
 		defer cancel()
+		// G50.5: the dependency states are fixed codes only (no versions,
+		// counts, addresses or error text), so every caller may see them;
+		// only the database and its schema decide readiness.
 		if err := backend.Ready(ctx); err != nil {
-			writeProblem(w, r, 503, "not_ready", "Service is not ready.")
+			writeProblemDetails(w, r, 503, "not_ready", "Service is not ready.", s.readinessDetails(ctx))
 			return
 		}
-		data := map[string]string{"status": "ready"}
+		data := map[string]any{"status": "ready"}
 		// An instance waiting for setup is ready: it must receive traffic so
 		// the wizard is reachable. setup tells orchestrators and clients why
 		// everything else answers 503 setup_required.
 		if s.setup != nil {
 			completed, err := s.setup.isCompleted(ctx)
 			if err != nil {
-				writeProblem(w, r, 503, "not_ready", "Service is not ready.")
+				writeProblemDetails(w, r, 503, "not_ready", "Service is not ready.", s.readinessDetails(ctx))
 				return
 			}
 			data["setup"] = "required"
 			if completed {
 				data["setup"] = "completed"
 			}
+		}
+		if details := s.readinessDetails(ctx); len(details) > 0 {
+			data["checks"] = details["checks"]
 		}
 		writeJSON(w, 200, map[string]any{"data": data})
 	})

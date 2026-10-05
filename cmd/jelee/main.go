@@ -36,7 +36,7 @@ func main() {
 	a := runtime.NewWithLogs(cfg, logs)
 	if a.Err() != nil {
 		logs.Close()
-		fmt.Fprintln(os.Stderr, "Jelee cannot initialize: verify PostgreSQL connectivity and run jelee-migrate up.")
+		fmt.Fprintln(os.Stderr, "Jelee cannot initialize: verify PostgreSQL connectivity and run jelee-migrate up; a failed startup self-check is named in the log.")
 		os.Exit(1)
 	}
 	a.Run()

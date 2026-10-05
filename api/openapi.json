@@ -6761,6 +6761,330 @@
         ],
         "type": "object"
       },
+      "RepairJob": {
+        "additionalProperties": false,
+        "properties": {
+          "jobId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "libraryId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "replayed": {
+            "description": "The library already had the job active; nothing new was queued.",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "libraryId",
+          "jobId",
+          "replayed"
+        ],
+        "type": "object"
+      },
+      "RepairRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "action": {
+            "enum": [
+              "items",
+              "image-variants",
+              "caches",
+              "stats",
+              "orphans",
+              "nfo",
+              "counts"
+            ],
+            "type": "string"
+          },
+          "dryRun": {
+            "default": false,
+            "description": "List the affected objects and their number without writing anything.",
+            "type": "boolean"
+          },
+          "iUnderstand": {
+            "description": "Required true unless dryRun; otherwise 400 confirmation_required.",
+            "type": "boolean"
+          },
+          "libraryId": {
+            "description": "Limit the action to one library; omit for every library. image-variants is store-wide and refuses a library.",
+            "format": "uuid",
+            "type": "string"
+          },
+          "statBudget": {
+            "description": "File and variant probes of the orphans action; 0 uses the configured budget.",
+            "maximum": 100000,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "action"
+        ],
+        "type": "object"
+      },
+      "RepairResult": {
+        "additionalProperties": false,
+        "properties": {
+          "action": {
+            "enum": [
+              "items",
+              "image-variants",
+              "caches",
+              "stats",
+              "orphans",
+              "nfo",
+              "counts"
+            ],
+            "type": "string"
+          },
+          "applied": {
+            "format": "int64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "dryRun": {
+            "type": "boolean"
+          },
+          "finishedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "info": {
+            "additionalProperties": {
+              "format": "int64",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "type": "object"
+          },
+          "jobs": {
+            "items": {
+              "$ref": "#/components/schemas/RepairJob"
+            },
+            "type": "array"
+          },
+          "libraryId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "origin": {
+            "enum": [
+              "cli",
+              "api"
+            ],
+            "type": "string"
+          },
+          "planned": {
+            "format": "int64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "reason": {
+            "enum": [
+              "no_baseline",
+              "unconfirmed",
+              "image_store_unavailable",
+              "repair_failed"
+            ],
+            "type": "string"
+          },
+          "revertible": {
+            "type": "boolean"
+          },
+          "runId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "samples": {
+            "items": {
+              "$ref": "#/components/schemas/RepairSample"
+            },
+            "maxItems": 20,
+            "type": "array"
+          },
+          "samplesTruncated": {
+            "type": "boolean"
+          },
+          "schema": {
+            "const": "jelee-repair-result/v1"
+          },
+          "skipped": {
+            "format": "int64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "startedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "state": {
+            "enum": [
+              "planned",
+              "completed",
+              "partial",
+              "failed"
+            ],
+            "type": "string"
+          },
+          "targets": {
+            "items": {
+              "$ref": "#/components/schemas/RepairTargetCount"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "schema",
+          "action",
+          "origin",
+          "dryRun",
+          "state",
+          "revertible",
+          "planned",
+          "applied",
+          "skipped",
+          "targets",
+          "samples",
+          "samplesTruncated",
+          "startedAt",
+          "finishedAt"
+        ],
+        "type": "object"
+      },
+      "RepairRevertRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "iUnderstand": {
+            "description": "Required true; otherwise 400 confirmation_required.",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "iUnderstand"
+        ],
+        "type": "object"
+      },
+      "RepairRevertResult": {
+        "additionalProperties": false,
+        "properties": {
+          "reverted": {
+            "format": "int64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "runId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "skipped": {
+            "format": "int64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "runId",
+          "reverted",
+          "skipped"
+        ],
+        "type": "object"
+      },
+      "RepairSample": {
+        "additionalProperties": false,
+        "properties": {
+          "day": {
+            "format": "date",
+            "type": "string"
+          },
+          "itemId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "uncataloged_video",
+              "image_variant",
+              "probe_cache_stale",
+              "probe_cache_orphan",
+              "variant_index_orphan",
+              "daily_counters",
+              "nfo_observation",
+              "user_data_reference",
+              "session_reference"
+            ],
+            "type": "string"
+          },
+          "libraryId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "object": {
+            "description": "The server also enforces the stated maximum in UTF-8 bytes.",
+            "maxLength": 160,
+            "type": "string"
+          },
+          "path": {
+            "description": "Root-relative per logging.pathMode, or [redacted]; never absolute.",
+            "type": "string"
+          },
+          "sourceId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "userId": {
+            "format": "uuid",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind"
+        ],
+        "type": "object"
+      },
+      "RepairTargetCount": {
+        "additionalProperties": false,
+        "properties": {
+          "applied": {
+            "format": "int64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "kind": {
+            "enum": [
+              "uncataloged_video",
+              "image_variant",
+              "probe_cache_stale",
+              "probe_cache_orphan",
+              "variant_index_orphan",
+              "daily_counters",
+              "nfo_observation",
+              "user_data_reference",
+              "session_reference"
+            ],
+            "type": "string"
+          },
+          "planned": {
+            "format": "int64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "skipped": {
+            "format": "int64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "kind",
+          "planned",
+          "applied",
+          "skipped"
+        ],
+        "type": "object"
+      },
       "Rotate": {
         "additionalProperties": false,
         "properties": {
@@ -11361,6 +11685,321 @@
           }
         ],
         "summary": "Replace the server-wide content access policy; audited as access.policy_changed unless unchanged",
+        "x-jelee-role": "administrator"
+      }
+    },
+    "/api/v1/admin/repairs": {
+      "post": {
+        "description": "Actions: items (queue catalog synchronisation for baseline videos without an item), image-variants (clear the live image variant generation; variants render again on request), caches (drop probe cache rows of changed files), stats (recount daily statistics from sessions on stored days), orphans (remove probe cache rows of deleted files and variant index rows without a file), nfo (queue an NFO validating scan for stale NFO observations), counts (clear version references to another item). A dry run writes nothing and lists the affected objects and their number; an execution applies the same plan, records a run, audits every batch as repair.applied and the run as repair.finished, and is idempotent: a second execution affects nothing. stats and counts are journaled and revertible. A library with another active job answers 409 job_busy; nfo without the scan pipeline 503 nfo_reader_unavailable; image-variants without an image store 404 image_unavailable. The request deadline applies; use jelee-cli repair on the host for large libraries.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RepairRequest"
+              }
+            }
+          },
+          "description": "Maximum 64 KiB; one strict JSON object.",
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/RepairResult"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "HTTP 200"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 400"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 401"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 403"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 404"
+          },
+          "408": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 408"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 409"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 413"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 415"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 429"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 503"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Jelee error envelope with code, message, details and traceId; see the Error schema."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "webSession": []
+          }
+        ],
+        "summary": "Plan or run a self-healing repair action",
+        "x-jelee-role": "administrator"
+      }
+    },
+    "/api/v1/admin/repairs/{id}/revert": {
+      "post": {
+        "description": "Restores the values before every journaled repair of the run, newest first, while the row still holds the repaired value; others are skipped and counted. Reverted entries are never replayed. Other actions are not revertible (409 conflict). Audited as repair.reverted.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RepairRevertRequest"
+              }
+            }
+          },
+          "description": "Maximum 64 KiB; one strict JSON object.",
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/RepairRevertResult"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "HTTP 200"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 400"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 401"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 403"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 404"
+          },
+          "408": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 408"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 409"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 413"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 415"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 503"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Jelee error envelope with code, message, details and traceId; see the Error schema."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "webSession": []
+          }
+        ],
+        "summary": "Revert a stats or counts repair run",
         "x-jelee-role": "administrator"
       }
     },
@@ -41228,6 +41867,7 @@
     },
     "/readyz": {
       "get": {
+        "description": "Readiness. 200 while PostgreSQL answers with the expected schema, also before initial setup (data.setup is required or completed); otherwise 503 not_ready. data.checks (and error.details.checks of a 503) lists dependency states as fixed codes only: database ok|unavailable, schema current|migration_required|newer|dirty|unknown, jobs idle|busy|stalled|disabled|unknown, probe available|unavailable|disabled, images ok|no_store|disabled, devMode off|active, startup ok|warn (the startup self-check, G50.5). Only database and schema decide the status code.",
         "responses": {
           "200": {
             "description": "HTTP 200"

@@ -23,6 +23,10 @@ const (
 	// consistencyRevertBatch bounds the journal rows one revert transaction
 	// restores.
 	consistencyRevertBatch = 500
+	// The journals of the consistency checker and of the repair actions
+	// (G50.4) have the same shape and hold the same repairs.
+	consistencyJournal = "consistency_fix_journal"
+	repairJournal      = "repair_journal"
 )
 
 // dailyCounters are the recountable counters of one watch_stats_daily row.
@@ -46,7 +50,7 @@ type sourceState struct {
 	SourceID *string `json:"sourceId"`
 }
 
-func journalFix(ctx context.Context, tx pgx.Tx, run, fix string, target, before, after any) error {
+func journalFix(ctx context.Context, tx pgx.Tx, journal, run, fix string, target, before, after any) error {
 	encoded := make([][]byte, 3)
 	for i, v := range []any{target, before, after} {
 		data, err := json.Marshal(v)
@@ -55,7 +59,10 @@ func journalFix(ctx context.Context, tx pgx.Tx, run, fix string, target, before,
 		}
 		encoded[i] = data
 	}
-	_, err := tx.Exec(ctx, `INSERT INTO consistency_fix_journal(run_id,fix,target,before_state,after_state) VALUES($1::uuid,$2,$3::jsonb,$4::jsonb,$5::jsonb)`, run, fix, encoded[0], encoded[1], encoded[2])
+	if journal != consistencyJournal && journal != repairJournal {
+		return domain.ErrInvalid
+	}
+	_, err := tx.Exec(ctx, `INSERT INTO `+journal+`(run_id,fix,target,before_state,after_state) VALUES($1::uuid,$2,$3::jsonb,$4::jsonb,$5::jsonb)`, run, fix, encoded[0], encoded[1], encoded[2])
 	return storageError(err)
 }
 
@@ -99,7 +106,7 @@ func (s *Store) ApplyConsistencyFixes(ctx context.Context, runID string, fixes [
 	var result domain.ConsistencyFixResult
 	codes := map[string]int64{}
 	for _, f := range fixes {
-		applied, err := applyConsistencyFix(ctx, tx, runID, f)
+		applied, err := applyConsistencyFix(ctx, tx, consistencyJournal, runID, f)
 		if err != nil {
 			return domain.ConsistencyFixResult{}, err
 		}
@@ -116,7 +123,7 @@ func (s *Store) ApplyConsistencyFixes(ctx context.Context, runID string, fixes [
 	return result, storageError(tx.Commit(ctx))
 }
 
-func applyConsistencyFix(ctx context.Context, tx pgx.Tx, run string, f domain.ConsistencyFinding) (bool, error) {
+func applyConsistencyFix(ctx context.Context, tx pgx.Tx, journal, run string, f domain.ConsistencyFinding) (bool, error) {
 	switch f.Code {
 	case domain.ConsistencyUserDataForeignSource:
 		if !domain.ValidID(f.UserID) || !domain.ValidID(f.ItemID) || !domain.ValidID(f.SourceID) {
@@ -128,7 +135,7 @@ func applyConsistencyFix(ctx context.Context, tx pgx.Tx, run string, f domain.Co
 			return false, storageError(err)
 		}
 		source := f.SourceID
-		return true, journalFix(ctx, tx, run, fixUserData, fixTarget{UserID: f.UserID, ItemID: f.ItemID}, sourceState{&source}, sourceState{})
+		return true, journalFix(ctx, tx, journal, run, fixUserData, fixTarget{UserID: f.UserID, ItemID: f.ItemID}, sourceState{&source}, sourceState{})
 	case domain.ConsistencySessionForeignSource:
 		if !domain.ValidID(f.Object) || !domain.ValidID(f.SourceID) {
 			return false, domain.ErrInvalid
@@ -139,16 +146,16 @@ func applyConsistencyFix(ctx context.Context, tx pgx.Tx, run string, f domain.Co
 			return false, storageError(err)
 		}
 		source := f.SourceID
-		return true, journalFix(ctx, tx, run, fixSession, fixTarget{SessionID: f.Object}, sourceState{&source}, sourceState{})
+		return true, journalFix(ctx, tx, journal, run, fixSession, fixTarget{SessionID: f.Object}, sourceState{&source}, sourceState{})
 	case domain.ConsistencyDailyCounterDrift:
-		return applyDailyRecount(ctx, tx, run, f)
+		return applyDailyRecount(ctx, tx, journal, run, f)
 	}
 	return false, domain.ErrInvalid
 }
 
 // applyDailyRecount recounts one daily row inside the repair transaction,
 // under the roll-up lock, instead of trusting the values the check read.
-func applyDailyRecount(ctx context.Context, tx pgx.Tx, run string, f domain.ConsistencyFinding) (bool, error) {
+func applyDailyRecount(ctx context.Context, tx pgx.Tx, journal, run string, f domain.ConsistencyFinding) (bool, error) {
 	if !domain.ValidID(f.UserID) || !domain.ValidID(f.ItemID) {
 		return false, domain.ErrInvalid
 	}
@@ -171,7 +178,7 @@ func applyDailyRecount(ctx context.Context, tx pgx.Tx, run string, f domain.Cons
 	if err = setDailyCounters(ctx, tx, f.UserID, f.Day, f.ItemID, after); err != nil {
 		return false, err
 	}
-	return true, journalFix(ctx, tx, run, fixDaily, fixTarget{UserID: f.UserID, ItemID: f.ItemID, Day: f.Day}, before, after)
+	return true, journalFix(ctx, tx, journal, run, fixDaily, fixTarget{UserID: f.UserID, ItemID: f.ItemID, Day: f.Day}, before, after)
 }
 
 func setDailyCounters(ctx context.Context, tx pgx.Tx, user, day, item string, v dailyCounters) error {
@@ -203,26 +210,33 @@ func (s *Store) RevertConsistencyRun(ctx context.Context, runID string) (domain.
 		return result, domain.ErrNotFound
 	}
 	for {
-		done, err := s.revertConsistencyBatch(ctx, runID, &result)
+		reverted, skipped, done, err := s.revertJournalBatch(ctx, consistencyJournal, runID, "consistency.reverted", domain.Actor{})
+		result.Reverted += reverted
+		result.Skipped += skipped
 		if err != nil || done {
 			return result, err
 		}
 	}
 }
 
-func (s *Store) revertConsistencyBatch(ctx context.Context, runID string, result *domain.ConsistencyRevertResult) (bool, error) {
+// revertJournalBatch restores one bounded batch of a journal, newest first,
+// and audits it. done is true after the last batch.
+func (s *Store) revertJournalBatch(ctx context.Context, journal, runID, event string, actor domain.Actor) (reverted, skipped int64, done bool, err error) {
+	if journal != consistencyJournal && journal != repairJournal {
+		return 0, 0, false, domain.ErrInvalid
+	}
 	tx, err := s.Pool.Begin(ctx)
 	if err != nil {
-		return false, storageError(err)
+		return 0, 0, false, storageError(err)
 	}
 	defer tx.Rollback(ctx)
 	if err = lockWatchStats(ctx, tx); err != nil {
-		return false, err
+		return 0, 0, false, err
 	}
-	rows, err := tx.Query(ctx, `SELECT id,fix,target::text,before_state::text,after_state::text FROM consistency_fix_journal
+	rows, err := tx.Query(ctx, `SELECT id,fix,target::text,before_state::text,after_state::text FROM `+journal+`
  WHERE run_id=$1::uuid AND reverted_at IS NULL ORDER BY id DESC LIMIT $2 FOR UPDATE`, runID, consistencyRevertBatch)
 	if err != nil {
-		return false, storageError(err)
+		return 0, 0, false, storageError(err)
 	}
 	type entry struct {
 		id                         int64
@@ -234,35 +248,32 @@ func (s *Store) revertConsistencyBatch(ctx context.Context, runID string, result
 		return e, err
 	})
 	if err != nil {
-		return false, storageError(err)
+		return 0, 0, false, storageError(err)
 	}
 	if len(entries) == 0 {
-		return true, storageError(tx.Commit(ctx))
+		return 0, 0, true, storageError(tx.Commit(ctx))
 	}
-	var reverted, skipped int64
 	for _, e := range entries {
 		ok, err := revertConsistencyEntry(ctx, tx, e.fix, e.target, e.before, e.after)
 		if err != nil {
-			return false, err
+			return 0, 0, false, err
 		}
 		if ok {
 			reverted++
 		} else {
 			skipped++
 		}
-		if _, err = tx.Exec(ctx, `UPDATE consistency_fix_journal SET reverted_at=clock_timestamp() WHERE id=$1`, e.id); err != nil {
-			return false, storageError(err)
+		if _, err = tx.Exec(ctx, `UPDATE `+journal+` SET reverted_at=clock_timestamp() WHERE id=$1`, e.id); err != nil {
+			return 0, 0, false, storageError(err)
 		}
 	}
-	if err = auditAccount(ctx, tx, domain.Actor{}, "consistency.reverted", runID, nil, map[string]any{"reverted": reverted, "skipped": skipped}); err != nil {
-		return false, err
+	if err = auditAccount(ctx, tx, actor, event, runID, nil, map[string]any{"reverted": reverted, "skipped": skipped}); err != nil {
+		return 0, 0, false, err
 	}
 	if err = tx.Commit(ctx); err != nil {
-		return false, storageError(err)
+		return 0, 0, false, storageError(err)
 	}
-	result.Reverted += reverted
-	result.Skipped += skipped
-	return len(entries) < consistencyRevertBatch, nil
+	return reverted, skipped, len(entries) < consistencyRevertBatch, nil
 }
 
 func revertConsistencyEntry(ctx context.Context, tx pgx.Tx, fix, targetText, beforeText, afterText string) (bool, error) {

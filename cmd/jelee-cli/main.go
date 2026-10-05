@@ -23,7 +23,7 @@ func run() int {
 		return proberuntime.Helper(os.Args[2:])
 	}
 	if len(os.Args) < 2 {
-		fmt.Fprintln(os.Stderr, "usage: jelee-cli doctor|diag|provision|import-video|import-directory|import-inventory|nfo|account|access|devmode|library|jobs|metadata|consistency|legacy-import")
+		fmt.Fprintln(os.Stderr, "usage: jelee-cli doctor|diag|provision|import-video|import-directory|import-inventory|nfo|account|access|devmode|library|jobs|metadata|consistency|repair|legacy-import")
 		return 2
 	}
 	command := os.Args[1]
@@ -112,6 +112,12 @@ func run() int {
 		ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 		defer stop()
 		return runConsistencyCLI(ctx, os.Args[2:], os.Stdout, os.Stderr)
+	}
+	if command == "repair" {
+		// The command applies its own --timeout; a large library takes minutes.
+		ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
+		defer stop()
+		return runRepairCLI(ctx, os.Args[2:], os.Stdin, os.Stdout, os.Stderr)
 	}
 	if command == "nfo" {
 		ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
