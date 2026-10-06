@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/MoYuanCN/Jelee/internal/domain"
+	"github.com/MoYuanCN/Jelee/internal/platform/config"
 )
 
 // benchResponseWriter discards the body and reuses one header map so the
@@ -56,6 +57,57 @@ func BenchmarkWriteJSONError(b *testing.B) {
 	for b.Loop() {
 		w.n = 0
 		writeJSON(w, 404, map[string]any{"error": map[string]any{"code": "not_found", "message": "Resource not found", "details": map[string]any{}, "traceId": w.Header().Get("X-Request-ID")}})
+		if w.n == 0 {
+			b.Fatal("empty body")
+		}
+	}
+}
+
+// benchItemPage is the 50-item list envelope of BenchmarkWriteJSONItemPage.
+func benchItemPage() map[string]any {
+	items := make([]domain.Item, 50)
+	for i := range items {
+		items[i] = domain.Item{ID: fmt.Sprintf("00000000-0000-4000-8000-%012d", i), LibraryID: "11111111-1111-4111-8111-111111111111", Title: fmt.Sprintf("Synthetic Title %02d — 合成标题", i), Kind: "movie"}
+	}
+	return map[string]any{"data": items, "pagination": map[string]any{"nextCursor": items[len(items)-1].ID, "limit": len(items)}}
+}
+
+// BenchmarkWriteJSONItemPageGzip is the same page through the G11.7
+// compression writer at the default level, for a client accepting gzip.
+func BenchmarkWriteJSONItemPageGzip(b *testing.B) {
+	z := newCompression(config.CompressionConfig{})
+	page := benchItemPage()
+	r, _ := http.NewRequest(http.MethodGet, "http://localhost/api/v1/items", nil)
+	r.Header.Set("Accept-Encoding", "gzip")
+	w := &benchResponseWriter{header: http.Header{}}
+	b.ReportAllocs()
+	for b.Loop() {
+		w.n = 0
+		clear(w.header)
+		wrapped, finish := z.wrap(w, r)
+		writeJSON(wrapped, 200, page)
+		finish()
+		if w.n == 0 {
+			b.Fatal("empty body")
+		}
+	}
+}
+
+// BenchmarkWriteJSONErrorCompressionPassthrough is the small error envelope
+// through the compression writer: below the threshold it is buffered and
+// written unencoded, the overhead every small response pays.
+func BenchmarkWriteJSONErrorCompressionPassthrough(b *testing.B) {
+	z := newCompression(config.CompressionConfig{})
+	r, _ := http.NewRequest(http.MethodGet, "http://localhost/api/v1/items/x", nil)
+	r.Header.Set("Accept-Encoding", "gzip")
+	w := &benchResponseWriter{header: http.Header{}}
+	b.ReportAllocs()
+	for b.Loop() {
+		w.n = 0
+		clear(w.header)
+		wrapped, finish := z.wrap(w, r)
+		writeJSON(wrapped, 404, map[string]any{"error": map[string]any{"code": "not_found", "message": "Resource not found", "details": map[string]any{}, "traceId": "0123456789abcdef"}})
+		finish()
 		if w.n == 0 {
 			b.Fatal("empty body")
 		}

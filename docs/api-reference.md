@@ -109,7 +109,9 @@ OpenAPI 中的 Jelee 扩展字段：
 
   `code` 是稳定的机器可读错误码（见文末错误码表）；`message` 是安全的本地化消息，不含路径、连接串或底层错误；`details` 通常为空对象，只有设置向导的校验失败与 `/readyz` 会带字段；`traceId` 等于响应头 `X-Request-ID`，也写入日志与审计（见[日志](logging.md)）。
 - 消息语言按 `Accept-Language` 在 zh-CN、zh-TW、ja-JP、en-US 中选择：没有该标头时用 zh-CN，无法匹配时用 en-US；已登录且设置了界面语言的用户以其设置为准。响应带 `Content-Language` 与 `Vary: Accept-Language`。
-- 每个响应都带 `X-Request-ID`、`X-Content-Type-Options: nosniff`、`Referrer-Policy: no-referrer`、严格的 `Content-Security-Policy`、`X-Jelee-Dev-Mode`，默认 `Cache-Control: no-store`；HTTPS 连接另加 HSTS。条件请求与缓存只在图片（`ETag`、`If-None-Match`、304）与原文件直投（`ETag`、`Range`、`If-Range`、412、416）上提供。
+- 每个响应都带 `X-Request-ID`、`X-Content-Type-Options: nosniff`、`Referrer-Policy: no-referrer`、严格的 `Content-Security-Policy`、`X-Jelee-Dev-Mode`，默认 `Cache-Control: no-store`；HTTPS 连接另加 HSTS。条件请求与缓存只在图片（`ETag`、`If-None-Match`、304）、原文件直投（`ETag`、`Range`、`If-Range`、412、416）与前端静态文件（`Last-Modified`、`Range`）上提供。
+- **压缩（G11.7）**：请求带 `Accept-Encoding: gzip`（或 q 值不为 0 的 `*`）时，JSON、NDJSON、HTML、CSS、JavaScript、纯文本与 CSV 响应在响应体达到门槛（默认 1 KiB）后以 gzip 压缩，带 `Content-Encoding: gzip` 并去掉 `Content-Length`；这些类型的响应无论是否压缩都带 `Vary: Accept-Encoding`。**从不压缩**：原文件直投、外挂／内嵌轨道、附件、OCR 字幕与图片（按内容类型白名单判断，字幕、图片、音视频与字体类型都不在其中）；任何带 `Range` 的请求；带 `Content-Range` 或 `Accept-Ranges: bytes` 的响应（前端静态文件除外，它只在请求不带 `Range` 时压缩，压缩后去掉 `Accept-Ranges`）；HEAD、204、206、304；已带 `Content-Encoding` 或 `Cache-Control: no-transform` 的响应。
+- **压缩与 ETag**：压缩后的字节与原表示不同，因此压缩响应中的强 `ETag` 改为弱形式（`"x"` → `W/"x"`），304 不带响应体、不压缩。`If-None-Match` 按 RFC 9110 用弱比较，`W/"x"` 与 `"x"` 都能得到 304；以后新增的条件请求处理器也必须用弱比较（`http.ServeContent` 即如此）。目前带 `ETag` 的图片与直投从不压缩，不受影响。开关、级别与门槛见[部署](deployment.md#响应压缩g117)。
 
 ## 列表约定
 

@@ -121,6 +121,9 @@ func (a *webApp) write(w http.ResponseWriter, r *http.Request, name string, info
 		// registry); with nosniff the browser trusts this header for modules.
 		header.Set("Content-Type", contentType)
 	}
+	// Frontend files answer Range like any static file; requests without
+	// Range may still be compressed (G11.7).
+	allowRangedCompression(w)
 	http.ServeContent(w, r, name, info.ModTime(), file)
 }
 

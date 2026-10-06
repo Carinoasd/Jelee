@@ -98,6 +98,8 @@ type Server struct {
 	// test replaces it); deprecationIndex keys it by route.
 	deprecations     []Deprecation
 	deprecationIndex map[string]Deprecation
+	// compression gzips non-media responses (G11.7); nil when off.
+	compression *compression
 }
 
 func New(cfg config.Config, backend Backend, catalog *app.Catalog, resolver media.Resolver, logger *slog.Logger, accounts ...*app.Accounts) (http.Handler, error) {
@@ -153,7 +155,7 @@ func newServer(cfg config.Config, backend Backend, catalog *app.Catalog, resolve
 	if err != nil {
 		return nil, err
 	}
-	s := &Server{cfg: cfg, backend: backend, catalog: catalog, logger: logger, trustedProxies: prefixes}
+	s := &Server{cfg: cfg, backend: backend, catalog: catalog, logger: logger, trustedProxies: prefixes, compression: newCompression(cfg.Compression)}
 	s.shareAccess.seed = maphash.MakeSeed()
 	s.deprecations = apiDeprecations
 	for _, option := range options {
@@ -503,6 +505,10 @@ func (s *Server) newCompat(cfg config.Config, backend Backend) (http.Handler, er
 func (s *Server) boundary(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
+		// Completing the compressed body runs last, after a recovered panic
+		// wrote its error envelope.
+		w, finish := s.compression.wrap(w, r)
+		defer finish()
 		id := make([]byte, 16)
 		if _, err := rand.Read(id); err != nil {
 			writeProblem(w, r, 500, "internal_error", "Request could not be completed.")
