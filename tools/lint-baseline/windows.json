@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "goos": "windows",
-  "total": 2009,
+  "total": 2008,
   "entries": [
     {
       "linter": "errcheck",
@@ -1429,13 +1429,6 @@
       "file": "internal/adapter/http/server.go",
       "text": "unused-parameter: parameter 'r' seems to be unused, consider removing or renaming it as _",
       "source": "13759e83fdd1",
-      "count": 1
-    },
-    {
-      "linter": "revive",
-      "file": "internal/adapter/http/server.go",
-      "text": "unused-parameter: parameter 'r' seems to be unused, consider removing or renaming it as _",
-      "source": "dde806252209",
       "count": 1
     },
     {

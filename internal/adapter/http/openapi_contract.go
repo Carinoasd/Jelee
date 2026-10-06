@@ -5,10 +5,14 @@ import (
 	"encoding/json"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"sort"
 	"strconv"
+	"strings"
 
+	"github.com/MoYuanCN/Jelee/internal/domain"
 	"github.com/MoYuanCN/Jelee/internal/platform/config"
+	"github.com/MoYuanCN/Jelee/internal/platform/i18n"
 )
 
 // errorCodeStatuses is the public error code table. Every code written by this
@@ -116,7 +120,21 @@ func errorSpecification(paths, schemas map[string]any) {
 		"details": map[string]any{"type": "object", "description": "Structured details. Empty except for setup_validation_failed, which carries step (wizard step name) and issues (array of {field, code}: a fixed input path and a stable machine code; input values are never echoed)."},
 		"traceId": map[string]any{"type": "string", "description": "Same value as the X-Request-ID response header."},
 	}, "code", "message", "details", "traceId")}, "error")
-	content := map[string]any{"application/json": map[string]any{"schema": schemaRef("Error")}}
+	// One content object per status, shared by every response of that
+	// status; each names the example of errorExampleCode (G49.3).
+	contents := map[string]map[string]any{}
+	contentFor := func(status string) map[string]any {
+		if content, ok := contents[status]; ok {
+			return content
+		}
+		media := map[string]any{"schema": schemaRef("Error")}
+		if example := errorExampleCode(status); example != "" {
+			media["examples"] = map[string]any{example: map[string]any{"$ref": "#/components/examples/" + errorExampleName(example)}}
+		}
+		content := map[string]any{"application/json": media}
+		contents[status] = content
+		return content
+	}
 	for _, item := range paths {
 		for _, op := range item.(map[string]any) {
 			for status, raw := range op.(map[string]any)["responses"].(map[string]any) {
@@ -125,11 +143,73 @@ func errorSpecification(paths, schemas map[string]any) {
 					continue
 				}
 				if _, exists := response["content"]; !exists {
-					response["content"] = content
+					response["content"] = contentFor(status)
 				}
 			}
 		}
 	}
+}
+
+// genericErrorCodes are the preferred examples of a status that several
+// codes share; a status without one uses its alphabetically first code.
+var genericErrorCodes = []string{"invalid_request", "authentication_required", "forbidden", "not_found", "method_not_allowed", "request_timeout", "conflict", "precondition_failed", "body_too_large", "unsupported_media_type", "internal_error", "not_ready"}
+
+// errorExampleCode is the code whose example a response of status shows:
+// internal_error for the default response, otherwise a code sent with
+// status, or "" when no code uses it.
+func errorExampleCode(status string) string {
+	if status == "default" {
+		return "internal_error"
+	}
+	n, err := strconv.Atoi(status)
+	if err != nil {
+		return ""
+	}
+	var codes []string
+	for code, statuses := range errorCodeStatuses {
+		if slices.Contains(statuses, n) {
+			codes = append(codes, code)
+		}
+	}
+	for _, code := range genericErrorCodes {
+		if slices.Contains(codes, code) {
+			return code
+		}
+	}
+	if len(codes) == 0 {
+		return ""
+	}
+	return slices.Min(codes)
+}
+
+func errorExampleName(code string) string { return "error_" + code }
+
+// exampleTraceID is the fixed trace ID of the error examples.
+const exampleTraceID = "4bf92f3577b34da6a3ce929d0e0e4736"
+
+// errorExamples documents one error envelope per code with its en-US message,
+// exactly as writeProblem would send it.
+func errorExamples() map[string]any {
+	examples := make(map[string]any, len(errorCodeStatuses))
+	for code, statuses := range errorCodeStatuses {
+		values := make([]string, 0, len(statuses))
+		for _, status := range statuses {
+			values = append(values, strconv.Itoa(status))
+		}
+		examples[errorExampleName(code)] = map[string]any{
+			"summary": "HTTP " + strings.Join(values, ", ") + " " + code,
+			"value":   errorExampleEnvelope(code),
+		}
+	}
+	return examples
+}
+
+func errorExampleEnvelope(code string) map[string]any {
+	details := map[string]any{}
+	if code == "setup_validation_failed" {
+		details = map[string]any{"step": domain.SetupStepAdmin.String(), "issues": []any{map[string]any{"field": "admin.password", "code": "password_length_invalid"}}}
+	}
+	return map[string]any{"error": map[string]any{"code": code, "message": i18n.Message(code, "en-US", code), "details": details, "traceId": exampleTraceID}}
 }
 
 // ReferenceConfig is the rollout rendered into the committed api/openapi.json:

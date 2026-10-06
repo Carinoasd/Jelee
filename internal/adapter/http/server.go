@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"hash/maphash"
 	"log/slog"
 	"net"
@@ -93,6 +94,10 @@ type Server struct {
 	// readiness reports the dependency states of /readyz (G50.5); nil
 	// reports none.
 	readiness func(context.Context) map[string]string
+	// deprecations is the G49.2 deprecation table (apiDeprecations unless a
+	// test replaces it); deprecationIndex keys it by route.
+	deprecations     []Deprecation
+	deprecationIndex map[string]Deprecation
 }
 
 func New(cfg config.Config, backend Backend, catalog *app.Catalog, resolver media.Resolver, logger *slog.Logger, accounts ...*app.Accounts) (http.Handler, error) {
@@ -150,9 +155,14 @@ func newServer(cfg config.Config, backend Backend, catalog *app.Catalog, resolve
 	}
 	s := &Server{cfg: cfg, backend: backend, catalog: catalog, logger: logger, trustedProxies: prefixes}
 	s.shareAccess.seed = maphash.MakeSeed()
+	s.deprecations = apiDeprecations
 	for _, option := range options {
 		option(s)
 	}
+	if err = validateDeprecations(s.deprecations); err != nil {
+		return nil, fmt.Errorf("%w: %v", errDeprecationTable, err)
+	}
+	s.deprecationIndex = deprecationIndex(s.deprecations)
 	if err = s.configureDevMode(); err != nil {
 		return nil, err
 	}
@@ -293,16 +303,8 @@ func newServer(cfg config.Config, backend Backend, catalog *app.Catalog, resolve
 		}
 		writeJSON(w, 200, map[string]any{"data": data})
 	})
-	r.Get("/api-docs", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		page := `<!doctype html><html lang="en"><meta charset="utf-8"><title>Jelee API</title><h1>Jelee API</h1><p>Experimental catalog and direct delivery API.</p><a href="/api/v1/openapi.json">OpenAPI 3.1 specification</a>`
-		if cfg.TMDBAPIKey != "" {
-			w.Header().Set("Content-Security-Policy", "default-src 'none'; img-src https://www.themoviedb.org; frame-ancestors 'none'; base-uri 'none'")
-			page += `<section aria-label="Credits"><h2>Credits</h2><a href="https://www.themoviedb.org"><img width="64" alt="TMDB" src="https://www.themoviedb.org/assets/v4/logos/v2/blue_short-8e7b30f73a4020692ccca9c88bafe5dcb6f8a62a4c6bc55cd9ba82bb2cd95f6c.svg"></a><p>This product uses the TMDB API but is not endorsed or certified by TMDB.</p></section>`
-		}
-		_, _ = w.Write([]byte(page + "</html>"))
-	})
-	r.Get("/api/v1/openapi.json", openAPIHandler(cfg))
+	r.Get("/api-docs", apiDocsHandler(cfg, s.deprecations))
+	r.Get("/api/v1/openapi.json", openAPIHandler(cfg, s.deprecations...))
 	if cfg.EnableAccounts {
 		s.accountRoutes(r)
 		// Without a wizard the instance counts as set up: the wizard paths
@@ -566,6 +568,7 @@ func (s *Server) boundary(next http.Handler) http.Handler {
 		if s.setup != nil && !s.setupAllows(w, r) {
 			return
 		}
+		s.deprecationHeaders(w, r)
 		if devActive && s.dev.Effective(devmode.DebugBodyLogging) {
 			s.logBodies(next, w, r)
 			return

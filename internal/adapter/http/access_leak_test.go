@@ -89,7 +89,7 @@ func leakRouteTable() map[string]leakRoute {
 		"GET /healthz":             noMedia(noParams, "public liveness status"),
 		"GET /readyz":              noMedia(noParams, "public readiness status"),
 		"GET /api/v1/system":       noMedia(noParams, "public capability flags"),
-		"GET /api-docs":            noMedia(noParams, "static documentation page"),
+		"GET /api-docs":            noMedia(noParams, "API reference rendered from the generated specification"),
 		"GET /api/v1/openapi.json": noMedia(noParams, "generated specification"),
 		// G18 setup wizard. Once setup is complete every wizard path answers
 		// 410 before any handler runs; the wizard never names media.

@@ -49,3 +49,44 @@ func TestDomainAndApplicationDependencyDirection(t *testing.T) {
 		}
 	}
 }
+
+// TestExamplesUseOnlyTheStandardLibrary keeps examples/ (G49.5) a template a
+// client author can copy: its Go code may import the standard library and
+// other example packages, never Jelee internals or third-party modules.
+func TestExamplesUseOnlyTheStandardLibrary(t *testing.T) {
+	_, file, _, ok := runtime.Caller(0)
+	if !ok {
+		t.Fatal("locate architecture test")
+	}
+	root := filepath.Clean(filepath.Join(filepath.Dir(file), "..", ".."))
+	files := 0
+	err := filepath.WalkDir(filepath.Join(root, "examples"), func(path string, entry fs.DirEntry, err error) error {
+		if err != nil || entry.IsDir() || !strings.HasSuffix(path, ".go") {
+			return err
+		}
+		files++
+		node, err := parser.ParseFile(token.NewFileSet(), path, nil, parser.ImportsOnly)
+		if err != nil {
+			return err
+		}
+		for _, imp := range node.Imports {
+			name, err := strconv.Unquote(imp.Path.Value)
+			if err != nil {
+				return err
+			}
+			if strings.HasPrefix(name, "github.com/MoYuanCN/Jelee/examples/") {
+				continue
+			}
+			if strings.Contains(strings.Split(name, "/")[0], ".") {
+				t.Errorf("%s imports %s; examples use the standard library only", path, name)
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if files == 0 {
+		t.Fatal("no Go example found under examples/")
+	}
+}

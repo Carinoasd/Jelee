@@ -9,7 +9,10 @@ export type paths = {
             path?: never;
             cookie?: never;
         };
-        /** Inspect service */
+        /**
+         * Browse the API reference
+         * @description Public HTML rendering of this document: every operation with its parameters, request and response schemas, generated examples, the error code table with one example envelope per code, and the deprecation list (G49.3, G49.2). Available before initial setup like the document itself.
+         */
         get: {
             parameters: {
                 query?: never;
@@ -24,7 +27,9 @@ export type paths = {
                     headers: {
                         [name: string]: unknown;
                     };
-                    content?: never;
+                    content: {
+                        "text/html": string;
+                    };
                 };
                 /** @description Jelee error envelope with code, message, details and traceId; see the Error schema. */
                 default: {

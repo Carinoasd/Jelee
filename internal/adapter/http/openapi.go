@@ -10,6 +10,12 @@ func parseQuery(raw string) (url.Values, error) { return url.ParseQuery(raw) }
 
 // Specification is generated from the same rollout configuration as the router.
 func Specification(cfg config.Config) map[string]any {
+	return specification(cfg, apiDeprecations)
+}
+
+// specification renders the document of cfg with the given deprecation
+// table (G49.2).
+func specification(cfg config.Config, deprecations []Deprecation) map[string]any {
 	paths := map[string]any{}
 	for _, path := range []string{"/healthz", "/readyz", "/api/v1/system", "/api/v1/openapi.json", "/api-docs"} {
 		paths[path] = map[string]any{"get": operation("Inspect service", "200")}
@@ -96,7 +102,9 @@ func Specification(cfg config.Config) map[string]any {
 	}
 	errorSpecification(paths, schemas)
 	webSessionSpecification(paths)
-	return map[string]any{"openapi": "3.1.0", "info": map[string]any{"title": "Jelee API", "version": buildinfo.Version(), "description": "Experimental foundation. Full feature parity is not yet available."}, "paths": paths, "x-jelee-removed-features": map[string]any{"pathRoots": []string{"/LiveTv", "/Channels", "/Dlna"}, "status": 501, "code": "feature_removed", "description": "All methods and descendant paths return a localized unsupported-feature error; transformation routes retain their 409 guard."}, "components": map[string]any{"schemas": schemas, "securitySchemes": map[string]any{"bearer": map[string]any{"type": "http", "scheme": "bearer"}, "webSession": webSessionScheme()}}}
+	deprecationSpecification(paths, deprecations)
+	apiDocsSpecification(paths)
+	return map[string]any{"openapi": "3.1.0", "info": map[string]any{"title": "Jelee API", "version": buildinfo.Version(), "description": "Experimental foundation. Full feature parity is not yet available."}, "paths": paths, "x-jelee-removed-features": map[string]any{"pathRoots": []string{"/LiveTv", "/Channels", "/Dlna"}, "status": 501, "code": "feature_removed", "description": "All methods and descendant paths return a localized unsupported-feature error; transformation routes retain their 409 guard."}, "components": map[string]any{"schemas": schemas, "examples": errorExamples(), "securitySchemes": map[string]any{"bearer": map[string]any{"type": "http", "scheme": "bearer"}, "webSession": webSessionScheme()}}}
 }
 func idParameter() map[string]any {
 	return map[string]any{"name": "id", "in": "path", "required": true, "schema": map[string]any{"type": "string", "format": "uuid"}}
