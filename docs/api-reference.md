@@ -95,6 +95,7 @@ OpenAPI 中的 Jelee 扩展字段：
 - **JSON 请求体**：`Content-Type` 必须是 `application/json`（字符集只能是 UTF-8），否则 415 `unsupported_media_type`；只接受一个 JSON 对象，拒绝未知字段、重复键（包括大小写变体）、`null`（个别字段在 OpenAPI 中注明可为 null）与超过 64 层的嵌套，均为 400 `invalid_request`；超过该路由的大小上限为 413 `body_too_large`。
 - **查询参数**：只接受该路由声明的参数，未知或重复的参数返回 400 `invalid_request`。
 - **CORS**：原生 API 不发送任何 `Access-Control-*` 标头；前端与 API 同源部署。
+- **版本与弃用**：自有接口都在 `/api/v1` 下；弃用的接口响应会带 `Deprecation`、`Sunset` 与 `Link: <替代>; rel="successor-version"` 标头，时间线、替代方案与 v2 过渡政策见 [API 弃用](api-deprecations.md)。浏览版的接口文档在服务的 `/api-docs`。
 
 ## 响应约定
 

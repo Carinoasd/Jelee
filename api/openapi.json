@@ -40653,6 +40653,11 @@
           "403": {
             "content": {
               "application/json": {
+                "examples": {
+                  "forbidden": {
+                    "$ref": "#/components/examples/error_forbidden"
+                  }
+                },
                 "schema": {
                   "$ref": "#/components/schemas/Error"
                 }
@@ -40754,6 +40759,11 @@
           "403": {
             "content": {
               "application/json": {
+                "examples": {
+                  "forbidden": {
+                    "$ref": "#/components/examples/error_forbidden"
+                  }
+                },
                 "schema": {
                   "$ref": "#/components/schemas/Error"
                 }
