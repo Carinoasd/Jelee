@@ -145,21 +145,43 @@ $dc up -d jelee
 | 媒體庫網路規則（G48.5；媒體庫沒有一起匯入時略過） | 分享連結與其訪客帳號、訪客的進度與規則（G48.6：持權杖即可存取，還原等於讓舊連結復活） |
 | Webhook 端點（密鑰與標頭**保持封存**） | outbox、投遞紀錄 |
 | 掃描排程與監看開關 | 排程的上次執行與錯誤、監看租約 |
-| — | **尚未納入、只在 `pg_dump` 裡**（2026-10-06 對照 `domain.MetadataBackupKinds` 核對）：合集與合集成員、播放清單（遷移 081）、使用者介面偏好（073）、站點外觀與外掛設定（075；可另用管理員 API `GET /api/v1/site/export`／`POST /api/v1/site/import` 搬移）、修復與一致性檢查紀錄（074、083）。只靠元資料檔搬遷時，這些資料會遺失 |
+| 合集（名稱、簡介、NFO 連結名稱、建立者）與手動成員（遷移 081；NFO 連結的成員跟著中繼資料走，不另外複製） | — |
+| 播放清單與項目（順序、重複項目）；擁有者是分享訪客的不匯出 | — |
+| 使用者介面偏好（主題、密度、版面與預設組；遷移 073、075） | — |
+| 站點外觀（預設主題、設計代號、自訂 CSS、外部字型主機、預設版面）與外掛清單／設定（遷移 075） | 兩份文件的修訂號與修改時間（屬於目的地實例） |
+| 稽核保留期（`audit_retention` 的兩個天數） | 稽核紀錄本身 |
+| — | 修復與一致性檢查紀錄（`repair_runs`、`repair_journal`、`consistency_*`，遷移 074、083）：見下方「不匯出的資料表」 |
 | — | 稽核紀錄（只在 `pg_dump` 裡）、初始引導狀態 |
+
+#### 不匯出的資料表
+
+每一張資料表不是由某個紀錄種類匯出，就是列在 `internal/adapter/postgres/metadata_backup.go` 的 `metadataBackupExcluded` 並附理由。守門測試 `TestMetadataBackupClassifiesEveryTable`（重播遷移，不需資料庫）與 `TestMetadataBackupClassifiesEveryTablePostgres`（讀實際 schema）會在新增資料表卻忘了分類時失敗。不匯出的理由分成六類，這些資料都只在 `pg_dump` 裡：
+
+| 理由 | 資料表 |
+| --- | --- |
+| 憑據或一次性祕密：還原等於讓存取復活 | 工作階段、使用者建立金鑰、開發者模式權杖、雙因素（`user_totp`、`user_recovery_codes`、`login_challenges`）、應用程式密碼、分享連結 |
+| 只能附加的稽核軌跡 | `audit_logs`（匯入本身另寫 `metadata.imported`） |
+| 工作佇列、租約與工作進度：只對寫入它的資料庫的工作者有意義 | `jobs` 及各 `job_*`、探測／NFO／圖片工作狀態、`catalog_import_*`、`catalog_sync_requests`、`nfo_write_*`、`webhook_outbox`、`legacy_import_pending` |
+| 快取、配額與衍生狀態：掃描、探測、NFO 讀取與圖片處理會重建 | 探測與 NFO 快取與配額、`tool_versions`、`item_nfo_observations`、盤點基準與快照、`catalog_scan_pending`、`image_variants`、外掛字幕／音軌、內嵌封面嘗試、`scan_watch_state`（匯入依排程重建） |
+| 觀察值與統計，不是設定 | 播放工作階段與取樣、觀看統計、已知用戶端與其工作階段、命中紀錄、webhook 投遞與嘗試、工作指標 |
+| 這個資料庫的操作歷史 | `consistency_runs`、`consistency_run_checks`、`consistency_fix_journal`、`repair_runs`、`repair_journal`、`item_version_operations`、`legacy_import_runs`／`checkpoints`／`map` |
+| 實例自己的狀態 | `setup_state`（匯入另行處理）、`dev_mode_state`、`schema_migrations` |
+
+**修復紀錄為什麼不備份**：修復與一致性檢查的日誌記錄的是**來源資料庫裡**某些列的修改前後值（`user_item_data.last_source_id`、`playback_sessions.source_id`、`watch_stats_daily` 計數），其中播放工作階段與觀看統計本來就不匯出，ID 在目的地也可能被重新對應。`jelee-cli repair revert`／`consistency revert` 只有在同一個資料庫、該列仍是修復後的值時才有意義；把日誌搬到別的資料庫既不能還原也無法驗證，反而會讓報告指向不存在的列。它們留在 `pg_dump` 裡，隨完整備份還原。
 
 ### 格式
 
 UTF-8 的 JSON Lines，每行一筆：
 
 ```json
-{"format":"jelee.metadata","formatVersion":1,"schemaVersion":71,"createdAt":"2026-10-04T03:00:00Z","passwordHashes":false}
+{"format":"jelee.metadata","formatVersion":2,"schemaVersion":83,"createdAt":"2026-10-04T03:00:00Z","passwordHashes":false}
 {"kind":"library","data":{"id":"…","name":"Movies","nfo_mode":"off","metadata_language":"zh-CN","metadata_image_languages":["zh","ja","en","null"],"metadata_preferences_revision":1,"catalog_sync_auto":false}}
 {"kind":"end","records":123,"counts":{"library":1,"…":0},"sha256":"<前面所有位元組的 SHA-256>"}
 ```
 
 - 第一行是標頭；最後一行是尾段，記錄筆數、各類筆數與**前面每一個位元組**的 SHA-256。沒有尾段＝截斷；摘要或筆數不符、尾段後還有資料、種類順序錯亂＝損壞。兩者都會在寫入任何一列之前被拒絕。
-- 種類依固定順序排列（媒體庫 → 根 → 帳號 → 授權 → 條目 → 媒體檔 → …… → 排程），每筆只引用排在前面的種類；欄位名稱就是資料表欄位名稱，bytea 以 `\x` 十六進位字串表示，時間一律 UTC。
+- 格式版本 2 在版本 1 的種類之後加上合集、合集成員、播放清單、播放清單項目、使用者偏好、站點外觀、外掛設定與稽核保留期；版本 1 的檔案（沒有這些種類）照樣可以匯入。
+- 種類依固定順序排列（媒體庫 → 根 → 帳號 → 授權 → 條目 → 媒體檔 → …… → 排程 → 合集 → 播放清單 → 偏好 → 站點設定 → 稽核保留期），每筆只引用排在前面的種類；欄位名稱就是資料表欄位名稱，bytea 以 `\x` 十六進位字串表示，時間一律 UTC。
 - 單行上限 1 MiB；匯出與匯入都一次只持有一行，記憶體不隨目錄大小成長（10 萬條目、231 MB 的檔案，匯出與匯入的 Go 堆積峰值都約 2.5 MiB，見[演練紀錄](evidence/backup-drill-2026-10-04.txt)）。
 - 檔案可以再壓縮或加密；匯入從標準輸入讀取時可以直接接管線（`zstd -dc 檔案 | jelee-cli metadata import --in -`）。
 
@@ -220,6 +242,10 @@ $dc run --rm --no-deps -T --entrypoint /jelee-cli jelee metadata import --in - <
 - NFO 來源的欄位、事實與獨立 NFO 欄位鎖帶有來源檔與根的 ID；只有條目與根在目標裡是同一個 ID 時才匯入，否則以 `nfo_origin_not_portable` 略過，交給 NFO 重新整理重建。
 - 目標已經為同一個圖片槽鎖定了別的來源時，保留目標的選擇（`image_slot_locked`）。
 - 用戶端管控規則的命中計數從零開始；規則有變更時會提高版本，所有實例在下一個請求重新編譯。
+- 合集：ID，其次目標裡連結到同一個 NFO 合集名稱（去頭尾空白、不分大小寫）的合集。名稱、簡介與連結名稱以檔案為準；手動成員只新增不刪除；建立者沒有一起匯入時留空。
+- 播放清單：保留 ID，擁有者必須對得上（擁有者被略過時清單以 `unresolved_reference` 略過）。**目標裡已有同一個播放清單時，那是使用者正在用的版本**：名稱、公開與否與項目都保留目標的；檔案裡與目標相同的項目算 `unchanged`，其餘以 `playlist_kept` 略過。新建的清單連同項目與順序一起寫入。
+- 使用者偏好：和播放進度一樣，**較新的一方勝出**。
+- 站點外觀、外掛設定、稽核保留期：以檔案為準，有變更時修訂號加一；套用前先經過和管理員 API 相同的正規化與檢查（設計代號、字型主機、版面結構、外掛 ID 與設定形狀、保留天數 7–36500），不通過的以 `settings_invalid` 衝突處理。稽核保留期被改變時另寫一筆 `audit.retention_changed` 稽核。使用者版面同樣要通過偏好 API 的檢查。
 - 目標沒有初始引導狀態而匯入後有帳號或媒體庫時，標記為已完成（adopted），和升級遷移 071 相同；**引導進行到一半的資料庫會拒絕匯入**（`setup_in_progress`）。
 
 衝突原因（預設任何衝突都中止；`--skip-conflicts` 則略過衝突的紀錄與所有引用它的紀錄，依原因計數）：
@@ -234,9 +260,13 @@ $dc run --rm --no-deps -T --entrypoint /jelee-cli jelee metadata import --in - <
 | `identity_ambiguous` | 兩筆匯出紀錄對上目標同一列 |
 | `dependency_conflict` | 所屬媒體庫、根或父條目衝突 |
 | `setup_in_progress` | 目標的初始引導尚未完成 |
+| `collection_nfo_name_taken` | 同 ID 的合集要改用的 NFO 連結名稱已被目標裡另一個合集使用 |
+| `playlist_owner_mismatch` | 同 ID 的播放清單在目標裡屬於別的帳號 |
+| `settings_invalid` | 站點外觀、外掛設定、稽核保留期或某位使用者的版面不通過 API 的檢查；略過時保留目標的值 |
 | `last_admin`、`watch_limit`、`client_rule_limit` | 套用後沒有可用的管理員、監看媒體庫超過上限、規則數超過上限 |
+| `collection_limit`、`collection_items_limit`、`playlist_limit`、`playlist_entries_limit` | 套用後合集總數、單一合集手動成員、單一帳號的播放清單或單一清單的項目超過 API 的上限 |
 
-略過（不是衝突）：`unresolved_reference`（引用的帳號、條目等被略過）、`source_absent`（目標既有條目沒有這個媒體檔）、`nfo_origin_not_portable`、`image_slot_locked`。
+略過（不是衝突）：`unresolved_reference`（引用的帳號、條目等被略過）、`source_absent`（目標既有條目沒有這個媒體檔）、`nfo_origin_not_portable`、`image_slot_locked`、`playlist_kept`。
 
 ### 典型用法
 
@@ -252,9 +282,9 @@ $dc run --rm --no-deps -T --entrypoint /jelee-cli jelee metadata import --in - <
 | --- | --- |
 | `pg_dump` 來自 schema N，要給 schema M 的二進位用，M > N | 還原後執行 `jelee-migrate up`（新版二進位附帶的）。升級遷移不刪表 |
 | M < N（用舊二進位開新備份） | 不支援直接使用。改用 schema N 的二進位；或還原後用 schema N 的 `jelee-migrate down --i-understand` 逐級降版——多個版本在保留新增資料時會拒絕降版（見[部署](deployment.md)），這時只能用 N 版二進位 |
-| 元資料檔 schema ≤ 二進位 schema（同格式版本 1） | 直接匯入。格式版本 1 涵蓋 schema 71 起 |
+| 元資料檔 schema ≤ 二進位 schema（格式版本 1 或 2） | 直接匯入。格式版本 1 與 2 都涵蓋 schema 71 起；版本 1 的檔案沒有合集、播放清單、偏好與站點設定 |
 | 元資料檔 schema > 二進位 schema | 拒絕（`metadata_backup_unsupported`）：先升級二進位 |
-| 格式版本不同 | 拒絕；欄位形狀改變時格式版本會提高，並在本文說明轉換方式 |
+| 格式版本比二進位認得的新（例如舊版二進位讀格式 2） | 拒絕（`metadata_backup_unsupported`）；欄位形狀或種類改變時格式版本會提高，並在本文說明轉換方式 |
 | PostgreSQL 主版本不同 | `pg_dump` 的檔案可以還原到**相同或更新**的主版本；不能往回。冷備份的資料目錄只能用相同主版本 |
 
 每份備份都應該記錄 schema 版本（檔名帶 `-s71`）。升級前一定先做完整備份，這是降版唯一可靠的途徑。
@@ -282,7 +312,7 @@ $dc run --rm --no-deps -T --entrypoint /jelee-cli jelee metadata import --in - <
 
 ## 備份演練
 
-- **自動演練**：`make backup-drill`（需要 `JELEE_TEST_DATABASE_URL` 指向專用的 `jelee_test` 資料庫）。在兩個新遷移的 schema 之間：建立涵蓋每一種紀錄的資料加 2,000 集 → 匯出 → 試跑匯入（確認回滾後為空）→ 匯入 → 再匯出並逐類逐行比對 → 第二次匯入確認無變更 → 檢查工作階段未還原、引導狀態、密碼、監看狀態、稽核。另外驗證：預設不匯出密碼雜湊、已掃描目標的身分對應、衝突預檢不寫入任何東西、損壞與截斷的檔案被拒絕、CLI 端到端。紀錄寫到 `BACKUP_DRILL_REPORT`（預設 `.testdata/backup-drill.txt`），內容不含連線資訊或祕密。
+- **自動演練**：`make backup-drill`（需要 `JELEE_TEST_DATABASE_URL` 指向專用的 `jelee_test` 資料庫）。在兩個新遷移的 schema 之間：建立涵蓋每一種紀錄（含合集、播放清單、偏好、站點設定與稽核保留期）的資料加 2,000 集 → 匯出 → 試跑匯入（確認回滾後為空）→ 匯入 → 再匯出並逐類逐行比對 → 第二次匯入確認無變更 → 檢查工作階段未還原、引導狀態、密碼、監看狀態、稽核。另外驗證：預設不匯出密碼雜湊、已掃描目標的身分對應、衝突預檢不寫入任何東西、損壞與截斷的檔案被拒絕、CLI 端到端、資料表分類守門、合集／播放清單／設定的衝突與 `--dry-run`／`--skip-conflicts`、既有播放清單與較新偏好保留、播放清單上限。紀錄寫到 `BACKUP_DRILL_REPORT`（預設 `.testdata/backup-drill.txt`），內容不含連線資訊或祕密。
 - **規模演練**：`make backup-scale`：10 萬條目（80 萬筆紀錄、約 231 MB）的匯出與匯入，量測 Go 堆積峰值（上限 16 MiB）。匯入速度受條目插入觸發器限制，約每個新條目 2–3 ms。
 - 最近一次實跑：[backup-drill-2026-10-04.txt](evidence/backup-drill-2026-10-04.txt)。
 

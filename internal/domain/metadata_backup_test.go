@@ -2,6 +2,8 @@ package domain
 
 import (
 	"bytes"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"io"
 	"strings"
@@ -97,7 +99,8 @@ func TestMetadataBackupReaderRejectsDamage(t *testing.T) {
 		{"unknown kind", lines[0] + `{"kind":"session","data":{}}` + "\n", ErrMetadataBackupCorrupt},
 		{"not json", lines[0] + "garbage\n", ErrMetadataBackupCorrupt},
 		{"wrong format", strings.Replace(string(data), MetadataBackupFormat, "other", 1), ErrMetadataBackupCorrupt},
-		{"newer format", strings.Replace(string(data), `"formatVersion":1`, `"formatVersion":2`, 1), ErrMetadataBackupUnsupported},
+		{"newer format", strings.Replace(string(data), `"formatVersion":2`, `"formatVersion":3`, 1), ErrMetadataBackupUnsupported},
+		{"older format", strings.Replace(string(data), `"formatVersion":2`, `"formatVersion":0`, 1), ErrMetadataBackupUnsupported},
 		{"oversized line", lines[0] + `{"kind":"user","data":{"x":"` + strings.Repeat("a", MetadataBackupMaxLine) + `"}}` + "\n", ErrMetadataBackupCorrupt},
 	}
 	for _, c := range cases {
@@ -107,5 +110,21 @@ func TestMetadataBackupReaderRejectsDamage(t *testing.T) {
 	}
 	if _, err := readMetadataBackup(data, 70); !errors.Is(err, ErrMetadataBackupUnsupported) {
 		t.Fatal("export from a newer schema accepted")
+	}
+}
+
+// A format version 1 document, written before collections, playlists and
+// the settings kinds existed, is still read.
+func TestMetadataBackupReadsFormatVersion1(t *testing.T) {
+	header := `{"format":"jelee.metadata","formatVersion":1,"schemaVersion":71,"createdAt":"2026-10-04T00:00:00Z","passwordHashes":false}` + "\n"
+	record := `{"kind":"library","data":{"id":"a"}}` + "\n"
+	sum := sha256.Sum256([]byte(header + record))
+	doc := header + record + `{"kind":"end","records":1,"counts":{"library":1},"sha256":"` + hex.EncodeToString(sum[:]) + `"}` + "\n"
+	kinds, err := readMetadataBackup([]byte(doc), 83)
+	if err != nil || strings.Join(kinds, ",") != "library" {
+		t.Fatalf("version 1: %v %v", kinds, err)
+	}
+	if MetadataBackupFormatVersion != 2 || MetadataBackupMinFormatVersion != 1 {
+		t.Fatal("format versions changed without updating docs/backup-restore.md")
 	}
 }

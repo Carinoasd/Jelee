@@ -20,47 +20,10 @@ import (
 
 const devBodyLimit = 4 << 10
 
-const devBodyRedacted = "[redacted]"
-
-// devSecretKeys and devSecretSuffixes are compared against keys lowered and
-// stripped of separators.
-var devSecretKeys = map[string]bool{"authorization": true, "cookie": true, "setcookie": true, "dsn": true, "databaseurl": true,
-	"connectionstring": true, "privatekey": true, "passwd": true, "credential": true, "credentials": true, "csrf": true}
-
-var devSecretSuffixes = []string{"password", "token", "secret", "apikey", "key"}
-
-func devSecretKey(key string) bool {
-	normalized := strings.NewReplacer("_", "", "-", "", ".", "").Replace(strings.ToLower(key))
-	if devSecretKeys[normalized] {
-		return true
-	}
-	for _, suffix := range devSecretSuffixes {
-		if strings.HasSuffix(normalized, suffix) {
-			return true
-		}
-	}
-	return false
-}
-
-func devRedactValue(v any) any {
-	switch v := v.(type) {
-	case map[string]any:
-		for key, inner := range v {
-			if devSecretKey(key) {
-				v[key] = devBodyRedacted
-			} else {
-				v[key] = devRedactValue(inner)
-			}
-		}
-		return v
-	case []any:
-		for i := range v {
-			v[i] = devRedactValue(v[i])
-		}
-		return v
-	}
-	return v
-}
+// devRedactValue masks secrets in a decoded body with the shared developer
+// mode rules (logging.MaskSecrets: secret keys, TOTP codes, password hashes,
+// otpauth URIs, credentials in URLs). The log router masks again.
+func devRedactValue(v any) any { return logging.MaskSecrets(v) }
 
 func devJSONType(contentType string) bool {
 	media, _, err := mime.ParseMediaType(contentType)
@@ -156,6 +119,6 @@ func (s *Server) logBodies(next http.Handler, w http.ResponseWriter, r *http.Req
 	}
 	s.logger.InfoContext(r.Context(), "developer mode body log", "component", "http", "code", "devmode_body_log", "requestId", w.Header().Get("X-Request-ID"),
 		"method", logging.SafeMethod(r.Method), "route", route, "status", rec.status,
-		"requestBody", devBodySummary(requestType, captured, max(counter.n, int64(len(captured))), len(captured) <= devBodyLimit),
-		"responseBody", devBodySummary(rec.Header().Get("Content-Type"), rec.buf.Bytes(), rec.size, rec.buf.Len() <= devBodyLimit))
+		"requestBody", logging.DeveloperBody(devBodySummary(requestType, captured, max(counter.n, int64(len(captured))), len(captured) <= devBodyLimit)),
+		"responseBody", logging.DeveloperBody(devBodySummary(rec.Header().Get("Content-Type"), rec.buf.Bytes(), rec.size, rec.buf.Len() <= devBodyLimit)))
 }

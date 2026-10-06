@@ -7,6 +7,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/MoYuanCN/Jelee/internal/platform/logging"
 	"github.com/jackc/pgx/v5"
 )
 
@@ -14,7 +15,9 @@ import (
 // its switch returns true every statement is logged with its duration and
 // outcome. Only the statement text is logged, never its arguments, and the
 // text is cut to queryLogText bytes; statements are code constants with
-// placeholders, so no request value reaches the log.
+// placeholders, so no request value reaches the log. The statement is
+// marked with logging.DeveloperSQL: the log router writes it, with secret
+// text masked, only while its developer mode switch is on.
 type QueryLog struct {
 	logger  *slog.Logger
 	enabled atomic.Pointer[func() bool]
@@ -56,7 +59,7 @@ func (q *QueryLog) TraceQueryEnd(ctx context.Context, _ *pgx.Conn, data pgx.Trac
 	if len(text) > queryLogText {
 		text = text[:queryLogText] + "…"
 	}
-	q.logger.InfoContext(ctx, "developer mode SQL log", "component", "db", "code", "devmode_sql_log", "statement", text,
+	q.logger.InfoContext(ctx, "developer mode SQL log", "component", "db", "code", "devmode_sql_log", "statement", logging.DeveloperSQL(text),
 		"durationMicros", time.Since(start.at).Microseconds(), "rows", data.CommandTag.RowsAffected(), "failed", data.Err != nil)
 }
 

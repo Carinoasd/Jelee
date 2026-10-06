@@ -203,7 +203,7 @@ backup-drill:
 	@test -n "$$JELEE_TEST_DATABASE_URL" || { echo 'JELEE_TEST_DATABASE_URL must name an isolated jelee_test database' >&2; exit 1; }
 	mkdir -p "$(dir $(BACKUP_DRILL_REPORT))"
 	JELEE_REQUIRE_INTEGRATION=true JELEE_BACKUP_DRILL_REPORT="$(abspath $(BACKUP_DRILL_REPORT))" "$(GO)" test -p 1 -parallel 2 -count=1 -v -timeout 30m \
-		-run '^TestMetadataBackup(DrillPostgres|PasswordHashesOptInPostgres|MapsExistingCatalogPostgres|ConflictPreflightPostgres|RejectsDamagedFilesPostgres)$$' ./internal/adapter/postgres
+		-run '^TestMetadataBackup(DrillPostgres|PasswordHashesOptInPostgres|MapsExistingCatalogPostgres|ConflictPreflightPostgres|RejectsDamagedFilesPostgres|ClassifiesEveryTable|ClassifiesEveryTablePostgres|KindsAreWired|CollectionsPlaylistsSettingsPostgres|KeepsLiveUserDataPostgres|PlaylistLimitPostgres)$$' ./internal/adapter/postgres
 	JELEE_REQUIRE_INTEGRATION=true "$(GO)" test -p 1 -parallel 2 -count=1 -run '^TestMetadataCLI' ./cmd/jelee-cli
 	"$(GO)" test -count=1 -run '^TestMetadataBackup' ./internal/domain
 	@echo "backup drill record: $(BACKUP_DRILL_REPORT)"

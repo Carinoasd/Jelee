@@ -43,6 +43,10 @@
 
 被合併吸收的條目的合集與清單成員列納入合併快照，撤銷時一併還原（合集或清單已刪除的除外）；合併本身不把成員資格轉給目標條目（TestCollectionPlaylistMembershipSurvivesMergeUndo）。
 
+## 備份
+
+元資料備份（G36.4）自格式版本 2 起匯出合集、手動成員、播放清單與項目（擁有者是分享訪客的除外）。匯入時合集依 ID、其次 NFO 連結名稱對應；目標裡已有的播放清單保留使用者的版本；套用後檢查合集與清單的上限。細節見[備份與還原](backup-restore.md#匯入的語意)。
+
 ## 前端
 
 `/collections`、`/collections/:collectionId`、`/lists`、`/lists/:listId`（路由與 i18n 鍵避開 play 字樣，見 no-playback 閘門），條目頁的「加入清單」區塊在點開後才載入清單；只列出與管理，從不播放。中文介面把播放清單稱為「片單」。
@@ -54,5 +58,4 @@
 ## 後續
 
 - 相容層尚未提供合集的建立與成員管理（上游 `/Collections`）、清單改名與刪除（上游 `POST /Playlists/{id}`、`DELETE /Items/{id}`）及清單分享對象（`/Playlists/{id}/Users`），合集與清單也沒有自己的圖片。
-- metadata 備份／匯入（G36.4）尚未包含合集與播放清單。
 - NFO 同步未在掃描後自動執行。

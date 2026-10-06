@@ -23,7 +23,7 @@
 | GET `/auth/csrf` | 自己 | 返回当前凭据对应的 `csrf`，供页面重载后取回 |
 | GET `/users/me` | 自己 | 当前用户资料 |
 | PUT `/users/me/profile` | 自己 | `displayName,locale,hidden`；不能修改角色或密码 |
-| GET/PUT `/users/me/preferences` | 自己 | 界面偏好 `theme`（system/light/dark）、`density`（comfortable/compact，预留）、`layout`（页面布局与自定义预设 `{current,presets}`，未自定义时为 `null`；16 KiB、每区最多 32 个区块、最多 10 个预设）；从未保存时读到全站默认主题（`/site/appearance` 的 `defaultTheme`）；PUT 必须带齐全部字段（`layout` 可为 `null`；迁移 000073 `user_preferences`、000074 加 `layout`）；只影响显示，不写审计、不进元数据备份，降级时直接丢弃 |
+| GET/PUT `/users/me/preferences` | 自己 | 界面偏好 `theme`（system/light/dark）、`density`（comfortable/compact，预留）、`layout`（页面布局与自定义预设 `{current,presets}`，未自定义时为 `null`；16 KiB、每区最多 32 个区块、最多 10 个预设）；从未保存时读到全站默认主题（`/site/appearance` 的 `defaultTheme`）；PUT 必须带齐全部字段（`layout` 可为 `null`；迁移 000073 `user_preferences`、000074 加 `layout`）；只影响显示，不写审计；元数据备份（格式版本 2）会导出，导入时较新的一方胜出，版面须通过同样的检查（见[备份与还原](backup-restore.md)）；降级时直接丢弃 |
 | PUT `/users/me/password` | 自己 | `oldPassword,newPassword`；成功后撤销所有会话，需重新登录；旧密码错误返回 `400 invalid_password`（会话仍有效，与会话失效的 401 区分） |
 | GET `/users` | 管理员 | `cursor?,limit=1..100,includeDeleted=true/false`；data.users 与 data.pagination |
 | POST `/users` | 管理员 | `name,password,displayName?,locale?,hidden?,admin?,disabled?`；要求 Idempotency-Key；201 或回放 200 |

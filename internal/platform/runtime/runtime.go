@@ -84,6 +84,16 @@ func newWithLifetime(cfg config.Config, logger *slog.Logger, lifetime *lifetime)
 				return nil, err
 			}
 			lifetime.closeStore = store.Pool.Close
+			// G46.9: expired audit rows leave through purge_audit_logs on
+			// the configured interval; zero switches the purge off.
+			if interval := c.Audit.PurgeInterval(); interval > 0 {
+				janitor, err := app.NewAuditJanitor(store, app.AuditJanitorOptions{Interval: interval, Batch: c.Audit.Batch(), MaxBatches: c.Audit.MaxBatches(), Logger: logger})
+				if err != nil {
+					store.Pool.Close()
+					return nil, err
+				}
+				lifetime.audit = janitor
+			}
 			return store, nil
 		},
 		func(c config.Config, store *postgres.Store, l *slog.Logger) (*app.Catalog, error) {
@@ -480,6 +490,9 @@ type lifetime struct {
 	// stats rolls ended sessions up into the daily statistics (G23.5).
 	stats     *app.WatchStats
 	statsDone chan struct{}
+	// audit purges expired audit rows (G46.9); auditDone joins it.
+	audit     *app.AuditJanitor
+	auditDone chan struct{}
 	// webhooks delivers outbox events (G12.3). It stops claiming at
 	// cancellation and joins its in-flight attempts before the pool closes.
 	webhooks           *app.WebhookDispatcher
@@ -492,6 +505,7 @@ type lifetime struct {
 	devDone   chan struct{}
 	queryLog  *postgres.QueryLog
 	levels    logLevels
+	devLogs   devLogs
 	baseLevel slog.Level
 	closeOnce sync.Once
 	stopOnce  sync.Once
@@ -633,6 +647,13 @@ func (l *lifetime) start(ctx context.Context) error {
 			l.stats.Run(l.ctx)
 		}()
 	}
+	if l.audit != nil {
+		l.auditDone = make(chan struct{})
+		go func() {
+			defer close(l.auditDone)
+			l.audit.Run(l.ctx)
+		}()
+	}
 	if l.dev != nil {
 		l.devDone = make(chan struct{})
 		go func() {
@@ -703,6 +724,9 @@ func (l *lifetime) shutdown(ctx context.Context) {
 	l.flushProgress() //nolint:contextcheck // final progress flush runs after the stop deadline by design
 	if l.statsDone != nil {
 		<-l.statsDone
+	}
+	if l.auditDone != nil {
+		<-l.auditDone
 	}
 	l.joinWebhooks()
 	if l.devDone != nil {

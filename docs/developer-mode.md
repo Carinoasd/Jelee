@@ -89,7 +89,7 @@ HTTP **永遠不能**開啟開發者模式：沒有任何網址能直接開啟�
 | --- | --- | --- | --- | --- | --- |
 | `debug_verbose_logging` | 否 | 已接 | 全域日誌層級改為 DEBUG（`jelee` 主程式經 `runtime.NewWithLogs` 接上日誌路由） | 日誌量大增 | 回到設定的層級 |
 | `debug_sql_logging` | 否 | 已接 | 每條 SQL 寫一行 INFO（元件 `db`，代碼 `devmode_sql_log`）：語句文字（壓成一行、最多 512 位元組）、耗時微秒、影響列數、是否失敗。**不記錄參數**。追蹤器只掛在可開發實例的連線池上，生產環境零成本 | 日誌量大增；語句結構外露 | 下一條語句起停止 |
-| `debug_body_logging` | 是 | 已接 | 每個請求寫一行 INFO（代碼 `devmode_body_log`）：方法、路由樣式（不含實際 ID）、狀態碼、JSON 請求體與回應體各最多 4 KiB。鍵名含 password、token、secret、apiKey、key、authorization、cookie、csrf、credential 等的值一律換成 `[redacted]`；超過上限、非 JSON（媒體、HTML、圖片）只記大小 | 日誌含使用者輸入與中繼資料 | 下一個請求起停止 |
+| `debug_body_logging` | 是 | 已接 | 每個請求寫一行 INFO（代碼 `devmode_body_log`）：方法、路由樣式（不含實際 ID）、狀態碼、JSON 請求體與回應體各最多 4 KiB。鍵名含 password、token、secret、apiKey、key、authorization、cookie、csrf、credential、otp／totp、recoveryCode 等的值，數字形式的 `code`（一次性驗證碼）與 `$argon2`、`otpauth:`、`Bearer ` 開頭的值一律換成 `[redacted]`；超過上限、非 JSON（媒體、HTML、圖片）只記大小 | 日誌含使用者輸入與中繼資料 | 下一個請求起停止 |
 | `debug_pprof` | 是 | 已接 | `GET /debug/pprof/*`、`POST /debug/pprof/symbol`（net/http/pprof）；只給環回（無轉送標頭）或管理員，其他人 404 | 洩漏記憶體內容、CPU 負載 | 關閉後立即 404 |
 | `debug_openapi_internal` | 否 | 未接 | — | — | 可開發實例的 `/api/v1/openapi.json` 已包含開發者路由；目前沒有另外的內部 API |
 | `debug_error_stacks` | 是 | 未接 | — | — | 見「後續」 |
@@ -99,7 +99,7 @@ HTTP **永遠不能**開啟開發者模式：沒有任何網址能直接開啟�
 | `debug_seed_data` | 否 | 未接 | — | — | 見「後續」 |
 | `debug_force_jobs` | 否 | 未接 | — | — | 管理員本來就能用 `POST /api/v1/libraries/{id}/schedule/run` 立即執行排程 |
 
-> **已知問題（2026-10-06 讀程式發現，尚未實測）**：`debug_sql_logging` 與 `debug_body_logging` 寫出的欄位（`statement`、`requestBody`、`responseBody` 等）與代碼 `devmode_sql_log`、`devmode_body_log` 不在正式日誌路由的白名單內，輸出時會被換成 `[redacted]`。細節見[日誌](logging.md)「開發者模式下的日誌」一節。
+`debug_sql_logging` 與 `debug_body_logging` 的欄位（`statement`、`durationMicros`、`rows`、`failed`、`route`、`requestBody`、`responseBody`）只在對應開關生效時通過正式日誌路由的白名單，放行前依共用規則（密碼、權杖、密鑰、Authorization、Cookie、連線字串、TOTP 驗證碼與 otpauth URI 等）再遮罩一次；開關關閉、工作階段結束或生產環境中一律是 `[redacted]`，且根本不會寫出這兩類日誌。細節與守門測試見[日誌](logging.md)「開發者模式下的日誌」一節。
 
 ## 危險操作二次確認（G45.6）
 
