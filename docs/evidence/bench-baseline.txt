@@ -150,3 +150,63 @@ BenchmarkWriteJSONError-16       	  658768	       909.0 ns/op	     817 B/op	    
 BenchmarkWriteJSONError-16       	  656941	       922.8 ns/op	     817 B/op	      12 allocs/op
 PASS
 ok  	github.com/MoYuanCN/Jelee/internal/adapter/http	7.269s
+goos: linux
+goarch: amd64
+pkg: github.com/MoYuanCN/Jelee/internal/platform/logging
+cpu: AMD Ryzen 7 9850X3D 8-Core Processor           
+BenchmarkLogAccessRecord-16     	  265474	      2106 ns/op	     610 B/op	       5 allocs/op
+BenchmarkLogAccessRecord-16     	  266576	      2029 ns/op	     609 B/op	       5 allocs/op
+BenchmarkLogAccessRecord-16     	  278482	      2127 ns/op	     609 B/op	       5 allocs/op
+BenchmarkLogAccessRecord-16     	  280387	      2196 ns/op	     609 B/op	       5 allocs/op
+BenchmarkLogAccessRecord-16     	  253188	      2107 ns/op	     609 B/op	       5 allocs/op
+BenchmarkLogAccessRecord-16     	  273924	      2079 ns/op	     609 B/op	       5 allocs/op
+BenchmarkLogContextFields-16    	  348471	      1669 ns/op	     642 B/op	       5 allocs/op
+BenchmarkLogContextFields-16    	  349713	      1561 ns/op	     641 B/op	       5 allocs/op
+BenchmarkLogContextFields-16    	  357241	      1560 ns/op	     641 B/op	       5 allocs/op
+BenchmarkLogContextFields-16    	  379101	      1551 ns/op	     641 B/op	       5 allocs/op
+BenchmarkLogContextFields-16    	  367209	      1564 ns/op	     641 B/op	       5 allocs/op
+BenchmarkLogContextFields-16    	  343896	      1570 ns/op	     641 B/op	       5 allocs/op
+BenchmarkLogFilteredDebug-16    	125267458	         4.821 ns/op	       0 B/op	       0 allocs/op
+BenchmarkLogFilteredDebug-16    	124049554	         4.805 ns/op	       0 B/op	       0 allocs/op
+BenchmarkLogFilteredDebug-16    	123536116	         4.824 ns/op	       0 B/op	       0 allocs/op
+BenchmarkLogFilteredDebug-16    	123053421	         4.906 ns/op	       0 B/op	       0 allocs/op
+BenchmarkLogFilteredDebug-16    	122266070	         4.907 ns/op	       0 B/op	       0 allocs/op
+BenchmarkLogFilteredDebug-16    	123590695	         4.847 ns/op	       0 B/op	       0 allocs/op
+BenchmarkLogParallel-16         	  603378	       957.9 ns/op	     212 B/op	       4 allocs/op
+BenchmarkLogParallel-16         	  696738	       875.5 ns/op	     211 B/op	       4 allocs/op
+BenchmarkLogParallel-16         	  693817	       906.0 ns/op	     211 B/op	       4 allocs/op
+BenchmarkLogParallel-16         	  668126	       851.8 ns/op	     211 B/op	       4 allocs/op
+BenchmarkLogParallel-16         	  548487	       914.6 ns/op	     212 B/op	       4 allocs/op
+BenchmarkLogParallel-16         	  649185	       865.9 ns/op	     211 B/op	       4 allocs/op
+BenchmarkLogHotPath/without_span-16         	  513984	      1221 ns/op	      48 B/op	       3 allocs/op
+BenchmarkLogHotPath/without_span-16         	  481910	      1334 ns/op	      48 B/op	       3 allocs/op
+BenchmarkLogHotPath/without_span-16         	  499197	      1283 ns/op	      48 B/op	       3 allocs/op
+BenchmarkLogHotPath/without_span-16         	  462159	      1244 ns/op	      48 B/op	       3 allocs/op
+BenchmarkLogHotPath/without_span-16         	  507099	      1225 ns/op	      48 B/op	       3 allocs/op
+BenchmarkLogHotPath/without_span-16         	  520501	      1219 ns/op	      48 B/op	       3 allocs/op
+BenchmarkLogHotPath/with_span-16            	  417674	      1449 ns/op	      96 B/op	       4 allocs/op
+BenchmarkLogHotPath/with_span-16            	  429999	      1522 ns/op	      96 B/op	       4 allocs/op
+BenchmarkLogHotPath/with_span-16            	  346156	      1540 ns/op	      96 B/op	       4 allocs/op
+BenchmarkLogHotPath/with_span-16            	  406746	      1485 ns/op	      96 B/op	       4 allocs/op
+BenchmarkLogHotPath/with_span-16            	  395743	      1512 ns/op	      96 B/op	       4 allocs/op
+BenchmarkLogHotPath/with_span-16            	  406695	      1482 ns/op	      96 B/op	       4 allocs/op
+BenchmarkLogHotPath/filtered_with_span-16   	153068970	         3.913 ns/op	       0 B/op	       0 allocs/op
+BenchmarkLogHotPath/filtered_with_span-16   	167333397	         3.573 ns/op	       0 B/op	       0 allocs/op
+BenchmarkLogHotPath/filtered_with_span-16   	162001599	         3.616 ns/op	       0 B/op	       0 allocs/op
+BenchmarkLogHotPath/filtered_with_span-16   	171870758	         3.544 ns/op	       0 B/op	       0 allocs/op
+BenchmarkLogHotPath/filtered_with_span-16   	166224121	         3.629 ns/op	       0 B/op	       0 allocs/op
+BenchmarkLogHotPath/filtered_with_span-16   	171847412	         3.472 ns/op	       0 B/op	       0 allocs/op
+PASS
+ok  	github.com/MoYuanCN/Jelee/internal/platform/logging	26.667s
+goos: linux
+goarch: amd64
+pkg: github.com/MoYuanCN/Jelee/internal/adapter/http
+cpu: AMD Ryzen 7 9850X3D 8-Core Processor           
+BenchmarkBoundaryRequest-16    	   96216	      5722 ns/op	    4439 B/op	      58 allocs/op
+BenchmarkBoundaryRequest-16    	  103455	      5524 ns/op	    4434 B/op	      58 allocs/op
+BenchmarkBoundaryRequest-16    	  103011	      5493 ns/op	    4434 B/op	      58 allocs/op
+BenchmarkBoundaryRequest-16    	  105771	      5590 ns/op	    4434 B/op	      58 allocs/op
+BenchmarkBoundaryRequest-16    	  102153	      5574 ns/op	    4434 B/op	      58 allocs/op
+BenchmarkBoundaryRequest-16    	   97089	      5509 ns/op	    4434 B/op	      58 allocs/op
+PASS
+ok  	github.com/MoYuanCN/Jelee/internal/adapter/http	3.402s

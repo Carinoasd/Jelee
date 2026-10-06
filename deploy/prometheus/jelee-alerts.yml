@@ -30,6 +30,15 @@ groups:
           runbook: "docs/runbook.md#jeleedatabasepoolsaturated"
   - name: jelee-resources
     rules:
+      - alert: JeleeLogRecordsDropped
+        expr: sum by (instance) (increase(jelee_logging_records_dropped_total[10m])) > 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Jelee is dropping log records"
+          description: "{{ $labels.instance }} dropped {{ $value | humanize }} log records in 10 minutes because a log queue was full (G46.8 backpressure); requests are not slowed, but records are lost."
+          runbook: "docs/runbook.md#jeleelogrecordsdropped"
       - alert: JeleeDiskSpaceLow
         expr: jelee_storage_available_bytes / jelee_storage_size_bytes < 0.10
         for: 10m

@@ -10,6 +10,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -33,17 +34,28 @@ type RotateOptions struct {
 	MaxBackups int
 	// Compress gzips rotated files.
 	Compress bool
+	// MaxAge removes rotated files older than this (by rotation time).
+	// Zero keeps files regardless of age. SetRetention changes it later.
+	MaxAge time.Duration
+	// MaxTotalBytes removes the oldest rotated files while the active file
+	// and the backups together exceed it. Zero disables the cap; the active
+	// file itself is never removed.
+	MaxTotalBytes int64
 }
 
 // RotatingFile is an io.WriteCloser that owns one log file and its backups.
 // Files are created with mode 0600 and existing files are narrowed to 0600.
 type RotatingFile struct {
-	opts   RotateOptions
-	now    func() time.Time
-	mu     sync.Mutex
-	file   *os.File
-	size   int64
-	opened time.Time
+	opts RotateOptions
+	now  func() time.Time
+	// maxAge and maxTotal hold the retention limits, which an
+	// administrator can change while the file is open (G46.9).
+	maxAge   atomic.Int64
+	maxTotal atomic.Int64
+	mu       sync.Mutex
+	file     *os.File
+	size     int64
+	opened   time.Time
 }
 
 // OpenRotatingFile opens (or creates) the active file.
@@ -55,11 +67,13 @@ func openRotatingFile(opts RotateOptions, now func() time.Time) (*RotatingFile, 
 	if opts.Path == "" || !filepath.IsAbs(opts.Path) {
 		return nil, errors.New("log file path must be absolute")
 	}
-	if opts.MaxBytes < 0 || opts.Interval < 0 || opts.MaxBackups < 0 {
+	if opts.MaxBytes < 0 || opts.Interval < 0 || opts.MaxBackups < 0 || opts.MaxAge < 0 || opts.MaxTotalBytes < 0 {
 		return nil, errors.New("invalid log rotation limits")
 	}
 	opts.Path = filepath.Clean(opts.Path)
 	f := &RotatingFile{opts: opts, now: now}
+	f.maxAge.Store(int64(opts.MaxAge))
+	f.maxTotal.Store(opts.MaxTotalBytes)
 	if err := f.open(); err != nil {
 		return nil, err
 	}
@@ -156,11 +170,7 @@ func (f *RotatingFile) reopen(cause error) error {
 	return cause
 }
 
-func (f *RotatingFile) prefixExt() (string, string) {
-	base := filepath.Base(f.opts.Path)
-	ext := filepath.Ext(base)
-	return strings.TrimSuffix(base, ext) + "-", ext
-}
+func (f *RotatingFile) prefixExt() (string, string) { return backupPrefixExt(f.opts.Path) }
 
 func (f *RotatingFile) backupName() (string, error) {
 	prefix, ext := f.prefixExt()
@@ -203,33 +213,82 @@ func compressFile(path string) error {
 }
 
 // Backups lists rotated files, oldest first.
-func (f *RotatingFile) Backups() ([]string, error) {
-	prefix, ext := f.prefixExt()
-	entries, err := os.ReadDir(filepath.Dir(f.opts.Path))
+func (f *RotatingFile) Backups() ([]string, error) { return listBackups(f.opts.Path) }
+
+// ListLogFiles names the rotated backups of the log file at path, oldest
+// first, followed by path itself when it exists. Backups may be gzipped.
+// Nothing is opened or created; jelee-cli logs reads them (G46.7).
+func ListLogFiles(path string) ([]string, error) {
+	if path == "" || !filepath.IsAbs(path) {
+		return nil, errors.New("log file path must be absolute")
+	}
+	path = filepath.Clean(path)
+	names, err := listBackups(path)
+	if err != nil {
+		return nil, err
+	}
+	if info, err := os.Lstat(path); err == nil && info.Mode().IsRegular() {
+		names = append(names, path)
+	}
+	return names, nil
+}
+
+// BackupTime reads the rotation time from the name of a rotated file of the
+// log file at path; false for any other name.
+func BackupTime(path, name string) (time.Time, bool) {
+	prefix, ext := backupPrefixExt(path)
+	rest := strings.TrimSuffix(strings.TrimPrefix(filepath.Base(name), prefix), ".gz")
+	if !strings.HasPrefix(filepath.Base(name), prefix) || !strings.HasSuffix(rest, ext) {
+		return time.Time{}, false
+	}
+	stamp := strings.TrimSuffix(rest, ext)
+	if len(stamp) < len(backupStamp) {
+		return time.Time{}, false
+	}
+	t, err := time.Parse(backupStamp, stamp[:len(backupStamp)])
+	return t, err == nil
+}
+
+func backupPrefixExt(path string) (string, string) {
+	base := filepath.Base(path)
+	ext := filepath.Ext(base)
+	return strings.TrimSuffix(base, ext) + "-", ext
+}
+
+func listBackups(path string) ([]string, error) {
+	entries, err := os.ReadDir(filepath.Dir(path))
 	if err != nil {
 		return nil, errors.New("cannot list log directory")
 	}
 	var names []string
 	for _, e := range entries {
-		name := e.Name()
-		if !e.Type().IsRegular() || !strings.HasPrefix(name, prefix) {
+		if !e.Type().IsRegular() {
 			continue
 		}
-		rest := strings.TrimSuffix(strings.TrimPrefix(name, prefix), ".gz")
-		if !strings.HasSuffix(rest, ext) {
-			continue
+		if _, ok := BackupTime(path, e.Name()); ok {
+			names = append(names, filepath.Join(filepath.Dir(path), e.Name()))
 		}
-		stamp := strings.TrimSuffix(rest, ext)
-		if len(stamp) < len(backupStamp) {
-			continue
-		}
-		if _, err := time.Parse(backupStamp, stamp[:len(backupStamp)]); err != nil {
-			continue
-		}
-		names = append(names, filepath.Join(filepath.Dir(f.opts.Path), name))
 	}
 	sort.Strings(names)
 	return names, nil
+}
+
+// SetRetention changes the age and total size limits (G46.9); zero
+// disables a limit. The next rotation or Prune applies them.
+func (f *RotatingFile) SetRetention(maxAge time.Duration, maxTotalBytes int64) {
+	f.maxAge.Store(int64(max(0, maxAge)))
+	f.maxTotal.Store(max(0, maxTotalBytes))
+}
+
+// Prune applies the retention limits now: the backup count, the age of
+// each backup and the total size cap.
+func (f *RotatingFile) Prune() error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.file == nil {
+		return ErrClosed
+	}
+	return f.prune()
 }
 
 func (f *RotatingFile) prune() error {
@@ -238,11 +297,38 @@ func (f *RotatingFile) prune() error {
 		return err
 	}
 	var errs error
-	for len(names) > f.opts.MaxBackups {
-		if err := os.Remove(names[0]); err != nil {
+	remove := func() {
+		if err := os.Remove(names[0]); err != nil && !errors.Is(err, os.ErrNotExist) {
 			errs = errors.New("cannot remove expired log file")
 		}
 		names = names[1:]
+	}
+	for len(names) > f.opts.MaxBackups {
+		remove()
+	}
+	if age := time.Duration(f.maxAge.Load()); age > 0 {
+		cutoff := f.now().Add(-age)
+		for len(names) > 0 {
+			if stamp, ok := BackupTime(f.opts.Path, names[0]); !ok || !stamp.Before(cutoff) {
+				break
+			}
+			remove()
+		}
+	}
+	if limit := f.maxTotal.Load(); limit > 0 {
+		total := f.size
+		sizes := make([]int64, len(names))
+		for i, name := range names {
+			if info, err := os.Lstat(name); err == nil {
+				sizes[i] = info.Size()
+				total += sizes[i]
+			}
+		}
+		for len(names) > 0 && total > limit {
+			total -= sizes[0]
+			sizes = sizes[1:]
+			remove()
+		}
 	}
 	return errs
 }

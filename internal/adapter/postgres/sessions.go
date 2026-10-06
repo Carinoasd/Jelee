@@ -7,6 +7,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"net/netip"
+	"strings"
 	"time"
 
 	"github.com/MoYuanCN/Jelee/internal/access"
@@ -92,6 +93,12 @@ func (s *Store) recordLoginFailure(ctx context.Context, tx pgx.Tx, userID string
 	if err = auditAccount(ctx, tx, actor, event, userID, nil, map[string]any{"failedLogin": failures, "lockedUntil": locked}); err != nil {
 		return err
 	}
+	// G46.3: the request's security log names the failure and the lock it
+	// caused; the HTTP layer cannot tell them from other refusals.
+	domain.NoteSecurityEvent(ctx, strings.ReplaceAll(event, ".", "_"))
+	if locked != nil {
+		domain.NoteSecurityEvent(ctx, "account_locked")
+	}
 	user := domain.WebhookSubject{Kind: domain.WebhookSubjectUser, ID: userID}
 	if err = appendWebhook(ctx, tx, s.webhooksOn(), domain.WebhookUserLoginFailed, now, user, map[string]any{"failedLogins": failures}); err != nil {
 		return err
@@ -170,6 +177,9 @@ func (s *Store) CommitLogin(ctx context.Context, in domain.LoginInput) (domain.S
 		return domain.SessionGrant{}, storageError(err)
 	}
 	if current.Disabled || current.Deleted || current.Version != in.Credentials.Version || current.PasswordHash != in.Credentials.PasswordHash || current.LockedUntil != nil && current.LockedUntil.After(now) {
+		if current.LockedUntil != nil && current.LockedUntil.After(now) {
+			domain.NoteSecurityEvent(ctx, "login_while_locked")
+		}
 		return domain.SessionGrant{}, domain.ErrUnauthenticated
 	}
 	actor := domain.Actor{UserID: current.UserID, IP: in.IP}

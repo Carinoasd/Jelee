@@ -9,6 +9,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/MoYuanCN/Jelee/internal/domain"
 )
 
 // sensitiveSamples are realistic secrets injected through every logging
@@ -43,6 +45,10 @@ var scanKeys = []string{
 	"authorization", "Authorization", "dsn", "database", "databaseUrl", "path", "file", "clientIp", "ip", "remoteAddr",
 	"error", "query", "url", "userAgent", "reason", "libraryId",
 	"msg", "time", "level", "component", "requestId", "method", "status", "durationMs", "event", "count", "taskId", "state", "code",
+	// G46.3/G46.4 access log, context and component fields.
+	"userId", "deviceId", "clientId", "itemId", "jobRunId", "route", "bytes", "media", "rule", "rules", "version",
+	"toggle", "toggles", "restored", "missing", "value", "reason", "logLevel", "scope", "expiresAt", "ttl", "check",
+	"panicType", "sql", "stack", "suppressed", "thresholdMs", "outcome",
 }
 
 type stringer struct{ s string }
@@ -93,6 +99,10 @@ func inject(log *slog.Logger, sample string) {
 		"bytes", []byte(sample),
 	)
 	log.Info("scan probe valuer", "path", valuerString{sample}, "clientIp", valuerString{sample}, "requestId", valuerString{sample})
+	// Context fields (G46.4) carry whatever a caller attached.
+	fields := domain.WithLogFields(ctx, domain.LogFields{UserID: sample, DeviceID: sample, ClientID: sample, ItemID: sample, LibraryID: sample, TaskID: sample, JobRunID: sample})
+	log.InfoContext(fields, "scan probe context")
+	log.With("component", "security").InfoContext(fields, "scan probe context scoped", "event", sample)
 	log.Debug("scan probe debug", "token", sample)
 }
 

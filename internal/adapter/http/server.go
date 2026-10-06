@@ -25,7 +25,6 @@ import (
 	"github.com/MoYuanCN/Jelee/internal/platform/config"
 	"github.com/MoYuanCN/Jelee/internal/platform/devmode"
 	"github.com/MoYuanCN/Jelee/internal/platform/i18n"
-	"github.com/MoYuanCN/Jelee/internal/platform/logging"
 	"github.com/MoYuanCN/Jelee/internal/platform/password"
 	"github.com/MoYuanCN/Jelee/internal/platform/tracing"
 	"github.com/go-chi/chi/v5"
@@ -103,6 +102,12 @@ type Server struct {
 	// accessNow is the clock of the request time restricted time windows
 	// are decided at (G48.4); nil is time.Now.
 	accessNow func() time.Time
+	// logStore and logControl serve the logging administration (G46.2,
+	// G46.9); nil until WithLogging.
+	logStore   loggingStore
+	logControl loggingControl
+	// securityLog throttles security log records per event (G46.3).
+	securityLog securityLimiter
 }
 
 func New(cfg config.Config, backend Backend, catalog *app.Catalog, resolver media.Resolver, logger *slog.Logger, accounts ...*app.Accounts) (http.Handler, error) {
@@ -312,6 +317,7 @@ func newServer(cfg config.Config, backend Backend, catalog *app.Catalog, resolve
 	r.Get("/api/v1/openapi.json", openAPIHandler(cfg, s.deprecations...))
 	if cfg.EnableAccounts {
 		s.accountRoutes(r)
+		s.loggingRoutes(r)
 		// Without a wizard the instance counts as set up: the wizard paths
 		// exist with the account rollout and answer 410 like after setup.
 		s.setupRoutes(r)
@@ -400,6 +406,7 @@ func newServer(cfg config.Config, backend Backend, catalog *app.Catalog, resolve
 		WriteError(w, r, domain.ErrNotFound)
 	})
 	r.MethodNotAllowed(func(w http.ResponseWriter, r *http.Request) { WriteError(w, r, media.ErrMethodNotAllowed) })
+	registerRoutePatterns(r)
 	return r, nil
 }
 
@@ -431,6 +438,7 @@ func (s *Server) newCompat(cfg config.Config, backend Backend) (http.Handler, er
 				}
 			}
 			p.Request = s.requestScope(address, p.Kind, libraries)
+			requestRecordFrom(ctx).setIdentity(identityFields(p, client.DeviceID))
 			return p, nil
 		}
 	} else if tracker, ok := backend.(sessionUseTracker); ok {
@@ -441,6 +449,9 @@ func (s *Server) newCompat(cfg config.Config, backend Backend) (http.Handler, er
 			address, _ := ctx.Value(clientAddressKey{}).(string)
 			p, err := tracker.AuthenticateFrom(ctx, token, address)
 			p.Request = s.requestScope(address, p.Kind, nil)
+			if err == nil {
+				recordIdentity(ctx, p)
+			}
 			return p, err
 		}
 	} else {
@@ -449,6 +460,9 @@ func (s *Server) newCompat(cfg config.Config, backend Backend) (http.Handler, er
 			address, _ := ctx.Value(clientAddressKey{}).(string)
 			p, err := plain(ctx, token)
 			p.Request = s.requestScope(address, p.Kind, nil)
+			if err == nil {
+				recordIdentity(ctx, p)
+			}
 			return p, err
 		}
 	}
@@ -508,9 +522,12 @@ func (s *Server) newCompat(cfg config.Config, backend Backend) (http.Handler, er
 func (s *Server) boundary(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
+		// The access log counts the bytes sent on the wire, so its writer
+		// sits below compression.
+		recorded := &accessWriter{ResponseWriter: w}
 		// Completing the compressed body runs last, after a recovered panic
 		// wrote its error envelope.
-		w, finish := s.compression.wrap(w, r)
+		w, finish := s.compression.wrap(recorded, r)
 		defer finish()
 		id := make([]byte, 16)
 		if _, err := rand.Read(id); err != nil {
@@ -530,15 +547,19 @@ func (s *Server) boundary(next http.Handler) http.Handler {
 		// G46.6: the request ID is the trace ID of the request's root span,
 		// so logs, the error envelope and audit rows share one value.
 		traceCtx, span := tracing.Default().StartRequest(r.Context(), w.Header().Get("X-Request-ID"), "http.request", "http")
+		// G46.3: the access record collects the identity and error code
+		// while the request runs; storage notes security events.
+		record := &requestRecord{}
+		traceCtx, notes := domain.WithSecurityNotes(context.WithValue(traceCtx, requestRecordKey{}, record))
 		r = r.WithContext(traceCtx)
 		defer func() {
 			outcome := "ok"
-			if recover() != nil {
+			if recovered := recover(); recovered != nil {
 				outcome = "panic"
-				s.logger.ErrorContext(traceCtx, "request panic", "component", "http", "requestId", w.Header().Get("X-Request-ID"))
+				s.logPanic(traceCtx, w, recovered)
 				writeProblem(w, r, 500, "internal_error", "Request could not be completed.")
 			}
-			s.logger.InfoContext(traceCtx, "request completed", "component", "http", "requestId", w.Header().Get("X-Request-ID"), "method", logging.SafeMethod(r.Method), "durationMs", time.Since(start).Milliseconds())
+			s.logRequest(traceCtx, r, recorded, record, notes, start)
 			span.End(outcome)
 		}()
 		r = s.withClientAddress(r, w.Header().Get("X-Request-ID"))
@@ -672,7 +693,10 @@ func (s *Server) authenticate(next http.Handler) http.Handler {
 			r = r.Clone(r.Context())
 			r.Header.Set("Accept-Language", p.Locale)
 		}
-		next.ServeHTTP(w, r.WithContext(withAuthMethod(access.WithPrincipal(r.Context(), p), method)))
+		// G46.4: records logged while serving the request carry the user,
+		// client session, device and the item, library or job of the route.
+		identity := identityContext(r.Context(), r, p, client.DeviceID)
+		next.ServeHTTP(w, r.WithContext(withAuthMethod(access.WithPrincipal(identity, p), method)))
 	})
 }
 
@@ -841,6 +865,8 @@ func WriteError(w http.ResponseWriter, r *http.Request, err error) {
 		status, code, message = 409, "devmode_inactive", "Developer mode is not active."
 	case errors.Is(err, errDevToggleUnavailable):
 		status, code, message = 409, "devmode_toggle_unavailable", "This developer mode option is not available in this build."
+	case errors.Is(err, errLogComponentMandatory):
+		status, code, message = 409, "log_component_mandatory", "The audit and security logs cannot be lowered or disabled."
 	case errors.Is(err, errConfirmationRequired):
 		status, code, message = 400, "confirmation_required", "This operation is dangerous and needs an explicit confirmation."
 	case errors.Is(err, domain.ErrForbidden):
@@ -961,6 +987,7 @@ func writeProblem(w http.ResponseWriter, r *http.Request, status int, code, mess
 // writeProblemDetails writes the error envelope with structured details.
 // Details hold fixed codes and field paths only, never request values.
 func writeProblemDetails(w http.ResponseWriter, r *http.Request, status int, code, message string, details map[string]any) {
+	requestRecordFrom(r.Context()).setCode(code)
 	w.Header().Set("Content-Language", i18n.Locale(r.Header.Get("Accept-Language")))
 	w.Header().Add("Vary", "Accept-Language")
 	message = i18n.Message(code, r.Header.Get("Accept-Language"), message)

@@ -65,6 +65,13 @@
 - **處置**：依[執行時記憶體設定](runtime-memory.md)調整 `GOMEMLIMIT` 與容器上限（兩者一起改）；降低圖片並行（`images` 設定）或工作 worker 數（`JELEE_JOB_WORKERS`）。持續成長而不回落時以 `jelee-cli diag export`（開發者模式下含 pprof）收集資料後回報。
 - **回復驗證**：heap 回到上限 80% 以下且 GC 頻率正常，告警解除。
 
+### JeleeLogRecordsDropped
+
+- **意義**：某個副本 10 分鐘內有日誌紀錄被丟棄（G46.8）。每個日誌輸出（stdout、檔案、轉發器）前都有一個有界非同步佇列，佇列滿時直接丟棄並計數，不讓請求等待寫日誌；丟棄代表輸出跟不上寫入量，那段時間的日誌（含存取、安全日誌）不完整。稽核紀錄寫在資料庫，不受影響。
+- **確認**：`rate(jelee_logging_records_dropped_total[5m])` 看丟棄速率，`jelee_logging_write_failures_total` 有增加表示輸出本身寫入失敗（磁碟滿、權限）；同時看 `JeleeDiskSpaceLow`／`jelee_storage_available_bytes{volume="logging.file"}`、請求量，以及是否有人把級別調成 DEBUG（`jelee-cli logs levels --token-stdin`，稽核事件 `logging.level_changed`）。
+- **處置**：DEBUG 覆寫是原因就 `jelee-cli logs level --component 範圍 reset --token-stdin`；stdout 被容器執行環境或日誌代理阻塞時修正收集端；檔案輸出慢就把日誌目錄放到較快的磁碟，或調大 `JELEE_LOG_BUFFER_ENTRIES`（每個輸出的佇列長度，預設 4096）；寫入失敗先處理磁碟空間與權限。見[日誌](logging.md)。
+- **回復驗證**：`increase(jelee_logging_records_dropped_total[10m])` 回到 0，告警解除。
+
 ## 工作
 
 ### JeleeScanConsecutiveFailures

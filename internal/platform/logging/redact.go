@@ -1,11 +1,15 @@
 package logging
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"log/slog"
 	"net/netip"
 	"path/filepath"
 	"strings"
+	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/MoYuanCN/Jelee/internal/domain"
 )
@@ -80,6 +84,11 @@ func (r *redactor) replace(groups []string, a slog.Attr) slog.Attr {
 		switch a.Value.Kind() {
 		case slog.KindTime, slog.KindInt64, slog.KindUint64, slog.KindFloat64, slog.KindBool, slog.KindDuration:
 			return a
+		case slog.KindString:
+			// Outcome words of startup self-checks (ok, warn, fail).
+			if a.Key == "status" && len(a.Value.String()) <= 16 && safeLowerIdent(a.Value.String()) {
+				return a
+			}
 		}
 	case slog.MessageKey:
 		if a.Value.Kind() == slog.KindString && safeMessage(a.Value.String()) {
@@ -134,9 +143,92 @@ func (r *redactor) replace(groups []string, a slog.Attr) slog.Attr {
 		if a.Value.Kind() == slog.KindString && SafeMethod(a.Value.String()) == a.Value.String() {
 			return a
 		}
-	case "taskId":
+	case "taskId", "userId", "clientId", "itemId", "libraryId", "rule":
 		if a.Value.Kind() == slog.KindString && domain.ValidID(a.Value.String()) {
 			return a
+		}
+	case "deviceId":
+		// Device IDs are reported by clients and may be any text; only a
+		// digest is written, stable for correlation and irreversible.
+		if a.Value.Kind() == slog.KindString && a.Value.String() != "" && len(a.Value.String()) <= 256 {
+			return slog.String(a.Key, DeviceDigest(a.Value.String()))
+		}
+	case "jobRunId":
+		if a.Value.Kind() == slog.KindString && validJobRun(a.Value.String()) {
+			return a
+		}
+	case "route":
+		// A registered route pattern, never the request path: path
+		// parameters stay placeholders and the query string is not part
+		// of it. Any other text is refused.
+		if a.Value.Kind() == slog.KindString && KnownRoute(a.Value.String()) {
+			return a
+		}
+	case "bytes", "version", "perMinute", "sessions", "tracks", "pictures", "cues", "suppressed", "thresholdMs":
+		switch a.Value.Kind() {
+		case slog.KindInt64, slog.KindUint64, slog.KindFloat64:
+			return a
+		}
+	case "media", "value", "persistAcrossRestart":
+		if a.Value.Kind() == slog.KindBool {
+			return a
+		}
+	case "scope":
+		if a.Value.Kind() == slog.KindString && (a.Value.String() == "global" || knownComponent(a.Value.String())) {
+			return a
+		}
+	case "toggle", "check":
+		if a.Value.Kind() == slog.KindString && safeLowerIdent(a.Value.String()) {
+			return a
+		}
+	case "toggles", "restored", "missing":
+		if a.Value.Kind() == slog.KindString && safeLowerList(a.Value.String()) {
+			return a
+		}
+	case "rules":
+		if a.Value.Kind() == slog.KindString && validRuleCounts(a.Value.String()) {
+			return a
+		}
+	case "reason":
+		if a.Value.Kind() == slog.KindString && safeReason(a.Value.String()) {
+			return a
+		}
+	case "logLevel":
+		if a.Value.Kind() == slog.KindString {
+			if _, err := ParseLevel(a.Value.String()); err == nil {
+				return a
+			}
+		}
+	case "expiresAt":
+		switch a.Value.Kind() {
+		case slog.KindTime:
+			return a
+		case slog.KindString:
+			if _, err := time.Parse(time.RFC3339, a.Value.String()); err == nil {
+				return a
+			}
+		}
+	case "ttl":
+		switch a.Value.Kind() {
+		case slog.KindDuration:
+			return a
+		case slog.KindString:
+			if _, err := time.ParseDuration(a.Value.String()); err == nil && len(a.Value.String()) <= 32 {
+				return a
+			}
+		}
+	case "panicType":
+		// A Go type name such as *errors.errorString or runtime.Error.
+		if a.Value.Kind() == slog.KindString && safeTypeName(a.Value.String()) {
+			return a
+		}
+	case "sql":
+		if v, ok := a.Value.Any().(sqlTemplate); ok {
+			return slog.String(a.Key, MaskSecretText(v.text))
+		}
+	case "stack":
+		if v, ok := a.Value.Any().(panicStack); ok {
+			return slog.String(a.Key, v.text)
 		}
 	case "state":
 		if a.Value.Kind() == slog.KindString {
@@ -152,6 +244,11 @@ func (r *redactor) replace(groups []string, a slog.Attr) slog.Attr {
 				return a
 			}
 			if r.developerCode(a.Value.String()) {
+				return a
+			}
+			// Other codes are snake_case constants of the call sites. The
+			// developer mode codes pass only while their switch is on.
+			if _, dev := devCodes[a.Value.String()]; !dev && validCode(a.Value.String()) {
 				return a
 			}
 		}
@@ -272,3 +369,135 @@ func safeLowerIdent(s string) bool {
 }
 
 var defaultRedactor = newRedactor(IPRedact, PathRedact, nil)
+
+// validCode accepts snake_case error and event codes: lower case words
+// joined by underscores, at least two words, at most 64 bytes.
+func validCode(s string) bool {
+	return safeLowerIdent(s) && strings.Contains(strings.Trim(s, "_"), "_")
+}
+
+// safeReason accepts the short constant reasons of developer mode events:
+// lower case words, spaces and hyphens.
+func safeReason(s string) bool {
+	if s == "" || len(s) > 64 {
+		return false
+	}
+	for _, c := range s {
+		if !(c >= 'a' && c <= 'z' || c == ' ' || c == '-') {
+			return false
+		}
+	}
+	return true
+}
+
+// safeLowerList accepts a comma separated list of lower case identifiers.
+func safeLowerList(s string) bool {
+	if s == "" {
+		return true
+	}
+	if len(s) > 1024 {
+		return false
+	}
+	for _, part := range strings.Split(s, ",") {
+		if !safeLowerIdent(part) {
+			return false
+		}
+	}
+	return true
+}
+
+// validRuleCounts accepts the client control summary "id=n,...", where id
+// is a rule UUID or "default".
+func validRuleCounts(s string) bool {
+	if s == "" || len(s) > 4096 {
+		return false
+	}
+	for _, part := range strings.Split(s, ",") {
+		rule, count, ok := strings.Cut(part, "=")
+		if !ok || rule != "default" && !domain.ValidID(rule) || !digits(count, 19) {
+			return false
+		}
+	}
+	return true
+}
+
+// validJobRun accepts "<job UUID>:<lease generation>".
+func validJobRun(s string) bool {
+	job, generation, ok := strings.Cut(s, ":")
+	return ok && domain.ValidID(job) && digits(generation, 19)
+}
+
+func digits(s string, maxLen int) bool {
+	if s == "" || len(s) > maxLen {
+		return false
+	}
+	for _, c := range s {
+		if c < '0' || c > '9' {
+			return false
+		}
+	}
+	return true
+}
+
+// safeTypeName accepts Go type names without digits: letters, underscores,
+// dots, pointers and brackets, at most 64 bytes.
+func safeTypeName(s string) bool {
+	if s == "" || len(s) > 64 {
+		return false
+	}
+	for _, c := range s {
+		if !(c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || strings.ContainsRune("_.*[]", c)) {
+			return false
+		}
+	}
+	return true
+}
+
+// DeviceDigest is the form a client device ID takes in logs: "d_" and the
+// first 16 hexadecimal digits of its SHA-256.
+func DeviceDigest(deviceID string) string {
+	sum := sha256.Sum256([]byte(deviceID))
+	return "d_" + hex.EncodeToString(sum[:8])
+}
+
+// Route patterns (G46.3). The HTTP layer registers every pattern it
+// serves; the access log's "route" passes only for those and "unmatched".
+var (
+	routeMu       sync.Mutex
+	routePatterns atomic.Pointer[map[string]bool]
+)
+
+// maxRoutePatterns bounds the registry.
+const maxRoutePatterns = 8192
+
+// RegisterRoutePatterns adds route patterns the "route" field may carry.
+// Patterns must look like routes: a leading slash and path characters.
+func RegisterRoutePatterns(patterns ...string) {
+	routeMu.Lock()
+	defer routeMu.Unlock()
+	current := routePatterns.Load()
+	next := make(map[string]bool, len(patterns)+8)
+	if current != nil {
+		for p := range *current {
+			next[p] = true
+		}
+	}
+	for _, p := range patterns {
+		if len(next) >= maxRoutePatterns {
+			break
+		}
+		if strings.HasPrefix(p, "/") && safeToken(p, 256, "/{}_-.*:") {
+			next[p] = true
+		}
+	}
+	routePatterns.Store(&next)
+}
+
+// KnownRoute reports a registered pattern or "unmatched".
+func KnownRoute(pattern string) bool {
+	if pattern == "unmatched" {
+		return true
+	}
+	known := routePatterns.Load()
+	return known != nil && (*known)[pattern]
+}

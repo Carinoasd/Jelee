@@ -74,6 +74,7 @@ func specification(cfg config.Config, deprecations []Deprecation) map[string]any
 		clientControlSpecification(paths, schemas)
 		shareSpecification(paths, schemas)
 		setupSpecification(paths, schemas)
+		loggingSpecification(paths, schemas)
 		if cfg.Dev.Capable() {
 			devSpecification(paths, schemas)
 		}

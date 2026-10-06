@@ -58,7 +58,7 @@ const (
 	excludedDerived       = "cache, quota or derived state: scans, probes, NFO reads and image processing rebuild it"
 	excludedObservation   = "observation or statistic, not configuration: playback sessions, counters, hits, delivery attempts"
 	excludedHistory       = "operation history of this database: repair and consistency journals, version operations and legacy import runs name rows and IDs of the source and can only be reverted there"
-	excludedInstance      = "state of this instance: setup progress, developer mode session and migration bookkeeping are set by the target itself"
+	excludedInstance      = "state of this instance: setup progress, developer mode session, runtime log levels and log file retention, and migration bookkeeping are set by the target itself"
 )
 
 // metadataBackupExcluded lists every table that is not exported, with its
@@ -100,7 +100,7 @@ var metadataBackupExcluded = map[string]string{
 	"repair_runs": excludedHistory, "repair_journal": excludedHistory, "item_version_operations": excludedHistory,
 	"legacy_import_runs": excludedHistory, "legacy_import_checkpoints": excludedHistory, "legacy_import_map": excludedHistory,
 
-	"setup_state": excludedInstance, "dev_mode_state": excludedInstance, "schema_migrations": excludedInstance,
+	"setup_state": excludedInstance, "dev_mode_state": excludedInstance, "schema_migrations": excludedInstance, "log_settings": excludedInstance,
 }
 
 func metadataExportQueries(passwordHashes bool) []metadataExportQuery {

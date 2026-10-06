@@ -76,8 +76,16 @@ func newProductionTestExporter(t *testing.T, ops app.OpsMetricsSource, blocked B
 	if err := m.RegisterClientControl(blocked); err != nil {
 		t.Fatal(err)
 	}
+	if err := m.RegisterLogging(&logTestCounters{dropped: 7, failed: 2}); err != nil {
+		t.Fatal(err)
+	}
 	return m
 }
+
+type logTestCounters struct{ dropped, failed uint64 }
+
+func (c *logTestCounters) Dropped() uint64       { return c.dropped }
+func (c *logTestCounters) WriteFailures() uint64 { return c.failed }
 
 func scrapeOps(t *testing.T, m *Metrics) map[string]*dto.MetricFamily {
 	t.Helper()
@@ -132,6 +140,7 @@ func TestOpsMetricsExposeTheSharedSnapshot(t *testing.T) {
 		"jelee_webhooks_deliveries_dead": 4, "jelee_webhooks_deliveries_pending": 2, "jelee_scan_consecutive_failures": 3, "jelee_scan_failing_libraries": 1,
 		"jelee_devmode_active": 1, "jelee_devmode_active_duration_seconds": 90, "jelee_consistency_last_completed_timestamp_seconds": 1700000000.5,
 		"jelee_client_control_blocked_total": 42, "jelee_runtime_memory_limit_bytes": 512 << 20,
+		"jelee_logging_records_dropped_total": 7, "jelee_logging_write_failures_total": 2,
 	} {
 		if got := opsValue(t, families, name, nil); got != want {
 			t.Fatalf("%s = %v, want %v", name, got, want)
@@ -187,6 +196,12 @@ func TestOpsMetricsRegistrationRules(t *testing.T) {
 	}
 	if err := m.RegisterOps(nil); err == nil {
 		t.Fatal("nil operational source registered")
+	}
+	if err := m.RegisterLogging(nil); err == nil {
+		t.Fatal("nil log counters accepted")
+	}
+	if counterValue(1<<64-1) != 1<<63-1 || counterValue(5) != 5 {
+		t.Fatal("counter clamp")
 	}
 	if err := m.RegisterClientControl(nil); err == nil {
 		t.Fatal("nil client control registered")
