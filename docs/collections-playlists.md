@@ -47,8 +47,12 @@
 
 `/collections`、`/collections/:collectionId`、`/lists`、`/lists/:listId`（路由與 i18n 鍵避開 play 字樣，見 no-playback 閘門），條目頁的「加入清單」區塊在點開後才載入清單；只列出與管理，從不播放。中文介面把播放清單稱為「片單」。
 
+## 第三方客戶端相容層
+
+相容層（`/compat`）把合集以上游 `BoxSet`、播放清單以 `Playlist` 型別提供：`/Items?IncludeItemTypes=BoxSet|Playlist`、`/Items?ParentId={id}` 列成員、`/Items/{id}` 詳情、`/UserViews` 的 `boxsets`／`playlists` 虛擬資料夾，以及 `/Playlists/{id}/Items` 的讀取、建立（`POST /Playlists`）、加入、移除、移動。相容層只呼叫本文的 app 服務，讀取同樣經 `itemVisibleSQL`，寫入同樣只限擁有者；與原生的差異是：管理員也看不到沒有成員的合集、新清單預設私人、管理員代他人讀取時看不到任何合集與清單。逐項見[相容矩陣](compat-matrix.md#合集與播放清單模組g242g021g483)；真 PG 測試 `TestCompatCollectionsPostgres` 在七種隱藏機制下驗證。
+
 ## 後續
 
-- 相容層（`/compat`）目前沒有 Collections／Playlists 端點骨架，上游客戶端看不到合集與播放清單，待另行實作（BoxSet、Playlist 型別與 `/Playlists`、`/Collections` 路由）。
+- 相容層尚未提供合集的建立與成員管理（上游 `/Collections`）、清單改名與刪除（上游 `POST /Playlists/{id}`、`DELETE /Items/{id}`）及清單分享對象（`/Playlists/{id}/Users`），合集與清單也沒有自己的圖片。
 - metadata 備份／匯入（G36.4）尚未包含合集與播放清單。
 - NFO 同步未在掃描後自動執行。

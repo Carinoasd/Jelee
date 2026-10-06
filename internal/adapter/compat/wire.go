@@ -68,10 +68,14 @@ const (
 	itemTypeEpisode          = "Episode"
 	itemTypeVideo            = "Video"
 	itemTypeCollectionFolder = "CollectionFolder"
+	itemTypeBoxSet           = "BoxSet"
+	itemTypePlaylist         = "Playlist"
 
 	collectionTypeMovies     = "movies"
 	collectionTypeTvShows    = "tvshows"
 	collectionTypeHomeVideos = "homevideos"
+	collectionTypeBoxSets    = "boxsets"
+	collectionTypePlaylists  = "playlists"
 
 	fieldOverview     = "overview"
 	fieldSortName     = "sortname"
@@ -107,6 +111,16 @@ var itemTypeByKind = map[string]string{
 	"Episode":   itemTypeEpisode,
 	"HomeVideo": itemTypeVideo,
 }
+
+// Collection and playlist module behavioural reference: upstream
+// Jellyfin.Api/Controllers/ItemsController.cs (GetItems: a BoxSet-only type
+// filter drops ParentId), Jellyfin.Api/Controllers/PlaylistsController.cs
+// (CreatePlaylist, AddItemToPlaylist, RemoveItemFromPlaylist, MoveItem,
+// GetPlaylistItems), MediaBrowser.Model/Dto/BaseItemDto.cs (ChildCount,
+// PlaylistItemId), Jellyfin.Api/Models/PlaylistDtos/CreatePlaylistDto.cs and
+// MediaBrowser.Model/Playlists/PlaylistCreationResult.cs. BoxSet, Playlist,
+// boxsets and playlists above are upstream BaseItemKind and CollectionType
+// names; none carries an upstream brand.
 
 // Playback module behavioural reference: upstream
 // Jellyfin.Api/Controllers/MediaInfoController.cs (GetPlaybackInfo,

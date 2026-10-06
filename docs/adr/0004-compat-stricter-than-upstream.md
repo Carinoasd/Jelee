@@ -3,7 +3,7 @@
 - 状态：已采纳（E11，2026-10-05）
 - 日期：2026-10-06（追记）
 - 相关需求：G24（第三方客户端兼容）、G48.3（不暴露存在性）、G27.3（网页会话不能播放）
-- 相关代码：`internal/adapter/compat/`（`router.go`、`auth.go`、`users.go`、`images.go`、`library.go`）、`internal/adapter/http/server.go` 的 `newCompat`
+- 相关代码：`internal/adapter/compat/`（`router.go`、`auth.go`、`users.go`、`images.go`、`library.go`、`collections.go`）、`internal/adapter/http/server.go` 的 `newCompat`
 - 逐项对照：[兼容矩阵](../compat-matrix.md)
 
 ## 背景
@@ -23,6 +23,7 @@
 7. 转码相关字段一律为 false，没有可直投的媒体源时返回 `NoCompatibleStream`，不提供转码地址（见 [ADR 0007](0007-no-encoder-direct-play-only.md)）。
 8. 错误响应比照上游生产环境用空响应体或固定文字，从不回传异常、路径或 SQL；登录不回传 `RemoteEndPoint`。
 9. `/Items` 的 `Limit` 最大 500；开启两步验证的账号用密码登录返回 403 `app_password_required`，需改用应用密码。
+10. 合集与播放清单（`BoxSet`／`Playlist`）：没有可见成员的合集对任何人（含管理员）都不出现；`POST /Playlists` 未给 `IsPublic` 时建立私人清单（上游默认公开），`Users` 指定的分享对象忽略；清单写入只限拥有者，`UserId` 指向他人一律 403；管理员以 `{userId}` 代他人读取时看不到任何合集与清单，而不是用管理员自己的权限代读。
 
 ## 理由
 
@@ -38,4 +39,4 @@
 
 - `internal/adapter/compat/router_test.go`：`TestCORSIsRefused`、`TestAuthentication`、`TestResponsesPublishNoAddressesOrPaths`。
 - `internal/adapter/compat/users_test.go`：`TestUserByID`、`TestPublicUsersIsEmpty`。
-- 真实 PostgreSQL：`TestCompatUsersPostgres`、`TestCompatImagesPostgres`、`TestCompatSessionKindsPostgres`；兼容层路由同样在 `leakRouteTable` 中分类并参与零泄漏遍历。
+- 真实 PostgreSQL：`TestCompatUsersPostgres`、`TestCompatImagesPostgres`、`TestCompatSessionKindsPostgres`、`TestCompatCollectionsPostgres`；兼容层路由同样在 `leakRouteTable` 中分类并参与零泄漏遍历。

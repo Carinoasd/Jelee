@@ -62,6 +62,9 @@ func (c *Catalog) WithCollections(repository CollectionRepository) (*Catalog, er
 	return &next, nil
 }
 
+// HasCollections reports whether collections and playlists are wired.
+func (c *Catalog) HasCollections() bool { return c != nil && c.collections != nil }
+
 func (c *Catalog) collectionsReady(ctx context.Context, actor domain.Actor) error {
 	if c == nil || ctx == nil {
 		return domain.ErrInvalid

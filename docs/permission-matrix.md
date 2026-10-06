@@ -61,7 +61,7 @@
 | P31 | 开发者模式状态与开关 | ✗ | ✗ | ✗ | ✓ | 任意 | 只在可开启开发者模式的实例上注册 | 危险开关需要 `"iUnderstand": true` |
 | P32 | 运行时性能剖析（pprof） | ✗ | ✗ | ✗ | ✗ | — | 有开发者模式会话且开启 `debug_pprof` 时，环回请求或管理员可用 | 其他情况一律 404 |
 | P33 | 兼容层公开接口 | ✓ | ✓ | ✓ | ✓ | — | 无变化 | 服务器公开信息、Ping、空的公开用户列表、用户名密码登录 |
-| P34 | 兼容层（已登录） | ✗ | ✓ | ✗ | ✓ | 原生 | 无变化 | 比上游严格，见 [ADR 0004](adr/0004-compat-stricter-than-upstream.md) 与[兼容矩阵](compat-matrix.md) |
+| P34 | 兼容层（已登录） | ✗ | ✓ | ✗ | ✓ | 原生 | 无变化 | 比上游严格，见 [ADR 0004](adr/0004-compat-stricter-than-upstream.md) 与[兼容矩阵](compat-matrix.md)；`/compat/Playlists` 的写入只限清单拥有者（管理员也不例外），与 P18 相同 |
 
 ## 路由归属
 
