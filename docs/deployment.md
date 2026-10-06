@@ -29,7 +29,7 @@ Compose 内部网络使用 sslmode=disable，仅用于此隔离网络；远程�
 
 ## 初始化（G18）
 
-啟用帳號（`JELEE_ENABLE_ACCOUNTS=true`）的新安裝在完成初始引導前只開放引導 API、`/healthz`、`/readyz`、探索路由與前端外殼，其餘一律回 503 `setup_required`。`/healthz` 是存活檢查；`/readyz` 在資料庫可用時即回 200，並以 `data.setup` 標示 `required`／`completed`，因此等待引導的實例仍會接收流量。完整說明見[初始引導](setup-wizard.md)。
+啟用帳號（`JELEE_ENABLE_ACCOUNTS=true`）的新安裝在完成初始引導前只開放引導 API、`/healthz`、`/readyz`、探索路由與前端外殼，其餘一律回 503 `setup_required`。`/healthz` 是存活檢查；`/readyz` 在資料庫可用時即回 200，並以 `data.setup` 標示 `required`／`completed`，因此等待引導的實例仍會接收流量；`data.checks` 另列各依賴狀態（見下文「啟動自檢與就緒檢查」）。完整說明見[初始引導](setup-wizard.md)。
 
 1. 先執行遷移（`jelee-migrate up`；Compose 的 `migrate` 服務已處理）。遷移 `000071` 會把已有使用者或媒體庫的既有部署直接標為已完成，升級不會被鎖。
 2. 擇一完成引導：
@@ -181,7 +181,7 @@ Jelee 不需要 Redis：快取都在各實例的記憶體內，以版本號、�
 - **需要迁移的升级不能零停机滚动。** 步骤：备份 PostgreSQL → 停止旧服务（Compose `stop_grace_period: 20s`，服务先停止接受连接，再排空请求与工作程序）→ 运行 `jelee-migrate up` → 启动新版本 → 等待 `/readyz` 返回 200 后再开放流量。
 - **不改变 schema 的版本**可以蓝绿切换：在另一端口启动新实例，`/readyz` 为 200 后把代理上游改到新端口并平滑重载（`nginx -s reload` 或 `caddy reload`），再停止旧实例。旧实例上的长时间直投连接会在排空期限后断开，客户端需以 Range 续传。
 - **回滚**：先停服务；如果升级执行过迁移，用旧版本对应的 `jelee-migrate down --i-understand` 逐级回退，或直接恢复升级前的备份。多个版本在保留新增数据时会拒绝降版（见上文各版本说明），此时只能恢复备份。
-- `/healthz` 只表示进程存活；`/readyz` 会检查数据库等依赖，代理健康检查与切换判断应使用 `/readyz`。容器内置健康检查使用 `jelee-cli doctor`。
+- `/healthz` 只表示进程存活；`/readyz` 会检查数据库等依赖（`data.checks` 列出各依赖状态，见「啟動自檢與就緒檢查」），代理健康检查与切换判断应使用 `/readyz` 的状态码。容器内置健康检查使用 `jelee-cli doctor`。
 
 以上步骤由现有关闭与迁移行为推导，尚未做过完整的升级／回滚演练（G37 验收项仍待完成）。
 
@@ -201,6 +201,8 @@ Jelee 不需要 Redis：快取都在各實例的記憶體內，以版本號、�
 | 图片取得失败 | 本地图片见[本地海报](local-images.md)；外部抓取受 SSRF 策略限制，私网／环回地址会被拦截，见[出站请求盘点](outbound-request-audit.md)与 [TMDB 重试](tmdb-retry.md) |
 | 告警触发 | 依告警名称查 [Runbook](runbook.md) 对应小节：每条告警都写明意义、确认、处置与回复验证 |
 | 目录与文件对不上 | `jelee-cli consistency check --library 名称` 检查孤儿条目／文件、版本计数、播放统计漂移、图片／NFO／外挂轨与实际文件、探测与图片快取、约束状态，见[资料一致性检查](consistency.md) |
+| 需要修复数据 | `jelee-cli repair <动作> --dry-run` 预演，确认后 `--yes` 执行：重建条目、图片变体、探测快取，重算统计，清理孤儿记录，重新同步 NFO，修复计数，见[自愈动作](repair.md) |
+| 服务拒绝启动并记录 `startup self-check failed` | 日志中 `component=selfcheck` 那一行的 `code` 指出哪项不变量不满足，见下文「启动自检与就绪检查」 |
 
 ## 維運：監控、告警與一致性檢查（G50.3、G50.6）
 
@@ -222,5 +224,34 @@ Jelee 不需要 Redis：快取都在各實例的記憶體內，以版本號、�
 每條告警的處置步驟見 [Runbook](runbook.md)，指標定義見[指標契約](metrics.md#維運告警指標g506)。版本內沒有固定 `promtool`；規則語法與指標存在性由 `internal/platform/telemetry/alerts_test.go` 檢查，部署端有 `promtool` 時可再跑 `promtool check rules`。
 
 **資料一致性檢查。** `jelee-cli consistency check [--library 名稱]` 在服務主機上直接檢查（預設只報告，結束碼 3 表示有發現）；`--fix` 只修正可逆的參照與統計計數，寫入修正日誌與稽核，`jelee-cli consistency revert --run RUN_ID` 還原。定期檢查以 `JELEE_JOB_CONSISTENCY_INTERVAL_HOURS`（例如 `168`＝每週）啟用，任務在任務清單中可觀察與取消。完整說明、報告格式與限制見[資料一致性檢查](consistency.md)。
+
+**自愈動作（G50.4）。** `jelee-cli repair <動作> --dry-run` 列出會受影響的對象與數量（不寫任何東西），確認後 `--yes` 執行並寫稽核，再跑一次影響為 0；`stats`、`counts` 可以 `jelee-cli repair revert --run RUN_ID --yes` 回滾。`image-variants` 與 `nfo` 由執行中的服務完成（`--token-stdin` 或 `POST /api/v1/admin/repairs`）。完整說明見[自愈動作](repair.md)。
+
+## 啟動自檢與就緒檢查（G50.5）
+
+**啟動自檢。** 服務組好 HTTP 處理器之後、開始監聽之前，對自己送幾個程序內請求並檢查環境；每項結果以 `component=selfcheck` 記一行日誌（`check`、`status`、`code`，都是固定值）：
+
+| 檢查 | 通過 | 不通過 |
+| --- | --- | --- |
+| `access_filter` 權限過濾器已裝配 | 不帶憑證的 `GET /api/v1/users/me`、`/api/v1/items`、`/api/v1/jobs`（依啟用的模組）都被拒絕：401、403，或引導前的 503 `setup_required` | 任一個回 2xx／3xx／404：**拒絕啟動**（`access_filter_missing`） |
+| `transcode_unreachable` 轉碼路徑不可達 | `/transcode` 與 HLS 路徑回 409 `transcode_disabled` | 其他狀態：**拒絕啟動**（`transcode_guard_missing`）。程式碼層面另由 `TestDeliveryPackagesCannotRunEncoders` 保證投遞套件無法啟動任何程序 |
+| `encoder_absent` | PATH 上沒有 `ffmpeg` | 有：**告警**（`encoder_on_path`）。Jelee 從不執行它，但正式映像不含任何編碼器，出現代表主機或映像不是發行版本 |
+| `dev_mode` 開發者模式狀態 | 未啟用（`dev_disabled`） | 實例具備開發者模式能力（`dev_capable`）或有進行中的工作階段（`dev_session_active`）：**告警** |
+
+設定錯誤、schema 版本不符（`jelee-migrate up`）、資源與建構依賴問題原本就在這一步之前拒絕啟動。拒絕啟動時程序以結束碼 1 結束，標準錯誤提示查看日誌。
+
+**就緒檢查。** `/readyz` 的狀態碼語意不變：資料庫可連且 schema 版本正確就回 200（引導未完成也是 200，`data.setup` 為 `required`），否則 503 `not_ready`。回應另含依賴狀態，200 時在 `data.checks`、503 時在 `error.details.checks`：
+
+| 鍵 | 值 |
+| --- | --- |
+| `database` | `ok`、`unavailable` |
+| `schema` | `current`、`migration_required`、`newer`、`dirty`、`unknown` |
+| `jobs` | `idle`、`busy`（有排隊或執行中的任務）、`stalled`（有執行中任務的租約過期超過一分鐘，worker 可能已死）、`disabled`、`unknown` |
+| `probe` | `available`、`unavailable`（已啟用但隔離執行環境不可用）、`disabled` |
+| `images` | `ok`、`no_store`（沒有設定持久存放區）、`disabled` |
+| `devMode` | `off`、`active` |
+| `startup` | 啟動自檢結果：`ok`、`warn` |
+
+只有 `database` 與 `schema` 決定狀態碼；其他是給維運判讀的資訊，例如 `jobs=stalled` 對照告警 `JeleeJobLeasesExpired`。所有值都是固定代碼，不含版本號、數量、位址、路徑或錯誤文字，所以 `/readyz` 可以照舊公開給負載平衡器與探針；細節（實際版本、錯誤碼）用主機上的 `jelee-cli doctor` 看。
 
 **建議的例行作業。** 每週一致性檢查；每次升級前 `jelee-cli doctor` 與備份；告警觸發時先依 Runbook 確認，再視需要以 `jelee-cli diag export --out …` 收集診斷包。

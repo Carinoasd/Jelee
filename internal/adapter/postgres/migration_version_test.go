@@ -53,11 +53,20 @@ func refuseRetainedDowngrade(t *testing.T, f jobFixture, name, message string) u
 	if err != nil || dirty {
 		t.Fatalf("retained downgrade start: version=%d dirty=%t error=%v", version, dirty, err)
 	}
+	versions := embeddedMigrationVersions(t)
 	for version >= want {
+		// A refused step leaves the previous embedded version dirty; the
+		// versions need not be contiguous while branches reserve numbers.
+		previous := uint(0)
+		for _, v := range versions {
+			if v < version {
+				previous = v
+			}
+		}
 		next, _, err := Migrate(f.ctx, dsn, "down")
 		if err != nil {
 			refused, dirty, statusErr := Migrate(f.ctx, dsn, "status")
-			if statusErr != nil || !dirty || refused != version-1 {
+			if statusErr != nil || !dirty || refused != previous {
 				t.Fatalf("refused downgrade state: version=%d dirty=%t error=%v", refused, dirty, statusErr)
 			}
 			return refused

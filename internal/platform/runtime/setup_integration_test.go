@@ -94,6 +94,14 @@ func TestSetupRuntimePostgresWizardOpensGate(t *testing.T) {
 	expect("GET", "/api/v1/items", "", "", 503, `"setup_required"`)
 	expect("POST", "/api/v1/auth/login", "", `{"name":"owner","password":"x"}`, 503, `"setup_required"`)
 	expect("GET", "/readyz", "", "", 200, `"setup":"required"`)
+	// G50.5: dependency states are fixed codes; the startup self-check ran
+	// against this very handler before the listener opened.
+	for _, fragment := range []string{`"database":"ok"`, `"schema":"current"`, `"jobs":"disabled"`, `"devMode":"off"`, `"startup":"`} {
+		expect("GET", "/readyz", "", "", 200, fragment)
+	}
+	if _, text := call("GET", "/readyz", "", ""); strings.Contains(text, runtimeDSN) || strings.Contains(text, "version\"") {
+		t.Fatalf("readiness leaked configuration: %s", text)
+	}
 	expect("GET", "/api/v1/setup", "", "", 401, `"setup_token_invalid"`)
 	expect("GET", "/api/v1/setup", token, "", 200, `"current":"language"`)
 	media := t.TempDir()

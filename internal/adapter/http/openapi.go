@@ -14,6 +14,7 @@ func Specification(cfg config.Config) map[string]any {
 	for _, path := range []string{"/healthz", "/readyz", "/api/v1/system", "/api/v1/openapi.json", "/api-docs"} {
 		paths[path] = map[string]any{"get": operation("Inspect service", "200")}
 	}
+	paths["/readyz"].(map[string]any)["get"].(map[string]any)["description"] = "Readiness. 200 while PostgreSQL answers with the expected schema, also before initial setup (data.setup is required or completed); otherwise 503 not_ready. data.checks (and error.details.checks of a 503) lists dependency states as fixed codes only: database ok|unavailable, schema current|migration_required|newer|dirty|unknown, jobs idle|busy|stalled|disabled|unknown, probe available|unavailable|disabled, images ok|no_store|disabled, devMode off|active, startup ok|warn (the startup self-check, G50.5). Only database and schema decide the status code."
 	paths["/api/v1/system"].(map[string]any)["get"].(map[string]any)["description"] = "Public service information: name, version (the server build, equal to info.version of this document; plugins compare minJeleeVersion against it), developer mode state and capabilities."
 	if cfg.EnableCatalog && cfg.EnableDirect {
 		op := operation("Read the unmodified original resource", "200", "206", "409", "416")
@@ -86,6 +87,9 @@ func Specification(cfg config.Config) map[string]any {
 	if cfg.EnableJobs {
 		jobSpecification(paths, schemas)
 		nfoSpecification(paths, schemas)
+		if cfg.EnableAccounts {
+			repairSpecification(paths, schemas)
+		}
 	}
 	if cfg.EnableImages && cfg.EnableAccounts && cfg.EnableCatalog {
 		imageSpecification(paths, cfg)

@@ -19,7 +19,7 @@
 - **意義**：Prometheus 連續 2 分鐘抓不到 `/metrics`。`/metrics` 每次都向 PostgreSQL 重新驗證管理員工作階段，所以**資料庫不可達**、服務停止、權杖過期或被撤銷都會讓抓取失敗。這條就是「DB 不可達」告警：資料庫斷線時程序內沒有任何指標能被抓到。
 - **確認**：
   1. `curl -fsS http://服務位址/healthz`：失敗表示程序本身不在；成功則往下。
-  2. `curl -fsS http://服務位址/readyz`：回 503 `not_ready` 表示資料庫連不到或 schema 不符。
+  2. `curl -fsS http://服務位址/readyz`：回 503 `not_ready` 表示資料庫連不到或 schema 不符；`error.details.checks` 的 `database`（`unavailable`）與 `schema`（`migration_required`、`newer`、`dirty`）指出是哪一個（[就緒檢查](deployment.md#啟動自檢與就緒檢查g505)）。
   3. 在服務主機執行 `jelee-cli doctor --checks config,database,migrations`，看 `db_*`／`migration_*` 錯誤碼（意義與修復見[故障排查](troubleshooting.md#databasemigrations数据库连接与迁移)）。
   4. `/readyz` 正常但抓取仍失敗：用 Prometheus 的權杖手動 `curl -H "Authorization: Bearer …" /metrics`，401 表示權杖過期或被撤銷，503 `metrics_busy` 表示抓取太頻繁。
 - **處置**：資料庫問題依 doctor 建議修復（服務、網路、密碼、`jelee-migrate up`）；權杖問題以管理員重新登入或 `jelee-cli provision --admin` 取得新權杖並更新憑證檔；程序不在則查容器日誌後重啟。
@@ -126,7 +126,7 @@
 
 - **意義**：某個媒體庫最近一次資料一致性檢查（G50.3）的 `check` 項目有發現：目錄、盤點基準、衍生表與實際檔案之間不一致。數值是每個媒體庫最新一次完成的檢查之發現數總和。各檢查與發現代碼的意義見[資料一致性檢查](consistency.md)。
 - **確認**：`jelee-cli consistency report --library 名稱或ID` 看最新報告（`--json` 有樣本與識別碼）；需要即時結果就 `jelee-cli consistency check --library …`。
-- **處置**：依[資料一致性檢查](consistency.md#發現與處置)該代碼的建議處理：多數是重新掃描與同步（`jelee-cli jobs scan … --probe --nfo`）；`version_count` 的跨條目版本參照與 `watch_stats_drift` 的計數漂移可以 `jelee-cli consistency check --fix` 修復（可逆、寫稽核，`jelee-cli consistency revert --run …` 還原）；刪除類（孤兒條目、孤兒記錄）一律人工決定。
+- **處置**：依[資料一致性檢查](consistency.md#發現與處置)該代碼的建議處理：多數是重新掃描與同步（`jelee-cli jobs scan … --probe --nfo`）；`version_count` 的跨條目版本參照與 `watch_stats_drift` 的計數漂移可以 `jelee-cli consistency check --fix` 修復（可逆、寫稽核，`jelee-cli consistency revert --run …` 還原），或以[自愈動作](repair.md) `jelee-cli repair counts|stats --dry-run` 預演、`--yes` 對全部列（非抽樣）執行；探測快取過時與孤兒快取／變體索引列用 `repair caches`／`repair orphans`，未入庫影片用 `repair items`，NFO 過時用 `repair nfo --token-stdin`。孤兒條目（來源檔案已不存在）一律人工決定，走目錄同步的缺失確認。
 - **回復驗證**：再跑一次 `jelee-cli consistency check`（或等下一次排程），該檢查的發現數為 0，`jelee_consistency_findings{check="…"}` 歸 0。
 
 ### JeleeConsistencyCheckStale

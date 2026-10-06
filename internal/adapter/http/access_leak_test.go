@@ -362,12 +362,15 @@ func leakRouteTable() map[string]leakRoute {
 		"GET /api/v1/metadata/tmdb/series/{id}/seasons/{season}/episodes/{episode}": admin(map[string]string{"id": "tmdb", "season": "tmdb", "episode": "tmdb"}),
 
 		// Library administration and jobs.
-		"GET /api/v1/libraries":                                                     admin(noParams),
-		"GET /api/v1/libraries/{id}/watch":                                          admin(libParam),
-		"GET /api/v1/libraries/{id}/schedule":                                       admin(libParam),
-		"PUT /api/v1/libraries/{id}/schedule":                                       admin(libParam),
-		"POST /api/v1/libraries/{id}/schedule/run":                                  admin(libParam),
-		"POST /api/v1/libraries/{id}/scan":                                          admin(libParam),
+		"GET /api/v1/libraries":                    admin(noParams),
+		"GET /api/v1/libraries/{id}/watch":         admin(libParam),
+		"GET /api/v1/libraries/{id}/schedule":      admin(libParam),
+		"PUT /api/v1/libraries/{id}/schedule":      admin(libParam),
+		"POST /api/v1/libraries/{id}/schedule/run": admin(libParam),
+		"POST /api/v1/libraries/{id}/scan":         admin(libParam),
+		// G50.4 repair actions: administrator only; the run ID is opaque.
+		"POST /api/v1/admin/repairs":                                                admin(noParams),
+		"POST /api/v1/admin/repairs/{id}/revert":                                    admin(webhookParam),
 		"GET /api/v1/libraries/{id}/catalog-sync":                                   admin(libParam),
 		"PUT /api/v1/libraries/{id}/catalog-sync":                                   admin(libParam),
 		"POST /api/v1/libraries/{id}/catalog-sync":                                  admin(libParam),
@@ -578,7 +581,11 @@ func leakHandlerWithAccounts(t *testing.T, store *postgres.Store, cfg config.Con
 	if catalog, err = catalog.WithWatchStats(stats); err != nil {
 		t.Fatal(err)
 	}
-	options := []Option{WithWebhooks(httpWebhooks(t, store)), WithSetup(completedSetupWizard(), ""), WithExtracted(newLeakExtracted(t, store))}
+	repairer, err := app.NewRepairer(store, httpNoFiles{}, nil, httpPaths{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	options := []Option{WithWebhooks(httpWebhooks(t, store)), WithSetup(completedSetupWizard(), ""), WithExtracted(newLeakExtracted(t, store)), WithRepair(repairer.WithServer(jobs, nil), app.RepairOptions{Policy: cfg.Jobs.Policy()})}
 	if cfg.Dev.Capable() {
 		// The developer routes exist but no session is active (G45.8).
 		dev, err := devmode.NewController(devmode.ControllerOptions{Store: store, Local: cfg.Dev.Inputs()})

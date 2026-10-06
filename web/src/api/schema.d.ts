@@ -908,6 +908,289 @@ export type paths = {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/repairs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Plan or run a self-healing repair action
+         * @description Actions: items (queue catalog synchronisation for baseline videos without an item), image-variants (clear the live image variant generation; variants render again on request), caches (drop probe cache rows of changed files), stats (recount daily statistics from sessions on stored days), orphans (remove probe cache rows of deleted files and variant index rows without a file), nfo (queue an NFO validating scan for stale NFO observations), counts (clear version references to another item). A dry run writes nothing and lists the affected objects and their number; an execution applies the same plan, records a run, audits every batch as repair.applied and the run as repair.finished, and is idempotent: a second execution affects nothing. stats and counts are journaled and revertible. A library with another active job answers 409 job_busy; nfo without the scan pipeline 503 nfo_reader_unavailable; image-variants without an image store 404 image_unavailable. The request deadline applies; use jelee-cli repair on the host for large libraries.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            /** @description Maximum 64 KiB; one strict JSON object. */
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["RepairRequest"];
+                };
+            };
+            responses: {
+                /** @description HTTP 200 */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["RepairResult"];
+                        };
+                    };
+                };
+                /** @description HTTP 400 */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 401 */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 403 */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 404 */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 408 */
+                408: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 409 */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 413 */
+                413: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 415 */
+                415: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 429 */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 503 */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Jelee error envelope with code, message, details and traceId; see the Error schema. */
+                default: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/repairs/{id}/revert": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Revert a stats or counts repair run
+         * @description Restores the values before every journaled repair of the run, newest first, while the row still holds the repaired value; others are skipped and counted. Reverted entries are never replayed. Other actions are not revertible (409 conflict). Audited as repair.reverted.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            /** @description Maximum 64 KiB; one strict JSON object. */
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["RepairRevertRequest"];
+                };
+            };
+            responses: {
+                /** @description HTTP 200 */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["RepairRevertResult"];
+                        };
+                    };
+                };
+                /** @description HTTP 400 */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 401 */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 403 */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 404 */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 408 */
+                408: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 409 */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 413 */
+                413: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 415 */
+                415: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 503 */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Jelee error envelope with code, message, details and traceId; see the Error schema. */
+                default: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/auth/csrf": {
         parameters: {
             query?: never;
@@ -25660,7 +25943,10 @@ export type paths = {
             path?: never;
             cookie?: never;
         };
-        /** Inspect service */
+        /**
+         * Inspect service
+         * @description Readiness. 200 while PostgreSQL answers with the expected schema, also before initial setup (data.setup is required or completed); otherwise 503 not_ready. data.checks (and error.details.checks of a 503) lists dependency states as fixed codes only: database ok|unavailable, schema current|migration_required|newer|dirty|unknown, jobs idle|busy|stalled|disabled|unknown, probe available|unavailable|disabled, images ok|no_store|disabled, devMode off|active, startup ok|warn (the startup self-check, G50.5). Only database and schema decide the status code.
+         */
         get: {
             parameters: {
                 query?: never;
@@ -27507,6 +27793,107 @@ export type components = {
         RecoveryCodes: {
             /** @description Shown once; the server keeps only digests. Each works once instead of an authenticator code. */
             recoveryCodes: string[];
+        };
+        RepairJob: {
+            /** Format: uuid */
+            jobId: string;
+            /** Format: uuid */
+            libraryId: string;
+            /** @description The library already had the job active; nothing new was queued. */
+            replayed: boolean;
+        };
+        RepairRequest: {
+            /** @enum {string} */
+            action: "items" | "image-variants" | "caches" | "stats" | "orphans" | "nfo" | "counts";
+            /**
+             * @description List the affected objects and their number without writing anything.
+             * @default false
+             */
+            dryRun: boolean;
+            /** @description Required true unless dryRun; otherwise 400 confirmation_required. */
+            iUnderstand?: boolean;
+            /**
+             * Format: uuid
+             * @description Limit the action to one library; omit for every library. image-variants is store-wide and refuses a library.
+             */
+            libraryId?: string;
+            /** @description File and variant probes of the orphans action; 0 uses the configured budget. */
+            statBudget?: number;
+        };
+        RepairResult: {
+            /** @enum {string} */
+            action: "items" | "image-variants" | "caches" | "stats" | "orphans" | "nfo" | "counts";
+            /** Format: int64 */
+            applied: number;
+            dryRun: boolean;
+            /** Format: date-time */
+            finishedAt: string;
+            info?: {
+                [key: string]: number;
+            };
+            jobs?: components["schemas"]["RepairJob"][];
+            /** Format: uuid */
+            libraryId?: string;
+            /** @enum {string} */
+            origin: "cli" | "api";
+            /** Format: int64 */
+            planned: number;
+            /** @enum {string} */
+            reason?: "no_baseline" | "unconfirmed" | "image_store_unavailable" | "repair_failed";
+            revertible: boolean;
+            /** Format: uuid */
+            runId?: string;
+            samples: components["schemas"]["RepairSample"][];
+            samplesTruncated: boolean;
+            /** @constant */
+            schema: "jelee-repair-result/v1";
+            /** Format: int64 */
+            skipped: number;
+            /** Format: date-time */
+            startedAt: string;
+            /** @enum {string} */
+            state: "planned" | "completed" | "partial" | "failed";
+            targets: components["schemas"]["RepairTargetCount"][];
+        };
+        RepairRevertRequest: {
+            /** @description Required true; otherwise 400 confirmation_required. */
+            iUnderstand: boolean;
+        };
+        RepairRevertResult: {
+            /** Format: int64 */
+            reverted: number;
+            /** Format: uuid */
+            runId: string;
+            /** Format: int64 */
+            skipped: number;
+        };
+        RepairSample: {
+            /** Format: date */
+            day?: string;
+            /** Format: uuid */
+            itemId?: string;
+            /** @enum {string} */
+            kind: "uncataloged_video" | "image_variant" | "probe_cache_stale" | "probe_cache_orphan" | "variant_index_orphan" | "daily_counters" | "nfo_observation" | "user_data_reference" | "session_reference";
+            /** Format: uuid */
+            libraryId?: string;
+            /** @description The server also enforces the stated maximum in UTF-8 bytes. */
+            object?: string;
+            /** @description Root-relative per logging.pathMode, or [redacted]; never absolute. */
+            path?: string;
+            /** Format: uuid */
+            sourceId?: string;
+            /** Format: uuid */
+            userId?: string;
+        };
+        RepairTargetCount: {
+            /** Format: int64 */
+            applied: number;
+            /** @enum {string} */
+            kind: "uncataloged_video" | "image_variant" | "probe_cache_stale" | "probe_cache_orphan" | "variant_index_orphan" | "daily_counters" | "nfo_observation" | "user_data_reference" | "session_reference";
+            /** Format: int64 */
+            planned: number;
+            /** Format: int64 */
+            skipped: number;
         };
         Rotate: {
             /** @description The server also enforces the stated maximum in UTF-8 bytes. */

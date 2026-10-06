@@ -46,6 +46,7 @@ var userReferenceColumns = map[string]string{
 	"jobs.actor_id":                          "set null",
 	"known_clients.last_user_id":             "set null",
 	"library_network_rules.created_by":       "set null",
+	"repair_runs.actor_id":                   "set null",
 	"share_links.revoked_by":                 "set null",
 	// No action or restrict: PurgeUser deletes or moves the rows first.
 	"nfo_policy_requests.actor_id":    "explicit",
@@ -121,6 +122,7 @@ func (f userDataFixture) seed(t *testing.T, native, web domain.Actor) (share, gu
 	f.exec(t, `INSERT INTO user_blocked_tags(user_id,tag) VALUES($1::uuid,'horror')`, uid)
 	f.exec(t, `WITH p AS (INSERT INTO playlists(owner_id,name) VALUES($1::uuid,'purge list') RETURNING id) INSERT INTO playlist_items(playlist_id,item_id,position) SELECT id,$2::uuid,0 FROM p`, uid, f.item)
 	f.exec(t, `INSERT INTO collections(name,created_by) VALUES('purge collection',$1::uuid)`, uid)
+	f.exec(t, `INSERT INTO repair_runs(action,origin,actor_id) VALUES('stats','api',$1::uuid)`, uid)
 	f.exec(t, `INSERT INTO user_item_access_rules(user_id,item_id,effect) VALUES($1::uuid,$2::uuid,'allow')`, uid, f.item)
 	f.exec(t, `INSERT INTO watch_stats_daily(user_id,day,item_id,library_id,effective_ms,sessions,views,first_plays) VALUES($1::uuid,current_date,$2::uuid,$3::uuid,60000,1,1,1)`, uid, f.item, lib)
 	f.exec(t, `INSERT INTO watch_stats_history(user_id,item_id,views) VALUES($1::uuid,$2::uuid,1)`, uid, f.item)
@@ -289,6 +291,7 @@ func TestUserPurgeLeavesNoUserRows(t *testing.T) {
 		"anonymous job":             `SELECT count(*)-1 FROM jobs WHERE actor_id IS NULL AND idempotency_key='purge-job'`,
 		"anonymous network rule":    `SELECT count(*)-1 FROM library_network_rules WHERE created_by IS NULL`,
 		"anonymous collection":      `SELECT count(*)-1 FROM collections WHERE name='purge collection' AND created_by IS NULL`,
+		"anonymous repair run":      `SELECT count(*)-1 FROM repair_runs WHERE origin='api' AND actor_id IS NULL`,
 		"playlist items removed":    `SELECT count(*) FROM playlist_items i LEFT JOIN playlists p ON p.id=i.playlist_id WHERE p.id IS NULL`,
 		"created user kept":         `SELECT count(*)-1 FROM users WHERE name='purge-created'`,
 		"audit events kept":         `SELECT count(*)-` + strconv.FormatInt(auditBefore, 10) + ` FROM audit_logs WHERE (actor_id=@uid::uuid OR target_id=@uid::uuid) AND event<>'user.purged'`,

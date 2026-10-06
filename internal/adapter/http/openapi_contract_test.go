@@ -140,7 +140,8 @@ func contractServer(t *testing.T, cfg config.Config, backend Backend, logger *sl
 	if err != nil {
 		t.Fatal(err)
 	}
-	return newServer(cfg, backend, catalog, &fakeResolver{}, logger, metricsAccounts(t), jobs, metadata, http.NotFoundHandler(), images, nil, append([]Option{WithWebhooks(httpWebhooks(t, stubWebhookRepository{})), WithSetup(completedSetupWizard(), "")}, options...))
+	repair := WithRepair(httpRepairer(t, &httpRepairRepository{}, nil), app.RepairOptions{Policy: config.DefaultJobsConfig().Policy()})
+	return newServer(cfg, backend, catalog, &fakeResolver{}, logger, metricsAccounts(t), jobs, metadata, http.NotFoundHandler(), images, nil, append([]Option{WithWebhooks(httpWebhooks(t, stubWebhookRepository{})), WithSetup(completedSetupWizard(), ""), repair}, options...))
 }
 
 func registeredRoutes(t *testing.T, handler http.Handler) map[string]bool {

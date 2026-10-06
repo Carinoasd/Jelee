@@ -31,6 +31,9 @@ func (s *Server) jobRoutes(router chi.Router) {
 	router.Group(func(r chi.Router) {
 		r.Use(s.jobBudget, s.authenticate)
 		s.nfoRoutes(r)
+		if s.cfg.EnableAccounts {
+			s.repairRoutes(r)
+		}
 		r.Get("/api/v1/libraries/{id}/watch", s.accountEndpoint(true, false, func(_ http.ResponseWriter, r *http.Request, a domain.Actor) (any, int, error) {
 			v, err := s.jobs.WatchStatus(r.Context(), a, chi.URLParam(r, "id"))
 			return v, 200, err

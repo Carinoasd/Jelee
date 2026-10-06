@@ -335,8 +335,37 @@ func newWithLifetime(cfg config.Config, logger *slog.Logger, lifetime *lifetime)
 		func(c config.Config, store *postgres.Store, budget *resources.Budget, l *slog.Logger, _ *devmode.Controller) (*app.Webhooks, error) {
 			return newWebhooks(c, store, budget, l, lifetime)
 		},
-		func(c config.Config, store *postgres.Store, catalog *app.Catalog, jobs *app.Jobs, metadata *app.Metadata, metrics *telemetry.Metrics, pictures *app.Images, webhooks *app.Webhooks, budget *resources.Budget, l *slog.Logger, dev *devmode.Controller) (http.Handler, error) {
+		func(c config.Config, store *postgres.Store, catalog *app.Catalog, jobs *app.Jobs, metadata *app.Metadata, metrics *telemetry.Metrics, pictures *app.Images, webhooks *app.Webhooks, budget *resources.Budget, l *slog.Logger, dev *devmode.Controller, processor *imageadapter.Processor) (http.Handler, error) {
 			var options []httpapi.Option
+			if c.EnableJobs && c.EnableAccounts && jobs != nil {
+				// G50.4: administrators run the repair actions through the
+				// server, which owns the image variant store and the NFO
+				// reader identity scans are pinned to.
+				repairer, err := consistency.NewRepairer(c, store)
+				if err != nil {
+					return nil, err
+				}
+				var variants app.RepairVariantStore
+				if originals := processor.OriginalStore(); originals != nil {
+					variants = originals
+				}
+				options = append(options, httpapi.WithRepair(repairer.WithServer(jobs, variants), consistency.RepairTemplate(c)))
+			}
+			// G50.5: the assembled handler is checked before the listener
+			// opens; /readyz reports the outcome with the dependencies.
+			checks := &selfCheckState{}
+			options = append(options, httpapi.WithReadiness(readinessStates(c, store, jobs, processor, dev, checks)))
+			verified := func(handler http.Handler, err error) (http.Handler, error) {
+				if err != nil {
+					return nil, err
+				}
+				report, err := runSelfCheck(handler, selfCheckEnvironment{config: c, dev: dev}, l)
+				checks.report = report
+				if err != nil {
+					return nil, err
+				}
+				return handler, nil
+			}
 			if c.Matroska.EnableExtraction {
 				// A nil budget must stay a nil interface for OCR's admission.
 				var work app.WorkBudget
@@ -354,7 +383,7 @@ func newWithLifetime(cfg config.Config, logger *slog.Logger, lifetime *lifetime)
 				}
 			}
 			if !c.EnableAccounts {
-				return httpapi.NewWithResources(c, store, catalog, store, l, nil, nil, nil, nil, nil, budget, options...)
+				return verified(httpapi.NewWithResources(c, store, catalog, store, l, nil, nil, nil, nil, nil, budget, options...))
 			}
 			if err := c.Accounts.Validate(); err != nil {
 				return nil, err
@@ -408,7 +437,7 @@ func newWithLifetime(cfg config.Config, logger *slog.Logger, lifetime *lifetime)
 				return nil, err
 			}
 			options = append(options, httpapi.WithSetup(setup, token), httpapi.WithDevMode(dev))
-			return httpapi.NewWithResources(c, store, catalog, store, l, accounts, jobs, metadata, metricsHandler, pictures, budget, options...)
+			return verified(httpapi.NewWithResources(c, store, catalog, store, l, accounts, jobs, metadata, metricsHandler, pictures, budget, options...))
 		},
 	), fx.Invoke(func(lc fx.Lifecycle, cfg config.Config, handler http.Handler, shutdown fx.Shutdowner) {
 		lifetime.server = &http.Server{Addr: cfg.Listen, Handler: handler, ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 15 * time.Second, IdleTimeout: 60 * time.Second, MaxHeaderBytes: 16 << 10}
