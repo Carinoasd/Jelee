@@ -49,7 +49,7 @@ func metadataImageSpecification(paths, schemas map[string]any) {
 		"imageLanguages": metadataImageLanguageSchema(), "candidates": map[string]any{"type": "array", "maxItems": domain.MetadataImageLimit, "items": map[string]any{"$ref": "#/components/schemas/MetadataImageCandidate"}},
 	}, "resource", "providerId", "source", "sourceUrl", "fetchedAt", "imageLanguages", "candidates")
 	for _, resource := range []string{"movies", "series"} {
-		op := operation("List TMDB image candidates for administrator confirmation", "200", "400", "401", "403", "404", "408", "503")
+		op := adminOperation("List TMDB image candidates for administrator confirmation", "200", "400", "401", "403", "404", "408", "503")
 		op["security"] = []any{map[string]any{"bearer": []string{}}}
 		op["parameters"] = []any{map[string]any{"name": "id", "in": "path", "required": true, "schema": map[string]any{"type": "integer", "format": "int32", "minimum": 1, "maximum": 2147483647}}, map[string]any{"name": "libraryId", "in": "query", "schema": map[string]any{"type": "string", "format": "uuid"}, "description": "Use this library's ordered image languages; omitted uses profile language defaults."}}
 		op["responses"].(map[string]any)["200"] = map[string]any{"description": "Ordered poster and backdrop candidates with original provider URLs; every image needs confirmation. No image download or artwork write.", "content": map[string]any{"application/json": map[string]any{"schema": objectSchema(map[string]any{"data": map[string]any{"$ref": "#/components/schemas/MetadataImages"}}, "data")}}}

@@ -80,7 +80,7 @@ func episodeSpecification(paths, schemas map[string]any) {
 		schema["properties"] = properties
 		schema["required"] = required
 		schemas[item.name] = schema
-		op := operation("Preview TMDB season or episode data (administrator)", "200", "400", "401", "403", "404", "408", "503")
+		op := adminOperation("Preview TMDB season or episode data (administrator)", "200", "400", "401", "403", "404", "408", "503")
 		op["security"] = []any{map[string]any{"bearer": []string{}}}
 		params := []any{map[string]any{"name": "id", "in": "path", "required": true, "schema": map[string]any{"type": "integer", "format": "int32", "minimum": 1, "maximum": 2147483647}}, map[string]any{"name": "season", "in": "path", "required": true, "schema": map[string]any{"type": "integer", "format": "int32", "minimum": 0, "maximum": 2147483647}}}
 		if item.episode {

@@ -23,8 +23,10 @@ func specification(cfg config.Config, deprecations []Deprecation) map[string]any
 	paths["/readyz"].(map[string]any)["get"].(map[string]any)["description"] = "Readiness. 200 while PostgreSQL answers with the expected schema, also before initial setup (data.setup is required or completed); otherwise 503 not_ready. data.checks (and error.details.checks of a 503) lists dependency states as fixed codes only: database ok|unavailable, schema current|migration_required|newer|dirty|unknown, jobs idle|busy|stalled|disabled|unknown, probe available|unavailable|disabled, images ok|no_store|disabled, devMode off|active, startup ok|warn (the startup self-check, G50.5). Only database and schema decide the status code."
 	paths["/api/v1/system"].(map[string]any)["get"].(map[string]any)["description"] = "Public service information: name, version (the server build, equal to info.version of this document; plugins compare minJeleeVersion against it), developer mode state and capabilities."
 	if cfg.EnableCatalog && cfg.EnableDirect {
-		op := operation("Read the unmodified original resource", "200", "206", "409", "416")
+		op := operation("Read the unmodified original resource", "200", "206", "403", "409", "416")
+		op["description"] = "Native sessions only; web sessions get 403 web_playback_disabled."
 		op["security"] = []any{map[string]any{"bearer": []string{}}}
+		op["x-jelee-session"] = "native"
 		op["parameters"] = []any{idParameter(), map[string]any{"name": "Range", "in": "header", "schema": map[string]any{"type": "string"}}, map[string]any{"name": "If-Range", "in": "header", "schema": map[string]any{"type": "string"}}}
 		paths["/api/v1/sources/{id}/stream"] = map[string]any{"get": op, "head": op}
 		for route, kind := range map[string]string{subtitleTrackRoute: "subtitle", audioTrackRoute: "audio"} {
@@ -115,6 +117,14 @@ func operation(summary string, statuses ...string) map[string]any {
 		responses[status] = map[string]any{"description": "HTTP " + status}
 	}
 	return map[string]any{"summary": summary, "responses": responses}
+}
+
+// adminOperation is an operation only an administrator may call; any other
+// caller is refused with 403 before a lookup (docs/permission-matrix.md).
+func adminOperation(summary string, statuses ...string) map[string]any {
+	op := operation(summary, statuses...)
+	op["x-jelee-role"] = "administrator"
+	return op
 }
 
 // webSessionScheme documents the browser cookie (G35.1). It is an alternative
