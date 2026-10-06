@@ -18514,7 +18514,10 @@ export type paths = {
             path?: never;
             cookie?: never;
         };
-        /** Read the unmodified original resource */
+        /**
+         * Read the unmodified original resource
+         * @description Native sessions only; web sessions get 403 web_playback_disabled.
+         */
         get: {
             parameters: {
                 query?: never;
@@ -18542,6 +18545,15 @@ export type paths = {
                         [name: string]: unknown;
                     };
                     content?: never;
+                };
+                /** @description HTTP 403 */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
                 };
                 /** @description HTTP 409 */
                 409: {
@@ -18576,7 +18588,10 @@ export type paths = {
         post?: never;
         delete?: never;
         options?: never;
-        /** Read the unmodified original resource */
+        /**
+         * Read the unmodified original resource
+         * @description Native sessions only; web sessions get 403 web_playback_disabled.
+         */
         head: {
             parameters: {
                 query?: never;
@@ -18604,6 +18619,15 @@ export type paths = {
                         [name: string]: unknown;
                     };
                     content?: never;
+                };
+                /** @description HTTP 403 */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
                 };
                 /** @description HTTP 409 */
                 409: {

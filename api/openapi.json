@@ -19926,7 +19926,8 @@
             "webSession": []
           }
         ],
-        "summary": "Read item metadata and field locks (administrator)"
+        "summary": "Read item metadata and field locks (administrator)",
+        "x-jelee-role": "administrator"
       },
       "put": {
         "description": "Explicit manual edits may change locked fields and lock flags. Omitted value/locked preserves it; an empty optional value is a recorded manual clear. JSON null in text fields, repeated fields, unknown properties and invalid dates are rejected. Title must be nonblank; title/originalTitle/sortTitle/tagline/mpaa/certification 1024 bytes, overview/outline 16384 bytes, date empty or a real YYYY-MM-DD. No provider calls or original asset writes. Year facts use JSON integers from 1 through 9999; runtimeMinutes uses integers from 0 through 10000000; rating and userRating use numbers from 0 through 10. String list facts retain order; null and an empty array are explicit manual clears. Entries are bounded to 128, 1024 UTF-8 bytes each and 16384 combined bytes per list. The request body is bounded to 2 MiB. Actor facts retain name, role, thumb reference and optional integer order; all actor text totals at most 16384 UTF-8 bytes. Null and an empty actor array are explicit manual clears. Fact names must be unique. Null at facts[].value records an explicit manual clear. Omitted fact value preserves it. Text and fact edits share one revision and transaction; explicit fact values clear NFO value and lock origins. Optional artwork season, actor order and rating max/votes also accept null to represent a missing value; other null properties are rejected.",
@@ -20666,7 +20667,8 @@
             "webSession": []
           }
         ],
-        "summary": "Manually update item metadata and locks with revision check (administrator)"
+        "summary": "Manually update item metadata and locks with revision check (administrator)",
+        "x-jelee-role": "administrator"
       }
     },
     "/api/v1/items/{id}/metadata/external": {
@@ -20843,7 +20845,8 @@
             "webSession": []
           }
         ],
-        "summary": "Remove stored external (TMDB) metadata from one item (administrator)"
+        "summary": "Remove stored external (TMDB) metadata from one item (administrator)",
+        "x-jelee-role": "administrator"
       }
     },
     "/api/v1/items/{id}/metadata/nfo": {
@@ -21035,7 +21038,8 @@
             "webSession": []
           }
         ],
-        "summary": "Apply confirmed read-only selected NFO fields (administrator)"
+        "summary": "Apply confirmed read-only selected NFO fields (administrator)",
+        "x-jelee-role": "administrator"
       }
     },
     "/api/v1/items/{id}/metadata/tmdb": {
@@ -21255,7 +21259,8 @@
             "webSession": []
           }
         ],
-        "summary": "Apply explicitly confirmed TMDB details while preserving local fields and locks (administrator)"
+        "summary": "Apply explicitly confirmed TMDB details while preserving local fields and locks (administrator)",
+        "x-jelee-role": "administrator"
       }
     },
     "/api/v1/items/{id}/playback": {
@@ -28450,7 +28455,8 @@
             "webSession": []
           }
         ],
-        "summary": "Read library metadata language (administrator)"
+        "summary": "Read library metadata language (administrator)",
+        "x-jelee-role": "administrator"
       },
       "put": {
         "parameters": [
@@ -28660,7 +28666,8 @@
             "webSession": []
           }
         ],
-        "summary": "Update library metadata language with revision check (administrator)"
+        "summary": "Update library metadata language with revision check (administrator)",
+        "x-jelee-role": "administrator"
       }
     },
     "/api/v1/libraries/{id}/nfo/current-validations": {
@@ -31386,7 +31393,8 @@
             "webSession": []
           }
         ],
-        "summary": "Search TMDB movie candidates for administrator confirmation"
+        "summary": "Search TMDB movie candidates for administrator confirmation",
+        "x-jelee-role": "administrator"
       }
     },
     "/api/v1/metadata/tmdb/movies/{id}": {
@@ -31560,7 +31568,8 @@
             "webSession": []
           }
         ],
-        "summary": "Preview a TMDB movie candidate (administrator)"
+        "summary": "Preview a TMDB movie candidate (administrator)",
+        "x-jelee-role": "administrator"
       }
     },
     "/api/v1/metadata/tmdb/movies/{id}/images": {
@@ -31721,7 +31730,8 @@
             "webSession": []
           }
         ],
-        "summary": "List TMDB image candidates for administrator confirmation"
+        "summary": "List TMDB image candidates for administrator confirmation",
+        "x-jelee-role": "administrator"
       }
     },
     "/api/v1/metadata/tmdb/series": {
@@ -31888,7 +31898,8 @@
             "webSession": []
           }
         ],
-        "summary": "Search TMDB series by title and first-air-date year for administrator confirmation"
+        "summary": "Search TMDB series by title and first-air-date year for administrator confirmation",
+        "x-jelee-role": "administrator"
       }
     },
     "/api/v1/metadata/tmdb/series/{id}": {
@@ -32062,7 +32073,8 @@
             "webSession": []
           }
         ],
-        "summary": "Preview TMDB series data (administrator)"
+        "summary": "Preview TMDB series data (administrator)",
+        "x-jelee-role": "administrator"
       }
     },
     "/api/v1/metadata/tmdb/series/{id}/images": {
@@ -32223,7 +32235,8 @@
             "webSession": []
           }
         ],
-        "summary": "List TMDB image candidates for administrator confirmation"
+        "summary": "List TMDB image candidates for administrator confirmation",
+        "x-jelee-role": "administrator"
       }
     },
     "/api/v1/metadata/tmdb/series/{id}/seasons/{season}": {
@@ -32408,7 +32421,8 @@
             "webSession": []
           }
         ],
-        "summary": "Preview TMDB season or episode data (administrator)"
+        "summary": "Preview TMDB season or episode data (administrator)",
+        "x-jelee-role": "administrator"
       }
     },
     "/api/v1/metadata/tmdb/series/{id}/seasons/{season}/episodes/{episode}": {
@@ -32604,7 +32618,8 @@
             "webSession": []
           }
         ],
-        "summary": "Preview TMDB season or episode data (administrator)"
+        "summary": "Preview TMDB season or episode data (administrator)",
+        "x-jelee-role": "administrator"
       }
     },
     "/api/v1/openapi.json": {
@@ -40602,6 +40617,7 @@
     },
     "/api/v1/sources/{id}/stream": {
       "get": {
+        "description": "Native sessions only; web sessions get 403 web_playback_disabled.",
         "parameters": [
           {
             "in": "path",
@@ -40633,6 +40649,21 @@
           },
           "206": {
             "description": "HTTP 206"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "forbidden": {
+                    "$ref": "#/components/examples/error_forbidden"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 403"
           },
           "409": {
             "content": {
@@ -40688,9 +40719,11 @@
             "webSession": []
           }
         ],
-        "summary": "Read the unmodified original resource"
+        "summary": "Read the unmodified original resource",
+        "x-jelee-session": "native"
       },
       "head": {
+        "description": "Native sessions only; web sessions get 403 web_playback_disabled.",
         "parameters": [
           {
             "in": "path",
@@ -40722,6 +40755,21 @@
           },
           "206": {
             "description": "HTTP 206"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "forbidden": {
+                    "$ref": "#/components/examples/error_forbidden"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 403"
           },
           "409": {
             "content": {
@@ -40777,7 +40825,8 @@
             "webSession": []
           }
         ],
-        "summary": "Read the unmodified original resource"
+        "summary": "Read the unmodified original resource",
+        "x-jelee-session": "native"
       }
     },
     "/api/v1/sources/{id}/subtitles/{trackId}": {

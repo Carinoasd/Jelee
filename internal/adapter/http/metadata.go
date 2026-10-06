@@ -56,7 +56,7 @@ func (s *Server) metadataRoutes(r chi.Router) {
 }
 
 func metadataSpecification(paths, schemas map[string]any) {
-	search := operation("Search TMDB movie candidates for administrator confirmation", "200", "400", "401", "403", "408", "503")
+	search := adminOperation("Search TMDB movie candidates for administrator confirmation", "200", "400", "401", "403", "408", "503")
 	search["security"] = []any{map[string]any{"bearer": []string{}}}
 	search["parameters"] = []any{
 		map[string]any{"name": "query", "in": "query", "required": true, "schema": map[string]any{"type": "string", "minLength": 1, "maxLength": 256}},
@@ -71,7 +71,7 @@ func metadataSpecification(paths, schemas map[string]any) {
 	schemas["MovieMatch"] = map[string]any{"type": "object", "additionalProperties": false, "required": []string{"movie", "exactTitle", "exactYear", "needsConfirmation"}, "properties": map[string]any{
 		"movie": map[string]any{"$ref": "#/components/schemas/MovieCandidate"}, "exactTitle": map[string]any{"type": "boolean"}, "exactYear": map[string]any{"type": "boolean"}, "needsConfirmation": map[string]any{"type": "boolean", "const": true},
 	}}
-	op := operation("Preview a TMDB movie candidate (administrator)", "200", "400", "401", "403", "404", "408", "503")
+	op := adminOperation("Preview a TMDB movie candidate (administrator)", "200", "400", "401", "403", "404", "408", "503")
 	op["security"] = []any{map[string]any{"bearer": []string{}}}
 	op["parameters"] = []any{
 		map[string]any{"name": "id", "in": "path", "required": true, "schema": map[string]any{"type": "integer", "format": "int32", "minimum": 1, "maximum": 2147483647}},

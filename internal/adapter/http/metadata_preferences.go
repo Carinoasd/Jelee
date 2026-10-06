@@ -39,8 +39,8 @@ func (s *Server) metadataPreferenceRoutes(r chi.Router) {
 
 func metadataPreferencesSpecification(paths, schemas map[string]any) {
 	schemas["MetadataPreferences"] = objectSchema(map[string]any{"libraryId": map[string]any{"type": "string", "format": "uuid"}, "language": map[string]any{"type": "string", "enum": []string{"zh-CN", "zh-TW", "ja-JP", "en-US"}}, "revision": map[string]any{"type": "integer", "minimum": 1, "maximum": 2147483647}}, "libraryId", "language", "revision")
-	get := operation("Read library metadata language (administrator)", "200", "400", "401", "403", "404", "408", "503")
-	put := operation("Update library metadata language with revision check (administrator)", "200", "400", "401", "403", "404", "408", "409", "503")
+	get := adminOperation("Read library metadata language (administrator)", "200", "400", "401", "403", "404", "408", "503")
+	put := adminOperation("Update library metadata language with revision check (administrator)", "200", "400", "401", "403", "404", "408", "409", "503")
 	for _, op := range []map[string]any{get, put} {
 		op["security"] = []any{map[string]any{"bearer": []string{}}}
 		op["parameters"] = []any{idParameter()}
