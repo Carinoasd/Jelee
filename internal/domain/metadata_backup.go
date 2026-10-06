@@ -19,8 +19,14 @@ import (
 // before it. A file without its trailer is truncated; a digest or count
 // mismatch is corruption. Readers and writers hold one line at a time.
 const (
-	MetadataBackupFormat        = "jelee.metadata"
-	MetadataBackupFormatVersion = 1
+	MetadataBackupFormat = "jelee.metadata"
+	// MetadataBackupFormatVersion is written by this release. Version 2
+	// added collections, playlists, user interface preferences, the site
+	// settings and the audit retention; a version 1 document is a version 2
+	// document without those kinds and is still read.
+	MetadataBackupFormatVersion = 2
+	// MetadataBackupMinFormatVersion is the oldest format readers accept.
+	MetadataBackupMinFormatVersion = 1
 	// MetadataBackupMinSchema is the first schema whose rows format version 1
 	// describes. Exports from a newer schema are refused: upgrade first.
 	MetadataBackupMinSchema = 71
@@ -50,6 +56,8 @@ var MetadataBackupKinds = []string{
 	"access_policy", "parental_rating", "user_item_access_rule", "user_blocked_tag",
 	"client_control_policy", "client_rule", "library_network_rule",
 	"webhook", "scan_schedule",
+	"collection", "collection_item", "playlist", "playlist_item", "user_preference",
+	"site_appearance", "site_plugins", "audit_retention",
 }
 
 func metadataBackupKindIndex(kind string) int {
@@ -259,8 +267,9 @@ type MetadataBackupReader struct {
 	trailer MetadataBackupTrailer
 }
 
-// NewMetadataBackupReader reads the header. It accepts format version 1
-// from schema MetadataBackupMinSchema up to maxSchema.
+// NewMetadataBackupReader reads the header. It accepts format versions
+// MetadataBackupMinFormatVersion to MetadataBackupFormatVersion from schema
+// MetadataBackupMinSchema up to maxSchema.
 func NewMetadataBackupReader(r io.Reader, maxSchema int) (*MetadataBackupReader, MetadataBackupHeader, error) {
 	b := &MetadataBackupReader{in: bufio.NewReaderSize(r, 64<<10), digest: sha256.New(), counts: map[string]int64{}}
 	line, err := b.readLine()
@@ -273,7 +282,7 @@ func NewMetadataBackupReader(r io.Reader, maxSchema int) (*MetadataBackupReader,
 	if err = dec.Decode(&h); err != nil || dec.More() || h.Format != MetadataBackupFormat {
 		return nil, MetadataBackupHeader{}, ErrMetadataBackupCorrupt
 	}
-	if h.FormatVersion != MetadataBackupFormatVersion || h.SchemaVersion < MetadataBackupMinSchema || h.SchemaVersion > maxSchema {
+	if h.FormatVersion < MetadataBackupMinFormatVersion || h.FormatVersion > MetadataBackupFormatVersion || h.SchemaVersion < MetadataBackupMinSchema || h.SchemaVersion > maxSchema {
 		return nil, h, ErrMetadataBackupUnsupported
 	}
 	b.digest.Write(line)

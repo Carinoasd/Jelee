@@ -67,7 +67,7 @@
 - **只追加**：触发器拒绝 UPDATE 与 TRUNCATE，写入时强制使用数据库时间；DELETE 只允许在 `purge_audit_logs()` 中删除超过保留期的行。
 - 事件名是封闭集合（`internal/adapter/postgres/audit.go` 的 `auditEvents`），未知事件直接拒绝；安全类事件会强制保留对应的追踪记录。
 - 保留期存在表 `audit_retention`：`audit_days`、`security_days`，默认都是 365 天，范围 7–36500。
-- 查询：目前只有分享链接的访问记录可以通过 `GET /api/v1/shares/{id}/access` 查询（管理员）；其他审计事件只能直接查询数据库或通过 `pg_dump` 获取。审计不进入元数据导出，见[备份与还原](backup-restore.md)。
+- 查询：目前只有分享链接的访问记录可以通过 `GET /api/v1/shares/{id}/access` 查询（管理员）；其他审计事件只能直接查询数据库或通过 `pg_dump` 获取。审计行不进入元数据导出（保留期设置会导出），见[备份与还原](backup-restore.md)。
 
 ## 诊断导出与查询（G46.7）
 
@@ -85,23 +85,47 @@
 | `debug_sql_logging` | 每条 SQL 写一行：语句文本（压成一行、最多 512 字节，不含参数）、耗时、行数、是否失败 |
 | `debug_body_logging`（危险开关） | 每个请求写一行：路由样式、状态码、JSON 请求体与响应体各最多 4 KiB，敏感键名的值替换为 `[redacted]` |
 
-**已知问题**：`debug_sql_logging` 与 `debug_body_logging` 写出的 `statement`、`durationMicros`、`rows`、`failed`、`route`、`requestBody`、`responseBody` 等字段，以及它们的 `code`（`devmode_sql_log`、`devmode_body_log`），都不在上文的白名单中。经过正式的日志路由输出时，这些值会被写成 `[redacted]`，两个开关目前实际上看不到内容。现有测试使用普通的 JSON handler，没有覆盖这种组合。修正需要在白名单中为开发者模式会话放行这些字段（读代码得出，尚未实测确认）。
+这两类日志的字段（`statement`、`durationMicros`、`rows`、`failed`、`route`、`requestBody`、`responseBody`）与代码 `devmode_sql_log`、`devmode_body_log` 在白名单中另有规则（`internal/platform/logging/devlog.go`）：
+
+- 只有在**对应开关此刻生效**时才放行；开关由 `jelee` 主程序在启动时接到日志路由（`Router.SetDeveloperLogging`，判断与 `devmode.Controller.Effective` 相同，生产环境与不可开发实例永远为否）。开关关闭、会话过期或被关掉之后，这些字段一律写成 `[redacted]`，而且调用方本身也不会再写这两类日志。
+- 语句与请求体必须由 `logging.DeveloperSQL`、`logging.DeveloperBody` 包装；同名键下的普通字符串（例如别处误用 `statement`）照样写成 `[redacted]`。包装后的值交给普通 handler 输出时也只会显示 `[redacted]`。
+- 放行前**再遮罩一次**：请求体与响应体重新解析 JSON，键名属于密码、令牌、密钥、`authorization`、`cookie`、`dsn`／连接串、`csrf`、`credential`、TOTP（`otp`、`totp`、`totpCode`、`recoveryCode(s)`、`uri`）或以 `password`、`token`、`secret`、`apikey`、`key` 结尾的值，数字形式的 `code`（一次性验证码），以及 `$argon2` 开头、`otpauth:`、`Bearer `／`Basic `、`jdm_`、`whsec_` 开头或带用户名密码的 URL 的值，都替换为 `[redacted]`；SQL 语句文本中的 URL 凭据、`password=…` 一类的赋值、`PASSWORD '…'`、`Authorization` 方案值与服务器签发的令牌格式同样被遮罩，参数占位符 `$1` 保留。
+- 诊断包（`diag export`）重新脱敏时没有开发者开关，这些字段一律写成 `[redacted]`。
+
+守门测试：`TestDeveloperFieldsVisibleWhileSwitchedOn`、`TestDeveloperFieldsRedactedWhileSwitchedOff`、`TestDeveloperFieldsNeedTheMarker`、`TestMaskSecrets`（`internal/platform/logging/`），`TestQueryLogThroughRouter`（`internal/adapter/postgres/`），`TestDevModeBodyLoggingRedacts`（HTTP，使用正式日志路由），真 PG 端到端 `TestDevModeRuntimePostgres`（启动整个服务，开关打开后 SQL 与请求体可读、密码被遮罩，关闭后不再出现）。
 
 ## 保留与清理（G46.9）
 
 | 记录 | 保留方式 |
 | --- | --- |
 | 日志文件 | `JELEE_LOG_MAX_BACKUPS`、`JELEE_LOG_MAX_SIZE_MB`、`JELEE_LOG_ROTATE_HOURS`、`JELEE_LOG_COMPRESS`；stdout 由容器运行时或日志系统管理 |
-| 审计日志 | 表 `audit_retention`（默认 365 天） |
+| 审计日志 | 表 `audit_retention`（默认 365 天）；服务器按 `JELEE_AUDIT_PURGE_*` 定期清理，见下文 |
 | 任务历史 | `JELEE_JOB_HISTORY_LIMIT`（默认 20，范围 1–100），超出的已结束任务被删除；任务没有独立的日志存储 |
 | Webhook 投递记录 | `JELEE_WEBHOOK_RETENTION_DAYS`（默认 14） |
 
+### 审计保留期清理
+
+`jelee` 服务器启动后按固定间隔调用 `purge_audit_logs()`（`app.AuditJanitor` → `Store.PurgeAudit`），这是审计表触发器唯一放行的删除路径：只删除早于各自类别保留期（`audit_retention.audit_days`／`security_days`）的行，直接 `DELETE` 仍被拒绝，`UPDATE`／`TRUNCATE` 仍被拒绝。
+
+| 环境变量 | 配置键 | 默认 | 说明 |
+| --- | --- | --- | --- |
+| `JELEE_AUDIT_PURGE_INTERVAL_MINUTES` | `audit.purgeIntervalMinutes` | 60 | 0–10080；0 关闭自动清理。第一次清理在启动后一个间隔执行 |
+| `JELEE_AUDIT_PURGE_BATCH` | `audit.purgeBatch` | 1000 | 1–10000，单个事务最多删除的行数（与数据库函数的上限相同） |
+| `JELEE_AUDIT_PURGE_MAX_BATCHES` | `audit.purgeMaxBatches` | 100 | 1–1000，一轮最多执行的批数；积压超过时下一轮继续 |
+
+- 每一批在自己的事务中执行，删除了行时追加一条 `audit.retention_purged` 审计（记录两类各删除多少）。
+- 一轮删除了行时写一条 INFO 日志（组件 `gc`，`count`、`auditRows`、`securityRows`、`batches`、`durationMs`）；达到批数上限时消息注明下一轮继续；失败写 WARN，下一轮重试；没有可删的行时不写日志。
+- 多个实例共用数据库时每个实例都会清理；被别的实例先删掉的行会直接跳过，结果相同。
+- 保留天数本身仍只能由 `Store.SetAuditRetention`（尚无路由或 CLI）或元数据导入修改，见[备份与还原](backup-restore.md)。
+
+守门测试：`TestAuditJanitorPassIsBounded`、`TestAuditJanitorOptions`、`TestAuditJanitorRunStopsWithContext`（`internal/app/`），`TestAuditConfigDefaultsAndEnvironment`（配置），真 PG `TestAuditJanitorPurgesExpiredRowsPostgres`（分批删除过期行、保留期内的行与清理记录保留、直接 DELETE 仍被拒、日志字段通过正式白名单）。
+
 ## 尚未完成
 
-- 审计保留期的设置与清理函数（`SetAuditRetention`、`PurgeAudit`）已经实现，但没有路由、CLI 或定时任务调用，审计日志目前不会被自动清理。
+- 审计保留天数没有路由或 CLI 可以修改（`SetAuditRetention` 只在存储层）；需要时直接更新 `audit_retention` 或通过元数据导入还原。
 - 没有通用的日志或审计查询接口，也没有 `jelee-cli logs tail/filter/export`（G46.7、G49.6）。
 - 没有运行期调整日志级别的 HTTP 或 CLI 接口；只有开发者模式的 `debug_verbose_logging` 会临时改变级别。
 - syslog、Loki、OTLP 转发器只定义了类型，尚未实现；请用容器运行时或日志代理收集 stdout 或日志文件。
 - 队列丢弃与写入失败的计数尚未接到指标。
 - 访问日志不记录状态码、路径、用户与客户端（G46.3 要求的部分字段），慢查询日志也尚未提供。
-- 开发者模式日志被白名单涂掉的问题，见上文“已知问题”。
+- 开发者模式控制器自己的日志（组件 `devmode`）、部分自检与统计日志使用的组件名不在白名单中，经正式日志路由输出时这些字段被写成 `[redacted]`（2026-10-06 在真 PG 端到端测试中看到，未修改）。

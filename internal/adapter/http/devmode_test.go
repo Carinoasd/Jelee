@@ -17,6 +17,7 @@ import (
 	"github.com/MoYuanCN/Jelee/internal/domain"
 	"github.com/MoYuanCN/Jelee/internal/platform/config"
 	"github.com/MoYuanCN/Jelee/internal/platform/devmode"
+	"github.com/MoYuanCN/Jelee/internal/platform/logging"
 	"github.com/go-chi/chi/v5"
 )
 
@@ -62,20 +63,45 @@ type devFixture struct {
 	ctrl    *devmode.Controller
 	store   *devmode.MemoryStore
 	clock   *devTestClock
-	logs    *bytes.Buffer
+	logs    *devLogBuffer
+}
+
+// devLogBuffer reads what the production log router wrote, so tests see
+// exactly what the whitelist lets through.
+type devLogBuffer struct {
+	router *logging.Router
+	buf    *bytes.Buffer
+}
+
+func (b *devLogBuffer) String() string {
+	_ = b.router.Flush()
+	return b.buf.String()
+}
+
+func (b *devLogBuffer) Reset() {
+	_ = b.router.Flush()
+	b.buf.Reset()
 }
 
 func newDevFixture(t *testing.T, cfg config.Config) devFixture {
 	t.Helper()
-	f := devFixture{store: devmode.NewMemoryStore(), clock: &devTestClock{now: time.Date(2026, 10, 4, 12, 0, 0, 0, time.UTC)}, logs: &bytes.Buffer{}}
+	f := devFixture{store: devmode.NewMemoryStore(), clock: &devTestClock{now: time.Date(2026, 10, 4, 12, 0, 0, 0, time.UTC)}}
 	var err error
 	f.ctrl, err = devmode.NewController(devmode.ControllerOptions{Store: f.store, Clock: f.clock, Local: cfg.Dev.Inputs(), TTL: time.Hour,
 		Available: []devmode.Toggle{devmode.RelaxHostStrict, devmode.RelaxLoginRateLimit, devmode.DebugBodyLogging, devmode.DebugPprof}})
 	if err != nil {
 		t.Fatal(err)
 	}
-	logger := slog.New(slog.NewJSONHandler(f.logs, nil))
-	f.handler = contractRouterWith(t, cfg, devBackend(), logger, WithDevMode(f.ctrl))
+	// The production router, connected the way runtime connects it.
+	buf := &bytes.Buffer{}
+	router, err := logging.Open(logging.Options{}, buf)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = router.Close() })
+	router.SetDeveloperLogging(func() bool { return f.ctrl.Effective(devmode.DebugSQLLogging) }, func() bool { return f.ctrl.Effective(devmode.DebugBodyLogging) })
+	f.logs = &devLogBuffer{router: router, buf: buf}
+	f.handler = contractRouterWith(t, cfg, devBackend(), router.Logger(), WithDevMode(f.ctrl))
 	return f
 }
 
@@ -437,7 +463,7 @@ func TestDevModePprofGate(t *testing.T) {
 
 func TestDevModeBodyLoggingRedacts(t *testing.T) {
 	f := newDevFixture(t, devConfig(true, true, ""))
-	login := `{"name":"alice","password":"hunter2-secret","nested":{"apiKey":"k-123"}}`
+	login := `{"name":"alice","password":"hunter2-secret","code":"246810","nested":{"apiKey":"k-123"}}`
 	devRequest(f.handler, "POST", "/api/v1/auth/login", login, "", "")
 	if strings.Contains(f.logs.String(), "devmode_body_log") {
 		t.Fatal("bodies logged without the toggle")
@@ -449,15 +475,40 @@ func TestDevModeBodyLoggingRedacts(t *testing.T) {
 	f.logs.Reset()
 	devRequest(f.handler, "POST", "/api/v1/auth/login", login, "", "")
 	out := f.logs.String()
-	if !strings.Contains(out, "devmode_body_log") || !strings.Contains(out, "alice") || !strings.Contains(out, devBodyRedacted) ||
-		strings.Contains(out, "hunter2") || strings.Contains(out, "k-123") || !strings.Contains(out, "/api/v1/auth/login") {
+	if !strings.Contains(out, "devmode_body_log") || !strings.Contains(out, "alice") || !strings.Contains(out, logging.Redacted) ||
+		strings.Contains(out, "hunter2") || strings.Contains(out, "k-123") || strings.Contains(out, "246810") || !strings.Contains(out, "/api/v1/auth/login") {
 		t.Fatalf("body log: %s", out)
+	}
+	// The production whitelist lets the masked body through as text.
+	var line struct {
+		Code        string `json:"code"`
+		Route       string `json:"route"`
+		RequestBody string `json:"requestBody"`
+	}
+	for _, raw := range strings.Split(strings.TrimSpace(out), "\n") {
+		if strings.Contains(raw, "devmode_body_log") {
+			if err := json.Unmarshal([]byte(raw), &line); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+	if line.Code != "devmode_body_log" || line.Route != "/api/v1/auth/login" || !strings.Contains(line.RequestBody, `"name":"alice"`) || !strings.Contains(line.RequestBody, `"code":"[redacted]"`) {
+		t.Fatalf("body log fields: %+v", line)
 	}
 	f.logs.Reset()
 	// A non-JSON response is reported by size only.
 	devRequest(f.handler, "GET", "/api-docs", "", "", "")
 	if out = f.logs.String(); !strings.Contains(out, "bytes, not logged") || strings.Contains(out, "<html") {
 		t.Fatalf("html body logged: %s", out)
+	}
+	// Once the session ends nothing about bodies is written.
+	if err := f.ctrl.Disable(context.Background(), devmode.Actor{}, "test", "done"); err != nil {
+		t.Fatal(err)
+	}
+	f.logs.Reset()
+	devRequest(f.handler, "POST", "/api/v1/auth/login", login, "", "")
+	if out = f.logs.String(); strings.Contains(out, "devmode_body_log") || strings.Contains(out, "requestBody") || strings.Contains(out, "alice") {
+		t.Fatalf("body logged after the session ended: %s", out)
 	}
 }
 

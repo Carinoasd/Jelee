@@ -178,6 +178,14 @@ func (r *Router) Level(component string) slog.Level { return r.levels.threshold(
 // SetPathRoots replaces the roots used by the relative path mode.
 func (r *Router) SetPathRoots(roots []string) { r.red.setRoots(roots) }
 
+// SetDeveloperLogging connects the developer mode switches: while sql
+// (debug_sql_logging) or body (debug_body_logging) reports true, the fields
+// of that log pass the whitelist with secrets masked. A nil switch keeps its
+// fields redacted, which is also the state of a router never connected.
+func (r *Router) SetDeveloperLogging(sql, body func() bool) {
+	r.red.dev.Store(&devSwitches{sql: sql, body: body})
+}
+
 // Dropped counts records discarded because a sink queue was full or closed.
 func (r *Router) Dropped() uint64 {
 	var n uint64

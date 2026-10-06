@@ -128,7 +128,7 @@ web/
 
 | 項目 | 狀態 | 目前做法 |
 | --- | --- | --- |
-| 使用者偏好（主題等）沒有伺服器 API（G33.3） | 已解除 | 遷移 `000073_user_preferences` 與 `GET/PUT /users/me/preferences`（主題 system／light／dark，預留 `density`，遷移 074 加 `layout`；PUT 須帶齊全部欄位、不寫稽核、不進元資料備份）。`stores/preferences.ts` 在登入或恢復工作階段時載入並套用，切換即存（失敗時本分頁仍套用並顯示錯誤）；未登入只存分頁記憶體，登出後沿用目前主題。從未存過主題的使用者讀到全站預設主題；全站設定的匯入／匯出 JSON 與重置見下方 G32／G33 表 |
+| 使用者偏好（主題等）沒有伺服器 API（G33.3） | 已解除 | 遷移 `000073_user_preferences` 與 `GET/PUT /users/me/preferences`（主題 system／light／dark，預留 `density`，遷移 074 加 `layout`；PUT 須帶齊全部欄位、不寫稽核；元資料備份格式版本 2 起一併匯出）。`stores/preferences.ts` 在登入或恢復工作階段時載入並套用，切換即存（失敗時本分頁仍套用並顯示錯誤）；未登入只存分頁記憶體，登出後沿用目前主題。從未存過主題的使用者讀到全站預設主題；全站設定的匯入／匯出 JSON 與重置見下方 G32／G33 表 |
 | 密碼錯誤時 `PUT /users/me/password` 回 `401 authentication_required` | 已解除 | 伺服器改回 `400 invalid_password`（工作階段有效、只是輸入值錯，與 `invalid_request` 同屬 400 輸入錯誤；不用 403 以免和權限、CSRF、客戶端管控的 403 混淆）；改密限速、429 與「不計入登入鎖定」照舊。`api/client.ts` 的路徑豁免已移除，任何 401 都視為工作階段失效 |
 | 客戶端管控 `rules/{id}/enforce`、`/observe`、`clients/{id}/block`、`/kick` 要 `{}` 卻沒宣告 requestBody | 已解除 | OpenAPI 比照 logout 宣告 `Empty`；`features/clients/api.ts` 的 `emptyBody = {} as never` 已移除，直接傳 `{}`。契約測試要求每個 POST／PUT／PATCH 都宣告 requestBody（只豁免不讀正文的 setup back／complete） |
 | `KnownClient` 看不出是否已被屏蔽 | 已解除 | 回應新增 `blocked` 與 `blockRuleId`：存在與「加入屏蔽」相同識別（裝置 ID，沒有時 UA；UA 被截斷時前綴）的啟用、全域、無時間窗 `deny` 規則即為已屏蔽；其他屬性（IP、正則、標頭）的拒絕規則不反映。面板顯示「已屏蔽」標記與解除說明，已屏蔽者不再提供「加入屏蔽」 |

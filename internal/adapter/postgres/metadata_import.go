@@ -42,7 +42,7 @@ CREATE OR REPLACE FUNCTION pg_temp.bk_dst(k text,v text) RETURNS uuid LANGUAGE s
 // metadataResolve runs in order after staging. Each statement only reads
 // identities resolved by earlier statements.
 var metadataResolve = []string{
-	`UPDATE bk_stage SET ref=(doc->>'id')::uuid WHERE kind IN ('library','library_root','user','item','media_source','item_directory_source','item_image','client_rule','library_network_rule','webhook')`,
+	`UPDATE bk_stage SET ref=(doc->>'id')::uuid WHERE kind IN ('library','library_root','user','item','media_source','item_directory_source','item_image','client_rule','library_network_rule','webhook','collection','playlist','playlist_item')`,
 	`CREATE UNIQUE INDEX bk_stage_ref ON bk_stage(kind,ref) WHERE ref IS NOT NULL`,
 	`CREATE INDEX bk_stage_kind ON bk_stage(kind)`,
 	`CREATE INDEX bk_stage_item ON bk_stage(kind,((doc->>'item_id')::uuid)) WHERE kind IN ('media_source','item_directory_source','item_parent_link')`,
@@ -111,6 +111,23 @@ var metadataResolve = []string{
 	`UPDATE bk_map m SET dst=m.src,state='new' FROM bk_stage s JOIN bk_map i ON i.kind='item' AND i.state='new' WHERE m.kind='media_source' AND m.state='pending' AND s.kind='media_source' AND s.ref=m.src AND i.src=(s.doc->>'item_id')::uuid`,
 	`UPDATE bk_map m SET state='absent' FROM bk_stage s JOIN bk_map i ON i.kind='item' AND i.state='existing' WHERE m.kind='media_source' AND m.state='pending' AND s.kind='media_source' AND s.ref=m.src AND i.src=(s.doc->>'item_id')::uuid`,
 	`UPDATE bk_map SET state='unresolved' WHERE kind='media_source' AND state='pending'`,
+	// Collections: ID, then the NFO collection name they link to, which is
+	// unique in the target.
+	`INSERT INTO bk_map(kind,src) SELECT kind,ref FROM bk_stage WHERE kind IN ('collection','playlist')`,
+	`UPDATE bk_map m SET dst=c.id,state='existing' FROM collections c WHERE m.kind='collection' AND c.id=m.src`,
+	`UPDATE bk_map m SET dst=c.id,state='existing' FROM bk_stage s JOIN collections c ON lower(btrim(c.nfo_name))=lower(btrim(s.doc->>'nfo_name'))
+ WHERE m.kind='collection' AND m.state='pending' AND s.kind='collection' AND s.ref=m.src`,
+	`UPDATE bk_map m SET state='conflict',reason='collection_nfo_name_taken' FROM bk_stage s WHERE m.kind='collection' AND m.state='existing' AND s.kind='collection' AND s.ref=m.src
+ AND EXISTS(SELECT 1 FROM collections c WHERE lower(btrim(c.nfo_name))=lower(btrim(s.doc->>'nfo_name')) AND c.id<>m.dst)`,
+	`UPDATE bk_map SET dst=src,state='new' WHERE kind='collection' AND state='pending'`,
+	metadataAmbiguous("collection"),
+	// Playlists keep their ID and need their owner. A playlist already in
+	// the target must belong to the same account.
+	`UPDATE bk_map m SET state='unresolved' FROM bk_stage s WHERE m.kind='playlist' AND s.kind='playlist' AND s.ref=m.src AND pg_temp.bk_dst('user',s.doc->>'owner_id') IS NULL`,
+	`UPDATE bk_map m SET dst=p.id,state='existing' FROM playlists p WHERE m.kind='playlist' AND m.state='pending' AND p.id=m.src`,
+	`UPDATE bk_map m SET state='conflict',reason='playlist_owner_mismatch' FROM bk_stage s,playlists p WHERE m.kind='playlist' AND m.state='existing' AND s.kind='playlist' AND s.ref=m.src
+ AND p.id=m.dst AND p.owner_id<>pg_temp.bk_dst('user',s.doc->>'owner_id')`,
+	`UPDATE bk_map SET dst=src,state='new' WHERE kind='playlist' AND state='pending'`,
 	`ANALYZE bk_map`,
 }
 
@@ -396,6 +413,59 @@ up AS (INSERT INTO scan_schedules(library_id,owner_id,revision,enabled,mode,inte
  IS DISTINCT FROM (EXCLUDED.owner_id,EXCLUDED.enabled,EXCLUDED.mode,EXCLUDED.interval_seconds,EXCLUDED.cron,EXCLUDED.timezone,EXCLUDED.probe,EXCLUDED.nfo,EXCLUDED.ignore_mode,EXCLUDED.ignore_case,EXCLUDED.watch_enabled)
  RETURNING (xmax=0) inserted)
 SELECT (SELECT count(*) FROM ok),(SELECT count(*) FROM up WHERE inserted),(SELECT count(*) FROM up WHERE NOT inserted),0`},
+	// Collections are administrator configuration: like client rules and
+	// webhooks the exported state wins; the author is kept when that account
+	// came along. Members are merged, never removed.
+	{kind: "collection", sql: `WITH x AS (SELECT m.dst id,m.state,s.doc FROM bk_stage s JOIN bk_map m ON m.kind='collection' AND m.src=s.ref WHERE s.kind='collection' AND m.state IN ('existing','new')),
+ins AS (INSERT INTO collections(id,name,overview,nfo_name,created_by,created_at,updated_at)
+ SELECT id,doc->>'name',doc->>'overview',doc->>'nfo_name',pg_temp.bk_dst('user',doc->>'created_by'),(doc->>'created_at')::timestamptz,(doc->>'updated_at')::timestamptz FROM x WHERE state='new' RETURNING 1),
+upd AS (UPDATE collections c SET name=x.doc->>'name',overview=x.doc->>'overview',nfo_name=x.doc->>'nfo_name',updated_at=greatest((x.doc->>'updated_at')::timestamptz,c.created_at)
+ FROM x WHERE x.state='existing' AND c.id=x.id AND (c.name,c.overview,c.nfo_name) IS DISTINCT FROM (x.doc->>'name',x.doc->>'overview',x.doc->>'nfo_name') RETURNING 1)
+SELECT (SELECT count(*) FROM x),(SELECT count(*) FROM ins),(SELECT count(*) FROM upd),0`},
+	{kind: "collection_item", sql: `WITH x AS (SELECT s.doc,pg_temp.bk_dst('collection',s.doc->>'collection_id') c,pg_temp.bk_dst('item',s.doc->>'item_id') i FROM bk_stage s WHERE s.kind='collection_item'),
+ok AS (SELECT * FROM x WHERE c IS NOT NULL AND i IS NOT NULL),
+ins AS (INSERT INTO collection_items(collection_id,item_id,added_at) SELECT c,i,(doc->>'added_at')::timestamptz FROM ok ON CONFLICT DO NOTHING RETURNING 1)
+SELECT (SELECT count(*) FROM ok),(SELECT count(*) FROM ins),0,0`},
+	// A playlist already in the target is the owner's live copy: it keeps
+	// its name, visibility and entries. Entries are written into new
+	// playlists only; an entry of a kept playlist is unchanged when the
+	// target holds it as exported and set aside as playlist_kept otherwise.
+	{kind: "playlist", sql: `WITH x AS (SELECT m.dst id,m.state,s.doc FROM bk_stage s JOIN bk_map m ON m.kind='playlist' AND m.src=s.ref WHERE s.kind='playlist' AND m.state IN ('existing','new')),
+ins AS (INSERT INTO playlists(id,owner_id,name,public,created_at,updated_at)
+ SELECT id,pg_temp.bk_dst('user',doc->>'owner_id'),doc->>'name',(doc->>'public')::boolean,(doc->>'created_at')::timestamptz,(doc->>'updated_at')::timestamptz FROM x WHERE state='new' RETURNING 1)
+SELECT (SELECT count(*) FROM x),(SELECT count(*) FROM ins),0,0`},
+	{kind: "playlist_item", special: "playlist_kept", sql: `WITH x AS (SELECT s.ref,s.doc,m.state,m.dst p,pg_temp.bk_dst('item',s.doc->>'item_id') i
+ FROM bk_stage s JOIN bk_map m ON m.kind='playlist' AND m.src=(s.doc->>'playlist_id')::uuid WHERE s.kind='playlist_item' AND m.state IN ('existing','new')),
+usable AS (SELECT * FROM x WHERE i IS NOT NULL),
+ok AS (SELECT * FROM usable u WHERE state='new' OR EXISTS(SELECT 1 FROM playlist_items e WHERE e.id=u.ref AND e.playlist_id=u.p AND e.item_id=u.i AND e.position=(u.doc->>'position')::integer)),
+ins AS (INSERT INTO playlist_items(id,playlist_id,item_id,position,added_at)
+ SELECT CASE WHEN EXISTS(SELECT 1 FROM playlist_items e WHERE e.id=ok.ref) THEN gen_random_uuid() ELSE ok.ref END,p,i,(doc->>'position')::integer,(doc->>'added_at')::timestamptz FROM ok WHERE state='new' RETURNING 1)
+SELECT (SELECT count(*) FROM ok),(SELECT count(*) FROM ins),0,(SELECT count(*) FROM usable)-(SELECT count(*) FROM ok)`},
+	// Like progress, a preference keeps whichever side was updated last.
+	// Layouts were checked before anything was applied.
+	{kind: "user_preference", sql: `WITH x AS (SELECT s.doc,pg_temp.bk_dst('user',s.doc->>'user_id') u FROM bk_stage s WHERE s.kind='user_preference'
+ AND NOT EXISTS(SELECT 1 FROM bk_map b WHERE b.kind='user_preference' AND b.src=(s.doc->>'user_id')::uuid)),
+ok AS (SELECT * FROM x WHERE u IS NOT NULL),
+up AS (INSERT INTO user_preferences AS p(user_id,theme,density,layout,updated_at)
+ SELECT u,doc->>'theme',doc->>'density',NULLIF(doc->'layout','null'::jsonb),(doc->>'updated_at')::timestamptz FROM ok
+ ON CONFLICT(user_id) DO UPDATE SET theme=EXCLUDED.theme,density=EXCLUDED.density,layout=EXCLUDED.layout,updated_at=EXCLUDED.updated_at WHERE EXCLUDED.updated_at>p.updated_at
+ RETURNING (xmax=0) inserted)
+SELECT (SELECT count(*) FROM ok),(SELECT count(*) FROM up WHERE inserted),(SELECT count(*) FROM up WHERE NOT inserted),0`},
+	// The single-row documents take the exported values, normalized and
+	// checked by validateMetadataSettings, with a new revision.
+	{kind: "site_appearance", sql: `WITH x AS (SELECT s.doc FROM bk_stage s WHERE s.kind='site_appearance' AND NOT EXISTS(SELECT 1 FROM bk_map b WHERE b.kind='site_appearance')),
+v AS (SELECT doc->>'default_theme' theme,doc->'tokens' tokens,doc->>'custom_css' css,(doc->>'allow_external_fonts')::boolean fonts,COALESCE(pg_temp.bk_texts(doc->'font_hosts'),'{}') hosts,NULLIF(doc->'default_layout','null'::jsonb) layout FROM x),
+upd AS (UPDATE site_appearance a SET default_theme=v.theme,tokens=v.tokens,custom_css=v.css,allow_external_fonts=v.fonts,font_hosts=v.hosts,default_layout=v.layout,revision=a.revision+1,updated_at=now()
+ FROM v WHERE a.id AND (a.default_theme,a.tokens,a.custom_css,a.allow_external_fonts,a.font_hosts,a.default_layout) IS DISTINCT FROM (v.theme,v.tokens,v.css,v.fonts,v.hosts,v.layout) RETURNING 1)
+SELECT (SELECT count(*) FROM x),0,(SELECT count(*) FROM upd),0`},
+	{kind: "site_plugins", sql: `WITH x AS (SELECT s.doc FROM bk_stage s WHERE s.kind='site_plugins' AND NOT EXISTS(SELECT 1 FROM bk_map b WHERE b.kind='site_plugins')),
+upd AS (UPDATE site_plugins p SET plugins=x.doc->'plugins',settings=x.doc->'settings',revision=p.revision+1,updated_at=now()
+ FROM x WHERE p.id AND (p.plugins,p.settings) IS DISTINCT FROM (x.doc->'plugins',x.doc->'settings') RETURNING 1)
+SELECT (SELECT count(*) FROM x),0,(SELECT count(*) FROM upd),0`},
+	{kind: "audit_retention", sql: `WITH x AS (SELECT s.doc FROM bk_stage s WHERE s.kind='audit_retention' AND NOT EXISTS(SELECT 1 FROM bk_map b WHERE b.kind='audit_retention')),
+upd AS (UPDATE audit_retention r SET audit_days=(x.doc->>'audit_days')::integer,security_days=(x.doc->>'security_days')::integer,revision=r.revision+1,updated_at=now()
+ FROM x WHERE r.singleton AND (r.audit_days,r.security_days) IS DISTINCT FROM ((x.doc->>'audit_days')::integer,(x.doc->>'security_days')::integer) RETURNING 1)
+SELECT (SELECT count(*) FROM x),0,(SELECT count(*) FROM upd),0`},
 }
 
 // metadataStageSource feeds verified lines to COPY. The reader's error, a
@@ -436,6 +506,7 @@ func (s *Store) ImportMetadata(ctx context.Context, r io.Reader, opts domain.Met
 	if err != nil {
 		return report, err
 	}
+	report.FormatVersion = header.FormatVersion
 	tx, err := s.Pool.Begin(ctx)
 	if err != nil {
 		return report, storageError(err)
@@ -492,6 +563,12 @@ func (s *Store) ImportMetadata(ctx context.Context, r io.Reader, opts domain.Met
 	if err = tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM setup_state WHERE completed_at IS NULL)`).Scan(&setupOpen); err != nil {
 		return report, storageError(err)
 	}
+	if err = validateMetadataSettings(ctx, tx); err != nil {
+		if ctx.Err() != nil {
+			return report, ctx.Err()
+		}
+		return report, err
+	}
 	if err = readMetadataConflicts(ctx, tx, &report); err != nil {
 		return report, err
 	}
@@ -507,8 +584,23 @@ func (s *Store) ImportMetadata(ctx context.Context, r io.Reader, opts domain.Met
 	if err = tx.QueryRow(ctx, `SELECT count(*) FROM users WHERE is_admin AND NOT disabled AND deleted_at IS NULL`).Scan(&adminsBefore); err != nil {
 		return report, storageError(err)
 	}
+	retentionBefore, err := scanAuditRetention(tx.QueryRow(ctx, `SELECT audit_days,security_days,revision,updated_at FROM audit_retention WHERE singleton`))
+	if err != nil {
+		return report, err
+	}
 	if err = applyMetadata(ctx, tx, &report, header.PasswordHashes); err != nil {
 		return report, err
+	}
+	// A restored retention changes what the purge may remove, so it is
+	// audited like an administrator change.
+	if r := report.Kinds["audit_retention"]; r != nil && r.Updated > 0 {
+		after, err := scanAuditRetention(tx.QueryRow(ctx, `SELECT audit_days,security_days,revision,updated_at FROM audit_retention WHERE singleton`))
+		if err != nil {
+			return report, err
+		}
+		if err = appendAudit(ctx, tx, AuditEntry{Event: "audit.retention_changed", TargetRef: "audit_retention", Before: retentionBefore, After: after}); err != nil {
+			return report, err
+		}
 	}
 	if err = finishMetadataImport(ctx, tx, &report, adminsBefore); err != nil {
 		return report, err
@@ -640,6 +732,25 @@ func finishMetadataImport(ctx context.Context, tx pgx.Tx, report *domain.Metadat
 			return limit("client_rule", "client_rule_limit")
 		}
 		return err
+	}
+	// The collection and playlist bounds the API enforces per request.
+	var collections, crowded, playlists, longest int64
+	if err := tx.QueryRow(ctx, `SELECT (SELECT count(*) FROM collections),
+ (SELECT count(*) FROM (SELECT 1 FROM collection_items GROUP BY collection_id HAVING count(*)>$1) c),
+ (SELECT count(*) FROM (SELECT 1 FROM playlists GROUP BY owner_id HAVING count(*)>$2) p),
+ (SELECT count(*) FROM (SELECT 1 FROM playlist_items GROUP BY playlist_id HAVING count(*)>$3 OR max(position)>=$4) e)`,
+		domain.CollectionManualItemsMax, domain.PlaylistsPerUserMax, domain.PlaylistEntriesMax, playlistPositionMax).Scan(&collections, &crowded, &playlists, &longest); err != nil {
+		return storageError(err)
+	}
+	switch {
+	case collections > domain.CollectionsMax:
+		return limit("collection", "collection_limit")
+	case crowded > 0:
+		return limit("collection_item", "collection_items_limit")
+	case playlists > 0:
+		return limit("playlist", "playlist_limit")
+	case longest > 0:
+		return limit("playlist_item", "playlist_entries_limit")
 	}
 	// Like migration 071 for upgrades: a restored server with accounts or
 	// libraries is not sent back through the wizard.

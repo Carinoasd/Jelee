@@ -43,6 +43,9 @@ type redactor struct {
 	ipMode   IPMode
 	pathMode PathMode
 	roots    atomic.Pointer[[]string]
+	// dev holds the developer mode switches; nil refuses every developer
+	// mode field (see devlog.go).
+	dev atomic.Pointer[devSwitches]
 }
 
 func newRedactor(ip IPMode, path PathMode, roots []string) *redactor {
@@ -65,6 +68,9 @@ func (r *redactor) setRoots(roots []string) {
 // bounded operational fields. Request text, credentials, paths and arbitrary
 // error strings are never safe log attributes.
 func (r *redactor) replace(groups []string, a slog.Attr) slog.Attr {
+	if out, ok := r.developer(a); ok {
+		return out
+	}
 	switch a.Key {
 	case slog.LevelKey:
 		if _, ok := a.Value.Any().(slog.Level); ok {
@@ -111,7 +117,7 @@ func (r *redactor) replace(groups []string, a slog.Attr) slog.Attr {
 		if a.Value.Kind() == slog.KindString && domain.ValidID(a.Value.String()) {
 			return a
 		}
-	case "cpuLimit", "ioLimit", "totalLimit", "percent", "pressure":
+	case "cpuLimit", "ioLimit", "totalLimit", "percent", "pressure", "auditRows", "securityRows", "batches":
 		switch a.Value.Kind() {
 		case slog.KindInt64, slog.KindUint64, slog.KindFloat64:
 			return a
@@ -143,6 +149,9 @@ func (r *redactor) replace(groups []string, a slog.Attr) slog.Attr {
 		if a.Value.Kind() == slog.KindString {
 			switch a.Value.String() {
 			case "", "scan_unavailable", "scan_io", "scan_limit", "scan_failed", "job_timeout", "job_attempts_exhausted", "job_lease_lost":
+				return a
+			}
+			if r.developerCode(a.Value.String()) {
 				return a
 			}
 		}

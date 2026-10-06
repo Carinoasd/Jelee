@@ -43,7 +43,16 @@ const (
 	bkNetRule   = "b0000000-0000-4000-8000-000000000074"
 	bkShare     = "b0000000-0000-4000-8000-000000000075"
 	bkWebhook   = "b0000000-0000-4000-8000-000000000081"
+	bkCollect   = "b0000000-0000-4000-8000-000000000091"
+	bkCollect2  = "b0000000-0000-4000-8000-000000000092"
+	bkPlaylist  = "b0000000-0000-4000-8000-0000000000a1"
+	bkEntry1    = "b0000000-0000-4000-8000-0000000000a2"
+	bkEntry2    = "b0000000-0000-4000-8000-0000000000a3"
+	bkEntry3    = "b0000000-0000-4000-8000-0000000000a4"
 )
+
+// bkLayout is a user layout the preferences API accepts.
+const bkLayout = `{"current":{"home":[{"id":"resume","visible":true},{"id":"latest","visible":false}],"detail":[{"id":"cast","visible":true}]},"presets":[{"id":"custom-1","name":"Mine 我的","layout":{"home":[{"id":"latest","visible":true}],"detail":[]}}]}`
 
 func bkExec(t testing.TB, ctx context.Context, s *Store, label, sql string, args ...any) {
 	t.Helper()
@@ -133,6 +142,22 @@ func seedMetadataBackup(t testing.TB, ctx context.Context, s *Store, episodes in
 		{"schedule", `INSERT INTO scan_schedules(library_id,owner_id,revision,enabled,mode,interval_seconds,cron,timezone,probe,nfo,ignore_mode,ignore_case,next_due,watch_enabled)
  VALUES ('` + bkLibMovies + `','` + bkAdmin + `',4,true,'interval',3600,'','Asia/Tokyo',true,false,'jeleeignore','sensitive','2026-10-05T00:00:00Z',true)`},
 		{"watch", `INSERT INTO scan_watch_state(library_id) VALUES ('` + bkLibMovies + `')`},
+		// Collections, playlists and preferences (format version 2).
+		{"collections", `INSERT INTO collections(id,name,overview,nfo_name,created_by,created_at,updated_at) VALUES
+ ('` + bkCollect + `','Saga 系列','Every part.','Saga','` + bkAdmin + `','2026-09-10T00:00:00Z','2026-09-11T00:00:00Z'),
+ ('` + bkCollect2 + `','Favourites','',NULL,NULL,'2026-09-10T00:00:01Z','2026-09-10T00:00:01Z')`},
+		{"collection items", `INSERT INTO collection_items(collection_id,item_id,added_at) VALUES ('` + bkCollect + `','` + bkMovie + `','2026-09-10T01:00:00Z'),('` + bkCollect2 + `','` + bkSeries + `','2026-09-10T01:00:01Z')`},
+		{"playlist", `INSERT INTO playlists(id,owner_id,name,public,created_at,updated_at) VALUES ('` + bkPlaylist + `','` + bkKid + `','Mix','true','2026-09-12T00:00:00Z','2026-09-12T01:00:00Z')`},
+		{"playlist entries", `INSERT INTO playlist_items(id,playlist_id,item_id,position,added_at) VALUES ('` + bkEntry1 + `','` + bkPlaylist + `','` + bkEpisode + `',0,'2026-09-12T00:00:01Z'),
+ ('` + bkEntry2 + `','` + bkPlaylist + `','` + bkMovie + `',1,'2026-09-12T00:00:02Z'),('` + bkEntry3 + `','` + bkPlaylist + `','` + bkEpisode + `',2,'2026-09-12T00:00:03Z')`},
+		{"guest playlist", `INSERT INTO playlists(owner_id,name) SELECT id,'guest-mix' FROM users WHERE share_id='` + bkShare + `'`},
+		{"preferences", `INSERT INTO user_preferences(user_id,theme,density,layout,updated_at) VALUES ('` + bkKid + `','dark','compact','` + bkLayout + `','2026-09-13T00:00:00Z'),
+ ('` + bkAdmin + `','light','comfortable',NULL,'2026-09-13T00:00:01Z')`},
+		{"guest preferences", `INSERT INTO user_preferences(user_id,theme) SELECT id,'light' FROM users WHERE share_id='` + bkShare + `'`},
+		{"site appearance", `UPDATE site_appearance SET default_theme='dark',tokens='{"light":{"color-primary":"#336699"},"dark":{"color-primary":"#88aaff"}}',
+ custom_css='.jelee-home { margin: 0; }',allow_external_fonts=true,font_hosts=ARRAY['fonts.example.com'],default_layout='{"home":[{"id":"latest","visible":true}],"detail":[]}'`},
+		{"site plugins", `UPDATE site_plugins SET plugins='[{"id":"acme.clock","enabled":true},{"id":"acme.weather","enabled":false}]',settings='{"acme.clock":{"format":"24h","seconds":false}}'`},
+		{"audit retention", `UPDATE audit_retention SET audit_days=400,security_days=90`},
 	}
 	for _, step := range steps {
 		bkExec(t, ctx, s, step.label, step.sql)
@@ -259,8 +284,11 @@ func TestMetadataBackupDrillPostgres(t *testing.T) {
 			t.Fatalf("fixture does not cover kind %s", kind)
 		}
 	}
-	if bytes.Contains(doc, []byte(bkShare)) || bytes.Contains(doc, []byte("share:")) {
-		t.Fatal("export contains a share link or its guest account")
+	if bytes.Contains(doc, []byte(bkShare)) || bytes.Contains(doc, []byte("share:")) || bytes.Contains(doc, []byte("guest-mix")) {
+		t.Fatal("export contains a share link, its guest account or the guest's data")
+	}
+	if n := len(metadataRecordsByKind(t, doc)["user_preference"]); n != 2 {
+		t.Fatalf("user preferences exported: %d, want 2 (guests stay out)", n)
 	}
 
 	// Dry run first: a full import that leaves nothing behind.
@@ -283,7 +311,11 @@ func TestMetadataBackupDrillPostgres(t *testing.T) {
 	ins, upd, same, skipped := metadataReportTotals(report)
 	logf("\n[3] import into the empty schema: inserted %d, updated %d, unchanged %d, skipped %d, %s", ins, upd, same, skipped, time.Since(started).Round(time.Millisecond))
 	// Only the two single-row policies exist before the import.
-	if skipped != 0 || upd != report.Kinds["access_policy"].Updated+report.Kinds["client_control_policy"].Updated {
+	singletonUpdates := int64(0)
+	for _, kind := range []string{"access_policy", "client_control_policy", "site_appearance", "site_plugins", "audit_retention"} {
+		singletonUpdates += report.Kinds[kind].Updated
+	}
+	if skipped != 0 || upd != singletonUpdates || singletonUpdates != 5 {
 		t.Fatalf("fresh import skipped %d updated %d", skipped, upd)
 	}
 
@@ -333,6 +365,8 @@ func TestMetadataBackupDrillPostgres(t *testing.T) {
 		{"watch state for watched schedule", `SELECT count(*) FROM scan_watch_state`, 1},
 		{"client rule hit counters restart", `SELECT count(*) FROM client_rules WHERE hit_count=0`, 3},
 		{"metadata.imported audit rows", `SELECT count(*) FROM audit_logs WHERE event='metadata.imported' AND target_ref=$1`, 2},
+		{"restored retention audited once", `SELECT count(*) FROM audit_logs WHERE event='audit.retention_changed' AND after_state->>'auditDays'='400'`, 1},
+		{"site documents get a new revision", `SELECT count(*) FROM site_appearance a,site_plugins p WHERE a.revision=1 AND p.revision=1`, 1},
 	}
 	logf("\n[6] restored server checks:")
 	for _, c := range checks {

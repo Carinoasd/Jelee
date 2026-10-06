@@ -46,6 +46,8 @@ type Config struct {
 	EnableProbe        bool              `json:"enableProbe"`
 	EnableFamilyIgnore bool              `json:"enableFamilyIgnore"`
 	Logging            LoggingConfig     `json:"logging"`
+	// Audit controls the audit retention purge (G46.9).
+	Audit AuditConfig `json:"audit"`
 	// EnableNFOWrite lets job workers claim nfo_write jobs and run NFO commit
 	// recovery. It is off by default and requires job rollout.
 	EnableNFOWrite bool `json:"enableNFOWrite"`
@@ -79,7 +81,7 @@ func Load() (Config, error) { return LoadWith(os.LookupEnv) }
 
 // LoadWith keeps environment lookup injectable and never includes values in errors.
 func LoadWith(lookup func(string) (string, bool)) (Config, error) {
-	c := Config{Resources: DefaultResourcesConfig(), Access: DefaultAccessConfig(), Streaming: DefaultStreamingConfig(), Playback: DefaultPlaybackConfig(), Stats: DefaultStatsConfig(), Listen: "127.0.0.1:8097", AllowedHosts: []string{"localhost", "127.0.0.1", "::1"}, MaxConnections: 8, MaxStreams: 8, RequestTimeoutSeconds: 15, Accounts: DefaultAccountsConfig(), Jobs: DefaultJobsConfig(), Images: DefaultImagesConfig(), Matroska: DefaultMatroskaConfig(), SubtitleOCR: DefaultSubtitleOCRConfig(), Logging: DefaultLoggingConfig(), Webhooks: DefaultWebhooksConfig()}
+	c := Config{Resources: DefaultResourcesConfig(), Access: DefaultAccessConfig(), Streaming: DefaultStreamingConfig(), Playback: DefaultPlaybackConfig(), Stats: DefaultStatsConfig(), Listen: "127.0.0.1:8097", AllowedHosts: []string{"localhost", "127.0.0.1", "::1"}, MaxConnections: 8, MaxStreams: 8, RequestTimeoutSeconds: 15, Accounts: DefaultAccountsConfig(), Jobs: DefaultJobsConfig(), Images: DefaultImagesConfig(), Matroska: DefaultMatroskaConfig(), SubtitleOCR: DefaultSubtitleOCRConfig(), Logging: DefaultLoggingConfig(), Audit: DefaultAuditConfig(), Webhooks: DefaultWebhooksConfig()}
 	if path, ok := lookup("JELEE_CONFIG"); ok && path != "" {
 		f, err := os.Open(path) //nolint:gosec // G304: the operator names the configuration file
 		if err != nil {
@@ -203,6 +205,9 @@ func LoadWith(lookup func(string) (string, bool)) (Config, error) {
 	if err := c.Logging.loadEnvironment(lookup); err != nil {
 		return c, err
 	}
+	if err := c.Audit.loadEnvironment(lookup); err != nil {
+		return c, err
+	}
 	if err := c.Webhooks.loadEnvironment(lookup); err != nil {
 		return c, err
 	}
@@ -226,6 +231,9 @@ func (c Config) Validate() error {
 		return err
 	}
 	if err := c.Logging.Validate(); err != nil {
+		return err
+	}
+	if err := c.Audit.Validate(); err != nil {
 		return err
 	}
 	if err := c.Dev.Validate(); err != nil {

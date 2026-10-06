@@ -22,26 +22,6 @@ import (
 	"github.com/MoYuanCN/Jelee/internal/platform/password"
 )
 
-type fakeLevels struct {
-	mu    sync.Mutex
-	level slog.Level
-}
-
-func (f *fakeLevels) SetLevel(component string, level slog.Level) error {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	if component == logging.GlobalComponent {
-		f.level = level
-	}
-	return nil
-}
-
-func (f *fakeLevels) Level(string) slog.Level {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	return f.level
-}
-
 // syncBuffer is a goroutine-safe log sink.
 type syncBuffer struct {
 	mu  sync.Mutex
@@ -101,11 +81,26 @@ func TestDevModeRuntimePostgres(t *testing.T) {
 	if err != nil || !cfg.Dev.Capable() {
 		t.Fatal("load developer runtime configuration", err)
 	}
+	// The production log router, wired the way NewWithLogs wires it, so
+	// the developer logs are checked against the real whitelist.
 	logs := &syncBuffer{}
-	logger := slog.New(slog.NewJSONHandler(logs, nil))
+	router, err := logging.Open(logging.Options{}, logs)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = router.Close() })
+	// plain records what call sites write before the whitelist, for the
+	// startup lines and for proving that nothing was written at all.
+	plain := &syncBuffer{}
+	logger := slog.New(slog.NewMultiHandler(router.Logger().Handler(), slog.NewJSONHandler(plain, nil)))
 	life := newLifetime(logger)
-	levels := &fakeLevels{level: slog.LevelInfo}
+	levels := router
 	life.levels = levels
+	life.devLogs = router
+	flushed := func() string {
+		_ = router.Flush()
+		return logs.String()
+	}
 	address := ""
 	life.listen = func(listenCtx context.Context, network, _ string) (net.Listener, error) {
 		listener, err := (&net.ListenConfig{}).Listen(listenCtx, network, "127.0.0.1:0")
@@ -134,8 +129,8 @@ func TestDevModeRuntimePostgres(t *testing.T) {
 	if rec, err := store.LoadDevSession(ctx); err != nil || rec.Active {
 		t.Fatalf("restart inherited the session: %+v %v", rec, err)
 	}
-	if !strings.Contains(logs.String(), "never run this configuration in production") || !strings.Contains(logs.String(), "process restart") {
-		t.Fatalf("startup WARN lines missing: %s", logs.String())
+	if out := plain.String(); !strings.Contains(out, "never run this configuration in production") || !strings.Contains(out, "process restart") {
+		t.Fatalf("startup WARN lines missing: %s", out)
 	}
 
 	client := &http.Client{Timeout: 5 * time.Second}
@@ -203,10 +198,36 @@ func TestDevModeRuntimePostgres(t *testing.T) {
 		t.Fatal(err)
 	}
 	waitFor("the debug level", func() bool { return levels.Level(logging.GlobalComponent) == slog.LevelDebug })
+	// SQL and body logs pass the production whitelist while their toggles
+	// are on (G45.5), with secrets masked.
+	if _, err = life.dev.SetToggle(ctx, devmode.Actor{}, devmode.DebugSQLLogging, true, devmode.Confirmation{}, "test"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = life.dev.SetToggle(ctx, devmode.Actor{}, devmode.DebugBodyLogging, true, devmode.Confirmation{IUnderstand: true}, "test"); err != nil {
+		t.Fatal(err)
+	}
+	resp = request("POST", "/api/v1/auth/login", `{"name":"dev-admin","password":"wrong-devmode-password-77"}`)
+	_ = resp.Body.Close()
+	waitFor("developer SQL and body log lines", func() bool {
+		out := flushed()
+		return strings.Contains(out, `"code":"devmode_sql_log","statement":"SELECT`) && strings.Contains(out, `"code":"devmode_body_log"`)
+	})
+	if out := flushed(); strings.Contains(out, "wrong-devmode-password-77") || !strings.Contains(out, `\"name\":\"dev-admin\"`) || !strings.Contains(out, `"route":"/api/v1/auth/login"`) {
+		t.Fatalf("developer logs: %s", out)
+	}
 	if err = cli.Disable(ctx, devmode.Actor{}, "cli", "test"); err != nil {
 		t.Fatal(err)
 	}
 	waitFor("production defaults", func() bool {
 		return devHeader() == "false" && levels.Level(logging.GlobalComponent) == slog.LevelInfo
 	})
+	// Off again: no developer field reaches the log.
+	mark, plainMark := len(flushed()), len(plain.String())
+	resp = request("POST", "/api/v1/auth/login", `{"name":"dev-admin","password":"wrong-devmode-password-78"}`)
+	_ = resp.Body.Close()
+	out, written := flushed()[mark:], plain.String()[plainMark:]
+	if strings.Contains(out, "devmode_sql_log") || strings.Contains(out, "devmode_body_log") || strings.Contains(out, `"statement"`) || strings.Contains(out, "requestBody") ||
+		strings.Contains(written, "developer mode SQL log") || strings.Contains(written, "developer mode body log") {
+		t.Fatalf("developer logs after disable: %s", out)
+	}
 }

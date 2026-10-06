@@ -19,6 +19,12 @@ type logLevels interface {
 	Level(component string) slog.Level
 }
 
+// devLogs is the part of the log router the developer mode SQL and body logs
+// use: their fields pass the whitelist only while their toggle is effective.
+type devLogs interface {
+	SetDeveloperLogging(sql, body func() bool)
+}
+
 // NewWithLogs is New with the log router, so the developer mode
 // debug_verbose_logging toggle can raise and restore the global level.
 func NewWithLogs(cfg config.Config, logs *logging.Router) *fx.App {
@@ -26,6 +32,7 @@ func NewWithLogs(cfg config.Config, logs *logging.Router) *fx.App {
 	sweepStartupTemporaries(context.Background(), cfg, logger)
 	life := newLifetime(logger)
 	life.levels = logs
+	life.devLogs = logs
 	return newWithLifetime(cfg, logger, life)
 }
 
@@ -61,6 +68,10 @@ func newDevController(c config.Config, store *postgres.Store, l *slog.Logger, li
 	}
 	if lifetime.queryLog != nil {
 		lifetime.queryLog.SetEnabled(func() bool { return controller.Effective(devmode.DebugSQLLogging) })
+	}
+	if lifetime.devLogs != nil {
+		lifetime.devLogs.SetDeveloperLogging(func() bool { return controller.Effective(devmode.DebugSQLLogging) },
+			func() bool { return controller.Effective(devmode.DebugBodyLogging) })
 	}
 	lifetime.dev = controller
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
