@@ -2,7 +2,6 @@ package httpapi
 
 import (
 	"net/http"
-	"strconv"
 	"time"
 
 	"github.com/MoYuanCN/Jelee/internal/domain"
@@ -209,79 +208,68 @@ func (s *Server) retryJob(w http.ResponseWriter, r *http.Request, a domain.Actor
 	j, replayed, err := s.jobs.Retry(r.Context(), a, chi.URLParam(r, "id"), key)
 	return acceptedJob(w, j, replayed, err)
 }
-func jobPageQuery(r *http.Request, extra ...string) (map[string]string, int, error) {
-	keys := append([]string{"cursor", "limit"}, extra...)
-	q, err := strictQuery(r, keys...)
-	if err != nil {
-		return nil, 0, err
-	}
-	limit := 50
-	if v, ok := q["limit"]; ok {
-		limit, err = strconv.Atoi(v)
-		if err != nil {
-			return nil, 0, domain.ErrInvalid
-		}
-	}
-	return q, limit, nil
-}
-func pageResult(name string, data any, lastID string, length, limit int) map[string]any {
-	next := ""
-	if length == limit {
-		next = lastID
-	}
+
+// pageResult is the keyset envelope of a named list.
+func pageResult(name string, data any, next string, limit int) map[string]any {
 	return map[string]any{name: data, "pagination": map[string]any{"nextCursor": next, "limit": limit}}
 }
 func (s *Server) listJobs(w http.ResponseWriter, r *http.Request, a domain.Actor) (any, int, error) {
-	q, limit, err := jobPageQuery(r, "state")
+	q, err := listQuery(r, "/api/v1/jobs")
 	if err != nil {
 		return nil, 0, err
 	}
-	rows, err := s.jobs.List(r.Context(), a, q["cursor"], limit, q["state"])
+	rows, next, err := keysetPage(q, func(cursor string, limit int) ([]domain.Job, string, error) {
+		rows, err := s.jobs.List(r.Context(), a, cursor, limit, q.Filters["state"])
+		return rows, nextKey(rows, limit, func(j domain.Job) string { return j.ID }), err
+	})
 	if err != nil {
 		return nil, 0, err
 	}
-	last := ""
-	if len(rows) > 0 {
-		last = rows[len(rows)-1].ID
-	}
-	return pageResult("jobs", rows, last, len(rows), limit), 200, nil
+	return listData(q, pageResult("jobs", rows, next, q.Limit))
 }
 func (s *Server) listJobEntries(w http.ResponseWriter, r *http.Request, a domain.Actor) (any, int, error) {
-	q, limit, err := jobPageQuery(r)
+	q, err := listQuery(r, "/api/v1/jobs/{id}/entries")
 	if err != nil {
 		return nil, 0, err
 	}
-	rows, err := s.jobs.Entries(r.Context(), a, chi.URLParam(r, "id"), q["cursor"], limit)
+	rows, next, err := keysetPage(q, func(cursor string, limit int) ([]domain.InventoryEntry, string, error) {
+		rows, err := s.jobs.Entries(r.Context(), a, chi.URLParam(r, "id"), cursor, limit)
+		return rows, nextKey(rows, limit, func(e domain.InventoryEntry) string { return e.ID }), err
+	})
 	if err != nil {
 		return nil, 0, err
 	}
-	last := ""
-	if len(rows) > 0 {
-		last = rows[len(rows)-1].ID
-	}
-	return pageResult("entries", rows, last, len(rows), limit), 200, nil
+	return listData(q, pageResult("entries", rows, next, q.Limit))
 }
 func (s *Server) listJobLibraries(w http.ResponseWriter, r *http.Request, a domain.Actor) (any, int, error) {
-	q, limit, err := jobPageQuery(r)
+	q, err := listQuery(r, "/api/v1/libraries")
 	if err != nil {
 		return nil, 0, err
 	}
-	rows, err := s.jobs.Libraries(r.Context(), a, q["cursor"], limit)
+	rows, next, err := keysetPage(q, func(cursor string, limit int) ([]domain.LibrarySummary, string, error) {
+		rows, err := s.jobs.Libraries(r.Context(), a, cursor, limit)
+		return rows, nextKey(rows, limit, func(l domain.LibrarySummary) string { return l.ID }), err
+	})
 	if err != nil {
 		return nil, 0, err
 	}
-	last := ""
-	if len(rows) > 0 {
-		last = rows[len(rows)-1].ID
-	}
-	return pageResult("libraries", rows, last, len(rows), limit), 200, nil
+	return listData(q, pageResult("libraries", rows, next, q.Limit))
 }
 
 func (s *Server) ignoreReport(w http.ResponseWriter, r *http.Request, a domain.Actor) (any, int, error) {
-	q, limit, err := jobPageQuery(r)
+	q, err := listQuery(r, "/api/v1/jobs/{id}/ignore")
 	if err != nil {
 		return nil, 0, err
 	}
-	report, err := s.jobs.IgnoreReport(r.Context(), a, chi.URLParam(r, "id"), limit, q["cursor"])
-	return report, http.StatusOK, err
+	var report domain.IgnoreReport
+	entries, next, err := keysetPage(q, func(cursor string, limit int) ([]domain.IgnoreReportEntry, string, error) {
+		page, err := s.jobs.IgnoreReport(r.Context(), a, chi.URLParam(r, "id"), limit, cursor)
+		report = page
+		return page.Entries, page.NextCursor, err
+	})
+	if err != nil {
+		return nil, 0, err
+	}
+	report.Entries, report.NextCursor = entries, next
+	return listData(q, report)
 }

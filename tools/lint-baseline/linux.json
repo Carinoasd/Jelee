@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "goos": "linux",
-  "total": 2047,
+  "total": 2043,
   "entries": [
     {
       "linter": "errcheck",
@@ -896,20 +896,6 @@
       "linter": "revive",
       "file": "internal/adapter/http/accounts.go",
       "text": "unused-parameter: parameter 'w' seems to be unused, consider removing or renaming it as _",
-      "source": "04d17d7a45a2",
-      "count": 1
-    },
-    {
-      "linter": "revive",
-      "file": "internal/adapter/http/accounts.go",
-      "text": "unused-parameter: parameter 'w' seems to be unused, consider removing or renaming it as _",
-      "source": "26c4998425f0",
-      "count": 1
-    },
-    {
-      "linter": "revive",
-      "file": "internal/adapter/http/accounts.go",
-      "text": "unused-parameter: parameter 'w' seems to be unused, consider removing or renaming it as _",
       "source": "2dfed2466d60",
       "count": 1
     },
@@ -995,13 +981,6 @@
       "file": "internal/adapter/http/client_control.go",
       "text": "exported: exported method ClientControl.Close should have comment or be unexported",
       "source": "4db98b3b4f91",
-      "count": 1
-    },
-    {
-      "linter": "revive",
-      "file": "internal/adapter/http/client_control_routes.go",
-      "text": "unused-parameter: parameter 'w' seems to be unused, consider removing or renaming it as _",
-      "source": "20c07f4d3fc9",
       "count": 1
     },
     {
@@ -1310,13 +1289,6 @@
       "file": "internal/adapter/http/openapi_cache.go",
       "text": "unused-parameter: parameter 'r' seems to be unused, consider removing or renaming it as _",
       "source": "01c2bbcb8d30",
-      "count": 1
-    },
-    {
-      "linter": "revive",
-      "file": "internal/adapter/http/progress.go",
-      "text": "unused-parameter: parameter 'w' seems to be unused, consider removing or renaming it as _",
-      "source": "05a999ed26f3",
       "count": 1
     },
     {

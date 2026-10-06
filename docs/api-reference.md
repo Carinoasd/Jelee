@@ -29,6 +29,7 @@ OpenAPI 中的 Jelee 扩展字段：
 | `x-jelee-setup` | 初始设置向导相关的说明 |
 | `x-jelee-limits` | 该操作的额外数量或大小上限 |
 | `x-jelee-dev-only` | 只在可开启开发者模式的实例上注册 |
+| `x-jelee-list` | 列表操作的统一约定：`paging`（`keyset`／`offset`／`memory`）、可选字段 `fields`、排序白名单 `sort`、方向白名单 `order`、过滤白名单 `filters`、`maxLimit`、`offsetMax`，见下文“列表约定” |
 | `x-jelee-removed-features`（顶层） | 已移除的上游功能及其 501 响应 |
 
 ## 路由分组
@@ -93,7 +94,7 @@ OpenAPI 中的 Jelee 扩展字段：
 
 - **Host 白名单**：`Host` 必须在 `allowedHosts`（默认 `localhost`、`127.0.0.1`、`::1`）中，否则 400 `invalid_host`。部署在反向代理后时见[可信代理](trusted-proxies.md)。
 - **JSON 请求体**：`Content-Type` 必须是 `application/json`（字符集只能是 UTF-8），否则 415 `unsupported_media_type`；只接受一个 JSON 对象，拒绝未知字段、重复键（包括大小写变体）、`null`（个别字段在 OpenAPI 中注明可为 null）与超过 64 层的嵌套，均为 400 `invalid_request`；超过该路由的大小上限为 413 `body_too_large`。
-- **查询参数**：只接受该路由声明的参数，未知或重复的参数返回 400 `invalid_request`。
+- **查询参数**：只接受该路由声明的参数，未知或重复的参数返回 400 `invalid_request`；列表操作的参数见下文“列表约定”。
 - **CORS**：原生 API 不发送任何 `Access-Control-*` 标头；前端与 API 同源部署。
 - **版本与弃用**：自有接口都在 `/api/v1` 下；弃用的接口响应会带 `Deprecation`、`Sunset` 与 `Link: <替代>; rel="successor-version"` 标头，时间线、替代方案与 v2 过渡政策见 [API 弃用](api-deprecations.md)。浏览版的接口文档在服务的 `/api-docs`。
 
@@ -110,11 +111,42 @@ OpenAPI 中的 Jelee 扩展字段：
 - 消息语言按 `Accept-Language` 在 zh-CN、zh-TW、ja-JP、en-US 中选择：没有该标头时用 zh-CN，无法匹配时用 en-US；已登录且设置了界面语言的用户以其设置为准。响应带 `Content-Language` 与 `Vary: Accept-Language`。
 - 每个响应都带 `X-Request-ID`、`X-Content-Type-Options: nosniff`、`Referrer-Policy: no-referrer`、严格的 `Content-Security-Policy`、`X-Jelee-Dev-Mode`，默认 `Cache-Control: no-store`；HTTPS 连接另加 HSTS。条件请求与缓存只在图片（`ETag`、`If-None-Match`、304）与原文件直投（`ETag`、`Range`、`If-Range`、412、416）上提供。
 
-## 分页
+## 列表约定
 
-- **游标分页**（大多数列表）：查询参数 `limit`（常见默认 50、最大 100，各路由以 OpenAPI 为准）与 `cursor`（不透明值，取自上一页）；响应为 `{"data": […], "pagination": {"nextCursor": "…", "limit": 50}}`，`nextCursor` 为空字符串表示没有下一页。游标绑定该查询，不能跨查询使用。
-- **偏移分页**：`GET /api/v1/items` 的浏览模式接受 `offset`（最大 1000000）以及 `libraryId`、`parentId`、`type`、`sort`、`order`、`q`，响应的 `pagination` 另含 `offset` 与 `total`。
-- **例外**：合集、播放清单、NFO 校验结果与忽略报告的 `nextCursor` 与列表字段同层，不在 `pagination` 对象中。
+所有原生列表操作遵守同一套约定（G08.2、G49.1），由 `internal/adapter/http/list_contract.go` 的列表契约统一解析，OpenAPI 中逐个操作列出参数并以 `x-jelee-list` 记录契约。`TestOpenAPIListOperationsDeclareListContract` 要求每个列表操作都有契约（或列入下文的豁免表）、声明全部列表参数、其余查询参数恰好是过滤白名单，且可选字段恰好是行 schema 的成员。
+
+| 参数 | 含义 |
+| --- | --- |
+| `cursor` | 不透明游标，取自上一页的 `nextCursor`；`nextCursor` 为空字符串表示没有下一页。游标绑定该查询，不能跨查询使用。与 `offset` 同时出现返回 400 `invalid_request` |
+| `offset` | 兼容用的偏移分页：从头跳过的行数 |
+| `limit` | 每页行数，默认值与上限以 OpenAPI 为准（常见默认 50、上限 100） |
+| `sort`、`order` | 排序键与方向，只接受白名单中的值 |
+| `fields` | 逗号分隔的行成员，只返回这些成员；标识成员（通常是 `id`）总会返回 |
+| 过滤参数 | 各操作自己的过滤白名单（例如 `state`、`includeDeleted`、`ruleId`），值由该操作校验 |
+
+未知参数、重复参数、白名单外的排序键或方向、未知或空的字段名、超出范围的 `limit`／`offset`、格式不对的游标，一律 400 `invalid_request`（与其他严格查询一致）。
+
+按分页方式分三类（`x-jelee-list.paging`）：
+
+- **keyset**（存储按游标分页，大多数列表）：`cursor` 优先。存储只按一个固定顺序读取，因此排序白名单只有这一个键（例如用户、任务按 `id` 升序，投递记录、命中记录按时间倒序），显式传入相同的值是允许的。`offset` 是兼容用法：服务端从头按游标逐页（每页不超过该列表的 `limit` 上限）跳过，因此最多 1000，响应仍给出继续用的 `nextCursor`；大量翻页请用游标。`GET /api/v1/items` 另有原有的偏移形式（`offset`、`libraryId`、`parentId`、`type`、`sort`（可逗号分隔多个键）、`order`、`q`，响应含 `offset` 与 `total`），行为不变。
+- **offset**（存储按偏移分页：`GET /api/v1/users/me/resume`）：`cursor` 是不透明的位置值（形如 `o.50`），与对应的 `offset` 等价；响应另含 `nextCursor`。
+- **memory**（整体读取的小列表：本人与他人的会话、应用密码、媒体库授权、分享、网络规则、客户端规则、播放会话、Webhook）：不带 `limit` 时照旧返回全部行；带 `sort` 时在内存中按白名单字段排序（缺失或 null 排最前，同值保持存储顺序，`order` 必须与 `sort` 一起使用），不带 `sort` 时保持存储顺序；`cursor` 为位置值。响应增加 `pagination`：`nextCursor`、`offset`、`total`，以及给了 `limit` 时的 `limit`。行本身是数组的列表（如 `GET /api/v1/shares`）放在顶层 `pagination`，其余（`GET /api/v1/webhooks`）放在 `data.pagination`。
+
+字段选择只作用于已经套用全部可见性规则与遮罩之后的响应，只会删除成员，不会补回被遮罩或省略的成员；选择后 schema 中的其他必填成员可能缺失。
+
+分页对象的位置沿用各接口原有形状：多数为 `data.pagination`（或行数组旁的顶层 `pagination`）；合集、播放清单、NFO 校验结果与忽略报告的 `nextCursor` 与列表字段同层。
+
+豁免（看起来像列表、但不接受列表参数，原因见 `listExemptions`）：
+
+| 操作 | 原因 |
+| --- | --- |
+| `GET /api/v1/access/parental-ratings` | 编译在服务端的固定分级词汇表，不是存储的资源集合 |
+| `GET /api/v1/client-control/hits/export` | 导出下载：按过滤条件一次给出全部（受命中记录保留期限制）并附 `count` |
+| `GET /api/v1/watch-stats/export` | NDJSON／CSV 导出下载；`limit` 只是调低导出行数上限 |
+| `GET /api/v1/libraries/{id}/nfo/current-validations/{observationId}/issues` | 单个观察结果的问题：最多保留 64 条、没有标识，只按偏移分页 |
+| `GET /api/v1/site/plugins`、`GET /api/v1/site/plugins/config` | 站点设置中的插件开关（固定的小映射），不是集合 |
+| `GET /api/v1/collections/{id}` | 单个合集及其成员：资源视图，内嵌列表受合集大小限制 |
+| `GET /api/v1/items/{id}/sources`、`GET /api/v1/items/{id}/playback` | 单个条目的媒体源（版本）与播放信息，属于条目资源本身 |
 
 ## 限流与重试
 

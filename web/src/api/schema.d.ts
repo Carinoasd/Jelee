@@ -60,7 +60,20 @@ export type paths = {
         /** List the library network rules (G48.5) */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description Opaque cursor: nextCursor of the previous page (it encodes a position). Not combinable with offset. */
+                    cursor?: string;
+                    /** @description Comma separated row members to return: cidrs, clientKinds, createdAt, enabled, id, includeAdmins, libraryId, libraryName, network, note, updatedAt. id is always included. Unknown names are 400 invalid_request. Selection only removes members of the rows after every visibility rule and mask applied; other required members may then be absent. */
+                    fields?: string;
+                    /** @description Page size; without it every row is returned. */
+                    limit?: number;
+                    /** @description Rows to skip from the start. Not combinable with cursor. */
+                    offset?: number;
+                    /** @description Direction of sort; requires sort. */
+                    order?: "asc" | "desc";
+                    /** @description Sort key from the whitelist; without it the storage order is kept. Ties keep the storage order. */
+                    sort?: "createdAt" | "updatedAt" | "libraryName";
+                };
                 header?: never;
                 path?: never;
                 cookie?: never;
@@ -75,6 +88,7 @@ export type paths = {
                     content: {
                         "application/json": {
                             data: components["schemas"]["NetworkRule"][];
+                            pagination: components["schemas"]["ListPagination"];
                         };
                     };
                 };
@@ -1997,7 +2011,15 @@ export type paths = {
             parameters: {
                 query?: {
                     cursor?: string;
+                    /** @description Comma separated row members to return: activeSessions, alias, appName, appVersion, blockRuleId, blocked, clientKind, deviceId, deviceName, firstSeenAt, id, lastIp, lastSeenAt, lastUserId, trusted, userAgent. id is always included. Unknown names are 400 invalid_request. Selection only removes members of the rows after every visibility rule and mask applied; other required members may then be absent. */
+                    fields?: string;
                     limit?: number;
+                    /** @description Compatibility paging: rows to skip from the start, walked through cursor pages (at most 1000); prefer cursor. Not combinable with cursor. */
+                    offset?: number;
+                    /** @description Direction of sort. */
+                    order?: "desc";
+                    /** @description Sort key. This list is read in storage order, so the whitelist holds only that key. */
+                    sort?: "lastSeenAt";
                 };
                 header?: never;
                 path?: never;
@@ -2533,11 +2555,19 @@ export type paths = {
             parameters: {
                 query?: {
                     cursor?: string;
+                    /** @description Comma separated row members to return: action, appName, bucket, hits, id, mode, network, ruleId, surface, userAgent, userId. id is always included. Unknown names are 400 invalid_request. Selection only removes members of the rows after every visibility rule and mask applied; other required members may then be absent. */
+                    fields?: string;
                     limit?: number;
                     mode?: "enforced" | "exempt" | "observe" | "shadow" | "default";
+                    /** @description Compatibility paging: rows to skip from the start, walked through cursor pages (at most 1000); prefer cursor. Not combinable with cursor. */
+                    offset?: number;
+                    /** @description Direction of sort. */
+                    order?: "desc";
                     ruleId?: string;
                     /** @description RFC 3339; inclusive. */
                     since?: string;
+                    /** @description Sort key. This list is read in storage order, so the whitelist holds only that key. */
+                    sort?: "id";
                     /** @description RFC 3339; exclusive. */
                     until?: string;
                 };
@@ -3048,7 +3078,20 @@ export type paths = {
         /** List every client rule, enabled or not, in precedence order (priority descending, then ID) */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description Opaque cursor: nextCursor of the previous page (it encodes a position). Not combinable with offset. */
+                    cursor?: string;
+                    /** @description Comma separated row members to return: action, caseFold, createdAt, dimension, enabled, header, hitCount, id, intent, lastHitAt, libraries, match, note, pattern, priority, rateLimit, scopeKind, scopeValues, updatedAt, window. id is always included. Unknown names are 400 invalid_request. Selection only removes members of the rows after every visibility rule and mask applied; other required members may then be absent. */
+                    fields?: string;
+                    /** @description Page size; without it every row is returned. */
+                    limit?: number;
+                    /** @description Rows to skip from the start. Not combinable with cursor. */
+                    offset?: number;
+                    /** @description Direction of sort; requires sort. */
+                    order?: "asc" | "desc";
+                    /** @description Sort key from the whitelist; without it the storage order is kept. Ties keep the storage order. */
+                    sort?: "priority" | "createdAt" | "updatedAt" | "hitCount" | "lastHitAt";
+                };
                 header?: never;
                 path?: never;
                 cookie?: never;
@@ -3063,6 +3106,7 @@ export type paths = {
                     content: {
                         "application/json": {
                             data: components["schemas"]["ClientRule"][];
+                            pagination: components["schemas"]["ListPagination"];
                         };
                     };
                 };
@@ -4059,7 +4103,15 @@ export type paths = {
                 query?: {
                     /** @description nextCursor of the previous page. */
                     cursor?: string;
+                    /** @description Comma separated row members to return: coverItemId, createdAt, id, itemCount, name, nfoName, overview, updatedAt. id is always included. Unknown names are 400 invalid_request. Selection only removes members of the rows after every visibility rule and mask applied; other required members may then be absent. */
+                    fields?: string;
                     limit?: number;
+                    /** @description Compatibility paging: rows to skip from the start, walked through cursor pages (at most 1000); prefer cursor. Not combinable with cursor. */
+                    offset?: number;
+                    /** @description Direction of sort. */
+                    order?: "asc";
+                    /** @description Sort key. This list is read in storage order, so the whitelist holds only that key. */
+                    sort?: "name";
                 };
                 header?: never;
                 path?: never;
@@ -5090,6 +5142,8 @@ export type paths = {
                 query?: {
                     /** @description Keyset cursor of the original form; not allowed with browse parameters. */
                     cursor?: string;
+                    /** @description Comma separated row members to return: id, kind, libraryId, parentId, premiereDate, productionYear, title. id is always included. Unknown names are 400 invalid_request. Selection only removes members of the rows after every visibility rule and mask applied; other required members may then be absent. */
+                    fields?: string;
                     /** @description Offset form: only items of this library, at any level. */
                     libraryId?: string;
                     /** @description Page size in both forms. */
@@ -7857,7 +7911,15 @@ export type paths = {
             parameters: {
                 query?: {
                     cursor?: string;
+                    /** @description Comma separated row members to return: attempts, bytes, cancelRequested, createdAt, directories, errorCode, files, finishedAt, id, kind, libraryId, missing, priority, reviewRequired, skipped, startedAt, state. id is always included. Unknown names are 400 invalid_request. Selection only removes members of the rows after every visibility rule and mask applied; other required members may then be absent. */
+                    fields?: string;
                     limit?: number;
+                    /** @description Compatibility paging: rows to skip from the start, walked through cursor pages (at most 1000); prefer cursor. Not combinable with cursor. */
+                    offset?: number;
+                    /** @description Direction of sort. */
+                    order?: "asc";
+                    /** @description Sort key. This list is read in storage order, so the whitelist holds only that key. */
+                    sort?: "id";
                     state?: "queued" | "running" | "succeeded" | "failed" | "cancelled";
                 };
                 header?: never;
@@ -8575,7 +8637,15 @@ export type paths = {
             parameters: {
                 query?: {
                     cursor?: string;
+                    /** @description Comma separated row members to return: id, kind, modifiedUnixNano, path, rootId, size. id is always included. Unknown names are 400 invalid_request. Selection only removes members of the rows after every visibility rule and mask applied; other required members may then be absent. */
+                    fields?: string;
                     limit?: number;
+                    /** @description Compatibility paging: rows to skip from the start, walked through cursor pages (at most 1000); prefer cursor. Not combinable with cursor. */
+                    offset?: number;
+                    /** @description Direction of sort. */
+                    order?: "asc";
+                    /** @description Sort key. This list is read in storage order, so the whitelist holds only that key. */
+                    sort?: "id";
                 };
                 header?: never;
                 path: {
@@ -8865,7 +8935,15 @@ export type paths = {
             parameters: {
                 query?: {
                     cursor?: string;
+                    /** @description Comma separated row members to return: family, kind, matchedPath, outcome, path, reason, rootId, ruleDirectory, ruleLine, source. Unknown names are 400 invalid_request. Selection only removes members of the rows after every visibility rule and mask applied; other required members may then be absent. */
+                    fields?: string;
                     limit?: number;
+                    /** @description Compatibility paging: rows to skip from the start, walked through cursor pages (at most 1000); prefer cursor. Not combinable with cursor. */
+                    offset?: number;
+                    /** @description Direction of sort. */
+                    order?: "asc";
+                    /** @description Sort key. This list is read in storage order, so the whitelist holds only that key. */
+                    sort?: "path";
                 };
                 header?: never;
                 path: {
@@ -9855,7 +9933,15 @@ export type paths = {
             parameters: {
                 query?: {
                     cursor?: string;
+                    /** @description Comma separated row members to return: id, name, roots. id is always included. Unknown names are 400 invalid_request. Selection only removes members of the rows after every visibility rule and mask applied; other required members may then be absent. */
+                    fields?: string;
                     limit?: number;
+                    /** @description Compatibility paging: rows to skip from the start, walked through cursor pages (at most 1000); prefer cursor. Not combinable with cursor. */
+                    offset?: number;
+                    /** @description Direction of sort. */
+                    order?: "asc";
+                    /** @description Sort key. This list is read in storage order, so the whitelist holds only that key. */
+                    sort?: "id";
                 };
                 header?: never;
                 path?: never;
@@ -10406,7 +10492,15 @@ export type paths = {
             parameters: {
                 query?: {
                     cursor?: string;
+                    /** @description Comma separated row members to return: absolute, confidence, episode, episodeEnd, id, kind, path, reason, rootId, season, special, title, year. id is always included. Unknown names are 400 invalid_request. Selection only removes members of the rows after every visibility rule and mask applied; other required members may then be absent. */
+                    fields?: string;
                     limit?: number;
+                    /** @description Compatibility paging: rows to skip from the start, walked through cursor pages (at most 1000); prefer cursor. Not combinable with cursor. */
+                    offset?: number;
+                    /** @description Direction of sort. */
+                    order?: "asc";
+                    /** @description Sort key. This list is read in storage order, so the whitelist holds only that key. */
+                    sort?: "id";
                 };
                 header?: never;
                 path: {
@@ -10760,7 +10854,15 @@ export type paths = {
             parameters: {
                 query?: {
                     cursor?: string;
+                    /** @description Comma separated row members to return: entries, errorCount, expiresAt, failureCode, id, issueCount, issuesTruncated, observedAt, path, rootId, status, warningCount. id is always included. Unknown names are 400 invalid_request. Selection only removes members of the rows after every visibility rule and mask applied; other required members may then be absent. */
+                    fields?: string;
                     limit?: number;
+                    /** @description Compatibility paging: rows to skip from the start, walked through cursor pages (at most 1000); prefer cursor. Not combinable with cursor. */
+                    offset?: number;
+                    /** @description Direction of sort. */
+                    order?: "asc";
+                    /** @description Sort key. This list is read in storage order, so the whitelist holds only that key. */
+                    sort?: "id";
                 };
                 header?: never;
                 path: {
@@ -13389,7 +13491,20 @@ export type paths = {
          */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description Opaque cursor: nextCursor of the previous page (it encodes a position). Not combinable with offset. */
+                    cursor?: string;
+                    /** @description Comma separated row members to return: clientName, delivery, deviceId, id, itemId, itemTitle, lastReportAt, paused, positionTicks, runtimeTicks, sourceId, startedAt, userId, userName. id is always included. Unknown names are 400 invalid_request. Selection only removes members of the rows after every visibility rule and mask applied; other required members may then be absent. */
+                    fields?: string;
+                    /** @description Page size; without it every row is returned. */
+                    limit?: number;
+                    /** @description Rows to skip from the start. Not combinable with cursor. */
+                    offset?: number;
+                    /** @description Direction of sort; requires sort. */
+                    order?: "asc" | "desc";
+                    /** @description Sort key from the whitelist; without it the storage order is kept. Ties keep the storage order. */
+                    sort?: "startedAt" | "lastReportAt" | "userName" | "itemTitle";
+                };
                 header?: never;
                 path?: never;
                 cookie?: never;
@@ -13404,6 +13519,7 @@ export type paths = {
                     content: {
                         "application/json": {
                             data: components["schemas"]["ActivePlayback"][];
+                            pagination: components["schemas"]["ListPagination"];
                         };
                     };
                 };
@@ -13758,7 +13874,15 @@ export type paths = {
                 query?: {
                     /** @description nextCursor of the previous page. */
                     cursor?: string;
+                    /** @description Comma separated row members to return: coverItemId, createdAt, id, itemCount, name, owned, ownerId, ownerName, public, updatedAt. id is always included. Unknown names are 400 invalid_request. Selection only removes members of the rows after every visibility rule and mask applied; other required members may then be absent. */
+                    fields?: string;
                     limit?: number;
+                    /** @description Compatibility paging: rows to skip from the start, walked through cursor pages (at most 1000); prefer cursor. Not combinable with cursor. */
+                    offset?: number;
+                    /** @description Direction of sort. */
+                    order?: "asc";
+                    /** @description Sort key. This list is read in storage order, so the whitelist holds only that key. */
+                    sort?: "name";
                 };
                 header?: never;
                 path?: never;
@@ -14788,7 +14912,15 @@ export type paths = {
             parameters: {
                 query?: {
                     cursor?: string;
+                    /** @description Comma separated row members to return: client, clientKind, createdAt, deviceId, deviceName, expiresAt, id, lastIp, lastSeenAt, revokedAt, userId, version. id is always included. Unknown names are 400 invalid_request. Selection only removes members of the rows after every visibility rule and mask applied; other required members may then be absent. */
+                    fields?: string;
                     limit?: number;
+                    /** @description Compatibility paging: rows to skip from the start, walked through cursor pages (at most 1000); prefer cursor. Not combinable with cursor. */
+                    offset?: number;
+                    /** @description Direction of sort. */
+                    order?: "asc";
+                    /** @description Sort key. This list is read in storage order, so the whitelist holds only that key. */
+                    sort?: "id";
                 };
                 header?: never;
                 path?: never;
@@ -15484,7 +15616,20 @@ export type paths = {
         /** List the newest 200 share links with their state, live guest sessions and last use */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description Opaque cursor: nextCursor of the previous page (it encodes a position). Not combinable with offset. */
+                    cursor?: string;
+                    /** @description Comma separated row members to return: activeSessions, allowPlayback, createdAt, createdBy, expiresAt, id, itemId, itemKind, itemTitle, lastUsedAt, libraryId, libraryName, maxStreams, note, readOnly, revokedAt, state. id is always included. Unknown names are 400 invalid_request. Selection only removes members of the rows after every visibility rule and mask applied; other required members may then be absent. */
+                    fields?: string;
+                    /** @description Page size; without it every row is returned. */
+                    limit?: number;
+                    /** @description Rows to skip from the start. Not combinable with cursor. */
+                    offset?: number;
+                    /** @description Direction of sort; requires sort. */
+                    order?: "asc" | "desc";
+                    /** @description Sort key from the whitelist; without it the storage order is kept. Ties keep the storage order. */
+                    sort?: "createdAt" | "expiresAt" | "lastUsedAt" | "state";
+                };
                 header?: never;
                 path?: never;
                 cookie?: never;
@@ -15499,6 +15644,7 @@ export type paths = {
                     content: {
                         "application/json": {
                             data: components["schemas"]["Share"][];
+                            pagination: components["schemas"]["ListPagination"];
                         };
                     };
                 };
@@ -15861,7 +16007,15 @@ export type paths = {
             parameters: {
                 query?: {
                     cursor?: string;
+                    /** @description Comma separated row members to return: actorId, clientKind, deviceName, event, id, ip, occurredAt, reason, route, sessionId. id is always included. Unknown names are 400 invalid_request. Selection only removes members of the rows after every visibility rule and mask applied; other required members may then be absent. */
+                    fields?: string;
                     limit?: number;
+                    /** @description Compatibility paging: rows to skip from the start, walked through cursor pages (at most 1000); prefer cursor. Not combinable with cursor. */
+                    offset?: number;
+                    /** @description Direction of sort. */
+                    order?: "desc";
+                    /** @description Sort key. This list is read in storage order, so the whitelist holds only that key. */
+                    sort?: "occurredAt";
                 };
                 header?: never;
                 path: {
@@ -18893,8 +19047,16 @@ export type paths = {
             parameters: {
                 query?: {
                     cursor?: string;
+                    /** @description Comma separated row members to return: admin, allowNative, createdAt, deletedAt, disabled, displayName, hidden, id, locale, name. id is always included. Unknown names are 400 invalid_request. Selection only removes members of the rows after every visibility rule and mask applied; other required members may then be absent. */
+                    fields?: string;
                     includeDeleted?: boolean;
                     limit?: number;
+                    /** @description Compatibility paging: rows to skip from the start, walked through cursor pages (at most 1000); prefer cursor. Not combinable with cursor. */
+                    offset?: number;
+                    /** @description Direction of sort. */
+                    order?: "asc";
+                    /** @description Sort key. This list is read in storage order, so the whitelist holds only that key. */
+                    sort?: "id";
                 };
                 header?: never;
                 path?: never;
@@ -19512,7 +19674,20 @@ export type paths = {
         /** List application passwords of self or, as administrator, of any user; never the passwords */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description Opaque cursor: nextCursor of the previous page (it encodes a position). Not combinable with offset. */
+                    cursor?: string;
+                    /** @description Comma separated row members to return: createdAt, id, lastUsedAt, name. id is always included. Unknown names are 400 invalid_request. Selection only removes members of the rows after every visibility rule and mask applied; other required members may then be absent. */
+                    fields?: string;
+                    /** @description Page size; without it every row is returned. */
+                    limit?: number;
+                    /** @description Rows to skip from the start. Not combinable with cursor. */
+                    offset?: number;
+                    /** @description Direction of sort; requires sort. */
+                    order?: "asc" | "desc";
+                    /** @description Sort key from the whitelist; without it the storage order is kept. Ties keep the storage order. */
+                    sort?: "createdAt" | "lastUsedAt" | "name";
+                };
                 header?: never;
                 path: {
                     id: string;
@@ -19529,6 +19704,7 @@ export type paths = {
                     content: {
                         "application/json": {
                             data: components["schemas"]["AppPassword"][];
+                            pagination: components["schemas"]["ListPagination"];
                         };
                     };
                 };
@@ -20620,7 +20796,20 @@ export type paths = {
         /** Read explicit library grants for self or as administrator; max 1000 */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description Opaque cursor: nextCursor of the previous page (it encodes a position). Not combinable with offset. */
+                    cursor?: string;
+                    /** @description Comma separated row members to return: libraryId, name. libraryId is always included. Unknown names are 400 invalid_request. Selection only removes members of the rows after every visibility rule and mask applied; other required members may then be absent. */
+                    fields?: string;
+                    /** @description Page size; without it every row is returned. */
+                    limit?: number;
+                    /** @description Rows to skip from the start. Not combinable with cursor. */
+                    offset?: number;
+                    /** @description Direction of sort; requires sort. */
+                    order?: "asc" | "desc";
+                    /** @description Sort key from the whitelist; without it the storage order is kept. Ties keep the storage order. */
+                    sort?: "name" | "libraryId";
+                };
                 header?: never;
                 path: {
                     id: string;
@@ -20637,6 +20826,7 @@ export type paths = {
                     content: {
                         "application/json": {
                             data: components["schemas"]["LibraryGrant"][];
+                            pagination: components["schemas"]["ListPagination"];
                         };
                     };
                 };
@@ -21260,7 +21450,20 @@ export type paths = {
         /** List active sessions with client, device and last use for self or as administrator; over 1000 returns conflict */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description Opaque cursor: nextCursor of the previous page (it encodes a position). Not combinable with offset. */
+                    cursor?: string;
+                    /** @description Comma separated row members to return: client, clientKind, createdAt, deviceId, deviceName, expiresAt, id, lastIp, lastSeenAt, revokedAt, userId, version. id is always included. Unknown names are 400 invalid_request. Selection only removes members of the rows after every visibility rule and mask applied; other required members may then be absent. */
+                    fields?: string;
+                    /** @description Page size; without it every row is returned. */
+                    limit?: number;
+                    /** @description Rows to skip from the start. Not combinable with cursor. */
+                    offset?: number;
+                    /** @description Direction of sort; requires sort. */
+                    order?: "asc" | "desc";
+                    /** @description Sort key from the whitelist; without it the storage order is kept. Ties keep the storage order. */
+                    sort?: "createdAt" | "lastSeenAt" | "expiresAt";
+                };
                 header?: never;
                 path: {
                     id: string;
@@ -21277,6 +21480,7 @@ export type paths = {
                     content: {
                         "application/json": {
                             data: components["schemas"]["Session"][];
+                            pagination: components["schemas"]["ListPagination"];
                         };
                     };
                 };
@@ -23088,8 +23292,16 @@ export type paths = {
         get: {
             parameters: {
                 query?: {
+                    /** @description Opaque cursor: nextCursor of the previous page (it encodes a position). Not combinable with offset. */
+                    cursor?: string;
+                    /** @description Comma separated row members to return: id, kind, libraryId, parentId, title, userData. id is always included. Unknown names are 400 invalid_request. Selection only removes members of the rows after every visibility rule and mask applied; other required members may then be absent. */
+                    fields?: string;
                     limit?: number;
                     offset?: number;
+                    /** @description Direction of sort. */
+                    order?: "desc";
+                    /** @description Sort key. This list is read in storage order, so the whitelist holds only that key. */
+                    sort?: "lastPlayedAt";
                 };
                 header?: never;
                 path?: never;
@@ -23118,6 +23330,8 @@ export type paths = {
                                     userData: components["schemas"]["UserItemData"];
                                 }[];
                                 limit: number;
+                                /** @description Pass as cursor for the next page; empty on the last page. */
+                                nextCursor: string;
                                 offset: number;
                                 total: number;
                             };
@@ -24437,7 +24651,20 @@ export type paths = {
          */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description Opaque cursor: nextCursor of the previous page (it encodes a position). Not combinable with offset. */
+                    cursor?: string;
+                    /** @description Comma separated row members to return: createdAt, dead, enabled, events, headerNames, id, name, pending, previousSecretUntil, retry, timeoutSeconds, updatedAt, url. id is always included. Unknown names are 400 invalid_request. Selection only removes members of the rows after every visibility rule and mask applied; other required members may then be absent. */
+                    fields?: string;
+                    /** @description Page size; without it every row is returned. */
+                    limit?: number;
+                    /** @description Rows to skip from the start. Not combinable with cursor. */
+                    offset?: number;
+                    /** @description Direction of sort; requires sort. */
+                    order?: "asc" | "desc";
+                    /** @description Sort key from the whitelist; without it the storage order is kept. Ties keep the storage order. */
+                    sort?: "name" | "createdAt" | "updatedAt";
+                };
                 header?: never;
                 path?: never;
                 cookie?: never;
@@ -24453,6 +24680,7 @@ export type paths = {
                         "application/json": {
                             data: {
                                 events: ("media.added" | "media.updated" | "media.deleted" | "scan.started" | "scan.completed" | "scan.failed" | "playback.started" | "playback.paused" | "playback.progress" | "playback.stopped" | "user.login" | "user.login_failed" | "user.locked" | "session.created" | "session.ended" | "nfo.written" | "images.fetched" | "system.alert")[];
+                                pagination: components["schemas"]["ListPagination"];
                                 webhooks: components["schemas"]["Webhook"][];
                             };
                         };
@@ -24951,7 +25179,15 @@ export type paths = {
             parameters: {
                 query?: {
                     cursor?: string;
+                    /** @description Comma separated row members to return: attempts, createdAt, eventId, eventType, id, lastAttemptAt, lastOutcome, lastStatus, nextAttemptAt, occurredAt, replays, state, webhookId. id is always included. Unknown names are 400 invalid_request. Selection only removes members of the rows after every visibility rule and mask applied; other required members may then be absent. */
+                    fields?: string;
                     limit?: number;
+                    /** @description Compatibility paging: rows to skip from the start, walked through cursor pages (at most 1000); prefer cursor. Not combinable with cursor. */
+                    offset?: number;
+                    /** @description Direction of sort. */
+                    order?: "desc";
+                    /** @description Sort key. This list is read in storage order, so the whitelist holds only that key. */
+                    sort?: "createdAt";
                     state?: "pending" | "delivered" | "dead";
                 };
                 header?: never;
@@ -27059,6 +27295,14 @@ export type components = {
             name: string;
             /** Format: int64 */
             roots: number;
+        };
+        ListPagination: {
+            /** @description Absent when every row was returned. */
+            limit?: number;
+            /** @description Pass as cursor for the next page; empty on the last page. */
+            nextCursor: string;
+            offset: number;
+            total: number;
         };
         Login: {
             /** @description The server also enforces the stated maximum in UTF-8 bytes. */

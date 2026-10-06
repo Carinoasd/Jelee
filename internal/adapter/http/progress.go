@@ -3,7 +3,6 @@ package httpapi
 import (
 	"context"
 	"net/http"
-	"strconv"
 
 	"github.com/MoYuanCN/Jelee/internal/domain"
 	"github.com/go-chi/chi/v5"
@@ -30,9 +29,8 @@ func (s *Server) progressRoutes(r chi.Router) {
 	r.Post("/api/v1/playback/start", s.playbackReport(domain.PlaybackReportStart))
 	r.Post("/api/v1/playback/progress", s.playbackReport(domain.PlaybackReportProgress))
 	r.Post("/api/v1/playback/stop", s.playbackReport(domain.PlaybackReportStop))
-	r.Get("/api/v1/playback/sessions", s.accountEndpoint(true, false, func(w http.ResponseWriter, r *http.Request, a domain.Actor) (any, int, error) {
-		sessions, err := s.catalog.ActivePlayback(r.Context(), a)
-		return sessions, 200, err
+	r.Get("/api/v1/playback/sessions", s.accountEndpoint(true, true, func(_ http.ResponseWriter, r *http.Request, a domain.Actor) (any, int, error) {
+		return memoryList(r, "/api/v1/playback/sessions", func() (any, error) { return s.catalog.ActivePlayback(r.Context(), a) })
 	}))
 	r.Get("/api/v1/items/{id}/user-data", s.accountEndpoint(false, false, func(w http.ResponseWriter, r *http.Request, a domain.Actor) (any, int, error) {
 		id := chi.URLParam(r, "id")
@@ -62,18 +60,11 @@ func (s *Server) progressRoutes(r chi.Router) {
 		}))
 	}
 	r.Get("/api/v1/users/me/resume", s.accountEndpoint(false, true, func(w http.ResponseWriter, r *http.Request, a domain.Actor) (any, int, error) {
-		query, err := strictQuery(r, "offset", "limit")
+		list, err := listQuery(r, "/api/v1/users/me/resume")
 		if err != nil {
 			return nil, 0, err
 		}
-		q := domain.ResumeQuery{Limit: 50}
-		for key, target := range map[string]*int{"offset": &q.Offset, "limit": &q.Limit} {
-			if raw, ok := query[key]; ok {
-				if *target, err = strconv.Atoi(raw); err != nil {
-					return nil, 0, domain.ErrInvalid
-				}
-			}
-		}
+		q := domain.ResumeQuery{Offset: list.Offset, Limit: list.Limit}
 		page, err := s.catalog.Resume(r.Context(), a.UserID, q)
 		if err != nil {
 			return nil, 0, err
@@ -86,7 +77,11 @@ func (s *Server) progressRoutes(r chi.Router) {
 			}
 			items = append(items, entry)
 		}
-		return map[string]any{"items": items, "total": page.Total, "offset": q.Offset, "limit": q.Limit}, 200, nil
+		next := ""
+		if q.Offset+len(items) < page.Total && len(items) > 0 {
+			next = offsetCursor(q.Offset + len(items))
+		}
+		return listData(list, map[string]any{"items": items, "total": page.Total, "offset": q.Offset, "limit": q.Limit, "nextCursor": next})
 	}))
 	r.Delete("/api/v1/users/me/playback-history", s.accountEndpoint(false, false, func(w http.ResponseWriter, r *http.Request, a domain.Actor) (any, int, error) {
 		if err := emptyAccountInput(w, r); err != nil {

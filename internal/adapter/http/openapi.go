@@ -103,6 +103,7 @@ func specification(cfg config.Config, deprecations []Deprecation) map[string]any
 		imageSpecification(paths, cfg)
 	}
 	errorSpecification(paths, schemas)
+	listSpecification(paths, schemas)
 	webSessionSpecification(paths)
 	deprecationSpecification(paths, deprecations)
 	apiDocsSpecification(paths)
