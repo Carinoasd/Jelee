@@ -35,6 +35,26 @@ type LoggingConfig struct {
 	// (G46.6). Ordinary log records are never sampled, and a security event
 	// forces its trace to be kept.
 	TraceSampleRate float64 `json:"traceSampleRate"`
+	// SlowQueryMs is the slow query log threshold (G46.3): a statement
+	// taking at least this long is logged as a template, without its
+	// arguments. Zero switches the log off.
+	SlowQueryMs *int `json:"slowQueryMs"`
+}
+
+// Slow query log bounds; the default keeps the log quiet on a healthy
+// database.
+const (
+	DefaultSlowQueryMs = 500
+	MaxSlowQueryMs     = 600000
+)
+
+// SlowQueryThreshold is the slow query log threshold; zero means off.
+func (c LoggingConfig) SlowQueryThreshold() time.Duration {
+	ms := DefaultSlowQueryMs
+	if c.SlowQueryMs != nil {
+		ms = *c.SlowQueryMs
+	}
+	return time.Duration(ms) * time.Millisecond
 }
 
 type LogFileConfig struct {
@@ -56,12 +76,17 @@ func (c LoggingConfig) Validate() error {
 			return errors.New("invalid logging level")
 		}
 	}
-	if len(c.Components) > len(logging.Components)+2 {
+	if len(c.Components) > len(logging.ComponentTable())*4 {
 		return errors.New("too many logging component levels")
 	}
 	for component, level := range c.Components {
 		if _, ok := logging.ScopeFor(component); !ok {
 			return errors.New("unknown logging component")
+		}
+		if logging.Mandatory(component) {
+			// G46.10: the audit and security logs cannot be lowered or
+			// switched off; a configuration that tries is refused.
+			return errors.New("audit and security log levels cannot be configured")
 		}
 		if _, err := logging.ParseLevel(level); err != nil {
 			return errors.New("invalid logging component level")
@@ -96,6 +121,9 @@ func (c LoggingConfig) Validate() error {
 	case "", "redact", "relative":
 	default:
 		return errors.New("logging path mode must be redact or relative")
+	}
+	if c.SlowQueryMs != nil && (*c.SlowQueryMs < 0 || *c.SlowQueryMs > MaxSlowQueryMs) {
+		return errors.New("slow query threshold is outside supported range")
 	}
 	if !tracing.ValidSampleRate(c.TraceSampleRate) {
 		return errors.New("trace sample rate must be between 0 and 1")
@@ -157,6 +185,13 @@ func (c *LoggingConfig) loadEnvironment(lookup func(string) (string, bool)) erro
 			}
 			*target = n
 		}
+	}
+	if value, ok := lookup("JELEE_DB_SLOW_QUERY_MS"); ok {
+		n, err := strconv.Atoi(value)
+		if err != nil {
+			return errors.New("invalid JELEE_DB_SLOW_QUERY_MS")
+		}
+		c.SlowQueryMs = &n
 	}
 	if value, ok := lookup("JELEE_TRACE_SAMPLE_RATE"); ok {
 		rate, err := strconv.ParseFloat(value, 64)

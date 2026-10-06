@@ -392,6 +392,10 @@ func leakRouteTable() map[string]leakRoute {
 		"POST /api/v1/libraries/{id}/scan":         admin(libParam),
 		// G50.4 repair actions: administrator only; the run ID is opaque.
 		"POST /api/v1/admin/repairs":                                                admin(noParams),
+		"GET /api/v1/admin/logging/levels":                                          admin(noParams),
+		"PUT /api/v1/admin/logging/levels":                                          admin(noParams),
+		"GET /api/v1/admin/logging/retention":                                       admin(noParams),
+		"PUT /api/v1/admin/logging/retention":                                       admin(noParams),
 		"POST /api/v1/admin/repairs/{id}/revert":                                    admin(webhookParam),
 		"GET /api/v1/libraries/{id}/catalog-sync":                                   admin(libParam),
 		"PUT /api/v1/libraries/{id}/catalog-sync":                                   admin(libParam),

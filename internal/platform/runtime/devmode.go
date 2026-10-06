@@ -15,7 +15,7 @@ import (
 
 // logLevels is the part of the log router verbose developer logging uses.
 type logLevels interface {
-	SetLevel(component string, level slog.Level) error
+	SetDeveloperVerbose(on bool) bool
 	Level(component string) slog.Level
 }
 
@@ -33,6 +33,7 @@ func NewWithLogs(cfg config.Config, logs *logging.Router) *fx.App {
 	life := newLifetime(logger)
 	life.levels = logs
 	life.devLogs = logs
+	life.logs = logs
 	return newWithLifetime(cfg, logger, life)
 }
 
@@ -58,9 +59,6 @@ func devAvailable(c config.Config, verbose bool) []devmode.Toggle {
 // it finds in shared storage (G45.1, G45.2). Startup reconciles the stored
 // session before the instance serves (G45.7).
 func newDevController(c config.Config, store *postgres.Store, l *slog.Logger, lifetime *lifetime) (*devmode.Controller, error) {
-	if lifetime.levels != nil {
-		lifetime.baseLevel = lifetime.levels.Level(logging.GlobalComponent)
-	}
 	controller, err := devmode.NewController(devmode.ControllerOptions{Store: store, Local: c.Dev.Inputs(), TTL: c.Dev.TTL(), Persist: c.Dev.PersistAcrossRestart,
 		Available: devAvailable(c, lifetime.levels != nil), Logger: l, OnChange: lifetime.devChanged})
 	if err != nil {
@@ -84,17 +82,14 @@ func newDevController(c config.Config, store *postgres.Store, l *slog.Logger, li
 
 // devChanged applies the effective session to process-wide settings: the
 // global log level follows debug_verbose_logging and returns to the
-// configured level when the toggle or the session ends.
+// configured level (or an administrator override) when the toggle or the
+// session ends.
 func (l *lifetime) devChanged(st devmode.Status) {
 	if l.levels == nil {
 		return
 	}
-	level := l.baseLevel
-	if st.Active && slices.Contains(st.Toggles, devmode.DebugVerboseLogging) {
-		level = slog.LevelDebug
-	}
-	if l.levels.Level(logging.GlobalComponent) != level {
-		_ = l.levels.SetLevel(logging.GlobalComponent, level)
-		l.logger.Warn("developer mode changed the global log level", "component", "devmode", "level", level.String())
+	verbose := st.Active && slices.Contains(st.Toggles, devmode.DebugVerboseLogging)
+	if l.levels.SetDeveloperVerbose(verbose) {
+		l.logger.Warn("developer mode changed the global log level", "component", "devmode", "logLevel", logging.LevelName(l.levels.Level(logging.GlobalComponent)))
 	}
 }

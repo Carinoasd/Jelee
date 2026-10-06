@@ -211,6 +211,7 @@ OpenAPI 中的 Jelee 扩展字段：
 | `job_queue_full` | 429 | 任务队列已满，请稍后重试。 |
 | `jobs_busy` | 503 | 任务服务繁忙，请稍后重试。 |
 | `last_admin` | 409 | 必须保留一名启用的管理员。 |
+| `log_component_mandatory` | 409 | 审计日志与安全日志不能调低或关闭。 |
 | `login_challenge_invalid` | 401 | 登录步骤已过期或已被使用，请重新输入密码登录。 |
 | `lookup_timeout` | 504 | 媒体查询超时。 |
 | `metadata_unavailable` | 503 | 元数据来源暂时不可用，请稍后重试。 |

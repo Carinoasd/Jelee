@@ -23,6 +23,7 @@ import (
 	"github.com/MoYuanCN/Jelee/internal/platform/consistency"
 	"github.com/MoYuanCN/Jelee/internal/platform/devmode"
 	jobworker "github.com/MoYuanCN/Jelee/internal/platform/jobs"
+	"github.com/MoYuanCN/Jelee/internal/platform/logging"
 	"github.com/MoYuanCN/Jelee/internal/platform/password"
 	"github.com/MoYuanCN/Jelee/internal/platform/resources"
 	"github.com/MoYuanCN/Jelee/internal/platform/setupenv"
@@ -40,8 +41,12 @@ func newWithLifetime(cfg config.Config, logger *slog.Logger, lifetime *lifetime)
 	if err := cfg.Resources.Validate(); err != nil {
 		return build(lifetime, fx.NopLogger, fx.Error(err))
 	}
-	if cfg.Dev.Capable() {
+	// The SQL tracer serves the developer mode SQL log of a capable
+	// instance and the slow query log (G46.3); with both off no tracer is
+	// attached and queries pay nothing.
+	if slow := cfg.Logging.SlowQueryThreshold(); cfg.Dev.Capable() || slow > 0 {
 		lifetime.queryLog = postgres.NewQueryLog(logger)
+		lifetime.queryLog.SetSlowThreshold(slow)
 	}
 	budget, err := resources.New(resources.Limits{CPU: cfg.Resources.CPULimit(), IO: cfg.Resources.IO, Total: cfg.Resources.Total, Queue: cfg.Resources.Queue})
 	if err != nil {
@@ -77,13 +82,18 @@ func newWithLifetime(cfg config.Config, logger *slog.Logger, lifetime *lifetime)
 		func(c config.Config) (*postgres.Store, error) {
 			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 			defer cancel()
-			// Only a developer capable instance attaches the SQL log tracer
-			// (G45.5); production pays nothing for it.
 			store, err := postgres.OpenWithQueryLog(ctx, c.DatabaseURL, c.MaxConnections, lifetime.queryLog)
 			if err != nil {
 				return nil, err
 			}
 			lifetime.closeStore = store.Pool.Close
+			// G46.2, G46.9: stored level overrides and log retention apply
+			// before the instance serves; a failed read keeps the
+			// configured levels and is retried by the refresh loop.
+			if lifetime.logs != nil {
+				lifetime.logSync = newLogSettingsSync(store, lifetime.logs, logger)
+				lifetime.logSync.refresh(ctx)
+			}
 			// G46.9: expired audit rows leave through purge_audit_logs on
 			// the configured interval; zero switches the purge off.
 			if interval := c.Audit.PurgeInterval(); interval > 0 {
@@ -217,6 +227,12 @@ func newWithLifetime(cfg config.Config, logger *slog.Logger, lifetime *lifetime)
 			}
 			if err := registerOpsMetrics(c, store, metrics); err != nil {
 				return nil, errors.Join(err, metrics.Shutdown(context.Background()))
+			}
+			// G46.8: records the log queues dropped or the sinks refused.
+			if lifetime.logs != nil {
+				if err := metrics.RegisterLogging(lifetime.logs); err != nil {
+					return nil, errors.Join(err, metrics.Shutdown(context.Background()))
+				}
 			}
 			lifetime.closeTelemetry = metrics.Shutdown
 			return metrics, nil
@@ -361,6 +377,11 @@ func newWithLifetime(cfg config.Config, logger *slog.Logger, lifetime *lifetime)
 				}
 				options = append(options, httpapi.WithRepair(repairer.WithServer(jobs, variants), consistency.RepairTemplate(c)))
 			}
+			// G46.2, G46.9: administrators adjust levels and retention at
+			// runtime through the log router of this process.
+			if c.EnableAccounts && lifetime.logs != nil {
+				options = append(options, httpapi.WithLogging(store, lifetime.logs))
+			}
 			// G50.5: the assembled handler is checked before the listener
 			// opens; /readyz reports the outcome with the dependencies.
 			checks := &selfCheckState{}
@@ -501,17 +522,21 @@ type lifetime struct {
 	// dev is the developer mode controller (G45); devDone joins its
 	// refresh loop, queryLog is the SQL log of a capable instance and
 	// levels the log router verbose logging raises.
-	dev       *devmode.Controller
-	devDone   chan struct{}
-	queryLog  *postgres.QueryLog
-	levels    logLevels
-	devLogs   devLogs
-	baseLevel slog.Level
-	closeOnce sync.Once
-	stopOnce  sync.Once
-	exited    chan struct{}
-	stopped   chan struct{}
-	stopErr   error
+	dev      *devmode.Controller
+	devDone  chan struct{}
+	queryLog *postgres.QueryLog
+	levels   logLevels
+	devLogs  devLogs
+	// logs is the process log router; logSync applies the stored level
+	// overrides and log retention to it (G46.2, G46.9).
+	logs        *logging.Router
+	logSync     *logSettingsSync
+	logSyncDone chan struct{}
+	closeOnce   sync.Once
+	stopOnce    sync.Once
+	exited      chan struct{}
+	stopped     chan struct{}
+	stopErr     error
 	// Observe the same processor used by HTTP without replacing its dependencies.
 	imageStats func() imageadapter.Stats
 	// adaptive lowers the resource budget under system pressure (G41.7);
@@ -654,6 +679,13 @@ func (l *lifetime) start(ctx context.Context) error {
 			l.audit.Run(l.ctx)
 		}()
 	}
+	if l.logSync != nil {
+		l.logSyncDone = make(chan struct{})
+		go func() {
+			defer close(l.logSyncDone)
+			l.logSync.Run(l.ctx)
+		}()
+	}
 	if l.dev != nil {
 		l.devDone = make(chan struct{})
 		go func() {
@@ -731,6 +763,9 @@ func (l *lifetime) shutdown(ctx context.Context) {
 	l.joinWebhooks()
 	if l.devDone != nil {
 		<-l.devDone
+	}
+	if l.logSyncDone != nil {
+		<-l.logSyncDone
 	}
 	if l.adaptiveDone != nil {
 		<-l.adaptiveDone

@@ -364,6 +364,17 @@
           }
         }
       },
+      "error_log_component_mandatory": {
+        "summary": "HTTP 409 log_component_mandatory",
+        "value": {
+          "error": {
+            "code": "log_component_mandatory",
+            "details": {},
+            "message": "The audit and security logs cannot be lowered or disabled.",
+            "traceId": "4bf92f3577b34da6a3ce929d0e0e4736"
+          }
+        }
+      },
       "error_login_challenge_invalid": {
         "summary": "HTTP 401 login_challenge_invalid",
         "value": {
@@ -3378,6 +3389,7 @@
           "job_queue_full",
           "jobs_busy",
           "last_admin",
+          "log_component_mandatory",
           "login_challenge_invalid",
           "lookup_timeout",
           "metadata_unavailable",
@@ -3523,6 +3535,9 @@
             "503"
           ],
           "last_admin": [
+            "409"
+          ],
+          "log_component_mandatory": [
             "409"
           ],
           "login_challenge_invalid": [
@@ -5427,6 +5442,190 @@
           "nextCursor",
           "offset",
           "total"
+        ],
+        "type": "object"
+      },
+      "LogLevelChange": {
+        "additionalProperties": false,
+        "properties": {
+          "component": {
+            "description": "global, a scope (http, auth, access, scan, probe, nfo, images, jobs, webhook, compat, media, db, gc, system) or an alias of one. security and audit answer 409 log_component_mandatory.",
+            "type": "string"
+          },
+          "level": {
+            "description": "reset removes the override; the scope returns to its configured level.",
+            "enum": [
+              "debug",
+              "info",
+              "warn",
+              "error",
+              "reset"
+            ],
+            "type": "string"
+          },
+          "ttlSeconds": {
+            "description": "0: no expiry. In production a DEBUG override always expires: 0 means one hour, at most four hours.",
+            "maximum": 86400,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "component",
+          "level"
+        ],
+        "type": "object"
+      },
+      "LogLevelOverride": {
+        "additionalProperties": false,
+        "properties": {
+          "expiresAt": {
+            "description": "Absent: the override stays until it is reset.",
+            "format": "date-time",
+            "type": "string"
+          },
+          "level": {
+            "enum": [
+              "debug",
+              "info",
+              "warn",
+              "error"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "level"
+        ],
+        "type": "object"
+      },
+      "LogLevels": {
+        "additionalProperties": false,
+        "properties": {
+          "components": {
+            "items": {
+              "$ref": "#/components/schemas/LogScopeLevel"
+            },
+            "type": "array"
+          },
+          "debugMaxTtlSeconds": {
+            "minimum": 1,
+            "type": "integer"
+          },
+          "global": {
+            "$ref": "#/components/schemas/LogScopeLevel"
+          },
+          "production": {
+            "description": "JELEE_ENV=production: a DEBUG override must expire.",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "production",
+          "debugMaxTtlSeconds",
+          "global",
+          "components"
+        ],
+        "type": "object"
+      },
+      "LogRetention": {
+        "additionalProperties": false,
+        "properties": {
+          "auditDays": {
+            "maximum": 36500,
+            "minimum": 7,
+            "type": "integer"
+          },
+          "fileLogging": {
+            "description": "This instance writes a log file; without one only the audit retention has an effect here.",
+            "readOnly": true,
+            "type": "boolean"
+          },
+          "logDays": {
+            "description": "Rotated log files older than this are removed; 0 keeps them regardless of age.",
+            "maximum": 3650,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "logMaxTotalMB": {
+            "description": "Oldest rotated log files are removed while the log files exceed this many MiB; 0 disables the cap.",
+            "maximum": 1048576,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "securityDays": {
+            "maximum": 36500,
+            "minimum": 7,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "logDays",
+          "logMaxTotalMB",
+          "auditDays",
+          "securityDays"
+        ],
+        "type": "object"
+      },
+      "LogScopeLevel": {
+        "additionalProperties": false,
+        "properties": {
+          "aliases": {
+            "description": "Component names filtered under this scope.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "configured": {
+            "description": "Level from the process configuration; null when the scope follows the global level.",
+            "enum": [
+              "debug",
+              "info",
+              "warn",
+              "error",
+              null
+            ],
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "effective": {
+            "enum": [
+              "debug",
+              "info",
+              "warn",
+              "error"
+            ],
+            "type": "string"
+          },
+          "mandatory": {
+            "description": "Audit and security scopes: never above INFO and never adjustable (G46.10).",
+            "type": "boolean"
+          },
+          "name": {
+            "description": "A scope, or global for the global level.",
+            "type": "string"
+          },
+          "override": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/LogLevelOverride"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "name",
+          "aliases",
+          "mandatory",
+          "configured",
+          "effective",
+          "override"
         ],
         "type": "object"
       },
@@ -15158,6 +15357,588 @@
           }
         ],
         "summary": "Give each user (at most 100) exactly the template's libraries, rating ceiling, unrated override, blocked tags and keywords; item rules and time windows are kept. With preview true nothing is written and the result reports what would change. Applied, changed users are audited as user.library_access_replaced and user.content_access_changed and the application as access.template_applied with the counts",
+        "x-jelee-role": "administrator"
+      }
+    },
+    "/api/v1/admin/logging/levels": {
+      "get": {
+        "description": "Global level and every scope with its configured, overridden and effective level on the instance that answers. Overrides are shared by every instance through storage and applied within 15 seconds.",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/LogLevels"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "HTTP 200"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "invalid_request": {
+                    "$ref": "#/components/examples/error_invalid_request"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 400"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "authentication_required": {
+                    "$ref": "#/components/examples/error_authentication_required"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 401"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "forbidden": {
+                    "$ref": "#/components/examples/error_forbidden"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 403"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "not_ready": {
+                    "$ref": "#/components/examples/error_not_ready"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 503"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "internal_error": {
+                    "$ref": "#/components/examples/error_internal_error"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Jelee error envelope with code, message, details and traceId; see the Error schema."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "webSession": []
+          }
+        ],
+        "summary": "Read the runtime log levels",
+        "x-jelee-role": "administrator"
+      },
+      "put": {
+        "description": "Takes effect at once on this instance and within 15 seconds on the others. Audited as logging.level_changed. The audit and security scopes cannot be lowered or switched off: 409 log_component_mandatory, audited as the security event logging.level_change_refused and logged in the security log.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LogLevelChange"
+              }
+            }
+          },
+          "description": "Maximum 64 KiB; one strict JSON object.",
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/LogLevels"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "HTTP 200"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "invalid_request": {
+                    "$ref": "#/components/examples/error_invalid_request"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 400"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "authentication_required": {
+                    "$ref": "#/components/examples/error_authentication_required"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 401"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "forbidden": {
+                    "$ref": "#/components/examples/error_forbidden"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 403"
+          },
+          "408": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "request_timeout": {
+                    "$ref": "#/components/examples/error_request_timeout"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 408"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "conflict": {
+                    "$ref": "#/components/examples/error_conflict"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 409"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "body_too_large": {
+                    "$ref": "#/components/examples/error_body_too_large"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 413"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "unsupported_media_type": {
+                    "$ref": "#/components/examples/error_unsupported_media_type"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 415"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "not_ready": {
+                    "$ref": "#/components/examples/error_not_ready"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 503"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "internal_error": {
+                    "$ref": "#/components/examples/error_internal_error"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Jelee error envelope with code, message, details and traceId; see the Error schema."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "webSession": []
+          }
+        ],
+        "summary": "Set or reset a runtime log level",
+        "x-jelee-role": "administrator"
+      }
+    },
+    "/api/v1/admin/logging/retention": {
+      "get": {
+        "description": "Retention of rotated log files (age and total size, applied by every instance to its own files) and of the audit trail's audit and security categories.",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/LogRetention"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "HTTP 200"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "invalid_request": {
+                    "$ref": "#/components/examples/error_invalid_request"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 400"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "authentication_required": {
+                    "$ref": "#/components/examples/error_authentication_required"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 401"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "forbidden": {
+                    "$ref": "#/components/examples/error_forbidden"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 403"
+          },
+          "408": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "request_timeout": {
+                    "$ref": "#/components/examples/error_request_timeout"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 408"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "not_ready": {
+                    "$ref": "#/components/examples/error_not_ready"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 503"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "internal_error": {
+                    "$ref": "#/components/examples/error_internal_error"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Jelee error envelope with code, message, details and traceId; see the Error schema."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "webSession": []
+          }
+        ],
+        "summary": "Read the log and audit retention",
+        "x-jelee-role": "administrator"
+      },
+      "put": {
+        "description": "Every member is required (fileLogging is ignored). Audited as logging.retention_changed and audit.retention_changed for the parts that changed.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LogRetention"
+              }
+            }
+          },
+          "description": "Maximum 64 KiB; one strict JSON object.",
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/LogRetention"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "HTTP 200"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "invalid_request": {
+                    "$ref": "#/components/examples/error_invalid_request"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 400"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "authentication_required": {
+                    "$ref": "#/components/examples/error_authentication_required"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 401"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "forbidden": {
+                    "$ref": "#/components/examples/error_forbidden"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 403"
+          },
+          "408": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "request_timeout": {
+                    "$ref": "#/components/examples/error_request_timeout"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 408"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "body_too_large": {
+                    "$ref": "#/components/examples/error_body_too_large"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 413"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "unsupported_media_type": {
+                    "$ref": "#/components/examples/error_unsupported_media_type"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 415"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "not_ready": {
+                    "$ref": "#/components/examples/error_not_ready"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 503"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "internal_error": {
+                    "$ref": "#/components/examples/error_internal_error"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Jelee error envelope with code, message, details and traceId; see the Error schema."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "webSession": []
+          }
+        ],
+        "summary": "Change the log and audit retention",
         "x-jelee-role": "administrator"
       }
     },

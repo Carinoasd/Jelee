@@ -32,6 +32,7 @@ var errorCodeStatuses = map[string][]int{
 	"conflict":                   {409},
 	"devmode_inactive":           {409},
 	"devmode_toggle_unavailable": {409},
+	"log_component_mandatory":    {409},
 	"csrf_failed":                {403},
 	"custom_css_rejected":        {400},
 	"version_identity_conflict":  {409},

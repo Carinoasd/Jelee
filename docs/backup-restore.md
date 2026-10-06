@@ -166,7 +166,7 @@ $dc up -d jelee
 | 快取、配額與衍生狀態：掃描、探測、NFO 讀取與圖片處理會重建 | 探測與 NFO 快取與配額、`tool_versions`、`item_nfo_observations`、盤點基準與快照、`catalog_scan_pending`、`image_variants`、外掛字幕／音軌、內嵌封面嘗試、`scan_watch_state`（匯入依排程重建） |
 | 觀察值與統計，不是設定 | 播放工作階段與取樣、觀看統計、已知用戶端與其工作階段、命中紀錄、webhook 投遞與嘗試、工作指標 |
 | 這個資料庫的操作歷史 | `consistency_runs`、`consistency_run_checks`、`consistency_fix_journal`、`repair_runs`、`repair_journal`、`item_version_operations`、`legacy_import_runs`／`checkpoints`／`map` |
-| 實例自己的狀態 | `setup_state`（匯入另行處理）、`dev_mode_state`、`schema_migrations` |
+| 實例自己的狀態 | `setup_state`（匯入另行處理）、`dev_mode_state`、`log_settings`（執行期日誌級別覆寫與日誌檔保留）、`schema_migrations` |
 
 **修復紀錄為什麼不備份**：修復與一致性檢查的日誌記錄的是**來源資料庫裡**某些列的修改前後值（`user_item_data.last_source_id`、`playback_sessions.source_id`、`watch_stats_daily` 計數），其中播放工作階段與觀看統計本來就不匯出，ID 在目的地也可能被重新對應。`jelee-cli repair revert`／`consistency revert` 只有在同一個資料庫、該列仍是修復後的值時才有意義；把日誌搬到別的資料庫既不能還原也無法驗證，反而會讓報告指向不存在的列。它們留在 `pg_dump` 裡，隨完整備份還原。
 

@@ -297,7 +297,7 @@ func (s *Service) dispatch(ctx context.Context) {
 				s.logger.Warn("subtitle OCR job failed", "component", "subtitle_ocr", "code", errorCode(err))
 			default:
 				s.completed.Add(1)
-				s.logger.Info("subtitle OCR job finished", "component", "subtitle_ocr", "tracks", summary.tracks, "pictures", summary.pictures, "cues", summary.cues, "duration_ms", time.Since(started).Milliseconds())
+				s.logger.Info("subtitle OCR job finished", "component", "subtitle_ocr", "tracks", summary.tracks, "pictures", summary.pictures, "cues", summary.cues, "durationMs", time.Since(started).Milliseconds())
 			}
 		}
 	}

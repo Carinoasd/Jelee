@@ -5,6 +5,9 @@ import (
 	"io"
 	"log/slog"
 	"strings"
+	"time"
+
+	"github.com/MoYuanCN/Jelee/internal/domain"
 )
 
 // New returns a synchronous JSON logger with the default whitelist: IPs and
@@ -69,6 +72,8 @@ type Router struct {
 	levels  *levels
 	red     *redactor
 	writers []*asyncWriter
+	// file is the rotating log file; nil in stdout-only mode.
+	file *RotatingFile
 }
 
 // Open builds the logging pipeline. stdout is never closed by the router.
@@ -124,6 +129,7 @@ func Open(opts Options, stdout io.Writer) (*Router, error) {
 			r.Close()
 			return nil, err
 		}
+		r.file = file
 		jsonSinks = append(jsonSinks, r.add(file, opts.BufferEntries))
 	}
 	for _, f := range opts.Forwarders {
@@ -175,6 +181,43 @@ func (r *Router) ResetLevel(component string) error { return r.levels.reset(comp
 // Level returns the effective threshold for a component.
 func (r *Router) Level(component string) slog.Level { return r.levels.threshold(component) }
 
+// SetOverrides replaces the administrator level overrides (G46.2): each
+// sets the level of one scope, or of the global level for GlobalComponent,
+// until it expires. Expired entries are ignored. An unknown scope or a
+// mandatory one (audit, security) refuses the whole list.
+func (r *Router) SetOverrides(overrides []LevelOverride) error {
+	return r.levels.setOverrides(overrides)
+}
+
+// SetDeveloperVerbose applies the developer mode debug_verbose_logging
+// switch: while on, the global level is DEBUG unless an administrator
+// override sets it. It reports whether the switch changed.
+func (r *Router) SetDeveloperVerbose(on bool) bool { return r.levels.setDeveloperVerbose(on) }
+
+// LevelReport lists the global level followed by every scope with its
+// configured, overridden and effective level.
+func (r *Router) LevelReport() []ScopeLevel { return r.levels.report() }
+
+// SetFileRetention changes the age and total size limits of the log file
+// backups (G46.9). Zero disables a limit. Without a log file it does
+// nothing.
+func (r *Router) SetFileRetention(maxAge time.Duration, maxTotalBytes int64) {
+	if r.file != nil {
+		r.file.SetRetention(maxAge, maxTotalBytes)
+	}
+}
+
+// PruneFiles applies the backup limits now; rotations apply them too.
+func (r *Router) PruneFiles() error {
+	if r.file == nil {
+		return nil
+	}
+	return r.file.Prune()
+}
+
+// HasFile reports whether the router writes a log file.
+func (r *Router) HasFile() bool { return r.file != nil }
+
 // SetPathRoots replaces the roots used by the relative path mode.
 func (r *Router) SetPathRoots(roots []string) { r.red.setRoots(roots) }
 
@@ -215,9 +258,35 @@ func (r *Router) Flush() error {
 
 // Close drains every queue and closes owned sinks.
 func (r *Router) Close() error {
+	r.levels.stop()
 	var errs error
 	for _, w := range r.writers {
 		errs = errors.Join(errs, w.Close())
 	}
 	return errs
+}
+
+// ApplySettings applies the stored logging settings (G46.2, G46.9): the
+// administrator level overrides and the log file retention. Entries that
+// name an unknown or mandatory scope or an unknown level are skipped, so a
+// row written by a newer version never disables the rest.
+func (r *Router) ApplySettings(s domain.LogSettings) {
+	overrides := make([]LevelOverride, 0, len(s.Overrides))
+	for _, o := range s.Overrides {
+		level, err := ParseLevel(o.Level)
+		if err != nil {
+			continue
+		}
+		if o.Component != GlobalComponent {
+			if _, ok := ScopeFor(o.Component); !ok || Mandatory(o.Component) {
+				continue
+			}
+		}
+		overrides = append(overrides, LevelOverride{Component: o.Component, Level: level, ExpiresAt: o.ExpiresAt})
+	}
+	// Every entry was checked above, so the list is accepted as a whole.
+	_ = r.SetOverrides(overrides)
+	if domain.ValidLogRetention(s.LogDays, s.LogMaxTotalMB) {
+		r.SetFileRetention(time.Duration(s.LogDays)*24*time.Hour, int64(s.LogMaxTotalMB)<<20)
+	}
 }

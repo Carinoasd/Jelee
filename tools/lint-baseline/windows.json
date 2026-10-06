@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "goos": "windows",
-  "total": 2002,
+  "total": 2000,
   "entries": [
     {
       "linter": "errcheck",
@@ -12041,20 +12041,6 @@
       "file": "internal/platform/logging/rotate_test.go",
       "text": "Error return value of `os.Chmod` is not checked",
       "source": "dd157580b251",
-      "count": 1
-    },
-    {
-      "linter": "revive",
-      "file": "internal/platform/logging/router.go",
-      "text": "redefines-builtin-id: redefinition of the built-in function min",
-      "source": "9c786d4ecd02",
-      "count": 1
-    },
-    {
-      "linter": "revive",
-      "file": "internal/platform/logging/router.go",
-      "text": "redefines-builtin-id: redefinition of the built-in function min",
-      "source": "eaa1a1866118",
       "count": 1
     },
     {

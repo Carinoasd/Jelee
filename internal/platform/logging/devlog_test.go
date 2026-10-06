@@ -84,18 +84,24 @@ func TestDeveloperFieldsVisibleWhileSwitchedOn(t *testing.T) {
 }
 
 func TestDeveloperFieldsRedactedWhileSwitchedOff(t *testing.T) {
+	RegisterRoutePatterns("/api/v1/auth/login")
 	var sqlOn, bodyOn atomic.Bool
 	for _, connect := range []bool{false, true} {
 		recs := devRecords(t, &sqlOn, &bodyOn, connect, emitDev)
 		all, _ := json.Marshal(recs)
-		for i, keys := range [][]string{{"code", "statement", "durationMicros", "rows", "failed"}, {"code", "route", "requestBody", "responseBody"}} {
+		for i, keys := range [][]string{{"code", "statement", "durationMicros", "rows", "failed"}, {"code", "requestBody", "responseBody"}} {
 			for _, key := range keys {
 				if recs[i][key] != redacted {
 					t.Errorf("connected=%v: %s = %v while off", connect, key, recs[i][key])
 				}
 			}
 		}
-		for _, needle := range append(devSecrets, "accounts", "alice", "auth/login") {
+		// The route pattern is an access log field (G46.3) and stays
+		// readable; the bodies do not.
+		if recs[1]["route"] != "/api/v1/auth/login" {
+			t.Errorf("connected=%v: route = %v", connect, recs[1]["route"])
+		}
+		for _, needle := range append(devSecrets, "accounts", "alice") {
 			if bytes.Contains(all, []byte(needle)) {
 				t.Errorf("connected=%v: %q logged while off", connect, needle)
 			}
@@ -104,7 +110,7 @@ func TestDeveloperFieldsRedactedWhileSwitchedOff(t *testing.T) {
 	// Each switch opens only its own fields.
 	sqlOn.Store(true)
 	recs := devRecords(t, &sqlOn, &bodyOn, true, emitDev)
-	if recs[0]["statement"] == redacted || recs[1]["requestBody"] != redacted || recs[1]["route"] != redacted || recs[1]["code"] != redacted {
+	if recs[0]["statement"] == redacted || recs[1]["requestBody"] != redacted || recs[1]["code"] != redacted {
 		t.Fatalf("sql switch opened body fields: %v", recs)
 	}
 }

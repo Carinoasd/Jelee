@@ -94,6 +94,7 @@ func TestLoggingRejectsInvalidSettingsWithoutEchoingValues(t *testing.T) {
 		"JELEE_LOG_BUFFER_ENTRIES": "-5",
 		"JELEE_LOG_COMPRESS":       "secret",
 		"JELEE_LOG_COMPONENTS":     "secret",
+		"JELEE_DB_SLOW_QUERY_MS":   "secret",
 	} {
 		t.Run(key, func(t *testing.T) {
 			_, err := LoadWith(accountConfigLookup(map[string]string{"JELEE_DATABASE_URL": "postgres://localhost/jelee", key: value}))
@@ -108,6 +109,8 @@ func TestLoggingRejectsInvalidSettingsWithoutEchoingValues(t *testing.T) {
 		"file without path": `{"logging":{"output":"file"}}`,
 		"relative file":     `{"logging":{"output":"both","file":{"path":"secret.log"}}}`,
 		"unknown field":     `{"logging":{"secret":true}}`,
+		"slow query range":  `{"logging":{"slowQueryMs":600001}}`,
+		"negative slow":     `{"logging":{"slowQueryMs":-1}}`,
 	} {
 		t.Run(name, func(t *testing.T) {
 			_, err := LoadWith(accountConfigLookup(map[string]string{"JELEE_DATABASE_URL": "postgres://localhost/jelee", "JELEE_CONFIG": accountConfigFile(t, body)}))
@@ -130,4 +133,29 @@ func testAbsPath(p string) string {
 func jsonString(s string) string {
 	b, _ := json.Marshal(s)
 	return string(b)
+}
+
+// G46.10: a configuration that lowers or switches off the audit or
+// security log is refused at startup, under the scope or an alias.
+func TestLoggingRefusesMandatoryComponentLevels(t *testing.T) {
+	for _, value := range []string{"audit=error", "security=warn", "devmode=error", "audit=debug"} {
+		_, err := LoadWith(accountConfigLookup(map[string]string{"JELEE_DATABASE_URL": "postgres://localhost/jelee", "JELEE_LOG_COMPONENTS": value}))
+		if err == nil || !strings.Contains(err.Error(), "audit and security log levels cannot be configured") {
+			t.Fatalf("%s: %v", value, err)
+		}
+	}
+}
+
+// G46.3: the slow query threshold defaults to 500 ms; 0 switches it off.
+func TestSlowQueryThreshold(t *testing.T) {
+	c, err := LoadWith(accountConfigLookup(map[string]string{"JELEE_DATABASE_URL": "postgres://localhost/jelee"}))
+	if err != nil || c.Logging.SlowQueryThreshold() != 500*time.Millisecond {
+		t.Fatalf("default: %v %v", c.Logging.SlowQueryThreshold(), err)
+	}
+	for value, want := range map[string]time.Duration{"0": 0, "1200": 1200 * time.Millisecond} {
+		c, err := LoadWith(accountConfigLookup(map[string]string{"JELEE_DATABASE_URL": "postgres://localhost/jelee", "JELEE_DB_SLOW_QUERY_MS": value}))
+		if err != nil || c.Logging.SlowQueryThreshold() != want {
+			t.Fatalf("%s: %v %v", value, c.Logging.SlowQueryThreshold(), err)
+		}
+	}
 }

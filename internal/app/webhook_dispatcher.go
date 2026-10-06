@@ -291,6 +291,12 @@ func (d *WebhookDispatcher) attempt(ctx context.Context, cache *webhookEndpointC
 			// Cancelled: the lease expires and the delivery is sent again.
 			return "", false
 		}
+		if outcome.Kind == domain.WebhookOutcomeBlocked {
+			// G46.3: the outbound guard refused the resolved target or a
+			// redirect (SSRF protection); the URL is never logged.
+			domain.ForceTraceSampling(ctx)
+			d.opts.Logger.WarnContext(ctx, "outbound request blocked", "component", "security", "event", "ssrf_blocked", "webhookId", delivery.EndpointID, "deliveryId", delivery.ID)
+		}
 	}
 	finished := d.opts.Clock.Now()
 	record := ResolveWebhookAttempt(delivery, policy, outcome, started, finished, d.opts.Jitter)

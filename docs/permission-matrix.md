@@ -62,6 +62,7 @@
 | P32 | 运行时性能剖析（pprof） | ✗ | ✗ | ✗ | ✗ | — | 有开发者模式会话且开启 `debug_pprof` 时，环回请求或管理员可用 | 其他情况一律 404 |
 | P33 | 兼容层公开接口 | ✓ | ✓ | ✓ | ✓ | — | 无变化 | 服务器公开信息、Ping、空的公开用户列表、用户名密码登录 |
 | P34 | 兼容层（已登录） | ✗ | ✓ | ✗ | ✓ | 原生 | 无变化 | 比上游严格，见 [ADR 0004](adr/0004-compat-stricter-than-upstream.md) 与[兼容矩阵](compat-matrix.md)；`/compat/Playlists` 的写入只限清单拥有者（管理员也不例外），与 P18 相同 |
+| P35 | 日志级别与日志、审计保留期 | ✗ | ✗ | ✗ | ✓ | 任意 | 无变化 | 审计与安全日志不能调低或关闭（409 `log_component_mandatory`，记安全审计）；生产环境的 DEBUG 必须有到期时间，见[日志](logging.md) |
 
 ## 路由归属
 
@@ -152,6 +153,7 @@ P33 GET,POST /compat/System/Ping
 P33 GET /compat/Users/Public
 P33 POST /compat/Users/AuthenticateByName
 P34 * /compat/**
+P35 * /api/v1/admin/logging/**
 ```
 
 ## 修改路由时

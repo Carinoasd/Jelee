@@ -214,9 +214,10 @@ var (
 	schemePattern = regexp.MustCompile(`(?i)\b(bearer|basic)\s+[A-Za-z0-9._~+/=-]+`)
 	// passwordLiteralPattern finds SQL such as PASSWORD 'x'.
 	passwordLiteralPattern = regexp.MustCompile(`(?i)\b(password|secret|token)\s+'[^']*'`)
-	// placeholderPattern matches SQL parameter placeholders, which carry no
-	// value and keep statements readable.
-	placeholderPattern = regexp.MustCompile(`^\$[0-9]+$`)
+	// placeholderPattern matches SQL parameter placeholders and the "?" of
+	// a statement template, which carry no value and keep statements
+	// readable.
+	placeholderPattern = regexp.MustCompile(`^(\$[0-9]+|\?)$`)
 	// opaquePattern finds the token formats the server issues and otpauth URIs.
 	opaquePattern = regexp.MustCompile(`(?i)\b(jdm_[0-9a-f]+|whsec_[A-Za-z0-9_-]+|otpauth://\S+|\$argon2[^\s'"]*)`)
 )

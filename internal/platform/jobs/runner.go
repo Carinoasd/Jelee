@@ -8,6 +8,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"log/slog"
+	"strconv"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -405,6 +406,11 @@ func (r *Runner) monitor(ctx context.Context, lease domain.JobLease, cancelJob c
 
 const inventoryScanKind = "inventory_scan"
 
+// jobLogFields are the G46.4 fields of one job claim.
+func jobLogFields(lease domain.JobLease) domain.LogFields {
+	return domain.LogFields{TaskID: lease.Job.ID, LibraryID: lease.Job.LibraryID, JobRunID: lease.Job.ID + ":" + strconv.FormatInt(lease.Generation, 10)}
+}
+
 // jobComponent maps a job kind onto its G46.2 log scope.
 func jobComponent(kind string) string {
 	switch kind {
@@ -426,6 +432,10 @@ func (r *Runner) run(serviceCtx context.Context, lease domain.JobLease) {
 		kind = inventoryScanKind
 	}
 	serviceCtx, span := tracing.Default().StartLinked(serviceCtx, "job."+kind, jobComponent(kind), tracing.LinkJob, lease.Job.ID)
+	// G46.4: every record of this claim, including those of the goroutines
+	// it starts with a derived context, names the job, its library and the
+	// claim (job ID and lease generation).
+	serviceCtx = domain.WithLogFields(serviceCtx, jobLogFields(lease))
 	outcome := "released"
 	defer func() { span.End(outcome) }()
 	r.logger.InfoContext(serviceCtx, "job started", "component", "jobs", "taskId", lease.Job.ID)
