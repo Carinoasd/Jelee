@@ -37,6 +37,24 @@
       "wrongCurrent": "当前密码不正确。",
       "submit": "修改密码",
       "changed": "密码已修改，请使用新密码重新登录。"
+    },
+    "dataRights": {
+      "title": "你的数据",
+      "exportTitle": "下载你的数据",
+      "exportHint": "一个 NDJSON 文件，包含你的账户、设置、播放进度与记录、观看统计、已登录的设备、应用程序密码以及你创建的分享。密码、验证码和其他机密一律不包含。下载会记入审计日志。",
+      "export": "下载我的数据",
+      "exported": "已下载你的数据。",
+      "deleteTitle": "永久删除账户",
+      "deleteWarning": "这会永久删除你的账户及所有数据：播放进度与记录、统计、设备、应用程序密码和分享。此操作无法撤销，管理员也无法恢复。",
+      "deleteHint": "如需保留数据，请先下载。请输入密码以确认。",
+      "password": "密码",
+      "passwordRequired": "请输入密码。",
+      "acknowledge": "我了解账户和数据删除后无法恢复。",
+      "acknowledgeRequired": "请确认你了解删除后无法恢复。",
+      "delete": "删除我的账户",
+      "confirmDelete": "永久删除",
+      "confirmPrompt": "现在就删除你的账户及所有数据吗？",
+      "deleted": "你的账户已删除。"
     }
   }
 }

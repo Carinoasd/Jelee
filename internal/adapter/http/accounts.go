@@ -455,6 +455,7 @@ func (s *Server) accountRoutes(r chi.Router) {
 		s.contentAccessRoutes(r)
 		s.siteSettingsRoutes(r)
 		s.twoFactorRoutes(r)
+		s.userDataRoutes(r)
 	})
 }
 

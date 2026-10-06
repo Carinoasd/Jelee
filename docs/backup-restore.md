@@ -304,4 +304,4 @@ $dc run --rm --no-deps -T --entrypoint /jelee-cli jelee metadata import --in - <
 
 ### 與 G07.7 使用者資料匯出的關係
 
-元資料檔格式（`internal/domain/metadata_backup.go` 的寫入器與讀取器：版本化標頭、逐行串流、尾段摘要與筆數驗證）不綁定伺服器全域的範圍，可以直接重用來做單一使用者的資料匯出：帳號、`library_acl`、`user_item_data`、`user_item_access_rule`、`user_blocked_tag` 這幾類紀錄就是使用者自己的資料。G07.7 的匯出 API 與刪除流程尚未實作。
+G07.7 的個人資料匯出與永久刪除見 [使用者資料權利](user-data-rights.md)。匯出採用自己的 NDJSON 格式（`jelee.user-data`，同樣是版本化標頭、逐行串流、以結尾紀錄確認完整），範圍是單一使用者的全部資料，與全域元資料檔無關。永久刪除後，還原早於刪除時間的完整備份或匯入早於刪除時間的元資料檔會把該使用者帶回，需依上方說明重新執行刪除。

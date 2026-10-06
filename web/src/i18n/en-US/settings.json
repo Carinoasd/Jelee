@@ -37,6 +37,24 @@
       "wrongCurrent": "The current password is not correct.",
       "submit": "Change password",
       "changed": "Password changed. Sign in again with the new password."
+    },
+    "dataRights": {
+      "title": "Your data",
+      "exportTitle": "Download your data",
+      "exportHint": "A file (NDJSON) with your account, settings, playback progress and history, watch statistics, signed-in devices, application passwords and shares you created. Passwords, codes and other secrets are never included. The download is recorded in the audit log.",
+      "export": "Download my data",
+      "exported": "Your data was downloaded.",
+      "deleteTitle": "Delete account permanently",
+      "deleteWarning": "This deletes your account and all its data for good: playback progress and history, statistics, devices, application passwords and shares. It cannot be undone and an administrator cannot restore it.",
+      "deleteHint": "Download your data first if you want to keep it. Enter your password to confirm.",
+      "password": "Password",
+      "passwordRequired": "Enter your password.",
+      "acknowledge": "I understand that my account and data cannot be recovered.",
+      "acknowledgeRequired": "Confirm that you understand the deletion cannot be undone.",
+      "delete": "Delete my account",
+      "confirmDelete": "Delete permanently",
+      "confirmPrompt": "Delete your account and all its data now?",
+      "deleted": "Your account was deleted."
     }
   }
 }

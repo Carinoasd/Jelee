@@ -290,6 +290,9 @@ func leakRouteTable() map[string]leakRoute {
 		"GET /api/v1/users/{id}/app-passwords":                    noMedia(selfParam, "caller's own application password labels"),
 		"POST /api/v1/users/me/app-passwords":                     exempt("creates the caller's own application password; carries no media identifiers"),
 		"DELETE /api/v1/users/{id}/app-passwords/{appPasswordId}": exempt("revokes one of the caller's application passwords; carries no media identifiers"),
+		"GET /api/v1/users/{id}/data-export":                      noMedia(selfParam, "caller's own personal data export; names items by ID only"),
+		"POST /api/v1/users/me/purge":                             exempt("permanently deletes the caller's own account; carries no media identifiers"),
+		"POST /api/v1/users/{id}/purge":                           admin(selfParam),
 		// Content access administration (G48.1, G48.4).
 		"GET /api/v1/users/{id}/content-access":                   admin(selfParam),
 		"PUT /api/v1/users/{id}/content-access":                   admin(selfParam),

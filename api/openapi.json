@@ -35,6 +35,32 @@
         ],
         "type": "object"
       },
+      "AccountPurge": {
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "description": "Six digits from the authenticator app; required instead of recoveryCode when the account has a second factor.",
+            "maxLength": 16,
+            "type": "string",
+            "writeOnly": true
+          },
+          "password": {
+            "maxLength": 1024,
+            "type": "string",
+            "writeOnly": true
+          },
+          "recoveryCode": {
+            "description": "One unused recovery code; required instead of code when the account has a second factor.",
+            "maxLength": 64,
+            "type": "string",
+            "writeOnly": true
+          }
+        },
+        "required": [
+          "password"
+        ],
+        "type": "object"
+      },
       "ActivePlayback": {
         "additionalProperties": false,
         "properties": {
@@ -8955,6 +8981,43 @@
           "disabled",
           "allowNative",
           "createdAt"
+        ],
+        "type": "object"
+      },
+      "UserDataRecord": {
+        "additionalProperties": false,
+        "properties": {
+          "data": {
+            "description": "The export record: format jelee.user-data, version, userId, userName and generatedAt (the snapshot time). A data record: the row with camelCase fields; null fields are left out. The end record: records, the number of data records.",
+            "type": "object"
+          },
+          "type": {
+            "enum": [
+              "export",
+              "account",
+              "preferences",
+              "trackPreference",
+              "blockedTag",
+              "libraryAccess",
+              "itemAccessRule",
+              "itemData",
+              "playbackSession",
+              "playbackSample",
+              "watchStatsDay",
+              "watchStatsItem",
+              "session",
+              "appPassword",
+              "shareLink",
+              "clientControlHit",
+              "auditEvent",
+              "end"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "data"
         ],
         "type": "object"
       },
@@ -33871,6 +33934,126 @@
         "summary": "Replace own profile fields; omitted optional fields reset"
       }
     },
+    "/api/v1/users/me/purge": {
+      "post": {
+        "description": "The account password (400 invalid_password) and, when the account has a second factor, exactly one of a current authenticator code or an unused recovery code (400 invalid_two_factor_code). Password and code attempts draw from the second factor budget (429 auth_rate_limited). Requires a web session (403 forbidden for native sessions). Clears the session cookie. Irreversible: the account, its sessions and devices, application passwords, second factor, preferences, access grants, playback progress and history, watch statistics, client control hits, shares it created (with their guest accounts) and webhook events about it are deleted in one transaction, and nothing can restore them. Scan schedules it owned move to an administrator; jobs and rules it created stay without attribution. Audit events are kept for their retention but de-identified: the user's addresses are removed and states about the user and its sessions, application passwords and shares are replaced by {\"redacted\":\"user_purged\"}; the event user.purged is recorded. The last active administrator cannot be deleted (409 last_admin).",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AccountPurge"
+              }
+            }
+          },
+          "description": "Maximum 64 KiB; exactly one object; unknown or duplicate keys rejected.",
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "HTTP 204"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 400"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 401"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 403"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 409"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 413"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 415"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 429"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 503"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Jelee error envelope with code, message, details and traceId; see the Error schema."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "webSession": []
+          }
+        ],
+        "summary": "Permanently delete the own account after re-authentication (G07.7)"
+      }
+    },
     "/api/v1/users/me/resume": {
       "get": {
         "description": "Visible movies, episodes and home videos with a resume point that are not played, most recently played first. Items in libraries the caller can no longer see are never listed (G48.3). Progress buffered but not yet written appears after the next flush.",
@@ -36332,6 +36515,125 @@
         "x-jelee-role": "administrator"
       }
     },
+    "/api/v1/users/{id}/data-export": {
+      "get": {
+        "description": "Streams NDJSON from one database snapshot, one UserDataRecord per line: first the export record, then the account, preferences, track preferences, blocked tags, library access, item access rules, playback progress and played state (itemData), playback history (playbackSession, playbackSample), watch statistics, sessions and devices, application passwords, shares the user created, client control hits and audit events naming the user (event, time and role only; the address only when the user acted), last the end record. A stream without the end record was cut short. Items are named by ID only, and records about an item or library the exported user cannot see now (G48, including the request restriction) are left out. Secrets are never exported: password and application password digests, authenticator secrets, recovery codes, session, share and challenge tokens, webhook secrets. Rows are streamed, not buffered. The audit event user.data_exported (security category) is recorded before the first byte. At most 2 exports run at once on an instance and one per caller (409 conflict with Retry-After); the stream is bounded by 5m0s.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/x-ndjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserDataRecord"
+                }
+              }
+            },
+            "description": "The records, streamed as an attachment.",
+            "headers": {
+              "X-Jelee-Export-Complete": {
+                "description": "Trailer: false when the stream ended early.",
+                "schema": {
+                  "enum": [
+                    "true",
+                    "false"
+                  ],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 400"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 401"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 403"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 404"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 409"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 503"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Jelee error envelope with code, message, details and traceId; see the Error schema."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "webSession": []
+          }
+        ],
+        "summary": "Export the personal data of self or, as administrator, of any user including a soft-deleted one (G07.7)"
+      }
+    },
     "/api/v1/users/{id}/delivery-limits": {
       "get": {
         "parameters": [
@@ -37075,6 +37377,138 @@
           }
         ],
         "summary": "Allow or withdraw native-device login for a user; withdrawing revokes the user's active native sessions; audited",
+        "x-jelee-role": "administrator"
+      }
+    },
+    "/api/v1/users/{id}/purge": {
+      "post": {
+        "description": "Empty JSON object body. Requires an administrator web session; the own account is refused with 403 (use /api/v1/users/me/purge). Irreversible: the account, its sessions and devices, application passwords, second factor, preferences, access grants, playback progress and history, watch statistics, client control hits, shares it created (with their guest accounts) and webhook events about it are deleted in one transaction, and nothing can restore them. Scan schedules it owned move to an administrator; jobs and rules it created stay without attribution. Audit events are kept for their retention but de-identified: the user's addresses are removed and states about the user and its sessions, application passwords and shares are replaced by {\"redacted\":\"user_purged\"}; the event user.purged is recorded. The last active administrator cannot be deleted (409 last_admin).",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Empty"
+              }
+            }
+          },
+          "description": "Exactly {}.",
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "HTTP 204"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 400"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 401"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 403"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 404"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 409"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 413"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 415"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 503"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Jelee error envelope with code, message, details and traceId; see the Error schema."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "webSession": []
+          }
+        ],
+        "summary": "Permanently delete another user, active or soft-deleted (G07.7)",
         "x-jelee-role": "administrator"
       }
     },
