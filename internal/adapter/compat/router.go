@@ -57,6 +57,9 @@ type router struct {
 	// patterns holds every registered route split into path segments; it is
 	// fixed once NewRouter returns.
 	patterns [][]string
+	// views are the identifiers of the virtual collection and playlist
+	// folders.
+	views virtualViews
 }
 
 // NewRouter builds the compatibility router. Mount it at Prefix behind the
@@ -77,7 +80,7 @@ func NewRouter(opts Options) (*chi.Mux, error) {
 	if opts.Library != nil && !opts.Library.valid() {
 		return nil, errors.New("compat: library module needs a catalog, client address and a 403 or 404 hidden status")
 	}
-	rt := &router{opts: opts, mux: chi.NewRouter()}
+	rt := &router{opts: opts, mux: chi.NewRouter(), views: newVirtualViews(opts.ServerID)}
 	rt.mux.Use(rt.boundary)
 	rt.mux.NotFound(func(w http.ResponseWriter, _ *http.Request) { writeError(w, http.StatusNotFound) })
 	rt.mux.MethodNotAllowed(func(w http.ResponseWriter, _ *http.Request) { writeError(w, http.StatusMethodNotAllowed) })
@@ -93,6 +96,9 @@ func NewRouter(opts Options) (*chi.Mux, error) {
 		}
 		if opts.Library.Images != nil {
 			rt.imageRoutes()
+		}
+		if opts.Library.Collections != nil {
+			rt.playlistRoutes()
 		}
 	}
 	return rt.mux, nil

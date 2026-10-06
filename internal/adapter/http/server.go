@@ -490,6 +490,12 @@ func (s *Server) newCompat(cfg config.Config, backend Backend) (http.Handler, er
 		if cfg.EnableImages && s.images != nil {
 			opts.Library.Images = compatImages{s: s}
 		}
+		// Collections and playlists use the native collection service, so
+		// reads apply the same visibility filter and playlist changes the
+		// same owner rules as /api/v1/collections and /api/v1/playlists.
+		if s.catalog.HasCollections() {
+			opts.Library.Collections = s.catalog
+		}
 	}
 	return compat.NewRouter(opts)
 }

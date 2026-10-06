@@ -27,7 +27,7 @@ G05仍部分完成：舊C#的直播與Channel控制器已刪除並提供[明確�
 
 ## 第三方客戶端相容層（`/compat`，G24.1～G24.4、G10.4）
 
-目前有骨架、系統模組、使用者／登入模組、媒體庫瀏覽模組（只讀）、播放模組（播放資訊、原檔直投串流、外掛字幕原樣直投）、播放狀態模組與圖片模組（條目海報／背景圖與列表圖片 tag）；收藏等模組尚未提供，下表以外的路由一律回 404。尚未做真實客戶端驗收（G24.5），不能宣稱任何客戶端已可使用。
+目前有骨架、系統模組、使用者／登入模組、媒體庫瀏覽模組（只讀）、播放模組（播放資訊、原檔直投串流、外掛字幕原樣直投）、播放狀態模組、圖片模組（條目海報／背景圖與列表圖片 tag）與合集／播放清單模組；收藏等模組尚未提供，下表以外的路由一律回 404。尚未做真實客戶端驗收（G24.5），不能宣稱任何客戶端已可使用。
 
 ### 掛載與開關
 
@@ -78,6 +78,9 @@ G05仍部分完成：舊C#的直播與Channel控制器已刪除並提供[明確�
 | `GET /compat/UserItems/{itemId}/UserData`、`/compat/Users/{userId}/Items/{itemId}/UserData` | 同上；自己或管理員 | `UserItemDataDto` |
 | `GET /compat/UserItems/Resume`、`/compat/Users/{userId}/Items/Resume` | 同上；自己或管理員 | 繼續觀看的 `QueryResult<BaseItemDto>` |
 | `GET`、`HEAD /compat/Items/{itemId}/Images/{imageType}`、`…/{imageType}/{imageIndex}` | native 工作階段（目錄與圖片功能都開啟時才掛載；上游允許匿名，見「圖片模組」） | 經 `/images` 同一條管線產生的 JPEG；隱藏狀態同其他條目路由 |
+| `GET /compat/Playlists/{playlistId}/Items` | native 工作階段（目錄開啟且合集服務接上時才掛載） | 自己或公開清單中看得到的項目，`QueryResult<BaseItemDto>`，每項帶 `PlaylistItemId`（見「合集與播放清單模組」） |
+| `POST /compat/Playlists` | 同上 | 建立自己的清單，回 `{"Id":…}` |
+| `POST /compat/Playlists/{playlistId}/Items?Ids=`、`DELETE /compat/Playlists/{playlistId}/Items?EntryIds=`、`POST /compat/Playlists/{playlistId}/Items/{itemId}/Move/{newIndex}` | 同上；只限清單擁有者 | 加入／移除／移動，204 空主體 |
 
 - JSON 為上游預設格式：PascalCase、null 成員省略、`application/json; charset=utf-8`。尚未支援 `profile="CamelCase"` 的 Accept 協商。
 - `Version` 是相容層模擬的上游協定版本線，不是 Jelee 建置版本；客戶端依它判斷功能。是否需要調整待真實客戶端驗收確認。
@@ -130,23 +133,23 @@ G05仍部分完成：舊C#的直播與Channel控制器已刪除並提供[明確�
 
 **讀取身分（`{userId}`）**：路徑 `{userId}` 或 query `userId` 必須等於目前使用者，或呼叫者是管理員，否則 403 空主體（在任何目錄查詢前判定，不論該帳號是否存在）。省略或全 0 代表目前使用者（上游同樣把空 ID 視為自己）。格式錯誤 400。管理員指定其他使用者時，以該使用者的授權讀取（看到的就是對方看到的）；直投來源仍以管理員自己的工作階段查詢。
 
-**`GET /UserViews`**：依名稱排序的可見媒體庫，`Type`=`CollectionFolder`、`IsFolder`=true。`CollectionType` 依內容推得：只有電影 `movies`、只有劇集／單集 `tvshows`、只有家庭影片 `homevideos`；混合或空庫省略（上游的 null，代表混合內容）。上限 1000 個庫。`includeExternalContent`、`presetViews`、`includeHidden` 忽略。
+**`GET /UserViews`**：依名稱排序的可見媒體庫，`Type`=`CollectionFolder`、`IsFolder`=true；合集服務接上時，其後依序附加虛擬資料夾「Collections」（`CollectionType`=`boxsets`，至少有一個看得到成員的合集時才出現）與「Playlists」（`CollectionType`=`playlists`，至少有一個可讀清單時才出現），見「合集與播放清單模組」。`CollectionType` 依內容推得：只有電影 `movies`、只有劇集／單集 `tvshows`、只有家庭影片 `homevideos`；混合或空庫省略（上游的 null，代表混合內容）。上限 1000 個庫。`includeExternalContent`、`presetViews`、`includeHidden` 忽略。
 
 **`GET /Items`** 支援的參數（名稱大小寫不敏感；未列出的參數忽略，結果可能比上游多）：
 
 | 參數 | 行為 |
 | --- | --- |
-| `ParentId` | 媒體庫：非遞迴為頂層條目（沒有上層連結者），遞迴為全庫；影集／季：非遞迴為直接子項，遞迴含孫項（季底下的單集）。不存在與無權限的 parent 一律回空結果（`TotalRecordCount`=0），兩者無法分辨 |
+| `ParentId` | 媒體庫：非遞迴為頂層條目（沒有上層連結者），遞迴為全庫；影集／季：非遞迴為直接子項，遞迴含孫項（季底下的單集）。不存在與無權限的 parent 一律回空結果（`TotalRecordCount`=0），兩者無法分辨；合集、播放清單與兩個虛擬資料夾也可當 parent（見「合集與播放清單模組」） |
 | 無 `ParentId` | 非遞迴：上游列使用者根資料夾的子項，即媒體庫資料夾（依名稱排序，可用 `SearchTerm` 過濾）；遞迴：所有可見條目 |
 | `Recursive` | `true`／`false`（大小寫不敏感），其他值 400。未指定且 `ParentId` 是媒體庫並有 `IncludeItemTypes` 時，比照上游預設遞迴 |
-| `IncludeItemTypes`、`ExcludeItemTypes` | `Movie`、`Series`、`Season`、`Episode`、`Video`（Jelee 的 HomeVideo）、`CollectionFolder`；其他合法名稱（`Audio`、`BoxSet`、`Folder`…）不匹配任何條目；非英數字 400 |
+| `IncludeItemTypes`、`ExcludeItemTypes` | `Movie`、`Series`、`Season`、`Episode`、`Video`（Jelee 的 HomeVideo）、`CollectionFolder`；合集服務接上時另有 `BoxSet`（合集）與 `Playlist`（播放清單），只在類型篩選**只有**這兩者時列出（見「合集與播放清單模組」），與其他類型混用時忽略；其他合法名稱（`Audio`、`Folder`…）不匹配任何條目；非英數字 400 |
 | `SortBy` | `SortName`／`Name`（排序標題，否則標題；不分大小寫）、`PremiereDate`、`ProductionYear`（年份事實，否則上映日期的年）；可多個，ID 為最後的穩定排序。`DateCreated`、`Random` 等 Jelee 沒有資料的鍵忽略。預設依 `SortName` 升冪 |
 | `SortOrder` | `Ascending`／`Descending`，逐鍵對應；不足者沿用第一個（上游 `GetOrderBy` 規則）。升冪時無值者在前、降冪時在後 |
 | `StartIndex` | ≥0，上限 1,000,000；超出結尾回空 `Items` 但保留 `TotalRecordCount` |
 | `Limit` | 未指定或大於 500 一律以 500 計（上游無上限）；`0` 只回 `TotalRecordCount` |
 | `SearchTerm` | 標題不分大小寫的子字串比對，`%`、`_`、`\` 按字面比對；最多 128 字元，否則 400 |
 | `Fields` | `Overview`、`SortName`、`ParentId` 依上游只在要求時輸出；其他值忽略。列表不輸出 `MediaSources` |
-| `Ids` | 最多 100 個；只回可見者（依要求順序，仍套用類型過濾），不存在與無權限者同樣略過 |
+| `Ids` | 最多 100 個；只回可見者（依要求順序，仍套用類型過濾），不存在與無權限者同樣略過；合集與播放清單的 ID 也可查（受 `BoxSet`／`Playlist` 類型過濾） |
 
 回應 `QueryResult`：`Items`、`TotalRecordCount`（符合條件的總數，不受分頁影響）、`StartIndex`。
 
@@ -158,7 +161,35 @@ G05仍部分完成：舊C#的直播與Channel控制器已刪除並提供[明確�
 
 **圖片欄位**：`ImageTags`、`BackdropImageTags`、`PrimaryImageAspectRatio`（`Fields` 要求時；單一條目一律），見「圖片模組」。圖片功能未開啟時 `ImageTags` 為空物件、`BackdropImageTags` 為空陣列。
 
-**省略**（上游的 null）：`SeriesId`／`SeasonId`／`SeriesName`、`IndexNumber`／`ParentIndexNumber`、`ChildCount`、`DateCreated`、人物、類型、片商、外部 ID、評分、`Path`。列表不提供 `RunTimeTicks`。
+**省略**（上游的 null）：`SeriesId`／`SeasonId`／`SeriesName`、`IndexNumber`／`ParentIndexNumber`、`ChildCount`（合集與清單除外）、`DateCreated`、人物、類型、片商、外部 ID、評分、`Path`。列表不提供 `RunTimeTicks`。
+
+### 合集與播放清單模組（G24.2、G02.1、G48.3）
+
+隨媒體庫模組掛載，且需要伺服器的合集服務（`app.Catalog.WithCollections`，目錄開啟時預設接上）；否則 `BoxSet`／`Playlist` 類型不匹配任何條目、沒有虛擬資料夾、`/Playlists` 路由回 404。相容層不 import postgres，只呼叫原生的 `ListCollections`／`Collection`／`ListPlaylists`／`Playlist` 與清單寫入方法（同 `/api/v1/collections`、`/api/v1/playlists`，見[合集與播放清單](collections-playlists.md)），所以：每次讀取都在同一條 SQL 內以統一權限過濾器（`itemVisibleSQL`，含客戶端管控限制的媒體庫）綁定呼叫者的工作階段；看不到的條目不出現、不計入 `ChildCount`；寫入規則與原生完全相同。
+
+**讀取身分**：原生服務只以工作階段本人讀取，沒有「代他人讀」。因此 `{userId}`／`userId` 指向他人（只有管理員能通過「自己或管理員」檢查）時，合集與清單一律當作沒有：列表為空、單筆回隱藏狀態、`/UserViews` 不列虛擬資料夾。不會用管理員自己的權限代替對方讀取。
+
+**合集＝`BoxSet`**
+
+- `GET /Items?IncludeItemTypes=BoxSet`（`Recursive` 不影響）：至少有一個看得到成員的合集，依名稱排序（`SortBy=SortName`／`Name` 的 `SortOrder=Descending` 反向；其他排序鍵忽略），支援 `SearchTerm`（名稱不分大小寫子字串）、`StartIndex`、`Limit`、`Fields`。比照上游 `ItemsController`，類型只有 `BoxSet` 時忽略 `ParentId`（網頁版電影庫「合集」分頁就是這樣查）。原生對管理員也會列出沒有成員的合集，相容層一律不列（「合集全部成員都看不到時不出現」）。最多讀 10000 個合集，`TotalRecordCount` 為過濾後的總數。
+- `GET /Items?ParentId={boxSetId}`：看得到的成員，依標題排序（`SortName` 降冪時反向），套用 `IncludeItemTypes`／`ExcludeItemTypes`、`SearchTerm`、分頁、`Fields`、`UserData`、圖片 tag；原生單次最多讀 2000 個成員（超過時只列前 2000 個）。
+- `GET /Items/{boxSetId}`：`Type`=`BoxSet`、`IsFolder`=true、`ChildCount`（看得到的成員數）、`Overview`、`SortName`、`ParentId`（虛擬資料夾）、`DateCreated`、`MediaType`=`Unknown`。合集不存在、沒有看得到的成員（管理員面對空合集亦同）一律回隱藏狀態，與不存在的條目回應相同。
+- 成員只有 Jelee 清單層的資料（名稱、類型、上層連結）；`PremiereDate`、`ProductionYear`、`Overview` 不出現（列表需要時請改查 `/Items/{id}`）。成員的 `ParentId` 是所屬影集／季，否則媒體庫。
+
+**播放清單＝`Playlist`**
+
+- `GET /Items?IncludeItemTypes=Playlist`（不帶 `ParentId` 或 `ParentId` 為 Playlists 虛擬資料夾）：自己的清單（含空清單）與他人至少有一個看得到項目的公開清單，依名稱排序；`ParentId` 是其他東西時為空。
+- `GET /Playlists/{playlistId}/Items` 與 `GET /Items?ParentId={playlistId}`：看得到的項目，依清單順序（不重新排序），可重複；每項帶 `PlaylistItemId`（清單項目 ID，32 位 hex），移除與移動時送回。支援 `StartIndex`、`Limit`、`Fields` 與圖片參數。他人的私人清單、不存在的清單、只有看不到項目的他人公開清單都回隱藏狀態；管理員也讀不到他人的私人清單。
+- `GET /Items/{playlistId}`：`Type`=`Playlist`、`IsFolder`=true、`ChildCount`、`MediaType`=`Video`（清單只收可播放的影片）、`DateCreated`。
+- `POST /Playlists`：主體為上游 `CreatePlaylistDto`（`Name`、`Ids`、`UserId`、`IsPublic`；成員名稱大小寫不敏感），或舊客戶端的 query `name`、`ids`、`userId`。回 200 `{"Id":"…"}`。`MediaType` 忽略。**`IsPublic` 未給時為私人**（上游預設公開）；**`Users`（指定分享對象）忽略**：Jelee 的清單只有「公開給所有人」或「只有自己」，不會依請求擴大授權。初始項目以原生加入規則寫入，失敗（例如含看不到的條目）時刪除剛建立的清單後回錯誤。主體非 JSON 415、格式錯誤 400、超過 32 KiB 413、名稱空白 400。
+- `POST /Playlists/{playlistId}/Items?Ids=`：依序附加（1～100 個，可重複）；只收看得到的電影、單集、家庭影片——看不到或不存在的條目讓整個請求回隱藏狀態，影集／季等其他類型 400（上游會展開影集為單集，Jelee 不展開）。
+- `DELETE /Playlists/{playlistId}/Items?EntryIds=`：每個值可以是 `PlaylistItemId`，或（部分客戶端送的）條目 ID，後者移除該條目的所有看得到的項目；沒對應到任何看得到項目的值比照上游忽略。逐一移除，不是單一交易。
+- `POST /Playlists/{playlistId}/Items/{itemId}/Move/{newIndex}`：`itemId` 為 `PlaylistItemId`（或條目 ID，取其第一個項目）；`newIndex` 是在**看得到的項目**中的新位置，超過結尾即移到最後；看不到的項目維持原生「保持相對位置」的規則。找不到項目回隱藏狀態，`newIndex` 非非負整數 400。
+- 三個寫入與建立：`UserId`／`userId` 只能是自己（管理員也一樣），否則 403 且不讀取；他人的公開清單 403（唯讀）、他人的私人清單與不存在回隱藏狀態，與原生相同；超過上限（每人 1000 個清單、每清單 5000 項）400。成功一律 204 空主體（建立除外）。
+
+**虛擬資料夾**：「Collections」與「Playlists」的 ID 由伺服器 ID 經 SHA-256 單向推導（固定、不對應任何資料列），`GET /Items/{id}` 回 `CollectionFolder`，`GET /Items?ParentId={id}` 分別列出合集與清單。`GET /Items`（不帶 `ParentId` 且非遞迴）目前仍只列媒體庫，不含這兩個資料夾。
+
+**圖片**：合集與清單沒有自己的圖片；`ImageTags` 為空物件（`EnableImages=false` 時省略），客戶端顯示預設圖示。成員條目的圖片 tag 照常。
 
 ### 播放模組（G24.2、G10.4）
 
@@ -234,15 +265,17 @@ PlaybackInfo 隨媒體庫模組掛載；串流、字幕與音訊路由只在直�
 
 ### 契約與測試
 
-- 黃金檔：`internal/adapter/compat/testdata/golden/`（`system_info_public.json`、`system_info.json`、`system_ping.json`、`users_authenticate_by_name.json`、`users_me.json`、`users_by_id_admin.json`、`library_user_views.json`、`library_user_views_admin.json`、`library_items.json`、`library_items_root.json`、`library_item_detail.json`、`library_item_folder.json`、`playback_info.json`、`playback_info_no_compatible.json`、`library_items_images.json`、`library_item_detail_images.json`），以 `go test ./internal/adapter/compat -run 'TestGoldenResponses|TestAuthenticateByName$|TestCurrentUser|TestUserByID|TestUserViews|TestItems|TestItemByID|TestItemImageTags|TestPlaybackInfoAcceptsCapabilityDeclarations|TestPlaybackInfoRefusals' -update` 重產。`playback_info.json` 同時是「帶真實客戶端形狀的 DeviceProfile（含 TranscodingProfiles、CodecProfiles、編碼清單）的 POST」、「GET」與「空主體 POST」三種請求的預期回應。
+- 黃金檔：`internal/adapter/compat/testdata/golden/`（`system_info_public.json`、`system_info.json`、`system_ping.json`、`users_authenticate_by_name.json`、`users_me.json`、`users_by_id_admin.json`、`library_user_views.json`、`library_user_views_admin.json`、`library_items.json`、`library_items_root.json`、`library_item_detail.json`、`library_item_folder.json`、`playback_info.json`、`playback_info_no_compatible.json`、`library_items_images.json`、`library_item_detail_images.json`、`collections_user_views.json`、`collections_view_detail.json`、`collections_boxsets.json`、`collections_boxset_detail.json`、`collections_boxset_members.json`、`playlists_items.json`、`playlists_detail.json`），以 `go test ./internal/adapter/compat -run 'TestGoldenResponses|TestAuthenticateByName$|TestCurrentUser|TestUserByID|TestUserViews|TestItems|TestItemByID|TestItemImageTags|TestPlaybackInfoAcceptsCapabilityDeclarations|TestPlaybackInfoRefusals|Collection|BoxSet|Playlist' -update` 重產。`playback_info.json` 同時是「帶真實客戶端形狀的 DeviceProfile（含 TranscodingProfiles、CodecProfiles、編碼清單）的 POST」、「GET」與「空主體 POST」三種請求的預期回應。
 - 播放模組單元測試（`playback_test.go`，用真的 `media.Handler` 與暫存檔）：能力聲明不觸發 409、而同一聲明在串流路由與 `GuardProduction` 上仍是 409；PlaybackInfo 上真正的轉換參數（query、主體頂層、巢狀）409 且不查目錄；直投判定逐項（容器、編碼、別名、數值型別、位元率三個來源與優先順序、`EnableDirectPlay`、`MediaSourceId`、未探測來源）；`Static` 直投 SHA-256 一致、`api_key`、Range 206 精確位元組、HEAD；串流與字幕的每一種轉換要求 409 且沒進直投模組；字幕格式／時間位移／內嵌字幕 409；音訊 404；沒有直投模組時路由不存在。`internal/adapter/media` 的 `TestPlaybackInfoGuardSeparatesDeclarations` 對 `transformParams` 每一項（不在聲明清單者）逐一驗證 query、主體頂層、巢狀與宣告成員底下都仍被拒。
 - 圖片模組單元測試（`images_test.go`）：參數解析（最小上限、2048 上限、0 視同未給、品質範圍、`Format` 名稱、`Tag` 形式、效果參數語法）；經管線的請求內容與 actor、大小寫、HEAD、`api_key`、`Logo`→`ClearLogo` 回退、最終錯誤不再嘗試下一槽、各錯誤對應；看不到、不存在、不可能存在的槽三者回應與標頭相同（404 與 403 兩種設定）；**守衛分離**：圖片路由的尺寸參數不觸發 409，但 `VideoCodec`、`MaxStreamingBitrate`、`SegmentContainer`、`Static=false`、`<codec>-level`… 仍 409，而影片／音訊串流、PlaybackInfo、單一條目與圖片路徑的 POST 帶 `Width`／`MaxWidth`／`MaxHeight` 仍 409；列表 tag 的黃金檔、每次列表一次批次讀取、`EnableImages`／`ImageTypeLimit`／`EnableImageTypes`、資料夾不查、讀取身分。`internal/adapter/media` 的 `TestImageGuardReadsOnlyImageMembers` 對每個圖片成員的各種拼法驗證只在 `GuardImage` 放行、`GuardProduction` 仍拒絕尺寸成員，並對 `transformParams` 其餘每一項驗證 `GuardImage` 仍拒絕。
 - 真 PG：`TestCompatImagesPostgres` 以真實 `item_images` 與授權驗證：五部電影的列表只執行一條讀 `item_images` 的 SQL（以 pgx tracer 計數）、各自的 `Primary` tag 正確、本地列勝過遠端列、背景圖與 `ClearLogo` 回退、長寬比；B 的系列圖片 tag 不出現在 A 的任何回應；有權限可取圖且尺寸參數送到管線、HEAD＋`api_key`、304；無權限、不存在、可見但無此圖三者回應相同（404 與 403 設定）；匿名與 web 工作階段 401；串流帶 `MaxWidth` 仍 409、圖片帶 `VideoCodec` 409；更新原圖內容後列表 tag 變、ETag 變、舊 ETag 不再 304、舊 tag 失去長快取；收回授權後圖片與 tag 立即消失。`internal/adapter/postgres` 的 `TestItemImageSummariesSelectAndAuthorize` 驗證選列順序（鎖定 > local > NFO > remote、未讀內容的本地檔可用、無內容的 URL 不可用）、`Chapter` 與超過上限的背景圖不列、未授權與停用帳號看不到、輸入檢查。
 - OpenAPI：相容路由不屬於自有 API，在 `openapi_contract_test.go` 的 `undocumentedRoutes` 以理由豁免，不寫入 `api/openapi.json`；`leakRouteTable` 已逐條登記。
+- 合集與播放清單單元測試（`collections_test.go`，假服務依原生規則判定可見與擁有者）：`BoxSet` 列表（忽略 `ParentId`、管理員不列空合集、排序／分頁／搜尋／排除、與其他類型混用時忽略）、虛擬資料夾（ID 穩定且依伺服器 ID 而異、無內容時不列）、合集詳情與成員（類型過濾、看不到成員的合集與不存在回應及標頭相同、403 設定）、`Ids` 查合集與清單、清單項目與 `PlaylistItemId`、他人私人清單與不存在相同；建立（JSON 與 query 兩種形式、`Users` 忽略、私人預設、代他人 403、各種 400／413／415、看不到的條目回隱藏狀態且刪回清單）、加入／移除／移動的擁有者規則與位置換算；管理員代他人讀取時不呼叫合集服務。
+- 真 PG：`TestCompatCollectionsPostgres` 以外洩測試的固定資料（混合合集、只有隱藏條目的合集、含看得到與看不到條目的公開清單）在全部七種隱藏機制下驗證：`BoxSet`／`Playlist` 列表、`ChildCount`、成員、清單項目、`Ids`、單筆與 `/UserViews` 都不含隱藏標記；只有隱藏成員的合集與不存在回應相同；加入看不到的條目與不存在相同、看不到的項目無法移動或移除；分享訪客 401。媒體庫授權機制下另驗證擁有者規則（他人公開清單可讀不可改、私人清單對他人與管理員皆隱藏）、建立（私人、帶看不到條目時不留下清單）、附加、移動（含移到最後）、移除後的實際順序。
 - 真 PG：`TestCompatSessionKindsPostgres` 驗證 native 可用、web（標頭、query、cookie）與已撤銷的 native 都回 401。
 - 真 PG：`TestCompatUsersPostgres` 驗證未開 `allowNative` 時 403 並寫 `login.native_denied`、不簽發；密碼錯與帳號不存在回應相同；開啟後登入簽發 native 工作階段（寫 `session.created`、自有 API 可列出 client 標籤並可直投）；`/Users/Me`、`/Users/{id}` 自己／他人／管理員；`/Users/Public` 為 `[]`；Logout 只撤銷目前工作階段、舊 token 在兩邊皆 401；相容入口五次失敗後兩個入口都被鎖定且失敗審計含用戶端位址。`TestCompatLoginSharesRateLimitPostgres` 驗證相容登入與原生登入雙向共用名稱限速桶。
 - 真 PG：`TestCompatLibraryPostgres` 用兩個使用者、兩個不同授權的媒體庫驗證：各自只看到自己的庫；以 parent、Ids、類型、搜尋或單筆查詢都碰不到對方的庫與條目（不存在與無權限回應相同）；分頁串接等於完整排序、超出結尾保留總數；名稱／年份／上映日期排序與空值位置；搜尋萬用字元按字面；影集／季的子項與遞迴；詳情的直投來源（`SupportsTranscoding`／`SupportsDirectStream` 為 false、不含路徑）；收回授權立即生效；設定 403 時隱藏與不存在皆 403。
-- 存取外洩：`leakRouteTable` 已登記六條媒體庫路由、播放模組全部 16 條路由（PlaybackInfo、影片串流、字幕以 ID 查詢模式；音訊以無媒體模式）與圖片模組 4 條路由（ID 查詢模式，含管理員對照），三種隱藏狀態都跑，外洩標記同時比對帶連字號與相容層 32 位 hex 兩種 ID 形態。
+- 存取外洩：`leakRouteTable` 已登記六條媒體庫路由、播放模組全部 16 條路由（PlaybackInfo、影片串流、字幕以 ID 查詢模式；音訊以無媒體模式）、圖片模組 4 條路由（ID 查詢模式，含管理員對照）與播放清單 5 條路由（項目列表以列表模式含管理員對照，寫入以理由豁免並由 `TestCompatCollectionsPostgres` 覆蓋），三種隱藏狀態都跑，外洩標記同時比對帶連字號與相容層 32 位 hex 兩種 ID 形態。
 - 播放狀態：`internal/adapter/media` 的 `TestPlaybackReportGuardReadsBodyAsState` 鎖住回報主體只做語法檢查、而路徑／query／表單與 `GuardProduction` 不變；真 PG `TestProgressHTTPPostgres` 以真實客戶端形狀的主體（含 `MaxStreamingBitrate`、`PlayMethod`、`NowPlayingQueue`）走開始 → 進度 → Ping → `Items/{id}` 的 UserData（含未 flush 的位置）→ 停止 → `UserItems/Resume`、舊式 Resume 與 `Items` 列表的續播點 → 看不到的條目回報 204 但不記錄、UserData 與標記回隱藏狀態 → 標記已播放／未播放；存取外洩表登記全部 12 條播放狀態路由（回報以理由豁免，其餘以 ID 查詢與列表模式跑三種隱藏狀態，續播清單的固定資料同時含看得到與看不到的條目）。
 - 真 PG：`TestCompatPlaybackPostgres` 走完整流程：相容登入 → 瀏覽 → 帶 DeviceProfile 的 PlaybackInfo（只列直投、無轉碼欄位、外掛字幕 `DeliveryUrl`）→ 不可直投回 `NoCompatibleStream` → 串流 4 MiB 原檔 SHA-256 一致（標頭與 `api_key` 兩種憑證）、Range、HEAD → 字幕原樣 → 各種轉換要求 409 `transcode_disabled` → web 工作階段（標頭與 `api_key`）401 → 真 TCP 上限速播放中登出，串流在數秒內被切斷且未送完、舊 token 401、另一個工作階段不受影響。
 
@@ -253,3 +286,5 @@ PlaybackInfo 隨媒體庫模組掛載；串流、字幕與音訊路由只在直�
 圖片同樣尚未用真實客戶端驗證：各客戶端取圖時是否帶驗證標頭或 `api_key`（不帶就會 401、海報空白，這是要求驗證的主要風險）；是否接受 64 位 hex 的 tag 與 JPEG 回應（即使要求 `Format=Webp`）；`Logo`／`Thumb` 回退後的顯示；以位置取背景圖是否正確；`PrimaryImageAspectRatio` 缺少時的版面；`private` 長快取在客戶端的實際命中；以及只有「媒體檔旁海報」、尚未寫入 `item_images` 的條目在客戶端沒有海報的情況。
 
 播放狀態同樣尚未用真實客戶端驗證：各客戶端是否帶 `PlaySessionId`／`ItemId`、回報頻率、停止後客戶端畫面上的續播點與「已播放」是否立即更新、「繼續觀看」列是否出現且進度條正確（`PlayedPercentage` 依賴已探測的時長）、斷線後重連是否接回同一工作階段、Seek 後的進度是否正確。
+
+合集與播放清單同樣尚未用真實客戶端驗證：各客戶端是否以 `IncludeItemTypes=BoxSet`、`ParentId=虛擬資料夾` 或 `/UserViews` 的 `boxsets`／`playlists` 資料夾找合集與清單；沒有海報時的顯示；清單畫面是否依 `PlaylistItemId` 移除與排序（部分客戶端可能送條目 ID，已兼容）；建立清單時是否依賴 `IsPublic` 預設公開或 `Users` 分享；加入影集時上游會展開為單集而這裡回 400 的呈現；`ChildCount` 與實際可見數一致時客戶端的計數顯示。

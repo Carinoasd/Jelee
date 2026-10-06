@@ -54,6 +54,10 @@ type LibraryOptions struct {
 	// Playstate is the server's progress service. Nil leaves the report,
 	// played and resume routes unregistered and every item unplayed.
 	Playstate Playstate
+	// Collections is the server's collection and playlist service. Nil
+	// leaves the playlist routes unregistered, the BoxSet and Playlist types
+	// matching nothing and no virtual folder in the user views.
+	Collections Collections
 }
 
 // Delivery is the server's one direct delivery handler (media.Handler):
@@ -112,6 +116,14 @@ type baseItemDto struct {
 	BackdropImageTags       []string          `json:"BackdropImageTags,omitzero"`
 	LocationType            string            `json:"LocationType"`
 	MediaType               string            `json:"MediaType"`
+	// ChildCount is the number of members of a collection or entries of a
+	// playlist the reading user can see; absent on every other item.
+	ChildCount *int `json:"ChildCount,omitempty"`
+	// DateCreated is sent for collections and playlists only.
+	DateCreated string `json:"DateCreated,omitempty"`
+	// PlaylistItemID names the playlist entry of an item listed as a
+	// playlist's content; clients send it back to remove or move the entry.
+	PlaylistItemID string `json:"PlaylistItemId,omitempty"`
 }
 
 // mediaSourceInfo describes one original resource for direct delivery only
@@ -332,7 +344,7 @@ func (rt *router) readAs(w http.ResponseWriter, r *http.Request, raw string) (ac
 
 func (rt *router) userViews(w http.ResponseWriter, r *http.Request) {
 	q := readQuery(r)
-	_, userID, ok := rt.libraryUser(w, r, q)
+	principal, userID, ok := rt.libraryUser(w, r, q)
 	if !ok {
 		return
 	}
@@ -341,7 +353,7 @@ func (rt *router) userViews(w http.ResponseWriter, r *http.Request) {
 		rt.writeLibraryError(w, err)
 		return
 	}
-	result := queryResult{Items: make([]baseItemDto, 0, len(views)), TotalRecordCount: len(views)}
+	result := queryResult{Items: make([]baseItemDto, 0, len(views)+2)}
 	for _, view := range views {
 		dto, err := rt.viewDto(view.ID, view.Name, view.ContentKinds)
 		if err != nil {
@@ -350,6 +362,13 @@ func (rt *router) userViews(w http.ResponseWriter, r *http.Request) {
 		}
 		result.Items = append(result.Items, dto)
 	}
+	virtual, err := rt.virtualViewDtos(r, principal, userID)
+	if err != nil {
+		rt.writeContainerError(w, err)
+		return
+	}
+	result.Items = append(result.Items, virtual...)
+	result.TotalRecordCount = len(result.Items)
 	writeJSON(w, result)
 }
 
@@ -372,6 +391,16 @@ type itemsRequest struct {
 	fields         map[string]bool
 	ids            []string
 	images         imageOptions
+	// boxsets and playlists report whether the type filter admits
+	// collections and playlists: named in IncludeItemTypes, or no
+	// IncludeItemTypes, and not excluded.
+	boxsets, playlists bool
+}
+
+// containersOnly reports a listing whose type filter names collections or
+// playlists and nothing else.
+func (req itemsRequest) containersOnly() bool {
+	return req.typed && len(req.kinds) == 0 && !req.views && (req.boxsets || req.playlists)
 }
 
 func parseItemsRequest(q browseQuery) (itemsRequest, error) {
@@ -399,9 +428,13 @@ func parseItemsRequest(q browseQuery) (itemsRequest, error) {
 		return req, err
 	}
 	req.typed = len(q.list("includeitemtypes")) > 0
+	includeBoxSets, includePlaylists := containerTypes(q.list("includeitemtypes"))
+	excludeBoxSets, excludePlaylists := containerTypes(q.list("excludeitemtypes"))
 	if !req.typed {
 		include, includeViews = []string{"Movie", "Series", "Season", "Episode", "HomeVideo"}, true
+		includeBoxSets, includePlaylists = true, true
 	}
+	req.boxsets, req.playlists = includeBoxSets && !excludeBoxSets, includePlaylists && !excludePlaylists
 	for _, kind := range include {
 		if !slices.Contains(exclude, kind) {
 			req.kinds = append(req.kinds, kind)
@@ -487,7 +520,8 @@ func parseItemsRequest(q browseQuery) (itemsRequest, error) {
 
 // itemKinds maps upstream item types to catalog kinds. CollectionFolder
 // names library folders. Well-formed types the catalog does not have (Audio,
-// BoxSet, Folder, ...) match nothing.
+// Folder, ...) match nothing; BoxSet and Playlist are read by
+// containerTypes.
 func itemKinds(names []string) (kinds []string, views bool, err error) {
 	for _, name := range names {
 		if !identifier(name) {
@@ -509,7 +543,7 @@ func itemKinds(names []string) (kinds []string, views bool, err error) {
 
 func (rt *router) items(w http.ResponseWriter, r *http.Request) {
 	q := readQuery(r)
-	_, userID, ok := rt.libraryUser(w, r, q)
+	principal, userID, ok := rt.libraryUser(w, r, q)
 	if !ok {
 		return
 	}
@@ -521,7 +555,10 @@ func (rt *router) items(w http.ResponseWriter, r *http.Request) {
 	catalog := rt.opts.Library.Catalog
 	ctx := r.Context()
 	if len(req.ids) > 0 {
-		rt.itemsByIDs(w, r, userID, req)
+		rt.itemsByIDs(w, r, principal, userID, req)
+		return
+	}
+	if rt.containerListing(w, r, principal, userID, req) {
 		return
 	}
 	recursive := req.recursive != nil && *req.recursive
@@ -531,7 +568,10 @@ func (rt *router) items(w http.ResponseWriter, r *http.Request) {
 		parent, err := catalog.BrowseItem(ctx, userID, req.parentID)
 		switch {
 		case errors.Is(err, domain.ErrNotFound):
-			writeJSON(w, queryResult{Items: []baseItemDto{}, StartIndex: req.offset})
+			// Not a catalog item: perhaps a collection or a playlist.
+			if !rt.containerChildren(w, r, principal, userID, req) {
+				writeJSON(w, queryResult{Items: []baseItemDto{}, StartIndex: req.offset})
+			}
 			return
 		case err != nil:
 			rt.writeLibraryError(w, err)
@@ -565,6 +605,11 @@ func (rt *router) items(w http.ResponseWriter, r *http.Request) {
 	page, err := catalog.Browse(ctx, userID, query)
 	if err != nil {
 		rt.writeLibraryError(w, err)
+		return
+	}
+	// The catalog answers an unknown parent with an empty page; the parent
+	// may be a collection or a playlist instead.
+	if page.Total == 0 && req.parentID != "" && rt.containerChildren(w, r, principal, userID, req) {
 		return
 	}
 	result.TotalRecordCount = page.Total
@@ -632,12 +677,26 @@ func (rt *router) itemsAtRoot(ctx context.Context, w http.ResponseWriter, userID
 
 // itemsByIDs answers an Ids listing: the visible ones in the order asked,
 // filtered by type. Invisible and missing identifiers are both left out.
-func (rt *router) itemsByIDs(w http.ResponseWriter, r *http.Request, userID string, req itemsRequest) {
+func (rt *router) itemsByIDs(w http.ResponseWriter, r *http.Request, principal access.Principal, userID string, req itemsRequest) {
 	result := queryResult{Items: []baseItemDto{}, StartIndex: req.offset}
-	var found []domain.BrowseItem
+	// Each match is a catalog item or, when item is nil, a collection or
+	// playlist.
+	type match struct {
+		item      *domain.BrowseItem
+		container container
+	}
+	var found []match
 	for _, id := range req.ids {
 		item, err := rt.opts.Library.Catalog.BrowseItem(r.Context(), userID, id)
 		if errors.Is(err, domain.ErrNotFound) {
+			c, ok, err := rt.containerByID(r, principal, userID, id, req.boxsets, req.playlists)
+			if err != nil {
+				rt.writeContainerError(w, err)
+				return
+			}
+			if ok {
+				found = append(found, match{container: c})
+			}
 			continue
 		}
 		if err != nil {
@@ -645,25 +704,30 @@ func (rt *router) itemsByIDs(w http.ResponseWriter, r *http.Request, userID stri
 			return
 		}
 		if item.Kind == domain.BrowseKindLibrary && req.views || slices.Contains(req.kinds, item.Kind) {
-			found = append(found, item)
+			found = append(found, match{item: &item})
 		}
 	}
 	result.TotalRecordCount = len(found)
 	var ids []string
+	var items []bool
 	for i := req.offset; i < len(found) && i < req.offset+req.limit; i++ {
-		dto, err := rt.browseDto(found[i], req.fields)
+		var dto baseItemDto
+		var err error
+		if found[i].item != nil {
+			dto, err = rt.browseDto(*found[i].item, req.fields)
+			ids = append(ids, found[i].item.ID)
+		} else {
+			dto, err = rt.containerDto(found[i].container, req.fields, req.images)
+			ids = append(ids, found[i].container.id)
+		}
 		if err != nil {
 			writeError(w, http.StatusInternalServerError)
 			return
 		}
 		result.Items = append(result.Items, dto)
-		ids = append(ids, found[i].ID)
+		items = append(items, found[i].item != nil)
 	}
-	if err := rt.attachUserData(r.Context(), userID, result.Items, ids); err != nil {
-		rt.writeLibraryError(w, err)
-		return
-	}
-	if err := rt.attachImages(r.Context(), userID, result.Items, ids, req.images, req.fields[fieldPrimaryImageAspectRatio]); err != nil {
+	if err := rt.decorate(r.Context(), userID, result.Items, ids, items, req.images, req.fields[fieldPrimaryImageAspectRatio]); err != nil {
 		rt.writeLibraryError(w, err)
 		return
 	}
@@ -685,7 +749,30 @@ func (rt *router) itemByID(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	catalog := rt.opts.Library.Catalog
+	if view, ok := rt.virtualViewByID(principal, userID, id); ok {
+		writeJSON(w, view)
+		return
+	}
 	item, err := catalog.BrowseItem(r.Context(), userID, id)
+	if errors.Is(err, domain.ErrNotFound) {
+		// Not a catalog item: perhaps a collection or a playlist, which
+		// is answered with every member it has, like an item.
+		c, ok, err := rt.containerByID(r, principal, userID, id, true, true)
+		switch {
+		case err != nil:
+			rt.writeContainerError(w, err)
+		case !ok:
+			writeError(w, rt.opts.Library.HiddenStatus)
+		default:
+			dto, err := rt.containerDto(c, map[string]bool{fieldOverview: true, fieldSortName: true, fieldParentID: true}, defaultImageOptions())
+			if err != nil {
+				writeError(w, http.StatusInternalServerError)
+				return
+			}
+			writeJSON(w, dto)
+		}
+		return
+	}
 	if err != nil {
 		rt.writeLibraryError(w, err)
 		return

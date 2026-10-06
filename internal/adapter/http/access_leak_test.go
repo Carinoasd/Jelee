@@ -163,6 +163,17 @@ func leakRouteTable() map[string]leakRoute {
 		"GET /compat/Users/{id}/Items/{itemId}/UserData": {mode: leakByID, params: map[string]string{"id": "self", "itemId": "item"}},
 		"GET /compat/UserItems/Resume":                   {mode: leakList, params: noParams, control: true},
 		"GET /compat/Users/{id}/Items/Resume":            {mode: leakList, params: selfParam},
+		// Third-party client compatibility layer (collection and playlist
+		// module, G02.1). Collections are BoxSet items on the item routes
+		// above; the fixture's viewer playlist is public and holds the
+		// visible and the hidden item, so the administrator control lists
+		// the hidden one. Changes take identifiers in the query or body and
+		// answer hidden items like missing ones (TestCompatCollectionsPostgres).
+		"GET /compat/Playlists/{playlistId}/Items":                           {mode: leakList, params: map[string]string{"playlistId": "playlist"}, control: true},
+		"POST /compat/Playlists":                                             exempt("creates a playlist of the caller and returns only its identifier; hidden items in the body are answered like missing ones (TestCompatCollectionsPostgres)"),
+		"POST /compat/Playlists/{playlistId}/Items":                          exempt("appends items named in the query to the caller's own playlist; hidden items are answered like missing ones and the response is an empty 204 (TestCompatCollectionsPostgres)"),
+		"DELETE /compat/Playlists/{playlistId}/Items":                        exempt("removes entries of the caller's own playlist; values naming no visible entry are ignored and the response is an empty 204 (TestCompatCollectionsPostgres)"),
+		"POST /compat/Playlists/{playlistId}/Items/{itemId}/Move/{newIndex}": exempt("reorders the caller's own playlist among its visible entries; a hidden entry is answered like a missing one with an empty body (TestCompatCollectionsPostgres)"),
 		// Third-party client compatibility layer (image module). Images go
 		// through the /images pipeline with the caller's own grant.
 		"GET /compat/Items/{itemId}/Images/{imageType}":               {mode: leakByID, params: map[string]string{"itemId": "item", "imageType": "image-type"}, control: true},
