@@ -279,6 +279,57 @@ class InstallTests(unittest.TestCase):
             with self.assertRaises(m.Rejected):
                 m.HTTPSRedirect().redirect_request(None, None, 302, "redirect", {}, url)
 
+    def test_unreachable_source_falls_back_to_pinned_mirror_with_same_hash(self):
+        item = copy.deepcopy(self.manifest["mediaRuntime"]["packages"][0])
+        item["mirrorURLs"] = ["https://mirror.example.test/pool/example.deb"]
+        original = (self.cache / "example.deb").read_bytes()
+        (self.cache / "example.deb").unlink()
+        opened = []
+
+        def open_uri(uri, timeout):
+            opened.append(uri)
+            if uri == item["url"]:
+                raise m.urllib.error.URLError("timed out")
+            response = io.BytesIO(original)
+            response.geturl = lambda: uri
+            return response
+        with mock.patch.object(m.urllib.request, "build_opener") as opener:
+            opener.return_value.open.side_effect = open_uri
+            m.fetch(self.project, item)
+        self.assertEqual(opened, [item["url"], item["mirrorURLs"][0]])
+        self.assertEqual((self.cache / "example.deb").read_bytes(), original)
+        # A mirror serving different bytes is rejected like the origin would be.
+        (self.cache / "example.deb").unlink()
+
+        def tampered(uri, timeout):
+            if uri == item["url"]:
+                raise m.urllib.error.URLError("timed out")
+            response = io.BytesIO(b"x" * len(original))
+            response.geturl = lambda: uri
+            return response
+        with mock.patch.object(m.urllib.request, "build_opener") as opener:
+            opener.return_value.open.side_effect = tampered
+            with self.assertRaises(m.Rejected):
+                m.fetch(self.project, item)
+        self.assertFalse((self.cache / "example.deb").exists())
+        self.assertEqual(list(self.cache.glob("*.partial")), [])
+
+    def test_mirrors_validated_and_excluded_from_runtime_identity(self):
+        manifest = json.loads((Path(__file__).resolve().parent.parent / "tools/manifest.json").read_text(encoding="utf-8"))
+        m.validate_manifest(manifest, require_ready=True)
+        item = manifest["mediaRuntime"]["licenseTexts"][0]
+        self.assertTrue(item["mirrorURLs"])
+        before = m.runtime_identity(manifest)
+        item["mirrorURLs"] = []
+        self.assertEqual(m.runtime_identity(manifest), before)
+        name = item["url"].rsplit("/", 1)[1]
+        for bad in (["http://mirror.example.test/" + name], ["https://mirror.example.test/other.txt"],
+                    [item["url"]], ["https://a.example.test/" + name] * 2, "https://a.example.test/" + name,
+                    ["https://%s.example.test/%s" % (host, name) for host in "abcd"]):
+            item["mirrorURLs"] = bad
+            with self.assertRaisesRegex(m.Rejected, "manifest_mirror|manifest_url"):
+                m.validate_manifest(manifest)
+
     def test_offline_verification_never_repairs_modified_installed_files(self):
         self.ready()
         files, _ = m.prepare(self.manifest, self.cache, True)

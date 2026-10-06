@@ -11,6 +11,7 @@ import platform
 from pathlib import Path, PurePosixPath
 import re
 import shutil
+import sys
 import stat
 import tempfile
 import time
@@ -306,6 +307,10 @@ def validate_manifest(manifest, require_ready=False):
         name = cache_name(item["url"])
         need(name not in names, "manifest_cache_collision")
         names.add(name)
+        mirrors = item.get("mirrorURLs", [])
+        need(isinstance(mirrors, list) and len(mirrors) <= 3 and len(set(mirrors)) == len(mirrors)
+             and item["url"] not in mirrors and all(isinstance(u, str) and cache_name(u) == name for u in mirrors),
+             "manifest_mirror")
         limit = MAX_SOURCE if item in sources else MAX_ARCHIVE if item in packages else MAX_NOTICE
         need(type(item["sizeBytes"]) is int and 0 < item["sizeBytes"] <= limit
              and isinstance(item["sha256"], str) and SHA.fullmatch(item["sha256"]) is not None,
@@ -415,10 +420,25 @@ def fetch(project, item, offline=False, limit=MAX_ARCHIVE):
             raise
         return archive
     need(not offline, "offline_missing")
-    uri = item["url"]
     mirror = os.environ.get("JELEE_TOOLS_MIRROR")
     if mirror:
-        uri = mirror.rstrip("/") + "/" + archive.name
+        candidates = [mirror.rstrip("/") + "/" + archive.name]
+    else:
+        # Pinned alternates serve the same file: every candidate must pass the
+        # same SHA256 and size, so a mirror only adds availability.
+        candidates = [item["url"]] + list(item.get("mirrorURLs", []))
+    for index, uri in enumerate(candidates):
+        try:
+            return download_one(project, item, archive, uri, limit)
+        except (OSError, Rejected) as error:
+            if index == len(candidates) - 1:
+                raise
+            print("runtime-tools: " + cache_name(uri) + " unavailable from " + urllib.parse.urlsplit(uri).hostname
+                  + " (" + type(error).__name__ + "); trying the next pinned source", file=sys.stderr, flush=True)
+    raise Rejected("download_unavailable")
+
+
+def download_one(project, item, archive, uri, limit):
     cache_name(uri)
     partial = local(project, archive.with_name(archive.name + "." + uuid.uuid4().hex + ".partial"))
     try:
@@ -512,7 +532,15 @@ def install_files(project, manifest, files):
 
 
 def runtime_identity(manifest):
-    return digest(json.dumps(manifest["mediaRuntime"], sort_keys=True, separators=(",", ":")).encode())
+    # Mirrors only change where a pinned file is fetched from, never what is
+    # installed, so adding one keeps existing installations valid.
+    def pinned(value):
+        if isinstance(value, dict):
+            return {key: pinned(item) for key, item in value.items() if key != "mirrorURLs"}
+        if isinstance(value, list):
+            return [pinned(item) for item in value]
+        return value
+    return digest(json.dumps(pinned(manifest["mediaRuntime"]), sort_keys=True, separators=(",", ":")).encode())
 
 
 def verify_install(project, manifest, files):
