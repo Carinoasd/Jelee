@@ -1,0 +1,29 @@
+# Reviewed secret-scan exceptions (G01.7). See docs/secret-leak-response.md.
+#
+# Format: <fingerprint|*> <rule|*> <path glob> <reason>
+#   fingerprint  16 hex digits printed by secretscan (hash of rule and value);
+#                * accepts every value of the rule in the matching paths and
+#                is reserved for tests whose purpose is feeding fake secrets
+#   rule         detector id, or * together with a concrete fingerprint
+#   path glob    repository path; * and ? stay in one directory, ** crosses
+#   reason       why the value is not a credential (required)
+#
+# `make secret-scan` fails on entries that no longer match anything. Never add
+# a real credential here: rotate it instead (docs/secret-leak-response.md).
+
+# CI-only PostgreSQL service container password; the database exists only
+# inside the job and is reachable on the runner's loopback.
+bb5d633c69b310ef url-credentials .github/workflows/jelee.yml CI service container password, loopback-only throwaway database
+bb5d633c69b310ef url-credentials scripts/test_heap_profile_acceptance.py redaction test reuses the CI service password string as input
+
+# Redaction and configuration tests: the fake credentials are the input the
+# tests prove never reach logs, errors or diagnostics.
+9a13972c3e030b86 url-credentials cmd/jelee-cli/doctor_test.go fake DSN proving doctor output redacts passwords
+fd4251c27b4d7988 url-credentials internal/platform/config/accounts_test.go fake DSN proving configuration errors redact passwords
+* url-credentials internal/platform/logging/*_test.go log redaction tests feed fake DSNs by design
+* jwt internal/platform/logging/*_test.go log redaction tests feed a fake JWT by design
+757d4fc7440b389f secret-assignment web/src/features/settings/twoFactor.test.ts fake app password in a mocked API response
+16ce9b3bb83f5d20 secret-assignment web/src/features/webhooks/webhooks.test.ts fake webhook secret in a frontend unit test
+
+# Public data that only looks like a secret.
+b893a2a21a43f52d secret-assignment tools/manifest.json public OpenPGP fingerprint of a tool vendor's checksum signing key

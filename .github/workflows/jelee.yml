@@ -29,7 +29,8 @@ jobs:
         run: python scripts/check-ui-locales.py
       - name: Linux bootstrap and verification
         if: runner.os == 'Linux'
-        # lint = gofmt, openapi/doc checks, go vet and golangci-lint against
+        # lint = gofmt, openapi/doc checks, migration lock, text encoding
+        # (textcheck) and secret scan, go vet and golangci-lint against
         # tools/lint-baseline/linux.json; coverage-check enforces the
         # per-package ratchet in tools/coverage-thresholds.json (G30.1).
         # The production image (probe-runtime-test) copies the pinned
@@ -144,6 +145,46 @@ jobs:
             base=$(git rev-parse --verify --quiet HEAD^ || true)
           fi
           make migration-lock-check MIGRATION_LOCK_BASE="$base"
+
+  commit-hygiene:
+    # G01.2 / G01.7: only the commits this push or pull request adds are
+    # checked (history before the base is never re-judged): Conventional
+    # Commit messages, a size warning for giant commits without a
+    # Large-Change trailer, and a secret scan of every added line. The full
+    # tracked-file secret scan runs in `make lint`.
+    name: New commits (messages, size, secrets)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+      - uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+        with:
+          path: .tools
+          key: jelee-${{ runner.os }}-${{ runner.arch }}-go1.27.1-${{ hashFiles('tools/manifest.json', 'go.sum') }}
+      - run: make bootstrap tools-verify
+      - name: Select the new commits
+        id: range
+        env:
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD: ${{ github.event.pull_request.head.sha }}
+          PUSH_BEFORE: ${{ github.event.before }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          head="${PR_HEAD:-$GITHUB_SHA}"
+          base="${PR_BASE:-$PUSH_BEFORE}"
+          if [ -z "$base" ] || [ "$base" = 0000000000000000000000000000000000000000 ] || ! git cat-file -e "$base^{commit}" 2>/dev/null; then
+            # New branch or tag: what is not yet on the default branch.
+            base=$(git merge-base "$head" "origin/$DEFAULT_BRANCH" 2>/dev/null || git rev-parse --verify --quiet "$head^" || true)
+          fi
+          if [ -z "$base" ]; then range="$head"; else range="$base..$head"; fi
+          echo "range=$range" >> "$GITHUB_OUTPUT"
+          echo "checking $range: $(git rev-list --count "$range") commits"
+      - name: Conventional Commits and commit size
+        run: make commit-lint COMMIT_RANGE="${{ steps.range.outputs.range }}"
+      - name: Secrets in the added lines
+        run: make secret-scan-range COMMIT_RANGE="${{ steps.range.outputs.range }}"
 
   bench-regression:
     # G26.4 / G38.1 performance gate. Base and head run alternately on this

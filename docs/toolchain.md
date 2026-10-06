@@ -134,16 +134,22 @@ Windows：`scripts/bootstrap-tools.ps1` 目前仍只安装 Go；清单已记录 
 | `test-integration` | 必须设置 `JELEE_TEST_DATABASE_URL`，执行 PostgreSQL Integration 测试 |
 | `coverage` | 生成被忽略的 `coverage.out` |
 | `fmt` / `fmt-check` | 格式化 / 检查 Go 源码 |
-| `lint` | 格式检查、OpenAPI 检查、`doc-check`、`go vet` 与 `golangci-lint` 门禁 |
+| `lint` | 格式检查、OpenAPI 检查、`doc-check`、迁移锁、`text-check`、`secret-scan`、`go vet` 与 `golangci-lint` 门禁 |
 | `golangci-lint` | 以 `.golangci.yml` 执行 golangci-lint，再以 `tools/lintgate` 对照 `tools/lint-baseline/<goos>.json`；基线外的新问题或已修复仍留在基线的条目都失败 |
 | `lint-baseline-prune` | 仅 Linux：对 linux 与 windows（交叉检查）重跑并从基线移除已修复条目，从不新增 |
 | `coverage-check` | 仅 Linux：按 `tools/coverage-thresholds.json` 测量核心／关键包覆盖率，低于棘轮最低值失败 |
 | `coverage-ratchet` | 仅 Linux：补测试后把最低值提高到实测值（向下取整），从不降低 |
 | `bench-compare` | 仅 Linux：`BENCH_BASE_REF=<提交>`，同机交替执行基准提交与工作树的热路径基准并以 benchgate 判定 |
-| `quality-gates-test` | lintgate、covergate、benchgate 单元测试（Linux 另含 bench-compare 脚本测试） |
+| `quality-gates-test` | lintgate、covergate、benchgate、gitignore-check、textcheck、secretscan、commitlint 单元测试（Linux 另含 bench-compare 与 release 脚本测试） |
 | `brand-scan` | 全仓库品牌门禁 |
 | `brand-scan-incremental` | 新增代码品牌检查 |
-| `gitignore-check` | 检查被跟踪的生成物与禁止文件 |
+| `gitignore-check` | `.gitignore` 结构与探针、全部已跟踪文件的二进制／大文件／归档／密钥／可执行文件检查（见下文“被忽略的产物”）；Makefile 可加 `GITIGNORE_CHECK_FLAGS=-list` 枚举被忽略与未被忽略的文件 |
+| `text-check` | 已跟踪文本文件 UTF-8 无 BOM、仅 LF，二进制文件带 `binary` 属性（`tools/textcheck`） |
+| `secret-scan` | 已跟踪文件密钥扫描（`tools/secretscan`），见[密钥泄露处理](secret-leak-response.md) |
+| `secret-scan-history` | 全部历史的密钥扫描（手动） |
+| `hooks` | `git config core.hooksPath .githooks`，只在开发者运行时设置 |
+| `commit-lint`／`secret-scan-range` | 仅 Makefile：`COMMIT_RANGE=A..B` 检查提交信息、规模与新增行密钥 |
+| `release-check`／`release-dry-run` | 仅 Makefile：`RELEASE_TAG=vX.Y.Z` 校验发布前提／不打标签构建发布归档到 `.testdata/release-dry-run/`（`scripts/release.py`） |
 | `migrate` | 执行 `jelee-migrate up` |
 | `doctor` | 执行 `jelee-cli doctor` |
 | `doc-check` | 离线文档门禁：`README.md` 与 `docs/**/*.md` 的相对链接／锚点、外部链接格式（不联网）、文档中带 HTTP 状态的错误码与错误码表一致 |
@@ -158,7 +164,22 @@ Windows：`scripts/bootstrap-tools.ps1` 目前仍只安装 Go；清单已记录 
 
 ## 被忽略的产物
 
-`.gitignore` 覆盖 `.tools/`、`.bin/`、`.venv/`、`.cache/`、`tools/vendor-downloads/`、`.testfixtures/`、`.testdata/`、`bin/`、`dist/`、`node_modules/`、覆盖率、报告、测试数据库、运行数据、日志、环境密钥、IDE 与临时文件。新增下载工具必须先更新清单、许可证表与忽略清单；二进制例外需记录在 `docs/binary-allowlist.md`。
+`.gitignore` 按需求 G01.4 原文的八组排列，每条规则上方都有一行英文注释说明来源。本节是忽略清单的同步副本：`make gitignore-check` 要求 `.gitignore` 的每条规则都以代码格式出现在本节，并用 `tools/gitignore-check/probes.txt` 中的正反例（`ignored`／`kept`）逐条验证，每条规则至少决定一个探针。新增或修改忽略规则时，同一提交里同步更新 `.gitignore` 注释、本节与探针；新增下载工具还要先更新 `tools/manifest.json` 与许可证表。
+
+| 组 | 规则 | 说明 |
+| --- | --- | --- |
+| 1 构建与依赖 | `bin/`、`dist/`、`node_modules/`、`/.gocache/`、`*.test`、`__debug_bin*`、`*.exe`、`*.dll`、`*.so`、`*.dylib`、`.vite/`、`*.tsbuildinfo`、`.eslintcache`、`__pycache__/`、`*.py[cod]` | `make build` 输出、Vite 构建与 `scripts/release.py` 的发布归档（`dist/release/`）、npm 依赖、仓库内的 Go build cache（引导默认放在 `.tools/cache/go-build`）、`go test -c` 与 Delve 产物、本机构建的可执行文件和库、Vite／TypeScript／ESLint 缓存、Python 字节码 |
+| 2 工具链与本地安装（G51） | `.tools`、`.bin/`、`.venv/`、`.cache/`、`tools/vendor-downloads/` | `.tools` 不带斜杠，worktree 可把它链接到共享工具目录 |
+| 3 测试 | `coverage.*`、`*.out`、`reports/`、`test-results/`、`playwright-report/`、`blob-report/`、`.coverage`、`.testfixtures/`、`.testdata/` | 覆盖率与 profile、各类报告、Playwright 产物（项目配置写到 `.testdata/playwright/`）、生成的测试素材与本机测试状态；`*.test.db` 由第 6 组的 `*.db` 覆盖 |
+| 4 运行数据 | `/data/`、`*.log`、`/logs/` | `/data/` 覆盖 `data/transcodes/`、`data/subtitles/`、`data/mediainfo/`、`data/images/`、`data/index/` 等全部派生目录；只匹配仓库根目录，`internal/.../data` 之类的源码目录不受影响 |
+| 5 环境与密钥 | `.env`、`.env.*`、`!.env.example`、`*.pem`、`*.key`、`*.p12`、`*.pfx`、`*.jks`、`credentials.json`、`service-account*.json`、`.netrc` | 保留 `.env.example`；密钥内容另由 `make secret-scan` 检查 |
+| 6 数据库 | `*.sqlite*`、`*.db`、`*.db-wal`、`*.db-shm`、`*.db-journal`、`*.dump`、`*.sql.gz`、`/postgres-data/`、`/pgdata/` | SQLite 及其日志、旧库 `jellyfin.db` 副本、测试数据库、`pg_dump` 输出与本地 PostgreSQL 数据卷 |
+| 7 IDE／系统 | `.idea/`、`.vscode/*`、`!.vscode/extensions.json`、`.vs/`、`*.swp`、`*.swo`、`*~`、`Thumbs.db`、`ehthumbs.db`、`[Dd]esktop.ini`、`$RECYCLE.BIN/`、`.DS_Store`、`.directory`、`~$*` | `.vscode/` 只保留共享的扩展推荐 `extensions.json`；个人 `settings.json`、`launch.json` 不入库 |
+| 8 临时 | `*.tmp`、`.tmp/`、`tmp/`、`*.bak`、`*.nfo.jelee.bak*`、`*.orig`、`*.rej` | NFO 写回备份按 G39 单独策略保存在媒体库旁，不进入仓库 |
+
+上游遗留的 Eclipse、Python 打包、Rider、Doxygen 与 .NET 分组已于 2026-10-06 删除：对应工具不再使用，仍有用途的条目（`.idea/`、`*.py[cod]`、`*.orig`、`*.rej`、Windows 系统文件）已归入上表。
+
+`make gitignore-check` 同时检查全部已跟踪文件：二进制、大于 1 MiB、归档、媒体、数据库、密钥扩展名和可执行文件必须在[二进制例外](binary-allowlist.md)中登记（类型与单文件上限），生成目录下的文件与违反忽略规则的已跟踪文件一律失败。`go run ./tools/gitignore-check -list` 另外枚举被忽略的路径（`ignored`）与未被忽略的未跟踪文件（`not-ignored`）。
 
 ## 数据库测试
 
@@ -297,6 +318,4 @@ Windows `fmt-check` 让固定 gofmt 递归检查 cmd/internal/tools，避免长�
 
 ## ABI 遷移門禁的本機產物
 
-門禁使用固定的ApiCompat `10.0.401`，只安裝在專案的 `.tools/abi/10.0.401`；實際 `--version` 輸出另與核准完整版本核對。工具版本及逐符號契約記錄於 `tools/abi/expected-breaks.json`，用途為開發／CI檢查，不隨產品分發。
-
-根目錄 `/abi-base/`、`/abi-head/`、`/abi-naming-base/` 是下載或建置的組件，`/abi-report/` 是原始診斷、退出碼與驗證結果。四個目錄均以精確根路徑忽略，允許刪除後由CI或驗證流程重建；`scripts/fixtures/` 與 `tools/abi/` 中受審查的文字契約仍納入Git。詳見[ABI門禁](abi-report-check.md)。
+ABI 门禁已随上游 C# 树移出而退役（见[ABI门禁](abi-report-check.md)），`/abi-base/`、`/abi-head/`、`/abi-naming-base/`、`/abi-report/` 不再生成，2026-10-06 起也不再列入 `.gitignore`；从标签 `upstream-csharp-final` 取回旧流程时请在独立 worktree 中运行。

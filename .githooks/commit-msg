@@ -1,0 +1,10 @@
+#!/bin/sh
+# Jelee commit-msg hook (G01.2): Conventional Commits with the G01.2 types.
+# Install with `make hooks`; see docs/git-workflow.md.
+set -u
+. "$(git rev-parse --show-toplevel)/.githooks/lib.sh"
+case $1 in
+/*) message=$1 ;;
+*) message=$root/$1 ;;
+esac
+run_go run ./tools/commitlint -message-file "$message"

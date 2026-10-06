@@ -1,6 +1,6 @@
 #requires -Version 7.2
 [CmdletBinding()]
-param([ValidateSet('init','bootstrap','bootstrap-media','bootstrap-matroska','matroska-tools-verify','bootstrap-runtime','runtime-tools-verify','tools-verify','media-tools-verify','media-toolchain-test','ignore-oracle-test','tools-clean','fixtures','fixtures-test','build','test','test-race','test-integration','coverage','fmt','fmt-check','lint','toolchain-test','brand-scan','brand-scan-incremental','gitignore-check','openapi','openapi-check','migrate','doctor','bench','bench-check','benchgate-test','doc-check','dev','nfo','diag','golangci-lint','quality-gates-test','migration-lock','migration-lock-check')][string]$Target = 'test')
+param([ValidateSet('init','bootstrap','bootstrap-media','bootstrap-matroska','matroska-tools-verify','bootstrap-runtime','runtime-tools-verify','tools-verify','media-tools-verify','media-toolchain-test','ignore-oracle-test','tools-clean','fixtures','fixtures-test','build','test','test-race','test-integration','coverage','fmt','fmt-check','lint','toolchain-test','brand-scan','brand-scan-incremental','gitignore-check','openapi','openapi-check','migrate','doctor','bench','bench-check','benchgate-test','doc-check','dev','nfo','diag','golangci-lint','quality-gates-test','migration-lock','migration-lock-check','hooks','text-check','secret-scan','secret-scan-history')][string]$Target = 'test')
 . "$PSScriptRoot/toolchain-lib.ps1"
 $root = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 Push-Location $root
@@ -91,6 +91,8 @@ try {
             & "$PSScriptRoot/make.ps1" openapi-check
             & "$PSScriptRoot/make.ps1" doc-check
             & "$PSScriptRoot/make.ps1" migration-lock-check
+            & "$PSScriptRoot/make.ps1" text-check
+            & "$PSScriptRoot/make.ps1" secret-scan
             & "$PSScriptRoot/run-go.ps1" vet ./...
             & "$PSScriptRoot/make.ps1" golangci-lint
         }
@@ -106,11 +108,20 @@ try {
             } finally { $env:CGO_ENABLED = $previousCgo }
             & "$PSScriptRoot/run-go.ps1" run ./tools/lintgate -report $report -baseline tools/lint-baseline/windows.json
         }
-        'quality-gates-test' { & "$PSScriptRoot/run-go.ps1" test -count=1 ./tools/lintgate ./tools/covergate ./tools/benchgate }
+        'quality-gates-test' { & "$PSScriptRoot/run-go.ps1" test -count=1 ./tools/lintgate ./tools/covergate ./tools/benchgate ./tools/gitignore-check ./tools/textcheck ./tools/secretscan ./tools/commitlint }
         'toolchain-test' { & "$PSScriptRoot/test-toolchain.ps1" }
         'brand-scan' { & "$PSScriptRoot/run-go.ps1" run ./tools/brand-scan }
         'brand-scan-incremental' { & "$PSScriptRoot/run-go.ps1" run ./tools/brand-scan --new }
         'gitignore-check' { & "$PSScriptRoot/run-go.ps1" run ./tools/gitignore-check }
+        # G01.5 / G01.7 / G01.6, same gates as the Makefile targets.
+        'text-check' { & "$PSScriptRoot/run-go.ps1" run ./tools/textcheck }
+        'secret-scan' { & "$PSScriptRoot/run-go.ps1" run ./tools/secretscan }
+        'secret-scan-history' { & "$PSScriptRoot/run-go.ps1" run ./tools/secretscan -history }
+        'hooks' {
+            & git config core.hooksPath .githooks
+            if ($LASTEXITCODE -ne 0) { throw 'git config core.hooksPath failed' }
+            Write-Host 'core.hooksPath=.githooks (hooks run through Git for Windows sh and scripts/run-go.ps1)'
+        }
         'openapi' { & "$PSScriptRoot/run-go.ps1" run ./tools/openapi }
         'openapi-check' {
             & "$PSScriptRoot/run-go.ps1" run ./tools/openapi -check

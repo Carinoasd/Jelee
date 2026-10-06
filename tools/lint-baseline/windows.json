@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "goos": "windows",
-  "total": 2003,
+  "total": 2002,
   "entries": [
     {
       "linter": "errcheck",
@@ -13358,13 +13358,6 @@
       "text": "Error return value of `fmt.Fprintln` is not checked",
       "source": "a98e8f34c361",
       "count": 4
-    },
-    {
-      "linter": "revive",
-      "file": "tools/gitignore-check/main.go",
-      "text": "package-comments: should have a package comment",
-      "source": "512843855fcc",
-      "count": 1
     },
     {
       "linter": "errcheck",

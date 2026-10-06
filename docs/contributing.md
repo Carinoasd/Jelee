@@ -18,13 +18,18 @@
 | `make test-race` | 竞态检测（需要 C 编译器） |
 | `make test-integration` | PostgreSQL 集成测试，必须设置 `JELEE_TEST_DATABASE_URL` |
 | `make fmt`／`make fmt-check` | 格式化／检查 Go 源码 |
-| `make lint` | `fmt-check`、`openapi-check`、`doc-check`、`migration-lock-check`、`go vet`、`golangci-lint` |
+| `make lint` | `fmt-check`、`openapi-check`、`doc-check`、`migration-lock-check`、`text-check`、`secret-scan`、`go vet`、`golangci-lint` |
+| `make hooks` | 本克隆启用 `.githooks`（pre-commit 与 commit-msg），见 [Git 流程](git-workflow.md#本地钩子) |
+| `make text-check` | 已跟踪文本文件为 UTF-8 无 BOM、LF 换行；二进制文件带 `.gitattributes` 的 `binary` 属性 |
+| `make secret-scan`／`make secret-scan-history` | 已跟踪文件／全部历史的密钥扫描，见[密钥泄露处理](secret-leak-response.md) |
+| `make commit-lint COMMIT_RANGE=A..B`／`make secret-scan-range COMMIT_RANGE=A..B` | 检查一段提交的信息格式与规模、新增行中的密钥（CI 用本次 push／PR 的范围） |
+| `make release-check RELEASE_TAG=vX.Y.Z`／`make release-dry-run` | 发布前校验标签、CHANGELOG 段落与版本号／不打标签构建发布归档，见[发布标签流程](git-workflow.md#发布标签流程) |
 | `make migration-lock`／`make migration-lock-check` | 把新增的迁移追加到迁移锁 `internal/adapter/postgres/migrations/checksums.txt`／检查已锁定的迁移没有被修改、删除或重新编号（`MIGRATION_LOCK_BASE=<提交>` 另外要求该提交的锁条目原样保留），见 [ADR 0006](adr/0006-migration-version-policy.md) |
 | `make openapi`／`make openapi-check` | 重新生成／校验 `api/openapi.json`，见 [API 参考](api-reference.md) |
 | `make doc-check` | 文档链接、锚点与错误码引用检查 |
 | `make coverage-check` | 按 `tools/coverage-thresholds.json` 检查覆盖率棘轮 |
 | `make brand-scan-incremental` | 新增代码的品牌检查 |
-| `make gitignore-check` | 检查是否误提交了生成物或禁止的文件 |
+| `make gitignore-check` | 忽略规则结构、正反例探针，以及全部已跟踪文件的二进制／大文件／归档／密钥／可执行文件检查（例外见[二进制例外](binary-allowlist.md)）；`GITIGNORE_CHECK_FLAGS=-list` 另列出被忽略与未被忽略的文件 |
 | `make migrate`、`make dev` | 迁移开发数据库、启动开发服务 |
 | `make web-install web-types web-lint web-test web-build` | 前端依赖、类型（含 OpenAPI 类型是否过期）、ESLint 与四语检查、单元测试、构建与体积预算 |
 
@@ -44,7 +49,9 @@ Windows 使用 `pwsh -File scripts/make.ps1 <目标>`，目标名称相同（部
 | 架构 | `go test ./internal/architecture/...`：`internal/domain`、`internal/app` 的非测试文件不得导入 `os`、`net`、`database/*` 或第三方包；直投与 HTTP 包不得出现创建进程的代码（[ADR 0007](adr/0007-no-encoder-direct-play-only.md)）；只有旧库读取器能导入 SQLite（[ADR 0005](adr/0005-postgresql-only-state.md)） |
 | API 契约 | 改动 HTTP 路由或错误码时运行 `make openapi` 并提交 `api/openapi.json` 与前端类型 `web/src/api/schema.d.ts`；在 `internal/adapter/http/access_leak_test.go` 的 `leakRouteTable` 登记新路由；把新路由归入[权限矩阵](permission-matrix.md)的某一行；新的列表操作在 `listContracts` 登记契约（或带理由列入 `listExemptions`），由 `TestOpenAPIListOperationsDeclareListContract` 检查，约定见 [API 参考](api-reference.md#列表约定) |
 | 文档 | `make doc-check`；领域表变化时更新[领域模型](domain-model.md)并运行 `TestDomainModelDocument*`；错误码变化时重新生成 [API 参考](api-reference.md#错误码)的错误码表 |
-| 品牌与忽略文件 | `make brand-scan-incremental` 零违规；`make gitignore-check` |
+| 品牌与忽略文件 | `make brand-scan-incremental` 零违规；`make gitignore-check`：`.gitignore` 八组逐条注释、每条规则都有探针且列入[工具链](toolchain.md#被忽略的产物)，已跟踪的二进制与大于 1 MiB 的文件必须登记在[二进制例外](binary-allowlist.md) |
+| 编码与密钥 | `make lint` 内的 `text-check`（UTF-8 无 BOM、LF）与 `secret-scan`（允许清单 `tools/secretscan/allowlist.txt`，只登记测试假值并写明理由） |
+| 新提交 | CI `commit-hygiene` 作业：本次 push／PR 新增提交的信息符合 Conventional Commits、超过 80 个文件或 8000 行且没有 `Large-Change:` 脚注时警告、新增行无密钥（[Git 流程](git-workflow.md#提交规范)） |
 | 前端 | 四语资源键一致（`scripts/check-ui-locales.py`、`npm run i18n:check`），不允许在前端包中出现播放代码，主包体积在预算内 |
 
 改动之后至少做一次**反向验证**：故意破坏被测试的行为，确认对应测试会失败，再恢复。
@@ -55,8 +62,8 @@ Windows 使用 `pwsh -File scripts/make.ps1 <目标>`，目标名称相同（部
 
 ## 提交规则
 
-- 提交信息格式：`类型(范围): 摘要`，类型为 `feat|fix|refactor|perf|chore|docs|test|build|ci`，范围是模块名，例如 `feat(media): …`、`docs(adr): …`。摘要说明做了什么以及对应的需求编号（如 `G48.3`）。
-- 一个提交只做一件事；需求追溯矩阵引用提交号，不要把不相关的提交挂到某个需求上。
+- 提交信息格式：`类型(范围): 摘要`，类型为 `feat|fix|refactor|perf|chore|docs|test|build|ci`，范围是小写模块名，例如 `feat(media): …`、`docs(adr): …`，破坏性变更加 `!`。摘要说明做了什么以及对应的需求编号（如 `G48.3`）。完整规则、允许的 Git 自动信息与 CI 检查范围见 [Git 流程](git-workflow.md#提交规范)；建议运行一次 `make hooks`，让 commit-msg 钩子在本地检查。
+- 一个提交只做一件事；超过 80 个文件或 8000 行（不计生成物）时拆分，或在脚注写 `Large-Change: <为何是单一目标>`。需求追溯矩阵引用提交号，不要把不相关的提交挂到某个需求上。
 - 不重写已推送的历史，不强制推送，不删除他人的分支。
 - 作者署名统一为 `Carinoasd`（版权行写 `(C) 2026 Carinoasd`）。提交时用命令级配置指定身份，例如：
 
@@ -65,7 +72,8 @@ Windows 使用 `pwsh -File scripts/make.ps1 <目标>`，目标名称相同（部
   ```
 
   提交、文档与代码中不写真实姓名、个人邮箱或其他联系方式；不要从文件路径或系统账号推断作者名。
-- 不提交密钥、测试数据库地址、账号密码或本机生成物；这些放在被忽略的 `.testdata/` 等目录。
+- 不提交密钥、测试数据库地址、账号密码或本机生成物；这些放在被忽略的 `.testdata/` 等目录。新增忽略规则时同步更新 `.gitignore` 注释、`tools/gitignore-check/probes.txt` 与[工具链](toolchain.md#被忽略的产物)；确需入库的二进制登记在[二进制例外](binary-allowlist.md)。发现密钥泄露按[密钥泄露处理](secret-leak-response.md)先轮换。
+- 版本号与发布只来自 SemVer 标签，标签由拥有者打，见[发布标签流程](git-workflow.md#发布标签流程)。
 - 遵循 [Git 与回滚流程](git-workflow.md)：上游同步在独立分支审阅后整合。
 
 ## 代码约定

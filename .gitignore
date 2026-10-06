@@ -1,162 +1,181 @@
-.directory
+## Jelee ignore rules (G01.4).
+##
+## Eight groups in the order of docs/requirements-source.md G01.4. Every
+## pattern has its own comment line directly above it; tools/gitignore-check
+## enforces that, enforces that each pattern appears in docs/toolchain.md
+## ("被忽略的产物"), and runs ignored/not-ignored probes against every rule
+## (tools/gitignore-check/probes.txt). Adding a pattern therefore means adding
+## a comment, a probe and the docs/toolchain.md entry in the same commit.
+## Lines starting with "##" are section headings, "#" lines explain the next
+## pattern. Git does not support trailing comments.
 
-#################
-## Eclipse
-#################
+## 1. Build outputs and dependencies
 
-*.pydevproject
-.project
-.metadata
+# make build / scripts/make.ps1 build: bin/jelee, bin/jelee-cli, bin/jelee-migrate.
 bin/
-tmp/
-*.tmp
-*.bak
-*.swp
-*~.nib
-project.fragment.lock.json
-project.lock.json
-local.properties
-.classpath
-.settings/
-.loadpath
-*.lscache
-
-# External tool builders
-.externalToolBuilders/
-
-# Locally stored "Eclipse launch configurations"
-*.launch
-
-# CDT-specific
-.cproject
-
-# PDT-specific
-.buildpath
-
-#################
-## Generic build, editor and patch output
-#################
-
-.vs/
-*.user
-[Dd]ebug/
-[Rr]elease/
-build/
-[Bb]in/
-*.log
-*.orig
-*.rej
-~$*
-*~
-
-#############
-## Windows detritus
-#############
-
-# Windows image file caches
-Thumbs.db
-ehthumbs.db
-
-# Folder config file
-Desktop.ini
-
-# Recycle Bin used on file shares
-$RECYCLE.BIN/
-
-# Mac crap
-.DS_Store
-
-#############
-## Python
-#############
-
-*.py[co]
-
-# Packages
-*.egg
-*.egg-info
-build/
-eggs/
-parts/
-var/
-sdist/
-develop-eggs/
-.installed.cfg
-
-# Installer logs
-pip-log.txt
-
-# Unit test / coverage reports
-.coverage
-.tox
-
-#Translations
-*.mo
-
-#Mr Developer
-.mr.developer.cfg
-
-##########
-# Rider
-##########
-.idea/
-
-#########################
-# Build artifacts
-#########################
-
-ci/
-
-# Doxygen
-doc/
-
-# Deployment artifacts
-dist
-*.exe
-*.dll
-
-# Ignore web artifacts from native builds
-# The Jelee web source will be tracked; only compiled web output is ignored.
-web/dist/
-web-src.*
-
-# Jelee build, dependency and local toolchain artifacts (G01/G51).
-# No trailing slash: worktrees may link .tools to a shared toolchain directory.
-.tools
-.bin/
-.venv/
-.cache/
-tools/vendor-downloads/
+# Vite build output (web/dist) and scripts/release.py archives (dist/release).
+dist/
+# npm workspace dependencies (repository root and web/).
 node_modules/
-*.tsbuildinfo
+# Go build cache when GOCACHE is pointed inside the checkout; bootstrap keeps it in .tools/cache.
+/.gocache/
+# Go test binaries from `go test -c`.
+*.test
+# Delve debug binaries written next to the package (__debug_bin1234).
+__debug_bin*
+# Native executables and libraries built by hand; release archives carry them, Git never does.
+*.exe
+# Windows dynamic libraries (cgo or hand builds).
+*.dll
+# Linux shared objects.
+*.so
+# macOS dynamic libraries.
+*.dylib
+# Vite dependency pre-bundling cache.
 .vite/
+# TypeScript incremental build state (tsc -b).
+*.tsbuildinfo
+# ESLint --cache state.
+.eslintcache
+# Python bytecode cache directories of scripts/*.py.
+__pycache__/
+# Stray Python bytecode files (scripts run with -B, but direct imports may still write them).
+*.py[cod]
 
-# Generated test fixtures, coverage and browser reports.
-.testfixtures/
-.testdata/
+## 2. Toolchain and local installs (G51)
+
+# Pinned tool installs; no trailing slash because worktrees may link .tools to a shared directory.
+.tools
+# Generated wrappers and links into .tools (.bin/go, .bin/npm, .bin/golangci-lint).
+.bin/
+# Python virtual environments.
+.venv/
+# Generic tool caches (go-build, npm, pip) when redirected into the checkout.
+.cache/
+# Vendor archives downloaded by bootstrap scripts before verification.
+tools/vendor-downloads/
+
+## 3. Tests: coverage, reports, browser output and generated fixtures
+
+# Go coverage profiles and reports (coverage.out, coverage.html).
 coverage.*
+# Go profiles and other test outputs (cpu.out, mem.out, c.out).
 *.out
+# Generic report directories (lint, bench, acceptance).
 reports/
+# Playwright and other test runners' result directories.
 test-results/
+# Playwright HTML report when written outside .testdata.
 playwright-report/
-*.test.db
+# Playwright blob reports (sharded runs).
+blob-report/
+# Python coverage data.
+.coverage
+# Generated media fixtures (make fixtures).
+.testfixtures/
+# Local test state: databases URLs, reports, soak logs, agent env files.
+.testdata/
+# Throwaway test databases (*.test.db) are covered by *.db in group 6.
 
-# Runtime data, derived assets and database volumes/backups.
+## 4. Runtime data and logs
+
+# Runtime data root and every derived folder below it (transcodes, subtitles, mediainfo, images, index).
 /data/
+# Log files written by local runs.
+*.log
+# Log directory of local runs.
 /logs/
-*.sqlite*
-*.dump
-/postgres-data/
 
-# Local configuration and credentials; keep the documented example.
+## 5. Environment and secrets
+
+# Local environment file.
 .env
+# Environment variants (.env.local, .env.production).
 .env.*
+# The documented example stays tracked.
 !.env.example
+# PEM certificates and private keys.
 *.pem
+# Private keys.
 *.key
+# PKCS#12 key stores.
 *.p12
+# PKCS#12 key stores (Windows extension).
+*.pfx
+# Java key stores.
+*.jks
+# Generic credential files (OAuth clients, cloud SDKs).
 credentials.json
+# Cloud service account keys.
+service-account*.json
+# netrc credentials.
+.netrc
 
-# Temporary work and local NFO backups.
+## 6. Databases
+
+# SQLite files and their journals (*.sqlite, *.sqlite3, *.sqlite-wal).
+*.sqlite*
+# Other local database files: *.test.db, copies of a legacy jellyfin.db for legacy-import.
+*.db
+# SQLite write-ahead log of a *.db file.
+*.db-wal
+# SQLite shared-memory index of a *.db file.
+*.db-shm
+# SQLite rollback journal of a *.db file.
+*.db-journal
+# pg_dump custom-format dumps.
+*.dump
+# Compressed SQL dumps.
+*.sql.gz
+# Local PostgreSQL data volume (bind mount of docker compose).
+/postgres-data/
+# Alternative local PostgreSQL data directory name.
+/pgdata/
+
+## 7. IDE and operating system files
+
+# JetBrains (GoLand, WebStorm, Rider) project state.
+.idea/
+# VS Code local state; shared configuration is re-included below.
+.vscode/*
+# Shared extension recommendations stay tracked.
+!.vscode/extensions.json
+# Visual Studio local state.
+.vs/
+# Vim swap files.
+*.swp
+# Vim swap files (second generation).
+*.swo
+# Editor backup files.
+*~
+# Windows thumbnail cache.
+Thumbs.db
+# Windows thumbnail cache (older name).
+ehthumbs.db
+# Windows folder settings.
+[Dd]esktop.ini
+# Windows recycle bin on shares.
+$RECYCLE.BIN/
+# macOS Finder metadata.
+.DS_Store
+# KDE Dolphin folder settings.
+.directory
+# Microsoft Office lock files.
+~$*
+
+## 8. Temporary files
+
+# Temporary files (listed before .tmp/ so the directory rule decides for it).
+*.tmp
+# Scratch directory of tools and agents.
 .tmp/
+# Scratch directory.
+tmp/
+# Backup copies.
+*.bak
+# Local NFO write-back backups (G39 keeps NFO backups outside Git).
 *.nfo.jelee.bak*
+# Merge leftovers.
+*.orig
+# Rejected patch hunks.
+*.rej
