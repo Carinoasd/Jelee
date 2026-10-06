@@ -1,6 +1,6 @@
 # 備份與還原（G36.4）
 
-本文定義 Jelee 的備份策略、還原步驟與演練方式，對應 G36.4，以及 G36.3（資料生命週期）裡和備份有關的部分。資產的位置與能否重建以[儲存佈局](storage-layout.md)為準；部署方式見[部署](deployment.md)。
+本文定義 Jelee 的備份策略、還原步驟與演練方式，對應 G36.4，以及 G36.3（資料生命週期）裡和備份有關的部分。資產的位置與能否重建以[儲存佈局](storage-layout.md)為準，資料表之間的關係見[領域模型](domain-model.md)；部署方式見[部署](deployment.md)。
 
 Jelee 有兩層備份，用途不同，**兩者都要做**：
 
@@ -145,6 +145,7 @@ $dc up -d jelee
 | 媒體庫網路規則（G48.5；媒體庫沒有一起匯入時略過） | 分享連結與其訪客帳號、訪客的進度與規則（G48.6：持權杖即可存取，還原等於讓舊連結復活） |
 | Webhook 端點（密鑰與標頭**保持封存**） | outbox、投遞紀錄 |
 | 掃描排程與監看開關 | 排程的上次執行與錯誤、監看租約 |
+| — | **尚未納入、只在 `pg_dump` 裡**（2026-10-06 對照 `domain.MetadataBackupKinds` 核對）：合集與合集成員、播放清單（遷移 081）、使用者介面偏好（073）、站點外觀與外掛設定（075；可另用管理員 API `GET /api/v1/site/export`／`POST /api/v1/site/import` 搬移）、修復與一致性檢查紀錄（074、083）。只靠元資料檔搬遷時，這些資料會遺失 |
 | — | 稽核紀錄（只在 `pg_dump` 裡）、初始引導狀態 |
 
 ### 格式
@@ -245,7 +246,7 @@ $dc run --rm --no-deps -T --entrypoint /jelee-cli jelee metadata import --in - <
 
 ## schema 版本相容
 
-每個 Jelee 二進位只接受一個確切的 schema 版本（目前 71）。
+每個 Jelee 二進位只接受一個確切的 schema 版本（`internal/adapter/postgres` 的 `SchemaVersion`，本文更新時為 83；版本政策見 [ADR 0006](adr/0006-migration-version-policy.md)）。
 
 | 情況 | 做法 |
 | --- | --- |

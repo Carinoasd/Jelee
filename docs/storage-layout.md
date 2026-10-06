@@ -1,10 +1,10 @@
 # 存储布局
 
-本文以当前代码为准（schema 000069，`internal/adapter/postgres/store.go` 的 `SchemaVersion = 69`，2026-10-04 更新），列出 Jelee 在本机会读写的全部资产：每一项写明由谁建立、由谁清理、能否删除后重建。G09.1 要求媒体、字幕、音轨、NFO、图片、封面、章节、探测缓存都位于本地卷；本文是这份目录结构的定义。
+本文以当前代码为准（主体于 schema 000069 时整理，2026-10-04；之后迁移 070–083 新增的表见各功能文档与[领域模型](domain-model.md)，2026-10-06 当前 `SchemaVersion` 为 83），列出 Jelee 在本机会读写的全部资产：每一项写明由谁建立、由谁清理、能否删除后重建。G09.1 要求媒体、字幕、音轨、NFO、图片、封面、章节、探测缓存都位于本地卷；本文是这份目录结构的定义。
 
 总原则：
 
-- **PostgreSQL 是唯一的持久状态。** 服务不使用 SQLite、嵌入式 KV 或本地 JSON 状态文件，日志只写到 stdout。
+- **PostgreSQL 是唯一的持久状态。** 服务不使用 SQLite、嵌入式 KV 或本地 JSON 状态文件（见 [ADR 0005](adr/0005-postgresql-only-state.md)）。日志默认只写到 stdout，可选写入轮转的日志文件（见[日志](logging.md)）。
 - **媒体库目录默认只读。** 服务只读取媒体、字幕、音轨、`.jeleeignore` 和 NFO，不覆写、不自动删除这些文件。Compose 也把媒体以 `:ro` 方式挂载。
 - **本地暂存都在私有目录内。** 目录名都由程序自己生成，崩溃留下的残留由启动清扫处理，详见 [暂存与崩溃残留](#暂存与崩溃残留)。
 
@@ -20,7 +20,8 @@
 | NFO 缓存 | 数据库 `nfo_cache` 等 | NFO worker | TTL 与 quota | 可删，会重新读取 |
 | 图片内存缓存 | 进程内存 | 图片处理器 | LRU 与 TTL | 重启即清空 |
 | 图片暂存 | `JELEE_IMAGE_TEMP_ROOT/image-…partial` | 图片请求 | 请求结束时删除；启动清扫 | 停机时可删 |
-| 图片持久存放区 | `JELEE_IMAGE_STORE_ROOT` | 目前没有接入 | — | 见 [图片](#图片) |
+| 图片持久存放区 | `JELEE_IMAGE_STORE_ROOT` | 图片请求（设置后由 runtime 启动时打开） | 变体按 LRU 淘汰；修复动作 `image-variants` 整体作废旧世代 | 见 [图片](#图片)与[图片资产](image-assets.md) |
+| 日志文件 | `JELEE_LOG_FILE` 及同目录的轮转备份（文件 0600、目录 0700） | 日志路由（`JELEE_LOG_OUTPUT=file` 或 `both` 时） | 按大小／时间轮转，保留 `JELEE_LOG_MAX_BACKUPS` 个 | 可删；`jelee-cli diag export` 只读当前文件，见[日志](logging.md) |
 | 外部工具暂存 | `$TMPDIR/jelee-service-*`、`$TMPDIR/jelee-probe-check-*` | probe／ignore／mkv 服务 | 服务关闭时删除；启动清扫 | 停机时可删 |
 | 工具与授权文件 | 容器内 `/usr/lib/jelee/ffprobe`、`/usr/lib/jelee/mediainfo`、`/usr/lib/jelee/mkvtoolnix/`、（OCR 層）`/usr/lib/jelee/tesseract/`、`/lib`、`/lib64`、`/licenses` | 镜像 | — | 不可改，身份与 SHA-256 都会校验 |
 | Matroska 擷取快取 | `JELEE_MATROSKA_CACHE_ROOT/<sourceID>/<修訂>/`（內嵌文字字幕與字型附件的原樣副本） | 擷取請求（E4，預設關閉） | 新修訂取代舊修訂；超過 `JELEE_MATROSKA_CACHE_MAX_BYTES` 依最近使用淘汰；staging 殘留一小時後清除 | 可隨時刪除，下次請求重新擷取；不需備份，見 [mkvtoolnix 與 MediaInfo](matroska-tools.md) |
@@ -32,7 +33,7 @@
 
 ## 数据库（schema 1–69）
 
-当前二进制只接受 clean schema 69；版本低一、高一，或 `dirty` 都会拒绝启动，要先执行 `jelee-migrate up`。所有迁移都没有 DROP TABLE。依功能分组：
+每个二进制只接受一个确切的 clean schema（`SchemaVersion`，见 [ADR 0006](adr/0006-migration-version-policy.md)）；版本较低、较高或 `dirty` 都会拒绝启动，要先执行 `jelee-migrate up`。所有迁移都没有 DROP TABLE。依功能分组：
 
 | 迁移 | 内容 |
 | --- | --- |

@@ -10,6 +10,7 @@
 - 執行期：`internal/platform/runtime/devmode.go`（控制器、日誌層級、SQL 日誌、背景重新整理）。
 - CLI：`jelee-cli devmode enable|disable|status`（`cmd/jelee-cli/devmode.go`）。
 - 前端：`web/src/features/devmode/`（頂部常駐橫幅，四語）；`web/src/features/devconsole/`（API 控制台，G49.4，見下文）。
+- 相關文件：各角色在開發者模式下的差異見[權限矩陣](permission-matrix.md)；日誌開關見[日誌](logging.md)；開發者路由的契約見 [API 參考](api-reference.md)。
 
 ## 開啟流程（G45.1、G45.2）
 
@@ -97,6 +98,8 @@ HTTP **永遠不能**開啟開發者模式：沒有任何網址能直接開啟�
 | `debug_mock_external` | 否 | 未接 | — | — | 見「後續」 |
 | `debug_seed_data` | 否 | 未接 | — | — | 見「後續」 |
 | `debug_force_jobs` | 否 | 未接 | — | — | 管理員本來就能用 `POST /api/v1/libraries/{id}/schedule/run` 立即執行排程 |
+
+> **已知問題（2026-10-06 讀程式發現，尚未實測）**：`debug_sql_logging` 與 `debug_body_logging` 寫出的欄位（`statement`、`requestBody`、`responseBody` 等）與代碼 `devmode_sql_log`、`devmode_body_log` 不在正式日誌路由的白名單內，輸出時會被換成 `[redacted]`。細節見[日誌](logging.md)「開發者模式下的日誌」一節。
 
 ## 危險操作二次確認（G45.6）
 
