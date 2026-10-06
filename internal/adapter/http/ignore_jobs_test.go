@@ -102,7 +102,7 @@ func TestIgnoreReportOpenAPIRolloutAndContract(t *testing.T) {
 		t.Fatal("missing authorization or terminal-state contract")
 	}
 	params := op["parameters"].([]any)
-	if len(params) != 3 || params[1].(map[string]any)["schema"].(map[string]any)["maxLength"] != 4096 || params[2].(map[string]any)["schema"].(map[string]any)["maximum"] != 100 {
+	if len(params) != 3+4 || params[1].(map[string]any)["schema"].(map[string]any)["maxLength"] != 4096 || params[2].(map[string]any)["schema"].(map[string]any)["maximum"] != 100 {
 		t.Fatal("incorrect bounded report pagination")
 	}
 	schemas := spec["components"].(map[string]any)["schemas"].(map[string]any)

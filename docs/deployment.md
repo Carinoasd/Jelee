@@ -146,6 +146,18 @@ Jelee 不需要 Redis：快取都在各實例的記憶體內，以版本號、�
 
 第29版新增[年份有型別保存](nfo-year-fact.md)，年份來源／鎖／人工null清除與文字同交易。001–028保持；保留年份資料或新版proof時拒絕29→28。
 
+## 响应压缩（G11.7）
+
+Jelee 用标准库 gzip 压缩非媒体响应（JSON、NDJSON、HTML、CSS、JavaScript、纯文本、CSV），只在客户端带 `Accept-Encoding: gzip` 且响应体达到门槛时压缩；原文件直投、轨道、附件、字幕、图片、带 `Range` 的请求与 206 一律原样发送。规则与 `ETag` 的处理见 [API 参考](api-reference.md#响应约定)。
+
+| 配置（`compression`） | 环境变量 | 默认 | 说明 |
+| --- | --- | --- | --- |
+| `mode` | `JELEE_HTTP_COMPRESSION` | `gzip` | `gzip` 或 `off`；关闭后不压缩也不加 `Vary: Accept-Encoding` |
+| `level` | `JELEE_HTTP_COMPRESSION_LEVEL` | 5 | gzip 级别 1（最快）～9（最小） |
+| `minBytes` | `JELEE_HTTP_COMPRESSION_MIN_BYTES` | 1024 | 小于此大小的响应体原样发送（1～1048576） |
+
+代价：50 条条目的列表页（约 5 KiB）在默认级别下的编码时间约为 JSON 编码本身的 1 倍（`BenchmarkWriteJSONItemPageGzip`），门槛以下的小响应只多一次缓冲（`BenchmarkWriteJSONErrorCompressionPassthrough`）。反向代理若已统一压缩，可设 `JELEE_HTTP_COMPRESSION=off` 避免重复工作；无论哪边压缩，代理都不得压缩直投与 Range 响应（见下节）。HTTP/2 只由反向代理在 TLS 上提供，Jelee 本身只监听明文 HTTP/1.1；WebSocket 尚未实现。
+
 ## 反向代理（G37.3）
 
 参考配置：[`deploy/nginx/jelee.conf`](../deploy/nginx/jelee.conf)（nginx ≥ 1.25.1）与 [`deploy/caddy/Caddyfile`](../deploy/caddy/Caddyfile)（Caddy 2.7+）。**两份配置都只是参考，尚未在真实公网部署、真实客户端或真实影片上验收**；上线前必须在自己的环境按本节末尾的核对清单验证。

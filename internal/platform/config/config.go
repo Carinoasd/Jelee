@@ -16,25 +16,27 @@ import (
 )
 
 type Config struct {
-	Resources             ResourcesConfig `json:"resources"`
-	Access                AccessConfig    `json:"access"`
-	Streaming             StreamingConfig `json:"streaming"`
-	Playback              PlaybackConfig  `json:"playback"`
-	Stats                 StatsConfig     `json:"stats"`
-	Listen                string          `json:"listen"`
-	AllowedHosts          []string        `json:"allowedHosts"`
-	TrustedProxies        []string        `json:"trustedProxies"`
-	DatabaseURL           string          `json:"-"`
-	TMDBAPIKey            string          `json:"-"`
-	MaxConnections        int32           `json:"maxConnections"`
-	MaxStreams            int             `json:"maxStreams"`
-	RequestTimeoutSeconds int             `json:"requestTimeoutSeconds"`
-	EnableCatalog         bool            `json:"enableCatalog"`
-	EnableDirect          bool            `json:"enableDirect"`
-	EnableAccounts        bool            `json:"enableAccounts"`
-	EnableMetrics         bool            `json:"enableMetrics"`
-	EnableImages          bool            `json:"enableImages"`
-	Images                ImagesConfig    `json:"images"`
+	Resources ResourcesConfig `json:"resources"`
+	Access    AccessConfig    `json:"access"`
+	Streaming StreamingConfig `json:"streaming"`
+	Playback  PlaybackConfig  `json:"playback"`
+	Stats     StatsConfig     `json:"stats"`
+	// Compression is the gzip compression of non-media responses (G11.7).
+	Compression           CompressionConfig `json:"compression"`
+	Listen                string            `json:"listen"`
+	AllowedHosts          []string          `json:"allowedHosts"`
+	TrustedProxies        []string          `json:"trustedProxies"`
+	DatabaseURL           string            `json:"-"`
+	TMDBAPIKey            string            `json:"-"`
+	MaxConnections        int32             `json:"maxConnections"`
+	MaxStreams            int               `json:"maxStreams"`
+	RequestTimeoutSeconds int               `json:"requestTimeoutSeconds"`
+	EnableCatalog         bool              `json:"enableCatalog"`
+	EnableDirect          bool              `json:"enableDirect"`
+	EnableAccounts        bool              `json:"enableAccounts"`
+	EnableMetrics         bool              `json:"enableMetrics"`
+	EnableImages          bool              `json:"enableImages"`
+	Images                ImagesConfig      `json:"images"`
 	// Matroska is the optional embedded subtitle and font extraction (E4).
 	Matroska MatroskaConfig `json:"matroska"`
 	// SubtitleOCR derives SRT tracks from bitmap subtitles (G15.6); off by
@@ -202,6 +204,9 @@ func LoadWith(lookup func(string) (string, bool)) (Config, error) {
 	if err := c.Stats.loadEnvironment(lookup); err != nil {
 		return c, err
 	}
+	if err := c.Compression.loadEnvironment(lookup); err != nil {
+		return c, err
+	}
 	if err := c.Logging.loadEnvironment(lookup); err != nil {
 		return c, err
 	}
@@ -228,6 +233,9 @@ func (c Config) Validate() error {
 		return err
 	}
 	if err := c.Stats.Validate(); err != nil {
+		return err
+	}
+	if err := c.Compression.Validate(); err != nil {
 		return err
 	}
 	if err := c.Logging.Validate(); err != nil {

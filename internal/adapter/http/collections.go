@@ -2,7 +2,6 @@ package httpapi
 
 import (
 	"net/http"
-	"strconv"
 
 	"github.com/MoYuanCN/Jelee/internal/domain"
 	"github.com/go-chi/chi/v5"
@@ -22,12 +21,18 @@ const collectionPageDefault = 50
 // their owner only.
 func (s *Server) collectionRoutes(r chi.Router) {
 	r.Get("/api/v1/collections", s.accountEndpoint(false, true, func(_ http.ResponseWriter, r *http.Request, a domain.Actor) (any, int, error) {
-		cursor, limit, err := pageQuery(r)
+		q, err := listQuery(r, "/api/v1/collections")
 		if err != nil {
 			return nil, 0, err
 		}
-		page, err := s.catalog.ListCollections(r.Context(), a, cursor, limit)
-		return page, http.StatusOK, err
+		rows, next, err := keysetPage(q, func(cursor string, limit int) ([]domain.Collection, string, error) {
+			page, err := s.catalog.ListCollections(r.Context(), a, cursor, limit)
+			return page.Collections, page.NextCursor, err
+		})
+		if err != nil {
+			return nil, 0, err
+		}
+		return listData(q, domain.CollectionPage{Collections: rows, NextCursor: next})
 	}))
 	r.Post("/api/v1/collections", s.accountEndpoint(true, false, func(w http.ResponseWriter, r *http.Request, a domain.Actor) (any, int, error) {
 		input, err := decodeCollectionInput(w, r)
@@ -79,12 +84,18 @@ func (s *Server) collectionRoutes(r chi.Router) {
 	}))
 
 	r.Get("/api/v1/playlists", s.accountEndpoint(false, true, func(_ http.ResponseWriter, r *http.Request, a domain.Actor) (any, int, error) {
-		cursor, limit, err := pageQuery(r)
+		q, err := listQuery(r, "/api/v1/playlists")
 		if err != nil {
 			return nil, 0, err
 		}
-		page, err := s.catalog.ListPlaylists(r.Context(), a, cursor, limit)
-		return page, http.StatusOK, err
+		rows, next, err := keysetPage(q, func(cursor string, limit int) ([]domain.Playlist, string, error) {
+			page, err := s.catalog.ListPlaylists(r.Context(), a, cursor, limit)
+			return page.Playlists, page.NextCursor, err
+		})
+		if err != nil {
+			return nil, 0, err
+		}
+		return listData(q, domain.PlaylistPage{Playlists: rows, NextCursor: next})
 	}))
 	r.Post("/api/v1/playlists", s.accountEndpoint(false, false, func(w http.ResponseWriter, r *http.Request, a domain.Actor) (any, int, error) {
 		var input domain.PlaylistInput
@@ -144,25 +155,6 @@ func (s *Server) collectionRoutes(r chi.Router) {
 		view, err := s.catalog.MovePlaylistEntry(r.Context(), a, chi.URLParam(r, "id"), chi.URLParam(r, "entryId"), before)
 		return view, http.StatusOK, s.hiddenContentError(err)
 	}))
-}
-
-// pageQuery reads the cursor and limit of a collection or playlist listing.
-func pageQuery(r *http.Request) (string, int, error) {
-	query, err := strictQuery(r, "cursor", "limit")
-	if err != nil {
-		return "", 0, err
-	}
-	limit := collectionPageDefault
-	if raw, ok := query["limit"]; ok {
-		if limit, err = strconv.Atoi(raw); err != nil || limit < 1 || limit > domain.CollectionPageMax {
-			return "", 0, domain.ErrInvalid
-		}
-	}
-	cursor, ok := query["cursor"]
-	if ok && !domain.ValidID(cursor) {
-		return "", 0, domain.ErrInvalid
-	}
-	return cursor, limit, nil
 }
 
 func decodeCollectionInput(w http.ResponseWriter, r *http.Request) (domain.CollectionInput, error) {

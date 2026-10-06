@@ -1,6 +1,6 @@
 #requires -Version 7.2
 [CmdletBinding()]
-param([ValidateSet('init','bootstrap','bootstrap-media','bootstrap-matroska','matroska-tools-verify','bootstrap-runtime','runtime-tools-verify','tools-verify','media-tools-verify','media-toolchain-test','ignore-oracle-test','tools-clean','fixtures','fixtures-test','build','test','test-race','test-integration','coverage','fmt','fmt-check','lint','toolchain-test','brand-scan','brand-scan-incremental','gitignore-check','openapi','openapi-check','migrate','doctor','bench','bench-check','benchgate-test','doc-check','dev','nfo','diag','golangci-lint','quality-gates-test')][string]$Target = 'test')
+param([ValidateSet('init','bootstrap','bootstrap-media','bootstrap-matroska','matroska-tools-verify','bootstrap-runtime','runtime-tools-verify','tools-verify','media-tools-verify','media-toolchain-test','ignore-oracle-test','tools-clean','fixtures','fixtures-test','build','test','test-race','test-integration','coverage','fmt','fmt-check','lint','toolchain-test','brand-scan','brand-scan-incremental','gitignore-check','openapi','openapi-check','migrate','doctor','bench','bench-check','benchgate-test','doc-check','dev','nfo','diag','golangci-lint','quality-gates-test','migration-lock','migration-lock-check')][string]$Target = 'test')
 . "$PSScriptRoot/toolchain-lib.ps1"
 $root = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 Push-Location $root
@@ -90,6 +90,7 @@ try {
             & "$PSScriptRoot/make.ps1" fmt-check
             & "$PSScriptRoot/make.ps1" openapi-check
             & "$PSScriptRoot/make.ps1" doc-check
+            & "$PSScriptRoot/make.ps1" migration-lock-check
             & "$PSScriptRoot/run-go.ps1" vet ./...
             & "$PSScriptRoot/make.ps1" golangci-lint
         }
@@ -116,6 +117,8 @@ try {
             & "$PSScriptRoot/run-go.ps1" test -count=1 -run OpenAPI ./tools/openapi ./internal/adapter/http
         }
         'migrate' { & "$PSScriptRoot/run-go.ps1" run ./cmd/jelee-migrate up }
+        'migration-lock' { & "$PSScriptRoot/run-go.ps1" run ./tools/migrationlock -update }
+        'migration-lock-check' { & "$PSScriptRoot/run-go.ps1" run ./tools/migrationlock }
         'doctor' { & "$PSScriptRoot/run-go.ps1" run ./cmd/jelee-cli doctor }
         'doc-check' { & "$PSScriptRoot/run-go.ps1" run ./tools/doccheck }
         'dev' {

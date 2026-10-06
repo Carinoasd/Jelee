@@ -76,19 +76,18 @@ func (s *Server) validateLibraryNFO(w http.ResponseWriter, r *http.Request, a do
 }
 
 func (s *Server) listNFOObservations(w http.ResponseWriter, r *http.Request, a domain.Actor) (any, int, error) {
-	query, err := strictQuery(r, "cursor", "limit")
+	q, err := listQuery(r, "/api/v1/libraries/{id}/nfo/current-validations")
 	if err != nil {
 		return nil, 0, err
 	}
-	limit := domain.NFOObservationPageDefault
-	if value, exists := query["limit"]; exists {
-		limit, err = strconv.Atoi(value)
-		if err != nil {
-			return nil, 0, domain.ErrInvalid
-		}
+	rows, next, err := keysetPage(q, func(cursor string, limit int) ([]domain.NFOObservation, string, error) {
+		page, err := s.jobs.NFOObservations(r.Context(), a, chi.URLParam(r, "id"), cursor, limit)
+		return page.Items, page.NextCursor, err
+	})
+	if err != nil {
+		return nil, 0, err
 	}
-	page, err := s.jobs.NFOObservations(r.Context(), a, chi.URLParam(r, "id"), query["cursor"], limit)
-	return page, http.StatusOK, err
+	return listData(q, domain.NFOObservationPage{Items: rows, NextCursor: next})
 }
 
 func (s *Server) listNFOIssues(w http.ResponseWriter, r *http.Request, a domain.Actor) (any, int, error) {

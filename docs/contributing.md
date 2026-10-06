@@ -18,7 +18,8 @@
 | `make test-race` | 竞态检测（需要 C 编译器） |
 | `make test-integration` | PostgreSQL 集成测试，必须设置 `JELEE_TEST_DATABASE_URL` |
 | `make fmt`／`make fmt-check` | 格式化／检查 Go 源码 |
-| `make lint` | `fmt-check`、`openapi-check`、`doc-check`、`go vet`、`golangci-lint` |
+| `make lint` | `fmt-check`、`openapi-check`、`doc-check`、`migration-lock-check`、`go vet`、`golangci-lint` |
+| `make migration-lock`／`make migration-lock-check` | 把新增的迁移追加到迁移锁 `internal/adapter/postgres/migrations/checksums.txt`／检查已锁定的迁移没有被修改、删除或重新编号（`MIGRATION_LOCK_BASE=<提交>` 另外要求该提交的锁条目原样保留），见 [ADR 0006](adr/0006-migration-version-policy.md) |
 | `make openapi`／`make openapi-check` | 重新生成／校验 `api/openapi.json`，见 [API 参考](api-reference.md) |
 | `make doc-check` | 文档链接、锚点与错误码引用检查 |
 | `make coverage-check` | 按 `tools/coverage-thresholds.json` 检查覆盖率棘轮 |
@@ -39,8 +40,9 @@ Windows 使用 `pwsh -File scripts/make.ps1 <目标>`，目标名称相同（部
 | 测试 | `make test`、相关包的 `-race`；改到 PostgreSQL 的代码还要运行对应的集成测试 |
 | 覆盖率 | `make coverage-check`，不得低于棘轮最低值；补测试后可用 `make coverage-ratchet` 提高 |
 | 基准 | 热路径基准由 CI 在同一机器上对比基线提交，刻意的回归需要登记在接受清单（见[质量门禁](quality-gates.md)） |
+| 迁移不可变 | 已锁定的迁移文件内容（SHA-256）、文件名与编号都不得改变；修改 schema 只能新增编号更大的迁移，并用 `make migration-lock` 把它追加进锁文件后一起提交。`make lint` 与 `TestMigrationLockCoversEmbeddedMigrations`（不需要数据库）检查文件与锁一致；CI 的 `migration-lock` 作业另外要求 PR 基准提交的锁条目全部原样保留（[ADR 0006](adr/0006-migration-version-policy.md)） |
 | 架构 | `go test ./internal/architecture/...`：`internal/domain`、`internal/app` 的非测试文件不得导入 `os`、`net`、`database/*` 或第三方包；直投与 HTTP 包不得出现创建进程的代码（[ADR 0007](adr/0007-no-encoder-direct-play-only.md)）；只有旧库读取器能导入 SQLite（[ADR 0005](adr/0005-postgresql-only-state.md)） |
-| API 契约 | 改动 HTTP 路由或错误码时运行 `make openapi` 并提交 `api/openapi.json` 与前端类型 `web/src/api/schema.d.ts`；在 `internal/adapter/http/access_leak_test.go` 的 `leakRouteTable` 登记新路由；把新路由归入[权限矩阵](permission-matrix.md)的某一行 |
+| API 契约 | 改动 HTTP 路由或错误码时运行 `make openapi` 并提交 `api/openapi.json` 与前端类型 `web/src/api/schema.d.ts`；在 `internal/adapter/http/access_leak_test.go` 的 `leakRouteTable` 登记新路由；把新路由归入[权限矩阵](permission-matrix.md)的某一行；新的列表操作在 `listContracts` 登记契约（或带理由列入 `listExemptions`），由 `TestOpenAPIListOperationsDeclareListContract` 检查，约定见 [API 参考](api-reference.md#列表约定) |
 | 文档 | `make doc-check`；领域表变化时更新[领域模型](domain-model.md)并运行 `TestDomainModelDocument*`；错误码变化时重新生成 [API 参考](api-reference.md#错误码)的错误码表 |
 | 品牌与忽略文件 | `make brand-scan-incremental` 零违规；`make gitignore-check` |
 | 前端 | 四语资源键一致（`scripts/check-ui-locales.py`、`npm run i18n:check`），不允许在前端包中出现播放代码，主包体积在预算内 |

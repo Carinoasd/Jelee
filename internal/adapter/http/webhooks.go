@@ -41,9 +41,17 @@ func (in webhookInput) app() app.WebhookEndpointInput {
 func (s *Server) webhookRoutes(router chi.Router) {
 	router.Group(func(r chi.Router) {
 		r.Use(s.accountBudget, s.authenticate)
-		r.Get("/api/v1/webhooks", s.accountEndpoint(true, false, func(_ http.ResponseWriter, r *http.Request, a domain.Actor) (any, int, error) {
+		r.Get("/api/v1/webhooks", s.accountEndpoint(true, true, func(_ http.ResponseWriter, r *http.Request, a domain.Actor) (any, int, error) {
+			q, err := listQuery(r, "/api/v1/webhooks")
+			if err != nil {
+				return nil, 0, err
+			}
 			views, err := s.webhooks.List(r.Context(), a)
-			return map[string]any{"webhooks": views, "events": domain.WebhookEventTypes()}, 200, err
+			if err != nil {
+				return nil, 0, err
+			}
+			page, pagination, err := memoryPage(q, views)
+			return map[string]any{"webhooks": page, "events": domain.WebhookEventTypes(), "pagination": pagination}, 200, err
 		}))
 		r.Post("/api/v1/webhooks", s.accountEndpoint(true, false, func(w http.ResponseWriter, r *http.Request, a domain.Actor) (any, int, error) {
 			var in webhookInput
@@ -96,19 +104,18 @@ func (s *Server) webhookRoutes(router chi.Router) {
 			return result, 200, err
 		}))
 		r.Get("/api/v1/webhooks/{id}/deliveries", s.accountEndpoint(true, true, func(_ http.ResponseWriter, r *http.Request, a domain.Actor) (any, int, error) {
-			q, limit, err := jobPageQuery(r, "state")
+			q, err := listQuery(r, "/api/v1/webhooks/{id}/deliveries")
 			if err != nil {
 				return nil, 0, err
 			}
-			rows, err := s.webhooks.Deliveries(r.Context(), a, chi.URLParam(r, "id"), domain.WebhookDeliveryState(q["state"]), q["cursor"], limit)
+			rows, next, err := keysetPage(q, func(cursor string, limit int) ([]app.WebhookDeliveryView, string, error) {
+				rows, err := s.webhooks.Deliveries(r.Context(), a, chi.URLParam(r, "id"), domain.WebhookDeliveryState(q.Filters["state"]), cursor, limit)
+				return rows, nextKey(rows, limit, func(d app.WebhookDeliveryView) string { return d.Cursor }), err
+			})
 			if err != nil {
 				return nil, 0, err
 			}
-			last := ""
-			if len(rows) > 0 {
-				last = rows[len(rows)-1].Cursor
-			}
-			return pageResult("deliveries", rows, last, len(rows), limit), 200, nil
+			return listData(q, pageResult("deliveries", rows, next, q.Limit))
 		}))
 		r.Get("/api/v1/webhooks/{id}/deliveries/{deliveryId}", s.accountEndpoint(true, false, func(_ http.ResponseWriter, r *http.Request, a domain.Actor) (any, int, error) {
 			detail, err := s.webhooks.Delivery(r.Context(), a, chi.URLParam(r, "id"), chi.URLParam(r, "deliveryId"))

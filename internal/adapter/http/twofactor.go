@@ -137,9 +137,8 @@ func (s *Server) twoFactorRoutes(r chi.Router) {
 		}
 		return nil, 204, s.accounts.DisableTwoFactor(r.Context(), a, *input.Password, input.Code, input.RecoveryCode)
 	}))
-	r.Get("/api/v1/users/{id}/app-passwords", s.accountEndpoint(false, false, func(_ http.ResponseWriter, r *http.Request, a domain.Actor) (any, int, error) {
-		passwords, err := s.accounts.AppPasswords(r.Context(), a, chi.URLParam(r, "id"))
-		return passwords, 200, err
+	r.Get("/api/v1/users/{id}/app-passwords", s.accountEndpoint(false, true, func(_ http.ResponseWriter, r *http.Request, a domain.Actor) (any, int, error) {
+		return memoryList(r, "/api/v1/users/{id}/app-passwords", func() (any, error) { return s.accounts.AppPasswords(r.Context(), a, chi.URLParam(r, "id")) })
 	}))
 	r.Post("/api/v1/users/me/app-passwords", s.accountEndpoint(false, false, func(w http.ResponseWriter, r *http.Request, a domain.Actor) (any, int, error) {
 		var input struct {

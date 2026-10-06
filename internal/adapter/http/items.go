@@ -40,7 +40,7 @@ func parseItemsQuery(r *http.Request) (query domain.BrowseQuery, cursor string, 
 		return query, "", false, domain.ErrInvalid
 	}
 	for key, vs := range values {
-		if key != "cursor" && key != "limit" && !slices.Contains(itemsBrowseKeys, key) || len(vs) != 1 && key != "type" {
+		if key != "cursor" && key != "limit" && key != "fields" && !slices.Contains(itemsBrowseKeys, key) || len(vs) != 1 && key != "type" {
 			return query, "", false, domain.ErrInvalid
 		}
 		browse = browse || slices.Contains(itemsBrowseKeys, key)
@@ -121,6 +121,15 @@ func (s *Server) list(w http.ResponseWriter, r *http.Request) {
 		WriteError(w, r, err)
 		return
 	}
+	// Both forms share the unified field selection (G08.2); the forms keep
+	// their own paging, sort and filter parsing above.
+	list := listRequest{contract: listContracts["/api/v1/items"]}
+	if raw, ok := r.URL.Query()["fields"]; ok {
+		if list.Fields, err = list.contract.parseFields(raw[0]); err != nil {
+			WriteError(w, r, err)
+			return
+		}
+	}
 	p, _ := access.PrincipalFromContext(r.Context())
 	ctx, cancel := context.WithTimeout(r.Context(), s.cfg.RequestTimeout())
 	defer cancel()
@@ -134,7 +143,7 @@ func (s *Server) list(w http.ResponseWriter, r *http.Request) {
 		for _, item := range page.Items {
 			items = append(items, catalogItemJSON(item))
 		}
-		writeJSON(w, 200, map[string]any{"data": items, "pagination": map[string]any{"nextCursor": "", "limit": query.Limit, "offset": query.Offset, "total": page.Total}})
+		s.writeItemsPage(w, r, list, items, map[string]any{"nextCursor": "", "limit": query.Limit, "offset": query.Offset, "total": page.Total})
 		return
 	}
 	items, err := s.catalog.List(ctx, p.UserID, cursor, query.Limit)
@@ -146,7 +155,16 @@ func (s *Server) list(w http.ResponseWriter, r *http.Request) {
 	if len(items) == query.Limit {
 		next = items[len(items)-1].ID
 	}
-	writeJSON(w, 200, map[string]any{"data": items, "pagination": map[string]any{"nextCursor": next, "limit": query.Limit}})
+	s.writeItemsPage(w, r, list, items, map[string]any{"nextCursor": next, "limit": query.Limit})
+}
+
+func (s *Server) writeItemsPage(w http.ResponseWriter, r *http.Request, list listRequest, items any, pagination map[string]any) {
+	data, err := list.project(items)
+	if err != nil {
+		WriteError(w, r, err)
+		return
+	}
+	writeJSON(w, 200, map[string]any{"data": data, "pagination": pagination})
 }
 
 // catalogItemJSON writes a browse row in the CatalogItem shape. parentId is

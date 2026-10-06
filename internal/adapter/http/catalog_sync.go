@@ -60,18 +60,17 @@ func (s *Server) catalogSyncRoutes(r chi.Router) {
 		return v, 200, err
 	}))
 	r.Get("/api/v1/libraries/{id}/catalog-sync/pending", s.accountEndpoint(true, true, func(_ http.ResponseWriter, r *http.Request, a domain.Actor) (any, int, error) {
-		q, limit, err := jobPageQuery(r)
+		q, err := listQuery(r, "/api/v1/libraries/{id}/catalog-sync/pending")
 		if err != nil {
 			return nil, 0, err
 		}
-		rows, err := s.jobs.CatalogPending(r.Context(), a, chi.URLParam(r, "id"), q["cursor"], limit)
+		rows, next, err := keysetPage(q, func(cursor string, limit int) ([]domain.CatalogPendingEntry, string, error) {
+			rows, err := s.jobs.CatalogPending(r.Context(), a, chi.URLParam(r, "id"), cursor, limit)
+			return rows, nextKey(rows, limit, func(e domain.CatalogPendingEntry) string { return e.ID }), err
+		})
 		if err != nil {
 			return nil, 0, err
 		}
-		last := ""
-		if len(rows) > 0 {
-			last = rows[len(rows)-1].ID
-		}
-		return pageResult("entries", rows, last, len(rows), limit), 200, nil
+		return listData(q, pageResult("entries", rows, next, q.Limit))
 	}))
 }

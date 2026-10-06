@@ -50,9 +50,8 @@ func (s *Server) clientControlRoutes(r chi.Router) {
 			p, err := svc.SetPolicy(r.Context(), a, domain.ClientPolicy{UnknownClients: *input.UnknownClients, ExemptAdmins: *input.ExemptAdmins, ExemptLoopback: *input.ExemptLoopback})
 			return p, 200, err
 		}))
-		r.Get(base+"/rules", s.clientEndpoint(false, func(w http.ResponseWriter, r *http.Request, a domain.Actor, svc *app.ClientControl) (any, int, error) {
-			rules, err := svc.Rules(r.Context(), a)
-			return rules, 200, err
+		r.Get(base+"/rules", s.clientEndpoint(true, func(_ http.ResponseWriter, r *http.Request, a domain.Actor, svc *app.ClientControl) (any, int, error) {
+			return memoryList(r, base+"/rules", func() (any, error) { return svc.Rules(r.Context(), a) })
 		}))
 		r.Post(base+"/rules", s.clientEndpoint(false, func(w http.ResponseWriter, r *http.Request, a domain.Actor, svc *app.ClientControl) (any, int, error) {
 			in, err := decodeClientRule(w, r)
@@ -93,24 +92,23 @@ func (s *Server) clientControlRoutes(r chi.Router) {
 			}))
 		}
 		r.Get(base+"/hits", s.clientEndpoint(true, func(w http.ResponseWriter, r *http.Request, a domain.Actor, svc *app.ClientControl) (any, int, error) {
-			query, err := strictQuery(r, "ruleId", "mode", "since", "until", "cursor", "limit")
+			q, err := listQuery(r, base+"/hits")
 			if err != nil {
 				return nil, 0, err
 			}
-			filter, err := clientHitFilter(query)
+			filter, err := clientHitFilter(q.Filters)
 			if err != nil {
 				return nil, 0, err
 			}
-			limit, err := queryLimit(query, 50)
+			ctx := r.Context()
+			s.flushClientRecords(ctx)
+			hits, next, err := keysetPage(q, func(cursor string, limit int) ([]domain.ClientHitRecord, string, error) {
+				return svc.Hits(ctx, a, filter, cursor, limit)
+			})
 			if err != nil {
 				return nil, 0, err
 			}
-			s.flushClientRecords(r.Context())
-			hits, next, err := svc.Hits(r.Context(), a, filter, query["cursor"], limit)
-			if err != nil {
-				return nil, 0, err
-			}
-			return map[string]any{"hits": hits, "pagination": map[string]any{"nextCursor": next, "limit": limit}}, 200, nil
+			return listData(q, map[string]any{"hits": hits, "pagination": map[string]any{"nextCursor": next, "limit": q.Limit}})
 		}))
 		r.Get(base+"/hits/export", s.clientEndpoint(true, func(w http.ResponseWriter, r *http.Request, a domain.Actor, svc *app.ClientControl) (any, int, error) {
 			query, err := strictQuery(r, "ruleId", "mode", "since", "until")
@@ -153,20 +151,19 @@ func (s *Server) clientControlRoutes(r chi.Router) {
 			return stats, 200, err
 		}))
 		r.Get(base+"/clients", s.clientEndpoint(true, func(w http.ResponseWriter, r *http.Request, a domain.Actor, svc *app.ClientControl) (any, int, error) {
-			query, err := strictQuery(r, "cursor", "limit")
+			q, err := listQuery(r, base+"/clients")
 			if err != nil {
 				return nil, 0, err
 			}
-			limit, err := queryLimit(query, 50)
+			ctx := r.Context()
+			s.flushClientRecords(ctx)
+			clients, next, err := keysetPage(q, func(cursor string, limit int) ([]domain.KnownClient, string, error) {
+				return svc.Clients(ctx, a, cursor, limit)
+			})
 			if err != nil {
 				return nil, 0, err
 			}
-			s.flushClientRecords(r.Context())
-			clients, next, err := svc.Clients(r.Context(), a, query["cursor"], limit)
-			if err != nil {
-				return nil, 0, err
-			}
-			return map[string]any{"clients": clients, "pagination": map[string]any{"nextCursor": next, "limit": limit}}, 200, nil
+			return listData(q, map[string]any{"clients": clients, "pagination": map[string]any{"nextCursor": next, "limit": q.Limit}})
 		}))
 		r.Patch(base+"/clients/{id}", s.clientEndpoint(false, func(w http.ResponseWriter, r *http.Request, a domain.Actor, svc *app.ClientControl) (any, int, error) {
 			var input domain.KnownClientUpdate
@@ -240,18 +237,6 @@ func clientHitFilter(query map[string]string) (domain.ClientHitFilter, error) {
 		return f, domain.ErrInvalid
 	}
 	return f, nil
-}
-
-func queryLimit(query map[string]string, fallback int) (int, error) {
-	v, ok := query["limit"]
-	if !ok {
-		return fallback, nil
-	}
-	n, err := strconv.Atoi(v)
-	if err != nil || n < 1 || n > 100 {
-		return 0, domain.ErrInvalid
-	}
-	return n, nil
 }
 
 // flushClientRecords writes this instance's buffered hits and activity

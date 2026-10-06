@@ -174,9 +174,8 @@ func (s *Server) shareRoutes(r chi.Router) {
 			v, err := s.accounts.CurrentShare(r.Context(), a)
 			return v, 200, err
 		}))
-		r.Get("/api/v1/shares", s.accountEndpoint(true, false, func(_ http.ResponseWriter, r *http.Request, a domain.Actor) (any, int, error) {
-			v, err := s.accounts.Shares(r.Context(), a)
-			return v, 200, err
+		r.Get("/api/v1/shares", s.accountEndpoint(true, true, func(_ http.ResponseWriter, r *http.Request, a domain.Actor) (any, int, error) {
+			return memoryList(r, "/api/v1/shares", func() (any, error) { return s.accounts.Shares(r.Context(), a) })
 		}))
 		r.Post("/api/v1/shares", s.accountEndpoint(true, false, func(w http.ResponseWriter, r *http.Request, a domain.Actor) (any, int, error) {
 			var input struct {
@@ -214,23 +213,20 @@ func (s *Server) shareRoutes(r chi.Router) {
 			return v, 200, err
 		}))
 		r.Get("/api/v1/shares/{id}/access", s.accountEndpoint(true, true, func(_ http.ResponseWriter, r *http.Request, a domain.Actor) (any, int, error) {
-			query, err := strictQuery(r, "cursor", "limit")
+			q, err := listQuery(r, "/api/v1/shares/{id}/access")
 			if err != nil {
 				return nil, 0, err
 			}
-			limit, err := queryLimit(query, 50)
+			records, next, err := keysetPage(q, func(cursor string, limit int) ([]domain.ShareAccessRecord, string, error) {
+				return s.accounts.ShareAccess(r.Context(), a, chi.URLParam(r, "id"), cursor, limit)
+			})
 			if err != nil {
 				return nil, 0, err
 			}
-			records, next, err := s.accounts.ShareAccess(r.Context(), a, chi.URLParam(r, "id"), query["cursor"], limit)
-			if err != nil {
-				return nil, 0, err
-			}
-			return map[string]any{"records": records, "pagination": map[string]any{"nextCursor": next, "limit": limit}}, 200, nil
+			return listData(q, map[string]any{"records": records, "pagination": map[string]any{"nextCursor": next, "limit": q.Limit}})
 		}))
-		r.Get("/api/v1/access/network-rules", s.accountEndpoint(true, false, func(_ http.ResponseWriter, r *http.Request, a domain.Actor) (any, int, error) {
-			v, err := s.accounts.NetworkRules(r.Context(), a)
-			return v, 200, err
+		r.Get("/api/v1/access/network-rules", s.accountEndpoint(true, true, func(_ http.ResponseWriter, r *http.Request, a domain.Actor) (any, int, error) {
+			return memoryList(r, "/api/v1/access/network-rules", func() (any, error) { return s.accounts.NetworkRules(r.Context(), a) })
 		}))
 		r.Post("/api/v1/access/network-rules", s.accountEndpoint(true, false, func(w http.ResponseWriter, r *http.Request, a domain.Actor) (any, int, error) {
 			in, err := decodeNetworkRule(w, r)

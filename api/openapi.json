@@ -4954,6 +4954,34 @@
         ],
         "type": "object"
       },
+      "ListPagination": {
+        "additionalProperties": false,
+        "properties": {
+          "limit": {
+            "description": "Absent when every row was returned.",
+            "minimum": 1,
+            "type": "integer"
+          },
+          "nextCursor": {
+            "description": "Pass as cursor for the next page; empty on the last page.",
+            "type": "string"
+          },
+          "offset": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "total": {
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "nextCursor",
+          "offset",
+          "total"
+        ],
+        "type": "object"
+      },
       "Login": {
         "additionalProperties": false,
         "properties": {
@@ -11585,6 +11613,73 @@
     },
     "/api/v1/access/network-rules": {
       "get": {
+        "parameters": [
+          {
+            "description": "Opaque cursor: nextCursor of the previous page (it encodes a position). Not combinable with offset.",
+            "in": "query",
+            "name": "cursor",
+            "schema": {
+              "pattern": "^o\\.(0|[1-9][0-9]{0,6})$",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Rows to skip from the start. Not combinable with cursor.",
+            "in": "query",
+            "name": "offset",
+            "schema": {
+              "default": 0,
+              "maximum": 1000000,
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Page size; without it every row is returned.",
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Sort key from the whitelist; without it the storage order is kept. Ties keep the storage order.",
+            "in": "query",
+            "name": "sort",
+            "schema": {
+              "enum": [
+                "createdAt",
+                "updatedAt",
+                "libraryName"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "description": "Direction of sort; requires sort.",
+            "in": "query",
+            "name": "order",
+            "schema": {
+              "default": "asc",
+              "enum": [
+                "asc",
+                "desc"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "description": "Comma separated row members to return: cidrs, clientKinds, createdAt, enabled, id, includeAdmins, libraryId, libraryName, network, note, updatedAt. id is always included. Unknown names are 400 invalid_request. Selection only removes members of the rows after every visibility rule and mask applied; other required members may then be absent.",
+            "in": "query",
+            "name": "fields",
+            "schema": {
+              "maxLength": 1024,
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "content": {
@@ -11598,10 +11693,14 @@
                       },
                       "maxItems": 1000,
                       "type": "array"
+                    },
+                    "pagination": {
+                      "$ref": "#/components/schemas/ListPagination"
                     }
                   },
                   "required": [
-                    "data"
+                    "data",
+                    "pagination"
                   ],
                   "type": "object"
                 }
@@ -11769,6 +11868,34 @@
           }
         ],
         "summary": "List the library network rules (G48.5)",
+        "x-jelee-list": {
+          "fields": [
+            "cidrs",
+            "clientKinds",
+            "createdAt",
+            "enabled",
+            "id",
+            "includeAdmins",
+            "libraryId",
+            "libraryName",
+            "network",
+            "note",
+            "updatedAt"
+          ],
+          "filters": [],
+          "maxLimit": 100,
+          "offsetMax": 1000000,
+          "order": [
+            "asc",
+            "desc"
+          ],
+          "paging": "memory",
+          "sort": [
+            "createdAt",
+            "updatedAt",
+            "libraryName"
+          ]
+        },
         "x-jelee-role": "administrator"
       },
       "post": {
@@ -14485,6 +14612,50 @@
               "minimum": 1,
               "type": "integer"
             }
+          },
+          {
+            "description": "Compatibility paging: rows to skip from the start, walked through cursor pages (at most 1000); prefer cursor. Not combinable with cursor.",
+            "in": "query",
+            "name": "offset",
+            "schema": {
+              "default": 0,
+              "maximum": 1000,
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Sort key. This list is read in storage order, so the whitelist holds only that key.",
+            "in": "query",
+            "name": "sort",
+            "schema": {
+              "default": "lastSeenAt",
+              "enum": [
+                "lastSeenAt"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "description": "Direction of sort.",
+            "in": "query",
+            "name": "order",
+            "schema": {
+              "default": "desc",
+              "enum": [
+                "desc"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "description": "Comma separated row members to return: activeSessions, alias, appName, appVersion, blockRuleId, blocked, clientKind, deviceId, deviceName, firstSeenAt, id, lastIp, lastSeenAt, lastUserId, trusted, userAgent. id is always included. Unknown names are 400 invalid_request. Selection only removes members of the rows after every visibility rule and mask applied; other required members may then be absent.",
+            "in": "query",
+            "name": "fields",
+            "schema": {
+              "maxLength": 1024,
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -14667,6 +14838,36 @@
           }
         ],
         "summary": "Page the clients seen on authenticated requests, most recently seen first",
+        "x-jelee-list": {
+          "fields": [
+            "activeSessions",
+            "alias",
+            "appName",
+            "appVersion",
+            "blockRuleId",
+            "blocked",
+            "clientKind",
+            "deviceId",
+            "deviceName",
+            "firstSeenAt",
+            "id",
+            "lastIp",
+            "lastSeenAt",
+            "lastUserId",
+            "trusted",
+            "userAgent"
+          ],
+          "filters": [],
+          "maxLimit": 100,
+          "offsetMax": 1000,
+          "order": [
+            "desc"
+          ],
+          "paging": "keyset",
+          "sort": [
+            "lastSeenAt"
+          ]
+        },
         "x-jelee-role": "administrator"
       }
     },
@@ -15352,6 +15553,50 @@
               "minimum": 1,
               "type": "integer"
             }
+          },
+          {
+            "description": "Compatibility paging: rows to skip from the start, walked through cursor pages (at most 1000); prefer cursor. Not combinable with cursor.",
+            "in": "query",
+            "name": "offset",
+            "schema": {
+              "default": 0,
+              "maximum": 1000,
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Sort key. This list is read in storage order, so the whitelist holds only that key.",
+            "in": "query",
+            "name": "sort",
+            "schema": {
+              "default": "id",
+              "enum": [
+                "id"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "description": "Direction of sort.",
+            "in": "query",
+            "name": "order",
+            "schema": {
+              "default": "desc",
+              "enum": [
+                "desc"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "description": "Comma separated row members to return: action, appName, bucket, hits, id, mode, network, ruleId, surface, userAgent, userId. id is always included. Unknown names are 400 invalid_request. Selection only removes members of the rows after every visibility rule and mask applied; other required members may then be absent.",
+            "in": "query",
+            "name": "fields",
+            "schema": {
+              "maxLength": 1024,
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -15534,6 +15779,36 @@
           }
         ],
         "summary": "Page aggregated hit records newest first; addresses masked to /24 or /48, user agents truncated, no paths",
+        "x-jelee-list": {
+          "fields": [
+            "action",
+            "appName",
+            "bucket",
+            "hits",
+            "id",
+            "mode",
+            "network",
+            "ruleId",
+            "surface",
+            "userAgent",
+            "userId"
+          ],
+          "filters": [
+            "ruleId",
+            "mode",
+            "since",
+            "until"
+          ],
+          "maxLimit": 100,
+          "offsetMax": 1000,
+          "order": [
+            "desc"
+          ],
+          "paging": "keyset",
+          "sort": [
+            "id"
+          ]
+        },
         "x-jelee-role": "administrator"
       }
     },
@@ -16146,6 +16421,75 @@
     },
     "/api/v1/client-control/rules": {
       "get": {
+        "parameters": [
+          {
+            "description": "Opaque cursor: nextCursor of the previous page (it encodes a position). Not combinable with offset.",
+            "in": "query",
+            "name": "cursor",
+            "schema": {
+              "pattern": "^o\\.(0|[1-9][0-9]{0,6})$",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Rows to skip from the start. Not combinable with cursor.",
+            "in": "query",
+            "name": "offset",
+            "schema": {
+              "default": 0,
+              "maximum": 1000000,
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Page size; without it every row is returned.",
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Sort key from the whitelist; without it the storage order is kept. Ties keep the storage order.",
+            "in": "query",
+            "name": "sort",
+            "schema": {
+              "enum": [
+                "priority",
+                "createdAt",
+                "updatedAt",
+                "hitCount",
+                "lastHitAt"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "description": "Direction of sort; requires sort.",
+            "in": "query",
+            "name": "order",
+            "schema": {
+              "default": "asc",
+              "enum": [
+                "asc",
+                "desc"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "description": "Comma separated row members to return: action, caseFold, createdAt, dimension, enabled, header, hitCount, id, intent, lastHitAt, libraries, match, note, pattern, priority, rateLimit, scopeKind, scopeValues, updatedAt, window. id is always included. Unknown names are 400 invalid_request. Selection only removes members of the rows after every visibility rule and mask applied; other required members may then be absent.",
+            "in": "query",
+            "name": "fields",
+            "schema": {
+              "maxLength": 1024,
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "content": {
@@ -16159,10 +16503,14 @@
                       },
                       "maxItems": 10000,
                       "type": "array"
+                    },
+                    "pagination": {
+                      "$ref": "#/components/schemas/ListPagination"
                     }
                   },
                   "required": [
-                    "data"
+                    "data",
+                    "pagination"
                   ],
                   "type": "object"
                 }
@@ -16330,6 +16678,45 @@
           }
         ],
         "summary": "List every client rule, enabled or not, in precedence order (priority descending, then ID)",
+        "x-jelee-list": {
+          "fields": [
+            "action",
+            "caseFold",
+            "createdAt",
+            "dimension",
+            "enabled",
+            "header",
+            "hitCount",
+            "id",
+            "intent",
+            "lastHitAt",
+            "libraries",
+            "match",
+            "note",
+            "pattern",
+            "priority",
+            "rateLimit",
+            "scopeKind",
+            "scopeValues",
+            "updatedAt",
+            "window"
+          ],
+          "filters": [],
+          "maxLimit": 100,
+          "offsetMax": 1000000,
+          "order": [
+            "asc",
+            "desc"
+          ],
+          "paging": "memory",
+          "sort": [
+            "priority",
+            "createdAt",
+            "updatedAt",
+            "hitCount",
+            "lastHitAt"
+          ]
+        },
         "x-jelee-role": "administrator"
       },
       "post": {
@@ -17749,6 +18136,50 @@
               "minimum": 1,
               "type": "integer"
             }
+          },
+          {
+            "description": "Compatibility paging: rows to skip from the start, walked through cursor pages (at most 1000); prefer cursor. Not combinable with cursor.",
+            "in": "query",
+            "name": "offset",
+            "schema": {
+              "default": 0,
+              "maximum": 1000,
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Sort key. This list is read in storage order, so the whitelist holds only that key.",
+            "in": "query",
+            "name": "sort",
+            "schema": {
+              "default": "name",
+              "enum": [
+                "name"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "description": "Direction of sort.",
+            "in": "query",
+            "name": "order",
+            "schema": {
+              "default": "asc",
+              "enum": [
+                "asc"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "description": "Comma separated row members to return: coverItemId, createdAt, id, itemCount, name, nfoName, overview, updatedAt. id is always included. Unknown names are 400 invalid_request. Selection only removes members of the rows after every visibility rule and mask applied; other required members may then be absent.",
+            "in": "query",
+            "name": "fields",
+            "schema": {
+              "maxLength": 1024,
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -17930,7 +18361,29 @@
             "webSession": []
           }
         ],
-        "summary": "List collections (G02.1)"
+        "summary": "List collections (G02.1)",
+        "x-jelee-list": {
+          "fields": [
+            "coverItemId",
+            "createdAt",
+            "id",
+            "itemCount",
+            "name",
+            "nfoName",
+            "overview",
+            "updatedAt"
+          ],
+          "filters": [],
+          "maxLimit": 200,
+          "offsetMax": 1000,
+          "order": [
+            "asc"
+          ],
+          "paging": "keyset",
+          "sort": [
+            "name"
+          ]
+        }
       },
       "post": {
         "description": "Administrator only; other users get 403 forbidden. At most 10000 collections (409 conflict). Audited as collection.created.",
@@ -19425,6 +19878,15 @@
               "maxLength": 128,
               "type": "string"
             }
+          },
+          {
+            "description": "Comma separated row members to return: id, kind, libraryId, parentId, premiereDate, productionYear, title. id is always included. Unknown names are 400 invalid_request. Selection only removes members of the rows after every visibility rule and mask applied; other required members may then be absent.",
+            "in": "query",
+            "name": "fields",
+            "schema": {
+              "maxLength": 1024,
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -19565,7 +20027,36 @@
             "webSession": []
           }
         ],
-        "summary": "List visible video items"
+        "summary": "List visible video items",
+        "x-jelee-list": {
+          "fields": [
+            "id",
+            "kind",
+            "libraryId",
+            "parentId",
+            "premiereDate",
+            "productionYear",
+            "title"
+          ],
+          "filters": [
+            "libraryId",
+            "parentId",
+            "type",
+            "q"
+          ],
+          "maxLimit": 100,
+          "offsetMax": 1000000,
+          "order": [
+            "asc",
+            "desc"
+          ],
+          "paging": "keyset",
+          "sort": [
+            "name",
+            "premiereDate",
+            "productionYear"
+          ]
+        }
       }
     },
     "/api/v1/items/{id}": {
@@ -24087,6 +24578,50 @@
               ],
               "type": "string"
             }
+          },
+          {
+            "description": "Compatibility paging: rows to skip from the start, walked through cursor pages (at most 1000); prefer cursor. Not combinable with cursor.",
+            "in": "query",
+            "name": "offset",
+            "schema": {
+              "default": 0,
+              "maximum": 1000,
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Sort key. This list is read in storage order, so the whitelist holds only that key.",
+            "in": "query",
+            "name": "sort",
+            "schema": {
+              "default": "id",
+              "enum": [
+                "id"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "description": "Direction of sort.",
+            "in": "query",
+            "name": "order",
+            "schema": {
+              "default": "asc",
+              "enum": [
+                "asc"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "description": "Comma separated row members to return: attempts, bytes, cancelRequested, createdAt, directories, errorCode, files, finishedAt, id, kind, libraryId, missing, priority, reviewRequired, skipped, startedAt, state. id is always included. Unknown names are 400 invalid_request. Selection only removes members of the rows after every visibility rule and mask applied; other required members may then be absent.",
+            "in": "query",
+            "name": "fields",
+            "schema": {
+              "maxLength": 1024,
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -24284,6 +24819,39 @@
           }
         ],
         "summary": "List retained jobs by UUID cursor",
+        "x-jelee-list": {
+          "fields": [
+            "attempts",
+            "bytes",
+            "cancelRequested",
+            "createdAt",
+            "directories",
+            "errorCode",
+            "files",
+            "finishedAt",
+            "id",
+            "kind",
+            "libraryId",
+            "missing",
+            "priority",
+            "reviewRequired",
+            "skipped",
+            "startedAt",
+            "state"
+          ],
+          "filters": [
+            "state"
+          ],
+          "maxLimit": 100,
+          "offsetMax": 1000,
+          "order": [
+            "asc"
+          ],
+          "paging": "keyset",
+          "sort": [
+            "id"
+          ]
+        },
         "x-jelee-role": "administrator"
       }
     },
@@ -25201,6 +25769,50 @@
               "minimum": 1,
               "type": "integer"
             }
+          },
+          {
+            "description": "Compatibility paging: rows to skip from the start, walked through cursor pages (at most 1000); prefer cursor. Not combinable with cursor.",
+            "in": "query",
+            "name": "offset",
+            "schema": {
+              "default": 0,
+              "maximum": 1000,
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Sort key. This list is read in storage order, so the whitelist holds only that key.",
+            "in": "query",
+            "name": "sort",
+            "schema": {
+              "default": "id",
+              "enum": [
+                "id"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "description": "Direction of sort.",
+            "in": "query",
+            "name": "order",
+            "schema": {
+              "default": "asc",
+              "enum": [
+                "asc"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "description": "Comma separated row members to return: id, kind, modifiedUnixNano, path, rootId, size. id is always included. Unknown names are 400 invalid_request. Selection only removes members of the rows after every visibility rule and mask applied; other required members may then be absent.",
+            "in": "query",
+            "name": "fields",
+            "schema": {
+              "maxLength": 1024,
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -25398,6 +26010,26 @@
           }
         ],
         "summary": "List observed inventory; partial runs never authorize deletion",
+        "x-jelee-list": {
+          "fields": [
+            "id",
+            "kind",
+            "modifiedUnixNano",
+            "path",
+            "rootId",
+            "size"
+          ],
+          "filters": [],
+          "maxLimit": 100,
+          "offsetMax": 1000,
+          "order": [
+            "asc"
+          ],
+          "paging": "keyset",
+          "sort": [
+            "id"
+          ]
+        },
         "x-jelee-role": "administrator"
       }
     },
@@ -25663,6 +26295,50 @@
               "minimum": 1,
               "type": "integer"
             }
+          },
+          {
+            "description": "Compatibility paging: rows to skip from the start, walked through cursor pages (at most 1000); prefer cursor. Not combinable with cursor.",
+            "in": "query",
+            "name": "offset",
+            "schema": {
+              "default": 0,
+              "maximum": 1000,
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Sort key. This list is read in storage order, so the whitelist holds only that key.",
+            "in": "query",
+            "name": "sort",
+            "schema": {
+              "default": "path",
+              "enum": [
+                "path"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "description": "Direction of sort.",
+            "in": "query",
+            "name": "order",
+            "schema": {
+              "default": "asc",
+              "enum": [
+                "asc"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "description": "Comma separated row members to return: family, kind, matchedPath, outcome, path, reason, rootId, ruleDirectory, ruleLine, source. Unknown names are 400 invalid_request. Selection only removes members of the rows after every visibility rule and mask applied; other required members may then be absent.",
+            "in": "query",
+            "name": "fields",
+            "schema": {
+              "maxLength": 1024,
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -25830,6 +26506,30 @@
           }
         ],
         "summary": "Read retained ignore decisions for a terminal job",
+        "x-jelee-list": {
+          "fields": [
+            "family",
+            "kind",
+            "matchedPath",
+            "outcome",
+            "path",
+            "reason",
+            "rootId",
+            "ruleDirectory",
+            "ruleLine",
+            "source"
+          ],
+          "filters": [],
+          "maxLimit": 100,
+          "offsetMax": 1000,
+          "order": [
+            "asc"
+          ],
+          "paging": "keyset",
+          "sort": [
+            "path"
+          ]
+        },
         "x-jelee-role": "administrator"
       }
     },
@@ -27199,6 +27899,50 @@
               "minimum": 1,
               "type": "integer"
             }
+          },
+          {
+            "description": "Compatibility paging: rows to skip from the start, walked through cursor pages (at most 1000); prefer cursor. Not combinable with cursor.",
+            "in": "query",
+            "name": "offset",
+            "schema": {
+              "default": 0,
+              "maximum": 1000,
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Sort key. This list is read in storage order, so the whitelist holds only that key.",
+            "in": "query",
+            "name": "sort",
+            "schema": {
+              "default": "id",
+              "enum": [
+                "id"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "description": "Direction of sort.",
+            "in": "query",
+            "name": "order",
+            "schema": {
+              "default": "asc",
+              "enum": [
+                "asc"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "description": "Comma separated row members to return: id, name, roots. id is always included. Unknown names are 400 invalid_request. Selection only removes members of the rows after every visibility rule and mask applied; other required members may then be absent.",
+            "in": "query",
+            "name": "fields",
+            "schema": {
+              "maxLength": 1024,
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -27396,6 +28140,23 @@
           }
         ],
         "summary": "List registered libraries without root paths",
+        "x-jelee-list": {
+          "fields": [
+            "id",
+            "name",
+            "roots"
+          ],
+          "filters": [],
+          "maxLimit": 100,
+          "offsetMax": 1000,
+          "order": [
+            "asc"
+          ],
+          "paging": "keyset",
+          "sort": [
+            "id"
+          ]
+        },
         "x-jelee-role": "administrator"
       }
     },
@@ -28108,6 +28869,50 @@
               "minimum": 1,
               "type": "integer"
             }
+          },
+          {
+            "description": "Compatibility paging: rows to skip from the start, walked through cursor pages (at most 1000); prefer cursor. Not combinable with cursor.",
+            "in": "query",
+            "name": "offset",
+            "schema": {
+              "default": 0,
+              "maximum": 1000,
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Sort key. This list is read in storage order, so the whitelist holds only that key.",
+            "in": "query",
+            "name": "sort",
+            "schema": {
+              "default": "id",
+              "enum": [
+                "id"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "description": "Direction of sort.",
+            "in": "query",
+            "name": "order",
+            "schema": {
+              "default": "asc",
+              "enum": [
+                "asc"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "description": "Comma separated row members to return: absolute, confidence, episode, episodeEnd, id, kind, path, reason, rootId, season, special, title, year. id is always included. Unknown names are 400 invalid_request. Selection only removes members of the rows after every visibility rule and mask applied; other required members may then be absent.",
+            "in": "query",
+            "name": "fields",
+            "schema": {
+              "maxLength": 1024,
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -28305,6 +29110,33 @@
           }
         ],
         "summary": "List files awaiting manual confirmation because their names were not confident enough",
+        "x-jelee-list": {
+          "fields": [
+            "absolute",
+            "confidence",
+            "episode",
+            "episodeEnd",
+            "id",
+            "kind",
+            "path",
+            "reason",
+            "rootId",
+            "season",
+            "special",
+            "title",
+            "year"
+          ],
+          "filters": [],
+          "maxLimit": 100,
+          "offsetMax": 1000,
+          "order": [
+            "asc"
+          ],
+          "paging": "keyset",
+          "sort": [
+            "id"
+          ]
+        },
         "x-jelee-role": "administrator"
       }
     },
@@ -28700,6 +29532,50 @@
               "minimum": 1,
               "type": "integer"
             }
+          },
+          {
+            "description": "Compatibility paging: rows to skip from the start, walked through cursor pages (at most 1000); prefer cursor. Not combinable with cursor.",
+            "in": "query",
+            "name": "offset",
+            "schema": {
+              "default": 0,
+              "maximum": 1000,
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Sort key. This list is read in storage order, so the whitelist holds only that key.",
+            "in": "query",
+            "name": "sort",
+            "schema": {
+              "default": "id",
+              "enum": [
+                "id"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "description": "Direction of sort.",
+            "in": "query",
+            "name": "order",
+            "schema": {
+              "default": "asc",
+              "enum": [
+                "asc"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "description": "Comma separated row members to return: entries, errorCount, expiresAt, failureCode, id, issueCount, issuesTruncated, observedAt, path, rootId, status, warningCount. id is always included. Unknown names are 400 invalid_request. Selection only removes members of the rows after every visibility rule and mask applied; other required members may then be absent.",
+            "in": "query",
+            "name": "fields",
+            "schema": {
+              "maxLength": 1024,
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -28897,6 +29773,32 @@
           }
         ],
         "summary": "List current NFO cache observations by UUID cursor",
+        "x-jelee-list": {
+          "fields": [
+            "entries",
+            "errorCount",
+            "expiresAt",
+            "failureCode",
+            "id",
+            "issueCount",
+            "issuesTruncated",
+            "observedAt",
+            "path",
+            "rootId",
+            "status",
+            "warningCount"
+          ],
+          "filters": [],
+          "maxLimit": 50,
+          "offsetMax": 1000,
+          "order": [
+            "asc"
+          ],
+          "paging": "keyset",
+          "sort": [
+            "id"
+          ]
+        },
         "x-jelee-role": "administrator"
       }
     },
@@ -32830,6 +33732,74 @@
     "/api/v1/playback/sessions": {
       "get": {
         "description": "Administrators only. At most 500 sessions, most recently reporting first. Positions buffered on this instance are included.",
+        "parameters": [
+          {
+            "description": "Opaque cursor: nextCursor of the previous page (it encodes a position). Not combinable with offset.",
+            "in": "query",
+            "name": "cursor",
+            "schema": {
+              "pattern": "^o\\.(0|[1-9][0-9]{0,6})$",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Rows to skip from the start. Not combinable with cursor.",
+            "in": "query",
+            "name": "offset",
+            "schema": {
+              "default": 0,
+              "maximum": 1000000,
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Page size; without it every row is returned.",
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Sort key from the whitelist; without it the storage order is kept. Ties keep the storage order.",
+            "in": "query",
+            "name": "sort",
+            "schema": {
+              "enum": [
+                "startedAt",
+                "lastReportAt",
+                "userName",
+                "itemTitle"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "description": "Direction of sort; requires sort.",
+            "in": "query",
+            "name": "order",
+            "schema": {
+              "default": "asc",
+              "enum": [
+                "asc",
+                "desc"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "description": "Comma separated row members to return: clientName, delivery, deviceId, id, itemId, itemTitle, lastReportAt, paused, positionTicks, runtimeTicks, sourceId, startedAt, userId, userName. id is always included. Unknown names are 400 invalid_request. Selection only removes members of the rows after every visibility rule and mask applied; other required members may then be absent.",
+            "in": "query",
+            "name": "fields",
+            "schema": {
+              "maxLength": 1024,
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "content": {
@@ -32843,10 +33813,14 @@
                       },
                       "maxItems": 500,
                       "type": "array"
+                    },
+                    "pagination": {
+                      "$ref": "#/components/schemas/ListPagination"
                     }
                   },
                   "required": [
-                    "data"
+                    "data",
+                    "pagination"
                   ],
                   "type": "object"
                 }
@@ -32954,6 +33928,38 @@
           }
         ],
         "summary": "List active playback sessions",
+        "x-jelee-list": {
+          "fields": [
+            "clientName",
+            "delivery",
+            "deviceId",
+            "id",
+            "itemId",
+            "itemTitle",
+            "lastReportAt",
+            "paused",
+            "positionTicks",
+            "runtimeTicks",
+            "sourceId",
+            "startedAt",
+            "userId",
+            "userName"
+          ],
+          "filters": [],
+          "maxLimit": 100,
+          "offsetMax": 1000000,
+          "order": [
+            "asc",
+            "desc"
+          ],
+          "paging": "memory",
+          "sort": [
+            "startedAt",
+            "lastReportAt",
+            "userName",
+            "itemTitle"
+          ]
+        },
         "x-jelee-role": "administrator"
       }
     },
@@ -33377,6 +34383,50 @@
               "minimum": 1,
               "type": "integer"
             }
+          },
+          {
+            "description": "Compatibility paging: rows to skip from the start, walked through cursor pages (at most 1000); prefer cursor. Not combinable with cursor.",
+            "in": "query",
+            "name": "offset",
+            "schema": {
+              "default": 0,
+              "maximum": 1000,
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Sort key. This list is read in storage order, so the whitelist holds only that key.",
+            "in": "query",
+            "name": "sort",
+            "schema": {
+              "default": "name",
+              "enum": [
+                "name"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "description": "Direction of sort.",
+            "in": "query",
+            "name": "order",
+            "schema": {
+              "default": "asc",
+              "enum": [
+                "asc"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "description": "Comma separated row members to return: coverItemId, createdAt, id, itemCount, name, owned, ownerId, ownerName, public, updatedAt. id is always included. Unknown names are 400 invalid_request. Selection only removes members of the rows after every visibility rule and mask applied; other required members may then be absent.",
+            "in": "query",
+            "name": "fields",
+            "schema": {
+              "maxLength": 1024,
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -33558,7 +34608,31 @@
             "webSession": []
           }
         ],
-        "summary": "List playlists (G02.1)"
+        "summary": "List playlists (G02.1)",
+        "x-jelee-list": {
+          "fields": [
+            "coverItemId",
+            "createdAt",
+            "id",
+            "itemCount",
+            "name",
+            "owned",
+            "ownerId",
+            "ownerName",
+            "public",
+            "updatedAt"
+          ],
+          "filters": [],
+          "maxLimit": 200,
+          "offsetMax": 1000,
+          "order": [
+            "asc"
+          ],
+          "paging": "keyset",
+          "sort": [
+            "name"
+          ]
+        }
       },
       "post": {
         "description": "At most 1000 playlists per user (409 conflict). Not audited: playlists are the user's own data and are deleted with the account.",
@@ -34982,6 +36056,50 @@
               "minimum": 1,
               "type": "integer"
             }
+          },
+          {
+            "description": "Compatibility paging: rows to skip from the start, walked through cursor pages (at most 1000); prefer cursor. Not combinable with cursor.",
+            "in": "query",
+            "name": "offset",
+            "schema": {
+              "default": 0,
+              "maximum": 1000,
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Sort key. This list is read in storage order, so the whitelist holds only that key.",
+            "in": "query",
+            "name": "sort",
+            "schema": {
+              "default": "id",
+              "enum": [
+                "id"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "description": "Direction of sort.",
+            "in": "query",
+            "name": "order",
+            "schema": {
+              "default": "asc",
+              "enum": [
+                "asc"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "description": "Comma separated row members to return: client, clientKind, createdAt, deviceId, deviceName, expiresAt, id, lastIp, lastSeenAt, revokedAt, userId, version. id is always included. Unknown names are 400 invalid_request. Selection only removes members of the rows after every visibility rule and mask applied; other required members may then be absent.",
+            "in": "query",
+            "name": "fields",
+            "schema": {
+              "maxLength": 1024,
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -35164,6 +36282,32 @@
           }
         ],
         "summary": "List active sessions of all users with client, device and last use; cursor pagination by session ID",
+        "x-jelee-list": {
+          "fields": [
+            "client",
+            "clientKind",
+            "createdAt",
+            "deviceId",
+            "deviceName",
+            "expiresAt",
+            "id",
+            "lastIp",
+            "lastSeenAt",
+            "revokedAt",
+            "userId",
+            "version"
+          ],
+          "filters": [],
+          "maxLimit": 100,
+          "offsetMax": 1000,
+          "order": [
+            "asc"
+          ],
+          "paging": "keyset",
+          "sort": [
+            "id"
+          ]
+        },
         "x-jelee-role": "administrator"
       }
     },
@@ -36072,6 +37216,74 @@
     },
     "/api/v1/shares": {
       "get": {
+        "parameters": [
+          {
+            "description": "Opaque cursor: nextCursor of the previous page (it encodes a position). Not combinable with offset.",
+            "in": "query",
+            "name": "cursor",
+            "schema": {
+              "pattern": "^o\\.(0|[1-9][0-9]{0,6})$",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Rows to skip from the start. Not combinable with cursor.",
+            "in": "query",
+            "name": "offset",
+            "schema": {
+              "default": 0,
+              "maximum": 1000000,
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Page size; without it every row is returned.",
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Sort key from the whitelist; without it the storage order is kept. Ties keep the storage order.",
+            "in": "query",
+            "name": "sort",
+            "schema": {
+              "enum": [
+                "createdAt",
+                "expiresAt",
+                "lastUsedAt",
+                "state"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "description": "Direction of sort; requires sort.",
+            "in": "query",
+            "name": "order",
+            "schema": {
+              "default": "asc",
+              "enum": [
+                "asc",
+                "desc"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "description": "Comma separated row members to return: activeSessions, allowPlayback, createdAt, createdBy, expiresAt, id, itemId, itemKind, itemTitle, lastUsedAt, libraryId, libraryName, maxStreams, note, readOnly, revokedAt, state. id is always included. Unknown names are 400 invalid_request. Selection only removes members of the rows after every visibility rule and mask applied; other required members may then be absent.",
+            "in": "query",
+            "name": "fields",
+            "schema": {
+              "maxLength": 1024,
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "content": {
@@ -36085,10 +37297,14 @@
                       },
                       "maxItems": 1000,
                       "type": "array"
+                    },
+                    "pagination": {
+                      "$ref": "#/components/schemas/ListPagination"
                     }
                   },
                   "required": [
-                    "data"
+                    "data",
+                    "pagination"
                   ],
                   "type": "object"
                 }
@@ -36256,6 +37472,41 @@
           }
         ],
         "summary": "List the newest 200 share links with their state, live guest sessions and last use",
+        "x-jelee-list": {
+          "fields": [
+            "activeSessions",
+            "allowPlayback",
+            "createdAt",
+            "createdBy",
+            "expiresAt",
+            "id",
+            "itemId",
+            "itemKind",
+            "itemTitle",
+            "lastUsedAt",
+            "libraryId",
+            "libraryName",
+            "maxStreams",
+            "note",
+            "readOnly",
+            "revokedAt",
+            "state"
+          ],
+          "filters": [],
+          "maxLimit": 100,
+          "offsetMax": 1000000,
+          "order": [
+            "asc",
+            "desc"
+          ],
+          "paging": "memory",
+          "sort": [
+            "createdAt",
+            "expiresAt",
+            "lastUsedAt",
+            "state"
+          ]
+        },
         "x-jelee-role": "administrator"
       },
       "post": {
@@ -37237,6 +38488,50 @@
               "format": "uuid",
               "type": "string"
             }
+          },
+          {
+            "description": "Compatibility paging: rows to skip from the start, walked through cursor pages (at most 1000); prefer cursor. Not combinable with cursor.",
+            "in": "query",
+            "name": "offset",
+            "schema": {
+              "default": 0,
+              "maximum": 1000,
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Sort key. This list is read in storage order, so the whitelist holds only that key.",
+            "in": "query",
+            "name": "sort",
+            "schema": {
+              "default": "occurredAt",
+              "enum": [
+                "occurredAt"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "description": "Direction of sort.",
+            "in": "query",
+            "name": "order",
+            "schema": {
+              "default": "desc",
+              "enum": [
+                "desc"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "description": "Comma separated row members to return: actorId, clientKind, deviceName, event, id, ip, occurredAt, reason, route, sessionId. id is always included. Unknown names are 400 invalid_request. Selection only removes members of the rows after every visibility rule and mask applied; other required members may then be absent.",
+            "in": "query",
+            "name": "fields",
+            "schema": {
+              "maxLength": 1024,
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -37419,6 +38714,30 @@
           }
         ],
         "summary": "Page the audited events of a share link newest first: creation, revocation, redemptions, refusals and guest accesses",
+        "x-jelee-list": {
+          "fields": [
+            "actorId",
+            "clientKind",
+            "deviceName",
+            "event",
+            "id",
+            "ip",
+            "occurredAt",
+            "reason",
+            "route",
+            "sessionId"
+          ],
+          "filters": [],
+          "maxLimit": 100,
+          "offsetMax": 1000,
+          "order": [
+            "desc"
+          ],
+          "paging": "keyset",
+          "sort": [
+            "occurredAt"
+          ]
+        },
         "x-jelee-role": "administrator"
       }
     },
@@ -41145,6 +42464,50 @@
               "default": false,
               "type": "boolean"
             }
+          },
+          {
+            "description": "Compatibility paging: rows to skip from the start, walked through cursor pages (at most 1000); prefer cursor. Not combinable with cursor.",
+            "in": "query",
+            "name": "offset",
+            "schema": {
+              "default": 0,
+              "maximum": 1000,
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Sort key. This list is read in storage order, so the whitelist holds only that key.",
+            "in": "query",
+            "name": "sort",
+            "schema": {
+              "default": "id",
+              "enum": [
+                "id"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "description": "Direction of sort.",
+            "in": "query",
+            "name": "order",
+            "schema": {
+              "default": "asc",
+              "enum": [
+                "asc"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "description": "Comma separated row members to return: admin, allowNative, createdAt, deletedAt, disabled, displayName, hidden, id, locale, name. id is always included. Unknown names are 400 invalid_request. Selection only removes members of the rows after every visibility rule and mask applied; other required members may then be absent.",
+            "in": "query",
+            "name": "fields",
+            "schema": {
+              "maxLength": 1024,
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -41327,6 +42690,32 @@
           }
         ],
         "summary": "List accounts, including hidden accounts; cursor pagination",
+        "x-jelee-list": {
+          "fields": [
+            "admin",
+            "allowNative",
+            "createdAt",
+            "deletedAt",
+            "disabled",
+            "displayName",
+            "hidden",
+            "id",
+            "locale",
+            "name"
+          ],
+          "filters": [
+            "includeDeleted"
+          ],
+          "maxLimit": 100,
+          "offsetMax": 1000,
+          "order": [
+            "asc"
+          ],
+          "paging": "keyset",
+          "sort": [
+            "id"
+          ]
+        },
         "x-jelee-role": "administrator"
       },
       "post": {
@@ -42966,6 +44355,48 @@
               "minimum": 1,
               "type": "integer"
             }
+          },
+          {
+            "description": "Opaque cursor: nextCursor of the previous page (it encodes a position). Not combinable with offset.",
+            "in": "query",
+            "name": "cursor",
+            "schema": {
+              "pattern": "^o\\.(0|[1-9][0-9]{0,6})$",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Sort key. This list is read in storage order, so the whitelist holds only that key.",
+            "in": "query",
+            "name": "sort",
+            "schema": {
+              "default": "lastPlayedAt",
+              "enum": [
+                "lastPlayedAt"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "description": "Direction of sort.",
+            "in": "query",
+            "name": "order",
+            "schema": {
+              "default": "desc",
+              "enum": [
+                "desc"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "description": "Comma separated row members to return: id, kind, libraryId, parentId, title, userData. id is always included. Unknown names are 400 invalid_request. Selection only removes members of the rows after every visibility rule and mask applied; other required members may then be absent.",
+            "in": "query",
+            "name": "fields",
+            "schema": {
+              "maxLength": 1024,
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -43025,6 +44456,10 @@
                           "minimum": 1,
                           "type": "integer"
                         },
+                        "nextCursor": {
+                          "description": "Pass as cursor for the next page; empty on the last page.",
+                          "type": "string"
+                        },
                         "offset": {
                           "minimum": 0,
                           "type": "integer"
@@ -43038,7 +44473,8 @@
                         "items",
                         "total",
                         "offset",
-                        "limit"
+                        "limit",
+                        "nextCursor"
                       ],
                       "type": "object"
                     }
@@ -43136,7 +44572,27 @@
             "webSession": []
           }
         ],
-        "summary": "List items to continue watching"
+        "summary": "List items to continue watching",
+        "x-jelee-list": {
+          "fields": [
+            "id",
+            "kind",
+            "libraryId",
+            "parentId",
+            "title",
+            "userData"
+          ],
+          "filters": [],
+          "maxLimit": 500,
+          "offsetMax": 1000000,
+          "order": [
+            "desc"
+          ],
+          "paging": "offset",
+          "sort": [
+            "lastPlayedAt"
+          ]
+        }
       }
     },
     "/api/v1/users/me/track-preferences": {
@@ -45024,6 +46480,71 @@
               "format": "uuid",
               "type": "string"
             }
+          },
+          {
+            "description": "Opaque cursor: nextCursor of the previous page (it encodes a position). Not combinable with offset.",
+            "in": "query",
+            "name": "cursor",
+            "schema": {
+              "pattern": "^o\\.(0|[1-9][0-9]{0,6})$",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Rows to skip from the start. Not combinable with cursor.",
+            "in": "query",
+            "name": "offset",
+            "schema": {
+              "default": 0,
+              "maximum": 1000000,
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Page size; without it every row is returned.",
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Sort key from the whitelist; without it the storage order is kept. Ties keep the storage order.",
+            "in": "query",
+            "name": "sort",
+            "schema": {
+              "enum": [
+                "createdAt",
+                "lastUsedAt",
+                "name"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "description": "Direction of sort; requires sort.",
+            "in": "query",
+            "name": "order",
+            "schema": {
+              "default": "asc",
+              "enum": [
+                "asc",
+                "desc"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "description": "Comma separated row members to return: createdAt, id, lastUsedAt, name. id is always included. Unknown names are 400 invalid_request. Selection only removes members of the rows after every visibility rule and mask applied; other required members may then be absent.",
+            "in": "query",
+            "name": "fields",
+            "schema": {
+              "maxLength": 1024,
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -45039,10 +46560,14 @@
                       },
                       "maxItems": 20,
                       "type": "array"
+                    },
+                    "pagination": {
+                      "$ref": "#/components/schemas/ListPagination"
                     }
                   },
                   "required": [
-                    "data"
+                    "data",
+                    "pagination"
                   ],
                   "type": "object"
                 }
@@ -45209,7 +46734,28 @@
             "webSession": []
           }
         ],
-        "summary": "List application passwords of self or, as administrator, of any user; never the passwords"
+        "summary": "List application passwords of self or, as administrator, of any user; never the passwords",
+        "x-jelee-list": {
+          "fields": [
+            "createdAt",
+            "id",
+            "lastUsedAt",
+            "name"
+          ],
+          "filters": [],
+          "maxLimit": 100,
+          "offsetMax": 1000000,
+          "order": [
+            "asc",
+            "desc"
+          ],
+          "paging": "memory",
+          "sort": [
+            "createdAt",
+            "lastUsedAt",
+            "name"
+          ]
+        }
       }
     },
     "/api/v1/users/{id}/app-passwords/{appPasswordId}": {
@@ -46770,6 +48316,70 @@
               "format": "uuid",
               "type": "string"
             }
+          },
+          {
+            "description": "Opaque cursor: nextCursor of the previous page (it encodes a position). Not combinable with offset.",
+            "in": "query",
+            "name": "cursor",
+            "schema": {
+              "pattern": "^o\\.(0|[1-9][0-9]{0,6})$",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Rows to skip from the start. Not combinable with cursor.",
+            "in": "query",
+            "name": "offset",
+            "schema": {
+              "default": 0,
+              "maximum": 1000000,
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Page size; without it every row is returned.",
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Sort key from the whitelist; without it the storage order is kept. Ties keep the storage order.",
+            "in": "query",
+            "name": "sort",
+            "schema": {
+              "enum": [
+                "name",
+                "libraryId"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "description": "Direction of sort; requires sort.",
+            "in": "query",
+            "name": "order",
+            "schema": {
+              "default": "asc",
+              "enum": [
+                "asc",
+                "desc"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "description": "Comma separated row members to return: libraryId, name. libraryId is always included. Unknown names are 400 invalid_request. Selection only removes members of the rows after every visibility rule and mask applied; other required members may then be absent.",
+            "in": "query",
+            "name": "fields",
+            "schema": {
+              "maxLength": 1024,
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -46785,10 +48395,14 @@
                       },
                       "maxItems": 1000,
                       "type": "array"
+                    },
+                    "pagination": {
+                      "$ref": "#/components/schemas/ListPagination"
                     }
                   },
                   "required": [
-                    "data"
+                    "data",
+                    "pagination"
                   ],
                   "type": "object"
                 }
@@ -46955,7 +48569,25 @@
             "webSession": []
           }
         ],
-        "summary": "Read explicit library grants for self or as administrator; max 1000"
+        "summary": "Read explicit library grants for self or as administrator; max 1000",
+        "x-jelee-list": {
+          "fields": [
+            "libraryId",
+            "name"
+          ],
+          "filters": [],
+          "maxLimit": 100,
+          "offsetMax": 1000000,
+          "order": [
+            "asc",
+            "desc"
+          ],
+          "paging": "memory",
+          "sort": [
+            "name",
+            "libraryId"
+          ]
+        }
       },
       "put": {
         "parameters": [
@@ -47926,6 +49558,71 @@
               "format": "uuid",
               "type": "string"
             }
+          },
+          {
+            "description": "Opaque cursor: nextCursor of the previous page (it encodes a position). Not combinable with offset.",
+            "in": "query",
+            "name": "cursor",
+            "schema": {
+              "pattern": "^o\\.(0|[1-9][0-9]{0,6})$",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Rows to skip from the start. Not combinable with cursor.",
+            "in": "query",
+            "name": "offset",
+            "schema": {
+              "default": 0,
+              "maximum": 1000000,
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Page size; without it every row is returned.",
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Sort key from the whitelist; without it the storage order is kept. Ties keep the storage order.",
+            "in": "query",
+            "name": "sort",
+            "schema": {
+              "enum": [
+                "createdAt",
+                "lastSeenAt",
+                "expiresAt"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "description": "Direction of sort; requires sort.",
+            "in": "query",
+            "name": "order",
+            "schema": {
+              "default": "asc",
+              "enum": [
+                "asc",
+                "desc"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "description": "Comma separated row members to return: client, clientKind, createdAt, deviceId, deviceName, expiresAt, id, lastIp, lastSeenAt, revokedAt, userId, version. id is always included. Unknown names are 400 invalid_request. Selection only removes members of the rows after every visibility rule and mask applied; other required members may then be absent.",
+            "in": "query",
+            "name": "fields",
+            "schema": {
+              "maxLength": 1024,
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -47941,10 +49638,14 @@
                       },
                       "maxItems": 1000,
                       "type": "array"
+                    },
+                    "pagination": {
+                      "$ref": "#/components/schemas/ListPagination"
                     }
                   },
                   "required": [
-                    "data"
+                    "data",
+                    "pagination"
                   ],
                   "type": "object"
                 }
@@ -48111,7 +49812,36 @@
             "webSession": []
           }
         ],
-        "summary": "List active sessions with client, device and last use for self or as administrator; over 1000 returns conflict"
+        "summary": "List active sessions with client, device and last use for self or as administrator; over 1000 returns conflict",
+        "x-jelee-list": {
+          "fields": [
+            "client",
+            "clientKind",
+            "createdAt",
+            "deviceId",
+            "deviceName",
+            "expiresAt",
+            "id",
+            "lastIp",
+            "lastSeenAt",
+            "revokedAt",
+            "userId",
+            "version"
+          ],
+          "filters": [],
+          "maxLimit": 100,
+          "offsetMax": 1000000,
+          "order": [
+            "asc",
+            "desc"
+          ],
+          "paging": "memory",
+          "sort": [
+            "createdAt",
+            "lastSeenAt",
+            "expiresAt"
+          ]
+        }
       }
     },
     "/api/v1/users/{id}/sessions/{sessionID}": {
@@ -49721,6 +51451,73 @@
     "/api/v1/webhooks": {
       "get": {
         "description": "Administrators only. At most 64 endpoints, oldest first, with their pending and dead-letter counts, and the event catalogue (G12.1). Secrets and header values are never returned.",
+        "parameters": [
+          {
+            "description": "Opaque cursor: nextCursor of the previous page (it encodes a position). Not combinable with offset.",
+            "in": "query",
+            "name": "cursor",
+            "schema": {
+              "pattern": "^o\\.(0|[1-9][0-9]{0,6})$",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Rows to skip from the start. Not combinable with cursor.",
+            "in": "query",
+            "name": "offset",
+            "schema": {
+              "default": 0,
+              "maximum": 1000000,
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Page size; without it every row is returned.",
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Sort key from the whitelist; without it the storage order is kept. Ties keep the storage order.",
+            "in": "query",
+            "name": "sort",
+            "schema": {
+              "enum": [
+                "name",
+                "createdAt",
+                "updatedAt"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "description": "Direction of sort; requires sort.",
+            "in": "query",
+            "name": "order",
+            "schema": {
+              "default": "asc",
+              "enum": [
+                "asc",
+                "desc"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "description": "Comma separated row members to return: createdAt, dead, enabled, events, headerNames, id, name, pending, previousSecretUntil, retry, timeoutSeconds, updatedAt, url. id is always included. Unknown names are 400 invalid_request. Selection only removes members of the rows after every visibility rule and mask applied; other required members may then be absent.",
+            "in": "query",
+            "name": "fields",
+            "schema": {
+              "maxLength": 1024,
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "content": {
@@ -49757,6 +51554,9 @@
                           },
                           "type": "array"
                         },
+                        "pagination": {
+                          "$ref": "#/components/schemas/ListPagination"
+                        },
                         "webhooks": {
                           "items": {
                             "$ref": "#/components/schemas/Webhook"
@@ -49767,7 +51567,8 @@
                       },
                       "required": [
                         "webhooks",
-                        "events"
+                        "events",
+                        "pagination"
                       ],
                       "type": "object"
                     }
@@ -49881,6 +51682,36 @@
           }
         ],
         "summary": "List webhook endpoints",
+        "x-jelee-list": {
+          "fields": [
+            "createdAt",
+            "dead",
+            "enabled",
+            "events",
+            "headerNames",
+            "id",
+            "name",
+            "pending",
+            "previousSecretUntil",
+            "retry",
+            "timeoutSeconds",
+            "updatedAt",
+            "url"
+          ],
+          "filters": [],
+          "maxLimit": 100,
+          "offsetMax": 1000000,
+          "order": [
+            "asc",
+            "desc"
+          ],
+          "paging": "memory",
+          "sort": [
+            "name",
+            "createdAt",
+            "updatedAt"
+          ]
+        },
         "x-jelee-role": "administrator"
       },
       "post": {
@@ -50580,6 +52411,50 @@
               "minimum": 1,
               "type": "integer"
             }
+          },
+          {
+            "description": "Compatibility paging: rows to skip from the start, walked through cursor pages (at most 1000); prefer cursor. Not combinable with cursor.",
+            "in": "query",
+            "name": "offset",
+            "schema": {
+              "default": 0,
+              "maximum": 1000,
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Sort key. This list is read in storage order, so the whitelist holds only that key.",
+            "in": "query",
+            "name": "sort",
+            "schema": {
+              "default": "createdAt",
+              "enum": [
+                "createdAt"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "description": "Direction of sort.",
+            "in": "query",
+            "name": "order",
+            "schema": {
+              "default": "desc",
+              "enum": [
+                "desc"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "description": "Comma separated row members to return: attempts, createdAt, eventId, eventType, id, lastAttemptAt, lastOutcome, lastStatus, nextAttemptAt, occurredAt, replays, state, webhookId. id is always included. Unknown names are 400 invalid_request. Selection only removes members of the rows after every visibility rule and mask applied; other required members may then be absent.",
+            "in": "query",
+            "name": "fields",
+            "schema": {
+              "maxLength": 1024,
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -50749,6 +52624,35 @@
           }
         ],
         "summary": "List webhook deliveries",
+        "x-jelee-list": {
+          "fields": [
+            "attempts",
+            "createdAt",
+            "eventId",
+            "eventType",
+            "id",
+            "lastAttemptAt",
+            "lastOutcome",
+            "lastStatus",
+            "nextAttemptAt",
+            "occurredAt",
+            "replays",
+            "state",
+            "webhookId"
+          ],
+          "filters": [
+            "state"
+          ],
+          "maxLimit": 100,
+          "offsetMax": 1000,
+          "order": [
+            "desc"
+          ],
+          "paging": "keyset",
+          "sort": [
+            "createdAt"
+          ]
+        },
         "x-jelee-role": "administrator"
       }
     },

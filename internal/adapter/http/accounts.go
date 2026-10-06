@@ -89,6 +89,11 @@ func (s *Server) accountEndpoint(admin, listQuery bool, operation accountOperati
 			w.WriteHeader(status)
 			return
 		}
+		if list, ok := data.(listResponse); ok {
+			// A data-array list keeps its pagination beside data (G08.2).
+			writeJSON(w, status, map[string]any{"data": list.data, "pagination": list.pagination})
+			return
+		}
 		writeJSON(w, status, map[string]any{"data": data})
 	}
 }
@@ -410,9 +415,8 @@ func (s *Server) accountRoutes(r chi.Router) {
 			return limits, 200, err
 		}))
 		r.Get("/api/v1/sessions", s.accountEndpoint(true, true, s.listAllSessions))
-		r.Get("/api/v1/users/{id}/sessions", s.accountEndpoint(false, false, func(w http.ResponseWriter, r *http.Request, a domain.Actor) (any, int, error) {
-			sessions, err := s.accounts.Sessions(r.Context(), a, chi.URLParam(r, "id"))
-			return sessions, 200, err
+		r.Get("/api/v1/users/{id}/sessions", s.accountEndpoint(false, true, func(_ http.ResponseWriter, r *http.Request, a domain.Actor) (any, int, error) {
+			return memoryList(r, "/api/v1/users/{id}/sessions", func() (any, error) { return s.accounts.Sessions(r.Context(), a, chi.URLParam(r, "id")) })
 		}))
 		r.Delete("/api/v1/users/{id}/sessions", s.accountEndpoint(false, false, func(w http.ResponseWriter, r *http.Request, a domain.Actor) (any, int, error) {
 			if err := emptyAccountInput(w, r); err != nil {
@@ -436,9 +440,8 @@ func (s *Server) accountRoutes(r chi.Router) {
 			}
 			return nil, 204, err
 		}))
-		r.Get("/api/v1/users/{id}/libraries", s.accountEndpoint(false, false, func(w http.ResponseWriter, r *http.Request, a domain.Actor) (any, int, error) {
-			libraries, err := s.accounts.Libraries(r.Context(), a, chi.URLParam(r, "id"))
-			return libraries, 200, err
+		r.Get("/api/v1/users/{id}/libraries", s.accountEndpoint(false, true, func(_ http.ResponseWriter, r *http.Request, a domain.Actor) (any, int, error) {
+			return memoryList(r, "/api/v1/users/{id}/libraries", func() (any, error) { return s.accounts.Libraries(r.Context(), a, chi.URLParam(r, "id")) })
 		}))
 		r.Put("/api/v1/users/{id}/libraries", s.accountEndpoint(true, false, func(w http.ResponseWriter, r *http.Request, a domain.Actor) (any, int, error) {
 			var input struct {
@@ -504,53 +507,38 @@ func (s *Server) updateUser(w http.ResponseWriter, r *http.Request, a domain.Act
 	return user, 200, err
 }
 func (s *Server) listUsers(w http.ResponseWriter, r *http.Request, a domain.Actor) (any, int, error) {
-	query, err := strictQuery(r, "cursor", "limit", "includeDeleted")
+	q, err := listQuery(r, "/api/v1/users")
 	if err != nil {
 		return nil, 0, err
 	}
-	limit := 50
-	if value, ok := query["limit"]; ok {
-		limit, err = strconv.Atoi(value)
-		if err != nil {
-			return nil, 0, domain.ErrInvalid
-		}
-	}
 	deleted := false
-	if value, ok := query["includeDeleted"]; ok {
+	if value, ok := q.Filters["includeDeleted"]; ok {
 		if value != "true" && value != "false" {
 			return nil, 0, domain.ErrInvalid
 		}
 		deleted = value == "true"
 	}
-	users, err := s.accounts.List(r.Context(), a, query["cursor"], limit, deleted)
+	users, next, err := keysetPage(q, func(cursor string, limit int) ([]domain.User, string, error) {
+		rows, err := s.accounts.List(r.Context(), a, cursor, limit, deleted)
+		return rows, nextKey(rows, limit, func(u domain.User) string { return u.ID }), err
+	})
 	if err != nil {
 		return nil, 0, err
 	}
-	next := ""
-	if len(users) == limit {
-		next = users[len(users)-1].ID
-	}
-	return map[string]any{"users": users, "pagination": map[string]any{"nextCursor": next, "limit": limit}}, 200, nil
+	return listData(q, map[string]any{"users": users, "pagination": map[string]any{"nextCursor": next, "limit": q.Limit}})
 }
 
 func (s *Server) listAllSessions(w http.ResponseWriter, r *http.Request, a domain.Actor) (any, int, error) {
-	query, err := strictQuery(r, "cursor", "limit")
+	q, err := listQuery(r, "/api/v1/sessions")
 	if err != nil {
 		return nil, 0, err
 	}
-	limit := 50
-	if value, ok := query["limit"]; ok {
-		if limit, err = strconv.Atoi(value); err != nil {
-			return nil, 0, domain.ErrInvalid
-		}
-	}
-	sessions, err := s.accounts.AllSessions(r.Context(), a, query["cursor"], limit)
+	sessions, next, err := keysetPage(q, func(cursor string, limit int) ([]domain.Session, string, error) {
+		rows, err := s.accounts.AllSessions(r.Context(), a, cursor, limit)
+		return rows, nextKey(rows, limit, func(v domain.Session) string { return v.ID }), err
+	})
 	if err != nil {
 		return nil, 0, err
 	}
-	next := ""
-	if len(sessions) == limit {
-		next = sessions[len(sessions)-1].ID
-	}
-	return map[string]any{"sessions": sessions, "pagination": map[string]any{"nextCursor": next, "limit": limit}}, 200, nil
+	return listData(q, map[string]any{"sessions": sessions, "pagination": map[string]any{"nextCursor": next, "limit": q.Limit}})
 }

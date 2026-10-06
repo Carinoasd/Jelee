@@ -107,6 +107,13 @@ type accountHTTPFixture struct {
 
 func newAccountHTTPFixture(t *testing.T, repo httpAccountRepository, change func(*config.Config)) *accountHTTPFixture {
 	t.Helper()
+	return newAccountHTTPFixtureWith(t, repo, change)
+}
+
+// newAccountHTTPFixtureWith accepts any repository, such as one that adds
+// methods to httpAccountRepository.
+func newAccountHTTPFixtureWith(t *testing.T, repo app.AccountRepository, change func(*config.Config)) *accountHTTPFixture {
+	t.Helper()
 	cfg := validConfig()
 	cfg.EnableAccounts = true
 	cfg.Accounts = config.DefaultAccountsConfig()
