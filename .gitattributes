@@ -1,5 +1,68 @@
+# Jelee Git attributes (G01.5). tools/textcheck (make lint) enforces them:
+# every tracked text file is UTF-8 without BOM and LF only, and every tracked
+# binary file resolves to the "binary" attributes below (-text -diff -merge).
+
+# Text: Git detects text and stores and checks it out with LF everywhere,
+# also on Windows with core.autocrlf=true.
 * text=auto eol=lf
+
+# Images: no line-ending conversion, no textual diff or merge.
 *.png binary
 *.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.avif binary
+*.ico binary
+*.bmp binary
+
+# Video, audio and subtitle images: never committed (.gitignore and
+# gitignore-check), but locked as binary should one be allowlisted.
+*.mp4 binary
+*.mkv binary
+*.webm binary
+*.avi binary
+*.mov binary
+*.m4v binary
+*.m2ts binary
+*.mp3 binary
+*.flac binary
+*.m4a binary
+*.ogg binary
+*.opus binary
+*.wav binary
+*.sup binary
+
+# Fonts and documents.
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.otf binary
+*.pdf binary
+
+# Archives, executables and databases (blocked by gitignore-check unless
+# allowlisted in docs/binary-allowlist.md).
+*.zip binary
+*.gz binary
+*.tgz binary
+*.xz binary
+*.bz2 binary
+*.zst binary
+*.7z binary
+*.tar binary
+*.exe binary
+*.dll binary
+*.so binary
+*.dylib binary
+*.db binary
+*.sqlite binary
+*.sqlite3 binary
+
+# Visual regression baselines are binary whatever their extension.
+web/e2e/__screenshots__/** binary
+
+# Generated files: reviewed through their generators; collapsed in diffs.
+api/openapi.json linguist-generated=true
+web/src/api/schema.d.ts linguist-generated=true
 
 CONTRIBUTORS.md merge=union

@@ -1,0 +1,137 @@
+# Probe paths for tools/gitignore-check (G01.4).
+#
+# "ignored <path>" must be ignored by .gitignore, "kept <path>" must not be.
+# The check runs `git check-ignore --no-index -v` in a scratch repository, so
+# the paths need not exist. Every .gitignore pattern must decide at least one
+# probe; a new pattern without a probe fails the gate.
+
+# 1. Build outputs and dependencies
+ignored bin/jelee
+ignored bin/jelee-cli.exe
+ignored web/dist/index.html
+ignored dist/release/jelee-0.1.0-linux-amd64.tar.gz
+ignored node_modules/vite/package.json
+ignored web/node_modules/.bin/vite
+ignored .gocache/00/abc-d
+ignored internal/domain/domain.test
+ignored cmd/jelee/__debug_bin3998373107
+ignored jelee.exe
+ignored cgo-helper.dll
+ignored libhelper.so
+ignored libhelper.dylib
+ignored web/node_modules/.vite/deps/_metadata.json
+ignored .vite/deps/react.js
+ignored web/tsconfig.tsbuildinfo
+ignored web/.eslintcache
+ignored scripts/__pycache__/toolchain.cpython-313.pyc
+ignored scripts/toolchain.pyc
+kept internal/platform/buildinfo/buildinfo.go
+kept cmd/jelee/main.go
+kept web/src/main.ts
+kept web/package.json
+kept go.mod
+kept internal/domain/release.go
+kept scripts/release.py
+
+# 2. Toolchain and local installs
+ignored .tools/go/1.27.1/linux-amd64/go/bin/go
+ignored .tools
+ignored .bin/go.cmd
+ignored .venv/bin/python
+ignored .cache/go-build/README
+ignored tools/vendor-downloads/node-v24.tar.xz
+kept tools/manifest.json
+kept tools/tools.go
+
+# 3. Tests
+ignored coverage.out
+ignored coverage.html
+ignored cpu.out
+ignored reports/lint.json
+ignored web/test-results/.last-run.json
+ignored web/playwright-report/index.html
+ignored web/blob-report/report-1.zip
+ignored .coverage
+ignored .testfixtures/video.mp4
+ignored .testdata/store.db
+ignored .testdata/agent-env.sh
+ignored catalog.test.db
+kept tools/coverage-thresholds.json
+kept docs/quality-gates.md
+kept web/e2e/__screenshots__/desktop/home-light.png
+kept web/e2e/visual.spec.ts
+kept internal/adapter/nfo/testdata/movie.nfo
+
+# 4. Runtime data and logs
+ignored data/transcodes/segment.ts
+ignored data/subtitles/cache
+ignored data/mediainfo/item.json
+ignored data/images/poster.webp
+ignored data/index/catalog.idx
+ignored jelee.log
+ignored logs/server.txt
+kept internal/data/store.go
+kept internal/logs/handler.go
+kept docs/logging.md
+
+# 5. Environment and secrets
+ignored .env
+ignored .env.local
+ignored .env.production
+kept .env.example
+ignored server.pem
+ignored private.key
+ignored client.p12
+ignored client.pfx
+ignored store.jks
+ignored credentials.json
+ignored service-account-prod.json
+ignored .netrc
+kept .npmrc
+kept deploy/compose/jelee.env.example.md
+
+# 6. Databases
+ignored legacy.sqlite
+ignored legacy.sqlite3-wal
+ignored jellyfin.db
+ignored jellyfin.db-wal
+ignored jellyfin.db-shm
+ignored jellyfin.db-journal
+ignored backup.dump
+ignored backup.sql.gz
+ignored postgres-data/PG_VERSION
+ignored pgdata/base/1/1259
+kept internal/adapter/postgres/migrations/checksums.txt
+kept internal/adapter/postgres/repository.go
+
+# 7. IDE and operating system files
+ignored .idea/workspace.xml
+ignored .vscode/settings.json
+ignored .vscode/launch.json
+kept .vscode/extensions.json
+ignored .vs/slnx.sqlite
+ignored internal/domain/.domain.go.swp
+ignored internal/domain/.domain.go.swo
+ignored README.md~
+ignored docs/Thumbs.db
+ignored ehthumbs.db
+ignored desktop.ini
+ignored Desktop.ini
+ignored $RECYCLE.BIN/S-1-5-21/desktop.ini
+ignored docs/.DS_Store
+ignored .directory
+ignored ~$report.docx
+kept .editorconfig
+kept .github/workflows/jelee.yml
+kept .githooks/pre-commit
+
+# 8. Temporary files
+ignored .tmp/scratch.txt
+ignored tmp/scratch.txt
+ignored download.tmp
+ignored Makefile.bak
+ignored media/movie.nfo.jelee.bak.20261006
+ignored internal/domain/item.go.orig
+ignored internal/domain/item.go.rej
+kept internal/adapter/nfo/backup.go
+kept docs/binary-allowlist.md

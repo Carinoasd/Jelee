@@ -33,7 +33,7 @@ COVER_PKGS = $(shell $(PYTHON) -c 'import json; print(" ".join("./" + p["path"] 
 NPM := $(CURDIR)/.bin/npm
 WEB := --workspace @jelee/web
 
-.PHONY: backup-drill backup-scale image-memory-test image-memory-smoke-test scan-memory-test scan-memory-smoke-test runtime-memory-test runtime-memory-worker-test memory-contract-test i18n-check family-ignore-sustained-worker-test ignore-sustained-test init bootstrap bootstrap-media bootstrap-matroska matroska-tools-verify matroska-toolchain-test bootstrap-ocr ocr-tools-verify ocr-toolchain-test bootstrap-runtime runtime-tools-verify runtime-toolchain-test probe-runtime-test probe-worker-test nfo-worker-test family-ignore-worker-test ignore-oracle-test sandbox-test tools-verify media-tools-verify tools-clean fixtures fixtures-test build test test-race test-integration coverage fmt fmt-check lint toolchain-test media-toolchain-test brand-scan brand-scan-incremental gitignore-check openapi openapi-check migrate doctor bench bench-check benchgate-test doc-check dev nfo diag web-install web-build web-budget web-test web-lint web-types bootstrap-playwright playwright-verify web-e2e web-visual web-visual-update test-race-nonpostgres test-race-postgres-shard go-test-shard-test golangci-lint lint-baseline-prune coverage-check coverage-ratchet bench-compare quality-gates-test migration-lock migration-lock-check
+.PHONY: backup-drill backup-scale image-memory-test image-memory-smoke-test scan-memory-test scan-memory-smoke-test runtime-memory-test runtime-memory-worker-test memory-contract-test i18n-check family-ignore-sustained-worker-test ignore-sustained-test init bootstrap bootstrap-media bootstrap-matroska matroska-tools-verify matroska-toolchain-test bootstrap-ocr ocr-tools-verify ocr-toolchain-test bootstrap-runtime runtime-tools-verify runtime-toolchain-test probe-runtime-test probe-worker-test nfo-worker-test family-ignore-worker-test ignore-oracle-test sandbox-test tools-verify media-tools-verify tools-clean fixtures fixtures-test build test test-race test-integration coverage fmt fmt-check lint toolchain-test media-toolchain-test brand-scan brand-scan-incremental gitignore-check openapi openapi-check migrate doctor bench bench-check benchgate-test doc-check dev nfo diag web-install web-build web-budget web-test web-lint web-types bootstrap-playwright playwright-verify web-e2e web-visual web-visual-update test-race-nonpostgres test-race-postgres-shard go-test-shard-test golangci-lint lint-baseline-prune coverage-check coverage-ratchet bench-compare quality-gates-test migration-lock migration-lock-check hooks text-check secret-scan secret-scan-history secret-scan-range commit-lint release-check release-dry-run
 init: bootstrap
 bootstrap:
 	sh scripts/bootstrap-tools
@@ -145,8 +145,9 @@ bench-compare:
 	@test -n "$(BENCH_BASE_REF)" || { echo 'BENCH_BASE_REF must name the base commit' >&2; exit 2; }
 	$(PYTHON) -B scripts/bench-compare.py --go "$(GO)" --base-ref "$(BENCH_BASE_REF)" --packages "$(BENCH_PKGS)" --skip '$(BENCH_SKIP)' $(BENCH_COMPARE_FLAGS)
 quality-gates-test:
-	"$(GO)" test -count=1 ./tools/lintgate ./tools/covergate ./tools/benchgate
+	"$(GO)" test -count=1 ./tools/lintgate ./tools/covergate ./tools/benchgate ./tools/gitignore-check ./tools/textcheck ./tools/secretscan ./tools/commitlint
 	$(PYTHON) -B scripts/test_bench_compare.py
+	$(PYTHON) -B scripts/test_release.py
 coverage:
 	"$(GO)" test -count=1 -coverprofile=coverage.out ./...
 coverage-check:
@@ -162,7 +163,7 @@ fmt:
 	"$(GO)" fmt ./...
 fmt-check:
 	$(PYTHON) scripts/check-format.py
-lint: fmt-check openapi-check doc-check migration-lock-check
+lint: fmt-check openapi-check doc-check migration-lock-check text-check secret-scan
 	"$(GO)" vet ./...
 	$(MAKE) --no-print-directory golangci-lint
 golangci-lint:
@@ -182,8 +183,46 @@ brand-scan:
 	"$(GO)" run ./tools/brand-scan
 brand-scan-incremental:
 	"$(GO)" run ./tools/brand-scan --new
+# G01.4b/G01.4c: ignore rules, probes, and every tracked file against
+# docs/binary-allowlist.md. GITIGNORE_CHECK_FLAGS=-list also enumerates
+# ignored and untracked-not-ignored files.
+GITIGNORE_CHECK_FLAGS ?=
 gitignore-check:
-	"$(GO)" run ./tools/gitignore-check
+	"$(GO)" run ./tools/gitignore-check $(GITIGNORE_CHECK_FLAGS)
+# G01.5: tracked text files are UTF-8 without BOM with LF endings; binary
+# files carry the .gitattributes binary attributes.
+text-check:
+	"$(GO)" run ./tools/textcheck
+# G01.7: secret scan of every tracked file (allowlist:
+# tools/secretscan/allowlist.txt); -range for new commits, -history for all.
+secret-scan:
+	"$(GO)" run ./tools/secretscan
+secret-scan-history:
+	"$(GO)" run ./tools/secretscan -history
+# G01.2/G01.7 for the commits of a push or pull request: COMMIT_RANGE=A..B
+# (CI passes the base and head). History before A is not checked.
+COMMIT_RANGE ?=
+COMMIT_LINT_FLAGS ?=
+commit-lint:
+	@test -n "$(COMMIT_RANGE)" || { echo 'COMMIT_RANGE must be a revision range, for example origin/master..HEAD' >&2; exit 2; }
+	"$(GO)" run ./tools/commitlint -range "$(COMMIT_RANGE)" $(COMMIT_LINT_FLAGS)
+secret-scan-range:
+	@test -n "$(COMMIT_RANGE)" || { echo 'COMMIT_RANGE must be a revision range, for example origin/master..HEAD' >&2; exit 2; }
+	"$(GO)" run ./tools/secretscan -range "$(COMMIT_RANGE)"
+# G01.6: use the repository hooks in .githooks for this clone (opt-in; only
+# when a developer runs it). `git config --unset core.hooksPath` undoes it.
+hooks:
+	git config core.hooksPath .githooks
+	@echo 'core.hooksPath=.githooks: pre-commit (gofmt, text, secrets, gitignore, brand, web lint) and commit-msg (Conventional Commits)'
+# G01.3: RELEASE_TAG=vX.Y.Z validates tag, CHANGELOG section and versions;
+# release-dry-run builds the release archives without a tag into
+# .testdata/release-dry-run. Neither creates tags or publishes anything.
+RELEASE_TAG ?=
+release-check:
+	@test -n "$(RELEASE_TAG)" || { echo 'RELEASE_TAG must be vMAJOR.MINOR.PATCH' >&2; exit 2; }
+	$(PYTHON) -B scripts/release.py check --tag "$(RELEASE_TAG)"
+release-dry-run:
+	$(PYTHON) -B scripts/release.py dry-run --go "$(GO)"
 # Regenerate api/openapi.json from the router's specification code.
 openapi:
 	"$(GO)" run ./tools/openapi

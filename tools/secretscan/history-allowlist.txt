@@ -1,0 +1,18 @@
+# Reviewed findings in old Git history (G01.7), read by `secretscan -history`
+# only. Same format as allowlist.txt. History is never rewritten without the
+# owner's authorisation (docs/secret-leak-response.md), so findings in commits
+# that can no longer change are recorded here with the reason they are kept.
+#
+# Every entry below was found on 2026-10-06 in upstream Jellyfin/Emby commits
+# that predate the fork baseline 52a680c578. They are the metadata-provider
+# API keys upstream shipped in its open-source client code (public by design,
+# owned and rotated by upstream), or a documentation example. None of the
+# files exists in the Jelee tree and Jelee uses none of these keys.
+
+03a60d4cd201da92 secret-assignment ** upstream TMDb client API key in pre-fork MediaBrowser.Providers sources
+6a83e7d3eaa7748a secret-assignment ** upstream TheTVDB client API key in pre-fork MediaBrowser sources
+0ab3d2d4214d5dfe secret-assignment ** upstream Fanart.tv client API key in pre-fork MediaBrowser sources
+1593fed0da64e82b secret-assignment ** upstream Last.fm client API key in pre-fork MediaBrowser sources
+c1b55cd86e539b07 secret-assignment ** upstream Rotten Tomatoes client API key in pre-fork MediaBrowser.Controller sources
+e266006dd56a5590 secret-assignment ** upstream TheAudioDB client API key in pre-fork MediaBrowser.Providers sources
+7197658ae0efc077 url-credentials Emby.*/IO/SharpCifs/Smb/SmbFile.cs documentation example smb:// URL in vendored SharpCifs comments
