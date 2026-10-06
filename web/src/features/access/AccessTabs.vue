@@ -9,6 +9,7 @@ const { t } = useI18n();
   <nav class="jl-access-tabs" :aria-label="t('access.tabs.label')">
     <RouterLink :to="{ name: 'admin-access' }" exact-active-class="jl-access-tabs--current">{{ t("access.tabs.policy") }}</RouterLink>
     <RouterLink :to="{ name: 'admin-access-network' }" exact-active-class="jl-access-tabs--current">{{ t("access.tabs.network") }}</RouterLink>
+    <RouterLink :to="{ name: 'admin-access-matrix' }" exact-active-class="jl-access-tabs--current">{{ t("access.tabs.matrix") }}</RouterLink>
   </nav>
 </template>
 

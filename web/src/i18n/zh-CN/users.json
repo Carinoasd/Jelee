@@ -132,7 +132,16 @@
       "tagEmpty": "请输入标签。",
       "tagDuplicate": "列表中已有此标签。",
       "tagLimit": "最多只能屏蔽 {max} 个标签。",
-      "saveNote": "分级上限、未分级处理与标签会一起保存；下方的条目规则则逐条保存。",
+      "saveNote": "分级上限、未分级处理、标签与关键词会一起保存；下方的限制时段与条目规则各自保存。",
+      "keywords": "屏蔽的关键词",
+      "keywordsImpact": "条目本身或其上层的标题、元数据标题或原名包含任一关键词即隐藏。全角与半角视为相同、不区分大小写；不匹配简介。最多 {max} 个。",
+      "noKeywords": "没有屏蔽任何关键词。",
+      "newKeyword": "要屏蔽的关键词",
+      "addKeyword": "添加关键词",
+      "removeKeyword": "移除关键词 {keyword}",
+      "keywordEmpty": "请输入关键词。",
+      "keywordDuplicate": "列表中已有此关键词。",
+      "keywordLimit": "最多只能屏蔽 {max} 个关键词。",
       "saved": "内容限制已保存。"
     },
     "rules": {

@@ -46,6 +46,9 @@ type RequestScope struct {
 	// Libraries is nil when the request may see every library it is
 	// granted; otherwise only these library IDs (possibly none).
 	Libraries []string
+	// At is when the server took the request; restricted time windows
+	// (G48.4) are decided at this time. Zero leaves it to the database.
+	At time.Time
 }
 
 // LAN reports a private (RFC 1918), unique local (fc00::/7) or loopback

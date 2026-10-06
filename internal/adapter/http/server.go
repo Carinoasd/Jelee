@@ -100,6 +100,9 @@ type Server struct {
 	deprecationIndex map[string]Deprecation
 	// compression gzips non-media responses (G11.7); nil when off.
 	compression *compression
+	// accessNow is the clock of the request time restricted time windows
+	// are decided at (G48.4); nil is time.Now.
+	accessNow func() time.Time
 }
 
 func New(cfg config.Config, backend Backend, catalog *app.Catalog, resolver media.Resolver, logger *slog.Logger, accounts ...*app.Accounts) (http.Handler, error) {
@@ -427,7 +430,7 @@ func (s *Server) newCompat(cfg config.Config, backend Backend) (http.Handler, er
 					return access.Principal{}, err
 				}
 			}
-			p.Request = requestScope(address, p.Kind, libraries)
+			p.Request = s.requestScope(address, p.Kind, libraries)
 			return p, nil
 		}
 	} else if tracker, ok := backend.(sessionUseTracker); ok {
@@ -437,7 +440,7 @@ func (s *Server) newCompat(cfg config.Config, backend Backend) (http.Handler, er
 		authenticate = func(ctx context.Context, token string) (access.Principal, error) {
 			address, _ := ctx.Value(clientAddressKey{}).(string)
 			p, err := tracker.AuthenticateFrom(ctx, token, address)
-			p.Request = requestScope(address, p.Kind, nil)
+			p.Request = s.requestScope(address, p.Kind, nil)
 			return p, err
 		}
 	} else {
@@ -445,7 +448,7 @@ func (s *Server) newCompat(cfg config.Config, backend Backend) (http.Handler, er
 		authenticate = func(ctx context.Context, token string) (access.Principal, error) {
 			address, _ := ctx.Value(clientAddressKey{}).(string)
 			p, err := plain(ctx, token)
-			p.Request = requestScope(address, p.Kind, nil)
+			p.Request = s.requestScope(address, p.Kind, nil)
 			return p, err
 		}
 	}
@@ -661,7 +664,7 @@ func (s *Server) authenticate(next http.Handler) http.Handler {
 		}
 		// The unified storage filter reads the request's network attributes
 		// and client control library set with the principal (G48.5).
-		p.Request = requestScope(requestClientIP(r), p.Kind, libraries)
+		p.Request = s.requestScope(requestClientIP(r), p.Kind, libraries)
 		if p.ShareID != "" && !s.guestGate(w, r, p) {
 			return
 		}

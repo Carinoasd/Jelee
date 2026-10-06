@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "goos": "linux",
-  "total": 2043,
+  "total": 2042,
   "entries": [
     {
       "linter": "errcheck",
@@ -2822,13 +2822,6 @@
       "file": "internal/adapter/postgres/account_acl.go",
       "text": "exported: exported method Store.ReplaceLibraryAccess should have comment or be unexported",
       "source": "3d37d1f21daa",
-      "count": 1
-    },
-    {
-      "linter": "revive",
-      "file": "internal/adapter/postgres/account_acl.go",
-      "text": "package-comments: should have a package comment",
-      "source": "fb05c29d4789",
       "count": 1
     },
     {

@@ -14,6 +14,7 @@ export type DeliveryLimits = components["schemas"]["DeliveryLimits"];
 export type LibraryGrant = components["schemas"]["LibraryGrant"];
 export type ContentAccess = components["schemas"]["ContentAccess"];
 export type ContentAccessView = components["schemas"]["ContentAccessView"];
+export type AccessWindow = components["schemas"]["AccessWindow"];
 export type ItemAccessRule = components["schemas"]["ItemAccessRule"];
 export type ItemAccessEffect = components["schemas"]["ItemAccessRuleInput"]["effect"];
 export type CatalogItem = components["schemas"]["CatalogItem"];
@@ -115,6 +116,12 @@ export async function listAllLibraries(client: ApiClient): Promise<readonly Libr
 
 export async function getContentAccess(client: ApiClient, id: string): Promise<ContentAccessView> {
   const body = await call(client.GET("/api/v1/users/{id}/content-access", { params: { path: { id } } }));
+  return body.data;
+}
+
+/** Replaces the account's restricted time windows; an empty list clears them. */
+export async function putContentWindows(client: ApiClient, id: string, windows: readonly AccessWindow[]): Promise<ContentAccessView> {
+  const body = await call(client.PUT("/api/v1/users/{id}/content-access/windows", { params: { path: { id } }, body: { windows: [...windows] } }));
   return body.data;
 }
 

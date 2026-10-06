@@ -12,7 +12,8 @@ import (
 
 // Content access administration (G48.1, G48.4, G48.7 audit). This file
 // writes and lists the rule tables; only visibility.go reads them to
-// authorize content.
+// authorize content. Bulk changes and templates (access_bulk.go) write
+// restrictions through writeContentAccess here.
 
 // contentAccessTarget locks a live (not deleted) target user.
 func contentAccessTarget(ctx context.Context, tx pgx.Tx, userID string) error {
@@ -28,14 +29,12 @@ func contentAccessTarget(ctx context.Context, tx pgx.Tx, userID string) error {
 
 func readContentAccess(ctx context.Context, tx pgx.Tx, userID string) (domain.ContentAccessView, error) {
 	var v domain.ContentAccessView
-	var ceiling *int16
-	if err := tx.QueryRow(ctx, `SELECT parental_rating_max,block_unrated,ARRAY(SELECT tag FROM user_blocked_tags WHERE user_id=$1::uuid ORDER BY tag)
- FROM users WHERE id=$1::uuid`, userID).Scan(&ceiling, &v.BlockUnrated, &v.BlockedTags); err != nil {
-		return domain.ContentAccessView{}, storageError(err)
+	var err error
+	if v.ContentAccess, err = readRestrictions(ctx, tx, userID); err != nil {
+		return domain.ContentAccessView{}, err
 	}
-	if ceiling != nil {
-		level := int(*ceiling)
-		v.ParentalRatingMax = &level
+	if v.Windows, err = readAccessWindows(ctx, tx, userID); err != nil {
+		return domain.ContentAccessView{}, err
 	}
 	rows, err := tx.Query(ctx, `SELECT r.item_id::text,i.library_id::text,i.kind,i.title,r.effect,r.created_at FROM user_item_access_rules r
  JOIN items i ON i.id=r.item_id WHERE r.user_id=$1::uuid ORDER BY r.created_at,r.item_id LIMIT $2`, userID, domain.ItemAccessRulesMax)
@@ -56,11 +55,59 @@ func readContentAccess(ctx context.Context, tx pgx.Tx, userID string) (domain.Co
 	return v, storageError(rows.Err())
 }
 
+// readRestrictions reads the replaceable restrictions of a user: ceiling,
+// unrated override, blocked tags and keywords.
+func readRestrictions(ctx context.Context, tx pgx.Tx, userID string) (domain.ContentAccess, error) {
+	var c domain.ContentAccess
+	var ceiling *int16
+	if err := tx.QueryRow(ctx, `SELECT parental_rating_max,block_unrated,ARRAY(SELECT tag FROM user_blocked_tags WHERE user_id=$1::uuid ORDER BY tag),
+ ARRAY(SELECT keyword FROM user_blocked_keywords WHERE user_id=$1::uuid ORDER BY keyword)
+ FROM users WHERE id=$1::uuid`, userID).Scan(&ceiling, &c.BlockUnrated, &c.BlockedTags, &c.BlockedKeywords); err != nil {
+		return domain.ContentAccess{}, storageError(err)
+	}
+	if ceiling != nil {
+		level := int(*ceiling)
+		c.ParentalRatingMax = &level
+	}
+	return c, nil
+}
+
+// readAccessWindows reads a user's restricted time windows in order.
+func readAccessWindows(ctx context.Context, tx pgx.Tx, userID string) ([]domain.AccessWindow, error) {
+	rows, err := tx.Query(ctx, `SELECT weekdays,start_minute,end_minute,time_zone,rating_max FROM user_access_windows WHERE user_id=$1::uuid ORDER BY position LIMIT $2`, userID, domain.AccessWindowsMax)
+	if err != nil {
+		return nil, storageError(err)
+	}
+	defer rows.Close()
+	windows := make([]domain.AccessWindow, 0)
+	for rows.Next() {
+		var w domain.AccessWindow
+		var weekdays []int16
+		var start, end int16
+		var ceiling *int16
+		if err = rows.Scan(&weekdays, &start, &end, &w.TimeZone, &ceiling); err != nil {
+			return nil, storageError(err)
+		}
+		w.Weekdays = make([]int, 0, len(weekdays))
+		for _, d := range weekdays {
+			w.Weekdays = append(w.Weekdays, int(d))
+		}
+		w.Start, w.End = domain.AccessClock(int(start)), domain.AccessClock(int(end))
+		if ceiling != nil {
+			level := int(*ceiling)
+			w.RatingMax = &level
+		}
+		windows = append(windows, w)
+	}
+	return windows, storageError(rows.Err())
+}
+
 // refreshContentFiltered recomputes the filtered flag after a restriction
 // was removed, so an unrestricted user skips the rule lookups again.
 func refreshContentFiltered(ctx context.Context, tx pgx.Tx, userID string) error {
 	_, err := tx.Exec(ctx, `UPDATE users SET content_filtered=parental_rating_max IS NOT NULL
  OR EXISTS(SELECT 1 FROM user_item_access_rules WHERE user_id=$1::uuid) OR EXISTS(SELECT 1 FROM user_blocked_tags WHERE user_id=$1::uuid)
+ OR EXISTS(SELECT 1 FROM user_blocked_keywords WHERE user_id=$1::uuid) OR EXISTS(SELECT 1 FROM user_access_windows WHERE user_id=$1::uuid)
  WHERE id=$1::uuid`, userID)
 	return storageError(err)
 }
@@ -68,13 +115,68 @@ func refreshContentFiltered(ctx context.Context, tx pgx.Tx, userID string) error
 // contentAccessAudit is the audited state of a user's restrictions; item
 // rules are audited by their own events.
 func contentAccessAudit(c domain.ContentAccess) map[string]any {
-	return map[string]any{"parentalRatingMax": c.ParentalRatingMax, "blockUnrated": c.BlockUnrated, "blockedTags": c.BlockedTags}
+	return map[string]any{"parentalRatingMax": c.ParentalRatingMax, "blockUnrated": c.BlockUnrated, "blockedTags": c.BlockedTags, "blockedKeywords": c.BlockedKeywords}
 }
 
 func sameContentAccess(a, b domain.ContentAccess) bool {
 	sameCeiling := a.ParentalRatingMax == nil && b.ParentalRatingMax == nil || a.ParentalRatingMax != nil && b.ParentalRatingMax != nil && *a.ParentalRatingMax == *b.ParentalRatingMax
 	sameUnrated := a.BlockUnrated == nil && b.BlockUnrated == nil || a.BlockUnrated != nil && b.BlockUnrated != nil && *a.BlockUnrated == *b.BlockUnrated
-	return sameCeiling && sameUnrated && slices.Equal(a.BlockedTags, b.BlockedTags)
+	return sameCeiling && sameUnrated && slices.Equal(a.BlockedTags, b.BlockedTags) && slices.Equal(a.BlockedKeywords, b.BlockedKeywords)
+}
+
+// writeContentAccess replaces the restrictions of a locked, live user and
+// audits user.content_access_changed. It reports whether anything changed;
+// an unchanged value writes no audit row (the caller still commits or
+// rolls back as a whole). Blocked tags are stored trimmed and in the
+// database's lower case, keywords NFKC-normalized as well: the forms the
+// filter compares.
+func writeContentAccess(ctx context.Context, tx pgx.Tx, actor domain.Actor, userID string, in domain.ContentAccess) (bool, error) {
+	before, err := readRestrictions(ctx, tx, userID)
+	if err != nil {
+		return false, err
+	}
+	tags := make([]string, 0, len(in.BlockedTags))
+	for _, tag := range in.BlockedTags {
+		tags = append(tags, strings.TrimSpace(tag))
+	}
+	keywords := make([]string, 0, len(in.BlockedKeywords))
+	for _, keyword := range in.BlockedKeywords {
+		keywords = append(keywords, strings.TrimSpace(keyword))
+	}
+	if _, err = tx.Exec(ctx, `DELETE FROM user_blocked_tags WHERE user_id=$1::uuid`, userID); err != nil {
+		return false, storageError(err)
+	}
+	if _, err = tx.Exec(ctx, `INSERT INTO user_blocked_tags(user_id,tag) SELECT DISTINCT $1::uuid,lower(btrim(t)) FROM unnest($2::text[]) t`, userID, tags); err != nil {
+		return false, storageError(err)
+	}
+	if _, err = tx.Exec(ctx, `DELETE FROM user_blocked_keywords WHERE user_id=$1::uuid`, userID); err != nil {
+		return false, storageError(err)
+	}
+	// A keyword that normalizes to nothing (only spaces after NFKC) is
+	// invalid rather than silently dropped.
+	var dropped bool
+	if err = tx.QueryRow(ctx, `WITH k AS (SELECT DISTINCT lower(btrim(normalize(t,NFKC))) AS keyword FROM unnest($2::text[]) t),
+ ins AS (INSERT INTO user_blocked_keywords(user_id,keyword) SELECT $1::uuid,keyword FROM k WHERE keyword<>'' RETURNING 1)
+ SELECT EXISTS(SELECT 1 FROM k WHERE keyword='')`, userID, keywords).Scan(&dropped); err != nil {
+		return false, storageError(err)
+	}
+	if dropped {
+		return false, domain.ErrInvalid
+	}
+	if _, err = tx.Exec(ctx, `UPDATE users SET parental_rating_max=$2,block_unrated=$3,content_filtered=true WHERE id=$1::uuid`, userID, in.ParentalRatingMax, in.BlockUnrated); err != nil {
+		return false, storageError(err)
+	}
+	if err = refreshContentFiltered(ctx, tx, userID); err != nil {
+		return false, err
+	}
+	after, err := readRestrictions(ctx, tx, userID)
+	if err != nil {
+		return false, err
+	}
+	if sameContentAccess(before, after) {
+		return false, nil
+	}
+	return true, auditAccount(ctx, tx, actor, "user.content_access_changed", userID, contentAccessAudit(before), contentAccessAudit(after))
 }
 
 // GetContentAccess reads a user's content restrictions and item rules.
@@ -98,10 +200,9 @@ func (s *Store) GetContentAccess(ctx context.Context, actor domain.Actor, userID
 	return v, storageError(tx.Commit(ctx))
 }
 
-// SetContentAccess replaces a user's rating ceiling, unrated override and
-// blocked tags, and audits user.content_access_changed. An unchanged value
-// is a no-op without an audit row. Blocked tags are stored trimmed and in
-// the database's lower case, the form the filter compares.
+// SetContentAccess replaces a user's rating ceiling, unrated override,
+// blocked tags and keywords, and audits user.content_access_changed. An
+// unchanged value is a no-op without an audit row.
 func (s *Store) SetContentAccess(ctx context.Context, actor domain.Actor, userID string, in domain.ContentAccess) (domain.ContentAccessView, error) {
 	if !in.Valid() {
 		return domain.ContentAccessView{}, domain.ErrInvalid
@@ -117,38 +218,87 @@ func (s *Store) SetContentAccess(ctx context.Context, actor domain.Actor, userID
 	if err = contentAccessTarget(ctx, tx, userID); err != nil {
 		return domain.ContentAccessView{}, err
 	}
-	before, err := readContentAccess(ctx, tx, userID)
+	changed, err := writeContentAccess(ctx, tx, actor, userID, in)
 	if err != nil {
-		return before, err
+		return domain.ContentAccessView{}, err
 	}
-	tags := make([]string, 0, len(in.BlockedTags))
-	for _, tag := range in.BlockedTags {
-		tags = append(tags, strings.TrimSpace(tag))
+	view, err := readContentAccess(ctx, tx, userID)
+	if err != nil || !changed {
+		// Nothing changed: leave no write behind.
+		return view, err
 	}
-	if _, err = tx.Exec(ctx, `DELETE FROM user_blocked_tags WHERE user_id=$1::uuid`, userID); err != nil {
+	return view, storageError(tx.Commit(ctx))
+}
+
+// SetAccessWindows replaces a user's restricted time windows (G48.4) and
+// audits user.access_windows_changed. An unchanged list is a no-op without
+// an audit row. Time zones PostgreSQL does not know are invalid: the
+// filter reads every window in its zone and must never fail on one.
+func (s *Store) SetAccessWindows(ctx context.Context, actor domain.Actor, userID string, windows []domain.AccessWindow) (domain.ContentAccessView, error) {
+	if !domain.ValidAccessWindows(windows) {
+		return domain.ContentAccessView{}, domain.ErrInvalid
+	}
+	tx, _, err := s.authorizedTransaction(ctx, actor, true)
+	if err != nil {
+		return domain.ContentAccessView{}, err
+	}
+	defer tx.Rollback(ctx)
+	if !domain.ValidID(userID) {
+		return domain.ContentAccessView{}, domain.ErrNotFound
+	}
+	if err = contentAccessTarget(ctx, tx, userID); err != nil {
+		return domain.ContentAccessView{}, err
+	}
+	zones := make([]string, 0, len(windows))
+	for _, w := range windows {
+		zones = append(zones, w.TimeZone)
+	}
+	var unknown bool
+	if err = tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM unnest($1::text[]) z WHERE NOT EXISTS(SELECT 1 FROM pg_timezone_names n WHERE n.name=z))`, zones).Scan(&unknown); err != nil {
 		return domain.ContentAccessView{}, storageError(err)
 	}
-	if _, err = tx.Exec(ctx, `INSERT INTO user_blocked_tags(user_id,tag) SELECT DISTINCT $1::uuid,lower(btrim(t)) FROM unnest($2::text[]) t`, userID, tags); err != nil {
+	if unknown {
+		return domain.ContentAccessView{}, domain.ErrInvalid
+	}
+	before, err := readAccessWindows(ctx, tx, userID)
+	if err != nil {
+		return domain.ContentAccessView{}, err
+	}
+	if _, err = tx.Exec(ctx, `DELETE FROM user_access_windows WHERE user_id=$1::uuid`, userID); err != nil {
 		return domain.ContentAccessView{}, storageError(err)
 	}
-	if _, err = tx.Exec(ctx, `UPDATE users SET parental_rating_max=$2,block_unrated=$3,content_filtered=true WHERE id=$1::uuid`, userID, in.ParentalRatingMax, in.BlockUnrated); err != nil {
-		return domain.ContentAccessView{}, storageError(err)
+	for i, w := range windows {
+		start, _ := domain.ParseAccessClock(w.Start, false)
+		end, _ := domain.ParseAccessClock(w.End, true)
+		weekdays := slices.Clone(w.Weekdays)
+		if weekdays == nil {
+			weekdays = []int{}
+		}
+		slices.Sort(weekdays)
+		if _, err = tx.Exec(ctx, `INSERT INTO user_access_windows(user_id,position,weekdays,start_minute,end_minute,time_zone,rating_max) VALUES($1::uuid,$2,$3::int[]::smallint[],$4,$5,$6,$7)`,
+			userID, i, weekdays, start, end, w.TimeZone, w.RatingMax); err != nil {
+			return domain.ContentAccessView{}, storageError(err)
+		}
 	}
 	if err = refreshContentFiltered(ctx, tx, userID); err != nil {
 		return domain.ContentAccessView{}, err
 	}
-	after, err := readContentAccess(ctx, tx, userID)
+	view, err := readContentAccess(ctx, tx, userID)
 	if err != nil {
-		return after, err
+		return view, err
 	}
-	if sameContentAccess(before.ContentAccess, after.ContentAccess) {
-		// Nothing changed: leave no audit row and no write.
-		return before, nil
+	if slices.EqualFunc(before, view.Windows, sameAccessWindow) {
+		return view, nil
 	}
-	if err = auditAccount(ctx, tx, actor, "user.content_access_changed", userID, contentAccessAudit(before.ContentAccess), contentAccessAudit(after.ContentAccess)); err != nil {
+	if err = auditAccount(ctx, tx, actor, "user.access_windows_changed", userID, map[string]any{"windows": before}, map[string]any{"windows": view.Windows}); err != nil {
 		return domain.ContentAccessView{}, err
 	}
-	return after, storageError(tx.Commit(ctx))
+	return view, storageError(tx.Commit(ctx))
+}
+
+func sameAccessWindow(a, b domain.AccessWindow) bool {
+	sameCeiling := a.RatingMax == nil && b.RatingMax == nil || a.RatingMax != nil && b.RatingMax != nil && *a.RatingMax == *b.RatingMax
+	return sameCeiling && slices.Equal(a.Weekdays, b.Weekdays) && a.Start == b.Start && a.End == b.End && a.TimeZone == b.TimeZone
 }
 
 // SetItemAccessRule creates or replaces the explicit rule of a user on an
@@ -303,6 +453,88 @@ func (s *Store) ListParentalRatings(ctx context.Context, actor domain.Actor) ([]
 		return nil, err
 	}
 	defer tx.Rollback(ctx)
+	result, err := listParentalRatings(ctx, tx)
+	if err != nil {
+		return nil, err
+	}
+	return result, storageError(tx.Commit(ctx))
+}
+
+// ReplaceParentalRatings replaces the rating code table (G48.4) and audits
+// access.rating_codes_changed with the codes added, removed and
+// relevelled. Codes are stored the way the filter normalizes item values;
+// a code it could never match (a leading "Rated " or two-letter country
+// prefix) and two codes that normalize alike are invalid. An unchanged
+// table is a no-op without an audit row. Administrators only.
+func (s *Store) ReplaceParentalRatings(ctx context.Context, actor domain.Actor, ratings []domain.ParentalRating) ([]domain.ParentalRating, error) {
+	if !domain.ValidParentalRatings(ratings) {
+		return nil, domain.ErrInvalid
+	}
+	codes := make([]string, 0, len(ratings))
+	levels := make([]int, 0, len(ratings))
+	for _, r := range ratings {
+		codes, levels = append(codes, r.Code), append(levels, r.Level)
+	}
+	tx, _, err := s.authorizedTransaction(ctx, actor, true)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback(ctx)
+	if _, err = tx.Exec(ctx, `LOCK TABLE parental_ratings IN SHARE ROW EXCLUSIVE MODE`); err != nil {
+		return nil, storageError(err)
+	}
+	var valid bool
+	if err = tx.QueryRow(ctx, `WITH n AS (SELECT upper(btrim(c)) AS code,`+parentalRatingCodeSQL("c")+` AS normal FROM unnest($1::text[]) c)
+ SELECT NOT EXISTS(SELECT 1 FROM n WHERE code<>normal OR code='') AND (SELECT count(DISTINCT code) FROM n)=(SELECT count(*) FROM n)`, codes).Scan(&valid); err != nil {
+		return nil, storageError(err)
+	}
+	if !valid {
+		return nil, domain.ErrInvalid
+	}
+	type change struct {
+		Code   string `json:"code"`
+		Before *int16 `json:"before"`
+		After  *int16 `json:"after"`
+	}
+	rows, err := tx.Query(ctx, `WITH n AS (SELECT upper(btrim(c)) AS code,l::smallint AS level FROM unnest($1::text[],$2::int[]) t(c,l))
+ SELECT COALESCE(n.code,p.code),p.level,n.level FROM n FULL JOIN parental_ratings p ON p.code=n.code
+ WHERE p.level IS DISTINCT FROM n.level ORDER BY 1`, codes, levels)
+	if err != nil {
+		return nil, storageError(err)
+	}
+	changes := make([]change, 0)
+	for rows.Next() {
+		var c change
+		if err = rows.Scan(&c.Code, &c.Before, &c.After); err != nil {
+			rows.Close()
+			return nil, storageError(err)
+		}
+		changes = append(changes, c)
+	}
+	rows.Close()
+	if err = rows.Err(); err != nil {
+		return nil, storageError(err)
+	}
+	if len(changes) > 0 {
+		if _, err = tx.Exec(ctx, `DELETE FROM parental_ratings WHERE code<>ALL(SELECT upper(btrim(c)) FROM unnest($1::text[]) c)`, codes); err != nil {
+			return nil, storageError(err)
+		}
+		if _, err = tx.Exec(ctx, `INSERT INTO parental_ratings(code,level) SELECT upper(btrim(c)),l::smallint FROM unnest($1::text[],$2::int[]) t(c,l)
+ ON CONFLICT(code) DO UPDATE SET level=EXCLUDED.level WHERE parental_ratings.level<>EXCLUDED.level`, codes, levels); err != nil {
+			return nil, storageError(err)
+		}
+		if err = appendAudit(ctx, tx, AuditEntry{Event: "access.rating_codes_changed", Actor: actor, After: map[string]any{"changes": changes}}); err != nil {
+			return nil, err
+		}
+	}
+	result, err := listParentalRatings(ctx, tx)
+	if err != nil {
+		return nil, err
+	}
+	return result, storageError(tx.Commit(ctx))
+}
+
+func listParentalRatings(ctx context.Context, tx pgx.Tx) ([]domain.ParentalRating, error) {
 	rows, err := tx.Query(ctx, `SELECT code,level FROM parental_ratings ORDER BY level,code LIMIT 1000`)
 	if err != nil {
 		return nil, storageError(err)
@@ -316,8 +548,5 @@ func (s *Store) ListParentalRatings(ctx context.Context, actor domain.Actor) ([]
 		}
 		result = append(result, r)
 	}
-	if err = rows.Err(); err != nil {
-		return nil, storageError(err)
-	}
-	return result, storageError(tx.Commit(ctx))
+	return result, storageError(rows.Err())
 }

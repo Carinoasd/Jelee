@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { button, control, toastKeys } from "@/test/adminViews";
 import { mountView, unmountAll } from "@/test/mountView";
 import { adminUser, apiError, createRouteFetch, data, expectNoPlaybackMarkup } from "@/test/routeFetch";
+import { ratingProblems, ratingRow, ratingsBody } from "./ratings";
 
 afterEach(() => {
   unmountAll();
@@ -76,5 +77,51 @@ describe("content access policy view", () => {
     const { wrapper } = await mountView("/admin/access", { fetch: server.fetch, user: adminUser });
     expect(wrapper.findAll("[aria-busy=true]")).toHaveLength(2);
     expect(wrapper.find(".jl-skeleton").exists()).toBe(true);
+  });
+
+  it("checks rating codes as the server would store them", () => {
+    const rows = [ratingRow(" pg-13 ", 13), ratingRow("PG-13", 12), ratingRow("Rated R", 17), ratingRow("us:pg", 7), ratingRow("", 0), ratingRow("TV-Y", 0)];
+    expect([...ratingProblems(rows).values()]).toEqual([
+      "contentRules.ratings.codeDuplicate",
+      "contentRules.ratings.codePrefix",
+      "contentRules.ratings.codePrefix",
+      "contentRules.ratings.codeEmpty",
+    ]);
+    expect(ratingsBody([rows[0]!, rows[5]!])).toEqual([
+      { code: "PG-13", level: 13 },
+      { code: "TV-Y", level: 0 },
+    ]);
+  });
+
+  it("replaces the rating table after the confirmation", async () => {
+    const server = policyServer().on("PUT", "/api/v1/access/parental-ratings", ({ body }) => data((body as { ratings: unknown[] }).ratings));
+    const { wrapper } = await mountView("/admin/access", { fetch: server.fetch, user: adminUser });
+    await button(wrapper, "Edit codes").trigger("click");
+    await flushPromises();
+    const code = (n: number) => wrapper.find<HTMLInputElement>(`input[aria-label="Code ${n}"]`);
+    expect(code(1).element.value).toBe("G");
+    expect(code(5).element.value).toBe("TV-MA");
+    await wrapper.find("[aria-label='Remove code 5']").trigger("click");
+    await button(wrapper, "Add code").trigger("click");
+    await flushPromises();
+    await code(5).setValue("us:nc-17");
+    expect(wrapper.text()).toContain('Leave out the "Rated " or country prefix.');
+    expect(button(wrapper, "Save codes").element.disabled).toBe(true);
+    await code(5).setValue(" nc-17 ");
+    await wrapper.find<HTMLSelectElement>("select[aria-label='Level of code 5']").setValue("18");
+    await button(wrapper, "Save codes").trigger("click");
+    await flushPromises();
+    expect(server.calls("PUT", "/api/v1/access/parental-ratings")).toHaveLength(0);
+    expect(wrapper.text()).toContain("The whole table is replaced.");
+    server.on("GET", "/api/v1/access/parental-ratings", () => data([...ratings.slice(0, 4), { code: "NC-17", level: 18 }]));
+    await button(wrapper, "Replace the table").trigger("click");
+    await flushPromises();
+    expect(server.calls("PUT", "/api/v1/access/parental-ratings")[0]!.body).toEqual({
+      ratings: [...ratings.slice(0, 4), { code: "NC-17", level: 18 }],
+    });
+    expect(toastKeys(wrapper)).toContain("contentRules.ratings.saved");
+    expect(wrapper.find("input[aria-label='Code 1']").exists()).toBe(false);
+    const rows = wrapper.findAll("section[aria-labelledby='access-ratings-title'] tbody tr");
+    expect(rows.at(-1)!.text()).toContain("NC-17");
   });
 });

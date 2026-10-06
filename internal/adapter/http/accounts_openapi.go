@@ -75,8 +75,62 @@ func accountSchemas() map[string]any {
 		"ContentAccessView": objectSchema(func() map[string]any {
 			p := contentAccessProperties()
 			p["rules"] = map[string]any{"type": "array", "maxItems": 1000, "items": schemaRef("ItemAccessRule"), "description": "Explicit item rules in creation order."}
+			p["windows"] = map[string]any{"type": "array", "maxItems": 20, "items": schemaRef("AccessWindow"), "description": "Restricted time windows in order."}
 			return p
-		}(), "blockedTags", "rules"),
+		}(), "blockedTags", "blockedKeywords", "rules", "windows"),
+		"AccessWindow": objectSchema(map[string]any{
+			"weekdays":  map[string]any{"type": "array", "maxItems": 7, "uniqueItems": true, "items": map[string]any{"type": "integer", "minimum": 0, "maximum": 6}, "description": "Days the window opens, 0 is Sunday; empty or omitted means every day."},
+			"start":     map[string]any{"type": "string", "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$", "description": "Wall-clock start, HH:MM."},
+			"end":       map[string]any{"type": "string", "pattern": "^(([01][0-9]|2[0-3]):[0-5][0-9]|24:00)$", "description": "Wall-clock end, HH:MM or 24:00; at or before start crosses midnight and belongs to the day the window opened. Must differ from start."},
+			"timeZone":  map[string]any{"type": "string", "minLength": 1, "maxLength": 64, "description": "IANA time zone the times are read in, such as Asia/Taipei; Local is refused. Must be known to both the server and PostgreSQL."},
+			"ratingMax": map[string]any{"type": "integer", "minimum": 0, "maximum": 21, "description": "Rating ceiling inside the window, combined with the user's own ceiling (the lower wins); omitted hides every item inside the window."},
+		}, "start", "end", "timeZone"),
+		"AccessWindowsInput":   objectSchema(map[string]any{"windows": map[string]any{"type": "array", "maxItems": 20, "items": schemaRef("AccessWindow")}}, "windows"),
+		"ParentalRatingsInput": objectSchema(map[string]any{"ratings": map[string]any{"type": "array", "maxItems": 500, "items": schemaRef("ParentalRating")}}, "ratings"),
+		"AccessGrantMatrix": objectSchema(map[string]any{
+			"libraries": map[string]any{"type": "array", "maxItems": 1000, "items": schemaRef("LibraryGrant")},
+			"users": map[string]any{"type": "array", "maxItems": 1000, "items": objectSchema(map[string]any{"id": uuid, "name": map[string]any{"type": "string"}, "displayName": map[string]any{"type": "string"},
+				"admin": boolean, "disabled": boolean, "libraryIds": map[string]any{"type": "array", "maxItems": 1000, "items": uuid}}, "id", "name", "admin", "disabled", "libraryIds")},
+			"truncated": boolean,
+		}, "libraries", "users", "truncated"),
+		"AccessGrantBulk": objectSchema(map[string]any{
+			"operations": map[string]any{"type": "array", "minItems": 1, "maxItems": 200, "items": objectSchema(map[string]any{
+				"action":     map[string]any{"type": "string", "enum": []string{"add", "remove"}},
+				"userIds":    map[string]any{"type": "array", "minItems": 1, "maxItems": 100, "uniqueItems": true, "items": uuid},
+				"libraryIds": map[string]any{"type": "array", "minItems": 1, "maxItems": 1000, "uniqueItems": true, "items": uuid},
+			}, "action", "userIds", "libraryIds")},
+			"preview": map[string]any{"type": "boolean", "description": "true only reports what the change would do; false applies it."},
+		}, "operations", "preview"),
+		"AccessTemplateApply": objectSchema(map[string]any{
+			"userIds": map[string]any{"type": "array", "minItems": 1, "maxItems": 100, "uniqueItems": true, "items": uuid},
+			"preview": map[string]any{"type": "boolean", "description": "true only reports what the application would do; false applies it."},
+		}, "userIds", "preview"),
+		"AccessTemplateInput": objectSchema(func() map[string]any {
+			p := contentAccessProperties()
+			p["name"] = map[string]any{"type": "string", "minLength": 1, "maxLength": 64, "description": "Unique case-insensitively; no surrounding spaces."}
+			p["libraryIds"] = map[string]any{"type": "array", "maxItems": 1000, "uniqueItems": true, "items": uuid, "description": "The libraries a user receives, replacing the user's grants."}
+			return p
+		}(), "name", "libraryIds", "blockedTags"),
+		"AccessTemplate": objectSchema(func() map[string]any {
+			p := contentAccessProperties()
+			p["id"], p["createdAt"], p["updatedAt"] = uuid, instant, instant
+			p["name"] = map[string]any{"type": "string"}
+			p["libraryIds"] = map[string]any{"type": "array", "maxItems": 1000, "items": uuid}
+			return p
+		}(), "id", "name", "libraryIds", "blockedTags", "blockedKeywords", "createdAt", "updatedAt"),
+		"AccessChangePreview": objectSchema(map[string]any{
+			"applied": map[string]any{"type": "boolean", "description": "false for a preview, true once written and audited."},
+			"users":   map[string]any{"type": "integer", "minimum": 0, "description": "Users whose grants or restrictions change."},
+			"items":   map[string]any{"type": "integer", "minimum": 0, "description": "Distinct items whose visibility changes for at least one user."},
+			"shown":   map[string]any{"type": "integer", "minimum": 0, "description": "User × item pairs that become visible."},
+			"hidden":  map[string]any{"type": "integer", "minimum": 0, "description": "User × item pairs that become hidden."},
+			"changes": map[string]any{"type": "array", "maxItems": 100, "items": objectSchema(map[string]any{
+				"userId": uuid, "name": map[string]any{"type": "string"},
+				"addedLibraryIds": map[string]any{"type": "array", "items": uuid}, "removedLibraryIds": map[string]any{"type": "array", "items": uuid},
+				"restrictionsChanged": boolean,
+				"shown":               map[string]any{"type": "integer", "minimum": 0}, "hidden": map[string]any{"type": "integer", "minimum": 0},
+			}, "userId", "name", "addedLibraryIds", "removedLibraryIds", "restrictionsChanged", "shown", "hidden"), "description": "Users with a change, by name."},
+		}, "applied", "users", "items", "shown", "hidden", "changes"),
 		"ItemAccessRuleInput": objectSchema(map[string]any{"effect": itemAccessEffect}, "effect"),
 		"ItemAccessRule": objectSchema(map[string]any{"itemId": uuid, "libraryId": uuid, "kind": map[string]any{"type": "string"}, "title": map[string]any{"type": "string"},
 			"effect": itemAccessEffect, "createdAt": instant}, "itemId", "libraryId", "kind", "title", "effect", "createdAt"),
@@ -123,12 +177,21 @@ func accountSpecification(paths map[string]any) {
 		{"/users/{id}/libraries", "get", "Read explicit library grants for self or as administrator; max 1000", "", "LibraryGrant[]", "200", false},
 		{"/users/{id}/libraries", "put", "Atomically replace explicit library grants; empty array removes grants", "LibraryAccess", "", "204", true},
 		{"/users/{id}/content-access", "get", "Read a user's rating ceiling, unrated override, blocked tags and item rules", "", "ContentAccessView", "200", true},
-		{"/users/{id}/content-access", "put", "Replace a user's rating ceiling, unrated override and blocked tags; item rules are kept; applies to the user's next request; audited as user.content_access_changed unless unchanged", "ContentAccess", "ContentAccessView", "200", true},
+		{"/users/{id}/content-access", "put", "Replace a user's rating ceiling, unrated override, blocked tags and blocked keywords; item rules and time windows are kept; applies to the user's next request; audited as user.content_access_changed unless unchanged", "ContentAccess", "ContentAccessView", "200", true},
+		{"/users/{id}/content-access/windows", "put", "Replace a user's restricted time windows (at most 20; an empty array removes them). While the request time falls into a window, read in the window's IANA time zone, the window caps the rating ceiling (ratingMax) or, without ratingMax, hides every item; item allow rules do not lift it. Applies to the user's next request; audited as user.access_windows_changed unless unchanged", "AccessWindowsInput", "ContentAccessView", "200", true},
 		{"/users/{id}/content-access/items/{itemId}", "put", "Create or replace a user's rule on an item and its descendants; at most 1000 rules per user (409 conflict); audited as user.item_access_rule_set unless unchanged", "ItemAccessRuleInput", "ItemAccessRule", "200", true},
 		{"/users/{id}/content-access/items/{itemId}", "delete", "Remove a user's rule on an item; 404 when there is none; audited as user.item_access_rule_removed; empty body", "", "", "204", true},
 		{"/access/policy", "get", "Read the server-wide content access policy", "", "AccessPolicy", "200", true},
 		{"/access/policy", "put", "Replace the server-wide content access policy; audited as access.policy_changed unless unchanged", "AccessPolicy", "AccessPolicy", "200", true},
 		{"/access/parental-ratings", "get", "List the recognized parental rating codes and the level (minimum age) each stands for; a bare age such as 16 or 16+ is also recognized", "", "ParentalRating[]", "200", true},
+		{"/access/parental-ratings", "put", "Replace the rating code table (at most 500 codes). Codes are stored trimmed and upper case; a code with a leading \"Rated \" or a two-letter country prefix (which item values lose before the lookup) and two codes that normalize alike are 400 invalid_request. Applies to the next request; audited as access.rating_codes_changed unless unchanged", "ParentalRatingsInput", "ParentalRating[]", "200", true},
+		{"/access/library-grants", "get", "Read the user × library grant matrix: every library and every live account except share guests with its granted library IDs (at most 1000 users; truncated says more exist). Administrators see every library whatever their grants", "", "AccessGrantMatrix", "200", true},
+		{"/access/library-grants/bulk", "post", "Add or remove library grants of many users in one transaction, operations in order (at most 200 operations and 100 distinct users). With preview true nothing is written; the result counts the users whose grants change and the items that become visible or hidden, judged by the unified filter at the request time without the request's network restriction. Applied, changed users are audited as user.library_access_replaced and the change as access.grants_bulk_applied with the same counts. A missing user, share guest or library is 404", "AccessGrantBulk", "AccessChangePreview", "200", true},
+		{"/access/templates", "get", "List the access templates by name", "", "AccessTemplate[]", "200", true},
+		{"/access/templates", "post", "Create an access template: libraries and restrictions applied together. At most 100 templates; a name taken case-insensitively is 409 conflict; audited as access.template_created", "AccessTemplateInput", "AccessTemplate", "201", true},
+		{"/access/templates/{id}", "put", "Replace an access template; users it was applied to keep what they received; audited as access.template_updated unless unchanged", "AccessTemplateInput", "AccessTemplate", "200", true},
+		{"/access/templates/{id}", "delete", "Delete an access template; users it was applied to keep their settings; audited as access.template_deleted; empty body", "", "", "204", true},
+		{"/access/templates/{id}/apply", "post", "Give each user (at most 100) exactly the template's libraries, rating ceiling, unrated override, blocked tags and keywords; item rules and time windows are kept. With preview true nothing is written and the result reports what would change. Applied, changed users are audited as user.library_access_replaced and user.content_access_changed and the application as access.template_applied with the counts", "AccessTemplateApply", "AccessChangePreview", "200", true},
 	}
 	for _, route := range routes {
 		path := "/api/v1" + route.path
@@ -167,7 +230,11 @@ func accountSpecification(paths map[string]any) {
 			op["parameters"] = params
 		}
 		if route.body != "" {
-			op["requestBody"] = map[string]any{"required": true, "content": map[string]any{"application/json": map[string]any{"schema": schemaRef(route.body)}}, "description": "Maximum 64 KiB; exactly one object; unknown or duplicate keys rejected."}
+			limit := "Maximum 64 KiB"
+			if route.path == "/access/library-grants/bulk" {
+				limit = "Maximum 1 MiB"
+			}
+			op["requestBody"] = map[string]any{"required": true, "content": map[string]any{"application/json": map[string]any{"schema": schemaRef(route.body)}}, "description": limit + "; exactly one object; unknown or duplicate keys rejected."}
 		}
 		if route.result != "" {
 			data := schemaRef(route.result)
@@ -196,5 +263,7 @@ func contentAccessProperties() map[string]any {
 		"blockUnrated":      map[string]any{"type": "boolean", "description": "Under a ceiling, whether items without a recognized rating are hidden; omitted follows the server-wide policy."},
 		"blockedTags": map[string]any{"type": "array", "maxItems": 100, "items": map[string]any{"type": "string", "minLength": 1, "maxLength": 128},
 			"description": "Tags and genres that hide an item when the item or an ancestor carries one; compared trimmed and case-insensitively; empty array removes the blocks."},
+		"blockedKeywords": map[string]any{"type": "array", "maxItems": 100, "items": map[string]any{"type": "string", "minLength": 1, "maxLength": 128},
+			"description": "Keywords that hide an item when its title, metadata title or original title, or an ancestor's, contains one; compared NFKC-normalized (full and half width fold together), trimmed and case-insensitively; overviews are not searched. Omitted or empty means none."},
 	}
 }

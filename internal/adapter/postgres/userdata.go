@@ -40,6 +40,9 @@ var userDataSections = []userDataSection{
 	{"playlistItem", `SELECT i.playlist_id::text AS "playlistId",i.item_id::text AS "itemId",i.position AS "position",i.added_at AS "addedAt"
  FROM playlist_items i JOIN playlists p ON p.id=i.playlist_id WHERE p.owner_id=$1::uuid AND ` + exportItemVisible("i.item_id"), `"playlistId","position","itemId"`},
 	{"blockedTag", `SELECT tag AS "tag" FROM user_blocked_tags WHERE user_id=$1::uuid`, `"tag"`},
+	{"blockedKeyword", `SELECT keyword AS "keyword" FROM user_blocked_keywords WHERE user_id=$1::uuid`, `"keyword"`},
+	{"accessWindow", `SELECT position AS "position",weekdays AS "weekdays",start_minute AS "startMinute",end_minute AS "endMinute",time_zone AS "timeZone",rating_max AS "ratingMax"
+ FROM user_access_windows WHERE user_id=$1::uuid`, `"position"`},
 	{"libraryAccess", `SELECT a.library_id::text AS "libraryId",l.name AS "libraryName" FROM library_acl a JOIN libraries l ON l.id=a.library_id WHERE a.user_id=$1::uuid AND ` + exportLibraryVisible("a.library_id"), `"libraryId"`},
 	{"itemAccessRule", `SELECT r.item_id::text AS "itemId",r.effect AS "effect",r.created_at AS "createdAt"
  FROM user_item_access_rules r WHERE r.user_id=$1::uuid AND ` + exportItemVisible("r.item_id"), `"itemId"`},

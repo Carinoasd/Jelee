@@ -4,7 +4,7 @@ import { ratingLevels } from "@/features/access/api";
 import { mountView, unmountAll } from "@/test/mountView";
 import { adminUser, apiError, createRouteFetch, data, expectNoPlaybackMarkup, json, regularUser } from "@/test/routeFetch";
 import type { User } from "./api";
-import { checkNewUser, checkTag, contentAccessBody, limitsBody, parseLimit, settingsOf } from "./form";
+import { checkKeyword, checkNewUser, checkTag, contentAccessBody, limitsBody, parseLimit, settingsOf } from "./form";
 import { button, control, toastKeys } from "@/test/adminViews";
 
 afterEach(() => {
@@ -46,11 +46,22 @@ describe("account form helpers", () => {
     expect(parseLimit("129", 128)).toEqual({ ok: false });
     expect(parseLimit("1.5", 128)).toEqual({ ok: false });
     expect(limitsBody(undefined, 0)).toEqual({ maxKbps: 0 });
-    expect(contentAccessBody("", "policy", [])).toEqual({ blockedTags: [] });
-    expect(contentAccessBody("13", "show", ["x"])).toEqual({ parentalRatingMax: 13, blockUnrated: false, blockedTags: ["x"] });
+    expect(contentAccessBody("", "policy", [], [])).toEqual({ blockedTags: [], blockedKeywords: [] });
+    expect(contentAccessBody("13", "show", ["x"], ["ｓｐｏｉｌｅｒ"])).toEqual({
+      parentalRatingMax: 13,
+      blockUnrated: false,
+      blockedTags: ["x"],
+      blockedKeywords: ["ｓｐｏｉｌｅｒ"],
+    });
     expect(settingsOf(regularUser)).toEqual({ name: "kid", displayName: "Kid", locale: "en-US", admin: false, hidden: false, disabled: false });
     expect(checkTag("Horror", ["horror"])).toBe("users.content.tagDuplicate");
     expect(checkTag(" ", [])).toBe("users.content.tagEmpty");
+    // Keywords compare NFKC-normalized: full and half width are the same.
+    expect(checkKeyword("ＳＰＯＩＬＥＲ", ["spoiler"])).toBe("users.content.keywordDuplicate");
+    expect(checkKeyword("  ", [])).toBe("users.content.keywordEmpty");
+    expect(checkKeyword("字".repeat(43), [])).toBe("users.form.tooLong");
+    expect(checkKeyword("new", Array.from({ length: 100 }, (_, i) => `k${i}`))).toBe("users.content.keywordLimit");
+    expect(checkKeyword(" ok ", ["other"])).toBeNull();
     expect(ratingLevels([{ code: "R", level: 17 }, { code: "G", level: 0 }, { code: "TV-MA", level: 17 }])).toEqual([
       { level: 0, codes: ["G"] },
       { level: 17, codes: ["R", "TV-MA"] },

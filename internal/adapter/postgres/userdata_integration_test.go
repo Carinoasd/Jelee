@@ -29,6 +29,8 @@ var userReferenceColumns = map[string]string{
 	"playlists.owner_id":             "cascade",
 	"sessions.user_id":               "cascade",
 	"user_blocked_tags.user_id":      "cascade",
+	"user_blocked_keywords.user_id":  "cascade",
+	"user_access_windows.user_id":    "cascade",
 	"user_item_access_rules.user_id": "cascade",
 	"user_item_data.user_id":         "cascade",
 	"user_preferences.user_id":       "cascade",
@@ -120,6 +122,8 @@ func (f userDataFixture) seed(t *testing.T, native, web domain.Actor) (share, gu
 	lib := f.registration.Library.ID
 	f.exec(t, `INSERT INTO user_track_preferences(user_id,item_id,audio_language) VALUES($1::uuid,$2::uuid,'ja')`, uid, f.item)
 	f.exec(t, `INSERT INTO user_blocked_tags(user_id,tag) VALUES($1::uuid,'horror')`, uid)
+	f.exec(t, `INSERT INTO user_blocked_keywords(user_id,keyword) VALUES($1::uuid,'gore')`, uid)
+	f.exec(t, `INSERT INTO user_access_windows(user_id,position,start_minute,end_minute,time_zone) VALUES($1::uuid,0,1260,420,'Asia/Taipei')`, uid)
 	f.exec(t, `WITH p AS (INSERT INTO playlists(owner_id,name) VALUES($1::uuid,'purge list') RETURNING id) INSERT INTO playlist_items(playlist_id,item_id,position) SELECT id,$2::uuid,0 FROM p`, uid, f.item)
 	f.exec(t, `INSERT INTO collections(name,created_by) VALUES('purge collection',$1::uuid)`, uid)
 	f.exec(t, `INSERT INTO repair_runs(action,origin,actor_id) VALUES('stats','api',$1::uuid)`, uid)
@@ -435,7 +439,7 @@ func TestUserDataExportSnapshotWithoutSecrets(t *testing.T) {
 		}
 		text.Write(r.Data)
 	}
-	for _, kind := range []string{"account", "preferences", "trackPreference", "blockedTag", "libraryAccess", "itemAccessRule", "itemData", "playbackSession",
+	for _, kind := range []string{"account", "preferences", "trackPreference", "blockedTag", "blockedKeyword", "accessWindow", "libraryAccess", "itemAccessRule", "itemData", "playbackSession",
 		"playbackSample", "watchStatsDay", "watchStatsItem", "session", "appPassword", "shareLink", "clientControlHit", "auditEvent"} {
 		if counts[kind] == 0 {
 			t.Errorf("export has no %s record", kind)

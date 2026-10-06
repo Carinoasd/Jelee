@@ -330,6 +330,17 @@ func leakRouteTable() map[string]leakRoute {
 		"POST /api/v1/client-control/clients/{id}/kick":  admin(webhookParam),
 		"PUT /api/v1/access/policy":                      admin(noParams),
 		"GET /api/v1/access/parental-ratings":            admin(noParams),
+		// G48.4 rating codes and time windows, G48.7 grant matrix, bulk
+		// changes and templates.
+		"PUT /api/v1/access/parental-ratings":           admin(noParams),
+		"PUT /api/v1/users/{id}/content-access/windows": admin(selfParam),
+		"GET /api/v1/access/library-grants":             admin(noParams),
+		"POST /api/v1/access/library-grants/bulk":       admin(noParams),
+		"GET /api/v1/access/templates":                  admin(noParams),
+		"POST /api/v1/access/templates":                 admin(noParams),
+		"PUT /api/v1/access/templates/{id}":             admin(shareParam),
+		"DELETE /api/v1/access/templates/{id}":          admin(shareParam),
+		"POST /api/v1/access/templates/{id}/apply":      admin(shareParam),
 		// G48.5 network rules and G48.6 share links.
 		"GET /api/v1/access/network-rules":                admin(noParams),
 		"POST /api/v1/access/network-rules":               admin(noParams),
@@ -596,7 +607,8 @@ func leakHandlerWithAccounts(t *testing.T, store *postgres.Store, cfg config.Con
 	if err != nil {
 		t.Fatal(err)
 	}
-	options := []Option{WithWebhooks(httpWebhooks(t, store)), WithSetup(completedSetupWizard(), ""), WithExtracted(newLeakExtracted(t, store)), WithRepair(repairer.WithServer(jobs, nil), app.RepairOptions{Policy: cfg.Jobs.Policy()})}
+	options := []Option{WithWebhooks(httpWebhooks(t, store)), WithSetup(completedSetupWizard(), ""), WithExtracted(newLeakExtracted(t, store)), WithRepair(repairer.WithServer(jobs, nil), app.RepairOptions{Policy: cfg.Jobs.Policy()}),
+		WithAccessClock(func() time.Time { return leakNow })}
 	if cfg.Dev.Capable() {
 		// The developer routes exist but no session is active (G45.8).
 		dev, err := devmode.NewController(devmode.ControllerOptions{Store: store, Local: cfg.Dev.Inputs()})
@@ -1013,7 +1025,12 @@ func (f leakIDs) assertNoMarkers(t *testing.T, route string, response leakRespon
 // leakMechanisms are the ways the fixture's hidden item is hidden from the
 // viewer (G48.1, G48.4). Every mechanism goes through the unified filter, so
 // the same traversal must find zero leaks for each.
-var leakMechanisms = []string{"library_grant", "item_rule", "parental_rating", "blocked_tag", "network_rule", "client_restrict_libraries", "share_scope"}
+var leakMechanisms = []string{"library_grant", "item_rule", "parental_rating", "blocked_tag", "blocked_keyword", "time_window", "network_rule", "client_restrict_libraries", "share_scope"}
+
+// leakNow is the request time of every traversal (WithAccessClock): a
+// Wednesday, 18:30 in Taipei. The time_window mechanism hides the item
+// only inside a window around it (G48.4).
+var leakNow = time.Date(2026, 10, 7, 10, 30, 0, 0, time.UTC)
 
 // leakHideBy hides the fixture's hidden item from the viewer by mechanism.
 // Except for the library grant, the viewer is granted the hidden library,
@@ -1074,6 +1091,18 @@ func leakHideBy(t *testing.T, ctx context.Context, store *postgres.Store, f *lea
 	case "blocked_tag":
 		if _, err = store.UpdateItemMetadataWithFacts(ctx, f.admin, f.item[leakHidden], 1, nil, []domain.ItemMetadataFactPatch{{Field: "tags", Value: json.RawMessage(`["Leak Blocked"]`)}}); err == nil {
 			_, err = store.SetContentAccess(ctx, f.admin, f.viewer, domain.ContentAccess{BlockedTags: []string{"leak blocked"}})
+		}
+	case "blocked_keyword":
+		// Full-width letters and digits fold into the hidden title's
+		// "Qx7" (NFKC, case-insensitive); the visible title lacks it.
+		_, err = store.SetContentAccess(ctx, f.admin, f.viewer, domain.ContentAccess{BlockedTags: []string{}, BlockedKeywords: []string{"ｑＸ７"}})
+	case "time_window":
+		// The item is rated above the window's ceiling, which holds only
+		// on Wednesdays 18:00-19:00 in Taipei, around leakNow; the viewer
+		// has no ceiling of its own.
+		rated := "NC-17"
+		if _, err = store.UpdateItemMetadata(ctx, f.admin, f.item[leakHidden], 1, []domain.ItemMetadataPatch{{Field: "mpaa", Value: &rated}}); err == nil {
+			_, err = store.SetAccessWindows(ctx, f.admin, f.viewer, []domain.AccessWindow{{Weekdays: []int{3}, Start: "18:00", End: "19:00", TimeZone: "Asia/Taipei", RatingMax: ptrInt(13)}})
 		}
 	default:
 		t.Fatalf("unknown mechanism %s", mechanism)
@@ -1201,3 +1230,5 @@ func leakTraverse(t *testing.T, store *postgres.Store, dsn string, f leakIDs) {
 		})
 	}
 }
+
+func ptrInt(v int) *int { return &v }

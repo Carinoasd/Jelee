@@ -8,6 +8,8 @@ export const passwordMinBytes = 12;
 export const passwordMaxBytes = 1024;
 export const tagMaxBytes = 128;
 export const maxBlockedTags = 100;
+export const keywordMaxBytes = 128;
+export const maxBlockedKeywords = 100;
 /** DeliveryLimits bounds from the contract. */
 export const maxConcurrentLimit = 128;
 export const maxBandwidthLimit = 10_000_000;
@@ -129,17 +131,22 @@ export function ceilingText(value: number | undefined): string {
   return value === undefined ? "" : String(value);
 }
 
-/** Request body of the content access settings; item rules are not part of it. */
-export function contentAccessBody(ceiling: string, unrated: UnratedChoice, tags: readonly string[]): ContentAccess {
+/**
+ * Request body of the content access settings; item rules and time windows
+ * are not part of it. The keywords are always sent: the server clears them
+ * when the field is omitted.
+ */
+export function contentAccessBody(ceiling: string, unrated: UnratedChoice, tags: readonly string[], keywords: readonly string[]): ContentAccess {
   return {
     ...(ceiling !== "" ? { parentalRatingMax: Number(ceiling) } : {}),
     ...(unrated !== "policy" ? { blockUnrated: unrated === "hide" } : {}),
     blockedTags: [...tags],
+    blockedKeywords: [...keywords],
   };
 }
 
 export function contentAccessOf(view: ContentAccessView): ContentAccess {
-  return contentAccessBody(ceilingText(view.parentalRatingMax), unratedChoice(view.blockUnrated), view.blockedTags);
+  return contentAccessBody(ceilingText(view.parentalRatingMax), unratedChoice(view.blockUnrated), view.blockedTags, view.blockedKeywords);
 }
 
 /** Checks a tag to add: catalog key of the problem or null. */
@@ -157,6 +164,30 @@ export function checkTag(tag: string, existing: readonly string[]): string | nul
   }
   if (existing.length >= maxBlockedTags) {
     return "users.content.tagLimit";
+  }
+  return null;
+}
+
+/** A keyword as the server compares it: NFKC (full and half width alike), trimmed, case-insensitive. */
+export function keywordKey(keyword: string): string {
+  return keyword.normalize("NFKC").trim().toLowerCase();
+}
+
+/** Checks a keyword to add: catalog key of the problem or null. */
+export function checkKeyword(keyword: string, existing: readonly string[]): string | null {
+  const value = keyword.trim();
+  if (value === "") {
+    return "users.content.keywordEmpty";
+  }
+  if (utf8Length(value) > keywordMaxBytes) {
+    return "users.form.tooLong";
+  }
+  const key = keywordKey(value);
+  if (existing.some((entry) => keywordKey(entry) === key)) {
+    return "users.content.keywordDuplicate";
+  }
+  if (existing.length >= maxBlockedKeywords) {
+    return "users.content.keywordLimit";
   }
   return null;
 }

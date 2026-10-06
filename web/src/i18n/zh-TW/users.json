@@ -132,7 +132,16 @@
       "tagEmpty": "請輸入標籤。",
       "tagDuplicate": "清單中已有此標籤。",
       "tagLimit": "最多只能封鎖 {max} 個標籤。",
-      "saveNote": "分級上限、未分級處理與標籤會一起儲存；下方的條目規則則逐條儲存。",
+      "saveNote": "分級上限、未分級處理、標籤與關鍵字會一起儲存；下方的限制時段與條目規則各自儲存。",
+      "keywords": "封鎖的關鍵字",
+      "keywordsImpact": "條目本身或其上層的標題、中繼資料標題或原名包含任一關鍵字即隱藏。全形與半形視為相同、不分大小寫；不比對簡介。最多 {max} 個。",
+      "noKeywords": "沒有封鎖任何關鍵字。",
+      "newKeyword": "要封鎖的關鍵字",
+      "addKeyword": "新增關鍵字",
+      "removeKeyword": "移除關鍵字 {keyword}",
+      "keywordEmpty": "請輸入關鍵字。",
+      "keywordDuplicate": "清單中已有此關鍵字。",
+      "keywordLimit": "最多只能封鎖 {max} 個關鍵字。",
       "saved": "內容限制已儲存。"
     },
     "rules": {

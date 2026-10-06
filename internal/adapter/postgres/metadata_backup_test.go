@@ -122,6 +122,12 @@ func seedMetadataBackup(t testing.TB, ctx context.Context, s *Store, episodes in
 		{"rating", `INSERT INTO parental_ratings(code,level) VALUES ('KR-15',15)`},
 		{"item rule", `INSERT INTO user_item_access_rules(user_id,item_id,effect,created_at) VALUES ('` + bkKid + `','` + bkMovie + `','hide','2026-09-05T00:00:00Z')`},
 		{"blocked tag", `INSERT INTO user_blocked_tags(user_id,tag) VALUES ('` + bkKid + `','horror')`},
+		{"blocked keyword", `INSERT INTO user_blocked_keywords(user_id,keyword) VALUES ('` + bkKid + `','zombie')`},
+		{"access window", `INSERT INTO user_access_windows(user_id,position,weekdays,start_minute,end_minute,time_zone,rating_max) VALUES ('` + bkKid + `',0,ARRAY[0,6]::smallint[],1260,420,'Asia/Taipei',NULL),
+ ('` + bkKid + `',1,'{}',960,1200,'Europe/Berlin',7)`},
+		{"access template", `WITH t AS (INSERT INTO access_templates(id,name,rating_max,blocked_tags,blocked_keywords,created_at,updated_at)
+ VALUES ('a1b2c3d4-0000-4000-8000-000000000084','Kids',7,ARRAY['horror'],ARRAY['zombie'],'2026-09-14T00:00:00Z','2026-09-14T00:00:00Z') RETURNING id)
+ INSERT INTO access_template_libraries(template_id,library_id) SELECT id,'` + bkLibMovies + `' FROM t`},
 		{"client policy", `UPDATE client_control_policy SET unknown_clients='read_only',exempt_loopback=false`},
 		{"client rule", `INSERT INTO client_rules(id,dimension,match_kind,pattern,priority,action,note,created_by,created_at,updated_at,hit_count)
  VALUES ('` + bkRule + `','user_agent','exact','BadBot/1.0',10,'deny','scraper','` + bkAdmin + `','2026-09-06T00:00:00Z','2026-09-06T00:00:00Z',42)`},

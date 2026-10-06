@@ -161,7 +161,7 @@ function answer(api: FakeApi, method: string, url: URL): Answer | undefined {
       case "/libraries":
         return ok(data.libraries.map((library) => ({ libraryId: library.id, name: library.name })));
       case "/content-access":
-        return ok({ blockedTags: [], rules: [] });
+        return ok({ blockedTags: [], blockedKeywords: [], rules: [], windows: [] });
       case "/delivery-limits":
         return ok({});
     }

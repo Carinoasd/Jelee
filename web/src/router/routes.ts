@@ -138,18 +138,23 @@ export const routes: RouteRecordRaw[] = [
       {
         path: "users/:userId",
         name: "admin-user",
-        component: () => import("@/features/users/AdminUserView.vue"),
+        component: lazyView("contentRules", () => import("@/features/users/AdminUserView.vue")),
         props: true,
       },
       {
         path: "access",
         name: "admin-access",
-        component: () => import("@/features/access/AccessPolicyView.vue"),
+        component: lazyView("contentRules", () => import("@/features/access/AccessPolicyView.vue")),
       },
       {
         path: "access/network",
         name: "admin-access-network",
         component: lazyView("networkRules", () => import("@/features/access/NetworkRulesView.vue")),
+      },
+      {
+        path: "access/matrix",
+        name: "admin-access-matrix",
+        component: lazyView("accessMatrix", () => import("@/features/access/AccessMatrixView.vue")),
       },
       {
         path: "shares",
