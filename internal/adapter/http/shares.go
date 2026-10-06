@@ -154,9 +154,14 @@ func (s *Server) guestGate(w http.ResponseWriter, r *http.Request, p access.Prin
 
 // requestScope is the per-request input of the unified storage filter:
 // the client address as resolved through the trusted proxies, the session
-// kind and the libraries a client control decision left (nil: all).
-func requestScope(address string, kind access.ClientKind, libraries []string) *access.RequestScope {
-	scope := &access.RequestScope{Kind: kind, Libraries: libraries}
+// kind, the libraries a client control decision left (nil: all) and the
+// request time restricted time windows are decided at (G48.4).
+func (s *Server) requestScope(address string, kind access.ClientKind, libraries []string) *access.RequestScope {
+	now := time.Now
+	if s.accessNow != nil {
+		now = s.accessNow
+	}
+	scope := &access.RequestScope{Kind: kind, Libraries: libraries, At: now()}
 	if addr, err := netip.ParseAddr(address); err == nil {
 		scope.IP = addr.Unmap().WithZone("")
 	}

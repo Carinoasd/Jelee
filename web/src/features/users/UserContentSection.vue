@@ -4,14 +4,24 @@ import { useI18n } from "vue-i18n";
 import UiButton from "@/components/ui/UiButton.vue";
 import UiErrorState from "@/components/ui/UiErrorState.vue";
 import UiSelectField from "@/components/ui/UiSelectField.vue";
-import UiTextField from "@/components/ui/UiTextField.vue";
 import type { SelectOption } from "@/components/ui/types";
 import { useAccessPolicyStore } from "@/stores/accessPolicy";
 import { useUserAdminContentStore } from "@/stores/userAdminContent";
 import type { ContentAccessView } from "./api";
 import { useAdminFeedback } from "./feedback";
-import { ceilingText, checkTag, contentAccessBody, contentAccessOf, maxBlockedTags, unratedChoice, type UnratedChoice } from "./form";
+import {
+  ceilingText,
+  checkKeyword,
+  checkTag,
+  contentAccessBody,
+  contentAccessOf,
+  maxBlockedKeywords,
+  maxBlockedTags,
+  unratedChoice,
+  type UnratedChoice,
+} from "./form";
 import { unratedKey } from "./labels";
+import TermListEditor from "./TermListEditor.vue";
 
 const props = defineProps<{ access: ContentAccessView }>();
 const { t } = useI18n();
@@ -22,15 +32,18 @@ const feedback = useAdminFeedback();
 const ceiling = shallowRef("");
 const unrated = shallowRef<UnratedChoice>("policy");
 const tags = shallowRef<readonly string[]>([]);
-const newTag = shallowRef("");
-const tagProblem = shallowRef<string | null>(null);
+const keywords = shallowRef<readonly string[]>([]);
 
+// Only a change of these settings resets the form: saving the time windows
+// or an item rule replaces the view without touching unsaved edits here.
 watch(
-  () => props.access,
-  (access) => {
+  () => JSON.stringify(contentAccessOf(props.access)),
+  () => {
+    const access = props.access;
     ceiling.value = ceilingText(access.parentalRatingMax);
     unrated.value = unratedChoice(access.blockUnrated);
     tags.value = access.blockedTags;
+    keywords.value = access.blockedKeywords;
   },
   { immediate: true },
 );
@@ -64,20 +77,17 @@ const unratedModel = computed({
   },
 });
 
-const body = computed(() => contentAccessBody(ceiling.value, unrated.value, tags.value));
+const body = computed(() => contentAccessBody(ceiling.value, unrated.value, tags.value, keywords.value));
 const changed = computed(() => JSON.stringify(body.value) !== JSON.stringify(contentAccessOf(props.access)));
 
-function addTag() {
-  tagProblem.value = checkTag(newTag.value, tags.value);
-  if (tagProblem.value !== null) {
-    return;
-  }
-  tags.value = [...tags.value, newTag.value.trim()];
-  newTag.value = "";
+function tagProblem(tag: string, existing: readonly string[]): string | null {
+  const key = checkTag(tag, existing);
+  return key === null ? null : t(key, { max: maxBlockedTags });
 }
 
-function removeTag(tag: string) {
-  tags.value = tags.value.filter((entry) => entry !== tag);
+function keywordProblem(keyword: string, existing: readonly string[]): string | null {
+  const key = checkKeyword(keyword, existing);
+  return key === null ? null : t(key, { max: maxBlockedKeywords });
 }
 
 async function save() {
@@ -105,23 +115,28 @@ async function save() {
     <p v-if="ceiling === ''" class="jl-card__muted">{{ t("users.content.unratedInactive") }}</p>
     <UiErrorState v-if="policy.ratingsState.status === 'error'" :error="policy.ratingsState.error" @retry="policy.loadRatings" />
 
-    <div class="jl-tags">
-      <h3 id="user-tags-title">{{ t("users.content.tags") }}</h3>
-      <p class="jl-card__muted">{{ t("users.content.tagsImpact", { max: maxBlockedTags }) }}</p>
-      <ul v-if="tags.length > 0" class="jl-tags__list" aria-labelledby="user-tags-title">
-        <li v-for="tag in tags" :key="tag" class="jl-tags__tag">
-          <span>{{ tag }}</span>
-          <UiButton variant="ghost" :aria-label="t('users.content.removeTag', { tag })" @click="removeTag(tag)">
-            {{ t("users.content.remove") }}
-          </UiButton>
-        </li>
-      </ul>
-      <p v-else class="jl-card__muted">{{ t("users.content.noTags") }}</p>
-      <form class="jl-tags__add" novalidate @submit.prevent="addTag">
-        <UiTextField v-model="newTag" :label="t('users.content.newTag')" :error="tagProblem ? t(tagProblem, { max: maxBlockedTags }) : null" autocomplete="off" />
-        <UiButton type="submit" variant="secondary">{{ t("users.content.addTag") }}</UiButton>
-      </form>
-    </div>
+    <TermListEditor
+      v-model="tags"
+      :title="t('users.content.tags')"
+      :impact="t('users.content.tagsImpact', { max: maxBlockedTags })"
+      :empty-text="t('users.content.noTags')"
+      :input-label="t('users.content.newTag')"
+      :add-label="t('users.content.addTag')"
+      :remove-text="t('users.content.remove')"
+      :remove-label="(tag) => t('users.content.removeTag', { tag })"
+      :check="tagProblem"
+    />
+    <TermListEditor
+      v-model="keywords"
+      :title="t('users.content.keywords')"
+      :impact="t('users.content.keywordsImpact', { max: maxBlockedKeywords })"
+      :empty-text="t('users.content.noKeywords')"
+      :input-label="t('users.content.newKeyword')"
+      :add-label="t('users.content.addKeyword')"
+      :remove-text="t('users.content.remove')"
+      :remove-label="(keyword) => t('users.content.removeKeyword', { keyword })"
+      :check="keywordProblem"
+    />
 
     <p class="jl-card__muted">{{ t("users.content.saveNote") }}</p>
     <div class="jl-card__actions">
@@ -131,44 +146,3 @@ async function save() {
 </template>
 
 <style scoped src="./sections.css"></style>
-<style scoped>
-.jl-tags {
-  display: grid;
-  gap: var(--jl-space-2);
-}
-
-.jl-tags h3 {
-  margin: 0;
-  font-size: var(--jl-font-size-md);
-}
-
-.jl-tags__list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--jl-space-2);
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.jl-tags__tag {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--jl-space-1);
-  padding-left: var(--jl-space-3);
-  border: 1px solid var(--jl-color-border);
-  border-radius: var(--jl-radius-pill);
-  background: var(--jl-color-badge-bg);
-}
-
-.jl-tags__add {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  gap: var(--jl-space-2);
-}
-
-.jl-tags__add > :first-child {
-  flex: 1 1 16rem;
-}
-</style>

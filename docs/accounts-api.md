@@ -45,9 +45,11 @@
 | DELETE `/users/{id}/sessions/{sessionID}` | 自己或管理员 | 撤销目标单个会话 |
 | GET `/users/{id}/libraries` | 自己或管理员 | 显式库授权列表；管理员实际仍可访问全部库 |
 | PUT `/users/{id}/libraries` | 管理员 | `{"libraryIds":[UUID,...]}`；原子替换，空数组清除，最多 1000 个唯一 ID |
-| GET/PUT `/users/{id}/content-access` | 管理员 | 分级上限、未分级覆写、封锁标签（PUT 整组替换，`blockedTags` 必填）；GET 另含条目规则；写审计 `user.content_access_changed`。详见[存取控制](access-control.md) |
+| GET/PUT `/users/{id}/content-access` | 管理员 | 分级上限、未分级覆写、封锁标签与关键字（PUT 整组替换，`blockedTags` 必填，省略 `blockedKeywords` 即清除）；GET 另含条目规则与限制时段；写审计 `user.content_access_changed`。详见[存取控制](access-control.md) |
+| PUT `/users/{id}/content-access/windows` | 管理员 | 限制时段整组替换（最多 20 个；星期、HH:MM 起讫可跨午夜、IANA 时区、可选分级上限，省略即时段内隐藏全部）；写审计 `user.access_windows_changed` |
 | PUT/DELETE `/users/{id}/content-access/items/{itemId}` | 管理员 | `{"effect":"allow"\|"hide"}`；条目及其子树的显式规则；写审计 `user.item_access_rule_set`／`user.item_access_rule_removed` |
-| GET/PUT `/access/policy`、GET `/access/parental-ratings` | 管理员 | 全域策略 `restrictAdmins`、`blockUnrated`（写审计 `access.policy_changed`）；可辨识分级代码表 |
+| GET/PUT `/access/policy`、GET/PUT `/access/parental-ratings` | 管理员 | 全域策略 `restrictAdmins`、`blockUnrated`（写审计 `access.policy_changed`）；可辨识分级代码表（PUT 整表替换，写审计 `access.rating_codes_changed`） |
+| GET `/access/library-grants`、POST `/access/library-grants/bulk`、`/access/templates…` | 管理员 | 授权矩阵、批量授权（`preview` 必填，预览不写入）、模板与套用；写审计 `user.library_access_replaced`、`access.grants_bulk_applied`、`access.template_*`。详见[存取控制](access-control.md#授權矩陣批量授權與模板g487) |
 | GET `/site/appearance`、GET `/site/plugins` | 已登录用户 | 生效的全站外观（默认主题、token 覆写、服务器清洗后的 CSS、生效的字体主机、默认布局）与插件配置（顺序、启用、未停用插件的设置）；不含原始 CSS、版本号与清洗报告（G32.4、G33.2–G33.5，迁移 000074） |
 | GET `/site/appearance/config`、PUT `/site/appearance`、POST `/site/appearance/reset` | 管理员 | 存储的外观文档（原始 `customCss`、`cssIssues`、`revision`）；PUT 必须带齐全部字段与读到的 `revision`（过期 `409 conflict`）；CSS 由服务器按与网页端相同的规则清洗，结构问题整份拒绝 `400 custom_css_rejected`；外部字体开启时网页端 CSP 加入 `font-src`；写审计 `site.appearance_changed`（安全类，未变不写） |
 | GET `/site/plugins/config`、PUT `/site/plugins`、POST `/site/plugins/reset` | 管理员 | 插件清单（顺序即列表顺序）与按插件 ID 分的设置命名空间（最多 64 个、每个 64 键 16 KiB）；PUT 带 `revision`；写审计 `site.plugins_changed`（只记清单与每个命名空间的 SHA-256） |

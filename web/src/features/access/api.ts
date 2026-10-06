@@ -80,3 +80,62 @@ export async function updateNetworkRule(client: ApiClient, id: string, input: Ne
 export async function deleteNetworkRule(client: ApiClient, id: string): Promise<void> {
   await callNoContent(client.DELETE("/api/v1/access/network-rules/{id}", { params: { path: { id } } }));
 }
+
+// Library grant matrix, bulk grant changes and access templates (G48.7).
+// Every change is previewed first: the server answers with the counts of the
+// users and items it would affect, and only a second request with preview
+// false writes and audits it.
+export type AccessGrantMatrix = components["schemas"]["AccessGrantMatrix"];
+export type MatrixUser = AccessGrantMatrix["users"][number];
+export type LibraryGrant = components["schemas"]["LibraryGrant"];
+export type AccessChangePreview = components["schemas"]["AccessChangePreview"];
+export type AccessChange = AccessChangePreview["changes"][number];
+export type GrantOperation = components["schemas"]["AccessGrantBulk"]["operations"][number];
+export type AccessTemplate = components["schemas"]["AccessTemplate"];
+export type AccessTemplateInput = components["schemas"]["AccessTemplateInput"];
+
+/** Limits of one bulk change or template application, as the server enforces them. */
+export const maxBulkUsers = 100;
+export const maxBulkOperations = 200;
+export const maxTemplates = 100;
+export const templateNameMaxChars = 64;
+
+export async function getGrantMatrix(client: ApiClient): Promise<AccessGrantMatrix> {
+  const body = await call(client.GET("/api/v1/access/library-grants"));
+  return body.data;
+}
+
+export async function bulkGrants(client: ApiClient, operations: readonly GrantOperation[], preview: boolean): Promise<AccessChangePreview> {
+  const body = await call(client.POST("/api/v1/access/library-grants/bulk", { body: { operations: [...operations], preview } }));
+  return body.data;
+}
+
+export async function listTemplates(client: ApiClient): Promise<readonly AccessTemplate[]> {
+  const body = await call(client.GET("/api/v1/access/templates"));
+  return body.data;
+}
+
+export async function createTemplate(client: ApiClient, input: AccessTemplateInput): Promise<AccessTemplate> {
+  const body = await call(client.POST("/api/v1/access/templates", { body: input }));
+  return body.data;
+}
+
+export async function updateTemplate(client: ApiClient, id: string, input: AccessTemplateInput): Promise<AccessTemplate> {
+  const body = await call(client.PUT("/api/v1/access/templates/{id}", { params: { path: { id } }, body: input }));
+  return body.data;
+}
+
+export async function deleteTemplate(client: ApiClient, id: string): Promise<void> {
+  await callNoContent(client.DELETE("/api/v1/access/templates/{id}", { params: { path: { id } } }));
+}
+
+export async function applyTemplate(client: ApiClient, id: string, userIds: readonly string[], preview: boolean): Promise<AccessChangePreview> {
+  const body = await call(client.POST("/api/v1/access/templates/{id}/apply", { params: { path: { id } }, body: { userIds: [...userIds], preview } }));
+  return body.data;
+}
+
+/** Replaces the whole rating code table. */
+export async function putParentalRatings(client: ApiClient, ratings: readonly ParentalRating[]): Promise<readonly ParentalRating[]> {
+  const body = await call(client.PUT("/api/v1/access/parental-ratings", { body: { ratings: [...ratings] } }));
+  return body.data;
+}

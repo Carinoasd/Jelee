@@ -568,7 +568,10 @@ func TestContentAccessMigrationRoundTrip(t *testing.T) {
 	if _, err = f.s.Pool.Exec(f.ctx, `UPDATE schema_migrations SET version=$1,dirty=false`, want); err != nil {
 		t.Fatal(err)
 	}
-	if err = f.s.DeleteItemAccessRule(f.ctx, f.a, viewer, f.items["movie-g"]); err != nil {
+	// The schema is the content access one now, older than the store's
+	// statements (which also refresh later restrictions): remove the rule
+	// directly, as an operator would before a downgrade.
+	if _, err = f.s.Pool.Exec(f.ctx, `DELETE FROM user_item_access_rules WHERE user_id=$1::uuid`, viewer); err != nil {
 		t.Fatal(err)
 	}
 	if version, dirty, err = Migrate(f.ctx, dsn, "down"); err != nil || dirty || version != want-1 {
@@ -578,7 +581,7 @@ func TestContentAccessMigrationRoundTrip(t *testing.T) {
 		syncCount(t, f.jobFixture, `SELECT count(*) FROM information_schema.tables WHERE table_schema=current_schema() AND table_name IN ('access_policy','parental_ratings','user_item_access_rules','user_blocked_tags')`) != 0 {
 		t.Fatal("downgrade left content access schema")
 	}
-	if syncCount(t, f.jobFixture, `SELECT count(*) FROM audit_logs WHERE event LIKE 'user.item_access_rule_%'`) != 2 {
+	if syncCount(t, f.jobFixture, `SELECT count(*) FROM audit_logs WHERE event LIKE 'user.item_access_rule_%'`) != 1 {
 		t.Fatal("downgrade removed audit history")
 	}
 	if version, dirty, err = Migrate(f.ctx, dsn, "up"); err != nil || dirty || version != SchemaVersion {

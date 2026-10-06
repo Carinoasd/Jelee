@@ -22,12 +22,22 @@ var visibilityGuardedTables = map[string]map[string][]string{
 			`INSERT INTO library_acl(user_id,library_id)`,
 			`SELECT l.id::text,l.name FROM library_acl a JOIN libraries l ON l.id=a.library_id WHERE a.user_id=`,
 		},
+		// Bulk changes and templates (G48.7) write and list grants for many
+		// users; what a change shows is counted with grantVisibleSQL.
+		"access_bulk.go": {
+			`DELETE FROM library_acl WHERE user_id=`,
+			`INSERT INTO library_acl(user_id,library_id)`,
+			`SELECT a.library_id::text FROM library_acl a WHERE a.user_id=u.id ORDER BY a.library_id`,
+		},
 	},
 	"user_item_access_rules": {"content_access.go": {visibilityWholeFile}},
 	"user_blocked_tags":      {"content_access.go": {visibilityWholeFile}},
 	"access_policy":          {"content_access.go": {visibilityWholeFile}},
 	"parental_ratings":       {"content_access.go": {visibilityWholeFile}},
 	"parental_rating_max":    {"content_access.go": {visibilityWholeFile}},
+	// Blocked keywords and restricted time windows (G48.4).
+	"user_blocked_keywords": {"content_access.go": {visibilityWholeFile}},
+	"user_access_windows":   {"content_access.go": {visibilityWholeFile}},
 	// Share links and network rules (G48.5, G48.6) are administered, and
 	// guest sessions issued, by their own files only.
 	"share_links":           {"shares.go": {visibilityWholeFile}},

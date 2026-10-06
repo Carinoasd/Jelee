@@ -6,8 +6,10 @@ import {
   deleteItemRule,
   getContentAccess,
   putContentAccess,
+  putContentWindows,
   putItemRule,
   searchItems,
+  type AccessWindow,
   type ContentAccess,
   type ContentAccessView,
   type ItemAccessEffect,
@@ -15,12 +17,14 @@ import {
 import { resetOnUserChange } from "./userScoped";
 
 // Content access of one account (G48.7): rating ceiling, unrated handling,
-// blocked tags and item rules, plus the item search used to add a rule.
+// blocked tags and keywords, time windows and item rules, plus the item
+// search used to add a rule.
 export const useUserAdminContentStore = defineStore("userAdminContent", () => {
   const { client } = useApi();
   const userId = shallowRef("");
   const access = shallowRef<ContentAccessView | null>(null);
   const saving = shallowRef(false);
+  const savingWindows = shallowRef(false);
   /** Item IDs whose rule is being written or removed. */
   const pendingRules = shallowRef<ReadonlySet<string>>(new Set());
   const query = shallowRef("");
@@ -38,6 +42,7 @@ export const useUserAdminContentStore = defineStore("userAdminContent", () => {
     userId.value = "";
     access.value = null;
     saving.value = false;
+    savingWindows.value = false;
     pendingRules.value = new Set();
     query.value = "";
     accessRequest.reset();
@@ -59,6 +64,16 @@ export const useUserAdminContentStore = defineStore("userAdminContent", () => {
       access.value = await putContentAccess(client, target, next);
     } finally {
       saving.value = false;
+    }
+  }
+
+  async function saveWindows(windows: readonly AccessWindow[]): Promise<void> {
+    const target = userId.value;
+    savingWindows.value = true;
+    try {
+      access.value = await putContentWindows(client, target, windows);
+    } finally {
+      savingWindows.value = false;
     }
   }
 
@@ -119,12 +134,14 @@ export const useUserAdminContentStore = defineStore("userAdminContent", () => {
     userId,
     access,
     saving,
+    savingWindows,
     pendingRules,
     accessState: accessRequest.state,
     searchState: searchRequest.state,
     open,
     reload: accessRequest.run,
     save,
+    saveWindows,
     setRule,
     removeRule,
     search,

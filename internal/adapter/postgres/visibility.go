@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"slices"
+	"time"
 
 	"github.com/MoYuanCN/Jelee/internal/access"
 	"github.com/MoYuanCN/Jelee/internal/domain"
@@ -34,10 +35,14 @@ import (
 //  2. Content rules apply to users with any restriction (content_filtered)
 //     and to administrators only while access_policy.restrict_admins is on
 //     and no developer mode session relaxes it (G48.9, see below).
-//  3. The nearest explicit item rule on the item or an ancestor decides:
-//     hide hides, allow shows despite 4 and 5.
-//  4. A blocked tag or genre on the item or an ancestor hides it.
-//  5. Under a rating ceiling, the highest recognized rating of the item and
+//  3. A restricted time window of u that holds at the request time (G48.4)
+//     hides everything, or caps the rating ceiling of 6; item rules do not
+//     lift it.
+//  4. The nearest explicit item rule on the item or an ancestor decides:
+//     hide hides, allow shows despite 5 and 6 (not despite a window).
+//  5. A blocked tag or genre, or a blocked keyword in a title (G48.4), on
+//     the item or an ancestor hides it.
+//  6. Under a rating ceiling, the highest recognized rating of the item and
 //     its ancestors must not exceed it; without any recognized rating the
 //     user's block_unrated, else the policy default, decides.
 
@@ -121,14 +126,23 @@ func networkHiddenSQL(rq string, admins bool) string {
 // Sources, sidecar tracks, images, user data and statistics rows are
 // visible exactly when their item is.
 func itemVisibleSQL(rq, library, item string) string {
-	return `(` + libraryGrantSQL(library, false) + ` AND ` + shareItemSQL(item) + ` AND ` + requestLibrarySQL(rq, library) + ` AND ` + contentVisibleSQL(item) + `)`
+	return `(` + libraryGrantSQL(library, false) + ` AND ` + shareItemSQL(item) + ` AND ` + requestLibrarySQL(rq, library) + ` AND ` + contentVisibleSQL(rq, item) + `)`
 }
 
 // walkedItemVisibleSQL is itemVisibleSQL for a statement that already
 // walks the granted libraries (grantedLibrariesSQL) or is an
 // administrator's: everything but the library grant itself.
 func walkedItemVisibleSQL(rq, library, item string) string {
-	return `(` + shareItemSQL(item) + ` AND ` + requestLibrarySQL(rq, library) + ` AND ` + contentVisibleSQL(item) + `)`
+	return `(` + shareItemSQL(item) + ` AND ` + requestLibrarySQL(rq, library) + ` AND ` + contentVisibleSQL(rq, item) + `)`
+}
+
+// grantVisibleSQL is itemVisibleSQL without the request restriction: the
+// visibility an item has for u through its grants and content rules at the
+// time of rq, whatever network a request comes from. Only administrative
+// previews use it (G48.7), to count what a change of grants or
+// restrictions shows or hides; a user-facing read uses itemVisibleSQL.
+func grantVisibleSQL(rq, library, item string) string {
+	return `(` + libraryGrantSQL(library, false) + ` AND ` + shareItemSQL(item) + ` AND ` + contentVisibleSQL(rq, item) + `)`
 }
 
 // sharePlaybackSQL refuses direct delivery to a guest whose share does not
@@ -158,6 +172,11 @@ func requestScopeArg(ctx context.Context) any {
 		return nil
 	}
 	scope := map[string]any{"kind": string(p.Request.Kind)}
+	if !p.Request.At.IsZero() {
+		// The request time decides restricted time windows (G48.4), so every
+		// statement of a request agrees and tests can inject the clock.
+		scope["at"] = p.Request.At.UTC().Format(time.RFC3339Nano)
+	}
 	if p.Request.IP.IsValid() {
 		scope["ip"] = p.Request.IP.Unmap().WithZone("").String()
 		scope["lan"] = p.Request.LAN()
@@ -181,27 +200,69 @@ func requestScopeArg(ctx context.Context) any {
 }
 
 // contentVisibleSQL applies the content rules to the item ID expression
-// item, whose library grant is checked separately. Every lookup is an index
-// probe keyed by the item, its at most two ancestors and the user; an
-// unrestricted user stops at content_filtered.
-func contentVisibleSQL(item string) string {
+// item, whose library grant is checked separately; rq names the request
+// parameter, whose time decides the restricted time windows. Every lookup
+// is an index probe keyed by the item, its at most two ancestors and the
+// user; an unrestricted user stops at content_filtered.
+func contentVisibleSQL(rq, item string) string {
 	chain := itemChainSQL(item)
 	return `(NOT u.content_filtered
  OR (u.is_admin AND (NOT COALESCE((SELECT vz_p.restrict_admins FROM access_policy vz_p),false) OR ` + devPermissionRelaxedSQL + `))
- OR COALESCE(
-  (SELECT vz_r.effect='allow' FROM (` + chain + `) vz_c JOIN user_item_access_rules vz_r ON vz_r.user_id=u.id AND vz_r.item_id=vz_c.id
-   ORDER BY vz_c.depth LIMIT 1),
-  NOT EXISTS(SELECT 1 FROM (` + chain + `) vz_c
-   JOIN item_metadata_facts vz_f ON vz_f.item_id=vz_c.id AND vz_f.field IN ('tags','genres')
-   CROSS JOIN LATERAL jsonb_array_elements_text(vz_f.value) vz_t(tag)
-   JOIN user_blocked_tags vz_b ON vz_b.user_id=u.id AND vz_b.tag=lower(btrim(vz_t.tag)))
-  AND (u.parental_rating_max IS NULL OR COALESCE(
+ OR COALESCE((SELECT NOT vz_w.closed
+  AND COALESCE(
+   (SELECT vz_r.effect='allow' FROM (` + chain + `) vz_c JOIN user_item_access_rules vz_r ON vz_r.user_id=u.id AND vz_r.item_id=vz_c.id
+    ORDER BY vz_c.depth LIMIT 1),
+   NOT EXISTS(SELECT 1 FROM (` + chain + `) vz_c
+    JOIN item_metadata_facts vz_f ON vz_f.item_id=vz_c.id AND vz_f.field IN ('tags','genres')
+    CROSS JOIN LATERAL jsonb_array_elements_text(vz_f.value) vz_t(tag)
+    JOIN user_blocked_tags vz_b ON vz_b.user_id=u.id AND vz_b.tag=lower(btrim(vz_t.tag)))
+   AND ` + keywordsClearSQL(chain) + `
+   AND ` + ratingWithinSQL("u.parental_rating_max") + `)
+  AND ` + ratingWithinSQL("vz_w.ceiling") + `
+  FROM (` + activeWindowsSQL(rq) + `) vz_w
+  CROSS JOIN LATERAL (SELECT CASE WHEN u.parental_rating_max IS NULL AND vz_w.ceiling IS NULL THEN NULL ELSE
    (SELECT max(COALESCE(vz_l.level,CASE WHEN vz_n.code ~ '^[0-9]{1,2}\+?$' THEN least(rtrim(vz_n.code,'+')::int,21) END))
     FROM (` + chain + `) vz_c
     JOIN item_metadata_fields vz_m ON vz_m.item_id=vz_c.id AND vz_m.field IN ('mpaa','certification')
     CROSS JOIN LATERAL (SELECT ` + parentalRatingCodeSQL("vz_m.value") + ` AS code) vz_n
-    LEFT JOIN parental_ratings vz_l ON vz_l.code=vz_n.code)<=u.parental_rating_max,
-   NOT COALESCE(u.block_unrated,(SELECT vz_p.block_unrated FROM access_policy vz_p),false)))))`
+    LEFT JOIN parental_ratings vz_l ON vz_l.code=vz_n.code) END AS level) vz_e),false))`
+}
+
+// ratingWithinSQL holds when the effective rating vz_e.level (the highest
+// recognized rating of the item and its ancestors) is within ceiling, or
+// there is no ceiling. Without a recognized rating the user's block_unrated,
+// else the policy default, decides.
+func ratingWithinSQL(ceiling string) string {
+	return `(` + ceiling + ` IS NULL OR COALESCE(vz_e.level<=` + ceiling + `,NOT COALESCE(u.block_unrated,(SELECT vz_p.block_unrated FROM access_policy vz_p),false)))`
+}
+
+// keywordsClearSQL holds when no blocked keyword of u occurs in the scan
+// title, metadata title or original title of the item or an ancestor
+// (G48.4). Both sides are compared NFKC-normalized and in lower case; a
+// user without keywords stops at one index probe.
+func keywordsClearSQL(chain string) string {
+	return `(NOT EXISTS(SELECT 1 FROM user_blocked_keywords vz_k WHERE vz_k.user_id=u.id) OR NOT EXISTS(SELECT 1 FROM (` + chain + `) vz_c
+    JOIN items vz_i ON vz_i.id=vz_c.id
+    CROSS JOIN LATERAL (SELECT vz_i.title AS v UNION ALL SELECT vz_m.value FROM item_metadata_fields vz_m WHERE vz_m.item_id=vz_c.id AND vz_m.field IN ('title','originalTitle')) vz_h
+    JOIN user_blocked_keywords vz_k ON vz_k.user_id=u.id AND strpos(lower(normalize(vz_h.v,NFKC)),vz_k.keyword)>0))`
+}
+
+// activeWindowsSQL selects one row for u: whether one of its restricted time
+// windows that holds at the request time hides everything (closed), and the
+// lowest rating ceiling of those that cap it (G48.4). The time is the
+// request time the HTTP layer took (requestScopeArg), else the statement
+// time; each window reads it in its own time zone. A window whose end is at
+// or before its start crosses midnight and belongs to the day it opened.
+func activeWindowsSQL(rq string) string {
+	return `SELECT COALESCE(bool_or(vz_aw.rating_max IS NULL),false) AS closed,min(vz_aw.rating_max) AS ceiling
+ FROM user_access_windows vz_aw
+ CROSS JOIN LATERAL (SELECT COALESCE((` + rq + `::jsonb->>'at')::timestamptz,statement_timestamp()) AT TIME ZONE vz_aw.time_zone AS t) vz_at
+ CROSS JOIN LATERAL (SELECT (extract(hour FROM vz_at.t)*60+extract(minute FROM vz_at.t))::int AS m,extract(dow FROM vz_at.t)::int AS d) vz_am
+ WHERE vz_aw.user_id=u.id AND CASE
+  WHEN vz_aw.start_minute<vz_aw.end_minute THEN vz_am.m>=vz_aw.start_minute AND vz_am.m<vz_aw.end_minute AND (cardinality(vz_aw.weekdays)=0 OR vz_am.d=ANY(vz_aw.weekdays))
+  WHEN vz_am.m>=vz_aw.start_minute THEN cardinality(vz_aw.weekdays)=0 OR vz_am.d=ANY(vz_aw.weekdays)
+  WHEN vz_am.m<vz_aw.end_minute THEN cardinality(vz_aw.weekdays)=0 OR (vz_am.d+6)%7=ANY(vz_aw.weekdays)
+  ELSE false END`
 }
 
 // devPermissionRelaxedSQL is true while a developer mode session has

@@ -42,7 +42,7 @@ CREATE OR REPLACE FUNCTION pg_temp.bk_dst(k text,v text) RETURNS uuid LANGUAGE s
 // metadataResolve runs in order after staging. Each statement only reads
 // identities resolved by earlier statements.
 var metadataResolve = []string{
-	`UPDATE bk_stage SET ref=(doc->>'id')::uuid WHERE kind IN ('library','library_root','user','item','media_source','item_directory_source','item_image','client_rule','library_network_rule','webhook','collection','playlist','playlist_item')`,
+	`UPDATE bk_stage SET ref=(doc->>'id')::uuid WHERE kind IN ('library','library_root','user','item','media_source','item_directory_source','item_image','client_rule','library_network_rule','webhook','collection','playlist','playlist_item','access_template')`,
 	`CREATE UNIQUE INDEX bk_stage_ref ON bk_stage(kind,ref) WHERE ref IS NOT NULL`,
 	`CREATE INDEX bk_stage_kind ON bk_stage(kind)`,
 	`CREATE INDEX bk_stage_item ON bk_stage(kind,((doc->>'item_id')::uuid)) WHERE kind IN ('media_source','item_directory_source','item_parent_link')`,
@@ -349,6 +349,35 @@ SELECT (SELECT count(*) FROM ok),(SELECT count(*) FROM up WHERE inserted),(SELEC
 ok AS (SELECT * FROM x WHERE u IS NOT NULL),
 ins AS (INSERT INTO user_blocked_tags(user_id,tag) SELECT u,doc->>'tag' FROM ok ON CONFLICT DO NOTHING RETURNING 1)
 SELECT (SELECT count(*) FROM ok),(SELECT count(*) FROM ins),0,0`},
+	{kind: "user_blocked_keyword", sql: `WITH x AS (SELECT s.doc,pg_temp.bk_dst('user',s.doc->>'user_id') u FROM bk_stage s WHERE s.kind='user_blocked_keyword'),
+ok AS (SELECT * FROM x WHERE u IS NOT NULL),
+ins AS (INSERT INTO user_blocked_keywords(user_id,keyword) SELECT u,doc->>'keyword' FROM ok ON CONFLICT DO NOTHING RETURNING 1)
+SELECT (SELECT count(*) FROM ok),(SELECT count(*) FROM ins),0,0`},
+	// A window whose time zone the target PostgreSQL does not know is
+	// skipped: the filter reads every window in its zone and must not fail.
+	{kind: "user_access_window", special: "time_zone_unknown", sql: `WITH x AS (SELECT s.doc,pg_temp.bk_dst('user',s.doc->>'user_id') u FROM bk_stage s WHERE s.kind='user_access_window'),
+r AS (SELECT * FROM x WHERE u IS NOT NULL),
+ok AS (SELECT * FROM r WHERE EXISTS(SELECT 1 FROM pg_timezone_names n WHERE n.name=r.doc->>'time_zone')),
+up AS (INSERT INTO user_access_windows AS w(user_id,position,weekdays,start_minute,end_minute,time_zone,rating_max)
+ SELECT u,(doc->>'position')::smallint,pg_temp.bk_texts(doc->'weekdays')::smallint[],(doc->>'start_minute')::smallint,(doc->>'end_minute')::smallint,doc->>'time_zone',(doc->>'rating_max')::smallint FROM ok
+ ON CONFLICT(user_id,position) DO UPDATE SET weekdays=EXCLUDED.weekdays,start_minute=EXCLUDED.start_minute,end_minute=EXCLUDED.end_minute,time_zone=EXCLUDED.time_zone,rating_max=EXCLUDED.rating_max
+ WHERE (w.weekdays,w.start_minute,w.end_minute,w.time_zone,w.rating_max) IS DISTINCT FROM (EXCLUDED.weekdays,EXCLUDED.start_minute,EXCLUDED.end_minute,EXCLUDED.time_zone,EXCLUDED.rating_max)
+ RETURNING (xmax=0) inserted)
+SELECT (SELECT count(*) FROM ok),(SELECT count(*) FROM up WHERE inserted),(SELECT count(*) FROM up WHERE NOT inserted),(SELECT count(*) FROM r)-(SELECT count(*) FROM ok)`},
+	// Templates keep their ID; one whose name another template of the target
+	// holds is skipped. Libraries are added for those that came along.
+	{kind: "access_template", special: "template_name_taken", sql: `WITH x AS (SELECT s.ref,s.doc FROM bk_stage s WHERE s.kind='access_template'),
+ok AS (SELECT * FROM x WHERE NOT EXISTS(SELECT 1 FROM access_templates t WHERE lower(t.name)=lower(x.doc->>'name') AND t.id<>x.ref)),
+up AS (INSERT INTO access_templates AS t(id,name,rating_max,block_unrated,blocked_tags,blocked_keywords,created_at,updated_at)
+ SELECT ref,doc->>'name',(doc->>'rating_max')::smallint,(doc->>'block_unrated')::boolean,pg_temp.bk_texts(doc->'blocked_tags'),pg_temp.bk_texts(doc->'blocked_keywords'),
+ (doc->>'created_at')::timestamptz,(doc->>'updated_at')::timestamptz FROM ok
+ ON CONFLICT(id) DO UPDATE SET name=EXCLUDED.name,rating_max=EXCLUDED.rating_max,block_unrated=EXCLUDED.block_unrated,blocked_tags=EXCLUDED.blocked_tags,
+ blocked_keywords=EXCLUDED.blocked_keywords,updated_at=greatest(EXCLUDED.updated_at,t.created_at)
+ WHERE (t.name,t.rating_max,t.block_unrated,t.blocked_tags,t.blocked_keywords) IS DISTINCT FROM (EXCLUDED.name,EXCLUDED.rating_max,EXCLUDED.block_unrated,EXCLUDED.blocked_tags,EXCLUDED.blocked_keywords)
+ RETURNING (xmax=0) inserted),
+lib AS (INSERT INTO access_template_libraries(template_id,library_id) SELECT ok.ref,l FROM ok CROSS JOIN LATERAL (SELECT pg_temp.bk_dst('library',v) l FROM jsonb_array_elements_text(ok.doc->'library_ids') v) m
+ WHERE m.l IS NOT NULL ON CONFLICT DO NOTHING RETURNING 1)
+SELECT (SELECT count(*) FROM ok),(SELECT count(*) FROM up WHERE inserted),(SELECT count(*) FROM up WHERE NOT inserted),(SELECT count(*) FROM x)-(SELECT count(*) FROM ok)`},
 	{kind: "client_control_policy", sql: `WITH x AS (SELECT s.doc FROM bk_stage s WHERE s.kind='client_control_policy'),
 upd AS (UPDATE client_control_policy p SET unknown_clients=x.doc->>'unknown_clients',exempt_admins=(x.doc->>'exempt_admins')::boolean,exempt_loopback=(x.doc->>'exempt_loopback')::boolean,version=p.version+1,updated_at=now() FROM x
  WHERE p.id AND (p.unknown_clients,p.exempt_admins,p.exempt_loopback) IS DISTINCT FROM (x.doc->>'unknown_clients',(x.doc->>'exempt_admins')::boolean,(x.doc->>'exempt_loopback')::boolean) RETURNING 1)

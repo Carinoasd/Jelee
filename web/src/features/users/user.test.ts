@@ -33,6 +33,8 @@ const session: Session = {
 const access: ContentAccessView = {
   parentalRatingMax: 13,
   blockedTags: ["horror"],
+  blockedKeywords: ["Spoiler"],
+  windows: [{ weekdays: [1, 2], start: "21:00", end: "07:00", timeZone: "Asia/Taipei", ratingMax: 13 }],
   rules: [{ itemId: series, libraryId: libraryA, kind: "Series", title: "Night Show", effect: "hide", createdAt: "2026-10-02T00:00:00Z" }],
 };
 
@@ -239,7 +241,7 @@ describe("user detail view", () => {
 
   it("puts the content access settings", async () => {
     const server = detailServer().on("PUT", "/api/v1/users/:id/content-access", ({ body }) =>
-      data({ ...(body as object), rules: access.rules }),
+      data({ blockedKeywords: [], ...(body as object), rules: access.rules, windows: access.windows }),
     );
     const { wrapper } = await open(server);
     await control<HTMLSelectElement>(wrapper, "Rating ceiling").setValue("17");
@@ -258,6 +260,7 @@ describe("user detail view", () => {
       parentalRatingMax: 17,
       blockUnrated: true,
       blockedTags: ["horror", "Gore"],
+      blockedKeywords: ["Spoiler"],
     });
 
     await wrapper.find("[aria-label='Remove tag horror']").trigger("click");
@@ -265,7 +268,85 @@ describe("user detail view", () => {
     await control<HTMLSelectElement>(wrapper, "Items without a rating").setValue("policy");
     await save().trigger("click");
     await flushPromises();
-    expect(server.calls("PUT", `${base}/content-access`)[1]!.body).toEqual({ blockedTags: ["Gore"] });
+    expect(server.calls("PUT", `${base}/content-access`)[1]!.body).toEqual({ blockedTags: ["Gore"], blockedKeywords: ["Spoiler"] });
+  });
+
+  it("edits the blocked keywords and always sends them with the content settings", async () => {
+    const server = detailServer().on("PUT", "/api/v1/users/:id/content-access", ({ body }) =>
+      data({ ...(body as object), blockedKeywords: (body as { blockedKeywords?: string[] }).blockedKeywords ?? [], rules: access.rules, windows: access.windows }),
+    );
+    const { wrapper } = await open(server);
+    const content = within(wrapper, "user-content-title");
+    expect(content.text()).toContain("Spoiler");
+    const keywordForm = () => content.findAll("form")[1]!;
+    // Full-width letters fold into the same keyword.
+    await control(wrapper, "Keyword to block").setValue("ＳＰＯＩＬＥＲ");
+    await keywordForm().trigger("submit");
+    expect(wrapper.text()).toContain("This keyword is already in the list.");
+    await control(wrapper, "Keyword to block").setValue("  Ending ");
+    await keywordForm().trigger("submit");
+    await wrapper.find("[aria-label='Remove keyword Spoiler']").trigger("click");
+    await control(wrapper, "Start of window 1").setValue("20:00");
+    const save = content.findAll("button").find((candidate) => candidate.text() === "Save")!;
+    await save.trigger("click");
+    await flushPromises();
+    expect(server.calls("PUT", `${base}/content-access`)[0]!.body).toEqual({
+      parentalRatingMax: 13,
+      blockedTags: ["horror"],
+      blockedKeywords: ["Ending"],
+    });
+    expect(toastKeys(wrapper)).toContain("users.content.saved");
+    // Saving the settings above keeps the unsaved time window edit below.
+    expect(control(wrapper, "Start of window 1").element.value).toBe("20:00");
+  });
+
+  it("saves the time windows with a ceiling or hiding everything", async () => {
+    const server = detailServer().on("PUT", "/api/v1/users/:id/content-access/windows", ({ body }) =>
+      data({ ...access, windows: (body as { windows: unknown[] }).windows }),
+    );
+    const { wrapper } = await open(server);
+    const windows = within(wrapper, "user-windows-title");
+    expect(control(wrapper, "Start of window 1").element.value).toBe("21:00");
+    expect(control(wrapper, "Time zone of window 1").element.value).toBe("Asia/Taipei");
+    expect(control<HTMLSelectElement>(wrapper, "Rating ceiling of window 1").element.value).toBe("13");
+    const saveButton = () => windows.findAll("button").find((candidate) => candidate.text() === "Save time windows")!;
+    expect(saveButton().attributes("disabled")).toBeDefined();
+
+    await button(wrapper, "Add time window").trigger("click");
+    await flushPromises();
+    expect(control(wrapper, "Time zone of window 2").element.value).toBe(Intl.DateTimeFormat().resolvedOptions().timeZone);
+    await control(wrapper, "Start of window 2").setValue("25:00");
+    await control(wrapper, "End of window 2").setValue("24:00");
+    await control(wrapper, "Time zone of window 2").setValue("Europe/Berlin");
+    await saveButton().trigger("click");
+    await flushPromises();
+    expect(server.calls("PUT", `${base}/content-access/windows`)).toHaveLength(0);
+    expect(windows.text()).toContain("Enter a time as HH:MM, 00:00 to 23:59.");
+
+    await control(wrapper, "Start of window 2").setValue("09:30");
+    const days = windows.findAll("fieldset")[1]!;
+    for (const day of ["Sat", "Sun"]) {
+      const label = days.findAll("label").find((candidate) => candidate.text() === day)!;
+      await days.find(`[id="${label.attributes("for")}"]`).setValue(true);
+    }
+    await control<HTMLSelectElement>(wrapper, "Inside window 1").setValue("hide");
+    await saveButton().trigger("click");
+    await flushPromises();
+    expect(server.calls("PUT", `${base}/content-access/windows`)[0]!.body).toEqual({
+      windows: [
+        { weekdays: [1, 2], start: "21:00", end: "07:00", timeZone: "Asia/Taipei" },
+        { weekdays: [0, 6], start: "09:30", end: "24:00", timeZone: "Europe/Berlin" },
+      ],
+    });
+    expect(toastKeys(wrapper)).toContain("contentRules.windows.saved");
+
+    await wrapper.find("[aria-label='Remove window 1']").trigger("click");
+    await wrapper.find("[aria-label='Remove window 1']").trigger("click");
+    await saveButton().trigger("click");
+    await flushPromises();
+    expect(server.calls("PUT", `${base}/content-access/windows`)[1]!.body).toEqual({ windows: [] });
+    expect(windows.text()).toContain("No time windows.");
+    expectNoPlaybackMarkup(wrapper.html());
   });
 
   it("deletes an item rule only after confirmation and adds one from search", async () => {

@@ -5,7 +5,8 @@
     "tabs": {
       "label": "内容访问页面",
       "policy": "策略与分级",
-      "network": "网络规则"
+      "network": "网络规则",
+      "matrix": "授权矩阵"
     },
     "policy": {
       "title": "服务器策略",

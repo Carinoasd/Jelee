@@ -132,7 +132,16 @@
       "tagEmpty": "Enter a tag.",
       "tagDuplicate": "This tag is already in the list.",
       "tagLimit": "At most {max} tags can be blocked.",
-      "saveNote": "Rating ceiling, unrated handling and tags are saved together; item rules below are saved one by one.",
+      "saveNote": "Rating ceiling, unrated handling, tags and keywords are saved together; time windows and item rules below are saved separately.",
+      "keywords": "Blocked keywords",
+      "keywordsImpact": "Hides any item whose title, metadata title or original title, or that of a parent, contains a keyword. Full-width and half-width characters count as the same and case is ignored; overviews are not searched. At most {max}.",
+      "noKeywords": "No keywords are blocked.",
+      "newKeyword": "Keyword to block",
+      "addKeyword": "Add keyword",
+      "removeKeyword": "Remove keyword {keyword}",
+      "keywordEmpty": "Enter a keyword.",
+      "keywordDuplicate": "This keyword is already in the list.",
+      "keywordLimit": "At most {max} keywords can be blocked.",
       "saved": "Content restrictions saved."
     },
     "rules": {

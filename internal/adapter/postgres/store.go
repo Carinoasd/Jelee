@@ -27,7 +27,7 @@ type Store struct {
 
 // SchemaVersion is the only clean schema accepted by this binary. Adjacent
 // releases cannot serve against different cache and job lifecycle contracts.
-const SchemaVersion = 83
+const SchemaVersion = 84
 
 func Open(ctx context.Context, dsn string, maxConnections int32) (*Store, error) {
 	return open(ctx, dsn, maxConnections, nil)
@@ -123,7 +123,7 @@ var listItemsSQL = `WITH principal AS MATERIALIZED (
  JOIN LATERAL (
   SELECT it.id,it.library_id,it.title,it.kind FROM items it
   WHERE it.library_id=a.library_id AND it.id>COALESCE(NULLIF($2,'')::uuid,'00000000-0000-0000-0000-000000000000'::uuid)
-   AND ` + contentVisibleSQL("it.id") + `
+   AND ` + contentVisibleSQL("$4", "it.id") + `
   ORDER BY it.id LIMIT $3
  ) i ON true
  UNION ALL

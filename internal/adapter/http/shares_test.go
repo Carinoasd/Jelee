@@ -264,10 +264,11 @@ func TestGuestCheckAndAccessLog(t *testing.T) {
 	if !log.due(a, now.Add(40*time.Second)) {
 		t.Fatal("refusals are recorded apart")
 	}
-	if scope := requestScope("::ffff:192.168.1.2", access.ClientWeb, []string{}); scope.IP != netip.MustParseAddr("192.168.1.2") || !scope.LAN() || scope.Libraries == nil || scope.Kind != access.ClientWeb {
+	clock := &Server{accessNow: func() time.Time { return now }}
+	if scope := clock.requestScope("::ffff:192.168.1.2", access.ClientWeb, []string{}); scope.IP != netip.MustParseAddr("192.168.1.2") || !scope.LAN() || scope.Libraries == nil || scope.Kind != access.ClientWeb || !scope.At.Equal(now) {
 		t.Fatalf("scope %+v", scope)
 	}
-	if scope := requestScope("not an address", access.ClientNative, nil); scope.IP.IsValid() || scope.LAN() || scope.Libraries != nil {
+	if scope := (&Server{}).requestScope("not an address", access.ClientNative, nil); scope.IP.IsValid() || scope.LAN() || scope.Libraries != nil || scope.At.IsZero() {
 		t.Fatalf("scope without address %+v", scope)
 	}
 }

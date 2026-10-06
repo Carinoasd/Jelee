@@ -142,7 +142,8 @@ OpenAPI 中的 Jelee 扩展字段：
 
 | 操作 | 原因 |
 | --- | --- |
-| `GET /api/v1/access/parental-ratings` | 编译在服务端的固定分级词汇表，不是存储的资源集合 |
+| `GET /api/v1/access/library-grants` | 授权矩阵（G48.7）作为一份文件：全部媒体库与前 1000 个账号的授权，矩阵页整份读取 |
+| `GET /api/v1/access/parental-ratings` | 分级代码表作为一份文件：至多 500 个代码，由 PUT 整表替换（G48.4），不是可逐一寻址的资源集合 |
 | `GET /api/v1/client-control/hits/export` | 导出下载：按过滤条件一次给出全部（受命中记录保留期限制）并附 `count` |
 | `GET /api/v1/watch-stats/export` | NDJSON／CSV 导出下载；`limit` 只是调低导出行数上限 |
 | `GET /api/v1/libraries/{id}/nfo/current-validations/{observationId}/issues` | 单个观察结果的问题：最多保留 64 条、没有标识，只按偏移分页 |

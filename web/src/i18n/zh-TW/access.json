@@ -5,7 +5,8 @@
     "tabs": {
       "label": "內容存取頁面",
       "policy": "政策與分級",
-      "network": "網路規則"
+      "network": "網路規則",
+      "matrix": "授權矩陣"
     },
     "policy": {
       "title": "伺服器政策",

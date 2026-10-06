@@ -131,6 +131,7 @@ var listContracts = func() map[string]*listContract {
 		memory("/api/v1/users/{id}/app-passwords", "", "", []string{"createdAt", "id", "lastUsedAt", "name"}, []string{"createdAt", "lastUsedAt", "name"}),
 		memory("/api/v1/users/{id}/libraries", "", "libraryId", []string{"libraryId", "name"}, []string{"name", "libraryId"}),
 		memory("/api/v1/shares", "", "", []string{"activeSessions", "allowPlayback", "createdAt", "createdBy", "expiresAt", "id", "itemId", "itemKind", "itemTitle", "lastUsedAt", "libraryId", "libraryName", "maxStreams", "note", "readOnly", "revokedAt", "state"}, []string{"createdAt", "expiresAt", "lastUsedAt", "state"}),
+		memory("/api/v1/access/templates", "", "", []string{"blockUnrated", "blockedKeywords", "blockedTags", "createdAt", "id", "libraryIds", "name", "parentalRatingMax", "updatedAt"}, []string{"name", "createdAt", "updatedAt"}),
 		memory("/api/v1/access/network-rules", "", "", []string{"cidrs", "clientKinds", "createdAt", "enabled", "id", "includeAdmins", "libraryId", "libraryName", "network", "note", "updatedAt"}, []string{"createdAt", "updatedAt", "libraryName"}),
 		memory("/api/v1/client-control/rules", "", "", []string{"action", "caseFold", "createdAt", "dimension", "enabled", "header", "hitCount", "id", "intent", "lastHitAt", "libraries", "match", "note", "pattern", "priority", "rateLimit", "scopeKind", "scopeValues", "updatedAt", "window"}, []string{"priority", "createdAt", "updatedAt", "hitCount", "lastHitAt"}),
 		memory("/api/v1/playback/sessions", "", "", []string{"clientName", "delivery", "deviceId", "id", "itemId", "itemTitle", "lastReportAt", "paused", "positionTicks", "runtimeTicks", "sourceId", "startedAt", "userId", "userName"}, []string{"startedAt", "lastReportAt", "userName", "itemTitle"}),
@@ -147,7 +148,8 @@ var listContracts = func() map[string]*listContract {
 // the list parameters, with the reason (G08.2 exemption table, mirrored in
 // docs/api-reference.md).
 var listExemptions = map[string]string{
-	"/api/v1/access/parental-ratings":                                       "fixed vocabulary of rating codes and levels compiled into the server, not a collection of stored resources",
+	"/api/v1/access/library-grants":                                         "the user × library grant matrix (G48.7) as one document: every library and the first 1000 accounts with their grants, read whole by the matrix page",
+	"/api/v1/access/parental-ratings":                                       "the rating code table as one document: at most 500 codes, replaced as a whole by PUT (G48.4), not a collection of separately addressed resources",
 	"/api/v1/client-control/hits/export":                                    "export download: the whole filtered set (bounded by the hit retention) in one attachment, with its own count",
 	"/api/v1/libraries/{id}/nfo/current-validations/{observationId}/issues": "issues of one observation: a retained prefix of at most 64 diagnostics without identity, paged by offset only",
 	"/api/v1/site/plugins":                                                  "plugin switches of the site settings document (a fixed, small map rendered as a list), not a collection",

@@ -6,8 +6,10 @@ import {
   getAccessPolicy,
   listParentalRatings,
   putAccessPolicy,
+  putParentalRatings,
   ratingLevels,
   type AccessPolicy,
+  type ParentalRating,
   type RatingLevel,
 } from "@/features/access/api";
 import { resetOnUserChange } from "./userScoped";
@@ -19,6 +21,7 @@ export const useAccessPolicyStore = defineStore("accessPolicy", () => {
   const policy = shallowRef<AccessPolicy | null>(null);
   const levels = shallowRef<readonly RatingLevel[]>([]);
   const saving = shallowRef(false);
+  const savingRatings = shallowRef(false);
 
   const policyRequest = useRequest(async () => {
     policy.value = await getAccessPolicy(client);
@@ -49,10 +52,23 @@ export const useAccessPolicyStore = defineStore("accessPolicy", () => {
     }
   }
 
+  /** Replaces the whole rating code table. */
+  async function saveRatings(ratings: readonly ParentalRating[]): Promise<void> {
+    savingRatings.value = true;
+    try {
+      levels.value = ratingLevels(await putParentalRatings(client, ratings));
+    } finally {
+      savingRatings.value = false;
+    }
+    // The request state follows the new table, e.g. from empty to listed.
+    await ratingsRequest.run();
+  }
+
   function reset() {
     policy.value = null;
     levels.value = [];
     saving.value = false;
+    savingRatings.value = false;
     policyRequest.reset();
     ratingsRequest.reset();
   }
@@ -63,12 +79,14 @@ export const useAccessPolicyStore = defineStore("accessPolicy", () => {
     policy,
     levels,
     saving,
+    savingRatings,
     policyState: policyRequest.state,
     ratingsState: ratingsRequest.state,
     loadPolicy: policyRequest.run,
     loadRatings: ratingsRequest.run,
     ensureRatings,
     save,
+    saveRatings,
     reset,
   };
 });

@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { computed, onMounted, reactive, watch } from "vue";
+import { computed, nextTick, onMounted, reactive, shallowRef, useTemplateRef, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import RequestStatus from "@/components/ui/RequestStatus.vue";
+import UiButton from "@/components/ui/UiButton.vue";
 import UiCheckbox from "@/components/ui/UiCheckbox.vue";
 import UiConfirmButton from "@/components/ui/UiConfirmButton.vue";
 import UiEmptyState from "@/components/ui/UiEmptyState.vue";
@@ -9,11 +10,20 @@ import UiSkeleton from "@/components/ui/UiSkeleton.vue";
 import { useAdminFeedback } from "@/features/users/feedback";
 import { useAccessPolicyStore } from "@/stores/accessPolicy";
 import AccessTabs from "./AccessTabs.vue";
+import RatingCodesEditor from "./RatingCodesEditor.vue";
 
 const { t } = useI18n();
 const store = useAccessPolicyStore();
 const feedback = useAdminFeedback();
 const form = reactive({ blockUnrated: false, restrictAdmins: false });
+const editingRatings = shallowRef(false);
+const editButton = useTemplateRef<HTMLElement>("editButton");
+
+async function closeRatings() {
+  editingRatings.value = false;
+  await nextTick();
+  editButton.value?.querySelector("button")?.focus();
+}
 
 watch(
   () => store.policy,
@@ -96,9 +106,17 @@ async function save() {
     </section>
 
     <section class="jl-card" aria-labelledby="access-ratings-title">
-      <h2 id="access-ratings-title">{{ t("access.ratings.title") }}</h2>
+      <div class="jl-access__head">
+        <h2 id="access-ratings-title">{{ t("access.ratings.title") }}</h2>
+        <span ref="editButton">
+          <UiButton v-if="!editingRatings" variant="secondary" :disabled="store.ratingsState.status === 'loading' || store.ratingsState.status === 'error'" @click="editingRatings = true">
+            {{ t("contentRules.ratings.edit") }}
+          </UiButton>
+        </span>
+      </div>
       <p class="jl-card__muted">{{ t("access.ratings.intro") }}</p>
-      <RequestStatus :state="store.ratingsState" @retry="store.loadRatings">
+      <RatingCodesEditor v-if="editingRatings" @done="closeRatings" />
+      <RequestStatus v-else :state="store.ratingsState" @retry="store.loadRatings">
         <template #loading>
           <div aria-hidden="true">
             <UiSkeleton v-for="n in 4" :key="n" class="jl-skeleton-row" />
@@ -145,6 +163,19 @@ async function save() {
 .jl-access__policy {
   display: grid;
   gap: var(--jl-space-3);
+}
+
+.jl-access__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--jl-space-3);
+}
+
+.jl-access__head h2 {
+  margin: 0;
+  font-size: var(--jl-font-size-lg);
 }
 
 .jl-access__order {

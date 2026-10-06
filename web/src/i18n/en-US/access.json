@@ -5,7 +5,8 @@
     "tabs": {
       "label": "Content access pages",
       "policy": "Policy and ratings",
-      "network": "Network rules"
+      "network": "Network rules",
+      "matrix": "Grant matrix"
     },
     "policy": {
       "title": "Server policy",

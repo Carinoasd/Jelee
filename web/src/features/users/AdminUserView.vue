@@ -18,6 +18,7 @@ import UserRulesSection from "./UserRulesSection.vue";
 import UserSessionsSection from "./UserSessionsSection.vue";
 import UserSettingsSection from "./UserSettingsSection.vue";
 import UserTwoFactorSection from "./UserTwoFactorSection.vue";
+import UserWindowsSection from "./UserWindowsSection.vue";
 
 const props = defineProps<{ userId: string }>();
 const { t } = useI18n();
@@ -93,6 +94,7 @@ watch(
                 <template #default>
                   <template v-if="content.access">
                     <UserContentSection :access="content.access" />
+                    <UserWindowsSection :access="content.access" />
                     <UserRulesSection :access="content.access" />
                   </template>
                 </template>

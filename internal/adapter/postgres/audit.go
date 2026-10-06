@@ -33,6 +33,13 @@ type AuditEntry struct {
 // typo cannot create an unqueryable or wrongly retained stream.
 var auditEvents = map[string]string{
 	"access.policy_changed":                domain.AuditCategoryAudit,
+	"access.rating_codes_changed":          domain.AuditCategoryAudit,
+	"access.grants_bulk_applied":           domain.AuditCategoryAudit,
+	"access.template_created":              domain.AuditCategoryAudit,
+	"access.template_updated":              domain.AuditCategoryAudit,
+	"access.template_deleted":              domain.AuditCategoryAudit,
+	"access.template_applied":              domain.AuditCategoryAudit,
+	"user.access_windows_changed":          domain.AuditCategoryAudit,
 	"access.network_rule_created":          domain.AuditCategoryAudit,
 	"access.network_rule_deleted":          domain.AuditCategoryAudit,
 	"access.network_rule_updated":          domain.AuditCategoryAudit,

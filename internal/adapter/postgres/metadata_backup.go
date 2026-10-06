@@ -42,6 +42,7 @@ var metadataBackupTables = map[string][]string{
 	"item_nfo_field_lock": {"item_nfo_field_locks"}, "item_image": {"item_images"},
 	"user_item_data": {"user_item_data"}, "user_track_preference": {"user_track_preferences"},
 	"access_policy": {"access_policy"}, "parental_rating": {"parental_ratings"}, "user_item_access_rule": {"user_item_access_rules"}, "user_blocked_tag": {"user_blocked_tags"},
+	"user_blocked_keyword": {"user_blocked_keywords"}, "user_access_window": {"user_access_windows"}, "access_template": {"access_templates", "access_template_libraries"},
 	"client_control_policy": {"client_control_policy"}, "client_rule": {"client_rules"}, "library_network_rule": {"library_network_rules"},
 	"webhook": {"webhooks"}, "scan_schedule": {"scan_schedules"},
 	"collection": {"collections"}, "collection_item": {"collection_items"}, "playlist": {"playlists"}, "playlist_item": {"playlist_items"},
@@ -137,6 +138,12 @@ func metadataExportQueries(passwordHashes bool) []metadataExportQuery {
 		{"parental_rating", `SELECT to_jsonb(x)::text FROM (SELECT code,level FROM parental_ratings) x ORDER BY x.code COLLATE "C"`},
 		{"user_item_access_rule", `SELECT to_jsonb(x)::text FROM (SELECT user_id,item_id,effect,created_at FROM user_item_access_rules r WHERE ` + notGuestSQL("r.user_id") + `) x ORDER BY x.user_id,x.item_id`},
 		{"user_blocked_tag", `SELECT to_jsonb(x)::text FROM (SELECT user_id,tag FROM user_blocked_tags b WHERE ` + notGuestSQL("b.user_id") + `) x ORDER BY x.user_id,x.tag COLLATE "C"`},
+		// Blocked keywords and restricted time windows (G48.4), and access
+		// templates with their libraries (G48.7).
+		{"user_blocked_keyword", `SELECT to_jsonb(x)::text FROM (SELECT user_id,keyword FROM user_blocked_keywords k WHERE ` + notGuestSQL("k.user_id") + `) x ORDER BY x.user_id,x.keyword COLLATE "C"`},
+		{"user_access_window", `SELECT to_jsonb(x)::text FROM (SELECT user_id,position,weekdays,start_minute,end_minute,time_zone,rating_max FROM user_access_windows w WHERE ` + notGuestSQL("w.user_id") + `) x ORDER BY x.user_id,x.position`},
+		{"access_template", `SELECT to_jsonb(x)::text FROM (SELECT t.id,t.name,t.rating_max,t.block_unrated,t.blocked_tags,t.blocked_keywords,t.created_at,t.updated_at,
+ ARRAY(SELECT l.library_id FROM access_template_libraries l WHERE l.template_id=t.id ORDER BY l.library_id) AS library_ids FROM access_templates t) x ORDER BY x.id`},
 		{"client_control_policy", `SELECT to_jsonb(x)::text FROM (SELECT unknown_clients,exempt_admins,exempt_loopback FROM client_control_policy WHERE id) x`},
 		// Hit counters are observations, not configuration.
 		{"client_rule", `SELECT to_jsonb(x)::text FROM (SELECT id,dimension,header_name,match_kind,pattern,case_fold,priority,action,intent,rate_requests,rate_period_seconds,scope_kind,scope_values,window_from,window_until,daily_start,daily_end,weekdays,time_zone,enabled,note,created_by,created_at,updated_at,libraries FROM client_rules) x ORDER BY x.id`},

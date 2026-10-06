@@ -32,13 +32,13 @@ const browseYearSQL = `CASE WHEN jsonb_typeof(fy.value)='number' THEN (fy.value:
 // libraryKindsSQL lists which top-level kinds the library in column holds
 // among the items the principal u can see. Each probe stops at the first
 // matching visible item.
-func libraryKindsSQL(column string) string {
-	return `ARRAY(SELECT k FROM unnest(ARRAY['Movie','Series','Episode','HomeVideo']) WITH ORDINALITY AS t(k,n) WHERE EXISTS(SELECT 1 FROM items c WHERE c.library_id=` + column + ` AND c.kind=t.k AND ` + contentVisibleSQL("c.id") + `) ORDER BY t.n)`
+func libraryKindsSQL(rq, column string) string {
+	return `ARRAY(SELECT k FROM unnest(ARRAY['Movie','Series','Episode','HomeVideo']) WITH ORDINALITY AS t(k,n) WHERE EXISTS(SELECT 1 FROM items c WHERE c.library_id=` + column + ` AND c.kind=t.k AND ` + contentVisibleSQL(rq, "c.id") + `) ORDER BY t.n)`
 }
 
 func (s *Store) ListLibraryViews(ctx context.Context, userID string) ([]domain.LibraryView, error) {
 	rows, err := s.Pool.Query(ctx, browsePrincipalSQL+`
-SELECT l.id::text,l.name,`+libraryKindsSQL("l.id")+` FROM principal u JOIN libraries l ON `+libraryVisibleSQL("@rq", "l.id")+`
+SELECT l.id::text,l.name,`+libraryKindsSQL("@rq", "l.id")+` FROM principal u JOIN libraries l ON `+libraryVisibleSQL("@rq", "l.id")+`
 ORDER BY lower(l.name) COLLATE "C",l.id LIMIT @limit`, pgx.NamedArgs{"user": userID, "limit": domain.BrowseViewsMax, "rq": requestScopeArg(ctx)})
 	if err != nil {
 		return nil, storageError(err)
@@ -65,7 +65,7 @@ SELECT i.id::text,i.library_id::text,COALESCE(p.parent_id,i.library_id)::text,i.
  FROM principal u JOIN items i ON i.id=@id::uuid`+browseMetadataSQL+`
  WHERE `+itemVisibleSQL("@rq", "i.library_id", "i.id")+`
 UNION ALL
-SELECT l.id::text,l.id::text,'',@library,l.name,'','','',0,`+libraryKindsSQL("l.id")+` FROM principal u JOIN libraries l ON l.id=@id::uuid WHERE `+libraryVisibleSQL("@rq", "l.id")+`
+SELECT l.id::text,l.id::text,'',@library,l.name,'','','',0,`+libraryKindsSQL("@rq", "l.id")+` FROM principal u JOIN libraries l ON l.id=@id::uuid WHERE `+libraryVisibleSQL("@rq", "l.id")+`
 LIMIT 1`, pgx.NamedArgs{"user": userID, "id": id, "library": domain.BrowseKindLibrary, "rq": requestScopeArg(ctx)}).Scan(
 		&item.ID, &item.LibraryID, &item.ParentID, &item.Kind, &item.Title, &item.SortTitle, &item.Overview, &item.PremiereDate, &item.Year, &item.ContentKinds)
 	if errors.Is(err, pgx.ErrNoRows) {

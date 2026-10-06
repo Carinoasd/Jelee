@@ -684,7 +684,7 @@ func TestAccountHTTPOpenAPIMatchesRoutesAndHasValidRequiredArrays(t *testing.T) 
 		if !reflect.DeepEqual(routerRoutes, documentedRoutes) {
 			t.Fatalf("documented account routes differ: router=%v spec=%v", routerRoutes, documentedRoutes)
 		}
-		if enabled && len(routerRoutes) != 50 || !enabled && len(routerRoutes) != 0 {
+		if enabled && len(routerRoutes) != 59 || !enabled && len(routerRoutes) != 0 {
 			t.Fatalf("unexpected rollout route count %d", len(routerRoutes))
 		}
 		data, err := json.Marshal(spec)

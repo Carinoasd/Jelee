@@ -140,7 +140,8 @@ $dc up -d jelee
 | **鎖定**的條目圖片（來源與內容摘要） | 未鎖定的圖片（掃描與重新整理會重建）、圖片檔本身 |
 | 多版本人工決定：被合併的掃描群組別名、排除誤合併的檔案、主版本、人工放置標記（[多版本](item-versions.md)） | 版本操作紀錄與撤銷資料（只為 30 天內撤銷服務） |
 | 播放進度、已播放、播放次數、音軌／字幕偏好（使用者預設、條目層、版本層） | 播放工作階段與取樣、觀看統計 |
-| 內容存取政策、分級對照表、條目允許／隱藏規則、封鎖標籤 | — |
+| 內容存取政策、分級對照表、條目允許／隱藏規則、封鎖標籤、封鎖關鍵字與限制時段（遷移 084） | — |
+| 存取模板與其媒體庫（G48.7，遷移 084；媒體庫沒有一起匯入時只略過該庫） | — |
 | 用戶端管控政策與規則（含 `restrict_libraries` 的媒體庫，匯入時換成目的地的媒體庫） | 命中計數、已知用戶端、命中紀錄 |
 | 媒體庫網路規則（G48.5；媒體庫沒有一起匯入時略過） | 分享連結與其訪客帳號、訪客的進度與規則（G48.6：持權杖即可存取，還原等於讓舊連結復活） |
 | Webhook 端點（密鑰與標頭**保持封存**） | outbox、投遞紀錄 |
@@ -241,6 +242,7 @@ $dc run --rm --no-deps -T --entrypoint /jelee-cli jelee metadata import --in - <
 - 密碼雜湊：只寫給新建的帳號與目前沒有密碼的帳號，**從不覆蓋既有密碼**。
 - NFO 來源的欄位、事實與獨立 NFO 欄位鎖帶有來源檔與根的 ID；只有條目與根在目標裡是同一個 ID 時才匯入，否則以 `nfo_origin_not_portable` 略過，交給 NFO 重新整理重建。
 - 目標已經為同一個圖片槽鎖定了別的來源時，保留目標的選擇（`image_slot_locked`）。
+- 限制時段以（帳號、順序）為鍵覆寫；目的地 PostgreSQL 不認得的時區以 `time_zone_unknown` 略過（篩選器會在執行時讀時區，不能留下無法判定的時段）。存取模板保留 ID，名稱（不分大小寫）已被目的地另一個模板使用時以 `template_name_taken` 略過；模板的媒體庫只新增不刪除。
 - 用戶端管控規則的命中計數從零開始；規則有變更時會提高版本，所有實例在下一個請求重新編譯。
 - 合集：ID，其次目標裡連結到同一個 NFO 合集名稱（去頭尾空白、不分大小寫）的合集。名稱、簡介與連結名稱以檔案為準；手動成員只新增不刪除；建立者沒有一起匯入時留空。
 - 播放清單：保留 ID，擁有者必須對得上（擁有者被略過時清單以 `unresolved_reference` 略過）。**目標裡已有同一個播放清單時，那是使用者正在用的版本**：名稱、公開與否與項目都保留目標的；檔案裡與目標相同的項目算 `unchanged`，其餘以 `playlist_kept` 略過。新建的清單連同項目與順序一起寫入。
@@ -266,7 +268,7 @@ $dc run --rm --no-deps -T --entrypoint /jelee-cli jelee metadata import --in - <
 | `last_admin`、`watch_limit`、`client_rule_limit` | 套用後沒有可用的管理員、監看媒體庫超過上限、規則數超過上限 |
 | `collection_limit`、`collection_items_limit`、`playlist_limit`、`playlist_entries_limit` | 套用後合集總數、單一合集手動成員、單一帳號的播放清單或單一清單的項目超過 API 的上限 |
 
-略過（不是衝突）：`unresolved_reference`（引用的帳號、條目等被略過）、`source_absent`（目標既有條目沒有這個媒體檔）、`nfo_origin_not_portable`、`image_slot_locked`、`playlist_kept`。
+略過（不是衝突）：`unresolved_reference`（引用的帳號、條目等被略過）、`source_absent`（目標既有條目沒有這個媒體檔）、`nfo_origin_not_portable`、`image_slot_locked`、`playlist_kept`、`time_zone_unknown`、`template_name_taken`。
 
 ### 典型用法
 
