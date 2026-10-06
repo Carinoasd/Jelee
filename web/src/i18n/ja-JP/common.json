@@ -29,6 +29,8 @@
     "admin": "管理",
     "settings": "設定",
     "stats": "自分の統計",
+    "collections": "コレクション",
+    "lists": "プレイリスト",
     "sharedWithMe": "共有されたコンテンツ",
     "guestSession": "共有リンクのゲスト"
   }

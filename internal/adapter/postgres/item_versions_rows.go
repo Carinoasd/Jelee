@@ -47,6 +47,11 @@ var versionSnapshotTables = []versionRowTable{
 	{"user_track_preferences", `item_id=$1::uuid AND source_id IS NULL`, versionUserGone},
 	{"item_version_exclusions", `item_id=$1::uuid`, `DELETE FROM vr WHERE NOT EXISTS(SELECT 1 FROM library_roots r WHERE r.id=vr.root_id)`},
 	{"item_primary_versions", `item_id=$1::uuid`, `DELETE FROM vr WHERE NOT EXISTS(SELECT 1 FROM media_sources m WHERE m.id=vr.source_id AND m.item_id=vr.item_id)`},
+	// Collection and playlist membership (G02.1) comes back with the item
+	// unless its collection or playlist was deleted since; the merge
+	// itself does not carry it to the target.
+	{"collection_items", `item_id=$1::uuid`, `DELETE FROM vr WHERE NOT EXISTS(SELECT 1 FROM collections c WHERE c.id=vr.collection_id)`},
+	{"playlist_items", `item_id=$1::uuid`, `DELETE FROM vr WHERE NOT EXISTS(SELECT 1 FROM playlists p WHERE p.id=vr.playlist_id)`},
 }
 
 // versionSnapshotMoved are the cascading tables whose rows a merge moves to

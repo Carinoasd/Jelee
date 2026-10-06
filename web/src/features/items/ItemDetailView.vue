@@ -32,6 +32,8 @@ const i18nGlobal = useI18n({ useScope: "global" });
 // Version decisions and track preferences load with their own chunks, only
 // when an item with versions is shown.
 const ItemVersionsPanel = defineAsyncComponent(async () => (await Promise.all([import("./ItemVersionsPanel.vue"), loadLazyMessages(i18nGlobal, "versions")]))[0]);
+// Adding to playlists and collections (G02.1) loads with its own chunk.
+const AddToListsPanel = defineAsyncComponent(async () => (await Promise.all([import("@/features/collections/AddToListsPanel.vue"), loadLazyMessages(i18nGlobal, "collections")]))[0]);
 const TrackPreferencesPanel = defineAsyncComponent(async () => (await Promise.all([import("./TrackPreferencesPanel.vue"), loadLazyMessages(i18nGlobal, "versions")]))[0]);
 const store = useItemDetailStore();
 const libraries = useLibrariesStore();
@@ -252,6 +254,7 @@ function language(value: string | undefined): string {
               <PluginDetailTabs v-else-if="panel === 'pluginTabs'" :item="pluginItem(data.item)" />
             </template>
 
+            <AddToListsPanel v-if="!auth.isGuest" :key="'l' + data.item.id" :item-id="data.item.id" :kind="data.item.kind" />
             <UiAlert tone="info" class="jl-detail__native">
               <p class="jl-detail__native-title">{{ t("items.detail.nativeTitle") }}</p>
               <p>{{ t("items.detail.nativeBody") }}</p>

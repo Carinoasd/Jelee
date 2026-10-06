@@ -19,6 +19,9 @@ type Catalog struct {
 	progress   *Progress
 	stats      *WatchStats
 	versions   VersionRepository
+	// collections stores collections and playlists (G02.1); nil until
+	// WithCollections.
+	collections CollectionRepository
 }
 
 func NewCatalog(repository CatalogRepository) *Catalog { return &Catalog{repository: repository} }

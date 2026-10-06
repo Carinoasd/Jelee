@@ -145,6 +145,12 @@ func (r Report) Regressions() []Delta {
 	return out
 }
 
+// minBytesIncrease is the B/op increase never gated: a benchmark with a few
+// small allocations amortizes an occasional runtime allocation into tens of
+// bytes, which is a large percentage of a tiny baseline but not a regression
+// (BenchmarkImageSourceCopy: 48 -> 59 B/op at 2 allocs/op, unchanged code).
+const minBytesIncrease = 64
+
 // Compare computes median deltas for every benchmark present in both inputs.
 // A unit gated by thresholds but absent from one side (e.g. a run without
 // -benchmem) is skipped, not treated as a regression.
@@ -163,7 +169,7 @@ func Compare(base, current Samples, limits Thresholds) Report {
 				continue
 			}
 			d := Delta{Name: name, Unit: unit, Base: b, Current: c, Percent: percent(b, c)}
-			if limit, ok := limits[unit]; ok && limit >= 0 && d.Percent > limit {
+			if limit, ok := limits[unit]; ok && limit >= 0 && d.Percent > limit && !(unit == unitBytes && c-b <= minBytesIncrease) {
 				d.Regression = true
 			}
 			report.Deltas = append(report.Deltas, d)

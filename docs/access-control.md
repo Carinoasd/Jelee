@@ -6,6 +6,7 @@
 - 守門測試：`internal/adapter/postgres/visibility_guard_test.go`。
 - 規則管理：`internal/adapter/postgres/content_access.go`、`internal/app/content_access.go`、`internal/adapter/http/content_access.go`；契約 `internal/domain/content_access.go`。
 - 網路限制與分享：`internal/adapter/postgres/network_rules.go`、`shares.go`、`internal/app/shares.go`、`internal/adapter/http/shares.go`（含訪客閘門）；契約 `internal/domain/share.go`。
+- 合集與播放清單（G02.1）的成員也只經此過濾器讀出，見[合集與播放清單](collections-playlists.md)。
 - 遷移：`000069_content_access`、`000079_share_network_access`（`library_network_rules`、`share_links`、`users.share_id`、`client_rules.libraries`）。
 - 驗收測試：`content_access_test.go`（權限矩陣、管理 API、遷移 up/down/up）、`content_access_plan_test.go`（EXPLAIN 與單請求 SQL 次數）、`share_access_test.go`／`share_access_plan_test.go`／`share_http_test.go`（網路與分享的矩陣、EXPLAIN、SQL 次數、撤銷斷流、遷移）、`internal/adapter/http/access_leak_test.go`（全路由遍歷）。
 

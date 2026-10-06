@@ -29,6 +29,8 @@
     "admin": "Administration",
     "settings": "Settings",
     "stats": "My statistics",
+    "collections": "Collections",
+    "lists": "Playlists",
     "sharedWithMe": "Shared with you",
     "guestSession": "Guest of a share link"
   }

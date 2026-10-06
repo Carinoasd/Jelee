@@ -81,6 +81,28 @@ export const routes: RouteRecordRaw[] = [
     meta: { guest: true },
   },
   {
+    path: "/collections",
+    name: "collections",
+    component: lazyView("collections", () => import("@/features/collections/CollectionsView.vue")),
+  },
+  {
+    path: "/collections/:collectionId",
+    name: "collection",
+    component: lazyView("collections", () => import("@/features/collections/CollectionView.vue")),
+    props: true,
+  },
+  {
+    path: "/lists",
+    name: "lists",
+    component: lazyView("collections", () => import("@/features/collections/ListsView.vue")),
+  },
+  {
+    path: "/lists/:listId",
+    name: "list",
+    component: lazyView("collections", () => import("@/features/collections/ListView.vue")),
+    props: true,
+  },
+  {
     path: "/account",
     name: "account",
     component: () => import("@/features/account/AccountView.vue"),

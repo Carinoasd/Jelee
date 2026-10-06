@@ -334,6 +334,7 @@ func newServer(cfg config.Config, backend Backend, catalog *app.Catalog, resolve
 			s.progressRoutes(r)
 			s.watchStatsRoutes(r)
 			s.versionRoutes(r)
+			s.collectionRoutes(r)
 			if cfg.EnableDirect {
 				r.Get("/api/v1/sources/{id}/stream", s.stream)
 				r.Head("/api/v1/sources/{id}/stream", s.stream)
