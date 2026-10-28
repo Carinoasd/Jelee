@@ -235,6 +235,31 @@ class ContainerMemoryTests(unittest.TestCase):
         profile = profile_fixture()
         profile["after"]["events"]["secret/private"] = 0
         self.rejected(m.validate_memory_profile, profile, inspect_fixture())
+        for name in ("secret/private", "Sock", "x" * 33, "", "1st", "sock throttled"):
+            with self.subTest(event=name):
+                profile = profile_fixture()
+                profile["before"]["events"][name] = profile["after"]["events"][name] = 0
+                self.rejected(m.validate_memory_profile, profile, inspect_fixture())
+
+    def test_newer_kernel_counters_are_kept_and_must_not_regress(self):
+        # Newer kernels report additional memory.events counters.
+        profile = profile_fixture()
+        profile["before"]["events"]["sock_throttled"] = 1
+        profile["after"]["events"]["sock_throttled"] = 3
+        result = m.validate_memory_profile(profile, inspect_fixture())
+        self.assertEqual(result["eventDelta"]["sock_throttled"], 2)
+        self.assertEqual(result["after"]["events"]["sock_throttled"], 3)
+        regressed = profile_fixture()
+        regressed["before"]["events"]["sock_throttled"] = 3
+        regressed["after"]["events"]["sock_throttled"] = 1
+        self.rejected(m.validate_memory_profile, regressed, inspect_fixture())
+        only_after = profile_fixture()
+        only_after["after"]["events"]["sock_throttled"] = 0
+        self.rejected(m.validate_memory_profile, only_after, inspect_fixture())
+        too_many = profile_fixture()
+        for i in range(30):
+            too_many["before"]["events"]["extra_%d" % i] = too_many["after"]["events"]["extra_%d" % i] = 0
+        self.rejected(m.validate_memory_profile, too_many, inspect_fixture())
 
 
 if __name__ == "__main__":
