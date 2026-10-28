@@ -92,7 +92,7 @@
 
 ## 任務三：NFO 三種批次操作（G39.14）
 
-> 狀態：第 1 項「全量導入」已實作（schema88，見 [nfo-apply-jobs.md](nfo-apply-jobs.md)）；第 2 項「匯出全部」與第 3 項「只匯出缺失」尚未實作。
+> 狀態：第 1 項「全量導入」已實作（schema88，見 [nfo-apply-jobs.md](nfo-apply-jobs.md)）；第 2 項「匯出全部」已實作（schema89，見 [nfo-export-jobs.md](nfo-export-jobs.md)）；第 3 項「只匯出缺失」尚未實作。
 
 需求原文：提供「從 NFO 全量導入」「匯出全部條目為 NFO」「只匯出缺失 NFO」三種批次操作，全部走任務系統（可取消、可觀測、批次處理）。
 
@@ -102,7 +102,7 @@
 1. **全量導入**（狀態：已實作（schema88），設計與限制見 [nfo-apply-jobs.md](nfo-apply-jobs.md)；以下原始需求保留供對照）：
    - 掃描的 NFO 讀取階段已會整庫讀 NFO，但套用到資料庫目前只能逐條做（`app/nfo_item_apply.go`）。
    - 要做成批次 job：可取消、有進度、可續跑；遵守欄位鎖與人工優先。
-2. **匯出全部**：
+2. **匯出全部**（狀態：已實作（schema89），設計與限制見 [nfo-export-jobs.md](nfo-export-jobs.md)；以下原始需求保留供對照）：
    - 寫一套「資料庫欄位 → NFO」的轉換，電影、劇集、季、集各一套。
    - 既有 NFO 裡的未知標籤、屬性與註解要保留（參考 `internal/adapter/nfo` 現有的受控編輯）。
    - 透過既有的 preparation → nfo_write job → 工作程序流程寫回，不另外開寫檔路徑。

@@ -20,7 +20,7 @@ func TestJobMetricsIntegrationFixedStorage(t *testing.T) {
 	if err != nil {
 		t.Fatal("durable job metrics schema unavailable:", err)
 	}
-	if epoch != 1 || totals != 12 || buckets != 312 {
+	if epoch != 1 || totals != 14 || buckets != 364 {
 		t.Fatalf("fixed metric rows: epoch=%d totals=%d buckets=%d", epoch, totals, buckets)
 	}
 }
@@ -42,7 +42,7 @@ func jobMetricMigration(t *testing.T, f jobFixture, action string, want uint) {
 
 // Compare the durable rows themselves, including the epoch and exact numeric
 // sums. Scrape timestamps and queue ages deliberately do not enter this check.
-// The catalog_sync, consistency_check and nfo_apply dimensions exist only from their
+// The catalog_sync, consistency_check, nfo_apply and nfo_export dimensions exist only from their
 // schemas; their zero rows come and go with those migrations and are excluded
 // so older-schema comparisons hold.
 func jobMetricMigrationStorage(t *testing.T, f jobFixture) string {
@@ -50,8 +50,8 @@ func jobMetricMigrationStorage(t *testing.T, f jobFixture) string {
 	var result string
 	err := f.s.Pool.QueryRow(f.ctx, `SELECT jsonb_build_object(
 	 'epoch',(SELECT jsonb_agg(to_jsonb(m) ORDER BY singleton) FROM job_metric_epoch m),
-	 'totals',(SELECT jsonb_agg(to_jsonb(m) ORDER BY kind,priority) FROM job_metric_totals m WHERE kind NOT IN ('catalog_sync','consistency_check','nfo_apply')),
-	 'buckets',(SELECT jsonb_agg(to_jsonb(m) ORDER BY kind,priority,measure,bucket_index) FROM job_metric_buckets m WHERE kind NOT IN ('catalog_sync','consistency_check','nfo_apply'))
+	 'totals',(SELECT jsonb_agg(to_jsonb(m) ORDER BY kind,priority) FROM job_metric_totals m WHERE kind NOT IN ('catalog_sync','consistency_check','nfo_apply','nfo_export')),
+	 'buckets',(SELECT jsonb_agg(to_jsonb(m) ORDER BY kind,priority,measure,bucket_index) FROM job_metric_buckets m WHERE kind NOT IN ('catalog_sync','consistency_check','nfo_apply','nfo_export'))
 	)::text`).Scan(&result)
 	if err != nil {
 		t.Fatal("read durable metric rows:", err)
@@ -62,7 +62,7 @@ func jobMetricMigrationStorage(t *testing.T, f jobFixture) string {
 func jobMetricMigrationJob(t *testing.T, f jobFixture, id string) string {
 	t.Helper()
 	var result string
-	if err := f.s.Pool.QueryRow(f.ctx, `SELECT to_jsonb(j)::text FROM jobs j WHERE id=$1`, id).Scan(&result); err != nil {
+	if err := f.s.Pool.QueryRow(f.ctx, `SELECT (to_jsonb(j)-'export_job_id')::text FROM jobs j WHERE id=$1`, id).Scan(&result); err != nil {
 		t.Fatal("read job before/after rejected transition:", err)
 	}
 	return result
@@ -72,13 +72,13 @@ func jobMetricMigrationZero(t *testing.T, f jobFixture) {
 	t.Helper()
 	var valid bool
 	// Each job kind adds two priorities and 2×13 buckets per priority.
-	apply, consistency, sync, write := migrationVersion(t, "nfo_apply_jobs"), migrationVersion(t, "consistency_checks"), migrationVersion(t, "catalog_sync"), migrationVersion(t, "nfo_write_jobs")
+	export, apply, consistency, sync, write := migrationVersion(t, "nfo_export_jobs"), migrationVersion(t, "nfo_apply_jobs"), migrationVersion(t, "consistency_checks"), migrationVersion(t, "catalog_sync"), migrationVersion(t, "nfo_write_jobs")
 	err := f.s.Pool.QueryRow(f.ctx, `SELECT
 	 (SELECT count(*)=1 AND bool_and(singleton AND isfinite(started_at)) FROM job_metric_epoch)
-	 AND (SELECT count(*)=(SELECT CASE WHEN version>=$4 THEN 12 WHEN version>=$1 THEN 10 WHEN version>=$2 THEN 8 WHEN version>=$3 THEN 6 ELSE 4 END FROM schema_migrations) AND bool_and(succeeded_total=0 AND failed_total=0 AND cancelled_total=0
+	 AND (SELECT count(*)=(SELECT CASE WHEN version>=$5 THEN 14 WHEN version>=$4 THEN 12 WHEN version>=$1 THEN 10 WHEN version>=$2 THEN 8 WHEN version>=$3 THEN 6 ELSE 4 END FROM schema_migrations) AND bool_and(succeeded_total=0 AND failed_total=0 AND cancelled_total=0
 	  AND wait_count=0 AND wait_sum_microseconds=0 AND duration_count=0 AND duration_sum_microseconds=0)
 	  FROM job_metric_totals)
-	 AND (SELECT count(*)=(SELECT CASE WHEN version>=$4 THEN 312 WHEN version>=$1 THEN 260 WHEN version>=$2 THEN 208 WHEN version>=$3 THEN 156 ELSE 104 END FROM schema_migrations) AND bool_and(bucket_count=0) FROM job_metric_buckets)`, int64(consistency), int64(sync), int64(write), int64(apply)).Scan(&valid)
+	 AND (SELECT count(*)=(SELECT CASE WHEN version>=$5 THEN 364 WHEN version>=$4 THEN 312 WHEN version>=$1 THEN 260 WHEN version>=$2 THEN 208 WHEN version>=$3 THEN 156 ELSE 104 END FROM schema_migrations) AND bool_and(bucket_count=0) FROM job_metric_buckets)`, int64(consistency), int64(sync), int64(write), int64(apply), int64(export)).Scan(&valid)
 	if err != nil || !valid {
 		t.Fatalf("migration did not establish an empty finite epoch: valid=%t error=%v", valid, err)
 	}

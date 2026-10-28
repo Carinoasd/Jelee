@@ -54,6 +54,7 @@ type Options struct {
 	CatalogSync        *CatalogSyncOptions
 	Consistency        *ConsistencyOptions
 	NFOApply           *NFOApplyOptions
+	NFOExport          *NFOExportOptions
 	// ScanConcurrency bounds directories scanned at once by one inventory job.
 	// Zero or one keeps the sequential loop.
 	ScanConcurrency int
@@ -153,6 +154,13 @@ func New(repository app.JobExecutionRepository, scanner app.InventoryScanner, op
 		}
 		value := *opts.NFOApply
 		opts.NFOApply = &value
+	}
+	if opts.NFOExport != nil {
+		if _, ok := repository.(stagesClaimer); !ok || opts.NFOExport.Worker == nil || opts.NFOExport.Repository == nil || opts.NFOWrite == nil {
+			return nil, domain.ErrInvalid
+		}
+		value := *opts.NFOExport
+		opts.NFOExport = &value
 	}
 	if opts.Ignore != nil {
 		if _, ok := repository.(app.IgnoreExecutionRepository); !ok {
@@ -274,9 +282,9 @@ func (r *Runner) work(ctx context.Context) {
 		var lease domain.JobLease
 		var err error
 		if r.nfoRepository != nil {
-			lease, err = r.nfoRepository.ClaimJobWithCapabilities(dbCtx, r.options.Owner, turn%4 == 3, r.options.LeaseDuration, domain.ScanCapabilities{CatalogImport: r.options.CatalogImport != nil, CatalogSync: r.options.CatalogSync != nil, ConsistencyCheck: r.options.Consistency != nil, NFOApply: r.options.NFOApply != nil, Probe: r.probeAvailable(), NFO: r.nfoAvailable(), Ignore: r.options.Ignore != nil, FamilyIgnore: r.familyIgnoreAvailable(), NFOWrite: r.options.NFOWrite != nil})
+			lease, err = r.nfoRepository.ClaimJobWithCapabilities(dbCtx, r.options.Owner, turn%4 == 3, r.options.LeaseDuration, domain.ScanCapabilities{CatalogImport: r.options.CatalogImport != nil, CatalogSync: r.options.CatalogSync != nil, ConsistencyCheck: r.options.Consistency != nil, NFOApply: r.options.NFOApply != nil, NFOExport: r.options.NFOExport != nil, Probe: r.probeAvailable(), NFO: r.nfoAvailable(), Ignore: r.options.Ignore != nil, FamilyIgnore: r.familyIgnoreAvailable(), NFOWrite: r.options.NFOWrite != nil})
 		} else if capable, ok := r.repository.(stagesClaimer); ok {
-			lease, err = capable.ClaimJobWithCapabilities(dbCtx, r.options.Owner, turn%4 == 3, r.options.LeaseDuration, domain.ScanCapabilities{CatalogImport: r.options.CatalogImport != nil, CatalogSync: r.options.CatalogSync != nil, ConsistencyCheck: r.options.Consistency != nil, NFOApply: r.options.NFOApply != nil, Probe: r.probeAvailable(), Ignore: r.options.Ignore != nil, FamilyIgnore: r.familyIgnoreAvailable(), NFOWrite: r.options.NFOWrite != nil})
+			lease, err = capable.ClaimJobWithCapabilities(dbCtx, r.options.Owner, turn%4 == 3, r.options.LeaseDuration, domain.ScanCapabilities{CatalogImport: r.options.CatalogImport != nil, CatalogSync: r.options.CatalogSync != nil, ConsistencyCheck: r.options.Consistency != nil, NFOApply: r.options.NFOApply != nil, NFOExport: r.options.NFOExport != nil, Probe: r.probeAvailable(), Ignore: r.options.Ignore != nil, FamilyIgnore: r.familyIgnoreAvailable(), NFOWrite: r.options.NFOWrite != nil})
 		} else if r.probeRepository != nil {
 			lease, err = r.probeRepository.ClaimJobWithProbe(dbCtx, r.options.Owner, turn%4 == 3, r.options.LeaseDuration, r.probeAvailable())
 		} else if capable, ok := r.repository.(probeClaimer); ok {
@@ -424,7 +432,7 @@ func jobComponent(kind string) string {
 	switch kind {
 	case "", inventoryScanKind, domain.JobCatalogImport, domain.JobCatalogSync:
 		return "scan"
-	case domain.JobNFOWrite, domain.JobNFOApply:
+	case domain.JobNFOWrite, domain.JobNFOApply, domain.JobNFOExport:
 		return "nfo"
 	}
 	return "jobs"
@@ -467,6 +475,15 @@ func (r *Runner) run(serviceCtx context.Context, lease domain.JobLease) {
 	if errors.Is(err, domain.ErrJobLeaseLost) || errors.Is(err, domain.ErrProbeLeaseLost) || errors.Is(cause, domain.ErrJobLeaseLost) || errors.Is(cause, errHeartbeatFailed) {
 		outcome = "lease_lost"
 		r.logger.WarnContext(serviceCtx, "job ownership could not be retained", "component", "jobs", "taskId", lease.Job.ID, "code", "job_lease_lost")
+		return
+	}
+	// An export that submitted a child write job (or found one running) hands
+	// its worker back; the gate in the claim keeps it queued until the child is
+	// terminal. A cancel or runtime limit that raced the yield takes the
+	// normal finish below instead.
+	if lease.Job.Kind == domain.JobNFOExport && errors.Is(err, app.ErrNFOExportYield) && cause == nil {
+		outcome = "yielded"
+		r.yieldNFOExport(serviceCtx, lease)
 		return
 	}
 	// A planned closure refunds the current claim only after work and monitor
@@ -551,6 +568,9 @@ func (r *Runner) run(serviceCtx context.Context, lease domain.JobLease) {
 	}
 	if lease.Job.Kind == domain.JobNFOApply && state == domain.JobFailed && code != "job_timeout" {
 		code = "nfo_apply_failed"
+	}
+	if lease.Job.Kind == domain.JobNFOExport && state == domain.JobFailed && code != "job_timeout" {
+		code = "nfo_export_failed"
 	}
 	dbCtx, cancelDB := context.WithTimeout(context.WithoutCancel(serviceCtx), r.options.DBOperationTimeout)
 	defer cancelDB()

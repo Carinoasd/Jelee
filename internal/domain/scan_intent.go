@@ -23,6 +23,9 @@ type ScanCapabilities struct {
 	ConsistencyCheck bool
 	// NFOApply lets a worker with a configured applier claim nfo_apply jobs.
 	NFOApply bool
+	// NFOExport lets a worker with a configured exporter claim nfo_export
+	// jobs whose child write job, if any, has finished.
+	NFOExport bool
 }
 
 func ValidateScanIntent(v ScanIntent) error {

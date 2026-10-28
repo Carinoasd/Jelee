@@ -44,6 +44,11 @@ func (s *Server) nfoRoutes(r chi.Router) {
 		state, err := s.jobs.NFOApplyState(r.Context(), a, chi.URLParam(r, "id"))
 		return state, http.StatusOK, err
 	}))
+	r.Post("/api/v1/libraries/{id}/nfo/export", s.accountEndpoint(true, false, s.exportLibraryNFO))
+	r.Get("/api/v1/jobs/{id}/nfo-export", s.accountEndpoint(true, false, func(_ http.ResponseWriter, r *http.Request, a domain.Actor) (any, int, error) {
+		state, err := s.jobs.NFOExportState(r.Context(), a, chi.URLParam(r, "id"))
+		return state, http.StatusOK, err
+	}))
 	r.Get("/api/v1/jobs/{id}/nfo", s.accountEndpoint(true, false, func(w http.ResponseWriter, r *http.Request, a domain.Actor) (any, int, error) {
 		summary, err := s.jobs.NFOSummary(r.Context(), a, chi.URLParam(r, "id"))
 		return summary, http.StatusOK, err
@@ -110,6 +115,26 @@ func (s *Server) applyLibraryNFO(w http.ResponseWriter, r *http.Request, a domai
 		input.Priority = domain.JobPriorityManual
 	}
 	job, replay, err := s.jobs.SubmitNFOApply(r.Context(), a, chi.URLParam(r, "id"), key, input.Priority)
+	return acceptedJob(w, job, replay, err)
+}
+
+// exportLibraryNFO queues a batch NFO export (G39.14). The library must be
+// read-only with writes enabled, otherwise the answer is 409 nfo_write_disabled.
+func (s *Server) exportLibraryNFO(w http.ResponseWriter, r *http.Request, a domain.Actor) (any, int, error) {
+	var input struct {
+		Priority string `json:"priority"`
+	}
+	if err := DecodeJSON(w, r, &input, accountBodyLimit); err != nil {
+		return nil, 0, err
+	}
+	key, err := jobKey(r)
+	if err != nil {
+		return nil, 0, err
+	}
+	if input.Priority == "" {
+		input.Priority = domain.JobPriorityManual
+	}
+	job, replay, err := s.jobs.SubmitNFOExport(r.Context(), a, chi.URLParam(r, "id"), key, input.Priority)
 	return acceptedJob(w, job, replay, err)
 }
 

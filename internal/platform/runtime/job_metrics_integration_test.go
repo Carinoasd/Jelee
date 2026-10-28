@@ -173,9 +173,9 @@ func (f jobMetricsRuntimeFixture) request(t *testing.T, ctx context.Context, tok
 func sharedMetricsPoint(t *testing.T, families map[string]*dto.MetricFamily, name, kind, priority, outcome string, typ dto.MetricType) *dto.Metric {
 	t.Helper()
 	family := families[name]
-	wantLabels, wantPoints := 2, 12
+	wantLabels, wantPoints := 2, 14
 	if outcome != "" {
-		wantLabels, wantPoints = 3, 36
+		wantLabels, wantPoints = 3, 42
 	}
 	if family == nil || family.GetType() != typ || len(family.Metric) != wantPoints {
 		t.Fatal("missing fixed shared metrics family", name)

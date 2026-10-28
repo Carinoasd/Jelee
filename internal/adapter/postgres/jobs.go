@@ -153,7 +153,12 @@ func (s *Store) CancelJob(ctx context.Context, a domain.Actor, id string) (domai
 	if before.State != domain.JobQueued && before.State != domain.JobRunning {
 		return before, storageError(tx.Commit(ctx))
 	}
-	j, err := scanJob(tx.QueryRow(ctx, `UPDATE jobs SET cancel_requested=true,state=CASE WHEN state='queued' THEN 'cancelled' ELSE state END,finished_at=CASE WHEN state='queued' THEN clock_timestamp() ELSE finished_at END WHERE id=$1::uuid RETURNING `+jobColumns, id))
+	var j domain.Job
+	if before.Kind == domain.JobNFOExport {
+		j, err = cancelNFOExportJob(ctx, tx, id)
+	} else {
+		j, err = scanJob(tx.QueryRow(ctx, `UPDATE jobs SET cancel_requested=true,state=CASE WHEN state='queued' THEN 'cancelled' ELSE state END,finished_at=CASE WHEN state='queued' THEN clock_timestamp() ELSE finished_at END WHERE id=$1::uuid RETURNING `+jobColumns, id))
+	}
 	if err != nil {
 		return j, err
 	}

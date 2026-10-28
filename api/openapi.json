@@ -4969,7 +4969,8 @@
               "catalog_import",
               "catalog_sync",
               "consistency_check",
-              "nfo_apply"
+              "nfo_apply",
+              "nfo_export"
             ],
             "type": "string"
           },
@@ -6593,6 +6594,105 @@
         "type": "object"
       },
       "NFOApplyRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "priority": {
+            "default": "manual",
+            "enum": [
+              "manual",
+              "background"
+            ],
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "NFOExportJobState": {
+        "additionalProperties": false,
+        "description": "Counters of a batch NFO export. written entries were replaced by a child nfo_write job (counted when that job ends), unchanged had no differing stored value, skippedMissing had no NFO file, skippedInvalid had an invalid NFO, skippedOther could not be prepared (no media source, locked or unsupported item), failed hit an item-local error or were prepared but not replaced. chunks is the number of child write jobs submitted.",
+        "properties": {
+          "childJobId": {
+            "description": "The nfo_write job whose outcome is not yet counted; null while no write job is outstanding.",
+            "oneOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "chunks": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "cursorItemId": {
+            "description": "The last item the job prepared or skipped; null before the first checkpoint. Items are visited in ascending ID order and a resumed job continues after it.",
+            "oneOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "failed": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "jobId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "libraryId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "skippedInvalid": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "skippedMissing": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "skippedOther": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "unchanged": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "written": {
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "jobId",
+          "libraryId",
+          "cursorItemId",
+          "childJobId",
+          "chunks",
+          "written",
+          "unchanged",
+          "skippedMissing",
+          "skippedInvalid",
+          "skippedOther",
+          "failed",
+          "updatedAt"
+        ],
+        "type": "object"
+      },
+      "NFOExportRequest": {
         "additionalProperties": false,
         "properties": {
           "priority": {
@@ -31056,6 +31156,218 @@
         "x-jelee-role": "administrator"
       }
     },
+    "/api/v1/jobs/{id}/nfo-export": {
+      "get": {
+        "description": "Every request, including retained replay, checks live administrator authorization. Internal reader identities, absolute roots, hashes and original XML are never accepted as request parameters.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/NFOExportJobState"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful result. Retained mutations may include Idempotency-Replayed: true."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "invalid_request": {
+                    "$ref": "#/components/examples/error_invalid_request"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 400"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "authentication_required": {
+                    "$ref": "#/components/examples/error_authentication_required"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 401"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "forbidden": {
+                    "$ref": "#/components/examples/error_forbidden"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 403"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "not_found": {
+                    "$ref": "#/components/examples/error_not_found"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 404"
+          },
+          "408": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "request_timeout": {
+                    "$ref": "#/components/examples/error_request_timeout"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 408"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "conflict": {
+                    "$ref": "#/components/examples/error_conflict"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 409"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "body_too_large": {
+                    "$ref": "#/components/examples/error_body_too_large"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 413"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "unsupported_media_type": {
+                    "$ref": "#/components/examples/error_unsupported_media_type"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 415"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "auth_rate_limited": {
+                    "$ref": "#/components/examples/error_auth_rate_limited"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 429"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "not_ready": {
+                    "$ref": "#/components/examples/error_not_ready"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 503"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "internal_error": {
+                    "$ref": "#/components/examples/error_internal_error"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Jelee error envelope with code, message, details and traceId; see the Error schema."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "webSession": []
+          }
+        ],
+        "summary": "Read the cursor and counters of a batch NFO export; 404 for other job kinds",
+        "x-jelee-role": "administrator"
+      }
+    },
     "/api/v1/jobs/{id}/probe": {
       "get": {
         "parameters": [
@@ -33930,6 +34242,257 @@
           }
         ],
         "summary": "Read retained issues for one current observation",
+        "x-jelee-role": "administrator"
+      }
+    },
+    "/api/v1/libraries/{id}/nfo/export": {
+      "post": {
+        "description": "Every request, including retained replay, checks live administrator authorization. Internal reader identities, absolute roots, hashes and original XML are never accepted as request parameters.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "pattern": "^[!-~]{1,128}$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NFOExportRequest"
+              }
+            }
+          },
+          "description": "One strict JSON object, at most 64 KiB.",
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/Job"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful result. Retained mutations may include Idempotency-Replayed: true."
+          },
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/Job"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful result. Retained mutations may include Idempotency-Replayed: true."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "invalid_request": {
+                    "$ref": "#/components/examples/error_invalid_request"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 400"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "authentication_required": {
+                    "$ref": "#/components/examples/error_authentication_required"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 401"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "forbidden": {
+                    "$ref": "#/components/examples/error_forbidden"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 403"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "not_found": {
+                    "$ref": "#/components/examples/error_not_found"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 404"
+          },
+          "408": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "request_timeout": {
+                    "$ref": "#/components/examples/error_request_timeout"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 408"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "conflict": {
+                    "$ref": "#/components/examples/error_conflict"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 409"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "body_too_large": {
+                    "$ref": "#/components/examples/error_body_too_large"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 413"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "unsupported_media_type": {
+                    "$ref": "#/components/examples/error_unsupported_media_type"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 415"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "auth_rate_limited": {
+                    "$ref": "#/components/examples/error_auth_rate_limited"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 429"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "not_ready": {
+                    "$ref": "#/components/examples/error_not_ready"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 503"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "internal_error": {
+                    "$ref": "#/components/examples/error_internal_error"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Jelee error envelope with code, message, details and traceId; see the Error schema."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "webSession": []
+          }
+        ],
+        "summary": "Queue a batch export of every item's stored metadata into its existing NFO through preparations and child nfo_write jobs; 409 nfo_write_disabled unless the library is read-only with writes enabled, 409 job_busy while the library has an active job",
         "x-jelee-role": "administrator"
       }
     },
