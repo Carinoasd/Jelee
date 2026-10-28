@@ -175,7 +175,7 @@ type nfoCleanupPlan struct {
 
 func nfoCleanupPlans(input domain.NFOWriteCommitCleanupInput) ([]nfoCleanupPlan, error) {
 	filename := input.Plan.TargetName
-	if !domain.ValidID(input.Lease.Token) || input.Plan.Version != 1 || !IsNFOName(filename) || strings.ContainsAny(filename, "/\\:") || strings.ContainsFunc(filename, unicode.IsControl) || input.RootPath == "" || !filepath.IsAbs(input.RootPath) || input.RelativePath == "" || strings.HasPrefix(input.RelativePath, "/") || path.Base(input.RelativePath) != filename || len(input.Namespaces) == 0 || len(input.Namespaces) > int(maxNFOCommitAttempts)+1 {
+	if !domain.ValidID(input.Lease.Token) || input.Plan.Version != domain.NFOWriteCommitPlanVersion && input.Plan.Version != domain.NFOWriteCommitCreatePlanVersion || !IsNFOName(filename) || strings.ContainsAny(filename, "/\\:") || strings.ContainsFunc(filename, unicode.IsControl) || input.RootPath == "" || !filepath.IsAbs(input.RootPath) || input.RelativePath == "" || strings.HasPrefix(input.RelativePath, "/") || path.Base(input.RelativePath) != filename || len(input.Namespaces) == 0 || len(input.Namespaces) > int(maxNFOCommitAttempts)+1 {
 		return nil, ErrInvalidInput
 	}
 	for _, part := range strings.Split(input.RelativePath, "/") {
@@ -193,9 +193,19 @@ func nfoCleanupPlans(input domain.NFOWriteCommitCleanupInput) ([]nfoCleanupPlan,
 	if err != nil || input.Plan.ParentIdentity[2] != 2 {
 		return nil, ErrInvalidInput
 	}
-	target, err := parseNFONativeIdentity(input.Plan.TargetIdentity[:])
-	if err != nil || input.Plan.TargetIdentity[2] != 1 {
-		return nil, ErrInvalidInput
+	// A create planned an absent target: it has no identity, so the original
+	// witness name proves nothing and is never removed on its behalf.
+	create := input.Plan.Version == domain.NFOWriteCommitCreatePlanVersion
+	var target nfoNativeIdentity
+	if create {
+		if input.Plan.TargetIdentity != ([48]byte{}) {
+			return nil, ErrInvalidInput
+		}
+	} else {
+		target, err = parseNFONativeIdentity(input.Plan.TargetIdentity[:])
+		if err != nil || input.Plan.TargetIdentity[2] != 1 {
+			return nil, ErrInvalidInput
+		}
 	}
 	identity := func(record [48]byte) (nfoNativeIdentity, error) {
 		if record == ([48]byte{}) {
@@ -219,10 +229,10 @@ func nfoCleanupPlans(input domain.NFOWriteCommitCleanupInput) ([]nfoCleanupPlan,
 			return nil, err
 		}
 		rollback, err := identity(namespace.RollbackIdentity)
-		if err != nil || rollback != (nfoNativeIdentity{}) && rollback == output {
+		if err != nil || rollback != (nfoNativeIdentity{}) && (rollback == output || create) {
 			return nil, ErrInvalidInput
 		}
-		plans = append(plans, nfoCleanupPlan{nfoCommitFilePlan: nfoCommitFilePlan{version: 1, token: token, filename: filename, parent: parent, target: target, attempt: namespace.Attempt}, output: output, rollback: rollback})
+		plans = append(plans, nfoCleanupPlan{nfoCommitFilePlan: nfoCommitFilePlan{version: input.Plan.Version, token: token, filename: filename, parent: parent, target: target, attempt: namespace.Attempt}, output: output, rollback: rollback})
 	}
 	return plans, nil
 }

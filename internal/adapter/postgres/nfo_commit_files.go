@@ -47,7 +47,8 @@ func (s *Store) GetNFOWriteCommitFiles(ctx context.Context, lease domain.JobLeas
 		return zero, storageError(err)
 	}
 	if value.PlanRecorded {
-		if len(parent) != 48 || len(target) != 48 {
+		// A create plan (version 2) has no target identity: the column is NULL.
+		if len(parent) != 48 || len(target) != 48 && !(value.Plan.Create() && target == nil) {
 			return zero, domain.ErrDatabase
 		}
 		copy(value.Plan.ParentIdentity[:], parent)
@@ -57,12 +58,13 @@ func (s *Store) GetNFOWriteCommitFiles(ctx context.Context, lease domain.JobLeas
 		}
 	}
 	if value.ReadyRecorded {
-		if !value.PlanRecorded || len(output) != 48 || len(rollback) != 48 {
+		// A create names its output alone: the rollback column is NULL.
+		if !value.PlanRecorded || len(output) != 48 || len(rollback) != 48 && !(value.Plan.Create() && rollback == nil) {
 			return zero, domain.ErrDatabase
 		}
 		copy(value.Ready.OutputIdentity[:], output)
 		copy(value.Ready.RollbackIdentity[:], rollback)
-		if domain.ValidateNFOWriteCommitFilesReady(value.Ready) != nil || value.Plan.TargetIdentity[1] != value.Ready.OutputIdentity[1] || value.Plan.TargetIdentity == value.Ready.OutputIdentity || value.Plan.TargetIdentity == value.Ready.RollbackIdentity {
+		if !validNFOCommitReady(value.Plan, value.Ready) {
 			return zero, domain.ErrDatabase
 		}
 	}
@@ -126,10 +128,14 @@ func (s *Store) SaveNFOWriteCommitFilePlan(ctx context.Context, lease domain.Job
 		return domain.NFOWriteCommitFilePlan{}, err
 	}
 	ancestors := receipt.AncestorIdentities()
-	if len(ancestors) == 0 || plan.ParentIdentity != ancestors[len(ancestors)-1] || plan.TargetIdentity != receipt.NFOFileIdentity() {
+	if len(ancestors) == 0 || plan.ParentIdentity != ancestors[len(ancestors)-1] || plan.TargetIdentity != receipt.NFOFileIdentity() || plan.Create() != receipt.TargetAbsent() {
 		return domain.NFOWriteCommitFilePlan{}, domain.ErrConflict
 	}
-	if _, err := tx.Exec(ctx, `INSERT INTO nfo_write_commit_file_plans(token,version,target_name,parent_identity,target_identity) VALUES($1::uuid,$2,$3,$4,$5) ON CONFLICT(token) DO NOTHING`, token, plan.Version, plan.TargetName, plan.ParentIdentity[:], plan.TargetIdentity[:]); err != nil {
+	var targetIdentity any
+	if !plan.Create() {
+		targetIdentity = plan.TargetIdentity[:]
+	}
+	if _, err := tx.Exec(ctx, `INSERT INTO nfo_write_commit_file_plans(token,version,target_name,parent_identity,target_identity) VALUES($1::uuid,$2,$3,$4,$5) ON CONFLICT(token) DO NOTHING`, token, plan.Version, plan.TargetName, plan.ParentIdentity[:], targetIdentity); err != nil {
 		return domain.NFOWriteCommitFilePlan{}, storageError(err)
 	}
 	var saved domain.NFOWriteCommitFilePlan
@@ -139,7 +145,7 @@ func (s *Store) SaveNFOWriteCommitFilePlan(ctx context.Context, lease domain.Job
 	if err != nil {
 		return domain.NFOWriteCommitFilePlan{}, storageError(err)
 	}
-	if len(parent) != 48 || len(target) != 48 {
+	if len(parent) != 48 || len(target) != 48 && !(saved.Create() && target == nil) {
 		return domain.NFOWriteCommitFilePlan{}, domain.ErrInvalid
 	}
 	copy(saved.ParentIdentity[:], parent)
@@ -157,7 +163,7 @@ func (s *Store) SaveNFOWriteCommitFilePlan(ctx context.Context, lease domain.Job
 }
 
 func (s *Store) SaveNFOWriteCommitFilesReady(ctx context.Context, lease domain.JobLease, sequence int, token string, ready domain.NFOWriteCommitFilesReady) (domain.NFOWriteCommitFilesReady, error) {
-	if ctx == nil || !domain.ValidID(token) || domain.ValidateNFOWriteCommitFilesReady(ready) != nil {
+	if ctx == nil || !domain.ValidID(token) || !validNFOCommitReadyShape(ready) {
 		return domain.NFOWriteCommitFilesReady{}, domain.ErrInvalid
 	}
 	tx, err := s.jobTransaction(ctx)
@@ -168,7 +174,7 @@ func (s *Store) SaveNFOWriteCommitFilesReady(ctx context.Context, lease domain.J
 	if err := checkNFOCommitFileToken(ctx, tx, lease, sequence, token); err != nil {
 		return domain.NFOWriteCommitFilesReady{}, err
 	}
-	if _, err := tx.Exec(ctx, `INSERT INTO nfo_write_commit_files_ready(token,output_identity,rollback_identity) VALUES($1::uuid,$2,$3) ON CONFLICT(token) DO NOTHING`, token, ready.OutputIdentity[:], ready.RollbackIdentity[:]); err != nil {
+	if _, err := tx.Exec(ctx, `INSERT INTO nfo_write_commit_files_ready(token,output_identity,rollback_identity) VALUES($1::uuid,$2,$3) ON CONFLICT(token) DO NOTHING`, token, ready.OutputIdentity[:], nfoRollbackIdentity(ready)); err != nil {
 		return domain.NFOWriteCommitFilesReady{}, storageError(err)
 	}
 	var saved domain.NFOWriteCommitFilesReady
@@ -176,7 +182,7 @@ func (s *Store) SaveNFOWriteCommitFilesReady(ctx context.Context, lease domain.J
 	if err := tx.QueryRow(ctx, `UPDATE nfo_write_commit_files_ready SET token=token WHERE token=$1::uuid RETURNING output_identity,rollback_identity`, token).Scan(&output, &rollback); err != nil {
 		return domain.NFOWriteCommitFilesReady{}, storageError(err)
 	}
-	if len(output) != 48 || len(rollback) != 48 {
+	if len(output) != 48 || len(rollback) != 48 && rollback != nil {
 		return domain.NFOWriteCommitFilesReady{}, domain.ErrInvalid
 	}
 	copy(saved.OutputIdentity[:], output)
@@ -264,4 +270,27 @@ func checkNFOCommitCatalogScope(ctx context.Context, tx pgx.Tx, job string, sequ
 		return domain.ErrConflict
 	}
 	return nil
+}
+
+// validNFOCommitReadyShape accepts the two canonical shapes of ready evidence:
+// a rewrite names an output and a distinct rollback object; a create names its
+// output alone. Which one applies is decided by the plan and enforced by SQL.
+func validNFOCommitReadyShape(ready domain.NFOWriteCommitFilesReady) bool {
+	return domain.ValidateNFOWriteCommitFilesReady(ready) == nil || domain.ValidateNFOWriteCommitCreateReady(ready) == nil
+}
+
+// validNFOCommitReady also ties the ready evidence to the plan it belongs to.
+func validNFOCommitReady(plan domain.NFOWriteCommitFilePlan, ready domain.NFOWriteCommitFilesReady) bool {
+	if plan.Create() {
+		return domain.ValidateNFOWriteCommitCreateReady(ready) == nil && plan.ParentIdentity[1] == ready.OutputIdentity[1]
+	}
+	return domain.ValidateNFOWriteCommitFilesReady(ready) == nil && plan.TargetIdentity[1] == ready.OutputIdentity[1] && plan.TargetIdentity != ready.OutputIdentity && plan.TargetIdentity != ready.RollbackIdentity
+}
+
+// nfoRollbackIdentity is the stored rollback column: NULL when there is none.
+func nfoRollbackIdentity(ready domain.NFOWriteCommitFilesReady) any {
+	if ready.RollbackIdentity == ([48]byte{}) {
+		return nil
+	}
+	return ready.RollbackIdentity[:]
 }

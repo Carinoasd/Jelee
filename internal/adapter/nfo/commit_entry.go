@@ -33,6 +33,9 @@ func (w *Writer) CommitNFOWriteEntry(ctx context.Context, lease domain.JobLease,
 	case domain.NFOWriteCommitRolledBack:
 		return classifyNFOWriteEntry(ErrRolledBack)
 	}
+	if task.Preparation.Request.Create {
+		return classifyNFOWriteEntry(w.commitCreateEntry(ctx, lease, record, settlement, repository))
+	}
 	scope := task.Preparation.Scope
 	source, err := ReadSource(ctx, scope.Source.RootPath, scope.Source.RelativePath, task.Preparation.Request.MaxBytes)
 	if err != nil {
@@ -58,7 +61,7 @@ func classifyNFOWriteEntry(err error) error {
 	if err == nil || errors.Is(err, domain.ErrNFOWriteRejected) {
 		return err
 	}
-	for _, rejected := range []error{ErrChanged, ErrCommitAttemptsExhausted, ErrRolledBack, ErrInvalidInput, ErrNotFound, ErrTooLarge, ErrTooComplex, ErrInvalidXML, ErrUnsafeXML, ErrInvalidEncoding, ErrUnsupportedEncoding, ErrEditAmbiguous, ErrEditLocked, ErrEditMissing, errNativeIdentity, domain.ErrConflict} {
+	for _, rejected := range []error{ErrChanged, ErrTargetAppeared, ErrCommitAttemptsExhausted, ErrRolledBack, ErrInvalidInput, ErrNotFound, ErrTooLarge, ErrTooComplex, ErrInvalidXML, ErrUnsafeXML, ErrInvalidEncoding, ErrUnsupportedEncoding, ErrEditAmbiguous, ErrEditLocked, ErrEditMissing, errNativeIdentity, domain.ErrConflict} {
 		if errors.Is(err, rejected) {
 			return fmt.Errorf("%w: %w", domain.ErrNFOWriteRejected, err)
 		}

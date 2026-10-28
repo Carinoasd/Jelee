@@ -19,11 +19,17 @@ var (
 // These ports are invocation-local and private; production callers cannot
 // replace file sync or rename. Tests exercise failures before and after commit.
 type nfoWriteOperations struct {
-	syncFile           func(*os.File) error
-	rename             func(*os.Root, string, string) error
-	syncDirectory      func(*os.Root) error
-	checkSource        func(context.Context) error
-	submitted          func()
+	syncFile func(*os.File) error
+	rename   func(*os.Root, string, string) error
+	// link creates a hard link and fails when the new name exists. It is the
+	// only operation that ever creates a missing target name.
+	link          func(*os.Root, string, string) error
+	syncDirectory func(*os.Root) error
+	checkSource   func(context.Context) error
+	submitted     func()
+	// created runs right after a create stages its exclusively created output,
+	// before anything is written to it. Only tests set it, to interrupt there.
+	created            func()
 	documentsValidated bool
 }
 
@@ -31,6 +37,7 @@ func nativeNFOWriteOperations() nfoWriteOperations {
 	return nfoWriteOperations{
 		syncFile:      func(f *os.File) error { return f.Sync() },
 		rename:        func(r *os.Root, from, to string) error { return r.Rename(from, to) },
+		link:          func(r *os.Root, from, to string) error { return r.Link(from, to) },
 		syncDirectory: syncNFODirectory,
 	}
 }

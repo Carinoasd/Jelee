@@ -12,13 +12,16 @@ import (
 // shape is private evidence, never filesystem authorization or a commit result.
 func validNFOCommitProgress(files nfoCommitFiles) bool {
 	plan := domain.NFOWriteCommitFilePlan{Version: files.plan.version, TargetName: files.plan.filename, ParentIdentity: files.plan.parent.record, TargetIdentity: files.plan.target.record}
-	if files.plan.attempt > maxNFOCommitAttempts || files.plan.token == ([16]byte{}) || domain.ValidateNFOWriteCommitFilePlan(plan) != nil || !domain.ValidNFONativeIdentity(files.output.record, 1) || files.output.record[1] != plan.TargetIdentity[1] || files.output == files.plan.target {
+	// The parent shares the platform of every object of the plan, whether or not
+	// the plan has a target to compare with (a create has none).
+	if files.plan.attempt > maxNFOCommitAttempts || files.plan.token == ([16]byte{}) || domain.ValidateNFOWriteCommitFilePlan(plan) != nil || !domain.ValidNFONativeIdentity(files.output.record, 1) || files.output.record[1] != plan.ParentIdentity[1] || files.output == files.plan.target {
 		return false
 	}
 	if files.rollback == (nfoNativeIdentity{}) {
 		return true
 	}
-	return domain.ValidNFONativeIdentity(files.rollback.record, 1) && files.rollback.record[1] == plan.TargetIdentity[1] && files.rollback != files.output && files.rollback != files.plan.target
+	// A create retains no rollback object.
+	return !plan.Create() && domain.ValidNFONativeIdentity(files.rollback.record, 1) && files.rollback.record[1] == plan.ParentIdentity[1] && files.rollback != files.output && files.rollback != files.plan.target
 }
 
 func verifyNFOCommitProgress(ctx context.Context, directory *os.Root, files nfoCommitFiles, original, replacement []byte) error {

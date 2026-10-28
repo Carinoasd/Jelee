@@ -138,7 +138,12 @@ func (s *Store) SaveNFOWritePreparation(ctx context.Context, actor domain.Actor,
 		return domain.NFOWritePreparation{}, false, domain.ErrNFOCacheCapacity
 	}
 	replacementHash := sha256.Sum256(input.Replacement)
-	_, err = tx.Exec(ctx, `INSERT INTO nfo_write_preparations(actor_id,idempotency_key,version,request_bytes,request_digest,library_id,item_id,source_id,root_id,kind,revision,generation,root_generation,root_path,relative_path,media_path,directory_path,max_bytes,modified_unix_nano,original_bytes,original_sha256,replacement_bytes,replacement_sha256,native_receipt) VALUES($1::uuid,$2,$3,$4,$5,$6::uuid,$7::uuid,$8::uuid,$9::uuid,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24)`, actor.UserID, key, input.Version, requestBytes, digest, live.LibraryID, live.ItemID, live.SourceID, live.RootID, live.Kind, live.Revision, live.Generation, live.RootGeneration, live.Source.RootPath, live.Source.RelativePath, live.MediaPath, live.DirectoryPath, input.Request.MaxBytes, input.Stamp.ModifiedUnixNano, input.Original, input.Stamp.SHA256, input.Replacement, hex.EncodeToString(replacementHash[:]), nativeBytes)
+	columns, placeholders := "", ""
+	args := []any{actor.UserID, key, input.Version, requestBytes, digest, live.LibraryID, live.ItemID, live.SourceID, live.RootID, live.Kind, live.Revision, live.Generation, live.RootGeneration, live.Source.RootPath, live.Source.RelativePath, live.MediaPath, live.DirectoryPath, input.Request.MaxBytes, input.Stamp.ModifiedUnixNano, append([]byte{}, input.Original...), input.Stamp.SHA256, input.Replacement, hex.EncodeToString(replacementHash[:]), nativeBytes}
+	if input.Request.Create {
+		columns, placeholders, args = ",create_target", ",$25", append(args, true)
+	}
+	_, err = tx.Exec(ctx, `INSERT INTO nfo_write_preparations(actor_id,idempotency_key,version,request_bytes,request_digest,library_id,item_id,source_id,root_id,kind,revision,generation,root_generation,root_path,relative_path,media_path,directory_path,max_bytes,modified_unix_nano,original_bytes,original_sha256,replacement_bytes,replacement_sha256,native_receipt`+columns+`) VALUES($1::uuid,$2,$3,$4,$5,$6::uuid,$7::uuid,$8::uuid,$9::uuid,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24`+placeholders+`)`, args...)
 	if err != nil {
 		return domain.NFOWritePreparation{}, false, storageError(err)
 	}
