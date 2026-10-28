@@ -16,7 +16,7 @@ func ignoreLegacySnapshot(t *testing.T, f jobFixture) string {
 	t.Helper()
 	var result string
 	err := f.s.Pool.QueryRow(f.ctx, `SELECT jsonb_build_object(
- 'jobs',(SELECT jsonb_agg(to_jsonb(j)-'ignore_requested' ORDER BY id) FROM jobs j),
+ 'jobs',(SELECT jsonb_agg(to_jsonb(j)-'ignore_requested'-'export_job_id' ORDER BY id) FROM jobs j),
  'libraries',(SELECT jsonb_agg(to_jsonb(l)-'inventory_baseline_revision'-'metadata_language'-'metadata_preferences_revision'-'metadata_image_languages'-'active_inventory_snapshot'-'catalog_sync_auto'-'nfo_write_enabled' ORDER BY id) FROM libraries l),
  'roots',(SELECT jsonb_agg(to_jsonb(r) ORDER BY id) FROM library_roots r),
  'inventory',(SELECT jsonb_agg(to_jsonb(i) ORDER BY id) FROM job_inventory i),
@@ -35,7 +35,7 @@ func ignoreLegacySnapshot(t *testing.T, f jobFixture) string {
 func ignoreIntentSnapshot(t *testing.T, f jobFixture) string {
 	t.Helper()
 	var result string
-	err := f.s.Pool.QueryRow(f.ctx, `SELECT jsonb_build_object('jobs',(SELECT jsonb_agg(to_jsonb(j) ORDER BY id) FROM jobs j),'requests',(SELECT jsonb_agg(to_jsonb(r) ORDER BY job_id) FROM job_ignore_requests r))::text`).Scan(&result)
+	err := f.s.Pool.QueryRow(f.ctx, `SELECT jsonb_build_object('jobs',(SELECT jsonb_agg(to_jsonb(j)-'export_job_id' ORDER BY id) FROM jobs j),'requests',(SELECT jsonb_agg(to_jsonb(r) ORDER BY job_id) FROM job_ignore_requests r))::text`).Scan(&result)
 	if err != nil {
 		t.Fatal("read private ignore migration snapshot")
 	}

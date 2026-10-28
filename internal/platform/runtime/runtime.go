@@ -282,6 +282,11 @@ func newWithLifetime(cfg config.Config, logger *slog.Logger, lifetime *lifetime)
 				if service, err = app.NewJobsWithNFOWrite(service, store); err != nil {
 					return nil, err
 				}
+				// G39.14: an export runs through nfo_write children, so it is
+				// admitted only where those are.
+				if service, err = app.NewJobsWithNFOExport(service, store); err != nil {
+					return nil, err
+				}
 			}
 			// G39.14: the same runner that claims nfo_apply jobs admits them.
 			if service, err = app.NewJobsWithNFOApply(service, store); err != nil {
@@ -352,6 +357,27 @@ func newWithLifetime(cfg config.Config, logger *slog.Logger, lifetime *lifetime)
 				return nil, err
 			}
 			opts.NFOApply = &jobworker.NFOApplyOptions{Worker: applyWorker, Repository: store}
+			if c.EnableNFOWrite {
+				// G39.14: the export prepares like an administrator would and
+				// lets the nfo_write runner above write the files.
+				exportMetadata, err := bindMetadata(nil, store)
+				if err != nil {
+					return nil, err
+				}
+				preparer, err := nfo.NewWritePreparer(budget)
+				if err != nil {
+					return nil, err
+				}
+				preparations, err := app.NewNFOWritePreparations(store, preparer)
+				if err != nil {
+					return nil, err
+				}
+				exportWorker, err := app.NewNFOExportWorker(exportMetadata, preparations, store, time.Duration(p.DatabaseTimeoutSeconds)*time.Second)
+				if err != nil {
+					return nil, err
+				}
+				opts.NFOExport = &jobworker.NFOExportOptions{Worker: exportWorker, Repository: store}
+			}
 			if probing.Available() {
 				opts.Probe = &jobworker.ProbeOptions{Repository: store, Prober: probing, LeaseDuration: domain.DefaultProbeCachePolicy().LeaseDuration, MaxConcurrent: 2, Available: probing.Available, OnRuntimeUnavailable: probing.Disable}
 			}

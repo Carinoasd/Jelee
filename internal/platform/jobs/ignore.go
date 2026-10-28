@@ -48,6 +48,10 @@ func (r *Runner) execute(ctx context.Context, l domain.JobLease) (result error, 
 		storage, err := r.executeNFOApply(ctx, l)
 		return err, storage
 	}
+	if l.Job.Kind == domain.JobNFOExport {
+		storage, err := r.executeNFOExport(ctx, l)
+		return err, storage
+	}
 	repository, ok := r.repository.(app.IgnoreExecutionRepository)
 	if !ok {
 		return r.executeStages(ctx, l, false)
@@ -287,6 +291,12 @@ func (r *Runner) finishJob(ctx context.Context, l domain.JobLease, state, code s
 			return domain.ErrInvalid
 		}
 		return r.options.NFOApply.Repository.FinishNFOApply(ctx, l, state, code)
+	}
+	if l.Job.Kind == domain.JobNFOExport {
+		if r.options.NFOExport == nil {
+			return domain.ErrInvalid
+		}
+		return r.options.NFOExport.Repository.FinishNFOExport(ctx, l, state, code)
 	}
 	if state == domain.JobSucceeded {
 		if repo, ok := r.repository.(app.IgnoreExecutionRepository); ok {
