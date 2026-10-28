@@ -12,7 +12,10 @@ INVALID_EVIDENCE = "container_memory_evidence_invalid"
 
 _MAX_UINT64 = (1 << 64) - 1
 _REQUIRED_EVENTS = frozenset(("low", "high", "max", "oom", "oom_kill"))
-_OPTIONAL_EVENTS = frozenset(("oom_group_kill",))
+# Newer kernels add counters to memory.events (the Go observer already accepts
+# them). Other well-formed counter names are kept and must stay monotonic; the
+# OOM decision uses only the required counters and oom_group_kill.
+_MAX_EVENTS = 32
 _NO_NEW_PRIVILEGES = frozenset(("no-new-privileges", "no-new-privileges:true", "no-new-privileges=true"))
 
 
@@ -38,10 +41,15 @@ def _integer(value, expected=None):
     return value
 
 
+def _event_name(name):
+    return (type(name) is str and 0 < len(name) <= 32 and name[0].isascii() and name[0].islower()
+            and all(c == "_" or c.isascii() and (c.islower() or c.isdigit()) for c in name))
+
+
 def _events(value):
     value = _object(value)
-    _need(_REQUIRED_EVENTS <= value.keys())
-    _need(value.keys() <= _REQUIRED_EVENTS | _OPTIONAL_EVENTS)
+    _need(_REQUIRED_EVENTS <= value.keys() and len(value) <= _MAX_EVENTS)
+    _need(all(_event_name(key) for key in value))
     return {key: _integer(value[key]) for key in sorted(value)}
 
 
