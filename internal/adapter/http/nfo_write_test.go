@@ -296,3 +296,65 @@ func TestNFOWriteDisabledMapsToConflict(t *testing.T) {
 		t.Fatalf("no repository: %d %s", w.Code, w.Body)
 	}
 }
+
+// httpNFOWriteCreatePreparer prepares a create: no original, the stamp of nothing.
+type httpNFOWriteCreatePreparer struct{ prepared domain.NFOWritePreparation }
+
+func (p httpNFOWriteCreatePreparer) PrepareNFOWrite(_ context.Context, scope domain.NFOItemScope, request domain.NFOWritePrepareRequest) (domain.NFOWritePreparation, error) {
+	out := p.prepared
+	empty := sha256.Sum256(nil)
+	out.Request, out.Scope = request, scope
+	if request.Create {
+		out.Original, out.Stamp = nil, domain.NFOStamp{SHA256: hex.EncodeToString(empty[:]), FingerprintVersion: domain.NFOFingerprintVersion}
+	}
+	return out, nil
+}
+
+func TestNFOWritePrepareCreateRoute(t *testing.T) {
+	repo, preparer := nfoWriteFixture(t)
+	service, err := app.NewNFOWritePreparations(repo, httpNFOWriteCreatePreparer(preparer))
+	if err != nil {
+		t.Fatal(err)
+	}
+	h := newNFOWriteHTTP(t, httpNFOJobs{}, nil, service)
+	path := "/api/v1/items/" + itemID + "/nfo/write-preparations"
+	w := jobRequest(h, "POST", path, `{"revision":1,"edits":[{"field":"title","value":"New"}],"create":true}`, "a", "create-1")
+	if w.Code != 201 {
+		t.Fatalf("create: %d %s", w.Code, w.Body)
+	}
+	data := nfoHTTPData(t, w.Body.Bytes())
+	empty := sha256.Sum256(nil)
+	if len(data) != 11 || string(data["originalBytes"]) != "0" || string(data["originalSha256"]) != `"`+hex.EncodeToString(empty[:])+`"` {
+		t.Fatalf("a create summary has no original: %s", w.Body)
+	}
+	// The request carries the flag and no backups unless the caller asked.
+	if r := repo.saved.Request; !r.Create || r.Backups != 0 || r.CreateMissing {
+		t.Fatalf("create request: %+v", r)
+	}
+	if w = jobRequest(h, "POST", path, `{"revision":1,"edits":[],"create":true,"backups":0}`, "a", "create-2"); w.Code != 201 {
+		t.Fatalf("create with zero backups: %d %s", w.Code, w.Body)
+	}
+	if w = jobRequest(h, "POST", path, `{"revision":1,"edits":[{"field":"title","value":"New"}],"create":false}`, "a", "rewrite-1"); w.Code != 201 || repo.saved.Request.Create || repo.saved.Request.Backups != 3 {
+		t.Fatalf("explicit create=false is a rewrite: %d %+v", w.Code, repo.saved.Request)
+	}
+	for _, bad := range []string{`{"revision":1,"edits":[],"create":true,"backups":3}`, `{"revision":1,"edits":[],"create":true,"createMissing":true}`, `{"revision":1,"edits":[],"create":"yes"}`, `{"revision":1,"edits":[],"create":1}`, `{"revision":1,"edits":[],"create":null,"backups":17}`} {
+		if w = jobRequest(h, "POST", path, bad, "a", "create-bad"); w.Code != 400 || !strings.Contains(w.Body.String(), "invalid_request") {
+			t.Fatalf("body %s: %d %s", bad, w.Code, w.Body)
+		}
+	}
+	// An existing NFO is the conflict the preparer reports; nothing is hidden.
+	conflict, _ := nfoWriteFixture(t)
+	service, err = app.NewNFOWritePreparations(conflict, httpNFOWriteRefusingPreparer{domain.ErrConflict})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if w = jobRequest(newNFOWriteHTTP(t, httpNFOJobs{}, nil, service), "POST", path, `{"revision":1,"edits":[],"create":true}`, "a", "create-exists"); w.Code != 409 || !strings.Contains(w.Body.String(), `"conflict"`) || strings.Contains(w.Body.String(), "private") {
+		t.Fatalf("existing NFO: %d %s", w.Code, w.Body)
+	}
+}
+
+type httpNFOWriteRefusingPreparer struct{ err error }
+
+func (p httpNFOWriteRefusingPreparer) PrepareNFOWrite(context.Context, domain.NFOItemScope, domain.NFOWritePrepareRequest) (domain.NFOWritePreparation, error) {
+	return domain.NFOWritePreparation{}, p.err
+}

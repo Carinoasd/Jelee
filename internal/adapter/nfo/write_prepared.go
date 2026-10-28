@@ -108,8 +108,15 @@ func (w *Writer) rebuildPrepared(ctx context.Context, source *Source, prepared d
 	if len(base.Entries) != 1 || base.Root != expectedRoot {
 		return nil, ErrInvalidInput
 	}
+	return rebuildPreparedEdits(ctx, base, prepared, prepared.Request.CreateMissing, true)
+}
+
+// rebuildPreparedEdits replays the saved recipe on base. The generated ID is
+// read from the saved replacement, never drawn again.
+func rebuildPreparedEdits(ctx context.Context, base *Document, prepared domain.NFOWritePreparation, createMissing, validateBase bool) (*Document, error) {
 	rebuilt := base
-	options := TextEditOptions{CreateMissing: prepared.Request.CreateMissing, BOM: prepared.Request.BOM, Indent: prepared.Request.Indent}
+	options := TextEditOptions{CreateMissing: createMissing, BOM: prepared.Request.BOM, Indent: prepared.Request.Indent}
+	var err error
 	for _, edit := range prepared.Request.Edits {
 		rebuilt, err = rebuilt.WithTextOptions(ctx, 0, edit.Field, edit.Value, prepared.Request.MaxBytes, options)
 		if err != nil {
@@ -137,8 +144,47 @@ func (w *Writer) rebuildPrepared(ctx context.Context, source *Source, prepared d
 	if !bytes.Equal(rebuilt.original, prepared.Replacement) {
 		return nil, ErrInvalidInput
 	}
-	if err := validateNFOWriteDocuments(ctx, base, rebuilt); err != nil {
+	documents := []*Document{rebuilt}
+	if validateBase {
+		documents = []*Document{base, rebuilt}
+	}
+	if err := validateNFOWriteDocuments(ctx, documents...); err != nil {
 		return nil, err
 	}
 	return rebuilt, nil
+}
+
+// createRootName is the empty root a created NFO of the item kind starts from.
+func createRootName(kind string) string {
+	return map[string]string{"Movie": "movie", "HomeVideo": "movie", "Series": "tvshow", "Season": "season", "Episode": "episodedetails"}[kind]
+}
+
+// createBaseDocument is the document a create edits: an empty root with an XML
+// declaration, no BOM. The same bytes are rebuilt for every replay.
+func createBaseDocument(ctx context.Context, kind string) (*Document, error) {
+	root := createRootName(kind)
+	if root == "" {
+		return nil, ErrInvalidInput
+	}
+	return parseOriginal(ctx, []byte("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n<"+root+">\n</"+root+">\n"))
+}
+
+// rebuildPreparedCreate reconstructs a create preparation from its saved recipe
+// alone: there is no source to observe, so nothing but the recipe, the item kind
+// and the saved ID decide the bytes. They must equal the saved replacement.
+func (w *Writer) rebuildPreparedCreate(ctx context.Context, prepared domain.NFOWritePreparation) (*Document, error) {
+	release, err := w.budget.Acquire(ctx, app.WorkCPU)
+	if err != nil {
+		return nil, err
+	}
+	defer release()
+	if err := domain.ValidateNFOWritePreparation(prepared); err != nil || !prepared.Request.Create || prepared.Scope.RootGeneration < 1 {
+		return nil, ErrInvalidInput
+	}
+	prepared = domain.CloneNFOWritePreparation(prepared)
+	base, err := createBaseDocument(ctx, prepared.Scope.Kind)
+	if err != nil {
+		return nil, err
+	}
+	return rebuildPreparedEdits(ctx, base, prepared, true, false)
 }

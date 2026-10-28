@@ -30586,6 +30586,7 @@ export type components = {
             itemId: string;
             /** Format: uuid */
             libraryId: string;
+            /** @description 0 for a create preparation: there is no original. */
             originalBytes: number;
             originalSha256: string;
             replacementBytes: number;
@@ -30594,14 +30595,22 @@ export type components = {
             revision: number;
         };
         NFOWritePrepareRequest: {
-            /** @default 3 */
+            /**
+             * @description Backups to keep when the file is replaced. With create it must be 0 (the default then): a created file has nothing to back up.
+             * @default 3
+             */
             backups: number;
             /**
              * @default preserve
              * @enum {string}
              */
             bom: "preserve" | "include" | "omit";
-            /** @description Ordered text edits; a field may appear once. Missing-NFO creation is not available. */
+            /**
+             * @description Create a missing NFO instead of rewriting an existing one. The document is built from an empty root of the item's kind (movie, tvshow, season or episodedetails) with the edits; the file is named like the NFO reader looks it up (media basename plus .nfo, or tvshow.nfo or season.nfo in the series or season directory). 409 conflict when that name already exists in any form. At commit the file is only ever created by a hardlink and an object that appears at the name is never replaced.
+             * @default false
+             */
+            create: boolean;
+            /** @description Ordered text edits; a field may appear once. */
             edits: components["schemas"]["NFOWriteTextEdit"][];
             /** @description Spaces and tabs only. */
             indent?: string;

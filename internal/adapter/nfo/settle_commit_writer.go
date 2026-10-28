@@ -144,7 +144,12 @@ func (w *Writer) readNFOCommitSettlementInput(ctx context.Context, lease domain.
 		return input, ErrCommitNotReady
 	}
 	// Legacy ready (attempt 0) and an attempt ready are mutually exclusive.
-	if evidence.ReadyRecorded != (selected.ReadyAttempt == 0) || evidence.ReadyRecorded && evidence.Ready != selected.Ready || domain.ValidateNFOWriteCommitFilesReady(selected.Ready) != nil {
+	// A create has no rollback object: its ready names the output alone.
+	readyErr := domain.ValidateNFOWriteCommitFilesReady(selected.Ready)
+	if task.Preparation.Request.Create {
+		readyErr = domain.ValidateNFOWriteCommitCreateReady(selected.Ready)
+	}
+	if evidence.ReadyRecorded != (selected.ReadyAttempt == 0) || evidence.ReadyRecorded && evidence.Ready != selected.Ready || readyErr != nil || task.Preparation.Request.Create != evidence.Plan.Create() {
 		return input, ErrChanged
 	}
 	plan.attempt = selected.ReadyAttempt
@@ -339,7 +344,12 @@ func (w *Writer) abortCommitFiles(ctx context.Context, lease domain.JobLease, re
 	}
 	defer directory.Close()
 	// The primitive rechecks the planned parent identity under the native lock.
-	phase, err := abortNFOCommitFiles(ctx, directory, input.files, input.task.Preparation.Original, input.task.Preparation.Replacement, ops)
+	var phase nfoSettlePhase
+	if input.task.Preparation.Request.Create {
+		phase, err = abortNFOCreateFiles(ctx, directory, input.files, input.task.Preparation.Replacement, ops)
+	} else {
+		phase, err = abortNFOCommitFiles(ctx, directory, input.files, input.task.Preparation.Original, input.task.Preparation.Replacement, ops)
+	}
 	if phase != nfoSettleRolledBack {
 		if err == nil {
 			err = ErrRollback

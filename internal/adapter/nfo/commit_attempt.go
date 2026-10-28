@@ -39,17 +39,26 @@ type nfoCommitAttemptPersistence struct {
 // Allocation/selection, global reservation, recovery lease and cleanup require
 // the later persistent protocol; Stage has no caller for this private primitive.
 func prepareNFOCommitAttempt(ctx context.Context, directory *os.Root, filename string, original, replacement *Document, token [16]byte, attempt uint8, persist nfoCommitAttemptPersistence, ops nfoWriteOperations) (*nfoCommitFiles, error) {
-	if attempt < 1 || attempt > maxNFOCommitAttempts || original == nil || replacement == nil || persist.reserve == nil || persist.progress == nil || persist.ready == nil {
+	if attempt < 1 || attempt > maxNFOCommitAttempts || replacement == nil || persist.reserve == nil || persist.progress == nil || persist.ready == nil {
 		return nil, ErrInvalidInput
 	}
-	if len(original.original) == 0 || len(replacement.original) == 0 || int64(len(original.original)) > MaxAllowedBytes || int64(len(replacement.original)) > MaxAllowedBytes {
+	if original != nil && len(original.original) == 0 || len(replacement.original) == 0 || original != nil && int64(len(original.original)) > MaxAllowedBytes || int64(len(replacement.original)) > MaxAllowedBytes {
 		return nil, ErrInvalidInput
 	}
-	originalHash, replacementHash := sha256.Sum256(original.original), sha256.Sum256(replacement.original)
-	originalBytes, replacementBytes := int64(len(original.original)), int64(len(replacement.original))
+	// A nil original is a create: it reserves the digest of nothing.
+	var originalBytes int64
+	originalHash, replacementHash := sha256.Sum256(nil), sha256.Sum256(replacement.original)
+	if original != nil {
+		originalHash, originalBytes = sha256.Sum256(original.original), int64(len(original.original))
+	}
+	replacementBytes := int64(len(replacement.original))
 	// Five names contain two new regular files and three hardlinks. Conservatively
 	// charge every planned name independently, including the original witness.
+	// A create keeps two names (output and pin) and charges them the same way.
 	retainedBytes := domain.NFOWriteCommitAttemptRetainedBytes(originalBytes, replacementBytes)
+	if original == nil {
+		retainedBytes = domain.NFOWriteCommitCreateAttemptRetainedBytes(replacementBytes)
+	}
 	return prepareNFOCommitFiles(ctx, directory, filename, original, replacement, token, nfoCommitFilePersistence{
 		attempt: attempt, resume: persist.resume, progress: persist.progress, ready: persist.ready,
 		plan: func(ctx context.Context, plan nfoCommitFilePlan) error {

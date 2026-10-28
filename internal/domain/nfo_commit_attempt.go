@@ -1,5 +1,7 @@
 package domain
 
+import "crypto/sha256"
+
 const NFOWriteCommitAttemptLimit uint8 = 3
 
 // Reservation includes legacy names and all three new namespaces. It is private
@@ -16,13 +18,32 @@ func (NFOWriteCommitAttemptReservation) String() string { return "nfo attempt re
 func (NFOWriteCommitAttemptReservation) GoString() string {
 	return "nfo attempt reservation (redacted)"
 }
+
 func NFOWriteCommitAttemptRetainedBytes(original, replacement int64) int64 {
 	if original < 1 || replacement < 1 || original > 32<<20 || replacement > 32<<20 {
 		return 0
 	}
 	return int64(NFOWriteCommitAttemptLimit+1) * (3*original + 2*replacement)
 }
+
+// NFOWriteCommitCreateAttemptRetainedBytes charges a created target: there is
+// no original, so only the output and its pin remain in every namespace.
+func NFOWriteCommitCreateAttemptRetainedBytes(replacement int64) int64 {
+	if replacement < 1 || replacement > 32<<20 {
+		return 0
+	}
+	return int64(NFOWriteCommitAttemptLimit+1) * 2 * replacement
+}
+
 func ValidateNFOWriteCommitAttemptReservation(v NFOWriteCommitAttemptReservation) error {
+	// A reservation with zero original bytes and the digest of nothing belongs to
+	// a create entry; rewrite reservations keep their strict original bounds.
+	if v.OriginalBytes == 0 {
+		if n := NFOWriteCommitCreateAttemptRetainedBytes(v.ReplacementBytes); n != 0 && v.RetainedBytes == n && v.OriginalHash == sha256.Sum256(nil) {
+			return nil
+		}
+		return ErrInvalid
+	}
 	if n := NFOWriteCommitAttemptRetainedBytes(v.OriginalBytes, v.ReplacementBytes); n != 0 && v.RetainedBytes == n {
 		return nil
 	}
