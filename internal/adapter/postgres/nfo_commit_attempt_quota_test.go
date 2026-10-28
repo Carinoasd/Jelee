@@ -1,10 +1,12 @@
 package postgres
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/MoYuanCN/Jelee/internal/domain"
 	"github.com/jackc/pgx/v5"
@@ -301,6 +303,11 @@ func attemptQuotaRace(t *testing.T, kind string, isolation pgx.TxIsoLevel, fence
 // global budget, refuse atomically without deleting or adopting any history.
 func TestNFOCommitAttemptMigrationRefusesHistoricalExcess(t *testing.T) {
 	f, base, prepared := nfoCommitFixture(t)
+	// A down/up migration pair plus 112 MiB of plans outlasts the 90-second
+	// fixture budget on slower hosts.
+	ctx, cancel := context.WithTimeout(context.WithoutCancel(f.ctx), 10*time.Minute)
+	defer cancel()
+	f.ctx = ctx
 	stopAttemptQuotaJob(t, f, base)
 	jobMetricMigration(t, f, "down", 55)
 	const count = 7
