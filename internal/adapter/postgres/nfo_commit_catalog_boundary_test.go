@@ -37,7 +37,7 @@ func TestNFOCommitCatalogScopeSupportsDirectoryIntents(t *testing.T) {
 					t.Fatal(err)
 				}
 			}
-			if _, err := f.s.Pool.Exec(f.ctx, `UPDATE libraries SET nfo_mode='read-only',nfo_generation=2 WHERE id=$1::uuid`, f.registration.Library.ID); err != nil {
+			if _, err := f.s.Pool.Exec(f.ctx, `UPDATE libraries SET nfo_mode='read-only',nfo_write_enabled=true,nfo_generation=2 WHERE id=$1::uuid`, f.registration.Library.ID); err != nil {
 				t.Fatal(err)
 			}
 			scope, err := f.s.ResolveItemNFO(f.ctx, f.a, item, 1)

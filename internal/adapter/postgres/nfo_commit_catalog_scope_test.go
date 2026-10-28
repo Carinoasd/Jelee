@@ -23,7 +23,7 @@ func mutateCommitCatalogScope(t *testing.T, f jobFixture, p domain.NFOWritePrepa
 	}
 	queries := map[string]string{
 		"generation":       `UPDATE libraries SET nfo_generation=nfo_generation+1 WHERE id=$1::uuid`,
-		"policy":           `UPDATE libraries SET nfo_mode='off',nfo_generation=nfo_generation+1 WHERE id=$1::uuid`,
+		"policy":           `UPDATE libraries SET nfo_mode='off',nfo_write_enabled=false,nfo_generation=nfo_generation+1 WHERE id=$1::uuid`,
 		"root":             `UPDATE library_roots SET path=path||'/changed' WHERE library_id=$1::uuid`,
 		"source_path":      `UPDATE media_sources SET relative_path='changed.mkv' WHERE library_id=$1::uuid`,
 		"source_id":        `UPDATE media_sources SET id=gen_random_uuid() WHERE library_id=$1::uuid`,

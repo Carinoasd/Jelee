@@ -33,3 +33,11 @@ Windows domain/app/postgres/nfo/telemetry/jobs/runtime/architecture八套件通�
 schema47已驗準備列清理/重開pool後的工作bytes與固定UUID、工作意圖到原生Writer、租約/取消/actor拒絕且無部分輸出、舊worker不claim或回收、真實kind防偽通用Finish、不完整批次/不可變內容、每工作128MiB容量回滾、指標epoch保持、保留工作或清理歷史後累計值拒降版。schema47當時未獨立執行全域1024條/512MiB邊界；schema48追加驗證與快照漏洞修補另見[配額證據](nfo-write-quota-fences.md)。
 
 詳見[安全證據](evidence/nfo-write-jobs.json)與[Linux race](evidence/nfo-write-jobs-race-linux.txt)。92份已發布SQL保持。測試使用私有SQL夾具建立完整工作，不代表公開read-write操作已啟用；正式24h仍屬9a74a8932a來源，不含本批。全案與G39/G41狀態保持部分完成。
+
+## 寫回權限（schema87）
+
+G39.6的read-write以獨立布林`libraries.nfo_write_enabled`表示，不新增`nfo_mode`值：讀取仍只看`nfo_mode`（`off`/`read-only`），「read-write」即`read-only`加寫回權限。CHECK`libraries_nfo_write_needs_read`保證權限開啟時必為`read-only`；`SetNFOLibraryPolicy`將模式改為`off`時一併清除權限，metadata還原遇到非`read-only`模式同樣清除，備份匯出不含此欄。
+
+`Store.SetNFOWritePolicy`（`app.Jobs.SetNFOWritePolicy`）在活躍管理員圍欄內切換權限：模式非`read-only`時開啟回`ErrConflict`，狀態不變為無操作，真正變更寫稽核`nfo.write_policy_changed`。切換不改`nfo_generation`，讀取工作不受影響。`SubmitNFOWriteJob`在准入交易內要求`read-only`且權限開啟，否則`ErrConflict`。
+
+遷移將`check_nfo_commit_catalog`包成加上權限檢查的新版本（原函式改名`_v86`），權限關閉時證據、journal與計畫寫入以`23514`（`nfo write disabled`）拒絕，進行中的工作在下一步停止。rollback結算不呼叫此檢查，權限被撤銷後已開始的token仍可還原。降級移除欄位、CHECK並還原原函式。

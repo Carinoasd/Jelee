@@ -58,4 +58,8 @@ type NFORepository interface {
 type NFOAdminRepository interface {
 	GetNFOLibraryPolicy(context.Context, domain.Actor, string) (domain.NFOLibraryPolicy, error)
 	SetNFOLibraryPolicy(context.Context, domain.Actor, string, string, int64, string) (domain.NFOLibraryPolicy, bool, error)
+	// SetNFOWritePolicy turns NFO writes on or off. Enabling needs read-only
+	// reading (ErrConflict otherwise); the same state again is a no-op. It
+	// never changes the NFO generation.
+	SetNFOWritePolicy(context.Context, domain.Actor, string, bool) (domain.NFOLibraryPolicy, error)
 }

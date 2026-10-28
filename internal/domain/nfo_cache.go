@@ -75,6 +75,10 @@ type NFOLibraryPolicy struct {
 	LibraryID  string `json:"libraryId"`
 	Mode       string `json:"mode"`
 	Generation int64  `json:"generation"`
+	// WriteEnabled permits NFO writes (G39.6 read-write). It needs Mode
+	// read-only and turning reading off clears it; it never changes
+	// Generation, so read jobs are not disturbed.
+	WriteEnabled bool `json:"writeEnabled"`
 }
 
 // Identity is trusted parser configuration, not executable authority or a

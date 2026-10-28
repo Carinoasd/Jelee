@@ -132,6 +132,7 @@ var auditEvents = map[string]string{
 	"metadata.imported":                    domain.AuditCategorySecurity,
 	"media.sidecars_changed":               domain.AuditCategoryAudit,
 	"nfo.policy_changed":                   domain.AuditCategoryAudit,
+	"nfo.write_policy_changed":             domain.AuditCategoryAudit,
 	"nfo.write_prepared":                   domain.AuditCategoryAudit,
 	"playback.history_cleared":             domain.AuditCategoryAudit,
 	"probe.item_invalidated":               domain.AuditCategoryAudit,

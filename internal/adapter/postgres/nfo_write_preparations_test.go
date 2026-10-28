@@ -27,6 +27,10 @@ func nfoWritePreparationFixture(t *testing.T) (jobFixture, *app.NFOWritePreparat
 func nfoWritePreparationLibrary(t *testing.T, f jobFixture) (*app.NFOWritePreparations, domain.NFOItemScope, domain.NFOWritePrepareRequest) {
 	t.Helper()
 	scope, _ := nfoItemApplyLibrary(t, f)
+	// Writes need the library's write permission on top of NFO reading.
+	if _, err := f.s.Pool.Exec(f.ctx, `UPDATE libraries SET nfo_write_enabled=true WHERE id=$1::uuid`, scope.LibraryID); err != nil {
+		t.Fatal("enable NFO write fixture")
+	}
 	if err := os.WriteFile(filepath.Join(scope.Source.RootPath, scope.Source.RelativePath), []byte("\xef\xbb\xbf<movie x='keep'>\r\n  <title>old</title><!--keep-->\r\n  <vendor a='1'/>\r\n</movie>"), 0600); err != nil {
 		t.Fatal("create private NFO fixture")
 	}
@@ -166,7 +170,7 @@ func TestNFOWritePreparationRechecksScopeAndAuthorizationAndAuditRollback(t *tes
 				"root":       `UPDATE library_roots SET path=path||'/changed'`,
 				"source":     `UPDATE media_sources SET relative_path='changed.mkv'`,
 				"revision":   `UPDATE item_metadata_state SET revision=revision+1`,
-				"policy":     `UPDATE libraries SET nfo_mode='off',nfo_generation=nfo_generation+1`,
+				"policy":     `UPDATE libraries SET nfo_mode='off',nfo_write_enabled=false,nfo_generation=nfo_generation+1`,
 				"session":    `UPDATE sessions SET revoked_at=clock_timestamp()`,
 				"audit":      `CREATE FUNCTION reject_prepared_audit() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF NEW.event='nfo.write_prepared' THEN RAISE EXCEPTION 'private fixture rejection'; END IF; RETURN NEW; END $$; CREATE TRIGGER reject_prepared_audit BEFORE INSERT ON audit_logs FOR EACH ROW EXECUTE FUNCTION reject_prepared_audit()`,
 			}[change]

@@ -200,7 +200,7 @@ func TestNFOPolicyCASAndHistoricalQueriesWorkWithoutReader(t *testing.T) {
 	}
 	h := newNFOHTTP(t, repo, func() bool { return false }, true)
 	base := "/api/v1/libraries/" + libraryID + "/nfo"
-	if w := jobRequest(h, "GET", base+"/policy", "", "a"); w.Code != 200 || len(nfoHTTPData(t, w.Body.Bytes())) != 3 {
+	if w := jobRequest(h, "GET", base+"/policy", "", "a"); w.Code != 200 || len(nfoHTTPData(t, w.Body.Bytes())) != 4 {
 		t.Fatal("policy unavailable")
 	}
 	for _, replay := range []bool{false, true} {
