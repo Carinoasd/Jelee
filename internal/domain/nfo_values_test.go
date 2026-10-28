@@ -53,11 +53,14 @@ func TestNFOResourcePolicyBoundariesAndDefaults(t *testing.T) {
 
 func TestNFOPolicyIntentAndTrustedIdentity(t *testing.T) {
 	for _, mode := range []string{NFOModeOff, NFOModeReadOnly} {
-		if ValidateNFOLibraryPolicy(NFOLibraryPolicy{nfoID1, mode, 1}) != nil || ValidateNFOPolicyUpdate(nfoID1, strings.Repeat("x", 128), 1, mode) != nil {
+		if ValidateNFOLibraryPolicy(NFOLibraryPolicy{nfoID1, mode, 1, false}) != nil || ValidateNFOPolicyUpdate(nfoID1, strings.Repeat("x", 128), 1, mode) != nil {
 			t.Fatal("valid policy intent refused")
 		}
 	}
-	for _, policy := range []NFOLibraryPolicy{{"bad", NFOModeOff, 1}, {nfoID1, "read-write", 1}, {nfoID1, NFOModeOff, 0}} {
+	if ValidateNFOLibraryPolicy(NFOLibraryPolicy{nfoID1, NFOModeReadOnly, 1, true}) != nil {
+		t.Fatal("valid write permission refused")
+	}
+	for _, policy := range []NFOLibraryPolicy{{"bad", NFOModeOff, 1, false}, {nfoID1, "read-write", 1, false}, {nfoID1, NFOModeOff, 0, false}, {nfoID1, NFOModeOff, 1, true}} {
 		if ValidateNFOLibraryPolicy(policy) == nil {
 			t.Fatal("invalid library policy accepted")
 		}

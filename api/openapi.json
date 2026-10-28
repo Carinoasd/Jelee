@@ -6916,12 +6916,16 @@
               "read-only"
             ],
             "type": "string"
+          },
+          "writeEnabled": {
+            "type": "boolean"
           }
         },
         "required": [
           "libraryId",
           "mode",
-          "generation"
+          "generation",
+          "writeEnabled"
         ],
         "type": "object"
       },

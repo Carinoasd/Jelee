@@ -48,7 +48,9 @@ func (s *Store) EnsureNFOCachePolicy(parent context.Context, p domain.NFOCachePo
 }
 func readNFOLibraryPolicy(ctx context.Context, tx pgx.Tx, id string) (domain.NFOLibraryPolicy, error) {
 	var p domain.NFOLibraryPolicy
-	err := tx.QueryRow(ctx, `SELECT id::text,nfo_mode,nfo_generation FROM libraries WHERE id=$1::uuid FOR UPDATE`, id).Scan(&p.LibraryID, &p.Mode, &p.Generation)
+	// Historical-schema fixtures predate the write column; the row JSON reads as
+	// absent (false) there instead of failing every policy read.
+	err := tx.QueryRow(ctx, `SELECT id::text,nfo_mode,nfo_generation,COALESCE((to_jsonb(libraries)->>'nfo_write_enabled')::boolean,false) FROM libraries WHERE id=$1::uuid FOR UPDATE`, id).Scan(&p.LibraryID, &p.Mode, &p.Generation, &p.WriteEnabled)
 	return p, storageError(err)
 }
 func (s *Store) GetNFOLibraryPolicy(parent context.Context, a domain.Actor, id string) (domain.NFOLibraryPolicy, error) {
@@ -149,7 +151,8 @@ func (s *Store) SetNFOLibraryPolicy(parent context.Context, a domain.Actor, id, 
 	}
 	result := current
 	if current.Mode != mode {
-		if err = tx.QueryRow(ctx, `UPDATE libraries SET nfo_mode=$2,nfo_generation=nfo_generation+1 WHERE id=$1::uuid AND nfo_generation=$3 RETURNING id::text,nfo_mode,nfo_generation`, id, mode, expected).Scan(&result.LibraryID, &result.Mode, &result.Generation); err != nil {
+		// Writes need reading, so turning reading off also revokes them.
+		if err = tx.QueryRow(ctx, `UPDATE libraries SET nfo_mode=$2,nfo_generation=nfo_generation+1,nfo_write_enabled=nfo_write_enabled AND $2='read-only' WHERE id=$1::uuid AND nfo_generation=$3 RETURNING id::text,nfo_mode,nfo_generation,nfo_write_enabled`, id, mode, expected).Scan(&result.LibraryID, &result.Mode, &result.Generation, &result.WriteEnabled); err != nil {
 			return domain.NFOLibraryPolicy{}, false, storageError(err)
 		}
 	}
@@ -167,6 +170,50 @@ func (s *Store) SetNFOLibraryPolicy(parent context.Context, a domain.Actor, id, 
 	}
 	return result, false, nil
 }
+
+// SetNFOWritePolicy turns NFO writes of a library on or off under the same
+// live-administrator fence as reading changes. Enabling needs read-only
+// reading. Writes already queued stop at their next step once disabled; a
+// started token can still be rolled back.
+func (s *Store) SetNFOWritePolicy(parent context.Context, a domain.Actor, id string, enabled bool) (domain.NFOLibraryPolicy, error) {
+	if parent == nil {
+		return domain.NFOLibraryPolicy{}, domain.ErrInvalid
+	}
+	if !domain.ValidID(id) {
+		return domain.NFOLibraryPolicy{}, domain.ErrNotFound
+	}
+	ctx, cancel := context.WithTimeout(parent, probeDBTimeout)
+	defer cancel()
+	tx, err := s.authorizedJobs(ctx, a)
+	if err != nil {
+		return domain.NFOLibraryPolicy{}, err
+	}
+	defer tx.Rollback(ctx)
+	current, err := readNFOLibraryPolicy(ctx, tx, id)
+	if err != nil {
+		return domain.NFOLibraryPolicy{}, err
+	}
+	if enabled && current.Mode != domain.NFOModeReadOnly {
+		return domain.NFOLibraryPolicy{}, domain.ErrConflict
+	}
+	result := current
+	if current.WriteEnabled != enabled {
+		if err = tx.QueryRow(ctx, `UPDATE libraries SET nfo_write_enabled=$2 WHERE id=$1::uuid RETURNING nfo_write_enabled`, id, enabled).Scan(&result.WriteEnabled); err != nil {
+			return domain.NFOLibraryPolicy{}, storageError(err)
+		}
+		if err = auditAccount(ctx, tx, a, "nfo.write_policy_changed", id, current, result); err != nil {
+			return domain.NFOLibraryPolicy{}, err
+		}
+	}
+	if err = probeAdminStillLive(ctx, tx, a); err != nil {
+		return domain.NFOLibraryPolicy{}, err
+	}
+	if err = tx.Commit(ctx); err != nil {
+		return domain.NFOLibraryPolicy{}, storageError(err)
+	}
+	return result, nil
+}
+
 func ensureNFOLibrary(ctx context.Context, tx pgx.Tx, id string) error {
 	var exists bool
 	if err := tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM nfo_library_quota WHERE library_id=$1::uuid)`, id).Scan(&exists); err != nil {

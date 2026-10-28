@@ -163,6 +163,20 @@ func (j *Jobs) SetNFOPolicy(ctx context.Context, actor domain.Actor, library, ke
 	return j.nfoAdmin.SetNFOLibraryPolicy(ctx, actor, library, key, expected, mode)
 }
 
+// SetNFOWritePolicy turns NFO writes of a library on or off (G39.6).
+func (j *Jobs) SetNFOWritePolicy(ctx context.Context, actor domain.Actor, library string, enabled bool) (domain.NFOLibraryPolicy, error) {
+	if ctx == nil || !validTarget(actor, library) {
+		return domain.NFOLibraryPolicy{}, domain.ErrInvalid
+	}
+	if err := ctx.Err(); err != nil {
+		return domain.NFOLibraryPolicy{}, err
+	}
+	if j.nfoAdmin == nil {
+		return domain.NFOLibraryPolicy{}, domain.ErrNFOReaderUnavailable
+	}
+	return j.nfoAdmin.SetNFOWritePolicy(ctx, actor, library, enabled)
+}
+
 func (j *Jobs) NFOSummary(ctx context.Context, actor domain.Actor, job string) (domain.NFOJobSummary, error) {
 	if ctx == nil || !validTarget(actor, job) {
 		return domain.NFOJobSummary{}, domain.ErrInvalid

@@ -22,7 +22,7 @@ func ValidateNFOCachePolicy(p NFOCachePolicy) error {
 func ValidNFOMode(mode string) bool { return mode == NFOModeOff || mode == NFOModeReadOnly }
 
 func ValidateNFOLibraryPolicy(p NFOLibraryPolicy) error {
-	if !ValidID(p.LibraryID) || !ValidNFOMode(p.Mode) || p.Generation < 1 {
+	if !ValidID(p.LibraryID) || !ValidNFOMode(p.Mode) || p.Generation < 1 || p.WriteEnabled && p.Mode != NFOModeReadOnly {
 		return ErrInvalid
 	}
 	return nil

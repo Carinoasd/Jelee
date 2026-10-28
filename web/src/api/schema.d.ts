@@ -29404,6 +29404,7 @@ export type components = {
             libraryId: string;
             /** @enum {string} */
             mode: "off" | "read-only";
+            writeEnabled: boolean;
         };
         NFOObservation: {
             entries: number;

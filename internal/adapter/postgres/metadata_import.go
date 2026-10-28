@@ -160,7 +160,7 @@ var metadataApply = []metadataApplyStep{
 	{kind: "library", sql: `WITH x AS (SELECT m.dst id,m.state,s.doc FROM bk_stage s JOIN bk_map m ON m.kind='library' AND m.src=s.ref WHERE s.kind='library' AND m.state IN ('existing','new')),
 ins AS (INSERT INTO libraries(id,name,nfo_mode,metadata_language,metadata_image_languages,metadata_preferences_revision,catalog_sync_auto)
  SELECT id,doc->>'name',doc->>'nfo_mode',doc->>'metadata_language',pg_temp.bk_texts(doc->'metadata_image_languages'),(doc->>'metadata_preferences_revision')::integer,(doc->>'catalog_sync_auto')::boolean FROM x WHERE state='new' RETURNING 1),
-upd AS (UPDATE libraries l SET name=x.doc->>'name',nfo_mode=x.doc->>'nfo_mode',
+upd AS (UPDATE libraries l SET name=x.doc->>'name',nfo_mode=x.doc->>'nfo_mode',nfo_write_enabled=l.nfo_write_enabled AND x.doc->>'nfo_mode'='read-only',
  nfo_generation=l.nfo_generation+CASE WHEN l.nfo_mode<>x.doc->>'nfo_mode' THEN 1 ELSE 0 END,
  metadata_language=x.doc->>'metadata_language',metadata_image_languages=pg_temp.bk_texts(x.doc->'metadata_image_languages'),
  metadata_preferences_revision=l.metadata_preferences_revision+CASE WHEN (l.metadata_language,l.metadata_image_languages) IS DISTINCT FROM (x.doc->>'metadata_language',pg_temp.bk_texts(x.doc->'metadata_image_languages')) THEN 1 ELSE 0 END,

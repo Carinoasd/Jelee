@@ -161,6 +161,13 @@ func (s *Store) SubmitNFOWriteJob(ctx context.Context, actor domain.Actor, libra
 	if !errors.Is(err, domain.ErrNotFound) {
 		return domain.Job{}, false, err
 	}
+	var writable bool
+	if err = tx.QueryRow(ctx, `SELECT nfo_mode='read-only' AND nfo_write_enabled FROM libraries WHERE id=$1::uuid FOR SHARE`, library).Scan(&writable); err != nil {
+		return domain.Job{}, false, storageError(err)
+	}
+	if !writable {
+		return domain.Job{}, false, domain.ErrConflict
+	}
 	var busy bool
 	var active int
 	if err = tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM jobs WHERE library_id=$1 AND state IN ('queued','running')),(SELECT count(*) FROM jobs WHERE state IN ('queued','running'))`, library).Scan(&busy, &active); err != nil {
