@@ -27,10 +27,14 @@ type nfoCLIRequest struct {
 func runNFOCLI(ctx context.Context, argv []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	usage := func() int {
 		fmt.Fprintln(stderr, "usage: jelee-cli nfo validate --root ABSOLUTE_PATH --file RELATIVE/FILE.nfo [--max-bytes N] | validate --library UUID --token-stdin --key KEY [--priority manual|background] [--url ORIGIN] | policy-get|policy-set|current-validations|issues --library UUID --token-stdin [options] | job|images --id UUID --token-stdin [--url ORIGIN]")
+		_, _ = fmt.Fprintln(stderr, nfoWriteUsage)
 		return 2
 	}
 	if len(argv) == 0 {
 		return usage()
+	}
+	if argv[0] == "write" || argv[0] == "write-policy" {
+		return runNFOWriteCLI(ctx, argv, stdin, stdout, stderr)
 	}
 	c := nfoCLIRequest{command: argv[0]}
 	flags := flag.NewFlagSet("nfo "+c.command, flag.ContinueOnError)
