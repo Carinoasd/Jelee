@@ -47,7 +47,7 @@ G39.6的read-write以獨立布林`libraries.nfo_write_enabled`表示，不新增
 全部路由僅限管理員，經`accountEndpoint`，`Idempotency-Key`必填者缺少即400。回應不含檔案bytes、檔案系統路徑或root路徑。
 
 - `PUT /api/v1/libraries/{id}/nfo/write-policy`：`{"enabled":bool}`，回傳與`/nfo/policy`相同的政策物件。讀取未開時開啟回409`conflict`。
-- `POST /api/v1/items/{id}/nfo/write-preparations`：`{revision, edits:[{field,value}], bom?, indent?, maxBytes?, backups?}`，`maxBytes`預設8MiB、`backups`預設3，不開放`createMissing`。首次201、重播200並加`Idempotency-Replayed: true`。回應為摘要：`id,itemId,libraryId,revision,fields,originalBytes,replacementBytes,originalSha256,replacementSha256,createdAt,expiresAt`。服務不可用回503`nfo_reader_unavailable`。
+- `POST /api/v1/items/{id}/nfo/write-preparations`：`{revision, edits:[{field,value}], bom?, indent?, maxBytes?, backups?, create?}`，`maxBytes`預設8MiB、`backups`預設3，不開放`createMissing`。`create: true` 為新建尚不存在的 NFO（`backups` 預設與必須為 0，名稱已存在回 409 `conflict`），見[NFO 缺失檔案的建立](nfo-create-target.md)。首次201、重播200並加`Idempotency-Replayed: true`。回應為摘要：`id,itemId,libraryId,revision,fields,originalBytes,replacementBytes,originalSha256,replacementSha256,createdAt,expiresAt`。服務不可用回503`nfo_reader_unavailable`。
 - `POST /api/v1/libraries/{id}/nfo/writes`：`{preparations:[1..100個ID], priority?}`，回傳202與`nfo_write`任務（形狀同`/nfo/validate`），重播200。庫未開寫入權限，或runtime未啟用`enableNFOWrite`，回409`nfo_write_disabled`（`domain.ErrNFOWriteDisabled`，原為`conflict`）。
 
 `jelee-cli nfo write-policy --library ID --enable|--disable`、`nfo write prepare --item ID --revision N --set field=value … [--backups N] [--bom …] --key KEY`、`nfo write submit --library ID --preparation ID … [--priority …] --key KEY`皆需`--token-stdin`，可加`--url`與`--json`；預設印簡短摘要，失敗只印穩定代碼（含伺服器錯誤碼）並以非零結束。
