@@ -92,7 +92,7 @@
 
 ## 任務三：NFO 三種批次操作（G39.14）
 
-> 狀態：第 1 項「全量導入」已實作（schema88，見 [nfo-apply-jobs.md](nfo-apply-jobs.md)）；第 2 項「匯出全部」已實作（schema89，見 [nfo-export-jobs.md](nfo-export-jobs.md)）；第 3 項「只匯出缺失」尚未實作。
+> 狀態：第 1 項「全量導入」已實作（schema88，見 [nfo-apply-jobs.md](nfo-apply-jobs.md)）；第 2 項「匯出全部」已實作（schema89，見 [nfo-export-jobs.md](nfo-export-jobs.md)）；第 3 項「只匯出缺失」的新建協議（3c-i）已實作（schema90，見 [nfo-create-target.md](nfo-create-target.md)：單筆準備 `create: true`、`O_EXCL` 輸出加 hardlink 建立、持久證據與 `nfo_absent` 排除、當機與取消皆可安全收尾），批次任務本身（3c-ii）尚未實作。
 
 需求原文：提供「從 NFO 全量導入」「匯出全部條目為 NFO」「只匯出缺失 NFO」三種批次操作，全部走任務系統（可取消、可觀測、批次處理）。
 
@@ -106,7 +106,7 @@
    - 寫一套「資料庫欄位 → NFO」的轉換，電影、劇集、季、集各一套。
    - 既有 NFO 裡的未知標籤、屬性與註解要保留（參考 `internal/adapter/nfo` 現有的受控編輯）。
    - 透過既有的 preparation → nfo_write job → 工作程序流程寫回，不另外開寫檔路徑。
-3. **只匯出缺失**：
+3. **只匯出缺失**（狀態：安全新建流程已實作（schema90），設計與限制見 [nfo-create-target.md](nfo-create-target.md)；批次任務（資料庫欄位轉成新建請求、分批、取消與續跑）尚未實作；以下原始需求保留供對照）：
    - 目標檔不存在時要**新建**。目前整套寫回流程（plan、native receipt、結算）都假設目標檔已存在，需要設計一套安全的新建流程：
      - 以 `O_EXCL` 建立。
      - 有持久證據。

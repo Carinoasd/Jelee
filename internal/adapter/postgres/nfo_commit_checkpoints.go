@@ -76,10 +76,18 @@ func readNFOCommitCheckpoint(ctx context.Context, tx pgx.Tx, token string, evide
 	copy(evidence.Checkpoint.OutputIdentity[:], output)
 	copy(evidence.Checkpoint.RollbackIdentity[:], rollback)
 	value := evidence.Checkpoint
-	if domain.ValidateNFOWriteCommitFileCheckpoint(value) != nil || value.OutputIdentity[1] != evidence.Plan.TargetIdentity[1] || value.OutputIdentity == evidence.Plan.TargetIdentity || value.RollbackIdentity == evidence.Plan.TargetIdentity {
+	if domain.ValidateNFOWriteCommitFileCheckpoint(value) != nil || value.OutputIdentity[1] != evidence.Plan.ParentIdentity[1] || value.OutputIdentity == evidence.Plan.TargetIdentity {
 		return domain.ErrDatabase
 	}
-	if evidence.ReadyRecorded && (value.Phase != 2 || value.OutputIdentity != evidence.Ready.OutputIdentity || value.RollbackIdentity != evidence.Ready.RollbackIdentity) {
+	// A create has one phase and no rollback object; a rewrite has both.
+	if evidence.Plan.Create() && value.Phase != 1 || !evidence.Plan.Create() && value.RollbackIdentity == evidence.Plan.TargetIdentity {
+		return domain.ErrDatabase
+	}
+	wantPhase := uint8(2)
+	if evidence.Plan.Create() {
+		wantPhase = 1
+	}
+	if evidence.ReadyRecorded && (value.Phase != wantPhase || value.OutputIdentity != evidence.Ready.OutputIdentity || value.RollbackIdentity != evidence.Ready.RollbackIdentity) {
 		return domain.ErrDatabase
 	}
 	evidence.CheckpointRecorded = true

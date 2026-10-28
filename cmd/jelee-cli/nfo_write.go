@@ -18,7 +18,7 @@ import (
 	"github.com/MoYuanCN/Jelee/internal/domain"
 )
 
-const nfoWriteUsage = "usage: jelee-cli nfo write-policy --library UUID --enable|--disable --token-stdin [--url ORIGIN] [--json] | write prepare --item UUID --revision N --set FIELD=VALUE [--set ...] [--backups N] [--bom preserve|include|omit] --key KEY --token-stdin [--url ORIGIN] [--json] | write submit --library UUID --preparation UUID [--preparation UUID ...] [--priority manual|background] --key KEY --token-stdin [--url ORIGIN] [--json]"
+const nfoWriteUsage = "usage: jelee-cli nfo write-policy --library UUID --enable|--disable --token-stdin [--url ORIGIN] [--json] | write prepare --item UUID --revision N --set FIELD=VALUE [--set ...] [--create] [--backups N] [--bom preserve|include|omit] --key KEY --token-stdin [--url ORIGIN] [--json] | write submit --library UUID --preparation UUID [--preparation UUID ...] [--priority manual|background] --key KEY --token-stdin [--url ORIGIN] [--json]"
 
 // repeatedFlag collects every occurrence of a flag in order.
 type repeatedFlag []string
@@ -32,7 +32,7 @@ type nfoWriteCLIRequest struct {
 	command, library, item, key, bom, priority string
 	revision                                   int64
 	backups                                    int
-	enable, asJSON                             bool
+	enable, asJSON, create                     bool
 	edits                                      []domain.NFOWriteTextEdit
 	preparations                               []string
 }
@@ -80,7 +80,8 @@ func parseNFOWriteCLI(argv []string) (c nfoWriteCLIRequest, base string, ok bool
 		flags.StringVar(&c.item, "item", "", "item UUID")
 		flags.Int64Var(&c.revision, "revision", 0, "expected item metadata revision")
 		flags.Var(&sets, "set", "FIELD=VALUE edit, repeatable")
-		flags.IntVar(&c.backups, "backups", nfoCLIDefaultBackups, "backups to keep")
+		flags.BoolVar(&c.create, "create", false, "create a missing NFO instead of rewriting one")
+		flags.IntVar(&c.backups, "backups", nfoCLIDefaultBackups, "backups to keep (0 with --create)")
 		flags.StringVar(&c.bom, "bom", "", "preserve, include or omit")
 		flags.StringVar(&c.key, "key", "", "idempotency key")
 	case "write-submit":
@@ -112,9 +113,18 @@ func parseNFOWriteCLI(argv []string) (c nfoWriteCLIRequest, base string, ok bool
 			}
 			c.edits = append(c.edits, domain.NFOWriteTextEdit{Field: field, Value: value})
 		}
+		// A created file has nothing to back up: its backups default to 0 and
+		// an explicit non-zero count is a usage error, as the server rules.
+		if c.create {
+			explicit := false
+			flags.Visit(func(f *flag.Flag) { explicit = explicit || f.Name == "backups" })
+			if !explicit {
+				c.backups = 0
+			}
+		}
 		// The server applies the same checks; failing here keeps a mistake
 		// from costing a request.
-		request := domain.NFOWritePrepareRequest{ItemID: c.item, Revision: c.revision, Edits: c.edits, BOM: c.bom, MaxBytes: domain.NFODefaultSourceBytes, Backups: c.backups}
+		request := domain.NFOWritePrepareRequest{ItemID: c.item, Revision: c.revision, Edits: c.edits, BOM: c.bom, MaxBytes: domain.NFODefaultSourceBytes, Backups: c.backups, Create: c.create}
 		if domain.ValidateNFOWritePrepareRequest(request) != nil {
 			return c, "", false
 		}
@@ -166,6 +176,9 @@ func runNFOWriteCLI(ctx context.Context, argv []string, stdin io.Reader, stdout,
 		body["revision"], body["edits"], body["backups"] = c.revision, c.edits, c.backups
 		if c.bom != "" {
 			body["bom"] = c.bom
+		}
+		if c.create {
+			body["create"] = true
 		}
 	case "write-submit":
 		u.Path = "/api/v1/libraries/" + c.library + "/nfo/writes"
@@ -310,7 +323,7 @@ func validNFOWritePreparation(p nfoWritePreparation, c nfoWriteCLIRequest) bool 
 		fields = append(fields, edit.Field)
 	}
 	return domain.ValidID(p.ID) && p.ItemID == c.item && domain.ValidID(p.LibraryID) && p.Revision == c.revision && slices.Equal(p.Fields, fields) &&
-		p.OriginalBytes >= 1 && p.OriginalBytes <= domain.NFOMaxSourceBytes && p.ReplacementBytes >= 1 && p.ReplacementBytes <= domain.NFOMaxSourceBytes &&
+		(p.OriginalBytes >= 1 || c.create && p.OriginalBytes == 0) && (p.OriginalBytes == 0) == c.create && p.OriginalBytes <= domain.NFOMaxSourceBytes && p.ReplacementBytes >= 1 && p.ReplacementBytes <= domain.NFOMaxSourceBytes &&
 		validNFOCLIDigest(p.OriginalSHA256) && validNFOCLIDigest(p.ReplacementSHA256) &&
 		!p.CreatedAt.IsZero() && p.ExpiresAt.After(p.CreatedAt)
 }
@@ -340,8 +353,12 @@ func nfoWriteSummary(c nfoWriteCLIRequest, value any, replayed bool) string {
 		}
 		return fmt.Sprintf("NFO writes %s for library %s (mode %s, generation %d)\n", state, v.LibraryID, v.Mode, v.Generation)
 	case nfoWritePreparation:
-		return fmt.Sprintf("prepared %s%s\nitem %s revision %d\nfields %s\noriginal %d bytes sha256 %s\nreplacement %d bytes sha256 %s\nexpires %s\n",
-			v.ID, suffix, v.ItemID, v.Revision, strings.Join(v.Fields, ","), v.OriginalBytes, v.OriginalSHA256, v.ReplacementBytes, v.ReplacementSHA256, v.ExpiresAt.UTC().Format(time.RFC3339))
+		verb := "prepared"
+		if v.OriginalBytes == 0 {
+			verb = "prepared (create)"
+		}
+		return fmt.Sprintf("%s %s%s\nitem %s revision %d\nfields %s\noriginal %d bytes sha256 %s\nreplacement %d bytes sha256 %s\nexpires %s\n",
+			verb, v.ID, suffix, v.ItemID, v.Revision, strings.Join(v.Fields, ","), v.OriginalBytes, v.OriginalSHA256, v.ReplacementBytes, v.ReplacementSHA256, v.ExpiresAt.UTC().Format(time.RFC3339))
 	case domain.Job:
 		return fmt.Sprintf("job %s %s%s\nlibrary %s preparations %s\npriority %s\n", v.ID, v.State, suffix, v.LibraryID, strconv.Itoa(len(c.preparations)), v.Priority)
 	}

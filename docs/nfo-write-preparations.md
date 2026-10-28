@@ -30,4 +30,4 @@ Windows完整Go套件與最終受影響套件驗證通過；images/toolidentity�
 
 runtime真PostgreSQL metrics整合通過；production NFO worker驗收因未配置nonroot production profile而未執行，不計為通過。詳見[安全摘要](evidence/nfo-write-preparations.json)及[Linux race](evidence/nfo-write-preparations-race-linux.txt)。正式24h的來源9a74a8932a不含本批變更。
 
-新schema為正式持久寫回的準備步驟，G39與G41狀態保持部分完成。缺失NFO建立、全部欄位、read-write政策/批次job/租約與能力准入/API/CLI/worker/提交恢復、Windows完整落盤與真實客戶端仍未完成。
+新schema為正式持久寫回的準備步驟，G39與G41狀態保持部分完成。缺失NFO的建立已由[schema90](nfo-create-target.md)提供單筆入口；全部欄位、read-write政策/批次job/租約與能力准入/API/CLI/worker/提交恢復、Windows完整落盤與真實客戶端仍未完成。

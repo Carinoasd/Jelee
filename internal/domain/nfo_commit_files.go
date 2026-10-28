@@ -22,6 +22,14 @@ type NFOWriteCommitRecord struct {
 func (NFOWriteCommitRecord) String() string   { return "nfo commit record (data redacted)" }
 func (NFOWriteCommitRecord) GoString() string { return "nfo commit record (data redacted)" }
 
+// NFOWriteCommitPlanVersion is the plan of a rewrite: the target exists and its
+// identity is recorded. NFOWriteCommitCreatePlanVersion plans the creation of a
+// missing target: the identity is zero because the name was observed absent.
+const (
+	NFOWriteCommitPlanVersion       uint8 = 1
+	NFOWriteCommitCreatePlanVersion uint8 = 2
+)
+
 type NFOWriteCommitFilePlan struct {
 	Version        uint8    `json:"-"`
 	TargetName     string   `json:"-"`
@@ -97,8 +105,11 @@ func ValidNFONativeIdentity(data [48]byte, kind byte) bool {
 	return binary.LittleEndian.Uint64(data[24:32]) == 0 && binary.LittleEndian.Uint32(data[40:44]) < 1_000_000_000
 }
 
+// Create reports a plan that creates a target that was absent.
+func (v NFOWriteCommitFilePlan) Create() bool { return v.Version == NFOWriteCommitCreatePlanVersion }
+
 func ValidateNFOWriteCommitFilePlan(v NFOWriteCommitFilePlan) error {
-	if v.Version != 1 || len(v.TargetName) < 1 || len(v.TargetName) > 1024 || !utf8.ValidString(v.TargetName) || !strings.HasSuffix(strings.ToLower(v.TargetName), ".nfo") || strings.ContainsAny(v.TargetName, "/\\:") || strings.ContainsFunc(v.TargetName, unicode.IsControl) || !ValidNFONativeIdentity(v.ParentIdentity, 2) || !ValidNFONativeIdentity(v.TargetIdentity, 1) || v.ParentIdentity[1] != v.TargetIdentity[1] {
+	if v.Version != NFOWriteCommitPlanVersion && v.Version != NFOWriteCommitCreatePlanVersion || v.Create() && v.TargetIdentity != ([48]byte{}) || !v.Create() && (!ValidNFONativeIdentity(v.TargetIdentity, 1) || v.ParentIdentity[1] != v.TargetIdentity[1]) || len(v.TargetName) < 1 || len(v.TargetName) > 1024 || !utf8.ValidString(v.TargetName) || !strings.HasSuffix(strings.ToLower(v.TargetName), ".nfo") || strings.ContainsAny(v.TargetName, "/\\:") || strings.ContainsFunc(v.TargetName, unicode.IsControl) || !ValidNFONativeIdentity(v.ParentIdentity, 2) {
 		return ErrInvalid
 	}
 	return nil
@@ -106,6 +117,15 @@ func ValidateNFOWriteCommitFilePlan(v NFOWriteCommitFilePlan) error {
 
 func ValidateNFOWriteCommitFilesReady(v NFOWriteCommitFilesReady) error {
 	if !ValidNFONativeIdentity(v.OutputIdentity, 1) || !ValidNFONativeIdentity(v.RollbackIdentity, 1) || v.OutputIdentity[1] != v.RollbackIdentity[1] || v.OutputIdentity == v.RollbackIdentity {
+		return ErrInvalid
+	}
+	return nil
+}
+
+// ValidateNFOWriteCommitCreateReady checks the ready evidence of a created
+// target: only the output exists, there is no rollback object to restore.
+func ValidateNFOWriteCommitCreateReady(v NFOWriteCommitFilesReady) error {
+	if !ValidNFONativeIdentity(v.OutputIdentity, 1) || v.RollbackIdentity != ([48]byte{}) {
 		return ErrInvalid
 	}
 	return nil

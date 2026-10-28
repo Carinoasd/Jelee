@@ -63,12 +63,13 @@ func readNFOCommitSettlement(ctx context.Context, tx pgx.Tx, token string) (doma
 		result.ReadyAttempt, output, rollback = uint8(*selected), attemptOutput, attemptRollback
 	}
 	if output != nil {
-		if len(output) != 48 || len(rollback) != 48 {
+		// A create names its output alone: its rollback column is NULL.
+		if len(output) != 48 || len(rollback) != 48 && rollback != nil {
 			return domain.NFOWriteCommitSettlement{}, domain.ErrDatabase
 		}
 		copy(result.Ready.OutputIdentity[:], output)
 		copy(result.Ready.RollbackIdentity[:], rollback)
-		if domain.ValidateNFOWriteCommitFilesReady(result.Ready) != nil {
+		if !validNFOCommitReadyShape(result.Ready) {
 			return domain.NFOWriteCommitSettlement{}, domain.ErrDatabase
 		}
 		result.ReadyRecorded = true

@@ -2,6 +2,8 @@ package nfo
 
 import (
 	"context"
+	"errors"
+	"io/fs"
 	"os"
 	"path/filepath"
 
@@ -23,7 +25,14 @@ func verifyNativePreparationScope(ctx context.Context, scope domain.NFOItemScope
 	checkpoint := func(context.Context, string, string, int64) (*Source, error) {
 		return &Source{nativeObserved: true, nativeRoot: nfoNativeIdentity{record: expected.RootIdentity()}, nativeFile: nfoNativeIdentity{record: expected.NFOFileIdentity()}}, nil
 	}
-	_, observed, err := readNativePreparationSourceWith(ctx, scope, 1, checkpoint)
+	var observed domain.NFONativePreparationReceipt
+	var err error
+	if expected.TargetAbsent() {
+		// A create receipt has no file to read: the target name must still be absent.
+		_, observed, err = observeNativePreparation(ctx, scope, 1, nil, true)
+	} else {
+		_, observed, err = readNativePreparationSourceWith(ctx, scope, 1, checkpoint)
+	}
 	if err != nil {
 		return err
 	}
@@ -41,7 +50,20 @@ func readNativePreparationSource(ctx context.Context, scope domain.NFOItemScope,
 }
 
 func readNativePreparationSourceWith(ctx context.Context, scope domain.NFOItemScope, maxBytes int64, read func(context.Context, string, string, int64) (*Source, error)) (source *Source, receipt domain.NFONativePreparationReceipt, resultErr error) {
-	if ctx == nil || read == nil || maxBytes < 1 || maxBytes > MaxAllowedBytes {
+	return observeNativePreparation(ctx, scope, maxBytes, read, false)
+}
+
+// readNativePreparationAbsent observes the same chain as a rewrite does, but
+// the NFO name must not exist: the receipt then records the parent directory
+// and the absence. A name that exists in any form (file, directory, symlink,
+// dangling or not) is ErrTargetAppeared; an unclear observation is refused.
+func readNativePreparationAbsent(ctx context.Context, scope domain.NFOItemScope) (domain.NFONativePreparationReceipt, error) {
+	_, receipt, err := observeNativePreparation(ctx, scope, 1, nil, true)
+	return receipt, err
+}
+
+func observeNativePreparation(ctx context.Context, scope domain.NFOItemScope, maxBytes int64, read func(context.Context, string, string, int64) (*Source, error), absent bool) (source *Source, receipt domain.NFONativePreparationReceipt, resultErr error) {
+	if ctx == nil || read == nil && !absent || maxBytes < 1 || maxBytes > MaxAllowedBytes {
 		return nil, receipt, domain.ErrInvalid
 	}
 	if err := ctx.Err(); err != nil {
@@ -123,29 +145,38 @@ func readNativePreparationSourceWith(ctx context.Context, scope domain.NFOItemSc
 			return nil, receipt, err
 		}
 	}
-	source, err = read(ctx, scope.Source.RootPath, scope.Source.RelativePath, maxBytes)
-	if err != nil {
-		return nil, receipt, err
-	}
-	if source == nil || !source.nativeObserved || source.nativeRoot != configured.id {
-		return nil, receipt, ErrChanged
-	}
-	// The NFO identity in the receipt comes from the handle supplying original
-	// bytes. This second handle only verifies the current scoped directory entry.
 	nfoParent, ok := handles[filepath.Dir(plan.nfo)]
 	if !ok {
 		return nil, receipt, errNativeIdentity
 	}
-	current, currentID, _, err := openNativeRegularFile(nfoParent.root, filepath.Base(plan.nfo))
-	if err != nil {
-		return nil, receipt, err
-	}
-	closeErr := current.Close()
-	if closeErr != nil {
-		return nil, receipt, errNativeIdentity
-	}
-	if currentID != source.nativeFile {
-		return nil, receipt, ErrChanged
+	if absent {
+		// The name is looked up under the held parent handle, never by path.
+		if _, err := nfoParent.root.Lstat(filepath.Base(plan.nfo)); err == nil {
+			return nil, receipt, ErrTargetAppeared
+		} else if !errors.Is(err, fs.ErrNotExist) {
+			return nil, receipt, errNativeIdentity
+		}
+	} else {
+		source, err = read(ctx, scope.Source.RootPath, scope.Source.RelativePath, maxBytes)
+		if err != nil {
+			return nil, receipt, err
+		}
+		if source == nil || !source.nativeObserved || source.nativeRoot != configured.id {
+			return nil, receipt, ErrChanged
+		}
+		// The NFO identity in the receipt comes from the handle supplying original
+		// bytes. This second handle only verifies the current scoped directory entry.
+		current, currentID, _, err := openNativeRegularFile(nfoParent.root, filepath.Base(plan.nfo))
+		if err != nil {
+			return nil, receipt, err
+		}
+		closeErr := current.Close()
+		if closeErr != nil {
+			return nil, receipt, errNativeIdentity
+		}
+		if currentID != source.nativeFile {
+			return nil, receipt, ErrChanged
+		}
 	}
 	for i, path := range plan.ancestors {
 		if err := ctx.Err(); err != nil {
@@ -187,7 +218,18 @@ func readNativePreparationSourceWith(ctx context.Context, scope domain.NFOItemSc
 	if err := ctx.Err(); err != nil {
 		return nil, receipt, err
 	}
-	receipt, err = domain.NewNFONativePreparationReceipt(configured.id.record, mediaID.record, source.nativeFile.record, ancestors)
+	if absent {
+		// Observed once more after the chain was rechecked: the receipt claims
+		// the name was absent until the last observation.
+		if _, err := handles[filepath.Dir(plan.nfo)].root.Lstat(filepath.Base(plan.nfo)); err == nil {
+			return nil, receipt, ErrTargetAppeared
+		} else if !errors.Is(err, fs.ErrNotExist) {
+			return nil, receipt, errNativeIdentity
+		}
+		receipt, err = domain.NewNFONativePreparationAbsentReceipt(configured.id.record, mediaID.record, ancestors)
+	} else {
+		receipt, err = domain.NewNFONativePreparationReceipt(configured.id.record, mediaID.record, source.nativeFile.record, ancestors)
+	}
 	if err != nil {
 		return nil, domain.NFONativePreparationReceipt{}, err
 	}

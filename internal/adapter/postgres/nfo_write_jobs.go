@@ -48,8 +48,18 @@ func copyNFOWriteIntents(ctx context.Context, tx pgx.Tx, job string, ids []strin
 		return storageError(err)
 	}
 	for i, id := range ids {
-		tag, err := tx.Exec(ctx, `INSERT INTO nfo_write_entries(job_id,sequence,preparation_id,version,request_bytes,request_digest,library_id,item_id,source_id,root_id,kind,revision,generation,root_generation,root_path,relative_path,media_path,directory_path,max_bytes,modified_unix_nano,original_bytes,original_sha256,replacement_bytes,replacement_sha256,native_receipt)
- SELECT $1::uuid,$2,id,version,request_bytes,request_digest,library_id,item_id,source_id,root_id,kind,revision,generation,root_generation,root_path,relative_path,media_path,directory_path,max_bytes,modified_unix_nano,original_bytes,original_sha256,replacement_bytes,replacement_sha256,native_receipt FROM nfo_write_preparations WHERE id=$3::uuid AND actor_id=$4::uuid AND library_id=$5::uuid AND generation=$6 AND root_generation>0 AND native_receipt IS NOT NULL AND expires_at>clock_timestamp()`, job, i+1, id, actor, library, generation)
+		// The create flag lives in the stored request, so the probe works on
+		// every schema. Only a create names the column that schema 90 added.
+		var create bool
+		if err := tx.QueryRow(ctx, `SELECT COALESCE((convert_from(request_bytes,'UTF8')::jsonb->>'create')='true',false) FROM nfo_write_preparations WHERE id=$1::uuid`, id).Scan(&create); err != nil {
+			return storageError(err)
+		}
+		columns, selected := "", ""
+		if create {
+			columns, selected = ",create_target", ",create_target"
+		}
+		tag, err := tx.Exec(ctx, `INSERT INTO nfo_write_entries(job_id,sequence,preparation_id,version,request_bytes,request_digest,library_id,item_id,source_id,root_id,kind,revision,generation,root_generation,root_path,relative_path,media_path,directory_path,max_bytes,modified_unix_nano,original_bytes,original_sha256,replacement_bytes,replacement_sha256,native_receipt`+columns+`)
+ SELECT $1::uuid,$2,id,version,request_bytes,request_digest,library_id,item_id,source_id,root_id,kind,revision,generation,root_generation,root_path,relative_path,media_path,directory_path,max_bytes,modified_unix_nano,original_bytes,original_sha256,replacement_bytes,replacement_sha256,native_receipt`+selected+` FROM nfo_write_preparations WHERE id=$3::uuid AND actor_id=$4::uuid AND library_id=$5::uuid AND generation=$6 AND root_generation>0 AND native_receipt IS NOT NULL AND expires_at>clock_timestamp()`, job, i+1, id, actor, library, generation)
 		if err != nil {
 			return storageError(err)
 		}

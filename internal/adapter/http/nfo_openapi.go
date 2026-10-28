@@ -24,16 +24,18 @@ func nfoSpecification(paths, schemas map[string]any) {
 	schemas["NFOWriteTextEdit"] = objectSchema(map[string]any{"field": map[string]any{"type": "string", "enum": []string{"title", "originaltitle", "sorttitle", "plot", "outline", "tagline", "showtitle", "status", "mpaa", "certification"}}, "value": map[string]any{"type": "string"}}, "field", "value")
 	schemas["NFOWritePrepareRequest"] = objectSchema(map[string]any{
 		"revision": map[string]any{"type": "integer", "format": "int64", "minimum": 1, "description": "Expected item metadata revision."},
-		"edits":    map[string]any{"type": "array", "maxItems": 10, "items": schemaRef("NFOWriteTextEdit"), "description": "Ordered text edits; a field may appear once. Missing-NFO creation is not available."},
+		"edits":    map[string]any{"type": "array", "maxItems": 10, "items": schemaRef("NFOWriteTextEdit"), "description": "Ordered text edits; a field may appear once."},
 		"bom":      map[string]any{"type": "string", "enum": []string{"preserve", "include", "omit"}, "default": "preserve"},
 		"indent":   map[string]any{"type": "string", "maxLength": 8, "description": "Spaces and tabs only."},
 		"maxBytes": map[string]any{"type": "integer", "format": "int64", "minimum": 1, "maximum": 33554432, "default": 8388608},
-		"backups":  map[string]any{"type": "integer", "minimum": 0, "maximum": 16, "default": 3},
+		"backups":  map[string]any{"type": "integer", "minimum": 0, "maximum": 16, "default": 3, "description": "Backups to keep when the file is replaced. With create it must be 0 (the default then): a created file has nothing to back up."},
+		"create":   map[string]any{"type": "boolean", "default": false, "description": "Create a missing NFO instead of rewriting an existing one. The document is built from an empty root of the item's kind (movie, tvshow, season or episodedetails) with the edits; the file is named like the NFO reader looks it up (media basename plus .nfo, or tvshow.nfo or season.nfo in the series or season directory). 409 conflict when that name already exists in any form. At commit the file is only ever created by a hardlink and an object that appears at the name is never replaced."},
 	}, "revision", "edits")
 	sha := map[string]any{"type": "string", "pattern": "^[0-9a-f]{64}$"}
 	size := map[string]any{"type": "integer", "minimum": 1, "maximum": 33554432}
+	originalSize := map[string]any{"type": "integer", "minimum": 0, "maximum": 33554432, "description": "0 for a create preparation: there is no original."}
 	schemas["NFOWritePreparation"] = objectSchema(map[string]any{"id": uuid, "itemId": uuid, "libraryId": uuid, "revision": map[string]any{"type": "integer", "format": "int64", "minimum": 1},
-		"fields": map[string]any{"type": "array", "maxItems": 10, "items": map[string]any{"type": "string"}}, "originalBytes": size, "replacementBytes": size, "originalSha256": sha, "replacementSha256": sha,
+		"fields": map[string]any{"type": "array", "maxItems": 10, "items": map[string]any{"type": "string"}}, "originalBytes": originalSize, "replacementBytes": size, "originalSha256": sha, "replacementSha256": sha,
 		"createdAt": map[string]any{"type": "string", "format": "date-time"}, "expiresAt": map[string]any{"type": "string", "format": "date-time"}},
 		"id", "itemId", "libraryId", "revision", "fields", "originalBytes", "replacementBytes", "originalSha256", "replacementSha256", "createdAt", "expiresAt")
 	schemas["NFOWritePreparation"].(map[string]any)["description"] = "Summary of a stored preparation: byte counts and digests only. File content, paths and roots are never returned. A preparation grants no write authority; it expires after 24 hours."

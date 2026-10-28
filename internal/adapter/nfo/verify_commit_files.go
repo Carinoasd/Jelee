@@ -28,3 +28,22 @@ func VerifyCommitFiles(ctx context.Context, directory *os.Root, token string, pl
 	}
 	return verifyNFOCommitFiles(ctx, directory, files, original, replacement)
 }
+
+// VerifyCreateCommitFiles is VerifyCommitFiles for a created target: the
+// target name is still absent and only the output and its pin are retained.
+func VerifyCreateCommitFiles(ctx context.Context, directory *os.Root, token string, plan domain.NFOWriteCommitFilePlan, ready domain.NFOWriteCommitFilesReady, replacement []byte) error {
+	if ctx == nil || directory == nil || !domain.ValidID(token) || domain.ValidateNFOWriteCommitFilePlan(plan) != nil || !plan.Create() || domain.ValidateNFOWriteCommitCreateReady(ready) != nil || len(replacement) == 0 || int64(len(replacement)) > MaxAllowedBytes {
+		return ErrInvalidInput
+	}
+	decoded, err := hex.DecodeString(strings.ReplaceAll(token, "-", ""))
+	if err != nil || len(decoded) != 16 {
+		return ErrInvalidInput
+	}
+	var identity [16]byte
+	copy(identity[:], decoded)
+	files := nfoCommitFiles{
+		plan:   nfoCommitFilePlan{version: plan.Version, token: identity, filename: plan.TargetName, parent: nfoNativeIdentity{plan.ParentIdentity}},
+		output: nfoNativeIdentity{ready.OutputIdentity},
+	}
+	return verifyNFOCreateFiles(ctx, directory, files, replacement)
+}

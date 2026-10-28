@@ -176,7 +176,7 @@ func (s *Store) SaveNFOWriteCommitAttemptCheckpoint(ctx context.Context, lease d
 
 func (s *Store) SaveNFOWriteCommitAttemptReady(ctx context.Context, lease domain.JobLease, sequence int, token string, attempt uint8, value domain.NFOWriteCommitFilesReady) (domain.NFOWriteCommitFilesReady, error) {
 	zero := domain.NFOWriteCommitFilesReady{}
-	if attempt < 1 || attempt > domain.NFOWriteCommitAttemptLimit || domain.ValidateNFOWriteCommitFilesReady(value) != nil {
+	if attempt < 1 || attempt > domain.NFOWriteCommitAttemptLimit || !validNFOCommitReadyShape(value) {
 		return zero, domain.ErrInvalid
 	}
 	tx, err := s.nfoCommitAttemptTransaction(ctx, lease, sequence, token, false)
@@ -184,7 +184,7 @@ func (s *Store) SaveNFOWriteCommitAttemptReady(ctx context.Context, lease domain
 		return zero, err
 	}
 	defer tx.Rollback(ctx)
-	if _, err = tx.Exec(ctx, `INSERT INTO nfo_write_commit_attempt_ready(token,attempt,output_identity,rollback_identity) VALUES($1::uuid,$2,$3,$4) ON CONFLICT(token) DO NOTHING`, token, attempt, value.OutputIdentity[:], value.RollbackIdentity[:]); err != nil {
+	if _, err = tx.Exec(ctx, `INSERT INTO nfo_write_commit_attempt_ready(token,attempt,output_identity,rollback_identity) VALUES($1::uuid,$2,$3,$4) ON CONFLICT(token) DO NOTHING`, token, attempt, value.OutputIdentity[:], nfoRollbackIdentity(value)); err != nil {
 		return zero, storageError(err)
 	}
 	var saved domain.NFOWriteCommitFilesReady
@@ -193,7 +193,7 @@ func (s *Store) SaveNFOWriteCommitAttemptReady(ctx context.Context, lease domain
 	if err = tx.QueryRow(ctx, `UPDATE nfo_write_commit_attempt_ready SET token=token WHERE token=$1::uuid RETURNING attempt,output_identity,rollback_identity`, token).Scan(&number, &output, &back); err != nil {
 		return zero, storageError(err)
 	}
-	if len(output) != 48 || len(back) != 48 {
+	if len(output) != 48 || len(back) != 48 && back != nil {
 		return zero, domain.ErrDatabase
 	}
 	copy(saved.OutputIdentity[:], output)
@@ -259,7 +259,12 @@ func (s *Store) GetNFOWriteCommitAttempts(ctx context.Context, lease domain.JobL
 			return zero, domain.ErrDatabase
 		}
 		if readyOutput != nil {
-			if len(readyOutput) != 48 || len(readyBack) != 48 || !entry.CheckpointRecorded || entry.Checkpoint.Phase != 2 {
+			// A create ready has no rollback and completes at checkpoint phase 1.
+			completePhase := uint8(2)
+			if readyBack == nil {
+				completePhase = 1
+			}
+			if len(readyOutput) != 48 || len(readyBack) != 48 && readyBack != nil || !entry.CheckpointRecorded || entry.Checkpoint.Phase != completePhase {
 				rows.Close()
 				return zero, domain.ErrDatabase
 			}
