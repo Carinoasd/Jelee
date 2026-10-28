@@ -370,7 +370,20 @@ jobs:
         run: python3 -B scripts/runtime_memory_contracts.py
       - name: Fixed RSS budgets and heap comparisons under five-minute mixed media load
         id: family-ignore-sustained-worker
-        run: make runtime-memory-worker-test
+        run: |
+          set -o pipefail
+          mkdir -p .testdata
+          make runtime-memory-worker-test 2>&1 | tee .testdata/runtime-memory-step.txt
+      - name: Annotate runtime memory acceptance failure
+        # Job logs and artifacts need a browser session; annotations are readable
+        # through the checks API, so the tail of the failure is copied there.
+        if: failure() && steps.family-ignore-sustained-worker.outcome == 'failure'
+        run: |
+          for file in .testdata/runtime-memory-step.txt .testdata/runtime-memory-acceptance.txt; do
+            [ -s "$file" ] || continue
+            body=$(tail -n 40 "$file" | sed 's/%/%25/g' | sed ':a;N;$!ba;s/\n/%0A/g')
+            echo "::error title=$(basename "$file")::$body"
+          done
       - name: Retain memory and mixed sustained acceptance evidence
         if: always() && (steps.runtime-memory-contracts.outcome != 'skipped' || steps.family-ignore-sustained-worker.outcome != 'skipped')
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
