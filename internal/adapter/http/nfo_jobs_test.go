@@ -317,6 +317,7 @@ func TestNFOFeatureFlagAndOpenAPIContract(t *testing.T) {
 	}{
 		{"/libraries/{id}/nfo/policy", "get", false}, {"/libraries/{id}/nfo/policy", "put", true}, {"/libraries/{id}/nfo/validate", "post", true},
 		{"/libraries/{id}/nfo/write-policy", "put", false}, {"/items/{id}/nfo/write-preparations", "post", true}, {"/libraries/{id}/nfo/writes", "post", true},
+		{"/libraries/{id}/nfo/apply", "post", true}, {"/jobs/{id}/nfo-apply", "get", false},
 		{"/libraries/{id}/nfo/current-validations", "get", false}, {"/libraries/{id}/nfo/current-validations/{observationId}/issues", "get", false}, {"/jobs/{id}/nfo", "get", false}, {"/jobs/{id}/images", "get", false},
 	} {
 		op := paths["/api/v1"+r.path].(map[string]any)[r.method].(map[string]any)
@@ -335,7 +336,7 @@ func TestNFOFeatureFlagAndOpenAPIContract(t *testing.T) {
 		}
 	}
 	schemas := spec["components"].(map[string]any)["schemas"].(map[string]any)
-	for _, name := range []string{"ScanRequest", "NFOPolicyUpdate", "NFOWritePolicyUpdate", "NFOWritePrepareRequest", "NFOWriteTextEdit", "NFOWritePreparation", "NFOWriteSubmitRequest", "NFOValidateRequest", "NFOJobSummary", "ImageJobSummary", "NFOObservation", "NFOObservationPage", "NFOIssue", "NFOIssuesPage"} {
+	for _, name := range []string{"ScanRequest", "NFOPolicyUpdate", "NFOWritePolicyUpdate", "NFOWritePrepareRequest", "NFOWriteTextEdit", "NFOWritePreparation", "NFOWriteSubmitRequest", "NFOValidateRequest", "NFOApplyRequest", "NFOApplyJobState", "NFOJobSummary", "ImageJobSummary", "NFOObservation", "NFOObservationPage", "NFOIssue", "NFOIssuesPage"} {
 		if schemas[name].(map[string]any)["additionalProperties"] != false {
 			t.Fatal("non-strict schema", name)
 		}

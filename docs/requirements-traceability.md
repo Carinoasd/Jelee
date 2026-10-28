@@ -23,8 +23,8 @@
 | 状态 | 子项数 | 占比 |
 | --- | --- | --- |
 | 已完成 | 23 | 6.8% |
-| 部分完成 | 312 | 92.9% |
-| 阻塞 | 1 | 0.3% |
+| 部分完成 | 313 | 93.2% |
+| 阻塞 | 0 | 0.0% |
 | 未开始 | 0 | 0.0% |
 | 合计 | 336 | 100% |
 
@@ -68,7 +68,7 @@
 | G36 | 5 | 0 | 5 | 0 | 0 | 0% | 100% |
 | G37 | 5 | 0 | 5 | 0 | 0 | 0% | 100% |
 | G38 | 4 | 0 | 4 | 0 | 0 | 0% | 100% |
-| G39 | 15 | 0 | 14 | 1 | 0 | 0% | 93% |
+| G39 | 15 | 0 | 15 | 0 | 0 | 0% | 100% |
 | G40 | 13 | 0 | 13 | 0 | 0 | 0% | 100% |
 | G41 | 10 | 0 | 10 | 0 | 0 | 0% | 100% |
 | G42 | 10 | 2 | 8 | 0 | 0 | 20% | 100% |
@@ -87,7 +87,7 @@
 | 兼容、性能与 Go 质量 | G24–G30 | 36 | 0 | 36 | 0 | 0 |
 | 前端 | G31–G35 | 28 | 0 | 28 | 0 | 0 |
 | 数据库、部署与交付 | G36–G38 | 14 | 0 | 14 | 0 | 0 |
-| NFO 与图片资产 | G39–G40 | 28 | 0 | 27 | 1 | 0 |
+| NFO 与图片资产 | G39–G40 | 28 | 0 | 28 | 0 | 0 |
 | 并发与内存 | G41–G42 | 20 | 2 | 18 | 0 | 0 |
 | 开发者模式、日志、管控、权限、API、诊断、工具链 | G45–G51 | 70 | 1 | 69 | 0 | 0 |
 
@@ -634,7 +634,7 @@
 | **G39.11** 校验与修复：`jelee-cli nfo validate --library X` 输出问题清单（XML 错误、缺失字段、非法路径、编码问题）；`--fix` 仅做可安全修复项并先备份。 | internal/adapter/nfo/; internal/app/; cmd/jelee-cli/; docs/nfo-compatibility.md | nfo_documents/nfo_field_locks/metadata_locks | Plan-G39.11：各编码和结构黄金集；未知标签属性注释往返；100 并发写；备份失败回滚；双向真实旧客户端验证；须单独覆盖本行全部约束 | 部分完成：保留单文件只读 CLI 校验；jelee-cli nfo validate --library 入队并提供 current-validations/issues 分页查询（XML/编码/语义问题摘要）；validate 返回 job 而非单命令输出完整清单，缓存观察非历史逐文件报告；缺：--fix 安全修复与修复前备份（CLI 无该参数）、非法路径类问题清单；[3C3C接口](nfo-worker.md)、[实际证据](nfo-worker-verification.md) | `f21d156684`（只读校验）／`feeee03da8`（3C3A 来源核对）／`47da27b5ff`（3C3C 库校验任务） |
 | **G39.12** 损坏容忍：XML 非法时记录 `nfo_invalid` 状态、保留原文件、回退到其他数据源，不得删除或覆盖用户 NFO。 | internal/adapter/nfo/; internal/app/; cmd/jelee-cli/; docs/nfo-compatibility.md | nfo_documents/nfo_field_locks/metadata_locks | Plan-G39.12：各编码和结构黄金集；未知标签属性注释往返；100 并发写；备份失败回滚；双向真实旧客户端验证；须单独覆盖本行全部约束 | 部分完成：只读来源核对保持原文；XML/编码/语义错误持久保存为固定 invalid 摘要及短 TTL，来源变动/取消/存储错误不成为负缓存；电影/剧集项目的可信缺失/解析损坏同交易回退 TMDB 并保存 nfo_invalid 与原 bytes 戳，实际 HTTP/TLS/NFO/PG 正反验原文保持（TestInvalidAndUnsafeXMLIsRejected）；缺：扫描阶段坏项自动回退（全库批量套用属拥有者开发任务三）、其他条目种类；[项目回退](nfo-tmdb-fallback.md)、[缓存验证](nfo-cache-verification.md) | `f21d156684`（只读解析）／`feeee03da8`（3C3A）／`f26888aa27`（3C3B 缓存）／`3207cc9cda`（TMDB 回退） |
 | **G39.13** 安全：NFO 中的外链 URL（thumb/fanart/actor thumb）下载必须经 G11 SSRF 防护与域名白名单；NFO 文本作为用户输入处理，前端展示必须转义。 | internal/adapter/nfo/; internal/app/; cmd/jelee-cli/; docs/nfo-compatibility.md | nfo_documents/nfo_field_locks/metadata_locks | Plan-G39.13：各编码和结构黄金集；未知标签属性注释往返；100 并发写；备份失败回滚；双向真实旧客户端验证；须单独覆盖本行全部约束 | 部分完成：离线解析不请求 URL（TestArtworkReferencesNeverTriggerNetworkRequests），DTD/外部实体拒绝；新增受控远端抓取器 images/fetch.go 经 outbound 地址策略、限 HTTPS/443、重定向降级与私网拒绝（TestImageFetchRedirectToPrivateOrDowngradeDenied）；前端 Vue 模板转义且 lint 禁 v-html（CI web-lint 必跑），NFO 文本在详情页以插值显示；缺：NFO 外链主机白名单（现允许任意公网 HTTPS 主机）、抓取器尚未接入 image_refresh 任务（拥有者开发任务二）、浏览器实测（D14）；[NFO范围](nfo-compatibility.md)、[前端ADR](frontend-adr.md)、[抓取器](../internal/adapter/images/fetch.go) | `f21d156684`（离线解析）／`12c4ae2061`（受控远端抓取器）／`cbad7870ab`（前端详情页） |
-| **G39.14** 开关与迁移：提供“从 NFO 全量导入”“导出全部条目为 NFO”“仅导出缺失 NFO”三种批量操作，全部走任务系统（可取消、可观测、批处理）。 | internal/adapter/nfo/; internal/app/; cmd/jelee-cli/; docs/nfo-compatibility.md | nfo_documents/nfo_field_locks/metadata_locks | Plan-G39.14：各编码和结构黄金集；未知标签属性注释往返；100 并发写；备份失败回滚；双向真实旧客户端验证；须单独覆盖本行全部约束 | 阻塞：依赖拥有者开发任务三（NFO 三种批次操作）及其前置任务一（清理机制）。已具基础：schema47–59 受控准备、journal、plan/ready、native receipt、checkpoint、attempt、恢复租约与结算，nfo_write worker/恢复迭代（默认关闭）及 SubmitNFOWriteJob 可经任务系统执行已准备的写回；扫描 NFO 阶段已整库读取但套用仅逐条。缺：全量导入批次 job、数据库→NFO 导出映射、缺失文件安全新建（O_EXCL＋持久证据）、每 actor 32 份准备与 256 token attempt 容量回收；[开发任务](owner-dev-tasks.md)、[结算与收尾](nfo-commit-settlement.md)、[任务契约](nfo-write-jobs.md)、[checkpoint](nfo-commit-checkpoints.md) | `252dc74070`（工作意图 schema47）／`23a6da4591`（journal schema49）／`807e494f57`（checkpoint）／`5567c1652a`（持久 attempt）／`4308ad2325`（恢复租约）／`26e48e21b7`（nfo_write worker，默认关闭）；三种批次操作无实现 |
+| **G39.14** 开关与迁移：提供“从 NFO 全量导入”“导出全部条目为 NFO”“仅导出缺失 NFO”三种批量操作，全部走任务系统（可取消、可观测、批处理）。 | internal/adapter/nfo/; internal/app/; cmd/jelee-cli/; docs/nfo-compatibility.md | nfo_documents/nfo_field_locks/metadata_locks | Plan-G39.14：各编码和结构黄金集；未知标签属性注释往返；100 并发写；备份失败回滚；双向真实旧客户端验证；须单独覆盖本行全部约束 | 部分完成：全量导入已交付——遷移 000088 的 `nfo_apply` 任务（管理员 `POST /api/v1/libraries/{id}/nfo/apply`，条目依 ID 递增、每批 50 个经单条 `ApplyNFO` 套用并遵守欄位鎖與人工值，游标与 applied／unchanged／skipped／failed 计数在受租约保护的检查点提交，可取消、租约到期后续跑，`GET /api/v1/jobs/{id}/nfo-apply`，`jelee-cli nfo apply`／`apply-status`），真实 PG 以 120 条目比对单条套用结果并涵盖取消、续跑与迁移往返，见[全量导入任务](nfo-apply-jobs.md)；前置任务一（清理机制）已完成（schema86）。其余已具基础：schema47–59 受控准备、journal、plan/ready、native receipt、checkpoint、attempt、恢复租约与结算，nfo_write worker/恢复迭代（默认关闭）及 SubmitNFOWriteJob 可经任务系统执行已准备的写回；扫描 NFO 阶段已整库读取但套用仅逐条。缺：导出全部与仅导出缺失两种批次操作（数据库→NFO 导出映射、缺失文件安全新建（O_EXCL＋持久证据）、每 actor 32 份准备的批次额度），以及本行其余约束（各编码黄金集、未知标签属性注释往返、100 并发写、双向真实旧客户端验证）；[开发任务](owner-dev-tasks.md)、[结算与收尾](nfo-commit-settlement.md)、[任务契约](nfo-write-jobs.md)、[checkpoint](nfo-commit-checkpoints.md) | `252dc74070`（工作意图 schema47）／`23a6da4591`（journal schema49）／`807e494f57`（checkpoint）／`5567c1652a`（持久 attempt）／`4308ad2325`（恢复租约）／`26e48e21b7`（nfo_write worker，默认关闭）／`ad6249c1e8`（nfo_apply 全量导入任务）／`3803e2f0c5`（CLI）；导出全部、仅导出缺失无实现 |
 | **G39.15** 验收：黄金文件集覆盖 Emby/Jellyfin 典型 NFO（电影、剧集、季度、单集、带 art 结构、带锁、UTF-16、损坏文件），解析后字段映射零差异；往返测试（读 → 改 → 写 → 再读）证明未知标签与注释不丢失；并发写 100 次无损坏；Jellyfin/Emby 可读取 Jelee 写出的 NFO（提供验证记录）。 | internal/adapter/nfo/; internal/app/; cmd/jelee-cli/; docs/nfo-compatibility.md | nfo_documents/nfo_field_locks/metadata_locks | Plan-G39.15：各编码和结构黄金集；未知标签属性注释往返；100 并发写；备份失败回滚；双向真实旧客户端验证；须单独覆盖本行全部约束 | 部分完成：合成黄金样本（电影/剧集/季/单集/art/锁/UTF-16/损坏）、原文字节复制与 Windows/Linux race 已测；文本修改与目录内替换保留未知 XML/注释，故障回滚及 100 次同程序/跨程序读改写无损已验；schema59 worker 端到端（TestNFOWriteWorkerRunContinuesAfterRejection）与子程序中断恢复通过；缺：完整读→改→写→再读的全字段往返、全量导出/导入往返（拥有者开发任务三）、Jellyfin/Emby 读取 Jelee 写出 NFO 的双向验证记录（尚未列入拥有者清单）、A1/A2 完整回归；[替换验证](nfo-replace-document.md)、[NFO范围与测试](nfo-compatibility.md)、[结算与收尾](nfo-commit-settlement.md)、[最终日志](evidence/linux-race.txt) | `f21d156684`（只读子集）／`81aa845e51`（文本修改）／`5d381730fe`（替换与回滚）／`afdd3cf036`（worker 端到端与中断恢复测试） |
 
 ## G40 图片资产：海报 / 背景图 / Logo / 单集缩略图等

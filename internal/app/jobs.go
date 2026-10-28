@@ -23,6 +23,7 @@ type Jobs struct {
 	scanRepository        ScanJobRepository
 	nfoAdmin              NFOAdminRepository
 	nfoWriteJobs          NFOWriteJobRepository
+	nfoApplyJobs          NFOApplyJobRepository
 	nfoQueries            NFOQueryRepository
 	imageQueries          ImageQueryRepository
 	nfoIdentity           *domain.NFOIdentity

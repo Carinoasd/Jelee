@@ -84,7 +84,7 @@ var metadataBackupExcluded = map[string]string{
 	"nfo_write_commit_attempt_reservations": excludedJob, "nfo_write_commit_attempts": excludedJob, "nfo_write_commit_attempt_checkpoints": excludedJob,
 	"nfo_write_commit_attempt_ready": excludedJob, "nfo_write_commit_recovery_leases": excludedJob, "nfo_write_commit_settlements": excludedJob,
 	"nfo_write_commit_resolutions": excludedJob, "nfo_write_commit_cleanup_leases": excludedJob, "nfo_write_commit_cleanups": excludedJob,
-	"webhook_outbox": excludedJob, "legacy_import_pending": excludedJob,
+	"webhook_outbox": excludedJob, "legacy_import_pending": excludedJob, "nfo_apply_job_state": excludedJob,
 
 	"probe_cache": excludedDerived, "probe_cache_quota": excludedDerived, "probe_library_quota": excludedDerived, "tool_versions": excludedDerived,
 	"nfo_cache": excludedDerived, "nfo_cache_quota": excludedDerived, "nfo_library_quota": excludedDerived, "item_nfo_observations": excludedDerived,

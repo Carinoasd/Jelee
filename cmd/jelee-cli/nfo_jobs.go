@@ -28,10 +28,14 @@ func runNFOCLI(ctx context.Context, argv []string, stdin io.Reader, stdout, stde
 	usage := func() int {
 		fmt.Fprintln(stderr, "usage: jelee-cli nfo validate --root ABSOLUTE_PATH --file RELATIVE/FILE.nfo [--max-bytes N] | validate --library UUID --token-stdin --key KEY [--priority manual|background] [--url ORIGIN] | policy-get|policy-set|current-validations|issues --library UUID --token-stdin [options] | job|images --id UUID --token-stdin [--url ORIGIN]")
 		_, _ = fmt.Fprintln(stderr, nfoWriteUsage)
+		_, _ = fmt.Fprintln(stderr, nfoApplyUsage)
 		return 2
 	}
 	if len(argv) == 0 {
 		return usage()
+	}
+	if argv[0] == "apply" || argv[0] == "apply-status" {
+		return runNFOApplyCLI(ctx, argv, stdin, stdout, stderr)
 	}
 	if argv[0] == "write" || argv[0] == "write-policy" {
 		return runNFOWriteCLI(ctx, argv, stdin, stdout, stderr)
