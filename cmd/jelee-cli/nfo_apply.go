@@ -1,0 +1,203 @@
+package main
+
+import (
+	"context"
+	"encoding/json"
+	"errors"
+	"flag"
+	"fmt"
+	"io"
+	"net"
+	"net/http"
+	"strings"
+	"time"
+	"unicode/utf8"
+
+	"github.com/MoYuanCN/Jelee/internal/domain"
+)
+
+const nfoApplyUsage = "usage: jelee-cli nfo apply --library UUID [--priority manual|background] --key KEY --token-stdin [--url ORIGIN] [--json] | apply-status --job UUID --token-stdin [--url ORIGIN] [--json]"
+
+// nfoApplyCLIRequest is a parsed batch apply command (G39.14).
+type nfoApplyCLIRequest struct {
+	command, library, job, key, priority string
+	asJSON                               bool
+}
+
+func parseNFOApplyCLI(argv []string) (c nfoApplyCLIRequest, base string, ok bool) {
+	if len(argv) == 0 || argv[0] != "apply" && argv[0] != "apply-status" {
+		return c, "", false
+	}
+	c.command = argv[0]
+	flags := flag.NewFlagSet("nfo "+c.command, flag.ContinueOnError)
+	flags.SetOutput(io.Discard)
+	baseFlag := flags.String("url", "http://127.0.0.1:8097", "service origin")
+	fromStdin := flags.Bool("token-stdin", false, "read bearer token from stdin")
+	flags.BoolVar(&c.asJSON, "json", false, "print the JSON response")
+	if c.command == "apply" {
+		flags.StringVar(&c.library, "library", "", "library UUID")
+		flags.StringVar(&c.priority, "priority", domain.JobPriorityManual, "queue priority")
+		flags.StringVar(&c.key, "key", "", "idempotency key")
+	} else {
+		flags.StringVar(&c.job, "job", "", "job UUID")
+	}
+	if flags.Parse(argv[1:]) != nil || flags.NArg() != 0 || !*fromStdin {
+		return c, "", false
+	}
+	if c.command == "apply" && (!domain.ValidID(c.library) || !validNFOCLIKey(c.key) ||
+		c.priority != domain.JobPriorityManual && c.priority != domain.JobPriorityBackground) ||
+		c.command == "apply-status" && !domain.ValidID(c.job) {
+		return c, "", false
+	}
+	return c, *baseFlag, true
+}
+
+func runNFOApplyCLI(ctx context.Context, argv []string, stdin io.Reader, stdout, stderr io.Writer) int {
+	c, base, ok := parseNFOApplyCLI(argv)
+	if !ok {
+		_, _ = fmt.Fprintln(stderr, nfoApplyUsage)
+		return 2
+	}
+	u, err := jobsBaseURL(base)
+	if err != nil {
+		_, _ = fmt.Fprintln(stderr, nfoApplyUsage)
+		return 2
+	}
+	if ctx.Err() != nil {
+		return nfoCLIError(ctx, stderr, "nfo_request_failed")
+	}
+	token, err := readJobsToken(ctx, stdin)
+	if err != nil {
+		return nfoCLIError(ctx, stderr, "nfo_token_read_failed")
+	}
+	method, body := http.MethodGet, ""
+	if c.command == "apply" {
+		method = http.MethodPost
+		u.Path = "/api/v1/libraries/" + c.library + "/nfo/apply"
+		raw, _ := json.Marshal(map[string]string{"priority": c.priority})
+		body = string(raw)
+	} else {
+		u.Path = "/api/v1/jobs/" + c.job + "/nfo-apply"
+	}
+	request, err := http.NewRequestWithContext(ctx, method, u.String(), strings.NewReader(body)) //nolint:gosec // G704: the operator names the Jelee server URL on the command line
+	if err != nil {
+		return nfoCLIError(ctx, stderr, "nfo_request_failed")
+	}
+	request.Header.Set("Authorization", "Bearer "+token)
+	if body != "" {
+		request.Header.Set("Content-Type", "application/json")
+		request.Header.Set("Idempotency-Key", c.key)
+	}
+	transport := &http.Transport{DialContext: (&net.Dialer{Timeout: 5 * time.Second}).DialContext, TLSHandshakeTimeout: 5 * time.Second,
+		ResponseHeaderTimeout: 10 * time.Second, MaxConnsPerHost: 1, DisableKeepAlives: true}
+	defer transport.CloseIdleConnections()
+	client := &http.Client{Transport: transport, Timeout: 15 * time.Second,
+		CheckRedirect: func(*http.Request, []*http.Request) error { return errors.New("redirect rejected") }}
+	response, err := client.Do(request) //nolint:gosec // G704: the operator names the Jelee server URL on the command line
+	if err != nil {
+		return nfoCLIError(ctx, stderr, "nfo_service_unavailable")
+	}
+	defer func() { _ = response.Body.Close() }()
+	payload, err := io.ReadAll(io.LimitReader(response.Body, (1<<20)+1))
+	if err != nil || len(payload) > 1<<20 {
+		return nfoCLIError(ctx, stderr, "nfo_response_invalid")
+	}
+	if response.StatusCode != http.StatusOK && !(c.command == "apply" && response.StatusCode == http.StatusAccepted) {
+		if ctx.Err() != nil {
+			return nfoCLIError(ctx, stderr, "nfo_request_failed")
+		}
+		if code := nfoWriteServerCode(payload); code != "" {
+			_, _ = fmt.Fprintf(stderr, "nfo_request_rejected (HTTP %d %s)\n", response.StatusCode, code)
+		} else {
+			_, _ = fmt.Fprintf(stderr, "nfo_request_rejected (HTTP %d)\n", response.StatusCode)
+		}
+		return 1
+	}
+	replayed := response.Header.Get("Idempotency-Replayed") == "true"
+	value, ok := decodeCLINFOApplyResponse(payload, c)
+	if !ok {
+		return nfoCLIError(ctx, stderr, "nfo_response_invalid")
+	}
+	if ctx.Err() != nil {
+		return nfoCLIError(ctx, stderr, "nfo_output_failed")
+	}
+	stop := accountCloseOnCancellation(ctx, stdout)
+	defer stop()
+	if c.asJSON {
+		out := map[string]any{"data": value}
+		if c.command == "apply" {
+			out["replayed"] = replayed
+		}
+		if json.NewEncoder(stdout).Encode(out) != nil {
+			return nfoCLIError(ctx, stderr, "nfo_output_failed")
+		}
+		return 0
+	}
+	if _, err = io.WriteString(stdout, nfoApplySummary(value, replayed)); err != nil {
+		return nfoCLIError(ctx, stderr, "nfo_output_failed")
+	}
+	return 0
+}
+
+func decodeCLINFOApplyResponse(raw []byte, c nfoApplyCLIRequest) (any, bool) {
+	if !utf8.Valid(raw) {
+		return nil, false
+	}
+	envelope, ok := jobsCLIObject(raw)
+	if !ok || !jobsCLIHas(envelope, "data") {
+		return nil, false
+	}
+	data := envelope["data"]
+	if c.command == "apply-status" {
+		fields, ok := jobsCLIObject(data)
+		if !ok || !jobsCLIHas(fields, "jobId", "libraryId", "applied", "unchanged", "skipped", "failed", "updatedAt") {
+			return nil, false
+		}
+		if _, exists := fields["cursorItemId"]; !exists {
+			return nil, false
+		}
+		public := map[string]json.RawMessage{}
+		for _, name := range []string{"jobId", "libraryId", "cursorItemId", "applied", "unchanged", "skipped", "failed", "updatedAt"} {
+			public[name] = fields[name]
+		}
+		encoded, _ := json.Marshal(public)
+		var state domain.NFOApplyJobState
+		if json.Unmarshal(encoded, &state) != nil || state.JobID != c.job || !domain.ValidID(state.LibraryID) ||
+			state.CursorItemID != nil && !domain.ValidID(*state.CursorItemID) ||
+			state.Applied < 0 || state.Unchanged < 0 || state.Skipped < 0 || state.Failed < 0 || state.UpdatedAt.IsZero() {
+			return nil, false
+		}
+		return state, true
+	}
+	var job domain.Job
+	if !jobsCLIPublicObject(data, &job, []string{"id", "libraryId", "kind", "state", "priority", "attempts", "cancelRequested", "files", "directories", "skipped", "bytes", "missing", "reviewRequired", "createdAt"}, "errorCode", "startedAt", "finishedAt") ||
+		!domain.ValidID(job.ID) || job.LibraryID != c.library || job.Kind != domain.JobNFOApply ||
+		job.Priority != domain.JobPriorityManual && job.Priority != domain.JobPriorityBackground || job.CreatedAt.IsZero() {
+		return nil, false
+	}
+	switch job.State {
+	case domain.JobQueued, domain.JobRunning, domain.JobSucceeded, domain.JobCancelled, domain.JobFailed:
+	default:
+		return nil, false
+	}
+	return job, true
+}
+
+func nfoApplySummary(value any, replayed bool) string {
+	switch v := value.(type) {
+	case domain.NFOApplyJobState:
+		cursor := "none"
+		if v.CursorItemID != nil {
+			cursor = *v.CursorItemID
+		}
+		return fmt.Sprintf("job %s library %s\napplied %d unchanged %d skipped %d failed %d\ncursor %s\nupdated %s\n",
+			v.JobID, v.LibraryID, v.Applied, v.Unchanged, v.Skipped, v.Failed, cursor, v.UpdatedAt.UTC().Format(time.RFC3339))
+	case domain.Job:
+		suffix := ""
+		if replayed {
+			suffix = " (replayed)"
+		}
+		return fmt.Sprintf("job %s %s%s\nlibrary %s\npriority %s\n", v.ID, v.State, suffix, v.LibraryID, v.Priority)
+	}
+	return ""
+}
