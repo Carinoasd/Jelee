@@ -19,6 +19,25 @@ func nfoSpecification(paths, schemas map[string]any) {
 	schemas["NFOLibraryPolicy"] = objectSchema(map[string]any{"libraryId": uuid, "mode": mode, "generation": generation, "writeEnabled": boolean}, "libraryId", "mode", "generation", "writeEnabled")
 	schemas["NFOPolicyUpdate"] = objectSchema(map[string]any{"mode": mode, "expectedGeneration": generation}, "mode", "expectedGeneration")
 	schemas["NFOValidateRequest"] = objectSchema(map[string]any{"priority": map[string]any{"type": "string", "enum": []string{"manual", "background"}, "default": "manual"}})
+	priority := map[string]any{"type": "string", "enum": []string{"manual", "background"}, "default": "manual"}
+	schemas["NFOWritePolicyUpdate"] = objectSchema(map[string]any{"enabled": map[string]any{"type": "boolean", "description": "Enabling needs library mode read-only, otherwise 409 conflict. Disabling stops queued and running writes at their next step."}}, "enabled")
+	schemas["NFOWriteTextEdit"] = objectSchema(map[string]any{"field": map[string]any{"type": "string", "enum": []string{"title", "originaltitle", "sorttitle", "plot", "outline", "tagline", "showtitle", "status", "mpaa", "certification"}}, "value": map[string]any{"type": "string"}}, "field", "value")
+	schemas["NFOWritePrepareRequest"] = objectSchema(map[string]any{
+		"revision": map[string]any{"type": "integer", "format": "int64", "minimum": 1, "description": "Expected item metadata revision."},
+		"edits":    map[string]any{"type": "array", "maxItems": 10, "items": schemaRef("NFOWriteTextEdit"), "description": "Ordered text edits; a field may appear once. Missing-NFO creation is not available."},
+		"bom":      map[string]any{"type": "string", "enum": []string{"preserve", "include", "omit"}, "default": "preserve"},
+		"indent":   map[string]any{"type": "string", "maxLength": 8, "description": "Spaces and tabs only."},
+		"maxBytes": map[string]any{"type": "integer", "format": "int64", "minimum": 1, "maximum": 33554432, "default": 8388608},
+		"backups":  map[string]any{"type": "integer", "minimum": 0, "maximum": 16, "default": 3},
+	}, "revision", "edits")
+	sha := map[string]any{"type": "string", "pattern": "^[0-9a-f]{64}$"}
+	size := map[string]any{"type": "integer", "minimum": 1, "maximum": 33554432}
+	schemas["NFOWritePreparation"] = objectSchema(map[string]any{"id": uuid, "itemId": uuid, "libraryId": uuid, "revision": map[string]any{"type": "integer", "format": "int64", "minimum": 1},
+		"fields": map[string]any{"type": "array", "maxItems": 10, "items": map[string]any{"type": "string"}}, "originalBytes": size, "replacementBytes": size, "originalSha256": sha, "replacementSha256": sha,
+		"createdAt": map[string]any{"type": "string", "format": "date-time"}, "expiresAt": map[string]any{"type": "string", "format": "date-time"}},
+		"id", "itemId", "libraryId", "revision", "fields", "originalBytes", "replacementBytes", "originalSha256", "replacementSha256", "createdAt", "expiresAt")
+	schemas["NFOWritePreparation"].(map[string]any)["description"] = "Summary of a stored preparation: byte counts and digests only. File content, paths and roots are never returned. A preparation grants no write authority; it expires after 24 hours."
+	schemas["NFOWriteSubmitRequest"] = objectSchema(map[string]any{"preparations": map[string]any{"type": "array", "minItems": 1, "maxItems": 100, "uniqueItems": true, "items": uuid}, "priority": priority}, "preparations")
 	jobProperties := map[string]any{"jobId": uuid, "libraryId": uuid, "mode": mode, "phase": map[string]any{"type": "string", "enum": []string{"disabled", "waiting_scan", "running", "done", "aborted", "cancelled"}}, "errorCode": map[string]any{"type": "string", "enum": []string{"nfo_disabled", "nfo_invalidated", "nfo_cache_capacity", "nfo_identity_mismatch", "nfo_unavailable", "nfo_cancelled", "scan_unavailable", "scan_io", "scan_limit", "scan_failed", "job_timeout", "job_attempts_exhausted"}}}
 	jobRequired := []string{"jobId", "libraryId", "mode", "phase"}
 	for _, name := range []string{"processed", "hits", "negativeHits", "parsed", "valid", "invalid", "warningFiles", "changed", "unavailable", "rejected"} {
@@ -46,14 +65,18 @@ func nfoSpecification(paths, schemas map[string]any) {
 	for _, route := range []struct {
 		path, method, summary, body, result, page string
 		key, enqueue                              bool
+		created                                   bool
 	}{
-		{"/libraries/{id}/nfo/policy", "get", "Read the library NFO policy", "", "NFOLibraryPolicy", "", false, false},
-		{"/libraries/{id}/nfo/policy", "put", "Set NFO mode with expected-generation CAS and retained idempotency", "NFOPolicyUpdate", "NFOLibraryPolicy", "", true, false},
-		{"/libraries/{id}/nfo/validate", "post", "Queue a new NFO-only validation scan without changing the library policy", "NFOValidateRequest", "Job", "", true, true},
-		{"/jobs/{id}/nfo", "get", "Read committed historical NFO counters", "", "NFOJobSummary", "", false, false},
-		{"/jobs/{id}/images", "get", "Read image inventory attribute comparisons", "", "ImageJobSummary", "", false, false},
-		{"/libraries/{id}/nfo/current-validations", "get", "List current NFO cache observations by UUID cursor", "", "NFOObservationPage", "observations", false, false},
-		{"/libraries/{id}/nfo/current-validations/{observationId}/issues", "get", "Read retained issues for one current observation", "", "NFOIssuesPage", "issues", false, false},
+		{"/libraries/{id}/nfo/policy", "get", "Read the library NFO policy", "", "NFOLibraryPolicy", "", false, false, false},
+		{"/libraries/{id}/nfo/policy", "put", "Set NFO mode with expected-generation CAS and retained idempotency", "NFOPolicyUpdate", "NFOLibraryPolicy", "", true, false, false},
+		{"/libraries/{id}/nfo/validate", "post", "Queue a new NFO-only validation scan without changing the library policy", "NFOValidateRequest", "Job", "", true, true, false},
+		{"/libraries/{id}/nfo/write-policy", "put", "Allow or forbid NFO write-back for a library", "NFOWritePolicyUpdate", "NFOLibraryPolicy", "", false, false, false},
+		{"/items/{id}/nfo/write-preparations", "post", "Prepare controlled NFO text edits for an item; answers 201 first and 200 with Idempotency-Replayed on replay, 503 nfo_reader_unavailable when the service is off", "NFOWritePrepareRequest", "NFOWritePreparation", "", true, false, true},
+		{"/libraries/{id}/nfo/writes", "post", "Queue prepared NFO edits as one write job; 409 nfo_write_disabled unless the library is read-only with writes enabled", "NFOWriteSubmitRequest", "Job", "", true, true, false},
+		{"/jobs/{id}/nfo", "get", "Read committed historical NFO counters", "", "NFOJobSummary", "", false, false, false},
+		{"/jobs/{id}/images", "get", "Read image inventory attribute comparisons", "", "ImageJobSummary", "", false, false, false},
+		{"/libraries/{id}/nfo/current-validations", "get", "List current NFO cache observations by UUID cursor", "", "NFOObservationPage", "observations", false, false, false},
+		{"/libraries/{id}/nfo/current-validations/{observationId}/issues", "get", "Read retained issues for one current observation", "", "NFOIssuesPage", "issues", false, false, false},
 	} {
 		op := operation(route.summary, "200", "400", "401", "403", "404", "408", "409", "413", "415", "429", "503")
 		op["security"] = []any{map[string]any{"bearer": []string{}}}
@@ -78,6 +101,9 @@ func nfoSpecification(paths, schemas map[string]any) {
 		}
 		response := map[string]any{"description": "Successful result. Retained mutations may include Idempotency-Replayed: true.", "content": map[string]any{"application/json": map[string]any{"schema": objectSchema(map[string]any{"data": schemaRef(route.result)}, "data")}}}
 		op["responses"].(map[string]any)["200"] = response
+		if route.created {
+			op["responses"].(map[string]any)["201"] = response
+		}
 		if route.enqueue {
 			op["responses"].(map[string]any)["202"] = response
 		}

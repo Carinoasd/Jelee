@@ -20,13 +20,14 @@ type httpNFOJobs struct {
 	app.NFOAdminRepository
 	app.NFOQueryRepository
 	app.ImageQueryRepository
-	submit       func(context.Context, domain.Actor, string, string, string, domain.ScanIntent, domain.JobPolicy, *domain.ProbeIdentity, *domain.NFOIdentity) (domain.Job, bool, error)
-	policy       func(context.Context, domain.Actor, string) (domain.NFOLibraryPolicy, error)
-	setPolicy    func(context.Context, domain.Actor, string, string, int64, string) (domain.NFOLibraryPolicy, bool, error)
-	summary      func(context.Context, domain.Actor, string) (domain.NFOJobSummary, error)
-	observations func(context.Context, domain.Actor, string, string, int, domain.NFOIdentity) (domain.NFOObservationPage, error)
-	issues       func(context.Context, domain.Actor, string, string, int, int, domain.NFOIdentity) (domain.NFOIssuesPage, error)
-	images       func(context.Context, domain.Actor, string) (domain.ImageJobSummary, error)
+	submit         func(context.Context, domain.Actor, string, string, string, domain.ScanIntent, domain.JobPolicy, *domain.ProbeIdentity, *domain.NFOIdentity) (domain.Job, bool, error)
+	policy         func(context.Context, domain.Actor, string) (domain.NFOLibraryPolicy, error)
+	setPolicy      func(context.Context, domain.Actor, string, string, int64, string) (domain.NFOLibraryPolicy, bool, error)
+	setWritePolicy func(context.Context, domain.Actor, string, bool) (domain.NFOLibraryPolicy, error)
+	summary        func(context.Context, domain.Actor, string) (domain.NFOJobSummary, error)
+	observations   func(context.Context, domain.Actor, string, string, int, domain.NFOIdentity) (domain.NFOObservationPage, error)
+	issues         func(context.Context, domain.Actor, string, string, int, int, domain.NFOIdentity) (domain.NFOIssuesPage, error)
+	images         func(context.Context, domain.Actor, string) (domain.ImageJobSummary, error)
 }
 
 func (p httpNFOJobs) SubmitScanWithStages(ctx context.Context, a domain.Actor, id, key, priority string, intent domain.ScanIntent, policy domain.JobPolicy, probe *domain.ProbeIdentity, nfo *domain.NFOIdentity) (domain.Job, bool, error) {
@@ -37,6 +38,9 @@ func (p httpNFOJobs) GetNFOLibraryPolicy(ctx context.Context, a domain.Actor, id
 }
 func (p httpNFOJobs) SetNFOLibraryPolicy(ctx context.Context, a domain.Actor, id, key string, expected int64, mode string) (domain.NFOLibraryPolicy, bool, error) {
 	return p.setPolicy(ctx, a, id, key, expected, mode)
+}
+func (p httpNFOJobs) SetNFOWritePolicy(ctx context.Context, a domain.Actor, id string, enabled bool) (domain.NFOLibraryPolicy, error) {
+	return p.setWritePolicy(ctx, a, id, enabled)
 }
 func (p httpNFOJobs) GetNFOJobSummary(ctx context.Context, a domain.Actor, id string) (domain.NFOJobSummary, error) {
 	return p.summary(ctx, a, id)
@@ -88,6 +92,7 @@ func TestNFORoutesRequireAdminAndRejectUntrustedInputs(t *testing.T) {
 		{"GET", policyPath, ""}, {"PUT", policyPath, `{"mode":"read-only","expectedGeneration":1}`}, {"POST", validatePath, "{}"},
 		{"GET", "/api/v1/jobs/" + sourceID + "/nfo", ""}, {"GET", "/api/v1/jobs/" + sourceID + "/images", ""},
 		{"GET", currentPath, ""}, {"GET", currentPath + "/" + sourceID + "/issues", ""},
+		{"PUT", "/api/v1/libraries/" + libraryID + "/nfo/write-policy", `{"enabled":true}`}, {"POST", "/api/v1/libraries/" + libraryID + "/nfo/writes", "{}"}, {"POST", "/api/v1/items/" + itemID + "/nfo/write-preparations", "{}"},
 	} {
 		for token, status := range map[string]int{"": 401, "u": 403} {
 			if w := jobRequest(h, r.method, r.path, r.body, token, "one"); w.Code != status {
@@ -281,7 +286,7 @@ func TestNFOErrorsStayFixedAndPrivate(t *testing.T) {
 		status int
 		code   string
 	}{
-		{domain.ErrNFODisabled, 409, "nfo_disabled"}, {domain.ErrNFOReaderUnavailable, 503, "nfo_reader_unavailable"},
+		{domain.ErrNFODisabled, 409, "nfo_disabled"}, {domain.ErrNFOWriteDisabled, 409, "nfo_write_disabled"}, {domain.ErrNFOReaderUnavailable, 503, "nfo_reader_unavailable"},
 		{domain.ErrNFOCacheCapacity, 409, "nfo_cache_capacity"}, {domain.ErrNFOIdentityMismatch, 409, "nfo_identity_mismatch"}, {domain.ErrNFOInvalidated, 409, "nfo_invalidated"},
 		{domain.ErrNotFound, 404, "not_found"}, {domain.ErrConflict, 409, "conflict"}, {domain.ErrForbidden, 403, "forbidden"}, {domain.ErrUnauthenticated, 401, "authentication_required"},
 		{errors.New("/private/token=secret"), 500, "internal_error"},
@@ -311,6 +316,7 @@ func TestNFOFeatureFlagAndOpenAPIContract(t *testing.T) {
 		key          bool
 	}{
 		{"/libraries/{id}/nfo/policy", "get", false}, {"/libraries/{id}/nfo/policy", "put", true}, {"/libraries/{id}/nfo/validate", "post", true},
+		{"/libraries/{id}/nfo/write-policy", "put", false}, {"/items/{id}/nfo/write-preparations", "post", true}, {"/libraries/{id}/nfo/writes", "post", true},
 		{"/libraries/{id}/nfo/current-validations", "get", false}, {"/libraries/{id}/nfo/current-validations/{observationId}/issues", "get", false}, {"/jobs/{id}/nfo", "get", false}, {"/jobs/{id}/images", "get", false},
 	} {
 		op := paths["/api/v1"+r.path].(map[string]any)[r.method].(map[string]any)
@@ -329,7 +335,7 @@ func TestNFOFeatureFlagAndOpenAPIContract(t *testing.T) {
 		}
 	}
 	schemas := spec["components"].(map[string]any)["schemas"].(map[string]any)
-	for _, name := range []string{"ScanRequest", "NFOPolicyUpdate", "NFOValidateRequest", "NFOJobSummary", "ImageJobSummary", "NFOObservation", "NFOObservationPage", "NFOIssue", "NFOIssuesPage"} {
+	for _, name := range []string{"ScanRequest", "NFOPolicyUpdate", "NFOWritePolicyUpdate", "NFOWritePrepareRequest", "NFOWriteTextEdit", "NFOWritePreparation", "NFOWriteSubmitRequest", "NFOValidateRequest", "NFOJobSummary", "ImageJobSummary", "NFOObservation", "NFOObservationPage", "NFOIssue", "NFOIssuesPage"} {
 		if schemas[name].(map[string]any)["additionalProperties"] != false {
 			t.Fatal("non-strict schema", name)
 		}

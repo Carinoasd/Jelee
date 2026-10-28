@@ -7498,6 +7498,166 @@ export type paths = {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/items/{id}/nfo/write-preparations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Prepare controlled NFO text edits for an item; answers 201 first and 200 with Idempotency-Replayed on replay, 503 nfo_reader_unavailable when the service is off
+         * @description Every request, including retained replay, checks live administrator authorization. Internal reader identities, absolute roots, hashes and original XML are never accepted as request parameters.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header: {
+                    "Idempotency-Key": string;
+                };
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            /** @description One strict JSON object, at most 64 KiB. */
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["NFOWritePrepareRequest"];
+                };
+            };
+            responses: {
+                /** @description Successful result. Retained mutations may include Idempotency-Replayed: true. */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["NFOWritePreparation"];
+                        };
+                    };
+                };
+                /** @description Successful result. Retained mutations may include Idempotency-Replayed: true. */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["NFOWritePreparation"];
+                        };
+                    };
+                };
+                /** @description HTTP 400 */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 401 */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 403 */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 404 */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 408 */
+                408: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 409 */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 413 */
+                413: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 415 */
+                415: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 429 */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 503 */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Jelee error envelope with code, message, details and traceId; see the Error schema. */
+                default: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/items/{id}/playback": {
         parameters: {
             query?: never;
@@ -12852,6 +13012,313 @@ export type paths = {
             requestBody: {
                 content: {
                     "application/json": components["schemas"]["NFOValidateRequest"];
+                };
+            };
+            responses: {
+                /** @description Successful result. Retained mutations may include Idempotency-Replayed: true. */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["Job"];
+                        };
+                    };
+                };
+                /** @description Successful result. Retained mutations may include Idempotency-Replayed: true. */
+                202: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["Job"];
+                        };
+                    };
+                };
+                /** @description HTTP 400 */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 401 */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 403 */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 404 */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 408 */
+                408: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 409 */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 413 */
+                413: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 415 */
+                415: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 429 */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 503 */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Jelee error envelope with code, message, details and traceId; see the Error schema. */
+                default: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/libraries/{id}/nfo/write-policy": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Allow or forbid NFO write-back for a library
+         * @description Every request, including retained replay, checks live administrator authorization. Internal reader identities, absolute roots, hashes and original XML are never accepted as request parameters.
+         */
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            /** @description One strict JSON object, at most 64 KiB. */
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["NFOWritePolicyUpdate"];
+                };
+            };
+            responses: {
+                /** @description Successful result. Retained mutations may include Idempotency-Replayed: true. */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["NFOLibraryPolicy"];
+                        };
+                    };
+                };
+                /** @description HTTP 400 */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 401 */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 403 */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 404 */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 408 */
+                408: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 409 */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 413 */
+                413: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 415 */
+                415: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 429 */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 503 */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Jelee error envelope with code, message, details and traceId; see the Error schema. */
+                default: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/libraries/{id}/nfo/writes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Queue prepared NFO edits as one write job; 409 nfo_write_disabled unless the library is read-only with writes enabled
+         * @description Every request, including retained replay, checks live administrator authorization. Internal reader identities, absolute roots, hashes and original XML are never accepted as request parameters.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header: {
+                    "Idempotency-Key": string;
+                };
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            /** @description One strict JSON object, at most 64 KiB. */
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["NFOWriteSubmitRequest"];
                 };
             };
             responses: {
@@ -28530,7 +28997,7 @@ export type components = {
          * @description Stable machine-readable error code. x-jelee-statuses lists the HTTP status codes each value is sent with.
          * @enum {string}
          */
-        ErrorCode: "account_busy" | "app_password_required" | "auth_rate_limited" | "authentication_required" | "body_too_large" | "client_blocked" | "client_pending_approval" | "client_rate_limited" | "client_read_only" | "confirmation_required" | "conflict" | "csrf_failed" | "custom_css_rejected" | "device_stream_limit" | "devmode_inactive" | "devmode_toggle_unavailable" | "feature_removed" | "forbidden" | "ignore_unavailable" | "image_busy" | "image_too_large" | "image_unavailable" | "image_unsupported" | "internal_error" | "invalid_host" | "invalid_password" | "invalid_range" | "invalid_request" | "invalid_two_factor_code" | "job_busy" | "job_queue_full" | "jobs_busy" | "last_admin" | "log_component_mandatory" | "login_challenge_invalid" | "lookup_timeout" | "metadata_unavailable" | "method_not_allowed" | "metrics_busy" | "native_login_disabled" | "nfo_cache_capacity" | "nfo_disabled" | "nfo_identity_mismatch" | "nfo_invalidated" | "nfo_reader_unavailable" | "not_found" | "not_ready" | "playback_busy" | "precondition_failed" | "probe_cache_capacity" | "probe_disabled" | "probe_identity_mismatch" | "probe_invalidated" | "probe_runtime_unavailable" | "request_timeout" | "scan_limit" | "scan_unavailable" | "session_limit" | "setup_completed" | "setup_required" | "setup_step_order" | "setup_token_invalid" | "setup_validation_failed" | "share_forbidden" | "share_playback_disabled" | "share_read_only" | "share_unavailable" | "stats_export_limit" | "stream_limit" | "transcode_disabled" | "two_factor_unavailable" | "unsupported_media_type" | "user_stream_limit" | "version_identity_conflict" | "version_item_busy" | "version_merge_incompatible" | "version_undo_unavailable" | "web_playback_disabled" | "webhook_target_denied";
+        ErrorCode: "account_busy" | "app_password_required" | "auth_rate_limited" | "authentication_required" | "body_too_large" | "client_blocked" | "client_pending_approval" | "client_rate_limited" | "client_read_only" | "confirmation_required" | "conflict" | "csrf_failed" | "custom_css_rejected" | "device_stream_limit" | "devmode_inactive" | "devmode_toggle_unavailable" | "feature_removed" | "forbidden" | "ignore_unavailable" | "image_busy" | "image_too_large" | "image_unavailable" | "image_unsupported" | "internal_error" | "invalid_host" | "invalid_password" | "invalid_range" | "invalid_request" | "invalid_two_factor_code" | "job_busy" | "job_queue_full" | "jobs_busy" | "last_admin" | "log_component_mandatory" | "login_challenge_invalid" | "lookup_timeout" | "metadata_unavailable" | "method_not_allowed" | "metrics_busy" | "native_login_disabled" | "nfo_cache_capacity" | "nfo_disabled" | "nfo_identity_mismatch" | "nfo_invalidated" | "nfo_reader_unavailable" | "nfo_write_disabled" | "not_found" | "not_ready" | "playback_busy" | "precondition_failed" | "probe_cache_capacity" | "probe_disabled" | "probe_identity_mismatch" | "probe_invalidated" | "probe_runtime_unavailable" | "request_timeout" | "scan_limit" | "scan_unavailable" | "session_limit" | "setup_completed" | "setup_required" | "setup_step_order" | "setup_token_invalid" | "setup_validation_failed" | "share_forbidden" | "share_playback_disabled" | "share_read_only" | "share_unavailable" | "stats_export_limit" | "stream_limit" | "transcode_disabled" | "two_factor_unavailable" | "unsupported_media_type" | "user_stream_limit" | "version_identity_conflict" | "version_item_busy" | "version_merge_incompatible" | "version_undo_unavailable" | "web_playback_disabled" | "webhook_target_denied";
         GuestShare: {
             allowPlayback: boolean;
             /** Format: date-time */
@@ -29448,6 +29915,66 @@ export type components = {
              * @enum {string}
              */
             priority: "manual" | "background";
+        };
+        NFOWritePolicyUpdate: {
+            /** @description Enabling needs library mode read-only, otherwise 409 conflict. Disabling stops queued and running writes at their next step. */
+            enabled: boolean;
+        };
+        /** @description Summary of a stored preparation: byte counts and digests only. File content, paths and roots are never returned. A preparation grants no write authority; it expires after 24 hours. */
+        NFOWritePreparation: {
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            expiresAt: string;
+            fields: string[];
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            itemId: string;
+            /** Format: uuid */
+            libraryId: string;
+            originalBytes: number;
+            originalSha256: string;
+            replacementBytes: number;
+            replacementSha256: string;
+            /** Format: int64 */
+            revision: number;
+        };
+        NFOWritePrepareRequest: {
+            /** @default 3 */
+            backups: number;
+            /**
+             * @default preserve
+             * @enum {string}
+             */
+            bom: "preserve" | "include" | "omit";
+            /** @description Ordered text edits; a field may appear once. Missing-NFO creation is not available. */
+            edits: components["schemas"]["NFOWriteTextEdit"][];
+            /** @description Spaces and tabs only. */
+            indent?: string;
+            /**
+             * Format: int64
+             * @default 8388608
+             */
+            maxBytes: number;
+            /**
+             * Format: int64
+             * @description Expected item metadata revision.
+             */
+            revision: number;
+        };
+        NFOWriteSubmitRequest: {
+            preparations: string[];
+            /**
+             * @default manual
+             * @enum {string}
+             */
+            priority: "manual" | "background";
+        };
+        NFOWriteTextEdit: {
+            /** @enum {string} */
+            field: "title" | "originaltitle" | "sorttitle" | "plot" | "outline" | "tagline" | "showtitle" | "status" | "mpaa" | "certification";
+            value: string;
         };
         PageLayout: {
             /** @description Blocks in display order; IDs unique. IDs belong to the web client, which drops unknown ones and appends missing ones. */

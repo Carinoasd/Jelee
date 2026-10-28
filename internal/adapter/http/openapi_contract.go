@@ -68,6 +68,7 @@ var errorCodeStatuses = map[string][]int{
 	"nfo_identity_mismatch":      {409},
 	"nfo_invalidated":            {409},
 	"nfo_reader_unavailable":     {503},
+	"nfo_write_disabled":         {409},
 	"not_found":                  {404},
 	"not_ready":                  {503},
 	"playback_busy":              {503},

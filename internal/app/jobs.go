@@ -22,6 +22,7 @@ type Jobs struct {
 	probeCapability       func() domain.ProbeCapability
 	scanRepository        ScanJobRepository
 	nfoAdmin              NFOAdminRepository
+	nfoWriteJobs          NFOWriteJobRepository
 	nfoQueries            NFOQueryRepository
 	imageQueries          ImageQueryRepository
 	nfoIdentity           *domain.NFOIdentity
