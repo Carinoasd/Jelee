@@ -10,6 +10,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 	"testing"
@@ -159,7 +160,7 @@ func TestLogsExportIsBoundedNDJSON(t *testing.T) {
 	if got := strings.Join(messages(t, string(data)), "|"); got != "request completed|old scan warning|scan failed|request completed|security event|job started" {
 		t.Fatalf("exported %s", got)
 	}
-	if info, _ := os.Stat(out); info.Mode().Perm() != 0o600 {
+	if info, _ := os.Stat(out); runtime.GOOS != "windows" && info.Mode().Perm() != 0o600 {
 		t.Fatalf("export mode %v", info.Mode())
 	}
 	if code, _, errText := runLogs(t, deps, "", "export", "--out", out); code != 1 || !strings.Contains(errText, "logs_export_unwritable") {

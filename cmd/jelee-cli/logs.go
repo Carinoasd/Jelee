@@ -213,7 +213,7 @@ func renderLogRecord(w io.Writer, clean []byte, record map[string]any, console b
 
 // openLogFile opens a log file or a gzipped backup for reading.
 func openLogFile(name string) (io.ReadCloser, error) {
-	f, err := os.Open(name) //nolint:gosec // G304: the configured log file and its rotated backups
+	f, err := openSharedLogFile(name)
 	if err != nil {
 		return nil, err
 	}
@@ -428,7 +428,7 @@ func logsTail(ctx context.Context, path string, filter *logFilter, lines int, fo
 	}
 	ring := make([]kept, 0, min(lines, 1024))
 	start := 0
-	reader, err := os.Open(path) //nolint:gosec // G304: the configured log file
+	reader, err := openSharedLogFile(path)
 	if err != nil {
 		_, _ = fmt.Fprintln(stderr, "logs_file_unreadable")
 		return 1
@@ -483,7 +483,7 @@ func logsTail(ctx context.Context, path string, filter *logFilter, lines int, fo
 		info, err := os.Stat(path) //nolint:gosec // G703: the configured log file the operator asked to follow
 		if err == nil && (identity == nil || !os.SameFile(identity, info) || info.Size() < offset) {
 			// Rotated or truncated: continue with the new active file.
-			if next, openErr := os.Open(path); openErr == nil { //nolint:gosec // G304: the configured log file
+			if next, openErr := openSharedLogFile(path); openErr == nil {
 				_ = reader.Close()
 				reader, offset, pending = next, 0, nil
 				identity, _ = next.Stat()
