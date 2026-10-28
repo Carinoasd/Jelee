@@ -27,7 +27,7 @@ Jelee 的追蹤以日誌為載體：每段工作（span）把 trace／span 識�
 | --- | --- | --- | --- |
 | `http.request` | `http` | 每個 HTTP 請求進入邊界（`server.go` boundary） | 無（root；trace ID＝請求 ID） |
 | `media.direct` | `media` | 直投（原檔、外掛字幕／音軌，含相容層的播放路徑） | `http.request` |
-| `job.<kind>` | `scan`／`nfo`／`jobs` | worker 領取任務（`inventory_scan`、`nfo_write`、`catalog_import`、`catalog_sync`、`consistency_check`、`nfo_apply`） | 提交請求的 span，或新 root |
+| `job.<kind>` | `scan`／`nfo`／`jobs` | worker 領取任務（`inventory_scan`、`nfo_write`、`catalog_import`、`catalog_sync`、`consistency_check`、`nfo_apply`、`nfo_export`） | 提交請求的 span，或新 root |
 | `scan.inventory` | `scan` | 盤點掃描階段 | `job.inventory_scan` |
 | `nfo.write` | `nfo` | NFO 寫回 | `job.nfo_write` |
 | `webhook.deliver` | `webhook` | 每次 Webhook 投遞嘗試 | 產生事件的 span，或新 root |
