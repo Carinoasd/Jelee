@@ -20,7 +20,11 @@ type NFOWriteOptions struct {
 	RecoveryLease time.Duration
 	// RecoveryBatch bounds how many jobs one pass resolves.
 	RecoveryBatch int
-	worker        *app.NFOWriteWorker
+	// CleanupBatch bounds how many resolved tokens one pass cleans. Cleanup
+	// runs when Repository and Committer also implement the cleanup sides.
+	CleanupBatch int
+	worker       *app.NFOWriteWorker
+	cleaner      *app.NFOWriteCleaner
 }
 
 func (r *Runner) configureNFOWrite() error {
@@ -37,7 +41,10 @@ func (r *Runner) configureNFOWrite() error {
 	if n.RecoveryBatch == 0 {
 		n.RecoveryBatch = 4
 	}
-	if _, ok := r.repository.(stagesClaimer); !ok || n.Repository == nil || n.Committer == nil || n.RecoveryInterval < 100*time.Millisecond || n.RecoveryInterval > 10*time.Minute || n.RecoveryBatch < 1 || n.RecoveryBatch > 100 {
+	if n.CleanupBatch == 0 {
+		n.CleanupBatch = 8
+	}
+	if _, ok := r.repository.(stagesClaimer); !ok || n.Repository == nil || n.Committer == nil || n.RecoveryInterval < 100*time.Millisecond || n.RecoveryInterval > 10*time.Minute || n.RecoveryBatch < 1 || n.RecoveryBatch > 100 || n.CleanupBatch < 1 || n.CleanupBatch > 100 {
 		return domain.ErrInvalid
 	}
 	worker, err := app.NewNFOWriteWorker(n.Repository, n.Committer, r.options.Owner, n.RecoveryLease)
@@ -45,6 +52,13 @@ func (r *Runner) configureNFOWrite() error {
 		return err
 	}
 	n.worker = worker
+	repository, cleanable := n.Repository.(app.NFOWriteCleanupRepository)
+	files, removable := n.Committer.(app.NFOWriteCommitFileCleaner)
+	if cleanable && removable {
+		if n.cleaner, err = app.NewNFOWriteCleaner(repository, files, r.options.Owner, n.RecoveryLease); err != nil {
+			return err
+		}
+	}
 	r.options.NFOWrite = &n
 	return nil
 }
@@ -78,7 +92,8 @@ func (r *Runner) finishNFOWrite(ctx context.Context, lease domain.JobLease, stat
 }
 
 // recoverNFOWrites is a service-lifetime loop. Recovery restores safety for
-// stopped writes, so it ignores the work window.
+// stopped writes, so it ignores the work window. Cleanup of resolved tokens
+// follows each pass.
 func (r *Runner) recoverNFOWrites(ctx context.Context) {
 	options := r.options.NFOWrite
 	for r.wait(ctx, options.RecoveryInterval) {
@@ -91,6 +106,20 @@ func (r *Runner) recoverNFOWrites(ctx context.Context) {
 		}
 		if resolved > 0 {
 			r.logger.Info("nfo write jobs recovered", "component", "jobs", "count", resolved)
+		}
+		if options.cleaner == nil {
+			continue
+		}
+		// Resolved tokens release their retained files and attempt capacity.
+		cleaned, err := options.cleaner.CleanPending(ctx, options.CleanupBatch)
+		if ctx.Err() != nil {
+			return
+		}
+		if err != nil {
+			r.logger.Warn("nfo write cleanup incomplete", "component", "jobs", "code", "nfo_write_cleanup")
+		}
+		if cleaned > 0 {
+			r.logger.Info("nfo write tokens cleaned", "component", "jobs", "count", cleaned)
 		}
 	}
 }
