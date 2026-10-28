@@ -41,3 +41,15 @@ G39.6的read-write以獨立布林`libraries.nfo_write_enabled`表示，不新增
 `Store.SetNFOWritePolicy`（`app.Jobs.SetNFOWritePolicy`）在活躍管理員圍欄內切換權限：模式非`read-only`時開啟回`ErrConflict`，狀態不變為無操作，真正變更寫稽核`nfo.write_policy_changed`。切換不改`nfo_generation`，讀取工作不受影響。`SubmitNFOWriteJob`在准入交易內要求`read-only`且權限開啟，否則`ErrConflict`。
 
 遷移將`check_nfo_commit_catalog`包成加上權限檢查的新版本（原函式改名`_v86`），權限關閉時證據、journal與計畫寫入以`23514`（`nfo write disabled`）拒絕，進行中的工作在下一步停止。rollback結算不呼叫此檢查，權限被撤銷後已開始的token仍可還原。降級移除欄位、CHECK並還原原函式。
+
+## HTTP 與 CLI
+
+全部路由僅限管理員，經`accountEndpoint`，`Idempotency-Key`必填者缺少即400。回應不含檔案bytes、檔案系統路徑或root路徑。
+
+- `PUT /api/v1/libraries/{id}/nfo/write-policy`：`{"enabled":bool}`，回傳與`/nfo/policy`相同的政策物件。讀取未開時開啟回409`conflict`。
+- `POST /api/v1/items/{id}/nfo/write-preparations`：`{revision, edits:[{field,value}], bom?, indent?, maxBytes?, backups?}`，`maxBytes`預設8MiB、`backups`預設3，不開放`createMissing`。首次201、重播200並加`Idempotency-Replayed: true`。回應為摘要：`id,itemId,libraryId,revision,fields,originalBytes,replacementBytes,originalSha256,replacementSha256,createdAt,expiresAt`。服務不可用回503`nfo_reader_unavailable`。
+- `POST /api/v1/libraries/{id}/nfo/writes`：`{preparations:[1..100個ID], priority?}`，回傳202與`nfo_write`任務（形狀同`/nfo/validate`），重播200。庫未開寫入權限，或runtime未啟用`enableNFOWrite`，回409`nfo_write_disabled`（`domain.ErrNFOWriteDisabled`，原為`conflict`）。
+
+`jelee-cli nfo write-policy --library ID --enable|--disable`、`nfo write prepare --item ID --revision N --set field=value … [--backups N] [--bom …] --key KEY`、`nfo write submit --library ID --preparation ID … [--priority …] --key KEY`皆需`--token-stdin`，可加`--url`與`--json`；預設印簡短摘要，失敗只印穩定代碼（含伺服器錯誤碼）並以非零結束。
+
+真PG測試`TestNFOWriteBackOverHTTPEndToEnd`涵蓋：讀取／寫入政策、HTTP準備與重播、未開權限的拒絕、提交與重播、runner落盤，以及目標檔為替換內容、`.jelee.bak`為原文。

@@ -1,6 +1,6 @@
 # NFO 寫回的持久準備資料
 
-schema46新增`nfo_write_preparations`。application服務`NFOWritePreparations.Prepare`將受控文字修改與缺ID生成的完整輸出保存到PostgreSQL，供後續正式寫回任務使用。目前是內部application入口；HTTP、CLI、runtime與持久寫回worker尚未接入。庫政策仍只接受off/read-only；準備資料不授予檔案修改權限。
+schema46新增`nfo_write_preparations`。application服務`NFOWritePreparations.Prepare`將受控文字修改與缺ID生成的完整輸出保存到PostgreSQL，供後續正式寫回任務使用。application入口已由[HTTP與CLI](nfo-write-jobs.md)接入（管理員限定，回應只含摘要）。庫政策仍只接受off/read-only；準備資料不授予檔案修改權限。
 
 ## 準備與重播
 
