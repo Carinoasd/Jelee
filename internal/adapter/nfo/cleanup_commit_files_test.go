@@ -238,36 +238,41 @@ func TestCleanNFOCommitFilesEvictedBackupNeedsEarlierOriginal(t *testing.T) {
 	}
 }
 
+// The planned parent is looked up by path. Pointing the path elsewhere stands
+// in for a removed or replaced directory: Windows keeps a removed directory
+// that still has open handles delete-pending, so the fixture is not removed.
 func TestCleanNFOCommitFilesParentChanges(t *testing.T) {
-	t.Run("removed", func(t *testing.T) {
-		s := settleFixture(t, 0)
-		input := cleanupInput(s, s.files)
-		if err := os.RemoveAll(s.path); err != nil {
-			t.Fatal(err)
-		}
-		outcome, retained, err := cleanupWriter(t).CleanNFOWriteCommitFiles(context.Background(), input)
-		checkCleanupResult(t, outcome, retained, err, domain.NFOWriteCommitCleanupParentGone, 0)
-	})
-	t.Run("replaced", func(t *testing.T) {
-		s := settleFixture(t, 0)
-		input := cleanupInput(s, s.files)
-		moved := s.path + "-moved"
-		if err := os.Rename(s.path, moved); err != nil {
-			t.Fatal(err)
-		}
-		if err := os.Mkdir(s.path, 0700); err != nil {
-			t.Fatal(err)
-		}
-		outcome, retained, err := cleanupWriter(t).CleanNFOWriteCommitFiles(context.Background(), input)
-		checkCleanupResult(t, outcome, retained, err, domain.NFOWriteCommitCleanupParentGone, 0)
-		// The moved directory keeps every object; nothing was removed.
-		names := s.files.plan.names()
-		for _, name := range names {
-			if _, err := os.Lstat(filepath.Join(moved, name)); err != nil {
-				t.Fatal("object removed from a moved directory", name)
+	for name, path := range map[string]func(t *testing.T, s settleFixtureState) string{
+		"removed": func(*testing.T, settleFixtureState) string { return "absent" },
+		"replaced": func(t *testing.T, s settleFixtureState) string {
+			other := filepath.Base(s.path) + "-other"
+			if err := os.Mkdir(filepath.Join(filepath.Dir(s.path), other), 0700); err != nil {
+				t.Fatal(err)
 			}
-		}
-	})
+			return other
+		},
+		"not_directory": func(t *testing.T, s settleFixtureState) string {
+			file := filepath.Base(s.path) + "-file"
+			if err := os.WriteFile(filepath.Join(filepath.Dir(s.path), file), []byte("not a directory"), 0600); err != nil {
+				t.Fatal(err)
+			}
+			return file
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			s := settleFixture(t, 0)
+			input := cleanupInput(s, s.files)
+			input.RelativePath = path(t, s) + "/movie.nfo"
+			outcome, retained, err := cleanupWriter(t).CleanNFOWriteCommitFiles(context.Background(), input)
+			checkCleanupResult(t, outcome, retained, err, domain.NFOWriteCommitCleanupParentGone, 0)
+			// The planned directory keeps every object; nothing was removed.
+			for _, name := range s.files.plan.names() {
+				if _, err := s.directory.Lstat(name); err != nil {
+					t.Fatal("object removed from the planned directory", name)
+				}
+			}
+		})
+	}
 	t.Run("root_missing", func(t *testing.T) {
 		s := settleFixture(t, 0)
 		input := cleanupInput(s, s.files)

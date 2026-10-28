@@ -64,7 +64,7 @@
 
 ## 驗證（Linux 真 PG 16）
 
-- 檔案系統（`internal/adapter/nfo/cleanup_commit_files_test.go`）：已替換、未改名、已回滾三種 token 都刪光，目標與備份不變，重跑沒有變化；被替換的 pin、記錄成其他物件的身分、無紀錄的身分、同名目錄都保留並計數；被擠出的備份只在有先前原目標紀錄時刪除；父目錄被刪或被換時回 outcome 3、不動搬走的目錄；根目錄不存在時回錯誤；非法輸入不碰檔案。
+- 檔案系統（`internal/adapter/nfo/cleanup_commit_files_test.go`）：已替換、未改名、已回滾三種 token 都刪光，目標與備份不變，重跑沒有變化；被替換的 pin、記錄成其他物件的身分、無紀錄的身分、同名目錄都保留並計數；被擠出的備份只在有先前原目標紀錄時刪除；路徑上的父目錄不存在、是另一個目錄或是檔案時回 outcome 3、原目錄的物件不動；根目錄不存在時回錯誤；非法輸入不碰檔案。
 - 子程序 `os.Exit`：在四次刪除的每一次之前與之後中斷（共 8 種），中斷時只少了 token 自己的名稱，續作後結果相同。
 - 反向驗證：把身分比對改成恆真後，`KeepsObjectsWithoutMatchingIdentity` 三個子測試與 `EvictedBackupNeedsEarlierOriginal/false` 失敗；還原後通過。
 - 真 PG（`internal/adapter/postgres/nfo_commit_cleanups_test.go`）：真 runner 寫入兩筆後自動清理，殘留物件全刪、reservation 全部釋放；累計 256 筆後第 257 筆被拒，清理後同一筆被接受；8 個並發清理只有 1 個取得租約，外人不能續約，直接 SQL 不能接手、改刪；過期後由下一個 epoch 接手，舊持有者讀取與寫紀錄都被拒；紀錄不一致的 outcome 被拒、同持有者重放成功、改寫被拒；收尾後不能再寫結算；migration 空資料往返、有資料拒絕。
