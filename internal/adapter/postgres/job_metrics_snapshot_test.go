@@ -167,7 +167,7 @@ func TestJobMetricsIntegrationHistogramBoundaries(t *testing.T) {
 		t.Fatal("terminal samples disagree", g)
 	}
 	var count int
-	if err := f.s.Pool.QueryRow(f.ctx, `SELECT (SELECT count(*) FROM job_metric_epoch)+(SELECT count(*) FROM job_metric_totals)+(SELECT count(*) FROM job_metric_buckets)`).Scan(&count); err != nil || count != 271 {
+	if err := f.s.Pool.QueryRow(f.ctx, `SELECT (SELECT count(*) FROM job_metric_epoch)+(SELECT count(*) FROM job_metric_totals)+(SELECT count(*) FROM job_metric_buckets)`).Scan(&count); err != nil || count != 325 {
 		t.Fatal("metric storage grew with job history", count, err)
 	}
 	// Independently re-read; an observation must not add histogram samples.
@@ -220,7 +220,7 @@ func TestJobMetricsIntegrationActiveQueryPlan(t *testing.T) {
 
 func TestJobMetricsIntegrationKindsAndPriorities(t *testing.T) {
 	f := newJobFixture(t)
-	for _, kind := range []string{"catalog_import", "catalog_sync", "consistency_check", "inventory_scan"} {
+	for _, kind := range []string{"catalog_import", "catalog_sync", "consistency_check", "inventory_scan", "nfo_apply"} {
 		for _, priority := range []string{"background", "manual"} {
 			j := f.submit(t, kind+priority)
 			if _, err := f.s.Pool.Exec(f.ctx, `UPDATE jobs SET kind=$2,priority=$3 WHERE id=$1`, j.ID, kind, priority); err != nil {

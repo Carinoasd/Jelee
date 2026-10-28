@@ -38,6 +38,12 @@ func nfoSpecification(paths, schemas map[string]any) {
 		"id", "itemId", "libraryId", "revision", "fields", "originalBytes", "replacementBytes", "originalSha256", "replacementSha256", "createdAt", "expiresAt")
 	schemas["NFOWritePreparation"].(map[string]any)["description"] = "Summary of a stored preparation: byte counts and digests only. File content, paths and roots are never returned. A preparation grants no write authority; it expires after 24 hours."
 	schemas["NFOWriteSubmitRequest"] = objectSchema(map[string]any{"preparations": map[string]any{"type": "array", "minItems": 1, "maxItems": 100, "uniqueItems": true, "items": uuid}, "priority": priority}, "preparations")
+	schemas["NFOApplyRequest"] = objectSchema(map[string]any{"priority": priority})
+	applyCount := map[string]any{"type": "integer", "minimum": 0}
+	schemas["NFOApplyJobState"] = objectSchema(map[string]any{"jobId": uuid, "libraryId": uuid, "cursorItemId": map[string]any{"oneOf": []any{uuid, map[string]any{"type": "null"}}, "description": "The last item the job finished with; null before the first checkpoint. Items are visited in ascending ID order and a resumed job continues after it."},
+		"applied": applyCount, "unchanged": applyCount, "skipped": applyCount, "failed": applyCount, "updatedAt": map[string]any{"type": "string", "format": "date-time"}},
+		"jobId", "libraryId", "cursorItemId", "applied", "unchanged", "skipped", "failed", "updatedAt")
+	schemas["NFOApplyJobState"].(map[string]any)["description"] = "Committed counters of a batch NFO apply, at most one checkpoint (50 items) behind. applied changed fields, unchanged had nothing to change, skipped had no applicable NFO (missing or invalid NFO, no media source, unresolved scope), failed hit an item-local error such as a repeated revision conflict."
 	jobProperties := map[string]any{"jobId": uuid, "libraryId": uuid, "mode": mode, "phase": map[string]any{"type": "string", "enum": []string{"disabled", "waiting_scan", "running", "done", "aborted", "cancelled"}}, "errorCode": map[string]any{"type": "string", "enum": []string{"nfo_disabled", "nfo_invalidated", "nfo_cache_capacity", "nfo_identity_mismatch", "nfo_unavailable", "nfo_cancelled", "scan_unavailable", "scan_io", "scan_limit", "scan_failed", "job_timeout", "job_attempts_exhausted"}}}
 	jobRequired := []string{"jobId", "libraryId", "mode", "phase"}
 	for _, name := range []string{"processed", "hits", "negativeHits", "parsed", "valid", "invalid", "warningFiles", "changed", "unavailable", "rejected"} {
@@ -73,6 +79,8 @@ func nfoSpecification(paths, schemas map[string]any) {
 		{"/libraries/{id}/nfo/write-policy", "put", "Allow or forbid NFO write-back for a library", "NFOWritePolicyUpdate", "NFOLibraryPolicy", "", false, false, false},
 		{"/items/{id}/nfo/write-preparations", "post", "Prepare controlled NFO text edits for an item; answers 201 first and 200 with Idempotency-Replayed on replay, 503 nfo_reader_unavailable when the service is off", "NFOWritePrepareRequest", "NFOWritePreparation", "", true, false, true},
 		{"/libraries/{id}/nfo/writes", "post", "Queue prepared NFO edits as one write job; 409 nfo_write_disabled unless the library is read-only with writes enabled", "NFOWriteSubmitRequest", "Job", "", true, true, false},
+		{"/libraries/{id}/nfo/apply", "post", "Queue a batch apply of every item's NFO fields through the per-item apply path; 409 conflict unless the library is read-only, 409 job_busy while the library has an active job", "NFOApplyRequest", "Job", "", true, true, false},
+		{"/jobs/{id}/nfo-apply", "get", "Read the cursor and counters of a batch NFO apply; 404 for other job kinds", "", "NFOApplyJobState", "", false, false, false},
 		{"/jobs/{id}/nfo", "get", "Read committed historical NFO counters", "", "NFOJobSummary", "", false, false, false},
 		{"/jobs/{id}/images", "get", "Read image inventory attribute comparisons", "", "ImageJobSummary", "", false, false, false},
 		{"/libraries/{id}/nfo/current-validations", "get", "List current NFO cache observations by UUID cursor", "", "NFOObservationPage", "observations", false, false, false},

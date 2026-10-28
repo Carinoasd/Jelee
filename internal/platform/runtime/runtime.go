@@ -283,6 +283,10 @@ func newWithLifetime(cfg config.Config, logger *slog.Logger, lifetime *lifetime)
 					return nil, err
 				}
 			}
+			// G39.14: the same runner that claims nfo_apply jobs admits them.
+			if service, err = app.NewJobsWithNFOApply(service, store); err != nil {
+				return nil, err
+			}
 			service, err = app.NewJobsWithInventoryImport(service, store, scan.New())
 			if err != nil {
 				return nil, err
@@ -339,6 +343,15 @@ func newWithLifetime(cfg config.Config, logger *slog.Logger, lifetime *lifetime)
 				return nil, err
 			}
 			opts.Consistency = &jobworker.ConsistencyOptions{Checker: checker, Repository: store, Template: consistency.Template(c)}
+			applyMetadata, err := bindMetadata(nil, store)
+			if err != nil {
+				return nil, err
+			}
+			applyWorker, err := app.NewNFOApplyWorker(applyMetadata, store, time.Duration(p.DatabaseTimeoutSeconds)*time.Second)
+			if err != nil {
+				return nil, err
+			}
+			opts.NFOApply = &jobworker.NFOApplyOptions{Worker: applyWorker, Repository: store}
 			if probing.Available() {
 				opts.Probe = &jobworker.ProbeOptions{Repository: store, Prober: probing, LeaseDuration: domain.DefaultProbeCachePolicy().LeaseDuration, MaxConcurrent: 2, Available: probing.Available, OnRuntimeUnavailable: probing.Disable}
 			}

@@ -39,6 +39,11 @@ func (s *Server) nfoRoutes(r chi.Router) {
 	r.Post("/api/v1/items/{id}/nfo/write-preparations", s.accountEndpoint(true, false, s.prepareNFOWrite))
 	r.Post("/api/v1/libraries/{id}/nfo/writes", s.accountEndpoint(true, false, s.submitNFOWrite))
 	r.Post("/api/v1/libraries/{id}/nfo/validate", s.accountEndpoint(true, false, s.validateLibraryNFO))
+	r.Post("/api/v1/libraries/{id}/nfo/apply", s.accountEndpoint(true, false, s.applyLibraryNFO))
+	r.Get("/api/v1/jobs/{id}/nfo-apply", s.accountEndpoint(true, false, func(_ http.ResponseWriter, r *http.Request, a domain.Actor) (any, int, error) {
+		state, err := s.jobs.NFOApplyState(r.Context(), a, chi.URLParam(r, "id"))
+		return state, http.StatusOK, err
+	}))
 	r.Get("/api/v1/jobs/{id}/nfo", s.accountEndpoint(true, false, func(w http.ResponseWriter, r *http.Request, a domain.Actor) (any, int, error) {
 		summary, err := s.jobs.NFOSummary(r.Context(), a, chi.URLParam(r, "id"))
 		return summary, http.StatusOK, err
@@ -85,6 +90,26 @@ func (s *Server) validateLibraryNFO(w http.ResponseWriter, r *http.Request, a do
 		input.Priority = domain.JobPriorityManual
 	}
 	job, replay, err := s.jobs.SubmitScanStages(r.Context(), a, chi.URLParam(r, "id"), key, input.Priority, false, true)
+	return acceptedJob(w, job, replay, err)
+}
+
+// applyLibraryNFO queues a batch NFO apply (G39.14). The library must be
+// read-only, otherwise the answer is 409 conflict.
+func (s *Server) applyLibraryNFO(w http.ResponseWriter, r *http.Request, a domain.Actor) (any, int, error) {
+	var input struct {
+		Priority string `json:"priority"`
+	}
+	if err := DecodeJSON(w, r, &input, accountBodyLimit); err != nil {
+		return nil, 0, err
+	}
+	key, err := jobKey(r)
+	if err != nil {
+		return nil, 0, err
+	}
+	if input.Priority == "" {
+		input.Priority = domain.JobPriorityManual
+	}
+	job, replay, err := s.jobs.SubmitNFOApply(r.Context(), a, chi.URLParam(r, "id"), key, input.Priority)
 	return acceptedJob(w, job, replay, err)
 }
 

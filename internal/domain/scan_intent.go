@@ -21,6 +21,8 @@ type ScanCapabilities struct {
 	// ConsistencyCheck lets a worker with a configured checker claim
 	// consistency_check jobs.
 	ConsistencyCheck bool
+	// NFOApply lets a worker with a configured applier claim nfo_apply jobs.
+	NFOApply bool
 }
 
 func ValidateScanIntent(v ScanIntent) error {

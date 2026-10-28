@@ -76,6 +76,7 @@ var auditEvents = map[string]string{
 	"item.external_metadata_removed":       domain.AuditCategoryAudit,
 	"job.recovered":                        domain.AuditCategoryAudit,
 	"nfo.write_submitted":                  domain.AuditCategoryAudit,
+	"nfo.apply_submitted":                  domain.AuditCategoryAudit,
 	"job.missing_accepted":                 domain.AuditCategoryAudit,
 	"inventory.baseline_accepted":          domain.AuditCategoryAudit,
 	"catalog_sync.submitted":               domain.AuditCategoryAudit,
