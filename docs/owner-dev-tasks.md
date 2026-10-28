@@ -22,6 +22,8 @@
 
 ## 任務一：NFO 寫回的清理機制（優先）
 
+> 狀態：已實作（schema86），設計與驗證見 [nfo-commit-cleanup.md](nfo-commit-cleanup.md)。下列原始需求保留供對照；與原文不同之處：沒有 phase 1 結算的 token（從未改名目標）收尾後同樣可以清理，否則失敗的準備會永久佔用容量。
+
 ### 為什麼要做
 每次寫回都會保留以下物件，目前沒有任何程式移除它們：
 - 結算後的 pin（original-pin、output-pin、rollback-pin）與回滾檔。

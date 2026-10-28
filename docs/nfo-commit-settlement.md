@@ -101,7 +101,7 @@ Store 方法：
 
 ## 還沒做
 
-- 清理協議：結算後保留的 pin／rollback／output-pin 檔與 `-backup-evicted` 尚未移除；attempt reservation 全域 256 筆／1GiB 只增不減，累計 256 個 token 後所有新寫回都會被拒。這是大量匯出（G39.14）前必須先做的。
+- ~~清理協議~~：已由 schema86 完成，見 [清理與容量回收](nfo-commit-cleanup.md)。收尾後的 token 由清理程序刪除自己保留的物件並釋放 reservation。
 - 外來目標（phase 1 之後目標被換成不明物件）只能人工處理；actor 停用後恢復租約取不到（057 已知缺口）。
 - 恢復只續作既有 token；當機前未開始的 entry 不會被執行，job 最終保持 failed，需要重新送件。
 - Windows 目錄落盤仍是 stub；Windows 真 PG、完整分片回歸與大批量長測尚未跑。

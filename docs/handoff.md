@@ -1,3 +1,13 @@
+## 2026-10-28 Claude 接續：schema86 NFO 寫回清理與容量回收
+
+設計見 [nfo-commit-cleanup.md](nfo-commit-cleanup.md)，完成 [擁有者任務一](owner-dev-tasks.md)。新增每個 token 一列的清理租約（epoch 接手）與不可改刪的清理紀錄；有紀錄的 token 不再計入 attempt 全域容量（256 筆／1 GiB）。`nfo.Writer.CleanNFOWriteCommitFiles` 持 NFO 檔案鎖，只刪除身分與持久紀錄相同的 commit 名稱，以及身分等於先前已結算計畫原目標的 `-backup-evicted`；其他物件保留並計數。`jobs.Runner` 的恢復迴圈每輪結束後清理已收尾的 token。
+
+驗證：Linux 真 PG 16 新增 5 個測試（端到端、256 筆容量回收、租約互斥與接手、migration 往返與拒絕），nfo 套件新增檔案系統、8 種子程序中斷與反向驗證，app 套件新增 4 個。NFO commit／worker／migration 相關套件的 race 回歸見 PR。
+
+仍缺：outcome 2 保留物件的列舉 API；Windows 目錄落盤 stub 與 Windows 真 PG 照舊。
+
+---
+
 ## 2026-10-04 Claude 接續：schema59 NFO 結算、收尾與 nfo_write worker（原分支 claude/nfo-worker 合併時由 058 重新編號）
 
 設計見 [nfo-commit-settlement.md](nfo-commit-settlement.md)。新增只追加的結算紀錄（備份→替換／回滾，只能前進、首次時間不可變、取消只回滾、回滾不受 catalog 漂移阻擋）與 job 收尾；`retain_nfo_write_commit_job` 允許「有收尾且每個 entry 已替換」時轉 succeeded（running 或恢復後的 failed）。Writer.SettleCommitFiles／AbortCommitFiles 接上 Rename、備份、回滾並可從持久階段與目標實體續作；app.NFOWriteWorker 與 jobs.Runner 的 NFOWriteOptions 接上 claim、執行、停止與恢復迴圈，設定 `JELEE_ENABLE_NFO_WRITE` 預設關閉。Store.SubmitNFOWriteJob 為 Store 層送件（尚無 HTTP／CLI）。
