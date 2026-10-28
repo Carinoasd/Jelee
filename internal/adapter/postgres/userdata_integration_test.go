@@ -123,7 +123,12 @@ func (f userDataFixture) seed(t *testing.T, native, web domain.Actor) (share, gu
 	f.exec(t, `INSERT INTO user_track_preferences(user_id,item_id,audio_language) VALUES($1::uuid,$2::uuid,'ja')`, uid, f.item)
 	f.exec(t, `INSERT INTO user_blocked_tags(user_id,tag) VALUES($1::uuid,'horror')`, uid)
 	f.exec(t, `INSERT INTO user_blocked_keywords(user_id,keyword) VALUES($1::uuid,'gore')`, uid)
-	f.exec(t, `INSERT INTO user_access_windows(user_id,position,start_minute,end_minute,time_zone) VALUES($1::uuid,0,1260,420,'Asia/Taipei')`, uid)
+	// The window must be exported but not open while the test runs: an open
+	// window hides every item, and with it the share link the export checks.
+	// It opens two hours from now for one hour (Taipei has no DST).
+	taipei := time.Now().UTC().Add(8 * time.Hour)
+	start := (taipei.Hour()*60 + taipei.Minute() + 120) % 1440
+	f.exec(t, `INSERT INTO user_access_windows(user_id,position,start_minute,end_minute,time_zone) VALUES($1::uuid,0,$2,$3,'Asia/Taipei')`, uid, start, (start+60)%1440)
 	f.exec(t, `WITH p AS (INSERT INTO playlists(owner_id,name) VALUES($1::uuid,'purge list') RETURNING id) INSERT INTO playlist_items(playlist_id,item_id,position) SELECT id,$2::uuid,0 FROM p`, uid, f.item)
 	f.exec(t, `INSERT INTO collections(name,created_by) VALUES('purge collection',$1::uuid)`, uid)
 	f.exec(t, `INSERT INTO repair_runs(action,origin,actor_id) VALUES('stats','api',$1::uuid)`, uid)
