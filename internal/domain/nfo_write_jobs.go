@@ -1,6 +1,12 @@
 package domain
 
+import "errors"
+
 const JobNFOWrite = "nfo_write"
+
+// ErrNFOWriteDisabled refuses an NFO write job for a library that is not
+// read-only with writes enabled (409 nfo_write_disabled).
+var ErrNFOWriteDisabled = errors.New("nfo_write_disabled")
 
 // Task data is owned by the job, independent of preparation expiry. Retrieving
 // a task does not grant policy, filesystem or durable commit authorization.

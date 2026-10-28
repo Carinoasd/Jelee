@@ -45,7 +45,7 @@ func newJobsHTTP(t *testing.T, repo httpJobRepo, enabled bool) http.Handler {
 	return newJobsHTTPService(t, jobs, enabled)
 }
 
-func newJobsHTTPService(t *testing.T, jobs *app.Jobs, enabled bool) http.Handler {
+func newJobsHTTPService(t *testing.T, jobs *app.Jobs, enabled bool, options ...Option) http.Handler {
 	t.Helper()
 	cfg := validConfig()
 	cfg.EnableAccounts = true
@@ -63,7 +63,7 @@ func newJobsHTTPService(t *testing.T, jobs *app.Jobs, enabled bool) http.Handler
 		}
 		return access.Principal{}, domain.ErrUnauthenticated
 	}}
-	h, err := NewWithJobs(cfg, backend, app.NewCatalog(&fakeRepository{}), &fakeResolver{}, slog.New(slog.NewTextHandler(io.Discard, nil)), accounts, jobs)
+	h, err := NewWithImages(cfg, backend, app.NewCatalog(&fakeRepository{}), &fakeResolver{}, slog.New(slog.NewTextHandler(io.Discard, nil)), accounts, jobs, nil, nil, nil, options...)
 	if err != nil {
 		t.Fatal(err)
 	}

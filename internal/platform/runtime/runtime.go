@@ -277,6 +277,12 @@ func newWithLifetime(cfg config.Config, logger *slog.Logger, lifetime *lifetime)
 			if err != nil {
 				return nil, err
 			}
+			if c.EnableNFOWrite {
+				// G39.7: only a runner that claims nfo_write jobs may admit them.
+				if service, err = app.NewJobsWithNFOWrite(service, store); err != nil {
+					return nil, err
+				}
+			}
 			service, err = app.NewJobsWithInventoryImport(service, store, scan.New())
 			if err != nil {
 				return nil, err
@@ -376,6 +382,20 @@ func newWithLifetime(cfg config.Config, logger *slog.Logger, lifetime *lifetime)
 					variants = originals
 				}
 				options = append(options, httpapi.WithRepair(repairer.WithServer(jobs, variants), consistency.RepairTemplate(c)))
+				// G39.7: administrators prepare NFO edits through the server
+				// with the shared work budget. Without a budget the route
+				// answers as an unavailable NFO service.
+				if budget != nil {
+					preparer, err := nfo.NewWritePreparer(budget)
+					if err != nil {
+						return nil, err
+					}
+					preparations, err := app.NewNFOWritePreparations(store, preparer)
+					if err != nil {
+						return nil, err
+					}
+					options = append(options, httpapi.WithNFOWritePreparations(preparations))
+				}
 			}
 			// G46.2, G46.9: administrators adjust levels and retention at
 			// runtime through the log router of this process.

@@ -69,6 +69,7 @@ type Server struct {
 	web                 *webApp
 	compat              http.Handler
 	webhooks            *app.Webhooks
+	nfoWrites           *app.NFOWritePreparations
 	clients             *ClientControl
 	// setup is the G18 wizard and request gate; nil when not wired.
 	setup *setupGate
@@ -898,6 +899,8 @@ func WriteError(w http.ResponseWriter, r *http.Request, err error) {
 		status, code, message = 503, "ignore_unavailable", "Ignore scanning is unavailable."
 	case errors.Is(err, domain.ErrNFOReaderUnavailable):
 		status, code, message = 503, "nfo_reader_unavailable", "NFO validation is unavailable."
+	case errors.Is(err, domain.ErrNFOWriteDisabled):
+		status, code, message = 409, "nfo_write_disabled", "NFO writing is not enabled for this library."
 	case errors.Is(err, domain.ErrNFOCacheCapacity):
 		status, code, message = 409, "nfo_cache_capacity", "NFO cache capacity reached."
 	case errors.Is(err, domain.ErrNFOIdentityMismatch):

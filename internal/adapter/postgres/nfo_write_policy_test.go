@@ -76,7 +76,7 @@ func TestNFOWriteJobAdmissionNeedsWritePermission(t *testing.T) {
 	if _, err = f.s.Pool.Exec(f.ctx, `UPDATE libraries SET nfo_write_enabled=false WHERE id=$1::uuid`, lib); err != nil {
 		t.Fatal(err)
 	}
-	if _, _, err = f.s.SubmitNFOWriteJob(f.ctx, f.a, lib, "policy-job", domain.JobPriorityManual, []string{p.ID}, f.policy); !errors.Is(err, domain.ErrConflict) {
+	if _, _, err = f.s.SubmitNFOWriteJob(f.ctx, f.a, lib, "policy-job", domain.JobPriorityManual, []string{p.ID}, f.policy); !errors.Is(err, domain.ErrNFOWriteDisabled) {
 		t.Fatal("write job admitted without the write permission", err)
 	}
 	var jobs int

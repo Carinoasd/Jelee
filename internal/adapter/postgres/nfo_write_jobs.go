@@ -166,7 +166,7 @@ func (s *Store) SubmitNFOWriteJob(ctx context.Context, actor domain.Actor, libra
 		return domain.Job{}, false, storageError(err)
 	}
 	if !writable {
-		return domain.Job{}, false, domain.ErrConflict
+		return domain.Job{}, false, domain.ErrNFOWriteDisabled
 	}
 	var busy bool
 	var active int
