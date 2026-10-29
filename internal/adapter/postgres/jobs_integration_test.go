@@ -26,7 +26,14 @@ type jobFixture struct {
 
 func newJobFixture(t *testing.T, setup ...func(*testing.T, jobFixture)) jobFixture {
 	t.Helper()
-	ctx, s, _ := accountTestStore(t)
+	return newJobFixtureWithin(t, 90*time.Second, setup...)
+}
+
+// newJobFixtureWithin is newJobFixture with an explicit budget for the whole
+// test, for tests that run several complete jobs one after another.
+func newJobFixtureWithin(t *testing.T, timeout time.Duration, setup ...func(*testing.T, jobFixture)) jobFixture {
+	t.Helper()
+	ctx, s, _ := accountTestStoreWithTimeout(t, timeout)
 	if _, err := s.BootstrapAdmin(ctx, accountInput("job-admin")); err != nil {
 		t.Fatal(err)
 	}
