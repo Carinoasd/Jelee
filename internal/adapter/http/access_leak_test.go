@@ -136,6 +136,7 @@ func leakRouteTable() map[string]leakRoute {
 		// the shared delivery handler runs.
 		"GET /compat/Items/{itemId}/PlaybackInfo":                                                             {mode: leakByID, params: map[string]string{"itemId": "item"}, control: true},
 		"POST /compat/Items/{itemId}/PlaybackInfo":                                                            {mode: leakByID, params: map[string]string{"itemId": "item"}, control: true},
+		"GET /compat/Videos/{itemId}/AdditionalParts":                                                         {mode: leakByID, params: map[string]string{"itemId": "item"}, control: true},
 		"GET /compat/Videos/{itemId}/stream":                                                                  {mode: leakByID, params: map[string]string{"itemId": "item"}, control: true},
 		"GET /compat/Videos/{itemId}/stream.{container}":                                                      {mode: leakByID, params: map[string]string{"itemId": "item", "container": "compat-container"}, control: true},
 		"GET /compat/Videos/{itemId}/{mediaSourceId}/Subtitles/{index}/Stream.{format}":                       {mode: leakByID, params: map[string]string{"itemId": "item", "mediaSourceId": "source", "index": "compat-subtitle-index", "format": "compat-subtitle-format"}, control: true},

@@ -226,13 +226,13 @@ func TestLibraryRoutesAreWalkable(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, route := range []string{"GET /UserViews", "GET /Users/{id}/Views", "GET /Items", "GET /Users/{id}/Items", "GET /Items/{itemId}", "GET /Users/{id}/Items/{itemId}",
-		"GET /Items/{itemId}/PlaybackInfo", "POST /Items/{itemId}/PlaybackInfo"} {
+		"GET /Items/{itemId}/PlaybackInfo", "POST /Items/{itemId}/PlaybackInfo", "GET /Videos/{itemId}/AdditionalParts"} {
 		if !seen[route] {
 			t.Fatalf("route %s not walkable: %v", route, seen)
 		}
 	}
 	// Without a delivery handler no stream route is registered.
-	if len(seen) != 12 {
+	if len(seen) != 13 {
 		t.Fatalf("unexpected routes %v", seen)
 	}
 }

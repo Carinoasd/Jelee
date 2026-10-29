@@ -236,6 +236,11 @@ func (s *Server) itemSources(w http.ResponseWriter, r *http.Request) {
 		for j := range sources[i].External {
 			sources[i].External[j].URL = ""
 		}
+		for k := range sources[i].Parts {
+			for j := range sources[i].Parts[k].External {
+				sources[i].Parts[k].External[j].URL = ""
+			}
+		}
 	}
 	writeJSON(w, 200, map[string]any{"data": map[string]any{"itemId": id, "sources": sources}})
 }

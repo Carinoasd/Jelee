@@ -36,6 +36,9 @@ func describe(p Parsed) string {
 	if p.Part != 0 {
 		parts = append(parts, fmt.Sprintf("part=%d", p.Part))
 	}
+	if p.PartStem != "" {
+		parts = append(parts, "ps="+p.PartStem)
+	}
 	if !p.Date.IsZero() {
 		parts = append(parts, fmt.Sprintf("d=%04d-%02d-%02d", p.Date.Year, p.Date.Month, p.Date.Day))
 	}

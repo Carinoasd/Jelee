@@ -99,20 +99,24 @@ type queryResult struct {
 // BackdropImageTags list the item's image slots (see attachImages); they are
 // null (omitted) when the request turns images off, as upstream.
 type baseItemDto struct {
-	Name           string            `json:"Name"`
-	ServerID       string            `json:"ServerId"`
-	ID             string            `json:"Id"`
-	SortName       string            `json:"SortName,omitempty"`
-	PremiereDate   string            `json:"PremiereDate,omitempty"`
-	MediaSources   []mediaSourceInfo `json:"MediaSources,omitempty"`
-	Overview       string            `json:"Overview,omitempty"`
-	RunTimeTicks   *int64            `json:"RunTimeTicks,omitempty"`
-	ProductionYear int               `json:"ProductionYear,omitempty"`
-	IsFolder       bool              `json:"IsFolder"`
-	ParentID       string            `json:"ParentId,omitempty"`
-	Type           string            `json:"Type"`
-	UserData       userItemData      `json:"UserData"`
-	CollectionType string            `json:"CollectionType,omitempty"`
+	Name         string            `json:"Name"`
+	ServerID     string            `json:"ServerId"`
+	ID           string            `json:"Id"`
+	SortName     string            `json:"SortName,omitempty"`
+	PremiereDate string            `json:"PremiereDate,omitempty"`
+	MediaSources []mediaSourceInfo `json:"MediaSources,omitempty"`
+	Overview     string            `json:"Overview,omitempty"`
+	RunTimeTicks *int64            `json:"RunTimeTicks,omitempty"`
+	// PartCount is the number of files of a multi-part default version
+	// (G21.1); absent for a single file, as upstream. The later parts are
+	// listed by /Videos/{itemId}/AdditionalParts.
+	PartCount      int          `json:"PartCount,omitempty"`
+	ProductionYear int          `json:"ProductionYear,omitempty"`
+	IsFolder       bool         `json:"IsFolder"`
+	ParentID       string       `json:"ParentId,omitempty"`
+	Type           string       `json:"Type"`
+	UserData       userItemData `json:"UserData"`
+	CollectionType string       `json:"CollectionType,omitempty"`
 	// PrimaryImageAspectRatio is width over height of the primary image,
 	// sent when asked for in Fields and the size is known.
 	PrimaryImageAspectRatio *float64          `json:"PrimaryImageAspectRatio,omitempty"`
@@ -803,7 +807,12 @@ func (rt *router) itemByID(w http.ResponseWriter, r *http.Request) {
 			dto.MediaSources = append(dto.MediaSources, info)
 		}
 		if len(sources) > 0 {
-			dto.RunTimeTicks = ticks(sources[0].DurationMicros)
+			// A multi-part default version runs for the combined duration
+			// of its parts; playback progress uses the same timeline.
+			dto.RunTimeTicks = ticks(sources[0].RuntimeMicros())
+			if n := sources[0].PartCount(); n > 1 {
+				dto.PartCount = n
+			}
 		}
 	}
 	single := []baseItemDto{dto}

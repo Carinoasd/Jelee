@@ -1,5 +1,7 @@
 package httpapi
 
+import "slices"
+
 func playbackSpecification(paths, schemas map[string]any) {
 	nonNegative := map[string]any{"type": "integer", "minimum": 0}
 	boolean := map[string]any{"type": "boolean"}
@@ -163,5 +165,19 @@ func mediaSourceSchema(withURL bool) map[string]any {
 		}, "audio", "subtitle", "basis")
 		properties["defaultTracks"].(map[string]any)["description"] = "Tracks the caller's preferences pick (G16.5, G20.4). A client may start with others; nothing is converted."
 	}
-	return objectSchema(properties, "id", "container", "contentType", "probed", "version", "videoTracks", "audioTracks", "subtitleTracks", "externalTracks", "primary")
+	required := []string{"id", "container", "contentType", "probed", "version", "videoTracks", "audioTracks", "subtitleTracks", "externalTracks", "primary"}
+	// A part is described like a version of its own (G21.1), without the
+	// version-level members.
+	part := make(map[string]any, len(properties)+2)
+	for k, v := range properties {
+		if k != "defaultTracks" {
+			part[k] = v
+		}
+	}
+	part["number"] = map[string]any{"type": "integer", "minimum": 1, "maximum": 99, "description": "1-based play order; part 1 is the version itself."}
+	part["startMicros"] = map[string]any{"type": "integer", "minimum": 0, "description": "Where the part begins on the version's combined timeline (sum of the earlier parts' durations); absent when an earlier part's duration is unknown."}
+	properties["parts"] = map[string]any{"type": "array", "minItems": 2, "items": objectSchema(part, append(slices.Clone(required), "number")...),
+		"description": "Every file of a multi-part version (G21.1: movie.cd1.mkv, movie.cd2.mkv in one directory) in play order; absent for a single file. The source's other members describe part 1. Parts are played one after the other, each delivered as it is from its own source routes; nothing is joined or converted. Playback progress of such a version is a position on the combined timeline."}
+	properties["totalDurationMicros"] = map[string]any{"type": "integer", "minimum": 0, "description": "Combined duration of all parts; absent for a single file or when a part's duration is unknown."}
+	return objectSchema(properties, required...)
 }

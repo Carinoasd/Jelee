@@ -38,22 +38,25 @@ type catalogSyncRequest struct {
 	cursorRoot, cursorPath, missingCursor      *string
 	examined, created, updated, unchanged      int64
 	protected, pending, markedMissing, removed int64
-	// versionsCursor and aggregated belong to the versions phase.
+	// versionsCursor and aggregated belong to the versions phase, which
+	// first assembles multi-part versions (partsCursor, partsDone; G21.1).
 	versionsCursor *string
 	aggregated     int64
+	partsCursor    *string
+	partsDone      bool
 }
 
 func readCatalogSyncRequest(ctx context.Context, tx pgx.Tx, job string) (catalogSyncRequest, error) {
 	var r catalogSyncRequest
-	err := tx.QueryRow(ctx, `SELECT library_id::text,mode,phase,source_job_id::text,expected_snapshot,expected_revision,inventory_generation,publish_snapshot,publish_total,publish_copied,publish_cursor::text,publish_cleaned,target_snapshot,target_revision,cursor_root::text,cursor_path,missing_cursor::text,examined,created,updated,unchanged,protected,pending,marked_missing,removed,versions_cursor::text,aggregated FROM catalog_sync_requests WHERE job_id=$1::uuid FOR UPDATE`, job).Scan(
+	err := tx.QueryRow(ctx, `SELECT library_id::text,mode,phase,source_job_id::text,expected_snapshot,expected_revision,inventory_generation,publish_snapshot,publish_total,publish_copied,publish_cursor::text,publish_cleaned,target_snapshot,target_revision,cursor_root::text,cursor_path,missing_cursor::text,examined,created,updated,unchanged,protected,pending,marked_missing,removed,versions_cursor::text,aggregated,parts_cursor::text,parts_done FROM catalog_sync_requests WHERE job_id=$1::uuid FOR UPDATE`, job).Scan(
 		&r.library, &r.mode, &r.phase, &r.source, &r.expectedSnapshot, &r.expectedRevision, &r.epoch, &r.publishSnapshot, &r.publishTotal, &r.publishCopied, &r.publishCursor, &r.publishCleaned, &r.targetSnapshot, &r.targetRevision, &r.cursorRoot, &r.cursorPath, &r.missingCursor,
-		&r.examined, &r.created, &r.updated, &r.unchanged, &r.protected, &r.pending, &r.markedMissing, &r.removed, &r.versionsCursor, &r.aggregated)
+		&r.examined, &r.created, &r.updated, &r.unchanged, &r.protected, &r.pending, &r.markedMissing, &r.removed, &r.versionsCursor, &r.aggregated, &r.partsCursor, &r.partsDone)
 	return r, storageError(err)
 }
 
 func writeCatalogSyncRequest(ctx context.Context, tx pgx.Tx, job string, r catalogSyncRequest) error {
-	_, err := tx.Exec(ctx, `UPDATE catalog_sync_requests SET phase=$2,publish_snapshot=$3,publish_copied=$4,publish_cursor=$5::uuid,publish_cleaned=$6,target_snapshot=$7,target_revision=$8,cursor_root=$9::uuid,cursor_path=$10,missing_cursor=$11::uuid,examined=$12,created=$13,updated=$14,unchanged=$15,protected=$16,pending=$17,marked_missing=$18,removed=$19,versions_cursor=$20::uuid,aggregated=$21 WHERE job_id=$1::uuid`,
-		job, r.phase, r.publishSnapshot, r.publishCopied, r.publishCursor, r.publishCleaned, r.targetSnapshot, r.targetRevision, r.cursorRoot, r.cursorPath, r.missingCursor, r.examined, r.created, r.updated, r.unchanged, r.protected, r.pending, r.markedMissing, r.removed, r.versionsCursor, r.aggregated)
+	_, err := tx.Exec(ctx, `UPDATE catalog_sync_requests SET phase=$2,publish_snapshot=$3,publish_copied=$4,publish_cursor=$5::uuid,publish_cleaned=$6,target_snapshot=$7,target_revision=$8,cursor_root=$9::uuid,cursor_path=$10,missing_cursor=$11::uuid,examined=$12,created=$13,updated=$14,unchanged=$15,protected=$16,pending=$17,marked_missing=$18,removed=$19,versions_cursor=$20::uuid,aggregated=$21,parts_cursor=$22::uuid,parts_done=$23 WHERE job_id=$1::uuid`,
+		job, r.phase, r.publishSnapshot, r.publishCopied, r.publishCursor, r.publishCleaned, r.targetSnapshot, r.targetRevision, r.cursorRoot, r.cursorPath, r.missingCursor, r.examined, r.created, r.updated, r.unchanged, r.protected, r.pending, r.markedMissing, r.removed, r.versionsCursor, r.aggregated, r.partsCursor, r.partsDone)
 	return storageError(err)
 }
 

@@ -55,7 +55,7 @@ func (rt *router) playbackChoice(r *http.Request, principal access.Principal, it
 // when it can (directPlayable).
 func (rt *router) playbackExclusion(req playbackRequest, source domain.PlaybackSource) []string {
 	switch {
-	case req.mediaSourceID != "" && source.ID != req.mediaSourceID:
+	case req.mediaSourceID != "" && source.ID != req.mediaSourceID && !hasPart(source, req.mediaSourceID):
 		return []string{exclusionNotRequested}
 	case !rt.opts.Library.DirectPlay || !req.directPlay:
 		return []string{exclusionDirectPlayOff}
@@ -65,4 +65,14 @@ func (rt *router) playbackExclusion(req playbackRequest, source domain.PlaybackS
 		return []string{domain.PlaybackReasonBitrate}
 	}
 	return []string{exclusionProfile}
+}
+
+// hasPart reports a multi-part version one of whose parts is id (G21.1).
+func hasPart(source domain.PlaybackSource, id string) bool {
+	for _, part := range source.Parts {
+		if part.ID == id {
+			return true
+		}
+	}
+	return false
 }

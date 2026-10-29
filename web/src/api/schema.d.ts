@@ -34425,6 +34425,106 @@ export type components = {
             }[];
             /** Format: uuid */
             id: string;
+            /** @description Every file of a multi-part version (G21.1: movie.cd1.mkv, movie.cd2.mkv in one directory) in play order; absent for a single file. The source's other members describe part 1. Parts are played one after the other, each delivered as it is from its own source routes; nothing is joined or converted. Playback progress of such a version is a position on the combined timeline. */
+            parts?: {
+                attachments?: {
+                    fileName: string;
+                    font: boolean;
+                    /** @description 1-based Matroska attachment ID. */
+                    id: number;
+                    /** @description Probe stream index of the same attachment, when the probe listed exactly as many attachment streams. */
+                    streamIndex?: number;
+                }[];
+                audioTracks: {
+                    atmos: boolean;
+                    bitRate?: number;
+                    channelLayout?: string;
+                    channels?: number;
+                    codec?: string;
+                    default: boolean;
+                    forced: boolean;
+                    index: number;
+                    language?: string;
+                    profile?: string;
+                    sampleRate?: number;
+                }[];
+                /** @description Bits per second as probed, or size × 8 ÷ duration when the container states none. */
+                bitRate?: number;
+                /**
+                 * @description Container token derived from the stored content type.
+                 * @enum {string}
+                 */
+                container: "mp4" | "mkv" | "webm" | "mov" | "avi" | "mpegts";
+                contentType: string;
+                durationMicros?: number;
+                externalTracks: {
+                    /** @description Detected charset of a text subtitle. Reported only; the file is delivered unconverted. */
+                    charset?: string;
+                    /** @description Canonical subtitle format or audio codec implied by the extension; absent for mka, m4a, ogg, oga and .sub, which only probing can tell. */
+                    codec?: string;
+                    commentary: boolean;
+                    default: boolean;
+                    forced: boolean;
+                    /** @description File extension of the sidecar file. */
+                    format: string;
+                    /** Format: uuid */
+                    id: string;
+                    /** @enum {string} */
+                    kind: "subtitle" | "audio";
+                    language?: string;
+                    languages?: string[];
+                    sdh: boolean;
+                    sizeBytes: number;
+                    title?: string;
+                }[];
+                /** Format: uuid */
+                id: string;
+                /** @description 1-based play order; part 1 is the version itself. */
+                number: number;
+                /** @description The administrator's main version (G20.3); listed first, then by qualityScore. */
+                primary: boolean;
+                /** @description False when no current probe result exists (never probed, failed, expired, or the file changed since). Stream lists are then empty and the version labels come from the file name only. */
+                probed: boolean;
+                sizeBytes?: number;
+                /** @description Where the part begins on the version's combined timeline (sum of the earlier parts' durations); absent when an earlier part's duration is unknown. */
+                startMicros?: number;
+                subtitleTracks: {
+                    codec?: string;
+                    default: boolean;
+                    /** @description A SubRip, ASS, SSA or WebVTT track inside a Matroska/WebM source that the optional mkvtoolnix runtime can copy unconverted (G15.5). */
+                    extractable?: boolean;
+                    forced: boolean;
+                    /** @description Canonical format clients declare: srt, ass, ssa, webvtt, mov_text, pgs, vobsub, dvb, eia_608 or text. */
+                    format?: string;
+                    index: number;
+                    language?: string;
+                    /** @description Matroska track name from the optional MediaInfo supplement. */
+                    title?: string;
+                }[];
+                /** @description G20.2 version labels with qualityScore and displayName. Playback information lists sources in the caller's default version order (version preference, main version, qualityScore descending). Other label fields may be added. */
+                version: {
+                    displayName: string;
+                    qualityScore: number;
+                } & {
+                    [key: string]: unknown;
+                };
+                videoTracks: {
+                    bitRate?: number;
+                    codec?: string;
+                    default: boolean;
+                    frameRate?: {
+                        denominator: number;
+                        numerator: number;
+                    };
+                    height?: number;
+                    index: number;
+                    level?: number;
+                    /** @description The stream the direct play decision checks. Cover art is not listed. */
+                    primary: boolean;
+                    profile?: string;
+                    width?: number;
+                }[];
+            }[];
             /** @description The administrator's main version (G20.3); listed first, then by qualityScore. */
             primary: boolean;
             /** @description False when no current probe result exists (never probed, failed, expired, or the file changed since). Stream lists are then empty and the version labels come from the file name only. */
@@ -34443,6 +34543,8 @@ export type components = {
                 /** @description Matroska track name from the optional MediaInfo supplement. */
                 title?: string;
             }[];
+            /** @description Combined duration of all parts; absent for a single file or when a part's duration is unknown. */
+            totalDurationMicros?: number;
             /** @description G20.2 version labels with qualityScore and displayName. Playback information lists sources in the caller's default version order (version preference, main version, qualityScore descending). Other label fields may be added. */
             version: {
                 displayName: string;
@@ -35210,6 +35312,121 @@ export type components = {
             }[];
             /** Format: uuid */
             id: string;
+            /** @description Every file of a multi-part version (G21.1: movie.cd1.mkv, movie.cd2.mkv in one directory) in play order; absent for a single file. The source's other members describe part 1. Parts are played one after the other, each delivered as it is from its own source routes; nothing is joined or converted. Playback progress of such a version is a position on the combined timeline. */
+            parts?: {
+                attachments?: {
+                    fileName: string;
+                    font: boolean;
+                    /** @description 1-based Matroska attachment ID. */
+                    id: number;
+                    /** @description Probe stream index of the same attachment, when the probe listed exactly as many attachment streams. */
+                    streamIndex?: number;
+                    /** @description Present for fonts when extraction is enabled and available: /api/v1/sources/{id}/attachments/{attachmentId}. Native sessions only. */
+                    url?: string;
+                }[];
+                audioTracks: {
+                    atmos: boolean;
+                    bitRate?: number;
+                    channelLayout?: string;
+                    channels?: number;
+                    codec?: string;
+                    default: boolean;
+                    forced: boolean;
+                    index: number;
+                    language?: string;
+                    profile?: string;
+                    sampleRate?: number;
+                }[];
+                /** @description Bits per second as probed, or size × 8 ÷ duration when the container states none. */
+                bitRate?: number;
+                /**
+                 * @description Container token derived from the stored content type.
+                 * @enum {string}
+                 */
+                container: "mp4" | "mkv" | "webm" | "mov" | "avi" | "mpegts";
+                contentType: string;
+                durationMicros?: number;
+                externalTracks: {
+                    /** @description Detected charset of a text subtitle. Reported only; the file is delivered unconverted. */
+                    charset?: string;
+                    /** @description Canonical subtitle format or audio codec implied by the extension; absent for mka, m4a, ogg, oga and .sub, which only probing can tell. */
+                    codec?: string;
+                    commentary: boolean;
+                    default: boolean;
+                    forced: boolean;
+                    /** @description File extension of the sidecar file. */
+                    format: string;
+                    /** Format: uuid */
+                    id: string;
+                    /** @enum {string} */
+                    kind: "subtitle" | "audio";
+                    language?: string;
+                    languages?: string[];
+                    sdh: boolean;
+                    sizeBytes: number;
+                    title?: string;
+                    /** @description Direct delivery route of the original file: /api/v1/sources/{id}/subtitles/{trackId} or /api/v1/sources/{id}/audio/{trackId}. Native sessions only. */
+                    url: string;
+                }[];
+                /** Format: uuid */
+                id: string;
+                /** @description 1-based play order; part 1 is the version itself. */
+                number: number;
+                /** @description The administrator's main version (G20.3); listed first, then by qualityScore. */
+                primary: boolean;
+                /** @description False when no current probe result exists (never probed, failed, expired, or the file changed since). Stream lists are then empty and the version labels come from the file name only. */
+                probed: boolean;
+                sizeBytes?: number;
+                /** @description Where the part begins on the version's combined timeline (sum of the earlier parts' durations); absent when an earlier part's duration is unknown. */
+                startMicros?: number;
+                subtitleTracks: {
+                    codec?: string;
+                    default: boolean;
+                    /** @description A SubRip, ASS, SSA or WebVTT track inside a Matroska/WebM source that the optional mkvtoolnix runtime can copy unconverted (G15.5). */
+                    extractable?: boolean;
+                    forced: boolean;
+                    /** @description Canonical format clients declare: srt, ass, ssa, webvtt, mov_text, pgs, vobsub, dvb, eia_608 or text. */
+                    format?: string;
+                    index: number;
+                    language?: string;
+                    /** @description Present on a PGS or VobSub track of a Matroska source once subtitle OCR (G15.6, off by default) has derived an additional SRT from it. Listing playback info queues the source for OCR; the bitmap track itself is unchanged and still delivered as it is. */
+                    ocr?: {
+                        /** @enum {string} */
+                        format: "srt";
+                        /** @description The bitmap track's title or language followed by " (OCR)", marking the text as recognized, not authored. */
+                        title: string;
+                        /** @description /api/v1/sources/{id}/ocr-subtitles/{index}. Native sessions only. */
+                        url: string;
+                    };
+                    /** @description Matroska track name from the optional MediaInfo supplement. */
+                    title?: string;
+                    /** @description Present when extraction is enabled and available: /api/v1/sources/{id}/embedded-subtitles/{index}. Native sessions only. */
+                    url?: string;
+                }[];
+                /** @description G20.2 version labels with qualityScore and displayName. Playback information lists sources in the caller's default version order (version preference, main version, qualityScore descending). Other label fields may be added. */
+                version: {
+                    displayName: string;
+                    qualityScore: number;
+                } & {
+                    [key: string]: unknown;
+                };
+                videoTracks: {
+                    bitRate?: number;
+                    codec?: string;
+                    default: boolean;
+                    frameRate?: {
+                        denominator: number;
+                        numerator: number;
+                    };
+                    height?: number;
+                    index: number;
+                    level?: number;
+                    /** @description The stream the direct play decision checks. Cover art is not listed. */
+                    primary: boolean;
+                    profile?: string;
+                    width?: number;
+                }[];
+            }[];
             /** @description The administrator's main version (G20.3); listed first, then by qualityScore. */
             primary: boolean;
             /** @description False when no current probe result exists (never probed, failed, expired, or the file changed since). Stream lists are then empty and the version labels come from the file name only. */
@@ -35239,6 +35456,8 @@ export type components = {
                 /** @description Present when extraction is enabled and available: /api/v1/sources/{id}/embedded-subtitles/{index}. Native sessions only. */
                 url?: string;
             }[];
+            /** @description Combined duration of all parts; absent for a single file or when a part's duration is unknown. */
+            totalDurationMicros?: number;
             /** @description G20.2 version labels with qualityScore and displayName. Playback information lists sources in the caller's default version order (version preference, main version, qualityScore descending). Other label fields may be added. */
             version: {
                 displayName: string;

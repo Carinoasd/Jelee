@@ -69,13 +69,11 @@ func (c *Catalog) PlaybackChoice(ctx context.Context, actor domain.Actor, itemID
 	return sources, selection, nil
 }
 
-// describeSources projects storage records: the administrator's main
-// version first, then the best version.
+// describeSources projects storage records into versions, with the later
+// parts of a multi-part version folded into its first part (G21.1): the
+// administrator's main version first, then the best version.
 func describeSources(records []domain.PlaybackSourceRecord) []domain.PlaybackSource {
-	sources := make([]domain.PlaybackSource, 0, len(records))
-	for _, record := range records {
-		sources = append(sources, domain.BuildPlaybackSource(record))
-	}
+	sources := domain.BuildPlaybackSources(records)
 	slices.SortStableFunc(sources, domain.CompareVersions)
 	return sources
 }
