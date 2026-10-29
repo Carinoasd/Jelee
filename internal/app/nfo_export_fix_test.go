@@ -25,8 +25,8 @@ func TestPlanNFOExportFixRepairsOnlyWhatIsSafe(t *testing.T) {
 	scanned := nfoExportMeta([]domain.ItemMetadataField{{Field: "title", Value: "Scanned", Source: "existing"}})
 	empty := nfoExportMeta([]domain.ItemMetadataField{{Field: "title", Value: "", Source: "manual"}})
 	none := nfoExportMeta(nil)
-	title, id := []string{"nfo_title_missing"}, []string{"nfo_id_missing"}
-	both := []string{"nfo_id_missing", "nfo_title_missing"}
+	title := []string{"nfo_title_missing"}
+	both := []string{"nfo_conflicting_id", "nfo_title_missing"}
 	edit := []domain.NFOWriteTextEdit{{Field: "title", Value: "Stored & Title"}}
 	withSummary := func(f func(*domain.NFOValidationSummary)) func(*domain.NFOItemValidation) {
 		return func(v *domain.NFOItemValidation) { f(&v.Summary) }
@@ -44,12 +44,11 @@ func TestPlanNFOExportFixRepairsOnlyWhatIsSafe(t *testing.T) {
 		{name: "unknown status", meta: stored, v: domain.NFOItemValidation{Status: "other"}, outcome: nfoExportSkipped},
 		{name: "clean file is unchanged", meta: stored, v: fixChecked(nil), outcome: nfoExportUnchanged},
 		{name: "title missing with a stored title", meta: stored, v: fixChecked(title), outcome: nfoExportPrepared, edits: edit},
-		{name: "title and id missing with a stored title", meta: stored, v: fixChecked(both), outcome: nfoExportPrepared, edits: edit},
+		{name: "title missing next to a conflicting id", meta: stored, v: fixChecked(both), outcome: nfoExportPrepared, edits: edit},
 		{name: "title missing, the title is only the scanned name", meta: scanned, v: fixChecked(title), outcome: nfoExportUnfixable},
 		{name: "title missing, the stored title is empty", meta: empty, v: fixChecked(title), outcome: nfoExportUnfixable},
 		{name: "title missing, nothing stored", meta: none, v: fixChecked(title), outcome: nfoExportUnfixable},
-		{name: "title and id missing, no stored title: the id alone", meta: scanned, v: fixChecked(both), outcome: nfoExportPrepared},
-		{name: "id missing: an edit-less write adds the id", meta: stored, v: fixChecked(id), outcome: nfoExportPrepared},
+		{name: "title missing next to a conflicting id, no stored title", meta: scanned, v: fixChecked(both), outcome: nfoExportUnfixable},
 		{name: "other warnings only", meta: stored, v: fixChecked([]string{"nfo_season_missing", "nfo_episode_missing"}), outcome: nfoExportUnfixable},
 		{name: "other warnings do not block a repair", meta: stored, v: fixChecked([]string{"nfo_conflicting_id", "nfo_title_missing"}), outcome: nfoExportPrepared, edits: edit},
 		{name: "error issue blocks everything", meta: stored, v: fixChecked(both, withSummary(func(s *domain.NFOValidationSummary) {
@@ -65,9 +64,7 @@ func TestPlanNFOExportFixRepairsOnlyWhatIsSafe(t *testing.T) {
 		{name: "several entries", meta: stored, v: fixChecked(both, withSummary(func(s *domain.NFOValidationSummary) { s.Entries = 2 })), outcome: nfoExportUnfixable},
 		{name: "root is not the item's kind", meta: stored, v: fixChecked(both, withSummary(func(s *domain.NFOValidationSummary) { s.Root = "tvshow" })), outcome: nfoExportUnfixable},
 		{name: "lockdata", meta: stored, v: fixChecked(both, func(v *domain.NFOItemValidation) { v.LockData = true }), outcome: nfoExportUnfixable},
-		{name: "title locked, id still repaired", meta: stored, v: fixChecked(both, func(v *domain.NFOItemValidation) { v.LockedFields = []string{"Name"} }), outcome: nfoExportPrepared},
 		{name: "title locked, only the title is missing", meta: stored, v: fixChecked(title, func(v *domain.NFOItemValidation) { v.LockedFields = []string{"Name"} }), outcome: nfoExportUnfixable},
-		{name: "id locked and missing: the writer would refuse", meta: stored, v: fixChecked(both, func(v *domain.NFOItemValidation) { v.LockedFields = []string{"ProviderIds"} }), outcome: nfoExportUnfixable},
 		{name: "an unrelated lock changes nothing", meta: stored, v: fixChecked(title, func(v *domain.NFOItemValidation) { v.LockedFields = []string{"Genres", "Cast"} }), outcome: nfoExportPrepared, edits: edit},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -113,22 +110,6 @@ func TestNFOFixRootMatchesTheItemKind(t *testing.T) {
 	}
 }
 
-func TestNFOFixIDLockedNamesTheWriterLocks(t *testing.T) {
-	for _, lock := range []string{"id", "UniqueId", "uniqueids", " ProviderIds ", "imdbid", "TMDBID", "tvdbid"} {
-		if !nfoFixIDLocked([]string{"Genres", lock}) {
-			t.Errorf("%q is an identifier lock", lock)
-		}
-	}
-	for _, lock := range []string{"", "Name", "Overview", "Genres", "idx"} {
-		if nfoFixIDLocked([]string{lock}) {
-			t.Errorf("%q is not an identifier lock", lock)
-		}
-	}
-	if nfoFixIDLocked(nil) {
-		t.Fatal("no locks")
-	}
-}
-
 // fixReader answers validations by item.
 type fixReader struct {
 	nfoApplyWorkerReader
@@ -158,13 +139,13 @@ func (r *fixStep) NextNFOExportStep(ctx context.Context, lease domain.JobLease, 
 
 func TestNFOExportWorkerFixModeRepairsAndCountsItems(t *testing.T) {
 	ids := nfoApplyIDs(12)
-	title, id := []string{"nfo_title_missing"}, []string{"nfo_id_missing"}
+	title := []string{"nfo_title_missing"}
 	items := &exportItems{scanned: map[string]bool{ids[7]: true}, resolveErr: map[string]error{ids[9]: domain.ErrMetadataUnavailable}}
 	calls := 0
 	reader := fixReader{calls: &calls, results: map[string]domain.NFOItemValidation{
 		ids[0]:  fixChecked(nil),
 		ids[1]:  fixChecked(title),
-		ids[2]:  fixChecked(id),
+		ids[2]:  fixChecked(nil),
 		ids[3]:  {Status: domain.NFOItemValidationMissing},
 		ids[4]:  {Status: domain.NFOItemValidationPath, PathCode: domain.NFOPathCaseCollision},
 		ids[5]:  fixChecked(nil, func(v *domain.NFOItemValidation) { v.Summary.FailureCode = domain.NFOFailureInvalidXML }),
@@ -191,11 +172,11 @@ func TestNFOExportWorkerFixModeRepairsAndCountsItems(t *testing.T) {
 	if err := worker.Run(context.Background(), exportLease()); !errors.Is(err, ErrNFOExportYield) {
 		t.Fatal("run did not yield", err)
 	}
-	want := domain.NFOExportCounts{Unchanged: 2, SkippedMissing: 1, SkippedOther: 1, Unfixable: 5}
+	want := domain.NFOExportCounts{Unchanged: 3, SkippedMissing: 1, SkippedOther: 1, Unfixable: 5}
 	if len(execution.submits) != 1 || execution.submits[0].counts != want {
 		t.Fatalf("submits %+v, want counts %+v", execution.submits, want)
 	}
-	if !reflect.DeepEqual(execution.submits[0].preparations, []string{"prep-" + ids[1], "prep-" + ids[2], "prep-" + ids[10]}) {
+	if !reflect.DeepEqual(execution.submits[0].preparations, []string{"prep-" + ids[1], "prep-" + ids[10]}) {
 		t.Fatalf("prepared %v", execution.submits[0].preparations)
 	}
 	for _, key := range preparer.keys {
@@ -204,15 +185,8 @@ func TestNFOExportWorkerFixModeRepairsAndCountsItems(t *testing.T) {
 		}
 	}
 	for _, request := range preparer.requests {
-		switch request.ItemID {
-		case ids[2]:
-			if len(request.Edits) != 0 {
-				t.Fatalf("the id repair edits %v", request.Edits)
-			}
-		default:
-			if !reflect.DeepEqual(request.Edits, []domain.NFOWriteTextEdit{{Field: "title", Value: "DB " + request.ItemID}}) {
-				t.Fatalf("%s: edits %v", request.ItemID, request.Edits)
-			}
+		if !reflect.DeepEqual(request.Edits, []domain.NFOWriteTextEdit{{Field: "title", Value: "DB " + request.ItemID}}) {
+			t.Fatalf("%s: edits %v", request.ItemID, request.Edits)
 		}
 	}
 	if calls != 11 {

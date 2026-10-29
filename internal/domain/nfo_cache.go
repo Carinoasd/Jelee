@@ -20,7 +20,7 @@ var (
 const (
 	NFOModeOff               = "off"
 	NFOModeReadOnly          = "read-only"
-	NFOParserVersion         = "nfo-validation-v2"
+	NFOParserVersion         = "nfo-validation-v1"
 	NFOSummarySchemaVersion  = 1
 	NFOFingerprintVersion    = "sha256-full-v1"
 	NFODefaultSourceBytes    = 8 << 20

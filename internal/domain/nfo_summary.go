@@ -28,7 +28,7 @@ func ValidNFOIssue(v NFOIssue) bool {
 			return v.Field == "season"
 		case "nfo_episode_missing":
 			return v.Field == "episode"
-		case "nfo_conflicting_id", "nfo_id_missing":
+		case "nfo_conflicting_id":
 			return v.Field == "uniqueid"
 		}
 		return false

@@ -30421,7 +30421,7 @@ export type components = {
         };
         NFOExportRequest: {
             /**
-             * @description all writes the stored values into existing NFOs; missing creates the NFO of every item that has none and never touches an existing NFO; fix repairs only the validation issues that can be repaired safely (a missing title the database stores, a missing identifier) with a .jelee.bak backup and counts the rest as unfixable. Part of the idempotency request: replaying a key with another mode is 409 conflict.
+             * @description all writes the stored values into existing NFOs; missing creates the NFO of every item that has none and never touches an existing NFO; fix repairs only the validation issues that can be repaired safely (a missing title the database stores; the rewrite also adds a missing Jelee identifier) with a .jelee.bak backup and counts the rest as unfixable. Part of the idempotency request: replaying a key with another mode is 409 conflict.
              * @default all
              * @enum {string}
              */
