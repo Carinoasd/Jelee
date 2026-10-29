@@ -65,6 +65,7 @@
 | `GET`／`HEAD /images/{type}/{id}` | 原生接口（挂在根路径，不在 `/api/v1` 下）。查询参数只接受 `width`、`height`（1–2048）、`fillWidth`＋`fillHeight`（1–2048，填满裁切，两者都要且不能再带 `width`／`height`）、`quality`（1–100）、`format`（`jpeg` 或 `webp`，只能是设置开放的格式）、`index`、`tag`，其他参数 400。都不给时按 640×640 等比缩放；不给 `format` 用设置的默认格式 |
 | `GET`／`HEAD /compat/Items/{itemId}/Images/{imageType}[/{imageIndex}]` | 兼容层接口，见[兼容矩阵](compat-matrix.md)。`Width`／`MaxWidth`／`FillWidth` 等取最小值，上限 2048；`FillWidth` 与 `FillHeight` 同时给时是填满裁切，只给一个时仍只当上限；`Format=Webp` 输出 WebP、`Jpg` 输出 JPEG，其他上游名称与未开放的格式用默认格式；上游的 Logo、Art、Thumb 映射到对应的 Jelee 槽位 |
 | `GET /api/v1/metadata/tmdb/{movies\|series}/{id}/images` | 管理员查看 TMDB 图片候选，按媒体库的图片语言偏好排序，不下载图片，见 [TMDB 图片偏好](tmdb-image-preferences.md) |
+| `GET /api/v1/metadata/tmdb/series/{id}/seasons/{season}/images`、`…/episodes/{episode}/images` | 同上，季海报与单集剧照候选 |
 | `POST /api/v1/libraries/{id}/images/refresh` | 管理员提交[图片刷新任务](image-refresh-jobs.md)；未开启远程抓取或没有存放区时 404 `image_unavailable` |
 | `GET /api/v1/jobs/{id}/image-refresh` | 刷新任务的游标与计数（fetched、failed、deferred、skipped） |
 | `GET /api/v1/jobs/{id}/images` | 扫描任务的图片清单统计（新增、变化、未变、缺失），不是图片管理接口 |

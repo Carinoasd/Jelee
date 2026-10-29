@@ -44,9 +44,26 @@ Compose 内部网络使用 sslmode=disable，仅用于此隔离网络；远程�
 Jelee 不需要 Redis：快取都在各實例的記憶體內，以版本號、寫入事件或內容定址失效；跨實例協調用 PostgreSQL 的 advisory lock、任務租約和版本欄位。資料庫暫時讀不到時，各快取沿用上次的值。多個實例只要連到同一個資料庫即可，但要注意：
 
 - 登入限速、客戶端 `rate_limit` 規則、串流並發與頻寬上限，都是各實例自己計數，請依實例數換算設定值，並對串流請求啟用工作階段黏著。
+- TMDB 請求預算（間隔、並發、每日上限）同樣是各實例各自計算，見下方〈TMDB 請求預算〉。
 - 字型白名單（CSP）在其他實例最多延遲 30 秒生效，開發者模式最多延遲 10 秒。
 
 完整盤點、各項保證與限制見 [快取邊界](cache-boundaries.md)；決策見 [ADR 0002](adr/0002-no-redis-cache-boundary.md)。
+
+## TMDB 請求預算（G14.3）
+
+設定 TMDB 憑據後，所有 TMDB 請求（啟動時的憑據檢查、搜尋、預覽、外部 ID 反查、圖片候選，含重試）都經同一個限流器。預算可用環境變數或設定檔的 `tmdb` 區段調整：
+
+| 環境變數 | 設定檔 | 預設 | 範圍 |
+| --- | --- | --- | --- |
+| `JELEE_TMDB_REQUEST_INTERVAL_MS` | `tmdb.requestIntervalMs` | 250 | 20–60000（相鄰請求啟動的最小間隔，毫秒） |
+| `JELEE_TMDB_MAX_CONCURRENT` | `tmdb.maxConcurrent` | 4 | 1–32（同時占用的請求數，含等待） |
+| `JELEE_TMDB_DAILY_REQUEST_LIMIT` | `tmdb.dailyRequestLimit` | 0 | 0–10000000（每個 UTC 日的請求嘗試次數，重試也計；0 為不限） |
+
+環境變數優先於設定檔。環境變數寫 `0` 的間隔或並發、非整數、負數都是啟動錯誤（`invalid JELEE_TMDB_…`），超出範圍則是 `tmdb requestIntervalMs must be between 20 and 60000` 這類訊息；錯誤不帶設定值。設定檔裡省略或寫 0 的間隔／並發代表預設值。
+
+每日上限用完時不再送出請求，已在記憶體快取中的結果仍可讀，相關 API 回 503 `metadata_unavailable`，到下一個 UTC 日 00:00 自動恢復；啟動時的憑據檢查也計入，所以上限設太小會讓重啟後的啟動檢查失敗。429／503 的共享冷卻與 `Retry-After` 處理不受這些設定影響。
+
+限制：預算與快取都只在單一程序內，多實例各自計算（請依實例數換算），重啟後每日計數歸零；跨實例共享限流與持久化快取不在本階段範圍（多實例協調屬第 14 階段）。行為細節見 [TMDB 請求限流](tmdb-governor.md)。
 
 ## 可選的執行時記憶體設定
 
