@@ -12,7 +12,7 @@
 | 自動套用門檻保守：只有外部 ID 精確命中（高置信）直接寫入；標題＋年份唯一且相似度高為中置信，預設進待確認 | `autoApply=high` | `autoApply`：`high`／`medium`（中置信也自動套用）／`never`（全部進待確認） |
 | 資料來源：先本地外部 ID（`nfo`），再 TMDB；備用源只做設定框架，不接任何第三方 | `sources=["nfo","tmdb"]` | `sources` 是有序清單；去掉 `nfo` 就不讀外部 ID。新的備用源要在 `domain.metadataRefreshProviders` 登記並實作後才可寫入，目前只有 `tmdb`（G14.1 不得網頁抓取或繞過 TMDB 條款） |
 | 已被管理員拒絕的條目，之後的刷新不再碰 | — | 管理員可隨時以既有 `POST /api/v1/items/{id}/metadata/tmdb` 手動套用 |
-| 自動排入的刷新任務以觸發它的同步任務的管理員身分執行 | — | 見下方「身分」 |
+| 排程與同步後自動排入的刷新任務以系統身分執行，不需要任何管理員工作階段；手動送件以送件管理員身分執行 | — | 見下方「身分」 |
 
 ## 設定
 
@@ -104,7 +104,8 @@ Content-Type: application/json
 ## 觸發
 
 1. **手動**：上面的 `POST …/metadata/refresh`。
-2. **目錄同步之後**：媒體庫 `auto=true` 時，`catalog_sync` 成功結束的同一交易內排入一個背景優先的刷新任務（冪等鍵 `metadata-refresh:<同步任務 ID>`，`trigger=catalog_sync`）。排入在 savepoint 裡進行，任何失敗都回滾到 savepoint，**不會讓同步失敗或延遲**；媒體庫仍有活動任務、佇列已滿、或同步任務背後沒有有效的管理員時不排入，改寫稽核 `metadata_refresh.deferred`（`reason` 為 `job_busy`／`job_queue_full`／`no_administrator`）。TMDB 的任何失敗只發生在之後的刷新任務裡，與同步無關。
+2. **目錄同步之後**：媒體庫 `auto=true` 時，`catalog_sync` 成功結束的同一交易內排入一個背景優先的刷新任務（冪等鍵 `metadata-refresh:<同步任務 ID>`，`trigger=catalog_sync`，系統來源 `system:catalog_sync:<同步任務 ID>`）。排入在 savepoint 裡進行，任何失敗都回滾到 savepoint，**不會讓同步失敗或延遲**；媒體庫仍有活動任務或佇列已滿時不排入，改寫稽核 `metadata_refresh.deferred`（`reason` 為 `job_busy`／`job_queue_full`）。遷移 000107 之前，同步任務背後沒有有效管理員時也會延後（`no_administrator`）；現在以系統身分排入，不再有這個原因。TMDB 的任何失敗只發生在之後的刷新任務裡，與同步無關。
+3. **排程**：`POST /api/v1/schedules` 建立 `kind=metadata_refresh` 的排程（cron／interval／once、時區、窗口），到期時排入背景優先的刷新（`trigger=schedule`，系統來源 `system:schedule:<排程 ID>`）；沒有設定提供者的實例跳過這一次（`lastError=kind_unavailable`）。見[任務排程](job-schedules.md)。
 
 ## 任務執行
 
@@ -117,10 +118,16 @@ Content-Type: application/json
 
 ## 身分
 
-刷新任務以排入它的管理員身分執行（自動排入時是同步任務的管理員，排程掃描即排程擁有者），每批次挑該管理員最晚到期、未撤銷的工作階段，套用與稽核都記在此管理員名下。管理員被停用、刪除、失去權限，或**沒有任何有效工作階段**時，任務以 `metadata_refresh_failed` 結束。長時間無人登入的實例因此可能讓自動刷新失敗；待驗證清單 C35 會確認這個行為在實際部署是否可接受。
+遷移 000107 起分成兩種：
+
+- **系統身分**（排程排入、同步後自動排入）：任務列沒有 `actor_id`，`jobs.system_source` 記錄來源（`system:schedule:<排程 ID>` 或 `system:catalog_sync:<同步任務 ID>`）。每批次直接以 `domain.SystemActor` 讀條目、偏好並套用提供者值，**不需要任何管理員或工作階段**；套用與稽核沒有 `actorId`，`requestId` 是來源字串。系統身分只被元資料刷新 worker 自己的讀取與套用接受，其他入口一律拒絕；資料表 CHECK 也只允許可排程的種類帶系統來源（見[任務排程](job-schedules.md#系統執行身分)）。
+- **送件管理員**（`POST …/metadata/refresh` 手動送件）：與之前相同，每批次挑該管理員最晚到期、未撤銷的工作階段，套用與稽核記在此管理員名下；管理員被停用、刪除、失去權限，或沒有任何有效工作階段時，任務以 `metadata_refresh_failed` 結束。
+
+因此排程掃描在深夜觸發、同步後自動排入的刷新不再因為沒有人登入而失敗（原待驗證清單 C35 的疑慮）。
 
 ## 備份與降版
 
+- 遷移 000107 讓 `metadata_refresh_job_state.trigger` 多了 `schedule`；有 `trigger=schedule` 的紀錄或任何系統身分任務時拒絕降級。
 - `metadata_refresh_job_state` 屬工作進度、`metadata_refresh_reviews` 屬可重建的衍生狀態（再跑一次刷新就會產生），都不進元資料備份；拒絕紀錄因此不會隨備份帶走，匯入後會重新出現在待確認。
 - `metadata_refresh_settings` 也不匯出：自動刮削是「自動化開關」，還原後預設關閉，避免還原出的目錄在管理員確認前就被提供者資料改寫，需要時重新開啟。
 - 降版：有刷新任務或其進度、指標、拒絕紀錄、或任何非預設設定時拒絕（`55000`）；待確認列直接丟棄。
