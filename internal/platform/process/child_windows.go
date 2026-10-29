@@ -70,14 +70,11 @@ func startChild(path string, args []string, dir string, env []string, stdin, std
 	if err := attributes.Update(jobList, unsafe.Pointer(&job), unsafe.Sizeof(job)); err != nil { //nolint:gosec // G103: the Windows API takes a raw pointer to this fixed-layout value
 		return nil, ErrUnsupported
 	}
-	var handles [3]windows.Handle
-	current := windows.CurrentProcess()
-	for i, file := range []*os.File{stdin, stdout, stderr} {
-		if err := windows.DuplicateHandle(current, windows.Handle(file.Fd()), current, &handles[i], 0, true, windows.DUPLICATE_SAME_ACCESS); err != nil {
-			return nil, err
-		}
-		defer windows.CloseHandle(handles[i])
+	handles, release, err := inheritableStdio(stdin, stdout, stderr)
+	if err != nil {
+		return nil, err
 	}
+	defer release()
 	if err := attributes.Update(windows.PROC_THREAD_ATTRIBUTE_HANDLE_LIST, unsafe.Pointer(&handles[0]), unsafe.Sizeof(handles)); err != nil { //nolint:gosec // G103: the Windows API takes a raw pointer to this fixed-layout value
 		return nil, err
 	}
@@ -99,8 +96,7 @@ func startChild(path string, args []string, dir string, env []string, stdin, std
 	if err != nil {
 		return nil, err
 	}
-	sort.Slice(env, func(i, j int) bool { return strings.ToUpper(env[i]) < strings.ToUpper(env[j]) })
-	block := utf16.Encode([]rune(strings.Join(env, "\x00") + "\x00\x00"))
+	block := environmentBlock(env)
 	var info windows.ProcessInformation
 	flags := uint32(windows.CREATE_UNICODE_ENVIRONMENT | windows.EXTENDED_STARTUPINFO_PRESENT | windows.CREATE_NO_WINDOW)
 	if err := windows.CreateProcess(application, line, nil, nil, true, flags, &block[0], directory, &startup.StartupInfo, &info); err != nil {
@@ -111,6 +107,34 @@ func startChild(path string, args []string, dir string, env []string, stdin, std
 	runtime.KeepAlive(job)
 	runtime.KeepAlive(block)
 	return &windowsChild{process: info.Process, job: job}, nil
+}
+
+// inheritableStdio duplicates the three standard handles as inheritable
+// copies for PROC_THREAD_ATTRIBUTE_HANDLE_LIST; release closes them.
+func inheritableStdio(stdin, stdout, stderr *os.File) ([3]windows.Handle, func(), error) {
+	var handles [3]windows.Handle
+	current := windows.CurrentProcess()
+	release := func() {
+		for _, handle := range handles {
+			if handle != 0 {
+				_ = windows.CloseHandle(handle)
+			}
+		}
+	}
+	for i, file := range []*os.File{stdin, stdout, stderr} {
+		if err := windows.DuplicateHandle(current, windows.Handle(file.Fd()), current, &handles[i], 0, true, windows.DUPLICATE_SAME_ACCESS); err != nil {
+			release()
+			return handles, func() {}, err
+		}
+	}
+	return handles, release, nil
+}
+
+// environmentBlock is a sorted CREATE_UNICODE_ENVIRONMENT block.
+func environmentBlock(env []string) []uint16 {
+	env = append([]string(nil), env...)
+	sort.Slice(env, func(i, j int) bool { return strings.ToUpper(env[i]) < strings.ToUpper(env[j]) })
+	return utf16.Encode([]rune(strings.Join(env, "\x00") + "\x00\x00"))
 }
 
 func (p *windowsChild) ready() error {

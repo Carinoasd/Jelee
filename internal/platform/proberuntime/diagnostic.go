@@ -39,11 +39,11 @@ func diagnose(ctx context.Context, platform string, factory func(context.Context
 		result.Reason = "invalid_context"
 		return
 	}
-	if platform != "linux-amd64" {
+	if platform != "linux-amd64" && platform != "windows-amd64" {
 		result.Reason = "platform_unsupported"
 		return
 	}
-	if spec, err := tools.FFprobeSpec("linux-amd64"); err == nil {
+	if spec, err := tools.FFprobeSpec(platform); err == nil {
 		result.ExpectedVersion = spec.VendorVersion
 	}
 	if err := ctx.Err(); err != nil {
@@ -94,8 +94,13 @@ func diagnose(ctx context.Context, platform string, factory func(context.Context
 	}
 	// All helper setup failures exit 64/78. Exit1 here proves the fixed verified
 	// ffprobe was exec'd after policy application and rejected the health bytes.
+	// On Windows it proves the confined process started (token and job were
+	// verified before its first instruction) and ffprobe rejected the bytes.
 	if errors.Is(err, process.ErrExit) && closeErr == nil {
 		result.State, result.Reason, result.Capability = "available", "isolated_helper_verified", "available"
+		if platform == "windows-amd64" {
+			result.Reason = "confined_process_verified"
+		}
 	}
 	return
 }

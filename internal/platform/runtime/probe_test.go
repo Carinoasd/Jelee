@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/MoYuanCN/Jelee/internal/domain"
+	"github.com/MoYuanCN/Jelee/internal/platform/proberuntime"
 )
 
 type maintenanceFake struct {
@@ -74,7 +75,7 @@ func TestProbeDisabledDoesNotInitializeStorageOrRuntime(t *testing.T) {
 }
 
 func TestProbeDegradationUsesOnlyFixedReasonsAndCleansPreparedResources(t *testing.T) {
-	for _, reason := range []string{"platform_unsupported", "health_check_failed", "/private/path", "temporary_unavailable"} {
+	for _, reason := range []string{"platform_unsupported", "health_check_failed", "/private/path", "temporary_unavailable", "catalog_identity_unsupported"} {
 		repo := &maintenanceFake{}
 		closed := 0
 		p, err := newProbeService(context.Background(), true, repo, func(context.Context) (preparedProbe, string, error) {
@@ -162,4 +163,38 @@ func TestProbeMaintenanceIsBoundedCancelledAndRedacted(t *testing.T) {
 	if err := p.stopMaintenance(ctx); err != nil {
 		t.Fatal("maintenance did not join", err)
 	}
+}
+
+func TestWindowsProbeStaysDisabledAndSaysWhy(t *testing.T) {
+	if got := windowsProbeReason(proberuntime.Diagnostic{Capability: "available"}); got != "catalog_identity_unsupported" {
+		t.Fatal(got)
+	}
+	for _, capability := range []string{"disabled", "", "available "} {
+		if got := windowsProbeReason(proberuntime.Diagnostic{Capability: capability}); got != "health_check_failed" {
+			t.Fatal(got)
+		}
+	}
+	for reason, message := range map[string]string{
+		"catalog_identity_unsupported": "Windows media sandbox is verified",
+		"health_check_failed":          "isolated runtime is unavailable",
+		"platform_unsupported":         "isolated runtime is unavailable",
+	} {
+		var logs bytes.Buffer
+		warnProbeUnavailable(slog.New(slog.NewTextHandler(&logs, nil)), domain.ProbeCapability{Enabled: true, State: "unavailable", Reason: reason})
+		if !strings.Contains(logs.String(), "level=WARN") || !strings.Contains(logs.String(), message) || !strings.Contains(logs.String(), "reason="+reason) ||
+			!strings.Contains(logs.String(), "code=probe_runtime_unavailable") {
+			t.Fatalf("%s: %s", reason, logs.String())
+		}
+	}
+	for _, capability := range []domain.ProbeCapability{
+		{State: "disabled", Reason: "configuration_disabled"},
+		{Enabled: true, Available: true, State: "available", Reason: "isolated_helper_verified"},
+	} {
+		var logs bytes.Buffer
+		warnProbeUnavailable(slog.New(slog.NewTextHandler(&logs, nil)), capability)
+		if logs.Len() != 0 {
+			t.Fatalf("unexpected warning: %s", logs.String())
+		}
+	}
+	warnProbeUnavailable(nil, domain.ProbeCapability{Enabled: true})
 }
