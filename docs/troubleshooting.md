@@ -113,7 +113,7 @@ doctor 只计算 SHA-256，不执行工具。候选位置为运行镜像的固�
 | `tool_missing` | warn／fail | 没有安装固定 ffprobe；启用 probe（`JELEE_ENABLE_PROBE`）时为 fail | 容器使用正式运行镜像；开发环境执行 `make bootstrap-media`（Windows：`scripts/make.ps1 bootstrap-media`） |
 | `tool_hash_mismatch` | fail | 文件与 manifest 的 SHA-256 不一致 | `make tools-clean bootstrap-media` 重新安装，或重建运行镜像；不要换成系统 ffprobe |
 | `tool_unreadable` | fail | 文件存在但不是可读的普通文件 | 让服务账户可读，并确认是普通文件 |
-| `tool_platform_unsupported` | warn | 本平台没有固定 ffprobe | 探测只支持 linux-amd64；其他平台不提供媒体探测 |
+| `tool_platform_unsupported` | warn | 本平台没有固定 ffprobe | 探测支持 linux-amd64 与 windows-amd64（遷移 000108 起）；其他平台不提供媒体探测 |
 | `tool_manifest_invalid` | fail | 编进程序的 manifest 无效 | 从干净的源码重新构建 jelee-cli |
 | `embedded_covers_ready` | ok | 已启用内嵌封面擷取（`JELEE_ENABLE_EMBEDDED_COVERS`），且找到通过哈希校验的固定 ffprobe；该功能只用 ffprobe，不需要也不调用 ffmpeg | — |
 | `embedded_covers_tool_missing` | fail | 已启用内嵌封面擷取，但没有通过校验的固定 ffprobe；服务照常启动，该段保持关闭并记 WARN `embedded_cover_prerequisite_unavailable` | 使用正式运行镜像（内含 ffprobe、绝不含 ffmpeg），或设 `JELEE_ENABLE_EMBEDDED_COVERS=false` |

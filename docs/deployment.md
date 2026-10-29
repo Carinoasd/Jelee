@@ -114,7 +114,7 @@ Windows amd64 以「受限 token＋Job Object」直接執行已驗證的 `ffprob
 - **執行身分。** 請以專用的標準使用者（非 Administrators、非 LocalSystem）執行服務，並只授予它媒體根目錄的讀取權。工具以低完整性（Low IL）執行：能讀服務使用者能讀的檔案，不能寫任何一般檔案或目錄，不能建立子程序，記憶體 2 GiB、CPU 30 秒，逾時或取消會終止整個 Job。不需要也不會改動媒體目錄的 ACL。
 - **更新工具。** 服務執行期間 `ffprobe.exe` 被以「不共用寫入／刪除」的方式開著，無法覆寫、刪除或改名其上層目錄；更新 `.tools` 前請先停服務。
 - **檢查。** `jelee-cli doctor probe`（或 `scripts/make.ps1 diag`）會實際以受限身分跑一次健康檢查，成功時 `reason` 為 `confined_process_verified`。
-- **目前的限制。** 目錄掃描的探測在 Windows 仍停用：探測身分與 `tool_versions` 只接受 `linux-amd64`，放寬需要另一個遷移。開 `JELEE_ENABLE_PROBE=true` 時，啟動會跑一次健康檢查並記一筆 WARN（`code=probe_runtime_unavailable`，`reason=catalog_identity_unsupported` 表示沙箱可用但目錄探測未開放，`health_check_failed` 表示沙箱不可用），探測維持停用，沒有未隔離的備援。MediaInfo、mkvtoolnix、Tesseract 在 Windows 仍是 `platform_unsupported`。
+- **目錄探測與限制。** 沙箱健康檢查通過時，Windows 上的目錄掃描探測會啟用（探測身分與 `tool_versions` 在遷移 000108 起接受 `windows-amd64`，Windows 與 Linux 的快取結果分開）。開 `JELEE_ENABLE_PROBE=true` 時，啟動會跑一次健康檢查；失敗時記一筆 WARN（`code=probe_runtime_unavailable`，`reason=health_check_failed`），探測維持停用，沒有未隔離的備援。降級到 000108 之前的結構時，若已有 Windows 探測身分列會被拒絕，需先清除探測快取。只有 ffprobe 開放：MediaInfo、mkvtoolnix、Tesseract 在 Windows 仍是 `platform_unsupported`。
 
 ## 媒體庫語言設定的升級
 

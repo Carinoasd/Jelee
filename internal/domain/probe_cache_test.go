@@ -85,7 +85,7 @@ func TestProbeIdentityPinsAndBounds(t *testing.T) {
 		}
 	}
 	for _, change := range []func(*ProbeIdentity){
-		func(v *ProbeIdentity) { v.Platform = "windows-amd64" }, func(v *ProbeIdentity) { v.VendorVersion = strings.Repeat("v", 257) }, func(v *ProbeIdentity) { v.UpstreamVersion = strings.Repeat("v", 65) }, func(v *ProbeIdentity) { v.SandboxVersion = strings.Repeat("v", 65) }, func(v *ProbeIdentity) { v.VendorVersion = "secret\npath" }, func(v *ProbeIdentity) { v.SandboxVersion = string([]byte{0xff}) }, func(v *ProbeIdentity) { v.SourceRevision = strings.Repeat("A", 40) }, func(v *ProbeIdentity) { v.ExecutableSHA256 = "bad" }, func(v *ProbeIdentity) { v.RuntimeSHA256 = strings.Repeat("z", 64) }, func(v *ProbeIdentity) { v.ArgumentsSHA256 = "" },
+		func(v *ProbeIdentity) { v.Platform = "darwin-arm64" }, func(v *ProbeIdentity) { v.Platform = "Windows-amd64" }, func(v *ProbeIdentity) { v.Platform = "windows-arm64" }, func(v *ProbeIdentity) { v.Platform = "" }, func(v *ProbeIdentity) { v.VendorVersion = strings.Repeat("v", 257) }, func(v *ProbeIdentity) { v.UpstreamVersion = strings.Repeat("v", 65) }, func(v *ProbeIdentity) { v.SandboxVersion = strings.Repeat("v", 65) }, func(v *ProbeIdentity) { v.VendorVersion = "secret\npath" }, func(v *ProbeIdentity) { v.SandboxVersion = string([]byte{0xff}) }, func(v *ProbeIdentity) { v.SourceRevision = strings.Repeat("A", 40) }, func(v *ProbeIdentity) { v.ExecutableSHA256 = "bad" }, func(v *ProbeIdentity) { v.RuntimeSHA256 = strings.Repeat("z", 64) }, func(v *ProbeIdentity) { v.ArgumentsSHA256 = "" },
 	} {
 		copy := v
 		change(&copy)
@@ -99,6 +99,22 @@ func TestProbeIdentityPinsAndBounds(t *testing.T) {
 	copy.SandboxVersion = strings.Repeat("v", 64)
 	if ValidateProbeIdentity(copy) != nil {
 		t.Fatal("SQL length boundary rejected")
+	}
+}
+
+func TestProbeIdentityAcceptsWindowsPlatformWithDistinctDigest(t *testing.T) {
+	linux := ProbeIdentity{
+		Platform: "linux-amd64", VendorVersion: "vendor-1", UpstreamVersion: "9.0.2", SourceRevision: strings.Repeat("a", 40), ExecutableSHA256: strings.Repeat("b", 64), RuntimeSHA256: strings.Repeat("c", 64), ParserVersion: ProbeParserVersion, MetadataSchemaVersion: ProbeMetadataSchemaVersion, ArgumentsSHA256: strings.Repeat("d", 64), SandboxVersion: "sandbox-v1", FingerprintVersion: ProbeFingerprintVersion,
+	}
+	windows := linux
+	windows.Platform = "windows-amd64"
+	if ValidateProbeIdentity(windows) != nil {
+		t.Fatal("windows-amd64 identity rejected")
+	}
+	a, errA := ProbeIdentityDigest(linux)
+	b, errB := ProbeIdentityDigest(windows)
+	if errA != nil || errB != nil || a == b {
+		t.Fatal("platform is not part of the identity digest")
 	}
 }
 

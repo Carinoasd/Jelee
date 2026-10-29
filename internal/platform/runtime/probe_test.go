@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/MoYuanCN/Jelee/internal/domain"
-	"github.com/MoYuanCN/Jelee/internal/platform/proberuntime"
 )
 
 type maintenanceFake struct {
@@ -75,7 +74,7 @@ func TestProbeDisabledDoesNotInitializeStorageOrRuntime(t *testing.T) {
 }
 
 func TestProbeDegradationUsesOnlyFixedReasonsAndCleansPreparedResources(t *testing.T) {
-	for _, reason := range []string{"platform_unsupported", "health_check_failed", "/private/path", "temporary_unavailable", "catalog_identity_unsupported"} {
+	for _, reason := range []string{"platform_unsupported", "health_check_failed", "/private/path", "temporary_unavailable"} {
 		repo := &maintenanceFake{}
 		closed := 0
 		p, err := newProbeService(context.Background(), true, repo, func(context.Context) (preparedProbe, string, error) {
@@ -165,24 +164,12 @@ func TestProbeMaintenanceIsBoundedCancelledAndRedacted(t *testing.T) {
 	}
 }
 
-func TestWindowsProbeStaysDisabledAndSaysWhy(t *testing.T) {
-	if got := windowsProbeReason(proberuntime.Diagnostic{Capability: "available"}); got != "catalog_identity_unsupported" {
-		t.Fatal(got)
-	}
-	for _, capability := range []string{"disabled", "", "available "} {
-		if got := windowsProbeReason(proberuntime.Diagnostic{Capability: capability}); got != "health_check_failed" {
-			t.Fatal(got)
-		}
-	}
-	for reason, message := range map[string]string{
-		"catalog_identity_unsupported": "Windows media sandbox is verified",
-		"health_check_failed":          "isolated runtime is unavailable",
-		"platform_unsupported":         "isolated runtime is unavailable",
-	} {
+func TestProbeUnavailableWarningNamesOnlyFixedReasons(t *testing.T) {
+	for _, reason := range []string{"health_check_failed", "platform_unsupported", "runtime_unavailable"} {
 		var logs bytes.Buffer
 		warnProbeUnavailable(slog.New(slog.NewTextHandler(&logs, nil)), domain.ProbeCapability{Enabled: true, State: "unavailable", Reason: reason})
-		if !strings.Contains(logs.String(), "level=WARN") || !strings.Contains(logs.String(), message) || !strings.Contains(logs.String(), "reason="+reason) ||
-			!strings.Contains(logs.String(), "code=probe_runtime_unavailable") {
+		if !strings.Contains(logs.String(), "level=WARN") || !strings.Contains(logs.String(), "isolated runtime is unavailable") ||
+			!strings.Contains(logs.String(), "reason="+reason) || !strings.Contains(logs.String(), "code=probe_runtime_unavailable") {
 			t.Fatalf("%s: %s", reason, logs.String())
 		}
 	}
@@ -197,4 +184,15 @@ func TestWindowsProbeStaysDisabledAndSaysWhy(t *testing.T) {
 		}
 	}
 	warnProbeUnavailable(nil, domain.ProbeCapability{Enabled: true})
+}
+
+// The retired Windows-only reason must not be accepted from a factory any more:
+// Windows now enables the probe once its health check passes.
+func TestProbeDegradationRejectsRetiredWindowsReason(t *testing.T) {
+	p, err := newProbeService(context.Background(), true, &maintenanceFake{}, func(context.Context) (preparedProbe, string, error) {
+		return preparedProbe{close: func() error { return nil }}, "catalog_identity_unsupported", errors.New("private")
+	})
+	if err != nil || p.Available() || p.Capability().Reason != "runtime_unavailable" {
+		t.Fatal("retired reason still accepted", p.Capability().Reason)
+	}
 }

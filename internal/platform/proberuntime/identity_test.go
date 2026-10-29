@@ -119,3 +119,53 @@ func TestSupplementChangesRuntimeAndArgumentsIdentityOnly(t *testing.T) {
 		t.Fatal("invalid closure digest accepted")
 	}
 }
+
+func TestWindowsIdentityIsStaticPinnedAndDistinctFromLinux(t *testing.T) {
+	windows, err := identityFor("windows-amd64")
+	if err != nil {
+		t.Fatal("windows identity unavailable", err)
+	}
+	executable, err := tools.FFprobeSpec("windows-amd64")
+	if err != nil || windows.Platform != "windows-amd64" || windows.ExecutableSHA256 != executable.SHA256 ||
+		windows.ExecutableSHA256 != "f0d36ecbbdd3bcfac3efa078c96c7271c2e68b3810595552ac3b7f17e9a65c52" ||
+		windows.SandboxVersion != sandbox.WindowsMetadataPolicyVersion ||
+		windows.ArgumentsSHA256 != sandbox.MetadataArgumentsDigest() ||
+		windows.ParserVersion != domain.ProbeParserVersion {
+		t.Fatal("windows identity does not match fixed pins")
+	}
+	linux, err := identityFor("linux-amd64")
+	if err != nil || linux.RuntimeSHA256 == windows.RuntimeSHA256 || linux.SandboxVersion == windows.SandboxVersion {
+		t.Fatal("windows identity shares runtime or sandbox pins with linux")
+	}
+	a, errA := domain.ProbeIdentityDigest(linux)
+	b, errB := domain.ProbeIdentityDigest(windows)
+	if errA != nil || errB != nil || a == b {
+		t.Fatal("linux and windows results would share a cache key")
+	}
+	again, _ := identityFor("windows-amd64")
+	if again != windows {
+		t.Fatal("windows identity is not deterministic")
+	}
+}
+
+func TestIdentityForRejectsOtherPlatforms(t *testing.T) {
+	for _, platform := range []string{"", "linux-arm64", "darwin-arm64", "windows-arm64", "../linux-amd64"} {
+		if got, err := identityFor(platform); err != ErrUnavailable || got != (domain.ProbeIdentity{}) {
+			t.Fatalf("%q: %v", platform, err)
+		}
+	}
+}
+
+func TestIdentityFollowsHostPlatform(t *testing.T) {
+	got, err := Identity()
+	switch {
+	case runtime.GOARCH == "amd64" && (runtime.GOOS == "linux" || runtime.GOOS == "windows"):
+		if err != nil || got.Platform != runtime.GOOS+"-amd64" {
+			t.Fatal("host identity", got.Platform, err)
+		}
+	default:
+		if err != ErrUnavailable {
+			t.Fatal("unsupported host registered an identity")
+		}
+	}
+}
