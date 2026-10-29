@@ -199,6 +199,7 @@ func (r *Runner) nfoItem(ctx context.Context, l domain.JobLease, q domain.NFOReq
 
 // commitNFOCompletion records the outcome of one entry and checks that the
 // phase advanced by exactly that entry.
+//
 //nolint:revive // same result order as nfoItem, which the callers destructure: retry, error, storage
 func (r *Runner) commitNFOCompletion(ctx context.Context, l domain.JobLease, q domain.NFORequest, token domain.NFOPageToken, e domain.NFOEntry, completion domain.NFOCompletion) (bool, error, bool) {
 	if ctx.Err() != nil {
