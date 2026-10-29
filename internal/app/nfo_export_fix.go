@@ -38,7 +38,7 @@ func (m *Metadata) validateItemNFO(ctx context.Context, actor domain.Actor, item
 	}
 	validation, err := reader.ValidateItemNFO(ctx, scope)
 	if err != nil {
-		return domain.NFOItemScope{}, domain.NFOItemValidation{}, nfoItemError(ctx, err)
+		return domain.NFOItemScope{}, domain.NFOItemValidation{}, nfoItemErrorCause(ctx, err, true)
 	}
 	return scope, validation, nil
 }

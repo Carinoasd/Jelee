@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io"
 	"strings"
+	"sync"
 
 	"github.com/MoYuanCN/Jelee/internal/platform/ignore"
 )
@@ -170,10 +171,20 @@ func (r *Resolver) scanDirectory(ctx context.Context, root, relative string, opt
 	if !ok {
 		return ErrUnavailable
 	}
-	// Cancellation closes precisely the handle doing ReadDir. Ancestors remain
-	// owned until this invocation returns; no goroutine mutates the owned slice.
+	// Cancellation closes precisely the handle doing ReadDir, but never while a
+	// page is being read: os.File keeps directory read state outside the
+	// descriptor lock, so overlapping Close and ReadDir is a data race.
+	// Cancellation is observed between pages, and a page is bounded. Ancestors
+	// remain owned until this invocation returns; no goroutine mutates the
+	// owned slice.
+	var readerMu sync.Mutex
 	joined := make(chan struct{})
-	stop := context.AfterFunc(ctx, func() { defer close(joined); _ = reader.Close() })
+	stop := context.AfterFunc(ctx, func() {
+		defer close(joined)
+		readerMu.Lock()
+		defer readerMu.Unlock()
+		_ = reader.Close()
+	})
 	defer func() {
 		if !stop() {
 			<-joined
@@ -184,7 +195,9 @@ func (r *Resolver) scanDirectory(ctx context.Context, root, relative string, opt
 		if err = ctx.Err(); err != nil {
 			return err
 		}
+		readerMu.Lock()
 		entries, readErr := reader.ReadEntries()
+		readerMu.Unlock()
 		if err = ctx.Err(); err != nil {
 			return err
 		}

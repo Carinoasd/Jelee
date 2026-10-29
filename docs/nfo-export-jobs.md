@@ -61,7 +61,15 @@ jelee-cli nfo export-status --job ID --token-stdin [--url ORIGIN] [--json]
 | skippedMissing | 條目沒有 NFO 檔（`all` 模式不建立檔案；要建立用 `missing` 模式） |
 | skippedInvalid | NFO 無效 |
 | skippedOther | 無法準備：NFO 帶全域鎖（`lockdata`）、差異欄位全被 NFO 鎖住（被鎖的欄位不編輯，其餘照寫）、無媒體來源、不支援的種類、已刪除 |
-| failed | 條目層級的錯誤（例如修訂版或來源衝突經一次重試仍衝突）、已準備但子任務沒有取代的條目（子任務失敗、取消、被拒絕） |
+| failed | 條目層級的錯誤（例如修訂版衝突經一次重試仍衝突、來源變更經 5 次嘗試仍變更）、已準備但子任務沒有取代的條目（子任務失敗、取消、被拒絕） |
+
+### 讀取時的衝突重試
+
+條目的 NFO 讀取在觀察期間比對父目錄與檔案的狀態，變了就回「來源已變更」（`nfo_changed`，對外是衝突）。同一個目錄也會被不相干的活動改動：背景的寫回清理程序（[docs/nfo-commit-cleanup.md](nfo-commit-cleanup.md)）會刪除已結束子任務的 token 檔，目錄修改時間隨之變動，同一個季資料夾內的許多集數因此有機會讀到「來源已變更」。偵測以目錄身分與修改時間為準而非名稱，無法把清理程序擁有的名稱排除而不削弱檢查，所以檢查本身不變，改由 worker 重試：
+
+- 來源已變更：最多 5 次嘗試，每次之間暫停 25、50、100、200 毫秒（隨 context 取消而中止）。每次都重新讀取資料庫與 NFO 並重做完整檢查，只是不採用有衝突的那次觀察。
+- 修訂版衝突與準備被拒的衝突：維持重試一次。
+- 5 次後仍變更（例如檔案真的在被改動）計為 `failed`。
 
 單一條目失敗不會停止任務。資料庫、租約、授權與 context 錯誤停止執行並保留游標；失敗碼為 `nfo_export_failed`，逾時為 `job_timeout`。寫入權限在任務途中被收回時，下一個子任務的提交被拒（409 對應的 `nfo_write_disabled`），任務失敗，不再寫檔。
 
@@ -70,6 +78,8 @@ jelee-cli nfo export-status --job ID --token-stdin [--url ORIGIN] [--json]
 匯出任務從不在 worker 內等子任務，否則只有一個 worker 時會死結。協調用三個零件：
 
 1. **一庫一活動任務的例外。** 資料庫以唯一索引保證一庫同時只有一個 queued／running 任務。遷移 000089 把索引改成 `(library_id, (export_job_id IS NOT NULL))`：新欄位 `jobs.export_job_id`（`parent_id` 已用於重試，不能共用）由匯出子任務填入匯出任務的 ID，所以一庫最多一個活動的頂層任務加一個活動的匯出子任務；`CHECK` 限制只有 `nfo_write` 任務能有 `export_job_id`。索引的部分條件不變，工作指標查詢仍用它。
+
+    遷移 000093 補上這個欄位的完整性（先前只有上述 `CHECK`）：外鍵 `jobs_export_job_fkey` 指向 `jobs(id)`，觸發器 `guard_job_export_parent` 要求被指的任務是同一媒體庫的 `nfo_export`（否則 `23514`；不存在的任務由外鍵拒絕，`23503`），`guard_job_export_children` 讓帶有子任務的匯出任務不能改 `kind` 或 `library_id`。外鍵用 `ON DELETE SET NULL`：歷史修剪依時間刪除已結束的匯出任務，而留有提交日誌的子任務依 `retain_nfo_write_commit_job` 不能被刪，`CASCADE` 或 `RESTRICT` 都會讓修剪整批失敗；子任務因此保留自己的歷史，只失去指標。修剪另外不刪仍有 queued／running 子任務的匯出任務（清除指標會讓子任務變成第二個活動的頂層任務）。升級時，先前因匯出任務被修剪而懸空（或指向不合規任務）的指標會清為 NULL，子任務本身不動；降級只移除外鍵、觸發器與索引，不需要拒絕。
 2. **領取閘門。** 匯出任務的子任務是 queued 或 running 時，領取查詢不會選它（`nfo_export_job_state.child_job_id` 指向的任務）。閘門不靠計時，子任務一終止，下一次輪詢就能領取。
 3. **讓出（yield）。** 每次領取只推進一步：(a) 把已終止的子任務結算進計數；(b) 從游標往後準備條目，直到有 16 份準備或該批 50 個條目讀完；(c) 沒有需要寫的條目就在同一步直接記入游標與計數，繼續往下讀；(d) 有準備就在**一個受租約保護的交易**內建立子任務、複製其工作意圖、刪除這一 chunk 的準備、寫入子任務 ID、chunk 編號、游標與計數；(e) 以 `ErrNFOExportYield` 結束這一步。runner 在等監控執行緒結束後呼叫 `YieldNFOExport`，把任務放回 queued 並退還這次領取的 attempt（讓出不消耗重試次數），然後 worker 立刻能領取子任務。子任務終止後，匯出任務再被領取，從 (a) 繼續；沒有條目可讀時以成功結束。
 

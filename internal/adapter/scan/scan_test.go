@@ -334,21 +334,39 @@ func TestSkippedCountsOnlyFinalBatchAndMetadataLimits(t *testing.T) {
 	}
 }
 
+// blockingDirectory models a ReadDir page in flight. Close must wait for the
+// page: os.File keeps directory read state outside the descriptor lock, so a
+// close overlapping ReadDir is a data race.
 type blockingDirectory struct {
 	entered chan struct{}
-	closed  chan struct{}
-	once    sync.Once
+	release chan struct{}
+	mu      sync.Mutex
+	reading bool
+	closeAt bool // Close observed while a page was being read
+	closed  bool
 }
 
 func (d *blockingDirectory) ReadDir(int) ([]os.DirEntry, error) {
+	d.mu.Lock()
+	d.reading = true
+	d.mu.Unlock()
 	close(d.entered)
-	<-d.closed
+	<-d.release
+	d.mu.Lock()
+	d.reading = false
+	d.mu.Unlock()
 	return nil, errors.New("private blocked filesystem path")
 }
-func (d *blockingDirectory) Close() error { d.once.Do(func() { close(d.closed) }); return nil }
+func (d *blockingDirectory) Close() error {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	d.closeAt = d.closeAt || d.reading
+	d.closed = true
+	return nil
+}
 
-func TestCancellationClosesBlockedDirectoryWithoutDetachedReader(t *testing.T) {
-	reader := &blockingDirectory{entered: make(chan struct{}), closed: make(chan struct{})}
+func TestCancellationWaitsForTheCurrentPageThenClosesWithoutDetachedReader(t *testing.T) {
+	reader := &blockingDirectory{entered: make(chan struct{}), release: make(chan struct{})}
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	result := make(chan error, 1)
@@ -359,11 +377,22 @@ func TestCancellationClosesBlockedDirectoryWithoutDetachedReader(t *testing.T) {
 	cancel()
 	select {
 	case err := <-result:
+		t.Fatalf("enumerate returned while a page was being read: %v", err)
+	case <-time.After(50 * time.Millisecond):
+	}
+	close(reader.release)
+	select {
+	case err := <-result:
 		if err != context.Canceled {
 			t.Fatalf("cancel error=%v", err)
 		}
 	case <-time.After(2 * time.Second):
-		t.Fatal("blocked reader did not finish after close")
+		t.Fatal("reader did not finish after the page returned")
+	}
+	reader.mu.Lock()
+	defer reader.mu.Unlock()
+	if !reader.closed || reader.closeAt {
+		t.Fatalf("close must follow the page: closed=%v overlapped=%v", reader.closed, reader.closeAt)
 	}
 }
 

@@ -108,9 +108,15 @@ type exportReader struct {
 	nfoApplyWorkerReader
 	status map[string]string
 	values map[string][]domain.NFOTextField
+	// changed counts, per item, the reads that still report a source change.
+	changed map[string]int
 }
 
 func (r exportReader) ObserveItemNFO(_ context.Context, scope domain.NFOItemScope) (NFOItemObservation, error) {
+	if r.changed[scope.ItemID] > 0 {
+		r.changed[scope.ItemID]--
+		return nil, domain.ErrNFOSourceChanged
+	}
 	relative := scope.Source.RelativePath
 	identity := domain.DefaultNFOIdentity()
 	stamp := domain.NFOStamp{Size: 10, SHA256: strings.Repeat("a", 64), FingerprintVersion: domain.NFOFingerprintVersion}
@@ -258,6 +264,9 @@ func (r *exportExecution) FinishNFOExport(context.Context, domain.JobLease, stri
 	return nil
 }
 
+// exportWaits records the pauses the worker asked for since the last reset.
+var exportWaits []time.Duration
+
 func exportWorker(t *testing.T, items *exportItems, reader exportReader, preparer *exportPreparer, execution *exportExecution) *NFOExportWorker {
 	t.Helper()
 	base, err := NewLocalMetadata(items)
@@ -271,6 +280,11 @@ func exportWorker(t *testing.T, items *exportItems, reader exportReader, prepare
 	worker, err := NewNFOExportWorker(metadata, preparer, execution, 0)
 	if err != nil {
 		t.Fatal(err)
+	}
+	// The pause between source-change retries is recorded, not slept.
+	worker.wait = func(ctx context.Context, d time.Duration) error {
+		exportWaits = append(exportWaits, d)
+		return ctx.Err()
 	}
 	return worker
 }
@@ -336,7 +350,8 @@ func TestNFOExportWorkerClassifiesItemsAndRecordsThoseNeedingNoWrite(t *testing.
 	if err := worker.Run(context.Background(), exportLease()); !errors.Is(err, ErrNFOExportYield) {
 		t.Fatal("run did not yield", err)
 	}
-	// The conflict of item 5 is retried once with fresh state, then failed.
+	// A revision or preparation conflict (item 5) is still retried once with
+	// fresh state, then failed; only source changes get the longer rule below.
 	want := domain.NFOExportCounts{Unchanged: 1 + 4, SkippedMissing: 1, SkippedInvalid: 1, SkippedOther: 2, Failed: 2}
 	if len(execution.submits) != 1 || execution.submits[0].counts != want || !reflect.DeepEqual(execution.submits[0].preparations, []string{"prep-" + ids[7]}) || execution.submits[0].cursor != ids[11] {
 		t.Fatalf("submit %+v, want counts %+v", execution.submits, want)
@@ -452,5 +467,46 @@ func TestNFOExportWorkerRejectsWrongJobKindAndMissingParts(t *testing.T) {
 	base, _ := NewLocalMetadata(&exportItems{})
 	if _, err := NewNFOExportWorker(base, &exportPreparer{}, execution, 0); !errors.Is(err, domain.ErrInvalid) {
 		t.Fatal("a metadata service without NFO fields was accepted", err)
+	}
+}
+
+// A read whose source changed is repeated up to nfoExportSourceAttempts times
+// with a growing pause. The earlier rule (one retry for every conflict) counted
+// an item failed when a cleanup pass touched its directory twice in a row.
+func TestNFOExportWorkerRetriesSourceChangesWithBackoffAndThenFails(t *testing.T) {
+	ids := nfoApplyIDs(4)
+	exportWaits = nil
+	// Item 0 recovers on the fifth read, 1 after one change, 2 never recovers.
+	reader := exportReader{changed: map[string]int{ids[0]: 4, ids[1]: 1, ids[2]: 100}, values: map[string][]domain.NFOTextField{}}
+	for _, id := range ids {
+		reader.values[id] = nfoExportText("title", "DB "+id)
+	}
+	execution := &exportExecution{items: ids}
+	if err := exportWorker(t, &exportItems{}, reader, &exportPreparer{}, execution).Run(context.Background(), exportLease()); err != nil {
+		t.Fatal(err)
+	}
+	if execution.counts != (domain.NFOExportCounts{Unchanged: 3, Failed: 1}) {
+		t.Fatalf("counts %+v", execution.counts)
+	}
+	ms := time.Millisecond
+	want := []time.Duration{25 * ms, 50 * ms, 100 * ms, 200 * ms, 25 * ms, 25 * ms, 50 * ms, 100 * ms, 200 * ms}
+	if !reflect.DeepEqual(exportWaits, want) {
+		t.Fatalf("pauses %v, want %v", exportWaits, want)
+	}
+	if left := reader.changed[ids[2]]; left != 100-nfoExportSourceAttempts {
+		t.Fatalf("the permanently changing source was read %d times", 100-left)
+	}
+}
+
+func TestNFOExportWorkerSourceChangeRetryStopsWithTheContext(t *testing.T) {
+	ids := nfoApplyIDs(1)
+	reader := exportReader{changed: map[string]int{ids[0]: 100}}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	execution := &exportExecution{items: ids}
+	worker := exportWorker(t, &exportItems{}, reader, &exportPreparer{}, execution)
+	worker.wait = func(ctx context.Context, _ time.Duration) error { cancel(); return ctx.Err() }
+	if err := worker.Run(ctx, exportLease()); !errors.Is(err, context.Canceled) {
+		t.Fatal("a cancelled pause must stop the run", err)
 	}
 }

@@ -227,7 +227,7 @@ func TestListImageCandidatesFeedsRecognizer(t *testing.T) {
 		}
 		defer func() { _ = listing.Close() }()
 		var names []string
-		err = listImageCandidates(context.Background(), root, listing, imageNameCandidate, func(name string) error {
+		err = listImageCandidates(context.Background(), root, listing.ReadDir, imageNameCandidate, func(name string) error {
 			names = append(names, name)
 			return nil
 		})

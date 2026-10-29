@@ -67,6 +67,28 @@ type NFOExportWorker struct {
 	preparations NFOExportPreparer
 	repo         NFOExportExecutionRepository
 	dbTimeout    time.Duration
+	// wait pauses between source-change retries; tests replace it.
+	wait func(context.Context, time.Duration) error
+}
+
+const (
+	// nfoExportSourceAttempts bounds how often one item's NFO read is repeated
+	// after the read reported that its source changed while it was observed.
+	nfoExportSourceAttempts = 5
+	// nfoExportSourceBackoff is the pause after the first source change; it
+	// doubles for every further one (25, 50, 100, 200 ms).
+	nfoExportSourceBackoff = 25 * time.Millisecond
+)
+
+func waitNFOExport(ctx context.Context, d time.Duration) error {
+	timer := time.NewTimer(d)
+	defer timer.Stop()
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-timer.C:
+		return nil
+	}
 }
 
 // NewNFOExportWorker requires a Metadata that can read item NFO. dbTimeout
@@ -81,7 +103,7 @@ func NewNFOExportWorker(metadata *Metadata, preparations NFOExportPreparer, repo
 	if dbTimeout == 0 {
 		dbTimeout = 2 * time.Second
 	}
-	return &NFOExportWorker{metadata: metadata, preparations: preparations, repo: repository, dbTimeout: dbTimeout}, nil
+	return &NFOExportWorker{metadata: metadata, preparations: preparations, repo: repository, dbTimeout: dbTimeout, wait: waitNFOExport}, nil
 }
 
 func (w *NFOExportWorker) db(ctx context.Context, call func(context.Context) error) error {
@@ -223,7 +245,7 @@ func (w *NFOExportWorker) countExistingNFOs(ctx context.Context, actor domain.Ac
 		before, err := w.metadata.ItemFields(ctx, actor, item)
 		var read nfoItemRead
 		if err == nil {
-			_, read, err = w.metadata.readItemNFOStates(ctx, actor, item, before.Revision)
+			_, read, err = w.metadata.readItemNFOStatesCause(ctx, actor, item, before.Revision)
 		}
 		if err != nil {
 			if _, _, stop := classifyNFOExportError(ctx, err); stop != nil {
@@ -240,12 +262,31 @@ func (w *NFOExportWorker) countExistingNFOs(ctx context.Context, actor domain.Ac
 
 // exportItem reads the item's database metadata and its NFO and, when they
 // differ (or, in missing mode, when the NFO does not exist; in fix mode, when
-// the NFO has an issue the fix repairs), prepares the edit. A revision or
-// source conflict is retried once with fresh state. The error is non-nil only
-// when the run must stop (or the preparation store is full, which Run handles).
+// the NFO has an issue the fix repairs), prepares the edit. A revision
+// conflict (or a refused preparation) is retried once with fresh state. A read
+// that reports its source changed is repeated up to nfoExportSourceAttempts
+// times with a short, growing pause: the read's own checks are unchanged, but
+// the directory it observes is also touched by unrelated activity (the write
+// cleanup pass removing token files of finished children), which is gone on
+// the next try. The error is non-nil only when the run must stop (or the
+// preparation store is full, which Run handles).
 func (w *NFOExportWorker) exportItem(ctx context.Context, actor domain.Actor, mode string, job string, chunk int, item string) (nfoExportOutcome, string, error) {
 	var err error
-	for attempt := 0; attempt < 2; attempt++ {
+	conflicts, sourceChanges := 0, 0
+	// retry reports whether a conflict of the read or the preparation is
+	// tried again, after the pause a source change calls for.
+	retry := func(err error) bool {
+		if errors.Is(err, domain.ErrNFOSourceChanged) {
+			sourceChanges++
+			if sourceChanges >= nfoExportSourceAttempts {
+				return false
+			}
+			return w.wait(ctx, nfoExportSourceBackoff<<(sourceChanges-1)) == nil
+		}
+		conflicts++
+		return conflicts < 2
+	}
+	for {
 		var before domain.ItemMetadata
 		if before, err = w.metadata.ItemFields(ctx, actor, item); err != nil {
 			break
@@ -257,7 +298,7 @@ func (w *NFOExportWorker) exportItem(ctx context.Context, actor domain.Actor, mo
 		case domain.NFOExportFix:
 			var validation domain.NFOItemValidation
 			if scope, validation, err = w.metadata.validateItemNFO(ctx, actor, item, before.Revision); err != nil {
-				if errors.Is(err, domain.ErrConflict) {
+				if errors.Is(err, domain.ErrConflict) && retry(err) {
 					continue
 				}
 				break
@@ -265,8 +306,8 @@ func (w *NFOExportWorker) exportItem(ctx context.Context, actor domain.Actor, mo
 			outcome, request = planNFOExportFix(before, scope, validation)
 		default:
 			var read nfoItemRead
-			if scope, read, err = w.metadata.readItemNFOStates(ctx, actor, item, before.Revision); err != nil {
-				if errors.Is(err, domain.ErrConflict) {
+			if scope, read, err = w.metadata.readItemNFOStatesCause(ctx, actor, item, before.Revision); err != nil {
+				if errors.Is(err, domain.ErrConflict) && retry(err) {
 					continue
 				}
 				break
@@ -288,7 +329,7 @@ func (w *NFOExportWorker) exportItem(ctx context.Context, actor domain.Actor, mo
 		if err == nil {
 			return nfoExportPrepared, preparation.ID, nil
 		}
-		if !errors.Is(err, domain.ErrConflict) {
+		if !errors.Is(err, domain.ErrConflict) || !retry(err) {
 			break
 		}
 	}

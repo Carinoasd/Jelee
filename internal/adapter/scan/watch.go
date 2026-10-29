@@ -94,7 +94,8 @@ func (w *DirectoryWatcher) build(ctx context.Context, roots []domain.ScanDirecto
 	return tree, nil
 }
 
-func appendWatchDirectories(ctx context.Context, file *os.File, parent domain.ScanDirectory, queue *[]domain.ScanDirectory, limit int) error {
+func appendWatchDirectories(ctx context.Context, opened *os.File, parent domain.ScanDirectory, queue *[]domain.ScanDirectory, limit int) error {
+	file := &serialDirectory{file: opened}
 	closed := make(chan struct{})
 	stop := context.AfterFunc(ctx, func() { defer close(closed); _ = file.Close() })
 	defer func() {

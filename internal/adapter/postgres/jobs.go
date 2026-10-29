@@ -100,6 +100,11 @@ func trimJobs(ctx context.Context, tx pgx.Tx, limit int) error {
 	if syncRequests {
 		journal += ` AND NOT EXISTS(SELECT 1 FROM catalog_sync_requests r JOIN jobs active ON active.id=r.job_id WHERE r.source_job_id=jobs.id AND active.state IN ('queued','running'))`
 	}
+	// An export job whose child write job is still active stays: deleting it
+	// would clear the child's pointer, which the active-job index reads.
+	if version >= 93 || dirty {
+		journal += ` AND NOT EXISTS(SELECT 1 FROM jobs child WHERE child.export_job_id=jobs.id AND child.state IN ('queued','running'))`
+	}
 	_, err := tx.Exec(ctx, `DELETE FROM jobs WHERE id IN (SELECT id FROM jobs WHERE state IN ('succeeded','failed','cancelled')`+journal+` AND NOT EXISTS(SELECT 1 FROM catalog_import_requests r JOIN jobs active ON active.id=r.job_id WHERE r.source_job_id=jobs.id AND active.state IN ('queued','running')) ORDER BY finished_at DESC,id DESC OFFSET $1)`, limit)
 	return storageError(err)
 }
