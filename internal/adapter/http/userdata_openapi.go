@@ -12,7 +12,7 @@ func userDataSchemas(schemas map[string]any) {
 	recovery := map[string]any{"type": "string", "maxLength": 64, "writeOnly": true, "description": "One unused recovery code; required instead of code when the account has a second factor."}
 	schemas["AccountPurge"] = objectSchema(map[string]any{"password": map[string]any{"type": "string", "maxLength": 1024, "writeOnly": true}, "code": totpCode, "recoveryCode": recovery}, "password")
 	schemas["UserDataRecord"] = objectSchema(map[string]any{
-		"type": map[string]any{"type": "string", "enum": []string{"export", "account", "preferences", "trackPreference", "blockedTag", "libraryAccess", "itemAccessRule", "itemData",
+		"type": map[string]any{"type": "string", "enum": []string{"export", "account", "preferences", "trackPreference", "versionPreference", "sessionTrack", "blockedTag", "libraryAccess", "itemAccessRule", "itemData",
 			"playbackSession", "playbackSample", "watchStatsDay", "watchStatsItem", "session", "appPassword", "shareLink", "clientControlHit", "auditEvent", "end"}},
 		"data": map[string]any{"type": "object", "description": "The export record: format " + domain.UserDataExportFormat + ", version, userId, userName and generatedAt (the snapshot time). A data record: the row with camelCase fields; null fields are left out. The end record: records, the number of data records."},
 	}, "type", "data")

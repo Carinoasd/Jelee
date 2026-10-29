@@ -92,6 +92,9 @@ type PlaybackReport struct {
 	// of PlaybackFailureReasons or empty.
 	Failed        bool
 	FailureReason string
+	// Tracks is the audio and subtitle the client plays, when it says so;
+	// a change is recorded as the session's track choice (G20.4).
+	Tracks *PlaybackTrackReport
 }
 
 // ValidPlayKey accepts 1 to PlayKeyMax bytes of letters, digits and ._:-.
@@ -134,6 +137,9 @@ func (r PlaybackReport) Validate() error {
 		return ErrInvalid
 	}
 	if r.Failed && r.Kind != PlaybackReportStop {
+		return ErrInvalid
+	}
+	if r.Tracks != nil && !r.Tracks.Valid() {
 		return ErrInvalid
 	}
 	return nil

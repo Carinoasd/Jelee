@@ -51,7 +51,7 @@ func (s *Server) playbackInfo(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), s.cfg.RequestTimeout())
 	defer cancel()
 	id := chi.URLParam(r, "id")
-	sources, err := s.catalog.PlaybackSources(ctx, actor, id)
+	sources, selection, err := s.catalog.PlaybackChoice(ctx, actor, id, nil)
 	if err != nil {
 		WriteError(w, r, s.hiddenContentError(err))
 		return
@@ -66,7 +66,15 @@ func (s *Server) playbackInfo(w http.ResponseWriter, r *http.Request) {
 			s.decorateOCR(ctx, principal, &sources[i])
 		}
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"data": map[string]any{"itemId": id, "delivery": playbackDelivery, "sources": sources}})
+	s.logSelection(r, w, selection)
+	writeJSON(w, http.StatusOK, map[string]any{"data": map[string]any{"itemId": id, "delivery": playbackDelivery, "sources": sources, "selection": selection}})
+}
+
+// logSelection records the default version choice (G20.2) at debug level:
+// only source IDs and fixed reason codes, never names or paths.
+func (s *Server) logSelection(r *http.Request, w http.ResponseWriter, selection domain.VersionSelection) {
+	s.logger.DebugContext(r.Context(), "default version chosen", "component", "playback", "requestId", w.Header().Get("X-Request-ID"),
+		"sourceId", selection.DefaultSourceID, "reason", selection.Reason, "preferences", selection.Preferences, "excluded", len(selection.Excluded))
 }
 
 func (s *Server) playbackCheck(w http.ResponseWriter, r *http.Request) {
@@ -82,7 +90,7 @@ func (s *Server) playbackCheck(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), s.cfg.RequestTimeout())
 	defer cancel()
 	id := chi.URLParam(r, "id")
-	decisions, err := s.catalog.CheckPlayback(ctx, actor, id, caps)
+	decisions, selection, err := s.catalog.CheckPlaybackChoice(ctx, actor, id, caps)
 	if err != nil {
 		WriteError(w, r, s.hiddenContentError(err))
 		return
@@ -113,5 +121,6 @@ func (s *Server) playbackCheck(w http.ResponseWriter, r *http.Request) {
 		s.logger.InfoContext(r.Context(), "direct play unsupported", "component", "playback", "requestId", w.Header().Get("X-Request-ID"),
 			"sources", len(decisions), "unsupported", unsupported, "reasons", reasons)
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"data": map[string]any{"itemId": id, "delivery": playbackDelivery, "directPlayable": playable, "decisions": decisions}})
+	s.logSelection(r, w, selection)
+	writeJSON(w, http.StatusOK, map[string]any{"data": map[string]any{"itemId": id, "delivery": playbackDelivery, "directPlayable": playable, "decisions": decisions, "selection": selection}})
 }

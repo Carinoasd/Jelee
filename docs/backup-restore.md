@@ -139,7 +139,7 @@ $dc up -d jelee
 | 條目中繼資料欄位與事實（含手動編輯、TMDB 與 NFO 來源）、欄位鎖、獨立 NFO 欄位鎖、修訂號 | 探測快取、NFO 快取、NFO 寫回工作與日誌 |
 | **鎖定**的條目圖片（來源與內容摘要） | 未鎖定的圖片（掃描與重新整理會重建）、圖片檔本身 |
 | 多版本人工決定：被合併的掃描群組別名、排除誤合併的檔案、主版本、人工放置標記（[多版本](item-versions.md)） | 版本操作紀錄與撤銷資料（只為 30 天內撤銷服務） |
-| 播放進度、已播放、播放次數、音軌／字幕偏好（使用者預設、條目層、版本層） | 播放工作階段與取樣、觀看統計 |
+| 播放進度、已播放、播放次數、音軌／字幕偏好（使用者預設、條目層、版本層）、版本偏好（G20.2，遷移 099） | 播放工作階段與取樣、觀看統計、會話選軌（G20.4，30 天內有效） |
 | 內容存取政策、分級對照表、條目允許／隱藏規則、封鎖標籤、封鎖關鍵字與限制時段（遷移 084） | — |
 | 存取模板與其媒體庫（G48.7，遷移 084；媒體庫沒有一起匯入時只略過該庫） | — |
 | 用戶端管控政策與規則（含 `restrict_libraries` 的媒體庫，匯入時換成目的地的媒體庫） | 命中計數、已知用戶端、命中紀錄 |
@@ -164,7 +164,7 @@ $dc up -d jelee
 | 只能附加的稽核軌跡 | `audit_logs`（匯入本身另寫 `metadata.imported`） |
 | 工作佇列、租約與工作進度：只對寫入它的資料庫的工作者有意義 | `jobs` 及各 `job_*`、探測／NFO／圖片工作狀態、`catalog_import_*`、`catalog_sync_requests`、`nfo_write_*`、`webhook_outbox`、`legacy_import_pending` |
 | 快取、配額與衍生狀態：掃描、探測、NFO 讀取與圖片處理會重建 | 探測與 NFO 快取與配額、`tool_versions`、`item_nfo_observations`、盤點基準與快照、`catalog_scan_pending`、`image_variants`、外掛字幕／音軌、內嵌封面嘗試、`scan_watch_state`（匯入依排程重建） |
-| 觀察值與統計，不是設定 | 播放工作階段與取樣、觀看統計、已知用戶端與其工作階段、命中紀錄、webhook 投遞與嘗試、工作指標 |
+| 觀察值與統計，不是設定 | 播放工作階段與取樣、會話選軌（`session_track_selections`）、觀看統計、已知用戶端與其工作階段、命中紀錄、webhook 投遞與嘗試、工作指標 |
 | 這個資料庫的操作歷史 | `consistency_runs`、`consistency_run_checks`、`consistency_fix_journal`、`repair_runs`、`repair_journal`、`item_version_operations`、`legacy_import_runs`／`checkpoints`／`map` |
 | 實例自己的狀態 | `setup_state`（匯入另行處理）、`dev_mode_state`、`log_settings`（執行期日誌級別覆寫與日誌檔保留）、`schema_migrations` |
 

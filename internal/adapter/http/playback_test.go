@@ -117,6 +117,10 @@ func TestPlaybackInfoAndCheckHTTP(t *testing.T) {
 	if want := "/api/v1/sources/" + sourceID + "/subtitles/" + libraryID; source.External[0].URL != want {
 		t.Fatalf("external track URL %q, want %q", source.External[0].URL, want)
 	}
+	// G20.2: the default version and the rule that chose it.
+	if !strings.Contains(w.Body.String(), `"selection":{"defaultSourceId":"`+sourceID+`","reason":"only_version","preferences":[],"excluded":[]}`) {
+		t.Fatalf("selection missing: %s", w.Body.String())
+	}
 
 	w = playbackHTTPRequest(handler, "POST", check, `{"containers":["MP4"],"videoCodecs":["avc"],"audioCodecs":["aac"],"subtitleFormats":["subrip"],"maxBitrate":8000000}`, native)
 	var decided struct {
@@ -139,11 +143,15 @@ func TestPlaybackInfoAndCheckHTTP(t *testing.T) {
 		d.Tracks[1].URL != "/api/v1/sources/"+sourceID+"/subtitles/"+libraryID {
 		t.Fatalf("track decisions differ: %+v", d.Tracks)
 	}
+	if !strings.Contains(w.Body.String(), `"selection":{"reason":"none_playable","preferences":[],"excluded":[{"sourceId":"`+sourceID+`","reasons":["audio_codec_unsupported"]}]}`) {
+		t.Fatalf("a declaration that excludes every version leaves no default: %s", w.Body.String())
+	}
 	if !strings.Contains(logs.String(), `"msg":"direct play unsupported"`) || !strings.Contains(logs.String(), "audio_codec_unsupported") || strings.Contains(logs.String(), "Film") {
 		t.Fatalf("unsupported decision not traceable in logs: %s", logs.String())
 	}
 	w = playbackHTTPRequest(handler, "POST", check, `{"containers":["mp4"],"videoCodecs":["h264"],"audioCodecs":["eac3"],"maxBitrate":8000000}`, native)
-	if w.Code != 200 || !strings.Contains(w.Body.String(), `"directPlayable":true`) || !strings.Contains(w.Body.String(), `"reasons":[]`) {
+	if w.Code != 200 || !strings.Contains(w.Body.String(), `"directPlayable":true`) || !strings.Contains(w.Body.String(), `"reasons":[]`) ||
+		!strings.Contains(w.Body.String(), `"defaultSourceId":"`+sourceID+`"`) {
 		t.Fatalf("supported check %d: %s", w.Code, w.Body.String())
 	}
 	w = playbackHTTPRequest(handler, "POST", check, `{}`, native)

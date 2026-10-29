@@ -105,6 +105,18 @@ func (s *Server) versionRoutes(r chi.Router) {
 		p, err := s.catalog.SetUserTrackPreference(r.Context(), a, input)
 		return map[string]any{"preference": p}, 200, err
 	}))
+	r.Get("/api/v1/users/me/version-preferences", s.accountEndpoint(false, false, func(_ http.ResponseWriter, r *http.Request, a domain.Actor) (any, int, error) {
+		p, err := s.catalog.VersionPreference(r.Context(), a)
+		return map[string]any{"preference": p}, 200, err
+	}))
+	r.Put("/api/v1/users/me/version-preferences", s.accountEndpoint(false, false, func(w http.ResponseWriter, r *http.Request, a domain.Actor) (any, int, error) {
+		var input domain.VersionPreference
+		if err := decodeJSONNullable(w, r, &input, versionBodyLimit, topLevelNullable); err != nil {
+			return nil, 0, err
+		}
+		p, err := s.catalog.SetVersionPreference(r.Context(), a, input)
+		return map[string]any{"preference": p}, 200, err
+	}))
 }
 
 // topLevelNullable accepts null for every member of the body object: a

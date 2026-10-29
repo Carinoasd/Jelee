@@ -126,6 +126,9 @@ type liveSession struct {
 	lastReceivedKept             bool
 	// retryEnd is an ending whose write failed; the next flush retries it.
 	retryEnd *domain.PlaybackFlush
+	// tracks is the fingerprint of the last session track choice stored
+	// for this session (G20.4), so unchanged reports write nothing.
+	tracks string
 }
 
 // Progress buffers playback reports and writes them in batches (G23.2):
@@ -332,7 +335,7 @@ func (p *Progress) open(ctx context.Context, actor domain.Actor, report domain.P
 		if report.SourceID != "" && candidate.ID != report.SourceID {
 			continue
 		}
-		if source == nil || report.SourceID == "" && compareVersions(candidate, *source) < 0 {
+		if source == nil || report.SourceID == "" && domain.CompareVersions(candidate, *source) < 0 {
 			c := candidate
 			source = &c
 		}
@@ -808,12 +811,85 @@ func (c *Catalog) progressReady(ctx context.Context) error {
 // HasProgress reports whether playback reporting is wired.
 func (c *Catalog) HasProgress() bool { return c != nil && c.progress != nil }
 
-// ReportPlayback applies one playback report of a native session.
+// ReportPlayback applies one playback report of a native session. When the
+// report says which tracks the client plays and that changed since the last
+// stored choice of the session, the choice is recorded for the item (G20.4)
+// after the report itself was applied. Recording is best effort: a failure
+// is logged and retried with the next report, never held against the
+// report.
 func (c *Catalog) ReportPlayback(ctx context.Context, actor domain.Actor, report domain.PlaybackReport) error {
 	if err := c.progressReady(ctx); err != nil {
 		return err
 	}
-	return c.progress.Report(ctx, actor, report)
+	record := c.versions != nil && report.Tracks != nil && !report.Tracks.Empty()
+	var target sessionTarget
+	held := false
+	if record {
+		// A stop removes the session from the buffer; read it first.
+		target, held = c.progress.target(actor.UserID, report.PlayKey)
+	}
+	if err := c.progress.Report(ctx, actor, report); err != nil {
+		return err
+	}
+	if !record {
+		return nil
+	}
+	if !held {
+		if target, held = c.progress.target(actor.UserID, report.PlayKey); !held {
+			return nil
+		}
+	}
+	fingerprint := report.Tracks.Fingerprint()
+	if target.sourceID == "" || target.tracks == fingerprint {
+		return nil
+	}
+	if err := c.recordSessionTracks(ctx, actor, target, report); err != nil {
+		c.progress.opts.Logger.WarnContext(ctx, "session track choice not recorded; retrying with the next report", "component", "playback")
+		return nil
+	}
+	c.progress.setTracks(actor.UserID, report.PlayKey, fingerprint)
+	return nil
+}
+
+// sessionTarget is what the buffer knows about a live session.
+type sessionTarget struct{ itemID, sourceID, tracks string }
+
+func (p *Progress) target(userID, playKey string) (sessionTarget, bool) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	s := p.sessions[liveKey(userID, playKey)]
+	if s == nil {
+		return sessionTarget{}, false
+	}
+	return sessionTarget{itemID: s.itemID, sourceID: s.sourceID, tracks: s.tracks}, true
+}
+
+func (p *Progress) setTracks(userID, playKey, fingerprint string) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if s := p.sessions[liveKey(userID, playKey)]; s != nil {
+		s.tracks = fingerprint
+	}
+}
+
+// recordSessionTracks resolves the reported tracks against the version the
+// session plays and stores them.
+func (c *Catalog) recordSessionTracks(ctx context.Context, actor domain.Actor, target sessionTarget, report domain.PlaybackReport) error {
+	records, err := c.progress.sources.ListPlaybackSources(ctx, actor, target.itemID)
+	if err != nil {
+		return err
+	}
+	for _, record := range records {
+		if record.ID != target.sourceID {
+			continue
+		}
+		tracks, ok := domain.ResolveTrackReport(domain.BuildPlaybackSource(record), *report.Tracks)
+		if !ok {
+			return nil
+		}
+		return c.versions.RecordSessionTracks(ctx, actor, target.itemID, report.PlayKey, tracks)
+	}
+	return nil
 }
 
 // PlaybackReportInterval is the client side report interval to announce.

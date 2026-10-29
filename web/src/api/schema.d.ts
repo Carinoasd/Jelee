@@ -8289,7 +8289,7 @@ export type paths = {
         };
         /**
          * Describe the original resources of an item
-         * @description Native sessions only. Lists every media source of the item with container, size, duration, bit rate, version labels, embedded video, audio and subtitle streams from the current probe result, and external subtitle and audio files. Sources without a current probe result are listed with probed=false. No query parameters are accepted; transformation parameters are rejected with 409 before anything else.
+         * @description Native sessions only. Lists every media source of the item, in the caller's default version order with the selection that explains the default (G20.2), with container, size, duration, bit rate, version labels, embedded video, audio and subtitle streams from the current probe result, and external subtitle and audio files. Sources without a current probe result are listed with probed=false. No query parameters are accepted; transformation parameters are rejected with 409 before anything else.
          */
         get: {
             parameters: {
@@ -8313,6 +8313,8 @@ export type paths = {
                                 delivery: components["schemas"]["PlaybackDelivery"];
                                 /** Format: uuid */
                                 itemId: string;
+                                selection: components["schemas"]["VersionSelection"];
+                                /** @description In the caller's default version order: the user's version preference, then the main version, the quality score and the source ID. */
                                 sources: components["schemas"]["PlaybackSource"][];
                             };
                         };
@@ -8460,6 +8462,8 @@ export type paths = {
                                 directPlayable: boolean;
                                 /** Format: uuid */
                                 itemId: string;
+                                /** @description The default version among the direct playable ones; the declaration only excludes, it never makes a conversion acceptable. */
+                                selection: components["schemas"]["VersionSelection"];
                             };
                         };
                     };
@@ -9177,7 +9181,7 @@ export type paths = {
         };
         /**
          * Replace one level of the caller's track preferences for an item
-         * @description sourceId selects a version level; without it the item level. Named tracks exist on the version level only. Playback information (GET /api/v1/items/{id}/playback, compat PlaybackInfo) starts with the tracks the merged levels pick. Not audited: preferences change which original track a client starts with, nothing else.
+         * @description sourceId selects a version level; without it the item level. Named tracks exist on the version level only. Playback information (GET /api/v1/items/{id}/playback, compat PlaybackInfo) starts with the tracks the merged levels pick, after an unexpired session choice of the same version (G20.4); storing a level removes the item's session choice. Not audited: preferences change which original track a client starts with, nothing else.
          */
         put: {
             parameters: {
@@ -27056,7 +27060,7 @@ export type paths = {
         };
         /**
          * Replace the caller's default track preferences
-         * @description Used for every item without its own level. Named tracks are not allowed here.
+         * @description Used for every item without its own level. Named tracks are not allowed here. Also removes every session track choice of the caller (G20.4).
          */
         put: {
             parameters: {
@@ -27704,6 +27708,257 @@ export type paths = {
                 };
             };
         };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/users/me/version-preferences": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read the caller's version preference (G20.2)
+         * @description Every member is null until set.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Successful response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["UserVersionPreference"];
+                        };
+                    };
+                };
+                /** @description HTTP 400 */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 401 */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 403 */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description The item, version, exclusion or operation is missing or not visible to the caller; all are answered alike. */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 408 */
+                408: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 409 */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 413 */
+                413: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 415 */
+                415: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 503 */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Jelee error envelope with code, message, details and traceId; see the Error schema. */
+                default: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        /**
+         * Replace the caller's version preference
+         * @description Orders the versions of every item in playback information (GET /api/v1/items/{id}/playback, POST /api/v1/items/{id}/playback/check, compat PlaybackInfo). A body without any member removes it. Not audited.
+         */
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            /** @description Maximum 4 KiB; exactly one object; unknown or duplicate keys rejected; null only where the schema allows it. */
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["VersionPreference"];
+                };
+            };
+            responses: {
+                /** @description Successful response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["UserVersionPreference"];
+                        };
+                    };
+                };
+                /** @description HTTP 400 */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 401 */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 403 */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description The item, version, exclusion or operation is missing or not visible to the caller; all are answered alike. */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 408 */
+                408: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 409 */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 413 */
+                413: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 415 */
+                415: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 503 */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Jelee error envelope with code, message, details and traceId; see the Error schema. */
+                default: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -31154,7 +31409,7 @@ export type components = {
                 /** @description Matroska track name from the optional MediaInfo supplement. */
                 title?: string;
             }[];
-            /** @description G20.2 version labels with qualityScore and displayName; sources are listed by qualityScore descending. Other label fields may be added. */
+            /** @description G20.2 version labels with qualityScore and displayName. Playback information lists sources in the caller's default version order (version preference, main version, qualityScore descending). Other label fields may be added. */
             version: {
                 displayName: string;
                 qualityScore: number;
@@ -31709,6 +31964,8 @@ export type components = {
         };
         /** @description A playback report. playSessionId is the identifier returned by start (or any client chosen key); without it the session is one per authenticated session and itemId. Reports are buffered and written in batches; repeated reports between two writes keep only the latest state. */
         PlaybackReport: {
+            /** @description The audio track the client plays: e:<stream index> or x:<external track id> (G20.4). A change is recorded as the session track choice of the item and applied to the same version on resume and in later playback information; a track the version does not have is ignored. */
+            audioTrack?: string;
             /** @description Stop only: the playback failed. A failed playback never counts as watched. */
             failed?: boolean;
             /**
@@ -31727,6 +31984,8 @@ export type components = {
              * @description Version being played; it must belong to the item. Start only; defaults to the best version.
              */
             sourceId?: string;
+            /** @description The subtitle the client shows, or off (G20.4); recorded like audioTrack. */
+            subtitleTrack?: string;
         };
         PlaybackSource: {
             attachments?: {
@@ -31845,7 +32104,7 @@ export type components = {
                 /** @description Present when extraction is enabled and available: /api/v1/sources/{id}/embedded-subtitles/{index}. Native sessions only. */
                 url?: string;
             }[];
-            /** @description G20.2 version labels with qualityScore and displayName; sources are listed by qualityScore descending. Other label fields may be added. */
+            /** @description G20.2 version labels with qualityScore and displayName. Playback information lists sources in the caller's default version order (version preference, main version, qualityScore descending). Other label fields may be added. */
             version: {
                 displayName: string;
                 qualityScore: number;
@@ -32661,7 +32920,7 @@ export type components = {
             /** @description The export record: format jelee.user-data, version, userId, userName and generatedAt (the snapshot time). A data record: the row with camelCase fields; null fields are left out. The end record: records, the number of data records. */
             data: Record<string, never>;
             /** @enum {string} */
-            type: "export" | "account" | "preferences" | "trackPreference" | "blockedTag" | "libraryAccess" | "itemAccessRule" | "itemData" | "playbackSession" | "playbackSample" | "watchStatsDay" | "watchStatsItem" | "session" | "appPassword" | "shareLink" | "clientControlHit" | "auditEvent" | "end";
+            type: "export" | "account" | "preferences" | "trackPreference" | "versionPreference" | "sessionTrack" | "blockedTag" | "libraryAccess" | "itemAccessRule" | "itemData" | "playbackSession" | "playbackSample" | "watchStatsDay" | "watchStatsItem" | "session" | "appPassword" | "shareLink" | "clientControlHit" | "auditEvent" | "end";
         };
         UserItemData: {
             /** Format: uuid */
@@ -32714,6 +32973,9 @@ export type components = {
         };
         UserTrackPreference: {
             preference: components["schemas"]["TrackPreference"] | null;
+        };
+        UserVersionPreference: {
+            preference: components["schemas"]["VersionPreference"];
         };
         VersionOperation: {
             /** Format: uuid */
@@ -32775,6 +33037,32 @@ export type components = {
              * @description The administrator's main version, if any.
              */
             primarySourceId?: string;
+        };
+        /** @description The caller's default version preference (G20.2). Applied after the client's declared capabilities excluded what it cannot play as it is, in the order bandwidth, resolution, dynamic range, size; equal versions keep the main version, quality score, source ID order. A null or absent member sets no rule. Nothing is converted. */
+        VersionPreference: {
+            dynamicRange?: ("sdr" | "hdr") | null;
+            maxBitrate?: number | null;
+            maxHeight?: (480 | 576 | 720 | 1080 | 1440 | 2160 | 4320) | null;
+            preferSmaller?: boolean | null;
+        };
+        VersionSelection: {
+            /**
+             * Format: uuid
+             * @description The version a client should start with; absent when no version is playable.
+             */
+            defaultSourceId?: string;
+            excluded: {
+                reasons: ("container_unsupported" | "source_not_probed" | "video_codec_unsupported" | "audio_codec_unsupported" | "bitrate_exceeds_client")[];
+                /** Format: uuid */
+                sourceId: string;
+            }[];
+            /** @description The caller's version preference rules that are set. */
+            preferences: ("bandwidth" | "resolution" | "dynamic_range" | "size")[];
+            /**
+             * @description The rule that put the default ahead of the next playable version (G20.2), in precedence order: the client's declared capabilities (only_playable), the user's bandwidth, resolution, dynamic range and size preferences, the main version, the quality score, the source ID.
+             * @enum {string}
+             */
+            reason: "only_version" | "only_playable" | "bandwidth_preference" | "resolution_preference" | "dynamic_range_preference" | "size_preference" | "primary_version" | "quality_score" | "stable_order" | "none_playable" | "no_version";
         };
         WatchStatsReport: {
             /** Format: date */

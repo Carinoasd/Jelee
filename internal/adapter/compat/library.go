@@ -3,6 +3,7 @@ package compat
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"net/http"
 	"path"
 	"slices"
@@ -39,6 +40,9 @@ type LibraryOptions struct {
 	DirectPlay bool
 	// ClientIP returns the client address as the server derived it.
 	ClientIP func(*http.Request) string
+	// Logger receives the default version choice of PlaybackInfo at debug
+	// level (G20.2); nil discards it.
+	Logger *slog.Logger
 	// Images is the server's image pipeline. Nil leaves the image routes
 	// unregistered and every item without image tags.
 	Images Images

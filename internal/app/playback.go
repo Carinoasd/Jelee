@@ -1,7 +1,6 @@
 package app
 
 import (
-	"cmp"
 	"context"
 	"slices"
 
@@ -29,32 +28,45 @@ func (c *Catalog) WithPlayback(repository PlaybackRepository) (*Catalog, error) 
 	return &next, nil
 }
 
-// PlaybackSources describes every original resource of an item, the main
-// version first, then by quality score descending and source ID, with the
-// default tracks the caller's preferences pick.
+// PlaybackSources describes every original resource of an item in the
+// caller's default version order (G20.2: the user's version preference,
+// then the main version, the quality score and the source ID), with the
+// default tracks the caller's preferences and session choices pick.
 func (c *Catalog) PlaybackSources(ctx context.Context, actor domain.Actor, itemID string) ([]domain.PlaybackSource, error) {
+	sources, _, err := c.PlaybackChoice(ctx, actor, itemID, nil)
+	return sources, err
+}
+
+// PlaybackChoice is PlaybackSources with the default version: exclude
+// returns the direct play reason codes of a version the client declared it
+// cannot play as it is (nil keeps every version). Excluded versions stay in
+// the list in their place; the selection names the default and the rule
+// that chose it. A declaration only chooses among originals.
+func (c *Catalog) PlaybackChoice(ctx context.Context, actor domain.Actor, itemID string, exclude func(domain.PlaybackSource) []string) ([]domain.PlaybackSource, domain.VersionSelection, error) {
 	if c == nil || ctx == nil {
-		return nil, domain.ErrInvalid
+		return nil, domain.VersionSelection{}, domain.ErrInvalid
 	}
 	if c.playback == nil {
 		// Not wired: refuse instead of pretending the item has no sources.
-		return nil, domain.ErrDatabase
+		return nil, domain.VersionSelection{}, domain.ErrDatabase
 	}
 	if !domain.ValidID(actor.UserID) || !domain.ValidID(actor.SessionID) || !domain.ValidID(itemID) {
-		return nil, domain.ErrNotFound
+		return nil, domain.VersionSelection{}, domain.ErrNotFound
 	}
 	if err := ctx.Err(); err != nil {
-		return nil, err
+		return nil, domain.VersionSelection{}, err
 	}
 	records, err := c.playback.ListPlaybackSources(ctx, actor, itemID)
 	if err != nil {
-		return nil, err
+		return nil, domain.VersionSelection{}, err
 	}
 	sources := describeSources(records)
-	if err = c.applyDefaultTracks(ctx, actor, itemID, sources); err != nil {
-		return nil, err
+	preference, err := c.applyDefaultTracks(ctx, actor, itemID, sources)
+	if err != nil {
+		return nil, domain.VersionSelection{}, err
 	}
-	return sources, nil
+	selection := domain.SelectVersion(sources, preference, exclude)
+	return sources, selection, nil
 }
 
 // describeSources projects storage records: the administrator's main
@@ -64,41 +76,32 @@ func describeSources(records []domain.PlaybackSourceRecord) []domain.PlaybackSou
 	for _, record := range records {
 		sources = append(sources, domain.BuildPlaybackSource(record))
 	}
-	slices.SortStableFunc(sources, compareVersions)
+	slices.SortStableFunc(sources, domain.CompareVersions)
 	return sources
-}
-
-// compareVersions orders versions: the main version, then quality score
-// descending, then source ID.
-func compareVersions(a, b domain.PlaybackSource) int {
-	return cmp.Or(boolOrder(b.Primary, a.Primary), cmp.Compare(b.Version.QualityScore, a.Version.QualityScore), cmp.Compare(a.ID, b.ID))
-}
-
-func boolOrder(a, b bool) int {
-	switch {
-	case a == b:
-		return 0
-	case a:
-		return 1
-	}
-	return -1
 }
 
 // CheckPlayback decides direct play for every source of an item against a
 // client's declared capabilities. An undecodable source is reported with
 // reasons; nothing is converted or offered as a conversion.
 func (c *Catalog) CheckPlayback(ctx context.Context, actor domain.Actor, itemID string, caps domain.ClientCapabilities) ([]domain.PlaybackDecision, error) {
+	decisions, _, err := c.CheckPlaybackChoice(ctx, actor, itemID, caps)
+	return decisions, err
+}
+
+// CheckPlaybackChoice is CheckPlayback with the default version among the
+// directly playable ones (G20.2).
+func (c *Catalog) CheckPlaybackChoice(ctx context.Context, actor domain.Actor, itemID string, caps domain.ClientCapabilities) ([]domain.PlaybackDecision, domain.VersionSelection, error) {
 	normalized, err := domain.NormalizeClientCapabilities(caps)
 	if err != nil {
-		return nil, err
+		return nil, domain.VersionSelection{}, err
 	}
-	sources, err := c.PlaybackSources(ctx, actor, itemID)
+	sources, selection, err := c.PlaybackChoice(ctx, actor, itemID, domain.DirectPlayExclusion(normalized))
 	if err != nil {
-		return nil, err
+		return nil, domain.VersionSelection{}, err
 	}
 	decisions := make([]domain.PlaybackDecision, 0, len(sources))
 	for _, source := range sources {
 		decisions = append(decisions, domain.CheckPlayback(normalized, source))
 	}
-	return decisions, nil
+	return decisions, selection, nil
 }

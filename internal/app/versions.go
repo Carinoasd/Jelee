@@ -38,8 +38,20 @@ type VersionRepository interface {
 	UserTrackPreference(ctx context.Context, actor domain.Actor) (*domain.TrackPreference, error)
 	// SetUserTrackPreference replaces the user's defaults.
 	SetUserTrackPreference(ctx context.Context, actor domain.Actor, p domain.TrackPreference) (*domain.TrackPreference, error)
-	// EffectiveTrackPreferences reads every level for playback information.
+	// EffectiveTrackPreferences reads every level for playback information,
+	// with the item's unexpired session choice and the user's version
+	// preference.
 	EffectiveTrackPreferences(ctx context.Context, actor domain.Actor, itemID string) (domain.TrackPreferenceSet, error)
+
+	// VersionPreference returns the user's version preference (G20.2);
+	// zero when unset.
+	VersionPreference(ctx context.Context, actor domain.Actor) (domain.VersionPreference, error)
+	// SetVersionPreference replaces it; an empty preference removes it.
+	SetVersionPreference(ctx context.Context, actor domain.Actor, p domain.VersionPreference) (domain.VersionPreference, error)
+	// RecordSessionTracks stores the session choice of a visible item
+	// (G20.4): one row per user and item, replaced by the latest. The
+	// version must be one of the item's.
+	RecordSessionTracks(ctx context.Context, actor domain.Actor, itemID, playKey string, tracks domain.SessionTracks) error
 }
 
 // WithVersions enables version decisions and track preferences.
@@ -191,20 +203,41 @@ func (c *Catalog) SetUserTrackPreference(ctx context.Context, actor domain.Actor
 }
 
 // applyDefaultTracks fills each source's default tracks from the caller's
-// preferences. Without the repository the sources keep none, which leaves
-// the client on the files' own defaults.
-func (c *Catalog) applyDefaultTracks(ctx context.Context, actor domain.Actor, itemID string, sources []domain.PlaybackSource) error {
+// preferences and session choice, and returns the caller's version
+// preference. Without the repository the sources keep none, which leaves
+// the client on the files' own defaults and the established version order.
+func (c *Catalog) applyDefaultTracks(ctx context.Context, actor domain.Actor, itemID string, sources []domain.PlaybackSource) (domain.VersionPreference, error) {
 	if c.versions == nil || len(sources) == 0 {
-		return nil
+		return domain.VersionPreference{}, nil
 	}
 	set, err := c.versions.EffectiveTrackPreferences(ctx, actor, itemID)
 	if err != nil {
-		return err
+		return domain.VersionPreference{}, err
 	}
 	for i := range sources {
 		p, basis := set.Effective(sources[i].ID)
 		tracks := domain.SelectDefaultTracks(sources[i], p, basis)
 		sources[i].DefaultTracks = &tracks
 	}
-	return nil
+	return set.VersionPreference, nil
+}
+
+// VersionPreference reads the caller's version preference.
+func (c *Catalog) VersionPreference(ctx context.Context, actor domain.Actor) (domain.VersionPreference, error) {
+	if err := c.versionsReady(ctx, actor); err != nil {
+		return domain.VersionPreference{}, err
+	}
+	return c.versions.VersionPreference(ctx, actor)
+}
+
+// SetVersionPreference validates and stores the caller's version preference.
+func (c *Catalog) SetVersionPreference(ctx context.Context, actor domain.Actor, p domain.VersionPreference) (domain.VersionPreference, error) {
+	if err := c.versionsReady(ctx, actor); err != nil {
+		return domain.VersionPreference{}, err
+	}
+	normalized, err := domain.NormalizeVersionPreference(p)
+	if err != nil {
+		return domain.VersionPreference{}, err
+	}
+	return c.versions.SetVersionPreference(ctx, actor, normalized)
 }

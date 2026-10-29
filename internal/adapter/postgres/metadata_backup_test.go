@@ -160,6 +160,8 @@ func seedMetadataBackup(t testing.TB, ctx context.Context, s *Store, episodes in
 		{"preferences", `INSERT INTO user_preferences(user_id,theme,density,layout,updated_at) VALUES ('` + bkKid + `','dark','compact','` + bkLayout + `','2026-09-13T00:00:00Z'),
  ('` + bkAdmin + `','light','comfortable',NULL,'2026-09-13T00:00:01Z')`},
 		{"guest preferences", `INSERT INTO user_preferences(user_id,theme) SELECT id,'light' FROM users WHERE share_id='` + bkShare + `'`},
+		{"version preferences", `INSERT INTO user_version_preferences(user_id,max_height,dynamic_range,prefer_smaller,max_bitrate,updated_at) VALUES ('` + bkKid + `',1080,'sdr',true,20000000,'2026-09-13T00:00:00Z')`},
+		{"guest version preferences", `INSERT INTO user_version_preferences(user_id,max_height) SELECT id,720 FROM users WHERE share_id='` + bkShare + `'`},
 		{"site appearance", `UPDATE site_appearance SET default_theme='dark',tokens='{"light":{"color-primary":"#336699"},"dark":{"color-primary":"#88aaff"}}',
  custom_css='.jelee-home { margin: 0; }',allow_external_fonts=true,font_hosts=ARRAY['fonts.example.com'],default_layout='{"home":[{"id":"latest","visible":true}],"detail":[]}'`},
 		{"site plugins", `UPDATE site_plugins SET plugins='[{"id":"acme.clock","enabled":true},{"id":"acme.weather","enabled":false}]',settings='{"acme.clock":{"format":"24h","seconds":false}}'`},
@@ -295,6 +297,9 @@ func TestMetadataBackupDrillPostgres(t *testing.T) {
 	}
 	if n := len(metadataRecordsByKind(t, doc)["user_preference"]); n != 2 {
 		t.Fatalf("user preferences exported: %d, want 2 (guests stay out)", n)
+	}
+	if records := metadataRecordsByKind(t, doc)["user_version_preference"]; len(records) != 1 {
+		t.Fatalf("version preferences exported: %d (guests stay out)", len(records))
 	}
 
 	// Dry run first: a full import that leaves nothing behind.
