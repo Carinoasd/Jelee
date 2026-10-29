@@ -38,7 +38,8 @@ var metadataBackupTables = map[string][]string{
 	"item": {"items"}, "media_source": {"media_sources"}, "item_directory_source": {"item_directory_sources"}, "item_parent_link": {"item_parent_links"},
 	"catalog_scan_item": {"catalog_scan_items"}, "catalog_scan_source": {"catalog_scan_sources"}, "catalog_scan_item_alias": {"catalog_scan_item_aliases"},
 	"item_version_exclusion": {"item_version_exclusions"}, "item_primary_version": {"item_primary_versions"},
-	"item_metadata_state": {"item_metadata_state"}, "item_metadata_field": {"item_metadata_fields"}, "item_metadata_fact": {"item_metadata_facts"},
+	"item_identity_correction": {"item_identity_corrections"},
+	"item_metadata_state":      {"item_metadata_state"}, "item_metadata_field": {"item_metadata_fields"}, "item_metadata_fact": {"item_metadata_facts"},
 	"item_nfo_field_lock": {"item_nfo_field_locks"}, "item_image": {"item_images"},
 	"user_item_data": {"user_item_data"}, "user_track_preference": {"user_track_preferences"},
 	"access_policy": {"access_policy"}, "parental_rating": {"parental_ratings"}, "user_item_access_rule": {"user_item_access_rules"}, "user_blocked_tag": {"user_blocked_tags"},
@@ -126,6 +127,8 @@ func metadataExportQueries(passwordHashes bool) []metadataExportQuery {
 		{"catalog_scan_item_alias", `SELECT to_jsonb(x)::text FROM (SELECT library_id,kind,group_digest,item_id FROM catalog_scan_item_aliases) x ORDER BY x.library_id,x.kind,x.group_digest`},
 		{"item_version_exclusion", `SELECT to_jsonb(x)::text FROM (SELECT item_id,library_id,root_id,relative_path,created_at FROM item_version_exclusions) x ORDER BY x.item_id,x.root_id,x.relative_path COLLATE "C"`},
 		{"item_primary_version", `SELECT to_jsonb(x)::text FROM (SELECT item_id,library_id,source_id,updated_at FROM item_primary_versions) x ORDER BY x.item_id`},
+		// Identification an administrator corrected and locked (G21.5).
+		{"item_identity_correction", `SELECT to_jsonb(x)::text FROM (SELECT item_id,library_id,revision,kind_locked,parent_locked,season,episode,episode_end,updated_at FROM item_identity_corrections) x ORDER BY x.item_id`},
 		{"item_metadata_state", `SELECT to_jsonb(x)::text FROM (SELECT item_id,revision FROM item_metadata_state) x ORDER BY x.item_id`},
 		{"item_metadata_field", `SELECT to_jsonb(x)::text FROM (SELECT item_id,field,value,source,locked,updated_at,provider_resource,provider_id,provider_source_url,provider_language,provider_fetched_at,nfo_origin FROM item_metadata_fields) x ORDER BY x.item_id,x.field`},
 		{"item_metadata_fact", `SELECT to_jsonb(x)::text FROM (SELECT item_id,field,value,source,locked,updated_at,nfo_origin FROM item_metadata_facts) x ORDER BY x.item_id,x.field`},

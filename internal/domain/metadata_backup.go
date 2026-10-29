@@ -51,6 +51,7 @@ var MetadataBackupKinds = []string{
 	"library", "library_root", "user", "library_acl",
 	"item", "media_source", "item_directory_source", "item_parent_link",
 	"catalog_scan_item", "catalog_scan_source", "catalog_scan_item_alias", "item_version_exclusion", "item_primary_version",
+	"item_identity_correction",
 	"item_metadata_state", "item_metadata_field", "item_metadata_fact", "item_nfo_field_lock", "item_image",
 	"user_item_data", "user_track_preference",
 	"access_policy", "parental_rating", "user_item_access_rule", "user_blocked_tag",

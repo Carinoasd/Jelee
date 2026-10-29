@@ -37,6 +37,7 @@ var versionSnapshotTables = []versionRowTable{
  OR EXISTS(SELECT 1 FROM item_directory_sources d WHERE d.id=vr.id OR d.root_id=vr.root_id AND d.relative_path=vr.relative_path)`},
 	{"item_parent_links", `item_id=$1::uuid`, `DELETE FROM vr WHERE NOT EXISTS(SELECT 1 FROM items p WHERE p.id=vr.parent_id)`},
 	{"catalog_scan_items", `item_id=$1::uuid`, `DELETE FROM vr WHERE EXISTS(SELECT 1 FROM catalog_scan_items c WHERE c.library_id=vr.library_id AND c.kind=vr.kind AND c.group_digest=vr.group_digest)`},
+	{"item_identity_corrections", `item_id=$1::uuid`, ""},
 	{"item_images", `item_id=$1::uuid`, `DELETE FROM vr WHERE vr.root_id IS NOT NULL AND NOT EXISTS(SELECT 1 FROM library_roots r WHERE r.id=vr.root_id)`},
 	{"user_item_data", `item_id=$1::uuid`, versionUserGone + `;
  UPDATE vr SET last_source_id=NULL WHERE NOT EXISTS(SELECT 1 FROM media_sources m WHERE m.id=vr.last_source_id)`},
