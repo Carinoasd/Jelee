@@ -990,3 +990,39 @@ func TestNFOExportJobStopsWhenWritingIsRevoked(t *testing.T) {
 	// The chunk's preparations went with the job.
 	requireNFOExportClean(t, f, job.ID)
 }
+
+// Items that share one directory (episodes of a season folder) are read while
+// the write cleanup pass removes the token files of the finished children from
+// that same directory. A read that overlaps such a removal reports a source
+// change; that must not count the item failed. The pass runs at the shortest
+// allowed interval and the export is repeated, so the old retry-once rule is
+// caught.
+func TestNFOExportCountsNoItemFailedWhileTheCleanupPassTouchesTheirDirectory(t *testing.T) {
+	for round := 0; round < 4; round++ {
+		t.Run(fmt.Sprint(round), func(t *testing.T) {
+			f := newJobFixtureWithin(t, 5*time.Minute)
+			metadata := nfoApplyTestMetadata(t, f)
+			items := nfoExportLibrary(t, f, metadata, f.registration.Library.ID, nfoExportTestItems)
+			// A large season folder: unrelated files make every listing of the
+			// directory, and so every window a removal can overlap, longer.
+			var root string
+			if err := f.s.Pool.QueryRow(f.ctx, `SELECT path FROM library_roots WHERE library_id=$1::uuid`, f.registration.Library.ID).Scan(&root); err != nil {
+				t.Fatal(err)
+			}
+			for i := 0; i < 6000; i++ {
+				if err := os.WriteFile(filepath.Join(root, fmt.Sprintf("zz-other-%05d.txt", i)), nil, 0o600); err != nil {
+					t.Fatal(err)
+				}
+			}
+			job := submitNFOExport(t, f, f.registration.Library.ID, "export-shared-directory")
+			stop := startNFOExportRunnerRecovering(t, f, metadata, f.s, 100*time.Millisecond)
+			defer stop()
+			done := waitNFOExportJob(t, f, job.ID)
+			if done.State != domain.JobSucceeded || done.ErrorCode != "" {
+				t.Fatal("job did not succeed", done)
+			}
+			requireNFOExportCounts(t, f, job.ID, nfoExportWant(nfoExportTestItems))
+			requireNFOExportFiles(t, items, "")
+		})
+	}
+}
