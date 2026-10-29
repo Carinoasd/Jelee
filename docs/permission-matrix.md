@@ -49,7 +49,7 @@
 | P19 | 观看统计 | ✗ | 部分（只能读本人统计） | ✗ | ✓ | 任意 | 无变化 | 全站统计与导出只限管理员，见[观看统计](watch-statistics.md) |
 | P20 | 条目元数据、识别修正与锁定、NFO 应用与写回准备、版本拆分与合并、重新探测、图片管理 | ✗ | ✗ | ✗ | ✓ | 任意 | 无变化 | 见[条目元数据](item-metadata.md)、[条目版本](item-versions.md)、[图片资产](image-assets.md) |
 | P21 | TMDB 候选搜索与预览 | ✗ | ✗ | ✗ | ✓ | 任意 | 无变化 | 只在配置 TMDB 密钥时注册 |
-| P22 | 媒体库、扫描、排程、目录同步、NFO 策略、任务 | ✗ | ✗ | ✗ | ✓ | 任意 | `relax_permission_strict` 同 P10 | 见[任务 API](jobs-api.md) |
+| P22 | 媒体库、扫描、排程、目录同步、NFO 策略、任务、维护任务（字幕提取缓存清理、备份提醒） | ✗ | ✗ | ✗ | ✓ | 任意 | `relax_permission_strict` 同 P10 | 见[任务 API](jobs-api.md) |
 | P23 | 自愈修复 | ✗ | ✗ | ✗ | ✓ | 任意 | 无变化 | 见[修复](repair.md) |
 | P24 | Webhook | ✗ | ✗ | ✗ | ✓ | 任意 | 无变化 | 见 [Webhook](webhooks.md) |
 | P25 | 客户端管控 | ✗ | ✗ | ✗ | ✓ | 任意 | 无变化 | 见[客户端管控](client-control.md) |
@@ -141,6 +141,7 @@ P20 * /api/v1/items/{id}/images**
 P21 * /api/v1/metadata/tmdb/**
 P22 * /api/v1/libraries**
 P22 * /api/v1/jobs**
+P22 * /api/v1/maintenance**
 P23 * /api/v1/admin/repairs**
 P24 * /api/v1/webhooks**
 P25 * /api/v1/client-control/**

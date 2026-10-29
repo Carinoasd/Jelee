@@ -99,6 +99,8 @@ Content-Type: application/json
 - `POST /api/v1/items/{id}/metadata/refresh/reject`，body `{}`：狀態改為 `rejected`、記錄拒絕者與時間，寫 `metadata_refresh.review_rejected`；再拒絕一次為 409。之後的刷新略過這個條目（計 skipped），拒絕紀錄保留。
 - 同一條目再次配對時，待確認列會被新的結果取代；被套用（自動或接受）後刪除；條目刪除時一併刪除。
 
+批次移除外部元資料（`external_metadata_removal`）會刪除被清除條目的 `pending` 紀錄，`rejected` 預設保留（`dropRejectedReviews` 才刪），清除後再開 `auto` 會重新刮削的行為見[維護任務](maintenance-jobs.md#與元資料刷新metadata_refresh的互動)。
+
 ## 觸發
 
 1. **手動**：上面的 `POST …/metadata/refresh`。

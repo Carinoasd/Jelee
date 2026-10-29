@@ -27,6 +27,8 @@ PostgreSQL 是唯一的持久狀態（服務不寫本機狀態檔），所以「
 | `JELEE_MATROSKA_CACHE_ROOT` | 不需要 | — | 只是內嵌字幕與字型的擷取快取，刪除後下次請求重新擷取 |
 | `JELEE_SUBTITLE_OCR_CACHE_ROOT` | 不需要 | — | 只是點陣字幕 OCR 結果的快取，刪除後下次查詢重新辨識（耗時，受每分鐘上限） |
 
+備份提醒：`GET /api/v1/maintenance/backup-status` 顯示最後一次元資料匯出距今多久；設定 `JELEE_JOB_BACKUP_REMINDER_DAYS`（例如 `7`）後每天檢查一次，逾期或從未匯出時寫 `backup.reminder` 稽核。Jelee 看不到在外部執行的 `pg_dump`，提醒只依元資料匯出判斷，見[維護任務](maintenance-jobs.md#備份提醒backup_reminder)。
+
 ## PostgreSQL 備份
 
 ### 建議參數
