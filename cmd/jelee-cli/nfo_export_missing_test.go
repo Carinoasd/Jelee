@@ -59,3 +59,22 @@ func TestNFOExportCLIStatusShowsTheMissingCounter(t *testing.T) {
 		t.Fatal("an unknown mode was accepted", code, diagnostics.String())
 	}
 }
+
+func TestNFOExportCLIStatusShowsTheFixCounters(t *testing.T) {
+	state := nfoExportStateData(nil)
+	state["mode"], state["fixed"], state["unfixable"] = "fix", 11, 12
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_ = json.NewEncoder(w).Encode(map[string]any{"data": state})
+	}))
+	defer server.Close()
+	var out, diagnostics bytes.Buffer
+	args := []string{"export-status", "--job", jobsTestID, "--url", server.URL, "--token-stdin"}
+	if code := runNFOCLI(context.Background(), args, strings.NewReader(strings.Repeat("a", 43)), &out, &diagnostics); code != 0 || !strings.Contains(out.String(), "mode fix\nfixed 11 unfixable 12\n") {
+		t.Fatal(code, out.String(), diagnostics.String())
+	}
+	delete(state, "unfixable")
+	out.Reset()
+	if code := runNFOCLI(context.Background(), args, strings.NewReader(strings.Repeat("a", 43)), &out, &diagnostics); code != 1 || !strings.Contains(diagnostics.String(), "nfo_response_invalid") {
+		t.Fatal("a status without the fix counters was accepted", code, diagnostics.String())
+	}
+}

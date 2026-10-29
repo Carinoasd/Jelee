@@ -142,7 +142,7 @@ func (w *NFOExportWorker) Run(ctx context.Context, lease domain.JobLease) error 
 			if stop = ctx.Err(); stop != nil {
 				break
 			}
-			outcome, id, err := w.exportItem(ctx, step.Actor, step.Mode == domain.NFOExportMissing, lease.Job.ID, step.Chunk+1, item)
+			outcome, id, err := w.exportItem(ctx, step.Actor, step.Mode, lease.Job.ID, step.Chunk+1, item)
 			if errors.Is(err, domain.ErrNFOCacheCapacity) && len(prepared) > 0 {
 				// The preparation store is full: submit what is ready and
 				// come back for this item.
@@ -163,6 +163,8 @@ func (w *NFOExportWorker) Run(ctx context.Context, lease domain.JobLease) error 
 				counts.SkippedExisting++
 			case nfoExportInvalid:
 				counts.SkippedInvalid++
+			case nfoExportUnfixable:
+				counts.Unfixable++
 			case nfoExportSkipped:
 				counts.SkippedOther++
 			default:
@@ -206,6 +208,9 @@ const (
 	nfoExportInvalid
 	nfoExportSkipped
 	nfoExportFailed
+	// nfoExportUnfixable is a fix-mode item that has a validation issue the
+	// fix does not repair (or cannot repair safely).
+	nfoExportUnfixable
 )
 
 // countExistingNFOs reports how many of the items have an NFO file now. It
@@ -234,10 +239,11 @@ func (w *NFOExportWorker) countExistingNFOs(ctx context.Context, actor domain.Ac
 }
 
 // exportItem reads the item's database metadata and its NFO and, when they
-// differ (or, with create, when the NFO does not exist), prepares the edit. A revision or source conflict is retried once
-// with fresh state. The error is non-nil only when the run must stop (or the
-// preparation store is full, which Run handles).
-func (w *NFOExportWorker) exportItem(ctx context.Context, actor domain.Actor, create bool, job string, chunk int, item string) (nfoExportOutcome, string, error) {
+// differ (or, in missing mode, when the NFO does not exist; in fix mode, when
+// the NFO has an issue the fix repairs), prepares the edit. A revision or
+// source conflict is retried once with fresh state. The error is non-nil only
+// when the run must stop (or the preparation store is full, which Run handles).
+func (w *NFOExportWorker) exportItem(ctx context.Context, actor domain.Actor, mode string, job string, chunk int, item string) (nfoExportOutcome, string, error) {
 	var err error
 	for attempt := 0; attempt < 2; attempt++ {
 		var before domain.ItemMetadata
@@ -245,19 +251,34 @@ func (w *NFOExportWorker) exportItem(ctx context.Context, actor domain.Actor, cr
 			break
 		}
 		var scope domain.NFOItemScope
-		var read nfoItemRead
-		if scope, read, err = w.metadata.readItemNFOStates(ctx, actor, item, before.Revision); err != nil {
-			if errors.Is(err, domain.ErrConflict) {
-				continue
-			}
-			break
-		}
 		var outcome nfoExportOutcome
 		var request *domain.NFOWritePrepareRequest
-		if create {
-			outcome, request = planNFOExportMissing(before, scope, read)
-		} else {
-			outcome, request = planNFOExport(before, scope, read)
+		switch mode {
+		case domain.NFOExportFix:
+			var validation domain.NFOItemValidation
+			if scope, validation, err = w.metadata.validateItemNFO(ctx, actor, item, before.Revision); err != nil {
+				if errors.Is(err, domain.ErrConflict) {
+					continue
+				}
+				break
+			}
+			outcome, request = planNFOExportFix(before, scope, validation)
+		default:
+			var read nfoItemRead
+			if scope, read, err = w.metadata.readItemNFOStates(ctx, actor, item, before.Revision); err != nil {
+				if errors.Is(err, domain.ErrConflict) {
+					continue
+				}
+				break
+			}
+			if mode == domain.NFOExportMissing {
+				outcome, request = planNFOExportMissing(before, scope, read)
+			} else {
+				outcome, request = planNFOExport(before, scope, read)
+			}
+		}
+		if err != nil {
+			break
 		}
 		if request == nil {
 			return outcome, "", nil

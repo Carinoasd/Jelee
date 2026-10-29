@@ -257,6 +257,12 @@ func validateMetadata(metadata Metadata, entry int) []Issue {
 	if metadata.Title == "" {
 		warning("nfo_title_missing", "title")
 	}
+	// An entry of a known kind with no identifier element at all (not even an
+	// incomplete one, which is a different error) is what the writer's EnsureID
+	// repairs; see docs/nfo-compatibility.md.
+	if knownRoot(metadata.Root) && len(metadata.UniqueIDs) == 0 {
+		warning("nfo_id_missing", "uniqueid")
+	}
 	if metadata.Root == "episode" || metadata.Root == "episodedetails" {
 		if metadata.Season == nil {
 			warning("nfo_season_missing", "season")

@@ -75,7 +75,7 @@ func TestNFOPolicyIntentAndTrustedIdentity(t *testing.T) {
 	}
 	identity := DefaultNFOIdentity()
 	digest, err := NFOIdentityDigest(identity)
-	if err != nil || digest != "ee53267a4fa4de0baf49ae79f934896eb5f61b95c0a2e3728b78322eb38f2f53" {
+	if err != nil || digest != "ffb4c42a1bd9d9a2f59d42e8ad4afd9f9ee08346e5b960a16e229edacdad1543" {
 		t.Fatalf("canonical parser identity drifted: %s %v", digest, err)
 	}
 	identity.MaxSourceBytes = NFOMaxSourceBytes

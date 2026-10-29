@@ -135,7 +135,7 @@ func TestNFOExportStateRoute(t *testing.T) {
 		nfoHTTPBoundedActor(t, ctx, a)
 		switch job {
 		case sourceID:
-			return domain.NFOExportJobState{JobID: job, LibraryID: libraryID, Mode: "missing", CursorItemID: &cursor, ChildJobID: &child, Chunks: 6, Written: 5, Unchanged: 4, SkippedExisting: 8, SkippedMissing: 3, SkippedInvalid: 2, SkippedOther: 1, Failed: 7, UpdatedAt: updated}, nil
+			return domain.NFOExportJobState{JobID: job, LibraryID: libraryID, Mode: "fix", CursorItemID: &cursor, ChildJobID: &child, Chunks: 6, Written: 5, Fixed: 9, Unfixable: 10, Unchanged: 4, SkippedExisting: 8, SkippedMissing: 3, SkippedInvalid: 2, SkippedOther: 1, Failed: 7, UpdatedAt: updated}, nil
 		case itemID:
 			return domain.NFOExportJobState{JobID: job, LibraryID: libraryID, UpdatedAt: updated}, nil
 		}
@@ -145,7 +145,7 @@ func TestNFOExportStateRoute(t *testing.T) {
 	var got map[string]any
 	raw, _ := json.Marshal(nfoHTTPData(t, w.Body.Bytes()))
 	_ = json.Unmarshal(raw, &got)
-	want := map[string]any{"jobId": sourceID, "libraryId": libraryID, "mode": "missing", "skippedExisting": float64(8), "cursorItemId": itemID, "childJobId": userID, "chunks": float64(6), "written": float64(5), "unchanged": float64(4),
+	want := map[string]any{"jobId": sourceID, "libraryId": libraryID, "mode": "fix", "fixed": float64(9), "unfixable": float64(10), "skippedExisting": float64(8), "cursorItemId": itemID, "childJobId": userID, "chunks": float64(6), "written": float64(5), "unchanged": float64(4),
 		"skippedMissing": float64(3), "skippedInvalid": float64(2), "skippedOther": float64(1), "failed": float64(7), "updatedAt": "2026-10-01T01:02:03Z"}
 	if w.Code != 200 || len(got) != len(want) {
 		t.Fatalf("state: %d %s", w.Code, w.Body)
