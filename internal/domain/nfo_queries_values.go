@@ -39,6 +39,10 @@ func ValidateNFOObservation(v NFOObservation) error {
 		}
 		return nil
 	}
+	// An illegal path (no file was read) has no entry: one error, nothing else.
+	if v.Entries == 0 && v.Status == NFOStatusInvalid && v.ErrorCount == 1 && v.WarningCount == 0 {
+		return nil
+	}
 	if v.Entries < 1 || (v.Status == NFOStatusInvalid) != (v.ErrorCount > 0) {
 		return ErrInvalid
 	}
@@ -79,11 +83,20 @@ func ValidateNFOIssuesPage(v NFOIssuesPage) error {
 		return nil
 	}
 	if v.Entries == 0 {
-		return ErrInvalid
+		// Only an illegal path has issues without entries: exactly one.
+		if v.IssueCount != 1 {
+			return ErrInvalid
+		}
+		for _, issue := range v.Issues {
+			if !ValidNFOPathCode(issue.Code) || !ValidNFOIssue(issue) {
+				return ErrInvalid
+			}
+		}
+		return nil
 	}
 	guessed := false
 	for _, issue := range v.Issues {
-		if !ValidNFOIssue(issue) || issue.Entry >= v.Entries {
+		if !ValidNFOIssue(issue) || issue.Entry >= v.Entries || ValidNFOPathCode(issue.Code) {
 			return ErrInvalid
 		}
 		if issue.Code == "nfo_encoding_guessed" {

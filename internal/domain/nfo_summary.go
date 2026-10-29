@@ -12,6 +12,9 @@ func ValidNFOIssue(v NFOIssue) bool {
 	if v.Code == "nfo_encoding_guessed" {
 		return v.Severity == "warning" && v.Field == "encoding" && v.Entry == -1
 	}
+	if ValidNFOPathCode(v.Code) {
+		return v.Severity == "error" && v.Field == NFOPathField && v.Entry == -1
+	}
 	if v.Entry < 0 {
 		return false
 	}
@@ -57,6 +60,34 @@ func ValidNFOIssue(v NFOIssue) bool {
 	return false
 }
 
+// NewNFOPathSummary is the summary of an NFO whose location is illegal: the
+// file was never read, so there is no encoding, root or entry, and the only
+// issue is the path code. It is the one summary whose issue has entry -1
+// without being an encoding guess.
+func NewNFOPathSummary(code string) (NFOValidationSummary, bool) {
+	if !ValidNFOPathCode(code) {
+		return NFOValidationSummary{}, false
+	}
+	return NFOValidationSummary{
+		SchemaVersion: NFOSummarySchemaVersion, Status: NFOStatusInvalid, Encoding: "unknown", Root: "unknown",
+		ErrorCount: 1, IssueCount: 1, Issues: []NFOIssue{{Severity: "error", Code: code, Field: NFOPathField, Entry: -1}},
+	}, true
+}
+
+// IsNFOPathSummary reports whether v is a path summary (see NewNFOPathSummary).
+func IsNFOPathSummary(v NFOValidationSummary) bool {
+	want, ok := NewNFOPathSummary(firstNFOIssueCode(v))
+	return ok && v.SchemaVersion == want.SchemaVersion && v.Status == want.Status && v.Encoding == want.Encoding && v.Root == want.Root && v.Entries == 0 &&
+		!v.EncodingGuessed && v.FailureCode == "" && v.WarningCount == 0 && v.ErrorCount == 1 && v.IssueCount == 1 && !v.IssuesTruncated && len(v.Issues) == 1 && v.Issues[0] == want.Issues[0]
+}
+
+func firstNFOIssueCode(v NFOValidationSummary) string {
+	if len(v.Issues) == 0 {
+		return ""
+	}
+	return v.Issues[0].Code
+}
+
 func ValidNFOEncoding(value string) bool {
 	switch value {
 	case "UTF-8", "UTF-16LE", "UTF-16BE", "GBK", "unknown":
@@ -91,13 +122,19 @@ func ValidateNFOSummary(v NFOValidationSummary) error {
 		}
 		return nil
 	}
+	if len(v.Issues) == 1 && ValidNFOPathCode(v.Issues[0].Code) {
+		if !IsNFOPathSummary(v) {
+			return ErrInvalid
+		}
+		return nil
+	}
 	if v.Entries < 1 || v.Encoding == "unknown" || (v.Status == NFOStatusInvalid) != (v.ErrorCount > 0) {
 		return ErrInvalid
 	}
 	var warnings, errors int64
 	guessed := false
 	for _, issue := range v.Issues {
-		if !ValidNFOIssue(issue) || issue.Entry >= v.Entries {
+		if !ValidNFOIssue(issue) || issue.Entry >= v.Entries || ValidNFOPathCode(issue.Code) {
 			return ErrInvalid
 		}
 		if issue.Severity == "warning" {

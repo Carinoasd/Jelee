@@ -76,13 +76,15 @@ jelee-cli nfo validate --root ABSOLUTE_ROOT --file RELATIVE_FILE
 ```text
 jelee-cli nfo policy-get --library UUID --token-stdin
 jelee-cli nfo policy-set --library UUID --mode read-only --expected-generation 1 --key KEY --token-stdin
-jelee-cli nfo validate --library UUID --key KEY --token-stdin
+jelee-cli nfo validate --library UUID --key KEY --token-stdin [--fix]
 jelee-cli nfo current-validations --library UUID --limit 20 --token-stdin
 jelee-cli nfo issues --library UUID --observation UUID --offset 0 --limit 32 --token-stdin
 jelee-cli nfo job --id UUID --token-stdin
 jelee-cli nfo images --id UUID --token-stdin
 jelee-cli jobs scan --id UUID --nfo --key KEY --token-stdin
 ```
+
+`--fix`（需要 `--library` 與 `--key`）先提交校驗任務並等它成功（一個庫同時只有一個活動任務），再以 `KEY-fix` 提交 `nfo_export` 的 `fix` 模式任務並輸出兩個任務；校驗任務沒有成功就不修復。可修復與不可修復的問題、備份與計數見[安全修復](nfo-export-jobs.md#安全修復fix-模式遷移-000092g3911---fix)。校驗也會列出 `nfo_path_*` 非法路徑問題；沒有識別碼不算問題。
 
 可加 `--url` 指定服务。远端 validate 与本地 `--root/--file/--max-bytes` 显式互斥；validate 不自动启用库策略或影片探测。
 

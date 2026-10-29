@@ -13,7 +13,7 @@ Content-Type: application/json
 {"priority":"manual","mode":"all"}
 ```
 
-- 僅管理員；`priority` 為 `manual`（預設）或 `background`；`mode` 為 `all`（預設，本文以下的行為）或 `missing`（見「只匯出缺失」），其他值為 400；body 為 `{}` 亦可。
+- 僅管理員；`priority` 為 `manual`（預設）或 `background`；`mode` 為 `all`（預設，本文以下的行為）、`missing`（見「只匯出缺失」）或 `fix`（見「安全修復」），其他值為 400；body 為 `{}` 亦可。
 - 新任務 202 與 `Location`；相同 key、相同庫、優先級與模式回 200 與 `Idempotency-Replayed: true`（庫之後關閉寫入權限也照樣重播）；同 key 不同庫、優先級、模式或任務種類為 409 `conflict`（冪等比對含模式）。
 - 庫不是 `read-only` 或沒有開啟寫回權限（`nfo_write_enabled`），或 runtime 沒有啟用 `enableNFOWrite`，為 409 `nfo_write_disabled`，與 `POST …/nfo/writes` 同一檢查。庫已有活動任務為 409 `job_busy`，全域佇列滿為 429 `job_queue_full`。
 - 稽核事件 `nfo.export_submitted`（庫、優先級、模式）。每個子任務另寫既有的 `nfo.write_submitted`（含 `exportJobId` 與 chunk 編號），每份準備寫既有的 `nfo.write_prepared`。
@@ -30,10 +30,10 @@ jelee-cli nfo export-status --job ID --token-stdin [--url ORIGIN] [--json]
 `GET /api/v1/jobs/JOB_ID/nfo-export`（僅管理員）：
 
 ```json
-{"jobId":"…","libraryId":"…","mode":"all","cursorItemId":"…","childJobId":null,"chunks":3,"written":34,"unchanged":51,"skippedExisting":0,"skippedMissing":17,"skippedInvalid":17,"skippedOther":17,"failed":0,"updatedAt":"…"}
+{"jobId":"…","libraryId":"…","mode":"all","cursorItemId":"…","childJobId":null,"chunks":3,"written":34,"fixed":0,"unfixable":0,"unchanged":51,"skippedExisting":0,"skippedMissing":17,"skippedInvalid":17,"skippedOther":17,"failed":0,"updatedAt":"…"}
 ```
 
-`mode` 是任務的模式，`skippedExisting` 只在 `missing` 模式非零。`cursorItemId` 在第一個檢查點前為 `null`；`childJobId` 是尚未計入的 `nfo_write` 子任務，沒有時為 `null`；`chunks` 是已提交的子任務數。其他種類的任務回 404。既有 `GET /api/v1/jobs/JOB_ID` 的 `files` 為 written＋unchanged，`skipped` 為 skippedExisting 加三種 skipped 再加 failed，`kind` 為 `nfo_export`。
+`mode` 是任務的模式，`skippedExisting` 只在 `missing` 模式非零，`fixed` 與 `unfixable` 只在 `fix` 模式非零（`fix` 模式的 `written` 恆為 0）。`cursorItemId` 在第一個檢查點前為 `null`；`childJobId` 是尚未計入的 `nfo_write` 子任務，沒有時為 `null`；`chunks` 是已提交的子任務數。其他種類的任務回 404。既有 `GET /api/v1/jobs/JOB_ID` 的 `files` 為 written＋unchanged，`skipped` 為 skippedExisting 加三種 skipped 再加 failed，`kind` 為 `nfo_export`。
 
 ## 資料庫到 NFO 的對應
 
@@ -135,3 +135,57 @@ jelee-cli nfo export-status --job ID --token-stdin [--url ORIGIN] [--json]
 - 建立的檔案沒有原文，也沒有備份；`.jelee.bak` 只屬於 `all` 模式改寫的檔案。
 - 遷移 000091 為 `nfo_export_job_state` 新增 `mode`（CHECK 為 `all` 或 `missing`）與 `skipped_existing`（只有 `missing` 能非零）；降級在仍有任何 `missing` 模式的狀態列（或非零 `skipped_existing`）時拒絕，空資料或只有 `all` 任務時直接移除兩欄。
 - 範圍外：不建立 NFO 以外的檔案（海報、字幕）；目標是目錄、符號連結或懸空連結時，新建協議視為已存在而拒絕（不覆蓋）；這些情況沒有專屬測試，條目歸入 skippedExisting 還是 failed 取決於 NFO 讀取端是否觀察到該名稱。
+
+## 安全修復（`fix` 模式，遷移 000092，G39.11 `--fix`）
+
+`jelee-cli nfo validate --library X --fix` 的修復部分。同一個 `nfo_export` 任務、同一套[不佔住 worker 的協調](#不佔住-worker-的協調)（分批至多 16 份、子 `nfo_write` 任務、`.jelee.bak` 備份保留 3 份、讓出、取消、租約到期續跑、冪等鍵 `nfo-export:<任務>:<chunk>[:<條目>]`），沒有任何新的寫檔路徑。模式存在 `nfo_export_job_state.mode`（`all`、`missing` 或 `fix`），不新增工作種類、錯誤碼或工作指標維度。准入與其他模式相同：庫須 `read-only` 且開啟寫回權限，否則 409 `nfo_write_disabled`。
+
+每個條目以庫校驗任務同一個解析器驗證它選到的 NFO（`ValidateItemNFO`：與條目選擇相同的目錄觀察與拒絕，加上同一份摘要），**只**修復一種問題，其餘一律不碰：
+
+| 問題 | 修復 | 條件 |
+| --- | --- | --- |
+| `nfo_title_missing` | 把 `title` 設為資料庫**已儲存**的標題（來源不是掃描名稱 `existing`，且非空） | 沒有已儲存標題時不修復該問題；NFO 沒有鎖住標題 |
+
+沒有識別碼**不是**校驗問題（沒有 `nfo_id_missing`：絕大多數既有 NFO 本來就沒有 Jelee 識別碼，把它們都算成警告只會讓警告數失去意義），`fix` 也不會只為補識別碼而重寫檔案。但寫入路徑對**任何**重寫都經 `EnsureID` 補上缺少的識別碼（G39.10 在每一次寫入成立，不靠校驗或 `fix`），所以修復缺標題時，同一份沒有識別碼的 NFO 也會得到 `<uniqueid type="jelee">UUID</uniqueid>`；不覆蓋任何既有識別碼（手工、provider、自訂 type 或手工 `jelee` 值），NFO 有 `lockdata` 或識別碼鎖時不補。
+
+| 條目的狀況 | 處理 | 計數 |
+| --- | --- | --- |
+| 沒有 NFO | 不建立（建立是 `missing` 模式） | skipped_missing |
+| 沒有任何問題 | 不碰 | unchanged |
+| 至少一個可修復的問題，且寫入可行 | 準備受控編輯（標題編輯；重寫時順帶補識別碼），子任務重寫並留 `.jelee.bak` | fixed（子任務結算為 replaced 時） |
+| 只有不修復的問題：`nfo_season_missing`、`nfo_episode_missing`、`nfo_conflicting_id`，或缺標題但沒有已儲存標題 | 不碰 | unfixable |
+| XML 損壞、不安全 XML、編碼無效或不支援、過於複雜（解析失敗，無摘要問題） | 不碰 | unfixable |
+| 任何 error 問題：`nfo_invalid_date`、`nfo_invalid_integer`、`nfo_invalid_number`、`nfo_invalid_boolean`、`nfo_unsafe_reference`、`nfo_id_incomplete` 等 | 不碰（寫入路徑本來就拒絕有 error 的文件） | unfixable |
+| 未知根元素、包裝根、多條目文件、根與條目種類不符（`nfo_unknown_root`、`nfo_wrapper_fields_ignored`、`nfo_kind_unknown`） | 不碰 | unfixable |
+| 編碼是猜的（`nfo_encoding_guessed`） | 不碰（重寫會轉成 UTF-8，不改寫猜測的編碼） | unfixable |
+| `lockdata`，或缺標題而 NFO 鎖住標題 | 不碰 | unfixable |
+| 路徑非法（`nfo_path_*`，見[路徑問題](#非法路徑問題nfo_path_)） | 不碰 | unfixable |
+| 無媒體來源、不支援的種類、已刪除、檔案讀取失敗 | 同 `all` | skipped_other |
+| 條目層級錯誤、子任務失敗、取消或被拒絕但條目並未被取代 | 同 `all` | failed |
+
+`fix` 模式把子任務取代的條目計為 `fixed`（`written` 恆為 0）；`fixed`＋`unchanged` 計入 `files`，`unfixable`、`skipped_*` 與 `failed` 計入 `skipped`。已修復的 NFO 之後再跑 `fix`（或再校驗）不再有該問題，所以重跑是 unchanged 且不提交子任務。
+
+### 非法路徑問題（`nfo_path_*`）
+
+庫校驗任務在讀檔**之前**檢查每個 NFO 的位置，把拒絕轉成一個 error 問題（欄位 `path`，條目 -1），與條目選擇拒絕的是同一批位置，拒絕本身沒有放寬（拒絕仍是 `ErrNFOInputUnavailable`，只是多帶固定理由碼）。檔案不被讀取，摘要的條目數為 0、編碼與根為 `unknown`，只含這一個問題；永不自動修復。
+
+| 代碼 | 意義 |
+| --- | --- |
+| `nfo_path_symlink` | NFO 名稱本身是符號連結 |
+| `nfo_path_element_symlink` | 路徑上的目錄（或媒體錨點、庫根）是符號連結，即使連結指向庫內 |
+| `nfo_path_not_regular` | NFO 是目錄、FIFO、socket、裝置等非一般檔案（或其上層不是目錄） |
+| `nfo_path_case_collision` | 同一目錄有另一個名稱僅大小寫不同的項目（Linux 可發生），兩個都被標示 |
+| `nfo_path_outside_root` | 相對路徑為絕對路徑或含 `..` |
+| `nfo_path_too_long` | 路徑超過 1,024 位元組或單一元素超過 255 |
+| `nfo_path_invalid_name` | 含控制字元、反斜線、冒號或非 UTF-8 |
+
+結果存在與一般摘要相同的觀察列，經既有的 `current-validations` 與 `…/issues` 取得：觀察的 `entries` 為 0、`errorCount` 為 1。檔案沒有被讀，所以戳記是清單記錄的大小與修改時間加上只由代碼決定的摘要；位置修好後，下一次校驗以真實戳記取代該列。條目選擇在 `fix`（與其他模式）遇到同樣的位置時，`fix` 計為 unfixable。
+
+限制：掃描器本來就不把符號連結與非一般檔案放進清單，所以從未進入清單的連結 NFO 不會出現在校驗任務的問題清單；只有清單記錄之後才變成連結或非一般檔案的 NFO、路徑上的目錄被換成連結，以及大小寫衝突（兩個都是一般檔案）會出現。`fix` 對條目的 NFO 做的是條目選擇，所以連結 NFO 在 `fix` 計為 unfixable。`nfo_path_outside_root`、`nfo_path_too_long`、`nfo_path_invalid_name` 是防守性的詞彙：清單與條目範圍的路徑在進入資料庫時已被詞法檢查擋下。大小寫衝突的檢查每個 NFO 列出一次它的目錄（上限同條目選擇的 65,536 項）。
+
+### 驗證與限制
+
+- 真實 PG：115 個條目（110 部電影分十一類各十份、影集、兩集、連結 NFO、大小寫衝突），涵蓋：只有可修復檔案被重寫、備份與原位元組相同、未知標籤與註解保留、既有識別碼（手工、provider、自訂、手工 `jelee`）位元組不變、缺標題又沒有識別碼的檔案得到標題與恰好一個 `jelee` UUID、只缺識別碼而有標題的檔案 unchanged（位元組、inode、修改時間不變）、其餘檔案位元組、inode、修改時間不變、計數；修復前後各跑一次真實校驗任務，已修復的問題消失、不修復的問題仍列出；第二次 `fix` 全部 unchanged 且不提交子任務；兩種取消；兩種租約遺失續跑與不中斷的任務逐檔相同（不斷言精確的 attempt 次數）；寫入權限被收回；HTTP 准入（無效模式 400、寫入未開 409、重播、換模式 409）；遷移往返與帶資料拒絕降級。
+- 校驗任務的路徑問題另有真實 PG 測試：符號連結、FIFO、目錄取代 NFO、路徑上的目錄被換成連結、大小寫衝突，位置修好後觀察被取代；DB-free 單元測試涵蓋對應表與詞法分類（連結與 FIFO 的檔案系統測試只在 Linux 執行）。
+- 遷移 000092 為 `nfo_export_job_state` 把 `mode` 的 CHECK 擴充為 `all`／`missing`／`fix`，新增 `fixed`、`unfixable`（CHECK：`fix` 模式 `written` 為 0，其他模式兩者為 0）；降級在仍有 `fix` 模式的狀態列（或非零計數）時拒絕，否則還原約束並移除兩欄。
+- 範圍外：不修復日期、數字、參照、編碼或結構；不補 `season`／`episode`；不為沒有已儲存標題的條目猜標題；沒有真實客戶端往返驗證。

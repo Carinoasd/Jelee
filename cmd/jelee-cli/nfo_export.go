@@ -156,8 +156,8 @@ func decodeCLINFOExportResponse(raw []byte, c nfoExportCLIRequest) (any, bool) {
 	data := envelope["data"]
 	if c.command == "export-status" {
 		fields, ok := jobsCLIObject(data)
-		names := []string{"jobId", "libraryId", "mode", "cursorItemId", "childJobId", "chunks", "written", "unchanged", "skippedExisting", "skippedMissing", "skippedInvalid", "skippedOther", "failed", "updatedAt"}
-		if !ok || !jobsCLIHas(fields, "jobId", "libraryId", "mode", "chunks", "written", "unchanged", "skippedExisting", "skippedMissing", "skippedInvalid", "skippedOther", "failed", "updatedAt") {
+		names := []string{"jobId", "libraryId", "mode", "cursorItemId", "childJobId", "chunks", "written", "fixed", "unfixable", "unchanged", "skippedExisting", "skippedMissing", "skippedInvalid", "skippedOther", "failed", "updatedAt"}
+		if !ok || !jobsCLIHas(fields, "jobId", "libraryId", "mode", "chunks", "written", "fixed", "unfixable", "unchanged", "skippedExisting", "skippedMissing", "skippedInvalid", "skippedOther", "failed", "updatedAt") {
 			return nil, false
 		}
 		// Both ids are null while they do not apply, but never absent.
@@ -174,7 +174,7 @@ func decodeCLINFOExportResponse(raw []byte, c nfoExportCLIRequest) (any, bool) {
 		var state domain.NFOExportJobState
 		if json.Unmarshal(encoded, &state) != nil || state.JobID != c.job || !domain.ValidID(state.LibraryID) ||
 			state.CursorItemID != nil && !domain.ValidID(*state.CursorItemID) || state.ChildJobID != nil && !domain.ValidID(*state.ChildJobID) ||
-			!domain.ValidNFOExportMode(state.Mode) || state.SkippedExisting < 0 || state.Chunks < 0 || state.Written < 0 || state.Unchanged < 0 || state.SkippedMissing < 0 || state.SkippedInvalid < 0 || state.SkippedOther < 0 || state.Failed < 0 || state.UpdatedAt.IsZero() {
+			!domain.ValidNFOExportMode(state.Mode) || state.SkippedExisting < 0 || state.Chunks < 0 || state.Written < 0 || state.Fixed < 0 || state.Unfixable < 0 || state.Unchanged < 0 || state.SkippedMissing < 0 || state.SkippedInvalid < 0 || state.SkippedOther < 0 || state.Failed < 0 || state.UpdatedAt.IsZero() {
 			return nil, false
 		}
 		return state, true
@@ -204,8 +204,11 @@ func nfoExportSummary(value any, replayed bool) string {
 			child = *v.ChildJobID
 		}
 		existing := ""
-		if v.Mode == domain.NFOExportMissing {
+		switch v.Mode {
+		case domain.NFOExportMissing:
 			existing = fmt.Sprintf("mode missing\nskipped-existing %d\n", v.SkippedExisting)
+		case domain.NFOExportFix:
+			existing = fmt.Sprintf("mode fix\nfixed %d unfixable %d\n", v.Fixed, v.Unfixable)
 		}
 		return fmt.Sprintf("job %s library %s\n%swritten %d unchanged %d skipped-missing %d skipped-invalid %d skipped-other %d failed %d\nchunks %d write-job %s\ncursor %s\nupdated %s\n",
 			v.JobID, v.LibraryID, existing, v.Written, v.Unchanged, v.SkippedMissing, v.SkippedInvalid, v.SkippedOther, v.Failed, v.Chunks, child, cursor, v.UpdatedAt.UTC().Format(time.RFC3339))

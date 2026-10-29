@@ -45,3 +45,10 @@ type NFOItemApplyRepository interface {
 type NFOItemObservationApplyRepository interface {
 	ApplyItemNFOObservation(context.Context, domain.Actor, domain.NFOItemScope, domain.NFOItemObservationState) (domain.MetadataApplyResult, error)
 }
+
+// NFOItemValidationReader validates the NFO an item selects with the parser of
+// the library validation job (G39.11 --fix). A refused location is a result
+// (NFOItemValidationPath), not an error; the scope must be repository-owned.
+type NFOItemValidationReader interface {
+	ValidateItemNFO(context.Context, domain.NFOItemScope) (domain.NFOItemValidation, error)
+}

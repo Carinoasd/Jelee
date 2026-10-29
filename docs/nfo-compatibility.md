@@ -6,7 +6,7 @@
 
 ## 寫回識別碼策略
 
-adapter writer對沒有任何已識別ID的條目新增`<uniqueid type="jelee">UUID</uniqueid>`。自動值使用crypto/rand產生的UUID v4，不指定default屬性，既有識別碼或其default值不改。已存在uniqueid（含自訂type）、imdbid、tmdbid、tvdbid或id時保留原bytes；手工填寫的jelee值也不覆蓋。空值/不完整ID屬損壞資料，不自動修復。lockdata與ID欄位鎖阻止缺ID新增，不能寫回半份多條目文件。
+adapter writer對沒有任何已識別ID的條目新增`<uniqueid type="jelee">UUID</uniqueid>`。自動值使用crypto/rand產生的UUID v4，不指定default屬性，既有識別碼或其default值不改。已存在uniqueid（含自訂type）、imdbid、tmdbid、tvdbid或id時保留原bytes；手工填寫的jelee值也不覆蓋。空值/不完整ID屬損壞資料，不自動修復。lockdata與ID欄位鎖阻止缺ID新增，不能寫回半份多條目文件。沒有識別碼不是校驗問題（沒有`nfo_id_missing`之類的警告，絕大多數既有NFO本來就沒有Jelee ID）；每一次寫入（含`jelee-cli nfo validate --library X --fix`修復缺標題時的重寫）才經EnsureID補上，`--fix`不會只為補ID而重寫檔案，見[安全修復](nfo-export-jobs.md#安全修復fix-模式遷移-000092g3911---fix)。
 
 Document.EnsureID僅在所選條目缺ID時生成；EnsureIDValue接受預先固定的canonical UUID，讓正式持久任務能先保存ID與輸出意圖再寫檔。Writer在singleflight的共用操作內補齊缺ID，多條目依原文順序逐項核對；相同共用請求不各自產生不同UUID。後續寫回再次讀取已有ID，保持原值。未知XML/註解、行尾、BOM及縮排沿用受控修改介面。詳細驗證見[ID寫回基礎](nfo-generated-id.md)；正式jobs/恢復稽核與真實上游客戶端對type=jelee的互操作仍待驗證。
 

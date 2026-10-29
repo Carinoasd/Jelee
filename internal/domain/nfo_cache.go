@@ -113,6 +113,46 @@ const (
 	NFOFailureTooLarge            NFOFailureCode = "nfo_too_large"
 )
 
+// The illegal-path issue class (G39.11). A path problem is a property of the
+// location of an NFO, found before any byte of it is read; it is reported as
+// one error issue on field NFOPathField and is never repaired automatically.
+const (
+	// NFOPathField is the field of every path issue.
+	NFOPathField = "path"
+	// NFOPathSymlink: the NFO name itself is a symbolic link.
+	NFOPathSymlink = "nfo_path_symlink"
+	// NFOPathElementSymlink: a directory (or the media anchor) on the way to the
+	// NFO is a symbolic link, including a link that stays inside the root.
+	NFOPathElementSymlink = "nfo_path_element_symlink"
+	// NFOPathNotRegular: the NFO name is a directory, FIFO, socket, device or
+	// another entry that is not a regular file.
+	NFOPathNotRegular = "nfo_path_not_regular"
+	// NFOPathCaseCollision: more than one entry of the directory matches the NFO
+	// name when case is ignored, so no single file can be chosen.
+	NFOPathCaseCollision = "nfo_path_case_collision"
+	// NFOPathOutsideRoot: the relative path is not local to the library root
+	// (absolute, with a ".." element, or an unusable root).
+	NFOPathOutsideRoot = "nfo_path_outside_root"
+	// NFOPathTooLong: the path exceeds 1,024 bytes or an element exceeds 255.
+	NFOPathTooLong = "nfo_path_too_long"
+	// NFOPathInvalidName: the path has control characters, a backslash, a colon
+	// or bytes that are not UTF-8.
+	NFOPathInvalidName = "nfo_path_invalid_name"
+)
+
+// NFOPathCodes are the path issue codes, in a fixed order.
+var NFOPathCodes = []string{NFOPathSymlink, NFOPathElementSymlink, NFOPathNotRegular, NFOPathCaseCollision, NFOPathOutsideRoot, NFOPathTooLong, NFOPathInvalidName}
+
+// ValidNFOPathCode reports whether code is one of the path issue codes.
+func ValidNFOPathCode(code string) bool {
+	for _, c := range NFOPathCodes {
+		if c == code {
+			return true
+		}
+	}
+	return false
+}
+
 // Every string is a fixed whitelist value. There is no arbitrary message field.
 type NFOIssue struct {
 	Severity string `json:"severity"`

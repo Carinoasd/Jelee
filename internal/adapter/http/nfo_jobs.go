@@ -120,7 +120,7 @@ func (s *Server) applyLibraryNFO(w http.ResponseWriter, r *http.Request, a domai
 
 // exportLibraryNFO queues a batch NFO export (G39.14). The library must be
 // read-only with writes enabled, otherwise the answer is 409 nfo_write_disabled.
-// mode is all (the default) or missing; anything else is 400.
+// mode is all (the default), missing or fix; anything else is 400.
 func (s *Server) exportLibraryNFO(w http.ResponseWriter, r *http.Request, a domain.Actor) (any, int, error) {
 	var input struct {
 		Priority string `json:"priority"`

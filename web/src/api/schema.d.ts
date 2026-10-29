@@ -13163,7 +13163,7 @@ export type paths = {
         get?: never;
         put?: never;
         /**
-         * Queue a batch export of every item's stored metadata into its existing NFO (mode all) or into newly created NFOs for the items that have none (mode missing), through preparations and child nfo_write jobs; 400 for an unknown mode; 409 nfo_write_disabled unless the library is read-only with writes enabled, 409 job_busy while the library has an active job
+         * Queue a batch export of every item's stored metadata into its existing NFO (mode all), into newly created NFOs for the items that have none (mode missing), or repairs the safely repairable validation issues of existing NFOs (mode fix), through preparations and child nfo_write jobs; 400 for an unknown mode; 409 nfo_write_disabled unless the library is read-only with writes enabled, 409 job_busy while the library has an active job
          * @description Every request, including retained replay, checks live administrator authorization. Internal reader identities, absolute roots, hashes and original XML are never accepted as request parameters.
          */
         post: {
@@ -30394,7 +30394,7 @@ export type components = {
              */
             priority: "manual" | "background";
         };
-        /** @description Counters of a batch NFO export. written entries were replaced by a child nfo_write job (counted when that job ends), unchanged had no differing stored value, skippedExisting (missing mode) already had an NFO file, or got one while the job ran, and was left alone, skippedMissing (all mode) had no NFO file, skippedInvalid had an invalid NFO, skippedOther could not be prepared (no media source, locked or unsupported item), failed hit an item-local error or were prepared but not replaced. chunks is the number of child write jobs submitted. */
+        /** @description Counters of a batch NFO export. written entries were replaced by a child nfo_write job (counted when that job ends), unchanged had no differing stored value, skippedExisting (missing mode) already had an NFO file, or got one while the job ran, and was left alone, skippedMissing (all and fix mode) had no NFO file, skippedInvalid had an invalid NFO, skippedOther could not be prepared (no media source, locked or unsupported item), failed hit an item-local error or were prepared but not replaced. In fix mode the entries the child job replaced are counted as fixed (written stays 0) and unfixable counts the items that have a validation issue the fix does not repair (parse failures, error issues, an illegal path, a lock, nothing safe to write). chunks is the number of child write jobs submitted. */
         NFOExportJobState: {
             /** @description The nfo_write job whose outcome is not yet counted; null while no write job is outstanding. */
             childJobId: string | null;
@@ -30402,28 +30402,30 @@ export type components = {
             /** @description The last item the job prepared or skipped; null before the first checkpoint. Items are visited in ascending ID order and a resumed job continues after it. */
             cursorItemId: string | null;
             failed: number;
+            fixed: number;
             /** Format: uuid */
             jobId: string;
             /** Format: uuid */
             libraryId: string;
             /** @enum {string} */
-            mode: "all" | "missing";
+            mode: "all" | "missing" | "fix";
             skippedExisting: number;
             skippedInvalid: number;
             skippedMissing: number;
             skippedOther: number;
             unchanged: number;
+            unfixable: number;
             /** Format: date-time */
             updatedAt: string;
             written: number;
         };
         NFOExportRequest: {
             /**
-             * @description all writes the stored values into existing NFOs; missing creates the NFO of every item that has none and never touches an existing NFO. Part of the idempotency request: replaying a key with another mode is 409 conflict.
+             * @description all writes the stored values into existing NFOs; missing creates the NFO of every item that has none and never touches an existing NFO; fix repairs only the validation issues that can be repaired safely (a missing title the database stores; the rewrite also adds a missing Jelee identifier) with a .jelee.bak backup and counts the rest as unfixable. Part of the idempotency request: replaying a key with another mode is 409 conflict.
              * @default all
              * @enum {string}
              */
-            mode: "all" | "missing";
+            mode: "all" | "missing" | "fix";
             /**
              * @default manual
              * @enum {string}
@@ -30447,7 +30449,7 @@ export type components = {
             sourceId: string;
             stamp: components["schemas"]["NFOItemObservationStamp"];
         };
-        /** @description Only fixed parser code/severity/field combinations are returned. No arbitrary XML values or error text. Entry -1 denotes the document. */
+        /** @description Only fixed parser code/severity/field combinations are returned. No arbitrary XML values or error text. Entry -1 denotes the document. An illegal location of the NFO is one error issue with field path and a code nfo_path_symlink, nfo_path_element_symlink, nfo_path_not_regular, nfo_path_case_collision, nfo_path_outside_root, nfo_path_too_long or nfo_path_invalid_name; the file was not read (entries 0, encoding and root unknown) and the issue is never repaired automatically. */
         NFOIssue: {
             /** @description The server also enforces the stated maximum in UTF-8 bytes. */
             code: string;
