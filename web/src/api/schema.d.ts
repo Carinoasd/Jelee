@@ -6808,6 +6808,628 @@ export type paths = {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/items/{id}/images": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the image rows of an item
+         * @description Administrator only; other users get 403 forbidden before any lookup. Every row of every slot, best source first within a slot (the lock, then G40.10 order). Rows that cannot be served yet (a URL without stored bytes) are included.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Image rows */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["ItemImage"][];
+                        };
+                    };
+                };
+                /** @description HTTP 400 */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 401 */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 403 */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description The item is missing or not visible to the administrator (both answered alike), the slot has no matching row, or image_unavailable. */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 408 */
+                408: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 503 */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Jelee error envelope with code, message, details and traceId; see the Error schema. */
+                default: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/items/{id}/images/{type}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Upload or replace the artwork of an item slot
+         * @description Administrator only; other users get 403 forbidden before any lookup. The body is the image itself. It is never trusted: the format is sniffed, the header inspected against the processing memory budget and the whole image decoded before its bytes enter the content-addressed image store. JPEG, PNG, WebP, GIF, BMP and TIFF are accepted; AVIF and anything else is 415 image_unsupported, a body above the source limit 413 image_too_large. The upload becomes the slot's upload row and is locked, so it wins over library, NFO, remote and embedded artwork, which stay as fallbacks. A slot that already has any row is a replacement and needs confirm=true, otherwise 400 confirmation_required and nothing is read or stored. Without a configured image store the request is 404 image_unavailable; a full processing pool is 503 image_busy. Library files are never written or removed. Audited as image.added or image.replaced, plus image.unlocked for a lock handed over. Variants generated from a previous upload that nothing references any more are cleared.
+         */
+        post: {
+            parameters: {
+                query?: {
+                    /** @description Required true when the slot already has an image; otherwise 400 confirmation_required. */
+                    confirm?: boolean;
+                    /** @description Gallery position, as for /images. Only Backdrop (Fanart) and Chapter accept a non-zero index. */
+                    index?: number;
+                };
+                header?: never;
+                path: {
+                    id: string;
+                    /** @description Image type. Fanart is an alias of Backdrop. */
+                    type: "Primary" | "Backdrop" | "Fanart" | "Logo" | "ClearLogo" | "Banner" | "ClearArt" | "Art" | "Disc" | "Thumb" | "Landscape" | "Chapter" | "Box" | "BoxRear" | "Menu" | "Profile";
+                };
+                cookie?: never;
+            };
+            /** @description Raw image bytes with an image/* or application/octet-stream Content-Type and a Content-Length of at most the configured source limit. */
+            requestBody: {
+                content: {
+                    "application/octet-stream": string;
+                    "image/*": string;
+                };
+            };
+            responses: {
+                /** @description The slot's previous upload was replaced. */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["ItemImage"];
+                        };
+                    };
+                };
+                /** @description The slot was empty; the upload is its first row. */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["ItemImage"];
+                        };
+                    };
+                };
+                /** @description HTTP 400 */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 401 */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 403 */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description The item is missing or not visible to the administrator (both answered alike), the slot has no matching row, or image_unavailable. */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 408 */
+                408: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 413 */
+                413: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 415 */
+                415: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Processing admission or storage is unavailable. Busy responses include Retry-After. */
+                503: {
+                    headers: {
+                        "Retry-After"?: number;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Jelee error envelope with code, message, details and traceId; see the Error schema. */
+                default: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        /**
+         * Delete the artwork references of an item slot
+         * @description Administrator only; other users get 403 forbidden before any lookup. Removes the slot's row of one source, or every row when source is omitted. Always needs confirm=true, otherwise 400 confirmation_required. Only references go: library files and stored originals are kept (G40.11); the variants Jelee generated from content nothing references any more are cleared. A library or NFO image is found again by the next scan. Audited as image.deleted per row.
+         */
+        delete: {
+            parameters: {
+                query?: {
+                    /** @description Required true; otherwise 400 confirmation_required. */
+                    confirm?: boolean;
+                    /** @description Gallery position, as for /images. Only Backdrop (Fanart) and Chapter accept a non-zero index. */
+                    index?: number;
+                    /** @description Delete only this source's row; omit for every row of the slot. */
+                    source?: "local" | "nfo" | "remote" | "embedded" | "upload";
+                };
+                header?: never;
+                path: {
+                    id: string;
+                    /** @description Image type. Fanart is an alias of Backdrop. */
+                    type: "Primary" | "Backdrop" | "Fanart" | "Logo" | "ClearLogo" | "Banner" | "ClearArt" | "Art" | "Disc" | "Thumb" | "Landscape" | "Chapter" | "Box" | "BoxRear" | "Menu" | "Profile";
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Deleted */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description HTTP 400 */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 401 */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 403 */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description The item is missing or not visible to the administrator (both answered alike), the slot has no matching row, or image_unavailable. */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 408 */
+                408: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 503 */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Jelee error envelope with code, message, details and traceId; see the Error schema. */
+                default: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/items/{id}/images/{type}/lock": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Lock one source of an item slot
+         * @description Administrator only; other users get 403 forbidden before any lookup. The row then wins the slot whatever its source, and scans and refreshes never rewrite it (G40.10). The lock is handed over from any other source of the slot. Audited as image.locked, plus image.unlocked for the previous lock. Unchanged when the row already has the requested state.
+         */
+        post: {
+            parameters: {
+                query: {
+                    /** @description Gallery position, as for /images. Only Backdrop (Fanart) and Chapter accept a non-zero index. */
+                    index?: number;
+                    /** @description The source kind whose row changes. */
+                    source: "local" | "nfo" | "remote" | "embedded" | "upload";
+                };
+                header?: never;
+                path: {
+                    id: string;
+                    /** @description Image type. Fanart is an alias of Backdrop. */
+                    type: "Primary" | "Backdrop" | "Fanart" | "Logo" | "ClearLogo" | "Banner" | "ClearArt" | "Art" | "Disc" | "Thumb" | "Landscape" | "Chapter" | "Box" | "BoxRear" | "Menu" | "Profile";
+                };
+                cookie?: never;
+            };
+            /** @description An empty JSON object. */
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["Empty"];
+                };
+            };
+            responses: {
+                /** @description The row after the change */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["ItemImage"];
+                        };
+                    };
+                };
+                /** @description HTTP 400 */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 401 */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 403 */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description The item is missing or not visible to the administrator (both answered alike), the slot has no matching row, or image_unavailable. */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 408 */
+                408: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 413 */
+                413: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 415 */
+                415: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 503 */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Jelee error envelope with code, message, details and traceId; see the Error schema. */
+                default: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/items/{id}/images/{type}/unlock": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Unlock one source of an item slot
+         * @description Administrator only; other users get 403 forbidden before any lookup. The slot falls back to the G40.10 order. Audited as image.unlocked. Unchanged when the row already has the requested state.
+         */
+        post: {
+            parameters: {
+                query: {
+                    /** @description Gallery position, as for /images. Only Backdrop (Fanart) and Chapter accept a non-zero index. */
+                    index?: number;
+                    /** @description The source kind whose row changes. */
+                    source: "local" | "nfo" | "remote" | "embedded" | "upload";
+                };
+                header?: never;
+                path: {
+                    id: string;
+                    /** @description Image type. Fanart is an alias of Backdrop. */
+                    type: "Primary" | "Backdrop" | "Fanart" | "Logo" | "ClearLogo" | "Banner" | "ClearArt" | "Art" | "Disc" | "Thumb" | "Landscape" | "Chapter" | "Box" | "BoxRear" | "Menu" | "Profile";
+                };
+                cookie?: never;
+            };
+            /** @description An empty JSON object. */
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["Empty"];
+                };
+            };
+            responses: {
+                /** @description The row after the change */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["ItemImage"];
+                        };
+                    };
+                };
+                /** @description HTTP 400 */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 401 */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 403 */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description The item is missing or not visible to the administrator (both answered alike), the slot has no matching row, or image_unavailable. */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 408 */
+                408: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 413 */
+                413: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 415 */
+                415: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 503 */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Jelee error envelope with code, message, details and traceId; see the Error schema. */
+                default: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/items/{id}/metadata": {
         parameters: {
             query?: never;
@@ -29740,6 +30362,42 @@ export type components = {
              * @enum {string}
              */
             effect: "allow" | "hide";
+        };
+        ItemImage: {
+            /** Format: int64 */
+            bytes?: number;
+            /** @description SHA-256 of the stored original, once read or fetched; the immutable tag of /images. */
+            contentSha256?: string;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            fetchedAt?: string;
+            /** @enum {string} */
+            format?: "jpeg" | "png" | "webp" | "avif" | "gif" | "bmp" | "tiff";
+            height?: number;
+            /** Format: uuid */
+            id: string;
+            index: number;
+            /** @description A locked row wins its slot and is never rewritten by a scan or refresh. At most one per slot. */
+            locked: boolean;
+            /**
+             * @description What the row points at: a library file, a URL, or bytes held only in the image store. Paths and URLs are never returned.
+             * @enum {string}
+             */
+            reference: "file" | "url" | "store";
+            /**
+             * @description G40.10 order after the lock: local, nfo, remote, embedded, upload.
+             * @enum {string}
+             */
+            sourceKind: "local" | "nfo" | "remote" | "embedded" | "upload";
+            /**
+             * @description Stored type; Fanart is stored as Backdrop.
+             * @enum {string}
+             */
+            type: "Primary" | "Backdrop" | "Logo" | "ClearLogo" | "Banner" | "ClearArt" | "Art" | "Disc" | "Thumb" | "Landscape" | "Chapter" | "Box" | "BoxRear" | "Menu" | "Profile";
+            /** Format: date-time */
+            updatedAt: string;
+            width?: number;
         };
         ItemMetadata: {
             facts: components["schemas"]["ItemMetadataFact"][];

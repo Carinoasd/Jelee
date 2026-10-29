@@ -92,3 +92,34 @@ type ItemImageRenderer interface {
 type ItemImageIngestRepository interface {
 	IngestItemImages(ctx context.Context, lease domain.JobLease, after string, limit int) (domain.ItemImageIngestPage, error)
 }
+
+// ItemImageManager is the administrator side of the G40 image rows
+// (G40.10, G40.11). Every method needs a live administrator session and an
+// item visible to it through the unified filter; a missing and an invisible
+// item are the same ErrNotFound. Writes are audited. Only item_images rows
+// change: no method touches a library file or a stored original.
+type ItemImageManager interface {
+	ListItemImages(context.Context, domain.Actor, string) ([]domain.ItemImage, error)
+	// UploadItemImage records verified, stored upload content as the slot's
+	// locked upload row. An occupied slot without confirm is
+	// ErrConfirmationRequired and changes nothing.
+	UploadItemImage(ctx context.Context, actor domain.Actor, in domain.ItemImageInput, confirm bool) (domain.ItemImageChange, error)
+	// DeleteItemImages removes the slot's rows of one source kind, or of
+	// every kind when sourceKind is empty; none is ErrNotFound.
+	DeleteItemImages(ctx context.Context, actor domain.Actor, item, imageType string, index int, sourceKind string) (domain.ItemImageChange, error)
+	SetItemImageLock(ctx context.Context, actor domain.Actor, item, imageType string, index int, sourceKind string, locked bool) (domain.ItemImage, error)
+}
+
+// ItemImageIngester verifies an uploaded image and keeps its bytes in the
+// content-addressed store. size is the exact body length. It fails with
+// ErrImageTooLarge, ErrImageUnsupported, ErrImageBusy, or
+// ErrImageUnavailable when no store is configured.
+type ItemImageIngester interface {
+	IngestItemImage(ctx context.Context, body io.Reader, size int64) (domain.ItemImageContent, error)
+}
+
+// ImageVariantCleaner drops the variants Jelee derived from one original,
+// never the original itself.
+type ImageVariantCleaner interface {
+	ClearItemImageVariants(ctx context.Context, content [32]byte) error
+}

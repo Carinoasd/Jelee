@@ -102,6 +102,7 @@ func specification(cfg config.Config, deprecations []Deprecation) map[string]any
 	}
 	if cfg.EnableImages && cfg.EnableAccounts && cfg.EnableCatalog {
 		imageSpecification(paths, cfg)
+		imageAdminSpecification(paths, schemas, cfg)
 	}
 	errorSpecification(paths, schemas)
 	listSpecification(paths, schemas)

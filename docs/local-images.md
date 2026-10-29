@@ -47,9 +47,9 @@ JELEE_IMAGE_TEMP_ROOT=/var/lib/jelee/image-work
 
 ### 圖片資產表（schema 58）
 
-`item_images` 記錄每個 item 的圖片引用：類型依 G40.1（Primary、Backdrop、Logo、ClearLogo、Banner、ClearArt、Art、Disc、Thumb、Landscape、Chapter、Box、BoxRear、Menu、Profile；Fanart 存成 Backdrop），只有 Backdrop／Chapter 可用 index 1–9999。來源分 `local`、`nfo`、`remote`、`embedded`：local／embedded 必須是同媒體庫的 root＋相對路徑（外鍵綁 item 所屬媒體庫，路徑不得含 `..`、絕對路徑、反斜線、冒號或控制字元；local 與 NFO 本地圖須為圖片副檔名），remote 只能是不含帳密、最長 2048 位元組的 `https://` URL，nfo 二擇一。內容欄（SHA-256、寬高、格式、位元組數、平均色、抓取時間）全有或全無，NULL 表示尚未讀取。每個 (item, 類型, index, 來源) 一列，每個槽最多一列鎖定。
+`item_images` 記錄每個 item 的圖片引用：類型依 G40.1（Primary、Backdrop、Logo、ClearLogo、Banner、ClearArt、Art、Disc、Thumb、Landscape、Chapter、Box、BoxRear、Menu、Profile；Fanart 存成 Backdrop），只有 Backdrop／Chapter 可用 index 1–9999。來源分 `local`、`nfo`、`remote`、`embedded`、`upload`（管理員上傳，schema95，必為手動列，無路徑無 URL、必有內容，見[管理接口](image-assets.md#管理接口g4010g4011)）：local／embedded 必須是同媒體庫的 root＋相對路徑（外鍵綁 item 所屬媒體庫，路徑不得含 `..`、絕對路徑、反斜線、冒號或控制字元；local 與 NFO 本地圖須為圖片副檔名），remote 只能是不含帳密、最長 2048 位元組的 `https://` URL，nfo 二擇一。內容欄（SHA-256、寬高、格式、位元組數、平均色、抓取時間）全有或全無，NULL 表示尚未讀取。每個 (item, 類型, index, 來源) 一列，每個槽最多一列鎖定。
 
-選圖順序：鎖定者優先，其次 local > nfo > remote > embedded；尚未抓取內容的 URL 引用不參與。非手動（掃描、刷新）寫入不會改動已鎖定或手動寫入（`manual`，schema 94）的列，也不能設定鎖定；來源身分不變而未帶內容時保留已存內容。讀取在同一句 SQL 內重驗 session 與媒體庫授權，無權與不存在一律回 not found；寫入僅限管理員，手動新增／更換、鎖定變更及刪除寫入 `audit_logs`（不含路徑或 URL）。刪除只移除資料庫引用，從不刪使用者檔案；item 刪除時級聯。`image_variants` 是變體存放區的資料庫索引（內容雜湊＋變體 key、大小、最近使用時間，觸碰至多每分鐘一次，淘汰時以列出時的時間做條件刪除）。降級時有 `item_images` 資料即拒絕；變體索引可重建，直接移除。
+選圖順序：鎖定者優先，其次 local > nfo > remote > embedded > upload；尚未抓取內容的 URL 引用不參與。非手動（掃描、刷新）寫入不會改動已鎖定或手動寫入（`manual`，schema 94）的列，也不能設定鎖定；來源身分不變而未帶內容時保留已存內容。讀取在同一句 SQL 內重驗 session 與媒體庫授權，無權與不存在一律回 not found；寫入僅限管理員，手動新增／更換、鎖定變更及刪除寫入 `audit_logs`（不含路徑或 URL）。刪除只移除資料庫引用，從不刪使用者檔案；item 刪除時級聯。`image_variants` 是變體存放區的資料庫索引（內容雜湊＋變體 key、大小、最近使用時間，觸碰至多每分鐘一次，淘汰時以列出時的時間做條件刪除）。降級時有 `item_images` 資料即拒絕；變體索引可重建，直接移除。
 
 ## API
 
@@ -69,7 +69,7 @@ GET /images/Backdrop/{itemID}?index=2&width=1280&tag=<原圖 SHA-256>
 
 `{type}` 接受 G40.1 全部類型：Primary、Backdrop（別名 Fanart）、Logo、ClearLogo、Banner、ClearArt、Art、Disc、Thumb、Landscape、Chapter、Box、BoxRear、Menu、Profile。`index` 為查詢參數（0–9999，預設 0），只有 Backdrop／Chapter 可用非零值；其他類型帶非零 index、未知類型、非十進位或前置零均回 400。輸出格式維持 JPEG；WebP／AVIF 輸出延後（`format` 只接受 `jpeg`）。
 
-選圖：app 層以 `ResolveItemImageSources` 在同一句 SQL 內重驗 session 與媒體庫授權，取得該槽可用的列（鎖定優先，其次 local > nfo > remote > embedded；尚未抓取內容的 URL 不列入），依序嘗試：
+選圖：app 層以 `ResolveItemImageSources` 在同一句 SQL 內重驗 session 與媒體庫授權，取得該槽可用的列（鎖定優先，其次 local > nfo > remote > embedded > upload；尚未抓取內容的 URL 不列入），依序嘗試：
 
 - local／nfo 且指向媒體庫檔案：以 root＋相對路徑經 `probe.Open`（拒絕符號連結元件、os.Root 邊界）複製到私有暫存區，處理後重新開啟並重算完整雜湊，與 Primary 海報相同。
 - remote／embedded 或 NFO URL：只從持久存放區讀取已存在的原圖（開啟時重算雜湊）。**請求路徑不會發出外部請求，也不會抽取內嵌圖**；存放區沒有內容或未啟用存放區時視為不可用，換下一個來源。遠端抓取由之後的 image_refresh 任務負責；內嵌封面由 catalog sync 的[擷取段](#內嵌封面擷取g404schema-79)寫入存放區。

@@ -7,6 +7,9 @@ var (
 	ErrImageUnavailable = errors.New("image unavailable")
 	ErrImageTooLarge    = errors.New("image exceeds processing budget")
 	ErrImageUnsupported = errors.New("image format unsupported")
+	// ErrConfirmationRequired refuses a destructive change sent without the
+	// explicit confirmation G40.11 asks for (replacing or deleting artwork).
+	ErrConfirmationRequired = errors.New("confirmation required")
 )
 
 // LocalImageSource is resolved from the authorized catalog. It is never a DTO

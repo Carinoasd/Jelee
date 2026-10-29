@@ -291,13 +291,13 @@ SELECT (SELECT count(*) FROM ok),(SELECT count(*) FROM up WHERE inserted),(SELEC
 usable AS (SELECT *,EXISTS(SELECT 1 FROM item_images g WHERE g.item_id=x.item AND g.image_type=x.doc->>'image_type' AND g.image_index=(x.doc->>'image_index')::integer AND g.locked AND g.source_kind<>x.doc->>'source_kind') blocked
  FROM x WHERE item IS NOT NULL AND lib IS NOT NULL AND (doc->>'root_id' IS NULL OR root IS NOT NULL)),
 ok AS (SELECT * FROM usable WHERE NOT blocked),
-up AS (INSERT INTO item_images(id,item_id,library_id,image_type,image_index,source_kind,root_id,relative_path,remote_url,content_sha256,width,height,format,byte_size,average_color,fetched_at,source_mtime_unix_nano,source_size,locked,created_at,updated_at)
+up AS (INSERT INTO item_images(id,item_id,library_id,image_type,image_index,source_kind,root_id,relative_path,remote_url,content_sha256,width,height,format,byte_size,average_color,fetched_at,source_mtime_unix_nano,source_size,locked,manual,created_at,updated_at)
  SELECT CASE WHEN EXISTS(SELECT 1 FROM item_images g WHERE g.id=ok.ref) THEN gen_random_uuid() ELSE ok.ref END,item,lib,doc->>'image_type',(doc->>'image_index')::integer,doc->>'source_kind',root,doc->>'relative_path',doc->>'remote_url',
  (doc->>'content_sha256')::bytea,(doc->>'width')::integer,(doc->>'height')::integer,doc->>'format',(doc->>'byte_size')::bigint,(doc->>'average_color')::integer,(doc->>'fetched_at')::timestamptz,
- (doc->>'source_mtime_unix_nano')::bigint,(doc->>'source_size')::bigint,true,(doc->>'created_at')::timestamptz,(doc->>'updated_at')::timestamptz FROM ok
+ (doc->>'source_mtime_unix_nano')::bigint,(doc->>'source_size')::bigint,true,doc->>'source_kind'='upload',(doc->>'created_at')::timestamptz,(doc->>'updated_at')::timestamptz FROM ok
  ON CONFLICT(item_id,image_type,image_index,source_kind) DO UPDATE SET root_id=EXCLUDED.root_id,relative_path=EXCLUDED.relative_path,remote_url=EXCLUDED.remote_url,content_sha256=EXCLUDED.content_sha256,
  width=EXCLUDED.width,height=EXCLUDED.height,format=EXCLUDED.format,byte_size=EXCLUDED.byte_size,average_color=EXCLUDED.average_color,fetched_at=EXCLUDED.fetched_at,
- source_mtime_unix_nano=EXCLUDED.source_mtime_unix_nano,source_size=EXCLUDED.source_size,locked=true,updated_at=greatest(EXCLUDED.updated_at,item_images.created_at)
+ source_mtime_unix_nano=EXCLUDED.source_mtime_unix_nano,source_size=EXCLUDED.source_size,locked=true,manual=item_images.manual OR EXCLUDED.manual,updated_at=greatest(EXCLUDED.updated_at,item_images.created_at)
  WHERE (item_images.root_id,item_images.relative_path,item_images.remote_url,item_images.content_sha256,item_images.width,item_images.height,item_images.format,item_images.byte_size,item_images.average_color,
  item_images.fetched_at,item_images.source_mtime_unix_nano,item_images.source_size,item_images.locked)
  IS DISTINCT FROM (EXCLUDED.root_id,EXCLUDED.relative_path,EXCLUDED.remote_url,EXCLUDED.content_sha256,EXCLUDED.width,EXCLUDED.height,EXCLUDED.format,EXCLUDED.byte_size,EXCLUDED.average_color,

@@ -207,6 +207,11 @@ func newWithLifetime(cfg config.Config, logger *slog.Logger, lifetime *lifetime)
 			if images, err = images.WithAssets(store, processor); err != nil {
 				return nil, err
 			}
+			// Uploads need the persistent store; without it the processor
+			// refuses them with image_unavailable.
+			if images, err = images.WithManagement(store, processor, processor); err != nil {
+				return nil, err
+			}
 			return images.WithSummaries(store)
 		},
 		func(c config.Config, store *postgres.Store, budget *resources.Budget, processor *imageadapter.Processor) (*telemetry.Metrics, error) {

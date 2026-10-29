@@ -73,7 +73,7 @@
    - 新 job kind `image_refresh`（要改 jobs 的 kind CHECK 約束與指標維度）。
    - 用 `internal/adapter/images/fetch.go` 抓取尚未有內容的 remote 來源，寫入持久存放區（`store.go`）並回填 `content_sha256` 等欄位。
    - 必須尊重鎖定；可以取消、可以續跑；每筆失敗各自隔離，不影響其他條目。
-3. **管理 API**（G40.10、G40.11）：
+3. **管理 API**（G40.10、G40.11）（狀態：已實作（schema95，暫定編號），設計與限制見 [image-assets.md](image-assets.md#管理接口g4010g4011)；以下原始需求保留供對照）：
    - `POST`／`DELETE /api/v1/items/{id}/images/{type}`（`index` 用查詢參數，和現有 `/images` 一致）與鎖定、解鎖。
    - 刪除或更換要求明確確認（例如 `confirm=true`），並寫稽核。事件名要加進 `internal/adapter/postgres/audit.go` 的白名單（L4 合入後）。
    - 只清 Jelee 自己產生的變體，**不得動使用者原圖**。

@@ -536,6 +536,31 @@ func (s *Store) RemoveVariant(ctx context.Context, source, variant [32]byte) err
 	return nil
 }
 
+// RemoveVariantsOf removes every indexed variant derived from one original
+// and reports how many it removed. The original is kept. A variant written
+// concurrently may survive; it is derived data and ages out like any other.
+func (s *Store) RemoveVariantsOf(ctx context.Context, source [32]byte) (int, error) {
+	if s == nil || ctx == nil {
+		return 0, domain.ErrInvalid
+	}
+	s.mu.Lock()
+	variants := make([][32]byte, 0)
+	for key := range s.classes[storeVariants].entries {
+		if key.source == source {
+			variants = append(variants, key.variant)
+		}
+	}
+	s.mu.Unlock()
+	removed := 0
+	for _, variant := range variants {
+		if err := s.RemoveVariant(ctx, source, variant); err != nil {
+			return removed, err
+		}
+		removed++
+	}
+	return removed, nil
+}
+
 func (s *Store) present(key storeKey) (int64, bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()

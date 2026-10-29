@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/hex"
 	"errors"
+	"strconv"
 	"time"
 
 	"github.com/MoYuanCN/Jelee/internal/app"
@@ -16,6 +17,7 @@ var (
 	_ app.ItemImageRepository    = (*Store)(nil)
 	_ app.ImageVariantIndex      = (*Store)(nil)
 	_ app.ItemImageSummaryReader = (*Store)(nil)
+	_ app.ItemImageManager       = (*Store)(nil)
 )
 
 const itemImageColumns = `g.id::text,g.item_id::text,g.library_id::text,g.image_type,g.image_index,g.source_kind,
@@ -23,8 +25,8 @@ const itemImageColumns = `g.id::text,g.item_id::text,g.library_id::text,g.image_
  g.source_mtime_unix_nano,g.source_size,g.content_sha256,g.width,g.height,g.format,g.byte_size,g.average_color,g.fetched_at,
  g.locked,g.manual,g.created_at,g.updated_at`
 
-// G40.10: a user lock wins, then local > nfo > remote > embedded.
-const itemImagePriority = `g.locked DESC,CASE g.source_kind WHEN 'local' THEN 0 WHEN 'nfo' THEN 1 WHEN 'remote' THEN 2 ELSE 3 END`
+// G40.10: a user lock wins, then local > nfo > remote > embedded > upload.
+const itemImagePriority = `g.locked DESC,CASE g.source_kind WHEN 'local' THEN 0 WHEN 'nfo' THEN 1 WHEN 'remote' THEN 2 WHEN 'embedded' THEN 3 ELSE 4 END`
 
 // Reads bind the live web or native session and the library grant in the
 // same statement as the image rows (G48.2/G48.8). An invisible item and a
@@ -196,7 +198,7 @@ func (s *Store) ResolveItemImageSources(parent context.Context, actor domain.Act
   AND (g.root_id IS NOT NULL OR g.content_sha256 IS NOT NULL)
  LEFT JOIN library_roots r ON r.id=g.root_id AND r.library_id=g.library_id
  WHERE `+itemImageVisibleWhere("$6")+`
- ORDER BY `+itemImagePriority+` LIMIT 4`, actor.UserID, actor.SessionID, item, imageType, index, requestScopeArg(ctx))
+ ORDER BY `+itemImagePriority+` LIMIT `+strconv.Itoa(domain.ItemImageSourceKinds), actor.UserID, actor.SessionID, item, imageType, index, requestScopeArg(ctx))
 	if err != nil {
 		return nil, storageError(err)
 	}
@@ -288,6 +290,19 @@ func lockImageItem(ctx context.Context, tx pgx.Tx, item string) error {
 	return storageError(tx.QueryRow(ctx, `SELECT library_id::text FROM items WHERE id=$1::uuid FOR NO KEY UPDATE`, item).Scan(&library))
 }
 
+// lockVisibleImageItem is lockImageItem for an administrator request: the
+// item must be visible to actor through the unified filter (G48.8), so a
+// missing and an invisible item are the same ErrNotFound.
+func lockVisibleImageItem(ctx context.Context, tx pgx.Tx, actor domain.Actor, item string) error {
+	if !domain.ValidID(item) {
+		return domain.ErrNotFound
+	}
+	var id string
+	return storageError(tx.QueryRow(ctx, `SELECT i.id::text FROM items i
+ JOIN users u ON u.id=$2::uuid AND NOT u.disabled AND u.deleted_at IS NULL
+ WHERE i.id=$1::uuid AND `+itemVisibleSQL("$3", "i.library_id", "i.id")+` FOR NO KEY UPDATE OF i`, item, actor.UserID, requestScopeArg(ctx)).Scan(&id))
+}
+
 type itemImageAudit struct {
 	ID            string `json:"id"`
 	Type          string `json:"type"`
@@ -299,11 +314,15 @@ type itemImageAudit struct {
 }
 
 // Audit rows never carry paths or URLs; the reference kind is enough to tell
-// a file from a fetched image without exposing library layout.
+// a file from a fetched image or an upload without exposing library layout.
 func itemImageAuditState(value domain.ItemImage) itemImageAudit {
 	state := itemImageAudit{ID: value.ID, Type: value.Type, Index: value.Index, SourceKind: value.SourceKind, Reference: "root", Locked: value.Locked}
-	if value.RemoteURL != "" {
+	switch {
+	case value.RemoteURL != "":
 		state.Reference = "url"
+	case value.RootID == "":
+		// An upload exists only in the image store.
+		state.Reference = "store"
 	}
 	if value.Content != nil {
 		state.ContentSHA256 = hex.EncodeToString(value.Content.SHA256)
@@ -476,7 +495,7 @@ func (s *Store) SetItemImageLock(ctx context.Context, actor domain.Actor, item, 
 		return domain.ItemImage{}, err
 	}
 	defer tx.Rollback(ctx)
-	if err := lockImageItem(ctx, tx, item); err != nil {
+	if err := lockVisibleImageItem(ctx, tx, actor, item); err != nil {
 		return domain.ItemImage{}, err
 	}
 	old, err := readItemImageSlot(ctx, tx, item, imageType, index, kind, true)
@@ -509,31 +528,146 @@ func (s *Store) SetItemImageLock(ctx context.Context, actor domain.Actor, item, 
 }
 
 // DeleteItemImage removes one reference row and audits it. The referenced
-// file and the stored content are never touched (G40.11); unreferenced
-// variants age out through the variant index.
+// file and the stored content are never touched (G40.11).
 func (s *Store) DeleteItemImage(ctx context.Context, actor domain.Actor, item, imageType string, index int, kind string) error {
-	if !domain.ValidID(item) || !domain.ValidItemImageSlot(imageType, index) || !domain.ValidItemImageSourceKind(kind) {
+	if !domain.ValidItemImageSourceKind(kind) {
 		return domain.ErrInvalid
+	}
+	_, err := s.DeleteItemImages(ctx, actor, item, imageType, index, kind)
+	return err
+}
+
+// DeleteItemImages removes the rows of one slot of an item visible to the
+// administrator, every source kind when kind is empty, and audits each as
+// image.deleted. A slot without such rows is ErrNotFound. Only references
+// go: library files and stored originals are never touched (G40.11). The
+// result lists the content digests nothing references any more, whose
+// generated variants the caller may clear.
+func (s *Store) DeleteItemImages(ctx context.Context, actor domain.Actor, item, imageType string, index int, kind string) (domain.ItemImageChange, error) {
+	if !domain.ValidID(item) || !domain.ValidItemImageSlot(imageType, index) || kind != "" && !domain.ValidItemImageSourceKind(kind) {
+		return domain.ItemImageChange{}, domain.ErrInvalid
 	}
 	tx, err := s.imageWriter(ctx, actor)
 	if err != nil {
-		return err
+		return domain.ItemImageChange{}, err
 	}
 	defer tx.Rollback(ctx)
-	if err := lockImageItem(ctx, tx, item); err != nil {
-		return err
+	if err := lockVisibleImageItem(ctx, tx, actor, item); err != nil {
+		return domain.ItemImageChange{}, err
 	}
-	old, err := readItemImageSlot(ctx, tx, item, imageType, index, kind, true)
+	removed, err := readItemImageRows(ctx, tx, item, imageType, index, kind)
 	if err != nil {
-		return err
+		return domain.ItemImageChange{}, err
 	}
-	if _, err := tx.Exec(ctx, `DELETE FROM item_images WHERE id=$1::uuid`, old.ID); err != nil {
-		return storageError(err)
+	if len(removed) == 0 {
+		return domain.ItemImageChange{}, domain.ErrNotFound
 	}
-	if err := auditAccount(ctx, tx, actor, "image.deleted", item, itemImageAuditState(old), nil); err != nil {
-		return err
+	digests := make([][]byte, 0, len(removed))
+	for _, old := range removed {
+		if _, err := tx.Exec(ctx, `DELETE FROM item_images WHERE id=$1::uuid`, old.ID); err != nil {
+			return domain.ItemImageChange{}, storageError(err)
+		}
+		if err := auditAccount(ctx, tx, actor, "image.deleted", item, itemImageAuditState(old), nil); err != nil {
+			return domain.ItemImageChange{}, err
+		}
+		if old.Content != nil {
+			digests = append(digests, old.Content.SHA256)
+		}
 	}
-	return storageError(tx.Commit(ctx))
+	released, err := unreferencedImageContent(ctx, tx, digests)
+	if err != nil {
+		return domain.ItemImageChange{}, err
+	}
+	return domain.ItemImageChange{Removed: removed, Released: released}, storageError(tx.Commit(ctx))
+}
+
+// UploadItemImage records administrator-uploaded artwork, whose bytes the
+// caller already verified and stored, as the slot's locked 'upload' row
+// (G40.10). The lock is handed over from any other source, which stays as a
+// fallback. A slot that already holds any row is a replacement and needs
+// confirm (G40.11); without it nothing changes. A previous upload whose
+// content nothing references any more is reported in Released.
+func (s *Store) UploadItemImage(ctx context.Context, actor domain.Actor, in domain.ItemImageInput, confirm bool) (domain.ItemImageChange, error) {
+	in.SourceKind, in.Manual, in.Locked = domain.ImageSourceUpload, true, true
+	if !domain.ValidItemImageInput(in) {
+		return domain.ItemImageChange{}, domain.ErrInvalid
+	}
+	tx, err := s.imageWriter(ctx, actor)
+	if err != nil {
+		return domain.ItemImageChange{}, err
+	}
+	defer tx.Rollback(ctx)
+	if err := lockVisibleImageItem(ctx, tx, actor, in.ItemID); err != nil {
+		return domain.ItemImageChange{}, err
+	}
+	existing, err := readItemImageRows(ctx, tx, in.ItemID, in.Type, in.Index, "")
+	if err != nil {
+		return domain.ItemImageChange{}, err
+	}
+	if len(existing) > 0 && !confirm {
+		return domain.ItemImageChange{}, domain.ErrConfirmationRequired
+	}
+	var previous [][]byte
+	for _, old := range existing {
+		if old.SourceKind == domain.ImageSourceUpload && old.Content != nil {
+			previous = append(previous, old.Content.SHA256)
+		}
+	}
+	result, err := upsertItemImage(ctx, tx, actor, in)
+	if err != nil {
+		return domain.ItemImageChange{}, err
+	}
+	released, err := unreferencedImageContent(ctx, tx, previous)
+	if err != nil {
+		return domain.ItemImageChange{}, err
+	}
+	return domain.ItemImageChange{Image: result.Image, Created: len(existing) == 0, Released: released}, storageError(tx.Commit(ctx))
+}
+
+// readItemImageRows locks the rows of one slot, of one source kind or of
+// every kind when kind is empty, in G40.10 order.
+func readItemImageRows(ctx context.Context, tx pgx.Tx, item, imageType string, index int, kind string) ([]domain.ItemImage, error) {
+	rows, err := tx.Query(ctx, `SELECT `+itemImageColumns+` FROM item_images g LEFT JOIN library_roots r ON r.id=g.root_id AND r.library_id=g.library_id
+ WHERE g.item_id=$1::uuid AND g.image_type=$2 AND g.image_index=$3 AND ($4='' OR g.source_kind=$4)
+ ORDER BY `+itemImagePriority+` FOR UPDATE OF g`, item, imageType, index, kind)
+	if err != nil {
+		return nil, storageError(err)
+	}
+	defer rows.Close()
+	result := make([]domain.ItemImage, 0, domain.ItemImageSourceKinds)
+	for rows.Next() {
+		value, err := scanItemImage(rows)
+		if err != nil {
+			return nil, storageError(err)
+		}
+		result = append(result, value)
+	}
+	return result, storageError(rows.Err())
+}
+
+// unreferencedImageContent returns the distinct digests among candidates
+// that no item_images row references within tx.
+func unreferencedImageContent(ctx context.Context, tx pgx.Tx, candidates [][]byte) ([][32]byte, error) {
+	if len(candidates) == 0 {
+		return nil, nil
+	}
+	rows, err := tx.Query(ctx, `SELECT DISTINCT d FROM unnest($1::bytea[]) d
+ WHERE octet_length(d)=32 AND NOT EXISTS(SELECT 1 FROM item_images g WHERE g.content_sha256=d) ORDER BY d`, candidates)
+	if err != nil {
+		return nil, storageError(err)
+	}
+	defer rows.Close()
+	var result [][32]byte
+	for rows.Next() {
+		var digest []byte
+		if err := rows.Scan(&digest); err != nil {
+			return nil, storageError(err)
+		}
+		var value [32]byte
+		copy(value[:], digest)
+		result = append(result, value)
+	}
+	return result, storageError(rows.Err())
 }
 
 // The variant index is internal cache bookkeeping keyed by content digest
@@ -566,6 +700,19 @@ func (s *Store) TouchImageVariant(ctx context.Context, content, key [32]byte) er
 		return domain.ErrNotFound
 	}
 	return nil
+}
+
+// DeleteImageVariantsOf removes every index entry derived from one
+// original. The caller removes the files; the original is not indexed here.
+func (s *Store) DeleteImageVariantsOf(ctx context.Context, content [32]byte) (int64, error) {
+	if ctx == nil {
+		return 0, domain.ErrInvalid
+	}
+	tag, err := s.Pool.Exec(ctx, `DELETE FROM image_variants WHERE content_sha256=$1`, content[:])
+	if err != nil {
+		return 0, storageError(err)
+	}
+	return tag.RowsAffected(), nil
 }
 
 // ListOldestImageVariants returns the least recently used entries first.
