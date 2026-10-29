@@ -238,9 +238,9 @@ func recordImageRefreshResult(ctx context.Context, tx pgx.Tx, library string, r 
 		if content.Width != 0 {
 			width, height = &content.Width, &content.Height
 		}
-		tag, err := tx.Exec(ctx, `UPDATE item_images g SET content_sha256=$4,width=$5,height=$6,format=$7,byte_size=$8,average_color=$9,fetched_at=$10,updated_at=clock_timestamp()
+		tag, err := tx.Exec(ctx, `UPDATE item_images g SET content_sha256=$4,width=$5,height=$6,format=$7,byte_size=$8,average_color=$9,dominant_color=$12,fetched_at=$10,updated_at=clock_timestamp()
  WHERE g.id=$1::uuid AND g.item_id=$2::uuid AND g.library_id=$11::uuid AND g.remote_url=$3 AND `+imageRefreshCandidate,
-			c.ImageID, c.ItemID, c.URL, content.SHA256, width, height, content.Format, content.Bytes, content.AverageColor, content.FetchedAt, library)
+			c.ImageID, c.ItemID, c.URL, content.SHA256, width, height, content.Format, content.Bytes, content.AverageColor, content.FetchedAt, library, content.DominantColor)
 		if err != nil {
 			return false, storageError(err)
 		}
