@@ -47,7 +47,7 @@ JELEE_IMAGE_TEMP_ROOT=/var/lib/jelee/image-work
 
 ### 圖片資產表（schema 58）
 
-`item_images` 記錄每個 item 的圖片引用：類型依 G40.1（Primary、Backdrop、Logo、ClearLogo、Banner、ClearArt、Art、Disc、Thumb、Landscape、Chapter、Box、BoxRear、Menu、Profile；Fanart 存成 Backdrop），只有 Backdrop／Chapter 可用 index 1–9999。來源分 `local`、`nfo`、`remote`、`embedded`、`upload`（管理員上傳，schema95，必為手動列，無路徑無 URL、必有內容，見[管理接口](image-assets.md#管理接口g4010g4011)）：local／embedded 必須是同媒體庫的 root＋相對路徑（外鍵綁 item 所屬媒體庫，路徑不得含 `..`、絕對路徑、反斜線、冒號或控制字元；local 與 NFO 本地圖須為圖片副檔名），remote 只能是不含帳密、最長 2048 位元組的 `https://` URL，nfo 二擇一。內容欄（SHA-256、寬高、格式、位元組數、平均色、抓取時間）全有或全無，NULL 表示尚未讀取。每個 (item, 類型, index, 來源) 一列，每個槽最多一列鎖定。
+`item_images` 記錄每個 item 的圖片引用：類型依 G40.1（Primary、Backdrop、Logo、ClearLogo、Banner、ClearArt、Art、Disc、Thumb、Landscape、Chapter、Box、BoxRear、Menu、Profile；Fanart 存成 Backdrop），只有 Backdrop／Chapter 可用 index 1–9999。來源分 `local`、`nfo`、`remote`、`embedded`、`upload`（管理員上傳，schema95，必為手動列，無路徑無 URL、必有內容，見[管理接口](image-assets.md#管理接口g4010g4011)）：local／embedded 必須是同媒體庫的 root＋相對路徑（外鍵綁 item 所屬媒體庫，路徑不得含 `..`、絕對路徑、反斜線、冒號或控制字元；local 與 NFO 本地圖須為圖片副檔名），remote 只能是不含帳密、最長 2048 位元組的 `https://` URL，nfo 二擇一。內容欄（SHA-256、寬高、格式、位元組數、平均色、主色調〔schema97〕、抓取時間）全有或全無，NULL 表示尚未讀取。每個 (item, 類型, index, 來源) 一列，每個槽最多一列鎖定。
 
 選圖順序：鎖定者優先，其次 local > nfo > remote > embedded > upload；尚未抓取內容的 URL 引用不參與。非手動（掃描、刷新）寫入不會改動已鎖定或手動寫入（`manual`，schema 94）的列，也不能設定鎖定；來源身分不變而未帶內容時保留已存內容。讀取在同一句 SQL 內重驗 session 與媒體庫授權，無權與不存在一律回 not found；寫入僅限管理員，手動新增／更換、鎖定變更及刪除寫入 `audit_logs`（不含路徑或 URL）。刪除只移除資料庫引用，從不刪使用者檔案；item 刪除時級聯。`image_variants` 是變體存放區的資料庫索引（內容雜湊＋變體 key、大小、最近使用時間，觸碰至多每分鐘一次，淘汰時以列出時的時間做條件刪除）。降級時有 `item_images` 資料即拒絕；變體索引可重建，直接移除。
 
@@ -57,17 +57,18 @@ JELEE_IMAGE_TEMP_ROOT=/var/lib/jelee/image-work
 GET /images/Primary/{itemID}?width=320&height=480&quality=85&format=jpeg
 HEAD /images/Primary/{itemID}?width=320&height=480
 GET /images/Backdrop/{itemID}?index=2&width=1280&tag=<原圖 SHA-256>
+GET /images/Logo/{itemID}?fillWidth=400&fillHeight=150&format=webp
 ```
 
 需要有效 Bearer session 及該媒體庫的查看權限，Web 與原生 session 都可使用。處理前與交付前各重新查驗權限及 item 的來源綁定；快取命中、HEAD、304 也必須通過。API 不接受檔案路徑或 URL。
 
-省略尺寸時縮入 640 × 640，保持比例且不放大；只給一個尺寸時限制該方向，輸出仍受配置的最大邊長限制。明寫尺寸須為 1–2048，品質須為 1–100；實際輸出限制以配置為準。PNG 透明區域以白底合成。回應提供 `image/jpeg`、內容長度與強 ETag，支援 `If-None-Match` 的 304；快取政策為 `private, no-cache, must-revalidate`。
+省略尺寸時縮入 640 × 640，保持比例且不放大；只給一個尺寸時限制該方向，輸出仍受配置的最大邊長限制。明寫尺寸須為 1–2048，品質須為 1–100；實際輸出限制以配置為準。JPEG 輸出時 PNG 透明區域以白底合成；`format=webp` 為無損 WebP 並保留透明度。`fillWidth`＋`fillHeight` 為填滿裁切（見[圖片資產](image-assets.md#处理与资源上限g406g4012)）。回應提供 `image/jpeg` 或 `image/webp`、內容長度與強 ETag，支援 `If-None-Match` 的 304；快取政策為 `private, no-cache, must-revalidate`。
 
 滿載回 503 與 `Retry-After`；沒有權限或沒有可用海報回 404；超過處理預算回 413，不支援的圖片格式回 415。只有省略的參數使用預設值，重複與未知參數均拒絕。
 
 ## 資產取圖（G40.1／G40.5／G40.8／G40.10）
 
-`{type}` 接受 G40.1 全部類型：Primary、Backdrop（別名 Fanart）、Logo、ClearLogo、Banner、ClearArt、Art、Disc、Thumb、Landscape、Chapter、Box、BoxRear、Menu、Profile。`index` 為查詢參數（0–9999，預設 0），只有 Backdrop／Chapter 可用非零值；其他類型帶非零 index、未知類型、非十進位或前置零均回 400。輸出格式維持 JPEG；WebP／AVIF 輸出延後（`format` 只接受 `jpeg`）。
+`{type}` 接受 G40.1 全部類型：Primary、Backdrop（別名 Fanart）、Logo、ClearLogo、Banner、ClearArt、Art、Disc、Thumb、Landscape、Chapter、Box、BoxRear、Menu、Profile。`index` 為查詢參數（0–9999，預設 0），只有 Backdrop／Chapter 可用非零值；其他類型帶非零 index、未知類型、非十進位或前置零均回 400。輸出格式為 JPEG 或無損 WebP（`format`，依 `JELEE_IMAGE_OUTPUT_FORMATS`）；AVIF 回 415，見 [ADR 0010](adr/0010-image-output-formats.md)。
 
 選圖：app 層以 `ResolveItemImageSources` 在同一句 SQL 內重驗 session 與媒體庫授權，取得該槽可用的列（鎖定優先，其次 local > nfo > remote > embedded > upload；尚未抓取內容的 URL 不列入），依序嘗試：
 

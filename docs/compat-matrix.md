@@ -77,7 +77,7 @@ G05仍部分完成：舊C#的直播與Channel控制器已刪除並提供[明確�
 | `POST`、`DELETE /compat/UserPlayedItems/{itemId}`、`/compat/Users/{userId}/PlayedItems/{itemId}` | 同上；自己或管理員 | 標記已播放／未播放，回 `UserItemDataDto` |
 | `GET /compat/UserItems/{itemId}/UserData`、`/compat/Users/{userId}/Items/{itemId}/UserData` | 同上；自己或管理員 | `UserItemDataDto` |
 | `GET /compat/UserItems/Resume`、`/compat/Users/{userId}/Items/Resume` | 同上；自己或管理員 | 繼續觀看的 `QueryResult<BaseItemDto>` |
-| `GET`、`HEAD /compat/Items/{itemId}/Images/{imageType}`、`…/{imageType}/{imageIndex}` | native 工作階段（目錄與圖片功能都開啟時才掛載；上游允許匿名，見「圖片模組」） | 經 `/images` 同一條管線產生的 JPEG；隱藏狀態同其他條目路由 |
+| `GET`、`HEAD /compat/Items/{itemId}/Images/{imageType}`、`…/{imageType}/{imageIndex}` | native 工作階段（目錄與圖片功能都開啟時才掛載；上游允許匿名，見「圖片模組」） | 經 `/images` 同一條管線產生的 JPEG 或 WebP；隱藏狀態同其他條目路由 |
 | `GET /compat/Playlists/{playlistId}/Items` | native 工作階段（目錄開啟且合集服務接上時才掛載） | 自己或公開清單中看得到的項目，`QueryResult<BaseItemDto>`，每項帶 `PlaylistItemId`（見「合集與播放清單模組」） |
 | `POST /compat/Playlists` | 同上 | 建立自己的清單，回 `{"Id":…}` |
 | `POST /compat/Playlists/{playlistId}/Items?Ids=`、`DELETE /compat/Playlists/{playlistId}/Items?EntryIds=`、`POST /compat/Playlists/{playlistId}/Items/{itemId}/Move/{newIndex}` | 同上；只限清單擁有者 | 加入／移除／移動，204 空主體 |
@@ -245,8 +245,8 @@ PlaybackInfo 隨媒體庫模組掛載；串流、字幕與音訊路由只在直�
 
 - `imageType`：上游 `ImageType` 名稱，大小寫不敏感。`Primary`、`Backdrop`、`Banner`、`Disc`、`Box`、`BoxRear`、`Menu`、`Chapter`、`Profile` 直接對應同名的 Jelee 圖片槽；`Logo`、`Art`、`Thumb` 先找同名槽，沒有可用圖片再找 `ClearLogo`、`ClearArt`、`Landscape`（上游把這三種存成前者，Jelee 依 G40.1 分開存）。`Screenshot` 沒有對應，視同沒有該圖。未知名稱（含 Jelee 的 `Fanart` 別名、數字）400。
 - `imageIndex`：路徑或 query `ImageIndex`，非負十進位整數，否則 400；只有 `Backdrop`／`Chapter` 有非 0 的槽，其他類型帶非 0 或超過 9999 視同沒有該圖。
-- 參數（名稱大小寫不敏感）：`Width`、`MaxWidth`、`FillWidth` 取其中最小的正值為寬度上限（高度同理），保持比例、不放大、不裁切，超過 2048 降為 2048，之後仍受設定的輸出上限（預設 1024）約束；0 或空值視同未給，負數或非整數 400。`Quality` 0 為預設、超過 100 以 100 計。`Format` 必須是上游 `ImageFormat`（`Bmp`、`Gif`、`Jpg`、`Png`、`Webp`、`Svg`）否則 400，但輸出一律 JPEG，以 `Content-Type` 為準。`PercentPlayed`、`UnplayedCount`、`Blur`、`BackgroundColor`、`ForegroundLayer` 只檢查數值格式後忽略（不疊加播放進度、不模糊）。`Tag` 為 1–128 位 hex 時交給管線比對；其他形式忽略。未列出的參數比照上游忽略，但轉換參數在邊界就是 409。
-- 回應：與 `/images` 相同的 `image/jpeg`、`Content-Length`、強 `ETag`、`Accept-Ranges: none`；`Tag` 等於原圖內容 SHA-256（即列表給出的 tag）時 `Cache-Control: private, max-age=31536000, immutable`，否則 `private, no-cache, must-revalidate`。上游為 `public`；這裡因為圖片需要驗證，一律 `private`，共用快取不得保存。`Vary` 列出相容層讀取憑證的四個標頭（`Authorization` 與三個舊標頭）；`api_key` 在 URL 裡，本身就是快取鍵的一部分。
+- 參數（名稱大小寫不敏感）：`Width`、`MaxWidth` 取其中最小的正值為寬度上限（高度同理），保持比例、不放大，超過 2048 降為 2048，之後仍受設定的輸出上限（預設 1024）約束；0 或空值視同未給，負數或非整數 400。`FillWidth` 與 `FillHeight` **同時**給時是填滿裁切（G40.6）：輸出就是這個框（比例不變地縮到其他寬高上限內），只取原圖中該比例的最大區域，位置依 `JELEE_IMAGE_CROP`（預設 `smart` 取細節最多處，`center` 置中，`off` 改回等比縮放）；只給其中一個時與 `Width` 一樣只當上限。`Quality` 0 為預設、超過 100 以 100 計。`Format` 必須是上游 `ImageFormat`（`Bmp`、`Gif`、`Jpg`、`Png`、`Webp`、`Svg`）否則 400：`Webp` 輸出 WebP（無損）、`Jpg` 輸出 JPEG，其餘與未給時用設定的預設格式（預設 JPEG）；伺服器沒開放的格式（`JELEE_IMAGE_OUTPUT_FORMATS` 不含 `webp`）也退回預設格式而不是失敗，以 `Content-Type` 為準。`PercentPlayed`、`UnplayedCount`、`Blur`、`BackgroundColor`、`ForegroundLayer` 只檢查數值格式後忽略（不疊加播放進度、不模糊）。`Tag` 為 1–128 位 hex 時交給管線比對；其他形式忽略。未列出的參數比照上游忽略，但轉換參數在邊界就是 409。
+- 回應：與 `/images` 相同的 `image/jpeg` 或 `image/webp`、`Content-Length`、強 `ETag`、`Accept-Ranges: none`；`Tag` 等於原圖內容 SHA-256（即列表給出的 tag）時 `Cache-Control: private, max-age=31536000, immutable`，否則 `private, no-cache, must-revalidate`。上游為 `public`；這裡因為圖片需要驗證，一律 `private`，共用快取不得保存。`Vary` 列出相容層讀取憑證的四個標頭（`Authorization` 與三個舊標頭）；`api_key` 在 URL 裡，本身就是快取鍵的一部分。
 - 錯誤：條目不存在、看不到、或可見但沒有該圖片，一律回隱藏狀態（預設 404，設定 403 時 403），空主體且標頭相同；管線無法使用的圖片 404、超過處理預算 413、格式不支援 415、滿載 503＋`Retry-After: 1`、資料庫或逾時 503。
 - **驗證的取捨**：上游 `GetItemImage` 不要求登入，任何知道條目 ID 的人都能取圖。Jelee 要求 native 工作階段（標頭或 `api_key`／`ApiKey` query 皆可），並以呼叫者自己的工作階段與媒體庫授權讀取。理由：G48.3 要求不可見條目的圖片不得外洩，而條目 ID 會出現在日誌、分享連結與客戶端快取裡，不能當成存取憑證；海報本身也可能透露受限媒體庫的內容。代價：用一般圖片載入器、不帶驗證標頭也不在 URL 加 `api_key` 的客戶端會拿到 401、顯示不出圖。這需要真實客戶端驗證；若確實常見，後續可考慮短效簽章圖片 URL，而不是放寬成匿名。
 
