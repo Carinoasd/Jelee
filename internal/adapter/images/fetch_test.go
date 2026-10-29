@@ -609,14 +609,29 @@ func TestRemoteFetchHostSpacingAndPrune(t *testing.T) {
 	o := fastFetchOptions()
 	o.HostInterval = 40 * time.Millisecond
 	f := newTestFetcher(t, transport, o)
+	// The guarantee is on request starts as the fetcher schedules them: each
+	// start sets next = start + interval. The transport's own timestamps add
+	// a variable dispatch delay, so the spacing is read from next.
+	var next []time.Time
 	for i := 0; i < 3; i++ {
 		if _, err := f.Fetch(context.Background(), FetchRequest{Source: FetchSourceNFO, URL: fetchNFOURL}, &memorySink{}); err != nil {
 			t.Fatal(err)
 		}
+		f.mu.Lock()
+		if len(f.hosts) != 1 {
+			f.mu.Unlock()
+			t.Fatalf("hosts=%d", len(f.hosts))
+		}
+		for _, h := range f.hosts {
+			next = append(next, h.next)
+		}
+		f.mu.Unlock()
 	}
-	c := transport.calls
-	for i := 1; i < len(c); i++ {
-		if gap := c[i].at.Sub(c[i-1].at); gap < 40*time.Millisecond {
+	if len(transport.calls) != 3 {
+		t.Fatalf("calls=%d", len(transport.calls))
+	}
+	for i := 1; i < len(next); i++ {
+		if gap := next[i].Sub(next[i-1]); gap < 40*time.Millisecond {
 			t.Fatalf("host spacing=%v", gap)
 		}
 	}
