@@ -157,16 +157,17 @@ $dc up -d jelee
 
 #### 不匯出的資料表
 
-每一張資料表不是由某個紀錄種類匯出，就是列在 `internal/adapter/postgres/metadata_backup.go` 的 `metadataBackupExcluded` 並附理由。守門測試 `TestMetadataBackupClassifiesEveryTable`（重播遷移，不需資料庫）與 `TestMetadataBackupClassifiesEveryTablePostgres`（讀實際 schema）會在新增資料表卻忘了分類時失敗。不匯出的理由分成六類，這些資料都只在 `pg_dump` 裡：
+每一張資料表不是由某個紀錄種類匯出，就是列在 `internal/adapter/postgres/metadata_backup.go` 的 `metadataBackupExcluded` 並附理由。守門測試 `TestMetadataBackupClassifiesEveryTable`（重播遷移，不需資料庫）與 `TestMetadataBackupClassifiesEveryTablePostgres`（讀實際 schema）會在新增資料表卻忘了分類時失敗。不匯出的理由如下，這些資料都只在 `pg_dump` 裡：
 
 | 理由 | 資料表 |
 | --- | --- |
 | 憑據或一次性祕密：還原等於讓存取復活 | 工作階段、使用者建立金鑰、開發者模式權杖、雙因素（`user_totp`、`user_recovery_codes`、`login_challenges`）、應用程式密碼、分享連結 |
 | 只能附加的稽核軌跡 | `audit_logs`（匯入本身另寫 `metadata.imported`） |
-| 工作佇列、租約與工作進度：只對寫入它的資料庫的工作者有意義 | `jobs` 及各 `job_*`、探測／NFO／圖片工作狀態、`catalog_import_*`、`catalog_sync_requests`、`nfo_write_*`、`webhook_outbox`、`legacy_import_pending` |
-| 快取、配額與衍生狀態：掃描、探測、NFO 讀取與圖片處理會重建 | 探測與 NFO 快取與配額、`tool_versions`、`item_nfo_observations`、盤點基準與快照、`catalog_scan_pending`、`image_variants`、外掛字幕／音軌、內嵌封面嘗試、`scan_watch_state`（匯入依排程重建） |
+| 工作佇列、租約與工作進度：只對寫入它的資料庫的工作者有意義 | `jobs` 及各 `job_*`、探測／NFO／圖片工作狀態、`catalog_import_*`、`catalog_sync_requests`、`nfo_write_*`、`webhook_outbox`、`legacy_import_pending`、`metadata_refresh_job_state` |
+| 快取、配額與衍生狀態：掃描、探測、NFO 讀取與圖片處理會重建 | 探測與 NFO 快取與配額、`tool_versions`、`item_nfo_observations`、盤點基準與快照、`catalog_scan_pending`、`image_variants`、外掛字幕／音軌、內嵌封面嘗試、`scan_watch_state`（匯入依排程重建）、元資料刷新的待確認與拒絕紀錄（`metadata_refresh_reviews`，再跑一次刷新會重新產生） |
 | 觀察值與統計，不是設定 | 播放工作階段與取樣、會話選軌（`session_track_selections`）、觀看統計、已知用戶端與其工作階段、命中紀錄、webhook 投遞與嘗試、工作指標 |
 | 這個資料庫的操作歷史 | `consistency_runs`、`consistency_run_checks`、`consistency_fix_journal`、`repair_runs`、`repair_journal`、`item_version_operations`、`legacy_import_runs`／`checkpoints`／`map` |
+| 自動化開關：自動元資料刷新在還原後預設關閉，避免還原出的目錄在管理員重新開啟前被提供者資料改寫 | `metadata_refresh_settings`（[元資料刷新任務](metadata-refresh-jobs.md)） |
 | 實例自己的狀態 | `setup_state`（匯入另行處理）、`dev_mode_state`、`log_settings`（執行期日誌級別覆寫與日誌檔保留）、`schema_migrations` |
 
 **修復紀錄為什麼不備份**：修復與一致性檢查的日誌記錄的是**來源資料庫裡**某些列的修改前後值（`user_item_data.last_source_id`、`playback_sessions.source_id`、`watch_stats_daily` 計數），其中播放工作階段與觀看統計本來就不匯出，ID 在目的地也可能被重新對應。`jelee-cli repair revert`／`consistency revert` 只有在同一個資料庫、該列仍是修復後的值時才有意義；把日誌搬到別的資料庫既不能還原也無法驗證，反而會讓報告指向不存在的列。它們留在 `pg_dump` 裡，隨完整備份還原。

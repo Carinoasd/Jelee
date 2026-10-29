@@ -29,6 +29,10 @@ POST /api/v1/jobs/REVIEWED_SCAN_ID/accept-missing
 - 增量：已追蹤檔案以 size／mtime／解析版本判定未變；解析版本是 `medianame-v2` 加上媒體庫啟用的命名選項（見下方「命名選項」），所以改選項等同換解析版本。明確匯入的來源不屬同步管理，從不更動。
 - 缺失：一般同步只標 `missing_since`；只有 accept 模式才刪除同步登記的來源，並回收沒有媒體、子項、人工／外部值與 facts 的同步建立條目。
 
+## 同步後的元資料刷新（G13.6，schema 103）
+
+媒體庫開啟自動刮削（`PUT /api/v1/libraries/{id}/metadata/refresh/settings` 的 `auto`）時，`catalog_sync` 成功結束的同一交易在 savepoint 內排入一個背景優先的 `metadata_refresh` 任務；忙碌、佇列滿或沒有有效管理員時改寫 `metadata_refresh.deferred`，其他錯誤只回滾 savepoint，都不影響同步本身。TMDB 的失敗只發生在刷新任務內。配對、門檻與待確認見[元資料刷新任務](metadata-refresh-jobs.md)。
+
 ## 外掛字幕／音軌配對（G15.3、G16.2，W10-8，schema 65）
 
 掃描本身不變：外掛檔照常以 `other` 進入清單與基準，不會被當成條目、來源或待確認項目。配對發生在同步的 sources 階段，與來源建立／更新**同一個交易**：
