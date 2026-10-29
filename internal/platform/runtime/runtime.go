@@ -71,7 +71,7 @@ func newWithLifetime(cfg config.Config, logger *slog.Logger, lifetime *lifetime)
 		}
 		lifetime.adaptive = controller
 	}
-	metadataService, err := prepareMetadataWithBudget(cfg.TMDBAPIKey, lifetime, budget)
+	metadataService, err := prepareGovernedMetadata(cfg.TMDBAPIKey, lifetime, budget, cfg.TMDB)
 	if err != nil {
 		return build(lifetime, fx.NopLogger, fx.Error(err))
 	}

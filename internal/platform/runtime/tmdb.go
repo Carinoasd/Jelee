@@ -5,6 +5,7 @@ import (
 	"github.com/MoYuanCN/Jelee/internal/adapter/nfo"
 	"github.com/MoYuanCN/Jelee/internal/app"
 	"github.com/MoYuanCN/Jelee/internal/domain"
+	"github.com/MoYuanCN/Jelee/internal/platform/config"
 )
 
 var (
@@ -42,6 +43,12 @@ func prepareMetadata(key string, l *lifetime) (*app.Metadata, error) {
 }
 
 func prepareMetadataWithBudget(key string, l *lifetime, budget app.WorkBudget) (*app.Metadata, error) {
+	return prepareGovernedMetadata(key, l, budget, config.TMDBConfig{})
+}
+
+// prepareGovernedMetadata applies the configured TMDB request budget before
+// the startup credential check, which is governed like every later request.
+func prepareGovernedMetadata(key string, l *lifetime, budget app.WorkBudget, governance config.TMDBConfig) (*app.Metadata, error) {
 	if key == "" {
 		return nil, nil
 	}
@@ -53,6 +60,10 @@ func prepareMetadataWithBudget(key string, l *lifetime, budget app.WorkBudget) (
 		client, err = metadata.NewTMDBWithBudget(key, budget)
 	}
 	if err != nil {
+		return nil, err
+	}
+	if err := client.WithGovernance(metadata.Governance{RequestInterval: governance.RequestInterval(), MaxConcurrent: governance.Concurrency(), DailyLimit: governance.DailyRequestLimit}); err != nil {
+		client.Close()
 		return nil, err
 	}
 	l.prepareTMDB = client.ValidateCredentials
