@@ -62,7 +62,7 @@ func imageTestStats(scale uint64) (imageadapter.Stats, imageadapter.StoreStats) 
 		Admitted: n(4), Completed: n(5), Failed: n(6), Busy: n(7),
 		CacheHits: n(8), CacheMisses: n(9), Decodes: n(10),
 		CacheEntries: int(n(11)), CacheBytes: i(12), CacheEvictions: n(13),
-		VariantHits: n(14), StoreFailures: n(15), IndexFailures: n(16), IndexEvictions: n(17),
+		VariantHits: n(14), StoreFailures: n(15), IndexFailures: n(16), IndexEvictions: n(17), Generated: n(32),
 	}, imageadapter.StoreStats{
 		OriginalEntries: int(n(18)), VariantEntries: int(n(19)), OriginalBytes: i(20), VariantBytes: i(21),
 		OriginalHits: n(22), OriginalMisses: n(23), VariantHits: n(24), VariantMisses: n(25),
@@ -95,6 +95,7 @@ func imageProcessorExpectations() []imageExpectation {
 		{"jelee_images_decodes_total", "jelee.images.decodes", true, func(a p, _ s) []float64 { return one(float64(a.Decodes)) }},
 		{"jelee_images_cache_hits_total", "jelee.images.cache.hits", true, func(a p, _ s) []float64 { return one(float64(a.CacheHits)) }},
 		{"jelee_images_cache_misses_total", "jelee.images.cache.misses", true, func(a p, _ s) []float64 { return one(float64(a.CacheMisses)) }},
+		{"jelee_images_variants_generated_total", "jelee.images.variants.generated", true, func(a p, _ s) []float64 { return one(float64(a.Generated)) }},
 		{"jelee_images_cache_evictions_total", "jelee.images.cache.evictions", true, func(a p, _ s) []float64 { return one(float64(a.CacheEvictions)) }},
 		{"jelee_images_cache_entries", "jelee.images.cache.entries", false, func(a p, _ s) []float64 { return one(float64(a.CacheEntries)) }},
 		{"jelee_images_cache_usage_bytes", "jelee.images.cache.usage", false, func(a p, _ s) []float64 { return one(float64(a.CacheBytes)) }},

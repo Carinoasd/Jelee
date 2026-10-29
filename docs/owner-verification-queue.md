@@ -64,6 +64,7 @@
 | C24 | 資料一致性檢查：在目標硬體的真實大型媒體庫（含 NAS／網路掛載）重跑 `JELEE_CONSISTENCY_SCALE=1 go test -p 1 -run TestConsistencyScale100000Postgres ./internal/adapter/postgres/`，並以 `jelee-cli consistency check` 量測全庫耗時、stat 預算是否足夠；開 `JELEE_JOB_CONSISTENCY_INTERVAL_HOURS=168` 運作數週，確認排程不與掃描搶佔、報告保留與 `jelee_consistency_*` 指標正常 | `docs/consistency.md` | 待跑 |
 | C25 | 圖片刷新任務（`image_refresh`）規模與長時間：十萬個遠端圖片列的媒體庫跑完一輪的時間、每列檢查點交易的資料庫負載、混合成功／404／429／慢速來源時的總耗時與主機冷卻；與觀看請求同時跑時處理槽等待對 `/images` P95 的影響；`item_image_fetch_failures` 大量資料時候選查詢（`item_images_refresh_idx`）的計畫 | `docs/image-refresh-jobs.md` | 待跑 |
 | C26 | WebP 輸出與裁切的負載：`JELEE_IMAGE_MAX_CONCURRENT` 滿載下連續要求 1024×1024 的 `format=webp`（無損，編碼約 73 B／像素工作記憶體，估算按 80 B／像素＋4 MiB 預留），量 RSS／GC、編碼耗時（nativewebp 中途不可取消，只受輸出像素上限約束）、413 比例（無損輸出超過 `JELEE_IMAGE_MAX_OUTPUT_BYTES`）、與 JPEG 的檔案大小比；另量智慧裁切的額外 CPU。合成雜訊圖 1024² 的 WebP 約 2 MB（JPEG q85 約 0.12 MB），真實海報開發機抽樣約 1.8–6.6 倍 | `internal/adapter/images/pipeline.go`、[ADR 0010](adr/0010-image-output-formats.md) | 待跑 |
+| C29 | 縮放快取命中率在真實負載（G40.13）：長時間真實瀏覽下記錄 `jelee_images_cache_hits_total`、`_misses_total`、`jelee_images_store_served_total`、`jelee_images_variants_generated_total`，依文件公式算記憶體與整體命中率；重啟後一段時間內由存放區供應的比例，以及記憶體快取大小（`JELEE_IMAGE_CACHE_BYTES`／`_ENTRIES`）調整對命中率的影響；可與 A3、C2 同輪記錄 | `docs/metrics.md`「命中率怎麼算」 | 待跑 |
 
 ## D. 真實資料／真金鑰／真客戶端
 

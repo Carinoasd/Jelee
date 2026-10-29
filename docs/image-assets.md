@@ -1,6 +1,6 @@
 # 图片资产（G40）
 
-本文是图片功能的总览：支持的图片类型与来源、选图顺序、存储、HTTP 接口、管理接口、图片元数据、处理与资源上限、清理，以及尚未完成的部分。各专题的细节与验收证据见文末“相关文档”。本文内容按 2026-10-29 的代码核对（`internal/domain/item_images.go`、`internal/domain/images.go`、`internal/app/images.go`、`internal/app/images_admin.go`、`internal/adapter/images/`（输出格式、裁切与取色在 `pipeline.go`）、`internal/adapter/http/images.go`、`internal/adapter/http/images_admin.go`、`internal/adapter/compat/images.go`、`internal/platform/config/images.go`）。
+本文是图片功能的总览：支持的图片类型与来源、选图顺序、存储、HTTP 接口、管理接口、图片元数据、处理与资源上限、清理，以及尚未完成的部分。各专题的细节与验收证据见文末“相关文档”。本文内容按 2026-10-29 的代码核对（`internal/domain/item_images.go`、`internal/domain/images.go`、`internal/app/images.go`、`internal/app/images_admin.go`、`internal/adapter/images/`（输出格式、裁切与取色在 `pipeline.go`）、`internal/adapter/http/images.go`、`internal/adapter/http/images_admin.go`、`internal/adapter/compat/images.go`、`internal/platform/config/images.go`、`internal/app/image_refresh_worker.go`、`internal/adapter/images/refresh.go`、`internal/platform/telemetry/images.go`）。
 
 ## 类型与槽位（G40.1）
 
@@ -143,6 +143,30 @@
 | `JELEE_ENABLE_IMAGE_FETCH` | `false`（仅本地图片） | 布尔值；需要 jobs、图片与 `JELEE_IMAGE_STORE_ROOT` |
 
 配置校验要求“并发数 × 单图预算 + 缓存”不超过 1 GiB。
+
+### 缓存命中率（G40.13）
+
+`/images` 与兼容层的缩放请求走同一条管线、共用同一个内存变体缓存与持久存放区。每个准入的请求恰好落在下列三者之一（失败的请求另计 `jelee_images_requests_failed_total`）：
+
+1. 内存变体缓存命中：`jelee_images_cache_hits_total`；
+2. 内存未命中（`jelee_images_cache_misses_total`），但持久存放区有验证过的变体：`jelee_images_store_served_total`；
+3. 两者都没有，从原图解码后生成新变体：`jelee_images_variants_generated_total`（生成后写入内存缓存与存放区）。
+
+用 Prometheus 计算（5 分钟窗口为例）：
+
+```promql
+# 内存缓存命中率
+rate(jelee_images_cache_hits_total[5m])
+  / (rate(jelee_images_cache_hits_total[5m]) + rate(jelee_images_cache_misses_total[5m]))
+# 整体命中率（内存或存放区，不必重新生成）
+(rate(jelee_images_cache_hits_total[5m]) + rate(jelee_images_store_served_total[5m]))
+  / (rate(jelee_images_cache_hits_total[5m]) + rate(jelee_images_cache_misses_total[5m]))
+# 生成比例
+rate(jelee_images_variants_generated_total[5m])
+  / (rate(jelee_images_cache_hits_total[5m]) + rate(jelee_images_cache_misses_total[5m]))
+```
+
+没有持久存放区时 `jelee_images_store_*` 不输出，整体命中率就等于内存命中率。304（`If-None-Match` 相符）也会先经过管线取得 ETag，所以同样计入命中。计数是进程启动后的累计值，重启归零；指标定义见[指标](metrics.md#圖片快取與存放區指標g4013g424)。`TestImageVariantCountersShowRepeatedRequestsHit`（重复请求命中、重启后由存放区供应且不再解码）与真 PG 的 `TestImageResizeRequestsHitCachePostgres`（经 `/images` 与兼容层各重复 5 次，只有每种尺寸的第一次生成）是证明。
 
 ## 清理与修复（G40.11、G36.3、G50.4）
 

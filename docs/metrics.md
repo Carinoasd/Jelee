@@ -78,7 +78,7 @@ vet、三命令 build、模組 checksum、格式、增量品牌與 gitignore 通
 
 啟用 `enableImages` 時，正式端點另以 OTel observable instruments 讀取圖片處理器與持久存放區的 `Stats()`。每次收集各取一次快照，只讀程序內計數，不執行 I/O；metrics 關閉後不再讀取。圖片功能關閉時不註冊任何 `jelee_images_*` 指標。Counter 是程序啟動後的累計值，重啟歸零；超過 int64 上限時飽和而不回繞。
 
-處理器指標（12 個 family，無 labels）：
+處理器指標（13 個 family，無 labels）：
 
 | Prometheus 名稱 | 型別 | 意義 |
 | --- | --- | --- |
@@ -91,6 +91,7 @@ vet、三命令 build、模組 checksum、格式、增量品牌與 gitignore 通
 | `jelee_images_decodes_total` | counter | 實際解碼來源圖片次數 |
 | `jelee_images_cache_hits_total` | counter | 記憶體變體快取命中 |
 | `jelee_images_cache_misses_total` | counter | 記憶體變體快取未命中；命中率 = hits /(hits + misses) |
+| `jelee_images_variants_generated_total` | counter | 記憶體與存放區都沒有、由原圖解碼後新產生的變體（G40.13） |
 | `jelee_images_cache_evictions_total` | counter | 記憶體快取淘汰數 |
 | `jelee_images_cache_entries` | gauge | 記憶體快取項目數 |
 | `jelee_images_cache_usage_bytes` | gauge | 記憶體快取佔用 bytes |
@@ -114,7 +115,9 @@ vet、三命令 build、模組 checksum、格式、增量品牌與 gitignore 通
 | `jelee_images_index_failures_total` | counter | 變體索引寫入失敗；請求本身仍成功 |
 | `jelee_images_index_evictions_total` | counter | 經索引淘汰的變體 |
 
-沒有路徑、內容摘要、項目、使用者或媒體庫 labels。圖片與存放區全開時正式端點共 56 個 families（原 30 個加 26 個）；只開圖片不開存放區時為 42 個。
+沒有路徑、內容摘要、項目、使用者或媒體庫 labels。圖片與存放區全開時正式端點共 57 個 families（原 30 個加 27 個）；只開圖片不開存放區時為 43 個。
+
+**命中率怎麼算（G40.13）。** `/images` 與相容層的縮放請求共用同一個處理器，每個准入且成功的請求恰好是三者之一：記憶體命中（`cache_hits`）、記憶體未命中但由存放區供應（`store_served`）、兩者皆無而新產生（`variants_generated`）；所以 `cache_misses = store_served + variants_generated + 未命中後失敗的請求`。記憶體命中率 = `cache_hits / (cache_hits + cache_misses)`；整體命中率（不必重新產生）= `(cache_hits + store_served) / (cache_hits + cache_misses)`；沒有存放區時 `store_served` 不輸出，整體即記憶體命中率。PromQL 範例見[圖片資產：快取命中率](image-assets.md#缓存命中率g4013)。`variants_generated` 在解碼與編碼都成功後才加一，所以它不大於 `decodes`（`decodes` 也計入解碼後失敗的請求）。重複請求命中由 `TestImageVariantCountersShowRepeatedRequestsHit` 與真 PG `TestImageResizeRequestsHitCachePostgres`（`/images` 與相容層）驗證。
 
 ## 維運告警指標（G50.6）
 
