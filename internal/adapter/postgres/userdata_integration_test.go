@@ -48,6 +48,7 @@ var userReferenceColumns = map[string]string{
 	"inventory_missing_acceptances.actor_id": "set null",
 	"item_version_operations.actor_id":       "set null",
 	"item_version_operations.undone_by":      "set null",
+	"metadata_refresh_reviews.rejected_by":   "set null",
 	"jobs.actor_id":                          "set null",
 	"known_clients.last_user_id":             "set null",
 	"library_network_rules.created_by":       "set null",
