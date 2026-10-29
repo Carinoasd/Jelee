@@ -120,9 +120,11 @@ func (s *Server) applyLibraryNFO(w http.ResponseWriter, r *http.Request, a domai
 
 // exportLibraryNFO queues a batch NFO export (G39.14). The library must be
 // read-only with writes enabled, otherwise the answer is 409 nfo_write_disabled.
+// mode is all (the default) or missing; anything else is 400.
 func (s *Server) exportLibraryNFO(w http.ResponseWriter, r *http.Request, a domain.Actor) (any, int, error) {
 	var input struct {
 		Priority string `json:"priority"`
+		Mode     string `json:"mode"`
 	}
 	if err := DecodeJSON(w, r, &input, accountBodyLimit); err != nil {
 		return nil, 0, err
@@ -134,7 +136,13 @@ func (s *Server) exportLibraryNFO(w http.ResponseWriter, r *http.Request, a doma
 	if input.Priority == "" {
 		input.Priority = domain.JobPriorityManual
 	}
-	job, replay, err := s.jobs.SubmitNFOExport(r.Context(), a, chi.URLParam(r, "id"), key, input.Priority)
+	if input.Mode == "" {
+		input.Mode = domain.NFOExportAll
+	}
+	if !domain.ValidNFOExportMode(input.Mode) {
+		return nil, 0, domain.ErrInvalid
+	}
+	job, replay, err := s.jobs.SubmitNFOExportMode(r.Context(), a, chi.URLParam(r, "id"), key, input.Priority, input.Mode)
 	return acceptedJob(w, job, replay, err)
 }
 

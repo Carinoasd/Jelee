@@ -16,12 +16,13 @@ import (
 	"github.com/MoYuanCN/Jelee/internal/domain"
 )
 
-const nfoExportUsage = "usage: jelee-cli nfo export --library UUID [--priority manual|background] --key KEY --token-stdin [--url ORIGIN] [--json] | export-status --job UUID --token-stdin [--url ORIGIN] [--json]"
+const nfoExportUsage = "usage: jelee-cli nfo export --library UUID [--missing] [--priority manual|background] --key KEY --token-stdin [--url ORIGIN] [--json] | export-status --job UUID --token-stdin [--url ORIGIN] [--json]"
 
 // nfoExportCLIRequest is a parsed batch export command (G39.14).
 type nfoExportCLIRequest struct {
 	command, library, job, key, priority string
 	asJSON                               bool
+	missing                              bool
 }
 
 func parseNFOExportCLI(argv []string) (c nfoExportCLIRequest, base string, ok bool) {
@@ -38,6 +39,7 @@ func parseNFOExportCLI(argv []string) (c nfoExportCLIRequest, base string, ok bo
 		flags.StringVar(&c.library, "library", "", "library UUID")
 		flags.StringVar(&c.priority, "priority", domain.JobPriorityManual, "queue priority")
 		flags.StringVar(&c.key, "key", "", "idempotency key")
+		flags.BoolVar(&c.missing, "missing", false, "export only missing NFOs: create the NFO of every item that has none")
 	} else {
 		flags.StringVar(&c.job, "job", "", "job UUID")
 	}
@@ -74,7 +76,11 @@ func runNFOExportCLI(ctx context.Context, argv []string, stdin io.Reader, stdout
 	if c.command == "export" {
 		method = http.MethodPost
 		u.Path = "/api/v1/libraries/" + c.library + "/nfo/export"
-		raw, _ := json.Marshal(map[string]string{"priority": c.priority})
+		fields := map[string]string{"priority": c.priority}
+		if c.missing {
+			fields["mode"] = domain.NFOExportMissing
+		}
+		raw, _ := json.Marshal(fields)
 		body = string(raw)
 	} else {
 		u.Path = "/api/v1/jobs/" + c.job + "/nfo-export"
@@ -150,8 +156,8 @@ func decodeCLINFOExportResponse(raw []byte, c nfoExportCLIRequest) (any, bool) {
 	data := envelope["data"]
 	if c.command == "export-status" {
 		fields, ok := jobsCLIObject(data)
-		names := []string{"jobId", "libraryId", "cursorItemId", "childJobId", "chunks", "written", "unchanged", "skippedMissing", "skippedInvalid", "skippedOther", "failed", "updatedAt"}
-		if !ok || !jobsCLIHas(fields, "jobId", "libraryId", "chunks", "written", "unchanged", "skippedMissing", "skippedInvalid", "skippedOther", "failed", "updatedAt") {
+		names := []string{"jobId", "libraryId", "mode", "cursorItemId", "childJobId", "chunks", "written", "unchanged", "skippedExisting", "skippedMissing", "skippedInvalid", "skippedOther", "failed", "updatedAt"}
+		if !ok || !jobsCLIHas(fields, "jobId", "libraryId", "mode", "chunks", "written", "unchanged", "skippedExisting", "skippedMissing", "skippedInvalid", "skippedOther", "failed", "updatedAt") {
 			return nil, false
 		}
 		// Both ids are null while they do not apply, but never absent.
@@ -168,7 +174,7 @@ func decodeCLINFOExportResponse(raw []byte, c nfoExportCLIRequest) (any, bool) {
 		var state domain.NFOExportJobState
 		if json.Unmarshal(encoded, &state) != nil || state.JobID != c.job || !domain.ValidID(state.LibraryID) ||
 			state.CursorItemID != nil && !domain.ValidID(*state.CursorItemID) || state.ChildJobID != nil && !domain.ValidID(*state.ChildJobID) ||
-			state.Chunks < 0 || state.Written < 0 || state.Unchanged < 0 || state.SkippedMissing < 0 || state.SkippedInvalid < 0 || state.SkippedOther < 0 || state.Failed < 0 || state.UpdatedAt.IsZero() {
+			!domain.ValidNFOExportMode(state.Mode) || state.SkippedExisting < 0 || state.Chunks < 0 || state.Written < 0 || state.Unchanged < 0 || state.SkippedMissing < 0 || state.SkippedInvalid < 0 || state.SkippedOther < 0 || state.Failed < 0 || state.UpdatedAt.IsZero() {
 			return nil, false
 		}
 		return state, true
@@ -197,8 +203,12 @@ func nfoExportSummary(value any, replayed bool) string {
 		if v.ChildJobID != nil {
 			child = *v.ChildJobID
 		}
-		return fmt.Sprintf("job %s library %s\nwritten %d unchanged %d skipped-missing %d skipped-invalid %d skipped-other %d failed %d\nchunks %d write-job %s\ncursor %s\nupdated %s\n",
-			v.JobID, v.LibraryID, v.Written, v.Unchanged, v.SkippedMissing, v.SkippedInvalid, v.SkippedOther, v.Failed, v.Chunks, child, cursor, v.UpdatedAt.UTC().Format(time.RFC3339))
+		existing := ""
+		if v.Mode == domain.NFOExportMissing {
+			existing = fmt.Sprintf("mode missing\nskipped-existing %d\n", v.SkippedExisting)
+		}
+		return fmt.Sprintf("job %s library %s\n%swritten %d unchanged %d skipped-missing %d skipped-invalid %d skipped-other %d failed %d\nchunks %d write-job %s\ncursor %s\nupdated %s\n",
+			v.JobID, v.LibraryID, existing, v.Written, v.Unchanged, v.SkippedMissing, v.SkippedInvalid, v.SkippedOther, v.Failed, v.Chunks, child, cursor, v.UpdatedAt.UTC().Format(time.RFC3339))
 	case domain.Job:
 		suffix := ""
 		if replayed {
