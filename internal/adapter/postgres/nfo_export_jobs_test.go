@@ -853,7 +853,8 @@ func TestNFOExportMigrationRefusesRetainedData(t *testing.T) {
 func TestNFOExportMigrationRefusesRetainedChild(t *testing.T) {
 	f := newJobFixture(t)
 	library := f.registration.Library.ID
-	job := f.submit(t, "scan")
+	nfoExportEnable(t, f, library)
+	job := submitNFOExport(t, f, library, "retained-child")
 	if _, err := f.s.Pool.Exec(f.ctx, `UPDATE jobs SET state='cancelled',finished_at=clock_timestamp() WHERE id=$1::uuid`, job.ID); err != nil {
 		t.Fatal(err)
 	}
