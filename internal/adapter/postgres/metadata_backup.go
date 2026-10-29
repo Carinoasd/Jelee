@@ -132,7 +132,7 @@ func metadataExportQueries(passwordHashes bool) []metadataExportQuery {
 		{"item_nfo_field_lock", `SELECT to_jsonb(x)::text FROM (SELECT item_id,field,origin FROM item_nfo_field_locks) x ORDER BY x.item_id,x.field`},
 		// Unlocked image rows are rebuilt by scans and refreshes; a lock is the
 		// administrator's choice and is kept with its source and content facts.
-		{"item_image", `SELECT to_jsonb(x)::text FROM (SELECT id,item_id,library_id,image_type,image_index,source_kind,root_id,relative_path,remote_url,content_sha256,width,height,format,byte_size,average_color,fetched_at,source_mtime_unix_nano,source_size,locked,created_at,updated_at FROM item_images WHERE locked) x ORDER BY x.id`},
+		{"item_image", `SELECT to_jsonb(x)::text FROM (SELECT id,item_id,library_id,image_type,image_index,source_kind,root_id,relative_path,remote_url,content_sha256,width,height,format,byte_size,average_color,dominant_color,fetched_at,source_mtime_unix_nano,source_size,locked,created_at,updated_at FROM item_images WHERE locked) x ORDER BY x.id`},
 		{"user_item_data", `SELECT to_jsonb(x)::text FROM (SELECT user_id,item_id,resume_ticks,played,play_count,last_played_at,last_source_id,updated_at FROM user_item_data d WHERE ` + notGuestSQL("d.user_id") + `) x ORDER BY x.user_id,x.item_id`},
 		{"user_track_preference", `SELECT to_jsonb(x)::text FROM (SELECT user_id,item_id,source_id,audio_language,audio_commentary,audio_track,subtitle_mode,subtitle_language,subtitle_sdh,subtitle_track,updated_at FROM user_track_preferences p WHERE ` + notGuestSQL("p.user_id") + `) x ORDER BY x.user_id,x.item_id NULLS FIRST,x.source_id NULLS FIRST`},
 		{"access_policy", `SELECT to_jsonb(x)::text FROM (SELECT restrict_admins,block_unrated FROM access_policy WHERE id) x`},

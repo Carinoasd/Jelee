@@ -22,7 +22,7 @@ var (
 
 const itemImageColumns = `g.id::text,g.item_id::text,g.library_id::text,g.image_type,g.image_index,g.source_kind,
  COALESCE(g.root_id::text,''),COALESCE(r.path,''),COALESCE(g.relative_path,''),COALESCE(g.remote_url,''),
- g.source_mtime_unix_nano,g.source_size,g.content_sha256,g.width,g.height,g.format,g.byte_size,g.average_color,g.fetched_at,
+ g.source_mtime_unix_nano,g.source_size,g.content_sha256,g.width,g.height,g.format,g.byte_size,g.average_color,g.dominant_color,g.fetched_at,
  g.locked,g.manual,g.created_at,g.updated_at`
 
 // G40.10: a user lock wins, then local > nfo > remote > embedded > upload.
@@ -47,7 +47,7 @@ type itemImageRow struct {
 	id, itemID, libraryID, imageType, sourceKind, format *string
 	rootID, rootPath, relativePath, remoteURL            string
 	mtime, sourceSize, size                              *int64
-	index, width, height, color                          *int32
+	index, width, height, color, dominant                *int32
 	digest                                               []byte
 	fetched, created, updated                            *time.Time
 	locked, manual                                       *bool
@@ -55,7 +55,7 @@ type itemImageRow struct {
 
 func (r *itemImageRow) targets() []any {
 	return []any{&r.id, &r.itemID, &r.libraryID, &r.imageType, &r.index, &r.sourceKind, &r.rootID, &r.rootPath, &r.relativePath,
-		&r.remoteURL, &r.mtime, &r.sourceSize, &r.digest, &r.width, &r.height, &r.format, &r.size, &r.color, &r.fetched,
+		&r.remoteURL, &r.mtime, &r.sourceSize, &r.digest, &r.width, &r.height, &r.format, &r.size, &r.color, &r.dominant, &r.fetched,
 		&r.locked, &r.manual, &r.created, &r.updated}
 }
 
@@ -78,6 +78,10 @@ func (r *itemImageRow) value() (domain.ItemImage, error) {
 		if r.color != nil {
 			c := int(*r.color)
 			content.AverageColor = &c
+		}
+		if r.dominant != nil {
+			c := int(*r.dominant)
+			content.DominantColor = &c
 		}
 		value.Content = content
 	}
@@ -337,11 +341,13 @@ func sameItemImageSource(old domain.ItemImage, in domain.ItemImageInput) bool {
 
 func equalInt64(a, b *int64) bool { return a == nil && b == nil || a != nil && b != nil && *a == *b }
 
+func equalColor(a, b *int) bool { return a == nil && b == nil || a != nil && b != nil && *a == *b }
+
 func equalItemImageContent(a, b *domain.ItemImageContent) bool {
 	if a == nil || b == nil {
 		return a == nil && b == nil
 	}
-	colors := a.AverageColor == nil && b.AverageColor == nil || a.AverageColor != nil && b.AverageColor != nil && *a.AverageColor == *b.AverageColor
+	colors := equalColor(a.AverageColor, b.AverageColor) && equalColor(a.DominantColor, b.DominantColor)
 	return bytes.Equal(a.SHA256, b.SHA256) && a.Width == b.Width && a.Height == b.Height && a.Format == b.Format &&
 		a.Bytes == b.Bytes && colors && a.FetchedAt.Equal(b.FetchedAt)
 }
@@ -384,7 +390,7 @@ func upsertItemImage(ctx context.Context, tx pgx.Tx, actor domain.Actor, in doma
 		}
 	}
 	var digest []byte
-	var width, height, color *int
+	var width, height, color, dominant *int
 	var format *string
 	var size *int64
 	var fetched *time.Time
@@ -393,18 +399,18 @@ func upsertItemImage(ctx context.Context, tx pgx.Tx, actor domain.Actor, in doma
 		if content.Width != 0 {
 			width, height = &content.Width, &content.Height
 		}
-		color = content.AverageColor
+		color, dominant = content.AverageColor, content.DominantColor
 	}
 	var id string
 	err = tx.QueryRow(ctx, `INSERT INTO item_images(item_id,library_id,image_type,image_index,source_kind,root_id,relative_path,remote_url,
- source_mtime_unix_nano,source_size,content_sha256,width,height,format,byte_size,average_color,fetched_at,locked,manual)
- SELECT i.id,i.library_id,$2,$3,$4,NULLIF($5,'')::uuid,NULLIF($6,''),NULLIF($7,''),$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18 FROM items i WHERE i.id=$1::uuid
+ source_mtime_unix_nano,source_size,content_sha256,width,height,format,byte_size,average_color,dominant_color,fetched_at,locked,manual)
+ SELECT i.id,i.library_id,$2,$3,$4,NULLIF($5,'')::uuid,NULLIF($6,''),NULLIF($7,''),$8,$9,$10,$11,$12,$13,$14,$15,$19,$16,$17,$18 FROM items i WHERE i.id=$1::uuid
  ON CONFLICT ON CONSTRAINT item_images_slot DO UPDATE SET root_id=EXCLUDED.root_id,relative_path=EXCLUDED.relative_path,remote_url=EXCLUDED.remote_url,
  source_mtime_unix_nano=EXCLUDED.source_mtime_unix_nano,source_size=EXCLUDED.source_size,content_sha256=EXCLUDED.content_sha256,
  width=EXCLUDED.width,height=EXCLUDED.height,format=EXCLUDED.format,byte_size=EXCLUDED.byte_size,average_color=EXCLUDED.average_color,
- fetched_at=EXCLUDED.fetched_at,locked=EXCLUDED.locked,manual=EXCLUDED.manual,updated_at=greatest(clock_timestamp(),item_images.created_at)
+ dominant_color=EXCLUDED.dominant_color,fetched_at=EXCLUDED.fetched_at,locked=EXCLUDED.locked,manual=EXCLUDED.manual,updated_at=greatest(clock_timestamp(),item_images.created_at)
  RETURNING id::text`, in.ItemID, in.Type, in.Index, in.SourceKind, in.RootID, in.RelativePath, in.RemoteURL,
-		in.SourceModifiedUnixNano, in.SourceSize, digest, width, height, format, size, color, fetched, locked, in.Manual).Scan(&id)
+		in.SourceModifiedUnixNano, in.SourceSize, digest, width, height, format, size, color, fetched, locked, in.Manual, dominant).Scan(&id)
 	if err != nil {
 		return domain.ItemImageUpsert{}, storageError(err)
 	}
