@@ -106,6 +106,15 @@ Jelee 不需要 Redis：快取都在各實例的記憶體內，以版本號、�
 | `enableImageFetch` | `JELEE_ENABLE_IMAGE_FETCH` | `false` | 允許管理員送出 `image_refresh` 任務，把未鎖定、非手動、尚無內容的遠端圖片抓進圖片存放區 |
 
 開啟時必須同時開啟 `JELEE_ENABLE_JOBS`、`JELEE_ENABLE_IMAGES` 並設定 `JELEE_IMAGE_STORE_ROOT`，否則設定驗證失敗。抓取只連公網 HTTPS 位址（SSRF 防護），規則與失敗處理見[圖片刷新任務](image-refresh-jobs.md)。
+## Windows 上的媒體探測（G09.6）
+
+Windows amd64 以「受限 token＋Job Object」直接執行已驗證的 `ffprobe.exe`，決定與理由見 [ADR 0011](adr/0011-windows-media-tool-confinement.md)，技術細節見[媒體 helper 隔離](media-sandbox.md#windows-amd64-confinement-g096)。
+
+- **工具位置。** 只用清單固定的 Gyan 靜態版：`scripts/make.ps1 bootstrap-media` 後位於 `<安裝根>\.tools\media\windows-amd64\gyan-9.0.2\ffmpeg-9.0.2-essentials_build\bin\ffprobe.exe`，安裝根是 `jelee.exe` 所在 `bin\` 的上一層（例如 `C:\Jelee\bin\jelee.exe` 對應 `C:\Jelee\.tools\…`）。工作目錄與環境變數不能改變它；雜湊不符、路徑經過 junction／符號連結、放在網路共用（UNC）都視為不可用。路徑總長仍受 260 字元限制（見[探測驗證](probe-verification.md)的長路徑紀錄），請用短的安裝根。
+- **執行身分。** 請以專用的標準使用者（非 Administrators、非 LocalSystem）執行服務，並只授予它媒體根目錄的讀取權。工具以低完整性（Low IL）執行：能讀服務使用者能讀的檔案，不能寫任何一般檔案或目錄，不能建立子程序，記憶體 2 GiB、CPU 30 秒，逾時或取消會終止整個 Job。不需要也不會改動媒體目錄的 ACL。
+- **更新工具。** 服務執行期間 `ffprobe.exe` 被以「不共用寫入／刪除」的方式開著，無法覆寫、刪除或改名其上層目錄；更新 `.tools` 前請先停服務。
+- **檢查。** `jelee-cli doctor probe`（或 `scripts/make.ps1 diag`）會實際以受限身分跑一次健康檢查，成功時 `reason` 為 `confined_process_verified`。
+- **目前的限制。** 目錄掃描的探測在 Windows 仍停用：探測身分與 `tool_versions` 只接受 `linux-amd64`，放寬需要另一個遷移。開 `JELEE_ENABLE_PROBE=true` 時，啟動會跑一次健康檢查並記一筆 WARN（`code=probe_runtime_unavailable`，`reason=catalog_identity_unsupported` 表示沙箱可用但目錄探測未開放，`health_check_failed` 表示沙箱不可用），探測維持停用，沒有未隔離的備援。MediaInfo、mkvtoolnix、Tesseract 在 Windows 仍是 `platform_unsupported`。
 
 ## 媒體庫語言設定的升級
 

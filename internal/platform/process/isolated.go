@@ -21,6 +21,8 @@ var (
 type IsolatedRunner struct {
 	runner     *Runner
 	operations map[string]bool
+	// direct runs the tool itself (Windows): no helper exit codes exist.
+	direct bool
 }
 
 // CoverOperation names the sealed cover read of one video-relative stream
@@ -52,6 +54,9 @@ func NewIsolatedFFprobe(config Config, launcher *sandbox.Launcher) (*IsolatedRun
 	if launcher == nil {
 		return nil, ErrInvalid
 	}
+	if launcher.Direct() {
+		return newDirectFFprobe(config, launcher.Executable(), launcher.Confinement(), map[string][]string{"metadata": launcher.DirectArguments()})
+	}
 	arguments := launcher.HelperArguments()
 	maximum := base64.RawURLEncoding.EncodedLen(sandbox.MaxDescriptor)
 	if len(arguments) != 2 || arguments[0] != sandbox.HelperCommand || len(arguments[1]) == 0 || len(arguments[1]) > maximum {
@@ -72,6 +77,13 @@ func NewIsolatedFFprobe(config Config, launcher *sandbox.Launcher) (*IsolatedRun
 func NewIsolatedFFprobeCover(config Config, launcher *sandbox.Launcher) (*IsolatedRunner, error) {
 	if launcher == nil {
 		return nil, ErrInvalid
+	}
+	if launcher.Direct() {
+		operations := make(map[string][]string, sandbox.CoverMaxVideoIndex+1)
+		for stream := 0; stream <= sandbox.CoverMaxVideoIndex; stream++ {
+			operations[CoverOperation(stream)] = launcher.DirectCoverArguments(stream)
+		}
+		return newDirectFFprobe(config, launcher.Executable(), launcher.Confinement(), operations)
 	}
 	maximum := base64.RawURLEncoding.EncodedLen(sandbox.MaxDescriptor)
 	operations := make(map[string][]string, sandbox.CoverMaxVideoIndex+1)
@@ -117,11 +129,47 @@ func NewIsolatedFFprobeChapters(config Config, launcher *sandbox.Launcher) (*Iso
 	return &IsolatedRunner{runner: runner, operations: allowed}, nil
 }
 
+// newDirectFFprobe registers a direct (Windows) launcher: the verified
+// ffprobe.exe itself with its fixed argv, every child started under the
+// launcher's confinement. There is no helper, so exit codes 64 and 78 are
+// ffprobe's own and map as for any unexpected tool exit.
+func newDirectFFprobe(config Config, executable string, confinement sandbox.Confinement, operations map[string][]string) (*IsolatedRunner, error) {
+	if !confinement.Valid() || len(operations) == 0 {
+		return nil, ErrInvalid
+	}
+	allowed := make(map[string]bool, len(operations))
+	for operation, arguments := range operations {
+		if len(arguments) == 0 {
+			return nil, ErrInvalid
+		}
+		allowed[operation] = true
+	}
+	runner, err := newRunner(config, []Tool{{ID: "ffprobe", Path: executable, Operations: operations}}, true)
+	if err != nil {
+		return nil, err
+	}
+	runner.confinement = &confinement
+	return &IsolatedRunner{runner: runner, operations: allowed, direct: true}, nil
+}
+
 func (r *IsolatedRunner) Run(ctx context.Context, request Request) (Result, error) {
 	if r == nil || r.runner == nil || request.Tool != "ffprobe" || !r.operations[request.Operation] || request.Stdin == nil {
 		return Result{}, ErrInvalid
 	}
+	if r.direct {
+		return r.runner.run(ctx, request, directExitError)
+	}
 	return r.runner.run(ctx, request, isolatedExitError)
+}
+
+// directExitError classifies a confined tool's own exit: 1 is ffprobe's
+// normal rejection; anything else, including a job limit termination, is
+// an unexpected tool failure.
+func directExitError(code int) error {
+	if code == 1 {
+		return ErrExit
+	}
+	return ErrUnexpectedExit
 }
 
 func isolatedExitError(code int) error {

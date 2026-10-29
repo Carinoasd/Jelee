@@ -264,6 +264,7 @@ func newWithLifetime(cfg config.Config, logger *slog.Logger, lifetime *lifetime)
 			}
 			lifetime.closeProbe = probing.Close
 			probing.logger = l
+			warnProbeUnavailable(l, probing.Capability())
 			reader, err := nfo.NewSummaryReader(domain.NFODefaultSourceBytes)
 			if err != nil {
 				return nil, err
