@@ -33,7 +33,7 @@ COVER_PKGS = $(shell $(PYTHON) -c 'import json; print(" ".join("./" + p["path"] 
 NPM := $(CURDIR)/.bin/npm
 WEB := --workspace @jelee/web
 
-.PHONY: backup-drill backup-scale image-memory-test image-memory-smoke-test scan-memory-test scan-memory-smoke-test runtime-memory-test runtime-memory-worker-test memory-contract-test i18n-check family-ignore-sustained-worker-test ignore-sustained-test init bootstrap bootstrap-media bootstrap-matroska matroska-tools-verify matroska-toolchain-test bootstrap-ocr ocr-tools-verify ocr-toolchain-test bootstrap-runtime runtime-tools-verify runtime-toolchain-test probe-runtime-test probe-worker-test nfo-worker-test family-ignore-worker-test ignore-oracle-test sandbox-test tools-verify media-tools-verify tools-clean fixtures fixtures-test build test test-race test-integration coverage fmt fmt-check lint toolchain-test media-toolchain-test brand-scan brand-scan-incremental gitignore-check openapi openapi-check migrate doctor bench bench-check benchgate-test doc-check dev nfo diag web-install web-build web-budget web-test web-lint web-types bootstrap-playwright playwright-verify web-e2e web-visual web-visual-update test-race-nonpostgres test-race-postgres-shard go-test-shard-test golangci-lint lint-baseline-prune coverage-check coverage-ratchet bench-compare quality-gates-test migration-lock migration-lock-check hooks text-check secret-scan secret-scan-history secret-scan-range commit-lint release-check release-dry-run
+.PHONY: backup-drill backup-scale image-memory-test image-memory-smoke-test scan-memory-test scan-memory-smoke-test runtime-memory-test runtime-memory-worker-test memory-contract-test i18n-check family-ignore-sustained-worker-test ignore-sustained-test init bootstrap bootstrap-media bootstrap-matroska matroska-tools-verify matroska-toolchain-test bootstrap-ocr ocr-tools-verify ocr-toolchain-test bootstrap-runtime runtime-tools-verify runtime-toolchain-test probe-runtime-test probe-worker-test nfo-worker-test family-ignore-worker-test ignore-oracle-test sandbox-test tools-verify media-tools-verify tools-clean fixtures fixtures-test build test test-race test-integration coverage fmt fmt-check lint toolchain-test media-toolchain-test brand-scan brand-scan-incremental gitignore-check openapi openapi-check migrate doctor bench bench-check benchgate-test doc-check dev nfo diag web-install web-build web-budget web-test web-lint web-types bootstrap-playwright playwright-verify web-e2e web-visual web-visual-update test-race-nonpostgres test-race-postgres-shard go-test-shard-test golangci-lint lint-baseline-prune coverage-check coverage-ratchet bench-compare quality-gates-test migration-lock migration-lock-check hooks text-check secret-scan secret-scan-history secret-scan-range naming-guard commit-lint release-check release-dry-run
 init: bootstrap
 bootstrap:
 	sh scripts/bootstrap-tools
@@ -209,6 +209,10 @@ commit-lint:
 secret-scan-range:
 	@test -n "$(COMMIT_RANGE)" || { echo 'COMMIT_RANGE must be a revision range, for example origin/master..HEAD' >&2; exit 2; }
 	"$(GO)" run ./tools/secretscan -range "$(COMMIT_RANGE)"
+# G21.4: a range that changes the media name parser must add naming table cases.
+naming-guard:
+	@test -n "$(COMMIT_RANGE)" || { echo 'COMMIT_RANGE must be a revision range, for example origin/master..HEAD' >&2; exit 2; }
+	"$(GO)" run ./tools/namingguard -range "$(COMMIT_RANGE)"
 # G01.6: use the repository hooks in .githooks for this clone (opt-in; only
 # when a developer runs it). `git config --unset core.hooksPath` undoes it.
 hooks:

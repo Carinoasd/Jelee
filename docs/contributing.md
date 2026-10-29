@@ -23,6 +23,7 @@
 | `make text-check` | 已跟踪文本文件为 UTF-8 无 BOM、LF 换行；二进制文件带 `.gitattributes` 的 `binary` 属性 |
 | `make secret-scan`／`make secret-scan-history` | 已跟踪文件／全部历史的密钥扫描，见[密钥泄露处理](secret-leak-response.md) |
 | `make commit-lint COMMIT_RANGE=A..B`／`make secret-scan-range COMMIT_RANGE=A..B` | 检查一段提交的信息格式与规模、新增行中的密钥（CI 用本次 push／PR 的范围） |
+| `make naming-guard COMMIT_RANGE=A..B` | G21.4：范围内改了媒体名解析器（`internal/domain/medianame/` 的非测试 Go 文件）就必须同时改 `naming_table_test.go` 补用例；只改注释或改名等不可能改变解析结果的提交，可在提交信息加 `Naming-Table: unchanged <原因>` 尾行豁免（CI 用本次 push／PR 的范围） |
 | `make release-check RELEASE_TAG=vX.Y.Z`／`make release-dry-run` | 发布前校验标签、CHANGELOG 段落与版本号／不打标签构建发布归档，见[发布标签流程](git-workflow.md#发布标签流程) |
 | `make migration-lock`／`make migration-lock-check` | 把新增的迁移追加到迁移锁 `internal/adapter/postgres/migrations/checksums.txt`／检查已锁定的迁移没有被修改、删除或重新编号（`MIGRATION_LOCK_BASE=<提交>` 另外要求该提交的锁条目原样保留），见 [ADR 0006](adr/0006-migration-version-policy.md) |
 | `make openapi`／`make openapi-check` | 重新生成／校验 `api/openapi.json`，见 [API 参考](api-reference.md) |
