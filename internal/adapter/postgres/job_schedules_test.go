@@ -108,6 +108,9 @@ func TestJobScheduleMigratesScanSchedules(t *testing.T) {
 		t.Fatal("scan options not carried into params")
 	}
 	// Round trip: the downgrade writes the timing back to scan_schedules.
+	// Later migrations are stepped down first, so this goes below 107 even
+	// when it is not the newest one.
+	downgradeAboveMigration(t, f, "job_schedules")
 	if previous, dirty, err := Migrate(f.ctx, dsn, "down"); err != nil || dirty || previous >= version {
 		t.Fatalf("round trip down: version=%d dirty=%t error=%v", previous, dirty, err)
 	}
