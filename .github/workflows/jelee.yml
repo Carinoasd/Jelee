@@ -28,6 +28,7 @@ jobs:
       - name: Validate four UI catalogs
         run: python scripts/check-ui-locales.py
       - name: Linux bootstrap and verification
+        id: linux-verification
         if: runner.os == 'Linux'
         # lint = gofmt, openapi/doc checks, migration lock, text encoding
         # (textcheck) and secret scan, go vet and golangci-lint against
@@ -36,7 +37,21 @@ jobs:
         # The production image (probe-runtime-test) copies the pinned
         # mkvtoolnix and MediaInfo files; they are installed and verified
         # before any step can build it (cached with the manifest key).
-        run: make bootstrap tools-verify bootstrap-media media-tools-verify bootstrap-runtime runtime-tools-verify bootstrap-matroska matroska-tools-verify runtime-toolchain-test fixtures fixtures-test toolchain-test media-toolchain-test quality-gates-test lint build test-race coverage-check sandbox-test probe-runtime-test gitignore-check brand-scan-incremental
+        run: |
+          set -o pipefail
+          mkdir -p .testdata
+          make bootstrap tools-verify bootstrap-media media-tools-verify bootstrap-runtime runtime-tools-verify bootstrap-matroska matroska-tools-verify runtime-toolchain-test fixtures fixtures-test toolchain-test media-toolchain-test quality-gates-test lint build test-race coverage-check sandbox-test probe-runtime-test gitignore-check brand-scan-incremental 2>&1 | tee .testdata/linux-verification.txt
+      - name: Annotate Linux verification failure
+        # Job logs need a browser session; annotations are readable through the
+        # checks API, so the failing lines are copied there.
+        if: failure() && steps.linux-verification.outcome == 'failure'
+        run: |
+          file=.testdata/linux-verification.txt
+          [ -s "$file" ] || exit 0
+          lines=$(grep -E -- '^(--- FAIL|FAIL|panic:)|make(\[[0-9]+\])?: \*\*\*|_test\.go:[0-9]+:|[Ee]rror' "$file" | tail -n 30)
+          [ -n "$lines" ] || lines=$(tail -n 30 "$file")
+          body=$(printf '%s\n' "$lines" | cut -c1-300 | sed 's/%/%25/g' | sed ':a;N;$!ba;s/\n/%0A/g')
+          echo "::error title=linux verification::$body"
       - name: Web frontend gates on Linux
         if: runner.os == 'Linux'
         # web-build fails on playback in the bundle and on a main bundle over
@@ -69,8 +84,15 @@ jobs:
         shell: pwsh
         run: |
           # lint includes golangci-lint against tools/lint-baseline/windows.json.
+          # A failing target is named in an annotation (readable through the
+          # checks API) and the error is rethrown unchanged.
           foreach ($target in @('bootstrap','tools-verify','bootstrap-media','media-tools-verify','fixtures','fixtures-test','toolchain-test','media-toolchain-test','quality-gates-test','lint','build','test','gitignore-check','brand-scan-incremental')) {
-            & ./scripts/make.ps1 $target
+            try { & ./scripts/make.ps1 $target }
+            catch {
+              $message = "$($_.Exception.Message)".Replace('%', '%25').Replace("`r", '').Replace("`n", '%0A')
+              Write-Output "::error title=windows $target failed::$message"
+              throw
+            }
           }
       - name: Required native legacy helper lifecycle on Linux
         id: legacy-helper
@@ -381,7 +403,8 @@ jobs:
         run: |
           for file in .testdata/runtime-memory-step.txt .testdata/runtime-memory-acceptance.txt; do
             [ -s "$file" ] || continue
-            body=$(tail -n 40 "$file" | sed 's/%/%25/g' | sed ':a;N;$!ba;s/\n/%0A/g')
+            # Lines are long JSON; the last few hold the verdict and must fit.
+            body=$(tail -n 4 "$file" | cut -c1-900 | sed 's/%/%25/g' | sed ':a;N;$!ba;s/\n/%0A/g')
             echo "::error title=$(basename "$file")::$body"
           done
       - name: Retain memory and mixed sustained acceptance evidence
