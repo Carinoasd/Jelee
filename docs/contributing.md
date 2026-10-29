@@ -60,6 +60,14 @@ Windows 使用 `pwsh -File scripts/make.ps1 <目标>`，目标名称相同（部
 
 本机内存有限时，`go test` 加 `-p 1`；竞态测试只针对改动的包；PostgreSQL 测试加 `-parallel 2` 并用 `-run` 限定范围，避开 GB 级的配额测试。迁移相关测试不要假设某个迁移是最新版本，按名称用 `migrationVersion`／`downgradeAboveMigration` 定位（[ADR 0006](adr/0006-migration-version-policy.md)）。
 
+### 构建缓存与并发编辑
+
+Go 先按源文件内容哈希计算编译缓存键，再由编译器重新从磁盘读取源文件，两步之间不再核对。若在 `go build`／`go test` 运行期间修改了正在编译的源文件（编辑器保存、另一个会话或代理同时改文件、中断的编辑），编译结果会以错误的键写入缓存：之后源文件内容与该键一致时，测试二进制运行的是另一版本的代码，表现为磁盘上存在的检查在运行时“消失”。`-count=1` 只关闭测试结果缓存，不影响编译缓存。
+
+- 编辑与测试并发、或编辑会话被中断后，信任测试结果（尤其是要记为验收证据的结果）之前，先运行 `.bin/go clean -cache` 再重跑。
+- 测试行为与磁盘源码明显不符时，先排除缓存：用空的临时缓存重跑，例如 `GOCACHE="$(mktemp -d)" .bin/go test -race -count=1 ./<包>`；结果不同即为缓存被污染，清理缓存即可。
+- 通过 `.bin/go` 与 make 目标运行时缓存在 `.tools/cache/go-build`；直接调用系统 `go` 会使用另一个缓存（如 `~/.cache/go-build`），两者互不影响，清理时要清对应的那个。
+
 ## 提交规则
 
 - 提交信息格式：`类型(范围): 摘要`，类型为 `feat|fix|refactor|perf|chore|docs|test|build|ci`，范围是小写模块名，例如 `feat(media): …`、`docs(adr): …`，破坏性变更加 `!`。摘要说明做了什么以及对应的需求编号（如 `G48.3`）。完整规则、允许的 Git 自动信息与 CI 检查范围见 [Git 流程](git-workflow.md#提交规范)；建议运行一次 `make hooks`，让 commit-msg 钩子在本地检查。
