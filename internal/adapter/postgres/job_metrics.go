@@ -58,7 +58,7 @@ func (s *Store) JobMetrics(ctx context.Context) (app.JobMetricsSnapshot, error) 
 	}
 	defer rows.Close()
 	var result app.JobMetricsSnapshot
-	expected := [18][2]string{{"catalog_import", "background"}, {"catalog_import", "manual"}, {"catalog_sync", "background"}, {"catalog_sync", "manual"}, {"consistency_check", "background"}, {"consistency_check", "manual"}, {"image_refresh", "background"}, {"image_refresh", "manual"}, {"inventory_scan", "background"}, {"inventory_scan", "manual"}, {"metadata_refresh", "background"}, {"metadata_refresh", "manual"}, {"nfo_apply", "background"}, {"nfo_apply", "manual"}, {"nfo_export", "background"}, {"nfo_export", "manual"}, {"nfo_write", "background"}, {"nfo_write", "manual"}}
+	expected := [24][2]string{{"backup_reminder", "background"}, {"backup_reminder", "manual"}, {"catalog_import", "background"}, {"catalog_import", "manual"}, {"catalog_sync", "background"}, {"catalog_sync", "manual"}, {"consistency_check", "background"}, {"consistency_check", "manual"}, {"external_metadata_removal", "background"}, {"external_metadata_removal", "manual"}, {"image_refresh", "background"}, {"image_refresh", "manual"}, {"inventory_scan", "background"}, {"inventory_scan", "manual"}, {"metadata_refresh", "background"}, {"metadata_refresh", "manual"}, {"nfo_apply", "background"}, {"nfo_apply", "manual"}, {"nfo_export", "background"}, {"nfo_export", "manual"}, {"nfo_write", "background"}, {"nfo_write", "manual"}, {"subtitle_cache_cleanup", "background"}, {"subtitle_cache_cleanup", "manual"}}
 	index := 0
 	for rows.Next() {
 		if index >= len(result.Groups) {

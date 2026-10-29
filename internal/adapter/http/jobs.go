@@ -32,6 +32,7 @@ func (s *Server) jobRoutes(router chi.Router) {
 		s.nfoRoutes(r)
 		s.imageRefreshRoutes(r)
 		s.metadataRefreshRoutes(r)
+		s.maintenanceRoutes(r)
 		if s.cfg.EnableAccounts {
 			s.repairRoutes(r)
 		}

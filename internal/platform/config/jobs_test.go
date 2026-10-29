@@ -101,3 +101,21 @@ func TestJobsConsistencyScheduleAndBounds(t *testing.T) {
 		}
 	}
 }
+
+func TestJobsBackupReminderDays(t *testing.T) {
+	values := map[string]string{"JELEE_DATABASE_URL": "postgres://localhost/jelee", "JELEE_ENABLE_JOBS": "true", "JELEE_ENABLE_ACCOUNTS": "true", "JELEE_JOB_BACKUP_REMINDER_DAYS": "7"}
+	c, err := LoadWith(accountConfigLookup(values))
+	if err != nil || c.Jobs.BackupReminderDays != 7 {
+		t.Fatalf("backup reminder: %+v %v", c.Jobs, err)
+	}
+	if DefaultJobsConfig().BackupReminderDays != 0 {
+		t.Fatal("the backup reminder schedule must default to off")
+	}
+	for _, days := range []int{-1, 366} {
+		c := DefaultJobsConfig()
+		c.BackupReminderDays = days
+		if c.Validate() == nil {
+			t.Fatal("out of range threshold accepted", days)
+		}
+	}
+}

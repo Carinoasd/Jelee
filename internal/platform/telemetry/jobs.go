@@ -25,18 +25,22 @@ type jobDimensions struct {
 // jobDimensionSet and jobOutcomeSet fix the label sets' sizes; their lengths
 // are compile-time constants.
 type (
-	jobDimensionSet = [18]jobDimensions
+	jobDimensionSet = [24]jobDimensions
 	jobOutcomeSet   = [3]string
 )
 
 func fixedJobDimensions() jobDimensionSet {
 	return jobDimensionSet{
+		{"backup_reminder", "background"},
+		{"backup_reminder", "manual"},
 		{"catalog_import", "background"},
 		{"catalog_import", "manual"},
 		{"catalog_sync", "background"},
 		{"catalog_sync", "manual"},
 		{"consistency_check", "background"},
 		{"consistency_check", "manual"},
+		{"external_metadata_removal", "background"},
+		{"external_metadata_removal", "manual"},
 		{"image_refresh", "background"},
 		{"image_refresh", "manual"},
 		{"inventory_scan", "background"},
@@ -49,6 +53,8 @@ func fixedJobDimensions() jobDimensionSet {
 		{"nfo_export", "manual"},
 		{"nfo_write", "background"},
 		{"nfo_write", "manual"},
+		{"subtitle_cache_cleanup", "background"},
+		{"subtitle_cache_cleanup", "manual"},
 	}
 }
 

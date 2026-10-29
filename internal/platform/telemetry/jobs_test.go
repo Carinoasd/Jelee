@@ -33,7 +33,7 @@ func jobMetricsTestSnapshot(scale uint64) app.JobMetricsSnapshot {
 	snapshot := app.JobMetricsSnapshot{
 		StartedAt: time.Unix(1700000000, 0).UTC(), ObservedAt: time.Unix(1700003600, 0).UTC(),
 	}
-	groups := [18][2]string{{"catalog_import", "background"}, {"catalog_import", "manual"}, {"catalog_sync", "background"}, {"catalog_sync", "manual"}, {"consistency_check", "background"}, {"consistency_check", "manual"}, {"image_refresh", "background"}, {"image_refresh", "manual"}, {"inventory_scan", "background"}, {"inventory_scan", "manual"}, {"metadata_refresh", "background"}, {"metadata_refresh", "manual"}, {"nfo_apply", "background"}, {"nfo_apply", "manual"}, {"nfo_export", "background"}, {"nfo_export", "manual"}, {"nfo_write", "background"}, {"nfo_write", "manual"}}
+	groups := [24][2]string{{"backup_reminder", "background"}, {"backup_reminder", "manual"}, {"catalog_import", "background"}, {"catalog_import", "manual"}, {"catalog_sync", "background"}, {"catalog_sync", "manual"}, {"consistency_check", "background"}, {"consistency_check", "manual"}, {"external_metadata_removal", "background"}, {"external_metadata_removal", "manual"}, {"image_refresh", "background"}, {"image_refresh", "manual"}, {"inventory_scan", "background"}, {"inventory_scan", "manual"}, {"metadata_refresh", "background"}, {"metadata_refresh", "manual"}, {"nfo_apply", "background"}, {"nfo_apply", "manual"}, {"nfo_export", "background"}, {"nfo_export", "manual"}, {"nfo_write", "background"}, {"nfo_write", "manual"}, {"subtitle_cache_cleanup", "background"}, {"subtitle_cache_cleanup", "manual"}}
 	for i, key := range groups {
 		g := &snapshot.Groups[i]
 		g.Kind, g.Priority = key[0], key[1]
@@ -94,10 +94,10 @@ func parseJobMetrics(t *testing.T, w *httptest.ResponseRecorder) (map[string]*dt
 	if w.Code != http.StatusOK || !strings.HasPrefix(w.Header().Get("Content-Type"), "text/plain;") {
 		t.Fatalf("job exposition status/content type: %d %s", w.Code, w.Header().Get("Content-Type"))
 	}
-	// Eighteen fixed job groups at the largest test scale measure about
-	// 76 KiB; the budget keeps headroom for that fixed shape only.
-	if w.Body.Len() > 96*1024 {
-		t.Fatalf("job exposition exceeds fixed 96 KiB budget: %d", w.Body.Len())
+	// Twenty-four fixed job groups at the largest test scale measure about
+	// 100 KiB; the budget keeps headroom for that fixed shape only.
+	if w.Body.Len() > 128*1024 {
+		t.Fatalf("job exposition exceeds fixed 128 KiB budget: %d", w.Body.Len())
 	}
 	parser := expfmt.NewTextParser(model.LegacyValidation)
 	families, err := parser.TextToMetricFamilies(strings.NewReader(w.Body.String()))
@@ -110,8 +110,8 @@ func parseJobMetrics(t *testing.T, w *httptest.ResponseRecorder) (map[string]*dt
 			series++
 		}
 	}
-	if len(families) != 22 || series != 681 {
-		t.Fatalf("job exposition has %d families / %d series, want 22 / 681", len(families), series)
+	if len(families) != 22 || series != 903 {
+		t.Fatalf("job exposition has %d families / %d series, want 22 / 903", len(families), series)
 	}
 	t.Logf("job exposition: %d bytes, %d families, %d series", w.Body.Len(), len(families), series)
 	return families, w.Body.String()
@@ -170,14 +170,14 @@ func assertJobMetricsExposition(t *testing.T, families map[string]*dto.MetricFam
 		} {
 			family := families[name]
 			point := jobMetricPoint(t, family, labels)
-			if family.GetType() != dto.MetricType_GAUGE || len(family.Metric) != 18 || point.GetGauge().GetValue() != value {
+			if family.GetType() != dto.MetricType_GAUGE || len(family.Metric) != 24 || point.GetGauge().GetValue() != value {
 				t.Fatal("shared gauge differs from source", name, labels)
 			}
 		}
 		outcomes := families["jelee_jobs_shared_outcomes_total"]
 		for outcome, value := range map[string]int64{"succeeded": g.Succeeded, "failed": g.Failed, "cancelled": g.Cancelled} {
 			point := jobMetricPoint(t, outcomes, map[string]string{"kind": g.Kind, "priority": g.Priority, "outcome": outcome})
-			if outcomes.GetType() != dto.MetricType_COUNTER || len(outcomes.Metric) != 54 || point.GetCounter().GetValue() != float64(value) {
+			if outcomes.GetType() != dto.MetricType_COUNTER || len(outcomes.Metric) != 72 || point.GetCounter().GetValue() != float64(value) {
 				t.Fatal("shared outcome differs from absolute source", labels, outcome)
 			}
 		}
@@ -189,7 +189,7 @@ func assertJobMetricsExposition(t *testing.T, families map[string]*dto.MetricFam
 			family := families[measure.name]
 			point := jobMetricPoint(t, family, labels)
 			hist := point.GetHistogram()
-			if family.GetType() != dto.MetricType_HISTOGRAM || len(family.Metric) != 18 || hist == nil || len(hist.Bucket) != 13 {
+			if family.GetType() != dto.MetricType_HISTOGRAM || len(family.Metric) != 24 || hist == nil || len(hist.Bucket) != 13 {
 				t.Fatal("shared histogram shape changed", measure.name, labels)
 			}
 			if hist.GetSampleCount() != measure.want.Count || hist.GetSampleSum() != measure.want.SumSeconds {

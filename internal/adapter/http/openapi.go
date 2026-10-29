@@ -98,6 +98,7 @@ func specification(cfg config.Config, deprecations []Deprecation) map[string]any
 		catalogNamingSpecification(paths, schemas)
 		nfoSpecification(paths, schemas)
 		metadataRefreshSpecification(paths, schemas)
+		maintenanceSpecification(paths, schemas)
 		if cfg.EnableAccounts {
 			repairSpecification(paths, schemas)
 		}

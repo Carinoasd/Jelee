@@ -319,6 +319,13 @@ func newWithLifetime(cfg config.Config, logger *slog.Logger, lifetime *lifetime)
 			if service, err = app.NewJobsWithMetadataRefresh(service, store, refreshMetadata); err != nil {
 				return nil, err
 			}
+			// G13.6, G14.7: maintenance jobs. A cache cleanup is admitted
+			// only with a usable extraction cache; every runner claims all
+			// three kinds.
+			subtitleSweeper := prepareSubtitleCacheSweeper(c)
+			if service, err = app.NewJobsWithMaintenance(service, store, subtitleSweeper != nil, c.Jobs.BackupReminderDays); err != nil {
+				return nil, err
+			}
 			service, err = app.NewJobsWithInventoryImport(service, store, scan.New())
 			if err != nil {
 				return nil, err
@@ -333,6 +340,11 @@ func newWithLifetime(cfg config.Config, logger *slog.Logger, lifetime *lifetime)
 			}
 			if interval := c.Jobs.ConsistencyInterval(); interval > 0 {
 				if service, err = app.NewJobsWithConsistencySchedule(service, store, interval); err != nil {
+					return nil, err
+				}
+			}
+			if days := c.Jobs.BackupReminderDays; days > 0 {
+				if service, err = app.NewJobsWithBackupReminderSchedule(service, store, days); err != nil {
 					return nil, err
 				}
 			}
@@ -403,6 +415,9 @@ func newWithLifetime(cfg config.Config, logger *slog.Logger, lifetime *lifetime)
 				return nil, err
 			}
 			opts.MetadataRefresh = &jobworker.MetadataRefreshOptions{Worker: metadataWorker, Repository: store}
+			if opts.Kinds, err = maintenanceKinds(store, subtitleSweeper, time.Duration(p.DatabaseTimeoutSeconds)*time.Second); err != nil {
+				return nil, err
+			}
 			if c.EnableNFOWrite {
 				// G39.14: the export prepares like an administrator would and
 				// lets the nfo_write runner above write the files.

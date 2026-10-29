@@ -20,7 +20,7 @@ func TestJobMetricsIntegrationFixedStorage(t *testing.T) {
 	if err != nil {
 		t.Fatal("durable job metrics schema unavailable:", err)
 	}
-	if epoch != 1 || totals != 18 || buckets != 468 {
+	if epoch != 1 || totals != 24 || buckets != 624 {
 		t.Fatalf("fixed metric rows: epoch=%d totals=%d buckets=%d", epoch, totals, buckets)
 	}
 }
@@ -50,8 +50,8 @@ func jobMetricMigrationStorage(t *testing.T, f jobFixture) string {
 	var result string
 	err := f.s.Pool.QueryRow(f.ctx, `SELECT jsonb_build_object(
 	 'epoch',(SELECT jsonb_agg(to_jsonb(m) ORDER BY singleton) FROM job_metric_epoch m),
-	 'totals',(SELECT jsonb_agg(to_jsonb(m) ORDER BY kind,priority) FROM job_metric_totals m WHERE kind NOT IN ('catalog_sync','consistency_check','nfo_apply','nfo_export','image_refresh','metadata_refresh')),
-	 'buckets',(SELECT jsonb_agg(to_jsonb(m) ORDER BY kind,priority,measure,bucket_index) FROM job_metric_buckets m WHERE kind NOT IN ('catalog_sync','consistency_check','nfo_apply','nfo_export','image_refresh','metadata_refresh'))
+	 'totals',(SELECT jsonb_agg(to_jsonb(m) ORDER BY kind,priority) FROM job_metric_totals m WHERE kind NOT IN ('catalog_sync','consistency_check','nfo_apply','nfo_export','image_refresh','metadata_refresh','subtitle_cache_cleanup','backup_reminder','external_metadata_removal')),
+	 'buckets',(SELECT jsonb_agg(to_jsonb(m) ORDER BY kind,priority,measure,bucket_index) FROM job_metric_buckets m WHERE kind NOT IN ('catalog_sync','consistency_check','nfo_apply','nfo_export','image_refresh','metadata_refresh','subtitle_cache_cleanup','backup_reminder','external_metadata_removal'))
 	)::text`).Scan(&result)
 	if err != nil {
 		t.Fatal("read durable metric rows:", err)
@@ -72,13 +72,13 @@ func jobMetricMigrationZero(t *testing.T, f jobFixture) {
 	t.Helper()
 	var valid bool
 	// Each job kind adds two priorities and 2×13 buckets per priority.
-	metadataRefresh, refresh, export, apply, consistency, sync, write := migrationVersion(t, "metadata_refresh_jobs"), migrationVersion(t, "image_refresh_jobs"), migrationVersion(t, "nfo_export_jobs"), migrationVersion(t, "nfo_apply_jobs"), migrationVersion(t, "consistency_checks"), migrationVersion(t, "catalog_sync"), migrationVersion(t, "nfo_write_jobs")
+	maintenance, metadataRefresh, refresh, export, apply, consistency, sync, write := migrationVersion(t, "maintenance_jobs"), migrationVersion(t, "metadata_refresh_jobs"), migrationVersion(t, "image_refresh_jobs"), migrationVersion(t, "nfo_export_jobs"), migrationVersion(t, "nfo_apply_jobs"), migrationVersion(t, "consistency_checks"), migrationVersion(t, "catalog_sync"), migrationVersion(t, "nfo_write_jobs")
 	err := f.s.Pool.QueryRow(f.ctx, `SELECT
 	 (SELECT count(*)=1 AND bool_and(singleton AND isfinite(started_at)) FROM job_metric_epoch)
-	 AND (SELECT count(*)=(SELECT CASE WHEN version>=$7 THEN 18 WHEN version>=$6 THEN 16 WHEN version>=$5 THEN 14 WHEN version>=$4 THEN 12 WHEN version>=$1 THEN 10 WHEN version>=$2 THEN 8 WHEN version>=$3 THEN 6 ELSE 4 END FROM schema_migrations) AND bool_and(succeeded_total=0 AND failed_total=0 AND cancelled_total=0
+	 AND (SELECT count(*)=(SELECT CASE WHEN version>=$8 THEN 24 WHEN version>=$7 THEN 18 WHEN version>=$6 THEN 16 WHEN version>=$5 THEN 14 WHEN version>=$4 THEN 12 WHEN version>=$1 THEN 10 WHEN version>=$2 THEN 8 WHEN version>=$3 THEN 6 ELSE 4 END FROM schema_migrations) AND bool_and(succeeded_total=0 AND failed_total=0 AND cancelled_total=0
 	  AND wait_count=0 AND wait_sum_microseconds=0 AND duration_count=0 AND duration_sum_microseconds=0)
 	  FROM job_metric_totals)
-	 AND (SELECT count(*)=(SELECT CASE WHEN version>=$7 THEN 468 WHEN version>=$6 THEN 416 WHEN version>=$5 THEN 364 WHEN version>=$4 THEN 312 WHEN version>=$1 THEN 260 WHEN version>=$2 THEN 208 WHEN version>=$3 THEN 156 ELSE 104 END FROM schema_migrations) AND bool_and(bucket_count=0) FROM job_metric_buckets)`, int64(consistency), int64(sync), int64(write), int64(apply), int64(export), int64(refresh), int64(metadataRefresh)).Scan(&valid)
+	 AND (SELECT count(*)=(SELECT CASE WHEN version>=$8 THEN 624 WHEN version>=$7 THEN 468 WHEN version>=$6 THEN 416 WHEN version>=$5 THEN 364 WHEN version>=$4 THEN 312 WHEN version>=$1 THEN 260 WHEN version>=$2 THEN 208 WHEN version>=$3 THEN 156 ELSE 104 END FROM schema_migrations) AND bool_and(bucket_count=0) FROM job_metric_buckets)`, int64(consistency), int64(sync), int64(write), int64(apply), int64(export), int64(refresh), int64(metadataRefresh), int64(maintenance)).Scan(&valid)
 	if err != nil || !valid {
 		t.Fatalf("migration did not establish an empty finite epoch: valid=%t error=%v", valid, err)
 	}
@@ -158,7 +158,7 @@ func TestJobMetricsMigrationExistingJobsStartAtNewEpoch(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	g := snapshot.Groups[9]
+	g := snapshot.Groups[13]
 	if g.Failed != 1 || g.Succeeded != 0 || g.Cancelled != 0 || g.Duration.Count != 1 || g.Wait.Count != 0 ||
 		g.Wait.SumSeconds != 0 || g.Queued != 1 || g.Running != 0 || g.ExpiredRunning != 0 {
 		t.Fatalf("legacy transition was backfilled or lost: %+v", g)
@@ -347,7 +347,7 @@ func TestJobMetricsMigrationTriggerIgnoresCallerSearchPath(t *testing.T) {
 		t.Fatal(err)
 	}
 	snapshot, err := f.s.JobMetrics(f.ctx)
-	if err != nil || snapshot.Groups[9].Wait.Count != 1 || snapshot.Groups[9].Wait.SumSeconds != .5 {
+	if err != nil || snapshot.Groups[13].Wait.Count != 1 || snapshot.Groups[13].Wait.SumSeconds != .5 {
 		t.Fatal("qualified metrics did not survive commit", err)
 	}
 }

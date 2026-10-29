@@ -32,6 +32,9 @@ type ScanCapabilities struct {
 	// MetadataRefresh lets a worker claim metadata_refresh jobs; one without
 	// a configured provider fails them.
 	MetadataRefresh bool
+	// Kinds are further job kinds the worker claims (maintenance jobs,
+	// G13.6, G14.7); each has a self-contained worker.
+	Kinds []string
 }
 
 func ValidateScanIntent(v ScanIntent) error {
