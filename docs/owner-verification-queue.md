@@ -39,6 +39,7 @@
 | B15 | 任務總數與 ETA 在 Windows（G13.3）：Windows 真 PG 跑 `go test -p 1 -parallel 2 -count=1 -run TestJobProgress ./internal/adapter/postgres/`，並以 `.\bin\jelee-cli.exe jobs get` 讀一個執行中的任務，確認 `progress` 的 total、percent、etaSeconds、etaBasis 正常輸出；測試靠 80 ms 間隔的檢查點取樣，Windows 計時器粒度下若 ETA 斷言不穩請回報 | `docs/jobs-api.md`「总数、百分比与 ETA」 | 待跑 |
 | B16 | 命名選項與跨季合訂在 Windows（G21.3）：`go test -p 1 -count=1 -run "ParsePath|PlanCatalogScan|CatalogSyncParserVersion" ./internal/domain/... ./internal/app/`；有 PostgreSQL 時再以真 PG 跑 `-run "TestCatalogNaming" ./internal/adapter/postgres/`（含設定切換重解析、鎖定保留與降版）。確認 Windows 路徑下的日期型檔名（`新闻联播 2024-03-15.mp4`）、絕對集數與 `S01E10-S02E01` 檔案登記後可直投播放 | `docs/catalog-sync.md`「命名選項、跨季合訂與特別篇歸類」 | 待跑 |
 | B17 | 元資料刷新（自動刮削）在 Windows（G13.6、G14.4）：`go test -p 1 -count=1 -run "MatchMetadata|ReconcileMetadata|MetadataAutoApplies|TitleSimilarity|MetadataRefresh" ./internal/domain/ ./internal/app/ ./internal/adapter/http/`；有 PostgreSQL 時再以真 PG 跑 `-run TestMetadataRefresh ./internal/adapter/postgres/`（含 catalog sync 後自動排入、取消續跑、降版）。程式沒有平台分支，主要確認 Windows 服務上同步完成後自動排入、`GET /api/v1/jobs/{id}/metadata-refresh` 計數與待確認接受／拒絕正常 | `docs/metadata-refresh-jobs.md` | 待跑 |
+| B19 | 跨目錄多版本聚合在 Windows（G20.1、G20.5、G21.2）：`go test -p 1 -count=1 -run "VersionGrouping|VersionDurations|CatalogNumbersDisagree" ./internal/domain/`；有 PostgreSQL 時再以真 PG 跑 `go test -p 1 -parallel 2 -count=1 -run "TestCatalogVersionGrouping|TestItemVersion" ./internal/adapter/postgres/`。確認 Windows 路徑（不同磁碟根、大小寫不同的資料夾）下兩個目錄的同一部電影在 NFO 套用與探測後由下一次同步自動合併，`GET /api/v1/items/{id}/versions` 的操作 `automatic:true` 可撤銷，撤銷後重同步不再合併 | `docs/catalog-sync.md`「跨目錄多版本聚合」 | 待跑 |
 
 ## C. 長時間、規模、效能
 
@@ -77,6 +78,7 @@
 | C33 | 任務 ETA 準確度與觸發器開銷（G13.3）：十萬條目以上的 `nfo_apply`、`nfo_export`、`image_refresh` 與大型掃描，每分鐘記錄 `etaSeconds` 與實際剩餘時間的偏差、`etaBasis` 轉換（`insufficient_samples`→`throughput`、暫停後 `paused`、慢來源下的 `stalled`）；比較有無觸發器 `jobs_progress_rate` 時檢查點交易的 P95（觸發器每次 `jobs` 更新都執行），以及 `nfo_apply`／`nfo_export`／`image_refresh` 提交時 `count(*)` 在大型媒體庫的耗時是否逼近 2 秒語句期限 | `docs/jobs-api.md` | 待跑 |
 | C34 | 命名選項的規模（G21.3）：十萬集以上的媒體庫切換 `dateEpisodes`／`absoluteEpisodes` 後（以及基底解析版本 v1→v2 升級後第一次同步）全庫重新規劃的耗時、批次數與 `protected` 計數；切換設定時正在跑的長同步會讓 `PUT …/naming` 等候媒體庫列鎖的延遲；每日節目十年以上（數千個日期型集數、每年一季）的季列表與條目查詢 | 只做過小型真 PG 短測 | 待跑 |
 | C35 | 元資料刷新的長時間與規模（G13.6）：上萬部電影、數千部劇集的媒體庫開啟 `auto` 後跑完整掃描→同步→刷新，觀察每個條目一個檢查點交易的總耗時、TMDB 請求數與冷卻次數（真金鑰見 D35）、連續 10 個提供者失敗即中止的門檻在實際限流下是否過於敏感；排程掃描在深夜觸發時，排程擁有者長時間沒有有效工作階段會讓自動刷新以 `metadata_refresh_failed` 結束，請確認實際部署的工作階段存活時間是否足夠，或需要改為系統身分執行；上千筆待確認列的分頁與接受延遲 | 只做過小型真 PG 短測（行程內假 TMDB） | 待跑 |
+| C37 | 跨目錄多版本聚合的規模（G20.1）：十萬條目以上、多數帶 NFO uniqueIds 的媒體庫，升級到遷移 000104 後第一次同步的 versions 階段（每批 128 個條目、每批最多 8 次自動合併）總耗時、批次數與 `aggregated` 計數；之後證據未變時 versions 階段只讀不判的耗時；`item_metadata_facts_nfo_unique_ids_idx`（GIN）的大小與 NFO 全量導入時的寫入開銷；同一部作品十份以上副本時合併的交易大小 | 只做過小型真 PG 短測 | 待跑 |
 
 ## D. 真實資料／真金鑰／真客戶端
 
@@ -115,6 +117,7 @@
 | D33 | 任務 ETA 的真實使用感受（G13.3）：在真實媒體庫觸發掃描、NFO 全量導入與圖片刷新，從 API／CLI 觀察進度：掃描期間總數保持 null 是否可接受、提交後新增條目造成的 `total_reached` 是否需要改成執行中重算總數、ETA 的抖動程度（EMA 新樣本權重 0.3）是否需要調整 | `docs/jobs-api.md` | 待確認 |
 | D34 | 命名選項與特別篇歸類的真實資料（G21.3）：以真實的每日節目（新聞、綜藝，含同日多檔）、絕對集數動畫（字幕組命名 ` - 01`、`[01]`、`第01話`）、跨季合訂檔與含 OVA／SP／劇場版的動畫庫，先以預設選項同步、記錄待確認數，再開啟兩個選項同步，確認誤判率、同日多檔被當成同一集多版本是否可接受、絕對集數放第 1 季是否符合使用習慣、劇場版經接受成為獨立電影；再關閉選項確認條目不被拆開 | 需要真實媒體庫；本輪無網頁介面，以 API 操作 | 待跑 |
 | D35 | 元資料刷新的真 TMDB 配對品質（G14.1、G14.4、G14.6）：以真 TMDB 金鑰對真實電影／劇集庫跑刷新（先用 `autoApply=never` 只產生待確認），統計 `nfo_tmdb_id`／`nfo_imdb_id`／`nfo_tvdb_id`／`existing_provider` 高置信的正確率、`title_year_unique` 中置信的正確率（決定是否把預設門檻放寬到 `medium`）、相似度門檻 90% 對中日文標題、副標題、羅馬數字與「The」前綴的誤判；確認 IMDb／TVDB find 在電影與劇集間沒有混淆、`year_mismatch` 再搜一次不帶年份的額外請求量可接受；接受待確認後的欄位、鎖定與 NFO 優先符合預期 | 需要真 TMDB 金鑰與真實媒體庫；不得網頁抓取 | 待跑 |
+| D37 | 跨目錄多版本聚合的真實資料（G20.1、G20.5、G21.2）：以真實電影庫（同片 1080p／4K／HDR 分放不同資料夾、導演剪輯版、同名不同年重拍片）與劇集庫（檔名集號錯但 NFO 正確、季包重複收錄），先做 NFO 全量導入與探測，再同步，逐筆檢查自動合併：誤合併數（應為 0）、該合未合的原因分佈（`catalog_scan_items.grouping_reason`：`duration_mismatch`、`duration_unknown`、`no_shared_external_id`…）；確認 2%／30 秒／3 分鐘的時長門檻對 PAL 加速（約 4%）與片頭片尾剪裁的版本是否過嚴；抽樣撤銷自動合併並確認重同步不再合併 | 需要真實媒體庫；本輪無網頁介面顯示原因，以 API 與資料庫查詢 | 待跑 |
 
 ## E. 需要擁有者決定
 
