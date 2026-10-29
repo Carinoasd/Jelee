@@ -175,12 +175,24 @@ func (h *hookedNFOExport) SubmitNFOExportChunk(ctx context.Context, lease domain
 // jobs, so an export can only finish if it yields its only worker.
 func startNFOExportRunner(t *testing.T, f jobFixture, metadata *app.Metadata, repository app.NFOExportExecutionRepository) func() {
 	t.Helper()
-	return startNFOExportRunnerWith(t, f, metadata, repository, f.s)
+	return startNFOExportRunnerRecovering(t, f, metadata, repository, 10*time.Minute)
 }
 
-// startNFOExportRunnerWith is startNFOExportRunner with a separate repository
-// for the child write jobs, so a test can act inside their settlement.
-func startNFOExportRunnerWith(t *testing.T, f jobFixture, metadata *app.Metadata, repository app.NFOExportExecutionRepository, write app.NFOWriteExecutionRepository) func() {
+// startNFOExportRunnerRecovering is startNFOExportRunner with an explicit pace
+// for the background write recovery and cleanup pass. That pass removes the
+// retained files of finished children from the NFO directory, which the export
+// reads item by item, and a change there during a read counts the item as
+// failed after one retry. startNFOExportRunner therefore keeps the pass out of
+// the way with the longest allowed interval; only tests that need a stopped
+// write recovered while they run ask for a short one.
+func startNFOExportRunnerRecovering(t *testing.T, f jobFixture, metadata *app.Metadata, repository app.NFOExportExecutionRepository, recovery time.Duration) func() {
+	t.Helper()
+	return startNFOExportRunnerWith(t, f, metadata, repository, f.s, recovery)
+}
+
+// startNFOExportRunnerWith is startNFOExportRunnerRecovering with a separate
+// repository for the child write jobs, so a test can act inside their settlement.
+func startNFOExportRunnerWith(t *testing.T, f jobFixture, metadata *app.Metadata, repository app.NFOExportExecutionRepository, write app.NFOWriteExecutionRepository, recovery time.Duration) func() {
 	t.Helper()
 	budget, err := resources.New(resources.Limits{CPU: 1, IO: 1, Total: 1, Queue: 64})
 	if err != nil {
@@ -204,7 +216,7 @@ func startNFOExportRunnerWith(t *testing.T, f jobFixture, metadata *app.Metadata
 	}
 	opts := jobs.DefaultOptions()
 	opts.Workers, opts.PollInterval = 1, 100*time.Millisecond
-	opts.NFOWrite = &jobs.NFOWriteOptions{Repository: write, Committer: nfoWriteTestWriter(t), RecoveryInterval: 200 * time.Millisecond}
+	opts.NFOWrite = &jobs.NFOWriteOptions{Repository: write, Committer: nfoWriteTestWriter(t), RecoveryInterval: recovery}
 	opts.NFOExport = &jobs.NFOExportOptions{Worker: exporter, Repository: f.s}
 	opts.NFOApply = &jobs.NFOApplyOptions{Worker: applier, Repository: f.s}
 	runner, err := jobs.New(f.s, idleInventoryScanner{}, opts, slog.New(slog.NewTextHandler(io.Discard, nil)))
@@ -594,7 +606,9 @@ func TestNFOExportJobCancellation(t *testing.T) {
 }
 
 func TestNFOExportJobResumesAfterLeaseLoss(t *testing.T) {
-	f := newJobFixture(t)
+	// Three complete exports run back to back; a loaded machine needs more
+	// than the default budget of one.
+	f := newJobFixtureWithin(t, 5*time.Minute)
 	metadata := nfoApplyTestMetadata(t, f)
 	oracleLibrary, err := f.s.RegisterLibrary(f.ctx, "oracle", t.TempDir())
 	if err != nil {

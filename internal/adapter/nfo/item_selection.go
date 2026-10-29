@@ -223,9 +223,18 @@ func observeItemCandidates(ctx context.Context, scope domain.NFOItemScope) (valu
 	if err != nil {
 		return value, domain.ErrNFOInputUnavailable
 	}
+	// Close must not overlap ReadDir: os.File keeps its directory read state
+	// outside the descriptor lock, so a cancellation closing the handle while
+	// a page is being read is a data race. Cancellation is observed between
+	// pages, and a page is bounded.
+	var listingMu sync.Mutex
 	var closeOnce sync.Once
 	var closeErr error
-	closeListing := func() { closeOnce.Do(func() { closeErr = listing.Close() }) }
+	closeListing := func() {
+		listingMu.Lock()
+		defer listingMu.Unlock()
+		closeOnce.Do(func() { closeErr = listing.Close() })
+	}
 	cancelled := make(chan struct{})
 	stop := context.AfterFunc(ctx, func() { defer close(cancelled); closeListing() })
 	defer func() {
@@ -245,7 +254,9 @@ func observeItemCandidates(ctx context.Context, scope domain.NFOItemScope) (valu
 		if err := ctx.Err(); err != nil {
 			return value, err
 		}
+		listingMu.Lock()
 		entries, err := listing.ReadDir(256)
+		listingMu.Unlock()
 		count += len(entries)
 		if count > maxItemDirectoryEntries {
 			return value, domain.ErrNFOSourceLimit

@@ -203,9 +203,14 @@ func requireNFOMissingFiles(t *testing.T, items []nfoMissingItem, upTo string, s
 	}
 }
 
-// requireNoTokenFiles waits for the cleanup of every token name next to the NFOs.
-func requireNoTokenFiles(t *testing.T, items []nfoMissingItem) {
+// requireNoTokenFiles runs the background cleanup, once the export is over, and
+// waits for it to remove every token name next to the NFOs. The export's own
+// runner keeps that pass out of the way (it would change the directories the
+// export reads), so a second runner with a short pace does it afterwards.
+func requireNoTokenFiles(t *testing.T, f jobFixture, metadata *app.Metadata, items []nfoMissingItem) {
 	t.Helper()
+	stop := startNFOExportRunnerRecovering(t, f, metadata, f.s, 200*time.Millisecond)
+	defer stop()
 	dirs := map[string]bool{}
 	for _, it := range items {
 		dirs[filepath.Dir(it.path)] = true
@@ -240,7 +245,7 @@ func nfoMissingEntries(t *testing.T, f jobFixture, job string) int {
 }
 
 func TestNFOExportMissingCreatesOnlyAbsentNFOs(t *testing.T) {
-	f := newJobFixture(t)
+	f := newJobFixtureWithin(t, 10*time.Minute)
 	metadata := nfoApplyTestMetadata(t, f)
 	items := nfoMissingLibrary(t, f, f.registration.Library.ID, 8, 56)
 	if len(items) < 100 {
@@ -285,7 +290,7 @@ func TestNFOExportMissingCreatesOnlyAbsentNFOs(t *testing.T) {
 	}
 	requireNFOMissingFiles(t, items, "", nil)
 	requireNFOExportClean(t, f, job.ID)
-	requireNoTokenFiles(t, items)
+	requireNoTokenFiles(t, f, metadata, items)
 	var prepared int
 	if err := f.s.Pool.QueryRow(f.ctx, `SELECT count(*) FROM nfo_write_preparations`).Scan(&prepared); err != nil || prepared != 0 {
 		t.Fatal("preparations were left", prepared, err)
@@ -440,7 +445,7 @@ func TestNFOExportMissingNeverOverwritesAFileThatAppears(t *testing.T) {
 					})
 				}
 			}
-			stop := startNFOExportRunnerWith(t, f, metadata, repo, write)
+			stop := startNFOExportRunnerWith(t, f, metadata, repo, write, 10*time.Minute)
 			defer stop()
 			done := waitNFOExportJob(t, f, job.ID)
 			if done.State != domain.JobSucceeded {
@@ -465,7 +470,7 @@ func TestNFOExportMissingNeverOverwritesAFileThatAppears(t *testing.T) {
 			}
 			requireNFOMissingFiles(t, items, "", skip)
 			requireNFOExportClean(t, f, job.ID)
-			requireNoTokenFiles(t, items)
+			requireNoTokenFiles(t, f, metadata, items)
 		})
 	}
 }
@@ -601,7 +606,7 @@ func TestNFOExportMissingCancellation(t *testing.T) {
 }
 
 func TestNFOExportMissingResumesAfterLeaseLoss(t *testing.T) {
-	f := newJobFixture(t)
+	f := newJobFixtureWithin(t, 10*time.Minute)
 	metadata := nfoApplyTestMetadata(t, f)
 	oracleLibrary, err := f.s.RegisterLibrary(f.ctx, "oracle", t.TempDir())
 	if err != nil {
