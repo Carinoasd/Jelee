@@ -414,6 +414,8 @@ func leakRouteTable() map[string]leakRoute {
 		"GET /api/v1/libraries/{id}/catalog-sync/pending":                           admin(libParam),
 		"POST /api/v1/libraries/{id}/catalog-sync/pending/{entry}/accept":           admin(map[string]string{"id": "library", "entry": "opaque"}),
 		"POST /api/v1/libraries/{id}/catalog-sync/pending/{entry}/reject":           admin(map[string]string{"id": "library", "entry": "opaque"}),
+		"GET /api/v1/libraries/{id}/naming":                                         admin(libParam),
+		"PUT /api/v1/libraries/{id}/naming":                                         admin(libParam),
 		"GET /api/v1/items/{id}/identity":                                           admin(itemParam),
 		"PUT /api/v1/items/{id}/identity":                                           admin(itemParam),
 		"POST /api/v1/libraries/{id}/probe/rebuild":                                 admin(libParam),

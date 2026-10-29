@@ -32,10 +32,11 @@ func readItemIdentity(ctx context.Context, tx pgx.Tx, item string, lock bool) (d
 	var revision *int64
 	var kindLocked, parentLocked *bool
 	var scanKind *string
-	var scanSeason, scanEpisode, scanEnd, nfoSeason, nfoEpisode *int
+	var scanSeason, scanEpisode, scanEnd, scanSeasonEnd, scanAbsolute, nfoSeason, nfoEpisode *int
+	var scanAirDate, scanSpecial *string
 	query := `SELECT i.library_id::text,i.kind,COALESCE(p.parent_id::text,''),COALESCE(p.parent_kind,''),
  k.revision,k.kind_locked,k.parent_locked,k.season,k.episode,k.episode_end,k.updated_at,
- s.kind,s.season,s.episode,s.episode_end,
+ s.kind,s.season,s.episode,s.episode_end,s.season_end,s.absolute,to_char(s.air_date,'YYYY-MM-DD'),s.special,
  (SELECT CASE WHEN jsonb_typeof(f.value)='number' THEN (f.value#>>'{}')::integer END FROM item_metadata_facts f WHERE f.item_id=i.id AND f.field='seasonNumber'),
  (SELECT CASE WHEN jsonb_typeof(f.value)='number' THEN (f.value#>>'{}')::integer END FROM item_metadata_facts f WHERE f.item_id=i.id AND f.field='episodeNumber')
  FROM items i
@@ -48,7 +49,7 @@ func readItemIdentity(ctx context.Context, tx pgx.Tx, item string, lock bool) (d
 	}
 	err := tx.QueryRow(ctx, query, item).Scan(&v.LibraryID, &v.Kind, &v.ParentID, &v.ParentKind,
 		&revision, &kindLocked, &parentLocked, &c.season, &c.episode, &c.episodeTo, &c.updatedAt,
-		&scanKind, &scanSeason, &scanEpisode, &scanEnd, &nfoSeason, &nfoEpisode)
+		&scanKind, &scanSeason, &scanEpisode, &scanEnd, &scanSeasonEnd, &scanAbsolute, &scanAirDate, &scanSpecial, &nfoSeason, &nfoEpisode)
 	if err != nil {
 		return v, c, storageError(err)
 	}
@@ -62,7 +63,13 @@ func readItemIdentity(ctx context.Context, tx pgx.Tx, item string, lock bool) (d
 		v.UpdatedAt = &stamp
 	}
 	if scanKind != nil {
-		v.Scan = &domain.ItemIdentityScan{Kind: *scanKind, Season: scanSeason, Episode: scanEpisode, EpisodeEnd: scanEnd}
+		v.Scan = &domain.ItemIdentityScan{Kind: *scanKind, Season: scanSeason, Episode: scanEpisode, EpisodeEnd: scanEnd, SeasonEnd: scanSeasonEnd, Absolute: scanAbsolute}
+		if scanAirDate != nil {
+			v.Scan.AirDate = *scanAirDate
+		}
+		if scanSpecial != nil {
+			v.Scan.Special = *scanSpecial
+		}
 	}
 	v.SeasonSource, v.EpisodeSource = domain.ItemIdentitySourceNone, domain.ItemIdentitySourceNone
 	switch {
@@ -239,9 +246,10 @@ func changeItemKind(ctx context.Context, tx pgx.Tx, item, library, from, to stri
 	// the kind and write it back with the same grouping key.
 	var digest []byte
 	var version, title string
-	var year, season, episode, episodeEnd *int
+	var year, season, episode, episodeEnd, seasonEnd, absolute *int
+	var airDate, special *string
 	if scanned {
-		if err := tx.QueryRow(ctx, `DELETE FROM catalog_scan_items WHERE item_id=$1::uuid RETURNING group_digest,parser_version,scan_title,year,season,episode,episode_end`, item).Scan(&digest, &version, &title, &year, &season, &episode, &episodeEnd); err != nil {
+		if err := tx.QueryRow(ctx, `DELETE FROM catalog_scan_items WHERE item_id=$1::uuid RETURNING group_digest,parser_version,scan_title,year,season,episode,episode_end,season_end,absolute,to_char(air_date,'YYYY-MM-DD'),special`, item).Scan(&digest, &version, &title, &year, &season, &episode, &episodeEnd, &seasonEnd, &absolute, &airDate, &special); err != nil {
 			return storageError(err)
 		}
 	}
@@ -251,7 +259,7 @@ func changeItemKind(ctx context.Context, tx pgx.Tx, item, library, from, to stri
 	if !scanned {
 		return nil
 	}
-	_, err := tx.Exec(ctx, `INSERT INTO catalog_scan_items(item_id,library_id,kind,group_digest,parser_version,scan_title,year,season,episode,episode_end) VALUES($1::uuid,$2::uuid,$3,$4,$5,$6,$7,$8,$9,$10)`, item, library, to, digest, version, title, year, season, episode, episodeEnd)
+	_, err := tx.Exec(ctx, `INSERT INTO catalog_scan_items(item_id,library_id,kind,group_digest,parser_version,scan_title,year,season,episode,episode_end,season_end,absolute,air_date,special) VALUES($1::uuid,$2::uuid,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13::date,$14)`, item, library, to, digest, version, title, year, season, episode, episodeEnd, seasonEnd, absolute, airDate, special)
 	return storageError(err)
 }
 
@@ -342,7 +350,12 @@ func (s *Store) AcceptCatalogPending(ctx context.Context, actor domain.Actor, li
 	if err != nil {
 		return domain.CatalogPendingAcceptance{}, storageError(err)
 	}
-	w := catalogWriter{tx: savepoint, library: library, snapshot: b.snapshot, now: now, events: s.webhooksOn()}
+	naming, err := readCatalogNaming(ctx, savepoint, library)
+	if err != nil {
+		_ = savepoint.Rollback(ctx)
+		return domain.CatalogPendingAcceptance{}, err
+	}
+	w := catalogWriter{tx: savepoint, library: library, snapshot: b.snapshot, now: now, events: s.webhooksOn(), naming: naming, version: domain.CatalogSyncParserVersionFor(naming)}
 	source, err := w.create(ctx, syncCandidate{root: e.RootID, path: e.Path, size: size, modified: modified}, plan)
 	if err != nil {
 		_ = savepoint.Rollback(ctx)

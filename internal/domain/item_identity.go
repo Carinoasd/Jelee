@@ -32,6 +32,15 @@ type ItemIdentityScan struct {
 	Season     *int   `json:"season,omitempty"`
 	Episode    *int   `json:"episode,omitempty"`
 	EpisodeEnd *int   `json:"episodeEnd,omitempty"`
+	// SeasonEnd is the last season of a cross-season file; EpisodeEnd then
+	// numbers the episode in that season (G21.3).
+	SeasonEnd *int `json:"seasonEnd,omitempty"`
+	// Absolute is the absolute number of an episode an absolute-numbered
+	// library filed under season 1; AirDate (YYYY-MM-DD) the date of a daily
+	// episode; Special the Season 0 or theatrical classification.
+	Absolute *int   `json:"absolute,omitempty"`
+	AirDate  string `json:"airDate,omitempty"`
+	Special  string `json:"special,omitempty"`
 }
 
 // ItemIdentity is the effective identification of an item and its locks.
@@ -161,6 +170,7 @@ func CloneItemIdentity(v ItemIdentity) ItemIdentity {
 	if v.Scan != nil {
 		s := *v.Scan
 		s.Season, s.Episode, s.EpisodeEnd = cloneInt(s.Season), cloneInt(s.Episode), cloneInt(s.EpisodeEnd)
+		s.SeasonEnd, s.Absolute = cloneInt(s.SeasonEnd), cloneInt(s.Absolute)
 		v.Scan = &s
 	}
 	if v.UpdatedAt != nil {

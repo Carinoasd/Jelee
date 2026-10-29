@@ -306,8 +306,8 @@ func (s *Store) SplitVersion(ctx context.Context, actor domain.Actor, itemID str
 	}
 	if tracked && (item.kind == "Movie" || item.kind == "Episode") {
 		digest := domain.CatalogGroupDigest(item.kind+"-file", root, relative)
-		tag, err := tx.Exec(ctx, `INSERT INTO catalog_scan_items(item_id,library_id,kind,group_digest,parser_version,scan_title,year,season,episode,episode_end)
- SELECT $1::uuid,$2::uuid,$3,$4,$5,$6,c.year,c.season,c.episode,c.episode_end FROM (SELECT 1) one LEFT JOIN catalog_scan_items c ON c.item_id=$7::uuid
+		tag, err := tx.Exec(ctx, `INSERT INTO catalog_scan_items(item_id,library_id,kind,group_digest,parser_version,scan_title,year,season,episode,episode_end,season_end,absolute,air_date,special)
+ SELECT $1::uuid,$2::uuid,$3,$4,$5,$6,c.year,c.season,c.episode,c.episode_end,c.season_end,c.absolute,c.air_date,c.special FROM (SELECT 1) one LEFT JOIN catalog_scan_items c ON c.item_id=$7::uuid
  WHERE NOT EXISTS(SELECT 1 FROM catalog_scan_items WHERE library_id=$2::uuid AND kind=$3 AND group_digest=$4)
  AND NOT EXISTS(SELECT 1 FROM catalog_scan_item_aliases WHERE library_id=$2::uuid AND kind=$3 AND group_digest=$4)`,
 			created, item.library, item.kind, digest, domain.CatalogSyncParserVersion, truncateScanTitle(title), item.id)

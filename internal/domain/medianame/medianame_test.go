@@ -204,8 +204,13 @@ func FuzzParsePath(f *testing.F) {
 				t.Fatal("evidence text unbounded")
 			}
 		}
-		if p.HasEpisode && (p.EpisodeEnd < p.Episode || p.Episode < 0 || p.EpisodeEnd > 9999) {
+		// Inside one season a range never decreases; a cross-season range
+		// ends in a later season with any episode number there.
+		if p.HasEpisode && (p.SeasonEnd == 0 && p.EpisodeEnd < p.Episode || p.Episode < 0 || p.EpisodeEnd < 0 || p.EpisodeEnd > 9999) {
 			t.Fatalf("bad episode range %d-%d", p.Episode, p.EpisodeEnd)
+		}
+		if p.SeasonEnd != 0 && (!p.HasSeason || !p.HasEpisode || p.SeasonEnd <= p.Season || p.SeasonEnd > 9999) {
+			t.Fatalf("bad season range %d-%d", p.Season, p.SeasonEnd)
 		}
 		if !p.HasEpisode && (p.Episode != 0 || p.EpisodeEnd != 0 || p.Absolute != 0) {
 			t.Fatal("episode fields without episode")
@@ -221,6 +226,16 @@ func FuzzParsePath(f *testing.F) {
 		}
 		if p.Kind == KindUnknown && p.Confidence > ConfidenceLow || p.Conflict && p.Confidence > ConfidenceMedium {
 			t.Fatal("confidence exceeds evidence")
+		}
+		// Absolute numbering only raises the confidence of an absolute
+		// episode; every other field stays identical.
+		q := ParsePath(path, Options{DateEpisodes: dates, AbsoluteEpisodes: true})
+		if q.Confidence != p.Confidence && (p.Absolute == 0 || q.Confidence != ConfidenceHigh) {
+			t.Fatalf("absolute option changed confidence %s -> %s", p.Confidence, q.Confidence)
+		}
+		q.Confidence = p.Confidence
+		if !reflect.DeepEqual(p, q) {
+			t.Fatal("absolute option changed more than confidence")
 		}
 	})
 }

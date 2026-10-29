@@ -51,7 +51,11 @@ func jobSpecification(paths, schemas map[string]any) {
 		"parentId": uuid, "parentKind": itemKind, "parentLocked": map[string]any{"type": "boolean"},
 		"season": ordinal, "seasonSource": identitySource, "seasonLocked": map[string]any{"type": "boolean"},
 		"episode": ordinal, "episodeEnd": ordinal, "episodeSource": identitySource, "episodeLocked": map[string]any{"type": "boolean"},
-		"scan":      objectSchema(map[string]any{"kind": itemKind, "season": ordinal, "episode": ordinal, "episodeEnd": ordinal}, "kind"),
+		"scan": objectSchema(map[string]any{"kind": itemKind, "season": ordinal, "episode": ordinal, "episodeEnd": ordinal,
+			"seasonEnd": map[string]any{"type": "integer", "minimum": 1, "maximum": 100000, "description": "Last season of a cross-season file; episodeEnd numbers the episode in that season (G21.3)."},
+			"absolute":  map[string]any{"type": "integer", "minimum": 1, "maximum": 100000, "description": "Absolute episode number an absolute-numbered library filed under season 1."},
+			"airDate":   map[string]any{"type": "string", "format": "date", "description": "Air date of a daily episode."},
+			"special":   map[string]any{"type": "string", "enum": []string{"season", "sp", "ova", "oad", "extra", "theatrical"}, "description": "Season 0 classification of an episode, theatrical for a theatrical movie."}}, "kind"),
 		"updatedAt": map[string]any{"type": []string{"string", "null"}, "format": "date-time"}},
 		"itemId", "libraryId", "revision", "kind", "kindLocked", "parentLocked", "seasonSource", "seasonLocked", "episodeSource", "episodeLocked", "updatedAt")
 	identityValue := map[string]any{"description": "kind: Movie, Episode or HomeVideo; parent: item UUID or null for none; season and episode: 0..100000. A value is always locked.",
