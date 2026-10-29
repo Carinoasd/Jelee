@@ -1,6 +1,6 @@
 # 存储布局
 
-本文以当前代码为准（主体于 schema 000069 时整理，2026-10-04；2026-10-30 已把迁移 070–108 新增的表补进下面的迁移表，当前 `SchemaVersion` 为 108，其中 107 保留给另一分支；逐表细节见各功能文档与[领域模型](domain-model.md)），列出 Jelee 在本机会读写的全部资产：每一项写明由谁建立、由谁清理、能否删除后重建。G09.1 要求媒体、字幕、音轨、NFO、图片、封面、章节、探测缓存都位于本地卷；本文是这份目录结构的定义。
+本文以当前代码为准（主体于 schema 000069 时整理，2026-10-04；2026-10-30 已把迁移 070–108 新增的表补进下面的迁移表，当前 `SchemaVersion` 为 108；逐表细节见各功能文档与[领域模型](domain-model.md)），列出 Jelee 在本机会读写的全部资产：每一项写明由谁建立、由谁清理、能否删除后重建。G09.1 要求媒体、字幕、音轨、NFO、图片、封面、章节、探测缓存都位于本地卷；本文是这份目录结构的定义。
 
 总原则：
 
@@ -96,7 +96,7 @@
 | 104 | 无新表：版本聚合栏位 `catalog_sync_requests.versions_cursor`／`aggregated`、`catalog_scan_items.grouping_evidence`／`grouping_reason`、`item_version_operations.automatic`；见[目录同步](catalog-sync.md) |
 | 105 | 维护任务：`subtitle_cache_cleanup_job_state`、`backup_reminder_job_state`、`external_metadata_removal_job_state`；不导出：任务进度；见[维护任务](maintenance-jobs.md) |
 | 106 | 多分片版本：`media_source_parts`（同步时建立，来源删除时清除；不导出：可重建的衍生状态），`catalog_scan_sources.part_reason`、`catalog_sync_requests.parts_cursor`／`parts_done`；见[多版本](item-versions.md#多分片版本g211schema-106) |
-| 107 | 保留给另一分支，本分支没有此编号 |
+| 107 | 通用任务排程：`job_schedules`（管理员建立与删除；媒体库删除时级联清除；无窗口、非 `once` 的扫描排程随 `scan_schedule` 记录导出，带窗口或 `once` 的扫描排程与其他种类不导出（还原后需重新设定）），`scan_schedules` 只保留扫描选项、监看与拥有者；`jobs.system_source`（系统身份任务的来源）；见[任务排程](job-schedules.md) |
 | 108 | 无新表：`tool_versions.platform` 的 CHECK 放宽为 `linux-amd64`／`windows-amd64`（ffprobe 的 Windows 探测身份，见 [ADR 0011](adr/0011-windows-media-tool-confinement.md)）；降级时若有非 Linux 的身份列会被拒绝；`tool_versions` 仍不导出（可重建的衍生状态） |
 
 数据量上限、回收与降级的细节分别写在 [探测缓存](probe-cache.md)、[NFO 缓存](nfo-cache.md)、[任务](jobs-worker.md)、[ignore 存储](ignore-family-storage.md)、[NFO commit 恢复租约](nfo-commit-recovery-lease.md)。回滚说明在各迁移对应的文档里；降级会丢失该迁移之后的状态，但不会改动媒体目录。
