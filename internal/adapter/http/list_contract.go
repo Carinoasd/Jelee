@@ -161,6 +161,7 @@ var listExemptions = map[string]string{
 	"/api/v1/items/{id}/images":                                             "image rows of one item (administrators), part of the item resource and bounded by its image slots with at most five sources each",
 	"/api/v1/items/{id}/playback":                                           "playback information of one item: its sources with tracks, part of the item resource",
 	"/api/v1/watch-stats/export":                                            "NDJSON or CSV export download; limit only lowers the export row cap (stats.exportMaxRows)",
+	"/api/v1/schedules":                                                     "job schedules (G13.1): at most one per kind and library or server, so bounded by the library count; read whole by the schedule page",
 }
 
 // listRequest is a parsed list query.

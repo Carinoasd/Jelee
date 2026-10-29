@@ -15,6 +15,22 @@ var (
 	_ app.ImageRefreshExecutionRepository = (*Store)(nil)
 )
 
+// insertImageRefreshJob creates the job, with the library's candidate count
+// as its progress total, and its progress row together.
+func insertImageRefreshJob(ctx context.Context, tx pgx.Tx, library string, actor *string, key, priority string, policy domain.JobPolicy) (domain.Job, error) {
+	job, err := scanJob(tx.QueryRow(ctx, `INSERT INTO jobs(library_id,actor_id,idempotency_key,kind,priority,queue_limit,history_limit,max_entries,max_directories,max_attempts,missing_count_limit,missing_percent_limit,progress_total,progress_total_at) VALUES($1::uuid,$2::uuid,$3,'image_refresh',$4,$5,$6,$7,$8,$9,$10,$11,
+ (SELECT count(*) FROM item_images g WHERE g.library_id=$1::uuid AND `+imageRefreshCandidate+`),clock_timestamp()) RETURNING `+jobColumns,
+		library, actor, key, priority, policy.QueueLimit, policy.HistoryLimit, policy.MaxEntries, policy.MaxDirectories, policy.MaxAttempts, policy.MissingCountLimit, policy.MissingPercentLimit))
+	if err != nil {
+		return domain.Job{}, err
+	}
+	tracing.Remember(ctx, tracing.LinkJob, job.ID)
+	if _, err = tx.Exec(ctx, `INSERT INTO image_refresh_job_state(job_id,library_id,updated_at) VALUES($1::uuid,$2::uuid,clock_timestamp())`, job.ID, library); err != nil {
+		return domain.Job{}, storageError(err)
+	}
+	return job, nil
+}
+
 // SubmitImageRefreshJob admits an image refresh of one library, which must
 // have no active job. Replay of the same key, library and priority returns
 // the first job. Its progress total is the candidate count at admission.
@@ -47,15 +63,9 @@ func (s *Store) SubmitImageRefreshJob(ctx context.Context, actor domain.Actor, l
 	if err = libraryAdmission(ctx, tx, library, policy); err != nil {
 		return domain.Job{}, false, err
 	}
-	job, err := scanJob(tx.QueryRow(ctx, `INSERT INTO jobs(library_id,actor_id,idempotency_key,kind,priority,queue_limit,history_limit,max_entries,max_directories,max_attempts,missing_count_limit,missing_percent_limit,progress_total,progress_total_at) VALUES($1::uuid,$2::uuid,$3,'image_refresh',$4,$5,$6,$7,$8,$9,$10,$11,
- (SELECT count(*) FROM item_images g WHERE g.library_id=$1::uuid AND `+imageRefreshCandidate+`),clock_timestamp()) RETURNING `+jobColumns,
-		library, actor.UserID, key, priority, policy.QueueLimit, policy.HistoryLimit, policy.MaxEntries, policy.MaxDirectories, policy.MaxAttempts, policy.MissingCountLimit, policy.MissingPercentLimit))
+	job, err := insertImageRefreshJob(ctx, tx, library, &actor.UserID, key, priority, policy)
 	if err != nil {
 		return domain.Job{}, false, err
-	}
-	tracing.Remember(ctx, tracing.LinkJob, job.ID)
-	if _, err = tx.Exec(ctx, `INSERT INTO image_refresh_job_state(job_id,library_id,updated_at) VALUES($1::uuid,$2::uuid,clock_timestamp())`, job.ID, library); err != nil {
-		return domain.Job{}, false, storageError(err)
 	}
 	if err = trimJobs(ctx, tx, policy.HistoryLimit); err != nil {
 		return domain.Job{}, false, err

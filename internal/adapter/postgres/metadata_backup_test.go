@@ -146,8 +146,10 @@ func seedMetadataBackup(t testing.TB, ctx context.Context, s *Store, episodes in
 		{"webhook", `INSERT INTO webhooks(id,name,url,events,header_names,headers_sealed,timeout_ms,max_attempts,base_delay_ms,max_delay_ms,jitter,secret_sealed,previous_secret_sealed,previous_until,created_at,updated_at)
  VALUES ('` + bkWebhook + `','notify','https://hooks.example/jelee',ARRAY['media.added','playback.started'],ARRAY['X-Token'],decode(repeat('a1',40),'hex'),5000,5,2000,60000,0.25,
  decode(repeat('b2',48),'hex'),decode(repeat('c3',48),'hex'),'2026-10-10T00:00:00Z','2026-09-08T00:00:00Z','2026-09-09T00:00:00Z')`},
-		{"schedule", `INSERT INTO scan_schedules(library_id,owner_id,revision,enabled,mode,interval_seconds,cron,timezone,probe,nfo,ignore_mode,ignore_case,next_due,watch_enabled)
- VALUES ('` + bkLibMovies + `','` + bkAdmin + `',4,true,'interval',3600,'','Asia/Tokyo',true,false,'jeleeignore','sensitive','2026-10-05T00:00:00Z',true)`},
+		{"schedule", `INSERT INTO scan_schedules(library_id,owner_id,revision,probe,nfo,ignore_mode,ignore_case,watch_enabled)
+ VALUES ('` + bkLibMovies + `','` + bkAdmin + `',4,true,false,'jeleeignore','sensitive',true)`},
+		{"timed schedule", `INSERT INTO job_schedules(kind,library_id,revision,enabled,mode,interval_seconds,cron,timezone,params,next_due)
+ VALUES ('inventory_scan','` + bkLibMovies + `',4,true,'interval',3600,'','Asia/Tokyo','{"probe":true,"nfo":false,"ignore":{"mode":"jeleeignore","caseMode":"sensitive"}}','2026-10-05T00:00:00Z')`},
 		{"watch", `INSERT INTO scan_watch_state(library_id) VALUES ('` + bkLibMovies + `')`},
 		// Collections, playlists and preferences (format version 2).
 		{"collections", `INSERT INTO collections(id,name,overview,nfo_name,created_by,created_at,updated_at) VALUES

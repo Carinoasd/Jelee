@@ -154,6 +154,8 @@ var auditEvents = map[string]string{
 	"playback.history_cleared":             domain.AuditCategoryAudit,
 	"probe.item_invalidated":               domain.AuditCategoryAudit,
 	"probe.library_invalidated":            domain.AuditCategoryAudit,
+	"schedule.created":                     domain.AuditCategoryAudit,
+	"schedule.deleted":                     domain.AuditCategoryAudit,
 	"schedule.updated":                     domain.AuditCategoryAudit,
 	"session.created":                      domain.AuditCategoryAudit,
 	"setup.admin_created":                  domain.AuditCategoryAudit,
@@ -343,6 +345,11 @@ func appendAudit(ctx context.Context, tx auditExecer, e AuditEntry) error {
 	request := ""
 	if validAuditRequestID(e.RequestID) {
 		request = e.RequestID
+	}
+	// The system actor has no actor_id; its source ("system:schedule:<id>"
+	// or "system:catalog_sync:<job>") is the row's request ID.
+	if e.Actor.IsSystem() {
+		request = e.Actor.System
 	}
 	// Columns added with the append-only schema are named only when they carry
 	// a non-default value, so an ordinary entry is the same statement the

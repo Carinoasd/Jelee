@@ -22,10 +22,15 @@ var (
 
 // Actor contains identity verified by HTTP authentication. Stores recheck the
 // live session and current user role inside every account transaction.
+//
+// System is set only on the system actor (see SystemActor): work started by
+// a persisted schedule or queued automatically after another job. HTTP never
+// builds it and it has no JSON form.
 type Actor struct {
 	UserID    string
 	SessionID string
 	IP        string
+	System    string `json:"-"`
 }
 
 type User struct {

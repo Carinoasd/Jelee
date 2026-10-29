@@ -33,6 +33,7 @@ func (s *Server) jobRoutes(router chi.Router) {
 		s.imageRefreshRoutes(r)
 		s.metadataRefreshRoutes(r)
 		s.maintenanceRoutes(r)
+		s.scheduleRoutes(r)
 		if s.cfg.EnableAccounts {
 			s.repairRoutes(r)
 		}

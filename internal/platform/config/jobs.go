@@ -38,7 +38,9 @@ type JobsConfig struct {
 	ConsistencyWatchSample int `json:"consistencyWatchSample"`
 	// BackupReminderDays queues a background backup check once a day that
 	// reminds when the last metadata export is older than this many days
-	// (G13.6); zero, the default, disables the schedule.
+	// (G13.6); zero, the default, disables the schedule. It is also the
+	// threshold of a backup_reminder job schedule without its own; such a
+	// schedule (G13.1) can replace this setting.
 	BackupReminderDays int `json:"backupReminderDays"`
 }
 

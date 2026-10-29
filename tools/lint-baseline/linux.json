@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "goos": "linux",
-  "total": 2038,
+  "total": 2037,
   "entries": [
     {
       "linter": "errcheck",
@@ -4181,13 +4181,6 @@
       "text": "Error return value of `log.Close` is not checked",
       "source": "9f063972f2bb",
       "count": 4
-    },
-    {
-      "linter": "revive",
-      "file": "internal/adapter/postgres/schedules.go",
-      "text": "exported: comment on exported method Store.DispatchScanSchedule should be of the form \"DispatchScanSchedule ...\"",
-      "source": "04bb897a0258",
-      "count": 1
     },
     {
       "linter": "revive",

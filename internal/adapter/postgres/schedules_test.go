@@ -15,12 +15,12 @@ func scheduleInput() domain.ScanScheduleInput {
 }
 func dueSchedule(t *testing.T, f jobFixture) {
 	t.Helper()
-	if _, err := f.s.Pool.Exec(f.ctx, `UPDATE scan_schedules SET next_due=clock_timestamp()-interval '7 days',retry_after=NULL`); err != nil {
+	if _, err := f.s.Pool.Exec(f.ctx, `UPDATE job_schedules SET next_due=clock_timestamp()-interval '7 days',retry_after=NULL WHERE enabled`); err != nil {
 		t.Fatal(err)
 	}
 }
 func dispatchSchedule(f jobFixture) (bool, error) {
-	return f.s.DispatchScanSchedule(f.ctx, f.policy, calendar.Calendar{}, nil, nil, app.IgnoreAdmissionCapabilities{})
+	return f.s.DispatchJobSchedule(f.ctx, f.policy, calendar.Calendar{}, app.ScheduleCapabilities{})
 }
 
 func TestScheduleCompetingDispatchersAndRestart(t *testing.T) {
@@ -111,6 +111,11 @@ func TestScheduleAuthorityRevisionAndDisable(t *testing.T) {
 	if _, err = f.s.GetScanSchedule(f.ctx, f.a, v.LibraryID); !errors.Is(err, domain.ErrUnauthenticated) {
 		t.Fatal("revoked session read", err)
 	}
+	// Since schema 107 a schedule runs as the system actor: the account that
+	// saved it may be disabled without stopping it.
+	if _, err = f.s.Pool.Exec(f.ctx, `UPDATE jobs SET state='succeeded',finished_at=clock_timestamp(),owner=NULL,lease_until=NULL WHERE state IN ('queued','running')`); err != nil {
+		t.Fatal(err)
+	}
 	dueSchedule(t, f)
 	if _, err = f.s.Pool.Exec(f.ctx, `UPDATE users SET disabled=true WHERE id=$1::uuid`, f.a.UserID); err != nil {
 		t.Fatal(err)
@@ -119,9 +124,9 @@ func TestScheduleAuthorityRevisionAndDisable(t *testing.T) {
 		t.Fatal("disabled owner dispatch", worked, err)
 	}
 	var enabled bool
-	var code string
-	if err = f.s.Pool.QueryRow(f.ctx, `SELECT enabled,last_error FROM scan_schedules`).Scan(&enabled, &code); err != nil || enabled || code != "owner_unavailable" {
-		t.Fatal("owner remained enabled", enabled, code, err)
+	var code, source string
+	if err = f.s.Pool.QueryRow(f.ctx, `SELECT j.enabled,j.last_error,COALESCE(b.system_source,'') FROM job_schedules j JOIN jobs b ON b.id=j.last_job_id`).Scan(&enabled, &code, &source); err != nil || !enabled || code != "" || source == "" {
+		t.Fatal("system schedule stopped with its owner", enabled, code, source, err)
 	}
 }
 
@@ -147,7 +152,7 @@ func TestScheduleAdmissionFailureAndTransactionRollback(t *testing.T) {
 		t.Fatal(err)
 	}
 	dueSchedule(t, f)
-	_, err = f.s.Pool.Exec(f.ctx, `CREATE FUNCTION fail_schedule_checkpoint() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF NEW.last_job_id IS NOT NULL THEN RAISE EXCEPTION 'fixture checkpoint failure'; END IF; RETURN NEW; END $$; CREATE TRIGGER fail_schedule_checkpoint BEFORE UPDATE ON scan_schedules FOR EACH ROW EXECUTE FUNCTION fail_schedule_checkpoint()`)
+	_, err = f.s.Pool.Exec(f.ctx, `CREATE FUNCTION fail_schedule_checkpoint() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF NEW.last_job_id IS NOT NULL THEN RAISE EXCEPTION 'fixture checkpoint failure'; END IF; RETURN NEW; END $$; CREATE TRIGGER fail_schedule_checkpoint BEFORE UPDATE ON job_schedules FOR EACH ROW EXECUTE FUNCTION fail_schedule_checkpoint()`)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -157,7 +162,7 @@ func TestScheduleAdmissionFailureAndTransactionRollback(t *testing.T) {
 	if err = f.s.Pool.QueryRow(f.ctx, `SELECT count(*) FROM jobs`).Scan(&count); err != nil || count != 0 {
 		t.Fatal("job survived failed due checkpoint", count, err)
 	}
-	if _, err = f.s.Pool.Exec(f.ctx, `DROP TRIGGER fail_schedule_checkpoint ON scan_schedules`); err != nil {
+	if _, err = f.s.Pool.Exec(f.ctx, `DROP TRIGGER fail_schedule_checkpoint ON job_schedules`); err != nil {
 		t.Fatal(err)
 	}
 	if worked, err := dispatchSchedule(f); err != nil || !worked {

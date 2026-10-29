@@ -188,7 +188,7 @@ func (s *Store) DispatchWatch(parent context.Context, v domain.WatchLease, p dom
 	if dirty == accepted || !ready {
 		return false, nil
 	}
-	definition, err := readSchedule(tx.QueryRow(ctx, `SELECT `+scheduleColumns+` FROM scan_schedules WHERE library_id=$1::uuid`, v.LibraryID))
+	definition, err := readSchedule(tx.QueryRow(ctx, scanScheduleSelect+` WHERE s.library_id=$1::uuid`, v.LibraryID))
 	if err != nil {
 		return false, err
 	}

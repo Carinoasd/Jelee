@@ -99,7 +99,7 @@ func (s *Store) jobTransaction(ctx context.Context) (pgx.Tx, error) {
 	return tx, nil
 }
 func (s *Store) authorizedJobs(ctx context.Context, a domain.Actor) (pgx.Tx, error) {
-	if !domain.ValidID(a.UserID) || !domain.ValidID(a.SessionID) {
+	if !actorPresent(a) {
 		return nil, domain.ErrUnauthenticated
 	}
 	tx, err := s.accountTransaction(ctx)

@@ -32,6 +32,9 @@ func requestMatchesPhase(r *domain.ProbeRequest, p domain.ProbePhase) bool {
 	return r.JobID == p.JobID && r.LibraryID == p.LibraryID && requestPhaseStart(r) == p.Start && r.LibraryGeneration == p.LibraryGeneration && r.TargetItemGeneration == p.TargetItemGeneration
 }
 func probeAdminStillLive(ctx context.Context, tx pgx.Tx, a domain.Actor) error {
+	if a.IsSystem() {
+		return nil
+	}
 	var live bool
 	if err := tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM users u JOIN sessions s ON s.user_id=u.id WHERE u.id=$1::uuid AND s.id=$2::uuid AND u.is_admin AND NOT u.disabled AND u.deleted_at IS NULL AND s.revoked_at IS NULL AND s.expires_at>clock_timestamp())`, a.UserID, a.SessionID).Scan(&live); err != nil {
 		return storageError(err)
@@ -113,7 +116,8 @@ func (s *Store) submitScanInTransaction(ctx context.Context, tx pgx.Tx, a domain
 		}
 		libraryID = resolved
 	}
-	old, err := scanJob(tx.QueryRow(ctx, `SELECT `+jobColumns+` FROM jobs WHERE actor_id=$1::uuid AND idempotency_key=$2`, a.UserID, key))
+	// The system actor has no user; its jobs never replay by key.
+	old, err := scanJob(tx.QueryRow(ctx, `SELECT `+jobColumns+` FROM jobs WHERE actor_id=NULLIF($1,'')::uuid AND idempotency_key=$2`, a.UserID, key))
 	if err == nil {
 		if old.Kind != "inventory_scan" {
 			return domain.Job{}, false, domain.ErrConflict
@@ -284,7 +288,7 @@ func (s *Store) submitScanInTransaction(ctx context.Context, tx pgx.Tx, a domain
 			}
 		}
 	}
-	j, err := scanJob(tx.QueryRow(ctx, `INSERT INTO jobs(library_id,actor_id,idempotency_key,parent_id,priority,directory_total,queue_limit,history_limit,max_entries,max_directories,max_attempts,missing_count_limit,missing_percent_limit,inventory_generation,ignore_requested) VALUES($1::uuid,$2::uuid,$3,NULLIF($4,'')::uuid,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15) RETURNING `+jobColumns, libraryID, a.UserID, key, parent, priority, roots, p.QueueLimit, p.HistoryLimit, p.MaxEntries, p.MaxDirectories, p.MaxAttempts, p.MissingCountLimit, p.MissingPercentLimit, inventoryGeneration, ignoreIntent.Mode != ""))
+	j, err := scanJob(tx.QueryRow(ctx, `INSERT INTO jobs(library_id,actor_id,idempotency_key,parent_id,priority,directory_total,queue_limit,history_limit,max_entries,max_directories,max_attempts,missing_count_limit,missing_percent_limit,inventory_generation,ignore_requested) VALUES($1::uuid,NULLIF($2,'')::uuid,$3,NULLIF($4,'')::uuid,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15) RETURNING `+jobColumns, libraryID, a.UserID, key, parent, priority, roots, p.QueueLimit, p.HistoryLimit, p.MaxEntries, p.MaxDirectories, p.MaxAttempts, p.MissingCountLimit, p.MissingPercentLimit, inventoryGeneration, ignoreIntent.Mode != ""))
 	if err != nil {
 		return domain.Job{}, false, err
 	}

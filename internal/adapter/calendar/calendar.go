@@ -13,7 +13,7 @@ type Calendar struct{}
 // Next resolves the explicit IANA zone, using embedded data if host data is
 // absent. Parser errors map to a static domain error, never echoed to clients.
 func (Calendar) Next(v domain.ScheduleTiming, after time.Time) (time.Time, error) {
-	if after.IsZero() || after.Year() < 1970 || after.Year() > 9990 || len(v.Timezone) < 1 || len(v.Timezone) > 128 || v.Timezone == "Local" || strings.ContainsAny(v.Timezone, " \t\r\n\\") {
+	if v.RunAt != nil || after.IsZero() || after.Year() < 1970 || after.Year() > 9990 || len(v.Timezone) < 1 || len(v.Timezone) > 128 || v.Timezone == "Local" || strings.ContainsAny(v.Timezone, " \t\r\n\\") {
 		return time.Time{}, domain.ErrInvalid
 	}
 	zone, err := time.LoadLocation(v.Timezone)
