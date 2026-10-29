@@ -3964,6 +3964,77 @@
         ],
         "type": "object"
       },
+      "ImageRefreshJobState": {
+        "additionalProperties": false,
+        "description": "Committed counters of an image refresh; every fetch is checkpointed. fetched stored content for a row, failed recorded a fetch failure (reason and retry time are kept per row, never the URL), deferred were still waiting for the retry time of an earlier failure of the same URL, skipped changed while they were fetched (locked, manual, another URL, content present or deleted) and were left alone.",
+        "properties": {
+          "cursorImageId": {
+            "description": "The last image row the job finished with; null before the first checkpoint. Rows are visited in ascending ID order and a resumed job continues after it.",
+            "oneOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "deferred": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "failed": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "fetched": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "jobId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "libraryId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "skipped": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "jobId",
+          "libraryId",
+          "cursorImageId",
+          "fetched",
+          "failed",
+          "deferred",
+          "skipped",
+          "updatedAt"
+        ],
+        "type": "object"
+      },
+      "ImageRefreshRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "priority": {
+            "default": "manual",
+            "enum": [
+              "manual",
+              "background"
+            ],
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
       "InventoryEntry": {
         "additionalProperties": false,
         "properties": {
@@ -5084,7 +5155,8 @@
               "catalog_sync",
               "consistency_check",
               "nfo_apply",
-              "nfo_export"
+              "nfo_export",
+              "image_refresh"
             ],
             "type": "string"
           },
@@ -31339,6 +31411,218 @@
         "x-jelee-role": "administrator"
       }
     },
+    "/api/v1/jobs/{id}/image-refresh": {
+      "get": {
+        "description": "Every request, including retained replay, checks live administrator authorization. Internal reader identities, absolute roots, hashes and original XML are never accepted as request parameters.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ImageRefreshJobState"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful result. Retained mutations may include Idempotency-Replayed: true."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "invalid_request": {
+                    "$ref": "#/components/examples/error_invalid_request"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 400"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "authentication_required": {
+                    "$ref": "#/components/examples/error_authentication_required"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 401"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "forbidden": {
+                    "$ref": "#/components/examples/error_forbidden"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 403"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "not_found": {
+                    "$ref": "#/components/examples/error_not_found"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 404"
+          },
+          "408": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "request_timeout": {
+                    "$ref": "#/components/examples/error_request_timeout"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 408"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "conflict": {
+                    "$ref": "#/components/examples/error_conflict"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 409"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "body_too_large": {
+                    "$ref": "#/components/examples/error_body_too_large"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 413"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "unsupported_media_type": {
+                    "$ref": "#/components/examples/error_unsupported_media_type"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 415"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "auth_rate_limited": {
+                    "$ref": "#/components/examples/error_auth_rate_limited"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 429"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "not_ready": {
+                    "$ref": "#/components/examples/error_not_ready"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 503"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "internal_error": {
+                    "$ref": "#/components/examples/error_internal_error"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Jelee error envelope with code, message, details and traceId; see the Error schema."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "webSession": []
+          }
+        ],
+        "summary": "Read the cursor and counters of an image refresh; 404 for other job kinds",
+        "x-jelee-role": "administrator"
+      }
+    },
     "/api/v1/jobs/{id}/images": {
       "get": {
         "description": "Every request, including retained replay, checks live administrator authorization. Internal reader identities, absolute roots, hashes and original XML are never accepted as request parameters.",
@@ -34367,6 +34651,257 @@
             "id"
           ]
         },
+        "x-jelee-role": "administrator"
+      }
+    },
+    "/api/v1/libraries/{id}/images/refresh": {
+      "post": {
+        "description": "Every request, including retained replay, checks live administrator authorization. Internal reader identities, absolute roots, hashes and original XML are never accepted as request parameters.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "pattern": "^[!-~]{1,128}$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ImageRefreshRequest"
+              }
+            }
+          },
+          "description": "One strict JSON object, at most 64 KiB.",
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/Job"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful result. Retained mutations may include Idempotency-Replayed: true."
+          },
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/Job"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful result. Retained mutations may include Idempotency-Replayed: true."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "invalid_request": {
+                    "$ref": "#/components/examples/error_invalid_request"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 400"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "authentication_required": {
+                    "$ref": "#/components/examples/error_authentication_required"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 401"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "forbidden": {
+                    "$ref": "#/components/examples/error_forbidden"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 403"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "not_found": {
+                    "$ref": "#/components/examples/error_not_found"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 404"
+          },
+          "408": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "request_timeout": {
+                    "$ref": "#/components/examples/error_request_timeout"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 408"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "conflict": {
+                    "$ref": "#/components/examples/error_conflict"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 409"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "body_too_large": {
+                    "$ref": "#/components/examples/error_body_too_large"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 413"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "unsupported_media_type": {
+                    "$ref": "#/components/examples/error_unsupported_media_type"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 415"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "auth_rate_limited": {
+                    "$ref": "#/components/examples/error_auth_rate_limited"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 429"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "not_ready": {
+                    "$ref": "#/components/examples/error_not_ready"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 503"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "internal_error": {
+                    "$ref": "#/components/examples/error_internal_error"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Jelee error envelope with code, message, details and traceId; see the Error schema."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "webSession": []
+          }
+        ],
+        "summary": "Queue an image refresh: fetch the remote artwork of the library's unlocked, non-manual remote image rows that have no stored content yet into the image store; 404 image_unavailable unless remote image fetching and the image store are configured, 409 job_busy while the library has an active job",
         "x-jelee-role": "administrator"
       }
     },

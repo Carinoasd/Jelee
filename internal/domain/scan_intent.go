@@ -26,6 +26,9 @@ type ScanCapabilities struct {
 	// NFOExport lets a worker with a configured exporter claim nfo_export
 	// jobs whose child write job, if any, has finished.
 	NFOExport bool
+	// ImageRefresh lets a worker with a configured refresher claim
+	// image_refresh jobs.
+	ImageRefresh bool
 }
 
 func ValidateScanIntent(v ScanIntent) error {

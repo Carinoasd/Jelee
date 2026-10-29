@@ -1,6 +1,6 @@
 # 图片资产（G40）
 
-本文是图片功能的总览：支持的图片类型与来源、选图顺序、存储、HTTP 接口、管理接口、处理与资源上限、清理，以及尚未完成的部分。各专题的细节与验收证据见文末“相关文档”。本文内容按 2026-10-29 的代码核对（`internal/domain/item_images.go`、`internal/domain/images.go`、`internal/app/images.go`、`internal/app/images_admin.go`、`internal/adapter/images/`、`internal/adapter/http/images.go`、`internal/adapter/http/images_admin.go`、`internal/adapter/compat/images.go`、`internal/platform/config/images.go`）。
+本文是图片功能的总览：支持的图片类型与来源、选图顺序、存储、HTTP 接口、管理接口、处理与资源上限、清理，以及尚未完成的部分。各专题的细节与验收证据见文末“相关文档”。本文内容按 2026-10-29 的代码核对（`internal/domain/item_images.go`、`internal/domain/images.go`、`internal/app/images.go`、`internal/app/images_admin.go`、`internal/adapter/images/`、`internal/adapter/http/images.go`、`internal/adapter/http/images_admin.go`、`internal/adapter/compat/images.go`、`internal/platform/config/images.go`、`internal/app/image_refresh_worker.go`、`internal/adapter/images/refresh.go`）。
 
 ## 类型与槽位（G40.1）
 
@@ -14,7 +14,7 @@
 | --- | --- |
 | `local` | 媒体目录中的本地图片文件 |
 | `nfo` | NFO 中引用的图片 |
-| `remote` | 外部（TMDB）图片，字节保存在持久存放区 |
+| `remote` | 外部图片（NFO 中的网址、TMDB），由[图片刷新任务](image-refresh-jobs.md)抓取后字节保存在持久存放区 |
 | `embedded` | 从视频文件中提取的内嵌封面 |
 | `upload` | 管理员通过[管理接口](#管理接口g4010g4011)上传的图片，字节只保存在持久存放区（迁移 000095，暂定编号） |
 
@@ -23,6 +23,8 @@
 槽位中没有可用的行、且请求的是 Primary/0 时，退回媒体文件旁的海报：先找 `<文件基名>-poster.jpg|jpeg|png`，再找 `poster.jpg|jpeg|png`（不区分大小写）。详见[本地图片](local-images.md)。
 
 扫描入库（G40.2、G40.3）已实现：每次 catalog sync 完成后，条目目录中按 G40.2 命名的图片写成 `local` 行，NFO art 中 root 内的相对路径写成 `nfo` 行、`https://` 网址写成 `remote` 行（只记录，不抓取）；季图挂到季条目，`season-all-*` 展开到各季，一个目录有多部电影时不采用 `poster.jpg` 这类共用名称。重扫幂等；文件消失时扫描写入的非锁定、非手动 `local`／`nfo` 行被移除，锁定或手动（`item_images.manual`，迁移 000094）的行从不改动，用户的图片文件从不修改或删除。设计与验证见[图片扫描入库](image-ingest.md)。
+
+远程抓取（G40.9）已实现：`image_refresh` 任务把媒体库中未锁定、非手动、尚无内容的 `remote` 行抓进持久存放区并回填内容字段；锁定与手动行从不被选取或改写，每行失败单独记录原因与重试时间（不影响其他行），可取消、可续跑，重跑幂等。默认是“仅本地图片”模式（`JELEE_ENABLE_IMAGE_FETCH=false`），不发出任何图片请求、刷新任务不能提交。设计与验证见[图片刷新任务](image-refresh-jobs.md)。
 
 内嵌封面提取默认关闭，用 `JELEE_ENABLE_EMBEDDED_COVERS=true` 开启；它只写 Primary 槽位的 `embedded` 行，槽位已锁定或已有其他来源时跳过，每次尝试的结果记录在 `item_embedded_cover_attempts`（迁移 080）。
 
@@ -45,6 +47,8 @@
 | `GET`／`HEAD /images/{type}/{id}` | 原生接口（挂在根路径，不在 `/api/v1` 下）。查询参数只接受 `width`、`height`（0–2048）、`quality`（0–100）、`format`（只能是 `jpeg`）、`index`、`tag`，其他参数 400。都不给时按 640×640 等比缩放 |
 | `GET`／`HEAD /compat/Items/{itemId}/Images/{imageType}[/{imageIndex}]` | 兼容层接口，见[兼容矩阵](compat-matrix.md)。`Width`／`MaxWidth`／`FillWidth` 等取最小值，上限 2048；`format` 接受上游的名称，但输出一律是 JPEG；上游的 Logo、Art、Thumb 映射到对应的 Jelee 槽位 |
 | `GET /api/v1/metadata/tmdb/{movies\|series}/{id}/images` | 管理员查看 TMDB 图片候选，按媒体库的图片语言偏好排序，不下载图片，见 [TMDB 图片偏好](tmdb-image-preferences.md) |
+| `POST /api/v1/libraries/{id}/images/refresh` | 管理员提交[图片刷新任务](image-refresh-jobs.md)；未开启远程抓取或没有存放区时 404 `image_unavailable` |
+| `GET /api/v1/jobs/{id}/image-refresh` | 刷新任务的游标与计数（fetched、failed、deferred、skipped） |
 | `GET /api/v1/jobs/{id}/images` | 扫描任务的图片清单统计（新增、变化、未变、缺失），不是图片管理接口 |
 | `GET /api/v1/items/{id}/images` | 管理员列出条目的全部图片行，见[管理接口](#管理接口g4010g4011) |
 | `POST /api/v1/items/{id}/images/{type}` | 管理员上传或更换一个槽位的图片（`index` 查询参数同 `/images`；槽位已有图片时需 `confirm=true`） |
@@ -112,6 +116,7 @@
 | `JELEE_IMAGE_STORE_VARIANT_BYTES` | 1 GiB | 16 MiB–1 TiB |
 | `JELEE_IMAGE_STORE_ENTRIES` | 131072（每类） | 1024–2097152 |
 | `JELEE_ENABLE_EMBEDDED_COVERS` | `false` | 布尔值 |
+| `JELEE_ENABLE_IMAGE_FETCH` | `false`（仅本地图片） | 布尔值；需要 jobs、图片与 `JELEE_IMAGE_STORE_ROOT` |
 
 配置校验要求“并发数 × 单图预算 + 缓存”不超过 1 GiB。
 
@@ -125,7 +130,7 @@
 ## 尚未完成
 
 - 图片管理只有 HTTP 接口，没有 CLI 命令，前端条目页也还没有操作入口。删除扫描写入的行只删除引用，文件仍在时下次扫描会重新加入；没有“不再采用此文件”的记录。
-- 受控的远程图片抓取器已实现但尚未接线，没有图片刷新任务，因此 `remote` 行（来自 NFO 扫描入库与元数据导入）还没有内容，请求时不可用。
+- 手动或锁定、但还没有内容的 `remote` 行不会被刷新任务抓取，请求时不可用；图片刷新没有自动排程，也没有 CLI 命令。
 - 不支持 WebP/AVIF 输出，不支持裁剪与焦点。
 - 24 小时长测尚未通过，见[图片长测](image-soak.md)。
 
@@ -134,6 +139,7 @@
 | 文档 | 内容 |
 | --- | --- |
 | [本地图片](local-images.md) | 本地 Primary 海报的启用、解码、缩放、缓存与资产取图 |
+| [图片刷新任务](image-refresh-jobs.md) | `image_refresh` 远程抓取的启用、选行规则、失败隔离与重试、取消与续跑、验证 |
 | [图片扫描入库](image-ingest.md) | catalog sync 把命名图片与 NFO art 写入 `item_images` 的挂载点、规则与验证 |
 | [图片内存](image-memory.md) | 10 万张本地图片的内存验收与预算 |
 | [大图内存回收](image-reclaim-pressure.md) | 大图处理后 RSS 不回落的根因与修复 |

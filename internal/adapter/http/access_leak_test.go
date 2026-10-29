@@ -421,6 +421,8 @@ func leakRouteTable() map[string]leakRoute {
 		"GET /api/v1/jobs/{id}/nfo-apply":                                           admin(jobParam),
 		"POST /api/v1/libraries/{id}/nfo/export":                                    admin(libParam),
 		"GET /api/v1/jobs/{id}/nfo-export":                                          admin(jobParam),
+		"POST /api/v1/libraries/{id}/images/refresh":                                admin(libParam),
+		"GET /api/v1/jobs/{id}/image-refresh":                                       admin(jobParam),
 		"POST /api/v1/items/{id}/nfo/write-preparations":                            admin(itemParam),
 		"GET /api/v1/libraries/{id}/nfo/current-validations":                        admin(libParam),
 		"GET /api/v1/libraries/{id}/nfo/current-validations/{observationId}/issues": admin(map[string]string{"id": "library", "observationId": "opaque"}),

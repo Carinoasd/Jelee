@@ -89,6 +89,16 @@ Jelee 不需要 Redis：快取都在各實例的記憶體內，以版本號、�
 
 開啟時必須同時開啟 `JELEE_ENABLE_PROBE`（因此也需要 jobs／accounts 與已驗證的 Linux amd64 正式映像）、`JELEE_ENABLE_IMAGES` 並設定 `JELEE_IMAGE_STORE_ROOT`，否則啟動時設定驗證失敗。執行時探測能力不可用或存放區沒開時只記 WARN（`embedded_cover_prerequisite_unavailable`／`embedded_cover_runtime_unavailable`）並跳過這一段，服務照常啟動。它只用映像內已固定雜湊的 ffprobe 與既有沙箱，不需要也不會呼叫 ffmpeg（G37.1：正式映像不含 ffmpeg，本功能也沒有把它加進 Dockerfile）；`jelee-cli doctor` 在開關開啟時回報 `embedded_covers_ready`／`embedded_covers_tool_missing`；子行程同時 1 個、20 秒逾時、輸出 16 MiB、單張封面 3 MiB，每次 catalog sync 最多 512 次。schema 升到 79（新增 `item_embedded_cover_attempts`）；探測 parser 升為 `media-metadata-v3`（探測資料 schema 2，與 E4 的 MediaInfo 補充合併後的格式），升級後既有探測快取會在下次探測時重算。細節、優先序與界限見[本地圖片：內嵌封面擷取](local-images.md#內嵌封面擷取g404schema-79)。
 
+## 遠端圖片抓取（G40.9）
+
+預設關閉，即「僅本地圖片」模式：伺服器不發出任何圖片請求。
+
+| 設定 | 環境變數 | 預設 | 說明 |
+| --- | --- | --- | --- |
+| `enableImageFetch` | `JELEE_ENABLE_IMAGE_FETCH` | `false` | 允許管理員送出 `image_refresh` 任務，把未鎖定、非手動、尚無內容的遠端圖片抓進圖片存放區 |
+
+開啟時必須同時開啟 `JELEE_ENABLE_JOBS`、`JELEE_ENABLE_IMAGES` 並設定 `JELEE_IMAGE_STORE_ROOT`，否則設定驗證失敗。抓取只連公網 HTTPS 位址（SSRF 防護），規則與失敗處理見[圖片刷新任務](image-refresh-jobs.md)。
+
 ## 媒體庫語言設定的升級
 
 第19／20版新增以下偏好；當前版本要求乾淨schema29，見[lock-only NFO](nfo-lock-only.md)。先執行資料庫遷移，再啟動新的服務；001–019保持原樣。第19版新增媒體庫文字語言及更新版本，第20版新增有序圖片語言清單。設定有更新時降版會拒絕丟失偏好；介面與回復限制見[媒體庫語言](tmdb-library-language.md)及[圖片語言](tmdb-image-preferences.md)。以下仍是首階段容器的歷史驗證。

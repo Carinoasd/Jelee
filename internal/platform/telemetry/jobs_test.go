@@ -33,7 +33,7 @@ func jobMetricsTestSnapshot(scale uint64) app.JobMetricsSnapshot {
 	snapshot := app.JobMetricsSnapshot{
 		StartedAt: time.Unix(1700000000, 0).UTC(), ObservedAt: time.Unix(1700003600, 0).UTC(),
 	}
-	groups := [14][2]string{{"catalog_import", "background"}, {"catalog_import", "manual"}, {"catalog_sync", "background"}, {"catalog_sync", "manual"}, {"consistency_check", "background"}, {"consistency_check", "manual"}, {"inventory_scan", "background"}, {"inventory_scan", "manual"}, {"nfo_apply", "background"}, {"nfo_apply", "manual"}, {"nfo_export", "background"}, {"nfo_export", "manual"}, {"nfo_write", "background"}, {"nfo_write", "manual"}}
+	groups := [16][2]string{{"catalog_import", "background"}, {"catalog_import", "manual"}, {"catalog_sync", "background"}, {"catalog_sync", "manual"}, {"consistency_check", "background"}, {"consistency_check", "manual"}, {"image_refresh", "background"}, {"image_refresh", "manual"}, {"inventory_scan", "background"}, {"inventory_scan", "manual"}, {"nfo_apply", "background"}, {"nfo_apply", "manual"}, {"nfo_export", "background"}, {"nfo_export", "manual"}, {"nfo_write", "background"}, {"nfo_write", "manual"}}
 	for i, key := range groups {
 		g := &snapshot.Groups[i]
 		g.Kind, g.Priority = key[0], key[1]
@@ -94,8 +94,10 @@ func parseJobMetrics(t *testing.T, w *httptest.ResponseRecorder) (map[string]*dt
 	if w.Code != http.StatusOK || !strings.HasPrefix(w.Header().Get("Content-Type"), "text/plain;") {
 		t.Fatalf("job exposition status/content type: %d %s", w.Code, w.Header().Get("Content-Type"))
 	}
-	if w.Body.Len() > 64*1024 {
-		t.Fatalf("job exposition exceeds fixed 64 KiB budget: %d", w.Body.Len())
+	// Sixteen fixed job groups at the largest test scale measure about
+	// 68 KiB; the budget keeps headroom for that fixed shape only.
+	if w.Body.Len() > 80*1024 {
+		t.Fatalf("job exposition exceeds fixed 80 KiB budget: %d", w.Body.Len())
 	}
 	parser := expfmt.NewTextParser(model.LegacyValidation)
 	families, err := parser.TextToMetricFamilies(strings.NewReader(w.Body.String()))
@@ -108,8 +110,8 @@ func parseJobMetrics(t *testing.T, w *httptest.ResponseRecorder) (map[string]*dt
 			series++
 		}
 	}
-	if len(families) != 22 || series != 533 {
-		t.Fatalf("job exposition has %d families / %d series, want 22 / 533", len(families), series)
+	if len(families) != 22 || series != 607 {
+		t.Fatalf("job exposition has %d families / %d series, want 22 / 607", len(families), series)
 	}
 	t.Logf("job exposition: %d bytes, %d families, %d series", w.Body.Len(), len(families), series)
 	return families, w.Body.String()
@@ -168,14 +170,14 @@ func assertJobMetricsExposition(t *testing.T, families map[string]*dto.MetricFam
 		} {
 			family := families[name]
 			point := jobMetricPoint(t, family, labels)
-			if family.GetType() != dto.MetricType_GAUGE || len(family.Metric) != 14 || point.GetGauge().GetValue() != value {
+			if family.GetType() != dto.MetricType_GAUGE || len(family.Metric) != 16 || point.GetGauge().GetValue() != value {
 				t.Fatal("shared gauge differs from source", name, labels)
 			}
 		}
 		outcomes := families["jelee_jobs_shared_outcomes_total"]
 		for outcome, value := range map[string]int64{"succeeded": g.Succeeded, "failed": g.Failed, "cancelled": g.Cancelled} {
 			point := jobMetricPoint(t, outcomes, map[string]string{"kind": g.Kind, "priority": g.Priority, "outcome": outcome})
-			if outcomes.GetType() != dto.MetricType_COUNTER || len(outcomes.Metric) != 42 || point.GetCounter().GetValue() != float64(value) {
+			if outcomes.GetType() != dto.MetricType_COUNTER || len(outcomes.Metric) != 48 || point.GetCounter().GetValue() != float64(value) {
 				t.Fatal("shared outcome differs from absolute source", labels, outcome)
 			}
 		}
@@ -187,7 +189,7 @@ func assertJobMetricsExposition(t *testing.T, families map[string]*dto.MetricFam
 			family := families[measure.name]
 			point := jobMetricPoint(t, family, labels)
 			hist := point.GetHistogram()
-			if family.GetType() != dto.MetricType_HISTOGRAM || len(family.Metric) != 14 || hist == nil || len(hist.Bucket) != 13 {
+			if family.GetType() != dto.MetricType_HISTOGRAM || len(family.Metric) != 16 || hist == nil || len(hist.Bucket) != 13 {
 				t.Fatal("shared histogram shape changed", measure.name, labels)
 			}
 			if hist.GetSampleCount() != measure.want.Count || hist.GetSampleSum() != measure.want.SumSeconds {
