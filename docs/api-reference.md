@@ -42,14 +42,14 @@ OpenAPI 中的 Jelee 扩展字段：
 | `/api/v1/auth` | 网页登录、原生登录、二次验证、注销、轮换令牌、CSRF 令牌 | P03、P04 |
 | `/api/v1/users`、`/api/v1/sessions` | 本人资料、偏好、两步验证、应用密码、会话、个人数据权利；用户管理；本人续播、观看统计、音轨偏好、版本偏好（`/api/v1/users/me/version-preferences`，见[多版本](item-versions.md#預設版本選擇g202)） | P05–P10、P14、P16、P19 |
 | `/api/v1/access` | 全局访问策略、分级表、网络规则，见[访问控制](access-control.md) | P10 |
-| `/api/v1/items`、`/api/v1/version-operations` | 条目浏览与详情、媒体源、播放信息（含默认版本与理由码 `selection`）、已播放标记、用户数据、音轨偏好、元数据编辑、NFO 写回准备（`POST /api/v1/items/{id}/nfo/write-preparations`；`create: true` 为新建尚不存在的 NFO，见[NFO 缺失档案的建立](nfo-create-target.md)）、版本拆分与合并、重新探测、图片管理（`/api/v1/items/{id}/images`，见[图片资产](image-assets.md#管理接口g4010g4011)） | P11、P13、P14、P16、P20 |
+| `/api/v1/items`、`/api/v1/version-operations` | 条目浏览与详情、媒体源、播放信息（含默认版本与理由码 `selection`）、已播放标记、用户数据、音轨偏好、元数据编辑、识别修正与锁定（`GET`／`PUT /api/v1/items/{id}/identity`，见[条目元数据](item-metadata.md#識別修正與鎖定g215schema-100)）、NFO 写回准备（`POST /api/v1/items/{id}/nfo/write-preparations`；`create: true` 为新建尚不存在的 NFO，见[NFO 缺失档案的建立](nfo-create-target.md)）、版本拆分与合并、重新探测、图片管理（`/api/v1/items/{id}/images`，见[图片资产](image-assets.md#管理接口g4010g4011)） | P11、P13、P14、P16、P20 |
 | `/images` | 条目图片（等比缩放或填满裁切、JPEG／无损 WebP 输出、ETag），见[图片资产](image-assets.md) | P12 |
 | `/api/v1/sources` | 原文件直投与外挂/内嵌轨道、附件、OCR 字幕，见[直投](direct-delivery.md) | P13 |
 | `/api/v1/playback` | 播放开始/进度/停止上报（可带 `audioTrack`／`subtitleTrack` 记录会话选轨）；全站播放会话 | P14、P15 |
 | `/api/v1/collections`、`/api/v1/playlists` | 合集与播放清单，见[合集与播放清单](collections-playlists.md) | P17、P18 |
 | `/api/v1/watch-stats` | 全站观看统计与导出 | P19 |
 | `/api/v1/metadata` | TMDB 候选搜索、预览与图片候选 | P21 |
-| `/api/v1/libraries`、`/api/v1/jobs` | 媒体库、扫描、排程、监看、目录同步、NFO 策略与校验、NFO 写回权限（`PUT …/nfo/write-policy`）与写回任务（`POST …/nfo/writes`，见[NFO 写回任务](nfo-write-jobs.md)）、NFO 全量导入任务（`POST …/nfo/apply`，进度 `GET /api/v1/jobs/{id}/nfo-apply`，见[NFO 全量导入任务](nfo-apply-jobs.md)）、NFO 匯出全部与仅导出缺失任务（`POST …/nfo/export`，可选 body `{"mode":"all"|"missing"}`，进度 `GET /api/v1/jobs/{id}/nfo-export`，见[NFO 匯出全部任务](nfo-export-jobs.md)）、探测重建；任务与任务报告，见[任务 API](jobs-api.md) | P22 |
+| `/api/v1/libraries`、`/api/v1/jobs` | 媒体库、扫描、排程、监看、目录同步（含待确认项目接受／拒绝 `POST …/catalog-sync/pending/{entry}/accept|reject`，见[目录同步](catalog-sync.md#識別修正與待確認決定g215schema-100)）、NFO 策略与校验、NFO 写回权限（`PUT …/nfo/write-policy`）与写回任务（`POST …/nfo/writes`，见[NFO 写回任务](nfo-write-jobs.md)）、NFO 全量导入任务（`POST …/nfo/apply`，进度 `GET /api/v1/jobs/{id}/nfo-apply`，见[NFO 全量导入任务](nfo-apply-jobs.md)）、NFO 匯出全部与仅导出缺失任务（`POST …/nfo/export`，可选 body `{"mode":"all"|"missing"}`，进度 `GET /api/v1/jobs/{id}/nfo-export`，见[NFO 匯出全部任务](nfo-export-jobs.md)）、探测重建；任务与任务报告，见[任务 API](jobs-api.md) | P22 |
 | `/api/v1/admin` | 自愈修复与回滚，见[修复](repair.md) | P23 |
 | `/api/v1/webhooks` | Webhook 端点、投递记录、重放，见 [Webhook](webhooks.md) | P24 |
 | `/api/v1/client-control` | 客户端管控策略、规则、命中记录、已知客户端，见[客户端管控](client-control.md) | P25 |
