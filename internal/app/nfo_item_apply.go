@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"errors"
+	"fmt"
 	"slices"
 
 	"github.com/MoYuanCN/Jelee/internal/domain"
@@ -63,14 +64,20 @@ type nfoItemRead struct {
 }
 
 func (m *Metadata) readItemNFO(ctx context.Context, actor domain.Actor, item string, expected int64) (domain.NFOItemScope, nfoItemRead, error) {
-	return m.readItemNFOState(ctx, actor, item, expected, false)
+	return m.readItemNFOState(ctx, actor, item, expected, false, false)
 }
 
 func (m *Metadata) readItemNFOStates(ctx context.Context, actor domain.Actor, item string, expected int64) (domain.NFOItemScope, nfoItemRead, error) {
-	return m.readItemNFOState(ctx, actor, item, expected, true)
+	return m.readItemNFOState(ctx, actor, item, expected, true, false)
 }
 
-func (m *Metadata) readItemNFOState(ctx context.Context, actor domain.Actor, item string, expected int64, allowNonvalid bool) (domain.NFOItemScope, nfoItemRead, error) {
+// readItemNFOStatesCause is readItemNFOStates for the export worker, which
+// retries a conflict that is a source change differently from other conflicts.
+func (m *Metadata) readItemNFOStatesCause(ctx context.Context, actor domain.Actor, item string, expected int64) (domain.NFOItemScope, nfoItemRead, error) {
+	return m.readItemNFOState(ctx, actor, item, expected, true, true)
+}
+
+func (m *Metadata) readItemNFOState(ctx context.Context, actor domain.Actor, item string, expected int64, allowNonvalid, keepCause bool) (domain.NFOItemScope, nfoItemRead, error) {
 	repository, ok := m.items.(NFOItemScopeRepository)
 	if !ok || m.nfoFields == nil {
 		return domain.NFOItemScope{}, nfoItemRead{}, domain.ErrMetadataUnavailable
@@ -84,7 +91,7 @@ func (m *Metadata) readItemNFOState(ctx context.Context, actor domain.Actor, ite
 	}
 	selected, err := m.selectItemNFOState(ctx, scope, allowNonvalid)
 	if err != nil {
-		return domain.NFOItemScope{}, nfoItemRead{}, nfoItemError(ctx, err)
+		return domain.NFOItemScope{}, nfoItemRead{}, nfoItemErrorCause(ctx, err, keepCause)
 	}
 	return scope, selected, nil
 }
@@ -172,10 +179,20 @@ func validNFOForScope(scope domain.NFOItemScope, fields domain.NFOItemFields) bo
 }
 
 func nfoItemError(ctx context.Context, err error) error {
+	return nfoItemErrorCause(ctx, err, false)
+}
+
+// nfoItemErrorCause is nfoItemError that, with keepCause, leaves the source
+// change visible beside the conflict (errors.Is matches both). Callers that
+// compare the error itself with domain.ErrConflict keep nfoItemError.
+func nfoItemErrorCause(ctx context.Context, err error, keepCause bool) error {
 	if ctx.Err() != nil {
 		return ctx.Err()
 	}
 	if errors.Is(err, domain.ErrNFOSourceChanged) {
+		if keepCause {
+			return fmt.Errorf("%w: %w", domain.ErrConflict, domain.ErrNFOSourceChanged)
+		}
 		return domain.ErrConflict
 	}
 	// Filesystem errors must not disclose paths through metadata HTTP responses.
