@@ -63,7 +63,7 @@
 ## 任務二：圖片掃描入庫、刷新任務、管理 API
 
 ### 要做的事
-1. **掃描入庫**（G40.2、G40.3）：
+1. **掃描入庫**（G40.2、G40.3）（狀態：已實作（schema94，暫定編號），設計理由、規則與驗證見 [image-ingest.md](image-ingest.md)：掛在 catalog sync 完成後的收尾、每頁一個有 lease fence 的交易、只讀資料庫不連網；`item_images.manual` 區分手動列；以下原始需求保留供對照）：
    - 掃描或 catalog 發布時，對每個條目的目錄呼叫 `images.RecognizeImageNames`（`internal/adapter/images/naming.go`），把結果寫進 `item_images`。
    - 寫入使用 `postgres.upsertItemImage(ctx, tx, domain.Actor{}, in)`（非手動，`Manual=false`），在自己有 lease fence 的交易內呼叫。
    - 季圖（`season01-poster` 等）掛到 Season 條目；`season-all` 要展開到各季。Fanart 存成 Backdrop。

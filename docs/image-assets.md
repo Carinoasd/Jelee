@@ -21,6 +21,8 @@
 
 槽位中没有可用的行、且请求的是 Primary/0 时，退回媒体文件旁的海报：先找 `<文件基名>-poster.jpg|jpeg|png`，再找 `poster.jpg|jpeg|png`（不区分大小写）。详见[本地图片](local-images.md)。
 
+扫描入库（G40.2、G40.3）已实现：每次 catalog sync 完成后，条目目录中按 G40.2 命名的图片写成 `local` 行，NFO art 中 root 内的相对路径写成 `nfo` 行、`https://` 网址写成 `remote` 行（只记录，不抓取）；季图挂到季条目，`season-all-*` 展开到各季，一个目录有多部电影时不采用 `poster.jpg` 这类共用名称。重扫幂等；文件消失时扫描写入的非锁定、非手动 `local`／`nfo` 行被移除，锁定或手动（`item_images.manual`，迁移 000094）的行从不改动，用户的图片文件从不修改或删除。设计与验证见[图片扫描入库](image-ingest.md)。
+
 内嵌封面提取默认关闭，用 `JELEE_ENABLE_EMBEDDED_COVERS=true` 开启；它只写 Primary 槽位的 `embedded` 行，槽位已锁定或已有其他来源时跳过，每次尝试的结果记录在 `item_embedded_cover_attempts`（迁移 080）。
 
 ## 存储（G40.5）
@@ -92,8 +94,7 @@
 ## 尚未完成
 
 - **没有图片管理 API**：存储层已有写入、锁定、删除图片槽位的方法（并写审计），但没有 HTTP 或 CLI 入口，管理员目前不能通过 API 上传、锁定或删除图片（[开发待办](owner-dev-tasks.md)任务二）。
-- 扫描不会把媒体目录中的旁车图片写入 `item_images`；本地海报只通过上文的回退规则读取。
-- 受控的远程图片抓取器已实现但尚未接线，没有图片刷新任务，因此 `remote` 行目前只来自元数据导入。
+- 受控的远程图片抓取器已实现但尚未接线，没有图片刷新任务，因此 `remote` 行（来自 NFO 扫描入库与元数据导入）还没有内容，请求时不可用。
 - 不支持 WebP/AVIF 输出，不支持裁剪与焦点。
 - 24 小时长测尚未通过，见[图片长测](image-soak.md)。
 
@@ -102,6 +103,7 @@
 | 文档 | 内容 |
 | --- | --- |
 | [本地图片](local-images.md) | 本地 Primary 海报的启用、解码、缩放、缓存与资产取图 |
+| [图片扫描入库](image-ingest.md) | catalog sync 把命名图片与 NFO art 写入 `item_images` 的挂载点、规则与验证 |
 | [图片内存](image-memory.md) | 10 万张本地图片的内存验收与预算 |
 | [大图内存回收](image-reclaim-pressure.md) | 大图处理后 RSS 不回落的根因与修复 |
 | [同尺寸输出](image-same-size.md) | 同尺寸输出不再复制完整位图的回归验证 |

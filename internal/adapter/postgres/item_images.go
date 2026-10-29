@@ -21,7 +21,7 @@ var (
 const itemImageColumns = `g.id::text,g.item_id::text,g.library_id::text,g.image_type,g.image_index,g.source_kind,
  COALESCE(g.root_id::text,''),COALESCE(r.path,''),COALESCE(g.relative_path,''),COALESCE(g.remote_url,''),
  g.source_mtime_unix_nano,g.source_size,g.content_sha256,g.width,g.height,g.format,g.byte_size,g.average_color,g.fetched_at,
- g.locked,g.created_at,g.updated_at`
+ g.locked,g.manual,g.created_at,g.updated_at`
 
 // G40.10: a user lock wins, then local > nfo > remote > embedded.
 const itemImagePriority = `g.locked DESC,CASE g.source_kind WHEN 'local' THEN 0 WHEN 'nfo' THEN 1 WHEN 'remote' THEN 2 ELSE 3 END`
@@ -48,23 +48,23 @@ type itemImageRow struct {
 	index, width, height, color                          *int32
 	digest                                               []byte
 	fetched, created, updated                            *time.Time
-	locked                                               *bool
+	locked, manual                                       *bool
 }
 
 func (r *itemImageRow) targets() []any {
 	return []any{&r.id, &r.itemID, &r.libraryID, &r.imageType, &r.index, &r.sourceKind, &r.rootID, &r.rootPath, &r.relativePath,
 		&r.remoteURL, &r.mtime, &r.sourceSize, &r.digest, &r.width, &r.height, &r.format, &r.size, &r.color, &r.fetched,
-		&r.locked, &r.created, &r.updated}
+		&r.locked, &r.manual, &r.created, &r.updated}
 }
 
 func (r *itemImageRow) value() (domain.ItemImage, error) {
 	if r.id == nil || r.itemID == nil || r.libraryID == nil || r.imageType == nil || r.index == nil || r.sourceKind == nil ||
-		r.locked == nil || r.created == nil || r.updated == nil {
+		r.locked == nil || r.manual == nil || r.created == nil || r.updated == nil {
 		return domain.ItemImage{}, domain.ErrDatabase
 	}
 	value := domain.ItemImage{ID: *r.id, ItemID: *r.itemID, LibraryID: *r.libraryID, Type: *r.imageType, Index: int(*r.index),
 		SourceKind: *r.sourceKind, RootID: r.rootID, RootPath: r.rootPath, RelativePath: r.relativePath, RemoteURL: r.remoteURL,
-		SourceModifiedUnixNano: r.mtime, SourceSize: r.sourceSize, Locked: *r.locked, CreatedAt: r.created.UTC(), UpdatedAt: r.updated.UTC()}
+		SourceModifiedUnixNano: r.mtime, SourceSize: r.sourceSize, Locked: *r.locked, Manual: *r.manual, CreatedAt: r.created.UTC(), UpdatedAt: r.updated.UTC()}
 	if r.digest != nil {
 		if r.format == nil || r.size == nil || r.fetched == nil {
 			return domain.ItemImage{}, domain.ErrDatabase
@@ -329,9 +329,10 @@ func equalItemImageContent(a, b *domain.ItemImageContent) bool {
 
 // upsertItemImage merges one observation into its (item, type, index,
 // source kind) row inside the caller's transaction. Only manual input may
-// change a locked row or the lock itself; a refresh without content keeps
-// the stored content while the source identity is unchanged. Manual changes
-// are audited against actor; scanner callers pass a zero actor.
+// change a locked or manually written row or the lock itself; a refresh
+// without content keeps the stored content while the source identity is
+// unchanged. Manual input marks the row manual. Manual changes are audited
+// against actor; scanner callers pass a zero actor.
 func upsertItemImage(ctx context.Context, tx pgx.Tx, actor domain.Actor, in domain.ItemImageInput) (domain.ItemImageUpsert, error) {
 	if !domain.ValidItemImageInput(in) {
 		return domain.ItemImageUpsert{}, domain.ErrInvalid
@@ -344,7 +345,7 @@ func upsertItemImage(ctx context.Context, tx pgx.Tx, actor domain.Actor, in doma
 	if err != nil && !errors.Is(err, domain.ErrNotFound) {
 		return domain.ItemImageUpsert{}, err
 	}
-	if exists && old.Locked && !in.Manual {
+	if exists && (old.Locked || old.Manual) && !in.Manual {
 		return domain.ItemImageUpsert{Image: old, Skipped: true}, nil
 	}
 	content := in.Content
@@ -355,7 +356,7 @@ func upsertItemImage(ctx context.Context, tx pgx.Tx, actor domain.Actor, in doma
 	if !in.Manual {
 		locked = exists && old.Locked
 	}
-	if exists && sameItemImageSource(old, in) && equalItemImageContent(old.Content, content) && old.Locked == locked {
+	if exists && sameItemImageSource(old, in) && equalItemImageContent(old.Content, content) && old.Locked == locked && old.Manual == in.Manual {
 		return domain.ItemImageUpsert{Image: old}, nil
 	}
 	if locked && in.Manual {
@@ -377,14 +378,14 @@ func upsertItemImage(ctx context.Context, tx pgx.Tx, actor domain.Actor, in doma
 	}
 	var id string
 	err = tx.QueryRow(ctx, `INSERT INTO item_images(item_id,library_id,image_type,image_index,source_kind,root_id,relative_path,remote_url,
- source_mtime_unix_nano,source_size,content_sha256,width,height,format,byte_size,average_color,fetched_at,locked)
- SELECT i.id,i.library_id,$2,$3,$4,NULLIF($5,'')::uuid,NULLIF($6,''),NULLIF($7,''),$8,$9,$10,$11,$12,$13,$14,$15,$16,$17 FROM items i WHERE i.id=$1::uuid
+ source_mtime_unix_nano,source_size,content_sha256,width,height,format,byte_size,average_color,fetched_at,locked,manual)
+ SELECT i.id,i.library_id,$2,$3,$4,NULLIF($5,'')::uuid,NULLIF($6,''),NULLIF($7,''),$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18 FROM items i WHERE i.id=$1::uuid
  ON CONFLICT ON CONSTRAINT item_images_slot DO UPDATE SET root_id=EXCLUDED.root_id,relative_path=EXCLUDED.relative_path,remote_url=EXCLUDED.remote_url,
  source_mtime_unix_nano=EXCLUDED.source_mtime_unix_nano,source_size=EXCLUDED.source_size,content_sha256=EXCLUDED.content_sha256,
  width=EXCLUDED.width,height=EXCLUDED.height,format=EXCLUDED.format,byte_size=EXCLUDED.byte_size,average_color=EXCLUDED.average_color,
- fetched_at=EXCLUDED.fetched_at,locked=EXCLUDED.locked,updated_at=greatest(clock_timestamp(),item_images.created_at)
+ fetched_at=EXCLUDED.fetched_at,locked=EXCLUDED.locked,manual=EXCLUDED.manual,updated_at=greatest(clock_timestamp(),item_images.created_at)
  RETURNING id::text`, in.ItemID, in.Type, in.Index, in.SourceKind, in.RootID, in.RelativePath, in.RemoteURL,
-		in.SourceModifiedUnixNano, in.SourceSize, digest, width, height, format, size, color, fetched, locked).Scan(&id)
+		in.SourceModifiedUnixNano, in.SourceSize, digest, width, height, format, size, color, fetched, locked, in.Manual).Scan(&id)
 	if err != nil {
 		return domain.ItemImageUpsert{}, storageError(err)
 	}

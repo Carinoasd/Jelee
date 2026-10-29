@@ -46,7 +46,7 @@
 | 023–039 | NFO 观测、字段锁、`item_metadata_facts`、目录 NFO（`item_directory_sources`、`item_parent_links`）；其中多数迁移只放宽 CHECK |
 | 040–045 | `catalog_import_*`、`scan_schedules`、`scan_watch_state`、盘点快照（`library_inventory_baseline` 改为 view，数据在 `library_inventory_baseline_data`）、ignore 快照栏位、任务指标 |
 | 046–057 | NFO 写入流程：preparations、`nfo_write_requests`／`entries`、quota fence、commit journal、commit 文件计划与 checkpoint、native receipt／claims、commit attempts，以及 057 的 `nfo_write_commit_recovery_leases` |
-| 058 | `item_images`：条目图片槽、锁定与来源（图片管理；入库与刷新见擁有者任務二） |
+| 058 | `item_images`：条目图片槽、锁定与来源（图片管理；扫描入库见[图片扫描入库](image-ingest.md)，迁移 094 加 `manual` 栏与图片目录索引；刷新见擁有者任務二） |
 | 059 | `nfo_commit_settlements`：NFO commit 结算记录 |
 | 060 | 审计表只可追加（append-only 触发器） |
 | 061 | 目录同步：`catalog_sync` 任务种类与指标列、`job_directories` 目录认领栏、`catalog_sync_requests`、`inventory_missing_acceptances`、`catalog_scan_items`／`sources`／`pending`、`libraries.catalog_sync_auto`、元数据来源 `scan`；见 [目录同步](catalog-sync.md) |
