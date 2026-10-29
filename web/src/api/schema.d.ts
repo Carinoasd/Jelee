@@ -35604,6 +35604,8 @@ export type components = {
                 channels?: number;
                 codec?: string;
                 default: boolean;
+                /** @description Commercial audio formats from the probe's codec and profile, plus the optional MediaInfo supplement. */
+                features?: ("dolby_atmos" | "dolby_truehd" | "dts_x" | "dts_hd_ma")[];
                 forced: boolean;
                 index: number;
                 language?: string;
@@ -35612,6 +35614,12 @@ export type components = {
             }[];
             /** @description Bits per second as probed, or size × 8 ÷ duration when the container states none. */
             bitRate?: number;
+            /** @description Container chapters in start order (G09.1). Start times come from the probe; titles from the optional MediaInfo supplement when it lists the same chapters. Absent when the file has none. */
+            chapters?: {
+                index: number;
+                startMicros: number;
+                title?: string;
+            }[];
             /**
              * @description Container token derived from the stored content type.
              * @enum {string}
@@ -35658,6 +35666,8 @@ export type components = {
                     channels?: number;
                     codec?: string;
                     default: boolean;
+                    /** @description Commercial audio formats from the probe's codec and profile, plus the optional MediaInfo supplement. */
+                    features?: ("dolby_atmos" | "dolby_truehd" | "dts_x" | "dts_hd_ma")[];
                     forced: boolean;
                     index: number;
                     language?: string;
@@ -35666,6 +35676,12 @@ export type components = {
                 }[];
                 /** @description Bits per second as probed, or size × 8 ÷ duration when the container states none. */
                 bitRate?: number;
+                /** @description Container chapters in start order (G09.1). Start times come from the probe; titles from the optional MediaInfo supplement when it lists the same chapters. Absent when the file has none. */
+                chapters?: {
+                    index: number;
+                    startMicros: number;
+                    title?: string;
+                }[];
                 /**
                  * @description Container token derived from the stored content type.
                  * @enum {string}
@@ -35728,10 +35744,14 @@ export type components = {
                     bitRate?: number;
                     codec?: string;
                     default: boolean;
+                    dolbyVisionLevel?: number;
+                    dolbyVisionProfile?: number;
                     frameRate?: {
                         denominator: number;
                         numerator: number;
                     };
+                    /** @description HDR formats, strongest first. ffprobe's findings come first; the optional MediaInfo supplement only adds formats the probe did not name. */
+                    hdr?: ("dolby_vision" | "hdr10plus" | "hdr10" | "hlg")[];
                     height?: number;
                     index: number;
                     level?: number;
@@ -35772,10 +35792,14 @@ export type components = {
                 bitRate?: number;
                 codec?: string;
                 default: boolean;
+                dolbyVisionLevel?: number;
+                dolbyVisionProfile?: number;
                 frameRate?: {
                     denominator: number;
                     numerator: number;
                 };
+                /** @description HDR formats, strongest first. ffprobe's findings come first; the optional MediaInfo supplement only adds formats the probe did not name. */
+                hdr?: ("dolby_vision" | "hdr10plus" | "hdr10" | "hlg")[];
                 height?: number;
                 index: number;
                 level?: number;
@@ -36476,6 +36500,8 @@ export type components = {
                 channels?: number;
                 codec?: string;
                 default: boolean;
+                /** @description Commercial audio formats from the probe's codec and profile, plus the optional MediaInfo supplement. */
+                features?: ("dolby_atmos" | "dolby_truehd" | "dts_x" | "dts_hd_ma")[];
                 forced: boolean;
                 index: number;
                 language?: string;
@@ -36484,6 +36510,12 @@ export type components = {
             }[];
             /** @description Bits per second as probed, or size × 8 ÷ duration when the container states none. */
             bitRate?: number;
+            /** @description Container chapters in start order (G09.1). Start times come from the probe; titles from the optional MediaInfo supplement when it lists the same chapters. Absent when the file has none. */
+            chapters?: {
+                index: number;
+                startMicros: number;
+                title?: string;
+            }[];
             /**
              * @description Container token derived from the stored content type.
              * @enum {string}
@@ -36565,6 +36597,8 @@ export type components = {
                     channels?: number;
                     codec?: string;
                     default: boolean;
+                    /** @description Commercial audio formats from the probe's codec and profile, plus the optional MediaInfo supplement. */
+                    features?: ("dolby_atmos" | "dolby_truehd" | "dts_x" | "dts_hd_ma")[];
                     forced: boolean;
                     index: number;
                     language?: string;
@@ -36573,6 +36607,12 @@ export type components = {
                 }[];
                 /** @description Bits per second as probed, or size × 8 ÷ duration when the container states none. */
                 bitRate?: number;
+                /** @description Container chapters in start order (G09.1). Start times come from the probe; titles from the optional MediaInfo supplement when it lists the same chapters. Absent when the file has none. */
+                chapters?: {
+                    index: number;
+                    startMicros: number;
+                    title?: string;
+                }[];
                 /**
                  * @description Container token derived from the stored content type.
                  * @enum {string}
@@ -36648,10 +36688,14 @@ export type components = {
                     bitRate?: number;
                     codec?: string;
                     default: boolean;
+                    dolbyVisionLevel?: number;
+                    dolbyVisionProfile?: number;
                     frameRate?: {
                         denominator: number;
                         numerator: number;
                     };
+                    /** @description HDR formats, strongest first. ffprobe's findings come first; the optional MediaInfo supplement only adds formats the probe did not name. */
+                    hdr?: ("dolby_vision" | "hdr10plus" | "hdr10" | "hlg")[];
                     height?: number;
                     index: number;
                     level?: number;
@@ -36703,10 +36747,14 @@ export type components = {
                 bitRate?: number;
                 codec?: string;
                 default: boolean;
+                dolbyVisionLevel?: number;
+                dolbyVisionProfile?: number;
                 frameRate?: {
                     denominator: number;
                     numerator: number;
                 };
+                /** @description HDR formats, strongest first. ffprobe's findings come first; the optional MediaInfo supplement only adds formats the probe did not name. */
+                hdr?: ("dolby_vision" | "hdr10plus" | "hdr10" | "hlg")[];
                 height?: number;
                 index: number;
                 level?: number;
