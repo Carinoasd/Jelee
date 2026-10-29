@@ -1,6 +1,6 @@
 # NFO 匯出全部任務（G39.14）
 
-管理員可把一個媒體庫所有條目目前儲存的 metadata 寫回各自既有的 NFO：一個 `nfo_export` 任務逐批準備受控文字編輯，再交給一般的 `nfo_write` 子任務寫檔。這是 G39.14 三種批次操作的第二種；[全量導入](nfo-apply-jobs.md)已完成，只匯出缺失（新建檔案）尚未完成。匯出任務自己沒有任何寫檔路徑：準備、備份、提交、恢復全是既有的[寫回任務](nfo-write-jobs.md)與[準備](nfo-write-preparations.md)。
+管理員可把一個媒體庫所有條目目前儲存的 metadata 寫回各自既有的 NFO：一個 `nfo_export` 任務逐批準備受控文字編輯，再交給一般的 `nfo_write` 子任務寫檔。這是 G39.14 三種批次操作的第二種；[全量導入](nfo-apply-jobs.md)為第一種，第三種「只匯出缺失」是同一個任務的 `missing` 模式（見下）。匯出任務自己沒有任何寫檔路徑：準備、備份、提交、恢復全是既有的[寫回任務](nfo-write-jobs.md)與[準備](nfo-write-preparations.md)。
 
 ## 提交
 
@@ -10,18 +10,18 @@ Authorization: Bearer SESSION_TOKEN
 Idempotency-Key: unique-confirmation-key
 Content-Type: application/json
 
-{"priority":"manual"}
+{"priority":"manual","mode":"all"}
 ```
 
-- 僅管理員；`priority` 為 `manual`（預設）或 `background`，body 為 `{}` 亦可。
-- 新任務 202 與 `Location`；相同 key、相同庫與優先級回 200 與 `Idempotency-Replayed: true`（庫之後關閉寫入權限也照樣重播）；同 key 不同庫、優先級或任務種類為 409 `conflict`。
+- 僅管理員；`priority` 為 `manual`（預設）或 `background`；`mode` 為 `all`（預設，本文以下的行為）或 `missing`（見「只匯出缺失」），其他值為 400；body 為 `{}` 亦可。
+- 新任務 202 與 `Location`；相同 key、相同庫、優先級與模式回 200 與 `Idempotency-Replayed: true`（庫之後關閉寫入權限也照樣重播）；同 key 不同庫、優先級、模式或任務種類為 409 `conflict`（冪等比對含模式）。
 - 庫不是 `read-only` 或沒有開啟寫回權限（`nfo_write_enabled`），或 runtime 沒有啟用 `enableNFOWrite`，為 409 `nfo_write_disabled`，與 `POST …/nfo/writes` 同一檢查。庫已有活動任務為 409 `job_busy`，全域佇列滿為 429 `job_queue_full`。
-- 稽核事件 `nfo.export_submitted`（庫、優先級）。每個子任務另寫既有的 `nfo.write_submitted`（含 `exportJobId` 與 chunk 編號），每份準備寫既有的 `nfo.write_prepared`。
+- 稽核事件 `nfo.export_submitted`（庫、優先級、模式）。每個子任務另寫既有的 `nfo.write_submitted`（含 `exportJobId` 與 chunk 編號），每份準備寫既有的 `nfo.write_prepared`。
 
 CLI：
 
 ```sh
-jelee-cli nfo export --library ID [--priority manual|background] --key KEY --token-stdin [--url ORIGIN] [--json]
+jelee-cli nfo export --library ID [--missing] [--priority manual|background] --key KEY --token-stdin [--url ORIGIN] [--json]
 jelee-cli nfo export-status --job ID --token-stdin [--url ORIGIN] [--json]
 ```
 
@@ -30,10 +30,10 @@ jelee-cli nfo export-status --job ID --token-stdin [--url ORIGIN] [--json]
 `GET /api/v1/jobs/JOB_ID/nfo-export`（僅管理員）：
 
 ```json
-{"jobId":"…","libraryId":"…","cursorItemId":"…","childJobId":null,"chunks":3,"written":34,"unchanged":51,"skippedMissing":17,"skippedInvalid":17,"skippedOther":17,"failed":0,"updatedAt":"…"}
+{"jobId":"…","libraryId":"…","mode":"all","cursorItemId":"…","childJobId":null,"chunks":3,"written":34,"unchanged":51,"skippedExisting":0,"skippedMissing":17,"skippedInvalid":17,"skippedOther":17,"failed":0,"updatedAt":"…"}
 ```
 
-`cursorItemId` 在第一個檢查點前為 `null`；`childJobId` 是尚未計入的 `nfo_write` 子任務，沒有時為 `null`；`chunks` 是已提交的子任務數。其他種類的任務回 404。既有 `GET /api/v1/jobs/JOB_ID` 的 `files` 為 written＋unchanged，`skipped` 為三種 skipped 加 failed，`kind` 為 `nfo_export`。
+`mode` 是任務的模式，`skippedExisting` 只在 `missing` 模式非零。`cursorItemId` 在第一個檢查點前為 `null`；`childJobId` 是尚未計入的 `nfo_write` 子任務，沒有時為 `null`；`chunks` 是已提交的子任務數。其他種類的任務回 404。既有 `GET /api/v1/jobs/JOB_ID` 的 `files` 為 written＋unchanged，`skipped` 為 skippedExisting 加三種 skipped 再加 failed，`kind` 為 `nfo_export`。
 
 ## 資料庫到 NFO 的對應
 
@@ -58,7 +58,7 @@ jelee-cli nfo export-status --job ID --token-stdin [--url ORIGIN] [--json]
 | --- | --- |
 | written | 子任務的條目已被取代（結算階段 replaced） |
 | unchanged | 沒有任何已儲存值與 NFO 不同 |
-| skippedMissing | 條目沒有 NFO 檔（新建檔案是任務三的第 3 項） |
+| skippedMissing | 條目沒有 NFO 檔（`all` 模式不建立檔案；要建立用 `missing` 模式） |
 | skippedInvalid | NFO 無效 |
 | skippedOther | 無法準備：NFO 帶全域鎖（`lockdata`）、差異欄位全被 NFO 鎖住（被鎖的欄位不編輯，其餘照寫）、無媒體來源、不支援的種類、已刪除 |
 | failed | 條目層級的錯誤（例如修訂版或來源衝突經一次重試仍衝突）、已準備但子任務沒有取代的條目（子任務失敗、取消、被拒絕） |
@@ -95,7 +95,7 @@ jelee-cli nfo export-status --job ID --token-stdin [--url ORIGIN] [--json]
 ## 限制
 
 - 只匯出上表的文字欄位；其他 NFO 內容（日期、評分、演員、識別碼等）不被覆寫。往返（匯出後再全量導入）的資料庫 metadata 不變，唯一差異是寫入時補上的 Jelee 識別碼會在導入後出現在 `uniqueIds`（型別 `jelee`），且僅限實際寫過的條目。
-- 沒有 NFO 檔的條目只計數，不建立檔案（任務三第 3 項）。
+- `all` 模式沒有 NFO 檔的條目只計數，不建立檔案；建立檔案是 `missing` 模式。
 - 空值不清除 NFO 內容；要清掉 NFO 欄位必須在 NFO 內處理。
 - 被 NFO 鎖住的欄位與 `lockdata` 的條目不寫（鎖是 NFO 對外部編輯的聲明）。
 - 條目的 `written` 只在子任務終止後才加進計數，所以進行中的 chunk 不在其中；`failed` 也會包含被取消的子任務未寫的條目。
@@ -103,3 +103,35 @@ jelee-cli nfo export-status --job ID --token-stdin [--url ORIGIN] [--json]
 - 一庫一個活動頂層任務；沒有跨庫批次。每份準備和每個子任務各寫稽核，量隨寫入條目數成比例。
 - 遷移 000089 新增 `nfo_export_job_state`（每任務一列，隨任務歷史清理），並擴充 `jobs.kind`、錯誤碼、工作指標維度（共 14 組）、`jobs_export_job_kind_check` 與新的活動任務索引；仍有 `nfo_export` 任務、狀態列或帶 `export_job_id` 的子任務時拒絕降級。該表不進中繼資料備份。
 - 能領取匯出任務的 runner 必須同時能領取 `nfo_write`（`enableNFOWrite`），`jobs.New` 強制這點。
+
+## 只匯出缺失（`missing` 模式，遷移 000091）
+
+同一個 `nfo_export` 任務、同一套[不佔住 worker 的協調](#不佔住-worker-的協調)（分批至多 16 份、子 `nfo_write` 任務、讓出、取消、租約到期續跑、冪等鍵 `nfo-export:<任務>:<chunk>[:<條目>]`），差別只在每個條目怎麼處理。模式存在 `nfo_export_job_state.mode`（`all` 或 `missing`，預設 `all`），不新增工作種類、錯誤碼或工作指標維度。
+
+| 條目 | 處理 | 計數 |
+| --- | --- | --- |
+| 慣用路徑（與 [3c-i](nfo-create-target.md) 同一個解析：電影與單集為媒體旁的 `<主檔名>.nfo`、影集 `tvshow.nfo`、季 `season.nfo`）沒有 NFO，且有可匯出的已儲存欄位 | 準備 `create: true` 的請求（`backups` 0、`bom` 為 `omit`），編輯為上表所有「已儲存且非空」的欄位，並由子任務建立 | written（子任務結算為 replaced 時） |
+| 沒有 NFO，但沒有任何可匯出的已儲存值（空值與掃描名稱回退不算） | 不準備、不寫檔 | unchanged |
+| 已有 NFO（有效或無效，含 `lockdata`） | 不碰 | skippedExisting |
+| 建立時目標已出現，被新建協議拒絕 | 外來檔案位元組與 inode 不變，見下 | skippedExisting |
+| 其他（無媒體來源、不支援的種類、已刪除） | 同 `all` | skippedOther |
+| 條目層級錯誤、子任務失敗、取消或被拒絕但目標並不存在 | 同 `all` | failed |
+
+`all` 模式的行為與計數完全不變；`missing` 模式不使用 `skippedMissing`、`skippedInvalid` 與 NFO 欄位鎖（沒有 NFO 就沒有鎖）。
+
+### 並發出現的檔案
+
+準備時目標不存在，但提交時（子任務執行之前，或在 phase 1 之後、link 之前）名稱可能已被別人建立。新建協議不會覆蓋它：條目被 `nfo_target_appeared` 拒絕，該子任務最後以 `nfo_write_failed` 結束（既有行為，其餘條目照寫）。拒絕的原因沒有持久化，所以匯出任務在子任務終止後這樣判斷，才把拒絕記為 skippedExisting：
+
+1. 資料庫端只挑出**候選**：子任務中沒有被取代的條目，且其 token 沒有「已進入 phase 1 而未回滾」的證據（沒有 token、phase 0，或 phase 1 之後已 phase 3 回滾）。已進入 phase 1 而未回滾的條目，目標上的檔案可能就是 token 自己的輸出，不當作外來檔案，一律是 failed。
+2. 任務在讓出之後被再次領取時（`NextNFOExportStep` 回傳 settle 步驟，尚未提供任何條目），以任務身分重讀每個候選的 NFO 狀態；**目標確實存在**（有效或無效）才計 skippedExisting，不存在或讀不到的計 failed。
+3. `SettleNFOExportChild` 在受租約保護的交易內重新讀取子任務結果，確認 skippedExisting 不超過候選數，把 written、skippedExisting 與 failed 與清除子任務 ID 同交易提交；結算前租約遺失則整個 settle 步驟重做，不會重複計數。
+
+所以目標存在但該條目其實是別的原因沒寫成（例如子任務在外來檔案出現後才被取消）也會算 skippedExisting；這是可接受的近似，檔案反正沒被動。取消中的任務（已要求取消）不做這個判斷：未取代的條目一律 failed。
+
+### 驗證與限制
+
+- 真實 PG：104 個條目（8 部影集各含影集、季、4 集，加 56 部電影；每五個條目有一個既有 NFO，其中一半無效；部分條目沒有任何已儲存值）。涵蓋建立檔案的內容（BOM、宣告、根元素、欄位、`uniqueid type="jelee"`）、四種種類、既有檔案的位元組、inode 與修改時間不變、無 `.jelee.bak`、計數、無殘留準備與 token 檔；`missing` 之後再跑 `missing`（全部變 skippedExisting，不提交子任務）與 `all`；與 `nfo_apply` 往返（唯一差異是新檔補上的 jelee 識別碼）；兩種並發出現的檔案；子任務在不寫檔下結束（failed）；兩種取消；租約在子任務記錄前後遺失，與不中斷的任務逐檔相同且不重複或遺失子任務（續跑測試不斷言精確的 attempt 次數，只要求被重新領取）；HTTP 准入（無效模式 400、寫入未開 409、重播、同 key 換模式 409）、遷移往返與帶資料拒絕降級。
+- 建立的檔案沒有原文，也沒有備份；`.jelee.bak` 只屬於 `all` 模式改寫的檔案。
+- 遷移 000091 為 `nfo_export_job_state` 新增 `mode`（CHECK 為 `all` 或 `missing`）與 `skipped_existing`（只有 `missing` 能非零）；降級在仍有任何 `missing` 模式的狀態列（或非零 `skipped_existing`）時拒絕，空資料或只有 `all` 任務時直接移除兩欄。
+- 範圍外：不建立 NFO 以外的檔案（海報、字幕）；目標是目錄、符號連結或懸空連結時，新建協議視為已存在而拒絕（不覆蓋）；這些情況沒有專屬測試，條目歸入 skippedExisting 還是 failed 取決於 NFO 讀取端是否觀察到該名稱。
