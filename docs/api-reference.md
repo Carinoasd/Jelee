@@ -42,7 +42,7 @@ OpenAPI 中的 Jelee 扩展字段：
 | `/api/v1/auth` | 网页登录、原生登录、二次验证、注销、轮换令牌、CSRF 令牌 | P03、P04 |
 | `/api/v1/users`、`/api/v1/sessions` | 本人资料、偏好、两步验证、应用密码、会话、个人数据权利；用户管理；本人续播、观看统计、音轨偏好 | P05–P10、P14、P16、P19 |
 | `/api/v1/access` | 全局访问策略、分级表、网络规则，见[访问控制](access-control.md) | P10 |
-| `/api/v1/items`、`/api/v1/version-operations` | 条目浏览与详情、媒体源、播放信息、已播放标记、用户数据、音轨偏好、元数据编辑、NFO 写回准备（`POST /api/v1/items/{id}/nfo/write-preparations`）、版本拆分与合并、重新探测 | P11、P13、P14、P16、P20 |
+| `/api/v1/items`、`/api/v1/version-operations` | 条目浏览与详情、媒体源、播放信息、已播放标记、用户数据、音轨偏好、元数据编辑、NFO 写回准备（`POST /api/v1/items/{id}/nfo/write-preparations`；`create: true` 为新建尚不存在的 NFO，见[NFO 缺失档案的建立](nfo-create-target.md)）、版本拆分与合并、重新探测 | P11、P13、P14、P16、P20 |
 | `/images` | 条目图片（缩放、ETag），见[图片资产](image-assets.md) | P12 |
 | `/api/v1/sources` | 原文件直投与外挂/内嵌轨道、附件、OCR 字幕，见[直投](direct-delivery.md) | P13 |
 | `/api/v1/playback` | 播放开始/进度/停止上报；全站播放会话 | P14、P15 |

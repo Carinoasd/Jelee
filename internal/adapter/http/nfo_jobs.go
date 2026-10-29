@@ -228,6 +228,7 @@ func (s *Server) prepareNFOWrite(w http.ResponseWriter, r *http.Request, a domai
 		Indent   string                    `json:"indent"`
 		MaxBytes *int64                    `json:"maxBytes"`
 		Backups  *int                      `json:"backups"`
+		Create   bool                      `json:"create"`
 	}
 	if err := DecodeJSON(w, r, &input, accountBodyLimit); err != nil {
 		return nil, 0, err
@@ -236,8 +237,13 @@ func (s *Server) prepareNFOWrite(w http.ResponseWriter, r *http.Request, a domai
 	if err != nil {
 		return nil, 0, err
 	}
-	// Missing-NFO creation is deliberately not exposed here.
-	request := domain.NFOWritePrepareRequest{ItemID: chi.URLParam(r, "id"), Revision: input.Revision, Edits: input.Edits, BOM: input.BOM, Indent: input.Indent, MaxBytes: domain.NFODefaultSourceBytes, Backups: nfoWriteBackups}
+	// create asks for a new NFO where none exists; element-level createMissing
+	// stays unexposed. A created file has nothing to back up, so its backup
+	// count is zero (any other value is invalid).
+	request := domain.NFOWritePrepareRequest{ItemID: chi.URLParam(r, "id"), Revision: input.Revision, Edits: input.Edits, BOM: input.BOM, Indent: input.Indent, MaxBytes: domain.NFODefaultSourceBytes, Backups: nfoWriteBackups, Create: input.Create}
+	if input.Create {
+		request.Backups = 0
+	}
 	if input.Edits == nil {
 		return nil, 0, domain.ErrInvalid
 	}

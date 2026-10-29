@@ -179,7 +179,12 @@ func stageNFOCommitAttempt(ctx context.Context, directory *os.Root, filename str
 // resumeNFOCommitAttemptReady verifies the selected attempt and replays its
 // fenced records. It creates, adopts and removes nothing.
 func resumeNFOCommitAttemptReady(ctx context.Context, directory *os.Root, filename string, original, replacement *Document, token [16]byte, lease domain.JobLease, record domain.NFOWriteCommitRecord, evidence domain.NFOWriteCommitFileEvidence, entry domain.NFOWriteCommitAttempt, repository app.NFOWriteCommitAttemptStageRepository, check func(context.Context) error) error {
-	if !evidence.PlanRecorded || evidence.Plan.TargetName != filename || domain.ValidateNFOWriteCommitFilesReady(entry.Ready) != nil {
+	// A create has no rollback object, so only its output is ready.
+	readyErr := domain.ValidateNFOWriteCommitFilesReady(entry.Ready)
+	if original == nil {
+		readyErr = domain.ValidateNFOWriteCommitCreateReady(entry.Ready)
+	}
+	if !evidence.PlanRecorded || evidence.Plan.TargetName != filename || readyErr != nil {
 		return ErrChanged
 	}
 	files := nfoCommitFiles{
@@ -197,6 +202,9 @@ func resumeNFOCommitAttemptReady(ctx context.Context, directory *os.Root, filena
 		}
 		if !lock.check() {
 			return ErrFileLock
+		}
+		if original == nil {
+			return verifyNFOCreateFiles(ctx, directory, files, replacement.original)
 		}
 		return verifyNFOCommitFiles(ctx, directory, files, original.original, replacement.original)
 	}

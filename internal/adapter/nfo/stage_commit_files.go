@@ -241,6 +241,9 @@ func resumeNFOCommitFiles(ctx context.Context, directory *os.Root, filename stri
 		if !lock.check() {
 			return ErrFileLock
 		}
+		if original == nil {
+			return VerifyCreateCommitFiles(ctx, directory, record.Token, evidence.Plan, evidence.Ready, replacement.original)
+		}
 		return VerifyCommitFiles(ctx, directory, record.Token, evidence.Plan, evidence.Ready, original.original, replacement.original)
 	}
 	if err := verify(); err != nil {

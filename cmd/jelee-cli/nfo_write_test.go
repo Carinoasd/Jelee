@@ -23,6 +23,14 @@ func nfoWritePreparationData() map[string]any {
 		"createdAt": "2026-10-01T01:02:03Z", "expiresAt": "2026-10-02T01:02:03Z"}
 }
 
+// A create preparation has no original: zero bytes and the digest of nothing.
+func nfoWriteCreatePreparationData() map[string]any {
+	data := nfoWritePreparationData()
+	data["fields"] = []string{"title"}
+	data["originalBytes"] = 0
+	return data
+}
+
 func nfoWriteJobData() map[string]any {
 	job := validJobsCLIJob()
 	job["kind"] = "nfo_write"
@@ -47,6 +55,8 @@ func TestNFOWriteCLIBuildsFixedRequests(t *testing.T) {
 			map[string]any{"revision": float64(4), "edits": []any{map[string]any{"field": "title", "value": "A=B"}, map[string]any{"field": "plot", "value": ""}}, "backups": float64(3)}, 201, nfoWritePreparationData(), false, "prepared " + nfoWriteTestID2},
 		{"prepare options", "POST", "/api/v1/items/" + jobsTestID + "/nfo/write-preparations", "k-2", []string{"write", "prepare", "--item", jobsTestID, "--revision", "4", "--set", "title=A", "--set", "plot=B", "--backups", "0", "--bom", "omit", "--key", "k-2"},
 			map[string]any{"revision": float64(4), "edits": []any{map[string]any{"field": "title", "value": "A"}, map[string]any{"field": "plot", "value": "B"}}, "backups": float64(0), "bom": "omit"}, 200, nfoWritePreparationData(), true, "(replayed)"},
+		{"prepare create", "POST", "/api/v1/items/" + jobsTestID + "/nfo/write-preparations", "k-4", []string{"write", "prepare", "--item", jobsTestID, "--revision", "4", "--set", "title=A", "--create", "--key", "k-4"},
+			map[string]any{"revision": float64(4), "edits": []any{map[string]any{"field": "title", "value": "A"}}, "backups": float64(0), "create": true}, 201, nfoWriteCreatePreparationData(), false, "prepared (create) " + nfoWriteTestID2},
 		{"submit", "POST", "/api/v1/libraries/" + jobsTestID + "/nfo/writes", "k-3", []string{"write", "submit", "--library", jobsTestID, "--preparation", nfoWriteTestID2, "--preparation", jobsTestID, "--priority", "background", "--key", "k-3"},
 			map[string]any{"preparations": []any{nfoWriteTestID2, jobsTestID}, "priority": "background"}, 202, nfoWriteJobData(), false, "job " + jobsTestID + " queued"},
 	} {
@@ -140,6 +150,7 @@ func TestNFOWriteCLIRejectsBadArgumentsBeforeCredentials(t *testing.T) {
 		append(append([]string{}, prep...), "--backups", "17"),
 		append(append([]string{}, prep...), "--bom", "always"),
 		append(append([]string{}, prep...), "--create-missing"),
+		append(append([]string{}, prep...), "--create", "--backups", "3"),
 		append(without(prep, "--key"), "--key", "bad key"),
 		without(sub, "--library"), without(sub, "--preparation"), without(sub, "--key"),
 		append(append([]string{}, sub...), "--preparation", nfoWriteTestID2),
@@ -194,5 +205,41 @@ func TestNFOWriteCLIReportsStableErrorCodes(t *testing.T) {
 	status := runNFOCLI(context.Background(), []string{"write", "prepare", "--item", jobsTestID, "--revision", "4", "--set", "title=x", "--key", "k", "--url", server.URL, "--token-stdin"}, strings.NewReader(strings.Repeat("a", 43)), &out, &diagnostics)
 	if status != 1 || out.Len() != 0 || strings.TrimSpace(diagnostics.String()) != "nfo_response_invalid" {
 		t.Fatalf("mismatched response accepted: %d %q", status, diagnostics.String())
+	}
+}
+
+// The response must agree with the request about creating: a create has no
+// original, a rewrite always has one.
+func TestNFOWriteCLIChecksTheCreateShapeOfThePreparation(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		args   []string
+		data   map[string]any
+		wantOK bool
+	}{
+		{"create answered as create", []string{"--create"}, nfoWriteCreatePreparationData(), true},
+		{"create answered with an original", []string{"--create"}, func() map[string]any { d := nfoWriteCreatePreparationData(); d["originalBytes"] = 33; return d }(), false},
+		{"rewrite answered as create", nil, func() map[string]any {
+			d := nfoWritePreparationData()
+			d["originalBytes"] = 0
+			d["fields"] = []string{"title"}
+			return d
+		}(), false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			data := tc.data
+			data["fields"] = []string{"title"}
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				w.WriteHeader(201)
+				_ = json.NewEncoder(w).Encode(map[string]any{"data": data})
+			}))
+			defer server.Close()
+			args := append([]string{"write", "prepare", "--item", jobsTestID, "--revision", "4", "--set", "title=x", "--key", "k", "--url", server.URL, "--token-stdin"}, tc.args...)
+			var out, diagnostics bytes.Buffer
+			status := runNFOCLI(context.Background(), args, strings.NewReader(strings.Repeat("a", 43)), &out, &diagnostics)
+			if tc.wantOK != (status == 0) {
+				t.Fatalf("status=%d %q", status, diagnostics.String())
+			}
+		})
 	}
 }

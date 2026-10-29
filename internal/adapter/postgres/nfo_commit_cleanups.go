@@ -133,10 +133,15 @@ func (s *Store) GetNFOWriteCommitCleanupInput(ctx context.Context, lease domain.
 	if err != nil {
 		return domain.NFOWriteCommitCleanupInput{}, storageError(err)
 	}
-	if version != 1 || len(parent) != 48 || len(target) != 48 {
+	// The plan of a create has no target identity (NULL); a rewrite always has.
+	create := version == int16(domain.NFOWriteCommitCreatePlanVersion)
+	if !create && version != int16(domain.NFOWriteCommitPlanVersion) || len(parent) != 48 || create && target != nil || !create && len(target) != 48 {
 		return domain.NFOWriteCommitCleanupInput{}, domain.ErrDatabase
 	}
-	input.Plan.Version = 1
+	input.Plan.Version = domain.NFOWriteCommitPlanVersion
+	if create {
+		input.Plan.Version = domain.NFOWriteCommitCreatePlanVersion
+	}
 	copy(input.Plan.ParentIdentity[:], parent)
 	copy(input.Plan.TargetIdentity[:], target)
 	// Attempt 0 is the legacy namespace; older plans recorded its ready pair
@@ -171,7 +176,7 @@ func (s *Store) GetNFOWriteCommitCleanupInput(ctx context.Context, lease domain.
 		return domain.NFOWriteCommitCleanupInput{}, storageError(err)
 	}
 	rows, err = tx.Query(ctx, `SELECT DISTINCT p.target_identity FROM nfo_write_commit_file_plans p
- WHERE p.token<>$1::uuid AND p.parent_identity=$2 AND p.target_name=$3
+ WHERE p.token<>$1::uuid AND p.parent_identity=$2 AND p.target_name=$3 AND p.target_identity IS NOT NULL
  AND EXISTS(SELECT 1 FROM nfo_write_commit_settlements s WHERE s.token=p.token AND s.phase=1) LIMIT $4`, lease.Token, parent, input.Plan.TargetName, nfoCommitCleanupIdentityLimit)
 	if err != nil {
 		return domain.NFOWriteCommitCleanupInput{}, storageError(err)

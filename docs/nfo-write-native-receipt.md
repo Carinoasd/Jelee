@@ -12,7 +12,7 @@ CPU 等待及 XML 編輯之後，再取得 IO permit 重新觀察，核對首次
 
 Movie／HomeVideo／Episode／Series legacy file 使用媒體檔案身分；Series／Season directory 使用目錄身分，支援 configured root 自身。路徑計畫固定先 absolute 祖先、後相對祖先，按路徑去重，最後紀錄必須是 NFO 父目錄。
 
-Windows 使用 volume／完整 file ID／原始 creation time；Linux 使用 statx device／inode／birth time，缺少必要欄位拒絕。receipt 最多128個祖先，固定48-byte records，8-byte header，總長200至6296bytes；保留欄位、平台及種類皆須符合 canonical 格式。建構、clone 與 getter 不共享可變祖先陣列，JSON與診斷輸出遮蔽私人證據。
+Windows 使用 volume／完整 file ID／原始 creation time；Linux 使用 statx device／inode／birth time，缺少必要欄位拒絕。receipt 最多128個祖先，固定48-byte records，8-byte header，總長200至6296bytes；保留欄位、平台及種類皆須符合 canonical 格式。schema90 起標頭第4個位元組（原為保留的0）可為1：這是[缺失 NFO 建立](nfo-create-target.md)的收據，NFO 記錄為48個0位元組，表示該名稱在最後一個祖先（父目錄）下被觀察為不存在；其餘長度與格式規則不變。建構、clone 與 getter 不共享可變祖先陣列，JSON與診斷輸出遮蔽私人證據。
 
 ## 保存及後續使用
 

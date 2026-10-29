@@ -27,6 +27,12 @@ type NFOWritePrepareRequest struct {
 	Indent        string             `json:"indent"`
 	MaxBytes      int64              `json:"maxBytes"`
 	Backups       int                `json:"backups"`
+	// Create asks for a new NFO at a path where none exists: the replacement is
+	// built from an empty root of the item's kind and the target is only ever
+	// created by a hardlink, never overwritten. It is distinct from
+	// CreateMissing, which adds elements to an existing NFO. The key is omitted
+	// when false so rewrite requests keep their stored digests.
+	Create bool `json:"create,omitempty"`
 }
 
 func (NFOWritePrepareRequest) String() string   { return "nfo write request (data redacted)" }
@@ -38,6 +44,10 @@ func CloneNFOWritePrepareRequest(v NFOWritePrepareRequest) NFOWritePrepareReques
 }
 
 func ValidateNFOWritePrepareRequest(v NFOWritePrepareRequest) error {
+	// A created file has no original to back up, so a backup count is meaningless.
+	if v.Create && (v.Backups != 0 || v.CreateMissing) {
+		return ErrInvalid
+	}
 	if !ValidID(v.ItemID) || v.Revision < 1 || v.Revision >= ItemMetadataRevisionMax || v.MaxBytes < 1 || v.MaxBytes > NFOMaxSourceBytes || v.Backups < 0 || v.Backups > 16 || len(v.Edits) > 10 || len(v.Indent) > 8 || strings.Trim(v.Indent, " \t") != "" || (v.BOM != "" && v.BOM != "preserve" && v.BOM != "include" && v.BOM != "omit") {
 		return ErrInvalid
 	}
@@ -136,7 +146,13 @@ func CloneNFOWritePreparation(v NFOWritePreparation) NFOWritePreparation {
 }
 
 func ValidateNFOWritePreparation(v NFOWritePreparation) error {
-	if v.Version != NFOWritePreparationVersion || ValidateNFOWritePrepareRequest(v.Request) != nil || !ValidNFOItemScope(v.Scope) || v.Scope.ItemID != v.Request.ItemID || v.Scope.Revision != v.Request.Revision || len(v.Original) < 1 || len(v.Replacement) < 1 || int64(len(v.Original)) > v.Request.MaxBytes || int64(len(v.Replacement)) > v.Request.MaxBytes || v.Stamp.Size != int64(len(v.Original)) || v.Stamp.FingerprintVersion != NFOFingerprintVersion {
+	// A create preparation has no original: an empty one stands for the absent
+	// target and its stamp is the digest of nothing.
+	minOriginal := 1
+	if v.Request.Create {
+		minOriginal = 0
+	}
+	if v.Version != NFOWritePreparationVersion || ValidateNFOWritePrepareRequest(v.Request) != nil || !ValidNFOItemScope(v.Scope) || v.Scope.ItemID != v.Request.ItemID || v.Scope.Revision != v.Request.Revision || len(v.Original) < minOriginal || len(v.Replacement) < 1 || v.Request.Create && len(v.Original) != 0 || int64(len(v.Original)) > v.Request.MaxBytes || int64(len(v.Replacement)) > v.Request.MaxBytes || v.Stamp.Size != int64(len(v.Original)) || v.Stamp.FingerprintVersion != NFOFingerprintVersion {
 		return ErrInvalid
 	}
 	if !v.NativeObservation.Empty() {
@@ -144,7 +160,7 @@ func ValidateNFOWritePreparation(v NFOWritePreparation) error {
 		if v.Scope.DirectoryPath != "" {
 			kind = 2
 		}
-		if v.Scope.RootGeneration < 1 || ValidateNFONativePreparationReceipt(v.NativeObservation) != nil || v.NativeObservation.MediaIdentity()[2] != kind {
+		if v.Scope.RootGeneration < 1 || ValidateNFONativePreparationReceipt(v.NativeObservation) != nil || v.NativeObservation.MediaIdentity()[2] != kind || v.NativeObservation.TargetAbsent() != v.Request.Create {
 			return ErrInvalid
 		}
 	}

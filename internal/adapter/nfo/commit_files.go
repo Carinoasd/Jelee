@@ -6,6 +6,8 @@ import (
 	"os"
 	"strings"
 	"unicode"
+
+	"github.com/MoYuanCN/Jelee/internal/domain"
 )
 
 // Both records are private preparation evidence. Neither authorizes target
@@ -27,6 +29,9 @@ func (nfoCommitFilePlan) String() string   { return "nfo commit file plan (redac
 func (nfoCommitFilePlan) GoString() string { return "nfo commit file plan (redacted)" }
 func (nfoCommitFiles) String() string      { return "nfo commit files (redacted)" }
 func (nfoCommitFiles) GoString() string    { return "nfo commit files (redacted)" }
+
+// create reports the plan of a create: the target name was absent, no identity.
+func (p nfoCommitFilePlan) create() bool { return p.version == domain.NFOWriteCommitCreatePlanVersion }
 
 func (p nfoCommitFilePlan) names() [5]string {
 	base := ".jelee-nfo-commit-" + hex.EncodeToString(p.token[:])
@@ -52,7 +57,12 @@ type nfoCommitFilePersistence struct {
 // stage, or hardlink. It holds the native target lock while checking originals
 // and creating retained witnesses. It never renames the target or rotates backups.
 // Successful preparation retains all five names for future guarded settlement.
+// A nil original stages a create (see prepareNFOCreateFiles): there is nothing
+// to back up or restore, so only the output and its pin are staged.
 func prepareNFOCommitFiles(ctx context.Context, directory *os.Root, filename string, original, replacement *Document, token [16]byte, persist nfoCommitFilePersistence, ops nfoWriteOperations) (result *nfoCommitFiles, resultErr error) {
+	if original == nil {
+		return prepareNFOCreateFiles(ctx, directory, filename, replacement, token, persist, ops)
+	}
 	if persist.attempt > maxNFOCommitAttempts || ctx == nil || directory == nil || token == ([16]byte{}) || !IsNFOName(filename) || strings.ContainsAny(filename, "/\\:") || strings.ContainsFunc(filename, unicode.IsControl) || persist.plan == nil || persist.ready == nil || ops.syncFile == nil || ops.syncDirectory == nil {
 		return nil, ErrInvalidInput
 	}
