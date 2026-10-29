@@ -240,7 +240,7 @@ func (s *Store) GetCatalogSyncReport(ctx context.Context, actor domain.Actor, id
 	defer tx.Rollback(ctx)
 	r := domain.CatalogSyncReport{JobID: id}
 	var source *string
-	err = tx.QueryRow(ctx, `SELECT library_id::text,mode,phase,source_job_id::text,examined,created,updated,unchanged,protected,pending,marked_missing,removed FROM catalog_sync_requests WHERE job_id=$1::uuid`, id).Scan(&r.LibraryID, &r.Mode, &r.Phase, &source, &r.Examined, &r.Created, &r.Updated, &r.Unchanged, &r.Protected, &r.Pending, &r.MarkedMissing, &r.Removed)
+	err = tx.QueryRow(ctx, `SELECT library_id::text,mode,phase,source_job_id::text,examined,created,updated,unchanged,protected,pending,marked_missing,removed,aggregated FROM catalog_sync_requests WHERE job_id=$1::uuid`, id).Scan(&r.LibraryID, &r.Mode, &r.Phase, &source, &r.Examined, &r.Created, &r.Updated, &r.Unchanged, &r.Protected, &r.Pending, &r.MarkedMissing, &r.Removed, &r.Aggregated)
 	if err != nil {
 		return domain.CatalogSyncReport{}, storageError(err)
 	}

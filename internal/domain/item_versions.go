@@ -75,13 +75,16 @@ func (in SplitVersionInput) Valid() bool {
 // VersionOperation is one recorded decision. Undoable and UndoBlocked are
 // computed when it is read.
 type VersionOperation struct {
-	ID          string     `json:"id"`
-	LibraryID   string     `json:"libraryId"`
-	Kind        string     `json:"kind"`
-	ItemID      string     `json:"itemId"`
-	OtherItemID string     `json:"otherItemId,omitempty"`
-	SourceIDs   []string   `json:"sourceIds"`
-	ActorID     string     `json:"actorId,omitempty"`
+	ID          string   `json:"id"`
+	LibraryID   string   `json:"libraryId"`
+	Kind        string   `json:"kind"`
+	ItemID      string   `json:"itemId"`
+	OtherItemID string   `json:"otherItemId,omitempty"`
+	SourceIDs   []string `json:"sourceIds"`
+	ActorID     string   `json:"actorId,omitempty"`
+	// Automatic marks a merge the versions phase of synchronisation made
+	// (G20.1); it is undone like any other merge.
+	Automatic   bool       `json:"automatic"`
 	CreatedAt   time.Time  `json:"createdAt"`
 	UndoUntil   time.Time  `json:"undoUntil"`
 	UndoneAt    *time.Time `json:"undoneAt,omitempty"`

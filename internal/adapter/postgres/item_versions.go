@@ -82,11 +82,11 @@ func laterStructuralOperation(ctx context.Context, tx pgx.Tx, after time.Time, i
 	return later, storageError(err)
 }
 
-const versionOperationColumns = `o.id::text,o.library_id::text,o.kind,o.item_id::text,COALESCE(o.other_item_id::text,''),o.source_ids::text[],COALESCE(o.actor_id::text,''),o.created_at,o.undo_until,o.undone_at`
+const versionOperationColumns = `o.id::text,o.library_id::text,o.kind,o.item_id::text,COALESCE(o.other_item_id::text,''),o.source_ids::text[],COALESCE(o.actor_id::text,''),o.automatic,o.created_at,o.undo_until,o.undone_at`
 
 func scanVersionOperation(row pgx.Row) (domain.VersionOperation, error) {
 	var op domain.VersionOperation
-	err := row.Scan(&op.ID, &op.LibraryID, &op.Kind, &op.ItemID, &op.OtherItemID, &op.SourceIDs, &op.ActorID, &op.CreatedAt, &op.UndoUntil, &op.UndoneAt)
+	err := row.Scan(&op.ID, &op.LibraryID, &op.Kind, &op.ItemID, &op.OtherItemID, &op.SourceIDs, &op.ActorID, &op.Automatic, &op.CreatedAt, &op.UndoUntil, &op.UndoneAt)
 	if op.SourceIDs == nil {
 		op.SourceIDs = []string{}
 	}
@@ -130,8 +130,10 @@ func recordVersionOperation(ctx context.Context, tx pgx.Tx, actor domain.Actor, 
 	if other != "" {
 		otherID = &other
 	}
-	op, err := scanVersionOperation(tx.QueryRow(ctx, `INSERT INTO item_version_operations AS o(library_id,kind,actor_id,item_id,other_item_id,source_ids,undo,undo_until)
- VALUES($1::uuid,$2,$3::uuid,$4::uuid,$5::uuid,$6::uuid[],$7::jsonb,clock_timestamp()+make_interval(secs=>$8)) RETURNING `+versionOperationColumns,
+	// Only the versions phase of synchronisation records an operation
+	// without an actor: an automatic merge (G20.1).
+	op, err := scanVersionOperation(tx.QueryRow(ctx, `INSERT INTO item_version_operations AS o(library_id,kind,actor_id,automatic,item_id,other_item_id,source_ids,undo,undo_until)
+ VALUES($1::uuid,$2,NULLIF($3,'')::uuid,$3='',$4::uuid,$5::uuid,$6::uuid[],$7::jsonb,clock_timestamp()+make_interval(secs=>$8)) RETURNING `+versionOperationColumns,
 		item.library, kind, actor.UserID, item.id, otherID, sources, doc, domain.VersionUndoWindow.Seconds()))
 	if err != nil {
 		return op, err
@@ -395,11 +397,23 @@ func (s *Store) MergeItems(ctx context.Context, actor domain.Actor, targetID, so
 		}
 		locked[id] = it
 	}
-	target, source := locked[targetID], locked[sourceItemID]
-	if err = checkMergeable(ctx, tx, target, source); err != nil {
+	op, err := mergeVersionItems(ctx, tx, actor, locked[targetID], locked[sourceItemID], s.webhooksOn(), nil)
+	if err != nil {
 		return domain.VersionOperation{}, err
 	}
-	if err = versionBusy(ctx, tx, target.id, source.id); err != nil {
+	return op, storageError(tx.Commit(ctx))
+}
+
+// mergeVersionItems moves every version of source into target under the
+// merge policy and records the undoable operation. Both items are locked by
+// the caller. automatic carries the evidence of a merge the versions phase
+// of synchronisation decided (no actor); nil for an administrator's merge.
+func mergeVersionItems(ctx context.Context, tx pgx.Tx, actor domain.Actor, target, source versionItem, events bool, automatic map[string]any) (domain.VersionOperation, error) {
+	if err := checkMergeable(ctx, tx, target, source); err != nil {
+		return domain.VersionOperation{}, err
+	}
+	err := versionBusy(ctx, tx, target.id, source.id)
+	if err != nil {
 		return domain.VersionOperation{}, err
 	}
 	// A live share link on the absorbed item would vanish with it and cut its
@@ -445,19 +459,22 @@ func (s *Store) MergeItems(ctx context.Context, actor domain.Actor, targetID, so
 	if _, err = tx.Exec(ctx, `DELETE FROM items WHERE id=$1::uuid AND library_id=$2::uuid`, source.id, source.library); err != nil {
 		return domain.VersionOperation{}, storageError(err)
 	}
-	if err = itemWebhook(ctx, tx, s.webhooksOn(), domain.WebhookMediaDeleted, source); err != nil {
+	if err = itemWebhook(ctx, tx, events, domain.WebhookMediaDeleted, source); err != nil {
 		return domain.VersionOperation{}, err
 	}
-	op, err := recordVersionOperation(ctx, tx, actor, domain.VersionOpMerge, target, source.id, sources, undo, "item.versions_merged",
-		map[string]any{"absorbedItemId": source.id, "absorbedTitle": source.title, "sources": len(sources), "kind": target.kind,
-			"userData": len(undo.Transfer.UserDataUsers), "sessions": len(undo.Transfer.Sessions), "rules": len(undo.Transfer.Rules)})
+	details := map[string]any{"absorbedItemId": source.id, "absorbedTitle": source.title, "sources": len(sources), "kind": target.kind,
+		"userData": len(undo.Transfer.UserDataUsers), "sessions": len(undo.Transfer.Sessions), "rules": len(undo.Transfer.Rules)}
+	for k, v := range automatic {
+		details[k] = v
+	}
+	op, err := recordVersionOperation(ctx, tx, actor, domain.VersionOpMerge, target, source.id, sources, undo, "item.versions_merged", details)
 	if err != nil {
 		return domain.VersionOperation{}, err
 	}
 	if _, err = tx.Exec(ctx, `UPDATE catalog_scan_item_aliases SET operation_id=$2::uuid WHERE item_id=$1::uuid AND operation_id IS NULL`, target.id, op.ID); err != nil {
 		return domain.VersionOperation{}, storageError(err)
 	}
-	return op, storageError(tx.Commit(ctx))
+	return op, nil
 }
 
 // checkMergeable enforces the G20.5 boundaries.
@@ -479,15 +496,18 @@ func checkMergeable(ctx context.Context, tx pgx.Tx, target, source versionItem) 
 		// Episodes of different series never become one item.
 		return domain.ErrVersionMergeIncompatible
 	}
+	// Episode numbers compare by their effective value: a locked correction,
+	// else NFO facts, else the file name (G21.2). A file name that an NFO
+	// overrides no longer blocks the merge; differing NFO numbers do.
 	var targetIDs, sourceIDs []byte
 	var numbersDiffer bool
-	err = tx.QueryRow(ctx, `SELECT (SELECT value::text FROM item_metadata_facts WHERE item_id=$1::uuid AND field='uniqueIds'),
+	err = tx.QueryRow(ctx, `WITH n AS (SELECT i.id,`+effectiveNumbersSQL("i.id", "k", "c")+` FROM items i
+  LEFT JOIN item_identity_corrections k ON k.item_id=i.id LEFT JOIN catalog_scan_items c ON c.item_id=i.id AND c.kind='Episode'
+  WHERE i.id IN ($1::uuid,$2::uuid))
+ SELECT (SELECT value::text FROM item_metadata_facts WHERE item_id=$1::uuid AND field='uniqueIds'),
  (SELECT value::text FROM item_metadata_facts WHERE item_id=$2::uuid AND field='uniqueIds'),
- EXISTS(SELECT 1 FROM item_metadata_facts a JOIN item_metadata_facts b ON b.field=a.field AND b.item_id=$2::uuid
-  WHERE a.item_id=$1::uuid AND a.field IN ('seasonNumber','episodeNumber') AND a.value<>b.value)
- OR EXISTS(SELECT 1 FROM catalog_scan_items a JOIN catalog_scan_items b ON b.item_id=$2::uuid WHERE a.item_id=$1::uuid AND a.kind='Episode'
-  AND (a.season IS DISTINCT FROM b.season AND a.season IS NOT NULL AND b.season IS NOT NULL
-   OR a.episode IS DISTINCT FROM b.episode AND a.episode IS NOT NULL AND b.episode IS NOT NULL))`, target.id, source.id).Scan(&targetIDs, &sourceIDs, &numbersDiffer)
+ EXISTS(SELECT 1 FROM n a JOIN n b ON b.id=$2::uuid WHERE a.id=$1::uuid
+  AND (a.season<>b.season OR a.episode<>b.episode))`, target.id, source.id).Scan(&targetIDs, &sourceIDs, &numbersDiffer)
 	if err != nil {
 		return storageError(err)
 	}
@@ -603,7 +623,7 @@ func (s *Store) UndoVersionOperation(ctx context.Context, actor domain.Actor, op
 	var raw []byte
 	var op domain.VersionOperation
 	err = tx.QueryRow(ctx, `SELECT `+versionOperationColumns+`,o.undo::text FROM item_version_operations o WHERE o.id=$1::uuid FOR UPDATE`, operationID).Scan(
-		&op.ID, &op.LibraryID, &op.Kind, &op.ItemID, &op.OtherItemID, &op.SourceIDs, &op.ActorID, &op.CreatedAt, &op.UndoUntil, &op.UndoneAt, &raw)
+		&op.ID, &op.LibraryID, &op.Kind, &op.ItemID, &op.OtherItemID, &op.SourceIDs, &op.ActorID, &op.Automatic, &op.CreatedAt, &op.UndoUntil, &op.UndoneAt, &raw)
 	if err != nil {
 		return domain.VersionOperation{}, storageError(err)
 	}

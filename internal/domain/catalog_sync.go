@@ -73,6 +73,9 @@ type CatalogSyncReport struct {
 	Pending       int64  `json:"pending"`
 	MarkedMissing int64  `json:"markedMissing"`
 	Removed       int64  `json:"removed"`
+	// Aggregated counts items the versions phase folded into another item
+	// as automatic merges (G20.1).
+	Aggregated int64 `json:"aggregated"`
 }
 
 type CatalogSyncSettings struct {
