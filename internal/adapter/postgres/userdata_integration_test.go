@@ -42,6 +42,7 @@ var userReferenceColumns = map[string]string{
 	"watch_stats_daily.user_id":        "cascade",
 	"watch_stats_history.user_id":      "cascade",
 	// ON DELETE SET NULL: the row stays without attribution.
+	"catalog_scan_pending.rejected_by":       "set null",
 	"client_rules.created_by":                "set null",
 	"collections.created_by":                 "set null",
 	"inventory_missing_acceptances.actor_id": "set null",
