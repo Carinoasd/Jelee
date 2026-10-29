@@ -14,6 +14,15 @@ type NFOReader interface {
 	Read(context.Context, domain.NFOSource) (NFOReadSource, error)
 }
 
+// NFOPathInspector is an optional capability of an NFOReader: it classifies
+// the location of an NFO before the file is read (G39.11). It returns one of
+// the domain.NFOPath* codes, or "" when the location is acceptable or the
+// problem is something else (a missing file), which Read reports as
+// unavailable. It reads no file content.
+type NFOPathInspector interface {
+	InspectNFOPath(context.Context, domain.NFOSource) (string, error)
+}
+
 // Only fixed XML/encoding failures become an invalid summary with nil error.
 // Other failures return a zero summary and a domain or standard context error.
 // Parse never reopens the path, and may be called repeatedly or concurrently.

@@ -19,7 +19,7 @@ func nfoExportJobData() map[string]any {
 }
 
 func nfoExportStateData(cursor any) map[string]any {
-	return map[string]any{"jobId": jobsTestID, "libraryId": nfoWriteTestID2, "mode": "all", "skippedExisting": 0, "cursorItemId": cursor, "childJobId": nil, "chunks": 6, "written": 5, "unchanged": 4, "skippedMissing": 3, "skippedInvalid": 2, "skippedOther": 1, "failed": 7, "updatedAt": "2026-10-01T01:02:03Z"}
+	return map[string]any{"jobId": jobsTestID, "libraryId": nfoWriteTestID2, "mode": "all", "skippedExisting": 0, "cursorItemId": cursor, "childJobId": nil, "chunks": 6, "written": 5, "fixed": 0, "unfixable": 0, "unchanged": 4, "skippedMissing": 3, "skippedInvalid": 2, "skippedOther": 1, "failed": 7, "updatedAt": "2026-10-01T01:02:03Z"}
 }
 
 func TestNFOExportCLIBuildsFixedRequests(t *testing.T) {
@@ -85,7 +85,7 @@ func TestNFOExportCLIBuildsFixedRequests(t *testing.T) {
 						t.Fatalf("json output: %s", out.String())
 					}
 					if tc.method == "GET" {
-						if _, ok := printed.Data["cursorItemId"]; !ok || len(printed.Data) != 14 {
+						if _, ok := printed.Data["cursorItemId"]; !ok || len(printed.Data) != 16 {
 							t.Fatalf("status fields: %s", out.String())
 						}
 					}

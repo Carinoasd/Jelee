@@ -15,6 +15,7 @@ type SummaryReader struct{ identity domain.NFOIdentity }
 
 var _ app.NFOReader = (*SummaryReader)(nil)
 var _ app.NFOReadSource = (*summarySource)(nil)
+var _ app.NFOPathInspector = (*SummaryReader)(nil)
 
 // NewSummaryReader accepts only the source byte budget. Parser, projection and
 // fingerprint versions are compiled constants, never caller-selected identity.
@@ -61,6 +62,25 @@ func (r *SummaryReader) Read(ctx context.Context, path domain.NFOSource) (app.NF
 		return nil, domain.ErrNFOReaderUnavailable
 	}
 	return &summarySource{source: source, stamp: value}, nil
+}
+
+// InspectNFOPath classifies the location of an NFO without reading it; see
+// InspectNFOPath.
+func (r *SummaryReader) InspectNFOPath(ctx context.Context, path domain.NFOSource) (string, error) {
+	if err := summaryContext(ctx); err != nil {
+		return "", err
+	}
+	if r == nil || domain.ValidateNFOIdentity(r.identity) != nil {
+		return "", domain.ErrNFOReaderUnavailable
+	}
+	code, err := InspectNFOPath(ctx, path.RootPath, path.RelativePath)
+	if ctx.Err() != nil {
+		return "", ctx.Err()
+	}
+	if err != nil {
+		return "", domain.ErrNFOReaderUnavailable
+	}
+	return code, nil
 }
 
 type summarySource struct {

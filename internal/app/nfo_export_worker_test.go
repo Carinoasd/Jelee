@@ -138,6 +138,7 @@ type exportItems struct {
 	resolveErr  map[string]error
 	revisions   map[string][]int64 // revision per call, then the last one repeats
 	calls       map[string]int
+	scanned     map[string]bool // items whose title is only the scanned name
 }
 
 func (r *exportItems) ItemMetadata(_ context.Context, _ domain.Actor, item string) (domain.ItemMetadata, error) {
@@ -152,7 +153,11 @@ func (r *exportItems) ItemMetadata(_ context.Context, _ domain.Actor, item strin
 		revision = list[min(r.calls[item], len(list)-1)]
 	}
 	r.calls[item]++
-	return domain.ItemMetadata{ItemID: item, Kind: "Movie", Revision: revision, Fields: []domain.ItemMetadataField{{Field: "title", Value: "DB " + item, Source: "manual"}}}, nil
+	source := "manual"
+	if r.scanned[item] {
+		source = "existing"
+	}
+	return domain.ItemMetadata{ItemID: item, Kind: "Movie", Revision: revision, Fields: []domain.ItemMetadataField{{Field: "title", Value: "DB " + item, Source: source}}}, nil
 }
 
 func (r *exportItems) ResolveItemNFO(_ context.Context, _ domain.Actor, item string, revision int64) (domain.NFOItemScope, error) {
