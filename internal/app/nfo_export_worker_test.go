@@ -245,6 +245,9 @@ func (r *exportExecution) SubmitNFOExportChunk(_ context.Context, _ domain.JobLe
 	return nil
 }
 
+func (r *exportExecution) SettleNFOExportChild(context.Context, domain.JobLease, int) error {
+	return nil
+}
 func (r *exportExecution) YieldNFOExport(context.Context, domain.JobLease) error { return nil }
 func (r *exportExecution) FinishNFOExport(context.Context, domain.JobLease, string, string) error {
 	return nil

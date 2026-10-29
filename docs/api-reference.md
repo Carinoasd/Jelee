@@ -49,7 +49,7 @@ OpenAPI 中的 Jelee 扩展字段：
 | `/api/v1/collections`、`/api/v1/playlists` | 合集与播放清单，见[合集与播放清单](collections-playlists.md) | P17、P18 |
 | `/api/v1/watch-stats` | 全站观看统计与导出 | P19 |
 | `/api/v1/metadata` | TMDB 候选搜索、预览与图片候选 | P21 |
-| `/api/v1/libraries`、`/api/v1/jobs` | 媒体库、扫描、排程、监看、目录同步、NFO 策略与校验、NFO 写回权限（`PUT …/nfo/write-policy`）与写回任务（`POST …/nfo/writes`，见[NFO 写回任务](nfo-write-jobs.md)）、NFO 全量导入任务（`POST …/nfo/apply`，进度 `GET /api/v1/jobs/{id}/nfo-apply`，见[NFO 全量导入任务](nfo-apply-jobs.md)）、NFO 匯出全部任务（`POST …/nfo/export`，进度 `GET /api/v1/jobs/{id}/nfo-export`，见[NFO 匯出全部任务](nfo-export-jobs.md)）、探测重建；任务与任务报告，见[任务 API](jobs-api.md) | P22 |
+| `/api/v1/libraries`、`/api/v1/jobs` | 媒体库、扫描、排程、监看、目录同步、NFO 策略与校验、NFO 写回权限（`PUT …/nfo/write-policy`）与写回任务（`POST …/nfo/writes`，见[NFO 写回任务](nfo-write-jobs.md)）、NFO 全量导入任务（`POST …/nfo/apply`，进度 `GET /api/v1/jobs/{id}/nfo-apply`，见[NFO 全量导入任务](nfo-apply-jobs.md)）、NFO 匯出全部与仅导出缺失任务（`POST …/nfo/export`，可选 body `{"mode":"all"|"missing"}`，进度 `GET /api/v1/jobs/{id}/nfo-export`，见[NFO 匯出全部任务](nfo-export-jobs.md)）、探测重建；任务与任务报告，见[任务 API](jobs-api.md) | P22 |
 | `/api/v1/admin` | 自愈修复与回滚，见[修复](repair.md) | P23 |
 | `/api/v1/webhooks` | Webhook 端点、投递记录、重放，见 [Webhook](webhooks.md) | P24 |
 | `/api/v1/client-control` | 客户端管控策略、规则、命中记录、已知客户端，见[客户端管控](client-control.md) | P25 |

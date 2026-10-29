@@ -40,6 +40,11 @@ type NFOExportExecutionRepository interface {
 	// preparations and records it with the cursor and counts in one
 	// transaction.
 	SubmitNFOExportChunk(ctx context.Context, lease domain.JobLease, actor domain.Actor, chunk int, cursor string, counts domain.NFOExportCounts, preparations []string) error
+	// SettleNFOExportChild folds a finished child of a missing-mode export into
+	// the counters after the run looked at the targets of the step's settle
+	// candidates: existing of them are counted as skipped_existing, every other
+	// unreplaced entry as failed.
+	SettleNFOExportChild(ctx context.Context, lease domain.JobLease, existing int) error
 	// YieldNFOExport returns the job to the queue without consuming an attempt.
 	YieldNFOExport(ctx context.Context, lease domain.JobLease) error
 	FinishNFOExport(ctx context.Context, lease domain.JobLease, state, code string) error
@@ -113,6 +118,16 @@ func (w *NFOExportWorker) Run(ctx context.Context, lease domain.JobLease) error 
 		if step.Waiting {
 			return ErrNFOExportYield
 		}
+		if step.Settle != nil {
+			existing, err := w.countExistingNFOs(ctx, step.Actor, step.Settle.Candidates)
+			if err != nil {
+				return err
+			}
+			if err = w.db(ctx, func(c context.Context) error { return w.repo.SettleNFOExportChild(c, lease, existing) }); err != nil {
+				return err
+			}
+			continue
+		}
 		if len(step.Items) == 0 {
 			return nil
 		}
@@ -127,7 +142,7 @@ func (w *NFOExportWorker) Run(ctx context.Context, lease domain.JobLease) error 
 			if stop = ctx.Err(); stop != nil {
 				break
 			}
-			outcome, id, err := w.exportItem(ctx, step.Actor, lease.Job.ID, step.Chunk+1, item)
+			outcome, id, err := w.exportItem(ctx, step.Actor, step.Mode == domain.NFOExportMissing, lease.Job.ID, step.Chunk+1, item)
 			if errors.Is(err, domain.ErrNFOCacheCapacity) && len(prepared) > 0 {
 				// The preparation store is full: submit what is ready and
 				// come back for this item.
@@ -144,6 +159,8 @@ func (w *NFOExportWorker) Run(ctx context.Context, lease domain.JobLease) error 
 				counts.Unchanged++
 			case nfoExportMissing:
 				counts.SkippedMissing++
+			case nfoExportExisting:
+				counts.SkippedExisting++
 			case nfoExportInvalid:
 				counts.SkippedInvalid++
 			case nfoExportSkipped:
@@ -185,16 +202,42 @@ const (
 	nfoExportPrepared nfoExportOutcome = iota
 	nfoExportUnchanged
 	nfoExportMissing
+	nfoExportExisting
 	nfoExportInvalid
 	nfoExportSkipped
 	nfoExportFailed
 )
 
+// countExistingNFOs reports how many of the items have an NFO file now. It
+// settles a missing-mode child: an item whose create was not written and whose
+// target exists lost to a file that appeared. Items that cannot be read are
+// not counted; errors that are not about the item stop the run.
+func (w *NFOExportWorker) countExistingNFOs(ctx context.Context, actor domain.Actor, items []string) (int, error) {
+	existing := 0
+	for _, item := range items {
+		before, err := w.metadata.ItemFields(ctx, actor, item)
+		var read nfoItemRead
+		if err == nil {
+			_, read, err = w.metadata.readItemNFOStates(ctx, actor, item, before.Revision)
+		}
+		if err != nil {
+			if _, _, stop := classifyNFOExportError(ctx, err); stop != nil {
+				return 0, stop
+			}
+			continue
+		}
+		if read.state != nil && read.state.Status != domain.NFOItemObservedMissing {
+			existing++
+		}
+	}
+	return existing, nil
+}
+
 // exportItem reads the item's database metadata and its NFO and, when they
-// differ, prepares the edit. A revision or source conflict is retried once
+// differ (or, with create, when the NFO does not exist), prepares the edit. A revision or source conflict is retried once
 // with fresh state. The error is non-nil only when the run must stop (or the
 // preparation store is full, which Run handles).
-func (w *NFOExportWorker) exportItem(ctx context.Context, actor domain.Actor, job string, chunk int, item string) (nfoExportOutcome, string, error) {
+func (w *NFOExportWorker) exportItem(ctx context.Context, actor domain.Actor, create bool, job string, chunk int, item string) (nfoExportOutcome, string, error) {
 	var err error
 	for attempt := 0; attempt < 2; attempt++ {
 		var before domain.ItemMetadata
@@ -209,7 +252,13 @@ func (w *NFOExportWorker) exportItem(ctx context.Context, actor domain.Actor, jo
 			}
 			break
 		}
-		outcome, request := planNFOExport(before, scope, read)
+		var outcome nfoExportOutcome
+		var request *domain.NFOWritePrepareRequest
+		if create {
+			outcome, request = planNFOExportMissing(before, scope, read)
+		} else {
+			outcome, request = planNFOExport(before, scope, read)
+		}
 		if request == nil {
 			return outcome, "", nil
 		}
@@ -311,6 +360,36 @@ func planNFOExport(before domain.ItemMetadata, scope domain.NFOItemScope, read n
 	}
 	return nfoExportPrepared, &domain.NFOWritePrepareRequest{ItemID: scope.ItemID, Revision: scope.Revision, Edits: edits, CreateMissing: true,
 		BOM: "preserve", MaxBytes: domain.NFODefaultSourceBytes, Backups: nfoExportBackups}
+}
+
+// planNFOExportMissing is planNFOExport for a missing-mode run: only an item
+// without an NFO file is written, by a create preparation whose edits set every
+// stored field the preparation supports (same rules: no empty value, no scanned
+// title fallback). An item that has an NFO, valid or not, is skipped_existing
+// and never touched; one with nothing stored to write is unchanged. A create
+// has no original, so no backup is kept and the NFO's locks cannot apply.
+func planNFOExportMissing(before domain.ItemMetadata, scope domain.NFOItemScope, read nfoItemRead) (nfoExportOutcome, *domain.NFOWritePrepareRequest) {
+	if read.state == nil {
+		return nfoExportSkipped, nil
+	}
+	switch read.state.Status {
+	case domain.NFOItemObservedMissing:
+	case domain.NFOItemObservedValid, domain.NFOItemObservedInvalid:
+		return nfoExportExisting, nil
+	default:
+		return nfoExportSkipped, nil
+	}
+	var edits []domain.NFOWriteTextEdit
+	for _, f := range nfoExportFields {
+		if want, ok := nfoExportDatabaseValue(before, f); ok && want != "" {
+			edits = append(edits, domain.NFOWriteTextEdit{Field: f.edit, Value: want})
+		}
+	}
+	if len(edits) == 0 {
+		return nfoExportUnchanged, nil
+	}
+	return nfoExportPrepared, &domain.NFOWritePrepareRequest{ItemID: scope.ItemID, Revision: scope.Revision, Edits: edits, Create: true,
+		BOM: "omit", MaxBytes: domain.NFODefaultSourceBytes}
 }
 
 // nfoExportDatabaseValue is the stored text of f. Fields still on their

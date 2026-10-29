@@ -137,7 +137,7 @@ func nfoExportWant(n int) domain.NFOExportCounts {
 }
 
 func nfoExportCounts(s domain.NFOExportJobState) domain.NFOExportCounts {
-	return domain.NFOExportCounts{Written: s.Written, Unchanged: s.Unchanged, SkippedMissing: s.SkippedMissing, SkippedInvalid: s.SkippedInvalid, SkippedOther: s.SkippedOther, Failed: s.Failed}
+	return domain.NFOExportCounts{Written: s.Written, Unchanged: s.Unchanged, SkippedExisting: s.SkippedExisting, SkippedMissing: s.SkippedMissing, SkippedInvalid: s.SkippedInvalid, SkippedOther: s.SkippedOther, Failed: s.Failed}
 }
 
 // hookedNFOExport observes and interrupts the steps of a run.
@@ -187,6 +187,13 @@ func startNFOExportRunner(t *testing.T, f jobFixture, metadata *app.Metadata, re
 // write recovered while they run ask for a short one.
 func startNFOExportRunnerRecovering(t *testing.T, f jobFixture, metadata *app.Metadata, repository app.NFOExportExecutionRepository, recovery time.Duration) func() {
 	t.Helper()
+	return startNFOExportRunnerWith(t, f, metadata, repository, f.s, recovery)
+}
+
+// startNFOExportRunnerWith is startNFOExportRunnerRecovering with a separate
+// repository for the child write jobs, so a test can act inside their settlement.
+func startNFOExportRunnerWith(t *testing.T, f jobFixture, metadata *app.Metadata, repository app.NFOExportExecutionRepository, write app.NFOWriteExecutionRepository, recovery time.Duration) func() {
+	t.Helper()
 	budget, err := resources.New(resources.Limits{CPU: 1, IO: 1, Total: 1, Queue: 64})
 	if err != nil {
 		t.Fatal(err)
@@ -209,7 +216,7 @@ func startNFOExportRunnerRecovering(t *testing.T, f jobFixture, metadata *app.Me
 	}
 	opts := jobs.DefaultOptions()
 	opts.Workers, opts.PollInterval = 1, 100*time.Millisecond
-	opts.NFOWrite = &jobs.NFOWriteOptions{Repository: f.s, Committer: nfoWriteTestWriter(t), RecoveryInterval: recovery}
+	opts.NFOWrite = &jobs.NFOWriteOptions{Repository: write, Committer: nfoWriteTestWriter(t), RecoveryInterval: recovery}
 	opts.NFOExport = &jobs.NFOExportOptions{Worker: exporter, Repository: f.s}
 	opts.NFOApply = &jobs.NFOApplyOptions{Worker: applier, Repository: f.s}
 	runner, err := jobs.New(f.s, idleInventoryScanner{}, opts, slog.New(slog.NewTextHandler(io.Discard, nil)))

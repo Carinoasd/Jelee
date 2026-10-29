@@ -8,7 +8,7 @@ import (
 
 // NFOExportJobRepository admits and reports nfo_export jobs (G39.14).
 type NFOExportJobRepository interface {
-	SubmitNFOExportJob(ctx context.Context, actor domain.Actor, library, key, priority string, policy domain.JobPolicy) (domain.Job, bool, error)
+	SubmitNFOExportModeJob(ctx context.Context, actor domain.Actor, library, key, priority, mode string, policy domain.JobPolicy) (domain.Job, bool, error)
 	GetNFOExportState(ctx context.Context, actor domain.Actor, job string) (domain.NFOExportJobState, error)
 }
 
@@ -28,7 +28,14 @@ func NewJobsWithNFOExport(base *Jobs, repository NFOExportJobRepository) (*Jobs,
 // domain.ErrNFOWriteDisabled. Without an export repository every library
 // counts as not writable.
 func (j *Jobs) SubmitNFOExport(ctx context.Context, actor domain.Actor, library, key, priority string) (domain.Job, bool, error) {
-	if ctx == nil || j == nil || !validTarget(actor, library) || !validKey(key) || (priority != domain.JobPriorityManual && priority != domain.JobPriorityBackground) {
+	return j.SubmitNFOExportMode(ctx, actor, library, key, priority, domain.NFOExportAll)
+}
+
+// SubmitNFOExportMode is SubmitNFOExport with an export mode: all writes the
+// stored values into existing NFOs, missing creates the NFOs that do not exist.
+// The mode is part of the request an idempotency key names.
+func (j *Jobs) SubmitNFOExportMode(ctx context.Context, actor domain.Actor, library, key, priority, mode string) (domain.Job, bool, error) {
+	if ctx == nil || j == nil || !validTarget(actor, library) || !validKey(key) || !domain.ValidNFOExportMode(mode) || (priority != domain.JobPriorityManual && priority != domain.JobPriorityBackground) {
 		return domain.Job{}, false, domain.ErrInvalid
 	}
 	if err := ctx.Err(); err != nil {
@@ -37,7 +44,7 @@ func (j *Jobs) SubmitNFOExport(ctx context.Context, actor domain.Actor, library,
 	if j.nfoExportJobs == nil {
 		return domain.Job{}, false, domain.ErrNFOWriteDisabled
 	}
-	return j.nfoExportJobs.SubmitNFOExportJob(ctx, actor, library, key, priority, j.policy)
+	return j.nfoExportJobs.SubmitNFOExportModeJob(ctx, actor, library, key, priority, mode, j.policy)
 }
 
 // NFOExportState returns the progress of an nfo_export job; any other job kind
