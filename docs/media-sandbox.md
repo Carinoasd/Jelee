@@ -2,7 +2,7 @@
 
 ## Scope and current status
 
-`internal/platform/sandbox` implements a dedicated Linux amd64 helper that applies kernel restrictions before executing an approved ffprobe. `process.NewIsolatedFFprobe` supplies the dedicated bounded runner registration. These packages add no HTTP endpoint, database access, import, cache, or transcoding. Windows and other architectures return `media_sandbox_unsupported`; callers must leave media probing disabled there.
+`internal/platform/sandbox` implements a dedicated Linux amd64 helper that applies kernel restrictions before executing an approved ffprobe. `process.NewIsolatedFFprobe` supplies the dedicated bounded runner registration. These packages add no HTTP endpoint, database access, import, cache, or transcoding. Windows amd64 uses a different mechanism with the same upper interface (see [Windows amd64 confinement](#windows-amd64-confinement-g096)); other platforms and architectures return `media_sandbox_unsupported`, and callers must leave media probing disabled there.
 
 Successful `New` means the supplied identity policy and ELF dependency closure were verified. It does not enable a capability. Production must use the embedded executable/runtime manifests, `RequireProtectedFiles=true`, early helper dispatch, and a read-only runtime image. The application registrar owns the final capability check. A development policy with protection disabled is not eligible for production registration.
 
@@ -13,6 +13,34 @@ Successful `New` means the supplied identity policy and ELF dependency closure w
 ## Tesseract OCR mode (G15.6)
 
 A fourth tool mode, `tesseract-ocr`, runs the pinned Tesseract on one decoded subtitle picture (a private PGM file passed as the verified read-only stdin). Its policy adds `DataFiles`: the pinned `<language>.traineddata` files, all in one directory, hashed (and, in production, ownership-checked) at registration and again in the helper, and granted READ_FILE as those same file objects — only the languages of the run. The descriptor carries 1–4 language codes that must be pinned by the policy. Its exact closure may hold up to 64 libraries (`MaxOCRLibraries`; Debian's build links libcurl and libarchive); the other modes keep the 32-file bound. It creates no file (FSIZE 0), runs with CPU 30 s and `OMP_THREAD_LIMIT=1`, and has its own `OCRPolicyVersion`, so `ToolPolicyVersion` and the MediaInfo probe identity are unchanged. Details: [subtitle OCR](subtitle-ocr.md).
+
+## Windows amd64 confinement (G09.6)
+
+Decision and rationale: [ADR 0011](adr/0011-windows-media-tool-confinement.md). Windows cannot replace a process image in place, so there is no helper: `sandbox.New` returns a *direct* launcher (`Launcher.Direct()`), whose `Executable()` is the verified `ffprobe.exe` itself and whose argv comes from `DirectArguments()` / `DirectCoverArguments(stream)` — the same fixed `metadataArguments` / `coverArguments` as Linux, reading the media from `fd:` (stdin). `HelperArguments()` is nil for it. `process.NewIsolatedFFprobe` / `NewIsolatedFFprobeCover` accept either kind and return the same `*IsolatedRunner`; a direct runner starts every child through `startConfinedChild` and never falls back to an ordinary start (off Windows that start is `process_platform_unsupported` and no child is created).
+
+Registration:
+
+- The profile path must be a clean drive-letter absolute path ending in `ffprobe.exe` (`sandbox.ValidWindowsToolPath`); UNC, `\\?\`, relative, `..`, alternate data streams and trailing dot/space forms are refused. In production it is the manifest's `.tools/media/windows-amd64/…/bin/ffprobe.exe` under the installation root (the parent of the directory holding the running executable, `sandbox.WindowsToolLocation`); the working directory and environment are never consulted.
+- The policy is the manifest SHA256 alone; a library closure is refused (the Gyan build is static).
+- The file is opened with `FILE_SHARE_READ` only and `FILE_FLAG_OPEN_REPARSE_POINT`; reparse points, directories and devices are refused; `GetFinalPathNameByHandle` must equal the requested path; size ≤ 512 MiB; the digest and PE header (AMD64, executable, not a DLL) are checked on that handle. The launcher keeps the handle until `Close()` or until it is unreachable, so the image cannot be written, renamed or deleted while runners built from it exist.
+
+Every run (`internal/platform/process/child_confined_windows.go`):
+
+| Restriction | Value |
+| --- | --- |
+| Token | `CreateRestrictedToken(DISABLE_MAX_PRIVILEGE)`: only `SeChangeNotifyPrivilege` remains; 9 privileged groups (Administrators, Power Users, Account/Server/Print/Backup/Network Configuration Operators, Hyper-V Administrators, local administrator account) deny-only; no restricting SIDs |
+| Integrity | Low (`S-1-16-4096`): No-Write-Up blocks writes to ordinary files, directories, registry keys and named objects; reads are unaffected |
+| Job | `KILL_ON_JOB_CLOSE`, `ACTIVE_PROCESS_LIMIT=1`, process committed memory 2 GiB, user CPU 30 s, `DIE_ON_UNHANDLED_EXCEPTION`, no breakaway, all 8 basic UI restrictions |
+| Child processes | `PROC_THREAD_ATTRIBUTE_CHILD_PROCESS_POLICY = PROCESS_CREATION_CHILD_PROCESS_RESTRICTED` in addition to the job limit |
+| Start | `CreateProcessAsUser(…, CREATE_SUSPENDED)` with `JOB_LIST` (atomic job membership) and `HANDLE_LIST` (stdin/stdout/stderr only); `IsProcessInJob` and the child's own token (integrity, deny-only, privileges) are verified before `ResumeThread`; any failure terminates the suspended child |
+| Command line | `sandbox.WindowsCommandLine`: CommandLineToArgvW / MSVC CRT quoting (same rules as `syscall.EscapeArg`), program name always quoted; quotes in the program name, NUL, invalid UTF-8 and lines of 32767 UTF-16 units or more are refused |
+| Termination | timeout, cancellation and output limits call `TerminateJobObject` and wait until the job has no active process |
+
+The restricted token and job are read back and checked rather than trusted. `CreateRestrictedToken` and `IsProcessInJob` are not wrapped by `golang.org/x/sys/windows` v0.48.0 and are called through `windows.NewLazySystemDLL` (System32 only). Without a helper, exit codes 64 and 78 are ffprobe's own and map to `process_unexpected_exit`; exit 1 is the normal rejection (`process_exit_failed`). The policy version is `windows-metadata-sandbox-v1` (`sandbox.WindowsMetadataPolicyVersion`).
+
+`proberuntime.Diagnose` / `jelee-cli doctor probe` run the same deliberately invalid health bytes through the confined ffprobe and report `available` with reason `confined_process_verified` only for its normal rejection. The catalog probe stays disabled on Windows even then, because probe identities and `tool_versions.platform` accept only `linux-amd64` (migration 000004); startup logs a WARN with reason `catalog_identity_unsupported` (or `health_check_failed`). MediaInfo, mkvtoolnix and Tesseract tool modes remain `platform_unsupported` on Windows: their Linux argv reopens `/proc/self/fd/0`, which has no Windows equivalent.
+
+Boundary: the confined tool can read what the service user can read (Low IL has no No-Read-Up for files) and can write only to its pipes. Run the service as a dedicated standard user, not LocalSystem. AppContainer is not used (ADR 0011). Windows tests (`direct_windows_amd64_test.go`, `child_confined_windows_test.go`) are compiled on Linux with `GOOS=windows go test -c` and must be run on a real Windows 10 1607+ host (owner verification B18, C36, D36).
 
 ## Registration and helper contract
 
@@ -117,7 +145,7 @@ A separate pure Go/amd64 assembly fixture creates bounded-stack raw threads unti
 
 The real pinned Linux ffprobe `n9.0.2-17-g2a571b6068-20260930` was tested with all eight runtime ELFs from the embedded manifest, protected root-owned files, and `RequireProtectedFiles=true`. MKV and MP4 returned metadata from `fd:`. HLS and local/nested concat references were rejected; a loopback HTTP control received no requests, and fixture hashes were unchanged. Tests also reject a missing interpreter, missing transitive dependency, duplicate SONAME, service-owned file, writable ancestor, changed leaf inode, and a different executable substituted for the running helper. This proves the tested packaged tool/profile combination; it does not establish universal container-format support.
 
-The full process-runner suite passes with 89.6% statement coverage. It includes the sealed registration, invalid requests, read-only stdin, cancellation, timeout, bounded output, quota release, descendant termination, and exit classification for 1, 2, 64, 78, 127, 255, and signals. Error results never expose raw child output. Windows focused tests and Windows/Linux `go vet` also pass; Windows media isolation remains unsupported.
+The full process-runner suite passes with 89.6% statement coverage. It includes the sealed registration, invalid requests, read-only stdin, cancellation, timeout, bounded output, quota release, descendant termination, and exit classification for 1, 2, 64, 78, 127, 255, and signals. Error results never expose raw child output. Windows focused tests and Windows/Linux `go vet` also pass. Windows media isolation (ADR 0011, 2026-10-30) is compiled and unit-tested on Linux only; its Windows tests await a Windows host.
 
 ### Coverage of the dedicated child
 
