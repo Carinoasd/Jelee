@@ -412,9 +412,23 @@ func observeImageSource(ctx context.Context, source domain.LocalImageSource) (va
 	if err != nil {
 		return value, imageSourceError(ctx, err)
 	}
+	// Close must not overlap ReadDir: os.File keeps its directory read state
+	// outside the descriptor lock, so a cancellation closing the handle while
+	// a page is being read is a data race. Cancellation is observed between
+	// pages, and a page is bounded.
+	var listingMu sync.Mutex
 	var once sync.Once
 	var closeErr error
-	closeListing := func() { once.Do(func() { closeErr = listing.Close() }) }
+	closeListing := func() {
+		listingMu.Lock()
+		defer listingMu.Unlock()
+		once.Do(func() { closeErr = listing.Close() })
+	}
+	readPage := func(n int) ([]os.DirEntry, error) {
+		listingMu.Lock()
+		defer listingMu.Unlock()
+		return listing.ReadDir(n)
+	}
 	done := make(chan struct{})
 	stop := context.AfterFunc(ctx, func() { defer close(done); closeListing() })
 	defer func() {
@@ -456,7 +470,7 @@ func observeImageSource(ctx context.Context, source domain.LocalImageSource) (va
 		}
 		return nil
 	}
-	if err := listImageCandidates(ctx, directory, listing, isCandidate, record); err != nil {
+	if err := listImageCandidates(ctx, directory, readPage, isCandidate, record); err != nil {
 		return value, err
 	}
 	for _, match := range value.matches {
@@ -490,13 +504,13 @@ func observeImageSource(ctx context.Context, source domain.LocalImageSource) (va
 // of names, read in batches of 128. Every name accepted by match must be a
 // regular file, not a symbolic link, before found sees it. Exceeding a bound
 // fails the whole listing, so callers never act on a partial directory.
-func listImageCandidates(ctx context.Context, directory *os.Root, listing *os.File, match func(string) bool, found func(string) error) error {
+func listImageCandidates(ctx context.Context, directory *os.Root, readPage func(int) ([]os.DirEntry, error), match func(string) bool, found func(string) error) error {
 	entries, nameBytes := 0, 0
 	for {
 		if ctx.Err() != nil {
 			return ctx.Err()
 		}
-		batch, readErr := listing.ReadDir(128)
+		batch, readErr := readPage(128)
 		entries += len(batch)
 		if entries > imageDirectoryEntries {
 			return domain.ErrImageTooLarge

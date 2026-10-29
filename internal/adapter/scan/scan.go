@@ -10,6 +10,7 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 	"unicode"
 	"unicode/utf8"
@@ -59,7 +60,29 @@ type directoryReader interface {
 	Close() error
 }
 
-func enumerate(ctx context.Context, file directoryReader, directory domain.ScanDirectory, emit func(domain.ScanBatch) error) error {
+// serialDirectory keeps Close from overlapping ReadDir. os.File keeps its
+// directory read state outside the descriptor lock, so a cancellation closing
+// the handle while a page is being read is a data race. Cancellation is
+// observed between pages, and a page is bounded by ScanBatchMaxEntries.
+type serialDirectory struct {
+	mu   sync.Mutex
+	file directoryReader
+}
+
+func (d *serialDirectory) ReadDir(n int) ([]os.DirEntry, error) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	return d.file.ReadDir(n)
+}
+
+func (d *serialDirectory) Close() error {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	return d.file.Close()
+}
+
+func enumerate(ctx context.Context, opened directoryReader, directory domain.ScanDirectory, emit func(domain.ScanBatch) error) error {
+	file := &serialDirectory{file: opened}
 	closed := make(chan struct{})
 	stop := context.AfterFunc(ctx, func() {
 		defer close(closed)
