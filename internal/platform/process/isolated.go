@@ -15,8 +15,8 @@ var (
 	ErrUnexpectedExit     = errors.New("process_unexpected_exit")
 )
 
-// IsolatedRunner exposes fixed sandboxed ffprobe operations: either the
-// metadata probe or the embedded cover reads. It cannot be constructed from
+// IsolatedRunner exposes fixed sandboxed ffprobe operations: the metadata
+// probe, the embedded cover reads or the chapter image reads. It cannot be constructed from
 // an arbitrary executable, operation registry, or argv.
 type IsolatedRunner struct {
 	runner     *Runner
@@ -30,6 +30,15 @@ func CoverOperation(stream int) string {
 		return ""
 	}
 	return "cover-" + strconv.Itoa(stream)
+}
+
+// ChapterOperation names the sealed chapter image read of one video-relative
+// stream index; an index outside the sandbox range yields "".
+func ChapterOperation(stream int) string {
+	if stream < 0 || stream > sandbox.CoverMaxVideoIndex {
+		return ""
+	}
+	return "chapters-" + strconv.Itoa(stream)
 }
 
 func (r *IsolatedRunner) Stats() Stats {
@@ -74,6 +83,32 @@ func NewIsolatedFFprobeCover(config Config, launcher *sandbox.Launcher) (*Isolat
 		}
 		operations[CoverOperation(stream)] = arguments
 		allowed[CoverOperation(stream)] = true
+	}
+	runner, err := newRunnerWithArgumentLimits(config, []Tool{{ID: "ffprobe", Path: launcher.Executable(), Operations: operations}}, true, maximum, maximum+len(sandbox.HelperCommand)+2)
+	if err != nil {
+		return nil, err
+	}
+	return &IsolatedRunner{runner: runner, operations: allowed}, nil
+}
+
+// NewIsolatedFFprobeChapters registers only the chapter image reads (G40.1),
+// one sealed operation per video-relative stream index, all derived from the
+// same verified launcher. It has no metadata or cover operation and no argv
+// input.
+func NewIsolatedFFprobeChapters(config Config, launcher *sandbox.Launcher) (*IsolatedRunner, error) {
+	if launcher == nil {
+		return nil, ErrInvalid
+	}
+	maximum := base64.RawURLEncoding.EncodedLen(sandbox.MaxDescriptor)
+	operations := make(map[string][]string, sandbox.CoverMaxVideoIndex+1)
+	allowed := make(map[string]bool, sandbox.CoverMaxVideoIndex+1)
+	for stream := 0; stream <= sandbox.CoverMaxVideoIndex; stream++ {
+		arguments := launcher.ChapterHelperArguments(stream)
+		if len(arguments) != 2 || arguments[0] != sandbox.HelperCommand || len(arguments[1]) == 0 || len(arguments[1]) > maximum {
+			return nil, ErrInvalid
+		}
+		operations[ChapterOperation(stream)] = arguments
+		allowed[ChapterOperation(stream)] = true
 	}
 	runner, err := newRunnerWithArgumentLimits(config, []Tool{{ID: "ffprobe", Path: launcher.Executable(), Operations: operations}}, true, maximum, maximum+len(sandbox.HelperCommand)+2)
 	if err != nil {

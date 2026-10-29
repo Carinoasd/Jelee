@@ -33,6 +33,7 @@
 | B7 | 日誌檔與暫存目錄在 Windows 沒有 POSIX 權限位元，隱私完全依賴所在目錄繼承的 ACL；請確認預設安裝位置（服務帳號、ProgramData）下其他使用者讀不到 `jelee.log` 與暫存目錄，若讀得到需決定是否明確設定 ACL | `internal/platform/logging/rotate.go`、`internal/platform/scratch/` | 待跑 |
 | B8 | Windows 上的 mkvtoolnix／MediaInfo（E4）：`scripts/make.ps1 bootstrap-matroska` 後 `scripts/make.ps1 tools-verify`，確認兩個 zip 只取出清單列出的檔案、`--version` 版本字串相符，並以 `.tools/matroska/mkvtoolnix/102.0/windows-amd64/mkvtoolnix/mkvextract.exe` 手動擷取 `.testfixtures` 的 `subtitles-fonts.mkv`。Windows 正式服務的擷取與補充仍停用（沙箱只在 linux-amd64） | `docs/matroska-tools.md` | 待跑 |
 | B9 | 圖片處理管線（G40.6、G40.7）：WebP 輸出（nativewebp 純 Go 無損編碼）、填滿裁切與智慧裁切、平均色／主色調取樣在 Windows 上的結果與 Linux 一致。請跑 `go test -p 1 -count=1 -run "TestImage(PlanOutput|CropTransform|SmartCrop|Colors|WebP|Describe|CacheAndVariantKeys)" ./internal/adapter/images/`，並以 `GOOS=windows` 建置確認無 cgo；實際開一個 `format=webp` 與 `fillWidth`／`fillHeight` 的請求看輸出 | `internal/adapter/images/pipeline.go`、`docs/adr/0010-image-output-formats.md` | 待跑 |
+| B11 | 章節圖與快取命中率在 Windows（G40.1、G40.13）：開啟 `JELEE_ENABLE_CHAPTER_IMAGES`（連同探測、圖片與存放區）啟動服務，確認因沙箱只在 linux-amd64 而照常啟動、只記 WARN `chapter_image_prerequisite_unavailable` 或 `chapter_image_runtime_unavailable`、`jelee-cli doctor` 回報 `chapter_images_tool_missing`；再跑 `go test -p 1 -count=1 -run "TestImageVariantCounters|TestChapter" ./internal/adapter/images/ ./internal/adapter/probe/ ./internal/domain/ ./internal/platform/jobs/`（含 Windows 存放區上重啟後由存放區供應變體） | `docs/image-assets.md`「章节图」「缓存命中率」 | 待跑 |
 
 ## C. 長時間、規模、效能
 
@@ -65,6 +66,7 @@
 | C25 | 圖片刷新任務（`image_refresh`）規模與長時間：十萬個遠端圖片列的媒體庫跑完一輪的時間、每列檢查點交易的資料庫負載、混合成功／404／429／慢速來源時的總耗時與主機冷卻；與觀看請求同時跑時處理槽等待對 `/images` P95 的影響；`item_image_fetch_failures` 大量資料時候選查詢（`item_images_refresh_idx`）的計畫 | `docs/image-refresh-jobs.md` | 待跑 |
 | C26 | WebP 輸出與裁切的負載：`JELEE_IMAGE_MAX_CONCURRENT` 滿載下連續要求 1024×1024 的 `format=webp`（無損，編碼約 73 B／像素工作記憶體，估算按 80 B／像素＋4 MiB 預留），量 RSS／GC、編碼耗時（nativewebp 中途不可取消，只受輸出像素上限約束）、413 比例（無損輸出超過 `JELEE_IMAGE_MAX_OUTPUT_BYTES`）、與 JPEG 的檔案大小比；另量智慧裁切的額外 CPU。合成雜訊圖 1024² 的 WebP 約 2 MB（JPEG q85 約 0.12 MB），真實海報開發機抽樣約 1.8–6.6 倍 | `internal/adapter/images/pipeline.go`、[ADR 0010](adr/0010-image-output-formats.md) | 待跑 |
 | C29 | 縮放快取命中率在真實負載（G40.13）：長時間真實瀏覽下記錄 `jelee_images_cache_hits_total`、`_misses_total`、`jelee_images_store_served_total`、`jelee_images_variants_generated_total`，依文件公式算記憶體與整體命中率；重啟後一段時間內由存放區供應的比例，以及記憶體快取大小（`JELEE_IMAGE_CACHE_BYTES`／`_ENTRIES`）調整對命中率的影響；可與 A3、C2 同輪記錄 | `docs/metrics.md`「命中率怎麼算」 | 待跑 |
+| C28 | 章節圖擷取規模與尖峰資源（G40.1）：在含數千個有章節圖軌的 MP4／M4V／M4B 的媒體庫開 `JELEE_ENABLE_CHAPTER_IMAGES` 跑 catalog sync，量測本段耗時（每次 sync 上限 256 個檔案、每檔 60 秒）、單檔 64 張／16 MiB 輸出時的程序 RSS 尖峰（文件估約 40 MiB 以內）、與探測及內嵌封面搶 IO 許可時對 `/images` P95 的影響；確認指紋不變的第二輪不再啟動子行程 | `docs/image-assets.md`「章节图」 | 待跑 |
 
 ## D. 真實資料／真金鑰／真客戶端
 
@@ -97,6 +99,7 @@
 | D25 | 字幕 OCR 真實點陣字幕準確率（G15.6）：在 OCR 層映像（`make bootstrap-ocr`、`deploy/ocr/Dockerfile`）開啟 `JELEE_ENABLE_SUBTITLE_OCR`，以真實藍光 PGS（1080p／4K，含粗描邊、斜體、雙行、強制字幕）與 DVD VobSub（720×480、各種調色盤）各至少一部英文與一部中文（繁、簡）、一部日文片，人工比對抽樣 100 句以上的字元正確率與時間軸，記錄每部片的辨識耗時、Tesseract 峰值記憶體與 CPU、快取大小；確認原檔 SHA 不變、原點陣軌仍可直投、Web 端拿不到 SRT、真客戶端（Jellyfin 相容 App、mpv）能選到「(OCR)」軌並正常顯示；與 [字幕 OCR](subtitle-ocr.md) 的合成樣本數據對照 | `docs/subtitle-ocr.md`；合成樣本 `TestRealOCRAccuracyAndCost`；容器實測 `docs/evidence/ocr-runtime-image.txt` | 待跑 |
 | D26 | 圖片刷新對真實外部主機：開啟 `JELEE_ENABLE_IMAGE_FETCH`，以含 TMDB 圖片網址與其他 HTTPS 網址的真實 NFO 媒體庫跑一次刷新，確認圖片可顯示、`image.tmdb.org` 不跟隨重新導向、私有位址被拒（`target_denied`）、失敗原因合理；Windows 上同樣跑一次（存放區寫入與暫存清理） | `docs/image-refresh-jobs.md` | 待跑 |
 | D27 | 圖片格式與裁切的真實客戶端（G40.6、G40.7）：Jellyfin 相容 App 與瀏覽器要求 `Format=Webp`、`FillWidth`＋`FillHeight` 時顯示是否正常（Jelee 的填滿是裁切語意，與上游只縮放不同，確認海報牆、背景與縮圖構圖可接受）；智慧裁切在真實海報、背景、劇照上的取景是否合理（必要時改 `JELEE_IMAGE_CROP=center` 或 `off`）；上傳與內嵌封面的平均色／主色調在真實作品上是否合理 | `docs/image-assets.md`、`docs/compat-matrix.md` | 待跑 |
+| D29 | 章節圖真實工具與真實檔案（G40.1）：在正式受保護映像（固定 ffprobe n9.0.2）開啟 `JELEE_ENABLE_CHAPTER_IMAGES`，以真實含章節圖的 MP4／M4B（iTunes、Podcast、有聲書工具產生）與不含章節圖的 MP4、MKV 各數個跑 catalog sync，確認章節圖逐位元組等於檔內樣本、序號與章節對應、MKV 與無章節圖檔記為 `absent` 或不成為候選；並以 Jellyfin 相容客戶端開啟 `/Items/{id}/Images/Chapter/{index}` 顯示。開發端的解析樣本（`internal/adapter/probe/testdata/chapters-*.json`）是用開發機 ffprobe（非固定版本）對產生的檔案擷取的，固定版本輸出格式需在此確認；另請沿用開發者固定檔案跑一次 `JELEE_SANDBOX_REAL_PROFILE` 真沙箱讀取 | `docs/image-assets.md`「章节图」 | 待跑 |
 
 ## E. 需要擁有者決定
 

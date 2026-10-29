@@ -60,10 +60,11 @@ var versionSnapshotMoved = []string{"media_sources", "catalog_scan_sources", "pl
 
 // versionSnapshotDropped cascade with the item and are not kept: prepared
 // NFO writes expire within minutes and are rebuilt on request; embedded cover
-// attempts are a rebuildable cache keyed by the file fingerprint; share links
+// and chapter image attempts are a rebuildable cache keyed by the file
+// fingerprint; share links
 // on the absorbed item are only revoked or expired ones (a live one refuses
 // the merge, liveShareOnItem).
-var versionSnapshotDropped = []string{"nfo_write_preparations", "item_embedded_cover_attempts", "share_links"}
+var versionSnapshotDropped = []string{"nfo_write_preparations", "item_embedded_cover_attempts", "item_chapter_image_attempts", "share_links"}
 
 type versionRowsPhase int
 

@@ -89,6 +89,14 @@ Jelee 不需要 Redis：快取都在各實例的記憶體內，以版本號、�
 
 開啟時必須同時開啟 `JELEE_ENABLE_PROBE`（因此也需要 jobs／accounts 與已驗證的 Linux amd64 正式映像）、`JELEE_ENABLE_IMAGES` 並設定 `JELEE_IMAGE_STORE_ROOT`，否則啟動時設定驗證失敗。執行時探測能力不可用或存放區沒開時只記 WARN（`embedded_cover_prerequisite_unavailable`／`embedded_cover_runtime_unavailable`）並跳過這一段，服務照常啟動。它只用映像內已固定雜湊的 ffprobe 與既有沙箱，不需要也不會呼叫 ffmpeg（G37.1：正式映像不含 ffmpeg，本功能也沒有把它加進 Dockerfile）；`jelee-cli doctor` 在開關開啟時回報 `embedded_covers_ready`／`embedded_covers_tool_missing`；子行程同時 1 個、20 秒逾時、輸出 16 MiB、單張封面 3 MiB，每次 catalog sync 最多 512 次。schema 升到 79（新增 `item_embedded_cover_attempts`）；探測 parser 升為 `media-metadata-v3`（探測資料 schema 2，與 E4 的 MediaInfo 補充合併後的格式），升級後既有探測快取會在下次探測時重算。細節、優先序與界限見[本地圖片：內嵌封面擷取](local-images.md#內嵌封面擷取g404schema-79)。
 
+## 章節圖擷取（G40.1）
+
+| 設定 | 環境變數 | 預設 | 說明 |
+| --- | --- | --- | --- |
+| `enableChapterImages` | `JELEE_ENABLE_CHAPTER_IMAGES` | `false` | catalog sync 結束時（內嵌封面之後）把已探測媒體容器內已存的章節圖原樣複製到圖片存放區 |
+
+前置條件與內嵌封面相同（探測、圖片、`JELEE_IMAGE_STORE_ROOT`），否則設定驗證失敗；執行時不可用只記 WARN（`chapter_image_prerequisite_unavailable`／`chapter_image_runtime_unavailable`），服務照常啟動。只用映像內固定雜湊的 ffprobe 與既有沙箱，**不從影格生成章節圖**（ADR 0007：正式映像不含 ffmpeg）；`jelee-cli doctor` 回報 `chapter_images_ready`／`chapter_images_tool_missing`。schema 升到 98（新增 `item_chapter_image_attempts`）。界限與行為見[圖片資產：章節圖](image-assets.md#章节图g401)。
+
 ## 遠端圖片抓取（G40.9）
 
 預設關閉，即「僅本地圖片」模式：伺服器不發出任何圖片請求。

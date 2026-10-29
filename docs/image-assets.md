@@ -15,7 +15,7 @@
 | `local` | 媒体目录中的本地图片文件 |
 | `nfo` | NFO 中引用的图片 |
 | `remote` | 外部图片（NFO 中的网址、TMDB），由[图片刷新任务](image-refresh-jobs.md)抓取后字节保存在持久存放区 |
-| `embedded` | 从视频文件中提取的内嵌封面 |
+| `embedded` | 从视频文件中复制的内嵌封面（Primary）或章节图（Chapter） |
 | `upload` | 管理员通过[管理接口](#管理接口g4010g4011)上传的图片，字节只保存在持久存放区（迁移 000095，暂定编号） |
 
 同一槽位有多行时，先取**锁定**的行（每个槽位最多一行锁定，由唯一索引保证），否则按 local → nfo → remote → embedded → upload 的顺序；最多尝试 5 个候选（每种来源至多一行），文件不存在或字节尚未入库就换下一个。上传接口总是锁定上传的图片，所以它会胜过其他来源；解锁后它排在最后，作为后备。请求处理过程中**不会**抓取远程图片，也不会现场提取内嵌封面，只读取持久存放区中已有的字节。
@@ -28,6 +28,24 @@
 
 内嵌封面提取默认关闭，用 `JELEE_ENABLE_EMBEDDED_COVERS=true` 开启；它只写 Primary 槽位的 `embedded` 行，槽位已锁定或已有其他来源时跳过，每次尝试的结果记录在 `item_embedded_cover_attempts`（迁移 080）。
 
+## 章节图（G40.1）
+
+需求是“Chapter 图（可提取或生成）”。目前实现**提取**，**生成延后**。
+
+**提取。** 默认关闭，用 `JELEE_ENABLE_CHAPTER_IMAGES=true`（设定档 `enableChapterImages`）开启，前置条件与内嵌封面相同（探测、图片、`JELEE_IMAGE_STORE_ROOT`）。每次 catalog sync 在内嵌封面之后多跑一段：对只有单一媒体文件、探测快取为 ready、metadata 记有章节且有 `attachedPic` 的 JPEG/PNG 视频串流、格式属于 QuickTime 家族（mov/mp4/m4a/3gp/3g2/mj2）的条目，用固定哈希的 ffprobe 在既有沙箱（Landlock/seccomp/rlimit、只读 FD、`fd` 协议白名单）里执行新增的密封 `chapters` 描述子（每个视频序号一个，0–15）：`-select_streams v:N -read_intervals %+#65` 读出该串流至多 65 个封包的原始字节（`-show_data`、`-show_data_hash SHA256`、`pts_time`），连同串流的 `timed_thumbnails` 标记与章节起止时间。只有 FFmpeg 标为 `timed_thumbnails` 的串流（MP4/MOV 的 QuickTime 章节图轨，`tref chap` 指向图片轨）才算章节图；不是的串流换下一个（每个文件至多试 4 个）。每个封包依时间放进 `[开始, 结束)` 包含它的章节，章节按开始时间编号即为 Chapter 槽位序号；同一章节取第一张（解复用器排在最前的 attached picture 复本与第一个样本相同），没有时间或落在所有章节外的封包忽略。每张都核对 ffprobe 自算的 SHA-256、JPEG/PNG 魔术字节与标头尺寸，原样存入内容寻址存放区，`item_images` 写 `image_type='Chapter'`、`source_kind='embedded'`。全程不解码、不转码、不调用 ffmpeg。
+
+**Matroska。** Matroska 没有标准的章节缩图：图片附件在 FFmpeg 中只是 `attached_pic`（封面，由内嵌封面处理），章节元素本身不带图。所以 MKV 不做章节图提取；没有可依据的约定时不按附件文件名猜测。
+
+**锁定、手动与优先序。** 记录时在同一交易内重锁条目、重验媒体文件与探测戳记（不符回 `changed`，什么都不写）。逐个槽位：有锁定行、或已有可用的更高优先来源（local、NFO、已抓取的 remote）时跳过（Skipped）；该槽位的 embedded 行本身是手动或锁定时也不改。之后，该条目其余**非锁定、非手动**的 embedded Chapter 行都删除——它们是文件已不再提供、或已被更高优先来源取代的旧图，所以文件改变后不会留下过期的章节图；确定性的拒绝（`absent`、`invalid`、`too_large`）会删除全部这类行。用户的图片文件从不修改。
+
+**失败隔离与记忆。** 结果 `stored`、`absent`、`invalid`、`too_large` 记在 `item_chapter_image_attempts`（迁移 000098，暂定编号），以（根、相对路径、大小、mtime、指纹）记住“这个文件已处理”，文件不变就不再启动子进程。逾时、工具忙碌、文件变动、存放区写入失败都不记住，下次 catalog sync 再试，也不让任务失败；工具不可用时本段立即结束。只有租约与数据库错误会让任务失败。
+
+**资源上限。** 子进程同时 1 个、30 秒逾时、stdout 16 MiB（进程启动器的上限）、stderr 64 KiB，沿用沙箱的 CPU 秒数与内存限制；单张 512 KiB、每个文件合计 3 MiB、至多 64 张；每个文件（含所有串流尝试）60 秒；每次 catalog sync 至多读 256 个文件，每页 16 个，一次只处理一个文件且占用一个 IO 工作许可。单个文件的尖峰内存约为 stdout 上限加上解析后的字节，约 40 MiB 以内。
+
+**生成延后。** 从影片画面截取章节图需要解码视频帧并编码图片，只有 ffmpeg 做得到；[ADR 0007](adr/0007-no-encoder-direct-play-only.md) 规定正式镜像不含 ffmpeg（工具清单 `productionAllowed: false`，G37.1、G51.7），架构测试也禁止服务路径调用编码器。用 Go 自行解码视频同样等于在服务内加入解码器，违反同一决定，所以不做生成。若将来要做，须先修订 ADR 0007（例如另设受隔离、只截单帧的可选镜像层），并补齐资源与沙箱守门。
+
+**未包含。** 探测 metadata 不记录 `timed_thumbnails`（不升探测 parser，避免整个媒体库重新探测），所以候选按“有章节＋有图片串流”挑选，由沙箱读取确认；没有章节图的 MP4 封面文件会被读一次并记成 `absent`。内嵌封面（G40.4）仍按最小序号的 `attached_pic` 选封面；如果 QuickTime 章节图轨的序号比封面小，封面段会取到第一张章节图。
+
 ## 存储（G40.5）
 
 | 位置 | 内容 | 可否重建 |
@@ -36,7 +54,7 @@
 | `JELEE_IMAGE_STORE_ROOT/variants/<世代>/<原图 sha256>/<变体键>` | 缩放后的变体，只有最新世代有效 | 可以重建 |
 | `JELEE_IMAGE_STORE_ROOT/tmp/` | 写入暂存，fsync 后原子重命名 | 不需要备份 |
 | `JELEE_IMAGE_TEMP_ROOT` | 处理过程中的临时文件 | 不需要备份，启动时清扫 |
-| 数据库 `item_images`、`image_variants`、`item_embedded_cover_attempts` | 槽位与来源、变体索引（含 LRU 时间）、内嵌封面尝试记录 | 随 `pg_dump` 备份；元数据导出只包含锁定的图片行 |
+| 数据库 `item_images`、`image_variants`、`item_embedded_cover_attempts`、`item_chapter_image_attempts` | 槽位与来源、变体索引（含 LRU 时间）、内嵌封面与章节图尝试记录 | 随 `pg_dump` 备份；元数据导出只包含锁定的图片行 |
 
 未设置 `JELEE_IMAGE_STORE_ROOT` 时不启用持久存放区，只使用内存缓存。存放区目录不能与媒体根目录或 `JELEE_IMAGE_TEMP_ROOT` 重叠；存放区不认识的文件只计数，不读、不移动、不删除。各目录的创建者与清理者见[存储布局](storage-layout.md)。
 
@@ -140,6 +158,7 @@
 | `JELEE_IMAGE_STORE_VARIANT_BYTES` | 1 GiB | 16 MiB–1 TiB |
 | `JELEE_IMAGE_STORE_ENTRIES` | 131072（每类） | 1024–2097152 |
 | `JELEE_ENABLE_EMBEDDED_COVERS` | `false` | 布尔值 |
+| `JELEE_ENABLE_CHAPTER_IMAGES` | `false` | 布尔值；需要探测、图片与 `JELEE_IMAGE_STORE_ROOT` |
 | `JELEE_ENABLE_IMAGE_FETCH` | `false`（仅本地图片） | 布尔值；需要 jobs、图片与 `JELEE_IMAGE_STORE_ROOT` |
 
 配置校验要求“并发数 × 单图预算 + 缓存”不超过 1 GiB。
@@ -183,6 +202,7 @@ rate(jelee_images_variants_generated_total[5m])
 - 焦点只有自动的智能裁切，不能为单张图片手动指定焦点坐标。
 - 扫描入库不读文件，`local`／`nfo` 行要等有程序读取内容（例如图片刷新）后才有宽高、格式与颜色。
 - WebP 输出与裁切的负载、Windows 与真实客户端验证见[拥有者核对清单](owner-verification-queue.md) B9、C26、D27。
+- 章节图只能从 MP4/MOV 章节图轨提取，不从视频帧生成（ADR 0007），Matroska 不提取；正式受保护镜像内的真实 ffprobe 实测尚未执行。
 - 24 小时长测尚未通过，见[图片长测](image-soak.md)。
 
 ## 相关文档

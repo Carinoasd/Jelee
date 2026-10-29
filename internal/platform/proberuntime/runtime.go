@@ -58,15 +58,18 @@ func Helper(argv []string) int {
 	return sandbox.RunHelper(argv, policy)
 }
 
-// expectedDescriptor accepts the metadata descriptor and the cover read
-// descriptors of the shipped path only, in their canonical encodings.
+// expectedDescriptor accepts the metadata descriptor and the cover and
+// chapter image read descriptors of the shipped path only, in their canonical
+// encodings.
 func expectedDescriptor(value string) bool {
 	if value == base64.RawURLEncoding.EncodeToString([]byte(`{"version":1,"mode":"metadata","ffprobePath":"`+FFprobePath+`"}`)) {
 		return true
 	}
 	for stream := 0; stream <= sandbox.CoverMaxVideoIndex; stream++ {
-		if value == base64.RawURLEncoding.EncodeToString([]byte(`{"version":1,"mode":"cover","ffprobePath":"`+FFprobePath+`","stream":`+strconv.Itoa(stream)+`}`)) {
-			return true
+		for _, mode := range []string{"cover", "chapters"} {
+			if value == base64.RawURLEncoding.EncodeToString([]byte(`{"version":1,"mode":"`+mode+`","ffprobePath":"`+FFprobePath+`","stream":`+strconv.Itoa(stream)+`}`)) {
+				return true
+			}
 		}
 	}
 	return false
@@ -92,6 +95,35 @@ func NewCover(ctx context.Context, tempRoot string) (*process.IsolatedRunner, er
 	runner, err := process.NewIsolatedFFprobeCover(process.Config{
 		MaxConcurrent: 1, Timeout: 20 * time.Second,
 		MaxStdoutBytes: CoverMaxStdoutBytes, MaxStderrBytes: 64 << 10, TempRoot: tempRoot,
+	}, launcher)
+	if err != nil {
+		return nil, ErrUnavailable
+	}
+	return runner, nil
+}
+
+// ChapterMaxStdoutBytes bounds one chapter image read: the hex dumps of up to
+// domain.ChapterImageMaxTotalBytes of pictures (about 4.3 output bytes per
+// payload byte) plus one more picture, the attached picture copy, and the
+// JSON envelope. More fails as an output limit and is remembered as
+// too_large. It is the process runner's maximum.
+const ChapterMaxStdoutBytes = 16 << 20
+
+// NewChapters creates only the chapter image reads (G40.1) with their own
+// process admission: one child at a time, a short timeout and a bounded
+// output. TempRoot is a caller-owned private scratch directory.
+func NewChapters(ctx context.Context, tempRoot string) (*process.IsolatedRunner, error) {
+	policy, err := Policy()
+	if err != nil {
+		return nil, ErrUnavailable
+	}
+	launcher, err := sandbox.New(ctx, sandbox.Profile{FFprobePath: FFprobePath}, policy)
+	if err != nil {
+		return nil, ErrUnavailable
+	}
+	runner, err := process.NewIsolatedFFprobeChapters(process.Config{
+		MaxConcurrent: 1, Timeout: 30 * time.Second,
+		MaxStdoutBytes: ChapterMaxStdoutBytes, MaxStderrBytes: 64 << 10, TempRoot: tempRoot,
 	}, launcher)
 	if err != nil {
 		return nil, ErrUnavailable

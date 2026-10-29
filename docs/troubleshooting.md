@@ -117,6 +117,8 @@ doctor 只计算 SHA-256，不执行工具。候选位置为运行镜像的固�
 | `tool_manifest_invalid` | fail | 编进程序的 manifest 无效 | 从干净的源码重新构建 jelee-cli |
 | `embedded_covers_ready` | ok | 已启用内嵌封面擷取（`JELEE_ENABLE_EMBEDDED_COVERS`），且找到通过哈希校验的固定 ffprobe；该功能只用 ffprobe，不需要也不调用 ffmpeg | — |
 | `embedded_covers_tool_missing` | fail | 已启用内嵌封面擷取，但没有通过校验的固定 ffprobe；服务照常启动，该段保持关闭并记 WARN `embedded_cover_prerequisite_unavailable` | 使用正式运行镜像（内含 ffprobe、绝不含 ffmpeg），或设 `JELEE_ENABLE_EMBEDDED_COVERS=false` |
+| `chapter_images_ready` | ok | 已启用章节图擷取（`JELEE_ENABLE_CHAPTER_IMAGES`），且找到通过哈希校验的固定 ffprobe；该功能只复制容器已存的章节图，不生成、不调用 ffmpeg | — |
+| `chapter_images_tool_missing` | fail | 已启用章节图擷取，但没有通过校验的固定 ffprobe；服务照常启动，该段保持关闭并记 WARN `chapter_image_prerequisite_unavailable` | 使用正式运行镜像（内含 ffprobe、绝不含 ffmpeg），或设 `JELEE_ENABLE_CHAPTER_IMAGES=false` |
 | `matroska_tool_verified` | ok | 可选 mkvtoolnix／MediaInfo 与清单 SHA256 一致 | — |
 | `matroska_tool_missing` | warn（启用抽取时 mkvmerge／mkvextract 为 fail） | 可选工具未安装，对应功能保持关闭 | 容器用官方运行镜像；开发环境 `make bootstrap-matroska`（Windows：`scripts/make.ps1 bootstrap-matroska`） |
 | `matroska_tool_hash_mismatch` | fail | 工具与 tools/manifest.json 固定的 SHA256 不符 | 删除 `.tools/matroska` 后重新 `make bootstrap-matroska`，或重建运行镜像；不得换成系统副本 |

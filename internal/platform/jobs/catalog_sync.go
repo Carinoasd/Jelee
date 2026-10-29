@@ -25,13 +25,16 @@ import (
 // are recorded, never fetched, so no external service can fail the sync.
 //
 // With EmbeddedCovers set (G40.4, off by default), the job then copies the
-// attached pictures of probed media files into the image store.
+// attached pictures of probed media files into the image store. With
+// ChapterImages set (G40.1, off by default), it last copies the stored
+// chapter pictures of probed media files.
 type CatalogSyncOptions struct {
 	Repository     app.CatalogSyncExecutionRepository
 	Sidecars       app.SidecarInspectionRepository
 	Inspector      app.SidecarInspector
 	Images         app.ItemImageIngestRepository
 	EmbeddedCovers *EmbeddedCoverOptions
+	ChapterImages  *ChapterImageOptions
 }
 
 // EmbeddedCoverOptions is trusted local wiring of the embedded cover pass.
@@ -75,7 +78,10 @@ func (r *Runner) executeCatalogSync(ctx context.Context, lease domain.JobLease) 
 			if err := r.ingestItemImages(ctx, lease); err != nil {
 				return err, true
 			}
-			storage, err := r.extractEmbeddedCovers(ctx, lease)
+			if storage, err := r.extractEmbeddedCovers(ctx, lease); err != nil {
+				return err, storage
+			}
+			storage, err := r.extractChapterImages(ctx, lease)
 			return err, storage
 		}
 	}

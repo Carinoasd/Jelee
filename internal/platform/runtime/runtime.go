@@ -345,6 +345,12 @@ func newWithLifetime(cfg config.Config, logger *slog.Logger, lifetime *lifetime)
 				covers.Describer = processor
 			}
 			opts.CatalogSync.EmbeddedCovers = covers
+			chapters, closeChapters := prepareChapterImages(startup, c.EnableChapterImages, probing, processor.OriginalStore(), store, l, prepareProductionChapterExtractor)
+			if closeChapters != nil {
+				closeProbe := lifetime.closeProbe
+				lifetime.closeProbe = func() error { return errors.Join(closeChapters(), closeProbe()) }
+			}
+			opts.CatalogSync.ChapterImages = chapters
 			if goruntime.GOOS == "linux" || goruntime.GOOS == "windows" {
 				ignoreScanner := scan.NewIgnoreScanner()
 				opts.Ignore = &jobworker.IgnoreOptions{Repository: store, Scanner: ignoreScanner, Observer: ignoreScanner}

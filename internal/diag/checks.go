@@ -264,18 +264,26 @@ func (s *Session) checkTools(ctx context.Context) Result {
 			findings = append(findings, failf(subject, code))
 		}
 	}
-	if s.env.Config.EnableEmbeddedCovers {
-		// The cover pass reads attached pictures through the same sandboxed
-		// ffprobe; without a verified one it stays off at runtime.
-		code, verified := CodeEmbeddedCoversNoTool, false
-		for _, f := range findings {
-			verified = verified || f.Code == CodeToolVerified
-		}
-		if verified {
-			code = CodeEmbeddedCoversReady
-			findings = append(findings, okf("embedded-covers", code))
-		} else {
-			findings = append(findings, failf("embedded-covers", code))
+	// The cover and chapter image passes read stored pictures through the
+	// same sandboxed ffprobe; without a verified one they stay off at runtime.
+	verified := false
+	for _, f := range findings {
+		verified = verified || f.Code == CodeToolVerified
+	}
+	for _, pass := range []struct {
+		enabled           bool
+		subject           string
+		ready, unverified string
+	}{
+		{s.env.Config.EnableEmbeddedCovers, "embedded-covers", CodeEmbeddedCoversReady, CodeEmbeddedCoversNoTool},
+		{s.env.Config.EnableChapterImages, "chapter-images", CodeChapterImagesReady, CodeChapterImagesNoTool},
+	} {
+		switch {
+		case !pass.enabled:
+		case verified:
+			findings = append(findings, okf(pass.subject, pass.ready))
+		default:
+			findings = append(findings, failf(pass.subject, pass.unverified))
 		}
 	}
 	if len(findings) == 0 {

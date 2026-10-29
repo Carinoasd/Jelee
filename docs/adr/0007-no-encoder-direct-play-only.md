@@ -32,6 +32,12 @@
 - 客户端必须能直接解码原始格式；不支持的格式只能返回 `NoCompatibleStream` 或由客户端自行处理。
 - 无法提供按带宽自适应的码率；带宽限制只能限流原始字节。
 
+## 后续：章节图只提取、不生成（2026-10-29，G40.1）
+
+G40.1 要求“Chapter 图（可提取或生成）”。**生成**（从视频帧截一张图）必须解码视频并编码图片，只有 ffmpeg 能做；本 ADR 第 2 条让正式镜像不含 ffmpeg（`tools/manifest.json` 中 `productionAllowed: false`），第 1 条与 `TestDeliveryPackagesCannotRunEncoders` 不允许服务路径出现编码器，在 Go 内自行解码视频帧同样等于把解码器加进服务。因此章节图生成**延后**，不以开关或例外方式加入。
+
+实现的是**提取**：沿用第 4 条的受控启动器，在既有 ffprobe 沙箱新增密封的 `chapters` 描述子（每个视频序号一个），只读出 MP4/MOV 章节图轨（FFmpeg 标为 `timed_thumbnails`）已存的 JPEG/PNG 封包原始字节与章节时间，与内嵌封面（G40.4）的 `cover` 描述子同样不解码、不转码。描述子的参数清单由 `TestChapterArgumentsCopyOnly` 守住（不含 `-c`、`-vf`、`-f`、`-map`、`-show_frames` 等）。若将来要生成章节图，须先修订本 ADR，例如另设与默认镜像分离、受隔离且只截单帧的可选镜像层（类似 OCR 层），并补齐资源上限与沙箱守门。见[图片资产：章节图](../image-assets.md#章节图g401)。
+
 ## 守门
 
 - `tools/runtime-image`：构建镜像时按精确清单校验暂存目录，多出任何文件（例如 ffmpeg）或哈希不符都会失败；`TestImageRejectsUnknownMissingBadHashAndOversize`、`TestOCRPinsStayOutOfTheDefaultImage`。
