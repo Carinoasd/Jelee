@@ -68,6 +68,7 @@ G05仍部分完成：舊C#的直播與Channel控制器已刪除並提供[明確�
 | `GET /compat/Items`、`GET /compat/Users/{userId}/Items` | 同上 | 篩選／排序／分頁後的 `QueryResult<BaseItemDto>` |
 | `GET /compat/Items/{itemId}`、`GET /compat/Users/{userId}/Items/{itemId}` | 同上 | 單一條目或媒體庫的 `BaseItemDto`；可播放條目附直投 `MediaSources` |
 | `GET`、`POST /compat/Items/{itemId}/PlaybackInfo` | 同上 | `PlaybackInfoResponse`：只列客戶端可直投的來源；沒有則 `ErrorCode`=`NoCompatibleStream` |
+| `GET /compat/Videos/{itemId}/AdditionalParts` | native 工作階段 | `QueryResult<BaseItemDto>`：預設版本的第 2..n 片（G21.1），每片一個條目、唯一的 `MediaSource` 就是該片；單檔條目為空列表 |
 | `GET`、`HEAD /compat/Videos/{itemId}/stream`、`…/stream.{container}` | native 工作階段（直投開啟時才掛載） | 原檔位元組（交給伺服器的直投模組，Range／HEAD／限流／撤銷斷流同自有 API） |
 | `GET`、`HEAD /compat/Videos/{itemId}/{mediaSourceId}/Subtitles/{index}/Stream.{format}`、`…/{index}/{startPositionTicks}/Stream.{format}` | 同上 | 外掛字幕原檔位元組（`format` 必須是原檔格式）；擷取開啟且可用時，Matroska 內嵌文字字幕為擷取快取的原樣副本（E4） |
 | `GET`、`HEAD /compat/Videos/{itemId}/{mediaSourceId}/Attachments/{index}` | 同上（只在擷取開啟時掛載） | Matroska 字型附件的原樣副本，`index` 為附件的探測串流索引（G15.7，見 [mkvtoolnix 與 MediaInfo](matroska-tools.md)） |
@@ -205,7 +206,7 @@ PlaybackInfo 隨媒體庫模組掛載；串流、字幕與音訊路由只在直�
   - 有 `DeviceProfile`：至少一個 `Type`=`Video`（名稱或數值 1）的 `DirectPlayProfiles` 同時接受容器、主視訊流編碼與預設音軌編碼；空清單代表不限。標記不分大小寫並接受常見別名（同自有 API：`matroska`→`mkv`、`h265`→`hevc`、`ac-3`→`ac3`…；`pcm` 涵蓋所有 PCM）。清單無法解析（超過 32 項、非法字元）的 profile 視為不接受。
   - 位元率上限：query `MaxStreamingBitrate`，否則主體 `MaxStreamingBitrate`，否則 `DeviceProfile.MaxStreamingBitrate`；來源已知位元率嚴格大於上限時不列出。
   - `EnableDirectPlay=false`（query 優先）：不列出任何來源。
-  - `MediaSourceId`：只考慮該來源。
+  - `MediaSourceId`：只考慮該來源。指向多分片版本的後續片（`AdditionalParts` 列出的 ID）時，回應只含那一片的 `MediaSource`；該版本仍需每一片都可直投才列出（G21.1）。
   - 伺服器不知道的值（未探測來源的編碼、未知位元率、未知容器）不據以拒絕；客戶端可以嘗試，拿到的永遠是原檔。
   - `CodecProfiles`、`ContainerProfiles` 的條件（解析度、Level、位元深度等）與 `SubtitleProfiles` **目前不評估**；`TranscodingProfiles`、`MaxAudioChannels`、串流索引、`StartTimeTicks`、`LiveStreamId` 等只關乎轉換的成員接受但忽略。
   - **預設版本**（G20.2）：目錄已依使用者的版本偏好排序來源（頻寬上限、解析度上限、SDR／HDR、偏好較小檔案，之後才是主版本、品質分數、來源 ID），上述聲明只負責排除不能直投的來源，所以 `MediaSources` 的第一個就是預設版本；聲明永遠不會讓轉換變成可接受，排除到沒有來源時照舊 `NoCompatibleStream`。選擇理由碼（`only_version`、`only_playable`、`bandwidth_preference`、`resolution_preference`、`dynamic_range_preference`、`size_preference`、`primary_version`、`quality_score`、`stable_order`、`none_playable`）與被排除數量寫在 debug 日誌 `default version chosen`（只有來源 ID 與固定代碼），回應本身維持上游形狀。詳見 [多版本](item-versions.md)。
@@ -213,7 +214,7 @@ PlaybackInfo 隨媒體庫模組掛載；串流、字幕與音訊路由只在直�
 
 **`GET`／`HEAD /Videos/{itemId}/stream`、`/Videos/{itemId}/stream.{container}`**
 
-- `MediaSourceId` 選來源（32 位 hex 或帶連字號），省略則最佳版本；來源不屬於該條目、條目不存在或無權限一律回隱藏狀態、空主體。格式錯誤 400。
+- `MediaSourceId` 選來源（32 位 hex 或帶連字號），也可以是多分片版本的後續片（G21.1），省略則最佳版本（多分片版本即其第一片）；來源不屬於該條目、條目不存在或無權限一律回隱藏狀態、空主體。格式錯誤 400。
 - `Static=true`：原檔直投，上游同樣忽略的定位成員（`AudioStreamIndex`、`SubtitleStreamIndex`、`StartTimeTicks`…）一併忽略。沒有 `Static` 時上游會走編碼器，所以只允許 `MediaSourceId`、`DeviceId`、`PlaySessionId`、`Tag`、`Container`、`api_key`／`ApiKey`；多帶任何其他成員（例如 `AudioStreamIndex`、`StartTimeTicks`、`Context`）視為要求不同的串流，409。
 - 轉換參數（`VideoCodec`、`AudioCodec`——含與原始相同的值與 `copy`、`MaxStreamingBitrate`、`TranscodingMaxAudioChannels`、`SegmentContainer`、`Width`、`Static=false` 或空值、`<codec>-level`…）不論有無 `Static` 都由 `GuardProduction` 回 409，連直投模組都不會進入。
 - 路徑的 `.{container}` 或 query `Container` 必須等於原檔容器（接受 `matroska`、`ts`、`m2ts`、`m4v` 別名），否則是 remux 要求，409；原檔容器未知時帶容器一律 409。
@@ -224,6 +225,14 @@ PlaybackInfo 隨媒體庫模組掛載；串流、字幕與音訊路由只在直�
 
 - 直投開啟時，`MediaSources[].MediaStreams` 列出外掛字幕：`Type`=`Subtitle`、`IsExternal`=true、`DeliveryMethod`=`External`、`SupportsExternalStream`=true、`Codec`=副檔名、`Language`、`Title`、`IsDefault`、`IsForced`、`IsHearingImpaired`（SDH）、`IsTextSubtitleStream`，`DeliveryUrl` 為上游格式 `/Videos/{itemId}/{mediaSourceId}/Subtitles/{index}/0/Stream.{副檔名}`（相對於客戶端設定的伺服器網址，**不含 token**）。`Index` 依上游接在所有內嵌流之後，按儲存層固定順序編號。內嵌字幕標 `DeliveryMethod`=`Embed`。外掛音軌不列（上游沒有投遞外掛音軌的路由）。
 - `GET`／`HEAD …/Subtitles/{index}/Stream.{format}`（及含 `{startPositionTicks}` 的形式）經 `ServeTrack` 原樣直投。`format`（或上游已過時的 query `format`）必須等於原檔副檔名或同一格式的別名（`vtt`／`webvtt`、`srt`／`subrip`），否則 409，不轉換字幕格式。`startPositionTicks` 或 query `StartPositionTicks` 非 0、`EndPositionTicks`、`AddVttTimeMap=true`（皆需改寫字幕時間）409；`index` 指向內嵌字幕時 409，除非擷取開啟且可用、該軌為 Matroska 內嵌 SubRip／ASS／SSA／WebVTT 且 `format` 是其自身格式，此時經 `ServeExtracted` 直投擷取快取的原樣副本（PlaybackInfo 對這些軌標 `DeliveryMethod`=`External` 並給 `DeliveryUrl`；`MediaAttachments` 列出附件與字型 `DeliveryUrl`）；不存在的索引回隱藏狀態。
+
+**多分片版本（G21.1，上游 Jellyfin 模型）**
+
+- 條目詳情（`GET /Items/{itemId}`）：預設版本是多分片版本時帶 `PartCount`（片數），`RunTimeTicks` 為各片總時長（與播放進度相同的合計時間軸）；單檔時省略 `PartCount`，與上游相同。`MediaSources` 只列版本（第一片），後續片不是版本。
+- PlaybackInfo 指向第一片：版本的 `MediaSource` 就是第一片（`Id`、`RunTimeTicks`、串流描述都是第一片的）。
+- **`GET /Videos/{itemId}/AdditionalParts`**：讀取身分同 PlaybackInfo（query `UserId`，自己或管理員）；條目以該身分授權查詢、來源以呼叫者的工作階段查詢，與 PlaybackInfo 完全相同，所以不存在與無權限一律回隱藏狀態（預設 404，回應相同）。回應是預設版本（與 PlaybackInfo 的第一個來源相同的排序）的第 2..n 片，每片一個 `BaseItemDto`：`Id` 與主條目相同（Jelee 的分片不是獨立條目），`MediaSources` 只有該片（可直投描述，`SupportsTranscoding`=false），`RunTimeTicks` 為該片時長。預設版本是單檔、或條目不是影片時回空列表。上游的分片是獨立條目；Jelee 以 `MediaSourceId`＝分片 ID 區分，客戶端以 `/Videos/{itemId}/stream?static=true&MediaSourceId=…` 或 PlaybackInfo 帶 `MediaSourceId` 播放各片。
+- 播放回報：開始回報的 `MediaSourceId` 是後續片時，進度記在版本上、位置加上前面各片總時長（見[多版本](item-versions.md#多分片版本g211schema-106)）。
+- 尚未用真實客戶端驗證（擁有者驗證 D39）：只用 `Id` 取 PlaybackInfo 的客戶端會再播一次第一片；把 `PlaybackPositionTicks` 當第一片位置的客戶端在第二片以後續播可能跳到片尾。
 
 **音訊**：`/Audio/{itemId}/stream` 與 `.{container}` 已註冊，但目錄沒有音訊條目，驗證身分後一律回隱藏狀態（預設 404）；轉換參數仍先回 409。
 
@@ -276,7 +285,7 @@ PlaybackInfo 隨媒體庫模組掛載；串流、字幕與音訊路由只在直�
 - 真 PG：`TestCompatSessionKindsPostgres` 驗證 native 可用、web（標頭、query、cookie）與已撤銷的 native 都回 401。
 - 真 PG：`TestCompatUsersPostgres` 驗證未開 `allowNative` 時 403 並寫 `login.native_denied`、不簽發；密碼錯與帳號不存在回應相同；開啟後登入簽發 native 工作階段（寫 `session.created`、自有 API 可列出 client 標籤並可直投）；`/Users/Me`、`/Users/{id}` 自己／他人／管理員；`/Users/Public` 為 `[]`；Logout 只撤銷目前工作階段、舊 token 在兩邊皆 401；相容入口五次失敗後兩個入口都被鎖定且失敗審計含用戶端位址。`TestCompatLoginSharesRateLimitPostgres` 驗證相容登入與原生登入雙向共用名稱限速桶。
 - 真 PG：`TestCompatLibraryPostgres` 用兩個使用者、兩個不同授權的媒體庫驗證：各自只看到自己的庫；以 parent、Ids、類型、搜尋或單筆查詢都碰不到對方的庫與條目（不存在與無權限回應相同）；分頁串接等於完整排序、超出結尾保留總數；名稱／年份／上映日期排序與空值位置；搜尋萬用字元按字面；影集／季的子項與遞迴；詳情的直投來源（`SupportsTranscoding`／`SupportsDirectStream` 為 false、不含路徑）；收回授權立即生效；設定 403 時隱藏與不存在皆 403。
-- 存取外洩：`leakRouteTable` 已登記六條媒體庫路由、播放模組全部 16 條路由（PlaybackInfo、影片串流、字幕以 ID 查詢模式；音訊以無媒體模式）、圖片模組 4 條路由（ID 查詢模式，含管理員對照）與播放清單 5 條路由（項目列表以列表模式含管理員對照，寫入以理由豁免並由 `TestCompatCollectionsPostgres` 覆蓋），三種隱藏狀態都跑，外洩標記同時比對帶連字號與相容層 32 位 hex 兩種 ID 形態。
+- 存取外洩：`leakRouteTable` 已登記六條媒體庫路由、播放模組全部 17 條路由（PlaybackInfo、`AdditionalParts`、影片串流、字幕以 ID 查詢模式；音訊以無媒體模式）、圖片模組 4 條路由（ID 查詢模式，含管理員對照）與播放清單 5 條路由（項目列表以列表模式含管理員對照，寫入以理由豁免並由 `TestCompatCollectionsPostgres` 覆蓋），三種隱藏狀態都跑，外洩標記同時比對帶連字號與相容層 32 位 hex 兩種 ID 形態。
 - 播放狀態：`internal/adapter/media` 的 `TestPlaybackReportGuardReadsBodyAsState` 鎖住回報主體只做語法檢查、而路徑／query／表單與 `GuardProduction` 不變；真 PG `TestProgressHTTPPostgres` 以真實客戶端形狀的主體（含 `MaxStreamingBitrate`、`PlayMethod`、`NowPlayingQueue`）走開始 → 進度 → Ping → `Items/{id}` 的 UserData（含未 flush 的位置）→ 停止 → `UserItems/Resume`、舊式 Resume 與 `Items` 列表的續播點 → 看不到的條目回報 204 但不記錄、UserData 與標記回隱藏狀態 → 標記已播放／未播放；存取外洩表登記全部 12 條播放狀態路由（回報以理由豁免，其餘以 ID 查詢與列表模式跑三種隱藏狀態，續播清單的固定資料同時含看得到與看不到的條目）。
 - 真 PG：`TestCompatPlaybackPostgres` 走完整流程：相容登入 → 瀏覽 → 帶 DeviceProfile 的 PlaybackInfo（只列直投、無轉碼欄位、外掛字幕 `DeliveryUrl`）→ 不可直投回 `NoCompatibleStream` → 串流 4 MiB 原檔 SHA-256 一致（標頭與 `api_key` 兩種憑證）、Range、HEAD → 字幕原樣 → 各種轉換要求 409 `transcode_disabled` → web 工作階段（標頭與 `api_key`）401 → 真 TCP 上限速播放中登出，串流在數秒內被切斷且未送完、舊 token 401、另一個工作階段不受影響。
 

@@ -150,7 +150,7 @@ OpenAPI 中的 Jelee 扩展字段：
 | `GET /api/v1/libraries/{id}/nfo/current-validations/{observationId}/issues` | 单个观察结果的问题：最多保留 64 条、没有标识，只按偏移分页 |
 | `GET /api/v1/site/plugins`、`GET /api/v1/site/plugins/config` | 站点设置中的插件开关（固定的小映射），不是集合 |
 | `GET /api/v1/collections/{id}` | 单个合集及其成员：资源视图，内嵌列表受合集大小限制 |
-| `GET /api/v1/items/{id}/sources`、`GET /api/v1/items/{id}/playback` | 单个条目的媒体源（版本）与播放信息，属于条目资源本身 |
+| `GET /api/v1/items/{id}/sources`、`GET /api/v1/items/{id}/playback` | 单个条目的媒体源（版本）与播放信息，属于条目资源本身；多分片版本（G21.1）的各片内嵌在该版本的 `parts` 中，不单独分页 |
 | `GET /api/v1/items/{id}/images` | 单个条目的图片行（管理员），含宽高、格式、字节数、平均色与主色调（G40.7），属于条目资源本身，受槽位数与每槽最多 5 个来源限制 |
 
 ## 限流与重试
@@ -168,10 +168,12 @@ OpenAPI 中的 Jelee 扩展字段：
 | 字段风格 | camelCase，固定的 `data`/`error` 信封 | PascalCase，省略 null 成员 |
 | 错误 | 统一错误信封 | 比照上游生产行为：401/403/404/405/413/415/503 空响应体，400/500 为纯文本；只有 409 `transcode_disabled` 与 501 沿用原生信封 |
 | 路径匹配 | 大小写敏感 | 大小写不敏感 |
-| 范围 | 全部功能 | System、Users、UserViews/Items、PlaybackInfo、视频流与字幕、播放上报、UserData、图片；其余返回 404 |
+| 范围 | 全部功能 | System、Users、UserViews/Items、PlaybackInfo、AdditionalParts、视频流与字幕、播放上报、UserData、图片；其余返回 404 |
 | 隐私 | — | 比上游严格（[ADR 0004](adr/0004-compat-stricter-than-upstream.md)） |
 
 两者共用同一套会话、权限过滤器、直投处理器、限流与客户端管控，兼容层没有独立的账号或查询逻辑。
+
+多分片版本（G21.1，`movie.cd1.mkv`＋`movie.cd2.mkv`）在两边的表示：原生 API 把它作为一个版本，`sources[].parts` 依序列出每一片（各自可直放的容器、时长、流与外挂轨，以及在合计时间轴上的起点 `startMicros`），`totalDurationMicros` 为合计时长，每片从自己的 `/api/v1/sources/{id}/stream` 直投；播放进度是合计时间轴上的位置，上报后续片的 `sourceId` 时服务器自动加上前面各片的时长。兼容层沿用上游模型：条目 `PartCount`、`GET /compat/Videos/{itemId}/AdditionalParts` 返回第 2..n 片（每片一个以可直放 `MediaSource` 表示的条目，权限与主条目相同），PlaybackInfo 指向第 1 片。服务器从不串接或转码分片。细节见[多版本](item-versions.md#多分片版本g211schema-106)与[兼容矩阵](compat-matrix.md)。
 
 ## 错误码
 

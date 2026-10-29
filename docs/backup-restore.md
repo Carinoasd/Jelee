@@ -166,7 +166,7 @@ $dc up -d jelee
 | 憑據或一次性祕密：還原等於讓存取復活 | 工作階段、使用者建立金鑰、開發者模式權杖、雙因素（`user_totp`、`user_recovery_codes`、`login_challenges`）、應用程式密碼、分享連結 |
 | 只能附加的稽核軌跡 | `audit_logs`（匯入本身另寫 `metadata.imported`） |
 | 工作佇列、租約與工作進度：只對寫入它的資料庫的工作者有意義 | `jobs` 及各 `job_*`、探測／NFO／圖片工作狀態、`catalog_import_*`、`catalog_sync_requests`、`nfo_write_*`、`webhook_outbox`、`legacy_import_pending`、`metadata_refresh_job_state` |
-| 快取、配額與衍生狀態：掃描、探測、NFO 讀取與圖片處理會重建 | 探測與 NFO 快取與配額、`tool_versions`、`item_nfo_observations`、盤點基準與快照、`catalog_scan_pending`、`image_variants`、外掛字幕／音軌、內嵌封面嘗試、`scan_watch_state`（匯入依排程重建）、元資料刷新的待確認與拒絕紀錄（`metadata_refresh_reviews`，再跑一次刷新會重新產生） |
+| 快取、配額與衍生狀態：掃描、探測、NFO 讀取與圖片處理會重建 | 探測與 NFO 快取與配額、`tool_versions`、`item_nfo_observations`、盤點基準與快照、`catalog_scan_pending`、`image_variants`、外掛字幕／音軌、內嵌封面嘗試、`scan_watch_state`（匯入依排程重建）、元資料刷新的待確認與拒絕紀錄（`metadata_refresh_reviews`，再跑一次刷新會重新產生）、多分片版本（`media_source_parts`，匯入後下一次同步依檔名重建；人工凍結的條目要等解除後才會重組） |
 | 觀察值與統計，不是設定 | 播放工作階段與取樣、會話選軌（`session_track_selections`）、觀看統計、已知用戶端與其工作階段、命中紀錄、webhook 投遞與嘗試、工作指標 |
 | 這個資料庫的操作歷史 | `consistency_runs`、`consistency_run_checks`、`consistency_fix_journal`、`repair_runs`、`repair_journal`、`item_version_operations`、`legacy_import_runs`／`checkpoints`／`map` |
 | 自動化開關：自動元資料刷新在還原後預設關閉，避免還原出的目錄在管理員重新開啟前被提供者資料改寫 | `metadata_refresh_settings`（[元資料刷新任務](metadata-refresh-jobs.md)） |
