@@ -16,14 +16,19 @@ const JobNFOExport = "nfo_export"
 
 // The modes of an nfo_export job. NFOExportAll writes the stored values into
 // existing NFOs; NFOExportMissing creates the NFO of every item that has none
-// and leaves existing NFOs alone.
+// and leaves existing NFOs alone; NFOExportFix repairs the few validation
+// issues that can be repaired without guessing (G39.11) and touches nothing
+// else.
 const (
 	NFOExportAll     = "all"
 	NFOExportMissing = "missing"
+	NFOExportFix     = "fix"
 )
 
 // ValidNFOExportMode reports whether mode names an export mode.
-func ValidNFOExportMode(mode string) bool { return mode == NFOExportAll || mode == NFOExportMissing }
+func ValidNFOExportMode(mode string) bool {
+	return mode == NFOExportAll || mode == NFOExportMissing || mode == NFOExportFix
+}
 
 // NFOExportChunkSize is how many preparations one child nfo_write job
 // carries. It stays below half of the per-actor preparation limit (32), so an
@@ -32,9 +37,13 @@ const NFOExportChunkSize = 16
 
 // NFOExportCounts classifies the items a run finished with. Written counts
 // entries a child job replaced; Failed also covers prepared entries the child
-// did not replace.
+// did not replace. A fix-mode run counts the entries its child replaced as
+// Fixed instead (Written stays zero), and the items that have a validation
+// issue it does not repair as Unfixable.
 type NFOExportCounts struct {
 	Written         int
+	Fixed           int
+	Unfixable       int
 	Unchanged       int
 	SkippedExisting int
 	SkippedMissing  int
@@ -45,13 +54,13 @@ type NFOExportCounts struct {
 
 // Add returns the sum of c and o.
 func (c NFOExportCounts) Add(o NFOExportCounts) NFOExportCounts {
-	return NFOExportCounts{Written: c.Written + o.Written, Unchanged: c.Unchanged + o.Unchanged, SkippedExisting: c.SkippedExisting + o.SkippedExisting, SkippedMissing: c.SkippedMissing + o.SkippedMissing,
+	return NFOExportCounts{Written: c.Written + o.Written, Fixed: c.Fixed + o.Fixed, Unfixable: c.Unfixable + o.Unfixable, Unchanged: c.Unchanged + o.Unchanged, SkippedExisting: c.SkippedExisting + o.SkippedExisting, SkippedMissing: c.SkippedMissing + o.SkippedMissing,
 		SkippedInvalid: c.SkippedInvalid + o.SkippedInvalid, SkippedOther: c.SkippedOther + o.SkippedOther, Failed: c.Failed + o.Failed}
 }
 
 // Valid reports whether no counter is negative.
 func (c NFOExportCounts) Valid() bool {
-	return c.Written >= 0 && c.Unchanged >= 0 && c.SkippedExisting >= 0 && c.SkippedMissing >= 0 && c.SkippedInvalid >= 0 && c.SkippedOther >= 0 && c.Failed >= 0
+	return c.Written >= 0 && c.Fixed >= 0 && c.Unfixable >= 0 && c.Unchanged >= 0 && c.SkippedExisting >= 0 && c.SkippedMissing >= 0 && c.SkippedInvalid >= 0 && c.SkippedOther >= 0 && c.Failed >= 0
 }
 
 // NFOExportJobState is the public progress of an nfo_export job. CursorItemID
@@ -65,6 +74,8 @@ type NFOExportJobState struct {
 	ChildJobID      *string   `json:"childJobId"`
 	Chunks          int       `json:"chunks"`
 	Written         int       `json:"written"`
+	Fixed           int       `json:"fixed"`
+	Unfixable       int       `json:"unfixable"`
 	Unchanged       int       `json:"unchanged"`
 	SkippedExisting int       `json:"skippedExisting"`
 	SkippedMissing  int       `json:"skippedMissing"`

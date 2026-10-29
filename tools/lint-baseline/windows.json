@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "goos": "windows",
-  "total": 2000,
+  "total": 1999,
   "entries": [
     {
       "linter": "errcheck",
@@ -540,13 +540,6 @@
       "file": "cmd/jelee-cli/nfo_jobs.go",
       "text": "Error return value of `fmt.Fprintln` is not checked",
       "source": "197856214734",
-      "count": 1
-    },
-    {
-      "linter": "errcheck",
-      "file": "cmd/jelee-cli/nfo_jobs.go",
-      "text": "Error return value of `fmt.Fprintln` is not checked",
-      "source": "26f2d1219b80",
       "count": 1
     },
     {

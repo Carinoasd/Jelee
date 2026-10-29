@@ -106,14 +106,14 @@ func TestSeriesSeasonEpisodeAndWrappers(t *testing.T) {
 		name, xml, root, title string
 		entries                int
 	}{
-		{"series", `<tvshow><title>Series</title><status>Continuing</status><season>3</season><episode>24</episode></tvshow>`, "tvshow", "Series", 1},
-		{"season", `<season><seasonname>Season zero</seasonname><seasonnumber>0</seasonnumber><poster>season00-poster.jpg</poster></season>`, "season", "Season zero", 1},
-		{"episode", `<episode><title>Special</title><season>0</season><episode>1</episode><aired>2024-01-02</aired></episode>`, "episode", "Special", 1},
-		{"episode_details", `<episodedetails><title>Episode</title><season>2</season><episode>7</episode><displayseason>3</displayseason><displayepisode>1</displayepisode><showtitle>Series</showtitle></episodedetails>`, "episodedetails", "Episode", 1},
-		{"multi_episode", `<episodedetails><title>Part two</title><season>1</season><episode>2</episode></episodedetails><!-- boundary --><episodedetails><title>Part one</title><season>1</season><episode>1</episode></episodedetails>`, "episodedetails", "Part two", 2},
-		{"root_wrapper", `<root><movie><title>Movie</title></movie></root>`, "root", "Movie", 1},
-		{"item_wrapper", `<Item><movie><title>Movie</title></movie></Item>`, "item", "Movie", 1},
-		{"nested_wrapper", `<MediaBrowser><root><Item><tvshow><title>Series</title></tvshow></Item></root></MediaBrowser>`, "mediabrowser", "Series", 1},
+		{"series", `<tvshow><title>Series</title><uniqueid type="x">1</uniqueid><status>Continuing</status><season>3</season><episode>24</episode></tvshow>`, "tvshow", "Series", 1},
+		{"season", `<season><seasonname>Season zero</seasonname><uniqueid type="x">1</uniqueid><seasonnumber>0</seasonnumber><poster>season00-poster.jpg</poster></season>`, "season", "Season zero", 1},
+		{"episode", `<episode><title>Special</title><uniqueid type="x">1</uniqueid><season>0</season><episode>1</episode><aired>2024-01-02</aired></episode>`, "episode", "Special", 1},
+		{"episode_details", `<episodedetails><title>Episode</title><uniqueid type="x">1</uniqueid><season>2</season><episode>7</episode><displayseason>3</displayseason><displayepisode>1</displayepisode><showtitle>Series</showtitle></episodedetails>`, "episodedetails", "Episode", 1},
+		{"multi_episode", `<episodedetails><title>Part two</title><uniqueid type="x">1</uniqueid><season>1</season><episode>2</episode></episodedetails><!-- boundary --><episodedetails><title>Part one</title><uniqueid type="x">1</uniqueid><season>1</season><episode>1</episode></episodedetails>`, "episodedetails", "Part two", 2},
+		{"root_wrapper", `<root><movie><title>Movie</title><uniqueid type="x">1</uniqueid></movie></root>`, "root", "Movie", 1},
+		{"item_wrapper", `<Item><movie><title>Movie</title><uniqueid type="x">1</uniqueid></movie></Item>`, "item", "Movie", 1},
+		{"nested_wrapper", `<MediaBrowser><root><Item><tvshow><title>Series</title><uniqueid type="x">1</uniqueid></tvshow></Item></root></MediaBrowser>`, "mediabrowser", "Series", 1},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			document := mustRead(t, []byte(tc.xml))

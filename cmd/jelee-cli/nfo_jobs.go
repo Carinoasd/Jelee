@@ -26,7 +26,7 @@ type nfoCLIRequest struct {
 
 func runNFOCLI(ctx context.Context, argv []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	usage := func() int {
-		fmt.Fprintln(stderr, "usage: jelee-cli nfo validate --root ABSOLUTE_PATH --file RELATIVE/FILE.nfo [--max-bytes N] | validate --library UUID --token-stdin --key KEY [--priority manual|background] [--url ORIGIN] | policy-get|policy-set|current-validations|issues --library UUID --token-stdin [options] | job|images --id UUID --token-stdin [--url ORIGIN]")
+		_, _ = fmt.Fprintln(stderr, "usage: jelee-cli nfo validate --root ABSOLUTE_PATH --file RELATIVE/FILE.nfo [--max-bytes N] | validate --library UUID --token-stdin --key KEY [--fix] [--priority manual|background] [--url ORIGIN] | policy-get|policy-set|current-validations|issues --library UUID --token-stdin [options] | job|images --id UUID --token-stdin [--url ORIGIN]")
 		_, _ = fmt.Fprintln(stderr, nfoWriteUsage)
 		_, _ = fmt.Fprintln(stderr, nfoApplyUsage)
 		_, _ = fmt.Fprintln(stderr, nfoExportUsage)
@@ -50,6 +50,7 @@ func runNFOCLI(ctx context.Context, argv []string, stdin io.Reader, stdout, stde
 	base := flags.String("url", "http://127.0.0.1:8097", "service origin")
 	fromStdin := flags.Bool("token-stdin", false, "read bearer token from stdin")
 	var root, file string
+	var fix bool
 	maxBytes := int64(nfo.DefaultMaxBytes)
 	switch c.command {
 	case "validate":
@@ -59,6 +60,7 @@ func runNFOCLI(ctx context.Context, argv []string, stdin io.Reader, stdout, stde
 		flags.StringVar(&c.library, "library", "", "library UUID")
 		flags.StringVar(&c.key, "key", "", "idempotency key")
 		flags.StringVar(&c.priority, "priority", domain.JobPriorityManual, "queue priority")
+		flags.BoolVar(&fix, "fix", false, "after the validation succeeds, repair the safely repairable issues (needs --library and --key)")
 	case "policy-get", "policy-set", "current-validations", "issues":
 		flags.StringVar(&c.library, "library", "", "library UUID")
 		if c.command == "policy-set" {
@@ -87,7 +89,7 @@ func runNFOCLI(ctx context.Context, argv []string, stdin io.Reader, stdout, stde
 	flags.Visit(func(f *flag.Flag) { seen[f.Name] = true })
 	if c.command == "validate" && !seen["library"] {
 		if root == "" || file == "" || maxBytes < 1 || maxBytes > nfo.MaxAllowedBytes ||
-			seen["url"] || seen["token-stdin"] || seen["key"] || seen["priority"] {
+			seen["url"] || seen["token-stdin"] || seen["key"] || seen["priority"] || fix {
 			return usage()
 		}
 		return runNFOLocal(ctx, root, file, maxBytes, stdout, stderr)
@@ -98,6 +100,9 @@ func runNFOCLI(ctx context.Context, argv []string, stdin io.Reader, stdout, stde
 	u, err := jobsBaseURL(*base)
 	if err != nil || c.command != "job" && c.command != "images" && !domain.ValidID(c.library) ||
 		(c.command == "job" || c.command == "images") && !domain.ValidID(c.id) {
+		return usage()
+	}
+	if fix && (c.command != "validate" || len(c.key)+len(nfoFixKeySuffix) > 128) {
 		return usage()
 	}
 	if c.command == "validate" && (!validNFOCLIKey(c.key) || c.priority != domain.JobPriorityManual && c.priority != domain.JobPriorityBackground) ||
@@ -112,6 +117,9 @@ func runNFOCLI(ctx context.Context, argv []string, stdin io.Reader, stdout, stde
 	token, err := readJobsToken(ctx, stdin)
 	if err != nil {
 		return nfoCLIError(ctx, stderr, "nfo_token_read_failed")
+	}
+	if fix {
+		return runNFOValidateFixCLI(ctx, c, u, token, stdout, stderr)
 	}
 	method, body := http.MethodGet, ""
 	u.Path = "/api/v1/libraries/" + c.library + "/nfo/"

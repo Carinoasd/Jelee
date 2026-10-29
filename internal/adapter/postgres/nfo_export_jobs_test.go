@@ -137,7 +137,7 @@ func nfoExportWant(n int) domain.NFOExportCounts {
 }
 
 func nfoExportCounts(s domain.NFOExportJobState) domain.NFOExportCounts {
-	return domain.NFOExportCounts{Written: s.Written, Unchanged: s.Unchanged, SkippedExisting: s.SkippedExisting, SkippedMissing: s.SkippedMissing, SkippedInvalid: s.SkippedInvalid, SkippedOther: s.SkippedOther, Failed: s.Failed}
+	return domain.NFOExportCounts{Written: s.Written, Fixed: s.Fixed, Unfixable: s.Unfixable, Unchanged: s.Unchanged, SkippedExisting: s.SkippedExisting, SkippedMissing: s.SkippedMissing, SkippedInvalid: s.SkippedInvalid, SkippedOther: s.SkippedOther, Failed: s.Failed}
 }
 
 // hookedNFOExport observes and interrupts the steps of a run.

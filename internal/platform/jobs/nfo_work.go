@@ -2,6 +2,8 @@ package jobs
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 
 	"github.com/MoYuanCN/Jelee/internal/app"
@@ -114,6 +116,22 @@ func (r *Runner) nfoItem(ctx context.Context, l domain.JobLease, q domain.NFOReq
 	if r.options.NFO.Reader.Identity() != q.Identity {
 		return false, &nfoAbort{domain.NFOPhaseIdentityMismatch, true}, false
 	}
+	// An illegal location is reported before any byte of the file is read: the
+	// refusal is the same one item selection makes, now with its reason.
+	code, err := r.inspectNFOPath(ctx, e.Source)
+	if ctx.Err() != nil {
+		return false, ctx.Err(), false
+	}
+	if err != nil {
+		return false, r.unavailableNFO(), false
+	}
+	if code != "" {
+		completion, ok := nfoPathCompletion(e.Inventory, code, r.nfoIdentity.MaxSourceBytes)
+		if !ok {
+			return false, r.unavailableNFO(), false
+		}
+		return r.commitNFOCompletion(ctx, l, q, token, e, completion)
+	}
 	first, stamp, err := r.readNFO(ctx, e.Source)
 	if ctx.Err() != nil {
 		return false, ctx.Err(), false
@@ -176,6 +194,13 @@ func (r *Runner) nfoItem(ctx context.Context, l domain.JobLease, q domain.NFOReq
 			}
 		}
 	}
+	return r.commitNFOCompletion(ctx, l, q, token, e, completion)
+}
+
+// commitNFOCompletion records the outcome of one entry and checks that the
+// phase advanced by exactly that entry.
+//nolint:revive // same result order as nfoItem, which the callers destructure: retry, error, storage
+func (r *Runner) commitNFOCompletion(ctx context.Context, l domain.JobLease, q domain.NFORequest, token domain.NFOPageToken, e domain.NFOEntry, completion domain.NFOCompletion) (bool, error, bool) {
 	if ctx.Err() != nil {
 		return false, ctx.Err(), false
 	}
@@ -198,6 +223,52 @@ func (r *Runner) nfoItem(ctx context.Context, l domain.JobLease, q domain.NFOReq
 		return false, &nfoAbort{domain.NFOPhaseIdentityMismatch, true}, false
 	}
 	return false, nil, false
+}
+
+// nfoPathCompletion is the outcome of an entry whose location is illegal. The
+// file was never read, so its stamp is the inventory's size and modification
+// time with a digest derived from the code alone; the stored summary holds the
+// path issue and nothing else.
+func nfoPathCompletion(inventory domain.InventoryEntry, code string, maxBytes int64) (domain.NFOCompletion, bool) {
+	summary, ok := domain.NewNFOPathSummary(code)
+	if !ok || inventory.Size < 0 || inventory.Size > maxBytes {
+		return domain.NFOCompletion{}, false
+	}
+	digest := sha256.Sum256([]byte("jelee nfo path issue\x00" + code))
+	stamp := domain.NFOStamp{Size: inventory.Size, ModifiedUnixNano: inventory.ModifiedUnixNano, SHA256: hex.EncodeToString(digest[:]), FingerprintVersion: domain.NFOFingerprintVersion}
+	return domain.NFOCompletion{Candidate: domain.NFOCandidate{InventoryID: inventory.ID, Stamp: stamp}, Kind: domain.NFOCompletionParsed, Summary: &summary}, true
+}
+
+// inspectNFOPath asks a reader that can to classify the location of an entry.
+// Readers that cannot never report a path issue.
+func (r *Runner) inspectNFOPath(ctx context.Context, path domain.NFOSource) (code string, result error) {
+	inspector, ok := r.options.NFO.Reader.(app.NFOPathInspector)
+	if !ok {
+		return "", nil
+	}
+	defer func() {
+		if recover() != nil {
+			code, result = "", domain.ErrNFOReaderUnavailable
+		}
+	}()
+	release, err := r.acquireWork(ctx, app.WorkIO)
+	if err != nil {
+		return "", err
+	}
+	defer release()
+	fileCtx, cancel := context.WithTimeout(ctx, r.options.NFO.FileTimeout)
+	defer cancel()
+	code, result = inspector.InspectNFOPath(fileCtx, path)
+	if ctx.Err() != nil {
+		return "", ctx.Err()
+	}
+	if fileCtx.Err() != nil {
+		return "", fileCtx.Err()
+	}
+	if result == nil && code != "" && !domain.ValidNFOPathCode(code) {
+		return "", domain.ErrNFOReaderUnavailable
+	}
+	return code, result
 }
 
 func (r *Runner) readNFO(ctx context.Context, path domain.NFOSource) (source app.NFOReadSource, stamp domain.NFOStamp, result error) {

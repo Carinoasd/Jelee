@@ -100,8 +100,8 @@ func (s *Store) GetNFOExportState(ctx context.Context, actor domain.Actor, job s
 	}
 	defer tx.Rollback(ctx)
 	var v domain.NFOExportJobState
-	err = tx.QueryRow(ctx, `SELECT job_id::text,library_id::text,mode,cursor_item_id::text,child_job_id::text,chunk,written,unchanged,skipped_existing,skipped_missing,skipped_invalid,skipped_other,failed,updated_at FROM nfo_export_job_state WHERE job_id=$1::uuid`, job).
-		Scan(&v.JobID, &v.LibraryID, &v.Mode, &v.CursorItemID, &v.ChildJobID, &v.Chunks, &v.Written, &v.Unchanged, &v.SkippedExisting, &v.SkippedMissing, &v.SkippedInvalid, &v.SkippedOther, &v.Failed, &v.UpdatedAt)
+	err = tx.QueryRow(ctx, `SELECT job_id::text,library_id::text,mode,cursor_item_id::text,child_job_id::text,chunk,written,fixed,unfixable,unchanged,skipped_existing,skipped_missing,skipped_invalid,skipped_other,failed,updated_at FROM nfo_export_job_state WHERE job_id=$1::uuid`, job).
+		Scan(&v.JobID, &v.LibraryID, &v.Mode, &v.CursorItemID, &v.ChildJobID, &v.Chunks, &v.Written, &v.Fixed, &v.Unfixable, &v.Unchanged, &v.SkippedExisting, &v.SkippedMissing, &v.SkippedInvalid, &v.SkippedOther, &v.Failed, &v.UpdatedAt)
 	if err != nil {
 		return domain.NFOExportJobState{}, storageError(err)
 	}
@@ -139,10 +139,10 @@ func lockNFOExportRow(ctx context.Context, tx pgx.Tx, job string) (nfoExportRow,
 }
 
 // nfoExportProgress mirrors the counters into the job's files and skipped
-// columns, under the lease fence: files are items exported or already equal,
-// skipped are items left out or failed.
+// columns, under the lease fence: files are items exported, fixed or already
+// equal, skipped are items left out, unfixable or failed.
 func nfoExportProgress(ctx context.Context, tx pgx.Tx, lease domain.JobLease) error {
-	return guardedJobUpdate(ctx, tx, lease, `UPDATE jobs SET files=(SELECT written+unchanged FROM nfo_export_job_state WHERE job_id=$1::uuid),skipped=(SELECT skipped_existing+skipped_missing+skipped_invalid+skipped_other+failed FROM nfo_export_job_state WHERE job_id=$1::uuid) WHERE id=$1::uuid`, lease.Job.ID)
+	return guardedJobUpdate(ctx, tx, lease, `UPDATE jobs SET files=(SELECT written+fixed+unchanged FROM nfo_export_job_state WHERE job_id=$1::uuid),skipped=(SELECT skipped_existing+skipped_missing+skipped_invalid+skipped_other+unfixable+failed FROM nfo_export_job_state WHERE job_id=$1::uuid) WHERE id=$1::uuid`, lease.Job.ID)
 }
 
 // requestNFOExportChildCancel asks the export job's outstanding child to stop,
@@ -228,7 +228,12 @@ func settleNFOExportChild(ctx context.Context, tx pgx.Tx, job string, row nfoExp
 	if existing < 0 || existing > len(out.candidates) {
 		return false, domain.ErrConflict
 	}
-	_, err = tx.Exec(ctx, `UPDATE nfo_export_job_state SET child_job_id=NULL,child_entries=0,written=written+$2,skipped_existing=skipped_existing+$4,failed=failed+$3,updated_at=clock_timestamp() WHERE job_id=$1::uuid`, job, out.written, row.entries-out.written-existing, existing)
+	// A fix-mode child's replaced entries are repairs, not exports.
+	written, fixed := out.written, 0
+	if row.mode == domain.NFOExportFix {
+		written, fixed = 0, out.written
+	}
+	_, err = tx.Exec(ctx, `UPDATE nfo_export_job_state SET child_job_id=NULL,child_entries=0,written=written+$2,fixed=fixed+$5,skipped_existing=skipped_existing+$4,failed=failed+$3,updated_at=clock_timestamp() WHERE job_id=$1::uuid`, job, written, row.entries-out.written-existing, existing, fixed)
 	return err == nil, storageError(err)
 }
 
@@ -370,7 +375,7 @@ func (s *Store) NextNFOExportStep(ctx context.Context, lease domain.JobLease, li
 // that need no child job. The cursor only moves forward; the counters and the
 // job's progress columns change in the same fenced transaction.
 func (s *Store) RecordNFOExportBatch(ctx context.Context, lease domain.JobLease, cursor string, c domain.NFOExportCounts) error {
-	if ctx == nil || !domain.ValidID(cursor) || !c.Valid() || c.Written != 0 {
+	if ctx == nil || !domain.ValidID(cursor) || !c.Valid() || c.Written != 0 || c.Fixed != 0 {
 		return domain.ErrInvalid
 	}
 	tx, err := s.jobTransaction(ctx)
@@ -381,8 +386,8 @@ func (s *Store) RecordNFOExportBatch(ctx context.Context, lease domain.JobLease,
 	if _, err = fencedNFOExport(ctx, tx, lease); err != nil {
 		return err
 	}
-	tag, err := tx.Exec(ctx, `UPDATE nfo_export_job_state SET cursor_item_id=$2::uuid,unchanged=unchanged+$3,skipped_missing=skipped_missing+$4,skipped_invalid=skipped_invalid+$5,skipped_other=skipped_other+$6,failed=failed+$7,skipped_existing=skipped_existing+$8,updated_at=clock_timestamp()
- WHERE job_id=$1::uuid AND child_job_id IS NULL AND (cursor_item_id IS NULL OR cursor_item_id<$2::uuid)`, lease.Job.ID, cursor, c.Unchanged, c.SkippedMissing, c.SkippedInvalid, c.SkippedOther, c.Failed, c.SkippedExisting)
+	tag, err := tx.Exec(ctx, `UPDATE nfo_export_job_state SET cursor_item_id=$2::uuid,unchanged=unchanged+$3,skipped_missing=skipped_missing+$4,skipped_invalid=skipped_invalid+$5,skipped_other=skipped_other+$6,failed=failed+$7,skipped_existing=skipped_existing+$8,unfixable=unfixable+$9,updated_at=clock_timestamp()
+ WHERE job_id=$1::uuid AND child_job_id IS NULL AND (cursor_item_id IS NULL OR cursor_item_id<$2::uuid)`, lease.Job.ID, cursor, c.Unchanged, c.SkippedMissing, c.SkippedInvalid, c.SkippedOther, c.Failed, c.SkippedExisting, c.Unfixable)
 	if err != nil {
 		return storageError(err)
 	}
@@ -403,7 +408,7 @@ func (s *Store) RecordNFOExportBatch(ctx context.Context, lease domain.JobLease,
 // the export job (export_job_id) and so may be active beside it. A crash leaves
 // either all of this or none of it.
 func (s *Store) SubmitNFOExportChunk(ctx context.Context, lease domain.JobLease, actor domain.Actor, chunk int, cursor string, c domain.NFOExportCounts, preparations []string) error {
-	if ctx == nil || chunk < 1 || !domain.ValidID(cursor) || !c.Valid() || c.Written != 0 || len(preparations) < 1 || len(preparations) > domain.NFOExportChunkSize {
+	if ctx == nil || chunk < 1 || !domain.ValidID(cursor) || !c.Valid() || c.Written != 0 || c.Fixed != 0 || len(preparations) < 1 || len(preparations) > domain.NFOExportChunkSize {
 		return domain.ErrInvalid
 	}
 	tx, err := s.authorizedJobs(ctx, actor)
@@ -453,8 +458,8 @@ func (s *Store) SubmitNFOExportChunk(ctx context.Context, lease domain.JobLease,
 	if _, err = tx.Exec(ctx, `DELETE FROM nfo_write_preparations WHERE actor_id=$1::uuid AND starts_with(idempotency_key,$2)`, actor.UserID, domain.NFOExportPreparationKeyPrefix(lease.Job.ID, chunk)); err != nil {
 		return storageError(err)
 	}
-	if _, err = tx.Exec(ctx, `UPDATE nfo_export_job_state SET cursor_item_id=$2::uuid,chunk=$3,child_job_id=$4::uuid,child_entries=$5,unchanged=unchanged+$6,skipped_missing=skipped_missing+$7,skipped_invalid=skipped_invalid+$8,skipped_other=skipped_other+$9,failed=failed+$10,skipped_existing=skipped_existing+$11,updated_at=clock_timestamp() WHERE job_id=$1::uuid`,
-		lease.Job.ID, cursor, chunk, child.ID, len(preparations), c.Unchanged, c.SkippedMissing, c.SkippedInvalid, c.SkippedOther, c.Failed, c.SkippedExisting); err != nil {
+	if _, err = tx.Exec(ctx, `UPDATE nfo_export_job_state SET cursor_item_id=$2::uuid,chunk=$3,child_job_id=$4::uuid,child_entries=$5,unchanged=unchanged+$6,skipped_missing=skipped_missing+$7,skipped_invalid=skipped_invalid+$8,skipped_other=skipped_other+$9,failed=failed+$10,skipped_existing=skipped_existing+$11,unfixable=unfixable+$12,updated_at=clock_timestamp() WHERE job_id=$1::uuid`,
+		lease.Job.ID, cursor, chunk, child.ID, len(preparations), c.Unchanged, c.SkippedMissing, c.SkippedInvalid, c.SkippedOther, c.Failed, c.SkippedExisting, c.Unfixable); err != nil {
 		return storageError(err)
 	}
 	if err = nfoExportProgress(ctx, tx, lease); err != nil {

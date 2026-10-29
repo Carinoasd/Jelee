@@ -154,7 +154,10 @@ func observeItemCandidates(ctx context.Context, scope domain.NFOItemScope) (valu
 	}
 	rootPath := filepath.Clean(scope.Source.RootPath)
 	rootMode, err := os.Lstat(rootPath)
-	if err != nil || !rootMode.IsDir() || rootMode.Mode()&os.ModeSymlink != 0 {
+	if err == nil && rootMode.Mode()&os.ModeSymlink != 0 {
+		return value, pathIssue(domain.NFOPathElementSymlink)
+	}
+	if err != nil || !rootMode.IsDir() {
 		return value, domain.ErrNFOInputUnavailable
 	}
 	root, err := os.OpenRoot(rootPath + string(os.PathSeparator) + ".")
@@ -185,7 +188,13 @@ func observeItemCandidates(ctx context.Context, scope domain.NFOItemScope) (valu
 			return value, err
 		}
 		info, err := root.Lstat(filepath.FromSlash(strings.Join(components[:i+1], "/")))
-		if err != nil || info.Mode()&os.ModeSymlink != 0 || i < len(components)-1 && !info.IsDir() || i == len(components)-1 && ((!isDirectory && !info.Mode().IsRegular()) || (isDirectory && !info.IsDir())) {
+		if err == nil && info.Mode()&os.ModeSymlink != 0 {
+			return value, pathIssue(domain.NFOPathElementSymlink)
+		}
+		if err == nil && (i < len(components)-1 && !info.IsDir() || i == len(components)-1 && ((!isDirectory && !info.Mode().IsRegular()) || (isDirectory && !info.IsDir()))) {
+			return value, pathIssue(domain.NFOPathNotRegular)
+		}
+		if err != nil {
 			return value, domain.ErrNFOInputUnavailable
 		}
 	}
@@ -267,13 +276,19 @@ func observeItemCandidates(ctx context.Context, scope domain.NFOItemScope) (valu
 					continue
 				}
 				info, statErr := directory.Lstat(entry.Name())
-				if statErr != nil || !info.Mode().IsRegular() || info.Mode()&os.ModeSymlink != 0 {
+				if statErr == nil && info.Mode()&os.ModeSymlink != 0 {
+					return value, pathIssue(domain.NFOPathSymlink)
+				}
+				if statErr == nil && !info.Mode().IsRegular() {
+					return value, pathIssue(domain.NFOPathNotRegular)
+				}
+				if statErr != nil {
 					return value, domain.ErrNFOInputUnavailable
 				}
 				matches[i] = append(matches[i], path.Join(parent, entry.Name()))
 				names = append(names, path.Join(parent, entry.Name()))
 				if len(matches[i]) > 1 {
-					return value, domain.ErrNFOInputUnavailable
+					return value, pathIssue(domain.NFOPathCaseCollision)
 				}
 			}
 		}
