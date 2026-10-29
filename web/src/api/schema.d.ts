@@ -13163,7 +13163,7 @@ export type paths = {
         get?: never;
         put?: never;
         /**
-         * Queue a batch export of every item's stored metadata into its existing NFO through preparations and child nfo_write jobs; 409 nfo_write_disabled unless the library is read-only with writes enabled, 409 job_busy while the library has an active job
+         * Queue a batch export of every item's stored metadata into its existing NFO (mode all) or into newly created NFOs for the items that have none (mode missing), through preparations and child nfo_write jobs; 400 for an unknown mode; 409 nfo_write_disabled unless the library is read-only with writes enabled, 409 job_busy while the library has an active job
          * @description Every request, including retained replay, checks live administrator authorization. Internal reader identities, absolute roots, hashes and original XML are never accepted as request parameters.
          */
         post: {
@@ -30394,7 +30394,7 @@ export type components = {
              */
             priority: "manual" | "background";
         };
-        /** @description Counters of a batch NFO export. written entries were replaced by a child nfo_write job (counted when that job ends), unchanged had no differing stored value, skippedMissing had no NFO file, skippedInvalid had an invalid NFO, skippedOther could not be prepared (no media source, locked or unsupported item), failed hit an item-local error or were prepared but not replaced. chunks is the number of child write jobs submitted. */
+        /** @description Counters of a batch NFO export. written entries were replaced by a child nfo_write job (counted when that job ends), unchanged had no differing stored value, skippedExisting (missing mode) already had an NFO file, or got one while the job ran, and was left alone, skippedMissing (all mode) had no NFO file, skippedInvalid had an invalid NFO, skippedOther could not be prepared (no media source, locked or unsupported item), failed hit an item-local error or were prepared but not replaced. chunks is the number of child write jobs submitted. */
         NFOExportJobState: {
             /** @description The nfo_write job whose outcome is not yet counted; null while no write job is outstanding. */
             childJobId: string | null;
@@ -30406,6 +30406,9 @@ export type components = {
             jobId: string;
             /** Format: uuid */
             libraryId: string;
+            /** @enum {string} */
+            mode: "all" | "missing";
+            skippedExisting: number;
             skippedInvalid: number;
             skippedMissing: number;
             skippedOther: number;
@@ -30415,6 +30418,12 @@ export type components = {
             written: number;
         };
         NFOExportRequest: {
+            /**
+             * @description all writes the stored values into existing NFOs; missing creates the NFO of every item that has none and never touches an existing NFO. Part of the idempotency request: replaying a key with another mode is 409 conflict.
+             * @default all
+             * @enum {string}
+             */
+            mode: "all" | "missing";
             /**
              * @default manual
              * @enum {string}

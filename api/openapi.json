@@ -6609,7 +6609,7 @@
       },
       "NFOExportJobState": {
         "additionalProperties": false,
-        "description": "Counters of a batch NFO export. written entries were replaced by a child nfo_write job (counted when that job ends), unchanged had no differing stored value, skippedMissing had no NFO file, skippedInvalid had an invalid NFO, skippedOther could not be prepared (no media source, locked or unsupported item), failed hit an item-local error or were prepared but not replaced. chunks is the number of child write jobs submitted.",
+        "description": "Counters of a batch NFO export. written entries were replaced by a child nfo_write job (counted when that job ends), unchanged had no differing stored value, skippedExisting (missing mode) already had an NFO file, or got one while the job ran, and was left alone, skippedMissing (all mode) had no NFO file, skippedInvalid had an invalid NFO, skippedOther could not be prepared (no media source, locked or unsupported item), failed hit an item-local error or were prepared but not replaced. chunks is the number of child write jobs submitted.",
         "properties": {
           "childJobId": {
             "description": "The nfo_write job whose outcome is not yet counted; null while no write job is outstanding.",
@@ -6651,6 +6651,17 @@
             "format": "uuid",
             "type": "string"
           },
+          "mode": {
+            "enum": [
+              "all",
+              "missing"
+            ],
+            "type": "string"
+          },
+          "skippedExisting": {
+            "minimum": 0,
+            "type": "integer"
+          },
           "skippedInvalid": {
             "minimum": 0,
             "type": "integer"
@@ -6679,11 +6690,13 @@
         "required": [
           "jobId",
           "libraryId",
+          "mode",
           "cursorItemId",
           "childJobId",
           "chunks",
           "written",
           "unchanged",
+          "skippedExisting",
           "skippedMissing",
           "skippedInvalid",
           "skippedOther",
@@ -6695,6 +6708,15 @@
       "NFOExportRequest": {
         "additionalProperties": false,
         "properties": {
+          "mode": {
+            "default": "all",
+            "description": "all writes the stored values into existing NFOs; missing creates the NFO of every item that has none and never touches an existing NFO. Part of the idempotency request: replaying a key with another mode is 409 conflict.",
+            "enum": [
+              "all",
+              "missing"
+            ],
+            "type": "string"
+          },
           "priority": {
             "default": "manual",
             "enum": [
@@ -34499,7 +34521,7 @@
             "webSession": []
           }
         ],
-        "summary": "Queue a batch export of every item's stored metadata into its existing NFO through preparations and child nfo_write jobs; 409 nfo_write_disabled unless the library is read-only with writes enabled, 409 job_busy while the library has an active job",
+        "summary": "Queue a batch export of every item's stored metadata into its existing NFO (mode all) or into newly created NFOs for the items that have none (mode missing), through preparations and child nfo_write jobs; 400 for an unknown mode; 409 nfo_write_disabled unless the library is read-only with writes enabled, 409 job_busy while the library has an active job",
         "x-jelee-role": "administrator"
       }
     },
