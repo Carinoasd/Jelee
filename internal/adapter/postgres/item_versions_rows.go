@@ -38,6 +38,10 @@ var versionSnapshotTables = []versionRowTable{
 	{"item_parent_links", `item_id=$1::uuid`, `DELETE FROM vr WHERE NOT EXISTS(SELECT 1 FROM items p WHERE p.id=vr.parent_id)`},
 	{"catalog_scan_items", `item_id=$1::uuid`, `DELETE FROM vr WHERE EXISTS(SELECT 1 FROM catalog_scan_items c WHERE c.library_id=vr.library_id AND c.kind=vr.kind AND c.group_digest=vr.group_digest)`},
 	{"item_identity_corrections", `item_id=$1::uuid`, ""},
+	// A refused automatic match (G14.6) is an administrator decision and
+	// comes back with the item; a pending one is restored as it was.
+	{"metadata_refresh_reviews", `item_id=$1::uuid`, `UPDATE vr SET job_id=NULL WHERE NOT EXISTS(SELECT 1 FROM jobs j WHERE j.id=vr.job_id);
+ UPDATE vr SET rejected_by=NULL WHERE NOT EXISTS(SELECT 1 FROM users u WHERE u.id=vr.rejected_by)`},
 	{"item_images", `item_id=$1::uuid`, `DELETE FROM vr WHERE vr.root_id IS NOT NULL AND NOT EXISTS(SELECT 1 FROM library_roots r WHERE r.id=vr.root_id)`},
 	{"user_item_data", `item_id=$1::uuid`, versionUserGone + `;
  UPDATE vr SET last_source_id=NULL WHERE NOT EXISTS(SELECT 1 FROM media_sources m WHERE m.id=vr.last_source_id)`},
