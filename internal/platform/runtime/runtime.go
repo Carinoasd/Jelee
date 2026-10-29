@@ -167,6 +167,7 @@ func newWithLifetime(cfg config.Config, logger *slog.Logger, lifetime *lifetime)
 				CacheBytes: p.CacheBytes, CacheEntries: p.CacheEntries,
 				Timeout:  time.Duration(p.TimeoutSeconds) * time.Second,
 				CacheTTL: time.Duration(p.CacheTTLSeconds) * time.Second, DefaultQuality: p.DefaultQuality,
+				OutputFormats: p.OutputFormats, Crop: p.Crop,
 			}
 			pictures, err := openImageStore(lifetime.ctx, p, store)
 			if err != nil {
@@ -339,6 +340,9 @@ func newWithLifetime(cfg config.Config, logger *slog.Logger, lifetime *lifetime)
 			if closeCovers != nil {
 				closeProbe := lifetime.closeProbe
 				lifetime.closeProbe = func() error { return errors.Join(closeCovers(), closeProbe()) }
+			}
+			if covers != nil {
+				covers.Describer = processor
 			}
 			opts.CatalogSync.EmbeddedCovers = covers
 			if goruntime.GOOS == "linux" || goruntime.GOOS == "windows" {

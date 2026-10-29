@@ -48,6 +48,11 @@ type Options struct {
 	// processor never closes either; their owner does after Shutdown.
 	Store *Store
 	Index app.ImageVariantIndex
+	// OutputFormats limits the encodings a request may ask for (G40.6);
+	// empty allows every one the pipeline has. Crop is CropSmart (the
+	// default when empty), CropCenter or CropOff, which fits fill requests.
+	OutputFormats []string
+	Crop          string
 }
 
 func validOptions(o Options) bool {
@@ -61,7 +66,7 @@ func validOptions(o Options) bool {
 		o.CacheEntries >= 1 && o.CacheEntries <= 4096 && o.Timeout >= time.Second && o.Timeout <= 120*time.Second &&
 		o.CacheTTL >= time.Second && o.CacheTTL <= 86400*time.Second && o.DefaultQuality >= 1 && o.DefaultQuality <= 100 &&
 		o.MaxOutputBytes < o.MaxImageBytes && int64(o.MaxConcurrent)*o.MaxImageBytes+o.CacheBytes <= 1<<30 &&
-		(o.Index == nil || o.Store != nil)
+		(o.Index == nil || o.Store != nil) && validOutputFormats(o.OutputFormats) && validCropMode(o.Crop)
 }
 
 // Stats contains aggregate counts only; source identifiers and paths never
@@ -372,8 +377,17 @@ func (r storeContextReadSeeker) Seek(offset int64, whence int) (int64, error) {
 // store and the bounded decoder for one prepared source. mediaRoot is the
 // library root the source is read from, or empty for stored originals.
 func (p *Processor) render(ctx context.Context, request domain.ImageRequest, mediaRoot string, prepare func(context.Context, int64) (renderSource, error)) (result app.ImageResult, err error) {
-	if request.Quality == 0 {
+	if !p.allowsFormat(request.Format) {
+		return result, domain.ErrImageUnsupported
+	}
+	if request.Format == domain.ImageFormatWebP {
+		// Lossless WebP has no quality setting; one key per size suffices.
+		request.Quality = 0
+	} else if request.Quality == 0 {
 		request.Quality = p.options.DefaultQuality
+	}
+	if request.Crop && p.cropMode() == CropOff {
+		request.Crop = false
 	}
 	if err = p.admit(); err != nil {
 		return result, err
@@ -429,7 +443,7 @@ func (p *Processor) render(ctx context.Context, request domain.ImageRequest, med
 	}()
 	content := source.Content()
 	variant := p.variantKey(request)
-	key := imageCacheKey(source.Key(), request)
+	key := imageCacheKey(source.Key(), request, p.cropMode())
 	value, hit := p.cache.get(key)
 	stored := false
 	if hit {
@@ -441,7 +455,7 @@ func (p *Processor) render(ctx context.Context, request domain.ImageRequest, med
 			if err != nil {
 				return result, err
 			}
-			value, stored, err = p.readVariant(operation, store, content, variant)
+			value, stored, err = p.readVariant(operation, store, content, variant, request.Format)
 			if err != nil {
 				return result, err
 			}
@@ -462,8 +476,11 @@ func (p *Processor) render(ctx context.Context, request domain.ImageRequest, med
 			return result, imageError(operation, inspectErr)
 		}
 		displayWidth, displayHeight := inspected.displaySize()
-		width, height := targetSize(displayWidth, displayHeight, request, p.options.MaxOutputDimension)
-		estimate, estimateErr := estimateImageBytes(inspected, width, height, size, p.options.MaxOutputBytes)
+		plan := planOutput(displayWidth, displayHeight, request, p.options.MaxOutputDimension, p.cropMode())
+		estimate, estimateErr := estimateImageBytes(inspected, plan.width, plan.height, size, p.options.MaxOutputBytes)
+		if estimateErr == nil && plan.format == domain.ImageFormatWebP {
+			estimate, estimateErr = addWebPEstimate(estimate, plan)
+		}
 		if estimateErr != nil || estimate > p.options.MaxImageBytes {
 			return result, domain.ErrImageTooLarge
 		}
@@ -471,7 +488,7 @@ func (p *Processor) render(ctx context.Context, request domain.ImageRequest, med
 		p.maxEstimate = max(p.maxEstimate, estimate)
 		p.mu.Unlock()
 		p.decodes.Add(1)
-		value, err = p.renderDecoded(operation, reader, inspected, width, height, request.Quality)
+		value, err = p.renderDecoded(operation, reader, inspected, plan)
 		// Large decoder objects are now outside the active stack frame. GC can
 		// collect them and return their pages before another request reuses this
 		// reservation. A GC alone may leave hundreds of MiB resident. Reclaim
@@ -517,7 +534,7 @@ func (p *Processor) render(ctx context.Context, request domain.ImageRequest, med
 		return result, err
 	}
 	result = app.ImageResult{Body: &imageBody{ctx: operation, reader: bytes.NewReader(value.data), release: release},
-		ContentType: "image/jpeg", ETag: value.etag, Size: int64(len(value.data)), Width: value.width, Height: value.height, ContentSHA256: content}
+		ContentType: imageContentType(request.Format), ETag: value.etag, Size: int64(len(value.data)), Width: value.width, Height: value.height, ContentSHA256: content}
 	p.completed.Add(1)
 	success = true
 	return result, nil
@@ -526,13 +543,19 @@ func (p *Processor) render(ctx context.Context, request domain.ImageRequest, med
 // variantKey binds every output parameter, including the configured output
 // bound, which changes the result for the same request. Bump the pipeline
 // version whenever decoding or encoding output changes.
+// A fit keeps its original pipeline name, so JPEG variants stored before
+// fill crops and WebP existed stay valid; a fill names its crop mode.
 func (p *Processor) variantKey(request domain.ImageRequest) [32]byte {
-	return StoreVariantKey("fit-v1/max="+strconv.Itoa(p.options.MaxOutputDimension), "jpeg", request.Width, request.Height, request.Quality)
+	pipeline := "fit-v1/max=" + strconv.Itoa(p.options.MaxOutputDimension)
+	if request.Crop {
+		pipeline = "fill-v1/" + p.cropMode() + "/max=" + strconv.Itoa(p.options.MaxOutputDimension)
+	}
+	return StoreVariantKey(pipeline, request.Format, request.Width, request.Height, request.Quality)
 }
 
 // readVariant returns a stored representation. A missing, corrupt or
 // implausible object is a miss; only cancellation is an error.
-func (p *Processor) readVariant(ctx context.Context, store *Store, content, variant [32]byte) (encodedImage, bool, error) {
+func (p *Processor) readVariant(ctx context.Context, store *Store, content, variant [32]byte, format string) (encodedImage, bool, error) {
 	object, err := store.OpenVariant(ctx, content, variant)
 	if err != nil {
 		if ctx.Err() != nil {
@@ -557,7 +580,7 @@ func (p *Processor) readVariant(ctx context.Context, store *Store, content, vari
 		p.storeFailures.Add(1)
 		return encodedImage{}, false, nil
 	}
-	config, err := jpeg.DecodeConfig(bytes.NewReader(data))
+	config, err := decodeVariantConfig(bytes.NewReader(data), format)
 	if err != nil || config.Width < 1 || config.Height < 1 || config.Width > p.options.MaxOutputDimension || config.Height > p.options.MaxOutputDimension {
 		p.storeFailures.Add(1)
 		return encodedImage{}, false, nil
@@ -600,10 +623,11 @@ func (p *Processor) persist(ctx context.Context, store *Store, source renderSour
 	}
 }
 
-// No decoded bitmap escapes this frame. Only the tightly sized JPEG is retained
-// by the cache or response body. Keeping this frame separate also makes large
-// decoder allocations collectible before Render releases its processing slot.
-func (p *Processor) renderDecoded(ctx context.Context, source io.ReadSeeker, input inspectedImage, width, height, quality int) (encodedImage, error) {
+// No decoded bitmap escapes this frame. Only the tightly sized encoding is
+// retained by the cache or response body. Keeping this frame separate also
+// makes large decoder allocations collectible before Render releases its
+// processing slot.
+func (p *Processor) renderDecoded(ctx context.Context, source io.ReadSeeker, input inspectedImage, plan renderPlan) (encodedImage, error) {
 	decoded, err := p.decode(ctx, source, input)
 	if err != nil {
 		return encodedImage{}, err
@@ -614,8 +638,15 @@ func (p *Processor) renderDecoded(ctx context.Context, source io.ReadSeeker, inp
 	if decoded.Bounds() != image.Rect(0, 0, input.width, input.height) {
 		return encodedImage{}, domain.ErrImageUnavailable
 	}
+	width, height := plan.width, plan.height
+	crop := plan.crop
+	if plan.smart {
+		if crop, err = smartCrop(ctx, decoded, input, crop); err != nil {
+			return encodedImage{}, err
+		}
+	}
 	var encodeInput image.Image
-	if width == input.width && height == input.height && !input.oriented() {
+	if width == input.width && height == input.height && !input.oriented() && crop.Empty() && plan.format == domain.ImageFormatJPEG {
 		encodeInput, err = sameSizeJPEGImage(ctx, decoded)
 		if err != nil {
 			return encodedImage{}, err
@@ -623,14 +654,26 @@ func (p *Processor) renderDecoded(ctx context.Context, source io.ReadSeeker, inp
 	} else {
 		// An EXIF-oriented image always takes this path, even at full size:
 		// the output RGBA is the only bitmap besides the decoded one, and the
-		// estimate already reserves it as the output-sized thumbnail.
+		// estimate already reserves it as the output-sized thumbnail. JPEG
+		// has no alpha and is composited on white; WebP keeps transparency.
 		thumbnail := image.NewRGBA(image.Rect(0, 0, width, height))
-		draw.Draw(thumbnail, thumbnail.Bounds(), image.NewUniform(color.White), image.Point{}, draw.Src)
-		if input.oriented() {
-			// The affine map rotates or mirrors while it scales, writing
-			// straight into the output; no rotated source copy exists.
-			draw.ApproxBiLinear.Transform(thumbnail, orientationTransform(input.orientation, input.width, input.height, width, height), decoded, decoded.Bounds(), draw.Over, nil)
-		} else {
+		if plan.format != domain.ImageFormatWebP {
+			draw.Draw(thumbnail, thumbnail.Bounds(), image.NewUniform(color.White), image.Point{}, draw.Src)
+		}
+		switch {
+		case input.oriented() || !crop.Empty() && input.orientation > 1:
+			// The affine map rotates or mirrors (and crops) while it scales,
+			// writing straight into the output; no rotated source copy exists.
+			region := crop
+			if region.Empty() {
+				dw, dh := input.displaySize()
+				region = image.Rect(0, 0, dw, dh)
+			}
+			draw.ApproxBiLinear.Transform(thumbnail, cropTransform(input.orientation, input.width, input.height, region, width, height), decoded, decoded.Bounds(), draw.Over, nil)
+		case !crop.Empty():
+			// Without orientation the upright region is a source rectangle.
+			draw.ApproxBiLinear.Scale(thumbnail, thumbnail.Bounds(), decoded, crop, draw.Over, nil)
+		default:
 			// ApproxBiLinear has no source-sized intermediate kernel buffer.
 			draw.ApproxBiLinear.Scale(thumbnail, thumbnail.Bounds(), decoded, decoded.Bounds(), draw.Over, nil)
 		}
@@ -640,15 +683,32 @@ func (p *Processor) renderDecoded(ctx context.Context, source io.ReadSeeker, inp
 		return encodedImage{}, err
 	}
 	output := boundedImageWriter{ctx: ctx, limit: int(p.options.MaxOutputBytes)}
-	if err := jpeg.Encode(&output, encodeInput, &jpeg.Options{Quality: quality}); err != nil {
+	if err := encodeImage(&output, encodeInput, plan); err != nil {
 		return encodedImage{}, err
 	}
 	// Tighten capacity once. Both allocations are included in the estimate;
-	// a small cached JPEG does not pin the entire output-byte allowance.
+	// a small cached encoding does not pin the entire output-byte allowance.
 	encoded := make([]byte, len(output.data))
 	copy(encoded, output.data)
 	digest := sha256.Sum256(encoded)
 	return encodedImage{data: encoded, width: width, height: height, etag: `"` + hex.EncodeToString(digest[:]) + `"`}, nil
+}
+
+// addWebPEstimate adds the WebP encoder's working memory to an estimate.
+func addWebPEstimate(estimate int64, plan renderPlan) (int64, error) {
+	pixels, ok := checkedMultiply(int64(plan.width), int64(plan.height))
+	if !ok {
+		return 0, domain.ErrImageTooLarge
+	}
+	encoder, ok := webpEncodeBytes(pixels)
+	if !ok {
+		return 0, domain.ErrImageTooLarge
+	}
+	total, ok := checkedSum(estimate, encoder)
+	if !ok {
+		return 0, domain.ErrImageTooLarge
+	}
+	return total, nil
 }
 
 // Large allocations can leave resident heap pages after their bitmaps die.
@@ -738,17 +798,22 @@ func (r contextImageReader) Read(data []byte) (int, error) {
 	return r.reader.Read(data)
 }
 
+// boundedImageWriter keeps the first error, so an encoder that ignores
+// write failures (nativewebp) still fails the render afterwards.
 type boundedImageWriter struct {
 	ctx   context.Context
 	data  []byte
 	limit int
+	err   error
 }
 
 func (w *boundedImageWriter) Write(data []byte) (int, error) {
 	if err := w.ctx.Err(); err != nil {
+		w.fail(err)
 		return 0, err
 	}
 	if len(data) > w.limit-len(w.data) {
+		w.fail(domain.ErrImageTooLarge)
 		return 0, domain.ErrImageTooLarge
 	}
 	needed := len(w.data) + len(data)
@@ -765,13 +830,29 @@ func (w *boundedImageWriter) Write(data []byte) (int, error) {
 	return len(data), nil
 }
 
-func imageCacheKey(source [32]byte, request domain.ImageRequest) [32]byte {
+// imageCacheKey binds the output encoding and, for a fill, the crop mode,
+// so a WebP or cropped representation never answers a JPEG fit request.
+func (w *boundedImageWriter) fail(err error) {
+	if w.err == nil {
+		w.err = err
+	}
+}
+
+func imageCacheKey(source [32]byte, request domain.ImageRequest, mode string) [32]byte {
 	var data [56]byte
 	copy(data[:32], source[:])
 	binary.BigEndian.PutUint64(data[32:40], uint64(request.Width))
 	binary.BigEndian.PutUint64(data[40:48], uint64(request.Height))
 	binary.BigEndian.PutUint64(data[48:56], uint64(request.Quality))
-	return sha256.Sum256(data[:])
+	digest := sha256.New()
+	_, _ = digest.Write(data[:])
+	imageHashString(digest, request.Format)
+	if request.Crop {
+		imageHashString(digest, "fill/"+mode)
+	}
+	var key [32]byte
+	copy(key[:], digest.Sum(nil))
+	return key
 }
 
 type inspectedImage struct {

@@ -51,7 +51,7 @@ func (s *Server) image(w http.ResponseWriter, r *http.Request) {
 		WriteError(w, r, domain.ErrUnauthenticated)
 		return
 	}
-	query, err := strictQuery(r, "width", "height", "quality", "format", "index", "tag")
+	query, err := strictQuery(r, "width", "height", "fillWidth", "fillHeight", "quality", "format", "index", "tag")
 	if err != nil {
 		WriteError(w, r, err)
 		return
@@ -70,7 +70,8 @@ func (s *Server) image(w http.ResponseWriter, r *http.Request) {
 		WriteError(w, r, domain.ErrInvalid)
 		return
 	}
-	for key, target := range map[string]*int{"width": &request.Width, "height": &request.Height, "quality": &request.Quality} {
+	var fillWidth, fillHeight int
+	for key, target := range map[string]*int{"width": &request.Width, "height": &request.Height, "quality": &request.Quality, "fillWidth": &fillWidth, "fillHeight": &fillHeight} {
 		if raw, exists := query[key]; exists {
 			value, parseErr := strconv.Atoi(raw)
 			if parseErr != nil || raw != strconv.Itoa(value) || value <= 0 {
@@ -80,12 +81,25 @@ func (s *Server) image(w http.ResponseWriter, r *http.Request) {
 			*target = value
 		}
 	}
-	if format, exists := query["format"]; exists {
-		if format == "" {
+	// A fill box crops (G40.6): both sides are required and it replaces the
+	// fitted width and height.
+	_, fillW := query["fillWidth"]
+	_, fillH := query["fillHeight"]
+	if fillW || fillH {
+		if fillWidth == 0 || fillHeight == 0 || request.Width != 0 || request.Height != 0 {
 			WriteError(w, r, domain.ErrInvalid)
 			return
 		}
-		request.Format = format
+		request.Width, request.Height, request.Crop = fillWidth, fillHeight, true
+	}
+	format, exists := query["format"]
+	if exists && format == "" {
+		WriteError(w, r, domain.ErrInvalid)
+		return
+	}
+	if request.Format, err = s.imageFormat(format, false); err != nil {
+		WriteError(w, r, err)
+		return
 	}
 	if _, err = domain.NormalizeImageRequest(request); err != nil {
 		WriteError(w, r, err)
@@ -111,7 +125,7 @@ func (s *Server) renderImage(ctx context.Context, actor domain.Actor, itemID str
 	if err != nil {
 		return result, err
 	}
-	if result.Body == nil || result.ContentType != "image/jpeg" || result.Size <= 0 || result.Size > s.cfg.Images.MaxOutputBytes ||
+	if result.Body == nil || result.ContentType != imageContentType(request.Format) || result.Size <= 0 || result.Size > s.cfg.Images.MaxOutputBytes ||
 		result.Width <= 0 || result.Height <= 0 || result.Width > s.cfg.Images.MaxOutputDimension || result.Height > s.cfg.Images.MaxOutputDimension ||
 		!validImageETag(result.ETag) {
 		return result, domain.ErrImageUnavailable
@@ -170,6 +184,13 @@ func (c compatImages) ServeImage(w http.ResponseWriter, r *http.Request, actor d
 	default:
 		return domain.ErrImageBusy
 	}
+	// Upstream clients name a format they can display; one this server does
+	// not offer falls back to the configured default instead of failing.
+	format, err := s.imageFormat(image.Request.Format, true)
+	if err != nil {
+		return err
+	}
+	image.Request.Format = format
 	result, err := s.renderImage(ctx, actor, image.ItemID, image.Request)
 	if result.Body != nil {
 		defer result.Body.Close()
@@ -183,6 +204,36 @@ func (c compatImages) ServeImage(w http.ResponseWriter, r *http.Request, actor d
 
 func (c compatImages) ImageSummaries(ctx context.Context, userID string, itemIDs []string) (map[string][]domain.ItemImageSummary, error) {
 	return c.s.images.Summaries(ctx, userID, itemIDs)
+}
+
+// imageFormat resolves a requested output format against the configuration
+// (G40.6): empty selects the configured default. A known format that is not
+// offered (AVIF always, WebP when disabled) is ErrImageUnsupported unless
+// fallback is set, which selects the default instead; an unknown name is
+// ErrInvalid.
+func (s *Server) imageFormat(requested string, fallback bool) (string, error) {
+	defaultFormat := s.cfg.Images.DefaultFormat
+	if defaultFormat == "" {
+		defaultFormat = domain.ImageFormatJPEG
+	}
+	switch {
+	case requested == "":
+		return defaultFormat, nil
+	case s.cfg.Images.AllowsFormat(requested):
+		return requested, nil
+	case requested != domain.ImageFormatAVIF && !domain.ValidImageOutputFormat(requested):
+		return "", domain.ErrInvalid
+	case fallback:
+		return defaultFormat, nil
+	}
+	return "", domain.ErrImageUnsupported
+}
+
+func imageContentType(format string) string {
+	if format == domain.ImageFormatWebP {
+		return "image/webp"
+	}
+	return "image/jpeg"
 }
 
 // validImageTag accepts 1–128 hexadecimal digits in either case; only the

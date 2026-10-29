@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"image"
 	"image/color"
 	"image/jpeg"
@@ -67,6 +68,18 @@ func adminImageProcessor(t *testing.T, store *postgres.Store, tempRoot, mediaRoo
 		_ = pictures.Close(ctx)
 	})
 	return processor
+}
+
+func adminHexColor(value string) bool {
+	if len(value) != 7 || value[0] != '#' {
+		return false
+	}
+	for _, c := range value[1:] {
+		if !(c >= '0' && c <= '9' || c >= 'a' && c <= 'f') {
+			return false
+		}
+	}
+	return true
 }
 
 func adminImagePNG(t *testing.T, width, height int, shade uint8) []byte {
@@ -285,11 +298,26 @@ func TestItemImageAdminHTTPPostgres(t *testing.T) {
 		Data []struct {
 			Type, SourceKind, Reference string
 			Locked                      bool
+			AverageColor, DominantColor string
+			Width, Height               int
+			Bytes                       int64
+			Format                      string
 		} `json:"data"`
 	}
 	if json.Unmarshal(listing.Body.Bytes(), &rows) != nil || len(rows.Data) != 3 || rows.Data[1].SourceKind != "upload" || !rows.Data[1].Locked ||
 		rows.Data[2].SourceKind != "local" || rows.Data[2].Reference != "file" || strings.Contains(listing.Body.String(), "poster.jpg") {
 		t.Fatalf("listing rows: %s", listing.Body.String())
+	}
+	// G40.7: the upload's metadata, sampled colors included, is listed; the
+	// scanned library row has not been read and carries none.
+	if up := rows.Data[1]; up.Format != "png" || up.Width != 64 || up.Bytes != int64(len(upload)) || !adminHexColor(up.AverageColor) || !adminHexColor(up.DominantColor) ||
+		rows.Data[2].AverageColor != "" || rows.Data[2].DominantColor != "" {
+		t.Fatalf("listing metadata: %s", listing.Body.String())
+	}
+	var average, dominant *int32
+	if err := store.Pool.QueryRow(ctx, `SELECT average_color,dominant_color FROM item_images WHERE item_id=$1::uuid AND source_kind='upload' AND image_type='Primary'`, item).Scan(&average, &dominant); err != nil ||
+		average == nil || dominant == nil || "#"+fmt.Sprintf("%06x", *dominant) != rows.Data[1].DominantColor {
+		t.Fatal("stored colors", average, dominant, err)
 	}
 
 	// Lock hand-over and release.

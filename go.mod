@@ -3,6 +3,7 @@ module github.com/MoYuanCN/Jelee
 go 1.27.1
 
 require (
+	github.com/HugoSmits86/nativewebp v1.3.0
 	github.com/dlclark/regexp2 v1.12.0
 	github.com/fsnotify/fsnotify v1.10.1
 	github.com/go-chi/chi/v5 v5.3.2

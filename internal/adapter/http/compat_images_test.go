@@ -44,10 +44,10 @@ func (r *compatImageRenderer) RenderItemImage(_ context.Context, image domain.It
 	r.mu.Unlock()
 	var content [32]byte
 	copy(content[:], image.Content.SHA256)
-	key := sha256.Sum256([]byte(hex.EncodeToString(content[:]) + "|" + request.Type + "|" + strconv.Itoa(request.Index) + "|" + strconv.Itoa(request.Width) + "x" + strconv.Itoa(request.Height) + "q" + strconv.Itoa(request.Quality)))
+	key := sha256.Sum256([]byte(hex.EncodeToString(content[:]) + "|" + request.Type + "|" + strconv.Itoa(request.Index) + "|" + strconv.Itoa(request.Width) + "x" + strconv.Itoa(request.Height) + "q" + strconv.Itoa(request.Quality) + "|" + request.Format + "|" + strconv.FormatBool(request.Crop)))
 	data := append([]byte{0xff, 0xd8}, content[:4]...)
 	data = append(data, 0xff, 0xd9)
-	return app.ImageResult{Body: &httpImageBody{Reader: bytes.NewReader(data)}, ContentType: "image/jpeg", ETag: `"` + hex.EncodeToString(key[:]) + `"`,
+	return app.ImageResult{Body: &httpImageBody{Reader: bytes.NewReader(data)}, ContentType: imageContentType(request.Format), ETag: `"` + hex.EncodeToString(key[:]) + `"`,
 		Size: int64(len(data)), Width: 2, Height: 3, ContentSHA256: content}, nil
 }
 
@@ -259,6 +259,19 @@ func TestCompatImagesPostgres(t *testing.T) {
 	}
 	if w := get("/compat/Items/"+movieWire+"/Images/Logo", f.tokenA); w.Code != http.StatusOK || renderer.last().Type != "ClearLogo" {
 		t.Fatalf("logo: %d", w.Code)
+	}
+	// G40.6: Format=Webp is WebP, other upstream names the default (JPEG);
+	// FillWidth with FillHeight is a fill crop of that box.
+	for target, want := range map[string]domain.ImageRequest{
+		"/compat/Items/" + movieWire + "/Images/Primary?format=Webp&maxWidth=120":                    {Type: "Primary", Format: "webp", Width: 120},
+		"/compat/Items/" + movieWire + "/Images/Primary?format=Png&maxWidth=120":                     {Type: "Primary", Format: "jpeg", Width: 120},
+		"/compat/Items/" + movieWire + "/Images/Primary?fillWidth=200&fillHeight=100":                {Type: "Primary", Format: "jpeg", Width: 200, Height: 100, Crop: true},
+		"/compat/Items/" + movieWire + "/Images/Backdrop/1?FillWidth=640&FillHeight=360&Format=Webp": {Type: "Backdrop", Index: 1, Format: "webp", Width: 640, Height: 360, Crop: true},
+	} {
+		w := get(target, f.tokenA)
+		if w.Code != http.StatusOK || renderer.last() != want || w.Header().Get("Content-Type") != imageContentType(want.Format) {
+			t.Fatalf("%s: %d %q %+v", target, w.Code, w.Header().Get("Content-Type"), renderer.last())
+		}
 	}
 	header := compatTokenAuth(f.tokenA)
 	header.Set("If-None-Match", etagV1)

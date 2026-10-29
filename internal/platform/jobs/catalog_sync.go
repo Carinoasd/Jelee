@@ -38,9 +38,12 @@ type CatalogSyncOptions struct {
 // FileTimeout bounds one extraction including its sandboxed child; zero uses
 // 30 seconds. Available reports whether the sandboxed tool is still usable.
 type EmbeddedCoverOptions struct {
-	Repository  app.EmbeddedCoverRepository
-	Extractor   app.EmbeddedCoverExtractor
-	Store       app.EmbeddedCoverStore
+	Repository app.EmbeddedCoverRepository
+	Extractor  app.EmbeddedCoverExtractor
+	Store      app.EmbeddedCoverStore
+	// Describer optionally samples the G40.7 colors of each stored cover;
+	// a failure only leaves them unknown.
+	Describer   app.ImageContentDescriber
 	FileTimeout time.Duration
 	Available   func() bool
 }
@@ -274,5 +277,12 @@ func (r *Runner) embeddedCover(ctx context.Context, options *EmbeddedCoverOption
 	}
 	result.Outcome = domain.EmbeddedCoverStored
 	result.Content = &domain.ItemImageContent{SHA256: digest[:], Width: cover.Width, Height: cover.Height, Format: cover.Format, Bytes: size, FetchedAt: time.Now().UTC().Truncate(time.Microsecond)}
+	if options.Describer != nil {
+		if described, err := options.Describer.DescribeStoredImage(fileCtx, digest); err == nil {
+			result.Content.AverageColor, result.Content.DominantColor = described.AverageColor, described.DominantColor
+		} else if ctx.Err() != nil {
+			return domain.EmbeddedCoverResult{}, embeddedCoverStop, ctx.Err()
+		}
+	}
 	return result, embeddedCoverRecord, nil
 }

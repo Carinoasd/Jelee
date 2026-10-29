@@ -137,7 +137,7 @@ func (p *Processor) keepItemImage(operation context.Context, store *Store, data 
 	if err != nil {
 		return content, err
 	}
-	inspected, err := p.verifyUpload(operation, data)
+	inspected, colors, err := p.verifyUpload(operation, data)
 	release()
 	if err != nil {
 		return content, err
@@ -162,53 +162,126 @@ func (p *Processor) keepItemImage(operation context.Context, store *Store, data 
 	width, height := inspected.displaySize()
 	p.completed.Add(1)
 	return domain.ItemImageContent{SHA256: digest[:], Width: width, Height: height, Format: inspected.format, Bytes: stored,
-		FetchedAt: time.Now().UTC()}, nil
+		AverageColor: &colors.average, DominantColor: &colors.dominant, FetchedAt: time.Now().UTC()}, nil
 }
 
-// verifyUpload inspects and fully decodes the upload. A body that is not a
-// supported, decodable image is ErrImageUnsupported.
-func (p *Processor) verifyUpload(ctx context.Context, data []byte) (inspectedImage, error) {
-	reader := bytes.NewReader(data)
+// sampledColors are the G40.7 colors of one decoded image.
+type sampledColors struct{ average, dominant int }
+
+// verifyUpload inspects and fully decodes the upload, sampling its colors
+// from the decoded bitmap. A body that is not a supported, decodable image
+// is ErrImageUnsupported.
+func (p *Processor) verifyUpload(ctx context.Context, data []byte) (inspectedImage, sampledColors, error) {
+	inspected, colors, err := p.verifyImage(ctx, bytes.NewReader(data), int64(len(data)))
+	if err != nil {
+		return inspectedImage{}, sampledColors{}, uploadError(ctx, err)
+	}
+	return inspected, colors, nil
+}
+
+// verifyImage inspects, budget-checks and fully decodes one original of
+// size bytes, and samples its G40.7 colors. The only bitmap is the decoded
+// one, within the same estimate as a full-size render.
+func (p *Processor) verifyImage(ctx context.Context, reader io.ReadSeeker, size int64) (inspectedImage, sampledColors, error) {
 	inspected, err := inspectImage(ctx, reader)
 	if err != nil {
-		return inspectedImage{}, uploadError(ctx, err)
+		return inspectedImage{}, sampledColors{}, err
 	}
 	if !itemImageFormats(inspected.format) {
-		return inspectedImage{}, domain.ErrImageUnsupported
+		return inspectedImage{}, sampledColors{}, domain.ErrImageUnsupported
 	}
 	displayWidth, displayHeight := inspected.displaySize()
 	width, height := targetSize(displayWidth, displayHeight, domain.ImageRequest{}, p.options.MaxOutputDimension)
-	estimate, err := estimateImageBytes(inspected, width, height, int64(len(data)), p.options.MaxOutputBytes)
+	estimate, err := estimateImageBytes(inspected, width, height, size, p.options.MaxOutputBytes)
 	if err != nil {
-		return inspectedImage{}, uploadError(ctx, err)
+		return inspectedImage{}, sampledColors{}, err
 	}
 	if estimate > p.options.MaxImageBytes {
-		return inspectedImage{}, domain.ErrImageTooLarge
+		return inspectedImage{}, sampledColors{}, domain.ErrImageTooLarge
 	}
 	p.mu.Lock()
 	p.maxEstimate = max(p.maxEstimate, estimate)
 	p.mu.Unlock()
 	p.decodes.Add(1)
-	if err := p.decodeUpload(ctx, reader, inspected); err != nil {
-		return inspectedImage{}, err
-	}
+	colors, err := p.decodeColors(ctx, reader, inspected)
 	if estimate >= min(int64(64<<20), p.options.MaxImageBytes/2) {
 		p.reclaim()
 	}
-	return inspected, ctx.Err()
+	if err != nil {
+		return inspectedImage{}, sampledColors{}, err
+	}
+	return inspected, colors, ctx.Err()
 }
 
-// decodeUpload keeps the decoded bitmap inside its own frame, like
+// decodeColors keeps the decoded bitmap inside its own frame, like
 // renderDecoded, so it is collectible before the original is stored.
-func (p *Processor) decodeUpload(ctx context.Context, reader io.ReadSeeker, inspected inspectedImage) error {
+func (p *Processor) decodeColors(ctx context.Context, reader io.ReadSeeker, inspected inspectedImage) (sampledColors, error) {
 	decoded, err := p.decode(ctx, reader, inspected)
 	if err != nil {
-		return uploadError(ctx, err)
+		return sampledColors{}, err
 	}
 	if decoded.Bounds() != image.Rect(0, 0, inspected.width, inspected.height) {
-		return domain.ErrImageUnsupported
+		return sampledColors{}, domain.ErrImageUnsupported
 	}
-	return ctx.Err()
+	average, dominant, err := imageColors(ctx, decoded)
+	if err != nil {
+		return sampledColors{}, err
+	}
+	return sampledColors{average: average, dominant: dominant}, ctx.Err()
+}
+
+// DescribeStoredImage reads one original from the persistent store, checks
+// it like an upload (format sniffing, header preflight, memory estimate, one
+// full decode) and returns its G40.7 metadata: display size, format, byte
+// size and the sampled average and dominant colors. FetchedAt is left zero
+// for the caller, which knows when the bytes were obtained. Embedded
+// artwork extraction and image refresh call it after storing the bytes. It
+// runs under the processor's admission and shared work budget and fails
+// fast with ErrImageBusy when every slot is taken.
+func (p *Processor) DescribeStoredImage(ctx context.Context, digest [32]byte) (content domain.ItemImageContent, err error) {
+	if p == nil || ctx == nil {
+		return content, domain.ErrInvalid
+	}
+	if err := ctx.Err(); err != nil {
+		return content, err
+	}
+	store := p.options.Store
+	if store == nil {
+		return content, domain.ErrImageUnavailable
+	}
+	if err = p.admit(); err != nil {
+		return content, err
+	}
+	defer p.release()
+	operation, cancel := context.WithTimeout(ctx, p.options.Timeout)
+	defer cancel()
+	stopLifetime := context.AfterFunc(p.lifetime, cancel) //nolint:contextcheck // the processor lifetime also cancels the read
+	defer stopLifetime()
+	defer func() {
+		if err != nil {
+			p.failed.Add(1)
+		}
+	}()
+	release, err := p.acquireWork(operation, app.WorkCPU)
+	if err != nil {
+		return content, err
+	}
+	defer release()
+	original := &storedOriginal{store: store, digest: digest}
+	defer func() { _ = original.Close() }()
+	limit := min(p.options.MaxSourceBytes, p.options.MaxImageBytes-(1<<20)-2*p.options.MaxOutputBytes)
+	reader, size, err := original.Open(operation, limit)
+	if err != nil {
+		return content, imageError(operation, err)
+	}
+	inspected, colors, err := p.verifyImage(operation, reader, size)
+	if err != nil {
+		return content, imageError(operation, err)
+	}
+	width, height := inspected.displaySize()
+	p.completed.Add(1)
+	return domain.ItemImageContent{SHA256: append([]byte(nil), digest[:]...), Width: width, Height: height, Format: inspected.format,
+		Bytes: size, AverageColor: &colors.average, DominantColor: &colors.dominant}, nil
 }
 
 func itemImageFormats(format string) bool {

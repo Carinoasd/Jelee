@@ -199,16 +199,21 @@ func imageIndex(raw string) (int, error) {
 }
 
 // parseImageQuery reads the documented members of the upstream item image
-// routes, case-insensitively. Width, MaxWidth and FillWidth (and the height
-// members) all bound the output: the pipeline keeps the aspect ratio, never
-// enlarges and never crops, so the smallest bound given wins and a fill box
-// is not covered beyond the original. Quality 0 means the default. Format
-// must be an upstream ImageFormat name, but the output stays JPEG, which
-// the Content-Type states. The overlay and effect members (PercentPlayed,
-// UnplayedCount, Blur, BackgroundColor, ForegroundLayer) are checked for
-// syntax and ignored: the picture is delivered without them. Other members
-// are ignored like upstream; transformation parameters never reach here
-// (media.GuardImage).
+// routes, case-insensitively. Width, MaxWidth and Height, MaxHeight bound a
+// fitted output: the pipeline keeps the aspect ratio and never enlarges, so
+// the smallest bound given wins. FillWidth together with FillHeight asks for
+// a fill crop of that box (G40.6), shrunk to the other bounds when they are
+// smaller; a single fill member is only a bound, as before crops existed.
+// The pipeline turns a crop back into a fit when cropping is disabled.
+// Quality 0 means the default. Format must be an upstream ImageFormat name:
+// Webp asks for WebP, Jpg for JPEG, and the others (Png, Gif, Bmp, Svg),
+// which the pipeline does not encode, for the configured default; a format
+// the server does not offer also falls back to the default, and the
+// Content-Type states what was sent. The overlay and effect members
+// (PercentPlayed, UnplayedCount, Blur, BackgroundColor, ForegroundLayer)
+// are checked for syntax and ignored: the picture is delivered without
+// them. Other members are ignored like upstream; transformation parameters
+// never reach here (media.GuardImage).
 func parseImageQuery(q browseQuery) (ImageDelivery, error) {
 	var d ImageDelivery
 	bound := func(names ...string) (int, error) {
@@ -224,22 +229,44 @@ func parseImageQuery(q browseQuery) (ImageDelivery, error) {
 		}
 		return min(result, imageDimensionMax), nil
 	}
-	var err error
-	if d.Request.Width, err = bound("width", "maxwidth", "fillwidth"); err != nil {
+	fillWidth, err := bound("fillwidth")
+	if err != nil {
 		return d, err
 	}
-	if d.Request.Height, err = bound("height", "maxheight", "fillheight"); err != nil {
+	fillHeight, err := bound("fillheight")
+	if err != nil {
 		return d, err
+	}
+	maxWidth, err := bound("width", "maxwidth")
+	if err != nil {
+		return d, err
+	}
+	maxHeight, err := bound("height", "maxheight")
+	if err != nil {
+		return d, err
+	}
+	if fillWidth > 0 && fillHeight > 0 {
+		d.Request.Width, d.Request.Height = fillBox(fillWidth, fillHeight, maxWidth, maxHeight)
+		d.Request.Crop = true
+	} else {
+		d.Request.Width, d.Request.Height = smallestBound(maxWidth, fillWidth), smallestBound(maxHeight, fillHeight)
 	}
 	quality, _, err := q.integer("quality")
 	if err != nil {
 		return d, err
 	}
 	d.Request.Quality = min(quality, 100)
-	if raw := q.get("format"); raw != "" && !upstreamImageFormat(raw) {
-		return d, errBadQuery
+	if raw := q.get("format"); raw != "" {
+		if !upstreamImageFormat(raw) {
+			return d, errBadQuery
+		}
+		switch {
+		case strings.EqualFold(raw, "Webp"):
+			d.Request.Format = domain.ImageFormatWebP
+		case strings.EqualFold(raw, "Jpg"):
+			d.Request.Format = domain.ImageFormatJPEG
+		}
 	}
-	d.Request.Format = "jpeg"
 	for _, name := range []string{"unplayedcount", "blur"} {
 		if _, _, err := q.integer(name); err != nil {
 			return d, err
@@ -254,6 +281,27 @@ func parseImageQuery(q browseQuery) (ImageDelivery, error) {
 		d.Tag = tag
 	}
 	return d, nil
+}
+
+// smallestBound is the smaller positive bound; zero means unbounded.
+func smallestBound(a, b int) int {
+	if a == 0 || b > 0 && b < a {
+		return b
+	}
+	return a
+}
+
+// fillBox shrinks a fill box, keeping its aspect ratio, until it is within
+// the positive width and height bounds.
+func fillBox(width, height, maxWidth, maxHeight int) (int, int) {
+	w, h := int64(width), int64(height)
+	if maxWidth > 0 && w > int64(maxWidth) {
+		h, w = max(1, h*int64(maxWidth)/w), int64(maxWidth)
+	}
+	if maxHeight > 0 && h > int64(maxHeight) {
+		w, h = max(1, w*int64(maxHeight)/h), int64(maxHeight)
+	}
+	return int(w), int(h)
 }
 
 // upstreamImageFormat reports whether name is an upstream ImageFormat.
