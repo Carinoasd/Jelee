@@ -7,7 +7,11 @@ import (
 	"github.com/MoYuanCN/Jelee/internal/domain"
 )
 
-var _ app.MetadataImageProvider = (*metadata.TMDB)(nil)
+var (
+	_ app.MetadataImageProvider        = (*metadata.TMDB)(nil)
+	_ app.MetadataEpisodeImageProvider = (*metadata.TMDB)(nil)
+	_ app.ExternalIDProvider           = (*metadata.TMDB)(nil)
+)
 
 func bindMetadata(service *app.Metadata, repository interface {
 	app.MetadataPreferencesRepository

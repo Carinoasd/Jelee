@@ -22,6 +22,9 @@ type ExternalIDMatches struct {
 	FetchedAt      time.Time         `json:"fetchedAt"`
 	Movies         []MovieCandidate  `json:"movies"`
 	Series         []SeriesCandidate `json:"series"`
+	// NeedsConfirmation is always true once the application layer returns
+	// the matches: an external identifier never selects a candidate itself.
+	NeedsConfirmation bool `json:"needsConfirmation"`
 }
 
 func (v ExternalIDMatches) FetchedTime() time.Time { return v.FetchedAt }
