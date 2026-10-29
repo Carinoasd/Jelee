@@ -17,9 +17,18 @@ import (
 type httpNFOExportJobs struct {
 	submit func(context.Context, domain.Actor, string, string, string, domain.JobPolicy) (domain.Job, bool, error)
 	state  func(context.Context, domain.Actor, string) (domain.NFOExportJobState, error)
+	// submitMode, when set, receives the submissions with their mode.
+	submitMode func(context.Context, domain.Actor, string, string, string, string, domain.JobPolicy) (domain.Job, bool, error)
 }
 
 func (r httpNFOExportJobs) SubmitNFOExportJob(ctx context.Context, a domain.Actor, library, key, priority string, policy domain.JobPolicy) (domain.Job, bool, error) {
+	return r.submit(ctx, a, library, key, priority, policy)
+}
+
+func (r httpNFOExportJobs) SubmitNFOExportModeJob(ctx context.Context, a domain.Actor, library, key, priority, mode string, policy domain.JobPolicy) (domain.Job, bool, error) {
+	if r.submitMode != nil {
+		return r.submitMode(ctx, a, library, key, priority, mode, policy)
+	}
 	return r.submit(ctx, a, library, key, priority, policy)
 }
 
@@ -126,7 +135,7 @@ func TestNFOExportStateRoute(t *testing.T) {
 		nfoHTTPBoundedActor(t, ctx, a)
 		switch job {
 		case sourceID:
-			return domain.NFOExportJobState{JobID: job, LibraryID: libraryID, CursorItemID: &cursor, ChildJobID: &child, Chunks: 6, Written: 5, Unchanged: 4, SkippedMissing: 3, SkippedInvalid: 2, SkippedOther: 1, Failed: 7, UpdatedAt: updated}, nil
+			return domain.NFOExportJobState{JobID: job, LibraryID: libraryID, Mode: "missing", CursorItemID: &cursor, ChildJobID: &child, Chunks: 6, Written: 5, Unchanged: 4, SkippedExisting: 8, SkippedMissing: 3, SkippedInvalid: 2, SkippedOther: 1, Failed: 7, UpdatedAt: updated}, nil
 		case itemID:
 			return domain.NFOExportJobState{JobID: job, LibraryID: libraryID, UpdatedAt: updated}, nil
 		}
@@ -136,7 +145,7 @@ func TestNFOExportStateRoute(t *testing.T) {
 	var got map[string]any
 	raw, _ := json.Marshal(nfoHTTPData(t, w.Body.Bytes()))
 	_ = json.Unmarshal(raw, &got)
-	want := map[string]any{"jobId": sourceID, "libraryId": libraryID, "cursorItemId": itemID, "childJobId": userID, "chunks": float64(6), "written": float64(5), "unchanged": float64(4),
+	want := map[string]any{"jobId": sourceID, "libraryId": libraryID, "mode": "missing", "skippedExisting": float64(8), "cursorItemId": itemID, "childJobId": userID, "chunks": float64(6), "written": float64(5), "unchanged": float64(4),
 		"skippedMissing": float64(3), "skippedInvalid": float64(2), "skippedOther": float64(1), "failed": float64(7), "updatedAt": "2026-10-01T01:02:03Z"}
 	if w.Code != 200 || len(got) != len(want) {
 		t.Fatalf("state: %d %s", w.Code, w.Body)
@@ -164,5 +173,30 @@ func TestNFOExportStateRoute(t *testing.T) {
 	}
 	if w = jobRequest(newNFOExportHTTP(t, nil), "GET", "/api/v1/jobs/"+sourceID+"/nfo-export", "", "a"); w.Code != 503 {
 		t.Fatalf("no repository: %d", w.Code)
+	}
+}
+
+func TestNFOExportSubmitRouteCarriesTheMode(t *testing.T) {
+	var modes []string
+	h := newNFOExportHTTP(t, httpNFOExportJobs{submitMode: func(_ context.Context, _ domain.Actor, library, _, priority, mode string, _ domain.JobPolicy) (domain.Job, bool, error) {
+		modes = append(modes, mode)
+		return domain.Job{ID: itemID, LibraryID: library, Kind: domain.JobNFOExport, State: domain.JobQueued, Priority: priority}, false, nil
+	}})
+	path := "/api/v1/libraries/" + libraryID + "/nfo/export"
+	for _, body := range []string{`{}`, `{"mode":"all"}`, `{"mode":"missing"}`, `{"mode":"missing","priority":"background"}`} {
+		if w := jobRequest(h, "POST", path, body, "a", "one"); w.Code != 202 {
+			t.Fatalf("%s: %d %s", body, w.Code, w.Body)
+		}
+	}
+	if strings.Join(modes, ",") != "all,all,missing,missing" {
+		t.Fatal("modes", modes)
+	}
+	for _, bad := range []string{`{"mode":"Missing"}`, `{"mode":"none"}`, `{"mode":null}`, `{"mode":1}`, `{"mode":["missing"]}`, `{"mode":"missing","mode":"all"}`} {
+		if w := jobRequest(h, "POST", path, bad, "a", "one"); w.Code != 400 || !strings.Contains(w.Body.String(), "invalid_request") {
+			t.Fatalf("body %s: %d %s", bad, w.Code, w.Body)
+		}
+	}
+	if len(modes) != 4 {
+		t.Fatal("a rejected mode reached the repository", modes)
 	}
 }
