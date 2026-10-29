@@ -82,3 +82,13 @@ type ImageRenderer interface {
 type ItemImageRenderer interface {
 	RenderItemImage(context.Context, domain.ItemImage, domain.ImageRequest) (ImageResult, error)
 }
+
+// ItemImageIngestRepository writes the G40.2/G40.3 image references of a
+// catalog sync's library under its lease: sidecar image files recognized by
+// name in each item folder and the NFO art references of each item. Every
+// page is one fenced transaction that reads only the published baseline and
+// the catalog, never a file or a URL. Locked and manual rows are never
+// changed; rows the scan wrote whose file or reference vanished are removed.
+type ItemImageIngestRepository interface {
+	IngestItemImages(ctx context.Context, lease domain.JobLease, after string, limit int) (domain.ItemImageIngestPage, error)
+}

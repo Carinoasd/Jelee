@@ -88,6 +88,7 @@ erDiagram
         text source_kind
         uuid root_id FK
         boolean locked
+        boolean manual
     }
     item_metadata_state {
         uuid item_id PK

@@ -49,7 +49,7 @@ JELEE_IMAGE_TEMP_ROOT=/var/lib/jelee/image-work
 
 `item_images` 記錄每個 item 的圖片引用：類型依 G40.1（Primary、Backdrop、Logo、ClearLogo、Banner、ClearArt、Art、Disc、Thumb、Landscape、Chapter、Box、BoxRear、Menu、Profile；Fanart 存成 Backdrop），只有 Backdrop／Chapter 可用 index 1–9999。來源分 `local`、`nfo`、`remote`、`embedded`：local／embedded 必須是同媒體庫的 root＋相對路徑（外鍵綁 item 所屬媒體庫，路徑不得含 `..`、絕對路徑、反斜線、冒號或控制字元；local 與 NFO 本地圖須為圖片副檔名），remote 只能是不含帳密、最長 2048 位元組的 `https://` URL，nfo 二擇一。內容欄（SHA-256、寬高、格式、位元組數、平均色、抓取時間）全有或全無，NULL 表示尚未讀取。每個 (item, 類型, index, 來源) 一列，每個槽最多一列鎖定。
 
-選圖順序：鎖定者優先，其次 local > nfo > remote > embedded；尚未抓取內容的 URL 引用不參與。非手動（掃描、刷新）寫入不會改動已鎖定的列，也不能設定鎖定；來源身分不變而未帶內容時保留已存內容。讀取在同一句 SQL 內重驗 session 與媒體庫授權，無權與不存在一律回 not found；寫入僅限管理員，手動新增／更換、鎖定變更及刪除寫入 `audit_logs`（不含路徑或 URL）。刪除只移除資料庫引用，從不刪使用者檔案；item 刪除時級聯。`image_variants` 是變體存放區的資料庫索引（內容雜湊＋變體 key、大小、最近使用時間，觸碰至多每分鐘一次，淘汰時以列出時的時間做條件刪除）。降級時有 `item_images` 資料即拒絕；變體索引可重建，直接移除。
+選圖順序：鎖定者優先，其次 local > nfo > remote > embedded；尚未抓取內容的 URL 引用不參與。非手動（掃描、刷新）寫入不會改動已鎖定或手動寫入（`manual`，schema 94）的列，也不能設定鎖定；來源身分不變而未帶內容時保留已存內容。讀取在同一句 SQL 內重驗 session 與媒體庫授權，無權與不存在一律回 not found；寫入僅限管理員，手動新增／更換、鎖定變更及刪除寫入 `audit_logs`（不含路徑或 URL）。刪除只移除資料庫引用，從不刪使用者檔案；item 刪除時級聯。`image_variants` 是變體存放區的資料庫索引（內容雜湊＋變體 key、大小、最近使用時間，觸碰至多每分鐘一次，淘汰時以列出時的時間做條件刪除）。降級時有 `item_images` 資料即拒絕；變體索引可重建，直接移除。
 
 ## API
 
@@ -134,4 +134,4 @@ GET /images/Backdrop/{itemID}?index=2&width=1280&tag=<原圖 SHA-256>
 
 ## 尚未涵蓋
 
-掃描入庫（命名辨識寫入 `item_images`）、遠端抓取的 image_refresh 任務、鎖定／更換的管理 API、WebP／AVIF 輸出、裁切（相容層的 `FillWidth`／`FillHeight` 因此只當上限）、相容層的舊式長路由（`/Items/{id}/Images/{type}/{index}/{tag}/{format}/…`）與人物／類型／工作室圖片、播放進度疊加與模糊效果、前端與圖片重建工作尚未完成。相容圖片路由已提供，但尚未用真實客戶端驗證。十萬圖片處理、混合並發與至少 24h 的驗收另行執行。本段不能據此將 G40 或 G42.10 標為完成。
+遠端抓取的 image_refresh 任務、鎖定／更換的管理 API、WebP／AVIF 輸出、裁切（相容層的 `FillWidth`／`FillHeight` 因此只當上限）、相容層的舊式長路由（`/Items/{id}/Images/{type}/{index}/{tag}/{format}/…`）與人物／類型／工作室圖片、播放進度疊加與模糊效果、前端與圖片重建工作尚未完成。相容圖片路由已提供，但尚未用真實客戶端驗證。十萬圖片處理、混合並發與至少 24h 的驗收另行執行。本段不能據此將 G40 或 G42.10 標為完成。

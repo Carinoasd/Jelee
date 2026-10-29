@@ -106,7 +106,10 @@ type ItemImage struct {
 	SourceSize                  *int64
 	Content                     *ItemImageContent
 	Locked                      bool
-	CreatedAt, UpdatedAt        time.Time
+	// Manual marks a row a person wrote; scan ingestion never replaces or
+	// removes it, locked or not.
+	Manual               bool
+	CreatedAt, UpdatedAt time.Time
 }
 
 func (ItemImage) String() string   { return "item image (redacted)" }
@@ -162,12 +165,28 @@ func (s ItemImageSummary) Tag() string {
 
 func ptrInt64(v int64) *int64 { return &v }
 
-// ItemImageUpsert reports whether the stored row changed. A locked row that
-// rejected a non-manual refresh is returned unchanged with Skipped set.
+// ItemImageUpsert reports whether the stored row changed. A locked or manual
+// row that rejected a non-manual refresh is returned unchanged with Skipped
+// set.
 type ItemImageUpsert struct {
 	Image   ItemImage
 	Created bool
 	Skipped bool
+}
+
+// ItemImageIngestBatch bounds the items of one catalog sync image ingestion
+// page (G40.2, G40.3).
+const ItemImageIngestBatch = 64
+
+// ItemImageIngestPage reports one fenced ingestion page. Next is empty once
+// the library has been walked, or when the baseline the sync published is
+// no longer active (Stale): the sync of the newer baseline ingests it.
+type ItemImageIngestPage struct {
+	Next                      string
+	Items                     int
+	Created, Updated, Removed int
+	Skipped                   int
+	Stale                     bool
 }
 
 // ImageVariant is one entry of the variant store index.

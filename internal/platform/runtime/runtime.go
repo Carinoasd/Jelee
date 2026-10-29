@@ -319,7 +319,7 @@ func newWithLifetime(cfg config.Config, logger *slog.Logger, lifetime *lifetime)
 				opts.Window = window
 			}
 			opts.CatalogImport = &jobworker.CatalogImportOptions{Repository: store, Verifier: scan.New()}
-			opts.CatalogSync = &jobworker.CatalogSyncOptions{Repository: store, Sidecars: store, Inspector: scan.SidecarInspector{}}
+			opts.CatalogSync = &jobworker.CatalogSyncOptions{Repository: store, Sidecars: store, Inspector: scan.SidecarInspector{}, Images: store}
 			covers, closeCovers := prepareEmbeddedCovers(startup, c.EnableEmbeddedCovers, probing, processor.OriginalStore(), store, l, prepareProductionCoverExtractor)
 			if closeCovers != nil {
 				closeProbe := lifetime.closeProbe
