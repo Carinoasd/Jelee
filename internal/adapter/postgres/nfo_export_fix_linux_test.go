@@ -100,7 +100,7 @@ func TestNFOExportFixRepairsOnlySafeIssues(t *testing.T) {
 		t.Fatal("the library is too small", len(items))
 	}
 	want := nfoFixWant(items)
-	if want.Fixed != 52 || want.Unfixable != 42 || want.Unchanged != 11 || want.SkippedMissing != 10 {
+	if want.Fixed != 42 || want.Unfixable != 42 || want.Unchanged != 21 || want.SkippedMissing != 10 {
 		t.Fatal("unexpected mix", want)
 	}
 	// The validation job lists what is wrong before the fix.

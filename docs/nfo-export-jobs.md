@@ -140,35 +140,30 @@ jelee-cli nfo export-status --job ID --token-stdin [--url ORIGIN] [--json]
 
 `jelee-cli nfo validate --library X --fix` 的修復部分。同一個 `nfo_export` 任務、同一套[不佔住 worker 的協調](#不佔住-worker-的協調)（分批至多 16 份、子 `nfo_write` 任務、`.jelee.bak` 備份保留 3 份、讓出、取消、租約到期續跑、冪等鍵 `nfo-export:<任務>:<chunk>[:<條目>]`），沒有任何新的寫檔路徑。模式存在 `nfo_export_job_state.mode`（`all`、`missing` 或 `fix`），不新增工作種類、錯誤碼或工作指標維度。准入與其他模式相同：庫須 `read-only` 且開啟寫回權限，否則 409 `nfo_write_disabled`。
 
-每個條目以庫校驗任務同一個解析器驗證它選到的 NFO（`ValidateItemNFO`：與條目選擇相同的目錄觀察與拒絕，加上同一份摘要），**只**修復兩種問題，其餘一律不碰：
+每個條目以庫校驗任務同一個解析器驗證它選到的 NFO（`ValidateItemNFO`：與條目選擇相同的目錄觀察與拒絕，加上同一份摘要），**只**修復一種問題，其餘一律不碰：
 
 | 問題 | 修復 | 條件 |
 | --- | --- | --- |
 | `nfo_title_missing` | 把 `title` 設為資料庫**已儲存**的標題（來源不是掃描名稱 `existing`，且非空） | 沒有已儲存標題時不修復該問題；NFO 沒有鎖住標題 |
-| `nfo_id_missing`（新警告，見下） | 由寫入路徑的 `EnsureID` 加入 `<uniqueid type="jelee">UUID</uniqueid>` | 不覆蓋任何既有識別碼（手工、provider、自訂 type 或手工 `jelee` 值）；NFO 沒有 `lockdata` 或識別碼鎖 |
 
-寫入路徑對任何重寫都會補上缺少的識別碼，所以修復缺標題的同時，缺識別碼的 NFO 也會得到識別碼。
+沒有識別碼**不是**校驗問題（沒有 `nfo_id_missing`：絕大多數既有 NFO 本來就沒有 Jelee 識別碼，把它們都算成警告只會讓警告數失去意義），`fix` 也不會只為補識別碼而重寫檔案。但寫入路徑對**任何**重寫都經 `EnsureID` 補上缺少的識別碼（G39.10 在每一次寫入成立，不靠校驗或 `fix`），所以修復缺標題時，同一份沒有識別碼的 NFO 也會得到 `<uniqueid type="jelee">UUID</uniqueid>`；不覆蓋任何既有識別碼（手工、provider、自訂 type 或手工 `jelee` 值），NFO 有 `lockdata` 或識別碼鎖時不補。
 
 | 條目的狀況 | 處理 | 計數 |
 | --- | --- | --- |
 | 沒有 NFO | 不建立（建立是 `missing` 模式） | skipped_missing |
 | 沒有任何問題 | 不碰 | unchanged |
-| 至少一個可修復的問題，且寫入可行 | 準備受控編輯（可有零個文字編輯，只補識別碼），子任務重寫並留 `.jelee.bak` | fixed（子任務結算為 replaced 時） |
+| 至少一個可修復的問題，且寫入可行 | 準備受控編輯（標題編輯；重寫時順帶補識別碼），子任務重寫並留 `.jelee.bak` | fixed（子任務結算為 replaced 時） |
 | 只有不修復的問題：`nfo_season_missing`、`nfo_episode_missing`、`nfo_conflicting_id`，或缺標題但沒有已儲存標題 | 不碰 | unfixable |
 | XML 損壞、不安全 XML、編碼無效或不支援、過於複雜（解析失敗，無摘要問題） | 不碰 | unfixable |
 | 任何 error 問題：`nfo_invalid_date`、`nfo_invalid_integer`、`nfo_invalid_number`、`nfo_invalid_boolean`、`nfo_unsafe_reference`、`nfo_id_incomplete` 等 | 不碰（寫入路徑本來就拒絕有 error 的文件） | unfixable |
 | 未知根元素、包裝根、多條目文件、根與條目種類不符（`nfo_unknown_root`、`nfo_wrapper_fields_ignored`、`nfo_kind_unknown`） | 不碰 | unfixable |
 | 編碼是猜的（`nfo_encoding_guessed`） | 不碰（重寫會轉成 UTF-8，不改寫猜測的編碼） | unfixable |
-| `lockdata`，或缺識別碼而 NFO 鎖住識別碼，或只缺標題而 NFO 鎖住標題 | 不碰 | unfixable |
+| `lockdata`，或缺標題而 NFO 鎖住標題 | 不碰 | unfixable |
 | 路徑非法（`nfo_path_*`，見[路徑問題](#非法路徑問題nfo_path_)） | 不碰 | unfixable |
 | 無媒體來源、不支援的種類、已刪除、檔案讀取失敗 | 同 `all` | skipped_other |
 | 條目層級錯誤、子任務失敗、取消或被拒絕但條目並未被取代 | 同 `all` | failed |
 
 `fix` 模式把子任務取代的條目計為 `fixed`（`written` 恆為 0）；`fixed`＋`unchanged` 計入 `files`，`unfixable`、`skipped_*` 與 `failed` 計入 `skipped`。已修復的 NFO 之後再跑 `fix`（或再校驗）不再有該問題，所以重跑是 unchanged 且不提交子任務。
-
-### `nfo_id_missing` 與解析器版本
-
-校驗器新增警告 `nfo_id_missing`（欄位 `uniqueid`）：已知根（`movie`、`tvshow`、`season`、`episode`、`episodedetails`）的條目沒有任何識別碼元素（與 `EnsureID` 同一判斷，見[識別碼策略](nfo-compatibility.md#寫回識別碼策略)；空值或不完整的識別碼是 `nfo_id_incomplete` 錯誤，不算缺）。因為摘要內容改變，`NFOParserVersion` 升為 `nfo-validation-v2`：既有快取列的身分摘要不符，下一次校驗會重新解析。警告不會使文件無效。
 
 ### 非法路徑問題（`nfo_path_*`）
 
@@ -190,7 +185,7 @@ jelee-cli nfo export-status --job ID --token-stdin [--url ORIGIN] [--json]
 
 ### 驗證與限制
 
-- 真實 PG：115 個條目（110 部電影分十一類各十份、影集、兩集、連結 NFO、大小寫衝突），涵蓋：只有可修復檔案被重寫、備份與原位元組相同、未知標籤與註解保留、既有識別碼（手工、provider、自訂、手工 `jelee`）位元組不變、其餘檔案位元組、inode、修改時間不變、計數；修復前後各跑一次真實校驗任務，已修復的問題消失、不修復的問題仍列出；第二次 `fix` 全部 unchanged 且不提交子任務；兩種取消；兩種租約遺失續跑與不中斷的任務逐檔相同（不斷言精確的 attempt 次數）；寫入權限被收回；HTTP 准入（無效模式 400、寫入未開 409、重播、換模式 409）；遷移往返與帶資料拒絕降級。
+- 真實 PG：115 個條目（110 部電影分十一類各十份、影集、兩集、連結 NFO、大小寫衝突），涵蓋：只有可修復檔案被重寫、備份與原位元組相同、未知標籤與註解保留、既有識別碼（手工、provider、自訂、手工 `jelee`）位元組不變、缺標題又沒有識別碼的檔案得到標題與恰好一個 `jelee` UUID、只缺識別碼而有標題的檔案 unchanged（位元組、inode、修改時間不變）、其餘檔案位元組、inode、修改時間不變、計數；修復前後各跑一次真實校驗任務，已修復的問題消失、不修復的問題仍列出；第二次 `fix` 全部 unchanged 且不提交子任務；兩種取消；兩種租約遺失續跑與不中斷的任務逐檔相同（不斷言精確的 attempt 次數）；寫入權限被收回；HTTP 准入（無效模式 400、寫入未開 409、重播、換模式 409）；遷移往返與帶資料拒絕降級。
 - 校驗任務的路徑問題另有真實 PG 測試：符號連結、FIFO、目錄取代 NFO、路徑上的目錄被換成連結、大小寫衝突，位置修好後觀察被取代；DB-free 單元測試涵蓋對應表與詞法分類（連結與 FIFO 的檔案系統測試只在 Linux 執行）。
 - 遷移 000092 為 `nfo_export_job_state` 把 `mode` 的 CHECK 擴充為 `all`／`missing`／`fix`，新增 `fixed`、`unfixable`（CHECK：`fix` 模式 `written` 為 0，其他模式兩者為 0）；降級在仍有 `fix` 模式的狀態列（或非零計數）時拒絕，否則還原約束並移除兩欄。
 - 範圍外：不修復日期、數字、參照、編碼或結構；不補 `season`／`episode`；不為沒有已儲存標題的條目猜標題；沒有真實客戶端往返驗證。

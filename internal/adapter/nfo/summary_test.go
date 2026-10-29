@@ -114,10 +114,10 @@ func TestSummaryProjectionNeverPersistsArbitraryMetadata(t *testing.T) {
 func TestSummaryCountsAllIssuesButRetainsOnlyBoundedPrefix(t *testing.T) {
 	for _, kind := range []string{"warnings", "errors"} {
 		t.Run(kind, func(t *testing.T) {
-			data := strings.Repeat(`<episode><uniqueid type="x">1</uniqueid></episode>`, 80)
+			data := strings.Repeat("<episode/>", 80)
 			wantCount, wantStatus := int64(240), domain.NFOStatusValid
 			if kind == "errors" {
-				data = `<movie><title>Present</title><uniqueid type="x">1</uniqueid>` + strings.Repeat("<year>invalid</year>", 80) + "</movie>"
+				data = "<movie><title>Present</title>" + strings.Repeat("<year>invalid</year>", 80) + "</movie>"
 				wantCount, wantStatus = 80, domain.NFOStatusInvalid
 			}
 			source, _ := summaryFixture(t, []byte(data))
@@ -144,7 +144,7 @@ func TestSummaryCountsAllIssuesButRetainsOnlyBoundedPrefix(t *testing.T) {
 }
 
 func TestSummaryErrorAfterRetainedWarningPrefixStillMakesResultInvalid(t *testing.T) {
-	data := `<root>` + strings.Repeat(`<item><title>Ignored wrapper field</title><movie><title>Present</title><uniqueid type="x">1</uniqueid></movie></item>`, 64) + `<movie><title>Present</title><uniqueid type="x">1</uniqueid><year>bad</year></movie></root>`
+	data := `<root>` + strings.Repeat(`<item><title>Ignored wrapper field</title><movie><title>Present</title></movie></item>`, 64) + `<movie><title>Present</title><year>bad</year></movie></root>`
 	source, _ := summaryFixture(t, []byte(data))
 	summary, err := source.Parse(context.Background())
 	if err != nil || summary.Status != domain.NFOStatusInvalid || summary.WarningCount != 64 || summary.ErrorCount != 1 || summary.IssueCount != 65 || !summary.IssuesTruncated || len(summary.Issues) != 64 || summary.Entries != 65 {

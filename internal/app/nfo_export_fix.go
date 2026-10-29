@@ -2,28 +2,23 @@ package app
 
 import (
 	"context"
-	"strings"
 
 	"github.com/MoYuanCN/Jelee/internal/domain"
 )
 
 // Fix mode (G39.11 --fix) of an nfo_export job. Each item's NFO is validated
-// with the parser of the library validation job and only two of its issues are
+// with the parser of the library validation job and only one of its issues is
 // repaired, through the same controlled edit and write path as every other
-// export:
-//
-//   - nfo_title_missing: the title is set to the title stored in the database
-//     (never the scanned name);
-//   - nfo_id_missing: the writer adds the Jelee identifier (EnsureID), which
-//     never overwrites an identifier that exists.
+// export: nfo_title_missing, where the title is set to the title stored in the
+// database (never the scanned name). Any rewrite also adds a missing Jelee
+// identifier (EnsureID, which never overwrites an identifier that exists), so
+// G39.10 is met on every write; it is not a validation issue and fix mode never
+// rewrites a file only to add an identifier.
 //
 // Every other issue, and every NFO the writer would refuse, is left alone and
 // counted as unfixable.
 
-const (
-	nfoIssueTitleMissing = "nfo_title_missing"
-	nfoIssueIDMissing    = "nfo_id_missing"
-)
+const nfoIssueTitleMissing = "nfo_title_missing"
 
 // validateItemNFO resolves the item's NFO scope and validates the NFO it
 // selects. A scope or file that cannot be used is domain.ErrMetadataUnavailable
@@ -63,18 +58,6 @@ func nfoFixRootMatches(kind, root string) bool {
 	return false
 }
 
-// nfoFixIDLocked reports whether the NFO locks its identifiers, which stops the
-// writer from adding one (see the edit lock of EnsureID).
-func nfoFixIDLocked(locks []string) bool {
-	for _, lock := range locks {
-		switch strings.ToLower(strings.TrimSpace(lock)) {
-		case "id", "uniqueid", "uniqueids", "providerids", "imdbid", "tmdbid", "tvdbid":
-			return true
-		}
-	}
-	return false
-}
-
 // planNFOExportFix decides what a fix-mode run does with one item. It never
 // writes anything the validation did not call for:
 //
@@ -85,10 +68,10 @@ func nfoFixIDLocked(locks []string) bool {
 //   - no issue at all: unchanged;
 //   - only issues the fix does not repair: unfixable;
 //   - otherwise a prepared edit: the stored title when the title is missing and
-//     one is stored, and the writer's own identifier when the ID is missing.
+//     one is stored.
 //
 // A written NFO always receives an identifier when it has none (the writer
-// ensures it), so a title repair of an NFO without an ID also repairs the ID.
+// ensures it), so a title repair of an NFO without an ID also adds the ID.
 func planNFOExportFix(before domain.ItemMetadata, scope domain.NFOItemScope, v domain.NFOItemValidation) (nfoExportOutcome, *domain.NFOWritePrepareRequest) {
 	switch v.Status {
 	case domain.NFOItemValidationMissing:
@@ -107,12 +90,11 @@ func planNFOExportFix(before domain.ItemMetadata, scope domain.NFOItemScope, v d
 		v.Has("nfo_unknown_root") || v.Has("nfo_wrapper_fields_ignored") || v.Has("nfo_kind_unknown") || v.LockData {
 		return nfoExportUnfixable, nil
 	}
-	titleMissing, idMissing := v.Has(nfoIssueTitleMissing), v.Has(nfoIssueIDMissing)
-	if (!titleMissing && !idMissing) || (idMissing && nfoFixIDLocked(v.LockedFields)) {
+	if !v.Has(nfoIssueTitleMissing) {
 		return nfoExportUnfixable, nil
 	}
 	var edits []domain.NFOWriteTextEdit
-	if titleMissing {
+	{
 		titleLocked := false
 		for _, name := range v.LockedFields {
 			if nfoExportLockedEdit(name) == "title" {
@@ -123,7 +105,7 @@ func planNFOExportFix(before domain.ItemMetadata, scope domain.NFOItemScope, v d
 			edits = append(edits, domain.NFOWriteTextEdit{Field: "title", Value: want})
 		}
 	}
-	if len(edits) == 0 && !idMissing {
+	if len(edits) == 0 {
 		return nfoExportUnfixable, nil
 	}
 	return nfoExportPrepared, &domain.NFOWritePrepareRequest{ItemID: scope.ItemID, Revision: scope.Revision, Edits: edits, CreateMissing: true,

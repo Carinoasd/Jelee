@@ -88,20 +88,13 @@ func TestNFOPathSummaryIsTheOnlySummaryWithoutEntriesOrFailure(t *testing.T) {
 	}
 }
 
-func TestNFOIDMissingIsAWarningOnTheIdentifierField(t *testing.T) {
-	good := NFOIssue{Severity: "warning", Code: "nfo_id_missing", Field: "uniqueid", Entry: 0}
-	if !ValidNFOIssue(good) {
-		t.Fatal("nfo_id_missing rejected")
-	}
-	for _, bad := range []NFOIssue{{Severity: "error", Code: "nfo_id_missing", Field: "uniqueid", Entry: 0}, {Severity: "warning", Code: "nfo_id_missing", Field: "title", Entry: 0}, {Severity: "warning", Code: "nfo_id_missing", Field: "uniqueid", Entry: -1}} {
-		if ValidNFOIssue(bad) {
-			t.Fatalf("%+v accepted", bad)
+func TestNFOIDMissingIsNotAnIssueCode(t *testing.T) {
+	// An entry without an identifier is normal; the writer adds one on any
+	// rewrite, so the code is not part of the issue whitelist.
+	for _, severity := range []string{"warning", "error"} {
+		if ValidNFOIssue(NFOIssue{Severity: severity, Code: "nfo_id_missing", Field: "uniqueid", Entry: 0}) {
+			t.Fatalf("nfo_id_missing accepted as a %s", severity)
 		}
-	}
-	summary := nfoValidSummary()
-	summary.WarningCount, summary.IssueCount, summary.Issues = 1, 1, []NFOIssue{good}
-	if ValidateNFOSummary(summary) != nil {
-		t.Fatal("a summary with the warning was rejected")
 	}
 }
 
@@ -165,11 +158,11 @@ func TestNFOExportFixModeAndCounters(t *testing.T) {
 }
 
 func TestNFOItemValidationHasIssueCodes(t *testing.T) {
-	v := NFOItemValidation{Status: NFOItemValidationChecked, IssueCodes: []string{"nfo_id_missing", "nfo_title_missing"}}
-	if !v.Has("nfo_id_missing") || v.Has("nfo_invalid_date") || (NFOItemValidation{}).Has("nfo_id_missing") {
+	v := NFOItemValidation{Status: NFOItemValidationChecked, IssueCodes: []string{"nfo_season_missing", "nfo_title_missing"}}
+	if !v.Has("nfo_season_missing") || v.Has("nfo_invalid_date") || (NFOItemValidation{}).Has("nfo_season_missing") {
 		t.Fatal("Has misreports the issue codes")
 	}
-	if strings.Contains(v.String(), "nfo_id_missing") || strings.Contains(v.GoString(), "nfo_id_missing") {
+	if strings.Contains(v.String(), "nfo_season_missing") || strings.Contains(v.GoString(), "nfo_season_missing") {
 		t.Fatal("a validation prints its content")
 	}
 }

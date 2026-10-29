@@ -138,13 +138,13 @@ func TestValidateItemNFOReportsWhatTheValidationJobWouldStore(t *testing.T) {
 		locks      []string
 	}{
 		{name: "clean", body: `<movie><title>T</title><uniqueid type="imdb">tt1</uniqueid></movie>`, status: domain.NFOStatusValid},
-		{name: "title and id missing", body: `<movie><plot>P</plot></movie>`, status: domain.NFOStatusValid, codes: []string{"nfo_id_missing", "nfo_title_missing"}},
-		{name: "only id missing", body: `<movie><title>T</title></movie>`, status: domain.NFOStatusValid, codes: []string{"nfo_id_missing"}},
+		{name: "title missing, no id", body: `<movie><plot>P</plot></movie>`, status: domain.NFOStatusValid, codes: []string{"nfo_title_missing"}},
+		{name: "no id is not an issue", body: `<movie><title>T</title></movie>`, status: domain.NFOStatusValid},
 		{name: "incomplete id is not missing", body: `<movie><title>T</title><imdbid></imdbid></movie>`, status: domain.NFOStatusInvalid, errors: 1, codes: []string{"nfo_id_incomplete"}},
 		{name: "invalid date", body: `<movie><title>T</title><uniqueid type="x">1</uniqueid><premiered>last week</premiered></movie>`, status: domain.NFOStatusInvalid, errors: 1, codes: []string{"nfo_invalid_date"}},
 		{name: "unknown root", body: `<thing><title>T</title></thing>`, status: domain.NFOStatusValid, codes: []string{"nfo_unknown_root"}},
 		{name: "invalid xml", body: `<movie><title>broken`, status: domain.NFOStatusInvalid, failure: domain.NFOFailureInvalidXML},
-		{name: "locks", body: `<movie><title>T</title><lockdata>true</lockdata><lockedfields>Name|Genres</lockedfields></movie>`, status: domain.NFOStatusValid, codes: []string{"nfo_id_missing"}, lockData: true, locks: []string{"Name", "Genres"}},
+		{name: "locks", body: `<movie><title>T</title><lockdata>true</lockdata><lockedfields>Name|Genres</lockedfields></movie>`, status: domain.NFOStatusValid, lockData: true, locks: []string{"Name", "Genres"}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			writeItemNFO(t, scope, tc.body)
@@ -168,11 +168,11 @@ func TestValidateItemNFOReportsWhatTheValidationJobWouldStore(t *testing.T) {
 
 func TestValidateItemNFOKeepsCodesBeyondTheStoredPrefix(t *testing.T) {
 	reader, scope := itemSelectionFixture(t, "Movie")
-	// 70 bad years come before the title and identifier checks, which the
+	// 70 bad years come before the title check, which the
 	// stored prefix of 64 issues therefore cuts off.
 	writeItemNFO(t, scope, "<movie>"+strings.Repeat("<year>x</year>", 70)+"</movie>")
 	got, err := reader.ValidateItemNFO(context.Background(), scope)
-	if err != nil || !got.Summary.IssuesTruncated || !got.Has("nfo_title_missing") || !got.Has("nfo_id_missing") || !got.Has("nfo_invalid_integer") {
+	if err != nil || !got.Summary.IssuesTruncated || !got.Has("nfo_title_missing") || !got.Has("nfo_invalid_integer") {
 		t.Fatalf("%+v %v", got, err)
 	}
 	for _, issue := range got.Summary.Issues {
@@ -210,35 +210,17 @@ func TestValidateItemNFORejectsBadInput(t *testing.T) {
 	}
 }
 
-func TestNFOIDMissingWarningFollowsTheWriterPolicy(t *testing.T) {
-	for _, tc := range []struct {
-		name, body string
-		want       bool
-	}{
-		{"movie without id", `<movie><title>T</title></movie>`, true},
-		{"tvshow without id", `<tvshow><title>T</title></tvshow>`, true},
-		{"season without id", `<season><seasonname>T</seasonname></season>`, true},
-		{"episode without id", `<episodedetails><title>T</title><season>1</season><episode>1</episode></episodedetails>`, true},
-		{"uniqueid", `<movie><title>T</title><uniqueid type="custom">x</uniqueid></movie>`, false},
-		{"jelee uniqueid", `<movie><title>T</title><uniqueid type="jelee">3f2504e0-4f89-41d3-9a0c-0305e82c3301</uniqueid></movie>`, false},
-		{"imdbid", `<movie><title>T</title><imdbid>tt1</imdbid></movie>`, false},
-		{"tmdbid", `<movie><title>T</title><tmdbid>603</tmdbid></movie>`, false},
-		{"tvdbid", `<tvshow><title>T</title><tvdbid>81189</tvdbid></tvshow>`, false},
-		{"id", `<movie><title>T</title><id>tt1</id></movie>`, false},
-		{"unknown root", `<foo><title>T</title></foo>`, false},
+func TestNoIdentifierIsNotAnIssue(t *testing.T) {
+	for _, body := range []string{
+		`<movie><title>T</title></movie>`,
+		`<tvshow><title>T</title></tvshow>`,
+		`<season><seasonname>T</seasonname></season>`,
+		`<episodedetails><title>T</title><season>1</season><episode>1</episode></episodedetails>`,
+		`<movie><title>T</title><uniqueid type="jelee">3f2504e0-4f89-41d3-9a0c-0305e82c3301</uniqueid></movie>`,
+		`<movie><title>T</title><imdbid>tt1</imdbid></movie>`,
 	} {
-		document := mustRead(t, []byte(tc.body))
-		got := false
-		for _, issue := range document.Issues {
-			if issue.Code == "nfo_id_missing" {
-				got = true
-				if issue.Severity != "warning" || issue.Field != "uniqueid" {
-					t.Fatalf("%s: %+v", tc.name, issue)
-				}
-			}
-		}
-		if got != tc.want {
-			t.Errorf("%s: nfo_id_missing=%v, want %v (%v)", tc.name, got, tc.want, document.Issues)
+		if document := mustRead(t, []byte(body)); len(document.Issues) != 0 {
+			t.Errorf("%s: %v", body, document.Issues)
 		}
 	}
 }

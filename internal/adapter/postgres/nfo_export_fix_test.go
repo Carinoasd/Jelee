@@ -32,8 +32,8 @@ import (
 //	0 valid                                  -> unchanged
 //	1 title missing, a stored title          -> fixed (title)
 //	2 title missing, no stored title         -> unfixable
-//	3 identifier missing                     -> fixed (identifier)
-//	4 title and identifier missing, stored   -> fixed (both)
+//	3 title, no identifier                   -> unchanged (no ID is not an issue; no ID is stamped)
+//	4 title and identifier missing, stored   -> fixed (title; the rewrite also adds a Jelee ID)
 //	5 title missing, imdbid and tmdbid       -> fixed (title), provider IDs kept
 //	6 title missing, a manual jelee uniqueid -> fixed (title), the manual value kept
 //	7 invalid XML                            -> unfixable
@@ -150,9 +150,11 @@ func nfoFixLibrary(t *testing.T, f jobFixture, library string, cycles int) []*nf
 		case 2:
 			it.outcome, it.wantCode = "unfixable", []string{"nfo_title_missing"}
 		case 3:
-			it.outcome, it.wantCode = "fixed", []string{"nfo_id_missing"}
+			// A title without an identifier is no issue: a fix never stamps an ID by itself.
+			it.outcome = "unchanged"
 		case 4:
-			it.outcome, it.wantCode = "fixed", []string{"nfo_id_missing", "nfo_title_missing"}
+			// The title repair is a rewrite, which also adds the Jelee ID (EnsureID).
+			it.outcome, it.wantCode = "fixed", []string{"nfo_title_missing"}
 		case 5, 6:
 			it.outcome, it.wantCode = "fixed", []string{"nfo_title_missing"}
 			if category == 5 {
@@ -263,7 +265,7 @@ func requireNFOFixFiles(t *testing.T, items []*nfoFixItem, upTo string) {
 			t.Fatalf("%s: the repaired file is unreadable: %v", it.label, readErr)
 		}
 		for _, issue := range document.Issues {
-			if issue.Code == "nfo_title_missing" || issue.Code == "nfo_id_missing" || issue.Severity == "error" {
+			if issue.Code == "nfo_title_missing" || issue.Severity == "error" {
 				t.Fatalf("%s: still has %+v", it.label, issue)
 			}
 		}
