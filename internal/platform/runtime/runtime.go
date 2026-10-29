@@ -308,6 +308,17 @@ func newWithLifetime(cfg config.Config, logger *slog.Logger, lifetime *lifetime)
 			if service, err = app.NewJobsWithImageRefresh(service, store, refresher != nil); err != nil {
 				return nil, err
 			}
+			// G13.6, G14.4: metadata refreshes are admitted only with a
+			// configured provider; every runner claims them, so a job queued
+			// under another configuration fails instead of blocking its
+			// library.
+			refreshMetadata, err := bindMetadata(metadataService, store)
+			if err != nil {
+				return nil, err
+			}
+			if service, err = app.NewJobsWithMetadataRefresh(service, store, refreshMetadata); err != nil {
+				return nil, err
+			}
 			service, err = app.NewJobsWithInventoryImport(service, store, scan.New())
 			if err != nil {
 				return nil, err
@@ -387,6 +398,11 @@ func newWithLifetime(cfg config.Config, logger *slog.Logger, lifetime *lifetime)
 				return nil, err
 			}
 			opts.ImageRefresh = &jobworker.ImageRefreshOptions{Worker: refreshWorker, Repository: store}
+			metadataWorker, err := app.NewMetadataRefreshWorker(refreshMetadata, store, time.Duration(p.DatabaseTimeoutSeconds)*time.Second)
+			if err != nil {
+				return nil, err
+			}
+			opts.MetadataRefresh = &jobworker.MetadataRefreshOptions{Worker: metadataWorker, Repository: store}
 			if c.EnableNFOWrite {
 				// G39.14: the export prepares like an administrator would and
 				// lets the nfo_write runner above write the files.

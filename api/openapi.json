@@ -5546,7 +5546,8 @@
               "consistency_check",
               "nfo_apply",
               "nfo_export",
-              "image_refresh"
+              "image_refresh",
+              "metadata_refresh"
             ],
             "type": "string"
           },
@@ -7037,6 +7038,389 @@
           "sourceUrl",
           "requestedLanguage",
           "fetchedAt"
+        ],
+        "type": "object"
+      },
+      "MetadataRefreshAcceptance": {
+        "additionalProperties": false,
+        "properties": {
+          "expectedRevision": {
+            "maximum": 2147483646,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "providerId": {
+            "description": "One of the review's candidates.",
+            "format": "int32",
+            "maximum": 2147483647,
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "providerId",
+          "expectedRevision"
+        ],
+        "type": "object"
+      },
+      "MetadataRefreshJobState": {
+        "additionalProperties": false,
+        "description": "Committed counters of a metadata refresh; every item is checkpointed. applied changed at least one field through the confirmed TMDB apply, unchanged were applied without a change (every field locked, manual, NFO or equal), review were recorded for administrator review, unmatched had no provider candidate, skipped were not looked up (every field protected, a rejected review, a locked HomeVideo kind, deleted meanwhile), failed hit a provider or item-local error.",
+        "properties": {
+          "applied": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "cursorItemId": {
+            "description": "The last item the job finished with; null before the first checkpoint. Items are visited in ascending ID order and a resumed job continues after it.",
+            "oneOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "failed": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "jobId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "libraryId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "review": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "skipped": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "trigger": {
+            "enum": [
+              "manual",
+              "catalog_sync"
+            ],
+            "type": "string"
+          },
+          "unchanged": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "unmatched": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "jobId",
+          "libraryId",
+          "trigger",
+          "cursorItemId",
+          "applied",
+          "unchanged",
+          "review",
+          "unmatched",
+          "skipped",
+          "failed",
+          "updatedAt"
+        ],
+        "type": "object"
+      },
+      "MetadataRefreshRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "priority": {
+            "default": "manual",
+            "enum": [
+              "manual",
+              "background"
+            ],
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "MetadataRefreshReview": {
+        "additionalProperties": false,
+        "properties": {
+          "candidates": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "date": {
+                  "description": "YYYY-MM-DD or empty",
+                  "type": "string"
+                },
+                "originalTitle": {
+                  "description": "The server also enforces the stated maximum in UTF-8 bytes.",
+                  "maxLength": 1024,
+                  "type": "string"
+                },
+                "providerId": {
+                  "format": "int32",
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                "similarity": {
+                  "maximum": 100,
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "title": {
+                  "description": "The server also enforces the stated maximum in UTF-8 bytes.",
+                  "maxLength": 1024,
+                  "type": "string"
+                }
+              },
+              "required": [
+                "providerId",
+                "title",
+                "originalTitle",
+                "date",
+                "similarity"
+              ],
+              "type": "object"
+            },
+            "maxItems": 5,
+            "minItems": 1,
+            "type": "array"
+          },
+          "confidence": {
+            "enum": [
+              "high",
+              "medium",
+              "low"
+            ],
+            "type": "string"
+          },
+          "itemId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "jobId": {
+            "oneOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "kind": {
+            "enum": [
+              "Movie",
+              "HomeVideo",
+              "Series"
+            ],
+            "type": "string"
+          },
+          "libraryId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "queryTitle": {
+            "description": "The server also enforces the stated maximum in UTF-8 bytes.",
+            "maxLength": 1024,
+            "type": "string"
+          },
+          "queryYear": {
+            "maximum": 9999,
+            "minimum": 1000,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "reason": {
+            "enum": [
+              "nfo_tmdb_id",
+              "nfo_imdb_id",
+              "nfo_tvdb_id",
+              "existing_provider",
+              "title_year_unique",
+              "title_year_ambiguous",
+              "title_without_year",
+              "year_mismatch",
+              "low_similarity",
+              "external_ambiguous",
+              "external_conflict"
+            ],
+            "type": "string"
+          },
+          "resource": {
+            "enum": [
+              "movie",
+              "series"
+            ],
+            "type": "string"
+          },
+          "revision": {
+            "description": "The item's metadata revision an accept names as expectedRevision.",
+            "maximum": 2147483646,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "state": {
+            "enum": [
+              "pending",
+              "rejected"
+            ],
+            "type": "string"
+          },
+          "title": {
+            "description": "The server also enforces the stated maximum in UTF-8 bytes.",
+            "maxLength": 1024,
+            "type": "string"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "itemId",
+          "libraryId",
+          "kind",
+          "title",
+          "revision",
+          "state",
+          "resource",
+          "confidence",
+          "reason",
+          "queryTitle",
+          "queryYear",
+          "candidates",
+          "jobId",
+          "updatedAt"
+        ],
+        "type": "object"
+      },
+      "MetadataRefreshReviewPage": {
+        "additionalProperties": false,
+        "properties": {
+          "pagination": {
+            "additionalProperties": false,
+            "properties": {
+              "limit": {
+                "maximum": 100,
+                "minimum": 1,
+                "type": "integer"
+              },
+              "nextCursor": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "nextCursor",
+              "limit"
+            ],
+            "type": "object"
+          },
+          "reviews": {
+            "items": {
+              "$ref": "#/components/schemas/MetadataRefreshReview"
+            },
+            "maxItems": 100,
+            "type": "array"
+          }
+        },
+        "required": [
+          "reviews",
+          "pagination"
+        ],
+        "type": "object"
+      },
+      "MetadataRefreshSettings": {
+        "additionalProperties": false,
+        "properties": {
+          "auto": {
+            "description": "Queue a refresh after every successful catalog synchronisation; off by default.",
+            "type": "boolean"
+          },
+          "autoApply": {
+            "description": "Lowest confidence applied without review: high applies identifier matches only (default), medium also unique title and year matches, never sends every match to review.",
+            "enum": [
+              "high",
+              "medium",
+              "never"
+            ],
+            "type": "string"
+          },
+          "libraryId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "sources": {
+            "description": "Ordered sources: nfo uses the local uniqueid identifiers (TMDB, IMDb, TVDB), every other entry is a remote provider and at least one is required. TMDB is the only provider; fallback providers register here (G14.1).",
+            "items": {
+              "enum": [
+                "nfo",
+                "tmdb"
+              ],
+              "type": "string"
+            },
+            "maxItems": 2,
+            "minItems": 1,
+            "type": "array",
+            "uniqueItems": true
+          }
+        },
+        "required": [
+          "libraryId",
+          "auto",
+          "autoApply",
+          "sources"
+        ],
+        "type": "object"
+      },
+      "MetadataRefreshSettingsInput": {
+        "additionalProperties": false,
+        "properties": {
+          "auto": {
+            "type": "boolean"
+          },
+          "autoApply": {
+            "description": "Lowest confidence applied without review: high applies identifier matches only (default), medium also unique title and year matches, never sends every match to review.",
+            "enum": [
+              "high",
+              "medium",
+              "never"
+            ],
+            "type": "string"
+          },
+          "sources": {
+            "description": "Ordered sources: nfo uses the local uniqueid identifiers (TMDB, IMDb, TVDB), every other entry is a remote provider and at least one is required. TMDB is the only provider; fallback providers register here (G14.1).",
+            "items": {
+              "enum": [
+                "nfo",
+                "tmdb"
+              ],
+              "type": "string"
+            },
+            "maxItems": 2,
+            "minItems": 1,
+            "type": "array",
+            "uniqueItems": true
+          }
+        },
+        "required": [
+          "auto",
+          "autoApply",
+          "sources"
         ],
         "type": "object"
       },
@@ -27238,6 +27622,450 @@
         "x-jelee-role": "administrator"
       }
     },
+    "/api/v1/items/{id}/metadata/refresh/accept": {
+      "post": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MetadataRefreshAcceptance"
+              }
+            }
+          },
+          "description": "One strict JSON object, at most 64 KiB.",
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/MetadataApplyResult"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful result. A replayed submission adds Idempotency-Replayed: true; an accepted job adds Location."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "invalid_request": {
+                    "$ref": "#/components/examples/error_invalid_request"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 400"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "authentication_required": {
+                    "$ref": "#/components/examples/error_authentication_required"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 401"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "forbidden": {
+                    "$ref": "#/components/examples/error_forbidden"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 403"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "not_found": {
+                    "$ref": "#/components/examples/error_not_found"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 404"
+          },
+          "408": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "request_timeout": {
+                    "$ref": "#/components/examples/error_request_timeout"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 408"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "conflict": {
+                    "$ref": "#/components/examples/error_conflict"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 409"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "body_too_large": {
+                    "$ref": "#/components/examples/error_body_too_large"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 413"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "unsupported_media_type": {
+                    "$ref": "#/components/examples/error_unsupported_media_type"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 415"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "auth_rate_limited": {
+                    "$ref": "#/components/examples/error_auth_rate_limited"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 429"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "not_ready": {
+                    "$ref": "#/components/examples/error_not_ready"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 503"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "internal_error": {
+                    "$ref": "#/components/examples/error_internal_error"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Jelee error envelope with code, message, details and traceId; see the Error schema."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "webSession": []
+          }
+        ],
+        "summary": "Apply one candidate of a pending review through the confirmed TMDB apply (locks, manual values and trusted NFO keep priority; revision checked) and remove the review; 400 for a candidate the review does not list, 409 for a rejected review or a stale revision",
+        "x-jelee-role": "administrator"
+      }
+    },
+    "/api/v1/items/{id}/metadata/refresh/reject": {
+      "post": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Empty"
+              }
+            }
+          },
+          "description": "One strict JSON object, at most 64 KiB.",
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/MetadataRefreshReview"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful result. A replayed submission adds Idempotency-Replayed: true; an accepted job adds Location."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "invalid_request": {
+                    "$ref": "#/components/examples/error_invalid_request"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 400"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "authentication_required": {
+                    "$ref": "#/components/examples/error_authentication_required"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 401"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "forbidden": {
+                    "$ref": "#/components/examples/error_forbidden"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 403"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "not_found": {
+                    "$ref": "#/components/examples/error_not_found"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 404"
+          },
+          "408": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "request_timeout": {
+                    "$ref": "#/components/examples/error_request_timeout"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 408"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "conflict": {
+                    "$ref": "#/components/examples/error_conflict"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 409"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "body_too_large": {
+                    "$ref": "#/components/examples/error_body_too_large"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 413"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "unsupported_media_type": {
+                    "$ref": "#/components/examples/error_unsupported_media_type"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 415"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "auth_rate_limited": {
+                    "$ref": "#/components/examples/error_auth_rate_limited"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 429"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "not_ready": {
+                    "$ref": "#/components/examples/error_not_ready"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 503"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "internal_error": {
+                    "$ref": "#/components/examples/error_internal_error"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Jelee error envelope with code, message, details and traceId; see the Error schema."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "webSession": []
+          }
+        ],
+        "summary": "Reject every candidate of a pending review; later refreshes leave the item alone until a match is applied by hand; rejecting again returns 409",
+        "x-jelee-role": "administrator"
+      }
+    },
     "/api/v1/items/{id}/metadata/tmdb": {
       "post": {
         "description": "Fetch selected movie/series ID outside database locks, then recheck live session, revision and kind. Read-only NFO libraries resolve trusted NFO filenames case-insensitively, prioritizing the video basename over movie.nfo or tvshow.nfo. Complete bounded directory observations reject ambiguous names and unsafe or unavailable sources. Reader-owned observations retain root, parent, media and NFO filesystem identities without open handles across provider lookup; replacement with identical bytes, size and mtime is rejected. Candidate names and full bytes are also checked before and after lookup. The final transaction rechecks source/root identity and NFO generation, applies NFO before TMDB, and advances one revision with one audit. Manual and locked fields are preserved; NFO has priority over TMDB. Valid lock-only NFO preserves positive known lock intent with no invented text values or NFO value origins; locks are persisted independently in nfoLockOrigin. Trusted missing or XML/encoding-corrupt NFO allows TMDB fallback, retaining a missing or nfo_invalid observation in the same transaction; no partial NFO fields or invented NFO origins are applied. Permission, unsafe input, incomplete listing, unsupported valid content and unbound observations return 503. State transitions, changed original bytes, identities or scope return 409. lastConfirmedNFOObservation records the accepted review and revision, not current filesystem freshness; missing has a null stamp. Provider failure, cancellation or SQL/audit failure leaves no observation or partial update. Optional nfo/tmdb reports explain each source; top-level applied/skipped lists describe the combined result without duplicate fields. Existing nonempty title requires replaceExistingTitle=true for TMDB replacement. Missing values preserve fields. All-protected reviews still advance revision. Movie fields change HomeVideo to Movie only if at least one field is applied. Filesystem observations are not an atomic snapshot.",
@@ -33388,6 +34216,217 @@
         "x-jelee-role": "administrator"
       }
     },
+    "/api/v1/jobs/{id}/metadata-refresh": {
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/MetadataRefreshJobState"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful result. A replayed submission adds Idempotency-Replayed: true; an accepted job adds Location."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "invalid_request": {
+                    "$ref": "#/components/examples/error_invalid_request"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 400"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "authentication_required": {
+                    "$ref": "#/components/examples/error_authentication_required"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 401"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "forbidden": {
+                    "$ref": "#/components/examples/error_forbidden"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 403"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "not_found": {
+                    "$ref": "#/components/examples/error_not_found"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 404"
+          },
+          "408": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "request_timeout": {
+                    "$ref": "#/components/examples/error_request_timeout"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 408"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "conflict": {
+                    "$ref": "#/components/examples/error_conflict"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 409"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "body_too_large": {
+                    "$ref": "#/components/examples/error_body_too_large"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 413"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "unsupported_media_type": {
+                    "$ref": "#/components/examples/error_unsupported_media_type"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 415"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "auth_rate_limited": {
+                    "$ref": "#/components/examples/error_auth_rate_limited"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 429"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "not_ready": {
+                    "$ref": "#/components/examples/error_not_ready"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 503"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "internal_error": {
+                    "$ref": "#/components/examples/error_internal_error"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Jelee error envelope with code, message, details and traceId; see the Error schema."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "webSession": []
+          }
+        ],
+        "summary": "Read the cursor and counters of a metadata refresh; 404 for other job kinds",
+        "x-jelee-role": "administrator"
+      }
+    },
     "/api/v1/jobs/{id}/nfo": {
       "get": {
         "description": "Every request, including retained replay, checks live administrator authorization. Internal reader identities, absolute roots, hashes and original XML are never accepted as request parameters.",
@@ -36820,6 +37859,1001 @@
           }
         ],
         "summary": "Update library metadata language with revision check (administrator)",
+        "x-jelee-role": "administrator"
+      }
+    },
+    "/api/v1/libraries/{id}/metadata/refresh": {
+      "post": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "pattern": "^[!-~]{1,128}$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MetadataRefreshRequest"
+              }
+            }
+          },
+          "description": "One strict JSON object, at most 64 KiB.",
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/Job"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful result. A replayed submission adds Idempotency-Replayed: true; an accepted job adds Location."
+          },
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/Job"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful result. A replayed submission adds Idempotency-Replayed: true; an accepted job adds Location."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "invalid_request": {
+                    "$ref": "#/components/examples/error_invalid_request"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 400"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "authentication_required": {
+                    "$ref": "#/components/examples/error_authentication_required"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 401"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "forbidden": {
+                    "$ref": "#/components/examples/error_forbidden"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 403"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "not_found": {
+                    "$ref": "#/components/examples/error_not_found"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 404"
+          },
+          "408": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "request_timeout": {
+                    "$ref": "#/components/examples/error_request_timeout"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 408"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "conflict": {
+                    "$ref": "#/components/examples/error_conflict"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 409"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "body_too_large": {
+                    "$ref": "#/components/examples/error_body_too_large"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 413"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "unsupported_media_type": {
+                    "$ref": "#/components/examples/error_unsupported_media_type"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 415"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "auth_rate_limited": {
+                    "$ref": "#/components/examples/error_auth_rate_limited"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 429"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "not_ready": {
+                    "$ref": "#/components/examples/error_not_ready"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 503"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "internal_error": {
+                    "$ref": "#/components/examples/error_internal_error"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Jelee error envelope with code, message, details and traceId; see the Error schema."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "webSession": []
+          }
+        ],
+        "summary": "Queue a metadata refresh: match the library's movies, home videos and series against TMDB (NFO identifiers first, then title and year), apply matches at or above the library's autoApply threshold through the confirmed TMDB apply and record the others for review; 503 metadata_unavailable without a provider, 409 job_busy while the library has an active job",
+        "x-jelee-role": "administrator"
+      }
+    },
+    "/api/v1/libraries/{id}/metadata/refresh/reviews": {
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "state",
+            "schema": {
+              "enum": [
+                "pending",
+                "rejected"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "default": 50,
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Compatibility paging: rows to skip from the start, walked through cursor pages (at most 1000); prefer cursor. Not combinable with cursor.",
+            "in": "query",
+            "name": "offset",
+            "schema": {
+              "default": 0,
+              "maximum": 1000,
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Sort key. This list is read in storage order, so the whitelist holds only that key.",
+            "in": "query",
+            "name": "sort",
+            "schema": {
+              "default": "itemId",
+              "enum": [
+                "itemId"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "description": "Direction of sort.",
+            "in": "query",
+            "name": "order",
+            "schema": {
+              "default": "asc",
+              "enum": [
+                "asc"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "description": "Comma separated row members to return: candidates, confidence, itemId, jobId, kind, libraryId, queryTitle, queryYear, reason, resource, revision, state, title, updatedAt. itemId is always included. Unknown names are 400 invalid_request. Selection only removes members of the rows after every visibility rule and mask applied; other required members may then be absent.",
+            "in": "query",
+            "name": "fields",
+            "schema": {
+              "maxLength": 1024,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/MetadataRefreshReviewPage"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful result. A replayed submission adds Idempotency-Replayed: true; an accepted job adds Location."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "invalid_request": {
+                    "$ref": "#/components/examples/error_invalid_request"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 400"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "authentication_required": {
+                    "$ref": "#/components/examples/error_authentication_required"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 401"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "forbidden": {
+                    "$ref": "#/components/examples/error_forbidden"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 403"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "not_found": {
+                    "$ref": "#/components/examples/error_not_found"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 404"
+          },
+          "408": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "request_timeout": {
+                    "$ref": "#/components/examples/error_request_timeout"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 408"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "conflict": {
+                    "$ref": "#/components/examples/error_conflict"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 409"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "body_too_large": {
+                    "$ref": "#/components/examples/error_body_too_large"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 413"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "unsupported_media_type": {
+                    "$ref": "#/components/examples/error_unsupported_media_type"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 415"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "auth_rate_limited": {
+                    "$ref": "#/components/examples/error_auth_rate_limited"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 429"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "not_ready": {
+                    "$ref": "#/components/examples/error_not_ready"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 503"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "internal_error": {
+                    "$ref": "#/components/examples/error_internal_error"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Jelee error envelope with code, message, details and traceId; see the Error schema."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "webSession": []
+          }
+        ],
+        "summary": "List matches awaiting review (and rejected ones) by item ID cursor; state filters pending or rejected",
+        "x-jelee-list": {
+          "fields": [
+            "candidates",
+            "confidence",
+            "itemId",
+            "jobId",
+            "kind",
+            "libraryId",
+            "queryTitle",
+            "queryYear",
+            "reason",
+            "resource",
+            "revision",
+            "state",
+            "title",
+            "updatedAt"
+          ],
+          "filters": [
+            "state"
+          ],
+          "maxLimit": 100,
+          "offsetMax": 1000,
+          "order": [
+            "asc"
+          ],
+          "paging": "keyset",
+          "sort": [
+            "itemId"
+          ]
+        },
+        "x-jelee-role": "administrator"
+      }
+    },
+    "/api/v1/libraries/{id}/metadata/refresh/settings": {
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/MetadataRefreshSettings"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful result. A replayed submission adds Idempotency-Replayed: true; an accepted job adds Location."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "invalid_request": {
+                    "$ref": "#/components/examples/error_invalid_request"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 400"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "authentication_required": {
+                    "$ref": "#/components/examples/error_authentication_required"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 401"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "forbidden": {
+                    "$ref": "#/components/examples/error_forbidden"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 403"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "not_found": {
+                    "$ref": "#/components/examples/error_not_found"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 404"
+          },
+          "408": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "request_timeout": {
+                    "$ref": "#/components/examples/error_request_timeout"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 408"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "conflict": {
+                    "$ref": "#/components/examples/error_conflict"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 409"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "body_too_large": {
+                    "$ref": "#/components/examples/error_body_too_large"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 413"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "unsupported_media_type": {
+                    "$ref": "#/components/examples/error_unsupported_media_type"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 415"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "auth_rate_limited": {
+                    "$ref": "#/components/examples/error_auth_rate_limited"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 429"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "not_ready": {
+                    "$ref": "#/components/examples/error_not_ready"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 503"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "internal_error": {
+                    "$ref": "#/components/examples/error_internal_error"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Jelee error envelope with code, message, details and traceId; see the Error schema."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "webSession": []
+          }
+        ],
+        "summary": "Read whether successful catalog synchronisations queue a metadata refresh, the automatic apply threshold and the source order; a library without settings reports the defaults",
+        "x-jelee-role": "administrator"
+      },
+      "put": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MetadataRefreshSettingsInput"
+              }
+            }
+          },
+          "description": "One strict JSON object, at most 64 KiB.",
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/MetadataRefreshSettings"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful result. A replayed submission adds Idempotency-Replayed: true; an accepted job adds Location."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "invalid_request": {
+                    "$ref": "#/components/examples/error_invalid_request"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 400"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "authentication_required": {
+                    "$ref": "#/components/examples/error_authentication_required"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 401"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "forbidden": {
+                    "$ref": "#/components/examples/error_forbidden"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 403"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "not_found": {
+                    "$ref": "#/components/examples/error_not_found"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 404"
+          },
+          "408": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "request_timeout": {
+                    "$ref": "#/components/examples/error_request_timeout"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 408"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "conflict": {
+                    "$ref": "#/components/examples/error_conflict"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 409"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "body_too_large": {
+                    "$ref": "#/components/examples/error_body_too_large"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 413"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "unsupported_media_type": {
+                    "$ref": "#/components/examples/error_unsupported_media_type"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 415"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "auth_rate_limited": {
+                    "$ref": "#/components/examples/error_auth_rate_limited"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 429"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "not_ready": {
+                    "$ref": "#/components/examples/error_not_ready"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 503"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "internal_error": {
+                    "$ref": "#/components/examples/error_internal_error"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Jelee error envelope with code, message, details and traceId; see the Error schema."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "webSession": []
+          }
+        ],
+        "summary": "Replace the metadata refresh settings of a library",
         "x-jelee-role": "administrator"
       }
     },
