@@ -467,9 +467,6 @@ func TestNFOExportFixMigrationRoundTrip(t *testing.T) {
 	nfoExportEnable(t, f, f.registration.Library.ID)
 	job := submitNFOExportMode(t, f, f.registration.Library.ID, "round-trip", domain.NFOExportMissing)
 	want := downgradeAboveMigration(t, f, "nfo_export_fix")
-	if want != SchemaVersion {
-		t.Fatal("the fix migration is not the latest", want, SchemaVersion)
-	}
 	jobMetricMigration(t, f, "down", want-1)
 	var removed bool
 	if err := f.s.Pool.QueryRow(f.ctx, `SELECT NOT EXISTS(SELECT 1 FROM information_schema.columns WHERE table_schema=current_schema() AND table_name='nfo_export_job_state' AND column_name IN ('fixed','unfixable'))`).Scan(&removed); err != nil || !removed {
