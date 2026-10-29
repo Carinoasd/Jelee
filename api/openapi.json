@@ -5492,6 +5492,9 @@
             ],
             "type": "string"
           },
+          "progress": {
+            "$ref": "#/components/schemas/JobProgress"
+          },
           "reviewRequired": {
             "type": "boolean"
           },
@@ -5565,6 +5568,93 @@
         "required": [
           "jobs",
           "pagination"
+        ],
+        "type": "object"
+      },
+      "JobProgress": {
+        "additionalProperties": false,
+        "properties": {
+          "done": {
+            "description": "Completed work in the kind's unit: directories for inventory_scan, processed items (files plus skipped) for every other kind.",
+            "format": "int64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "etaBasis": {
+            "description": "Why etaSeconds is given or withheld: insufficient_samples before three throughput samples, paused when a started job is back in the queue, stalled after two minutes without progress, total_reached when done meets the total.",
+            "enum": [
+              "throughput",
+              "total_unknown",
+              "insufficient_samples",
+              "not_started",
+              "paused",
+              "cancelling",
+              "stalled",
+              "total_reached",
+              "too_slow",
+              "finished"
+            ],
+            "type": "string"
+          },
+          "etaSeconds": {
+            "description": "Remaining work divided by an exponential moving average of recent checkpoint throughput. Present only when etaBasis is throughput.",
+            "oneOf": [
+              {
+                "format": "int64",
+                "maximum": 2592000,
+                "minimum": 1,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "percent": {
+            "description": "done/total capped at 100 with one decimal; null without a total.",
+            "oneOf": [
+              {
+                "maximum": 100,
+                "minimum": 0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "total": {
+            "description": "Total work in the same unit; null while unknown. inventory_scan learns it only when enumeration completes; catalog_sync and consistency_check never report one. Kinds that count at admission (catalog_import, nfo_write, nfo_apply, nfo_export, image_refresh) estimate it then, so the work list may change while the job runs.",
+            "oneOf": [
+              {
+                "format": "int64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "totalKnownAt": {
+            "oneOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "done",
+          "total",
+          "totalKnownAt",
+          "percent",
+          "etaSeconds",
+          "etaBasis"
         ],
         "type": "object"
       },
@@ -30420,7 +30510,7 @@
             }
           },
           {
-            "description": "Comma separated row members to return: attempts, bytes, cancelRequested, createdAt, directories, errorCode, files, finishedAt, id, kind, libraryId, missing, priority, reviewRequired, skipped, startedAt, state. id is always included. Unknown names are 400 invalid_request. Selection only removes members of the rows after every visibility rule and mask applied; other required members may then be absent.",
+            "description": "Comma separated row members to return: attempts, bytes, cancelRequested, createdAt, directories, errorCode, files, finishedAt, id, kind, libraryId, missing, priority, progress, reviewRequired, skipped, startedAt, state. id is always included. Unknown names are 400 invalid_request. Selection only removes members of the rows after every visibility rule and mask applied; other required members may then be absent.",
             "in": "query",
             "name": "fields",
             "schema": {
@@ -30639,6 +30729,7 @@
             "libraryId",
             "missing",
             "priority",
+            "progress",
             "reviewRequired",
             "skipped",
             "startedAt",

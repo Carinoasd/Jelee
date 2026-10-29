@@ -97,3 +97,22 @@ func embeddedMigrationVersions(t *testing.T) []uint {
 	slices.Sort(versions)
 	return versions
 }
+
+// previousMigration is the embedded migration version just below version,
+// zero when none is. Versions may leave gaps reserved for other branches.
+func previousMigration(t *testing.T, version uint) uint {
+	t.Helper()
+	matches, err := fs.Glob(migrationFiles, "migrations/*.up.sql")
+	if err != nil {
+		t.Fatal("list embedded migrations:", err)
+	}
+	var previous uint
+	for _, match := range matches {
+		number, _, _ := strings.Cut(strings.TrimPrefix(match, "migrations/"), "_")
+		v, err := strconv.ParseUint(number, 10, 32)
+		if err == nil && uint(v) < version && uint(v) > previous {
+			previous = uint(v)
+		}
+	}
+	return previous
+}

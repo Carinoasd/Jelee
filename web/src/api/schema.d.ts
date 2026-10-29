@@ -10375,7 +10375,7 @@ export type paths = {
             parameters: {
                 query?: {
                     cursor?: string;
-                    /** @description Comma separated row members to return: attempts, bytes, cancelRequested, createdAt, directories, errorCode, files, finishedAt, id, kind, libraryId, missing, priority, reviewRequired, skipped, startedAt, state. id is always included. Unknown names are 400 invalid_request. Selection only removes members of the rows after every visibility rule and mask applied; other required members may then be absent. */
+                    /** @description Comma separated row members to return: attempts, bytes, cancelRequested, createdAt, directories, errorCode, files, finishedAt, id, kind, libraryId, missing, priority, progress, reviewRequired, skipped, startedAt, state. id is always included. Unknown names are 400 invalid_request. Selection only removes members of the rows after every visibility rule and mask applied; other required members may then be absent. */
                     fields?: string;
                     limit?: number;
                     /** @description Compatibility paging: rows to skip from the start, walked through cursor pages (at most 1000); prefer cursor. Not combinable with cursor. */
@@ -31786,6 +31786,7 @@ export type components = {
              * @enum {string}
              */
             priority: "manual" | "background";
+            progress?: components["schemas"]["JobProgress"];
             reviewRequired: boolean;
             /** Format: int64 */
             skipped: number;
@@ -31800,6 +31801,25 @@ export type components = {
                 limit: number;
                 nextCursor: string;
             };
+        };
+        JobProgress: {
+            /**
+             * Format: int64
+             * @description Completed work in the kind's unit: directories for inventory_scan, processed items (files plus skipped) for every other kind.
+             */
+            done: number;
+            /**
+             * @description Why etaSeconds is given or withheld: insufficient_samples before three throughput samples, paused when a started job is back in the queue, stalled after two minutes without progress, total_reached when done meets the total.
+             * @enum {string}
+             */
+            etaBasis: "throughput" | "total_unknown" | "insufficient_samples" | "not_started" | "paused" | "cancelling" | "stalled" | "total_reached" | "too_slow" | "finished";
+            /** @description Remaining work divided by an exponential moving average of recent checkpoint throughput. Present only when etaBasis is throughput. */
+            etaSeconds: number | null;
+            /** @description done/total capped at 100 with one decimal; null without a total. */
+            percent: number | null;
+            /** @description Total work in the same unit; null while unknown. inventory_scan learns it only when enumeration completes; catalog_sync and consistency_check never report one. Kinds that count at admission (catalog_import, nfo_write, nfo_apply, nfo_export, image_refresh) estimate it then, so the work list may change while the job runs. */
+            total: number | null;
+            totalKnownAt: string | null;
         };
         KnownClient: {
             activeSessions: number;

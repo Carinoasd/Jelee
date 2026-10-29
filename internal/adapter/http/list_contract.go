@@ -112,7 +112,7 @@ var listContracts = func() map[string]*listContract {
 			Filters: []string{"libraryId", "parentId", "type", "q"}, Paging: pagingKeyset, DefaultLimit: 50, MaxLimit: itemsPageMax, OffsetMax: domain.BrowseOffsetMax},
 		keyset("/api/v1/users", "users", userFields, "id", "asc", 50, 100, "includeDeleted"),
 		keyset("/api/v1/sessions", "sessions", sessionFields, "id", "asc", 50, 100),
-		keyset("/api/v1/jobs", "jobs", []string{"attempts", "bytes", "cancelRequested", "createdAt", "directories", "errorCode", "files", "finishedAt", "id", "kind", "libraryId", "missing", "priority", "reviewRequired", "skipped", "startedAt", "state"}, "id", "asc", 50, 100, "state"),
+		keyset("/api/v1/jobs", "jobs", []string{"attempts", "bytes", "cancelRequested", "createdAt", "directories", "errorCode", "files", "finishedAt", "id", "kind", "libraryId", "missing", "priority", "progress", "reviewRequired", "skipped", "startedAt", "state"}, "id", "asc", 50, 100, "state"),
 		keyset("/api/v1/jobs/{id}/entries", "entries", []string{"id", "kind", "modifiedUnixNano", "path", "rootId", "size"}, "id", "asc", 50, 100),
 		keyset("/api/v1/libraries", "libraries", []string{"id", "name", "roots"}, "id", "asc", 50, 100),
 		keyset("/api/v1/libraries/{id}/catalog-sync/pending", "entries", []string{"absolute", "confidence", "decision", "episode", "episodeEnd", "id", "kind", "path", "reason", "rootId", "season", "special", "title", "year"}, "id", "asc", 50, 100),

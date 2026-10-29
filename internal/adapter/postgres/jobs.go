@@ -4,21 +4,49 @@ import (
 	"context"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/MoYuanCN/Jelee/internal/domain"
 	"github.com/jackc/pgx/v5"
 )
 
-const jobColumns = `id::text,library_id::text,kind,state,priority,attempts,cancel_requested,files,directories,skipped,bytes,missing,review_required,error_code,created_at,started_at,finished_at`
+// jobColumns ends with the progress estimate inputs (migration 000101); the
+// mark age is read on the database clock so app/database skew cannot shift it.
+const jobColumns = `id::text,library_id::text,kind,state,priority,attempts,cancel_requested,files,directories,skipped,bytes,missing,review_required,error_code,created_at,started_at,finished_at,progress_total,progress_total_at,rate_ema,rate_samples,extract(epoch FROM clock_timestamp()-rate_mark_at)::double precision`
 const listInventorySQL = `SELECT id::text,root_id::text,path,kind,size,modified_unix_nano FROM job_inventory WHERE job_id=$1::uuid AND id>COALESCE(NULLIF($2,'')::uuid,'00000000-0000-0000-0000-000000000000'::uuid) ORDER BY job_inventory.id LIMIT $3`
 
+// jobRow collects one jobColumns row; finish projects the progress estimate.
+type jobRow struct {
+	rate  domain.JobRate
+	since *float64
+}
+
+// jobScanTargets reads a jobColumns row without a progress projection, for
+// callers that act on the job rather than publish it.
 func jobScanTargets(j *domain.Job) []any {
-	return []any{&j.ID, &j.LibraryID, &j.Kind, &j.State, &j.Priority, &j.Attempts, &j.CancelRequested, &j.Files, &j.Directories, &j.Skipped, &j.Bytes, &j.Missing, &j.ReviewRequired, &j.ErrorCode, &j.CreatedAt, &j.StartedAt, &j.FinishedAt}
+	var ignored jobRow
+	return jobRowTargets(j, &ignored)
+}
+func jobRowTargets(j *domain.Job, r *jobRow) []any {
+	return []any{&j.ID, &j.LibraryID, &j.Kind, &j.State, &j.Priority, &j.Attempts, &j.CancelRequested, &j.Files, &j.Directories, &j.Skipped, &j.Bytes, &j.Missing, &j.ReviewRequired, &j.ErrorCode, &j.CreatedAt, &j.StartedAt, &j.FinishedAt,
+		&r.rate.Total, &r.rate.TotalKnownAt, &r.rate.EMA, &r.rate.Samples, &r.since}
+}
+func (r *jobRow) finish(j *domain.Job) {
+	if r.since != nil && *r.since >= 0 && *r.since < 1e9 {
+		age := time.Duration(*r.since * float64(time.Second))
+		r.rate.SinceSample = &age
+	}
+	progress := domain.ProjectJobProgress(*j, r.rate)
+	j.Progress = &progress
 }
 func scanJob(row pgx.Row) (domain.Job, error) {
 	var j domain.Job
-	err := row.Scan(jobScanTargets(&j)...)
-	return j, storageError(err)
+	var r jobRow
+	if err := row.Scan(jobRowTargets(&j, &r)...); err != nil {
+		return j, storageError(err)
+	}
+	r.finish(&j)
+	return j, nil
 }
 func validJobPolicy(p domain.JobPolicy) bool {
 	return p.QueueLimit >= 1 && p.QueueLimit <= 1000 && p.HistoryLimit >= 1 && p.HistoryLimit <= 100 && p.MaxEntries >= 100 && p.MaxEntries <= 500000 && p.MaxDirectories >= 1 && p.MaxDirectories <= 100000 && p.MaxAttempts >= 1 && p.MaxAttempts <= 10 && p.MissingCountLimit >= 1 && p.MissingCountLimit <= 500000 && p.MissingPercentLimit >= 1 && p.MissingPercentLimit <= 100
