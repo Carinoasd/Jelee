@@ -207,6 +207,8 @@ jobs:
         run: make commit-lint COMMIT_RANGE="${{ steps.range.outputs.range }}"
       - name: Secrets in the added lines
         run: make secret-scan-range COMMIT_RANGE="${{ steps.range.outputs.range }}"
+      - name: Media name parser changes add naming table cases (G21.4)
+        run: make naming-guard COMMIT_RANGE="${{ steps.range.outputs.range }}"
 
   bench-regression:
     # G26.4 / G38.1 performance gate. Base and head run alternately on this
