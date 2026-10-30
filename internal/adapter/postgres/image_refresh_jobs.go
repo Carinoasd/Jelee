@@ -256,8 +256,8 @@ func recordImageRefreshResult(ctx context.Context, tx pgx.Tx, library string, r 
 		status = &f.Status
 	}
 	tag, err := tx.Exec(ctx, `INSERT INTO item_image_fetch_failures(image_id,remote_url,failures,reason,http_status,attempted_at,retry_at)
- SELECT g.id,g.remote_url,$4,$5,$6,clock_timestamp(),clock_timestamp()+$7*interval '1 microsecond'
- FROM item_images g WHERE g.id=$1::uuid AND g.item_id=$2::uuid AND g.library_id=$8::uuid AND g.remote_url=$3 AND `+imageRefreshCandidate+`
+ SELECT g.id,g.remote_url,$4,$5,$6,n.at,n.at+$7*interval '1 microsecond'
+ FROM item_images g CROSS JOIN (SELECT clock_timestamp() AS at) n WHERE g.id=$1::uuid AND g.item_id=$2::uuid AND g.library_id=$8::uuid AND g.remote_url=$3 AND `+imageRefreshCandidate+`
  ON CONFLICT(image_id) DO UPDATE SET remote_url=EXCLUDED.remote_url,failures=EXCLUDED.failures,reason=EXCLUDED.reason,http_status=EXCLUDED.http_status,attempted_at=EXCLUDED.attempted_at,retry_at=EXCLUDED.retry_at`,
 		c.ImageID, c.ItemID, c.URL, r.Failures, f.Reason, status, r.RetryDelay.Microseconds(), library)
 	if err != nil {
