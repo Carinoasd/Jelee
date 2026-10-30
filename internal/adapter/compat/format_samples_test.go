@@ -288,9 +288,9 @@ type formatSample struct {
 }
 
 // compatTextSubtitles says which subtitle codecs the compatibility layer
-// reports as text streams. MicroDVD is text on disk but is reported as a
-// non-text stream today (recorded in docs/fixtures.md).
-var compatTextSubtitles = map[string]bool{"srt": true, "ass": true, "ssa": true, "webvtt": true, "ttml": true, "sami": true, "microdvd": false, "vobsub": false, "pgs": false}
+// reports as text streams: every text format, MicroDVD included; only the
+// bitmap formats are not.
+var compatTextSubtitles = map[string]bool{"srt": true, "ass": true, "ssa": true, "webvtt": true, "ttml": true, "sami": true, "microdvd": true, "vobsub": false, "pgs": false}
 
 // extensionCodec is what the extension alone names for audio, used when the
 // sample is not probed (no ffprobe on the machine).
