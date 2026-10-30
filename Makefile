@@ -13,6 +13,8 @@ BENCH_TIME ?= 500ms
 BENCH_CURRENT ?= .testdata/bench-current.txt
 BENCH_BASELINE ?= docs/evidence/bench-baseline.txt
 BENCHGATE_FLAGS ?=
+BENCH_DIRECT_DIR ?= .testdata/direct-bench
+BENCH_DIRECT_OUT ?= .testdata/direct-latency.txt
 # Same-runner regression gate: base commit vs working tree (CI passes the PR
 # base or the previous push); see docs/quality-gates.md.
 BENCH_BASE_REF ?=
@@ -33,7 +35,7 @@ COVER_PKGS = $(shell $(PYTHON) -c 'import json; print(" ".join("./" + p["path"] 
 NPM := $(CURDIR)/.bin/npm
 WEB := --workspace @jelee/web
 
-.PHONY: backup-drill backup-scale image-memory-test image-memory-smoke-test scan-memory-test scan-memory-smoke-test runtime-memory-test runtime-memory-worker-test memory-contract-test i18n-check family-ignore-sustained-worker-test ignore-sustained-test init bootstrap bootstrap-media bootstrap-matroska matroska-tools-verify matroska-toolchain-test bootstrap-ocr ocr-tools-verify ocr-toolchain-test bootstrap-runtime runtime-tools-verify runtime-toolchain-test probe-runtime-test probe-worker-test nfo-worker-test family-ignore-worker-test ignore-oracle-test sandbox-test tools-verify media-tools-verify tools-clean fixtures fixtures-test build test test-race test-integration coverage fmt fmt-check lint toolchain-test media-toolchain-test brand-scan brand-scan-incremental gitignore-check openapi openapi-check migrate doctor bench bench-check benchgate-test doc-check dev nfo diag web-install web-build web-budget web-test web-lint web-types bootstrap-playwright playwright-verify web-e2e web-visual web-visual-update test-race-nonpostgres test-race-postgres-shard go-test-shard-test golangci-lint lint-baseline-prune coverage-check coverage-ratchet bench-compare quality-gates-test migration-lock migration-lock-check hooks text-check secret-scan secret-scan-history secret-scan-range commit-lint release-check release-dry-run
+.PHONY: backup-drill backup-scale image-memory-test image-memory-smoke-test scan-memory-test scan-memory-smoke-test runtime-memory-test runtime-memory-worker-test memory-contract-test i18n-check family-ignore-sustained-worker-test ignore-sustained-test init bootstrap bootstrap-media bootstrap-matroska matroska-tools-verify matroska-toolchain-test bootstrap-ocr ocr-tools-verify ocr-toolchain-test bootstrap-runtime runtime-tools-verify runtime-toolchain-test probe-runtime-test probe-worker-test nfo-worker-test family-ignore-worker-test ignore-oracle-test sandbox-test tools-verify media-tools-verify tools-clean fixtures fixtures-test build test test-race test-integration coverage fmt fmt-check lint toolchain-test media-toolchain-test brand-scan brand-scan-incremental gitignore-check openapi openapi-check migrate doctor bench bench-check bench-direct benchgate-test doc-check dev nfo diag web-install web-build web-budget web-test web-lint web-types bootstrap-playwright playwright-verify web-e2e web-visual web-visual-update test-race-nonpostgres test-race-postgres-shard go-test-shard-test golangci-lint lint-baseline-prune coverage-check coverage-ratchet bench-compare quality-gates-test migration-lock migration-lock-check hooks text-check secret-scan secret-scan-history secret-scan-range commit-lint release-check release-dry-run
 init: bootstrap
 bootstrap:
 	sh scripts/bootstrap-tools
@@ -137,6 +139,14 @@ bench:
 # Fail when a median regresses past the thresholds (ns/op +15%, allocs/op +10%).
 bench-check: bench
 	"$(GO)" run ./tools/benchgate -base "$(BENCH_BASELINE)" -current "$(BENCH_CURRENT)" $(BENCHGATE_FLAGS)
+# Local direct-delivery first-byte, seek and concurrency baseline over loopback
+# TCP (G10, B1). Development-machine numbers, never gated and never an
+# acceptance result; BENCH_DIRECT_DIR must be a disk-backed directory for the
+# cold-cache rows to mean anything.
+bench-direct:
+	mkdir -p "$(dir $(BENCH_DIRECT_OUT))"
+	JELEE_PERF_DIR="$(CURDIR)/$(BENCH_DIRECT_DIR)" JELEE_PERF_OUT="$(CURDIR)/$(BENCH_DIRECT_OUT)" "$(GO)" test -tags perf -p 1 -count=1 -run '^TestDirectBaseline$$' -v ./internal/adapter/media
+	@echo "direct delivery baseline written to $(BENCH_DIRECT_OUT)"
 benchgate-test:
 	"$(GO)" test -count=1 ./tools/benchgate
 # Run on the same runner: base commit and head alternate, medians gated with
