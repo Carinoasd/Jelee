@@ -156,7 +156,7 @@ func TestCompatPlaybackPostgres(t *testing.T) {
 	}
 	// A client that cannot play the original is told so; nothing else is offered.
 	w = serve(http.MethodPost, "/compat/Items/"+itemWire+"/PlaybackInfo", `{"DeviceProfile":{"DirectPlayProfiles":[{"Container":"mp4","Type":"Video"}],"TranscodingProfiles":[{"Container":"ts","Protocol":"hls"}]}}`, auth)
-	if w.Code != http.StatusOK || w.Body.String() != `{"MediaSources":[],"ErrorCode":"NoCompatibleStream"}` {
+	if w.Code != http.StatusOK || w.Body.String() != `{"MediaSources":[],"ErrorCode":"NoCompatibleStream","JeleeUnsupportedReasons":["ContainerNotSupported"]}` {
 		t.Fatalf("no compatible stream: %d %s", w.Code, w.Body.String())
 	}
 	// A real conversion request on PlaybackInfo is still refused.

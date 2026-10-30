@@ -145,7 +145,7 @@ func TestPlaybackSelectionHTTPPostgres(t *testing.T) {
 		t.Fatalf("mkv-only client: %d %s", w.Code, w.Body.String())
 	}
 	w = request("POST", "/compat/Items/"+leakWire(item)+"/PlaybackInfo", `{"DeviceProfile":{"DirectPlayProfiles":[{"Container":"avi","Type":"Video"}]}}`)
-	if w.Code != 200 || w.Body.String() != `{"MediaSources":[],"ErrorCode":"NoCompatibleStream"}` {
+	if w.Code != 200 || w.Body.String() != `{"MediaSources":[],"ErrorCode":"NoCompatibleStream","JeleeUnsupportedReasons":["ContainerNotSupported"]}` {
 		t.Fatalf("nothing playable stays NoCompatibleStream: %d %s", w.Code, w.Body.String())
 	}
 	if w = request("GET", "/compat/Items/"+leakWire(item)+"/PlaybackInfo?VideoCodec=h264", ""); w.Code != http.StatusConflict {
