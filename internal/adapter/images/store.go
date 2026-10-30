@@ -143,8 +143,10 @@ type Store struct {
 	now        func() time.Time
 	// A private seam lets tests fail durability before the atomic rename.
 	syncFile func(*os.File) error
-	// Private seams for every rename and remove, so tests can reproduce
-	// platform refusals (Windows: open files, directories holding them).
+	// Private seams for every open, rename and remove below the root, so
+	// tests can reproduce platform refusals (Windows: open files, directories
+	// holding them, names left delete-pending by a removal in progress).
+	openName   func(name string) (*os.File, error)
 	renameName func(oldName, newName string) error
 	removeName func(name string) error
 	// Writers hold tree shared from rename to index insertion. ClearVariants
@@ -196,7 +198,7 @@ func openStoreWith(ctx context.Context, options StoreOptions, configure func(*St
 		return nil, err
 	}
 	s := &Store{root: root, path: filepath.Clean(options.Root), limits: [2]int64{options.OriginalBytes, options.VariantBytes}, maxEntries: options.MaxEntries,
-		now: time.Now, syncFile: (*os.File).Sync, renameName: root.Rename, removeName: root.Remove,
+		now: time.Now, syncFile: (*os.File).Sync, openName: root.Open, renameName: root.Rename, removeName: root.Remove,
 		locks: make(map[storeKey]*storeKeyLock), done: make(chan struct{})}
 	for index := range s.classes {
 		s.classes[index].entries = make(map[storeKey]*list.Element)
@@ -536,6 +538,31 @@ func (s *Store) RemoveVariant(ctx context.Context, source, variant [32]byte) err
 	return nil
 }
 
+// RemoveVariantsOf removes every indexed variant derived from one original
+// and reports how many it removed. The original is kept. A variant written
+// concurrently may survive; it is derived data and ages out like any other.
+func (s *Store) RemoveVariantsOf(ctx context.Context, source [32]byte) (int, error) {
+	if s == nil || ctx == nil {
+		return 0, domain.ErrInvalid
+	}
+	s.mu.Lock()
+	variants := make([][32]byte, 0)
+	for key := range s.classes[storeVariants].entries {
+		if key.source == source {
+			variants = append(variants, key.variant)
+		}
+	}
+	s.mu.Unlock()
+	removed := 0
+	for _, variant := range variants {
+		if err := s.RemoveVariant(ctx, source, variant); err != nil {
+			return removed, err
+		}
+		removed++
+	}
+	return removed, nil
+}
+
 func (s *Store) present(key storeKey) (int64, bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -869,12 +896,24 @@ func (s *Store) open(ctx context.Context, key storeKey, verify bool) (object *St
 	}
 	// os.Root opens with FILE_SHARE_DELETE on Windows, so holding this handle
 	// never blocks eviction or clearing of the file.
-	file, err := s.root.Open(name)
+	file, err := s.openName(name)
 	if errors.Is(err, fs.ErrNotExist) {
 		s.forget(element)
 		return nil, domain.ErrNotFound
 	}
 	if err != nil {
+		// Unix unlinks a name atomically, so a reader racing an eviction or a
+		// clear opens the old file or gets ENOENT. Windows removes a name only
+		// when the deleting handle closes, even with POSIX semantics; until
+		// then the file is delete-pending and opening it fails with
+		// STATUS_DELETE_PENDING, reported as ERROR_ACCESS_DENIED. Without
+		// POSIX semantics that lasts until every reader closes. Every removal
+		// the store starts drops the entry from the index first, so a lookup
+		// that is no longer current lost such a race and is the same miss as
+		// on Unix. A current entry that cannot be opened is still a failure.
+		if !s.current(element) {
+			return nil, domain.ErrNotFound
+		}
 		return nil, domain.ErrImageUnavailable
 	}
 	opened, statErr := file.Stat()
@@ -932,12 +971,24 @@ func storeDigestEqual(digest hash.Hash, want [32]byte) bool {
 	return got == want
 }
 
+// current reports whether element is still the index entry for its key.
+func (s *Store) current(element *list.Element) bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.currentLocked(element)
+}
+
+func (s *Store) currentLocked(element *list.Element) bool {
+	entry := element.Value.(*storeEntry)
+	current, ok := s.classes[entry.key.class].entries[entry.key]
+	return ok && current == element
+}
+
 // forget drops an index entry only if it is still the one that was looked up.
 func (s *Store) forget(element *list.Element) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	entry := element.Value.(*storeEntry)
-	if current, ok := s.classes[entry.key.class].entries[entry.key]; ok && current == element {
+	if s.currentLocked(element) {
 		s.dropLocked(element)
 	}
 }
@@ -970,8 +1021,7 @@ func (s *Store) touch(element *list.Element) {
 	now := s.now()
 	s.mu.Lock()
 	entry := element.Value.(*storeEntry)
-	current, ok := s.classes[entry.key.class].entries[entry.key]
-	if !ok || current != element {
+	if !s.currentLocked(element) {
 		s.mu.Unlock()
 		return
 	}
@@ -1113,7 +1163,7 @@ func (s *Store) ensureDir(name string) error {
 	if err != nil || before.Mode().Type() != os.ModeDir {
 		return domain.ErrImageUnavailable
 	}
-	held, err := s.root.Open(name)
+	held, err := s.openName(name)
 	if err != nil {
 		return domain.ErrImageUnavailable
 	}
@@ -1130,7 +1180,7 @@ func (s *Store) syncDirectory(name string) error {
 	if runtime.GOOS == "windows" {
 		return nil // Directory handles cannot be flushed there; rename is durable via NTFS logging.
 	}
-	directory, err := s.root.Open(name)
+	directory, err := s.openName(name)
 	if err != nil {
 		return err
 	}
@@ -1159,7 +1209,7 @@ func storeDecode(name string) (value [32]byte) {
 // storeEach lists one directory in fixed batches. Entry types come from
 // readdir without following symlinks.
 func (s *Store) storeEach(ctx context.Context, name string, visit func(fs.DirEntry) error) error {
-	directory, err := s.root.Open(name)
+	directory, err := s.openName(name)
 	if err != nil {
 		return domain.ErrImageUnavailable
 	}

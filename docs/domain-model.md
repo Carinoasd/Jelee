@@ -16,7 +16,7 @@ PostgreSQL 是唯一的持久状态（见 [ADR 0005](adr/0005-postgresql-only-st
 | Movie、Series、Season、Episode、HomeVideo | `items`（`kind` 列）、`item_parent_links` | 五种条目放在同一张表，`kind` 的 CHECK 约束只接受这五个值。`HomeVideo` 就是需求里的“其他视频”。层级关系另存于 `item_parent_links`：Season 的父项必须是 Series，Episode 的父项可以是 Series 或 Season；父子必须在同一媒体库 | [目录 API](catalog-api.md)、[导入的视频类型](import-video-kinds.md) |
 | 条目元数据 | `item_metadata_state`、`item_metadata_fields`、`item_metadata_facts` | 字段值、来源（扫描、NFO、TMDB、手动）和字段锁。`items` 只存标题与类型，其余元数据都在这三张表 | [条目元数据](item-metadata.md)、[NFO 兼容性](nfo-compatibility.md) |
 | MediaSource（媒体源/版本） | `media_sources`、`item_primary_versions`、`media_sidecar_tracks` | 一个条目可以有多个版本（多个文件）。`item_primary_versions` 记录主版本，外挂字幕和音轨挂在媒体源下。媒体源只记录根目录加相对路径，不存绝对路径 | [条目版本](item-versions.md)、[媒体元数据](media-metadata.md) |
-| 图片 | `item_images` | 每个条目每种图片类型的槽位，以及来源（local/nfo/remote/embedded）和锁定状态 | [图片资产](image-assets.md) |
+| 图片 | `item_images` | 每个条目每种图片类型的槽位，以及来源（local/nfo/remote/embedded/upload）和锁定状态 | [图片资产](image-assets.md) |
 | Collection（合集） | `collections`、`collection_items` | 由管理员维护，成员可以是 Movie、Series、HomeVideo | [合集与播放清单](collections-playlists.md) |
 | Playlist（播放清单） | `playlists`、`playlist_items` | 属于某个用户，成员可以是 Movie、Episode、HomeVideo，同一条目可以重复出现，按 `position` 排序 | [合集与播放清单](collections-playlists.md) |
 | UserData（用户数据） | `user_item_data` | 每个用户对每个**逻辑条目**的续播点、已播放标记、播放次数、最后播放的版本。进度属于条目而不属于文件，同一条目的所有版本共用一份 | [播放会话与进度](playback-progress.md) |

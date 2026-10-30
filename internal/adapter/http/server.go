@@ -328,6 +328,9 @@ func newServer(cfg config.Config, backend Backend, catalog *app.Catalog, resolve
 	}
 	if cfg.EnableImages {
 		s.imageRoutes(r)
+		if cfg.EnableAccounts && cfg.EnableCatalog {
+			s.imageAdminRoutes(r)
+		}
 	}
 	if s.metadata != nil && cfg.TMDBAPIKey != "" {
 		s.metadataRoutes(r)
@@ -868,7 +871,7 @@ func WriteError(w http.ResponseWriter, r *http.Request, err error) {
 		status, code, message = 409, "devmode_toggle_unavailable", "This developer mode option is not available in this build."
 	case errors.Is(err, errLogComponentMandatory):
 		status, code, message = 409, "log_component_mandatory", "The audit and security logs cannot be lowered or disabled."
-	case errors.Is(err, errConfirmationRequired):
+	case errors.Is(err, errConfirmationRequired), errors.Is(err, domain.ErrConfirmationRequired):
 		status, code, message = 400, "confirmation_required", "This operation is dangerous and needs an explicit confirmation."
 	case errors.Is(err, domain.ErrForbidden):
 		status, code, message = 403, "forbidden", "Operation is not permitted."

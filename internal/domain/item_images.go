@@ -12,13 +12,20 @@ import (
 )
 
 // Image source kinds in G40.10 priority order: local files beat NFO
-// references, which beat external fetches; embedded artwork is last.
+// references, which beat external fetches, then embedded artwork. An
+// administrator upload (G40.11) ranks last: the upload API locks it, and
+// only the lock makes it win over the automatic sources.
 const (
 	ImageSourceLocal    = "local"
 	ImageSourceNFO      = "nfo"
 	ImageSourceRemote   = "remote"
 	ImageSourceEmbedded = "embedded"
+	ImageSourceUpload   = "upload"
 )
+
+// ItemImageSourceKinds is the number of source kinds; a slot holds at most
+// one row of each.
+const ItemImageSourceKinds = 5
 
 const (
 	ItemImageMaxIndex         = 9999
@@ -47,7 +54,8 @@ func ValidItemImageSlot(imageType string, index int) bool {
 }
 
 func ValidItemImageSourceKind(value string) bool {
-	return value == ImageSourceLocal || value == ImageSourceNFO || value == ImageSourceRemote || value == ImageSourceEmbedded
+	return value == ImageSourceLocal || value == ImageSourceNFO || value == ImageSourceRemote || value == ImageSourceEmbedded ||
+		value == ImageSourceUpload
 }
 
 // ItemImageSourcePriority is the G40.10 rank; lower wins after the lock.
@@ -61,8 +69,10 @@ func ItemImageSourcePriority(kind string) int {
 		return 2
 	case ImageSourceEmbedded:
 		return 3
+	case ImageSourceUpload:
+		return 4
 	}
-	return 4
+	return 5
 }
 
 // ItemImageContent describes the bytes kept in the image store. A nil
@@ -187,6 +197,18 @@ type ItemImageIngestPage struct {
 	Created, Updated, Removed int
 	Skipped                   int
 	Stale                     bool
+}
+
+// ItemImageChange is the outcome of an administrator image change (G40.11).
+// Image is the written row (zero after a deletion), Removed the rows a
+// deletion dropped. Released lists the content digests that no item_images
+// row references any more: their Jelee-generated variants may be cleared.
+// Originals, and every file in a library, are never removed.
+type ItemImageChange struct {
+	Image    ItemImage
+	Created  bool
+	Removed  []ItemImage
+	Released [][32]byte
 }
 
 // ImageVariant is one entry of the variant store index.
@@ -334,6 +356,9 @@ func ValidItemImageInput(value ItemImageInput) bool {
 		return root && !remote
 	case ImageSourceRemote:
 		return remote && !root
+	case ImageSourceUpload:
+		// Uploaded bytes exist only in the image store; only a user adds them.
+		return !root && !remote && value.Content != nil && value.Manual
 	default:
 		return root != remote && (!root || validItemImageFileName(value.RelativePath))
 	}

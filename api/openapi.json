@@ -4146,6 +4146,120 @@
         ],
         "type": "object"
       },
+      "ItemImage": {
+        "additionalProperties": false,
+        "properties": {
+          "bytes": {
+            "format": "int64",
+            "minimum": 1,
+            "type": "integer"
+          },
+          "contentSha256": {
+            "description": "SHA-256 of the stored original, once read or fetched; the immutable tag of /images.",
+            "pattern": "^[0-9a-f]{64}$",
+            "type": "string"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "fetchedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "format": {
+            "enum": [
+              "jpeg",
+              "png",
+              "webp",
+              "avif",
+              "gif",
+              "bmp",
+              "tiff"
+            ],
+            "type": "string"
+          },
+          "height": {
+            "maximum": 65535,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "index": {
+            "maximum": 9999,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "locked": {
+            "description": "A locked row wins its slot and is never rewritten by a scan or refresh. At most one per slot.",
+            "type": "boolean"
+          },
+          "reference": {
+            "description": "What the row points at: a library file, a URL, or bytes held only in the image store. Paths and URLs are never returned.",
+            "enum": [
+              "file",
+              "url",
+              "store"
+            ],
+            "type": "string"
+          },
+          "sourceKind": {
+            "description": "G40.10 order after the lock: local, nfo, remote, embedded, upload.",
+            "enum": [
+              "local",
+              "nfo",
+              "remote",
+              "embedded",
+              "upload"
+            ],
+            "type": "string"
+          },
+          "type": {
+            "description": "Stored type; Fanart is stored as Backdrop.",
+            "enum": [
+              "Primary",
+              "Backdrop",
+              "Logo",
+              "ClearLogo",
+              "Banner",
+              "ClearArt",
+              "Art",
+              "Disc",
+              "Thumb",
+              "Landscape",
+              "Chapter",
+              "Box",
+              "BoxRear",
+              "Menu",
+              "Profile"
+            ],
+            "type": "string"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "width": {
+            "maximum": 65535,
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "type",
+          "index",
+          "sourceKind",
+          "reference",
+          "locked",
+          "createdAt",
+          "updatedAt"
+        ],
+        "type": "object"
+      },
       "ItemMetadata": {
         "additionalProperties": false,
         "properties": {
@@ -23585,6 +23699,1130 @@
           }
         ],
         "summary": "Read the display metadata of a visible item"
+      }
+    },
+    "/api/v1/items/{id}/images": {
+      "get": {
+        "description": "Administrator only; other users get 403 forbidden before any lookup. Every row of every slot, best source first within a slot (the lock, then G40.10 order). Rows that cannot be served yet (a URL without stored bytes) are included.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "items": {
+                        "$ref": "#/components/schemas/ItemImage"
+                      },
+                      "type": "array"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Image rows"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "invalid_request": {
+                    "$ref": "#/components/examples/error_invalid_request"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 400"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "authentication_required": {
+                    "$ref": "#/components/examples/error_authentication_required"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 401"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "forbidden": {
+                    "$ref": "#/components/examples/error_forbidden"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 403"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "not_found": {
+                    "$ref": "#/components/examples/error_not_found"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "The item is missing or not visible to the administrator (both answered alike), the slot has no matching row, or image_unavailable."
+          },
+          "408": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "request_timeout": {
+                    "$ref": "#/components/examples/error_request_timeout"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 408"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "not_ready": {
+                    "$ref": "#/components/examples/error_not_ready"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 503"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "internal_error": {
+                    "$ref": "#/components/examples/error_internal_error"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Jelee error envelope with code, message, details and traceId; see the Error schema."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "webSession": []
+          }
+        ],
+        "summary": "List the image rows of an item",
+        "x-jelee-role": "administrator"
+      }
+    },
+    "/api/v1/items/{id}/images/{type}": {
+      "delete": {
+        "description": "Administrator only; other users get 403 forbidden before any lookup. Removes the slot's row of one source, or every row when source is omitted. Always needs confirm=true, otherwise 400 confirmation_required. Only references go: library files and stored originals are kept (G40.11); the variants Jelee generated from content nothing references any more are cleared. A library or NFO image is found again by the next scan. Audited as image.deleted per row.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Image type. Fanart is an alias of Backdrop.",
+            "in": "path",
+            "name": "type",
+            "required": true,
+            "schema": {
+              "enum": [
+                "Primary",
+                "Backdrop",
+                "Fanart",
+                "Logo",
+                "ClearLogo",
+                "Banner",
+                "ClearArt",
+                "Art",
+                "Disc",
+                "Thumb",
+                "Landscape",
+                "Chapter",
+                "Box",
+                "BoxRear",
+                "Menu",
+                "Profile"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "description": "Gallery position, as for /images. Only Backdrop (Fanart) and Chapter accept a non-zero index.",
+            "in": "query",
+            "name": "index",
+            "schema": {
+              "default": 0,
+              "maximum": 9999,
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Delete only this source's row; omit for every row of the slot.",
+            "in": "query",
+            "name": "source",
+            "required": false,
+            "schema": {
+              "enum": [
+                "local",
+                "nfo",
+                "remote",
+                "embedded",
+                "upload"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "description": "Required true; otherwise 400 confirmation_required.",
+            "in": "query",
+            "name": "confirm",
+            "schema": {
+              "default": false,
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Deleted"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "invalid_request": {
+                    "$ref": "#/components/examples/error_invalid_request"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 400"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "authentication_required": {
+                    "$ref": "#/components/examples/error_authentication_required"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 401"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "forbidden": {
+                    "$ref": "#/components/examples/error_forbidden"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 403"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "not_found": {
+                    "$ref": "#/components/examples/error_not_found"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "The item is missing or not visible to the administrator (both answered alike), the slot has no matching row, or image_unavailable."
+          },
+          "408": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "request_timeout": {
+                    "$ref": "#/components/examples/error_request_timeout"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 408"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "not_ready": {
+                    "$ref": "#/components/examples/error_not_ready"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 503"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "internal_error": {
+                    "$ref": "#/components/examples/error_internal_error"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Jelee error envelope with code, message, details and traceId; see the Error schema."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "webSession": []
+          }
+        ],
+        "summary": "Delete the artwork references of an item slot",
+        "x-jelee-role": "administrator"
+      },
+      "post": {
+        "description": "Administrator only; other users get 403 forbidden before any lookup. The body is the image itself. It is never trusted: the format is sniffed, the header inspected against the processing memory budget and the whole image decoded before its bytes enter the content-addressed image store. JPEG, PNG, WebP, GIF, BMP and TIFF are accepted; AVIF and anything else is 415 image_unsupported, a body above the source limit 413 image_too_large. The upload becomes the slot's upload row and is locked, so it wins over library, NFO, remote and embedded artwork, which stay as fallbacks. A slot that already has any row is a replacement and needs confirm=true, otherwise 400 confirmation_required and nothing is read or stored. Without a configured image store the request is 404 image_unavailable; a full processing pool is 503 image_busy. Library files are never written or removed. Audited as image.added or image.replaced, plus image.unlocked for a lock handed over. Variants generated from a previous upload that nothing references any more are cleared.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Image type. Fanart is an alias of Backdrop.",
+            "in": "path",
+            "name": "type",
+            "required": true,
+            "schema": {
+              "enum": [
+                "Primary",
+                "Backdrop",
+                "Fanart",
+                "Logo",
+                "ClearLogo",
+                "Banner",
+                "ClearArt",
+                "Art",
+                "Disc",
+                "Thumb",
+                "Landscape",
+                "Chapter",
+                "Box",
+                "BoxRear",
+                "Menu",
+                "Profile"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "description": "Gallery position, as for /images. Only Backdrop (Fanart) and Chapter accept a non-zero index.",
+            "in": "query",
+            "name": "index",
+            "schema": {
+              "default": 0,
+              "maximum": 9999,
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Required true when the slot already has an image; otherwise 400 confirmation_required.",
+            "in": "query",
+            "name": "confirm",
+            "schema": {
+              "default": false,
+              "type": "boolean"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/octet-stream": {
+              "schema": {
+                "format": "binary",
+                "type": "string"
+              }
+            },
+            "image/*": {
+              "schema": {
+                "format": "binary",
+                "type": "string"
+              }
+            }
+          },
+          "description": "Raw image bytes with an image/* or application/octet-stream Content-Type and a Content-Length of at most the configured source limit.",
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ItemImage"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "The slot's previous upload was replaced."
+          },
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ItemImage"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "The slot was empty; the upload is its first row."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "invalid_request": {
+                    "$ref": "#/components/examples/error_invalid_request"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 400"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "authentication_required": {
+                    "$ref": "#/components/examples/error_authentication_required"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 401"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "forbidden": {
+                    "$ref": "#/components/examples/error_forbidden"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 403"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "not_found": {
+                    "$ref": "#/components/examples/error_not_found"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "The item is missing or not visible to the administrator (both answered alike), the slot has no matching row, or image_unavailable."
+          },
+          "408": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "request_timeout": {
+                    "$ref": "#/components/examples/error_request_timeout"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 408"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "body_too_large": {
+                    "$ref": "#/components/examples/error_body_too_large"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 413"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "unsupported_media_type": {
+                    "$ref": "#/components/examples/error_unsupported_media_type"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 415"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "not_ready": {
+                    "$ref": "#/components/examples/error_not_ready"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Processing admission or storage is unavailable. Busy responses include Retry-After.",
+            "headers": {
+              "Retry-After": {
+                "schema": {
+                  "minimum": 1,
+                  "type": "integer"
+                }
+              }
+            }
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "internal_error": {
+                    "$ref": "#/components/examples/error_internal_error"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Jelee error envelope with code, message, details and traceId; see the Error schema."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "webSession": []
+          }
+        ],
+        "summary": "Upload or replace the artwork of an item slot",
+        "x-jelee-limits": {
+          "maxSourceBytes": 16777216,
+          "timeoutSeconds": 15
+        },
+        "x-jelee-role": "administrator"
+      }
+    },
+    "/api/v1/items/{id}/images/{type}/lock": {
+      "post": {
+        "description": "Administrator only; other users get 403 forbidden before any lookup. The row then wins the slot whatever its source, and scans and refreshes never rewrite it (G40.10). The lock is handed over from any other source of the slot. Audited as image.locked, plus image.unlocked for the previous lock. Unchanged when the row already has the requested state.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Image type. Fanart is an alias of Backdrop.",
+            "in": "path",
+            "name": "type",
+            "required": true,
+            "schema": {
+              "enum": [
+                "Primary",
+                "Backdrop",
+                "Fanart",
+                "Logo",
+                "ClearLogo",
+                "Banner",
+                "ClearArt",
+                "Art",
+                "Disc",
+                "Thumb",
+                "Landscape",
+                "Chapter",
+                "Box",
+                "BoxRear",
+                "Menu",
+                "Profile"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "description": "Gallery position, as for /images. Only Backdrop (Fanart) and Chapter accept a non-zero index.",
+            "in": "query",
+            "name": "index",
+            "schema": {
+              "default": 0,
+              "maximum": 9999,
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "The source kind whose row changes.",
+            "in": "query",
+            "name": "source",
+            "required": true,
+            "schema": {
+              "enum": [
+                "local",
+                "nfo",
+                "remote",
+                "embedded",
+                "upload"
+              ],
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Empty"
+              }
+            }
+          },
+          "description": "An empty JSON object.",
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ItemImage"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "The row after the change"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "invalid_request": {
+                    "$ref": "#/components/examples/error_invalid_request"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 400"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "authentication_required": {
+                    "$ref": "#/components/examples/error_authentication_required"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 401"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "forbidden": {
+                    "$ref": "#/components/examples/error_forbidden"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 403"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "not_found": {
+                    "$ref": "#/components/examples/error_not_found"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "The item is missing or not visible to the administrator (both answered alike), the slot has no matching row, or image_unavailable."
+          },
+          "408": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "request_timeout": {
+                    "$ref": "#/components/examples/error_request_timeout"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 408"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "body_too_large": {
+                    "$ref": "#/components/examples/error_body_too_large"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 413"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "unsupported_media_type": {
+                    "$ref": "#/components/examples/error_unsupported_media_type"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 415"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "not_ready": {
+                    "$ref": "#/components/examples/error_not_ready"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 503"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "internal_error": {
+                    "$ref": "#/components/examples/error_internal_error"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Jelee error envelope with code, message, details and traceId; see the Error schema."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "webSession": []
+          }
+        ],
+        "summary": "Lock one source of an item slot",
+        "x-jelee-role": "administrator"
+      }
+    },
+    "/api/v1/items/{id}/images/{type}/unlock": {
+      "post": {
+        "description": "Administrator only; other users get 403 forbidden before any lookup. The slot falls back to the G40.10 order. Audited as image.unlocked. Unchanged when the row already has the requested state.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Image type. Fanart is an alias of Backdrop.",
+            "in": "path",
+            "name": "type",
+            "required": true,
+            "schema": {
+              "enum": [
+                "Primary",
+                "Backdrop",
+                "Fanart",
+                "Logo",
+                "ClearLogo",
+                "Banner",
+                "ClearArt",
+                "Art",
+                "Disc",
+                "Thumb",
+                "Landscape",
+                "Chapter",
+                "Box",
+                "BoxRear",
+                "Menu",
+                "Profile"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "description": "Gallery position, as for /images. Only Backdrop (Fanart) and Chapter accept a non-zero index.",
+            "in": "query",
+            "name": "index",
+            "schema": {
+              "default": 0,
+              "maximum": 9999,
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "The source kind whose row changes.",
+            "in": "query",
+            "name": "source",
+            "required": true,
+            "schema": {
+              "enum": [
+                "local",
+                "nfo",
+                "remote",
+                "embedded",
+                "upload"
+              ],
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Empty"
+              }
+            }
+          },
+          "description": "An empty JSON object.",
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ItemImage"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "The row after the change"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "invalid_request": {
+                    "$ref": "#/components/examples/error_invalid_request"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 400"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "authentication_required": {
+                    "$ref": "#/components/examples/error_authentication_required"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 401"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "forbidden": {
+                    "$ref": "#/components/examples/error_forbidden"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 403"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "not_found": {
+                    "$ref": "#/components/examples/error_not_found"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "The item is missing or not visible to the administrator (both answered alike), the slot has no matching row, or image_unavailable."
+          },
+          "408": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "request_timeout": {
+                    "$ref": "#/components/examples/error_request_timeout"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 408"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "body_too_large": {
+                    "$ref": "#/components/examples/error_body_too_large"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 413"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "unsupported_media_type": {
+                    "$ref": "#/components/examples/error_unsupported_media_type"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 415"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "not_ready": {
+                    "$ref": "#/components/examples/error_not_ready"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 503"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "internal_error": {
+                    "$ref": "#/components/examples/error_internal_error"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Jelee error envelope with code, message, details and traceId; see the Error schema."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "webSession": []
+          }
+        ],
+        "summary": "Unlock one source of an item slot",
+        "x-jelee-role": "administrator"
       }
     },
     "/api/v1/items/{id}/metadata": {

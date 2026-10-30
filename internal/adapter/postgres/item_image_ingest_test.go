@@ -64,7 +64,7 @@ func ingestedImages(t *testing.T, f jobFixture) map[string]ingestedImage {
 	t.Helper()
 	rows, err := f.s.Pool.Query(f.ctx, `SELECT COALESCE((SELECT m.relative_path FROM media_sources m WHERE m.item_id=g.item_id ORDER BY m.relative_path COLLATE "C" LIMIT 1),
  (SELECT d.relative_path FROM item_directory_sources d WHERE d.item_id=g.item_id)),g.image_type,g.image_index,g.source_kind,g.id::text,
- COALESCE(g.relative_path,g.remote_url),g.locked,g.manual,g.content_sha256 IS NOT NULL,g.updated_at FROM item_images g`)
+ COALESCE(g.relative_path,g.remote_url,''),g.locked,g.manual,g.content_sha256 IS NOT NULL,g.updated_at FROM item_images g`)
 	if err != nil {
 		t.Fatal(err)
 	}

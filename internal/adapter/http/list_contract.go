@@ -156,6 +156,7 @@ var listExemptions = map[string]string{
 	"/api/v1/site/plugins/config":                                           "administrator view of the same plugin switches; one settings document",
 	"/api/v1/collections/{id}":                                              "one collection with its member items: a resource view whose embedded list is bounded by the collection size",
 	"/api/v1/items/{id}/sources":                                            "media sources (versions) of one item, part of the item resource and bounded by its versions",
+	"/api/v1/items/{id}/images":                                             "image rows of one item (administrators), part of the item resource and bounded by its image slots with at most five sources each",
 	"/api/v1/items/{id}/playback":                                           "playback information of one item: its sources with tracks, part of the item resource",
 	"/api/v1/watch-stats/export":                                            "NDJSON or CSV export download; limit only lowers the export row cap (stats.exportMaxRows)",
 }

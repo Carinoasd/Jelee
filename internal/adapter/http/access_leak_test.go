@@ -65,12 +65,14 @@ type leakRoute struct {
 }
 
 var (
-	itemParam   = map[string]string{"id": "item"}
-	sourceParam = map[string]string{"id": "source"}
-	libParam    = map[string]string{"id": "library"}
-	jobParam    = map[string]string{"id": "job"}
-	selfParam   = map[string]string{"id": "self"}
-	tmdbParam   = map[string]string{"id": "tmdb"}
+	itemParam = map[string]string{"id": "item"}
+	// itemImageParam names an item and one of its image types.
+	itemImageParam = map[string]string{"id": "item", "type": "image-type"}
+	sourceParam    = map[string]string{"id": "source"}
+	libParam       = map[string]string{"id": "library"}
+	jobParam       = map[string]string{"id": "job"}
+	selfParam      = map[string]string{"id": "self"}
+	tmdbParam      = map[string]string{"id": "tmdb"}
 	// webhookParam names a webhook endpoint, never media.
 	webhookParam = map[string]string{"id": "opaque"}
 	// shareParam names a share link or a network rule, never media.
@@ -259,8 +261,15 @@ func leakRouteTable() map[string]leakRoute {
 		"GET /api/v1/users/{id}/watch-stats":                 admin(selfParam),
 		"GET /api/v1/watch-stats":                            admin(noParams),
 		"GET /api/v1/watch-stats/export":                     admin(noParams),
-		"GET /images/{type}/{id}":                            {mode: leakByID, params: map[string]string{"type": "image-type", "id": "item"}, control: true},
-		"HEAD /images/{type}/{id}":                           {mode: leakByID, params: map[string]string{"type": "image-type", "id": "item"}, control: true},
+		// G40.10/G40.11 administrator image API: refused with 403 before the
+		// item or slot is looked up.
+		"GET /api/v1/items/{id}/images":                admin(itemParam),
+		"POST /api/v1/items/{id}/images/{type}":        admin(itemImageParam),
+		"DELETE /api/v1/items/{id}/images/{type}":      admin(itemImageParam),
+		"POST /api/v1/items/{id}/images/{type}/lock":   admin(itemImageParam),
+		"POST /api/v1/items/{id}/images/{type}/unlock": admin(itemImageParam),
+		"GET /images/{type}/{id}":                      {mode: leakByID, params: map[string]string{"type": "image-type", "id": "item"}, control: true},
+		"HEAD /images/{type}/{id}":                     {mode: leakByID, params: map[string]string{"type": "image-type", "id": "item"}, control: true},
 
 		// Accounts.
 		"POST /api/v1/auth/login":                        exempt("credential exchange; takes no media identifiers and returns only a session grant"),
@@ -583,6 +592,13 @@ func leakHandlerWithAccounts(t *testing.T, store *postgres.Store, cfg config.Con
 	}
 	if err == nil {
 		images, err = images.WithSummaries(store)
+	}
+	if err == nil {
+		// A renderer that also ingests uploads (the real processor) backs the
+		// administrator image API; the fake renderer leaves uploads unwired.
+		ingester, _ := renderer.(app.ItemImageIngester)
+		cleaner, _ := renderer.(app.ImageVariantCleaner)
+		images, err = images.WithManagement(store, ingester, cleaner)
 	}
 	if err != nil {
 		t.Fatal(err)
