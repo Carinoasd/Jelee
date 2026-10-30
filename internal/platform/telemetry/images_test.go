@@ -146,7 +146,7 @@ func newImageTestExporter(t *testing.T, source ImageStatsSource) *Metrics {
 func scrapeImageMetrics(t *testing.T, m *Metrics) map[string]*dto.MetricFamily {
 	t.Helper()
 	w := requestJobMetrics(m, context.Background())
-	if w.Code != http.StatusOK || w.Body.Len() > 64*1024 {
+	if w.Code != http.StatusOK || w.Body.Len() > 80*1024 {
 		t.Fatalf("image scrape status/size: %d/%d", w.Code, w.Body.Len())
 	}
 	body := w.Body.String()

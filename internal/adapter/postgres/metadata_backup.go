@@ -84,13 +84,13 @@ var metadataBackupExcluded = map[string]string{
 	"nfo_write_commit_attempt_reservations": excludedJob, "nfo_write_commit_attempts": excludedJob, "nfo_write_commit_attempt_checkpoints": excludedJob,
 	"nfo_write_commit_attempt_ready": excludedJob, "nfo_write_commit_recovery_leases": excludedJob, "nfo_write_commit_settlements": excludedJob,
 	"nfo_write_commit_resolutions": excludedJob, "nfo_write_commit_cleanup_leases": excludedJob, "nfo_write_commit_cleanups": excludedJob,
-	"webhook_outbox": excludedJob, "legacy_import_pending": excludedJob, "nfo_apply_job_state": excludedJob, "nfo_export_job_state": excludedJob,
+	"webhook_outbox": excludedJob, "legacy_import_pending": excludedJob, "nfo_apply_job_state": excludedJob, "nfo_export_job_state": excludedJob, "image_refresh_job_state": excludedJob,
 
 	"probe_cache": excludedDerived, "probe_cache_quota": excludedDerived, "probe_library_quota": excludedDerived, "tool_versions": excludedDerived,
 	"nfo_cache": excludedDerived, "nfo_cache_quota": excludedDerived, "nfo_library_quota": excludedDerived, "item_nfo_observations": excludedDerived,
 	"library_inventory_baseline_data": excludedDerived, "inventory_snapshot_preparations": excludedDerived, "inventory_missing_acceptances": excludedDerived,
 	"catalog_scan_pending": excludedDerived, "image_variants": excludedDerived, "media_sidecar_tracks": excludedDerived,
-	"item_embedded_cover_attempts": excludedDerived, "scan_watch_state": excludedDerived,
+	"item_embedded_cover_attempts": excludedDerived, "item_image_fetch_failures": excludedDerived, "scan_watch_state": excludedDerived,
 
 	"playback_sessions": excludedObservation, "playback_samples": excludedObservation, "watch_stats_daily": excludedObservation,
 	"watch_stats_history": excludedObservation, "known_clients": excludedObservation, "known_client_sessions": excludedObservation,

@@ -43,7 +43,7 @@ func (p *Processor) IngestItemImage(ctx context.Context, body io.Reader, size in
 	}
 	// The upload is held in memory instead of the staging file a library
 	// image uses, within the same per-image reservation (see render).
-	limit := min(p.options.MaxSourceBytes, p.options.MaxImageBytes-(1<<20)-2*p.options.MaxOutputBytes)
+	limit := p.ItemImageLimit()
 	if size < 1 {
 		return content, domain.ErrInvalid
 	}
@@ -79,8 +79,61 @@ func (p *Processor) IngestItemImage(ctx context.Context, body io.Reader, size in
 	if readErr != nil || n != 0 {
 		return content, domain.ErrInvalid
 	}
+	return p.keepItemImage(operation, store, data)
+}
 
-	release, err = p.acquireWork(operation, app.WorkCPU)
+// ItemImageLimit is the largest image IngestItemImage and
+// IngestFetchedItemImage accept: the source limit, within one image's
+// working reservation.
+func (p *Processor) ItemImageLimit() int64 {
+	return min(p.options.MaxSourceBytes, p.options.MaxImageBytes-(1<<20)-2*p.options.MaxOutputBytes)
+}
+
+// IngestFetchedItemImage verifies and stores the bytes of one fetched remote
+// image (G40.9) exactly like an upload: the format is sniffed, the header
+// and memory estimate checked and the whole image decoded once before it is
+// kept in the persistent store. The caller already holds the bytes, so only
+// verification and storage run under the processor's admission; a full
+// processor answers ErrImageBusy at once. Without a store it is
+// ErrImageUnavailable.
+func (p *Processor) IngestFetchedItemImage(ctx context.Context, data []byte) (content domain.ItemImageContent, err error) {
+	if p == nil || ctx == nil {
+		return content, domain.ErrInvalid
+	}
+	if err := ctx.Err(); err != nil {
+		return content, err
+	}
+	store := p.options.Store
+	if store == nil {
+		return content, domain.ErrImageUnavailable
+	}
+	if len(data) == 0 {
+		return content, domain.ErrImageUnsupported
+	}
+	if int64(len(data)) > p.ItemImageLimit() {
+		return content, domain.ErrImageTooLarge
+	}
+	if err = p.admit(); err != nil {
+		return content, err
+	}
+	defer p.release()
+	operation, cancel := context.WithTimeout(ctx, p.options.Timeout)
+	defer cancel()
+	stopLifetime := context.AfterFunc(p.lifetime, cancel) //nolint:contextcheck // the processor lifetime also cancels the fetch
+	defer stopLifetime()
+	defer func() {
+		if err != nil {
+			p.failed.Add(1)
+		}
+	}()
+	return p.keepItemImage(operation, store, data)
+}
+
+// keepItemImage verifies data and keeps it in store, under the caller's
+// admission and deadline.
+func (p *Processor) keepItemImage(operation context.Context, store *Store, data []byte) (domain.ItemImageContent, error) {
+	var content domain.ItemImageContent
+	release, err := p.acquireWork(operation, app.WorkCPU)
 	if err != nil {
 		return content, err
 	}
@@ -95,6 +148,7 @@ func (p *Processor) IngestItemImage(ctx context.Context, body io.Reader, size in
 		return content, err
 	}
 	defer release()
+	size := int64(len(data))
 	digest, stored, err := store.PutOriginal(operation, bytes.NewReader(data), size)
 	if err != nil {
 		if operation.Err() != nil {

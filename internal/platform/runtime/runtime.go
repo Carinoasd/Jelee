@@ -242,7 +242,7 @@ func newWithLifetime(cfg config.Config, logger *slog.Logger, lifetime *lifetime)
 			lifetime.closeTelemetry = metrics.Shutdown
 			return metrics, nil
 		},
-		func(c config.Config, store *postgres.Store, budget *resources.Budget, processor *imageadapter.Processor, l *slog.Logger) (*app.Jobs, error) {
+		func(c config.Config, store *postgres.Store, budget *resources.Budget, processor *imageadapter.Processor, l *slog.Logger, dev *devmode.Controller) (*app.Jobs, error) {
 			if !c.EnableJobs {
 				return nil, nil
 			}
@@ -295,6 +295,16 @@ func newWithLifetime(cfg config.Config, logger *slog.Logger, lifetime *lifetime)
 			}
 			// G39.14: the same runner that claims nfo_apply jobs admits them.
 			if service, err = app.NewJobsWithNFOApply(service, store); err != nil {
+				return nil, err
+			}
+			// G40.9: refresh jobs are admitted only where remote fetching and
+			// the image store are configured; every runner claims them, so a
+			// job queued under another configuration fails instead of waiting.
+			refresher, err := prepareImageRefresh(c, processor, dev)
+			if err != nil {
+				return nil, err
+			}
+			if service, err = app.NewJobsWithImageRefresh(service, store, refresher != nil); err != nil {
 				return nil, err
 			}
 			service, err = app.NewJobsWithInventoryImport(service, store, scan.New())
@@ -362,6 +372,11 @@ func newWithLifetime(cfg config.Config, logger *slog.Logger, lifetime *lifetime)
 				return nil, err
 			}
 			opts.NFOApply = &jobworker.NFOApplyOptions{Worker: applyWorker, Repository: store}
+			refreshWorker, err := app.NewImageRefreshWorker(refresher, store, time.Duration(p.DatabaseTimeoutSeconds)*time.Second)
+			if err != nil {
+				return nil, err
+			}
+			opts.ImageRefresh = &jobworker.ImageRefreshOptions{Worker: refreshWorker, Repository: store}
 			if c.EnableNFOWrite {
 				// G39.14: the export prepares like an administrator would and
 				// lets the nfo_write runner above write the files.

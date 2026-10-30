@@ -71,6 +71,7 @@ var auditEvents = map[string]string{
 	"image.added":                          domain.AuditCategoryAudit,
 	"image.deleted":                        domain.AuditCategoryAudit,
 	"image.locked":                         domain.AuditCategoryAudit,
+	"image.refresh_submitted":              domain.AuditCategoryAudit,
 	"image.replaced":                       domain.AuditCategoryAudit,
 	"image.unlocked":                       domain.AuditCategoryAudit,
 	"item.external_metadata_removed":       domain.AuditCategoryAudit,

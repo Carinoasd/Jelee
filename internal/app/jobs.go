@@ -25,6 +25,8 @@ type Jobs struct {
 	nfoWriteJobs          NFOWriteJobRepository
 	nfoApplyJobs          NFOApplyJobRepository
 	nfoExportJobs         NFOExportJobRepository
+	imageRefreshJobs      ImageRefreshJobRepository
+	imageRefreshAdmit     bool
 	nfoQueries            NFOQueryRepository
 	imageQueries          ImageQueryRepository
 	nfoIdentity           *domain.NFOIdentity

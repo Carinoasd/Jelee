@@ -55,6 +55,7 @@ type Options struct {
 	Consistency        *ConsistencyOptions
 	NFOApply           *NFOApplyOptions
 	NFOExport          *NFOExportOptions
+	ImageRefresh       *ImageRefreshOptions
 	// ScanConcurrency bounds directories scanned at once by one inventory job.
 	// Zero or one keeps the sequential loop.
 	ScanConcurrency int
@@ -161,6 +162,13 @@ func New(repository app.JobExecutionRepository, scanner app.InventoryScanner, op
 		}
 		value := *opts.NFOExport
 		opts.NFOExport = &value
+	}
+	if opts.ImageRefresh != nil {
+		if _, ok := repository.(stagesClaimer); !ok || opts.ImageRefresh.Worker == nil || opts.ImageRefresh.Repository == nil {
+			return nil, domain.ErrInvalid
+		}
+		value := *opts.ImageRefresh
+		opts.ImageRefresh = &value
 	}
 	if opts.Ignore != nil {
 		if _, ok := repository.(app.IgnoreExecutionRepository); !ok {
@@ -282,9 +290,9 @@ func (r *Runner) work(ctx context.Context) {
 		var lease domain.JobLease
 		var err error
 		if r.nfoRepository != nil {
-			lease, err = r.nfoRepository.ClaimJobWithCapabilities(dbCtx, r.options.Owner, turn%4 == 3, r.options.LeaseDuration, domain.ScanCapabilities{CatalogImport: r.options.CatalogImport != nil, CatalogSync: r.options.CatalogSync != nil, ConsistencyCheck: r.options.Consistency != nil, NFOApply: r.options.NFOApply != nil, NFOExport: r.options.NFOExport != nil, Probe: r.probeAvailable(), NFO: r.nfoAvailable(), Ignore: r.options.Ignore != nil, FamilyIgnore: r.familyIgnoreAvailable(), NFOWrite: r.options.NFOWrite != nil})
+			lease, err = r.nfoRepository.ClaimJobWithCapabilities(dbCtx, r.options.Owner, turn%4 == 3, r.options.LeaseDuration, domain.ScanCapabilities{CatalogImport: r.options.CatalogImport != nil, CatalogSync: r.options.CatalogSync != nil, ConsistencyCheck: r.options.Consistency != nil, NFOApply: r.options.NFOApply != nil, NFOExport: r.options.NFOExport != nil, ImageRefresh: r.options.ImageRefresh != nil, Probe: r.probeAvailable(), NFO: r.nfoAvailable(), Ignore: r.options.Ignore != nil, FamilyIgnore: r.familyIgnoreAvailable(), NFOWrite: r.options.NFOWrite != nil})
 		} else if capable, ok := r.repository.(stagesClaimer); ok {
-			lease, err = capable.ClaimJobWithCapabilities(dbCtx, r.options.Owner, turn%4 == 3, r.options.LeaseDuration, domain.ScanCapabilities{CatalogImport: r.options.CatalogImport != nil, CatalogSync: r.options.CatalogSync != nil, ConsistencyCheck: r.options.Consistency != nil, NFOApply: r.options.NFOApply != nil, NFOExport: r.options.NFOExport != nil, Probe: r.probeAvailable(), Ignore: r.options.Ignore != nil, FamilyIgnore: r.familyIgnoreAvailable(), NFOWrite: r.options.NFOWrite != nil})
+			lease, err = capable.ClaimJobWithCapabilities(dbCtx, r.options.Owner, turn%4 == 3, r.options.LeaseDuration, domain.ScanCapabilities{CatalogImport: r.options.CatalogImport != nil, CatalogSync: r.options.CatalogSync != nil, ConsistencyCheck: r.options.Consistency != nil, NFOApply: r.options.NFOApply != nil, NFOExport: r.options.NFOExport != nil, ImageRefresh: r.options.ImageRefresh != nil, Probe: r.probeAvailable(), Ignore: r.options.Ignore != nil, FamilyIgnore: r.familyIgnoreAvailable(), NFOWrite: r.options.NFOWrite != nil})
 		} else if r.probeRepository != nil {
 			lease, err = r.probeRepository.ClaimJobWithProbe(dbCtx, r.options.Owner, turn%4 == 3, r.options.LeaseDuration, r.probeAvailable())
 		} else if capable, ok := r.repository.(probeClaimer); ok {
@@ -434,6 +442,8 @@ func jobComponent(kind string) string {
 		return "scan"
 	case domain.JobNFOWrite, domain.JobNFOApply, domain.JobNFOExport:
 		return "nfo"
+	case domain.JobImageRefresh:
+		return "images"
 	}
 	return "jobs"
 }
@@ -571,6 +581,9 @@ func (r *Runner) run(serviceCtx context.Context, lease domain.JobLease) {
 	}
 	if lease.Job.Kind == domain.JobNFOExport && state == domain.JobFailed && code != "job_timeout" {
 		code = "nfo_export_failed"
+	}
+	if lease.Job.Kind == domain.JobImageRefresh && state == domain.JobFailed && code != "job_timeout" {
+		code = "image_refresh_failed"
 	}
 	dbCtx, cancelDB := context.WithTimeout(context.WithoutCancel(serviceCtx), r.options.DBOperationTimeout)
 	defer cancelDB()

@@ -162,6 +162,6 @@ vet、三命令 build、模組 checksum、格式、增量品牌與 gitignore 通
 
 `volume` 是設定鍵名而非路徑，與 `jelee-cli doctor` 的磁碟檢查一致：`tempdir`、`images.tempRoot`、`images.storeRoot`、`logging.file`（只列出已設定者）。檔案系統讀數在收集之外的背景更新，每個目錄最多每 30 秒讀一次、同時只有一個讀取在進行；檔案系統卡住時抓取照常回應、沿用上次讀數，讀不到的目錄不輸出。
 
-工作指標的 `kind` 標籤增加 `consistency_check`（遷移 000074）、`nfo_apply`（遷移 000088）與 `nfo_export`（遷移 000089），共用工作指標固定 14 組 kind／priority、42 個 outcome 點；測試中的工作 exposition 為 22 families／533 series、約 52 KiB，仍在 64 KiB 上限內。匯出任務每次讓出後回到佇列不計入等待或完成，只在首次領取與終止時各記一次。
+工作指標的 `kind` 標籤增加 `consistency_check`（遷移 000074）、`nfo_apply`（遷移 000088）與 `nfo_export`（遷移 000089），共用工作指標固定 14 組 kind／priority、42 個 outcome 點；測試中的工作 exposition 為 22 families／533 series、約 52 KiB，仍在 64 KiB 上限內。匯出任務每次讓出後回到佇列不計入等待或完成，只在首次領取與終止時各記一次。之後 `image_refresh`（遷移 000096）使共用工作指標成為固定 16 組 kind／priority、48 個 outcome 點，測試中的工作 exposition 為 22 families／607 series；最大測試刻度（每個計數 2^40）時約 68 KiB，測試上限因此由 64 KiB 調為 80 KiB。
 
 `internal/platform/telemetry/alerts_test.go` 以與正式端點相同的註冊組合抓取一次 `/metrics`，確認規則檔中每個指標名稱、`by` 分組標籤與註解中引用的標籤都存在。
