@@ -129,4 +129,11 @@ describe("direct check helpers", () => {
     expect(rows.map((row) => row.delivery)).toEqual(["unreadable", "unreadable", "failed"]);
     expect(trackRows(source, undefined).map((row) => row.delivery)).toEqual(["embedded", "embedded", "unprobed"]);
   });
+
+  it("reports an undetermined external subtitle charset from the charset state", () => {
+    const undetermined = { ...source, externalTracks: [{ ...source.externalTracks[0]!, charsetState: "undetermined" as const }] };
+    expect(trackRows(undetermined, decision).at(-1)?.charset).toBe("undetermined");
+    const converted = { ...source, externalTracks: [{ ...source.externalTracks[0]!, charset: "GB18030", charsetState: "convertible" as const }] };
+    expect(trackRows(converted, decision).at(-1)?.charset).toBe("GB18030");
+  });
 });

@@ -126,7 +126,7 @@ export function trackRows(source: MediaSourceInfo, decision: PlaybackDecision | 
       title: track.title,
       delivery,
       reason: verdict?.reason,
-      charset: track.charset,
+      charset: track.charsetState === "undetermined" ? "undetermined" : track.charset,
     });
   }
   return rows;
