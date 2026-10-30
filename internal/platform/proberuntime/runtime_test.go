@@ -174,12 +174,19 @@ func TestHelperAcceptsOnlyCanonicalShippedDescriptors(t *testing.T) {
 		if !expectedDescriptor(encode(`{"version":1,"mode":"cover","ffprobePath":"` + FFprobePath + `","stream":` + strconv.Itoa(stream) + `}`)) {
 			t.Fatal("cover descriptor refused", stream)
 		}
+		if !expectedDescriptor(encode(`{"version":1,"mode":"chapters","ffprobePath":"` + FFprobePath + `","stream":` + strconv.Itoa(stream) + `}`)) {
+			t.Fatal("chapter descriptor refused", stream)
+		}
 	}
 	for _, text := range []string{
 		`{"version":1,"mode":"cover","ffprobePath":"` + FFprobePath + `","stream":16}`,
 		`{"version":1,"mode":"cover","ffprobePath":"/other/ffprobe","stream":0}`,
 		`{"version":1,"mode":"cover","ffprobePath":"` + FFprobePath + `","stream":01}`,
 		`{"version":1,"mode":"cover","ffprobePath":"` + FFprobePath + `"}`,
+		`{"version":1,"mode":"chapters","ffprobePath":"` + FFprobePath + `","stream":16}`,
+		`{"version":1,"mode":"chapters","ffprobePath":"/other/ffprobe","stream":0}`,
+		`{"version":1,"mode":"chapters","ffprobePath":"` + FFprobePath + `"}`,
+		`{"version":1,"mode":"chapter","ffprobePath":"` + FFprobePath + `","stream":0}`,
 	} {
 		if expectedDescriptor(encode(text)) {
 			t.Fatal("non-canonical descriptor accepted", text)
@@ -191,6 +198,17 @@ func TestHelperAcceptsOnlyCanonicalShippedDescriptors(t *testing.T) {
 		if got := Helper([]string{encode(text)}); got != want {
 			t.Fatalf("helper code %d", got)
 		}
+	}
+}
+
+func TestNewChaptersRejectsNilCancelledOrUnregisteredHost(t *testing.T) {
+	if runner, err := NewChapters(nil, t.TempDir()); err != ErrUnavailable || runner != nil {
+		t.Fatal("nil context accepted")
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	if runner, err := NewChapters(ctx, t.TempDir()); err != ErrUnavailable || runner != nil {
+		t.Fatal("cancelled factory accepted")
 	}
 }
 

@@ -18,8 +18,8 @@ const (
 	supportedBuild = true
 )
 
-// execPlan is the fixed per-mode part of a helper launch. Both ffprobe
-// plans (metadata and the embedded cover read) read only their inherited
+// execPlan is the fixed per-mode part of a helper launch. The ffprobe
+// plans (metadata, the embedded cover and the chapter image reads) read only their inherited
 // descriptor; tool plans also reopen that same file object through
 // /proc/self/fd/0, and only extraction may create files, in the private
 // working directory, each bounded by RLIMIT_FSIZE. The OCR plan also reads
@@ -35,8 +35,8 @@ type execPlan struct {
 }
 
 // ffprobePlan is the single ffprobe plan. arguments is the fixed argv of one
-// descriptor mode (metadataArguments or coverArguments), never caller data;
-// every mode shares the same file grants and resource bounds.
+// descriptor mode (metadataArguments, coverArguments or chapterArguments),
+// never caller data; every mode shares the same file grants and resource bounds.
 func ffprobePlan(arguments []string) execPlan {
 	return execPlan{args: append([]string{"ffprobe"}, arguments...), cpu: 30}
 }

@@ -73,6 +73,7 @@ func imageProcessorMetrics() []imageMetric {
 		{name: "jelee.images.decodes", description: "Source images decoded since process start.", counter: true, values: imageCounter(func(s imageSnapshot) uint64 { return s.processor.Decodes })},
 		{name: "jelee.images.cache.hits", description: "Rendered image memory cache hits since process start.", counter: true, values: imageCounter(func(s imageSnapshot) uint64 { return s.processor.CacheHits })},
 		{name: "jelee.images.cache.misses", description: "Rendered image memory cache misses since process start.", counter: true, values: imageCounter(func(s imageSnapshot) uint64 { return s.processor.CacheMisses })},
+		{name: "jelee.images.variants.generated", description: "Image variants rendered from a decoded source because neither the memory cache nor the store had them, since process start.", counter: true, values: imageCounter(func(s imageSnapshot) uint64 { return s.processor.Generated })},
 		{name: "jelee.images.cache.evictions", description: "Rendered images evicted from the memory cache since process start.", counter: true, values: imageCounter(func(s imageSnapshot) uint64 { return s.processor.CacheEvictions })},
 		{name: "jelee.images.cache.entries", description: "Rendered images held in the memory cache.", values: func(s imageSnapshot) []int64 { return imageValue(int64(s.processor.CacheEntries)) }},
 		{name: "jelee.images.cache.usage", unit: "By", description: "Encoded bytes held in the rendered image memory cache.", values: func(s imageSnapshot) []int64 { return imageValue(s.processor.CacheBytes) }},

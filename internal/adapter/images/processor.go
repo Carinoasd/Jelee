@@ -81,6 +81,9 @@ type Stats struct {
 	// Persistent store: variant hits, failed store or index writes (requests
 	// still succeed) and variants removed through the index.
 	VariantHits, StoreFailures, IndexFailures, IndexEvictions uint64
+	// Generated counts variants rendered from a decoded source because
+	// neither the memory cache nor the store had them (G40.13).
+	Generated uint64
 }
 
 type Processor struct {
@@ -100,6 +103,7 @@ type Processor struct {
 	hits        atomic.Uint64
 	misses      atomic.Uint64
 	decodes     atomic.Uint64
+	generated   atomic.Uint64
 	variantHits atomic.Uint64
 	// Store or index writes that failed; the request itself still succeeded.
 	storeFailures  atomic.Uint64
@@ -196,6 +200,7 @@ func (p *Processor) Stats() Stats {
 	result.CacheEntries, result.CacheBytes, result.CacheEvictions = p.cache.stats()
 	result.VariantHits, result.StoreFailures = p.variantHits.Load(), p.storeFailures.Load()
 	result.IndexFailures, result.IndexEvictions = p.indexFailures.Load(), p.indexEvictions.Load()
+	result.Generated = p.generated.Load()
 	return result
 }
 
@@ -500,6 +505,7 @@ func (p *Processor) render(ctx context.Context, request domain.ImageRequest, med
 		if err != nil {
 			return result, imageError(operation, err)
 		}
+		p.generated.Add(1)
 	}
 	if sharedRelease != nil {
 		dropShared()

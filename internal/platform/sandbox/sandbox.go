@@ -1,7 +1,9 @@
 // Package sandbox confines a dedicated media helper before it executes ffprobe.
 // The helper must run in its own process, before starting the application.
-// It runs one of two fixed operations: the metadata probe and the embedded
-// cover read (G40.4), which only dumps the bytes of one stream's first packet.
+// It runs one of three fixed operations: the metadata probe, the embedded
+// cover read (G40.4), which only dumps the bytes of one stream's first packet,
+// and the chapter image read (G40.1), which dumps a bounded number of one
+// picture stream's packets with the chapter times.
 package sandbox
 
 import (
@@ -28,6 +30,9 @@ const (
 	// CoverMaxVideoIndex bounds the video-relative stream index of a cover
 	// read. Each index is its own sealed descriptor, never a caller argument.
 	CoverMaxVideoIndex = 15
+	// ChapterMaxPackets bounds the packets of a chapter image read: the
+	// chapter pictures plus the copy a demuxer queues as the attached picture.
+	ChapterMaxPackets = 65
 )
 
 var (
@@ -128,6 +133,20 @@ func (l *Launcher) CoverHelperArguments(stream int) []string {
 	return []string{HelperCommand, base64.RawURLEncoding.EncodeToString(data)}
 }
 
+// ChapterHelperArguments returns the sealed helper argv of the chapter image
+// read (G40.1) for one video-relative stream index (0..CoverMaxVideoIndex),
+// derived like CoverHelperArguments; an index outside the range yields nil.
+func (l *Launcher) ChapterHelperArguments(stream int) []string {
+	if l == nil || l.descriptor == "" || stream < 0 || stream > CoverMaxVideoIndex {
+		return nil
+	}
+	data, err := json.Marshal(descriptor{Version: 1, Mode: "chapters", FFprobePath: l.ffprobePath, Stream: &stream})
+	if err != nil || len(data) > MaxDescriptor {
+		return nil
+	}
+	return []string{HelperCommand, base64.RawURLEncoding.EncodeToString(data)}
+}
+
 func (l *Launcher) ProtectedFilesRequired() bool { return l != nil && l.protected }
 
 func (l *Launcher) Executable() string {
@@ -194,6 +213,8 @@ func decodeDescriptor(argv []string) (invocation, error) {
 		arguments = metadataArguments()
 	case value.Mode == "cover" && value.Stream != nil && *value.Stream >= 0 && *value.Stream <= CoverMaxVideoIndex:
 		arguments = coverArguments(*value.Stream)
+	case value.Mode == "chapters" && value.Stream != nil && *value.Stream >= 0 && *value.Stream <= CoverMaxVideoIndex:
+		arguments = chapterArguments(*value.Stream)
 	default:
 		return invocation{}, ErrInvalid
 	}
@@ -250,6 +271,18 @@ func coverArguments(stream int) []string {
 	return []string{"-hide_banner", "-v", "error", "-max_alloc", "33554432", "-threads", "1", "-probesize", "1048576", "-analyzeduration", "2000000", "-max_probe_packets", "2500", "-max_streams", "64", "-protocol_whitelist", "fd", "-format_whitelist", "matroska,webm,mov,mp4,m4a,3gp,3g2,mj2,avi,mpegts,mpeg,mpegvideo,flv,ogg", "-enable_drefs", "0",
 		"-select_streams", "v:" + strconv.Itoa(stream), "-read_intervals", "%+#1",
 		"-show_entries", "stream=index,codec_type,codec_name,width,height:stream_disposition=attached_pic:packet=stream_index,size,data,data_hash",
+		"-show_data", "-show_data_hash", "SHA256", "-of", "json", "-i", "fd:"}
+}
+
+// chapterArguments reads up to ChapterMaxPackets packets of one stream as hex
+// dumps with their SHA-256 and presentation time, that stream's index, codec
+// and attached_pic/timed_thumbnails flags, and the chapter times. Like the
+// cover read it keeps every input restriction of the metadata probe and
+// decodes nothing: each packet payload is a stored picture (G10, G40.1).
+func chapterArguments(stream int) []string {
+	return []string{"-hide_banner", "-v", "error", "-max_alloc", "33554432", "-threads", "1", "-probesize", "1048576", "-analyzeduration", "2000000", "-max_probe_packets", "2500", "-max_streams", "64", "-protocol_whitelist", "fd", "-format_whitelist", "matroska,webm,mov,mp4,m4a,3gp,3g2,mj2,avi,mpegts,mpeg,mpegvideo,flv,ogg", "-enable_drefs", "0",
+		"-select_streams", "v:" + strconv.Itoa(stream), "-read_intervals", "%+#" + strconv.Itoa(ChapterMaxPackets),
+		"-show_entries", "stream=index,codec_type,codec_name:stream_disposition=attached_pic,timed_thumbnails:packet=stream_index,pts_time,size,data,data_hash:chapter=start_time,end_time",
 		"-show_data", "-show_data_hash", "SHA256", "-of", "json", "-i", "fd:"}
 }
 
