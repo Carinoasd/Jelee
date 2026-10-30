@@ -37,6 +37,7 @@
 | B13 | 預設版本選擇與會話選軌在 Windows（G20.2、G20.4）：Windows 服務上以兩個版本的條目設定 `PUT /api/v1/users/me/version-preferences`，確認自有播放資訊的 `selection` 與相容層 PlaybackInfo 第一個來源一致；用 Windows 版 Jellyfin 相容客戶端播放時切換字幕，確認 `session_track_selections` 寫入、再次開啟時沿用。程式沒有平台分支，主要確認 Windows 客戶端回報的 `SubtitleStreamIndex` 與外掛字幕編號一致 | `internal/domain/version_selection.go`、`internal/domain/session_tracks.go` | 待跑 |
 | B14 | 識別修正與待確認決定在 Windows（G21.5）：`go test -p 1 -count=1 -run "ItemIdentity|CatalogPending|PlanCatalog|IdentityPatch" ./internal/domain/ ./internal/app/ ./internal/adapter/http/`；有 PostgreSQL 時再以真 PG 跑 `-run "TestItemIdentity|TestCatalogPending" ./internal/adapter/postgres/`（含重掃、接受、拒絕與降版）。確認媒體根在 Windows 路徑下，接受的待確認檔案（列表路徑以 `/` 分隔）建立的來源可直投播放 | `docs/catalog-sync.md`「識別修正與待確認決定」 | 待跑 |
 | B15 | 任務總數與 ETA 在 Windows（G13.3）：Windows 真 PG 跑 `go test -p 1 -parallel 2 -count=1 -run TestJobProgress ./internal/adapter/postgres/`，並以 `.\bin\jelee-cli.exe jobs get` 讀一個執行中的任務，確認 `progress` 的 total、percent、etaSeconds、etaBasis 正常輸出；測試靠 80 ms 間隔的檢查點取樣，Windows 計時器粒度下若 ETA 斷言不穩請回報 | `docs/jobs-api.md`「总数、百分比与 ETA」 | 待跑 |
+| B16 | 命名選項與跨季合訂在 Windows（G21.3）：`go test -p 1 -count=1 -run "ParsePath|PlanCatalogScan|CatalogSyncParserVersion" ./internal/domain/... ./internal/app/`；有 PostgreSQL 時再以真 PG 跑 `-run "TestCatalogNaming" ./internal/adapter/postgres/`（含設定切換重解析、鎖定保留與降版）。確認 Windows 路徑下的日期型檔名（`新闻联播 2024-03-15.mp4`）、絕對集數與 `S01E10-S02E01` 檔案登記後可直投播放 | `docs/catalog-sync.md`「命名選項、跨季合訂與特別篇歸類」 | 待跑 |
 
 ## C. 長時間、規模、效能
 
@@ -73,6 +74,7 @@
 | C31 | 會話選軌的長時間與規模（G20.4）：多日運作下 `session_track_selections` 的大小是否穩定在「近 30 天有播放的（使用者，條目）」以內（寫入時順帶刪除全站最多 100 列過期資料，長期無人播放的實例過期列會留到下一次寫入）；多人同時播放、頻繁切軌時每次切換一個寫入語句的負載，以及多實例下同一會話跨實例回報造成的重複寫入次數；播放資訊每次多一個讀取語句的 P95 影響 | `docs/item-versions.md`「會話層級選軌」 | 待跑 |
 | C32 | 識別鎖與待確認決定的規模（G21.5）：十萬集以上、數千個鎖定條目的媒體庫，解析器版本變更後全庫重新解析（每個已追蹤檔案多一次季集號比對與條件更新）的耗時與 `protected` 計數；長時間同步進行中送出 `PUT /api/v1/items/{id}/identity` 與待確認接受／拒絕（它們會等目前批次的媒體庫列鎖）時的延遲；上萬筆已拒絕待確認列時列表分頁與 pending 清理批次的耗時 | 只做過小型真 PG 短測 | 待跑 |
 | C33 | 任務 ETA 準確度與觸發器開銷（G13.3）：十萬條目以上的 `nfo_apply`、`nfo_export`、`image_refresh` 與大型掃描，每分鐘記錄 `etaSeconds` 與實際剩餘時間的偏差、`etaBasis` 轉換（`insufficient_samples`→`throughput`、暫停後 `paused`、慢來源下的 `stalled`）；比較有無觸發器 `jobs_progress_rate` 時檢查點交易的 P95（觸發器每次 `jobs` 更新都執行），以及 `nfo_apply`／`nfo_export`／`image_refresh` 提交時 `count(*)` 在大型媒體庫的耗時是否逼近 2 秒語句期限 | `docs/jobs-api.md` | 待跑 |
+| C34 | 命名選項的規模（G21.3）：十萬集以上的媒體庫切換 `dateEpisodes`／`absoluteEpisodes` 後（以及基底解析版本 v1→v2 升級後第一次同步）全庫重新規劃的耗時、批次數與 `protected` 計數；切換設定時正在跑的長同步會讓 `PUT …/naming` 等候媒體庫列鎖的延遲；每日節目十年以上（數千個日期型集數、每年一季）的季列表與條目查詢 | 只做過小型真 PG 短測 | 待跑 |
 
 ## D. 真實資料／真金鑰／真客戶端
 
@@ -109,6 +111,7 @@
 | D31 | 預設版本與會話選軌的真實客戶端（G20.2、G20.4）：以 Jellyfin Web、Android TV、Infuse／Swiftfin 等真實客戶端播放含 4K HDR 與 1080p SDR 兩個版本的條目：(1) 設定 `maxHeight=1080` 或 `dynamicRange=sdr` 後客戶端預設播放的是否為 `MediaSources` 第一個（部分客戶端記住上次選的版本或自行排序）；(2) 送出的 DeviceProfile 排除 HEVC 時是否只看到可直投版本，且不會改要求轉碼；(3) 播放中切換音軌／字幕（含外掛字幕與關閉字幕）後，停止再續播、換裝置續播時是否從 `DefaultAudioStreamIndex`／`DefaultSubtitleStreamIndex` 開始；(4) 哪些客戶端在 Progress 回報裡不帶 `AudioStreamIndex`／`SubtitleStreamIndex`（屆時只能靠偏好） | `docs/item-versions.md`、`docs/compat-matrix.md` | 待跑 |
 | D32 | 識別修正的真實資料（G21.5）：以真實動畫庫（絕對集數、OVA、跨季合訂）與誤放資料夾的劇集，依待確認列表逐筆接受（補季號／集號、改劇集名）與拒絕，修正幾個誤判的類型與所屬並鎖定；之後跑真實掃描（含更新檔案、新增版本）、元資料備份匯出再匯入到另一個實例，確認鎖定值、拒絕狀態（不匯出，匯入後應重新出現為 pending）與條目結構都符合預期 | 需要真實媒體庫；本輪無網頁介面，以 API 操作 | 待跑 |
 | D33 | 任務 ETA 的真實使用感受（G13.3）：在真實媒體庫觸發掃描、NFO 全量導入與圖片刷新，從 API／CLI 觀察進度：掃描期間總數保持 null 是否可接受、提交後新增條目造成的 `total_reached` 是否需要改成執行中重算總數、ETA 的抖動程度（EMA 新樣本權重 0.3）是否需要調整 | `docs/jobs-api.md` | 待確認 |
+| D34 | 命名選項與特別篇歸類的真實資料（G21.3）：以真實的每日節目（新聞、綜藝，含同日多檔）、絕對集數動畫（字幕組命名 ` - 01`、`[01]`、`第01話`）、跨季合訂檔與含 OVA／SP／劇場版的動畫庫，先以預設選項同步、記錄待確認數，再開啟兩個選項同步，確認誤判率、同日多檔被當成同一集多版本是否可接受、絕對集數放第 1 季是否符合使用習慣、劇場版經接受成為獨立電影；再關閉選項確認條目不被拆開 | 需要真實媒體庫；本輪無網頁介面，以 API 操作 | 待跑 |
 
 ## E. 需要擁有者決定
 

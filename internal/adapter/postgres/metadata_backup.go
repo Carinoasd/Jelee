@@ -111,7 +111,7 @@ func metadataExportQueries(passwordHashes bool) []metadataExportQuery {
 		password = ",password_hash"
 	}
 	return []metadataExportQuery{
-		{"library", `SELECT to_jsonb(x)::text FROM (SELECT id,name,nfo_mode,metadata_language,metadata_image_languages,metadata_preferences_revision,catalog_sync_auto FROM libraries) x ORDER BY x.id`},
+		{"library", `SELECT to_jsonb(x)::text FROM (SELECT id,name,nfo_mode,metadata_language,metadata_image_languages,metadata_preferences_revision,catalog_sync_auto,naming_date_episodes,naming_absolute_episodes FROM libraries) x ORDER BY x.id`},
 		{"library_root", `SELECT to_jsonb(x)::text FROM (SELECT id,library_id,path FROM library_roots) x ORDER BY x.id`},
 		{"user", `SELECT to_jsonb(x)::text FROM (SELECT id,name,is_admin,disabled,hidden,display_name,locale,created_at,deleted_at,allow_native,max_streams,max_kbps,parental_rating_max,block_unrated,content_filtered` + password + ` FROM users WHERE share_id IS NULL) x ORDER BY x.id`},
 		{"library_acl", `SELECT to_jsonb(x)::text FROM (SELECT user_id,library_id FROM library_acl a WHERE ` + notGuestSQL("a.user_id") + `) x ORDER BY x.user_id,x.library_id`},
@@ -119,7 +119,7 @@ func metadataExportQueries(passwordHashes bool) []metadataExportQuery {
 		{"media_source", `SELECT to_jsonb(x)::text FROM (SELECT id,item_id,library_id,root_id,relative_path,content_type FROM media_sources) x ORDER BY x.id`},
 		{"item_directory_source", `SELECT to_jsonb(x)::text FROM (SELECT id,item_id,library_id,kind,root_id,relative_path FROM item_directory_sources) x ORDER BY x.id`},
 		{"item_parent_link", `SELECT to_jsonb(x)::text FROM (SELECT item_id,library_id,item_kind,parent_id,parent_kind FROM item_parent_links) x ORDER BY x.item_id`},
-		{"catalog_scan_item", `SELECT to_jsonb(x)::text FROM (SELECT item_id,library_id,kind,group_digest,parser_version,scan_title,year,season,episode,episode_end FROM catalog_scan_items) x ORDER BY x.item_id`},
+		{"catalog_scan_item", `SELECT to_jsonb(x)::text FROM (SELECT item_id,library_id,kind,group_digest,parser_version,scan_title,year,season,episode,episode_end,season_end,absolute,air_date,special FROM catalog_scan_items) x ORDER BY x.item_id`},
 		{"catalog_scan_source", `SELECT to_jsonb(x)::text FROM (SELECT source_id,library_id,item_id,root_id,relative_path,size,modified_unix_nano,parser_version,missing_since,manual FROM catalog_scan_sources) x ORDER BY x.source_id`},
 		// Manual version decisions (G20.3): merged scan groups, excluded files
 		// and main versions. The operation log only serves undo within its

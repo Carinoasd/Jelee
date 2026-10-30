@@ -158,15 +158,18 @@ const portableNFO = `(m.dst=m.src AND (o.root IS NULL OR EXISTS(SELECT 1 FROM bk
 
 var metadataApply = []metadataApplyStep{
 	{kind: "library", sql: `WITH x AS (SELECT m.dst id,m.state,s.doc FROM bk_stage s JOIN bk_map m ON m.kind='library' AND m.src=s.ref WHERE s.kind='library' AND m.state IN ('existing','new')),
-ins AS (INSERT INTO libraries(id,name,nfo_mode,metadata_language,metadata_image_languages,metadata_preferences_revision,catalog_sync_auto)
- SELECT id,doc->>'name',doc->>'nfo_mode',doc->>'metadata_language',pg_temp.bk_texts(doc->'metadata_image_languages'),(doc->>'metadata_preferences_revision')::integer,(doc->>'catalog_sync_auto')::boolean FROM x WHERE state='new' RETURNING 1),
+ins AS (INSERT INTO libraries(id,name,nfo_mode,metadata_language,metadata_image_languages,metadata_preferences_revision,catalog_sync_auto,naming_date_episodes,naming_absolute_episodes)
+ SELECT id,doc->>'name',doc->>'nfo_mode',doc->>'metadata_language',pg_temp.bk_texts(doc->'metadata_image_languages'),(doc->>'metadata_preferences_revision')::integer,(doc->>'catalog_sync_auto')::boolean,
+ COALESCE((doc->>'naming_date_episodes')::boolean,false),COALESCE((doc->>'naming_absolute_episodes')::boolean,false) FROM x WHERE state='new' RETURNING 1),
 upd AS (UPDATE libraries l SET name=x.doc->>'name',nfo_mode=x.doc->>'nfo_mode',nfo_write_enabled=l.nfo_write_enabled AND x.doc->>'nfo_mode'='read-only',
  nfo_generation=l.nfo_generation+CASE WHEN l.nfo_mode<>x.doc->>'nfo_mode' THEN 1 ELSE 0 END,
  metadata_language=x.doc->>'metadata_language',metadata_image_languages=pg_temp.bk_texts(x.doc->'metadata_image_languages'),
  metadata_preferences_revision=l.metadata_preferences_revision+CASE WHEN (l.metadata_language,l.metadata_image_languages) IS DISTINCT FROM (x.doc->>'metadata_language',pg_temp.bk_texts(x.doc->'metadata_image_languages')) THEN 1 ELSE 0 END,
- catalog_sync_auto=(x.doc->>'catalog_sync_auto')::boolean
- FROM x WHERE x.state='existing' AND l.id=x.id AND (l.name,l.nfo_mode,l.metadata_language,l.metadata_image_languages,l.catalog_sync_auto)
- IS DISTINCT FROM (x.doc->>'name',x.doc->>'nfo_mode',x.doc->>'metadata_language',pg_temp.bk_texts(x.doc->'metadata_image_languages'),(x.doc->>'catalog_sync_auto')::boolean) RETURNING 1)
+ catalog_sync_auto=(x.doc->>'catalog_sync_auto')::boolean,
+ naming_date_episodes=COALESCE((x.doc->>'naming_date_episodes')::boolean,false),naming_absolute_episodes=COALESCE((x.doc->>'naming_absolute_episodes')::boolean,false)
+ FROM x WHERE x.state='existing' AND l.id=x.id AND (l.name,l.nfo_mode,l.metadata_language,l.metadata_image_languages,l.catalog_sync_auto,l.naming_date_episodes,l.naming_absolute_episodes)
+ IS DISTINCT FROM (x.doc->>'name',x.doc->>'nfo_mode',x.doc->>'metadata_language',pg_temp.bk_texts(x.doc->'metadata_image_languages'),(x.doc->>'catalog_sync_auto')::boolean,
+ COALESCE((x.doc->>'naming_date_episodes')::boolean,false),COALESCE((x.doc->>'naming_absolute_episodes')::boolean,false)) RETURNING 1)
 SELECT (SELECT count(*) FROM x),(SELECT count(*) FROM ins),(SELECT count(*) FROM upd),0`},
 	{kind: "library_root", sql: `WITH x AS (SELECT m.dst id,m.state,s.doc FROM bk_stage s JOIN bk_map m ON m.kind='library_root' AND m.src=s.ref WHERE s.kind='library_root' AND m.state IN ('existing','new')),
 ins AS (INSERT INTO library_roots(id,library_id,path) SELECT id,pg_temp.bk_dst('library',doc->>'library_id'),doc->>'path' FROM x WHERE state='new' RETURNING 1)
@@ -215,9 +218,10 @@ ins AS (INSERT INTO item_parent_links(item_id,library_id,item_kind,parent_id,par
  SELECT pg_temp.bk_dst('item',doc->>'item_id'),pg_temp.bk_dst('library',doc->>'library_id'),doc->>'item_kind',parent,doc->>'parent_kind' FROM ok WHERE state='new' ON CONFLICT DO NOTHING RETURNING 1)
 SELECT (SELECT count(*) FROM ok),(SELECT count(*) FROM ins),0,0`},
 	{kind: "catalog_scan_item", sql: `WITH x AS (SELECT m.state,s.doc FROM bk_stage s JOIN bk_map m ON m.kind='item' AND m.src=(s.doc->>'item_id')::uuid WHERE s.kind='catalog_scan_item' AND m.state IN ('existing','new')),
-ins AS (INSERT INTO catalog_scan_items(item_id,library_id,kind,group_digest,parser_version,scan_title,year,season,episode,episode_end)
+ins AS (INSERT INTO catalog_scan_items(item_id,library_id,kind,group_digest,parser_version,scan_title,year,season,episode,episode_end,season_end,absolute,air_date,special)
  SELECT pg_temp.bk_dst('item',doc->>'item_id'),pg_temp.bk_dst('library',doc->>'library_id'),doc->>'kind',(doc->>'group_digest')::bytea,doc->>'parser_version',doc->>'scan_title',
- (doc->>'year')::integer,(doc->>'season')::integer,(doc->>'episode')::integer,(doc->>'episode_end')::integer FROM x WHERE state='new' ON CONFLICT DO NOTHING RETURNING 1)
+ (doc->>'year')::integer,(doc->>'season')::integer,(doc->>'episode')::integer,(doc->>'episode_end')::integer,
+ (doc->>'season_end')::integer,(doc->>'absolute')::integer,(doc->>'air_date')::date,doc->>'special' FROM x WHERE state='new' ON CONFLICT DO NOTHING RETURNING 1)
 SELECT (SELECT count(*) FROM x),(SELECT count(*) FROM ins),0,0`},
 	{kind: "catalog_scan_source", sql: `WITH x AS (SELECT m.state,s.doc FROM bk_stage s JOIN bk_map m ON m.kind='media_source' AND m.src=(s.doc->>'source_id')::uuid WHERE s.kind='catalog_scan_source' AND m.state IN ('existing','new')),
 ins AS (INSERT INTO catalog_scan_sources(source_id,library_id,item_id,root_id,relative_path,size,modified_unix_nano,parser_version,missing_since,manual)

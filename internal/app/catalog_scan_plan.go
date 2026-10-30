@@ -1,6 +1,7 @@
 package app
 
 import (
+	"fmt"
 	"path"
 	"strings"
 
@@ -27,12 +28,30 @@ type CatalogScanPlan struct {
 	Season          int
 	Episode         int
 	EpisodeEnd      int
+	// SeasonEnd is the last season of a cross-season file (S01E10-S02E01);
+	// the item belongs to Season and EpisodeEnd numbers the episode in
+	// SeasonEnd. Zero inside one season.
+	SeasonEnd int
+	// Absolute is the absolute episode number an absolute-numbered library
+	// filed under season 1; AirDate (YYYY-MM-DD) the date of a daily episode.
+	Absolute int
+	AirDate  string
+	// Special classifies Season 0 episodes and theatrical movies (G21.3):
+	// season, sp, ova, oad, extra or theatrical; empty for regular items.
+	Special string
+}
+
+// catalogParserOptions maps a library's naming options onto the parser.
+func catalogParserOptions(naming domain.CatalogNamingOptions) medianame.Options {
+	return medianame.Options{MaxPathBytes: domain.ScanPathMaxBytes, DateEpisodes: naming.DateEpisodes, AbsoluteEpisodes: naming.AbsoluteEpisodes}
 }
 
 // PlanCatalogScan applies the confidence gate: only High results with a
-// registrable container create structure automatically (G14.4, G21.2).
-func PlanCatalogScan(relative string) CatalogScanPlan {
-	parsed := medianame.ParsePath(relative, medianame.Options{MaxPathBytes: domain.ScanPathMaxBytes})
+// registrable container create structure automatically (G14.4, G21.2). The
+// library's naming options (G21.3) decide whether dates and absolute numbers
+// count as episodes.
+func PlanCatalogScan(relative string, naming domain.CatalogNamingOptions) CatalogScanPlan {
+	parsed := medianame.ParsePath(relative, catalogParserOptions(naming))
 	plan := CatalogScanPlan{Parsed: parsed, Directory: path.Dir(relative), ContentType: domain.ImportVideoContentType(relative), Year: parsed.Year}
 	switch {
 	case parsed.Rejected != medianame.RejectNone:
@@ -45,18 +64,20 @@ func PlanCatalogScan(relative string) CatalogScanPlan {
 		plan.Reason = "confidence"
 		return plan
 	}
+	if parsed.Special != medianame.SpecialNone {
+		plan.Special = parsed.Special.String()
+	}
 	switch parsed.Kind {
 	case medianame.KindMovie:
 		plan.Kind, plan.Title = "Movie", domain.ClampCatalogTitle(parsed.Title)
 	case medianame.KindEpisode:
-		if !parsed.HasSeason || !parsed.HasEpisode || parsed.EpisodeEnd < parsed.Episode {
+		if !planEpisodeNumbers(&plan, naming) {
 			plan.Reason = "confidence"
 			return plan
 		}
 		plan.Kind = "Episode"
 		stem := strings.TrimSuffix(path.Base(relative), path.Ext(relative))
 		plan.Title = domain.ClampCatalogTitle(stem)
-		plan.Season, plan.Episode, plan.EpisodeEnd = parsed.Season, parsed.Episode, parsed.EpisodeEnd
 		plan.SeriesTitle, plan.SeriesYear = domain.ClampCatalogTitle(parsed.Title), parsed.Year
 		episodeLayout(&plan)
 	default:
@@ -69,6 +90,37 @@ func PlanCatalogScan(relative string) CatalogScanPlan {
 	}
 	plan.Auto = true
 	return plan
+}
+
+// planEpisodeNumbers fills season and episode numbers. Besides explicit
+// numbers it maps a daily episode to season=year, episode=month*100+day and,
+// in an absolute-numbered library, an absolute number to season 1. A date
+// inside a season folder of another year is ambiguous and stays pending.
+func planEpisodeNumbers(plan *CatalogScanPlan, naming domain.CatalogNamingOptions) bool {
+	p := plan.Parsed
+	switch {
+	case !p.Date.IsZero() && !p.HasEpisode:
+		if p.HasSeason && p.Season != p.Date.Year {
+			return false
+		}
+		plan.Season = p.Date.Year
+		plan.Episode = p.Date.Month*100 + p.Date.Day
+		plan.EpisodeEnd = plan.Episode
+		plan.AirDate = fmt.Sprintf("%04d-%02d-%02d", p.Date.Year, p.Date.Month, p.Date.Day)
+		return true
+	case !p.HasSeason && p.HasEpisode && p.Absolute > 0 && naming.AbsoluteEpisodes:
+		plan.Season, plan.Episode, plan.EpisodeEnd, plan.Absolute = 1, p.Episode, p.EpisodeEnd, p.Absolute
+		return p.EpisodeEnd >= p.Episode
+	case !p.HasSeason || !p.HasEpisode:
+		return false
+	case p.SeasonEnd > p.Season:
+		plan.Season, plan.Episode, plan.EpisodeEnd, plan.SeasonEnd = p.Season, p.Episode, p.EpisodeEnd, p.SeasonEnd
+		return true
+	case p.EpisodeEnd < p.Episode:
+		return false
+	}
+	plan.Season, plan.Episode, plan.EpisodeEnd = p.Season, p.Episode, p.EpisodeEnd
+	return true
 }
 
 // episodeLayout recognises Show/Season NN/file and Show/file. A folder is used
@@ -130,7 +182,7 @@ func PlanCatalogPendingAccept(relative string, pending domain.CatalogPendingEntr
 	if !domain.ValidCatalogPendingDecision(d) {
 		return CatalogScanPlan{}, domain.ErrInvalid
 	}
-	base := PlanCatalogScan(relative)
+	base := PlanCatalogScan(relative, domain.CatalogNamingOptions{})
 	if base.ContentType == "" {
 		return CatalogScanPlan{}, domain.ErrConflict
 	}
@@ -153,6 +205,9 @@ func PlanCatalogPendingAccept(relative string, pending domain.CatalogPendingEntr
 		plan.Kind, plan.Title = "Movie", pick(d.Title, pending.Title)
 		if plan.Title == "" || d.SeriesTitle != nil || d.Season != nil || d.Episode != nil || d.EpisodeEnd != nil {
 			return CatalogScanPlan{}, domain.ErrInvalid
+		}
+		if pending.Special == medianame.SpecialTheatrical.String() {
+			plan.Special = pending.Special
 		}
 		return plan, nil
 	case "episode":
@@ -177,6 +232,10 @@ func PlanCatalogPendingAccept(relative string, pending domain.CatalogPendingEntr
 	}
 	plan.Kind = "Episode"
 	plan.Season, plan.Episode, plan.EpisodeEnd = *season, *episode, *end
+	// The parsed special kind stays only for the Season 0 it described.
+	if *season == 0 && pending.Special != "" && pending.Special != medianame.SpecialNone.String() && pending.Special != medianame.SpecialTheatrical.String() {
+		plan.Special = pending.Special
+	}
 	plan.SeriesTitle, plan.SeriesYear = pick(d.SeriesTitle, pending.Title), plan.Year
 	plan.Title = pick(d.Title, strings.TrimSuffix(path.Base(relative), path.Ext(relative)))
 	if plan.Title == "" || plan.SeriesTitle == "" {

@@ -142,6 +142,11 @@ type Options struct {
 	// DateEpisodes enables daily-show naming such as 2024-01-31 (G21.3).
 	// When disabled dates are ignored instead of being read as a year.
 	DateEpisodes bool
+	// AbsoluteEpisodes declares that numbers without any season context are
+	// absolute episode numbers (anime, G21.3). An explicit marker or a
+	// " - 01" / "[01]" number then counts as an explicit episode and may reach
+	// High confidence; a plain number stays a low-confidence guess.
+	AbsoluteEpisodes bool
 	// MaxPathBytes lowers the accepted path length; zero or values above the
 	// package limit use MaxPathBytes.
 	MaxPathBytes int
@@ -163,6 +168,10 @@ type Parsed struct {
 	HasEpisode bool
 	Episode    int
 	EpisodeEnd int // equals Episode for single episodes
+	// SeasonEnd is the last season of a file that spans seasons
+	// (S01E10-S02E01); EpisodeEnd then numbers the episode in that season.
+	// Zero for files inside one season.
+	SeasonEnd int
 	// Absolute mirrors Episode when the number came without any season context
 	// (anime absolute numbering); zero otherwise.
 	Absolute   int
@@ -185,7 +194,7 @@ func ParsePath(relativePath string, opts Options) Parsed {
 	for i := len(parts) - 2; i >= 0; i-- { // nearest directory first
 		dirs = append(dirs, analyze(parts[i], false, opts))
 	}
-	return combine(file, dirs)
+	return combine(file, dirs, opts)
 }
 
 func validate(p string, opts Options) Rejection {
@@ -233,10 +242,15 @@ func snippet(r []rune, start, end int) string {
 	return string(r[start:end])
 }
 
-func combine(file *segment, dirs []*segment) Parsed {
+func combine(file *segment, dirs []*segment, opts Options) Parsed {
 	out := Parsed{}
 	add := func(e Evidence) { out.Evidence = append(out.Evidence, e) }
 	explicitEpisode, explicitSeason, heuristic := false, false, false
+	// styled is a heuristic number written as " - 01" or "[01]".
+	styled := false
+	// seasonMarker is a filename season marker without an episode ("S01",
+	// "第1季"); a numbered special overrides it.
+	var seasonMarker *mark
 
 	// Directory season context: the nearest directory carrying a season marker.
 	var dirSeason *mark
@@ -256,7 +270,7 @@ func combine(file *segment, dirs []*segment) Parsed {
 
 	// Season and episode from explicit filename naming.
 	if m := file.first(mkSE); m != nil {
-		out.HasSeason, out.Season = true, m.season
+		out.HasSeason, out.Season, out.SeasonEnd = true, m.season, m.seasonEnd
 		out.HasEpisode, out.Episode, out.EpisodeEnd = true, m.ep, m.epEnd
 		explicitSeason, explicitEpisode = true, true
 		add(Evidence{FieldSeason, SourceFilename, m.rule, snippet(file.r, m.start, m.end), false})
@@ -264,6 +278,7 @@ func combine(file *segment, dirs []*segment) Parsed {
 	} else {
 		if m := file.first(mkSeason); m != nil {
 			out.HasSeason, out.Season, explicitSeason = true, m.season, true
+			seasonMarker = m
 			add(Evidence{FieldSeason, SourceFilename, m.rule, snippet(file.r, m.start, m.end), false})
 		}
 		if m := file.first(mkEpisode); m != nil {
@@ -277,6 +292,17 @@ func combine(file *segment, dirs []*segment) Parsed {
 		out.Special = m.special
 		add(Evidence{FieldSpecial, SourceFilename, m.rule, snippet(file.r, m.start, m.end), false})
 		if m.special != SpecialTheatrical {
+			// A numbered special next to a bare season marker ("S01 OVA 02")
+			// is a Season 0 special, never regular episode 2 of season 1;
+			// the season marker stays as overridden evidence.
+			if seasonMarker != nil && m.hasNum && !out.HasEpisode && m.special != SpecialSeason {
+				for i := range out.Evidence {
+					if out.Evidence[i].Field == FieldSeason {
+						out.Evidence[i].Overridden = true
+					}
+				}
+				out.HasSeason = false
+			}
 			if !out.HasSeason {
 				out.HasSeason, out.Season, explicitSeason = true, 0, true
 			}
@@ -319,6 +345,7 @@ func combine(file *segment, dirs []*segment) Parsed {
 	if !out.HasEpisode && out.Date.IsZero() && out.Special != SpecialTheatrical {
 		if m := file.pickBare(seasonContext); m != nil {
 			out.HasEpisode, out.Episode, out.EpisodeEnd, heuristic = true, m.ep, m.ep, true
+			styled = m.style != barePlain
 			add(Evidence{FieldEpisode, SourceFilename, m.rule, snippet(file.r, m.start, m.end), false})
 		}
 	}
@@ -372,14 +399,19 @@ func combine(file *segment, dirs []*segment) Parsed {
 	}
 
 	if out.Kind == KindMovie && out.HasSeason {
-		out.HasSeason, out.Season = false, 0 // a theatrical release inside a season folder
+		out.HasSeason, out.Season, out.SeasonEnd = false, 0, 0 // a theatrical release inside a season folder
 	}
+	// A library that declares absolute numbering (G21.3) treats an explicit
+	// or styled number without season context as a deliberate episode.
+	absolute := opts.AbsoluteEpisodes && out.Absolute > 0 && (!heuristic || styled)
 
 	// Confidence.
 	c := ConfidenceNone
 	switch out.Kind {
 	case KindEpisode:
 		switch {
+		case absolute:
+			c = ConfidenceHigh
 		case heuristic:
 			c = ConfidenceLow
 			if out.HasSeason {

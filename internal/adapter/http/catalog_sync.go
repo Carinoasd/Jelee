@@ -10,6 +10,7 @@ import (
 )
 
 func (s *Server) catalogSyncRoutes(r chi.Router) {
+	s.catalogNamingRoutes(r)
 	r.Post("/api/v1/jobs/{id}/accept-missing", s.accountEndpoint(true, false, func(w http.ResponseWriter, r *http.Request, a domain.Actor) (any, int, error) {
 		var input struct {
 			ExpectedMissing *int64 `json:"expectedMissing"`

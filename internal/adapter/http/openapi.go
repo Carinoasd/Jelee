@@ -95,6 +95,7 @@ func specification(cfg config.Config, deprecations []Deprecation) map[string]any
 	}
 	if cfg.EnableJobs {
 		jobSpecification(paths, schemas)
+		catalogNamingSpecification(paths, schemas)
 		nfoSpecification(paths, schemas)
 		if cfg.EnableAccounts {
 			repairSpecification(paths, schemas)

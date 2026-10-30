@@ -17,7 +17,7 @@ func ignoreLegacySnapshot(t *testing.T, f jobFixture) string {
 	var result string
 	err := f.s.Pool.QueryRow(f.ctx, `SELECT jsonb_build_object(
  'jobs',(SELECT jsonb_agg(to_jsonb(j)-'ignore_requested'-'export_job_id'-'progress_total'-'progress_total_at'-'rate_ema'-'rate_samples'-'rate_mark_at'-'rate_mark_done' ORDER BY id) FROM jobs j),
- 'libraries',(SELECT jsonb_agg(to_jsonb(l)-'inventory_baseline_revision'-'metadata_language'-'metadata_preferences_revision'-'metadata_image_languages'-'active_inventory_snapshot'-'catalog_sync_auto'-'nfo_write_enabled' ORDER BY id) FROM libraries l),
+ 'libraries',(SELECT jsonb_agg(to_jsonb(l)-'inventory_baseline_revision'-'metadata_language'-'metadata_preferences_revision'-'metadata_image_languages'-'active_inventory_snapshot'-'catalog_sync_auto'-'nfo_write_enabled'-'naming_date_episodes'-'naming_absolute_episodes' ORDER BY id) FROM libraries l),
  'roots',(SELECT jsonb_agg(to_jsonb(r) ORDER BY id) FROM library_roots r),
  'inventory',(SELECT jsonb_agg(to_jsonb(i) ORDER BY id) FROM job_inventory i),
  'directories',(SELECT jsonb_agg(to_jsonb(d)-'claim_generation'-'claim_token' ORDER BY job_id,root_id,path) FROM job_directories d),

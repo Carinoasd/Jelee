@@ -101,6 +101,7 @@ var auditEvents = map[string]string{
 	"client_control.rule_updated":          domain.AuditCategoryAudit,
 	"client_control.session_revoked":       domain.AuditCategorySecurity,
 	"library.catalog_sync_changed":         domain.AuditCategoryAudit,
+	"library.catalog_naming_changed":       domain.AuditCategoryAudit,
 	"catalog_sync.batch":                   domain.AuditCategoryAudit,
 	"catalog_sync.removed":                 domain.AuditCategoryAudit,
 	"catalog_sync.finished":                domain.AuditCategoryAudit,

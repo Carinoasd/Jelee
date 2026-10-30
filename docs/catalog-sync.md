@@ -26,7 +26,7 @@ POST /api/v1/jobs/REVIEWED_SCAN_ID/accept-missing
 - 解析：`medianame.ParsePath`。只有 High 且容器可登記才自動建 Movie 或 Series／Season／Episode；Medium／Low／拒絕／不支援容器／與既有結構衝突進 `catalog_scan_pending`，以 `GET /api/v1/libraries/{id}/catalog-sync/pending` 查詢（每筆帶 `decision`：`pending`／`rejected`）；接受與拒絕見下方「識別修正與待確認決定」。
 - 結構：電影以「同目錄＋標題＋年份」歸為同一條目（多版本的第一步，完整聚合留給 G20 後續）；劇集資料夾名稱與解析標題相符時登記為 Series 目錄，季資料夾登記為 Season 目錄（供目錄 NFO 使用）；已登記的資料夾條目直接沿用。父子連結套用與匯入相同的合法性規則。
 - 優先序：解析值以 `source='scan'` 寫入標題，為最低優先；鎖定、人工、NFO、TMDB 與既有值都不被覆蓋，TMDB 可覆蓋 scan 值。NFO 身分優先：已帶 NFO uniqueIds 的條目不併入另有同名 NFO 的新檔案。
-- 增量：已追蹤檔案以 size／mtime／解析版本判定未變；明確匯入的來源不屬同步管理，從不更動。
+- 增量：已追蹤檔案以 size／mtime／解析版本判定未變；解析版本是 `medianame-v2` 加上媒體庫啟用的命名選項（見下方「命名選項」），所以改選項等同換解析版本。明確匯入的來源不屬同步管理，從不更動。
 - 缺失：一般同步只標 `missing_since`；只有 accept 模式才刪除同步登記的來源，並回收沒有媒體、子項、人工／外部值與 facts 的同步建立條目。
 
 ## 外掛字幕／音軌配對（G15.3、G16.2，W10-8，schema 65）
@@ -61,6 +61,21 @@ POST /api/v1/jobs/REVIEWED_SCAN_ID/accept-missing
 - **待確認拒絕**：`POST …/pending/{entry}/reject`（正文 `{}`）標記為拒絕，列表仍可見（`decision:"rejected"`）。拒絕只對當時的檔案有效：大小與 mtime 不變時，連解析器版本改變也不再規劃；檔案一變就回到 `pending`。重複拒絕回 409（不重播）；已拒絕的項目仍可接受。檔案離開基準時與一般待確認列一起刪除。稽核 `catalog_sync.pending_rejected`。
 - **權限**：四個入口都只限管理員（一般使用者在查找前就回 403）；不存在的條目、不存在的待確認項目、或以另一個媒體庫的路徑存取的待確認項目一律回 404，回應相同。
 - **降版**：仍有鎖定的修正或拒絕紀錄時拒絕降版（`55000`）；只剩未鎖定的列可以降版。元資料備份匯出修正列（`item_identity_correction`，目的地已有修正的條目保留自己的），不匯出拒絕紀錄。
+
+## 命名選項、跨季合訂與特別篇歸類（G21.3，schema 102）
+
+遷移 102（暫定編號；101 保留給另一分支）在 `libraries` 新增 `naming_date_episodes`、`naming_absolute_episodes`（預設皆 `false`），在 `catalog_scan_items` 新增 `season_end`、`absolute`、`air_date`、`special`。
+
+- **設定入口**：管理員 `GET`／`PUT /api/v1/libraries/{id}/naming`，正文 `{"dateEpisodes":bool,"absoluteEpisodes":bool}` 兩欄都必填（整份替換，避免漏寫的選項被悄悄關掉）；回 `{libraryId,dateEpisodes,absoluteEpisodes,parserVersion}`。值有變才寫稽核 `library.catalog_naming_changed`（before／after 只有兩個布林）。寫入時取與同步批次相同的媒體庫列鎖，一個批次只會用到舊選項或新選項其中一組。
+- **重解析**：每列存的解析版本是 `domain.CatalogSyncParserVersionFor(選項)`：`medianame-v2`，啟用日期加 `+date`、啟用絕對集數加 `+absolute`。改選項不立刻排任務；下一次同步（自動或手動）看到已追蹤檔案與待確認列的版本不同，就用新規則重新規劃。已登記的來源照舊不搬動，所以關掉選項不會拆掉已建的條目；鎖定的季號／集號照樣優先讀出，被擋下的變化計入 `protected`（G21.5）。被拒絕的待確認項目在檔案不變時仍然維持拒絕。基底版本從 `medianame-v1` 升到 v2（新增跨季合訂與下方的 Season 0 規則），升級後第一次同步會把全庫已追蹤檔案各重新規劃一次。
+- **日期型集數**（`dateEpisodes`）：解析器的 `Options.DateEpisodes` 由媒體庫設定傳入。`2024-03-15`、`2024.03.15`、`2024_03_15`、`2024 03 15`、`2024年3月15日` 對應到「季＝年份、集＝月×100＋日」（例：第 2024 季第 315 集），`air_date` 記播出日。理由：每天一集的節目沒有可靠的序號，月日編碼在同一年內唯一、可排序且不必查其他檔案；跨年自然分季。檔案位在別年份的季資料夾（`Season 1/… 2024-03-15`）時季號互相矛盾，進待確認。同一天的兩個檔案會被視為同一集的兩個版本。
+- **絕對集數**（`absoluteEpisodes`）：解析器的 `Options.AbsoluteEpisodes` 讓「沒有任何季資訊」的集數（`EP01`、`第01話`、`#01`，以及字幕組常見的 ` - 01`、`[01]`）視為明確集數，信心 High；規劃層把它放在第 1 季，`absolute` 記原始絕對集數。純數字（`Title 05 [1080p]`）仍是低信心猜測，進待確認；有季資料夾或季標記時不算絕對集數。理由：Jellyfin／Emby 在沒有季資訊時也把動畫掛在第 1 季，之後若 NFO 或 TMDB 給出季別，可用識別修正鎖定（G21.5）。
+- **跨季合訂**：`S01E10-S02E01`、`S01E09-E10-S02E01`、`1x10-2x01` 解析為起始季、起始集與結束季（`Parsed.SeasonEnd`）、結束集。條目掛在起始季，`season`／`episode` 是起點，`episode_end` 是結束季裡的集號，`season_end` 記結束季；`GET /api/v1/items/{id}/identity` 的 `scan.seasonEnd` 可查。分組鍵另含結束季，跨季檔案不會和同季的 `S01E10` 合成同一條目的兩個版本。往前跨季（`S02E10-S01E01`）不是範圍，只取起點。理由：起始季是播放順序上第一次需要它的地方，識別修正（G21.5）的集數範圍仍只描述同一季，所以跨季資訊只存在掃描值。
+- **OVA／SP／特別篇**：`OVA`、`OAD`、`SP`、`スペシャル`、`特別篇`、`番外篇`、`Specials`／`Season 0` 都歸到該劇集的第 0 季（`Specials`），`special` 記 `ova`／`oad`／`sp`／`extra`／`season`。帶集號的特別篇旁邊若只有裸季標記（`S01 OVA 02`、`第1季 OVA 2`），改歸第 0 季，季標記作為被覆蓋的證據，不再被當成第 1 季第 2 集而和正篇合併；明確的 `S01E05 OVA` 仍以 `S01E05` 為準。沒有集號的特別篇（`Title OVA.mkv`）信心不足，進待確認。
+- **劇場版**：`劇場版`／`剧场版`／`Gekijouban` 一律是獨立的 Movie，不掛在劇集下，即使檔案在劇集或季資料夾裡；`special` 記 `theatrical`。解析信心固定為 Medium（劇場版後面的標題常與劇集名混在一起），所以一律經待確認接受，接受成電影時保留 `theatrical`。要把它放進劇集的第 0 季，用識別修正改類型與所屬並鎖定，之後重掃不會改回（類型不同的掃描值不改條目）。
+- **與 NFO、鎖定的關係**：以上都是檔名值，寫在 `catalog_scan_items` 的掃描欄位。讀取優先序不變：鎖定 > NFO 事實（`seasonNumber`／`episodeNumber`）> 檔名（G21.2、G21.5）；NFO uniqueIds 衝突時照舊不併組。
+- **降版**：仍有任何媒體庫啟用命名選項時拒絕降版（`55000`）；選項都關閉時可降版，四個條目欄位直接捨棄（只是檔名事實，舊版解析版本不同，下一次同步會重新規劃）。元資料備份匯出並匯入媒體庫的兩個選項與條目的四個欄位（舊備份沒有這些鍵時視為關閉／空值）。
+- **待確認列**：仍只記 `absolute` 與 `special`；日期型與跨季的檔案絕大多數直接成為條目，進待確認時（例如季資料夾衝突）由管理員以接受正文補季號與集號。
 
 ## 未涵蓋
 

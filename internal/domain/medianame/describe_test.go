@@ -21,9 +21,12 @@ func describe(p Parsed) string {
 	if p.HasSeason {
 		parts = append(parts, fmt.Sprintf("s=%d", p.Season))
 	}
+	if p.SeasonEnd != 0 {
+		parts = append(parts, fmt.Sprintf("s2=%d", p.SeasonEnd))
+	}
 	if p.HasEpisode {
 		parts = append(parts, fmt.Sprintf("e=%d", p.Episode))
-		if p.EpisodeEnd != p.Episode {
+		if p.EpisodeEnd != p.Episode || p.SeasonEnd != 0 {
 			parts = append(parts, fmt.Sprintf("e2=%d", p.EpisodeEnd))
 		}
 	}
