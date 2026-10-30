@@ -19,7 +19,7 @@ sys.dont_write_bytecode = True
 from test_probe_runtime import digest
 from test_probe_worker import source_digest as probe_source_digest
 from test_sandbox_native import select_fixtures
-from container_memory import validate_memory_profile
+from container_memory import Rejected as MemoryEvidenceRejected, validate_memory_profile
 from resident_memory import validate_resident_baseline, validate_resident_budget, validate_resident_results, validate_resident_samples
 from runtime_memory_acceptance import check_oom_negative, check_production_entry, container_state, inspect_owned, memory_flags, retain_worker_failure_log
 from runtime_heap_controller import HeapCapture
@@ -249,7 +249,12 @@ def run_case(total, gogc=100, resident_budget=None, budget_identity=None):
                     if state["ExitCode"] != 0 or not replaced or not terminated or "--- SKIP:" in latest or "\nPASS\n" not in latest or "shutdown" not in report or "cancellationRecovery" not in report:
                         raise RuntimeError("required mixed acceptance failed or skipped")
                     if WITH_MEMORY:
-                        report["memoryValidation"] = validate_memory_profile(report.get("memoryProfile"), inspect_owned(container), expected_gogc=gogc)
+                        try:
+                            report["memoryValidation"] = validate_memory_profile(report.get("memoryProfile"), inspect_owned(container), expected_gogc=gogc)
+                        except MemoryEvidenceRejected as error:
+                            # Fixed check identifier only; never the inspected value.
+                            report["memoryValidation"] = {"validated": False, "rejectedCheck": error.check}
+                            raise
                         report["residentValidation"] = validate_resident_samples(report["memoryProfile"])
                         configured = next(p for p in resident_budget["profiles"] if p["gogcPercent"] == gogc)
                         report["residentBudget"] = {"result": "failed", **budget_identity,

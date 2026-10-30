@@ -222,6 +222,39 @@ class ContainerMemoryTests(unittest.TestCase):
             del invalid["HostConfig"][key]
             self.rejected(m.validate_oom_negative, invalid)
 
+    def test_rejection_names_only_a_fixed_check(self):
+        def check_of(call, *args):
+            with self.assertRaises(m.Rejected) as raised:
+                call(*args)
+            self.assertEqual(str(raised.exception), "container_memory_evidence_invalid")
+            self.assertNotIn("secret", repr(raised.exception.args) + raised.exception.check)
+            return raised.exception.check
+        cases = [(('State', 'OOMKilled'), False, "state_oom_killed"),
+                 (('State', 'ExitCode'), 0, "state_exit_code"),
+                 (('State', 'ExitCode'), 1, "state_exit_code"),
+                 (('HostConfig', 'ReadonlyRootfs'), False, "host_readonly_rootfs"),
+                 (('HostConfig', 'Privileged'), True, "host_privileged"),
+                 (('HostConfig', 'CapAdd'), ["SYS_ADMIN"], "host_cap_add"),
+                 (('HostConfig', 'CapDrop'), ["secret/private"], "host_cap_drop"),
+                 (('HostConfig', 'SecurityOpt'), ["secret/private"], "host_security_opt"),
+                 (('HostConfig', 'Memory'), 805306368, "host_memory"),
+                 (('State', 'Error'), "secret/private", "state_error"),
+                 (('Config', 'User'), "secret/private", "config_user")]
+        for path, value, check in cases:
+            with self.subTest(path=path, value=value):
+                inspect = inspect_fixture(oom=True)
+                set_path(inspect, path, value)
+                self.assertEqual(check_of(m.validate_oom_negative, inspect), check)
+        for path, value, check in ((('State', 'OOMKilled'), True, "state_oom_killed"),
+                                   (('State', 'ExitCode'), 137, "state_exit_code")):
+            with self.subTest(path=path, value=value):
+                inspect = inspect_fixture()
+                set_path(inspect, path, value)
+                self.assertEqual(check_of(m.validate_memory_profile, profile_fixture(), inspect), check)
+        profile = profile_fixture()
+        profile["after"]["events"]["oom_kill"] = 1
+        self.assertEqual(check_of(m.validate_memory_profile, profile, inspect_fixture()), "interval_oom")
+
     def test_malformed_shapes_fail_with_only_the_fixed_error(self):
         for malformed in (None, [], "secret/private", True, 123):
             with self.subTest(shape=type(malformed).__name__):
