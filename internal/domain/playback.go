@@ -142,6 +142,13 @@ type PlaybackAudioTrack struct {
 	Default       bool   `json:"default"`
 	Forced        bool   `json:"forced"`
 	Atmos         bool   `json:"atmos"`
+	// Title is the track name: the file's own title tag, else the Matroska
+	// track name from the MediaInfo supplement (see streamLabel).
+	Title string `json:"title,omitempty"`
+	// Commentary is the comment disposition; VisualImpaired is the
+	// visual_impaired or descriptions disposition (audio description).
+	Commentary     bool `json:"commentary"`
+	VisualImpaired bool `json:"visualImpaired"`
 	// Features lists commercial formats (dolby_atmos, dolby_truehd, dts_x,
 	// dts_hd_ma): from the probe's codec and profile first, then MediaInfo.
 	Features []string `json:"features,omitempty"`
@@ -163,7 +170,14 @@ type PlaybackSubtitleTrack struct {
 	Language string `json:"language,omitempty"`
 	Default  bool   `json:"default"`
 	Forced   bool   `json:"forced"`
-	// Title is the Matroska track name from the MediaInfo supplement.
+	// SDH is the hearing_impaired or captions disposition.
+	SDH bool `json:"sdh"`
+	// Charset is UTF-8 for an embedded text track (the container stores text
+	// subtitles as UTF-8 and extraction keeps them unconverted); bitmap and
+	// closed-caption tracks carry none.
+	Charset string `json:"charset,omitempty"`
+	// Title is the track name: the file's own title tag, else the Matroska
+	// track name from the MediaInfo supplement (see streamLabel).
 	Title string `json:"title,omitempty"`
 	// Extractable marks a text subtitle inside a Matroska/WebM source that
 	// mkvextract can copy to the rebuildable cache unconverted (G15.5).
@@ -215,6 +229,13 @@ type PlaybackAttachment struct {
 	// URL is set by the API layer for fonts when extraction is available.
 	URL string `json:"url,omitempty"`
 }
+
+// EmbeddedTextCharset is the charset reported for an embedded text subtitle.
+const EmbeddedTextCharset = "UTF-8"
+
+// embeddedTextSubtitles are the probe codecs of embedded text subtitles, all
+// stored or decoded as UTF-8 by their containers.
+var embeddedTextSubtitles = map[string]bool{"subrip": true, "srt": true, "ass": true, "ssa": true, "webvtt": true, "mov_text": true, "text": true}
 
 // ExtractableSubtitleCodecs are the embedded text subtitle codecs that are
 // extracted as they are (G15.5), keyed by probe codec, with the file
@@ -414,7 +435,9 @@ func BuildPlaybackSource(r PlaybackSourceRecord) PlaybackSource {
 				s.Video = append(s.Video, track)
 			case "audio":
 				track := PlaybackAudioTrack{Index: stream.Index, Codec: playbackText(stream.Codec), Profile: playbackText(stream.Profile),
-					Language: playbackText(stream.Language), BitRate: stream.BitRate, Default: playbackFlag(stream.Default), Forced: playbackFlag(stream.Forced)}
+					Language: playbackText(stream.Language), BitRate: stream.BitRate, Default: playbackFlag(stream.Default), Forced: playbackFlag(stream.Forced),
+					Title: streamLabel(stream, meta.Matroska), Commentary: playbackFlag(stream.Comment),
+					VisualImpaired: playbackFlag(stream.VisualImpaired) || playbackFlag(stream.Descriptions)}
 				if a := stream.Audio; a != nil {
 					track.Channels, track.ChannelLayout, track.SampleRate, track.Atmos = a.Channels, playbackText(a.ChannelLayout), a.SampleRate, playbackFlag(a.Atmos)
 				}
@@ -423,9 +446,13 @@ func BuildPlaybackSource(r PlaybackSourceRecord) PlaybackSource {
 			case "subtitle":
 				codec := playbackText(stream.Codec)
 				_, text := ExtractableSubtitleCodecs[codec]
+				charset := ""
+				if embeddedTextSubtitles[codec] {
+					charset = EmbeddedTextCharset
+				}
 				s.Subtitles = append(s.Subtitles, PlaybackSubtitleTrack{Index: stream.Index, Codec: codec, Format: playbackSubtitleCodecs[codec],
 					Language: playbackText(stream.Language), Default: playbackFlag(stream.Default), Forced: playbackFlag(stream.Forced),
-					Title: streamTitle(meta.Matroska, stream.Index), Extractable: text && IsMatroskaMetadata(meta),
+					SDH: playbackFlag(stream.HearingImpaired) || playbackFlag(stream.Captions), Charset: charset, Title: streamLabel(stream, meta.Matroska), Extractable: text && IsMatroskaMetadata(meta),
 					OCRSource: OCRSubtitleCodecs[codec] && IsMatroskaMetadata(meta)})
 			}
 		}
@@ -562,6 +589,16 @@ func playbackChapters(meta MediaMetadata) []PlaybackChapter {
 		out[i].Index = i
 	}
 	return out
+}
+
+// streamLabel is the display title of a stream. Precedence: the title tag
+// ffprobe read from the stream itself (any container), then the Matroska
+// track name from the MediaInfo supplement, which only fills a missing one.
+func streamLabel(stream MediaStream, m *MediaMatroska) string {
+	if stream.Title != nil && *stream.Title != "" {
+		return *stream.Title
+	}
+	return streamTitle(m, stream.Index)
 }
 
 func streamTitle(m *MediaMatroska, index int) string {

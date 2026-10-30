@@ -35603,6 +35603,8 @@ export type components = {
                 channelLayout?: string;
                 channels?: number;
                 codec?: string;
+                /** @description The comment disposition: a commentary track. */
+                commentary: boolean;
                 default: boolean;
                 /** @description Commercial audio formats from the probe's codec and profile, plus the optional MediaInfo supplement. */
                 features?: ("dolby_atmos" | "dolby_truehd" | "dts_x" | "dts_hd_ma")[];
@@ -35611,6 +35613,10 @@ export type components = {
                 language?: string;
                 profile?: string;
                 sampleRate?: number;
+                /** @description The track's own title tag, else the Matroska track name from the optional MediaInfo supplement. At most 256 bytes of plain text. */
+                title?: string;
+                /** @description The visual_impaired or descriptions disposition: an audio description track. */
+                visualImpaired: boolean;
             }[];
             /** @description Bits per second as probed, or size × 8 ÷ duration when the container states none. */
             bitRate?: number;
@@ -35665,6 +35671,8 @@ export type components = {
                     channelLayout?: string;
                     channels?: number;
                     codec?: string;
+                    /** @description The comment disposition: a commentary track. */
+                    commentary: boolean;
                     default: boolean;
                     /** @description Commercial audio formats from the probe's codec and profile, plus the optional MediaInfo supplement. */
                     features?: ("dolby_atmos" | "dolby_truehd" | "dts_x" | "dts_hd_ma")[];
@@ -35673,6 +35681,10 @@ export type components = {
                     language?: string;
                     profile?: string;
                     sampleRate?: number;
+                    /** @description The track's own title tag, else the Matroska track name from the optional MediaInfo supplement. At most 256 bytes of plain text. */
+                    title?: string;
+                    /** @description The visual_impaired or descriptions disposition: an audio description track. */
+                    visualImpaired: boolean;
                 }[];
                 /** @description Bits per second as probed, or size × 8 ÷ duration when the container states none. */
                 bitRate?: number;
@@ -35721,6 +35733,8 @@ export type components = {
                 /** @description Where the part begins on the version's combined timeline (sum of the earlier parts' durations); absent when an earlier part's duration is unknown. */
                 startMicros?: number;
                 subtitleTracks: {
+                    /** @description UTF-8 for an embedded text track; absent for bitmap and closed-caption tracks. */
+                    charset?: string;
                     codec?: string;
                     default: boolean;
                     /** @description A SubRip, ASS, SSA or WebVTT track inside a Matroska/WebM source that the optional mkvtoolnix runtime can copy unconverted (G15.5). */
@@ -35730,7 +35744,9 @@ export type components = {
                     format?: string;
                     index: number;
                     language?: string;
-                    /** @description Matroska track name from the optional MediaInfo supplement. */
+                    /** @description The hearing_impaired or captions disposition of the embedded track. */
+                    sdh: boolean;
+                    /** @description The track's own title tag, else the Matroska track name from the optional MediaInfo supplement. At most 256 bytes of plain text. */
                     title?: string;
                 }[];
                 /** @description G20.2 version labels with qualityScore and displayName. Playback information lists sources in the caller's default version order (version preference, main version, qualityScore descending). Other label fields may be added. */
@@ -35767,6 +35783,8 @@ export type components = {
             probed: boolean;
             sizeBytes?: number;
             subtitleTracks: {
+                /** @description UTF-8 for an embedded text track; absent for bitmap and closed-caption tracks. */
+                charset?: string;
                 codec?: string;
                 default: boolean;
                 /** @description A SubRip, ASS, SSA or WebVTT track inside a Matroska/WebM source that the optional mkvtoolnix runtime can copy unconverted (G15.5). */
@@ -35776,7 +35794,9 @@ export type components = {
                 format?: string;
                 index: number;
                 language?: string;
-                /** @description Matroska track name from the optional MediaInfo supplement. */
+                /** @description The hearing_impaired or captions disposition of the embedded track. */
+                sdh: boolean;
+                /** @description The track's own title tag, else the Matroska track name from the optional MediaInfo supplement. At most 256 bytes of plain text. */
                 title?: string;
             }[];
             /** @description Combined duration of all parts; absent for a single file or when a part's duration is unknown. */
@@ -36499,6 +36519,8 @@ export type components = {
                 channelLayout?: string;
                 channels?: number;
                 codec?: string;
+                /** @description The comment disposition: a commentary track. */
+                commentary: boolean;
                 default: boolean;
                 /** @description Commercial audio formats from the probe's codec and profile, plus the optional MediaInfo supplement. */
                 features?: ("dolby_atmos" | "dolby_truehd" | "dts_x" | "dts_hd_ma")[];
@@ -36507,6 +36529,10 @@ export type components = {
                 language?: string;
                 profile?: string;
                 sampleRate?: number;
+                /** @description The track's own title tag, else the Matroska track name from the optional MediaInfo supplement. At most 256 bytes of plain text. */
+                title?: string;
+                /** @description The visual_impaired or descriptions disposition: an audio description track. */
+                visualImpaired: boolean;
             }[];
             /** @description Bits per second as probed, or size × 8 ÷ duration when the container states none. */
             bitRate?: number;
@@ -36596,6 +36622,8 @@ export type components = {
                     channelLayout?: string;
                     channels?: number;
                     codec?: string;
+                    /** @description The comment disposition: a commentary track. */
+                    commentary: boolean;
                     default: boolean;
                     /** @description Commercial audio formats from the probe's codec and profile, plus the optional MediaInfo supplement. */
                     features?: ("dolby_atmos" | "dolby_truehd" | "dts_x" | "dts_hd_ma")[];
@@ -36604,6 +36632,10 @@ export type components = {
                     language?: string;
                     profile?: string;
                     sampleRate?: number;
+                    /** @description The track's own title tag, else the Matroska track name from the optional MediaInfo supplement. At most 256 bytes of plain text. */
+                    title?: string;
+                    /** @description The visual_impaired or descriptions disposition: an audio description track. */
+                    visualImpaired: boolean;
                 }[];
                 /** @description Bits per second as probed, or size × 8 ÷ duration when the container states none. */
                 bitRate?: number;
@@ -36654,6 +36686,8 @@ export type components = {
                 /** @description Where the part begins on the version's combined timeline (sum of the earlier parts' durations); absent when an earlier part's duration is unknown. */
                 startMicros?: number;
                 subtitleTracks: {
+                    /** @description UTF-8 for an embedded text track; absent for bitmap and closed-caption tracks. */
+                    charset?: string;
                     codec?: string;
                     default: boolean;
                     /** @description A SubRip, ASS, SSA or WebVTT track inside a Matroska/WebM source that the optional mkvtoolnix runtime can copy unconverted (G15.5). */
@@ -36672,7 +36706,9 @@ export type components = {
                         /** @description /api/v1/sources/{id}/ocr-subtitles/{index}. Native sessions only. */
                         url: string;
                     };
-                    /** @description Matroska track name from the optional MediaInfo supplement. */
+                    /** @description The hearing_impaired or captions disposition of the embedded track. */
+                    sdh: boolean;
+                    /** @description The track's own title tag, else the Matroska track name from the optional MediaInfo supplement. At most 256 bytes of plain text. */
                     title?: string;
                     /** @description Present when extraction is enabled and available: /api/v1/sources/{id}/embedded-subtitles/{index}. Native sessions only. */
                     url?: string;
@@ -36711,6 +36747,8 @@ export type components = {
             probed: boolean;
             sizeBytes?: number;
             subtitleTracks: {
+                /** @description UTF-8 for an embedded text track; absent for bitmap and closed-caption tracks. */
+                charset?: string;
                 codec?: string;
                 default: boolean;
                 /** @description A SubRip, ASS, SSA or WebVTT track inside a Matroska/WebM source that the optional mkvtoolnix runtime can copy unconverted (G15.5). */
@@ -36729,7 +36767,9 @@ export type components = {
                     /** @description /api/v1/sources/{id}/ocr-subtitles/{index}. Native sessions only. */
                     url: string;
                 };
-                /** @description Matroska track name from the optional MediaInfo supplement. */
+                /** @description The hearing_impaired or captions disposition of the embedded track. */
+                sdh: boolean;
+                /** @description The track's own title tag, else the Matroska track name from the optional MediaInfo supplement. At most 256 bytes of plain text. */
                 title?: string;
                 /** @description Present when extraction is enabled and available: /api/v1/sources/{id}/embedded-subtitles/{index}. Native sessions only. */
                 url?: string;

@@ -95,6 +95,7 @@
 | C27 | TMDB 請求預算長時間運作（G14.3）：設定 `JELEE_TMDB_DAILY_REQUEST_LIMIT` 後連續運作跨過 UTC 00:00，確認用完時 API 回 503、不再出站、跨日自動恢復；重啟後計數歸零是否可接受；多實例部署時各實例各自的間隔／並發／每日上限加總後，對 TMDB 帳戶的實際請求速率與 429 頻率（多實例共享限流與持久化快取未做，屬第 14 階段） | `docs/deployment.md`、`docs/tmdb-governor.md` | 待跑 |
 | C30 | 探測身分升版後的重探成本：parser 升為 `media-metadata-v4` 後，十萬以上個 Matroska 來源的既有探測快取會在下次探測時全部重算（每檔多一次 MediaInfo）；量完整重探耗時、MediaInfo 並發 2 對掃描吞吐的影響，與重探期間播放資訊（`probed=false` 期間）的行為 | `docs/matroska-tools.md`、`internal/domain/probe_cache.go` | 待跑 |
 | C42 | 目標硬體、真實網路上的直投延遲與吞吐（第 10 階段 B1，G10.1、G10.7、G29.5；取代 C16 中尚未量測的部分）：在驗收用的目標硬體與實際網路路徑（含反向代理、TLS 回退到緩衝路徑、HTTP/2）上，以真實大小的媒體檔（含 20 GB 以上的 MKV 與冷快取、機械硬碟或網路儲存）重跑 `make bench-direct` 的情境並自行加上跨網段客戶端：完整檔首字節 P95 ≤ 500 ms、隨機前向／後向／連續 Seek 首字節 P95 ≤ 1 s、N 路並發的總吞吐與每路 CPU（N 依預期同時播放人數，至少 10 與 100 兩檔）。開發機基線（loopback、同行程客戶端、WSL2）全部在 3 ms 以內，只證明伺服器本身沒有額外延遲，不代表驗收；請在報告中另列磁碟讀取（冷快取）與網路各自貢獻的延遲，並提供 B2 緩衝預設值的實測依據 | `docs/direct-delivery.md`「本機基線與斷連洩漏回歸」、`docs/evidence/direct-play-latency-linux.txt` | 待跑 |
+| C43 | 探測身分升版 v5 的全庫重探成本（第 10 階段 B3，與 C30 同法；B4 外掛軌按需探測併入同一次升版，不會有第二次）：parser 升為 `media-metadata-v5` 後，所有既有探測快取在下次探測時全部重算（含非 Matroska 來源；Matroska 每檔仍多一次 MediaInfo）；量十萬以上來源的完整重探耗時、重探期間播放資訊（`probed=false`）與掃描吞吐的影響，並抽查內嵌軌標題、SDH、評論音軌是否出現在 `GET /api/v1/items/{id}/playback` 與相容層 `MediaStreams`；真實檔案（藍光備份、動畫字幕組 MKV）的標題是否被白名單誤丟 | `docs/media-metadata.md`、`internal/domain/probe_cache.go` | 待跑 |
 
 ## D. 真實資料／真金鑰／真客戶端
 

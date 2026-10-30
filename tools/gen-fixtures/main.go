@@ -314,6 +314,16 @@ func generate(ctx context.Context, project string) (output string, returnErr err
 		return "", err
 	}
 	expectations["subtitles-fonts.mkv"] = expected{Width: 160, Height: 90, Video: 1, Subtitles: 2, Chapters: 2, Attachments: 1}
+	// Track labels (B3, G15.2, G16.3): title tags and the hearing_impaired,
+	// comment and visual_impaired dispositions on embedded tracks (Matroska has
+	// no captions flag).
+	args = append(append([]string(nil), common...), "-f", "lavfi", "-i", "testsrc2=size=160x90:rate=24", "-f", "lavfi", "-i", "sine=frequency=440:sample_rate=48000", "-f", "lavfi", "-i", "sine=frequency=660:sample_rate=48000", "-f", "lavfi", "-i", "sine=frequency=880:sample_rate=48000", "-i", filepath.Join(output, "english.srt"), "-i", filepath.Join(output, "chinese.srt"), "-t", "1", "-map", "0:v", "-map", "1:a", "-map", "2:a", "-map", "3:a", "-map", "4:s", "-map", "5:s", "-c:v", "libx264", "-threads", "1", "-preset", "ultrafast", "-pix_fmt", "yuv420p", "-c:a", "aac", "-b:a", "64k", "-c:s", "srt",
+		"-metadata:s:a:0", "language=eng", "-metadata:s:a:0", "title=Stereo mix", "-metadata:s:a:1", "language=eng", "-metadata:s:a:1", "title=Director commentary", "-disposition:a:1", "comment", "-metadata:s:a:2", "language=eng", "-metadata:s:a:2", "title=Audio description", "-disposition:a:2", "visual_impaired",
+		"-metadata:s:s:0", "language=eng", "-metadata:s:s:0", "title=English SDH", "-disposition:s:0", "hearing_impaired", "-metadata:s:s:1", "language=zho", "-metadata:s:s:1", "title=Chinese subtitles", filepath.Join(output, "track-labels.mkv"))
+	if _, err := runTool(ctx, toolPath, temp, "generate-video", args); err != nil {
+		return "", err
+	}
+	expectations["track-labels.mkv"] = expected{Width: 160, Height: 90, Video: 1, Audio: 3, Subtitles: 2}
 	audio := append(append([]string(nil), common...), "-f", "lavfi", "-i", "sine=frequency=440:sample_rate=48000", "-t", "1", "-c:a", "flac", filepath.Join(output, "audio.flac"))
 	if _, err := runTool(ctx, toolPath, temp, "generate-audio", audio); err != nil {
 		return "", err
