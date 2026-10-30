@@ -231,6 +231,12 @@ func TestCompatListsAndDeliversEveryFormatSample(t *testing.T) {
 			if e.Track.Kind == domain.SidecarKindSubtitle && stream.IsTextSubtitleStream != compatTextSubtitles[s.codec] {
 				t.Errorf("%s: IsTextSubtitleStream=%v for %s", s.record.RelativePath, stream.IsTextSubtitleStream, s.codec)
 			}
+			// The codec is the canonical format the own API reports (webvtt,
+			// ttml, sami, microdvd), as for embedded subtitles, not the
+			// extension the DeliveryUrl keeps.
+			if e.Track.Kind == domain.SidecarKindSubtitle && stream.Codec != s.codec {
+				t.Errorf("%s: Codec=%q, want %q", s.record.RelativePath, stream.Codec, s.codec)
+			}
 		}
 		if !strings.HasSuffix(url, "."+s.record.Track.Format) {
 			t.Errorf("%s: DeliveryUrl %s does not end in the file's own format", s.record.RelativePath, url)
