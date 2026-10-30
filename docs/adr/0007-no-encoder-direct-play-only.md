@@ -16,7 +16,7 @@
 
 ## 决定
 
-1. **服务只投递原始字节**：原文件、外挂字幕与音轨按原样经 HTTP Range 投递；不转码、不重新封装（remux 也不实现）、不切 HLS/DASH。转码类参数与路径在任何处理器之前返回 409 `transcode_disabled`；兼容层的 `SupportsTranscoding`、`SupportsDirectStream` 一律为 false，不提供转码地址。
+1. **服务只投递原始字节**：原文件、外挂字幕与音轨按原样经 HTTP Range 投递；不转码、不重新封装（remux 也不实现，开发者模式同样不提供；理由与“以容器内 seek 索引代替关键帧表”见 [ADR 0013](0013-no-remux-no-keyframe-table.md)）、不切 HLS/DASH。转码类参数与路径在任何处理器之前返回 409 `transcode_disabled`；兼容层的 `SupportsTranscoding`、`SupportsDirectStream` 一律为 false，不提供转码地址。
 2. **正式镜像只含固定版本的只读工具**：ffprobe（探测）、mkvtoolnix 的 `mkvmerge` 与 `mkvextract`（内嵌字幕与附件提取，不含 `mkvpropedit`）、MediaInfo，以及运行它们所需的库与许可证；基础镜像为 `scratch`，以非 root 用户运行，`JELEE_ENV=production`。ffmpeg 在工具清单中标为 `productionAllowed: false`，只为生成测试夹具存在于 `.tools/`。OCR（Tesseract）是另外的可选镜像层，不在默认镜像中（E16）。
 3. **开发者模式也不加入编码器**：`dev-transcode` 开关刻意不接（显示 unavailable，开启返回 409 `devmode_toggle_unavailable`）。
 4. **外部工具只经受控的进程启动器**运行，并有沙箱与资源限制（[ADR 0001](0001-external-process-start.md)）。
