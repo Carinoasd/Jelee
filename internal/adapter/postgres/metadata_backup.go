@@ -45,7 +45,7 @@ var metadataBackupTables = map[string][]string{
 	"access_policy": {"access_policy"}, "parental_rating": {"parental_ratings"}, "user_item_access_rule": {"user_item_access_rules"}, "user_blocked_tag": {"user_blocked_tags"},
 	"user_blocked_keyword": {"user_blocked_keywords"}, "user_access_window": {"user_access_windows"}, "access_template": {"access_templates", "access_template_libraries"},
 	"client_control_policy": {"client_control_policy"}, "client_rule": {"client_rules"}, "library_network_rule": {"library_network_rules"},
-	"webhook": {"webhooks"}, "scan_schedule": {"scan_schedules"},
+	"webhook": {"webhooks"}, "scan_schedule": {"scan_schedules", "job_schedules"},
 	"collection": {"collections"}, "collection_item": {"collection_items"}, "playlist": {"playlists"}, "playlist_item": {"playlist_items"},
 	"user_preference": {"user_preferences"}, "user_version_preference": {"user_version_preferences"}, "site_appearance": {"site_appearance"}, "site_plugins": {"site_plugins"}, "audit_retention": {"audit_retention"},
 }
@@ -160,7 +160,13 @@ func metadataExportQueries(passwordHashes bool) []metadataExportQuery {
 		// Secrets stay sealed with the master key; the seal binds the endpoint
 		// ID, which is why webhooks keep their ID on import.
 		{"webhook", `SELECT to_jsonb(x)::text FROM (SELECT id,name,url,enabled,events,header_names,headers_sealed,timeout_ms,max_attempts,base_delay_ms,max_delay_ms,jitter,secret_sealed,previous_secret_sealed,previous_until,created_at,updated_at FROM webhooks) x ORDER BY x.id`},
-		{"scan_schedule", `SELECT to_jsonb(x)::text FROM (SELECT library_id,owner_id,revision,enabled,mode,interval_seconds,cron,timezone,probe,nfo,ignore_mode,ignore_case,next_due,watch_enabled FROM scan_schedules) x ORDER BY x.library_id`},
+		// Since schema 107 the timing lives in the library's inventory_scan
+		// schedule; the record keeps its earlier shape. A schedule with a
+		// window or a once time, and schedules of other kinds, are not
+		// exported (automation: see metadataBackupExcluded).
+		{"scan_schedule", `SELECT to_jsonb(x)::text FROM (SELECT s.library_id,s.owner_id,s.revision,COALESCE(j.enabled,false) enabled,COALESCE(j.mode,'interval') mode,COALESCE(j.interval_seconds,86400) interval_seconds,
+ COALESCE(j.cron,'') cron,COALESCE(j.timezone,'UTC') timezone,s.probe,s.nfo,s.ignore_mode,s.ignore_case,j.next_due,s.watch_enabled
+ FROM scan_schedules s LEFT JOIN (SELECT * FROM job_schedules WHERE kind='inventory_scan' AND mode<>'once' AND window_start='') j ON j.library_id=s.library_id) x ORDER BY x.library_id`},
 		// Collections and their manual members (G02.1); NFO-linked members
 		// follow the metadata facts and are not copied.
 		{"collection", `SELECT to_jsonb(x)::text FROM (SELECT id,name,overview,nfo_name,created_by,created_at,updated_at FROM collections) x ORDER BY x.id`},

@@ -871,6 +871,8 @@ func WriteError(w http.ResponseWriter, r *http.Request, err error) {
 		status, code, message = 409, "devmode_toggle_unavailable", "This developer mode option is not available in this build."
 	case errors.Is(err, errLogComponentMandatory):
 		status, code, message = 409, "log_component_mandatory", "The audit and security logs cannot be lowered or disabled."
+	case errors.Is(err, domain.ErrScheduleKindNotAllowed):
+		status, code, message = 400, "schedule_kind_not_allowed", "This job kind cannot be scheduled."
 	case errors.Is(err, errConfirmationRequired), errors.Is(err, domain.ErrConfirmationRequired):
 		status, code, message = 400, "confirmation_required", "This operation is dangerous and needs an explicit confirmation."
 	case errors.Is(err, domain.ErrForbidden):

@@ -253,7 +253,7 @@ Jelee 用标准库 gzip 压缩非媒体响应（JSON、NDJSON、HTML、CSS、Jav
 
 每條告警的處置步驟見 [Runbook](runbook.md)，指標定義見[指標契約](metrics.md#維運告警指標g506)。版本內沒有固定 `promtool`；規則語法與指標存在性由 `internal/platform/telemetry/alerts_test.go` 檢查，部署端有 `promtool` 時可再跑 `promtool check rules`。
 
-**資料一致性檢查。** `jelee-cli consistency check [--library 名稱]` 在服務主機上直接檢查（預設只報告，結束碼 3 表示有發現）；`--fix` 只修正可逆的參照與統計計數，寫入修正日誌與稽核，`jelee-cli consistency revert --run RUN_ID` 還原。定期檢查以 `JELEE_JOB_CONSISTENCY_INTERVAL_HOURS`（例如 `168`＝每週）啟用，任務在任務清單中可觀察與取消。備份提醒以 `JELEE_JOB_BACKUP_REMINDER_DAYS`（例如 `7`，預設 0 關閉）每天檢查最後一次元資料匯出；字幕擷取快取清理與按媒體庫移除外部元資料為手動任務，見[維護任務](maintenance-jobs.md)。完整說明、報告格式與限制見[資料一致性檢查](consistency.md)。
+**資料一致性檢查。** `jelee-cli consistency check [--library 名稱]` 在服務主機上直接檢查（預設只報告，結束碼 3 表示有發現）；`--fix` 只修正可逆的參照與統計計數，寫入修正日誌與稽核，`jelee-cli consistency revert --run RUN_ID` 還原。定期檢查以 `JELEE_JOB_CONSISTENCY_INTERVAL_HOURS`（例如 `168`＝每週）啟用，任務在任務清單中可觀察與取消。備份提醒以 `JELEE_JOB_BACKUP_REMINDER_DAYS`（例如 `7`，預設 0 關閉）每天檢查最後一次元資料匯出（也可改用 `POST /api/v1/schedules` 建立 `backup_reminder` 排程，可設時區與窗口，見[任務排程](job-schedules.md)）；字幕擷取快取清理與按媒體庫移除外部元資料為手動任務，見[維護任務](maintenance-jobs.md)。完整說明、報告格式與限制見[資料一致性檢查](consistency.md)。
 
 **自愈動作（G50.4）。** `jelee-cli repair <動作> --dry-run` 列出會受影響的對象與數量（不寫任何東西），確認後 `--yes` 執行並寫稽核，再跑一次影響為 0；`stats`、`counts` 可以 `jelee-cli repair revert --run RUN_ID --yes` 回滾。`image-variants` 與 `nfo` 由執行中的服務完成（`--token-stdin` 或 `POST /api/v1/admin/repairs`）。完整說明見[自愈動作](repair.md)。
 

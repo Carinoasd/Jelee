@@ -72,6 +72,7 @@ Job 的 `files` 是無失敗完成的目錄數、`skipped` 是有刪除失敗的
 - `never` 或 `overdue` 時寫一筆 `backup.reminder` 稽核（後像含 `status`、`thresholdDays`、`lastExportAt`、`ageSeconds`、`trigger`），結果同時存在 `backup_reminder_job_state`。續跑的任務讀回已記錄的結果，不會重複寫稽核。
 - `GET /api/v1/maintenance/backup-status` 以設定的門檻即時計算同樣的結果，不排任務，供健康狀態或前端顯示。
 - 排程：`jobs.backupReminderDays`（`JELEE_JOB_BACKUP_REMINDER_DAYS`，0–365，預設 0＝關閉）大於 0 時，排程分派器（與掃描排程、一致性檢查同一個迴圈，優先序最後）每 24 小時排一個背景提醒，門檻為該天數；手動送件的預設門檻也取這個值，未設定時為 7 天。
+- 通用排程（遷移 000107）：也可以用 `POST /api/v1/schedules` 建立 `kind=backup_reminder`（`params.thresholdDays`，0＝上述門檻）或 `kind=subtitle_cache_cleanup`（`params.maxIdleDays`）的伺服器層級排程，可設時區、窗口、停用與立即執行，到期以系統身分排入；環境變數排程保留相容，等價於每 86400 秒的 `backup_reminder` 排程，兩者並存時 24 小時內只排一次。見[任務排程](job-schedules.md#備份提醒的環境變數)。
 - 限制：匯出紀錄是安全類稽核，保留期依 `audit_retention.security_days`（預設 365 天）；若門檻大於保留期，舊紀錄被清除後會顯示 `never`。
 
 ## 批次移除外部元資料（`external_metadata_removal`）

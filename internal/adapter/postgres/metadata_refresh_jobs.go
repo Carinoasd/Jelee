@@ -80,8 +80,9 @@ func (s *Store) SubmitMetadataRefreshJob(ctx context.Context, actor domain.Actor
 
 // enqueueAutoMetadataRefresh runs inside the FinishCatalogSync transaction
 // after a successful synchronisation became terminal. Libraries opt in; a
-// busy library, a full queue or a synchronisation without an active
-// administrator behind it defers the refresh with an audit entry. It works
+// busy library or a full queue defers the refresh with an audit entry. The
+// refresh runs as the system actor of the synchronisation, so it neither
+// depends on who started the synchronisation nor on a live session. It works
 // under a savepoint: any failure is rolled back to it and never fails the
 // synchronisation that triggered it.
 func enqueueAutoMetadataRefresh(ctx context.Context, tx pgx.Tx, sync domain.JobLease) error {
@@ -113,17 +114,15 @@ func enqueueAutoMetadataRefresh(ctx context.Context, tx pgx.Tx, sync domain.JobL
 		case err != nil:
 			return err
 		}
-		var actor *string
-		if err = savepoint.QueryRow(ctx, `SELECT u.id::text FROM jobs j JOIN users u ON u.id=j.actor_id WHERE j.id=$1::uuid AND u.is_admin AND NOT u.disabled AND u.deleted_at IS NULL`, sync.Job.ID).Scan(&actor); errors.Is(err, pgx.ErrNoRows) {
-			return deferred("no_administrator")
-		} else if err != nil {
-			return storageError(err)
-		}
-		job, err := insertMetadataRefreshJob(ctx, savepoint, sync.Job.LibraryID, actor, "metadata-refresh:"+sync.Job.ID, domain.JobPriorityBackground, domain.MetadataRefreshTriggerCatalogSync, sync.Policy)
+		system := domain.SystemActor(domain.SystemTriggerCatalogSync, sync.Job.ID)
+		job, err := insertMetadataRefreshJob(ctx, savepoint, sync.Job.LibraryID, nil, "metadata-refresh:"+sync.Job.ID, domain.JobPriorityBackground, domain.MetadataRefreshTriggerCatalogSync, sync.Policy)
 		if err != nil {
 			return err
 		}
-		return auditAccount(ctx, savepoint, domain.Actor{}, "metadata_refresh.submitted", job.ID, nil, map[string]any{"libraryId": sync.Job.LibraryID, "priority": domain.JobPriorityBackground, "trigger": domain.MetadataRefreshTriggerCatalogSync, "sourceJobId": sync.Job.ID})
+		if err = markSystemJob(ctx, savepoint, job.ID, system); err != nil {
+			return err
+		}
+		return auditAccount(ctx, savepoint, system, "metadata_refresh.submitted", job.ID, nil, map[string]any{"libraryId": sync.Job.LibraryID, "priority": domain.JobPriorityBackground, "trigger": domain.MetadataRefreshTriggerCatalogSync, "sourceJobId": sync.Job.ID})
 	}()
 	if err != nil {
 		_ = savepoint.Rollback(ctx)
@@ -362,9 +361,10 @@ func fencedMetadataRefresh(ctx context.Context, tx pgx.Tx, l domain.JobLease) (d
 }
 
 // NextMetadataRefreshBatch implements app.MetadataRefreshExecutionRepository.
-// The actor is the administrator behind the job, bound to their
-// longest-lived live session, so a job outlives the session that submitted
-// it but not the administrator's rights.
+// A job queued by a schedule or after a synchronisation runs as its system
+// actor and needs no user. A manually submitted job runs as the administrator
+// behind it, bound to their longest-lived live session, so it outlives the
+// session that submitted it but not the administrator's rights.
 func (s *Store) NextMetadataRefreshBatch(ctx context.Context, lease domain.JobLease, limit int) (domain.MetadataRefreshBatch, error) {
 	if ctx == nil || limit < 1 || limit > 1000 {
 		return domain.MetadataRefreshBatch{}, domain.ErrInvalid
@@ -387,14 +387,22 @@ func (s *Store) NextMetadataRefreshBatch(ctx context.Context, lease domain.JobLe
 		return domain.MetadataRefreshBatch{}, storageError(err)
 	}
 	var batch domain.MetadataRefreshBatch
-	err = tx.QueryRow(ctx, `SELECT u.id::text,s.id::text FROM jobs j JOIN users u ON u.id=j.actor_id JOIN sessions s ON s.user_id=u.id
+	system, ok, err := jobSystemActor(ctx, tx, lease.Job.ID)
+	if err != nil {
+		return domain.MetadataRefreshBatch{}, err
+	}
+	if ok {
+		batch.Actor = system
+	} else {
+		err = tx.QueryRow(ctx, `SELECT u.id::text,s.id::text FROM jobs j JOIN users u ON u.id=j.actor_id JOIN sessions s ON s.user_id=u.id
  WHERE j.id=$1::uuid AND u.is_admin AND NOT u.disabled AND u.deleted_at IS NULL AND s.revoked_at IS NULL AND s.expires_at>now()
  ORDER BY s.expires_at DESC,s.id LIMIT 1`, lease.Job.ID).Scan(&batch.Actor.UserID, &batch.Actor.SessionID)
-	if errors.Is(err, pgx.ErrNoRows) {
-		return domain.MetadataRefreshBatch{}, domain.ErrForbidden
-	}
-	if err != nil {
-		return domain.MetadataRefreshBatch{}, storageError(err)
+		if errors.Is(err, pgx.ErrNoRows) {
+			return domain.MetadataRefreshBatch{}, domain.ErrForbidden
+		}
+		if err != nil {
+			return domain.MetadataRefreshBatch{}, storageError(err)
+		}
 	}
 	if batch.Settings, err = readMetadataRefreshSettings(ctx, tx, library, false); err != nil {
 		return domain.MetadataRefreshBatch{}, err

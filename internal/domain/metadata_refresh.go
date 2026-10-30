@@ -172,6 +172,7 @@ func MetadataAutoApplies(threshold, confidence string) bool {
 const (
 	MetadataRefreshTriggerManual      = "manual"
 	MetadataRefreshTriggerCatalogSync = "catalog_sync"
+	MetadataRefreshTriggerSchedule    = "schedule"
 )
 
 // MetadataRefreshCounts classifies the items a run finished with. Applied

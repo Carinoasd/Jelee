@@ -147,7 +147,7 @@ func (f userDataFixture) seed(t *testing.T, native, web domain.Actor) (share, gu
 	f.exec(t, `INSERT INTO known_clients(client_key,device_name,last_ip,last_user_id) VALUES($1,'Purge phone','198.51.100.7',$2::uuid)`, hex.EncodeToString(userDataDigest("client-"+uid)), uid)
 	f.exec(t, `INSERT INTO known_client_sessions(client_id,session_id) SELECT id,$2::uuid FROM known_clients WHERE last_user_id=$1::uuid`, uid, native.SessionID)
 	f.exec(t, `INSERT INTO nfo_policy_requests(actor_id,idempotency_key,library_id,requested_mode,expected_generation,result_generation) SELECT $1::uuid,'purge-key',id,'off',nfo_generation,nfo_generation FROM libraries WHERE id=$2::uuid`, uid, lib)
-	f.exec(t, `INSERT INTO scan_schedules(library_id,owner_id,revision,enabled,mode,interval_seconds,cron,timezone,probe,nfo,ignore_mode,ignore_case) VALUES($2::uuid,$1::uuid,1,false,'interval',3600,'','UTC',false,false,'','')`, uid, lib)
+	f.exec(t, `INSERT INTO scan_schedules(library_id,owner_id,revision,probe,nfo,ignore_mode,ignore_case) VALUES($2::uuid,$1::uuid,1,false,false,'','')`, uid, lib)
 	f.exec(t, `INSERT INTO legacy_import_map(kind,source_key,target_id,created) VALUES('user','legacy-purge',$1::uuid,true)`, uid)
 	f.exec(t, `INSERT INTO legacy_import_map(kind,source_key,target_id,target_user,created) VALUES('user_data','legacy-purge-data',$2::uuid,$1::uuid,true)`, uid, f.item)
 	f.exec(t, `INSERT INTO webhook_outbox(event_type,occurred_at,subject_kind,subject_id,data) VALUES('user.login',now(),'user',$1,'{}'),('playback.started',now(),'session',gen_random_uuid()::text,jsonb_build_object('userId',$1::text))`, uid)
@@ -390,7 +390,7 @@ func TestUserPurgeSelfReauthenticationAndLastAdmin(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	f.exec(t, `INSERT INTO scan_schedules(library_id,owner_id,revision,enabled,mode,interval_seconds,cron,timezone,probe,nfo,ignore_mode,ignore_case) VALUES($2::uuid,$1::uuid,1,false,'interval',3600,'','UTC',false,false,'','')`, f.a.UserID, f.registration.Library.ID)
+	f.exec(t, `INSERT INTO scan_schedules(library_id,owner_id,revision,probe,nfo,ignore_mode,ignore_case) VALUES($2::uuid,$1::uuid,1,false,false,'','')`, f.a.UserID, f.registration.Library.ID)
 	if err = f.s.PurgeUser(f.ctx, f.a, f.a.UserID, &domain.UserPurgeProof{Expected: adminCredentials}); !errors.Is(err, domain.ErrLastAdmin) {
 		t.Fatalf("last administrator purge: %v", err)
 	}

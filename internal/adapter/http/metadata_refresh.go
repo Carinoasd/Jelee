@@ -104,7 +104,7 @@ func metadataRefreshSpecification(paths, schemas map[string]any) {
 	reasons := []string{domain.MetadataMatchNFOTMDB, domain.MetadataMatchNFOIMDb, domain.MetadataMatchNFOTVDB, domain.MetadataMatchExistingProvider, domain.MetadataMatchTitleYear,
 		domain.MetadataMatchTitleYearAmbiguous, domain.MetadataMatchTitleOnly, domain.MetadataMatchYearMismatch, domain.MetadataMatchLowSimilarity, domain.MetadataMatchExternalAmbiguous, domain.MetadataMatchExternalConflict}
 	schemas["MetadataRefreshRequest"] = objectSchema(map[string]any{"priority": map[string]any{"type": "string", "enum": []string{"manual", "background"}, "default": "manual"}})
-	schemas["MetadataRefreshJobState"] = objectSchema(map[string]any{"jobId": uuid, "libraryId": uuid, "trigger": map[string]any{"type": "string", "enum": []string{domain.MetadataRefreshTriggerManual, domain.MetadataRefreshTriggerCatalogSync}},
+	schemas["MetadataRefreshJobState"] = objectSchema(map[string]any{"jobId": uuid, "libraryId": uuid, "trigger": map[string]any{"type": "string", "enum": []string{domain.MetadataRefreshTriggerManual, domain.MetadataRefreshTriggerCatalogSync, domain.MetadataRefreshTriggerSchedule}},
 		"cursorItemId": map[string]any{"oneOf": []any{uuid, map[string]any{"type": "null"}}, "description": "The last item the job finished with; null before the first checkpoint. Items are visited in ascending ID order and a resumed job continues after it."},
 		"applied":      count, "unchanged": count, "review": count, "unmatched": count, "skipped": count, "failed": count, "updatedAt": instant},
 		"jobId", "libraryId", "trigger", "cursorItemId", "applied", "unchanged", "review", "unmatched", "skipped", "failed", "updatedAt")

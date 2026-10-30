@@ -108,7 +108,7 @@ func (s *Store) IssueDevToken(ctx context.Context, actor devmode.Actor, digest [
 	if _, err = tx.Exec(ctx, `INSERT INTO dev_mode_tokens(digest,issued_at,expires_at) VALUES($1,$2,$3)`, digest[:], issuedAt, expiresAt); err != nil {
 		return storageError(err)
 	}
-	if err = appendAudit(ctx, tx, AuditEntry{Event: "devmode.token_issued", Actor: domain.Actor(actor), TargetRef: "dev_mode",
+	if err = appendAudit(ctx, tx, AuditEntry{Event: "devmode.token_issued", Actor: domain.Actor{UserID: actor.UserID, SessionID: actor.SessionID, IP: actor.IP}, TargetRef: "dev_mode",
 		After: map[string]any{"expiresAt": expiresAt.UTC().Format(time.RFC3339), "entry": "loopback"}}); err != nil {
 		return err
 	}
@@ -164,5 +164,5 @@ func devAuditEntry(actor devmode.Actor, e devmode.Event) AuditEntry {
 		}
 		after["restored"] = restored
 	}
-	return AuditEntry{Event: devAuditEvents[e.Kind], Actor: domain.Actor(actor), TargetRef: "dev_mode", After: after}
+	return AuditEntry{Event: devAuditEvents[e.Kind], Actor: domain.Actor{UserID: actor.UserID, SessionID: actor.SessionID, IP: actor.IP}, TargetRef: "dev_mode", After: after}
 }

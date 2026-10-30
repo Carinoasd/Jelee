@@ -443,15 +443,23 @@ SELECT (SELECT count(*) FROM x),(SELECT count(*) FROM up WHERE inserted),(SELECT
 	// A schedule already running in the target keeps its next due time.
 	{kind: "scan_schedule", sql: `WITH x AS (SELECT s.doc,pg_temp.bk_dst('library',s.doc->>'library_id') l,pg_temp.bk_dst('user',s.doc->>'owner_id') o FROM bk_stage s WHERE s.kind='scan_schedule'),
 ok AS (SELECT * FROM x WHERE l IS NOT NULL AND o IS NOT NULL),
-up AS (INSERT INTO scan_schedules(library_id,owner_id,revision,enabled,mode,interval_seconds,cron,timezone,probe,nfo,ignore_mode,ignore_case,next_due,watch_enabled)
- SELECT l,o,(doc->>'revision')::bigint,(doc->>'enabled')::boolean,doc->>'mode',(doc->>'interval_seconds')::integer,doc->>'cron',doc->>'timezone',(doc->>'probe')::boolean,(doc->>'nfo')::boolean,
- doc->>'ignore_mode',doc->>'ignore_case',(doc->>'next_due')::timestamptz,(doc->>'watch_enabled')::boolean FROM ok
- ON CONFLICT(library_id) DO UPDATE SET owner_id=EXCLUDED.owner_id,revision=scan_schedules.revision+1,enabled=EXCLUDED.enabled,mode=EXCLUDED.mode,interval_seconds=EXCLUDED.interval_seconds,cron=EXCLUDED.cron,
- timezone=EXCLUDED.timezone,probe=EXCLUDED.probe,nfo=EXCLUDED.nfo,ignore_mode=EXCLUDED.ignore_mode,ignore_case=EXCLUDED.ignore_case,
- next_due=CASE WHEN EXCLUDED.enabled THEN COALESCE(scan_schedules.next_due,EXCLUDED.next_due) END,watch_enabled=EXCLUDED.watch_enabled,retry_after=NULL,last_error='',updated_at=clock_timestamp()
- WHERE (scan_schedules.owner_id,scan_schedules.enabled,scan_schedules.mode,scan_schedules.interval_seconds,scan_schedules.cron,scan_schedules.timezone,scan_schedules.probe,scan_schedules.nfo,
- scan_schedules.ignore_mode,scan_schedules.ignore_case,scan_schedules.watch_enabled)
- IS DISTINCT FROM (EXCLUDED.owner_id,EXCLUDED.enabled,EXCLUDED.mode,EXCLUDED.interval_seconds,EXCLUDED.cron,EXCLUDED.timezone,EXCLUDED.probe,EXCLUDED.nfo,EXCLUDED.ignore_mode,EXCLUDED.ignore_case,EXCLUDED.watch_enabled)
+timed AS (INSERT INTO job_schedules(kind,library_id,revision,enabled,mode,interval_seconds,cron,timezone,params,next_due)
+ SELECT 'inventory_scan',l,1,(doc->>'enabled')::boolean,doc->>'mode',(doc->>'interval_seconds')::integer,doc->>'cron',doc->>'timezone',
+ jsonb_build_object('probe',(doc->>'probe')::boolean,'nfo',(doc->>'nfo')::boolean,'ignore',jsonb_build_object('mode',doc->>'ignore_mode','caseMode',doc->>'ignore_case')),
+ CASE WHEN (doc->>'enabled')::boolean THEN (doc->>'next_due')::timestamptz END FROM ok
+ ON CONFLICT(kind,COALESCE(library_id,'00000000-0000-0000-0000-000000000000'::uuid)) DO UPDATE SET revision=job_schedules.revision+1,enabled=EXCLUDED.enabled,mode=EXCLUDED.mode,
+ interval_seconds=EXCLUDED.interval_seconds,cron=EXCLUDED.cron,run_at=NULL,timezone=EXCLUDED.timezone,params=EXCLUDED.params,
+ next_due=CASE WHEN EXCLUDED.enabled THEN COALESCE(job_schedules.next_due,EXCLUDED.next_due) END,retry_after=NULL,last_error='',updated_at=clock_timestamp()
+ WHERE (job_schedules.enabled,job_schedules.mode,job_schedules.interval_seconds,job_schedules.cron,job_schedules.timezone,job_schedules.params)
+ IS DISTINCT FROM (EXCLUDED.enabled,EXCLUDED.mode,EXCLUDED.interval_seconds,EXCLUDED.cron,EXCLUDED.timezone,EXCLUDED.params)
+ RETURNING library_id),
+up AS (INSERT INTO scan_schedules(library_id,owner_id,revision,probe,nfo,ignore_mode,ignore_case,watch_enabled)
+ SELECT l,o,(doc->>'revision')::bigint,(doc->>'probe')::boolean,(doc->>'nfo')::boolean,doc->>'ignore_mode',doc->>'ignore_case',(doc->>'watch_enabled')::boolean FROM ok
+ ON CONFLICT(library_id) DO UPDATE SET owner_id=EXCLUDED.owner_id,revision=scan_schedules.revision+1,probe=EXCLUDED.probe,nfo=EXCLUDED.nfo,ignore_mode=EXCLUDED.ignore_mode,ignore_case=EXCLUDED.ignore_case,
+ watch_enabled=EXCLUDED.watch_enabled,updated_at=clock_timestamp()
+ WHERE (scan_schedules.owner_id,scan_schedules.probe,scan_schedules.nfo,scan_schedules.ignore_mode,scan_schedules.ignore_case,scan_schedules.watch_enabled)
+ IS DISTINCT FROM (EXCLUDED.owner_id,EXCLUDED.probe,EXCLUDED.nfo,EXCLUDED.ignore_mode,EXCLUDED.ignore_case,EXCLUDED.watch_enabled)
+  OR EXISTS(SELECT 1 FROM timed WHERE timed.library_id=EXCLUDED.library_id)
  RETURNING (xmax=0) inserted)
 SELECT (SELECT count(*) FROM ok),(SELECT count(*) FROM up WHERE inserted),(SELECT count(*) FROM up WHERE NOT inserted),0`},
 	// Collections are administrator configuration: like client rules and

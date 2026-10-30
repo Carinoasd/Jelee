@@ -492,12 +492,18 @@ func TestMetadataRefreshQueuedAfterCatalogSync(t *testing.T) {
 	stop := startMetadataRefreshRunner(t, f, metadata, f.s, true)
 	f.submit(t, "scan-1")
 	waitJobsIdle(t, f)
-	var job, trigger, actor string
-	if err := f.s.Pool.QueryRow(f.ctx, `SELECT j.id::text,s.trigger,j.actor_id::text FROM jobs j JOIN metadata_refresh_job_state s ON s.job_id=j.id WHERE j.kind='metadata_refresh' AND j.state='succeeded'`).Scan(&job, &trigger, &actor); err != nil {
+	var job, trigger, actor, source, syncJob string
+	if err := f.s.Pool.QueryRow(f.ctx, `SELECT j.id::text,s.trigger,COALESCE(j.actor_id::text,''),COALESCE(j.system_source,''),(SELECT id::text FROM jobs WHERE kind='catalog_sync') FROM jobs j JOIN metadata_refresh_job_state s ON s.job_id=j.id WHERE j.kind='metadata_refresh' AND j.state='succeeded'`).Scan(&job, &trigger, &actor, &source, &syncJob); err != nil {
 		t.Fatal("no refresh after synchronisation", err)
 	}
-	if state := refreshCounts(t, f, job); trigger != domain.MetadataRefreshTriggerCatalogSync || actor != f.a.UserID || state.Applied != 2 {
-		t.Fatalf("automatic refresh %s %s %+v", trigger, actor, state)
+	// The automatic refresh runs as the system actor of its synchronisation.
+	if state := refreshCounts(t, f, job); trigger != domain.MetadataRefreshTriggerCatalogSync || actor != "" || source != "system:catalog_sync:"+syncJob || state.Applied != 2 {
+		t.Fatalf("automatic refresh %s %q %q %+v", trigger, actor, source, state)
+	}
+	var auditActor *string
+	var request string
+	if err := f.s.Pool.QueryRow(f.ctx, `SELECT actor_id::text,COALESCE(request_id,'') FROM audit_logs WHERE event='metadata_refresh.submitted' AND target_id=$1::uuid`, job).Scan(&auditActor, &request); err != nil || auditActor != nil || request != source {
+		t.Fatal("automatic refresh not audited as the system", auditActor, request, err)
 	}
 	var heat string
 	if err := f.s.Pool.QueryRow(f.ctx, `SELECT id::text FROM items WHERE kind='Movie' AND title='Heat'`).Scan(&heat); err != nil {
@@ -530,8 +536,8 @@ func TestMetadataRefreshQueuedAfterCatalogSync(t *testing.T) {
 	}
 	stop()
 
-	// A synchronisation without an active administrator behind it defers
-	// the refresh and still succeeds.
+	// A synchronisation without an administrator behind it still queues the
+	// refresh, as the system actor.
 	putRefreshSettings(t, f, true, domain.MetadataAutoApplyHigh)
 	sync, _, err := f.s.SubmitCatalogSync(f.ctx, f.a, f.registration.Library.ID, "manual-sync", domain.JobPriorityManual, f.policy)
 	if err != nil {
@@ -547,12 +553,8 @@ func TestMetadataRefreshQueuedAfterCatalogSync(t *testing.T) {
 	if err = f.s.FinishJob(f.ctx, lease, domain.JobSucceeded, ""); err != nil {
 		t.Fatal("finish without administrator", err)
 	}
-	var reason string
-	if err = f.s.Pool.QueryRow(f.ctx, `SELECT after_state->>'reason' FROM audit_logs WHERE event='metadata_refresh.deferred' AND target_id=$1::uuid`, sync.ID).Scan(&reason); err != nil || reason != "no_administrator" {
-		t.Fatal("deferral not audited", reason, err)
-	}
-	if syncCount(t, f, `SELECT count(*) FROM jobs WHERE kind='metadata_refresh'`) != 2 || syncCount(t, f, `SELECT count(*) FROM jobs WHERE id=$1::uuid AND state='succeeded'`, sync.ID) != 1 {
-		t.Fatal("deferred refresh queued or synchronisation failed")
+	if syncCount(t, f, `SELECT count(*) FROM jobs WHERE kind='metadata_refresh' AND actor_id IS NULL AND system_source=$1`, "system:catalog_sync:"+sync.ID) != 1 || syncCount(t, f, `SELECT count(*) FROM jobs WHERE id=$1::uuid AND state='succeeded'`, sync.ID) != 1 {
+		t.Fatal("system refresh not queued or synchronisation failed")
 	}
 }
 

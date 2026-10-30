@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "goos": "windows",
-  "total": 1999,
+  "total": 1998,
   "entries": [
     {
       "linter": "errcheck",
@@ -4173,13 +4173,6 @@
       "file": "internal/adapter/postgres/querylog.go",
       "text": "exported: exported method QueryLog.TraceQueryStart should have comment or be unexported",
       "source": "d07f25fae48e",
-      "count": 1
-    },
-    {
-      "linter": "revive",
-      "file": "internal/adapter/postgres/schedules.go",
-      "text": "exported: comment on exported method Store.DispatchScanSchedule should be of the form \"DispatchScanSchedule ...\"",
-      "source": "04bb897a0258",
       "count": 1
     },
     {

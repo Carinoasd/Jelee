@@ -27,7 +27,7 @@ func (m *Metadata) LibraryPreferences(ctx context.Context, actor domain.Actor, l
 	if err := ctx.Err(); err != nil {
 		return domain.MetadataPreferences{}, err
 	}
-	if !domain.ValidID(actor.UserID) || !domain.ValidID(actor.SessionID) {
+	if !workerActor(actor) {
 		return domain.MetadataPreferences{}, domain.ErrUnauthenticated
 	}
 	if !domain.ValidID(library) {

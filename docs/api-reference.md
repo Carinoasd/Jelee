@@ -51,6 +51,7 @@ OpenAPI 中的 Jelee 扩展字段：
 | `/api/v1/metadata` | TMDB 候选搜索、预览与图片候选 | P21 |
 | `/api/v1/libraries`、`/api/v1/jobs` | 媒体库、扫描、排程、监看、目录同步（含待确认项目接受／拒绝 `POST …/catalog-sync/pending/{entry}/accept|reject`，见[目录同步](catalog-sync.md#識別修正與待確認決定g215schema-100)）、命名选项（`GET`／`PUT /api/v1/libraries/{id}/naming`，`{"dateEpisodes":bool,"absoluteEpisodes":bool}` 两栏必填，变更后下一次目录同步依新规则重新解析，见[命名选项](catalog-sync.md#命名選項跨季合訂與特別篇歸類g213schema-102)）、NFO 策略与校验、NFO 写回权限（`PUT …/nfo/write-policy`）与写回任务（`POST …/nfo/writes`，见[NFO 写回任务](nfo-write-jobs.md)）、NFO 全量导入任务（`POST …/nfo/apply`，进度 `GET /api/v1/jobs/{id}/nfo-apply`，见[NFO 全量导入任务](nfo-apply-jobs.md)）、NFO 匯出全部与仅导出缺失任务（`POST …/nfo/export`，可选 body `{"mode":"all"|"missing"}`，进度 `GET /api/v1/jobs/{id}/nfo-export`，见[NFO 匯出全部任务](nfo-export-jobs.md)）、元数据刷新（自动刮削）任务、设置与待确认（`POST …/metadata/refresh`，进度 `GET /api/v1/jobs/{id}/metadata-refresh`，`GET`／`PUT …/metadata/refresh/settings`，`GET …/metadata/refresh/reviews`，`POST /api/v1/items/{id}/metadata/refresh/accept|reject`，见[元数据刷新任务](metadata-refresh-jobs.md)）、按媒体库批次移除外部元数据任务（`POST …/metadata/external/remove`，必须 `{"confirm":true}`，进度 `GET /api/v1/jobs/{id}/external-metadata-removal`，见[维护任务](maintenance-jobs.md)）、探测重建；任务与任务报告，Job 的 `progress` 带 done／total／percent／etaSeconds／etaBasis（G13.3，总数或 ETA 未知时为 null），见[任务 API](jobs-api.md#总数百分比与-etag133) | P22 |
 | `/api/v1/maintenance` | 维护任务：字幕提取缓存清理（`POST /api/v1/maintenance/subtitle-cache/cleanup`，进度 `GET /api/v1/jobs/{id}/subtitle-cache-cleanup`）、备份提醒（`POST /api/v1/maintenance/backup-reminder`，结果 `GET /api/v1/jobs/{id}/backup-reminder`）、备份状态（`GET /api/v1/maintenance/backup-status`），见[维护任务](maintenance-jobs.md) | P22 |
+| `/api/v1/schedules` | 通用任务排程（G13.1）：`GET`（可选 `?libraryId=`）／`POST` 建立（`201`，同种类同范围已有则 `409`）、`GET`／`PUT`（`expectedRevision`）／`DELETE`（`?expectedRevision=`）`/api/v1/schedules/{id}`、`POST /api/v1/schedules/{id}/run`（以呼叫者身分手动送件，需 `Idempotency-Key`）。可排程种类：`inventory_scan`、`metadata_refresh`、`image_refresh`、`consistency_check`（需 `libraryId`），`subtitle_cache_cleanup`、`backup_reminder`（服务器层级）；`external_metadata_removal` 等需要确认或预先准备的种类回 `400 schedule_kind_not_allowed`。时间：`interval`／`cron`／`once`（`runAt`），明确 IANA 时区，可选每日窗口 `window`。到期任务以系统身分执行（稽核无 actor、`requestId` 为 `system:schedule:<id>`），不依赖管理员工作阶段，见[任务排程](job-schedules.md) | P22 |
 | `/api/v1/admin` | 自愈修复与回滚，见[修复](repair.md) | P23 |
 | `/api/v1/webhooks` | Webhook 端点、投递记录、重放，见 [Webhook](webhooks.md) | P24 |
 | `/api/v1/client-control` | 客户端管控策略、规则、命中记录、已知客户端，见[客户端管控](client-control.md) | P25 |
@@ -147,6 +148,7 @@ OpenAPI 中的 Jelee 扩展字段：
 | `GET /api/v1/access/parental-ratings` | 分级代码表作为一份文件：至多 500 个代码，由 PUT 整表替换（G48.4），不是可逐一寻址的资源集合 |
 | `GET /api/v1/client-control/hits/export` | 导出下载：按过滤条件一次给出全部（受命中记录保留期限制）并附 `count` |
 | `GET /api/v1/watch-stats/export` | NDJSON／CSV 导出下载；`limit` 只是调低导出行数上限 |
+| `GET /api/v1/schedules` | 任务排程（G13.1）：每个种类与媒体库（或服务器）至多一个，受媒体库数量限制，排程页整份读取 |
 | `GET /api/v1/libraries/{id}/nfo/current-validations/{observationId}/issues` | 单个观察结果的问题：最多保留 64 条、没有标识，只按偏移分页 |
 | `GET /api/v1/site/plugins`、`GET /api/v1/site/plugins/config` | 站点设置中的插件开关（固定的小映射），不是集合 |
 | `GET /api/v1/collections/{id}` | 单个合集及其成员：资源视图，内嵌列表受合集大小限制 |
@@ -240,6 +242,7 @@ OpenAPI 中的 Jelee 扩展字段：
 | `request_timeout` | 408 | 请求已取消或超时。 |
 | `scan_limit` | 409 | 扫描资源数量已达上限。 |
 | `scan_unavailable` | 503 | 无法访问扫描根目录。 |
+| `schedule_kind_not_allowed` | 400 | 此任务类型不能排程。 |
 | `session_limit` | 429 | 有效会话数量已达上限。 |
 | `setup_completed` | 410 | 初始引导已完成。 |
 | `setup_required` | 503 | 尚未完成初始引导。 |
