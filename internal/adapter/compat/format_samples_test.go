@@ -157,10 +157,7 @@ func TestCompatListsAndDeliversEveryFormatSample(t *testing.T) {
 		}
 		wantCodec := s.codec
 		if s.kind == domain.SidecarKindAudio && probeErr != nil {
-			wantCodec = extensionCodec[s.record.Track.Format] // empty for mka, m4a, ogg and oga until probed
-		}
-		if s.kind == domain.SidecarKindAudio && probeErr != nil && s.record.Track.Format == "wav" {
-			wantCodec = "pcm"
+			wantCodec = extensionCodec[s.record.Track.Format] // empty for mka, m4a, ogg, oga and wav until probed
 		}
 		if got.Codec != wantCodec || got.Charset != s.charset || got.Kind != s.kind || got.SizeBytes != int64(len(s.data)) {
 			t.Errorf("%s: playback track %+v, want codec %q charset %q", s.record.RelativePath, got, wantCodec, s.charset)
@@ -297,4 +294,4 @@ var compatTextSubtitles = map[string]bool{"srt": true, "ass": true, "ssa": true,
 
 // extensionCodec is what the extension alone names for audio, used when the
 // sample is not probed (no ffprobe on the machine).
-var extensionCodec = map[string]string{"aac": "aac", "ac3": "ac3", "eac3": "eac3", "ec3": "eac3", "dts": "dts", "thd": "truehd", "truehd": "truehd", "mlp": "mlp", "flac": "flac", "opus": "opus", "mp3": "mp3", "wav": "pcm"}
+var extensionCodec = map[string]string{"aac": "aac", "ac3": "ac3", "eac3": "eac3", "ec3": "eac3", "dts": "dts", "thd": "truehd", "truehd": "truehd", "mlp": "mlp", "flac": "flac", "opus": "opus", "mp3": "mp3"}

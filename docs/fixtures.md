@@ -67,7 +67,7 @@ Windows 执行 `scripts/make.ps1 fixtures`；Linux 执行 `make fixtures`。命�
 
 ### 驗收中觀察到的事項（未改產品邏輯）
 
-1. 已探測的 WAV 在外掛軌回報 codec `pcm_s16le`，未探測時回報 `pcm`；單聲道 WAV 沒有聲道佈局。
+1. 已探測的 WAV 在外掛軌回報 codec `pcm_s16le`，未探測時回報 `pcm`；單聲道 WAV 沒有聲道佈局。**B12 已修**：WAV 改與 mka／m4a／ogg／oga 同列「探測前不報 codec」，探測後為 ffprobe 名稱（與內嵌 PCM 軌一致，客戶端宣告 `pcm` 照樣涵蓋）。
 2. 相容層把 MicroDVD 外掛字幕的 `IsTextSubtitleStream` 報為 `false`（它是文字，但 `microdvd` 不在 `textSubtitleFormats`）。
 3. 相容層外掛字幕的 `Codec` 是副檔名（`vtt`、`dfxp`、`smi`），不是播放資訊的規範名稱（`webvtt`、`ttml`、`sami`）。
 4. 太短的 TrueHD／MLP 位元流（不到約 0.5 至 1 秒）ffprobe 在 `fd:` 輸入下辨識不出，外掛軌會是 `failed`；真實檔案不受影響。
