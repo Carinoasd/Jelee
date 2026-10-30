@@ -179,6 +179,8 @@ func TestItemVersionSplitMergePrimaryAndUndoPostgres(t *testing.T) {
 	versionExec(t, f.jobFixture, `INSERT INTO watch_stats_daily(user_id,day,item_id,library_id,effective_ms,sessions,views,first_plays,completions) VALUES($1::uuid,DATE '2026-10-01',$2::uuid,$3::uuid,700,1,1,1,0)`, viewer, created, f.registration.Library.ID)
 	versionExec(t, f.jobFixture, `INSERT INTO user_track_preferences(user_id,item_id,audio_language) VALUES($1::uuid,$2::uuid,'ja')`, viewer, f.otherItem)
 	versionExec(t, f.jobFixture, `INSERT INTO user_track_preferences(user_id,item_id,source_id,subtitle_mode) VALUES($1::uuid,$2::uuid,$3::uuid,'off')`, viewer, f.otherItem, f.otherSource)
+	versionExec(t, f.jobFixture, `INSERT INTO metadata_refresh_reviews(item_id,library_id,state,resource,confidence,reason,query_title,candidates,rejected_at)
+ VALUES($1::uuid,$2::uuid,'rejected','movie','low','low_similarity','Heat','[{"providerId":"949","title":"Heat"}]'::jsonb,now())`, f.otherItem, f.registration.Library.ID)
 	merge, err := f.s.MergeItems(f.ctx, f.a, created, f.otherItem)
 	if err != nil || merge.Kind != domain.VersionOpMerge || merge.OtherItemID != f.otherItem || !slices.Equal(merge.SourceIDs, []string{f.otherSource}) {
 		t.Fatalf("merge: %+v %v", merge, err)
@@ -238,7 +240,8 @@ func TestItemVersionSplitMergePrimaryAndUndoPostgres(t *testing.T) {
 		versionCount(t, f.jobFixture, `SELECT count(*) FROM user_track_preferences WHERE item_id=$1::uuid`, created) != 0 ||
 		versionCount(t, f.jobFixture, `SELECT count(*) FROM user_track_preferences WHERE item_id=$1::uuid`, f.otherItem) != 2 ||
 		versionCount(t, f.jobFixture, `SELECT count(*) FROM item_primary_versions WHERE item_id=$1::uuid AND source_id=$2::uuid`, f.otherItem, f.otherSource) != 1 ||
-		versionCount(t, f.jobFixture, `SELECT count(*) FROM catalog_scan_item_aliases`) != 0 {
+		versionCount(t, f.jobFixture, `SELECT count(*) FROM catalog_scan_item_aliases`) != 0 ||
+		versionCount(t, f.jobFixture, `SELECT count(*) FROM metadata_refresh_reviews WHERE item_id=$1::uuid AND state='rejected'`, f.otherItem) != 1 {
 		t.Fatal("merge undo incomplete")
 	}
 	if _, err = f.s.UndoVersionOperation(f.ctx, f.a, merge.ID); !errors.Is(err, domain.ErrVersionUndoUnavailable) {

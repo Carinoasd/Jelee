@@ -1010,6 +1010,14 @@ func (s *Store) FinishCatalogSync(ctx context.Context, l domain.JobLease, state,
 	if err = auditAccount(ctx, tx, domain.Actor{}, "catalog_sync.finished", l.Job.ID, nil, map[string]any{"state": state, "errorCode": code, "phase": r.phase, "created": r.created, "updated": r.updated, "pending": r.pending, "markedMissing": r.markedMissing, "removed": r.removed, "protected": r.protected}); err != nil {
 		return err
 	}
+	// G13.6: an opted-in library refreshes its metadata after every
+	// successful synchronisation. The refresh is only queued here; it never
+	// delays or fails the synchronisation.
+	if state == domain.JobSucceeded {
+		if err = enqueueAutoMetadataRefresh(ctx, tx, current); err != nil {
+			return err
+		}
+	}
 	if err = trimJobs(ctx, tx, current.Policy.HistoryLimit); err != nil {
 		return err
 	}

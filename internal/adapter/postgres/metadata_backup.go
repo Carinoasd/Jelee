@@ -59,6 +59,7 @@ const (
 	excludedDerived       = "cache, quota or derived state: scans, probes, NFO reads and image processing rebuild it"
 	excludedObservation   = "observation or statistic, not configuration: playback sessions, counters, hits, delivery attempts"
 	excludedHistory       = "operation history of this database: repair and consistency journals, version operations and legacy import runs name rows and IDs of the source and can only be reverted there"
+	excludedAutomation    = "automation opt-in: automatic metadata refresh starts off after a restore, so a restored catalog is not rewritten from a provider before an administrator enables it again"
 	excludedInstance      = "state of this instance: setup progress, developer mode session, runtime log levels and log file retention, and migration bookkeeping are set by the target itself"
 )
 
@@ -85,13 +86,13 @@ var metadataBackupExcluded = map[string]string{
 	"nfo_write_commit_attempt_reservations": excludedJob, "nfo_write_commit_attempts": excludedJob, "nfo_write_commit_attempt_checkpoints": excludedJob,
 	"nfo_write_commit_attempt_ready": excludedJob, "nfo_write_commit_recovery_leases": excludedJob, "nfo_write_commit_settlements": excludedJob,
 	"nfo_write_commit_resolutions": excludedJob, "nfo_write_commit_cleanup_leases": excludedJob, "nfo_write_commit_cleanups": excludedJob,
-	"webhook_outbox": excludedJob, "legacy_import_pending": excludedJob, "nfo_apply_job_state": excludedJob, "nfo_export_job_state": excludedJob, "image_refresh_job_state": excludedJob,
+	"webhook_outbox": excludedJob, "legacy_import_pending": excludedJob, "nfo_apply_job_state": excludedJob, "nfo_export_job_state": excludedJob, "image_refresh_job_state": excludedJob, "metadata_refresh_job_state": excludedJob,
 
 	"probe_cache": excludedDerived, "probe_cache_quota": excludedDerived, "probe_library_quota": excludedDerived, "tool_versions": excludedDerived,
 	"nfo_cache": excludedDerived, "nfo_cache_quota": excludedDerived, "nfo_library_quota": excludedDerived, "item_nfo_observations": excludedDerived,
 	"library_inventory_baseline_data": excludedDerived, "inventory_snapshot_preparations": excludedDerived, "inventory_missing_acceptances": excludedDerived,
 	"catalog_scan_pending": excludedDerived, "image_variants": excludedDerived, "media_sidecar_tracks": excludedDerived,
-	"item_embedded_cover_attempts": excludedDerived, "item_chapter_image_attempts": excludedDerived, "item_image_fetch_failures": excludedDerived, "scan_watch_state": excludedDerived,
+	"item_embedded_cover_attempts": excludedDerived, "item_chapter_image_attempts": excludedDerived, "item_image_fetch_failures": excludedDerived, "metadata_refresh_reviews": excludedDerived, "scan_watch_state": excludedDerived,
 
 	"playback_sessions": excludedObservation, "playback_samples": excludedObservation, "session_track_selections": excludedObservation, "watch_stats_daily": excludedObservation,
 	"watch_stats_history": excludedObservation, "known_clients": excludedObservation, "known_client_sessions": excludedObservation,
@@ -101,6 +102,8 @@ var metadataBackupExcluded = map[string]string{
 	"consistency_runs": excludedHistory, "consistency_run_checks": excludedHistory, "consistency_fix_journal": excludedHistory,
 	"repair_runs": excludedHistory, "repair_journal": excludedHistory, "item_version_operations": excludedHistory,
 	"legacy_import_runs": excludedHistory, "legacy_import_checkpoints": excludedHistory, "legacy_import_map": excludedHistory,
+
+	"metadata_refresh_settings": excludedAutomation,
 
 	"setup_state": excludedInstance, "dev_mode_state": excludedInstance, "schema_migrations": excludedInstance, "log_settings": excludedInstance,
 }

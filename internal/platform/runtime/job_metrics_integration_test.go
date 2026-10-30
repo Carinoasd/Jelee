@@ -150,8 +150,9 @@ func (f jobMetricsRuntimeFixture) request(t *testing.T, ctx context.Context, tok
 		t.Fatal("request bounded shared metrics endpoint")
 	}
 	defer response.Body.Close()
-	body, err := io.ReadAll(io.LimitReader(response.Body, (64<<10)+1))
-	if err != nil || len(body) > 64<<10 {
+	// Eighteen fixed job groups with the process metrics stay below 96 KiB.
+	body, err := io.ReadAll(io.LimitReader(response.Body, (96<<10)+1))
+	if err != nil || len(body) > 96<<10 {
 		t.Fatal("read bounded shared metrics response")
 	}
 	if response.StatusCode != want {
@@ -173,9 +174,9 @@ func (f jobMetricsRuntimeFixture) request(t *testing.T, ctx context.Context, tok
 func sharedMetricsPoint(t *testing.T, families map[string]*dto.MetricFamily, name, kind, priority, outcome string, typ dto.MetricType) *dto.Metric {
 	t.Helper()
 	family := families[name]
-	wantLabels, wantPoints := 2, 16
+	wantLabels, wantPoints := 2, 18
 	if outcome != "" {
-		wantLabels, wantPoints = 3, 48
+		wantLabels, wantPoints = 3, 54
 	}
 	if family == nil || family.GetType() != typ || len(family.Metric) != wantPoints {
 		t.Fatal("missing fixed shared metrics family", name)

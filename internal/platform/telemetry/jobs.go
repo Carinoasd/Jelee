@@ -25,7 +25,7 @@ type jobDimensions struct {
 // jobDimensionSet and jobOutcomeSet fix the label sets' sizes; their lengths
 // are compile-time constants.
 type (
-	jobDimensionSet = [16]jobDimensions
+	jobDimensionSet = [18]jobDimensions
 	jobOutcomeSet   = [3]string
 )
 
@@ -41,6 +41,8 @@ func fixedJobDimensions() jobDimensionSet {
 		{"image_refresh", "manual"},
 		{"inventory_scan", "background"},
 		{"inventory_scan", "manual"},
+		{"metadata_refresh", "background"},
+		{"metadata_refresh", "manual"},
 		{"nfo_apply", "background"},
 		{"nfo_apply", "manual"},
 		{"nfo_export", "background"},

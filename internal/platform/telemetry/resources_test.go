@@ -59,7 +59,7 @@ func TestResourceMetricsSaturatedQueueAndCancellation(t *testing.T) {
 	assert := func(activeCPU, activeIO, total, waiting float64) {
 		t.Helper()
 		w := requestJobMetrics(m, context.Background())
-		if w.Code != http.StatusOK || w.Body.Len() > 64*1024 {
+		if w.Code != http.StatusOK || w.Body.Len() > 80*1024 {
 			t.Fatalf("resource scrape status/size: %d/%d", w.Code, w.Body.Len())
 		}
 		parser := expfmt.NewTextParser(model.LegacyValidation)

@@ -29,6 +29,9 @@ type ScanCapabilities struct {
 	// ImageRefresh lets a worker with a configured refresher claim
 	// image_refresh jobs.
 	ImageRefresh bool
+	// MetadataRefresh lets a worker claim metadata_refresh jobs; one without
+	// a configured provider fails them.
+	MetadataRefresh bool
 }
 
 func ValidateScanIntent(v ScanIntent) error {

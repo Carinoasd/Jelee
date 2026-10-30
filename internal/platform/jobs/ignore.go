@@ -56,6 +56,10 @@ func (r *Runner) execute(ctx context.Context, l domain.JobLease) (result error, 
 		storage, err := r.executeImageRefresh(ctx, l)
 		return err, storage
 	}
+	if l.Job.Kind == domain.JobMetadataRefresh {
+		storage, err := r.executeMetadataRefresh(ctx, l)
+		return err, storage
+	}
 	repository, ok := r.repository.(app.IgnoreExecutionRepository)
 	if !ok {
 		return r.executeStages(ctx, l, false)
@@ -307,6 +311,12 @@ func (r *Runner) finishJob(ctx context.Context, l domain.JobLease, state, code s
 			return domain.ErrInvalid
 		}
 		return r.options.ImageRefresh.Repository.FinishImageRefresh(ctx, l, state, code)
+	}
+	if l.Job.Kind == domain.JobMetadataRefresh {
+		if r.options.MetadataRefresh == nil {
+			return domain.ErrInvalid
+		}
+		return r.options.MetadataRefresh.Repository.FinishMetadataRefresh(ctx, l, state, code)
 	}
 	if state == domain.JobSucceeded {
 		if repo, ok := r.repository.(app.IgnoreExecutionRepository); ok {
