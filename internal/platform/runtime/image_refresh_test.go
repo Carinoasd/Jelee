@@ -13,7 +13,8 @@ import (
 
 func imageRefreshTestProcessor(t *testing.T, withStore bool) *imageadapter.Processor {
 	t.Helper()
-	base := t.TempDir()
+	// The store refuses a directory without a private DACL on Windows.
+	base := imagesIntegrationScratch(t)
 	temp, root := filepath.Join(base, "temp"), filepath.Join(base, "store")
 	for _, dir := range []string{temp, root} {
 		if err := os.Mkdir(dir, 0o700); err != nil {
