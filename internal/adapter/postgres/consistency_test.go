@@ -596,7 +596,7 @@ func TestConsistencyJobLifecyclePostgres(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if g := snapshot.Groups[5]; g.Kind != domain.JobConsistencyCheck || g.Priority != domain.JobPriorityManual || g.Succeeded != 1 {
+	if g := snapshot.Groups[7]; g.Kind != domain.JobConsistencyCheck || g.Priority != domain.JobPriorityManual || g.Succeeded != 1 {
 		t.Fatalf("job metrics group: %+v", g)
 	}
 

@@ -40,6 +40,7 @@
 | B16 | 命名選項與跨季合訂在 Windows（G21.3）：`go test -p 1 -count=1 -run "ParsePath|PlanCatalogScan|CatalogSyncParserVersion" ./internal/domain/... ./internal/app/`；有 PostgreSQL 時再以真 PG 跑 `-run "TestCatalogNaming" ./internal/adapter/postgres/`（含設定切換重解析、鎖定保留與降版）。確認 Windows 路徑下的日期型檔名（`新闻联播 2024-03-15.mp4`）、絕對集數與 `S01E10-S02E01` 檔案登記後可直投播放 | `docs/catalog-sync.md`「命名選項、跨季合訂與特別篇歸類」 | 待跑 |
 | B17 | 元資料刷新（自動刮削）在 Windows（G13.6、G14.4）：`go test -p 1 -count=1 -run "MatchMetadata|ReconcileMetadata|MetadataAutoApplies|TitleSimilarity|MetadataRefresh" ./internal/domain/ ./internal/app/ ./internal/adapter/http/`；有 PostgreSQL 時再以真 PG 跑 `-run TestMetadataRefresh ./internal/adapter/postgres/`（含 catalog sync 後自動排入、取消續跑、降版）。程式沒有平台分支，主要確認 Windows 服務上同步完成後自動排入、`GET /api/v1/jobs/{id}/metadata-refresh` 計數與待確認接受／拒絕正常 | `docs/metadata-refresh-jobs.md` | 待跑 |
 | B19 | 跨目錄多版本聚合在 Windows（G20.1、G20.5、G21.2）：`go test -p 1 -count=1 -run "VersionGrouping|VersionDurations|CatalogNumbersDisagree" ./internal/domain/`；有 PostgreSQL 時再以真 PG 跑 `go test -p 1 -parallel 2 -count=1 -run "TestCatalogVersionGrouping|TestItemVersion" ./internal/adapter/postgres/`。確認 Windows 路徑（不同磁碟根、大小寫不同的資料夾）下兩個目錄的同一部電影在 NFO 套用與探測後由下一次同步自動合併，`GET /api/v1/items/{id}/versions` 的操作 `automatic:true` 可撤銷，撤銷後重同步不再合併 | `docs/catalog-sync.md`「跨目錄多版本聚合」 | 待跑 |
+| B20 | 維護任務在 Windows（G13.6、G14.7）：Windows 上快取清理一律回 503 `subtitle_cache_unavailable`（無法證明快取根私有），確認 `go test -p 1 -count=1 -run "Sweeper" ./internal/adapter/matroska/` 走 Windows 分支通過；Windows 真 PG 跑 `go test -p 1 -parallel 2 -count=1 -run "TestExternalMetadataRemoval|TestBackupReminder|TestMaintenanceJobs" ./internal/adapter/postgres/`，並實際送一次批次移除與備份提醒，確認稽核與進度 | `internal/adapter/matroska/sweep.go`、`docs/maintenance-jobs.md` | 待跑 |
 
 ## C. 長時間、規模、效能
 
@@ -79,6 +80,7 @@
 | C34 | 命名選項的規模（G21.3）：十萬集以上的媒體庫切換 `dateEpisodes`／`absoluteEpisodes` 後（以及基底解析版本 v1→v2 升級後第一次同步）全庫重新規劃的耗時、批次數與 `protected` 計數；切換設定時正在跑的長同步會讓 `PUT …/naming` 等候媒體庫列鎖的延遲；每日節目十年以上（數千個日期型集數、每年一季）的季列表與條目查詢 | 只做過小型真 PG 短測 | 待跑 |
 | C35 | 元資料刷新的長時間與規模（G13.6）：上萬部電影、數千部劇集的媒體庫開啟 `auto` 後跑完整掃描→同步→刷新，觀察每個條目一個檢查點交易的總耗時、TMDB 請求數與冷卻次數（真金鑰見 D35）、連續 10 個提供者失敗即中止的門檻在實際限流下是否過於敏感；排程掃描在深夜觸發時，排程擁有者長時間沒有有效工作階段會讓自動刷新以 `metadata_refresh_failed` 結束，請確認實際部署的工作階段存活時間是否足夠，或需要改為系統身分執行；上千筆待確認列的分頁與接受延遲 | 只做過小型真 PG 短測（行程內假 TMDB） | 待跑 |
 | C37 | 跨目錄多版本聚合的規模（G20.1）：十萬條目以上、多數帶 NFO uniqueIds 的媒體庫，升級到遷移 000104 後第一次同步的 versions 階段（每批 128 個條目、每批最多 8 次自動合併）總耗時、批次數與 `aggregated` 計數；之後證據未變時 versions 階段只讀不判的耗時；`item_metadata_facts_nfo_unique_ids_idx`（GIN）的大小與 NFO 全量導入時的寫入開銷；同一部作品十份以上副本時合併的交易大小 | 只做過小型真 PG 短測 | 待跑 |
+| C38 | 維護任務的規模與長時間（G13.6、G14.7）：(1) 數萬個來源目錄、數十 GB 的 Matroska 擷取快取跑 `subtitle_cache_cleanup`，記錄每批（64 目錄）時間、`CountSources`／`ListSources` 每批重讀根目錄的成本（目前每批列一次整個根目錄）、錨點媒體庫被佔用的時間，以及擷取請求同時進行時是否有串流中斷（Linux 開啟中的檔案可刪；需確認播放器行為）；(2) 十萬條目以上的媒體庫跑 `external_metadata_removal`，每條目一筆交易（持有任務 advisory lock）對其他任務送件延遲的影響、稽核量（每個實際刪除的條目一筆）與總時間；(3) 開啟 `JELEE_JOB_BACKUP_REMINDER_DAYS` 多日運作，確認每 24 小時只排一個提醒、所有媒體庫長時間忙碌時是否延後過久 | 需要大型快取與大型媒體庫、長時間運作 | 待跑 |
 
 ## D. 真實資料／真金鑰／真客戶端
 
@@ -118,6 +120,7 @@
 | D34 | 命名選項與特別篇歸類的真實資料（G21.3）：以真實的每日節目（新聞、綜藝，含同日多檔）、絕對集數動畫（字幕組命名 ` - 01`、`[01]`、`第01話`）、跨季合訂檔與含 OVA／SP／劇場版的動畫庫，先以預設選項同步、記錄待確認數，再開啟兩個選項同步，確認誤判率、同日多檔被當成同一集多版本是否可接受、絕對集數放第 1 季是否符合使用習慣、劇場版經接受成為獨立電影；再關閉選項確認條目不被拆開 | 需要真實媒體庫；本輪無網頁介面，以 API 操作 | 待跑 |
 | D35 | 元資料刷新的真 TMDB 配對品質（G14.1、G14.4、G14.6）：以真 TMDB 金鑰對真實電影／劇集庫跑刷新（先用 `autoApply=never` 只產生待確認），統計 `nfo_tmdb_id`／`nfo_imdb_id`／`nfo_tvdb_id`／`existing_provider` 高置信的正確率、`title_year_unique` 中置信的正確率（決定是否把預設門檻放寬到 `medium`）、相似度門檻 90% 對中日文標題、副標題、羅馬數字與「The」前綴的誤判；確認 IMDb／TVDB find 在電影與劇集間沒有混淆、`year_mismatch` 再搜一次不帶年份的額外請求量可接受；接受待確認後的欄位、鎖定與 NFO 優先符合預期 | 需要真 TMDB 金鑰與真實媒體庫；不得網頁抓取 | 待跑 |
 | D37 | 跨目錄多版本聚合的真實資料（G20.1、G20.5、G21.2）：以真實電影庫（同片 1080p／4K／HDR 分放不同資料夾、導演剪輯版、同名不同年重拍片）與劇集庫（檔名集號錯但 NFO 正確、季包重複收錄），先做 NFO 全量導入與探測，再同步，逐筆檢查自動合併：誤合併數（應為 0）、該合未合的原因分佈（`catalog_scan_items.grouping_reason`：`duration_mismatch`、`duration_unknown`、`no_shared_external_id`…）；確認 2%／30 秒／3 分鐘的時長門檻對 PAL 加速（約 4%）與片頭片尾剪裁的版本是否過嚴；抽樣撤銷自動合併並確認重同步不再合併 | 需要真實媒體庫；本輪無網頁介面顯示原因，以 API 與資料庫查詢 | 待跑 |
+| D38 | 維護任務的真實資料（G13.6、G14.7）：以真實 MKV 庫開啟擷取，播放產生快取後刪除部分檔案並同步，跑快取清理確認只刪孤兒與閒置修訂、正在播放的字幕不受影響；以真 TMDB 套用過的真實媒體庫跑批次移除（先在一個庫加鎖幾個欄位、留幾筆待確認與拒絕），確認標題回退的本機名稱可接受、鎖定與人工值保留、拒絕紀錄依 `dropRejectedReviews` 處理，再開啟 `auto` 同步一次確認文件描述的重新刮削行為；以真實 `jelee-cli metadata export` 驗證備份提醒的 `ok`／`overdue` 判斷與稽核內容 | 需要真實媒體庫、mkvtoolnix 映像與 TMDB 金鑰 | 待跑 |
 
 ## E. 需要擁有者決定
 

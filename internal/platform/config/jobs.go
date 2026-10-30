@@ -36,6 +36,10 @@ type JobsConfig struct {
 	// zero selects the checker defaults.
 	ConsistencyStatBudget  int `json:"consistencyStatBudget"`
 	ConsistencyWatchSample int `json:"consistencyWatchSample"`
+	// BackupReminderDays queues a background backup check once a day that
+	// reminds when the last metadata export is older than this many days
+	// (G13.6); zero, the default, disables the schedule.
+	BackupReminderDays int `json:"backupReminderDays"`
 }
 
 func DefaultJobsConfig() JobsConfig {
@@ -59,6 +63,9 @@ func (c JobsConfig) Validate() error {
 	if c.ConsistencyIntervalHours < 0 || c.ConsistencyIntervalHours > 8760 || c.ConsistencyStatBudget < 0 || c.ConsistencyStatBudget > domain.ConsistencyMaxStatBudget || c.ConsistencyWatchSample < 0 || c.ConsistencyWatchSample > domain.ConsistencyMaxWatchSample {
 		return errors.New("consistency check schedule or bounds are outside supported limits")
 	}
+	if c.BackupReminderDays < 0 || c.BackupReminderDays > domain.BackupReminderDaysMax {
+		return errors.New("backup reminder threshold is outside supported limits")
+	}
 	return nil
 }
 
@@ -75,7 +82,7 @@ func (c *JobsConfig) loadEnvironment(lookup func(string) (string, bool)) error {
 	}
 	for name, target := range map[string]*int{
 		"JELEE_JOB_WORKERS": &c.Workers, "JELEE_JOB_POLL_MILLISECONDS": &c.PollMilliseconds, "JELEE_JOB_LEASE_SECONDS": &c.LeaseSeconds, "JELEE_JOB_DATABASE_TIMEOUT_SECONDS": &c.DatabaseTimeoutSeconds, "JELEE_JOB_MAX_RUNTIME_SECONDS": &c.MaxRuntimeSeconds, "JELEE_JOB_QUEUE_LIMIT": &c.QueueLimit, "JELEE_JOB_HISTORY_LIMIT": &c.HistoryLimit, "JELEE_SCAN_MAX_ENTRIES": &c.MaxEntries, "JELEE_SCAN_MAX_DIRECTORIES": &c.MaxDirectories, "JELEE_JOB_MAX_ATTEMPTS": &c.MaxAttempts, "JELEE_SCAN_MISSING_COUNT_LIMIT": &c.MissingCountLimit, "JELEE_SCAN_MISSING_PERCENT_LIMIT": &c.MissingPercentLimit, "JELEE_SCAN_DIRECTORY_CONCURRENCY": &c.ScanConcurrency,
-		"JELEE_JOB_CONSISTENCY_INTERVAL_HOURS": &c.ConsistencyIntervalHours, "JELEE_JOB_CONSISTENCY_STAT_BUDGET": &c.ConsistencyStatBudget, "JELEE_JOB_CONSISTENCY_WATCH_SAMPLE": &c.ConsistencyWatchSample,
+		"JELEE_JOB_CONSISTENCY_INTERVAL_HOURS": &c.ConsistencyIntervalHours, "JELEE_JOB_CONSISTENCY_STAT_BUDGET": &c.ConsistencyStatBudget, "JELEE_JOB_CONSISTENCY_WATCH_SAMPLE": &c.ConsistencyWatchSample, "JELEE_JOB_BACKUP_REMINDER_DAYS": &c.BackupReminderDays,
 	} {
 		if value, ok := lookup(name); ok {
 			n, err := strconv.Atoi(value)

@@ -17,7 +17,7 @@ type JobMetricsSource interface {
 type JobMetricsSnapshot struct {
 	StartedAt  time.Time
 	ObservedAt time.Time
-	Groups     [18]JobMetricGroup
+	Groups     [24]JobMetricGroup
 }
 
 type JobMetricGroup struct {

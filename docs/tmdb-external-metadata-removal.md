@@ -32,7 +32,7 @@
 - 快取期限：供應商候選資料只放在行程記憶體內，不持久化，重啟即清空。電影與劇集各最多 256 筆（季 16 筆），以 ID＋語言分區，自取得時間起 24 小時到期，命中不延長；錯誤與認證失敗不快取。搜尋結果不快取。見[電影快取](tmdb-movie-preview.md)、[劇集快取](tmdb-series-preview.md)、[季／集](tmdb-season-episode-preview.md)。
 - 持久保存：只有管理員明確確認套用的四個欄位寫入資料庫，每欄保存 TMDB ID、資源類別、官方頁面、要求語言與 UTC 取得時間（G14.7「记录数据来源与抓取时间」）。這些資料沒有自動到期，也不會自動重新抓取；清除方式為本頁的移除入口。
 - 署名：設定 TMDB 金鑰後，`/api-docs` 的 Credits 區塊顯示 TMDB 官方未修改藍色短標誌（瀏覽器直接向官方網域載入）、官方連結及聲明「This product uses the TMDB API but is not endorsed or certified by TMDB.」依據見[官方 FAQ](https://developer.themoviedb.org/docs/faq) 與[官方標誌頁](https://www.themoviedb.org/about/logos-attribution)。完整前端的署名展示尚未完成。
-- 移除方式：逐項目呼叫上述 DELETE 入口；記憶體快取由 24 小時到期或重啟清除，目前沒有手動清空記憶體快取的入口。
+- 移除方式：逐項目呼叫上述 DELETE 入口，或以批次任務清除整個媒體庫；記憶體快取由 24 小時到期或重啟清除，目前沒有手動清空記憶體快取的入口。
 
 ### 需擁有者確認
 
@@ -42,7 +42,7 @@
 - 記憶體快取 24 小時是否符合官方要求。
 - 署名需出現的位置（目前只在 API 文件頁）與前端呈現方式。
 - 歷史稽核中保留的 TMDB 文字是否需要清理或遮蔽。
-- 商業使用、再散布或批次清除全部項目外部資料的需求；目前只有逐項目移除。
+- 商業使用與再散布的需求。按媒體庫批次清除已由 `external_metadata_removal` 任務提供（[維護任務](maintenance-jobs.md#批次移除外部元資料external_metadata_removal)）。
 
 ## 驗證
 
@@ -50,4 +50,4 @@
 - 真 PostgreSQL：`internal/adapter/postgres/metadata_remove_test.go` 驗證只移除 tmdb、保留 NFO／人工、鎖定保護與解鎖後移除、標題回退與目錄同步、無本機來源時保留標題、版本衝突、每次一筆稽核且不含被移除文字、欄位刪除與稽核失敗的完整回滾，以及實際 HTTP 的 401／403／404／409／400 與成功路徑。
 - 反向驗證：暫時讓鎖定欄位也可移除，鎖定測試失敗；暫時拿掉版本比對，過期版本與 HTTP 409 測試失敗；恢復後全部通過。
 
-G14.7 仍屬部分完成：移除入口已有，但前端、批次清除與官方條款確認尚未完成。
+G14.7 仍屬部分完成：逐項目移除與按媒體庫批次移除（`POST /api/v1/libraries/{id}/metadata/external/remove`，見[維護任務](maintenance-jobs.md)）已有，前端與官方條款確認尚未完成。

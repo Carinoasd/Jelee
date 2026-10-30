@@ -48,6 +48,9 @@
 | `nfo_apply`、`nfo_export` | 提交时媒体库的条目数，是估计值：运行期间新增或删除条目不会更新它 |
 | `image_refresh` | 提交时符合刷新条件（远程、无内容、未锁定、非手动）的图片行数，同为估计值 |
 | `catalog_sync`、`consistency_check` | 多阶段工作没有统一的工作量单位，始终为 null |
+| `external_metadata_removal` | 提交时有 TMDB 字段或自动配对待确认记录的条目数，估计值（见[维护任务](maintenance-jobs.md)） |
+| `subtitle_cache_cleanup` | 第一次执行时列出的缓存来源目录数，估计值；容量阶段不另计 |
+| `backup_reminder` | 固定为 1 |
 
 ETA = 剩余工作量 ÷ 近期吞吐量。吞吐量是检查点之间「新完成数 ÷ 经过秒数」的指数移动平均（新样本权重 0.3），由 `jobs` 上的 BEFORE UPDATE 触发器在既有检查点更新同一行时计算，不增加任何语句；相隔不到 50 ms 的检查点累积到下一个样本。任务不在 running、被新的租约 generation 领取，或完成数倒退（扫描恢复）时，采样起点重置，所以暂停、排队与恢复时间不会算进吞吐量。
 

@@ -81,6 +81,7 @@ var errorCodeStatuses = map[string][]int{
 	"request_timeout":            {408},
 	"scan_limit":                 {409},
 	"scan_unavailable":           {503},
+	"subtitle_cache_unavailable": {503},
 	"session_limit":              {429},
 	"share_forbidden":            {403},
 	"share_playback_disabled":    {403},

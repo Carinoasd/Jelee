@@ -949,6 +949,8 @@ func WriteError(w http.ResponseWriter, r *http.Request, err error) {
 		status, code, message = 503, "not_ready", "Service is not ready."
 	case errors.Is(err, domain.ErrMetadataUnavailable):
 		status, code, message = 503, "metadata_unavailable", "Metadata provider is unavailable. Try again later."
+	case errors.Is(err, domain.ErrSubtitleCacheUnavailable):
+		status, code, message = 503, "subtitle_cache_unavailable", "The subtitle extraction cache is not configured on this server."
 	case errors.Is(err, domain.ErrImageBusy):
 		status, code, message = 503, "image_busy", "Image processing is busy. Try again later."
 		w.Header().Set("Retry-After", "1")

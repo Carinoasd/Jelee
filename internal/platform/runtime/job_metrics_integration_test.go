@@ -150,9 +150,9 @@ func (f jobMetricsRuntimeFixture) request(t *testing.T, ctx context.Context, tok
 		t.Fatal("request bounded shared metrics endpoint")
 	}
 	defer response.Body.Close()
-	// Eighteen fixed job groups with the process metrics stay below 96 KiB.
-	body, err := io.ReadAll(io.LimitReader(response.Body, (96<<10)+1))
-	if err != nil || len(body) > 96<<10 {
+	// Twenty-four fixed job groups with the process metrics stay below 128 KiB.
+	body, err := io.ReadAll(io.LimitReader(response.Body, (128<<10)+1))
+	if err != nil || len(body) > 128<<10 {
 		t.Fatal("read bounded shared metrics response")
 	}
 	if response.StatusCode != want {
@@ -174,9 +174,9 @@ func (f jobMetricsRuntimeFixture) request(t *testing.T, ctx context.Context, tok
 func sharedMetricsPoint(t *testing.T, families map[string]*dto.MetricFamily, name, kind, priority, outcome string, typ dto.MetricType) *dto.Metric {
 	t.Helper()
 	family := families[name]
-	wantLabels, wantPoints := 2, 18
+	wantLabels, wantPoints := 2, 24
 	if outcome != "" {
-		wantLabels, wantPoints = 3, 54
+		wantLabels, wantPoints = 3, 72
 	}
 	if family == nil || family.GetType() != typ || len(family.Metric) != wantPoints {
 		t.Fatal("missing fixed shared metrics family", name)
@@ -339,25 +339,25 @@ func TestJobMetricsRuntimePostgresLifecycleAndInstances(t *testing.T) {
 	}
 	first := submit("shared-metrics-first", domain.JobPriorityManual)
 	queued, _ := scrapeSharedMetricsSnapshot(t, ctx, store, one, admin.Token, 4)
-	if group := queued.Groups[9]; group.Queued != 1 || group.Running != 0 || group.Wait.Count != 0 {
+	if group := queued.Groups[13]; group.Queued != 1 || group.Running != 0 || group.Wait.Count != 0 {
 		t.Fatal("submitted job did not appear as queued before its first claim")
 	}
 	lease := claim("shared-metrics-first-owner")
 	running, _ := scrapeSharedMetricsSnapshot(t, ctx, store, two, admin.Token, 7)
-	if group := running.Groups[9]; group.Queued != 0 || group.Running != 1 || group.Wait.Count != 1 || group.Duration.Count != 0 {
+	if group := running.Groups[13]; group.Queued != 0 || group.Running != 1 || group.Wait.Count != 1 || group.Duration.Count != 0 {
 		t.Fatal("first claim did not expose exactly one initial wait")
 	}
 	if err := store.ReleaseJob(ctx, lease); err != nil {
 		t.Fatal("release shared metrics job for another owner")
 	}
 	requeued, _ := scrapeSharedMetricsSnapshot(t, ctx, store, one, admin.Token, 4)
-	if group := requeued.Groups[9]; group.Queued != 1 || group.Running != 0 || group.Wait != running.Groups[9].Wait {
+	if group := requeued.Groups[13]; group.Queued != 1 || group.Running != 0 || group.Wait != running.Groups[13].Wait {
 		t.Fatal("release replayed an initial wait sample")
 	}
 	lease = claim("shared-metrics-next-owner")
 	finish(lease)
 	finished, _ := scrapeSharedMetricsSnapshot(t, ctx, store, two, admin.Token, 7)
-	if group := finished.Groups[9]; group.Queued != 0 || group.Running != 0 || group.Succeeded != 1 || group.Wait != running.Groups[9].Wait || group.Duration.Count != 1 {
+	if group := finished.Groups[13]; group.Queued != 0 || group.Running != 0 || group.Succeeded != 1 || group.Wait != running.Groups[13].Wait || group.Duration.Count != 1 {
 		t.Fatal("successful reclaim did not expose one completion and one duration")
 	}
 	submit("shared-metrics-second", domain.JobPriorityManual)
@@ -371,10 +371,10 @@ func TestJobMetricsRuntimePostgresLifecycleAndInstances(t *testing.T) {
 		t.Fatal("cancel never-started shared metrics job")
 	}
 	final, body := scrapeSharedMetricsSnapshot(t, ctx, store, one, admin.Token, 4)
-	if group := final.Groups[9]; group.Succeeded != 2 || group.Wait.Count != 2 || group.Duration.Count != 2 {
+	if group := final.Groups[13]; group.Succeeded != 2 || group.Wait.Count != 2 || group.Duration.Count != 2 {
 		t.Fatal("history trimming reduced shared counters or histograms")
 	}
-	if group := final.Groups[8]; group.Cancelled != 1 || group.Wait.Count != 0 || group.Duration.Count != 0 {
+	if group := final.Groups[12]; group.Cancelled != 1 || group.Wait.Count != 0 || group.Duration.Count != 0 {
 		t.Fatal("never-started cancellation invented timing samples")
 	}
 	if !final.StartedAt.Equal(initial.StartedAt) {
