@@ -94,6 +94,7 @@ var metadataBackupExcluded = map[string]string{
 	"library_inventory_baseline_data": excludedDerived, "inventory_snapshot_preparations": excludedDerived, "inventory_missing_acceptances": excludedDerived,
 	"catalog_scan_pending": excludedDerived, "image_variants": excludedDerived, "media_sidecar_tracks": excludedDerived,
 	"item_embedded_cover_attempts": excludedDerived, "item_chapter_image_attempts": excludedDerived, "item_image_fetch_failures": excludedDerived, "metadata_refresh_reviews": excludedDerived, "scan_watch_state": excludedDerived,
+	"media_source_parts": excludedDerived,
 
 	"playback_sessions": excludedObservation, "playback_samples": excludedObservation, "session_track_selections": excludedObservation, "watch_stats_daily": excludedObservation,
 	"watch_stats_history": excludedObservation, "known_clients": excludedObservation, "known_client_sessions": excludedObservation,

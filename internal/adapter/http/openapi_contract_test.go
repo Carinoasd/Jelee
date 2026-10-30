@@ -47,6 +47,7 @@ var undocumentedRoutes = map[string]string{
 	"GET /compat/Users/{id}/Items/{itemId}":          compatExemption,
 	"GET /compat/Items/{itemId}/PlaybackInfo":        compatExemption,
 	"POST /compat/Items/{itemId}/PlaybackInfo":       compatExemption,
+	"GET /compat/Videos/{itemId}/AdditionalParts":    compatExemption,
 	"GET /compat/Videos/{itemId}/stream":             compatExemption,
 	"GET /compat/Videos/{itemId}/stream.{container}": compatExemption,
 	"GET /compat/Videos/{itemId}/{mediaSourceId}/Subtitles/{index}/Stream.{format}":                      compatExemption,

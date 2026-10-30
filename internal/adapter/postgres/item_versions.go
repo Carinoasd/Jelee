@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"path"
+	"slices"
 	"time"
 
 	"github.com/MoYuanCN/Jelee/internal/app"
@@ -246,6 +247,9 @@ type splitUndo struct {
 	PrimaryRemoved  bool            `json:"primaryRemoved"`
 	ExclusionID     string          `json:"exclusionId,omitempty"`
 	ScanItemCreated bool            `json:"scanItemCreated"`
+	// PartExclusionIDs exclude the later parts of a multi-part version
+	// (G21.1); ExclusionID excludes its first part.
+	PartExclusionIDs []string `json:"partExclusionIds,omitempty"`
 }
 
 // SplitVersion moves one version of an item into a new item of the same
@@ -266,9 +270,36 @@ func (s *Store) SplitVersion(ctx context.Context, actor domain.Actor, itemID str
 	}
 	var root, relative string
 	var count int
-	err = tx.QueryRow(ctx, `SELECT m.root_id::text,m.relative_path,(SELECT count(*) FROM media_sources WHERE item_id=$2::uuid) FROM media_sources m WHERE m.id=$1::uuid AND m.item_id=$2::uuid FOR UPDATE`, in.SourceID, item.id).Scan(&root, &relative, &count)
+	// Versions are counted without the later parts of multi-part versions,
+	// and a later part is not a version: it is answered like a missing one.
+	err = tx.QueryRow(ctx, `SELECT m.root_id::text,m.relative_path,(SELECT count(*) FROM media_sources o WHERE o.item_id=$2::uuid AND `+notLaterPartSQL("o")+`)
+ FROM media_sources m WHERE m.id=$1::uuid AND m.item_id=$2::uuid AND `+notLaterPartSQL("m")+` FOR UPDATE`, in.SourceID, item.id).Scan(&root, &relative, &count)
 	if err != nil {
 		return domain.VersionOperation{}, storageError(err)
+	}
+	// A multi-part version moves with all of its parts, first part first.
+	partRows, err := tx.Query(ctx, `SELECT m.id::text,m.root_id::text,m.relative_path FROM media_source_parts p JOIN media_sources m ON m.id=p.source_id
+ WHERE p.version_source_id=$1::uuid AND p.part_number>1 AND m.item_id=$2::uuid ORDER BY p.part_number FOR UPDATE OF m`, in.SourceID, item.id)
+	if err != nil {
+		return domain.VersionOperation{}, storageError(err)
+	}
+	type laterPart struct{ id, root, relative string }
+	var parts []laterPart
+	for partRows.Next() {
+		var lp laterPart
+		if err = partRows.Scan(&lp.id, &lp.root, &lp.relative); err != nil {
+			partRows.Close()
+			return domain.VersionOperation{}, storageError(err)
+		}
+		parts = append(parts, lp)
+	}
+	partRows.Close()
+	if err = partRows.Err(); err != nil {
+		return domain.VersionOperation{}, storageError(err)
+	}
+	moving := []string{in.SourceID}
+	for _, lp := range parts {
+		moving = append(moving, lp.id)
 	}
 	if !domain.VersionMergeKind(item.kind) || count < 2 {
 		return domain.VersionOperation{}, domain.ErrVersionMergeIncompatible
@@ -318,7 +349,7 @@ func (s *Store) SplitVersion(ctx context.Context, actor domain.Actor, itemID str
 		}
 		undo.ScanItemCreated = tag.RowsAffected() == 1
 	}
-	if undo.Manual, err = moveSources(ctx, tx, []string{in.SourceID}, item.id, created); err != nil {
+	if undo.Manual, err = moveSources(ctx, tx, moving, item.id, created); err != nil {
 		return domain.VersionOperation{}, err
 	}
 	tag, err := tx.Exec(ctx, `DELETE FROM item_primary_versions WHERE item_id=$1::uuid AND source_id=$2::uuid`, item.id, in.SourceID)
@@ -331,14 +362,25 @@ func (s *Store) SplitVersion(ctx context.Context, actor domain.Actor, itemID str
  ON CONFLICT(item_id,root_id,relative_path) DO UPDATE SET created_at=item_version_exclusions.created_at RETURNING id::text`, item.id, item.library, root, relative).Scan(&undo.ExclusionID); err != nil {
 			return domain.VersionOperation{}, storageError(err)
 		}
+		for _, lp := range parts {
+			var id string
+			if err = tx.QueryRow(ctx, `INSERT INTO item_version_exclusions(item_id,library_id,root_id,relative_path) VALUES($1::uuid,$2::uuid,$3::uuid,$4)
+ ON CONFLICT(item_id,root_id,relative_path) DO UPDATE SET created_at=item_version_exclusions.created_at RETURNING id::text`, item.id, item.library, lp.root, lp.relative).Scan(&id); err != nil {
+				return domain.VersionOperation{}, storageError(err)
+			}
+			undo.PartExclusionIDs = append(undo.PartExclusionIDs, id)
+		}
 	}
-	op, err := recordVersionOperation(ctx, tx, actor, domain.VersionOpSplit, item, created, []string{in.SourceID}, undo, "item.version_split",
-		map[string]any{"sourceId": in.SourceID, "newItemId": created, "exclude": in.Exclude, "kind": item.kind})
+	details := map[string]any{"sourceId": in.SourceID, "newItemId": created, "exclude": in.Exclude, "kind": item.kind}
+	if len(parts) > 0 {
+		details["parts"] = len(moving)
+	}
+	op, err := recordVersionOperation(ctx, tx, actor, domain.VersionOpSplit, item, created, moving, undo, "item.version_split", details)
 	if err != nil {
 		return domain.VersionOperation{}, err
 	}
 	if undo.ExclusionID != "" {
-		if _, err = tx.Exec(ctx, `UPDATE item_version_exclusions SET operation_id=$2::uuid WHERE id=$1::uuid`, undo.ExclusionID, op.ID); err != nil {
+		if _, err = tx.Exec(ctx, `UPDATE item_version_exclusions SET operation_id=$2::uuid WHERE id=$1::uuid OR id=ANY($3::uuid[])`, undo.ExclusionID, op.ID, undo.PartExclusionIDs); err != nil {
 			return domain.VersionOperation{}, storageError(err)
 		}
 	}
@@ -566,7 +608,7 @@ func applyPrimaryVersion(ctx context.Context, tx pgx.Tx, item versionItem, sourc
 		_, err := tx.Exec(ctx, `DELETE FROM item_primary_versions WHERE item_id=$1::uuid`, item.id)
 		return storageError(err)
 	}
-	tag, err := tx.Exec(ctx, `INSERT INTO item_primary_versions(item_id,library_id,source_id) SELECT $1::uuid,$2::uuid,id FROM media_sources WHERE id=$3::uuid AND item_id=$1::uuid
+	tag, err := tx.Exec(ctx, `INSERT INTO item_primary_versions(item_id,library_id,source_id) SELECT $1::uuid,$2::uuid,m.id FROM media_sources m WHERE m.id=$3::uuid AND m.item_id=$1::uuid AND `+notLaterPartSQL("m")+`
  ON CONFLICT(item_id) DO UPDATE SET source_id=EXCLUDED.source_id,updated_at=clock_timestamp()`, item.id, item.library, sourceID)
 	if err != nil {
 		return storageError(err)
@@ -727,8 +769,10 @@ func undoSplit(ctx context.Context, tx pgx.Tx, actor domain.Actor, item versionI
 		if err = itemWebhook(ctx, tx, events, domain.WebhookMediaDeleted, created); err != nil {
 			return err
 		}
-		if undo.PrimaryRemoved && len(moved) == 1 {
-			if _, err = tx.Exec(ctx, `INSERT INTO item_primary_versions(item_id,library_id,source_id) VALUES($1::uuid,$2::uuid,$3::uuid) ON CONFLICT DO NOTHING`, item.id, item.library, moved[0]); err != nil {
+		// The first moved source is the version (with a multi-part
+		// version's later parts after it).
+		if undo.PrimaryRemoved && len(op.SourceIDs) > 0 && slices.Contains(moved, op.SourceIDs[0]) {
+			if _, err = tx.Exec(ctx, `INSERT INTO item_primary_versions(item_id,library_id,source_id) VALUES($1::uuid,$2::uuid,$3::uuid) ON CONFLICT DO NOTHING`, item.id, item.library, op.SourceIDs[0]); err != nil {
 				return storageError(err)
 			}
 		}
@@ -736,11 +780,18 @@ func undoSplit(ctx context.Context, tx pgx.Tx, actor domain.Actor, item versionI
 		details["removedItemId"] = created.id
 	}
 	if undo.ExclusionID != "" {
-		if _, err := tx.Exec(ctx, `DELETE FROM item_version_exclusions WHERE id=$1::uuid`, undo.ExclusionID); err != nil {
+		if _, err := tx.Exec(ctx, `DELETE FROM item_version_exclusions WHERE id=$1::uuid OR id=ANY($2::uuid[])`, undo.ExclusionID, undo.PartExclusionIDs); err != nil {
 			return storageError(err)
 		}
 	}
 	return nil
+}
+
+// notLaterPartSQL is true for a media source (alias m) that is not a later
+// part of a multi-part version (G21.1): a single file or a first part, which
+// is the version.
+func notLaterPartSQL(m string) string {
+	return `NOT EXISTS(SELECT 1 FROM media_source_parts lp WHERE lp.source_id=` + m + `.id AND lp.part_number>1)`
 }
 
 // undoMerge recreates the absorbed item with its rows, moves its versions

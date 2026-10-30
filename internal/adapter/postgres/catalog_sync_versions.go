@@ -41,8 +41,9 @@ func effectiveNumbersSQL(item, k, c string) string {
 }
 
 // versionCandidateSQL reads synchronised Movies and Episodes that carry NFO
-// provider IDs, with everything a grouping decision depends on. Callers add
-// the remaining conditions and the order.
+// provider IDs, with everything a grouping decision depends on. A
+// multi-part version (G21.1) contributes one duration, the sum of its parts.
+// Callers add the remaining conditions and the order.
 var versionCandidateSQL = `SELECT c.item_id::text,c.kind,f.value::text,c.grouping_evidence,` + effectiveNumbersSQL("c.item_id", "k", "c") + `,
  COALESCE(` + factNumberSQL("c.item_id", "seasonNumber") + `<>c.season OR ` + factNumberSQL("c.item_id", "episodeNumber") + `<>c.episode,false),
  CASE WHEN k.kind_locked OR k.parent_locked OR k.season IS NOT NULL OR k.episode IS NOT NULL THEN '` + domain.VersionGroupingHeldLocked + `'
@@ -52,9 +53,11 @@ var versionCandidateSQL = `SELECT c.item_id::text,c.kind,f.value::text,c.groupin
    OR EXISTS(SELECT 1 FROM catalog_scan_sources s WHERE s.item_id=c.item_id AND s.manual) THEN '` + domain.VersionGroupingHeldManual + `'
   WHEN EXISTS(SELECT 1 FROM media_sources m WHERE m.item_id=c.item_id AND NOT EXISTS(SELECT 1 FROM catalog_scan_sources s WHERE s.source_id=m.id)) THEN '` + domain.VersionGroupingHeldImported + `'
   ELSE '' END,
- ARRAY(SELECT (SELECT CASE WHEN jsonb_typeof(p.metadata#>'{format,durationMicros}')='number' THEN (p.metadata#>>'{format,durationMicros}')::bigint END
-   FROM probe_cache p WHERE p.root_id=m.root_id AND p.relative_path=m.relative_path AND p.state='ready' AND p.size=s.size AND p.modified_unix_nano=s.modified_unix_nano)
-  FROM media_sources m LEFT JOIN catalog_scan_sources s ON s.source_id=m.id WHERE m.item_id=c.item_id ORDER BY m.id)
+ ARRAY(SELECT CASE WHEN bool_and(v.duration IS NOT NULL) THEN sum(v.duration)::bigint END FROM (
+  SELECT COALESCE(pp.version_source_id,m.id) AS version,(SELECT CASE WHEN jsonb_typeof(p.metadata#>'{format,durationMicros}')='number' THEN (p.metadata#>>'{format,durationMicros}')::bigint END
+   FROM probe_cache p WHERE p.root_id=m.root_id AND p.relative_path=m.relative_path AND p.state='ready' AND p.size=s.size AND p.modified_unix_nano=s.modified_unix_nano) AS duration
+  FROM media_sources m LEFT JOIN catalog_scan_sources s ON s.source_id=m.id LEFT JOIN media_source_parts pp ON pp.source_id=m.id WHERE m.item_id=c.item_id) v
+  GROUP BY v.version ORDER BY v.version)
  FROM catalog_scan_items c
  JOIN item_metadata_facts f ON f.item_id=c.item_id AND f.field='uniqueIds' AND f.source='nfo'
  LEFT JOIN item_identity_corrections k ON k.item_id=c.item_id
@@ -92,6 +95,11 @@ func readVersionCandidates(ctx context.Context, tx pgx.Tx, query string, args ..
 func syncCatalogVersionsBatch(ctx context.Context, tx pgx.Tx, current domain.JobLease, r *catalogSyncRequest, events bool) error {
 	if err := checkSyncTarget(ctx, tx, *r); err != nil {
 		return err
+	}
+	if !r.partsDone {
+		// Parts first: a multi-part version counts as one version with
+		// the combined duration when copies are compared below.
+		return syncCatalogPartsBatch(ctx, tx, current, r)
 	}
 	batch, err := readVersionCandidates(ctx, tx, versionCandidateSQL+` AND ($2::uuid IS NULL OR c.item_id>$2::uuid) ORDER BY c.item_id LIMIT $3`, r.library, r.versionsCursor, catalogSyncVersionsLimit)
 	if err != nil {

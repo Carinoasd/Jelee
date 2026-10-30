@@ -474,7 +474,7 @@ func TestPlaybackRoutesAreWalkable(t *testing.T) {
 			}
 		}
 	}
-	if len(seen) != 24 {
+	if len(seen) != 25 {
 		t.Fatalf("unexpected routes %v", seen)
 	}
 }

@@ -174,8 +174,13 @@ type Parsed struct {
 	SeasonEnd int
 	// Absolute mirrors Episode when the number came without any season context
 	// (anime absolute numbering); zero otherwise.
-	Absolute   int
-	Part       int
+	Absolute int
+	Part     int
+	// PartStem is the lower-cased file name, extension included, with the
+	// part marker replaced by "#" ("movie (2010) - #.mkv"). Files whose
+	// stems are equal differ only in their part number, which is what a
+	// multi-part version requires (G21.1); empty without a part.
+	PartStem   string
 	Date       Date
 	Special    Special
 	Conflict   bool
@@ -357,6 +362,7 @@ func combine(file *segment, dirs []*segment, opts Options) Parsed {
 	// Part, year and title.
 	if m := file.first(mkPart); m != nil && m.active {
 		out.Part = m.ep
+		out.PartStem = string(file.l[:m.start]) + "#" + string(file.l[m.end:])
 		add(Evidence{FieldPart, SourceFilename, m.rule, snippet(file.r, m.start, m.end), false})
 	}
 	yearParen := false

@@ -56,18 +56,30 @@ func (s *Server) playbackInfo(w http.ResponseWriter, r *http.Request) {
 		WriteError(w, r, s.hiddenContentError(err))
 		return
 	}
+	principal, hasPrincipal := access.PrincipalFromContext(r.Context())
 	for i := range sources {
-		for j := range sources[i].External {
-			track := &sources[i].External[j]
-			track.URL = trackURL(sources[i].ID, track.Kind, track.ID)
-		}
-		s.decorateExtracted(&sources[i])
-		if principal, ok := access.PrincipalFromContext(r.Context()); ok {
-			s.decorateOCR(ctx, principal, &sources[i])
+		s.decoratePlayback(ctx, principal, hasPrincipal, &sources[i])
+		// Every part of a multi-part version is delivered from its own
+		// source routes (G21.1).
+		for j := range sources[i].Parts {
+			s.decoratePlayback(ctx, principal, hasPrincipal, &sources[i].Parts[j].PlaybackSource)
 		}
 	}
 	s.logSelection(r, w, selection)
 	writeJSON(w, http.StatusOK, map[string]any{"data": map[string]any{"itemId": id, "delivery": playbackDelivery, "sources": sources, "selection": selection}})
+}
+
+// decoratePlayback adds the delivery URLs of one source's external,
+// extractable and OCR-derived tracks.
+func (s *Server) decoratePlayback(ctx context.Context, principal access.Principal, hasPrincipal bool, source *domain.PlaybackSource) {
+	for j := range source.External {
+		track := &source.External[j]
+		track.URL = trackURL(source.ID, track.Kind, track.ID)
+	}
+	s.decorateExtracted(source)
+	if hasPrincipal {
+		s.decorateOCR(ctx, principal, source)
+	}
 }
 
 // logSelection records the default version choice (G20.2) at debug level:

@@ -25,7 +25,9 @@ var (
 // unprobed instead of describing a file that may have changed.
 //
 // External tracks are aggregated per source so the bounded probe document
-// is read once per source rather than once per sidecar row.
+// is read once per source rather than once per sidecar row. Every part of a
+// multi-part version is listed with its version and number (G21.1); the
+// application folds them.
 func listSourcesSQL(sessionFilter string) string {
 	return `SELECT m.id IS NOT NULL,COALESCE(m.id::text,''),COALESCE(m.content_type,''),COALESCE(m.relative_path,''),
  CASE WHEN p.root_id IS NOT NULL AND (c.source_id IS NULL OR (c.size=p.size AND c.modified_unix_nano=p.modified_unix_nano)) THEN p.metadata END,
@@ -34,7 +36,8 @@ func listSourcesSQL(sessionFilter string) string {
   'title',t.title,'forced',t.forced,'sdh',t.sdh,'default',t.is_default,'commentary',t.commentary,'charset',t.charset,'size',t.size)
   ORDER BY t.kind DESC,t.root_id,t.relative_path)
   FROM media_sidecar_tracks t WHERE t.source_id=m.id AND t.library_id=m.library_id),'[]'::jsonb),
- EXISTS(SELECT 1 FROM item_primary_versions pv WHERE pv.item_id=i.id AND pv.source_id=m.id)
+ EXISTS(SELECT 1 FROM item_primary_versions pv WHERE pv.item_id=i.id AND pv.source_id=m.id),
+ COALESCE(pp.version_source_id::text,''),COALESCE(pp.part_number,0)
  FROM items i
  JOIN users u ON u.id=$1::uuid AND NOT u.disabled AND u.deleted_at IS NULL
  JOIN sessions s ON s.id=$2::uuid AND s.user_id=u.id` + sessionFilter + ` AND s.revoked_at IS NULL AND s.expires_at>clock_timestamp()
@@ -42,6 +45,7 @@ func listSourcesSQL(sessionFilter string) string {
  LEFT JOIN probe_cache p ON p.root_id=m.root_id AND p.relative_path=m.relative_path AND p.library_id=m.library_id
   AND p.state='ready' AND p.expires_at>clock_timestamp()
  LEFT JOIN catalog_scan_sources c ON c.source_id=m.id AND c.library_id=m.library_id
+ LEFT JOIN media_source_parts pp ON pp.source_id=m.id
  WHERE i.id=$3::uuid AND ` + itemVisibleSQL("$4", "i.library_id", "i.id") + `
  ORDER BY m.id`
 }
@@ -102,13 +106,16 @@ func (s *Store) listSources(parent context.Context, query string, actor domain.A
 		var metadata, sidecars []byte
 		var scanSize *int64
 		var primary bool
-		if err := rows.Scan(&present, &id, &contentType, &relativePath, &metadata, &scanSize, &sidecars, &primary); err != nil {
+		var partOf string
+		var partNumber int
+		if err := rows.Scan(&present, &id, &contentType, &relativePath, &metadata, &scanSize, &sidecars, &primary, &partOf, &partNumber); err != nil {
 			return nil, storageError(err)
 		}
 		if !present {
 			continue
 		}
-		record := domain.PlaybackSourceRecord{ID: id, ContentType: contentType, FileName: path.Base(relativePath), ScanSize: scanSize, Primary: primary}
+		record := domain.PlaybackSourceRecord{ID: id, ContentType: contentType, FileName: path.Base(relativePath), ScanSize: scanSize, Primary: primary,
+			PartOf: partOf, PartNumber: partNumber}
 		if len(metadata) > 0 {
 			var meta domain.MediaMetadata
 			// The cache only stores validated documents; one that no longer

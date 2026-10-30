@@ -6760,6 +6760,350 @@
             "format": "uuid",
             "type": "string"
           },
+          "parts": {
+            "description": "Every file of a multi-part version (G21.1: movie.cd1.mkv, movie.cd2.mkv in one directory) in play order; absent for a single file. The source's other members describe part 1. Parts are played one after the other, each delivered as it is from its own source routes; nothing is joined or converted. Playback progress of such a version is a position on the combined timeline.",
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "attachments": {
+                  "items": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "fileName": {
+                        "type": "string"
+                      },
+                      "font": {
+                        "type": "boolean"
+                      },
+                      "id": {
+                        "description": "1-based Matroska attachment ID.",
+                        "minimum": 1,
+                        "type": "integer"
+                      },
+                      "streamIndex": {
+                        "description": "Probe stream index of the same attachment, when the probe listed exactly as many attachment streams.",
+                        "minimum": 0,
+                        "type": "integer"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "fileName",
+                      "font"
+                    ],
+                    "type": "object"
+                  },
+                  "type": "array"
+                },
+                "audioTracks": {
+                  "items": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "atmos": {
+                        "type": "boolean"
+                      },
+                      "bitRate": {
+                        "type": "integer"
+                      },
+                      "channelLayout": {
+                        "type": "string"
+                      },
+                      "channels": {
+                        "type": "integer"
+                      },
+                      "codec": {
+                        "type": "string"
+                      },
+                      "default": {
+                        "type": "boolean"
+                      },
+                      "forced": {
+                        "type": "boolean"
+                      },
+                      "index": {
+                        "minimum": 0,
+                        "type": "integer"
+                      },
+                      "language": {
+                        "type": "string"
+                      },
+                      "profile": {
+                        "type": "string"
+                      },
+                      "sampleRate": {
+                        "type": "integer"
+                      }
+                    },
+                    "required": [
+                      "index",
+                      "default",
+                      "forced",
+                      "atmos"
+                    ],
+                    "type": "object"
+                  },
+                  "type": "array"
+                },
+                "bitRate": {
+                  "description": "Bits per second as probed, or size × 8 ÷ duration when the container states none.",
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                "container": {
+                  "description": "Container token derived from the stored content type.",
+                  "enum": [
+                    "mp4",
+                    "mkv",
+                    "webm",
+                    "mov",
+                    "avi",
+                    "mpegts"
+                  ],
+                  "type": "string"
+                },
+                "contentType": {
+                  "type": "string"
+                },
+                "durationMicros": {
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "externalTracks": {
+                  "items": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "charset": {
+                        "description": "Detected charset of a text subtitle. Reported only; the file is delivered unconverted.",
+                        "type": "string"
+                      },
+                      "codec": {
+                        "description": "Canonical subtitle format or audio codec implied by the extension; absent for mka, m4a, ogg, oga and .sub, which only probing can tell.",
+                        "type": "string"
+                      },
+                      "commentary": {
+                        "type": "boolean"
+                      },
+                      "default": {
+                        "type": "boolean"
+                      },
+                      "forced": {
+                        "type": "boolean"
+                      },
+                      "format": {
+                        "description": "File extension of the sidecar file.",
+                        "type": "string"
+                      },
+                      "id": {
+                        "format": "uuid",
+                        "type": "string"
+                      },
+                      "kind": {
+                        "enum": [
+                          "subtitle",
+                          "audio"
+                        ],
+                        "type": "string"
+                      },
+                      "language": {
+                        "type": "string"
+                      },
+                      "languages": {
+                        "items": {
+                          "type": "string"
+                        },
+                        "type": "array"
+                      },
+                      "sdh": {
+                        "type": "boolean"
+                      },
+                      "sizeBytes": {
+                        "minimum": 0,
+                        "type": "integer"
+                      },
+                      "title": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "kind",
+                      "format",
+                      "forced",
+                      "sdh",
+                      "default",
+                      "commentary",
+                      "sizeBytes"
+                    ],
+                    "type": "object"
+                  },
+                  "type": "array"
+                },
+                "id": {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                "number": {
+                  "description": "1-based play order; part 1 is the version itself.",
+                  "maximum": 99,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                "primary": {
+                  "description": "The administrator's main version (G20.3); listed first, then by qualityScore.",
+                  "type": "boolean"
+                },
+                "probed": {
+                  "description": "False when no current probe result exists (never probed, failed, expired, or the file changed since). Stream lists are then empty and the version labels come from the file name only.",
+                  "type": "boolean"
+                },
+                "sizeBytes": {
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "startMicros": {
+                  "description": "Where the part begins on the version's combined timeline (sum of the earlier parts' durations); absent when an earlier part's duration is unknown.",
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "subtitleTracks": {
+                  "items": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "codec": {
+                        "type": "string"
+                      },
+                      "default": {
+                        "type": "boolean"
+                      },
+                      "extractable": {
+                        "description": "A SubRip, ASS, SSA or WebVTT track inside a Matroska/WebM source that the optional mkvtoolnix runtime can copy unconverted (G15.5).",
+                        "type": "boolean"
+                      },
+                      "forced": {
+                        "type": "boolean"
+                      },
+                      "format": {
+                        "description": "Canonical format clients declare: srt, ass, ssa, webvtt, mov_text, pgs, vobsub, dvb, eia_608 or text.",
+                        "type": "string"
+                      },
+                      "index": {
+                        "minimum": 0,
+                        "type": "integer"
+                      },
+                      "language": {
+                        "type": "string"
+                      },
+                      "title": {
+                        "description": "Matroska track name from the optional MediaInfo supplement.",
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "index",
+                      "default",
+                      "forced"
+                    ],
+                    "type": "object"
+                  },
+                  "type": "array"
+                },
+                "version": {
+                  "additionalProperties": true,
+                  "description": "G20.2 version labels with qualityScore and displayName. Playback information lists sources in the caller's default version order (version preference, main version, qualityScore descending). Other label fields may be added.",
+                  "properties": {
+                    "displayName": {
+                      "type": "string"
+                    },
+                    "qualityScore": {
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "displayName",
+                    "qualityScore"
+                  ],
+                  "type": "object"
+                },
+                "videoTracks": {
+                  "items": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "bitRate": {
+                        "type": "integer"
+                      },
+                      "codec": {
+                        "type": "string"
+                      },
+                      "default": {
+                        "type": "boolean"
+                      },
+                      "frameRate": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "denominator": {
+                            "minimum": 1,
+                            "type": "integer"
+                          },
+                          "numerator": {
+                            "minimum": 0,
+                            "type": "integer"
+                          }
+                        },
+                        "required": [
+                          "numerator",
+                          "denominator"
+                        ],
+                        "type": "object"
+                      },
+                      "height": {
+                        "type": "integer"
+                      },
+                      "index": {
+                        "minimum": 0,
+                        "type": "integer"
+                      },
+                      "level": {
+                        "type": "integer"
+                      },
+                      "primary": {
+                        "description": "The stream the direct play decision checks. Cover art is not listed.",
+                        "type": "boolean"
+                      },
+                      "profile": {
+                        "type": "string"
+                      },
+                      "width": {
+                        "type": "integer"
+                      }
+                    },
+                    "required": [
+                      "index",
+                      "default",
+                      "primary"
+                    ],
+                    "type": "object"
+                  },
+                  "type": "array"
+                }
+              },
+              "required": [
+                "id",
+                "container",
+                "contentType",
+                "probed",
+                "version",
+                "videoTracks",
+                "audioTracks",
+                "subtitleTracks",
+                "externalTracks",
+                "primary",
+                "number"
+              ],
+              "type": "object"
+            },
+            "minItems": 2,
+            "type": "array"
+          },
           "primary": {
             "description": "The administrator's main version (G20.3); listed first, then by qualityScore.",
             "type": "boolean"
@@ -6813,6 +7157,11 @@
               "type": "object"
             },
             "type": "array"
+          },
+          "totalDurationMicros": {
+            "description": "Combined duration of all parts; absent for a single file or when a part's duration is unknown.",
+            "minimum": 0,
+            "type": "integer"
           },
           "version": {
             "additionalProperties": true,
@@ -9530,6 +9879,389 @@
             "format": "uuid",
             "type": "string"
           },
+          "parts": {
+            "description": "Every file of a multi-part version (G21.1: movie.cd1.mkv, movie.cd2.mkv in one directory) in play order; absent for a single file. The source's other members describe part 1. Parts are played one after the other, each delivered as it is from its own source routes; nothing is joined or converted. Playback progress of such a version is a position on the combined timeline.",
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "attachments": {
+                  "items": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "fileName": {
+                        "type": "string"
+                      },
+                      "font": {
+                        "type": "boolean"
+                      },
+                      "id": {
+                        "description": "1-based Matroska attachment ID.",
+                        "minimum": 1,
+                        "type": "integer"
+                      },
+                      "streamIndex": {
+                        "description": "Probe stream index of the same attachment, when the probe listed exactly as many attachment streams.",
+                        "minimum": 0,
+                        "type": "integer"
+                      },
+                      "url": {
+                        "description": "Present for fonts when extraction is enabled and available: /api/v1/sources/{id}/attachments/{attachmentId}. Native sessions only.",
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "fileName",
+                      "font"
+                    ],
+                    "type": "object"
+                  },
+                  "type": "array"
+                },
+                "audioTracks": {
+                  "items": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "atmos": {
+                        "type": "boolean"
+                      },
+                      "bitRate": {
+                        "type": "integer"
+                      },
+                      "channelLayout": {
+                        "type": "string"
+                      },
+                      "channels": {
+                        "type": "integer"
+                      },
+                      "codec": {
+                        "type": "string"
+                      },
+                      "default": {
+                        "type": "boolean"
+                      },
+                      "forced": {
+                        "type": "boolean"
+                      },
+                      "index": {
+                        "minimum": 0,
+                        "type": "integer"
+                      },
+                      "language": {
+                        "type": "string"
+                      },
+                      "profile": {
+                        "type": "string"
+                      },
+                      "sampleRate": {
+                        "type": "integer"
+                      }
+                    },
+                    "required": [
+                      "index",
+                      "default",
+                      "forced",
+                      "atmos"
+                    ],
+                    "type": "object"
+                  },
+                  "type": "array"
+                },
+                "bitRate": {
+                  "description": "Bits per second as probed, or size × 8 ÷ duration when the container states none.",
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                "container": {
+                  "description": "Container token derived from the stored content type.",
+                  "enum": [
+                    "mp4",
+                    "mkv",
+                    "webm",
+                    "mov",
+                    "avi",
+                    "mpegts"
+                  ],
+                  "type": "string"
+                },
+                "contentType": {
+                  "type": "string"
+                },
+                "durationMicros": {
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "externalTracks": {
+                  "items": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "charset": {
+                        "description": "Detected charset of a text subtitle. Reported only; the file is delivered unconverted.",
+                        "type": "string"
+                      },
+                      "codec": {
+                        "description": "Canonical subtitle format or audio codec implied by the extension; absent for mka, m4a, ogg, oga and .sub, which only probing can tell.",
+                        "type": "string"
+                      },
+                      "commentary": {
+                        "type": "boolean"
+                      },
+                      "default": {
+                        "type": "boolean"
+                      },
+                      "forced": {
+                        "type": "boolean"
+                      },
+                      "format": {
+                        "description": "File extension of the sidecar file.",
+                        "type": "string"
+                      },
+                      "id": {
+                        "format": "uuid",
+                        "type": "string"
+                      },
+                      "kind": {
+                        "enum": [
+                          "subtitle",
+                          "audio"
+                        ],
+                        "type": "string"
+                      },
+                      "language": {
+                        "type": "string"
+                      },
+                      "languages": {
+                        "items": {
+                          "type": "string"
+                        },
+                        "type": "array"
+                      },
+                      "sdh": {
+                        "type": "boolean"
+                      },
+                      "sizeBytes": {
+                        "minimum": 0,
+                        "type": "integer"
+                      },
+                      "title": {
+                        "type": "string"
+                      },
+                      "url": {
+                        "description": "Direct delivery route of the original file: /api/v1/sources/{id}/subtitles/{trackId} or /api/v1/sources/{id}/audio/{trackId}. Native sessions only.",
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "kind",
+                      "format",
+                      "forced",
+                      "sdh",
+                      "default",
+                      "commentary",
+                      "sizeBytes",
+                      "url"
+                    ],
+                    "type": "object"
+                  },
+                  "type": "array"
+                },
+                "id": {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                "number": {
+                  "description": "1-based play order; part 1 is the version itself.",
+                  "maximum": 99,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                "primary": {
+                  "description": "The administrator's main version (G20.3); listed first, then by qualityScore.",
+                  "type": "boolean"
+                },
+                "probed": {
+                  "description": "False when no current probe result exists (never probed, failed, expired, or the file changed since). Stream lists are then empty and the version labels come from the file name only.",
+                  "type": "boolean"
+                },
+                "sizeBytes": {
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "startMicros": {
+                  "description": "Where the part begins on the version's combined timeline (sum of the earlier parts' durations); absent when an earlier part's duration is unknown.",
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "subtitleTracks": {
+                  "items": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "codec": {
+                        "type": "string"
+                      },
+                      "default": {
+                        "type": "boolean"
+                      },
+                      "extractable": {
+                        "description": "A SubRip, ASS, SSA or WebVTT track inside a Matroska/WebM source that the optional mkvtoolnix runtime can copy unconverted (G15.5).",
+                        "type": "boolean"
+                      },
+                      "forced": {
+                        "type": "boolean"
+                      },
+                      "format": {
+                        "description": "Canonical format clients declare: srt, ass, ssa, webvtt, mov_text, pgs, vobsub, dvb, eia_608 or text.",
+                        "type": "string"
+                      },
+                      "index": {
+                        "minimum": 0,
+                        "type": "integer"
+                      },
+                      "language": {
+                        "type": "string"
+                      },
+                      "ocr": {
+                        "additionalProperties": false,
+                        "description": "Present on a PGS or VobSub track of a Matroska source once subtitle OCR (G15.6, off by default) has derived an additional SRT from it. Listing playback info queues the source for OCR; the bitmap track itself is unchanged and still delivered as it is.",
+                        "properties": {
+                          "format": {
+                            "enum": [
+                              "srt"
+                            ],
+                            "type": "string"
+                          },
+                          "title": {
+                            "description": "The bitmap track's title or language followed by \" (OCR)\", marking the text as recognized, not authored.",
+                            "type": "string"
+                          },
+                          "url": {
+                            "description": "/api/v1/sources/{id}/ocr-subtitles/{index}. Native sessions only.",
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "format",
+                          "title",
+                          "url"
+                        ],
+                        "type": "object"
+                      },
+                      "title": {
+                        "description": "Matroska track name from the optional MediaInfo supplement.",
+                        "type": "string"
+                      },
+                      "url": {
+                        "description": "Present when extraction is enabled and available: /api/v1/sources/{id}/embedded-subtitles/{index}. Native sessions only.",
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "index",
+                      "default",
+                      "forced"
+                    ],
+                    "type": "object"
+                  },
+                  "type": "array"
+                },
+                "version": {
+                  "additionalProperties": true,
+                  "description": "G20.2 version labels with qualityScore and displayName. Playback information lists sources in the caller's default version order (version preference, main version, qualityScore descending). Other label fields may be added.",
+                  "properties": {
+                    "displayName": {
+                      "type": "string"
+                    },
+                    "qualityScore": {
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "displayName",
+                    "qualityScore"
+                  ],
+                  "type": "object"
+                },
+                "videoTracks": {
+                  "items": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "bitRate": {
+                        "type": "integer"
+                      },
+                      "codec": {
+                        "type": "string"
+                      },
+                      "default": {
+                        "type": "boolean"
+                      },
+                      "frameRate": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "denominator": {
+                            "minimum": 1,
+                            "type": "integer"
+                          },
+                          "numerator": {
+                            "minimum": 0,
+                            "type": "integer"
+                          }
+                        },
+                        "required": [
+                          "numerator",
+                          "denominator"
+                        ],
+                        "type": "object"
+                      },
+                      "height": {
+                        "type": "integer"
+                      },
+                      "index": {
+                        "minimum": 0,
+                        "type": "integer"
+                      },
+                      "level": {
+                        "type": "integer"
+                      },
+                      "primary": {
+                        "description": "The stream the direct play decision checks. Cover art is not listed.",
+                        "type": "boolean"
+                      },
+                      "profile": {
+                        "type": "string"
+                      },
+                      "width": {
+                        "type": "integer"
+                      }
+                    },
+                    "required": [
+                      "index",
+                      "default",
+                      "primary"
+                    ],
+                    "type": "object"
+                  },
+                  "type": "array"
+                }
+              },
+              "required": [
+                "id",
+                "container",
+                "contentType",
+                "probed",
+                "version",
+                "videoTracks",
+                "audioTracks",
+                "subtitleTracks",
+                "externalTracks",
+                "primary",
+                "number"
+              ],
+              "type": "object"
+            },
+            "minItems": 2,
+            "type": "array"
+          },
           "primary": {
             "description": "The administrator's main version (G20.3); listed first, then by qualityScore.",
             "type": "boolean"
@@ -9613,6 +10345,11 @@
               "type": "object"
             },
             "type": "array"
+          },
+          "totalDurationMicros": {
+            "description": "Combined duration of all parts; absent for a single file or when a part's duration is unknown.",
+            "minimum": 0,
+            "type": "integer"
           },
           "version": {
             "additionalProperties": true,

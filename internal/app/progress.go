@@ -129,6 +129,20 @@ type liveSession struct {
 	// tracks is the fingerprint of the last session track choice stored
 	// for this session (G20.4), so unchanged reports write nothing.
 	tracks string
+	// offset maps positions a client reports within a later part of a
+	// multi-part version onto the version's combined timeline (G21.1);
+	// offsetUnknown drops such positions when an earlier part's duration is
+	// unknown, instead of storing a position in the wrong place.
+	offset        int64
+	offsetUnknown bool
+}
+
+// position maps a reported position onto the session's timeline.
+func (s *liveSession) mapPosition(report domain.PlaybackReport) (int64, bool) {
+	if !report.PositionKnown || s.offsetUnknown {
+		return 0, false
+	}
+	return min(report.PositionTicks+s.offset, domain.PlaybackPositionMax), true
 }
 
 // Progress buffers playback reports and writes them in batches (G23.2):
@@ -323,36 +337,48 @@ func (p *Progress) Report(ctx context.Context, actor domain.Actor, report domain
 }
 
 // open authorizes the item with the caller's session, picks the version and
-// opens or rejoins the stored session. created reports a new session.
+// opens or rejoins the stored session. created reports a new session. A
+// report naming a later part of a multi-part version (G21.1) plays that
+// version: positions are kept on its combined timeline, the runtime is the
+// combined duration.
 func (p *Progress) open(ctx context.Context, actor domain.Actor, report domain.PlaybackReport) (*liveSession, bool, error) {
 	records, err := p.sources.ListPlaybackSources(ctx, actor, report.ItemID)
 	if err != nil {
 		return nil, false, err
 	}
+	sources := domain.BuildPlaybackSources(records)
 	var source *domain.PlaybackSource
-	for _, record := range records {
-		candidate := domain.BuildPlaybackSource(record)
-		if report.SourceID != "" && candidate.ID != report.SourceID {
-			continue
+	var offset int64
+	offsetUnknown := false
+	if report.SourceID != "" {
+		version, part, ok := domain.FindPart(sources, report.SourceID)
+		if !ok {
+			// A version that does not belong to the item is answered like
+			// an invisible item.
+			return nil, false, domain.ErrNotFound
 		}
-		if source == nil || report.SourceID == "" && domain.CompareVersions(candidate, *source) < 0 {
-			c := candidate
-			source = &c
+		source = &version
+		if part.StartMicros == nil || *part.StartMicros > domain.PlaybackPositionMax/10 {
+			offsetUnknown = true
+		} else {
+			offset = *part.StartMicros * 10
+		}
+	} else {
+		for i := range sources {
+			if source == nil || domain.CompareVersions(sources[i], *source) < 0 {
+				source = &sources[i]
+			}
 		}
 	}
-	if report.SourceID != "" && source == nil {
-		// A version that does not belong to the item is answered like an
-		// invisible item.
-		return nil, false, domain.ErrNotFound
-	}
+	live := &liveSession{offset: offset, offsetUnknown: offsetUnknown}
 	start := domain.PlaybackStart{Actor: actor, PlayKey: report.PlayKey, ItemID: report.ItemID, At: p.opts.Clock.Now(), Paused: report.Paused}
-	if report.PositionKnown {
-		start.PositionTicks, start.PositionKnown = report.PositionTicks, true
+	if position, ok := live.mapPosition(report); ok {
+		start.PositionTicks, start.PositionKnown = position, true
 	}
 	if source != nil {
 		start.SourceID = source.ID
-		if source.DurationMicros != nil && *source.DurationMicros > 0 && *source.DurationMicros <= domain.PlaybackPositionMax/10 {
-			start.RuntimeTicks = *source.DurationMicros * 10
+		if runtime := source.RuntimeMicros(); runtime != nil && *runtime > 0 && *runtime <= domain.PlaybackPositionMax/10 {
+			start.RuntimeTicks = *runtime * 10
 		}
 	}
 	record, err := p.repo.StartPlayback(ctx, start)
@@ -360,13 +386,14 @@ func (p *Progress) open(ctx context.Context, actor domain.Actor, report domain.P
 		return nil, false, err
 	}
 	p.stats.startWrites.Add(1)
-	s := &liveSession{id: record.ID, userID: actor.UserID, itemID: report.ItemID, sourceID: record.SourceID, runtime: record.RuntimeTicks,
-		position: record.PositionTicks, paused: record.Paused, lastReport: start.At, nextSeq: record.SampleCount}
+	s := live
+	s.id, s.userID, s.itemID, s.sourceID, s.runtime = record.ID, actor.UserID, report.ItemID, record.SourceID, record.RuntimeTicks
+	s.position, s.paused, s.lastReport, s.nextSeq = record.PositionTicks, record.Paused, start.At, record.SampleCount
 	created := record.Created
 	if !created {
 		// Rejoined: the report's position wins over the stored one.
-		if report.PositionKnown {
-			s.position = report.PositionTicks
+		if position, ok := s.mapPosition(report); ok {
+			s.position = position
 		}
 		s.paused = report.Paused
 	}
@@ -376,8 +403,8 @@ func (p *Progress) open(ctx context.Context, actor domain.Actor, report domain.P
 // apply updates a session with a report and keeps the samples statistics
 // need. Callers hold p.mu.
 func (p *Progress) apply(s *liveSession, report domain.PlaybackReport, now time.Time) {
-	if report.PositionKnown {
-		s.position = report.PositionTicks
+	if position, ok := s.mapPosition(report); ok {
+		s.position = position
 	}
 	kind := domain.WatchSampleProgress
 	switch {

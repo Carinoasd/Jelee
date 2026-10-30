@@ -21,7 +21,7 @@ POST /api/v1/jobs/REVIEWED_SCAN_ID/accept-missing
 
 新任務種類 `catalog_sync`（不是掃描任務的附加階段）：掃描任務在發布交易中已終結，另一任務可獨立取消、續跑、重試並計入既有指標；接受缺失的發布也走同一任務。庫預設關閉；`PUT /api/v1/libraries/{id}/catalog-sync {"auto":true}` 後，每次發布基準的同一交易會排入同步（佇列滿或庫忙則記 `catalog_sync.deferred`）。`POST /api/v1/libraries/{id}/catalog-sync`（Idempotency-Key）手動排入；`GET /api/v1/jobs/{id}/catalog-sync` 查計數。
 
-階段：publish（僅 accept）→ sources → missing → pending → versions → done，游標與計數和寫入同交易。每批讀 256 筆基準影片、最多寫 32 個檔案。
+階段：publish（僅 accept）→ sources → missing → pending → versions（先組多分片版本，再做跨目錄聚合）→ done，游標與計數和寫入同交易。每批讀 256 筆基準影片、最多寫 32 個檔案。
 
 - 解析：`medianame.ParsePath`。只有 High 且容器可登記才自動建 Movie 或 Series／Season／Episode；Medium／Low／拒絕／不支援容器／與既有結構衝突進 `catalog_scan_pending`，以 `GET /api/v1/libraries/{id}/catalog-sync/pending` 查詢（每筆帶 `decision`：`pending`／`rejected`）；接受與拒絕見下方「識別修正與待確認決定」。
 - 結構：新檔案以「同目錄＋標題＋年份」（電影）或「同季＋同目錄＋集號」（單集）歸入已有條目；分放在其他目錄的同一作品由同步最後的 versions 階段依 NFO 外部 ID 與時長合併（見下方「跨目錄多版本聚合」）；劇集資料夾名稱與解析標題相符時登記為 Series 目錄，季資料夾登記為 Season 目錄（供目錄 NFO 使用）；已登記的資料夾條目直接沿用。父子連結套用與匯入相同的合法性規則。
@@ -100,6 +100,23 @@ POST /api/v1/jobs/REVIEWED_SCAN_ID/accept-missing
 - **人工合併的邊界跟著改**：`MergeItems` 比較季集號時也改用有效值（鎖 > NFO > 檔名），檔名不同但 NFO 相同的兩個單集現在可以手動合併；NFO 或鎖不同時照舊拒絕。
 - **降版**：允許。執行中的同步若停在 versions 階段直接標為 done；自動合併留下為一般合併，舊版仍可撤銷；三個新欄位與兩個索引丟棄。再升級後這些合併的 `automatic` 是 false，相關條目會被當成人工決定而不再自動合併（保守）。
 
+## 多分片版本（G21.1，schema 106）
+
+遷移 106（暫定編號；105 保留給另一分支）新增 `media_source_parts`（每片一列：來源、所屬版本的第一片、片號 1..99）、`catalog_scan_sources.part_reason` 與 `catalog_sync_requests.parts_cursor`／`parts_done`，以及索引 `catalog_scan_sources(library_id,item_id)`。
+
+- **決定（我們已決定）**：同一目錄、同標題年份（電影）或同季同集（單集）、檔名只差 Part 標記且片號連續 1..n（n ≥ 2）的檔案，合成同一條目的**一個版本、多個分片**；分片有序，第一片就是這個版本（版本 ID＝第一片的來源 ID，主檔）。不轉碼、不串接（ADR 0007 只直放）：每一片仍是一個原樣直放的來源。
+- **為什麼它們已經在同一條目**：Part 標記不在分組鍵裡（電影是目錄＋標題＋年份，單集是季＋目錄＋集號），所以 sources 階段本來就把 `Movie (2010) - cd1.mkv`、`cd2.mkv` 登記成同一條目的兩個版本；這一步只把它們改成一個版本的兩片。
+- **時機**：versions 階段開頭，先於跨目錄聚合。逐頁（每批 128 個條目）讀取「有兩個以上掃描來源、或已有分片結果」的同步條目，以 `medianame` 重新解析每個檔名的 `Part` 與 `PartStem`（小寫檔名、含副檔名，Part 標記換成 `#`，例如 `movie (2010) - #.mkv`），交給 `domain.PlanSourceParts`。結果與現有列相同就不寫，所以重複同步只讀不寫；檔案新增、消失或改名在下一次同步反映。只有一個檔案的條目不判斷（沒有可合併的對象）。
+- **合併條件**（全部成立才合併）：同根目錄＋同目錄＋同 `PartStem`（等於同標題、年份、發行標記、容器；`CD1` 與 `Part 2`、全形 `ＣＤ１` 的 stem 相同，視為同一版本）；片號不重複且正好 1..n、n ≥ 2。
+- **不合併與原因**（`catalog_scan_sources.part_reason`，只記帶 Part 標記的檔案；每個檔案維持為獨立版本）：`gap`（缺片、不從 1 開始，如 Part 1＋Part 3）、`duplicate`（兩個檔案同片號）、`single`（同 stem 只有一片）、`mixed`（只有跨不同發行標記或容器才湊得成 1..n，例如 720p cd1＋1080p cd2，屬不同版本）、`manual`（見下）；合併者記 `merged`。目前只供資料庫查詢與除錯，沒有 API。
+- **與多版本並存**：一個條目可以同時有多個版本，每個版本各自可以有分片（例如 720p 兩片、1080p 三片、2160p 單檔＝三個版本）。播放資訊、檔案資訊、預設版本選擇（G20.2）、相容層只把第一片當版本；後續片不會出現在版本清單。
+- **跨目錄聚合（G20.1）**：多分片版本算一個版本，時長取各片總和（任一片未探測即視為未知），所以 `A/Movie - cd1/cd2` 可以和 `B/Movie.mkv` 依同一門檻自動合併；合併後兩個目錄的分片各自保留。
+- **鎖定與人工版本操作不被改**：條目涉及任何人工版本操作（拆分、合併、主版本、解除排除，或任何被撤銷的操作）、排除或人工放置的來源時，分片結構凍結：既有的分片列不動、新檔案也不會被組進去，帶 Part 標記的檔案記 `manual`。識別鎖只鎖類型、所屬與季集號，不影響分片。人工操作的邊界見[多版本](item-versions.md#多分片版本g211schema-106)。
+- **刪除**：接受缺失刪除某片的來源時，其分片列經外鍵一起刪除；刪的是第一片時整個版本解散（`version_source_id` 也是 `ON DELETE CASCADE`），同一個同步的分片步驟再依剩下的檔案重新判斷（例如剩 cd2、cd3 → `gap`）。一般同步只標 `missing_since`，分片不變。
+- **待確認**：`Movie.2010.cd1.avi` 這類 Medium 信心的檔名照舊進待確認；接受後經同一分組加入條目，下一次同步的分片步驟才組成分片。
+- **稽核**：有寫入的批次記 `catalog_sync.batch`，細節 `partItems`（寫入的條目數）與 `multiPartVersions`（這些條目現有的多分片版本數），不含路徑。
+- **降版**：允許，直接丟棄分片表、`part_reason` 與游標欄位；各片回到「各自是一個版本」。再升級後下一次同步重建（人工凍結的條目除外）。元資料備份不匯出分片表（衍生資料，匯入後由同步重建）。
+
 ## 未涵蓋
 
-識別修正與待確認決定的網頁介面、自動合併原因（`grouping_reason`）的 API 與網頁顯示、只靠解析度／HDR／剪輯版標記而沒有 NFO 外部 ID 的跨目錄聚合、忽略模式發布後的自動同步、明確匯入來源的外掛軌配對、`.idx`＋`.sub` 成對關係的記錄（兩者各自成軌）。大規模首掃／重掃、GOMAXPROCS=2/4、24 小時混合負載尚待擁有者量測。
+識別修正與待確認決定的網頁介面、自動合併原因（`grouping_reason`）與分片原因（`part_reason`）的 API 與網頁顯示、只有一個檔案的條目的分片原因、只靠解析度／HDR／剪輯版標記而沒有 NFO 外部 ID 的跨目錄聚合、忽略模式發布後的自動同步、明確匯入來源的外掛軌配對、`.idx`＋`.sub` 成對關係的記錄（兩者各自成軌）。大規模首掃／重掃、GOMAXPROCS=2/4、24 小時混合負載尚待擁有者量測。

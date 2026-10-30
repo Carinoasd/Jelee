@@ -1,6 +1,6 @@
-# 多版本人工干預、撤銷、預設版本與音軌／字幕偏好（schema 78、99、104）
+# 多版本人工干預、撤銷、預設版本、多分片與音軌／字幕偏好（schema 78、99、104、106）
 
-需求：G20.3（合併／拆分、主版本、排除誤合併、稽核）、G20.5（不跨作品誤合併、一鍵撤銷）、G20.2（預設版本依設備能力、頻寬、使用者偏好選擇）、G20.4 與 G16.5（流選擇與音軌／字幕偏好按條目、按版本保存，加上會話層級選軌記錄）。
+需求：G21.1（Part 分片合併為一個版本的多個分片）、G20.3（合併／拆分、主版本、排除誤合併、稽核）、G20.5（不跨作品誤合併、一鍵撤銷）、G20.2（預設版本依設備能力、頻寬、使用者偏好選擇）、G20.4 與 G16.5（流選擇與音軌／字幕偏好按條目、按版本保存，加上會話層級選軌記錄）。
 
 ## 資料
 
@@ -54,6 +54,17 @@
 - 撤銷合併：以原 ID 重建被吸收條目與其所有列，把仍在目標上的版本與工作階段移回，刪除合併建立的別名並把轉移過來的別名指回。目標上的使用者資料、偏好只有在合併後未再變動時（`updated_at` 等於合併時刻）才還原；規則只有仍是合併結果時才還原；統計只在每個計數都還足夠時才扣回。合併後才產生的播放與變更保留在目標上。
 - 撤銷拆分：把版本移回原條目，新條目在拆分後累積的工作階段、使用者資料、規則、統計依合併策略併回原條目，再刪除新條目與排除；若新條目上還有別人放進去的版本則拒絕。新條目已不存在時只解除排除。
 - 撤銷主版本：恢復先前的主版本；該版本已不屬於此條目時改為沒有主版本。撤銷解除排除：重新加回排除。
+
+## 多分片版本（G21.1，schema 106）
+
+一個版本可以由多個檔案依序組成（`Movie (2010) - cd1.mkv`、`cd2.mkv`）；同步如何判定見[同步](catalog-sync.md#多分片版本g211schema-106)。資料在 `media_source_parts`：每片一列，`version_source_id` 是第一片，`part_number` 1..99。
+
+- **版本就是第一片**：版本 ID、主版本、預設版本選擇（G20.2）、版本層偏好、品質分數與檔名標籤都以第一片為準；後續片不是版本，不會出現在版本清單。
+- **自有播放資訊**（`GET /api/v1/items/{id}/playback`）與檔案資訊（`GET /api/v1/items/{id}/sources`）：多分片版本帶 `parts`（每片一個物件：`number`、`startMicros`＝在合計時間軸上的起點，前面任一片時長未知時省略，以及與版本相同的容器、大小、時長、串流、外掛軌等可直放資訊）與 `totalDurationMicros`（各片時長總和，任一片未知時省略）；版本本身的其他欄位描述第一片。每片從自己的 `/api/v1/sources/{id}/stream`（與字幕、音軌、擷取路由）原樣直投。
+- **直投判定**（`POST …/playback/check`、相容層 DeviceProfile 排除）：每一片都可直投，版本才算可直投；理由碼為各片的聯集，順序不變。
+- **進度採合計時間軸（我們已決定）**：多分片版本的播放進度是「合計時長上的位置」，`runtime` 是各片總和，完成判定與統計因此以整部作品計算。回報帶的來源是後續片（自有 API `sourceId`、相容層開始回報的 `MediaSourceId`）時，工作階段記在版本（第一片）上，位置自動加上前面各片的總時長；前面任一片時長未知時，該工作階段的位置一律不記（寧可不記也不記錯位置），合計時長也是未知。續播時客戶端以 `parts[].startMicros` 換回「第幾片＋片內偏移」。理由：條目只有一個續播點與一個「已播放」狀態，用合計時間軸才能讓進度百分比、完成門檻與「繼續觀看」對整部作品正確；「目前片＋偏移」需要多存一個欄位，且相容層沒有對應成員。
+- **人工操作**：拆分以版本（第一片）為單位，所有分片一起移到新條目（`sourceIds` 依片號排列）；`exclude` 時每一片都記排除，撤銷時一起解除。後續片的 ID 不能拆分、也不能設為主版本（與不屬於此條目的來源相同，404）。版本數（「唯一的版本不能拆分」）不計後續片。合併搬移所有來源，分片隨之移動。做過任何人工版本操作的條目，同步不再改它的分片結構（見同步文件）。
+- **一致性與備份**：分片表是衍生資料，不進元資料備份；合併／拆分快照不需要保存它（只指向來源，來源本身被移動而不刪除）。
 
 ## 與掃描同步的互動
 
@@ -124,6 +135,8 @@
 ## 驗證
 
 真 PG：`TestItemVersionSplitMergePrimaryAndUndoPostgres`、`TestItemVersionMergeBoundariesPostgres`、`TestItemVersionPermissionsPostgres`、`TestItemVersionDecisionsSurviveCatalogSyncPostgres`、`TestTrackPreferencesPickDefaultTracksPostgres`、`TestItemVersionsMigrationRoundTrip`、`TestItemVersionSnapshotCoversCascades`、`TestVersionsAndTrackPreferencesHTTPPostgres`（自有 API 與相容層 PlaybackInfo）、`TestAccessLeakHiddenContentPostgres`、`TestMetadataBackupDrillPostgres`。單元：`TestSelectDefaultTracks` 等 domain、app、HTTP、compat 測試與前端 `features/items/versions.test.ts`。
+
+G21.1：單元 `TestPlanSourceParts`、`TestBuildPlaybackSourcesFoldsParts`、`TestDecideDirectPlayChecksEveryPart`、`TestProgressMapsPartsOntoCombinedTimeline`、`TestAdditionalParts`；真 PG `TestCatalogSyncMultiPartVersionsPostgres`、`TestCatalogVersionGroupingCountsPartsAsOneVersionPostgres`、`TestMediaSourcePartsMigrationRoundTrip`、`TestMultiPartPlaybackHTTPPostgres`、`TestAccessLeakHiddenContentPostgres`（AdditionalParts）。真實客戶端與規模見擁有者驗證 B21、C39、D39。
 
 G20.2／G20.4：單元 `TestSelectVersionRules`、`TestSelectVersionNeverAcceptsConversion`、`TestNormalizeVersionPreference`、`TestResolveTrackReport`、`TestSessionChoicePrecedence`、`TestCatalogPlaybackChoiceOrdersByPreference`、`TestCatalogRecordsSessionTracks`；真 PG `TestPlaybackSelectionHTTPPostgres`（偏好排序、聲明只排除、相容層與自有 API 記錄與套用、過期、偏好與清除紀錄使其失效）、`TestPlaybackSelectionMigrationRoundTrip`、`TestMetadataBackupDrillPostgres`。
 
