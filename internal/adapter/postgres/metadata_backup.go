@@ -92,7 +92,7 @@ var metadataBackupExcluded = map[string]string{
 	"probe_cache": excludedDerived, "probe_cache_quota": excludedDerived, "probe_library_quota": excludedDerived, "tool_versions": excludedDerived,
 	"nfo_cache": excludedDerived, "nfo_cache_quota": excludedDerived, "nfo_library_quota": excludedDerived, "item_nfo_observations": excludedDerived,
 	"library_inventory_baseline_data": excludedDerived, "inventory_snapshot_preparations": excludedDerived, "inventory_missing_acceptances": excludedDerived,
-	"catalog_scan_pending": excludedDerived, "image_variants": excludedDerived, "media_sidecar_tracks": excludedDerived,
+	"catalog_scan_pending": excludedDerived, "image_variants": excludedDerived, "media_sidecar_tracks": excludedDerived, "media_source_layouts": excludedDerived,
 	"item_embedded_cover_attempts": excludedDerived, "item_chapter_image_attempts": excludedDerived, "item_image_fetch_failures": excludedDerived, "metadata_refresh_reviews": excludedDerived, "scan_watch_state": excludedDerived,
 	"media_source_parts": excludedDerived,
 

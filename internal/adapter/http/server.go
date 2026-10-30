@@ -183,7 +183,8 @@ func newServer(cfg config.Config, backend Backend, catalog *app.Catalog, resolve
 		limits.RelaxBandwidth = func() bool { return s.dev.Effective(devmode.RelaxBandwidthLimit) }
 	}
 	if s.delivery, err = media.NewHandler(resolver, media.Options{Budget: budget, MaxConcurrent: cfg.MaxStreams, WriteTimeout: 30 * time.Second, LookupTimeout: cfg.RequestTimeout(), WriteError: WriteError,
-		Sessions: sessions, SessionCheckInterval: cfg.Streaming.RevokeCheckInterval(), Limits: limits}); err != nil {
+		Sessions: sessions, SessionCheckInterval: cfg.Streaming.RevokeCheckInterval(), Limits: limits,
+		BufferSize: cfg.Streaming.BufferBytes(), PrefetchBytes: cfg.Streaming.PrefetchBytes()}); err != nil {
 		return nil, err
 	}
 	if !cfg.EnableAccounts {

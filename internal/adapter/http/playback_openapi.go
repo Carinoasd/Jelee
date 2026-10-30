@@ -176,6 +176,9 @@ func mediaSourceSchema(withURL bool) map[string]any {
 			"items": objectSchema(map[string]any{"index": nonNegative, "startMicros": nonNegative, "title": str}, "index", "startMicros")},
 		"externalTracks": array(objectSchema(external, externalRequired...)),
 		"primary":        map[string]any{"type": "boolean", "description": "The administrator's main version (G20.3); listed first, then by qualityScore."},
+		"layout":         map[string]any{"type": "string", "enum": layoutNames(), "description": "Where the file keeps its start and seek index (G10.6), read from bounded MP4/MOV box or Matroska element headers during catalog sync: moov_before_mdat (faststart), moov_at_end, fragmented, cues_before_clusters, cues_after_clusters, no_cues, or unknown when the headers could not be read. Absent until read, after the file changed, and for AVI and MPEG-TS."},
+		"layoutHints": map[string]any{"type": "array", "items": map[string]any{"type": "string", "enum": []string{domain.LayoutHintFaststart, domain.LayoutHintNoSeekIndex}},
+			"description": "Advice for the administrator (G10.10): faststart_recommended for an MP4/MOV whose movie box follows the media data, no_seek_index for a Matroska/WebM file without Cues. Jelee never rewrites, remuxes or moves anything in the file; absent when there is nothing to advise."},
 	}
 	if withURL {
 		selection := map[string]any{"oneOf": []any{objectSchema(map[string]any{
@@ -205,4 +208,12 @@ func mediaSourceSchema(withURL bool) map[string]any {
 		"description": "Every file of a multi-part version (G21.1: movie.cd1.mkv, movie.cd2.mkv in one directory) in play order; absent for a single file. The source's other members describe part 1. Parts are played one after the other, each delivered as it is from its own source routes; nothing is joined or converted. Playback progress of such a version is a position on the combined timeline."}
 	properties["totalDurationMicros"] = map[string]any{"type": "integer", "minimum": 0, "description": "Combined duration of all parts; absent for a single file or when a part's duration is unknown."}
 	return objectSchema(properties, required...)
+}
+
+func layoutNames() []string {
+	names := make([]string, 0, len(domain.ContainerLayouts))
+	for _, layout := range domain.ContainerLayouts {
+		names = append(names, string(layout))
+	}
+	return names
 }

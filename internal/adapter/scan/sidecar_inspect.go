@@ -88,6 +88,12 @@ func (SidecarInspector) InspectSidecar(ctx context.Context, target domain.Sideca
 }
 
 func sameStamp(file *os.File, target domain.SidecarInspectionTarget) bool {
+	return sameFileStamp(file, target.Size, target.ModifiedUnixNano)
+}
+
+// sameFileStamp reports whether file is still a regular file of the given
+// size and modification time.
+func sameFileStamp(file *os.File, size, modifiedUnixNano int64) bool {
 	info, err := file.Stat()
-	return err == nil && info.Mode().IsRegular() && info.Size() == target.Size && info.ModTime().UnixNano() == target.ModifiedUnixNano
+	return err == nil && info.Mode().IsRegular() && info.Size() == size && info.ModTime().UnixNano() == modifiedUnixNano
 }

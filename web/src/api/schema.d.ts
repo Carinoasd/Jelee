@@ -36094,6 +36094,13 @@ export type components = {
             }[];
             /** Format: uuid */
             id: string;
+            /**
+             * @description Where the file keeps its start and seek index (G10.6), read from bounded MP4/MOV box or Matroska element headers during catalog sync: moov_before_mdat (faststart), moov_at_end, fragmented, cues_before_clusters, cues_after_clusters, no_cues, or unknown when the headers could not be read. Absent until read, after the file changed, and for AVI and MPEG-TS.
+             * @enum {string}
+             */
+            layout?: "moov_before_mdat" | "moov_at_end" | "fragmented" | "cues_before_clusters" | "cues_after_clusters" | "no_cues" | "unknown";
+            /** @description Advice for the administrator (G10.10): faststart_recommended for an MP4/MOV whose movie box follows the media data, no_seek_index for a Matroska/WebM file without Cues. Jelee never rewrites, remuxes or moves anything in the file; absent when there is nothing to advise. */
+            layoutHints?: ("faststart_recommended" | "no_seek_index")[];
             /** @description Every file of a multi-part version (G21.1: movie.cd1.mkv, movie.cd2.mkv in one directory) in play order; absent for a single file. The source's other members describe part 1. Parts are played one after the other, each delivered as it is from its own source routes; nothing is joined or converted. Playback progress of such a version is a position on the combined timeline. */
             parts?: {
                 attachments?: {
@@ -36181,6 +36188,13 @@ export type components = {
                 }[];
                 /** Format: uuid */
                 id: string;
+                /**
+                 * @description Where the file keeps its start and seek index (G10.6), read from bounded MP4/MOV box or Matroska element headers during catalog sync: moov_before_mdat (faststart), moov_at_end, fragmented, cues_before_clusters, cues_after_clusters, no_cues, or unknown when the headers could not be read. Absent until read, after the file changed, and for AVI and MPEG-TS.
+                 * @enum {string}
+                 */
+                layout?: "moov_before_mdat" | "moov_at_end" | "fragmented" | "cues_before_clusters" | "cues_after_clusters" | "no_cues" | "unknown";
+                /** @description Advice for the administrator (G10.10): faststart_recommended for an MP4/MOV whose movie box follows the media data, no_seek_index for a Matroska/WebM file without Cues. Jelee never rewrites, remuxes or moves anything in the file; absent when there is nothing to advise. */
+                layoutHints?: ("faststart_recommended" | "no_seek_index")[];
                 /** @description 1-based play order; part 1 is the version itself. */
                 number: number;
                 /** @description The administrator's main version (G20.3); listed first, then by qualityScore. */
@@ -37081,6 +37095,13 @@ export type components = {
             }[];
             /** Format: uuid */
             id: string;
+            /**
+             * @description Where the file keeps its start and seek index (G10.6), read from bounded MP4/MOV box or Matroska element headers during catalog sync: moov_before_mdat (faststart), moov_at_end, fragmented, cues_before_clusters, cues_after_clusters, no_cues, or unknown when the headers could not be read. Absent until read, after the file changed, and for AVI and MPEG-TS.
+             * @enum {string}
+             */
+            layout?: "moov_before_mdat" | "moov_at_end" | "fragmented" | "cues_before_clusters" | "cues_after_clusters" | "no_cues" | "unknown";
+            /** @description Advice for the administrator (G10.10): faststart_recommended for an MP4/MOV whose movie box follows the media data, no_seek_index for a Matroska/WebM file without Cues. Jelee never rewrites, remuxes or moves anything in the file; absent when there is nothing to advise. */
+            layoutHints?: ("faststart_recommended" | "no_seek_index")[];
             /** @description Every file of a multi-part version (G21.1: movie.cd1.mkv, movie.cd2.mkv in one directory) in play order; absent for a single file. The source's other members describe part 1. Parts are played one after the other, each delivered as it is from its own source routes; nothing is joined or converted. Playback progress of such a version is a position on the combined timeline. */
             parts?: {
                 attachments?: {
@@ -37172,6 +37193,13 @@ export type components = {
                 }[];
                 /** Format: uuid */
                 id: string;
+                /**
+                 * @description Where the file keeps its start and seek index (G10.6), read from bounded MP4/MOV box or Matroska element headers during catalog sync: moov_before_mdat (faststart), moov_at_end, fragmented, cues_before_clusters, cues_after_clusters, no_cues, or unknown when the headers could not be read. Absent until read, after the file changed, and for AVI and MPEG-TS.
+                 * @enum {string}
+                 */
+                layout?: "moov_before_mdat" | "moov_at_end" | "fragmented" | "cues_before_clusters" | "cues_after_clusters" | "no_cues" | "unknown";
+                /** @description Advice for the administrator (G10.10): faststart_recommended for an MP4/MOV whose movie box follows the media data, no_seek_index for a Matroska/WebM file without Cues. Jelee never rewrites, remuxes or moves anything in the file; absent when there is nothing to advise. */
+                layoutHints?: ("faststart_recommended" | "no_seek_index")[];
                 /** @description 1-based play order; part 1 is the version itself. */
                 number: number;
                 /** @description The administrator's main version (G20.3); listed first, then by qualityScore. */

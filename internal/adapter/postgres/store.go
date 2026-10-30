@@ -27,7 +27,7 @@ type Store struct {
 
 // SchemaVersion is the only clean schema accepted by this binary. Adjacent
 // releases cannot serve against different cache and job lifecycle contracts.
-const SchemaVersion = 109
+const SchemaVersion = 110
 
 func Open(ctx context.Context, dsn string, maxConnections int32) (*Store, error) {
 	return open(ctx, dsn, maxConnections, nil)
@@ -174,7 +174,15 @@ func (s *Store) Resolve(ctx context.Context, p access.Principal, sourceID string
 	var source media.Source
 	// Recheck the live session and ACL in the same query immediately before opening.
 	// It also returns the session's device and the user's delivery overrides for stream limits.
-	err := s.Pool.QueryRow(ctx, `SELECT r.path,m.relative_path,m.content_type,COALESCE(s.device_id,''),u.max_streams,u.max_kbps,`+shareStreamsSQL+` FROM media_sources m JOIN library_roots r ON r.id=m.root_id JOIN users u ON u.id=$1::uuid AND NOT u.disabled AND u.deleted_at IS NULL JOIN sessions s ON s.id=$2::uuid AND s.user_id=u.id AND s.client_kind='native' AND s.revoked_at IS NULL AND s.expires_at>now() WHERE m.id=$3::uuid AND `+sharePlaybackSQL+` AND `+itemVisibleSQL("$4", "m.library_id", "m.item_id"), p.UserID, p.SessionID, sourceID, requestScopeArg(ctx)).Scan(&source.Root, &source.RelativePath, &source.ContentType, &source.DeviceID, &source.Limits.MaxStreams, &source.Limits.MaxKbps, &source.ShareStreams)
+	// The recorded seek index (G10.6) comes with its stamp; delivery only
+	// uses it for read-ahead advice while the opened file still matches.
+	index := &source.SeekIndex
+	err := s.Pool.QueryRow(ctx, `SELECT r.path,m.relative_path,m.content_type,COALESCE(s.device_id,''),u.max_streams,u.max_kbps,`+shareStreamsSQL+`,
+ COALESCE(ml.index_offset,0),COALESCE(ml.index_length,0),COALESCE(ml.size,0),COALESCE(ml.modified_unix_nano,0)
+ FROM media_sources m JOIN library_roots r ON r.id=m.root_id JOIN users u ON u.id=$1::uuid AND NOT u.disabled AND u.deleted_at IS NULL JOIN sessions s ON s.id=$2::uuid AND s.user_id=u.id AND s.client_kind='native' AND s.revoked_at IS NULL AND s.expires_at>now()
+ LEFT JOIN media_source_layouts ml ON ml.source_id=m.id
+ WHERE m.id=$3::uuid AND `+sharePlaybackSQL+` AND `+itemVisibleSQL("$4", "m.library_id", "m.item_id"), p.UserID, p.SessionID, sourceID, requestScopeArg(ctx)).Scan(&source.Root, &source.RelativePath, &source.ContentType, &source.DeviceID, &source.Limits.MaxStreams, &source.Limits.MaxKbps, &source.ShareStreams,
+		&index.Offset, &index.Length, &index.Size, &index.ModifiedUnixNano)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return source, media.ErrNotFound
 	}
