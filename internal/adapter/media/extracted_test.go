@@ -32,6 +32,10 @@ func TestExtractedContentTypesComeFromFixedTables(t *testing.T) {
 		{ExtractedAttachmentStream, ".woff2", "font/woff2"},
 		{ExtractedAttachment, ".otc", "font/collection"},
 		{ExtractedAttachment, ".html", "application/octet-stream"},
+		// Bitmap tracks are binary: no charset parameter.
+		{ExtractedSubtitle, ".sup", "application/x-pgs"},
+		{ExtractedVobSubIndex, ".idx", "text/plain"},
+		{ExtractedVobSubData, ".sub", "application/octet-stream"},
 	} {
 		if got := ExtractedContentType(tc.kind, tc.extension); got != tc.want {
 			t.Errorf("%s %s = %q", tc.kind, tc.extension, got)

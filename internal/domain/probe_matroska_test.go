@@ -80,3 +80,35 @@ func TestPlaybackSourceListsExtractableTracksAndAttachments(t *testing.T) {
 		t.Fatal("attachments without a supplement")
 	}
 }
+
+// G15.5: PGS and VobSub inside Matroska are extractable as they are; DVB,
+// mov_text and bitmap tracks of any other container stay embedded only.
+func TestPlaybackSourceMarksExtractableBitmapSubtitles(t *testing.T) {
+	codecs := []string{"hdmv_pgs_subtitle", "dvd_subtitle", "dvb_subtitle", "mov_text", "eia_608"}
+	build := func(names ...string) []PlaybackSubtitleTrack {
+		meta := matroskaMetadata()
+		meta.Format.Names = names
+		meta.Streams = meta.Streams[:1]
+		for i := range codecs {
+			meta.Streams = append(meta.Streams, MediaStream{Index: i + 1, Kind: "subtitle", Codec: &codecs[i]})
+		}
+		meta.Matroska.StreamTitles = nil
+		return BuildPlaybackSource(PlaybackSourceRecord{ID: "s", Metadata: &meta}).Subtitles
+	}
+	want := map[string]bool{"hdmv_pgs_subtitle": true, "dvd_subtitle": true}
+	for _, track := range build("matroska", "webm") {
+		if track.Extractable != want[track.Codec] || track.OCRSource != want[track.Codec] {
+			t.Errorf("matroska %s extractable %v", track.Codec, track.Extractable)
+		}
+	}
+	for _, track := range build("mov", "mp4") {
+		if track.Extractable {
+			t.Errorf("mp4 %s extractable", track.Codec)
+		}
+	}
+	for codec, extension := range ExtractableBitmapSubtitleCodecs {
+		if _, text := ExtractableSubtitleCodecs[codec]; text || !OCRSubtitleCodecs[codec] || extension == "" {
+			t.Errorf("%s listed as text or not a bitmap codec", codec)
+		}
+	}
+}

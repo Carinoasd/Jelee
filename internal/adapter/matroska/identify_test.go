@@ -31,6 +31,8 @@ type fakeTool struct {
 	skipFile string
 	// extra names are written in addition to t<id>/a<id> (VobSub pairs).
 	extra []string
+	// refuse, when set, fails an extraction plan before anything is written.
+	refuse func(sandbox.Extraction) error
 }
 
 func (f *fakeTool) Run(ctx context.Context, request process.ToolRequest) (process.Result, error) {
@@ -57,6 +59,11 @@ func (f *fakeTool) Run(ctx context.Context, request process.ToolRequest) (proces
 	f.mu.Lock()
 	f.plans = append(f.plans, request.Extraction)
 	f.mu.Unlock()
+	if f.refuse != nil {
+		if err := f.refuse(request.Extraction); err != nil {
+			return process.Result{}, err
+		}
+	}
 	directory, err := os.MkdirTemp("", "fake-extract-")
 	if err != nil {
 		return process.Result{}, err

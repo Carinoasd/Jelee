@@ -80,23 +80,36 @@ E1（[ADR 0001](adr/0001-external-process-start.md)）照舊：以 `os.StartProc
 | `JELEE_MATROSKA_CACHE_ROOT` | `matroska.cacheRoot` | 既有、私有（0700）的絕對目錄，不放其他東西 |
 | `JELEE_MATROSKA_CACHE_MAX_BYTES` | `matroska.cacheMaxBytes` | 快取總上限，預設 1 GiB（256 MiB–1 TiB） |
 
-第一次要用到某來源時，先以 mkvmerge 識別，再一次擷取該來源全部可擷取項目：`S_TEXT/UTF8`（srt）、`S_TEXT/ASS`、`S_TEXT/SSA`、`S_TEXT/WEBVTT`（vtt）文字字幕至多 32 軌；字型附件（副檔名 ttf/otf/ttc/otc/woff/woff2 或字型 MIME）每個 ≤32 MiB、合計 ≤128 MiB、至多 64 個。位圖字幕（PGS、VobSub、DVB）與 `D_WEBVTT/SUBTITLES`（WebM 形式，mkvextract 102.0 不支援）不擷取；位圖字幕仍只能隨原檔直投。開啟[字幕 OCR](subtitle-ocr.md)（G15.6）時，OCR 背景工作另以同一個 mkvextract 模式把 PGS／VobSub 軌抽到私有工作目錄、辨識成額外的 SRT 軌後即刪除，不進本快取、不取代原軌。
+第一次要用到某來源時，先以 mkvmerge 識別，再一次擷取該來源全部可擷取項目：`S_TEXT/UTF8`（srt）、`S_TEXT/ASS`、`S_TEXT/SSA`、`S_TEXT/WEBVTT`（vtt）文字字幕至多 32 軌；字型附件（副檔名 ttf/otf/ttc/otc/woff/woff2 或字型 MIME）每個 ≤32 MiB、合計 ≤128 MiB、至多 64 個。點陣字幕 `S_HDMV/PGS` 寫成原始 `.sup` 串流、`S_VOBSUB` 寫成同一修訂目錄下的 `.idx`＋`.sub` 兩檔（G15.5），與文字軌在同一次 mkvextract 執行、同一個快取修訂；軌數不足 32 時文字軌優先。`S_DVBSUB` 與 `D_WEBVTT/SUBTITLES`（WebM 形式，mkvextract 102.0 不支援）不擷取。開啟[字幕 OCR](subtitle-ocr.md)（G15.6）時，OCR 背景工作另以同一個 mkvextract 模式把 PGS／VobSub 軌抽到私有工作目錄、辨識成額外的 SRT 軌後即刪除，不進本快取、不取代原軌。
 
-- **原樣**：mkvextract 依 Matroska 內儲存的內容寫出（文字字幕為 UTF-8，含 BOM），不渲染、不燒錄、不轉碼、不轉檔，也不改原媒體；快取檔與內嵌位元組一致（字型逐位元組相同，見實測）。
+- **原樣**：mkvextract 依 Matroska 內儲存的內容寫出（文字字幕為 UTF-8，含 BOM），不渲染、不燒錄、不轉碼、不轉檔，也不改原媒體；快取檔與內嵌位元組一致（字型逐位元組相同，見實測）。點陣軌只是把圖片串流搬成獨立檔案：不做 OCR、不解碼、不重新編碼；`.sup`、`.idx`、`.sub` 與直接執行釘選的 mkvextract 得到的檔案逐位元組相同（`TestRealBitmapSubtitleExtractionMatchesMkvextract`）。
 - **快取版本**：`<cacheRoot>/<sourceID>/<修訂>/`，修訂由來源 ID、大小與修改時間雜湊；檔案改變就是新修訂，舊修訂刪除。擷取期間來源被改寫或替換即放棄結果。
-- **上限與清理**：單一來源的輸出超過 256 MiB 不入快取；總量超過上限時依最近使用時間淘汰；超過一小時的 staging 殘留在下次寫入時清除。整個快取可隨時刪除，下次請求重新擷取。非 Matroska（例如 MP4）記為空項，不重複識別。
+- **上限與清理**：單一來源的輸出超過 256 MiB 不入快取；總量超過上限時依最近使用時間淘汰；超過一小時的 staging 殘留在下次寫入時清除。整個快取可隨時刪除，下次請求重新擷取。非 Matroska（例如 MP4）記為空項，不重複識別。點陣軌較大，另有兩條保護文字軌的規則：先收文字軌與字型，點陣軌放不進 256 MiB 時只略過該軌（其他項目照常入快取）；單一輸出檔超過沙箱的 64 MiB（RLIMIT_FSIZE）會讓 mkvextract 失敗，此時改以不含點陣軌的計畫重跑一次，文字軌與字型仍入快取、點陣軌答覆為找不到。點陣軌快取與文字軌共用 `cacheMaxBytes`、LRU 與 `subtitle_cache_cleanup` 清理；快取格式升為 v2，舊修訂在下次使用或清理任務時刪除。
 - **同一來源只擷取一次**：並發請求共用同一次執行；請求取消會取消擷取，下一個請求重試。
 
 ### 取得方式
 
 自有 API（僅原生會話）：
 
-- `GET|HEAD /api/v1/sources/{id}/embedded-subtitles/{index}`：`index` 是 `subtitleTracks[].index`（探測串流索引）。
+- `GET|HEAD /api/v1/sources/{id}/embedded-subtitles/{index}`：`index` 是 `subtitleTracks[].index`（探測串流索引）；文字軌與 PGS（`application/x-pgs` 的原始 `.sup`）。
+- `GET|HEAD /api/v1/sources/{id}/embedded-subtitles/{index}.idx` 與 `{index}.sub`：VobSub 的索引（`text/plain`）與 MPEG PS 資料（`application/octet-stream`）。兩檔同名只差副檔名，播放器開 `.idx` 後自行以 `.sub` 取資料；VobSub 不提供單一路徑，PGS 也不提供這兩條。
 - `GET|HEAD /api/v1/sources/{id}/attachments/{attachmentId}`：`attachmentId` 是 `attachments[].id`。
 
-`GET /api/v1/items/{id}/playback` 在擷取可用時為 `extractable` 的字幕與字型附件加上 `url`；檔案資訊（`/sources`）不含任何 URL。相容層：PlaybackInfo 中可擷取的內嵌文字字幕改為 `DeliveryMethod: External` 並帶 `DeliveryUrl`（`/Videos/{itemId}/{sourceId}/Subtitles/{index}/0/Stream.{srt|ass|ssa|vtt}`，只接受該軌自身格式），`MediaAttachments` 列出附件與字型的 `DeliveryUrl`（`/Videos/{itemId}/{sourceId}/Attachments/{index}`，`index` 為附件的探測串流索引）。
+`GET /api/v1/items/{id}/playback` 在擷取可用時為 `extractable` 的字幕與字型附件加上 `url`（VobSub 的 `url` 指 `.idx`，另有 `dataUrl` 指 `.sub`）；檔案資訊（`/sources`）不含任何 URL。相容層：PlaybackInfo 中可擷取的內嵌文字字幕改為 `DeliveryMethod: External` 並帶 `DeliveryUrl`（`/Videos/{itemId}/{sourceId}/Subtitles/{index}/0/Stream.{srt|ass|ssa|vtt}`，只接受該軌自身格式）；內嵌 PGS 只在客戶端 DeviceProfile 的 `SubtitleProfiles` 有 `pgssub`＋`External`（容器、語言條件也符合）時才改為 External、`DeliveryUrl` 為 `…/Stream.sup`，其餘（沒有 DeviceProfile、GET PlaybackInfo、`Embed`／`Encode`）一律維持 `Embed`；字幕串流路由對可擷取的 PGS 只接受 `sup`／`pgssub`／`pgs` 格式名，其他格式仍是 409；`MediaAttachments` 列出附件與字型的 `DeliveryUrl`（`/Videos/{itemId}/{sourceId}/Attachments/{index}`，`index` 為附件的探測串流索引）。
 
 兩條自有路由與相容層都走 `media.Handler.ServeExtracted`，與外掛軌 `ServeTrack` 同一條直投路徑：生產防護（轉換參數 409）、只限原生會話（Web 會話 bearer 或 cookie 都是 403 `web_playback_disabled`，且不觸達解析器）、方法限制、Range／HEAD／條件請求、並發與頻寬上限（項目計入來源本身的播放）、撤銷即斷流、`nosniff` 與 sandbox CSP。授權先以與 `/stream` 相同的 SQL 確認會話與媒體庫權限，未授權者不會觸發擷取；不存在、看不到、不可擷取、工具未安裝的答覆一致（預設 404，G48.3 可設 403）。擷取查詢的逾時為 10 分鐘（`ExtractTimeout`），其餘查詢仍是一般逾時。Content-Type 由固定表決定：字幕依格式加 `charset=UTF-8`，字型為 `font/ttf`、`font/otf`、`font/collection`、`font/woff`、`font/woff2`。
+
+### 點陣字幕的能力邊界（G15.5）
+
+| 內嵌字幕 | 擷取 | 自有 API | 相容層 |
+| --- | --- | --- | --- |
+| Matroska `S_HDMV/PGS` | 原始 `.sup` | `url` | 宣告 `pgssub`＋External 才 External，否則 Embed |
+| Matroska `S_VOBSUB` | `.idx`＋`.sub` | `url`（.idx）＋`dataUrl`（.sub） | 一律 Embed（一個 `DeliveryUrl` 無法同時指兩檔） |
+| Matroska `S_DVBSUB` | 不擷取（mkvextract 沒有 DVB 檔案格式） | `extractable=false`，只隨原檔 | Embed |
+| Matroska `D_WEBVTT/SUBTITLES` | 不擷取（mkvextract 102.0 不支援） | 標為可擷取但路由答覆找不到（探測不分 S_TEXT／D_WEBVTT） | Embed |
+| MP4／MOV `mov_text` 與其他非 Matroska 容器的任何字幕 | 不擷取（要抽出就得改容器＝轉換） | `extractable=false`，只隨原檔 | Embed |
+
+點陣字幕永不 OCR 進這個快取、不燒錄、不轉成文字或其他點陣格式；要文字請開[字幕 OCR](subtitle-ocr.md)，它是另外列出的衍生軌。單一點陣軌超過 64 MiB（或放不進單一來源 256 MiB）時不提供擷取版，仍可隨原檔直投。擁有者驗證：D43（真實藍光 PGS／DVD VobSub 擷取後在各客戶端外掛顯示）、C45（擷取快取長時間運作的大小與清理）。
 
 **不可觸及編碼器（G10.11）**：`internal/adapter/media`、`http`、`compat` 只認 `media.ExtractedResolver` 介面；會啟動行程的實作在 `internal/platform/runtime`（`matroskaService`），架構測試 `TestDeliveryPackagesCannotRunEncoders` 照舊成立。
 

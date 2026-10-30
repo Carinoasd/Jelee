@@ -8,14 +8,22 @@ import (
 	"time"
 
 	"github.com/MoYuanCN/Jelee/internal/access"
+	"github.com/MoYuanCN/Jelee/internal/domain"
 )
 
 // ExtractedKind names an item copied out of a Matroska source.
 type ExtractedKind string
 
 const (
-	// ExtractedSubtitle is an embedded text subtitle by probe stream index.
+	// ExtractedSubtitle is an embedded text or PGS subtitle by probe stream
+	// index. A PGS track is the raw .sup stream as Matroska stores it.
 	ExtractedSubtitle ExtractedKind = "subtitle"
+	// ExtractedVobSubIndex is the .idx text index of an embedded VobSub
+	// track by probe stream index.
+	ExtractedVobSubIndex ExtractedKind = "vobsub_index"
+	// ExtractedVobSubData is the .sub MPEG program stream mkvextract writes
+	// next to the .idx of the same VobSub track.
+	ExtractedVobSubData ExtractedKind = "vobsub_data"
 	// ExtractedAttachment is a font attachment by 1-based Matroska ID.
 	ExtractedAttachment ExtractedKind = "attachment"
 	// ExtractedAttachmentStream is a font attachment by probe stream index,
@@ -28,8 +36,13 @@ const (
 )
 
 func (k ExtractedKind) valid() bool {
-	return k == ExtractedSubtitle || k == ExtractedAttachment || k == ExtractedAttachmentStream || k == ExtractedOCRSubtitle
+	return k == ExtractedSubtitle || k == ExtractedAttachment || k == ExtractedAttachmentStream || k == ExtractedOCRSubtitle ||
+		k == ExtractedVobSubIndex || k == ExtractedVobSubData
 }
+
+// bitmapExtensions are the cached file extensions of bitmap subtitle
+// tracks; their bytes are not text in any charset.
+var bitmapExtensions = map[string]bool{"sup": true, "idx": true, "sub": true}
 
 // ExtractedResolver is implemented outside the delivery packages, which can
 // never start a process (G10.11). It applies the same authorization as
@@ -49,9 +62,15 @@ var fontTypes = map[string]string{"ttf": "font/ttf", "otf": "font/otf", "ttc": "
 
 // ExtractedContentType returns the content type of an extracted item from
 // its cached file extension. Matroska text subtitles are UTF-8 by
-// specification and mkvextract writes them as they are stored.
+// specification and mkvextract writes them as they are stored. Bitmap
+// tracks get the external track types without a charset: application/x-pgs
+// for .sup, text/plain for the VobSub .idx and application/octet-stream
+// for its .sub.
 func ExtractedContentType(kind ExtractedKind, extension string) string {
 	ext := strings.ToLower(strings.TrimPrefix(extension, "."))
+	if kind == ExtractedVobSubIndex || kind == ExtractedVobSubData || kind == ExtractedSubtitle && bitmapExtensions[ext] {
+		return TrackContentType(TrackSubtitle, ext, "", domain.SidecarSubtitleVobSub)
+	}
 	if kind == ExtractedSubtitle || kind == ExtractedOCRSubtitle {
 		return TrackContentType(TrackSubtitle, ext, "UTF-8", "")
 	}
@@ -61,8 +80,8 @@ func ExtractedContentType(kind ExtractedKind, extension string) string {
 	return "application/octet-stream"
 }
 
-// ServeExtracted delivers one extracted embedded text subtitle or font
-// attachment as it was stored in the source (G15.5, G15.7), through the same
+// ServeExtracted delivers one extracted embedded text or bitmap subtitle or
+// font attachment as it was stored in the source (G15.5, G15.7), through the same
 // production guard, native-only rule, ACL, limits, revocation and copy path
 // as ServeTrack. Web sessions never receive it.
 func (h *Handler) ServeExtracted(w http.ResponseWriter, r *http.Request, resolver ExtractedResolver, sourceID string, kind ExtractedKind, index int) {

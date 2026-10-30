@@ -182,11 +182,15 @@ type PlaybackSubtitleTrack struct {
 	// Title is the track name: the file's own title tag, else the Matroska
 	// track name from the MediaInfo supplement (see streamLabel).
 	Title string `json:"title,omitempty"`
-	// Extractable marks a text subtitle inside a Matroska/WebM source that
-	// mkvextract can copy to the rebuildable cache unconverted (G15.5).
+	// Extractable marks a text, PGS or VobSub subtitle inside a
+	// Matroska/WebM source that mkvextract can copy to the rebuildable cache
+	// unconverted (G15.5). DVB bitmaps, MP4 mov_text and any track of
+	// another container stay inside the original file only.
 	Extractable bool `json:"extractable"`
-	// URL is set by the API layer when extraction is available.
-	URL string `json:"url,omitempty"`
+	// URL is set by the API layer when extraction is available. For VobSub
+	// it is the .idx index and DataURL the .sub program stream next to it.
+	URL     string `json:"url,omitempty"`
+	DataURL string `json:"dataUrl,omitempty"`
 	// OCRSource marks a PGS or VobSub track inside a Matroska/WebM source
 	// whose text subtitle OCR can derive (G15.6). The track itself is still
 	// only delivered as it is.
@@ -244,6 +248,14 @@ var embeddedTextSubtitles = map[string]bool{"subrip": true, "srt": true, "ass": 
 // extracted as they are (G15.5), keyed by probe codec, with the file
 // extension the extracted text keeps.
 var ExtractableSubtitleCodecs = map[string]string{"subrip": "srt", "ass": "ass", "ssa": "ssa", "webvtt": "vtt"}
+
+// ExtractableBitmapSubtitleCodecs are the embedded bitmap subtitle codecs
+// copied out as they are (G15.5), keyed by probe codec, with the extension
+// of the extracted file: the raw PGS stream (.sup) and the VobSub index
+// (.idx), whose program stream is the .sub next to it. Nothing is decoded,
+// recognized, rendered or converted; dvb_subtitle has no file form
+// mkvextract writes and is absent.
+var ExtractableBitmapSubtitleCodecs = map[string]string{"hdmv_pgs_subtitle": "sup", "dvd_subtitle": "idx"}
 
 // IsMatroskaMetadata reports whether the probe identified Matroska or WebM.
 func IsMatroskaMetadata(meta MediaMetadata) bool {
@@ -470,13 +482,14 @@ func BuildPlaybackSource(r PlaybackSourceRecord) PlaybackSource {
 			case "subtitle":
 				codec := playbackText(stream.Codec)
 				_, text := ExtractableSubtitleCodecs[codec]
+				_, bitmap := ExtractableBitmapSubtitleCodecs[codec]
 				charset := ""
 				if embeddedTextSubtitles[codec] {
 					charset = EmbeddedTextCharset
 				}
 				s.Subtitles = append(s.Subtitles, PlaybackSubtitleTrack{Index: stream.Index, Codec: codec, Format: playbackSubtitleCodecs[codec],
 					Language: playbackText(stream.Language), Default: playbackFlag(stream.Default), Forced: playbackFlag(stream.Forced),
-					SDH: playbackFlag(stream.HearingImpaired) || playbackFlag(stream.Captions), Charset: charset, Title: streamLabel(stream, meta.Matroska), Extractable: text && IsMatroskaMetadata(meta),
+					SDH: playbackFlag(stream.HearingImpaired) || playbackFlag(stream.Captions), Charset: charset, Title: streamLabel(stream, meta.Matroska), Extractable: (text || bitmap) && IsMatroskaMetadata(meta),
 					OCRSource: OCRSubtitleCodecs[codec] && IsMatroskaMetadata(meta)})
 			}
 		}

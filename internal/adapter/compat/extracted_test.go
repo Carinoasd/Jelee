@@ -2,6 +2,7 @@ package compat
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"net/http"
 	"os"
@@ -31,6 +32,8 @@ func (c *compatExtracted) ResolveExtracted(_ context.Context, p access.Principal
 	switch {
 	case kind == media.ExtractedSubtitle && index == 3:
 		return media.Source{Root: c.root, RelativePath: "t3.srt"}, nil
+	case kind == media.ExtractedSubtitle && index == 6:
+		return media.Source{Root: c.root, RelativePath: "t6.sup"}, nil
 	case kind == media.ExtractedAttachmentStream && index == 4:
 		return media.Source{Root: c.root, RelativePath: "a1.ttf"}, nil
 	}
@@ -112,5 +115,80 @@ func TestCompatKeepsEmbedWhenExtractionIsUnavailable(t *testing.T) {
 	}
 	if w := h.get("/compat/Videos/"+wire(testMovieID)+"/"+wire(testSourceID)+"/Subtitles/3/0/Stream.srt", nativeToken); w.Code != http.StatusConflict || len(extracted.calls) != 0 {
 		t.Fatalf("embedded subtitle without extraction: %d", w.Code)
+	}
+}
+
+// G15.5: an extractable embedded PGS track becomes External, with the URL of
+// its raw cached .sup, only for a client whose SubtitleProfiles accept PGS
+// as an external file; VobSub (two files) and DVB stay Embed.
+func TestCompatDeliversExtractedPGSOnlyWhenDeclaredExternal(t *testing.T) {
+	h, extracted := extractedHarness(t, true)
+	pgs := []byte("PG\x00\x01 raw presentation graphics")
+	if err := os.WriteFile(filepath.Join(extracted.root, "t6.sup"), pgs, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	h.catalog.sources[0].Subtitles = append(h.catalog.sources[0].Subtitles,
+		domain.PlaybackSubtitleTrack{Index: 6, Codec: "hdmv_pgs_subtitle", Format: "pgs", Extractable: true},
+		domain.PlaybackSubtitleTrack{Index: 7, Codec: "dvd_subtitle", Format: "vobsub", Extractable: true},
+		domain.PlaybackSubtitleTrack{Index: 8, Codec: "dvb_subtitle", Format: "dvb"})
+	ph := &playbackHarness{libraryHarness: h}
+	target := "/compat/Items/" + wire(testMovieID) + "/PlaybackInfo"
+	url := "/Videos/" + wire(testMovieID) + "/" + wire(testSourceID) + "/Subtitles/6/0/Stream.sup"
+	streams := func(body string) map[int]map[string]any {
+		var answer struct {
+			MediaSources []struct{ MediaStreams []map[string]any }
+		}
+		if err := json.Unmarshal([]byte(body), &answer); err != nil || len(answer.MediaSources) != 1 {
+			t.Fatalf("answer %v: %s", err, body)
+		}
+		out := map[int]map[string]any{}
+		for _, s := range answer.MediaSources[0].MediaStreams {
+			if s["Type"] == "Subtitle" {
+				out[int(s["Index"].(float64))] = s
+			}
+		}
+		return out
+	}
+	profile := func(subtitles string) string {
+		return `{"DeviceProfile":{"DirectPlayProfiles":[{"Container":"mkv","Type":"Video"}],"SubtitleProfiles":` + subtitles + `}}`
+	}
+	external := streams(ph.post(target, nativeToken, profile(`[{"Format":"pgssub","Method":"External"},{"Format":"dvdsub","Method":"External"},{"Format":"dvbsub","Method":"External"}]`)).Body.String())
+	if s := external[6]; s["DeliveryMethod"] != "External" || s["DeliveryUrl"] != url || s["SupportsExternalStream"] != true || s["IsExternal"] == true {
+		t.Fatalf("PGS declared external: %v", s)
+	}
+	for _, index := range []int{7, 8} {
+		if s := external[index]; s["DeliveryMethod"] != "Embed" || s["DeliveryUrl"] != nil {
+			t.Fatalf("stream %d left the container: %v", index, s)
+		}
+	}
+	// Embed, Encode, another format or no profile at all keep PGS inside.
+	for _, body := range []string{
+		profile(`[{"Format":"pgssub","Method":"Embed"}]`),
+		profile(`[{"Format":"pgssub","Method":"Encode"},{"Format":"srt","Method":"External"}]`),
+		profile(`[{"Format":"pgssub","Method":"External","Container":"mp4"}]`),
+		`{}`,
+	} {
+		if s := streams(ph.post(target, nativeToken, body).Body.String())[6]; s["DeliveryMethod"] != "Embed" || s["DeliveryUrl"] != nil {
+			t.Fatalf("%s: %v", body, s)
+		}
+	}
+	if s := streams(h.get(target, nativeToken).Body.String())[6]; s["DeliveryMethod"] != "Embed" {
+		t.Fatalf("GET PlaybackInfo: %v", s)
+	}
+	// The route serves the raw stream in its own format names only.
+	for _, format := range []string{"sup", "pgssub", "PGS"} {
+		w := h.get("/compat/Videos/"+wire(testMovieID)+"/"+wire(testSourceID)+"/Subtitles/6/0/Stream."+format, nativeToken)
+		if w.Code != 200 || w.Body.String() != string(pgs) || w.Header().Get("Content-Type") != "application/x-pgs" {
+			t.Fatalf("Stream.%s: %d %q %v", format, w.Code, w.Body.String(), w.Header())
+		}
+	}
+	calls := len(extracted.calls)
+	for _, target := range []string{"/Subtitles/6/0/Stream.srt", "/Subtitles/7/0/Stream.sub", "/Subtitles/7/0/Stream.idx", "/Subtitles/8/0/Stream.sup"} {
+		if w := h.get("/compat/Videos/"+wire(testMovieID)+"/"+wire(testSourceID)+target, nativeToken); w.Code != http.StatusConflict {
+			t.Fatalf("%s: %d", target, w.Code)
+		}
+	}
+	if len(extracted.calls) != calls {
+		t.Fatalf("refused requests reached the resolver: %v", extracted.calls[calls:])
 	}
 }

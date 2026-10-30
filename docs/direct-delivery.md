@@ -150,7 +150,7 @@ Web 禁止播放的承诺基于**服务端签发时绑定的会话类型**。原
 - `GET|HEAD /api/v1/sources/{id}/subtitles/{trackId}`
 - `GET|HEAD /api/v1/sources/{id}/audio/{trackId}`
 
-`{trackId}` 是 `media_sidecar_tracks` 的行 ID，由播放信息的 `externalTracks[].url` 给出。文件按字节原样发送：不烧录、不重编码、不 Remux，字幕也不转换字符编码（G10.9；位图字幕 `.sup`/`.idx`+`.sub` 同样只传原文件，G15.5）。Matroska 内嵌文字字幕与字型附件的擷取（E4）走另兩條路由 `/api/v1/sources/{id}/embedded-subtitles/{index}`、`/api/v1/sources/{id}/attachments/{attachmentId}` 與 `Handler.ServeExtracted`，共用本節的整條直投路徑，見 [mkvtoolnix 與 MediaInfo](matroska-tools.md)。
+`{trackId}` 是 `media_sidecar_tracks` 的行 ID，由播放信息的 `externalTracks[].url` 给出。文件按字节原样发送：不烧录、不重编码、不 Remux，字幕也不转换字符编码（G10.9；位图字幕 `.sup`/`.idx`+`.sub` 同样只传原文件，G15.5）。Matroska 内嵌文字字幕、PGS／VobSub 点阵字幕与字型附件的擷取（E4、G15.5）走另外的路由 `/api/v1/sources/{id}/embedded-subtitles/{index}`（文字与 PGS `.sup`）、`/api/v1/sources/{id}/embedded-subtitles/{index}.idx`／`.sub`（VobSub 两半）、`/api/v1/sources/{id}/attachments/{attachmentId}` 與 `Handler.ServeExtracted`，共用本節的整條直投路徑；点阵字幕只是把原始图片串流搬成独立文件，不 OCR、不烧录、不转格式。DVB 点阵字幕、MP4 `mov_text` 与非 Matroska 容器内的字幕不擷取，只随原文件投递（`extractable=false`）。能力边界表見 [mkvtoolnix 與 MediaInfo](matroska-tools.md)。
 
 **数据来源。** 轨道行由扫描→条目同步写入（W10-8，见 `catalog-sync.md`“外挂字幕／音轨配对”）：同步为每个扫描登记的资源配对同目录及 `Subs/`、`Audio/` 等子目录中的外挂文件，与资源在同一事务中写入；重扫时外挂文件的新增、删除、改名随之反映，视频被标记缺失或删除时轨道一并清除。字符集与边缘指纹由同一任务结束前的有界读取补上，在此之前 `charset` 为空，响应不带 `charset` 参数。
 

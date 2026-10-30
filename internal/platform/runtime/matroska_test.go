@@ -49,7 +49,8 @@ func TestMatroskaServiceAuthorizesBeforeExtracting(t *testing.T) {
 	if err != nil || got.Root != "/cache" || got.RelativePath != "id/rev/t1.srt" || got.DeviceID != "device" || got.ShareStreams != 2 || locator.seen.RootPath != "/library" || locator.seen.RelativePath != "Film.mkv" {
 		t.Fatalf("%v %+v", err, got)
 	}
-	for kind, want := range map[media.ExtractedKind]matroska.Kind{media.ExtractedAttachment: matroska.KindAttachment, media.ExtractedAttachmentStream: matroska.KindAttachmentStream} {
+	for kind, want := range map[media.ExtractedKind]matroska.Kind{media.ExtractedAttachment: matroska.KindAttachment, media.ExtractedAttachmentStream: matroska.KindAttachmentStream,
+		media.ExtractedVobSubIndex: matroska.KindVobSubIndex, media.ExtractedVobSubData: matroska.KindVobSubData} {
 		locator.calls = nil
 		if _, err := service.ResolveExtracted(context.Background(), principal, "id", kind, 1); err != nil || locator.calls[0] != want {
 			t.Fatalf("%s mapped to %v", kind, locator.calls)

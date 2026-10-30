@@ -243,6 +243,7 @@ func (rt *router) playbackInfo(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			rt.addOCRStreams(r.Context(), principal, itemID, source, &info)
+			rt.externalBitmapSubtitles(req, itemID, source, &info)
 			rt.logSubtitleProfiles(r.Context(), req, source, info)
 			result.MediaSources = append(result.MediaSources, info)
 		}
@@ -520,9 +521,9 @@ func (rt *router) subtitleStream(w http.ResponseWriter, r *http.Request) {
 		if sub.Index != index {
 			continue
 		}
-		// An extractable embedded text track in its own format is the
-		// cached copy (G15.5); anything else would need a conversion.
-		if extension, ok := domain.ExtractableSubtitleCodecs[sub.Codec]; ok && sub.Extractable && rt.extractionAvailable() && sameSubtitleFormat(format, extension) {
+		// An extractable embedded text or PGS track in its own format is
+		// the cached copy (G15.5); anything else would need a conversion.
+		if extension, ok := streamedEmbeddedSubtitle(sub); ok && sub.Extractable && rt.extractionAvailable() && sameSubtitleFormat(format, extension) {
 			rt.opts.Library.Delivery.ServeExtracted(w, r, rt.opts.Library.Extracted, source.ID, media.ExtractedSubtitle, index)
 			return
 		}
@@ -530,6 +531,48 @@ func (rt *router) subtitleStream(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeError(w, rt.opts.Library.HiddenStatus)
+}
+
+// streamedEmbeddedSubtitle returns the extension of an embedded subtitle the
+// upstream subtitle stream route serves as its extracted copy: a text track,
+// or a PGS track as its raw .sup stream. A VobSub track needs its .idx and
+// .sub together, which one upstream DeliveryUrl cannot name, so it stays
+// embedded here (the server's own API serves both halves).
+func streamedEmbeddedSubtitle(sub domain.PlaybackSubtitleTrack) (string, bool) {
+	if extension, ok := domain.ExtractableSubtitleCodecs[sub.Codec]; ok {
+		return extension, true
+	}
+	if extension := domain.ExtractableBitmapSubtitleCodecs[sub.Codec]; extension == "sup" {
+		return extension, true
+	}
+	return "", false
+}
+
+// externalBitmapSubtitles lists an extractable embedded PGS track as an
+// External stream with the URL of its cached raw copy (G15.5) only when the
+// client's SubtitleProfiles accept PGS as an external file. Otherwise it
+// stays Embed, as in every answer without a DeviceProfile: most clients
+// render PGS only from inside the container. Nothing is converted.
+func (rt *router) externalBitmapSubtitles(req playbackRequest, itemID string, source domain.PlaybackSource, info *mediaSourceInfo) {
+	if req.profile == nil || len(req.profile.Subtitles) == 0 || rt.opts.Library.Delivery == nil || !rt.extractionAvailable() {
+		return
+	}
+	for i := range info.MediaStreams {
+		stream := &info.MediaStreams[i]
+		if stream.Type != mediaStreamSubtitle || stream.IsExternal || stream.DeliveryURL != "" {
+			continue
+		}
+		at := slices.IndexFunc(source.Subtitles, func(t domain.PlaybackSubtitleTrack) bool { return t.Index == stream.Index })
+		if at < 0 || !source.Subtitles[at].Extractable || domain.ExtractableBitmapSubtitleCodecs[source.Subtitles[at].Codec] != "sup" {
+			continue
+		}
+		candidate := domain.SubtitleCandidate{Format: stream.Codec, Language: stream.Language, Deliverable: true}
+		if domain.SubtitleMethod(req.profile.Subtitles, source.Container, candidate) == domain.SubtitleMethodExternal {
+			stream.DeliveryMethod = subtitleDeliveryExternal
+			stream.SupportsExternalStream = true
+			stream.DeliveryURL = subtitleURL(itemID, info.ID, stream.Index, "sup")
+		}
+	}
 }
 
 // extractionAvailable reports whether embedded items can be delivered.
