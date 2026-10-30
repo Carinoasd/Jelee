@@ -23,7 +23,7 @@ POST /api/v1/jobs/REVIEWED_SCAN_ID/accept-missing
 
 階段：publish（僅 accept）→ sources → missing → pending → done，游標與計數和寫入同交易。每批讀 256 筆基準影片、最多寫 32 個檔案。
 
-- 解析：`medianame.ParsePath`。只有 High 且容器可登記才自動建 Movie 或 Series／Season／Episode；Medium／Low／拒絕／不支援容器／與既有結構衝突進 `catalog_scan_pending`，以 `GET /api/v1/libraries/{id}/catalog-sync/pending` 查詢。接受／拒絕待確認項目的入口尚未提供（後續）。
+- 解析：`medianame.ParsePath`。只有 High 且容器可登記才自動建 Movie 或 Series／Season／Episode；Medium／Low／拒絕／不支援容器／與既有結構衝突進 `catalog_scan_pending`，以 `GET /api/v1/libraries/{id}/catalog-sync/pending` 查詢（每筆帶 `decision`：`pending`／`rejected`）；接受與拒絕見下方「識別修正與待確認決定」。
 - 結構：電影以「同目錄＋標題＋年份」歸為同一條目（多版本的第一步，完整聚合留給 G20 後續）；劇集資料夾名稱與解析標題相符時登記為 Series 目錄，季資料夾登記為 Season 目錄（供目錄 NFO 使用）；已登記的資料夾條目直接沿用。父子連結套用與匯入相同的合法性規則。
 - 優先序：解析值以 `source='scan'` 寫入標題，為最低優先；鎖定、人工、NFO、TMDB 與既有值都不被覆蓋，TMDB 可覆蓋 scan 值。NFO 身分優先：已帶 NFO uniqueIds 的條目不併入另有同名 NFO 的新檔案。
 - 增量：已追蹤檔案以 size／mtime／解析版本判定未變；明確匯入的來源不屬同步管理，從不更動。
@@ -49,6 +49,19 @@ POST /api/v1/jobs/REVIEWED_SCAN_ID/accept-missing
 
 管理員的拆分、合併與排除不會被同步還原：已登記來源本來就不被搬動，人工放置的來源（`catalog_scan_sources.manual`）不再以檔名改寫標題；新檔案分組時，指向已排除條目的群組改用單檔群組（與 NFO 身分衝突相同），被合併條目的群組經 `catalog_scan_item_aliases` 回到目標條目。詳見[多版本](item-versions.md)。
 
+## 識別修正與待確認決定（G21.5，schema 100）
+
+遷移 100（暫定編號）新增 `item_identity_corrections` 與 `catalog_scan_pending.rejected_at`／`rejected_by`。
+
+- **修正即鎖定**：管理員以 `PUT /api/v1/items/{id}/identity` 修正條目的類型、所屬（季／劇集）、季號、集號（含多集範圍），每個修正值都鎖定；`locked:false` 解鎖，把該欄交還掃描。介面細節見[人工元資料](item-metadata.md#識別修正與鎖定g215schema-100)。
+- **掃描值照常更新、鎖定值優先讀出**：同步重新解析已追蹤檔案（大小、mtime 或解析器版本改變）時，照常把檔名得到的季號、集號寫回 `catalog_scan_items`（以前只更新標題）；鎖定的季號／集號存在 `item_identity_corrections`，讀取優先序為「鎖定 > NFO 事實（`seasonNumber`／`episodeNumber`）> 檔名」（G21.2）。所以鎖定期間重掃不會改變有效值，報告的 `protected` 計入被擋下的變化；解鎖後立即回到（最新的）掃描值，不必等下一次掃描。季資料夾圖片配對也改用鎖定的季號。
+- **類型與所屬**：同步本來就不搬動已登記的來源，也不重新推導類型；改過類型的條目，其掃描列跟著換類型，之後檔名推得的舊類型與它不符，重新解析不再改它的標題與集號。分組時新檔案（例如同集的另一個版本）經原本的群組鍵併入已鎖定的條目，不會把它拆開或改掛到檔案所在的季。
+- **剪除**：接受缺失後，帶任何識別鎖的同步建立條目和帶欄位鎖的一樣保留，不因沒有媒體而被刪。
+- **待確認接受**：`POST /api/v1/libraries/{id}/catalog-sync/pending/{entry}/accept`，正文可補齊或更正解析值（`kind`：`movie`／`episode`、`title`、`seriesTitle`、`year`、`season`、`episode`、`episodeEnd`；省略者沿用解析值，集數或季號缺失回 400）。在與同步批次相同的媒體庫列鎖下執行：檔案必須仍是已接受基準觀測到的那一個（大小、mtime 相同）且尚未登記，否則 409；容器無法登記也回 409。之後走與自動同步相同的建立路徑（分組、劇集／季資料夾、父子合法性，結構衝突回 409）。新建的條目把類型與（劇集的）季號、集號記為鎖定，給了 `title` 時標題記為人工值；併入既有條目時不改那個條目的識別。回 `{entryId,itemId,sourceId,kind,created}`，待確認列刪除。稽核 `catalog_sync.pending_accepted`（不記路徑）。
+- **待確認拒絕**：`POST …/pending/{entry}/reject`（正文 `{}`）標記為拒絕，列表仍可見（`decision:"rejected"`）。拒絕只對當時的檔案有效：大小與 mtime 不變時，連解析器版本改變也不再規劃；檔案一變就回到 `pending`。重複拒絕回 409（不重播）；已拒絕的項目仍可接受。檔案離開基準時與一般待確認列一起刪除。稽核 `catalog_sync.pending_rejected`。
+- **權限**：四個入口都只限管理員（一般使用者在查找前就回 403）；不存在的條目、不存在的待確認項目、或以另一個媒體庫的路徑存取的待確認項目一律回 404，回應相同。
+- **降版**：仍有鎖定的修正或拒絕紀錄時拒絕降版（`55000`）；只剩未鎖定的列可以降版。元資料備份匯出修正列（`item_identity_correction`，目的地已有修正的條目保留自己的），不匯出拒絕紀錄。
+
 ## 未涵蓋
 
-待確認項目的人工接受／拒絕、完整多版本聚合、忽略模式發布後的自動同步、NFO 內容直接參與分組（目前只用 NFO 檔存在與條目 uniqueIds facts）、明確匯入來源的外掛軌配對、`.idx`＋`.sub` 成對關係的記錄（兩者各自成軌）。大規模首掃／重掃、GOMAXPROCS=2/4、24 小時混合負載尚待擁有者量測。
+識別修正與待確認決定的網頁介面、完整多版本聚合、忽略模式發布後的自動同步、NFO 內容直接參與分組（目前只用 NFO 檔存在與條目 uniqueIds facts）、明確匯入來源的外掛軌配對、`.idx`＋`.sub` 成對關係的記錄（兩者各自成軌）。大規模首掃／重掃、GOMAXPROCS=2/4、24 小時混合負載尚待擁有者量測。

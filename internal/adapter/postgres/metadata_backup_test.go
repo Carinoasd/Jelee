@@ -101,6 +101,7 @@ func seedMetadataBackup(t testing.TB, ctx context.Context, s *Store, episodes in
 		{"manual scan source", `UPDATE catalog_scan_sources SET manual=true WHERE source_id='` + bkSrcMovie + `'`},
 		{"version exclusion", `INSERT INTO item_version_exclusions(item_id,library_id,root_id,relative_path,created_at) VALUES ('` + bkMovie + `','` + bkLibMovies + `','` + bkRootMov + `','Film (2020)/Film.Trailer.mkv','2026-09-01T01:00:00Z')`},
 		{"primary version", `INSERT INTO item_primary_versions(item_id,library_id,source_id,updated_at) VALUES ('` + bkMovie + `','` + bkLibMovies + `','` + bkSrcMovie + `','2026-09-01T02:00:00Z')`},
+		{"identity correction", `INSERT INTO item_identity_corrections(item_id,library_id,revision,kind_locked,parent_locked,season,episode,episode_end,updated_at) VALUES ('` + bkEpisode + `','` + bkLibShows + `',3,true,true,1,4,5,'2026-09-02T00:00:00Z')`},
 		{"track preferences", `INSERT INTO user_track_preferences(user_id,item_id,source_id,audio_language,audio_commentary,audio_track,subtitle_mode,subtitle_language,subtitle_sdh,subtitle_track,updated_at) VALUES
  ('` + bkKid + `',NULL,NULL,'zh-Hant',NULL,NULL,'auto','zh-Hant',false,NULL,'2026-09-03T00:00:00Z'),
  ('` + bkKid + `','` + bkEpisode + `',NULL,'ja',true,NULL,NULL,NULL,NULL,NULL,'2026-09-03T00:00:01Z'),

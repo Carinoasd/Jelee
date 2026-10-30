@@ -239,6 +239,14 @@ SELECT (SELECT count(*) FROM ok),(SELECT count(*) FROM ins),0,0`},
 ok AS (SELECT * FROM x WHERE l IS NOT NULL AND i IS NOT NULL AND EXISTS(SELECT 1 FROM media_sources t WHERE t.id=x.m AND t.item_id=x.i)),
 ins AS (INSERT INTO item_primary_versions(item_id,library_id,source_id,updated_at) SELECT i,l,m,(doc->>'updated_at')::timestamptz FROM ok ON CONFLICT DO NOTHING RETURNING 1)
 SELECT (SELECT count(*) FROM ok),(SELECT count(*) FROM ins),0,0`},
+	// Identity locks are administrator choices like version decisions: they
+	// also reach items found in the target, and a target that already decided
+	// keeps its own row. The kind and parent they lock travel with the items.
+	{kind: "item_identity_correction", sql: `WITH x AS (SELECT s.doc,pg_temp.bk_dst('library',s.doc->>'library_id') l,pg_temp.bk_dst('item',s.doc->>'item_id') i FROM bk_stage s WHERE s.kind='item_identity_correction'),
+ok AS (SELECT * FROM x WHERE l IS NOT NULL AND i IS NOT NULL AND EXISTS(SELECT 1 FROM items t WHERE t.id=x.i AND t.library_id=x.l)),
+ins AS (INSERT INTO item_identity_corrections(item_id,library_id,revision,kind_locked,parent_locked,season,episode,episode_end,updated_at)
+ SELECT i,l,(doc->>'revision')::integer,(doc->>'kind_locked')::boolean,(doc->>'parent_locked')::boolean,(doc->>'season')::integer,(doc->>'episode')::integer,(doc->>'episode_end')::integer,(doc->>'updated_at')::timestamptz FROM ok ON CONFLICT DO NOTHING RETURNING 1)
+SELECT (SELECT count(*) FROM ok),(SELECT count(*) FROM ins),0,0`},
 	// New items take the exported revision; items found in the target get a
 	// state row when their metadata arrives and one revision bump at the end.
 	{kind: "item_metadata_state", sql: `WITH x AS (SELECT m.dst id,m.state,s.doc FROM bk_stage s JOIN bk_map m ON m.kind='item' AND m.src=(s.doc->>'item_id')::uuid WHERE s.kind='item_metadata_state' AND m.state IN ('existing','new')),

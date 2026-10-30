@@ -121,3 +121,67 @@ func catalogDirectoryTitle(name string) (string, int) {
 	}
 	return title, year
 }
+
+// PlanCatalogPendingAccept turns a pending file into a plan once an
+// administrator accepted it. The decision completes or corrects the parsed
+// values; the layout rules stay those of automatic plans. A container the
+// catalog cannot register is a conflict, an incomplete identity is invalid.
+func PlanCatalogPendingAccept(relative string, pending domain.CatalogPendingEntry, d domain.CatalogPendingDecision) (CatalogScanPlan, error) {
+	if !domain.ValidCatalogPendingDecision(d) {
+		return CatalogScanPlan{}, domain.ErrInvalid
+	}
+	base := PlanCatalogScan(relative)
+	if base.ContentType == "" {
+		return CatalogScanPlan{}, domain.ErrConflict
+	}
+	plan := CatalogScanPlan{Parsed: base.Parsed, Auto: true, Directory: base.Directory, ContentType: base.ContentType, Year: pending.Year}
+	if d.Year != nil {
+		plan.Year = *d.Year
+	}
+	kind := d.Kind
+	if kind == "" {
+		kind = pending.Kind
+	}
+	pick := func(override *string, parsed string) string {
+		if override != nil {
+			return domain.ClampCatalogTitle(*override)
+		}
+		return domain.ClampCatalogTitle(parsed)
+	}
+	switch kind {
+	case "movie":
+		plan.Kind, plan.Title = "Movie", pick(d.Title, pending.Title)
+		if plan.Title == "" || d.SeriesTitle != nil || d.Season != nil || d.Episode != nil || d.EpisodeEnd != nil {
+			return CatalogScanPlan{}, domain.ErrInvalid
+		}
+		return plan, nil
+	case "episode":
+	default:
+		return CatalogScanPlan{}, domain.ErrInvalid
+	}
+	season, episode, end := pending.Season, pending.Episode, pending.EpisodeEnd
+	if d.Season != nil {
+		season = d.Season
+	}
+	if d.Episode != nil {
+		episode, end = d.Episode, d.Episode
+	}
+	if d.EpisodeEnd != nil {
+		end = d.EpisodeEnd
+	}
+	if season == nil || episode == nil {
+		return CatalogScanPlan{}, domain.ErrInvalid
+	}
+	if end == nil || *end < *episode {
+		end = episode
+	}
+	plan.Kind = "Episode"
+	plan.Season, plan.Episode, plan.EpisodeEnd = *season, *episode, *end
+	plan.SeriesTitle, plan.SeriesYear = pick(d.SeriesTitle, pending.Title), plan.Year
+	plan.Title = pick(d.Title, strings.TrimSuffix(path.Base(relative), path.Ext(relative)))
+	if plan.Title == "" || plan.SeriesTitle == "" {
+		return CatalogScanPlan{}, domain.ErrInvalid
+	}
+	episodeLayout(&plan)
+	return plan, nil
+}

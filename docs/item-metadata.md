@@ -33,3 +33,22 @@
 刻意停用正式repo的版本比較，真HTTP验收發現舊版本覆寫；finally逐位元復原後四項PG race專項通過且零略過。domain測邊界／日期／UTF-8与副本，app驗repo不能改呼叫者值／鎖指標、回傳時間隔離与無效請求不入repo，runtime測與正式建構相同函式在有／無provider均到達repo。
 
 完整執行結果、skip逐項核對與來源SHA見[證據](evidence/item-metadata.json)。G14.6保持部分完成：自動寫入的優先序與鎖保護、可信唯讀NFO抽取接線、供應商來源／時間、清除外部元資料、worker、前端與100電影／20劇集完整矩陣尚待完成。完整品牌與ABI差異門禁保持。
+
+## 識別修正與鎖定（G21.5，schema 100）
+
+標題等文字欄位之外，管理員可修正條目的識別結果並鎖定，鎖定後不被掃描覆蓋。同步端的行為見[掃描→條目同步](catalog-sync.md#識別修正與待確認決定g215schema-100)。
+
+`GET /api/v1/items/{id}/identity` 回傳有效值與來源：`kind`、`kindLocked`、`parentId`／`parentKind`、`parentLocked`、`season`／`seasonSource`／`seasonLocked`、`episode`／`episodeEnd`／`episodeSource`／`episodeLocked`、`scan`（檔名得到的類型與季集號，鎖定期間照常更新，供比對）、`revision` 與 `updatedAt`。來源依優先序為 `manual`（鎖定的修正）、`nfo`（NFO 事實 `seasonNumber`／`episodeNumber`）、`scan`、`none`。沒有修正列的條目版本為 1，讀取不建立任何列。
+
+```json
+{"expectedRevision":1,"fields":[{"field":"season","value":2},{"field":"episode","value":5,"valueEnd":6},{"field":"parent","value":"SEASON_2_ID"},{"field":"kind","locked":true}]}
+```
+
+- 欄位：`kind`（值 `Movie`／`Episode`／`HomeVideo`）、`parent`（條目 UUID，`null` 表示移除所屬）、`season`、`episode`（0–100000；`valueEnd` 為多集檔的最後一集，只限 `episode`，預設等於 `value`）。每次 1–4 個不重複欄位，依 kind → parent → season → episode 套用，所以同一請求換類型後其他欄位按新類型檢查。
+- 給了值就鎖定：`locked` 只能省略或為 `true`，與值同時給 `false` 回 400。不給值時 `locked:true` 鎖住目前的有效值（沒有值可鎖回 409），`locked:false` 解鎖：季號、集號立刻回到 NFO 或掃描值；類型與所屬保持現狀，只是不再受保護。解鎖後的修正列保留，版本不會重複。
+- 類型只能在葉節點類型（`Movie`／`Episode`／`HomeVideo`）之間改，條目不得有子項、劇集／季資料夾或被合併的掃描群組別名；同步建立的條目不能改成 `HomeVideo`（掃描結構只有四種類型）。換類型會移除原本的所屬，以及不再適用的季號／集號鎖。
+- 所屬：季只能掛在劇集下（不可移除所屬），集只能掛在季或劇集下，且須同一媒體庫；明確的人工修正不受上層資料夾位置限制（把放錯資料夾的集數移到正確的季正是用途）。季號只適用季與集，集號只適用集，其他類型給值回 409。
+- 交易先取媒體庫列鎖（與同步批次相同的順序）再鎖條目，比對 `expectedRevision`（不符回 409），成功時版本加一並寫稽核 `item.identity_changed`（前後的有效識別）。未知欄位、`null` 季集號、小數、型別錯誤回 400；不存在的條目 404；非管理員 403。
+- 版本合併的快照與撤銷一併保存修正列；元資料備份匯出修正列，匯入時目的地已有修正的條目保留自己的。
+
+未涵蓋：網頁介面；相容層與條目詳情尚未輸出季號／集號（目前只有本介面、季資料夾圖片配對與同步使用）。

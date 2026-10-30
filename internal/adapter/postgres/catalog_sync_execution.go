@@ -224,6 +224,8 @@ type syncCandidate struct {
 	missing, external            bool
 	pendingSize, pendingModified *int64
 	pendingVersion               *string
+	// pendingRejected holds an administrator's rejection of the unchanged file.
+	pendingRejected bool
 }
 
 func syncCatalogSourcesBatch(ctx context.Context, tx pgx.Tx, current domain.JobLease, r *catalogSyncRequest, events bool) error {
@@ -233,7 +235,7 @@ func syncCatalogSourcesBatch(ctx context.Context, tx pgx.Tx, current domain.JobL
 	rows, err := tx.Query(ctx, `SELECT b.root_id::text,b.path,b.size,b.modified_unix_nano,
  s.source_id::text,s.item_id::text,s.size,s.modified_unix_nano,s.parser_version,COALESCE(s.missing_since IS NOT NULL,false),
  EXISTS(SELECT 1 FROM media_sources m WHERE m.root_id=b.root_id AND m.relative_path=b.path),
- p.size,p.modified_unix_nano,p.parser_version
+ p.size,p.modified_unix_nano,p.parser_version,COALESCE(p.rejected_at IS NOT NULL,false)
  FROM library_inventory_baseline_data b
  JOIN library_roots r ON r.id=b.root_id AND r.library_id=b.library_id
  LEFT JOIN catalog_scan_sources s ON s.root_id=b.root_id AND s.relative_path=b.path
@@ -247,7 +249,7 @@ func syncCatalogSourcesBatch(ctx context.Context, tx pgx.Tx, current domain.JobL
 	candidates := make([]syncCandidate, 0, catalogSyncReadLimit)
 	for rows.Next() {
 		var c syncCandidate
-		if err = rows.Scan(&c.root, &c.path, &c.size, &c.modified, &c.trackedSource, &c.trackedItem, &c.trackedSize, &c.trackedModified, &c.trackedVersion, &c.missing, &c.external, &c.pendingSize, &c.pendingModified, &c.pendingVersion); err != nil {
+		if err = rows.Scan(&c.root, &c.path, &c.size, &c.modified, &c.trackedSource, &c.trackedItem, &c.trackedSize, &c.trackedModified, &c.trackedVersion, &c.missing, &c.external, &c.pendingSize, &c.pendingModified, &c.pendingVersion, &c.pendingRejected); err != nil {
 			rows.Close()
 			return storageError(err)
 		}
@@ -367,7 +369,9 @@ func (w catalogWriter) applyCandidate(ctx context.Context, c syncCandidate, r *c
 		}
 		r.unchanged++
 		return false, nil
-	case c.pendingSize != nil && *c.pendingSize == c.size && *c.pendingModified == c.modified && *c.pendingVersion == version:
+	// A rejection holds for the file it was made for, even across a parser
+	// change (G21.5); a changed file is planned again.
+	case c.pendingSize != nil && *c.pendingSize == c.size && *c.pendingModified == c.modified && (*c.pendingVersion == version || c.pendingRejected):
 		r.unchanged++
 		return false, nil
 	}
@@ -428,7 +432,7 @@ func (w catalogWriter) putPending(ctx context.Context, c syncCandidate, plan app
 		title = ""
 	}
 	_, err := w.tx.Exec(ctx, `INSERT INTO catalog_scan_pending(library_id,root_id,relative_path,size,modified_unix_nano,parser_version,reason,kind,confidence,title,year,season,episode,episode_end,absolute,special) VALUES($1::uuid,$2::uuid,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
- ON CONFLICT(root_id,relative_path) DO UPDATE SET size=EXCLUDED.size,modified_unix_nano=EXCLUDED.modified_unix_nano,parser_version=EXCLUDED.parser_version,reason=EXCLUDED.reason,kind=EXCLUDED.kind,confidence=EXCLUDED.confidence,title=EXCLUDED.title,year=EXCLUDED.year,season=EXCLUDED.season,episode=EXCLUDED.episode,episode_end=EXCLUDED.episode_end,absolute=EXCLUDED.absolute,special=EXCLUDED.special,updated_at=clock_timestamp()`,
+ ON CONFLICT(root_id,relative_path) DO UPDATE SET size=EXCLUDED.size,modified_unix_nano=EXCLUDED.modified_unix_nano,parser_version=EXCLUDED.parser_version,reason=EXCLUDED.reason,kind=EXCLUDED.kind,confidence=EXCLUDED.confidence,title=EXCLUDED.title,year=EXCLUDED.year,season=EXCLUDED.season,episode=EXCLUDED.episode,episode_end=EXCLUDED.episode_end,absolute=EXCLUDED.absolute,special=EXCLUDED.special,updated_at=clock_timestamp(),rejected_at=NULL,rejected_by=NULL`,
 		w.library, c.root, c.path, c.size, c.modified, domain.CatalogSyncParserVersion, reason, kind, p.Confidence.String(), title, year, season, episode, episodeEnd, absolute, p.Special.String())
 	return storageError(err)
 }
@@ -445,24 +449,46 @@ func (w catalogWriter) refreshTracked(ctx context.Context, c syncCandidate) (boo
 	if !plan.Auto {
 		return false, nil
 	}
-	// A version an administrator placed never renames its item.
+	// A version an administrator placed never renames its item. A kind an
+	// administrator corrected no longer matches the file name's kind, so the
+	// file name changes nothing of that item.
 	var kind, title string
-	err := w.tx.QueryRow(ctx, `SELECT kind,scan_title FROM catalog_scan_items WHERE item_id=$1::uuid AND library_id=$2::uuid
- AND NOT EXISTS(SELECT 1 FROM catalog_scan_sources WHERE source_id=$3::uuid AND manual) FOR UPDATE`, *c.trackedItem, w.library, *c.trackedSource).Scan(&kind, &title)
+	var season, episode, episodeEnd *int
+	var numbersLocked bool
+	err := w.tx.QueryRow(ctx, `SELECT c.kind,c.scan_title,c.season,c.episode,c.episode_end,COALESCE(k.season IS NOT NULL OR k.episode IS NOT NULL,false)
+ FROM catalog_scan_items c LEFT JOIN item_identity_corrections k ON k.item_id=c.item_id
+ WHERE c.item_id=$1::uuid AND c.library_id=$2::uuid
+ AND NOT EXISTS(SELECT 1 FROM catalog_scan_sources WHERE source_id=$3::uuid AND manual) FOR UPDATE OF c`, *c.trackedItem, w.library, *c.trackedSource).Scan(&kind, &title, &season, &episode, &episodeEnd, &numbersLocked)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return false, nil
 	}
 	if err != nil {
 		return false, storageError(err)
 	}
-	if kind != plan.Kind || title == plan.Title {
+	if kind != plan.Kind {
 		return false, nil
+	}
+	// Episode numbers are file-name values like the title. They are always
+	// refreshed underneath; a locked correction keeps winning when read
+	// (G21.5), which counts as protected.
+	protected := false
+	if kind == "Episode" && (!sameNumber(season, plan.Season) || !sameNumber(episode, plan.Episode) || !sameNumber(episodeEnd, plan.EpisodeEnd)) {
+		if _, err = w.tx.Exec(ctx, `UPDATE catalog_scan_items SET season=$2,episode=$3,episode_end=$4,parser_version=$5 WHERE item_id=$1::uuid`, *c.trackedItem, plan.Season, plan.Episode, plan.EpisodeEnd, domain.CatalogSyncParserVersion); err != nil {
+			return false, storageError(err)
+		}
+		protected = numbersLocked
+	}
+	if title == plan.Title {
+		return protected, nil
 	}
 	if _, err = w.tx.Exec(ctx, `UPDATE catalog_scan_items SET scan_title=$2,parser_version=$3 WHERE item_id=$1::uuid`, *c.trackedItem, plan.Title, domain.CatalogSyncParserVersion); err != nil {
 		return false, storageError(err)
 	}
-	return w.applyScanTitle(ctx, *c.trackedItem, plan.Title)
+	titleProtected, err := w.applyScanTitle(ctx, *c.trackedItem, plan.Title)
+	return protected || titleProtected, err
 }
+
+func sameNumber(stored *int, planned int) bool { return stored != nil && *stored == planned }
 
 // applyScanTitle writes a file-name title with source scan unless a lock,
 // manual edit, NFO, TMDB or pre-existing value holds the field.
@@ -831,7 +857,8 @@ func sourcesWithSidecars[T any](ctx context.Context, tx pgx.Tx, batch []T, selec
 
 // pruneScanItem deletes scan-created items that no longer hold media or
 // children, walking up to the season and series. Items carrying any value
-// from a person, NFO or TMDB, any lock, or any fact are kept.
+// from a person, NFO or TMDB, any lock (including an identity lock), or any
+// fact are kept.
 func pruneScanItem(ctx context.Context, tx pgx.Tx, library, item string, events bool) error {
 	for depth := 0; depth < 3 && item != ""; depth++ {
 		var removable bool
@@ -841,7 +868,8 @@ func pruneScanItem(ctx context.Context, tx pgx.Tx, library, item string, events 
  AND NOT EXISTS(SELECT 1 FROM item_parent_links WHERE parent_id=$1::uuid)
  AND NOT EXISTS(SELECT 1 FROM item_metadata_fields WHERE item_id=$1::uuid AND (source<>'scan' OR locked))
  AND NOT EXISTS(SELECT 1 FROM item_metadata_facts WHERE item_id=$1::uuid)
- AND NOT EXISTS(SELECT 1 FROM item_nfo_field_locks WHERE item_id=$1::uuid),
+ AND NOT EXISTS(SELECT 1 FROM item_nfo_field_locks WHERE item_id=$1::uuid)
+ AND NOT EXISTS(SELECT 1 FROM item_identity_corrections WHERE item_id=$1::uuid AND (kind_locked OR parent_locked OR season IS NOT NULL OR episode IS NOT NULL)),
  (SELECT parent_id::text FROM item_parent_links WHERE item_id=$1::uuid)`, item, library).Scan(&removable, &parent)
 		if err != nil {
 			return storageError(err)

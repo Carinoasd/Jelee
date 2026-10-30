@@ -59,6 +59,8 @@ type CatalogPendingEntry struct {
 	EpisodeEnd *int   `json:"episodeEnd,omitempty"`
 	Absolute   int    `json:"absolute,omitempty"`
 	Special    string `json:"special"`
+	// Decision is pending until an administrator rejects the file.
+	Decision string `json:"decision"`
 }
 
 // SeasonTitle names a season created from file names.

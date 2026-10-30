@@ -64,12 +64,13 @@ func ingestItemImagePage(ctx context.Context, tx pgx.Tx, r catalogSyncRequest, a
 	in := ingestInputs{parents: map[string]*ingestDir{}, listings: map[ingestDir]ingestListing{}, videos: map[ingestDir]int{},
 		art: map[string]ingestArt{}, nfoFiles: map[ingestDir]ingestFile{}}
 	rows, err := tx.Query(ctx, `SELECT i.id::text,i.kind,COALESCE(p.parent_id::text,''),d.root_id::text,d.relative_path,
- CASE WHEN i.kind<>'Season' THEN NULL WHEN c.season IS NOT NULL THEN c.season
+ CASE WHEN i.kind<>'Season' THEN NULL WHEN k.season IS NOT NULL THEN k.season WHEN c.season IS NOT NULL THEN c.season
   WHEN jsonb_typeof(f.value)='number' AND f.value::text ~ '^[0-9]{1,4}$' THEN f.value::text::integer END
  FROM items i
  LEFT JOIN item_parent_links p ON p.item_id=i.id
  LEFT JOIN item_directory_sources d ON d.item_id=i.id AND d.library_id=i.library_id
  LEFT JOIN catalog_scan_items c ON c.item_id=i.id
+ LEFT JOIN item_identity_corrections k ON k.item_id=i.id
  LEFT JOIN item_metadata_facts f ON f.item_id=i.id AND f.field='seasonNumber'
  WHERE i.library_id=$1::uuid AND ($2::uuid IS NULL OR i.id>$2::uuid)
  ORDER BY i.id LIMIT $3`, r.library, cursor, limit)
