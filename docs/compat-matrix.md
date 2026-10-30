@@ -72,6 +72,7 @@ G05仍部分完成：舊C#的直播與Channel控制器已刪除並提供[明確�
 | `GET`、`HEAD /compat/Videos/{itemId}/stream`、`…/stream.{container}` | native 工作階段（直投開啟時才掛載） | 原檔位元組（交給伺服器的直投模組，Range／HEAD／限流／撤銷斷流同自有 API） |
 | `GET`、`HEAD /compat/Videos/{itemId}/{mediaSourceId}/Subtitles/{index}/Stream.{format}`、`…/{index}/{startPositionTicks}/Stream.{format}` | 同上 | 外掛字幕原檔位元組（`format` 必須是原檔格式）；擷取開啟且可用時，Matroska 內嵌文字字幕為擷取快取的原樣副本（E4） |
 | `GET /compat/Items/{itemId}`、`POST /compat/Items/{itemId}/PlaybackInfo` 的章節與 HDR 欄位 | 同上 | `Items/{id}` 的 `Chapters` 與每個 `MediaSources[].Chapters`：`StartPositionTicks`、`Name`（無標題為 `Chapter N`），不送 `ImageTag`；`MediaStreams` 的視訊軌帶 `VideoRange`（`HDR`）、`VideoRangeType`（`DOVI`／`HDR10Plus`／`HLG`／`HDR10`，取最強者）、`DvProfile`、`DvLevel`，音軌帶 `AudioSpatialFormat`（`DolbyAtmos`／`DTSX`）；SDR 與未知不送這些欄（G09.1、G19.1，見 [媒體中繼資料](media-metadata.md#章節與-mediainfo-編碼細節g091g191)） |
+| `GET`、`HEAD /compat/Videos/{itemId}/{mediaSourceId}/Audio/{index}/Stream.{format}` | 同上 | 外掛音軌原檔位元組（Jelee 擴充路由，上游沒有；`format` 必須是原檔副檔名，見下方「外掛音軌」） |
 | `GET`、`HEAD /compat/Videos/{itemId}/{mediaSourceId}/Attachments/{index}` | 同上（只在擷取開啟時掛載） | Matroska 字型附件的原樣副本，`index` 為附件的探測串流索引（G15.7，見 [mkvtoolnix 與 MediaInfo](matroska-tools.md)） |
 | `GET`、`HEAD /compat/Audio/{itemId}/stream`、`…/stream.{container}` | 同上 | 目錄沒有音訊條目，驗證後一律回隱藏狀態（預設 404） |
 | `POST /compat/Sessions/Playing`、`…/Playing/Progress`、`…/Playing/Stopped` | native 工作階段（目錄開啟時才掛載） | 播放開始／進度／停止回報，一律 204 空主體（見「播放狀態模組」） |
@@ -242,9 +243,28 @@ PlaybackInfo 隨媒體庫模組掛載；串流、字幕與音訊路由只在直�
 
 - `MediaSources[].MediaStreams` 的內嵌字幕填 `IsHearingImpaired`（探測的 `hearing_impaired` 或 `captions` 旗標），內嵌音軌填 `Title`（ffprobe 的串流標題，沒有才取 Matroska 補充的軌道名稱）；未寫入的欄位維持省略。上游沒有「評論音軌」欄位，評論與口述影像旗標只在自有 API，相容層不另編碼。需要重探（`media-metadata-v5`）才有值。
 
+**MediaStream 補充欄位與 DisplayTitle（第 10 階段 B8，G24.2）**
+
+- 每個列出的串流（內嵌、外掛字幕、外掛音軌、OCR 字幕）都帶 `DisplayTitle`，多數客戶端的選軌選單只顯示這一欄。組字依上游 `MediaStream.DisplayTitle`：
+  - 視訊：解析度名稱（依寬高對上游表：`480p`、`720p`、`1080p`、`4K`、`8K`…，探測不記交錯掃描所以一律 `p`）、編碼大寫（`HEVC`）、HDR 格式（`HDR10`、`HDR10+`、`HLG`、`Dolby Vision`；SDR 不寫），以空白連接。
+  - 音軌：語言名稱 - 編碼（有 `Profile` 且不是 `LC` 時用 Profile，例如 `DTS-HD MA`；否則上游友善名：`ac3`→`Dolby Digital`、`eac3`→`Dolby Digital+`、`dts`→`DTS`、`truehd`→`Dolby TrueHD`，其餘大寫）- 聲道配置（`5.1(side)`、`Stereo`；沒有配置時 `N ch`）- 評論（Jelee 擴充，上游沒有評論旗標）- 預設 - 外掛，以 ` - ` 連接。
+  - 字幕：語言名稱（沒有語言時「未知語言」）- 聽障（SDH）- 預設 - 強制 - 格式大寫（`SRT`、`ASS`、`PGSSUB`）- 外掛。
+  - 串流有自己的 `Title` 時以標題開頭，只附加標題裡沒有出現的部分（不分大小寫比對），例如 `Signs - 中文 - 默认 - ASS - 外挂`。
+  - 語言名稱與「預設／強制／外掛／聽障／評論／未知語言」依請求的 `Accept-Language` 協商（與錯誤訊息相同的 `i18n.Locale`：zh-CN、zh-TW、ja-JP、en-US，沒帶時 zh-CN）；語言代碼先正規化（`eng`→`en`、`chi`→`zh`、`zh-TW`→繁體中文），名稱表外的語言保留檔案宣告的代碼（首字大寫），`und`／`mul`／`zxx`／`mis` 視為沒有語言。編碼、解析度、聲道字樣不翻譯。
+- 補充欄位（探測有值才送）：音軌 `ChannelLayout`、`BitDepth`（探測的每樣本位元數）；視訊 `Level`（探測原值，例如 HEVC 150、H.264 41）、`BitDepth`（由 Profile／HDR 推得，與 DeviceProfile 評估用的 `VideoBitDepth` 同一函式）、`AverageFrameRate`（`avg_frame_rate`）、`RealFrameRate`（`r_frame_rate`），四捨五入到小數三位。探測不記交錯掃描、像素格式與顯示長寬比，所以 `IsInterlaced`、`PixelFormat`、`AspectRatio` 不送（要送需探測升版，本階段不做）。內嵌音軌 `Title`、字幕 `IsHearingImpaired` 見上節（B3）。
+
+**外掛音軌（第 10 階段 B8，G16.4、G16.5）**
+
+- 直投開啟時，外掛音軌列在 `MediaStreams`：`Type`=`Audio`、`IsExternal`=true、`SupportsExternalStream`=true、`Codec`（按需探測完成時為探測的編碼，否則為副檔名）、`Language`、`Title`、`IsDefault`、`Profile`、`ChannelLayout`、`Channels`、`SampleRate`、`BitRate`（探測完成才有）、Atmos 時 `AudioSpatialFormat`=`DolbyAtmos`，`DeliveryUrl`=`/Videos/{itemId}/{mediaSourceId}/Audio/{index}/Stream.{副檔名}`（相對網址、不含 token）。不設 `DeliveryMethod`（上游只為字幕定義）。
+- 索引：接在所有內嵌流與外掛字幕之後，並在每個可 OCR 的點陣字幕（OCR 衍生 SRT 的編號）之後，按儲存層固定順序（`domain.UpstreamExternalTracks`）；所以加入外掛音軌不會改變任何字幕的編號，OCR 結果出現與否也不會移動音軌編號。
+- 上游本身只能經轉碼把外掛音軌合流，**這裡不合流、不 remux、不轉碼**：路由經 `ServeTrack` 原樣直投（Range、HEAD、限流、撤銷斷流同其他直投）。`format` 必須等於原檔副檔名（不分大小寫，不接受別名），`StartTimeTicks`／`StartPositionTicks` 非 0、指向內嵌音軌的索引（需要從容器分離）一律 409；轉換參數由 `GuardProduction` 先 409；不存在的索引、字幕索引回隱藏狀態；web 工作階段 401。多數上游客戶端可能不會使用音軌的 `DeliveryUrl`；會使用的客戶端選了外掛音軌，需自行與影片同步（擁有者驗證 D44）。
+- `DefaultAudioStreamIndex`：使用者偏好或會話選軌指向外掛音軌時為它的編號；否則同前（偏好的內嵌音軌、預設旗標、第一條）。播放回報的 `AudioStreamIndex` 指向外掛音軌編號時記為該檔（`x:<軌 ID>`）的會話選軌（G20.4）。
+- DeviceProfile：外掛音軌不影響來源是否列出。探測完成的外掛音軌會用 B7 同一個評估函式（`domain.DeviceProfileReasons`，把該檔當成來源唯一的音軌）判斷，客戶端宣告解不了（`DirectPlayProfiles` 的 `AudioCodec` 或 `VideoAudio` CodecProfiles 的音訊條件）時只在 info 日誌 `external audio unsupported by client` 記 `audio_codec_unsupported`（來源 ID 與串流編號），清單與 `DeliveryUrl` 不變，與字幕的處理相同；未探測的檔編碼未知，不判斷。
+- 字幕預設選軌：其他條件都相同時外掛字幕優先於內嵌字幕（見[多版本](item-versions.md#音軌字幕偏好g165g204)的選軌規則），`DefaultSubtitleStreamIndex` 隨之改變。
+
 **外掛字幕**
 
-- 直投開啟時，`MediaSources[].MediaStreams` 列出外掛字幕：`Type`=`Subtitle`、`IsExternal`=true、`DeliveryMethod`=`External`、`SupportsExternalStream`=true、`Codec`=副檔名、`Language`、`Title`、`IsDefault`、`IsForced`、`IsHearingImpaired`（SDH）、`IsTextSubtitleStream`，`DeliveryUrl` 為上游格式 `/Videos/{itemId}/{mediaSourceId}/Subtitles/{index}/0/Stream.{副檔名}`（相對於客戶端設定的伺服器網址，**不含 token**）。`Index` 依上游接在所有內嵌流之後，按儲存層固定順序編號。內嵌字幕標 `DeliveryMethod`=`Embed`。外掛音軌不列（上游沒有投遞外掛音軌的路由）。
+- 直投開啟時，`MediaSources[].MediaStreams` 列出外掛字幕：`Type`=`Subtitle`、`IsExternal`=true、`DeliveryMethod`=`External`、`SupportsExternalStream`=true、`Codec`=副檔名、`Language`、`Title`、`IsDefault`、`IsForced`、`IsHearingImpaired`（SDH）、`IsTextSubtitleStream`，`DeliveryUrl` 為上游格式 `/Videos/{itemId}/{mediaSourceId}/Subtitles/{index}/0/Stream.{副檔名}`（相對於客戶端設定的伺服器網址，**不含 token**）。`Index` 依上游接在所有內嵌流之後，按儲存層固定順序編號。內嵌字幕標 `DeliveryMethod`=`Embed`。外掛音軌接在外掛字幕之後列出（見上節）。
 - `GET`／`HEAD …/Subtitles/{index}/Stream.{format}`（及含 `{startPositionTicks}` 的形式）經 `ServeTrack` 原樣直投。`format`（或上游已過時的 query `format`）必須等於原檔副檔名或同一格式的別名（`vtt`／`webvtt`、`srt`／`subrip`），否則 409，不轉換字幕格式。`startPositionTicks` 或 query `StartPositionTicks` 非 0、`EndPositionTicks`、`AddVttTimeMap=true`（皆需改寫字幕時間）409；`index` 指向內嵌字幕時 409，除非擷取開啟且可用、該軌為 Matroska 內嵌 SubRip／ASS／SSA／WebVTT 且 `format` 是其自身格式，此時經 `ServeExtracted` 直投擷取快取的原樣副本（PlaybackInfo 對這些軌標 `DeliveryMethod`=`External` 並給 `DeliveryUrl`；`MediaAttachments` 列出附件與字型 `DeliveryUrl`）；不存在的索引回隱藏狀態。
 
 **多分片版本（G21.1，上游 Jellyfin 模型）**
@@ -306,7 +326,7 @@ PlaybackInfo 隨媒體庫模組掛載；串流、字幕與音訊路由只在直�
 - 真 PG：`TestCompatSessionKindsPostgres` 驗證 native 可用、web（標頭、query、cookie）與已撤銷的 native 都回 401。
 - 真 PG：`TestCompatUsersPostgres` 驗證未開 `allowNative` 時 403 並寫 `login.native_denied`、不簽發；密碼錯與帳號不存在回應相同；開啟後登入簽發 native 工作階段（寫 `session.created`、自有 API 可列出 client 標籤並可直投）；`/Users/Me`、`/Users/{id}` 自己／他人／管理員；`/Users/Public` 為 `[]`；Logout 只撤銷目前工作階段、舊 token 在兩邊皆 401；相容入口五次失敗後兩個入口都被鎖定且失敗審計含用戶端位址。`TestCompatLoginSharesRateLimitPostgres` 驗證相容登入與原生登入雙向共用名稱限速桶。
 - 真 PG：`TestCompatLibraryPostgres` 用兩個使用者、兩個不同授權的媒體庫驗證：各自只看到自己的庫；以 parent、Ids、類型、搜尋或單筆查詢都碰不到對方的庫與條目（不存在與無權限回應相同）；分頁串接等於完整排序、超出結尾保留總數；名稱／年份／上映日期排序與空值位置；搜尋萬用字元按字面；影集／季的子項與遞迴；詳情的直投來源（`SupportsTranscoding`／`SupportsDirectStream` 為 false、不含路徑）；收回授權立即生效；設定 403 時隱藏與不存在皆 403。
-- 存取外洩：`leakRouteTable` 已登記六條媒體庫路由、播放模組全部 17 條路由（PlaybackInfo、`AdditionalParts`、影片串流、字幕以 ID 查詢模式；音訊以無媒體模式）、圖片模組 4 條路由（ID 查詢模式，含管理員對照）與播放清單 5 條路由（項目列表以列表模式含管理員對照，寫入以理由豁免並由 `TestCompatCollectionsPostgres` 覆蓋），三種隱藏狀態都跑，外洩標記同時比對帶連字號與相容層 32 位 hex 兩種 ID 形態。
+- 存取外洩：`leakRouteTable` 已登記六條媒體庫路由、播放模組全部 19 條路由（PlaybackInfo、`AdditionalParts`、影片串流、字幕、外掛音軌以 ID 查詢模式；音訊條目以無媒體模式）、圖片模組 4 條路由（ID 查詢模式，含管理員對照）與播放清單 5 條路由（項目列表以列表模式含管理員對照，寫入以理由豁免並由 `TestCompatCollectionsPostgres` 覆蓋），三種隱藏狀態都跑，外洩標記同時比對帶連字號與相容層 32 位 hex 兩種 ID 形態。
 - 播放狀態：`internal/adapter/media` 的 `TestPlaybackReportGuardReadsBodyAsState` 鎖住回報主體只做語法檢查、而路徑／query／表單與 `GuardProduction` 不變；真 PG `TestProgressHTTPPostgres` 以真實客戶端形狀的主體（含 `MaxStreamingBitrate`、`PlayMethod`、`NowPlayingQueue`）走開始 → 進度 → Ping → `Items/{id}` 的 UserData（含未 flush 的位置）→ 停止 → `UserItems/Resume`、舊式 Resume 與 `Items` 列表的續播點 → 看不到的條目回報 204 但不記錄、UserData 與標記回隱藏狀態 → 標記已播放／未播放；存取外洩表登記全部 12 條播放狀態路由（回報以理由豁免，其餘以 ID 查詢與列表模式跑三種隱藏狀態，續播清單的固定資料同時含看得到與看不到的條目）。
 - 真 PG：`TestCompatPlaybackPostgres` 走完整流程：相容登入 → 瀏覽 → 帶 DeviceProfile 的 PlaybackInfo（只列直投、無轉碼欄位、外掛字幕 `DeliveryUrl`）→ 不可直投回 `NoCompatibleStream` → 串流 4 MiB 原檔 SHA-256 一致（標頭與 `api_key` 兩種憑證）、Range、HEAD → 字幕原樣 → 各種轉換要求 409 `transcode_disabled` → web 工作階段（標頭與 `api_key`）401 → 真 TCP 上限速播放中登出，串流在數秒內被切斷且未送完、舊 token 401、另一個工作階段不受影響。
 

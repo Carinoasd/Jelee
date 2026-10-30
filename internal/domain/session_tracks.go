@@ -36,8 +36,8 @@ const (
 
 // PlaybackTrackReport is the track state a playback report carries. The
 // upstream API names tracks by stream index (AudioIndex, SubtitleIndex,
-// with -1 for no subtitles and external subtitles numbered after every
-// embedded stream); the native API names them by reference (AudioTrack,
+// with -1 for no subtitles and external files numbered after every
+// embedded stream, see UpstreamExternalTracks); the native API names them by reference (AudioTrack,
 // SubtitleTrack: "e:<index>", "x:<track ID>" or "off" for subtitles).
 type PlaybackTrackReport struct {
 	AudioIndex    *int
@@ -86,18 +86,26 @@ type SessionTracks struct {
 	SubtitleTrack string `json:"subtitleTrack,omitempty"`
 }
 
-// UpstreamSubtitle is an external subtitle file with its upstream stream
-// index.
-type UpstreamSubtitle struct {
+// UpstreamExternal is an external file with its upstream stream index.
+type UpstreamExternal struct {
 	Index int
 	Track PlaybackExternalTrack
 }
 
-// UpstreamExternalSubtitles numbers the external subtitle files of a source
-// after every embedded stream, as upstream does, in the stable order storage
-// lists them. Files whose format cannot appear in a route token (lower case
-// letters and digits, at most 16) are left out.
-func UpstreamExternalSubtitles(source PlaybackSource) []UpstreamSubtitle {
+// UpstreamSubtitle is an external subtitle file with its upstream stream
+// index.
+type UpstreamSubtitle = UpstreamExternal
+
+// UpstreamExternalTracks numbers the external files of a source after every
+// embedded stream, in the stable order storage lists them: first the
+// subtitle files, as upstream does; then one slot per bitmap subtitle that
+// OCR can derive text from (the compatibility layer numbers the derived
+// SubRip streams there, listed or not, so the numbers never move when an
+// OCR result appears); then the audio files. Upstream has no external audio
+// stream; numbering it last keeps every subtitle index unchanged. Files
+// whose format cannot appear in a route token (lower case letters and
+// digits, at most 16) are left out.
+func UpstreamExternalTracks(source PlaybackSource) []UpstreamExternal {
 	next := 0
 	for _, v := range source.Video {
 		next = max(next, v.Index+1)
@@ -108,13 +116,42 @@ func UpstreamExternalSubtitles(source PlaybackSource) []UpstreamSubtitle {
 	for _, s := range source.Subtitles {
 		next = max(next, s.Index+1)
 	}
-	var out []UpstreamSubtitle
-	for _, track := range source.External {
-		if track.Kind != SidecarKindSubtitle || !upstreamRouteToken(track.Format) {
-			continue
+	var out []UpstreamExternal
+	for _, kind := range []string{SidecarKindSubtitle, SidecarKindAudio} {
+		if kind == SidecarKindAudio {
+			for _, s := range source.Subtitles {
+				if s.OCRSource {
+					next++
+				}
+			}
 		}
-		out = append(out, UpstreamSubtitle{Index: next, Track: track})
-		next++
+		for _, track := range source.External {
+			if track.Kind != kind || !upstreamRouteToken(track.Format) {
+				continue
+			}
+			out = append(out, UpstreamExternal{Index: next, Track: track})
+			next++
+		}
+	}
+	return out
+}
+
+// UpstreamExternalSubtitles is the subtitle part of UpstreamExternalTracks.
+func UpstreamExternalSubtitles(source PlaybackSource) []UpstreamSubtitle {
+	return upstreamExternalKind(source, SidecarKindSubtitle)
+}
+
+// UpstreamExternalAudio is the audio part of UpstreamExternalTracks.
+func UpstreamExternalAudio(source PlaybackSource) []UpstreamExternal {
+	return upstreamExternalKind(source, SidecarKindAudio)
+}
+
+func upstreamExternalKind(source PlaybackSource, kind string) []UpstreamExternal {
+	var out []UpstreamExternal
+	for _, e := range UpstreamExternalTracks(source) {
+		if e.Track.Kind == kind {
+			out = append(out, e)
+		}
 	}
 	return out
 }
@@ -165,6 +202,12 @@ func ResolveTrackReport(source PlaybackSource, r PlaybackTrackReport) (SessionTr
 	case r.AudioIndex != nil:
 		if ref := "e:" + strconv.Itoa(*r.AudioIndex); has(ref, true) {
 			out.AudioTrack = ref
+			break
+		}
+		for _, e := range UpstreamExternalAudio(source) {
+			if e.Index == *r.AudioIndex {
+				out.AudioTrack = "x:" + e.Track.ID
+			}
 		}
 	}
 	switch {

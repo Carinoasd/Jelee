@@ -39,7 +39,13 @@ func (f *fakeResolver) Resolve(_ context.Context, p access.Principal, id string)
 
 func (f *fakeResolver) ResolveTrack(_ context.Context, _ access.Principal, sourceID string, kind media.TrackKind, trackID string) (media.Source, error) {
 	f.tracks = append(f.tracks, trackID)
-	if sourceID != testSourceID || kind != media.TrackSubtitle {
+	if sourceID != testSourceID {
+		return media.Source{}, media.ErrNotFound
+	}
+	if kind == media.TrackAudio {
+		if trackID == testAudioTrackID {
+			return media.Source{Root: f.root, RelativePath: "movie.jpn.ac3"}, nil
+		}
 		return media.Source{}, media.ErrNotFound
 	}
 	switch trackID {
@@ -55,6 +61,7 @@ var (
 	testMovieBytes = bytes.Repeat([]byte("Jelee original bytes 0123456789\n"), 4096)
 	testAssBytes   = []byte("[Script Info]\nTitle: signs\n")
 	testSrtBytes   = []byte("1\n00:00:01,000 --> 00:00:02,000\nhello\n")
+	testAc3Bytes   = bytes.Repeat([]byte{0x0b, 0x77, 0x01, 0x02}, 512)
 )
 
 type playbackHarness struct {
@@ -65,7 +72,7 @@ type playbackHarness struct {
 func newPlaybackHarness(t *testing.T, hidden int) *playbackHarness {
 	t.Helper()
 	root := t.TempDir()
-	for name, data := range map[string][]byte{"movie.mkv": testMovieBytes, "movie.zho.ass": testAssBytes, "movie.eng.srt": testSrtBytes} {
+	for name, data := range map[string][]byte{"movie.mkv": testMovieBytes, "movie.zho.ass": testAssBytes, "movie.eng.srt": testSrtBytes, "movie.jpn.ac3": testAc3Bytes} {
 		if err := os.WriteFile(filepath.Join(root, name), data, 0o600); err != nil {
 			t.Fatal(err)
 		}
@@ -420,7 +427,7 @@ func TestSubtitleStream(t *testing.T) {
 	info := h.get("/compat/Items/"+wire(testMovieID)+"/PlaybackInfo", nativeToken).Body.String()
 	assURL := "/Videos/" + wire(testMovieID) + "/" + wire(testSourceID) + "/Subtitles/3/0/Stream.ass"
 	srtURL := "/Videos/" + wire(testMovieID) + "/" + wire(testSourceID) + "/Subtitles/4/0/Stream.srt"
-	if !strings.Contains(info, `"DeliveryUrl":"`+assURL+`"`) || !strings.Contains(info, `"DeliveryUrl":"`+srtURL+`"`) || strings.Contains(info, `"Codec":"ac3"`) {
+	if !strings.Contains(info, `"DeliveryUrl":"`+assURL+`"`) || !strings.Contains(info, `"DeliveryUrl":"`+srtURL+`"`) {
 		t.Fatalf("subtitle listing: %s", info)
 	}
 	for target, want := range map[string][]byte{
@@ -484,7 +491,12 @@ func TestPlaybackRoutesAreWalkable(t *testing.T) {
 			}
 		}
 	}
-	if len(seen) != 25 {
+	for _, method := range []string{"GET", "HEAD"} {
+		if !seen[method+" /Videos/{itemId}/{mediaSourceId}/Audio/{index}/Stream.{format}"] {
+			t.Fatalf("%s external audio route not walkable", method)
+		}
+	}
+	if len(seen) != 27 {
 		t.Fatalf("unexpected routes %v", seen)
 	}
 }
