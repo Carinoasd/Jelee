@@ -117,20 +117,26 @@ func TestParseImageQuery(t *testing.T) {
 		return readQuery(r)
 	}
 	for raw, want := range map[string]ImageDelivery{
-		"":                                     {Request: domain.ImageRequest{Format: "jpeg"}},
-		"maxWidth=300":                         {Request: domain.ImageRequest{Width: 300, Format: "jpeg"}},
-		"MAXHEIGHT=400&width=320":              {Request: domain.ImageRequest{Width: 320, Height: 400, Format: "jpeg"}},
-		"width=500&maxWidth=200&fillWidth=300": {Request: domain.ImageRequest{Width: 200, Format: "jpeg"}},
-		"fillWidth=400&fillHeight=600":         {Request: domain.ImageRequest{Width: 400, Height: 600, Format: "jpeg"}},
-		"maxWidth=3840&maxHeight=0":            {Request: domain.ImageRequest{Width: 2048, Format: "jpeg"}},
-		"quality=90":                           {Request: domain.ImageRequest{Quality: 90, Format: "jpeg"}},
-		"quality=0":                            {Request: domain.ImageRequest{Format: "jpeg"}},
-		"quality=250":                          {Request: domain.ImageRequest{Quality: 100, Format: "jpeg"}},
-		"format=Webp":                          {Request: domain.ImageRequest{Format: "jpeg"}},
-		"format=jpg&tag=ABCdef0123":            {Request: domain.ImageRequest{Format: "jpeg"}, Tag: "ABCdef0123"},
-		"tag=not-a-hex-tag":                    {Request: domain.ImageRequest{Format: "jpeg"}},
-		"tag=" + strings.Repeat("a", 129):      {Request: domain.ImageRequest{Format: "jpeg"}},
-		"percentPlayed=42.5&unplayedCount=3&blur=10&backgroundColor=%23000&foregroundLayer=x&unknown=1": {Request: domain.ImageRequest{Format: "jpeg"}},
+		"":                                     {},
+		"maxWidth=300":                         {Request: domain.ImageRequest{Width: 300}},
+		"MAXHEIGHT=400&width=320":              {Request: domain.ImageRequest{Width: 320, Height: 400}},
+		"width=500&maxWidth=200&fillWidth=300": {Request: domain.ImageRequest{Width: 200}},
+		"fillWidth=300":                        {Request: domain.ImageRequest{Width: 300}},
+		"fillHeight=300&maxHeight=200":         {Request: domain.ImageRequest{Height: 200}},
+		"fillWidth=400&fillHeight=600":         {Request: domain.ImageRequest{Width: 400, Height: 600, Crop: true}},
+		"FillWidth=400&FillHeight=600&maxWidth=200":  {Request: domain.ImageRequest{Width: 200, Height: 300, Crop: true}},
+		"fillWidth=400&fillHeight=600&maxHeight=300": {Request: domain.ImageRequest{Width: 200, Height: 300, Crop: true}},
+		"fillWidth=4000&fillHeight=1000":             {Request: domain.ImageRequest{Width: 2048, Height: 1000, Crop: true}},
+		"maxWidth=3840&maxHeight=0":                  {Request: domain.ImageRequest{Width: 2048}},
+		"quality=90":                                 {Request: domain.ImageRequest{Quality: 90}},
+		"quality=0":                                  {},
+		"quality=250":                                {Request: domain.ImageRequest{Quality: 100}},
+		"format=Webp":                                {Request: domain.ImageRequest{Format: "webp"}},
+		"format=PNG":                                 {},
+		"format=jpg&tag=ABCdef0123":                  {Request: domain.ImageRequest{Format: "jpeg"}, Tag: "ABCdef0123"},
+		"tag=not-a-hex-tag":                          {},
+		"tag=" + strings.Repeat("a", 129):            {},
+		"percentPlayed=42.5&unplayedCount=3&blur=10&backgroundColor=%23000&foregroundLayer=x&unknown=1": {},
 	} {
 		got, err := parseImageQuery(q(raw))
 		if err != nil || !reflect.DeepEqual(got, want) {
@@ -152,7 +158,7 @@ func TestImageRoutesServeThroughPipeline(t *testing.T) {
 	if w.Code != http.StatusOK || w.Body.String() != "jpeg Primary/0" || w.Header().Get("Vary") != "Authorization, X-Emby-Authorization, X-Emby-Token, X-MediaBrowser-Token" {
 		t.Fatalf("primary: %d %q %v", w.Code, w.Body, w.Header())
 	}
-	want := ImageDelivery{ItemID: testMovieID, Request: domain.ImageRequest{Type: "Primary", Width: 300, Quality: 80, Format: "jpeg"}, Tag: strings.Repeat("ab", 32), Vary: imageVary}
+	want := ImageDelivery{ItemID: testMovieID, Request: domain.ImageRequest{Type: "Primary", Width: 300, Quality: 80}, Tag: strings.Repeat("ab", 32), Vary: imageVary}
 	if !reflect.DeepEqual(h.images.deliveries[0], want) || h.images.actors[0] != (domain.Actor{UserID: testUserID, SessionID: testSessionID, IP: testClientIP}) {
 		t.Fatalf("delivery %+v actor %+v", h.images.deliveries[0], h.images.actors[0])
 	}

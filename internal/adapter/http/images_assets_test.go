@@ -13,6 +13,7 @@ import (
 
 	"github.com/MoYuanCN/Jelee/internal/app"
 	"github.com/MoYuanCN/Jelee/internal/domain"
+	"github.com/MoYuanCN/Jelee/internal/platform/config"
 )
 
 type httpAssetResolver func(context.Context, domain.Actor, string, string, int) ([]domain.ItemImage, error)
@@ -96,7 +97,9 @@ func TestImagesHTTPTypesAndIndex(t *testing.T) {
 		"/images/Backdrop/" + itemID + "?index=x", "/images/Backdrop/" + itemID + "?index=", "/images/Backdrop/" + itemID + "?index=1&index=2",
 		"/images/Logo/" + itemID + "?index=1", "/images/Primary/" + itemID + "?index=2", "/images/Poster/" + itemID,
 		"/images/Primary/" + itemID + "?tag=", "/images/Primary/" + itemID + "?tag=xyz", "/images/Primary/" + itemID + "?tag=" + strings.Repeat("a", 129),
-		"/images/Primary/" + itemID + "?tag=a&tag=b", "/images/Primary/" + itemID + "?format=webp",
+		"/images/Primary/" + itemID + "?tag=a&tag=b", "/images/Primary/" + itemID + "?format=png", "/images/Primary/" + itemID + "?format=JPEG",
+		"/images/Primary/" + itemID + "?fillWidth=100", "/images/Primary/" + itemID + "?fillHeight=100", "/images/Primary/" + itemID + "?fillWidth=100&fillHeight=0",
+		"/images/Primary/" + itemID + "?fillWidth=100&fillHeight=100&width=50", "/images/Primary/" + itemID + "?fillWidth=3000&fillHeight=100",
 	} {
 		w := httptest.NewRecorder()
 		h.ServeHTTP(w, assetImageRequest("GET", path))
@@ -150,5 +153,134 @@ func TestImagesHTTPContentTagSelectsImmutableCaching(t *testing.T) {
 	legacy.ServeHTTP(w, imageHTTPRequest("GET", "?tag="+strings.Repeat("0", 64), "u"))
 	if w.Code != 200 || w.Header().Get("Cache-Control") != private {
 		t.Fatal("zero digest matched a tag")
+	}
+}
+
+// formatImageRouter answers in the requested encoding, as the pipeline does.
+func formatImageRouter(t *testing.T, cfg func(*config.Config), seen *[]domain.ImageRequest) http.Handler {
+	t.Helper()
+	legacy, err := app.NewImages(httpImageRepository(func(context.Context, domain.Actor, string) (domain.LocalImageSource, error) {
+		return domain.LocalImageSource{ItemID: itemID}, nil
+	}), httpImageRenderer(func(context.Context, domain.LocalImageSource, domain.ImageRequest) (app.ImageResult, error) {
+		return app.ImageResult{}, domain.ErrNotFound
+	}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	service, err := legacy.WithAssets(httpAssetResolver(func(_ context.Context, _ domain.Actor, item, imageType string, index int) ([]domain.ItemImage, error) {
+		return []domain.ItemImage{{ID: "row", ItemID: item, Type: imageType, Index: index, SourceKind: domain.ImageSourceLocal}}, nil
+	}), httpAssetRenderer(func(_ context.Context, _ domain.ItemImage, request domain.ImageRequest) (app.ImageResult, error) {
+		*seen = append(*seen, request)
+		result, _ := httpImageResult()
+		result.ContentType = imageContentType(request.Format)
+		return result, nil
+	}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	c := httpImagesConfig(t)
+	if cfg != nil {
+		cfg(&c)
+	}
+	handler, err := NewWithImages(c, &metricsHTTPBackend{}, app.NewCatalog(&fakeRepository{}), &fakeResolver{}, slog.New(slog.NewTextHandler(io.Discard, nil)), metricsAccounts(t), nil, nil, nil, service)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return handler
+}
+
+func TestImagesHTTPFormatsAndFill(t *testing.T) {
+	var seen []domain.ImageRequest
+	h := formatImageRouter(t, nil, &seen)
+	for path, want := range map[string]struct {
+		request     domain.ImageRequest
+		contentType string
+	}{
+		"/images/Primary/" + itemID:                                                     {domain.ImageRequest{Type: "Primary", Format: "jpeg", Width: 640, Height: 640}, "image/jpeg"},
+		"/images/Primary/" + itemID + "?format=jpeg&width=90":                           {domain.ImageRequest{Type: "Primary", Format: "jpeg", Width: 90}, "image/jpeg"},
+		"/images/Primary/" + itemID + "?format=webp&height=40":                          {domain.ImageRequest{Type: "Primary", Format: "webp", Height: 40}, "image/webp"},
+		"/images/Logo/" + itemID + "?fillWidth=300&fillHeight=200":                      {domain.ImageRequest{Type: "Logo", Format: "jpeg", Width: 300, Height: 200, Crop: true}, "image/jpeg"},
+		"/images/Backdrop/" + itemID + "?fillHeight=9&fillWidth=16&format=webp&index=2": {domain.ImageRequest{Type: "Backdrop", Format: "webp", Width: 16, Height: 9, Crop: true, Index: 2}, "image/webp"},
+	} {
+		seen = seen[:0]
+		w := httptest.NewRecorder()
+		h.ServeHTTP(w, assetImageRequest("GET", path))
+		if w.Code != 200 || len(seen) != 1 || seen[0] != want.request || w.Header().Get("Content-Type") != want.contentType {
+			t.Fatalf("%s status=%d type=%q seen=%+v", path, w.Code, w.Header().Get("Content-Type"), seen)
+		}
+	}
+	seen = seen[:0]
+	w := httptest.NewRecorder()
+	h.ServeHTTP(w, assetImageRequest("GET", "/images/Primary/"+itemID+"?format=avif"))
+	if w.Code != http.StatusUnsupportedMediaType || !strings.Contains(w.Body.String(), "image_unsupported") || len(seen) != 0 {
+		t.Fatalf("avif status=%d body=%s", w.Code, w.Body)
+	}
+	// WebP can be switched off; the default format can be WebP.
+	jpegOnly := formatImageRouter(t, func(c *config.Config) { c.Images.OutputFormats = []string{"jpeg"} }, &seen)
+	w = httptest.NewRecorder()
+	jpegOnly.ServeHTTP(w, assetImageRequest("GET", "/images/Primary/"+itemID+"?format=webp"))
+	if w.Code != http.StatusUnsupportedMediaType || len(seen) != 0 {
+		t.Fatalf("disabled webp status=%d", w.Code)
+	}
+	webpDefault := formatImageRouter(t, func(c *config.Config) { c.Images.DefaultFormat = "webp" }, &seen)
+	w = httptest.NewRecorder()
+	webpDefault.ServeHTTP(w, assetImageRequest("GET", "/images/Primary/"+itemID))
+	if w.Code != 200 || len(seen) != 1 || seen[0].Format != "webp" || w.Header().Get("Content-Type") != "image/webp" {
+		t.Fatalf("webp default status=%d seen=%+v", w.Code, seen)
+	}
+}
+
+func TestImagesHTTPRejectsMismatchedRepresentation(t *testing.T) {
+	var seen []domain.ImageRequest
+	h := assetImageRouter(t, &seen)
+	// The stub always answers JPEG: a WebP request must not pass it on.
+	w := httptest.NewRecorder()
+	h.ServeHTTP(w, assetImageRequest("GET", "/images/Primary/"+itemID+"?format=webp"))
+	if w.Code == 200 || len(seen) != 1 {
+		t.Fatalf("mismatched content type served: %d", w.Code)
+	}
+}
+
+func TestItemImageViewColors(t *testing.T) {
+	average, dominant, invalid := 0x0a0b0c, 0xffffff, 0x1000000
+	content := &domain.ItemImageContent{SHA256: httpImageContent[:], Format: "png", Bytes: 9, Width: 3, Height: 2, AverageColor: &average, DominantColor: &dominant}
+	view := newItemImageView(domain.ItemImage{ID: "row", Type: "Primary", SourceKind: domain.ImageSourceUpload, Content: content})
+	if view.AverageColor != "#0a0b0c" || view.DominantColor != "#ffffff" || view.Format != "png" || view.Width != 3 || view.Bytes != 9 {
+		t.Fatalf("view %+v", view)
+	}
+	content.AverageColor, content.DominantColor = nil, &invalid
+	view = newItemImageView(domain.ItemImage{ID: "row", Type: "Primary", SourceKind: domain.ImageSourceUpload, Content: content})
+	if view.AverageColor != "" || view.DominantColor != "" {
+		t.Fatalf("unknown or invalid colors listed: %+v", view)
+	}
+}
+
+func TestImageFormatResolution(t *testing.T) {
+	both := &Server{cfg: httpImagesConfig(t)}
+	jpegOnly := &Server{cfg: httpImagesConfig(t)}
+	jpegOnly.cfg.Images.OutputFormats = []string{"jpeg"}
+	unset := &Server{}
+	for _, c := range []struct {
+		server    *Server
+		requested string
+		fallback  bool
+		want      string
+		err       error
+	}{
+		{both, "", false, "jpeg", nil},
+		{both, "webp", false, "webp", nil},
+		{both, "avif", false, "", domain.ErrImageUnsupported},
+		{both, "avif", true, "jpeg", nil},
+		{both, "gif", true, "", domain.ErrInvalid},
+		{jpegOnly, "webp", false, "", domain.ErrImageUnsupported},
+		// The compatibility layer falls back instead of failing.
+		{jpegOnly, "webp", true, "jpeg", nil},
+		{unset, "", false, "jpeg", nil},
+		{unset, "webp", false, "", domain.ErrImageUnsupported},
+	} {
+		got, err := c.server.imageFormat(c.requested, c.fallback)
+		if got != c.want || err != c.err {
+			t.Fatalf("%q fallback=%v: %q %v", c.requested, c.fallback, got, err)
+		}
 	}
 }

@@ -4220,6 +4220,11 @@
       "ItemImage": {
         "additionalProperties": false,
         "properties": {
+          "averageColor": {
+            "description": "Average color of the stored original composited on white (G40.7), once its bytes have been read.",
+            "pattern": "^#[0-9a-f]{6}$",
+            "type": "string"
+          },
           "bytes": {
             "format": "int64",
             "minimum": 1,
@@ -4232,6 +4237,11 @@
           },
           "createdAt": {
             "format": "date-time",
+            "type": "string"
+          },
+          "dominantColor": {
+            "description": "Most frequent color (16 levels per channel) of the stored original composited on white (G40.7), once its bytes have been read.",
+            "pattern": "^#[0-9a-f]{6}$",
             "type": "string"
           },
           "fetchedAt": {
@@ -60403,7 +60413,7 @@
     },
     "/images/{type}/{id}": {
       "get": {
-        "description": "Artwork of one item slot (G40.1), encoded as JPEG without enlargement. The source is chosen per G40.10: a locked image first, then a library file, an NFO reference, a fetched remote image and embedded artwork. Remote images are never fetched while serving a request; one whose bytes are not stored yet is skipped. Without a usable image the Primary slot falls back to the poster next to the media file. Omitting both dimensions selects a 640×640 fit; omitting one leaves that direction unconstrained, subject to the configured output limit. Omitting quality selects the configured default. Source and live access are checked again after rendering, including cache hits and conditional requests. Responses are private and revalidated unless tag equals the SHA-256 of the original image, in which case they are cacheable for a year and immutable; Vary: Authorization, Cookie still applies. Byte ranges and legacy compatibility parameters are not supported.",
+        "description": "Artwork of one item slot (G40.1), encoded as JPEG (or lossless WebP when format=webp is offered) without enlargement. The source is chosen per G40.10: a locked image first, then a library file, an NFO reference, a fetched remote image and embedded artwork. Remote images are never fetched while serving a request; one whose bytes are not stored yet is skipped. Without a usable image the Primary slot falls back to the poster next to the media file. Omitting both dimensions selects a 640×640 fit; omitting one leaves that direction unconstrained, subject to the configured output limit. Omitting quality selects the configured default. Source and live access are checked again after rendering, including cache hits and conditional requests. Responses are private and revalidated unless tag equals the SHA-256 of the original image, in which case they are cacheable for a year and immutable; Vary: Authorization, Cookie still applies. Byte ranges and legacy compatibility parameters are not supported. fillWidth with fillHeight crops instead of fitting: the output covers that box, showing the largest part of the image with its aspect ratio (placed on the most detailed region, or centred, per configuration) and is never enlarged; when cropping is disabled the box is fitted instead. The ETag is the SHA-256 of the encoded bytes, so each format and crop has its own.",
         "parameters": [
           {
             "description": "Image type. Fanart is an alias of Backdrop.",
@@ -60482,7 +60492,27 @@
             }
           },
           {
-            "description": "Omit to select the configured JPEG quality.",
+            "description": "Width of a fill crop box. Requires fillHeight and excludes width and height.",
+            "in": "query",
+            "name": "fillWidth",
+            "schema": {
+              "maximum": 2048,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Height of a fill crop box. Requires fillWidth and excludes width and height.",
+            "in": "query",
+            "name": "fillHeight",
+            "schema": {
+              "maximum": 2048,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Omit to select the configured JPEG quality. Lossless WebP ignores it.",
             "in": "query",
             "name": "quality",
             "schema": {
@@ -60493,12 +60523,14 @@
             }
           },
           {
+            "description": "Output encoding among the configured ones; omit for the configured default. avif (no encoder) and a format that is not offered are 415 image_unsupported; any other name is 400.",
             "in": "query",
             "name": "format",
             "schema": {
               "default": "jpeg",
               "enum": [
-                "jpeg"
+                "jpeg",
+                "webp"
               ],
               "type": "string"
             }
@@ -60520,9 +60552,15 @@
                   "format": "binary",
                   "type": "string"
                 }
+              },
+              "image/webp": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
               }
             },
-            "description": "Authorized JPEG representation; HEAD returns its headers without a body.",
+            "description": "Authorized JPEG or WebP representation; HEAD returns its headers without a body.",
             "headers": {
               "Cache-Control": {
                 "schema": {
@@ -60706,6 +60744,7 @@
         "summary": "Read authorized item artwork",
         "x-jelee-limits": {
           "concurrency": 2,
+          "crop": "smart",
           "defaultQuality": 85,
           "maxOutputBytes": 2097152,
           "maxOutputDimension": 1024,
@@ -60713,7 +60752,7 @@
         }
       },
       "head": {
-        "description": "Artwork of one item slot (G40.1), encoded as JPEG without enlargement. The source is chosen per G40.10: a locked image first, then a library file, an NFO reference, a fetched remote image and embedded artwork. Remote images are never fetched while serving a request; one whose bytes are not stored yet is skipped. Without a usable image the Primary slot falls back to the poster next to the media file. Omitting both dimensions selects a 640×640 fit; omitting one leaves that direction unconstrained, subject to the configured output limit. Omitting quality selects the configured default. Source and live access are checked again after rendering, including cache hits and conditional requests. Responses are private and revalidated unless tag equals the SHA-256 of the original image, in which case they are cacheable for a year and immutable; Vary: Authorization, Cookie still applies. Byte ranges and legacy compatibility parameters are not supported.",
+        "description": "Artwork of one item slot (G40.1), encoded as JPEG (or lossless WebP when format=webp is offered) without enlargement. The source is chosen per G40.10: a locked image first, then a library file, an NFO reference, a fetched remote image and embedded artwork. Remote images are never fetched while serving a request; one whose bytes are not stored yet is skipped. Without a usable image the Primary slot falls back to the poster next to the media file. Omitting both dimensions selects a 640×640 fit; omitting one leaves that direction unconstrained, subject to the configured output limit. Omitting quality selects the configured default. Source and live access are checked again after rendering, including cache hits and conditional requests. Responses are private and revalidated unless tag equals the SHA-256 of the original image, in which case they are cacheable for a year and immutable; Vary: Authorization, Cookie still applies. Byte ranges and legacy compatibility parameters are not supported. fillWidth with fillHeight crops instead of fitting: the output covers that box, showing the largest part of the image with its aspect ratio (placed on the most detailed region, or centred, per configuration) and is never enlarged; when cropping is disabled the box is fitted instead. The ETag is the SHA-256 of the encoded bytes, so each format and crop has its own.",
         "parameters": [
           {
             "description": "Image type. Fanart is an alias of Backdrop.",
@@ -60792,7 +60831,27 @@
             }
           },
           {
-            "description": "Omit to select the configured JPEG quality.",
+            "description": "Width of a fill crop box. Requires fillHeight and excludes width and height.",
+            "in": "query",
+            "name": "fillWidth",
+            "schema": {
+              "maximum": 2048,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Height of a fill crop box. Requires fillWidth and excludes width and height.",
+            "in": "query",
+            "name": "fillHeight",
+            "schema": {
+              "maximum": 2048,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Omit to select the configured JPEG quality. Lossless WebP ignores it.",
             "in": "query",
             "name": "quality",
             "schema": {
@@ -60803,12 +60862,14 @@
             }
           },
           {
+            "description": "Output encoding among the configured ones; omit for the configured default. avif (no encoder) and a format that is not offered are 415 image_unsupported; any other name is 400.",
             "in": "query",
             "name": "format",
             "schema": {
               "default": "jpeg",
               "enum": [
-                "jpeg"
+                "jpeg",
+                "webp"
               ],
               "type": "string"
             }
@@ -60824,7 +60885,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Authorized JPEG representation; HEAD returns its headers without a body.",
+            "description": "Authorized JPEG or WebP representation; HEAD returns its headers without a body.",
             "headers": {
               "Cache-Control": {
                 "schema": {
@@ -61008,6 +61069,7 @@
         "summary": "Read authorized item artwork",
         "x-jelee-limits": {
           "concurrency": 2,
+          "crop": "smart",
           "defaultQuality": 85,
           "maxOutputBytes": 2097152,
           "maxOutputDimension": 1024,

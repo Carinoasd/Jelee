@@ -23,6 +23,14 @@ type ImagesConfig struct {
 	TimeoutSeconds     int    `json:"timeoutSeconds"`
 	CacheTTLSeconds    int    `json:"cacheTTLSeconds"`
 	DefaultQuality     int    `json:"defaultQuality"`
+	// OutputFormats lists the encodings a request may ask for (G40.6);
+	// DefaultFormat is used when it names none and must be listed. Only
+	// jpeg and webp exist; AVIF has no reliable pure Go encoder (ADR 0010).
+	OutputFormats []string `json:"outputFormats"`
+	DefaultFormat string   `json:"defaultFormat"`
+	// Crop selects how fill requests are cropped: smart (the window with the
+	// most edge detail), center, or off (fill requests are fitted instead).
+	Crop string `json:"crop"`
 	// The persistent original/variant store is used only when StoreRoot is
 	// set; otherwise rendered images live in the memory cache alone. Byte
 	// limits and the index bound are per class.
@@ -36,6 +44,7 @@ type ImagesConfig struct {
 // images are enabled. The adapter also refuses overlap with media roots.
 func DefaultImagesConfig() ImagesConfig {
 	return ImagesConfig{MaxConcurrent: 2, MaxImageBytes: 96 << 20, MaxSourceBytes: 16 << 20, MaxOutputBytes: 2 << 20, MaxOutputDimension: 1024, CacheBytes: 32 << 20, CacheEntries: 128, TimeoutSeconds: 15, CacheTTLSeconds: 300, DefaultQuality: 85,
+		OutputFormats: []string{"jpeg", "webp"}, DefaultFormat: "jpeg", Crop: ImageCropSmart,
 		StoreOriginalBytes: 4 << 30, StoreVariantBytes: 1 << 30, StoreEntries: 131072}
 }
 
@@ -48,6 +57,9 @@ func (c ImagesConfig) Validate() error {
 	}
 	if c.CacheBytes < c.MaxOutputBytes || c.CacheBytes > 256<<20 || c.CacheEntries < 1 || c.CacheEntries > 4096 || c.TimeoutSeconds < 1 || c.TimeoutSeconds > 120 || c.CacheTTLSeconds < 1 || c.CacheTTLSeconds > 86400 || c.DefaultQuality < 1 || c.DefaultQuality > 100 {
 		return errors.New("image cache or timing limits are outside supported bounds")
+	}
+	if err := c.validateOutput(); err != nil {
+		return err
 	}
 	// Store minimums exceed the largest source and output object limits.
 	if c.StoreOriginalBytes < 64<<20 || c.StoreOriginalBytes > 4<<40 || c.StoreVariantBytes < 16<<20 || c.StoreVariantBytes > 1<<40 || c.StoreEntries < 1024 || c.StoreEntries > 1<<21 {
@@ -70,12 +82,68 @@ func (c ImagesConfig) Validate() error {
 	return nil
 }
 
+// Image crop modes (JELEE_IMAGE_CROP).
+const (
+	ImageCropSmart  = "smart"
+	ImageCropCenter = "center"
+	ImageCropOff    = "off"
+)
+
+func (c ImagesConfig) validateOutput() error {
+	if len(c.OutputFormats) < 1 || len(c.OutputFormats) > 2 {
+		return errors.New("images outputFormats must list jpeg, webp or both")
+	}
+	seen := map[string]bool{}
+	for _, format := range c.OutputFormats {
+		if format == "avif" {
+			return errors.New("images outputFormats: avif output is not supported (no pure Go encoder)")
+		}
+		if format != "jpeg" && format != "webp" || seen[format] {
+			return errors.New("images outputFormats must list jpeg, webp or both")
+		}
+		seen[format] = true
+	}
+	if !seen[c.DefaultFormat] {
+		return errors.New("images defaultFormat must be one of outputFormats")
+	}
+	if c.Crop != ImageCropSmart && c.Crop != ImageCropCenter && c.Crop != ImageCropOff {
+		return errors.New("images crop must be smart, center or off")
+	}
+	return nil
+}
+
+// AllowsFormat reports whether a request may ask for format. An unset
+// list (a configuration built without defaults) offers JPEG only.
+func (c ImagesConfig) AllowsFormat(format string) bool {
+	if len(c.OutputFormats) == 0 {
+		return format == "jpeg"
+	}
+	for _, allowed := range c.OutputFormats {
+		if allowed == format {
+			return true
+		}
+	}
+	return false
+}
+
 func (c *ImagesConfig) loadEnvironment(lookup func(string) (string, bool)) error {
 	if value, ok := lookup("JELEE_IMAGE_TEMP_ROOT"); ok {
 		c.TempRoot = value
 	}
 	if value, ok := lookup("JELEE_IMAGE_STORE_ROOT"); ok {
 		c.StoreRoot = value
+	}
+	if value, ok := lookup("JELEE_IMAGE_OUTPUT_FORMATS"); ok {
+		c.OutputFormats = nil
+		for _, format := range strings.Split(value, ",") {
+			c.OutputFormats = append(c.OutputFormats, strings.ToLower(strings.TrimSpace(format)))
+		}
+	}
+	if value, ok := lookup("JELEE_IMAGE_DEFAULT_FORMAT"); ok {
+		c.DefaultFormat = strings.ToLower(strings.TrimSpace(value))
+	}
+	if value, ok := lookup("JELEE_IMAGE_CROP"); ok {
+		c.Crop = strings.ToLower(strings.TrimSpace(value))
 	}
 	for name, target := range map[string]*int{
 		"JELEE_IMAGE_MAX_CONCURRENT":       &c.MaxConcurrent,

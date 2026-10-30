@@ -243,3 +243,40 @@ func TestCatalogSyncEndsWithTheEmbeddedCoverPass(t *testing.T) {
 		t.Fatal("catalog sync did not end with the cover pass", err)
 	}
 }
+
+type coverDescriber struct {
+	calls int
+	err   error
+}
+
+func (d *coverDescriber) DescribeStoredImage(_ context.Context, digest [32]byte) (domain.ItemImageContent, error) {
+	d.calls++
+	if d.err != nil {
+		return domain.ItemImageContent{}, d.err
+	}
+	average, dominant := 0x102030, 0x405060
+	return domain.ItemImageContent{SHA256: digest[:], AverageColor: &average, DominantColor: &dominant}, nil
+}
+
+// G40.7: a stored cover gets its sampled colors; a failed description only
+// leaves them unknown and never changes the recorded outcome.
+func TestEmbeddedCoverColorsAreBestEffort(t *testing.T) {
+	lease := domain.JobLease{}
+	for _, describer := range []*coverDescriber{{}, {err: domain.ErrImageBusy}} {
+		repository := &coverRepository{pages: [][]domain.EmbeddedCoverCandidate{{coverJobCandidate("a")}}}
+		options := &EmbeddedCoverOptions{Repository: repository, Extractor: &coverExtractor{}, Store: &coverStore{}, Describer: describer}
+		if _, err := coverRunner(options).extractEmbeddedCovers(context.Background(), lease); err != nil || describer.calls != 1 || len(repository.recorded) != 1 {
+			t.Fatal("pass with describer", err, describer.calls)
+		}
+		recorded := repository.recorded[0]
+		if recorded.Outcome != domain.EmbeddedCoverStored || recorded.Content == nil {
+			t.Fatal("cover not stored", recorded.Outcome)
+		}
+		if describer.err == nil && (recorded.Content.AverageColor == nil || *recorded.Content.AverageColor != 0x102030 || *recorded.Content.DominantColor != 0x405060) {
+			t.Fatal("colors not recorded")
+		}
+		if describer.err != nil && (recorded.Content.AverageColor != nil || recorded.Content.DominantColor != nil) {
+			t.Fatal("failed description recorded colors")
+		}
+	}
+}

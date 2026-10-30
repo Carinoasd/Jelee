@@ -32,6 +32,7 @@
 | B6 | 直投在 Windows 走緩衝備援路徑（無 sendfile）：實機跑 `go test ./internal/adapter/media/`，並實際播放、拖動一次 | `docs/direct-delivery.md`「零拷贝直投」 | 待跑 |
 | B7 | 日誌檔與暫存目錄在 Windows 沒有 POSIX 權限位元，隱私完全依賴所在目錄繼承的 ACL；請確認預設安裝位置（服務帳號、ProgramData）下其他使用者讀不到 `jelee.log` 與暫存目錄，若讀得到需決定是否明確設定 ACL | `internal/platform/logging/rotate.go`、`internal/platform/scratch/` | 待跑 |
 | B8 | Windows 上的 mkvtoolnix／MediaInfo（E4）：`scripts/make.ps1 bootstrap-matroska` 後 `scripts/make.ps1 tools-verify`，確認兩個 zip 只取出清單列出的檔案、`--version` 版本字串相符，並以 `.tools/matroska/mkvtoolnix/102.0/windows-amd64/mkvtoolnix/mkvextract.exe` 手動擷取 `.testfixtures` 的 `subtitles-fonts.mkv`。Windows 正式服務的擷取與補充仍停用（沙箱只在 linux-amd64） | `docs/matroska-tools.md` | 待跑 |
+| B9 | 圖片處理管線（G40.6、G40.7）：WebP 輸出（nativewebp 純 Go 無損編碼）、填滿裁切與智慧裁切、平均色／主色調取樣在 Windows 上的結果與 Linux 一致。請跑 `go test -p 1 -count=1 -run "TestImage(PlanOutput|CropTransform|SmartCrop|Colors|WebP|Describe|CacheAndVariantKeys)" ./internal/adapter/images/`，並以 `GOOS=windows` 建置確認無 cgo；實際開一個 `format=webp` 與 `fillWidth`／`fillHeight` 的請求看輸出 | `internal/adapter/images/pipeline.go`、`docs/adr/0010-image-output-formats.md` | 待跑 |
 
 ## C. 長時間、規模、效能
 
@@ -62,6 +63,7 @@
 | C23 | 客戶端管控：目標硬體與高並發下重跑 C7 的 P95；多實例長時間的規則版本失效與命中寫入延遲；命中表 30 天保留的大小與清除速度、已知客戶端接近 10 萬筆上限 | `docs/client-control.md` | 待跑 |
 | C24 | 資料一致性檢查：在目標硬體的真實大型媒體庫（含 NAS／網路掛載）重跑 `JELEE_CONSISTENCY_SCALE=1 go test -p 1 -run TestConsistencyScale100000Postgres ./internal/adapter/postgres/`，並以 `jelee-cli consistency check` 量測全庫耗時、stat 預算是否足夠；開 `JELEE_JOB_CONSISTENCY_INTERVAL_HOURS=168` 運作數週，確認排程不與掃描搶佔、報告保留與 `jelee_consistency_*` 指標正常 | `docs/consistency.md` | 待跑 |
 | C25 | 圖片刷新任務（`image_refresh`）規模與長時間：十萬個遠端圖片列的媒體庫跑完一輪的時間、每列檢查點交易的資料庫負載、混合成功／404／429／慢速來源時的總耗時與主機冷卻；與觀看請求同時跑時處理槽等待對 `/images` P95 的影響；`item_image_fetch_failures` 大量資料時候選查詢（`item_images_refresh_idx`）的計畫 | `docs/image-refresh-jobs.md` | 待跑 |
+| C26 | WebP 輸出與裁切的負載：`JELEE_IMAGE_MAX_CONCURRENT` 滿載下連續要求 1024×1024 的 `format=webp`（無損，編碼約 73 B／像素工作記憶體，估算按 80 B／像素＋4 MiB 預留），量 RSS／GC、編碼耗時（nativewebp 中途不可取消，只受輸出像素上限約束）、413 比例（無損輸出超過 `JELEE_IMAGE_MAX_OUTPUT_BYTES`）、與 JPEG 的檔案大小比；另量智慧裁切的額外 CPU。合成雜訊圖 1024² 的 WebP 約 2 MB（JPEG q85 約 0.12 MB），真實海報開發機抽樣約 1.8–6.6 倍 | `internal/adapter/images/pipeline.go`、[ADR 0010](adr/0010-image-output-formats.md) | 待跑 |
 
 ## D. 真實資料／真金鑰／真客戶端
 
@@ -82,7 +84,7 @@
 | D13 | 相容層播放：Findroid、Swiftfin、Infuse、官方 Android 能否經 `/compat` 起播與拖動；各客戶端的 DeviceProfile 是否被判為可直投（目前不評估 CodecProfiles，可能判可直投但客戶端解不了）；`NoCompatibleStream` 與位元率不足時的呈現；外掛字幕 `DeliveryUrl` 不含 token 時客戶端是否會帶驗證；帶 `AudioCodec` 或非 static 網址被 409 時能否起播。官方 Web 在瀏覽器帶 Origin，預期 403 無法使用 | `docs/compat-matrix.md` | 待跑 |
 | D14 | 前端第一批頁面（登入、媒體庫、條目、詳情、個人頁）在 Chrome／Firefox／Safari：`__Host-` Cookie 與重新整理後維持登入、海報顯示、純鍵盤操作、螢幕閱讀器（NVDA／VoiceOver）、亮暗主題與對比（axe）、減少動態、手機／平板／桌面版面、CSP 無違規 | `docs/frontend-adr.md` | 待跑 |
 | D15 | 播放進度：各客戶端是否帶 `PlaySessionId`／`ItemId`、實際回報頻率；停止後續播點與「已播放」是否立即更新；「繼續觀看」與進度條（需來源已探測時長）；斷線重連接回同一會話、Seek 後進度 | `docs/playback-progress.md` | 待跑 |
-| D16 | 相容層圖片：客戶端取圖是否帶驗證標頭或 `api_key`（不帶會 401、海報空白；Jelee 刻意不允許匿名取圖）、64 位 hex tag、要求 WebP 拿到 JPEG、Logo／Thumb 回退、背景圖索引、缺 `PrimaryImageAspectRatio` 的版面。注意：只有媒體檔旁海報的條目要等「圖片入庫」（擁有者任務二）完成後列表才會有 Primary tag | `docs/compat-matrix.md` | 待跑 |
+| D16 | 相容層圖片：客戶端取圖是否帶驗證標頭或 `api_key`（不帶會 401、海報空白；Jelee 刻意不允許匿名取圖）、64 位 hex tag、要求 WebP（`Format=Webp` 現在回 WebP；其他上游格式名回預設格式）、Logo／Thumb 回退、背景圖索引、缺 `PrimaryImageAspectRatio` 的版面。注意：只有媒體檔旁海報的條目要等「圖片入庫」（擁有者任務二）完成後列表才會有 Primary tag | `docs/compat-matrix.md` | 待跑 |
 | D17 | Webhook：在真實 HTTPS 接收端（不同憑證鏈、自簽 CA 用 `JELEE_WEBHOOK_CA_FILE`）驗證簽章、時間窗與 `eventId` 去重；需設定 `JELEE_WEBHOOK_MASTER_KEY` | `docs/webhooks.md` | 待跑 |
 | D18 | 受限帳號（條目隱藏、分級上限、標籤封鎖）經相容層的實際體驗：被隱藏的父項底下有允許的子項時的瀏覽、分級上限下的海報與繼續觀看 | `docs/access-control.md` | 待跑 |
 | D19 | 客戶端管控：真實第三方客戶端遇到相容層無內容 403／429 時是否卡住或不斷重試；唯讀動作下播放進度回報被拒的影響；反向代理部署下可信代理與環回豁免的組合 | `docs/client-control.md` | 待跑 |
@@ -93,6 +95,7 @@
 | D24 | Matroska 擷取與 MediaInfo 補充（E4，G15.5、G15.7、G19.1）：在正式映像（`make bootstrap-matroska` 後建置）以真實 MKV 庫開啟 `JELEE_ENABLE_MATROSKA_EXTRACTION`，用真客戶端（Jellyfin 相容 App、mpv 等）播放含 ASS 內嵌字幕與字型附件的影片，確認字幕與字型正確顯示、原檔雜湊不變、快取上限與淘汰合理、大檔（數十 GB）首次擷取時間可接受；同時確認探測後章節名稱、軌名與附件出現在播放資訊，且 Web 端拿不到任何字幕或字型位元組 | `docs/matroska-tools.md`；容器實測 `docs/evidence/matroska-runtime-image.txt` | 待跑 |
 | D25 | 字幕 OCR 真實點陣字幕準確率（G15.6）：在 OCR 層映像（`make bootstrap-ocr`、`deploy/ocr/Dockerfile`）開啟 `JELEE_ENABLE_SUBTITLE_OCR`，以真實藍光 PGS（1080p／4K，含粗描邊、斜體、雙行、強制字幕）與 DVD VobSub（720×480、各種調色盤）各至少一部英文與一部中文（繁、簡）、一部日文片，人工比對抽樣 100 句以上的字元正確率與時間軸，記錄每部片的辨識耗時、Tesseract 峰值記憶體與 CPU、快取大小；確認原檔 SHA 不變、原點陣軌仍可直投、Web 端拿不到 SRT、真客戶端（Jellyfin 相容 App、mpv）能選到「(OCR)」軌並正常顯示；與 [字幕 OCR](subtitle-ocr.md) 的合成樣本數據對照 | `docs/subtitle-ocr.md`；合成樣本 `TestRealOCRAccuracyAndCost`；容器實測 `docs/evidence/ocr-runtime-image.txt` | 待跑 |
 | D26 | 圖片刷新對真實外部主機：開啟 `JELEE_ENABLE_IMAGE_FETCH`，以含 TMDB 圖片網址與其他 HTTPS 網址的真實 NFO 媒體庫跑一次刷新，確認圖片可顯示、`image.tmdb.org` 不跟隨重新導向、私有位址被拒（`target_denied`）、失敗原因合理；Windows 上同樣跑一次（存放區寫入與暫存清理） | `docs/image-refresh-jobs.md` | 待跑 |
+| D27 | 圖片格式與裁切的真實客戶端（G40.6、G40.7）：Jellyfin 相容 App 與瀏覽器要求 `Format=Webp`、`FillWidth`＋`FillHeight` 時顯示是否正常（Jelee 的填滿是裁切語意，與上游只縮放不同，確認海報牆、背景與縮圖構圖可接受）；智慧裁切在真實海報、背景、劇照上的取景是否合理（必要時改 `JELEE_IMAGE_CROP=center` 或 `off`）；上傳與內嵌封面的平均色／主色調在真實作品上是否合理 | `docs/image-assets.md`、`docs/compat-matrix.md` | 待跑 |
 
 ## E. 需要擁有者決定
 

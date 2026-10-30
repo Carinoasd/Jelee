@@ -343,8 +343,12 @@ func TestImageRefreshJobFetchesOnlyUnlockedRemoteRows(t *testing.T) {
 		}
 		var width, height int
 		var format string
-		if err := w.s.Pool.QueryRow(w.ctx, `SELECT width,height,format FROM item_images WHERE id=$1::uuid`, image).Scan(&width, &height, &format); err != nil || width != 12 || height != 8 || format != "png" {
+		var average, dominant *int
+		if err := w.s.Pool.QueryRow(w.ctx, `SELECT width,height,format,average_color,dominant_color FROM item_images WHERE id=$1::uuid`, image).Scan(&width, &height, &format, &average, &dominant); err != nil || width != 12 || height != 8 || format != "png" {
 			t.Fatal("content columns", width, height, format, err)
+		}
+		if average == nil || dominant == nil {
+			t.Fatal("fetched row lacks its sampled colors", name)
 		}
 		if _, ok := w.failure(t, image); ok {
 			t.Fatal("success left a failure row")

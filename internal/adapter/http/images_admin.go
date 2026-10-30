@@ -2,6 +2,7 @@ package httpapi
 
 import (
 	"encoding/hex"
+	"fmt"
 	"mime"
 	"net/http"
 	"strconv"
@@ -42,6 +43,8 @@ type itemImageView struct {
 	Width         int        `json:"width,omitempty"`
 	Height        int        `json:"height,omitempty"`
 	Bytes         int64      `json:"bytes,omitempty"`
+	AverageColor  string     `json:"averageColor,omitempty"`
+	DominantColor string     `json:"dominantColor,omitempty"`
 	FetchedAt     *time.Time `json:"fetchedAt,omitempty"`
 	CreatedAt     time.Time  `json:"createdAt"`
 	UpdatedAt     time.Time  `json:"updatedAt"`
@@ -59,8 +62,17 @@ func newItemImageView(value domain.ItemImage) itemImageView {
 	if c := value.Content; c != nil {
 		fetched := c.FetchedAt
 		view.ContentSHA256, view.Format, view.Width, view.Height, view.Bytes, view.FetchedAt = hex.EncodeToString(c.SHA256), c.Format, c.Width, c.Height, c.Bytes, &fetched
+		view.AverageColor, view.DominantColor = hexColor(c.AverageColor), hexColor(c.DominantColor)
 	}
 	return view
+}
+
+// hexColor writes a 0xRRGGBB color as CSS "#rrggbb"; unknown is empty.
+func hexColor(value *int) string {
+	if value == nil || *value < 0 || *value > domain.ItemImageMaxAverageColor {
+		return ""
+	}
+	return fmt.Sprintf("#%06x", *value)
 }
 
 // imageSlotQuery parses the slot of a request: the type path segment and

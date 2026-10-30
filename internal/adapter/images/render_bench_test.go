@@ -42,7 +42,7 @@ func BenchmarkRenderDecodedSmall(b *testing.B) {
 	b.ReportAllocs()
 	b.SetBytes(int64(len(data)))
 	for b.Loop() {
-		out, err := p.renderDecoded(ctx, bytes.NewReader(data), inspected, 160, 90, 85)
+		out, err := p.renderDecoded(ctx, bytes.NewReader(data), inspected, renderPlan{width: 160, height: 90, format: "jpeg", quality: 85})
 		if err != nil || out.width != 160 || len(out.data) == 0 {
 			b.Fatal("render thumbnail", err)
 		}

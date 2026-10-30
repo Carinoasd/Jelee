@@ -1,6 +1,6 @@
 # 图片资产（G40）
 
-本文是图片功能的总览：支持的图片类型与来源、选图顺序、存储、HTTP 接口、管理接口、处理与资源上限、清理，以及尚未完成的部分。各专题的细节与验收证据见文末“相关文档”。本文内容按 2026-10-29 的代码核对（`internal/domain/item_images.go`、`internal/domain/images.go`、`internal/app/images.go`、`internal/app/images_admin.go`、`internal/adapter/images/`、`internal/adapter/http/images.go`、`internal/adapter/http/images_admin.go`、`internal/adapter/compat/images.go`、`internal/platform/config/images.go`、`internal/app/image_refresh_worker.go`、`internal/adapter/images/refresh.go`）。
+本文是图片功能的总览：支持的图片类型与来源、选图顺序、存储、HTTP 接口、管理接口、图片元数据、处理与资源上限、清理，以及尚未完成的部分。各专题的细节与验收证据见文末“相关文档”。本文内容按 2026-10-29 的代码核对（`internal/domain/item_images.go`、`internal/domain/images.go`、`internal/app/images.go`、`internal/app/images_admin.go`、`internal/adapter/images/`（输出格式、裁切与取色在 `pipeline.go`）、`internal/adapter/http/images.go`、`internal/adapter/http/images_admin.go`、`internal/adapter/compat/images.go`、`internal/platform/config/images.go`）。
 
 ## 类型与槽位（G40.1）
 
@@ -44,8 +44,8 @@
 
 | 接口 | 说明 |
 | --- | --- |
-| `GET`／`HEAD /images/{type}/{id}` | 原生接口（挂在根路径，不在 `/api/v1` 下）。查询参数只接受 `width`、`height`（0–2048）、`quality`（0–100）、`format`（只能是 `jpeg`）、`index`、`tag`，其他参数 400。都不给时按 640×640 等比缩放 |
-| `GET`／`HEAD /compat/Items/{itemId}/Images/{imageType}[/{imageIndex}]` | 兼容层接口，见[兼容矩阵](compat-matrix.md)。`Width`／`MaxWidth`／`FillWidth` 等取最小值，上限 2048；`format` 接受上游的名称，但输出一律是 JPEG；上游的 Logo、Art、Thumb 映射到对应的 Jelee 槽位 |
+| `GET`／`HEAD /images/{type}/{id}` | 原生接口（挂在根路径，不在 `/api/v1` 下）。查询参数只接受 `width`、`height`（1–2048）、`fillWidth`＋`fillHeight`（1–2048，填满裁切，两者都要且不能再带 `width`／`height`）、`quality`（1–100）、`format`（`jpeg` 或 `webp`，只能是设置开放的格式）、`index`、`tag`，其他参数 400。都不给时按 640×640 等比缩放；不给 `format` 用设置的默认格式 |
+| `GET`／`HEAD /compat/Items/{itemId}/Images/{imageType}[/{imageIndex}]` | 兼容层接口，见[兼容矩阵](compat-matrix.md)。`Width`／`MaxWidth`／`FillWidth` 等取最小值，上限 2048；`FillWidth` 与 `FillHeight` 同时给时是填满裁切，只给一个时仍只当上限；`Format=Webp` 输出 WebP、`Jpg` 输出 JPEG，其他上游名称与未开放的格式用默认格式；上游的 Logo、Art、Thumb 映射到对应的 Jelee 槽位 |
 | `GET /api/v1/metadata/tmdb/{movies\|series}/{id}/images` | 管理员查看 TMDB 图片候选，按媒体库的图片语言偏好排序，不下载图片，见 [TMDB 图片偏好](tmdb-image-preferences.md) |
 | `POST /api/v1/libraries/{id}/images/refresh` | 管理员提交[图片刷新任务](image-refresh-jobs.md)；未开启远程抓取或没有存放区时 404 `image_unavailable` |
 | `GET /api/v1/jobs/{id}/image-refresh` | 刷新任务的游标与计数（fetched、failed、deferred、skipped） |
@@ -57,7 +57,7 @@
 
 缓存与校验：
 
-- `ETag` 是输出 JPEG 的 SHA-256（强校验）；带 `If-None-Match` 且匹配时返回 304。
+- `ETag` 是输出字节（JPEG 或 WebP）的 SHA-256（强校验），所以每种格式、尺寸与裁切各有自己的 ETag；带 `If-None-Match` 且匹配时返回 304。`Content-Type` 是 `image/jpeg` 或 `image/webp`。
 - `tag` 等于原图 SHA-256 时返回 `Cache-Control: private, max-age=31536000, immutable`，否则 `private, no-cache, must-revalidate`；`Vary` 包含携带凭据的请求头。
 - 不支持 Range（`Accept-Ranges: none`）。
 
@@ -71,7 +71,7 @@
 
 | 接口 | 行为 |
 | --- | --- |
-| `GET /api/v1/items/{id}/images` | 每个槽位的全部行，锁定的在前，其余按选图顺序 |
+| `GET /api/v1/items/{id}/images` | 每个槽位的全部行，锁定的在前，其余按选图顺序；已读取内容的行带[图片元数据](#图片元数据g407) |
 | `POST /api/v1/items/{id}/images/{type}` | 请求体就是图片本身（`Content-Type` 为 `image/*` 或 `application/octet-stream`，必须有 `Content-Length`）。槽位为空返回 201；槽位已有任何来源的行时是“更换”，必须带 `confirm=true`，否则 400 `confirmation_required`，此时不读取也不保存请求体；更换成功返回 200。上传成为该槽位的 `upload` 行并锁定，锁从其他来源移交过来，其他来源的行保留作为后备 |
 | `DELETE /api/v1/items/{id}/images/{type}` | 必须带 `confirm=true`，否则 400 `confirmation_required`。带 `source` 只删除该来源的行，不带则删除槽位全部行；没有可删的行返回 404。成功 204 |
 | `POST /api/v1/items/{id}/images/{type}/lock`、`/unlock` | `source` 指定哪一行；锁定时移交槽位的锁；扫描与刷新从不改写锁定的行；状态未变时原样返回 |
@@ -90,11 +90,32 @@
 
 上传的行是用户的手动选择：仍有 `upload` 行时迁移 000095 拒绝降级。元数据导出包含锁定的行，所以也包含上传的行，但字节在持久存放区，备份时需要一并保留，见[备份与还原](backup-restore.md)。
 
+## 图片元数据（G40.7）
+
+`item_images` 每行记录来源（`source_kind`）、是否锁定（`locked`）、抓取或读取时间（`fetched_at`），以及读取到内容后才有的内容栏：原图 SHA-256、宽高（按 EXIF 方向的显示尺寸）、格式（`jpeg`、`png`、`webp`、`gif`、`bmp`、`tiff`）、字节数、平均色（`average_color`）与主色调（`dominant_color`，迁移 000097，暂定编号）。内容栏全有或全无：没有内容时颜色也必须为空（数据库约束）。
+
+| 栏位 | 计算方式 |
+| --- | --- |
+| 平均色 | 解码后的位图上最多 64×64 个等距样本的 RGB 平均，透明部分叠在白底上（与 JPEG 输出一致） |
+| 主色调 | 同一批样本放进每色版 16 阶（共 4096 格）的直方图，取样本最多那一格的平均色；同样多时取编号小的格 |
+
+取样只读解码后的位图，不另外复制原图，成本与图片大小无关。颜色在**读到内容的地方**计算并写入：
+
+- 管理员上传：上传本来就完整解码一次，颜色随同写入 `upload` 行。
+- 内嵌封面（`JELEE_ENABLE_EMBEDDED_COVERS`）：存入存放区后以 `DescribeStoredImage` 再检查一次并取色；处理槽满或失败只是不记颜色，不影响封面本身。
+- 图片刷新（`image_refresh`）抓到远程图片后可调用同一个 `DescribeStoredImage`。
+- 扫描入库不读文件（只写路径与文件属性），所以 `local`／`nfo` 行在被读取前没有内容栏。
+
+管理接口的列表以 `averageColor`、`dominantColor`（`#rrggbb`）、`format`、`width`、`height`、`bytes`、`fetchedAt` 返回，未知的栏位省略。元数据导出包含主色调；没有这一栏的旧备份导入后主色调为未知。
+
 ## 处理与资源上限（G40.6、G40.12）
 
 - 解码：JPEG、PNG、WebP、GIF（只取第一帧）、BMP、TIFF；AVIF/HEIF 返回 `image_unsupported`。每边最多 65535 像素。
-- 输出：只有 JPEG；只缩小不放大，保持比例，不裁剪。
-- 防止像素炸弹：先读取头部得到尺寸，再按目标尺寸估算内存，超过单图预算返回 413。
+- 输出：JPEG（默认）或无损 WebP（`format=webp`）。WebP 保留透明度，适合 Logo、ClearLogo 等去背图；照片类素材的无损 WebP 比 JPEG 大很多（开发机抽样 1.8–17 倍），超过 `JELEE_IMAGE_MAX_OUTPUT_BYTES` 时 413。WebP 没有质量参数，`quality` 对它无效。AVIF 没有可靠的纯 Go 编码器，`format=avif` 返回 415。选择理由见 [ADR 0010](adr/0010-image-output-formats.md)。
+- 缩放：等比缩放（`width`／`height`）只缩小不放大，保持比例；填满裁切（`fillWidth`＋`fillHeight`）输出这个框，取原图中该比例的最大区域，同样不放大（原图不够大时整个框等比缩小），并受 `JELEE_IMAGE_MAX_OUTPUT_DIMENSION` 约束。
+- 裁切位置（`JELEE_IMAGE_CROP`）：`smart`（默认）在 96×48 的取样格上比较相邻样本的亮度差，取细节最多的窗口，平坦图片等同置中；`center` 永远置中；`off` 把填满请求改回等比缩放。EXIF 方向在裁切前就生效，裁切、旋转与缩放由同一个仿射变换一次完成，没有额外的整图位图。
+- 缓存键：内存缓存与持久变体都按格式区分，填满裁切另含裁切模式；JPEG 等比缩放的变体键与升级前相同，已存的变体继续有效。
+- 防止像素炸弹：先读取头部得到尺寸，再按目标尺寸估算内存，超过单图预算返回 413。WebP 输出另外预留编码器的工作内存（每输出像素 80 字节加 4 MiB，实测约 73 字节）；它在编码开始后不能中途取消，只受输出像素上限约束。
 - 并发：`JELEE_IMAGE_MAX_CONCURRENT` 个处理槽，不排队，满了直接 503。兼容层与原生接口共用这些槽。
 - 内存：处理大图后按条件把内存归还操作系统，原因与修复见[大图内存回收](image-reclaim-pressure.md)；10 万张图片的内存验收见[图片内存](image-memory.md)，预算文件 `tools/image-memory-budget.json`。
 
@@ -111,7 +132,10 @@
 | `JELEE_IMAGE_CACHE_BYTES`／`_ENTRIES` | 32 MiB／128 | 最大 256 MiB／4096 |
 | `JELEE_IMAGE_CACHE_TTL_SECONDS` | 300 | 1–86400 |
 | `JELEE_IMAGE_TIMEOUT_SECONDS` | 15 | 1–120 |
-| `JELEE_IMAGE_DEFAULT_QUALITY` | 85 | 1–100 |
+| `JELEE_IMAGE_DEFAULT_QUALITY` | 85 | 1–100（只影响 JPEG） |
+| `JELEE_IMAGE_OUTPUT_FORMATS` | `jpeg,webp` | `jpeg`、`webp` 的组合；列 `avif` 启动失败 |
+| `JELEE_IMAGE_DEFAULT_FORMAT` | `jpeg` | 必须在 `JELEE_IMAGE_OUTPUT_FORMATS` 中 |
+| `JELEE_IMAGE_CROP` | `smart` | `smart`、`center`、`off` |
 | `JELEE_IMAGE_STORE_ORIGINAL_BYTES` | 4 GiB | 64 MiB–4 TiB |
 | `JELEE_IMAGE_STORE_VARIANT_BYTES` | 1 GiB | 16 MiB–1 TiB |
 | `JELEE_IMAGE_STORE_ENTRIES` | 131072（每类） | 1024–2097152 |
@@ -131,7 +155,10 @@
 
 - 图片管理只有 HTTP 接口，没有 CLI 命令，前端条目页也还没有操作入口。删除扫描写入的行只删除引用，文件仍在时下次扫描会重新加入；没有“不再采用此文件”的记录。
 - 手动或锁定、但还没有内容的 `remote` 行不会被刷新任务抓取，请求时不可用；图片刷新没有自动排程，也没有 CLI 命令。
-- 不支持 WebP/AVIF 输出，不支持裁剪与焦点。
+- 不支持 AVIF 输出与解码；WebP 只有无损输出（没有可靠的纯 Go 有损编码器，见 [ADR 0010](adr/0010-image-output-formats.md)），也不按 `Accept` 自动协商。
+- 焦点只有自动的智能裁切，不能为单张图片手动指定焦点坐标。
+- 扫描入库不读文件，`local`／`nfo` 行要等有程序读取内容（例如图片刷新）后才有宽高、格式与颜色。
+- WebP 输出与裁切的负载、Windows 与真实客户端验证见[拥有者核对清单](owner-verification-queue.md) B9、C26、D27。
 - 24 小时长测尚未通过，见[图片长测](image-soak.md)。
 
 ## 相关文档

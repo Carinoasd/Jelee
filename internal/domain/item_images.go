@@ -82,7 +82,10 @@ type ItemImageContent struct {
 	Width, Height int
 	Format        string
 	Bytes         int64
+	// AverageColor and DominantColor (G40.7) are optional 0xRRGGBB values
+	// sampled from the decoded image composited on white; nil when unknown.
 	AverageColor  *int
+	DominantColor *int
 	FetchedAt     time.Time
 }
 
@@ -328,7 +331,11 @@ func validItemImageContent(value *ItemImageContent) bool {
 	return len(value.SHA256) == 32 && itemImageFormats[value.Format] && value.Bytes > 0 && !value.FetchedAt.IsZero() &&
 		(value.Width == 0) == (value.Height == 0) && value.Width >= 0 && value.Width <= ItemImageMaxDimension &&
 		value.Height >= 0 && value.Height <= ItemImageMaxDimension &&
-		(value.AverageColor == nil || *value.AverageColor >= 0 && *value.AverageColor <= ItemImageMaxAverageColor)
+		validItemImageColor(value.AverageColor) && validItemImageColor(value.DominantColor)
+}
+
+func validItemImageColor(value *int) bool {
+	return value == nil || *value >= 0 && *value <= ItemImageMaxAverageColor
 }
 
 // ValidItemImageInput checks the same source-kind consistency as the schema

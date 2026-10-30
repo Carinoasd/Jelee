@@ -113,8 +113,8 @@ func seedMetadataBackup(t testing.TB, ctx context.Context, s *Store, episodes in
 		{"episode field", `INSERT INTO item_metadata_fields(item_id,field,value,source,updated_at) VALUES ('` + bkEpisode + `','overview','Pilot episode.','manual','2026-09-01T00:00:04Z')`},
 		{"facts", `INSERT INTO item_metadata_facts(item_id,field,value,source,locked,updated_at) VALUES ('` + bkMovie + `','genres','["Drama","Sci-Fi"]','manual',true,'2026-09-01T00:00:03Z')`},
 		{"nfo lock", `INSERT INTO item_nfo_field_locks(item_id,field,origin) VALUES ('` + bkEpisode + `','seasonNumber','` + lockOrigin + `')`},
-		{"locked image", `INSERT INTO item_images(id,item_id,library_id,image_type,image_index,source_kind,remote_url,content_sha256,width,height,format,byte_size,average_color,fetched_at,locked,created_at,updated_at)
- VALUES ('` + bkImage + `','` + bkMovie + `','` + bkLibMovies + `','Primary',0,'remote','https://image.example/poster.jpg',decode(repeat('cd',32),'hex'),1000,1500,'jpeg',2048,123456,'2026-09-01T00:00:00Z',true,'2026-09-01T00:00:00Z','2026-09-02T00:00:00Z')`},
+		{"locked image", `INSERT INTO item_images(id,item_id,library_id,image_type,image_index,source_kind,remote_url,content_sha256,width,height,format,byte_size,average_color,dominant_color,fetched_at,locked,created_at,updated_at)
+ VALUES ('` + bkImage + `','` + bkMovie + `','` + bkLibMovies + `','Primary',0,'remote','https://image.example/poster.jpg',decode(repeat('cd',32),'hex'),1000,1500,'jpeg',2048,123456,654321,'2026-09-01T00:00:00Z',true,'2026-09-01T00:00:00Z','2026-09-02T00:00:00Z')`},
 		{"unlocked image", `INSERT INTO item_images(item_id,library_id,image_type,image_index,source_kind,root_id,relative_path) VALUES ('` + bkMovie + `','` + bkLibMovies + `','Backdrop',1,'local','` + bkRootMov + `','Film (2020)/fanart.jpg')`},
 		{"progress", `INSERT INTO user_item_data(user_id,item_id,resume_ticks,played,play_count,last_played_at,last_source_id,updated_at) VALUES
  ('` + bkKid + `','` + bkEpisode + `',123450000,false,1,'2026-09-03T20:00:00Z','` + bkSrcEp + `','2026-09-03T20:00:00Z'),('` + bkAdmin + `','` + bkMovie + `',0,true,3,'2026-09-04T20:00:00Z',NULL,'2026-09-04T20:00:00Z')`},
