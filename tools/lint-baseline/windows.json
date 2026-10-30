@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "goos": "windows",
-  "total": 1998,
+  "total": 1997,
   "entries": [
     {
       "linter": "errcheck",
