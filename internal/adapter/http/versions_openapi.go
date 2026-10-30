@@ -47,11 +47,12 @@ func versionsSpecification(paths, schemas map[string]any) {
 		"otherItemId": map[string]any{"type": "string", "format": "uuid", "description": "The item a split created or a merge absorbed."},
 		"sourceIds":   map[string]any{"type": "array", "items": uuid, "description": "Versions the operation moved or chose."},
 		"actorId":     uuid, "createdAt": instant,
+		"automatic":   map[string]any{"type": "boolean", "description": "A merge catalog synchronisation made from matching NFO provider IDs, episode numbers and runtimes; it has no actor and is undone like any other merge."},
 		"undoUntil":   map[string]any{"type": "string", "format": "date-time", "description": "Undo is possible until this time (30 days)."},
 		"undoneAt":    instant,
 		"undoable":    map[string]any{"type": "boolean"},
 		"undoBlocked": map[string]any{"type": "string", "enum": []string{domain.VersionUndoBlockedUndone, domain.VersionUndoBlockedExpired, domain.VersionUndoBlockedLater}, "description": "Why undo is unavailable; later_operation: a newer split or merge of the same items must be undone first."},
-	}, "id", "libraryId", "kind", "itemId", "sourceIds", "createdAt", "undoUntil", "undoable")
+	}, "id", "libraryId", "kind", "itemId", "sourceIds", "automatic", "createdAt", "undoUntil", "undoable")
 	schemas["VersionOverview"] = objectSchema(map[string]any{
 		"itemId":          uuid,
 		"primarySourceId": map[string]any{"type": "string", "format": "uuid", "description": "The administrator's main version, if any."},

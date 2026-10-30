@@ -32226,6 +32226,8 @@ export type components = {
         };
         CatalogSyncReport: {
             /** Format: int64 */
+            aggregated: number;
+            /** Format: int64 */
             created: number;
             /** Format: int64 */
             examined: number;
@@ -32240,7 +32242,7 @@ export type components = {
             /** Format: int64 */
             pending: number;
             /** @enum {string} */
-            phase: "publish" | "sources" | "missing" | "pending" | "done";
+            phase: "publish" | "sources" | "missing" | "pending" | "versions" | "done";
             /** Format: int64 */
             protected: number;
             /** Format: int64 */
@@ -35027,6 +35029,8 @@ export type components = {
         VersionOperation: {
             /** Format: uuid */
             actorId?: string;
+            /** @description A merge catalog synchronisation made from matching NFO provider IDs, episode numbers and runtimes; it has no actor and is undone like any other merge. */
+            automatic: boolean;
             /** Format: date-time */
             createdAt: string;
             /** Format: uuid */

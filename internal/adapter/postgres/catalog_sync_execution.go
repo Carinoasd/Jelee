@@ -38,19 +38,22 @@ type catalogSyncRequest struct {
 	cursorRoot, cursorPath, missingCursor      *string
 	examined, created, updated, unchanged      int64
 	protected, pending, markedMissing, removed int64
+	// versionsCursor and aggregated belong to the versions phase.
+	versionsCursor *string
+	aggregated     int64
 }
 
 func readCatalogSyncRequest(ctx context.Context, tx pgx.Tx, job string) (catalogSyncRequest, error) {
 	var r catalogSyncRequest
-	err := tx.QueryRow(ctx, `SELECT library_id::text,mode,phase,source_job_id::text,expected_snapshot,expected_revision,inventory_generation,publish_snapshot,publish_total,publish_copied,publish_cursor::text,publish_cleaned,target_snapshot,target_revision,cursor_root::text,cursor_path,missing_cursor::text,examined,created,updated,unchanged,protected,pending,marked_missing,removed FROM catalog_sync_requests WHERE job_id=$1::uuid FOR UPDATE`, job).Scan(
+	err := tx.QueryRow(ctx, `SELECT library_id::text,mode,phase,source_job_id::text,expected_snapshot,expected_revision,inventory_generation,publish_snapshot,publish_total,publish_copied,publish_cursor::text,publish_cleaned,target_snapshot,target_revision,cursor_root::text,cursor_path,missing_cursor::text,examined,created,updated,unchanged,protected,pending,marked_missing,removed,versions_cursor::text,aggregated FROM catalog_sync_requests WHERE job_id=$1::uuid FOR UPDATE`, job).Scan(
 		&r.library, &r.mode, &r.phase, &r.source, &r.expectedSnapshot, &r.expectedRevision, &r.epoch, &r.publishSnapshot, &r.publishTotal, &r.publishCopied, &r.publishCursor, &r.publishCleaned, &r.targetSnapshot, &r.targetRevision, &r.cursorRoot, &r.cursorPath, &r.missingCursor,
-		&r.examined, &r.created, &r.updated, &r.unchanged, &r.protected, &r.pending, &r.markedMissing, &r.removed)
+		&r.examined, &r.created, &r.updated, &r.unchanged, &r.protected, &r.pending, &r.markedMissing, &r.removed, &r.versionsCursor, &r.aggregated)
 	return r, storageError(err)
 }
 
 func writeCatalogSyncRequest(ctx context.Context, tx pgx.Tx, job string, r catalogSyncRequest) error {
-	_, err := tx.Exec(ctx, `UPDATE catalog_sync_requests SET phase=$2,publish_snapshot=$3,publish_copied=$4,publish_cursor=$5::uuid,publish_cleaned=$6,target_snapshot=$7,target_revision=$8,cursor_root=$9::uuid,cursor_path=$10,missing_cursor=$11::uuid,examined=$12,created=$13,updated=$14,unchanged=$15,protected=$16,pending=$17,marked_missing=$18,removed=$19 WHERE job_id=$1::uuid`,
-		job, r.phase, r.publishSnapshot, r.publishCopied, r.publishCursor, r.publishCleaned, r.targetSnapshot, r.targetRevision, r.cursorRoot, r.cursorPath, r.missingCursor, r.examined, r.created, r.updated, r.unchanged, r.protected, r.pending, r.markedMissing, r.removed)
+	_, err := tx.Exec(ctx, `UPDATE catalog_sync_requests SET phase=$2,publish_snapshot=$3,publish_copied=$4,publish_cursor=$5::uuid,publish_cleaned=$6,target_snapshot=$7,target_revision=$8,cursor_root=$9::uuid,cursor_path=$10,missing_cursor=$11::uuid,examined=$12,created=$13,updated=$14,unchanged=$15,protected=$16,pending=$17,marked_missing=$18,removed=$19,versions_cursor=$20::uuid,aggregated=$21 WHERE job_id=$1::uuid`,
+		job, r.phase, r.publishSnapshot, r.publishCopied, r.publishCursor, r.publishCleaned, r.targetSnapshot, r.targetRevision, r.cursorRoot, r.cursorPath, r.missingCursor, r.examined, r.created, r.updated, r.unchanged, r.protected, r.pending, r.markedMissing, r.removed, r.versionsCursor, r.aggregated)
 	return storageError(err)
 }
 
@@ -100,6 +103,8 @@ func (s *Store) AdvanceCatalogSync(ctx context.Context, l domain.JobLease) (bool
 		err = syncCatalogMissingBatch(ctx, tx, current, &r, s.webhooksOn())
 	case "pending":
 		err = syncCatalogPendingBatch(ctx, tx, current, &r)
+	case "versions":
+		err = syncCatalogVersionsBatch(ctx, tx, current, &r, s.webhooksOn())
 	case "done":
 		return true, storageError(tx.Commit(ctx))
 	default:
@@ -620,15 +625,19 @@ type scanItem struct {
 }
 
 // groupItem returns the item a file version belongs to: same directory and
-// same parsed identity (G20.1 first step). NFO identity wins over the file
+// same parsed identity (G20.1 first step; versions in other directories are
+// folded later by the versions phase). NFO identity wins over the file
 // name: a file with its own NFO is not merged into an item that already
-// carries NFO provider IDs, because its NFO may name a different title. A
-// manual exclusion keeps a file out of the item the same way.
+// carries NFO provider IDs, because its NFO may name a different title, and
+// a file is not merged into an episode whose NFO numbers name another
+// episode than the file name does (G21.2). A manual exclusion keeps a file
+// out of the item the same way.
 func (w catalogWriter) groupItem(ctx context.Context, c syncCandidate, kind string, digest []byte, spec scanItem) (string, error) {
 	item, err := w.findScanItem(ctx, kind, digest)
 	if err != nil {
 		return "", err
 	}
+	reason := ""
 	if item != "" {
 		separate, err := w.nfoIdentityConflict(ctx, item, c)
 		if err != nil {
@@ -641,6 +650,14 @@ func (w catalogWriter) groupItem(ctx context.Context, c syncCandidate, kind stri
 				return "", err
 			}
 		}
+		if !separate && spec.season != nil && spec.episode != nil {
+			if separate, err = w.nfoNumbersDisagree(ctx, item, *spec.season, *spec.episode); err != nil {
+				return "", err
+			}
+			if separate {
+				reason = domain.VersionGroupingNFONumbersDiffer
+			}
+		}
 		if !separate {
 			return item, nil
 		}
@@ -649,7 +666,26 @@ func (w catalogWriter) groupItem(ctx context.Context, c syncCandidate, kind stri
 			return item, err
 		}
 	}
-	return w.createScanItem(ctx, kind, digest, spec)
+	if item, err = w.createScanItem(ctx, kind, digest, spec); err != nil || reason == "" {
+		return item, err
+	}
+	// Recorded on the new item so the reason it stands apart is kept.
+	_, err = w.tx.Exec(ctx, `UPDATE catalog_scan_items SET grouping_reason=$2 WHERE item_id=$1::uuid`, item, reason)
+	return item, storageError(err)
+}
+
+// nfoNumbersDisagree reports an episode whose NFO season or episode number
+// differs from a new file's name, unless an identity lock holds the numbers
+// (a lock describes the group; its versions join it, G21.5).
+func (w catalogWriter) nfoNumbersDisagree(ctx context.Context, item string, season, episode int) (bool, error) {
+	var nfoSeason, nfoEpisode *int
+	var lockedNumbers bool
+	err := w.tx.QueryRow(ctx, `SELECT `+factNumberSQL("$1", "seasonNumber")+`,`+factNumberSQL("$1", "episodeNumber")+`,
+ EXISTS(SELECT 1 FROM item_identity_corrections WHERE item_id=$1::uuid AND (season IS NOT NULL OR episode IS NOT NULL))`, item).Scan(&nfoSeason, &nfoEpisode, &lockedNumbers)
+	if err != nil {
+		return false, storageError(err)
+	}
+	return !lockedNumbers && domain.CatalogNumbersDisagree(nfoSeason, nfoEpisode, season, episode), nil
 }
 
 func (w catalogWriter) nfoIdentityConflict(ctx context.Context, item string, c syncCandidate) (bool, error) {
@@ -974,7 +1010,7 @@ func syncCatalogPendingBatch(ctx context.Context, tx pgx.Tx, _ domain.JobLease, 
 	}
 	r.missingCursor = last
 	if count < catalogSyncPendingLimit {
-		r.phase, r.missingCursor = "done", nil
+		r.phase, r.missingCursor = "versions", nil
 	}
 	return nil
 }
@@ -1007,7 +1043,7 @@ func (s *Store) FinishCatalogSync(ctx context.Context, l domain.JobLease, state,
 	if err = guardedJobUpdate(ctx, tx, current, `UPDATE jobs SET state=$2,error_code=$3,finished_at=clock_timestamp(),owner=NULL,lease_until=NULL WHERE id=$1::uuid`, l.Job.ID, state, code); err != nil {
 		return err
 	}
-	if err = auditAccount(ctx, tx, domain.Actor{}, "catalog_sync.finished", l.Job.ID, nil, map[string]any{"state": state, "errorCode": code, "phase": r.phase, "created": r.created, "updated": r.updated, "pending": r.pending, "markedMissing": r.markedMissing, "removed": r.removed, "protected": r.protected}); err != nil {
+	if err = auditAccount(ctx, tx, domain.Actor{}, "catalog_sync.finished", l.Job.ID, nil, map[string]any{"state": state, "errorCode": code, "phase": r.phase, "created": r.created, "updated": r.updated, "pending": r.pending, "markedMissing": r.markedMissing, "removed": r.removed, "protected": r.protected, "aggregated": r.aggregated}); err != nil {
 		return err
 	}
 	// G13.6: an opted-in library refreshes its metadata after every

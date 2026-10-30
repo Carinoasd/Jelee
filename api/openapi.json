@@ -2111,6 +2111,11 @@
       "CatalogSyncReport": {
         "additionalProperties": false,
         "properties": {
+          "aggregated": {
+            "format": "int64",
+            "minimum": 0,
+            "type": "integer"
+          },
           "created": {
             "format": "int64",
             "minimum": 0,
@@ -2152,6 +2157,7 @@
               "sources",
               "missing",
               "pending",
+              "versions",
               "done"
             ],
             "type": "string"
@@ -2193,7 +2199,8 @@
           "protected",
           "pending",
           "markedMissing",
-          "removed"
+          "removed",
+          "aggregated"
         ],
         "type": "object"
       },
@@ -12592,6 +12599,10 @@
             "format": "uuid",
             "type": "string"
           },
+          "automatic": {
+            "description": "A merge catalog synchronisation made from matching NFO provider IDs, episode numbers and runtimes; it has no actor and is undone like any other merge.",
+            "type": "boolean"
+          },
           "createdAt": {
             "format": "date-time",
             "type": "string"
@@ -12659,6 +12670,7 @@
           "kind",
           "itemId",
           "sourceIds",
+          "automatic",
           "createdAt",
           "undoUntil",
           "undoable"

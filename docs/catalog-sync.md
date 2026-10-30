@@ -21,11 +21,11 @@ POST /api/v1/jobs/REVIEWED_SCAN_ID/accept-missing
 
 新任務種類 `catalog_sync`（不是掃描任務的附加階段）：掃描任務在發布交易中已終結，另一任務可獨立取消、續跑、重試並計入既有指標；接受缺失的發布也走同一任務。庫預設關閉；`PUT /api/v1/libraries/{id}/catalog-sync {"auto":true}` 後，每次發布基準的同一交易會排入同步（佇列滿或庫忙則記 `catalog_sync.deferred`）。`POST /api/v1/libraries/{id}/catalog-sync`（Idempotency-Key）手動排入；`GET /api/v1/jobs/{id}/catalog-sync` 查計數。
 
-階段：publish（僅 accept）→ sources → missing → pending → done，游標與計數和寫入同交易。每批讀 256 筆基準影片、最多寫 32 個檔案。
+階段：publish（僅 accept）→ sources → missing → pending → versions → done，游標與計數和寫入同交易。每批讀 256 筆基準影片、最多寫 32 個檔案。
 
 - 解析：`medianame.ParsePath`。只有 High 且容器可登記才自動建 Movie 或 Series／Season／Episode；Medium／Low／拒絕／不支援容器／與既有結構衝突進 `catalog_scan_pending`，以 `GET /api/v1/libraries/{id}/catalog-sync/pending` 查詢（每筆帶 `decision`：`pending`／`rejected`）；接受與拒絕見下方「識別修正與待確認決定」。
-- 結構：電影以「同目錄＋標題＋年份」歸為同一條目（多版本的第一步，完整聚合留給 G20 後續）；劇集資料夾名稱與解析標題相符時登記為 Series 目錄，季資料夾登記為 Season 目錄（供目錄 NFO 使用）；已登記的資料夾條目直接沿用。父子連結套用與匯入相同的合法性規則。
-- 優先序：解析值以 `source='scan'` 寫入標題，為最低優先；鎖定、人工、NFO、TMDB 與既有值都不被覆蓋，TMDB 可覆蓋 scan 值。NFO 身分優先：已帶 NFO uniqueIds 的條目不併入另有同名 NFO 的新檔案。
+- 結構：新檔案以「同目錄＋標題＋年份」（電影）或「同季＋同目錄＋集號」（單集）歸入已有條目；分放在其他目錄的同一作品由同步最後的 versions 階段依 NFO 外部 ID 與時長合併（見下方「跨目錄多版本聚合」）；劇集資料夾名稱與解析標題相符時登記為 Series 目錄，季資料夾登記為 Season 目錄（供目錄 NFO 使用）；已登記的資料夾條目直接沿用。父子連結套用與匯入相同的合法性規則。
+- 優先序：解析值以 `source='scan'` 寫入標題，為最低優先；鎖定、人工、NFO、TMDB 與既有值都不被覆蓋，TMDB 可覆蓋 scan 值。NFO 身分優先：已帶 NFO uniqueIds 的條目不併入另有同名 NFO 的新檔案；條目的 NFO 季號／集號與新檔案檔名不同時（且該條目的季集號沒有識別鎖），新檔案也不併入，改成單檔條目並記 `grouping_reason='nfo_numbers_differ'`（G21.2）。
 - 增量：已追蹤檔案以 size／mtime／解析版本判定未變；解析版本是 `medianame-v2` 加上媒體庫啟用的命名選項（見下方「命名選項」），所以改選項等同換解析版本。明確匯入的來源不屬同步管理，從不更動。
 - 缺失：一般同步只標 `missing_since`；只有 accept 模式才刪除同步登記的來源，並回收沒有媒體、子項、人工／外部值與 facts 的同步建立條目。
 
@@ -81,6 +81,25 @@ POST /api/v1/jobs/REVIEWED_SCAN_ID/accept-missing
 - **降版**：仍有任何媒體庫啟用命名選項時拒絕降版（`55000`）；選項都關閉時可降版，四個條目欄位直接捨棄（只是檔名事實，舊版解析版本不同，下一次同步會重新規劃）。元資料備份匯出並匯入媒體庫的兩個選項與條目的四個欄位（舊備份沒有這些鍵時視為關閉／空值）。
 - **待確認列**：仍只記 `absolute` 與 `special`；日期型與跨季的檔案絕大多數直接成為條目，進待確認時（例如季資料夾衝突）由管理員以接受正文補季號與集號。
 
+## 跨目錄多版本聚合（G20.1、G20.5、G21.2，schema 104）
+
+遷移 104（暫定編號；103 保留給另一分支）新增同步階段 `versions` 與報告計數 `aggregated`、`catalog_scan_items.grouping_evidence`／`grouping_reason`、`item_version_operations.automatic`，以及兩個索引（`catalog_scan_items(library_id,item_id)` 限 Movie／Episode；`item_metadata_facts` 上只涵蓋 NFO `uniqueIds` 的 GIN `jsonb_path_ops`）。
+
+- **時機**：新檔案登記時 NFO 還沒套用（NFO 全量導入或自動刮削在同步之後），所以跨目錄的副本先各自成為條目；pending 之後的 versions 階段逐頁（每批 128 個條目、最多 8 次合併）讀取帶 NFO `uniqueIds` 的同步條目，把它們合併。NFO 或探測在同步之後才到時，在下一次同步合併。
+- **只判斷證據變了的條目**：每個條目存一份證據摘要（`domain.VersionGroupingEvidence`：分組版本 `domain.CatalogGroupingVersion`、類型、NFO uniqueIds、有效季集號、保留原因、每個版本的探測時長）。摘要與上次相同就跳過，所以重複同步只讀不判；新的 NFO、新的探測、加鎖或解鎖、人工操作都會讓條目重新判斷。升級後所有條目的摘要是 NULL，第一次同步把全庫判斷一次；之後改了規則就提升 `CatalogGroupingVersion`，效果相同。
+- **找對象**：只用強識別碼 `imdb`、`tmdb`、`tvdb`。對每個識別碼以 GIN 包含查詢找同媒體庫、同類型、帶相同（照原樣拼寫的）識別碼的同步條目，每個識別碼最多 16 個。只靠 `custom` 之類的其他識別碼不合併。
+- **合併條件**（`domain.DecideVersionGrouping`，全部成立才合併，否則不合）：
+  1. 兩邊都不是保留的條目（下一條）。
+  2. 同類型（Movie 或 Episode），任何提供者上都沒有衝突的值（`ExternalIDConflicts`，不分大小寫），且至少一個強識別碼的值相同。
+  3. 單集的有效季號、集號、結束集號都已知且相同。有效值的優先序與識別 API 相同：識別鎖 > NFO 事實（`seasonNumber`／`episodeNumber`）> 檔名（G21.2）。檔名 `S01E05` 但 NFO 說第 6 集的檔案，會和真正的第 6 集合併；這時合併的稽核證據帶 `nfo_numbers_over_filename`，識別 API 的 `episodeSource:"nfo"` 與 `scan.episode` 也能看出兩者不同。
+  4. 兩邊每個版本都有可用的探測時長（探測快取 `ready`，大小與 mtime 等於登記時的檔案），且兩邊任兩個版本的時長差 ≤ 容許值。容許值＝較長者的 2%，最少 30 秒、最多 3 分鐘。
+- **門檻理由**：外部 ID 是主要證據，但 NFO 可能抄錯（季包裡整季共用劇集 ID、刮削器把重拍片配到原版），時長是獨立於 NFO 的旁證。同一來源的不同編碼（1080p／4K／HDR／不同音軌）時長差通常在幾秒內；30 秒下限吸收容器與編碼的捨入、片頭商標；2% 隨片長放寬（兩小時的電影約 2.4 分鐘）；3 分鐘上限把導演剪輯版、加長版擋在外面——那是不同剪輯，管理員可以手動合併（G20.3）。沒探測、或時長是 0，一律不合（寧可不合）。PAL 加速（約 4%）的版本因此不會自動合併，列入 D37 由真實資料確認。
+- **保留的條目不被改動**：有任何識別鎖（類型、所屬、季號、集號，G21.5，`locked`）；涉及任何人工版本操作（拆分、合併、主版本、解除排除，或任何被撤銷過的操作，包括被撤銷的自動合併）、有排除紀錄或有人工放置的來源（G20.3，`manual`）；或有不屬同步管理的版本（明確匯入，`imported`）。這些條目既不會被吸收，也不會成為合併目標。
+- **合併本身**：與管理員合併同一條路徑（`mergeVersionItems`：G20.5 邊界、播放中／探測中／NFO 寫入中／有分享連結即拒絕、使用者資料與歷史依合併策略轉移、30 天內可撤銷），只是沒有操作者：`item_version_operations.automatic=true`、`actor_id` 為 NULL，稽核仍是 `item.versions_merged`，細節多 `automatic:true` 與 `evidence`（例如 `["external_id:tmdb","duration"]`）。版本較多的條目留下（相同時取 ID 較小者）。條目忙碌時記 `busy` 且不存摘要，下一次同步再試；邊界拒絕時記 `incompatible`。管理員以 `POST /api/v1/version-operations/{id}/undo` 撤銷後，兩個條目都因「被撤銷的操作」而保留，之後不會再自動合併。
+- **只增不拆**：versions 階段只合併，從不拆分；已登記的來源仍不被同步搬動。條目的判斷結果存在 `grouping_reason`（`merged`、`alone`、`external_id_conflict`、`no_shared_external_id`、`numbers_differ`、`duration_unknown`、`duration_mismatch`、`locked`、`manual`、`imported`、`incompatible`、`busy`、`nfo_numbers_differ`），目前只供查資料庫與除錯，沒有 API。
+- **人工合併的邊界跟著改**：`MergeItems` 比較季集號時也改用有效值（鎖 > NFO > 檔名），檔名不同但 NFO 相同的兩個單集現在可以手動合併；NFO 或鎖不同時照舊拒絕。
+- **降版**：允許。執行中的同步若停在 versions 階段直接標為 done；自動合併留下為一般合併，舊版仍可撤銷；三個新欄位與兩個索引丟棄。再升級後這些合併的 `automatic` 是 false，相關條目會被當成人工決定而不再自動合併（保守）。
+
 ## 未涵蓋
 
-識別修正與待確認決定的網頁介面、完整多版本聚合、忽略模式發布後的自動同步、NFO 內容直接參與分組（目前只用 NFO 檔存在與條目 uniqueIds facts）、明確匯入來源的外掛軌配對、`.idx`＋`.sub` 成對關係的記錄（兩者各自成軌）。大規模首掃／重掃、GOMAXPROCS=2/4、24 小時混合負載尚待擁有者量測。
+識別修正與待確認決定的網頁介面、自動合併原因（`grouping_reason`）的 API 與網頁顯示、只靠解析度／HDR／剪輯版標記而沒有 NFO 外部 ID 的跨目錄聚合、忽略模式發布後的自動同步、明確匯入來源的外掛軌配對、`.idx`＋`.sub` 成對關係的記錄（兩者各自成軌）。大規模首掃／重掃、GOMAXPROCS=2/4、24 小時混合負載尚待擁有者量測。

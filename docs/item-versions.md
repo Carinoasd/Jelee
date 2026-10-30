@@ -1,4 +1,4 @@
-# 多版本人工干預、撤銷、預設版本與音軌／字幕偏好（schema 78、99）
+# 多版本人工干預、撤銷、預設版本與音軌／字幕偏好（schema 78、99、104）
 
 需求：G20.3（合併／拆分、主版本、排除誤合併、稽核）、G20.5（不跨作品誤合併、一鍵撤銷）、G20.2（預設版本依設備能力、頻寬、使用者偏好選擇）、G20.4 與 G16.5（流選擇與音軌／字幕偏好按條目、按版本保存，加上會話層級選軌記錄）。
 
@@ -6,7 +6,7 @@
 
 | 表 | 用途 |
 | --- | --- |
-| `item_version_operations` | 每個人工決定一列：`kind`（split／merge／primary／unexclude）、保留的條目 `item_id`、新建或被吸收的條目 `other_item_id`、移動或選定的版本 `source_ids`、撤銷所需資料 `undo`（JSON，上限 16 MiB）、`undo_until`（建立後 30 天）、`undone_at`。 |
+| `item_version_operations` | 每個人工決定一列（schema 104 起也記同步的自動合併：`automatic=true`、沒有 `actor_id`，只能是 merge）：`kind`（split／merge／primary／unexclude）、保留的條目 `item_id`、新建或被吸收的條目 `other_item_id`、移動或選定的版本 `source_ids`、撤銷所需資料 `undo`（JSON，上限 16 MiB）、`undo_until`（建立後 30 天）、`undone_at`。 |
 | `item_version_exclusions` | 「此檔案不是該條目的版本」：以 root＋相對路徑記錄，來源列被刪除後依然有效。 |
 | `catalog_scan_item_aliases` | 被合併條目的掃描群組改指向目標條目。 |
 | `catalog_scan_sources.manual` | 管理員放置的版本；同步不再以其檔名改寫條目標題。 |
@@ -33,7 +33,7 @@
 以下情況一律拒絕，**沒有 `--force`**：外部 ID 是事實，衝突代表兩個條目真的是不同作品，強制合併只會產生錯誤的條目；正確的修法是先修正中繼資料。
 
 - 409 `version_merge_incompatible`：不同媒體庫、不同類型（電影 vs 單集）、容器條目（Series／Season）、來源條目還有子項、單集的所屬劇集不同（以季→劇集祖先比較；一個有父項一個沒有也算不同）。
-- 409 `version_identity_conflict`：兩者的 `uniqueIds` 在同一提供者（不分大小寫）上沒有任何共同值；或 `seasonNumber`／`episodeNumber` facts、掃描解析的季／集數兩邊都有且不同。
+- 409 `version_identity_conflict`：兩者的 `uniqueIds` 在同一提供者（不分大小寫）上沒有任何共同值；或兩邊的有效季號／集號都已知且不同。有效值依識別優先序取：識別鎖 > `seasonNumber`／`episodeNumber` facts > 掃描解析值（G21.2，schema 104 起；之前是 facts 與掃描值分別比較，檔名不同但 NFO 相同的單集也會被拒絕）。
 - 409 `version_item_busy`：任一條目正在播放（active 工作階段）、有以它為目標的探測工作紀錄（`probe_requests`／`probe_job_state` 以 RESTRICT 指向條目），或有排隊中／執行中的 NFO 寫入。
 
 ## 合併的轉移策略
@@ -64,6 +64,14 @@
 - 測試以解除排除作為對照：解除後同一檔案重新出現即回到原群組。
 
 明確匯入的來源不屬同步管理，本來就不會被同步搬動。
+
+### 自動合併（G20.1，schema 104）
+
+同步的 versions 階段把 NFO 外部 ID、有效季集號與探測時長都一致的跨目錄副本合併（條件與門檻見[同步](catalog-sync.md#跨目錄多版本聚合g201g205g212schema-104)）。它走與 `MergeItems` 相同的轉移與快照，所以：
+
+- 操作列表照常出現，`automatic:true`、沒有 `actorId`；可在 30 天內一鍵撤銷（G20.5），撤銷規則與順序和人工合併相同。
+- 涉及人工操作（含任何被撤銷的操作）、排除、人工放置來源、識別鎖或明確匯入版本的條目，自動合併一律不碰；撤銷一次自動合併等於宣告兩者不同，之後不會再被合併。
+- 自動合併不阻擋之後的自動合併（第三份副本可以再併入），但阻擋順序規則照舊：較新的 split／merge 要先撤銷。
 
 ## 一致性檢查
 
