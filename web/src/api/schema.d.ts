@@ -9609,6 +9609,153 @@ export type paths = {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/items/{id}/sources/check": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Check which versions of a visible item a declared client could direct play
+         * @description Any session kind; read only. The same verdicts and reason codes as POST /api/v1/items/{id}/playback/check (G10.5), made on the file information of every version, so the web interface can show why a version would not play as it is: reasons, the container layout and its hints, the probe state of external tracks and the verdict per audio and subtitle track. The body is a ClientCapabilities declaration. The answer carries no delivery URL of any kind, starts no playback session, and delivers, converts and writes nothing; a transformation parameter in the query or body is 409 transcode_disabled.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["ClientCapabilities"];
+                };
+            };
+            responses: {
+                /** @description HTTP 200 */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                /** @description One per source, in the caller's default version order; never carries a url. */
+                                decisions: components["schemas"]["PlaybackDecision"][];
+                                /** @description True when at least one version is direct playable. */
+                                directPlayable: boolean;
+                                /** Format: uuid */
+                                itemId: string;
+                                selection: components["schemas"]["VersionSelection"];
+                                /** @description The same sources in the same order; join by sourceId = id. */
+                                sources: components["schemas"]["MediaSourceInfo"][];
+                            };
+                        };
+                    };
+                };
+                /** @description HTTP 400 */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 401 */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 403 */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description The item is missing or not visible to the caller; both are answered alike (403 forbidden when hidden content is configured as 403). */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 408 */
+                408: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description transcode_disabled: the query or body carries a transformation parameter (G10.3). */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 413 */
+                413: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 415 */
+                415: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 503 */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Jelee error envelope with code, message, details and traceId; see the Error schema. */
+                default: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/items/{id}/track-preferences": {
         parameters: {
             query?: never;

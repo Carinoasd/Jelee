@@ -330,6 +330,7 @@ func TestReadOnlyAllowedRoutes(t *testing.T) {
 		{http.MethodPost, "/api/v1/auth/rotate", true},
 		{http.MethodPost, "/api/v1/items/0b0e5fd5-6a0a-4c4f-9a3b-0e8d2b1c4d5e/playback/check", true},
 		{http.MethodPost, "/api/v1/items/x/y/playback/check", false},
+		{http.MethodPost, "/api/v1/items/0b0e5fd5-6a0a-4c4f-9a3b-0e8d2b1c4d5e/sources/check", true},
 		{http.MethodPut, "/api/v1/users/me/profile", false},
 		{http.MethodDelete, "/api/v1/auth/logout", false},
 		{http.MethodPost, "/compat/Sessions/Logout", true},

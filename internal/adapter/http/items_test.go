@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"net/http"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -243,5 +244,77 @@ func TestItemDetailsNFOStateHTTP(t *testing.T) {
 		if bytes.Contains(w.Body.Bytes(), []byte(marker)) {
 			t.Fatalf("details expose observation identity %s", marker)
 		}
+	}
+}
+
+func TestItemSourcesCheckHTTP(t *testing.T) {
+	handler, _, _, details := itemsFixture(t, 0)
+	native, web := strings.Repeat("n", 43), strings.Repeat("w", 43)
+	path := "/api/v1/items/" + itemID + "/sources/check"
+	body := `{"containers":["mp4"],"videoCodecs":["h264"],"audioCodecs":["aac"],"subtitleFormats":["srt"]}`
+	type reply struct {
+		Data struct {
+			DirectPlayable bool `json:"directPlayable"`
+			Decisions      []struct {
+				SourceID   string   `json:"sourceId"`
+				DirectPlay bool     `json:"directPlay"`
+				Reasons    []string `json:"reasons"`
+				Tracks     []struct {
+					Kind      string `json:"kind"`
+					External  bool   `json:"external"`
+					Supported bool   `json:"supported"`
+				} `json:"tracks"`
+			} `json:"decisions"`
+			Sources []struct {
+				ID string `json:"id"`
+			} `json:"sources"`
+		} `json:"data"`
+	}
+	var verdicts [2][]string
+	for i, token := range []string{native, web} {
+		w := playbackHTTPRequest(handler, "POST", path, body, token)
+		var got reply
+		if w.Code != 200 || json.Unmarshal(w.Body.Bytes(), &got) != nil || len(got.Data.Decisions) != 1 || len(got.Data.Sources) != 1 {
+			t.Fatalf("check %d %s", w.Code, w.Body.String())
+		}
+		d := got.Data.Decisions[0]
+		if d.SourceID != sourceID || got.Data.Sources[0].ID != sourceID || d.DirectPlay || got.Data.DirectPlayable {
+			t.Fatalf("verdict %+v", got.Data)
+		}
+		verdicts[i] = d.Reasons
+		// Nothing that delivers: no url, route, file name or session.
+		for _, marker := range []string{"/api/v1/sources", "/subtitles/", "/audio/", "/stream", `"url"`, "Arrival.2160p"} {
+			if strings.Contains(w.Body.String(), marker) {
+				t.Fatalf("check exposes %q: %s", marker, w.Body.String())
+			}
+		}
+		if details.actor.UserID != userID || details.actor.SessionID != sessionID {
+			t.Fatal("check not read for the caller's session")
+		}
+	}
+	if !reflect.DeepEqual(verdicts[0], verdicts[1]) || !slices.Contains(verdicts[0], domain.PlaybackReasonContainer) {
+		t.Fatalf("reasons %v", verdicts)
+	}
+	for _, tc := range []struct {
+		name, path, body, token string
+		status                  int
+		code                    string
+	}{
+		{"missing", "/api/v1/items/" + libraryID + "/sources/check", body, native, 404, "not_found"},
+		{"query", path + "?fields=all", body, native, 400, "invalid_request"},
+		{"anonymous", path, body, "x", 401, "authentication_required"},
+		{"transformation", path, `{"containers":["mp4"],"videoCodec":"h264"}`, web, 409, "transcode_disabled"},
+		{"transformation query", path + "?VideoCodec=h264", body, web, 409, "transcode_disabled"},
+	} {
+		w := playbackHTTPRequest(handler, "POST", tc.path, tc.body, tc.token)
+		if w.Code != tc.status || playbackErrorCode(t, w) != tc.code {
+			t.Errorf("%s: %d %s", tc.name, w.Code, w.Body.String())
+		}
+	}
+	if w := playbackHTTPRequest(handler, "GET", "/api/v1/items/"+itemID+"/playback", "", web); w.Code != 403 {
+		t.Fatalf("web playback must stay refused: %d", w.Code)
+	}
+	if w := playbackHTTPRequest(handler, "POST", "/api/v1/items/"+itemID+"/playback/check", body, web); w.Code != 403 {
+		t.Fatalf("web playback check must stay refused: %d", w.Code)
 	}
 }
