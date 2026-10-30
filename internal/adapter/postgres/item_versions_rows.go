@@ -63,8 +63,9 @@ var versionSnapshotMoved = []string{"media_sources", "catalog_scan_sources", "pl
 // and chapter image attempts are a rebuildable cache keyed by the file
 // fingerprint; share links
 // on the absorbed item are only revoked or expired ones (a live one refuses
-// the merge, liveShareOnItem).
-var versionSnapshotDropped = []string{"nfo_write_preparations", "item_embedded_cover_attempts", "item_chapter_image_attempts", "share_links"}
+// the merge, liveShareOnItem); session track choices (G20.4) name stream
+// indexes of one version and expire within 30 days.
+var versionSnapshotDropped = []string{"nfo_write_preparations", "item_embedded_cover_attempts", "item_chapter_image_attempts", "share_links", "session_track_selections"}
 
 type versionRowsPhase int
 

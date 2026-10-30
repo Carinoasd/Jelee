@@ -480,6 +480,16 @@ up AS (INSERT INTO user_preferences AS p(user_id,theme,density,layout,updated_at
  ON CONFLICT(user_id) DO UPDATE SET theme=EXCLUDED.theme,density=EXCLUDED.density,layout=EXCLUDED.layout,updated_at=EXCLUDED.updated_at WHERE EXCLUDED.updated_at>p.updated_at
  RETURNING (xmax=0) inserted)
 SELECT (SELECT count(*) FROM ok),(SELECT count(*) FROM up WHERE inserted),(SELECT count(*) FROM up WHERE NOT inserted),0`},
+	// Version preferences (G20.2) keep whichever side was updated last too;
+	// the table's checks refuse values outside the accepted ranges.
+	{kind: "user_version_preference", sql: `WITH x AS (SELECT s.doc,pg_temp.bk_dst('user',s.doc->>'user_id') u FROM bk_stage s WHERE s.kind='user_version_preference'),
+ok AS (SELECT * FROM x WHERE u IS NOT NULL),
+up AS (INSERT INTO user_version_preferences AS p(user_id,max_height,dynamic_range,prefer_smaller,max_bitrate,updated_at)
+ SELECT u,(doc->>'max_height')::integer,doc->>'dynamic_range',(doc->>'prefer_smaller')::boolean,(doc->>'max_bitrate')::bigint,(doc->>'updated_at')::timestamptz FROM ok
+ ON CONFLICT(user_id) DO UPDATE SET max_height=EXCLUDED.max_height,dynamic_range=EXCLUDED.dynamic_range,prefer_smaller=EXCLUDED.prefer_smaller,
+  max_bitrate=EXCLUDED.max_bitrate,updated_at=EXCLUDED.updated_at WHERE EXCLUDED.updated_at>p.updated_at
+ RETURNING (xmax=0) inserted)
+SELECT (SELECT count(*) FROM ok),(SELECT count(*) FROM up WHERE inserted),(SELECT count(*) FROM up WHERE NOT inserted),(SELECT count(*) FROM x)-(SELECT count(*) FROM ok)`},
 	// The single-row documents take the exported values, normalized and
 	// checked by validateMetadataSettings, with a new revision.
 	{kind: "site_appearance", sql: `WITH x AS (SELECT s.doc FROM bk_stage s WHERE s.kind='site_appearance' AND NOT EXISTS(SELECT 1 FROM bk_map b WHERE b.kind='site_appearance')),

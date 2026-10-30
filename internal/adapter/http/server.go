@@ -496,7 +496,7 @@ func (s *Server) newCompat(cfg config.Config, backend Backend) (http.Handler, er
 	// The library module reads only through the catalog service, which
 	// applies the library grants in storage like the native catalog routes.
 	if cfg.EnableCatalog && s.catalog.CanBrowse() {
-		opts.Library = &compat.LibraryOptions{Catalog: s.catalog, HiddenStatus: cfg.Access.HiddenContentStatus(), DirectPlay: cfg.EnableDirect, ClientIP: requestClientIP}
+		opts.Library = &compat.LibraryOptions{Catalog: s.catalog, HiddenStatus: cfg.Access.HiddenContentStatus(), DirectPlay: cfg.EnableDirect, ClientIP: requestClientIP, Logger: s.logger}
 		// Playback reports, played marks and user data use the catalog's
 		// progress buffer, which answers 503 until it is wired.
 		opts.Library.Playstate = s.catalog

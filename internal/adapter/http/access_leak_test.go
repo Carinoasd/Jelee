@@ -232,6 +232,8 @@ func leakRouteTable() map[string]leakRoute {
 		"PUT /api/v1/items/{id}/track-preferences":                    {mode: leakByID, params: itemParam, control: true},
 		"GET /api/v1/users/me/track-preferences":                      noMedia(noParams, "caller's own default track preferences; languages and modes only"),
 		"PUT /api/v1/users/me/track-preferences":                      exempt("replaces the caller's own default track preferences; carries no media identifiers"),
+		"GET /api/v1/users/me/version-preferences":                    noMedia(noParams, "caller's own version preference; heights, ranges and bit rates only"),
+		"PUT /api/v1/users/me/version-preferences":                    exempt("replaces the caller's own version preference; carries no media identifiers"),
 		// Watch statistics (G23.3, G48.3): the daily roll-up read with the
 		// viewer's library grants; the fixture seeds rows for both users on
 		// both items.

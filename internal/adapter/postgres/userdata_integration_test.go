@@ -22,23 +22,25 @@ import (
 // a table added later cannot keep a deleted user's rows unnoticed.
 var userReferenceColumns = map[string]string{
 	// ON DELETE CASCADE from users.
-	"app_passwords.user_id":          "cascade",
-	"library_acl.user_id":            "cascade",
-	"login_challenges.user_id":       "cascade",
-	"playback_sessions.user_id":      "cascade",
-	"playlists.owner_id":             "cascade",
-	"sessions.user_id":               "cascade",
-	"user_blocked_tags.user_id":      "cascade",
-	"user_blocked_keywords.user_id":  "cascade",
-	"user_access_windows.user_id":    "cascade",
-	"user_item_access_rules.user_id": "cascade",
-	"user_item_data.user_id":         "cascade",
-	"user_preferences.user_id":       "cascade",
-	"user_recovery_codes.user_id":    "cascade",
-	"user_totp.user_id":              "cascade",
-	"user_track_preferences.user_id": "cascade",
-	"watch_stats_daily.user_id":      "cascade",
-	"watch_stats_history.user_id":    "cascade",
+	"app_passwords.user_id":            "cascade",
+	"library_acl.user_id":              "cascade",
+	"login_challenges.user_id":         "cascade",
+	"playback_sessions.user_id":        "cascade",
+	"playlists.owner_id":               "cascade",
+	"sessions.user_id":                 "cascade",
+	"user_blocked_tags.user_id":        "cascade",
+	"user_blocked_keywords.user_id":    "cascade",
+	"user_access_windows.user_id":      "cascade",
+	"user_item_access_rules.user_id":   "cascade",
+	"user_item_data.user_id":           "cascade",
+	"user_preferences.user_id":         "cascade",
+	"user_recovery_codes.user_id":      "cascade",
+	"user_totp.user_id":                "cascade",
+	"user_track_preferences.user_id":   "cascade",
+	"user_version_preferences.user_id": "cascade",
+	"session_track_selections.user_id": "cascade",
+	"watch_stats_daily.user_id":        "cascade",
+	"watch_stats_history.user_id":      "cascade",
 	// ON DELETE SET NULL: the row stays without attribution.
 	"client_rules.created_by":                "set null",
 	"collections.created_by":                 "set null",
@@ -121,6 +123,8 @@ func (f userDataFixture) seed(t *testing.T, native, web domain.Actor) (share, gu
 	}
 	lib := f.registration.Library.ID
 	f.exec(t, `INSERT INTO user_track_preferences(user_id,item_id,audio_language) VALUES($1::uuid,$2::uuid,'ja')`, uid, f.item)
+	f.exec(t, `INSERT INTO user_version_preferences(user_id,max_height,dynamic_range) VALUES($1::uuid,1080,'sdr')`, uid)
+	f.exec(t, `INSERT INTO session_track_selections(user_id,item_id,source_id,play_key,subtitle_track) SELECT $1::uuid,m.item_id,m.id,'purge-play','off' FROM media_sources m WHERE m.item_id=$2::uuid LIMIT 1`, uid, f.item)
 	f.exec(t, `INSERT INTO user_blocked_tags(user_id,tag) VALUES($1::uuid,'horror')`, uid)
 	f.exec(t, `INSERT INTO user_blocked_keywords(user_id,keyword) VALUES($1::uuid,'gore')`, uid)
 	// The window must be exported but not open while the test runs: an open
@@ -444,7 +448,7 @@ func TestUserDataExportSnapshotWithoutSecrets(t *testing.T) {
 		}
 		text.Write(r.Data)
 	}
-	for _, kind := range []string{"account", "preferences", "trackPreference", "blockedTag", "blockedKeyword", "accessWindow", "libraryAccess", "itemAccessRule", "itemData", "playbackSession",
+	for _, kind := range []string{"account", "preferences", "trackPreference", "versionPreference", "sessionTrack", "blockedTag", "blockedKeyword", "accessWindow", "libraryAccess", "itemAccessRule", "itemData", "playbackSession",
 		"playbackSample", "watchStatsDay", "watchStatsItem", "session", "appPassword", "shareLink", "clientControlHit", "auditEvent"} {
 		if counts[kind] == 0 {
 			t.Errorf("export has no %s record", kind)

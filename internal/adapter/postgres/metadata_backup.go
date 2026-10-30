@@ -46,7 +46,7 @@ var metadataBackupTables = map[string][]string{
 	"client_control_policy": {"client_control_policy"}, "client_rule": {"client_rules"}, "library_network_rule": {"library_network_rules"},
 	"webhook": {"webhooks"}, "scan_schedule": {"scan_schedules"},
 	"collection": {"collections"}, "collection_item": {"collection_items"}, "playlist": {"playlists"}, "playlist_item": {"playlist_items"},
-	"user_preference": {"user_preferences"}, "site_appearance": {"site_appearance"}, "site_plugins": {"site_plugins"}, "audit_retention": {"audit_retention"},
+	"user_preference": {"user_preferences"}, "user_version_preference": {"user_version_preferences"}, "site_appearance": {"site_appearance"}, "site_plugins": {"site_plugins"}, "audit_retention": {"audit_retention"},
 }
 
 // Reasons a table stays out of metadata backups. pg_dump carries all of
@@ -92,7 +92,7 @@ var metadataBackupExcluded = map[string]string{
 	"catalog_scan_pending": excludedDerived, "image_variants": excludedDerived, "media_sidecar_tracks": excludedDerived,
 	"item_embedded_cover_attempts": excludedDerived, "item_chapter_image_attempts": excludedDerived, "item_image_fetch_failures": excludedDerived, "scan_watch_state": excludedDerived,
 
-	"playback_sessions": excludedObservation, "playback_samples": excludedObservation, "watch_stats_daily": excludedObservation,
+	"playback_sessions": excludedObservation, "playback_samples": excludedObservation, "session_track_selections": excludedObservation, "watch_stats_daily": excludedObservation,
 	"watch_stats_history": excludedObservation, "known_clients": excludedObservation, "known_client_sessions": excludedObservation,
 	"client_control_hits": excludedObservation, "webhook_deliveries": excludedObservation, "webhook_delivery_attempts": excludedObservation,
 	"job_metric_epoch": excludedObservation, "job_metric_totals": excludedObservation, "job_metric_buckets": excludedObservation,
@@ -160,6 +160,7 @@ func metadataExportQueries(passwordHashes bool) []metadataExportQuery {
 		{"playlist", `SELECT to_jsonb(x)::text FROM (SELECT id,owner_id,name,public,created_at,updated_at FROM playlists p WHERE ` + notGuestSQL("p.owner_id") + `) x ORDER BY x.id`},
 		{"playlist_item", `SELECT to_jsonb(x)::text FROM (SELECT e.id,e.playlist_id,e.item_id,e.position,e.added_at FROM playlist_items e JOIN playlists p ON p.id=e.playlist_id WHERE ` + notGuestSQL("p.owner_id") + `) x ORDER BY x.id`},
 		{"user_preference", `SELECT to_jsonb(x)::text FROM (SELECT user_id,theme,density,layout,updated_at FROM user_preferences p WHERE ` + notGuestSQL("p.user_id") + `) x ORDER BY x.user_id`},
+		{"user_version_preference", `SELECT to_jsonb(x)::text FROM (SELECT user_id,max_height,dynamic_range,prefer_smaller,max_bitrate,updated_at FROM user_version_preferences p WHERE ` + notGuestSQL("p.user_id") + `) x ORDER BY x.user_id`},
 		// Single-row documents: revisions and change times belong to the
 		// instance, like those of the access and client control policies.
 		{"site_appearance", `SELECT to_jsonb(x)::text FROM (SELECT default_theme,tokens,custom_css,allow_external_fonts,font_hosts,default_layout FROM site_appearance WHERE id) x`},

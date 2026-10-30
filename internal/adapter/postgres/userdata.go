@@ -36,6 +36,10 @@ var userDataSections = []userDataSection{
 	{"trackPreference", `SELECT id::text AS "id",item_id::text AS "itemId",source_id::text AS "sourceId",audio_language AS "audioLanguage",audio_commentary AS "audioCommentary",
  audio_track AS "audioTrack",subtitle_mode AS "subtitleMode",subtitle_language AS "subtitleLanguage",subtitle_sdh AS "subtitleSdh",subtitle_track AS "subtitleTrack",
  updated_at AS "updatedAt" FROM user_track_preferences WHERE user_id=$1::uuid AND (item_id IS NULL OR ` + exportItemVisible("item_id") + `)`, `"id"`},
+	{"versionPreference", `SELECT max_height AS "maxHeight",dynamic_range AS "dynamicRange",prefer_smaller AS "preferSmaller",max_bitrate AS "maxBitrate",updated_at AS "updatedAt"
+ FROM user_version_preferences WHERE user_id=$1::uuid`, `"updatedAt"`},
+	{"sessionTrack", `SELECT item_id::text AS "itemId",source_id::text AS "sourceId",audio_track AS "audioTrack",subtitle_track AS "subtitleTrack",updated_at AS "updatedAt"
+ FROM session_track_selections WHERE user_id=$1::uuid AND ` + exportItemVisible("item_id"), `"itemId"`},
 	{"playlist", `SELECT id::text AS "id",name AS "name",public AS "public",created_at AS "createdAt",updated_at AS "updatedAt" FROM playlists WHERE owner_id=$1::uuid`, `"createdAt","id"`},
 	{"playlistItem", `SELECT i.playlist_id::text AS "playlistId",i.item_id::text AS "itemId",i.position AS "position",i.added_at AS "addedAt"
  FROM playlist_items i JOIN playlists p ON p.id=i.playlist_id WHERE p.owner_id=$1::uuid AND ` + exportItemVisible("i.item_id"), `"playlistId","position","itemId"`},

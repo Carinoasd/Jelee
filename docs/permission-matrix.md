@@ -43,7 +43,7 @@
 | P13 | 播放信息与原文件直投（流、外挂与内嵌字幕、音轨、附件、OCR 字幕） | ✗ | ✓ | ✓（需分享允许播放） | ✓ | 原生 | 无变化（`dev-transcode` 刻意不接） | 网页会话请求流返回 403 `web_playback_disabled`；不转码（[ADR 0007](adr/0007-no-encoder-direct-play-only.md)） |
 | P14 | 播放上报、已播放标记、续播列表 | ✗ | ✓ | ✓（只读分享拒绝写入） | ✓ | 部分原生（播放上报只给原生会话） | 无变化 | 见[播放会话与进度](playback-progress.md) |
 | P15 | 全站播放会话监控 | ✗ | ✗ | ✗ | ✓ | 任意 | 无变化 | — |
-| P16 | 音轨与字幕偏好 | ✗ | ✓（只限本人） | ✗ | ✓ | 任意 | 无变化 | 用户默认偏好与条目级偏好 |
+| P16 | 音轨与字幕偏好、版本偏好 | ✗ | ✓（只限本人） | ✗ | ✓ | 任意 | 无变化 | 用户默认偏好与条目级偏好；版本偏好（G20.2）只限本人 |
 | P17 | 合集 | ✗ | 部分（只读） | ✗ | ✓ | 任意 | 无变化 | 维护合集只限管理员；没有可见成员的合集对非管理员视同不存在 |
 | P18 | 播放清单 | ✗ | ✓（本人清单与他人公开清单） | ✗ | ✓ | 任意 | 无变化 | 见[合集与播放清单](collections-playlists.md) |
 | P19 | 观看统计 | ✗ | 部分（只能读本人统计） | ✗ | ✓ | 任意 | 无变化 | 全站统计与导出只限管理员，见[观看统计](watch-statistics.md) |
@@ -125,6 +125,7 @@ P14 GET /api/v1/users/me/resume
 P15 GET /api/v1/playback/sessions
 P16 GET,PUT /api/v1/items/{id}/track-preferences
 P16 GET,PUT /api/v1/users/me/track-preferences
+P16 GET,PUT /api/v1/users/me/version-preferences
 P17 * /api/v1/collections**
 P18 * /api/v1/playlists**
 P19 GET /api/v1/users/me/watch-stats

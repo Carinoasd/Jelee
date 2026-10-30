@@ -57,7 +57,7 @@ var MetadataBackupKinds = []string{
 	"user_blocked_keyword", "user_access_window", "access_template",
 	"client_control_policy", "client_rule", "library_network_rule",
 	"webhook", "scan_schedule",
-	"collection", "collection_item", "playlist", "playlist_item", "user_preference",
+	"collection", "collection_item", "playlist", "playlist_item", "user_preference", "user_version_preference",
 	"site_appearance", "site_plugins", "audit_retention",
 }
 

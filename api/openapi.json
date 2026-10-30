@@ -6104,7 +6104,7 @@
           },
           "version": {
             "additionalProperties": true,
-            "description": "G20.2 version labels with qualityScore and displayName; sources are listed by qualityScore descending. Other label fields may be added.",
+            "description": "G20.2 version labels with qualityScore and displayName. Playback information lists sources in the caller's default version order (version preference, main version, qualityScore descending). Other label fields may be added.",
             "properties": {
               "displayName": {
                 "type": "string"
@@ -8104,6 +8104,11 @@
         "additionalProperties": false,
         "description": "A playback report. playSessionId is the identifier returned by start (or any client chosen key); without it the session is one per authenticated session and itemId. Reports are buffered and written in batches; repeated reports between two writes keep only the latest state.",
         "properties": {
+          "audioTrack": {
+            "description": "The audio track the client plays: e:<stream index> or x:<external track id> (G20.4). A change is recorded as the session track choice of the item and applied to the same version on resume and in later playback information; a track the version does not have is ignored.",
+            "pattern": "^(e:(0|[1-9][0-9]{0,4})|x:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$",
+            "type": "string"
+          },
           "failed": {
             "description": "Stop only: the playback failed. A failed playback never counts as watched.",
             "type": "boolean"
@@ -8141,6 +8146,11 @@
           "sourceId": {
             "description": "Version being played; it must belong to the item. Start only; defaults to the best version.",
             "format": "uuid",
+            "type": "string"
+          },
+          "subtitleTrack": {
+            "description": "The subtitle the client shows, or off (G20.4); recorded like audioTrack.",
+            "pattern": "^(off|e:(0|[1-9][0-9]{0,4})|x:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$",
             "type": "string"
           }
         },
@@ -8511,7 +8521,7 @@
           },
           "version": {
             "additionalProperties": true,
-            "description": "G20.2 version labels with qualityScore and displayName; sources are listed by qualityScore descending. Other label fields may be added.",
+            "description": "G20.2 version labels with qualityScore and displayName. Playback information lists sources in the caller's default version order (version preference, main version, qualityScore descending). Other label fields may be added.",
             "properties": {
               "displayName": {
                 "type": "string"
@@ -11497,6 +11507,8 @@
               "account",
               "preferences",
               "trackPreference",
+              "versionPreference",
+              "sessionTrack",
               "blockedTag",
               "libraryAccess",
               "itemAccessRule",
@@ -11707,6 +11719,18 @@
         ],
         "type": "object"
       },
+      "UserVersionPreference": {
+        "additionalProperties": false,
+        "properties": {
+          "preference": {
+            "$ref": "#/components/schemas/VersionPreference"
+          }
+        },
+        "required": [
+          "preference"
+        ],
+        "type": "object"
+      },
       "VersionOperation": {
         "additionalProperties": false,
         "properties": {
@@ -11848,6 +11872,149 @@
           "itemId",
           "exclusions",
           "operations"
+        ],
+        "type": "object"
+      },
+      "VersionPreference": {
+        "additionalProperties": false,
+        "description": "The caller's default version preference (G20.2). Applied after the client's declared capabilities excluded what it cannot play as it is, in the order bandwidth, resolution, dynamic range, size; equal versions keep the main version, quality score, source ID order. A null or absent member sets no rule. Nothing is converted.",
+        "properties": {
+          "dynamicRange": {
+            "oneOf": [
+              {
+                "description": "Prefer SDR or HDR (HDR10, HDR10+, HLG, Dolby Vision) versions.",
+                "enum": [
+                  "sdr",
+                  "hdr"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "maxBitrate": {
+            "oneOf": [
+              {
+                "description": "The user's bandwidth ceiling in bits per second. Versions with a known higher bit rate come after the fitting ones, lower first; this never hides a version (the client's own declared ceiling does).",
+                "format": "int64",
+                "maximum": 1000000000000,
+                "minimum": 1,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "maxHeight": {
+            "oneOf": [
+              {
+                "description": "Resolution ceiling by tier (1080 keeps 1080p, including scope pictures such as 1920x800). Versions above it come after the fitting ones, smaller first.",
+                "enum": [
+                  480,
+                  576,
+                  720,
+                  1080,
+                  1440,
+                  2160,
+                  4320
+                ],
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "preferSmaller": {
+            "oneOf": [
+              {
+                "description": "true prefers smaller files.",
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object"
+      },
+      "VersionSelection": {
+        "additionalProperties": false,
+        "properties": {
+          "defaultSourceId": {
+            "description": "The version a client should start with; absent when no version is playable.",
+            "format": "uuid",
+            "type": "string"
+          },
+          "excluded": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "reasons": {
+                  "items": {
+                    "enum": [
+                      "container_unsupported",
+                      "source_not_probed",
+                      "video_codec_unsupported",
+                      "audio_codec_unsupported",
+                      "bitrate_exceeds_client"
+                    ],
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                "sourceId": {
+                  "format": "uuid",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "sourceId",
+                "reasons"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "preferences": {
+            "description": "The caller's version preference rules that are set.",
+            "items": {
+              "enum": [
+                "bandwidth",
+                "resolution",
+                "dynamic_range",
+                "size"
+              ],
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "reason": {
+            "description": "The rule that put the default ahead of the next playable version (G20.2), in precedence order: the client's declared capabilities (only_playable), the user's bandwidth, resolution, dynamic range and size preferences, the main version, the quality score, the source ID.",
+            "enum": [
+              "only_version",
+              "only_playable",
+              "bandwidth_preference",
+              "resolution_preference",
+              "dynamic_range_preference",
+              "size_preference",
+              "primary_version",
+              "quality_score",
+              "stable_order",
+              "none_playable",
+              "no_version"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "reason",
+          "preferences",
+          "excluded"
         ],
         "type": "object"
       },
@@ -26644,7 +26811,7 @@
     },
     "/api/v1/items/{id}/playback": {
       "get": {
-        "description": "Native sessions only. Lists every media source of the item with container, size, duration, bit rate, version labels, embedded video, audio and subtitle streams from the current probe result, and external subtitle and audio files. Sources without a current probe result are listed with probed=false. No query parameters are accepted; transformation parameters are rejected with 409 before anything else.",
+        "description": "Native sessions only. Lists every media source of the item, in the caller's default version order with the selection that explains the default (G20.2), with container, size, duration, bit rate, version labels, embedded video, audio and subtitle streams from the current probe result, and external subtitle and audio files. Sources without a current probe result are listed with probed=false. No query parameters are accepted; transformation parameters are rejected with 409 before anything else.",
         "parameters": [
           {
             "in": "path",
@@ -26673,7 +26840,11 @@
                           "format": "uuid",
                           "type": "string"
                         },
+                        "selection": {
+                          "$ref": "#/components/schemas/VersionSelection"
+                        },
                         "sources": {
+                          "description": "In the caller's default version order: the user's version preference, then the main version, the quality score and the source ID.",
                           "items": {
                             "$ref": "#/components/schemas/PlaybackSource"
                           },
@@ -26683,7 +26854,8 @@
                       "required": [
                         "itemId",
                         "delivery",
-                        "sources"
+                        "sources",
+                        "selection"
                       ],
                       "type": "object"
                     }
@@ -26910,13 +27082,22 @@
                         "itemId": {
                           "format": "uuid",
                           "type": "string"
+                        },
+                        "selection": {
+                          "allOf": [
+                            {
+                              "$ref": "#/components/schemas/VersionSelection"
+                            }
+                          ],
+                          "description": "The default version among the direct playable ones; the declaration only excludes, it never makes a conversion acceptable."
                         }
                       },
                       "required": [
                         "itemId",
                         "delivery",
                         "directPlayable",
-                        "decisions"
+                        "decisions",
+                        "selection"
                       ],
                       "type": "object"
                     }
@@ -28049,7 +28230,7 @@
         "summary": "Read the caller's track preferences for an item (G16.5, G20.4)"
       },
       "put": {
-        "description": "sourceId selects a version level; without it the item level. Named tracks exist on the version level only. Playback information (GET /api/v1/items/{id}/playback, compat PlaybackInfo) starts with the tracks the merged levels pick. Not audited: preferences change which original track a client starts with, nothing else.",
+        "description": "sourceId selects a version level; without it the item level. Named tracks exist on the version level only. Playback information (GET /api/v1/items/{id}/playback, compat PlaybackInfo) starts with the tracks the merged levels pick, after an unexpired session choice of the same version (G20.4); storing a level removes the item's session choice. Not audited: preferences change which original track a client starts with, nothing else.",
         "parameters": [
           {
             "in": "path",
@@ -51530,7 +51711,7 @@
         "summary": "Read the caller's default track preferences"
       },
       "put": {
-        "description": "Used for every item without its own level. Named tracks are not allowed here.",
+        "description": "Used for every item without its own level. Named tracks are not allowed here. Also removes every session track choice of the caller (G20.4).",
         "requestBody": {
           "content": {
             "application/json": {
@@ -52486,6 +52667,385 @@
           }
         ],
         "summary": "Replace all recovery codes after a current authenticator code verifies; returns the new codes once; audited. Requires a web session (403 forbidden for native sessions, including those an application password issued)."
+      }
+    },
+    "/api/v1/users/me/version-preferences": {
+      "get": {
+        "description": "Every member is null until set.",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/UserVersionPreference"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "invalid_request": {
+                    "$ref": "#/components/examples/error_invalid_request"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 400"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "authentication_required": {
+                    "$ref": "#/components/examples/error_authentication_required"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 401"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "forbidden": {
+                    "$ref": "#/components/examples/error_forbidden"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 403"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "not_found": {
+                    "$ref": "#/components/examples/error_not_found"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "The item, version, exclusion or operation is missing or not visible to the caller; all are answered alike."
+          },
+          "408": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "request_timeout": {
+                    "$ref": "#/components/examples/error_request_timeout"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 408"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "conflict": {
+                    "$ref": "#/components/examples/error_conflict"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 409"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "body_too_large": {
+                    "$ref": "#/components/examples/error_body_too_large"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 413"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "unsupported_media_type": {
+                    "$ref": "#/components/examples/error_unsupported_media_type"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 415"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "not_ready": {
+                    "$ref": "#/components/examples/error_not_ready"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 503"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "internal_error": {
+                    "$ref": "#/components/examples/error_internal_error"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Jelee error envelope with code, message, details and traceId; see the Error schema."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "webSession": []
+          }
+        ],
+        "summary": "Read the caller's version preference (G20.2)"
+      },
+      "put": {
+        "description": "Orders the versions of every item in playback information (GET /api/v1/items/{id}/playback, POST /api/v1/items/{id}/playback/check, compat PlaybackInfo). A body without any member removes it. Not audited.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VersionPreference"
+              }
+            }
+          },
+          "description": "Maximum 4 KiB; exactly one object; unknown or duplicate keys rejected; null only where the schema allows it.",
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/UserVersionPreference"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "invalid_request": {
+                    "$ref": "#/components/examples/error_invalid_request"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 400"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "authentication_required": {
+                    "$ref": "#/components/examples/error_authentication_required"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 401"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "forbidden": {
+                    "$ref": "#/components/examples/error_forbidden"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 403"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "not_found": {
+                    "$ref": "#/components/examples/error_not_found"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "The item, version, exclusion or operation is missing or not visible to the caller; all are answered alike."
+          },
+          "408": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "request_timeout": {
+                    "$ref": "#/components/examples/error_request_timeout"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 408"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "conflict": {
+                    "$ref": "#/components/examples/error_conflict"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 409"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "body_too_large": {
+                    "$ref": "#/components/examples/error_body_too_large"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 413"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "unsupported_media_type": {
+                    "$ref": "#/components/examples/error_unsupported_media_type"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 415"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "not_ready": {
+                    "$ref": "#/components/examples/error_not_ready"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 503"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "internal_error": {
+                    "$ref": "#/components/examples/error_internal_error"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Jelee error envelope with code, message, details and traceId; see the Error schema."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "webSession": []
+          }
+        ],
+        "summary": "Replace the caller's version preference"
       }
     },
     "/api/v1/users/me/watch-stats": {

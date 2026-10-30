@@ -41,6 +41,13 @@ func playbackSpecification(paths, schemas map[string]any) {
 		}, "kind", "external", "supported")),
 	}, "sourceId", "directPlay", "reasons", "tracks")
 
+	schemas["VersionSelection"] = objectSchema(map[string]any{
+		"defaultSourceId": map[string]any{"type": "string", "format": "uuid", "description": "The version a client should start with; absent when no version is playable."},
+		"reason": map[string]any{"type": "string", "enum": []string{"only_version", "only_playable", "bandwidth_preference", "resolution_preference", "dynamic_range_preference", "size_preference", "primary_version", "quality_score", "stable_order", "none_playable", "no_version"},
+			"description": "The rule that put the default ahead of the next playable version (G20.2), in precedence order: the client's declared capabilities (only_playable), the user's bandwidth, resolution, dynamic range and size preferences, the main version, the quality score, the source ID."},
+		"preferences": map[string]any{"type": "array", "items": map[string]any{"type": "string", "enum": []string{"bandwidth", "resolution", "dynamic_range", "size"}}, "description": "The caller's version preference rules that are set."},
+		"excluded":    array(objectSchema(map[string]any{"sourceId": uuid, "reasons": array(reason)}, "sourceId", "reasons")),
+	}, "reason", "preferences", "excluded")
 	common := func(op map[string]any) {
 		op["security"] = []any{map[string]any{"bearer": []string{}}}
 		op["x-jelee-session"] = "native"
@@ -51,11 +58,13 @@ func playbackSpecification(paths, schemas map[string]any) {
 		responses["409"] = map[string]any{"description": "transcode_disabled: the query or body carries a transformation parameter (G10.3)."}
 	}
 	info := operation("Describe the original resources of an item", "200", "400", "401", "403", "404", "408", "409", "413", "415", "503")
-	info["description"] = "Native sessions only. Lists every media source of the item with container, size, duration, bit rate, version labels, embedded video, audio and subtitle streams from the current probe result, and external subtitle and audio files. Sources without a current probe result are listed with probed=false. No query parameters are accepted; transformation parameters are rejected with 409 before anything else."
+	info["description"] = "Native sessions only. Lists every media source of the item, in the caller's default version order with the selection that explains the default (G20.2), with container, size, duration, bit rate, version labels, embedded video, audio and subtitle streams from the current probe result, and external subtitle and audio files. Sources without a current probe result are listed with probed=false. No query parameters are accepted; transformation parameters are rejected with 409 before anything else."
 	common(info)
 	info["responses"].(map[string]any)["200"].(map[string]any)["content"] = map[string]any{"application/json": map[string]any{"schema": objectSchema(map[string]any{"data": objectSchema(map[string]any{
-		"itemId": uuid, "delivery": schemaRef("PlaybackDelivery"), "sources": array(schemaRef("PlaybackSource")),
-	}, "itemId", "delivery", "sources")}, "data")}}
+		"itemId": uuid, "delivery": schemaRef("PlaybackDelivery"),
+		"sources":   map[string]any{"type": "array", "items": schemaRef("PlaybackSource"), "description": "In the caller's default version order: the user's version preference, then the main version, the quality score and the source ID."},
+		"selection": schemaRef("VersionSelection"),
+	}, "itemId", "delivery", "sources", "selection")}, "data")}}
 	paths["/api/v1/items/{id}/playback"] = map[string]any{"get": info}
 
 	check := operation("Decide direct play against declared client capabilities", "200", "400", "401", "403", "404", "408", "409", "413", "415", "503")
@@ -66,7 +75,8 @@ func playbackSpecification(paths, schemas map[string]any) {
 		"itemId": uuid, "delivery": schemaRef("PlaybackDelivery"),
 		"directPlayable": map[string]any{"type": "boolean", "description": "True when at least one source is direct playable."},
 		"decisions":      array(schemaRef("PlaybackDecision")),
-	}, "itemId", "delivery", "directPlayable", "decisions")}, "data")}}
+		"selection":      map[string]any{"allOf": []any{schemaRef("VersionSelection")}, "description": "The default version among the direct playable ones; the declaration only excludes, it never makes a conversion acceptable."},
+	}, "itemId", "delivery", "directPlayable", "decisions", "selection")}, "data")}}
 	paths["/api/v1/items/{id}/playback/check"] = map[string]any{"post": check}
 }
 
@@ -124,7 +134,7 @@ func mediaSourceSchema(withURL bool) map[string]any {
 		"sizeBytes":      nonNegative,
 		"durationMicros": nonNegative,
 		"bitRate":        map[string]any{"type": "integer", "minimum": 1, "description": "Bits per second as probed, or size × 8 ÷ duration when the container states none."},
-		"version": map[string]any{"type": "object", "description": "G20.2 version labels with qualityScore and displayName; sources are listed by qualityScore descending. Other label fields may be added.",
+		"version": map[string]any{"type": "object", "description": "G20.2 version labels with qualityScore and displayName. Playback information lists sources in the caller's default version order (version preference, main version, qualityScore descending). Other label fields may be added.",
 			"properties": map[string]any{"displayName": str, "qualityScore": integer}, "required": []string{"displayName", "qualityScore"}, "additionalProperties": true},
 		"videoTracks": array(objectSchema(map[string]any{
 			"index": nonNegative, "codec": str, "profile": str, "level": integer, "width": integer, "height": integer,

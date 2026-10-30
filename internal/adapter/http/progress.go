@@ -23,6 +23,10 @@ type playbackReportInput struct {
 	Paused        bool   `json:"paused"`
 	Failed        bool   `json:"failed"`
 	FailureReason string `json:"failureReason"`
+	// AudioTrack and SubtitleTrack name the tracks the client plays
+	// (G20.4): "e:<index>", "x:<track ID>", or "off" for subtitles.
+	AudioTrack    string `json:"audioTrack"`
+	SubtitleTrack string `json:"subtitleTrack"`
 }
 
 func (s *Server) progressRoutes(r chi.Router) {
@@ -111,6 +115,9 @@ func (s *Server) playbackReport(kind domain.PlaybackReportKind) http.HandlerFunc
 			Paused: input.Paused, Failed: input.Failed, FailureReason: input.FailureReason}
 		if input.PositionTicks != nil {
 			report.PositionTicks, report.PositionKnown = *input.PositionTicks, true
+		}
+		if input.AudioTrack != "" || input.SubtitleTrack != "" {
+			report.Tracks = &domain.PlaybackTrackReport{AudioTrack: input.AudioTrack, SubtitleTrack: input.SubtitleTrack}
 		}
 		if kind == domain.PlaybackReportStart && input.ItemID == "" || input.PlaySessionID == "" && !domain.ValidID(input.ItemID) {
 			WriteError(w, r, domain.ErrInvalid)

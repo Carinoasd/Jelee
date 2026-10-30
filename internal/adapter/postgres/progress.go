@@ -435,7 +435,8 @@ func (s *Store) ClearPlaybackHistory(ctx context.Context, actor domain.Actor) er
 }
 
 // deletePlaybackData removes every playback row of a user, including the
-// watch statistics computed from them (G23.4); samples follow their
+// watch statistics computed from them (G23.4) and the session track
+// choices (G20.4); samples follow their
 // sessions. Sessions go first: an aggregation that already locked them
 // commits before the statistics rows are deleted, and one that has not
 // finds them gone and writes nothing.
@@ -453,6 +454,10 @@ func deletePlaybackData(ctx context.Context, tx pgx.Tx, userID string) (sessions
 		return 0, 0, storageError(err)
 	}
 	if _, err = tx.Exec(ctx, `DELETE FROM watch_stats_history WHERE user_id=$1::uuid`, userID); err != nil {
+		return 0, 0, storageError(err)
+	}
+	// Session track choices (G20.4) are playback history too.
+	if _, err = tx.Exec(ctx, `DELETE FROM session_track_selections WHERE user_id=$1::uuid`, userID); err != nil {
 		return 0, 0, storageError(err)
 	}
 	return sessions, data, nil

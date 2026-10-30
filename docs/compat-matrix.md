@@ -208,6 +208,7 @@ PlaybackInfo 隨媒體庫模組掛載；串流、字幕與音訊路由只在直�
   - `MediaSourceId`：只考慮該來源。
   - 伺服器不知道的值（未探測來源的編碼、未知位元率、未知容器）不據以拒絕；客戶端可以嘗試，拿到的永遠是原檔。
   - `CodecProfiles`、`ContainerProfiles` 的條件（解析度、Level、位元深度等）與 `SubtitleProfiles` **目前不評估**；`TranscodingProfiles`、`MaxAudioChannels`、串流索引、`StartTimeTicks`、`LiveStreamId` 等只關乎轉換的成員接受但忽略。
+  - **預設版本**（G20.2）：目錄已依使用者的版本偏好排序來源（頻寬上限、解析度上限、SDR／HDR、偏好較小檔案，之後才是主版本、品質分數、來源 ID），上述聲明只負責排除不能直投的來源，所以 `MediaSources` 的第一個就是預設版本；聲明永遠不會讓轉換變成可接受，排除到沒有來源時照舊 `NoCompatibleStream`。選擇理由碼（`only_version`、`only_playable`、`bandwidth_preference`、`resolution_preference`、`dynamic_range_preference`、`size_preference`、`primary_version`、`quality_score`、`stable_order`、`none_playable`）與被排除數量寫在 debug 日誌 `default version chosen`（只有來源 ID 與固定代碼），回應本身維持上游形狀。詳見 [多版本](item-versions.md)。
 - **回應**：`MediaSources` 只含可直投的來源（`SupportsDirectPlay`=true，`SupportsTranscoding`／`SupportsDirectStream`=false，沒有任何轉碼欄位），`PlaySessionId` 為 32 位 hex 隨機值；客戶端在播放回報中帶回它，伺服器以（使用者，`PlaySessionId`）識別同一個播放工作階段並去重。**沒有可直投來源時**（條目沒有來源、不是可播放條目、客戶端聲明無法解碼、超出位元率、直投關閉或 `EnableDirectPlay=false`）回 200、`{"MediaSources":[],"ErrorCode":"NoCompatibleStream"}`，不提供任何轉碼替代；上游只在沒有來源時這樣回答，其他情況會改給轉碼網址，這裡刻意不做（G10）。
 
 **`GET`／`HEAD /Videos/{itemId}/stream`、`/Videos/{itemId}/stream.{container}`**
@@ -230,7 +231,7 @@ PlaybackInfo 隨媒體庫模組掛載；串流、字幕與音訊路由只在直�
 
 隨媒體庫模組掛載。回報交給伺服器自己的進度緩衝（`app.Progress`，詳見[播放進度](playback-progress.md)）：不是每次回報寫一次資料庫，而是同一工作階段在兩次 flush 之間只保留最新狀態，每個 flush 間隔一個批次語句寫完。
 
-- **`POST /Sessions/Playing`**（`PlaybackStartInfo`）、**`/Sessions/Playing/Progress`**（`PlaybackProgressInfo`）、**`/Sessions/Playing/Stopped`**（`PlaybackStopInfo`）：讀 `ItemId`、`MediaSourceId`（只在開始時、且是 ID 形態才用來選版本）、`PositionTicks`、`IsPaused`、`PlaySessionId`、`Failed`（停止時）；其他成員（串流索引、音量、佇列、`Item`、`PlayMethod`、`MaxStreamingBitrate`…）忽略，投遞方式一律記為 direct。工作階段鍵是（使用者，`PlaySessionId`）；沒帶或格式不合時改用（目前 native 工作階段，`ItemId`）。重複的開始回報併入同一工作階段，重複的停止不再寫入。主體必須是 `application/json`（否則 415），`ItemId` 格式錯誤 400。**看不到的條目、不存在的條目、已結束的工作階段一律回 204 且不記錄**，所以這三條路由無法用來探測條目是否存在。緩衝已滿（`playback.maxSessions`）或資料庫不可用回 503。
+- **`POST /Sessions/Playing`**（`PlaybackStartInfo`）、**`/Sessions/Playing/Progress`**（`PlaybackProgressInfo`）、**`/Sessions/Playing/Stopped`**（`PlaybackStopInfo`）：讀 `ItemId`、`MediaSourceId`（只在開始時、且是 ID 形態才用來選版本）、`PositionTicks`、`IsPaused`、`PlaySessionId`、`Failed`（停止時）、`AudioStreamIndex`／`SubtitleStreamIndex`（G20.4：客戶端目前播放的音軌／字幕，`-1` 為關閉字幕；與上次不同時記為該條目的會話選軌，只對這個版本、30 天內有效；之後同一使用者續播或再取 PlaybackInfo 時 `DefaultAudioStreamIndex`／`DefaultSubtitleStreamIndex` 先套用它。索引超出範圍或版本沒有該軌只略過選軌，不影響回報本身，也不改變投遞）；其他成員（音量、佇列、`Item`、`PlayMethod`、`MaxStreamingBitrate`…）忽略，投遞方式一律記為 direct。工作階段鍵是（使用者，`PlaySessionId`）；沒帶或格式不合時改用（目前 native 工作階段，`ItemId`）。重複的開始回報併入同一工作階段，重複的停止不再寫入。主體必須是 `application/json`（否則 415），`ItemId` 格式錯誤 400。**看不到的條目、不存在的條目、已結束的工作階段一律回 204 且不記錄**，所以這三條路由無法用來探測條目是否存在。緩衝已滿（`playback.maxSessions`）或資料庫不可用回 503。
 - **`POST /Sessions/Playing/Ping?playSessionId=`**：更新最後回報時間，避免逾時關閉；缺 `playSessionId` 400，未知工作階段 204 不動作。
 - **`POST`／`DELETE /UserPlayedItems/{itemId}`**（及舊式 `/Users/{userId}/PlayedItems/{itemId}`）：比照上游：標記已播放＝播放次數 +1、清除續播點、`LastPlayedDate`＝`datePlayed`（ISO 8601 或舊式 `yyyyMMddHHmmss`，UTC）或現在；標記未播放＝播放次數歸零、清除續播點。`userId` 規則同媒體庫模組（自己，或管理員代他人）。看不到或不存在回隱藏狀態。
 - **`GET /UserItems/{itemId}/UserData`**（及 `/Users/{userId}/Items/{itemId}/UserData`）：單一條目的 `UserItemDataDto`；看不到回隱藏狀態。

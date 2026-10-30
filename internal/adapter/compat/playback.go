@@ -221,13 +221,16 @@ func (rt *router) playbackInfo(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if playableKind(item.Kind) {
-		sources, err := catalog.PlaybackSources(r.Context(), rt.playbackActor(r, principal), item.ID)
+		// Sources come in the user's default version order (G20.2); the
+		// declaration only removes what the client cannot play as it is,
+		// so the first listed source is the default version.
+		sources, err := rt.playbackChoice(r, principal, item.ID, req)
 		if err != nil {
 			rt.writeLibraryError(w, err)
 			return
 		}
 		for _, source := range sources {
-			if req.mediaSourceID != "" && source.ID != req.mediaSourceID || !rt.directPlayable(req, source) {
+			if rt.playbackExclusion(req, source) != nil {
 				continue
 			}
 			info, err := rt.mediaSource(itemID, source, item.Title)
@@ -355,40 +358,14 @@ type externalSubtitle struct {
 }
 
 // externalSubtitles numbers the external subtitle files of a source after
-// every embedded stream, as upstream does, in the stable order storage
-// lists them. Files whose extension cannot appear in a route are left out.
+// every embedded stream, as upstream does (domain.UpstreamExternalSubtitles,
+// which also maps reported indexes back to files for G20.4).
 func externalSubtitles(source domain.PlaybackSource) []externalSubtitle {
-	next := 0
-	for _, v := range source.Video {
-		next = max(next, v.Index+1)
-	}
-	for _, a := range source.Audio {
-		next = max(next, a.Index+1)
-	}
-	for _, s := range source.Subtitles {
-		next = max(next, s.Index+1)
-	}
 	var out []externalSubtitle
-	for _, track := range source.External {
-		if track.Kind != domain.SidecarKindSubtitle || !routeToken(track.Format) {
-			continue
-		}
-		out = append(out, externalSubtitle{index: next, track: track})
-		next++
+	for _, e := range domain.UpstreamExternalSubtitles(source) {
+		out = append(out, externalSubtitle{index: e.Index, track: e.Track})
 	}
 	return out
-}
-
-func routeToken(s string) bool {
-	if s == "" || len(s) > 16 {
-		return false
-	}
-	for i := 0; i < len(s); i++ {
-		if c := s[i]; !(c >= 'a' && c <= 'z' || c >= '0' && c <= '9') {
-			return false
-		}
-	}
-	return true
 }
 
 // subtitleURL is the upstream form of an external subtitle URL, relative to

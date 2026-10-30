@@ -89,11 +89,27 @@ func versionsSpecification(paths, schemas map[string]any) {
 			"Within 30 days. A split or merge waits until every later split or merge of the same items is undone (409 version_undo_unavailable). Undoing a merge recreates the absorbed item with its own rows, moves its versions and playback history back and reverses the transfer where the target's rows were not changed since; undoing a split moves the version back, folds what the new item gathered meanwhile into the original by the merge policy and removes the new item and its exclusion. The administrator must see the item the operation kept. Audited as item.version_operation_undone.", "Empty", "VersionOperation", "200", true, itemParams},
 		{"/api/v1/items/{id}/track-preferences", "get", "Read the caller's track preferences for an item (G16.5, G20.4)", "Any signed-in user; their own preferences only.", "", "TrackPreferences", "200", false, itemParams},
 		{"/api/v1/items/{id}/track-preferences", "put", "Replace one level of the caller's track preferences for an item",
-			"sourceId selects a version level; without it the item level. Named tracks exist on the version level only. Playback information (GET /api/v1/items/{id}/playback, compat PlaybackInfo) starts with the tracks the merged levels pick. Not audited: preferences change which original track a client starts with, nothing else.", "TrackPreferenceInput", "TrackPreferences", "200", false, itemParams},
+			"sourceId selects a version level; without it the item level. Named tracks exist on the version level only. Playback information (GET /api/v1/items/{id}/playback, compat PlaybackInfo) starts with the tracks the merged levels pick, after an unexpired session choice of the same version (G20.4); storing a level removes the item's session choice. Not audited: preferences change which original track a client starts with, nothing else.", "TrackPreferenceInput", "TrackPreferences", "200", false, itemParams},
 		{"/api/v1/users/me/track-preferences", "get", "Read the caller's default track preferences", "", "", "UserTrackPreference", "200", false, nil},
-		{"/api/v1/users/me/track-preferences", "put", "Replace the caller's default track preferences", "Used for every item without its own level. Named tracks are not allowed here.", "TrackPreference", "UserTrackPreference", "200", false, nil},
+		{"/api/v1/users/me/track-preferences", "put", "Replace the caller's default track preferences", "Used for every item without its own level. Named tracks are not allowed here. Also removes every session track choice of the caller (G20.4).", "TrackPreference", "UserTrackPreference", "200", false, nil},
+		{"/api/v1/users/me/version-preferences", "get", "Read the caller's version preference (G20.2)", "Every member is null until set.", "", "UserVersionPreference", "200", false, nil},
+		{"/api/v1/users/me/version-preferences", "put", "Replace the caller's version preference",
+			"Orders the versions of every item in playback information (GET /api/v1/items/{id}/playback, POST /api/v1/items/{id}/playback/check, compat PlaybackInfo). A body without any member removes it. Not audited.", "VersionPreference", "UserVersionPreference", "200", false, nil},
 	}
 	schemas["UserTrackPreference"] = objectSchema(map[string]any{"preference": nullable(schemaRef("TrackPreference"))}, "preference")
+	heights := make([]any, 0, len(domain.VersionPreferenceHeights))
+	for _, h := range domain.VersionPreferenceHeights {
+		heights = append(heights, h)
+	}
+	schemas["VersionPreference"] = map[string]any{"type": "object", "additionalProperties": false, "properties": map[string]any{
+		"maxHeight": nullable(map[string]any{"type": "integer", "enum": heights, "description": "Resolution ceiling by tier (1080 keeps 1080p, including scope pictures such as 1920x800). Versions above it come after the fitting ones, smaller first."}),
+		"dynamicRange": nullable(map[string]any{"type": "string", "enum": []string{domain.VersionRangeSDR, domain.VersionRangeHDR},
+			"description": "Prefer SDR or HDR (HDR10, HDR10+, HLG, Dolby Vision) versions."}),
+		"preferSmaller": nullable(map[string]any{"type": "boolean", "description": "true prefers smaller files."}),
+		"maxBitrate": nullable(map[string]any{"type": "integer", "format": "int64", "minimum": 1, "maximum": domain.ClientCapabilityBitrateMax,
+			"description": "The user's bandwidth ceiling in bits per second. Versions with a known higher bit rate come after the fitting ones, lower first; this never hides a version (the client's own declared ceiling does)."}),
+	}, "description": "The caller's default version preference (G20.2). Applied after the client's declared capabilities excluded what it cannot play as it is, in the order bandwidth, resolution, dynamic range, size; equal versions keep the main version, quality score, source ID order. A null or absent member sets no rule. Nothing is converted."}
+	schemas["UserVersionPreference"] = objectSchema(map[string]any{"preference": schemaRef("VersionPreference")}, "preference")
 	for _, r := range routes {
 		op := operation(r.summary, r.status, "400", "401", "403", "404", "408", "409", "413", "415", "503")
 		op["security"] = bearer

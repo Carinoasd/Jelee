@@ -16,6 +16,7 @@ import (
 // httpVersionRepository answers version and preference calls; err, when set,
 // is returned by every decision.
 type httpVersionRepository struct {
+	version  domain.VersionPreference
 	err      error
 	calls    []string
 	source   string
@@ -77,6 +78,16 @@ func (r *httpVersionRepository) SetUserTrackPreference(_ context.Context, _ doma
 }
 func (r *httpVersionRepository) EffectiveTrackPreferences(context.Context, domain.Actor, string) (domain.TrackPreferenceSet, error) {
 	return domain.TrackPreferenceSet{}, nil
+}
+func (r *httpVersionRepository) VersionPreference(context.Context, domain.Actor) (domain.VersionPreference, error) {
+	return r.version, nil
+}
+func (r *httpVersionRepository) SetVersionPreference(_ context.Context, _ domain.Actor, p domain.VersionPreference) (domain.VersionPreference, error) {
+	r.version = p
+	return p, nil
+}
+func (r *httpVersionRepository) RecordSessionTracks(context.Context, domain.Actor, string, string, domain.SessionTracks) error {
+	return nil
 }
 
 func TestVersionRoutesAuthorizationBodiesAndErrors(t *testing.T) {
@@ -191,5 +202,20 @@ func TestVersionRoutesAuthorizationBodiesAndErrors(t *testing.T) {
 	}
 	if w := playbackHTTPRequest(handler, "GET", "/api/v1/users/me/track-preferences", "", viewer); w.Code != 200 || !strings.Contains(w.Body.String(), `"preference":null`) {
 		t.Fatal("user defaults read", w.Code, w.Body.String())
+	}
+
+	// Version preference (G20.2): every member optional, values checked.
+	if w := playbackHTTPRequest(handler, "GET", "/api/v1/users/me/version-preferences", "", viewer); w.Code != 200 ||
+		!strings.Contains(w.Body.String(), `"preference":{"maxHeight":null,"dynamicRange":null,"preferSmaller":null,"maxBitrate":null}`) {
+		t.Fatal("version preference read", w.Code, w.Body.String())
+	}
+	if w := playbackHTTPRequest(handler, "PUT", "/api/v1/users/me/version-preferences", `{"maxHeight":1080,"dynamicRange":"sdr","preferSmaller":true,"maxBitrate":null}`, viewer); w.Code != 200 ||
+		repo.version.MaxHeight == nil || *repo.version.MaxHeight != 1080 || *repo.version.DynamicRange != "sdr" || repo.version.MaxBitrate != nil {
+		t.Fatal("version preference write", w.Code, w.Body.String())
+	}
+	for name, body := range map[string]string{"height": `{"maxHeight":1000}`, "range": `{"dynamicRange":"dv"}`, "bitrate": `{"maxBitrate":0}`, "unknown": `{"codec":"hevc"}`, "transcode": `{"videoCodec":"h264"}`} {
+		if w := playbackHTTPRequest(handler, "PUT", "/api/v1/users/me/version-preferences", body, viewer); w.Code != 400 && w.Code != 409 {
+			t.Fatalf("%s: %d %s", name, w.Code, w.Body.String())
+		}
 	}
 }
