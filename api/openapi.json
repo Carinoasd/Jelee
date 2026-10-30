@@ -7008,6 +7008,16 @@
                   "description": "Detected charset of a text subtitle. Reported only; the file is delivered unconverted.",
                   "type": "string"
                 },
+                "charsetState": {
+                  "description": "External text subtitles whose format declares no encoding of its own (SubRip, ASS, SSA, WebVTT, SAMI, MicroDVD): pending before the bounded inspection, undetermined when detection was not confident (only the original is offered, as is), utf8, or convertible when another charset was detected (G15.4). Absent for other tracks.",
+                  "enum": [
+                    "pending",
+                    "undetermined",
+                    "utf8",
+                    "convertible"
+                  ],
+                  "type": "string"
+                },
                 "codec": {
                   "description": "The codec the sandboxed probe found once probeState is ready; before that the canonical subtitle format or audio codec implied by the extension, or for .sub the content check (microdvd or vobsub). Absent when only probing can tell (mka, m4a, ogg, oga, or a failed probe).",
                   "type": "string"
@@ -7308,6 +7318,16 @@
                       },
                       "charset": {
                         "description": "Detected charset of a text subtitle. Reported only; the file is delivered unconverted.",
+                        "type": "string"
+                      },
+                      "charsetState": {
+                        "description": "External text subtitles whose format declares no encoding of its own (SubRip, ASS, SSA, WebVTT, SAMI, MicroDVD): pending before the bounded inspection, undetermined when detection was not confident (only the original is offered, as is), utf8, or convertible when another charset was detected (G15.4). Absent for other tracks.",
+                        "enum": [
+                          "pending",
+                          "undetermined",
+                          "utf8",
+                          "convertible"
+                        ],
                         "type": "string"
                       },
                       "codec": {
@@ -10441,6 +10461,16 @@
                   "description": "Detected charset of a text subtitle. Reported only; the file is delivered unconverted.",
                   "type": "string"
                 },
+                "charsetState": {
+                  "description": "External text subtitles whose format declares no encoding of its own (SubRip, ASS, SSA, WebVTT, SAMI, MicroDVD): pending before the bounded inspection, undetermined when detection was not confident (only the original is offered, as is), utf8, or convertible when another charset was detected (G15.4). Absent for other tracks.",
+                  "enum": [
+                    "pending",
+                    "undetermined",
+                    "utf8",
+                    "convertible"
+                  ],
+                  "type": "string"
+                },
                 "codec": {
                   "description": "The codec the sandboxed probe found once probeState is ready; before that the canonical subtitle format or audio codec implied by the extension, or for .sub the content check (microdvd or vobsub). Absent when only probing can tell (mka, m4a, ogg, oga, or a failed probe).",
                   "type": "string"
@@ -10517,6 +10547,10 @@
                 },
                 "url": {
                   "description": "Direct delivery route of the original file: /api/v1/sources/{id}/subtitles/{trackId} or /api/v1/sources/{id}/audio/{trackId}. Native sessions only.",
+                  "type": "string"
+                },
+                "utf8Url": {
+                  "description": "With charsetState convertible and the subtitle cache enabled: /api/v1/sources/{id}/subtitles/{trackId}/utf8, a UTF-8 copy of the subtitle text in a rebuildable cache. url stays the default and the original. The copy is withheld (404) when conversion disproves the charset. Native sessions only.",
                   "type": "string"
                 }
               },
@@ -10752,6 +10786,16 @@
                         "description": "Detected charset of a text subtitle. Reported only; the file is delivered unconverted.",
                         "type": "string"
                       },
+                      "charsetState": {
+                        "description": "External text subtitles whose format declares no encoding of its own (SubRip, ASS, SSA, WebVTT, SAMI, MicroDVD): pending before the bounded inspection, undetermined when detection was not confident (only the original is offered, as is), utf8, or convertible when another charset was detected (G15.4). Absent for other tracks.",
+                        "enum": [
+                          "pending",
+                          "undetermined",
+                          "utf8",
+                          "convertible"
+                        ],
+                        "type": "string"
+                      },
                       "codec": {
                         "description": "The codec the sandboxed probe found once probeState is ready; before that the canonical subtitle format or audio codec implied by the extension, or for .sub the content check (microdvd or vobsub). Absent when only probing can tell (mka, m4a, ogg, oga, or a failed probe).",
                         "type": "string"
@@ -10828,6 +10872,10 @@
                       },
                       "url": {
                         "description": "Direct delivery route of the original file: /api/v1/sources/{id}/subtitles/{trackId} or /api/v1/sources/{id}/audio/{trackId}. Native sessions only.",
+                        "type": "string"
+                      },
+                      "utf8Url": {
+                        "description": "With charsetState convertible and the subtitle cache enabled: /api/v1/sources/{id}/subtitles/{trackId}/utf8, a UTF-8 copy of the subtitle text in a rebuildable cache. url stays the default and the original. The copy is withheld (404) when conversion disproves the charset. Native sessions only.",
                         "type": "string"
                       }
                     },
@@ -59221,6 +59269,328 @@
           }
         ],
         "summary": "Read an unmodified external subtitle file of a source",
+        "x-jelee-session": "native"
+      }
+    },
+    "/api/v1/sources/{id}/subtitles/{trackId}/utf8": {
+      "get": {
+        "description": "Native sessions only; web sessions get 403 web_playback_disabled. trackId is an external subtitle listed with charsetState convertible and a utf8Url under externalTracks of GET /api/v1/items/{id}/playback. On first use the subtitle text is decoded from its recorded charset and written as UTF-8 (no byte order mark, line endings kept) into a rebuildable cache below the subtitle cache root (G15.4); the original file is never changed and stays the default url, byte for byte. This is a character set conversion of subtitle text, not a media conversion. The charset is detected again on the current bytes first: when it is no longer confidently the recorded one, when more than 1% of the input bytes do not decode, when the format declares its own encoding (TTML, DFXP) or the charset is unknown or already UTF-8, there is no copy and the answer is that of a missing track; the reason is logged with the track ID only. A changed original gets a new copy. Content-Type is the format's fixed type with charset=UTF-8. Range, HEAD, conditional requests, playback and bandwidth limits and revocation behave as for /api/v1/sources/{id}/stream. Responses carry X-Content-Type-Options: nosniff and a sandbox Content-Security-Policy.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "trackId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Range",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "If-Range",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "HTTP 200"
+          },
+          "206": {
+            "description": "HTTP 206"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "forbidden": {
+                    "$ref": "#/components/examples/error_forbidden"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 403"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "not_found": {
+                    "$ref": "#/components/examples/error_not_found"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 404"
+          },
+          "408": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "request_timeout": {
+                    "$ref": "#/components/examples/error_request_timeout"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 408"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "conflict": {
+                    "$ref": "#/components/examples/error_conflict"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 409"
+          },
+          "416": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "invalid_range": {
+                    "$ref": "#/components/examples/error_invalid_range"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 416"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "not_ready": {
+                    "$ref": "#/components/examples/error_not_ready"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 503"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "internal_error": {
+                    "$ref": "#/components/examples/error_internal_error"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Jelee error envelope with code, message, details and traceId; see the Error schema."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "webSession": []
+          }
+        ],
+        "summary": "Read the UTF-8 copy of an external text subtitle",
+        "x-jelee-session": "native"
+      },
+      "head": {
+        "description": "Native sessions only; web sessions get 403 web_playback_disabled. trackId is an external subtitle listed with charsetState convertible and a utf8Url under externalTracks of GET /api/v1/items/{id}/playback. On first use the subtitle text is decoded from its recorded charset and written as UTF-8 (no byte order mark, line endings kept) into a rebuildable cache below the subtitle cache root (G15.4); the original file is never changed and stays the default url, byte for byte. This is a character set conversion of subtitle text, not a media conversion. The charset is detected again on the current bytes first: when it is no longer confidently the recorded one, when more than 1% of the input bytes do not decode, when the format declares its own encoding (TTML, DFXP) or the charset is unknown or already UTF-8, there is no copy and the answer is that of a missing track; the reason is logged with the track ID only. A changed original gets a new copy. Content-Type is the format's fixed type with charset=UTF-8. Range, HEAD, conditional requests, playback and bandwidth limits and revocation behave as for /api/v1/sources/{id}/stream. Responses carry X-Content-Type-Options: nosniff and a sandbox Content-Security-Policy.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "trackId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Range",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "If-Range",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "HTTP 200"
+          },
+          "206": {
+            "description": "HTTP 206"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "forbidden": {
+                    "$ref": "#/components/examples/error_forbidden"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 403"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "not_found": {
+                    "$ref": "#/components/examples/error_not_found"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 404"
+          },
+          "408": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "request_timeout": {
+                    "$ref": "#/components/examples/error_request_timeout"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 408"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "conflict": {
+                    "$ref": "#/components/examples/error_conflict"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 409"
+          },
+          "416": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "invalid_range": {
+                    "$ref": "#/components/examples/error_invalid_range"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 416"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "not_ready": {
+                    "$ref": "#/components/examples/error_not_ready"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 503"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "internal_error": {
+                    "$ref": "#/components/examples/error_internal_error"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Jelee error envelope with code, message, details and traceId; see the Error schema."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "webSession": []
+          }
+        ],
+        "summary": "Read the UTF-8 copy of an external text subtitle",
         "x-jelee-session": "native"
       }
     },

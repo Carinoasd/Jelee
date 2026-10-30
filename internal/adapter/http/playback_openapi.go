@@ -115,9 +115,12 @@ func mediaSourceSchema(withURL bool) map[string]any {
 		"atmos":          map[string]any{"type": "boolean", "description": "Probed E-AC-3 or TrueHD audio whose profile names Dolby Atmos."},
 		"pairedTrackId":  map[string]any{"type": "string", "format": "uuid", "description": "On a VobSub .idx track: the .sub data file with the same name, delivered through the same subtitle route. That .sub is not listed as a track of its own."},
 	}
+	external["charsetState"] = map[string]any{"type": "string", "enum": []string{domain.SidecarCharsetPending, domain.SidecarCharsetUndetermined, domain.SidecarCharsetUTF8, domain.SidecarCharsetConvertible},
+		"description": "External text subtitles whose format declares no encoding of its own (SubRip, ASS, SSA, WebVTT, SAMI, MicroDVD): pending before the bounded inspection, undetermined when detection was not confident (only the original is offered, as is), utf8, or convertible when another charset was detected (G15.4). Absent for other tracks."}
 	externalRequired := []string{"id", "kind", "format", "forced", "sdh", "default", "commentary", "sizeBytes", "probeState"}
 	if withURL {
 		external["url"] = map[string]any{"type": "string", "description": "Direct delivery route of the original file: /api/v1/sources/{id}/subtitles/{trackId} or /api/v1/sources/{id}/audio/{trackId}. Native sessions only."}
+		external["utf8Url"] = map[string]any{"type": "string", "description": "With charsetState convertible and the subtitle cache enabled: /api/v1/sources/{id}/subtitles/{trackId}/utf8, a UTF-8 copy of the subtitle text in a rebuildable cache. url stays the default and the original. The copy is withheld (404) when conversion disproves the charset. Native sessions only."}
 		externalRequired = append(externalRequired, "url")
 	}
 	subtitleTrack := map[string]any{

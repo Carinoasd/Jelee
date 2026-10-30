@@ -55,6 +55,11 @@ type LibraryOptions struct {
 	// subtitles Embed-only and lists no attachments; set it only with
 	// Delivery.
 	Extracted media.ExtractedResolver
+	// UTF8 makes UTF-8 copies of external text subtitles whose recorded
+	// charset is another one (G15.4). Upstream clients expect UTF-8, so the
+	// subtitle route delivers the copy and falls back to the original when
+	// there is none. Nil delivers every original; set it only with Delivery.
+	UTF8 media.UTF8Resolver
 	// Playstate is the server's progress service. Nil leaves the report,
 	// played and resume routes unregistered and every item unplayed.
 	Playstate Playstate
@@ -71,6 +76,7 @@ type Delivery interface {
 	ServeSource(w http.ResponseWriter, r *http.Request, sourceID string)
 	ServeTrack(w http.ResponseWriter, r *http.Request, sourceID string, kind media.TrackKind, trackID string)
 	ServeExtracted(w http.ResponseWriter, r *http.Request, resolver media.ExtractedResolver, sourceID string, kind media.ExtractedKind, index int)
+	ServeUTF8Track(w http.ResponseWriter, r *http.Request, resolver media.UTF8Resolver, sourceID, trackID string, fallback bool)
 }
 
 func (o *LibraryOptions) valid() bool {

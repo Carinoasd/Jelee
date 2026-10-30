@@ -49,9 +49,12 @@ type SidecarTrackRecord struct {
 	// Probe is the sandboxed ffprobe state of the file; SubtitleKind is
 	// what the content of a ".sub" turned out to be. PairedTrackID names,
 	// on an ".idx" row, the ".sub" data half with the same name.
-	Probe                SidecarProbeRecord
-	SubtitleKind         string
-	PairedTrackID        string
+	Probe         SidecarProbeRecord
+	SubtitleKind  string
+	PairedTrackID string
+	// Inspected reports a stored fingerprint when a read did not load the
+	// fingerprint itself (the playback read).
+	Inspected            bool
 	CreatedAt, UpdatedAt time.Time
 }
 
