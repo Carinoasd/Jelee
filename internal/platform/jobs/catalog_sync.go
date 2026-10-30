@@ -19,6 +19,11 @@ import (
 // bounded read (edge fingerprint, text subtitle charset) outside any
 // transaction, and the results are stored in fenced pages.
 //
+// With SidecarProbes set, the job then probes, on demand, the external
+// audio, ".sub" and ".sup" files still pending with the sandboxed metadata
+// runtime (B4): at most domain.SidecarProbeMaxPerJob per sync, each under the
+// IO work budget and outside any transaction.
+//
 // With Images set, the job then records the library's image references
 // (G40.2, G40.3): image files next to each item recognized by name and the
 // NFO art of each item, in fenced pages that read only the database. URLs
@@ -35,6 +40,19 @@ type CatalogSyncOptions struct {
 	Images         app.ItemImageIngestRepository
 	EmbeddedCovers *EmbeddedCoverOptions
 	ChapterImages  *ChapterImageOptions
+	SidecarProbes  *SidecarProbeOptions
+}
+
+// SidecarProbeOptions is trusted local wiring of the external track probe
+// pass (B4). Prober runs the sandboxed metadata runtime's sidecar operation,
+// sharing its process admission with media probing. FileTimeout bounds one
+// probe; zero uses 30 seconds. Available reports whether the runtime is
+// still usable.
+type SidecarProbeOptions struct {
+	Repository  app.SidecarProbeRepository
+	Prober      app.SidecarProber
+	FileTimeout time.Duration
+	Available   func() bool
 }
 
 // EmbeddedCoverOptions is trusted local wiring of the embedded cover pass.
@@ -71,6 +89,9 @@ func (r *Runner) executeCatalogSync(ctx context.Context, lease domain.JobLease) 
 		}
 		if done {
 			if err, storage := r.inspectSidecars(ctx, lease); err != nil {
+				return err, storage
+			}
+			if storage, err := r.probeSidecars(ctx, lease); err != nil {
 				return err, storage
 			}
 			// Local and NFO rows go first: they outrank an embedded cover,

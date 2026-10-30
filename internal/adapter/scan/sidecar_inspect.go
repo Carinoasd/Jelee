@@ -25,8 +25,8 @@ type SidecarInspector struct{}
 var _ app.SidecarInspector = SidecarInspector{}
 
 // sidecarTextFormats are the subtitle formats whose charset is meaningful.
-// ".sub" is either MicroDVD text or VobSub data; binary data fails detection
-// and keeps no charset.
+// ".sub" is either MicroDVD text or VobSub data; the content check below
+// tells them apart and VobSub data gets no charset.
 var sidecarTextFormats = []string{"srt", "ass", "ssa", "vtt", "webvtt", "ttml", "dfxp", "smi", "sami", "sub", "idx"}
 
 func (SidecarInspector) InspectSidecar(ctx context.Context, target domain.SidecarInspectionTarget) (domain.SidecarInspection, error) {
@@ -61,7 +61,15 @@ func (SidecarInspector) InspectSidecar(ctx context.Context, target domain.Sideca
 		return domain.SidecarInspection{}, domain.ErrScanIO
 	}
 	result := domain.SidecarInspection{ID: target.ID, Size: target.Size, ModifiedUnixNano: target.ModifiedUnixNano, Fingerprint: fingerprint}
-	if target.Kind == domain.SidecarKindSubtitle && slices.Contains(sidecarTextFormats, target.Format) {
+	if target.Kind == domain.SidecarKindSubtitle && target.Format == "sub" {
+		// The content, not charset detection, decides what a ".sub" is.
+		head := make([]byte, min(target.Size, domain.SidecarSniffBytes))
+		if _, err := io.ReadFull(io.NewSectionReader(file, 0, target.Size), head); err != nil {
+			return domain.SidecarInspection{}, scanError(ctx, domain.ErrScanIO)
+		}
+		result.SubtitleKind = domain.SniffSubtitleSub(head)
+	}
+	if target.Kind == domain.SidecarKindSubtitle && slices.Contains(sidecarTextFormats, target.Format) && result.SubtitleKind != domain.SidecarSubtitleVobSub {
 		charset, confidence, err := subtitles.DetectCharset(ctx, io.NewSectionReader(file, 0, target.Size), 0)
 		if err := ctx.Err(); err != nil {
 			return domain.SidecarInspection{}, err

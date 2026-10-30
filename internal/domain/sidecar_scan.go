@@ -173,16 +173,20 @@ func (SidecarInspectionTarget) GoString() string { return "sidecar inspection (r
 // SidecarInspection is what a bounded read of one sidecar found. Size and
 // ModifiedUnixNano are the stamp the read was made against; a row whose
 // stamp changed since is left for the next scan. Charset is empty when the
-// file is not text or detection had low confidence.
+// file is not text or detection had low confidence. SubtitleKind is the
+// content kind of a ".sub" (SniffSubtitleSub), empty for other formats or
+// unrecognized content.
 type SidecarInspection struct {
 	ID                     string
 	Size, ModifiedUnixNano int64
 	Charset                string
+	SubtitleKind           string
 	Fingerprint            []byte
 }
 
 // ValidSidecarInspection mirrors the database checks for a recorded result.
 func ValidSidecarInspection(v SidecarInspection) bool {
 	return ValidID(v.ID) && v.Size >= 0 && len(v.Fingerprint) == SidecarFingerprintBytes &&
-		(v.Charset == "" || validSidecarCharset(v.Charset))
+		(v.Charset == "" || validSidecarCharset(v.Charset)) &&
+		(v.SubtitleKind == "" || v.SubtitleKind == SidecarSubtitleMicroDVD || v.SubtitleKind == SidecarSubtitleVobSub)
 }

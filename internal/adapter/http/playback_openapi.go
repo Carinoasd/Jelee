@@ -1,6 +1,10 @@
 package httpapi
 
-import "slices"
+import (
+	"slices"
+
+	"github.com/MoYuanCN/Jelee/internal/domain"
+)
 
 func playbackSpecification(paths, schemas map[string]any) {
 	nonNegative := map[string]any{"type": "integer", "minimum": 0}
@@ -96,12 +100,22 @@ func mediaSourceSchema(withURL bool) map[string]any {
 	external := map[string]any{
 		"id": uuid, "kind": map[string]any{"type": "string", "enum": []string{"subtitle", "audio"}},
 		"format":   map[string]any{"type": "string", "description": "File extension of the sidecar file."},
-		"codec":    map[string]any{"type": "string", "description": "Canonical subtitle format or audio codec implied by the extension; absent for mka, m4a, ogg, oga and .sub, which only probing can tell."},
+		"codec":    map[string]any{"type": "string", "description": "The codec the sandboxed probe found once probeState is ready; before that the canonical subtitle format or audio codec implied by the extension, or for .sub the content check (microdvd or vobsub). Absent when only probing can tell (mka, m4a, ogg, oga, or a failed probe)."},
 		"language": str, "languages": array(str), "title": str, "forced": boolean, "sdh": boolean, "default": boolean, "commentary": boolean,
 		"charset":   map[string]any{"type": "string", "description": "Detected charset of a text subtitle. Reported only; the file is delivered unconverted."},
 		"sizeBytes": nonNegative,
+		"probeState": map[string]any{"type": "string", "enum": []string{domain.SidecarProbePending, domain.SidecarProbeReady, domain.SidecarProbeFailed, domain.SidecarProbeNotApplicable},
+			"description": "Sandboxed probe of an audio, .sub or .sup file: pending until a catalog sync probes it, failed when it could not be read (the track stays listed, its facts unknown), not_applicable for text subtitles."},
+		"profile":        map[string]any{"type": "string", "description": "Probed audio profile, such as DTS-HD MA."},
+		"channels":       map[string]any{"type": "integer", "minimum": 1, "maximum": 256},
+		"channelLayout":  str,
+		"sampleRate":     map[string]any{"type": "integer", "minimum": 1},
+		"bitRate":        map[string]any{"type": "integer", "minimum": 1},
+		"durationMicros": nonNegative,
+		"atmos":          map[string]any{"type": "boolean", "description": "Probed E-AC-3 or TrueHD audio whose profile names Dolby Atmos."},
+		"pairedTrackId":  map[string]any{"type": "string", "format": "uuid", "description": "On a VobSub .idx track: the .sub data file with the same name, delivered through the same subtitle route. That .sub is not listed as a track of its own."},
 	}
-	externalRequired := []string{"id", "kind", "format", "forced", "sdh", "default", "commentary", "sizeBytes"}
+	externalRequired := []string{"id", "kind", "format", "forced", "sdh", "default", "commentary", "sizeBytes", "probeState"}
 	if withURL {
 		external["url"] = map[string]any{"type": "string", "description": "Direct delivery route of the original file: /api/v1/sources/{id}/subtitles/{trackId} or /api/v1/sources/{id}/audio/{trackId}. Native sessions only."}
 		externalRequired = append(externalRequired, "url")

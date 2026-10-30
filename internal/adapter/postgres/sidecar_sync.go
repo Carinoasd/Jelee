@@ -192,13 +192,13 @@ func (s *Store) RecordSidecarInspections(ctx context.Context, l domain.JobLease,
 		return 0, domain.ErrInvalid
 	}
 	ids, sizes, stamps := make([]string, 0, len(results)), make([]int64, 0, len(results)), make([]int64, 0, len(results))
-	charsets, fingerprints := make([]string, 0, len(results)), make([][]byte, 0, len(results))
+	charsets, kinds, fingerprints := make([]string, 0, len(results)), make([]string, 0, len(results)), make([][]byte, 0, len(results))
 	for _, v := range results {
 		if !domain.ValidSidecarInspection(v) {
 			return 0, domain.ErrInvalid
 		}
 		ids, sizes, stamps = append(ids, v.ID), append(sizes, v.Size), append(stamps, v.ModifiedUnixNano)
-		charsets, fingerprints = append(charsets, v.Charset), append(fingerprints, v.Fingerprint)
+		charsets, kinds, fingerprints = append(charsets, v.Charset), append(kinds, v.SubtitleKind), append(fingerprints, v.Fingerprint)
 	}
 	tx, err := s.jobTransaction(ctx)
 	if err != nil {
@@ -211,11 +211,114 @@ func (s *Store) RecordSidecarInspections(ctx context.Context, l domain.JobLease,
 	}
 	filled := int64(0)
 	if len(results) > 0 {
-		tag, err := tx.Exec(ctx, `UPDATE media_sidecar_tracks t SET charset=CASE WHEN t.kind='subtitle' THEN NULLIF(v.charset,'') END,
+		// VobSub data is binary: a ".sub" whose content says so keeps no
+		// charset even if detection guessed one.
+		tag, err := tx.Exec(ctx, `UPDATE media_sidecar_tracks t SET charset=CASE WHEN t.kind='subtitle' AND v.kind IS DISTINCT FROM 'vobsub' THEN NULLIF(v.charset,'') END,
+ subtitle_kind=CASE WHEN t.format='sub' THEN NULLIF(v.kind,'') END,
  fingerprint=v.fingerprint,updated_at=greatest(clock_timestamp(),t.created_at)
- FROM unnest($2::uuid[],$3::bigint[],$4::bigint[],$5::text[],$6::bytea[]) AS v(id,size,stamp,charset,fingerprint)
+ FROM unnest($2::uuid[],$3::bigint[],$4::bigint[],$5::text[],$6::bytea[],$7::text[]) AS v(id,size,stamp,charset,fingerprint,kind)
  WHERE t.id=v.id AND t.library_id=$1::uuid AND t.size=v.size AND t.modified_unix_nano=v.stamp AND t.fingerprint IS NULL`,
-			r.library, ids, sizes, stamps, charsets, fingerprints)
+			r.library, ids, sizes, stamps, charsets, fingerprints, kinds)
+		if err != nil {
+			return 0, storageError(err)
+		}
+		filled = tag.RowsAffected()
+	}
+	if err = guardedJobUpdate(ctx, tx, current, `UPDATE jobs SET files=files WHERE id=$1::uuid`, l.Job.ID); err != nil {
+		return 0, err
+	}
+	return int(filled), storageError(tx.Commit(ctx))
+}
+
+var _ app.SidecarProbeRepository = (*Store)(nil)
+
+// NextSidecarProbes returns up to limit tracks of the catalog sync's library,
+// after the given track ID, whose sandboxed probe is pending (B4). The
+// partial index on pending rows keeps the page cheap once a library is
+// probed. The lease is fenced like every other sync step.
+func (s *Store) NextSidecarProbes(ctx context.Context, l domain.JobLease, after string, limit int) ([]domain.SidecarInspectionTarget, error) {
+	if ctx == nil || !validLease(l) || after != "" && !domain.ValidID(after) || limit < 1 || limit > domain.SidecarProbeBatch {
+		return nil, domain.ErrInvalid
+	}
+	tx, err := s.jobTransaction(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback(ctx)
+	_, r, err := catalogSyncLease(ctx, tx, l)
+	if err != nil {
+		return nil, err
+	}
+	var cursor *string
+	if after != "" {
+		cursor = &after
+	}
+	rows, err := tx.Query(ctx, `SELECT t.id::text,t.kind,t.format,lr.path,t.relative_path,t.size,t.modified_unix_nano
+ FROM media_sidecar_tracks t JOIN library_roots lr ON lr.id=t.root_id AND lr.library_id=t.library_id
+ WHERE t.library_id=$1::uuid AND t.probe_state='pending' AND ($2::uuid IS NULL OR t.id>$2::uuid)
+ ORDER BY t.id LIMIT $3`, r.library, cursor, limit)
+	if err != nil {
+		return nil, storageError(err)
+	}
+	targets := make([]domain.SidecarInspectionTarget, 0, limit)
+	for rows.Next() {
+		var v domain.SidecarInspectionTarget
+		if err = rows.Scan(&v.ID, &v.Kind, &v.Format, &v.RootPath, &v.RelativePath, &v.Size, &v.ModifiedUnixNano); err != nil {
+			rows.Close()
+			return nil, storageError(err)
+		}
+		targets = append(targets, v)
+	}
+	err = rows.Err()
+	rows.Close()
+	if err != nil {
+		return nil, storageError(err)
+	}
+	return targets, storageError(tx.Commit(ctx))
+}
+
+// RecordSidecarProbes stores probe outcomes in one statement. A row is only
+// filled while it is still pending and its stamp equals the probed stamp;
+// audio facts are dropped for a subtitle row. It returns how many rows were
+// filled.
+func (s *Store) RecordSidecarProbes(ctx context.Context, l domain.JobLease, results []domain.SidecarProbeResult) (int, error) {
+	if ctx == nil || !validLease(l) || len(results) > domain.SidecarProbeBatch {
+		return 0, domain.ErrInvalid
+	}
+	n := len(results)
+	ids, states, codecs, profiles, layouts := make([]string, 0, n), make([]string, 0, n), make([]string, 0, n), make([]string, 0, n), make([]string, 0, n)
+	sizes, stamps, bitRates, durations := make([]int64, 0, n), make([]int64, 0, n), make([]int64, 0, n), make([]int64, 0, n)
+	channels, rates := make([]int64, 0, n), make([]int64, 0, n)
+	for _, v := range results {
+		if !domain.ValidSidecarProbeResult(v) {
+			return 0, domain.ErrInvalid
+		}
+		f := v.Facts
+		ids, states, codecs, profiles, layouts = append(ids, v.ID), append(states, v.State), append(codecs, f.Codec), append(profiles, f.Profile), append(layouts, f.ChannelLayout)
+		sizes, stamps, bitRates, durations = append(sizes, v.Size), append(stamps, v.ModifiedUnixNano), append(bitRates, f.BitRate), append(durations, f.DurationMicros)
+		channels, rates = append(channels, int64(f.Channels)), append(rates, int64(f.SampleRate))
+	}
+	tx, err := s.jobTransaction(ctx)
+	if err != nil {
+		return 0, err
+	}
+	defer tx.Rollback(ctx)
+	current, r, err := catalogSyncLease(ctx, tx, l)
+	if err != nil {
+		return 0, err
+	}
+	filled := int64(0)
+	if n > 0 {
+		tag, err := tx.Exec(ctx, `UPDATE media_sidecar_tracks t SET probe_state=v.state,probed_size=v.size,probed_modified_unix_nano=v.stamp,
+ codec=NULLIF(v.codec,''),duration_micros=CASE WHEN v.state='ready' AND v.duration>0 THEN v.duration END,
+ bit_rate=CASE WHEN v.state='ready' AND t.kind='audio' AND v.bit_rate>0 THEN v.bit_rate END,
+ profile=CASE WHEN t.kind='audio' THEN NULLIF(v.profile,'') END,channel_layout=CASE WHEN t.kind='audio' THEN NULLIF(v.layout,'') END,
+ channels=CASE WHEN t.kind='audio' AND v.channels>0 THEN v.channels END,sample_rate=CASE WHEN t.kind='audio' AND v.rate>0 THEN v.rate END,
+ updated_at=greatest(clock_timestamp(),t.created_at)
+ FROM unnest($2::uuid[],$3::bigint[],$4::bigint[],$5::text[],$6::text[],$7::text[],$8::text[],$9::bigint[],$10::bigint[],$11::bigint[],$12::bigint[])
+  AS v(id,size,stamp,state,codec,profile,layout,channels,rate,bit_rate,duration)
+ WHERE t.id=v.id AND t.library_id=$1::uuid AND t.size=v.size AND t.modified_unix_nano=v.stamp AND t.probe_state='pending'`,
+			r.library, ids, sizes, stamps, states, codecs, profiles, layouts, channels, rates, bitRates, durations)
 		if err != nil {
 			return 0, storageError(err)
 		}

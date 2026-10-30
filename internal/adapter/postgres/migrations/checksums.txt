@@ -1,6 +1,6 @@
-# Released migration checksums (G04.2, docs/adr/0006-migration-version-policy.md).
-# Locked files are immutable: change the schema with a new, higher-numbered migration.
-# After adding one run `go run ./tools/migrationlock -update`; it only appends.
+#  Released migration checksums (G04.2, docs/adr/0006-migration-version-policy.md).
+#  Locked files are immutable: change the schema with a new, higher-numbered migration.
+#  After adding one run `go run ./tools/migrationlock -update`; it only appends.
 96a6884a093f04ab95b9e87a8dbd4b9cb4b349497ba48263fcc4496b1ccc34e0  000001_catalog.down.sql
 92dfc26eb06eb3ea23cc89f20c9a714b80a4addd415056f15b5351eee6e87519  000001_catalog.up.sql
 390a958490416332deb36fcce5230962462e83859811c52a98bca9927220fb7a  000002_accounts.down.sql
@@ -217,3 +217,5 @@ e00b63fa69a93fc371546024b9f7a84c720c0daddbf347d4e19cfe692d778ab1  000106_media_s
 44843a3945cfbfcf34be8d0794865241fbe2eb70ca8b6218d7cdb8c55bcb34aa  000107_job_schedules.up.sql
 c3169ae77ee277e0117a6d0d467c4ac0d41cc98d0b016ad2704d85b69292cc7b  000108_probe_windows_platform.down.sql
 16fb9b6c47d3af242d7e4371b261fa66ab61ee8be7a50a2dd09fb39014b5efa1  000108_probe_windows_platform.up.sql
+2bf0b0de6c9e5b8a07af02ca0fd033b458a0d90c9188968a7fb47146eddb85a2  000109_sidecar_probe.down.sql
+ed566ae0cde9f9a4d7992de9ed7da01ce4ccf688870246ea8cdace899dd8acfe  000109_sidecar_probe.up.sql
