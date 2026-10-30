@@ -103,7 +103,13 @@ func startConfinedChild(path string, args []string, dir string, env []string, st
 	}
 	block := environmentBlock(env)
 	var info windows.ProcessInformation
-	flags := uint32(windows.CREATE_UNICODE_ENVIRONMENT | windows.EXTENDED_STARTUPINFO_PRESENT | windows.CREATE_NO_WINDOW | windows.CREATE_SUSPENDED)
+	// DETACHED_PROCESS, not CREATE_NO_WINDOW: a new (even windowless)
+	// console makes the child launch conhost.exe during its own loader
+	// initialization, which the restricted child process policy and the
+	// one-process job refuse, so every console tool would die with
+	// STATUS_DLL_INIT_FAILED before main. The tool needs only the three
+	// inherited standard handles, never a console.
+	flags := uint32(windows.CREATE_UNICODE_ENVIRONMENT | windows.EXTENDED_STARTUPINFO_PRESENT | windows.DETACHED_PROCESS | windows.CREATE_SUSPENDED)
 	// A restricted version of the caller's own primary token needs no
 	// SeAssignPrimaryTokenPrivilege.
 	if err := windows.CreateProcessAsUser(token, application, commandLine, nil, nil, true, flags, &block[0], directory, &startup.StartupInfo, &info); err != nil {
