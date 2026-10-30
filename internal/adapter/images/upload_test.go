@@ -73,7 +73,8 @@ func uploadTestPNGHeader(width, height uint32) []byte {
 
 func uploadTestProcessor(t *testing.T) (*Processor, *Store, string, *fakeVariantIndex) {
 	t.Helper()
-	base := t.TempDir()
+	// The store refuses a directory without a private DACL on Windows.
+	base := imageSourceTestBase(t)
 	scratch, root := filepath.Join(base, "scratch"), filepath.Join(base, "store")
 	for _, dir := range []string{scratch, root} {
 		if err := os.Mkdir(dir, 0700); err != nil {
