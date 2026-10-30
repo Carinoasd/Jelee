@@ -26,9 +26,49 @@
 
 库已有 queued/running 任务返回 `job_busy`/409；全局 queued+running 达到限额返回 `job_queue_full`/429；单进程 HTTP 名额满返回 `jobs_busy`/503，均不会建立无限等待队列。错误四语翻译沿用账户保存语言。
 
+## 总数、百分比与 ETA（G13.3）
+
+列表与详情的每个 Job 带 `progress` 对象（迁移 000101，暂定编号）：
+
+| 字段 | 含义 |
+| --- | --- |
+| `done` | 已完成的工作量。`inventory_scan` 按已完成目录计（文件是扫描中才发现的，不是待处理清单）；其他种类按已处理条目计，即 `files+skipped` |
+| `total` | 同一单位的总量；未知时为 null |
+| `totalKnownAt` | 总量确定的时间；未知时为 null |
+| `percent` | `done/total`，一位小数、向下取整、上限 100；没有总量时为 null |
+| `etaSeconds` | 预计剩余秒数；只有 `etaBasis` 为 `throughput` 时才有值，否则为 null |
+| `etaBasis` | 给出或不给 ETA 的依据，见下表 |
+
+各种类的总量来源：
+
+| 种类 | total |
+| --- | --- |
+| `inventory_scan` | 扫描期间目录树仍在展开，总量未知；所有已发现目录都完成（`directories` 等于目录总数）时才确定，此后只剩探测、发布等后续阶段，不另估 |
+| `catalog_import`、`nfo_write`（含导出产生的子任务） | 提交时的条目／写回意图数，固定不变，是精确值 |
+| `nfo_apply`、`nfo_export` | 提交时媒体库的条目数，是估计值：运行期间新增或删除条目不会更新它 |
+| `image_refresh` | 提交时符合刷新条件（远程、无内容、未锁定、非手动）的图片行数，同为估计值 |
+| `catalog_sync`、`consistency_check` | 多阶段工作没有统一的工作量单位，始终为 null |
+
+ETA = 剩余工作量 ÷ 近期吞吐量。吞吐量是检查点之间「新完成数 ÷ 经过秒数」的指数移动平均（新样本权重 0.3），由 `jobs` 上的 BEFORE UPDATE 触发器在既有检查点更新同一行时计算，不增加任何语句；相隔不到 50 ms 的检查点累积到下一个样本。任务不在 running、被新的租约 generation 领取，或完成数倒退（扫描恢复）时，采样起点重置，所以暂停、排队与恢复时间不会算进吞吐量。
+
+| `etaBasis` | 何时出现 |
+| --- | --- |
+| `throughput` | 运行中、有总量、至少 3 个样本、最近样本不超过 2 分钟；ETA 至少 1 秒、最多 30 天 |
+| `total_unknown` | 运行中但没有总量 |
+| `insufficient_samples` | 样本少于 3 个或吞吐量不为正 |
+| `not_started` | 排队且从未开始 |
+| `paused` | 开始过但目前回到队列（计划暂停、让出、租约过期恢复） |
+| `cancelling` | 已请求取消，剩余工作不会执行 |
+| `stalled` | 运行中但超过 2 分钟没有新样本，旧吞吐量不再代表现状 |
+| `total_reached` | 完成数已达到总量：估计值偏小，或只剩不计量的后续阶段 |
+| `too_slow` | 估计会超过 30 天 |
+| `finished` | 已成功、失败或取消 |
+
+迁移只在 `jobs` 增加 `progress_total`、`progress_total_at`、`rate_ema`、`rate_samples`、`rate_mark_at`、`rate_mark_done` 六列与触发器 `jobs_progress_rate`。写入仍只发生在 lease fence 保护的检查点内；状态读取以数据库时钟计算最近样本的年龄，避免应用与数据库时钟偏差。降级只丢掉估计值，不影响任务本身；升级前已提交的任务总量为 null。任务指标（`job_metric_*`）维度不变。
+
 ## 状态、恢复与缺失保护
 
-状态为 queued → running → succeeded/failed/cancelled。计数 files/directories/skipped/bytes 是已经保存的实际观测，directories 包括根 `.`。尚不知道最终总数及 ETA 时不返回猜测值。
+状态为 queued → running → succeeded/failed/cancelled。计数 files/directories/skipped/bytes 是已经保存的实际观测，directories 包括根 `.`。总数、百分比与 ETA 见下一节；未知时返回 null，不返回猜测值。
 
 每个 run 保存配置快照；worker 租约使用数据库时钟和 generation，过期 owner 不能续约、提交或结束任务。恢复保留已完成目录，清掉未完成目录的局部结果后从头读取，防止重复计数及保留消失的局部文件。恢复达到尝试上限会失败；主动 retry 建立新 run。
 
@@ -40,7 +80,7 @@
 
 `jobs scan|list|libraries|get|entries|cancel|retry` 调用相同 HTTP API。必须提供 `--token-stdin`，token 不放 argv；标准输入读取一个 43 字符令牌和可选行尾后应结束输入。HTTP 只允许明确 loopback IP，远程必须 HTTPS。默认 URL 为 `http://127.0.0.1:8097`，禁止重定向和环境代理，使用 15 秒 context 期限，响应最多 1 MiB。
 
-CLI 仅输出重新编码的公开 JSON 字段，丢弃未知字段。HTTP 200/202 仍须包含非 null 的 `data` 及完整有效的 Job 或分页；空对象、非法 UUID/状态/错误码、超出请求页大小的数组、不一致的页大小和非法相对路径都会失败。`get`、`scan`、`cancel`、`retry` 输出 `data` 中的 Job；分页命令输出 `data.jobs`、`data.entries` 或 `data.libraries` 及 `data.pagination`。
+CLI 仅输出重新编码的公开 JSON 字段，丢弃未知字段；`progress`（total、percent、etaSeconds、etaBasis）原样输出，缺少时视为旧服务器，存在时检查一致性（例如没有 total 却有 ETA、percent 超出 0–100 或未知的 basis 都会失败）。HTTP 200/202 仍须包含非 null 的 `data` 及完整有效的 Job 或分页；空对象、非法 UUID/状态/错误码、超出请求页大小的数组、不一致的页大小和非法相对路径都会失败。`get`、`scan`、`cancel`、`retry` 输出 `data` 中的 Job；分页命令输出 `data.jobs`、`data.entries` 或 `data.libraries` 及 `data.pagination`。
 
 退出码 0 表示本次 API 调用及响应验证成功；`scan`/`retry` 的 0 表示任务已接受或幂等重放，不表示后台扫描已完成。退出码 2 表示命令用法或参数错误；其他请求、读取、验证、输出、取消或超时失败返回 1。`jobs get` 成功读取一个 failed 状态的 Job 仍返回 0，调用者须检查 `data.state`。
 

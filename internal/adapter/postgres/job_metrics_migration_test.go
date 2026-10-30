@@ -31,7 +31,7 @@ func jobMetricMigration(t *testing.T, f jobFixture, action string, want uint) {
 	for action == "down" && err == nil && !dirty && version > want {
 		previous := version
 		version, dirty, err = Migrate(f.ctx, f.s.Pool.Config().ConnString(), action)
-		if err == nil && !dirty && version+1 != previous {
+		if err == nil && !dirty && version != previousMigration(t, previous) {
 			t.Fatal("downgrade did not advance exactly one schema")
 		}
 	}
@@ -62,7 +62,7 @@ func jobMetricMigrationStorage(t *testing.T, f jobFixture) string {
 func jobMetricMigrationJob(t *testing.T, f jobFixture, id string) string {
 	t.Helper()
 	var result string
-	if err := f.s.Pool.QueryRow(f.ctx, `SELECT (to_jsonb(j)-'export_job_id')::text FROM jobs j WHERE id=$1`, id).Scan(&result); err != nil {
+	if err := f.s.Pool.QueryRow(f.ctx, `SELECT (to_jsonb(j)-'export_job_id'-'progress_total'-'progress_total_at'-'rate_ema'-'rate_samples'-'rate_mark_at'-'rate_mark_done')::text FROM jobs j WHERE id=$1`, id).Scan(&result); err != nil {
 		t.Fatal("read job before/after rejected transition:", err)
 	}
 	return result

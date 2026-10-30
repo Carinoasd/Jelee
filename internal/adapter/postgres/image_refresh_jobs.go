@@ -17,7 +17,7 @@ var (
 
 // SubmitImageRefreshJob admits an image refresh of one library, which must
 // have no active job. Replay of the same key, library and priority returns
-// the first job.
+// the first job. Its progress total is the candidate count at admission.
 func (s *Store) SubmitImageRefreshJob(ctx context.Context, actor domain.Actor, library, key, priority string, policy domain.JobPolicy) (domain.Job, bool, error) {
 	if ctx == nil || !domain.ValidID(library) || !validJobKey(key) || !validJobPolicy(policy) || (priority != domain.JobPriorityManual && priority != domain.JobPriorityBackground) {
 		return domain.Job{}, false, domain.ErrInvalid
@@ -47,7 +47,8 @@ func (s *Store) SubmitImageRefreshJob(ctx context.Context, actor domain.Actor, l
 	if err = libraryAdmission(ctx, tx, library, policy); err != nil {
 		return domain.Job{}, false, err
 	}
-	job, err := scanJob(tx.QueryRow(ctx, `INSERT INTO jobs(library_id,actor_id,idempotency_key,kind,priority,queue_limit,history_limit,max_entries,max_directories,max_attempts,missing_count_limit,missing_percent_limit) VALUES($1::uuid,$2::uuid,$3,'image_refresh',$4,$5,$6,$7,$8,$9,$10,$11) RETURNING `+jobColumns,
+	job, err := scanJob(tx.QueryRow(ctx, `INSERT INTO jobs(library_id,actor_id,idempotency_key,kind,priority,queue_limit,history_limit,max_entries,max_directories,max_attempts,missing_count_limit,missing_percent_limit,progress_total,progress_total_at) VALUES($1::uuid,$2::uuid,$3,'image_refresh',$4,$5,$6,$7,$8,$9,$10,$11,
+ (SELECT count(*) FROM item_images g WHERE g.library_id=$1::uuid AND `+imageRefreshCandidate+`),clock_timestamp()) RETURNING `+jobColumns,
 		library, actor.UserID, key, priority, policy.QueueLimit, policy.HistoryLimit, policy.MaxEntries, policy.MaxDirectories, policy.MaxAttempts, policy.MissingCountLimit, policy.MissingPercentLimit))
 	if err != nil {
 		return domain.Job{}, false, err

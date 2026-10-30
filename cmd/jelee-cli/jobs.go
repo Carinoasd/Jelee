@@ -428,9 +428,16 @@ func decodeJobsCLIPage[T any](raw []byte, field string, limit int, decode func([
 	return map[string]any{field: result, "pagination": page}, true
 }
 
+// cliJobProgress accepts a missing progress object (a server before G13.3)
+// and otherwise requires a consistent total, percent and ETA.
+func cliJobProgress(p *domain.JobProgress) bool {
+	return p == nil || domain.ValidJobProgress(*p)
+}
+
 func decodeCLIJob(raw []byte) (domain.Job, bool) {
 	var j domain.Job
-	if !jobsCLIPublicObject(raw, &j, []string{"id", "libraryId", "kind", "state", "priority", "attempts", "cancelRequested", "files", "directories", "skipped", "bytes", "missing", "reviewRequired", "createdAt"}, "errorCode", "startedAt", "finishedAt") ||
+	if !jobsCLIPublicObject(raw, &j, []string{"id", "libraryId", "kind", "state", "priority", "attempts", "cancelRequested", "files", "directories", "skipped", "bytes", "missing", "reviewRequired", "createdAt"}, "errorCode", "startedAt", "finishedAt", "progress") ||
+		!cliJobProgress(j.Progress) ||
 		!domain.ValidID(j.ID) || !domain.ValidID(j.LibraryID) || j.Kind != "inventory_scan" ||
 		j.Priority != domain.JobPriorityManual && j.Priority != domain.JobPriorityBackground ||
 		j.Attempts < 0 || j.Files < 0 || j.Directories < 0 || j.Skipped < 0 || j.Bytes < 0 || j.Missing < 0 ||

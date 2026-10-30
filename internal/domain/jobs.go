@@ -26,7 +26,8 @@ const (
 	ScanBatchMaxEntries   = 128
 )
 
-// Job is a public summary. Unknown total work and ETA are intentionally absent.
+// Job is a public summary. Progress carries the total and ETA only when they
+// are known (JobProgress); unknown values stay null rather than guessed.
 // Inventory is observed metadata, never a request to modify original files.
 type Job struct {
 	ID              string     `json:"id"`
@@ -46,6 +47,8 @@ type Job struct {
 	CreatedAt       time.Time  `json:"createdAt"`
 	StartedAt       *time.Time `json:"startedAt,omitempty"`
 	FinishedAt      *time.Time `json:"finishedAt,omitempty"`
+	// Progress is set by stores that persist progress estimates.
+	Progress *JobProgress `json:"progress,omitempty"`
 }
 
 type JobPolicy struct {

@@ -189,7 +189,7 @@ func (s *Store) SubmitNFOWriteJob(ctx context.Context, actor domain.Actor, libra
 	if active >= policy.QueueLimit {
 		return domain.Job{}, false, domain.ErrJobQueueFull
 	}
-	job, err := scanJob(tx.QueryRow(ctx, `INSERT INTO jobs(library_id,actor_id,idempotency_key,kind,priority,queue_limit,history_limit,max_entries,max_directories,max_attempts,missing_count_limit,missing_percent_limit) VALUES($1,$2,$3,'nfo_write',$4,$5,$6,$7,$8,$9,$10,$11) RETURNING `+jobColumns, library, actor.UserID, key, priority, policy.QueueLimit, policy.HistoryLimit, policy.MaxEntries, policy.MaxDirectories, policy.MaxAttempts, policy.MissingCountLimit, policy.MissingPercentLimit))
+	job, err := scanJob(tx.QueryRow(ctx, `INSERT INTO jobs(library_id,actor_id,idempotency_key,kind,priority,queue_limit,history_limit,max_entries,max_directories,max_attempts,missing_count_limit,missing_percent_limit,progress_total,progress_total_at) VALUES($1,$2,$3,'nfo_write',$4,$5,$6,$7,$8,$9,$10,$11,$12,clock_timestamp()) RETURNING `+jobColumns, library, actor.UserID, key, priority, policy.QueueLimit, policy.HistoryLimit, policy.MaxEntries, policy.MaxDirectories, policy.MaxAttempts, policy.MissingCountLimit, policy.MissingPercentLimit, len(preparations)))
 	if err != nil {
 		return domain.Job{}, false, err
 	}
