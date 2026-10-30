@@ -398,6 +398,8 @@ func newServer(cfg config.Config, backend Backend, catalog *app.Catalog, resolve
 					if cfg.SubtitleOCR.Enable {
 						r.Get(ocrSubtitleRoute, s.extractedRoute(media.ExtractedOCRSubtitle, "index"))
 						r.Head(ocrSubtitleRoute, s.extractedRoute(media.ExtractedOCRSubtitle, "index"))
+						r.Get(sidecarOCRRoute, s.sidecarOCR)
+						r.Head(sidecarOCRRoute, s.sidecarOCR)
 					}
 				}
 				r.Get("/api/v1/items/{id}/playback", s.playbackInfo)

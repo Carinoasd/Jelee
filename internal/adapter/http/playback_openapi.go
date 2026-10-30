@@ -147,6 +147,13 @@ func mediaSourceSchema(withURL bool) map[string]any {
 		}, "format", "title", "url")
 		subtitleTrack["ocr"] = ocr
 		ocr["description"] = "Present on a PGS or VobSub track of a Matroska source once subtitle OCR (G15.6, off by default) has derived an additional SRT from it. Listing playback info queues the source for OCR; the bitmap track itself is unchanged and still delivered as it is."
+		externalOCR := objectSchema(map[string]any{
+			"format": map[string]any{"type": "string", "enum": []string{"srt"}},
+			"title":  map[string]any{"type": "string", "description": "The external track's title or language followed by \" (OCR)\", marking the text as recognized, not authored."},
+			"url":    map[string]any{"type": "string", "description": "/api/v1/sources/{id}/subtitles/{trackId}/ocr. Native sessions only."},
+		}, "format", "title", "url")
+		externalOCR["description"] = "Present on an external .sup (PGS) subtitle, or a VobSub .idx paired with its .sub, once subtitle OCR (G15.6, off by default) has derived an additional SRT from it. Listing playback info queues the track for OCR; the external files are unchanged and url still delivers them as they are."
+		external["ocr"] = externalOCR
 	}
 	properties := map[string]any{
 		"id":             uuid,

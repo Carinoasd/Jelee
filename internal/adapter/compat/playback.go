@@ -516,17 +516,22 @@ func (rt *router) subtitleStream(w http.ResponseWriter, r *http.Request) {
 		rt.opts.Library.Delivery.ServeTrack(w, r, source.ID, media.TrackSubtitle, sub.track.ID)
 		return
 	}
-	for _, sub := range ocrSubtitles(source) {
-		if sub.index != index || !rt.ocrAvailable() {
+	for _, slot := range ocrSubtitles(source) {
+		if slot.Index != index || !rt.ocrAvailable() {
 			continue
 		}
-		// The SRT subtitle OCR derived from a bitmap track (G15.6), only in
-		// its own format; until it exists it is answered like a missing one.
+		// The SRT subtitle OCR derived from a bitmap track or an external
+		// bitmap file (G15.6), only in its own format; until it exists it
+		// is answered like a missing one.
 		if !sameSubtitleFormat(format, "srt") {
 			rt.opts.WriteRejection(w, r, media.ErrTranscodeDisabled)
 			return
 		}
-		rt.opts.Library.Delivery.ServeExtracted(w, r, rt.opts.Library.Extracted, source.ID, media.ExtractedOCRSubtitle, sub.track.Index)
+		if slot.External != nil {
+			rt.opts.Library.Delivery.ServeSidecarOCR(w, r, rt.sidecarOCR(), source.ID, slot.External.ID)
+			return
+		}
+		rt.opts.Library.Delivery.ServeExtracted(w, r, rt.opts.Library.Extracted, source.ID, media.ExtractedOCRSubtitle, slot.Embedded.Index)
 		return
 	}
 	for _, sub := range source.Subtitles {

@@ -152,3 +152,46 @@ func TestResolveTrackForDirectDelivery(t *testing.T) {
 		t.Fatal("cancelled lookup was not an error", err)
 	}
 }
+
+// G15.6: subtitle OCR of an external VobSub reads the .idx and its paired
+// .sub; the authorized track lookup reports the recorded language and the
+// pair, and the .sub half is reachable only through the same lookup.
+func TestResolveTrackReportsLanguageAndVobSubPair(t *testing.T) {
+	f := newSidecarFixture(t)
+	idx, sub, sup := sidecarInput(f.jobFixture, "Movie.en.idx"), sidecarInput(f.jobFixture, "Movie.en.sub"), sidecarInput(f.jobFixture, "Movie.zh.sup")
+	sidecarUpsert(t, f.jobFixture, f.source, idx, sub, sup)
+	ids := map[string]string{}
+	rows, err := f.s.Pool.Query(f.ctx, `SELECT relative_path,id::text FROM media_sidecar_tracks`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for rows.Next() {
+		var path, id string
+		if err := rows.Scan(&path, &id); err != nil {
+			t.Fatal(err)
+		}
+		ids[path] = id
+	}
+	rows.Close()
+	idxID, subID, supID := ids["Movie/Movie.en.idx"], ids["Movie/Movie.en.sub"], ids["Movie/Movie.zh.sup"]
+	alice := trackPrincipal(t, f.jobFixture, "ocr-alice", access.ClientNative, false)
+	bob := trackPrincipal(t, f.jobFixture, "ocr-bob", access.ClientNative, false)
+	imageRepositoryExec(t, f.jobFixture, `INSERT INTO library_acl(user_id,library_id) VALUES($1::uuid,$2::uuid)`, alice.UserID, f.registration.Library.ID)
+	got, err := f.s.ResolveTrack(f.ctx, alice, f.source, media.TrackSubtitle, idxID)
+	if err != nil || got.Language != idx.Track.Language || got.Language == "" || got.PairedTrackID != subID {
+		t.Fatalf("idx %v %q %q", err, got.Language, got.PairedTrackID)
+	}
+	data, err := f.s.ResolveTrack(f.ctx, alice, f.source, media.TrackSubtitle, got.PairedTrackID)
+	if err != nil || data.RelativePath != "Movie/Movie.en.sub" || data.PairedTrackID != "" {
+		t.Fatalf("sub %v %+v", err, data)
+	}
+	if got, err := f.s.ResolveTrack(f.ctx, alice, f.source, media.TrackSubtitle, supID); err != nil || got.Language != sup.Track.Language || got.PairedTrackID != "" {
+		t.Fatalf("sup %v %+v", err, got)
+	}
+	// Another user without the library reaches neither half.
+	for _, id := range []string{idxID, subID} {
+		if _, err := f.s.ResolveTrack(f.ctx, bob, f.source, media.TrackSubtitle, id); !errors.Is(err, media.ErrNotFound) {
+			t.Fatalf("bob reached %s: %v", id, err)
+		}
+	}
+}

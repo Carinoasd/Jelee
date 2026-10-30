@@ -47,6 +47,12 @@ type Source struct {
 	// SubtitleKind is the content kind of an external ".sub" (VobSub data
 	// or MicroDVD text); it only selects the Content-Type.
 	SubtitleKind string
+	// Language is the recorded language of an external track and
+	// PairedTrackID the ".sub" data file paired with a VobSub ".idx". They
+	// let subtitle OCR read an authorized external bitmap subtitle (G15.6)
+	// and are never sent to a client.
+	Language      string
+	PairedTrackID string
 	// SeekIndex is where the container keeps its start and seek index (an
 	// MP4 movie box, Matroska Cues), as read for one file stamp (G10.6). It
 	// only guides read-ahead advice and is ignored unless the opened file

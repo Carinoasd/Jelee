@@ -49,6 +49,12 @@ const (
 	retryAfter   = 10 * time.Minute
 	maxFailures  = 1024
 	busyAttempts = 5
+	// MaxJobDuration bounds the recognition time of one job. A job that
+	// reaches it stops decoding, finishes the pictures already handed to
+	// the recognizer and publishes the cues so far with the track marked
+	// truncated, so a huge or slow track cannot hold the single job slot
+	// for ever and is not retried in a loop either.
+	MaxJobDuration = 4 * time.Hour
 )
 
 // Lookup results. ErrPending means the result is not built yet and the
@@ -115,9 +121,13 @@ type entryTrack struct {
 	Truncated bool   `json:"truncated,omitempty"`
 }
 
+// job is one queued unit of work. dir is the cache directory it publishes
+// to: the source ID of an embedded job, the track ID of an external one.
+// sidecar is set for an external bitmap subtitle.
 type job struct {
-	key, sourceID, stamp string
-	source               domain.ProbeSource
+	key, sourceID, dir, stamp string
+	source                    domain.ProbeSource
+	sidecar                   *SidecarRequest
 }
 
 // Service queues, runs and serves OCR results. Methods are safe for
@@ -240,7 +250,7 @@ func (s *Service) Locate(ctx context.Context, sourceID string, source domain.Pro
 	_ = input.Close()
 	value, err := s.cached(sourceID, stamp)
 	if err != nil {
-		s.enqueue(job{key: sourceID + "/" + stamp, sourceID: sourceID, stamp: stamp, source: source})
+		s.enqueue(job{key: sourceID + "/" + stamp, sourceID: sourceID, dir: sourceID, stamp: stamp, source: source})
 		return Item{}, ErrPending
 	}
 	for _, track := range value.Tracks {
@@ -323,6 +333,9 @@ type summary struct{ tracks, pictures, cues int }
 // into a private work directory, decode and recognize them, and publish all
 // tracks of the revision at once.
 func (s *Service) run(ctx context.Context, next job) (summary, error) {
+	if next.sidecar != nil {
+		return s.runSidecar(ctx, next)
+	}
 	input, err := probe.Open(ctx, next.source)
 	if err != nil {
 		return summary{}, matroska.ErrChanged
@@ -344,15 +357,35 @@ func (s *Service) run(ctx context.Context, next job) (summary, error) {
 	if err != nil {
 		return summary{}, err
 	}
+	decoded := make([]bitmapInput, 0, len(tracks))
+	for _, track := range tracks {
+		decoded = append(decoded, bitmapInput{index: track.ID, format: track.Format, language: track.Language,
+			decode: func(visit func(bitmapsub.Event) error) (bitmapsub.Stats, error) { return s.decode(work, track, visit) }})
+	}
+	return s.produce(ctx, next, decoded, []*probe.Input{input})
+}
+
+// bitmapInput is one bitmap subtitle a job recognizes: the index its SRT
+// is published under, its format and language, and how to decode it.
+type bitmapInput struct {
+	index            int
+	format, language string
+	decode           func(visit func(bitmapsub.Event) error) (bitmapsub.Stats, error)
+}
+
+// produce recognizes every track into a staging directory below the job's
+// cache directory and publishes them all at once, unless one of inputs
+// changed meanwhile.
+func (s *Service) produce(ctx context.Context, next job, tracks []bitmapInput, inputs []*probe.Input) (summary, error) {
 	root, err := os.OpenRoot(s.config.CacheRoot)
 	if err != nil {
 		return summary{}, ErrUnavailable
 	}
 	defer func() { _ = root.Close() }()
-	if err := root.MkdirAll(next.sourceID, 0o700); err != nil {
+	if err := root.MkdirAll(next.dir, 0o700); err != nil {
 		return summary{}, ErrUnavailable
 	}
-	staging := next.sourceID + "/" + stagingPrefix + next.stamp + "-" + strconv.FormatInt(time.Now().UnixNano(), 36)
+	staging := next.dir + "/" + stagingPrefix + next.stamp + "-" + strconv.FormatInt(time.Now().UnixNano(), 36)
 	if err := root.Mkdir(filepath.FromSlash(staging), 0o700); err != nil {
 		return summary{}, ErrUnavailable
 	}
@@ -362,22 +395,23 @@ func (s *Service) run(ctx context.Context, next job) (summary, error) {
 			_ = root.RemoveAll(filepath.FromSlash(staging))
 		}
 	}()
+	deadline := s.config.Clock.Now().Add(MaxJobDuration)
 	value := entry{Version: entryVersion, Tracks: []entryTrack{}}
 	result := summary{tracks: len(tracks)}
 	for _, track := range tracks {
-		cues, decoded, err := s.recognizeTrack(ctx, work, track)
+		cues, decoded, err := s.recognizeTrack(ctx, track, deadline)
 		if err != nil {
 			return summary{}, err
 		}
 		data, truncated := FormatSRT(cues)
-		record := entryTrack{Index: track.ID, Format: track.Format, Pictures: decoded.Events, Skipped: decoded.Skipped, Truncated: truncated || decoded.corrupt}
+		record := entryTrack{Index: track.index, Format: track.format, Pictures: decoded.Events, Skipped: decoded.Skipped, Truncated: truncated || decoded.corrupt}
 		for _, cue := range cues {
 			if cue.Text != "" {
 				record.Cues++
 			}
 		}
 		if len(data) > 0 {
-			record.File = "s" + strconv.Itoa(track.ID) + ".srt"
+			record.File = "s" + strconv.Itoa(track.index) + ".srt"
 			if err := writeFile(root, staging+"/"+record.File, data); err != nil {
 				return summary{}, err
 			}
@@ -387,8 +421,10 @@ func (s *Service) run(ctx context.Context, next job) (summary, error) {
 		result.cues += record.Cues
 		value.Tracks = append(value.Tracks, record)
 	}
-	if err := unchanged(input); err != nil {
-		return summary{}, err
+	for _, input := range inputs {
+		if err := unchanged(input); err != nil {
+			return summary{}, err
+		}
 	}
 	if err := s.publish(root, next, staging, value); err != nil {
 		return summary{}, err
@@ -434,12 +470,16 @@ type dedupSlot struct {
 	seqs []int
 }
 
-// recognizeTrack decodes one extracted track and recognizes its pictures
+// errDeadline stops decoding a track when the job reached MaxJobDuration.
+var errDeadline = errors.New("subtitle_ocr_deadline")
+
+// recognizeTrack decodes one bitmap track and recognizes its pictures
 // with Concurrency workers, each waiting for the rate limiter and the CPU
 // budget. Identical pictures are recognized once. Pictures Tesseract
-// refuses are skipped; any other recognizer failure ends the job.
-func (s *Service) recognizeTrack(ctx context.Context, work string, track matroska.BitmapTrack) ([]Cue, trackResult, error) {
-	languages := languagesFor(track.Language, s.config.Languages)
+// refuses are skipped; any other recognizer failure ends the job. Decoding
+// stops at deadline, keeping the cues so far.
+func (s *Service) recognizeTrack(ctx context.Context, track bitmapInput, deadline time.Time) ([]Cue, trackResult, error) {
+	languages := languagesFor(track.language, s.config.Languages)
 	group, gctx := errgroup.WithContext(ctx)
 	tasks := make(chan pictureTask, s.config.Concurrency)
 	var mu sync.Mutex
@@ -470,6 +510,9 @@ func (s *Service) recognizeTrack(ctx context.Context, work string, track matrosk
 		visit := func(event bitmapsub.Event) error {
 			if err := gctx.Err(); err != nil {
 				return err
+			}
+			if s.config.Clock.Now().After(deadline) {
+				return errDeadline
 			}
 			s.pictures.Add(1)
 			picture := bitmapsub.OCRImage(event.Bitmap)
@@ -502,11 +545,12 @@ func (s *Service) recognizeTrack(ctx context.Context, work string, track matrosk
 			}
 		}
 		var err error
-		decoded, err = s.decode(work, track, visit)
-		if errors.Is(err, bitmapsub.ErrInvalid) || errors.Is(err, bitmapsub.ErrTooLarge) {
-			// A corrupt or oversized track keeps the cues decoded before
-			// the fault; the workers finish them and the track is marked
-			// truncated rather than failing the whole source.
+		decoded, err = track.decode(visit)
+		if errors.Is(err, bitmapsub.ErrInvalid) || errors.Is(err, bitmapsub.ErrTooLarge) || errors.Is(err, errDeadline) {
+			// A corrupt or oversized track, or one that reached the job
+			// deadline, keeps the cues decoded before; the workers finish
+			// them and the track is marked truncated rather than failing
+			// the whole source.
 			mu.Lock()
 			corrupt = true
 			mu.Unlock()
