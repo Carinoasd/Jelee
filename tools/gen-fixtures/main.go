@@ -24,6 +24,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/MoYuanCN/Jelee/internal/adapter/formatsamples"
 	"github.com/MoYuanCN/Jelee/internal/platform/process"
 )
 
@@ -75,6 +76,10 @@ type fixtureManifest struct {
 	ToolVersion   string    `json:"toolVersion"`
 	ToolSHA256    string    `json:"toolSHA256"`
 	Files         []fixture `json:"files"`
+	// Skipped names the format samples (W10-14) the pinned ffmpeg could not
+	// encode, with the reason. A missing sample is reported here, never
+	// replaced.
+	Skipped map[string]string `json:"skipped,omitempty"`
 }
 
 func relativePath(value string) bool {
@@ -202,6 +207,54 @@ func makeImage(path string) error {
 		return errors.New("fixture_write_failed")
 	}
 	return nil
+}
+
+// formatSamplePrefix keeps the format samples (W10-14) apart from the
+// general fixtures in one flat output directory.
+const formatSamplePrefix = "format-"
+
+// generateFormatSamples writes one sample of every external subtitle and
+// audio format (formatsamples): the checked-in text and hand-made bitmap and
+// MP3 files as they are, and the audio the pinned ffmpeg encodes with the
+// shared argument table. An experimental encoder the pinned build lacks is
+// returned in the skipped map with its reason, and the run goes on; any other
+// failure is an error.
+func generateFormatSamples(ctx context.Context, toolPath, temp, output string, common []string, expectations map[string]expected) (map[string]string, error) {
+	for _, s := range formatsamples.Subtitles() {
+		name := formatSamplePrefix + s.Name("sample")
+		if err := writeNew(filepath.Join(output, name), s.Data); err != nil {
+			return nil, err
+		}
+		expectations[name] = expected{}
+	}
+	skipped := make(map[string]string)
+	for _, spec := range formatsamples.AudioSpecs() {
+		name := formatSamplePrefix + spec.File
+		if spec.Handmade {
+			if err := writeNew(filepath.Join(output, name), formatsamples.Mp3()); err != nil {
+				return nil, err
+			}
+			expectations[name] = expected{Audio: 1}
+			continue
+		}
+		args := append(append(append([]string(nil), common...), spec.Input()...), spec.Args...)
+		args = append(args, filepath.Join(output, name))
+		if _, err := runTool(ctx, toolPath, temp, "generate-audio", args); err != nil {
+			if ctx.Err() != nil {
+				return nil, process.ErrCancelled
+			}
+			if !spec.Experimental() {
+				return nil, err
+			}
+			skipped[name] = "the pinned ffmpeg could not encode it: " + err.Error()
+			continue
+		}
+		expectations[name] = expected{Audio: 1}
+	}
+	if len(skipped) == 0 {
+		return nil, nil
+	}
+	return skipped, nil
 }
 
 func generate(ctx context.Context, project string) (output string, returnErr error) {
@@ -342,6 +395,10 @@ func generate(ctx context.Context, project string) (output string, returnErr err
 		return "", process.ErrCancelled
 	}
 	expectations["audio.flac"] = expected{Audio: 1}
+	skipped, err := generateFormatSamples(ctx, toolPath, temp, output, common, expectations)
+	if err != nil {
+		return "", err
+	}
 	if err := os.Remove(temp); err != nil {
 		return "", errors.New("fixture_cleanup_failed")
 	}
@@ -349,7 +406,7 @@ func generate(ctx context.Context, project string) (output string, returnErr err
 	if err != nil {
 		return "", errors.New("fixture_read_failed")
 	}
-	result := fixtureManifest{SchemaVersion: 1, Platform: runtime.GOOS + "-" + runtime.GOARCH, ToolVersion: spec.VendorVersion, ToolSHA256: spec.Executables["ffmpeg"].SHA256, Files: make([]fixture, 0, len(entries))}
+	result := fixtureManifest{SchemaVersion: 1, Platform: runtime.GOOS + "-" + runtime.GOARCH, ToolVersion: spec.VendorVersion, ToolSHA256: spec.Executables["ffmpeg"].SHA256, Files: make([]fixture, 0, len(entries)), Skipped: skipped}
 	var total int64
 	for _, entry := range entries {
 		if ctx.Err() != nil {
