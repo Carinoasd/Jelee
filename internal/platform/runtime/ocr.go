@@ -79,12 +79,17 @@ func newOCRService(ctx context.Context, c config.SubtitleOCRConfig, extractor *m
 		return nil
 	}
 	// The service outlives this registration context; Close stops it.
-	service, err := subtitleocr.New(extractor, recognizer, subtitleocr.Config{ //nolint:contextcheck // background service with its own lifetimeCacheRoot: c.CacheRoot, MaxCacheBytes: c.CacheMaxBytes, WorkRoot: work, Languages: c.Languages,
-		PicturesPerMinute: c.PicturesPerMinute, Concurrency: c.Concurrency, QueueSize: c.QueueSize, Identity: identity, Budget: budget, Logger: logger})
+	service, err := subtitleocr.New(extractor, recognizer, ocrServiceConfig(c, work, identity, budget, logger)) //nolint:contextcheck // background service with its own lifetime
 	if err != nil {
 		reason = "cache_unavailable"
 		return nil
 	}
 	reason = ""
 	return service
+}
+
+// ocrServiceConfig carries the validated settings into the service.
+func ocrServiceConfig(c config.SubtitleOCRConfig, work, identity string, budget app.WorkBudget, logger *slog.Logger) subtitleocr.Config {
+	return subtitleocr.Config{CacheRoot: c.CacheRoot, MaxCacheBytes: c.CacheMaxBytes, WorkRoot: work, Languages: c.Languages,
+		PicturesPerMinute: c.PicturesPerMinute, Concurrency: c.Concurrency, QueueSize: c.QueueSize, Identity: identity, Budget: budget, Logger: logger}
 }

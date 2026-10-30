@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"log/slog"
+	"slices"
 	"strings"
 	"testing"
 
@@ -180,5 +181,15 @@ func TestOCRServiceWithoutRuntimeLeavesOCROff(t *testing.T) {
 	logs.Reset()
 	if service := newOCRService(context.Background(), c, nil, directory, nil, logger); service != nil || !strings.Contains(logs.String(), "subtitle_ocr_temporary_unavailable") {
 		t.Fatalf("logs %s", logs.String())
+	}
+}
+
+func TestOCRServiceConfigCarriesEverySetting(t *testing.T) {
+	c := config.SubtitleOCRConfig{Enable: true, CacheRoot: "/ocr", CacheMaxBytes: 1 << 30, Languages: []string{"chi_tra", "eng"}, PicturesPerMinute: 90, Concurrency: 3, QueueSize: 7}
+	logger := slog.New(slog.DiscardHandler)
+	got := ocrServiceConfig(c, "/work", "identity", nil, logger)
+	if got.CacheRoot != "/ocr" || got.MaxCacheBytes != 1<<30 || got.WorkRoot != "/work" || !slices.Equal(got.Languages, c.Languages) || got.PicturesPerMinute != 90 ||
+		got.Concurrency != 3 || got.QueueSize != 7 || got.Identity != "identity" || got.Logger != logger {
+		t.Fatalf("%+v", got)
 	}
 }
