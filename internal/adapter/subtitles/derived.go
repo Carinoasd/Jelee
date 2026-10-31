@@ -132,9 +132,10 @@ type derivedFlight struct {
 // NewDerivedCache opens the derived directory below cacheRoot, which must
 // be an existing private (0700) absolute directory as for the Matroska
 // cache; the directory itself is created when missing. maxBytes zero
-// selects DefaultDerivedMaxBytes.
+// selects DefaultDerivedMaxBytes. On Windows there is no cache
+// (supportedPlatform).
 func NewDerivedCache(cacheRoot string, maxBytes int64) (*DerivedCache, error) {
-	if !filepath.IsAbs(cacheRoot) || filepath.Clean(cacheRoot) != cacheRoot {
+	if !supportedPlatform || !filepath.IsAbs(cacheRoot) || filepath.Clean(cacheRoot) != cacheRoot {
 		return nil, ErrDerivedUnavailable
 	}
 	if maxBytes == 0 {
@@ -273,6 +274,7 @@ func (c *DerivedCache) fill(ctx context.Context, req DerivedRequest, original *o
 			break
 		}
 		c.mu.Unlock()
+		derivedBeforeWait(key)
 		select {
 		case <-call.done:
 		case <-ctx.Done():
@@ -370,8 +372,12 @@ func (c *DerivedCache) build(ctx context.Context, req DerivedRequest, original *
 }
 
 // derivedAfterConvert runs between conversion and publication; tests
-// change the original there.
-var derivedAfterConvert = func(string) {}
+// change the original there. derivedBeforeWait runs before a request
+// waits on a conversion in flight; tests count the waiters there.
+var (
+	derivedAfterConvert = func(string) {}
+	derivedBeforeWait   = func(string) {}
+)
 
 func writeSmall(root *os.Root, sourceID, stem, reason string) error {
 	name := sourceID + "/" + stem + "." + derivedRejected

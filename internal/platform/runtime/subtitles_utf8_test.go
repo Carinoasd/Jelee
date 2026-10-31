@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	goruntime "runtime"
 	"strings"
 	"testing"
 	"time"
@@ -52,6 +53,9 @@ func utf8TestConfig(t *testing.T) config.Config {
 // track's limits and device; the reasons for no copy are logged with the
 // track ID and a fixed code only.
 func TestUTF8ServiceAuthorizesThenConverts(t *testing.T) {
+	if goruntime.GOOS == "windows" {
+		t.Skip("the derived cache is off on Windows")
+	}
 	library := t.TempDir()
 	text := strings.Repeat("1\n00:00:01,000 --> 00:00:02,000\n我們必須在天黑之前離開這個地方。\n\n", 40)
 	big5, err := traditionalchinese.Big5.NewEncoder().Bytes([]byte(text))
@@ -133,6 +137,9 @@ func TestSubtitleCacheBoundsStayWithinTheConfiguredTotal(t *testing.T) {
 // One cleanup job walks both caches below the root: sources are the union
 // and each cache sweeps only its own directories.
 func TestDerivedSweeperCombinesBothCaches(t *testing.T) {
+	if goruntime.GOOS == "windows" {
+		t.Skip("the derived cache is off on Windows")
+	}
 	c := utf8TestConfig(t)
 	sweeper, ok := prepareSubtitleCacheSweeper(c).(derivedSweeper)
 	if !ok {

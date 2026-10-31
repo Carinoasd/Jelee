@@ -1,3 +1,5 @@
+//go:build !windows
+
 package subtitles
 
 import (
@@ -134,16 +136,36 @@ func TestDerivedCacheConvertsOnce(t *testing.T) {
 	f := newDerivedFixture(t, 0)
 	req := f.write(t, "once.srt", encodeWith(t, GB18030, srtText(pick("zh-Hans", 0, 400))))
 	req.Charset = string(GB18030)
-	var wg sync.WaitGroup
-	results := make([]string, 16)
-	errs := make([]error, 16)
-	for i := range results {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			results[i], errs[i] = f.cache.Locate(context.Background(), req)
-		}()
+	// The first request is held between conversion and publication until
+	// every later one waits on it, so the sharing path is exercised, not
+	// a cache hit after a fast conversion.
+	const waiters = 15
+	converting, release := make(chan struct{}), make(chan struct{})
+	waiting := make(chan struct{}, waiters)
+	derivedAfterConvert = func(string) {
+		close(converting)
+		<-release
 	}
+	derivedBeforeWait = func(string) { waiting <- struct{}{} }
+	t.Cleanup(func() { derivedAfterConvert, derivedBeforeWait = func(string) {}, func(string) {} })
+	var wg sync.WaitGroup
+	results := make([]string, waiters+1)
+	errs := make([]error, waiters+1)
+	locate := func(i int) {
+		defer wg.Done()
+		results[i], errs[i] = f.cache.Locate(context.Background(), req)
+	}
+	wg.Add(1)
+	go locate(0)
+	<-converting
+	for i := 1; i <= waiters; i++ {
+		wg.Add(1)
+		go locate(i)
+	}
+	for i := 0; i < waiters; i++ {
+		<-waiting
+	}
+	close(release)
 	wg.Wait()
 	for i := range results {
 		if errs[i] != nil || results[i] != results[0] {
