@@ -12,12 +12,6 @@
       "newest": "Release date (newest first)",
       "year": "Year (newest first)"
     },
-    "listCaption": "Items in {name}",
-    "column": {
-      "poster": "Poster",
-      "title": "Title",
-      "kind": "Type"
-    },
     "kind": {
       "movie": "Movie",
       "homeVideo": "Home video",

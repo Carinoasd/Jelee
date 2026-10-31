@@ -1,6 +1,7 @@
 import { defineStore } from "pinia";
-import { computed, shallowRef } from "vue";
+import { computed, shallowRef, watch } from "vue";
 import { useApi } from "@/api";
+import { clearRequestCache } from "@/api/requestCache";
 import {
   currentUser,
   login as loginRequest,
@@ -31,6 +32,14 @@ export const useAuthStore = defineStore("auth", () => {
    */
   const isGuest = computed(() => user.value?.name.startsWith("share:") === true);
   let restoring: Promise<void> | null = null;
+  // Cached catalog pages belong to the account that read them.
+  watch(
+    () => user.value?.id,
+    () => {
+      clearRequestCache(client);
+    },
+    { flush: "sync" },
+  );
 
   /**
    * Resumes a session that survived a page reload (the HttpOnly cookie).

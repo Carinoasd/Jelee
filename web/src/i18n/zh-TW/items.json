@@ -12,12 +12,6 @@
       "newest": "上映日期（新到舊）",
       "year": "年份（新到舊）"
     },
-    "listCaption": "{name} 中的項目",
-    "column": {
-      "poster": "海報",
-      "title": "標題",
-      "kind": "類型"
-    },
     "kind": {
       "movie": "電影",
       "homeVideo": "家庭影片",

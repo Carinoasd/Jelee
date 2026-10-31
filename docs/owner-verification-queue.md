@@ -20,6 +20,7 @@
 | A2 | Windows 真 PG 回歸 | 同上，第 2 步 | 待跑 |
 | A3 | 24h 圖片長測（用最新 commit 重跑） | `docs/image-soak.md`，`scripts/start_images_soak.py` | 待跑 |
 | A4 | 網頁視覺基準：條目頁新增收藏按鈕（第 11 階段 C1，G24.2）。desktop 的 `item-light.png`／`item-dark.png` 已改用 CI Linux 構件的實際圖（mobile 兩張不受影響，CI 比對通過；本機 WSL 字型與 CI 不同，不在本機更新）。請在 PR 的圖片差異確認新圖：標題下方多一個「★ Favorite」切換按鈕，假資料為已收藏狀態，所以是實心星並套用 pressed 樣式 | `web/e2e/__screenshots__/desktop/item-*.png`、`docs/frontend-adr.md`「端對端與視覺回歸」 | 待確認 |
+| A5 | 第 11 階段 C3 前端視覺基線：在 CI 跑 `make web-visual`，從失敗構件取實際圖人工確認後提交。會變的頁面：`library-posters`、`library-list`、`search`、`settings`（亮／暗 × 桌面／手機共 16 張）；其他頁面應只有既知字型雜訊。本機 WSL 字型與 CI 不同，不得用本機 `web-visual-update` | `docs/frontend-adr.md`「端對端與視覺回歸」 | 待跑 |
 
 ## B. Windows 實機
 

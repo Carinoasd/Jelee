@@ -1,11 +1,14 @@
 <script setup lang="ts">
 import { computed, shallowRef, watch } from "vue";
-import { posterUrl } from "./api";
+import { posterSrcset, posterUrl } from "./api";
 
 // Poster artwork with a lettered placeholder when the item has no image or
 // it fails to load. Decorative (alt=""): the title is always shown as text.
-const props = withDefaults(defineProps<{ itemId: string; title: string; width?: number; eager?: boolean }>(), {
+// With `sizes` the browser picks one of several widths (srcset) for the
+// rendered size and the screen density; `width` stays the plain src.
+const props = withDefaults(defineProps<{ itemId: string; title: string; width?: number; sizes?: string; eager?: boolean }>(), {
   width: 300,
+  sizes: undefined,
   eager: false,
 });
 const failed = shallowRef(false);
@@ -24,6 +27,8 @@ const initial = computed(() => Array.from(props.title.trim())[0]?.toLocaleUpperC
       v-if="!failed"
       class="jl-poster__image"
       :src="posterUrl(itemId, width)"
+      :srcset="sizes ? posterSrcset(itemId) : undefined"
+      :sizes="sizes"
       alt=""
       :loading="eager ? 'eager' : 'lazy'"
       decoding="async"

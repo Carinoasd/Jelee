@@ -12,9 +12,28 @@
       "system": "跟隨系統",
       "light": "淺色",
       "dark": "深色",
-      "hint": "立即套用並儲存到帳號，在其他裝置上同樣生效。",
+      "sepia": "復古紙張",
+      "contrast": "高對比",
       "saved": "已儲存主題。"
     },
+    "density": {
+      "label": "密度",
+      "comfortable": "寬鬆",
+      "compact": "緊湊",
+      "saved": "已儲存密度。"
+    },
+    "poster": {
+      "ratio": "海報比例",
+      "size": "海報大小",
+      "portrait": "直式",
+      "square": "方形",
+      "landscape": "橫式",
+      "small": "小",
+      "medium": "中",
+      "large": "大"
+    },
+    "view": "預設檢視",
+    "listDensity": "列表密度",
     "profile": {
       "heading": "個人資料",
       "name": "顯示名稱",

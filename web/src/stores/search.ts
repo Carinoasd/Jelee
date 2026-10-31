@@ -3,73 +3,107 @@ import { shallowRef } from "vue";
 import { useApi } from "@/api";
 import { useRequest } from "@/api/requestState";
 import type { CatalogItem } from "@/features/items/api";
-import { searchItems, type SearchKind } from "@/features/search/api";
+import { sameFilters, searchGroups, searchItems, type SearchFilters, type SearchGroup } from "@/features/search/api";
 import { resetOnUserChange } from "./userScoped";
 
+const noSearch: SearchFilters = { q: "", kind: null, libraryId: null };
+
+/**
+ * Search results (G34.3). Without a kind the page shows an overview: the
+ * first results of every kind with each kind's total. Narrowed to one kind it
+ * pages through all of them. Responses for filters the user has already
+ * replaced are dropped; the request state machine also ignores superseded runs.
+ */
 export const useSearchStore = defineStore("search", () => {
   const { client } = useApi();
-  const query = shallowRef("");
-  const kind = shallowRef<SearchKind | null>(null);
+  const filters = shallowRef<SearchFilters>(noSearch);
+  const groups = shallowRef<readonly SearchGroup[]>([]);
   const items = shallowRef<readonly CatalogItem[]>([]);
   const total = shallowRef(0);
+  let fresh = false;
 
-  // A response for a query the user has already replaced is dropped; the
-  // request state machine also ignores superseded runs.
-  async function loadPage(append: boolean) {
-    const q = query.value;
-    const k = kind.value;
-    const page = await searchItems(client, q, append ? items.value.length : 0, k);
-    if (q === query.value && k === kind.value) {
-      items.value = append ? [...items.value, ...page.items] : page.items;
+  async function loadFirst(): Promise<number> {
+    const current = filters.value;
+    const force = fresh;
+    fresh = false;
+    if (current.kind === null) {
+      const found = await searchGroups(client, current, force);
+      if (sameFilters(current, filters.value)) {
+        groups.value = found;
+      }
+      return found.length;
+    }
+    const page = await searchItems(client, current, 0, undefined, force);
+    if (sameFilters(current, filters.value)) {
+      items.value = page.items;
       total.value = page.total;
     }
-    return items.value;
+    return page.items.length;
   }
 
-  const firstPage = useRequest(
-    () => loadPage(false),
-    (list) => list.length === 0,
-  );
-  const morePages = useRequest(() => loadPage(true));
-
-  function reset() {
-    query.value = "";
-    kind.value = null;
-    items.value = [];
-    total.value = 0;
-    firstPage.reset();
-    morePages.reset();
-  }
-
-  /** Runs a search unless the same one is already on screen; "" clears. */
-  async function search(q: string, k: SearchKind | null, force = false) {
-    if (!force && q === query.value && k === kind.value && firstPage.state.value.status !== "error" && firstPage.state.value.status !== "idle") {
+  async function loadMore(): Promise<void> {
+    const current = filters.value;
+    if (current.kind === null || items.value.length >= total.value) {
       return;
     }
+    const page = await searchItems(client, current, items.value.length);
+    if (sameFilters(current, filters.value)) {
+      items.value = [...items.value, ...page.items];
+      total.value = page.total;
+    }
+  }
+
+  const firstPage = useRequest(loadFirst, (count) => count === 0);
+  const morePages = useRequest(loadMore);
+
+  function clearResults() {
+    groups.value = [];
     items.value = [];
     total.value = 0;
     morePages.reset();
-    query.value = q;
-    kind.value = k;
-    if (q === "") {
+  }
+
+  function reset() {
+    filters.value = noSearch;
+    clearResults();
+    firstPage.reset();
+  }
+
+  /** Runs a search unless the same one is already on screen; an empty query clears. */
+  async function search(next: SearchFilters, force = false) {
+    const status = firstPage.state.value.status;
+    if (!force && sameFilters(next, filters.value) && status !== "error" && status !== "idle") {
+      return;
+    }
+    clearResults();
+    filters.value = next;
+    if (next.q === "") {
       firstPage.reset();
       return;
     }
+    fresh = force;
     await firstPage.run();
+  }
+
+  /** Loads the next page of a one-kind search unless one is loading or all are shown. */
+  async function more() {
+    if (morePages.state.value.status !== "loading" && filters.value.kind !== null && items.value.length < total.value) {
+      await morePages.run();
+    }
   }
 
   resetOnUserChange(reset);
 
   return {
-    query,
-    kind,
+    filters,
+    groups,
     items,
     total,
     state: firstPage.state,
     moreState: morePages.state,
     search,
-    retry: () => search(query.value, kind.value, true),
-    loadMore: morePages.run,
+    retry: () => search(filters.value, true),
+    loadMore: more,
     reset,
   };
 });

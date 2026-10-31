@@ -1,7 +1,7 @@
 import { createApp } from "vue";
 import App from "./App.vue";
 import { installAppPlugins } from "./plugins";
-import "./theme/tokens.css";
+import "virtual:jelee-tokens.css";
 import "./theme/base.css";
 
 const app = createApp(App);

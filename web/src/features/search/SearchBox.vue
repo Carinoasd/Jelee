@@ -7,7 +7,8 @@ import { normalizeQuery, searchMaxLength } from "./api";
 // Header search field. On the search page typing updates the results after a
 // short pause (debounced, the URL keeps the query); elsewhere Enter opens the
 // search page, so focus is never pulled away while typing. "/" focuses the
-// field from anywhere outside another text field; Escape clears it.
+// field from anywhere outside another text field; Escape clears it and
+// ArrowDown moves into the results on the search page.
 const props = withDefaults(defineProps<{ debounceMs?: number }>(), { debounceMs: 300 });
 const { t } = useI18n();
 const route = useRoute();
@@ -59,6 +60,14 @@ function onEscape() {
   }
 }
 
+function focusResults(event: KeyboardEvent) {
+  const first = route.name === "search" ? document.querySelector<HTMLElement>("[data-result-link]") : null;
+  if (first !== null) {
+    event.preventDefault();
+    first.focus();
+  }
+}
+
 function isTextTarget(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) {
     return false;
@@ -98,6 +107,7 @@ onBeforeUnmount(() => {
       aria-keyshortcuts="/"
       @input="onInput"
       @keydown.esc.prevent="onEscape"
+      @keydown.down="focusResults"
     />
     <button type="submit" class="jl-search-box__submit">
       <span class="jl-visually-hidden">{{ t("common.search") }}</span>
