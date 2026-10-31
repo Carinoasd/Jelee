@@ -47,7 +47,9 @@ func TestIsolatedFactoryAcceptsOnlyTheSealedLauncherRegistration(t *testing.T) {
 		t.Fatal(err)
 	}
 	tool := runner.runner.tools["ffprobe"]
-	if len(runner.runner.tools) != 1 || len(tool.Operations) != 1 || tool.Path != launcher.Executable() || tool.Operations["metadata"][0] != sandbox.HelperCommand || tool.Operations["metadata"][1] != launcher.HelperArguments()[1] {
+	if len(runner.runner.tools) != 1 || len(tool.Operations) != 2 || tool.Path != launcher.Executable() || tool.Operations["metadata"][0] != sandbox.HelperCommand || tool.Operations["metadata"][1] != launcher.HelperArguments()[1] ||
+		tool.Operations[SidecarOperation][0] != sandbox.HelperCommand || tool.Operations[SidecarOperation][1] != launcher.SidecarHelperArguments()[1] ||
+		tool.Operations[SidecarOperation][1] == tool.Operations["metadata"][1] {
 		t.Fatal("factory registry differed from the sealed launcher")
 	}
 	config.MaxConcurrent = 0

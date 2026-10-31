@@ -3,6 +3,7 @@ package sandbox
 import (
 	"encoding/base64"
 	"encoding/json"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -77,5 +78,66 @@ func TestPolicyMetadataArgumentsIdentityIsStableAndCannotBeMutated(t *testing.T)
 	}
 	if got := MetadataArgumentsDigest(); got != expected {
 		t.Fatalf("caller mutation changed metadata argument identity: got %s", got)
+	}
+}
+
+// The external track probe (B4) is the metadata probe with a different
+// demuxer whitelist and nothing else: same input restrictions, fd-only
+// input, no network or image demuxers, no stream argument, and the
+// metadata identity unchanged.
+func TestSidecarArgumentsKeepMetadataRestrictions(t *testing.T) {
+	metadata, sidecar := metadataArguments(), sidecarArguments()
+	if len(metadata) != len(sidecar) {
+		t.Fatal("sidecar argv shape differs from the metadata probe")
+	}
+	whitelist := -1
+	for i := range metadata {
+		if metadata[i] == "-format_whitelist" {
+			whitelist = i + 1
+			continue
+		}
+		if i != whitelist && metadata[i] != sidecar[i] {
+			t.Fatalf("sidecar argv differs at %d: %q", i, sidecar[i])
+		}
+	}
+	if whitelist < 0 || sidecar[whitelist] != SidecarFormatWhitelist {
+		t.Fatal("sidecar whitelist missing")
+	}
+	allowed := strings.Split(SidecarFormatWhitelist, ",")
+	for _, demuxer := range []string{"sup", "microdvd", "mpeg", "dts", "truehd", "matroska", "ogg", "mov"} {
+		if !slices.Contains(allowed, demuxer) {
+			t.Fatal("sidecar demuxer missing", demuxer)
+		}
+	}
+	for _, demuxer := range []string{"hls", "concat", "image2", "lavfi", "rtsp", "data", "tee", "avi", "mpegts", "flv", "vobsub", "srt", "ass"} {
+		if slices.Contains(allowed, demuxer) {
+			t.Fatal("sidecar probe allows demuxer", demuxer)
+		}
+	}
+	data, err := json.Marshal(descriptor{Version: 1, Mode: "sidecar", FFprobePath: "/tmp/ffprobe"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := decodeDescriptor([]string{base64.RawURLEncoding.EncodeToString(data)})
+	if err != nil || !slices.Equal(got.arguments, sidecar) {
+		t.Fatal("sidecar descriptor refused or mapped to other argv", err)
+	}
+	stream := 0
+	data, _ = json.Marshal(descriptor{Version: 1, Mode: "sidecar", FFprobePath: "/tmp/ffprobe", Stream: &stream})
+	if _, err := decodeDescriptor([]string{base64.RawURLEncoding.EncodeToString(data)}); err != ErrInvalid {
+		t.Fatal("sidecar descriptor with a stream accepted")
+	}
+	l := &Launcher{executable: "trusted", descriptor: "fixed", ffprobePath: "/tmp/ffprobe"}
+	args := l.SidecarHelperArguments()
+	if len(args) != 2 || args[0] != HelperCommand || l.DirectSidecarArguments() != nil {
+		t.Fatal("sidecar helper registration", args)
+	}
+	args[1] = "changed"
+	if l.SidecarHelperArguments()[1] == "changed" {
+		t.Fatal("sidecar registration was mutable")
+	}
+	var absent *Launcher
+	if absent.SidecarHelperArguments() != nil {
+		t.Fatal("nil launcher exposed sidecar argv")
 	}
 }

@@ -25,6 +25,10 @@ type IsolatedRunner struct {
 	direct bool
 }
 
+// SidecarOperation names the sealed external track probe (B4), registered
+// next to the metadata probe on the same runner.
+const SidecarOperation = "sidecar"
+
 // CoverOperation names the sealed cover read of one video-relative stream
 // index; an index outside the sandbox range yields "".
 func CoverOperation(stream int) string {
@@ -55,20 +59,24 @@ func NewIsolatedFFprobe(config Config, launcher *sandbox.Launcher) (*IsolatedRun
 		return nil, ErrInvalid
 	}
 	if launcher.Direct() {
-		return newDirectFFprobe(config, launcher.Executable(), launcher.Confinement(), map[string][]string{"metadata": launcher.DirectArguments()})
+		return newDirectFFprobe(config, launcher.Executable(), launcher.Confinement(), map[string][]string{
+			"metadata": launcher.DirectArguments(), SidecarOperation: launcher.DirectSidecarArguments()})
 	}
-	arguments := launcher.HelperArguments()
+	arguments, sidecar := launcher.HelperArguments(), launcher.SidecarHelperArguments()
 	maximum := base64.RawURLEncoding.EncodedLen(sandbox.MaxDescriptor)
-	if len(arguments) != 2 || arguments[0] != sandbox.HelperCommand || len(arguments[1]) == 0 || len(arguments[1]) > maximum {
-		return nil, ErrInvalid
+	for _, value := range [][]string{arguments, sidecar} {
+		if len(value) != 2 || value[0] != sandbox.HelperCommand || len(value[1]) == 0 || len(value[1]) > maximum {
+			return nil, ErrInvalid
+		}
 	}
 	// Launcher fields are private to sandbox and populated only by its verified
 	// constructor. This exception cannot change the ordinary New restrictions.
-	runner, err := newRunnerWithArgumentLimits(config, []Tool{{ID: "ffprobe", Path: launcher.Executable(), Operations: map[string][]string{"metadata": arguments}}}, true, maximum, maximum+len(sandbox.HelperCommand)+2)
+	// Both operations share this runner and so its process admission.
+	runner, err := newRunnerWithArgumentLimits(config, []Tool{{ID: "ffprobe", Path: launcher.Executable(), Operations: map[string][]string{"metadata": arguments, SidecarOperation: sidecar}}}, true, maximum, maximum+len(sandbox.HelperCommand)+2)
 	if err != nil {
 		return nil, err
 	}
-	return &IsolatedRunner{runner: runner, operations: map[string]bool{"metadata": true}}, nil
+	return &IsolatedRunner{runner: runner, operations: map[string]bool{"metadata": true, SidecarOperation: true}}, nil
 }
 
 // NewIsolatedFFprobeCover registers only the embedded cover reads (G40.4),

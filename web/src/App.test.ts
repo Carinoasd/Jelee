@@ -47,8 +47,8 @@ function seed(server: FakeServer) {
       audioTracks: [{ index: 1, codec: "truehd", language: "eng", channelLayout: "7.1", default: true, forced: false, atmos: true, commentary: false, visualImpaired: false }],
       subtitleTracks: [{ index: 2, codec: "hdmv_pgs_subtitle", format: "pgs", language: "eng", default: false, forced: true, sdh: false }],
       externalTracks: [
-        { id: "50000000-0000-4000-8000-000000000001", kind: "subtitle", format: "srt", language: "zh", forced: false, sdh: true, default: false, commentary: false, sizeBytes: 10 },
-        { id: "50000000-0000-4000-8000-000000000002", kind: "audio", format: "ac3", language: "ja", forced: false, sdh: false, default: false, commentary: true, sizeBytes: 20 },
+        { id: "50000000-0000-4000-8000-000000000001", kind: "subtitle", format: "srt", language: "zh", forced: false, sdh: true, default: false, commentary: false, sizeBytes: 10, probeState: "not_applicable" },
+        { id: "50000000-0000-4000-8000-000000000002", kind: "audio", format: "ac3", language: "ja", forced: false, sdh: false, default: false, commentary: true, sizeBytes: 20, probeState: "ready" },
       ],
     },
   ];

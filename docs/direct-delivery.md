@@ -160,6 +160,10 @@ Web 禁止播放的承诺基于**服务端签发时绑定的会话类型**。原
 
 **并发计数。** 轨道计入它所属资源的播放：并发上限的计数键是“会话＋资源 ID”，所以同一会话同时拉视频、外挂音轨和字幕只占一个播放名额；换成另一个资源仍按上限拒绝。带宽桶本来就按用户（或设备）共享，轨道与视频一起受限。
 
+**外挂轨探测与 `.idx`＋`.sub`（B4，schema 109）。** 音轨、`.sub`、`.sup` 由目录同步在检查之后按需探测（见 `catalog-sync.md`），结果只是描述，不改变投递：`externalTracks[]` 新增 `probeState`（`pending`／`ready`／`failed`／`not_applicable`），`ready` 时音轨另有 `profile`、`channels`、`channelLayout`、`sampleRate`、`bitRate`、`durationMicros` 与 `atmos`（沿用内嵌轨规则：E-AC-3／TrueHD 的 profile 标明 Dolby Atmos），字幕有 `durationMicros`。`codec` 以探测结果为准（例如 `.dts` 里其实是 AC-3 就报 `ac3`；`mka`／`m4a`／`ogg`／`oga` 探测后不再是空的），未探测时照旧由扩展名决定，`.sub` 由内容判别给 `microdvd` 或 `vobsub`；探测失败或尚未探测的轨照常列出，只是事实未知，判定仍是 `track_not_probed` 或依扩展名的 codec，播放信息从不等待探测。VobSub 的 `.sub` 数据半边不单独列为轨，同名 `.idx` 带 `pairedTrackId`，客户端用它经同一条字幕路由取 `.sub` 原文件。
+
+探测走媒体探测同一个沙箱 runtime 的新封闭操作 `sidecar`：helper 描述符 `{"version":1,"mode":"sidecar",…}`（Linux）或 Windows 直接启动的固定 argv，与 `metadata` 注册在同一个 `IsolatedRunner`，共用进程并发上限、逾时与输出上限；argv 与 `metadata` 完全相同，只有 `-format_whitelist` 换成 `matroska,webm,mov,mp4,m4a,3gp,3g2,mj2,ogg,mpeg,aac,ac3,eac3,dts,truehd,mlp,flac,mp3,wav,sup,microdvd`（仍只允许 `fd` 协议，没有网络、图片序列、`concat`、`vobsub`（会按名称打开另一个文件）或纯文字字幕 demuxer）。文件仍以 `os.OpenRoot` 只读打开后经 stdin 交给子进程，前后比对大小、mtime 与边缘指纹。新操作不改变探测身份（`ArgumentsSHA256` 只涵盖 `metadata` argv），探测结果存在外挂轨行而不进探测缓存。
+
 **Content-Type。** 由固定对照表按扩展名决定，忽略仓储返回的类型，也不查询系统 MIME 数据库（避免主机配置把字幕映射成文档类型）：
 
 | 扩展名 | Content-Type |
@@ -170,7 +174,7 @@ Web 禁止播放的承诺基于**服务端签发时绑定的会话类型**。原
 | `ttml`、`dfxp` | `application/ttml+xml` |
 | `smi`、`sami` | `application/x-sami` |
 | `idx` | `text/plain` |
-| `sub` | 有检测到的字符集时 `text/x-microdvd`（MicroDVD 文本），否则 `application/octet-stream`（可能是 VobSub 数据） |
+| `sub` | 以扫描的内容判别（`subtitle_kind`）为准：VobSub 数据一律 `application/octet-stream`；MicroDVD 文本为 `text/x-microdvd`（有字符集时带 `charset`）；尚未判别时沿用旧规则（有字符集为 `text/x-microdvd`，否则 `application/octet-stream`） |
 | `sup` | `application/x-pgs` |
 | `mka` | `audio/x-matroska` |
 | `ac3` | `audio/ac3` |

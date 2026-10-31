@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/MoYuanCN/Jelee/internal/access"
+	"github.com/MoYuanCN/Jelee/internal/domain"
 )
 
 // trackResolver serves one source and one track of it. It records which
@@ -209,8 +210,32 @@ func TestTrackContentTypes(t *testing.T) {
 		{TrackAudio, "", "", "application/octet-stream"},
 		{TrackKind("video"), ".mkv", "", "application/octet-stream"},
 	} {
-		if got := TrackContentType(tc.kind, tc.ext, tc.charset); got != tc.want {
+		if got := TrackContentType(tc.kind, tc.ext, tc.charset, ""); got != tc.want {
 			t.Errorf("%s %s %q: %q, want %q", tc.kind, tc.ext, tc.charset, got, tc.want)
+		}
+	}
+}
+
+// The content kind the scan found decides a ".sub": VobSub data stays opaque
+// whatever charset detection guessed; MicroDVD is text even without one.
+// Other formats ignore the kind.
+func TestTrackContentTypeSubtitleKind(t *testing.T) {
+	for _, tc := range []struct {
+		kind                    TrackKind
+		ext, charset, sub, want string
+	}{
+		{TrackSubtitle, ".sub", "windows-1252", domain.SidecarSubtitleVobSub, "application/octet-stream"},
+		{TrackSubtitle, ".SUB", "", domain.SidecarSubtitleVobSub, "application/octet-stream"},
+		{TrackSubtitle, ".sub", "", domain.SidecarSubtitleMicroDVD, "text/x-microdvd"},
+		{TrackSubtitle, ".sub", "Big5", domain.SidecarSubtitleMicroDVD, "text/x-microdvd; charset=Big5"},
+		{TrackSubtitle, ".sub", "x-evil\r\n", domain.SidecarSubtitleMicroDVD, "text/x-microdvd"},
+		{TrackSubtitle, ".sub", "UTF-8", "", "text/x-microdvd; charset=UTF-8"},
+		{TrackSubtitle, ".sub", "", "", "application/octet-stream"},
+		{TrackSubtitle, ".srt", "UTF-8", domain.SidecarSubtitleVobSub, "application/x-subrip; charset=UTF-8"},
+		{TrackAudio, ".sub", "", domain.SidecarSubtitleMicroDVD, "application/octet-stream"},
+	} {
+		if got := TrackContentType(tc.kind, tc.ext, tc.charset, tc.sub); got != tc.want {
+			t.Errorf("%s %s %q %q: %q, want %q", tc.kind, tc.ext, tc.charset, tc.sub, got, tc.want)
 		}
 	}
 }

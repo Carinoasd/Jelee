@@ -46,7 +46,13 @@ type SidecarTrackRecord struct {
 	Charset                         string
 	Size, ModifiedUnixNano          int64
 	Fingerprint                     []byte
-	CreatedAt, UpdatedAt            time.Time
+	// Probe is the sandboxed ffprobe state of the file; SubtitleKind is
+	// what the content of a ".sub" turned out to be. PairedTrackID names,
+	// on an ".idx" row, the ".sub" data half with the same name.
+	Probe                SidecarProbeRecord
+	SubtitleKind         string
+	PairedTrackID        string
+	CreatedAt, UpdatedAt time.Time
 }
 
 func (SidecarTrackRecord) String() string   { return "sidecar track (redacted)" }
@@ -59,6 +65,7 @@ type SidecarTrackLocation struct {
 	ID, SourceID, Kind, Format string
 	RootPath, RelativePath     string
 	Charset                    string
+	SubtitleKind               string
 	Size, ModifiedUnixNano     int64
 }
 

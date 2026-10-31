@@ -248,9 +248,13 @@ func IsMatroskaMetadata(meta MediaMetadata) bool {
 }
 
 // PlaybackExternalTrack is a sidecar file delivered as it is. Format is the
-// file extension; Codec is the canonical subtitle format or audio codec the
-// extension determines, empty when only probing could tell (mka, m4a, ogg,
-// oga and the MicroDVD/VobSub ".sub").
+// file extension; Codec is the probed codec once the sandboxed probe read
+// the file, before that the canonical subtitle format or audio codec the
+// extension (or, for ".sub", the content check) determines, and empty when
+// only probing can tell (mka, m4a, ogg, oga, or a probe that failed).
+// ProbeState says which: pending and failed tracks are still listed, their
+// probe facts unknown. The ".sub" data half of a VobSub pair is not a track
+// of its own; its ".idx" names it in PairedTrackID.
 type PlaybackExternalTrack struct {
 	ID         string   `json:"id"`
 	Kind       string   `json:"kind"`
@@ -265,6 +269,16 @@ type PlaybackExternalTrack struct {
 	Commentary bool     `json:"commentary"`
 	Charset    string   `json:"charset,omitempty"`
 	SizeBytes  int64    `json:"sizeBytes"`
+	ProbeState string   `json:"probeState"`
+	// Probe facts of an audio file (and the duration of a probed subtitle).
+	Profile        string `json:"profile,omitempty"`
+	Channels       int    `json:"channels,omitempty"`
+	ChannelLayout  string `json:"channelLayout,omitempty"`
+	SampleRate     int    `json:"sampleRate,omitempty"`
+	BitRate        int64  `json:"bitRate,omitempty"`
+	DurationMicros int64  `json:"durationMicros,omitempty"`
+	Atmos          bool   `json:"atmos,omitempty"`
+	PairedTrackID  string `json:"pairedTrackId,omitempty"`
 	// URL is the direct delivery route of the original file. The HTTP
 	// adapter fills it; this layer does not know routes.
 	URL string `json:"url,omitempty"`
@@ -326,10 +340,11 @@ var playbackSubtitleAliases = map[string]string{
 var playbackSubtitleCodecs = map[string]string{
 	"subrip": "srt", "srt": "srt", "ass": "ass", "ssa": "ssa", "webvtt": "webvtt", "mov_text": "mov_text",
 	"hdmv_pgs_subtitle": "pgs", "dvd_subtitle": "vobsub", "dvb_subtitle": "dvb", "eia_608": "eia_608", "text": "text",
+	"microdvd": "microdvd",
 }
 
 // External subtitle extensions and their formats. ".sub" is absent: it is
-// MicroDVD text or VobSub data and only probing can tell.
+// MicroDVD text or VobSub data and only its content can tell.
 var playbackSidecarSubtitles = map[string]string{
 	"srt": "srt", "ass": "ass", "ssa": "ssa", "vtt": "webvtt", "webvtt": "webvtt", "ttml": "ttml", "dfxp": "ttml",
 	"smi": "sami", "sami": "sami", "idx": "vobsub", "sup": "pgs",
@@ -459,18 +474,73 @@ func BuildPlaybackSource(r PlaybackSourceRecord) PlaybackSource {
 		s.Attachments = playbackAttachments(meta)
 		s.Chapters = playbackChapters(meta)
 	}
-	for _, sidecar := range r.Sidecars {
+	s.External = playbackExternalTracks(r.Sidecars)
+	return s
+}
+
+// playbackExternalTracks lists the sidecar rows as external tracks. The
+// ".sub" half of an ".idx" pair is delivered through its ".idx" track and is
+// left out; an unpaired ".sub" stays a track of its own.
+func playbackExternalTracks(sidecars []SidecarTrackRecord) []PlaybackExternalTrack {
+	paired := make(map[string]bool)
+	for _, sidecar := range sidecars {
+		if sidecar.PairedTrackID != "" && sidecar.Track.Format == "idx" {
+			paired[sidecar.PairedTrackID] = true
+		}
+	}
+	tracks := make([]PlaybackExternalTrack, 0, len(sidecars))
+	for _, sidecar := range sidecars {
+		if paired[sidecar.ID] && sidecar.Track.Format == "sub" {
+			continue
+		}
 		t := sidecar.Track
 		track := PlaybackExternalTrack{ID: sidecar.ID, Kind: t.Kind, Format: t.Format, Language: t.Language, Languages: t.Languages,
-			Title: t.Title, Forced: t.Forced, SDH: t.SDH, Default: t.Default, Commentary: t.Commentary, Charset: sidecar.Charset, SizeBytes: sidecar.Size}
-		if t.Kind == SidecarKindSubtitle {
-			track.Codec = playbackSidecarSubtitles[t.Format]
-		} else {
-			track.Codec = playbackSidecarAudio[t.Format]
+			Title: t.Title, Forced: t.Forced, SDH: t.SDH, Default: t.Default, Commentary: t.Commentary, Charset: sidecar.Charset, SizeBytes: sidecar.Size,
+			ProbeState: sidecar.Probe.State, PairedTrackID: sidecar.PairedTrackID}
+		if track.ProbeState == "" {
+			track.ProbeState = InitialSidecarProbeState(t.Kind, t.Format)
 		}
-		s.External = append(s.External, track)
+		track.Codec = externalTrackCodec(sidecar)
+		if sidecar.Probe.State == SidecarProbeReady {
+			f := sidecar.Probe.Facts
+			track.DurationMicros = f.DurationMicros
+			if t.Kind == SidecarKindAudio {
+				track.Profile, track.Channels, track.ChannelLayout = f.Profile, f.Channels, f.ChannelLayout
+				track.SampleRate, track.BitRate, track.Atmos = f.SampleRate, f.BitRate, SidecarAtmos(f.Codec, f.Profile)
+			}
+		}
+		tracks = append(tracks, track)
 	}
-	return s
+	return tracks
+}
+
+// externalTrackCodec prefers the probed codec over the extension. A ".sub"
+// is named by its content kind; text subtitles keep their extension format.
+func externalTrackCodec(sidecar SidecarTrackRecord) string {
+	t := sidecar.Track
+	probed := ""
+	if sidecar.Probe.State == SidecarProbeReady {
+		probed = sidecar.Probe.Facts.Codec
+	}
+	if t.Kind == SidecarKindAudio {
+		if probed != "" {
+			return probed
+		}
+		return playbackSidecarAudio[t.Format]
+	}
+	if t.Format == "sub" {
+		switch {
+		case sidecar.SubtitleKind != "":
+			return sidecar.SubtitleKind
+		case probed != "":
+			return playbackSubtitleCodecs[probed]
+		}
+		return ""
+	}
+	if probed != "" && playbackSubtitleCodecs[probed] != "" {
+		return playbackSubtitleCodecs[probed]
+	}
+	return playbackSidecarSubtitles[t.Format]
 }
 
 func streamDetail(m *MediaMatroska, index int) *MediaStreamDetail {

@@ -27,7 +27,7 @@ type Store struct {
 
 // SchemaVersion is the only clean schema accepted by this binary. Adjacent
 // releases cannot serve against different cache and job lifecycle contracts.
-const SchemaVersion = 108
+const SchemaVersion = 109
 
 func Open(ctx context.Context, dsn string, maxConnections int32) (*Store, error) {
 	return open(ctx, dsn, maxConnections, nil)
@@ -194,7 +194,7 @@ func (s *Store) ResolveTrack(ctx context.Context, p access.Principal, sourceID s
 		return media.Source{}, media.ErrNotFound
 	}
 	var source media.Source
-	err := s.Pool.QueryRow(ctx, `SELECT r.path,t.relative_path,COALESCE(t.charset,''),COALESCE(s.device_id,''),u.max_streams,u.max_kbps,`+shareStreamsSQL+`
+	err := s.Pool.QueryRow(ctx, `SELECT r.path,t.relative_path,COALESCE(t.charset,''),COALESCE(t.subtitle_kind,''),COALESCE(s.device_id,''),u.max_streams,u.max_kbps,`+shareStreamsSQL+`
  FROM media_sidecar_tracks t
  JOIN media_sources m ON m.id=t.source_id AND m.library_id=t.library_id
  JOIN library_roots r ON r.id=t.root_id AND r.library_id=t.library_id
@@ -202,7 +202,7 @@ func (s *Store) ResolveTrack(ctx context.Context, p access.Principal, sourceID s
  JOIN sessions s ON s.id=$2::uuid AND s.user_id=u.id AND s.client_kind='native' AND s.revoked_at IS NULL AND s.expires_at>now()
  WHERE t.id=$4::uuid AND t.source_id=$3::uuid AND t.kind=$5
   AND `+sharePlaybackSQL+` AND `+itemVisibleSQL("$6", "m.library_id", "m.item_id"),
-		p.UserID, p.SessionID, sourceID, trackID, string(kind), requestScopeArg(ctx)).Scan(&source.Root, &source.RelativePath, &source.Charset, &source.DeviceID, &source.Limits.MaxStreams, &source.Limits.MaxKbps, &source.ShareStreams)
+		p.UserID, p.SessionID, sourceID, trackID, string(kind), requestScopeArg(ctx)).Scan(&source.Root, &source.RelativePath, &source.Charset, &source.SubtitleKind, &source.DeviceID, &source.Limits.MaxStreams, &source.Limits.MaxKbps, &source.ShareStreams)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return media.Source{}, media.ErrNotFound
 	}

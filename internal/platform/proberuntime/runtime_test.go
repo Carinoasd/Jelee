@@ -208,6 +208,9 @@ func TestHelperAcceptsOnlyCanonicalShippedDescriptors(t *testing.T) {
 	if !expectedDescriptor(encode(`{"version":1,"mode":"metadata","ffprobePath":"` + FFprobePath + `"}`)) {
 		t.Fatal("metadata descriptor refused")
 	}
+	if !expectedDescriptor(encode(`{"version":1,"mode":"sidecar","ffprobePath":"` + FFprobePath + `"}`)) {
+		t.Fatal("sidecar descriptor refused")
+	}
 	for stream := 0; stream <= sandbox.CoverMaxVideoIndex; stream++ {
 		if !expectedDescriptor(encode(`{"version":1,"mode":"cover","ffprobePath":"` + FFprobePath + `","stream":` + strconv.Itoa(stream) + `}`)) {
 			t.Fatal("cover descriptor refused", stream)
@@ -225,6 +228,9 @@ func TestHelperAcceptsOnlyCanonicalShippedDescriptors(t *testing.T) {
 		`{"version":1,"mode":"chapters","ffprobePath":"/other/ffprobe","stream":0}`,
 		`{"version":1,"mode":"chapters","ffprobePath":"` + FFprobePath + `"}`,
 		`{"version":1,"mode":"chapter","ffprobePath":"` + FFprobePath + `","stream":0}`,
+		`{"version":1,"mode":"sidecar","ffprobePath":"/other/ffprobe"}`,
+		`{"version":1,"mode":"sidecar","ffprobePath":"` + FFprobePath + `","stream":0}`,
+		`{"version":1,"mode":"sidecars","ffprobePath":"` + FFprobePath + `"}`,
 	} {
 		if expectedDescriptor(encode(text)) {
 			t.Fatal("non-canonical descriptor accepted", text)
