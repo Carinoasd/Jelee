@@ -76,6 +76,10 @@ type BrowseQuery struct {
 	Limit  int
 	// WithOverview asks for the overview text, which is otherwise left empty.
 	WithOverview bool
+	// Favorite, when set, keeps only the items the browsing user marked as
+	// favourites (true) or only the others (false), G24.2. It narrows the
+	// listing; it never widens the grants.
+	Favorite *bool
 }
 
 // BrowseItem is one visible item or, from a detail lookup, one visible

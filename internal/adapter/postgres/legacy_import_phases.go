@@ -714,13 +714,18 @@ func (im *legacyImporter) applyUserData(ctx context.Context, tx pgx.Tx, data []d
 		isPending[r[0]] = true
 	}
 	cat := out.category(domain.LegacyCatUserData)
+	fav := out.category(domain.LegacyCatFavorites)
+	fav.Derived = true
 	best := map[[2]string]legacyProgress{}
+	favorites := map[[2]string]string{}
 	for _, d := range data {
 		if d.Rows > 1 {
 			cat.Skip(domain.LegacyReasonMergedDuplicate, int64(d.Rows-1))
 		}
 		shape, kindReason := domain.LegacyItemShape(d.ItemType)
 		user, item := userTarget[d.UserID], itemTarget[d.ItemID]
+		// reason holds what keeps the row's user or item from Jelee; the
+		// item checks come after the empty check for progress, as before.
 		reason := ""
 		switch {
 		case d.ItemID == domain.LegacyPlaceholderItemID:
@@ -733,25 +738,52 @@ func (im *legacyImporter) applyUserData(ctx context.Context, tx pgx.Tx, data []d
 			reason = kindReason
 		case user == "":
 			reason = domain.LegacyReasonUserNotImported
-		case d.Empty() && d.Favorite:
-			reason = domain.LegacyReasonFavoriteOnly
-		case d.Empty():
-			reason = domain.LegacyReasonEmpty
-		case item == "" && isPending[d.ItemID]:
-			cat.Pend(domain.LegacyReasonItemPending, 1)
-			continue
-		case item == "" || !legacyKeyValid(d.Key()):
+		}
+		pending := reason == "" && item == "" && isPending[d.ItemID]
+		if reason == "" && !pending && (item == "" || !legacyKeyValid(d.Key())) {
 			reason = domain.LegacyReasonItemNotMapped
 		}
-		if reason != "" {
+		pair := [2]string{user, item}
+		// A favourite (G24.2) is imported on its own, also from a row
+		// without playback state.
+		if d.Favorite {
+			fav.Source++
+			switch {
+			case pending:
+				fav.Pend(domain.LegacyReasonItemPending, 1)
+			case reason != "":
+				fav.Skip(reason, 1)
+				out.FavoritesDropped++
+			default:
+				// Two source items that became one Jelee item give one
+				// favourite; the smaller source key names it.
+				key, seen := favorites[pair]
+				if seen {
+					fav.Skip(domain.LegacyReasonMergedVersion, 1)
+				}
+				if !seen || d.Key() < key {
+					favorites[pair] = d.Key()
+				}
+			}
+		}
+		switch {
+		case reason != "" && reason != domain.LegacyReasonItemNotMapped:
+			cat.Skip(reason, 1)
+			continue
+		case d.Empty() && d.Favorite:
+			cat.Skip(domain.LegacyReasonFavoriteOnly, 1)
+			continue
+		case d.Empty():
+			cat.Skip(domain.LegacyReasonEmpty, 1)
+			continue
+		case pending:
+			cat.Pend(domain.LegacyReasonItemPending, 1)
+			continue
+		case reason != "":
 			cat.Skip(reason, 1)
 			continue
 		}
-		if d.Favorite {
-			out.FavoritesDropped++
-		}
 		candidate := legacyProgress{key: d.Key(), user: user, item: item, data: d}
-		pair := [2]string{user, item}
 		if current, ok := best[pair]; ok {
 			cat.Skip(domain.LegacyReasonMergedVersion, 1)
 			if !candidate.newer(current) {
@@ -759,6 +791,9 @@ func (im *legacyImporter) applyUserData(ctx context.Context, tx pgx.Tx, data []d
 			}
 		}
 		best[pair] = candidate
+	}
+	if err = im.applyFavorites(ctx, tx, fav, favorites); err != nil {
+		return out, err
 	}
 	if len(best) == 0 {
 		return out, nil
@@ -790,4 +825,33 @@ SELECT count(*) FILTER (WHERE inserted),count(*) FILTER (WHERE NOT inserted) FRO
 		return out, storageError(err)
 	}
 	return out, nil
+}
+
+// applyFavorites adds the imported favourites (G24.2) that the target does
+// not have yet, keyed by Jelee user and item with the source row key, and
+// records them in the ledger. A favourite already present is unchanged; a
+// favourite removed in Jelee since an earlier run is added again.
+func (im *legacyImporter) applyFavorites(ctx context.Context, tx pgx.Tx, cat *domain.LegacyCategoryReport, favorites map[[2]string]string) error {
+	if len(favorites) == 0 {
+		return nil
+	}
+	keys, us, is := make([]string, 0, len(favorites)), make([]string, 0, len(favorites)), make([]string, 0, len(favorites))
+	for pair, key := range favorites {
+		keys, us, is = append(keys, key), append(us, pair[0]), append(is, pair[1])
+	}
+	var inserted int64
+	if err := tx.QueryRow(ctx, `WITH up AS (INSERT INTO user_favorites(user_id,item_id,library_id)
+ SELECT x.u,x.i,t.library_id FROM unnest($1::uuid[],$2::uuid[]) x(u,i) JOIN items t ON t.id=x.i
+ ON CONFLICT(user_id,item_id) DO NOTHING RETURNING 1)
+SELECT count(*) FROM up`, us, is).Scan(&inserted); err != nil {
+		return storageError(err)
+	}
+	cat.Inserted += inserted
+	cat.Unchanged += int64(len(favorites)) - inserted
+	if _, err := tx.Exec(ctx, `INSERT INTO legacy_import_map(kind,source_key,target_id,target_user,created,origin_run,run_id)
+ SELECT 'favorite',k,i,u,false,$4::uuid,$4::uuid FROM unnest($1::text[],$2::uuid[],$3::uuid[]) x(k,i,u)
+ ON CONFLICT(kind,source_key) DO UPDATE SET target_id=EXCLUDED.target_id,target_user=EXCLUDED.target_user,run_id=EXCLUDED.run_id,updated_at=now()`, keys, is, us, im.runID); err != nil {
+		return storageError(err)
+	}
+	return nil
 }

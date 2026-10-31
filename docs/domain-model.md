@@ -20,6 +20,7 @@ PostgreSQL 是唯一的持久状态（见 [ADR 0005](adr/0005-postgresql-only-st
 | Collection（合集） | `collections`、`collection_items` | 由管理员维护，成员可以是 Movie、Series、HomeVideo | [合集与播放清单](collections-playlists.md) |
 | Playlist（播放清单） | `playlists`、`playlist_items` | 属于某个用户，成员可以是 Movie、Episode、HomeVideo，同一条目可以重复出现，按 `position` 排序 | [合集与播放清单](collections-playlists.md) |
 | UserData（用户数据） | `user_item_data` | 每个用户对每个**逻辑条目**的续播点、已播放标记、播放次数、最后播放的版本。进度属于条目而不属于文件，同一条目的所有版本共用一份 | [播放会话与进度](playback-progress.md) |
+| Favorite（收藏） | `user_favorites` | 每个用户标记为收藏的**逻辑条目**（G24.2）：同一条目的所有版本共用一个收藏，复合外键 `(item_id, library_id)` 让收藏留在条目所属的媒体库；看不到的条目不列出也不报告为收藏 | [播放会话与进度](playback-progress.md#收藏g242) |
 | PlaybackProgress（播放进度） | `playback_sessions`、`playback_samples` | 一次播放会话，以及会话中保留的进度样本。统计由这两张表汇总 | [播放会话与进度](playback-progress.md)、[观看统计](watch-statistics.md) |
 | 用户与权限 | `users`、`sessions`、`library_acl`、`user_item_access_rules`、`share_links` | 账号、会话（只存令牌的 SHA-256 摘要）、媒体库授权、条目级允许/拒绝规则、分享链接。分享访客是一个隐藏的用户（`users.share_id`） | [访问控制](access-control.md)、[权限矩阵](permission-matrix.md)、[安全模型](security-model.md) |
 
@@ -161,6 +162,12 @@ erDiagram
         integer play_count
         uuid last_source_id FK
     }
+    user_favorites {
+        uuid user_id FK
+        uuid item_id FK
+        uuid library_id FK
+        timestamptz created_at
+    }
     playback_sessions {
         uuid id PK
         uuid user_id FK
@@ -216,6 +223,8 @@ erDiagram
     users ||--o{ user_item_data : "user_id"
     items ||--o{ user_item_data : "item_id"
     media_sources |o--o{ user_item_data : "last_source_id"
+    users ||--o{ user_favorites : "user_id"
+    items ||--o{ user_favorites : "item_id,library_id"
     users ||--o{ playback_sessions : "user_id"
     sessions |o--o{ playback_sessions : "auth_session_id"
     items ||--o{ playback_sessions : "item_id,library_id"
@@ -230,10 +239,10 @@ erDiagram
 
 ## 关键约束与删除语义
 
-- **媒体库内一致**：`media_sources`、`media_sidecar_tracks`、`item_images`、`item_parent_links`、`playback_sessions`、`share_links` 都用 `(…, library_id)` 复合外键引用条目或根目录，数据库层面保证子行与父行属于同一个媒体库。目录查询的权限过滤器依赖这一点，按 `library_id` 做 SQL 下推（见 [ADR 0003](adr/0003-unified-access-filter-in-sql.md)）。
+- **媒体库内一致**：`media_sources`、`media_sidecar_tracks`、`item_images`、`item_parent_links`、`playback_sessions`、`share_links`、`user_favorites` 都用 `(…, library_id)` 复合外键引用条目或根目录，数据库层面保证子行与父行属于同一个媒体库。目录查询的权限过滤器依赖这一点，按 `library_id` 做 SQL 下推（见 [ADR 0003](adr/0003-unified-access-filter-in-sql.md)）。
 - **层级类型**：`item_parent_links` 的外键包含 `item_kind`、`parent_kind`，引用 `items(id, library_id, kind)` 上的唯一约束；CHECK 约束限定只允许 Season→Series、Episode→Series/Season 两种父子组合。
-- **删除媒体库或条目**：媒体库下的根目录、条目、媒体源、外挂轨、图片、元数据、合集成员、播放清单项目、用户数据、播放会话都随之级联删除。媒体源被删除时，`user_item_data.last_source_id`、`playback_sessions.source_id` 改为 NULL，进度仍保留在条目上。
-- **删除用户**：会话、播放清单、媒体库授权、条目规则、用户数据、播放会话级联删除；合集和分享链接的 `created_by`、`revoked_by` 改为 NULL。永久删除账号的完整范围见[用户数据权利](user-data-rights.md)。
+- **删除媒体库或条目**：媒体库下的根目录、条目、媒体源、外挂轨、图片、元数据、合集成员、播放清单项目、用户数据、收藏、播放会话都随之级联删除。媒体源被删除时，`user_item_data.last_source_id`、`playback_sessions.source_id` 改为 NULL，进度仍保留在条目上。
+- **删除用户**：会话、播放清单、媒体库授权、条目规则、用户数据、收藏、播放会话级联删除；合集和分享链接的 `created_by`、`revoked_by` 改为 NULL。永久删除账号的完整范围见[用户数据权利](user-data-rights.md)。
 - **分享访客**：`users.share_id` 指向分享链接，链接被删除时访客账号一起删除；访客能看到的内容由统一权限过滤器限制在链接范围内。
 
 ## 修改本文

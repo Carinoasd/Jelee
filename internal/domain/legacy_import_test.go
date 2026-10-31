@@ -131,7 +131,7 @@ func TestLegacyClassification(t *testing.T) {
 			t.Fatalf("preference %d: %q", kind, got)
 		}
 	}
-	if len(LegacyImportPhases()) != 5 || len(LegacyImportCategories()) != 8 || legacyPermissionKindCount != 24 {
+	if len(LegacyImportPhases()) != 5 || len(LegacyImportCategories()) != 9 || legacyPermissionKindCount != 24 {
 		t.Fatal("catalogues changed")
 	}
 }
@@ -248,7 +248,9 @@ func TestLegacyReportMatchesTheDocumentedSchema(t *testing.T) {
 		c.Conflict(LegacyReasonNameTaken, 1)
 		c.Pend(LegacyReasonNotScanned, 1)
 	}
-	r.Category(LegacyCatLibraryAccess).Derived = true
+	for _, name := range LegacyDerivedCategories() {
+		r.Category(name).Derived = true
+	}
 	validate := func(report LegacyImportReport) error {
 		data, err := json.Marshal(report)
 		if err != nil {
@@ -282,7 +284,7 @@ func TestLegacyReportMatchesTheDocumentedSchema(t *testing.T) {
 		t.Fatal("an undocumented state passed")
 	}
 	bad = r
-	bad.Categories = map[string]*LegacyCategoryReport{"favorites": {}}
+	bad.Categories = map[string]*LegacyCategoryReport{"ratings": {}}
 	if validate(bad) == nil {
 		t.Fatal("an undocumented category passed")
 	}

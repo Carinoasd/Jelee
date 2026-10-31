@@ -143,6 +143,10 @@ func seedMetadataBackup(t testing.TB, ctx context.Context, s *Store, episodes in
 		{"share", `INSERT INTO share_links(id,token_hash,library_id,expires_at,created_by) VALUES ('` + bkShare + `',decode(repeat('ee',32),'hex'),'` + bkLibMovies + `',now()+interval '1 day','` + bkAdmin + `')`},
 		{"guest", `INSERT INTO users(name,hidden,share_id) VALUES ('share:` + bkShare + `',true,'` + bkShare + `')`},
 		{"guest progress", `INSERT INTO user_item_data(user_id,item_id,resume_ticks,played,play_count,updated_at) SELECT id,'` + bkMovie + `',5,false,0,now() FROM users WHERE share_id='` + bkShare + `'`},
+		// Favourites (G24.2); the guest's stays behind like its progress.
+		{"favorites", `INSERT INTO user_favorites(user_id,item_id,library_id,created_at) VALUES ('` + bkKid + `','` + bkSeries + `','` + bkLibShows + `','2026-09-15T00:00:00Z'),
+ ('` + bkAdmin + `','` + bkMovie + `','` + bkLibMovies + `','2026-09-15T00:00:01Z')`},
+		{"guest favorite", `INSERT INTO user_favorites(user_id,item_id,library_id) SELECT id,'` + bkMovie + `','` + bkLibMovies + `' FROM users WHERE share_id='` + bkShare + `'`},
 		{"webhook", `INSERT INTO webhooks(id,name,url,events,header_names,headers_sealed,timeout_ms,max_attempts,base_delay_ms,max_delay_ms,jitter,secret_sealed,previous_secret_sealed,previous_until,created_at,updated_at)
  VALUES ('` + bkWebhook + `','notify','https://hooks.example/jelee',ARRAY['media.added','playback.started'],ARRAY['X-Token'],decode(repeat('a1',40),'hex'),5000,5,2000,60000,0.25,
  decode(repeat('b2',48),'hex'),decode(repeat('c3',48),'hex'),'2026-10-10T00:00:00Z','2026-09-08T00:00:00Z','2026-09-09T00:00:00Z')`},

@@ -213,6 +213,7 @@ func (s *Server) itemDetails(w http.ResponseWriter, r *http.Request) {
 		nfo["readAt"] = d.NFO.ReadAt.Format(time.RFC3339Nano)
 	}
 	out["nfo"] = nfo
+	out["isFavorite"] = d.IsFavorite
 	writeJSON(w, 200, map[string]any{"data": out})
 }
 

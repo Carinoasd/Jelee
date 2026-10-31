@@ -32,7 +32,7 @@ function report(overrides: Partial<WatchStatsReport> = {}): WatchStatsReport {
         libraryId,
         kind: "Movie",
         title: "Arrival <b>x</b>",
-        userData: { itemId, played: true, playCount: 1, resumeTicks: 0 },
+        userData: { itemId, played: true, isFavorite: false, playCount: 1, resumeTicks: 0 },
       },
     ],
     libraries: [{ ...figures, libraryId, name: "Movies" }],

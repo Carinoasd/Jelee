@@ -33,6 +33,7 @@ var userReferenceColumns = map[string]string{
 	"user_access_windows.user_id":      "cascade",
 	"user_item_access_rules.user_id":   "cascade",
 	"user_item_data.user_id":           "cascade",
+	"user_favorites.user_id":           "cascade",
 	"user_preferences.user_id":         "cascade",
 	"user_recovery_codes.user_id":      "cascade",
 	"user_totp.user_id":                "cascade",
@@ -139,6 +140,7 @@ func (f userDataFixture) seed(t *testing.T, native, web domain.Actor) (share, gu
 	f.exec(t, `INSERT INTO collections(name,created_by) VALUES('purge collection',$1::uuid)`, uid)
 	f.exec(t, `INSERT INTO repair_runs(action,origin,actor_id) VALUES('stats','api',$1::uuid)`, uid)
 	f.exec(t, `INSERT INTO user_item_access_rules(user_id,item_id,effect) VALUES($1::uuid,$2::uuid,'allow')`, uid, f.item)
+	f.exec(t, `INSERT INTO user_favorites(user_id,item_id,library_id) VALUES($1::uuid,$2::uuid,$3::uuid)`, uid, f.item, lib)
 	f.exec(t, `INSERT INTO watch_stats_daily(user_id,day,item_id,library_id,effective_ms,sessions,views,first_plays) VALUES($1::uuid,current_date,$2::uuid,$3::uuid,60000,1,1,1)`, uid, f.item, lib)
 	f.exec(t, `INSERT INTO watch_stats_history(user_id,item_id,views) VALUES($1::uuid,$2::uuid,1)`, uid, f.item)
 	f.exec(t, `INSERT INTO app_passwords(user_id,name,digest) VALUES($1::uuid,'tv',$2)`, uid, userDataDigest("app-"+uid))
@@ -450,7 +452,7 @@ func TestUserDataExportSnapshotWithoutSecrets(t *testing.T) {
 		}
 		text.Write(r.Data)
 	}
-	for _, kind := range []string{"account", "preferences", "trackPreference", "versionPreference", "sessionTrack", "blockedTag", "blockedKeyword", "accessWindow", "libraryAccess", "itemAccessRule", "itemData", "playbackSession",
+	for _, kind := range []string{"account", "preferences", "trackPreference", "versionPreference", "sessionTrack", "blockedTag", "blockedKeyword", "accessWindow", "libraryAccess", "itemAccessRule", "itemData", "favorite", "playbackSession",
 		"playbackSample", "watchStatsDay", "watchStatsItem", "session", "appPassword", "shareLink", "clientControlHit", "auditEvent"} {
 		if counts[kind] == 0 {
 			t.Errorf("export has no %s record", kind)

@@ -7,6 +7,7 @@ import (
 	"io"
 	"mime"
 	"net/http"
+	"slices"
 	"strings"
 	"time"
 
@@ -16,7 +17,7 @@ import (
 )
 
 // Playstate module (G24.2, G23.2, G48.3): playback reports, played marks,
-// user data and the continue watching list. Reports go to the server's own
+// favourites, user data and the continue watching list. Reports go to the server's own
 // progress buffer, which coalesces them per session and writes in batches;
 // user data and the resume list are read through storage with the library
 // grants of the user the request reads as, so an item the user cannot see is
@@ -28,6 +29,7 @@ type Playstate interface {
 	UserItemData(ctx context.Context, userID string, itemIDs []string) (map[string]domain.UserItemData, error)
 	SetPlayed(ctx context.Context, userID, itemID string, played bool, at *time.Time) (domain.UserItemData, error)
 	Resume(ctx context.Context, userID string, query domain.ResumeQuery) (domain.ResumePage, error)
+	SetFavorite(ctx context.Context, userID, itemID string, favorite bool) (domain.UserItemData, error)
 }
 
 func (rt *router) playstateRoutes() {
@@ -42,6 +44,10 @@ func (rt *router) playstateRoutes() {
 	for _, pattern := range []string{"/UserPlayedItems/{itemId}", "/Users/{id}/PlayedItems/{itemId}"} {
 		rt.handle(http.MethodPost, pattern, true, rt.bounded(rt.markPlayed(true)))
 		rt.handle(http.MethodDelete, pattern, true, rt.bounded(rt.markPlayed(false)))
+	}
+	for _, pattern := range []string{"/UserFavoriteItems/{itemId}", "/Users/{id}/FavoriteItems/{itemId}"} {
+		rt.handle(http.MethodPost, pattern, true, rt.bounded(rt.markFavorite(true)))
+		rt.handle(http.MethodDelete, pattern, true, rt.bounded(rt.markFavorite(false)))
 	}
 	rt.handle(http.MethodGet, "/UserItems/{itemId}/UserData", true, rt.bounded(rt.itemUserData))
 	rt.handle(http.MethodGet, "/Users/{id}/Items/{itemId}/UserData", true, rt.bounded(rt.itemUserData))
@@ -195,7 +201,7 @@ func (rt *router) playbackPing(w http.ResponseWriter, r *http.Request) {
 }
 
 // userItemDataDto mirrors the upstream UserItemDataDto. Rating, Likes and
-// UnplayedItemCount have no source and are omitted; favourites are not kept.
+// UnplayedItemCount have no source and are omitted.
 type userItemData struct {
 	PlayedPercentage      *float64 `json:"PlayedPercentage,omitempty"`
 	PlaybackPositionTicks int64    `json:"PlaybackPositionTicks"`
@@ -209,7 +215,7 @@ type userItemData struct {
 
 // userDataDto maps stored user data of the item with wire identifier id.
 func userDataDto(id string, d domain.UserItemData, runtime int64) userItemData {
-	dto := userItemData{PlaybackPositionTicks: d.ResumeTicks, PlayCount: d.PlayCount, Played: d.Played, Key: id, ItemID: id}
+	dto := userItemData{PlaybackPositionTicks: d.ResumeTicks, PlayCount: d.PlayCount, Played: d.Played, IsFavorite: d.IsFavorite, Key: id, ItemID: id}
 	if d.LastPlayedAt != nil {
 		dto.LastPlayedDate = d.LastPlayedAt.UTC().Format(wireTime)
 	}
@@ -258,6 +264,37 @@ func (rt *router) markPlayed(played bool) http.HandlerFunc {
 			}
 		}
 		d, err := rt.opts.Library.Playstate.SetPlayed(r.Context(), userID, itemID, played, at)
+		if err != nil {
+			rt.writeLibraryError(w, err)
+			return
+		}
+		id, err := FormatID(itemID)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError)
+			return
+		}
+		writeJSON(w, userDataDto(id, d, 0))
+	}
+}
+
+// markFavorite answers POST (favourite) and DELETE (not a favourite) of
+// /UserFavoriteItems/{itemId} and the legacy /Users/{id}/FavoriteItems/{itemId}
+// with the item's user data, as upstream. The user is the caller unless an
+// administrator names another one; an item that user cannot see is answered
+// like a missing one and changes nothing.
+func (rt *router) markFavorite(favorite bool) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		q := readQuery(r)
+		_, userID, ok := rt.libraryUser(w, r, q)
+		if !ok {
+			return
+		}
+		itemID, err := ParseID(chi.URLParam(r, "itemId"))
+		if err != nil {
+			writeError(w, http.StatusBadRequest)
+			return
+		}
+		d, err := rt.opts.Library.Playstate.SetFavorite(r.Context(), userID, itemID, favorite)
 		if err != nil {
 			rt.writeLibraryError(w, err)
 			return
@@ -355,16 +392,18 @@ func (rt *router) resumeItems(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, result)
 }
 
-// attachUserData fills the user data of the playable items among dtos,
-// whose native identifiers are ids, for userID in one read. Without the
-// playstate module every item reads as unplayed.
+// attachUserData fills the user data of the catalog items among dtos, whose
+// native identifiers are ids, for userID in one read: the progress of the
+// playable ones and the favourite mark of every one (series and seasons
+// have no position and stay unplayed). Library folders are skipped. Without
+// the playstate module every item reads as unplayed and not a favourite.
 func (rt *router) attachUserData(ctx context.Context, userID string, dtos []baseItemDto, ids []string) error {
 	if rt.opts.Library.Playstate == nil {
 		return nil
 	}
 	var wanted []string
 	for i := range dtos {
-		if dtos[i].MediaType == mediaTypeVideo {
+		if dtos[i].Type != itemTypeCollectionFolder {
 			wanted = append(wanted, ids[i])
 		}
 	}
@@ -376,13 +415,41 @@ func (rt *router) attachUserData(ctx context.Context, userID string, dtos []base
 		return err
 	}
 	for i := range dtos {
-		if d, ok := data[ids[i]]; ok && dtos[i].MediaType == mediaTypeVideo {
+		d, ok := data[ids[i]]
+		switch {
+		case !ok || dtos[i].Type == itemTypeCollectionFolder:
+		case dtos[i].MediaType == mediaTypeVideo:
 			runtime := int64(0)
 			if dtos[i].RunTimeTicks != nil {
 				runtime = *dtos[i].RunTimeTicks
 			}
 			dtos[i].UserData = userDataDto(dtos[i].ID, d, runtime)
+		default:
+			dtos[i].UserData.IsFavorite = d.IsFavorite
 		}
 	}
 	return nil
+}
+
+// favoriteSet returns which of the catalog items ids userID marked as
+// favourites, reading at most domain.BrowseLimitMax items at a time. Items
+// the user cannot see are never favourites; without the playstate module
+// none is.
+func (rt *router) favoriteSet(ctx context.Context, userID string, ids []string) (map[string]bool, error) {
+	out := map[string]bool{}
+	if rt.opts.Library.Playstate == nil {
+		return out, nil
+	}
+	for chunk := range slices.Chunk(ids, domain.BrowseLimitMax) {
+		data, err := rt.opts.Library.Playstate.UserItemData(ctx, userID, chunk)
+		if err != nil {
+			return nil, err
+		}
+		for id, d := range data {
+			if d.IsFavorite {
+				out[id] = true
+			}
+		}
+	}
+	return out, nil
 }

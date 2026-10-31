@@ -46,7 +46,8 @@
       "nfoNone": "No NFO file has been reviewed for this item.",
       "files": "File information",
       "nativeTitle": "Watch in a native client",
-      "nativeBody": "The Jelee web interface is for browsing and management only. To watch this item, open it in a native Jelee client app."
+      "nativeBody": "The Jelee web interface is for browsing and management only. To watch this item, open it in a native Jelee client app.",
+      "favorite": "Favorite"
     },
     "files": {
       "version": "Version {n}",

@@ -33,10 +33,11 @@
 ```json
 {"data":{"id":"…","libraryId":"…","title":"Arrival","kind":"Movie","sortTitle":"…","originalTitle":"Story of Your Life","tagline":"…","overview":"…",
  "premiereDate":"2016-11-11","productionYear":2016,"genres":["Drama"],"externalIds":[{"type":"tmdb","value":"329865","default":true}],
- "nfo":{"status":"valid","readAt":"2026-09-01T08:30:00Z","fields":["overview","genres"]}}}
+ "nfo":{"status":"valid","readAt":"2026-09-01T08:30:00Z","fields":["overview","genres"]},"isFavorite":false}}
 ```
 
 - `nfo.status`：`unread`（尚無確認過的 NFO 讀取）、`valid`、`missing`、`nfo_invalid`；`readAt` 只在已讀取時出現；`fields` 列出目前值來自 NFO 的顯示欄位。
+- `isFavorite`：呼叫者是否收藏了這個條目（G24.2）；收藏的加入、移出與「我的收藏」列表見[播放會話與進度](playback-progress.md#收藏g242)。
 - 不含：伺服器檔案路徑、根目錄、NFO 來源檔／根目錄 ID、摘要、指紋、供應商來源網址與抓取資訊。這些仍只在管理員 `GET /api/v1/items/{id}/metadata`，該路由維持原狀。
 - 失效或無法通過驗證的事實（類型、外部 ID）會被略過；無法驗證或修訂版號超前的 NFO 觀察視為 `unread`，不讓整頁失敗。
 - 媒體庫 ID、不存在或不可見的條目回 404（設定 G48.3 為 403 時回 403）。
