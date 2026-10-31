@@ -62,6 +62,11 @@ func TestNormalizeSiteAppearance(t *testing.T) {
 		"duplicate host":   func(a *SiteAppearance) { a.FontHosts = []string{"a.example.com", "A.EXAMPLE.COM"} },
 		"ip host":          func(a *SiteAppearance) { a.FontHosts = []string{"10.0.0.1"} },
 		"bad layout":       func(a *SiteAppearance) { a.DefaultLayout = &PageLayout{Home: []LayoutEntry{}} },
+		"display palette":  func(a *SiteAppearance) { a.DefaultDisplay = &UserDisplay{Palette: ptr(ThemeDark)} },
+		"display ratio":    func(a *SiteAppearance) { a.DefaultDisplay = &UserDisplay{PosterRatio: ptr("wide")} },
+		"display size":     func(a *SiteAppearance) { a.DefaultDisplay = &UserDisplay{PosterSize: ptr("Small")} },
+		"display list":     func(a *SiteAppearance) { a.DefaultDisplay = &UserDisplay{ListDensity: ptr("")} },
+		"display view":     func(a *SiteAppearance) { a.DefaultDisplay = &UserDisplay{View: ptr("grid")} },
 		"invalid utf8":     func(a *SiteAppearance) { a.CustomCSS = "a{color:red}\xff" },
 	} {
 		v := in
@@ -92,6 +97,33 @@ func TestNormalizeSiteAppearance(t *testing.T) {
 	}
 	if empty := (SiteAppearanceRecord{SiteAppearance: DefaultSiteAppearance()}).Config(); empty.CSSIssues == nil {
 		t.Fatal("issues must be an empty list, not null")
+	}
+}
+
+func TestSiteDefaultDisplay(t *testing.T) {
+	// The site default display uses the user allow-lists; members are
+	// optional, a document without any member is no default, and every
+	// signed-in user reads it in the view.
+	if DefaultSiteAppearance().DefaultDisplay != nil {
+		t.Fatal("a new installation has a default display")
+	}
+	in := DefaultSiteAppearance()
+	in.DefaultDisplay = &UserDisplay{Palette: ptr(PaletteContrast), PosterRatio: ptr(PosterLandscape), View: ptr(ViewList)}
+	out, err := NormalizeSiteAppearance(in)
+	if err != nil || out.DefaultDisplay == nil || out.DefaultDisplay == in.DefaultDisplay || *out.DefaultDisplay.PosterRatio != PosterLandscape || out.DefaultDisplay.PosterSize != nil {
+		t.Fatalf("normalize: %+v %v", out.DefaultDisplay, err)
+	}
+	if view := out.View(); view.DefaultDisplay == nil || *view.DefaultDisplay.View != ViewList || *view.DefaultDisplay.Palette != PaletteContrast {
+		t.Fatalf("view: %+v", view.DefaultDisplay)
+	}
+	in.DefaultDisplay = &UserDisplay{}
+	if out, err = NormalizeSiteAppearance(in); err != nil || out.DefaultDisplay != nil {
+		t.Fatalf("empty default display kept: %+v %v", out.DefaultDisplay, err)
+	}
+	// The stored form stays within the database check.
+	full := UserDisplay{Palette: ptr(PaletteContrast), PosterRatio: ptr(PosterLandscape), PosterSize: ptr(PosterSizeMedium), ListDensity: ptr(ListDensityComfortable), View: ptr(ViewPoster)}
+	if data, err := json.Marshal(full); err != nil || len(data) > UserDisplayMaxBytes {
+		t.Fatalf("encoded display: %d %v", len(data), err)
 	}
 }
 

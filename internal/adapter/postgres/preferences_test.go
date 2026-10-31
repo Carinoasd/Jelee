@@ -81,12 +81,12 @@ func TestUserDisplayPreferencesStorage(t *testing.T) {
 	f := newJobFixture(t)
 	viewer := contentAccessPrincipal(t, f, "prefs-display", false)
 	sepia := domain.PaletteSepia
-	display := &domain.UserDisplay{Palette: &sepia, PosterRatio: domain.PosterSquare, PosterSize: domain.PosterSizeLarge, ListDensity: domain.ListDensityCompact, View: domain.ViewList}
+	display := &domain.UserDisplay{Palette: &sepia, PosterRatio: ptr(domain.PosterSquare), PosterSize: ptr(domain.PosterSizeLarge), ListDensity: ptr(domain.ListDensityCompact), View: ptr(domain.ViewList)}
 	saved, err := f.s.SetPreferences(f.ctx, viewer.actor, domain.UserPreferences{Theme: domain.ThemeLight, Density: domain.DensityComfortable, Display: display})
-	if err != nil || saved.Display == nil || saved.Display.Palette == nil || *saved.Display.Palette != sepia || saved.Display.PosterRatio != domain.PosterSquare || saved.Display.View != domain.ViewList {
+	if err != nil || saved.Display == nil || saved.Display.Palette == nil || *saved.Display.Palette != sepia || *saved.Display.PosterRatio != domain.PosterSquare || *saved.Display.View != domain.ViewList {
 		t.Fatalf("display: %+v %v", saved, err)
 	}
-	if p, err := f.s.GetPreferences(f.ctx, viewer.actor); err != nil || p.Display == nil || p.Display.PosterSize != domain.PosterSizeLarge || p.Display.ListDensity != domain.ListDensityCompact {
+	if p, err := f.s.GetPreferences(f.ctx, viewer.actor); err != nil || p.Display == nil || *p.Display.PosterSize != domain.PosterSizeLarge || *p.Display.ListDensity != domain.ListDensityCompact {
 		t.Fatalf("read back: %+v %v", p, err)
 	}
 	// A null palette is kept as null, not dropped.
@@ -94,8 +94,16 @@ func TestUserDisplayPreferencesStorage(t *testing.T) {
 	if p, err := f.s.SetPreferences(f.ctx, viewer.actor, domain.UserPreferences{Theme: domain.ThemeDark, Density: domain.DensityComfortable, Display: display}); err != nil || p.Display == nil || p.Display.Palette != nil {
 		t.Fatalf("null palette: %+v %v", p, err)
 	}
+	// Members are optional one by one: the unset ones stay null.
+	if p, err := f.s.SetPreferences(f.ctx, viewer.actor, domain.UserPreferences{Theme: domain.ThemeDark, Density: domain.DensityComfortable, Display: &domain.UserDisplay{PosterSize: ptr(domain.PosterSizeSmall)}}); err != nil ||
+		p.Display == nil || p.Display.PosterRatio != nil || p.Display.View != nil || *p.Display.PosterSize != domain.PosterSizeSmall {
+		t.Fatalf("partial display: %+v %v", p, err)
+	}
+	if syncCount(t, f, `SELECT count(*) FROM user_preferences WHERE display='{"palette":null,"posterRatio":null,"posterSize":"small","listDensity":null,"view":null}'::jsonb`) != 1 {
+		t.Fatal("partial display stored differently")
+	}
 	bad := *display
-	bad.View = "grid"
+	bad.View = ptr("grid")
 	if _, err := f.s.SetPreferences(f.ctx, viewer.actor, domain.UserPreferences{Theme: domain.ThemeDark, Density: domain.DensityComfortable, Display: &bad}); !errors.Is(err, domain.ErrInvalid) {
 		t.Fatalf("invalid display: %v", err)
 	}
