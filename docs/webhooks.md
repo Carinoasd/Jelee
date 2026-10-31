@@ -3,7 +3,7 @@
 Jelee 在媒體、掃描、播放、登入等變更發生時，把事件以簽章過的 HTTPS POST 送到管理員設定的端點。本文說明事件清單、載荷格式、簽章驗證、重試與死信、安全設計與管理 API。
 
 - 契約與純邏輯：`internal/domain/webhook.go`（事件、脫敏、簽章、退避）、`internal/app/webhooks.go`（埠介面與組裝步驟）。
-- 管理服務與背景投遞器：`internal/app/webhook_admin.go`、`internal/app/webhook_dispatcher.go`。
+- 管理服務與背景投遞器：`internal/app/webhook_admin.go`、`internal/app/webhook_dispatcher.go`；投遞器是任務執行器的背景工作 `webhook_delivery`（[背景工作](jobs-api.md#背景工作)）。
 - 儲存：`internal/adapter/postgres/webhooks.go`，遷移 `000068_webhooks`。
 - 網路：`internal/adapter/events`（結果分類）走 `internal/platform/outbound` 的受防護客戶端（G11.4）。
 - 密鑰封存：`internal/platform/secretbox`（AES-256-GCM）。
@@ -16,9 +16,9 @@ Jelee 在媒體、掃描、播放、登入等變更發生時，把事件以簽�
 | `JELEE_WEBHOOK_MASTER_KEY` 或 `JELEE_WEBHOOK_MASTER_KEY_FILE` | 無 | **必填**。32 位元組主鑰，標準或 URL 安全 base64，或 64 個十六進位字元。只能從環境變數或檔案讀，不能寫在設定檔。沒有主鑰時啟用 webhook 會在啟動時以明確錯誤拒絕 |
 | `JELEE_WEBHOOK_ALLOWED_HOSTS` / `allowedHosts` | 空 | 端點主機白名單（逗號分隔、小寫、精確比對）。空表示任何公網主機 |
 | `JELEE_WEBHOOK_CA_FILE` / `caFile` | 空 | 額外信任的 PEM 根憑證（自簽 CA 的端點用），附加在系統根憑證之上 |
-| `JELEE_WEBHOOK_POLL_MILLISECONDS` / `pollMilliseconds` | 1000 | 投遞器閒置時的輪詢間隔（100–60000） |
+| `JELEE_WEBHOOK_POLL_MILLISECONDS` / `pollMilliseconds` | 1000 | 投遞工作一輪結束後的閒置間隔（100–60000）；整批滿了不等待 |
 | `JELEE_WEBHOOK_BATCH` / `batch` | 50 | 每輪最多展開的事件數與領取的投遞數（1–500） |
-| `JELEE_WEBHOOK_CONCURRENCY` / `concurrency` | 4 | 本實例同時進行的投遞數（1–32） |
+| `JELEE_WEBHOOK_CONCURRENCY` / `concurrency` | 4 | 同時進行的投遞數（1–32）；投遞工作是叢集單例，所以也是整個叢集的上限 |
 | `JELEE_WEBHOOK_LEASE_SECONDS` / `leaseSeconds` | 120 | 投遞租約（60–3600），必須長於最長一次嘗試 |
 | `JELEE_WEBHOOK_RETENTION_DAYS` / `retentionDays` | 14 | 已結束（送達或死信）的事件與投遞日誌保留天數（1–365） |
 
@@ -189,7 +189,8 @@ export function verify(secret, headers, rawBody, windowSeconds = 300) {
 ```
 
 - **至少一次**：投遞器先領取租約再送出，送出後才記錄。若在送出後、記錄前當機（或被停止），租約到期後同一筆投遞會以**同一個 `eventId`** 再送一次。記錄時以 `lease_token` 防護：過期租約的記錄會被拒，不會覆蓋新的領取。
-- 多個實例可同時運行：展開以 `FOR UPDATE SKIP LOCKED` 鎖定事件、`UNIQUE(outbox_id, webhook_id)` 保證每個端點一列；領取以 `SKIP LOCKED` 分配。
+- 多個實例：投遞工作是叢集單例，每一輪先取建議鎖，同一時間只有一個實例展開與投遞，其他實例那一輪跳過（`jelee_jobs_background_runs_total{kind="webhook_delivery",outcome="skipped"}`）。展開與領取原有的 `FOR UPDATE SKIP LOCKED`、`UNIQUE(outbox_id, webhook_id)` 與租約保留，所以即使單例失效也仍是至少一次、不重複展開。
+- **共用配額**：每次嘗試在簽章前取得一個 I/O 配額（G41.3），請求結束即釋放。配額滿或等到「租約到期 − 端點逾時 − 10 秒」仍沒有時，這次嘗試**不記錄**（不計入嘗試次數，背壓不會把投遞推進死信），租約到期後重送。
 - **結果分類**：2xx＝送達。408、425、429、5xx、逾時、網路錯誤＝可重試。其他 4xx、3xx、被 SSRF／白名單拒絕（`blocked`）、憑證驗證失敗（`tls`）、事件或端點不再有效（`invalid`）＝立即死信，修正原因後可手動重放。
 - **退避**：第 n 次失敗後等待 `min(maxDelay, baseDelay × 2^(n-1))`，乘上 `[1-jitter, 1+jitter]` 的均勻隨機因子後再以 `maxDelay` 封頂、最少 1 秒。429／503 的 `Retry-After`（秒數或 HTTP 日期）只會延長、不會縮短等待，同樣以 `maxDelay` 封頂。
 - **預設策略**：`maxAttempts` 8、`baseDelaySeconds` 10、`maxDelaySeconds` 3600、`jitter` 0.2；每個端點可自訂（`maxAttempts` 1–20，延遲 1 秒–24 小時，`jitter` 0–1），逾時 1–30 秒（預設 10）。
@@ -197,7 +198,7 @@ export function verify(secret, headers, rawBody, windowSeconds = 300) {
 - **手動重放**：`POST …/deliveries/{deliveryId}/replay` 把 dead 或 delivered 的投遞改回 pending、立即到期、嘗試次數歸零（新一輪 `round`），`eventId` 不變。pending 的投遞重放回 409。
 - **停用端點**：不再接收新事件；既有的 pending 投遞保留，重新啟用後繼續。刪除端點會一併刪除它的投遞與日誌。
 - **清理**：每小時一次，分批刪除建立超過保留天數、且沒有 pending 投遞的事件（投遞與嘗試日誌級聯刪除）。沒有任何端點承接的事件在展開時就刪除。
-- **關閉**：投遞器在停止時不再領取新工作；進行中的嘗試有 5 秒寬限完成並記錄，超過則取消（租約到期後重送）。HTTP 排空後、關閉連線池之前等待它結束。
+- **關閉**：投遞工作在停止時不再開始新的一輪；進行中的嘗試有 5 秒寬限完成並記錄，超過則取消（租約到期後重送）。HTTP 排空後、關閉連線池之前等待它結束，鎖隨之釋放。
 
 ## 安全（G12.4、G12.5）
 
@@ -254,7 +255,7 @@ export function verify(secret, headers, rawBody, windowSeconds = 300) {
 
 ## 測試
 
-- 單元：`internal/domain/webhook_test.go`（簽章、退避、脫敏）、`internal/app/webhook_dispatcher_test.go`（假時鐘下的重試排程、死信、取消後重送、主鑰不符時等待、優雅停止）、`internal/app/webhook_admin_test.go`、`internal/platform/secretbox`、`internal/platform/config/webhooks_test.go`、`internal/platform/outbound/webhook_test.go`、`internal/adapter/events`。
-- 真 PostgreSQL：`internal/adapter/postgres/webhooks_test.go`（同交易 outbox 與回滾、租約與崩潰後重送同 `eventId`、死信與重放、密鑰封存、播放／掃描／媒體事件、遷移 up/down/up）、`internal/adapter/http/webhooks_test.go`（管理 API 與稽核）。
+- 單元：`internal/domain/webhook_test.go`（簽章、退避、脫敏）、`internal/app/webhook_dispatcher_test.go`（假時鐘下的重試排程、死信、取消後重送、主鑰不符時等待、經背景工作步調的優雅停止）、`internal/app/background_test.go`（整批再跑、配額背壓不記錄嘗試、配額只涵蓋請求）、`internal/app/webhook_admin_test.go`、`internal/platform/secretbox`、`internal/platform/config/webhooks_test.go`、`internal/platform/outbound/webhook_test.go`、`internal/adapter/events`。
+- 真 PostgreSQL：`internal/adapter/postgres/webhooks_test.go`（同交易 outbox 與回滾、租約與崩潰後重送同 `eventId`、死信與重放、密鑰封存、播放／掃描／媒體事件、遷移 up/down/up）、`internal/adapter/postgres/background_locks_test.go`（兩個實例的投遞工作同時只有一個在送、每筆送一次、配額歸零）、`internal/adapter/http/webhooks_test.go`（管理 API 與稽核）。
 - 第 11 階段接線：`internal/app/progress_webhook_test.go`（暫停合併、progress 節流、flush 失敗後補發）、`internal/app/webhook_producers_test.go`（告警白名單、每 code 節流、佇列上限、寫入失敗重試、到期掃描分頁）、`internal/platform/runtime/webhook_alerts_test.go`（日誌處理器只取 code／component）、`internal/adapter/postgres/webhook_wiring_test.go`（真 PostgreSQL：`TestWebhookWired*` 涵蓋 media.updated、scan.started、playback.paused／progress、session.created／ended 與到期、images.fetched、system.alert）。
 - 端到端：`internal/platform/outbound/webhook_integration_test.go`，以 httptest HTTPS 消費端驗證簽章與去重，含解析到私網位址被拒的情境與輪換期間的雙簽章。

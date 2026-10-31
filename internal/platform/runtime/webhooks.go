@@ -41,16 +41,33 @@ func newWebhooks(c config.Config, store *postgres.Store, budget *resources.Budge
 	if err != nil {
 		return nil, err
 	}
-	client, err := outbound.NewWebhookClient(c.Webhooks.AllowedHosts, roots, budget)
+	// Test sends admit their request through the client; the delivery job
+	// admits every attempt itself before signing it (G41.3), so its client
+	// takes no permit of its own.
+	var work app.WorkBudget
+	if budget != nil {
+		work = budget
+	}
+	client, err := outbound.NewWebhookClient(c.Webhooks.AllowedHosts, roots, work)
+	if err != nil {
+		return nil, errors.New("cannot build the webhook client")
+	}
+	deliveryClient, err := outbound.NewWebhookClient(c.Webhooks.AllowedHosts, roots, nil)
 	if err != nil {
 		return nil, errors.New("cannot build the webhook client")
 	}
 	if dev := lifetime.dev; dev != nil && dev.Capable() {
 		// G45.4 relax_ssrf_strict: private and loopback receivers while the
 		// toggle is on, for local test endpoints.
-		client.AllowPrivateTargets(func() bool { return dev.Effective(devmode.RelaxSSRFStrict) })
+		relaxed := func() bool { return dev.Effective(devmode.RelaxSSRFStrict) }
+		client.AllowPrivateTargets(relaxed)
+		deliveryClient.AllowPrivateTargets(relaxed)
 	}
 	deliverer, err := events.NewDeliverer(client)
+	if err != nil {
+		return nil, err
+	}
+	backgroundDeliverer, err := events.NewDeliverer(deliveryClient)
 	if err != nil {
 		return nil, err
 	}
@@ -59,15 +76,20 @@ func newWebhooks(c config.Config, store *postgres.Store, budget *resources.Budge
 		return nil, err
 	}
 	p := c.Webhooks
-	dispatcher, err := app.NewWebhookDispatcher(store, store, box, deliverer, app.WebhookDispatcherOptions{
+	dispatcher, err := app.NewWebhookDispatcher(store, store, box, backgroundDeliverer, app.WebhookDispatcherOptions{
 		Batch: p.BatchSize(), Concurrency: p.Workers(), Lease: p.Lease(), PollInterval: p.PollInterval(), Retention: p.Retention(), Logger: l,
-		Spans: webhookSpans,
+		Spans: webhookSpans, Budget: work,
 	})
 	if err != nil {
 		return nil, err
 	}
-	lifetime.webhooks = dispatcher
-	lifetime.closeWebhookClient = client.CloseIdleConnections
+	if err = lifetime.registerBackground(store, budget, dispatcher.Task()); err != nil {
+		return nil, err
+	}
+	lifetime.closeWebhookClient = func() {
+		client.CloseIdleConnections()
+		deliveryClient.CloseIdleConnections()
+	}
 	// System alerts and session expiry (G12.1) have no transaction of their
 	// own; they are produced only while the deliverer runs.
 	alerts := lifetime.alerts
