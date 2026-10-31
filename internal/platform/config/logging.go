@@ -39,6 +39,9 @@ type LoggingConfig struct {
 	// taking at least this long is logged as a template, without its
 	// arguments. Zero switches the log off.
 	SlowQueryMs *int `json:"slowQueryMs"`
+	// Forwarders are the external destinations of the JSON records (G46.1):
+	// syslog and Loki. Empty keeps logging local.
+	Forwarders []LogForwarderConfig `json:"forwarders"`
 }
 
 // Slow query log bounds; the default keeps the log quiet on a healthy
@@ -128,6 +131,9 @@ func (c LoggingConfig) Validate() error {
 	if !tracing.ValidSampleRate(c.TraceSampleRate) {
 		return errors.New("trace sample rate must be between 0 and 1")
 	}
+	if err := c.validateForwarders(); err != nil {
+		return err
+	}
 	if len(c.PathRoots) > 64 {
 		return errors.New("too many logging path roots")
 	}
@@ -157,6 +163,7 @@ func (c LoggingConfig) Options() logging.Options {
 			Compress:   c.File.Compress,
 		},
 	}
+	opts.Forward = c.forwarderOptions()
 	if level, err := logging.ParseLevel(c.Level); err == nil {
 		opts.Level = level
 	}
@@ -227,5 +234,5 @@ func (c *LoggingConfig) loadEnvironment(lookup func(string) (string, bool)) erro
 			c.Components[strings.TrimSpace(component)] = strings.TrimSpace(level)
 		}
 	}
-	return nil
+	return c.loadForwarderEnvironment(lookup)
 }
