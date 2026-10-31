@@ -165,7 +165,7 @@ func (s *Server) writeItemsPage(w http.ResponseWriter, r *http.Request, list lis
 		WriteError(w, r, err)
 		return
 	}
-	writeJSON(w, 200, map[string]any{"data": data, "pagination": pagination})
+	writeValidatedJSON(w, r, map[string]any{"data": data, "pagination": pagination})
 }
 
 // catalogItemJSON writes a browse row in the CatalogItem shape. parentId is
@@ -185,7 +185,8 @@ func catalogItemJSON(item domain.BrowseItem) map[string]any {
 }
 
 func (s *Server) itemDetails(w http.ResponseWriter, r *http.Request) {
-	if _, err := strictQuery(r); err != nil {
+	fields, err := detailQuery(r)
+	if err != nil {
 		WriteError(w, r, err)
 		return
 	}
@@ -214,7 +215,18 @@ func (s *Server) itemDetails(w http.ResponseWriter, r *http.Request) {
 	}
 	out["nfo"] = nfo
 	out["isFavorite"] = d.IsFavorite
-	writeJSON(w, 200, map[string]any{"data": out})
+	writeDetail(w, r, fields, out)
+}
+
+// writeDetail projects a single resource read and writes it with its
+// validator.
+func writeDetail(w http.ResponseWriter, r *http.Request, fields listRequest, data any) {
+	data, err := fields.projectOne(data)
+	if err != nil {
+		WriteError(w, r, err)
+		return
+	}
+	writeValidatedJSON(w, r, map[string]any{"data": data})
 }
 
 // itemSources answers file information for every session kind. External
@@ -244,7 +256,7 @@ func (s *Server) itemSources(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
-	writeJSON(w, 200, map[string]any{"data": map[string]any{"itemId": id, "sources": sources}})
+	writeValidatedJSON(w, r, map[string]any{"data": map[string]any{"itemId": id, "sources": sources}})
 }
 
 // maxSourcesCheckBody bounds a capability declaration, as for playback/check.
