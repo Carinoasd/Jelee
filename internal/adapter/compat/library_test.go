@@ -2,6 +2,7 @@ package compat
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"net/http"
 	"net/http/httptest"
@@ -438,5 +439,41 @@ func TestLibraryResponsesPublishNoAddresses(t *testing.T) {
 		if strings.Contains(body, testClientIP) || strings.Contains(body, testMovieID) || strings.Contains(body, testLibMovies) {
 			t.Fatalf("%s publishes an address or a dashed identifier: %s", target, body)
 		}
+	}
+}
+
+func TestCompatEmbeddedTrackLabels(t *testing.T) {
+	h := newLibraryHarnessWith(t, http.StatusNotFound, true, nil)
+	h.catalog.sources = []domain.PlaybackSource{{
+		ID: testSourceID, Container: "mkv", ContentType: "video/x-matroska", Probed: true,
+		Video:     []domain.PlaybackVideoTrack{{Index: 0, Codec: "h264", Primary: true}},
+		Audio:     []domain.PlaybackAudioTrack{{Index: 1, Codec: "aac", Language: "eng", Title: "Director commentary", Commentary: true, Default: true}, {Index: 2, Codec: "aac", Language: "eng"}},
+		Subtitles: []domain.PlaybackSubtitleTrack{{Index: 3, Codec: "subrip", Format: "srt", Language: "eng", Title: "English SDH", SDH: true, Charset: "UTF-8"}, {Index: 4, Codec: "subrip", Format: "srt", Language: "eng"}},
+	}}
+	info := h.get("/compat/Items/"+wire(testMovieID)+"/PlaybackInfo", nativeToken).Body.String()
+	var body struct {
+		MediaSources []struct {
+			MediaStreams []struct {
+				Type              string
+				Index             int
+				Title             string
+				IsHearingImpaired bool
+			}
+		}
+	}
+	if err := json.Unmarshal([]byte(info), &body); err != nil || len(body.MediaSources) != 1 {
+		t.Fatalf("PlaybackInfo: %v %s", err, info)
+	}
+	type label struct {
+		title string
+		sdh   bool
+	}
+	got := map[int]label{}
+	for _, s := range body.MediaSources[0].MediaStreams {
+		got[s.Index] = label{s.Title, s.IsHearingImpaired}
+	}
+	want := map[int]label{0: {}, 1: {"Director commentary", false}, 2: {}, 3: {"English SDH", true}, 4: {}}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("labels = %+v, want %+v", got, want)
 	}
 }

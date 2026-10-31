@@ -241,10 +241,10 @@ func embeddedSelection(index int) TrackSelection {
 func SelectDefaultTracks(source PlaybackSource, p TrackPreference, basis string) DefaultTracks {
 	var audio, subtitles []trackCandidate
 	for _, a := range source.Audio {
-		audio = append(audio, trackCandidate{sel: embeddedSelection(a.Index), languages: trackLanguages(a.Language, nil), isDefault: a.Default, forced: a.Forced})
+		audio = append(audio, trackCandidate{sel: embeddedSelection(a.Index), languages: trackLanguages(a.Language, nil), isDefault: a.Default, forced: a.Forced, commentary: a.Commentary})
 	}
 	for _, s := range source.Subtitles {
-		subtitles = append(subtitles, trackCandidate{sel: embeddedSelection(s.Index), languages: trackLanguages(s.Language, nil), isDefault: s.Default, forced: s.Forced})
+		subtitles = append(subtitles, trackCandidate{sel: embeddedSelection(s.Index), languages: trackLanguages(s.Language, nil), isDefault: s.Default, forced: s.Forced, sdh: s.SDH})
 	}
 	for _, t := range source.External {
 		c := trackCandidate{sel: TrackSelection{Kind: TrackExternal, ID: t.ID}, languages: trackLanguages(t.Language, t.Languages),

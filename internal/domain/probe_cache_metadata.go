@@ -78,6 +78,18 @@ func validMetadataStream(s MediaStream) bool {
 		!metadataInt(s.DurationMicros, 0, math.MaxInt64) || !metadataInt(s.BitRate, 1, math.MaxInt64) || s.Language != nil && (len(*s.Language) > 35 || !metadataLanguage.MatchString(*s.Language)) {
 		return false
 	}
+	labelled := s.Title != nil || s.HearingImpaired != nil || s.Captions != nil || s.Comment != nil || s.VisualImpaired != nil || s.Descriptions != nil
+	if s.Title != nil && !ValidStreamTitle(*s.Title) {
+		return false
+	}
+	for _, flag := range []*bool{s.HearingImpaired, s.Captions, s.Comment, s.VisualImpaired, s.Descriptions} {
+		if flag != nil && !*flag {
+			return false
+		}
+	}
+	if labelled && s.Kind != "audio" && s.Kind != "subtitle" {
+		return false
+	}
 	switch s.Kind {
 	case "video":
 		return s.Video != nil && s.Audio == nil && validMetadataVideo(*s.Video)

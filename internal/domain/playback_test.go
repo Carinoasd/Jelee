@@ -270,3 +270,112 @@ func TestPlaybackChapters(t *testing.T) {
 		}
 	}
 }
+
+func TestPlaybackEmbeddedTrackLabels(t *testing.T) {
+	str := func(s string) *string { return &s }
+	yes := true
+	meta := MediaMetadata{
+		Format: MediaFormat{Names: []string{"matroska", "webm"}},
+		Streams: []MediaStream{
+			{Index: 0, Kind: "video", Codec: str("h264"), Video: &MediaVideo{}},
+			{Index: 1, Kind: "audio", Codec: str("aac"), Audio: &MediaAudio{}, Title: str("Main mix")},
+			{Index: 2, Kind: "audio", Codec: str("aac"), Audio: &MediaAudio{}, Comment: &yes},
+			{Index: 3, Kind: "audio", Codec: str("aac"), Audio: &MediaAudio{}, Descriptions: &yes},
+			{Index: 4, Kind: "audio", Codec: str("aac"), Audio: &MediaAudio{}, VisualImpaired: &yes},
+			{Index: 5, Kind: "subtitle", Codec: str("subrip"), HearingImpaired: &yes, Title: str("File title")},
+			{Index: 6, Kind: "subtitle", Codec: str("ass"), Captions: &yes},
+			{Index: 7, Kind: "subtitle", Codec: str("hdmv_pgs_subtitle")},
+			{Index: 8, Kind: "subtitle", Codec: str("mov_text")},
+			{Index: 9, Kind: "subtitle", Codec: str("eia_608")},
+		},
+		// MediaInfo names every track but may only fill a missing title.
+		Matroska: &MediaMatroska{StreamTitles: []MediaStreamTitle{{Index: 1, Title: "MediaInfo title"}, {Index: 2, Title: "Matroska comment"}, {Index: 5, Title: "MediaInfo SDH"}}},
+	}
+	s := BuildPlaybackSource(PlaybackSourceRecord{ID: "s", ContentType: "video/x-matroska", FileName: "a.mkv", Metadata: &meta})
+	type audio struct {
+		title                 string
+		commentary, visualImp bool
+	}
+	var gotAudio []audio
+	for _, a := range s.Audio {
+		gotAudio = append(gotAudio, audio{a.Title, a.Commentary, a.VisualImpaired})
+	}
+	if want := []audio{{"Main mix", false, false}, {"Matroska comment", true, false}, {"", false, true}, {"", false, true}}; !reflect.DeepEqual(gotAudio, want) {
+		t.Fatalf("audio labels = %+v, want %+v", gotAudio, want)
+	}
+	type sub struct {
+		title, charset string
+		sdh            bool
+	}
+	var gotSubs []sub
+	for _, st := range s.Subtitles {
+		gotSubs = append(gotSubs, sub{st.Title, st.Charset, st.SDH})
+	}
+	want := []sub{{"File title", "UTF-8", true}, {"", "UTF-8", true}, {"", "", false}, {"", "UTF-8", false}, {"", "", false}}
+	if !reflect.DeepEqual(gotSubs, want) {
+		t.Fatalf("subtitle labels = %+v, want %+v", gotSubs, want)
+	}
+	// A source without labels serializes none of the optional members.
+	plain := BuildPlaybackSource(PlaybackSourceRecord{ID: "s", ContentType: "video/mp4", FileName: "a.mp4", Metadata: &MediaMetadata{Streams: []MediaStream{
+		{Index: 0, Kind: "audio", Codec: str("aac"), Audio: &MediaAudio{}}, {Index: 1, Kind: "subtitle", Codec: str("eia_608")}}}})
+	raw, err := json.Marshal(plain)
+	if err != nil || strings.Contains(string(raw), `"title"`) || strings.Contains(string(raw), `"charset"`) ||
+		!strings.Contains(string(raw), `"commentary":false`) || !strings.Contains(string(raw), `"sdh":false`) {
+		t.Fatalf("unlabelled tracks: %s %v", raw, err)
+	}
+}
+
+func TestStreamTitleAndLabelValidation(t *testing.T) {
+	for title, ok := range map[string]bool{"English SDH": true, "導演評論": true, "": false, " x": false, "x ": false, "a\nb": false, "a\u202Eb": false, "a\u200Bb": false,
+		"a\u2028b": false, "bad\xff": false, "a\ufffdb": false, strings.Repeat("a", MaxStreamTitleBytes): true, strings.Repeat("a", MaxStreamTitleBytes+1): false} {
+		if ValidStreamTitle(title) != ok {
+			t.Errorf("ValidStreamTitle(%q) = %v, want %v", title, !ok, ok)
+		}
+	}
+	str := func(s string) *string { return &s }
+	yes, no := true, false
+	base := func(kind string) MediaMetadata {
+		s := MediaStream{Index: 0, Kind: kind}
+		if kind == "audio" {
+			s.Audio = &MediaAudio{}
+		}
+		if kind == "video" {
+			s.Video = &MediaVideo{}
+		}
+		return MediaMetadata{Streams: []MediaStream{s}}
+	}
+	cases := map[string]struct {
+		kind   string
+		mutate func(*MediaStream)
+		ok     bool
+	}{
+		"audio labels": {"audio", func(s *MediaStream) {
+			s.Title, s.Comment, s.VisualImpaired, s.Descriptions = str("Commentary"), &yes, &yes, &yes
+		}, true},
+		"subtitle labels":      {"subtitle", func(s *MediaStream) { s.Title, s.HearingImpaired, s.Captions = str("SDH"), &yes, &yes }, true},
+		"video title":          {"video", func(s *MediaStream) { s.Title = str("x") }, false},
+		"video flag":           {"video", func(s *MediaStream) { s.Comment = &yes }, false},
+		"attachment title":     {"attachment", func(s *MediaStream) { s.Title = str("font") }, false},
+		"newline title":        {"audio", func(s *MediaStream) { s.Title = str("a\nb") }, false},
+		"empty title":          {"subtitle", func(s *MediaStream) { s.Title = str("") }, false},
+		"oversize title":       {"subtitle", func(s *MediaStream) { s.Title = str(strings.Repeat("a", MaxStreamTitleBytes+1)) }, false},
+		"explicit false flag":  {"audio", func(s *MediaStream) { s.Comment = &no }, false},
+		"explicit false flag2": {"subtitle", func(s *MediaStream) { s.HearingImpaired = &no }, false},
+	}
+	for name, c := range cases {
+		meta := base(c.kind)
+		c.mutate(&meta.Streams[0])
+		if _, err := MarshalProbeMetadata(meta); (err == nil) != c.ok {
+			t.Errorf("%s: err = %v, want ok=%v", name, err, c.ok)
+		}
+	}
+}
+
+// The parser version is shared by every stage 10 change to the stored probe
+// shape (B3 labels now, B4 on-demand sidecar probing later). A second bump
+// would make the owner re-probe the whole library twice.
+func TestProbeParserVersionIsTheSingleStage10Bump(t *testing.T) {
+	if ProbeParserVersion != "media-metadata-v5" || ProbeMetadataSchemaVersion != 2 {
+		t.Fatalf("parser %s schema %d: stage 10 shares one bump (see probeParserVersionStage10)", ProbeParserVersion, ProbeMetadataSchemaVersion)
+	}
+}

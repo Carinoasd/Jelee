@@ -13,9 +13,27 @@ var (
 	ErrProbeIdentityMismatch = errors.New("probe_identity_mismatch")
 )
 
+// probeParserVersionStage10 is the one parser identity of stage 10. Bumping
+// the parser version invalidates every stored probe result, so the owner pays
+// for one full re-probe per bump. All stage 10 changes to the stored probe
+// shape therefore share this single bump:
+//
+//   - B3 (embedded track labels): stream title, SDH/captions, commentary and
+//     visual-impaired dispositions (G15.2, G16.3).
+//   - B4 (on-demand sidecar probing) must reuse this identity: its results
+//     are stored per sidecar, not in the item probe, so it needs no bump of
+//     its own. If B4 ever has to change the stored item probe shape, add the
+//     change under this same version instead of introducing media-metadata-v6
+//     before v5 has been released.
+//
+// History: v3 merged attached_pic (G40.4) and the Matroska supplement; v4
+// added MediaInfo stream details (G19.1); v5 adds B3 track labels. The stored
+// metadata schema stays 2 because every new field is optional.
+const probeParserVersionStage10 = "media-metadata-v5"
+
 const (
 	ProbeFingerprintVersion    = "edge-sha256-v1"
-	ProbeParserVersion         = "media-metadata-v4" // v4 adds MediaInfo stream details (G19.1, same schema 2); v3 merged attached_pic (G40.4) and the Matroska supplement
+	ProbeParserVersion         = probeParserVersionStage10
 	ProbeMetadataSchemaVersion = 2
 	ProbeMetadataMaxBytes      = 128 << 10
 	ProbeRowAllowanceBytes     = 2048

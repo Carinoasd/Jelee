@@ -978,7 +978,7 @@ func (rt *router) mediaSource(itemID string, source domain.PlaybackSource, name 
 		info.MediaStreams = append(info.MediaStreams, stream)
 	}
 	for _, a := range source.Audio {
-		info.MediaStreams = append(info.MediaStreams, mediaStream{Codec: a.Codec, Language: a.Language, BitRate: a.BitRate, Channels: a.Channels, SampleRate: a.SampleRate, IsDefault: a.Default, IsForced: a.Forced, Profile: a.Profile, Type: mediaStreamAudio, Index: a.Index, AudioSpatialFormat: spatialFormat(a.Features)})
+		info.MediaStreams = append(info.MediaStreams, mediaStream{Codec: a.Codec, Language: a.Language, BitRate: a.BitRate, Channels: a.Channels, SampleRate: a.SampleRate, Title: a.Title, IsDefault: a.Default, IsForced: a.Forced, Profile: a.Profile, Type: mediaStreamAudio, Index: a.Index, AudioSpatialFormat: spatialFormat(a.Features)})
 	}
 	if audio, ok := defaultAudio(source); ok {
 		index := audio.Index
@@ -986,7 +986,7 @@ func (rt *router) mediaSource(itemID string, source domain.PlaybackSource, name 
 	}
 	extracted := delivery && rt.extractionAvailable()
 	for _, s := range source.Subtitles {
-		stream := mediaStream{Codec: s.Format, Language: s.Language, Title: s.Title, IsDefault: s.Default, IsForced: s.Forced, Type: mediaStreamSubtitle, Index: s.Index}
+		stream := mediaStream{Codec: s.Format, Language: s.Language, Title: s.Title, IsDefault: s.Default, IsForced: s.Forced, IsHearingImpaired: s.SDH, Type: mediaStreamSubtitle, Index: s.Index}
 		if delivery {
 			stream.DeliveryMethod = subtitleDeliveryEmbed
 			stream.IsTextSubtitleStream = textSubtitleFormats[s.Format]
