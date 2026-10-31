@@ -156,18 +156,22 @@ func leakRouteTable() map[string]leakRoute {
 		// and missing items alike; TestProgressHTTPPostgres checks that a
 		// hidden item records nothing. User data and the resume list read
 		// with the library grants of the user a request reads as.
-		"POST /compat/Sessions/Playing":                  exempt("playback report; the item is in the body and every outcome is an empty 204"),
-		"POST /compat/Sessions/Playing/Progress":         exempt("playback report; the item is in the body and every outcome is an empty 204"),
-		"POST /compat/Sessions/Playing/Stopped":          exempt("playback report; the item is in the body and every outcome is an empty 204"),
-		"POST /compat/Sessions/Playing/Ping":             exempt("keeps the caller's own play session alive; carries no media identifiers and returns an empty 204"),
-		"POST /compat/UserPlayedItems/{itemId}":          {mode: leakByID, params: map[string]string{"itemId": "item"}, control: true},
-		"DELETE /compat/UserPlayedItems/{itemId}":        {mode: leakByID, params: map[string]string{"itemId": "item"}, control: true},
-		"POST /compat/Users/{id}/PlayedItems/{itemId}":   {mode: leakByID, params: map[string]string{"id": "self", "itemId": "item"}},
-		"DELETE /compat/Users/{id}/PlayedItems/{itemId}": {mode: leakByID, params: map[string]string{"id": "self", "itemId": "item"}},
-		"GET /compat/UserItems/{itemId}/UserData":        {mode: leakByID, params: map[string]string{"itemId": "item"}, control: true},
-		"GET /compat/Users/{id}/Items/{itemId}/UserData": {mode: leakByID, params: map[string]string{"id": "self", "itemId": "item"}},
-		"GET /compat/UserItems/Resume":                   {mode: leakList, params: noParams, control: true},
-		"GET /compat/Users/{id}/Items/Resume":            {mode: leakList, params: selfParam},
+		"POST /compat/Sessions/Playing":                    exempt("playback report; the item is in the body and every outcome is an empty 204"),
+		"POST /compat/Sessions/Playing/Progress":           exempt("playback report; the item is in the body and every outcome is an empty 204"),
+		"POST /compat/Sessions/Playing/Stopped":            exempt("playback report; the item is in the body and every outcome is an empty 204"),
+		"POST /compat/Sessions/Playing/Ping":               exempt("keeps the caller's own play session alive; carries no media identifiers and returns an empty 204"),
+		"POST /compat/UserPlayedItems/{itemId}":            {mode: leakByID, params: map[string]string{"itemId": "item"}, control: true},
+		"DELETE /compat/UserPlayedItems/{itemId}":          {mode: leakByID, params: map[string]string{"itemId": "item"}, control: true},
+		"POST /compat/Users/{id}/PlayedItems/{itemId}":     {mode: leakByID, params: map[string]string{"id": "self", "itemId": "item"}},
+		"DELETE /compat/Users/{id}/PlayedItems/{itemId}":   {mode: leakByID, params: map[string]string{"id": "self", "itemId": "item"}},
+		"POST /compat/UserFavoriteItems/{itemId}":          {mode: leakByID, params: map[string]string{"itemId": "item"}, control: true},
+		"DELETE /compat/UserFavoriteItems/{itemId}":        {mode: leakByID, params: map[string]string{"itemId": "item"}, control: true},
+		"POST /compat/Users/{id}/FavoriteItems/{itemId}":   {mode: leakByID, params: map[string]string{"id": "self", "itemId": "item"}},
+		"DELETE /compat/Users/{id}/FavoriteItems/{itemId}": {mode: leakByID, params: map[string]string{"id": "self", "itemId": "item"}},
+		"GET /compat/UserItems/{itemId}/UserData":          {mode: leakByID, params: map[string]string{"itemId": "item"}, control: true},
+		"GET /compat/Users/{id}/Items/{itemId}/UserData":   {mode: leakByID, params: map[string]string{"id": "self", "itemId": "item"}},
+		"GET /compat/UserItems/Resume":                     {mode: leakList, params: noParams, control: true},
+		"GET /compat/Users/{id}/Items/Resume":              {mode: leakList, params: selfParam},
 		// Third-party client compatibility layer (collection and playlist
 		// module, G02.1). Collections are BoxSet items on the item routes
 		// above; the fixture's viewer playlist is public and holds the
@@ -223,14 +227,19 @@ func leakRouteTable() map[string]leakRoute {
 		// Playback progress (G23, G48.3). Reports name the item in the body;
 		// TestProgressHTTPPostgres checks hidden items are refused like
 		// missing ones.
-		"POST /api/v1/playback/start":              exempt("native playback report; the item is in the body and hidden items are answered like missing ones (TestProgressHTTPPostgres)"),
-		"POST /api/v1/playback/progress":           exempt("native playback report; the item is in the body and hidden items are answered like missing ones (TestProgressHTTPPostgres)"),
-		"POST /api/v1/playback/stop":               exempt("native playback report; the item is in the body and hidden items are answered like missing ones (TestProgressHTTPPostgres)"),
-		"GET /api/v1/playback/sessions":            admin(noParams),
-		"GET /api/v1/items/{id}/user-data":         {mode: leakByID, params: itemParam, control: true},
-		"PUT /api/v1/items/{id}/played":            {mode: leakByID, params: itemParam, control: true},
-		"DELETE /api/v1/items/{id}/played":         {mode: leakByID, params: itemParam, control: true},
-		"GET /api/v1/users/me/resume":              {mode: leakList, params: noParams, control: true},
+		"POST /api/v1/playback/start":      exempt("native playback report; the item is in the body and hidden items are answered like missing ones (TestProgressHTTPPostgres)"),
+		"POST /api/v1/playback/progress":   exempt("native playback report; the item is in the body and hidden items are answered like missing ones (TestProgressHTTPPostgres)"),
+		"POST /api/v1/playback/stop":       exempt("native playback report; the item is in the body and hidden items are answered like missing ones (TestProgressHTTPPostgres)"),
+		"GET /api/v1/playback/sessions":    admin(noParams),
+		"GET /api/v1/items/{id}/user-data": {mode: leakByID, params: itemParam, control: true},
+		"PUT /api/v1/items/{id}/played":    {mode: leakByID, params: itemParam, control: true},
+		"DELETE /api/v1/items/{id}/played": {mode: leakByID, params: itemParam, control: true},
+		"GET /api/v1/users/me/resume":      {mode: leakList, params: noParams, control: true},
+		// Favourites (G24.2): marking a hidden item is answered like a
+		// missing one, and the list never names it.
+		"PUT /api/v1/items/{id}/favorite":          {mode: leakByID, params: itemParam, control: true},
+		"DELETE /api/v1/items/{id}/favorite":       {mode: leakByID, params: itemParam, control: true},
+		"GET /api/v1/users/me/favorites":           {mode: leakList, params: noParams, control: true},
 		"DELETE /api/v1/users/me/playback-history": exempt("deletes the caller's own playback history; carries no media identifiers"),
 		// Version decisions (G20.3, G20.5) are administrator-only; track
 		// preferences (G16.5) address the item by ID for every user, and a
@@ -690,6 +699,9 @@ func leakHandlerWithAccounts(t *testing.T, store *postgres.Store, cfg config.Con
 	if err == nil {
 		catalog, err = catalog.WithCollections(store)
 	}
+	if err == nil {
+		catalog, err = catalog.WithFavorites(store)
+	}
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1060,6 +1072,12 @@ func leakFixture(t *testing.T, ctx context.Context, store *postgres.Store) leakI
  SELECT u,i,6000000000,false,0,now(),now() FROM unnest($1::uuid[]) u CROSS JOIN unnest($2::uuid[]) i
  ON CONFLICT (user_id,item_id) DO UPDATE SET resume_ticks=EXCLUDED.resume_ticks,played=false,play_count=0`,
 			*f.progressUsers, []string{f.item[leakVisible], f.item[leakHidden]}); err != nil {
+			t.Fatal(err)
+		}
+		// Both users marked both items as favourites (G24.2).
+		if _, err := store.Pool.Exec(ctx, `INSERT INTO user_favorites(user_id,item_id,library_id)
+ SELECT u,i.id,i.library_id FROM unnest($1::uuid[]) u CROSS JOIN items i WHERE i.id=ANY($2::uuid[])
+ ON CONFLICT (user_id,item_id) DO NOTHING`, *f.progressUsers, []string{f.item[leakVisible], f.item[leakHidden]}); err != nil {
 			t.Fatal(err)
 		}
 		// Watch statistics of today on both items for both users.

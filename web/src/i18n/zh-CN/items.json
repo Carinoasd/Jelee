@@ -46,7 +46,8 @@
       "nfoNone": "此条目尚未审核过 NFO 文件。",
       "files": "文件信息",
       "nativeTitle": "请使用原生客户端观看",
-      "nativeBody": "Jelee 网页界面只用于浏览与管理。要观看此条目，请在 Jelee 原生客户端中打开。"
+      "nativeBody": "Jelee 网页界面只用于浏览与管理。要观看此条目，请在 Jelee 原生客户端中打开。",
+      "favorite": "收藏"
     },
     "files": {
       "version": "版本 {n}",

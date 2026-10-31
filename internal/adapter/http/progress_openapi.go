@@ -12,7 +12,8 @@ func progressSpecification(paths, schemas map[string]any) {
 		"played":       map[string]any{"type": "boolean"},
 		"playCount":    map[string]any{"type": "integer", "minimum": 0, "description": "Completed playbacks plus explicit played marks."},
 		"lastPlayedAt": map[string]any{"type": "string", "format": "date-time"},
-	}, "itemId", "resumeTicks", "played", "playCount")
+		"isFavorite":   map[string]any{"type": "boolean", "description": "The caller marked the item as a favourite (G24.2)."},
+	}, "itemId", "resumeTicks", "played", "playCount", "isFavorite")
 	schemas["PlaybackReport"] = map[string]any{
 		"type": "object", "additionalProperties": false,
 		"description": "A playback report. playSessionId is the identifier returned by start (or any client chosen key); without it the session is one per authenticated session and itemId. Reports are buffered and written in batches; repeated reports between two writes keep only the latest state.",

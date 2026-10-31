@@ -98,7 +98,7 @@ $dc run --rm --no-deps -v /srv/old:/legacy:ro -v /srv/legacy-work:/work --entryp
 | CollectionFolder（`boxsets`、`playlists`、`folders`、`trailers`） | — | 略過 `unsupported_collection_type` |
 | `BaseItems` Movie／Episode／Video | 以檔案路徑對應既有條目 | 不建立條目：條目由 Jelee 掃描產生 |
 | `BaseItems` Series／Season | 以資料夾對應已登記的劇集／季資料夾（`item_directory_sources`） | 對不到為 `folder_unmatched` |
-| `UserData` | `user_item_data` | 續播位置、已播放、播放次數、最後播放時間；見下 |
+| `UserData` | `user_item_data`、`user_favorites` | 續播位置、已播放、播放次數、最後播放時間；`IsFavorite` 成為收藏（G24.2，遷移 000111）；見下 |
 
 條目分類（略過原因）：音樂、有聲書、書、相片、音樂錄影帶、直播頻道與節目、錄影為 `removed_domain`；預告片、合集、播放清單為 `unsupported_kind`；資料夾、檢視、人物、類型、工作室、年份與上游的佔位條目為 `structural`；缺集等虛擬條目 `virtual_item`；附加影片（花絮等）`extra`；沒有路徑 `no_path`。
 
@@ -106,7 +106,13 @@ $dc run --rm --no-deps -v /srv/old:/legacy:ro -v /srv/legacy-work:/work --entryp
 
 - 同一使用者與條目在上游可能有多列（`CustomDataKey`），合併為最後播放的那列（同時間取已播放、再取位置較大者），多出的列計入 `merged_duplicate`；多個上游版本對應到同一個 Jelee 條目時也只留最新的，其餘計入 `merged_version`。
 - **較新者勝**：Jelee 已有的列只有在上游的最後播放時間更新時才被覆寫，所以把舊資料庫匯入使用中的伺服器不會倒退任何人的進度；上游沒有最後播放時間的列視為最舊（`updated_at` 記為 1970-01-01）。
-- 沒有任何播放狀態的列略過 `empty`；只有收藏的列略過 `favorite_unsupported`（Jelee 沒有收藏，報告 `favoritesDropped` 另計有進度又被收藏的列）；上游的佔位條目（已脫離原條目的資料）`item_detached`；條目已不存在 `item_missing`；使用者已在上游刪除 `user_missing`；使用者沒有匯入（衝突、略過）`user_not_imported`；條目待對應 `item_pending`（之後的執行會再試）；條目對應不到也不在待對應 `item_not_mapped`。
+- 沒有任何播放狀態的列略過 `empty`；沒有播放狀態但有收藏的列在 `user_data` 類別記為 `favorite_only`（收藏本身另計在 `favorites` 類別）；上游的佔位條目（已脫離原條目的資料）`item_detached`；條目已不存在 `item_missing`；使用者已在上游刪除 `user_missing`；使用者沒有匯入（衝突、略過）`user_not_imported`；條目待對應 `item_pending`（之後的執行會再試）；條目對應不到也不在待對應 `item_not_mapped`。
+
+收藏（`favorites` 類別，衍生計數：來源數是帶 `IsFavorite` 的 `UserData` 列，同一使用者與條目的多列先合併）：
+
+- 與播放資料同一批處理，使用者與條目的對應規則相同：略過原因沿用 `item_detached`、`user_missing`、`item_missing`、`removed_domain` 等、`user_not_imported`、`item_not_mapped`，條目待對應時記 `item_pending`（之後的執行再試）。多個上游版本對應到同一個 Jelee 條目時只收藏一次，其餘計入 `merged_version`。
+- 目標沒有的收藏 `inserted`，已經是收藏的 `unchanged`；匯入不刪除任何收藏。帳本以 `favorite` 種類記錄（鍵同播放資料，`使用者|條目`），核對時以帳本反查 `user_favorites` 的列數必須等於 `inserted`＋`unchanged`。
+- `favoritesDropped` 是因上述略過原因沒有匯入的收藏數（不含待對應）。
 
 ## 身分比對與衝突
 
@@ -197,7 +203,8 @@ JSON 結構（本區塊由 `internal/domain` 的測試逐欄對照，未記載�
         "library_roots": {"$ref": "#/$defs/category"},
         "library_access": {"$ref": "#/$defs/category"},
         "items": {"$ref": "#/$defs/category"},
-        "user_data": {"$ref": "#/$defs/category"}
+        "user_data": {"$ref": "#/$defs/category"},
+        "favorites": {"$ref": "#/$defs/category"}
       }
     },
     "passwordResetRequired": {"type": "integer"},
@@ -278,7 +285,7 @@ JSON 結構（本區塊由 `internal/domain` 的測試逐欄對照，未記載�
 ## 已知限制
 
 - **密碼**不匯入，見上。
-- **收藏、評分、喜歡**：Jelee 沒有對應功能，不匯入（`favorite_unsupported`、`favoritesDropped`）。
+- **評分、喜歡**：Jelee 沒有對應功能，不匯入。**收藏**會匯入（G24.2），但上游沒有收藏時間，匯入的收藏以匯入當下為時間，排在收藏列表最前面；在 Jelee 取消的收藏，重跑匯入時會再加回來。
 - **合集、播放清單、預告片**：Jelee 尚無對應資料表，略過；`DisplayPreferences`、首頁區塊、語言與字幕偏好、裝置、API 金鑰、活動紀錄不匯入。
 - **條目只對應不建立**：中繼資料、圖片、章節、媒體串流由 Jelee 掃描、探測與 NFO／TMDb 流程重建；匯入只帶過使用者資料。劇集與季只在 Jelee 登記了資料夾來源時對應得到（掃描以檔名歸組的劇集沒有資料夾來源，它們的劇集層級資料略過 `folder_unmatched`；集數本身照常對應）。
 - **Unicode 正規化**：路徑逐位元組比對。從 macOS（NFD 檔名）搬到 Linux（NFC）時同一個檔名可能對不到；這種條目會留在待對應。

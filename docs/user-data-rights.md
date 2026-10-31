@@ -19,7 +19,7 @@
 每行一個 `{"type": "...", "data": {...}}`：
 
 1. `export`：`format`（`jelee.user-data`）、`version`（1）、`userId`、`userName`、`generatedAt`（快照時間）。
-2. 資料紀錄，依序：`account`、`preferences`、`trackPreference`、`versionPreference`（版本偏好，G20.2）、`sessionTrack`（會話選軌，只列目前看得到的條目，G20.4）、`playlist`、`playlistItem`（自己的播放清單與目前看得到的條目）、`blockedTag`、`blockedKeyword`、`accessWindow`（封鎖標籤、關鍵字與限制時段）、`libraryAccess`、`itemAccessRule`、`itemData`（播放進度、已播放、次數）、`playbackSession`、`playbackSample`（播放紀錄）、`watchStatsDay`、`watchStatsItem`（觀看統計）、`session`（裝置與工作階段中繼資料：裝置名稱、用戶端、建立／最後使用時間、最後 IP）、`appPassword`（名稱與日期）、`shareLink`（自己建立的分享）、`clientControlHit`、`auditEvent`（以此使用者為操作者或對象的事件：事件名、時間、類別、角色；IP 只在使用者自己是操作者時列出；不含前後狀態，因為狀態可能描述其他使用者）。
+2. 資料紀錄，依序：`account`、`preferences`、`trackPreference`、`versionPreference`（版本偏好，G20.2）、`sessionTrack`（會話選軌，只列目前看得到的條目，G20.4）、`playlist`、`playlistItem`（自己的播放清單與目前看得到的條目）、`blockedTag`、`blockedKeyword`、`accessWindow`（封鎖標籤、關鍵字與限制時段）、`libraryAccess`、`itemAccessRule`、`itemData`（播放進度、已播放、次數）、`favorite`（收藏，只列目前看得到的條目，G24.2）、`playbackSession`、`playbackSample`（播放紀錄）、`watchStatsDay`、`watchStatsItem`（觀看統計）、`session`（裝置與工作階段中繼資料：裝置名稱、用戶端、建立／最後使用時間、最後 IP）、`appPassword`（名稱與日期）、`shareLink`（自己建立的分享）、`clientControlHit`、`auditEvent`（以此使用者為操作者或對象的事件：事件名、時間、類別、角色；IP 只在使用者自己是操作者時列出；不含前後狀態，因為狀態可能描述其他使用者）。
 3. `end`：`records` 為資料紀錄筆數。**沒有 `end` 行代表串流中斷**；回應另有 `X-Jelee-Export-Complete` trailer。
 
 - **秘密一律不匯出**：密碼雜湊、應用程式密碼摘要、TOTP 密鑰、復原碼摘要、工作階段／分享／登入挑戰權杖、Webhook 密鑰。SQL 只選列出的欄位，測試確認輸出不含這些值。
@@ -35,7 +35,7 @@
 3. 此使用者擁有的掃描排程移交：管理員路徑移交給執行刪除的管理員，自助路徑移交給建立最早的其他有效管理員（沒有可接手者時 `409 last_admin`）。
 4. 從使用者範圍的用戶端控制規則（G47）移除此使用者，只剩此使用者的規則直接刪除，並遞增政策版本。
 5. 刪除沒有自動級聯的資料：`user_creation_keys`、`nfo_policy_requests`、`nfo_write_preparations`（冪等紀錄）、`client_control_hits`、`legacy_import_map` 中指向此使用者的對照、此使用者建立的 `share_links`（其訪客帳號隨外鍵級聯刪除）、主體是此使用者或資料含其 `userId` 的 `webhook_outbox` 事件；`known_clients.last_ip` 清空。
-6. `DELETE FROM users`，外鍵級聯刪除：工作階段（含 `known_client_sessions`）、應用程式密碼、TOTP、復原碼、登入挑戰、偏好、音軌偏好、封鎖標籤、媒體庫授權、項目存取規則、播放會話與樣本、`user_item_data`、觀看統計。`ON DELETE SET NULL` 的欄位（工作、版本操作、清單接受、用戶端與網路規則的建立者、分享的撤銷者、已知用戶端的最後使用者）保留列但不再指向任何人。
+6. `DELETE FROM users`，外鍵級聯刪除：工作階段（含 `known_client_sessions`）、應用程式密碼、TOTP、復原碼、登入挑戰、偏好、音軌偏好、封鎖標籤、媒體庫授權、項目存取規則、播放會話與樣本、`user_item_data`、收藏（`user_favorites`）、觀看統計。`ON DELETE SET NULL` 的欄位（工作、版本操作、清單接受、用戶端與網路規則的建立者、分享的撤銷者、已知用戶端的最後使用者）保留列但不再指向任何人。
 7. 稽核去識別化（見下節），最後寫入 `user.purged`（不含 IP，`after` 只有計數與旗標）。
 
 沒有任何還原路徑：`POST /users/{id}/restore` 對已永久刪除的 ID 回 `404`。舊備份仍含資料，直到輪替期滿，見 [備份與還原](backup-restore.md#資料生命週期中與備份相關的部分g363)。

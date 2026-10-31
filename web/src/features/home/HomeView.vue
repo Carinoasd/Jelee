@@ -79,6 +79,7 @@ function toggle(id: string, value: boolean) {
         <h2 id="home-welcome">{{ t("layout.home.welcome", { name: auth.user?.displayName || auth.user?.name || "" }) }}</h2>
         <ul class="jl-home__links">
           <li><RouterLink :to="{ name: 'search' }">{{ t("layout.home.searchLink") }}</RouterLink></li>
+          <li><RouterLink :to="{ name: 'favorites' }">{{ t("common.favorites") }}</RouterLink></li>
           <li><RouterLink :to="{ name: 'stats' }">{{ t("common.stats") }}</RouterLink></li>
           <li><RouterLink :to="{ name: 'settings' }">{{ t("common.settings") }}</RouterLink></li>
         </ul>

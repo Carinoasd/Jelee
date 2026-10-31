@@ -120,6 +120,9 @@ func newWithLifetime(cfg config.Config, logger *slog.Logger, lifetime *lifetime)
 			if catalog, err = catalog.WithVersions(store); err != nil {
 				return nil, err
 			}
+			if catalog, err = catalog.WithFavorites(store); err != nil {
+				return nil, err
+			}
 			if catalog, err = catalog.WithCollections(store); err != nil || !c.EnableCatalog {
 				return catalog, err
 			}

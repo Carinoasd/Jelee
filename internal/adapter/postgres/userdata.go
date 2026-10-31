@@ -53,6 +53,8 @@ var userDataSections = []userDataSection{
 	{"itemData", `SELECT d.item_id::text AS "itemId",d.resume_ticks AS "resumeTicks",d.played AS "played",d.play_count AS "playCount",
  d.last_played_at AS "lastPlayedAt",d.last_source_id::text AS "lastSourceId",d.updated_at AS "updatedAt"
  FROM user_item_data d WHERE d.user_id=$1::uuid AND ` + exportItemVisible("d.item_id"), `"itemId"`},
+	{"favorite", `SELECT f.item_id::text AS "itemId",f.created_at AS "createdAt"
+ FROM user_favorites f WHERE f.user_id=$1::uuid AND ` + exportItemVisible("f.item_id"), `"itemId"`},
 	{"playbackSession", `SELECT p.id::text AS "id",p.item_id::text AS "itemId",p.library_id::text AS "libraryId",p.source_id::text AS "sourceId",
  p.device_id AS "deviceId",p.client_name AS "clientName",p.delivery AS "delivery",p.state AS "state",p.failure_reason AS "failureReason",
  p.started_at AS "startedAt",p.last_report_at AS "lastReportAt",p.ended_at AS "endedAt",p.position_ticks AS "positionTicks",p.runtime_ticks AS "runtimeTicks",

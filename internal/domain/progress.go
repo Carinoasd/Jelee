@@ -153,6 +153,9 @@ type UserItemData struct {
 	Played       bool       `json:"played"`
 	PlayCount    int        `json:"playCount"`
 	LastPlayedAt *time.Time `json:"lastPlayedAt,omitempty"`
+	// IsFavorite reports that the user marked the item as a favourite
+	// (G24.2).
+	IsFavorite bool `json:"isFavorite"`
 }
 
 // ProgressResume is the resume point recorded while a session plays:

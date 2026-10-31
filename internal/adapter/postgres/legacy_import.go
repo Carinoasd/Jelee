@@ -131,7 +131,9 @@ func newLegacyReport(info domain.LegacySourceInfo, opts domain.LegacyImportOptio
 	for name, n := range legacySourceCounts(info) {
 		r.Category(name).Source = n
 	}
-	r.Category(domain.LegacyCatLibraryAccess).Derived = true
+	for _, name := range domain.LegacyDerivedCategories() {
+		r.Category(name).Derived = true
+	}
 	for _, phase := range domain.LegacyImportPhases() {
 		r.Phases[phase] = "pending"
 	}
@@ -534,7 +536,9 @@ func (im *legacyImporter) readReport(ctx context.Context, base domain.LegacyImpo
 	for _, name := range domain.LegacyImportCategories() {
 		report.Category(name).Source = source[name]
 	}
-	report.Category(domain.LegacyCatLibraryAccess).Derived = true
+	for _, name := range domain.LegacyDerivedCategories() {
+		report.Category(name).Derived = true
+	}
 	for _, phase := range domain.LegacyImportPhases() {
 		cp, err := readCheckpoint(ctx, im.conn, im.runID, phase)
 		if err != nil {
@@ -615,6 +619,8 @@ func (im *legacyImporter) finish(ctx context.Context, base domain.LegacyImportRe
 		domain.LegacyCatItems:     `SELECT count(*) FROM legacy_import_map m JOIN items i ON i.id=m.target_id WHERE m.kind='item' AND m.run_id=$1::uuid`,
 		domain.LegacyCatUserData: `SELECT count(*) FROM legacy_import_map m JOIN user_item_data d ON d.user_id=m.target_user AND d.item_id=m.target_id
  WHERE m.kind='user_data' AND m.run_id=$1::uuid`,
+		domain.LegacyCatFavorites: `SELECT count(*) FROM legacy_import_map m JOIN user_favorites f ON f.user_id=m.target_user AND f.item_id=m.target_id
+ WHERE m.kind='favorite' AND m.run_id=$1::uuid`,
 	} {
 		var n int64
 		if err = tx.QueryRow(ctx, query, im.runID).Scan(&n); err != nil {

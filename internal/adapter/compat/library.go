@@ -467,6 +467,11 @@ type itemsRequest struct {
 	// collections and playlists: named in IncludeItemTypes, or no
 	// IncludeItemTypes, and not excluded.
 	boxsets, playlists bool
+	// favorite is the favourite filter (IsFavorite, Filters=IsFavorite):
+	// nil keeps every item, true only the user's favourites, false the
+	// others. nothing is set when the two disagree, which matches no item.
+	favorite *bool
+	nothing  bool
 }
 
 // containersOnly reports a listing whose type filter names collections or
@@ -514,6 +519,9 @@ func parseItemsRequest(q browseQuery) (itemsRequest, error) {
 	}
 	slices.Sort(req.kinds)
 	req.views = includeViews && !excludeViews
+	if err = req.parseFavorite(q); err != nil {
+		return req, err
+	}
 	req.search = q.get("searchterm")
 	if utf8.RuneCountInString(req.search) > domain.BrowseSearchMax || !utf8.ValidString(req.search) || strings.ContainsRune(req.search, 0) {
 		return req, errBadQuery
@@ -590,6 +598,47 @@ func parseItemsRequest(q browseQuery) (itemsRequest, error) {
 	return req, nil
 }
 
+// itemFilterFavorite and itemFilterFavoriteOrLikes are the upstream
+// ItemFilter values that ask for favourites; Jelee keeps no likes, so both
+// mean the user's favourites. The other filters are ignored, as before.
+const (
+	itemFilterFavorite        = "IsFavorite"
+	itemFilterFavoriteOrLikes = "IsFavoriteOrLikes"
+)
+
+// parseFavorite reads the favourite filter of IsFavorite and Filters (G24.2).
+// Library folders, collections and playlists are never favourites, so a
+// request for favourites only lists catalog items.
+func (req *itemsRequest) parseFavorite(q browseQuery) error {
+	value, set, err := q.boolean("isfavorite")
+	if err != nil {
+		return err
+	}
+	if set {
+		req.favorite = &value
+	}
+	for _, name := range q.list("filters") {
+		if !strings.EqualFold(name, itemFilterFavorite) && !strings.EqualFold(name, itemFilterFavoriteOrLikes) {
+			continue
+		}
+		if req.favorite != nil && !*req.favorite {
+			req.nothing = true
+		}
+		yes := true
+		req.favorite = &yes
+	}
+	if req.favorite != nil && *req.favorite || req.nothing {
+		req.views, req.boxsets, req.playlists = false, false, false
+	}
+	return nil
+}
+
+// keepFavorite reports whether a catalog item whose favourite state is
+// favorite passes the request's favourite filter.
+func (req itemsRequest) keepFavorite(favorite bool) bool {
+	return !req.nothing && (req.favorite == nil || *req.favorite == favorite)
+}
+
 // itemKinds maps upstream item types to catalog kinds. CollectionFolder
 // names library folders. Well-formed types the catalog does not have (Audio,
 // Folder, ...) match nothing; BoxSet and Playlist are read by
@@ -662,7 +711,11 @@ func (rt *router) items(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, result)
 		return
 	}
-	query := domain.BrowseQuery{ParentID: req.parentID, SearchTerm: req.search, Sort: req.sort, Offset: req.offset, Limit: max(req.limit, 1), WithOverview: req.fields[fieldOverview]}
+	if req.nothing {
+		writeJSON(w, result)
+		return
+	}
+	query := domain.BrowseQuery{ParentID: req.parentID, SearchTerm: req.search, Sort: req.sort, Offset: req.offset, Limit: max(req.limit, 1), WithOverview: req.fields[fieldOverview], Favorite: req.favorite}
 	if len(req.kinds) < len(itemTypeByKind) {
 		query.Kinds = req.kinds
 	}
@@ -778,6 +831,23 @@ func (rt *router) itemsByIDs(w http.ResponseWriter, r *http.Request, principal a
 		if item.Kind == domain.BrowseKindLibrary && req.views || slices.Contains(req.kinds, item.Kind) {
 			found = append(found, match{item: &item})
 		}
+	}
+	if req.favorite != nil || req.nothing {
+		var catalogIDs []string
+		for _, m := range found {
+			if m.item != nil && m.item.Kind != domain.BrowseKindLibrary {
+				catalogIDs = append(catalogIDs, m.item.ID)
+			}
+		}
+		favorites, err := rt.favoriteSet(r.Context(), userID, catalogIDs)
+		if err != nil {
+			rt.writeLibraryError(w, err)
+			return
+		}
+		found = slices.DeleteFunc(found, func(m match) bool {
+			catalogItem := m.item != nil && m.item.Kind != domain.BrowseKindLibrary
+			return !req.keepFavorite(catalogItem && favorites[m.item.ID])
+		})
 	}
 	result.TotalRecordCount = len(found)
 	var ids []string

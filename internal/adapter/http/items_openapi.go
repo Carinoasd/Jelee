@@ -35,7 +35,8 @@ func catalogSpecification(paths, schemas map[string]any) {
 		"readAt": map[string]any{"type": "string", "format": "date-time", "description": "When the NFO file was last read; absent when unread."},
 		"fields": map[string]any{"type": "array", "items": map[string]any{"type": "string", "enum": []string{"title", "originalTitle", "sortTitle", "tagline", "overview", "date", "year", "genres", "uniqueIds"}}, "description": "Displayed fields whose current value came from an NFO file."},
 	}, "status", "fields")
-	schemas["CatalogItemDetails"] = objectSchema(details, "id", "libraryId", "title", "kind", "genres", "externalIds", "nfo")
+	details["isFavorite"] = map[string]any{"type": "boolean", "description": "The caller marked the item as a favourite (G24.2); see PUT /api/v1/items/{id}/favorite."}
+	schemas["CatalogItemDetails"] = objectSchema(details, "id", "libraryId", "title", "kind", "genres", "externalIds", "nfo", "isFavorite")
 	schemas["MediaSourceInfo"] = mediaSourceSchema(false)
 
 	limit := map[string]any{"type": "integer", "minimum": 1, "maximum": itemsPageMax, "default": 50}

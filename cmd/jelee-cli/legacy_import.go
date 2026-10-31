@@ -249,7 +249,7 @@ func writeLegacySummary(w io.Writer, r domain.LegacyImportReport) {
 		_, _ = fmt.Fprintf(w, "accounts without a password: %d (set one with: jelee-cli account set-password --name NAME --password-stdin)\n", r.PasswordResetRequired)
 	}
 	if r.FavoritesDropped > 0 {
-		_, _ = fmt.Fprintf(w, "favorites not imported: %d (Jelee has no favorites)\n", r.FavoritesDropped)
+		_, _ = fmt.Fprintf(w, "favorites not imported: %d (their user or item was not imported)\n", r.FavoritesDropped)
 	}
 	if c := r.Categories[domain.LegacyCatItems]; c != nil && sumReasons(c.Pending) > 0 {
 		_, _ = fmt.Fprintln(w, "pending items: scan the libraries, then run the same import again")

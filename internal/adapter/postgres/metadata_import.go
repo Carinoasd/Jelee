@@ -326,6 +326,16 @@ up AS (INSERT INTO user_item_data(user_id,item_id,resume_ticks,played,play_count
  WHERE EXCLUDED.updated_at>user_item_data.updated_at
  RETURNING (xmax=0) inserted)
 SELECT (SELECT count(*) FROM ok),(SELECT count(*) FROM up WHERE inserted),(SELECT count(*) FROM up WHERE NOT inserted),0`},
+	// A favourite is added when the target lacks it and keeps the earlier
+	// time when both have it; nothing is removed. The item's library comes
+	// from the target item, so the row stays in the item's library.
+	{kind: "user_favorite", sql: `WITH x AS (SELECT s.doc,pg_temp.bk_dst('user',s.doc->>'user_id') u,pg_temp.bk_dst('item',s.doc->>'item_id') i FROM bk_stage s WHERE s.kind='user_favorite'),
+ok AS (SELECT x.*,t.library_id lib FROM x JOIN items t ON t.id=x.i WHERE x.u IS NOT NULL),
+up AS (INSERT INTO user_favorites AS f(user_id,item_id,library_id,created_at)
+ SELECT u,i,lib,(doc->>'created_at')::timestamptz FROM ok
+ ON CONFLICT(user_id,item_id) DO UPDATE SET created_at=EXCLUDED.created_at WHERE EXCLUDED.created_at<f.created_at
+ RETURNING (xmax=0) inserted)
+SELECT (SELECT count(*) FROM ok),(SELECT count(*) FROM up WHERE inserted),(SELECT count(*) FROM up WHERE NOT inserted),0`},
 	// Like progress, a preference keeps whichever side was updated last; a
 	// version level needs its version on its item in the target.
 	{kind: "user_track_preference", sql: `WITH x AS (SELECT s.doc,pg_temp.bk_dst('user',s.doc->>'user_id') u,pg_temp.bk_dst('item',s.doc->>'item_id') i,pg_temp.bk_dst('media_source',s.doc->>'source_id') m FROM bk_stage s WHERE s.kind='user_track_preference'),

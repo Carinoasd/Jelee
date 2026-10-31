@@ -301,7 +301,7 @@ func (s *Store) UserItemData(ctx context.Context, userID string, itemIDs []strin
 		return nil, domain.ErrInvalid
 	}
 	rows, err := s.Pool.Query(ctx, browsePrincipalSQL+`
-SELECT i.id::text,`+userItemDataColumns+` FROM principal u JOIN items i ON i.id=ANY(@ids::uuid[])
+SELECT i.id::text,`+userItemDataColumns+`,`+favoriteSQL("i.id")+` FROM principal u JOIN items i ON i.id=ANY(@ids::uuid[])
  LEFT JOIN user_item_data d ON d.user_id=u.id AND d.item_id=i.id
  WHERE `+itemVisibleSQL("@rq", "i.library_id", "i.id"), pgx.NamedArgs{"user": userID, "ids": itemIDs, "rq": requestScopeArg(ctx)})
 	if err != nil {
@@ -311,7 +311,7 @@ SELECT i.id::text,`+userItemDataColumns+` FROM principal u JOIN items i ON i.id=
 	out := make(map[string]domain.UserItemData, len(itemIDs))
 	for rows.Next() {
 		var d domain.UserItemData
-		if err = rows.Scan(&d.ItemID, &d.ResumeTicks, &d.Played, &d.PlayCount, &d.LastPlayedAt); err != nil {
+		if err = rows.Scan(&d.ItemID, &d.ResumeTicks, &d.Played, &d.PlayCount, &d.LastPlayedAt, &d.IsFavorite); err != nil {
 			return nil, storageError(err)
 		}
 		out[d.ItemID] = d
@@ -338,8 +338,8 @@ SELECT @user::uuid,item.id,0,@played,CASE WHEN @played THEN 1 ELSE 0 END,CASE WH
 ON CONFLICT (user_id,item_id) DO UPDATE SET resume_ticks=0,played=EXCLUDED.played,
  play_count=CASE WHEN EXCLUDED.played THEN d.play_count+1 ELSE 0 END,
  last_played_at=COALESCE(EXCLUDED.last_played_at,d.last_played_at),updated_at=EXCLUDED.updated_at
-RETURNING d.item_id::text,d.resume_ticks,d.played,d.play_count,d.last_played_at`,
-		pgx.NamedArgs{"user": userID, "item": itemID, "played": played, "at": at, "rq": requestScopeArg(ctx)}).Scan(&d.ItemID, &d.ResumeTicks, &d.Played, &d.PlayCount, &d.LastPlayedAt)
+RETURNING d.item_id::text,d.resume_ticks,d.played,d.play_count,d.last_played_at,EXISTS(SELECT 1 FROM user_favorites uf WHERE uf.user_id=d.user_id AND uf.item_id=d.item_id)`,
+		pgx.NamedArgs{"user": userID, "item": itemID, "played": played, "at": at, "rq": requestScopeArg(ctx)}).Scan(&d.ItemID, &d.ResumeTicks, &d.Played, &d.PlayCount, &d.LastPlayedAt, &d.IsFavorite)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return domain.UserItemData{}, domain.ErrNotFound
 	}
@@ -372,14 +372,14 @@ func (s *Store) ListResume(ctx context.Context, userID string, q domain.ResumeQu
 	}
 	args := pgx.NamedArgs{"user": userID, "kinds": kinds, "limit": q.Limit, "offset": q.Offset, "rq": requestScopeArg(ctx)}
 	matched := browsePrincipalSQL + `, matched AS (
- SELECT i.id,i.library_id,i.kind,i.title,d.resume_ticks,d.play_count,d.last_played_at FROM principal u
+ SELECT i.id,i.library_id,i.kind,i.title,d.resume_ticks,d.play_count,d.last_played_at,` + favoriteSQL("i.id") + ` AS favorite FROM principal u
  JOIN user_item_data d ON d.user_id=u.id AND d.resume_ticks>0 AND NOT d.played
  JOIN items i ON i.id=d.item_id
  WHERE ` + itemVisibleSQL("@rq", "i.library_id", "i.id") + ` AND i.kind=ANY(@kinds::text[])
 )`
 	rows, err := s.Pool.Query(ctx, matched+`
 SELECT i.id::text,i.library_id::text,COALESCE(p.parent_id,i.library_id)::text,i.kind,i.title,COALESCE(fs.value,''),COALESCE(fo.value,''),COALESCE(NULLIF(fd.value,''),''),COALESCE(`+browseYearSQL+`,0),
- i.resume_ticks,i.play_count,i.last_played_at,COALESCE(r.runtime_ticks,0),count(*) OVER()
+ i.resume_ticks,i.play_count,i.last_played_at,i.favorite,COALESCE(r.runtime_ticks,0),count(*) OVER()
  FROM matched i`+browseMetadataSQL+`
  LEFT JOIN LATERAL (SELECT x.runtime_ticks FROM playback_sessions x WHERE x.user_id=@user::uuid AND x.item_id=i.id AND x.runtime_ticks IS NOT NULL
   ORDER BY x.last_report_at DESC LIMIT 1) r ON true
@@ -393,7 +393,7 @@ SELECT i.id::text,i.library_id::text,COALESCE(p.parent_id,i.library_id)::text,i.
 		var e domain.ResumeEntry
 		item := &e.Item
 		if err = rows.Scan(&item.ID, &item.LibraryID, &item.ParentID, &item.Kind, &item.Title, &item.SortTitle, &item.Overview, &item.PremiereDate, &item.Year,
-			&e.Data.ResumeTicks, &e.Data.PlayCount, &e.Data.LastPlayedAt, &e.RuntimeTicks, &page.Total); err != nil {
+			&e.Data.ResumeTicks, &e.Data.PlayCount, &e.Data.LastPlayedAt, &e.Data.IsFavorite, &e.RuntimeTicks, &page.Total); err != nil {
 			return domain.ResumePage{}, storageError(err)
 		}
 		e.Data.ItemID = item.ID

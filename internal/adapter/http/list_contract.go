@@ -129,6 +129,8 @@ var listContracts = func() map[string]*listContract {
 			Sorts: []string{"path"}, Orders: []string{"asc"}, Paging: pagingKeyset, DefaultLimit: 50, MaxLimit: 100, OffsetMax: listKeysetOffsetMax},
 		{Path: "/api/v1/users/me/resume", Items: "items", Fields: []string{"id", "kind", "libraryId", "parentId", "title", "userData"}, Sorts: []string{"lastPlayedAt"}, Orders: []string{"desc"},
 			Paging: pagingOffset, DefaultLimit: 50, MaxLimit: domain.BrowseLimitMax, OffsetMax: domain.BrowseOffsetMax},
+		{Path: "/api/v1/users/me/favorites", Items: "items", Fields: []string{"favoritedAt", "id", "kind", "libraryId", "parentId", "premiereDate", "productionYear", "title"}, Sorts: []string{"favoritedAt"}, Orders: []string{"desc"},
+			Filters: []string{"libraryId", "type"}, Paging: pagingOffset, DefaultLimit: 50, MaxLimit: domain.BrowseLimitMax, OffsetMax: domain.BrowseOffsetMax},
 		memory("/api/v1/users/{id}/sessions", "", "", sessionFields, []string{"createdAt", "lastSeenAt", "expiresAt"}),
 		memory("/api/v1/users/{id}/app-passwords", "", "", []string{"createdAt", "id", "lastUsedAt", "name"}, []string{"createdAt", "lastUsedAt", "name"}),
 		memory("/api/v1/users/{id}/libraries", "", "libraryId", []string{"libraryId", "name"}, []string{"name", "libraryId"}),

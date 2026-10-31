@@ -22,6 +22,8 @@ type Catalog struct {
 	// collections stores collections and playlists (G02.1); nil until
 	// WithCollections.
 	collections CollectionRepository
+	// favorites stores favourites (G24.2); nil until WithFavorites.
+	favorites FavoriteRepository
 }
 
 func NewCatalog(repository CatalogRepository) *Catalog { return &Catalog{repository: repository} }

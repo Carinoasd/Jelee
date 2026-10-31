@@ -97,10 +97,11 @@ func legacyFixtureSpec() legacydbtest.Spec {
 		UserData: []legacydbtest.UserData{
 			{UserID: lgAlice, ItemID: lgMovie1, Position: 12_000_000_000, PlayCount: 1, LastPlayed: "2025-03-01 20:15:00.1234567", Favorite: true},
 			// Two rows of one user and item (CustomDataKey): the later one wins.
-			{UserID: lgAlice, ItemID: lgMovie2, Key: "old", Position: 5, LastPlayed: "2024-01-01 00:00:00"},
+			{UserID: lgAlice, ItemID: lgMovie2, Key: "old", Position: 5, LastPlayed: "2024-01-01 00:00:00", Favorite: true},
 			{UserID: lgAlice, ItemID: lgMovie2, Key: "new", Played: true, PlayCount: 3, LastPlayed: "2025-02-02 02:02:02"},
 			// The other version of movie 2 becomes the same Jelee item.
-			{UserID: lgAlice, ItemID: lgMovie2b, Position: 7, LastPlayed: "2023-01-01 00:00:00"},
+			// Both are favourites: one favourite of that item is imported.
+			{UserID: lgAlice, ItemID: lgMovie2b, Position: 7, LastPlayed: "2023-01-01 00:00:00", Favorite: true},
 			{UserID: lgBob, ItemID: lgEpisode, Played: true, PlayCount: 1},
 			{UserID: lgBob, ItemID: lgMissing, Position: 99, LastPlayed: "2025-01-01 00:00:00"},
 			{UserID: lgBob, ItemID: lgOutside, Position: 99, LastPlayed: "2025-01-01 00:00:00"},
@@ -111,7 +112,7 @@ func legacyFixtureSpec() legacydbtest.Spec {
 			{UserID: lgUnicode, ItemID: lgEpisode},
 			{UserID: lgUnicode, ItemID: lgPlaceItem, Played: true},
 			{UserID: lgUnicode, ItemID: lgVanished, Played: true},
-			{UserID: lgGone, ItemID: lgMovie1, Played: true},
+			{UserID: lgGone, ItemID: lgMovie1, Played: true, Favorite: true},
 		},
 	}
 }
@@ -283,9 +284,11 @@ func TestLegacyImportFullThenScanThenIdempotentPostgres(t *testing.T) {
 		Skipped: map[string]int64{"extra": 1, "folder_unmatched": 2, "removed_domain": 3, "structural": 6, "unsupported_kind": 1, "virtual_item": 1},
 		Pending: map[string]int64{"not_scanned": 4, "outside_roots": 1, "source_file_missing": 1}})
 	assertCategory(t, first, domain.LegacyCatUserData, domain.LegacyCategoryReport{Source: 15,
-		Skipped: map[string]int64{"empty": 1, "favorite_unsupported": 1, "item_detached": 1, "item_missing": 1, "item_not_mapped": 1, "merged_duplicate": 1, "removed_domain": 1, "user_missing": 1},
+		Skipped: map[string]int64{"empty": 1, "favorite_only": 1, "item_detached": 1, "item_missing": 1, "item_not_mapped": 1, "merged_duplicate": 1, "removed_domain": 1, "user_missing": 1},
 		Pending: map[string]int64{"item_pending": 7}})
-	if first.PasswordResetRequired != 3 || len(first.Pending) != 6 || len(first.Conflicts) != 0 {
+	// Favourites (G24.2) wait for their items like progress does.
+	assertCategory(t, first, domain.LegacyCatFavorites, domain.LegacyCategoryReport{Source: 5, Skipped: map[string]int64{"user_missing": 1}, Pending: map[string]int64{"item_pending": 4}})
+	if first.PasswordResetRequired != 3 || first.FavoritesDropped != 1 || len(first.Pending) != 6 || len(first.Conflicts) != 0 {
 		t.Fatalf("first extras %+v", first)
 	}
 	for _, phase := range domain.LegacyImportPhases() {
@@ -332,11 +335,18 @@ func TestLegacyImportFullThenScanThenIdempotentPostgres(t *testing.T) {
 		Skipped: map[string]int64{"extra": 1, "folder_unmatched": 1, "removed_domain": 3, "structural": 6, "unsupported_kind": 1, "virtual_item": 1},
 		Pending: map[string]int64{"outside_roots": 1, "source_file_missing": 1}})
 	assertCategory(t, second, domain.LegacyCatUserData, domain.LegacyCategoryReport{Source: 15, Inserted: 5,
-		Skipped: map[string]int64{"empty": 1, "favorite_unsupported": 1, "item_detached": 1, "item_missing": 1, "merged_duplicate": 1, "merged_version": 1,
+		Skipped: map[string]int64{"empty": 1, "favorite_only": 1, "item_detached": 1, "item_missing": 1, "merged_duplicate": 1, "merged_version": 1,
 			"removed_domain": 1, "user_missing": 1},
 		Pending: map[string]int64{"item_pending": 2}})
-	if second.FavoritesDropped != 1 || !second.Verification.TargetMatch || second.Verification.TargetRows[domain.LegacyCatUserData] != 5 {
+	assertCategory(t, second, domain.LegacyCatFavorites, domain.LegacyCategoryReport{Source: 5, Inserted: 3, Skipped: map[string]int64{"merged_version": 1, "user_missing": 1}})
+	if second.FavoritesDropped != 1 || !second.Verification.TargetMatch || second.Verification.TargetRows[domain.LegacyCatUserData] != 5 || second.Verification.TargetRows[domain.LegacyCatFavorites] != 3 {
 		t.Fatalf("second extras %+v", second)
+	}
+	// The favourite-only row of the Unicode user is imported too.
+	if sc.count(t, `SELECT count(*) FROM user_favorites WHERE user_id=$1 AND item_id=$2`, lgUnicode, ids["movie2"]) != 1 ||
+		sc.count(t, `SELECT count(*) FROM user_favorites f JOIN items i ON i.id=f.item_id AND i.library_id=f.library_id WHERE f.user_id=$1 AND f.item_id=ANY($2::uuid[])`, lgAlice, []string{ids["movie1"], ids["movie2"]}) != 2 ||
+		sc.count(t, `SELECT count(*) FROM user_favorites`) != 3 {
+		t.Fatal("imported favourites")
 	}
 	var resume int64
 	var played bool
@@ -365,6 +375,7 @@ func TestLegacyImportFullThenScanThenIdempotentPostgres(t *testing.T) {
 	}
 	assertCategory(t, third, domain.LegacyCatUserData, domain.LegacyCategoryReport{Source: 15, Unchanged: 5,
 		Skipped: second.Categories[domain.LegacyCatUserData].Skipped, Pending: second.Categories[domain.LegacyCatUserData].Pending})
+	assertCategory(t, third, domain.LegacyCatFavorites, domain.LegacyCategoryReport{Source: 5, Unchanged: 3, Skipped: second.Categories[domain.LegacyCatFavorites].Skipped})
 	if after := sc.targetDigest(t); after != before {
 		t.Fatal("a repeated import changed the target")
 	}
@@ -420,9 +431,10 @@ func TestLegacyImportResumesAfterFailedBatchPostgres(t *testing.T) {
 		Pending: map[string]int64{"outside_roots": 1, "source_file_missing": 1}})
 	assertCategory(t, resumed, domain.LegacyCatUsers, domain.LegacyCategoryReport{Source: 4, Inserted: 4})
 	assertCategory(t, resumed, domain.LegacyCatUserData, domain.LegacyCategoryReport{Source: 15, Inserted: 5,
-		Skipped: map[string]int64{"empty": 1, "favorite_unsupported": 1, "item_detached": 1, "item_missing": 1, "merged_duplicate": 1, "merged_version": 1,
+		Skipped: map[string]int64{"empty": 1, "favorite_only": 1, "item_detached": 1, "item_missing": 1, "merged_duplicate": 1, "merged_version": 1,
 			"removed_domain": 1, "user_missing": 1},
 		Pending: map[string]int64{"item_pending": 2}})
+	assertCategory(t, resumed, domain.LegacyCatFavorites, domain.LegacyCategoryReport{Source: 5, Inserted: 3, Skipped: map[string]int64{"merged_version": 1, "user_missing": 1}})
 	if sc.count(t, `SELECT count(*) FROM legacy_import_runs`) != 1 || sc.count(t, `SELECT count(*) FROM users`) != 4 {
 		t.Fatal("resume duplicated a run or an account")
 	}

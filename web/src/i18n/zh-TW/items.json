@@ -46,7 +46,8 @@
       "nfoNone": "此項目尚未審核過 NFO 檔案。",
       "files": "檔案資訊",
       "nativeTitle": "請使用原生用戶端觀看",
-      "nativeBody": "Jelee 網頁介面只用於瀏覽與管理。要觀看此項目，請在 Jelee 原生用戶端中開啟。"
+      "nativeBody": "Jelee 網頁介面只用於瀏覽與管理。要觀看此項目，請在 Jelee 原生用戶端中開啟。",
+      "favorite": "收藏"
     },
     "files": {
       "version": "版本 {n}",

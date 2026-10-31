@@ -15,7 +15,7 @@ import (
 // writer, so memory does not grow with the catalog. Records are what a rescan
 // cannot rebuild: accounts and grants, libraries and roots, the catalog
 // identity that per-item user data hangs on, item metadata and locks, locked
-// images, playback progress, track preferences, manual version decisions,
+// images, playback progress, favourites, track preferences, manual version decisions,
 // access, network and client control rules, webhooks and scan schedules.
 // Collections and their manual members, playlists with their entries, user
 // interface preferences, the site appearance and plugin documents and the
@@ -41,7 +41,7 @@ var metadataBackupTables = map[string][]string{
 	"item_identity_correction": {"item_identity_corrections"},
 	"item_metadata_state":      {"item_metadata_state"}, "item_metadata_field": {"item_metadata_fields"}, "item_metadata_fact": {"item_metadata_facts"},
 	"item_nfo_field_lock": {"item_nfo_field_locks"}, "item_image": {"item_images"},
-	"user_item_data": {"user_item_data"}, "user_track_preference": {"user_track_preferences"},
+	"user_item_data": {"user_item_data"}, "user_favorite": {"user_favorites"}, "user_track_preference": {"user_track_preferences"},
 	"access_policy": {"access_policy"}, "parental_rating": {"parental_ratings"}, "user_item_access_rule": {"user_item_access_rules"}, "user_blocked_tag": {"user_blocked_tags"},
 	"user_blocked_keyword": {"user_blocked_keywords"}, "user_access_window": {"user_access_windows"}, "access_template": {"access_templates", "access_template_libraries"},
 	"client_control_policy": {"client_control_policy"}, "client_rule": {"client_rules"}, "library_network_rule": {"library_network_rules"},
@@ -142,6 +142,7 @@ func metadataExportQueries(passwordHashes bool) []metadataExportQuery {
 		// administrator's choice and is kept with its source and content facts.
 		{"item_image", `SELECT to_jsonb(x)::text FROM (SELECT id,item_id,library_id,image_type,image_index,source_kind,root_id,relative_path,remote_url,content_sha256,width,height,format,byte_size,average_color,dominant_color,fetched_at,source_mtime_unix_nano,source_size,locked,created_at,updated_at FROM item_images WHERE locked) x ORDER BY x.id`},
 		{"user_item_data", `SELECT to_jsonb(x)::text FROM (SELECT user_id,item_id,resume_ticks,played,play_count,last_played_at,last_source_id,updated_at FROM user_item_data d WHERE ` + notGuestSQL("d.user_id") + `) x ORDER BY x.user_id,x.item_id`},
+		{"user_favorite", `SELECT to_jsonb(x)::text FROM (SELECT user_id,item_id,library_id,created_at FROM user_favorites f WHERE ` + notGuestSQL("f.user_id") + `) x ORDER BY x.user_id,x.item_id`},
 		{"user_track_preference", `SELECT to_jsonb(x)::text FROM (SELECT user_id,item_id,source_id,audio_language,audio_commentary,audio_track,subtitle_mode,subtitle_language,subtitle_sdh,subtitle_track,updated_at FROM user_track_preferences p WHERE ` + notGuestSQL("p.user_id") + `) x ORDER BY x.user_id,x.item_id NULLS FIRST,x.source_id NULLS FIRST`},
 		{"access_policy", `SELECT to_jsonb(x)::text FROM (SELECT restrict_admins,block_unrated FROM access_policy WHERE id) x`},
 		{"parental_rating", `SELECT to_jsonb(x)::text FROM (SELECT code,level FROM parental_ratings) x ORDER BY x.code COLLATE "C"`},
