@@ -9,9 +9,12 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/MoYuanCN/Jelee/internal/adapter/formatsamples"
 )
 
 func TestFixturePathAndChecksumBoundary(t *testing.T) {
@@ -121,7 +124,7 @@ func TestGenerateRealFixturesAndCancellation(t *testing.T) {
 	if err := json.Unmarshal(raw, &manifest); err != nil {
 		t.Fatal(err)
 	}
-	if manifest.SchemaVersion != 1 || len(manifest.Files) != 20 || manifest.ToolVersion == "" {
+	if manifest.SchemaVersion != 1 || len(manifest.Files) < 20+len(formatsamples.Subtitles())+1 || manifest.ToolVersion == "" {
 		t.Fatalf("bad fixture manifest: %#v", manifest)
 	}
 	for _, entry := range manifest.Files {
@@ -155,4 +158,58 @@ func TestGenerateRealFixturesAndCancellation(t *testing.T) {
 		t.Fatal("failed generation leaked an output directory")
 	}
 	t.Logf("PASS: 16 small original fixtures, fixed arguments, checksums, source preservation and cancelled cleanup (%s)", manifest.Platform)
+}
+
+// The format sample step (W10-14) runs here with an ffmpeg on PATH named
+// "ffmpeg", or with the pinned one when a required run (Windows CI has no
+// system ffmpeg) finds none on PATH: every sample file is written once with
+// its checked-in bytes, the encoded audio probes as ffprobe reports, and a
+// missing experimental encoder would be listed, not hidden.
+func TestGenerateFormatSamplesWithSystemFFmpeg(t *testing.T) {
+	ffmpeg, err := exec.LookPath("ffmpeg")
+	if err != nil {
+		if os.Getenv("JELEE_REQUIRE_MEDIA_TOOL_TESTS") != "true" {
+			t.Skip("ffmpeg not available")
+		}
+		project, err := filepath.Abs(filepath.Join("..", ".."))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, ffmpeg, err = loadTool(project); err != nil {
+			t.Fatalf("ffmpeg is required: %v", err)
+		}
+	}
+	output, temp := t.TempDir(), t.TempDir()
+	common := []string{"-hide_banner", "-loglevel", "error", "-nostdin", "-n", "-filter_threads", "1", "-filter_complex_threads", "1"}
+	expectations := map[string]expected{}
+	skipped, err := generateFormatSamples(context.Background(), ffmpeg, temp, output, common, expectations)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for name, reason := range skipped {
+		t.Logf("SKIP %s: %s", name, reason)
+	}
+	for _, s := range formatsamples.Subtitles() {
+		got, err := os.ReadFile(filepath.Join(output, formatSamplePrefix+s.Name("sample")))
+		if err != nil || !bytes.Equal(got, s.Data) {
+			t.Errorf("%s was not written as is", s.File)
+		}
+	}
+	for _, spec := range formatsamples.AudioSpecs() {
+		name := formatSamplePrefix + spec.File
+		if _, missing := skipped[name]; missing {
+			continue
+		}
+		info, err := os.Stat(filepath.Join(output, name))
+		if err != nil || info.Size() == 0 || info.Size() > 256<<10 {
+			t.Errorf("%s: %v", name, err)
+		}
+		if expectations[name].Audio != 1 {
+			t.Errorf("%s has no expectation", name)
+		}
+	}
+	// A second run into the same directory must not replace anything.
+	if _, err := generateFormatSamples(context.Background(), ffmpeg, temp, output, common, expectations); err == nil {
+		t.Fatal("second run overwrote the samples")
+	}
 }
