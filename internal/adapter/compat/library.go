@@ -127,6 +127,8 @@ type baseItemDto struct {
 	// ChildCount is the number of members of a collection or entries of a
 	// playlist the reading user can see; absent on every other item.
 	ChildCount *int `json:"ChildCount,omitempty"`
+	// Chapters are those of the first (best) media source; item detail only.
+	Chapters []chapterInfo `json:"Chapters,omitempty"`
 	// DateCreated is sent for collections and playlists only.
 	DateCreated string `json:"DateCreated,omitempty"`
 	// PlaylistItemID names the playlist entry of an item listed as a
@@ -174,6 +176,33 @@ type mediaSourceInfo struct {
 	// MediaAttachments lists Matroska attachments known from the MediaInfo
 	// supplement, with a DeliveryUrl for fonts when extraction is wired.
 	MediaAttachments []mediaAttachment `json:"MediaAttachments,omitempty"`
+	// Chapters lists the container chapters (G09.1); ImageTag is never sent.
+	Chapters []chapterInfo `json:"Chapters,omitempty"`
+}
+
+// chapterInfo mirrors the upstream ChapterInfo without image members.
+type chapterInfo struct {
+	StartPositionTicks int64  `json:"StartPositionTicks"`
+	Name               string `json:"Name"`
+}
+
+// chapterInfos converts playback chapters; a chapter without a title gets
+// the numbered name upstream clients show ("Chapter 1").
+func chapterInfos(source domain.PlaybackSource) []chapterInfo {
+	var out []chapterInfo
+	for _, c := range source.Chapters {
+		start := c.StartMicros
+		t := ticks(&start)
+		if t == nil {
+			continue
+		}
+		name := c.Title
+		if name == "" {
+			name = "Chapter " + strconv.Itoa(c.Index+1)
+		}
+		out = append(out, chapterInfo{StartPositionTicks: *t, Name: name})
+	}
+	return out
 }
 
 // mediaAttachment mirrors the upstream MediaAttachment. Index is the probe
@@ -202,6 +231,13 @@ type mediaStream struct {
 	Type       string `json:"Type"`
 	Index      int    `json:"Index"`
 	IsExternal bool   `json:"IsExternal"`
+	// Video range members (VideoRangeType is SDR-less: absent when the
+	// probe named no HDR format) and the audio spatial format.
+	VideoRange         string `json:"VideoRange,omitempty"`
+	VideoRangeType     string `json:"VideoRangeType,omitempty"`
+	DvProfile          *int64 `json:"DvProfile,omitempty"`
+	DvLevel            *int64 `json:"DvLevel,omitempty"`
+	AudioSpatialFormat string `json:"AudioSpatialFormat,omitempty"`
 	// Subtitle members, set only with direct delivery. DeliveryMethod is
 	// Embed for a track inside the original file and External for a
 	// sidecar file, whose DeliveryUrl serves it as it is.
@@ -813,6 +849,8 @@ func (rt *router) itemByID(w http.ResponseWriter, r *http.Request) {
 			if n := sources[0].PartCount(); n > 1 {
 				dto.PartCount = n
 			}
+			// Chapters are those of the first part.
+			dto.Chapters = chapterInfos(sources[0])
 		}
 	}
 	single := []baseItemDto{dto}
@@ -934,10 +972,13 @@ func (rt *router) mediaSource(itemID string, source domain.PlaybackSource, name 
 		Bitrate:            source.BitRate,
 	}
 	for _, v := range source.Video {
-		info.MediaStreams = append(info.MediaStreams, mediaStream{Codec: v.Codec, BitRate: v.BitRate, IsDefault: v.Default, Height: v.Height, Width: v.Width, Profile: v.Profile, Type: mediaStreamVideo, Index: v.Index})
+		stream := mediaStream{Codec: v.Codec, BitRate: v.BitRate, IsDefault: v.Default, Height: v.Height, Width: v.Width, Profile: v.Profile, Type: mediaStreamVideo, Index: v.Index,
+			DvProfile: v.DolbyVisionProfile, DvLevel: v.DolbyVisionLevel}
+		stream.VideoRange, stream.VideoRangeType = videoRange(v.HDR)
+		info.MediaStreams = append(info.MediaStreams, stream)
 	}
 	for _, a := range source.Audio {
-		info.MediaStreams = append(info.MediaStreams, mediaStream{Codec: a.Codec, Language: a.Language, BitRate: a.BitRate, Channels: a.Channels, SampleRate: a.SampleRate, IsDefault: a.Default, IsForced: a.Forced, Profile: a.Profile, Type: mediaStreamAudio, Index: a.Index})
+		info.MediaStreams = append(info.MediaStreams, mediaStream{Codec: a.Codec, Language: a.Language, BitRate: a.BitRate, Channels: a.Channels, SampleRate: a.SampleRate, IsDefault: a.Default, IsForced: a.Forced, Profile: a.Profile, Type: mediaStreamAudio, Index: a.Index, AudioSpatialFormat: spatialFormat(a.Features)})
 	}
 	if audio, ok := defaultAudio(source); ok {
 		index := audio.Index
@@ -973,6 +1014,7 @@ func (rt *router) mediaSource(itemID string, source domain.PlaybackSource, name 
 		info.MediaAttachments = append(info.MediaAttachments, attachment)
 	}
 	info.DefaultSubtitleStreamIndex = defaultSubtitleIndex(source, delivery)
+	info.Chapters = chapterInfos(source)
 	if !delivery {
 		return info, nil
 	}
@@ -1017,6 +1059,33 @@ func defaultSubtitleIndex(source domain.PlaybackSource, delivery bool) *int {
 }
 
 // ticks converts microseconds to the upstream 100-nanosecond ticks.
+// videoRange maps the strongest HDR token to the upstream VideoRangeType;
+// nothing is reported for a stream with no HDR format.
+func videoRange(hdr []string) (string, string) {
+	if len(hdr) == 0 {
+		return "", ""
+	}
+	switch hdr[0] {
+	case string(domain.VersionHDRDolbyVision):
+		return "HDR", "DOVI"
+	case string(domain.VersionHDR10Plus):
+		return "HDR", "HDR10Plus"
+	case string(domain.VersionHDRHLG):
+		return "HDR", "HLG"
+	}
+	return "HDR", "HDR10"
+}
+
+func spatialFormat(features []string) string {
+	switch {
+	case slices.Contains(features, domain.AudioFeatureAtmos):
+		return "DolbyAtmos"
+	case slices.Contains(features, domain.AudioFeatureDTSX):
+		return "DTSX"
+	}
+	return ""
+}
+
 func ticks(micros *int64) *int64 {
 	if micros == nil || *micros < 0 || *micros > 1<<62/10 {
 		return nil

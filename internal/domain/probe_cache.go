@@ -15,7 +15,7 @@ var (
 
 const (
 	ProbeFingerprintVersion    = "edge-sha256-v1"
-	ProbeParserVersion         = "media-metadata-v3" // v3/schema 2 merges attached_pic (G40.4) and the Matroska supplement (G19.1); both unreleased branches used v2
+	ProbeParserVersion         = "media-metadata-v4" // v4 adds MediaInfo stream details (G19.1, same schema 2); v3 merged attached_pic (G40.4) and the Matroska supplement
 	ProbeMetadataSchemaVersion = 2
 	ProbeMetadataMaxBytes      = 128 << 10
 	ProbeRowAllowanceBytes     = 2048
