@@ -1,0 +1,26 @@
+{
+ "Name": "Android ExoPlayer (phone with HEVC Main 10 and HDR10, no Dolby Vision, no TrueHD or DTS decoder)",
+ "MaxStreamingBitrate": 1000000000, "MaxStaticBitrate": 1000000000,
+ "DirectPlayProfiles": [
+  {"Type": "Video", "Container": "mp4,m4v,mkv,webm,ts,mov", "VideoCodec": "h264,hevc,vp8,vp9,av1,mpeg4", "AudioCodec": "aac,ac3,eac3,mp3,mp2,opus,vorbis,flac,alac,pcm_s16le"},
+  {"Type": "Audio", "Container": "mp3,aac,flac,ogg,opus"}
+ ],
+ "TranscodingProfiles": [{"Type": "Video", "Container": "ts", "VideoCodec": "h264", "AudioCodec": "aac", "Protocol": "hls", "Context": "Streaming"}],
+ "CodecProfiles": [
+  {"Type": "Video", "Codec": "h264", "Conditions": [
+   {"Condition": "EqualsAny", "Property": "VideoProfile", "Value": "high|main|baseline|constrained baseline", "IsRequired": false},
+   {"Condition": "LessThanEqual", "Property": "VideoLevel", "Value": "52", "IsRequired": false}]},
+  {"Type": "Video", "Codec": "hevc", "Conditions": [
+   {"Condition": "EqualsAny", "Property": "VideoProfile", "Value": "main|main 10", "IsRequired": false},
+   {"Condition": "LessThanEqual", "Property": "VideoLevel", "Value": "153", "IsRequired": false},
+   {"Condition": "EqualsAny", "Property": "VideoRangeType", "Value": "SDR|HDR10|HDR10Plus|HLG", "IsRequired": false}]},
+  {"Type": "Video", "Conditions": [
+   {"Condition": "LessThanEqual", "Property": "Width", "Value": "3840", "IsRequired": false},
+   {"Condition": "LessThanEqual", "Property": "Height", "Value": "2160", "IsRequired": false}]},
+  {"Type": "VideoAudio", "Conditions": [{"Condition": "LessThanEqual", "Property": "AudioChannels", "Value": "8", "IsRequired": false}]}
+ ],
+ "SubtitleProfiles": [
+  {"Format": "srt", "Method": "External"}, {"Format": "subrip", "Method": "Embed"}, {"Format": "ass", "Method": "Embed"}, {"Format": "ssa", "Method": "Embed"},
+  {"Format": "vtt", "Method": "External"}, {"Format": "pgssub", "Method": "Embed"}, {"Format": "dvdsub", "Method": "Embed"}, {"Format": "pgssub", "Method": "Encode"}
+ ]
+}
