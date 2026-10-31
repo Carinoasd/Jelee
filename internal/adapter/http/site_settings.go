@@ -87,24 +87,15 @@ type siteUserLayout struct {
 	} `json:"presets"`
 }
 
-// userDisplayFrom converts the display member of PUT /users/me/preferences:
-// null means no saved choices, an object must name all five members.
-func userDisplayFrom(raw json.RawMessage) (*domain.UserDisplay, bool) {
-	input, ok := decodeLayoutValue[struct {
-		Palette     *string `json:"palette"`
-		PosterRatio *string `json:"posterRatio"`
-		PosterSize  *string `json:"posterSize"`
-		ListDensity *string `json:"listDensity"`
-		View        *string `json:"view"`
-	}](raw)
+// displayFrom converts a display member (user preferences or the site
+// default): null means no choices, an object may leave any member out or
+// null (unset), and an object without any member set is no choices either.
+func displayFrom(raw json.RawMessage) (*domain.UserDisplay, bool) {
+	input, ok := decodeLayoutValue[domain.UserDisplay](raw)
 	if !ok || input == nil {
 		return nil, ok
 	}
-	if input.PosterRatio == nil || input.PosterSize == nil || input.ListDensity == nil || input.View == nil {
-		return nil, false
-	}
-	display := domain.UserDisplay{Palette: input.Palette, PosterRatio: *input.PosterRatio, PosterSize: *input.PosterSize, ListDensity: *input.ListDensity, View: *input.View}
-	return &display, display.Valid()
+	return domain.NormalizeDisplay(input)
 }
 
 // userLayoutFrom converts the layout member of PUT /users/me/preferences.
@@ -142,9 +133,13 @@ type siteAppearanceInput struct {
 	AllowExternalFonts *bool           `json:"allowExternalFonts"`
 	FontHosts          *[]string       `json:"fontHosts"`
 	DefaultLayout      json.RawMessage `json:"defaultLayout"`
+	DefaultDisplay     json.RawMessage `json:"defaultDisplay"`
 }
 
-func (in *siteAppearanceInput) toDomain() (domain.SiteAppearance, error) {
+// toDomain checks that every member is present. A settings file may leave
+// out defaultDisplay (files written before it existed): optionalDisplay
+// reads that as unset.
+func (in *siteAppearanceInput) toDomain(optionalDisplay bool) (domain.SiteAppearance, error) {
 	if in == nil || in.DefaultTheme == nil || in.Tokens == nil || in.Tokens.Light == nil || in.Tokens.Dark == nil || in.CustomCSS == nil || in.AllowExternalFonts == nil || in.FontHosts == nil {
 		return domain.SiteAppearance{}, domain.ErrInvalid
 	}
@@ -160,8 +155,16 @@ func (in *siteAppearanceInput) toDomain() (domain.SiteAppearance, error) {
 		}
 		layout = &value
 	}
+	displayRaw := in.DefaultDisplay
+	if displayRaw == nil && optionalDisplay {
+		displayRaw = json.RawMessage("null")
+	}
+	display, ok := displayFrom(displayRaw)
+	if !ok {
+		return domain.SiteAppearance{}, domain.ErrInvalid
+	}
 	return domain.SiteAppearance{DefaultTheme: *in.DefaultTheme, Tokens: domain.SiteTokens{Light: *in.Tokens.Light, Dark: *in.Tokens.Dark}, CustomCSS: *in.CustomCSS,
-		AllowExternalFonts: *in.AllowExternalFonts, FontHosts: *in.FontHosts, DefaultLayout: layout}, nil
+		AllowExternalFonts: *in.AllowExternalFonts, FontHosts: *in.FontHosts, DefaultLayout: layout, DefaultDisplay: display}, nil
 }
 
 // sitePluginsInput names every member of a plugin document.
@@ -187,8 +190,24 @@ func (in *sitePluginsInput) toDomain() (domain.SitePlugins, error) {
 	return domain.SitePlugins{Plugins: plugins, Settings: *in.Settings}, nil
 }
 
+// displayNullable admits null for a display object at prefix and for each
+// of its members (paths are folded to upper case).
+func displayNullable(path, prefix string) bool {
+	member, ok := strings.CutPrefix(path, prefix+"/")
+	if !ok {
+		return path == prefix
+	}
+	switch member {
+	case "PALETTE", "POSTERRATIO", "POSTERSIZE", "LISTDENSITY", "VIEW":
+		return true
+	}
+	return false
+}
+
 // Paths where a request body may hold null (see decodeJSONNullable).
-func appearanceNullable(path string) bool { return path == "/DEFAULTLAYOUT" }
+func appearanceNullable(path string) bool {
+	return path == "/DEFAULTLAYOUT" || displayNullable(path, "/DEFAULTDISPLAY")
+}
 
 // Plugin settings are JSON values; null is a value inside a namespace, but
 // a namespace itself must be an object.
@@ -197,7 +216,7 @@ func pluginsNullable(path string) bool {
 }
 
 func importNullable(path string) bool {
-	return path == "/APPEARANCE/DEFAULTLAYOUT" || strings.HasPrefix(path, "/PLUGINS/SETTINGS/") && strings.Count(path, "/") >= 4
+	return path == "/APPEARANCE/DEFAULTLAYOUT" || displayNullable(path, "/APPEARANCE/DEFAULTDISPLAY") || strings.HasPrefix(path, "/PLUGINS/SETTINGS/") && strings.Count(path, "/") >= 4
 }
 
 func (s *Server) siteSettingsRoutes(r chi.Router) {
@@ -217,7 +236,7 @@ func (s *Server) siteSettingsRoutes(r chi.Router) {
 		if err := decodeJSONNullable(w, r, &input, siteBodyLimit, appearanceNullable); err != nil {
 			return nil, 0, err
 		}
-		appearance, err := input.siteAppearanceInput.toDomain()
+		appearance, err := input.siteAppearanceInput.toDomain(false)
 		if err != nil || input.Revision == nil {
 			return nil, 0, domain.ErrInvalid
 		}
@@ -281,7 +300,7 @@ func (s *Server) siteSettingsRoutes(r chi.Router) {
 		if input.Format == nil || input.Version == nil {
 			return nil, 0, domain.ErrInvalid
 		}
-		appearance, err := input.Appearance.toDomain()
+		appearance, err := input.Appearance.toDomain(true)
 		if err != nil {
 			return nil, 0, err
 		}

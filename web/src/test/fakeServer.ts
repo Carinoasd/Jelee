@@ -27,7 +27,7 @@ export interface FakeSite {
 }
 
 export function defaultSiteAppearance(): SiteAppearanceConfig {
-  return { defaultTheme: "system", tokens: { light: {}, dark: {} }, customCss: "", allowExternalFonts: false, fontHosts: [], defaultLayout: null, revision: 0, updatedAt: "2026-10-01T00:00:00Z", cssIssues: [] };
+  return { defaultTheme: "system", tokens: { light: {}, dark: {} }, customCss: "", allowExternalFonts: false, fontHosts: [], defaultLayout: null, defaultDisplay: null, revision: 0, updatedAt: "2026-10-01T00:00:00Z", cssIssues: [] };
 }
 
 export function createFakeSite(): FakeSite {
@@ -254,7 +254,7 @@ export function createFakeServer(): FakeServer {
 }
 
 /** The document members of a stored or submitted appearance. */
-function appearanceDocument(from: SiteAppearanceInput | SiteAppearanceConfig): Omit<SiteAppearanceInput, "revision"> {
+function appearanceDocument(from: SiteAppearanceInput | SiteAppearanceConfig | SiteSettingsDocument["appearance"]): Omit<SiteAppearanceInput, "revision"> {
   return {
     defaultTheme: from.defaultTheme,
     tokens: from.tokens,
@@ -262,6 +262,8 @@ function appearanceDocument(from: SiteAppearanceInput | SiteAppearanceConfig): O
     allowExternalFonts: from.allowExternalFonts,
     fontHosts: from.fontHosts,
     defaultLayout: from.defaultLayout,
+    // A settings file from before the member existed leaves it out: unset.
+    defaultDisplay: from.defaultDisplay ?? null,
   };
 }
 
@@ -300,6 +302,7 @@ async function siteRoute(site: FakeSite, admin: boolean, method: string, path: s
           css: sanitizeCustomCss(appearance.customCss, policy).css,
           fontHosts: appearance.allowExternalFonts ? appearance.fontHosts : [],
           defaultLayout: appearance.defaultLayout,
+          defaultDisplay: appearance.defaultDisplay,
         },
       });
     case "GET /api/v1/site/appearance/config":
@@ -342,7 +345,7 @@ async function siteRoute(site: FakeSite, admin: boolean, method: string, path: s
         return json(400, errorBody("invalid_request"));
       }
       const document = raw as unknown as SiteSettingsDocument;
-      const refused = setAppearance(document.appearance, "import");
+      const refused = setAppearance(appearanceDocument(document.appearance), "import");
       if (refused !== null) {
         return refused;
       }

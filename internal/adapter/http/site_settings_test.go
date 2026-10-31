@@ -117,7 +117,7 @@ func decodeData[T any](t *testing.T, w *httptest.ResponseRecorder) T {
 
 const validAppearance = `{"defaultTheme":"dark","tokens":{"light":{"color-primary":" #0f766e "},"dark":{"font-family":"\"Noto Sans\", sans-serif"}},` +
 	`"customCss":"a { color: red } body { background: url(https://evil.example/leak) } @font-face { font-family: B; src: url(https://fonts.example.com/b.woff2) }",` +
-	`"allowExternalFonts":true,"fontHosts":[" Fonts.Example.com "],"defaultLayout":{"home":[{"id":"libraries","visible":true},{"id":"welcome","visible":false}],"detail":[]},"revision":0}`
+	`"allowExternalFonts":true,"fontHosts":[" Fonts.Example.com "],"defaultLayout":{"home":[{"id":"libraries","visible":true},{"id":"welcome","visible":false}],"detail":[]},"defaultDisplay":null,"revision":0}`
 
 func TestSiteAppearanceHTTPAdministratorWritesAndUsersReadEffectiveValues(t *testing.T) {
 	store := newSiteStore()
@@ -213,7 +213,7 @@ func TestSiteAppearanceHTTPRefusesHostileOrIncompleteInput(t *testing.T) {
 		assertProblem(t, f.serve(accountRequest(http.MethodPut, "/api/v1/site/appearance", replace("customCss", css), "a")), 400, "custom_css_rejected")
 	}
 	for _, body := range []string{
-		replace("customCss", ""), replace("tokens", ""), replace("defaultLayout", ""), replace("revision", ""),
+		replace("customCss", ""), replace("tokens", ""), replace("defaultLayout", ""), replace("defaultDisplay", ""), replace("revision", ""),
 		replace("defaultTheme", `"sepia"`),
 		replace("revision", `-1`),
 		replace("tokens", `{"light":{"color-primary":"url(/x.png)"},"dark":{}}`),
@@ -338,6 +338,75 @@ func TestSiteSettingsHTTPExportImportRoundTrip(t *testing.T) {
 	assertProblem(t, g.serve(accountRequest(http.MethodPost, "/api/v1/site/import", hostile, "a")), 400, "custom_css_rejected")
 	if len(fresh.writes) != 2 {
 		t.Fatalf("a refused import wrote: %v", fresh.writes)
+	}
+}
+
+func TestSiteDefaultDisplayHTTP(t *testing.T) {
+	store := newSiteStore()
+	f := newAccountHTTPFixture(t, httpAccountRepository{site: store}, nil)
+	withDisplay := func(value string) string {
+		return strings.Replace(validAppearance, `"defaultDisplay":null`, `"defaultDisplay":`+value, 1)
+	}
+	// Each member is null, left out or from the user allow-lists; anything
+	// else refuses the whole document before storage.
+	for _, value := range []string{
+		`[]`, `"sepia"`, `true`,
+		`{"palette":"light"}`, `{"palette":"Sepia"}`, `{"posterRatio":"wide"}`, `{"posterSize":"huge"}`,
+		`{"listDensity":"tiny"}`, `{"view":"grid"}`, `{"view":""}`, `{"view":1}`, `{"extra":null}`,
+		`{"view":"list","view":"poster"}`, `{"view":"list","VIEW":"poster"}`,
+		`{"view":"` + strings.Repeat("x", 2048) + `"}`,
+	} {
+		assertProblem(t, f.serve(accountRequest(http.MethodPut, "/api/v1/site/appearance", withDisplay(value), "a")), 400, "invalid_request")
+	}
+	// Over the body limit before any member is looked at.
+	assertProblem(t, f.serve(accountRequest(http.MethodPut, "/api/v1/site/appearance", withDisplay(`{"view":"list"}`)+strings.Repeat(" ", siteBodyLimit), "a")), 413, "body_too_large")
+	if len(store.writes) != 0 {
+		t.Fatalf("refused display reached storage: %v", store.writes)
+	}
+
+	put := f.serve(accountRequest(http.MethodPut, "/api/v1/site/appearance", withDisplay(`{"palette":"contrast","posterRatio":"landscape","posterSize":null,"view":"list"}`), "a"))
+	config := decodeData[domain.SiteAppearanceConfig](t, put)
+	if put.Code != 200 || config.DefaultDisplay == nil || *config.DefaultDisplay.Palette != domain.PaletteContrast || config.DefaultDisplay.PosterSize != nil || config.DefaultDisplay.ListDensity != nil {
+		t.Fatalf("put: %d %s", put.Code, put.Body.String())
+	}
+	// Every signed-in user reads the members, unset ones as null.
+	view := f.serve(accountRequest(http.MethodGet, "/api/v1/site/appearance", "", "u"))
+	if view.Code != 200 || !strings.Contains(view.Body.String(), `"defaultDisplay":{"palette":"contrast","posterRatio":"landscape","posterSize":null,"listDensity":null,"view":"list"}`) {
+		t.Fatalf("view: %d %s", view.Code, view.Body.String())
+	}
+	// An object without any member is no default.
+	empty := f.serve(accountRequest(http.MethodPut, "/api/v1/site/appearance", strings.Replace(withDisplay(`{}`), `"revision":0`, `"revision":1`, 1), "a"))
+	if empty.Code != 200 || decodeData[domain.SiteAppearanceConfig](t, empty).DefaultDisplay != nil {
+		t.Fatalf("empty: %d %s", empty.Code, empty.Body.String())
+	}
+
+	// Export carries it; a settings file from before it existed imports as unset.
+	store.appearance.DefaultDisplay = &domain.UserDisplay{View: ptr(domain.ViewList)}
+	export := f.serve(accountRequest(http.MethodGet, "/api/v1/site/export", "", "a"))
+	if export.Code != 200 || !strings.Contains(export.Body.String(), `"defaultDisplay":{"palette":null,"posterRatio":null,"posterSize":null,"listDensity":null,"view":"list"}`) {
+		t.Fatalf("export: %s", export.Body.String())
+	}
+	const plugins = `"plugins":{"plugins":[],"settings":{}}`
+	appearance := strings.Replace(strings.Replace(validAppearance, `,"defaultDisplay":null`, "", 1), `,"revision":0`, "", 1)
+	old := `{"format":"jelee.site-settings","version":1,"appearance":` + appearance + `,` + plugins + `}`
+	imported := f.serve(accountRequest(http.MethodPost, "/api/v1/site/import", old, "a"))
+	if imported.Code != 200 || decodeData[domain.SiteSettingsImport](t, imported).Appearance.DefaultDisplay != nil || store.appearance.DefaultDisplay != nil {
+		t.Fatalf("old file: %d %s", imported.Code, imported.Body.String())
+	}
+	current := `{"format":"jelee.site-settings","version":1,"appearance":` + strings.Replace(appearance, `"defaultLayout"`, `"defaultDisplay":{"posterSize":"small","palette":null},"defaultLayout"`, 1) + `,` + plugins + `}`
+	if w := f.serve(accountRequest(http.MethodPost, "/api/v1/site/import", current, "a")); w.Code != 200 || store.appearance.DefaultDisplay == nil || *store.appearance.DefaultDisplay.PosterSize != domain.PosterSizeSmall {
+		t.Fatalf("import: %d %s", w.Code, w.Body.String())
+	}
+	// A value outside the allow-lists refuses the whole file.
+	writes := len(store.writes)
+	bad := strings.Replace(current, `"posterSize":"small"`, `"posterSize":"giant"`, 1)
+	assertProblem(t, f.serve(accountRequest(http.MethodPost, "/api/v1/site/import", bad, "a")), 400, "invalid_request")
+	if len(store.writes) != writes || *store.appearance.DefaultDisplay.PosterSize != domain.PosterSizeSmall {
+		t.Fatalf("a refused import wrote: %v", store.writes)
+	}
+	// Reset drops it with everything else.
+	if w := f.serve(accountRequest(http.MethodPost, "/api/v1/site/appearance/reset", "{}", "a")); w.Code != 200 || decodeData[domain.SiteAppearanceConfig](t, w).DefaultDisplay != nil {
+		t.Fatalf("reset: %d %s", w.Code, w.Body.String())
 	}
 }
 

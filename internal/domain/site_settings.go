@@ -145,6 +145,10 @@ type SiteAppearance struct {
 	// DefaultLayout applies to users who never saved a layout; nil keeps
 	// the web client's built-in standard layout.
 	DefaultLayout *PageLayout `json:"defaultLayout"`
+	// DefaultDisplay holds the display choices for users who did not make
+	// their own, member by member; nil (or an unset member) keeps the web
+	// client's built-in value. Its palette goes with DefaultTheme.
+	DefaultDisplay *UserDisplay `json:"defaultDisplay"`
 }
 
 // DefaultSiteAppearance is the state of a new installation and of a reset.
@@ -169,11 +173,12 @@ type SiteAppearanceConfig struct {
 // SiteAppearanceView is what every signed-in user reads: sanitized CSS,
 // the effective font hosts and no revision data.
 type SiteAppearanceView struct {
-	DefaultTheme  string      `json:"defaultTheme"`
-	Tokens        SiteTokens  `json:"tokens"`
-	CSS           string      `json:"css"`
-	FontHosts     []string    `json:"fontHosts"`
-	DefaultLayout *PageLayout `json:"defaultLayout"`
+	DefaultTheme   string       `json:"defaultTheme"`
+	Tokens         SiteTokens   `json:"tokens"`
+	CSS            string       `json:"css"`
+	FontHosts      []string     `json:"fontHosts"`
+	DefaultLayout  *PageLayout  `json:"defaultLayout"`
+	DefaultDisplay *UserDisplay `json:"defaultDisplay"`
 }
 
 func (a SiteAppearance) policy() CSSPolicy {
@@ -203,7 +208,8 @@ func (r SiteAppearanceRecord) Config() SiteAppearanceConfig {
 // View is the effective appearance. The CSS is sanitized on every read, so
 // a stricter sanitizer applies to text stored by an older release.
 func (a SiteAppearance) View() SiteAppearanceView {
-	return SiteAppearanceView{DefaultTheme: a.DefaultTheme, Tokens: a.Tokens, CSS: SanitizeCustomCSS(a.CustomCSS, a.policy()).CSS, FontHosts: a.EffectiveFontHosts(), DefaultLayout: a.DefaultLayout}
+	return SiteAppearanceView{DefaultTheme: a.DefaultTheme, Tokens: a.Tokens, CSS: SanitizeCustomCSS(a.CustomCSS, a.policy()).CSS, FontHosts: a.EffectiveFontHosts(), DefaultLayout: a.DefaultLayout,
+		DefaultDisplay: a.DefaultDisplay}
 }
 
 func normalizeTokens(in map[string]string) (map[string]string, bool) {
@@ -264,10 +270,14 @@ func NormalizeSiteAppearance(a SiteAppearance) (SiteAppearance, error) {
 	if a.DefaultLayout != nil && !a.DefaultLayout.Valid() {
 		return SiteAppearance{}, ErrInvalid
 	}
+	display, ok := NormalizeDisplay(a.DefaultDisplay)
+	if !ok {
+		return SiteAppearance{}, ErrInvalid
+	}
 	if !utf8.ValidString(a.CustomCSS) {
 		return SiteAppearance{}, ErrInvalid
 	}
-	out := SiteAppearance{DefaultTheme: a.DefaultTheme, Tokens: tokens, CustomCSS: a.CustomCSS, AllowExternalFonts: a.AllowExternalFonts, FontHosts: hosts, DefaultLayout: a.DefaultLayout}
+	out := SiteAppearance{DefaultTheme: a.DefaultTheme, Tokens: tokens, CustomCSS: a.CustomCSS, AllowExternalFonts: a.AllowExternalFonts, FontHosts: hosts, DefaultLayout: a.DefaultLayout, DefaultDisplay: display}
 	if SanitizeCustomCSS(out.CustomCSS, out.policy()).Rejected {
 		return SiteAppearance{}, ErrCustomCSSRejected
 	}

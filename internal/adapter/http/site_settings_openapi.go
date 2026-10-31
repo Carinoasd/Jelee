@@ -6,6 +6,14 @@ import (
 	"github.com/MoYuanCN/Jelee/internal/domain"
 )
 
+// displayFallback describes an optional display member.
+const displayFallback = "null (or left out on writes) follows the next layer: the user's choice, then the site default (SiteAppearance.defaultDisplay), then the web client's built-in value."
+
+// nullableEnum is a string from values or null.
+func nullableEnum(description string, values ...string) map[string]any {
+	return map[string]any{"oneOf": []any{map[string]any{"type": "string", "enum": values}, map[string]any{"type": "null"}}, "description": description}
+}
+
 // siteSettingsSchemas documents the site-wide web client settings and the
 // layout members shared with user preferences.
 func siteSettingsSchemas(schemas map[string]any) {
@@ -20,6 +28,8 @@ func siteSettingsSchemas(schemas map[string]any) {
 	nullableLayout := func(description string) map[string]any {
 		return map[string]any{"oneOf": []any{schemaRef("PageLayout"), map[string]any{"type": "null"}}, "description": description}
 	}
+	defaultDisplay := map[string]any{"oneOf": []any{schemaRef("UserDisplay"), map[string]any{"type": "null"}},
+		"description": "Display choices for users who did not make their own, member by member (G33.2); null or a null member keeps the web client's built-in value. palette goes with defaultTheme: it reaches users who never saved preferences. At most 1 KiB encoded. Optional in a settings file (older files: unset)."}
 	pluginID := map[string]any{"type": "string", "pattern": `^[a-z][a-z0-9-]{0,31}(?:\.[a-z][a-z0-9-]{0,31}){1,3}$`}
 	settings := map[string]any{"type": "object", "maxProperties": domain.SitePluginLimit, "propertyNames": pluginID,
 		"additionalProperties": map[string]any{"type": "object", "additionalProperties": true, "maxProperties": domain.PluginSettingsMaxKey, "description": "One plugin's settings namespace: keys match ^[A-Za-z][A-Za-z0-9_.-]{0,63}$, values are JSON (null allowed) at most eight levels deep, at most 16 KiB compact. Readable by every signed-in user: never store secrets."},
@@ -33,9 +43,10 @@ func siteSettingsSchemas(schemas map[string]any) {
 			"allowExternalFonts": map[string]any{"type": "boolean", "description": "Allow @font-face sources on fontHosts over https and add them to the web client's CSP font-src."},
 			"fontHosts":          hosts,
 			"defaultLayout":      nullableLayout("Layout for users who never saved one; null keeps the web client's standard layout."),
+			"defaultDisplay":     defaultDisplay,
 		}
 	}
-	appearanceRequired := []string{"defaultTheme", "tokens", "customCss", "allowExternalFonts", "fontHosts", "defaultLayout"}
+	appearanceRequired := []string{"defaultTheme", "tokens", "customCss", "allowExternalFonts", "fontHosts", "defaultLayout", "defaultDisplay"}
 	pluginMembers := func() map[string]any { return map[string]any{"plugins": plugins, "settings": settings} }
 
 	schemas["LayoutEntry"] = objectSchema(map[string]any{"id": map[string]any{"type": "string", "pattern": `^[A-Za-z][A-Za-z0-9_.-]{0,63}$`}, "visible": map[string]any{"type": "boolean"}}, "id", "visible")
@@ -56,7 +67,8 @@ func siteSettingsSchemas(schemas map[string]any) {
 		m["revision"] = revision
 		return m
 	}(), append(appearanceRequired, "revision")...)
-	schemas["SiteAppearanceDocument"] = objectSchema(appearanceMembers(), appearanceRequired...)
+	// Settings files written before defaultDisplay existed leave it out.
+	schemas["SiteAppearanceDocument"] = objectSchema(appearanceMembers(), appearanceRequired[:len(appearanceRequired)-1]...)
 	schemas["CSSIssue"] = objectSchema(map[string]any{
 		"code": map[string]any{"type": "string", "enum": []string{domain.CSSIssueTooLong, domain.CSSIssueMarkup, domain.CSSIssueEscape, domain.CSSIssueControlChar, domain.CSSIssueUnterminatedComment, domain.CSSIssueUnbalanced,
 			domain.CSSIssueTooDeep, domain.CSSIssueImportBlocked, domain.CSSIssueAtRuleBlocked, domain.CSSIssueInvalidSelector, domain.CSSIssueInvalidDeclaration, domain.CSSIssueNestingUnsupported,
@@ -70,12 +82,13 @@ func siteSettingsSchemas(schemas map[string]any) {
 		return m
 	}(), append(appearanceRequired, "revision", "updatedAt", "cssIssues")...)
 	schemas["SiteAppearance"] = objectSchema(map[string]any{
-		"defaultTheme":  theme,
-		"tokens":        objectSchema(map[string]any{"light": tokenMap, "dark": tokenMap}, "light", "dark"),
-		"css":           map[string]any{"type": "string", "description": "Sanitized administrator CSS, ready for a constructed stylesheet; the raw text is administrator-only."},
-		"fontHosts":     map[string]any{"type": "array", "maxItems": domain.FontHostLimit, "items": host, "description": "Hosts external fonts may load from; empty while external fonts are off."},
-		"defaultLayout": nullableLayout("Layout for users who never saved one; null keeps the standard layout."),
-	}, "defaultTheme", "tokens", "css", "fontHosts", "defaultLayout")
+		"defaultTheme":   theme,
+		"tokens":         objectSchema(map[string]any{"light": tokenMap, "dark": tokenMap}, "light", "dark"),
+		"css":            map[string]any{"type": "string", "description": "Sanitized administrator CSS, ready for a constructed stylesheet; the raw text is administrator-only."},
+		"fontHosts":      map[string]any{"type": "array", "maxItems": domain.FontHostLimit, "items": host, "description": "Hosts external fonts may load from; empty while external fonts are off."},
+		"defaultLayout":  nullableLayout("Layout for users who never saved one; null keeps the standard layout."),
+		"defaultDisplay": defaultDisplay,
+	}, "defaultTheme", "tokens", "css", "fontHosts", "defaultLayout", "defaultDisplay")
 	schemas["SitePluginState"] = objectSchema(map[string]any{"id": pluginID, "enabled": map[string]any{"type": "boolean"}}, "id", "enabled")
 	schemas["SitePlugins"] = objectSchema(map[string]any{"plugins": plugins, "settings": map[string]any{"type": "object", "additionalProperties": map[string]any{"type": "object", "additionalProperties": true}, "description": "Settings namespaces of plugins that are not disabled."}}, "plugins", "settings")
 	schemas["SitePluginsInput"] = objectSchema(func() map[string]any {
@@ -105,7 +118,7 @@ func siteSettingsSpecification(paths map[string]any) {
 		admin                               bool
 	}
 	routes := []route{
-		{"/site/appearance", "get", "Read the effective site appearance (G33.2–G33.5): default theme, token overrides, sanitized custom CSS, effective font hosts and default layout; any signed-in user", "", "SiteAppearance", false},
+		{"/site/appearance", "get", "Read the effective site appearance (G33.2–G33.5): default theme, token overrides, sanitized custom CSS, effective font hosts, default layout and default display choices; any signed-in user", "", "SiteAppearance", false},
 		{"/site/appearance/config", "get", "Read the stored site appearance with the raw CSS, the sanitizer's findings and the revision", "", "SiteAppearanceConfig", true},
 		{"/site/appearance", "put", "Replace the site appearance; every field is required and revision must be current (409 conflict otherwise); the CSS is sanitized on the server (400 custom_css_rejected for structural problems); the frontend CSP adds font-src for fontHosts while allowExternalFonts is on; audited as site.appearance_changed unless unchanged", "SiteAppearanceInput", "SiteAppearanceConfig", true},
 		{"/site/appearance/reset", "post", "Restore the default site appearance; audited as site.appearance_changed unless unchanged", "Empty", "SiteAppearanceConfig", true},

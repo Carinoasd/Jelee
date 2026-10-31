@@ -327,14 +327,15 @@ func (s *Server) accountRoutes(r chi.Router) {
 				Layout  json.RawMessage `json:"layout"`
 				Display json.RawMessage `json:"display"`
 			}
-			if err := decodeJSONNullable(w, r, &input, accountBodyLimit, func(path string) bool { return path == "/LAYOUT" || path == "/DISPLAY" || path == "/DISPLAY/PALETTE" }); err != nil {
+			if err := decodeJSONNullable(w, r, &input, accountBodyLimit, func(path string) bool { return path == "/LAYOUT" || displayNullable(path, "/DISPLAY") }); err != nil {
 				return nil, 0, err
 			}
 			// A replacement names every field, so a client that does not know
 			// a later field cannot silently reset it. layout and display are
-			// null until the user customizes them.
+			// null until the user customizes them; a display member left out
+			// or null follows the site default.
 			layout, ok := userLayoutFrom(input.Layout)
-			display, displayOK := userDisplayFrom(input.Display)
+			display, displayOK := displayFrom(input.Display)
 			if input.Theme == nil || input.Density == nil || !ok || !displayOK {
 				return nil, 0, domain.ErrInvalid
 			}

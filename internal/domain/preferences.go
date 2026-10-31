@@ -36,35 +36,61 @@ const (
 	ViewList   = "list"
 )
 
-// UserDisplay is a user's saved display choices. Palette is nil for plain
-// light or dark (the theme member decides).
+// UserDisplay holds display choices: a user's own, or the site default for
+// users who did not choose (SiteAppearance.DefaultDisplay). Every member is
+// optional and nil follows the next layer member by member: the user's
+// choice, then the site default, then the web client's built-in value.
+// Palette belongs with the theme: a user's nil palette is plain light or dark
+// as the theme member says, and the site default palette reaches only users
+// who never saved preferences, like the site default theme.
 type UserDisplay struct {
 	Palette     *string `json:"palette"`
-	PosterRatio string  `json:"posterRatio"`
-	PosterSize  string  `json:"posterSize"`
-	ListDensity string  `json:"listDensity"`
-	View        string  `json:"view"`
+	PosterRatio *string `json:"posterRatio"`
+	PosterSize  *string `json:"posterSize"`
+	ListDensity *string `json:"listDensity"`
+	View        *string `json:"view"`
 }
 
-// Valid reports whether every member holds a known value.
+// UserDisplayMaxBytes bounds the encoded display members (database check).
+const UserDisplayMaxBytes = 1 << 10
+
+func displayMember(value *string, allowed ...string) bool {
+	if value == nil {
+		return true
+	}
+	for _, candidate := range allowed {
+		if *value == candidate {
+			return true
+		}
+	}
+	return false
+}
+
+// Valid reports whether every member is unset or holds a known value.
 func (d UserDisplay) Valid() bool {
-	if d.Palette != nil && *d.Palette != PaletteSepia && *d.Palette != PaletteContrast {
-		return false
+	return displayMember(d.Palette, PaletteSepia, PaletteContrast) &&
+		displayMember(d.PosterRatio, PosterPortrait, PosterSquare, PosterLandscape) &&
+		displayMember(d.PosterSize, PosterSizeSmall, PosterSizeMedium, PosterSizeLarge) &&
+		displayMember(d.ListDensity, ListDensityComfortable, ListDensityCompact) &&
+		displayMember(d.View, ViewPoster, ViewList)
+}
+
+// Empty reports whether no member is set.
+func (d UserDisplay) Empty() bool {
+	return d.Palette == nil && d.PosterRatio == nil && d.PosterSize == nil && d.ListDensity == nil && d.View == nil
+}
+
+// NormalizeDisplay validates optional display choices; a document without
+// any member set is the same as none (nil).
+func NormalizeDisplay(d *UserDisplay) (*UserDisplay, bool) {
+	if d == nil || d.Empty() {
+		return nil, d == nil || d.Valid()
 	}
-	switch d.PosterRatio {
-	case PosterPortrait, PosterSquare, PosterLandscape:
-	default:
-		return false
+	if !d.Valid() {
+		return nil, false
 	}
-	switch d.PosterSize {
-	case PosterSizeSmall, PosterSizeMedium, PosterSizeLarge:
-	default:
-		return false
-	}
-	if d.ListDensity != ListDensityComfortable && d.ListDensity != ListDensityCompact {
-		return false
-	}
-	return d.View == ViewPoster || d.View == ViewList
+	out := *d
+	return &out, true
 }
 
 // UserPreferences are a user's stored interface preferences. A user who

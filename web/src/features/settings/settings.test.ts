@@ -4,7 +4,7 @@ import { createMemoryBearerAuth } from "@/api/auth";
 import { callNoContent } from "@/api/call";
 import { createApiClient } from "@/api/client";
 import { useAuthStore } from "@/stores/auth";
-import { defaultDisplay, usePreferencesStore } from "@/stores/preferences";
+import { defaultDisplay, normalizeChoices, resolveDisplay, toServerDisplay, usePreferencesStore } from "@/stores/preferences";
 import { useToastStore } from "@/stores/toasts";
 import { mountView, unmountAll } from "@/test/mountView";
 import { apiError, createRouteFetch, data, expectNoPlaybackMarkup, noContent, regularUser } from "@/test/routeFetch";
@@ -18,6 +18,7 @@ afterEach(() => {
 });
 
 const plainDisplay = { palette: null, posterRatio: "portrait", posterSize: "medium", listDensity: "comfortable", view: "poster" } as const;
+const unset = { palette: null, posterRatio: null, posterSize: null, listDensity: null, view: null } as const;
 
 function profileServer() {
   return createRouteFetch()
@@ -61,8 +62,9 @@ describe("settings", () => {
     expect(server.calls("PUT", "/api/v1/users/me/preferences").map((request) => request.body)).toEqual([
       { theme: "dark", density: "compact", layout: null, display: null },
       { theme: "light", density: "compact", layout: null, display: null },
-      { theme: "light", density: "compact", layout: null, display: { ...plainDisplay, palette: "sepia" } },
-      { theme: "system", density: "compact", layout: null, display: { ...plainDisplay, palette: null } },
+      { theme: "light", density: "compact", layout: null, display: { ...unset, palette: "sepia" } },
+      // Back to no choice at all: nothing set, so the display member is null again.
+      { theme: "system", density: "compact", layout: null, display: null },
     ]);
     expect(useToastStore().toasts).toContainEqual(expect.objectContaining({ key: "settings.theme.saved" }));
     expectNoPlaybackMarkup(wrapper.html());
@@ -131,14 +133,15 @@ describe("settings", () => {
     const server = profileServer().on("GET", "/api/v1/users/me/preferences", () => data({ theme: "dark", density: "compact", layout: null, display: null }));
     const { pinia } = await mountView("/settings", { fetch: server.fetch, user: regularUser });
     await flushPromises();
-    const expected = { palette: "contrast", posterRatio: "square", posterSize: "medium", listDensity: "comfortable", view: "list" };
+    // Only the members the copy holds with a known value are moved; the rest stay unset.
+    const expected = { palette: "contrast", posterRatio: "square", posterSize: null, listDensity: null, view: "list" };
     expect(server.calls("PUT", "/api/v1/users/me/preferences").map((request) => request.body)).toEqual([
       { theme: "dark", density: "compact", layout: null, display: expected },
     ]);
     expect(localStorage.getItem(legacyKey)).toBeNull();
     const preferences = usePreferencesStore(pinia);
     expect(preferences.theme).toBe("contrast");
-    expect(preferences.display).toEqual(expected);
+    expect(preferences.display).toEqual({ ...plainDisplay, palette: "contrast", posterRatio: "square", view: "list" });
     // A second load finds nothing to move.
     await preferences.load();
     expect(server.calls("PUT", "/api/v1/users/me/preferences")).toHaveLength(1);
@@ -156,7 +159,7 @@ describe("settings", () => {
       theme: "dark",
       density: "comfortable",
       layout: null,
-      display: { ...plainDisplay, palette: null, view: "list" },
+      display: { ...unset, view: "list" },
     });
     expect(localStorage.getItem(legacyKey)).not.toBeNull();
     expect(usePreferencesStore(pinia).theme).toBe("dark");
@@ -283,6 +286,20 @@ describe("credential checks and session expiry", () => {
 });
 
 describe("preferences store", () => {
+  it("resolves each display member on its own: the user's, the site default, the built-in value", () => {
+    const site = normalizeChoices({ palette: "contrast", posterRatio: "square", posterSize: "huge", listDensity: "compact", view: null });
+    // Unknown values are unset in their layer and fall through to the next one.
+    expect(site).toEqual({ palette: "contrast", posterRatio: "square", posterSize: null, listDensity: "compact", view: null });
+    const user = normalizeChoices({ palette: "light", posterRatio: "landscape", view: "list", extra: "x" });
+    expect(resolveDisplay(user, site)).toEqual({ palette: null, posterRatio: "landscape", posterSize: "medium", listDensity: "compact", view: "list" });
+    expect(resolveDisplay(normalizeChoices(null), site)).toEqual({ ...defaultDisplay, posterRatio: "square", listDensity: "compact" });
+    expect(resolveDisplay(normalizeChoices(undefined), null)).toEqual(defaultDisplay);
+    // The site palette never reaches the resolved value: the server sends it with the theme.
+    expect(resolveDisplay(normalizeChoices({}), site).palette).toBeNull();
+    expect(toServerDisplay(normalizeChoices({ view: "grid" }))).toBeNull();
+    expect(toServerDisplay(user)).toEqual({ palette: null, posterRatio: "landscape", posterSize: null, listDensity: null, view: "list" });
+  });
+
   it("keeps a signed-out choice in memory without calling the server", async () => {
     const server = profileServer();
     const { pinia } = await mountView("/login", { fetch: server.fetch, user: null });

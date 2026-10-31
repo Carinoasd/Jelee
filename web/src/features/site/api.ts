@@ -69,6 +69,7 @@ export function appearanceInput(config: SiteAppearanceConfig): SiteAppearanceInp
     allowExternalFonts: config.allowExternalFonts,
     fontHosts: config.fontHosts,
     defaultLayout: config.defaultLayout,
+    defaultDisplay: config.defaultDisplay,
     revision: config.revision,
   };
 }
@@ -81,5 +82,6 @@ export function appearanceView(config: SiteAppearanceConfig, css: string): SiteA
     css,
     fontHosts: config.allowExternalFonts ? config.fontHosts : [],
     defaultLayout: config.defaultLayout,
+    defaultDisplay: config.defaultDisplay,
   };
 }

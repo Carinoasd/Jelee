@@ -294,9 +294,12 @@ func (a *Accounts) Preferences(ctx context.Context, actor domain.Actor) (domain.
 
 // SetPreferences replaces the caller's interface preferences.
 func (a *Accounts) SetPreferences(ctx context.Context, actor domain.Actor, preferences domain.UserPreferences) (domain.UserPreferences, error) {
-	if !validActor(actor) || !preferences.Valid() {
+	display, ok := domain.NormalizeDisplay(preferences.Display)
+	if !validActor(actor) || !ok || !preferences.Valid() {
 		return domain.UserPreferences{}, domain.ErrInvalid
 	}
+	// Display choices without any member set are no choices at all.
+	preferences.Display = display
 	return a.repository.SetPreferences(ctx, actor, preferences)
 }
 

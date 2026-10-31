@@ -14,6 +14,8 @@ import { routes } from "@/router/routes";
 import { useAppearanceStore } from "@/stores/appearance";
 import { useAuthStore } from "@/stores/auth";
 import { builtInPresets, toUserLayout, useLayoutStore } from "@/stores/layout";
+import { usePreferencesStore } from "@/stores/preferences";
+import { useSiteAppearanceStore } from "@/stores/siteAppearance";
 import { useToastStore } from "@/stores/toasts";
 import { captureDownloads } from "@/test/downloads";
 import { createFakeServer, createFakeSite, type FakeServer, type FakeSite } from "@/test/fakeServer";
@@ -260,11 +262,18 @@ describe("site appearance (G33.2–G33.5)", () => {
     expect(site.writes).toEqual(["appearance:update"]);
   });
 
-  it("edits the site defaults: theme, token overrides and default layout", async () => {
+  it("edits the site defaults: theme, display choices, token overrides and default layout", async () => {
     const { wrapper } = await mountView("/admin/appearance", { fetch: server.fetch, user: server.user, csrf: server.csrf });
     await flushPromises();
     const defaults = wrapper.find('[aria-labelledby="appearance-defaults"]');
-    await defaults.find("select").setValue("dark");
+    const group = (legend: string) => defaults.findAll("fieldset").find((fieldset) => fieldset.find("legend").text() === legend)!;
+    const tile = (legend: string, label: string) => group(legend).findAll("label").find((option) => option.text() === label)!.find("input");
+    // The same tiles as a user's own settings, showing the built-in values while nothing is set.
+    expect(group("Theme").findAll("label").map((option) => option.text())).toEqual(["Match system", "Light", "Dark", "Sepia", "High contrast"]);
+    expect((tile("Poster shape", "Portrait").element as HTMLInputElement).checked).toBe(true);
+    await tile("Theme", "Dark").setValue(true);
+    await tile("Poster shape", "Landscape").setValue(true);
+    await tile("Default view", "List").setValue(true);
     const [light, dark] = defaults.findAll("textarea");
     await light!.setValue("color-primary: #0f766e\nz-index: 3\ncolor-bg: url(/x.png)");
     expect(defaults.text()).toContain("Unknown names, unsafe or repeated values: z-index: 3, color-bg: url(/x.png)");
@@ -274,14 +283,59 @@ describe("site appearance (G33.2–G33.5)", () => {
 
     await light!.setValue("--jl-color-primary: #0f766e");
     await dark!.setValue('font-family: "Noto Sans", sans-serif');
-    await defaults.findAll("select")[1]!.setValue("focused");
+    await defaults.find("select").setValue("focused");
     await defaults.find("form").trigger("submit");
     await flushPromises();
     expect(site.writes).toEqual(["appearance:update"]);
     expect(site.appearance.defaultTheme).toBe("dark");
+    // Only what the administrator changed is set; the rest keeps following the built-in values.
+    expect(site.appearance.defaultDisplay).toEqual({ palette: null, posterRatio: "landscape", posterSize: null, listDensity: null, view: "list" });
     expect(site.appearance.tokens).toEqual({ light: { "color-primary": "#0f766e" }, dark: { "font-family": '"Noto Sans", sans-serif' } });
     expect(site.appearance.defaultLayout).toEqual(toUserLayout(builtInPresets.focused, []).current);
     expect(appliedCss()).toContain("--jl-color-primary: #0f766e");
+
+    // A preset is stored as its scheme plus the palette; choosing the
+    // built-in value of a member set before keeps it set.
+    await tile("Theme", "Sepia").setValue(true);
+    await tile("Poster shape", "Portrait").setValue(true);
+    await defaults.find("form").trigger("submit");
+    await flushPromises();
+    expect(site.appearance.defaultTheme).toBe("light");
+    expect(site.appearance.defaultDisplay).toEqual({ palette: "sepia", posterRatio: "portrait", posterSize: null, listDensity: null, view: "list" });
+    // Saving the CSS keeps the display defaults.
+    await wrapper.find("textarea").setValue("a { color: red }");
+    await wrapper.find("form").trigger("submit");
+    await flushPromises();
+    expect(site.appearance.defaultDisplay).toEqual({ palette: "sepia", posterRatio: "portrait", posterSize: null, listDensity: null, view: "list" });
+  });
+
+  it("applies the display choices member by member: the user's, then the site default, then the built-in value", async () => {
+    site.appearance = { ...site.appearance, defaultDisplay: { palette: null, posterRatio: "landscape", posterSize: "large", listDensity: null, view: "list" } };
+    server.preferences = { theme: "system", density: "comfortable", layout: null, display: { palette: null, posterRatio: null, posterSize: "small", listDensity: null, view: null } };
+    const { run } = host(regular());
+    const preferences = run(() => usePreferencesStore());
+    await flushPromises();
+    expect(preferences.display).toEqual({ palette: null, posterRatio: "landscape", posterSize: "small", listDensity: "comfortable", view: "list" });
+    const root = document.documentElement.dataset;
+    expect([root.poster, root.posterSize, root.listDensity]).toEqual(["landscape", "small", undefined]);
+
+    // Choosing one member stores that member only.
+    await preferences.setDisplay({ view: "poster" });
+    expect(server.preferences.display).toEqual({ palette: null, posterRatio: null, posterSize: "small", listDensity: null, view: "poster" });
+
+    // A later site change still reaches the members the user never chose.
+    site.appearance = { ...site.appearance, defaultDisplay: { palette: null, posterRatio: "square", posterSize: "large", listDensity: "compact", view: "list" } };
+    await run(() => useSiteAppearanceStore()).load();
+    expect(preferences.display).toEqual({ palette: null, posterRatio: "square", posterSize: "small", listDensity: "compact", view: "poster" });
+    expect([root.poster, root.listDensity]).toEqual(["square", "compact"]);
+
+    // Without a site default the built-in values apply.
+    site.appearance = { ...site.appearance, defaultDisplay: null };
+    await run(() => useSiteAppearanceStore()).load();
+    expect(preferences.display).toEqual({ palette: null, posterRatio: "portrait", posterSize: "small", listDensity: "comfortable", view: "poster" });
+    for (const name of ["data-poster", "data-poster-size", "data-list-density"]) {
+      document.documentElement.removeAttribute(name);
+    }
   });
 
   it("exports, imports and resets the site settings", async () => {
