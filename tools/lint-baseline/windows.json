@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "goos": "windows",
-  "total": 1998,
+  "total": 1997,
   "entries": [
     {
       "linter": "errcheck",
@@ -12440,13 +12440,6 @@
       "file": "internal/platform/proberuntime/runtime.go",
       "text": "exported: exported var ErrUnavailable should have comment or be unexported",
       "source": "d114469a7722",
-      "count": 1
-    },
-    {
-      "linter": "errcheck",
-      "file": "internal/platform/process/child_windows.go",
-      "text": "Error return value of `windows.CloseHandle` is not checked",
-      "source": "214435155f89",
       "count": 1
     },
     {

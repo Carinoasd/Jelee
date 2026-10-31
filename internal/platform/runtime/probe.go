@@ -95,7 +95,9 @@ func newProbeService(ctx context.Context, enabled bool, repository probeMaintena
 }
 
 func prepareProductionProbe(ctx context.Context) (preparedProbe, string, error) {
-	if runtime.GOOS != "linux" || runtime.GOARCH != "amd64" {
+	// Linux uses the isolated helper; Windows amd64 the confined direct
+	// ffprobe.exe (ADR 0011). Both pass the same health check below.
+	if runtime.GOARCH != "amd64" || (runtime.GOOS != "linux" && runtime.GOOS != "windows") {
 		return preparedProbe{}, "platform_unsupported", domain.ErrProbeRuntimeUnavailable
 	}
 	identity, err := proberuntime.Identity()
@@ -136,6 +138,16 @@ func prepareProductionProbe(ctx context.Context) (preparedProbe, string, error) 
 	prepared.prober, err = probe.NewWorkerBridge(adapter, identity)
 	prepared.stats = runner.Stats
 	return prepared, "runtime_unavailable", err
+}
+
+// warnProbeUnavailable makes an enabled but unavailable probe visible at
+// startup. Probing stays disabled; there is never an unconfined fallback.
+func warnProbeUnavailable(logger *slog.Logger, capability domain.ProbeCapability) {
+	if logger == nil || !capability.Enabled || capability.Available {
+		return
+	}
+	message := "media probing is enabled but its isolated runtime is unavailable; probing stays disabled"
+	logger.Warn(message, "component", "probe", "code", "probe_runtime_unavailable", "reason", capability.Reason)
 }
 
 func prepareSupplement(ctx context.Context, directory string, identity *domain.ProbeIdentity) *process.IsolatedToolRunner {

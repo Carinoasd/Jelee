@@ -159,7 +159,7 @@ var codes = map[string]codeInfo{
 	CodeToolMissing:          {"pinned ffprobe is not installed", "Container: use the official runtime image. Development: run make bootstrap-media (scripts/make.ps1 bootstrap-media on Windows)."},
 	CodeToolHashMismatch:     {"ffprobe does not match the pinned SHA-256 in tools/manifest.json", "Reinstall the pinned tool (make tools-clean bootstrap-media) or rebuild the runtime image; never replace it with a system ffprobe."},
 	CodeToolUnreadable:       {"ffprobe exists but cannot be read", "Make the tool file a regular file readable by the service account."},
-	CodeToolUnsupported:      {"no pinned ffprobe exists for this platform", "Probing is available on linux-amd64 only; other platforms run without media probing."},
+	CodeToolUnsupported:      {"no pinned ffprobe exists for this platform", "Probing is available on linux-amd64 and windows-amd64; other platforms run without media probing."},
 	CodeToolManifest:         {"embedded tool manifest is invalid", "Rebuild jelee-cli from a clean checkout."},
 	CodeEmbeddedCoversReady:  {"embedded cover extraction is enabled and its pinned ffprobe is verified (ffmpeg is not used)", ""},
 	CodeEmbeddedCoversNoTool: {"embedded cover extraction is enabled but no verified pinned ffprobe exists; the pass stays off", "Use the official runtime image (it ships ffprobe, never ffmpeg) or set JELEE_ENABLE_EMBEDDED_COVERS=false."},

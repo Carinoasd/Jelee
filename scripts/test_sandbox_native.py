@@ -24,7 +24,10 @@ import toolchain
 
 ROOT = Path(__file__).resolve().parent.parent
 PACKAGE = "github.com/MoYuanCN/Jelee/internal/platform/sandbox"
-SELECTED = "Test(Native|Real|Pinned|Protected|New|Descriptor|Launcher|Policy|Syscall|Cover|Tool|OCR)"
+# Every portable test of the production package belongs here: the Windows
+# direct-launch policy (command line, tool location, confinement) compiles
+# on Linux too and counts toward the merged coverage floor.
+SELECTED = "Test(Native|Real|Pinned|Protected|New|Descriptor|Launcher|Policy|Syscall|Cover|Tool|OCR|Windows|Valid|Metadata|Direct)"
 # Developer proofs that hash this host's glibc and a source checkout's tools
 # only after an explicit JELEE_*_HOST_RUNTIME opt-in. The proof image has
 # neither, so they are outside this suite rather than counted as skips; the

@@ -1,6 +1,6 @@
 # 存储布局
 
-本文以当前代码为准（主体于 schema 000069 时整理，2026-10-04；之后迁移 070–083 新增的表见各功能文档与[领域模型](domain-model.md)，2026-10-06 当前 `SchemaVersion` 为 83），列出 Jelee 在本机会读写的全部资产：每一项写明由谁建立、由谁清理、能否删除后重建。G09.1 要求媒体、字幕、音轨、NFO、图片、封面、章节、探测缓存都位于本地卷；本文是这份目录结构的定义。
+本文以当前代码为准（主体于 schema 000069 时整理，2026-10-04；2026-10-30 已把迁移 070–108 新增的表补进下面的迁移表，当前 `SchemaVersion` 为 108；逐表细节见各功能文档与[领域模型](domain-model.md)），列出 Jelee 在本机会读写的全部资产：每一项写明由谁建立、由谁清理、能否删除后重建。G09.1 要求媒体、字幕、音轨、NFO、图片、封面、章节、探测缓存都位于本地卷；本文是这份目录结构的定义。
 
 总原则：
 
@@ -16,7 +16,7 @@
 | 媒体根 | `library_roots` 里的绝对路径（可多库、多路径） | 运维 | 运维 | 服务只读 |
 | `.jeleeignore` | 媒体目录内 | 用户 | 用户 | 服务只读；判断结果存在数据库 |
 | NFO 与 `.jelee*` 旁车文件 | 媒体目录内 | 目前的正式服务不会建立，见 [NFO](#nfo-旁车文件) | — | 见该节 |
-| 探测缓存 | 数据库 `probe_cache` 等 | probe worker | TTL 与 quota；随任务历史清除 | 可删，下次扫描会重新探测 |
+| 探测缓存 | 数据库 `probe_cache` 等（Linux 与 Windows 的身份分开，见 [ADR 0012](adr/0012-probe-process-model.md) 的进程模型） | probe worker | TTL 与 quota；随任务历史清除 | 可删，下次扫描会重新探测 |
 | NFO 缓存 | 数据库 `nfo_cache` 等 | NFO worker | TTL 与 quota | 可删，会重新读取 |
 | 图片内存缓存 | 进程内存 | 图片处理器 | LRU 与 TTL | 重启即清空 |
 | 图片暂存 | `JELEE_IMAGE_TEMP_ROOT/image-…partial` | 图片请求 | 请求结束时删除；启动清扫 | 停机时可删 |
@@ -31,7 +31,7 @@
 | 诊断包 | `jelee-cli diag export --out` 指定的 `.zip`（0600，不覆盖已有文件） | 运维 | 运维 | 可删；内容已脱敏，分享前仍应检查，见[故障排查](troubleshooting.md#diag-export) |
 | 开发产物 | `.tools/`、`.cache/`、`.bin/`、`.testfixtures/`、`.testdata/` | 开发脚本 | 手动 | 可删可重建，都已被 Git 忽略 |
 
-## 数据库（schema 1–69）
+## 数据库（schema 1–108）
 
 每个二进制只接受一个确切的 clean schema（`SchemaVersion`，见 [ADR 0006](adr/0006-migration-version-policy.md)）；版本较低、较高或 `dirty` 都会拒绝启动，要先执行 `jelee-migrate up`。所有迁移都没有 DROP TABLE。依功能分组：
 
@@ -58,6 +58,46 @@
 | 067 | 观看统计：`watch_stats_daily` 等日汇总；见 [观看统计](watch-statistics.md) |
 | 068 | Webhook：`webhooks`、`webhook_outbox`、`webhook_deliveries`（密钥以主钥 AES-GCM 封存）；见 [Webhook](webhooks.md) |
 | 069 | 内容访问：条目规则、分级上限、标签封锁、`users.content_filtered`；见 [访问控制](access-control.md) |
+
+下面各行补齐 070 之后的迁移。“备份”指[元数据备份](backup-restore.md)：**导出**表示该表的内容会进备份，**不导出**后面写原因类别（不可导出的表由 `metadataBackupExcluded` 逐表列出并有测试守住）。没有单独写清理者的任务进度表，都以 `job_id` 外键随任务历史清除（`ON DELETE CASCADE`）。
+
+| 迁移 | 内容（建立者 → 清理者；备份） |
+| --- | --- |
+| 070 | 客户端控制：`client_control_policy`、`client_rules`（管理员设置；**导出**）；`known_clients`、`known_client_sessions`、`client_control_hits`（会话请求时记录，命中记录按保留期与用户删除清除；不导出：观测统计）；见 [客户端控制](client-control.md) |
+| 071 | `setup_state`：初始化向导进度，单行；不导出：实例自身状态；见[初始化向导](setup-wizard.md) |
+| 072 | 开发者模式：`dev_mode_state`（不导出：实例自身状态）、`dev_mode_tokens`（短期令牌，到期时删除；不导出：会让访问复活）；见[开发者模式](developer-mode.md) |
+| 073 | `user_preferences`：每用户显示偏好（主题、语言、版面）；**导出** |
+| 074 | 一致性检查：`consistency_runs`、`consistency_run_checks`、`consistency_fix_journal`（检查与修复时建立，旧运行按保留数量清除；不导出：操作历史）；见[一致性](consistency.md) |
+| 075 | 站点外观与插件：`site_appearance`、`site_plugins`（管理员设置；**导出**），`user_preferences.layout`；见[插件开发](plugin-development.md) |
+| 076 | 旧库导入：`legacy_import_runs`、`legacy_import_checkpoints`、`legacy_import_map`（不导出：操作历史）、`legacy_import_pending`（不导出：任务进度）；见[旧库导入](legacy-import.md) |
+| 077 | 两步验证：`user_totp`、`user_recovery_codes`、`login_challenges`、`app_passwords`（登录与账户设置时建立，质询过期或用户删除时清除；不导出：会让访问复活），`sessions.app_password_id`；见[两步验证](two-factor.md) |
+| 078 | 多版本人工干预：`item_version_operations`（操作日志，仅供撤销窗口；不导出：操作历史）、`item_version_exclusions`、`item_primary_versions`、`catalog_scan_item_aliases`（人工决定；**导出**）、`user_track_preferences`（每用户音轨／字幕偏好；**导出**），`catalog_scan_sources.manual`；见[多版本](item-versions.md) |
+| 079 | 共享与网络访问：`library_network_rules`（**导出**）、`share_links`（分享链接及其访客账户，到期或创建者删除时清除；不导出：会让访问复活）；见[访问控制](access-control.md) |
+| 080 | `item_embedded_cover_attempts`：内嵌封面读取的结果记录，按来源修订覆盖，随条目或库删除而清除；不导出：可重建的衍生状态；见[图片资产](image-assets.md) |
+| 081 | 合集与播放清单：`collections`、`collection_items`、`playlists`、`playlist_items`；**导出**；见[合集与清单](collections-playlists.md) |
+| 082 | 无新表：审计表对已永久删除用户的事件做去标识化（`audit_logs_actor_idx`）；审计表仍只可追加，不导出；见[用户数据权利](user-data-rights.md) |
+| 083 | 修复：`repair_runs`、`repair_journal`（执行修复时建立，旧运行按保留数量清除；不导出：操作历史）；见[修复](repair.md) |
+| 084 | 访问控制扩充：`user_blocked_keywords`、`user_access_windows`、`access_templates`、`access_template_libraries`；**导出** |
+| 085 | `log_settings`：运行期日志级别覆写与日志文件保留；不导出：实例自身状态；见[日志](logging.md) |
+| 086 | NFO commit 清理：`nfo_write_commit_cleanup_leases`、`nfo_write_commit_cleanups`；不导出：任务进度 |
+| 087 | 无新表：`libraries.nfo_write_enabled`（每库写回许可；不在库导出范围内，还原后须重新开启） |
+| 088–089 | NFO 套用与导出任务：`nfo_apply_job_state`、`nfo_export_job_state`（不导出：任务进度），`jobs.export_job_id`（093 加外键完整性）；见 [NFO 套用](nfo-apply-jobs.md)、[NFO 导出](nfo-export-jobs.md) |
+| 090 | 无新表：`nfo_write_preparations.create_target`、`nfo_write_entries.create_target`（新建 NFO 的目标） |
+| 091–093 | 无新表：`nfo_export_job_state` 的 `mode`（all／missing／fix）与计数，及 093 的外键完整性 |
+| 094–095 | 图片：`item_images.manual`（094，扫描入库不覆盖人工行；备份只导出已锁定的图片行，不含此栏）、`upload` 来源（095，上传的图片字节只在内容寻址的图片存放区，行里只有哈希）；见[图片扫描入库](image-ingest.md)、[图片资产](image-assets.md) |
+| 096 | 图片刷新任务：`image_refresh_job_state`（不导出：任务进度）、`item_image_fetch_failures`（远程抓取失败的退避记录，下次成功或图片行删除时清除；不导出：可重建的衍生状态）；见[图片刷新](image-refresh-jobs.md) |
+| 097 | 无新表：`item_images.dominant_color`（随已锁定的图片行**导出**） |
+| 098 | 章节图：`item_chapter_image_attempts`（章节图读取结果，按来源修订覆盖，随条目或库删除而清除；不导出：可重建的衍生状态）；章节图字节在图片存放区；见[图片资产](image-assets.md) |
+| 099 | 播放选择：`user_version_preferences`（每用户版本偏好；**导出**）、`session_track_selections`（会话层级的选轨，用户删除或过期清除；不导出：观测统计）；见[多版本](item-versions.md) |
+| 100 | 识别修正：`item_identity_corrections`（管理员修正与锁定；**导出**），`catalog_scan_pending.rejected_at`／`rejected_by`；见[目录同步](catalog-sync.md) |
+| 101 | 无新表：`jobs` 的总量与 ETA 栏位（`progress_total`、吞吐量均线）；任务历史清除时一并消失 |
+| 102 | 无新表：`libraries.naming_date_episodes`／`naming_absolute_episodes`（**导出**）；`catalog_scan_items` 的 `season_end`、`absolute`、`air_date`、`special`（**导出**）；见[目录同步](catalog-sync.md) |
+| 103 | 元数据刷新：`metadata_refresh_settings`（预设关闭的自动化开关，不导出：自动化 opt-in）、`metadata_refresh_job_state`（不导出：任务进度）、`metadata_refresh_reviews`（待确认与拒绝记录，再跑刷新即可重建；不导出：可重建的衍生状态）；见[元数据刷新](metadata-refresh-jobs.md) |
+| 104 | 无新表：版本聚合栏位 `catalog_sync_requests.versions_cursor`／`aggregated`、`catalog_scan_items.grouping_evidence`／`grouping_reason`、`item_version_operations.automatic`；见[目录同步](catalog-sync.md) |
+| 105 | 维护任务：`subtitle_cache_cleanup_job_state`、`backup_reminder_job_state`、`external_metadata_removal_job_state`；不导出：任务进度；见[维护任务](maintenance-jobs.md) |
+| 106 | 多分片版本：`media_source_parts`（同步时建立，来源删除时清除；不导出：可重建的衍生状态），`catalog_scan_sources.part_reason`、`catalog_sync_requests.parts_cursor`／`parts_done`；见[多版本](item-versions.md#多分片版本g211schema-106) |
+| 107 | 通用任务排程：`job_schedules`（管理员建立与删除；媒体库删除时级联清除；无窗口、非 `once` 的扫描排程随 `scan_schedule` 记录导出，带窗口或 `once` 的扫描排程与其他种类不导出（还原后需重新设定）），`scan_schedules` 只保留扫描选项、监看与拥有者；`jobs.system_source`（系统身份任务的来源）；见[任务排程](job-schedules.md) |
+| 108 | 无新表：`tool_versions.platform` 的 CHECK 放宽为 `linux-amd64`／`windows-amd64`（ffprobe 的 Windows 探测身份，见 [ADR 0011](adr/0011-windows-media-tool-confinement.md)）；降级时若有非 Linux 的身份列会被拒绝；`tool_versions` 仍不导出（可重建的衍生状态） |
 
 数据量上限、回收与降级的细节分别写在 [探测缓存](probe-cache.md)、[NFO 缓存](nfo-cache.md)、[任务](jobs-worker.md)、[ignore 存储](ignore-family-storage.md)、[NFO commit 恢复租约](nfo-commit-recovery-lease.md)。回滚说明在各迁移对应的文档里；降级会丢失该迁移之后的状态，但不会改动媒体目录。
 

@@ -163,3 +163,36 @@ func TestProbeMaintenanceIsBoundedCancelledAndRedacted(t *testing.T) {
 		t.Fatal("maintenance did not join", err)
 	}
 }
+
+func TestProbeUnavailableWarningNamesOnlyFixedReasons(t *testing.T) {
+	for _, reason := range []string{"health_check_failed", "platform_unsupported", "runtime_unavailable"} {
+		var logs bytes.Buffer
+		warnProbeUnavailable(slog.New(slog.NewTextHandler(&logs, nil)), domain.ProbeCapability{Enabled: true, State: "unavailable", Reason: reason})
+		if !strings.Contains(logs.String(), "level=WARN") || !strings.Contains(logs.String(), "isolated runtime is unavailable") ||
+			!strings.Contains(logs.String(), "reason="+reason) || !strings.Contains(logs.String(), "code=probe_runtime_unavailable") {
+			t.Fatalf("%s: %s", reason, logs.String())
+		}
+	}
+	for _, capability := range []domain.ProbeCapability{
+		{State: "disabled", Reason: "configuration_disabled"},
+		{Enabled: true, Available: true, State: "available", Reason: "isolated_helper_verified"},
+	} {
+		var logs bytes.Buffer
+		warnProbeUnavailable(slog.New(slog.NewTextHandler(&logs, nil)), capability)
+		if logs.Len() != 0 {
+			t.Fatalf("unexpected warning: %s", logs.String())
+		}
+	}
+	warnProbeUnavailable(nil, domain.ProbeCapability{Enabled: true})
+}
+
+// The retired Windows-only reason must not be accepted from a factory any more:
+// Windows now enables the probe once its health check passes.
+func TestProbeDegradationRejectsRetiredWindowsReason(t *testing.T) {
+	p, err := newProbeService(context.Background(), true, &maintenanceFake{}, func(context.Context) (preparedProbe, string, error) {
+		return preparedProbe{close: func() error { return nil }}, "catalog_identity_unsupported", errors.New("private")
+	})
+	if err != nil || p.Available() || p.Capability().Reason != "runtime_unavailable" {
+		t.Fatal("retired reason still accepted", p.Capability().Reason)
+	}
+}
