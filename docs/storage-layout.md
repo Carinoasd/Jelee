@@ -101,6 +101,7 @@
 | 109 | 无新表：`media_sidecar_tracks` 加外挂轨按需探测栏位（`probe_state`、`codec`、`profile`、`channels`、`channel_layout`、`sample_rate`、`bit_rate`、`duration_micros`、`probed_size`／`probed_modified_unix_nano`）、`.sub` 内容类别 `subtitle_kind`、`.idx` 指向同名 `.sub` 的自参照外键 `paired_track_id`（同来源，`ON DELETE SET NULL`）与待探测部分索引；全部由扫描与探测重建，降级时直接丢弃这些栏位（外挂轨列保留）；随外挂轨不导出（可重建的衍生状态）；见[目录同步](catalog-sync.md) |
 | 110 | 容器布局：`media_source_layouts`（目录同步按扫描戳读取 MP4 `moov`／Matroska Cues 位置，文件戳或判定器版本变了就重读，随来源删除而清除；不导出：可重建的衍生状态；降级直接删表）；只读文件头，不改动媒体文件；见[原资源直投](direct-delivery.md#容器布局提示与-faststart-建议g106g1010) |
 | 111 | 收藏（G24.2）：`user_favorites`（每个用户对逻辑条目的收藏，`(item_id, library_id)` 复合外键；随用户或条目删除，软删除用户时一并删除；随元数据备份导出为 `user_favorite`，分享访客的不导出；降级时有收藏即拒绝）；`legacy_import_map` 的种类检查加入 `favorite`（降级时删除这些帐本列）；见[播放会话与进度](playback-progress.md#收藏g242) |
+| 112 | Webhook 会话到期事件（G12.1）：单列表 `session_expiry_watermark`（到期扫描的水位 `through_at`／`through_id`，升级时从当下起算，不为升级前已到期的会话补发；行锁避免多实例重复）与索引 `sessions_expiry_idx(expires_at,id)`；不导出：可重建的派生状态；降级删表与索引；见[Webhook](webhooks.md) |
 
 数据量上限、回收与降级的细节分别写在 [探测缓存](probe-cache.md)、[NFO 缓存](nfo-cache.md)、[任务](jobs-worker.md)、[ignore 存储](ignore-family-storage.md)、[NFO commit 恢复租约](nfo-commit-recovery-lease.md)。回滚说明在各迁移对应的文档里；降级会丢失该迁移之后的状态，但不会改动媒体目录。
 
