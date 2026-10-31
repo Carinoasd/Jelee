@@ -141,12 +141,14 @@ func leakRouteTable() map[string]leakRoute {
 		"GET /compat/Videos/{itemId}/stream.{container}":                                                      {mode: leakByID, params: map[string]string{"itemId": "item", "container": "compat-container"}, control: true},
 		"GET /compat/Videos/{itemId}/{mediaSourceId}/Subtitles/{index}/Stream.{format}":                       {mode: leakByID, params: map[string]string{"itemId": "item", "mediaSourceId": "source", "index": "compat-subtitle-index", "format": "compat-subtitle-format"}, control: true},
 		"GET /compat/Videos/{itemId}/{mediaSourceId}/Subtitles/{index}/{startPositionTicks}/Stream.{format}":  {mode: leakByID, params: map[string]string{"itemId": "item", "mediaSourceId": "source", "index": "compat-subtitle-index", "format": "compat-subtitle-format", "startPositionTicks": "compat-zero"}, control: true},
+		"GET /compat/Videos/{itemId}/{mediaSourceId}/Audio/{index}/Stream.{format}":                           {mode: leakByID, params: map[string]string{"itemId": "item", "mediaSourceId": "source", "index": "compat-audio-index", "format": "compat-audio-format"}, control: true},
 		"GET /compat/Audio/{itemId}/stream":                                                                   noMedia(map[string]string{"itemId": "item"}, "the catalog has no audio items; every identifier is answered as missing"),
 		"GET /compat/Audio/{itemId}/stream.{container}":                                                       noMedia(map[string]string{"itemId": "item", "container": "compat-container"}, "the catalog has no audio items; every identifier is answered as missing"),
 		"HEAD /compat/Videos/{itemId}/stream":                                                                 {mode: leakByID, params: map[string]string{"itemId": "item"}, control: true},
 		"HEAD /compat/Videos/{itemId}/stream.{container}":                                                     {mode: leakByID, params: map[string]string{"itemId": "item", "container": "compat-container"}, control: true},
 		"HEAD /compat/Videos/{itemId}/{mediaSourceId}/Subtitles/{index}/Stream.{format}":                      {mode: leakByID, params: map[string]string{"itemId": "item", "mediaSourceId": "source", "index": "compat-subtitle-index", "format": "compat-subtitle-format"}, control: true},
 		"HEAD /compat/Videos/{itemId}/{mediaSourceId}/Subtitles/{index}/{startPositionTicks}/Stream.{format}": {mode: leakByID, params: map[string]string{"itemId": "item", "mediaSourceId": "source", "index": "compat-subtitle-index", "format": "compat-subtitle-format", "startPositionTicks": "compat-zero"}, control: true},
+		"HEAD /compat/Videos/{itemId}/{mediaSourceId}/Audio/{index}/Stream.{format}":                          {mode: leakByID, params: map[string]string{"itemId": "item", "mediaSourceId": "source", "index": "compat-audio-index", "format": "compat-audio-format"}, control: true},
 		"HEAD /compat/Audio/{itemId}/stream":                                                                  noMedia(map[string]string{"itemId": "item"}, "the catalog has no audio items; every identifier is answered as missing"),
 		"HEAD /compat/Audio/{itemId}/stream.{container}":                                                      noMedia(map[string]string{"itemId": "item", "container": "compat-container"}, "the catalog has no audio items; every identifier is answered as missing"),
 		// Third-party client compatibility layer (playstate module). Reports
@@ -821,6 +823,12 @@ func (f leakIDs) value(kind string, scenario int) string {
 		return "srt"
 	case "compat-zero":
 		return "0"
+	case "compat-audio-index":
+		// External audio files are numbered after the external subtitles:
+		// the unprobed fixture's subtitle is 0, its audio file 1.
+		return "1"
+	case "compat-audio-format":
+		return "ac3"
 	case "attachment-id":
 		return "1"
 	}

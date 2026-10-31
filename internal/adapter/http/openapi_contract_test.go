@@ -59,6 +59,8 @@ var undocumentedRoutes = map[string]string{
 	"HEAD /compat/Videos/{itemId}/{mediaSourceId}/Subtitles/{index}/Stream.{format}":                      compatExemption,
 	"HEAD /compat/Videos/{itemId}/{mediaSourceId}/Subtitles/{index}/{startPositionTicks}/Stream.{format}": compatExemption,
 	"HEAD /compat/Audio/{itemId}/stream":                                                                  compatExemption,
+	"GET /compat/Videos/{itemId}/{mediaSourceId}/Audio/{index}/Stream.{format}":                           compatExemption,
+	"HEAD /compat/Videos/{itemId}/{mediaSourceId}/Audio/{index}/Stream.{format}":                          compatExemption,
 	"GET /compat/Videos/{itemId}/{mediaSourceId}/Attachments/{index}":                                     compatExemption,
 	"HEAD /compat/Videos/{itemId}/{mediaSourceId}/Attachments/{index}":                                    compatExemption,
 	"HEAD /compat/Audio/{itemId}/stream.{container}":                                                      compatExemption,

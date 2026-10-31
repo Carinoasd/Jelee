@@ -118,7 +118,7 @@
 - `GET/PUT /api/v1/users/me/track-preferences`：使用者預設，不能指定軌道。
 - 欄位：`audioLanguage`、`audioCommentary`、`audioTrack`、`subtitleMode`（auto／always／forced／off）、`subtitleLanguage`、`subtitleSdh`、`subtitleTrack`。語言接受 ISO 639-1／639-2 與 BCP 47（`eng`→`en`、`chs`→`zh-Hans`）；軌道為 `e:<串流索引>` 或 `x:<外掛軌 ID>`，只能存在版本層。
 - 合併順序：會話選軌（同版本，見上節）→ 版本 → 條目 → 使用者 →（字幕語言）帳號語言 `users.locale` → 檔案本身的預設旗標。`basis` 回報做決定的最具體層級（`session`、`version`、`item`、`user`、`locale`、`source`）。
-- 選軌：指定軌道存在就用；音軌依「明確要求評論音軌」→語言（同標籤 > 同語言同書寫系統，如 zh-TW≈zh-Hant > 同主語言）→避開評論音軌→預設旗標；字幕 auto 在音軌語言與字幕語言不同時選完整字幕（強制字幕不算），否則只選強制字幕；off 不選；沒有任何語言時沿用檔案預設字幕。
+- 選軌：指定軌道存在就用；音軌依「明確要求評論音軌」→語言（同標籤 > 同語言同書寫系統，如 zh-TW≈zh-Hant > 同主語言）→避開評論音軌→預設旗標；字幕 auto 在音軌語言與字幕語言不同時選完整字幕（強制字幕不算），否則只選強制字幕；off 不選；沒有任何語言時沿用檔案預設字幕。上述條件都相同時，**外掛字幕優先於內嵌字幕**（外掛檔通常是使用者刻意放的；第 10 階段 B8），再相同才依列出順序；音軌同分時仍是內嵌在前。
 - 自有播放資訊 `GET /api/v1/items/{id}/playback` 的每個來源帶 `defaultTracks {audio, subtitle, basis}`；相容層 PlaybackInfo 填 `DefaultAudioStreamIndex`（偏好選到內嵌音軌時）與 `DefaultSubtitleStreamIndex`（內嵌索引、外掛字幕的上游編號，或 -1 表示不顯示字幕；外掛字幕需直投開啟），直投判定也改以偏好的音軌編碼檢查。偏好不轉碼、不混音、不燒錄，客戶端仍可自由切換。
 - 偏好不寫稽核（與介面偏好相同，只影響起始軌道）。
 

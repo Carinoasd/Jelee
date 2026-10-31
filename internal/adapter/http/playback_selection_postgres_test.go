@@ -34,6 +34,9 @@ func TestPlaybackSelectionHTTPPostgres(t *testing.T) {
 		tracks[language] = compatInsert(t, ctx, store, `INSERT INTO media_sidecar_tracks(source_id,library_id,root_id,relative_path,kind,format,language,languages,size,modified_unix_nano) VALUES($1::uuid,$2::uuid,$3::uuid,$4,'subtitle','srt',$5,ARRAY[$5],10,0) RETURNING id::text`,
 			fhd, library, root, "Film.1080p."+language+".srt", language)
 	}
+	// An external Japanese audio file of the 1080p version (G16.4, G16.5).
+	audioTrack := compatInsert(t, ctx, store, `INSERT INTO media_sidecar_tracks(source_id,library_id,root_id,relative_path,kind,format,language,languages,size,modified_unix_nano) VALUES($1::uuid,$2::uuid,$3::uuid,'Film.1080p.ja.ac3','audio','ac3','ja',ARRAY['ja'],10,0) RETURNING id::text`,
+		fhd, library, root)
 	compatInsert(t, ctx, store, `INSERT INTO library_acl(user_id,library_id) VALUES($1::uuid,$2::uuid) RETURNING user_id::text`, viewer, library)
 	progress, err := app.NewProgress(store, store, app.ProgressOptions{})
 	if err != nil {
@@ -90,13 +93,16 @@ func TestPlaybackSelectionHTTPPostgres(t *testing.T) {
 		return body
 	}
 	type compatStream struct {
-		Index      int    `json:"Index"`
-		Type       string `json:"Type"`
-		Language   string `json:"Language"`
-		IsExternal bool   `json:"IsExternal"`
+		Index        int    `json:"Index"`
+		Type         string `json:"Type"`
+		Language     string `json:"Language"`
+		IsExternal   bool   `json:"IsExternal"`
+		DisplayTitle string `json:"DisplayTitle"`
+		DeliveryURL  string `json:"DeliveryUrl"`
 	}
 	type compatSource struct {
 		ID                         string         `json:"Id"`
+		DefaultAudioStreamIndex    *int           `json:"DefaultAudioStreamIndex"`
 		DefaultSubtitleStreamIndex *int           `json:"DefaultSubtitleStreamIndex"`
 		MediaStreams               []compatStream `json:"MediaStreams"`
 	}
@@ -187,6 +193,28 @@ func TestPlaybackSelectionHTTPPostgres(t *testing.T) {
 	}
 	if s := compatInfo("session choice", "")[0]; s.DefaultSubtitleStreamIndex == nil || *s.DefaultSubtitleStreamIndex != external {
 		t.Fatalf("compat resume index %+v", s)
+	}
+	// The external audio file is listed after the subtitles with its own
+	// delivery URL and a display title; a compat client switching to it
+	// is stored as the file and started with on the next PlaybackInfo.
+	audio := -1
+	for _, s := range compatInfo("external audio", "")[0].MediaStreams {
+		if s.IsExternal && s.Type == "Audio" {
+			audio = s.Index
+			if s.Index <= external || s.DeliveryURL != "/Videos/"+leakWire(item)+"/"+leakWire(fhd)+"/Audio/"+selectionIndex(s.Index)+"/Stream.ac3" || s.DisplayTitle != "日语 - Dolby Digital - 外挂" {
+				t.Fatalf("external audio stream %+v", s)
+			}
+		}
+	}
+	if audio < 0 {
+		t.Fatal("external audio not listed")
+	}
+	report("/compat/Sessions/Playing/Progress", `{"ItemId":"`+leakWire(item)+`","PlaySessionId":"sel-1","PositionTicks":700000000,"AudioStreamIndex":`+selectionIndex(audio)+`,"SubtitleStreamIndex":`+selectionIndex(external)+`}`)
+	if n := rows(`SELECT count(*) FROM session_track_selections WHERE user_id=$1::uuid AND source_id=$2::uuid AND audio_track=$3 AND subtitle_track=$4`, viewer, fhd, "x:"+audioTrack, "x:"+tracks["ja"]); n != 1 {
+		t.Fatal("external audio choice not stored", n)
+	}
+	if s := compatInfo("external audio choice", "")[0]; s.DefaultAudioStreamIndex == nil || *s.DefaultAudioStreamIndex != audio || s.DefaultSubtitleStreamIndex == nil || *s.DefaultSubtitleStreamIndex != external {
+		t.Fatalf("compat external audio index %+v", s)
 	}
 	// Turning subtitles off in the same session.
 	report("/compat/Sessions/Playing/Stopped", `{"ItemId":"`+leakWire(item)+`","PlaySessionId":"sel-1","PositionTicks":900000000,"SubtitleStreamIndex":-1}`)

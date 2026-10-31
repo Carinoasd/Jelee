@@ -103,3 +103,57 @@ func TestSessionChoicePrecedence(t *testing.T) {
 		t.Fatal("subtitles shown after the session turned them off")
 	}
 }
+
+// TestUpstreamExternalTracksNumbering: external subtitles follow every
+// embedded stream, one slot per OCR-capable bitmap subtitle follows them,
+// and external audio files come last, so adding audio never moves a
+// subtitle number. A reported audio index maps back to its file.
+func TestUpstreamExternalTracksNumbering(t *testing.T) {
+	const audioID = "0b4ad0fc-4a6f-4e0e-9f43-7d2f7dc8a0a1"
+	source := PlaybackSource{ID: "src",
+		Video:     []PlaybackVideoTrack{{Index: 0}},
+		Audio:     []PlaybackAudioTrack{{Index: 1}},
+		Subtitles: []PlaybackSubtitleTrack{{Index: 2, Codec: "hdmv_pgs_subtitle", OCRSource: true}, {Index: 3, Codec: "subrip"}},
+		External: []PlaybackExternalTrack{
+			{ID: audioID, Kind: SidecarKindAudio, Format: "mka"},
+			{ID: sessionSubtitleID, Kind: SidecarKindSubtitle, Format: "srt"},
+			{ID: "0b4ad0fc-4a6f-4e0e-9f43-7d2f7dc8a0a2", Kind: SidecarKindAudio, Format: "Bad!"},
+			{ID: "0b4ad0fc-4a6f-4e0e-9f43-7d2f7dc8a0a3", Kind: SidecarKindSubtitle, Format: "ass"},
+		},
+	}
+	got := map[string]int{}
+	for _, e := range UpstreamExternalTracks(source) {
+		got[e.Track.ID] = e.Index
+	}
+	want := map[string]int{sessionSubtitleID: 4, "0b4ad0fc-4a6f-4e0e-9f43-7d2f7dc8a0a3": 5, audioID: 7}
+	if len(got) != len(want) {
+		t.Fatalf("numbered %v, want %v", got, want)
+	}
+	for id, index := range want {
+		if got[id] != index {
+			t.Fatalf("numbered %v, want %v", got, want)
+		}
+	}
+	if subs := UpstreamExternalSubtitles(source); len(subs) != 2 || subs[0].Index != 4 || subs[1].Index != 5 {
+		t.Fatalf("subtitles %+v", subs)
+	}
+	if audio := UpstreamExternalAudio(source); len(audio) != 1 || audio[0].Index != 7 || audio[0].Track.ID != audioID {
+		t.Fatalf("audio %+v", audio)
+	}
+	for _, c := range []struct {
+		index int
+		want  SessionTracks
+		ok    bool
+	}{
+		{7, SessionTracks{SourceID: "src", AudioTrack: "x:" + audioID}, true},
+		{1, SessionTracks{SourceID: "src", AudioTrack: "e:1"}, true},
+		// The OCR slot and an external subtitle are not audio.
+		{6, SessionTracks{SourceID: "src"}, false},
+		{4, SessionTracks{SourceID: "src"}, false},
+	} {
+		index := c.index
+		if got, ok := ResolveTrackReport(source, PlaybackTrackReport{AudioIndex: &index}); got != c.want || ok != c.ok {
+			t.Fatalf("audio index %d: %+v %v, want %+v %v", c.index, got, ok, c.want, c.ok)
+		}
+	}
+}

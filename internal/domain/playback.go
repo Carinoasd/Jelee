@@ -137,6 +137,11 @@ type PlaybackVideoTrack struct {
 	// Primary marks the stream the decision checks: the default, else the
 	// largest, else the first real video stream. Cover art is never listed.
 	Primary bool `json:"primary"`
+	// AverageFrameRate and RealFrameRate are the probe's avg_frame_rate and
+	// r_frame_rate as they are (FrameRate is the first known of them); they
+	// only feed the compatibility layer's stream description.
+	AverageFrameRate *MediaRational `json:"-"`
+	RealFrameRate    *MediaRational `json:"-"`
 }
 
 type PlaybackAudioTrack struct {
@@ -472,7 +477,7 @@ func BuildPlaybackSource(r PlaybackSourceRecord) PlaybackSource {
 				detail := streamDetail(meta.Matroska, stream.Index)
 				track := PlaybackVideoTrack{Index: stream.Index, Codec: playbackText(stream.Codec), Profile: playbackText(stream.Profile), Level: v.Level,
 					Width: v.Width, Height: v.Height, FrameRate: v.AverageFrameRate, BitRate: stream.BitRate, Default: playbackFlag(stream.Default),
-					Primary: primary != nil && primary.Index == stream.Index}
+					Primary: primary != nil && primary.Index == stream.Index, AverageFrameRate: v.AverageFrameRate, RealFrameRate: v.FrameRate}
 				if track.FrameRate == nil {
 					track.FrameRate = v.FrameRate
 				}

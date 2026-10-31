@@ -47,6 +47,9 @@ func (rt *router) playbackRoutes() {
 		rt.handle(method, "/Videos/{itemId}/stream.{container}", true, rt.videoStream)
 		rt.handle(method, "/Videos/{itemId}/{mediaSourceId}/Subtitles/{index}/Stream.{format}", true, rt.subtitleStream)
 		rt.handle(method, "/Videos/{itemId}/{mediaSourceId}/Subtitles/{index}/{startPositionTicks}/Stream.{format}", true, rt.subtitleStream)
+		// An external audio file as it is (G16.4); a Jelee route in the
+		// upstream subtitle URL form, since upstream has none.
+		rt.handle(method, "/Videos/{itemId}/{mediaSourceId}/Audio/{index}/Stream.{format}", true, rt.audioTrackStream)
 		if rt.opts.Library.Extracted != nil {
 			rt.handle(method, "/Videos/{itemId}/{mediaSourceId}/Attachments/{index}", true, rt.attachmentStream)
 		}
@@ -237,14 +240,16 @@ func (rt *router) playbackInfo(w http.ResponseWriter, r *http.Request) {
 					source = part.PlaybackSource
 				}
 			}
-			info, err := rt.mediaSource(itemID, source, item.Title)
+			info, err := rt.mediaSource(itemID, source, item.Title, requestLocale(r))
 			if err != nil {
 				writeError(w, http.StatusInternalServerError)
 				return
 			}
 			rt.addOCRStreams(r.Context(), principal, itemID, source, &info)
+			setDisplayTitles(&info, requestLocale(r))
 			rt.externalBitmapSubtitles(req, itemID, source, &info)
 			rt.logSubtitleProfiles(r.Context(), req, source, info)
+			rt.logExternalAudioProfiles(r.Context(), req, source)
 			result.MediaSources = append(result.MediaSources, info)
 		}
 	}
@@ -414,7 +419,7 @@ func (rt *router) additionalParts(w http.ResponseWriter, r *http.Request) {
 					writeError(w, http.StatusInternalServerError)
 					return
 				}
-				info, err := rt.mediaSource(dto.ID, part.PlaybackSource, item.Title)
+				info, err := rt.mediaSource(dto.ID, part.PlaybackSource, item.Title, requestLocale(r))
 				if err != nil {
 					writeError(w, http.StatusInternalServerError)
 					return
@@ -627,6 +632,76 @@ func sameSubtitleFormat(requested, extension string) bool {
 	}
 	caps, err := domain.NormalizeClientCapabilities(domain.ClientCapabilities{SubtitleFormats: []string{requested, extension}})
 	return err == nil && len(caps.SubtitleFormats) == 1
+}
+
+// externalAudioURL is the form of an external audio file URL, relative to
+// the server address the client was configured with and without any
+// credential, like subtitleURL.
+func externalAudioURL(itemID, sourceID string, index int, format string) string {
+	return fmt.Sprintf("/Videos/%s/%s/Audio/%d/Stream.%s", itemID, sourceID, index, format)
+}
+
+// audioTrackStream serves GET and HEAD of an external audio file as it is
+// (G16.4, G10.9), through the server's direct delivery handler like a
+// subtitle file. Index is the file's upstream stream number
+// (domain.UpstreamExternalAudio). The format must be the file's own
+// extension: another one asks for a converted or remuxed stream and is
+// refused, as is a start offset, which would cut the file, and an embedded
+// audio stream, which would have to be demuxed out of the container. The
+// production guard has already refused every transformation parameter.
+func (rt *router) audioTrackStream(w http.ResponseWriter, r *http.Request) {
+	q := readQuery(r)
+	itemID, err := ParseID(chi.URLParam(r, "itemId"))
+	if err != nil {
+		writeError(w, http.StatusBadRequest)
+		return
+	}
+	sourceID, err := ParseID(chi.URLParam(r, "mediaSourceId"))
+	if err != nil {
+		writeError(w, http.StatusBadRequest)
+		return
+	}
+	raw := chi.URLParam(r, "index")
+	index, err := strconv.Atoi(raw)
+	if err != nil || index < 0 || index > 99999 || strconv.Itoa(index) != raw {
+		writeError(w, http.StatusBadRequest)
+		return
+	}
+	for _, raw := range []string{q.get("starttimeticks"), q.get("startpositionticks")} {
+		if raw == "" {
+			continue
+		}
+		start, err := strconv.ParseInt(raw, 10, 64)
+		if err != nil {
+			writeError(w, http.StatusBadRequest)
+			return
+		}
+		if start != 0 {
+			rt.opts.WriteRejection(w, r, media.ErrTranscodeDisabled)
+			return
+		}
+	}
+	format := chi.URLParam(r, "format")
+	source, ok := rt.findSource(w, r, itemID, sourceID)
+	if !ok {
+		return
+	}
+	for _, e := range domain.UpstreamExternalAudio(source) {
+		if e.Index != index {
+			continue
+		}
+		if !strings.EqualFold(format, e.Track.Format) {
+			rt.opts.WriteRejection(w, r, media.ErrTranscodeDisabled)
+			return
+		}
+		rt.opts.Library.Delivery.ServeTrack(w, r, source.ID, media.TrackAudio, e.Track.ID)
+		return
+	}
+	if slices.ContainsFunc(source.Audio, func(a domain.PlaybackAudioTrack) bool { return a.Index == index }) {
+		rt.opts.WriteRejection(w, r, media.ErrTranscodeDisabled)
+		return
+	}
+	writeError(w, rt.opts.Library.HiddenStatus)
 }
 
 // audioStream answers the audio stream routes. The catalog holds no audio
