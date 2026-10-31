@@ -538,7 +538,7 @@ func readOnlyAllowed(req *clientRequest) bool {
 	case "/api/v1/auth/logout", "/api/v1/auth/rotate", "/api/v1/auth/login", "/api/v1/auth/login/native":
 		return true
 	}
-	return strings.HasPrefix(path, "/api/v1/items/") && strings.HasSuffix(path, "/playback/check") && strings.Count(path, "/") == 6
+	return strings.HasPrefix(path, "/api/v1/items/") && (strings.HasSuffix(path, "/playback/check") || strings.HasSuffix(path, "/sources/check")) && strings.Count(path, "/") == 6
 }
 
 // recordHits buffers the decision's hits. Allow rules only count; every

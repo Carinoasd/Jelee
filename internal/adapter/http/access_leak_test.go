@@ -191,6 +191,7 @@ func leakRouteTable() map[string]leakRoute {
 		"GET /api/v1/items/{id}":                        {mode: leakByID, params: itemParam, control: true},
 		"GET /api/v1/items/{id}/details":                {mode: leakByID, params: itemParam, control: true},
 		"GET /api/v1/items/{id}/sources":                {mode: leakByID, params: itemParam, control: true},
+		"POST /api/v1/items/{id}/sources/check":         {mode: leakByID, params: itemParam, control: true},
 		"GET /api/v1/sources/{id}/stream":               {mode: leakByID, params: sourceParam, control: true},
 		"HEAD /api/v1/sources/{id}/stream":              {mode: leakByID, params: sourceParam, control: true},
 		"GET /api/v1/sources/{id}/subtitles/{trackId}":  {mode: leakByID, params: map[string]string{"id": "source", "trackId": "subtitle-track"}, control: true},

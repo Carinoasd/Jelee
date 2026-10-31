@@ -244,6 +244,7 @@ Web 禁止播放的承诺基于**服务端签发时绑定的会话类型**。原
 
 - `GET /api/v1/items/{id}/playback`：列出条目的全部原始资源。
 - `POST /api/v1/items/{id}/playback/check`：请求体为客户端能力声明，逐个资源返回直投判定。
+- `POST /api/v1/items/{id}/sources/check`（任何会话，含网页；唯读）：请求体同上，用同一个判定函式（`domain.CheckPlayback`）与同一组原因码，另附各版本的文件信息（容器佈局与 `layoutHints`、外挂轨 `probeState`）；回应没有任何 `url`、不建立会话、不投递、不转换、不写入，守卫照旧（转换参数 409）。网页条目页的“直接投递检查”画面用它显示每个版本能否直投、原因、佈局建议与每条音轨／字幕的投递方式（预设：浏览器 H.264/AAC、Android ExoPlayer、Apple，或自订）。
 
 处理顺序固定：
 

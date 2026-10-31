@@ -31788,6 +31788,247 @@
         "summary": "Describe the media files of a visible item"
       }
     },
+    "/api/v1/items/{id}/sources/check": {
+      "post": {
+        "description": "Any session kind; read only. The same verdicts and reason codes as POST /api/v1/items/{id}/playback/check (G10.5), made on the file information of every version, so the web interface can show why a version would not play as it is: reasons, the container layout and its hints, the probe state of external tracks and the verdict per audio and subtitle track. The body is a ClientCapabilities declaration. The answer carries no delivery URL of any kind, starts no playback session, and delivers, converts and writes nothing; a transformation parameter in the query or body is 409 transcode_disabled.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ClientCapabilities"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "decisions": {
+                          "description": "One per source, in the caller's default version order; never carries a url.",
+                          "items": {
+                            "$ref": "#/components/schemas/PlaybackDecision"
+                          },
+                          "type": "array"
+                        },
+                        "directPlayable": {
+                          "description": "True when at least one version is direct playable.",
+                          "type": "boolean"
+                        },
+                        "itemId": {
+                          "format": "uuid",
+                          "type": "string"
+                        },
+                        "selection": {
+                          "$ref": "#/components/schemas/VersionSelection"
+                        },
+                        "sources": {
+                          "description": "The same sources in the same order; join by sourceId = id.",
+                          "items": {
+                            "$ref": "#/components/schemas/MediaSourceInfo"
+                          },
+                          "type": "array"
+                        }
+                      },
+                      "required": [
+                        "itemId",
+                        "directPlayable",
+                        "decisions",
+                        "sources",
+                        "selection"
+                      ],
+                      "type": "object"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "HTTP 200"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "invalid_request": {
+                    "$ref": "#/components/examples/error_invalid_request"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 400"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "authentication_required": {
+                    "$ref": "#/components/examples/error_authentication_required"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 401"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "forbidden": {
+                    "$ref": "#/components/examples/error_forbidden"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 403"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "not_found": {
+                    "$ref": "#/components/examples/error_not_found"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "The item is missing or not visible to the caller; both are answered alike (403 forbidden when hidden content is configured as 403)."
+          },
+          "408": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "request_timeout": {
+                    "$ref": "#/components/examples/error_request_timeout"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 408"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "conflict": {
+                    "$ref": "#/components/examples/error_conflict"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "transcode_disabled: the query or body carries a transformation parameter (G10.3)."
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "body_too_large": {
+                    "$ref": "#/components/examples/error_body_too_large"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 413"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "unsupported_media_type": {
+                    "$ref": "#/components/examples/error_unsupported_media_type"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 415"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "not_ready": {
+                    "$ref": "#/components/examples/error_not_ready"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 503"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "internal_error": {
+                    "$ref": "#/components/examples/error_internal_error"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Jelee error envelope with code, message, details and traceId; see the Error schema."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "webSession": []
+          }
+        ],
+        "summary": "Check which versions of a visible item a declared client could direct play"
+      }
+    },
     "/api/v1/items/{id}/track-preferences": {
       "get": {
         "description": "Any signed-in user; their own preferences only.",

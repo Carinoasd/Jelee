@@ -38,6 +38,7 @@ var guestRoutes = map[string]bool{
 	"GET /api/v1/items/{id}/user-data":       false,
 	"GET /api/v1/items/{id}/playback":        false,
 	"POST /api/v1/items/{id}/playback/check": false,
+	"POST /api/v1/items/{id}/sources/check":  false,
 	"GET /api/v1/users/me/resume":            false,
 	"GET /api/v1/sources/{id}/stream":        false,
 	"HEAD /api/v1/sources/{id}/stream":       false,

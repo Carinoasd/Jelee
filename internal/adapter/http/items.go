@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/MoYuanCN/Jelee/internal/access"
+	"github.com/MoYuanCN/Jelee/internal/adapter/media"
 	"github.com/MoYuanCN/Jelee/internal/domain"
 	"github.com/go-chi/chi/v5"
 )
@@ -243,4 +244,53 @@ func (s *Server) itemSources(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	writeJSON(w, 200, map[string]any{"data": map[string]any{"itemId": id, "sources": sources}})
+}
+
+// maxSourcesCheckBody bounds a capability declaration, as for playback/check.
+const maxSourcesCheckBody = maxPlaybackCheckBody
+
+// itemSourcesCheck answers, for any session kind, whether a client with the
+// declared capabilities could direct play each version of a visible item
+// and why not. It is the file information view of playback/check: the same
+// verdicts and reason codes, the sources they were made on, and no delivery
+// URL of any kind. It reads only; nothing is delivered, converted or
+// written, and no playback session starts.
+func (s *Server) itemSourcesCheck(w http.ResponseWriter, r *http.Request) {
+	if err := media.GuardProduction(r); err != nil {
+		WriteError(w, r, err)
+		return
+	}
+	if _, err := strictQuery(r); err != nil {
+		WriteError(w, r, err)
+		return
+	}
+	var caps domain.ClientCapabilities
+	if err := DecodeJSON(w, r, &caps, maxSourcesCheckBody); err != nil {
+		WriteError(w, r, err)
+		return
+	}
+	p, _ := access.PrincipalFromContext(r.Context())
+	ctx, cancel := context.WithTimeout(r.Context(), s.cfg.RequestTimeout())
+	defer cancel()
+	id := chi.URLParam(r, "id")
+	decisions, sources, selection, err := s.catalog.CheckItemSources(ctx, domain.Actor{UserID: p.UserID, SessionID: p.SessionID, IP: requestClientIP(r)}, id, caps)
+	if err != nil {
+		WriteError(w, r, s.hiddenContentError(err))
+		return
+	}
+	playable := false
+	for i := range decisions {
+		playable = playable || decisions[i].DirectPlay
+	}
+	for i := range sources {
+		for j := range sources[i].External {
+			sources[i].External[j].URL = ""
+		}
+		for k := range sources[i].Parts {
+			for j := range sources[i].Parts[k].External {
+				sources[i].Parts[k].External[j].URL = ""
+			}
+		}
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"data": map[string]any{"itemId": id, "directPlayable": playable, "decisions": decisions, "sources": sources, "selection": selection}})
 }
