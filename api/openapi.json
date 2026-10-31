@@ -26988,6 +26988,7 @@
         "x-jelee-fields": [
           "externalIds",
           "genres",
+          "isFavorite",
           "nfo",
           "originalTitle",
           "overview",

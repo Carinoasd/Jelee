@@ -107,7 +107,7 @@ func writeValidatedJSON(w http.ResponseWriter, r *http.Request, value any) {
 // the member always kept, "-" when the resource has none at the top level.
 var detailContracts = func() map[string]*listContract {
 	item := []string{"id", "kind", "libraryId", "parentId", "premiereDate", "productionYear", "title"}
-	details := append([]string{"externalIds", "genres", "nfo", "originalTitle", "overview", "sortTitle", "tagline"}, item...)
+	details := append([]string{"externalIds", "genres", "isFavorite", "nfo", "originalTitle", "overview", "sortTitle", "tagline"}, item...)
 	contracts := []*listContract{
 		{Path: "/api/v1/items/{id}", Fields: item},
 		{Path: "/api/v1/items/{id}/details", Fields: details},
