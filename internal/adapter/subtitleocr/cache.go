@@ -80,7 +80,7 @@ func (s *Service) publish(root *os.Root, next job, staging string, value entry) 
 	if err := writeFile(root, staging+"/"+entryFile, data); err != nil {
 		return err
 	}
-	target := next.sourceID + "/" + next.stamp
+	target := next.dir + "/" + next.stamp
 	if err := root.Rename(filepath.FromSlash(staging), filepath.FromSlash(target)); err != nil {
 		// Another instance published the same revision first.
 		if _, readErr := readEntry(root, target+"/"+entryFile); readErr == nil {
@@ -89,7 +89,7 @@ func (s *Service) publish(root *os.Root, next job, staging string, value entry) 
 		}
 		return ErrUnavailable
 	}
-	s.removeOtherRevisions(root, next.sourceID, next.stamp)
+	s.removeOtherRevisions(root, next.dir, next.stamp)
 	s.enforce(root, target)
 	return nil
 }

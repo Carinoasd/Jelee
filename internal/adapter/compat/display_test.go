@@ -202,6 +202,9 @@ func (stubDelivery) ServeExtracted(http.ResponseWriter, *http.Request, media.Ext
 func (stubDelivery) ServeUTF8Track(http.ResponseWriter, *http.Request, media.UTF8Resolver, string, string, bool) {
 }
 
+func (stubDelivery) ServeSidecarOCR(http.ResponseWriter, *http.Request, media.SidecarOCRResolver, string, string) {
+}
+
 // A probed external audio file the declaration cannot decode is logged
 // with the B7 audio codec code and stays listed with its DeliveryUrl; an
 // unprobed one is not judged.

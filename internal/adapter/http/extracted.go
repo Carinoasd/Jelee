@@ -27,6 +27,9 @@ const (
 	// ocrSubtitleRoute serves the SRT derived by subtitle OCR from a bitmap
 	// subtitle (G15.6); it exists only when OCR is enabled as well.
 	ocrSubtitleRoute = "/api/v1/sources/{id}/ocr-subtitles/{index}"
+	// sidecarOCRRoute serves the SRT derived by subtitle OCR from an
+	// external bitmap subtitle (a .sup, or a VobSub .idx with its .sub).
+	sidecarOCRRoute = "/api/v1/sources/{id}/subtitles/{trackId}/ocr"
 )
 
 // maxExtractedIndex bounds the numeric path segments; Matroska stream
@@ -44,6 +47,10 @@ func embeddedSubtitleURL(sourceID string, index int) string {
 
 func ocrSubtitleURL(sourceID string, index int) string {
 	return "/api/v1/sources/" + sourceID + "/ocr-subtitles/" + strconv.Itoa(index)
+}
+
+func sidecarOCRURL(sourceID, trackID string) string {
+	return trackURL(sourceID, domain.SidecarKindSubtitle, trackID) + "/ocr"
 }
 
 func attachmentURL(sourceID string, id int) string {
@@ -82,6 +89,39 @@ func (s *Server) extractedRoute(kind media.ExtractedKind, param string) http.Han
 		}
 		s.delivery.ServeExtracted(w, r, s.extractedResolver(), id, kind, index)
 	}
+}
+
+// sidecarOCR serves the OCR-derived SRT of an external bitmap subtitle.
+func (s *Server) sidecarOCR(w http.ResponseWriter, r *http.Request) {
+	if err := media.GuardProduction(r); err != nil {
+		WriteError(w, r, err)
+		return
+	}
+	if _, err := strictQuery(r); err != nil {
+		WriteError(w, r, err)
+		return
+	}
+	id, trackID := chi.URLParam(r, "id"), chi.URLParam(r, "trackId")
+	if !domain.ValidID(id) || !domain.ValidID(trackID) {
+		WriteError(w, r, domain.ErrNotFound)
+		return
+	}
+	s.delivery.ServeSidecarOCR(w, r, sidecarOCRResolver(s.extractedResolver()), id, trackID)
+}
+
+// sidecarOCRResolver returns the external bitmap subtitle OCR lookup of an
+// extraction resolver, or one that finds nothing.
+func sidecarOCRResolver(resolver media.ExtractedResolver) media.SidecarOCRResolver {
+	if sidecar, ok := resolver.(media.SidecarOCRResolver); ok && ocrAvailable(resolver) {
+		return sidecar
+	}
+	return noSidecarOCR{}
+}
+
+type noSidecarOCR struct{}
+
+func (noSidecarOCR) ResolveSidecarOCR(context.Context, access.Principal, string, string) (media.Source, error) {
+	return media.Source{}, media.ErrNotFound
 }
 
 // extractedResolver applies the hidden content status opt-in like the
@@ -130,6 +170,20 @@ func extractionAvailable(resolver media.ExtractedResolver) bool {
 	return true
 }
 
+// ResolveSidecarOCR applies the hidden status to the external bitmap
+// subtitle OCR lookup as well.
+func (h hiddenExtracted) ResolveSidecarOCR(ctx context.Context, p access.Principal, sourceID, trackID string) (media.Source, error) {
+	inner, ok := h.ExtractedResolver.(media.SidecarOCRResolver)
+	if !ok {
+		return media.Source{}, domain.ErrForbidden
+	}
+	source, err := inner.ResolveSidecarOCR(ctx, p, sourceID, trackID)
+	if errors.Is(err, domain.ErrNotFound) || errors.Is(err, media.ErrNotFound) {
+		return media.Source{}, domain.ErrForbidden
+	}
+	return source, err
+}
+
 func (h hiddenExtracted) ResolveExtracted(ctx context.Context, p access.Principal, sourceID string, kind media.ExtractedKind, index int) (media.Source, error) {
 	source, err := h.ExtractedResolver.ResolveExtracted(ctx, p, sourceID, kind, index)
 	if errors.Is(err, domain.ErrNotFound) || errors.Is(err, media.ErrNotFound) {
@@ -163,7 +217,8 @@ func (s *Server) decorateExtracted(source *domain.PlaybackSource) {
 }
 
 // decorateOCR lists the SRT derived from each bitmap subtitle of a
-// Matroska source once OCR has produced it (G15.6). Asking is what queues a
+// Matroska source, and from each external .sup or paired .idx of any
+// source, once OCR has produced it (G15.6). Asking is what queues a
 // source for OCR, through the same authorized lookup as delivery; the
 // bitmap track itself keeps being delivered as it is. Only playback info of
 // native sessions reaches this.
@@ -180,6 +235,16 @@ func (s *Server) decorateOCR(ctx context.Context, principal access.Principal, so
 			track.OCR = &domain.PlaybackOCRTrack{Format: "srt", Title: domain.OCRTrackTitle(*track), URL: ocrSubtitleURL(source.ID, track.Index)}
 		}
 	}
+	sidecar := sidecarOCRResolver(s.extracted)
+	for i := range source.External {
+		track := &source.External[i]
+		if !track.OCRSource {
+			continue
+		}
+		if _, err := sidecar.ResolveSidecarOCR(ctx, principal, source.ID, track.ID); err == nil {
+			track.OCR = &domain.PlaybackOCRTrack{Format: "srt", Title: domain.OCRExternalTrackTitle(*track), URL: sidecarOCRURL(source.ID, track.ID)}
+		}
+	}
 }
 
 // ocrSpecification documents the OCR-derived subtitle route.
@@ -190,6 +255,12 @@ func ocrSpecification(paths map[string]any) {
 	op["x-jelee-session"] = "native"
 	op["parameters"] = []any{idParameter(), map[string]any{"name": "index", "in": "path", "required": true, "schema": map[string]any{"type": "integer", "minimum": 0, "maximum": maxExtractedIndex}}, map[string]any{"name": "Range", "in": "header", "schema": map[string]any{"type": "string"}}, map[string]any{"name": "If-Range", "in": "header", "schema": map[string]any{"type": "string"}}}
 	paths[ocrSubtitleRoute] = map[string]any{"get": op, "head": op}
+	sidecar := operation("Read a SubRip subtitle recognized from an external bitmap subtitle by OCR", "200", "206", "403", "404", "408", "409", "416", "503")
+	sidecar["description"] = "Native sessions only; web sessions get 403 web_playback_disabled. trackId is an external .sup (PGS) subtitle, or a VobSub .idx paired with its .sub, listed with an ocr object under externalTracks of GET /api/v1/items/{id}/playback; the source may be in any container. Subtitle OCR (G15.6, off by default) reads the external files in place with the same decoders as embedded bitmap tracks (no mkvextract), recognizes the pictures in the background with the optional, sandboxed Tesseract runtime, rate limited and with bounded concurrency, and keeps the result as an additional SRT in a rebuildable cache. The external files and the media file are never changed or replaced; the original stays deliverable at /api/v1/sources/{id}/subtitles/{trackId}. Files larger than 256 MiB are not read. Until the result exists, and for a missing, invisible, text or unpaired track, the answer is that of a missing track. Content-Type is application/x-subrip; charset=UTF-8. Range, HEAD, conditional requests, playback and bandwidth limits and revocation behave as for /api/v1/sources/{id}/stream. Responses carry X-Content-Type-Options: nosniff and a sandbox Content-Security-Policy."
+	sidecar["security"] = []any{map[string]any{"bearer": []string{}}}
+	sidecar["x-jelee-session"] = "native"
+	sidecar["parameters"] = []any{idParameter(), map[string]any{"name": "trackId", "in": "path", "required": true, "schema": map[string]any{"type": "string", "format": "uuid"}}, map[string]any{"name": "Range", "in": "header", "schema": map[string]any{"type": "string"}}, map[string]any{"name": "If-Range", "in": "header", "schema": map[string]any{"type": "string"}}}
+	paths[sidecarOCRRoute] = map[string]any{"get": sidecar, "head": sidecar}
 }
 
 // extractedSpecification documents the embedded item routes.

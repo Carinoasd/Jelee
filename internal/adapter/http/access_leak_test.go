@@ -214,6 +214,8 @@ func leakRouteTable() map[string]leakRoute {
 		// SRT derived by subtitle OCR (G15.6), through the same resolver.
 		"GET /api/v1/sources/{id}/ocr-subtitles/{index}":                   {mode: leakByID, params: map[string]string{"id": "source", "index": "compat-zero"}, control: true},
 		"HEAD /api/v1/sources/{id}/ocr-subtitles/{index}":                  {mode: leakByID, params: map[string]string{"id": "source", "index": "compat-zero"}, control: true},
+		"GET /api/v1/sources/{id}/subtitles/{trackId}/ocr":                 {mode: leakByID, params: map[string]string{"id": "source", "trackId": "subtitle-track"}, control: true},
+		"HEAD /api/v1/sources/{id}/subtitles/{trackId}/ocr":                {mode: leakByID, params: map[string]string{"id": "source", "trackId": "subtitle-track"}, control: true},
 		"GET /compat/Videos/{itemId}/{mediaSourceId}/Attachments/{index}":  {mode: leakByID, params: map[string]string{"itemId": "item", "mediaSourceId": "source", "index": "compat-zero"}, control: true},
 		"HEAD /compat/Videos/{itemId}/{mediaSourceId}/Attachments/{index}": {mode: leakByID, params: map[string]string{"itemId": "item", "mediaSourceId": "source", "index": "compat-zero"}, control: true},
 		"GET /api/v1/items/{id}/playback":                                  {mode: leakByID, params: itemParam, control: true},
@@ -549,6 +551,20 @@ type leakExtracted struct {
 
 func (l leakExtracted) ResolveExtracted(ctx context.Context, p access.Principal, sourceID string, _ media.ExtractedKind, _ int) (media.Source, error) {
 	source, err := l.store.Resolve(ctx, p, sourceID)
+	if err != nil {
+		return media.Source{}, err
+	}
+	return media.Source{Root: l.root, RelativePath: "extracted.srt", DeviceID: source.DeviceID, Limits: source.Limits, ShareStreams: source.ShareStreams}, nil
+}
+
+// OCRAvailable lets the OCR-derived tracks be listed and served, so their
+// lookups are traversed too.
+func (leakExtracted) OCRAvailable() bool { return true }
+
+// ResolveSidecarOCR authorizes through the store's track lookup, like the
+// runtime external bitmap subtitle OCR resolver, and serves one fixed SRT.
+func (l leakExtracted) ResolveSidecarOCR(ctx context.Context, p access.Principal, sourceID, trackID string) (media.Source, error) {
+	source, err := l.store.ResolveTrack(ctx, p, sourceID, media.TrackSubtitle, trackID)
 	if err != nil {
 		return media.Source{}, err
 	}

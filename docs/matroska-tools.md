@@ -109,7 +109,7 @@ E1（[ADR 0001](adr/0001-external-process-start.md)）照舊：以 `os.StartProc
 | Matroska `D_WEBVTT/SUBTITLES` | 不擷取（mkvextract 102.0 不支援） | 標為可擷取但路由答覆找不到（探測不分 S_TEXT／D_WEBVTT） | Embed |
 | MP4／MOV `mov_text` 與其他非 Matroska 容器的任何字幕 | 不擷取（要抽出就得改容器＝轉換） | `extractable=false`，只隨原檔 | Embed |
 
-點陣字幕永不 OCR 進這個快取、不燒錄、不轉成文字或其他點陣格式；要文字請開[字幕 OCR](subtitle-ocr.md)，它是另外列出的衍生軌。單一點陣軌超過 64 MiB（或放不進單一來源 256 MiB）時不提供擷取版，仍可隨原檔直投。擁有者驗證：D43（真實藍光 PGS／DVD VobSub 擷取後在各客戶端外掛顯示）、C45（擷取快取長時間運作的大小與清理）。
+點陣字幕永不 OCR 進這個快取、不燒錄、不轉成文字或其他點陣格式；要文字請開[字幕 OCR](subtitle-ocr.md)，它是另外列出的衍生軌（外掛 `.sup`、`.idx`＋`.sub` 也由 OCR 原地讀取，不經 mkvextract、不進本快取）。單一點陣軌超過 64 MiB（或放不進單一來源 256 MiB）時不提供擷取版，仍可隨原檔直投。擁有者驗證：D43（真實藍光 PGS／DVD VobSub 擷取後在各客戶端外掛顯示）、C45（擷取快取長時間運作的大小與清理）。
 
 **不可觸及編碼器（G10.11）**：`internal/adapter/media`、`http`、`compat` 只認 `media.ExtractedResolver` 介面；會啟動行程的實作在 `internal/platform/runtime`（`matroskaService`），架構測試 `TestDeliveryPackagesCannotRunEncoders` 照舊成立。
 

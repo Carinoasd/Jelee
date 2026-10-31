@@ -49,6 +49,14 @@ func FuzzDecodeVobSub(f *testing.F) {
 	})
 	f.Add(idx, sub)
 	f.Add(idxText(0, stamp(time.Second, 0)), psSPU(f, smallSPU(f, 0, -1, false), 0))
+	// An external DVD rip read in place (subtitle OCR of sidecar files):
+	// two languages in one .idx, their packets interleaved in the .sub.
+	var rip bytes.Buffer
+	french := stamp(time.Second, 0)
+	rip.Write(psSPU(f, smallSPU(f, 0, -1, false), 1))
+	english := stamp(time.Second, rip.Len())
+	rip.Write(psSPU(f, smallSPU(f, 0, time.Second, false), 0))
+	f.Add(append(idxText(0, english), []byte("id: fr, index: 1\n"+french+"\n")...), rip.Bytes())
 	f.Fuzz(func(t *testing.T, idx, sub []byte) {
 		_, _ = DecodeVobSub(bytes.NewReader(idx), bytes.NewReader(sub), int64(len(sub)), fuzzVisit(t))
 	})

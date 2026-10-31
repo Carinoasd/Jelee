@@ -1,6 +1,6 @@
 # 字幕 OCR（G15.6）
 
-G15.6 要求：「OCR：預設關閉，顯式開啟後可運行；需限流、並發受限，並說明準確率與資源開銷。」本文記錄 Jelee 的做法：把 Matroska 來源內的點陣字幕軌（PGS、VobSub）辨識成**額外的** SRT 文字字幕軌，放在可重建快取，經既有的擷取直投路徑提供給原生用戶端。
+G15.6 要求：「OCR：預設關閉，顯式開啟後可運行；需限流、並發受限，並說明準確率與資源開銷。」本文記錄 Jelee 的做法：把 Matroska 來源內的點陣字幕軌（PGS、VobSub），以及任何來源旁的外掛 `.sup`、成對的 `.idx`＋`.sub`（第 10 階段 B10，見[外掛點陣字幕](#外掛點陣字幕g156-延伸第-10-階段-b10)），辨識成**額外的** SRT 文字字幕軌，放在可重建快取，經既有的直投路徑提供給原生用戶端。
 
 - **不取代、不改原軌**（G15.5）：點陣字幕軌照舊只能原樣直投；OCR 結果是另一條衍生軌，標題加註「(OCR)」。原媒體檔不寫入（實測原檔 SHA256 不變）。
 - **不轉碼**（G10）：OCR 只讀字幕圖片，不碰影像串流；Jelee 自己解碼 PGS／VobSub 圖片（Go 標準庫 `image`，不新增相依），再交給沙箱內的 Tesseract。
@@ -78,6 +78,20 @@ docker build -f deploy/ocr/Dockerfile --build-arg JELEE_IMAGE=jelee:local -t jel
 6. **辨識與限流**：每張圖依序等待每分鐘上限（`JELEE_SUBTITLE_OCR_PICTURES_PER_MINUTE`，任一滾動 60 秒內的上限，不會因突發超過）、實例 CPU 預算（G41 `WorkCPU`），再由 1–N 個工作者交給 Tesseract。語言依軌的語言標記選擇設定中相符者（`chi`／`zho` → chi_tra／chi_sim、`jpn` → jpn、`eng` → eng；中日文軌若有設定 eng 會加為第二語言），不相符或沒有標記時用全部設定的語言。
 7. **輸出**：辨識文字只做清理（移除控制字元、合併空白、至多 4 行、每行 200 字），寫成 UTF-8 SRT（每軌 ≤8 MiB，超過即截斷並標記）。空白結果不成句。整個來源的所有軌一次發布到 `<cacheRoot>/<sourceID>/<修訂>/s<探測串流索引>.srt`；修訂由來源 ID、大小、修改時間、辨識器身分（執行檔、閉包、語言資料雜湊、argv 與語言）與解碼器版本雜湊而成，任一改變就是新修訂、舊修訂刪除；期間來源被改寫即放棄結果。總量超過 `JELEE_SUBTITLE_OCR_CACHE_MAX_BYTES` 依最近使用淘汰；整個快取可隨時刪除，下次查詢重做。
 
+## 外掛點陣字幕（G15.6 延伸，第 10 階段 B10）
+
+外掛 `.sup`（PGS 原始段流）與 VobSub 的 `.idx`＋`.sub`（B4 依同名成對，`.idx` 軌帶 `pairedTrackId`）走同一條管線，差別只在取得點陣資料的方式：
+
+- **原地讀取，不經 mkvextract**：外掛檔本來就是獨立檔案，服務以與直投相同的授權查詢（`ResolveTrack`，先 `.idx` 再它配對的 `.sub`，兩者都要可見、都屬同一來源）取得路徑後，經探測輸入的 `OpenRoot` 方式唯讀開啟，直接交給 `bitmapsub.DecodePGS`／`DecodeVobSub`（`.sub` 的 MPEG-PS 解多工、跨 PES 的 SPU 與所有上限都與內嵌軌相同）。不寫入外掛檔旁、不用工作目錄。
+- **候選**：外掛字幕格式為 `sup`，或格式為 `idx` 且已配對到 `.sub`。未配對的 `.idx`、單獨的 `.sub`（VobSub 資料半邊或 MicroDVD 文字）、文字字幕與音軌都不是候選。來源容器不限（MP4、AVI 旁的 `.sup` 也可以）。
+- **快取**：`<cacheRoot>/<軌 ID>/<修訂>/s0.srt`，與內嵌結果（以來源 ID 分目錄）共用同一個快取根、上限與 LRU。修訂鍵含來源與軌 ID、格式、語言、每個檔案的相對路徑、大小與修改時間、辨識器身分與解碼器版本；只換了 `.sub` 也是新修訂，舊修訂刪除；期間檔案被改寫即放棄結果。
+- **上限**：每個外掛檔 ≤256 MiB（`.idx` 另有解碼器的 4 MiB 上限），超過時查詢直接答覆為找不到、不排入佇列；每軌 50000 張圖、8 MiB SRT、每分鐘圖片數、並發與 CPU 預算同上。
+- **時限（內嵌與外掛一律適用）**：每個工作的辨識至多 4 小時（`MaxJobDuration`）；到時停止解碼，已交給 Tesseract 的圖片照常完成，已辨識的句子照常發布並把該軌標為截斷（`truncated`），不視為失敗、不會反覆重排。預設每分鐘 60 張時，約 14400 張不重複的圖片之後才會碰到。
+- **語言**：依外掛軌在目錄中記錄的語言（檔名推得）選 Tesseract 語言，規則與內嵌軌相同。
+- **能力邊界**：VobSub `.idx` 若含多個 `id:` 區段（同一 `.sub` 多語，DVD 抽出的外掛字幕常見），只辨識第一個區段，其他語言不產生 OCR 軌；外掛 DVB、`.sub` 單獨存在（沒有 `.idx` 的調色盤與時間）不處理。Windows 仍為 `platform_unsupported`（同內嵌 OCR）。
+
+**與 G10 的關係**：OCR 結果是**衍生文字字幕**，只是另一條軌；外掛 `.sup`／`.idx`／`.sub` 與媒體檔只讀、從不改寫，原檔路由（自有 API 的 `url`、相容層原本的字幕編號）照舊逐位元組直投，任何時候都可取。快取可隨時整個刪除，下次查詢重做。決定與理由見 [ADR 0007 後續段落](adr/0007-no-encoder-direct-play-only.md#后续外挂点阵字幕的-ocr-衍生文字轨2026-10-31g156-延伸)。
+
 ## 設定
 
 | 環境變數 | 設定檔 | 預設 | 說明 |
@@ -94,9 +108,9 @@ docker build -f deploy/ocr/Dockerfile --build-arg JELEE_IMAGE=jelee:local -t jel
 
 ## 取得方式
 
-- **自有 API**（僅原生會話）：`GET|HEAD /api/v1/sources/{id}/ocr-subtitles/{index}`，`index` 是點陣字幕軌的探測串流索引。播放資訊中該軌在 OCR 完成後多一個 `ocr` 物件：`{"format":"srt","title":"<軌名或語言> (OCR)","url":"/api/v1/sources/{id}/ocr-subtitles/{index}"}`；點陣軌本身的欄位不變。
-- **相容層**：PlaybackInfo 在外掛字幕之後，為每條點陣字幕候選軌依探測順序編一個固定的串流索引（不論是否已完成，編號不會在 PlaybackInfo 與串流請求之間移動）；已完成者列為 `IsExternal`、`DeliveryMethod: External`、`Codec: srt`、`Title: "... (OCR)"`，`DeliveryUrl` 為 `/Videos/{itemId}/{sourceId}/Subtitles/{index}/0/Stream.srt`（只接受 srt）。原點陣串流照舊列出、照舊只能原樣直投。
-- 兩者都走 `media.Handler.ServeExtracted`（新種類 `ocr_subtitle`）：生產防護（轉換參數 409）、只限原生會話（Web 會話 403 `web_playback_disabled`，且不觸達解析器）、授權先於任何 OCR 查詢、Range／HEAD／條件請求、並發與頻寬上限（計入來源本身的播放）、撤銷即斷流、`nosniff`、sandbox CSP；Content-Type 固定為 `application/x-subrip; charset=UTF-8`。不存在、看不到、還在排隊、沒有文字的答覆一致（預設 404，G48.3 可設 403）。
+- **自有 API**（僅原生會話）：`GET|HEAD /api/v1/sources/{id}/ocr-subtitles/{index}`，`index` 是點陣字幕軌的探測串流索引。播放資訊中該軌在 OCR 完成後多一個 `ocr` 物件：`{"format":"srt","title":"<軌名或語言> (OCR)","url":"/api/v1/sources/{id}/ocr-subtitles/{index}"}`；點陣軌本身的欄位不變。外掛點陣字幕：`GET|HEAD /api/v1/sources/{id}/subtitles/{trackId}/ocr`，`externalTracks` 中的 `.sup`／`.idx` 軌在完成後多一個同形的 `ocr` 物件（`url` 為此路由），原本的 `url` 仍是原檔。
+- **相容層**：PlaybackInfo 在外掛字幕之後，為每條點陣字幕候選軌編一個固定的串流索引：先是內嵌點陣軌（依探測順序），再是外掛 `.sup` 與已配對的 `.idx`（依儲存順序）（不論是否已完成，編號不會在 PlaybackInfo 與串流請求之間移動；沒有外掛點陣字幕的來源，所有編號與加入前相同；有的來源，排在最後的外掛音軌順延）；已完成者列為 `IsExternal`、`DeliveryMethod: External`、`Codec: srt`、`Title: "... (OCR)"`，`DeliveryUrl` 為 `/Videos/{itemId}/{sourceId}/Subtitles/{index}/0/Stream.srt`（只接受 srt）。原點陣串流照舊列出、照舊只能原樣直投。
+- 內嵌結果走 `media.Handler.ServeExtracted`（新種類 `ocr_subtitle`），外掛結果走 `media.Handler.ServeSidecarOCR`，兩者：生產防護（轉換參數 409）、只限原生會話（Web 會話 403 `web_playback_disabled`，且不觸達解析器）、授權先於任何 OCR 查詢、Range／HEAD／條件請求、並發與頻寬上限（計入來源本身的播放）、撤銷即斷流、`nosniff`、sandbox CSP；Content-Type 固定為 `application/x-subrip; charset=UTF-8`。不存在、看不到、還在排隊、沒有文字的答覆一致（預設 404，G48.3 可設 403）。
 - `internal/adapter/media`、`http`、`compat` 只認 `media.ExtractedResolver` 介面；會啟動行程的實作在 `internal/platform/runtime`，架構測試 `TestDeliveryPackagesCannotRunEncoders` 照舊成立。
 
 ## 可觀測
@@ -144,12 +158,12 @@ docker build -f deploy/ocr/Dockerfile --build-arg JELEE_IMAGE=jelee:local -t jel
 
 ## 限制
 
-- **只處理 Matroska 內的 PGS 與 VobSub。** DVB 點陣字幕（`S_DVBSUB`、MPEG-TS）的區塊／物件／CLUT 結構較複雜，列為後續；外掛 `.sup`／`.idx` 檔與 MP4 內的點陣字幕也尚未處理（它們仍可原樣直投）。
+- **只處理 Matroska 內的 PGS 與 VobSub，以及外掛 `.sup` 與成對的 `.idx`＋`.sub`。** DVB 點陣字幕（`S_DVBSUB`、MPEG-TS、外掛 DVB）的區塊／物件／CLUT 結構較複雜，**不做**；MP4 內的點陣字幕也不處理（它們仍可原樣直投）。外掛 `.idx` 多語時只辨識第一個 `id:` 區段。
 - **字型與樣式**：無襯線、粗體、斜體的英文表現最好；Arial 的 `I`／`|` 易混淆；明體（襯線）中文、簡體中文比黑體繁體稍差。手寫體、藝術字、描邊極細或無描邊且顏色接近背景的字、漸層與陰影效果未測。
 - **語言**：只固定 eng、chi_tra、chi_sim、jpn 四種；其他語言軌會用設定的全部語言辨識，結果通常不可用。直書、注音／振假名（ruby）、上下兩種語言同時出現的雙語字幕會降低準確率。
 - **背景與極性**：點陣字幕本身是透明底；帶不透明底框的字幕（部分 DVD）實測仍可讀。極性靠外圈與內部亮度比較，填色與描邊亮度接近、或只有陰影沒有描邊時可能判錯。
 - **結構**：PGS 的 window 裁切、淡入淡出、同一畫面內位置不同的兩個物件會合成一張圖（由上而下讀）；VobSub 的 `delay:`、自訂顏色忽略，`.sub` 不做 start code 重新同步；PTS 32 位元回繞（約 13 小時）未處理；強制字幕（forced）旗標不另外標示。
-- **單軌上限**：每軌 64 MiB（超過時 mkvextract 被終止、該來源不做 OCR），每軌 50000 張圖、8 MiB SRT。
+- **單軌上限**：內嵌每軌 64 MiB（超過時 mkvextract 被終止、該來源不做 OCR）、外掛每檔 256 MiB（超過不排入），每軌 50000 張圖、8 MiB SRT，每個工作 4 小時（到時保留已辨識的部分並標為截斷）。
 - **結果需要人工判讀**：OCR 文字可能有錯，所以只作為額外軌並在標題標明「(OCR)」，從不取代原點陣軌。
 - **真實片源未測**：以上數字來自合成樣本；真實藍光／DVD 字幕（各種字型、抗鋸齒、壓縮雜訊）的準確率列為 [擁有者驗證清單](owner-verification-queue.md) D25。
 
@@ -159,6 +173,7 @@ docker build -f deploy/ocr/Dockerfile --build-arg JELEE_IMAGE=jelee:local -t jel
 - 服務：`internal/adapter/subtitleocr` 的假時鐘限流（任一 60 秒最多 N 張、隨機到達的性質測試）、並發峰值等於設定值、佇列上限與丟棄、失敗退避、取消後 staging 與工作檔清空、損壞軌保留已解出的句子、重複圖片只辨識一次、CPU 預算、修訂更替、原檔 SHA 不變。
 - 沙箱：`TestRealTesseractInSandboxWithExplicitHostRuntime`（`JELEE_OCR_HOST_RUNTIME=true`）在 Landlock＋seccomp 下實際辨識、不寫工作目錄、輸入不變、未授權語言與被改的語言資料被拒；描述子與政策上限的單元測試。
 - 全流程：`TestRealOCRPipelineFromMatroska`（另需 `JELEE_MATROSKA_HOST_RUNTIME=true`）以固定的 mkvmerge 把合成 PGS 與 VobSub 封裝成 MKV，再經沙箱內的 mkvmerge 識別、mkvextract 擷取、解碼與 Tesseract 產出兩條 SRT，原檔 SHA 不變、文字擷取快取未被寫入。
+- 外掛點陣字幕：`internal/adapter/subtitleocr/sidecar_test.go`（外掛 `.sup` 原地辨識、未呼叫 mkvextract、外掛檔與媒體檔 SHA 不變、未寫入外掛檔旁或工作目錄；`.idx`＋`.sub` 依軌語言選 Tesseract 語言、只改 `.sub` 也換修訂；無效請求、跳出根目錄、超過 256 MiB 不排入；工作時限到時保留已辨識句子並標截斷）、`internal/platform/runtime` 的授權先於 OCR（`.sub` 半邊另行授權、未配對與文字軌不觸達）、`internal/domain` 的相容層編號（沒有外掛點陣字幕時編號不變）、真 PG 的 `ResolveTrack` 回報語言與配對、`TestRealOCRPipelineFromSidecarFiles`（`JELEE_OCR_HOST_RUNTIME=true`，外掛 `.sup` 與 `.idx`＋`.sub` 經沙箱 Tesseract 產出 SRT；本機未安裝 Tesseract 時略過，見擁有者驗證 D43）。
 - 路由與相容層：原生會話取得 SRT、Web 會話 403 且不觸達解析器、轉換參數 409、畸形索引 404、未完成與不存在相同答覆、OCR 未開時沒有路由；相容層的固定編號、只列已完成者、只接受 srt；`leakRouteTable` 登記新路由（真 PG 遍歷）。
 - 容器：[證據](evidence/ocr-runtime-image.txt)。以 `deploy/ocr/Dockerfile` 疊在含固定 glibc 與 `tools/ocr-smoke`（建置標籤 `jelee_ocr_tests`）的拋棄式基底上：`runtime-image -ocr` 通過；UID 65532、唯讀根、`--network none`、Docker 預設 seccomp 下 doctor 狀態全部 `verified`，經服務辨識出三句（其中一句重複只辨識一次）；以 root 執行、改一個語言資料、改一個函式庫，註冊全部被拒。
 - 反向驗證：拿掉 Landlock 對語言資料的授權後真 Tesseract 失敗（`Could not initialize tesseract`）；把 OCR 查詢移到授權之前後「未授權不觸達 OCR」測試失敗；讓限流器直接放行後三個限流測試失敗。

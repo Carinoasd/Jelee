@@ -111,3 +111,60 @@ func TestCompatHidesOCRWithoutTheRuntime(t *testing.T) {
 		t.Fatalf("OCR index without runtime: %d", w.Code)
 	}
 }
+
+const (
+	compatSupTrack = "00000000-0000-4000-8000-0000000000c1"
+	compatIdxTrack = "00000000-0000-4000-8000-0000000000c2"
+	compatSubTrack = "00000000-0000-4000-8000-0000000000c3"
+)
+
+// ResolveSidecarOCR: the external .sup has its SRT, the .idx pair is
+// still pending.
+func (c compatOCR) ResolveSidecarOCR(_ context.Context, p access.Principal, sourceID, trackID string) (media.Source, error) {
+	c.calls = append(c.calls, "sidecar:"+trackID)
+	if p.Kind == access.ClientNative && sourceID == testSourceID && trackID == compatSupTrack {
+		return media.Source{Root: c.root, RelativePath: "s5.srt"}, nil
+	}
+	return media.Source{}, media.ErrNotFound
+}
+
+func TestCompatListsAndDeliversOCRFromExternalBitmapSubtitles(t *testing.T) {
+	h := ocrHarness(t, true)
+	h.catalog.sources[0].External = []domain.PlaybackExternalTrack{
+		{ID: compatSupTrack, Kind: domain.SidecarKindSubtitle, Format: "sup", Codec: "pgs", Language: "chi", OCRSource: true},
+		{ID: compatIdxTrack, Kind: domain.SidecarKindSubtitle, Format: "idx", Codec: "vobsub", Language: "eng", PairedTrackID: compatSubTrack, OCRSource: true},
+		{ID: "00000000-0000-4000-8000-0000000000c4", Kind: domain.SidecarKindAudio, Format: "ac3", Codec: "ac3"},
+	}
+	info := h.get("/compat/Items/"+wire(testMovieID)+"/PlaybackInfo", nativeToken).Body.String()
+	// Streams 0..6 embedded, 7 and 8 the external .sup and .idx files,
+	// 9 and 10 the embedded OCR slots as before the files were read, 11
+	// and 12 the external OCR slots, 13 the external audio.
+	base := "/Videos/" + wire(testMovieID) + "/" + wire(testSourceID)
+	for _, want := range []string{
+		`"DeliveryUrl":"` + base + `/Subtitles/7/0/Stream.sup"`, `"DeliveryUrl":"` + base + `/Subtitles/8/0/Stream.idx"`,
+		`"DeliveryUrl":"` + base + `/Subtitles/9/0/Stream.srt"`, `"DeliveryUrl":"` + base + `/Subtitles/11/0/Stream.srt"`,
+		`"Title":"chi (OCR)"`, `"Index":13`,
+	} {
+		if !strings.Contains(info, want) {
+			t.Fatalf("PlaybackInfo lacks %s: %s", want, info)
+		}
+	}
+	if strings.Contains(info, "/Subtitles/12/") || strings.Contains(info, "/Subtitles/10/") {
+		t.Fatalf("pending OCR track listed: %s", info)
+	}
+	if w := h.get("/compat"+base+"/Subtitles/11/0/Stream.srt", nativeToken); w.Code != 200 || !strings.Contains(w.Body.String(), "recognized") || w.Header().Get("Content-Type") != "application/x-subrip; charset=UTF-8" {
+		t.Fatalf("external ocr subtitle %d %q %v", w.Code, w.Body.String(), w.Header())
+	}
+	for _, tc := range []struct {
+		target, token string
+		status        int
+	}{
+		{"/compat" + base + "/Subtitles/11/0/Stream.vtt", nativeToken, http.StatusConflict},
+		{"/compat" + base + "/Subtitles/12/0/Stream.srt", nativeToken, http.StatusNotFound},
+		{"/compat" + base + "/Subtitles/11/0/Stream.srt", webToken, http.StatusUnauthorized},
+	} {
+		if w := h.get(tc.target, tc.token); w.Code != tc.status {
+			t.Fatalf("%s: %d, want %d", tc.target, w.Code, tc.status)
+		}
+	}
+}
