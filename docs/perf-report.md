@@ -81,3 +81,18 @@ CI 不拿這份開發機基線比對：`bench-regression` job 以 `make bench-co
 **这是开发机基线，不是验收。** 它排除了鉴权、数据库、TLS、反向代理、真实磁盘与网络，只说明伺服器自己的处理没有额外延迟，不能宣称达到“首字节 P95 ≤ 500 ms、Seek P95 ≤ 1 s”；目标硬体验收是拥有者项目 C42，Windows 缓冲路径是 B24（见 [owner-verification-queue.md](owner-verification-queue.md)）。数据与读法见 [direct-delivery.md](direct-delivery.md#本机基线与断连泄漏回归g101g107g295) 与 [原始输出](evidence/direct-play-latency-linux.txt)。
 
 同一批改动新增断连泄漏回归 `TestDisconnectReleasesEveryResource`（默认 `go test` 执行）：客户端关闭、RST、会话撤销、停读逾 `WriteTimeout`、请求取消五种断开方式下，两条路径的文件描述符、看门狗与会话监视协程、播放名额、协程总数均回到基线。
+
+## 传输体积（G25.2）
+
+自有 API 的 JSON 读取现在带内容 `ETag`（`If-None-Match` 命中回 304、无响应体），目录类读取为 `private, no-cache`，详情读取也接受 `fields`；压缩沿用 G11.7 的 gzip（只用于非媒体响应）。规则见 [API 参考](api-reference.md#传输g252)。
+
+`TestTransportVolume` 与 `TestTransportVolumeFattestRows`（`internal/adapter/http/transport_test.go`）在默认压缩设置（gzip 等级 5、门槛 1 KiB）下量出，测试同时把比例当成验收下限（gzip ≤ 25%、两成员投影 ≤ 50%、304 为 0 字节）：
+
+| 情境 | 不压缩 | gzip | `fields` 投影 | 投影＋gzip | 304 |
+| --- | --- | --- | --- | --- | --- |
+| 1000 行目录列表（`CatalogItem`，十页最大页合成一份） | 224,744 B | 21,520 B（9.6%） | `id,title`：74,444 B（33.1%） | 10,556 B（4.7%） | 0 B |
+| 100 行元数据刷新审核（每行 5 个候选，默认形状最大的列表行） | 96,429 B | 2,893 B（3.0%） | `itemId,title,state,confidence`：10,829 B（11.2%） | 886 B（0.9%） | 0 B |
+
+合成数据重复度高，压缩率会比真实库好得多；真实库、真实浏览器与网络路径上的 P95 传输体积与时间列为拥有者验证 C47。
+
+**轻量 DTO 的决定**：默认形状最大的两种列表行是元数据刷新审核（`/api/v1/libraries/{id}/metadata/refresh/reviews`，每行最多 5 个候选）与 NFO 当前校验结果（`/api/v1/libraries/{id}/nfo/current-validations`，每行带 `entries`）。网页前端目前不读这两个列表，但 `jelee-cli` 读 NFO 校验结果，第三方脚本也可能依赖默认形状，在 `/api/v1` 内把它们改成只回摘要属于不兼容变更（见 [API 弃用](api-deprecations.md)）。因此本阶段**不改默认形状**，摘要用 `fields` 取得（上表审核摘要只有完整形状的 11%）；建议在 v2 或下一次允许破坏性变更时，把这两种列表的默认行改为摘要、候选与条目改由详情接口取得。目录列表行（`CatalogItem`）本身只有 7 个成员，已是轻量形状。

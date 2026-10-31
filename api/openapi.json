@@ -25645,6 +25645,15 @@
               "format": "uuid",
               "type": "string"
             }
+          },
+          {
+            "description": "Comma separated top-level members of data to return; the others are omitted. Unknown or empty names are 400 invalid_request.",
+            "in": "query",
+            "name": "fields",
+            "schema": {
+              "maxLength": 1024,
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -25826,7 +25835,12 @@
             "webSession": []
           }
         ],
-        "summary": "Read a collection with its visible members"
+        "summary": "Read a collection with its visible members",
+        "x-jelee-fields": [
+          "collection",
+          "items",
+          "truncated"
+        ]
       },
       "put": {
         "description": "Administrator only; other users get 403 forbidden. Audited as collection.updated.",
@@ -26746,6 +26760,15 @@
               "format": "uuid",
               "type": "string"
             }
+          },
+          {
+            "description": "Comma separated top-level members of data to return; the others are omitted. Unknown or empty names are 400 invalid_request. id is always returned.",
+            "in": "query",
+            "name": "fields",
+            "schema": {
+              "maxLength": 1024,
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -26792,12 +26815,21 @@
             "webSession": []
           }
         ],
-        "summary": "Read a visible video item"
+        "summary": "Read a visible video item",
+        "x-jelee-fields": [
+          "id",
+          "kind",
+          "libraryId",
+          "parentId",
+          "premiereDate",
+          "productionYear",
+          "title"
+        ]
       }
     },
     "/api/v1/items/{id}/details": {
       "get": {
-        "description": "Any session kind. Overview, release date and year, original title, tagline, genres, external IDs and the NFO read state for every user who may see the item. No file paths, roots, provider origins or NFO file identities are returned; the administrator metadata view stays at /api/v1/items/{id}/metadata. No query parameters are accepted.",
+        "description": "Any session kind. Overview, release date and year, original title, tagline, genres, external IDs and the NFO read state for every user who may see the item. No file paths, roots, provider origins or NFO file identities are returned; the administrator metadata view stays at /api/v1/items/{id}/metadata. The only query parameter is fields.",
         "parameters": [
           {
             "in": "path",
@@ -26805,6 +26837,15 @@
             "required": true,
             "schema": {
               "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Comma separated top-level members of data to return; the others are omitted. Unknown or empty names are 400 invalid_request. id is always returned.",
+            "in": "query",
+            "name": "fields",
+            "schema": {
+              "maxLength": 1024,
               "type": "string"
             }
           }
@@ -26943,7 +26984,24 @@
             "webSession": []
           }
         ],
-        "summary": "Read the display metadata of a visible item"
+        "summary": "Read the display metadata of a visible item",
+        "x-jelee-fields": [
+          "externalIds",
+          "genres",
+          "isFavorite",
+          "nfo",
+          "originalTitle",
+          "overview",
+          "sortTitle",
+          "tagline",
+          "id",
+          "kind",
+          "libraryId",
+          "parentId",
+          "premiereDate",
+          "productionYear",
+          "title"
+        ]
       }
     },
     "/api/v1/items/{id}/favorite": {
@@ -34389,6 +34447,15 @@
               "format": "uuid",
               "type": "string"
             }
+          },
+          {
+            "description": "Comma separated top-level members of data to return; the others are omitted. Unknown or empty names are 400 invalid_request. id is always returned.",
+            "in": "query",
+            "name": "fields",
+            "schema": {
+              "maxLength": 1024,
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -34586,6 +34653,26 @@
           }
         ],
         "summary": "Read job progress; total work and ETA remain unknown",
+        "x-jelee-fields": [
+          "attempts",
+          "bytes",
+          "cancelRequested",
+          "createdAt",
+          "directories",
+          "errorCode",
+          "files",
+          "finishedAt",
+          "id",
+          "kind",
+          "libraryId",
+          "missing",
+          "priority",
+          "progress",
+          "reviewRequired",
+          "skipped",
+          "startedAt",
+          "state"
+        ],
         "x-jelee-role": "administrator"
       }
     },
@@ -50628,6 +50715,15 @@
               "format": "uuid",
               "type": "string"
             }
+          },
+          {
+            "description": "Comma separated top-level members of data to return; the others are omitted. Unknown or empty names are 400 invalid_request.",
+            "in": "query",
+            "name": "fields",
+            "schema": {
+              "maxLength": 1024,
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -50809,7 +50905,11 @@
             "webSession": []
           }
         ],
-        "summary": "Read a playlist with its visible entries"
+        "summary": "Read a playlist with its visible entries",
+        "x-jelee-fields": [
+          "entries",
+          "playlist"
+        ]
       },
       "put": {
         "description": "Owner only: another user's readable playlist is 403 forbidden, any other 404.",
@@ -55187,6 +55287,15 @@
               "format": "uuid",
               "type": "string"
             }
+          },
+          {
+            "description": "Comma separated top-level members of data to return; the others are omitted. Unknown or empty names are 400 invalid_request. id is always returned.",
+            "in": "query",
+            "name": "fields",
+            "schema": {
+              "maxLength": 1024,
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -55369,6 +55478,25 @@
           }
         ],
         "summary": "Read a share link",
+        "x-jelee-fields": [
+          "activeSessions",
+          "allowPlayback",
+          "createdAt",
+          "createdBy",
+          "expiresAt",
+          "id",
+          "itemId",
+          "itemKind",
+          "itemTitle",
+          "lastUsedAt",
+          "libraryId",
+          "libraryName",
+          "maxStreams",
+          "note",
+          "readOnly",
+          "revokedAt",
+          "state"
+        ],
         "x-jelee-role": "administrator"
       }
     },
@@ -61150,6 +61278,17 @@
     },
     "/api/v1/users/me": {
       "get": {
+        "parameters": [
+          {
+            "description": "Comma separated top-level members of data to return; the others are omitted. Unknown or empty names are 400 invalid_request. id is always returned.",
+            "in": "query",
+            "name": "fields",
+            "schema": {
+              "maxLength": 1024,
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "content": {
@@ -61329,7 +61468,19 @@
             "webSession": []
           }
         ],
-        "summary": "Read own account"
+        "summary": "Read own account",
+        "x-jelee-fields": [
+          "admin",
+          "allowNative",
+          "createdAt",
+          "deletedAt",
+          "disabled",
+          "displayName",
+          "hidden",
+          "id",
+          "locale",
+          "name"
+        ]
       }
     },
     "/api/v1/users/me/app-passwords": {
@@ -64931,6 +65082,15 @@
               "format": "uuid",
               "type": "string"
             }
+          },
+          {
+            "description": "Comma separated top-level members of data to return; the others are omitted. Unknown or empty names are 400 invalid_request. id is always returned.",
+            "in": "query",
+            "name": "fields",
+            "schema": {
+              "maxLength": 1024,
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -65112,7 +65272,19 @@
             "webSession": []
           }
         ],
-        "summary": "Read own account or any account as administrator"
+        "summary": "Read own account or any account as administrator",
+        "x-jelee-fields": [
+          "admin",
+          "allowNative",
+          "createdAt",
+          "deletedAt",
+          "disabled",
+          "displayName",
+          "hidden",
+          "id",
+          "locale",
+          "name"
+        ]
       },
       "put": {
         "parameters": [
@@ -71098,6 +71270,15 @@
               "format": "uuid",
               "type": "string"
             }
+          },
+          {
+            "description": "Comma separated top-level members of data to return; the others are omitted. Unknown or empty names are 400 invalid_request. id is always returned.",
+            "in": "query",
+            "name": "fields",
+            "schema": {
+              "maxLength": 1024,
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -71235,6 +71416,21 @@
           }
         ],
         "summary": "Read a webhook endpoint",
+        "x-jelee-fields": [
+          "createdAt",
+          "dead",
+          "enabled",
+          "events",
+          "headerNames",
+          "id",
+          "name",
+          "pending",
+          "previousSecretUntil",
+          "retry",
+          "timeoutSeconds",
+          "updatedAt",
+          "url"
+        ],
         "x-jelee-role": "administrator"
       },
       "put": {

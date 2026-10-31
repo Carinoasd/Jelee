@@ -111,9 +111,19 @@ OpenAPI 中的 Jelee 扩展字段：
 
   `code` 是稳定的机器可读错误码（见文末错误码表）；`message` 是安全的本地化消息，不含路径、连接串或底层错误；`details` 通常为空对象，只有设置向导的校验失败与 `/readyz` 会带字段；`traceId` 等于响应头 `X-Request-ID`，也写入日志与审计（见[日志](logging.md)）。
 - 消息语言按 `Accept-Language` 在 zh-CN、zh-TW、ja-JP、en-US 中选择：没有该标头时用 zh-CN，无法匹配时用 en-US；已登录且设置了界面语言的用户以其设置为准。响应带 `Content-Language` 与 `Vary: Accept-Language`。
-- 每个响应都带 `X-Request-ID`、`X-Content-Type-Options: nosniff`、`Referrer-Policy: no-referrer`、严格的 `Content-Security-Policy`、`X-Jelee-Dev-Mode`，默认 `Cache-Control: no-store`；HTTPS 连接另加 HSTS。条件请求与缓存只在图片（`ETag`、`If-None-Match`、304）、原文件直投（`ETag`、`Range`、`If-Range`、412、416）与前端静态文件（`Last-Modified`、`Range`）上提供。
+- 每个响应都带 `X-Request-ID`、`X-Content-Type-Options: nosniff`、`Referrer-Policy: no-referrer`、严格的 `Content-Security-Policy`、`X-Jelee-Dev-Mode`，默认 `Cache-Control: no-store`；HTTPS 连接另加 HSTS。条件请求见下文“传输（G25.2）”：自有 API 的 JSON 读取、图片（`ETag`、`If-None-Match`、304）、原文件直投（`ETag`、`Range`、`If-Range`、412、416）与前端静态文件（`Last-Modified`、`Range`）。
 - **压缩（G11.7）**：请求带 `Accept-Encoding: gzip`（或 q 值不为 0 的 `*`）时，JSON、NDJSON、HTML、CSS、JavaScript、纯文本与 CSV 响应在响应体达到门槛（默认 1 KiB）后以 gzip 压缩，带 `Content-Encoding: gzip` 并去掉 `Content-Length`；这些类型的响应无论是否压缩都带 `Vary: Accept-Encoding`。**从不压缩**：原文件直投、外挂／内嵌轨道、附件、OCR 字幕与图片（按内容类型白名单判断，字幕、图片、音视频与字体类型都不在其中）；任何带 `Range` 的请求；带 `Content-Range` 或 `Accept-Ranges: bytes` 的响应（前端静态文件除外，它只在请求不带 `Range` 时压缩，压缩后去掉 `Accept-Ranges`）；HEAD、204、206、304；已带 `Content-Encoding` 或 `Cache-Control: no-transform` 的响应。
 - **压缩与 ETag**：压缩后的字节与原表示不同，因此压缩响应中的强 `ETag` 改为弱形式（`"x"` → `W/"x"`），304 不带响应体、不压缩。`If-None-Match` 按 RFC 9110 用弱比较，`W/"x"` 与 `"x"` 都能得到 304；以后新增的条件请求处理器也必须用弱比较（`http.ServeContent` 即如此）。目前带 `ETag` 的图片与直投从不压缩，不受影响。开关、级别与门槛见[部署](deployment.md#响应压缩g117)。
+
+### 传输（G25.2）
+
+实现在 `internal/adapter/http/compress.go`（压缩）与 `internal/adapter/http/transport.go`（验证器、缓存策略、详情字段选择），测试在 `compress_test.go`、`transport_test.go`。
+
+- **压缩**：见上文；只有 gzip（标准库）。**brotli 不内建**（不为此新增依赖）：需要时由反向代理对 `application/json`、`text/html`、`text/css`、`application/javascript` 提供（例如 Caddy `encode zstd gzip`／nginx `brotli_types`），并且必须同样排除媒体、字幕、图片与带 `Range` 的请求；代理改编码时应把强 `ETag` 改成弱形式或保留 Jelee 已给的弱形式，Jelee 的 `If-None-Match` 用弱比较，两种都能 304。
+- **JSON 验证器**：自有 API 成功的 `GET` JSON 读取（经账号端点包装的所有读取，以及 `/api/v1/items`、`/api/v1/items/{id}`、`/details`、`/sources`）带强 `ETag`：实际发送的响应体（已套用全部可见性规则、遮罩与字段选择）的 SHA-256 前 128 位，形如 `"0123…"`。`If-None-Match` 命中（弱比较；`*` 单独出现时也命中）回 304，无响应体，标头与 200 相同（`ETag`、`Cache-Control`、`Vary`）。验证器在认证、授权与读取之后才比较，所以 304 只会给本来就能拿到同一份 200 的调用者；服务端不缓存任何响应，每次照常读库后算哈希，省的是传输而不是查询。附件下载（带 `Content-Disposition`）、错误响应、写操作、播放信息（`/api/v1/items/{id}/playback`、`playback/check`，含一次性投递地址）与兼容层不带验证器。
+- **缓存策略**：目录读取——`/api/v1/items`、`/api/v1/items/{id}`、`/details`、`/sources`、`/versions`，`/api/v1/libraries`，`/api/v1/collections`、`/api/v1/collections/{id}`，`/api/v1/playlists`、`/api/v1/playlists/{id}`，`/api/v1/site/appearance`——为 `Cache-Control: private, no-cache` 加 `Vary: Authorization, Cookie`：浏览器可以保留副本，但每次使用前都要用 `If-None-Match` 重新验证，共享缓存不得保存。其余读取（账号、会话、偏好、进度与续播、观看统计、管理员视图、令牌）保持 `no-store`，但仍回应 `If-None-Match`，给自己保存验证器的客户端（CLI、原生 App）使用。名单在 `revalidatedRoutes`，`TestOpenAPIDetailFieldsMatchSchema` 检查每一项都是文档中的 GET。
+- **详情字段选择**：以下单一资源读取接受 `fields`（逗号分隔的 `data` 顶层成员，规则与列表的 `fields` 相同：未知、空或重复参数 400 `invalid_request`，`id` 总会返回，只删除成员、不补回被遮罩的成员），OpenAPI 以 `x-jelee-fields` 记录可选成员：`/api/v1/items/{id}`、`/api/v1/items/{id}/details`、`/api/v1/collections/{id}`、`/api/v1/playlists/{id}`（这两个没有顶层 `id`，例如 `fields=collection` 只取合集本身、不取成员）、`/api/v1/users/me`、`/api/v1/users/{id}`、`/api/v1/jobs/{id}`、`/api/v1/webhooks/{id}`、`/api/v1/shares/{id}`。只对 GET 生效；同一路径的 PUT／DELETE 仍拒绝任何查询参数。其余详情读取仍不接受查询参数。
+- **轻量 DTO**：列表行默认形状不变（前端依赖）；需要更小的响应时用 `fields`。实测与建议见[性能报告](perf-report.md#传输体积g252)。
 
 ## 列表约定
 

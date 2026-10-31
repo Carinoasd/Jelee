@@ -324,6 +324,12 @@ PlaybackInfo 隨媒體庫模組掛載；串流、字幕與音訊路由只在直�
 - **不會 N+1**：每次列表（`/Items`、`Ids`、`/UserItems/Resume`、單一條目）只對當頁的條目做一次批次讀取 `ItemImageSummaries`：一條 SQL 以 `DISTINCT ON` 選出每個槽的勝出列，授權（讀取身分的媒體庫授權、停用帳號）在同一條 SQL 內。媒體庫資料夾不查。
 - **限制**：tag 只來自 `item_images` 資料表。目前掃描尚未把同目錄海報寫入 `item_images`（見 [本地圖片](local-images.md#尚未涵蓋)），只靠「媒體檔旁海報」回退的條目不會有 `Primary` tag，客戶端因此不會去要圖；直接要求 `Primary` 仍會經回退取得。
 
+### 傳輸（G25.2）
+
+- 相容層的 JSON 回應與自有 API 一樣經伺服器邊界的 gzip 壓縮（G11.7，`Accept-Encoding` 允許且回應達 1 KiB 門檻時）；上游 Jellyfin 也對 JSON 開回應壓縮，客戶端本來就會送 `Accept-Encoding: gzip`。原檔直投、外掛／內嵌／OCR 字幕、外掛音軌與圖片照舊不壓縮（內容型別白名單與 `Range`／`Accept-Ranges: bytes` 判斷都在邊界，相容層沒有另外的路徑）。
+- **相容層的 JSON 不加 `ETag`、不處理 `If-None-Match`，維持 `Cache-Control: no-store`**（自有 API 的 JSON 驗證器見 [API 參考](api-reference.md#传输g252)）。理由：上游 JSON API 不送 `ETag`、不回 304，只有圖片與靜態檔案有條件請求，已知客戶端（jellyfin-web、Android、Swiftfin、Infuse、Kodi 外掛）都不依賴 JSON 驗證器，加上去只會讓少數 HTTP 堆疊在 304 時走沒測過的分支；相容層回應大多帶使用者狀態（`UserData`、續播點）或每次重算的 `PlaybackInfo`，驗證器命中率也低。圖片路由的 `ETag`／304 不受影響（見「圖片模組」）。
+- 欄位選擇沿用上游的 `Fields` 參數（見「媒體庫瀏覽模組」），不接受自有 API 的 `fields`。
+
 ### 對客戶端的已知影響（G10.4）
 
 能力宣告明確表示不轉碼、不提供 HLS／DASH、不提供 remux，`EncoderLocation`=`NotFound`。依賴伺服器轉碼的客戶端在無法直投的格式上會失敗，而不是降級；這是 G10 鐵律的預期結果。

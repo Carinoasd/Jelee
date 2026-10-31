@@ -77,7 +77,7 @@ func catalogSpecification(paths, schemas map[string]any) {
 		op["responses"].(map[string]any)["404"] = map[string]any{"description": "The item is missing or not visible to the caller; both are answered alike (403 forbidden when hidden content is configured as 403)."}
 	}
 	detail := operation("Read the display metadata of a visible item", "200", "400", "401", "403", "404", "408", "503")
-	detail["description"] = "Any session kind. Overview, release date and year, original title, tagline, genres, external IDs and the NFO read state for every user who may see the item. No file paths, roots, provider origins or NFO file identities are returned; the administrator metadata view stays at /api/v1/items/{id}/metadata. No query parameters are accepted."
+	detail["description"] = "Any session kind. Overview, release date and year, original title, tagline, genres, external IDs and the NFO read state for every user who may see the item. No file paths, roots, provider origins or NFO file identities are returned; the administrator metadata view stays at /api/v1/items/{id}/metadata. The only query parameter is fields."
 	hidden(detail)
 	content(detail, objectSchema(map[string]any{"data": schemaRef("CatalogItemDetails")}, "data"))
 	paths["/api/v1/items/{id}/details"] = map[string]any{"get": detail}

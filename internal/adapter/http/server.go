@@ -728,7 +728,8 @@ func (s *Server) authenticate(next http.Handler) http.Handler {
 }
 
 func (s *Server) item(w http.ResponseWriter, r *http.Request) {
-	if _, err := strictQuery(r); err != nil {
+	fields, err := detailQuery(r)
+	if err != nil {
 		WriteError(w, r, err)
 		return
 	}
@@ -740,7 +741,7 @@ func (s *Server) item(w http.ResponseWriter, r *http.Request) {
 		WriteError(w, r, s.hiddenContentError(err))
 		return
 	}
-	writeJSON(w, 200, map[string]any{"data": item})
+	writeDetail(w, r, fields, item)
 }
 
 func (s *Server) stream(w http.ResponseWriter, r *http.Request) {
