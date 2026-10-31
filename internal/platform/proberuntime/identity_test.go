@@ -34,12 +34,21 @@ func TestEmbeddedIdentityMatchesIndependentExecutionPins(t *testing.T) {
 		t.Fatal("caller mutated embedded identity")
 	}
 	actual, err := Identity()
-	if runtime.GOOS == "linux" && runtime.GOARCH == "amd64" {
+	switch {
+	case runtime.GOOS == "linux" && runtime.GOARCH == "amd64":
 		if err != nil || actual != again {
 			t.Fatal("Linux identity differs from embedded pins")
 		}
-	} else if err != ErrUnavailable || actual != (domain.ProbeIdentity{}) {
-		t.Fatal("unsupported platform registered production identity")
+	case runtime.GOOS == "windows" && runtime.GOARCH == "amd64":
+		// Windows catalog probes use the static pinned identity (ADR 0011);
+		// TestWindowsIdentityIsStaticPinnedAndDistinctFromLinux checks its pins.
+		if windows, windowsErr := identityFor("windows-amd64"); err != nil || windowsErr != nil || actual != windows {
+			t.Fatal("Windows identity differs from static pins")
+		}
+	default:
+		if err != ErrUnavailable || actual != (domain.ProbeIdentity{}) {
+			t.Fatal("unsupported platform registered production identity")
+		}
 	}
 }
 
