@@ -50,6 +50,8 @@ type Config struct {
 	Logging            LoggingConfig     `json:"logging"`
 	// Audit controls the audit retention purge (G46.9).
 	Audit AuditConfig `json:"audit"`
+	// Tracing selects the optional OTLP span exporter (G46.6).
+	Tracing TracingConfig `json:"tracing"`
 	// EnableNFOWrite lets job workers claim nfo_write jobs and run NFO commit
 	// recovery. It is off by default and requires job rollout.
 	EnableNFOWrite bool `json:"enableNFOWrite"`
@@ -232,6 +234,9 @@ func LoadWith(lookup func(string) (string, bool)) (Config, error) {
 	if err := c.Audit.loadEnvironment(lookup); err != nil {
 		return c, err
 	}
+	if err := c.Tracing.loadEnvironment(lookup); err != nil {
+		return c, err
+	}
 	if err := c.Webhooks.loadEnvironment(lookup); err != nil {
 		return c, err
 	}
@@ -267,6 +272,9 @@ func (c Config) Validate() error {
 		return err
 	}
 	if err := c.Audit.Validate(); err != nil {
+		return err
+	}
+	if err := c.Tracing.Validate(); err != nil {
 		return err
 	}
 	if err := c.Dev.Validate(); err != nil {

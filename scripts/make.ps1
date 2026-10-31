@@ -58,7 +58,7 @@ try {
             # Mirrors the Makefile bench variables; override through JELEE_BENCH_* environment variables.
             $benchPackages = @('./internal/access','./internal/domain','./internal/domain/medianame','./internal/adapter/nfo','./internal/adapter/images','./internal/adapter/subtitles','./internal/adapter/http')
             $pattern = if ($env:JELEE_BENCH) { $env:JELEE_BENCH } else { '.' }
-            $skip = if ($env:JELEE_BENCH_SKIP) { $env:JELEE_BENCH_SKIP } else { 'ObservedHundredFiles' }
+            $skip = if ($env:JELEE_BENCH_SKIP) { $env:JELEE_BENCH_SKIP } else { 'ObservedHundredFiles|BoundaryRequestTraceExport' }
             $count = if ($env:JELEE_BENCH_COUNT) { $env:JELEE_BENCH_COUNT } else { '6' }
             $benchTime = if ($env:JELEE_BENCH_TIME) { $env:JELEE_BENCH_TIME } else { '500ms' }
             $current = Assert-LocalPath $root (Join-Path $root '.testdata/bench-current.txt')

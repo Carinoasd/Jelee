@@ -1,9 +1,11 @@
 // Package tracing correlates logs along the key paths of G46.6: every span
 // puts its trace and span identifiers into the context, the logging handler
 // writes them into each record logged with that context, and sampled spans
-// emit one "span completed" record when they end. Jelee ships no trace
-// exporter, so logs are the trace store; span records are the only output
-// that sampling drops, and security events force their trace to be kept.
+// emit one "span completed" record when they end. Logs are the trace store;
+// an optional Exporter (OTLP, see the otlpexport package) receives the same
+// spans with the same identifiers. Span records and exported spans are the
+// only output that sampling drops, and security events force their trace to
+// be kept.
 package tracing
 
 import (
@@ -12,6 +14,7 @@ import (
 	"log/slog"
 	"math"
 	"math/rand/v2"
+	"slices"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -28,14 +31,35 @@ const (
 	LinkWebhookEvent = "webhook_event"
 )
 
-// Options configures a Tracer. A nil Logger discards span records; Now and
-// Random exist for tests.
+// Options configures a Tracer. A nil Logger discards span records; a nil
+// Exporter exports nothing. Now and Random exist for tests.
 type Options struct {
 	SampleRate float64
 	Logger     *slog.Logger
 	Now        func() time.Time
 	Random     func() float64
 	Links      *Links
+	Exporter   Exporter
+}
+
+// SpanRecord is one ended span that sampling kept: its identity, the
+// submitting span it is linked to (zero without one), its times and the
+// attributes of its "span completed" log record.
+type SpanRecord struct {
+	Name    string
+	Context domain.SpanContext
+	Link    domain.SpanContext
+	Start   time.Time
+	End     time.Time
+	Attrs   []slog.Attr
+}
+
+// Exporter receives every span whose "span completed" record is written,
+// so exported spans follow the same sampling and forced sampling as the
+// log (G46.6). ExportSpan runs on the goroutine that ends the span; it must
+// not block and must not modify the record, whose Attrs it may keep.
+type Exporter interface {
+	ExportSpan(SpanRecord)
 }
 
 // Tracer starts spans. A nil *Tracer is usable: it still creates identifiers
@@ -46,6 +70,7 @@ type Tracer struct {
 	now    func() time.Time
 	random func() float64
 	links  *Links
+	export Exporter
 }
 
 // ValidSampleRate reports whether rate is a probability.
@@ -58,7 +83,7 @@ func New(o Options) (*Tracer, error) {
 	if !ValidSampleRate(o.SampleRate) {
 		return nil, errors.New("trace sample rate must be between 0 and 1")
 	}
-	t := &Tracer{rate: o.SampleRate, logger: o.Logger, now: o.Now, random: o.Random, links: o.Links}
+	t := &Tracer{rate: o.SampleRate, logger: o.Logger, now: o.Now, random: o.Random, links: o.Links, export: o.Exporter}
 	if t.logger == nil {
 		t.logger = slog.New(slog.DiscardHandler)
 	}
@@ -221,9 +246,10 @@ func (s *Span) End(outcome string) {
 		if !s.sc.Sampled() {
 			return
 		}
+		end := s.tracer.now()
 		attrs := make([]slog.Attr, 0, 8)
 		attrs = append(attrs, slog.String("component", s.component), slog.String("span", s.name),
-			slog.Int64("durationMs", s.tracer.now().Sub(s.start).Milliseconds()), slog.Bool("forced", s.sc.Forced()))
+			slog.Int64("durationMs", end.Sub(s.start).Milliseconds()), slog.Bool("forced", s.sc.Forced()))
 		if parent := s.sc.ParentID(); parent.IsValid() {
 			attrs = append(attrs, slog.String("parentSpanId", parent.String()))
 		}
@@ -234,6 +260,10 @@ func (s *Span) End(outcome string) {
 			attrs = append(attrs, slog.String("outcome", outcome))
 		}
 		s.tracer.logger.LogAttrs(s.ctx, slog.LevelInfo, "span completed", attrs...)
+		if s.tracer.export != nil {
+			// The copy keeps attrs on the stack when nothing is exported.
+			s.tracer.export.ExportSpan(SpanRecord{Name: s.name, Context: s.sc, Link: s.link, Start: s.start, End: end, Attrs: slices.Clone(attrs)})
+		}
 	})
 }
 

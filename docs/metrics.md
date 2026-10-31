@@ -52,7 +52,7 @@ schema47工作指標固定222個series，連同本機指標共22個families／23
 
 ## 收集與關閉
 
-Exporter 關閉 target_info、scope_info 及 resource constant labels，也不註冊預設 Go／process collectors。SDK 仍可能讀入 `OTEL_RESOURCE_ATTRIBUTES`；本端點不輸出這些屬性，固定 `service.name=jelee` 不能被解讀為 SDK 內完全沒有環境屬性。未來 OTLP／trace 出口需另行制定過濾契約。
+Exporter 關閉 target_info、scope_info 及 resource constant labels，也不註冊預設 Go／process collectors。SDK 仍可能讀入 `OTEL_RESOURCE_ATTRIBUTES`；本端點不輸出這些屬性，固定 `service.name=jelee` 不能被解讀為 SDK 內完全沒有環境屬性。OTLP trace 匯出（預設關閉）另有自己的過濾契約：Resource 只有 `service.name` 與 `service.version`、不讀環境屬性，span 屬性只有五個白名單欄位，見[日誌與追蹤串聯](observability.md#otlp-匯出)。
 
 真 gather 每次只允許一個；另一個已通過認證的請求在可取消的閘門等待。正在執行的本機同步快照無法被 request deadline 強制中止，不使用 detached gather goroutine。
 
@@ -60,7 +60,7 @@ Fx 的單一資源擁有者在 HTTP／worker 結束後關閉 metrics，再關閉
 
 ## 相依與驗收範圍
 
-固定 OTel API／SDK `v1.47.0`、Prometheus exporter `v0.69.0`、client_golang `v1.24.1`，組合依上游 exporter 的 go.mod 選定；相依由 go.mod／go.sum 記錄。OTel 與 client_golang 採 Apache-2.0，來源見 [OTel release](https://github.com/open-telemetry/opentelemetry-go/releases/tag/v1.47.0)、[exporter go.mod](https://github.com/open-telemetry/opentelemetry-go/blob/exporters/prometheus/v0.69.0/exporters/prometheus/go.mod)、[OTel 授權](https://github.com/open-telemetry/opentelemetry-go/blob/v1.47.0/LICENSE)及 [Prometheus client 授權](https://github.com/prometheus/client_golang/blob/v1.24.1/LICENSE)。原專案 LICENSE 保留。
+固定 OTel API／SDK `v1.47.0`、Prometheus exporter `v0.69.0`、client_golang `v1.24.1`，組合依上游 exporter 的 go.mod 選定；相依由 go.mod／go.sum 記錄。OTLP trace 匯出另加同版 `otlptrace`／`otlptracehttp` `v1.47.0`（見[日誌與追蹤串聯](observability.md#相依)）。OTel 與 client_golang 採 Apache-2.0，來源見 [OTel release](https://github.com/open-telemetry/opentelemetry-go/releases/tag/v1.47.0)、[exporter go.mod](https://github.com/open-telemetry/opentelemetry-go/blob/exporters/prometheus/v0.69.0/exporters/prometheus/go.mod)、[OTel 授權](https://github.com/open-telemetry/opentelemetry-go/blob/v1.47.0/LICENSE)及 [Prometheus client 授權](https://github.com/prometheus/client_golang/blob/v1.24.1/LICENSE)。原專案 LICENSE 保留。
 
 原本 runtime／pool 段驗證：Windows 576 個通過事件、Linux race 570、真 PostgreSQL race 5。Windows 略過 7 個依賴原生環境／DB 的案例；Linux race 略過 1 個 DB 案例，該案另由真 PG 執行通過。事件數含父測試。vet、三個命令 build、模組 checksum、增量品牌、gitignore 與格式檢查通過；全量品牌仍失敗。見[執行證據與來源雜湊](evidence/metrics.json)。工作系列已接入同一端點；目前等待與耗時只涵蓋兩種工作，其他需求中的任務尚未全部實作及觀測，G41.8 保持部分完成。後續 G42.8 的可覆寫配置與容器 OOM 驗收見[執行時記憶體設定](runtime-memory.md)，G42.9 的固定 RSS 基線、預算及獨立門禁見[常駐記憶體預算](resident-memory.md)。Tracing 及 24h 驗收仍未完成。
 
@@ -151,6 +151,9 @@ vet、三命令 build、模組 checksum、格式、增量品牌與 gitignore 通
 | `jelee_audit_archive_rows_total` | counter | 程序啟動後在保留期清理前寫入稽核歸檔的列數（G36.3；只在設定 `JELEE_AUDIT_ARCHIVE_DIR` 時輸出） |
 | `jelee_audit_archive_failures_total` | counter | 程序啟動後歸檔寫入或歸檔自身保留期清理失敗的次數；寫入失敗時該批不刪（告警 `JeleeAuditArchiveFailed`） |
 | `jelee_audit_archive_pruned_files_total` | counter | 程序啟動後因歸檔自身保留期或容量上限而刪除的歸檔檔數 |
+| `jelee_tracing_spans_exported_total` | counter | 程序啟動後 OTLP Collector 接受的 span 數（G46.6；只在 `tracing.exporter=otlp` 時出現） |
+| `jelee_tracing_spans_dropped_total{reason}` | counter | 程序啟動後被採樣但沒送出的 span 數：`queue_full`（匯出佇列滿）、`export_failed`（重試後仍失敗的批次）、`shutdown`（關機清空逾時或關機後才結束）；告警 `JeleeTraceExportFailing` |
+| `jelee_tracing_export_failures_total` | counter | 程序啟動後重試後仍失敗的匯出呼叫（批次）數 |
 | `jelee_runtime_memory_limit_bytes` | gauge | Go soft memory limit（`GOMEMLIMIT`）；未設定時為 0 |
 | `jelee_storage_available_bytes{volume}` | gauge | 設定目錄所在檔案系統可供服務使用的 bytes |
 | `jelee_storage_size_bytes{volume}` | gauge | 該檔案系統總 bytes |

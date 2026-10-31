@@ -48,7 +48,7 @@ def main(argv=None):
     parser.add_argument("--base-ref", required=True, help="commit to compare against (PR base or previous push)")
     parser.add_argument("--packages", required=True, help="space-separated ./package list (Makefile BENCH_PKGS)")
     parser.add_argument("--bench", default=".")
-    parser.add_argument("--skip", default="ObservedHundredFiles")
+    parser.add_argument("--skip", default="ObservedHundredFiles|BoundaryRequestTraceExport")
     parser.add_argument("--rounds", type=int, default=3, help="alternating base/head rounds")
     parser.add_argument("--count", type=int, default=2, help="-count per side and round")
     parser.add_argument("--benchtime", default="500ms")
