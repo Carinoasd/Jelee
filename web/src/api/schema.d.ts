@@ -24449,7 +24449,7 @@ export type paths = {
             path?: never;
             cookie?: never;
         };
-        /** Read the effective site appearance (G33.2–G33.5): default theme, token overrides, sanitized custom CSS, effective font hosts and default layout; any signed-in user */
+        /** Read the effective site appearance (G33.2–G33.5): default theme, token overrides, sanitized custom CSS, effective font hosts, default layout and default display choices; any signed-in user */
         get: {
             parameters: {
                 query?: never;
@@ -38900,6 +38900,8 @@ export type components = {
         SiteAppearance: {
             /** @description Sanitized administrator CSS, ready for a constructed stylesheet; the raw text is administrator-only. */
             css: string;
+            /** @description Display choices for users who did not make their own, member by member (G33.2); null or a null member keeps the web client's built-in value. palette goes with defaultTheme: it reaches users who never saved preferences. At most 1 KiB encoded. Optional in a settings file (older files: unset). */
+            defaultDisplay: components["schemas"]["UserDisplay"] | null;
             /** @description Layout for users who never saved one; null keeps the standard layout. */
             defaultLayout: components["schemas"]["PageLayout"] | null;
             /** @enum {string} */
@@ -38922,6 +38924,8 @@ export type components = {
             cssIssues: components["schemas"]["CSSIssue"][];
             /** @description Administrator CSS as entered, at most 65536 UTF-16 code units. The server sanitizes it like the web client (G33.4): markup, backslash escapes, control characters, unterminated comments and unbalanced blocks refuse the whole text with 400 custom_css_rejected; @import, unknown at-rules, expression(), script URLs, bindings, image-set()/src()/element()/paint(), attr() URLs and every url() that is not a same-origin path or fragment are removed and listed in cssIssues. Only the sanitized text reaches other users. */
             customCss: string;
+            /** @description Display choices for users who did not make their own, member by member (G33.2); null or a null member keeps the web client's built-in value. palette goes with defaultTheme: it reaches users who never saved preferences. At most 1 KiB encoded. Optional in a settings file (older files: unset). */
+            defaultDisplay: components["schemas"]["UserDisplay"] | null;
             /** @description Layout for users who never saved one; null keeps the web client's standard layout. */
             defaultLayout: components["schemas"]["PageLayout"] | null;
             /** @enum {string} */
@@ -38945,6 +38949,8 @@ export type components = {
             allowExternalFonts: boolean;
             /** @description Administrator CSS as entered, at most 65536 UTF-16 code units. The server sanitizes it like the web client (G33.4): markup, backslash escapes, control characters, unterminated comments and unbalanced blocks refuse the whole text with 400 custom_css_rejected; @import, unknown at-rules, expression(), script URLs, bindings, image-set()/src()/element()/paint(), attr() URLs and every url() that is not a same-origin path or fragment are removed and listed in cssIssues. Only the sanitized text reaches other users. */
             customCss: string;
+            /** @description Display choices for users who did not make their own, member by member (G33.2); null or a null member keeps the web client's built-in value. palette goes with defaultTheme: it reaches users who never saved preferences. At most 1 KiB encoded. Optional in a settings file (older files: unset). */
+            defaultDisplay?: components["schemas"]["UserDisplay"] | null;
             /** @description Layout for users who never saved one; null keeps the web client's standard layout. */
             defaultLayout: components["schemas"]["PageLayout"] | null;
             /** @enum {string} */
@@ -38964,6 +38970,8 @@ export type components = {
             allowExternalFonts: boolean;
             /** @description Administrator CSS as entered, at most 65536 UTF-16 code units. The server sanitizes it like the web client (G33.4): markup, backslash escapes, control characters, unterminated comments and unbalanced blocks refuse the whole text with 400 custom_css_rejected; @import, unknown at-rules, expression(), script URLs, bindings, image-set()/src()/element()/paint(), attr() URLs and every url() that is not a same-origin path or fragment are removed and listed in cssIssues. Only the sanitized text reaches other users. */
             customCss: string;
+            /** @description Display choices for users who did not make their own, member by member (G33.2); null or a null member keeps the web client's built-in value. palette goes with defaultTheme: it reaches users who never saved preferences. At most 1 KiB encoded. Optional in a settings file (older files: unset). */
+            defaultDisplay: components["schemas"]["UserDisplay"] | null;
             /** @description Layout for users who never saved one; null keeps the web client's standard layout. */
             defaultLayout: components["schemas"]["PageLayout"] | null;
             /** @enum {string} */
@@ -39174,16 +39182,16 @@ export type components = {
             type: "export" | "account" | "preferences" | "trackPreference" | "versionPreference" | "sessionTrack" | "blockedTag" | "libraryAccess" | "itemAccessRule" | "itemData" | "playbackSession" | "playbackSample" | "watchStatsDay" | "watchStatsItem" | "session" | "appPassword" | "shareLink" | "clientControlHit" | "auditEvent" | "end";
         };
         UserDisplay: {
-            /** @enum {string} */
-            listDensity: "comfortable" | "compact";
-            /** @description Preset beyond plain light and dark; null follows theme. The theme member holds the preset's color scheme. */
+            /** @description null (or left out on writes) follows the next layer: the user's choice, then the site default (SiteAppearance.defaultDisplay), then the web client's built-in value. */
+            listDensity: ("comfortable" | "compact") | null;
+            /** @description Preset beyond plain light and dark; null is plain light or dark as theme says. The theme member holds the preset's color scheme. Until a user first saves preferences, reads return the site default preset with the site default theme. */
             palette: ("sepia" | "contrast") | null;
-            /** @enum {string} */
-            posterRatio: "portrait" | "square" | "landscape";
-            /** @enum {string} */
-            posterSize: "small" | "medium" | "large";
-            /** @enum {string} */
-            view: "poster" | "list";
+            /** @description null (or left out on writes) follows the next layer: the user's choice, then the site default (SiteAppearance.defaultDisplay), then the web client's built-in value. */
+            posterRatio: ("portrait" | "square" | "landscape") | null;
+            /** @description null (or left out on writes) follows the next layer: the user's choice, then the site default (SiteAppearance.defaultDisplay), then the web client's built-in value. */
+            posterSize: ("small" | "medium" | "large") | null;
+            /** @description null (or left out on writes) follows the next layer: the user's choice, then the site default (SiteAppearance.defaultDisplay), then the web client's built-in value. */
+            view: ("poster" | "list") | null;
         };
         UserItemData: {
             /** @description The caller marked the item as a favourite (G24.2). */

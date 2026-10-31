@@ -178,7 +178,7 @@ func metadataExportQueries(passwordHashes bool) []metadataExportQuery {
 		{"user_version_preference", `SELECT to_jsonb(x)::text FROM (SELECT user_id,max_height,dynamic_range,prefer_smaller,max_bitrate,updated_at FROM user_version_preferences p WHERE ` + notGuestSQL("p.user_id") + `) x ORDER BY x.user_id`},
 		// Single-row documents: revisions and change times belong to the
 		// instance, like those of the access and client control policies.
-		{"site_appearance", `SELECT to_jsonb(x)::text FROM (SELECT default_theme,tokens,custom_css,allow_external_fonts,font_hosts,default_layout FROM site_appearance WHERE id) x`},
+		{"site_appearance", `SELECT to_jsonb(x)::text FROM (SELECT default_theme,tokens,custom_css,allow_external_fonts,font_hosts,default_layout,default_display FROM site_appearance WHERE id) x`},
 		{"site_plugins", `SELECT to_jsonb(x)::text FROM (SELECT plugins,settings FROM site_plugins WHERE id) x`},
 		{"audit_retention", `SELECT to_jsonb(x)::text FROM (SELECT audit_days,security_days FROM audit_retention WHERE singleton) x`},
 	}

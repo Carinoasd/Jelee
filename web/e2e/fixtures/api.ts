@@ -97,7 +97,7 @@ function answer(api: FakeApi, method: string, url: URL): Answer | undefined {
     return ok({ token: "t".repeat(43), csrf, user: data.adminUser, session: data.sessions[0] });
   }
   if (route === "GET /api/v1/site/appearance") {
-    return ok({ defaultTheme: "system", tokens: { light: {}, dark: {} }, css: "", fontHosts: [], defaultLayout: null });
+    return ok({ defaultTheme: "system", tokens: { light: {}, dark: {} }, css: "", fontHosts: [], defaultLayout: null, defaultDisplay: null });
   }
   if (route === "GET /api/v1/site/plugins") {
     return ok({ plugins: [], settings: {} });

@@ -57,9 +57,7 @@
     "serverRejected": "伺服器整段拒絕了這段 CSS：其中含有標記、跳脫、控制字元或未閉合的區塊，或超出長度上限。",
     "defaults": {
       "title": "全站預設",
-      "intro": "對所有使用者生效：未自選主題者的主題、設計 token 覆寫，以及未自訂版面者的版面。",
-      "theme": "預設主題",
-      "themeHint": "已自選主題的使用者維持自己的選擇。",
+      "intro": "對所有使用者生效：未自選者的主題與顯示方式、設計 token 覆寫，以及未自訂版面者的版面。",
       "tokensLight": "Token 覆寫（亮色）",
       "tokensDark": "Token 覆寫（暗色）",
       "tokensHint": "每行一項，格式為「名稱: 值」，例如 color-primary: #0f766e。可用名稱：{names}。不得含 url()、大括號或分號；只有 font-family 可用引號。",

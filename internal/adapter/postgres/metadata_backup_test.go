@@ -54,6 +54,9 @@ const (
 // bkDisplay is a set of display choices the preferences API accepts.
 const bkDisplay = `{"palette":"sepia","posterRatio":"square","posterSize":"large","listDensity":"compact","view":"list"}`
 
+// bkSiteDisplay is a site default display the appearance API accepts.
+const bkSiteDisplay = `{"palette":null,"posterRatio":"landscape","posterSize":null,"listDensity":null,"view":"list"}`
+
 // bkLayout is a user layout the preferences API accepts.
 const bkLayout = `{"current":{"home":[{"id":"resume","visible":true},{"id":"latest","visible":false}],"detail":[{"id":"cast","visible":true}]},"presets":[{"id":"custom-1","name":"Mine 我的","layout":{"home":[{"id":"latest","visible":true}],"detail":[]}}]}`
 
@@ -173,7 +176,8 @@ func seedMetadataBackup(t testing.TB, ctx context.Context, s *Store, episodes in
 		{"version preferences", `INSERT INTO user_version_preferences(user_id,max_height,dynamic_range,prefer_smaller,max_bitrate,updated_at) VALUES ('` + bkKid + `',1080,'sdr',true,20000000,'2026-09-13T00:00:00Z')`},
 		{"guest version preferences", `INSERT INTO user_version_preferences(user_id,max_height) SELECT id,720 FROM users WHERE share_id='` + bkShare + `'`},
 		{"site appearance", `UPDATE site_appearance SET default_theme='dark',tokens='{"light":{"color-primary":"#336699"},"dark":{"color-primary":"#88aaff"}}',
- custom_css='.jelee-home { margin: 0; }',allow_external_fonts=true,font_hosts=ARRAY['fonts.example.com'],default_layout='{"home":[{"id":"latest","visible":true}],"detail":[]}'`},
+ custom_css='.jelee-home { margin: 0; }',allow_external_fonts=true,font_hosts=ARRAY['fonts.example.com'],default_layout='{"home":[{"id":"latest","visible":true}],"detail":[]}',
+ default_display='` + bkSiteDisplay + `'`},
 		{"site plugins", `UPDATE site_plugins SET plugins='[{"id":"acme.clock","enabled":true},{"id":"acme.weather","enabled":false}]',settings='{"acme.clock":{"format":"24h","seconds":false}}'`},
 		{"audit retention", `UPDATE audit_retention SET audit_days=400,security_days=90`},
 	}

@@ -3,6 +3,8 @@ package httpapi
 import (
 	"strconv"
 	"strings"
+
+	"github.com/MoYuanCN/Jelee/internal/domain"
 )
 
 func schemaRef(name string) map[string]any {
@@ -51,11 +53,11 @@ func accountSchemas() map[string]any {
 			"display": map[string]any{"oneOf": []any{schemaRef("UserDisplay"), map[string]any{"type": "null"}}, "description": "Display choices of the web client (G33.2); null until saved. Required on replacement like every field."},
 		}, "theme", "density", "layout", "display"),
 		"UserDisplay": objectSchema(map[string]any{
-			"palette":     map[string]any{"oneOf": []any{map[string]any{"type": "string", "enum": []string{"sepia", "contrast"}}, map[string]any{"type": "null"}}, "description": "Preset beyond plain light and dark; null follows theme. The theme member holds the preset's color scheme."},
-			"posterRatio": map[string]any{"type": "string", "enum": []string{"portrait", "square", "landscape"}},
-			"posterSize":  map[string]any{"type": "string", "enum": []string{"small", "medium", "large"}},
-			"listDensity": map[string]any{"type": "string", "enum": []string{"comfortable", "compact"}},
-			"view":        map[string]any{"type": "string", "enum": []string{"poster", "list"}},
+			"palette":     nullableEnum("Preset beyond plain light and dark; null is plain light or dark as theme says. The theme member holds the preset's color scheme. Until a user first saves preferences, reads return the site default preset with the site default theme.", domain.PaletteSepia, domain.PaletteContrast),
+			"posterRatio": nullableEnum(displayFallback, domain.PosterPortrait, domain.PosterSquare, domain.PosterLandscape),
+			"posterSize":  nullableEnum(displayFallback, domain.PosterSizeSmall, domain.PosterSizeMedium, domain.PosterSizeLarge),
+			"listDensity": nullableEnum(displayFallback, domain.ListDensityComfortable, domain.ListDensityCompact),
+			"view":        nullableEnum(displayFallback, domain.ViewPoster, domain.ViewList),
 		}, "palette", "posterRatio", "posterSize", "listDensity", "view"),
 		"PasswordChange": objectSchema(map[string]any{"oldPassword": password, "newPassword": password}, "oldPassword", "newPassword"),
 		"LibraryAccess":  objectSchema(map[string]any{"libraryIds": map[string]any{"type": "array", "items": uuid, "maxItems": 1000, "uniqueItems": true}}, "libraryIds"),

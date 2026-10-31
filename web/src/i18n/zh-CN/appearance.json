@@ -57,9 +57,7 @@
     "serverRejected": "服务器整段拒绝了这段 CSS：其中含有标记、转义、控制字符或未闭合的区块，或超出长度上限。",
     "defaults": {
       "title": "全站默认",
-      "intro": "对所有用户生效：未自选主题者的主题、设计 token 覆盖，以及未自定义版面者的版面。",
-      "theme": "默认主题",
-      "themeHint": "已自选主题的用户保持自己的选择。",
+      "intro": "对所有用户生效：未自选者的主题与显示方式、设计 token 覆盖，以及未自定义版面者的版面。",
       "tokensLight": "Token 覆盖（亮色）",
       "tokensDark": "Token 覆盖（暗色）",
       "tokensHint": "每行一项，格式为“名称: 值”，例如 color-primary: #0f766e。可用名称：{names}。不得含 url()、大括号或分号；只有 font-family 可用引号。",

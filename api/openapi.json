@@ -13290,6 +13290,17 @@
             "description": "Sanitized administrator CSS, ready for a constructed stylesheet; the raw text is administrator-only.",
             "type": "string"
           },
+          "defaultDisplay": {
+            "description": "Display choices for users who did not make their own, member by member (G33.2); null or a null member keeps the web client's built-in value. palette goes with defaultTheme: it reaches users who never saved preferences. At most 1 KiB encoded. Optional in a settings file (older files: unset).",
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/UserDisplay"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "defaultLayout": {
             "description": "Layout for users who never saved one; null keeps the standard layout.",
             "oneOf": [
@@ -13390,7 +13401,8 @@
           "tokens",
           "css",
           "fontHosts",
-          "defaultLayout"
+          "defaultLayout",
+          "defaultDisplay"
         ],
         "type": "object"
       },
@@ -13412,6 +13424,17 @@
             "description": "Administrator CSS as entered, at most 65536 UTF-16 code units. The server sanitizes it like the web client (G33.4): markup, backslash escapes, control characters, unterminated comments and unbalanced blocks refuse the whole text with 400 custom_css_rejected; @import, unknown at-rules, expression(), script URLs, bindings, image-set()/src()/element()/paint(), attr() URLs and every url() that is not a same-origin path or fragment are removed and listed in cssIssues. Only the sanitized text reaches other users.",
             "maxLength": 65536,
             "type": "string"
+          },
+          "defaultDisplay": {
+            "description": "Display choices for users who did not make their own, member by member (G33.2); null or a null member keeps the web client's built-in value. palette goes with defaultTheme: it reaches users who never saved preferences. At most 1 KiB encoded. Optional in a settings file (older files: unset).",
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/UserDisplay"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "defaultLayout": {
             "description": "Layout for users who never saved one; null keeps the web client's standard layout.",
@@ -13524,6 +13547,7 @@
           "allowExternalFonts",
           "fontHosts",
           "defaultLayout",
+          "defaultDisplay",
           "revision",
           "updatedAt",
           "cssIssues"
@@ -13541,6 +13565,17 @@
             "description": "Administrator CSS as entered, at most 65536 UTF-16 code units. The server sanitizes it like the web client (G33.4): markup, backslash escapes, control characters, unterminated comments and unbalanced blocks refuse the whole text with 400 custom_css_rejected; @import, unknown at-rules, expression(), script URLs, bindings, image-set()/src()/element()/paint(), attr() URLs and every url() that is not a same-origin path or fragment are removed and listed in cssIssues. Only the sanitized text reaches other users.",
             "maxLength": 65536,
             "type": "string"
+          },
+          "defaultDisplay": {
+            "description": "Display choices for users who did not make their own, member by member (G33.2); null or a null member keeps the web client's built-in value. palette goes with defaultTheme: it reaches users who never saved preferences. At most 1 KiB encoded. Optional in a settings file (older files: unset).",
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/UserDisplay"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "defaultLayout": {
             "description": "Layout for users who never saved one; null keeps the web client's standard layout.",
@@ -13659,6 +13694,17 @@
             "maxLength": 65536,
             "type": "string"
           },
+          "defaultDisplay": {
+            "description": "Display choices for users who did not make their own, member by member (G33.2); null or a null member keeps the web client's built-in value. palette goes with defaultTheme: it reaches users who never saved preferences. At most 1 KiB encoded. Optional in a settings file (older files: unset).",
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/UserDisplay"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "defaultLayout": {
             "description": "Layout for users who never saved one; null keeps the web client's standard layout.",
             "oneOf": [
@@ -13766,6 +13812,7 @@
           "allowExternalFonts",
           "fontHosts",
           "defaultLayout",
+          "defaultDisplay",
           "revision"
         ],
         "type": "object"
@@ -14553,14 +14600,22 @@
         "additionalProperties": false,
         "properties": {
           "listDensity": {
-            "enum": [
-              "comfortable",
-              "compact"
-            ],
-            "type": "string"
+            "description": "null (or left out on writes) follows the next layer: the user's choice, then the site default (SiteAppearance.defaultDisplay), then the web client's built-in value.",
+            "oneOf": [
+              {
+                "enum": [
+                  "comfortable",
+                  "compact"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "palette": {
-            "description": "Preset beyond plain light and dark; null follows theme. The theme member holds the preset's color scheme.",
+            "description": "Preset beyond plain light and dark; null is plain light or dark as theme says. The theme member holds the preset's color scheme. Until a user first saves preferences, reads return the site default preset with the site default theme.",
             "oneOf": [
               {
                 "enum": [
@@ -14575,27 +14630,51 @@
             ]
           },
           "posterRatio": {
-            "enum": [
-              "portrait",
-              "square",
-              "landscape"
-            ],
-            "type": "string"
+            "description": "null (or left out on writes) follows the next layer: the user's choice, then the site default (SiteAppearance.defaultDisplay), then the web client's built-in value.",
+            "oneOf": [
+              {
+                "enum": [
+                  "portrait",
+                  "square",
+                  "landscape"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "posterSize": {
-            "enum": [
-              "small",
-              "medium",
-              "large"
-            ],
-            "type": "string"
+            "description": "null (or left out on writes) follows the next layer: the user's choice, then the site default (SiteAppearance.defaultDisplay), then the web client's built-in value.",
+            "oneOf": [
+              {
+                "enum": [
+                  "small",
+                  "medium",
+                  "large"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "view": {
-            "enum": [
-              "poster",
-              "list"
-            ],
-            "type": "string"
+            "description": "null (or left out on writes) follows the next layer: the user's choice, then the site default (SiteAppearance.defaultDisplay), then the web client's built-in value.",
+            "oneOf": [
+              {
+                "enum": [
+                  "poster",
+                  "list"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "required": [
@@ -56255,7 +56334,7 @@
             "webSession": []
           }
         ],
-        "summary": "Read the effective site appearance (G33.2–G33.5): default theme, token overrides, sanitized custom CSS, effective font hosts and default layout; any signed-in user"
+        "summary": "Read the effective site appearance (G33.2–G33.5): default theme, token overrides, sanitized custom CSS, effective font hosts, default layout and default display choices; any signed-in user"
       },
       "put": {
         "requestBody": {

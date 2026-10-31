@@ -19,12 +19,12 @@ import (
 // revision and are audited in the same transaction. An unchanged write is a
 // no-op without a new revision or audit record.
 
-const siteAppearanceColumns = `default_theme,tokens,custom_css,allow_external_fonts,font_hosts,default_layout,revision,updated_at`
+const siteAppearanceColumns = `default_theme,tokens,custom_css,allow_external_fonts,font_hosts,default_layout,default_display,revision,updated_at`
 
 func scanSiteAppearance(row pgx.Row) (domain.SiteAppearanceRecord, error) {
 	var r domain.SiteAppearanceRecord
-	var tokens, layout []byte
-	if err := row.Scan(&r.DefaultTheme, &tokens, &r.CustomCSS, &r.AllowExternalFonts, &r.FontHosts, &layout, &r.Revision, &r.UpdatedAt); err != nil {
+	var tokens, layout, display []byte
+	if err := row.Scan(&r.DefaultTheme, &tokens, &r.CustomCSS, &r.AllowExternalFonts, &r.FontHosts, &layout, &display, &r.Revision, &r.UpdatedAt); err != nil {
 		return r, storageError(err)
 	}
 	if err := json.Unmarshal(tokens, &r.Tokens); err != nil || r.Tokens.Light == nil || r.Tokens.Dark == nil {
@@ -35,6 +35,10 @@ func scanSiteAppearance(row pgx.Row) (domain.SiteAppearanceRecord, error) {
 		if err := json.Unmarshal(layout, r.DefaultLayout); err != nil {
 			return r, domain.ErrDatabase
 		}
+	}
+	var err error
+	if r.DefaultDisplay, err = decodeUserDisplay(display); err != nil {
+		return r, err
 	}
 	if r.FontHosts == nil {
 		r.FontHosts = []string{}
@@ -186,8 +190,9 @@ func siteAppearanceAudit(a domain.SiteAppearance) map[string]any {
 		data, _ := json.Marshal(a.DefaultLayout)
 		layout = digest(data)
 	}
+	// The display members are a few enum values: recorded as they are.
 	return map[string]any{"defaultTheme": a.DefaultTheme, "tokens": a.Tokens, "cssBytes": len(a.CustomCSS), "cssSha256": digest([]byte(a.CustomCSS)),
-		"allowExternalFonts": a.AllowExternalFonts, "fontHosts": a.FontHosts, "defaultLayout": layout}
+		"allowExternalFonts": a.AllowExternalFonts, "fontHosts": a.FontHosts, "defaultLayout": layout, "defaultDisplay": a.DefaultDisplay}
 }
 
 // sitePluginsAudit records the plugin list and a digest per settings
@@ -225,12 +230,18 @@ func setSiteAppearance(ctx context.Context, tx pgx.Tx, actor domain.Actor, in do
 			return old, domain.ErrInvalid
 		}
 	}
+	var display []byte
+	if normalized.DefaultDisplay != nil {
+		if display, err = json.Marshal(normalized.DefaultDisplay); err != nil || len(display) > domain.UserDisplayMaxBytes {
+			return old, domain.ErrInvalid
+		}
+	}
 	before, after := siteAppearanceAudit(old.SiteAppearance), siteAppearanceAudit(normalized)
 	if sameJSON(before, after) {
 		return old, nil
 	}
-	r, err := scanSiteAppearance(tx.QueryRow(ctx, `UPDATE site_appearance SET default_theme=$1,tokens=$2::jsonb,custom_css=$3,allow_external_fonts=$4,font_hosts=$5,default_layout=$6::jsonb,revision=revision+1,updated_at=now() WHERE id RETURNING `+siteAppearanceColumns,
-		normalized.DefaultTheme, string(tokens), normalized.CustomCSS, normalized.AllowExternalFonts, normalized.FontHosts, nullableJSON(layout)))
+	r, err := scanSiteAppearance(tx.QueryRow(ctx, `UPDATE site_appearance SET default_theme=$1,tokens=$2::jsonb,custom_css=$3,allow_external_fonts=$4,font_hosts=$5,default_layout=$6::jsonb,default_display=$7::jsonb,revision=revision+1,updated_at=now() WHERE id RETURNING `+siteAppearanceColumns,
+		normalized.DefaultTheme, string(tokens), normalized.CustomCSS, normalized.AllowExternalFonts, normalized.FontHosts, nullableJSON(layout), nullableJSON(display)))
 	if err != nil {
 		return r, err
 	}

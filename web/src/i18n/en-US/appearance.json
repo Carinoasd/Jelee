@@ -57,9 +57,7 @@
     "serverRejected": "The server refused the CSS as a whole: it contains markup, escapes, control characters or unbalanced blocks, or is too long.",
     "defaults": {
       "title": "Site defaults",
-      "intro": "Apply to every user: the theme of users who never chose one, design token overrides and the layout of users who never customized theirs.",
-      "theme": "Default theme",
-      "themeHint": "Users who chose a theme keep theirs.",
+      "intro": "Apply to every user: the theme and display choices of users who never chose their own, design token overrides and the layout of users who never customized theirs.",
       "tokensLight": "Token overrides, light scheme",
       "tokensDark": "Token overrides, dark scheme",
       "tokensHint": "One per line as name: value, such as color-primary: #0f766e. Names: {names}. No url(), braces or semicolons; quotes only in font-family.",
