@@ -141,6 +141,8 @@ vet、三命令 build、模組 checksum、格式、增量品牌與 gitignore 通
 | Prometheus 名稱 | 型別 | 意義 |
 | --- | --- | --- |
 | `jelee_client_control_blocked_total` | counter | 程序啟動後被強制規則拒絕或擱置待核准的請求數（G47.8） |
+| `jelee_http_rate_limited_total` | counter | 程序啟動後被通用 API 限流以 429 `rate_limited` 拒絕的請求數（G08.7；每個實例各自計數） |
+| `jelee_http_timeouts_total` | counter | 程序啟動後因處理逾時而回 504 `processing_timeout` 的請求數（G08.7） |
 | `jelee_logging_records_dropped_total` | counter | 程序啟動後因日誌佇列已滿或已關閉而丟棄的日誌紀錄數（G46.8 背壓；告警 `JeleeLogRecordsDropped`） |
 | `jelee_logging_write_failures_total` | counter | 程序啟動後被日誌輸出（檔案、轉發器）拒絕寫入的紀錄數 |
 | `jelee_runtime_memory_limit_bytes` | gauge | Go soft memory limit（`GOMEMLIMIT`）；未設定時為 0 |

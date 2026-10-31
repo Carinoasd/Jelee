@@ -90,6 +90,9 @@ type Config struct {
 	Dev DevConfig `json:"dev"`
 	// TMDB is the request budget of the TMDB adapter (G14.3).
 	TMDB TMDBConfig `json:"tmdb"`
+	// API is the rate limit, processing timeout and body ceiling of API
+	// requests (G08.7).
+	API APIConfig `json:"api"`
 }
 
 func Load() (Config, error) { return LoadWith(os.LookupEnv) }
@@ -220,6 +223,9 @@ func LoadWith(lookup func(string) (string, bool)) (Config, error) {
 	if err := c.Compression.loadEnvironment(lookup); err != nil {
 		return c, err
 	}
+	if err := c.API.loadEnvironment(lookup); err != nil {
+		return c, err
+	}
 	if err := c.Logging.loadEnvironment(lookup); err != nil {
 		return c, err
 	}
@@ -252,6 +258,9 @@ func (c Config) Validate() error {
 		return err
 	}
 	if err := c.Compression.Validate(); err != nil {
+		return err
+	}
+	if err := c.API.Validate(c.RequestTimeoutSeconds); err != nil {
 		return err
 	}
 	if err := c.Logging.Validate(); err != nil {

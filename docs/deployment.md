@@ -202,6 +202,21 @@ Jelee 用标准库 gzip 压缩非媒体响应（JSON、NDJSON、HTML、CSS、Jav
 
 代价：50 条条目的列表页（约 5 KiB）在默认级别下的编码时间约为 JSON 编码本身的 1 倍（`BenchmarkWriteJSONItemPageGzip`），门槛以下的小响应只多一次缓冲（`BenchmarkWriteJSONErrorCompressionPassthrough`）。反向代理若已统一压缩，可设 `JELEE_HTTP_COMPRESSION=off` 避免重复工作；无论哪边压缩，代理都不得压缩直投与 Range 响应（见下节）。HTTP/2 只由反向代理在 TLS 上提供，Jelee 本身只监听明文 HTTP/1.1；WebSocket 尚未实现。
 
+## API 限流、处理时限与请求体上限（G08.7）
+
+Jelee 对 `/api/` 与 `/compat` 的请求套用每客户端令牌桶限流、整体处理时限与请求体上限；直投、轨道、字幕、附件、图片与播放信息一律豁免，播放不会被打断。行为细节见 [API 参考](api-reference.md#通用限流处理时限与请求体上限g087)。
+
+| 配置（`api`） | 环境变量 | 默认 | 说明 |
+| --- | --- | --- | --- |
+| `rateLimit.mode` | `JELEE_API_RATE_LIMIT` | `on` | `on` 或 `off`；关闭后不限流、不发 `RateLimit-*` 标头（登录限速与客户端管控规则不受影响） |
+| `rateLimit.requestsPerSecond` | `JELEE_API_RATE_LIMIT_RPS` | 20 | 每个客户端每秒补充的请求数（1～10000） |
+| `rateLimit.burst` | `JELEE_API_RATE_LIMIT_BURST` | 100 | 桶容量，即可连续突发的请求数（1～100000） |
+| `rateLimit.maxClients` | `JELEE_API_RATE_LIMIT_MAX_CLIENTS` | 65536 | 内存中最多保留的桶数，超过时淘汰最久未用者（16～1048576） |
+| `timeoutSeconds` | `JELEE_API_TIMEOUT_SECONDS` | `max(30, requestTimeoutSeconds)` | 非串流请求的整体处理时限（秒，不得小于 `requestTimeoutSeconds`，至多 600） |
+| `maxBodyBytes` | `JELEE_API_MAX_BODY_BYTES` | 8388608 | 请求体上限（2 MiB～256 MiB） |
+
+限流状态只在每个实例的内存中，多实例各算各的，重启后清空；需要全局配额时在反向代理或负载均衡层另行限制。反向代理后部署时务必设定 `trustedProxies`，否则所有匿名请求都会记在代理地址上而互相拖累。被拒请求与逾时次数见指标 `jelee_http_rate_limited_total`、`jelee_http_timeouts_total`（[指标](metrics.md)）。
+
 ## 反向代理（G37.3）
 
 参考配置：[`deploy/nginx/jelee.conf`](../deploy/nginx/jelee.conf)（nginx ≥ 1.25.1）与 [`deploy/caddy/Caddyfile`](../deploy/caddy/Caddyfile)（Caddy 2.7+）。**两份配置都只是参考，尚未在真实公网部署、真实客户端或真实影片上验收**；上线前必须在自己的环境按本节末尾的核对清单验证。

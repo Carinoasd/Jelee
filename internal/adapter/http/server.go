@@ -110,6 +110,14 @@ type Server struct {
 	logControl loggingControl
 	// securityLog throttles security log records per event (G46.3).
 	securityLog securityLimiter
+	// rateLimiter is the general per-client API rate limit (G08.7); nil
+	// when it is off. guardStats counts rate limit and timeout refusals.
+	rateLimiter *apiRateLimiter
+	guardStats  *RequestGuardStats
+	// guardNow is the clock of the rate limiter; nil is time.Now.
+	// guardTimeout replaces the configured processing timeout in tests.
+	guardNow     func() time.Time
+	guardTimeout time.Duration
 }
 
 func New(cfg config.Config, backend Backend, catalog *app.Catalog, resolver media.Resolver, logger *slog.Logger, accounts ...*app.Accounts) (http.Handler, error) {
@@ -276,9 +284,20 @@ func newServer(cfg config.Config, backend Backend, catalog *app.Catalog, resolve
 		s.images = images
 		s.imageSlots = make(chan struct{}, cfg.Images.MaxConcurrent)
 	}
+	if s.guardStats == nil {
+		s.guardStats = NewRequestGuardStats()
+	}
+	if limit := cfg.API.RateLimit; limit.RateLimited() {
+		s.rateLimiter = newAPIRateLimiter(limit.Rate(), limit.BurstSize(), limit.Clients(), s.guardNow)
+	}
 	r := chi.NewRouter()
 	s.router = r
-	r.Use(s.boundary)
+	// G08.1: request ID, panic recovery, access log and the root span
+	// (boundary), then the processing timeout, the body ceiling and the
+	// rate limit of anonymous requests; authentication, the rate limit of
+	// authenticated requests (chargePrincipal), authorization and
+	// validation follow per route. See request_guard.go.
+	r.Use(s.boundary, s.requestTimeout, s.requestBodyLimit, s.rateLimitGate)
 	r.Get("/healthz", func(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusOK, map[string]any{"data": map[string]string{"status": "ok"}})
 	})
@@ -496,6 +515,13 @@ func (s *Server) newCompat(cfg config.Config, backend Backend) (http.Handler, er
 		if err == nil && p.ShareID != "" {
 			return access.Principal{}, domain.ErrUnauthenticated
 		}
+		// G08.7: the request is charged to its user and token once it
+		// is authenticated, like on the native API.
+		if err == nil {
+			if limited := s.chargePrincipal(ctx, p, token); limited != nil {
+				return access.Principal{}, limited
+			}
+		}
 		return p, err
 	}
 	opts := compat.Options{Authenticate: authenticate, WriteRejection: WriteError, ServerID: id, Timeout: cfg.RequestTimeout()}
@@ -574,6 +600,11 @@ func (s *Server) boundary(next http.Handler) http.Handler {
 		// G46.6: the request ID is the trace ID of the request's root span,
 		// so logs, the error envelope and audit rows share one value.
 		traceCtx, span := tracing.Default().StartRequest(r.Context(), w.Header().Get("X-Request-ID"), "http.request", "http")
+		// G08.1: the root span is announced as a W3C traceparent; an inbound
+		// one is never adopted (see StartRequest).
+		if parent := tracing.Traceparent(span.Context()); parent != "" {
+			w.Header().Set("traceparent", parent)
+		}
 		// G46.3: the access record collects the identity and error code
 		// while the request runs; storage notes security events.
 		record := &requestRecord{}
@@ -700,6 +731,12 @@ func (s *Server) authenticate(next http.Handler) http.Handler {
 		}
 		cancel()
 		if err != nil {
+			WriteError(w, r, err)
+			return
+		}
+		// G08.1, G08.7: authenticated requests count against their user and
+		// token, right after authentication and before any route work.
+		if err := s.chargePrincipal(r.Context(), p, method.token); err != nil {
 			WriteError(w, r, err)
 			return
 		}
@@ -879,6 +916,11 @@ func WriteError(w http.ResponseWriter, r *http.Request, err error) {
 		status, code, message = 403, "share_read_only", "This share link is read-only."
 	case errors.Is(err, domain.ErrSharePlaybackDisabled):
 		status, code, message = 403, "share_playback_disabled", "This share link does not allow playback."
+	case errors.Is(err, domain.ErrRateLimited):
+		status, code, message = 429, "rate_limited", "Too many requests. Try again later."
+		var retry rateLimitedError
+		errors.As(err, &retry)
+		w.Header().Set("Retry-After", strconv.FormatInt(retrySeconds(retry.retry), 10))
 	case errors.Is(err, domain.ErrClientRateLimited):
 		status, code, message = 429, "client_rate_limited", "Too many requests from this client. Try again later."
 		seconds := int64(1)

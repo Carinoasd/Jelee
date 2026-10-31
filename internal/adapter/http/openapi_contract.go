@@ -79,6 +79,8 @@ var errorCodeStatuses = map[string][]int{
 	"probe_invalidated":          {409},
 	"probe_runtime_unavailable":  {503},
 	"request_timeout":            {408},
+	"processing_timeout":         {504},
+	"rate_limited":               {429},
 	"scan_limit":                 {409},
 	"scan_unavailable":           {503},
 	"schedule_kind_not_allowed":  {400},

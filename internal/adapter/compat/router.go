@@ -314,7 +314,7 @@ func (rt *router) authenticate(next http.Handler) http.Handler {
 		case errors.Is(err, domain.ErrDatabase):
 			writeError(w, http.StatusServiceUnavailable)
 			return
-		case clientControlError(err):
+		case clientControlError(err), errors.Is(err, domain.ErrRateLimited):
 			writeClientControlError(w, err)
 			return
 		case err != nil:
@@ -340,7 +340,7 @@ func clientControlError(err error) bool {
 // service failure.
 func writeClientControlError(w http.ResponseWriter, err error) {
 	switch {
-	case errors.Is(err, domain.ErrClientRateLimited):
+	case errors.Is(err, domain.ErrClientRateLimited), errors.Is(err, domain.ErrRateLimited):
 		var retry interface{ RetryAfter() time.Duration }
 		seconds := int64(1)
 		if errors.As(err, &retry) {
@@ -357,6 +357,52 @@ func writeClientControlError(w http.ResponseWriter, err error) {
 	default:
 		writeError(w, http.StatusServiceUnavailable)
 	}
+}
+
+// WriteStatus answers a request below Prefix that the server refused before
+// the layer saw it (rate limit, processing timeout, body ceiling) the way the
+// layer answers its own refusals: no body, or the generic text for 400 and
+// 500.
+func WriteStatus(w http.ResponseWriter, status int) { writeError(w, status) }
+
+// IsDeliveryPath reports whether path lies below Prefix and names a route
+// that delivers media or prepares its playback: video and audio streams,
+// subtitle, audio and attachment tracks, item images and PlaybackInfo. Like
+// the routing, literal segments compare case-insensitively and one trailing
+// slash is ignored. The server exempts these routes from its general rate
+// limit, processing timeout and body ceiling, so a player's Range requests
+// are never refused or cut by them.
+func IsDeliveryPath(path string) bool {
+	rest, ok := trimPrefix(path)
+	if !ok {
+		return false
+	}
+	if isPlaybackInfoPath(rest) || isImagePath(rest) {
+		return true
+	}
+	segments := strings.Split(strings.TrimSuffix(rest, "/"), "/")
+	if len(segments) < 4 || segments[0] != "" || segments[2] == "" {
+		return false
+	}
+	last := strings.ToLower(segments[len(segments)-1])
+	switch {
+	case strings.EqualFold(segments[1], "Audio"):
+		// /Audio/{itemId}/stream[.{container}]
+		return len(segments) == 4 && (last == "stream" || strings.HasPrefix(last, "stream."))
+	case !strings.EqualFold(segments[1], "Videos"):
+		return false
+	case len(segments) == 4:
+		// /Videos/{itemId}/stream[.{container}]
+		return last == "stream" || strings.HasPrefix(last, "stream.")
+	case len(segments) == 6 && strings.EqualFold(segments[4], "Attachments"):
+		// /Videos/{itemId}/{mediaSourceId}/Attachments/{index}
+		return true
+	case len(segments) >= 7 && (strings.EqualFold(segments[4], "Subtitles") || strings.EqualFold(segments[4], "Audio")):
+		// .../Subtitles/{index}[/{startPositionTicks}]/Stream.{format},
+		// .../Audio/{index}/Stream.{format}
+		return len(segments) <= 8 && strings.HasPrefix(last, "stream.")
+	}
+	return false
 }
 
 // writeError is the single error writer of the layer. Like the upstream

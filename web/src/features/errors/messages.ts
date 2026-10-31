@@ -21,6 +21,7 @@ export function errorMessageKey(error: ApiError): string {
     case "client_read_only":
       return "errors.clientReadOnly";
     case "client_rate_limited":
+    case "rate_limited":
       return "errors.clientRateLimited";
     case "share_unavailable":
       return "errors.shareUnavailable";
@@ -63,6 +64,7 @@ export function errorMessageKey(error: ApiError): string {
       return "errors.webhookTargetDenied";
     case "request_timeout":
     case "lookup_timeout":
+    case "processing_timeout":
       return "errors.timeout";
     case "not_ready":
       return "errors.notReady";

@@ -234,3 +234,20 @@ func BenchmarkRequestSpan(b *testing.B) {
 		})
 	}
 }
+
+func TestTraceparentFormatsW3CTraceContext(t *testing.T) {
+	if Traceparent(domain.SpanContext{}) != "" {
+		t.Fatal("invalid span formatted")
+	}
+	for _, rate := range []float64{0, 1} {
+		tracer, err := New(Options{SampleRate: rate})
+		if err != nil {
+			t.Fatal(err)
+		}
+		_, span := tracer.StartRequest(context.Background(), "4bf92f3577b34da6a3ce929d0e0e4736", "http.request", "http")
+		want := "00-4bf92f3577b34da6a3ce929d0e0e4736-" + span.Context().SpanHex() + "-0" + map[float64]string{0: "0", 1: "1"}[rate]
+		if got := Traceparent(span.Context()); got != want {
+			t.Fatalf("rate %v: %q, want %q", rate, got, want)
+		}
+	}
+}

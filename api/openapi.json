@@ -606,6 +606,28 @@
           }
         }
       },
+      "error_processing_timeout": {
+        "summary": "HTTP 504 processing_timeout",
+        "value": {
+          "error": {
+            "code": "processing_timeout",
+            "details": {},
+            "message": "Request processing exceeded the server time limit.",
+            "traceId": "4bf92f3577b34da6a3ce929d0e0e4736"
+          }
+        }
+      },
+      "error_rate_limited": {
+        "summary": "HTTP 429 rate_limited",
+        "value": {
+          "error": {
+            "code": "rate_limited",
+            "details": {},
+            "message": "Too many requests. Try again later.",
+            "traceId": "4bf92f3577b34da6a3ce929d0e0e4736"
+          }
+        }
+      },
       "error_request_timeout": {
         "summary": "HTTP 408 request_timeout",
         "value": {
@@ -3708,6 +3730,8 @@
           "probe_identity_mismatch",
           "probe_invalidated",
           "probe_runtime_unavailable",
+          "processing_timeout",
+          "rate_limited",
           "request_timeout",
           "scan_limit",
           "scan_unavailable",
@@ -3902,6 +3926,12 @@
           ],
           "probe_runtime_unavailable": [
             "503"
+          ],
+          "processing_timeout": [
+            "504"
+          ],
+          "rate_limited": [
+            "429"
           ],
           "request_timeout": [
             "408"
@@ -73511,5 +73541,28 @@
       "/Dlna"
     ],
     "status": 501
+  },
+  "x-jelee-request-guards": {
+    "description": "Per instance, in memory. Authenticated requests count against their user and session token, others against the client address (trusted proxy rules). Over the limit: 429 rate_limited with Retry-After; charged responses carry RateLimit-Limit, RateLimit-Remaining, RateLimit-Reset and RateLimit-Policy. Processing over the timeout: 504 processing_timeout. Direct delivery (/api/v1/sources/*), /images/*, playback information and the compatibility layer's streams, tracks, images and PlaybackInfo are exempt from all three guards; data and statistics exports from the timeout only.",
+    "maxBodyBytes": 8388608,
+    "order": [
+      "request-id",
+      "recovery",
+      "access-log",
+      "trace",
+      "timeout",
+      "body-limit",
+      "rate-limit (anonymous)",
+      "authentication",
+      "rate-limit (authenticated)",
+      "authorization",
+      "validation"
+    ],
+    "rateLimit": {
+      "burst": 100,
+      "enabled": true,
+      "requestsPerSecond": 20
+    },
+    "timeoutSeconds": 30
   }
 }
