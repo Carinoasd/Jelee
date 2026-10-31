@@ -205,11 +205,11 @@ func (s *Store) RevokeShare(ctx context.Context, actor domain.Actor, id string) 
 		if _, err = tx.Exec(ctx, `UPDATE share_links SET revoked_at=now(),revoked_by=$2::uuid WHERE id=$1::uuid`, id, actor.UserID); err != nil {
 			return domain.Share{}, storageError(err)
 		}
-		tag, err := tx.Exec(ctx, `UPDATE sessions SET revoked_at=now() WHERE revoked_at IS NULL AND user_id=(SELECT id FROM users WHERE share_id=$1::uuid)`, id)
+		ended, err := endSessions(ctx, tx, s.webhooksOn(), sessionEndShareRevoked, `s.user_id=(SELECT id FROM users WHERE share_id=$1::uuid)`, id)
 		if err != nil {
-			return domain.Share{}, storageError(err)
+			return domain.Share{}, err
 		}
-		if err = auditShare(ctx, tx, actor, "share.revoked", id, nil, map[string]any{"sessionsRevoked": tag.RowsAffected()}); err != nil {
+		if err = auditShare(ctx, tx, actor, "share.revoked", id, nil, map[string]any{"sessionsRevoked": int64(len(ended))}); err != nil {
 			return domain.Share{}, err
 		}
 	}
@@ -285,6 +285,9 @@ func (s *Store) RedeemShare(ctx context.Context, in domain.ShareRedemption) (dom
 	}
 	session, token, err := newSession(ctx, tx, guest, string(kind), in.DeviceName, in.Client, ttl, "")
 	if err != nil {
+		return domain.SessionGrant{}, err
+	}
+	if err = appendSessionCreated(ctx, tx, s.webhooksOn(), session, sessionCreatedShare); err != nil {
 		return domain.SessionGrant{}, err
 	}
 	u, err := scanUser(tx.QueryRow(ctx, `SELECT `+userColumns+` FROM users WHERE id=$1::uuid`, guest))

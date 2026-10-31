@@ -308,7 +308,7 @@ func (s *Store) UpdateUser(ctx context.Context, actor domain.Actor, userID strin
 		return u, err
 	}
 	if old.Admin != u.Admin || u.Disabled {
-		if err = revokeAll(ctx, tx, userID); err != nil {
+		if err = revokeAll(ctx, tx, s.webhooksOn(), userID, sessionEndUserChanged); err != nil {
 			return domain.User{}, err
 		}
 	}
@@ -366,7 +366,7 @@ func (s *Store) DeleteUser(ctx context.Context, actor domain.Actor, userID strin
 	if err != nil {
 		return err
 	}
-	if err = revokeAll(ctx, tx, userID); err != nil {
+	if err = revokeAll(ctx, tx, s.webhooksOn(), userID, sessionEndUserDeleted); err != nil {
 		return err
 	}
 	// G07.7: playback history and user data go with the user and do not

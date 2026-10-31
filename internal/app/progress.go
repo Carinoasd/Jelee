@@ -76,7 +76,14 @@ type ProgressOptions struct {
 	// OnEnded is called (without blocking) after sessions ended in storage,
 	// so the statistics roll-up can aggregate them soon (G23.5).
 	OnEnded func()
+	// ProgressEventInterval throttles playback.progress (G12.1): a playing
+	// session raises it at most once per interval, with the flush that
+	// first follows the interval. Zero takes DefaultProgressEventInterval.
+	ProgressEventInterval time.Duration
 }
+
+// DefaultProgressEventInterval is the playback.progress throttle.
+const DefaultProgressEventInterval = time.Minute
 
 const (
 	// maxPendingSamples bounds the samples one session buffers between
@@ -135,6 +142,11 @@ type liveSession struct {
 	// unknown, instead of storing a position in the wrong place.
 	offset        int64
 	offsetUnknown bool
+	// pause is the last pause since the previous flush and progressEventAt
+	// the report time of the last playback.progress (G12.1), or the open
+	// time before the first.
+	pause           *domain.PlaybackPause
+	progressEventAt time.Time
 }
 
 // position maps a reported position onto the session's timeline.
@@ -201,7 +213,10 @@ func NewProgress(repo ProgressRepository, sources PlaybackRepository, opts Progr
 	if opts.Logger == nil {
 		opts.Logger = slog.New(slog.DiscardHandler)
 	}
-	if opts.FlushInterval < 0 || opts.SessionTimeout < 3*opts.FlushInterval || opts.ReportInterval < 0 || opts.SampleInterval <= 0 ||
+	if opts.ProgressEventInterval == 0 {
+		opts.ProgressEventInterval = DefaultProgressEventInterval
+	}
+	if opts.ProgressEventInterval < 0 || opts.FlushInterval < 0 || opts.SessionTimeout < 3*opts.FlushInterval || opts.ReportInterval < 0 || opts.SampleInterval <= 0 ||
 		opts.Retention < 0 || opts.MaxBatch < 1 || opts.MaxSessions < 1 || opts.Rules.Validate() != nil {
 		return nil, domain.ErrInvalid
 	}
@@ -389,6 +404,7 @@ func (p *Progress) open(ctx context.Context, actor domain.Actor, report domain.P
 	s := live
 	s.id, s.userID, s.itemID, s.sourceID, s.runtime = record.ID, actor.UserID, report.ItemID, record.SourceID, record.RuntimeTicks
 	s.position, s.paused, s.lastReport, s.nextSeq = record.PositionTicks, record.Paused, start.At, record.SampleCount
+	s.progressEventAt = start.At
 	created := record.Created
 	if !created {
 		// Rejoined: the report's position wins over the stored one.
@@ -419,6 +435,9 @@ func (p *Progress) apply(s *liveSession, report domain.PlaybackReport, now time.
 	}
 	if report.Kind != domain.PlaybackReportStop {
 		s.paused = report.Paused
+	}
+	if kind == domain.WatchSamplePause {
+		s.pause = &domain.PlaybackPause{At: now, PositionTicks: s.position}
 	}
 	s.lastReport = now
 	s.reports++
@@ -485,8 +504,11 @@ func (p *Progress) markDirty(s *liveSession) {
 // p.mu.
 func (p *Progress) entry(s *liveSession) domain.PlaybackFlush {
 	e := domain.PlaybackFlush{SessionID: s.id, PositionTicks: s.position, Paused: s.paused, LastReportAt: s.lastReport, Reports: s.reports,
-		ResumeTicks: domain.ProgressResume(s.position, s.runtime, p.opts.Rules), SourceID: s.sourceID, Samples: s.pending}
-	s.pending, s.reports = nil, 0
+		ResumeTicks: domain.ProgressResume(s.position, s.runtime, p.opts.Rules), SourceID: s.sourceID, Samples: s.pending, Pause: s.pause}
+	s.pending, s.reports, s.pause = nil, 0, nil
+	if !s.paused && s.lastReport.Sub(s.progressEventAt) >= p.opts.ProgressEventInterval {
+		e.Progress, s.progressEventAt = true, s.lastReport
+	}
 	if s.dirty {
 		s.dirty = false
 		p.dirty--
@@ -498,6 +520,8 @@ func (p *Progress) entry(s *liveSession) domain.PlaybackFlush {
 func (p *Progress) endEntry(s *liveSession, at time.Time, report domain.PlaybackReport) domain.PlaybackFlush {
 	e := p.entry(s)
 	e.ResumeTicks, e.Completed = domain.ResolvePlaybackEnd(s.position, s.runtime, p.opts.Rules)
+	// An ending reports its position with playback.stopped instead.
+	e.Progress = false
 	e.End = &domain.PlaybackEnding{State: domain.PlaybackStopped, At: at}
 	if report.Failed {
 		e.End.State, e.End.FailureReason = domain.PlaybackFailed, report.FailureReason
@@ -530,6 +554,14 @@ func (p *Progress) restore(key string, s *liveSession, e domain.PlaybackFlush) {
 	}
 	current.pending = append(e.Samples, current.pending...)
 	current.reports += e.Reports
+	// The events of the unwritten flush are raised by the next one: its
+	// pause unless a newer one replaced it, and a progress event at once.
+	if current.pause == nil {
+		current.pause = e.Pause
+	}
+	if e.Progress {
+		current.progressEventAt = time.Time{}
+	}
 	p.markDirty(current)
 }
 
@@ -582,6 +614,7 @@ func (p *Progress) Flush(ctx context.Context) (domain.PlaybackFlushResult, error
 		case now.Sub(s.lastReport) >= p.opts.SessionTimeout:
 			e := p.entry(s)
 			e.ResumeTicks, e.Completed = domain.ResolvePlaybackEnd(s.position, s.runtime, p.opts.Rules)
+			e.Progress = false
 			e.End = &domain.PlaybackEnding{State: domain.PlaybackTimedOut, At: s.lastReport}
 			delete(p.sessions, key)
 			p.stats.timedOut.Add(1)
