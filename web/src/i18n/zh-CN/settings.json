@@ -12,9 +12,28 @@
       "system": "跟随系统",
       "light": "浅色",
       "dark": "深色",
-      "hint": "立即应用并保存到账户，在其他设备上同样生效。",
+      "sepia": "复古纸张",
+      "contrast": "高对比",
       "saved": "已保存主题。"
     },
+    "density": {
+      "label": "密度",
+      "comfortable": "宽松",
+      "compact": "紧凑",
+      "saved": "已保存密度。"
+    },
+    "poster": {
+      "ratio": "海报比例",
+      "size": "海报大小",
+      "portrait": "竖版",
+      "square": "方形",
+      "landscape": "横版",
+      "small": "小",
+      "medium": "中",
+      "large": "大"
+    },
+    "view": "默认视图",
+    "listDensity": "列表密度",
     "profile": {
       "heading": "个人资料",
       "name": "显示名称",

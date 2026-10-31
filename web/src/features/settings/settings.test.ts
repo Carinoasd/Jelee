@@ -13,6 +13,7 @@ import { utf8Length } from "./api";
 afterEach(() => {
   unmountAll();
   document.documentElement.removeAttribute("data-theme");
+  document.documentElement.removeAttribute("data-palette");
   document.documentElement.lang = "";
 });
 
@@ -34,28 +35,81 @@ const field = (wrapper: Awaited<ReturnType<typeof mountView>>["wrapper"], label:
 };
 
 describe("settings", () => {
-  it("switches the theme between system, light and dark and stores it with the account", async () => {
+  it("switches the theme between system, light, dark and the presets and stores it with the account", async () => {
     const server = profileServer();
     const { wrapper } = await mountView("/settings", { fetch: server.fetch, user: regularUser });
     expect(server.calls("GET", "/api/v1/users/me/preferences")).toHaveLength(1);
-    const radios = wrapper.findAll("input[type=radio]");
-    expect(radios).toHaveLength(3);
-    expect(wrapper.find("fieldset legend").text()).toBe("Theme");
+    const theme = wrapper.findAll("fieldset")[0]!;
+    expect(theme.find("legend").text()).toBe("Theme");
+    const radios = theme.findAll("input[type=radio]");
+    expect(theme.findAll("label").map((label) => label.text())).toEqual(["Match system", "Light", "Dark", "Sepia", "High contrast"]);
     await radios[2]!.setValue(true);
     expect(document.documentElement.dataset.theme).toBe("dark");
     await radios[1]!.setValue(true);
     expect(document.documentElement.dataset.theme).toBe("light");
+    await radios[3]!.setValue(true);
+    expect(document.documentElement.dataset.theme).toBe("light");
+    expect(document.documentElement.dataset.palette).toBe("sepia");
     await radios[0]!.setValue(true);
     expect(document.documentElement.hasAttribute("data-theme")).toBe(false);
+    expect(document.documentElement.hasAttribute("data-palette")).toBe(false);
     await flushPromises();
-    // The whole record is sent; the stored density and layout are kept.
+    // The whole record is sent; the stored density and layout are kept, and
+    // a preset is stored as its scheme.
     expect(server.calls("PUT", "/api/v1/users/me/preferences").map((request) => request.body)).toEqual([
       { theme: "dark", density: "compact", layout: null },
+      { theme: "light", density: "compact", layout: null },
       { theme: "light", density: "compact", layout: null },
       { theme: "system", density: "compact", layout: null },
     ]);
     expect(useToastStore().toasts).toContainEqual(expect.objectContaining({ key: "settings.theme.saved" }));
     expectNoPlaybackMarkup(wrapper.html());
+  });
+
+  it("stores the density with the account and the display choices in this browser", async () => {
+    localStorage.clear();
+    const server = profileServer();
+    const { wrapper } = await mountView("/settings", { fetch: server.fetch, user: regularUser });
+    const group = (legend: string) => wrapper.findAll("fieldset").find((fieldset) => fieldset.find("legend").text() === legend)!;
+    expect(document.documentElement.dataset.density).toBe("compact");
+    await group("Density").findAll("input")[0]!.setValue(true);
+    await flushPromises();
+    expect(document.documentElement.hasAttribute("data-density")).toBe(false);
+    expect(server.calls("PUT", "/api/v1/users/me/preferences").at(-1)!.body).toEqual({ theme: "system", density: "comfortable", layout: null });
+
+    await group("Poster shape").findAll("input")[2]!.setValue(true);
+    await group("Poster size").findAll("input")[0]!.setValue(true);
+    await group("List density").findAll("input")[1]!.setValue(true);
+    await group("Default view").findAll("input")[1]!.setValue(true);
+    const root = document.documentElement.dataset;
+    expect([root.poster, root.posterSize, root.listDensity]).toEqual(["landscape", "small", "compact"]);
+    expect(server.calls("PUT", "/api/v1/users/me/preferences")).toHaveLength(1);
+    expect(JSON.parse(localStorage.getItem(`jelee.ui.v1.display-preferences.${regularUser.id}`) ?? "null")).toEqual({
+      palette: null,
+      posterRatio: "landscape",
+      posterSize: "small",
+      listDensity: "compact",
+      view: "list",
+    });
+    for (const name of ["data-density", "data-poster", "data-poster-size", "data-list-density"]) {
+      document.documentElement.removeAttribute(name);
+    }
+    localStorage.clear();
+  });
+
+  it("keeps a preset only while the server's theme still names its scheme", async () => {
+    localStorage.setItem(`jelee.ui.v1.display-preferences.${regularUser.id}`, JSON.stringify({ palette: "contrast", view: "bogus" }));
+    const server = profileServer().on("GET", "/api/v1/users/me/preferences", () => data({ theme: "dark", density: "comfortable", layout: null }));
+    const { pinia } = await mountView("/settings", { fetch: server.fetch, user: regularUser });
+    const preferences = usePreferencesStore(pinia);
+    expect(preferences.theme).toBe("contrast");
+    expect(preferences.display.view).toBe("poster");
+    expect(document.documentElement.dataset.palette).toBe("contrast");
+    server.on("GET", "/api/v1/users/me/preferences", () => data({ theme: "light", density: "comfortable", layout: null }));
+    await preferences.load();
+    expect(preferences.theme).toBe("light");
+    expect(document.documentElement.hasAttribute("data-palette")).toBe(false);
+    localStorage.clear();
   });
 
   it("applies the stored theme on load and keeps a chosen theme when saving fails", async () => {

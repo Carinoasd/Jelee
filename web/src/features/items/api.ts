@@ -1,5 +1,6 @@
 import type { ApiClient } from "@/api/client";
 import { call } from "@/api/call";
+import { cachedRequest } from "@/api/requestCache";
 import type { components } from "@/api/schema";
 
 export type CatalogItem = components["schemas"]["CatalogItem"];
@@ -31,14 +32,27 @@ export interface LibraryItemsPage {
 /**
  * Lists one page of the top-level items of one library. The server filters,
  * sorts and counts (parentId selects the library's top level), so a page is
- * exactly one request whatever the size of the catalog.
+ * exactly one request whatever the size of the catalog. Identical requests
+ * share one answer for a few seconds (api/requestCache.ts); force skips it.
  */
-export async function listLibraryItems(client: ApiClient, libraryId: string, offset = 0, order: LibrarySort = "name"): Promise<LibraryItemsPage> {
+export function listLibraryItems(
+  client: ApiClient,
+  libraryId: string,
+  offset = 0,
+  order: LibrarySort = "name",
+  force = false,
+): Promise<LibraryItemsPage> {
   const { sort, order: direction } = librarySorts[order];
-  const body = await call(
-    client.GET("/api/v1/items", { params: { query: { parentId: libraryId, sort, order: direction, offset, limit: libraryItemsPageSize } } }),
+  const query = { parentId: libraryId, sort, order: direction, offset, limit: libraryItemsPageSize };
+  return cachedRequest(
+    client,
+    "items:" + JSON.stringify(query),
+    async () => {
+      const body = await call(client.GET("/api/v1/items", { params: { query } }));
+      return { items: body.data, total: body.pagination.total ?? body.data.length };
+    },
+    { force },
   );
-  return { items: body.data, total: body.pagination.total ?? body.data.length };
 }
 
 /** Display metadata every user who may see the item can read. */
@@ -75,4 +89,12 @@ export async function checkItemSources(client: ApiClient, id: string, capabiliti
  */
 export function posterUrl(id: string, width: number): string {
   return `/images/Primary/${encodeURIComponent(id)}?width=${width}`;
+}
+
+/** Poster widths offered to the browser's srcset choice. */
+export const posterWidths = [120, 240, 360, 480, 720] as const;
+
+/** srcset of the poster widths; the server fits the image within each width. */
+export function posterSrcset(id: string): string {
+  return posterWidths.map((width) => `${posterUrl(id, width)} ${width}w`).join(", ");
 }

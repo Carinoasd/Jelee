@@ -12,9 +12,28 @@
       "system": "Match system",
       "light": "Light",
       "dark": "Dark",
-      "hint": "Applies at once and is saved to your account, so it follows you to other devices.",
+      "sepia": "Sepia",
+      "contrast": "High contrast",
       "saved": "Theme saved."
     },
+    "density": {
+      "label": "Density",
+      "comfortable": "Comfortable",
+      "compact": "Compact",
+      "saved": "Density saved."
+    },
+    "poster": {
+      "ratio": "Poster shape",
+      "size": "Poster size",
+      "portrait": "Portrait",
+      "square": "Square",
+      "landscape": "Landscape",
+      "small": "Small",
+      "medium": "Medium",
+      "large": "Large"
+    },
+    "view": "Default view",
+    "listDensity": "List density",
     "profile": {
       "heading": "Profile",
       "name": "Display name",

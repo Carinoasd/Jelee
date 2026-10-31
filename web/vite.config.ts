@@ -1,7 +1,9 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath, URL } from "node:url";
 import vue from "@vitejs/plugin-vue";
+import type { Plugin } from "vite";
 import { defineConfig } from "vitest/config";
+import { renderTokenCss } from "./src/theme/tokens.ts";
 
 // The development server proxies API calls to a locally running Jelee
 // (JELEE_LISTEN in .env.example). Override with JELEE_DEV_API.
@@ -10,8 +12,24 @@ const apiTarget = process.env.JELEE_DEV_API ?? "http://127.0.0.1:8097";
 // Plugins compare their minJeleeVersion with the web client's version.
 const { version } = JSON.parse(readFileSync(new URL("./package.json", import.meta.url), "utf8")) as { version: string };
 
+// Compiles the design tokens (src/theme/tokens.ts, the single source) into
+// the bundled stylesheet imported as virtual:jelee-tokens.css (G33.1).
+const tokensModule = "virtual:jelee-tokens.css";
+const resolvedTokensModule = "\0jelee-tokens.css";
+function designTokens(): Plugin {
+  return {
+    name: "jelee-design-tokens",
+    resolveId(id) {
+      return id === tokensModule ? resolvedTokensModule : null;
+    },
+    load(id) {
+      return id === resolvedTokensModule ? renderTokenCss() : null;
+    },
+  };
+}
+
 export default defineConfig({
-  plugins: [vue()],
+  plugins: [vue(), designTokens()],
   define: { __JELEE_VERSION__: JSON.stringify(version) },
   resolve: {
     alias: {

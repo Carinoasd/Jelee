@@ -14,7 +14,7 @@ import { errorMessageKey } from "@/features/errors/messages";
 import { exportSiteSettings, importSiteSettings, type PageLayout, type SiteSettingsDocument } from "@/features/site/api";
 import { useAppearanceStore } from "@/stores/appearance";
 import { builtInPresets, normalizeLayout, toUserLayout, useLayoutStore } from "@/stores/layout";
-import { themes, type Theme } from "@/stores/preferences";
+import { serverThemes, type ServerTheme } from "@/stores/preferences";
 import { useSiteAppearanceStore } from "@/stores/siteAppearance";
 import { useToastStore } from "@/stores/toasts";
 import {
@@ -136,9 +136,9 @@ async function clear() {
 }
 
 // Site defaults (server only): default theme, token overrides, default layout.
-const themeKey: Readonly<Record<Theme, string>> = { system: "settings.theme.system", light: "settings.theme.light", dark: "settings.theme.dark" };
-const themeOptions = computed(() => themes.map((value) => ({ value, label: t(themeKey[value]) })));
-const defaultTheme = shallowRef<Theme>("system");
+const themeKey: Readonly<Record<ServerTheme, string>> = { system: "settings.theme.system", light: "settings.theme.light", dark: "settings.theme.dark" };
+const themeOptions = computed(() => serverThemes.map((value) => ({ value, label: t(themeKey[value]) })));
+const defaultTheme = shallowRef<ServerTheme>("system");
 const lightTokens = shallowRef("");
 const darkTokens = shallowRef("");
 const tokenNames: ReadonlySet<string> = new Set<string>(themeTokenNames);

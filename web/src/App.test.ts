@@ -256,10 +256,32 @@ describe("library items", () => {
     await toggle[1]!.trigger("click");
     await flushPromises();
     expect(router.currentRoute.value.query.view).toBe("list");
-    expect(wrapper.find("table").exists()).toBe(true);
-    expect(wrapper.findAll("tbody tr")).toHaveLength(2);
+    expect(wrapper.findAll(".jl-row").map((row) => row.find(".jl-row__title").text())).toEqual(["Arrival <script>x</script>", "Holiday"]);
     expect(wrapper.findAll("[role=group] button")[1]!.attributes("aria-pressed")).toBe("true");
     assertNoPlayback(wrapper.html());
+  });
+
+  it("opens in the user's default view and reuses a page read a moment ago", async () => {
+    let userId = "";
+    const { wrapper, router, server } = await boot("/libraries", (s) => {
+      s.cookie = true;
+      userId = s.user.id;
+      localStorage.setItem(`jelee.ui.v1.display-preferences.${userId}`, JSON.stringify({ view: "list" }));
+    });
+    await router.push("/libraries/" + libraryA);
+    await flushPromises();
+    expect(wrapper.findAll(".jl-row")).toHaveLength(2);
+    expect(wrapper.findAll("[role=group] button").map((button) => button.attributes("aria-pressed"))).toEqual(["false", "true"]);
+    const reads = () => server.requests.filter((request) => new URL(request.url).pathname === "/api/v1/items").length;
+    const before = reads();
+    await router.push("/libraries/10000000-0000-4000-8000-00000000000c");
+    await flushPromises();
+    expect(reads()).toBe(before + 1);
+    await router.push("/libraries/" + libraryA);
+    await flushPromises();
+    expect(reads()).toBe(before + 1);
+    expect(wrapper.findAll(".jl-row")).toHaveLength(2);
+    localStorage.clear();
   });
 
   it("sorts on the server through the URL and counts the whole library", async () => {

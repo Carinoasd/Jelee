@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, shallowRef, useId, watch } from "vue";
+import { computed, shallowRef, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { useRouter } from "vue-router";
 import { ApiError, networkError } from "@/api/errors";
@@ -13,10 +13,10 @@ import PluginOutlet from "@/plugins/host/PluginOutlet.vue";
 import { isLocale, supportedLocales, type Locale } from "@/i18n/locales";
 import { useLocaleSync } from "@/i18n/useLocaleSync";
 import { useAuthStore } from "@/stores/auth";
-import { themes, usePreferencesStore, type Theme } from "@/stores/preferences";
 import { useSettingsStore } from "@/stores/settings";
 import { useToastStore } from "@/stores/toasts";
 import { passwordMaxBytes, passwordMinBytes, utf8Length } from "./api";
+import AppearanceSettings from "./AppearanceSettings.vue";
 import AppPasswordsSettings from "./AppPasswordsSettings.vue";
 import DataRightsSettings from "./DataRightsSettings.vue";
 import LayoutSettings from "./LayoutSettings.vue";
@@ -26,21 +26,14 @@ const { t } = useI18n();
 const router = useRouter();
 const auth = useAuthStore();
 const settings = useSettingsStore();
-const preferences = usePreferencesStore();
 const toasts = useToastStore();
 const { locale, setLocale } = useLocaleSync();
-const themeName = useId();
 
 const localeKey: Readonly<Record<Locale, string>> = {
   "zh-CN": "common.localeNames.zhCN",
   "zh-TW": "common.localeNames.zhTW",
   "ja-JP": "common.localeNames.jaJP",
   "en-US": "common.localeNames.enUS",
-};
-const themeKey: Readonly<Record<Theme, string>> = {
-  system: "settings.theme.system",
-  light: "settings.theme.light",
-  dark: "settings.theme.dark",
 };
 const localeOptions = computed(() => supportedLocales.map((value) => ({ value, label: t(localeKey[value]) })));
 
@@ -69,18 +62,6 @@ async function saveLanguage(value: Locale) {
   try {
     await settings.saveProfile({ displayName: user.displayName, hidden: user.hidden, locale: value });
     toasts.push("settings.language.saved", "success");
-  } catch (error: unknown) {
-    toasts.push(errorMessageKey(failure(error)), "danger");
-  }
-}
-
-// The theme applies at once; signed in, it is also stored with the account.
-async function saveTheme(value: Theme) {
-  try {
-    await preferences.setTheme(value);
-    if (auth.user !== null) {
-      toasts.push("settings.theme.saved", "success");
-    }
   } catch (error: unknown) {
     toasts.push(errorMessageKey(failure(error)), "danger");
   }
@@ -162,20 +143,7 @@ async function changePassword() {
     <section class="jl-settings__card" aria-labelledby="settings-appearance">
       <h2 id="settings-appearance">{{ t("settings.appearance") }}</h2>
       <UiSelectField v-model="language" :label="t('settings.language.label')" :options="localeOptions" :hint="t('settings.language.hint')" />
-      <fieldset class="jl-settings__themes">
-        <legend>{{ t("settings.theme.label") }}</legend>
-        <label v-for="option in themes" :key="option" class="jl-settings__theme">
-          <input
-            type="radio"
-            :name="themeName"
-            :value="option"
-            :checked="preferences.theme === option"
-            @change="saveTheme(option)"
-          />
-          {{ t(themeKey[option]) }}
-        </label>
-        <p class="jl-settings__hint">{{ t("settings.theme.hint") }}</p>
-      </fieldset>
+      <AppearanceSettings />
     </section>
 
     <form class="jl-settings__card" aria-labelledby="settings-profile" novalidate @submit.prevent="saveProfile">
@@ -275,37 +243,6 @@ async function changePassword() {
 :deep(.jl-settings__card h2) {
   margin: 0;
   font-size: var(--jl-font-size-lg);
-}
-
-.jl-settings__themes {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--jl-space-2) var(--jl-space-6);
-  margin: 0;
-  padding: 0;
-  border: none;
-}
-
-.jl-settings__themes legend {
-  margin-bottom: var(--jl-space-1);
-  padding: 0;
-  font-size: var(--jl-font-size-sm);
-  color: var(--jl-color-text-muted);
-}
-
-.jl-settings__theme {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--jl-space-2);
-  min-height: var(--jl-touch-target);
-  cursor: pointer;
-}
-
-.jl-settings__theme input {
-  width: 20px;
-  height: 20px;
-  margin: 0;
-  accent-color: var(--jl-color-primary);
 }
 
 .jl-settings__hint {

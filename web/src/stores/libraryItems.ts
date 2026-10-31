@@ -12,12 +12,17 @@ export const useLibraryItemsStore = defineStore("libraryItems", () => {
   const items = shallowRef<readonly CatalogItem[]>([]);
   const total = shallowRef(0);
 
+  // A reload or retry asks the server again instead of reusing a cached page.
+  let fresh = false;
+
   // Each load captures the library and order it was started for; a response
   // arriving after the user switched either is dropped instead of merged.
   async function loadPage(append: boolean) {
     const target = libraryId.value;
     const order = sort.value;
-    const page = await listLibraryItems(client, target, append ? items.value.length : 0, order);
+    const force = fresh;
+    fresh = false;
+    const page = await listLibraryItems(client, target, append ? items.value.length : 0, order, force);
     if (target === libraryId.value && order === sort.value) {
       items.value = append ? [...items.value, ...page.items] : page.items;
       total.value = page.total;
@@ -40,8 +45,10 @@ export const useLibraryItemsStore = defineStore("libraryItems", () => {
 
   /** Shows a library in an order, reloading when either differs from the one on screen. */
   async function open(id: string, order: LibrarySort = "name", force = false) {
-    if (id !== libraryId.value || order !== sort.value || force || firstPage.state.value.status === "error") {
+    const failed = firstPage.state.value.status === "error";
+    if (id !== libraryId.value || order !== sort.value || force || failed) {
       reset();
+      fresh = force || failed;
       libraryId.value = id;
       sort.value = order;
       await firstPage.run();
