@@ -17,7 +17,8 @@ const (
 // Forwarder ships records to an external collector. Each Write receives one
 // complete, already redacted JSON record terminated by a newline, delivered
 // from a dedicated bounded queue so a slow collector cannot block callers.
-// Concrete syslog, Loki and OTLP forwarders are not implemented yet.
+// Syslog (forward_syslog.go) and Loki (forward_loki.go) are implemented; OTLP
+// is not.
 type Forwarder interface {
 	io.WriteCloser
 	Kind() ForwarderKind

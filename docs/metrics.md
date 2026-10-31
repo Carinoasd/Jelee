@@ -144,6 +144,9 @@ vet、三命令 build、模組 checksum、格式、增量品牌與 gitignore 通
 | `jelee_http_rate_limited_total` | counter | 程序啟動後被通用 API 限流以 429 `rate_limited` 拒絕的請求數（G08.7；每個實例各自計數） |
 | `jelee_http_timeouts_total` | counter | 程序啟動後因處理逾時而回 504 `processing_timeout` 的請求數（G08.7） |
 | `jelee_logging_records_dropped_total` | counter | 程序啟動後因日誌佇列已滿或已關閉而丟棄的日誌紀錄數（G46.8 背壓；告警 `JeleeLogRecordsDropped`） |
+| `jelee_logging_forward_dropped_total{destination}` | counter | 程序啟動後送往外部目的地（syslog、Loki）的日誌紀錄遺失數：該目的地佇列已滿或已關閉、紀錄過大、重試用盡或遭永久拒絕的批次，以及路由器入口佇列為它丟棄的紀錄（G46.1、G46.8；告警 `JeleeLogForwardDropped`） |
+| `jelee_logging_forward_failures_total{destination}` | counter | 程序啟動後對該目的地的投遞嘗試失敗次數（含之後重試成功的） |
+| `jelee_logging_forward_sent_total{destination}` | counter | 程序啟動後該目的地已接收的日誌紀錄數 |
 | `jelee_logging_write_failures_total` | counter | 程序啟動後被日誌輸出（檔案、轉發器）拒絕寫入的紀錄數 |
 | `jelee_runtime_memory_limit_bytes` | gauge | Go soft memory limit（`GOMEMLIMIT`）；未設定時為 0 |
 | `jelee_storage_available_bytes{volume}` | gauge | 設定目錄所在檔案系統可供服務使用的 bytes |

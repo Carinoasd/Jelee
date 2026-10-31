@@ -63,7 +63,11 @@ type Options struct {
 	IPMode        IPMode
 	PathMode      PathMode
 	PathRoots     []string
-	Forwarders    []Forwarder
+	// Forwarders are ready made destinations the router owns and closes.
+	Forwarders []Forwarder
+	// Forward lists destinations Open builds (G46.1); Open fails when one is
+	// invalid and closes the ones it built.
+	Forward []ForwarderOptions
 }
 
 // Router owns the logger, its level thresholds and its asynchronous sinks.
@@ -74,6 +78,14 @@ type Router struct {
 	writers []*asyncWriter
 	// file is the rotating log file; nil in stdout-only mode.
 	file *RotatingFile
+	// forwarders pairs each external destination with the router queue in
+	// front of it, for the per-destination counters.
+	forwarders []routedForwarder
+}
+
+type routedForwarder struct {
+	f Forwarder
+	w *asyncWriter
 }
 
 // Open builds the logging pipeline. stdout is never closed by the router.
@@ -132,11 +144,21 @@ func Open(opts Options, stdout io.Writer) (*Router, error) {
 		r.file = file
 		jsonSinks = append(jsonSinks, r.add(file, opts.BufferEntries))
 	}
+	if len(opts.Forward) > 0 {
+		built, err := NewForwarders(opts.Forward)
+		if err != nil {
+			_ = r.Close()
+			return nil, err
+		}
+		opts.Forwarders = append(append([]Forwarder(nil), opts.Forwarders...), built...)
+	}
 	for _, f := range opts.Forwarders {
 		if f == nil {
 			continue
 		}
-		jsonSinks = append(jsonSinks, r.add(f, opts.BufferEntries))
+		w := r.add(f, opts.BufferEntries)
+		r.forwarders = append(r.forwarders, routedForwarder{f: f, w: w})
+		jsonSinks = append(jsonSinks, w)
 	}
 	switch len(jsonSinks) {
 	case 0:
@@ -236,6 +258,25 @@ func (r *Router) Dropped() uint64 {
 		n += w.Dropped()
 	}
 	return n
+}
+
+// ForwardStats reports, per external destination, the records lost before
+// the collector took them (G46.8) and the failed delivery attempts. A record
+// dropped by the router queue in front of the forwarder counts as dropped for
+// that destination as well as in Dropped.
+func (r *Router) ForwardStats() []ForwardStat {
+	stats := make([]ForwardStat, 0, len(r.forwarders))
+	for _, rf := range r.forwarders {
+		var st ForwardStat
+		if s, ok := rf.f.(forwardStatter); ok {
+			st = s.ForwardStat()
+		} else {
+			st = ForwardStat{Destination: string(rf.f.Kind()), Kind: rf.f.Kind()}
+		}
+		st.Dropped += rf.w.Dropped()
+		stats = append(stats, st)
+	}
+	return stats
 }
 
 // WriteFailures counts records a sink rejected.

@@ -95,6 +95,10 @@ type logTestCounters struct{ dropped, failed uint64 }
 func (c *logTestCounters) Dropped() uint64       { return c.dropped }
 func (c *logTestCounters) WriteFailures() uint64 { return c.failed }
 
+func (c *logTestCounters) ForwardStats() []LogForwardStat {
+	return []LogForwardStat{{Destination: "loki", Dropped: 4, Failures: 6, Sent: 90}, {Destination: "syslog", Sent: 3}}
+}
+
 func scrapeOps(t *testing.T, m *Metrics) map[string]*dto.MetricFamily {
 	t.Helper()
 	w := requestJobMetrics(m, context.Background())
@@ -154,6 +158,15 @@ func TestOpsMetricsExposeTheSharedSnapshot(t *testing.T) {
 		if got := opsValue(t, families, name, nil); got != want {
 			t.Fatalf("%s = %v, want %v", name, got, want)
 		}
+	}
+	// G46.8: per-destination forwarder counters.
+	for name, want := range map[string]float64{"jelee_logging_forward_dropped_total": 4, "jelee_logging_forward_failures_total": 6, "jelee_logging_forward_sent_total": 90} {
+		if got := opsValue(t, families, name, map[string]string{"destination": "loki"}); got != want {
+			t.Fatalf("%s{loki} = %v, want %v", name, got, want)
+		}
+	}
+	if got := opsValue(t, families, "jelee_logging_forward_sent_total", map[string]string{"destination": "syslog"}); got != 3 {
+		t.Fatalf("syslog sent = %v", got)
 	}
 	for i, check := range domain.ConsistencyChecks() {
 		if got := opsValue(t, families, "jelee_consistency_findings", map[string]string{"check": check}); got != float64(i) {

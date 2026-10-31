@@ -245,7 +245,7 @@ func newWithLifetime(cfg config.Config, logger *slog.Logger, lifetime *lifetime)
 			}
 			// G46.8: records the log queues dropped or the sinks refused.
 			if lifetime.logs != nil {
-				if err := metrics.RegisterLogging(lifetime.logs); err != nil {
+				if err := metrics.RegisterLogging(logCounterSource{lifetime.logs}); err != nil {
 					return nil, errors.Join(err, metrics.Shutdown(context.Background()))
 				}
 			}
@@ -990,4 +990,17 @@ func openImageStore(lifetime context.Context, c config.ImagesConfig, catalog *po
 		return nil, errors.New("cannot open image store")
 	}
 	return store, nil
+}
+
+// logCounterSource adapts the log router to the telemetry interfaces,
+// including the per-destination forwarder counters.
+type logCounterSource struct{ *logging.Router }
+
+func (s logCounterSource) ForwardStats() []telemetry.LogForwardStat {
+	stats := s.Router.ForwardStats()
+	out := make([]telemetry.LogForwardStat, len(stats))
+	for i, st := range stats {
+		out[i] = telemetry.LogForwardStat{Destination: st.Destination, Dropped: st.Dropped, Failures: st.Failures, Sent: st.Sent}
+	}
+	return out
 }
