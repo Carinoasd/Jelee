@@ -15,6 +15,7 @@ func (s *Server) metadataRoutes(r chi.Router) {
 		s.metadataImageRoutes(r)
 		s.seriesRoutes(r)
 		s.episodeRoutes(r)
+		s.externalIDRoutes(r)
 		r.Get("/api/v1/metadata/tmdb/movies", s.accountEndpoint(true, true, func(w http.ResponseWriter, r *http.Request, a domain.Actor) (any, int, error) {
 			query, err := strictQuery(r, "query", "year", "language", "libraryId")
 			if err != nil {
@@ -97,5 +98,6 @@ func metadataSpecification(paths, schemas map[string]any) {
 	seriesSpecification(paths, schemas)
 	episodeSpecification(paths, schemas)
 	metadataImageSpecification(paths, schemas)
+	externalIDSpecification(paths, schemas)
 	metadataPreferencesSpecification(paths, schemas)
 }

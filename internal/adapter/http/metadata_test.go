@@ -94,6 +94,13 @@ func (p *httpMovieProvider) Movie(ctx context.Context, id int32, language string
 
 func metadataFixture(t *testing.T, p *httpMovieProvider, locales ...string) (http.Handler, config.Config) {
 	t.Helper()
+	return metadataProviderFixture(t, p, p.preferences, locales...)
+}
+
+// metadataProviderFixture serves any metadata provider, so a test can add
+// optional capabilities such as external ID lookups to the shared fixture.
+func metadataProviderFixture(t *testing.T, p app.MetadataProvider, preferences app.MetadataPreferencesRepository, locales ...string) (http.Handler, config.Config) {
+	t.Helper()
 	cfg := validConfig()
 	cfg.EnableAccounts = true
 	cfg.Accounts = config.DefaultAccountsConfig()
@@ -116,8 +123,8 @@ func metadataFixture(t *testing.T, p *httpMovieProvider, locales ...string) (htt
 	if err != nil {
 		t.Fatal(err)
 	}
-	if p.preferences != nil {
-		service, err = service.WithLibraryPreferences(p.preferences)
+	if preferences != nil {
+		service, err = service.WithLibraryPreferences(preferences)
 		if err != nil {
 			t.Fatal(err)
 		}

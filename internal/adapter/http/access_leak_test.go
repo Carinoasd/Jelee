@@ -386,14 +386,17 @@ func leakRouteTable() map[string]leakRoute {
 		"PUT /api/v1/libraries/{id}/metadata-preferences": admin(libParam),
 
 		// TMDB lookups are administrator-only and keyed by provider IDs.
-		"GET /api/v1/metadata/tmdb/movies":                                          admin(noParams),
-		"GET /api/v1/metadata/tmdb/movies/{id}":                                     admin(tmdbParam),
-		"GET /api/v1/metadata/tmdb/movies/{id}/images":                              admin(tmdbParam),
-		"GET /api/v1/metadata/tmdb/series":                                          admin(noParams),
-		"GET /api/v1/metadata/tmdb/series/{id}":                                     admin(tmdbParam),
-		"GET /api/v1/metadata/tmdb/series/{id}/images":                              admin(tmdbParam),
-		"GET /api/v1/metadata/tmdb/series/{id}/seasons/{season}":                    admin(map[string]string{"id": "tmdb", "season": "tmdb"}),
-		"GET /api/v1/metadata/tmdb/series/{id}/seasons/{season}/episodes/{episode}": admin(map[string]string{"id": "tmdb", "season": "tmdb", "episode": "tmdb"}),
+		"GET /api/v1/metadata/tmdb/movies":                                                 admin(noParams),
+		"GET /api/v1/metadata/tmdb/movies/{id}":                                            admin(tmdbParam),
+		"GET /api/v1/metadata/tmdb/movies/{id}/images":                                     admin(tmdbParam),
+		"GET /api/v1/metadata/tmdb/series":                                                 admin(noParams),
+		"GET /api/v1/metadata/tmdb/series/{id}":                                            admin(tmdbParam),
+		"GET /api/v1/metadata/tmdb/series/{id}/images":                                     admin(tmdbParam),
+		"GET /api/v1/metadata/tmdb/series/{id}/seasons/{season}":                           admin(map[string]string{"id": "tmdb", "season": "tmdb"}),
+		"GET /api/v1/metadata/tmdb/series/{id}/seasons/{season}/episodes/{episode}":        admin(map[string]string{"id": "tmdb", "season": "tmdb", "episode": "tmdb"}),
+		"GET /api/v1/metadata/tmdb/series/{id}/seasons/{season}/images":                    admin(map[string]string{"id": "tmdb", "season": "tmdb"}),
+		"GET /api/v1/metadata/tmdb/series/{id}/seasons/{season}/episodes/{episode}/images": admin(map[string]string{"id": "tmdb", "season": "tmdb", "episode": "tmdb"}),
+		"GET /api/v1/metadata/tmdb/find":                                                   admin(noParams),
 
 		// Library administration and jobs.
 		"GET /api/v1/libraries":                    admin(noParams),

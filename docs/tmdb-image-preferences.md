@@ -37,4 +37,17 @@
 
 專項覆蓋SQL約束、升級保留、舊客戶端更新、版本衝突／稽核／降版保護，正式HTTP讀庫偏好到圖片查詢及撤銷session。實際TLS供應商＋應用驗證編碼參數、來源、語言排序／篩選、待確認與跨資源快取隔離；單元驗證TTL、清單順序鍵、陣列擁有權、非法回應與1000／1001界線、取消後不發布快取。刻意忽略正式HTTP的庫圖片偏好時，真HTTP／PG驗收失敗；逐位元復原後相關六項PG race專項通過。
 
-完整執行統計及来源hash見[證據](evidence/tmdb-image-preferences.json)。G14.5仍部分完成，季／集圖片、logo、完整前端及原100電影／20劇集刮削／寫入驗收尚缺；欄位鎖與人工／NFO優先、元資料持久化／清除及G24圖片處理仍待完成。完整品牌與實際ABI差異保持門禁。
+完整執行統計及来源hash見[證據](evidence/tmdb-image-preferences.json)。G14.5仍部分完成，logo、完整前端及原100電影／20劇集刮削／寫入驗收尚缺；欄位鎖與人工／NFO優先、元資料持久化／清除及G24圖片處理仍待完成。完整品牌與實際ABI差異保持門禁。
+
+## 季海報與單集劇照（第 9 階段補缺）
+
+- `GET /api/v1/metadata/tmdb/series/{id}/seasons/{season}/images?libraryId={uuid}`：季海報（`kind=poster`），season 0 為特別篇。
+- `GET /api/v1/metadata/tmdb/series/{id}/seasons/{season}/episodes/{episode}/images?libraryId={uuid}`：單集劇照（`kind=still`）。
+
+權限、嚴格查詢、圖片語言來源（指定庫用庫的有序清單，省略時用個人語言預設）與電影／劇集圖片相同。適配器呼叫官方[季圖片](https://developer.themoviedb.org/reference/tv-season-images)與[單集圖片](https://developer.themoviedb.org/reference/tv-episode-images)端點，季只讀 `posters`、單集只讀 `stills`（必須存在且是陣列），其他陣列忽略；逐筆驗證、1000 筆上限、檔名與憑據回顯檢查、15 秒期限、共享限流／冷卻／重試全部沿用。
+
+回應的 `resource` 是 `season` 或 `episode`，另帶 `seriesId`、`seasonNumber`、`episodeNumber`（單集才有）；`providerId` 是上游回應的季／集 ID（只要求為正 int32，因為請求以劇集 ID 與季集號定位）。`sourceUrl` 是 `https://www.themoviedb.org/tv/{id}/season/{n}[/episode/{m}]`。應用層核對劇集、季集號、資源類型、語言清單與圖片種類都與請求一致，再依語言偏好篩選排序並標記 `needsConfirmation=true`。快取鍵含劇集 ID、季、集與完整有序清單，與電影／劇集共用 16 筆 LRU。
+
+`domain.ValidMetadataImageResource` 仍只接受 `movie`／`series`：它同時是「套用元資料」的資源檢查，季／集另用 `ValidMetadataEpisodeImageTarget`，避免把季集誤放進套用流程。本節仍只列候選，不下載、不寫入圖片。
+
+驗證：適配器 `TestEpisodeImagesEndpointsMappingAndCachePartitions`、`TestEpisodeImagesRejectInvalidTargetsAndResponses`；應用層 `TestEpisodeImagesPreferenceOrderingAndTupleValidation`；HTTP `TestSeasonEpisodeImageHTTPAuthorityPreferenceAndContract`；真 TLS `TestSeasonEpisodeImagesThroughActualTLSAndApplication`；真 TLS＋HTTP＋PostgreSQL `TestFindAndEpisodeImagesThroughTLSHTTPAndPostgres`（庫的圖片語言 `ja,null` 傳到上游並決定排序）。把單集請求改打季端點時適配器與真 TLS 測試失敗。真實 TMDB 回應形狀待擁有者以真金鑰驗證（清單 D28）。
