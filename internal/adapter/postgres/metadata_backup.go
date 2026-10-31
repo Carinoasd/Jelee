@@ -174,7 +174,7 @@ func metadataExportQueries(passwordHashes bool) []metadataExportQuery {
 		{"collection_item", `SELECT to_jsonb(x)::text FROM (SELECT collection_id,item_id,added_at FROM collection_items) x ORDER BY x.collection_id,x.item_id`},
 		{"playlist", `SELECT to_jsonb(x)::text FROM (SELECT id,owner_id,name,public,created_at,updated_at FROM playlists p WHERE ` + notGuestSQL("p.owner_id") + `) x ORDER BY x.id`},
 		{"playlist_item", `SELECT to_jsonb(x)::text FROM (SELECT e.id,e.playlist_id,e.item_id,e.position,e.added_at FROM playlist_items e JOIN playlists p ON p.id=e.playlist_id WHERE ` + notGuestSQL("p.owner_id") + `) x ORDER BY x.id`},
-		{"user_preference", `SELECT to_jsonb(x)::text FROM (SELECT user_id,theme,density,layout,updated_at FROM user_preferences p WHERE ` + notGuestSQL("p.user_id") + `) x ORDER BY x.user_id`},
+		{"user_preference", `SELECT to_jsonb(x)::text FROM (SELECT user_id,theme,density,layout,display,updated_at FROM user_preferences p WHERE ` + notGuestSQL("p.user_id") + `) x ORDER BY x.user_id`},
 		{"user_version_preference", `SELECT to_jsonb(x)::text FROM (SELECT user_id,max_height,dynamic_range,prefer_smaller,max_bitrate,updated_at FROM user_version_preferences p WHERE ` + notGuestSQL("p.user_id") + `) x ORDER BY x.user_id`},
 		// Single-row documents: revisions and change times belong to the
 		// instance, like those of the access and client control policies.

@@ -501,13 +501,14 @@ ins AS (INSERT INTO playlist_items(id,playlist_id,item_id,position,added_at)
  SELECT CASE WHEN EXISTS(SELECT 1 FROM playlist_items e WHERE e.id=ok.ref) THEN gen_random_uuid() ELSE ok.ref END,p,i,(doc->>'position')::integer,(doc->>'added_at')::timestamptz FROM ok WHERE state='new' RETURNING 1)
 SELECT (SELECT count(*) FROM ok),(SELECT count(*) FROM ins),0,(SELECT count(*) FROM usable)-(SELECT count(*) FROM ok)`},
 	// Like progress, a preference keeps whichever side was updated last.
-	// Layouts were checked before anything was applied.
+	// Layouts and display choices were checked before anything was applied;
+	// a backup from before schema 113 has no display member (NULL).
 	{kind: "user_preference", sql: `WITH x AS (SELECT s.doc,pg_temp.bk_dst('user',s.doc->>'user_id') u FROM bk_stage s WHERE s.kind='user_preference'
  AND NOT EXISTS(SELECT 1 FROM bk_map b WHERE b.kind='user_preference' AND b.src=(s.doc->>'user_id')::uuid)),
 ok AS (SELECT * FROM x WHERE u IS NOT NULL),
-up AS (INSERT INTO user_preferences AS p(user_id,theme,density,layout,updated_at)
- SELECT u,doc->>'theme',doc->>'density',NULLIF(doc->'layout','null'::jsonb),(doc->>'updated_at')::timestamptz FROM ok
- ON CONFLICT(user_id) DO UPDATE SET theme=EXCLUDED.theme,density=EXCLUDED.density,layout=EXCLUDED.layout,updated_at=EXCLUDED.updated_at WHERE EXCLUDED.updated_at>p.updated_at
+up AS (INSERT INTO user_preferences AS p(user_id,theme,density,layout,display,updated_at)
+ SELECT u,doc->>'theme',doc->>'density',NULLIF(doc->'layout','null'::jsonb),NULLIF(doc->'display','null'::jsonb),(doc->>'updated_at')::timestamptz FROM ok
+ ON CONFLICT(user_id) DO UPDATE SET theme=EXCLUDED.theme,density=EXCLUDED.density,layout=EXCLUDED.layout,display=EXCLUDED.display,updated_at=EXCLUDED.updated_at WHERE EXCLUDED.updated_at>p.updated_at
  RETURNING (xmax=0) inserted)
 SELECT (SELECT count(*) FROM ok),(SELECT count(*) FROM up WHERE inserted),(SELECT count(*) FROM up WHERE NOT inserted),0`},
 	// Version preferences (G20.2) keep whichever side was updated last too;

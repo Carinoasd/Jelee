@@ -86,6 +86,15 @@ async function stored(save: Promise<void>, savedKey: string) {
   }
 }
 
+// Display choices apply at once; only a failed save is reported.
+async function displayStored(save: Promise<void>) {
+  try {
+    await save;
+  } catch (error: unknown) {
+    toasts.push(errorMessageKey(failure(error)), "danger");
+  }
+}
+
 const theme = computed({
   get: () => preferences.theme,
   set: (value: Theme) => void stored(preferences.setTheme(value), "settings.theme.saved"),
@@ -97,25 +106,25 @@ const density = computed({
 const posterRatio = computed({
   get: () => preferences.display.posterRatio,
   set: (value: PosterRatio) => {
-    preferences.setDisplay({ posterRatio: value });
+    void displayStored(preferences.setDisplay({ posterRatio: value }));
   },
 });
 const posterSize = computed({
   get: () => preferences.display.posterSize,
   set: (value: PosterSize) => {
-    preferences.setDisplay({ posterSize: value });
+    void displayStored(preferences.setDisplay({ posterSize: value }));
   },
 });
 const listDensity = computed({
   get: () => preferences.display.listDensity,
   set: (value: ListDensity) => {
-    preferences.setDisplay({ listDensity: value });
+    void displayStored(preferences.setDisplay({ listDensity: value }));
   },
 });
 const view = computed({
   get: () => preferences.display.view,
   set: (value: ItemView) => {
-    preferences.setDisplay({ view: value });
+    void displayStored(preferences.setDisplay({ view: value }));
   },
 });
 

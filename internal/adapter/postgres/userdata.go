@@ -32,7 +32,7 @@ var userDataSections = []userDataSection{
  t.enabled_at IS NOT NULL AS "twoFactorEnabled",t.enabled_at AS "twoFactorEnabledAt",
  (SELECT count(*) FROM user_recovery_codes c WHERE c.user_id=u.id AND c.used_at IS NULL) AS "recoveryCodesRemaining"
  FROM users u LEFT JOIN user_totp t ON t.user_id=u.id WHERE u.id=$1::uuid`, `"id"`},
-	{"preferences", `SELECT theme AS "theme",density AS "density",layout AS "layout",updated_at AS "updatedAt" FROM user_preferences WHERE user_id=$1::uuid`, `"updatedAt"`},
+	{"preferences", `SELECT theme AS "theme",density AS "density",layout AS "layout",display AS "display",updated_at AS "updatedAt" FROM user_preferences WHERE user_id=$1::uuid`, `"updatedAt"`},
 	{"trackPreference", `SELECT id::text AS "id",item_id::text AS "itemId",source_id::text AS "sourceId",audio_language AS "audioLanguage",audio_commentary AS "audioCommentary",
  audio_track AS "audioTrack",subtitle_mode AS "subtitleMode",subtitle_language AS "subtitleLanguage",subtitle_sdh AS "subtitleSdh",subtitle_track AS "subtitleTrack",
  updated_at AS "updatedAt" FROM user_track_preferences WHERE user_id=$1::uuid AND (item_id IS NULL OR ` + exportItemVisible("item_id") + `)`, `"id"`},

@@ -100,7 +100,7 @@ export function createFakeServer(): FakeServer {
     csrf: "c".repeat(43),
     devMode: { active: false, expiresAt: "" },
     version: "",
-    preferences: { theme: "system", density: "comfortable", layout: null },
+    preferences: { theme: "system", density: "comfortable", layout: null, display: null },
     site: null,
     user: {
       id: userId,

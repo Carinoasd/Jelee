@@ -87,6 +87,26 @@ type siteUserLayout struct {
 	} `json:"presets"`
 }
 
+// userDisplayFrom converts the display member of PUT /users/me/preferences:
+// null means no saved choices, an object must name all five members.
+func userDisplayFrom(raw json.RawMessage) (*domain.UserDisplay, bool) {
+	input, ok := decodeLayoutValue[struct {
+		Palette     *string `json:"palette"`
+		PosterRatio *string `json:"posterRatio"`
+		PosterSize  *string `json:"posterSize"`
+		ListDensity *string `json:"listDensity"`
+		View        *string `json:"view"`
+	}](raw)
+	if !ok || input == nil {
+		return nil, ok
+	}
+	if input.PosterRatio == nil || input.PosterSize == nil || input.ListDensity == nil || input.View == nil {
+		return nil, false
+	}
+	display := domain.UserDisplay{Palette: input.Palette, PosterRatio: *input.PosterRatio, PosterSize: *input.PosterSize, ListDensity: *input.ListDensity, View: *input.View}
+	return &display, display.Valid()
+}
+
 // userLayoutFrom converts the layout member of PUT /users/me/preferences.
 func userLayoutFrom(raw json.RawMessage) (*domain.UserLayout, bool) {
 	input, ok := decodeLayoutValue[siteUserLayout](raw)

@@ -14,6 +14,59 @@ const (
 	DensityCompact     = "compact"
 )
 
+// Display choices of the web client (G33.2). Palette names a preset beyond
+// plain light and dark; the web client keeps the theme member in step with
+// the preset's color scheme, so clients that only know theme still follow it.
+const (
+	PaletteSepia    = "sepia"
+	PaletteContrast = "contrast"
+
+	PosterPortrait  = "portrait"
+	PosterSquare    = "square"
+	PosterLandscape = "landscape"
+
+	PosterSizeSmall  = "small"
+	PosterSizeMedium = "medium"
+	PosterSizeLarge  = "large"
+
+	ListDensityComfortable = "comfortable"
+	ListDensityCompact     = "compact"
+
+	ViewPoster = "poster"
+	ViewList   = "list"
+)
+
+// UserDisplay is a user's saved display choices. Palette is nil for plain
+// light or dark (the theme member decides).
+type UserDisplay struct {
+	Palette     *string `json:"palette"`
+	PosterRatio string  `json:"posterRatio"`
+	PosterSize  string  `json:"posterSize"`
+	ListDensity string  `json:"listDensity"`
+	View        string  `json:"view"`
+}
+
+// Valid reports whether every member holds a known value.
+func (d UserDisplay) Valid() bool {
+	if d.Palette != nil && *d.Palette != PaletteSepia && *d.Palette != PaletteContrast {
+		return false
+	}
+	switch d.PosterRatio {
+	case PosterPortrait, PosterSquare, PosterLandscape:
+	default:
+		return false
+	}
+	switch d.PosterSize {
+	case PosterSizeSmall, PosterSizeMedium, PosterSizeLarge:
+	default:
+		return false
+	}
+	if d.ListDensity != ListDensityComfortable && d.ListDensity != ListDensityCompact {
+		return false
+	}
+	return d.View == ViewPoster || d.View == ViewList
+}
+
 // UserPreferences are a user's stored interface preferences. A user who
 // never saved any reads DefaultUserPreferences.
 type UserPreferences struct {
@@ -24,6 +77,8 @@ type UserPreferences struct {
 	// Layout is the user's page layout and saved presets; nil until the
 	// user customizes it, when the site default layout applies.
 	Layout *UserLayout `json:"layout"`
+	// Display is the user's display choices; nil until the user saves any.
+	Display *UserDisplay `json:"display"`
 }
 
 // DefaultUserPreferences follow the browser and the regular layout. A
@@ -40,6 +95,9 @@ func (p UserPreferences) Valid() bool {
 		return false
 	}
 	if p.Density != DensityComfortable && p.Density != DensityCompact {
+		return false
+	}
+	if p.Display != nil && !p.Display.Valid() {
 		return false
 	}
 	return p.Layout == nil || p.Layout.Valid()

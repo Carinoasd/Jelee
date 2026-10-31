@@ -76,3 +76,40 @@ func TestUserPreferencesMigrationRoundTrip(t *testing.T) {
 		t.Fatalf("after round trip: %+v %v", p, err)
 	}
 }
+
+func TestUserDisplayPreferencesStorage(t *testing.T) {
+	f := newJobFixture(t)
+	viewer := contentAccessPrincipal(t, f, "prefs-display", false)
+	sepia := domain.PaletteSepia
+	display := &domain.UserDisplay{Palette: &sepia, PosterRatio: domain.PosterSquare, PosterSize: domain.PosterSizeLarge, ListDensity: domain.ListDensityCompact, View: domain.ViewList}
+	saved, err := f.s.SetPreferences(f.ctx, viewer.actor, domain.UserPreferences{Theme: domain.ThemeLight, Density: domain.DensityComfortable, Display: display})
+	if err != nil || saved.Display == nil || saved.Display.Palette == nil || *saved.Display.Palette != sepia || saved.Display.PosterRatio != domain.PosterSquare || saved.Display.View != domain.ViewList {
+		t.Fatalf("display: %+v %v", saved, err)
+	}
+	if p, err := f.s.GetPreferences(f.ctx, viewer.actor); err != nil || p.Display == nil || p.Display.PosterSize != domain.PosterSizeLarge || p.Display.ListDensity != domain.ListDensityCompact {
+		t.Fatalf("read back: %+v %v", p, err)
+	}
+	// A null palette is kept as null, not dropped.
+	display.Palette = nil
+	if p, err := f.s.SetPreferences(f.ctx, viewer.actor, domain.UserPreferences{Theme: domain.ThemeDark, Density: domain.DensityComfortable, Display: display}); err != nil || p.Display == nil || p.Display.Palette != nil {
+		t.Fatalf("null palette: %+v %v", p, err)
+	}
+	bad := *display
+	bad.View = "grid"
+	if _, err := f.s.SetPreferences(f.ctx, viewer.actor, domain.UserPreferences{Theme: domain.ThemeDark, Density: domain.DensityComfortable, Display: &bad}); !errors.Is(err, domain.ErrInvalid) {
+		t.Fatalf("invalid display: %v", err)
+	}
+	// Clearing the display keeps theme and layout rules intact.
+	if p, err := f.s.SetPreferences(f.ctx, viewer.actor, domain.UserPreferences{Theme: domain.ThemeDark, Density: domain.DensityComfortable}); err != nil || p.Display != nil {
+		t.Fatalf("clear: %+v %v", p, err)
+	}
+	// The storage constraint backs the API: only an object within 1 KiB.
+	if _, err := f.s.Pool.Exec(f.ctx, `UPDATE user_preferences SET display='[]'::jsonb`); err == nil {
+		t.Fatal("storage accepted a non-object display")
+	}
+	// A row that bypassed the API with an unknown value is refused on read.
+	imageRepositoryExec(t, f, `UPDATE user_preferences SET display='{"palette":null,"posterRatio":"wide","posterSize":"medium","listDensity":"comfortable","view":"poster"}'::jsonb`)
+	if _, err := f.s.GetPreferences(f.ctx, viewer.actor); !errors.Is(err, domain.ErrDatabase) {
+		t.Fatalf("unknown stored value: %v", err)
+	}
+}

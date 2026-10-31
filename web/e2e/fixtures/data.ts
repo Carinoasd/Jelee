@@ -118,7 +118,7 @@ export const trackPreferences: Schemas["TrackPreferences"] = { itemId: detailIte
 
 export const versionOverview: Schemas["VersionOverview"] = { itemId: detailItem.id, primarySourceId: id(300), exclusions: [], operations: [] };
 
-export const preferences: Schemas["UserPreferences"] = { theme: "system", density: "comfortable", layout: null };
+export const preferences: Schemas["UserPreferences"] = { theme: "system", density: "comfortable", layout: null, display: null };
 
 export const sessions: Schemas["Session"][] = [
   { id: ids.session, userId: ids.admin, clientKind: "web", deviceName: "Jelee Web", createdAt: day(-1), expiresAt: day(6), lastSeenAt: day(0), lastIp: "192.0.2.10" },

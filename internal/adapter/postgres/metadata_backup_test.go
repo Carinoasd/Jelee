@@ -51,6 +51,9 @@ const (
 	bkEntry3    = "b0000000-0000-4000-8000-0000000000a4"
 )
 
+// bkDisplay is a set of display choices the preferences API accepts.
+const bkDisplay = `{"palette":"sepia","posterRatio":"square","posterSize":"large","listDensity":"compact","view":"list"}`
+
 // bkLayout is a user layout the preferences API accepts.
 const bkLayout = `{"current":{"home":[{"id":"resume","visible":true},{"id":"latest","visible":false}],"detail":[{"id":"cast","visible":true}]},"presets":[{"id":"custom-1","name":"Mine 我的","layout":{"home":[{"id":"latest","visible":true}],"detail":[]}}]}`
 
@@ -164,8 +167,8 @@ func seedMetadataBackup(t testing.TB, ctx context.Context, s *Store, episodes in
 		{"playlist entries", `INSERT INTO playlist_items(id,playlist_id,item_id,position,added_at) VALUES ('` + bkEntry1 + `','` + bkPlaylist + `','` + bkEpisode + `',0,'2026-09-12T00:00:01Z'),
  ('` + bkEntry2 + `','` + bkPlaylist + `','` + bkMovie + `',1,'2026-09-12T00:00:02Z'),('` + bkEntry3 + `','` + bkPlaylist + `','` + bkEpisode + `',2,'2026-09-12T00:00:03Z')`},
 		{"guest playlist", `INSERT INTO playlists(owner_id,name) SELECT id,'guest-mix' FROM users WHERE share_id='` + bkShare + `'`},
-		{"preferences", `INSERT INTO user_preferences(user_id,theme,density,layout,updated_at) VALUES ('` + bkKid + `','dark','compact','` + bkLayout + `','2026-09-13T00:00:00Z'),
- ('` + bkAdmin + `','light','comfortable',NULL,'2026-09-13T00:00:01Z')`},
+		{"preferences", `INSERT INTO user_preferences(user_id,theme,density,layout,display,updated_at) VALUES ('` + bkKid + `','dark','compact','` + bkLayout + `','` + bkDisplay + `','2026-09-13T00:00:00Z'),
+ ('` + bkAdmin + `','light','comfortable',NULL,NULL,'2026-09-13T00:00:01Z')`},
 		{"guest preferences", `INSERT INTO user_preferences(user_id,theme) SELECT id,'light' FROM users WHERE share_id='` + bkShare + `'`},
 		{"version preferences", `INSERT INTO user_version_preferences(user_id,max_height,dynamic_range,prefer_smaller,max_bitrate,updated_at) VALUES ('` + bkKid + `',1080,'sdr',true,20000000,'2026-09-13T00:00:00Z')`},
 		{"guest version preferences", `INSERT INTO user_version_preferences(user_id,max_height) SELECT id,720 FROM users WHERE share_id='` + bkShare + `'`},
